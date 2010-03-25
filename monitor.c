@@ -1097,6 +1097,7 @@ static int do_change_block(Monitor *mon, const char *device,
         return -1;
     }
     if (bdrv_open2(bs, filename, BDRV_O_RDWR, drv) < 0) {
+        qerror_report(QERR_OPEN_FILE_FAILED, filename);
         return -1;
     }
     return monitor_read_bdrv_key_start(mon, bs, NULL, NULL);
