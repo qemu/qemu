@@ -35,6 +35,9 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <signal.h>
+#ifdef __FreeBSD__
+#include <sys/param.h>
+#endif
 
 #ifdef __linux__
 #include <sys/ioctl.h>
