@@ -67,6 +67,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_DEVICE_INIT_FAILED \
     "{ 'class': 'DeviceInitFailed', 'data': { 'device': %s } }"
 
+#define QERR_DEVICE_IN_USE \
+    "{ 'class': 'DeviceInUse', 'data': { 'device': %s } }"
+
 #define QERR_DEVICE_LOCKED \
     "{ 'class': 'DeviceLocked', 'data': { 'device': %s } }"
 

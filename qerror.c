@@ -69,6 +69,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Device '%(device)' could not be initialized",
     },
     {
+        .error_fmt = QERR_DEVICE_IN_USE,
+        .desc      = "Device '%(device)' is in use",
+    },
+    {
         .error_fmt = QERR_DEVICE_LOCKED,
         .desc      = "Device '%(device)' is locked",
     },
