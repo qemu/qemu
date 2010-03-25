@@ -38,6 +38,10 @@ static const QType qerror_type = {
  * for example:
  *
  * "running out of foo: %(foo)%%"
+ *
+ * Please keep the entries in alphabetical order.
+ * Use "sed -n '/^static.*qerror_table\[\]/,/^};/s/QERR_/&/gp' qerror.c | sort -c"
+ * to check.
  */
 static const QErrorStringTable qerror_table[] = {
     {
@@ -65,10 +69,6 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Device '%(device)' could not be initialized",
     },
     {
-        .error_fmt = QERR_DEVICE_NOT_ENCRYPTED,
-        .desc      = "Device '%(device)' is not encrypted",
-    },
-    {
         .error_fmt = QERR_DEVICE_LOCKED,
         .desc      = "Device '%(device)' is locked",
     },
@@ -79,6 +79,10 @@ static const QErrorStringTable qerror_table[] = {
     {
         .error_fmt = QERR_DEVICE_NOT_ACTIVE,
         .desc      = "Device '%(device)' has not been activated by the guest",
+    },
+    {
+        .error_fmt = QERR_DEVICE_NOT_ENCRYPTED,
+        .desc      = "Device '%(device)' is not encrypted",
     },
     {
         .error_fmt = QERR_DEVICE_NOT_FOUND,
