@@ -88,6 +88,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_DEVICE_NO_BUS \
     "{ 'class': 'DeviceNoBus', 'data': { 'device': %s } }"
 
+#define QERR_DUPLICATE_ID \
+    "{ 'class': 'DuplicateId', 'data': { 'id': %s, 'object': %s } }"
+
 #define QERR_FD_NOT_FOUND \
     "{ 'class': 'FdNotFound', 'data': { 'name': %s } }"
 
