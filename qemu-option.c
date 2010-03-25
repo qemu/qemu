@@ -176,7 +176,7 @@ static int parse_option_bool(const char *name, const char *value, int *ret)
         } else if (!strcmp(value, "off")) {
             *ret = 0;
         } else {
-            fprintf(stderr, "Option '%s': Use 'on' or 'off'\n", name);
+            qerror_report(QERR_INVALID_PARAMETER_VALUE, name, "'on' or 'off'");
             return -1;
         }
     } else {
@@ -193,12 +193,12 @@ static int parse_option_number(const char *name, const char *value, uint64_t *re
     if (value != NULL) {
         number = strtoull(value, &postfix, 0);
         if (*postfix != '\0') {
-            fprintf(stderr, "Option '%s' needs a number as parameter\n", name);
+            qerror_report(QERR_INVALID_PARAMETER_VALUE, name, "a number");
             return -1;
         }
         *ret = number;
     } else {
-        fprintf(stderr, "Option '%s' needs a parameter\n", name);
+        qerror_report(QERR_INVALID_PARAMETER_VALUE, name, "a number");
         return -1;
     }
     return 0;
@@ -226,13 +226,13 @@ static int parse_option_size(const char *name, const char *value, uint64_t *ret)
             *ret = (uint64_t) sizef;
             break;
         default:
-            fprintf(stderr, "Option '%s' needs size as parameter\n", name);
-            fprintf(stderr, "You may use k, M, G or T suffixes for "
+            qerror_report(QERR_INVALID_PARAMETER_VALUE, name, "a size");
+            error_printf_unless_qmp("You may use k, M, G or T suffixes for "
                     "kilobytes, megabytes, gigabytes and terabytes.\n");
             return -1;
         }
     } else {
-        fprintf(stderr, "Option '%s' needs a parameter\n", name);
+        qerror_report(QERR_INVALID_PARAMETER_VALUE, name, "a size");
         return -1;
     }
     return 0;
@@ -581,8 +581,7 @@ int qemu_opt_set(QemuOpts *opts, const char *name, const char *value)
         if (i == 0) {
             /* empty list -> allow any */;
         } else {
-            fprintf(stderr, "option \"%s\" is not valid for %s\n",
-                    name, opts->list->name);
+            qerror_report(QERR_INVALID_PARAMETER, name);
             return -1;
         }
     }
@@ -598,8 +597,6 @@ int qemu_opt_set(QemuOpts *opts, const char *name, const char *value)
         opt->str = qemu_strdup(value);
     }
     if (qemu_opt_parse(opt) < 0) {
-        fprintf(stderr, "Failed to parse \"%s\" for \"%s.%s\"\n", opt->str,
-                opts->list->name, opt->name);
         qemu_opt_del(opt);
         return -1;
     }
