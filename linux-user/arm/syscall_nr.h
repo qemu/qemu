@@ -338,7 +338,7 @@
 #define TARGET_NR_readlinkat			(332)
 #define TARGET_NR_fchmodat			(333)
 #define TARGET_NR_faccessat			(334)
-					/* 335 for pselect6 */
+#define TARGET_NR_pselect6			(335)
 					/* 336 for ppoll */
 #define TARGET_NR_unshare			(337)
 #define TARGET_NR_set_robust_list		(338)
