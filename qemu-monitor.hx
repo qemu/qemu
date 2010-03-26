@@ -986,16 +986,16 @@ ETEXI
 
     {
         .name       = "set_link",
-        .args_type  = "name:s,up_or_down:s",
-        .params     = "name up|down",
+        .args_type  = "name:s,up:b",
+        .params     = "name on|off",
         .help       = "change the link status of a network adapter",
         .mhandler.cmd = do_set_link,
     },
 
 STEXI
-@item set_link @var{name} [up|down]
+@item set_link @var{name} [on|off]
 @findex set_link
-Set link @var{name} up or down.
+Switch link @var{name} on (i.e. up) or off (i.e. down).
 ETEXI
 
     {

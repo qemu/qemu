@@ -1276,7 +1276,7 @@ void do_set_link(Monitor *mon, const QDict *qdict)
     VLANState *vlan;
     VLANClientState *vc = NULL;
     const char *name = qdict_get_str(qdict, "name");
-    const char *up_or_down = qdict_get_str(qdict, "up_or_down");
+    int up = qdict_get_bool(qdict, "up");
 
     QTAILQ_FOREACH(vlan, &vlans, next) {
         QTAILQ_FOREACH(vc, &vlan->clients, next) {
@@ -1293,13 +1293,7 @@ done:
         return;
     }
 
-    if (strcmp(up_or_down, "up") == 0)
-        vc->link_down = 0;
-    else if (strcmp(up_or_down, "down") == 0)
-        vc->link_down = 1;
-    else
-        monitor_printf(mon, "invalid link status '%s'; only 'up' or 'down' "
-                       "valid\n", up_or_down);
+    vc->link_down = !up;
 
     if (vc->info->link_status_changed) {
         vc->info->link_status_changed(vc);
