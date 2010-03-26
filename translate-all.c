@@ -104,10 +104,6 @@ int cpu_gen_code(CPUState *env, TranslationBlock *tb, int *gen_code_size_ptr)
 #ifdef USE_DIRECT_JUMP
     s->tb_jmp_offset = tb->tb_jmp_offset;
     s->tb_next = NULL;
-    /* the following two entries are optional (only used for string ops) */
-    /* XXX: not used ? */
-    tb->tb_jmp_offset[2] = 0xffff;
-    tb->tb_jmp_offset[3] = 0xffff;
 #else
     s->tb_jmp_offset = NULL;
     s->tb_next = tb->tb_next;
