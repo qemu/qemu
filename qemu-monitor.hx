@@ -804,7 +804,7 @@ ETEXI
 
     {
         .name       = "migrate_set_speed",
-        .args_type  = "value:b",
+        .args_type  = "value:f",
         .params     = "value",
         .help       = "set maximum speed (in bytes) for migrations",
         .user_print = monitor_user_noop,

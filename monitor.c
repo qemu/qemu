@@ -74,7 +74,7 @@
  * 'l'          target long (32 or 64 bit)
  * 'M'          just like 'l', except in user mode the value is
  *              multiplied by 2^20 (think Mebibyte)
- * 'b'          double
+ * 'f'          double
  *              user mode accepts an optional G, g, M, m, K, k suffix,
  *              which multiplies the value by 2^30 for suffixes G and
  *              g, 2^20 for M and m, 2^10 for K and k
@@ -3714,7 +3714,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                 qdict_put(qdict, key, qint_from_int(val));
             }
             break;
-        case 'b':
+        case 'f':
         case 'T':
             {
                 double val;
@@ -3730,7 +3730,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                 if (get_double(mon, &val, &p) < 0) {
                     goto fail;
                 }
-                if (c == 'b' && *p) {
+                if (c == 'f' && *p) {
                     switch (*p) {
                     case 'K': case 'k':
                         val *= 1 << 10; p++; break;
@@ -4231,7 +4231,7 @@ static int check_arg(const CmdArgs *cmd_args, QDict *args)
                 return -1;
             }
             break;
-        case 'b':
+        case 'f':
         case 'T':
             if (qobject_type(value) != QTYPE_QINT && qobject_type(value) != QTYPE_QFLOAT) {
                 qerror_report(QERR_INVALID_PARAMETER_TYPE, name, "number");
