@@ -85,6 +85,8 @@
  *
  * '?'          optional type (for all types, except '/')
  * '.'          other form of optional type (for 'i' and 'l')
+ * 'b'          boolean
+ *              user mode accepts "on" or "off"
  * '-'          optional parameter (eg. '-f')
  *
  */
@@ -3757,6 +3759,29 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                 qdict_put(qdict, key, qfloat_from_double(val));
             }
             break;
+        case 'b':
+            {
+                const char *beg;
+                int val;
+
+                while (qemu_isspace(*p)) {
+                    p++;
+                }
+                beg = p;
+                while (qemu_isgraph(*p)) {
+                    p++;
+                }
+                if (p - beg == 2 && !memcmp(beg, "on", p - beg)) {
+                    val = 1;
+                } else if (p - beg == 3 && !memcmp(beg, "off", p - beg)) {
+                    val = 0;
+                } else {
+                    monitor_printf(mon, "Expected 'on' or 'off'\n");
+                    goto fail;
+                }
+                qdict_put(qdict, key, qbool_from_int(val));
+            }
+            break;
         case '-':
             {
                 const char *tmp = p;
@@ -4235,6 +4260,12 @@ static int check_arg(const CmdArgs *cmd_args, QDict *args)
         case 'T':
             if (qobject_type(value) != QTYPE_QINT && qobject_type(value) != QTYPE_QFLOAT) {
                 qerror_report(QERR_INVALID_PARAMETER_TYPE, name, "number");
+                return -1;
+            }
+            break;
+        case 'b':
+            if (qobject_type(value) != QTYPE_QBOOL) {
+                qerror_report(QERR_INVALID_PARAMETER_TYPE, name, "bool");
                 return -1;
             }
             break;
