@@ -1629,6 +1629,21 @@ if compile_prog "" "" ; then
   inotify=yes
 fi
 
+inotify1=no
+cat > $TMPC << EOF
+#include <sys/inotify.h>
+
+int
+main(void)
+{
+    /* try to start inotify */
+    return inotify_init1(0);
+}
+EOF
+if compile_prog "" "" ; then
+  inotify1=yes
+fi
+
 # check if utimensat and futimens are supported
 utimens=no
 cat > $TMPC << EOF
@@ -2135,6 +2150,9 @@ if test "$dup3" = "yes" ; then
 fi
 if test "$inotify" = "yes" ; then
   echo "CONFIG_INOTIFY=y" >> $config_host_mak
+fi
+if test "$inotify1" = "yes" ; then
+  echo "CONFIG_INOTIFY1=y" >> $config_host_mak
 fi
 if test "$byteswap_h" = "yes" ; then
   echo "CONFIG_BYTESWAP_H=y" >> $config_host_mak
