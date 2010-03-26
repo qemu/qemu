@@ -118,7 +118,7 @@ int qemu_find_nic_model(NICInfo *nd, const char * const *models,
                         const char *default_model);
 
 void do_info_network(Monitor *mon);
-void do_set_link(Monitor *mon, const QDict *qdict);
+int do_set_link(Monitor *mon, const QDict *qdict, QObject **ret_data);
 
 /* NIC info */
 
