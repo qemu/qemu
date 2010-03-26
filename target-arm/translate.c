@@ -4890,7 +4890,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 imm = (imm << 8) | (imm << 24);
                 break;
             case 12:
-                imm = (imm < 8) | 0xff;
+                imm = (imm << 8) | 0xff;
                 break;
             case 13:
                 imm = (imm << 16) | 0xffff;
