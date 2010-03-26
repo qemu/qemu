@@ -850,10 +850,11 @@ static int qcow_create2(const char *filename, int64_t total_size,
 {
 
     int fd, header_size, backing_filename_len, l1_size, i, shift, l2_bits;
-    int ref_clusters, backing_format_len = 0;
+    int ref_clusters, reftable_clusters, backing_format_len = 0;
     int rounded_ext_bf_len = 0;
     QCowHeader header;
     uint64_t tmp, offset;
+    uint64_t old_ref_clusters;
     QCowCreateState s1, *s = &s1;
     QCowExtension ext_bf = {0, 0};
     int ret;
@@ -912,17 +913,37 @@ static int qcow_create2(const char *filename, int64_t total_size,
     header.l1_size = cpu_to_be32(l1_size);
     offset += align_offset(l1_size * sizeof(uint64_t), s->cluster_size);
 
-    s->refcount_table = qemu_mallocz(s->cluster_size);
+    /* count how many refcount blocks needed */
+
+#define NUM_CLUSTERS(bytes) \
+    (((bytes) + (s->cluster_size) - 1) / (s->cluster_size))
+
+    ref_clusters = NUM_CLUSTERS(NUM_CLUSTERS(offset) * sizeof(uint16_t));
+
+    do {
+        uint64_t image_clusters;
+        old_ref_clusters = ref_clusters;
+
+        /* Number of clusters used for the refcount table */
+        reftable_clusters = NUM_CLUSTERS(ref_clusters * sizeof(uint64_t));
+
+        /* Number of clusters that the whole image will have */
+        image_clusters = NUM_CLUSTERS(offset) + ref_clusters
+            + reftable_clusters;
+
+        /* Number of refcount blocks needed for the image */
+        ref_clusters = NUM_CLUSTERS(image_clusters * sizeof(uint16_t));
+
+    } while (ref_clusters != old_ref_clusters);
+
+    s->refcount_table = qemu_mallocz(reftable_clusters * s->cluster_size);
 
     s->refcount_table_offset = offset;
     header.refcount_table_offset = cpu_to_be64(offset);
-    header.refcount_table_clusters = cpu_to_be32(1);
-    offset += s->cluster_size;
+    header.refcount_table_clusters = cpu_to_be32(reftable_clusters);
+    offset += (reftable_clusters * s->cluster_size);
     s->refcount_block_offset = offset;
 
-    /* count how many refcount blocks needed */
-    tmp = offset >> s->cluster_bits;
-    ref_clusters = (tmp >> (s->cluster_bits - REFCOUNT_SHIFT)) + 1;
     for (i=0; i < ref_clusters; i++) {
         s->refcount_table[i] = cpu_to_be64(offset);
         offset += s->cluster_size;
@@ -934,7 +955,8 @@ static int qcow_create2(const char *filename, int64_t total_size,
     qcow2_create_refcount_update(s, 0, header_size);
     qcow2_create_refcount_update(s, s->l1_table_offset,
         l1_size * sizeof(uint64_t));
-    qcow2_create_refcount_update(s, s->refcount_table_offset, s->cluster_size);
+    qcow2_create_refcount_update(s, s->refcount_table_offset,
+        reftable_clusters * s->cluster_size);
     qcow2_create_refcount_update(s, s->refcount_block_offset,
         ref_clusters * s->cluster_size);
 
@@ -986,8 +1008,9 @@ static int qcow_create2(const char *filename, int64_t total_size,
         }
     }
     lseek(fd, s->refcount_table_offset, SEEK_SET);
-    ret = qemu_write_full(fd, s->refcount_table, s->cluster_size);
-    if (ret != s->cluster_size) {
+    ret = qemu_write_full(fd, s->refcount_table,
+        reftable_clusters * s->cluster_size);
+    if (ret != reftable_clusters * s->cluster_size) {
         ret = -errno;
         goto exit;
     }
