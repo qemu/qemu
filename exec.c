@@ -2668,7 +2668,7 @@ static long gethugepagesize(const char *path)
     } while (ret != 0 && errno == EINTR);
 
     if (ret != 0) {
-	    perror("statfs");
+	    perror(path);
 	    return 0;
     }
 
@@ -2708,7 +2708,7 @@ static void *file_ram_alloc(ram_addr_t memory, const char *path)
 
     fd = mkstemp(filename);
     if (fd < 0) {
-	perror("mkstemp");
+	perror("unable to create backing store for hugepages");
 	free(filename);
 	return NULL;
     }
