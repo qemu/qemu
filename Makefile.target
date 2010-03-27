@@ -196,10 +196,6 @@ obj-y += e100.o
 obj-y += eepro100.o
 obj-y += rtl8139.o
 obj-y += e1000.o
-ifndef CONFIG_WIN32
-obj-y += atheros_wlan.o atheros_wlan_io.o atheros_wlan_ap.o
-obj-y += atheros_wlan_packet.o atheros_wlan_crc32.o
-endif
 obj-y += tnetw1130.o
 
 # Hardware support

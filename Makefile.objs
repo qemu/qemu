@@ -158,6 +158,12 @@ hw-obj-y += ne2000.o
 #hw-obj-y += eepro100.o
 hw-obj-y += pcnet.o
 
+# PCI wlan cards
+ifndef CONFIG_WIN32
+hw-obj-y += atheros_wlan.o atheros_wlan_io.o atheros_wlan_ap.o
+hw-obj-y += atheros_wlan_packet.o atheros_wlan_crc32.o
+endif
+
 hw-obj-$(CONFIG_SMC91C111) += smc91c111.o
 hw-obj-$(CONFIG_LAN9118) += lan9118.o
 hw-obj-$(CONFIG_NE2000_ISA) += ne2000-isa.o
