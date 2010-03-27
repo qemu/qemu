@@ -25,6 +25,7 @@
 #include "net/tap.h"
 #include "qemu-common.h"
 #include "sysemu.h"
+#include "qemu-error.h"
 
 #ifdef __NetBSD__
 #include <net/if_tap.h>

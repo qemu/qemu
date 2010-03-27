@@ -31,6 +31,7 @@
 #include "qemu-common.h"
 #include "net.h"
 #include "sysemu.h"
+#include "qemu-error.h"
 #include <stdio.h>
 #include <windows.h>
 #include <winioctl.h>
