@@ -197,6 +197,7 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_qemu_ld8s, { "r", "L", "L" } },
     { INDEX_op_qemu_ld16u, { "r", "L", "L" } },
     { INDEX_op_qemu_ld16s, { "r", "L", "L" } },
+    { INDEX_op_qemu_ld32, { "r", "L", "L" } },
     { INDEX_op_qemu_ld64, { "r", "r", "L", "L" } },
 #else
     { INDEX_op_qemu_ld8u, { "r", "L" } },
@@ -207,6 +208,7 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_qemu_ld32u, { "r", "L" } },
     { INDEX_op_qemu_ld32s, { "r", "L" } },
 #endif
+    { INDEX_op_qemu_ld32, { "r", "L" } },
 #if TCG_TARGET_REG_BITS == 32
     { INDEX_op_qemu_ld64, { "r", "r", "L" } },
 #else
