@@ -192,7 +192,6 @@ obj-$(CONFIG_XEN) += xen_machine_pv.o xen_domainbuild.o
 
 # PCI network cards
 obj-y += dp8381x.o
-obj-y += e100.o
 obj-y += eepro100.o
 obj-y += rtl8139.o
 obj-y += e1000.o

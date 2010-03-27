@@ -154,6 +154,7 @@ hw-obj-y += wdt_i6300esb.o
 hw-obj-y += msix.o
 
 # PCI network cards
+hw-obj-y += e100.o
 hw-obj-y += ne2000.o
 #hw-obj-y += eepro100.o
 hw-obj-y += pcnet.o
