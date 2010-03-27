@@ -230,19 +230,19 @@ static uint32_t traceflags;
 
 #define SET_TRACEFLAG(name) \
     do { \
-        char *substring = strstr(env, #name); \
+        char *substring = strstr(envvalue, #name); \
         if (substring) { \
-            name = ((substring > env && substring[-1] == '-') ? 0 : 1); \
+            name = ((substring > envvalue && substring[-1] == '-') ? 0 : 1); \
         } \
         TRACE(name, logout("Logging enabled for " #name "\n")); \
     } while(0)
 
 static void set_traceflags(const char *envname)
 {
-    const char *env = getenv(envname);
-    if (env != 0) {
-        unsigned long ul = strtoul(env, 0, 0);
-        if ((ul == 0) && strstr(env, "ALL")) ul = 0xffffffff;
+    const char *envvalue = getenv(envname);
+    if (envvalue != 0) {
+        unsigned long ul = strtoul(envvalue, 0, 0);
+        if ((ul == 0) && strstr(envvalue, "ALL")) ul = 0xffffffff;
         traceflags = ul;
         SET_TRACEFLAG(TNETW);
     }

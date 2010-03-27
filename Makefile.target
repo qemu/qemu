@@ -196,7 +196,6 @@ obj-y += e100.o
 obj-y += eepro100.o
 obj-y += rtl8139.o
 obj-y += e1000.o
-obj-y += tnetw1130.o
 
 # Hardware support
 obj-i386-y = pckbd.o dma.o
