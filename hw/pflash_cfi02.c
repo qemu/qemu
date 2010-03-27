@@ -103,13 +103,13 @@ static void pflash_timer (void *opaque)
     pfl->cmd = 0;
 }
 
-static uint32_t pflash_read (pflash_t *pfl, uint32_t offset, int width)
+static uint32_t pflash_read (pflash_t *pfl, target_phys_addr_t offset, int width)
 {
-    uint32_t boff;
+    target_phys_addr_t boff;
     uint32_t ret;
     uint8_t *p;
 
-    DPRINTF("%s: offset " TARGET_FMT_lx "\n", __func__, offset);
+    DPRINTF("%s: offset " TARGET_FMT_plx "\n", __func__, offset);
     ret = -1;
     if (pfl->rom_mode) {
         /* Lazy reset of to ROMD mode */
@@ -184,7 +184,7 @@ static uint32_t pflash_read (pflash_t *pfl, uint32_t offset, int width)
         default:
             goto flash_read;
         }
-        DPRINTF("%s: ID " TARGET_FMT_ld " %x\n", __func__, boff, ret);
+        DPRINTF("%s: ID " TARGET_FMT_pld " %x\n", __func__, boff, ret);
         break;
     case 0xA0:
     case 0x10:
@@ -222,10 +222,10 @@ static void pflash_update(pflash_t *pfl, int offset,
     }
 }
 
-static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
-                          int width)
+static void pflash_write (pflash_t *pfl, target_phys_addr_t offset,
+                          uint32_t value, int width)
 {
-    uint32_t boff;
+    target_phys_addr_t boff;
     uint8_t *p;
     uint8_t cmd;
 
@@ -237,11 +237,11 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
 #endif
         goto reset_flash;
     }
-    DPRINTF("%s: offset " TARGET_FMT_lx " %08x %d %d\n", __func__,
+    DPRINTF("%s: offset " TARGET_FMT_plx " %08x %d %d\n", __func__,
             offset, value, width, pfl->wcycle);
     offset &= pfl->chip_len - 1;
 
-    DPRINTF("%s: offset " TARGET_FMT_lx " %08x %d\n", __func__,
+    DPRINTF("%s: offset " TARGET_FMT_plx " %08x %d\n", __func__,
             offset, value, width);
     boff = offset & (pfl->sector_len - 1);
     if (pfl->width == 2)
@@ -263,7 +263,7 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
             return;
         }
         if (boff != pfl->unlock_addr[0] || cmd != 0xAA) {
-            DPRINTF("%s: unlock0 failed " TARGET_FMT_lx " %02x %04x\n",
+            DPRINTF("%s: unlock0 failed " TARGET_FMT_plx " %02x %04x\n",
                     __func__, boff, cmd, pfl->unlock_addr[0]);
             goto reset_flash;
         }
@@ -273,7 +273,7 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
         /* We started an unlock sequence */
     check_unlock1:
         if (boff != pfl->unlock_addr[1] || cmd != 0x55) {
-            DPRINTF("%s: unlock1 failed " TARGET_FMT_lx " %02x\n", __func__,
+            DPRINTF("%s: unlock1 failed " TARGET_FMT_plx " %02x\n", __func__,
                     boff, cmd);
             goto reset_flash;
         }
@@ -282,7 +282,7 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
     case 2:
         /* We finished an unlock sequence */
         if (!pfl->bypass && boff != pfl->unlock_addr[0]) {
-            DPRINTF("%s: command failed " TARGET_FMT_lx " %02x\n", __func__,
+            DPRINTF("%s: command failed " TARGET_FMT_plx " %02x\n", __func__,
                     boff, cmd);
             goto reset_flash;
         }
@@ -307,7 +307,7 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
             /* We need another unlock sequence */
             goto check_unlock0;
         case 0xA0:
-            DPRINTF("%s: write data offset " TARGET_FMT_lx " %08x %d\n",
+            DPRINTF("%s: write data offset " TARGET_FMT_plx " %08x %d\n",
                     __func__, offset, value, width);
             p = pfl->storage;
             switch (width) {
@@ -378,7 +378,7 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
         switch (cmd) {
         case 0x10:
             if (boff != pfl->unlock_addr[0]) {
-                DPRINTF("%s: chip erase: invalid address " TARGET_FMT_lx "\n",
+                DPRINTF("%s: chip erase: invalid address " TARGET_FMT_plx "\n",
                         __func__, offset);
                 goto reset_flash;
             }
@@ -395,7 +395,7 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
             /* Sector erase */
             p = pfl->storage;
             offset &= ~(pfl->sector_len - 1);
-            DPRINTF("%s: start sector erase at " TARGET_FMT_lx "\n", __func__,
+            DPRINTF("%s: start sector erase at " TARGET_FMT_plx "\n", __func__,
                     offset);
             memset(p + offset, 0xFF, pfl->sector_len);
             pflash_update(pfl, offset, pfl->sector_len);
