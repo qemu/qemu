@@ -1,6 +1,7 @@
 #include "sysemu.h"
 #include "net.h"
 #include "qdev.h"
+#include "qerror.h"
 
 void *qdev_get_prop_ptr(DeviceState *dev, Property *prop)
 {

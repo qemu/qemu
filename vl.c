@@ -2931,6 +2931,20 @@ static bool tcg_cpu_exec(void)
     return tcg_has_work();
 }
 
+static void set_numa_modes(void)
+{
+    CPUState *env;
+    int i;
+
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        for (i = 0; i < nb_numa_nodes; i++) {
+            if (node_cpumask[i] & (1 << env->cpu_index)) {
+                env->numa_node = i;
+            }
+        }
+    }
+}
+
 static int vm_can_run(void)
 {
     if (powerdown_requested)
@@ -3780,7 +3794,6 @@ int main(int argc, char **argv, char **envp)
 #endif
     const char *run_as = NULL;
 #endif
-    CPUState *env;
     int show_vnc_port = 0;
     int defconfig = 1;
 
@@ -4907,13 +4920,7 @@ int main(int argc, char **argv, char **envp)
     sighandler_setup();
 #endif
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        for (i = 0; i < nb_numa_nodes; i++) {
-            if (node_cpumask[i] & (1 << env->cpu_index)) {
-                env->numa_node = i;
-            }
-        }
-    }
+    set_numa_modes();
 
     current_machine = machine;
 

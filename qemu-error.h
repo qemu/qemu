@@ -37,11 +37,5 @@ void error_printf_unless_qmp(const char *fmt, ...)
 void error_print_loc(void);
 void error_set_progname(const char *argv0);
 void error_report(const char *fmt, ...) __attribute__ ((format(printf, 1, 2)));
-void qerror_report_internal(const char *file, int linenr, const char *func,
-                            const char *fmt, ...)
-    __attribute__ ((format(printf, 4, 5)));
-
-#define qerror_report(fmt, ...) \
-    qerror_report_internal(__FILE__, __LINE__, __func__, fmt, ## __VA_ARGS__)
 
 #endif

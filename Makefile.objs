@@ -181,6 +181,7 @@ hw-obj-$(CONFIG_QDEV_ADDR) += qdev-addr.o
 hw-obj-$(CONFIG_VGA_PCI) += vga-pci.o
 hw-obj-$(CONFIG_VGA_ISA) += vga-isa.o
 hw-obj-$(CONFIG_VGA_ISA_MM) += vga-isa-mm.o
+hw-obj-$(CONFIG_VMWARE_VGA) += vmware_vga.o
 
 hw-obj-$(CONFIG_RC4030) += rc4030.o
 hw-obj-$(CONFIG_DP8393X) += dp8393x.o

@@ -12,6 +12,7 @@
  */
 
 #include <stdbool.h>
+#include <stdarg.h>
 
 #include "qemu-common.h"
 #include "qstring.h"
@@ -93,7 +94,12 @@ static int token_is_escape(QObject *obj, const char *value)
  */
 static void parse_error(JSONParserContext *ctxt, QObject *token, const char *msg, ...)
 {
-    fprintf(stderr, "parse error: %s\n", msg);
+    va_list ap;
+    va_start(ap, msg);
+    fprintf(stderr, "parse error: ");
+    vfprintf(stderr, msg, ap);
+    fprintf(stderr, "\n");
+    va_end(ap);
 }
 
 /**

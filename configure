@@ -731,6 +731,9 @@ case "$cpu" in
     ppc*)
            host_guest_base="yes"
            ;;
+    mips*)
+           host_guest_base="yes"
+           ;;
 esac
 
 [ -z "$guest_base" ] && guest_base="$host_guest_base"

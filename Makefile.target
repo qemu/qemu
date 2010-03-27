@@ -207,7 +207,7 @@ obj-i386-y = pckbd.o dma.o
 obj-i386-y += vga.o
 obj-i386-y += mc146818rtc.o i8259.o pc.o
 obj-i386-y += cirrus_vga.o apic.o ioapic.o acpi.o piix_pci.o
-obj-i386-y += vmmouse.o vmport.o vmware_vga.o hpet.o
+obj-i386-y += vmmouse.o vmport.o hpet.o
 obj-i386-y += device-hotplug.o pci-hotplug.o smbios.o wdt_ib700.o
 obj-i386-y += debugcon.o multiboot.o
 
@@ -238,7 +238,6 @@ obj-mips-y += g364fb.o jazz_led.o
 obj-mips-y += gt64xxx.o pckbd.o mc146818rtc.o acpi.o
 obj-mips-y += piix4.o cirrus_vga.o
 obj-mips-y += pflash_cfi01.o
-obj-mips-y += vmware_vga.o
 obj-mips-$(CONFIG_AR7) += ar7.o
 obj-mips-$(CONFIG_PFLASH) += pflash.o
 obj-mips-$(CONFIG_PFLASH) += pflash_amd.o

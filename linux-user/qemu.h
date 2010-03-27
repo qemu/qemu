@@ -246,7 +246,7 @@ void mmap_fork_end(int child);
 #endif
 
 /* main.c */
-extern unsigned long x86_stack_size;
+extern unsigned long guest_stack_size;
 
 /* user access */
 

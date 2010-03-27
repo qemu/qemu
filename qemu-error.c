@@ -167,7 +167,7 @@ void error_print_loc(void)
     int i;
     const char *const *argp;
 
-    if (!cur_mon) {
+    if (!cur_mon && progname) {
         fprintf(stderr, "%s:", progname);
         sep = " ";
     }
@@ -206,22 +206,4 @@ void error_report(const char *fmt, ...)
     error_vprintf(fmt, ap);
     va_end(ap);
     error_printf("\n");
-}
-
-void qerror_report_internal(const char *file, int linenr, const char *func,
-                            const char *fmt, ...)
-{
-    va_list va;
-    QError *qerror;
-
-    va_start(va, fmt);
-    qerror = qerror_from_info(file, linenr, func, fmt, &va);
-    va_end(va);
-
-    if (monitor_cur_is_qmp()) {
-        monitor_set_error(cur_mon, qerror);
-    } else {
-        qerror_print(qerror);
-        QDECREF(qerror);
-    }
 }

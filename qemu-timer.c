@@ -35,6 +35,9 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <signal.h>
+#ifdef __FreeBSD__
+#include <sys/param.h>
+#endif
 
 #ifdef __linux__
 #include <sys/ioctl.h>
@@ -704,13 +707,13 @@ void configure_icount(const char *option)
 
 void qemu_run_all_timers(void)
 {
+    alarm_timer->pending = 0;
+
     /* rearm timer, if not periodic */
     if (alarm_timer->expired) {
         alarm_timer->expired = 0;
         qemu_rearm_alarm_timer(alarm_timer);
     }
-
-    alarm_timer->pending = 0;
 
     /* vm time timers */
     if (vm_running) {

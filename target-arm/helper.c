@@ -979,6 +979,7 @@ static int get_phys_addr_v5(CPUState *env, uint32_t address, int access_type,
         /* Access permission fault.  */
         goto do_fault;
     }
+    *prot |= PAGE_EXEC;
     *phys_ptr = phys_addr;
     return 0;
 do_fault:
@@ -1075,6 +1076,9 @@ static int get_phys_addr_v6(CPUState *env, uint32_t address, int access_type,
         /* Access permission fault.  */
         goto do_fault;
     }
+    if (!xn) {
+        *prot |= PAGE_EXEC;
+    }
     *phys_ptr = phys_addr;
     return 0;
 do_fault:
@@ -1137,6 +1141,7 @@ static int get_phys_addr_mpu(CPUState *env, uint32_t address, int access_type,
 	/* Bad permission.  */
 	return 1;
     }
+    *prot |= PAGE_EXEC;
     return 0;
 }
 
@@ -1152,7 +1157,7 @@ static inline int get_phys_addr(CPUState *env, uint32_t address,
     if ((env->cp15.c1_sys & 1) == 0) {
         /* MMU/MPU disabled.  */
         *phys_ptr = address;
-        *prot = PAGE_READ | PAGE_WRITE;
+        *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         *page_size = TARGET_PAGE_SIZE;
         return 0;
     } else if (arm_feature(env, ARM_FEATURE_MPU)) {
@@ -1183,8 +1188,7 @@ int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address,
         /* Map a single [sub]page.  */
         phys_addr &= ~(uint32_t)0x3ff;
         address &= ~(uint32_t)0x3ff;
-        tlb_set_page (env, address, phys_addr, prot | PAGE_EXEC, mmu_idx,
-                      page_size);
+        tlb_set_page (env, address, phys_addr, prot, mmu_idx, page_size);
         return 0;
     }
 

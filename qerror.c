@@ -9,11 +9,11 @@
  * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
  * See the COPYING.LIB file in the top-level directory.
  */
+
+#include "monitor.h"
 #include "qjson.h"
 #include "qerror.h"
-#include "qstring.h"
 #include "qemu-common.h"
-#include "qemu-error.h"
 
 static void qerror_destroy_obj(QObject *obj);
 
@@ -377,6 +377,24 @@ void qerror_print(QError *qerror)
     error_report("%s", qstring_get_str(qstring));
     loc_pop(&qerror->loc);
     QDECREF(qstring);
+}
+
+void qerror_report_internal(const char *file, int linenr, const char *func,
+                            const char *fmt, ...)
+{
+    va_list va;
+    QError *qerror;
+
+    va_start(va, fmt);
+    qerror = qerror_from_info(file, linenr, func, fmt, &va);
+    va_end(va);
+
+    if (monitor_cur_is_qmp()) {
+        monitor_set_error(cur_mon, qerror);
+    } else {
+        qerror_print(qerror);
+        QDECREF(qerror);
+    }
 }
 
 /**
