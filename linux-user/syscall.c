@@ -7062,10 +7062,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = get_errno(sys_inotify_init());
         break;
 #endif
+#ifdef CONFIG_INOTIFY1
 #if defined(TARGET_NR_inotify_init1) && defined(__NR_inotify_init1)
     case TARGET_NR_inotify_init1:
         ret = get_errno(sys_inotify_init1(arg1));
         break;
+#endif
 #endif
 #if defined(TARGET_NR_inotify_add_watch) && defined(__NR_inotify_add_watch)
     case TARGET_NR_inotify_add_watch:
