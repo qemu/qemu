@@ -1549,7 +1549,8 @@ static uint32_t eepro100_read4(EEPRO100State * s, uint32_t addr)
 
 static void eepro100_write1(EEPRO100State * s, uint32_t addr, uint8_t val)
 {
-    if (addr <= sizeof(s->mem) - sizeof(val)) {
+    /* SCBStatus is readonly. */
+    if (addr > SCBStatus && addr <= sizeof(s->mem) - sizeof(val)) {
         memcpy(&s->mem[addr], &val, sizeof(val));
     }
 
@@ -1594,7 +1595,8 @@ static void eepro100_write2(EEPRO100State * s, uint32_t addr, uint16_t val)
 #if defined(TARGET_WORDS_BIGENDIAN)
     bswap16s(&val);
 #endif
-    if (addr <= sizeof(s->mem) - sizeof(val)) {
+    /* SCBStatus is readonly. */
+    if (addr > SCBStatus && addr <= sizeof(s->mem) - sizeof(val)) {
         memcpy(&s->mem[addr], &val, sizeof(val));
     }
 
@@ -1602,6 +1604,7 @@ static void eepro100_write2(EEPRO100State * s, uint32_t addr, uint16_t val)
 
     switch (addr) {
     case SCBStatus:
+        s->mem[SCBAck] = (val >> 8);
 #if 0
         eepro100_write_status(s, val);
 #endif
