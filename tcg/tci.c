@@ -400,8 +400,8 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
         uint16_t i16, u16;
 #if TCG_TARGET_REG_BITS == 64
         uint32_t i32;
-#endif
         uint32_t u32;
+#endif
         uint64_t u64;
 
         tci_disas(opc);
@@ -1012,6 +1012,7 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
 #endif
             tci_write_reg16s(t0, tswap16(i16));
             break;
+#if TCG_TARGET_REG_BITS == 64
         case INDEX_op_qemu_ld32u:
             t0 = *tb_ptr++;
             taddr = tci_read_r(&tb_ptr);
@@ -1027,6 +1028,7 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
 #endif
             tci_write_reg32(t0, tswap32(u32));
             break;
+#endif /* TCG_TARGET_REG_BITS == 64 */
 #if TCG_TARGET_REG_BITS == 64
         case INDEX_op_qemu_ld32s:
             t0 = *tb_ptr++;
