@@ -1243,7 +1243,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_opc_reg(s, OPC_NOR, args[0], args[1], args[2]);
         break;
     case INDEX_op_not_i32:
-        tcg_out_opc_reg(s, OPC_NOR, args[0], args[1], args[1]);
+        tcg_out_opc_reg(s, OPC_NOR, args[0], TCG_REG_ZERO, args[1]);
         break;
     case INDEX_op_xor_i32:
         if (const_args[2]) {
