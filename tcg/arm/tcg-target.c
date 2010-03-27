@@ -1585,7 +1585,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_qemu_ld8s, { "r", "x" } },
     { INDEX_op_qemu_ld16u, { "r", "x" } },
     { INDEX_op_qemu_ld16s, { "r", "x" } },
-    { INDEX_op_qemu_ld32u, { "r", "x" } },
+    { INDEX_op_qemu_ld32, { "r", "x" } },
     { INDEX_op_qemu_ld64, { "d", "r", "x" } },
 
     { INDEX_op_qemu_st8, { "x", "x" } },
