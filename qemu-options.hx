@@ -1256,7 +1256,7 @@ TCP and unix socket options are given below:
 
 @table @option
 
-@item TCP options: port=@var{host} [,host=@var{host}] [,to=@var{to}] [,ipv4] [,ipv6] [,nodelay]
+@item TCP options: port=@var{port} [,host=@var{host}] [,to=@var{to}] [,ipv4] [,ipv6] [,nodelay]
 
 @option{host} for a listening socket specifies the local address to be bound.
 For a connecting socket species the remote host to connect to. @option{host} is
