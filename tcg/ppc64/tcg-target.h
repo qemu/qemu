@@ -80,6 +80,9 @@ enum {
 #define TCG_TARGET_HAS_neg_i32
 /* #define TCG_TARGET_HAS_andc_i32 */
 /* #define TCG_TARGET_HAS_orc_i32 */
+/* #define TCG_TARGET_HAS_eqv_i32 */
+/* #define TCG_TARGET_HAS_nand_i32 */
+/* #define TCG_TARGET_HAS_nor_i32 */
 
 #define TCG_TARGET_HAS_div_i64
 /* #define TCG_TARGET_HAS_rot_i64 */
@@ -96,9 +99,10 @@ enum {
 #define TCG_TARGET_HAS_neg_i64
 /* #define TCG_TARGET_HAS_andc_i64 */
 /* #define TCG_TARGET_HAS_orc_i64 */
+/* #define TCG_TARGET_HAS_eqv_i64 */
+/* #define TCG_TARGET_HAS_nand_i64 */
+/* #define TCG_TARGET_HAS_nor_i64 */
 
 #define TCG_AREG0 TCG_REG_R27
-#define TCG_AREG1 TCG_REG_R24
-#define TCG_AREG2 TCG_REG_R25
 
 #define TCG_TARGET_HAS_GUEST_BASE

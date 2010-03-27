@@ -75,6 +75,7 @@
 #include "exec-all.h"           /* logfile */
 #include "elf.h"                /* EM_MIPS (needed by loader.h) */
 #include "loader.h"             /* load_elf, load_image_targphys */
+#include "mips_cpudevs.h"       /* cpu_mips_kseg0_to_phys, ... */
 
 #include "hw/pc.h"              /* serial_16550_init, ... */
 #include "hw/pflash.h"          /* pflash_device_register, ... */

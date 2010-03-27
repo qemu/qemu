@@ -100,6 +100,9 @@ enum {
 #define TCG_TARGET_HAS_not_i32
 #define TCG_TARGET_HAS_andc_i32
 #define TCG_TARGET_HAS_orc_i32
+// #define TCG_TARGET_HAS_eqv_i32
+// #define TCG_TARGET_HAS_nand_i32
+// #define TCG_TARGET_HAS_nor_i32
 
 #if TCG_TARGET_REG_BITS == 64
 #define TCG_TARGET_HAS_div_i64
@@ -117,21 +120,18 @@ enum {
 #define TCG_TARGET_HAS_not_i64
 #define TCG_TARGET_HAS_andc_i64
 #define TCG_TARGET_HAS_orc_i64
+// #define TCG_TARGET_HAS_eqv_i64
+// #define TCG_TARGET_HAS_nand_i64
+// #define TCG_TARGET_HAS_nor_i64
 #endif
 
-/* Note: must be synced with dyngen-exec.h and Makefile.target */
+/* Note: must be synced with dyngen-exec.h */
 #ifdef CONFIG_SOLARIS
 #define TCG_AREG0 TCG_REG_G2
-#define TCG_AREG1 TCG_REG_G3
-#define TCG_AREG2 TCG_REG_G4
 #elif defined(__sparc_v9__)
 #define TCG_AREG0 TCG_REG_G5
-#define TCG_AREG1 TCG_REG_G6
-#define TCG_AREG2 TCG_REG_G7
 #else
 #define TCG_AREG0 TCG_REG_G6
-#define TCG_AREG1 TCG_REG_G1
-#define TCG_AREG2 TCG_REG_G2
 #endif
 
 static inline void flush_icache_range(unsigned long start, unsigned long stop)

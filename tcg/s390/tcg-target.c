@@ -78,7 +78,7 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, int arg,
     tcg_abort();
 }
 
-static inline void tcg_out_op(TCGContext *s, int opc,
+static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                 const TCGArg *args, const int *const_args)
 {
     tcg_abort();

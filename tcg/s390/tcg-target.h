@@ -59,6 +59,9 @@ enum {
 // #define TCG_TARGET_HAS_neg_i32
 // #define TCG_TARGET_HAS_andc_i32
 // #define TCG_TARGET_HAS_orc_i32
+// #define TCG_TARGET_HAS_eqv_i32
+// #define TCG_TARGET_HAS_nand_i32
+// #define TCG_TARGET_HAS_nor_i32
 
 // #define TCG_TARGET_HAS_div_i64
 // #define TCG_TARGET_HAS_rot_i64
@@ -75,6 +78,9 @@ enum {
 // #define TCG_TARGET_HAS_neg_i64
 // #define TCG_TARGET_HAS_andc_i64
 // #define TCG_TARGET_HAS_orc_i64
+// #define TCG_TARGET_HAS_eqv_i64
+// #define TCG_TARGET_HAS_nand_i64
+// #define TCG_TARGET_HAS_nor_i64
 
 /* used for function call generation */
 #define TCG_REG_CALL_STACK		TCG_REG_R15
@@ -84,9 +90,6 @@ enum {
 enum {
     /* Note: must be synced with dyngen-exec.h */
     TCG_AREG0 = TCG_REG_R10,
-    TCG_AREG1 = TCG_REG_R7,
-    TCG_AREG2 = TCG_REG_R8,
-    TCG_AREG3 = TCG_REG_R9,
 };
 
 static inline void flush_icache_range(unsigned long start, unsigned long stop)

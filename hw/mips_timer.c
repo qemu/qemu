@@ -21,7 +21,7 @@
  */
 
 #include "hw.h"
-#include "mips.h"
+#include "mips_cpudevs.h"
 #include "qemu-timer.h"
 #include "exec-all.h"
 #include "target-mips/cpu.h"

@@ -520,7 +520,7 @@ static void tcg_out_cmp(TCGContext *s, TCGArg c1, TCGArg c2, int c2const)
     tcg_out_arithc(s, TCG_REG_G0, c1, c2, c2const, ARITH_SUBCC);
 }
 
-static void tcg_out_brcond_i32(TCGContext *s, int cond,
+static void tcg_out_brcond_i32(TCGContext *s, TCGCond cond,
                                TCGArg arg1, TCGArg arg2, int const_arg2,
                                int label_index)
 {
@@ -530,7 +530,7 @@ static void tcg_out_brcond_i32(TCGContext *s, int cond,
 }
 
 #if TCG_TARGET_REG_BITS == 64
-static void tcg_out_brcond_i64(TCGContext *s, int cond,
+static void tcg_out_brcond_i64(TCGContext *s, TCGCond cond,
                                TCGArg arg1, TCGArg arg2, int const_arg2,
                                int label_index)
 {
@@ -539,7 +539,7 @@ static void tcg_out_brcond_i64(TCGContext *s, int cond,
     tcg_out_nop(s);
 }
 #else
-static void tcg_out_brcond2_i32(TCGContext *s, int cond,
+static void tcg_out_brcond2_i32(TCGContext *s, TCGCond cond,
                                 TCGArg al, TCGArg ah,
                                 TCGArg bl, int blconst,
                                 TCGArg bh, int bhconst, int label_dest)
@@ -587,7 +587,7 @@ static void tcg_out_brcond2_i32(TCGContext *s, int cond,
 }
 #endif
 
-static void tcg_out_setcond_i32(TCGContext *s, int cond, TCGArg ret,
+static void tcg_out_setcond_i32(TCGContext *s, TCGCond cond, TCGArg ret,
                                 TCGArg c1, TCGArg c2, int c2const)
 {
     TCGArg t;
@@ -643,7 +643,7 @@ static void tcg_out_setcond_i32(TCGContext *s, int cond, TCGArg ret,
 }
 
 #if TCG_TARGET_REG_BITS == 64
-static void tcg_out_setcond_i64(TCGContext *s, int cond, TCGArg ret,
+static void tcg_out_setcond_i64(TCGContext *s, TCGCond cond, TCGArg ret,
                                 TCGArg c1, TCGArg c2, int c2const)
 {
     tcg_out_cmp(s, c1, c2, c2const);
@@ -653,7 +653,7 @@ static void tcg_out_setcond_i64(TCGContext *s, int cond, TCGArg ret,
                | MOVCC_XCC | INSN_IMM11(1));
 }
 #else
-static void tcg_out_setcond2_i32(TCGContext *s, int cond, TCGArg ret,
+static void tcg_out_setcond2_i32(TCGContext *s, TCGCond cond, TCGArg ret,
                                  TCGArg al, TCGArg ah,
                                  TCGArg bl, int blconst,
                                  TCGArg bh, int bhconst)
@@ -1119,7 +1119,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
 #endif
 }
 
-static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
+static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
                               const int *const_args)
 {
     int c;
@@ -1324,7 +1324,10 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_qemu_ld16s:
         tcg_out_qemu_ld(s, args, 1 | 4);
         break;
+    case INDEX_op_qemu_ld32:
+#if TCG_TARGET_REG_BITS == 64
     case INDEX_op_qemu_ld32u:
+#endif
         tcg_out_qemu_ld(s, args, 2);
         break;
 #if TCG_TARGET_REG_BITS == 64
@@ -1480,8 +1483,9 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_qemu_ld8s, { "r", "L" } },
     { INDEX_op_qemu_ld16u, { "r", "L" } },
     { INDEX_op_qemu_ld16s, { "r", "L" } },
-    { INDEX_op_qemu_ld32u, { "r", "L" } },
+    { INDEX_op_qemu_ld32, { "r", "L" } },
 #if TCG_TARGET_REG_BITS == 64
+    { INDEX_op_qemu_ld32u, { "r", "L" } },
     { INDEX_op_qemu_ld32s, { "r", "L" } },
 #endif
 

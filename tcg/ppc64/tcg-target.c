@@ -1051,8 +1051,9 @@ static void tcg_out_cmp (TCGContext *s, int cond, TCGArg arg1, TCGArg arg2,
 
 }
 
-static void tcg_out_setcond (TCGContext *s, TCGType type, int cond, TCGArg arg0,
-                             TCGArg arg1, TCGArg arg2, int const_arg2)
+static void tcg_out_setcond (TCGContext *s, TCGType type, TCGCond cond,
+                             TCGArg arg0, TCGArg arg1, TCGArg arg2,
+                             int const_arg2)
 {
     int crop, sh, arg;
 
@@ -1182,7 +1183,7 @@ static void tcg_out_bc (TCGContext *s, int bc, int label_index)
     }
 }
 
-static void tcg_out_brcond (TCGContext *s, int cond,
+static void tcg_out_brcond (TCGContext *s, TCGCond cond,
                             TCGArg arg1, TCGArg arg2, int const_arg2,
                             int label_index, int arch64)
 {
@@ -1201,7 +1202,7 @@ void ppc_tb_set_jmp_target (unsigned long jmp_addr, unsigned long addr)
     flush_icache_range (jmp_addr, jmp_addr + patch_size);
 }
 
-static void tcg_out_op (TCGContext *s, int opc, const TCGArg *args,
+static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
                         const int *const_args)
 {
     int c;
@@ -1519,6 +1520,7 @@ static void tcg_out_op (TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_qemu_ld16s:
         tcg_out_qemu_ld (s, args, 1 | 4);
         break;
+    case INDEX_op_qemu_ld32:
     case INDEX_op_qemu_ld32u:
         tcg_out_qemu_ld (s, args, 2);
         break;
@@ -1647,6 +1649,7 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_qemu_ld8s, { "r", "L" } },
     { INDEX_op_qemu_ld16u, { "r", "L" } },
     { INDEX_op_qemu_ld16s, { "r", "L" } },
+    { INDEX_op_qemu_ld32, { "r", "L" } },
     { INDEX_op_qemu_ld32u, { "r", "L" } },
     { INDEX_op_qemu_ld32s, { "r", "L" } },
     { INDEX_op_qemu_ld64, { "r", "L" } },

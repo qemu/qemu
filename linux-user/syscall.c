@@ -506,9 +506,18 @@ static int sys_inotify_rm_watch(int fd, int32_t wd)
   return (inotify_rm_watch(fd, wd));
 }
 #endif
+#ifdef CONFIG_INOTIFY1
+#if defined(TARGET_NR_inotify_init1) && defined(__NR_inotify_init1)
+static int sys_inotify_init1(int flags)
+{
+  return (inotify_init1(flags));
+}
+#endif
+#endif
 #else
 /* Userspace can usually survive runtime without inotify */
 #undef TARGET_NR_inotify_init
+#undef TARGET_NR_inotify_init1
 #undef TARGET_NR_inotify_add_watch
 #undef TARGET_NR_inotify_rm_watch
 #endif /* CONFIG_INOTIFY  */
@@ -7051,6 +7060,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_inotify_init) && defined(__NR_inotify_init)
     case TARGET_NR_inotify_init:
         ret = get_errno(sys_inotify_init());
+        break;
+#endif
+#if defined(TARGET_NR_inotify_init1) && defined(__NR_inotify_init1)
+    case TARGET_NR_inotify_init1:
+        ret = get_errno(sys_inotify_init1(arg1));
         break;
 #endif
 #if defined(TARGET_NR_inotify_add_watch) && defined(__NR_inotify_add_watch)

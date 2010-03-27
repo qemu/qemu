@@ -31,6 +31,7 @@
 #include "block.h"
 #include "pflash.h"
 #include "mips.h"
+#include "mips_cpudevs.h"
 #include "pci.h"
 #include "usb-uhci.h"
 #include "vmware_vga.h"

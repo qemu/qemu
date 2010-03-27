@@ -464,7 +464,7 @@ static inline void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val)
     }
 }
 
-static void tcg_out_brcond(TCGContext *s, int cond, int arg1,
+static void tcg_out_brcond(TCGContext *s, TCGCond cond, int arg1,
                            int arg2, int label_index)
 {
     TCGLabel *l = &s->labels[label_index];
@@ -522,7 +522,7 @@ static void tcg_out_brcond(TCGContext *s, int cond, int arg1,
 
 /* XXX: we implement it at the target level to avoid having to
    handle cross basic blocks temporaries */
-static void tcg_out_brcond2(TCGContext *s, int cond, int arg1,
+static void tcg_out_brcond2(TCGContext *s, TCGCond cond, int arg1,
                             int arg2, int arg3, int arg4, int label_index)
 {
     void *label_ptr;
@@ -585,7 +585,7 @@ static void tcg_out_brcond2(TCGContext *s, int cond, int arg1,
     reloc_pc16(label_ptr, (tcg_target_long) s->code_ptr);
 }
 
-static void tcg_out_setcond(TCGContext *s, int cond, int ret,
+static void tcg_out_setcond(TCGContext *s, TCGCond cond, int ret,
                             int arg1, int arg2)
 {
     switch (cond) {
@@ -645,7 +645,7 @@ static void tcg_out_setcond(TCGContext *s, int cond, int ret,
 
 /* XXX: we implement it at the target level to avoid having to
    handle cross basic blocks temporaries */
-static void tcg_out_setcond2(TCGContext *s, int cond, int ret,
+static void tcg_out_setcond2(TCGContext *s, TCGCond cond, int ret,
                              int arg1, int arg2, int arg3, int arg4)
 {
     switch (cond) {
@@ -1088,7 +1088,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
 #endif
 }
 
-static inline void tcg_out_op(TCGContext *s, int opc,
+static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                               const TCGArg *args, const int *const_args)
 {
     switch(opc) {
@@ -1298,7 +1298,7 @@ static inline void tcg_out_op(TCGContext *s, int opc,
     case INDEX_op_qemu_ld16s:
         tcg_out_qemu_ld(s, args, 1 | 4);
         break;
-    case INDEX_op_qemu_ld32u:
+    case INDEX_op_qemu_ld32:
         tcg_out_qemu_ld(s, args, 2);
         break;
     case INDEX_op_qemu_ld64:
@@ -1371,7 +1371,7 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_qemu_ld8s, { "L", "lZ" } },
     { INDEX_op_qemu_ld16u, { "L", "lZ" } },
     { INDEX_op_qemu_ld16s, { "L", "lZ" } },
-    { INDEX_op_qemu_ld32u, { "L", "lZ" } },
+    { INDEX_op_qemu_ld32, { "L", "lZ" } },
     { INDEX_op_qemu_ld64, { "L", "L", "lZ" } },
 
     { INDEX_op_qemu_st8, { "SZ", "SZ" } },
@@ -1383,7 +1383,7 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_qemu_ld8s, { "L", "lZ", "lZ" } },
     { INDEX_op_qemu_ld16u, { "L", "lZ", "lZ" } },
     { INDEX_op_qemu_ld16s, { "L", "lZ", "lZ" } },
-    { INDEX_op_qemu_ld32u, { "L", "lZ", "lZ" } },
+    { INDEX_op_qemu_ld32, { "L", "lZ", "lZ" } },
     { INDEX_op_qemu_ld64, { "L", "L", "lZ", "lZ" } },
 
     { INDEX_op_qemu_st8, { "SZ", "SZ", "SZ" } },

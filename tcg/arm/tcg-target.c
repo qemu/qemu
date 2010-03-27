@@ -1247,7 +1247,7 @@ static inline void tcg_out_qemu_st(TCGContext *s, int cond,
 
 static uint8_t *tb_ret_addr;
 
-static inline void tcg_out_op(TCGContext *s, int opc,
+static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                 const TCGArg *args, const int *const_args)
 {
     int c;
@@ -1488,7 +1488,7 @@ static inline void tcg_out_op(TCGContext *s, int opc,
     case INDEX_op_qemu_ld16s:
         tcg_out_qemu_ld(s, COND_AL, args, 1 | 4);
         break;
-    case INDEX_op_qemu_ld32u:
+    case INDEX_op_qemu_ld32:
         tcg_out_qemu_ld(s, COND_AL, args, 2);
         break;
     case INDEX_op_qemu_ld64:
@@ -1597,7 +1597,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_qemu_ld8s, { "r", "x", "X" } },
     { INDEX_op_qemu_ld16u, { "r", "x", "X" } },
     { INDEX_op_qemu_ld16s, { "r", "x", "X" } },
-    { INDEX_op_qemu_ld32u, { "r", "x", "X" } },
+    { INDEX_op_qemu_ld32, { "r", "x", "X" } },
     { INDEX_op_qemu_ld64, { "d", "r", "x", "X" } },
 
     { INDEX_op_qemu_st8, { "x", "x", "X" } },

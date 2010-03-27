@@ -777,16 +777,16 @@ static void gen_tbl (CPUPPCState *env)
                  &spr_read_tbl, SPR_NOACCESS,
                  0x00000000);
     spr_register(env, SPR_TBL,   "TBL",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 SPR_NOACCESS, &spr_write_tbl,
+                 &spr_read_tbl, SPR_NOACCESS,
+                 &spr_read_tbl, &spr_write_tbl,
                  0x00000000);
     spr_register(env, SPR_VTBU,  "TBU",
                  &spr_read_tbu, SPR_NOACCESS,
                  &spr_read_tbu, SPR_NOACCESS,
                  0x00000000);
     spr_register(env, SPR_TBU,   "TBU",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 SPR_NOACCESS, &spr_write_tbu,
+                 &spr_read_tbu, SPR_NOACCESS,
+                 &spr_read_tbu, &spr_write_tbu,
                  0x00000000);
 }
 

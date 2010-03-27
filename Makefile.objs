@@ -129,7 +129,8 @@ user-obj-y += cutils.o cache-utils.o
 
 hw-obj-y =
 hw-obj-y += loader.o
-hw-obj-y += virtio.o virtio-console.o virtio-pci.o
+hw-obj-y += virtio.o virtio-console.o
+hw-obj-$(CONFIG_VIRTIO_PCI) += virtio-pci.o
 hw-obj-y += fw_cfg.o pci.o pci_host.o pcie_host.o
 hw-obj-y += watchdog.o
 hw-obj-$(CONFIG_ISA_MMIO) += isa_mmio.o
@@ -162,6 +163,7 @@ hw-obj-$(CONFIG_LAN9118) += lan9118.o
 hw-obj-$(CONFIG_NE2000_ISA) += ne2000-isa.o
 
 # IDE
+hw-obj-$(CONFIG_IDE_CORE) += ide/core.o
 hw-obj-$(CONFIG_IDE_QDEV) += ide/qdev.o
 hw-obj-$(CONFIG_IDE_PCI) += ide/pci.o
 hw-obj-$(CONFIG_IDE_ISA) += ide/isa.o
@@ -178,6 +180,12 @@ hw-obj-$(CONFIG_QDEV_ADDR) += qdev-addr.o
 # VGA
 hw-obj-$(CONFIG_VGA_PCI) += vga-pci.o
 hw-obj-$(CONFIG_VGA_ISA) += vga-isa.o
+hw-obj-$(CONFIG_VGA_ISA_MM) += vga-isa-mm.o
+
+hw-obj-$(CONFIG_RC4030) += rc4030.o
+hw-obj-$(CONFIG_DP8393X) += dp8393x.o
+hw-obj-$(CONFIG_DS1225Y) += ds1225y.o
+hw-obj-$(CONFIG_MIPSNET) += mipsnet.o
 
 # Sound
 sound-obj-y =
