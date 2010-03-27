@@ -742,21 +742,6 @@ static char *regname(uint32_t addr)
 }
 #endif                          /* DEBUG_EEPRO100 */
 
-#if 0
-static uint16_t eepro100_read_status(EEPRO100State * s)
-{
-    uint16_t val = s->status;
-    TRACE(OTHER, logout("val=0x%04x\n", val));
-    return val;
-}
-
-static void eepro100_write_status(EEPRO100State * s, uint16_t val)
-{
-    TRACE(OTHER, logout("val=0x%04x\n", val));
-    s->status = val;
-}
-#endif
-
 /*****************************************************************************
  *
  * Command emulation.
@@ -1429,15 +1414,7 @@ static uint8_t eepro100_read1(EEPRO100State * s, uint32_t addr)
 
     switch (addr) {
     case SCBStatus:
-#if 0
-        val = eepro100_read_status(s);
-#endif
-        TRACE(OTHER, logout("addr=%s val=0x%02x\n", regname(addr), val));
-        break;
     case SCBAck:
-#if 0
-        val = eepro100_read_status(s);
-#endif
         TRACE(OTHER, logout("addr=%s val=0x%02x\n", regname(addr), val));
         break;
     case SCBCmd:
@@ -1484,9 +1461,6 @@ static uint16_t eepro100_read2(EEPRO100State * s, uint32_t addr)
 
     switch (addr) {
     case SCBStatus:
-#if 0
-        val = eepro100_read_status(s);
-#endif
     case SCBCmd:
         TRACE(OTHER, logout("addr=%s val=0x%04x\n", regname(addr), val));
         break;
@@ -1514,9 +1488,6 @@ static uint32_t eepro100_read4(EEPRO100State * s, uint32_t addr)
     val = le32_to_cpu(val);
     switch (addr) {
     case SCBStatus:
-#if 0
-        val = eepro100_read_status(s);
-#endif
         TRACE(OTHER, logout("addr=%s val=0x%08x\n", regname(addr), val));
         break;
     case SCBPointer:
@@ -1558,9 +1529,6 @@ static void eepro100_write1(EEPRO100State * s, uint32_t addr, uint8_t val)
 
     switch (addr) {
     case SCBStatus:
-#if 0
-        eepro100_write_status(s, val);
-#endif
         break;
     case SCBAck:
         eepro100_acknowledge(s);
@@ -1605,9 +1573,6 @@ static void eepro100_write2(EEPRO100State * s, uint32_t addr, uint16_t val)
     switch (addr) {
     case SCBStatus:
         s->mem[SCBAck] = (val >> 8);
-#if 0
-        eepro100_write_status(s, val);
-#endif
         eepro100_acknowledge(s);
         break;
     case SCBCmd:
