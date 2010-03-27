@@ -127,6 +127,16 @@
 #define INT_MASK        0x0100
 #define DRVR_INT        0x0200  /* Driver generated interrupt. */
 
+typedef struct {
+    uint32_t device;
+    uint16_t device_id;
+    uint8_t revision;
+    uint8_t stats_size;
+    bool has_extended_tcb_support;
+    bool power_management;
+    PCIDeviceInfo pcidevice;
+} E100Device;
+
 /* Offsets to the various registers.
    All accesses need not be longword aligned. */
 typedef enum {
@@ -484,132 +494,77 @@ static void eepro100_fcp_interrupt(EEPRO100State * s)
 }
 #endif
 
-static void pci_reset(EEPRO100State * s)
+static void pci_reset(EEPRO100State * s, E100Device *e100_device)
 {
     uint32_t device = s->device;
     uint8_t *pci_conf = s->dev.config;
-    bool power_management = 1;
 
     TRACE(OTHER, logout("%p\n", s));
 
     /* PCI Vendor ID */
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
-    /* PCI Device ID depends on device and is set below. */
+    /* PCI Device ID. */
+    pci_config_set_device_id(pci_conf, e100_device->device_id);
     /* PCI Status */
     /* TODO: Value at RST# should be 0. */
     pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM | PCI_STATUS_FAST_BACK);
-    /* PCI Revision ID depends on device. */
+    /* PCI Revision ID. */
+    pci_config_set_revision(pci_conf, e100_device->revision);
     pci_config_set_class(pci_conf, PCI_CLASS_NETWORK_ETHERNET);
     /* PCI Latency Timer */
     pci_set_byte(pci_conf + PCI_LATENCY_TIMER, 0x20);   /* latency timer = 32 clocks */
     /* Capability Pointer */
     /* TODO: revisions with power_management 1 use this but
      * do not set new capability list bit in status register. */
-    pci_set_byte(pci_conf + PCI_CAPABILITY_LIST, 0xdc);
+    if (e100_device->power_management) {
+        pci_set_byte(pci_conf + PCI_CAPABILITY_LIST, 0xdc);
+    } else {
+        pci_set_byte(pci_conf + PCI_CAPABILITY_LIST, 0x00);
+    }
     /* Minimum Grant */
     pci_set_byte(pci_conf + PCI_MIN_GNT, 0x08);
     /* Maximum Latency */
     pci_set_byte(pci_conf + PCI_MAX_LAT, 0x18);
 
+    s->stats_size = e100_device->stats_size;
+    s->has_extended_tcb_support = e100_device->has_extended_tcb_support;
+
     switch (device) {
     case i82550:
-        /* TODO: check device id. */
-        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
-        /* Revision ID: 0x0c, 0x0d, 0x0e. */
-        pci_config_set_revision(pci_conf, 0x0e);
-        /* TODO: check size of statistical counters. */
-        s->stats_size = 80;
-        /* TODO: check extended tcb support. */
-        s->has_extended_tcb_support = 1;
-        break;
     case i82551:
-        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
-        /* Revision ID: 0x0f, 0x10. */
-        pci_config_set_revision(pci_conf, 0x0f);
-        /* TODO: check size of statistical counters. */
-        s->stats_size = 80;
-        /* TODO: check extended tcb support. */
-        s->has_extended_tcb_support = 1;
-        break;
     case i82557A:
-        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
-        pci_config_set_revision(pci_conf, 0x01);
-        pci_set_byte(pci_conf + PCI_CAPABILITY_LIST, 0x00);
-        power_management = 0;
-        break;
     case i82557B:
-        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
-        pci_config_set_revision(pci_conf, 0x02);
-        pci_set_byte(pci_conf + PCI_CAPABILITY_LIST, 0x00);
-        power_management = 0;
-        break;
     case i82557C:
-        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
-        pci_config_set_revision(pci_conf, 0x03);
-        pci_set_byte(pci_conf + PCI_CAPABILITY_LIST, 0x00);
-        power_management = 0;
         break;
     case i82558A:
-        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
                                   PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
-        pci_config_set_revision(pci_conf, 0x04);
-        s->stats_size = 76;
-        s->has_extended_tcb_support = 1;
         break;
     case i82558B:
-        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
                                   PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
-        pci_config_set_revision(pci_conf, 0x05);
-        s->stats_size = 76;
-        s->has_extended_tcb_support = 1;
         break;
     case i82559A:
-        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
                                   PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
-        pci_config_set_revision(pci_conf, 0x06);
-        s->stats_size = 80;
-        s->has_extended_tcb_support = 1;
         break;
     case i82559B:
-        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
                                   PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
-        pci_config_set_revision(pci_conf, 0x07);
-        s->stats_size = 80;
-        s->has_extended_tcb_support = 1;
         break;
     case i82559C:
-        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
                                   PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
-        pci_config_set_revision(pci_conf, 0x08);
-        /* TODO: Windows wants revision id 0x0c. */
-        pci_config_set_revision(pci_conf, 0x0c);
 #if EEPROM_SIZE > 0
         pci_set_word(pci_conf + PCI_SUBSYSTEM_VENDOR_ID, 0x8086);
         pci_set_word(pci_conf + PCI_SUBSYSTEM_ID, 0x0040);
 #endif
-        s->stats_size = 80;
-        s->has_extended_tcb_support = 1;
         break;
     case i82559ER:
-        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
         pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
                                   PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
-        pci_config_set_revision(pci_conf, 0x09);
-        s->stats_size = 80;
-        s->has_extended_tcb_support = 1;
         break;
     case i82562:
-        /* TODO: check device id. */
-        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
-        /* TODO: wrong revision id. */
-        pci_config_set_revision(pci_conf, 0x0e);
-        s->stats_size = 80;
-        s->has_extended_tcb_support = 1;
         break;
     default:
         logout("Device %X is undefined!\n", device);
@@ -643,7 +598,7 @@ static void pci_reset(EEPRO100State * s)
     }
     assert(s->stats_size > 0 && s->stats_size <= sizeof(s->statistics));
 
-    if (power_management) {
+    if (e100_device->power_management) {
         /* Power Management Capabilities */
         pci_set_byte(pci_conf + 0xdc, 0x01);
         /* Next Item Pointer */
@@ -2084,15 +2039,18 @@ static NetClientInfo net_eepro100_info = {
     .cleanup = nic_cleanup,
 };
 
-static int nic_init(PCIDevice *pci_dev, uint32_t device)
+static int e100_nic_init(PCIDevice *pci_dev)
 {
     EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
+    PCIDeviceInfo *info = DO_UPCAST(PCIDeviceInfo, qdev, pci_dev->qdev.info);
+    E100Device *e100_device = container_of(info, E100Device, pcidevice);
+    uint32_t device = e100_device->device;
 
     TRACE(OTHER, logout("\n"));
 
     s->device = device;
 
-    pci_reset(s);
+    pci_reset(s, e100_device);
 
 #if EEPROM_SIZE > 0
     /* Add 64 * 2 EEPROM. i82557 and i82558 support a 64 word EEPROM,
@@ -2134,207 +2092,191 @@ static int nic_init(PCIDevice *pci_dev, uint32_t device)
     return 0;
 }
 
-static int pci_i82550_init(PCIDevice *pci_dev)
-{
-    return nic_init(pci_dev, i82550);
-}
-
-static int pci_i82551_init(PCIDevice *pci_dev)
-{
-    return nic_init(pci_dev, i82551);
-}
-
-static int pci_i82557a_init(PCIDevice *pci_dev)
-{
-    return nic_init(pci_dev, i82557A);
-}
-
-static int pci_i82557b_init(PCIDevice *pci_dev)
-{
-    return nic_init(pci_dev, i82557B);
-}
-
-static int pci_i82557c_init(PCIDevice *pci_dev)
-{
-    return nic_init(pci_dev, i82557C);
-}
-
-static int pci_i82558a_init(PCIDevice *pci_dev)
-{
-    return nic_init(pci_dev, i82558A);
-}
-
-static int pci_i82558b_init(PCIDevice *pci_dev)
-{
-    return nic_init(pci_dev, i82558B);
-}
-
-static int pci_i82559a_init(PCIDevice *pci_dev)
-{
-    return nic_init(pci_dev, i82559A);
-}
-
-static int pci_i82559b_init(PCIDevice *pci_dev)
-{
-    return nic_init(pci_dev, i82559B);
-}
-
-static int pci_i82559c_init(PCIDevice *pci_dev)
-{
-    return nic_init(pci_dev, i82559C);
-}
-
-static int pci_i82559er_init(PCIDevice *pci_dev)
-{
-    return nic_init(pci_dev, i82559ER);
-}
-
-static int pci_i82562_init(PCIDevice *pci_dev)
-{
-    return nic_init(pci_dev, i82562);
-}
-
-static PCIDeviceInfo eepro100_info[] = {
+static E100Device e100_devices[] = {
     {
-        .qdev.name = "i82550",
-        .qdev.desc = "Intel i82550 Ethernet",
-        .qdev.size = sizeof(EEPRO100State),
-        .init      = pci_i82550_init,
-        .exit      = pci_nic_uninit,
-        .romfile   = "gpxe-eepro100-80861209.rom",
-        .qdev.props = (Property[]) {
-            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
-            DEFINE_PROP_END_OF_LIST(),
-        },
+        .device = i82550,
+        .device_id = PCI_DEVICE_ID_INTEL_82551IT,
+        /* Revision ID: 0x0c, 0x0d, 0x0e. */
+        .revision = 0x0e,
+        /* TODO: check size of statistical counters. */
+        .stats_size = 80,
+        /* TODO: check extended tcb support. */
+        .has_extended_tcb_support = true,
+        .power_management = true,
+        .pcidevice.qdev.name = "i82550",
+        .pcidevice.qdev.desc = "Intel i82550 Ethernet",
+        .pcidevice.romfile = "gpxe-eepro100-80861209.rom",
+        .pcidevice.qdev.props = (Property[]) {
+                DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+                DEFINE_PROP_END_OF_LIST(),
+        }
     },{
-        .qdev.name = "i82551",
-        .qdev.desc = "Intel i82551 Ethernet",
-        .qdev.size = sizeof(EEPRO100State),
-        .init      = pci_i82551_init,
-        .exit      = pci_nic_uninit,
-        .romfile   = "gpxe-eepro100-80861209.rom",
-        .qdev.props = (Property[]) {
-            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
-            DEFINE_PROP_END_OF_LIST(),
-        },
+        .device = i82551,
+        .device_id = PCI_DEVICE_ID_INTEL_82551IT,
+        /* Revision ID: 0x0f, 0x10. */
+        .revision = 0x0f,
+        /* TODO: check size of statistical counters. */
+        .stats_size = 80,
+        /* TODO: check extended tcb support. */
+        .has_extended_tcb_support = 1,
+        .power_management = true,
+        .pcidevice.qdev.name = "i82551",
+        .pcidevice.qdev.desc = "Intel i82551 Ethernet",
+        .pcidevice.romfile = "gpxe-eepro100-80861209.rom",
+        .pcidevice.qdev.props = (Property[]) {
+                DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+                DEFINE_PROP_END_OF_LIST(),
+        }
     },{
-        .qdev.name = "i82557a",
-        .qdev.desc = "Intel i82557A Ethernet",
-        .qdev.size = sizeof(EEPRO100State),
-        .init      = pci_i82557a_init,
-        .exit      = pci_nic_uninit,
-        .romfile   = "gpxe-eepro100-80861229.rom",
-        .qdev.props = (Property[]) {
-            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
-            DEFINE_PROP_END_OF_LIST(),
-        },
+        .device = i82557A,
+        .device_id = PCI_DEVICE_ID_INTEL_82557,
+        .revision = 0x01,
+        .power_management = false,
+        .pcidevice.qdev.name = "i82557a",
+        .pcidevice.qdev.desc = "Intel i82557A Ethernet",
+        .pcidevice.romfile = "gpxe-eepro100-80861229.rom",
+        .pcidevice.qdev.props = (Property[]) {
+                DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+                DEFINE_PROP_END_OF_LIST(),
+        }
     },{
-        .qdev.name = "i82557b",
-        .qdev.desc = "Intel i82557B Ethernet",
-        .qdev.size = sizeof(EEPRO100State),
-        .init      = pci_i82557b_init,
-        .exit      = pci_nic_uninit,
-        .romfile   = "gpxe-eepro100-80861229.rom",
-        .qdev.props = (Property[]) {
-            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
-            DEFINE_PROP_END_OF_LIST(),
-        },
+        .device = i82557B,
+        .device_id = PCI_DEVICE_ID_INTEL_82557,
+        .revision = 0x02,
+        .power_management = false,
+        .pcidevice.qdev.name = "i82557b",
+        .pcidevice.qdev.desc = "Intel i82557B Ethernet",
+        .pcidevice.romfile = "gpxe-eepro100-80861229.rom",
+        .pcidevice.qdev.props = (Property[]) {
+                DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+                DEFINE_PROP_END_OF_LIST(),
+        }
     },{
-        .qdev.name = "i82557c",
-        .qdev.desc = "Intel i82557C Ethernet",
-        .qdev.size = sizeof(EEPRO100State),
-        .init      = pci_i82557c_init,
-        .exit      = pci_nic_uninit,
-        .romfile   = "gpxe-eepro100-80861229.rom",
-        .qdev.props = (Property[]) {
-            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
-            DEFINE_PROP_END_OF_LIST(),
-        },
+        .device = i82557C,
+        .device_id = PCI_DEVICE_ID_INTEL_82557,
+        .revision = 0x03,
+        .power_management = false,
+        .pcidevice.qdev.name = "i82557c",
+        .pcidevice.qdev.desc = "Intel i82557C Ethernet",
+        .pcidevice.romfile = "gpxe-eepro100-80861229.rom",
+        .pcidevice.qdev.props = (Property[]) {
+                DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+                DEFINE_PROP_END_OF_LIST(),
+        }
     },{
-        .qdev.name = "i82558a",
-        .qdev.desc = "Intel i82558A Ethernet",
-        .qdev.size = sizeof(EEPRO100State),
-        .init      = pci_i82558a_init,
-        .exit      = pci_nic_uninit,
-        .romfile   = "gpxe-eepro100-80861229.rom",
-        .qdev.props = (Property[]) {
-            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
-            DEFINE_PROP_END_OF_LIST(),
-        },
+        .device = i82558A,
+        .device_id = PCI_DEVICE_ID_INTEL_82557,
+        .revision = 0x04,
+        .stats_size = 76,
+        .has_extended_tcb_support = true,
+        .power_management = true,
+        .pcidevice.qdev.name = "i82558a",
+        .pcidevice.qdev.desc = "Intel i82558A Ethernet",
+        .pcidevice.romfile = "gpxe-eepro100-80861229.rom",
+        .pcidevice.qdev.props = (Property[]) {
+                DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+                DEFINE_PROP_END_OF_LIST(),
+        }
     },{
-        .qdev.name = "i82558b",
-        .qdev.desc = "Intel i82558B Ethernet",
-        .qdev.size = sizeof(EEPRO100State),
-        .init      = pci_i82558b_init,
-        .exit      = pci_nic_uninit,
-        .romfile   = "gpxe-eepro100-80861229.rom",
-        .qdev.props = (Property[]) {
-            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
-            DEFINE_PROP_END_OF_LIST(),
-        },
+        .device = i82558B,
+        .device_id = PCI_DEVICE_ID_INTEL_82557,
+        .revision = 0x05,
+        .stats_size = 76,
+        .has_extended_tcb_support = true,
+        .power_management = true,
+        .pcidevice.qdev.name = "i82558b",
+        .pcidevice.qdev.desc = "Intel i82558B Ethernet",
+        .pcidevice.romfile = "gpxe-eepro100-80861229.rom",
+        .pcidevice.qdev.props = (Property[]) {
+                DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+                DEFINE_PROP_END_OF_LIST(),
+        }
     },{
-        .qdev.name = "i82559a",
-        .qdev.desc = "Intel i82559A Ethernet",
-        .qdev.size = sizeof(EEPRO100State),
-        .init      = pci_i82559a_init,
-        .exit      = pci_nic_uninit,
-        .romfile   = "gpxe-eepro100-80861229.rom",
-        .qdev.props = (Property[]) {
-            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
-            DEFINE_PROP_END_OF_LIST(),
-        },
+        .device = i82559A,
+        .device_id = PCI_DEVICE_ID_INTEL_82557,
+        .revision = 0x06,
+        .stats_size = 80,
+        .has_extended_tcb_support = true,
+        .power_management = true,
+        .pcidevice.qdev.name = "i82559a",
+        .pcidevice.qdev.desc = "Intel i82559A Ethernet",
+        .pcidevice.romfile = "gpxe-eepro100-80861229.rom",
+        .pcidevice.qdev.props = (Property[]) {
+                DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+                DEFINE_PROP_END_OF_LIST(),
+        }
     },{
-        .qdev.name = "i82559b",
-        .qdev.desc = "Intel i82559B Ethernet",
-        .qdev.size = sizeof(EEPRO100State),
-        .init      = pci_i82559b_init,
-        .exit      = pci_nic_uninit,
-        .romfile   = "gpxe-eepro100-80861229.rom",
-        .qdev.props = (Property[]) {
-            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
-            DEFINE_PROP_END_OF_LIST(),
-        },
+        .device = i82559B,
+        .device_id = PCI_DEVICE_ID_INTEL_82557,
+        .revision = 0x07,
+        .stats_size = 80,
+        .has_extended_tcb_support = true,
+        .power_management = true,
+        .pcidevice.qdev.name = "i82559b",
+        .pcidevice.qdev.desc = "Intel i82559B Ethernet",
+        .pcidevice.romfile = "gpxe-eepro100-80861229.rom",
+        .pcidevice.qdev.props = (Property[]) {
+                DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+                DEFINE_PROP_END_OF_LIST(),
+        }
     },{
-        .qdev.name = "i82559c",
-        .qdev.desc = "Intel i82559C Ethernet",
-        .qdev.size = sizeof(EEPRO100State),
-        .init      = pci_i82559c_init,
-        .exit      = pci_nic_uninit,
-        .romfile   = "gpxe-eepro100-80861229.rom",
-        .qdev.props = (Property[]) {
-            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
-            DEFINE_PROP_END_OF_LIST(),
-        },
+        .device = i82559C,
+        .device_id = PCI_DEVICE_ID_INTEL_82557,
+        /* Revision ID: 0x08. */
+        /* TODO: Windows wants revision id 0x0c. */
+        .revision = 0x0c,
+        .stats_size = 80,
+        .has_extended_tcb_support = true,
+        .power_management = true,
+        .pcidevice.qdev.name = "i82559c",
+        .pcidevice.qdev.desc = "Intel i82559C Ethernet",
+        .pcidevice.romfile = "gpxe-eepro100-80861229.rom",
+        .pcidevice.qdev.props = (Property[]) {
+                DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+                DEFINE_PROP_END_OF_LIST(),
+        }
     },{
-        .qdev.name = "i82559er",
-        .qdev.desc = "Intel i82559ER Ethernet",
-        .qdev.size = sizeof(EEPRO100State),
-        .init      = pci_i82559er_init,
-        .exit      = pci_nic_uninit,
-        .romfile   = "gpxe-eepro100-80861209.rom",
-        .qdev.props = (Property[]) {
-            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
-            DEFINE_PROP_END_OF_LIST(),
-        },
+        .device = i82559ER,
+        .device_id = PCI_DEVICE_ID_INTEL_82551IT,
+        .revision = 0x09,
+        .stats_size = 80,
+        .has_extended_tcb_support = true,
+        .power_management = true,
+        .pcidevice.qdev.name = "i82559er",
+        .pcidevice.qdev.desc = "Intel i82559ER Ethernet",
+        .pcidevice.romfile = "gpxe-eepro100-80861209.rom",
+        .pcidevice.qdev.props = (Property[]) {
+                DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+                DEFINE_PROP_END_OF_LIST(),
+        }
     },{
-        .qdev.name = "i82562",
-        .qdev.desc = "Intel i82562 Ethernet",
-        .qdev.size = sizeof(EEPRO100State),
-        .init      = pci_i82562_init,
-        .exit      = pci_nic_uninit,
-        .romfile   = "gpxe-eepro100-80861209.rom",
-        .qdev.props = (Property[]) {
-            DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
-            DEFINE_PROP_END_OF_LIST(),
-        },
-    },{
-        /* end of list */
+        .device = i82562,
+        .device_id = PCI_DEVICE_ID_INTEL_82551IT,
+        /* TODO: wrong revision id. */
+        .revision = 0x0e,
+        .stats_size = 80,
+        .has_extended_tcb_support = true,
+        .power_management = true,
+        .pcidevice.qdev.name = "i82562",
+        .pcidevice.qdev.desc = "Intel i82562 Ethernet",
+        .pcidevice.romfile   = "gpxe-eepro100-80861209.rom",
+        .pcidevice.qdev.props = (Property[]) {
+                DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+                DEFINE_PROP_END_OF_LIST(),
+        }
     }
 };
 
 static void eepro100_register_devices(void)
 {
-    pci_qdev_register_many(eepro100_info);
+    size_t i;
+    for (i = 0; i < ARRAY_SIZE(e100_devices); i++) {
+        PCIDeviceInfo *pci_dev = &e100_devices[i].pcidevice;
+        pci_dev->qdev.size = sizeof(EEPRO100State),
+        pci_dev->init = e100_nic_init,
+        pci_dev->exit = pci_nic_uninit,
+        pci_qdev_register(pci_dev);
+    }
 }
 
 device_init(eepro100_register_devices)
