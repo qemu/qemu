@@ -97,6 +97,7 @@
 #define i82559C         0x82559c
 #define i82559ER        0x82559e
 #define i82562          0x82562
+#define i82801          0x82801
 
 /* Use 64 word EEPROM. TODO: could be a runtime option. */
 #define EEPROM_SIZE     64
@@ -565,6 +566,7 @@ static void pci_reset(EEPRO100State * s, E100Device *e100_device)
                                   PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
         break;
     case i82562:
+    case i82801:
         break;
     default:
         logout("Device %X is undefined!\n", device);
@@ -2260,6 +2262,22 @@ static E100Device e100_devices[] = {
         .pcidevice.qdev.name = "i82562",
         .pcidevice.qdev.desc = "Intel i82562 Ethernet",
         .pcidevice.romfile   = "gpxe-eepro100-80861209.rom",
+        .pcidevice.qdev.props = (Property[]) {
+                DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+                DEFINE_PROP_END_OF_LIST(),
+        }
+    },{
+        /* Toshiba Tecra 8200. */
+        .device = i82801,
+        .device_id = 0x2449,
+        /* TODO: check revision. */
+        .revision = 0x0e,
+        .stats_size = 80,
+        .has_extended_tcb_support = true,
+        .power_management = true,
+        .pcidevice.qdev.name = "i82801",
+        .pcidevice.qdev.desc = "Intel i82801 Ethernet",
+        .pcidevice.romfile   = "gpxe-eepro100-80862449.rom",
         .pcidevice.qdev.props = (Property[]) {
                 DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
                 DEFINE_PROP_END_OF_LIST(),
