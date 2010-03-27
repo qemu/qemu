@@ -207,8 +207,8 @@ int no_quit = 0;
 CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 CharDriverState *virtcon_hds[MAX_VIRTIO_CONSOLES];
-#ifdef TARGET_I386
 int win2k_install_hack = 0;
+#ifdef TARGET_I386
 int rtc_td_hack = 0;
 #endif
 int usb_enabled = 0;

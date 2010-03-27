@@ -26,7 +26,6 @@
 #include <hw/pc.h>
 #include <hw/pci.h>
 #include <hw/scsi.h>
-#include <hw/sh.h>
 #include "block.h"
 #include "block_int.h"
 #include "qemu-timer.h"
@@ -434,13 +433,13 @@ static int dma_buf_prepare(BMDMAState *bm, int is_write)
     } prd;
     int l, len;
 
-    qemu_sglist_init(&s->sg, s->nsector / (TARGET_PAGE_SIZE/512) + 1);
+    qemu_sglist_init(&s->sg, s->nsector / (PAGE_SIZE / 512) + 1);
     s->io_buffer_size = 0;
     for(;;) {
         if (bm->cur_prd_len == 0) {
             /* end of table (with a fail safe of one page) */
             if (bm->cur_prd_last ||
-                (bm->cur_addr - bm->addr) >= 4096)
+                (bm->cur_addr - bm->addr) >= PAGE_SIZE)
                 return s->io_buffer_size != 0;
             cpu_physical_memory_read(bm->cur_addr, (uint8_t *)&prd, 8);
             bm->cur_addr += 8;
@@ -523,7 +522,7 @@ static int dma_buf_rw(BMDMAState *bm, int is_write)
         if (bm->cur_prd_len == 0) {
             /* end of table (with a fail safe of one page) */
             if (bm->cur_prd_last ||
-                (bm->cur_addr - bm->addr) >= 4096)
+                (bm->cur_addr - bm->addr) >= PAGE_SIZE)
                 return 0;
             cpu_physical_memory_read(bm->cur_addr, (uint8_t *)&prd, 8);
             bm->cur_addr += 8;
@@ -651,7 +650,6 @@ static void ide_sector_write(IDEState *s)
     }
     ide_set_sector(s, sector_num + n);
 
-#ifdef TARGET_I386
     if (win2k_install_hack && ((++s->irq_count % 16) == 0)) {
         /* It seems there is a bug in the Windows 2000 installer HDD
            IDE driver which fills the disk with empty logs when the
@@ -659,11 +657,9 @@ static void ide_sector_write(IDEState *s)
            that at the expense of slower write performances. Use this
            option _only_ to install Windows 2000. You must disable it
            for normal use. */
-        qemu_mod_timer(s->sector_write_timer, 
+        qemu_mod_timer(s->sector_write_timer,
                        qemu_get_clock(vm_clock) + (get_ticks_per_sec() / 1000));
-    } else 
-#endif
-    {
+    } else {
         ide_set_irq(s->bus);
     }
 }
