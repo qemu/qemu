@@ -211,12 +211,10 @@ obj-ppc-$(CONFIG_FDT) += device_tree.o
 
 obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 obj-mips-y += mips_addr.o mips_timer.o mips_int.o
-obj-mips-y += dma.o vga.o i8259.o rc4030.o
-obj-mips-y += vga-isa-mm.o
-obj-mips-y += g364fb.o jazz_led.o dp8393x.o
-obj-mips-y += gt64xxx.o pckbd.o mc146818rtc.o acpi.o ds1225y.o
+obj-mips-y += dma.o vga.o i8259.o
+obj-mips-y += g364fb.o jazz_led.o
+obj-mips-y += gt64xxx.o pckbd.o mc146818rtc.o acpi.o
 obj-mips-y += piix4.o cirrus_vga.o
-obj-mips-y += mipsnet.o
 obj-mips-y += pflash_cfi01.o
 obj-mips-y += vmware_vga.o
 

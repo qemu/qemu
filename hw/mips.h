@@ -20,16 +20,6 @@ void mipsnet_init(int base, qemu_irq irq, NICInfo *nd);
 /* jazz_led.c */
 extern void jazz_led_init(target_phys_addr_t base);
 
-/* mips_addr.c */
-uint64_t cpu_mips_kseg0_to_phys(void *opaque, uint64_t addr);
-uint64_t cpu_mips_phys_to_kseg0(void *opaque, uint64_t addr);
-
-/* mips_int.c */
-extern void cpu_mips_irq_init_cpu(CPUState *env);
-
-/* mips_timer.c */
-extern void cpu_mips_clock_init(CPUState *);
-
 /* rc4030.c */
 typedef struct rc4030DMAState *rc4030_dma;
 void rc4030_dma_memory_rw(void *opaque, target_phys_addr_t addr, uint8_t *buf, int len, int is_write);

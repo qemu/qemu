@@ -9,6 +9,7 @@
 */
 #include "hw.h"
 #include "mips.h"
+#include "mips_cpudevs.h"
 #include "pc.h"
 #include "isa.h"
 #include "net.h"

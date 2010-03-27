@@ -21,7 +21,7 @@
  */
 
 #include "hw.h"
-#include "mips.h"
+#include "mips_cpudevs.h"
 #include "cpu.h"
 
 /* Raise IRQ to CPU if necessary. It must be called every time the active
