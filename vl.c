@@ -520,12 +520,12 @@ static void configure_rtc(QemuOpts *opts)
             exit(1);
         }
     }
-#ifdef CONFIG_TARGET_I386
+#ifdef TARGET_I386
     value = qemu_opt_get(opts, "driftfix");
     if (value) {
-        if (!strcmp(buf, "slew")) {
+        if (!strcmp(value, "slew")) {
             rtc_td_hack = 1;
-        } else if (!strcmp(buf, "none")) {
+        } else if (!strcmp(value, "none")) {
             rtc_td_hack = 0;
         } else {
             fprintf(stderr, "qemu: invalid option value '%s'\n", value);
