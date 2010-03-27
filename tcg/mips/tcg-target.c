@@ -222,8 +222,8 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
     case 'S': /* qemu_st constraint */
         ct->ct |= TCG_CT_REG;
         tcg_regset_set(ct->u.regs, 0xffffffff);
-#if defined(CONFIG_SOFTMMU)
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_A0);
+#if defined(CONFIG_SOFTMMU)
 # if TARGET_LONG_BITS == 64
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_A1);
 # endif
@@ -858,54 +858,55 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     tcg_out_opc_imm(s, OPC_LW, TCG_REG_A0, TCG_REG_A0,
                     offsetof(CPUState, tlb_table[mem_index][0].addend) + addr_meml);
     tcg_out_opc_reg(s, OPC_ADDU, TCG_REG_V0, TCG_REG_A0, addr_regl);
-
-    addr_reg1 = TCG_REG_V0;
+#else
+    if (GUEST_BASE == (int16_t)GUEST_BASE) {
+        tcg_out_opc_imm(s, OPC_ADDIU, TCG_REG_V0, addr_reg1, GUEST_BASE);
+    } else {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_V0, GUEST_BASE);
+        tcg_out_opc_reg(s, OPC_ADDU, TCG_REG_V0, TCG_REG_V0, addr_reg1);
+    }
 #endif
 
     switch(opc) {
     case 0:
-        tcg_out_opc_imm(s, OPC_LBU, data_reg1, addr_reg1, 0);
+        tcg_out_opc_imm(s, OPC_LBU, data_reg1, TCG_REG_V0, 0);
         break;
     case 0 | 4:
-        tcg_out_opc_imm(s, OPC_LB, data_reg1, addr_reg1, 0);
+        tcg_out_opc_imm(s, OPC_LB, data_reg1, TCG_REG_V0, 0);
         break;
     case 1:
         if (TCG_NEED_BSWAP) {
-            tcg_out_opc_imm(s, OPC_LHU, TCG_REG_T0, addr_reg1, 0);
+            tcg_out_opc_imm(s, OPC_LHU, TCG_REG_T0, TCG_REG_V0, 0);
             tcg_out_bswap16(s, data_reg1, TCG_REG_T0);
         } else {
-            tcg_out_opc_imm(s, OPC_LHU, data_reg1, addr_reg1, 0);
+            tcg_out_opc_imm(s, OPC_LHU, data_reg1, TCG_REG_V0, 0);
         }
         break;
     case 1 | 4:
         if (TCG_NEED_BSWAP) {
-            tcg_out_opc_imm(s, OPC_LHU, TCG_REG_T0, addr_reg1, 0);
+            tcg_out_opc_imm(s, OPC_LHU, TCG_REG_T0, TCG_REG_V0, 0);
             tcg_out_bswap16s(s, data_reg1, TCG_REG_T0);
         } else {
-            tcg_out_opc_imm(s, OPC_LH, data_reg1, addr_reg1, 0);
+            tcg_out_opc_imm(s, OPC_LH, data_reg1, TCG_REG_V0, 0);
         }
         break;
     case 2:
         if (TCG_NEED_BSWAP) {
-            tcg_out_opc_imm(s, OPC_LW, TCG_REG_T0, addr_reg1, 0);
+            tcg_out_opc_imm(s, OPC_LW, TCG_REG_T0, TCG_REG_V0, 0);
             tcg_out_bswap32(s, data_reg1, TCG_REG_T0);
         } else {
-            tcg_out_opc_imm(s, OPC_LW, data_reg1, addr_reg1, 0);
+            tcg_out_opc_imm(s, OPC_LW, data_reg1, TCG_REG_V0, 0);
         }
         break;
     case 3:
-#if !defined(CONFIG_SOFTMMU)
-        tcg_out_mov(s, TCG_REG_V0, addr_reg1);
-        addr_reg1 = TCG_REG_V0;
-#endif
         if (TCG_NEED_BSWAP) {
-            tcg_out_opc_imm(s, OPC_LW, TCG_REG_T0, addr_reg1, 4);
+            tcg_out_opc_imm(s, OPC_LW, TCG_REG_T0, TCG_REG_V0, 4);
             tcg_out_bswap32(s, data_reg1, TCG_REG_T0);
-            tcg_out_opc_imm(s, OPC_LW, TCG_REG_T0, addr_reg1, 0);
+            tcg_out_opc_imm(s, OPC_LW, TCG_REG_T0, TCG_REG_V0, 0);
             tcg_out_bswap32(s, data_reg2, TCG_REG_T0);
         } else {
-            tcg_out_opc_imm(s, OPC_LW, data_reg1, addr_reg1, 0);
-            tcg_out_opc_imm(s, OPC_LW, data_reg2, addr_reg1, 4);
+            tcg_out_opc_imm(s, OPC_LW, data_reg1, TCG_REG_V0, 0);
+            tcg_out_opc_imm(s, OPC_LW, data_reg2, TCG_REG_V0, 4);
         }
         break;
     default:
@@ -1044,39 +1045,45 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     tcg_out_opc_imm(s, OPC_LW, TCG_REG_A0, TCG_REG_A0,
                     offsetof(CPUState, tlb_table[mem_index][0].addend) + addr_meml);
     tcg_out_opc_reg(s, OPC_ADDU, TCG_REG_A0, TCG_REG_A0, addr_regl);
+#else
+    if (GUEST_BASE == (int16_t)GUEST_BASE) {
+        tcg_out_opc_imm(s, OPC_ADDIU, TCG_REG_A0, addr_reg1, GUEST_BASE);
+    } else {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_A0, GUEST_BASE);
+        tcg_out_opc_reg(s, OPC_ADDU, TCG_REG_A0, TCG_REG_A0, addr_reg1);
+    }
 
-    addr_reg1 = TCG_REG_A0;
 #endif
 
     switch(opc) {
     case 0:
-        tcg_out_opc_imm(s, OPC_SB, data_reg1, addr_reg1, 0);
+        tcg_out_opc_imm(s, OPC_SB, data_reg1, TCG_REG_A0, 0);
         break;
     case 1:
         if (TCG_NEED_BSWAP) {
             tcg_out_bswap16(s, TCG_REG_T0, data_reg1);
-            tcg_out_opc_imm(s, OPC_SH, TCG_REG_T0, addr_reg1, 0);
+            tcg_out_opc_imm(s, OPC_SH, TCG_REG_T0, TCG_REG_A0, 0);
         } else {
-            tcg_out_opc_imm(s, OPC_SH, data_reg1, addr_reg1, 0);
+            tcg_out_opc_imm(s, OPC_SH, data_reg1, TCG_REG_A0, 0);
         }
         break;
     case 2:
         if (TCG_NEED_BSWAP) {
             tcg_out_bswap32(s, TCG_REG_T0, data_reg1);
-            tcg_out_opc_imm(s, OPC_SW, TCG_REG_T0, addr_reg1, 0);
+            tcg_out_opc_imm(s, OPC_SW, TCG_REG_T0, TCG_REG_A0, 0);
         } else {
-            tcg_out_opc_imm(s, OPC_SW, data_reg1, addr_reg1, 0);
+            tcg_out_opc_imm(s, OPC_SW, data_reg1, TCG_REG_A0, 0);
         }
         break;
     case 3:
         if (TCG_NEED_BSWAP) {
             tcg_out_bswap32(s, TCG_REG_T0, data_reg2);
-            tcg_out_opc_imm(s, OPC_SW, TCG_REG_T0, addr_reg1, 0);
+            tcg_out_opc_imm(s, OPC_SW, TCG_REG_T0, TCG_REG_A0, 0);
             tcg_out_bswap32(s, TCG_REG_T0, data_reg1);
-            tcg_out_opc_imm(s, OPC_SW, TCG_REG_T0, addr_reg1, 4);
+            tcg_out_opc_imm(s, OPC_SW, TCG_REG_T0, TCG_REG_A0, 4);
         } else {
-            tcg_out_opc_imm(s, OPC_SW, data_reg1, addr_reg1, 0);
-            tcg_out_opc_imm(s, OPC_SW, data_reg2, addr_reg1, 4);
+            tcg_out_opc_imm(s, OPC_SW, data_reg1, TCG_REG_A0, 0);
+            tcg_out_opc_imm(s, OPC_SW, data_reg2, TCG_REG_A0, 4);
         }
         break;
     default:
