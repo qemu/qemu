@@ -80,6 +80,7 @@ enum {
 /* optional instructions */
 #define TCG_TARGET_HAS_div_i32
 #define TCG_TARGET_HAS_not_i32
+#define TCG_TARGET_HAS_nor_i32
 #undef TCG_TARGET_HAS_rot_i32
 #undef TCG_TARGET_HAS_ext8s_i32
 #undef TCG_TARGET_HAS_ext16s_i32
@@ -89,7 +90,6 @@ enum {
 #undef TCG_TARGET_HAS_orc_i32
 #undef TCG_TARGET_HAS_eqv_i32
 #undef TCG_TARGET_HAS_nand_i32
-#undef TCG_TARGET_HAS_nor_i32
 
 /* optional instructions automatically implemented */
 #undef TCG_TARGET_HAS_neg_i32      /* sub  rd, zero, rt   */

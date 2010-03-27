@@ -1239,6 +1239,9 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
             tcg_out_opc_reg(s, OPC_OR, args[0], args[1], args[2]);
         }
         break;
+    case INDEX_op_nor_i32:
+        tcg_out_opc_reg(s, OPC_NOR, args[0], args[1], args[2]);
+        break;
     case INDEX_op_not_i32:
         tcg_out_opc_reg(s, OPC_NOR, args[0], args[1], args[1]);
         break;
@@ -1350,6 +1353,7 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_sub_i32, { "r", "rZ", "rJZ" } },
 
     { INDEX_op_and_i32, { "r", "rZ", "rIZ" } },
+    { INDEX_op_nor_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_not_i32, { "r", "rZ" } },
     { INDEX_op_or_i32, { "r", "rZ", "rIZ" } },
     { INDEX_op_xor_i32, { "r", "rZ", "rIZ" } },
