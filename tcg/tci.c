@@ -382,7 +382,7 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
 #ifdef CONFIG_SOFTMMU
         tci_tb_ptr=tb_ptr;
 #endif
-        uint8_t opc = *(uint8_t *)tb_ptr++;
+        TCGOpcode opc = *(uint8_t *)tb_ptr++;
         tcg_target_ulong t0;
         tcg_target_ulong t1;
         tcg_target_ulong t2;

@@ -385,7 +385,7 @@ void tci_disas(uint8_t opc)
 #endif
 }
 
-static void tcg_disas3(TCGContext *s, uint8_t c, const TCGArg *args)
+static void tcg_disas3(TCGContext *s, TCGOpcode c, const TCGArg *args)
 {
 #if defined(CONFIG_DEBUG_TCG_INTERPRETER)
     char buf[128];
@@ -533,7 +533,7 @@ static void tcg_out64(TCGContext *s, uint64_t v)
 }
 
 /* Write opcode. */
-static void tcg_out_op_t(TCGContext *s, uint8_t op)
+static void tcg_out_op_t(TCGContext *s, TCGOpcode op)
 {
     tcg_out8(s, op);
 }
@@ -663,7 +663,7 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
     }
 }
 
-static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
+static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
                        const int *const_args)
 {
     tcg_disas3(s, opc, args);
