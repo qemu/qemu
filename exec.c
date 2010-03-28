@@ -1179,7 +1179,6 @@ static inline void tb_alloc_page(TranslationBlock *tb,
                 continue;
             prot |= p2->flags;
             p2->flags &= ~PAGE_WRITE;
-            page_get_flags(addr);
           }
         mprotect(g2h(page_addr), qemu_host_page_size,
                  (prot & PAGE_BITS) & ~PAGE_WRITE);
