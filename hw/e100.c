@@ -1998,7 +1998,7 @@ static void e100_write1(E100State * s, uint32_t addr_offset, uint8_t val)
         return;
     }
 
-    // SCB stauts is read-only word, can not be directly write
+    // SCB status is readonly word, can not be directly written.
     if ( addr_offset == SCB_STATUS )
     {
         return;
@@ -2033,7 +2033,7 @@ static void e100_write2(E100State * s, uint32_t addr_offset, uint16_t val)
         return;
     }
 
-    // SCB stauts is readonly word, can not be directly write
+    // SCB status is readonly word, can not be directly written.
     if ( addr_offset == SCB_STATUS )
     {
         uint8_t __val = val >> 8;
@@ -2069,7 +2069,7 @@ static void e100_write4(E100State * s, uint32_t addr_offset, uint32_t val)
         return;
     }
 
-    // SCB stauts is readonly word, can not be directly write
+    // SCB status is readonly word, can not be directly written.
     if ( addr_offset == SCB_STATUS )
     {
         uint8_t __val[4] = {0};
