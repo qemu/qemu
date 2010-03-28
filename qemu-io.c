@@ -904,8 +904,8 @@ aio_read_help(void)
 "\n"
 " Reads a segment of the currently open file, optionally dumping it to the\n"
 " standard output stream (with -v option) for subsequent inspection.\n"
-" The read is performed asynchronously and should the aio_flush command \n"
-" should be used to ensure all outstanding aio requests have been completed\n"
+" The read is performed asynchronously and the aio_flush command must be\n"
+" used to ensure all outstanding aio requests have been completed\n"
 " -C, -- report statistics in a machine parsable format\n"
 " -P, -- use a pattern to verify read data\n"
 " -v, -- dump buffer to standard output\n"
@@ -1003,8 +1003,8 @@ aio_write_help(void)
 "\n"
 " Writes into a segment of the currently open file, using a buffer\n"
 " filled with a set pattern (0xcdcdcdcd).\n"
-" The write is performed asynchronously and should the aio_flush command \n"
-" should be used to ensure all outstanding aio requests have been completed\n"
+" The write is performed asynchronously and the aio_flush command must be\n"
+" used to ensure all outstanding aio requests have been completed\n"
 " -P, -- use different pattern to fill file\n"
 " -C, -- report statistics in a machine parsable format\n"
 " -q, -- quite mode, do not show I/O statistics\n"
@@ -1095,7 +1095,7 @@ aio_flush_f(int argc, char **argv)
 static const cmdinfo_t aio_flush_cmd = {
 	.name		= "aio_flush",
 	.cfunc		= aio_flush_f,
-	.oneline	= "completes all outstanding aio requets"
+	.oneline	= "completes all outstanding aio requests"
 };
 
 static int
