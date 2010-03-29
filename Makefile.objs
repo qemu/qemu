@@ -231,6 +231,7 @@ libdis-$(CONFIG_ARM_DIS) += arm-dis.o
 libdis-$(CONFIG_CRIS_DIS) += cris-dis.o
 libdis-$(CONFIG_HPPA_DIS) += hppa-dis.o
 libdis-$(CONFIG_I386_DIS) += i386-dis.o
+libdis-$(CONFIG_IA64_DIS) += ia64-dis.o
 libdis-$(CONFIG_M68K_DIS) += m68k-dis.o
 libdis-$(CONFIG_MICROBLAZE_DIS) += microblaze-dis.o
 libdis-$(CONFIG_MIPS_DIS) += mips-dis.o

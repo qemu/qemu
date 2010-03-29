@@ -2658,6 +2658,10 @@ for i in $ARCH $TARGET_BASE_ARCH ; do
     echo "CONFIG_I386_DIS=y"  >> $config_target_mak
     echo "CONFIG_I386_DIS=y"  >> $libdis_config_mak
   ;;
+  ia64*)
+    echo "CONFIG_IA64_DIS=y"  >> $config_target_mak
+    echo "CONFIG_IA64_DIS=y"  >> $libdis_config_mak
+  ;;
   m68k)
     echo "CONFIG_M68K_DIS=y"  >> $config_target_mak
     echo "CONFIG_M68K_DIS=y"  >> $libdis_config_mak

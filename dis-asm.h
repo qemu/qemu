@@ -219,6 +219,9 @@ enum bfd_architecture
 #define bfd_mach_cris_v32      32
 #define bfd_mach_cris_v10_v32  1032
   bfd_arch_microblaze, /* Xilinx MicroBlaze.  */
+  bfd_arch_ia64,      /* HP/Intel ia64 */
+#define bfd_mach_ia64_elf64    64
+#define bfd_mach_ia64_elf32    32
   bfd_arch_last
   };
 #define bfd_mach_s390_31 31
@@ -401,6 +404,7 @@ extern int print_insn_ppc		(bfd_vma, disassemble_info*);
 extern int print_insn_s390		(bfd_vma, disassemble_info*);
 extern int print_insn_crisv32           (bfd_vma, disassemble_info*);
 extern int print_insn_microblaze        (bfd_vma, disassemble_info*);
+extern int print_insn_ia64              (bfd_vma, disassemble_info*);
 
 #if 0
 /* Fetch the disassembler for a given BFD, if that support is available.  */
@@ -468,6 +472,7 @@ extern int generic_symbol_at_address (bfd_vma, struct disassemble_info *);
 
 /* from libbfd */
 
+bfd_vma bfd_getl64 (const bfd_byte *addr);
 bfd_vma bfd_getl32 (const bfd_byte *addr);
 bfd_vma bfd_getb32 (const bfd_byte *addr);
 bfd_vma bfd_getl16 (const bfd_byte *addr);
