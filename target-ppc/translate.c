@@ -8831,7 +8831,7 @@ GEN_SPEOP_LDST(evstwwo, 0x1E, 2),
 /*****************************************************************************/
 /* Misc PowerPC helpers */
 void cpu_dump_state (CPUState *env, FILE *f,
-                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                     fprintf_function cpu_fprintf,
                      int flags)
 {
 #define RGPL  4
@@ -8840,15 +8840,15 @@ void cpu_dump_state (CPUState *env, FILE *f,
     int i;
 
     cpu_fprintf(f, "NIP " TARGET_FMT_lx "   LR " TARGET_FMT_lx " CTR "
-                TARGET_FMT_lx " XER %08x\n", env->nip, env->lr, env->ctr,
-                env->xer);
+                TARGET_FMT_lx " XER " TARGET_FMT_lx "\n",
+                env->nip, env->lr, env->ctr, env->xer);
     cpu_fprintf(f, "MSR " TARGET_FMT_lx " HID0 " TARGET_FMT_lx "  HF "
                 TARGET_FMT_lx " idx %d\n", env->msr, env->spr[SPR_HID0],
                 env->hflags, env->mmu_idx);
 #if !defined(NO_TIMER_DUMP)
-    cpu_fprintf(f, "TB %08x %08x "
+    cpu_fprintf(f, "TB %08x %08" PRIx64
 #if !defined(CONFIG_USER_ONLY)
-                "DECR %08x"
+                " DECR %08x"
 #endif
                 "\n",
                 cpu_ppc_load_tbu(env), cpu_ppc_load_tbl(env)
@@ -8899,7 +8899,7 @@ void cpu_dump_state (CPUState *env, FILE *f,
 }
 
 void cpu_dump_statistics (CPUState *env, FILE*f,
-                          int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                          fprintf_function cpu_fprintf,
                           int flags)
 {
 #if defined(DO_PPC_STATISTICS)
