@@ -333,7 +333,7 @@ static const struct arm_cpu_t arm_cpu_names[] = {
     { 0, NULL}
 };
 
-void arm_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
+void arm_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 {
     int i;
 

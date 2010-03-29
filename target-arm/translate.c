@@ -9261,7 +9261,7 @@ static const char *cpu_mode_names[16] = {
 };
 
 void cpu_dump_state(CPUState *env, FILE *f,
-                    int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                    fprintf_function cpu_fprintf,
                     int flags)
 {
     int i;
