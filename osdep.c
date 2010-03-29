@@ -169,7 +169,17 @@ int qemu_create_pidfile(const char *filename)
 
 int ffs(int i)
 {
-    abort();
+    int position;
+    for (position = 1; position <= HOST_LONG_BITS && i != 0; position++) {
+        if (i & 1) {
+            break;
+        }
+        i >>= 1;
+    }
+    if (position > HOST_LONG_BITS || i == 0) {
+        position = 0;
+    }
+    return position;
 }
 
 /* Offset between 1/1/1601 and 1/1/1970 in 100 nanosec units */
