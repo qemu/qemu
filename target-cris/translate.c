@@ -3409,7 +3409,7 @@ void gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
 }
 
 void cpu_dump_state (CPUState *env, FILE *f,
-                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                     fprintf_function cpu_fprintf,
                      int flags)
 {
 	int i;
@@ -3462,7 +3462,7 @@ struct
 	{32, "crisv32"},
 };
 
-void cris_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
+void cris_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 {
     unsigned int i;
 
