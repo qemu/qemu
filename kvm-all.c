@@ -51,8 +51,6 @@ typedef struct KVMSlot
 
 typedef struct kvm_dirty_log KVMDirtyLog;
 
-int kvm_allowed = 0;
-
 struct KVMState
 {
     KVMSlot slots[32];
