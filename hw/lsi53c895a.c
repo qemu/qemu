@@ -679,7 +679,7 @@ static void lsi_command_complete(SCSIBus *bus, int reason, uint32_t tag,
         return;
     }
 
-    if (s->waiting == 1 || tag != s->current->tag ||
+    if (s->waiting == 1 || !s->current || tag != s->current->tag ||
         (lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON))) {
         if (lsi_queue_tag(s, tag, arg))
             return;
