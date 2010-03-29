@@ -255,7 +255,7 @@ static const sh4_def_t *cpu_sh4_find_by_name(const char *name)
     return NULL;
 }
 
-void sh4_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
+void sh4_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 {
     int i;
 
