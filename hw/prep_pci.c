@@ -49,18 +49,14 @@ static void PPC_PCIIO_writeb (void *opaque, target_phys_addr_t addr, uint32_t va
 static void PPC_PCIIO_writew (void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     PREPPCIState *s = opaque;
-#ifdef TARGET_WORDS_BIGENDIAN
     val = bswap16(val);
-#endif
     pci_data_write(s->bus, PPC_PCIIO_config(addr), val, 2);
 }
 
 static void PPC_PCIIO_writel (void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     PREPPCIState *s = opaque;
-#ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
-#endif
     pci_data_write(s->bus, PPC_PCIIO_config(addr), val, 4);
 }
 
@@ -77,9 +73,7 @@ static uint32_t PPC_PCIIO_readw (void *opaque, target_phys_addr_t addr)
     PREPPCIState *s = opaque;
     uint32_t val;
     val = pci_data_read(s->bus, PPC_PCIIO_config(addr), 2);
-#ifdef TARGET_WORDS_BIGENDIAN
     val = bswap16(val);
-#endif
     return val;
 }
 
@@ -88,9 +82,7 @@ static uint32_t PPC_PCIIO_readl (void *opaque, target_phys_addr_t addr)
     PREPPCIState *s = opaque;
     uint32_t val;
     val = pci_data_read(s->bus, PPC_PCIIO_config(addr), 4);
-#ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
-#endif
     return val;
 }
 

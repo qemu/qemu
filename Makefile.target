@@ -193,7 +193,7 @@ obj-ppc-y = ppc.o
 obj-ppc-y += vga.o dma.o
 # PREP target
 obj-ppc-y += pckbd.o i8259.o mc146818rtc.o
-obj-ppc-y += prep_pci.o ppc_prep.o
+obj-ppc-y += ppc_prep.o
 # Mac shared devices
 obj-ppc-y += macio.o cuda.o adb.o mac_nvram.o mac_dbdma.o
 # OldWorld PowerMac

@@ -150,7 +150,10 @@ hw-obj-$(CONFIG_USB_UHCI) += usb-uhci.o
 hw-obj-$(CONFIG_USB_OHCI) += usb-ohci.o
 hw-obj-$(CONFIG_FDC) += fdc.o
 hw-obj-$(CONFIG_ACPI) += acpi.o
+
+# PPC devices
 hw-obj-$(CONFIG_OPENPIC) += openpic.o
+hw-obj-$(CONFIG_PREP_PCI) += prep_pci.o
 
 # PCI watchdog devices
 hw-obj-y += wdt_i6300esb.o
