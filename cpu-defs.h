@@ -72,6 +72,12 @@ typedef uint64_t target_ulong;
 #define TB_JMP_ADDR_MASK (TB_JMP_PAGE_SIZE - 1)
 #define TB_JMP_PAGE_MASK (TB_JMP_CACHE_SIZE - TB_JMP_PAGE_SIZE)
 
+#if !defined(FPRINTF_FUNCTION_DEFINED)
+#define FPRINTF_FUNCTION_DEFINED
+typedef int (*fprintf_function)(FILE *f, const char *fmt, ...)
+            __attribute__ ((format(printf, 2, 3)));
+#endif
+
 #if !defined(CONFIG_USER_ONLY)
 #define CPU_TLB_BITS 8
 #define CPU_TLB_SIZE (1 << CPU_TLB_BITS)

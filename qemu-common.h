@@ -94,6 +94,12 @@ static inline char *realpath(const char *path, char *resolved_path)
 
 #else
 
+#if !defined(FPRINTF_FUNCTION_DEFINED)
+#define FPRINTF_FUNCTION_DEFINED
+typedef int (*fprintf_function)(FILE *f, const char *fmt, ...)
+            __attribute__ ((format(printf, 2, 3)));
+#endif
+
 #include "cpu.h"
 
 #endif /* !defined(NEED_CPU_H) */
