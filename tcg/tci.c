@@ -400,8 +400,8 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
         uint16_t i16, u16;
 #if TCG_TARGET_REG_BITS == 64
         uint32_t i32;
-        uint32_t u32;
 #endif
+        uint32_t u32;
         uint64_t u64;
 
         tci_disas(opc);
@@ -1026,10 +1026,8 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             assert(taddr == host_addr);
             u32 = *(uint32_t *)(host_addr + GUEST_BASE);
 #endif
-            tci_write_reg32(t0, tswap32(u32));
+            tci_write_reg64(t0, tswap64(u32));
             break;
-#endif /* TCG_TARGET_REG_BITS == 64 */
-#if TCG_TARGET_REG_BITS == 64
         case INDEX_op_qemu_ld32s:
             t0 = *tb_ptr++;
             taddr = tci_read_r(&tb_ptr);
@@ -1043,9 +1041,24 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             assert(taddr == host_addr);
             i32 = *(int32_t *)(host_addr + GUEST_BASE);
 #endif
-            tci_write_reg32s(t0, tswap32(i32));
+            tci_write_reg64(t0, tswap64(i32));
             break;
 #endif /* TCG_TARGET_REG_BITS == 64 */
+        case INDEX_op_qemu_ld32:
+            t0 = *tb_ptr++;
+            taddr = tci_read_r(&tb_ptr);
+#if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
+            taddr += (uint64_t)tci_read_r(&tb_ptr) << 32;
+#endif
+#ifdef CONFIG_SOFTMMU
+            u32 = __ldl_mmu(taddr, tci_read_i(&tb_ptr));
+#else
+            host_addr = (tcg_target_ulong)taddr;
+            assert(taddr == host_addr);
+            u32 = *(uint32_t *)(host_addr + GUEST_BASE);
+#endif
+            tci_write_reg32(t0, tswap32(u32));
+            break;
         case INDEX_op_qemu_ld64:
             t0 = *tb_ptr++;
 #if TCG_TARGET_REG_BITS == 32
