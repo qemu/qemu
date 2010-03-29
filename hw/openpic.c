@@ -141,6 +141,8 @@ enum mpic_ide_bits {
 #error "Please select which OpenPic implementation is to be emulated"
 #endif
 
+#define OPENPIC_PAGE_SIZE 4096
+
 #define BF_WIDTH(_bits_) \
 (((_bits_) + (sizeof(uint32_t) * 8) - 1) / (sizeof(uint32_t) * 8))
 
@@ -597,9 +599,7 @@ static void openpic_gbl_write (void *opaque, target_phys_addr_t addr, uint32_t v
     DPRINTF("%s: addr " TARGET_FMT_plx " <= %08x\n", __func__, addr, val);
     if (addr & 0xF)
         return;
-#if defined TARGET_WORDS_BIGENDIAN
     val = openpic_swap32(opp, val);
-#endif
     addr &= 0xFF;
     switch (addr) {
     case 0x00: /* FREP */
@@ -693,9 +693,7 @@ static uint32_t openpic_gbl_read (void *opaque, target_phys_addr_t addr)
         break;
     }
     DPRINTF("%s: => %08x\n", __func__, retval);
-#if defined TARGET_WORDS_BIGENDIAN
     retval = openpic_swap32(opp, retval);
-#endif
 
     return retval;
 }
@@ -708,9 +706,7 @@ static void openpic_timer_write (void *opaque, uint32_t addr, uint32_t val)
     DPRINTF("%s: addr %08x <= %08x\n", __func__, addr, val);
     if (addr & 0xF)
         return;
-#if defined TARGET_WORDS_BIGENDIAN
     val = openpic_swap32(opp, val);
-#endif
     addr -= 0x1100;
     addr &= 0xFFFF;
     idx = (addr & 0xFFF0) >> 6;
@@ -763,9 +759,7 @@ static uint32_t openpic_timer_read (void *opaque, uint32_t addr)
         break;
     }
     DPRINTF("%s: => %08x\n", __func__, retval);
-#if defined TARGET_WORDS_BIGENDIAN
     retval = openpic_swap32(opp, retval);
-#endif
 
     return retval;
 }
@@ -778,9 +772,7 @@ static void openpic_src_write (void *opaque, uint32_t addr, uint32_t val)
     DPRINTF("%s: addr %08x <= %08x\n", __func__, addr, val);
     if (addr & 0xF)
         return;
-#if defined TARGET_WORDS_BIGENDIAN
     val = openpic_swap32(opp, val);
-#endif
     addr = addr & 0xFFF0;
     idx = addr >> 5;
     if (addr & 0x10) {
@@ -812,9 +804,7 @@ static uint32_t openpic_src_read (void *opaque, uint32_t addr)
         retval = read_IRQreg(opp, idx, IRQ_IPVP);
     }
     DPRINTF("%s: => %08x\n", __func__, retval);
-#if defined TARGET_WORDS_BIGENDIAN
     retval = openpic_swap32(opp, retval);
-#endif
 
     return retval;
 }
@@ -829,9 +819,7 @@ static void openpic_cpu_write (void *opaque, target_phys_addr_t addr, uint32_t v
     DPRINTF("%s: addr " TARGET_FMT_plx " <= %08x\n", __func__, addr, val);
     if (addr & 0xF)
         return;
-#if defined TARGET_WORDS_BIGENDIAN
     val = openpic_swap32(opp, val);
-#endif
     addr &= 0x1FFF0;
     idx = addr / 0x1000;
     dst = &opp->dst[idx];
@@ -949,9 +937,7 @@ static uint32_t openpic_cpu_read (void *opaque, target_phys_addr_t addr)
         break;
     }
     DPRINTF("%s: => %08x\n", __func__, retval);
-#if defined TARGET_WORDS_BIGENDIAN
     retval = openpic_swap32(opp, retval);
-#endif
 
     return retval;
 }
@@ -1384,7 +1370,7 @@ static void mpic_src_ext_write (void *opaque, target_phys_addr_t addr,
     if (addr & 0xF)
         return;
 
-    addr -= MPIC_EXT_REG_START & (TARGET_PAGE_SIZE - 1);
+    addr -= MPIC_EXT_REG_START & (OPENPIC_PAGE_SIZE - 1);
     if (addr < MPIC_EXT_REG_SIZE) {
         idx += (addr & 0xFFF0) >> 5;
         if (addr & 0x10) {
@@ -1408,7 +1394,7 @@ static uint32_t mpic_src_ext_read (void *opaque, target_phys_addr_t addr)
     if (addr & 0xF)
         return retval;
 
-    addr -= MPIC_EXT_REG_START & (TARGET_PAGE_SIZE - 1);
+    addr -= MPIC_EXT_REG_START & (OPENPIC_PAGE_SIZE - 1);
     if (addr < MPIC_EXT_REG_SIZE) {
         idx += (addr & 0xFFF0) >> 5;
         if (addr & 0x10) {
@@ -1434,7 +1420,7 @@ static void mpic_src_int_write (void *opaque, target_phys_addr_t addr,
     if (addr & 0xF)
         return;
 
-    addr -= MPIC_INT_REG_START & (TARGET_PAGE_SIZE - 1);
+    addr -= MPIC_INT_REG_START & (OPENPIC_PAGE_SIZE - 1);
     if (addr < MPIC_INT_REG_SIZE) {
         idx += (addr & 0xFFF0) >> 5;
         if (addr & 0x10) {
@@ -1458,7 +1444,7 @@ static uint32_t mpic_src_int_read (void *opaque, target_phys_addr_t addr)
     if (addr & 0xF)
         return retval;
 
-    addr -= MPIC_INT_REG_START & (TARGET_PAGE_SIZE - 1);
+    addr -= MPIC_INT_REG_START & (OPENPIC_PAGE_SIZE - 1);
     if (addr < MPIC_INT_REG_SIZE) {
         idx += (addr & 0xFFF0) >> 5;
         if (addr & 0x10) {
@@ -1484,7 +1470,7 @@ static void mpic_src_msg_write (void *opaque, target_phys_addr_t addr,
     if (addr & 0xF)
         return;
 
-    addr -= MPIC_MSG_REG_START & (TARGET_PAGE_SIZE - 1);
+    addr -= MPIC_MSG_REG_START & (OPENPIC_PAGE_SIZE - 1);
     if (addr < MPIC_MSG_REG_SIZE) {
         idx += (addr & 0xFFF0) >> 5;
         if (addr & 0x10) {
@@ -1508,7 +1494,7 @@ static uint32_t mpic_src_msg_read (void *opaque, target_phys_addr_t addr)
     if (addr & 0xF)
         return retval;
 
-    addr -= MPIC_MSG_REG_START & (TARGET_PAGE_SIZE - 1);
+    addr -= MPIC_MSG_REG_START & (OPENPIC_PAGE_SIZE - 1);
     if (addr < MPIC_MSG_REG_SIZE) {
         idx += (addr & 0xFFF0) >> 5;
         if (addr & 0x10) {
@@ -1534,7 +1520,7 @@ static void mpic_src_msi_write (void *opaque, target_phys_addr_t addr,
     if (addr & 0xF)
         return;
 
-    addr -= MPIC_MSI_REG_START & (TARGET_PAGE_SIZE - 1);
+    addr -= MPIC_MSI_REG_START & (OPENPIC_PAGE_SIZE - 1);
     if (addr < MPIC_MSI_REG_SIZE) {
         idx += (addr & 0xFFF0) >> 5;
         if (addr & 0x10) {
@@ -1557,7 +1543,7 @@ static uint32_t mpic_src_msi_read (void *opaque, target_phys_addr_t addr)
     if (addr & 0xF)
         return retval;
 
-    addr -= MPIC_MSI_REG_START & (TARGET_PAGE_SIZE - 1);
+    addr -= MPIC_MSI_REG_START & (OPENPIC_PAGE_SIZE - 1);
     if (addr < MPIC_MSI_REG_SIZE) {
         idx += (addr & 0xFFF0) >> 5;
         if (addr & 0x10) {
