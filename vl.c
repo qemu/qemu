@@ -2920,7 +2920,7 @@ static bool tcg_cpu_exec(void)
 
         if (ret == EXCP_DEBUG) {
             gdb_set_stop_cpu(env);
-            debug_requested = 1;
+            debug_requested = EXCP_DEBUG;
             break;
         }
     }
@@ -2983,8 +2983,8 @@ static void main_loop(void)
 #endif
         } while (vm_can_run());
 
-        if (qemu_debug_requested()) {
-            vm_stop(EXCP_DEBUG);
+        if ((r = qemu_debug_requested())) {
+            vm_stop(r);
         }
         if (qemu_shutdown_requested()) {
             monitor_protocol_event(QEVENT_SHUTDOWN, NULL);
