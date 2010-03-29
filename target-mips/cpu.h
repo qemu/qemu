@@ -498,7 +498,7 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
                           int unused, int size);
 #endif
 
-void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
+void mips_cpu_list (FILE *f, fprintf_function cpu_fprintf);
 
 #define cpu_init cpu_mips_init
 #define cpu_exec cpu_mips_exec

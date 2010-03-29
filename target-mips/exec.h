@@ -22,9 +22,6 @@ register struct CPUMIPSState *env asm(AREG0);
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 void dump_fpu(CPUState *env);
-void fpu_dump_state(CPUState *env, FILE *f,
-                    int (*fpu_fprintf)(FILE *f, const char *fmt, ...),
-                    int flags);
 
 void cpu_mips_clock_init (CPUState *env);
 void cpu_mips_tlb_flush (CPUState *env, int flush_global);

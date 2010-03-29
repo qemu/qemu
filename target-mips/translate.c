@@ -9558,7 +9558,7 @@ void gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
 }
 
 static void fpu_dump_state(CPUState *env, FILE *f,
-                           int (*fpu_fprintf)(FILE *f, const char *fmt, ...),
+                           fprintf_function fpu_fprintf,
                            int flags)
 {
     int i;
@@ -9582,7 +9582,8 @@ static void fpu_dump_state(CPUState *env, FILE *f,
 
 
     fpu_fprintf(f, "CP1 FCR0 0x%08x  FCR31 0x%08x  SR.FR %d  fp_status 0x%08x(0x%02x)\n",
-                env->active_fpu.fcr0, env->active_fpu.fcr31, is_fpu64, env->active_fpu.fp_status,
+                env->active_fpu.fcr0, env->active_fpu.fcr31, is_fpu64,
+                env->active_fpu.fp_status.float_rounding_mode,
                 get_float_exception_flags(&env->active_fpu.fp_status));
     for (i = 0; i < 32; (is_fpu64) ? i++ : (i += 2)) {
         fpu_fprintf(f, "%3s: ", fregnames[i]);
@@ -9600,7 +9601,7 @@ static void fpu_dump_state(CPUState *env, FILE *f,
 
 static void
 cpu_mips_check_sign_extensions (CPUState *env, FILE *f,
-                                int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                                fprintf_function cpu_fprintf,
                                 int flags)
 {
     int i;
@@ -9627,7 +9628,7 @@ cpu_mips_check_sign_extensions (CPUState *env, FILE *f,
 #endif
 
 void cpu_dump_state (CPUState *env, FILE *f,
-                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...) __attribute__ ((format (printf, 2, 3))),
+                     fprintf_function cpu_fprintf,
                      int flags)
 {
     int i;
