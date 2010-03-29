@@ -161,7 +161,7 @@ endif #CONFIG_BSD_USER
 # System emulator target
 ifdef CONFIG_SOFTMMU
 
-obj-y = vl.o cpus.o monitor.o machine.o gdbstub.o
+obj-y = arch_init.o cpus.o monitor.o machine.o gdbstub.o
 obj-y += qemu-timer.o
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
@@ -285,11 +285,7 @@ obj-s390x-y = s390-virtio-bus.o s390-virtio.o
 
 obj-alpha-y = alpha_palcode.o
 
-main.o vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
-
-vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)
-
-vl.o: qemu-options.h
+main.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
 monitor.o: qemu-monitor.h
 
@@ -311,16 +307,13 @@ $(QEMU_PROG): $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y)
 gdbstub-xml.c: $(TARGET_XML_FILES) $(SRC_PATH)/feature_to_c.sh
 	$(call quiet-command,rm -f $@ && $(SHELL) $(SRC_PATH)/feature_to_c.sh $@ $(TARGET_XML_FILES),"  GEN   $(TARGET_DIR)$@")
 
-qemu-options.h: $(SRC_PATH)/qemu-options.hx
-	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
-
 qemu-monitor.h: $(SRC_PATH)/qemu-monitor.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
 
 clean:
 	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o
 	rm -f *.d */*.d tcg/*.o ide/*.o
-	rm -f qemu-options.h qemu-monitor.h gdbstub-xml.c
+	rm -f qemu-monitor.h gdbstub-xml.c
 
 install: all
 ifneq ($(PROGS),)

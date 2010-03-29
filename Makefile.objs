@@ -127,7 +127,7 @@ user-obj-y += cutils.o cache-utils.o
 # libhw
 
 hw-obj-y =
-hw-obj-y += loader.o
+hw-obj-y += vl.o loader.o
 hw-obj-y += virtio.o virtio-console.o
 hw-obj-$(CONFIG_VIRTIO_PCI) += virtio-pci.o
 hw-obj-y += fw_cfg.o pci.o pci_host.o pcie_host.o
@@ -216,3 +216,13 @@ libdis-$(CONFIG_PPC_DIS) += ppc-dis.o
 libdis-$(CONFIG_S390_DIS) += s390-dis.o
 libdis-$(CONFIG_SH4_DIS) += sh4-dis.o
 libdis-$(CONFIG_SPARC_DIS) += sparc-dis.o
+
+vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
+
+vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)
+
+vl.o: qemu-options.h
+
+qemu-options.h: $(SRC_PATH)/qemu-options.hx
+	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
+
