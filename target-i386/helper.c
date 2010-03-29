@@ -170,7 +170,7 @@ static const char *cc_op_str[] = {
 
 static void
 cpu_x86_dump_seg_cache(CPUState *env, FILE *f,
-                       int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                       fprintf_function cpu_fprintf,
                        const char *name, struct SegmentCache *sc)
 {
 #ifdef TARGET_X86_64
@@ -224,7 +224,7 @@ done:
 }
 
 void cpu_dump_state(CPUState *env, FILE *f,
-                    int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                    fprintf_function cpu_fprintf,
                     int flags)
 {
     int eflags, i, nb;
@@ -334,9 +334,11 @@ void cpu_dump_state(CPUState *env, FILE *f,
                     (uint32_t)env->cr[2],
                     (uint32_t)env->cr[3],
                     (uint32_t)env->cr[4]);
-        for(i = 0; i < 4; i++)
-            cpu_fprintf(f, "DR%d=%08x ", i, env->dr[i]);
-        cpu_fprintf(f, "\nDR6=%08x DR7=%08x\n", env->dr[6], env->dr[7]);
+        for(i = 0; i < 4; i++) {
+            cpu_fprintf(f, "DR%d=%08x ", i, (uint32_t)env->dr[i]);
+        }
+        cpu_fprintf(f, "\nDR6=%08x DR7=%08x\n",
+                    (uint32_t)env->dr[6], (uint32_t)env->dr[7]);
     }
     if (flags & X86_DUMP_CCOP) {
         if ((unsigned)env->cc_op < CC_OP_NB)
