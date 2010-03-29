@@ -2429,6 +2429,9 @@ int page_check_range(target_ulong start, target_ulong len, int flags)
     assert(start < ((abi_ulong)1 << L1_MAP_ADDR_SPACE_BITS));
 #endif
 
+    if (len == 0) {
+        return 0;
+    }
     if (start + len - 1 < start) {
         /* We've wrapped around.  */
         return -1;
