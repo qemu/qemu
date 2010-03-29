@@ -231,6 +231,8 @@ typedef struct SSIBus SSIBus;
 
 typedef uint64_t pcibus_t;
 
+void cpu_exec_init_all(unsigned long tb_size);
+
 /* CPU save/load.  */
 void cpu_save(QEMUFile *f, void *opaque);
 int cpu_load(QEMUFile *f, void *opaque, int version_id);
