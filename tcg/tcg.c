@@ -2110,8 +2110,7 @@ int tcg_gen_code_search_pc(TCGContext *s, uint8_t *gen_code_buf, long offset)
 }
 
 #ifdef CONFIG_PROFILER
-void tcg_dump_info(FILE *f,
-                   int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
+void tcg_dump_info(FILE *f, fprintf_function cpu_fprintf)
 {
     TCGContext *s = &tcg_ctx;
     int64_t tot;
@@ -2155,8 +2154,7 @@ void tcg_dump_info(FILE *f,
     dump_op_count();
 }
 #else
-void tcg_dump_info(FILE *f,
-                   int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
+void tcg_dump_info(FILE *f, fprintf_function cpu_fprintf)
 {
     cpu_fprintf(f, "[TCG profiler not compiled]\n");
 }

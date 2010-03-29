@@ -384,8 +384,7 @@ static inline TCGv_i64 tcg_temp_local_new_i64(void)
 void tcg_temp_free_i64(TCGv_i64 arg);
 char *tcg_get_arg_str_i64(TCGContext *s, char *buf, int buf_size, TCGv_i64 arg);
 
-void tcg_dump_info(FILE *f,
-                   int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
+void tcg_dump_info(FILE *f, fprintf_function cpu_fprintf);
 
 #define TCG_CT_ALIAS  0x80
 #define TCG_CT_IALIAS 0x40
