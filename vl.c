@@ -2945,6 +2945,22 @@ static void set_numa_modes(void)
     }
 }
 
+static void set_cpu_log(const char *optarg)
+{
+    int mask;
+    const CPULogItem *item;
+
+    mask = cpu_str_to_log_mask(optarg);
+    if (!mask) {
+        printf("Log items (comma separated):\n");
+        for (item = cpu_log_items; item->mask != 0; item++) {
+            printf("%-10s %s\n", item->name, item->help);
+        }
+        exit(1);
+    }
+    cpu_set_log(mask);
+}
+
 static int vm_can_run(void)
 {
     if (powerdown_requested)
@@ -3306,6 +3322,33 @@ int qemu_uuid_parse(const char *str, uint8_t *uuid)
 #endif
 
     return 0;
+}
+
+#ifdef TARGET_I386
+static void do_acpitable_option(const char *optarg)
+{
+    if (acpi_table_add(optarg) < 0) {
+        fprintf(stderr, "Wrong acpi table provided\n");
+        exit(1);
+    }
+}
+#endif
+
+#ifdef TARGET_I386
+static void do_smbios_option(const char *optarg)
+{
+    if (smbios_entry_add(optarg) < 0) {
+        fprintf(stderr, "Wrong smbios provided\n");
+        exit(1);
+    }
+}
+#endif
+
+static void cpudef_init(void)
+{
+#if defined(cpudef_setup)
+    cpudef_setup(); /* parse cpu definitions in target config file */
+#endif
 }
 
 #ifndef _WIN32
@@ -3856,9 +3899,7 @@ int main(int argc, char **argv, char **envp)
             fclose(fp);
         }
     }
-#if defined(cpudef_setup)
-    cpudef_setup(); /* parse cpu definitions in target config file */
-#endif
+    cpudef_init();
 
     /* second pass of option parsing */
     optind = 1;
@@ -4164,20 +4205,7 @@ int main(int argc, char **argv, char **envp)
                 break;
 #endif
             case QEMU_OPTION_d:
-                {
-                    int mask;
-                    const CPULogItem *item;
-
-                    mask = cpu_str_to_log_mask(optarg);
-                    if (!mask) {
-                        printf("Log items (comma separated):\n");
-                    for(item = cpu_log_items; item->mask != 0; item++) {
-                        printf("%-10s %s\n", item->name, item->help);
-                    }
-                    exit(1);
-                    }
-                    cpu_set_log(mask);
-                }
+                set_cpu_log(optarg);
                 break;
             case QEMU_OPTION_s:
                 gdbstub_dev = "tcp::" DEFAULT_GDBSTUB_PORT;
@@ -4345,16 +4373,10 @@ int main(int argc, char **argv, char **envp)
                 rtc_td_hack = 1;
                 break;
             case QEMU_OPTION_acpitable:
-                if(acpi_table_add(optarg) < 0) {
-                    fprintf(stderr, "Wrong acpi table provided\n");
-                    exit(1);
-                }
+                do_acpitable_option(optarg);
                 break;
             case QEMU_OPTION_smbios:
-                if(smbios_entry_add(optarg) < 0) {
-                    fprintf(stderr, "Wrong smbios provided\n");
-                    exit(1);
-                }
+                do_smbios_option(optarg);
                 break;
 #endif
 #ifdef CONFIG_KVM
