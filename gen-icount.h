@@ -1,3 +1,5 @@
+#include "qemu-timer.h"
+
 /* Helpers for instruction counting code generation.  */
 
 static TCGArg *icount_arg;

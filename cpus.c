@@ -771,3 +771,19 @@ void set_cpu_log(const char *optarg)
     }
     cpu_set_log(mask);
 }
+
+/* Return the virtual CPU time, based on the instruction counter.  */
+int64_t cpu_get_icount(void)
+{
+    int64_t icount;
+    CPUState *env = cpu_single_env;;
+
+    icount = qemu_icount;
+    if (env) {
+        if (!can_do_io(env)) {
+            fprintf(stderr, "Bad clock read\n");
+        }
+        icount -= (env->icount_decr.u16.low + env->icount_extra);
+    }
+    return qemu_icount_bias + (icount << icount_time_shift);
+}

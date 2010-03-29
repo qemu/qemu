@@ -29,6 +29,7 @@
 #include "exec-all.h"
 #include "disas.h"
 #include "tcg.h"
+#include "qemu-timer.h"
 
 /* code generation context */
 TCGContext tcg_ctx;

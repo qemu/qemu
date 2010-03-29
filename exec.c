@@ -38,6 +38,7 @@
 #include "hw/hw.h"
 #include "osdep.h"
 #include "kvm.h"
+#include "qemu-timer.h"
 #if defined(CONFIG_USER_ONLY)
 #include <qemu.h>
 #include <signal.h>
