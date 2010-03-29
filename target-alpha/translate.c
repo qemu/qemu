@@ -2531,13 +2531,16 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         break;
 #endif
     case 0x1A:
-        if (rb != 31)
+        /* JMP, JSR, RET, JSR_COROUTINE.  These only differ by the branch
+           prediction stack action, which of course we don't implement.  */
+        if (rb != 31) {
             tcg_gen_andi_i64(cpu_pc, cpu_ir[rb], ~3);
-        else
+        } else {
             tcg_gen_movi_i64(cpu_pc, 0);
-        if (ra != 31)
+        }
+        if (ra != 31) {
             tcg_gen_movi_i64(cpu_ir[ra], ctx->pc);
-        /* Those four jumps only differ by the branch prediction hint */
+        }
         ret = EXIT_PC_UPDATED;
         break;
     case 0x1B:
