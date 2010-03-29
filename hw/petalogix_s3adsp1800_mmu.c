@@ -149,7 +149,7 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
     pflash_cfi01_register(0xa0000000, phys_flash,
                           dinfo ? dinfo->bdrv : NULL, (64 * 1024),
                           FLASH_SIZE >> 16,
-                          1, 0x89, 0x18, 0x0000, 0x0);
+                          1, 0x89, 0x18, 0x0000, 0x0, 1);
 
     cpu_irq = microblaze_pic_init_cpu(env);
     dev = xilinx_intc_create(0x81800000, cpu_irq[0], 2);

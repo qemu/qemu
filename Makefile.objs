@@ -135,6 +135,7 @@ hw-obj-y += watchdog.o
 hw-obj-$(CONFIG_ISA_MMIO) += isa_mmio.o
 hw-obj-$(CONFIG_ECC) += ecc.o
 hw-obj-$(CONFIG_NAND) += nand.o
+hw-obj-$(CONFIG_PFLASH_CFI01) += pflash_cfi01.o
 hw-obj-$(CONFIG_PFLASH_CFI02) += pflash_cfi02.o
 
 hw-obj-$(CONFIG_M48T59) += m48t59.o

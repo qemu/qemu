@@ -215,7 +215,6 @@ obj-mips-y += dma.o vga.o i8259.o
 obj-mips-y += g364fb.o jazz_led.o
 obj-mips-y += gt64xxx.o pckbd.o mc146818rtc.o
 obj-mips-y += piix4.o cirrus_vga.o
-obj-mips-y += pflash_cfi01.o
 
 obj-microblaze-y = petalogix_s3adsp1800_mmu.o
 
@@ -224,8 +223,6 @@ obj-microblaze-y += xilinx_intc.o
 obj-microblaze-y += xilinx_timer.o
 obj-microblaze-y += xilinx_uartlite.o
 obj-microblaze-y += xilinx_ethlite.o
-
-obj-microblaze-y += pflash_cfi01.o
 
 obj-microblaze-$(CONFIG_FDT) += device_tree.o
 
@@ -259,7 +256,7 @@ obj-arm-y += pl061.o
 obj-arm-y += arm-semi.o
 obj-arm-y += pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
 obj-arm-y += pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o pxa2xx_keypad.o
-obj-arm-y += pflash_cfi01.o gumstix.o
+obj-arm-y += gumstix.o
 obj-arm-y += zaurus.o ide/microdrive.o spitz.o tosa.o tc6393xb.o
 obj-arm-y += omap1.o omap_lcdc.o omap_dma.o omap_clk.o omap_mmc.o omap_i2c.o
 obj-arm-y += omap2.o omap_dss.o soc_dma.o

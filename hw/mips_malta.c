@@ -789,6 +789,7 @@ void mips_malta_init (ram_addr_t ram_size,
     DriveInfo *fd[MAX_FD];
     int fl_idx = 0;
     int fl_sectors = 0;
+    int be;
 
     /* Make sure the first 3 serial ports are associated with a device. */
     for(i = 0; i < 3; i++) {
@@ -833,6 +834,11 @@ void mips_malta_init (ram_addr_t ram_size,
     cpu_register_physical_memory(0x1fc00000LL,
                                  BIOS_SIZE, bios_offset | IO_MEM_ROM);
 
+#ifdef TARGET_WORDS_BIGENDIAN
+    be = 1;
+#else
+    be = 0;
+#endif
     /* FPGA */
     malta_fpga = malta_fpga_init(0x1f000000LL, env->irq[2], serial_hds[2]);
 
@@ -859,7 +865,7 @@ void mips_malta_init (ram_addr_t ram_size,
 #endif
             pflash_cfi01_register(0x1e000000LL, bios_offset,
                                   dinfo->bdrv, 65536, fl_sectors,
-                                  4, 0x0000, 0x0000, 0x0000, 0x0000);
+                                  4, 0x0000, 0x0000, 0x0000, 0x0000, be);
             fl_idx++;
         } else {
             /* Load a BIOS image. */
