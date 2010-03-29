@@ -3104,7 +3104,7 @@ void gen_intermediate_code_pc(CPUState *env, TranslationBlock *tb)
 }
 
 void cpu_dump_state(CPUState *env, FILE *f,
-                    int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                    fprintf_function cpu_fprintf,
                     int flags)
 {
     int i;
