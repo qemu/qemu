@@ -448,12 +448,11 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             break;
 #if TCG_TARGET_REG_BITS == 32
         case INDEX_op_setcond2_i32:
-            //~ tcg_out_op_t(s, opc);
             TODO();
             break;
 #elif TCG_TARGET_REG_BITS == 64
         case INDEX_op_setcond_i64:
-            //~ TODO();
+            TODO();
             break;
 #endif
         case INDEX_op_mov_i32:
