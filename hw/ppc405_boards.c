@@ -228,7 +228,8 @@ static void ref405ep_init (ram_addr_t ram_size,
 #endif
         pflash_cfi02_register((uint32_t)(-bios_size), bios_offset,
                               dinfo->bdrv, 65536, fl_sectors, 1,
-                              2, 0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA);
+                              2, 0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA,
+                              1);
         fl_idx++;
     } else
 #endif
@@ -542,7 +543,8 @@ static void taihu_405ep_init(ram_addr_t ram_size,
 #endif
         pflash_cfi02_register((uint32_t)(-bios_size), bios_offset,
                               dinfo->bdrv, 65536, fl_sectors, 1,
-                              4, 0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA);
+                              4, 0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA,
+                              1);
         fl_idx++;
     } else
 #endif
@@ -584,7 +586,8 @@ static void taihu_405ep_init(ram_addr_t ram_size,
         bios_offset = qemu_ram_alloc(bios_size);
         pflash_cfi02_register(0xfc000000, bios_offset,
                               dinfo->bdrv, 65536, fl_sectors, 1,
-                              4, 0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA);
+                              4, 0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA,
+                              1);
         fl_idx++;
     }
     /* Register CLPD & LCD display */

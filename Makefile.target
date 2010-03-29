@@ -202,7 +202,7 @@ obj-ppc-y += heathrow_pic.o grackle_pci.o ppc_oldworld.o
 # NewWorld PowerMac
 obj-ppc-y += unin_pci.o ppc_newworld.o dec_pci.o
 # PowerPC 4xx boards
-obj-ppc-y += pflash_cfi02.o ppc4xx_devs.o ppc4xx_pci.o ppc405_uc.o ppc405_boards.o
+obj-ppc-y += ppc4xx_devs.o ppc4xx_pci.o ppc405_uc.o ppc405_boards.o
 obj-ppc-y += ppc440.o ppc440_bamboo.o
 # PowerPC E500 boards
 obj-ppc-y += ppce500_pci.o ppce500_mpc8544ds.o
@@ -239,8 +239,6 @@ obj-cris-y += etraxfs_eth.o
 obj-cris-y += etraxfs_timer.o
 obj-cris-y += etraxfs_ser.o
 
-obj-cris-y += pflash_cfi02.o
-
 ifeq ($(TARGET_ARCH), sparc64)
 obj-sparc-y = sun4u.o pckbd.o apb_pci.o
 obj-sparc-y += vga.o
@@ -268,7 +266,7 @@ obj-arm-y += omap2.o omap_dss.o soc_dma.o
 obj-arm-y += omap_sx1.o palm.o tsc210x.o
 obj-arm-y += nseries.o blizzard.o onenand.o vga.o cbus.o tusb6010.o usb-musb.o
 obj-arm-y += mst_fpga.o mainstone.o
-obj-arm-y += musicpal.o pflash_cfi02.o bitbang_i2c.o marvell_88w8618_audio.o
+obj-arm-y += musicpal.o bitbang_i2c.o marvell_88w8618_audio.o
 obj-arm-y += framebuffer.o
 obj-arm-y += syborg.o syborg_fb.o syborg_interrupt.o syborg_keyboard.o
 obj-arm-y += syborg_serial.o syborg_timer.o syborg_pointer.o syborg_rtc.o
