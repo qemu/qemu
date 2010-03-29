@@ -537,7 +537,7 @@ void do_interrupt (CPUState *env)
 #endif
 
 void cpu_dump_state (CPUState *env, FILE *f,
-                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                     fprintf_function cpu_fprintf,
                      int flags)
 {
     static const char *linux_reg_names[] = {
