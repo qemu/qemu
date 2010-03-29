@@ -46,6 +46,7 @@
 #include "loader.h"
 #include "elf.h"
 #include "multiboot.h"
+#include "kvm.h"
 
 /* output Bochs bios info messages */
 //#define DEBUG_BIOS
@@ -752,6 +753,26 @@ int cpu_is_bsp(CPUState *env)
     return env->cpu_index == 0;
 }
 
+/* set CMOS shutdown status register (index 0xF) as S3_resume(0xFE)
+   BIOS will read it and start S3 resume at POST Entry */
+static void cmos_set_s3_resume(void *opaque, int irq, int level)
+{
+    RTCState *s = opaque;
+
+    if (level) {
+        rtc_set_memory(s, 0xF, 0xFE);
+    }
+}
+
+static void acpi_smi_interrupt(void *opaque, int irq, int level)
+{
+    CPUState *s = opaque;
+
+    if (level) {
+        cpu_interrupt(s, CPU_INTERRUPT_SMI);
+    }
+}
+
 static CPUState *pc_new_cpu(const char *cpu_model)
 {
     CPUState *env;
@@ -792,6 +813,8 @@ static void pc_init1(ram_addr_t ram_size,
     qemu_irq *cpu_irq;
     qemu_irq *isa_irq;
     qemu_irq *i8259;
+    qemu_irq *cmos_s3;
+    qemu_irq *smi_irq;
     IsaIrqState *isa_irq_state;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DriveInfo *fd[MAX_FD];
@@ -1006,9 +1029,12 @@ static void pc_init1(ram_addr_t ram_size,
         uint8_t *eeprom_buf = qemu_mallocz(8 * 256); /* XXX: make this persistent */
         i2c_bus *smbus;
 
+        cmos_s3 = qemu_allocate_irqs(cmos_set_s3_resume, rtc_state, 1);
+        smi_irq = qemu_allocate_irqs(acpi_smi_interrupt, first_cpu, 1);
         /* TODO: Populate SPD eeprom data.  */
         smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
-                              isa_reserve_irq(9));
+                              isa_reserve_irq(9), *cmos_s3, *smi_irq,
+                              kvm_enabled());
         for (i = 0; i < 8; i++) {
             DeviceState *eeprom;
             eeprom = qdev_create((BusState *)smbus, "smbus-eeprom");
@@ -1058,14 +1084,6 @@ static void pc_init_isa(ram_addr_t ram_size,
     pc_init1(ram_size, boot_device,
              kernel_filename, kernel_cmdline,
              initrd_filename, cpu_model, 0);
-}
-
-/* set CMOS shutdown status register (index 0xF) as S3_resume(0xFE)
-   BIOS will read it and start S3 resume at POST Entry */
-void cmos_set_s3_resume(void)
-{
-    if (rtc_state)
-        rtc_set_memory(rtc_state, 0xF, 0xFE);
 }
 
 static QEMUMachine pc_machine = {
