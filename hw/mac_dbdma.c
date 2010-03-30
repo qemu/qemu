@@ -707,9 +707,7 @@ static void dbdma_writel (void *opaque,
     DBDMA_DPRINTF("channel 0x%x reg 0x%x\n",
                   (uint32_t)addr >> DBDMA_CHANNEL_SHIFT, reg);
 
-#ifdef TARGET_WORDS_BIGENDIAN
     value = bswap32(value);
-#endif
 
     /* cmdptr cannot be modified if channel is RUN or ACTIVE */
 
@@ -790,9 +788,7 @@ static uint32_t dbdma_readl (void *opaque, target_phys_addr_t addr)
         break;
     }
 
-#ifdef TARGET_WORDS_BIGENDIAN
     value = bswap32(value);
-#endif
     return value;
 }
 

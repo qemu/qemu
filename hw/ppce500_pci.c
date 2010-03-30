@@ -15,12 +15,10 @@
  */
 
 #include "hw.h"
-#include "ppc.h"
 #include "ppce500.h"
 #include "pci.h"
 #include "pci_host.h"
 #include "bswap.h"
-#include "qemu-log.h"
 
 #ifdef DEBUG_PCI
 #define pci_debug(fmt, ...) fprintf(stderr, fmt, ## __VA_ARGS__)

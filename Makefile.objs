@@ -154,6 +154,20 @@ hw-obj-$(CONFIG_ACPI) += acpi.o
 # PPC devices
 hw-obj-$(CONFIG_OPENPIC) += openpic.o
 hw-obj-$(CONFIG_PREP_PCI) += prep_pci.o
+# Mac shared devices
+hw-obj-$(CONFIG_MACIO) += macio.o
+hw-obj-$(CONFIG_CUDA) += cuda.o
+hw-obj-$(CONFIG_ADB) += adb.o
+hw-obj-$(CONFIG_MAC_NVRAM) += mac_nvram.o
+hw-obj-$(CONFIG_MAC_DBDMA) += mac_dbdma.o
+# OldWorld PowerMac
+hw-obj-$(CONFIG_HEATHROW_PIC) += heathrow_pic.o
+hw-obj-$(CONFIG_GRACKLE_PCI) += grackle_pci.o
+# NewWorld PowerMac
+hw-obj-$(CONFIG_UNIN_PCI) += unin_pci.o
+hw-obj-$(CONFIG_DEC_PCI) += dec_pci.o
+# PowerPC E500 boards
+hw-obj-$(CONFIG_PPCE500_PCI) += ppce500_pci.o
 
 # PCI watchdog devices
 hw-obj-y += wdt_i6300esb.o
