@@ -31,7 +31,7 @@
 /* For tb_lock */
 #include "exec-all.h"
 
-
+#include "qemu-timer.h"
 #include "envlist.h"
 
 #define DEBUG_LOGFILE "/tmp/qemu.log"
