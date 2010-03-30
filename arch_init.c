@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <stdarg.h>
 #ifndef _WIN32
+#include <sys/types.h>
 #include <sys/mman.h>
 #endif
 #include "config.h"
