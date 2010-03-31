@@ -219,6 +219,14 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint32_t features)
                         (features >> VIRTIO_NET_F_GUEST_ECN)  & 1,
                         (features >> VIRTIO_NET_F_GUEST_UFO)  & 1);
     }
+    if (!n->nic->nc.peer ||
+        n->nic->nc.peer->info->type != NET_CLIENT_TYPE_TAP) {
+        return;
+    }
+    if (!tap_get_vhost_net(n->nic->nc.peer)) {
+        return;
+    }
+    return vhost_net_ack_features(tap_get_vhost_net(n->nic->nc.peer), features);
 }
 
 static int virtio_net_handle_rx_mode(VirtIONet *n, uint8_t cmd,
