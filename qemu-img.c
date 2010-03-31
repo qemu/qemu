@@ -210,7 +210,7 @@ static BlockDriverState *bdrv_new_open(const char *filename,
     if (!readonly) {
         flags |= BDRV_O_RDWR;
     }
-    if (bdrv_open2(bs, filename, flags, drv) < 0) {
+    if (bdrv_open(bs, filename, flags, drv) < 0) {
         error("Could not open '%s'", filename);
     }
     if (bdrv_is_encrypted(bs)) {
@@ -415,7 +415,7 @@ static int img_check(int argc, char **argv)
     } else {
         drv = NULL;
     }
-    if (bdrv_open2(bs, filename, BRDV_O_FLAGS, drv) < 0) {
+    if (bdrv_open(bs, filename, BRDV_O_FLAGS, drv) < 0) {
         error("Could not open '%s'", filename);
     }
     ret = bdrv_check(bs);
@@ -474,7 +474,7 @@ static int img_commit(int argc, char **argv)
     } else {
         drv = NULL;
     }
-    if (bdrv_open2(bs, filename, BRDV_O_FLAGS | BDRV_O_RDWR, drv) < 0) {
+    if (bdrv_open(bs, filename, BRDV_O_FLAGS | BDRV_O_RDWR, drv) < 0) {
         error("Could not open '%s'", filename);
     }
     ret = bdrv_commit(bs);
@@ -926,7 +926,7 @@ static int img_info(int argc, char **argv)
     } else {
         drv = NULL;
     }
-    if (bdrv_open2(bs, filename, BRDV_O_FLAGS | BDRV_O_NO_BACKING, drv) < 0) {
+    if (bdrv_open(bs, filename, BRDV_O_FLAGS | BDRV_O_NO_BACKING, drv) < 0) {
         error("Could not open '%s'", filename);
     }
     bdrv_get_format(bs, fmt_name, sizeof(fmt_name));
@@ -1032,7 +1032,7 @@ static int img_snapshot(int argc, char **argv)
     if (!bs)
         error("Not enough memory");
 
-    if (bdrv_open2(bs, filename, bdrv_oflags, NULL) < 0) {
+    if (bdrv_open(bs, filename, bdrv_oflags, NULL) < 0) {
         error("Could not open '%s'", filename);
     }
 
@@ -1137,7 +1137,7 @@ static int img_rebase(int argc, char **argv)
     }
 
     flags = BRDV_O_FLAGS | BDRV_O_RDWR | (unsafe ? BDRV_O_NO_BACKING : 0);
-    if (bdrv_open2(bs, filename, flags, drv) < 0) {
+    if (bdrv_open(bs, filename, flags, drv) < 0) {
         error("Could not open '%s'", filename);
     }
 
@@ -1169,7 +1169,7 @@ static int img_rebase(int argc, char **argv)
 
         bs_old_backing = bdrv_new("old_backing");
         bdrv_get_backing_filename(bs, backing_name, sizeof(backing_name));
-        if (bdrv_open2(bs_old_backing, backing_name, BRDV_O_FLAGS,
+        if (bdrv_open(bs_old_backing, backing_name, BRDV_O_FLAGS,
             old_backing_drv))
         {
             error("Could not open old backing file '%s'", backing_name);
@@ -1177,7 +1177,7 @@ static int img_rebase(int argc, char **argv)
         }
 
         bs_new_backing = bdrv_new("new_backing");
-        if (bdrv_open2(bs_new_backing, out_baseimg, BRDV_O_FLAGS | BDRV_O_RDWR,
+        if (bdrv_open(bs_new_backing, out_baseimg, BRDV_O_FLAGS | BDRV_O_RDWR,
             new_backing_drv))
         {
             error("Could not open new backing file '%s'", out_baseimg);

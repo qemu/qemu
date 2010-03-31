@@ -1129,7 +1129,7 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
 
     bdrv_flags |= ro ? 0 : BDRV_O_RDWR;
 
-    if (bdrv_open2(dinfo->bdrv, file, bdrv_flags, drv) < 0) {
+    if (bdrv_open(dinfo->bdrv, file, bdrv_flags, drv) < 0) {
         fprintf(stderr, "qemu: could not open disk image %s: %s\n",
                         file, strerror(errno));
         return NULL;

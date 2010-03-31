@@ -68,9 +68,8 @@ int bdrv_create2(BlockDriver *drv,
 BlockDriverState *bdrv_new(const char *device_name);
 void bdrv_delete(BlockDriverState *bs);
 int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags);
-int bdrv_open(BlockDriverState *bs, const char *filename, int flags);
-int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
-               BlockDriver *drv);
+int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
+              BlockDriver *drv);
 void bdrv_close(BlockDriverState *bs);
 int bdrv_check(BlockDriverState *bs);
 int bdrv_read(BlockDriverState *bs, int64_t sector_num,

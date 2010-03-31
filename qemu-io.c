@@ -1284,7 +1284,7 @@ static int openfile(char *name, int flags, int growable)
 		flags |= BDRV_O_FILE;
 	}
 
-	if (bdrv_open(bs, name, flags) < 0) {
+	if (bdrv_open(bs, name, flags, NULL) < 0) {
 		fprintf(stderr, "%s: can't open device %s\n", progname, name);
 		bs = NULL;
 		return 1;

@@ -333,7 +333,7 @@ int main(int argc, char **argv)
     if (bs == NULL)
         return 1;
 
-    if (bdrv_open(bs, argv[optind], flags) < 0)
+    if (bdrv_open(bs, argv[optind], flags, NULL) < 0)
         return 1;
 
     fd_size = bs->total_sectors * 512;

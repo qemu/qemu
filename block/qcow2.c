@@ -52,7 +52,7 @@ typedef struct {
 #define  QCOW_EXT_MAGIC_END 0
 #define  QCOW_EXT_MAGIC_BACKING_FORMAT 0xE2792ACA
 
-
+static BlockDriver bdrv_qcow2;
 
 static int qcow_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
@@ -1033,7 +1033,7 @@ exit:
     if (ret == 0 && prealloc) {
         BlockDriverState *bs;
         bs = bdrv_new("");
-        bdrv_open(bs, filename, BDRV_O_CACHE_WB | BDRV_O_RDWR);
+        bdrv_open(bs, filename, BDRV_O_CACHE_WB | BDRV_O_RDWR, &bdrv_qcow2);
         preallocate(bs);
         bdrv_close(bs);
     }

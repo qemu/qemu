@@ -338,7 +338,7 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags)
     int ret;
 
     bs = bdrv_new("");
-    ret = bdrv_open2(bs, filename, flags | BDRV_O_FILE, NULL);
+    ret = bdrv_open(bs, filename, flags | BDRV_O_FILE, NULL);
     if (ret < 0) {
         bdrv_delete(bs);
         return ret;
@@ -348,13 +348,8 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags)
     return 0;
 }
 
-int bdrv_open(BlockDriverState *bs, const char *filename, int flags)
-{
-    return bdrv_open2(bs, filename, flags, NULL);
-}
-
-int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
-               BlockDriver *drv)
+int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
+              BlockDriver *drv)
 {
     int ret, open_flags;
     char tmp_filename[PATH_MAX];
@@ -379,7 +374,7 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
 
         /* if there is a backing file, use it */
         bs1 = bdrv_new("");
-        ret = bdrv_open2(bs1, filename, 0, drv);
+        ret = bdrv_open(bs1, filename, 0, drv);
         if (ret < 0) {
             bdrv_delete(bs1);
             return ret;
@@ -491,9 +486,8 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
 
         /* backing files always opened read-only */
         open_flags &= ~BDRV_O_RDWR;
-        
-        ret = bdrv_open2(bs->backing_hd, backing_filename, open_flags,
-                         back_drv);
+
+        ret = bdrv_open(bs->backing_hd, backing_filename, open_flags, back_drv);
         if (ret < 0) {
             bdrv_close(bs);
             return ret;
@@ -605,12 +599,12 @@ int bdrv_commit(BlockDriverState *bs)
         bdrv_delete(bs->backing_hd);
         bs->backing_hd = NULL;
         bs_rw = bdrv_new("");
-        rw_ret = bdrv_open2(bs_rw, filename, open_flags | BDRV_O_RDWR, NULL);
+        rw_ret = bdrv_open(bs_rw, filename, open_flags | BDRV_O_RDWR, NULL);
         if (rw_ret < 0) {
             bdrv_delete(bs_rw);
             /* try to re-open read-only */
             bs_ro = bdrv_new("");
-            ret = bdrv_open2(bs_ro, filename, open_flags & ~BDRV_O_RDWR, NULL);
+            ret = bdrv_open(bs_ro, filename, open_flags & ~BDRV_O_RDWR, NULL);
             if (ret < 0) {
                 bdrv_delete(bs_ro);
                 /* drive not functional anymore */
@@ -662,7 +656,7 @@ ro_cleanup:
         bdrv_delete(bs->backing_hd);
         bs->backing_hd = NULL;
         bs_ro = bdrv_new("");
-        ret = bdrv_open2(bs_ro, filename, open_flags & ~BDRV_O_RDWR, NULL);
+        ret = bdrv_open(bs_ro, filename, open_flags & ~BDRV_O_RDWR, NULL);
         if (ret < 0) {
             bdrv_delete(bs_ro);
             /* drive not functional anymore */
