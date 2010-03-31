@@ -199,7 +199,8 @@ ETEXI
         .args_type  = "filename:F",
         .params     = "filename",
         .help       = "save screen into PPM image 'filename'",
-        .mhandler.cmd = do_screen_dump,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_screen_dump,
     },
 
 STEXI
