@@ -541,7 +541,7 @@ static void vnc_dpy_resize(DisplayState *ds)
         vnc_colordepth(vs);
         if (size_changed) {
             if (vs->csock != -1 && vnc_has_feature(vs, VNC_FEATURE_RESIZE)) {
-                vnc_write_u8(vs, 0);  /* msg id */
+                vnc_write_u8(vs, VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
                 vnc_write_u8(vs, 0);
                 vnc_write_u16(vs, 1); /* number of rects */
                 vnc_framebuffer_update(vs, 0, 0, ds_get_width(ds), ds_get_height(ds),
@@ -844,7 +844,7 @@ static void send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
 static void vnc_copy(VncState *vs, int src_x, int src_y, int dst_x, int dst_y, int w, int h)
 {
     /* send bitblit op to the vnc client */
-    vnc_write_u8(vs, 0);  /* msg id */
+    vnc_write_u8(vs, VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
     vnc_write_u8(vs, 0);
     vnc_write_u16(vs, 1); /* number of rects */
     vnc_framebuffer_update(vs, dst_x, dst_y, w, h, VNC_ENCODING_COPYRECT);
@@ -964,7 +964,7 @@ static int vnc_update_client(VncState *vs, int has_dirty)
          * send them to the client.
          */
         n_rectangles = 0;
-        vnc_write_u8(vs, 0);  /* msg id */
+        vnc_write_u8(vs, VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
         vnc_write_u8(vs, 0);
         saved_offset = vs->output.offset;
         vnc_write_u16(vs, 0);
@@ -1013,16 +1013,16 @@ static void audio_capture_notify(void *opaque, audcnotification_e cmd)
 
     switch (cmd) {
     case AUD_CNOTIFY_DISABLE:
-        vnc_write_u8(vs, 255);
-        vnc_write_u8(vs, 1);
-        vnc_write_u16(vs, 0);
+        vnc_write_u8(vs, VNC_MSG_SERVER_QEMU);
+        vnc_write_u8(vs, VNC_MSG_SERVER_QEMU_AUDIO);
+        vnc_write_u16(vs, VNC_MSG_SERVER_QEMU_AUDIO_END);
         vnc_flush(vs);
         break;
 
     case AUD_CNOTIFY_ENABLE:
-        vnc_write_u8(vs, 255);
-        vnc_write_u8(vs, 1);
-        vnc_write_u16(vs, 1);
+        vnc_write_u8(vs, VNC_MSG_SERVER_QEMU);
+        vnc_write_u8(vs, VNC_MSG_SERVER_QEMU_AUDIO);
+        vnc_write_u16(vs, VNC_MSG_SERVER_QEMU_AUDIO_BEGIN);
         vnc_flush(vs);
         break;
     }
@@ -1036,9 +1036,9 @@ static void audio_capture(void *opaque, void *buf, int size)
 {
     VncState *vs = opaque;
 
-    vnc_write_u8(vs, 255);
-    vnc_write_u8(vs, 1);
-    vnc_write_u16(vs, 2);
+    vnc_write_u8(vs, VNC_MSG_SERVER_QEMU);
+    vnc_write_u8(vs, VNC_MSG_SERVER_QEMU_AUDIO);
+    vnc_write_u16(vs, VNC_MSG_SERVER_QEMU_AUDIO_DATA);
     vnc_write_u32(vs, size);
     vnc_write(vs, buf, size);
     vnc_flush(vs);
@@ -1434,7 +1434,7 @@ static void check_pointer_type_change(Notifier *notifier)
     int absolute = kbd_mouse_is_absolute();
 
     if (vnc_has_feature(vs, VNC_FEATURE_POINTER_TYPE_CHANGE) && vs->absolute != absolute) {
-        vnc_write_u8(vs, 0);
+        vnc_write_u8(vs, VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
         vnc_write_u8(vs, 0);
         vnc_write_u16(vs, 1);
         vnc_framebuffer_update(vs, absolute, 0,
@@ -1747,7 +1747,7 @@ static void framebuffer_update_request(VncState *vs, int incremental,
 
 static void send_ext_key_event_ack(VncState *vs)
 {
-    vnc_write_u8(vs, 0);
+    vnc_write_u8(vs, VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
     vnc_write_u8(vs, 0);
     vnc_write_u16(vs, 1);
     vnc_framebuffer_update(vs, 0, 0, ds_get_width(vs->ds), ds_get_height(vs->ds),
@@ -1757,7 +1757,7 @@ static void send_ext_key_event_ack(VncState *vs)
 
 static void send_ext_audio_ack(VncState *vs)
 {
-    vnc_write_u8(vs, 0);
+    vnc_write_u8(vs, VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
     vnc_write_u8(vs, 0);
     vnc_write_u16(vs, 1);
     vnc_framebuffer_update(vs, 0, 0, ds_get_width(vs->ds), ds_get_height(vs->ds),
@@ -1930,7 +1930,7 @@ static void vnc_colordepth(VncState *vs)
 {
     if (vnc_has_feature(vs, VNC_FEATURE_WMVI)) {
         /* Sending a WMVi message to notify the client*/
-        vnc_write_u8(vs, 0);  /* msg id */
+        vnc_write_u8(vs, VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
         vnc_write_u8(vs, 0);
         vnc_write_u16(vs, 1); /* number of rects */
         vnc_framebuffer_update(vs, 0, 0, ds_get_width(vs->ds), 
@@ -1955,7 +1955,7 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
     }
 
     switch (data[0]) {
-    case 0:
+    case VNC_MSG_CLIENT_SET_PIXEL_FORMAT:
         if (len == 1)
             return 20;
 
@@ -1965,7 +1965,7 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
                          read_u16(data, 12), read_u8(data, 14),
                          read_u8(data, 15), read_u8(data, 16));
         break;
-    case 2:
+    case VNC_MSG_CLIENT_SET_ENCODINGS:
         if (len == 1)
             return 4;
 
@@ -1983,7 +1983,7 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
 
         set_encodings(vs, (int32_t *)(data + 4), limit);
         break;
-    case 3:
+    case VNC_MSG_CLIENT_FRAMEBUFFER_UPDATE_REQUEST:
         if (len == 1)
             return 10;
 
@@ -1991,19 +1991,19 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
                                    read_u8(data, 1), read_u16(data, 2), read_u16(data, 4),
                                    read_u16(data, 6), read_u16(data, 8));
         break;
-    case 4:
+    case VNC_MSG_CLIENT_KEY_EVENT:
         if (len == 1)
             return 8;
 
         key_event(vs, read_u8(data, 1), read_u32(data, 4));
         break;
-    case 5:
+    case VNC_MSG_CLIENT_POINTER_EVENT:
         if (len == 1)
             return 6;
 
         pointer_event(vs, read_u8(data, 1), read_u16(data, 2), read_u16(data, 4));
         break;
-    case 6:
+    case VNC_MSG_CLIENT_CUT_TEXT:
         if (len == 1)
             return 8;
 
@@ -2015,30 +2015,30 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
 
         client_cut_text(vs, read_u32(data, 4), data + 8);
         break;
-    case 255:
+    case VNC_MSG_CLIENT_QEMU:
         if (len == 1)
             return 2;
 
         switch (read_u8(data, 1)) {
-        case 0:
+        case VNC_MSG_CLIENT_QEMU_EXT_KEY_EVENT:
             if (len == 2)
                 return 12;
 
             ext_key_event(vs, read_u16(data, 2),
                           read_u32(data, 4), read_u32(data, 8));
             break;
-        case 1:
+        case VNC_MSG_CLIENT_QEMU_AUDIO:
             if (len == 2)
                 return 4;
 
             switch (read_u16 (data, 2)) {
-            case 0:
+            case VNC_MSG_CLIENT_QEMU_AUDIO_ENABLE:
                 audio_add(vs);
                 break;
-            case 1:
+            case VNC_MSG_CLIENT_QEMU_AUDIO_DISABLE:
                 audio_del(vs);
                 break;
-            case 2:
+            case VNC_MSG_CLIENT_QEMU_AUDIO_SET_FORMAT:
                 if (len == 4)
                     return 10;
                 switch (read_u8(data, 4)) {

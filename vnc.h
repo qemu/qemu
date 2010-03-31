@@ -276,6 +276,57 @@ enum {
 #define VNC_FEATURE_COPYRECT_MASK            (1 << VNC_FEATURE_COPYRECT)
 
 
+/* Client -> Server message IDs */
+#define VNC_MSG_CLIENT_SET_PIXEL_FORMAT           0
+#define VNC_MSG_CLIENT_SET_ENCODINGS              2
+#define VNC_MSG_CLIENT_FRAMEBUFFER_UPDATE_REQUEST 3
+#define VNC_MSG_CLIENT_KEY_EVENT                  4
+#define VNC_MSG_CLIENT_POINTER_EVENT              5
+#define VNC_MSG_CLIENT_CUT_TEXT                   6
+#define VNC_MSG_CLIENT_VMWARE_0                   127
+#define VNC_MSG_CLIENT_CALL_CONTROL               249
+#define VNC_MSG_CLIENT_XVP                        250
+#define VNC_MSG_CLIENT_SET_DESKTOP_SIZE           251
+#define VNC_MSG_CLIENT_TIGHT                      252
+#define VNC_MSG_CLIENT_GII                        253
+#define VNC_MSG_CLIENT_VMWARE_1                   254
+#define VNC_MSG_CLIENT_QEMU                       255
+
+/* Server -> Client message IDs */
+#define VNC_MSG_SERVER_FRAMEBUFFER_UPDATE         0
+#define VNC_MSG_SERVER_SET_COLOUR_MAP_ENTRIES     1
+#define VNC_MSG_SERVER_BELL                       2
+#define VNC_MSG_SERVER_CUT_TEXT                   3
+#define VNC_MSG_SERVER_VMWARE_0                   127
+#define VNC_MSG_SERVER_CALL_CONTROL               249
+#define VNC_MSG_SERVER_XVP                        250
+#define VNC_MSG_SERVER_TIGHT                      252
+#define VNC_MSG_SERVER_GII                        253
+#define VNC_MSG_SERVER_VMWARE_1                   254
+#define VNC_MSG_SERVER_QEMU                       255
+
+
+
+/* QEMU client -> server message IDs */
+#define VNC_MSG_CLIENT_QEMU_EXT_KEY_EVENT         0
+#define VNC_MSG_CLIENT_QEMU_AUDIO                 1
+
+/* QEMU server -> client message IDs */
+#define VNC_MSG_SERVER_QEMU_AUDIO                 1
+
+
+
+/* QEMU client -> server audio message IDs */
+#define VNC_MSG_CLIENT_QEMU_AUDIO_ENABLE          0
+#define VNC_MSG_CLIENT_QEMU_AUDIO_DISABLE         1
+#define VNC_MSG_CLIENT_QEMU_AUDIO_SET_FORMAT      2
+
+/* QEMU server -> client audio message IDs */
+#define VNC_MSG_SERVER_QEMU_AUDIO_END             0
+#define VNC_MSG_SERVER_QEMU_AUDIO_BEGIN           1
+#define VNC_MSG_SERVER_QEMU_AUDIO_DATA            2
+
+
 /*****************************************************************************
  *
  * Internal APIs
