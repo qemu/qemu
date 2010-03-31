@@ -77,6 +77,8 @@ static TCGv cpu_fregs[32];
 /* internal register indexes */
 static TCGv cpu_flags, cpu_delayed_pc;
 
+static uint32_t gen_opc_hflags[OPC_BUF_SIZE];
+
 #include "gen-icount.h"
 
 static void sh4_translate_init(void)

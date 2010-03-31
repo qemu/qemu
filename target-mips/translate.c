@@ -442,6 +442,8 @@ static TCGv cpu_dspctrl, btarget, bcond;
 static TCGv_i32 hflags;
 static TCGv_i32 fpu_fcr0, fpu_fcr31;
 
+static uint32_t gen_opc_hflags[OPC_BUF_SIZE];
+
 #include "gen-icount.h"
 
 #define gen_helper_0i(name, arg) do {                             \

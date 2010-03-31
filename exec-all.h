@@ -58,12 +58,8 @@ typedef struct TranslationBlock TranslationBlock;
 #define OPPARAM_BUF_SIZE (OPC_BUF_SIZE * MAX_OPC_PARAM)
 
 extern target_ulong gen_opc_pc[OPC_BUF_SIZE];
-extern target_ulong gen_opc_npc[OPC_BUF_SIZE];
-extern uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
 extern uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 extern uint16_t gen_opc_icount[OPC_BUF_SIZE];
-extern target_ulong gen_opc_jump_pc[2];
-extern uint32_t gen_opc_hflags[OPC_BUF_SIZE];
 
 #include "qemu-log.h"
 

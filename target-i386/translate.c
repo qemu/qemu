@@ -72,6 +72,8 @@ static TCGv_i32 cpu_tmp2_i32, cpu_tmp3_i32;
 static TCGv_i64 cpu_tmp1_i64;
 static TCGv cpu_tmp5;
 
+static uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
+
 #include "gen-icount.h"
 
 #ifdef TARGET_X86_64

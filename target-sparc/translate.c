@@ -66,6 +66,9 @@ static TCGv_i64 cpu_tmp64;
 /* Floating point registers */
 static TCGv_i32 cpu_fpr[TARGET_FPREGS];
 
+static target_ulong gen_opc_npc[OPC_BUF_SIZE];
+static target_ulong gen_opc_jump_pc[2];
+
 #include "gen-icount.h"
 
 typedef struct DisasContext {
