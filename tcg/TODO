@@ -1,4 +1,4 @@
-- Add new instructions such as: setcond, clz, ctz, popcnt.
+- Add new instructions such as: clz, ctz, popcnt.
 
 - See if it is worth exporting mul2, mulu2, div2, divu2. 
 
