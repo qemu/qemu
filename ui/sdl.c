@@ -21,6 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
+/* Avoid compiler warning because macro is redefined in SDL_syswm.h. */
+#undef WIN32_LEAN_AND_MEAN
+
 #include <SDL.h>
 #include <SDL_syswm.h>
 
