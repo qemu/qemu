@@ -292,10 +292,6 @@ static int default_driver_check(QemuOpts *opts, void *opaque)
 }
 
 /***********************************************************/
-/* x86 ISA bus support */
-
-target_phys_addr_t isa_mem_base = 0;
-PicState2 *isa_pic;
 
 static void set_proc_name(const char *s)
 {
