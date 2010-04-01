@@ -357,9 +357,9 @@ static int vhost_virtqueue_set_addr(struct vhost_dev *dev,
 {
     struct vhost_vring_addr addr = {
         .index = idx,
-        .desc_user_addr = (u_int64_t)(unsigned long)vq->desc,
-        .avail_user_addr = (u_int64_t)(unsigned long)vq->avail,
-        .used_user_addr = (u_int64_t)(unsigned long)vq->used,
+        .desc_user_addr = (uint64_t)(unsigned long)vq->desc,
+        .avail_user_addr = (uint64_t)(unsigned long)vq->avail,
+        .used_user_addr = (uint64_t)(unsigned long)vq->used,
         .log_guest_addr = vq->used_phys,
         .flags = enable_log ? (1 << VHOST_VRING_F_LOG) : 0,
     };
