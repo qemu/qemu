@@ -214,9 +214,10 @@ cpu_x86_dump_seg_cache(CPUState *env, FILE *f,
                 "Reserved", "IntGate64", "TrapGate64"
             }
         };
-        cpu_fprintf(f, sys_type_name[(env->hflags & HF_LMA_MASK) ? 1 : 0]
-                                    [(sc->flags & DESC_TYPE_MASK)
-                                     >> DESC_TYPE_SHIFT]);
+        cpu_fprintf(f, "%s",
+                    sys_type_name[(env->hflags & HF_LMA_MASK) ? 1 : 0]
+                                 [(sc->flags & DESC_TYPE_MASK)
+                                  >> DESC_TYPE_SHIFT]);
     }
 done:
     cpu_fprintf(f, "\n");
