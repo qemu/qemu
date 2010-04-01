@@ -149,7 +149,7 @@ static void syborg_virtio_writel(void *opaque, target_phys_addr_t offset,
         virtio_queue_notify(vdev, value);
         break;
     case SYBORG_VIRTIO_STATUS:
-        vdev->status = value & 0xFF;
+        virtio_set_status(vdev, value & 0xFF);
         if (vdev->status == 0)
             virtio_reset(vdev);
         break;

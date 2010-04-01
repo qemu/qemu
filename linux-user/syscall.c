@@ -41,6 +41,10 @@
 #include <sys/swap.h>
 #include <signal.h>
 #include <sched.h>
+#ifdef __ia64__
+int __clone2(int (*fn)(void *), void *child_stack_base,
+             size_t stack_size, int flags, void *arg, ...);
+#endif
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/uio.h>
@@ -3626,7 +3630,7 @@ static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
             return -EINVAL;
         /* This is probably going to die very quickly, but do it anyway.  */
 #ifdef __ia64__
-        ret = __clone2(clone_func, new_stack + NEW_STACK_SIZE, flags, new_env);
+        ret = __clone2(clone_func, new_stack, NEW_STACK_SIZE, flags, new_env);
 #else
 	ret = clone(clone_func, new_stack + NEW_STACK_SIZE, flags, new_env);
 #endif

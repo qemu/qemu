@@ -58,6 +58,11 @@ void cpu_reset(CPUS390XState *env)
     tlb_flush(env, 1);
 }
 
+target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+{
+    return 0;
+}
+
 #ifndef CONFIG_USER_ONLY
 
 int cpu_s390x_handle_mmu_fault (CPUState *env, target_ulong address, int rw,

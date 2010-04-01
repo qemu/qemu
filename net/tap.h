@@ -48,4 +48,9 @@ int tap_probe_vnet_hdr(int fd);
 int tap_probe_has_ufo(int fd);
 void tap_fd_set_offload(int fd, int csum, int tso4, int tso6, int ecn, int ufo);
 
+int tap_get_fd(VLANClientState *vc);
+
+struct vhost_net;
+struct vhost_net *tap_get_vhost_net(VLANClientState *vc);
+
 #endif /* QEMU_NET_TAP_H */

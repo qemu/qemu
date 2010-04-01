@@ -181,12 +181,6 @@ elif check_define __x86_64__ ; then
   cpu="x86_64"
 elif check_define __arm__ ; then
   cpu="armv4l"
-elif check_define __mips__ ; then
-  if check_define __mips64 ; then
-    cpu="mips64"
-  else
-    cpu="mips"
-  fi
 elif check_define __sparc__ ; then
   # We can't check for 64 bit (when gcc is biarch) or V8PLUSA
   # They must be specified using --sparc_cpu
@@ -201,6 +195,14 @@ elif check_define _ARCH_PPC ; then
   else
     cpu="ppc"
   fi
+elif check_define __mips__ ; then
+  if check_define __mips64 ; then
+    cpu="mips64"
+  else
+    cpu="mips"
+  fi
+elif check_define __ia64__ ; then
+  cpu="ia64"
 else
   cpu=`uname -m`
 fi
@@ -278,6 +280,7 @@ vnc_tls=""
 vnc_sasl=""
 xen=""
 linux_aio=""
+vhost_net=""
 
 gprof="no"
 debug_tcg="no"
@@ -677,6 +680,10 @@ for opt do
   ;;
   --enable-tools) tools="yes"
   ;;
+  --disable-vhost-net) vhost_net="no"
+  ;;
+  --enable-vhost-net) vhost_net="yes"
+  ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
   esac
@@ -734,6 +741,9 @@ case "$cpu" in
            host_guest_base="yes"
            ;;
     mips*)
+           host_guest_base="yes"
+           ;;
+    ia64*)
            host_guest_base="yes"
            ;;
 esac
@@ -836,6 +846,8 @@ echo "  --disable-blobs          disable installing provided firmware blobs"
 echo "  --kerneldir=PATH         look for kernel includes in PATH"
 echo "  --enable-docs            enable documentation build"
 echo "  --disable-docs           disable documentation build"
+echo "  --disable-vhost-net      disable vhost-net acceleration support"
+echo "  --enable-vhost-net       enable vhost-net acceleration support"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -1540,6 +1552,32 @@ EOF
 fi
 
 ##########################################
+# test for vhost net
+
+if test "$vhost_net" != "no"; then
+    if test "$kvm" != "no"; then
+            cat > $TMPC <<EOF
+    #include <linux/vhost.h>
+    int main(void) { return 0; }
+EOF
+            if compile_prog "$kvm_cflags" "" ; then
+                vhost_net=yes
+            else
+                if test "$vhost_net" = "yes" ; then
+                    feature_not_found "vhost-net"
+                fi
+                vhost_net=no
+            fi
+    else
+            if test "$vhost_net" = "yes" ; then
+                echo -e "NOTE: vhost-net feature requires KVM (--enable-kvm)."
+                feature_not_found "vhost-net"
+            fi
+            vhost_net=no
+    fi
+fi
+
+##########################################
 # pthread probe
 PTHREADLIBS_LIST="-lpthread -lpthreadGC2"
 
@@ -2037,6 +2075,7 @@ echo "fdt support       $fdt"
 echo "preadv support    $preadv"
 echo "fdatasync         $fdatasync"
 echo "uuid support      $uuid"
+echo "vhost-net support $vhost_net"
 
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -2584,6 +2623,9 @@ case "$target_arch2" in
       if test "$kvm_para" = "yes"; then
         echo "CONFIG_KVM_PARA=y" >> $config_target_mak
       fi
+      if test $vhost_net = "yes" ; then
+        echo "CONFIG_VHOST_NET=y" >> $config_target_mak
+      fi
     fi
 esac
 if test "$target_bigendian" = "yes" ; then
@@ -2685,6 +2727,10 @@ for i in $ARCH $TARGET_BASE_ARCH ; do
     echo "CONFIG_I386_DIS=y"  >> $config_target_mak
     echo "CONFIG_I386_DIS=y"  >> $libdis_config_mak
   ;;
+  ia64*)
+    echo "CONFIG_IA64_DIS=y"  >> $config_target_mak
+    echo "CONFIG_IA64_DIS=y"  >> $libdis_config_mak
+  ;;
   m68k)
     echo "CONFIG_M68K_DIS=y"  >> $config_target_mak
     echo "CONFIG_M68K_DIS=y"  >> $libdis_config_mak
@@ -2720,9 +2766,6 @@ case "$ARCH" in
 alpha)
   # Ensure there's only a single GP
   cflags="-msmall-data $cflags"
-;;
-ia64)
-  cflags="-mno-sdata $cflags"
 ;;
 esac
 
@@ -2768,18 +2811,8 @@ if test "$target_linux_user" = "yes" -o "$target_bsd_user" = "yes" ; then
     # -static is used to avoid g1/g3 usage by the dynamic linker
     ldflags="$linker_script -static $ldflags"
     ;;
-  ia64)
-    ldflags="-Wl,-G0 $linker_script -static $ldflags"
-    ;;
-  i386|x86_64|ppc|ppc64|s390|sparc64|alpha|arm|m68k|mips|mips64)
+  i386|x86_64|ppc|ppc64|s390|sparc64|alpha|arm|m68k|mips|mips64|ia64)
     ldflags="$linker_script $ldflags"
-    ;;
-  esac
-fi
-if test "$target_softmmu" = "yes" ; then
-  case "$ARCH" in
-  ia64)
-    ldflags="-Wl,-G0 $linker_script -static $ldflags"
     ;;
   esac
 fi

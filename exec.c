@@ -501,7 +501,8 @@ static void tlb_unprotect_code_phys(CPUState *env, ram_addr_t ram_addr,
 #endif
 
 #ifdef USE_STATIC_CODE_GEN_BUFFER
-static uint8_t static_code_gen_buffer[DEFAULT_CODE_GEN_BUFFER_SIZE];
+static uint8_t static_code_gen_buffer[DEFAULT_CODE_GEN_BUFFER_SIZE]
+               __attribute__((aligned (CODE_GEN_ALIGN)));
 #endif
 
 static void code_gen_alloc(unsigned long tb_size)
@@ -2508,8 +2509,8 @@ int page_check_range(target_ulong start, target_ulong len, int flags)
    page. Return TRUE if the fault was successfully handled. */
 int page_unprotect(target_ulong address, unsigned long pc, void *puc)
 {
-    unsigned int page_index, prot, pindex;
-    PageDesc *p, *p1;
+    unsigned int prot;
+    PageDesc *p;
     target_ulong host_start, host_end, addr;
 
     /* Technically this isn't safe inside a signal handler.  However we
@@ -2517,37 +2518,36 @@ int page_unprotect(target_ulong address, unsigned long pc, void *puc)
        practice it seems to be ok.  */
     mmap_lock();
 
-    host_start = address & qemu_host_page_mask;
-    page_index = host_start >> TARGET_PAGE_BITS;
-    p1 = page_find(page_index);
-    if (!p1) {
+    p = page_find(address >> TARGET_PAGE_BITS);
+    if (!p) {
         mmap_unlock();
         return 0;
     }
-    host_end = host_start + qemu_host_page_size;
-    p = p1;
-    prot = 0;
-    for(addr = host_start;addr < host_end; addr += TARGET_PAGE_SIZE) {
-        prot |= p->flags;
-        p++;
-    }
+
     /* if the page was really writable, then we change its
        protection back to writable */
-    if (prot & PAGE_WRITE_ORG) {
-        pindex = (address - host_start) >> TARGET_PAGE_BITS;
-        if (!(p1[pindex].flags & PAGE_WRITE)) {
-            mprotect((void *)g2h(host_start), qemu_host_page_size,
-                     (prot & PAGE_BITS) | PAGE_WRITE);
-            p1[pindex].flags |= PAGE_WRITE;
+    if ((p->flags & PAGE_WRITE_ORG) && !(p->flags & PAGE_WRITE)) {
+        host_start = address & qemu_host_page_mask;
+        host_end = host_start + qemu_host_page_size;
+
+        prot = 0;
+        for (addr = host_start ; addr < host_end ; addr += TARGET_PAGE_SIZE) {
+            p = page_find(addr >> TARGET_PAGE_BITS);
+            p->flags |= PAGE_WRITE;
+            prot |= p->flags;
+
             /* and since the content will be modified, we must invalidate
                the corresponding translated code. */
-            tb_invalidate_phys_page(address, pc, puc);
+            tb_invalidate_phys_page(addr, pc, puc);
 #ifdef DEBUG_TB_CHECK
-            tb_invalidate_check(address);
+            tb_invalidate_check(addr);
 #endif
-            mmap_unlock();
-            return 1;
         }
+        mprotect((void *)g2h(host_start), qemu_host_page_size,
+                 prot & PAGE_BITS);
+
+        mmap_unlock();
+        return 1;
     }
     mmap_unlock();
     return 0;
