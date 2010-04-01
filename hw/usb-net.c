@@ -71,11 +71,6 @@ enum usbstring_idx {
 #define USB_DT_CS_INTERFACE		0x24
 #define USB_DT_CS_ENDPOINT		0x25
 
-#define ClassInterfaceRequest		\
-    ((USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8)
-#define ClassInterfaceOutRequest	\
-    ((USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8)
-
 #define USB_CDC_SEND_ENCAPSULATED_COMMAND	0x00
 #define USB_CDC_GET_ENCAPSULATED_RESPONSE	0x01
 #define USB_CDC_REQ_SET_LINE_CODING		0x20

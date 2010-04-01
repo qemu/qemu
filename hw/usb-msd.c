@@ -327,14 +327,12 @@ static int usb_msd_handle_control(USBDevice *dev, int request, int value,
         ret = 0;
         break;
         /* Class specific requests.  */
-    case (((USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8) | MassStorageReset):
-    case MassStorageReset:
+    case ClassInterfaceOutRequest | MassStorageReset:
         /* Reset state ready for the next CBW.  */
         s->mode = USB_MSDM_CBW;
         ret = 0;
         break;
-    case (((USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8) | GetMaxLun):
-    case GetMaxLun:
+    case ClassInterfaceRequest | GetMaxLun:
         data[0] = 0;
         ret = 1;
         break;
