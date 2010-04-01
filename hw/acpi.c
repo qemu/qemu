@@ -529,7 +529,8 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
 
     register_ioport_write(ACPI_DBG_IO_ADDR, 4, 4, acpi_dbg_writel, s);
 
-    if (kvm_enabled) {
+    s->kvm_enabled = kvm_enabled;
+    if (s->kvm_enabled) {
         /* Mark SMM as already inited to prevent SMM from running.  KVM does not
          * support SMM mode. */
         pci_conf[0x5B] = 0x02;
