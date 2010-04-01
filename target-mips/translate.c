@@ -9564,20 +9564,26 @@ static void fpu_dump_state(CPUState *env, FILE *f,
     int i;
     int is_fpu64 = !!(env->hflags & MIPS_HFLAG_F64);
 
-#define printfpr(fp)                                                        \
-    do {                                                                    \
-        if (is_fpu64)                                                       \
-            fpu_fprintf(f, "w:%08x d:%016lx fd:%13g fs:%13g psu: %13g\n",   \
-                        (fp)->w[FP_ENDIAN_IDX], (fp)->d, (fp)->fd,          \
-                        (fp)->fs[FP_ENDIAN_IDX], (fp)->fs[!FP_ENDIAN_IDX]); \
-        else {                                                              \
-            fpr_t tmp;                                                      \
-            tmp.w[FP_ENDIAN_IDX] = (fp)->w[FP_ENDIAN_IDX];                  \
-            tmp.w[!FP_ENDIAN_IDX] = ((fp) + 1)->w[FP_ENDIAN_IDX];           \
-            fpu_fprintf(f, "w:%08x d:%016lx fd:%13g fs:%13g psu:%13g\n",    \
-                        tmp.w[FP_ENDIAN_IDX], tmp.d, tmp.fd,                \
-                        tmp.fs[FP_ENDIAN_IDX], tmp.fs[!FP_ENDIAN_IDX]);     \
-        }                                                                   \
+#define printfpr(fp)                                                    \
+    do {                                                                \
+        if (is_fpu64)                                                   \
+            fpu_fprintf(f, "w:%08x d:%016" PRIx64                       \
+                        " fd:%13g fs:%13g psu: %13g\n",                 \
+                        (fp)->w[FP_ENDIAN_IDX], (fp)->d,                \
+                        (double)(fp)->fd,                               \
+                        (double)(fp)->fs[FP_ENDIAN_IDX],                \
+                        (double)(fp)->fs[!FP_ENDIAN_IDX]);              \
+        else {                                                          \
+            fpr_t tmp;                                                  \
+            tmp.w[FP_ENDIAN_IDX] = (fp)->w[FP_ENDIAN_IDX];              \
+            tmp.w[!FP_ENDIAN_IDX] = ((fp) + 1)->w[FP_ENDIAN_IDX];       \
+            fpu_fprintf(f, "w:%08x d:%016" PRIx64                       \
+                        " fd:%13g fs:%13g psu:%13g\n",                  \
+                        tmp.w[FP_ENDIAN_IDX], tmp.d,                    \
+                        (double)tmp.fd,                                 \
+                        (double)tmp.fs[FP_ENDIAN_IDX],                  \
+                        (double)tmp.fs[!FP_ENDIAN_IDX]);                \
+        }                                                               \
     } while(0)
 
 
