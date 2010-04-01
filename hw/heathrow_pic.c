@@ -68,9 +68,7 @@ static void pic_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
     HeathrowPIC *pic;
     unsigned int n;
 
-#ifdef TARGET_WORDS_BIGENDIAN
     value = bswap32(value);
-#endif
     n = ((addr & 0xfff) - 0x10) >> 4;
     PIC_DPRINTF("writel: " TARGET_FMT_plx " %u: %08x\n", addr, n, value);
     if (n >= 2)
@@ -120,9 +118,7 @@ static uint32_t pic_readl (void *opaque, target_phys_addr_t addr)
         }
     }
     PIC_DPRINTF("readl: " TARGET_FMT_plx " %u: %08x\n", addr, n, value);
-#ifdef TARGET_WORDS_BIGENDIAN
     value = bswap32(value);
-#endif
     return value;
 }
 

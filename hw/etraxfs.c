@@ -92,7 +92,7 @@ void bareetraxfs_init (ram_addr_t ram_size,
                           dinfo ? dinfo->bdrv : NULL, (64 * 1024),
                           FLASH_SIZE >> 16,
                           1, 2, 0x0000, 0x0000, 0x0000, 0x0000,
-                          0x555, 0x2aa);
+                          0x555, 0x2aa, 0);
     cpu_irq = cris_pic_init_cpu(env);
     dev = qdev_create(NULL, "etraxfs,pic");
     /* FIXME: Is there a proper way to signal vectors to the CPU core?  */

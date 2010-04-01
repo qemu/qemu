@@ -176,6 +176,7 @@ static void mips_init(ram_addr_t ram_size,
     qemu_irq *i8259;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DriveInfo *dinfo;
+    int be;
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -228,6 +229,11 @@ static void mips_init(ram_addr_t ram_size,
     } else {
         bios_size = -1;
     }
+#ifdef TARGET_WORDS_BIGENDIAN
+    be = 1;
+#else
+    be = 0;
+#endif
     if ((bios_size > 0) && (bios_size <= BIOS_SIZE)) {
         bios_offset = qemu_ram_alloc(BIOS_SIZE);
         cpu_register_physical_memory(0x1fc00000, BIOS_SIZE,
@@ -238,8 +244,9 @@ static void mips_init(ram_addr_t ram_size,
         uint32_t mips_rom = 0x00400000;
         bios_offset = qemu_ram_alloc(mips_rom);
         if (!pflash_cfi01_register(0x1fc00000, bios_offset,
-            dinfo->bdrv, sector_len, mips_rom / sector_len,
-            4, 0, 0, 0, 0)) {
+                                   dinfo->bdrv, sector_len,
+                                   mips_rom / sector_len,
+                                   4, 0, 0, 0, 0, be)) {
             fprintf(stderr, "qemu: Error registering flash memory.\n");
 	}
     }

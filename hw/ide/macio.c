@@ -40,6 +40,8 @@ typedef struct MACIOIDEState {
     BlockDriverAIOCB *aiocb;
 } MACIOIDEState;
 
+#define MACIO_PAGE_SIZE 4096
+
 static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
 {
     DBDMA_io *io = opaque;
@@ -77,7 +79,7 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
 
     s->io_buffer_size = io->len;
 
-    qemu_sglist_init(&s->sg, io->len / TARGET_PAGE_SIZE + 1);
+    qemu_sglist_init(&s->sg, io->len / MACIO_PAGE_SIZE + 1);
     qemu_sglist_add(&s->sg, io->addr, io->len);
     io->addr += io->len;
     io->len = 0;
@@ -139,7 +141,7 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
     s->io_buffer_index = 0;
     s->io_buffer_size = io->len;
 
-    qemu_sglist_init(&s->sg, io->len / TARGET_PAGE_SIZE + 1);
+    qemu_sglist_init(&s->sg, io->len / MACIO_PAGE_SIZE + 1);
     qemu_sglist_add(&s->sg, io->addr, io->len);
     io->addr += io->len;
     io->len = 0;
@@ -223,9 +225,7 @@ static void pmac_ide_writew (void *opaque,
     MACIOIDEState *d = opaque;
 
     addr = (addr & 0xFFF) >> 4;
-#ifdef TARGET_WORDS_BIGENDIAN
     val = bswap16(val);
-#endif
     if (addr == 0) {
         ide_data_writew(&d->bus, 0, val);
     }
@@ -242,9 +242,7 @@ static uint32_t pmac_ide_readw (void *opaque,target_phys_addr_t addr)
     } else {
         retval = 0xFFFF;
     }
-#ifdef TARGET_WORDS_BIGENDIAN
     retval = bswap16(retval);
-#endif
     return retval;
 }
 
@@ -254,9 +252,7 @@ static void pmac_ide_writel (void *opaque,
     MACIOIDEState *d = opaque;
 
     addr = (addr & 0xFFF) >> 4;
-#ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
-#endif
     if (addr == 0) {
         ide_data_writel(&d->bus, 0, val);
     }
@@ -273,9 +269,7 @@ static uint32_t pmac_ide_readl (void *opaque,target_phys_addr_t addr)
     } else {
         retval = 0xFFFFFFFF;
     }
-#ifdef TARGET_WORDS_BIGENDIAN
     retval = bswap32(retval);
-#endif
     return retval;
 }
 

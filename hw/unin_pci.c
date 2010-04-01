@@ -121,9 +121,7 @@ static void unin_data_write(ReadWriteHandler *handler,
                             pcibus_t addr, uint32_t val, int len)
 {
     UNINState *s = container_of(handler, UNINState, data_handler);
-#ifdef TARGET_WORDS_BIGENDIAN
     val = qemu_bswap_len(val, len);
-#endif
     UNIN_DPRINTF("write addr %" FMT_PCIBUS " len %d val %x\n", addr, len, val);
     pci_data_write(s->host_state.bus,
                    unin_get_config_reg(s->host_state.config_reg, addr),
@@ -140,9 +138,7 @@ static uint32_t unin_data_read(ReadWriteHandler *handler,
                         unin_get_config_reg(s->host_state.config_reg, addr),
                         len);
     UNIN_DPRINTF("read addr %" FMT_PCIBUS " len %d val %x\n", addr, len, val);
-#ifdef TARGET_WORDS_BIGENDIAN
     val = qemu_bswap_len(val, len);
-#endif
     return val;
 }
 

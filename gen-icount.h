@@ -1,3 +1,5 @@
+#include "qemu-timer.h"
+
 /* Helpers for instruction counting code generation.  */
 
 #include <stddef.h>     /* offsetof */

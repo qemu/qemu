@@ -10,6 +10,7 @@
 #define GDB_WATCHPOINT_READ      3
 #define GDB_WATCHPOINT_ACCESS    4
 
+#ifdef NEED_CPU_H
 typedef void (*gdb_syscall_complete_cb)(CPUState *env,
                                         target_ulong ret, target_ulong err);
 
@@ -21,15 +22,20 @@ int gdb_queuesig (void);
 int gdb_handlesig (CPUState *, int);
 void gdb_exit(CPUState *, int);
 void gdb_signalled(CPUState *, int);
-int gdbserver_start(int);
 void gdbserver_fork(CPUState *);
-#else
-int gdbserver_start(const char *port);
 #endif
 /* Get or set a register.  Returns the size of the register.  */
 typedef int (*gdb_reg_cb)(CPUState *env, uint8_t *buf, int reg);
 void gdb_register_coprocessor(CPUState *env,
                               gdb_reg_cb get_reg, gdb_reg_cb set_reg,
                               int num_regs, const char *xml, int g_pos);
+
+#endif
+
+#ifdef CONFIG_USER_ONLY
+int gdbserver_start(int);
+#else
+int gdbserver_start(const char *port);
+#endif
 
 #endif

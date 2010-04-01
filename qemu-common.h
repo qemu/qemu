@@ -13,6 +13,10 @@
 
 #define QEMU_BUILD_BUG_ON(x) typedef char __build_bug_on__##__LINE__[(x)?-1:1];
 
+typedef struct QEMUTimer QEMUTimer;
+typedef struct QEMUFile QEMUFile;
+typedef struct QEMUBH QEMUBH;
+
 /* Hack around the mess dyngen-exec.h causes: We need QEMU_NORETURN in files that
    cannot include the following headers without conflicts. This condition has
    to be removed once dyngen is gone. */
@@ -105,8 +109,6 @@ typedef int (*fprintf_function)(FILE *f, const char *fmt, ...)
 #endif /* !defined(NEED_CPU_H) */
 
 /* bottom halves */
-typedef struct QEMUBH QEMUBH;
-
 typedef void QEMUBHFunc(void *opaque);
 
 void async_context_push(void);
@@ -220,11 +222,9 @@ typedef struct CharDriverState CharDriverState;
 typedef struct MACAddr MACAddr;
 typedef struct VLANState VLANState;
 typedef struct VLANClientState VLANClientState;
-typedef struct QEMUFile QEMUFile;
 typedef struct i2c_bus i2c_bus;
 typedef struct i2c_slave i2c_slave;
 typedef struct SMBusDevice SMBusDevice;
-typedef struct QEMUTimer QEMUTimer;
 typedef struct PCIHostState PCIHostState;
 typedef struct PCIExpressHost PCIExpressHost;
 typedef struct PCIBus PCIBus;
@@ -239,6 +239,8 @@ typedef struct DeviceState DeviceState;
 typedef struct SSIBus SSIBus;
 
 typedef uint64_t pcibus_t;
+
+void cpu_exec_init_all(unsigned long tb_size);
 
 /* CPU save/load.  */
 void cpu_save(QEMUFile *f, void *opaque);

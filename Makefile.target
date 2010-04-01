@@ -175,8 +175,7 @@ endif #CONFIG_BSD_USER
 # System emulator target
 ifdef CONFIG_SOFTMMU
 
-obj-y = vl.o monitor.o machine.o gdbstub.o
-obj-y += qemu-timer.o
+obj-y = arch_init.o cpus.o monitor.o machine.o gdbstub.o
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
 obj-y += virtio-blk.o virtio-balloon.o virtio-net.o virtio-serial-bus.o
@@ -200,28 +199,26 @@ obj-y += e1000.o
 obj-i386-y = pckbd.o dma.o
 obj-i386-y += vga.o
 obj-i386-y += mc146818rtc.o i8259.o pc.o
-obj-i386-y += cirrus_vga.o apic.o ioapic.o acpi.o piix_pci.o
+obj-i386-y += cirrus_vga.o apic.o ioapic.o piix_pci.o
 obj-i386-y += vmmouse.o vmport.o hpet.o
 obj-i386-y += device-hotplug.o pci-hotplug.o smbios.o wdt_ib700.o
 obj-i386-y += debugcon.o multiboot.o
 
 # shared objects
-obj-ppc-y = ppc.o ide/macio.o
-obj-ppc-y += vga.o dma.o openpic.o
+obj-ppc-y = ppc.o
+obj-ppc-y += vga.o dma.o
 # PREP target
 obj-ppc-y += pckbd.o i8259.o mc146818rtc.o
-obj-ppc-y += prep_pci.o ppc_prep.o
-# Mac shared devices
-obj-ppc-y += macio.o cuda.o adb.o mac_nvram.o mac_dbdma.o
+obj-ppc-y += ppc_prep.o
 # OldWorld PowerMac
-obj-ppc-y += heathrow_pic.o grackle_pci.o ppc_oldworld.o
+obj-ppc-y += ppc_oldworld.o
 # NewWorld PowerMac
-obj-ppc-y += unin_pci.o ppc_newworld.o dec_pci.o
+obj-ppc-y += ppc_newworld.o
 # PowerPC 4xx boards
-obj-ppc-y += pflash_cfi02.o ppc4xx_devs.o ppc4xx_pci.o ppc405_uc.o ppc405_boards.o
+obj-ppc-y += ppc4xx_devs.o ppc4xx_pci.o ppc405_uc.o ppc405_boards.o
 obj-ppc-y += ppc440.o ppc440_bamboo.o
 # PowerPC E500 boards
-obj-ppc-y += ppce500_pci.o ppce500_mpc8544ds.o
+obj-ppc-y += ppce500_mpc8544ds.o
 obj-ppc-$(CONFIG_KVM) += kvm_ppc.o
 obj-ppc-$(CONFIG_FDT) += device_tree.o
 
@@ -229,13 +226,13 @@ obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 obj-mips-y += mips_addr.o mips_timer.o mips_int.o
 obj-mips-y += dma.o vga.o i8259.o
 obj-mips-y += g364fb.o jazz_led.o
-obj-mips-y += gt64xxx.o pckbd.o mc146818rtc.o acpi.o
+obj-mips-y += gt64xxx.o pckbd.o mc146818rtc.o
 obj-mips-y += piix4.o cirrus_vga.o
-obj-mips-y += pflash_cfi01.o
-obj-mips-$(CONFIG_AR7) += ar7.o
-obj-mips-$(CONFIG_PFLASH) += pflash.o
-obj-mips-$(CONFIG_PFLASH) += pflash_amd.o
-obj-mips-$(CONFIG_PFLASH) += pflash_cfi02.o
+##obj-mips-y += pflash_cfi01.o
+##obj-mips-$(CONFIG_AR7) += ar7.o
+##obj-mips-$(CONFIG_PFLASH) += pflash.o
+##obj-mips-$(CONFIG_PFLASH) += pflash_amd.o
+##obj-mips-$(CONFIG_PFLASH) += pflash_cfi02.o
 
 obj-microblaze-y = petalogix_s3adsp1800_mmu.o
 
@@ -244,8 +241,6 @@ obj-microblaze-y += xilinx_intc.o
 obj-microblaze-y += xilinx_timer.o
 obj-microblaze-y += xilinx_uartlite.o
 obj-microblaze-y += xilinx_ethlite.o
-
-obj-microblaze-y += pflash_cfi01.o
 
 obj-microblaze-$(CONFIG_FDT) += device_tree.o
 
@@ -258,8 +253,6 @@ obj-cris-y += etraxfs_pic.o
 obj-cris-y += etraxfs_eth.o
 obj-cris-y += etraxfs_timer.o
 obj-cris-y += etraxfs_ser.o
-
-obj-cris-y += pflash_cfi02.o
 
 ifeq ($(TARGET_ARCH), sparc64)
 obj-sparc-y = sun4u.o pckbd.o apb_pci.o
@@ -281,14 +274,14 @@ obj-arm-y += pl061.o
 obj-arm-y += arm-semi.o
 obj-arm-y += pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
 obj-arm-y += pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o pxa2xx_keypad.o
-obj-arm-y += pflash_cfi01.o gumstix.o
+obj-arm-y += gumstix.o
 obj-arm-y += zaurus.o ide/microdrive.o spitz.o tosa.o tc6393xb.o
 obj-arm-y += omap1.o omap_lcdc.o omap_dma.o omap_clk.o omap_mmc.o omap_i2c.o
 obj-arm-y += omap2.o omap_dss.o soc_dma.o
 obj-arm-y += omap_sx1.o palm.o tsc210x.o
 obj-arm-y += nseries.o blizzard.o onenand.o vga.o cbus.o tusb6010.o usb-musb.o
 obj-arm-y += mst_fpga.o mainstone.o
-obj-arm-y += musicpal.o pflash_cfi02.o bitbang_i2c.o marvell_88w8618_audio.o
+obj-arm-y += musicpal.o bitbang_i2c.o marvell_88w8618_audio.o
 obj-arm-y += framebuffer.o
 obj-arm-y += syborg.o syborg_fb.o syborg_interrupt.o syborg_keyboard.o
 obj-arm-y += syborg_serial.o syborg_timer.o syborg_pointer.o syborg_rtc.o
@@ -309,11 +302,7 @@ $(QEMU_RUBY): $(OBJS) libqemu.a
 	$(CC) -shared $(VL_LDFLAGS) -o $(QEMU_RUBY) $^ $(LIBS) $(SDL_LIBS) $(COCOA_LIBS) $(VL_LIBS)
 endif
 
-main.o vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
-
-vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)
-
-vl.o: qemu-options.h
+main.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
 monitor.o: qemu-monitor.h
 
@@ -335,16 +324,13 @@ $(QEMU_PROG): $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y)
 gdbstub-xml.c: $(TARGET_XML_FILES) $(SRC_PATH)/feature_to_c.sh
 	$(call quiet-command,rm -f $@ && $(SHELL) $(SRC_PATH)/feature_to_c.sh $@ $(TARGET_XML_FILES),"  GEN   $(TARGET_DIR)$@")
 
-qemu-options.h: $(SRC_PATH)/qemu-options.hx
-	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
-
 qemu-monitor.h: $(SRC_PATH)/qemu-monitor.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
 
 clean:
 	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o
 	rm -f *.d */*.d tcg/*.o ide/*.o
-	rm -f qemu-options.h qemu-monitor.h gdbstub-xml.c
+	rm -f qemu-monitor.h gdbstub-xml.c
 
 install: all
 ifneq ($(PROGS),)

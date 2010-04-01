@@ -14,8 +14,6 @@
 #ifndef _QEMU_BALLOON_H
 #define _QEMU_BALLOON_H
 
-#include "cpu-defs.h"
-
 typedef void (QEMUBalloonEvent)(void *opaque, ram_addr_t target,
                                 MonitorCompletion cb, void *cb_data);
 

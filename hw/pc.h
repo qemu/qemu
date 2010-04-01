@@ -76,7 +76,6 @@ typedef struct RTCState RTCState;
 RTCState *rtc_init(int base_year);
 void rtc_set_memory(RTCState *s, int addr, int val);
 void rtc_set_date(RTCState *s, const struct tm *tm);
-void cmos_set_s3_resume(void);
 
 /* pc.c */
 extern int fd_bootchk;
@@ -93,8 +92,10 @@ void acpi_bios_init(void);
 int acpi_table_add(const char *table_desc);
 
 /* acpi_piix.c */
+
 i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
-                       qemu_irq sci_irq);
+                       qemu_irq sci_irq, qemu_irq cmos_s3, qemu_irq smi_irq,
+                       int kvm_enabled);
 void piix4_smbus_register_device(SMBusDevice *dev, uint8_t addr);
 void piix4_acpi_system_hot_add_init(PCIBus *bus);
 

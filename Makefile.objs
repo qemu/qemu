@@ -106,6 +106,7 @@ common-obj-$(CONFIG_VNC_SASL) += vnc-auth-sasl.o
 common-obj-$(CONFIG_COCOA) += cocoa.o
 common-obj-$(CONFIG_IOTHREAD) += qemu-thread.o
 common-obj-y += notify.o
+common-obj-y += qemu-timer.o
 
 slirp-obj-y = cksum.o if.o ip_icmp.o ip_input.o ip_output.o
 slirp-obj-y += slirp.o mbuf.o misc.o sbuf.o socket.o tcp_input.o tcp_output.o
@@ -128,7 +129,7 @@ user-obj-y += cutils.o cache-utils.o
 # libhw
 
 hw-obj-y =
-hw-obj-y += loader.o
+hw-obj-y += vl.o loader.o
 hw-obj-y += virtio.o virtio-console.o
 hw-obj-$(CONFIG_VIRTIO_PCI) += virtio-pci.o
 hw-obj-y += fw_cfg.o pci.o pci_host.o pcie_host.o
@@ -136,6 +137,8 @@ hw-obj-y += watchdog.o
 hw-obj-$(CONFIG_ISA_MMIO) += isa_mmio.o
 hw-obj-$(CONFIG_ECC) += ecc.o
 hw-obj-$(CONFIG_NAND) += nand.o
+hw-obj-$(CONFIG_PFLASH_CFI01) += pflash_cfi01.o
+hw-obj-$(CONFIG_PFLASH_CFI02) += pflash_cfi02.o
 
 hw-obj-$(CONFIG_M48T59) += m48t59.o
 hw-obj-$(CONFIG_ESCC) += escc.o
@@ -147,6 +150,25 @@ hw-obj-$(CONFIG_PCSPK) += pcspk.o
 hw-obj-$(CONFIG_USB_UHCI) += usb-uhci.o
 hw-obj-$(CONFIG_USB_OHCI) += usb-ohci.o
 hw-obj-$(CONFIG_FDC) += fdc.o
+hw-obj-$(CONFIG_ACPI) += acpi.o
+
+# PPC devices
+hw-obj-$(CONFIG_OPENPIC) += openpic.o
+hw-obj-$(CONFIG_PREP_PCI) += prep_pci.o
+# Mac shared devices
+hw-obj-$(CONFIG_MACIO) += macio.o
+hw-obj-$(CONFIG_CUDA) += cuda.o
+hw-obj-$(CONFIG_ADB) += adb.o
+hw-obj-$(CONFIG_MAC_NVRAM) += mac_nvram.o
+hw-obj-$(CONFIG_MAC_DBDMA) += mac_dbdma.o
+# OldWorld PowerMac
+hw-obj-$(CONFIG_HEATHROW_PIC) += heathrow_pic.o
+hw-obj-$(CONFIG_GRACKLE_PCI) += grackle_pci.o
+# NewWorld PowerMac
+hw-obj-$(CONFIG_UNIN_PCI) += unin_pci.o
+hw-obj-$(CONFIG_DEC_PCI) += dec_pci.o
+# PowerPC E500 boards
+hw-obj-$(CONFIG_PPCE500_PCI) += ppce500_pci.o
 
 # PCI watchdog devices
 hw-obj-y += wdt_i6300esb.o
@@ -177,6 +199,7 @@ hw-obj-$(CONFIG_IDE_PCI) += ide/pci.o
 hw-obj-$(CONFIG_IDE_ISA) += ide/isa.o
 hw-obj-$(CONFIG_IDE_PIIX) += ide/piix.o
 hw-obj-$(CONFIG_IDE_CMD646) += ide/cmd646.o
+hw-obj-$(CONFIG_IDE_MACIO) += ide/macio.o
 
 # SCSI layer
 hw-obj-y += lsi53c895a.o
@@ -225,3 +248,13 @@ libdis-$(CONFIG_PPC_DIS) += ppc-dis.o
 libdis-$(CONFIG_S390_DIS) += s390-dis.o
 libdis-$(CONFIG_SH4_DIS) += sh4-dis.o
 libdis-$(CONFIG_SPARC_DIS) += sparc-dis.o
+
+vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
+
+vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)
+
+vl.o: qemu-options.h
+
+qemu-options.h: $(SRC_PATH)/qemu-options.hx
+	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
+

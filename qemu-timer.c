@@ -53,16 +53,14 @@
 #include <mmsystem.h>
 #endif
 
-#include "cpu-defs.h"
 #include "qemu-timer.h"
-#include "exec-all.h"
 
 /* Conversion factor from emulated instructions to virtual clock ticks.  */
-static int icount_time_shift;
+int icount_time_shift;
 /* Arbitrarily pick 1MIPS as the minimum allowable speed.  */
 #define MAX_ICOUNT_SHIFT 10
 /* Compensate for varying guest execution speed.  */
-static int64_t qemu_icount_bias;
+int64_t qemu_icount_bias;
 static QEMUTimer *icount_rt_timer;
 static QEMUTimer *icount_vm_timer;
 
@@ -137,20 +135,6 @@ static int64_t get_clock(void)
     }
 }
 #endif
-
-/* Return the virtual CPU time, based on the instruction counter.  */
-static int64_t cpu_get_icount(void)
-{
-    int64_t icount;
-    CPUState *env = cpu_single_env;;
-    icount = qemu_icount;
-    if (env) {
-        if (!can_do_io(env))
-            fprintf(stderr, "Bad clock read\n");
-        icount -= (env->icount_decr.u16.low + env->icount_extra);
-    }
-    return qemu_icount_bias + (icount << icount_time_shift);
-}
 
 /***********************************************************/
 /* guest cycle counter */

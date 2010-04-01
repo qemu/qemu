@@ -1,18 +1,18 @@
 /*
- * CFI parallel flash emulation (Intel extended vendor command set / ID 0x0001)
- * 
- * Copyright (c) 2005 Jocelyn Mayer (CFI 2.0, see original cfi02.c)
- * Copyright (c) 2006 Stefan Weil (CFI 1.0, TE28F160C3-B emulation)
+ *  CFI parallel flash with Intel command set emulation
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ *  Copyright (c) 2006 Thorsten Zitterell
+ *  Copyright (c) 2005 Jocelyn Mayer
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
@@ -25,223 +25,164 @@
  * - flash write
  * - flash ID read
  * - sector erase
- * - chip erase
  * - CFI queries
- * - JEDEC ID (partially)
- * - !!! check
  *
- * It does not support flash interleaving.
- * It does not implement boot blocks with reduced size
+ * It does not support timings
+ * It does not support flash interleaving
  * It does not implement software data protection as found in many real chips
  * It does not implement erase suspend/resume commands
  * It does not implement multiple sectors erase
+ *
+ * It does not implement much more ...
  */
 
-#include <assert.h>
-#include <stdio.h>      /* fprintf */
-
 #include "hw.h"
-#include "block.h"
 #include "flash.h"
-#include "pflash.h"     /* pflash_cfi01_register */
+#include "block.h"
 #include "qemu-timer.h"
-#include "exec-all.h"
 
-#define PFLASH_DEBUG
+#define PFLASH_BUG(fmt, ...) \
+do { \
+    printf("PFLASH: Possible BUG - " fmt, ## __VA_ARGS__); \
+    exit(1); \
+} while(0)
+
+/* #define PFLASH_DEBUG */
 #ifdef PFLASH_DEBUG
-static int traceflag;
-#define DPRINTF(fmt, ...) \
-    (traceflag ? fprintf(stderr, "PFLASH\t%-24s" fmt, __func__, ##__VA_ARGS__) : (void)0)
+#define DPRINTF(fmt, ...)                          \
+do {                                               \
+    printf("PFLASH: " fmt , ## __VA_ARGS__);       \
+} while (0)
 #else
-#define DPRINTF(fmt, ...) ((void)0)
+#define DPRINTF(fmt, ...) do { } while (0)
 #endif
-
-typedef enum {
-  unknown_mode,
-  io_mode,
-  rom_mode
-} flash_mode_t;
 
 struct pflash_t {
     BlockDriverState *bs;
     target_phys_addr_t base;
-    uint32_t sector_len;
-    uint32_t total_len;
+    target_phys_addr_t sector_len;
+    target_phys_addr_t total_len;
     int width;
-    flash_mode_t mode;
+    int wcycle; /* if 0, the flash is read normally */
+    int bypass;
     int ro;
     uint8_t cmd;
     uint8_t status;
     uint16_t ident[4];
+    uint8_t cfi_len;
     uint8_t cfi_table[0x52];
+    target_phys_addr_t counter;
+    unsigned int writeblock_size;
     QEMUTimer *timer;
     ram_addr_t off;
     int fl_mem;
     void *storage;
 };
 
-static void pflash_io_mode(pflash_t *pfl)
-{
-  if (pfl->mode != io_mode) {
-    DPRINTF("switch to i/o mode\n");
-    cpu_register_physical_memory(pfl->base, pfl->total_len, pfl->fl_mem);
-    pfl->mode = io_mode;
-  }
-}
-
-static void pflash_rom_mode(pflash_t *pfl)
-{
-  if (pfl->mode != rom_mode) {
-    DPRINTF("switch to rom mode\n");
-    cpu_register_physical_memory(pfl->base, pfl->total_len,
-                                 pfl->off | IO_MEM_ROMD | pfl->fl_mem);
-    pfl->mode = rom_mode;
-  }
-}
-
-static uint32_t pflash_read_data(const void *addr, uint32_t offset, int width)
-{
-    //~ check, maybe should use HOST_WORDS_BIGENDIAN
-    const uint8_t *p = addr;
-    uint32_t value = (uint32_t)-1;
-    switch (width) {
-    case 1:
-        value = p[offset];
-        break;
-    case 2:
-        assert((offset & 1) == 0);
-#if defined(TARGET_WORDS_BIGENDIAN)
-        value = p[offset] << 8;
-        value |= p[offset + 1];
-#else
-        value = p[offset];
-        value |= p[offset + 1] << 8;
-#endif
-        //~ DPRINTF("data offset " TARGET_FMT_lx " %04x\n", offset, value);
-        break;
-    case 4:
-        assert((offset & 3) == 0);
-#if defined(TARGET_WORDS_BIGENDIAN)
-        value = p[offset] << 24;
-        value |= p[offset + 1] << 16;
-        value |= p[offset + 2] << 8;
-        value |= p[offset + 3];
-#else
-        value = p[offset];
-        value |= p[offset + 1] << 8;
-        value |= p[offset + 1] << 8;
-        value |= p[offset + 2] << 16;
-        value |= p[offset + 3] << 24;
-#endif
-        //~ DPRINTF("data offset " TARGET_FMT_lx " %08x\n", offset, value);
-        break;
-    }
-    return value;
-}
-
-static void pflash_write_data(void *addr, uint32_t offset, uint32_t value, int width)
-{
-    //~ check, maybe should use HOST_WORDS_BIGENDIAN
-    uint8_t *p = addr;
-    switch (width) {
-        case 1:
-            p[offset] &= value;
-            break;
-        case 2:
-#if defined(TARGET_WORDS_BIGENDIAN)
-            p[offset] &= value >> 8;
-            p[offset + 1] &= value;
-#else
-            p[offset] &= value;
-            p[offset + 1] &= value >> 8;
-#endif
-            break;
-        case 4:
-#if defined(TARGET_WORDS_BIGENDIAN)
-            p[offset] &= value >> 24;
-            p[offset + 1] &= value >> 16;
-            p[offset + 2] &= value >> 8;
-            p[offset + 3] &= value;
-#else
-            p[offset] &= value;
-            p[offset + 1] &= value >> 8;
-            p[offset + 2] &= value >> 16;
-            p[offset + 3] &= value >> 24;
-#endif
-            break;
-    }
-}
-
 static void pflash_timer (void *opaque)
 {
     pflash_t *pfl = opaque;
 
-    DPRINTF("command %02x done\n", pfl->cmd);
+    DPRINTF("%s: command %02x done\n", __func__, pfl->cmd);
     /* Reset flash */
-    pfl->status |= 0x80;
-    //~ pflash_rom_mode(pfl);
-    //~ pfl->cmd = 0;
+    pfl->status ^= 0x80;
+    if (pfl->bypass) {
+        pfl->wcycle = 2;
+    } else {
+        cpu_register_physical_memory(pfl->base, pfl->total_len,
+                        pfl->off | IO_MEM_ROMD | pfl->fl_mem);
+        pfl->wcycle = 0;
+    }
+    pfl->cmd = 0;
 }
 
-static uint32_t pflash_read (pflash_t *pfl, uint32_t offset, int width)
+static uint32_t pflash_read (pflash_t *pfl, target_phys_addr_t offset,
+                             int width, int be)
 {
-    uint32_t boff;
-    uint32_t ret = 0xffffffffU;
+    target_phys_addr_t boff;
+    uint32_t ret;
+    uint8_t *p;
 
-    boff = offset / pfl->width;
+    ret = -1;
+    boff = offset & 0xFF; /* why this here ?? */
+
+    if (pfl->width == 2)
+        boff = boff >> 1;
+    else if (pfl->width == 4)
+        boff = boff >> 2;
+
+#if 0
+    DPRINTF("%s: reading offset " TARGET_FMT_plx " under cmd %02x width %d\n",
+            __func__, offset, pfl->cmd, width);
+#endif
     switch (pfl->cmd) {
-        case 0x00:
-        flash_read:
-            /* Flash area read */
-            ret = pflash_read_data(pfl->storage, offset, width);
+    case 0x00:
+        /* Flash area read */
+        p = pfl->storage;
+        switch (width) {
+        case 1:
+            ret = p[offset];
+            DPRINTF("%s: data offset " TARGET_FMT_plx " %02x\n",
+                    __func__, offset, ret);
             break;
-        case 0x90:
-            /* flash ID read */
-            switch (boff) {
-                case 0x00:
-                case 0x01:
-                    ret = pfl->ident[boff];
-                    break;
-                default:
-                    DPRINTF("??? offset %08" PRIx32 " %08x %d\n", offset, ret, width);
-                    assert(0);
-                    goto flash_read;
-            }
-            DPRINTF("ID %08" PRIx32 " 0x%04x\n", offset, ret);
-            break;
-        case 0x10:
-        case 0x30:
-        case 0x01:
-        case 0x28:  // ??? unneeded
-        case 0x70:
-        case 0xd0:
-        case 0x40:
-            /* Status register read */
-            ret = pfl->status;
-            DPRINTF("status 0x%x\n", ret);
-            break;
-        case 0x98:
-            /* CFI query mode */
-            if (boff < sizeof(pfl->cfi_table)) {
-                ret = pfl->cfi_table[boff];
-                DPRINTF("CFI 0x%02x 0x%02x\n", (unsigned)boff, ret);
+        case 2:
+            if (be) {
+                ret = p[offset] << 8;
+                ret |= p[offset + 1];
             } else {
-                ret = 0;
+                ret = p[offset];
+                ret |= p[offset + 1] << 8;
             }
+            DPRINTF("%s: data offset " TARGET_FMT_plx " %04x\n",
+                    __func__, offset, ret);
+            break;
+        case 4:
+            if (be) {
+                ret = p[offset] << 24;
+                ret |= p[offset + 1] << 16;
+                ret |= p[offset + 2] << 8;
+                ret |= p[offset + 3];
+            } else {
+                ret = p[offset];
+                ret |= p[offset + 1] << 8;
+                ret |= p[offset + 1] << 8;
+                ret |= p[offset + 2] << 16;
+                ret |= p[offset + 3] << 24;
+            }
+            DPRINTF("%s: data offset " TARGET_FMT_plx " %08x\n",
+                    __func__, offset, ret);
             break;
         default:
-            /* This should never happen : reset state & treat it as a read*/
-            DPRINTF("unknown command state: 0x%x\n", pfl->cmd);
-            pfl->cmd = 0;
-            goto flash_read;
-    }
+            DPRINTF("BUG in %s\n", __func__);
+        }
 
-    DPRINTF("offset %08" PRIx32 " %08x %d\n", offset, ret, width);
+        break;
+    case 0x20: /* Block erase */
+    case 0x50: /* Clear status register */
+    case 0x60: /* Block /un)lock */
+    case 0x70: /* Status Register */
+    case 0xe8: /* Write block */
+        /* Status register read */
+        ret = pfl->status;
+        DPRINTF("%s: status %x\n", __func__, ret);
+        break;
+    case 0x98: /* Query mode */
+        if (boff > pfl->cfi_len)
+            ret = 0;
+        else
+            ret = pfl->cfi_table[boff];
+        break;
+    default:
+        /* This should never happen : reset state & treat it as a read */
+        DPRINTF("%s: unknown command state: %x\n", __func__, pfl->cmd);
+        pfl->wcycle = 0;
+        pfl->cmd = 0;
+    }
     return ret;
 }
 
 /* update flash content on disk */
-static void pflash_update(pflash_t *pfl, int offset, 
+static void pflash_update(pflash_t *pfl, int offset,
                           int size)
 {
     int offset_end;
@@ -250,226 +191,331 @@ static void pflash_update(pflash_t *pfl, int offset,
         /* round to sectors */
         offset = offset >> 9;
         offset_end = (offset_end + 511) >> 9;
-        bdrv_write(pfl->bs, offset, pfl->storage + (offset << 9), 
+        bdrv_write(pfl->bs, offset, pfl->storage + (offset << 9),
                    offset_end - offset);
     }
 }
 
-#if 0
-
-/* Status bits */
-
-#define FlashStatusReady        0x80
-#define FlashStatusSuspended    0x40
-#define FlashStatusError        0x3E
-#define FlashStatusBlockError   0x3F
-
-/* Query commands */
-
-#define FlashCommandReadID      0x90    /* Read JEDEC ID */
-#define FlashCommandQueryCFI    0x98    /* CFI Query */
-
-/* Basic Command Set */
-
-#define FlashCommandRead        0xFF    /* Read Array */
-#define FlashCommandClear       0x50    /* Clear Status Register */
-#define FlashCommandErase       0x20    /* Block Erase */
-#define FlashCommandSCSErase    0x28    /* Block Erase */
-#define FlashCommandSuspend     0xB0    /* Erase Suspend */
-#define FlashCommandResume      0xD0    /* Erase Resume */
-#define FlashCommandWrite       0x10    /* Single Byte Program */
-#define FlashCommandWrite       0x40    /* Single Byte Program */
-
-#endif
-
-/* Scaleable Command Set */
-
-#define FlashCommandConfirm     0xD0
-#define FlashCommandLoadPB      0xE0
-#define FlashCommandPBWrite     0x0C
-#define FlashCommandStatus      0x70
-#define FlashCommandReadESR     0x71
-#define FlashCommandSCSWrite    0xE8
-
-#if defined(CFI_OPTIONAL) && CFI_OPTIONAL
-#define FlashCommandLock        0x60
-#define FlashCommandUnlock      0x60
-#define FlashCommandLockConfirm 0x01
-#define FlashCommandChipErase 0x30
-#define FlashCommandConfigureStatus 0xB8
-#endif
-
-#define FlashCommandPrefix1     0xAA
-#define FlashCommandPrefix2     0x55
-
-static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
-                          int width)
+static inline void pflash_data_write(pflash_t *pfl, target_phys_addr_t offset,
+                                     uint32_t value, int width, int be)
 {
-    uint32_t boff;
-    uint8_t cmd = value;
-    uint32_t sector_len = pfl->sector_len;
+    uint8_t *p = pfl->storage;
 
-    if (pfl->mode == rom_mode) {
-        offset -= (uint32_t)(long)pfl->storage;
-    } else {
-        offset -= pfl->base;
-    }
-
-    DPRINTF("offset %08" PRIx32 " %08x %d\n", offset, value, width);
-
-    if (pfl->cmd == 0x40) {
-        DPRINTF("Single Byte Program offset %08" PRIx32 " data %08x %d\n",
-                offset, value, width);
-        pflash_write_data(pfl->storage, offset, value, width);
-        pflash_update(pfl, offset, width);
-        pfl->cmd = FlashCommandStatus;
-        /* Let's pretend write is immediate. */
-        pfl->status |= 0x80;
-    //~ } else if (pfl->cmd == 0xe8) {
-        //~ assert(0);
-    } else if (cmd == 0xff) {
-        DPRINTF("Read Array (%02x %02x)\n", pfl->cmd, cmd);
-        goto reset_flash;
-    } else if (cmd == 0x10 || cmd == 0x40) {
-        pfl->cmd = 0x40;
-        DPRINTF("Single Byte Program (%04x %02x)\n", (unsigned)offset, cmd);
-        pflash_io_mode(pfl);
-    } else if (cmd == 0x50) {
-        DPRINTF("Clear Status Register (%04x %02x)\n", (unsigned)offset, cmd);
-        pfl->status = 0x00;
-        pflash_rom_mode(pfl);
-    } else if (pfl->mode == rom_mode) {
-
-        boff = (offset & (sector_len - 1)) / pfl->width;
-
-        switch (cmd) {
-            case 0x20:
-            case 0x28:
-                DPRINTF("Block Erase started (%04x %02x)\n", (unsigned)boff, cmd);
-                pfl->cmd = 0x28;
-                //~ pfl->status |= 0x80;
-                break;
-            case 0x60:
-                DPRINTF("Block Lock Bit Set / Reset started\n");
-                pfl->cmd = cmd;
-                break;
-            case 0x70:
-                DPRINTF("Read Status\n");
-                pfl->cmd = cmd;
-                break;
-            case 0x90:          /* Read JEDEC ID. */
-                DPRINTF("Read JEDEC ID (%04x %02x)\n", (unsigned)boff, cmd);
-                pfl->cmd = cmd;
-                break;
-            case 0x98:          /* Enter CFI query mode */
-                /* Intel flash accepts CFI mode command on any address. */
-                pfl->cmd = 0x98;
-                break;
-            case 0xb0:
-                DPRINTF("unimplemented Erase / Program Suspend / Resume (%04x %02x)\n",
-                        (unsigned)boff, cmd);
-                return;
-            case 0xe8:
-                DPRINTF("unimplemented Write to Buffer (%04x %02x)\n",
-                        (unsigned)boff, cmd);
-                return;
-            default:
-                return;
-        }
-        pflash_io_mode(pfl);
-        return;
-    } else if (pfl->cmd == 0x28 && cmd == 0xd0) {
-        DPRINTF("Block Erase confirmed (%08" PRIx32 " %02x)\n", offset, cmd);
-        offset &= ~(sector_len - 1);
-        memset(pfl->storage + offset, 0xFF, sector_len);
-        pflash_update(pfl, offset, sector_len);
-        pfl->status = 0x00;
-        /* Let's wait 1/2 second before sector erase is done */
-        qemu_mod_timer(pfl->timer, 
-                       qemu_get_clock(vm_clock) + (get_ticks_per_sec() / 2));
-        pfl->cmd = FlashCommandStatus;
-        return;
-    } else if (pfl->cmd == 0x60) {
-        /* !!! */
-        if (cmd == 0x01) {
-            DPRINTF("unimplemented Block Lock Bit Set done\n");
-            pfl->cmd = cmd;
-            pfl->status |= 0x80;
-        } else if (cmd == 0xd0) {
-            DPRINTF("Block Lock Bit Reset done\n");
-            pfl->cmd = cmd;
-            pfl->status |= 0x80;
+    DPRINTF("%s: block write offset " TARGET_FMT_plx
+            " value %x counter " TARGET_FMT_plx "\n",
+            __func__, offset, value, pfl->counter);
+    switch (width) {
+    case 1:
+        p[offset] = value;
+        break;
+    case 2:
+        if (be) {
+            p[offset] = value >> 8;
+            p[offset + 1] = value;
         } else {
-            DPRINTF("block lock bit failed %04x %02x\n", (unsigned)offset, cmd);
-            goto reset_flash;
+            p[offset] = value;
+            p[offset + 1] = value >> 8;
         }
-        pfl->cmd = cmd;
-    } else {
-        /* Should never happen */
-        DPRINTF("invalid write state\n");
-        goto reset_flash;
+        break;
+    case 4:
+        if (be) {
+            p[offset] = value >> 24;
+            p[offset + 1] = value >> 16;
+            p[offset + 2] = value >> 8;
+            p[offset + 3] = value;
+        } else {
+            p[offset] = value;
+            p[offset + 1] = value >> 8;
+            p[offset + 2] = value >> 16;
+            p[offset + 3] = value >> 24;
+        }
+        break;
     }
 
+}
+
+static void pflash_write(pflash_t *pfl, target_phys_addr_t offset,
+                         uint32_t value, int width, int be)
+{
+    uint8_t *p;
+    uint8_t cmd;
+
+    cmd = value;
+
+    DPRINTF("%s: writing offset " TARGET_FMT_plx " value %08x width %d wcycle 0x%x\n",
+            __func__, offset, value, width, pfl->wcycle);
+
+    if (!pfl->wcycle) {
+        /* Set the device in I/O access mode */
+        cpu_register_physical_memory(pfl->base, pfl->total_len, pfl->fl_mem);
+    }
+
+    switch (pfl->wcycle) {
+    case 0:
+        /* read mode */
+        switch (cmd) {
+        case 0x00: /* ??? */
+            goto reset_flash;
+        case 0x10: /* Single Byte Program */
+        case 0x40: /* Single Byte Program */
+            DPRINTF("%s: Single Byte Program\n", __func__);
+            break;
+        case 0x20: /* Block erase */
+            p = pfl->storage;
+            offset &= ~(pfl->sector_len - 1);
+
+            DPRINTF("%s: block erase at " TARGET_FMT_plx " bytes "
+                    TARGET_FMT_plx "\n",
+                    __func__, offset, pfl->sector_len);
+
+            memset(p + offset, 0xff, pfl->sector_len);
+            pflash_update(pfl, offset, pfl->sector_len);
+            pfl->status |= 0x80; /* Ready! */
+            break;
+        case 0x50: /* Clear status bits */
+            DPRINTF("%s: Clear status bits\n", __func__);
+            pfl->status = 0x0;
+            goto reset_flash;
+        case 0x60: /* Block (un)lock */
+            DPRINTF("%s: Block unlock\n", __func__);
+            break;
+        case 0x70: /* Status Register */
+            DPRINTF("%s: Read status register\n", __func__);
+            pfl->cmd = cmd;
+            return;
+        case 0x98: /* CFI query */
+            DPRINTF("%s: CFI query\n", __func__);
+            break;
+        case 0xe8: /* Write to buffer */
+            DPRINTF("%s: Write to buffer\n", __func__);
+            pfl->status |= 0x80; /* Ready! */
+            break;
+        case 0xff: /* Read array mode */
+            DPRINTF("%s: Read array mode\n", __func__);
+            goto reset_flash;
+        default:
+            goto error_flash;
+        }
+        pfl->wcycle++;
+        pfl->cmd = cmd;
+        return;
+    case 1:
+        switch (pfl->cmd) {
+        case 0x10: /* Single Byte Program */
+        case 0x40: /* Single Byte Program */
+            DPRINTF("%s: Single Byte Program\n", __func__);
+            pflash_data_write(pfl, offset, value, width, be);
+            pflash_update(pfl, offset, width);
+            pfl->status |= 0x80; /* Ready! */
+            pfl->wcycle = 0;
+        break;
+        case 0x20: /* Block erase */
+        case 0x28:
+            if (cmd == 0xd0) { /* confirm */
+                pfl->wcycle = 0;
+                pfl->status |= 0x80;
+            } else if (cmd == 0xff) { /* read array mode */
+                goto reset_flash;
+            } else
+                goto error_flash;
+
+            break;
+        case 0xe8:
+            DPRINTF("%s: block write of %x bytes\n", __func__, value);
+            pfl->counter = value;
+            pfl->wcycle++;
+            break;
+        case 0x60:
+            if (cmd == 0xd0) {
+                pfl->wcycle = 0;
+                pfl->status |= 0x80;
+            } else if (cmd == 0x01) {
+                pfl->wcycle = 0;
+                pfl->status |= 0x80;
+            } else if (cmd == 0xff) {
+                goto reset_flash;
+            } else {
+                DPRINTF("%s: Unknown (un)locking command\n", __func__);
+                goto reset_flash;
+            }
+            break;
+        case 0x98:
+            if (cmd == 0xff) {
+                goto reset_flash;
+            } else {
+                DPRINTF("%s: leaving query mode\n", __func__);
+            }
+            break;
+        default:
+            goto error_flash;
+        }
+        return;
+    case 2:
+        switch (pfl->cmd) {
+        case 0xe8: /* Block write */
+            pflash_data_write(pfl, offset, value, width, be);
+
+            pfl->status |= 0x80;
+
+            if (!pfl->counter) {
+                target_phys_addr_t mask = pfl->writeblock_size - 1;
+                mask = ~mask;
+
+                DPRINTF("%s: block write finished\n", __func__);
+                pfl->wcycle++;
+                /* Flush the entire write buffer onto backing storage.  */
+                pflash_update(pfl, offset & mask, pfl->writeblock_size);
+            }
+
+            pfl->counter--;
+            break;
+        default:
+            goto error_flash;
+        }
+        return;
+    case 3: /* Confirm mode */
+        switch (pfl->cmd) {
+        case 0xe8: /* Block write */
+            if (cmd == 0xd0) {
+                pfl->wcycle = 0;
+                pfl->status |= 0x80;
+            } else {
+                DPRINTF("%s: unknown command for \"write block\"\n", __func__);
+                PFLASH_BUG("Write block confirm");
+                goto reset_flash;
+            }
+            break;
+        default:
+            goto error_flash;
+        }
+        return;
+    default:
+        /* Should never happen */
+        DPRINTF("%s: invalid write state\n",  __func__);
+        goto reset_flash;
+    }
     return;
 
-    /* Reset flash */
+ error_flash:
+    printf("%s: Unimplemented flash cmd sequence "
+           "(offset " TARGET_FMT_plx ", wcycle 0x%x cmd 0x%x value 0x%x)\n",
+           __func__, offset, pfl->wcycle, pfl->cmd, value);
+
  reset_flash:
-    pflash_rom_mode(pfl);
+    cpu_register_physical_memory(pfl->base, pfl->total_len,
+                    pfl->off | IO_MEM_ROMD | pfl->fl_mem);
+
+    pfl->bypass = 0;
+    pfl->wcycle = 0;
     pfl->cmd = 0;
+    return;
 }
 
 
-static uint32_t pflash_readb (void *opaque, target_phys_addr_t addr)
+static uint32_t pflash_readb_be(void *opaque, target_phys_addr_t addr)
 {
-    return pflash_read(opaque, addr, 1);
+    return pflash_read(opaque, addr, 1, 1);
 }
 
-static uint32_t pflash_readw (void *opaque, target_phys_addr_t addr)
+static uint32_t pflash_readb_le(void *opaque, target_phys_addr_t addr)
 {
-    pflash_t *pfl = opaque;
-
-    return pflash_read(pfl, addr, 2);
+    return pflash_read(opaque, addr, 1, 0);
 }
 
-static uint32_t pflash_readl (void *opaque, target_phys_addr_t addr)
-{
-    pflash_t *pfl = opaque;
-
-    return pflash_read(pfl, addr, 4);
-}
-
-static void pflash_writeb (void *opaque, target_phys_addr_t addr,
-                           uint32_t value)
-{
-    pflash_write(opaque, addr, value, 1);
-}
-
-static void pflash_writew (void *opaque, target_phys_addr_t addr,
-                           uint32_t value)
+static uint32_t pflash_readw_be(void *opaque, target_phys_addr_t addr)
 {
     pflash_t *pfl = opaque;
 
-    pflash_write(pfl, addr, value, 2);
+    return pflash_read(pfl, addr, 2, 1);
 }
 
-static void pflash_writel (void *opaque, target_phys_addr_t addr,
-                           uint32_t value)
+static uint32_t pflash_readw_le(void *opaque, target_phys_addr_t addr)
 {
     pflash_t *pfl = opaque;
 
-    pflash_write(pfl, addr, value, 4);
+    return pflash_read(pfl, addr, 2, 0);
 }
 
-static CPUWriteMemoryFunc * const pflash_write_ops[] = {
-    pflash_writeb,
-    pflash_writew,
-    pflash_writel,
+static uint32_t pflash_readl_be(void *opaque, target_phys_addr_t addr)
+{
+    pflash_t *pfl = opaque;
+
+    return pflash_read(pfl, addr, 4, 1);
+}
+
+static uint32_t pflash_readl_le(void *opaque, target_phys_addr_t addr)
+{
+    pflash_t *pfl = opaque;
+
+    return pflash_read(pfl, addr, 4, 0);
+}
+
+static void pflash_writeb_be(void *opaque, target_phys_addr_t addr,
+                             uint32_t value)
+{
+    pflash_write(opaque, addr, value, 1, 1);
+}
+
+static void pflash_writeb_le(void *opaque, target_phys_addr_t addr,
+                             uint32_t value)
+{
+    pflash_write(opaque, addr, value, 1, 0);
+}
+
+static void pflash_writew_be(void *opaque, target_phys_addr_t addr,
+                             uint32_t value)
+{
+    pflash_t *pfl = opaque;
+
+    pflash_write(pfl, addr, value, 2, 1);
+}
+
+static void pflash_writew_le(void *opaque, target_phys_addr_t addr,
+                             uint32_t value)
+{
+    pflash_t *pfl = opaque;
+
+    pflash_write(pfl, addr, value, 2, 0);
+}
+
+static void pflash_writel_be(void *opaque, target_phys_addr_t addr,
+                             uint32_t value)
+{
+    pflash_t *pfl = opaque;
+
+    pflash_write(pfl, addr, value, 4, 1);
+}
+
+static void pflash_writel_le(void *opaque, target_phys_addr_t addr,
+                             uint32_t value)
+{
+    pflash_t *pfl = opaque;
+
+    pflash_write(pfl, addr, value, 4, 0);
+}
+
+static CPUWriteMemoryFunc * const pflash_write_ops_be[] = {
+    &pflash_writeb_be,
+    &pflash_writew_be,
+    &pflash_writel_be,
 };
 
-static CPUReadMemoryFunc * const pflash_read_ops[] = {
-    pflash_readb,
-    pflash_readw,
-    pflash_readl,
+static CPUReadMemoryFunc * const pflash_read_ops_be[] = {
+    &pflash_readb_be,
+    &pflash_readw_be,
+    &pflash_readl_be,
+};
+
+static CPUWriteMemoryFunc * const pflash_write_ops_le[] = {
+    &pflash_writeb_le,
+    &pflash_writew_le,
+    &pflash_writel_le,
+};
+
+static CPUReadMemoryFunc * const pflash_read_ops_le[] = {
+    &pflash_readb_le,
+    &pflash_readw_le,
+    &pflash_readl_le,
 };
 
 /* Count trailing zeroes of a 32 bits quantity */
@@ -506,74 +552,41 @@ static int ctz32 (uint32_t n)
     return ret;
 }
 
-static int flash_load(QEMUFile *f, void *opaque, int version_id)
-{
-    pflash_t *pfl = opaque;
-    int result = 0;
-    if (version_id == 0) {
-        qemu_get_buffer(f, (uint8_t *)pfl, sizeof(*pfl));
-    } else {
-        result = -EINVAL;
-    }
-    return result;
-}
-
-static void flash_save(QEMUFile *f, void* opaque)
-{
-    /* TODO: fix */
-    pflash_t *pfl = opaque;
-    qemu_put_buffer(f, (uint8_t *)pfl, sizeof(*pfl));
-}
-
-static void flash_reset(void *opaque)
-{
-    pflash_t *pfl = opaque;
-    DPRINTF("%s:%u\n", __FILE__, __LINE__);
-    pflash_rom_mode(pfl);
-    pfl->cmd = 0;
-}
-
-pflash_t *pflash_cfi01_register (target_phys_addr_t base, ram_addr_t off,
-                                 BlockDriverState *bs,
-                                 uint32_t sector_len, int nb_blocs, int width,
-                                 uint16_t id0, uint16_t id1, 
-                                 uint16_t id2, uint16_t id3)
+pflash_t *pflash_cfi01_register(target_phys_addr_t base, ram_addr_t off,
+                                BlockDriverState *bs, uint32_t sector_len,
+                                int nb_blocs, int width,
+                                uint16_t id0, uint16_t id1,
+                                uint16_t id2, uint16_t id3,
+                                int be)
 {
     pflash_t *pfl;
     target_phys_addr_t total_len;
     int ret;
 
-#ifdef PFLASH_DEBUG
-    if (getenv("DEBUG_FLASH")) {
-        traceflag = strtoul(getenv("DEBUG_FLASH"), 0, 0);
-    }
-    DPRINTF("Logging enabled for FLASH in %s\n", __func__);
-#endif
-
-    /* Currently, only one flash chip is supported. */
-    assert(id0 == MANUFACTURER_INTEL);
-
     total_len = sector_len * nb_blocs;
 
-    DPRINTF("flash size %u MiB (%u x %u bytes)\n",
-            (unsigned)(total_len / MiB),
-            (unsigned)(total_len / width), width);
-
     /* XXX: to be fixed */
-    if (total_len != (2 * MiB) && total_len != (4 * MiB) &&
-        total_len != (8 * MiB) && total_len != (16 * MiB) &&
-        total_len != (32 * MiB) && total_len != (64 * MiB))
+#if 0
+    if (total_len != (8 * 1024 * 1024) && total_len != (16 * 1024 * 1024) &&
+        total_len != (32 * 1024 * 1024) && total_len != (64 * 1024 * 1024))
         return NULL;
+#endif
+
     pfl = qemu_mallocz(sizeof(pflash_t));
+
     /* FIXME: Allocate ram ourselves.  */
     pfl->storage = qemu_get_ram_ptr(off);
-    pfl->fl_mem = cpu_register_io_memory(
-                    pflash_read_ops, pflash_write_ops, pfl);
+    if (be) {
+        pfl->fl_mem = cpu_register_io_memory(pflash_read_ops_be,
+                                             pflash_write_ops_be, pfl);
+    } else {
+        pfl->fl_mem = cpu_register_io_memory(pflash_read_ops_le,
+                                             pflash_write_ops_le, pfl);
+    }
     pfl->off = off;
-    pfl->base = base;
-    pfl->sector_len = sector_len;
-    pfl->total_len = total_len;
-    pflash_rom_mode(pfl);
+    cpu_register_physical_memory(base, total_len,
+                    off | pfl->fl_mem | IO_MEM_ROMD);
+
     pfl->bs = bs;
     if (pfl->bs) {
         /* read the initial flash content */
@@ -592,164 +605,98 @@ pflash_t *pflash_cfi01_register (target_phys_addr_t base, ram_addr_t off,
     pfl->ro = 0;
 #endif
     pfl->timer = qemu_new_timer(vm_clock, pflash_timer, pfl);
+    pfl->base = base;
+    pfl->sector_len = sector_len;
+    pfl->total_len = total_len;
     pfl->width = width;
+    pfl->wcycle = 0;
     pfl->cmd = 0;
     pfl->status = 0;
     pfl->ident[0] = id0;
     pfl->ident[1] = id1;
     pfl->ident[2] = id2;
     pfl->ident[3] = id3;
-
-    /* Erase block region 1 */
-    /* Erase block region 2 */
-    /* Extended query table */
-    /* Major and minor version number */
-    /* Optional Feature & Command Support */
-    /* Supported functions after suspend */
-
-    if (0) {
-    } else if (id0 == MANUFACTURER_INTEL && (id1 == I28F160C3B)) {
-        static const uint8_t data[] = {
-          /* 0x10 */ 'Q',  'R',  'Y',  0x03, 0x00, 0x35, 0x00, 0x00,
-          /* 0x18 */ 0x00, 0x00, 0x00, 0x27, 0x36, 0xb4, 0xc6, 0x05,
-          /* 0x20 */ 0x00, 0x0a, 0x00, 0x04, 0x00, 0x03, 0x00, 0x15,
-          /* 0x28 */ 0x01, 0x00, 0x00, 0x00, 0x02, 0x07, 0x00, 0x20,
-          /* 0x30 */ 0x00, 0x1e, 0x00, 0x00, 0x01, 'P',  'R',  'I',
-          /* 0x38 */ '1',  '0',  0x6a, 0x00, 0x00, 0x00, 0x01, 0x03,
-          /* 0x40 */ 0x00, 0x33, 0xc0, 0x01, 0x80, 0x00, 0x03, 0x03,
-        };
-        memcpy(&pfl->cfi_table[0x10], data, sizeof(data));
-        /* Device size */
-        pfl->cfi_table[0x27] = ctz32(total_len);	// !!! 0x15
-        pfl->cfi_table[0x31] = nb_blocs - 2;	// 0x1e / 0x3e
-        pfl->cfi_table[0x32] = (nb_blocs - 2) >> 8;	// 0x00
-        pfl->cfi_table[0x33] = (sector_len >> 8);	// 0x00
-        pfl->cfi_table[0x34] = (sector_len >> 16);	// 0x01
-    } else if (id0 == MANUFACTURER_INTEL && (id1 == I28F160S5)) {
-        static const uint8_t data[] = {
-          /* 0x10 */ 'Q',  'R',  'Y',  0x01, 0x00, 0x31, 0x00, 0x00,
-          /* 0x18 */ 0x00, 0x00, 0x00, 0x27, 0x55, 0x27, 0x55, 0x03,
-          /* 0x20 */ 0x06, 0x0a, 0x0f, 0x04, 0x04, 0x04, 0x04, 0x15,
-          /* 0x28 */ 0x02, 0x00, 0x05, 0x00, 0x01, 0x1f, 0x00, 0x00,
-          /* 0x30 */ 0x01, 'P',  'R',  'I',  '1',  '0',  0x0f, 0x00,
-          /* 0x38 */ 0x00, 0x00, 0x01, 0x03, 0x00, 0x50, 0x50, 0x00,
-        };
-        memcpy(&pfl->cfi_table[0x10], data, sizeof(data));
+    /* Hardcoded CFI table */
+    pfl->cfi_len = 0x52;
+    /* Standard "QRY" string */
+    pfl->cfi_table[0x10] = 'Q';
+    pfl->cfi_table[0x11] = 'R';
+    pfl->cfi_table[0x12] = 'Y';
+    /* Command set (Intel) */
+    pfl->cfi_table[0x13] = 0x01;
+    pfl->cfi_table[0x14] = 0x00;
+    /* Primary extended table address (none) */
+    pfl->cfi_table[0x15] = 0x31;
+    pfl->cfi_table[0x16] = 0x00;
+    /* Alternate command set (none) */
+    pfl->cfi_table[0x17] = 0x00;
+    pfl->cfi_table[0x18] = 0x00;
+    /* Alternate extended table (none) */
+    pfl->cfi_table[0x19] = 0x00;
+    pfl->cfi_table[0x1A] = 0x00;
+    /* Vcc min */
+    pfl->cfi_table[0x1B] = 0x45;
+    /* Vcc max */
+    pfl->cfi_table[0x1C] = 0x55;
+    /* Vpp min (no Vpp pin) */
+    pfl->cfi_table[0x1D] = 0x00;
+    /* Vpp max (no Vpp pin) */
+    pfl->cfi_table[0x1E] = 0x00;
+    /* Reserved */
+    pfl->cfi_table[0x1F] = 0x07;
+    /* Timeout for min size buffer write */
+    pfl->cfi_table[0x20] = 0x07;
+    /* Typical timeout for block erase */
+    pfl->cfi_table[0x21] = 0x0a;
+    /* Typical timeout for full chip erase (4096 ms) */
+    pfl->cfi_table[0x22] = 0x00;
+    /* Reserved */
+    pfl->cfi_table[0x23] = 0x04;
+    /* Max timeout for buffer write */
+    pfl->cfi_table[0x24] = 0x04;
+    /* Max timeout for block erase */
+    pfl->cfi_table[0x25] = 0x04;
+    /* Max timeout for chip erase */
+    pfl->cfi_table[0x26] = 0x00;
+    /* Device size */
+    pfl->cfi_table[0x27] = ctz32(total_len); // + 1;
+    /* Flash device interface (8 & 16 bits) */
+    pfl->cfi_table[0x28] = 0x02;
+    pfl->cfi_table[0x29] = 0x00;
+    /* Max number of bytes in multi-bytes write */
+    if (width == 1) {
+        pfl->cfi_table[0x2A] = 0x08;
     } else {
-        assert(0);
+        pfl->cfi_table[0x2A] = 0x0B;
     }
+    pfl->writeblock_size = 1 << pfl->cfi_table[0x2A];
 
-#define flash_instance 0
-#define flash_version 0
-    qemu_register_reset(flash_reset, pfl);
-    register_savevm("flash", flash_instance, flash_version, flash_save, flash_load, pfl);
+    pfl->cfi_table[0x2B] = 0x00;
+    /* Number of erase block regions (uniform) */
+    pfl->cfi_table[0x2C] = 0x01;
+    /* Erase block region 1 */
+    pfl->cfi_table[0x2D] = nb_blocs - 1;
+    pfl->cfi_table[0x2E] = (nb_blocs - 1) >> 8;
+    pfl->cfi_table[0x2F] = sector_len >> 8;
+    pfl->cfi_table[0x30] = sector_len >> 16;
+
+    /* Extended */
+    pfl->cfi_table[0x31] = 'P';
+    pfl->cfi_table[0x32] = 'R';
+    pfl->cfi_table[0x33] = 'I';
+
+    pfl->cfi_table[0x34] = '1';
+    pfl->cfi_table[0x35] = '1';
+
+    pfl->cfi_table[0x36] = 0x00;
+    pfl->cfi_table[0x37] = 0x00;
+    pfl->cfi_table[0x38] = 0x00;
+    pfl->cfi_table[0x39] = 0x00;
+
+    pfl->cfi_table[0x3a] = 0x00;
+
+    pfl->cfi_table[0x3b] = 0x00;
+    pfl->cfi_table[0x3c] = 0x00;
 
     return pfl;
 }
-
-/*
-
-ERASE Flash
----------------------------------------
-    Area            Address      Length
----------------------------------------
-[0] Boot            0xB0000000     128K
-[1] Configuration   0xB0020000     128K
-[2] Web Image       0xB0040000     832K
-[3] Code Image      0xB0110000     896K
-[4] Boot Params     0xB01F0000      64K
-[5] Flash Image     0xB0000000    2048K
----------------------------------------
-Enter area to ERASE: 4
-Erase area 4.  Are you sure? (Y/n) Yes
-erase from location B01F0000tlb_set_page_exec: vaddr=b01f0000 paddr=0x101f0000 addr_write=0xb01f0050 prot=7 u=0 pd=0x021f0051
-PFLASH: pflash_write: offset 001f0000 00006060 2 wc 0
-PFLASH: pflash_io_mode: switch to i/o mode
-PFLASH: pflash_write: Block Lock Bit Set / Reset started
-PFLASH: pflash_write: offset 001f0000 0000d0d0 2 wc 1
-PFLASH: pflash_write: unimplemented Block Lock Bit Reset done
-PFLASH: pflash_write: offset 69e41000 0000ffff 2 wc 0
-PFLASH: pflash_write: flash read array asked (d0 ff)
-PFLASH: pflash_write: offset 69e41000 00002020 2 wc 0
-PFLASH: pflash_io_mode: switch to i/o mode
-PFLASH: pflash_write: unimplemented Block Erase (0800 20)
-PFLASH: pflash_write: offset 001f0000 0000d0d0 2 wc 1
-PFLASH: pflash_write: unlock1 failed 0000 d0
-PFLASH: pflash_rom_mode: switch to rom mode
-tlb_set_page_exec: vaddr=b01f0000 paddr=0x101f0000 addr_write=0xb01f0050 prot=7 u=0 pd=0x021f0051
-PFLASH: pflash_write: offset 001f0000 0000ffff 2 wc 0
-PFLASH: pflash_write: flash read array asked (00 ff)
-PFLASH: pflash_write: offset 001f0000 00007070 2 wc 0
-PFLASH: pflash_io_mode: switch to i/o mode
-PFLASH: pflash_write: Read Status
-PFLASH: pflash_write: offset 001f0000 00005050 2 wc 1
-PFLASH: pflash_write: unlock1 failed 0000 50
-PFLASH: pflash_rom_mode: switch to rom mode
- error
-Erase fail!
-
-
-
-
-flash_program error at B01F004C
-PFLASH  pflash_read             offset 001f0050
-PFLASH  pflash_read             status 0
-PFLASH  pflash_read             offset 001f0050 00000000 4
-PFLASH  pflash_write            offset 001f0052 0000ffff 2
-PFLASH  pflash_write            Read Array (70 ff)
-PFLASH  pflash_rom_mode         switch to rom mode
-PFLASH  pflash_write            offset 001f0052 00006060 2
-PFLASH  pflash_write            Block Lock Bit Set / Reset started
-PFLASH  pflash_io_mode          switch to i/o mode
-PFLASH  pflash_write            offset 001f0052 0000d0d0 2
-PFLASH  pflash_write            Block Lock Bit Reset done
-PFLASH  pflash_write            offset 001f0052 00004040 2
-PFLASH  pflash_write            Single Byte Program (1f0052 40)
-PFLASH  pflash_write            offset 001f0052 00004f42 2
-PFLASH  pflash_write            Single Byte Program data offset 001f0052 00004f42 2
-PFLASH  pflash_read             offset 001f0052
-PFLASH  pflash_read             status 80
-PFLASH  pflash_read             offset 001f0052 00000080 2
-PFLASH  pflash_write            offset 001f0052 0000ffff 2
-PFLASH  pflash_write            Read Array (70 ff)
-PFLASH  pflash_rom_mode         switch to rom mode
-PFLASH  pflash_write            offset 001f0052 0000ffff 2
-PFLASH  pflash_write            Read Array (00 ff)
-PFLASH  pflash_write            offset 001f0052 00007070 2
-PFLASH  pflash_write            Read Status
-PFLASH  pflash_io_mode          switch to i/o mode
-PFLASH  pflash_write            offset 001f0052 00005050 2
-PFLASH  pflash_write            Clear Status Register (1f0052 50)
-PFLASH  pflash_write            offset 001f0050 0000ffff 2
-PFLASH  pflash_write            Read Array (70 ff)
-PFLASH  pflash_rom_mode         switch to rom mode
-PFLASH  pflash_write            offset 001f0050 00006060 2
-PFLASH  pflash_write            Block Lock Bit Set / Reset started
-PFLASH  pflash_io_mode          switch to i/o mode
-PFLASH  pflash_write            offset 001f0050 0000d0d0 2
-PFLASH  pflash_write            Block Lock Bit Reset done
-PFLASH  pflash_write            offset 001f0050 00004040 2
-PFLASH  pflash_write            Single Byte Program (1f0050 40)
-PFLASH  pflash_write            offset 001f0050 00002d4e 2
-PFLASH  pflash_write            Single Byte Program data offset 001f0050 00002d4e 2
-PFLASH  pflash_read             offset 001f0050
-PFLASH  pflash_read             status 80
-PFLASH  pflash_read             offset 001f0050 00000080 2
-PFLASH  pflash_write            offset 001f0050 0000ffff 2
-PFLASH  pflash_write            Read Array (70 ff)
-PFLASH  pflash_rom_mode         switch to rom mode
-PFLASH  pflash_write            offset 001f0050 0000ffff 2
-PFLASH  pflash_write            Read Array (00 ff)
-PFLASH  pflash_write            offset 001f0050 00007070 2
-PFLASH  pflash_write            Read Status
-PFLASH  pflash_io_mode          switch to i/o mode
-PFLASH  pflash_write            offset 001f0050 00005050 2
-PFLASH  pflash_write            Clear Status Register (1f0050 50)
-PFLASH  pflash_read             offset 001f0050
-PFLASH  pflash_read             status 0
-PFLASH  pflash_read             offset 001f0050 00000000 4
-
-flash_program error at B01F0050
-
-
-*/
