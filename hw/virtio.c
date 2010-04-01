@@ -773,7 +773,7 @@ target_phys_addr_t virtio_queue_get_desc_size(VirtIODevice *vdev, int n)
 target_phys_addr_t virtio_queue_get_avail_size(VirtIODevice *vdev, int n)
 {
     return offsetof(VRingAvail, ring) +
-        sizeof(u_int64_t) * vdev->vq[n].vring.num;
+        sizeof(uint64_t) * vdev->vq[n].vring.num;
 }
 
 target_phys_addr_t virtio_queue_get_used_size(VirtIODevice *vdev, int n)
