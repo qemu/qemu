@@ -607,8 +607,13 @@ int kvm_init(int smp_cpus)
     }
 
     s->vmfd = kvm_ioctl(s, KVM_CREATE_VM, 0);
-    if (s->vmfd < 0)
+    if (s->vmfd < 0) {
+#ifdef TARGET_S390X
+        fprintf(stderr, "Please add the 'switch_amode' kernel parameter to "
+                        "your host kernel command line\n");
+#endif
         goto err;
+    }
 
     /* initially, KVM allocated its own memory and we had to jump through
      * hooks to make phys_ram_base point to this.  Modern versions of KVM
