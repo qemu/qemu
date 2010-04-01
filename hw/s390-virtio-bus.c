@@ -56,7 +56,6 @@ typedef struct {
 static const VirtIOBindings virtio_s390_bindings;
 
 static ram_addr_t s390_virtio_device_num_vq(VirtIOS390Device *dev);
-static void s390_virtio_device_sync(VirtIOS390Device *dev);
 
 VirtIOS390Bus *s390_virtio_bus_init(ram_addr_t *ram_size)
 {
@@ -185,7 +184,7 @@ static ram_addr_t s390_virtio_next_ring(VirtIOS390Bus *bus)
     return r;
 }
 
-static void s390_virtio_device_sync(VirtIOS390Device *dev)
+void s390_virtio_device_sync(VirtIOS390Device *dev)
 {
     VirtIOS390Bus *bus = DO_UPCAST(VirtIOS390Bus, bus, dev->qdev.parent_bus);
     ram_addr_t cur_offs;

@@ -99,10 +99,11 @@ int s390_virtio_hypercall(CPUState *env)
         break;
     case KVM_S390_VIRTIO_RESET:
     {
-        /* Virtio_reset resets the internal addresses, so we'd have to sync
-           them up again. We don't want to reallocate a vring though, so let's
-           just not reset. */
-        /* virtio_reset(dev->vdev); */
+        VirtIOS390Device *dev;
+
+        dev = s390_virtio_bus_find_mem(s390_bus, mem);
+        virtio_reset(dev->vdev);
+        s390_virtio_device_sync(dev);
         break;
     }
     case KVM_S390_VIRTIO_SET_STATUS:
