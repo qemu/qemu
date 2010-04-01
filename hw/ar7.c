@@ -3310,13 +3310,8 @@ static CPUReadMemoryFunc *const io_read[] = {
     io_readl,
 };
 
-static void ar7_serial_init(CPUState * env)
+static void ar7_serial_init(CPUState * env, int be)
 {
-#if defined(TARGET_WORDS_BIGENDIAN)
-    int big_endian = 1;
-#else
-    int big_endian = 0;
-#endif
     /* By default, QEMU only opens one serial console.
      * In this case we open a second console here because
      * we need it for full hardware emulation.
@@ -3328,7 +3323,7 @@ static void ar7_serial_init(CPUState * env)
     for (uart_index = 0; uart_index < 2; uart_index++) {
         ar7.serial[uart_index] = serial_mm_init(uart_base[uart_index], 2,
             AR7_PRIMARY_IRQ(uart_interrupt[uart_index]), io_frequency,
-            serial_hds[uart_index], 0, big_endian);
+            serial_hds[uart_index], 0, be);
         serial_set_frequency(ar7.serial[uart_index], io_frequency / 16);
     }
 
@@ -3617,7 +3612,7 @@ static void ar7_reset(DeviceState *d)
     //~ cpu_interrupt(env, CPU_INTERRUPT_RESET);
 }
 
-static void ar7_init(CPUState * env)
+static void ar7_init(CPUState * env, int be)
 {
     //~ target_phys_addr_t addr = (0x08610000 & 0xffff);
     //~ unsigned offset;
@@ -3660,7 +3655,7 @@ static void ar7_init(CPUState * env)
     ar7.vlynq[1] = av.vlynq1;
     ar7.cpu_env = env;
 
-    ar7_serial_init(env);
+    ar7_serial_init(env, be);
     ar7_display_init(env);
     ar7_nic_init();
     // TODO: tnetw1130 must be integrated again (QEMU interface changed).
@@ -3687,20 +3682,15 @@ static void ar7_init(CPUState * env)
 }
 
 /* Kernel */
-static void kernel_load(CPUState *env)
+static void kernel_load(CPUState *env, int be)
 {
     uint64_t kernel_addr = 0;
     uint64_t kernel_low, kernel_high;
-#if defined(TARGET_WORDS_BIGENDIAN)
-    int big_endian = 1;
-#else
-    int big_endian = 0;
-#endif
     int kernel_size;
     kernel_size = load_elf(loaderparams.kernel_filename,
                            cpu_mips_kseg0_to_phys, NULL,
                            &kernel_addr, &kernel_low, &kernel_high,
-                           big_endian, ELF_MACHINE, 1);
+                           be, ELF_MACHINE, 1);
     if (kernel_size < 0) {
         kernel_size = load_image_targphys(loaderparams.kernel_filename,
                                           KERNEL_LOAD_ADDR,
@@ -3837,6 +3827,11 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
                             const char *kernel_cmdline,
                             const char *initrd_filename, const char *cpu_model)
 {
+#if defined(TARGET_WORDS_BIGENDIAN)
+        int be = 1;
+#else
+        int be = 0;
+#endif
     char *filename;
     CPUState *env;
     DeviceState *dev;
@@ -3913,13 +3908,13 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
             pf = pflash_device_register(FLASH_ADDR, flash_offset,
                                         dinfo->bdrv,
                                         flash_size, 2,
-                                        flash_manufacturer, flash_type);
+                                        flash_manufacturer, flash_type, be);
         } else {
             flash_offset = qemu_ram_alloc(flash_size);
             pf = pflash_device_register(FLASH_ADDR, flash_offset,
                                         0,
                                         flash_size, 2,
-                                        flash_manufacturer, flash_type);
+                                        flash_manufacturer, flash_type, be);
         }
     } else if (filename) {
         pflash_t *pf;
@@ -3927,7 +3922,7 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
         pf = pflash_device_register(FLASH_ADDR, flash_offset,
                                     0,
                                     flash_size, 2,
-                                    flash_manufacturer, flash_type);
+                                    flash_manufacturer, flash_type, be);
         flash_size = load_image_targphys(filename, FLASH_ADDR, flash_size);
         qemu_free(filename);
     }
@@ -3955,7 +3950,7 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     }
 
     if (kernel_filename) {
-        kernel_load(env);
+        kernel_load(env, be);
         kernel_init(env);
     }
 
@@ -3985,7 +3980,7 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     ar7.vlynq_tnetw1130 = 0;
     //~ ar7.vlynq_tnetw1130 = 99;
 
-    ar7_init(env);
+    ar7_init(env, be);
 }
 
 static int ar7_sysbus_device_init(SysBusDevice *sysbusdev)

@@ -26,15 +26,16 @@
 static int traceflag;
 #endif
 
-pflash_t *pflash_device_register (target_phys_addr_t base, ram_addr_t off,
+pflash_t *pflash_device_register(target_phys_addr_t base, ram_addr_t off,
                            BlockDriverState *bs, uint32_t size, int width,
-                           uint16_t flash_manufacturer, uint16_t flash_type)
+                           uint16_t flash_manufacturer, uint16_t flash_type,
+                           int be)
 {
     /* The values for blocksize and nblocks are defaults which must be
        replaced by the correct values based on flash manufacturer and type.
        This is done by the cfi1 and cfi2 emulation code. */
-    const target_ulong blocksize = 0x10000;
-    const unsigned nblocks = size / blocksize;
+    const uint32_t blocksize = 0x10000;
+    const uint32_t nblocks = size / blocksize;
     const uint16_t id2 = 0x33;
     const uint16_t id3 = 0x44;
     pflash_t *pf;
@@ -56,24 +57,22 @@ pflash_t *pflash_device_register (target_phys_addr_t base, ram_addr_t off,
         case MANUFACTURER_004A:  /* Which manufacturer is this? */
 #if 0
             pf = pflash_amd_register(base, off, bs, blocksize, nblocks, width,
-                    flash_manufacturer, flash_type, id2, id3);
+                    flash_manufacturer, flash_type, id2, id3, be);
 #else
             pf = pflash_cfi02_register(base, off, bs, blocksize, nblocks,
-                    1, width,
-                    flash_manufacturer, flash_type, id2, id3,
-                    0, 0);
+                    1, width, flash_manufacturer, flash_type, id2, id3,
+                    0, 0, be);
 #endif
             break;
         case MANUFACTURER_INTEL:
             pf = pflash_cfi01_register(base, off, bs, blocksize, nblocks, width,
-                    flash_manufacturer, flash_type, id2, id3);
+                    flash_manufacturer, flash_type, id2, id3, be);
             break;
         default:
             /* TODO: fix new parameters (0) */
             pf = pflash_cfi02_register(base, off, bs, blocksize, nblocks,
-                    1, width,
-                    flash_manufacturer, flash_type, id2, id3,
-                    0, 0);
+                    1, width, flash_manufacturer, flash_type, id2, id3,
+                    0, 0, be);
     }
     return pf;
 }

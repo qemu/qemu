@@ -216,8 +216,6 @@ typedef enum {
 
 /* QEMU interface */
 
-#include "cpu-all.h"            /* ram_addr_t */
-#include "cpu-defs.h"           /* target_phys_addr_t, target_ulong */
 #include "qemu-common.h"        /* BlockDriverState */
 #include "hw/flash.h"           /* pflash_t */
 
@@ -230,12 +228,13 @@ pflash_t *pflash_amd_register (target_phys_addr_t base, ram_addr_t off,
                                BlockDriverState *bs,
                                uint32_t sector_len, int nb_blocs, int width,
                                uint16_t id0, uint16_t id1, 
-                               uint16_t id2, uint16_t id3);
+                               uint16_t id2, uint16_t id3, int be);
 
 /* User interface. */
 
 pflash_t *pflash_device_register (target_phys_addr_t base, ram_addr_t off,
                            BlockDriverState *bs, uint32_t size, int width,
-                           uint16_t flash_manufacturer, uint16_t flash_type);
+                           uint16_t flash_manufacturer, uint16_t flash_type,
+                           int be);
 
 #endif /* __pflash_h */
