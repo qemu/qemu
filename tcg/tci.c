@@ -397,9 +397,10 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
 #ifndef CONFIG_SOFTMMU
         tcg_target_ulong host_addr;
 #endif
-        uint16_t i16, u16;
+        int16_t i16;
+        uint16_t u16;
 #if TCG_TARGET_REG_BITS == 64
-        uint32_t i32;
+        int32_t i32;
 #endif
         uint32_t u32;
         uint64_t u64;
