@@ -34,6 +34,7 @@
 #include "sh7750_regs.h"
 #include "ide.h"
 #include "loader.h"
+#include "usb.h"
 
 #define SDRAM_BASE 0x0c000000 /* Physical location of SDRAM: Area 3 */
 #define SDRAM_SIZE 0x04000000
@@ -239,6 +240,9 @@ static void r2d_init(ram_addr_t ram_size,
     /* NIC: rtl8139 on-board, and 2 slots. */
     for (i = 0; i < nb_nics; i++)
         pci_nic_init_nofail(&nd_table[i], "rtl8139", i==0 ? "2" : NULL);
+
+    /* USB keyboard */
+    usbdevice_create("keyboard");
 
     /* Todo: register on board registers */
     if (kernel_filename) {
