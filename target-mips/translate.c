@@ -9633,7 +9633,9 @@ void cpu_dump_state (CPUState *env, FILE *f,
 {
     int i;
 
-    cpu_fprintf(f, "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx " LO=0x" TARGET_FMT_lx " ds %04x " TARGET_FMT_lx " %d\n",
+    cpu_fprintf(f, "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx
+                " LO=0x" TARGET_FMT_lx " ds %04x "
+                TARGET_FMT_lx " " TARGET_FMT_ld "\n",
                 env->active_tc.PC, env->active_tc.HI[0], env->active_tc.LO[0],
                 env->hflags, env->btarget, env->bcond);
     for (i = 0; i < 32; i++) {
