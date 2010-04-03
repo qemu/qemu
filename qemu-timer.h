@@ -98,9 +98,9 @@ static inline int64_t cpu_get_real_ticks(void)
 #else
     /* http://ozlabs.org/pipermail/linuxppc-dev/1999-October/003889.html */
     unsigned long junk;
-    __asm__ __volatile__ ("mftbu   %1\n\t"
-                          "mftb    %L0\n\t"
-                          "mftbu   %0\n\t"
+    __asm__ __volatile__ ("mfspr   %1,269\n\t"  /* mftbu */
+                          "mfspr   %L0,268\n\t" /* mftb */
+                          "mfspr   %0,269\n\t"  /* mftbu */
                           "cmpw    %0,%1\n\t"
                           "bne     $-16"
                           : "=r" (retval), "=r" (junk));
