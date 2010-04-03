@@ -242,7 +242,7 @@ obj-sparc-y += vga.o
 obj-sparc-y += mc146818rtc.o
 obj-sparc-y += cirrus_vga.o
 else
-obj-sparc-y = sun4m.o lance.o tcx.o iommu.o slavio_intctl.o
+obj-sparc-y = sun4m.o lance.o tcx.o sun4m_iommu.o slavio_intctl.o
 obj-sparc-y += slavio_timer.o slavio_misc.o sparc32_dma.o
 obj-sparc-y += cs4231.o eccmemctl.o sbi.o sun4c_intctl.o
 endif
