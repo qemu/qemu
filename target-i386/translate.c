@@ -7891,7 +7891,6 @@ static inline void gen_intermediate_code_internal(CPUState *env,
     }
 
 #ifdef DEBUG_DISAS
-    log_cpu_state_mask(CPU_LOG_TB_CPU, env, X86_DUMP_CCOP);
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         int disas_flags;
         qemu_log("----------------\n");
