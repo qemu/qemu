@@ -734,3 +734,8 @@ void tap_set_offload(VLANClientState *vc, int csum, int tso4,
                      int tso6, int ecn, int ufo)
 {
 }
+
+struct vhost_net *tap_get_vhost_net(VLANClientState *nc)
+{
+    return NULL;
+}

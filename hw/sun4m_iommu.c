@@ -1,5 +1,5 @@
 /*
- * QEMU SPARC iommu emulation
+ * QEMU Sun4m iommu emulation
  *
  * Copyright (c) 2003-2005 Fabrice Bellard
  *
@@ -34,6 +34,14 @@
 #else
 #define DPRINTF(fmt, ...)
 #endif
+
+/*
+ * I/O MMU used by Sun4m systems
+ *
+ * Chipset docs:
+ * "Sun-4M System Architecture (revision 2.0) by Chuck Narad", 950-1373-01,
+ * http://mediacast.sun.com/users/Barton808/media/Sun4M_SystemArchitecture_edited2.pdf
+ */
 
 #define IOMMU_NREGS         (4*4096/4)
 #define IOMMU_CTRL          (0x0000 >> 2)
