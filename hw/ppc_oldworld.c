@@ -370,7 +370,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
                escc_mem_index);
 
     if (usb_enabled) {
-        usb_ohci_init_pci(pci_bus, -1, 1);
+        usb_ohci_init_pci(pci_bus, -1);
     }
 
     if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8)

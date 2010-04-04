@@ -146,7 +146,6 @@ hw-obj-$(CONFIG_PARALLEL) += parallel.o
 hw-obj-$(CONFIG_I8254) += i8254.o
 hw-obj-$(CONFIG_PCSPK) += pcspk.o
 hw-obj-$(CONFIG_USB_UHCI) += usb-uhci.o
-hw-obj-$(CONFIG_USB_OHCI) += usb-ohci.o
 hw-obj-$(CONFIG_FDC) += fdc.o
 hw-obj-$(CONFIG_ACPI) += acpi.o
 

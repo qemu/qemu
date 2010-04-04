@@ -1222,13 +1222,8 @@ void sm501_init(uint32_t base, uint32_t local_mem_bytes, qemu_irq irq,
                                  0x1000, sm501_disp_ctrl_index);
 
     /* bridge to usb host emulation module */
-#ifdef TARGET_WORDS_BIGENDIAN
     usb_ohci_init_sm501(base + MMIO_BASE_OFFSET + SM501_USB_HOST, base,
-                        2, -1, irq, 1);
-#else
-    usb_ohci_init_sm501(base + MMIO_BASE_OFFSET + SM501_USB_HOST, base,
-                        2, -1, irq, 0);
-#endif
+                        2, -1, irq);
 
     /* bridge to serial emulation module */
     if (chr) {
