@@ -2188,7 +2188,7 @@ void tlb_set_page(CPUState *env, target_ulong vaddr,
     unsigned int index;
     target_ulong address;
     target_ulong code_address;
-    target_phys_addr_t addend;
+    unsigned long addend;
     CPUTLBEntry *te;
     CPUWatchpoint *wp;
     target_phys_addr_t iotlb;

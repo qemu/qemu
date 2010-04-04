@@ -867,7 +867,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     reloc_pc16(label1_ptr, (tcg_target_long) s->code_ptr);
 
     tcg_out_opc_imm(s, OPC_LW, TCG_REG_A0, TCG_REG_A0,
-                    offsetof(CPUState, tlb_table[mem_index][0].addend) + addr_meml);
+                    offsetof(CPUState, tlb_table[mem_index][0].addend));
     tcg_out_opc_reg(s, OPC_ADDU, TCG_REG_V0, TCG_REG_A0, addr_regl);
 #else
     if (GUEST_BASE == (int16_t)GUEST_BASE) {
@@ -1054,7 +1054,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     reloc_pc16(label1_ptr, (tcg_target_long) s->code_ptr);
 
     tcg_out_opc_imm(s, OPC_LW, TCG_REG_A0, TCG_REG_A0,
-                    offsetof(CPUState, tlb_table[mem_index][0].addend) + addr_meml);
+                    offsetof(CPUState, tlb_table[mem_index][0].addend));
     tcg_out_opc_reg(s, OPC_ADDU, TCG_REG_A0, TCG_REG_A0, addr_regl);
 #else
     if (GUEST_BASE == (int16_t)GUEST_BASE) {

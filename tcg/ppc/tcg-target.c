@@ -37,14 +37,6 @@ static uint8_t *tb_ret_addr;
 
 #define FAST_PATH
 
-#ifdef CONFIG_SOFTMMU
-#if TARGET_PHYS_ADDR_BITS <= 32
-#define ADDEND_OFFSET 0
-#else
-#define ADDEND_OFFSET 4
-#endif
-#endif
-
 #ifndef GUEST_BASE
 #define GUEST_BASE 0
 #endif
@@ -648,7 +640,7 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
     tcg_out32 (s, (LWZ
                    | RT (r0)
                    | RA (r0)
-                   | (ADDEND_OFFSET + offsetof (CPUTLBEntry, addend)
+                   | (offsetof (CPUTLBEntry, addend)
                       - offsetof (CPUTLBEntry, addr_read))
                    ));
     /* r0 = env->tlb_table[mem_index][index].addend */
@@ -847,7 +839,7 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
     tcg_out32 (s, (LWZ
                    | RT (r0)
                    | RA (r0)
-                   | (ADDEND_OFFSET + offsetof (CPUTLBEntry, addend)
+                   | (offsetof (CPUTLBEntry, addend)
                       - offsetof (CPUTLBEntry, addr_write))
                    ));
     /* r0 = env->tlb_table[mem_index][index].addend */

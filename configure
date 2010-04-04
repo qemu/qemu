@@ -2538,9 +2538,6 @@ if [ "$TARGET_ABI_DIR" = "" ]; then
   TARGET_ABI_DIR=$TARGET_ARCH
 fi
 echo "TARGET_ABI_DIR=$TARGET_ABI_DIR" >> $config_target_mak
-if [ $target_phys_bits -lt $hostlongbits ] ; then
-  target_phys_bits=$hostlongbits
-fi
 case "$target_arch2" in
   i386|x86_64)
     if test "$xen" = "yes" -a "$target_softmmu" = "yes" ; then
