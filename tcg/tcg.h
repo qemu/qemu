@@ -476,9 +476,6 @@ TCGv_i64 tcg_const_i64(int64_t val);
 TCGv_i32 tcg_const_local_i32(int32_t val);
 TCGv_i64 tcg_const_local_i64(int64_t val);
 
-void tcg_out_reloc(TCGContext *s, uint8_t *code_ptr, int type, 
-                   int label_index, long addend);
-
 extern uint8_t code_gen_prologue[];
 #if defined(CONFIG_TCG_INTERPRETER)
 unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr);
