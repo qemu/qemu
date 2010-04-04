@@ -677,9 +677,6 @@ static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_
 
     ret = async->packet.len;
 
-    if (td->ctrl & TD_CTRL_IOC)
-        *int_mask |= 0x01;
-
     if (td->ctrl & TD_CTRL_IOS)
         td->ctrl &= ~TD_CTRL_ACTIVE;
 
@@ -693,6 +690,8 @@ static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_
        here.  The docs are somewhat unclear, but win2k relies on this
        behavior.  */
     td->ctrl &= ~(TD_CTRL_ACTIVE | TD_CTRL_NAK);
+    if (td->ctrl & TD_CTRL_IOC)
+        *int_mask |= 0x01;
 
     if (pid == USB_TOKEN_IN) {
         if (len > max_len) {
@@ -750,6 +749,8 @@ out:
         if (err == 0) {
             td->ctrl &= ~TD_CTRL_ACTIVE;
             s->status |= UHCI_STS_USBERR;
+            if (td->ctrl & TD_CTRL_IOC)
+                *int_mask |= 0x01;
             uhci_update_irq(s);
         }
     }
