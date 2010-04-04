@@ -18,7 +18,7 @@
  */
 
 /* TODO list:
- * - Add support for constant parameters.
+ * - See TODO comments in code.
  */
 
 /* Marker for missing code. */
@@ -102,7 +102,7 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
 #endif /* TCG_TARGET_REG_BITS == 64 */
 
 #if TCG_TARGET_REG_BITS == 32
-    /* TODO: "r", "r", "r", "r", "ri", "ri" */
+    /* TODO: Support "r", "r", "r", "r", "ri", "ri". */
     { INDEX_op_add2_i32, { "r", "r", "r", "r", "r", "r" } },
     { INDEX_op_sub2_i32, { "r", "r", "r", "r", "r", "r" } },
     { INDEX_op_brcond2_i32, { "r", "r", "ri", "ri" } },
@@ -278,7 +278,7 @@ static const int tcg_target_call_iarg_regs[] = {
     TCG_REG_R7,
 };
 
-static const int tcg_target_call_oarg_regs[2] = {
+static const int tcg_target_call_oarg_regs[] = {
     // TODO: ppc64 only uses one register. Why do others use two?
     TCG_REG_R0,
     TCG_REG_R1,
@@ -334,7 +334,8 @@ static void patch_reloc(uint8_t *code_ptr, int type,
                         tcg_target_long value, tcg_target_long addend)
 {
     //~ TRACE();
-    assert(type == sizeof(tcg_target_long));
+    /* tcg_out_reloc always uses the same type, addend. */
+    assert(type == sizeof(tcg_target_long) && addend == 0);
     *(tcg_target_long *)code_ptr = value;
 }
 

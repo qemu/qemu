@@ -380,7 +380,7 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
 
     for (;;) {
 #ifdef CONFIG_SOFTMMU
-        tci_tb_ptr=tb_ptr;
+        tci_tb_ptr = tb_ptr;
 #endif
         TCGOpcode opc = *(uint8_t *)tb_ptr++;
         tcg_target_ulong t0;
@@ -398,19 +398,14 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
         tcg_target_ulong host_addr;
 #endif
         int16_t i16;
-        uint16_t u16;
 #if TCG_TARGET_REG_BITS == 64
         int32_t i32;
 #endif
+        uint16_t u16;
         uint32_t u32;
         uint64_t u64;
 
         tci_disas(opc);
-
-        if (opc == INDEX_op_exit_tb) {
-            next_tb = *(uint64_t *)tb_ptr;
-            break;
-        }
 
         switch (opc) {
         case INDEX_op_end:
@@ -948,7 +943,8 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             break;
 #endif
         case INDEX_op_exit_tb:
-            TODO();
+            next_tb = *(uint64_t *)tb_ptr;
+            goto exit;
             break;
         case INDEX_op_goto_tb:
             t0 = tci_read_i32(&tb_ptr);
@@ -1008,7 +1004,7 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
 #else
             host_addr = (tcg_target_ulong)taddr;
             assert(taddr == host_addr);
-            i16 = *(uint16_t *)(host_addr + GUEST_BASE);
+            i16 = *(int16_t *)(host_addr + GUEST_BASE);
 #endif
             tci_write_reg16s(t0, tswap16(i16));
             break;
@@ -1152,5 +1148,6 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             break;
         }
     }
+    exit:
     return next_tb;
 }
