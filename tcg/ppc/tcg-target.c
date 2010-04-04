@@ -1646,7 +1646,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
 
     case INDEX_op_not_i32:
-        tcg_out32 (s, NOR | SAB (args[1], args[0], args[0]));
+        tcg_out32 (s, NOR | SAB (args[1], args[0], args[1]));
         break;
 
     case INDEX_op_qemu_ld8u:
