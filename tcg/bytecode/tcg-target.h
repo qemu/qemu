@@ -1,7 +1,6 @@
 /*
  * Tiny Code Generator for QEMU
  *
- * Copyright (c) 2008 Fabrice Bellard
  * Copyright (c) 2009, 2010 Stefan Weil
  *
  * This program is free software: you can redistribute it and/or modify
@@ -107,10 +106,6 @@ enum {
     TCG_REG_R6,
     TCG_REG_R7,
     TCG_AREG0 = TCG_REG_R7,
-#if defined(TARGET_ARM)
-    TCG_AREG1 = TCG_REG_R6,
-    TCG_AREG2 = TCG_REG_R5,
-#endif
 #if TCG_TARGET_NB_REGS == 16 || TCG_TARGET_NB_REGS == 32
     TCG_REG_R8,
     TCG_REG_R9,
