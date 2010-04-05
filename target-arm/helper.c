@@ -8,7 +8,9 @@
 #include "helpers.h"
 #include "qemu-common.h"
 #include "host-utils.h"
+#if !defined(CONFIG_USER_ONLY)
 #include "hw/loader.h"
+#endif
 
 static uint32_t cortexa9_cp15_c0_c1[8] =
 { 0x1031, 0x11, 0x000, 0, 0x00100103, 0x20000000, 0x01230000, 0x00002111 };
