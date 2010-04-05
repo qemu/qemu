@@ -30,9 +30,9 @@
 #include "qemu-timer.h"
 #include "usb.h"
 #include "pci.h"
-#include "pxa.h"
-#include "devices.h"
 #include "usb-ohci.h"
+#include "sysbus.h"
+#include "qdev-addr.h"
 
 //#define DEBUG_OHCI
 /* Dump packet contents.  */
@@ -59,16 +59,9 @@ typedef struct OHCIPort {
     uint32_t ctrl;
 } OHCIPort;
 
-enum ohci_type {
-    OHCI_TYPE_PCI,
-    OHCI_TYPE_PXA,
-    OHCI_TYPE_SM501,
-};
-
 typedef struct {
     USBBus bus;
     qemu_irq irq;
-    enum ohci_type type;
     int mem;
     int num_ports;
     const char *name;
@@ -1662,9 +1655,7 @@ static CPUWriteMemoryFunc * const ohci_writefn[3]={
 };
 
 static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
-                          int num_ports, int devfn,
-                          qemu_irq irq, enum ohci_type type,
-                          const char *name, uint32_t localmem_base)
+                          int num_ports, uint32_t localmem_base)
 {
     int i;
 
@@ -1686,10 +1677,8 @@ static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
 
     ohci->mem = cpu_register_io_memory(ohci_readfn, ohci_writefn, ohci);
     ohci->localmem_base = localmem_base;
-    ohci->name = name;
 
-    ohci->irq = irq;
-    ohci->type = type;
+    ohci->name = dev->info->name;
 
     usb_bus_new(&ohci->bus, dev);
     ohci->num_ports = num_ports;
@@ -1726,9 +1715,8 @@ static int usb_ohci_initfn_pci(struct PCIDevice *dev)
     /* TODO: RST# value should be 0. */
     ohci->pci_dev.config[PCI_INTERRUPT_PIN] = 0x01; /* interrupt pin 1 */
 
-    usb_ohci_init(&ohci->state, &dev->qdev, num_ports,
-                  ohci->pci_dev.devfn, ohci->pci_dev.irq[0],
-                  OHCI_TYPE_PCI, ohci->pci_dev.name, 0);
+    usb_ohci_init(&ohci->state, &dev->qdev, num_ports, 0);
+    ohci->state.irq = ohci->pci_dev.irq[0];
 
     /* TODO: avoid cast below by using dev */
     pci_register_bar((struct PCIDevice *)ohci, 0, 256,
@@ -1741,37 +1729,46 @@ void usb_ohci_init_pci(struct PCIBus *bus, int devfn)
     pci_create_simple(bus, devfn, "pci-ohci");
 }
 
-void usb_ohci_init_pxa(target_phys_addr_t base, int num_ports, int devfn,
-                       qemu_irq irq)
+typedef struct {
+    SysBusDevice busdev;
+    OHCIState ohci;
+    uint32_t num_ports;
+    target_phys_addr_t dma_offset;
+} OHCISysBusState;
+
+static int ohci_init_pxa(SysBusDevice *dev)
 {
-    OHCIState *ohci = (OHCIState *)qemu_mallocz(sizeof(OHCIState));
+    OHCISysBusState *s = FROM_SYSBUS(OHCISysBusState, dev);
 
-    usb_ohci_init(ohci, NULL /* FIXME */, num_ports, devfn, irq,
-                  OHCI_TYPE_PXA, "OHCI USB", 0);
+    usb_ohci_init(&s->ohci, &dev->qdev, s->num_ports, s->dma_offset);
+    sysbus_init_irq(dev, &s->ohci.irq);
+    sysbus_init_mmio(dev, 0x1000, s->ohci.mem);
 
-    cpu_register_physical_memory(base, 0x1000, ohci->mem);
+    return 0;
 }
 
-void usb_ohci_init_sm501(uint32_t mmio_base, uint32_t localmem_base,
-                         int num_ports, int devfn, qemu_irq irq)
-{
-    OHCIState *ohci = (OHCIState *)qemu_mallocz(sizeof(OHCIState));
-
-    usb_ohci_init(ohci, NULL /* FIXME */, num_ports, devfn, irq,
-                  OHCI_TYPE_SM501, "OHCI USB", localmem_base);
-
-    cpu_register_physical_memory(mmio_base, 0x1000, ohci->mem);
-}
-
-static PCIDeviceInfo ohci_info = {
+static PCIDeviceInfo ohci_pci_info = {
     .qdev.name    = "pci-ohci",
     .qdev.desc    = "Apple USB Controller",
     .qdev.size    = sizeof(OHCIPCIState),
     .init         = usb_ohci_initfn_pci,
 };
 
+static SysBusDeviceInfo ohci_sysbus_info = {
+    .init         = ohci_init_pxa,
+    .qdev.name    = "sysbus-ohci",
+    .qdev.desc    = "OHCI USB Controller",
+    .qdev.size    = sizeof(OHCISysBusState),
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_UINT32("num-ports", OHCISysBusState, num_ports, 3),
+        DEFINE_PROP_TADDR("dma-offset", OHCISysBusState, dma_offset, 3),
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
+
 static void ohci_register(void)
 {
-    pci_qdev_register(&ohci_info);
+    pci_qdev_register(&ohci_pci_info);
+    sysbus_register_withprop(&ohci_sysbus_info);
 }
 device_init(ohci_register);
