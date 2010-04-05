@@ -270,7 +270,6 @@ static inline int tcg_target_const_match(tcg_target_long val,
 
 /* instruction opcodes */
 enum {
-    OPC_SPECIAL  = 0x00 << 26,
     OPC_BEQ      = 0x04 << 26,
     OPC_BNE      = 0x05 << 26,
     OPC_ADDIU    = 0x09 << 26,
@@ -289,6 +288,8 @@ enum {
     OPC_SB       = 0x28 << 26,
     OPC_SH       = 0x29 << 26,
     OPC_SW       = 0x2B << 26,
+
+    OPC_SPECIAL  = 0x00 << 26,
     OPC_SLL      = OPC_SPECIAL | 0x00,
     OPC_SRL      = OPC_SPECIAL | 0x02,
     OPC_SRA      = OPC_SPECIAL | 0x03,
@@ -311,6 +312,10 @@ enum {
     OPC_NOR      = OPC_SPECIAL | 0x27,
     OPC_SLT      = OPC_SPECIAL | 0x2A,
     OPC_SLTU     = OPC_SPECIAL | 0x2B,
+
+    OPC_SPECIAL3 = 0x1f << 26,
+    OPC_SEB      = OPC_SPECIAL3 | 0x420,
+    OPC_SEH      = OPC_SPECIAL3 | 0x620,
 };
 
 /*
@@ -439,6 +444,26 @@ static inline void tcg_out_bswap32(TCGContext *s, int ret, int arg)
     tcg_out_opc_sa(s, OPC_SRL, TCG_REG_AT, arg, 8);
     tcg_out_opc_imm(s, OPC_ANDI, TCG_REG_AT, TCG_REG_AT, 0xff00);
     tcg_out_opc_reg(s, OPC_OR, ret, ret, TCG_REG_AT);
+}
+
+static inline void tcg_out_ext8s(TCGContext *s, int ret, int arg)
+{
+#ifdef _MIPS_ARCH_MIPS32R2
+    tcg_out_opc_reg(s, OPC_SEB, ret, 0, arg);
+#else
+    tcg_out_opc_sa(s, OPC_SLL, ret, arg, 24);
+    tcg_out_opc_sa(s, OPC_SRA, ret, ret, 24);
+#endif
+}
+
+static inline void tcg_out_ext16s(TCGContext *s, int ret, int arg)
+{
+#ifdef _MIPS_ARCH_MIPS32R2
+    tcg_out_opc_reg(s, OPC_SEH, ret, 0, arg);
+#else
+    tcg_out_opc_sa(s, OPC_SLL, ret, arg, 16);
+    tcg_out_opc_sa(s, OPC_SRA, ret, ret, 16);
+#endif
 }
 
 static inline void tcg_out_ldst(TCGContext *s, int opc, int arg,
@@ -838,15 +863,13 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
         tcg_out_opc_imm(s, OPC_ANDI, data_reg1, TCG_REG_V0, 0xff);
         break;
     case 0 | 4:
-        tcg_out_opc_sa(s, OPC_SLL, TCG_REG_V0, TCG_REG_V0, 24);
-        tcg_out_opc_sa(s, OPC_SRA, data_reg1, TCG_REG_V0, 24);
+        tcg_out_ext8s(s, data_reg1, TCG_REG_V0);
         break;
     case 1:
         tcg_out_opc_imm(s, OPC_ANDI, data_reg1, TCG_REG_V0, 0xffff);
         break;
     case 1 | 4:
-        tcg_out_opc_sa(s, OPC_SLL, TCG_REG_V0, TCG_REG_V0, 16);
-        tcg_out_opc_sa(s, OPC_SRA, data_reg1, TCG_REG_V0, 16);
+        tcg_out_ext16s(s, data_reg1, TCG_REG_V0);
         break;
     case 2:
         tcg_out_mov(s, data_reg1, TCG_REG_V0);
@@ -1149,7 +1172,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_ld8u_i32:
-	tcg_out_ldst(s, OPC_LBU, args[0], args[1], args[2]);
+        tcg_out_ldst(s, OPC_LBU, args[0], args[1], args[2]);
         break;
     case INDEX_op_ld8s_i32:
         tcg_out_ldst(s, OPC_LB, args[0], args[1], args[2]);
@@ -1293,6 +1316,13 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
+    case INDEX_op_ext8s_i32:
+        tcg_out_ext8s(s, args[0], args[1]);
+        break;
+    case INDEX_op_ext16s_i32:
+        tcg_out_ext16s(s, args[0], args[1]);
+        break;
+
     case INDEX_op_brcond_i32:
         tcg_out_brcond(s, args[2], args[0], args[1], args[3]);
         break;
@@ -1379,6 +1409,9 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_shl_i32, { "r", "rZ", "riZ" } },
     { INDEX_op_shr_i32, { "r", "rZ", "riZ" } },
     { INDEX_op_sar_i32, { "r", "rZ", "riZ" } },
+
+    { INDEX_op_ext8s_i32, { "r", "rZ" } },
+    { INDEX_op_ext16s_i32, { "r", "rZ" } },
 
     { INDEX_op_brcond_i32, { "rZ", "rZ" } },
     { INDEX_op_setcond_i32, { "r", "rZ", "rZ" } },
