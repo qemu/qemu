@@ -335,10 +335,16 @@ static BlockDriver *find_image_format(const char *filename)
 int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags)
 {
     BlockDriverState *bs;
+    BlockDriver *drv;
     int ret;
 
+    drv = find_protocol(filename);
+    if (!drv) {
+        return -ENOENT;
+    }
+
     bs = bdrv_new("");
-    ret = bdrv_open(bs, filename, flags | BDRV_O_FILE, NULL);
+    ret = bdrv_open(bs, filename, flags, drv);
     if (ret < 0) {
         bdrv_delete(bs);
         return ret;
@@ -416,9 +422,8 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
     }
 
     pstrcpy(bs->filename, sizeof(bs->filename), filename);
-    if (flags & BDRV_O_FILE) {
-        drv = find_protocol(filename);
-    } else if (!drv) {
+
+    if (!drv) {
         drv = find_hdev_driver(filename);
         if (!drv) {
             drv = find_image_format(filename);
@@ -450,14 +455,12 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
      * Clear flags that are internal to the block layer before opening the
      * image.
      */
-    open_flags = flags & ~(BDRV_O_FILE | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
+    open_flags = flags & ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
 
     /*
      * Snapshots should be writeable.
-     *
-     * XXX(hch): and what is the point of a snapshot during a read-only open?
      */
-    if (!(flags & BDRV_O_FILE) && bs->is_temporary) {
+    if (bs->is_temporary) {
         open_flags |= BDRV_O_RDWR;
     }
 

@@ -29,10 +29,6 @@ typedef struct QEMUSnapshotInfo {
 
 #define BDRV_O_RDWR        0x0002
 #define BDRV_O_SNAPSHOT    0x0008 /* open the file read only and save writes in a snapshot */
-#define BDRV_O_FILE        0x0010 /* open as a raw file (do not try to
-                                     use a disk image format on top of
-                                     it (default for
-                                     bdrv_file_open()) */
 #define BDRV_O_NOCACHE     0x0020 /* do not use the host page cache */
 #define BDRV_O_CACHE_WB    0x0040 /* use write-back caching */
 #define BDRV_O_NATIVE_AIO  0x0080 /* use native AIO instead of the thread pool */
