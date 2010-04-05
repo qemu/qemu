@@ -2189,10 +2189,10 @@ static void eepro100_register_devices(void)
                 pci_dev->romfile = "gpxe-eepro100-80862449.rom";
                 break;
         }
-        pci_dev->init = e100_nic_init,
-        pci_dev->exit = pci_nic_uninit,
+        pci_dev->init = e100_nic_init;
+        pci_dev->exit = pci_nic_uninit;
         pci_dev->qdev.props = e100_properties;
-        pci_dev->qdev.size = sizeof(EEPRO100State),
+        pci_dev->qdev.size = sizeof(EEPRO100State);
         pci_qdev_register(pci_dev);
     }
 }
