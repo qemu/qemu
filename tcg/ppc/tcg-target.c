@@ -37,14 +37,6 @@ static uint8_t *tb_ret_addr;
 
 #define FAST_PATH
 
-#ifdef CONFIG_SOFTMMU
-#if TARGET_PHYS_ADDR_BITS <= 32
-#define ADDEND_OFFSET 0
-#else
-#define ADDEND_OFFSET 4
-#endif
-#endif
-
 #ifndef GUEST_BASE
 #define GUEST_BASE 0
 #endif
@@ -377,6 +369,8 @@ static int tcg_target_const_match(tcg_target_long val,
 #define NOR    XO31(124)
 #define ANDC   XO31( 60)
 #define ORC    XO31(412)
+#define EQV    XO31(284)
+#define NAND   XO31(476)
 
 #define LBZX   XO31( 87)
 #define LHZX   XO31(279)
@@ -648,7 +642,7 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
     tcg_out32 (s, (LWZ
                    | RT (r0)
                    | RA (r0)
-                   | (ADDEND_OFFSET + offsetof (CPUTLBEntry, addend)
+                   | (offsetof (CPUTLBEntry, addend)
                       - offsetof (CPUTLBEntry, addr_read))
                    ));
     /* r0 = env->tlb_table[mem_index][index].addend */
@@ -847,7 +841,7 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
     tcg_out32 (s, (LWZ
                    | RT (r0)
                    | RA (r0)
-                   | (ADDEND_OFFSET + offsetof (CPUTLBEntry, addend)
+                   | (offsetof (CPUTLBEntry, addend)
                       - offsetof (CPUTLBEntry, addr_write))
                    ));
     /* r0 = env->tlb_table[mem_index][index].addend */
@@ -1483,6 +1477,15 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_orc_i32:
         tcg_out32 (s, ORC | SAB (args[1], args[0], args[2]));
         break;
+    case INDEX_op_eqv_i32:
+        tcg_out32 (s, EQV | SAB (args[1], args[0], args[2]));
+        break;
+    case INDEX_op_nand_i32:
+        tcg_out32 (s, NAND | SAB (args[1], args[0], args[2]));
+        break;
+    case INDEX_op_nor_i32:
+        tcg_out32 (s, NOR | SAB (args[1], args[0], args[2]));
+        break;
 
     case INDEX_op_mul_i32:
         if (const_args[2]) {
@@ -1646,7 +1649,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
 
     case INDEX_op_not_i32:
-        tcg_out32 (s, NOR | SAB (args[1], args[0], args[0]));
+        tcg_out32 (s, NOR | SAB (args[1], args[0], args[1]));
         break;
 
     case INDEX_op_qemu_ld8u:
@@ -1766,6 +1769,9 @@ static const TCGTargetOpDef ppc_op_defs[] = {
 
     { INDEX_op_andc_i32, { "r", "r", "r" } },
     { INDEX_op_orc_i32, { "r", "r", "r" } },
+    { INDEX_op_eqv_i32, { "r", "r", "r" } },
+    { INDEX_op_nand_i32, { "r", "r", "r" } },
+    { INDEX_op_nor_i32, { "r", "r", "r" } },
 
     { INDEX_op_setcond_i32, { "r", "r", "ri" } },
     { INDEX_op_setcond2_i32, { "r", "r", "r", "ri", "ri" } },

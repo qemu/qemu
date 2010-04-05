@@ -82,7 +82,7 @@ typedef int (*fprintf_function)(FILE *f, const char *fmt, ...)
 #define CPU_TLB_BITS 8
 #define CPU_TLB_SIZE (1 << CPU_TLB_BITS)
 
-#if TARGET_PHYS_ADDR_BITS == 32 && TARGET_LONG_BITS == 32
+#if HOST_LONG_BITS == 32 && TARGET_LONG_BITS == 32
 #define CPU_TLB_ENTRY_BITS 4
 #else
 #define CPU_TLB_ENTRY_BITS 5
@@ -98,20 +98,17 @@ typedef struct CPUTLBEntry {
     target_ulong addr_read;
     target_ulong addr_write;
     target_ulong addr_code;
-    /* Addend to virtual address to get physical address.  IO accesses
+    /* Addend to virtual address to get host address.  IO accesses
        use the corresponding iotlb value.  */
-#if TARGET_PHYS_ADDR_BITS == 64
-    /* on i386 Linux make sure it is aligned */
-    target_phys_addr_t addend __attribute__((aligned(8)));
-#else
-    target_phys_addr_t addend;
-#endif
+    unsigned long addend;
     /* padding to get a power of two size */
     uint8_t dummy[(1 << CPU_TLB_ENTRY_BITS) - 
                   (sizeof(target_ulong) * 3 + 
-                   ((-sizeof(target_ulong) * 3) & (sizeof(target_phys_addr_t) - 1)) + 
-                   sizeof(target_phys_addr_t))];
+                   ((-sizeof(target_ulong) * 3) & (sizeof(unsigned long) - 1)) + 
+                   sizeof(unsigned long))];
 } CPUTLBEntry;
+
+extern int CPUTLBEntry_wrong_size[sizeof(CPUTLBEntry) == (1 << CPU_TLB_ENTRY_BITS) ? 1 : -1];
 
 #define CPU_COMMON_TLB \
     /* The meaning of the MMU modes is defined in the target code. */   \

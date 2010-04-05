@@ -67,7 +67,4 @@ qemu_irq tc6393xb_l3v_get(TC6393xbState *s);
 void sm501_init(uint32_t base, uint32_t local_mem_bytes, qemu_irq irq,
                 CharDriverState *chr);
 
-/* usb-ohci.c */
-void usb_ohci_init_sm501(uint32_t mmio_base, uint32_t localmem_base,
-                         int num_ports, int devfn, qemu_irq irq, int be);
 #endif

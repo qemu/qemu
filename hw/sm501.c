@@ -27,6 +27,8 @@
 #include "pc.h"
 #include "console.h"
 #include "devices.h"
+#include "sysbus.h"
+#include "qdev-addr.h"
 
 /*
  * Status: 2008/11/02
@@ -1190,6 +1192,7 @@ void sm501_init(uint32_t base, uint32_t local_mem_bytes, qemu_irq irq,
                 CharDriverState *chr)
 {
     SM501State * s;
+    DeviceState *dev;
     int sm501_system_config_index;
     int sm501_disp_ctrl_index;
 
@@ -1222,13 +1225,13 @@ void sm501_init(uint32_t base, uint32_t local_mem_bytes, qemu_irq irq,
                                  0x1000, sm501_disp_ctrl_index);
 
     /* bridge to usb host emulation module */
-#ifdef TARGET_WORDS_BIGENDIAN
-    usb_ohci_init_sm501(base + MMIO_BASE_OFFSET + SM501_USB_HOST, base,
-                        2, -1, irq, 1);
-#else
-    usb_ohci_init_sm501(base + MMIO_BASE_OFFSET + SM501_USB_HOST, base,
-                        2, -1, irq, 0);
-#endif
+    dev = qdev_create(NULL, "sysbus-ohci");
+    qdev_prop_set_uint32(dev, "num-ports", 2);
+    qdev_prop_set_taddr(dev, "dma-offset", base);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(sysbus_from_qdev(dev), 0,
+                    base + MMIO_BASE_OFFSET + SM501_USB_HOST);
+    sysbus_connect_irq(sysbus_from_qdev(dev), 0, irq);
 
     /* bridge to serial emulation module */
     if (chr) {

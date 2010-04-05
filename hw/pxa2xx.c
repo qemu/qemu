@@ -9,7 +9,6 @@
 
 #include "sysbus.h"
 #include "pxa.h"
-#include "usb-ohci.h"
 #include "sysemu.h"
 #include "pc.h"
 #include "i2c.h"
@@ -2129,11 +2128,8 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
     }
 
     if (usb_enabled) {
-#ifdef TARGET_WORDS_BIGENDIAN
-        usb_ohci_init_pxa(0x4c000000, 3, -1, s->pic[PXA2XX_PIC_USBH1], 1);
-#else
-        usb_ohci_init_pxa(0x4c000000, 3, -1, s->pic[PXA2XX_PIC_USBH1], 0);
-#endif
+        sysbus_create_simple("sysbus-ohci", 0x4c000000,
+                             s->pic[PXA2XX_PIC_USBH1]);
     }
 
     s->pcmcia[0] = pxa2xx_pcmcia_init(0x20000000);
@@ -2252,11 +2248,8 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
     }
 
     if (usb_enabled) {
-#ifdef TARGET_WORDS_BIGENDIAN
-        usb_ohci_init_pxa(0x4c000000, 3, -1, s->pic[PXA2XX_PIC_USBH1], 1);
-#else
-        usb_ohci_init_pxa(0x4c000000, 3, -1, s->pic[PXA2XX_PIC_USBH1], 0);
-#endif
+        sysbus_create_simple("sysbus-ohci", 0x4c000000,
+                             s->pic[PXA2XX_PIC_USBH1]);
     }
 
     s->pcmcia[0] = pxa2xx_pcmcia_init(0x20000000);

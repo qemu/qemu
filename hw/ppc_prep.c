@@ -750,7 +750,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
 #endif
 
     if (usb_enabled) {
-        usb_ohci_init_pci(pci_bus, -1, 1);
+        usb_ohci_init_pci(pci_bus, -1);
     }
 
     m48t59 = m48t59_init(i8259[8], 0, 0x0074, NVRAM_SIZE, 59);

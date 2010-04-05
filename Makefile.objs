@@ -149,7 +149,6 @@ hw-obj-$(CONFIG_PARALLEL) += parallel.o
 hw-obj-$(CONFIG_I8254) += i8254.o
 hw-obj-$(CONFIG_PCSPK) += pcspk.o
 hw-obj-$(CONFIG_USB_UHCI) += usb-uhci.o
-hw-obj-$(CONFIG_USB_OHCI) += usb-ohci.o
 hw-obj-$(CONFIG_FDC) += fdc.o
 hw-obj-$(CONFIG_ACPI) += acpi.o
 
@@ -207,7 +206,7 @@ hw-obj-y += lsi53c895a.o
 hw-obj-$(CONFIG_ESP) += esp.o
 
 hw-obj-y += dma-helpers.o sysbus.o isa-bus.o
-hw-obj-$(CONFIG_QDEV_ADDR) += qdev-addr.o
+hw-obj-y += qdev-addr.o
 
 # VGA
 hw-obj-$(CONFIG_VGA_PCI) += vga-pci.o

@@ -146,7 +146,6 @@ typedef struct CPUARMState {
         int current_sp;
         int exception;
         int pending_exception;
-        void *nvic;
     } v7m;
 
     /* Coprocessor IO used by peripherals */
@@ -205,6 +204,7 @@ typedef struct CPUARMState {
     CPU_COMMON
 
     /* These fields after the common ones so they are preserved on reset.  */
+    void *nvic;
     struct arm_boot_info *boot_info;
 } CPUARMState;
 

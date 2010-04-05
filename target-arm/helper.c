@@ -9,6 +9,9 @@
 #include "helpers.h"
 #include "qemu-common.h"
 #include "host-utils.h"
+#if !defined(CONFIG_USER_ONLY)
+#include "hw/loader.h"
+#endif
 
 static uint32_t cortexa9_cp15_c0_c1[8] =
 { 0x1031, 0x11, 0x000, 0, 0x00100103, 0x20000000, 0x01230000, 0x00002111 };
@@ -205,14 +208,28 @@ void cpu_reset(CPUARMState *env)
 #else
     /* SVC mode with interrupts disabled.  */
     env->uncached_cpsr = ARM_CPU_MODE_SVC | CPSR_A | CPSR_F | CPSR_I;
+    env->regs[15] = 0;
     /* On ARMv7-M the CPSR_I is the value of the PRIMASK register, and is
-       clear at reset.  */
-    if (IS_M(env))
+       clear at reset.  Initial SP and PC are loaded from ROM.  */
+    if (IS_M(env)) {
+        uint32_t pc;
+        uint8_t *rom;
         env->uncached_cpsr &= ~CPSR_I;
+        rom = rom_ptr(0);
+        if (rom) {
+            /* We should really use ldl_phys here, in case the guest
+               modified flash and reset itself.  However images
+               loaded via -kenrel have not been copied yet, so load the
+               values directly from there.  */
+            env->regs[13] = ldl_p(rom);
+            pc = ldl_p(rom + 4);
+            env->thumb = pc & 1;
+            env->regs[15] = pc & ~1;
+        }
+    }
     env->vfp.xregs[ARM_VFP_FPEXC] = 0;
     env->cp15.c2_base_mask = 0xffffc000u;
 #endif
-    env->regs[15] = 0;
     tlb_flush(env, 1);
 }
 
@@ -624,7 +641,7 @@ static void do_v7m_exception_exit(CPUARMState *env)
 
     type = env->regs[15];
     if (env->v7m.exception != 0)
-        armv7m_nvic_complete_irq(env->v7m.nvic, env->v7m.exception);
+        armv7m_nvic_complete_irq(env->nvic, env->v7m.exception);
 
     /* Switch to the target stack.  */
     switch_v7m_sp(env, (type & 4) != 0);
@@ -666,15 +683,15 @@ static void do_interrupt_v7m(CPUARMState *env)
        one we're raising.  */
     switch (env->exception_index) {
     case EXCP_UDEF:
-        armv7m_nvic_set_pending(env->v7m.nvic, ARMV7M_EXCP_USAGE);
+        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE);
         return;
     case EXCP_SWI:
         env->regs[15] += 2;
-        armv7m_nvic_set_pending(env->v7m.nvic, ARMV7M_EXCP_SVC);
+        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_SVC);
         return;
     case EXCP_PREFETCH_ABORT:
     case EXCP_DATA_ABORT:
-        armv7m_nvic_set_pending(env->v7m.nvic, ARMV7M_EXCP_MEM);
+        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_MEM);
         return;
     case EXCP_BKPT:
         if (semihosting_enabled) {
@@ -686,10 +703,10 @@ static void do_interrupt_v7m(CPUARMState *env)
                 return;
             }
         }
-        armv7m_nvic_set_pending(env->v7m.nvic, ARMV7M_EXCP_DEBUG);
+        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_DEBUG);
         return;
     case EXCP_IRQ:
-        env->v7m.exception = armv7m_nvic_acknowledge_irq(env->v7m.nvic);
+        env->v7m.exception = armv7m_nvic_acknowledge_irq(env->nvic);
         break;
     case EXCP_EXCEPTION_EXIT:
         do_v7m_exception_exit(env);

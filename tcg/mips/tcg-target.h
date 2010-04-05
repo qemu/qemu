@@ -82,8 +82,8 @@ enum {
 #define TCG_TARGET_HAS_not_i32
 #define TCG_TARGET_HAS_nor_i32
 #undef TCG_TARGET_HAS_rot_i32
-#undef TCG_TARGET_HAS_ext8s_i32
-#undef TCG_TARGET_HAS_ext16s_i32
+#define TCG_TARGET_HAS_ext8s_i32
+#define TCG_TARGET_HAS_ext16s_i32
 #undef TCG_TARGET_HAS_bswap32_i32
 #undef TCG_TARGET_HAS_bswap16_i32
 #undef TCG_TARGET_HAS_andc_i32

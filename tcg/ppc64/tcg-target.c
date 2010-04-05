@@ -28,14 +28,6 @@ static uint8_t *tb_ret_addr;
 
 #define FAST_PATH
 
-#ifdef CONFIG_SOFTMMU
-#if TARGET_PHYS_ADDR_BITS == 32
-#define LD_ADDEND LWZ
-#else
-#define LD_ADDEND LD
-#endif
-#endif
-
 #if TARGET_LONG_BITS == 32
 #define LD_ADDR LWZU
 #define CMP_L 0
@@ -684,7 +676,7 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 #endif
 
     /* r0 now contains &env->tlb_table[mem_index][index].addr_read */
-    tcg_out32 (s, (LD_ADDEND
+    tcg_out32 (s, (LD
                    | RT (r0)
                    | RA (r0)
                    | (offsetof (CPUTLBEntry, addend)
@@ -812,7 +804,7 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
     reloc_pc14 (label1_ptr, (tcg_target_long) s->code_ptr);
 #endif
 
-    tcg_out32 (s, (LD_ADDEND
+    tcg_out32 (s, (LD
                    | RT (r0)
                    | RA (r0)
                    | (offsetof (CPUTLBEntry, addend)
