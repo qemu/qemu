@@ -871,10 +871,10 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     tcg_out_opc_reg(s, OPC_ADDU, TCG_REG_V0, TCG_REG_A0, addr_regl);
 #else
     if (GUEST_BASE == (int16_t)GUEST_BASE) {
-        tcg_out_opc_imm(s, OPC_ADDIU, TCG_REG_V0, addr_reg1, GUEST_BASE);
+        tcg_out_opc_imm(s, OPC_ADDIU, TCG_REG_V0, addr_regl, GUEST_BASE);
     } else {
         tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_V0, GUEST_BASE);
-        tcg_out_opc_reg(s, OPC_ADDU, TCG_REG_V0, TCG_REG_V0, addr_reg1);
+        tcg_out_opc_reg(s, OPC_ADDU, TCG_REG_V0, TCG_REG_V0, addr_regl);
     }
 #endif
 
@@ -1058,10 +1058,10 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     tcg_out_opc_reg(s, OPC_ADDU, TCG_REG_A0, TCG_REG_A0, addr_regl);
 #else
     if (GUEST_BASE == (int16_t)GUEST_BASE) {
-        tcg_out_opc_imm(s, OPC_ADDIU, TCG_REG_A0, addr_reg1, GUEST_BASE);
+        tcg_out_opc_imm(s, OPC_ADDIU, TCG_REG_A0, addr_regl, GUEST_BASE);
     } else {
         tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_A0, GUEST_BASE);
-        tcg_out_opc_reg(s, OPC_ADDU, TCG_REG_A0, TCG_REG_A0, addr_reg1);
+        tcg_out_opc_reg(s, OPC_ADDU, TCG_REG_A0, TCG_REG_A0, addr_regl);
     }
 
 #endif
