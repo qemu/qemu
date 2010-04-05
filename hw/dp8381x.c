@@ -109,6 +109,7 @@ typedef enum {
 } state_t;
 
 typedef struct {
+    PCIDevice dev;
     //~ uint8_t cmd;
     //~ uint32_t start;
     //~ uint32_t stop;
@@ -129,7 +130,6 @@ typedef struct {
 
     /* Variables for QEMU interface. */
     int io_memory;              /* handle for memory mapped I/O */
-    PCIDevice *pci_dev;
     uint32_t region[2];         /* PCI region addresses */
     eeprom_t *eeprom;
     NICState *nic;
@@ -408,7 +408,7 @@ static void dp8381x_interrupt(dp8381x_t * s, uint32_t bits)
         isr |= bits;
     }
     op_reg_write(s, DP8381X_ISR, isr);
-    qemu_set_irq(s->pci_dev->irq[0], (ier && (isr & imr)));
+    qemu_set_irq(s->dev.irq[0], (ier && (isr & imr)));
 }
 
 #define POLYNOMIAL 0x04c11db6
@@ -603,11 +603,6 @@ static void dp8381x_transmit(dp8381x_t * s)
 /***********************************************************/
 /* PCI DP8381X definitions */
 
-typedef struct {
-    PCIDevice dev;
-    dp8381x_t dp8381x;
-} pci_dp8381x_t;
-
 #if defined(DEBUG_DP8381X)
 static const char *regnames[] = {
     /* MAC/BIU Registers */
@@ -762,9 +757,8 @@ static void micr_write(dp8381x_t * s, uint16_t val)
     phy_reg_write(s, addr, val);
 }
 
-static uint8_t dp8381x_readb(pci_dp8381x_t * d, target_phys_addr_t addr)
+static uint8_t dp8381x_readb(dp8381x_t * s, target_phys_addr_t addr)
 {
-    dp8381x_t *s = &d->dp8381x;
     uint8_t val = 0xff;
     if (0) {
     } else if (addr == DP8381X_MEAR) {  /* 0x08 */
@@ -795,9 +789,8 @@ static uint8_t dp8381x_readb(pci_dp8381x_t * d, target_phys_addr_t addr)
     return val;
 }
 
-static uint16_t dp8381x_readw(pci_dp8381x_t * d, target_phys_addr_t addr)
+static uint16_t dp8381x_readw(dp8381x_t * s, target_phys_addr_t addr)
 {
-    dp8381x_t *s = &d->dp8381x;
     uint16_t val = 0xffff;
     int logging = 1;
     if ((addr & 1) != 0) {
@@ -858,9 +851,8 @@ static uint16_t dp8381x_readw(pci_dp8381x_t * d, target_phys_addr_t addr)
     return val;
 }
 
-static uint32_t dp8381x_readl(pci_dp8381x_t * d, target_phys_addr_t addr)
+static uint32_t dp8381x_readl(dp8381x_t * s, target_phys_addr_t addr)
 {
-    dp8381x_t *s = &d->dp8381x;
     uint32_t val = 0xffffffffU;
     int logging = 1;
     if ((addr & 3) != 0) {
@@ -934,7 +926,7 @@ static uint32_t dp8381x_readl(pci_dp8381x_t * d, target_phys_addr_t addr)
         val = bmcr_read(s);
         logging = 0;
     } else if (addr == DP8381X_BMSR) {  /* 0x84 */
-        val = dp8381x_readw(d, addr);
+        val = dp8381x_readw(s, addr);
         logging = 0;
     } else if (addr == DP8381X_ANAR) {  /* 0x90 */
         /* Needed for Windows. */
@@ -962,7 +954,7 @@ static uint32_t dp8381x_readl(pci_dp8381x_t * d, target_phys_addr_t addr)
     return val;
 }
 
-static void QEMU_NORETURN dp8381x_writeb(pci_dp8381x_t * d,
+static void QEMU_NORETURN dp8381x_writeb(dp8381x_t * s,
                                          target_phys_addr_t addr, uint8_t val);
 static void QEMU_NORETURN dp8381x_ioport_writeb(void *opaque,
                                                 uint32_t addr, uint32_t val);
@@ -970,7 +962,7 @@ static void QEMU_NORETURN dp8381x_mmio_writeb(void *opaque,
                                               target_phys_addr_t addr,
                                               uint32_t val);
 
-static void dp8381x_writeb(pci_dp8381x_t * d, target_phys_addr_t addr,
+static void dp8381x_writeb(dp8381x_t * s, target_phys_addr_t addr,
                            uint8_t val)
 {
     if (0) {
@@ -983,10 +975,9 @@ static void dp8381x_writeb(pci_dp8381x_t * d, target_phys_addr_t addr,
     missing("byte access");
 }
 
-static void dp8381x_writew(pci_dp8381x_t * d, target_phys_addr_t addr,
+static void dp8381x_writew(dp8381x_t * s, target_phys_addr_t addr,
                            uint16_t val)
 {
-    dp8381x_t *s = &d->dp8381x;
     int logging = 1;
 #if defined(TARGET_WORDS_BIGENDIAN)
     bswap16s(&val);
@@ -1041,10 +1032,9 @@ static void dp8381x_writew(pci_dp8381x_t * d, target_phys_addr_t addr,
     }
 }
 
-static void dp8381x_writel(pci_dp8381x_t * d, target_phys_addr_t addr,
+static void dp8381x_writel(dp8381x_t * s, target_phys_addr_t addr,
                            uint32_t val)
 {
-    dp8381x_t *s = &d->dp8381x;
     int logging = 1;
 #if defined(TARGET_WORDS_BIGENDIAN)
     bswap32s(&val);
@@ -1218,75 +1208,68 @@ static void dp8381x_writel(pci_dp8381x_t * d, target_phys_addr_t addr,
 
 static uint32_t dp8381x_ioport_readb(void *opaque, uint32_t addr)
 {
-    pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
-    dp8381x_t *s = &d->dp8381x;
+    dp8381x_t *s = opaque;
     addr -= s->region[0];
     logout("addr=%s\n", dp8381x_regname(addr));
-    return dp8381x_readb(d, addr);
+    return dp8381x_readb(s, addr);
 }
 
 static uint32_t dp8381x_ioport_readw(void *opaque, uint32_t addr)
 {
-    pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
-    dp8381x_t *s = &d->dp8381x;
+    dp8381x_t *s = opaque;
     addr -= s->region[0];
     logout("addr=%s\n", dp8381x_regname(addr));
-    return dp8381x_readw(d, addr);
+    return dp8381x_readw(s, addr);
 }
 
 static uint32_t dp8381x_ioport_readl(void *opaque, uint32_t addr)
 {
-    pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
-    dp8381x_t *s = &d->dp8381x;
+    dp8381x_t *s = opaque;
     addr -= s->region[0];
     logout("addr=%s\n", dp8381x_regname(addr));
-    return dp8381x_readl(d, addr);
+    return dp8381x_readl(s, addr);
 }
 
 static void dp8381x_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
-    pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
-    dp8381x_t *s = &d->dp8381x;
+    dp8381x_t *s = opaque;
     addr -= s->region[0];
     logout("addr=%s val=0x%02x\n", dp8381x_regname(addr), val);
-    dp8381x_writeb(d, addr, val);
+    dp8381x_writeb(s, addr, val);
 }
 
 static void dp8381x_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
 {
-    pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
-    dp8381x_t *s = &d->dp8381x;
+    dp8381x_t *s = opaque;
     addr -= s->region[0];
     logout("addr=%s val=0x%04x\n", dp8381x_regname(addr), val);
-    dp8381x_writew(d, addr, val);
+    dp8381x_writew(s, addr, val);
 }
 
 static void dp8381x_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
 {
-    pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
-    dp8381x_t *s = &d->dp8381x;
+    dp8381x_t *s = opaque;
     addr -= s->region[0];
     logout("addr=%s val=0x%08x\n", dp8381x_regname(addr), val);
-    dp8381x_writel(d, addr, val);
+    dp8381x_writel(s, addr, val);
 }
 
 static void dp8381x_io_map(PCIDevice * pci_dev, int region_num,
                            pcibus_t addr, pcibus_t size, int type)
 {
-    pci_dp8381x_t *d = (pci_dp8381x_t *) pci_dev;
-    dp8381x_t *s = &d->dp8381x;
+    dp8381x_t *s = DO_UPCAST(dp8381x_t, dev, pci_dev);
 
     logout("region %d, addr 0x%08" FMT_PCIBUS ", size 0x%08" FMT_PCIBUS "\n",
            region_num, addr, size);
     assert(region_num == 0);
     s->region[region_num] = addr;
 
-    register_ioport_read(addr, size, 1, dp8381x_ioport_readb, d);
-    register_ioport_read(addr, size, 2, dp8381x_ioport_readw, d);
-    register_ioport_read(addr, size, 4, dp8381x_ioport_readl, d);
-    register_ioport_write(addr, size, 1, dp8381x_ioport_writeb, d);
-    register_ioport_write(addr, size, 2, dp8381x_ioport_writew, d);
-    register_ioport_write(addr, size, 4, dp8381x_ioport_writel, d);
+    register_ioport_read(addr, size, 1, dp8381x_ioport_readb, s);
+    register_ioport_read(addr, size, 2, dp8381x_ioport_readw, s);
+    register_ioport_read(addr, size, 4, dp8381x_ioport_readl, s);
+    register_ioport_write(addr, size, 1, dp8381x_ioport_writeb, s);
+    register_ioport_write(addr, size, 2, dp8381x_ioport_writew, s);
+    register_ioport_write(addr, size, 4, dp8381x_ioport_writel, s);
 }
 
 /*****************************************************************************
@@ -1297,66 +1280,59 @@ static void dp8381x_io_map(PCIDevice * pci_dev, int region_num,
 
 static uint32_t dp8381x_mmio_readb(void *opaque, target_phys_addr_t addr)
 {
-    pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
-    dp8381x_t *s = &d->dp8381x;
+    dp8381x_t *s = opaque;
     addr -= s->region[1];
     logout("addr 0x" TARGET_FMT_plx "\n", addr);
-    return dp8381x_readb(d, addr);
+    return dp8381x_readb(s, addr);
 }
 
 static uint32_t dp8381x_mmio_readw(void *opaque, target_phys_addr_t addr)
 {
-    pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
-    dp8381x_t *s = &d->dp8381x;
+    dp8381x_t *s = opaque;
     addr -= s->region[1];
     logout("addr 0x" TARGET_FMT_plx "\n", addr);
-    return dp8381x_readw(d, addr);
+    return dp8381x_readw(s, addr);
 }
 
 static uint32_t dp8381x_mmio_readl(void *opaque, target_phys_addr_t addr)
 {
-    pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
-    dp8381x_t *s = &d->dp8381x;
+    dp8381x_t *s = (dp8381x_t *) opaque;
     addr -= s->region[1];
     logout("addr 0x" TARGET_FMT_plx "\n", addr);
-    return dp8381x_readl(d, addr);
+    return dp8381x_readl(s, addr);
 }
 
 static void dp8381x_mmio_writeb(void *opaque, target_phys_addr_t addr,
                                 uint32_t val)
 {
-    pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
-    dp8381x_t *s = &d->dp8381x;
+    dp8381x_t *s = (dp8381x_t *) opaque;
     addr -= s->region[1];
     logout("addr 0x" TARGET_FMT_plx "\n", addr);
-    dp8381x_writeb(d, addr, val);
+    dp8381x_writeb(s, addr, val);
 }
 
 static void dp8381x_mmio_writew(void *opaque, target_phys_addr_t addr,
                                 uint32_t val)
 {
-    pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
-    dp8381x_t *s = &d->dp8381x;
+    dp8381x_t *s = (dp8381x_t *) opaque;
     addr -= s->region[1];
     logout("addr 0x" TARGET_FMT_plx "\n", addr);
-    dp8381x_writew(d, addr, val);
+    dp8381x_writew(s, addr, val);
 }
 
 static void dp8381x_mmio_writel(void *opaque, target_phys_addr_t addr,
                                 uint32_t val)
 {
-    pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
-    dp8381x_t *s = &d->dp8381x;
+    dp8381x_t *s = (dp8381x_t *) opaque;
     addr -= s->region[1];
     logout("addr 0x" TARGET_FMT_plx "\n", addr);
-    dp8381x_writel(d, addr, val);
+    dp8381x_writel(s, addr, val);
 }
 
 static void dp8381x_mem_map(PCIDevice * pci_dev, int region_num,
                             pcibus_t addr, pcibus_t size, int type)
 {
-    pci_dp8381x_t *d = (pci_dp8381x_t *) pci_dev;
-    dp8381x_t *s = &d->dp8381x;
+    dp8381x_t *s = DO_UPCAST(dp8381x_t, dev, pci_dev);
 
     logout("region %d, addr 0x%08" FMT_PCIBUS ", size 0x%08" FMT_PCIBUS "\n",
            region_num, addr, size);
@@ -1380,9 +1356,9 @@ static CPUWriteMemoryFunc *dp8381x_mmio_write[] = {
 
 static void nic_cleanup(VLANClientState *vc)
 {
-    pci_dp8381x_t *d = DO_UPCAST(NICState, nc, vc)->opaque;
+    dp8381x_t *s = DO_UPCAST(NICState, nc, vc)->opaque;
 
-    unregister_savevm("dp8381x", d);
+    unregister_savevm("dp8381x", s);
 
 #if 0
     qemu_del_timer(d->poll_timer);
@@ -1392,33 +1368,30 @@ static void nic_cleanup(VLANClientState *vc)
 
 static int dp8381x_load(QEMUFile * f, void *opaque, int version_id)
 {
-    pci_dp8381x_t *d = opaque;
+    dp8381x_t *s = opaque;
     int result = 0;
     logout("\n");
     if (version_id == dp8381x_version) {
-        result = pci_device_load(&d->dev, f);
+        result = pci_device_load(&s->dev, f);
     } else {
         result = -EINVAL;
     }
     return result;
 }
 
-static void nic_reset(void *opaque)
+static void dp8381x_nic_reset(void *opaque)
 {
-    pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
-    logout("%p\n", d);
+    dp8381x_t *s = opaque;
+    logout("%p\n", s);
 }
 
 static void dp8381x_save(QEMUFile * f, void *opaque)
 {
-    pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
-#if 0
-    dp8381x_t *s = &d->dp8381x;
-#endif
+    dp8381x_t *s = opaque;
     logout("\n");
-    pci_device_save(&d->dev, f);
+    pci_device_save(&s->dev, f);
     /* TODO: support different endianness */
-    qemu_put_buffer(f, (uint8_t *) d, sizeof(*d));
+    //~ qemu_put_buffer(f, (uint8_t *) s, sizeof(*s));
 }
 
 #if defined(CONFIG_EEPROM)
@@ -1435,7 +1408,7 @@ static void dp8381x_save(QEMUFile * f, void *opaque)
 static void eeprom_init(dp8381x_t * s)
 {
 #if 0
-    uint8_t *pci_conf = s->pci_dev->config;
+    uint8_t *pci_conf = s->dev.config;
 #endif
     uint8_t i;
     uint16_t *eeprom_contents = eeprom93xx_data(s->eeprom);
@@ -1502,8 +1475,7 @@ static NetClientInfo net_info = {
 
 static int pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
 {
-    pci_dp8381x_t *d = (pci_dp8381x_t *)pci_dev;
-    dp8381x_t *s = &d->dp8381x;
+    dp8381x_t *s = DO_UPCAST(dp8381x_t, dev, pci_dev);
     uint8_t *pci_conf = pci_dev->config;
 
     logout("silicon revision = 0x%08x\n", silicon_revision);
@@ -1532,16 +1504,15 @@ static int pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
 
     /* Handler for memory-mapped I/O */
     s->io_memory =
-        cpu_register_io_memory(dp8381x_mmio_read, dp8381x_mmio_write, d);
+        cpu_register_io_memory(dp8381x_mmio_read, dp8381x_mmio_write, s);
 
     logout("io_memory = 0x%08x\n", s->io_memory);
 
-    pci_register_bar(&d->dev, 0, DP8381X_IO_SIZE,
+    pci_register_bar(&s->dev, 0, DP8381X_IO_SIZE,
                      PCI_BASE_ADDRESS_SPACE_IO, dp8381x_io_map);
-    pci_register_bar(&d->dev, 1, DP8381X_MEM_SIZE,
+    pci_register_bar(&s->dev, 1, DP8381X_MEM_SIZE,
                      PCI_BASE_ADDRESS_SPACE_MEMORY, dp8381x_mem_map);
 
-    s->pci_dev = &d->dev;
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     dp8381x_reset(s);
 
@@ -1556,11 +1527,11 @@ static int pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
 
     qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
 
-    qemu_register_reset(nic_reset, d);
+    qemu_register_reset(dp8381x_nic_reset, s);
 
     // TODO: use &s->nic->nc->model or d->name instead of "dp8381x".
     register_savevm("dp8381x", dp8381x_instance, dp8381x_version,
-                    dp8381x_save, dp8381x_load, d);
+                    dp8381x_save, dp8381x_load, s);
 
     return 0;
 }
@@ -1575,10 +1546,16 @@ static int dp8381x_init(PCIDevice *pci_dev)
 #endif
 }
 
+static Property dp8381x_properties[] = {
+    DEFINE_NIC_PROPERTIES(dp8381x_t, conf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 #if defined(DP83815)
 static PCIDeviceInfo dp8381x_info = {
     .qdev.name = "dp83815",
     .qdev.desc = "National Semiconductor DP83815",
+    .qdev.props = dp8381x_properties,
     .qdev.size = sizeof(dp8381x_t),
     .init      = dp8381x_init,
 };
@@ -1586,6 +1563,7 @@ static PCIDeviceInfo dp8381x_info = {
 static PCIDeviceInfo dp8381x_info = {
     .qdev.name = "dp83816",
     .qdev.desc = "National Semiconductor DP83816",
+    .qdev.props = dp8381x_properties,
     .qdev.size = sizeof(dp8381x_t),
     .init      = dp8381x_init,
 };
