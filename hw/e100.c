@@ -493,7 +493,8 @@ typedef struct
 } __attribute__ ((packed)) i82557_cfg_t;
 
 typedef struct {
-    PCIDevice *pci_dev;
+    PCIDevice dev;
+
     int mmio_index;
     uint8_t scb_stat;           /* SCB stat/ack byte */
     uint32_t region_base_addr[REGION_NUM];         /* PCI region addresses */
@@ -604,11 +605,6 @@ enum
     RX_LARGE = BIT(9),      // 1:Receive frame is too large
     RX_CRC_ERR = BIT(10),
 } RFD_STATUS;
-
-typedef struct PCIE100State {
-    PCIDevice dev;
-    E100State e100;
-} PCIE100State;
 
 /* Default values for MDI (PHY) registers */
 static const uint16_t e100_mdi_default[] = {
@@ -773,7 +769,7 @@ static void eeprom_trace(int eedo, int di, int dir, int next_op, int clr) {}
 
 static void pci_reset(E100State * s)
 {
-    uint8_t *pci_conf = s->pci_dev->config;
+    uint8_t *pci_conf = s->dev.config;
 
     memcpy(pci_conf, &e100_pci_configure[0], sizeof(e100_pci_configure));
     logout("%p\n", s);
@@ -848,7 +844,7 @@ static void e100_interrupt(E100State *s, uint16_t int_type)
         /* SCB maske and SCB Bit M do not disable interrupt. */
         logout("Trigger an interrupt(type = %s(%#x), SCB Status = %#x)\n",
                 INT_NAME(int_type), int_type, CSR_VAL(CSR_STATUS));
-        qemu_irq_raise(s->pci_dev->irq[0]);
+        qemu_irq_raise(s->dev.irq[0]);
     }
 }
 
@@ -875,7 +871,7 @@ static void e100_interrupt_ack(E100State * s, uint8_t ack)
     if ( !s->scb_stat )
     {
         logout("All interrupts are acknowledeged, de-assert interrupt line\n");
-        qemu_irq_lower(s->pci_dev->irq[0]);
+        qemu_irq_lower(s->dev.irq[0]);
     }
 }
 
@@ -2121,7 +2117,7 @@ static CPUWriteMemoryFunc *pci_mmio_write[] = {
 static void pci_mmio_map(PCIDevice * pci_dev, int region_num,
                          pcibus_t addr, pcibus_t size, int type)
 {
-    PCIE100State *d = (PCIE100State *) pci_dev;
+    E100State *s = DO_UPCAST(E100State, dev, pci_dev);
 
     logout("region %d, addr=0x%08" FMT_PCIBUS
            ", size=0x%08" FMT_PCIBUS ", type=%d\n",
@@ -2129,8 +2125,8 @@ static void pci_mmio_map(PCIDevice * pci_dev, int region_num,
 
     if ( region_num == CSR_MEMORY_BASE ) {
         /* Map control / status registers. */
-        cpu_register_physical_memory(addr, size, d->e100.mmio_index);
-        d->e100.region_base_addr[region_num] = addr;
+        cpu_register_physical_memory(addr, size, s->mmio_index);
+        s->region_base_addr[region_num] = addr;
     }
 }
 
@@ -2183,8 +2179,7 @@ static uint32_t ioport_read4(void *opaque, uint32_t addr)
 static void pci_ioport_map(PCIDevice * pci_dev, int region_num,
                            pcibus_t addr, pcibus_t size, int type)
 {
-    PCIE100State *d = (PCIE100State *) pci_dev;
-    E100State *s = &d->e100;
+    E100State *s = DO_UPCAST(E100State, dev, pci_dev);
 
     logout("region %d, addr=0x%08" FMT_PCIBUS
            ", size=0x%08" FMT_PCIBUS ", type=%d\n",
@@ -2417,7 +2412,6 @@ static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size
 static void nic_cleanup(VLANClientState *vc)
 {
     //~ E100State *s = DO_UPCAST(NICState, nc, vc)->opaque;
-    //~ PCIE100State *d = vc->opaque;
 
 #if 0
     unregister_savevm("e100", d);
@@ -2458,29 +2452,27 @@ static NetClientInfo net_info = {
 
 static int e100_init(PCIDevice *pci_dev, uint32_t device)
 {
-    PCIE100State *d = (PCIE100State *)pci_dev;
-    E100State *s = &d->e100;
+    E100State *s = DO_UPCAST(E100State, dev, pci_dev);
 
     logout("\n");
 
     s->device = device;
-    s->pci_dev = &d->dev;
 
     pci_reset(s);
 
     /* Handler for memory-mapped I/O */
-    d->e100.mmio_index =
+    s->mmio_index =
         cpu_register_io_memory(pci_mmio_read, pci_mmio_write, s);
 
     //CSR Memory mapped base
-    pci_register_bar(&d->dev, 0, PCI_MEM_SIZE,
+    pci_register_bar(&s->dev, 0, PCI_MEM_SIZE,
                      PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_PREFETCH,
                      pci_mmio_map);
     //CSR I/O mapped base
-    pci_register_bar(&d->dev, 1, PCI_IO_SIZE, PCI_BASE_ADDRESS_SPACE_IO,
+    pci_register_bar(&s->dev, 1, PCI_IO_SIZE, PCI_BASE_ADDRESS_SPACE_IO,
                      pci_ioport_map);
     //Flash memory mapped base
-    pci_register_bar(&d->dev, 2, PCI_FLASH_SIZE, PCI_BASE_ADDRESS_SPACE_MEMORY,
+    pci_register_bar(&s->dev, 2, PCI_FLASH_SIZE, PCI_BASE_ADDRESS_SPACE_MEMORY,
                      pci_mmio_map);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
@@ -2505,9 +2497,15 @@ static int pci_e100_init(PCIDevice *pci_dev)
     return e100_init(pci_dev, i82557C);
 }
 
+static Property e100_properties[] = {
+    DEFINE_NIC_PROPERTIES(E100State, conf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static PCIDeviceInfo e100_info = {
     .qdev.name = "e100",
-    .qdev.size = sizeof(PCIE100State),
+    .qdev.props = e100_properties,
+    .qdev.size = sizeof(E100State),
     .init      = pci_e100_init,
 };
 
