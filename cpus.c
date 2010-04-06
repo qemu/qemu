@@ -100,9 +100,7 @@ static int cpu_can_run(CPUState *env)
 {
     if (env->stop)
         return 0;
-    if (env->stopped)
-        return 0;
-    if (!vm_running)
+    if (env->stopped || !vm_running)
         return 0;
     return 1;
 }
@@ -111,7 +109,7 @@ static int cpu_has_work(CPUState *env)
 {
     if (env->stop)
         return 1;
-    if (env->stopped)
+    if (env->stopped || !vm_running)
         return 0;
     if (!env->halted)
         return 1;
