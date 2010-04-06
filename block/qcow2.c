@@ -624,11 +624,15 @@ static void qcow_aio_write_cb(void *opaque, int ret)
                                     qcow_aio_write_cb, acb);
     if (acb->hd_aiocb == NULL) {
         ret = -EIO;
-        goto done;
+        goto fail;
     }
 
     return;
 
+fail:
+    if (acb->l2meta.nb_clusters != 0) {
+        QLIST_REMOVE(&acb->l2meta, next_in_flight);
+    }
 done:
     if (acb->qiov->niov > 1)
         qemu_vfree(acb->orig_buf);
