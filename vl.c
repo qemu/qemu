@@ -2348,11 +2348,9 @@ static void monitor_parse(const char *optarg, const char *mode)
     if (strstart(optarg, "chardev:", &p)) {
         snprintf(label, sizeof(label), "%s", p);
     } else {
-        if (monitor_device_index) {
-            snprintf(label, sizeof(label), "monitor%d",
-                     monitor_device_index);
-        } else {
-            snprintf(label, sizeof(label), "monitor");
+        snprintf(label, sizeof(label), "compat_monitor%d",
+                 monitor_device_index);
+        if (monitor_device_index == 0) {
             def = 1;
         }
         opts = qemu_chr_parse_compat(label, optarg);
