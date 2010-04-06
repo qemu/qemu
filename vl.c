@@ -4851,7 +4851,7 @@ int main(int argc, char **argv, char **envp)
     const char *gdbstub_dev = NULL;
     uint32_t boot_devices_bitmap = 0;
     int i;
-    int snapshot, linux_boot, net_boot;
+    int snapshot, linux_boot;
     const char *initrd_filename;
     const char *kernel_filename, *kernel_cmdline;
     char boot_devices[33] = "cad"; /* default to HD->floppy->CD-ROM */
@@ -5849,9 +5849,6 @@ int main(int argc, char **argv, char **envp)
     if (net_init_clients() < 0) {
         exit(1);
     }
-
-    net_boot = (boot_devices_bitmap >> ('n' - 'a')) & 0xF;
-    net_set_boot_mask(net_boot);
 
     /* init the bluetooth world */
     if (foreach_device_config(DEV_BT, bt_parse))
