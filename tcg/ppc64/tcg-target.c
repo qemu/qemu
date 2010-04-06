@@ -50,7 +50,7 @@ static uint8_t *tb_ret_addr;
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "r0",
     "r1",
-    "rp",
+    "r2",
     "r3",
     "r4",
     "r5",
