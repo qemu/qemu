@@ -3618,6 +3618,10 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
+    if (qemu_opts_foreach(&qemu_mon_opts, mon_init_func, NULL, 1) != 0) {
+        exit(1);
+    }
+
     if (foreach_device_config(DEV_SERIAL, serial_parse) < 0)
         exit(1);
     if (foreach_device_config(DEV_PARALLEL, parallel_parse) < 0)
@@ -3729,9 +3733,6 @@ int main(int argc, char **argv, char **envp)
     }
 
     text_consoles_set_display(ds);
-
-    if (qemu_opts_foreach(&qemu_mon_opts, mon_init_func, NULL, 1) != 0)
-        exit(1);
 
     if (gdbstub_dev && gdbserver_start(gdbstub_dev) < 0) {
         fprintf(stderr, "qemu: could not open gdbserver on device '%s'\n",
