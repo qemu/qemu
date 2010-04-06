@@ -456,7 +456,6 @@ static void eepro100_fcp_interrupt(EEPRO100State * s)
 
 static void e100_pci_reset(EEPRO100State * s, E100PCIDeviceInfo *e100_device)
 {
-    /* TODO: Use pci_add_capability(&s->dev, PCI_CAP_ID_PM, ...) for PM. */
     uint32_t device = s->device;
     uint8_t *pci_conf = s->dev.config;
 
@@ -467,25 +466,14 @@ static void e100_pci_reset(EEPRO100State * s, E100PCIDeviceInfo *e100_device)
     /* PCI Device ID */
     pci_config_set_device_id(pci_conf, e100_device->device_id);
     /* PCI Status */
-    if (e100_device->power_management) {
-        pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
-                                            PCI_STATUS_FAST_BACK |
-                                            PCI_STATUS_CAP_LIST);
-    } else {
-        pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
-                                            PCI_STATUS_FAST_BACK);
-    }
+    pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
+                                        PCI_STATUS_FAST_BACK);
     /* PCI Revision ID */
     pci_config_set_revision(pci_conf, e100_device->revision);
     pci_config_set_class(pci_conf, PCI_CLASS_NETWORK_ETHERNET);
     /* PCI Latency Timer */
     pci_set_byte(pci_conf + PCI_LATENCY_TIMER, 0x20);   /* latency timer = 32 clocks */
-    /* Capability Pointer */
-    if (e100_device->power_management) {
-        pci_set_byte(pci_conf + PCI_CAPABILITY_LIST, 0xdc);
-    } else {
-        pci_set_byte(pci_conf + PCI_CAPABILITY_LIST, 0x00);
-    }
+    /* Capability Pointer is set by PCI framework. */
     /* Minimum Grant */
     pci_set_byte(pci_conf + PCI_MIN_GNT, 0x08);
     /* Maximum Latency */
@@ -548,12 +536,21 @@ static void e100_pci_reset(EEPRO100State * s, E100PCIDeviceInfo *e100_device)
 
     if (e100_device->power_management) {
         /* Power Management Capabilities */
-        pci_set_byte(pci_conf + 0xdc, PCI_CAP_ID_PM);
-        /* Next Item Pointer */
-        /* Capability ID */
-        pci_set_word(pci_conf + 0xde, 0x7e21);
-        /* TODO: Power Management Control / Status. */
-        /* TODO: Ethernet Power Consumption Registers (i82559 and later). */
+        int cfg_offset;
+        pci_reserve_capability(&s->dev, PCI_CONFIG_HEADER_SIZE,
+                               0xdc - PCI_CONFIG_HEADER_SIZE);
+        cfg_offset = pci_add_capability(&s->dev, PCI_CAP_ID_PM, PCI_PM_SIZEOF);
+        assert(cfg_offset == 0xdc);
+        if (cfg_offset > 0) {
+            /* Power Management Capabilities */
+            pci_set_word(pci_conf + cfg_offset + PCI_PM_PMC, 0x7e21);
+#if 0 /* TODO: replace dummy code for power management emulation. */
+            /* TODO: Power Management Control / Status. */
+            pci_set_word(pci_conf + cfg_offset + PCI_PM_CTRL, 0x0000);
+            /* TODO: Ethernet Power Consumption Registers (i82559 and later). */
+            pci_set_byte(pci_conf + cfg_offset + PCI_PM_PPB_EXTENSIONS, 0x0000);
+#endif
+        }
     }
 
 #if EEPROM_SIZE > 0
