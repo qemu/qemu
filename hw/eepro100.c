@@ -87,6 +87,7 @@
 #define i82559C         0x82559c
 #define i82559ER        0x82559e
 #define i82562          0x82562
+#define i82801          0x82801
 
 /* Use 64 word EEPROM. TODO: could be a runtime option. */
 #define EEPROM_SIZE     64
@@ -505,6 +506,7 @@ static void e100_pci_reset(EEPRO100State * s, E100PCIDeviceInfo *e100_device)
     case i82559B:
     case i82559ER:
     case i82562:
+    case i82801:
         break;
     case i82559C:
 #if EEPROM_SIZE > 0
@@ -2013,6 +2015,16 @@ static E100PCIDeviceInfo e100_devices[] = {
         .stats_size = 80,
         .has_extended_tcb_support = true,
         .power_management = true,
+    },{
+        /* Toshiba Tecra 8200. */
+        .pci.qdev.name = "i82801",
+        .pci.qdev.desc = "Intel i82801 Ethernet",
+        .device = i82801,
+        .device_id = 0x2449,
+        .revision = 0x03,
+        .stats_size = 80,
+        .has_extended_tcb_support = true,
+        .power_management = true,
     }
 };
 
@@ -2032,6 +2044,9 @@ static void eepro100_register_devices(void)
                 break;
             case PCI_DEVICE_ID_INTEL_82557:
                 pci_dev->romfile = "gpxe-eepro100-80861229.rom";
+                break;
+            case 0x2449:
+                pci_dev->romfile = "gpxe-eepro100-80862449.rom";
                 break;
         }
         pci_dev->init = e100_nic_init;
