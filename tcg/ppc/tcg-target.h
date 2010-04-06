@@ -83,8 +83,8 @@ enum {
 #define TCG_TARGET_HAS_ext16s_i32
 #define TCG_TARGET_HAS_ext8u_i32
 #define TCG_TARGET_HAS_ext16u_i32
-/* #define TCG_TARGET_HAS_bswap16_i32 */
-/* #define TCG_TARGET_HAS_bswap32_i32 */
+#define TCG_TARGET_HAS_bswap16_i32
+#define TCG_TARGET_HAS_bswap32_i32
 #define TCG_TARGET_HAS_not_i32
 #define TCG_TARGET_HAS_neg_i32
 #define TCG_TARGET_HAS_andc_i32
