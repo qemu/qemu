@@ -627,21 +627,41 @@ static int64_t raw_getlength(BlockDriverState *bs)
     } else
         return st.st_size;
 }
-#else /* !__OpenBSD__ */
-static int64_t  raw_getlength(BlockDriverState *bs)
+#elif defined(__sun__)
+static int64_t raw_getlength(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+    struct dk_minfo minfo;
+    int ret;
+
+    ret = fd_open(bs);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /*
+     * Use the DKIOCGMEDIAINFO ioctl to read the size.
+     */
+    ret = ioctl(s->fd, DKIOCGMEDIAINFO, &minfo);
+    if (ret != -1) {
+        return minfo.dki_lbsize * minfo.dki_capacity;
+    }
+
+    /*
+     * There are reports that lseek on some devices fails, but
+     * irc discussion said that contingency on contingency was overkill.
+     */
+    return lseek(s->fd, 0, SEEK_END);
+}
+#elif defined(CONFIG_BSD)
+static int64_t raw_getlength(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     int fd = s->fd;
     int64_t size;
-#ifdef CONFIG_BSD
     struct stat sb;
 #if defined (__FreeBSD__) || defined(__FreeBSD_kernel__)
     int reopened = 0;
-#endif
-#endif
-#ifdef __sun__
-    struct dk_minfo minfo;
-    int rv;
 #endif
     int ret;
 
@@ -649,7 +669,6 @@ static int64_t  raw_getlength(BlockDriverState *bs)
     if (ret < 0)
         return ret;
 
-#ifdef CONFIG_BSD
 #if defined (__FreeBSD__) || defined(__FreeBSD_kernel__)
 again:
 #endif
@@ -684,23 +703,23 @@ again:
             }
         }
 #endif
-    } else
-#endif
-#ifdef __sun__
-    /*
-     * use the DKIOCGMEDIAINFO ioctl to read the size.
-     */
-    rv = ioctl ( fd, DKIOCGMEDIAINFO, &minfo );
-    if ( rv != -1 ) {
-        size = minfo.dki_lbsize * minfo.dki_capacity;
-    } else /* there are reports that lseek on some devices
-              fails, but irc discussion said that contingency
-              on contingency was overkill */
-#endif
-    {
+    } else {
         size = lseek(fd, 0, SEEK_END);
     }
     return size;
+}
+#else
+static int64_t raw_getlength(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+    int ret;
+
+    ret = fd_open(bs);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return lseek(s->fd, 0, SEEK_END);
 }
 #endif
 
