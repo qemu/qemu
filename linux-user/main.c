@@ -2788,7 +2788,7 @@ int main(int argc, char **argv, char **envp)
 #endif
 #elif defined(TARGET_PPC)
 #ifdef TARGET_PPC64
-        cpu_model = "970";
+        cpu_model = "970fx";
 #else
         cpu_model = "750";
 #endif
