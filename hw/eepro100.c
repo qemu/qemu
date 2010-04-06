@@ -518,6 +518,9 @@ static void e100_pci_reset(EEPRO100State * s, E100PCIDeviceInfo *e100_device)
         logout("Device %X is undefined!\n", device);
     }
 
+    /* Standard TxCB. */
+    s->configuration[6] |= BIT(4);
+
     /* Standard statistical counters. */
     s->configuration[6] |= BIT(5);
 
