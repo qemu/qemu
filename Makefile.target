@@ -33,7 +33,7 @@ PROGS=$(QEMU_PROG)
 
 LIBS+=-lm
 
-kvm.o kvm-all.o: QEMU_CFLAGS+=$(KVM_CFLAGS)
+kvm.o kvm-all.o vhost.o vhost_net.o: QEMU_CFLAGS+=$(KVM_CFLAGS)
 
 config-target.h: config-target.h-timestamp
 config-target.h-timestamp: config-target.mak
