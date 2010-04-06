@@ -1164,14 +1164,14 @@ const sh_opcode_info sh_table[] =
 #endif
 
 static void print_movxy
-  (const sh_opcode_info *, int, int, fprintf_ftype, void *);
+  (const sh_opcode_info *, int, int, fprintf_function, void *);
 static void print_insn_ddt (int, struct disassemble_info *);
-static void print_dsp_reg (int, fprintf_ftype, void *);
+static void print_dsp_reg (int, fprintf_function, void *);
 static void print_insn_ppi (int, struct disassemble_info *);
 
 static void
 print_movxy (const sh_opcode_info *op, int rn, int rm,
-	     fprintf_ftype fprintf_fn, void *stream)
+             fprintf_function fprintf_fn, void *stream)
 {
   int n;
 
@@ -1247,7 +1247,7 @@ print_movxy (const sh_opcode_info *op, int rn, int rm,
 static void
 print_insn_ddt (int insn, struct disassemble_info *info)
 {
-  fprintf_ftype fprintf_fn = info->fprintf_func;
+  fprintf_function fprintf_fn = info->fprintf_func;
   void *stream = info->stream;
 
   /* If this is just a nop, make sure to emit something.  */
@@ -1332,7 +1332,7 @@ print_insn_ddt (int insn, struct disassemble_info *info)
 }
 
 static void
-print_dsp_reg (int rm, fprintf_ftype fprintf_fn, void *stream)
+print_dsp_reg (int rm, fprintf_function fprintf_fn, void *stream)
 {
   switch (rm)
     {
@@ -1377,7 +1377,7 @@ print_insn_ppi (int field_b, struct disassemble_info *info)
 {
   static const char *sx_tab[] = { "x0", "x1", "a0", "a1" };
   static const char *sy_tab[] = { "y0", "y1", "m0", "m1" };
-  fprintf_ftype fprintf_fn = info->fprintf_func;
+  fprintf_function fprintf_fn = info->fprintf_func;
   void *stream = info->stream;
   unsigned int nib1, nib2, nib3;
   unsigned int altnib1, nib4;
@@ -1520,7 +1520,7 @@ print_insn_ppi (int field_b, struct disassemble_info *info)
 int
 print_insn_sh (bfd_vma memaddr, struct disassemble_info *info)
 {
-  fprintf_ftype fprintf_fn = info->fprintf_func;
+  fprintf_function fprintf_fn = info->fprintf_func;
   void *stream = info->stream;
   unsigned char insn[4];
   unsigned char nibs[8];

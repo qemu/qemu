@@ -237,7 +237,11 @@ typedef struct symbol_cache_entry
     } udata;
 } asymbol;
 
-typedef int (*fprintf_ftype) (FILE*, const char*, ...);
+#if !defined(FPRINTF_FUNCTION_DEFINED)
+#define FPRINTF_FUNCTION_DEFINED
+typedef int (*fprintf_function)(FILE *f, const char *fmt, ...)
+            __attribute__ ((format(printf, 2, 3)));
+#endif
 
 enum dis_insn_type {
   dis_noninsn,			/* Not a valid instruction */
@@ -261,7 +265,7 @@ enum dis_insn_type {
    by hand, or using one of the initialization macros below.  */
 
 typedef struct disassemble_info {
-  fprintf_ftype fprintf_func;
+  fprintf_function fprintf_func;
   FILE *stream;
   PTR application_data;
 

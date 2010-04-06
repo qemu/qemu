@@ -1726,7 +1726,7 @@ match_insn_m68k (bfd_vma memaddr,
   const char *d;
 
   bfd_byte *buffer = priv->the_buffer;
-  fprintf_ftype save_printer = info->fprintf_func;
+  fprintf_function save_printer = info->fprintf_func;
   void (* save_print_address) (bfd_vma, struct disassemble_info *)
     = info->print_address_func;
 
@@ -1804,7 +1804,7 @@ match_insn_m68k (bfd_vma memaddr,
 
   save_p = p;
   info->print_address_func = dummy_print_address;
-  info->fprintf_func = (fprintf_ftype) dummy_printer;
+  info->fprintf_func = dummy_printer;
 
   /* We scan the operands twice.  The first time we don't print anything,
      but look for errors.  */

@@ -789,7 +789,7 @@ read_insn_microblaze (bfd_vma memaddr,
 int 
 print_insn_microblaze (bfd_vma memaddr, struct disassemble_info * info)
 {
-  fprintf_ftype       fprintf = info->fprintf_func;
+  fprintf_function    fprintf = info->fprintf_func;
   void *              stream = info->stream;
   unsigned long       inst, prev_inst;
   struct op_code_struct * op, *pop;
@@ -826,7 +826,7 @@ print_insn_microblaze (bfd_vma memaddr, struct disassemble_info * info)
   prev_insn_vma = curr_insn_vma;
 
   if (op->name == 0) {
-    fprintf (stream, ".short 0x%04x", inst);
+    fprintf (stream, ".short 0x%04lx", inst);
   }
   else
     {
@@ -959,7 +959,7 @@ print_insn_microblaze (bfd_vma memaddr, struct disassemble_info * info)
      break;
   default:
 	  /* if the disassembler lags the instruction set */
-	  fprintf (stream, "\tundecoded operands, inst is 0x%04x", inst);
+	  fprintf (stream, "\tundecoded operands, inst is 0x%04lx", inst);
 	  break;
 	}
     }
