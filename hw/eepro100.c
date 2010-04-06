@@ -882,7 +882,7 @@ static void action_command(EEPRO100State *s)
         bool bit_s;
         bool bit_i;
         bool bit_nc;
-        bool success = true;
+        uint16_t ok_status = STATUS_OK;
         s->cb_address = s->cu_base + s->cu_offset;
         read_cb(s);
         bit_el = ((s->tx.command & COMMAND_EL) != 0);
@@ -915,7 +915,7 @@ static void action_command(EEPRO100State *s)
         case CmdTx:
             if (bit_nc) {
                 missing("CmdTx: NC = 0");
-                success = false;
+                ok_status = 0;
                 break;
             }
             tx_command(s);
@@ -932,11 +932,11 @@ static void action_command(EEPRO100State *s)
             break;
         default:
             missing("undefined command");
-            success = false;
+            ok_status = 0;
             break;
         }
         /* Write new status. */
-        stw_phys(s->cb_address, s->tx.status | STATUS_C | (success ? STATUS_OK : 0));
+        stw_phys(s->cb_address, s->tx.status | ok_status | STATUS_C);
         if (bit_i) {
             /* CU completed action. */
             eepro100_cx_interrupt(s);
