@@ -4437,6 +4437,9 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     obj = qdict_get(input, "arguments");
     if (!obj) {
         args = qdict_new();
+    } else if (qobject_type(obj) != QTYPE_QDICT) {
+        qerror_report(QERR_QMP_BAD_INPUT_OBJECT_MEMBER, "arguments", "object");
+        goto err_input;
     } else {
         args = qobject_to_qdict(obj);
         QINCREF(args);
