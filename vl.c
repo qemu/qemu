@@ -783,10 +783,8 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
     QEMUMachine *machine = opaque;
     int max_devs;
     int index;
-    int cache;
-    int aio = 0;
     int ro = 0;
-    int bdrv_flags;
+    int bdrv_flags = 0;
     int on_read_error, on_write_error;
     const char *devaddr;
     DriveInfo *dinfo;
@@ -795,7 +793,6 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
     *fatal_error = 1;
 
     translation = BIOS_ATA_TRANSLATION_AUTO;
-    cache = 1;
 
     if (machine && machine->use_scsi) {
         type = IF_SCSI;
@@ -909,13 +906,13 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
     }
 
     if ((buf = qemu_opt_get(opts, "cache")) != NULL) {
-        if (!strcmp(buf, "off") || !strcmp(buf, "none"))
-            cache = 0;
-        else if (!strcmp(buf, "writethrough"))
-            cache = 1;
-        else if (!strcmp(buf, "writeback"))
-            cache = 2;
-        else {
+        if (!strcmp(buf, "off") || !strcmp(buf, "none")) {
+            bdrv_flags |= BDRV_O_NOCACHE;
+        } else if (!strcmp(buf, "writeback")) {
+            bdrv_flags |= BDRV_O_CACHE_WB;
+        } else if (!strcmp(buf, "writethrough")) {
+            /* this is the default */
+        } else {
            fprintf(stderr, "qemu: invalid cache option\n");
            return NULL;
         }
@@ -923,11 +920,11 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
 
 #ifdef CONFIG_LINUX_AIO
     if ((buf = qemu_opt_get(opts, "aio")) != NULL) {
-        if (!strcmp(buf, "threads"))
-            aio = 0;
-        else if (!strcmp(buf, "native"))
-            aio = 1;
-        else {
+        if (!strcmp(buf, "native")) {
+            bdrv_flags |= BDRV_O_NATIVE_AIO;
+        } else if (!strcmp(buf, "threads")) {
+            /* this is the default */
+        } else {
            fprintf(stderr, "qemu: invalid aio option\n");
            return NULL;
         }
@@ -1101,20 +1098,10 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
         *fatal_error = 0;
         return NULL;
     }
-    bdrv_flags = 0;
     if (snapshot) {
-        bdrv_flags |= BDRV_O_SNAPSHOT;
-        cache = 2; /* always use write-back with snapshot */
-    }
-    if (cache == 0) /* no caching */
-        bdrv_flags |= BDRV_O_NOCACHE;
-    else if (cache == 2) /* write-back */
-        bdrv_flags |= BDRV_O_CACHE_WB;
-
-    if (aio == 1) {
-        bdrv_flags |= BDRV_O_NATIVE_AIO;
-    } else {
-        bdrv_flags &= ~BDRV_O_NATIVE_AIO;
+        /* always use write-back with snapshot */
+        bdrv_flags &= ~BDRV_O_CACHE_MASK;
+        bdrv_flags |= (BDRV_O_SNAPSHOT|BDRV_O_CACHE_WB);
     }
 
     if (media == MEDIA_CDROM) {
