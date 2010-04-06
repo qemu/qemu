@@ -1207,7 +1207,6 @@ void net_set_boot_mask(int net_boot_mask)
 
     for (i = 0; i < nb_nics; i++) {
         if (net_boot_mask & (1 << i)) {
-            nd_table[i].bootable = 1;
             net_boot_mask &= ~(1 << i);
         }
     }

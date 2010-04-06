@@ -132,7 +132,6 @@ struct NICInfo {
     VLANState *vlan;
     VLANClientState *netdev;
     int used;
-    int bootable;
     int nvectors;
 };
 
