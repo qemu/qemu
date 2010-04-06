@@ -1954,9 +1954,6 @@ static const VMStateDescription vmstate_eepro100 = {
         VMSTATE_UINT32(statistics.fc_rcv_unsupported, EEPRO100State),
         VMSTATE_UINT16(statistics.xmt_tco_frames, EEPRO100State),
         VMSTATE_UINT16(statistics.rcv_tco_frames, EEPRO100State),
-#if 0
-        VMSTATE_UINT16(status, EEPRO100State),
-#endif
         /* Configuration bytes. */
         VMSTATE_BUFFER(configuration, EEPRO100State),
         VMSTATE_END_OF_LIST()
