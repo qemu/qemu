@@ -811,6 +811,7 @@ int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
 
     cluster_offset = qcow2_alloc_clusters(bs, nb_clusters * s->cluster_size);
     if (cluster_offset < 0) {
+        QLIST_REMOVE(m, next_in_flight);
         return cluster_offset;
     }
 
