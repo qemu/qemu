@@ -1697,6 +1697,7 @@ static int shutdown_requested;
 static int powerdown_requested;
 int debug_requested;
 int vmstop_requested;
+static int exit_requested;
 
 int qemu_shutdown_requested(void)
 {
@@ -1717,6 +1718,12 @@ int qemu_powerdown_requested(void)
     int r = powerdown_requested;
     powerdown_requested = 0;
     return r;
+}
+
+int qemu_exit_requested(void)
+{
+    /* just return it, we'll exit() anyway */
+    return exit_requested;
 }
 
 static int qemu_debug_requested(void)
@@ -1786,6 +1793,12 @@ void qemu_system_shutdown_request(void)
 void qemu_system_powerdown_request(void)
 {
     powerdown_requested = 1;
+    qemu_notify_event();
+}
+
+void qemu_system_exit_request(void)
+{
+    exit_requested = 1;
     qemu_notify_event();
 }
 
@@ -1925,6 +1938,8 @@ static int vm_can_run(void)
         return 0;
     if (debug_requested)
         return 0;
+    if (exit_requested)
+        return 0;
     return 1;
 }
 
@@ -1976,6 +1991,9 @@ static void main_loop(void)
         }
         if ((r = qemu_vmstop_requested())) {
             vm_stop(r);
+        }
+        if (qemu_exit_requested()) {
+            exit(0);
         }
     }
     pause_all_vcpus();
