@@ -467,8 +467,10 @@ static void qcow_aio_read_cb(void *opaque, int ret)
         acb->hd_aiocb = bdrv_aio_readv(s->hd,
                             (acb->cluster_offset >> 9) + index_in_cluster,
                             &acb->hd_qiov, acb->n, qcow_aio_read_cb, acb);
-        if (acb->hd_aiocb == NULL)
+        if (acb->hd_aiocb == NULL) {
+            ret = -EIO;
             goto done;
+        }
     }
 
     return;
@@ -620,8 +622,10 @@ static void qcow_aio_write_cb(void *opaque, int ret)
                                     (acb->cluster_offset >> 9) + index_in_cluster,
                                     &acb->hd_qiov, acb->n,
                                     qcow_aio_write_cb, acb);
-    if (acb->hd_aiocb == NULL)
+    if (acb->hd_aiocb == NULL) {
+        ret = -EIO;
         goto done;
+    }
 
     return;
 
