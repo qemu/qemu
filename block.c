@@ -1761,7 +1761,8 @@ int bdrv_aio_multiwrite(BlockDriverState *bs, BlockRequest *reqs, int num_reqs)
                 reqs[i].error = -EIO;
                 goto fail;
             } else {
-                mcb->error = -EIO;
+                mcb->num_requests++;
+                multiwrite_cb(mcb, -EIO);
                 break;
             }
         } else {
