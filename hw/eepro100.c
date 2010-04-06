@@ -513,6 +513,10 @@ static void e100_pci_reset(EEPRO100State * s, E100PCIDeviceInfo *e100_device)
     /* PCI Latency Timer */
     pci_set_byte(pci_conf + PCI_LATENCY_TIMER, 0x20);   /* latency timer = 32 clocks */
     /* Capability Pointer is set by PCI framework. */
+    /* Interrupt Line */
+    /* Interrupt Pin */
+    /* TODO: RST# value should be 0. */
+    pci_set_byte(pci_conf + PCI_INTERRUPT_PIN, 1);      /* interrupt pin 0 */
     /* Minimum Grant */
     pci_set_byte(pci_conf + PCI_MIN_GNT, 0x08);
     /* Maximum Latency */
