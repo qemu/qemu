@@ -1621,11 +1621,11 @@ static void pci_mmio_map(PCIDevice * pci_dev, int region_num,
           "size=0x%08"FMT_PCIBUS", type=%d\n",
           region_num, addr, size, type));
 
-    if (region_num == 0) {
-        /* Map control / status registers. */
-        cpu_register_physical_memory(addr, size, s->mmio_index);
-        s->region[region_num] = addr;
-    }
+    assert(region_num == 0 || region_num == 2);
+
+    /* Map control / status registers and flash. */
+    cpu_register_physical_memory(addr, size, s->mmio_index);
+    s->region[region_num] = addr;
 }
 
 static int nic_can_receive(VLANClientState *nc)
