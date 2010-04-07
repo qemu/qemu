@@ -598,6 +598,28 @@ static inline void gen_fp_exc_raise(int rc, int fn11)
     gen_fp_exc_raise_ignore(rc, fn11, fn11 & QUAL_I ? 0 : float_flag_inexact);
 }
 
+static void gen_fcvtlq(int rb, int rc)
+{
+    if (unlikely(rc == 31)) {
+        return;
+    }
+    if (unlikely(rb == 31)) {
+        tcg_gen_movi_i64(cpu_fir[rc], 0);
+    } else {
+        TCGv tmp = tcg_temp_new();
+
+        /* The arithmetic right shift here, plus the sign-extended mask below
+           yields a sign-extended result without an explicit ext32s_i64.  */
+        tcg_gen_sari_i64(tmp, cpu_fir[rb], 32);
+        tcg_gen_shri_i64(cpu_fir[rc], cpu_fir[rb], 29);
+        tcg_gen_andi_i64(tmp, tmp, (int32_t)0xc0000000);
+        tcg_gen_andi_i64(cpu_fir[rc], cpu_fir[rc], 0x3fffffff);
+        tcg_gen_or_i64(cpu_fir[rc], cpu_fir[rc], tmp);
+
+        tcg_temp_free(tmp);
+    }
+}
+
 static void gen_fcvtql(int rb, int rc)
 {
     if (unlikely(rc == 31)) {
@@ -647,7 +669,6 @@ static inline void glue(gen_f, name)(int rb, int rc)    \
         tcg_temp_free(tmp);                             \
     }                                                   \
 }
-FARITH2(cvtlq)
 
 /* ??? VAX instruction qualifiers ignored.  */
 FARITH2(sqrtf)

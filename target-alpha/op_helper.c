@@ -1152,13 +1152,6 @@ uint64_t helper_cvtqg (uint64_t a)
     return float64_to_g(fr);
 }
 
-uint64_t helper_cvtlq (uint64_t a)
-{
-    int32_t lo = a >> 29;
-    int32_t hi = a >> 32;
-    return (lo & 0x3FFFFFFF) | (hi & 0xc0000000);
-}
-
 /* PALcode support special instructions */
 #if !defined (CONFIG_USER_ONLY)
 void helper_hw_rei (void)
