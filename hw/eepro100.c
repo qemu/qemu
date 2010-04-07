@@ -804,7 +804,7 @@ static void read_cb(EEPRO100State *s)
     s->tx.status = le16_to_cpu(s->tx.status);
     s->tx.command = le16_to_cpu(s->tx.command);
     s->tx.link = le32_to_cpu(s->tx.link);
-    s->tx.tbd_array_addr = le32_to_cpu(s->tx.tbd_array_addr);
+    tswap32s(&s->tx.tbd_array_addr);
     s->tx.tcb_bytes = le16_to_cpu(s->tx.tcb_bytes);
 }
 
@@ -1456,10 +1456,7 @@ static uint16_t eepro100_read2(EEPRO100State * s, uint32_t addr)
         logout("addr=%s val=0x%04x\n", regname(addr), val);
         missing("unknown word read");
     }
-    val = cpu_to_le16(val);
-#if defined(TARGET_WORDS_BIGENDIAN)
-    bswap16s(&val);
-#endif
+    tswap16s(&val);
     return val;
 }
 
@@ -1495,10 +1492,7 @@ static uint32_t eepro100_read4(EEPRO100State * s, uint32_t addr)
         logout("addr=%s val=0x%08x\n", regname(addr), val);
         missing("unknown longword read");
     }
-    val = cpu_to_le32(val);
-#if defined(TARGET_WORDS_BIGENDIAN)
-    bswap32s(&val);
-#endif
+    tswap32s(&val);
     return val;
 }
 
