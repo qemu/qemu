@@ -1994,8 +1994,7 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
 
     /* TODO: not necessary, is set when BAR is registered. */
     pci_set_long(pci_conf + PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_SPACE_IO);
-    pci_set_long(pci_conf + PCI_BASE_ADDRESS_0 + 4,
-                 PCI_BASE_ADDRESS_SPACE_MEMORY);
+    pci_set_long(pci_conf + PCI_BASE_ADDRESS_1, PCI_BASE_ADDRESS_SPACE_MEMORY);
 
     pci_set_word(pci_conf + PCI_SUBSYSTEM_VENDOR_ID, 0x0);
     pci_set_word(pci_conf + PCI_SUBSYSTEM_ID, 0x0);
