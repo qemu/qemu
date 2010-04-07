@@ -74,7 +74,11 @@ typedef enum {
 
     /* We are exiting the TB, but have neither emitted a goto_tb, nor
        updated the PC for the next instruction to be executed.  */
-    EXIT_PC_STALE
+    EXIT_PC_STALE,
+
+    /* We are ending the TB with a noreturn function call, e.g. longjmp.
+       No following code will be executed.  */
+    EXIT_NORETURN,
 } ExitStatus;
 
 /* global register indexes */
@@ -134,7 +138,7 @@ static void alpha_translate_init(void)
     done_init = 1;
 }
 
-static inline void gen_excp(DisasContext *ctx, int exception, int error_code)
+static ExitStatus gen_excp(DisasContext *ctx, int exception, int error_code)
 {
     TCGv_i32 tmp1, tmp2;
 
@@ -144,11 +148,13 @@ static inline void gen_excp(DisasContext *ctx, int exception, int error_code)
     gen_helper_excp(tmp1, tmp2);
     tcg_temp_free_i32(tmp2);
     tcg_temp_free_i32(tmp1);
+
+    return EXIT_NORETURN;
 }
 
-static inline void gen_invalid(DisasContext *ctx)
+static inline ExitStatus gen_invalid(DisasContext *ctx)
 {
-    gen_excp(ctx, EXCP_OPCDEC, 0);
+    return gen_excp(ctx, EXCP_OPCDEC, 0);
 }
 
 static inline void gen_qemu_ldf(TCGv t0, TCGv t1, int flags)
@@ -1457,9 +1463,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
 #endif
         if (palcode >= 0x80 && palcode < 0xC0) {
             /* Unprivileged PAL call */
-            gen_excp(ctx, EXCP_CALL_PAL + ((palcode & 0x3F) << 6), 0);
-            /* PC updated by gen_excp.  */
-            ret = EXIT_PC_UPDATED;
+            ret = gen_excp(ctx, EXCP_CALL_PAL + ((palcode & 0x3F) << 6), 0);
             break;
         }
 #ifndef CONFIG_USER_ONLY
@@ -1467,7 +1471,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             /* Privileged PAL code */
             if (ctx->mem_idx & 1)
                 goto invalid_opc;
-            gen_excp(ctx, EXCP_CALL_PALP + ((palcode & 0x3F) << 6), 0);
+            ret = gen_excp(ctx, EXCP_CALL_PALP + ((palcode & 0x3F) << 6), 0);
         }
 #endif
         /* Invalid PAL call */
@@ -3075,9 +3079,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         ret = gen_bcond(ctx, TCG_COND_GT, ra, disp21, 0);
         break;
     invalid_opc:
-        gen_invalid(ctx);
-        /* PC updated by gen_excp.  */
-        ret = EXIT_PC_UPDATED;
+        ret = gen_invalid(ctx);
         break;
     }
 
@@ -3181,6 +3183,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
 
     switch (ret) {
     case EXIT_GOTO_TB:
+    case EXIT_NORETURN:
         break;
     case EXIT_PC_STALE:
         tcg_gen_movi_i64(cpu_pc, ctx.pc);
