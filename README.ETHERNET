@@ -1,23 +1,29 @@
-Status Ethernet-Emulation 2010-04-05
+Status Ethernet-Emulation 2010-04-06
 
 host            i386    i386    malta   malta   malta-l malta-l
 target          malta   malta-l malta   malta-l malta   malta-l
 
 i82551
-  (e100)        *9      *9      ?       ?       ?       ?
+  (e100)        ok      ok      ?       ?       ?       ?
+  (eepro100)    ?       ?       ?       ?       ?       ?
 i82557b
-  (e100)        *6      ok      ?       ?       ?       ok              ?
+  (e100)        *10     ok      ?       ?       ?       ?
+  (eepro100)    ?       ?       ?       ?       ?       ?
 i82559er
-  (e100)        ok      ok      ?       ?       ?       ok              ?
+  (e100)        *11     ok      ?       ?       ?       ?
+  (eepro100)    ?       ?       ?       ?       ?       ?
+i82801
+  (e100)        ok      ok      ?       ?       ?       ?
+  (eepro100)    ?       ?       ?       ?       ?       ?
 pcnet
   (pcnet32)     ok      ok      ?       ?       ?       ?
 ne2k_pci
   (ne2k-pci)    *8      *8      ?       ?       ?       ?
 rtl8139
   (8139too)     ok      ok      ?       ?       ?       ?
-  (8139cp)      *3      ok      *3      ok      *3      ok              ?
+  (8139cp)      ?       ?       ?       ?       ?       ?
 dp83816         *9      *9      ?       ?       ?       ?
-e100            *1      *10     ?       ?       ?       ?
+e100            *1      *8      ?       ?       ?       ?
 e1000           ok      ok      ?       ?       ?       ?
 virtio          *9      *9      ?       ?       ?       ?
 
@@ -33,6 +39,7 @@ ok) Linux NFS root working
 *8) slow, nfs: server not responding
 *9) kill init
 *10) hangs after link up
+*11) Linux NFS root working, unassigned mem read [iowrite8]
 
 crash bei boot und mit ssh 192.168.178.1:
 /home/stefan/src/qemu/repo.or.cz/qemu/bin/x86/mips-softmmu/qemu-system-mips --kernel /tftpboot/malta/boot/vmlinux-2.6.26-2-4kc-malta --initrd /tftpboot/malta/boot/initrd.img-2.6.26-2-4kc-malta --append "debug nohz=off root=/dev/nfs rw ip=::::malta::dhcp nfsroot=10.0.2.2:/tftpboot/malta -bootp abc -tftp /tftpboot/malta" -M malta --cpu 4KEc -m 256 --net nic,model=pcnet --net user,hostname=malta --redir tcp:5800::5800 --redir tcp:5900::5900 --redir tcp:10022::22 --redir tcp:10080::80 -net nic,model=i82551 -net user                           
