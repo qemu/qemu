@@ -722,6 +722,9 @@ case "$cpu" in
     ia64*)
            host_guest_base="yes"
            ;;
+    hppa*)
+           host_guest_base="yes"
+           ;;
 esac
 
 [ -z "$guest_base" ] && guest_base="$host_guest_base"
@@ -2744,7 +2747,7 @@ if test "$target_linux_user" = "yes" -o "$target_bsd_user" = "yes" ; then
     # -static is used to avoid g1/g3 usage by the dynamic linker
     ldflags="$linker_script -static $ldflags"
     ;;
-  i386|x86_64|ppc|ppc64|s390|sparc64|alpha|arm|m68k|mips|mips64|ia64)
+  *)
     ldflags="$linker_script $ldflags"
     ;;
   esac

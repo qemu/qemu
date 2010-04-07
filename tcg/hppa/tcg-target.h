@@ -69,17 +69,33 @@ enum {
     TCG_REG_R31,
 };
 
+#define TCG_CT_CONST_0    0x0100
+#define TCG_CT_CONST_S5   0x0200
+#define TCG_CT_CONST_S11  0x0400
+
 /* used for function call generation */
 #define TCG_REG_CALL_STACK TCG_REG_SP
-#define TCG_TARGET_STACK_ALIGN 16
+#define TCG_TARGET_STACK_ALIGN 64
+#define TCG_TARGET_CALL_STACK_OFFSET -48
+#define TCG_TARGET_STATIC_CALL_ARGS_SIZE 8*4
+#define TCG_TARGET_CALL_ALIGN_ARGS 1
 #define TCG_TARGET_STACK_GROWSUP
 
 /* optional instructions */
-#define TCG_TARGET_HAS_div2_i32
-//#define TCG_TARGET_HAS_ext8s_i32
-//#define TCG_TARGET_HAS_ext16s_i32
-//#define TCG_TARGET_HAS_bswap16_i32
-//#define TCG_TARGET_HAS_bswap32_i32
+// #define TCG_TARGET_HAS_div_i32
+#define TCG_TARGET_HAS_rot_i32
+#define TCG_TARGET_HAS_ext8s_i32
+#define TCG_TARGET_HAS_ext16s_i32
+#define TCG_TARGET_HAS_ext8u_i32
+#define TCG_TARGET_HAS_ext16u_i32
+#define TCG_TARGET_HAS_bswap16_i32
+#define TCG_TARGET_HAS_bswap32_i32
+#define TCG_TARGET_HAS_not_i32
+#define TCG_TARGET_HAS_neg_i32
+#define TCG_TARGET_HAS_andc_i32
+// #define TCG_TARGET_HAS_orc_i32
+
+#define TCG_TARGET_HAS_GUEST_BASE
 
 /* Note: must be synced with dyngen-exec.h */
 #define TCG_AREG0 TCG_REG_R17
@@ -87,116 +103,12 @@ enum {
 static inline void flush_icache_range(unsigned long start, unsigned long stop)
 {
     start &= ~31;
-    while (start <= stop)
-    {
-        asm volatile ("fdc 0(%0)\n"
-                      "sync\n"
-                      "fic 0(%%sr4, %0)\n"
-                      "sync\n"
+    while (start <= stop) {
+        asm volatile ("fdc 0(%0)\n\t"
+                      "sync\n\t"
+                      "fic 0(%%sr4, %0)\n\t"
+                      "sync"
                       : : "r"(start) : "memory");
         start += 32;
     }
-}
-
-/* supplied by libgcc */
-extern void *__canonicalize_funcptr_for_compare(void *);
-
-/* Field selection types defined by hppa */
-#define rnd(x)                  (((x)+0x1000)&~0x1fff)
-/* lsel: select left 21 bits */
-#define lsel(v,a)               (((v)+(a))>>11)
-/* rsel: select right 11 bits */
-#define rsel(v,a)               (((v)+(a))&0x7ff)
-/* lrsel with rounding of addend to nearest 8k */
-#define lrsel(v,a)              (((v)+rnd(a))>>11)
-/* rrsel with rounding of addend to nearest 8k */
-#define rrsel(v,a)              ((((v)+rnd(a))&0x7ff)+((a)-rnd(a)))
-
-#define mask(x,sz)              ((x) & ~((1<<(sz))-1))
-
-static inline int reassemble_12(int as12)
-{
-    return (((as12 & 0x800) >> 11) |
-            ((as12 & 0x400) >> 8) |
-            ((as12 & 0x3ff) << 3));
-}
-
-static inline int reassemble_14(int as14)
-{
-    return (((as14 & 0x1fff) << 1) |
-            ((as14 & 0x2000) >> 13));
-}
-
-static inline int reassemble_17(int as17)
-{
-    return (((as17 & 0x10000) >> 16) |
-            ((as17 & 0x0f800) << 5) |
-            ((as17 & 0x00400) >> 8) |
-            ((as17 & 0x003ff) << 3));
-}
-
-static inline int reassemble_21(int as21)
-{
-    return (((as21 & 0x100000) >> 20) |
-            ((as21 & 0x0ffe00) >> 8) |
-            ((as21 & 0x000180) << 7) |
-            ((as21 & 0x00007c) << 14) |
-            ((as21 & 0x000003) << 12));
-}
-
-static inline void hppa_patch21l(uint32_t *insn, int val, int addend)
-{
-    val = lrsel(val, addend);
-    *insn = mask(*insn, 21) | reassemble_21(val);
-}
-
-static inline void hppa_patch14r(uint32_t *insn, int val, int addend)
-{
-    val = rrsel(val, addend);
-    *insn = mask(*insn, 14) | reassemble_14(val);
-}
-
-static inline void hppa_patch17r(uint32_t *insn, int val, int addend)
-{
-    val = rrsel(val, addend);
-    *insn = (*insn & ~0x1f1ffd) | reassemble_17(val);
-}
-
-
-static inline void hppa_patch21l_dprel(uint32_t *insn, int val, int addend)
-{
-    register unsigned int dp asm("r27");
-    hppa_patch21l(insn, val - dp, addend);
-}
-
-static inline void hppa_patch14r_dprel(uint32_t *insn, int val, int addend)
-{
-    register unsigned int dp asm("r27");
-    hppa_patch14r(insn, val - dp, addend);
-}
-
-static inline void hppa_patch17f(uint32_t *insn, int val, int addend)
-{
-    int dot = (int)insn & ~0x3;
-    int v = ((val + addend) - dot - 8) / 4;
-    if (v > (1 << 16) || v < -(1 << 16)) {
-        printf("cannot fit branch to offset %d [%08x->%08x]\n", v, dot, val);
-        abort();
-    }
-    *insn = (*insn & ~0x1f1ffd) | reassemble_17(v);
-}
-
-static inline void hppa_load_imm21l(uint32_t *insn, int val, int addend)
-{
-    /* Transform addil L'sym(%dp) to ldil L'val, %r1 */
-    *insn = 0x20200000 | reassemble_21(lrsel(val, 0));
-}
-
-static inline void hppa_load_imm14r(uint32_t *insn, int val, int addend)
-{
-    /* Transform ldw R'sym(%r1), %rN to ldo R'sym(%r1), %rN */
-    hppa_patch14r(insn, val, addend);
-    /* HACK */
-    if (addend == 0)
-        *insn = (*insn & ~0xfc000000) | (0x0d << 26);
 }
