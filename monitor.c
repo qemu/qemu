@@ -4404,7 +4404,7 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
         qerror_report(QERR_QMP_BAD_INPUT_OBJECT, "execute");
         goto err_input;
     } else if (qobject_type(obj) != QTYPE_QSTRING) {
-        qerror_report(QERR_QMP_BAD_INPUT_OBJECT, "string");
+        qerror_report(QERR_QMP_BAD_INPUT_OBJECT_MEMBER, "execute", "string");
         goto err_input;
     }
 
