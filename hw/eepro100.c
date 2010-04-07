@@ -539,21 +539,17 @@ static void e100_pci_reset(EEPRO100State * s, E100PCIDeviceInfo *e100_device)
 
     if (e100_device->power_management) {
         /* Power Management Capabilities */
-        int cfg_offset;
-        pci_reserve_capability(&s->dev, PCI_CONFIG_HEADER_SIZE,
-                               0xdc - PCI_CONFIG_HEADER_SIZE);
-        cfg_offset = pci_add_capability(&s->dev, PCI_CAP_ID_PM, PCI_PM_SIZEOF);
-        assert(cfg_offset == 0xdc);
-        if (cfg_offset > 0) {
-            /* Power Management Capabilities */
-            pci_set_word(pci_conf + cfg_offset + PCI_PM_PMC, 0x7e21);
+        int cfg_offset = 0xdc;
+        int r = pci_add_capability_at_offset(&s->dev, PCI_CAP_ID_PM,
+                                             cfg_offset, PCI_PM_SIZEOF);
+        assert(r >= 0);
+        pci_set_word(pci_conf + cfg_offset + PCI_PM_PMC, 0x7e21);
 #if 0 /* TODO: replace dummy code for power management emulation. */
-            /* TODO: Power Management Control / Status. */
-            pci_set_word(pci_conf + cfg_offset + PCI_PM_CTRL, 0x0000);
-            /* TODO: Ethernet Power Consumption Registers (i82559 and later). */
-            pci_set_byte(pci_conf + cfg_offset + PCI_PM_PPB_EXTENSIONS, 0x0000);
+        /* TODO: Power Management Control / Status. */
+        pci_set_word(pci_conf + cfg_offset + PCI_PM_CTRL, 0x0000);
+        /* TODO: Ethernet Power Consumption Registers (i82559 and later). */
+        pci_set_byte(pci_conf + cfg_offset + PCI_PM_PPB_EXTENSIONS, 0x0000);
 #endif
-        }
     }
 
 #if EEPROM_SIZE > 0
