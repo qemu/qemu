@@ -1159,6 +1159,7 @@ void helper_hw_rei (void)
     env->pc = env->ipr[IPR_EXC_ADDR] & ~3;
     env->ipr[IPR_EXC_ADDR] = env->ipr[IPR_EXC_ADDR] & 1;
     env->intr_flag = 0;
+    env->lock_addr = -1;
     /* XXX: re-enable interrupts and memory mapping */
 }
 
@@ -1167,6 +1168,7 @@ void helper_hw_ret (uint64_t a)
     env->pc = a & ~3;
     env->ipr[IPR_EXC_ADDR] = a & 1;
     env->intr_flag = 0;
+    env->lock_addr = -1;
     /* XXX: re-enable interrupts and memory mapping */
 }
 

@@ -355,11 +355,13 @@ struct CPUAlphaState {
     uint64_t ir[31];
     float64 fir[31];
     uint64_t pc;
-    uint64_t lock;
     uint32_t pcc[2];
     uint64_t ipr[IPR_LAST];
     uint64_t ps;
     uint64_t unique;
+    uint64_t lock_addr;
+    uint64_t lock_st_addr;
+    uint64_t lock_value;
     float_status fp_status;
     /* The following fields make up the FPCR, but in FP_STATUS format.  */
     uint8_t fpcr_exc_status;
@@ -440,6 +442,8 @@ enum {
     /* Pseudo exception for console */
     EXCP_CONSOLE_DISPATCH = 0x4001,
     EXCP_CONSOLE_FIXUP    = 0x4002,
+    EXCP_STL_C            = 0x4003,
+    EXCP_STQ_C            = 0x4004,
 };
 
 /* Arithmetic exception */

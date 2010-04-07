@@ -86,7 +86,9 @@ static TCGv_ptr cpu_env;
 static TCGv cpu_ir[31];
 static TCGv cpu_fir[31];
 static TCGv cpu_pc;
-static TCGv cpu_lock;
+static TCGv cpu_lock_addr;
+static TCGv cpu_lock_st_addr;
+static TCGv cpu_lock_value;
 #ifdef CONFIG_USER_ONLY
 static TCGv cpu_uniq;
 #endif
@@ -123,8 +125,15 @@ static void alpha_translate_init(void)
     cpu_pc = tcg_global_mem_new_i64(TCG_AREG0,
                                     offsetof(CPUState, pc), "pc");
 
-    cpu_lock = tcg_global_mem_new_i64(TCG_AREG0,
-                                      offsetof(CPUState, lock), "lock");
+    cpu_lock_addr = tcg_global_mem_new_i64(TCG_AREG0,
+					   offsetof(CPUState, lock_addr),
+					   "lock_addr");
+    cpu_lock_st_addr = tcg_global_mem_new_i64(TCG_AREG0,
+					      offsetof(CPUState, lock_st_addr),
+					      "lock_st_addr");
+    cpu_lock_value = tcg_global_mem_new_i64(TCG_AREG0,
+					    offsetof(CPUState, lock_value),
+					    "lock_value");
 
 #ifdef CONFIG_USER_ONLY
     cpu_uniq = tcg_global_mem_new_i64(TCG_AREG0,
@@ -189,14 +198,16 @@ static inline void gen_qemu_lds(TCGv t0, TCGv t1, int flags)
 
 static inline void gen_qemu_ldl_l(TCGv t0, TCGv t1, int flags)
 {
-    tcg_gen_mov_i64(cpu_lock, t1);
     tcg_gen_qemu_ld32s(t0, t1, flags);
+    tcg_gen_mov_i64(cpu_lock_addr, t1);
+    tcg_gen_mov_i64(cpu_lock_value, t0);
 }
 
 static inline void gen_qemu_ldq_l(TCGv t0, TCGv t1, int flags)
 {
-    tcg_gen_mov_i64(cpu_lock, t1);
     tcg_gen_qemu_ld64(t0, t1, flags);
+    tcg_gen_mov_i64(cpu_lock_addr, t1);
+    tcg_gen_mov_i64(cpu_lock_value, t0);
 }
 
 static inline void gen_load_mem(DisasContext *ctx,
@@ -205,25 +216,31 @@ static inline void gen_load_mem(DisasContext *ctx,
                                 int ra, int rb, int32_t disp16, int fp,
                                 int clear)
 {
-    TCGv addr;
+    TCGv addr, va;
 
-    if (unlikely(ra == 31))
+    /* LDQ_U with ra $31 is UNOP.  Other various loads are forms of
+       prefetches, which we can treat as nops.  No worries about
+       missed exceptions here.  */
+    if (unlikely(ra == 31)) {
         return;
+    }
 
     addr = tcg_temp_new();
     if (rb != 31) {
         tcg_gen_addi_i64(addr, cpu_ir[rb], disp16);
-        if (clear)
+        if (clear) {
             tcg_gen_andi_i64(addr, addr, ~0x7);
+        }
     } else {
-        if (clear)
+        if (clear) {
             disp16 &= ~0x7;
+        }
         tcg_gen_movi_i64(addr, disp16);
     }
-    if (fp)
-        tcg_gen_qemu_load(cpu_fir[ra], addr, ctx->mem_idx);
-    else
-        tcg_gen_qemu_load(cpu_ir[ra], addr, ctx->mem_idx);
+
+    va = (fp ? cpu_fir[ra] : cpu_ir[ra]);
+    tcg_gen_qemu_load(va, addr, ctx->mem_idx);
+
     tcg_temp_free(addr);
 }
 
@@ -257,73 +274,105 @@ static inline void gen_qemu_sts(TCGv t0, TCGv t1, int flags)
     tcg_temp_free_i32(tmp32);
 }
 
-static inline void gen_qemu_stl_c(TCGv t0, TCGv t1, int flags)
-{
-    int l1, l2;
-
-    l1 = gen_new_label();
-    l2 = gen_new_label();
-    tcg_gen_brcond_i64(TCG_COND_NE, cpu_lock, t1, l1);
-    tcg_gen_qemu_st32(t0, t1, flags);
-    tcg_gen_movi_i64(t0, 1);
-    tcg_gen_br(l2);
-    gen_set_label(l1);
-    tcg_gen_movi_i64(t0, 0);
-    gen_set_label(l2);
-    tcg_gen_movi_i64(cpu_lock, -1);
-}
-
-static inline void gen_qemu_stq_c(TCGv t0, TCGv t1, int flags)
-{
-    int l1, l2;
-
-    l1 = gen_new_label();
-    l2 = gen_new_label();
-    tcg_gen_brcond_i64(TCG_COND_NE, cpu_lock, t1, l1);
-    tcg_gen_qemu_st64(t0, t1, flags);
-    tcg_gen_movi_i64(t0, 1);
-    tcg_gen_br(l2);
-    gen_set_label(l1);
-    tcg_gen_movi_i64(t0, 0);
-    gen_set_label(l2);
-    tcg_gen_movi_i64(cpu_lock, -1);
-}
-
 static inline void gen_store_mem(DisasContext *ctx,
                                  void (*tcg_gen_qemu_store)(TCGv t0, TCGv t1,
                                                             int flags),
                                  int ra, int rb, int32_t disp16, int fp,
-                                 int clear, int local)
+                                 int clear)
 {
-    TCGv addr;
-    if (local)
-        addr = tcg_temp_local_new();
-    else
-        addr = tcg_temp_new();
+    TCGv addr, va;
+
+    addr = tcg_temp_new();
     if (rb != 31) {
         tcg_gen_addi_i64(addr, cpu_ir[rb], disp16);
-        if (clear)
+        if (clear) {
             tcg_gen_andi_i64(addr, addr, ~0x7);
+        }
     } else {
-        if (clear)
+        if (clear) {
             disp16 &= ~0x7;
+        }
         tcg_gen_movi_i64(addr, disp16);
     }
-    if (ra != 31) {
-        if (fp)
-            tcg_gen_qemu_store(cpu_fir[ra], addr, ctx->mem_idx);
-        else
-            tcg_gen_qemu_store(cpu_ir[ra], addr, ctx->mem_idx);
+
+    if (ra == 31) {
+        va = tcg_const_i64(0);
     } else {
-        TCGv zero;
-        if (local)
-            zero = tcg_const_local_i64(0);
-        else
-            zero = tcg_const_i64(0);
-        tcg_gen_qemu_store(zero, addr, ctx->mem_idx);
-        tcg_temp_free(zero);
+        va = (fp ? cpu_fir[ra] : cpu_ir[ra]);
     }
+    tcg_gen_qemu_store(va, addr, ctx->mem_idx);
+
     tcg_temp_free(addr);
+    if (ra == 31) {
+        tcg_temp_free(va);
+    }
+}
+
+static ExitStatus gen_store_conditional(DisasContext *ctx, int ra, int rb,
+                                        int32_t disp16, int quad)
+{
+    TCGv addr;
+
+    if (ra == 31) {
+        /* ??? Don't bother storing anything.  The user can't tell
+           the difference, since the zero register always reads zero.  */
+        return NO_EXIT;
+    }
+
+#if defined(CONFIG_USER_ONLY)
+    addr = cpu_lock_st_addr;
+#else
+    addr = tcg_local_new();
+#endif
+
+    if (rb != 31) {
+        tcg_gen_addi_i64(addr, cpu_ir[rb], disp16);
+    } else {
+        tcg_gen_movi_i64(addr, disp16);
+    }
+
+#if defined(CONFIG_USER_ONLY)
+    /* ??? This is handled via a complicated version of compare-and-swap
+       in the cpu_loop.  Hopefully one day we'll have a real CAS opcode
+       in TCG so that this isn't necessary.  */
+    return gen_excp(ctx, quad ? EXCP_STQ_C : EXCP_STL_C, ra);
+#else
+    /* ??? In system mode we are never multi-threaded, so CAS can be
+       implemented via a non-atomic load-compare-store sequence.  */
+    {
+        int lab_fail, lab_done;
+        TCGv val;
+
+        lab_fail = gen_new_label();
+        lab_done = gen_new_label();
+        tcg_gen_brcond(TCG_COND_NE, addr, cpu_lock_addr, lab_fail);
+
+        val = tcg_temp_new();
+        if (quad) {
+            tcg_gen_qemu_ld64(val, addr, ctx->mem_idx);
+        } else {
+            tcg_gen_qemu_ld32s(val, addr, ctx->mem_idx);
+        }
+        tcg_gen_brcond(TCG_COND_NE, val, cpu_lock_value, lab_fail);
+
+        if (quad) {
+            tcg_gen_qemu_st64(cpu_ir[ra], addr, ctx->mem_idx);
+        } else {
+            tcg_gen_qemu_st32(cpu_ir[ra], addr, ctx->mem_idx);
+        }
+        tcg_gen_movi_i64(cpu_ir[ra], 1);
+        tcg_gen_br(lab_done);
+
+        gen_set_label(lab_fail);
+        tcg_gen_movi_i64(cpu_ir[ra], 0);
+
+        gen_set_label(lab_done);
+        tcg_gen_movi_i64(cpu_lock_addr, -1);
+
+        tcg_temp_free(addr);
+        return NO_EXIT;
+    }
+#endif
 }
 
 static int use_goto_tb(DisasContext *ctx, uint64_t dest)
@@ -1533,15 +1582,15 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         break;
     case 0x0D:
         /* STW */
-        gen_store_mem(ctx, &tcg_gen_qemu_st16, ra, rb, disp16, 0, 0, 0);
+        gen_store_mem(ctx, &tcg_gen_qemu_st16, ra, rb, disp16, 0, 0);
         break;
     case 0x0E:
         /* STB */
-        gen_store_mem(ctx, &tcg_gen_qemu_st8, ra, rb, disp16, 0, 0, 0);
+        gen_store_mem(ctx, &tcg_gen_qemu_st8, ra, rb, disp16, 0, 0);
         break;
     case 0x0F:
         /* STQ_U */
-        gen_store_mem(ctx, &tcg_gen_qemu_st64, ra, rb, disp16, 0, 1, 0);
+        gen_store_mem(ctx, &tcg_gen_qemu_st64, ra, rb, disp16, 0, 1);
         break;
     case 0x10:
         switch (fn7) {
@@ -2974,19 +3023,19 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         break;
     case 0x24:
         /* STF */
-        gen_store_mem(ctx, &gen_qemu_stf, ra, rb, disp16, 1, 0, 0);
+        gen_store_mem(ctx, &gen_qemu_stf, ra, rb, disp16, 1, 0);
         break;
     case 0x25:
         /* STG */
-        gen_store_mem(ctx, &gen_qemu_stg, ra, rb, disp16, 1, 0, 0);
+        gen_store_mem(ctx, &gen_qemu_stg, ra, rb, disp16, 1, 0);
         break;
     case 0x26:
         /* STS */
-        gen_store_mem(ctx, &gen_qemu_sts, ra, rb, disp16, 1, 0, 0);
+        gen_store_mem(ctx, &gen_qemu_sts, ra, rb, disp16, 1, 0);
         break;
     case 0x27:
         /* STT */
-        gen_store_mem(ctx, &tcg_gen_qemu_st64, ra, rb, disp16, 1, 0, 0);
+        gen_store_mem(ctx, &tcg_gen_qemu_st64, ra, rb, disp16, 1, 0);
         break;
     case 0x28:
         /* LDL */
@@ -3006,19 +3055,19 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         break;
     case 0x2C:
         /* STL */
-        gen_store_mem(ctx, &tcg_gen_qemu_st32, ra, rb, disp16, 0, 0, 0);
+        gen_store_mem(ctx, &tcg_gen_qemu_st32, ra, rb, disp16, 0, 0);
         break;
     case 0x2D:
         /* STQ */
-        gen_store_mem(ctx, &tcg_gen_qemu_st64, ra, rb, disp16, 0, 0, 0);
+        gen_store_mem(ctx, &tcg_gen_qemu_st64, ra, rb, disp16, 0, 0);
         break;
     case 0x2E:
         /* STL_C */
-        gen_store_mem(ctx, &gen_qemu_stl_c, ra, rb, disp16, 0, 0, 1);
+        ret = gen_store_conditional(ctx, ra, rb, disp16, 0);
         break;
     case 0x2F:
         /* STQ_C */
-        gen_store_mem(ctx, &gen_qemu_stq_c, ra, rb, disp16, 0, 0, 1);
+        ret = gen_store_conditional(ctx, ra, rb, disp16, 1);
         break;
     case 0x30:
         /* BR */
@@ -3284,6 +3333,7 @@ CPUAlphaState * cpu_alpha_init (const char *cpu_model)
 #else
     pal_init(env);
 #endif
+    env->lock_addr = -1;
 
     /* Initialize IPR */
 #if defined (CONFIG_USER_ONLY)
