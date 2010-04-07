@@ -173,6 +173,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Bad QMP input object",
     },
     {
+        .error_fmt = QERR_QMP_BAD_INPUT_OBJECT_MEMBER,
+        .desc      = "QMP input object member '%(member)' expects '%(expected)'",
+    },
+    {
         .error_fmt = QERR_SET_PASSWD_FAILED,
         .desc      = "Could not set password",
     },
