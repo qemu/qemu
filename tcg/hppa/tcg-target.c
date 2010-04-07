@@ -1276,8 +1276,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         if (const_args[0]) {
             tcg_out_call(s, (void *)args[0]);
         } else {
-            tcg_out32(s, INSN_BLE_SR4 | INSN_R2(args[0]));
-            tcg_out_mov(s, TCG_REG_RP, TCG_REG_R31);
+            /* ??? FIXME: the value in the register in args[0] is almost
+               certainly a procedure descriptor, not a code address.  We
+               probably need to use the millicode $$dyncall routine.  */
+            tcg_abort();
         }
         break;
 
