@@ -238,8 +238,9 @@ static QEMUOptionParameter raw_create_options[] = {
     { NULL }
 };
 
-static BlockDriver bdrv_raw = {
-    .format_name	= "raw",
+static BlockDriver bdrv_file = {
+    .format_name	= "file",
+    .protocol_name	= "file",
     .instance_size	= sizeof(BDRVRawState),
     .bdrv_open		= raw_open,
     .bdrv_close		= raw_close,
@@ -395,6 +396,7 @@ static int raw_set_locked(BlockDriverState *bs, int locked)
 
 static BlockDriver bdrv_host_device = {
     .format_name	= "host_device",
+    .protocol_name	= "host_device",
     .instance_size	= sizeof(BDRVRawState),
     .bdrv_probe_device	= hdev_probe_device,
     .bdrv_open		= hdev_open,
@@ -406,10 +408,10 @@ static BlockDriver bdrv_host_device = {
     .bdrv_getlength	= raw_getlength,
 };
 
-static void bdrv_raw_init(void)
+static void bdrv_file_init(void)
 {
-    bdrv_register(&bdrv_raw);
+    bdrv_register(&bdrv_file);
     bdrv_register(&bdrv_host_device);
 }
 
-block_init(bdrv_raw_init);
+block_init(bdrv_file_init);

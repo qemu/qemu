@@ -768,8 +768,9 @@ static QEMUOptionParameter raw_create_options[] = {
     { NULL }
 };
 
-static BlockDriver bdrv_raw = {
-    .format_name = "raw",
+static BlockDriver bdrv_file = {
+    .format_name = "file",
+    .protocol_name = "file",
     .instance_size = sizeof(BDRVRawState),
     .bdrv_probe = NULL, /* no probe for protocols */
     .bdrv_open = raw_open,
@@ -1026,6 +1027,7 @@ static int hdev_create(const char *filename, QEMUOptionParameter *options)
 
 static BlockDriver bdrv_host_device = {
     .format_name        = "host_device",
+    .protocol_name        = "host_device",
     .instance_size      = sizeof(BDRVRawState),
     .bdrv_probe_device  = hdev_probe_device,
     .bdrv_open          = hdev_open,
@@ -1140,6 +1142,7 @@ static int floppy_eject(BlockDriverState *bs, int eject_flag)
 
 static BlockDriver bdrv_host_floppy = {
     .format_name        = "host_floppy",
+    .protocol_name      = "host_floppy",
     .instance_size      = sizeof(BDRVRawState),
     .bdrv_probe_device	= floppy_probe_device,
     .bdrv_open          = floppy_open,
@@ -1239,6 +1242,7 @@ static int cdrom_set_locked(BlockDriverState *bs, int locked)
 
 static BlockDriver bdrv_host_cdrom = {
     .format_name        = "host_cdrom",
+    .protocol_name      = "host_cdrom",
     .instance_size      = sizeof(BDRVRawState),
     .bdrv_probe_device	= cdrom_probe_device,
     .bdrv_open          = cdrom_open,
@@ -1361,6 +1365,7 @@ static int cdrom_set_locked(BlockDriverState *bs, int locked)
 
 static BlockDriver bdrv_host_cdrom = {
     .format_name        = "host_cdrom",
+    .protocol_name      = "host_cdrom",
     .instance_size      = sizeof(BDRVRawState),
     .bdrv_probe_device	= cdrom_probe_device,
     .bdrv_open          = cdrom_open,
@@ -1385,13 +1390,13 @@ static BlockDriver bdrv_host_cdrom = {
 };
 #endif /* __FreeBSD__ */
 
-static void bdrv_raw_init(void)
+static void bdrv_file_init(void)
 {
     /*
      * Register all the drivers.  Note that order is important, the driver
      * registered last will get probed first.
      */
-    bdrv_register(&bdrv_raw);
+    bdrv_register(&bdrv_file);
     bdrv_register(&bdrv_host_device);
 #ifdef __linux__
     bdrv_register(&bdrv_host_floppy);
@@ -1402,4 +1407,4 @@ static void bdrv_raw_init(void)
 #endif
 }
 
-block_init(bdrv_raw_init);
+block_init(bdrv_file_init);

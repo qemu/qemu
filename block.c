@@ -54,6 +54,7 @@ static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num,
                         uint8_t *buf, int nb_sectors);
 static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
                          const uint8_t *buf, int nb_sectors);
+static BlockDriver *find_protocol(const char *filename);
 
 static QTAILQ_HEAD(, BlockDriverState) bdrv_states =
     QTAILQ_HEAD_INITIALIZER(bdrv_states);
@@ -203,6 +204,18 @@ int bdrv_create(BlockDriver *drv, const char* filename,
     return drv->bdrv_create(filename, options);
 }
 
+int bdrv_create_file(const char* filename, QEMUOptionParameter *options)
+{
+    BlockDriver *drv;
+
+    drv = find_protocol(filename);
+    if (drv == NULL) {
+        drv = bdrv_find_format("file");
+    }
+
+    return bdrv_create(drv, filename, options);
+}
+
 #ifdef _WIN32
 void get_tmp_filename(char *filename, int size)
 {
@@ -246,35 +259,6 @@ int is_windows_drive(const char *filename)
 }
 #endif
 
-static BlockDriver *find_protocol(const char *filename)
-{
-    BlockDriver *drv1;
-    char protocol[128];
-    int len;
-    const char *p;
-
-#ifdef _WIN32
-    if (is_windows_drive(filename) ||
-        is_windows_drive_prefix(filename))
-        return bdrv_find_format("raw");
-#endif
-    p = strchr(filename, ':');
-    if (!p)
-        return bdrv_find_format("raw");
-    len = p - filename;
-    if (len > sizeof(protocol) - 1)
-        len = sizeof(protocol) - 1;
-    memcpy(protocol, filename, len);
-    protocol[len] = '\0';
-    QLIST_FOREACH(drv1, &bdrv_drivers, list) {
-        if (drv1->protocol_name &&
-            !strcmp(drv1->protocol_name, protocol)) {
-            return drv1;
-        }
-    }
-    return NULL;
-}
-
 /*
  * Detect host devices. By convention, /dev/cdrom[N] is always
  * recognized as a host CDROM.
@@ -295,6 +279,40 @@ static BlockDriver *find_hdev_driver(const char *filename)
     }
 
     return drv;
+}
+
+static BlockDriver *find_protocol(const char *filename)
+{
+    BlockDriver *drv1;
+    char protocol[128];
+    int len;
+    const char *p;
+
+#ifdef _WIN32
+    if (is_windows_drive(filename) ||
+        is_windows_drive_prefix(filename))
+        return bdrv_find_format("file");
+#endif
+    p = strchr(filename, ':');
+    if (!p) {
+        drv1 = find_hdev_driver(filename);
+        if (!drv1) {
+            drv1 = bdrv_find_format("file");
+        }
+        return drv1;
+    }
+    len = p - filename;
+    if (len > sizeof(protocol) - 1)
+        len = sizeof(protocol) - 1;
+    memcpy(protocol, filename, len);
+    protocol[len] = '\0';
+    QLIST_FOREACH(drv1, &bdrv_drivers, list) {
+        if (drv1->protocol_name &&
+            !strcmp(drv1->protocol_name, protocol)) {
+            return drv1;
+        }
+    }
+    return NULL;
 }
 
 static BlockDriver *find_image_format(const char *filename)
@@ -319,6 +337,7 @@ static BlockDriver *find_image_format(const char *filename)
     }
 
     score_max = 0;
+    drv = NULL;
     QLIST_FOREACH(drv1, &bdrv_drivers, list) {
         if (drv1->bdrv_probe) {
             score = drv1->bdrv_probe(buf, ret, filename);
@@ -423,10 +442,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
     pstrcpy(bs->filename, sizeof(bs->filename), filename);
 
     if (!drv) {
-        drv = find_hdev_driver(filename);
-        if (!drv) {
-            drv = find_image_format(filename);
-        }
+        drv = find_image_format(filename);
     }
 
     if (!drv) {
