@@ -210,6 +210,9 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
     case 'J':
         ct->ct |= TCG_CT_CONST_S5;
 	break;
+    case 'K':
+        ct->ct |= TCG_CT_CONST_MS11;
+        break;
     default:
         return -1;
     }
@@ -231,6 +234,8 @@ static int tcg_target_const_match(tcg_target_long val,
         return check_fit_tl(val, 5);
     } else if (ct & TCG_CT_CONST_S11) {
         return check_fit_tl(val, 11);
+    } else if (ct & TCG_CT_CONST_MS11) {
+        return check_fit_tl(-val, 11);
     }
     return 0;
 }
@@ -673,6 +678,42 @@ static void tcg_out_xmpyu(TCGContext *s, int retl, int reth,
     if (retl) {
         tcg_out_ldst(s, retl, TCG_REG_SP, STACK_TEMP_OFS + 4, INSN_LDW);
     }
+}
+
+static void tcg_out_add2(TCGContext *s, int destl, int desth,
+                         int al, int ah, int bl, int bh, int blconst)
+{
+    int tmp = (destl == ah || destl == bh ? TCG_REG_R20 : destl);
+
+    if (blconst) {
+        tcg_out_arithi(s, tmp, al, bl, INSN_ADDI);
+    } else {
+        tcg_out_arith(s, tmp, al, bl, INSN_ADD);
+    }
+    tcg_out_arith(s, desth, ah, bh, INSN_ADDC);
+
+    tcg_out_mov(s, destl, tmp);
+}
+
+static void tcg_out_sub2(TCGContext *s, int destl, int desth, int al, int ah,
+                         int bl, int bh, int alconst, int blconst)
+{
+    int tmp = (destl == ah || destl == bh ? TCG_REG_R20 : destl);
+
+    if (alconst) {
+        if (blconst) {
+            tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_R20, bl);
+            bl = TCG_REG_R20;
+        }
+        tcg_out_arithi(s, tmp, bl, al, INSN_SUBI);
+    } else if (blconst) {
+        tcg_out_arithi(s, tmp, al, -bl, INSN_ADDI);
+    } else {
+        tcg_out_arith(s, tmp, al, bl, INSN_SUB);
+    }
+    tcg_out_arith(s, desth, ah, bh, INSN_SUBB);
+
+    tcg_out_mov(s, destl, tmp);
 }
 
 static void tcg_out_branch(TCGContext *s, int label_index, int nul)
@@ -1427,22 +1468,13 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
 
     case INDEX_op_add2_i32:
-        if (const_args[4]) {
-            tcg_out_arithi(s, args[0], args[2], args[4], INSN_ADDI);
-        } else {
-            tcg_out_arith(s, args[0], args[2], args[4], INSN_ADD);
-        }
-        tcg_out_arith(s, args[1], args[3], args[5], INSN_ADDC);
+        tcg_out_add2(s, args[0], args[1], args[2], args[3],
+                     args[4], args[5], const_args[4]);
         break;
 
     case INDEX_op_sub2_i32:
-        if (const_args[2]) {
-            /* Recall that SUBI is a reversed subtract.  */
-            tcg_out_arithi(s, args[0], args[4], args[2], INSN_SUBI);
-        } else {
-            tcg_out_arith(s, args[0], args[2], args[4], INSN_SUB);
-        }
-        tcg_out_arith(s, args[1], args[3], args[5], INSN_SUBB);
+        tcg_out_sub2(s, args[0], args[1], args[2], args[3],
+                     args[4], args[5], const_args[2], const_args[4]);
         break;
 
     case INDEX_op_qemu_ld8u:
@@ -1536,7 +1568,7 @@ static const TCGTargetOpDef hppa_op_defs[] = {
     { INDEX_op_setcond2_i32, { "r", "rZ", "rZ", "rI", "rI" } },
 
     { INDEX_op_add2_i32, { "r", "r", "rZ", "rZ", "rI", "rZ" } },
-    { INDEX_op_sub2_i32, { "r", "r", "rI", "rZ", "rZ", "rZ" } },
+    { INDEX_op_sub2_i32, { "r", "r", "rI", "rZ", "rK", "rZ" } },
 
 #if TARGET_LONG_BITS == 32
     { INDEX_op_qemu_ld8u, { "r", "L" } },

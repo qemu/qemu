@@ -72,6 +72,7 @@ enum {
 #define TCG_CT_CONST_0    0x0100
 #define TCG_CT_CONST_S5   0x0200
 #define TCG_CT_CONST_S11  0x0400
+#define TCG_CT_CONST_MS11 0x0800
 
 /* used for function call generation */
 #define TCG_REG_CALL_STACK TCG_REG_SP
