@@ -170,7 +170,7 @@ static const QErrorStringTable qerror_table[] = {
     },
     {
         .error_fmt = QERR_QMP_BAD_INPUT_OBJECT,
-        .desc      = "Bad QMP input object",
+        .desc      = "Expected '%(expected)' in QMP input",
     },
     {
         .error_fmt = QERR_QMP_BAD_INPUT_OBJECT_MEMBER,
