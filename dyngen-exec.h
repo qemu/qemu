@@ -61,7 +61,7 @@ extern int printf(const char *, ...);
 #elif defined(__hppa__)
 #define AREG0 "r17"
 #elif defined(__mips__)
-#define AREG0 "fp"
+#define AREG0 "s0"
 #elif defined(__sparc__)
 #ifdef CONFIG_SOLARIS
 #define AREG0 "g2"
