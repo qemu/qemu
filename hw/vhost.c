@@ -10,13 +10,13 @@
  * the COPYING file in the top-level directory.
  */
 
-#include <linux/vhost.h>
 #include <sys/ioctl.h>
 #include <sys/eventfd.h>
 #include "vhost.h"
 #include "hw/hw.h"
 /* For range_get_last */
 #include "pci.h"
+#include <linux/vhost.h>
 
 static void vhost_dev_sync_region(struct vhost_dev *dev,
                                   uint64_t mfirst, uint64_t mlast,
