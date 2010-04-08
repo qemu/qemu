@@ -372,6 +372,7 @@ typedef struct disassemble_info {
    target address.  Return number of bytes processed.  */
 typedef int (*disassembler_ftype) (bfd_vma, disassemble_info *);
 
+extern int print_insn_bytecode		(bfd_vma, disassemble_info*);
 extern int print_insn_big_mips		(bfd_vma, disassemble_info*);
 extern int print_insn_little_mips	(bfd_vma, disassemble_info*);
 extern int print_insn_i386		(bfd_vma, disassemble_info*);

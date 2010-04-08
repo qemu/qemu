@@ -377,6 +377,13 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
     return 0;
 }
 
+#include "dis-asm.h"
+int print_insn_bytecode(bfd_vma addr, disassemble_info *info)
+{
+    info->fprintf_func(info->stream, "0x%08" PRIx64 " %3d", addr, info->buffer_length);
+    return info->buffer_length;
+}
+
 void tci_disas(uint8_t opc)
 {
 #if defined(CONFIG_DEBUG_TCG_INTERPRETER)
