@@ -485,6 +485,48 @@ static inline void tcg_out_smull32(TCGContext *s,
     }
 }
 
+static inline void tcg_out_ext8s(TCGContext *s, int cond,
+                                 int rd, int rn)
+{
+    if (use_armv6_instructions) {
+        /* sxtb */
+        tcg_out32(s, 0x06af0070 | (cond << 28) | (rd << 12) | rn);
+    } else {
+        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                        rd, 0, rn, SHIFT_IMM_LSL(24));
+        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                        rd, 0, rd, SHIFT_IMM_ASR(24));
+    }
+}
+
+static inline void tcg_out_ext16s(TCGContext *s, int cond,
+                                  int rd, int rn)
+{
+    if (use_armv6_instructions) {
+        /* sxth */
+        tcg_out32(s, 0x06bf0070 | (cond << 28) | (rd << 12) | rn);
+    } else {
+        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                        rd, 0, rn, SHIFT_IMM_LSL(16));
+        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                        rd, 0, rd, SHIFT_IMM_ASR(16));
+    }
+}
+
+static inline void tcg_out_ext16u(TCGContext *s, int cond,
+                                  int rd, int rn)
+{
+    if (use_armv6_instructions) {
+        /* uxth */
+        tcg_out32(s, 0x06ff0070 | (cond << 28) | (rd << 12) | rn);
+    } else {
+        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                        rd, 0, rn, SHIFT_IMM_LSL(16));
+        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                        rd, 0, rd, SHIFT_IMM_LSR(16));
+    }
+}
+
 static inline void tcg_out_ld32_12(TCGContext *s, int cond,
                 int rd, int rn, tcg_target_long im)
 {
@@ -1503,26 +1545,13 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_ext8s_i32:
-        if (use_armv6_instructions) {
-            /* sxtb */
-            tcg_out32(s, 0xe6af0070 | (args[0] << 12) | args[1]);
-        } else {
-            tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                            args[0], 0, args[1], SHIFT_IMM_LSL(24));
-            tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                            args[0], 0, args[0], SHIFT_IMM_ASR(24));
-        }
+        tcg_out_ext8s(s, COND_AL, args[0], args[1]);
         break;
     case INDEX_op_ext16s_i32:
-        if (use_armv6_instructions) {
-            /* sxth */
-            tcg_out32(s, 0xe6bf0070 | (args[0] << 12) | args[1]);
-        } else {
-            tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                            args[0], 0, args[1], SHIFT_IMM_LSL(16));
-            tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                            args[0], 0, args[0], SHIFT_IMM_ASR(16));
-        }
+        tcg_out_ext16s(s, COND_AL, args[0], args[1]);
+        break;
+    case INDEX_op_ext16u_i32:
+        tcg_out_ext16u(s, COND_AL, args[0], args[1]);
         break;
 
     default:
@@ -1604,6 +1633,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
 
     { INDEX_op_ext8s_i32, { "r", "r" } },
     { INDEX_op_ext16s_i32, { "r", "r" } },
+    { INDEX_op_ext16u_i32, { "r", "r" } },
 
     { -1 },
 };
