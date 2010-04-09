@@ -1478,7 +1478,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_ext8s_i32:
-        if (use_armv7_instructions) {
+        if (use_armv6_instructions) {
             /* sxtb */
             tcg_out32(s, 0xe6af0070 | (args[0] << 12) | args[1]);
         } else {
@@ -1489,7 +1489,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
     case INDEX_op_ext16s_i32:
-        if (use_armv7_instructions) {
+        if (use_armv6_instructions) {
             /* sxth */
             tcg_out32(s, 0xe6bf0070 | (args[0] << 12) | args[1]);
         } else {
