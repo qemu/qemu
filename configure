@@ -162,6 +162,8 @@ else
     exit 1
 fi
 
+cc_macros=`$cc $QEMU_CFLAGS -E -dD - </dev/null`
+
 check_define() {
 cat > $TMPC <<EOF
 #if !defined($1)
@@ -962,8 +964,6 @@ feature_not_found() {
   echo "ERROR"
   exit 1;
 }
-
-cc_macros=`$cc -E -dD - </dev/null`
 
 if test -z "$cross_prefix" ; then
 
