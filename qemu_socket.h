@@ -56,5 +56,6 @@ int parse_host_port(struct sockaddr_in *saddr, const char *str);
 int parse_host_src_port(struct sockaddr_in *haddr,
                         struct sockaddr_in *saddr,
                         const char *str);
+int socket_init(void);
 
 #endif /* QEMU_SOCKET_H */

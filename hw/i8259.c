@@ -68,6 +68,7 @@ static int irq_level[16];
 #ifdef DEBUG_IRQ_COUNT
 static uint64_t irq_count[16];
 #endif
+PicState2 *isa_pic;
 
 /* set irq level. If an edge is detected, then the IRR is set to 1 */
 static inline void pic_set_irq1(PicState *s, int irq, int level)

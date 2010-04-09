@@ -150,7 +150,6 @@ int main(int argc, char **argv)
 #include "audio/audio.h"
 #include "migration.h"
 #include "kvm.h"
-#include "balloon.h"
 #include "qemu-option.h"
 #include "qemu-config.h"
 #include "qemu-objects.h"
@@ -296,10 +295,6 @@ static int default_driver_check(QemuOpts *opts, void *opaque)
 }
 
 /***********************************************************/
-/* x86 ISA bus support */
-
-target_phys_addr_t isa_mem_base = 0;
-PicState2 *isa_pic;
 
 static void set_proc_name(const char *s)
 {
@@ -315,39 +310,6 @@ static void set_proc_name(const char *s)
 #endif    	
 }
  
-/***************/
-/* ballooning */
-
-static QEMUBalloonEvent *qemu_balloon_event;
-void *qemu_balloon_event_opaque;
-
-void qemu_add_balloon_handler(QEMUBalloonEvent *func, void *opaque)
-{
-    qemu_balloon_event = func;
-    qemu_balloon_event_opaque = opaque;
-}
-
-int qemu_balloon(ram_addr_t target, MonitorCompletion cb, void *opaque)
-{
-    if (qemu_balloon_event) {
-        qemu_balloon_event(qemu_balloon_event_opaque, target, cb, opaque);
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
-int qemu_balloon_status(MonitorCompletion cb, void *opaque)
-{
-    if (qemu_balloon_event) {
-        qemu_balloon_event(qemu_balloon_event_opaque, 0, cb, opaque);
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
-
 /***********************************************************/
 /* real time host monotonic timer */
 
@@ -497,28 +459,6 @@ static void configure_rtc(QemuOpts *opts)
         }
     }
 }
-
-#ifdef _WIN32
-static void socket_cleanup(void)
-{
-    WSACleanup();
-}
-
-static int socket_init(void)
-{
-    WSADATA Data;
-    int ret, err;
-
-    ret = WSAStartup(MAKEWORD(2,2), &Data);
-    if (ret != 0) {
-        err = WSAGetLastError();
-        fprintf(stderr, "WSAStartup: %d\n", err);
-        return -1;
-    }
-    atexit(socket_cleanup);
-    return 0;
-}
-#endif
 
 /***********************************************************/
 /* Bluetooth support */
@@ -3673,9 +3613,7 @@ int main(int argc, char **argv, char **envp)
     }
     configure_icount(icount_option);
 
-#ifdef _WIN32
     socket_init();
-#endif
 
     if (net_init_clients() < 0) {
         exit(1);

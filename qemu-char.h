@@ -67,6 +67,7 @@ struct CharDriverState {
     QEMUBH *bh;
     char *label;
     char *filename;
+    int opened;
     QTAILQ_ENTRY(CharDriverState) next;
 };
 

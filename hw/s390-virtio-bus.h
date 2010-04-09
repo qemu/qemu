@@ -65,3 +65,4 @@ extern VirtIOS390Device *s390_virtio_bus_find_vring(VirtIOS390Bus *bus,
                                                     int *vq_num);
 extern VirtIOS390Device *s390_virtio_bus_find_mem(VirtIOS390Bus *bus,
                                                   ram_addr_t mem);
+extern void s390_virtio_device_sync(VirtIOS390Device *dev);

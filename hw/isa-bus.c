@@ -28,6 +28,7 @@ struct ISABus {
     uint32_t assigned;
 };
 static ISABus *isabus;
+target_phys_addr_t isa_mem_base = 0;
 
 static void isabus_dev_print(Monitor *mon, DeviceState *dev, int indent);
 
