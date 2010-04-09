@@ -1394,9 +1394,26 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_sar_i32:
         c = const_args[2] ? (args[2] & 0x1f) ? SHIFT_IMM_ASR(args[2] & 0x1f) :
                 SHIFT_IMM_LSL(0) : SHIFT_REG_ASR(args[2]);
+        goto gen_shift32;
+    case INDEX_op_rotr_i32:
+        c = const_args[2] ? (args[2] & 0x1f) ? SHIFT_IMM_ROR(args[2] & 0x1f) :
+                SHIFT_IMM_LSL(0) : SHIFT_REG_ROR(args[2]);
         /* Fall through.  */
     gen_shift32:
         tcg_out_dat_reg(s, COND_AL, ARITH_MOV, args[0], 0, args[1], c);
+        break;
+
+    case INDEX_op_rotl_i32:
+        if (const_args[2]) {
+            tcg_out_dat_reg(s, COND_AL, ARITH_MOV, args[0], 0, args[1],
+                            ((0x20 - args[2]) & 0x1f) ?
+                            SHIFT_IMM_ROR((0x20 - args[2]) & 0x1f) :
+                            SHIFT_IMM_LSL(0));
+        } else {
+            tcg_out_dat_imm(s, COND_AL, ARITH_RSB, TCG_REG_R8, args[1], 0x20);
+            tcg_out_dat_reg(s, COND_AL, ARITH_MOV, args[0], 0, args[1],
+                            SHIFT_REG_ROR(TCG_REG_R8));
+        }
         break;
 
     case INDEX_op_brcond_i32:
@@ -1547,6 +1564,8 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_shl_i32, { "r", "r", "ri" } },
     { INDEX_op_shr_i32, { "r", "r", "ri" } },
     { INDEX_op_sar_i32, { "r", "r", "ri" } },
+    { INDEX_op_rotl_i32, { "r", "r", "ri" } },
+    { INDEX_op_rotr_i32, { "r", "r", "ri" } },
 
     { INDEX_op_brcond_i32, { "r", "rI" } },
     { INDEX_op_setcond_i32, { "r", "r", "rI" } },
