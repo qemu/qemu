@@ -89,10 +89,6 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 #endif
 
 static const int tcg_target_reg_alloc_order[] = {
-    TCG_REG_R0,
-    TCG_REG_R1,
-    TCG_REG_R2,
-    TCG_REG_R3,
     TCG_REG_R4,
     TCG_REG_R5,
     TCG_REG_R6,
@@ -101,8 +97,12 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_R9,
     TCG_REG_R10,
     TCG_REG_R11,
-    TCG_REG_R12,
     TCG_REG_R13,
+    TCG_REG_R0,
+    TCG_REG_R1,
+    TCG_REG_R2,
+    TCG_REG_R3,
+    TCG_REG_R12,
     TCG_REG_R14,
 };
 
