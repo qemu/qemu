@@ -1450,7 +1450,9 @@ static const TCGTargetOpDef mips_op_defs[] = {
 };
 
 static int tcg_target_callee_save_regs[] = {
+#if 0 /* used for the global env (TCG_AREG0), so no need to save */
     TCG_REG_S0,
+#endif
     TCG_REG_S1,
     TCG_REG_S2,
     TCG_REG_S3,
@@ -1459,8 +1461,7 @@ static int tcg_target_callee_save_regs[] = {
     TCG_REG_S6,
     TCG_REG_S7,
     TCG_REG_GP,
-    /* TCG_REG_FP, */ /* currently used for the global env, so np
-                         need to save */
+    TCG_REG_FP,
     TCG_REG_RA,       /* should be last for ABI compliance */
 };
 
@@ -1524,6 +1525,7 @@ void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_AT);   /* internal use */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_T0);   /* internal use */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_RA);   /* return address */
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_FP);   /* frame pointer */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_SP);   /* stack pointer */
 
     tcg_add_target_add_op_defs(mips_op_defs);
