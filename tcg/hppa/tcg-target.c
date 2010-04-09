@@ -97,6 +97,9 @@ static inline int check_fit_tl(tcg_target_long val, unsigned int bits)
    Copied from gcc sources.  */
 static inline int or_mask_p(tcg_target_ulong mask)
 {
+    if (mask == 0 || mask == -1) {
+        return 0;
+    }
     mask += mask & -mask;
     return (mask & (mask - 1)) == 0;
 }
@@ -213,6 +216,12 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
     case 'K':
         ct->ct |= TCG_CT_CONST_MS11;
         break;
+    case 'M':
+        ct->ct |= TCG_CT_CONST_AND;
+        break;
+    case 'O':
+        ct->ct |= TCG_CT_CONST_OR;
+        break;
     default:
         return -1;
     }
@@ -236,6 +245,10 @@ static int tcg_target_const_match(tcg_target_long val,
         return check_fit_tl(val, 11);
     } else if (ct & TCG_CT_CONST_MS11) {
         return check_fit_tl(-val, 11);
+    } else if (ct & TCG_CT_CONST_AND) {
+        return and_mask_p(val);
+    } else if (ct & TCG_CT_CONST_OR) {
+        return or_mask_p(val);
     }
     return 0;
 }
@@ -474,70 +487,54 @@ static void tcg_out_vshd(TCGContext *s, int ret, int hi, int lo, int creg)
 
 static void tcg_out_ori(TCGContext *s, int ret, int arg, tcg_target_ulong m)
 {
-    if (m == 0) {
-        tcg_out_mov(s, ret, arg);
-    } else if (m == -1) {
-        tcg_out_movi(s, TCG_TYPE_I32, ret, -1);
-    } else if (or_mask_p(m)) {
-        int bs0, bs1;
+    int bs0, bs1;
 
-        for (bs0 = 0; bs0 < 32; bs0++) {
-            if ((m & (1u << bs0)) != 0) {
-                break;
-            }
+    /* Note that the argument is constrained to match or_mask_p.  */
+    for (bs0 = 0; bs0 < 32; bs0++) {
+        if ((m & (1u << bs0)) != 0) {
+            break;
         }
-        for (bs1 = bs0; bs1 < 32; bs1++) {
-            if ((m & (1u << bs1)) == 0) {
-                break;
-            }
-        }
-        assert(bs1 == 32 || (1ul << bs1) > m);
-
-        tcg_out_mov(s, ret, arg);
-        tcg_out32(s, INSN_DEPI | INSN_R2(ret) | INSN_IM5(-1)
-                  | INSN_SHDEP_CP(31 - bs0) | INSN_DEP_LEN(bs1 - bs0));
-    } else {
-        tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_R1, m);
-        tcg_out_arith(s, ret, arg, TCG_REG_R1, INSN_OR);
     }
+    for (bs1 = bs0; bs1 < 32; bs1++) {
+        if ((m & (1u << bs1)) == 0) {
+            break;
+        }
+    }
+    assert(bs1 == 32 || (1ul << bs1) > m);
+
+    tcg_out_mov(s, ret, arg);
+    tcg_out32(s, INSN_DEPI | INSN_R2(ret) | INSN_IM5(-1)
+              | INSN_SHDEP_CP(31 - bs0) | INSN_DEP_LEN(bs1 - bs0));
 }
 
 static void tcg_out_andi(TCGContext *s, int ret, int arg, tcg_target_ulong m)
 {
-    if (m == 0) {
-        tcg_out_mov(s, ret, TCG_REG_R0);
-    } else if (m == -1) {
-        tcg_out_mov(s, ret, arg);
-    } else if (and_mask_p(m)) {
-        int ls0, ls1, ms0;
+    int ls0, ls1, ms0;
 
-        for (ls0 = 0; ls0 < 32; ls0++) {
-            if ((m & (1u << ls0)) == 0) {
-                break;
-            }
+    /* Note that the argument is constrained to match and_mask_p.  */
+    for (ls0 = 0; ls0 < 32; ls0++) {
+        if ((m & (1u << ls0)) == 0) {
+            break;
         }
-        for (ls1 = ls0; ls1 < 32; ls1++) {
-            if ((m & (1u << ls1)) != 0) {
-                break;
-            }
+    }
+    for (ls1 = ls0; ls1 < 32; ls1++) {
+        if ((m & (1u << ls1)) != 0) {
+            break;
         }
-        for (ms0 = ls1; ms0 < 32; ms0++) {
-            if ((m & (1u << ms0)) == 0) {
-                break;
-            }
+    }
+    for (ms0 = ls1; ms0 < 32; ms0++) {
+        if ((m & (1u << ms0)) == 0) {
+            break;
         }
-        assert (ms0 == 32);
+    }
+    assert (ms0 == 32);
 
-        if (ls1 == 32) {
-            tcg_out_extr(s, ret, arg, 0, ls0, 0);
-        } else {
-            tcg_out_mov(s, ret, arg);
-            tcg_out32(s, INSN_DEPI | INSN_R2(ret) | INSN_IM5(0)
-                      | INSN_SHDEP_CP(31 - ls0) | INSN_DEP_LEN(ls1 - ls0));
-        }
+    if (ls1 == 32) {
+        tcg_out_extr(s, ret, arg, 0, ls0, 0);
     } else {
-        tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_R1, m);
-        tcg_out_arith(s, ret, arg, TCG_REG_R1, INSN_AND);
+        tcg_out_mov(s, ret, arg);
+        tcg_out32(s, INSN_DEPI | INSN_R2(ret) | INSN_IM5(0)
+                  | INSN_SHDEP_CP(31 - ls0) | INSN_DEP_LEN(ls1 - ls0));
     }
 }
 
@@ -1539,10 +1536,13 @@ static const TCGTargetOpDef hppa_op_defs[] = {
 
     { INDEX_op_add_i32, { "r", "rZ", "ri" } },
     { INDEX_op_sub_i32, { "r", "rI", "ri" } },
-    { INDEX_op_and_i32, { "r", "rZ", "ri" } },
-    { INDEX_op_or_i32, { "r", "rZ", "ri" } },
+    { INDEX_op_and_i32, { "r", "rZ", "rM" } },
+    { INDEX_op_or_i32, { "r", "rZ", "rO" } },
     { INDEX_op_xor_i32, { "r", "rZ", "rZ" } },
-    { INDEX_op_andc_i32, { "r", "rZ", "ri" } },
+    /* Note that the second argument will be inverted, which means
+       we want a constant whose inversion matches M, and that O = ~M.
+       See the implementation of and_mask_p.  */
+    { INDEX_op_andc_i32, { "r", "rZ", "rO" } },
 
     { INDEX_op_mul_i32, { "r", "r", "r" } },
     { INDEX_op_mulu2_i32, { "r", "r", "r", "r" } },
