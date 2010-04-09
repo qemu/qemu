@@ -396,18 +396,11 @@ static inline void tcg_out_dat_imm(TCGContext *s,
 static inline void tcg_out_movi32(TCGContext *s,
                 int cond, int rd, int32_t arg)
 {
-    int offset = (uint32_t) arg - ((uint32_t) s->code_ptr + 8);
-
     /* TODO: This is very suboptimal, we can easily have a constant
      * pool somewhere after all the instructions.  */
 
     if (arg < 0 && arg > -0x100)
         return tcg_out_dat_imm(s, cond, ARITH_MVN, rd, 0, (~arg) & 0xff);
-
-    if (offset < 0x100 && offset > -0x100)
-        return offset >= 0 ?
-                tcg_out_dat_imm(s, cond, ARITH_ADD, rd, 15, offset) :
-                tcg_out_dat_imm(s, cond, ARITH_SUB, rd, 15, -offset);
 
     if (use_armv7_instructions) {
         /* use movw/movt */
