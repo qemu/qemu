@@ -44,9 +44,10 @@ enum {
     TCG_REG_R12,
     TCG_REG_R13,
     TCG_REG_R14,
+    TCG_REG_PC,
 };
 
-#define TCG_TARGET_NB_REGS 15
+#define TCG_TARGET_NB_REGS 16
 
 #define TCG_CT_CONST_ARM 0x100
 

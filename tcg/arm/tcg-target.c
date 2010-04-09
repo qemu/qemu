@@ -39,6 +39,7 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "%r12",
     "%r13",
     "%r14",
+    "%pc",
 };
 #endif
 
@@ -1580,15 +1581,19 @@ void tcg_target_init(TCGContext *s)
         tcg_abort();
 #endif
 
-    tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0,
-                    ((2 << TCG_REG_R14) - 1) & ~(1 << TCG_REG_R8));
+    tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffff);
     tcg_regset_set32(tcg_target_call_clobber_regs, 0,
-                    ((2 << TCG_REG_R3) - 1) |
-                    (1 << TCG_REG_R12) | (1 << TCG_REG_R14));
+                     (1 << TCG_REG_R0) |
+                     (1 << TCG_REG_R1) |
+                     (1 << TCG_REG_R2) |
+                     (1 << TCG_REG_R3) |
+                     (1 << TCG_REG_R12) |
+                     (1 << TCG_REG_R14));
 
     tcg_regset_clear(s->reserved_regs);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R8);
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_PC);
 
     tcg_add_target_add_op_defs(arm_op_defs);
 }
