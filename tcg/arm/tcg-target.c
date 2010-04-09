@@ -527,6 +527,38 @@ static inline void tcg_out_ext16u(TCGContext *s, int cond,
     }
 }
 
+static inline void tcg_out_bswap16(TCGContext *s, int cond, int rd, int rn)
+{
+    if (use_armv6_instructions) {
+        /* rev16 */
+        tcg_out32(s, 0x06bf0fb0 | (cond << 28) | (rd << 12) | rn);
+    } else {
+        tcg_out_dat_reg(s, cond, ARITH_MOV,
+                        TCG_REG_R8, 0, rn, SHIFT_IMM_LSL(24));
+        tcg_out_dat_reg(s, cond, ARITH_MOV,
+                        TCG_REG_R8, 0, TCG_REG_R8, SHIFT_IMM_LSR(16));
+        tcg_out_dat_reg(s, cond, ARITH_ORR,
+                        rd, TCG_REG_R8, rn, SHIFT_IMM_LSR(8));
+    }
+}
+
+static inline void tcg_out_bswap32(TCGContext *s, int cond, int rd, int rn)
+{
+    if (use_armv6_instructions) {
+        /* rev */
+        tcg_out32(s, 0x06bf0f30 | (cond << 28) | (rd << 12) | rn);
+    } else {
+        tcg_out_dat_reg(s, cond, ARITH_EOR,
+                        TCG_REG_R8, rn, rn, SHIFT_IMM_ROR(16));
+        tcg_out_dat_imm(s, cond, ARITH_BIC,
+                        TCG_REG_R8, TCG_REG_R8, 0xff | 0x800);
+        tcg_out_dat_reg(s, cond, ARITH_MOV,
+                        rd, 0, rn, SHIFT_IMM_ROR(8));
+        tcg_out_dat_reg(s, cond, ARITH_EOR,
+                        rd, rd, TCG_REG_R8, SHIFT_IMM_LSR(8));
+    }
+}
+
 static inline void tcg_out_ld32_12(TCGContext *s, int cond,
                 int rd, int rn, tcg_target_long im)
 {
@@ -1544,6 +1576,13 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_qemu_st(s, COND_AL, args, 3);
         break;
 
+    case INDEX_op_bswap16_i32:
+        tcg_out_bswap16(s, COND_AL, args[0], args[1]);
+        break;
+    case INDEX_op_bswap32_i32:
+        tcg_out_bswap32(s, COND_AL, args[0], args[1]);
+        break;
+
     case INDEX_op_ext8s_i32:
         tcg_out_ext8s(s, COND_AL, args[0], args[1]);
         break;
@@ -1630,6 +1669,9 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_qemu_st32, { "x", "x", "X" } },
     { INDEX_op_qemu_st64, { "x", "D", "x", "X" } },
 #endif
+
+    { INDEX_op_bswap16_i32, { "r", "r" } },
+    { INDEX_op_bswap32_i32, { "r", "r" } },
 
     { INDEX_op_ext8s_i32, { "r", "r" } },
     { INDEX_op_ext16s_i32, { "r", "r" } },
