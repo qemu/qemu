@@ -69,9 +69,9 @@ extern int printf(const char *, ...);
 #define AREG1 "r14"
 #define AREG2 "r15"
 #elif defined(__mips__)
-#define AREG0 "fp"
-#define AREG1 "s0"
-#define AREG2 "s1"
+#define AREG0 "s0"
+#define AREG1 "s1"
+#define AREG2 "fp"
 #elif defined(__sparc__)
 #ifdef CONFIG_SOLARIS
 #define AREG0 "g2"
