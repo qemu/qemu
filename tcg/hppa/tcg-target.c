@@ -723,8 +723,11 @@ static void tcg_out_branch(TCGContext *s, int label_index, int nul)
 
         tcg_out32(s, op | reassemble_17(val));
     } else {
+        /* We need to keep the offset unchanged for retranslation.  */
+        uint32_t old_insn = *(uint32_t *)s->code_ptr;
+
         tcg_out_reloc(s, s->code_ptr, R_PARISC_PCREL17F, label_index, 0);
-        tcg_out32(s, op);
+        tcg_out32(s, op | (old_insn & 0x1f1ffdu));
     }
 }
 
@@ -777,11 +780,14 @@ static void tcg_out_brcond(TCGContext *s, int cond, TCGArg c1,
         tcg_out32(s, op | reassemble_12(val));
         tcg_out_nop(s);
     } else {
+        /* We need to keep the offset unchanged for retranslation.  */
+        uint32_t old_insn = *(uint32_t *)s->code_ptr;
+
         tcg_out_reloc(s, s->code_ptr, R_PARISC_PCREL12F, label_index, 0);
         /* ??? Assume that all branches to undefined labels are forward.
            Which means that if the nul bit is set, the delay slot is
            not executed if the branch is taken, which is what we want.  */
-        tcg_out32(s, op | 2);
+        tcg_out32(s, op | 2 | (old_insn & 0x1ffdu));
     }
 }
 
