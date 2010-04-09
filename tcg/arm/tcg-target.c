@@ -499,7 +499,7 @@ static inline void tcg_out_ld16u_8(TCGContext *s, int cond,
                         (((-im) & 0xf0) << 4) | ((-im) & 0xf));
 }
 
-static inline void tcg_out_st16u_8(TCGContext *s, int cond,
+static inline void tcg_out_st16_8(TCGContext *s, int cond,
                 int rd, int rn, tcg_target_long im)
 {
     if (im >= 0)
@@ -519,7 +519,7 @@ static inline void tcg_out_ld16u_r(TCGContext *s, int cond,
                     (rn << 16) | (rd << 12) | rm);
 }
 
-static inline void tcg_out_st16u_r(TCGContext *s, int cond,
+static inline void tcg_out_st16_r(TCGContext *s, int cond,
                 int rd, int rn, int rm)
 {
     tcg_out32(s, (cond << 28) | 0x018000b0 |
@@ -539,30 +539,10 @@ static inline void tcg_out_ld16s_8(TCGContext *s, int cond,
                         (((-im) & 0xf0) << 4) | ((-im) & 0xf));
 }
 
-static inline void tcg_out_st16s_8(TCGContext *s, int cond,
-                int rd, int rn, tcg_target_long im)
-{
-    if (im >= 0)
-        tcg_out32(s, (cond << 28) | 0x01c000f0 |
-                        (rn << 16) | (rd << 12) |
-                        ((im & 0xf0) << 4) | (im & 0xf));
-    else
-        tcg_out32(s, (cond << 28) | 0x014000f0 |
-                        (rn << 16) | (rd << 12) |
-                        (((-im) & 0xf0) << 4) | ((-im) & 0xf));
-}
-
 static inline void tcg_out_ld16s_r(TCGContext *s, int cond,
                 int rd, int rn, int rm)
 {
     tcg_out32(s, (cond << 28) | 0x019000f0 |
-                    (rn << 16) | (rd << 12) | rm);
-}
-
-static inline void tcg_out_st16s_r(TCGContext *s, int cond,
-                int rd, int rn, int rm)
-{
-    tcg_out32(s, (cond << 28) | 0x018000f0 |
                     (rn << 16) | (rd << 12) | rm);
 }
 
@@ -615,30 +595,10 @@ static inline void tcg_out_ld8s_8(TCGContext *s, int cond,
                         (((-im) & 0xf0) << 4) | ((-im) & 0xf));
 }
 
-static inline void tcg_out_st8s_8(TCGContext *s, int cond,
-                int rd, int rn, tcg_target_long im)
-{
-    if (im >= 0)
-        tcg_out32(s, (cond << 28) | 0x01c000d0 |
-                        (rn << 16) | (rd << 12) |
-                        ((im & 0xf0) << 4) | (im & 0xf));
-    else
-        tcg_out32(s, (cond << 28) | 0x014000d0 |
-                        (rn << 16) | (rd << 12) |
-                        (((-im) & 0xf0) << 4) | ((-im) & 0xf));
-}
-
 static inline void tcg_out_ld8s_r(TCGContext *s, int cond,
                 int rd, int rn, int rm)
 {
     tcg_out32(s, (cond << 28) | 0x019000d0 |
-                    (rn << 16) | (rd << 12) | rm);
-}
-
-static inline void tcg_out_st8s_r(TCGContext *s, int cond,
-                int rd, int rn, int rm)
-{
-    tcg_out32(s, (cond << 28) | 0x018000d0 |
                     (rn << 16) | (rd << 12) | rm);
 }
 
@@ -682,14 +642,14 @@ static inline void tcg_out_ld16s(TCGContext *s, int cond,
         tcg_out_ld16s_8(s, cond, rd, rn, offset);
 }
 
-static inline void tcg_out_st16u(TCGContext *s, int cond,
+static inline void tcg_out_st16(TCGContext *s, int cond,
                 int rd, int rn, int32_t offset)
 {
     if (offset > 0xff || offset < -0xff) {
         tcg_out_movi32(s, cond, TCG_REG_R8, offset);
-        tcg_out_st16u_r(s, cond, rd, rn, TCG_REG_R8);
+        tcg_out_st16_r(s, cond, rd, rn, TCG_REG_R8);
     } else
-        tcg_out_st16u_8(s, cond, rd, rn, offset);
+        tcg_out_st16_8(s, cond, rd, rn, offset);
 }
 
 static inline void tcg_out_ld8u(TCGContext *s, int cond,
@@ -712,7 +672,7 @@ static inline void tcg_out_ld8s(TCGContext *s, int cond,
         tcg_out_ld8s_8(s, cond, rd, rn, offset);
 }
 
-static inline void tcg_out_st8u(TCGContext *s, int cond,
+static inline void tcg_out_st8(TCGContext *s, int cond,
                 int rd, int rn, int32_t offset)
 {
     if (offset > 0xfff || offset < -0xfff) {
@@ -1075,14 +1035,8 @@ static inline void tcg_out_qemu_st(TCGContext *s, int cond,
     case 0:
         tcg_out_st8_r(s, COND_EQ, data_reg, addr_reg, 1);
         break;
-    case 0 | 4:
-        tcg_out_st8s_r(s, COND_EQ, data_reg, addr_reg, 1);
-        break;
     case 1:
-        tcg_out_st16u_r(s, COND_EQ, data_reg, addr_reg, 1);
-        break;
-    case 1 | 4:
-        tcg_out_st16s_r(s, COND_EQ, data_reg, addr_reg, 1);
+        tcg_out_st16_r(s, COND_EQ, data_reg, addr_reg, 1);
         break;
     case 2:
     default:
@@ -1193,14 +1147,8 @@ static inline void tcg_out_qemu_st(TCGContext *s, int cond,
     case 0:
         tcg_out_st8_12(s, COND_AL, data_reg, addr_reg, 0);
         break;
-    case 0 | 4:
-        tcg_out_st8s_8(s, COND_AL, data_reg, addr_reg, 0);
-        break;
     case 1:
-        tcg_out_st16u_8(s, COND_AL, data_reg, addr_reg, 0);
-        break;
-    case 1 | 4:
-        tcg_out_st16s_8(s, COND_AL, data_reg, addr_reg, 0);
+        tcg_out_st16_8(s, COND_AL, data_reg, addr_reg, 0);
         break;
     case 2:
     default:
@@ -1299,10 +1247,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_ld32u(s, COND_AL, args[0], args[1], args[2]);
         break;
     case INDEX_op_st8_i32:
-        tcg_out_st8u(s, COND_AL, args[0], args[1], args[2]);
+        tcg_out_st8(s, COND_AL, args[0], args[1], args[2]);
         break;
     case INDEX_op_st16_i32:
-        tcg_out_st16u(s, COND_AL, args[0], args[1], args[2]);
+        tcg_out_st16(s, COND_AL, args[0], args[1], args[2]);
         break;
     case INDEX_op_st_i32:
         tcg_out_st32(s, COND_AL, args[0], args[1], args[2]);
