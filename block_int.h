@@ -200,8 +200,6 @@ void qemu_aio_release(void *p);
 
 void *qemu_blockalign(BlockDriverState *bs, size_t size);
 
-extern BlockDriverState *bdrv_first;
-
 #ifdef _WIN32
 int is_windows_drive(const char *filename);
 #endif
