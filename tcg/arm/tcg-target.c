@@ -22,6 +22,51 @@
  * THE SOFTWARE.
  */
 
+#if defined(__ARM_ARCH_7__) ||  \
+    defined(__ARM_ARCH_7A__) || \
+    defined(__ARM_ARCH_7EM__) || \
+    defined(__ARM_ARCH_7M__) || \
+    defined(__ARM_ARCH_7R__)
+#define USE_ARMV7_INSTRUCTIONS
+#endif
+
+#if defined(USE_ARMV7_INSTRUCTIONS) || \
+    defined(__ARM_ARCH_6J__) || \
+    defined(__ARM_ARCH_6K__) || \
+    defined(__ARM_ARCH_6T2__) || \
+    defined(__ARM_ARCH_6Z__) || \
+    defined(__ARM_ARCH_6ZK__)
+#define USE_ARMV6_INSTRUCTIONS
+#endif
+
+#if defined(USE_ARMV6_INSTRUCTIONS) || \
+    defined(__ARM_ARCH_5T__) || \
+    defined(__ARM_ARCH_5TE__) || \
+    defined(__ARM_ARCH_5TEJ__)
+#define USE_ARMV5_INSTRUCTIONS
+#endif
+
+#ifdef USE_ARMV5_INSTRUCTIONS
+static const int use_armv5_instructions = 1;
+#else
+static const int use_armv5_instructions = 0;
+#endif
+#undef USE_ARMV5_INSTRUCTIONS
+
+#ifdef USE_ARMV6_INSTRUCTIONS
+static const int use_armv6_instructions = 1;
+#else
+static const int use_armv6_instructions = 0;
+#endif
+#undef USE_ARMV6_INSTRUCTIONS
+
+#ifdef USE_ARMV7_INSTRUCTIONS
+static const int use_armv7_instructions = 1;
+#else
+static const int use_armv7_instructions = 0;
+#endif
+#undef USE_ARMV7_INSTRUCTIONS
+
 #ifndef NDEBUG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "%r0",
@@ -361,27 +406,27 @@ static inline void tcg_out_movi32(TCGContext *s,
                 tcg_out_dat_imm(s, cond, ARITH_ADD, rd, 15, offset) :
                 tcg_out_dat_imm(s, cond, ARITH_SUB, rd, 15, -offset);
 
-#ifdef __ARM_ARCH_7A__
-    /* use movw/movt */
-    /* movw */
-    tcg_out32(s, (cond << 28) | 0x03000000 | (rd << 12)
-              | ((arg << 4) & 0x000f0000) | (arg & 0xfff));
-    if (arg & 0xffff0000)
-        /* movt */
-        tcg_out32(s, (cond << 28) | 0x03400000 | (rd << 12)
-                  | ((arg >> 12) & 0x000f0000) | ((arg >> 16) & 0xfff));
-#else
-    tcg_out_dat_imm(s, cond, ARITH_MOV, rd, 0, arg & 0xff);
-    if (arg & 0x0000ff00)
-        tcg_out_dat_imm(s, cond, ARITH_ORR, rd, rd,
-                        ((arg >>  8) & 0xff) | 0xc00);
-    if (arg & 0x00ff0000)
-        tcg_out_dat_imm(s, cond, ARITH_ORR, rd, rd,
-                        ((arg >> 16) & 0xff) | 0x800);
-    if (arg & 0xff000000)
-        tcg_out_dat_imm(s, cond, ARITH_ORR, rd, rd,
-                        ((arg >> 24) & 0xff) | 0x400);
-#endif
+    if (use_armv7_instructions) {
+        /* use movw/movt */
+        /* movw */
+        tcg_out32(s, (cond << 28) | 0x03000000 | (rd << 12)
+                  | ((arg << 4) & 0x000f0000) | (arg & 0xfff));
+        if (arg & 0xffff0000)
+            /* movt */
+            tcg_out32(s, (cond << 28) | 0x03400000 | (rd << 12)
+                      | ((arg >> 12) & 0x000f0000) | ((arg >> 16) & 0xfff));
+    } else {
+        tcg_out_dat_imm(s, cond, ARITH_MOV, rd, 0, arg & 0xff);
+        if (arg & 0x0000ff00)
+            tcg_out_dat_imm(s, cond, ARITH_ORR, rd, rd,
+                            ((arg >>  8) & 0xff) | 0xc00);
+        if (arg & 0x00ff0000)
+            tcg_out_dat_imm(s, cond, ARITH_ORR, rd, rd,
+                            ((arg >> 16) & 0xff) | 0x800);
+        if (arg & 0xff000000)
+            tcg_out_dat_imm(s, cond, ARITH_ORR, rd, rd,
+                            ((arg >> 24) & 0xff) | 0x400);
+        }
 }
 
 static inline void tcg_out_mul32(TCGContext *s,
@@ -1433,26 +1478,26 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_ext8s_i32:
-#ifdef __ARM_ARCH_7A__
-        /* sxtb */
-        tcg_out32(s, 0xe6af0070 | (args[0] << 12) | args[1]);
-#else
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                        args[0], 0, args[1], SHIFT_IMM_LSL(24));
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                        args[0], 0, args[0], SHIFT_IMM_ASR(24));
-#endif
+        if (use_armv7_instructions) {
+            /* sxtb */
+            tcg_out32(s, 0xe6af0070 | (args[0] << 12) | args[1]);
+        } else {
+            tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                            args[0], 0, args[1], SHIFT_IMM_LSL(24));
+            tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                            args[0], 0, args[0], SHIFT_IMM_ASR(24));
+        }
         break;
     case INDEX_op_ext16s_i32:
-#ifdef __ARM_ARCH_7A__
-        /* sxth */
-        tcg_out32(s, 0xe6bf0070 | (args[0] << 12) | args[1]);
-#else
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                        args[0], 0, args[1], SHIFT_IMM_LSL(16));
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                        args[0], 0, args[0], SHIFT_IMM_ASR(16));
-#endif
+        if (use_armv7_instructions) {
+            /* sxth */
+            tcg_out32(s, 0xe6bf0070 | (args[0] << 12) | args[1]);
+        } else {
+            tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                            args[0], 0, args[1], SHIFT_IMM_LSL(16));
+            tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                            args[0], 0, args[0], SHIFT_IMM_ASR(16));
+        }
         break;
 
     default:
