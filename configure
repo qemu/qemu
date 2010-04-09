@@ -963,6 +963,8 @@ feature_not_found() {
   exit 1;
 }
 
+cc_macros=`$cc -E -dD - </dev/null`
+
 if test -z "$cross_prefix" ; then
 
 # ---
@@ -1001,13 +1003,14 @@ case "$cpu" in
   ;;
 esac
 
-# host long bits test
-hostlongbits="32"
-case "$cpu" in
-  x86_64|alpha|ia64|mips64|sparc64|ppc64|s390x)
-    hostlongbits=64
-  ;;
-esac
+if echo $cc_macros | fgrep -q '#define __SIZEOF_LONG__ 4'; then
+  hostlongbits=32
+elif echo $cc_macros | fgrep -q '#define __SIZEOF_LONG__ 8'; then
+  hostlongbits=64
+else
+  echo "ERROR: Unknown size of host long"
+  exit 1
+fi
 
 
 ##########################################
