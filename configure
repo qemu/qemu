@@ -1007,6 +1007,8 @@ if echo $cc_macros | fgrep -q '#define __SIZEOF_LONG__ 4'; then
   hostlongbits=32
 elif echo $cc_macros | fgrep -q '#define __SIZEOF_LONG__ 8'; then
   hostlongbits=64
+elif echo $cc_macros | fgrep -q '#define __LONG_MAX__ 2147483647'; then
+  hostlongbits=32
 else
   echo "ERROR: Unknown size of host long"
   exit 1
