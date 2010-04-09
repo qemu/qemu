@@ -499,6 +499,12 @@ static inline void tcg_out_ext8s(TCGContext *s, int cond,
     }
 }
 
+static inline void tcg_out_ext8u(TCGContext *s, int cond,
+                                 int rd, int rn)
+{
+    tcg_out_dat_imm(s, cond, ARITH_AND, rd, rn, 0xff);
+}
+
 static inline void tcg_out_ext16s(TCGContext *s, int cond,
                                   int rd, int rn)
 {
@@ -1017,16 +1023,10 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
 
     switch (opc) {
     case 0 | 4:
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                        TCG_REG_R0, 0, TCG_REG_R0, SHIFT_IMM_LSL(24));
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                        data_reg, 0, TCG_REG_R0, SHIFT_IMM_ASR(24));
+        tcg_out_ext8s(s, COND_AL, data_reg, TCG_REG_R0);
         break;
     case 1 | 4:
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                        TCG_REG_R0, 0, TCG_REG_R0, SHIFT_IMM_LSL(16));
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                        data_reg, 0, TCG_REG_R0, SHIFT_IMM_ASR(16));
+        tcg_out_ext16s(s, COND_AL, data_reg, TCG_REG_R0);
         break;
     case 0:
     case 1:
@@ -1191,14 +1191,11 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
 # if TARGET_LONG_BITS == 32
     switch (opc) {
     case 0:
-        tcg_out_dat_imm(s, COND_AL, ARITH_AND, TCG_REG_R1, data_reg, 0xff);
+        tcg_out_ext8u(s, COND_AL, TCG_REG_R1, data_reg);
         tcg_out_dat_imm(s, COND_AL, ARITH_MOV, TCG_REG_R2, 0, mem_index);
         break;
     case 1:
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                        TCG_REG_R1, 0, data_reg, SHIFT_IMM_LSL(16));
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                        TCG_REG_R1, 0, TCG_REG_R1, SHIFT_IMM_LSR(16));
+        tcg_out_ext16u(s, COND_AL, TCG_REG_R1, data_reg);
         tcg_out_dat_imm(s, COND_AL, ARITH_MOV, TCG_REG_R2, 0, mem_index);
         break;
     case 2:
@@ -1227,14 +1224,11 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
     }
     switch (opc) {
     case 0:
-        tcg_out_dat_imm(s, COND_AL, ARITH_AND, TCG_REG_R2, data_reg, 0xff);
+        tcg_out_ext8u(s, COND_AL, TCG_REG_R2, data_reg);
         tcg_out_dat_imm(s, COND_AL, ARITH_MOV, TCG_REG_R3, 0, mem_index);
         break;
     case 1:
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                        TCG_REG_R2, 0, data_reg, SHIFT_IMM_LSL(16));
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                        TCG_REG_R2, 0, TCG_REG_R2, SHIFT_IMM_LSR(16));
+        tcg_out_ext16u(s, COND_AL, TCG_REG_R2, data_reg);
         tcg_out_dat_imm(s, COND_AL, ARITH_MOV, TCG_REG_R3, 0, mem_index);
         break;
     case 2:
