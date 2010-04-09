@@ -1493,10 +1493,10 @@ print_insn_ppi (int field_b, struct disassemble_info *info)
 		  print_dsp_reg (field_b & 0xf, fprintf_fn, stream);
 		  break;
 		case DSP_REG_X:
-		  fprintf_fn (stream, sx_tab[(field_b >> 6) & 3]);
+		  fprintf_fn (stream, "%s", sx_tab[(field_b >> 6) & 3]);
 		  break;
 		case DSP_REG_Y:
-		  fprintf_fn (stream, sy_tab[(field_b >> 4) & 3]);
+		  fprintf_fn (stream, "%s", sy_tab[(field_b >> 4) & 3]);
 		  break;
 		case A_MACH:
 		  fprintf_fn (stream, "mach");
