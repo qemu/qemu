@@ -564,6 +564,18 @@ static void baum_chr_read(void *opaque)
     }
 }
 
+static void baum_close(struct CharDriverState *chr)
+{
+    BaumDriverState *baum = chr->opaque;
+
+    qemu_free_timer(baum->cellCount_timer);
+    if (baum->brlapi) {
+        brlapi__closeConnection(baum->brlapi);
+        qemu_free(baum->brlapi);
+    }
+    qemu_free(baum);
+}
+
 CharDriverState *chr_baum_init(QemuOpts *opts)
 {
     BaumDriverState *baum;
@@ -581,6 +593,7 @@ CharDriverState *chr_baum_init(QemuOpts *opts)
     chr->chr_write = baum_write;
     chr->chr_send_event = baum_send_event;
     chr->chr_accept_input = baum_accept_input;
+    chr->chr_close = baum_close;
 
     handle = qemu_mallocz(brlapi_getHandleSize());
     baum->brlapi = handle;

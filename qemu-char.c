@@ -1220,7 +1220,7 @@ static CharDriverState *qemu_chr_open_tty(QemuOpts *opts)
     return chr;
 }
 #else  /* ! __linux__ && ! __sun__ */
-static CharDriverState *qemu_chr_open_pty(void)
+static CharDriverState *qemu_chr_open_pty(QemuOpts *opts)
 {
     return NULL;
 }

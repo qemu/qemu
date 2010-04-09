@@ -41,14 +41,6 @@ TCGArg gen_opparam_buf[OPPARAM_BUF_SIZE];
 target_ulong gen_opc_pc[OPC_BUF_SIZE];
 uint16_t gen_opc_icount[OPC_BUF_SIZE];
 uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
-#if defined(TARGET_I386)
-uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
-#elif defined(TARGET_SPARC)
-target_ulong gen_opc_npc[OPC_BUF_SIZE];
-target_ulong gen_opc_jump_pc[2];
-#elif defined(TARGET_MIPS) || defined(TARGET_SH4)
-uint32_t gen_opc_hflags[OPC_BUF_SIZE];
-#endif
 
 /* XXX: suppress that */
 unsigned long code_gen_max_block_size(void)
@@ -105,10 +97,6 @@ int cpu_gen_code(CPUState *env, TranslationBlock *tb, int *gen_code_size_ptr)
 #ifdef USE_DIRECT_JUMP
     s->tb_jmp_offset = tb->tb_jmp_offset;
     s->tb_next = NULL;
-    /* the following two entries are optional (only used for string ops) */
-    /* XXX: not used ? */
-    tb->tb_jmp_offset[2] = 0xffff;
-    tb->tb_jmp_offset[3] = 0xffff;
 #else
     s->tb_jmp_offset = NULL;
     s->tb_next = tb->tb_next;

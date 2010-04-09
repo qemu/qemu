@@ -1237,7 +1237,7 @@ void do_interrupt(int intno, int is_int, int error_code,
 #if 0
             {
                 int i;
-                uint8_t *ptr;
+                target_ulong ptr;
                 qemu_log("       code=");
                 ptr = env->segs[R_CS].base + env->eip;
                 for(i = 0; i < 16; i++) {

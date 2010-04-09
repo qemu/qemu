@@ -443,6 +443,8 @@ static TCGv cpu_dspctrl, btarget, bcond;
 static TCGv_i32 hflags;
 static TCGv_i32 fpu_fcr0, fpu_fcr31;
 
+static uint32_t gen_opc_hflags[OPC_BUF_SIZE];
+
 #include "gen-icount.h"
 
 #define gen_helper_0i(name, arg) do {                             \
@@ -9640,8 +9642,8 @@ void cpu_dump_state (CPUState *env, FILE *f,
     int i;
 
     cpu_fprintf(f, "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx
-                " LO=0x" TARGET_FMT_lx " ds %04x " TARGET_FMT_lx
-                " " TARGET_FMT_lx "\n",
+                " LO=0x" TARGET_FMT_lx " ds %04x "
+                TARGET_FMT_lx " " TARGET_FMT_ld "\n",
                 env->active_tc.PC, env->active_tc.HI[0], env->active_tc.LO[0],
                 env->hflags, env->btarget, env->bcond);
     for (i = 0; i < 32; i++) {

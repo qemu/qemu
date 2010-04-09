@@ -58,12 +58,8 @@ typedef struct TranslationBlock TranslationBlock;
 #define OPPARAM_BUF_SIZE (OPC_BUF_SIZE * MAX_OPC_PARAM)
 
 extern target_ulong gen_opc_pc[OPC_BUF_SIZE];
-extern target_ulong gen_opc_npc[OPC_BUF_SIZE];
-extern uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
 extern uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 extern uint16_t gen_opc_icount[OPC_BUF_SIZE];
-extern target_ulong gen_opc_jump_pc[2];
-extern uint32_t gen_opc_hflags[OPC_BUF_SIZE];
 
 #include "qemu-log.h"
 
@@ -145,7 +141,7 @@ struct TranslationBlock {
        the code of this one. */
     uint16_t tb_next_offset[2]; /* offset of original jump target */
 #ifdef USE_DIRECT_JUMP
-    uint16_t tb_jmp_offset[4]; /* offset of jump instruction */
+    uint16_t tb_jmp_offset[2]; /* offset of jump instruction */
 #else
     unsigned long tb_next[2]; /* address of jump generated code */
 #endif
@@ -245,9 +241,6 @@ static inline void tb_set_jmp_target(TranslationBlock *tb,
 
     offset = tb->tb_jmp_offset[n];
     tb_set_jmp_target1((unsigned long)(tb->tc_ptr + offset), addr);
-    offset = tb->tb_jmp_offset[n + 2];
-    if (offset != 0xffff)
-        tb_set_jmp_target1((unsigned long)(tb->tc_ptr + offset), addr);
 }
 
 #else

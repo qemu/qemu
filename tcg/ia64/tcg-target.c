@@ -1449,13 +1449,8 @@ static inline void tcg_out_qemu_tlb(TCGContext *s, TCGArg addr_reg,
                    tcg_opc_a1 (TCG_REG_P0, OPC_ADD_A1, TCG_REG_R2,
                                TCG_REG_R2, TCG_AREG0));
     tcg_out_bundle(s, mII,
-#if TARGET_LONG_BITS == 32
-                   tcg_opc_m3 (TCG_REG_P0, OPC_LD4_M3, TCG_REG_R57,
-                               TCG_REG_R2, offset_addend - offset_rw),
-#else
                    tcg_opc_m3 (TCG_REG_P0, OPC_LD8_M3, TCG_REG_R57,
                                TCG_REG_R2, offset_addend - offset_rw),
-#endif
                    tcg_opc_a1 (TCG_REG_P0, OPC_AND_A1, TCG_REG_R3,
                                TCG_REG_R3, TCG_REG_R56),
                    tcg_opc_a6 (TCG_REG_P0, OPC_CMP_EQ_A6, TCG_REG_P6,

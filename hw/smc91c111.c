@@ -250,6 +250,7 @@ static void smc91c111_writeb(void *opaque, target_phys_addr_t offset,
 {
     smc91c111_state *s = (smc91c111_state *)opaque;
 
+    offset = offset & 0xf;
     if (offset == 14) {
         s->bank = value;
         return;
@@ -275,6 +276,8 @@ static void smc91c111_writeb(void *opaque, target_phys_addr_t offset,
             return;
         case 10: case 11: /* RPCR */
             /* Ignored */
+            return;
+        case 12: case 13: /* Reserved */
             return;
         }
         break;
@@ -421,6 +424,7 @@ static uint32_t smc91c111_readb(void *opaque, target_phys_addr_t offset)
 {
     smc91c111_state *s = (smc91c111_state *)opaque;
 
+    offset = offset & 0xf;
     if (offset == 14) {
         return s->bank;
     }
@@ -460,6 +464,8 @@ static uint32_t smc91c111_readb(void *opaque, target_phys_addr_t offset)
             }
         case 10: case 11: /* RPCR */
             /* Not implemented.  */
+            return 0;
+        case 12: case 13: /* Reserved */
             return 0;
         }
         break;

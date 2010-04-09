@@ -60,7 +60,7 @@ static uint32_t debugcon_ioport_read(void *opaque, uint32_t addr)
     DebugconState *s = opaque;
 
 #ifdef DEBUG_DEBUGCON
-    printf("debugcon: read addr=0x%04x\n", addr, val);
+    printf("debugcon: read addr=0x%04x\n", addr);
 #endif
 
     return s->readback;
