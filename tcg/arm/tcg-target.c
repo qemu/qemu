@@ -1273,13 +1273,16 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
         tcg_out_dat_imm(s, COND_AL, ARITH_MOV, TCG_REG_R2, 0, mem_index);
         break;
     case 3:
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                        TCG_REG_R1, 0, data_reg, SHIFT_IMM_LSL(0));
-        if (data_reg2 != TCG_REG_R2) {
+        tcg_out_dat_imm(s, COND_AL, ARITH_MOV, TCG_REG_R8, 0, mem_index);
+        tcg_out32(s, (COND_AL << 28) | 0x052d8010); /* str r8, [sp, #-0x10]! */
+        if (data_reg != TCG_REG_R2) {
             tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                            TCG_REG_R2, 0, data_reg2, SHIFT_IMM_LSL(0));
+                            TCG_REG_R2, 0, data_reg, SHIFT_IMM_LSL(0));
         }
-        tcg_out_dat_imm(s, COND_AL, ARITH_MOV, TCG_REG_R3, 0, mem_index);
+        if (data_reg2 != TCG_REG_R3) {
+            tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                            TCG_REG_R3, 0, data_reg2, SHIFT_IMM_LSL(0));
+        }
         break;
     }
 # else
@@ -1318,10 +1321,8 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
 
     tcg_out_bl(s, COND_AL, (tcg_target_long) qemu_st_helpers[s_bits] -
                     (tcg_target_long) s->code_ptr);
-# if TARGET_LONG_BITS == 64
     if (opc == 3)
         tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_R13, TCG_REG_R13, 0x10);
-# endif
 
     *label_ptr += ((void *) s->code_ptr - (void *) label_ptr - 8) >> 2;
 #else /* !CONFIG_SOFTMMU */
@@ -1727,7 +1728,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_qemu_st8, { "s", "s" } },
     { INDEX_op_qemu_st16, { "s", "s" } },
     { INDEX_op_qemu_st32, { "s", "s" } },
-    { INDEX_op_qemu_st64, { "s", "S", "s" } },
+    { INDEX_op_qemu_st64, { "S", "S", "s" } },
 #else
     { INDEX_op_qemu_ld8u, { "r", "l", "l" } },
     { INDEX_op_qemu_ld8s, { "r", "l", "l" } },
@@ -1739,7 +1740,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_qemu_st8, { "s", "s", "s" } },
     { INDEX_op_qemu_st16, { "s", "s", "s" } },
     { INDEX_op_qemu_st32, { "s", "s", "s" } },
-    { INDEX_op_qemu_st64, { "s", "S", "s", "s" } },
+    { INDEX_op_qemu_st64, { "S", "S", "s", "s" } },
 #endif
 
     { INDEX_op_bswap16_i32, { "r", "r" } },
