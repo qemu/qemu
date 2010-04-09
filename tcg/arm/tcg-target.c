@@ -1048,10 +1048,8 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
 # if TARGET_LONG_BITS == 32
     tcg_out_dat_imm(s, COND_AL, ARITH_MOV, TCG_REG_R1, 0, mem_index);
 # else
-    if (addr_reg2 != TCG_REG_R1) {
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                        TCG_REG_R1, 0, addr_reg2, SHIFT_IMM_LSL(0));
-    }
+    tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                    TCG_REG_R1, 0, addr_reg2, SHIFT_IMM_LSL(0));
     tcg_out_dat_imm(s, COND_AL, ARITH_MOV, TCG_REG_R2, 0, mem_index);
 # endif
     tcg_out_bl(s, COND_AL, (tcg_target_long) qemu_ld_helpers[s_bits] -
@@ -1257,10 +1255,8 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
     tcg_out_b(s, COND_EQ, 8);
 
     /* TODO: move this code to where the constants pool will be */
-    if (addr_reg != TCG_REG_R0) {
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                        TCG_REG_R0, 0, addr_reg, SHIFT_IMM_LSL(0));
-    }
+    tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                    TCG_REG_R0, 0, addr_reg, SHIFT_IMM_LSL(0));
 # if TARGET_LONG_BITS == 32
     switch (opc) {
     case 0:
@@ -1272,17 +1268,13 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
         tcg_out_dat_imm(s, COND_AL, ARITH_MOV, TCG_REG_R2, 0, mem_index);
         break;
     case 2:
-        if (data_reg != TCG_REG_R1) {
-            tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                            TCG_REG_R1, 0, data_reg, SHIFT_IMM_LSL(0));
-        }
+        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                        TCG_REG_R1, 0, data_reg, SHIFT_IMM_LSL(0));
         tcg_out_dat_imm(s, COND_AL, ARITH_MOV, TCG_REG_R2, 0, mem_index);
         break;
     case 3:
-        if (data_reg != TCG_REG_R1) {
-            tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                            TCG_REG_R1, 0, data_reg, SHIFT_IMM_LSL(0));
-        }
+        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                        TCG_REG_R1, 0, data_reg, SHIFT_IMM_LSL(0));
         if (data_reg2 != TCG_REG_R2) {
             tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
                             TCG_REG_R2, 0, data_reg2, SHIFT_IMM_LSL(0));
@@ -1291,10 +1283,8 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
         break;
     }
 # else
-    if (addr_reg2 != TCG_REG_R1) {
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                        TCG_REG_R1, 0, addr_reg2, SHIFT_IMM_LSL(0));
-    }
+    tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                    TCG_REG_R1, 0, addr_reg2, SHIFT_IMM_LSL(0));
     switch (opc) {
     case 0:
         tcg_out_ext8u(s, COND_AL, TCG_REG_R2, data_reg);
