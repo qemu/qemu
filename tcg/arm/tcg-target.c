@@ -357,6 +357,11 @@ static inline void tcg_out_bl(TCGContext *s, int cond, int32_t offset)
                     (((offset - 8) >> 2) & 0x00ffffff));
 }
 
+static inline void tcg_out_blx(TCGContext *s, int cond, int rn)
+{
+    tcg_out32(s, (cond << 28) | 0x012fff30 | rn);
+}
+
 static inline void tcg_out_dat_reg(TCGContext *s,
                 int cond, int opc, int rd, int rn, int rm, int shift)
 {
@@ -778,10 +783,13 @@ static inline void tcg_out_call(TCGContext *s, int cond, uint32_t addr)
 
 static inline void tcg_out_callr(TCGContext *s, int cond, int arg)
 {
-    /* TODO: on ARMv5 and ARMv6 replace with tcg_out_blx(s, cond, arg);  */
-    tcg_out_dat_reg(s, cond, ARITH_MOV, TCG_REG_R14, 0,
-                    TCG_REG_PC, SHIFT_IMM_LSL(0));
-    tcg_out_bx(s, cond, arg);
+    if (use_armv5_instructions) {
+        tcg_out_blx(s, cond, arg);
+    } else {
+        tcg_out_dat_reg(s, cond, ARITH_MOV, TCG_REG_R14, 0,
+                        TCG_REG_PC, SHIFT_IMM_LSL(0));
+        tcg_out_bx(s, cond, arg);
+    }
 }
 
 static inline void tcg_out_goto_label(TCGContext *s, int cond, int label_index)
