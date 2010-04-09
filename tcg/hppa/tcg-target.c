@@ -904,7 +904,6 @@ static int tcg_out_tlb_read(TCGContext *s, int r0, int r1, int addrlo,
        CPU_TLB_ENTRY_BITS is > 3, so we can't merge that shift with the
        add that follows.  */
     tcg_out_extr(s, r1, addrlo, TARGET_PAGE_BITS, CPU_TLB_BITS, 0);
-    tcg_out_andi(s, r0, addrlo, TARGET_PAGE_MASK | ((1 << s_bits) - 1));
     tcg_out_shli(s, r1, r1, CPU_TLB_ENTRY_BITS);
     tcg_out_arith(s, r1, r1, TCG_AREG0, INSN_ADDL);
 
@@ -926,6 +925,12 @@ static int tcg_out_tlb_read(TCGContext *s, int r0, int r1, int addrlo,
     } else {
         tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_R20, r1, offset);
     }
+
+    /* Compute the value that ought to appear in the TLB for a hit, namely, the page
+       of the address.  We include the low N bits of the address to catch unaligned
+       accesses and force them onto the slow path.  Do this computation after having
+       issued the load from the TLB slot to give the load time to complete.  */
+    tcg_out_andi(s, r0, addrlo, TARGET_PAGE_MASK | ((1 << s_bits) - 1));
 
     /* If not equal, jump to lab_miss. */
     if (TARGET_LONG_BITS == 64) {
