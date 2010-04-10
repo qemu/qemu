@@ -470,8 +470,10 @@ static void qcow_aio_read_cb(void *opaque, int ret)
                             (acb->cluster_offset >> 9) + index_in_cluster,
                             &acb->hd_qiov, acb->cur_nr_sectors,
                             qcow_aio_read_cb, acb);
-        if (acb->hd_aiocb == NULL)
+        if (acb->hd_aiocb == NULL) {
+            ret = -EIO;
             goto done;
+        }
     }
 
     return;
@@ -623,11 +625,17 @@ static void qcow_aio_write_cb(void *opaque, int ret)
                                     (acb->cluster_offset >> 9) + index_in_cluster,
                                     &acb->hd_qiov, acb->cur_nr_sectors,
                                     qcow_aio_write_cb, acb);
-    if (acb->hd_aiocb == NULL)
-        goto done;
+    if (acb->hd_aiocb == NULL) {
+        ret = -EIO;
+        goto fail;
+    }
 
     return;
 
+fail:
+    if (acb->l2meta.nb_clusters != 0) {
+        QLIST_REMOVE(&acb->l2meta, next_in_flight);
+    }
 done:
     if (acb->qiov->niov > 1)
         qemu_vfree(acb->orig_buf);

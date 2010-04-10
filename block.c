@@ -1742,7 +1742,7 @@ static void multiwrite_cb(void *opaque, int ret)
 {
     MultiwriteCB *mcb = opaque;
 
-    if (ret < 0) {
+    if (ret < 0 && !mcb->error) {
         mcb->error = ret;
         multiwrite_user_cb(mcb);
     }
@@ -1883,10 +1883,11 @@ int bdrv_aio_multiwrite(BlockDriverState *bs, BlockRequest *reqs, int num_reqs)
             // submitted yet. Otherwise we'll wait for the submitted AIOs to
             // complete and report the error in the callback.
             if (mcb->num_requests == 0) {
-                reqs[i].error = EIO;
+                reqs[i].error = -EIO;
                 goto fail;
             } else {
-                mcb->error = EIO;
+                mcb->num_requests++;
+                multiwrite_cb(mcb, -EIO);
                 break;
             }
         } else {

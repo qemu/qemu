@@ -394,9 +394,10 @@ static void gen_fbcond(DisasContext *ctx, TCGCond cond, int ra, int32_t disp)
     gen_bcond_pcload(ctx, disp, lab_true);
 }
 
-static inline void gen_cmov(TCGCond inv_cond, int ra, int rb, int rc,
-                            int islit, uint8_t lit, int mask)
+static void gen_cmov(TCGCond cond, int ra, int rb, int rc,
+		     int islit, uint8_t lit, int mask)
 {
+    TCGCond inv_cond = tcg_invert_cond(cond);
     int l1;
 
     if (unlikely(rc == 31))
@@ -426,7 +427,7 @@ static inline void gen_cmov(TCGCond inv_cond, int ra, int rb, int rc,
     gen_set_label(l1);
 }
 
-static void gen_fcmov(TCGCond inv_cond, int ra, int rb, int rc)
+static void gen_fcmov(TCGCond cond, int ra, int rb, int rc)
 {
     TCGv va = cpu_fir[ra];
     int l1;
@@ -439,7 +440,7 @@ static void gen_fcmov(TCGCond inv_cond, int ra, int rb, int rc)
     }
 
     l1 = gen_new_label();
-    gen_fbcond_internal(inv_cond, va, l1);
+    gen_fbcond_internal(tcg_invert_cond(cond), va, l1);
 
     if (rb != 31)
         tcg_gen_mov_i64(cpu_fir[rc], cpu_fir[rb]);
@@ -597,6 +598,41 @@ static inline void gen_fp_exc_raise(int rc, int fn11)
     gen_fp_exc_raise_ignore(rc, fn11, fn11 & QUAL_I ? 0 : float_flag_inexact);
 }
 
+static void gen_fcvtql(int rb, int rc)
+{
+    if (unlikely(rc == 31)) {
+        return;
+    }
+    if (unlikely(rb == 31)) {
+        tcg_gen_movi_i64(cpu_fir[rc], 0);
+    } else {
+        TCGv tmp = tcg_temp_new();
+
+        tcg_gen_andi_i64(tmp, cpu_fir[rb], 0xC0000000);
+        tcg_gen_andi_i64(cpu_fir[rc], cpu_fir[rb], 0x3FFFFFFF);
+        tcg_gen_shli_i64(tmp, tmp, 32);
+        tcg_gen_shli_i64(cpu_fir[rc], cpu_fir[rc], 29);
+        tcg_gen_or_i64(cpu_fir[rc], cpu_fir[rc], tmp);
+
+        tcg_temp_free(tmp);
+    }
+}
+
+static void gen_fcvtql_v(DisasContext *ctx, int rb, int rc)
+{
+    if (rb != 31) {
+        int lab = gen_new_label();
+        TCGv tmp = tcg_temp_new();
+
+        tcg_gen_ext32s_i64(tmp, cpu_fir[rb]);
+        tcg_gen_brcond_i64(TCG_COND_EQ, tmp, cpu_fir[rb], lab);
+        gen_excp(ctx, EXCP_ARITH, EXC_M_IOV);
+
+        gen_set_label(lab);
+    }
+    gen_fcvtql(rb, rc);
+}
+
 #define FARITH2(name)                                   \
 static inline void glue(gen_f, name)(int rb, int rc)    \
 {                                                       \
@@ -612,9 +648,6 @@ static inline void glue(gen_f, name)(int rb, int rc)    \
     }                                                   \
 }
 FARITH2(cvtlq)
-FARITH2(cvtql)
-FARITH2(cvtql_v)
-FARITH2(cvtql_sv)
 
 /* ??? VAX instruction qualifiers ignored.  */
 FARITH2(sqrtf)
@@ -1167,33 +1200,34 @@ MVIOP2(pkwb)
 MVIOP2(unpkbl)
 MVIOP2(unpkbw)
 
-static inline void gen_cmp(TCGCond cond, int ra, int rb, int rc, int islit,
-                           uint8_t lit)
+static void gen_cmp(TCGCond cond, int ra, int rb, int rc,
+                    int islit, uint8_t lit)
 {
-    int l1, l2;
-    TCGv tmp;
+    TCGv va, vb;
 
-    if (unlikely(rc == 31))
+    if (unlikely(rc == 31)) {
         return;
+    }
 
-    l1 = gen_new_label();
-    l2 = gen_new_label();
+    if (ra == 31) {
+        va = tcg_const_i64(0);
+    } else {
+        va = cpu_ir[ra];
+    }
+    if (islit) {
+        vb = tcg_const_i64(lit);
+    } else {
+        vb = cpu_ir[rb];
+    }
 
-    if (ra != 31) {
-        tmp = tcg_temp_new();
-        tcg_gen_mov_i64(tmp, cpu_ir[ra]);
-    } else
-        tmp = tcg_const_i64(0);
-    if (islit)
-        tcg_gen_brcondi_i64(cond, tmp, lit, l1);
-    else
-        tcg_gen_brcond_i64(cond, tmp, cpu_ir[rb], l1);
+    tcg_gen_setcond_i64(cond, cpu_ir[rc], va, vb);
 
-    tcg_gen_movi_i64(cpu_ir[rc], 0);
-    tcg_gen_br(l2);
-    gen_set_label(l1);
-    tcg_gen_movi_i64(cpu_ir[rc], 1);
-    gen_set_label(l2);
+    if (ra == 31) {
+        tcg_temp_free(va);
+    }
+    if (islit) {
+        tcg_temp_free(vb);
+    }
 }
 
 static inline int translate_one(DisasContext *ctx, uint32_t insn)
@@ -1630,11 +1664,11 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x14:
             /* CMOVLBS */
-            gen_cmov(TCG_COND_EQ, ra, rb, rc, islit, lit, 1);
+            gen_cmov(TCG_COND_NE, ra, rb, rc, islit, lit, 1);
             break;
         case 0x16:
             /* CMOVLBC */
-            gen_cmov(TCG_COND_NE, ra, rb, rc, islit, lit, 1);
+            gen_cmov(TCG_COND_EQ, ra, rb, rc, islit, lit, 1);
             break;
         case 0x20:
             /* BIS */
@@ -1654,11 +1688,11 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x24:
             /* CMOVEQ */
-            gen_cmov(TCG_COND_NE, ra, rb, rc, islit, lit, 0);
+            gen_cmov(TCG_COND_EQ, ra, rb, rc, islit, lit, 0);
             break;
         case 0x26:
             /* CMOVNE */
-            gen_cmov(TCG_COND_EQ, ra, rb, rc, islit, lit, 0);
+            gen_cmov(TCG_COND_NE, ra, rb, rc, islit, lit, 0);
             break;
         case 0x28:
             /* ORNOT */
@@ -1694,11 +1728,11 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x44:
             /* CMOVLT */
-            gen_cmov(TCG_COND_GE, ra, rb, rc, islit, lit, 0);
+            gen_cmov(TCG_COND_LT, ra, rb, rc, islit, lit, 0);
             break;
         case 0x46:
             /* CMOVGE */
-            gen_cmov(TCG_COND_LT, ra, rb, rc, islit, lit, 0);
+            gen_cmov(TCG_COND_GE, ra, rb, rc, islit, lit, 0);
             break;
         case 0x48:
             /* EQV */
@@ -1738,11 +1772,11 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x64:
             /* CMOVLE */
-            gen_cmov(TCG_COND_GT, ra, rb, rc, islit, lit, 0);
+            gen_cmov(TCG_COND_LE, ra, rb, rc, islit, lit, 0);
             break;
         case 0x66:
             /* CMOVGT */
-            gen_cmov(TCG_COND_LE, ra, rb, rc, islit, lit, 0);
+            gen_cmov(TCG_COND_GT, ra, rb, rc, islit, lit, 0);
             break;
         case 0x6C:
             /* IMPLVER */
@@ -2216,27 +2250,27 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x02A:
             /* FCMOVEQ */
-            gen_fcmov(TCG_COND_NE, ra, rb, rc);
+            gen_fcmov(TCG_COND_EQ, ra, rb, rc);
             break;
         case 0x02B:
             /* FCMOVNE */
-            gen_fcmov(TCG_COND_EQ, ra, rb, rc);
+            gen_fcmov(TCG_COND_NE, ra, rb, rc);
             break;
         case 0x02C:
             /* FCMOVLT */
-            gen_fcmov(TCG_COND_GE, ra, rb, rc);
+            gen_fcmov(TCG_COND_LT, ra, rb, rc);
             break;
         case 0x02D:
             /* FCMOVGE */
-            gen_fcmov(TCG_COND_LT, ra, rb, rc);
+            gen_fcmov(TCG_COND_GE, ra, rb, rc);
             break;
         case 0x02E:
             /* FCMOVLE */
-            gen_fcmov(TCG_COND_GT, ra, rb, rc);
+            gen_fcmov(TCG_COND_LE, ra, rb, rc);
             break;
         case 0x02F:
             /* FCMOVGT */
-            gen_fcmov(TCG_COND_LE, ra, rb, rc);
+            gen_fcmov(TCG_COND_GT, ra, rb, rc);
             break;
         case 0x030:
             /* CVTQL */
@@ -2244,11 +2278,12 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x130:
             /* CVTQL/V */
-            gen_fcvtql_v(rb, rc);
-            break;
         case 0x530:
             /* CVTQL/SV */
-            gen_fcvtql_sv(rb, rc);
+            /* ??? I'm pretty sure there's nothing that /sv needs to do that
+               /v doesn't do.  The only thing I can think is that /sv is a
+               valid instruction merely for completeness in the ISA.  */
+            gen_fcvtql_v(ctx, rb, rc);
             break;
         default:
             goto invalid_opc;

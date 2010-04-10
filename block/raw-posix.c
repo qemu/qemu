@@ -142,7 +142,6 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
         s->open_flags |= O_RDWR;
     } else {
         s->open_flags |= O_RDONLY;
-        bs->read_only = 1;
     }
 
     /* Use O_DSYNC for write-through caching, no flags for write-back caching,
