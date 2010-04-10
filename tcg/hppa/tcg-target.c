@@ -1431,19 +1431,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_ext16s(s, args[0], args[1]);
         break;
 
-    /* These three correspond exactly to the fallback implementation.
-       But by including them we reduce the number of TCG ops that
-       need to be generated, and these opcodes are fairly common.  */
-    case INDEX_op_neg_i32:
-        tcg_out_arith(s, args[0], TCG_REG_R0, args[1], INSN_SUB);
-        break;
-    case INDEX_op_ext8u_i32:
-        tcg_out_andi(s, args[0], args[1], 0xff);
-        break;
-    case INDEX_op_ext16u_i32:
-        tcg_out_andi(s, args[0], args[1], 0xffff);
-        break;
-
     case INDEX_op_brcond_i32:
         tcg_out_brcond(s, args[2], args[0], args[1], const_args[1], args[3]);
         break;
@@ -1550,13 +1537,10 @@ static const TCGTargetOpDef hppa_op_defs[] = {
 
     { INDEX_op_bswap16_i32, { "r", "r" } },
     { INDEX_op_bswap32_i32, { "r", "r" } },
-    { INDEX_op_neg_i32, { "r", "r" } },
     { INDEX_op_not_i32, { "r", "r" } },
 
     { INDEX_op_ext8s_i32, { "r", "r" } },
-    { INDEX_op_ext8u_i32, { "r", "r" } },
     { INDEX_op_ext16s_i32, { "r", "r" } },
-    { INDEX_op_ext16u_i32, { "r", "r" } },
 
     { INDEX_op_brcond_i32, { "rZ", "rJ" } },
     { INDEX_op_brcond2_i32,  { "rZ", "rZ", "rJ", "rJ" } },
