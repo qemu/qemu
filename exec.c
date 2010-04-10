@@ -310,14 +310,13 @@ static void page_init(void)
 
                     if (h2g_valid(endaddr)) {
                         endaddr = h2g(endaddr);
+                        page_set_flags(startaddr, endaddr, PAGE_RESERVED);
                     } else {
 #if TARGET_ABI_BITS <= L1_MAP_ADDR_SPACE_BITS
                         endaddr = ~0ul;
-#else
-                        endaddr = ((abi_ulong)1 << L1_MAP_ADDR_SPACE_BITS) - 1;
+                        page_set_flags(startaddr, endaddr, PAGE_RESERVED);
 #endif
                     }
-                    page_set_flags(startaddr, endaddr, PAGE_RESERVED);
                 }
             }
             free(freep);
@@ -328,7 +327,11 @@ static void page_init(void)
 
         last_brk = (unsigned long)sbrk(0);
 
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
+        f = fopen("/compat/linux/proc/self/maps", "r");
+#else
         f = fopen("/proc/self/maps", "r");
+#endif
         if (f) {
             mmap_lock();
 
@@ -344,13 +347,7 @@ static void page_init(void)
                     if (h2g_valid(endaddr)) {
                         endaddr = h2g(endaddr);
                     } else {
-#if TARGET_ABI_BITS <= L1_MAP_ADDR_SPACE_BITS
                         endaddr = ~0ul;
-#elif HOST_LONG_BITS <= L1_MAP_ADDR_SPACE_BITS
-                        endaddr = ULONG_MAX;
-#else
-                        endaddr = ((abi_ulong)1 << L1_MAP_ADDR_SPACE_BITS) - 1;
-#endif
                     }
                     page_set_flags(startaddr, endaddr, PAGE_RESERVED);
                 }
