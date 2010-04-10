@@ -346,6 +346,8 @@ static void page_init(void)
                     } else {
 #if TARGET_ABI_BITS <= L1_MAP_ADDR_SPACE_BITS
                         endaddr = ~0ul;
+#elif HOST_LONG_BITS <= L1_MAP_ADDR_SPACE_BITS
+                        endaddr = ULONG_MAX;
 #else
                         endaddr = ((abi_ulong)1 << L1_MAP_ADDR_SPACE_BITS) - 1;
 #endif
