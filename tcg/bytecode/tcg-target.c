@@ -78,7 +78,7 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_divu_i32, { "r", "r", "r" } },
     { INDEX_op_rem_i32, { "r", "r", "r" } },
     { INDEX_op_remu_i32, { "r", "r", "r" } },
-#else
+#elif defined(TCG_TARGET_HAS_div2_i32)
     { INDEX_op_div2_i32, { "r", "r", "0", "1", "r" } },
     { INDEX_op_divu2_i32, { "r", "r", "0", "1", "r" } },
 #endif
@@ -261,7 +261,9 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_R1,
     TCG_REG_R2,
     TCG_REG_R3,
-    //~ TCG_REG_R4,     // used for TCG_REG_CALL_STACK
+#if 0 /* used for TCG_REG_CALL_STACK */
+    TCG_REG_R4,
+#endif
     TCG_REG_R5,
     TCG_REG_R6,
     TCG_REG_R7,
@@ -272,7 +274,9 @@ static const int tcg_target_call_iarg_regs[] = {
     TCG_REG_R1,
     TCG_REG_R2,
     TCG_REG_R3,
-    //~ TCG_REG_R4,     // used for TCG_REG_CALL_STACK
+#if 0 /* used for TCG_REG_CALL_STACK */
+    TCG_REG_R4,
+#endif
     TCG_REG_R5,
     TCG_REG_R6,
     TCG_REG_R7,
@@ -834,8 +838,22 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out8(s, args[2]);           /* condition */
         tci_out_label(s, args[3]);
         break;
+#ifdef TCG_TARGET_HAS_bswap16_i64
+    case INDEX_op_bswap16_i64:
+        tcg_out_op_t(s, opc);
+        tcg_out_r(s, args[0]);
+        tcg_out_r(s, args[1]);
+        break;
+#endif
 #ifdef TCG_TARGET_HAS_bswap32_i64
     case INDEX_op_bswap32_i64:
+        tcg_out_op_t(s, opc);
+        tcg_out_r(s, args[0]);
+        tcg_out_r(s, args[1]);
+        break;
+#endif
+#ifdef TCG_TARGET_HAS_bswap64_i64
+    case INDEX_op_bswap64_i64:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
@@ -867,7 +885,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_ri32(s, const_args[1], args[1]);
         tcg_out_ri32(s, const_args[2], args[2]);
         break;
-#else
+#elif defined(TCG_TARGET_HAS_div2_i32)
     case INDEX_op_div2_i32:
     case INDEX_op_divu2_i32:
         TODO();
@@ -972,10 +990,11 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_op_t(s, opc);
         tcg_out_r(s, *args++);
         tcg_out_r(s, *args++);
+#if TCG_TARGET_REG_BITS == 32
+        tcg_out_r(s, *args++);
+#endif
+        tcg_out_r(s, *args++);
 #if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
-        tcg_out_r(s, *args++);
-        tcg_out_r(s, *args++);
-#elif TCG_TARGET_REG_BITS == 32
         tcg_out_r(s, *args++);
 #endif
 #ifdef CONFIG_SOFTMMU
@@ -1054,16 +1073,15 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
 #endif
 #endif /* TCG_TARGET_REG_BITS == 64 */
-#if defined(TCG_TARGET_HAS_bswap32_i32)
-    case INDEX_op_bswap32_i32:
+#if defined(TCG_TARGET_HAS_bswap16_i32)
+    case INDEX_op_bswap16_i32:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
         break;
 #endif
-#if defined(TCG_TARGET_HAS_bswap16_i32)
-    case INDEX_op_bswap16_i32:
-        tcg_dump_ops(s, stderr);
+#if defined(TCG_TARGET_HAS_bswap32_i32)
+    case INDEX_op_bswap32_i32:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
@@ -1136,14 +1154,7 @@ void tcg_target_init(TCGContext *s)
     tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I64], 0, BIT(TCG_TARGET_NB_REGS) - 1);
     /* TODO: Which registers should be set here? */
     tcg_regset_set32(tcg_target_call_clobber_regs, 0,
-                     BIT(TCG_REG_R0) |
-                     BIT(TCG_REG_R1) |
-                     BIT(TCG_REG_R2) |
-                     BIT(TCG_REG_R3) |
-                     BIT(TCG_REG_R4) |
-                     BIT(TCG_REG_R5) |
-                     BIT(TCG_REG_R6) |
-                     BIT(TCG_REG_R7));
+                     BITS(TCG_REG_R7, TCG_REG_R0));
     /* TODO: Reserved registers. */
     tcg_regset_clear(s->reserved_regs);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R4);
