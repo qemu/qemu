@@ -55,15 +55,19 @@ static tcg_target_ulong tci_read_reg(uint32_t index)
     return tci_reg[index];
 }
 
+#if defined(TCG_TARGET_HAS_ext8s_i32) || defined(TCG_TARGET_HAS_ext8s_i64)
 static int8_t tci_read_reg8s(uint32_t index)
 {
     return (int8_t)tci_read_reg(index);
 }
+#endif
 
+#if defined(TCG_TARGET_HAS_ext16s_i32) || defined(TCG_TARGET_HAS_ext16s_i64)
 static int16_t tci_read_reg16s(uint32_t index)
 {
     return (int16_t)tci_read_reg(index);
 }
+#endif
 
 #if TCG_TARGET_REG_BITS == 64
 static int32_t tci_read_reg32s(uint32_t index)
@@ -190,6 +194,7 @@ static uint8_t tci_read_r8(uint8_t **tb_ptr)
     return value;
 }
 
+#if defined(TCG_TARGET_HAS_ext8s_i32) || defined(TCG_TARGET_HAS_ext8s_i64)
 /* Read indexed register (8 bit signed) from bytecode. */
 static int8_t tci_read_r8s(uint8_t **tb_ptr)
 {
@@ -197,6 +202,7 @@ static int8_t tci_read_r8s(uint8_t **tb_ptr)
     *tb_ptr += 1;
     return value;
 }
+#endif
 
 /* Read indexed register (16 bit) from bytecode. */
 static uint16_t tci_read_r16(uint8_t **tb_ptr)
@@ -206,6 +212,7 @@ static uint16_t tci_read_r16(uint8_t **tb_ptr)
     return value;
 }
 
+#if defined(TCG_TARGET_HAS_ext16s_i32) || defined(TCG_TARGET_HAS_ext16s_i64)
 /* Read indexed register (16 bit signed) from bytecode. */
 static int16_t tci_read_r16s(uint8_t **tb_ptr)
 {
@@ -213,6 +220,7 @@ static int16_t tci_read_r16s(uint8_t **tb_ptr)
     *tb_ptr += 1;
     return value;
 }
+#endif
 
 /* Read indexed register (32 bit) from bytecode. */
 static uint32_t tci_read_r32(uint8_t **tb_ptr)
@@ -555,7 +563,7 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             t2 = tci_read_ri32(&tb_ptr);
             tci_write_reg32(t0, t1 % t2);
             break;
-#else
+#elif defined(TCG_TARGET_HAS_div2_i32)
         case INDEX_op_div2_i32:
         case INDEX_op_divu2_i32:
             TODO();
