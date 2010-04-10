@@ -44,12 +44,10 @@
 #define CONFIG_DEBUG_TCG_INTERPRETER
 #endif
 
-#if !defined(HOST_LONG_BITS)
-#error HOST_LONG_BITS is undefined
-#endif
-
 /* Target word size (must be identical to pointer size). */
-#if HOST_LONG_BITS == 32
+#if !defined(HOST_LONG_BITS)
+# error HOST_LONG_BITS is undefined
+#elif HOST_LONG_BITS == 32
 # define TCG_TARGET_REG_BITS 32
 #elif HOST_LONG_BITS == 64
 # define TCG_TARGET_REG_BITS 64
@@ -61,7 +59,9 @@
 
 #define TCG_TARGET_HAS_bswap16_i32
 #define TCG_TARGET_HAS_bswap32_i32
+/* Define not more than one of the next two defines. */
 #define TCG_TARGET_HAS_div_i32
+#undef TCG_TARGET_HAS_div2_i32
 #define TCG_TARGET_HAS_ext8s_i32
 #define TCG_TARGET_HAS_ext16s_i32
 #define TCG_TARGET_HAS_ext8u_i32
@@ -74,8 +74,9 @@
 #define TCG_TARGET_HAS_bswap16_i64
 #define TCG_TARGET_HAS_bswap32_i64
 #define TCG_TARGET_HAS_bswap64_i64
-//~ #define TCG_TARGET_HAS_div_i64
-//~ #define TCG_TARGET_HAS_div2_i64
+/* Define not more than one of the next two defines. */
+#undef TCG_TARGET_HAS_div_i64
+#undef TCG_TARGET_HAS_div2_i64
 #define TCG_TARGET_HAS_ext8s_i64
 #define TCG_TARGET_HAS_ext16s_i64
 #define TCG_TARGET_HAS_ext32s_i64
@@ -86,6 +87,14 @@
 #define TCG_TARGET_HAS_not_i64
 #define TCG_TARGET_HAS_rot_i64
 #endif /* TCG_TARGET_REG_BITS == 64 */
+
+#if defined(TCG_TARGET_HAS_div_i32) && defined(TCG_TARGET_HAS_div2_i32)
+# error both TCG_TARGET_HAS_div_i32 and TCG_TARGET_HAS_div2_i32 defined
+#endif
+
+#if defined(TCG_TARGET_HAS_div_i64) && defined(TCG_TARGET_HAS_div2_i64)
+# error both TCG_TARGET_HAS_div_i64 and TCG_TARGET_HAS_div2_i64 defined
+#endif
 
 /* Offset to user memory in user mode. */
 #define TCG_TARGET_HAS_GUEST_BASE
