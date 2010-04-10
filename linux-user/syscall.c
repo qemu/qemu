@@ -2752,7 +2752,7 @@ static inline abi_long do_shmdt(abi_ulong shmaddr)
     for (i = 0; i < N_SHM_REGIONS; ++i) {
         if (shm_regions[i].start == shmaddr) {
             shm_regions[i].start = 0;
-            page_set_flags(shmaddr, shm_regions[i].size, 0);
+            page_set_flags(shmaddr, shmaddr + shm_regions[i].size, 0);
             break;
         }
     }
