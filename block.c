@@ -55,7 +55,8 @@ static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num,
 static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
                          const uint8_t *buf, int nb_sectors);
 
-static BlockDriverState *bdrv_first;
+static QTAILQ_HEAD(, BlockDriverState) bdrv_states =
+    QTAILQ_HEAD_INITIALIZER(bdrv_states);
 
 static BlockDriver *first_drv;
 
@@ -148,16 +149,12 @@ void bdrv_register(BlockDriver *bdrv)
 /* create a new block device (by default it is empty) */
 BlockDriverState *bdrv_new(const char *device_name)
 {
-    BlockDriverState **pbs, *bs;
+    BlockDriverState *bs;
 
     bs = qemu_mallocz(sizeof(BlockDriverState));
     pstrcpy(bs->device_name, sizeof(bs->device_name), device_name);
     if (device_name[0] != '\0') {
-        /* insert at the end */
-        pbs = &bdrv_first;
-        while (*pbs != NULL)
-            pbs = &(*pbs)->next;
-        *pbs = bs;
+        QTAILQ_INSERT_TAIL(&bdrv_states, bs, list);
     }
     return bs;
 }
@@ -545,13 +542,10 @@ void bdrv_close(BlockDriverState *bs)
 
 void bdrv_delete(BlockDriverState *bs)
 {
-    BlockDriverState **pbs;
-
-    pbs = &bdrv_first;
-    while (*pbs != bs && *pbs != NULL)
-        pbs = &(*pbs)->next;
-    if (*pbs == bs)
-        *pbs = bs->next;
+    /* remove from list, if necessary */
+    if (bs->device_name[0] != '\0') {
+        QTAILQ_REMOVE(&bdrv_states, bs, list);
+    }
 
     bdrv_close(bs);
     qemu_free(bs);
@@ -1172,9 +1166,10 @@ BlockDriverState *bdrv_find(const char *name)
 {
     BlockDriverState *bs;
 
-    for (bs = bdrv_first; bs != NULL; bs = bs->next) {
-        if (!strcmp(name, bs->device_name))
+    QTAILQ_FOREACH(bs, &bdrv_states, list) {
+        if (!strcmp(name, bs->device_name)) {
             return bs;
+        }
     }
     return NULL;
 }
@@ -1183,7 +1178,7 @@ void bdrv_iterate(void (*it)(void *opaque, BlockDriverState *bs), void *opaque)
 {
     BlockDriverState *bs;
 
-    for (bs = bdrv_first; bs != NULL; bs = bs->next) {
+    QTAILQ_FOREACH(bs, &bdrv_states, list) {
         it(opaque, bs);
     }
 }
@@ -1203,10 +1198,12 @@ void bdrv_flush_all(void)
 {
     BlockDriverState *bs;
 
-    for (bs = bdrv_first; bs != NULL; bs = bs->next)
-        if (bs->drv && !bdrv_is_read_only(bs) && 
-            (!bdrv_is_removable(bs) || bdrv_is_inserted(bs)))
+    QTAILQ_FOREACH(bs, &bdrv_states, list) {
+        if (bs->drv && !bdrv_is_read_only(bs) &&
+            (!bdrv_is_removable(bs) || bdrv_is_inserted(bs))) {
             bdrv_flush(bs);
+        }
+    }
 }
 
 /*
@@ -1340,7 +1337,7 @@ void bdrv_info(Monitor *mon, QObject **ret_data)
 
     bs_list = qlist_new();
 
-    for (bs = bdrv_first; bs != NULL; bs = bs->next) {
+    QTAILQ_FOREACH(bs, &bdrv_states, list) {
         QObject *bs_obj;
         const char *type = "unknown";
 
@@ -1445,7 +1442,7 @@ void bdrv_info_stats(Monitor *mon, QObject **ret_data)
 
     devices = qlist_new();
 
-    for (bs = bdrv_first; bs != NULL; bs = bs->next) {
+    QTAILQ_FOREACH(bs, &bdrv_states, list) {
         obj = qobject_from_jsonf("{ 'device': %s, 'stats': {"
                                  "'rd_bytes': %" PRId64 ","
                                  "'wr_bytes': %" PRId64 ","
