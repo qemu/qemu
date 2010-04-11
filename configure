@@ -1064,7 +1064,17 @@ fi
 ##########################################
 # SDL probe
 
-if $pkgconfig sdl --modversion >/dev/null 2>&1; then
+# Look for sdl configuration program (pkg-config or sdl-config).
+# Prefer variant with cross prefix if cross compiling,
+# and favour pkg-config with sdl over sdl-config.
+if test -n "$cross_prefix" -a $pkgconfig != pkg-config && \
+     $pkgconfig sdl --modversion >/dev/null 2>&1; then
+  sdlconfig="$pkgconfig sdl"
+  _sdlversion=`$sdlconfig --modversion 2>/dev/null | sed 's/[^0-9]//g'`
+elif test -n "$cross_prefix" && has ${cross_prefix}sdl-config; then
+  sdlconfig="${cross_prefix}sdl-config"
+  _sdlversion=`$sdlconfig --version | sed 's/[^0-9]//g'`
+elif $pkgconfig sdl --modversion >/dev/null 2>&1; then
   sdlconfig="$pkgconfig sdl"
   _sdlversion=`$sdlconfig --modversion 2>/dev/null | sed 's/[^0-9]//g'`
 elif has sdl-config; then
