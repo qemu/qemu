@@ -253,18 +253,16 @@ static void r2d_init(ram_addr_t ram_size,
     sm501_init(0x10000000, SM501_VRAM_SIZE, irq[SM501], serial_hds[2]);
 
     /* onboard CF (True IDE mode, Master only). */
-    if ((dinfo = drive_get(IF_IDE, 0, 0)) != NULL)
-	mmio_ide_init(0x14001000, 0x1400080c, irq[CF_IDE], 1,
-		      dinfo, NULL);
+    dinfo = drive_get(IF_IDE, 0, 0);
+    mmio_ide_init(0x14001000, 0x1400080c, irq[CF_IDE], 1,
+                  dinfo, NULL);
 
     /* onboard flash memory */
-    if ((dinfo = drive_get(IF_PFLASH, 0, 0)) != NULL) {
-        pflash_cfi02_register(0x0, qemu_ram_alloc(FLASH_SIZE),
-                              dinfo->bdrv, (16 * 1024),
-                              FLASH_SIZE >> 16,
-                              1, 4, 0x0000, 0x0000, 0x0000, 0x0000,
-                              0x555, 0x2aa, 0);
-    }
+    pflash_cfi02_register(0x0, qemu_ram_alloc(FLASH_SIZE),
+                          dinfo ? dinfo->bdrv : NULL, (16 * 1024),
+                          FLASH_SIZE >> 16,
+                          1, 4, 0x0000, 0x0000, 0x0000, 0x0000,
+                          0x555, 0x2aa, 0);
 
     /* NIC: rtl8139 on-board, and 2 slots. */
     for (i = 0; i < nb_nics; i++)
