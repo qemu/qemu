@@ -44,6 +44,10 @@
 #define CONFIG_DEBUG_TCG_INTERPRETER
 #endif
 
+#if defined(HOST_WORDS_BIGENDIAN)
+# define TCG_TARGET_WORDS_BIGENDIAN
+#endif
+
 /* Target word size (must be identical to pointer size). */
 #if !defined(HOST_LONG_BITS)
 # error HOST_LONG_BITS is undefined
