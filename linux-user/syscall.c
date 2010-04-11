@@ -831,6 +831,22 @@ static inline abi_long host_to_target_rusage(abi_ulong target_addr,
     return 0;
 }
 
+static inline rlim_t target_to_host_rlim(target_ulong target_rlim)
+{
+    if (target_rlim == TARGET_RLIM_INFINITY)
+        return RLIM_INFINITY;
+    else
+        return tswapl(target_rlim);
+}
+
+static inline target_ulong host_to_target_rlim(rlim_t rlim)
+{
+    if (rlim == RLIM_INFINITY || rlim != (target_long)rlim)
+        return TARGET_RLIM_INFINITY;
+    else
+        return tswapl(rlim);
+}
+
 static inline abi_long copy_from_user_timeval(struct timeval *tv,
                                               abi_ulong target_tv_addr)
 {
@@ -5124,21 +5140,19 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
     case TARGET_NR_setrlimit:
         {
-            /* XXX: convert resource ? */
             int resource = arg1;
             struct target_rlimit *target_rlim;
             struct rlimit rlim;
             if (!lock_user_struct(VERIFY_READ, target_rlim, arg2, 1))
                 goto efault;
-            rlim.rlim_cur = tswapl(target_rlim->rlim_cur);
-            rlim.rlim_max = tswapl(target_rlim->rlim_max);
+            rlim.rlim_cur = target_to_host_rlim(target_rlim->rlim_cur);
+            rlim.rlim_max = target_to_host_rlim(target_rlim->rlim_max);
             unlock_user_struct(target_rlim, arg2, 0);
             ret = get_errno(setrlimit(resource, &rlim));
         }
         break;
     case TARGET_NR_getrlimit:
         {
-            /* XXX: convert resource ? */
             int resource = arg1;
             struct target_rlimit *target_rlim;
             struct rlimit rlim;
@@ -5147,8 +5161,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             if (!is_error(ret)) {
                 if (!lock_user_struct(VERIFY_WRITE, target_rlim, arg2, 0))
                     goto efault;
-                target_rlim->rlim_cur = tswapl(rlim.rlim_cur);
-                target_rlim->rlim_max = tswapl(rlim.rlim_max);
+                target_rlim->rlim_cur = host_to_target_rlim(rlim.rlim_cur);
+                target_rlim->rlim_max = host_to_target_rlim(rlim.rlim_max);
                 unlock_user_struct(target_rlim, arg2, 1);
             }
         }
@@ -6233,8 +6247,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 	    struct target_rlimit *target_rlim;
             if (!lock_user_struct(VERIFY_WRITE, target_rlim, arg2, 0))
                 goto efault;
-	    target_rlim->rlim_cur = tswapl(rlim.rlim_cur);
-	    target_rlim->rlim_max = tswapl(rlim.rlim_max);
+	    target_rlim->rlim_cur = host_to_target_rlim(rlim.rlim_cur);
+	    target_rlim->rlim_max = host_to_target_rlim(rlim.rlim_max);
             unlock_user_struct(target_rlim, arg2, 1);
 	}
 	break;

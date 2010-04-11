@@ -2706,7 +2706,8 @@ int main(int argc, char **argv, char **envp)
     {
         struct rlimit lim;
         if (getrlimit(RLIMIT_STACK, &lim) == 0
-            && lim.rlim_cur != RLIM_INFINITY) {
+            && lim.rlim_cur != RLIM_INFINITY
+            && lim.rlim_cur == (target_long)lim.rlim_cur) {
             guest_stack_size = lim.rlim_cur;
         }
     }
