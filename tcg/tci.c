@@ -137,7 +137,13 @@ static void tci_write_reg32(uint32_t index, uint32_t value)
     tci_write_reg(index, value);
 }
 
-#if TCG_TARGET_REG_BITS == 64
+#if TCG_TARGET_REG_BITS == 32
+static void tci_write_reg64(uint32_t high_index, uint32_t low_index, uint64_t value)
+{
+    tci_write_reg(low_index, value);
+    tci_write_reg(high_index, value >> 32);
+}
+#elif TCG_TARGET_REG_BITS == 64
 static void tci_write_reg64(uint32_t index, uint64_t value)
 {
     tci_write_reg(index, value);
@@ -156,7 +162,7 @@ static uint64_t tci_uint64(uint32_t high, uint32_t low)
 static tcg_target_ulong tci_read_i(uint8_t **tb_ptr)
 {
     tcg_target_ulong value = *(tcg_target_ulong *)(*tb_ptr);
-    *tb_ptr += sizeof(tcg_target_ulong);
+    *tb_ptr += sizeof(value);
     return value;
 }
 
@@ -164,7 +170,7 @@ static tcg_target_ulong tci_read_i(uint8_t **tb_ptr)
 static uint32_t tci_read_i32(uint8_t **tb_ptr)
 {
     uint32_t value = *(uint32_t *)(*tb_ptr);
-    *tb_ptr += 4;
+    *tb_ptr += sizeof(value);
     return value;
 }
 
@@ -173,7 +179,7 @@ static uint32_t tci_read_i32(uint8_t **tb_ptr)
 static uint64_t tci_read_i64(uint8_t **tb_ptr)
 {
     uint64_t value = *(uint64_t *)(*tb_ptr);
-    *tb_ptr += 8;
+    *tb_ptr += sizeof(value);
     return value;
 }
 #endif
@@ -230,7 +236,14 @@ static uint32_t tci_read_r32(uint8_t **tb_ptr)
     return value;
 }
 
-#if TCG_TARGET_REG_BITS == 64
+#if TCG_TARGET_REG_BITS == 32
+/* Read two indexed registers (2 * 32 bit) from bytecode. */
+static uint64_t tci_read_r64(uint8_t **tb_ptr)
+{
+    uint32_t low = tci_read_r32(tb_ptr);
+    return tci_uint64(tci_read_r32(tb_ptr), low);
+}
+#elif TCG_TARGET_REG_BITS == 64
 /* Read indexed register (32 bit signed) from bytecode. */
 static int32_t tci_read_r32s(uint8_t **tb_ptr)
 {
@@ -288,7 +301,14 @@ static uint32_t tci_read_ri32(uint8_t **tb_ptr)
     return value;
 }
 
-#if TCG_TARGET_REG_BITS == 64
+#if TCG_TARGET_REG_BITS == 32
+/* Read two indexed registers or constants (2 * 32 bit) from bytecode. */
+static uint64_t tci_read_ri64(uint8_t **tb_ptr)
+{
+    uint32_t low = tci_read_ri32(tb_ptr);
+    return tci_uint64(tci_read_ri32(tb_ptr), low);
+}
+#elif TCG_TARGET_REG_BITS == 64
 /* Read indexed register or constant (64 bit) from bytecode. */
 static uint64_t tci_read_ri64(uint8_t **tb_ptr)
 {
@@ -406,11 +426,6 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
         tcg_target_ulong t0;
         tcg_target_ulong t1;
         tcg_target_ulong t2;
-#if TCG_TARGET_REG_BITS == 32
-        tcg_target_ulong t3;
-        tcg_target_ulong t4;
-        tcg_target_ulong t5;
-#endif
         tcg_target_ulong label;
         TCGCond condition;
         target_ulong taddr;
@@ -424,6 +439,9 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
         uint16_t u16;
         uint32_t u32;
         uint64_t u64;
+#if TCG_TARGET_REG_BITS == 32
+        uint64_t v64;
+#endif
 
         tci_disas(opc);
 
@@ -633,33 +651,23 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
         case INDEX_op_add2_i32:
             t0 = *tb_ptr++;
             t1 = *tb_ptr++;
-            t2 = tci_read_r32(&tb_ptr);
-            t3 = tci_read_r32(&tb_ptr);
-            t4 = tci_read_r32(&tb_ptr);
-            t5 = tci_read_r32(&tb_ptr);
-            u64 = tci_uint64(t3, t2) + tci_uint64(t5, t4);
-            tci_write_reg(t0, u64);
-            tci_write_reg(t1, u64 >> 32);
+            u64 = tci_read_r64(&tb_ptr);
+            u64 += tci_read_r64(&tb_ptr);
+            tci_write_reg64(t1, t0, u64);
             break;
         case INDEX_op_sub2_i32:
             t0 = *tb_ptr++;
             t1 = *tb_ptr++;
-            t2 = tci_read_r32(&tb_ptr);
-            t3 = tci_read_r32(&tb_ptr);
-            t4 = tci_read_r32(&tb_ptr);
-            t5 = tci_read_r32(&tb_ptr);
-            u64 = tci_uint64(t3, t2) - tci_uint64(t5, t4);
-            tci_write_reg(t0, u64);
-            tci_write_reg(t1, u64 >> 32);
+            u64 = tci_read_r64(&tb_ptr);
+            u64 -= tci_read_r64(&tb_ptr);
+            tci_write_reg64(t1, t0, u64);
             break;
         case INDEX_op_brcond2_i32:
-            t0 = tci_read_r32(&tb_ptr);
-            t1 = tci_read_r32(&tb_ptr);
-            t2 = tci_read_ri32(&tb_ptr);
-            t3 = tci_read_ri32(&tb_ptr);
+            u64 = tci_read_r64(&tb_ptr);
+            v64 = tci_read_ri64(&tb_ptr);
             condition = *tb_ptr++;
             label = tci_read_i(&tb_ptr);
-            if (tci_compare64(tci_uint64(t1, t0), tci_uint64(t3, t2), condition)) {
+            if (tci_compare64(u64, v64, condition)) {
                 tb_ptr = (uint8_t *)label;
             }
             break;
@@ -667,10 +675,8 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             t0 = *tb_ptr++;
             t1 = *tb_ptr++;
             t2 = tci_read_r32(&tb_ptr);
-            t3 = tci_read_r32(&tb_ptr);
-            u64 = (uint64_t)t2 * t3;
-            tci_write_reg(t0, u64);
-            tci_write_reg(t1, u64 >> 32);
+            u64 = tci_read_r32(&tb_ptr);
+            tci_write_reg64(t1, t0, t2 * u64);
             break;
 #endif /* TCG_TARGET_REG_BITS == 32 */
 #ifdef TCG_TARGET_HAS_ext8s_i32
@@ -1116,11 +1122,7 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
 #endif
             break;
         case INDEX_op_qemu_st64:
-            u64 = tci_read_r(&tb_ptr);
-#if TCG_TARGET_REG_BITS == 32
-            u64 += (uint64_t)tci_read_r(&tb_ptr) << 32;
-#endif
-            u64 = tswap64(u64);
+            u64 = tswap64(tci_read_r64(&tb_ptr));
             taddr = tci_read_ulong(&tb_ptr);
 #ifdef CONFIG_SOFTMMU
             t2 = tci_read_i(&tb_ptr);
