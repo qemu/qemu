@@ -4933,12 +4933,12 @@ void gen_pc_load(CPUState *env, TranslationBlock *tb,
     if (npc == 1) {
         /* dynamic NPC: already stored */
     } else if (npc == 2) {
-        target_ulong t2 = (target_ulong)(unsigned long)puc;
-        /* jump PC: use T2 and the jump targets of the translation */
-        if (t2)
+        /* jump PC: use 'cond' and the jump targets of the translation */
+        if (env->cond) {
             env->npc = gen_opc_jump_pc[0];
-        else
+        } else {
             env->npc = gen_opc_jump_pc[1];
+        }
     } else {
         env->npc = npc;
     }
