@@ -35,6 +35,10 @@
 #include "ide.h"
 #include "loader.h"
 #include "usb.h"
+#include "flash.h"
+
+#define FLASH_BASE 0x00000000
+#define FLASH_SIZE 0x02000000
 
 #define SDRAM_BASE 0x0c000000 /* Physical location of SDRAM: Area 3 */
 #define SDRAM_SIZE 0x04000000
@@ -236,6 +240,15 @@ static void r2d_init(ram_addr_t ram_size,
     if ((dinfo = drive_get(IF_IDE, 0, 0)) != NULL)
 	mmio_ide_init(0x14001000, 0x1400080c, irq[CF_IDE], 1,
 		      dinfo, NULL);
+
+    /* onboard flash memory */
+    if ((dinfo = drive_get(IF_PFLASH, 0, 0)) != NULL) {
+        pflash_cfi02_register(0x0, qemu_ram_alloc(FLASH_SIZE),
+                              dinfo->bdrv, (16 * 1024),
+                              FLASH_SIZE >> 16,
+                              1, 4, 0x0000, 0x0000, 0x0000, 0x0000,
+                              0x555, 0x2aa, 0);
+    }
 
     /* NIC: rtl8139 on-board, and 2 slots. */
     for (i = 0; i < nb_nics; i++)
