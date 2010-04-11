@@ -276,7 +276,9 @@ static const int tcg_target_call_iarg_regs[] = {
 static const int tcg_target_call_oarg_regs[] = {
     // TODO: ppc64 only uses one register. Why do others use two?
     TCG_REG_R0,
-    TCG_REG_R1,
+#if TCG_TARGET_REG_BITS == 32
+    TCG_REG_R1
+#endif
 };
 
 #ifndef NDEBUG
