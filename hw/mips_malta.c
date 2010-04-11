@@ -55,6 +55,9 @@
 #define ENVP_NB_ENTRIES	 	16
 #define ENVP_ENTRY_SIZE	 	256
 
+#define FLASH_ADDRESS 0x1e000000LL
+#define FLASH_SIZE    0x400000
+
 #define MAX_IDE_BUS 2
 
 //~ #define DEBUG
@@ -701,21 +704,14 @@ static void prom_set(uint32_t* prom_buf, int index, const char *string, ...)
 }
 
 /* Kernel */
-static int64_t load_kernel (void)
+static int64_t load_kernel(int big_endian)
 {
     int64_t kernel_entry, kernel_high;
     long initrd_size;
     ram_addr_t initrd_offset;
-    int big_endian;
     uint32_t *prom_buf;
     long prom_size;
     int prom_index = 0;
-
-#ifdef TARGET_WORDS_BIGENDIAN
-    big_endian = 1;
-#else
-    big_endian = 0;
-#endif
 
     if (load_elf(loaderparams.kernel_filename, cpu_mips_kseg0_to_phys, NULL,
                  (uint64_t *)&kernel_entry, NULL, (uint64_t *)&kernel_high,
@@ -812,9 +808,12 @@ void mips_malta_init (ram_addr_t ram_size,
     DriveInfo *dinfo;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DriveInfo *fd[MAX_FD];
-    int fl_idx = 0;
-    int fl_sectors = 0;
-    int be;
+    int fl_sectors;
+#ifdef TARGET_WORDS_BIGENDIAN
+    const int be = 1;
+#else
+    const int be = 0;
+#endif
 
     //~ DeviceState *dev =
     qdev_create(NULL, "mips malta");
@@ -856,22 +855,35 @@ void mips_malta_init (ram_addr_t ram_size,
     ram_offset = qemu_ram_alloc(ram_size);
     bios_offset = qemu_ram_alloc(BIOS_SIZE);
 
-
     cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
 
     /* Map the bios at two physical locations, as on the real board. */
-    cpu_register_physical_memory(0x1e000000LL,
+    cpu_register_physical_memory(FLASH_ADDRESS,
                                  BIOS_SIZE, bios_offset | IO_MEM_ROM);
     cpu_register_physical_memory(0x1fc00000LL,
                                  BIOS_SIZE, bios_offset | IO_MEM_ROM);
 
-#ifdef TARGET_WORDS_BIGENDIAN
-    be = 1;
-#else
-    be = 0;
-#endif
     /* FPGA */
     malta_fpga = malta_fpga_init(0x1f000000LL, env->irq[2], serial_hds[2]);
+
+    dinfo = drive_get(IF_PFLASH, 0, 0);
+    const char *flashfile = NULL;
+    BlockDriverState *flashdriver = NULL;
+    if (dinfo) {
+        flashfile = bdrv_get_device_name(dinfo->bdrv);
+        flashdriver = dinfo->bdrv;
+    }
+    /* Load firmware from flash. */
+    fl_sectors = FLASH_SIZE >> 16;
+#if defined(DEBUG_BOARD_INIT)
+    printf("Register parallel flash %d size " TARGET_FMT_lx " at "
+           "offset %08lx addr %08llx '%s' %x\n",
+           0, FLASH_SIZE, bios_offset, FLASH_ADDRESS,
+           flashfile, fl_sectors);
+#endif
+    pflash_cfi01_register(FLASH_ADDRESS, bios_offset,
+                          flashdriver, 65536, fl_sectors,
+                          4, 0x0000, 0x0000, 0x0000, 0x0000, be);
 
     /* Load firmware in flash / BIOS unless we boot directly into a kernel. */
     if (kernel_filename) {
@@ -880,24 +892,11 @@ void mips_malta_init (ram_addr_t ram_size,
         loaderparams.kernel_filename = kernel_filename;
         loaderparams.kernel_cmdline = kernel_cmdline;
         loaderparams.initrd_filename = initrd_filename;
-        kernel_entry = load_kernel();
+        kernel_entry = load_kernel(be);
         write_bootloader(env, qemu_get_ram_ptr(bios_offset), kernel_entry);
     } else {
-        dinfo = drive_get(IF_PFLASH, 0, fl_idx);
         if (dinfo) {
-            /* Load firmware from flash. */
-            bios_size = 0x400000;
-            fl_sectors = bios_size >> 16;
-#ifdef DEBUG_BOARD_INIT
-            printf("Register parallel flash %d size " TARGET_FMT_lx " at "
-                   "offset %08lx addr %08llx '%s' %x\n",
-                   fl_idx, bios_size, bios_offset, 0x1e000000LL,
-                   bdrv_get_device_name(dinfo->bdrv), fl_sectors);
-#endif
-            pflash_cfi01_register(0x1e000000LL, bios_offset,
-                                  dinfo->bdrv, 65536, fl_sectors,
-                                  4, 0x0000, 0x0000, 0x0000, 0x0000, be);
-            fl_idx++;
+            /* Load firmware from flash, see above. */
         } else {
             /* Load a BIOS image. */
             if (bios_name == NULL)
