@@ -45,8 +45,10 @@
 
 #define SM501_VRAM_SIZE 0x800000
 
+#define BOOT_PARAMS_OFFSET 0x0010000
 /* CONFIG_BOOT_LINK_OFFSET of Linux kernel */
-#define LINUX_LOAD_OFFSET 0x800000
+#define LINUX_LOAD_OFFSET  0x0800000
+#define INITRD_LOAD_OFFSET 0x1800000
 
 #define PA_IRLMSK	0x00
 #define PA_POWOFF	0x30
@@ -204,6 +206,20 @@ static int r2d_pci_map_irq(PCIDevice *d, int irq_num)
     return intx[d->devfn >> 3];
 }
 
+static struct __attribute__((__packed__))
+{
+    int mount_root_rdonly;
+    int ramdisk_flags;
+    int orig_root_dev;
+    int loader_type;
+    int initrd_start;
+    int initrd_size;
+
+    char pad[232];
+
+    char kernel_cmdline[256];
+} boot_params;
+
 static void r2d_init(ram_addr_t ram_size,
               const char *boot_device,
 	      const char *kernel_filename, const char *kernel_cmdline,
@@ -258,28 +274,50 @@ static void r2d_init(ram_addr_t ram_size,
     usbdevice_create("keyboard");
 
     /* Todo: register on board registers */
+    memset(&boot_params, 0, sizeof(boot_params));
+
     if (kernel_filename) {
-      int kernel_size;
-      /* initialization which should be done by firmware */
-      stl_phys(SH7750_BCR1, 1<<3); /* cs3 SDRAM */
-      stw_phys(SH7750_BCR2, 3<<(3*2)); /* cs3 32bit */
+        int kernel_size;
 
-      if (kernel_cmdline) {
-          kernel_size = load_image_targphys(kernel_filename,
-				   SDRAM_BASE + LINUX_LOAD_OFFSET,
-				   SDRAM_SIZE - LINUX_LOAD_OFFSET);
-          env->pc = (SDRAM_BASE + LINUX_LOAD_OFFSET) | 0xa0000000;
-          pstrcpy_targphys("cmdline", SDRAM_BASE + 0x10100, 256, kernel_cmdline);
-      } else {
-          kernel_size = load_image_targphys(kernel_filename, SDRAM_BASE, SDRAM_SIZE);
-          env->pc = SDRAM_BASE | 0xa0000000; /* Start from P2 area */
-      }
+        kernel_size = load_image_targphys(kernel_filename,
+                                          SDRAM_BASE + LINUX_LOAD_OFFSET,
+                                          INITRD_LOAD_OFFSET - LINUX_LOAD_OFFSET);
+        if (kernel_size < 0) {
+          fprintf(stderr, "qemu: could not load kernel '%s'\n", kernel_filename);
+          exit(1);
+        }
 
-      if (kernel_size < 0) {
-        fprintf(stderr, "qemu: could not load kernel '%s'\n", kernel_filename);
-        exit(1);
-      }
+        /* initialization which should be done by firmware */
+        stl_phys(SH7750_BCR1, 1<<3); /* cs3 SDRAM */
+        stw_phys(SH7750_BCR2, 3<<(3*2)); /* cs3 32bit */
+        env->pc = (SDRAM_BASE + LINUX_LOAD_OFFSET) | 0xa0000000; /* Start from P2 area */
     }
+
+    if (initrd_filename) {
+        int initrd_size;
+
+        initrd_size = load_image_targphys(initrd_filename,
+                                          SDRAM_BASE + INITRD_LOAD_OFFSET,
+                                          SDRAM_SIZE - INITRD_LOAD_OFFSET);
+
+        if (initrd_size < 0) {
+          fprintf(stderr, "qemu: could not load initrd '%s'\n", initrd_filename);
+          exit(1);
+        }
+
+        /* initialization which should be done by firmware */
+        boot_params.loader_type = 1;
+        boot_params.initrd_start = INITRD_LOAD_OFFSET;
+        boot_params.initrd_size = initrd_size;
+    }
+
+    if (kernel_cmdline) {
+        strncpy(boot_params.kernel_cmdline, kernel_cmdline,
+                sizeof(boot_params.kernel_cmdline));
+    }
+
+    rom_add_blob_fixed("boot_params", &boot_params, sizeof(boot_params),
+                       SDRAM_BASE + BOOT_PARAMS_OFFSET);
 }
 
 static QEMUMachine r2d_machine = {
