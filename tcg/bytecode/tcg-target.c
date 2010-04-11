@@ -50,207 +50,198 @@
 /* TODO: documentation. */
 static uint8_t *tb_ret_addr;
 
+#define R       "r"
+#define RI      "ri"
+#if TCG_TARGET_REG_BITS == 32
+# define R64    "r", "r"
+#else
+# define R64    "r"
+#endif
+#if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
+# define L      "L", "L"
+# define S      "S", "S"
+#else
+# define L      "L"
+# define S      "S"
+#endif
+
 /* TODO: documentation. */
 static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_exit_tb, { } },
     { INDEX_op_goto_tb, { } },
-    { INDEX_op_call, { "ri" } },
-    { INDEX_op_jmp, { "ri" } },
+    { INDEX_op_call, { RI } },
+    { INDEX_op_jmp, { RI } },
     { INDEX_op_br, { } },
 
-    { INDEX_op_mov_i32, { "r", "r" } },
-    { INDEX_op_movi_i32, { "r" } },
+    { INDEX_op_mov_i32, { R, R } },
+    { INDEX_op_movi_i32, { R } },
 
-    { INDEX_op_ld8u_i32, { "r", "r" } },
-    { INDEX_op_ld8s_i32, { "r", "r" } },
-    { INDEX_op_ld16u_i32, { "r", "r" } },
-    { INDEX_op_ld16s_i32, { "r", "r" } },
-    { INDEX_op_ld_i32, { "r", "r" } },
-    { INDEX_op_st8_i32, { "r", "ri" } },
-    { INDEX_op_st16_i32, { "r", "ri" } },
-    { INDEX_op_st_i32, { "r", "ri" } },
+    { INDEX_op_ld8u_i32, { R, R } },
+    { INDEX_op_ld8s_i32, { R, R } },
+    { INDEX_op_ld16u_i32, { R, R } },
+    { INDEX_op_ld16s_i32, { R, R } },
+    { INDEX_op_ld_i32, { R, R } },
+    { INDEX_op_st8_i32, { R, RI } },
+    { INDEX_op_st16_i32, { R, RI } },
+    { INDEX_op_st_i32, { R, RI } },
 
-    { INDEX_op_add_i32, { "r", "ri", "ri" } },
-    { INDEX_op_sub_i32, { "r", "ri", "ri" } },
-    { INDEX_op_mul_i32, { "r", "ri", "ri" } },
+    { INDEX_op_add_i32, { R, RI, RI } },
+    { INDEX_op_sub_i32, { R, RI, RI } },
+    { INDEX_op_mul_i32, { R, RI, RI } },
 #if defined(TCG_TARGET_HAS_div_i32)
-    { INDEX_op_div_i32, { "r", "r", "r" } },
-    { INDEX_op_divu_i32, { "r", "r", "r" } },
-    { INDEX_op_rem_i32, { "r", "r", "r" } },
-    { INDEX_op_remu_i32, { "r", "r", "r" } },
+    { INDEX_op_div_i32, { R, R, R } },
+    { INDEX_op_divu_i32, { R, R, R } },
+    { INDEX_op_rem_i32, { R, R, R } },
+    { INDEX_op_remu_i32, { R, R, R } },
 #elif defined(TCG_TARGET_HAS_div2_i32)
-    { INDEX_op_div2_i32, { "r", "r", "0", "1", "r" } },
-    { INDEX_op_divu2_i32, { "r", "r", "0", "1", "r" } },
+    { INDEX_op_div2_i32, { R, R, "0", "1", R } },
+    { INDEX_op_divu2_i32, { R, R, "0", "1", R } },
 #endif
-    { INDEX_op_and_i32, { "r", "ri", "ri" } },
-    { INDEX_op_or_i32, { "r", "ri", "ri" } },
-    { INDEX_op_xor_i32, { "r", "ri", "ri" } },
+    { INDEX_op_and_i32, { R, RI, RI } },
+    { INDEX_op_or_i32, { R, RI, RI } },
+    { INDEX_op_xor_i32, { R, RI, RI } },
 
-    { INDEX_op_shl_i32, { "r", "ri", "ri" } },
-    { INDEX_op_shr_i32, { "r", "ri", "ri" } },
-    { INDEX_op_sar_i32, { "r", "r", "ri" } },
+    { INDEX_op_shl_i32, { R, RI, RI } },
+    { INDEX_op_shr_i32, { R, RI, RI } },
+    { INDEX_op_sar_i32, { R, R, RI } },
 #ifdef TCG_TARGET_HAS_rot_i32
-    { INDEX_op_rotl_i32, { "r", "r", "ri" } },
-    { INDEX_op_rotr_i32, { "r", "r", "ri" } },
+    { INDEX_op_rotl_i32, { R, R, RI } },
+    { INDEX_op_rotr_i32, { R, R, RI } },
 #endif
 
-    { INDEX_op_brcond_i32, { "r", "ri" } },
+    { INDEX_op_brcond_i32, { R, RI } },
 
-    { INDEX_op_setcond_i32, { "r", "r", "ri" } },
+    { INDEX_op_setcond_i32, { R, R, RI } },
 #if TCG_TARGET_REG_BITS == 64
-    { INDEX_op_setcond_i64, { "r", "r", "ri" } },
+    { INDEX_op_setcond_i64, { R, R, RI } },
 #endif /* TCG_TARGET_REG_BITS == 64 */
 
 #if TCG_TARGET_REG_BITS == 32
-    /* TODO: Support "r", "r", "r", "r", "ri", "ri". */
-    { INDEX_op_add2_i32, { "r", "r", "r", "r", "r", "r" } },
-    { INDEX_op_sub2_i32, { "r", "r", "r", "r", "r", "r" } },
-    { INDEX_op_brcond2_i32, { "r", "r", "ri", "ri" } },
-    { INDEX_op_mulu2_i32, { "r", "r", "r", "r" } },
-    { INDEX_op_setcond2_i32, { "r", "r", "r", "ri", "ri" } },
+    /* TODO: Support R, R, R, R, RI, RI? Will it be faster? */
+    { INDEX_op_add2_i32, { R, R, R, R, R, R } },
+    { INDEX_op_sub2_i32, { R, R, R, R, R, R } },
+    { INDEX_op_brcond2_i32, { R, R, RI, RI } },
+    { INDEX_op_mulu2_i32, { R, R, R, R } },
+    { INDEX_op_setcond2_i32, { R, R, R, RI, RI } },
 #endif
 
 #if defined(TCG_TARGET_HAS_not_i32)
-    { INDEX_op_not_i32, { "r", "r" } },
+    { INDEX_op_not_i32, { R, R } },
 #endif
 #if defined(TCG_TARGET_HAS_neg_i32)
-    { INDEX_op_neg_i32, { "r", "r" } },
+    { INDEX_op_neg_i32, { R, R } },
 #endif
 
 #if TCG_TARGET_REG_BITS == 64
-    { INDEX_op_mov_i64, { "r", "r" } },
-    { INDEX_op_movi_i64, { "r" } },
+    { INDEX_op_mov_i64, { R, R } },
+    { INDEX_op_movi_i64, { R } },
 
-    { INDEX_op_ld8u_i64, { "r", "r" } },
-    { INDEX_op_ld8s_i64, { "r", "r" } },
-    { INDEX_op_ld16u_i64, { "r", "r" } },
-    { INDEX_op_ld16s_i64, { "r", "r" } },
-    { INDEX_op_ld32u_i64, { "r", "r" } },
-    { INDEX_op_ld32s_i64, { "r", "r" } },
-    { INDEX_op_ld_i64, { "r", "r" } },
+    { INDEX_op_ld8u_i64, { R, R } },
+    { INDEX_op_ld8s_i64, { R, R } },
+    { INDEX_op_ld16u_i64, { R, R } },
+    { INDEX_op_ld16s_i64, { R, R } },
+    { INDEX_op_ld32u_i64, { R, R } },
+    { INDEX_op_ld32s_i64, { R, R } },
+    { INDEX_op_ld_i64, { R, R } },
 
-    { INDEX_op_st8_i64, { "r", "ri" } },
-    { INDEX_op_st16_i64, { "r", "ri" } },
-    { INDEX_op_st32_i64, { "r", "ri" } },
-    { INDEX_op_st_i64, { "r", "ri" } },
+    { INDEX_op_st8_i64, { R, RI } },
+    { INDEX_op_st16_i64, { R, RI } },
+    { INDEX_op_st32_i64, { R, RI } },
+    { INDEX_op_st_i64, { R, RI } },
 
-    { INDEX_op_add_i64, { "r", "ri", "ri" } },
-    { INDEX_op_sub_i64, { "r", "ri", "ri" } },
-    { INDEX_op_mul_i64, { "r", "ri", "ri" } },
+    { INDEX_op_add_i64, { R, RI, RI } },
+    { INDEX_op_sub_i64, { R, RI, RI } },
+    { INDEX_op_mul_i64, { R, RI, RI } },
 #if defined(TCG_TARGET_HAS_div_i64)
-    { INDEX_op_div_i64, { "r", "r", "r" } },
-    { INDEX_op_divu_i64, { "r", "r", "r" } },
-    { INDEX_op_rem_i64, { "r", "r", "r" } },
-    { INDEX_op_remu_i64, { "r", "r", "r" } },
+    { INDEX_op_div_i64, { R, R, R } },
+    { INDEX_op_divu_i64, { R, R, R } },
+    { INDEX_op_rem_i64, { R, R, R } },
+    { INDEX_op_remu_i64, { R, R, R } },
 #elif defined(TCG_TARGET_HAS_div2_i64)
-    { INDEX_op_div2_i64, { "r", "r", "0", "1", "r" } },
-    { INDEX_op_divu2_i64, { "r", "r", "0", "1", "r" } },
+    { INDEX_op_div2_i64, { R, R, "0", "1", R } },
+    { INDEX_op_divu2_i64, { R, R, "0", "1", R } },
 #endif
-    { INDEX_op_and_i64, { "r", "ri", "ri" } },
-    { INDEX_op_or_i64, { "r", "ri", "ri" } },
-    { INDEX_op_xor_i64, { "r", "ri", "ri" } },
-    { INDEX_op_shl_i64, { "r", "ri", "ri" } },
-    { INDEX_op_shr_i64, { "r", "ri", "ri" } },
-    { INDEX_op_sar_i64, { "r", "ri", "ri" } },
+    { INDEX_op_and_i64, { R, RI, RI } },
+    { INDEX_op_or_i64, { R, RI, RI } },
+    { INDEX_op_xor_i64, { R, RI, RI } },
+    { INDEX_op_shl_i64, { R, RI, RI } },
+    { INDEX_op_shr_i64, { R, RI, RI } },
+    { INDEX_op_sar_i64, { R, RI, RI } },
 #ifdef TCG_TARGET_HAS_rot_i64
-    { INDEX_op_rotl_i64, { "r", "ri", "ri" } },
-    { INDEX_op_rotr_i64, { "r", "ri", "ri" } },
+    { INDEX_op_rotl_i64, { R, RI, RI } },
+    { INDEX_op_rotr_i64, { R, RI, RI } },
 #endif
-    { INDEX_op_brcond_i64, { "r", "ri" } },
+    { INDEX_op_brcond_i64, { R, RI } },
 
 #if defined(TCG_TARGET_HAS_ext8s_i64)
-    { INDEX_op_ext8s_i64, { "r", "r" } },
+    { INDEX_op_ext8s_i64, { R, R } },
 #endif
 #if defined(TCG_TARGET_HAS_ext16s_i64)
-    { INDEX_op_ext16s_i64, { "r", "r" } },
+    { INDEX_op_ext16s_i64, { R, R } },
 #endif
 #if defined(TCG_TARGET_HAS_ext32s_i64)
-    { INDEX_op_ext32s_i64, { "r", "r" } },
+    { INDEX_op_ext32s_i64, { R, R } },
 #endif
 #if defined(TCG_TARGET_HAS_ext8u_i64)
-    { INDEX_op_ext8u_i64, { "r", "r" } },
+    { INDEX_op_ext8u_i64, { R, R } },
 #endif
 #if defined(TCG_TARGET_HAS_ext16u_i64)
-    { INDEX_op_ext16u_i64, { "r", "r" } },
+    { INDEX_op_ext16u_i64, { R, R } },
 #endif
 #if defined(TCG_TARGET_HAS_ext32u_i64)
-    { INDEX_op_ext32u_i64, { "r", "r" } },
+    { INDEX_op_ext32u_i64, { R, R } },
 #endif
 #ifdef TCG_TARGET_HAS_bswap16_i64
-    { INDEX_op_bswap16_i64, { "r", "r" } },
+    { INDEX_op_bswap16_i64, { R, R } },
 #endif
 #ifdef TCG_TARGET_HAS_bswap32_i64
-    { INDEX_op_bswap32_i64, { "r", "r" } },
+    { INDEX_op_bswap32_i64, { R, R } },
 #endif
 #ifdef TCG_TARGET_HAS_bswap64_i64
-    { INDEX_op_bswap64_i64, { "r", "r" } },
+    { INDEX_op_bswap64_i64, { R, R } },
 #endif
 #ifdef TCG_TARGET_HAS_not_i64
-    { INDEX_op_not_i64, { "r", "r" } },
+    { INDEX_op_not_i64, { R, R } },
 #endif
 #ifdef TCG_TARGET_HAS_neg_i64
-    { INDEX_op_neg_i64, { "r", "r" } },
+    { INDEX_op_neg_i64, { R, R } },
 #endif
 #endif /* TCG_TARGET_REG_BITS == 64 */
 
-#if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
-    { INDEX_op_qemu_ld8u, { "r", "L", "L" } },
-    { INDEX_op_qemu_ld8s, { "r", "L", "L" } },
-    { INDEX_op_qemu_ld16u, { "r", "L", "L" } },
-    { INDEX_op_qemu_ld16s, { "r", "L", "L" } },
-    { INDEX_op_qemu_ld32, { "r", "L", "L" } },
-    { INDEX_op_qemu_ld64, { "r", "r", "L", "L" } },
-#else /* TARGET_LONG_BITS > TCG_TARGET_REG_BITS */
-    { INDEX_op_qemu_ld8u, { "r", "L" } },
-    { INDEX_op_qemu_ld8s, { "r", "L" } },
-    { INDEX_op_qemu_ld16u, { "r", "L" } },
-    { INDEX_op_qemu_ld16s, { "r", "L" } },
+    { INDEX_op_qemu_ld8u, { R, L } },
+    { INDEX_op_qemu_ld8s, { R, L } },
+    { INDEX_op_qemu_ld16u, { R, L } },
+    { INDEX_op_qemu_ld16s, { R, L } },
+    { INDEX_op_qemu_ld32, { R, L } },
 #if TCG_TARGET_REG_BITS == 64
-    { INDEX_op_qemu_ld32u, { "r", "L" } },
-    { INDEX_op_qemu_ld32s, { "r", "L" } },
+    { INDEX_op_qemu_ld32u, { R, L } },
+    { INDEX_op_qemu_ld32s, { R, L } },
 #endif
-    { INDEX_op_qemu_ld32, { "r", "L" } },
-#if TCG_TARGET_REG_BITS == 32
-    { INDEX_op_qemu_ld64, { "r", "r", "L" } },
-#else
-    { INDEX_op_qemu_ld64, { "r", "L" } },
-#endif
-#endif /* TARGET_LONG_BITS > TCG_TARGET_REG_BITS */
+    { INDEX_op_qemu_ld64, { R64, L } },
 
-#if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
-    { INDEX_op_qemu_st8, { "S", "S", "S" } },
-    { INDEX_op_qemu_st16, { "S", "S", "S" } },
-    { INDEX_op_qemu_st32, { "S", "S", "S" } },
-    { INDEX_op_qemu_st64, { "S", "S", "S", "S" } },
-#else
-    { INDEX_op_qemu_st8, { "S", "S" } },
-    { INDEX_op_qemu_st16, { "S", "S" } },
-    { INDEX_op_qemu_st32, { "S", "S" } },
-#if TCG_TARGET_REG_BITS == 32
-    { INDEX_op_qemu_st64, { "S", "S", "S" } },
-#else
-    { INDEX_op_qemu_st64, { "S", "S" } },
-#endif
-#endif /* TARGET_LONG_BITS > TCG_TARGET_REG_BITS */
+    { INDEX_op_qemu_st8, { R, S } },
+    { INDEX_op_qemu_st16, { R, S } },
+    { INDEX_op_qemu_st32, { R, S } },
+    { INDEX_op_qemu_st64, { R64, S } },
 
 #if defined(TCG_TARGET_HAS_ext8s_i32)
-    { INDEX_op_ext8s_i32, { "r", "r" } },
+    { INDEX_op_ext8s_i32, { R, R } },
 #endif
 #if defined(TCG_TARGET_HAS_ext16s_i32)
-    { INDEX_op_ext16s_i32, { "r", "r" } },
+    { INDEX_op_ext16s_i32, { R, R } },
 #endif
 #if defined(TCG_TARGET_HAS_ext8u_i32)
-    { INDEX_op_ext8u_i32, { "r", "r" } },
+    { INDEX_op_ext8u_i32, { R, R } },
 #endif
 #if defined(TCG_TARGET_HAS_ext16u_i32)
-    { INDEX_op_ext16u_i32, { "r", "r" } },
+    { INDEX_op_ext16u_i32, { R, R } },
 #endif
 
 #ifdef TCG_TARGET_HAS_bswap16_i32
-    { INDEX_op_bswap16_i32, { "r", "r" } },
+    { INDEX_op_bswap16_i32, { R, R } },
 #endif
 #ifdef TCG_TARGET_HAS_bswap32_i32
-    { INDEX_op_bswap32_i32, { "r", "r" } },
+    { INDEX_op_bswap32_i32, { R, R } },
 #endif
 
     { -1 },
@@ -349,29 +340,10 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
     const char *ct_str = *pct_str;
     switch (ct_str[0]) {
     case 'r':
-        ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, BIT(TCG_TARGET_NB_REGS) - 1);
-        break;
     case 'L':                   /* qemu_ld constraint */
-        ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, BIT(TCG_TARGET_NB_REGS) - 1);
-#if 0 // TODO: do we need this? How should it look like?
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R3);
-#ifdef CONFIG_SOFTMMU
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R4);
-#endif
-#endif
-        break;
     case 'S':                   /* qemu_st constraint */
         ct->ct |= TCG_CT_REG;
         tcg_regset_set32(ct->u.regs, 0, BIT(TCG_TARGET_NB_REGS) - 1);
-#if 0 // TODO: do we need this? How should it look like?
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R3);
-#ifdef CONFIG_SOFTMMU
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R4);
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R5);
-#endif
-#endif
         break;
     default:
         return -1;
@@ -962,10 +934,10 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_qemu_ld64:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, *args++);
-        tcg_out_r(s, *args++);
 #if TCG_TARGET_REG_BITS == 32
         tcg_out_r(s, *args++);
 #endif
+        tcg_out_r(s, *args++);
 #if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
         tcg_out_r(s, *args++);
 #endif
