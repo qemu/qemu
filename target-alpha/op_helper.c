@@ -47,32 +47,6 @@ void helper_store_fpcr (uint64_t val)
     cpu_alpha_store_fpcr (env, val);
 }
 
-static spinlock_t intr_cpu_lock = SPIN_LOCK_UNLOCKED;
-
-uint64_t helper_rs(void)
-{
-    uint64_t tmp;
-
-    spin_lock(&intr_cpu_lock);
-    tmp = env->intr_flag;
-    env->intr_flag = 1;
-    spin_unlock(&intr_cpu_lock);
-
-    return tmp;
-}
-
-uint64_t helper_rc(void)
-{
-    uint64_t tmp;
-
-    spin_lock(&intr_cpu_lock);
-    tmp = env->intr_flag;
-    env->intr_flag = 0;
-    spin_unlock(&intr_cpu_lock);
-
-    return tmp;
-}
-
 uint64_t helper_addqv (uint64_t op1, uint64_t op2)
 {
     uint64_t tmp = op1;
@@ -1191,6 +1165,7 @@ void helper_hw_rei (void)
 {
     env->pc = env->ipr[IPR_EXC_ADDR] & ~3;
     env->ipr[IPR_EXC_ADDR] = env->ipr[IPR_EXC_ADDR] & 1;
+    env->intr_flag = 0;
     /* XXX: re-enable interrupts and memory mapping */
 }
 
@@ -1198,6 +1173,7 @@ void helper_hw_ret (uint64_t a)
 {
     env->pc = a & ~3;
     env->ipr[IPR_EXC_ADDR] = a & 1;
+    env->intr_flag = 0;
     /* XXX: re-enable interrupts and memory mapping */
 }
 

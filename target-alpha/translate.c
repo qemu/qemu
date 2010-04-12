@@ -1301,6 +1301,19 @@ static void gen_cmp(TCGCond cond, int ra, int rb, int rc,
     }
 }
 
+static void gen_rx(int ra, int set)
+{
+    TCGv_i32 tmp;
+
+    if (ra != 31) {
+        tcg_gen_ld8u_i64(cpu_ir[ra], cpu_env, offsetof(CPUState, intr_flag));
+    }
+
+    tmp = tcg_const_i32(set);
+    tcg_gen_st8_i32(tmp, cpu_env, offsetof(CPUState, intr_flag));
+    tcg_temp_free_i32(tmp);
+}
+
 static inline int translate_one(DisasContext *ctx, uint32_t insn)
 {
     uint32_t palcode;
@@ -2392,16 +2405,14 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0xE000:
             /* RC */
-            if (ra != 31)
-                gen_helper_rc(cpu_ir[ra]);
+            gen_rx(ra, 0);
             break;
         case 0xE800:
             /* ECB */
             break;
         case 0xF000:
             /* RS */
-            if (ra != 31)
-                gen_helper_rs(cpu_ir[ra]);
+            gen_rx(ra, 1);
             break;
         case 0xF800:
             /* WH64 */

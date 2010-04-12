@@ -2358,6 +2358,11 @@ void cpu_loop (CPUState *env)
     while (1) {
         trapnr = cpu_alpha_exec (env);
 
+        /* All of the traps imply a transition through PALcode, which
+           implies an REI instruction has been executed.  Which means
+           that the intr_flag should be cleared.  */
+        env->intr_flag = 0;
+
         switch (trapnr) {
         case EXCP_RESET:
             fprintf(stderr, "Reset requested. Exit\n");
@@ -2444,7 +2449,7 @@ void cpu_loop (CPUState *env)
                                     env->ir[IR_A0], env->ir[IR_A1],
                                     env->ir[IR_A2], env->ir[IR_A3],
                                     env->ir[IR_A4], env->ir[IR_A5]);
-		if (trapnr != TARGET_NR_sigreturn
+                if (trapnr != TARGET_NR_sigreturn
                     && trapnr != TARGET_NR_rt_sigreturn) {
                     env->ir[IR_V0] = (sysret < 0 ? -sysret : sysret);
                     env->ir[IR_A3] = (sysret < 0);
