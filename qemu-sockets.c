@@ -130,7 +130,8 @@ int inet_listen_opts(QemuOpts *opts, int port_offset)
     ai.ai_family = PF_UNSPEC;
     ai.ai_socktype = SOCK_STREAM;
 
-    if (qemu_opt_get(opts, "port") == NULL) {
+    if ((qemu_opt_get(opts, "host") == NULL) ||
+        (qemu_opt_get(opts, "port") == NULL)) {
         fprintf(stderr, "%s: host and/or port not specified\n", __FUNCTION__);
         return -1;
     }
