@@ -42,6 +42,9 @@
 #include <windows.h>
 #endif
 
+static int bdrv_open_common(BlockDriverState *bs, const char *filename,
+    int flags, BlockDriver *drv);
+
 static BlockDriverAIOCB *bdrv_aio_readv_em(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque);
@@ -350,6 +353,9 @@ static BlockDriver *find_image_format(const char *filename)
     return drv;
 }
 
+/*
+ * Opens a file using a protocol (file, host_device, nbd, ...)
+ */
 int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags)
 {
     BlockDriverState *bs;
@@ -362,7 +368,7 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags)
     }
 
     bs = bdrv_new("");
-    ret = bdrv_open(bs, filename, flags, drv);
+    ret = bdrv_open_common(bs, filename, flags, drv);
     if (ret < 0) {
         bdrv_delete(bs);
         return ret;
@@ -372,19 +378,13 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags)
     return 0;
 }
 
+/*
+ * Opens a disk image (raw, qcow2, vmdk, ...)
+ */
 int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
               BlockDriver *drv)
 {
-    int ret, open_flags;
-    char tmp_filename[PATH_MAX];
-    char backing_filename[PATH_MAX];
-
-    bs->is_temporary = 0;
-    bs->encrypted = 0;
-    bs->valid_key = 0;
-    bs->open_flags = flags;
-    /* buffer_alignment defaulted to 512, drivers can change this value */
-    bs->buffer_alignment = 512;
+    int ret;
 
     if (flags & BDRV_O_SNAPSHOT) {
         BlockDriverState *bs1;
@@ -392,6 +392,8 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
         int is_protocol = 0;
         BlockDriver *bdrv_qcow2;
         QEMUOptionParameter *options;
+        char tmp_filename[PATH_MAX];
+        char backing_filename[PATH_MAX];
 
         /* if snapshot, we create a temporary backing file and open it
            instead of opening 'filename' directly */
@@ -439,8 +441,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
         bs->is_temporary = 1;
     }
 
-    pstrcpy(bs->filename, sizeof(bs->filename), filename);
-
+    /* Find the right image format driver */
     if (!drv) {
         drv = find_image_format(filename);
     }
@@ -449,9 +450,79 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
         ret = -ENOENT;
         goto unlink_and_fail;
     }
-    if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv)) {
-        ret = -ENOTSUP;
+
+    /* Open the image */
+    ret = bdrv_open_common(bs, filename, flags, drv);
+    if (ret < 0) {
         goto unlink_and_fail;
+    }
+
+    /* If there is a backing file, use it */
+    if ((flags & BDRV_O_NO_BACKING) == 0 && bs->backing_file[0] != '\0') {
+        char backing_filename[PATH_MAX];
+        int back_flags;
+        BlockDriver *back_drv = NULL;
+
+        bs->backing_hd = bdrv_new("");
+        path_combine(backing_filename, sizeof(backing_filename),
+                     filename, bs->backing_file);
+        if (bs->backing_format[0] != '\0')
+            back_drv = bdrv_find_format(bs->backing_format);
+
+        /* backing files always opened read-only */
+        back_flags =
+            flags & ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
+
+        ret = bdrv_open(bs->backing_hd, backing_filename, back_flags, back_drv);
+        if (ret < 0) {
+            bdrv_close(bs);
+            return ret;
+        }
+        if (bs->is_temporary) {
+            bs->backing_hd->keep_read_only = !(flags & BDRV_O_RDWR);
+        } else {
+            /* base image inherits from "parent" */
+            bs->backing_hd->keep_read_only = bs->keep_read_only;
+        }
+    }
+
+    if (!bdrv_key_required(bs)) {
+        /* call the change callback */
+        bs->media_changed = 1;
+        if (bs->change_cb)
+            bs->change_cb(bs->change_opaque);
+    }
+
+    return 0;
+
+unlink_and_fail:
+    if (bs->is_temporary) {
+        unlink(filename);
+    }
+    return ret;
+}
+
+/*
+ * Common part for opening disk images and files
+ */
+static int bdrv_open_common(BlockDriverState *bs, const char *filename,
+    int flags, BlockDriver *drv)
+{
+    int ret, open_flags;
+
+    assert(drv != NULL);
+
+    bs->is_temporary = 0;
+    bs->encrypted = 0;
+    bs->valid_key = 0;
+    bs->open_flags = flags;
+    /* buffer_alignment defaulted to 512, drivers can change this value */
+    bs->buffer_alignment = 512;
+
+    pstrcpy(bs->filename, sizeof(bs->filename), filename);
+
+    if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv)) {
+        return -ENOTSUP;
     }
 
     bs->drv = drv;
@@ -493,46 +564,12 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
         unlink(filename);
     }
 #endif
-    if ((flags & BDRV_O_NO_BACKING) == 0 && bs->backing_file[0] != '\0') {
-        /* if there is a backing file, use it */
-        BlockDriver *back_drv = NULL;
-        bs->backing_hd = bdrv_new("");
-        path_combine(backing_filename, sizeof(backing_filename),
-                     filename, bs->backing_file);
-        if (bs->backing_format[0] != '\0')
-            back_drv = bdrv_find_format(bs->backing_format);
-
-        /* backing files always opened read-only */
-        open_flags &= ~BDRV_O_RDWR;
-
-        ret = bdrv_open(bs->backing_hd, backing_filename, open_flags, back_drv);
-        if (ret < 0) {
-            bdrv_close(bs);
-            return ret;
-        }
-        if (bs->is_temporary) {
-            bs->backing_hd->keep_read_only = !(flags & BDRV_O_RDWR);
-        } else {
-            /* base image inherits from "parent" */
-            bs->backing_hd->keep_read_only = bs->keep_read_only;
-        }
-    }
-
-    if (!bdrv_key_required(bs)) {
-        /* call the change callback */
-        bs->media_changed = 1;
-        if (bs->change_cb)
-            bs->change_cb(bs->change_opaque);
-    }
     return 0;
 
 free_and_fail:
     qemu_free(bs->opaque);
     bs->opaque = NULL;
     bs->drv = NULL;
-unlink_and_fail:
-    if (bs->is_temporary)
-        unlink(filename);
     return ret;
 }
 
