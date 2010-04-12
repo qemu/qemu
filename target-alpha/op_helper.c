@@ -921,24 +921,6 @@ uint64_t helper_sqrtt (uint64_t a)
     return float64_to_t(fr);
 }
 
-
-/* Sign copy */
-uint64_t helper_cpys(uint64_t a, uint64_t b)
-{
-    return (a & 0x8000000000000000ULL) | (b & ~0x8000000000000000ULL);
-}
-
-uint64_t helper_cpysn(uint64_t a, uint64_t b)
-{
-    return ((~a) & 0x8000000000000000ULL) | (b & ~0x8000000000000000ULL);
-}
-
-uint64_t helper_cpyse(uint64_t a, uint64_t b)
-{
-    return (a & 0xFFF0000000000000ULL) | (b & ~0xFFF0000000000000ULL);
-}
-
-
 /* Comparisons */
 uint64_t helper_cmptun (uint64_t a, uint64_t b)
 {

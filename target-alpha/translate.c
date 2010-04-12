@@ -774,6 +774,81 @@ static inline void glue(gen_f, name)(DisasContext *ctx,         \
 IEEE_INTCVT(cvtqs)
 IEEE_INTCVT(cvtqt)
 
+static void gen_cpys_internal(int ra, int rb, int rc, int inv_a, uint64_t mask)
+{
+    TCGv va, vb, vmask;
+    int za = 0, zb = 0;
+
+    if (unlikely(rc == 31)) {
+        return;
+    }
+
+    vmask = tcg_const_i64(mask);
+
+    TCGV_UNUSED_I64(va);
+    if (ra == 31) {
+        if (inv_a) {
+            va = vmask;
+        } else {
+            za = 1;
+        }
+    } else {
+        va = tcg_temp_new_i64();
+        tcg_gen_mov_i64(va, cpu_fir[ra]);
+        if (inv_a) {
+            tcg_gen_andc_i64(va, vmask, va);
+        } else {
+            tcg_gen_and_i64(va, va, vmask);
+        }
+    }
+
+    TCGV_UNUSED_I64(vb);
+    if (rb == 31) {
+        zb = 1;
+    } else {
+        vb = tcg_temp_new_i64();
+        tcg_gen_andc_i64(vb, cpu_fir[rb], vmask);
+    }
+
+    switch (za << 1 | zb) {
+    case 0 | 0:
+        tcg_gen_or_i64(cpu_fir[rc], va, vb);
+        break;
+    case 0 | 1:
+        tcg_gen_mov_i64(cpu_fir[rc], va);
+        break;
+    case 2 | 0:
+        tcg_gen_mov_i64(cpu_fir[rc], vb);
+        break;
+    case 2 | 1:
+        tcg_gen_movi_i64(cpu_fir[rc], 0);
+        break;
+    }
+
+    tcg_temp_free(vmask);
+    if (ra != 31) {
+        tcg_temp_free(va);
+    }
+    if (rb != 31) {
+        tcg_temp_free(vb);
+    }
+}
+
+static inline void gen_fcpys(int ra, int rb, int rc)
+{
+    gen_cpys_internal(ra, rb, rc, 0, 0x8000000000000000ULL);
+}
+
+static inline void gen_fcpysn(int ra, int rb, int rc)
+{
+    gen_cpys_internal(ra, rb, rc, 1, 0x8000000000000000ULL);
+}
+
+static inline void gen_fcpyse(int ra, int rb, int rc)
+{
+    gen_cpys_internal(ra, rb, rc, 0, 0xFFF0000000000000ULL);
+}
+
 #define FARITH3(name)                                           \
 static inline void glue(gen_f, name)(int ra, int rb, int rc)    \
 {                                                               \
@@ -802,10 +877,6 @@ static inline void glue(gen_f, name)(int ra, int rb, int rc)    \
         tcg_temp_free(vb);                                      \
     }                                                           \
 }
-/* ??? Ought to expand these inline; simple masking operations.  */
-FARITH3(cpys)
-FARITH3(cpysn)
-FARITH3(cpyse)
 
 /* ??? VAX instruction qualifiers ignored.  */
 FARITH3(addf)
