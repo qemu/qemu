@@ -244,12 +244,6 @@ int kvm_allowed = 0;
 uint32_t xen_domid;
 enum xen_mode xen_mode = XEN_EMULATE;
 
-#ifdef SIGRTMIN
-#define SIG_IPI (SIGRTMIN+4)
-#else
-#define SIG_IPI SIGUSR1
-#endif
-
 static int default_serial = 1;
 static int default_parallel = 1;
 static int default_virtcon = 1;
@@ -1717,7 +1711,7 @@ static int reset_requested;
 static int shutdown_requested;
 static int powerdown_requested;
 int debug_requested;
-static int vmstop_requested;
+int vmstop_requested;
 
 int qemu_shutdown_requested(void)
 {
@@ -1955,10 +1949,7 @@ static void main_loop(void)
 {
     int r;
 
-#ifdef CONFIG_IOTHREAD
-    qemu_system_ready = 1;
-    qemu_cond_broadcast(&qemu_system_cond);
-#endif
+    qemu_main_loop_start();
 
     for (;;) {
         do {
