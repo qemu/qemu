@@ -411,15 +411,6 @@ static inline int cpu_mmu_index (CPUState *env)
     return (env->ps >> 3) & 3;
 }
 
-#if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
-{
-    if (newsp)
-        env->ir[30] = newsp;
-    /* FIXME: Zero syscall return value.  */
-}
-#endif
-
 #include "cpu-all.h"
 #include "exec-all.h"
 
@@ -477,7 +468,7 @@ enum {
     IR_S4   = 13,
     IR_S5   = 14,
     IR_S6   = 15,
-#define IR_FP IR_S6
+    IR_FP   = IR_S6,
     IR_A0   = 16,
     IR_A1   = 17,
     IR_A2   = 18,
@@ -490,7 +481,7 @@ enum {
     IR_T11  = 25,
     IR_RA   = 26,
     IR_T12  = 27,
-#define IR_PV IR_T12
+    IR_PV   = IR_T12,
     IR_AT   = 28,
     IR_GP   = 29,
     IR_SP   = 30,
@@ -530,5 +521,21 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
     *cs_base = 0;
     *flags = env->ps;
 }
+
+#if defined(CONFIG_USER_ONLY)
+static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
+{
+    if (newsp) {
+        env->ir[IR_SP] = newsp;
+    }
+    env->ir[IR_V0] = 0;
+    env->ir[IR_A3] = 0;
+}
+
+static inline void cpu_set_tls(CPUState *env, target_ulong newtls)
+{
+    env->unique = newtls;
+}
+#endif
 
 #endif /* !defined (__CPU_ALPHA_H__) */

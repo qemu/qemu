@@ -5768,7 +5768,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = get_errno(fsync(arg1));
         break;
     case TARGET_NR_clone:
-#if defined(TARGET_SH4)
+#if defined(TARGET_SH4) || defined(TARGET_ALPHA)
         ret = get_errno(do_fork(cpu_env, arg1, arg2, arg3, arg5, arg4));
 #elif defined(TARGET_CRIS)
         ret = get_errno(do_fork(cpu_env, arg2, arg1, arg3, arg4, arg5));

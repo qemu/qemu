@@ -2432,6 +2432,7 @@ case "$target_arch2" in
   ;;
   alpha)
     target_phys_bits=64
+    target_nptl="yes"
   ;;
   arm|armeb)
     TARGET_ARCH=arm
