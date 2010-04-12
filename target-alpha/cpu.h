@@ -355,7 +355,6 @@ struct CPUAlphaState {
     uint64_t ir[31];
     float64 fir[31];
     uint64_t pc;
-    uint32_t pcc[2];
     uint64_t ipr[IPR_LAST];
     uint64_t ps;
     uint64_t unique;

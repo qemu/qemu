@@ -21,6 +21,7 @@
 #include "host-utils.h"
 #include "softfloat.h"
 #include "helper.h"
+#include "qemu-timer.h"
 
 /*****************************************************************************/
 /* Exceptions processing helpers */
@@ -33,8 +34,8 @@ void QEMU_NORETURN helper_excp (int excp, int error)
 
 uint64_t helper_load_pcc (void)
 {
-    /* XXX: TODO */
-    return 0;
+    /* ??? This isn't a timer for which we have any rate info.  */
+    return (uint32_t)cpu_get_real_ticks();
 }
 
 uint64_t helper_load_fpcr (void)
