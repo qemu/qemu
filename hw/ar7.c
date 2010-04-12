@@ -3836,6 +3836,7 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     CPUState *env;
     DeviceState *dev;
     DriveInfo *dinfo;
+    BlockDriverState *flash_driver = NULL;
     ram_addr_t flash_offset;
     ram_addr_t ram_offset;
     ram_addr_t rom_offset;
@@ -3897,36 +3898,27 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
        but initialize the hardware ourselves. When a kernel gets
        preloaded we also initialize the hardware, since the BIOS wasn't
        run. */
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "flashimage.bin");
     dinfo = drive_get(IF_PFLASH, 0, 0);
     if (dinfo) {
-        pflash_t *pf;
         int64_t image_size = bdrv_getlength(dinfo->bdrv);
         if (image_size > 0) {
+            flash_driver = dinfo->bdrv;
             flash_size = image_size;
-            flash_offset = qemu_ram_alloc(flash_size);
-            pf = pflash_device_register(FLASH_ADDR, flash_offset,
-                                        dinfo->bdrv,
-                                        flash_size, 2,
-                                        flash_manufacturer, flash_type, be);
-        } else {
-            flash_offset = qemu_ram_alloc(flash_size);
-            pf = pflash_device_register(FLASH_ADDR, flash_offset,
-                                        0,
-                                        flash_size, 2,
-                                        flash_manufacturer, flash_type, be);
         }
-    } else if (filename) {
-        pflash_t *pf;
-        flash_offset = qemu_ram_alloc(flash_size);
-        pf = pflash_device_register(FLASH_ADDR, flash_offset,
-                                    0,
-                                    flash_size, 2,
-                                    flash_manufacturer, flash_type, be);
-        flash_size = load_image_targphys(filename, FLASH_ADDR, flash_size);
-        qemu_free(filename);
     }
-    fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, "flashimage.bin", flash_size);
+    flash_offset = qemu_ram_alloc(flash_size);
+    pflash_device_register(FLASH_ADDR, flash_offset,
+                          flash_driver, flash_size, 2,
+                          flash_manufacturer, flash_type, be);
+    if (!dinfo) {
+        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "flashimage.bin");
+        if (filename) {
+            flash_size = load_image_targphys(filename, FLASH_ADDR, flash_size);
+            qemu_free(filename);
+        }
+    }
+    fprintf(stderr, "%s: load BIOS '%s', size %d\n",
+            __func__, "flashimage.bin", flash_size);
 
     /* The AR7 processor has 4 KiB internal ROM at physical address 0x1fc00000. */
     rom_offset = qemu_ram_alloc(4 * KiB);
