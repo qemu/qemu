@@ -126,7 +126,7 @@ struct BlockDriver {
     /* Set if newly created images are not guaranteed to contain only zeros */
     int no_zero_init;
 
-    struct BlockDriver *next;
+    QLIST_ENTRY(BlockDriver) list;
 };
 
 struct BlockDriverState {
