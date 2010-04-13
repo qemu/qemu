@@ -486,7 +486,11 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             break;
 #elif TCG_TARGET_REG_BITS == 64
         case INDEX_op_setcond_i64:
-            TODO();
+            t0 = *tb_ptr++;
+            t1 = tci_read_r64(&tb_ptr);
+            t2 = tci_read_ri64(&tb_ptr);
+            condition = *tb_ptr++;
+            tci_write_reg64(t0, tci_compare64(t1, t2, condition));
             break;
 #endif
         case INDEX_op_mov_i32:
@@ -1126,12 +1130,10 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             taddr = tci_read_ulong(&tb_ptr);
 #ifdef CONFIG_SOFTMMU
             t2 = tci_read_i(&tb_ptr);
-            /* TODO: byte order. */
             __stq_mmu(taddr, u64, t2);
 #else
             host_addr = (tcg_target_ulong)taddr;
             assert(taddr == host_addr);
-            /* TODO: byte order. */
             *(uint64_t *)(host_addr + GUEST_BASE) = u64;
 #endif
             break;
