@@ -37,7 +37,7 @@ typedef struct img_cmd_t {
 } img_cmd_t;
 
 /* Default to cache=writeback as data integrity is not important for qemu-tcg. */
-#define BRDV_O_FLAGS BDRV_O_CACHE_WB
+#define BDRV_O_FLAGS BDRV_O_CACHE_WB
 
 static void QEMU_NORETURN error(const char *fmt, ...)
 {
@@ -345,7 +345,7 @@ static int img_create(int argc, char **argv)
                 }
             }
 
-            bs = bdrv_new_open(backing_file->value.s, fmt, BRDV_O_FLAGS);
+            bs = bdrv_new_open(backing_file->value.s, fmt, BDRV_O_FLAGS);
             bdrv_get_geometry(bs, &size);
             size *= 512;
             bdrv_delete(bs);
@@ -400,7 +400,7 @@ static int img_check(int argc, char **argv)
         help();
     filename = argv[optind++];
 
-    bs = bdrv_new_open(filename, fmt, BRDV_O_FLAGS);
+    bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS);
     ret = bdrv_check(bs);
     switch(ret) {
     case 0:
@@ -446,7 +446,7 @@ static int img_commit(int argc, char **argv)
         help();
     filename = argv[optind++];
 
-    bs = bdrv_new_open(filename, fmt, BRDV_O_FLAGS | BDRV_O_RDWR);
+    bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_RDWR);
     ret = bdrv_commit(bs);
     switch(ret) {
     case 0:
@@ -603,7 +603,7 @@ static int img_convert(int argc, char **argv)
 
     total_sectors = 0;
     for (bs_i = 0; bs_i < bs_n; bs_i++) {
-        bs[bs_i] = bdrv_new_open(argv[optind + bs_i], fmt, BRDV_O_FLAGS);
+        bs[bs_i] = bdrv_new_open(argv[optind + bs_i], fmt, BDRV_O_FLAGS);
         if (!bs[bs_i])
             error("Could not open '%s'", argv[optind + bs_i]);
         bdrv_get_geometry(bs[bs_i], &bs_sectors);
@@ -661,7 +661,7 @@ static int img_convert(int argc, char **argv)
         }
     }
 
-    out_bs = bdrv_new_open(out_filename, out_fmt, BRDV_O_FLAGS | BDRV_O_RDWR);
+    out_bs = bdrv_new_open(out_filename, out_fmt, BDRV_O_FLAGS | BDRV_O_RDWR);
 
     bs_i = 0;
     bs_offset = 0;
@@ -885,7 +885,7 @@ static int img_info(int argc, char **argv)
         help();
     filename = argv[optind++];
 
-    bs = bdrv_new_open(filename, fmt, BRDV_O_FLAGS | BDRV_O_NO_BACKING);
+    bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_NO_BACKING);
     bdrv_get_format(bs, fmt_name, sizeof(fmt_name));
     bdrv_get_geometry(bs, &total_sectors);
     get_human_readable_size(size_buf, sizeof(size_buf), total_sectors * 512);
@@ -1075,7 +1075,7 @@ static int img_rebase(int argc, char **argv)
      * Ignore the old backing file for unsafe rebase in case we want to correct
      * the reference to a renamed or moved backing file.
      */
-    flags = BRDV_O_FLAGS | BDRV_O_RDWR | (unsafe ? BDRV_O_NO_BACKING : 0);
+    flags = BDRV_O_FLAGS | BDRV_O_RDWR | (unsafe ? BDRV_O_NO_BACKING : 0);
     bs = bdrv_new_open(filename, fmt, flags);
 
     /* Find the right drivers for the backing files */
@@ -1106,7 +1106,7 @@ static int img_rebase(int argc, char **argv)
 
         bs_old_backing = bdrv_new("old_backing");
         bdrv_get_backing_filename(bs, backing_name, sizeof(backing_name));
-        if (bdrv_open(bs_old_backing, backing_name, BRDV_O_FLAGS,
+        if (bdrv_open(bs_old_backing, backing_name, BDRV_O_FLAGS,
             old_backing_drv))
         {
             error("Could not open old backing file '%s'", backing_name);
@@ -1114,7 +1114,7 @@ static int img_rebase(int argc, char **argv)
         }
 
         bs_new_backing = bdrv_new("new_backing");
-        if (bdrv_open(bs_new_backing, out_baseimg, BRDV_O_FLAGS | BDRV_O_RDWR,
+        if (bdrv_open(bs_new_backing, out_baseimg, BDRV_O_FLAGS | BDRV_O_RDWR,
             new_backing_drv))
         {
             error("Could not open new backing file '%s'", out_baseimg);
