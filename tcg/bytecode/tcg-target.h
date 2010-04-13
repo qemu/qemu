@@ -44,8 +44,10 @@
 #define CONFIG_DEBUG_TCG_INTERPRETER
 #endif
 
+#if 0 /* TCI tries to emulate a little endian host. */
 #if defined(HOST_WORDS_BIGENDIAN)
 # define TCG_TARGET_WORDS_BIGENDIAN
+#endif
 #endif
 
 /* Target word size (must be identical to pointer size). */
