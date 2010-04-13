@@ -17,6 +17,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 
 #include <spice.h>
@@ -76,9 +77,13 @@ static void kbd_leds(void *opaque, int ledstate)
 
 /* mouse bits */
 
-typedef struct QemuSpiceMouse {
-    SpiceMouseInstance sin;
-} QemuSpiceMouse;
+typedef struct QemuSpicePointer {
+    SpiceMouseInstance  mouse;
+    SpiceTabletInstance tablet;
+    int width, height, x, y;
+    Notifier mouse_mode;
+    bool absolute;
+} QemuSpicePointer;
 
 static int map_buttons(int spice_buttons)
 {
@@ -121,17 +126,92 @@ static const SpiceMouseInterface mouse_interface = {
     .buttons            = mouse_buttons,
 };
 
+static void tablet_set_logical_size(SpiceTabletInstance* sin, int width, int height)
+{
+    QemuSpicePointer *pointer = container_of(sin, QemuSpicePointer, tablet);
+
+    if (height < 16) {
+        height = 16;
+    }
+    if (width < 16) {
+        width = 16;
+    }
+    pointer->width  = width;
+    pointer->height = height;
+}
+
+static void tablet_position(SpiceTabletInstance* sin, int x, int y,
+                            uint32_t buttons_state)
+{
+    QemuSpicePointer *pointer = container_of(sin, QemuSpicePointer, tablet);
+
+    pointer->x = x * 0x7FFF / (pointer->width - 1);
+    pointer->y = y * 0x7FFF / (pointer->height - 1);
+    kbd_mouse_event(pointer->x, pointer->y, 0, map_buttons(buttons_state));
+}
+
+
+static void tablet_wheel(SpiceTabletInstance* sin, int wheel,
+                         uint32_t buttons_state)
+{
+    QemuSpicePointer *pointer = container_of(sin, QemuSpicePointer, tablet);
+
+    kbd_mouse_event(pointer->x, pointer->y, wheel, map_buttons(buttons_state));
+}
+
+static void tablet_buttons(SpiceTabletInstance *sin,
+                           uint32_t buttons_state)
+{
+    QemuSpicePointer *pointer = container_of(sin, QemuSpicePointer, tablet);
+
+    kbd_mouse_event(pointer->x, pointer->y, 0, map_buttons(buttons_state));
+}
+
+static const SpiceTabletInterface tablet_interface = {
+    .base.type          = SPICE_INTERFACE_TABLET,
+    .base.description   = "tablet",
+    .base.major_version = SPICE_INTERFACE_TABLET_MAJOR,
+    .base.minor_version = SPICE_INTERFACE_TABLET_MINOR,
+    .set_logical_size   = tablet_set_logical_size,
+    .position           = tablet_position,
+    .wheel              = tablet_wheel,
+    .buttons            = tablet_buttons,
+};
+
+static void mouse_mode_notifier(Notifier *notifier)
+{
+    QemuSpicePointer *pointer = container_of(notifier, QemuSpicePointer, mouse_mode);
+    bool is_absolute  = kbd_mouse_is_absolute();
+
+    if (pointer->absolute == is_absolute) {
+        return;
+    }
+
+    if (is_absolute) {
+        qemu_spice_add_interface(&pointer->tablet.base);
+    } else {
+        spice_server_remove_interface(&pointer->tablet.base);
+    }
+    pointer->absolute = is_absolute;
+}
+
 void qemu_spice_input_init(void)
 {
     QemuSpiceKbd *kbd;
-    QemuSpiceMouse *mouse;
+    QemuSpicePointer *pointer;
 
     kbd = qemu_mallocz(sizeof(*kbd));
     kbd->sin.base.sif = &kbd_interface.base;
     qemu_spice_add_interface(&kbd->sin.base);
     qemu_add_led_event_handler(kbd_leds, kbd);
 
-    mouse = qemu_mallocz(sizeof(*mouse));
-    mouse->sin.base.sif = &mouse_interface.base;
-    qemu_spice_add_interface(&mouse->sin.base);
+    pointer = qemu_mallocz(sizeof(*pointer));
+    pointer->mouse.base.sif  = &mouse_interface.base;
+    pointer->tablet.base.sif = &tablet_interface.base;
+    qemu_spice_add_interface(&pointer->mouse.base);
+
+    pointer->absolute = false;
+    pointer->mouse_mode.notify = mouse_mode_notifier;
+    qemu_add_mouse_mode_change_notifier(&pointer->mouse_mode);
+    mouse_mode_notifier(&pointer->mouse_mode);
 }

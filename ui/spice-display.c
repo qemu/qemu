@@ -180,7 +180,7 @@ void qemu_spice_create_host_primary(SimpleSpiceDisplay *ssd)
     surface.width      = ds_get_width(ssd->ds);
     surface.height     = ds_get_height(ssd->ds);
     surface.stride     = -surface.width * 4;
-    surface.mouse_mode = 0;
+    surface.mouse_mode = true;
     surface.flags      = 0;
     surface.type       = 0;
     surface.mem        = (intptr_t)ssd->buf;
