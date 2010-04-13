@@ -33,6 +33,12 @@
 
 #include "cpus.h"
 
+#ifdef SIGRTMIN
+#define SIG_IPI (SIGRTMIN+4)
+#else
+#define SIG_IPI SIGUSR1
+#endif
+
 static CPUState *cur_cpu;
 static CPUState *next_cpu;
 
@@ -226,6 +232,10 @@ int qemu_init_main_loop(void)
     return qemu_event_init();
 }
 
+void qemu_main_loop_start(void)
+{
+}
+
 void qemu_init_vcpu(void *_env)
 {
     CPUState *env = _env;
@@ -316,6 +326,12 @@ int qemu_init_main_loop(void)
     qemu_thread_self(&io_thread);
 
     return 0;
+}
+
+void qemu_main_loop_start(void)
+{
+    qemu_system_ready = 1;
+    qemu_cond_broadcast(&qemu_system_cond);
 }
 
 static void qemu_wait_io_event_common(CPUState *env)
