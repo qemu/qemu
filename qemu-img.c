@@ -190,12 +190,11 @@ static int read_password(char *buf, int buf_size)
 
 static BlockDriverState *bdrv_new_open(const char *filename,
                                        const char *fmt,
-                                       int readonly)
+                                       int flags)
 {
     BlockDriverState *bs;
     BlockDriver *drv;
     char password[256];
-    int flags = BRDV_O_FLAGS;
 
     bs = bdrv_new("");
     if (!bs)
@@ -206,9 +205,6 @@ static BlockDriverState *bdrv_new_open(const char *filename,
             error("Unknown file format '%s'", fmt);
     } else {
         drv = NULL;
-    }
-    if (!readonly) {
-        flags |= BDRV_O_RDWR;
     }
     if (bdrv_open(bs, filename, flags, drv) < 0) {
         error("Could not open '%s'", filename);
@@ -349,7 +345,7 @@ static int img_create(int argc, char **argv)
                 }
             }
 
-            bs = bdrv_new_open(backing_file->value.s, fmt, 1);
+            bs = bdrv_new_open(backing_file->value.s, fmt, BRDV_O_FLAGS);
             bdrv_get_geometry(bs, &size);
             size *= 512;
             bdrv_delete(bs);
@@ -384,7 +380,6 @@ static int img_check(int argc, char **argv)
 {
     int c, ret;
     const char *filename, *fmt;
-    BlockDriver *drv;
     BlockDriverState *bs;
 
     fmt = NULL;
@@ -405,19 +400,7 @@ static int img_check(int argc, char **argv)
         help();
     filename = argv[optind++];
 
-    bs = bdrv_new("");
-    if (!bs)
-        error("Not enough memory");
-    if (fmt) {
-        drv = bdrv_find_format(fmt);
-        if (!drv)
-            error("Unknown file format '%s'", fmt);
-    } else {
-        drv = NULL;
-    }
-    if (bdrv_open(bs, filename, BRDV_O_FLAGS, drv) < 0) {
-        error("Could not open '%s'", filename);
-    }
+    bs = bdrv_new_open(filename, fmt, BRDV_O_FLAGS);
     ret = bdrv_check(bs);
     switch(ret) {
     case 0:
@@ -443,7 +426,6 @@ static int img_commit(int argc, char **argv)
 {
     int c, ret;
     const char *filename, *fmt;
-    BlockDriver *drv;
     BlockDriverState *bs;
 
     fmt = NULL;
@@ -464,19 +446,7 @@ static int img_commit(int argc, char **argv)
         help();
     filename = argv[optind++];
 
-    bs = bdrv_new("");
-    if (!bs)
-        error("Not enough memory");
-    if (fmt) {
-        drv = bdrv_find_format(fmt);
-        if (!drv)
-            error("Unknown file format '%s'", fmt);
-    } else {
-        drv = NULL;
-    }
-    if (bdrv_open(bs, filename, BRDV_O_FLAGS | BDRV_O_RDWR, drv) < 0) {
-        error("Could not open '%s'", filename);
-    }
+    bs = bdrv_new_open(filename, fmt, BRDV_O_FLAGS | BDRV_O_RDWR);
     ret = bdrv_commit(bs);
     switch(ret) {
     case 0:
@@ -633,7 +603,7 @@ static int img_convert(int argc, char **argv)
 
     total_sectors = 0;
     for (bs_i = 0; bs_i < bs_n; bs_i++) {
-        bs[bs_i] = bdrv_new_open(argv[optind + bs_i], fmt, 1);
+        bs[bs_i] = bdrv_new_open(argv[optind + bs_i], fmt, BRDV_O_FLAGS);
         if (!bs[bs_i])
             error("Could not open '%s'", argv[optind + bs_i]);
         bdrv_get_geometry(bs[bs_i], &bs_sectors);
@@ -691,7 +661,7 @@ static int img_convert(int argc, char **argv)
         }
     }
 
-    out_bs = bdrv_new_open(out_filename, out_fmt, 0);
+    out_bs = bdrv_new_open(out_filename, out_fmt, BRDV_O_FLAGS | BDRV_O_RDWR);
 
     bs_i = 0;
     bs_offset = 0;
@@ -889,7 +859,6 @@ static int img_info(int argc, char **argv)
 {
     int c;
     const char *filename, *fmt;
-    BlockDriver *drv;
     BlockDriverState *bs;
     char fmt_name[128], size_buf[128], dsize_buf[128];
     uint64_t total_sectors;
@@ -916,19 +885,7 @@ static int img_info(int argc, char **argv)
         help();
     filename = argv[optind++];
 
-    bs = bdrv_new("");
-    if (!bs)
-        error("Not enough memory");
-    if (fmt) {
-        drv = bdrv_find_format(fmt);
-        if (!drv)
-            error("Unknown file format '%s'", fmt);
-    } else {
-        drv = NULL;
-    }
-    if (bdrv_open(bs, filename, BRDV_O_FLAGS | BDRV_O_NO_BACKING, drv) < 0) {
-        error("Could not open '%s'", filename);
-    }
+    bs = bdrv_new_open(filename, fmt, BRDV_O_FLAGS | BDRV_O_NO_BACKING);
     bdrv_get_format(bs, fmt_name, sizeof(fmt_name));
     bdrv_get_geometry(bs, &total_sectors);
     get_human_readable_size(size_buf, sizeof(size_buf), total_sectors * 512);
@@ -1028,13 +985,7 @@ static int img_snapshot(int argc, char **argv)
     filename = argv[optind++];
 
     /* Open the image */
-    bs = bdrv_new("");
-    if (!bs)
-        error("Not enough memory");
-
-    if (bdrv_open(bs, filename, bdrv_oflags, NULL) < 0) {
-        error("Could not open '%s'", filename);
-    }
+    bs = bdrv_new_open(filename, NULL, bdrv_oflags);
 
     /* Perform the requested action */
     switch(action) {
@@ -1080,7 +1031,7 @@ static int img_snapshot(int argc, char **argv)
 static int img_rebase(int argc, char **argv)
 {
     BlockDriverState *bs, *bs_old_backing, *bs_new_backing;
-    BlockDriver *drv, *old_backing_drv, *new_backing_drv;
+    BlockDriver *old_backing_drv, *new_backing_drv;
     char *filename;
     const char *fmt, *out_basefmt, *out_baseimg;
     int c, flags, ret;
@@ -1124,22 +1075,8 @@ static int img_rebase(int argc, char **argv)
      * Ignore the old backing file for unsafe rebase in case we want to correct
      * the reference to a renamed or moved backing file.
      */
-    bs = bdrv_new("");
-    if (!bs)
-        error("Not enough memory");
-
-    drv = NULL;
-    if (fmt) {
-        drv = bdrv_find_format(fmt);
-        if (drv == NULL) {
-            error("Invalid format name: '%s'", fmt);
-        }
-    }
-
     flags = BRDV_O_FLAGS | BDRV_O_RDWR | (unsafe ? BDRV_O_NO_BACKING : 0);
-    if (bdrv_open(bs, filename, flags, drv) < 0) {
-        error("Could not open '%s'", filename);
-    }
+    bs = bdrv_new_open(filename, fmt, flags);
 
     /* Find the right drivers for the backing files */
     old_backing_drv = NULL;
