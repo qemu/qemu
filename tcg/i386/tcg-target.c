@@ -1360,11 +1360,12 @@ void tcg_target_init(TCGContext *s)
 #endif
 
     tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xff);
-    tcg_regset_set32(tcg_target_call_clobber_regs, 0,
-                     (1 << TCG_REG_EAX) | 
-                     (1 << TCG_REG_EDX) | 
-                     (1 << TCG_REG_ECX));
-    
+
+    tcg_regset_clear(tcg_target_call_clobber_regs);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_EAX);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_EDX);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_ECX);
+
     tcg_regset_clear(s->reserved_regs);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_ESP);
 
