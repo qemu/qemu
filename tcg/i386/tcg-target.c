@@ -36,13 +36,13 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 #endif
 
 static const int tcg_target_reg_alloc_order[] = {
-    TCG_REG_EAX,
-    TCG_REG_EDX,
-    TCG_REG_ECX,
     TCG_REG_EBX,
     TCG_REG_ESI,
     TCG_REG_EDI,
     TCG_REG_EBP,
+    TCG_REG_ECX,
+    TCG_REG_EDX,
+    TCG_REG_EAX,
 };
 
 static const int tcg_target_call_iarg_regs[3] = { TCG_REG_EAX, TCG_REG_EDX, TCG_REG_ECX };
