@@ -744,22 +744,20 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
         }
         break;
     case 3:
-        /* XXX: could be nicer */
-        if (r0 == data_reg) {
-            r1 = TCG_REG_EDX;
-            if (r1 == data_reg)
-                r1 = TCG_REG_EAX;
-            tcg_out_mov(s, r1, r0);
-            r0 = r1;
+        if (bswap) {
+            int t = data_reg;
+            data_reg = data_reg2;
+            data_reg2 = t;
         }
-        if (!bswap) {
+        if (r0 != data_reg) {
             tcg_out_ld(s, TCG_TYPE_I32, data_reg, r0, GUEST_BASE);
             tcg_out_ld(s, TCG_TYPE_I32, data_reg2, r0, GUEST_BASE + 4);
         } else {
-            tcg_out_ld(s, TCG_TYPE_I32, data_reg, r0, GUEST_BASE + 4);
+            tcg_out_ld(s, TCG_TYPE_I32, data_reg2, r0, GUEST_BASE + 4);
+            tcg_out_ld(s, TCG_TYPE_I32, data_reg, r0, GUEST_BASE);
+        }
+        if (bswap) {
             tcg_out_bswap32(s, data_reg);
-
-            tcg_out_ld(s, TCG_TYPE_I32, data_reg2, r0, GUEST_BASE);
             tcg_out_bswap32(s, data_reg2);
         }
         break;
