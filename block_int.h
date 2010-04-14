@@ -51,7 +51,8 @@ struct BlockDriver {
     int instance_size;
     int (*bdrv_probe)(const uint8_t *buf, int buf_size, const char *filename);
     int (*bdrv_probe_device)(const char *filename);
-    int (*bdrv_open)(BlockDriverState *bs, const char *filename, int flags);
+    int (*bdrv_open)(BlockDriverState *bs, int flags);
+    int (*bdrv_file_open)(BlockDriverState *bs, const char *filename, int flags);
     int (*bdrv_read)(BlockDriverState *bs, int64_t sector_num,
                      uint8_t *buf, int nb_sectors);
     int (*bdrv_write)(BlockDriverState *bs, int64_t sector_num,
@@ -155,6 +156,8 @@ struct BlockDriverState {
     int media_changed;
 
     BlockDriverState *backing_hd;
+    BlockDriverState *file;
+
     /* async read/write emulation */
 
     void *sync_aiocb;

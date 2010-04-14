@@ -242,7 +242,7 @@ static BlockDriver bdrv_file = {
     .format_name	= "file",
     .protocol_name	= "file",
     .instance_size	= sizeof(BDRVRawState),
-    .bdrv_open		= raw_open,
+    .bdrv_file_open	= raw_open,
     .bdrv_close		= raw_close,
     .bdrv_create	= raw_create,
     .bdrv_flush		= raw_flush,
@@ -399,7 +399,7 @@ static BlockDriver bdrv_host_device = {
     .protocol_name	= "host_device",
     .instance_size	= sizeof(BDRVRawState),
     .bdrv_probe_device	= hdev_probe_device,
-    .bdrv_open		= hdev_open,
+    .bdrv_file_open	= hdev_open,
     .bdrv_close		= raw_close,
     .bdrv_flush		= raw_flush,
 

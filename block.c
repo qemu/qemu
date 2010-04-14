@@ -288,6 +288,8 @@ static BlockDriver *find_protocol(const char *filename)
     int len;
     const char *p;
 
+    /* TODO Drivers without bdrv_file_open must be specified explicitly */
+
 #ifdef _WIN32
     if (is_windows_drive(filename) ||
         is_windows_drive_prefix(filename))
@@ -360,6 +362,7 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
 
     assert(drv != NULL);
 
+    bs->file = NULL;
     bs->is_temporary = 0;
     bs->encrypted = 0;
     bs->valid_key = 0;
@@ -398,7 +401,16 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
         open_flags |= BDRV_O_RDWR;
     }
 
-    ret = drv->bdrv_open(bs, filename, open_flags);
+    /* Open the image, either directly or using a protocol */
+    if (drv->bdrv_file_open) {
+        ret = drv->bdrv_file_open(bs, filename, open_flags);
+    } else {
+        ret = bdrv_file_open(&bs->file, filename, open_flags);
+        if (ret >= 0) {
+            ret = drv->bdrv_open(bs, open_flags);
+        }
+    }
+
     if (ret < 0) {
         goto free_and_fail;
     }
@@ -415,6 +427,10 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
     return 0;
 
 free_and_fail:
+    if (bs->file) {
+        bdrv_delete(bs->file);
+        bs->file = NULL;
+    }
     qemu_free(bs->opaque);
     bs->opaque = NULL;
     bs->drv = NULL;
@@ -585,6 +601,10 @@ void bdrv_close(BlockDriverState *bs)
         bs->opaque = NULL;
         bs->drv = NULL;
 
+        if (bs->file != NULL) {
+            bdrv_close(bs->file);
+        }
+
         /* call the change callback */
         bs->media_changed = 1;
         if (bs->change_cb)
@@ -600,6 +620,10 @@ void bdrv_delete(BlockDriverState *bs)
     }
 
     bdrv_close(bs);
+    if (bs->file != NULL) {
+        bdrv_delete(bs->file);
+    }
+
     qemu_free(bs);
 }
 
