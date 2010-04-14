@@ -732,6 +732,8 @@ static int img_convert(int argc, char **argv)
         /* signal EOF to align */
         bdrv_write_compressed(out_bs, 0, NULL, 0);
     } else {
+        int has_zero_init = bdrv_has_zero_init(out_bs);
+
         sector_num = 0; // total number of sectors converted so far
         for(;;) {
             nb_sectors = total_sectors - sector_num;
@@ -755,7 +757,7 @@ static int img_convert(int argc, char **argv)
             if (n > bs_offset + bs_sectors - sector_num)
                 n = bs_offset + bs_sectors - sector_num;
 
-            if (!drv->no_zero_init) {
+            if (has_zero_init) {
                 /* If the output image is being created as a copy on write image,
                    assume that sectors which are unallocated in the input image
                    are present in both the output's and input's base images (no
@@ -788,7 +790,7 @@ static int img_convert(int argc, char **argv)
                    If the output is to a host device, we also write out
                    sectors that are entirely 0, since whatever data was
                    already there is garbage, not 0s. */
-                if (drv->no_zero_init || out_baseimg ||
+                if (!has_zero_init || out_baseimg ||
                     is_allocated_sectors(buf1, n, &n1)) {
                     if (bdrv_write(out_bs, sector_num, buf1, n1) < 0)
                         error("error while writing");
