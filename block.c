@@ -42,9 +42,6 @@
 #include <windows.h>
 #endif
 
-static int bdrv_open_common(BlockDriverState *bs, const char *filename,
-    int flags, BlockDriver *drv);
-
 static BlockDriverAIOCB *bdrv_aio_readv_em(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque);
@@ -354,6 +351,77 @@ static BlockDriver *find_image_format(const char *filename)
 }
 
 /*
+ * Common part for opening disk images and files
+ */
+static int bdrv_open_common(BlockDriverState *bs, const char *filename,
+    int flags, BlockDriver *drv)
+{
+    int ret, open_flags;
+
+    assert(drv != NULL);
+
+    bs->is_temporary = 0;
+    bs->encrypted = 0;
+    bs->valid_key = 0;
+    bs->open_flags = flags;
+    /* buffer_alignment defaulted to 512, drivers can change this value */
+    bs->buffer_alignment = 512;
+
+    pstrcpy(bs->filename, sizeof(bs->filename), filename);
+
+    if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv)) {
+        return -ENOTSUP;
+    }
+
+    bs->drv = drv;
+    bs->opaque = qemu_mallocz(drv->instance_size);
+
+    /*
+     * Yes, BDRV_O_NOCACHE aka O_DIRECT means we have to present a
+     * write cache to the guest.  We do need the fdatasync to flush
+     * out transactions for block allocations, and we maybe have a
+     * volatile write cache in our backing device to deal with.
+     */
+    if (flags & (BDRV_O_CACHE_WB|BDRV_O_NOCACHE))
+        bs->enable_write_cache = 1;
+
+    /*
+     * Clear flags that are internal to the block layer before opening the
+     * image.
+     */
+    open_flags = flags & ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
+
+    /*
+     * Snapshots should be writeable.
+     */
+    if (bs->is_temporary) {
+        open_flags |= BDRV_O_RDWR;
+    }
+
+    ret = drv->bdrv_open(bs, filename, open_flags);
+    if (ret < 0) {
+        goto free_and_fail;
+    }
+
+    bs->keep_read_only = bs->read_only = !(open_flags & BDRV_O_RDWR);
+    if (drv->bdrv_getlength) {
+        bs->total_sectors = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
+    }
+#ifndef _WIN32
+    if (bs->is_temporary) {
+        unlink(filename);
+    }
+#endif
+    return 0;
+
+free_and_fail:
+    qemu_free(bs->opaque);
+    bs->opaque = NULL;
+    bs->drv = NULL;
+    return ret;
+}
+
+/*
  * Opens a file using a protocol (file, host_device, nbd, ...)
  */
 int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags)
@@ -499,77 +567,6 @@ unlink_and_fail:
     if (bs->is_temporary) {
         unlink(filename);
     }
-    return ret;
-}
-
-/*
- * Common part for opening disk images and files
- */
-static int bdrv_open_common(BlockDriverState *bs, const char *filename,
-    int flags, BlockDriver *drv)
-{
-    int ret, open_flags;
-
-    assert(drv != NULL);
-
-    bs->is_temporary = 0;
-    bs->encrypted = 0;
-    bs->valid_key = 0;
-    bs->open_flags = flags;
-    /* buffer_alignment defaulted to 512, drivers can change this value */
-    bs->buffer_alignment = 512;
-
-    pstrcpy(bs->filename, sizeof(bs->filename), filename);
-
-    if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv)) {
-        return -ENOTSUP;
-    }
-
-    bs->drv = drv;
-    bs->opaque = qemu_mallocz(drv->instance_size);
-
-    /*
-     * Yes, BDRV_O_NOCACHE aka O_DIRECT means we have to present a
-     * write cache to the guest.  We do need the fdatasync to flush
-     * out transactions for block allocations, and we maybe have a
-     * volatile write cache in our backing device to deal with.
-     */
-    if (flags & (BDRV_O_CACHE_WB|BDRV_O_NOCACHE))
-        bs->enable_write_cache = 1;
-
-    /*
-     * Clear flags that are internal to the block layer before opening the
-     * image.
-     */
-    open_flags = flags & ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
-
-    /*
-     * Snapshots should be writeable.
-     */
-    if (bs->is_temporary) {
-        open_flags |= BDRV_O_RDWR;
-    }
-
-    ret = drv->bdrv_open(bs, filename, open_flags);
-    if (ret < 0) {
-        goto free_and_fail;
-    }
-
-    bs->keep_read_only = bs->read_only = !(open_flags & BDRV_O_RDWR);
-    if (drv->bdrv_getlength) {
-        bs->total_sectors = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
-    }
-#ifndef _WIN32
-    if (bs->is_temporary) {
-        unlink(filename);
-    }
-#endif
-    return 0;
-
-free_and_fail:
-    qemu_free(bs->opaque);
-    bs->opaque = NULL;
-    bs->drv = NULL;
     return ret;
 }
 
