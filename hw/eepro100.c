@@ -937,6 +937,7 @@ static void action_command(EEPRO100State *s)
         bit_el = ((s->tx.command & COMMAND_EL) != 0);
         bit_s = ((s->tx.command & COMMAND_S) != 0);
         bit_i = ((s->tx.command & COMMAND_I) != 0);
+        bit_nc = ((s->tx.command & COMMAND_NC) != 0);
         s->cu_offset = s->tx.link;
         TRACE(OTHER, logout
             ("val=(cu start), status=0x%04x, command=0x%04x, link=0x%08x\n",
