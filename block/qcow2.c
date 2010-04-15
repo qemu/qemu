@@ -539,14 +539,8 @@ static void run_dependent_requests(QCowL2Meta *m)
         QLIST_REMOVE(m, next_in_flight);
     }
 
-    /*
-     * Restart all dependent requests.
-     * Can't use QLIST_FOREACH here - the next link might not be the same
-     * any more after the callback  (request could depend on a different
-     * request now)
-     */
-    for (req = m->dependent_requests.lh_first; req != NULL; req = next) {
-        next = req->next_depend.le_next;
+    /* Restart all dependent requests */
+    QLIST_FOREACH_SAFE(req, &m->dependent_requests, next_depend, next) {
         qcow_aio_write_cb(req, 0);
     }
 
