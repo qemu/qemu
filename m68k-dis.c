@@ -1104,7 +1104,7 @@ print_insn_arg (const char *d,
       {
         static const char *const cacheFieldName[] = { "nc", "dc", "ic", "bc" };
         val = fetch_arg (buffer, place, 2, info);
-        (*info->fprintf_func) (info->stream, cacheFieldName[val]);
+        (*info->fprintf_func) (info->stream, "%s", cacheFieldName[val]);
         break;
       }
 
@@ -1199,7 +1199,7 @@ print_insn_arg (const char *d,
 	{
 	  static const char *const scalefactor_name[] = { "<<", ">>" };
 	  val = fetch_arg (buffer, place, 1, info);
-	  (*info->fprintf_func) (info->stream, scalefactor_name[val]);
+	  (*info->fprintf_func) (info->stream, "%s", scalefactor_name[val]);
 	}
       else
 	{

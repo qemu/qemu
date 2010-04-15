@@ -196,7 +196,6 @@ typedef enum {
 } scb_command_bit;
 
 typedef enum {
-    STATUS_NOT_OK = 0,
     STATUS_C = BIT(15),
     STATUS_OK = BIT(13),
 } scb_status_bit;
@@ -515,8 +514,7 @@ static void e100_pci_reset(EEPRO100State * s, E100PCIDeviceInfo *e100_device)
     /* Capability Pointer is set by PCI framework. */
     /* Interrupt Line */
     /* Interrupt Pin */
-    /* TODO: RST# value should be 0. */
-    pci_set_byte(pci_conf + PCI_INTERRUPT_PIN, 1);      /* interrupt pin 0 */
+    pci_set_byte(pci_conf + PCI_INTERRUPT_PIN, 1);      /* interrupt pin A */
     /* Minimum Grant */
     pci_set_byte(pci_conf + PCI_MIN_GNT, 0x08);
     /* Maximum Latency */
@@ -579,21 +577,17 @@ static void e100_pci_reset(EEPRO100State * s, E100PCIDeviceInfo *e100_device)
 
     if (e100_device->power_management) {
         /* Power Management Capabilities */
-        int cfg_offset;
-        pci_reserve_capability(&s->dev, PCI_CONFIG_HEADER_SIZE,
-                               0xdc - PCI_CONFIG_HEADER_SIZE);
-        cfg_offset = pci_add_capability(&s->dev, PCI_CAP_ID_PM, PCI_PM_SIZEOF);
-        assert(cfg_offset == 0xdc);
-        if (cfg_offset > 0) {
-            /* Power Management Capabilities */
-            pci_set_word(pci_conf + cfg_offset + PCI_PM_PMC, 0x7e21);
+        int cfg_offset = 0xdc;
+        int r = pci_add_capability_at_offset(&s->dev, PCI_CAP_ID_PM,
+                                             cfg_offset, PCI_PM_SIZEOF);
+        assert(r >= 0);
+        pci_set_word(pci_conf + cfg_offset + PCI_PM_PMC, 0x7e21);
 #if 0 /* TODO: replace dummy code for power management emulation. */
-            /* TODO: Power Management Control / Status. */
-            pci_set_word(pci_conf + cfg_offset + PCI_PM_CTRL, 0x0000);
-            /* TODO: Ethernet Power Consumption Registers (i82559 and later). */
-            pci_set_byte(pci_conf + cfg_offset + PCI_PM_PPB_EXTENSIONS, 0x0000);
+        /* TODO: Power Management Control / Status. */
+        pci_set_word(pci_conf + cfg_offset + PCI_PM_CTRL, 0x0000);
+        /* TODO: Ethernet Power Consumption Registers (i82559 and later). */
+        pci_set_byte(pci_conf + cfg_offset + PCI_PM_PPB_EXTENSIONS, 0x0000);
 #endif
-        }
     }
 
 #if EEPROM_SIZE > 0
@@ -936,6 +930,7 @@ static void action_command(EEPRO100State *s)
         bool bit_el;
         bool bit_s;
         bool bit_i;
+        bool bit_nc;
         uint16_t ok_status = STATUS_OK;
         s->cb_address = s->cu_base + s->cu_offset;
         read_cb(s);
@@ -968,6 +963,11 @@ static void action_command(EEPRO100State *s)
             set_multicast_list(s);
             break;
         case CmdTx:
+            if (bit_nc) {
+                missing("CmdTx: NC = 0");
+                ok_status = 0;
+                break;
+            }
             tx_command(s);
             break;
         case CmdTDR:
@@ -982,10 +982,10 @@ static void action_command(EEPRO100State *s)
             break;
         default:
             missing("undefined command");
-            ok_status = STATUS_NOT_OK;
+            ok_status = 0;
             break;
         }
-        /* Write new status (success). */
+        /* Write new status. */
         stw_le_phys(s->cb_address, s->tx.status | ok_status | STATUS_C);
         if (bit_i) {
             /* CU completed action. */
@@ -1750,11 +1750,10 @@ static void pci_mmio_map(PCIDevice * pci_dev, int region_num,
           region_num, addr, size, type));
 
     assert(region_num == 0 || region_num == 2);
-    if (region_num == 0 || region_num == 2) {
-        /* Map control / status registers and flash. */
-        cpu_register_physical_memory(addr, size, s->mmio_index);
-        s->region[region_num] = addr;
-    }
+
+    /* Map control / status registers and flash. */
+    cpu_register_physical_memory(addr, size, s->mmio_index);
+    s->region[region_num] = addr;
 }
 
 static int nic_can_receive(VLANClientState *nc)
@@ -1835,8 +1834,8 @@ static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size
         rfd_status |= 0x0004;
     } else {
         TRACE(RXTX, logout("%p received frame, ignored, len=%zu,%s\n", s, size,
-               nic_dump(buf, size)));
-        return -1;
+              nic_dump(buf, size)));
+        return size;
     }
 
     if (get_ru_state(s) != ru_ready) {
@@ -2041,6 +2040,7 @@ static E100PCIDeviceInfo e100_devices[] = {
         .pci.qdev.name = "i82550",
         .pci.qdev.desc = "Intel i82550 Ethernet",
         .device = i82550,
+        /* TODO: check device id. */
         .device_id = PCI_DEVICE_ID_INTEL_82551IT,
         /* Revision ID: 0x0c, 0x0d, 0x0e. */
         .revision = 0x0e,
@@ -2144,6 +2144,7 @@ static E100PCIDeviceInfo e100_devices[] = {
         .pci.qdev.name = "i82562",
         .pci.qdev.desc = "Intel i82562 Ethernet",
         .device = i82562,
+        /* TODO: check device id. */
         .device_id = PCI_DEVICE_ID_INTEL_82551IT,
         /* TODO: wrong revision id. */
         .revision = 0x0e,

@@ -1530,7 +1530,7 @@ EOF
             kvm_cflags="$kvm_cflags -I$kerneldir/arch/$cpu/include"
       fi
   else
-    kvm_cflags=`pkg-config --cflags kvm-kmod 2> /dev/null`
+    kvm_cflags=`$pkgconfig --cflags kvm-kmod 2>/dev/null`
   fi
   if compile_prog "$kvm_cflags" "" ; then
     kvm=yes
