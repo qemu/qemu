@@ -81,9 +81,9 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_ld16u_i32, { R, R } },
     { INDEX_op_ld16s_i32, { R, R } },
     { INDEX_op_ld_i32, { R, R } },
-    { INDEX_op_st8_i32, { R, RI } },
-    { INDEX_op_st16_i32, { R, RI } },
-    { INDEX_op_st_i32, { R, RI } },
+    { INDEX_op_st8_i32, { R, R } },
+    { INDEX_op_st16_i32, { R, R } },
+    { INDEX_op_st_i32, { R, R } },
 
     { INDEX_op_add_i32, { R, RI, RI } },
     { INDEX_op_sub_i32, { R, RI, RI } },
@@ -144,10 +144,10 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_ld32s_i64, { R, R } },
     { INDEX_op_ld_i64, { R, R } },
 
-    { INDEX_op_st8_i64, { R, RI } },
-    { INDEX_op_st16_i64, { R, RI } },
-    { INDEX_op_st32_i64, { R, RI } },
-    { INDEX_op_st_i64, { R, RI } },
+    { INDEX_op_st8_i64, { R, R } },
+    { INDEX_op_st16_i64, { R, R } },
+    { INDEX_op_st32_i64, { R, R } },
+    { INDEX_op_st_i64, { R, R } },
 
     { INDEX_op_add_i64, { R, RI, RI } },
     { INDEX_op_sub_i64, { R, RI, RI } },
@@ -358,8 +358,65 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
 #include "dis-asm.h"
 int print_insn_bytecode(bfd_vma addr, disassemble_info *info)
 {
-    info->fprintf_func(info->stream, "0x%08" PRIx64 " %3d", addr, info->buffer_length);
-    return info->buffer_length;
+    int length = 1;
+    uint8_t byte;
+    int status = info->read_memory_func(addr, &byte, 1, info);
+    TCGOpcode c = byte;
+
+    if (c >= ARRAY_SIZE(tcg_op_defs)) {
+        return length;
+    }
+
+    const TCGOpDef *def = &tcg_op_defs[c];
+    int nb_oargs = def->nb_oargs;
+    int nb_iargs = def->nb_iargs;
+    int nb_cargs = def->nb_cargs;
+    FILE *f = info->stream;
+    //~ FILE *f = stderr;
+    //~ info->fprintf_func(f, "0x%08" PRIx64 " %3d", addr, info->buffer_length);
+    info->fprintf_func(f, "%s\t%d %d %d", def->name, nb_oargs, nb_iargs, nb_cargs);
+    addr++;
+    length += nb_oargs;
+    addr += nb_oargs;
+    while (nb_iargs) {
+        if (nb_iargs == nb_cargs) {
+            uint8_t const_arg;
+            status = info->read_memory_func(addr, &const_arg, 1, info);
+            length++;
+            addr++;
+            if (const_arg) {
+                length += TCG_TARGET_REG_BITS / 8;
+                addr += TCG_TARGET_REG_BITS / 8;
+            }
+            nb_iargs--;
+            nb_cargs--;
+        } else {
+            length++;
+            addr++;
+            nb_iargs--;
+        }
+    }
+    int cl = 4;
+#if TCG_TARGET_REG_BITS == 64
+    if (c == INDEX_op_movi_i64 ||
+        c == INDEX_op_st_i64) {
+        cl = 8;
+    }
+#endif
+    while (nb_cargs) {
+        //~ length += TARGET_LONG_BITS / 8;
+        //~ addr += TARGET_LONG_BITS / 8;
+        length += cl;
+        addr += cl;
+        nb_cargs--;
+    }
+    info->fprintf_func(f, "\t%d", length);
+    if (length > info->buffer_length) {
+        length = info->buffer_length;
+    } else if (length == 0) {
+        length = 1;
+    }
+    return length;
 }
 
 void tci_disas(uint8_t opc)
@@ -375,7 +432,7 @@ void tci_disas(uint8_t opc)
 
 static void tcg_disas3(TCGContext *s, TCGOpcode c, const TCGArg *args)
 {
-#if defined(CONFIG_DEBUG_TCG_INTERPRETER)
+#if defined(CONFIG_DEBUG_TCG_INTERPRETER) && 0
     char buf[128];
     TCGArg arg;
     FILE *outfile = stderr;
@@ -699,7 +756,11 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
 #elif TCG_TARGET_REG_BITS == 64
     case INDEX_op_setcond_i64:
-        TODO();
+        tcg_out_op_t(s, opc);
+        tcg_out_r(s, args[0]);
+        tcg_out_r(s, args[1]);
+        tcg_out_ri64(s, const_args[2], args[2]);
+        tcg_out8(s, args[3]);   /* condition */
         break;
 #endif
     case INDEX_op_movi_i32:
@@ -722,7 +783,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
-        //~ assert(const_args[2]);
         assert(args[2] == (uint32_t)args[2]);
         tcg_out32(s, args[2]);
         break;
@@ -962,7 +1022,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
     case INDEX_op_qemu_st64:
         tcg_out_op_t(s, opc);
-        tcg_out_r(s, *args++);
         tcg_out_r(s, *args++);
 #if TCG_TARGET_REG_BITS == 32
         tcg_out_r(s, *args++);
