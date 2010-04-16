@@ -50,6 +50,7 @@
 /* TODO: documentation. */
 static uint8_t *tb_ret_addr;
 
+/* Macros used in tcg_target_op_defs. */
 #define R       "r"
 #define RI      "ri"
 #if TCG_TARGET_REG_BITS == 32
@@ -97,6 +98,8 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_div2_i32, { R, R, "0", "1", R } },
     { INDEX_op_divu2_i32, { R, R, "0", "1", R } },
 #endif
+    /* TODO: Does R, RI, RI result in faster code than R, R, RI?
+       If both operands are constants, we can optimize. */
     { INDEX_op_and_i32, { R, RI, RI } },
     { INDEX_op_or_i32, { R, RI, RI } },
     { INDEX_op_xor_i32, { R, RI, RI } },
@@ -593,8 +596,9 @@ static void tcg_out_r(TCGContext *s, TCGArg t0)
 /* Write register or constant (native size). */
 static void tcg_out_ri(TCGContext *s, int const_arg, TCGArg arg)
 {
-    tcg_out8(s, const_arg);
     if (const_arg) {
+        assert(const_arg == 1);
+        tcg_out8(s, TCG_CONST);
         tcg_out_i(s, arg);
     } else {
         tcg_out_r(s, arg);
@@ -604,9 +608,10 @@ static void tcg_out_ri(TCGContext *s, int const_arg, TCGArg arg)
 /* Write register or constant (32 bit). */
 static void tcg_out_ri32(TCGContext *s, int const_arg, TCGArg arg)
 {
-    tcg_out8(s, const_arg);
     if (const_arg) {
+        assert(const_arg == 1);
         //~ assert(arg == (uint32_t)arg);
+        tcg_out8(s, TCG_CONST);
         tcg_out32(s, arg);
     } else {
         tcg_out_r(s, arg);
@@ -617,8 +622,9 @@ static void tcg_out_ri32(TCGContext *s, int const_arg, TCGArg arg)
 /* Write register or constant (64 bit). */
 static void tcg_out_ri64(TCGContext *s, int const_arg, TCGArg arg)
 {
-    tcg_out8(s, const_arg);
     if (const_arg) {
+        assert(const_arg == 1);
+        tcg_out8(s, TCG_CONST);
         tcg_out64(s, arg);
     } else {
         tcg_out_r(s, arg);
@@ -836,6 +842,12 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_add_i64:
     case INDEX_op_sub_i64:
     case INDEX_op_mul_i64:
+    case INDEX_op_and_i64:
+    case INDEX_op_or_i64:
+    case INDEX_op_xor_i64:
+    case INDEX_op_shl_i64:
+    case INDEX_op_shr_i64:
+    case INDEX_op_sar_i64:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_ri64(s, const_args[1], args[1]);
@@ -854,17 +866,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         TODO();
         break;
 #endif
-    case INDEX_op_and_i64:
-    case INDEX_op_or_i64:
-    case INDEX_op_xor_i64:
-    case INDEX_op_shl_i64:
-    case INDEX_op_shr_i64:
-    case INDEX_op_sar_i64:
-        tcg_out_op_t(s, opc);
-        tcg_out_r(s, args[0]);
-        tcg_out_ri64(s, const_args[1], args[1]);
-        tcg_out_ri64(s, const_args[2], args[2]);
-        break;
     case INDEX_op_brcond_i64:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);

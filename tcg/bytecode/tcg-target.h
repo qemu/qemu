@@ -111,7 +111,7 @@
 //~ #define TCG_TARGET_NB_REGS 32
 
 /* List of registers which are used by TCG. */
-enum {
+typedef enum {
     TCG_REG_R0 = 0,
     TCG_REG_R1,
     TCG_REG_R2,
@@ -147,9 +147,11 @@ enum {
     TCG_REG_R28,
     TCG_REG_R29,
     TCG_REG_R30,
-    TCG_REG_R31
+    TCG_REG_R31,
 #endif
-};
+    // Special value UINT8_MAX is used by TCI to encode constant values.
+    TCG_CONST = UINT8_MAX
+} TCGRegister;
 
 void tci_disas(uint8_t opc);
 
