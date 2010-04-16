@@ -39,6 +39,7 @@
 #endif
 
 typedef tcg_target_ulong (*helper_function)(tcg_target_ulong, tcg_target_ulong,
+                                            tcg_target_ulong, tcg_target_ulong,
                                             tcg_target_ulong, tcg_target_ulong);
 
 CPUState *env;
@@ -458,12 +459,16 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             break;
         case INDEX_op_call:
             t0 = tci_read_ri(&tb_ptr);
-            t0 = ((helper_function)t0)(tci_read_reg(TCG_REG_R0),
-                                       tci_read_reg(TCG_REG_R1),
-                                       tci_read_reg(TCG_REG_R2),
-                                       tci_read_reg(TCG_REG_R3));
-            // TODO: fix for 32 bit host / 64 bit target.
-            tci_write_reg(TCG_REG_R0, t0);
+            u64 = ((helper_function)t0)(tci_read_reg(TCG_REG_R0),
+                                        tci_read_reg(TCG_REG_R1),
+                                        tci_read_reg(TCG_REG_R2),
+                                        tci_read_reg(TCG_REG_R3),
+                                        tci_read_reg(TCG_REG_R5),
+                                        tci_read_reg(TCG_REG_R6));
+            tci_write_reg(TCG_REG_R0, u64);
+#if TCG_TARGET_REG_BITS == 32
+            tci_write_reg(TCG_REG_R1, u64 >> 32);
+#endif
             break;
         case INDEX_op_jmp:
         case INDEX_op_br:
