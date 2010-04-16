@@ -1253,10 +1253,8 @@ void tcg_target_init(TCGContext *s)
     /* TODO: Which registers should be set here? */
     tcg_regset_set32(tcg_target_call_clobber_regs, 0,
                      BITS(TCG_REG_R7, TCG_REG_R0));
-    /* TODO: Reserved registers. */
     tcg_regset_clear(s->reserved_regs);
-    tcg_regset_set_reg(s->reserved_regs, TCG_REG_R4);
-    //~ tcg_regset_set_reg(s->reserved_regs, TCG_REG_R1);
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
     tcg_add_target_add_op_defs(tcg_target_op_defs);
 }
 
