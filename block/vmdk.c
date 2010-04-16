@@ -76,7 +76,6 @@ typedef struct BDRVVmdkState {
 
     unsigned int cluster_sectors;
     uint32_t parent_cid;
-    int is_parent;
 } BDRVVmdkState;
 
 typedef struct VmdkMetaData {
@@ -338,19 +337,11 @@ fail:
     return ret;
 }
 
-static void vmdk_parent_close(BlockDriverState *bs)
-{
-    if (bs->backing_hd)
-        bdrv_close(bs->backing_hd);
-}
-
-static int parent_open = 0;
-static int vmdk_parent_open(BlockDriverState *bs, const char * filename)
+static int vmdk_parent_open(BlockDriverState *bs)
 {
     BDRVVmdkState *s = bs->opaque;
     char *p_name;
     char desc[DESC_SIZE];
-    char parent_img_name[1024];
 
     /* the descriptor offset = 0x200 */
     if (bdrv_pread(s->hd, 0x200, desc, DESC_SIZE) != DESC_SIZE)
@@ -358,7 +349,6 @@ static int vmdk_parent_open(BlockDriverState *bs, const char * filename)
 
     if ((p_name = strstr(desc,"parentFileNameHint")) != NULL) {
         char *end_name;
-        struct stat file_buf;
 
         p_name += sizeof("parentFileNameHint") + 1;
         if ((end_name = strchr(p_name,'\"')) == NULL)
@@ -367,24 +357,6 @@ static int vmdk_parent_open(BlockDriverState *bs, const char * filename)
             return -1;
 
         pstrcpy(bs->backing_file, end_name - p_name + 1, p_name);
-        if (stat(bs->backing_file, &file_buf) != 0) {
-            path_combine(parent_img_name, sizeof(parent_img_name),
-                         filename, bs->backing_file);
-        } else {
-            pstrcpy(parent_img_name, sizeof(parent_img_name),
-                    bs->backing_file);
-        }
-
-        bs->backing_hd = bdrv_new("");
-        if (!bs->backing_hd) {
-            failure:
-            bdrv_close(s->hd);
-            return -1;
-        }
-        parent_open = 1;
-        if (bdrv_open(bs->backing_hd, parent_img_name, 0, NULL) < 0)
-            goto failure;
-        parent_open = 0;
     }
 
     return 0;
@@ -395,11 +367,6 @@ static int vmdk_open(BlockDriverState *bs, const char *filename, int flags)
     BDRVVmdkState *s = bs->opaque;
     uint32_t magic;
     int l1_size, i, ret;
-
-    if (parent_open) {
-        /* Parent must be opened as RO, no RDWR. */
-        flags = 0;
-    }
 
     ret = bdrv_file_open(&s->hd, filename, flags);
     if (ret < 0)
@@ -436,13 +403,8 @@ static int vmdk_open(BlockDriverState *bs, const char *filename, int flags)
         s->l1_table_offset = le64_to_cpu(header.rgd_offset) << 9;
         s->l1_backup_table_offset = le64_to_cpu(header.gd_offset) << 9;
 
-        if (parent_open)
-            s->is_parent = 1;
-        else
-            s->is_parent = 0;
-
         // try to open parent images, if exist
-        if (vmdk_parent_open(bs, filename) != 0)
+        if (vmdk_parent_open(bs) != 0)
             goto fail;
         // write the CID once after the image creation
         s->parent_cid = vmdk_read_cid(bs,1);
@@ -583,15 +545,15 @@ static uint64_t get_cluster_offset(BlockDriverState *bs, VmdkMetaData *m_data,
     if (!cluster_offset) {
         if (!allocate)
             return 0;
-        // Avoid the L2 tables update for the images that have snapshots.
-        if (!s->is_parent) {
-            cluster_offset = bdrv_getlength(s->hd);
-            bdrv_truncate(s->hd, cluster_offset + (s->cluster_sectors << 9));
 
-            cluster_offset >>= 9;
-            tmp = cpu_to_le32(cluster_offset);
-            l2_table[l2_index] = tmp;
-        }
+        // Avoid the L2 tables update for the images that have snapshots.
+        cluster_offset = bdrv_getlength(s->hd);
+        bdrv_truncate(s->hd, cluster_offset + (s->cluster_sectors << 9));
+
+        cluster_offset >>= 9;
+        tmp = cpu_to_le32(cluster_offset);
+        l2_table[l2_index] = tmp;
+
         /* First of all we write grain itself, to avoid race condition
          * that may to corrupt the image.
          * This problem may occur because of insufficient space on host disk
@@ -866,8 +828,6 @@ static void vmdk_close(BlockDriverState *bs)
 
     qemu_free(s->l1_table);
     qemu_free(s->l2_cache);
-    // try to close parent image, if exist
-    vmdk_parent_close(s->hd);
     bdrv_delete(s->hd);
 }
 
