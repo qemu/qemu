@@ -87,14 +87,6 @@ typedef struct VmdkMetaData {
     int valid;
 } VmdkMetaData;
 
-typedef struct ActiveBDRVState{
-    BlockDriverState *hd;            // active image handler
-    uint64_t cluster_offset;         // current write offset
-}ActiveBDRVState;
-
-static ActiveBDRVState activeBDRV;
-
-
 static int vmdk_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
     uint32_t magic;
@@ -492,30 +484,28 @@ static uint64_t get_cluster_offset(BlockDriverState *bs, VmdkMetaData *m_data,
 static int get_whole_cluster(BlockDriverState *bs, uint64_t cluster_offset,
                              uint64_t offset, int allocate)
 {
-    uint64_t parent_cluster_offset;
     BDRVVmdkState *s = bs->opaque;
     uint8_t  whole_grain[s->cluster_sectors*512];        // 128 sectors * 512 bytes each = grain size 64KB
 
     // we will be here if it's first write on non-exist grain(cluster).
     // try to read from parent image, if exist
     if (bs->backing_hd) {
-        BDRVVmdkState *ps = bs->backing_hd->opaque;
+        int ret;
 
         if (!vmdk_is_cid_valid(bs))
             return -1;
 
-        parent_cluster_offset = get_cluster_offset(bs->backing_hd, NULL,
-            offset, allocate);
+        ret = bdrv_read(bs->backing_hd, offset >> 9, whole_grain,
+            s->cluster_sectors);
+        if (ret < 0) {
+            return -1;
+        }
 
-        if (parent_cluster_offset) {
-            BDRVVmdkState *act_s = activeBDRV.hd->opaque;
-
-            if (bdrv_pread(ps->hd, parent_cluster_offset, whole_grain, ps->cluster_sectors*512) != ps->cluster_sectors*512)
-                return -1;
-
-            //Write grain only into the active image
-            if (bdrv_pwrite(act_s->hd, activeBDRV.cluster_offset << 9, whole_grain, sizeof(whole_grain)) != sizeof(whole_grain))
-                return -1;
+        //Write grain only into the active image
+        ret = bdrv_write(s->hd, cluster_offset, whole_grain,
+            s->cluster_sectors);
+        if (ret < 0) {
+            return -1;
         }
     }
     return 0;
@@ -601,9 +591,6 @@ static uint64_t get_cluster_offset(BlockDriverState *bs, VmdkMetaData *m_data,
             cluster_offset >>= 9;
             tmp = cpu_to_le32(cluster_offset);
             l2_table[l2_index] = tmp;
-            // Save the active image state
-            activeBDRV.cluster_offset = cluster_offset;
-            activeBDRV.hd = bs;
         }
         /* First of all we write grain itself, to avoid race condition
          * that may to corrupt the image.
