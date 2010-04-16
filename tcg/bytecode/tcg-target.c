@@ -101,15 +101,29 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     /* TODO: Does R, RI, RI result in faster code than R, R, RI?
        If both operands are constants, we can optimize. */
     { INDEX_op_and_i32, { R, RI, RI } },
+#if defined(TCG_TARGET_HAS_andc_i32)
+    { INDEX_op_andc_i32, { R, RI, RI } },
+#endif
+#if defined(TCG_TARGET_HAS_eqv_i32)
+    { INDEX_op_eqv_i32, { R, RI, RI } },
+#endif
+#ifdef TCG_TARGET_HAS_nand_i32
+    { INDEX_op_nand_i32, { R, RI, RI } },
+#endif
+#ifdef TCG_TARGET_HAS_nor_i32
+    { INDEX_op_nor_i32, { R, RI, RI } },
+#endif
     { INDEX_op_or_i32, { R, RI, RI } },
+#ifdef TCG_TARGET_HAS_orc_i32
+    { INDEX_op_orc_i32, { R, RI, RI } },
+#endif
     { INDEX_op_xor_i32, { R, RI, RI } },
-
     { INDEX_op_shl_i32, { R, RI, RI } },
     { INDEX_op_shr_i32, { R, RI, RI } },
-    { INDEX_op_sar_i32, { R, R, RI } },
+    { INDEX_op_sar_i32, { R, RI, RI } },
 #ifdef TCG_TARGET_HAS_rot_i32
-    { INDEX_op_rotl_i32, { R, R, RI } },
-    { INDEX_op_rotr_i32, { R, R, RI } },
+    { INDEX_op_rotl_i32, { R, RI, RI } },
+    { INDEX_op_rotr_i32, { R, RI, RI } },
 #endif
 
     { INDEX_op_brcond_i32, { R, RI } },
@@ -165,7 +179,22 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_divu2_i64, { R, R, "0", "1", R } },
 #endif
     { INDEX_op_and_i64, { R, RI, RI } },
+#if defined(TCG_TARGET_HAS_andc_i64)
+    { INDEX_op_andc_i64, { R, RI, RI } },
+#endif
+#if defined(TCG_TARGET_HAS_eqv_i64)
+    { INDEX_op_eqv_i64, { R, RI, RI } },
+#endif
+#ifdef TCG_TARGET_HAS_nand_i64
+    { INDEX_op_nand_i64, { R, RI, RI } },
+#endif
+#ifdef TCG_TARGET_HAS_nor_i64
+    { INDEX_op_nor_i64, { R, RI, RI } },
+#endif
     { INDEX_op_or_i64, { R, RI, RI } },
+#ifdef TCG_TARGET_HAS_orc_i64
+    { INDEX_op_orc_i64, { R, RI, RI } },
+#endif
     { INDEX_op_xor_i64, { R, RI, RI } },
     { INDEX_op_shl_i64, { R, RI, RI } },
     { INDEX_op_shr_i64, { R, RI, RI } },
@@ -794,10 +823,25 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
     case INDEX_op_add_i32:
     case INDEX_op_sub_i32:
-    case INDEX_op_and_i32:
-    case INDEX_op_or_i32:
-    case INDEX_op_xor_i32:
     case INDEX_op_mul_i32:
+    case INDEX_op_and_i32:
+#if defined(TCG_TARGET_HAS_andc_i32)
+    case INDEX_op_andc_i32:
+#endif
+#if defined(TCG_TARGET_HAS_eqv_i32)
+    case INDEX_op_eqv_i32:
+#endif
+#ifdef TCG_TARGET_HAS_nand_i32
+    case INDEX_op_nand_i32:
+#endif
+#ifdef TCG_TARGET_HAS_nor_i32
+    case INDEX_op_nor_i32:
+#endif
+    case INDEX_op_or_i32:
+#ifdef TCG_TARGET_HAS_orc_i32
+    case INDEX_op_orc_i32:
+#endif
+    case INDEX_op_xor_i32:
     case INDEX_op_shl_i32:
     case INDEX_op_shr_i32:
     case INDEX_op_sar_i32:
@@ -843,11 +887,31 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_sub_i64:
     case INDEX_op_mul_i64:
     case INDEX_op_and_i64:
+#if defined(TCG_TARGET_HAS_andc_i64)
+    case INDEX_op_andc_i64:
+#endif
+#if defined(TCG_TARGET_HAS_eqv_i64)
+    case INDEX_op_eqv_i64:
+#endif
+#ifdef TCG_TARGET_HAS_nand_i64
+    case INDEX_op_nand_i64:
+#endif
+#ifdef TCG_TARGET_HAS_nor_i64
+    case INDEX_op_nor_i64:
+#endif
     case INDEX_op_or_i64:
+#ifdef TCG_TARGET_HAS_orc_i64
+    case INDEX_op_orc_i64:
+#endif
     case INDEX_op_xor_i64:
     case INDEX_op_shl_i64:
     case INDEX_op_shr_i64:
     case INDEX_op_sar_i64:
+#ifdef TCG_TARGET_HAS_rot_i64
+    // TODO: TCI implementation for rotl_i64, rotr_i64 missing.
+    case INDEX_op_rotl_i64:
+    case INDEX_op_rotr_i64:
+#endif
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_ri64(s, const_args[1], args[1]);
