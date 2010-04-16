@@ -108,14 +108,13 @@ static int vmdk_probe(const uint8_t *buf, int buf_size, const char *filename)
 
 static uint32_t vmdk_read_cid(BlockDriverState *bs, int parent)
 {
-    BDRVVmdkState *s = bs->opaque;
     char desc[DESC_SIZE];
     uint32_t cid;
     const char *p_name, *cid_str;
     size_t cid_str_size;
 
     /* the descriptor offset = 0x200 */
-    if (bdrv_pread(s->hd, 0x200, desc, DESC_SIZE) != DESC_SIZE)
+    if (bdrv_pread(bs->file, 0x200, desc, DESC_SIZE) != DESC_SIZE)
         return 0;
 
     if (parent) {
@@ -136,12 +135,11 @@ static uint32_t vmdk_read_cid(BlockDriverState *bs, int parent)
 
 static int vmdk_write_cid(BlockDriverState *bs, uint32_t cid)
 {
-    BDRVVmdkState *s = bs->opaque;
     char desc[DESC_SIZE], tmp_desc[DESC_SIZE];
     char *p_name, *tmp_str;
 
     /* the descriptor offset = 0x200 */
-    if (bdrv_pread(s->hd, 0x200, desc, DESC_SIZE) != DESC_SIZE)
+    if (bdrv_pread(bs->file, 0x200, desc, DESC_SIZE) != DESC_SIZE)
         return -1;
 
     tmp_str = strstr(desc,"parentCID");
@@ -152,7 +150,7 @@ static int vmdk_write_cid(BlockDriverState *bs, uint32_t cid)
         pstrcat(desc, sizeof(desc), tmp_desc);
     }
 
-    if (bdrv_pwrite(s->hd, 0x200, desc, DESC_SIZE) != DESC_SIZE)
+    if (bdrv_pwrite(bs->file, 0x200, desc, DESC_SIZE) != DESC_SIZE)
         return -1;
     return 0;
 }
@@ -339,12 +337,11 @@ fail:
 
 static int vmdk_parent_open(BlockDriverState *bs)
 {
-    BDRVVmdkState *s = bs->opaque;
     char *p_name;
     char desc[DESC_SIZE];
 
     /* the descriptor offset = 0x200 */
-    if (bdrv_pread(s->hd, 0x200, desc, DESC_SIZE) != DESC_SIZE)
+    if (bdrv_pread(bs->file, 0x200, desc, DESC_SIZE) != DESC_SIZE)
         return -1;
 
     if ((p_name = strstr(desc,"parentFileNameHint")) != NULL) {
@@ -362,23 +359,20 @@ static int vmdk_parent_open(BlockDriverState *bs)
     return 0;
 }
 
-static int vmdk_open(BlockDriverState *bs, const char *filename, int flags)
+static int vmdk_open(BlockDriverState *bs, int flags)
 {
     BDRVVmdkState *s = bs->opaque;
     uint32_t magic;
-    int l1_size, i, ret;
+    int l1_size, i;
 
-    ret = bdrv_file_open(&s->hd, filename, flags);
-    if (ret < 0)
-        return ret;
-    if (bdrv_pread(s->hd, 0, &magic, sizeof(magic)) != sizeof(magic))
+    if (bdrv_pread(bs->file, 0, &magic, sizeof(magic)) != sizeof(magic))
         goto fail;
 
     magic = be32_to_cpu(magic);
     if (magic == VMDK3_MAGIC) {
         VMDK3Header header;
 
-        if (bdrv_pread(s->hd, sizeof(magic), &header, sizeof(header)) != sizeof(header))
+        if (bdrv_pread(bs->file, sizeof(magic), &header, sizeof(header)) != sizeof(header))
             goto fail;
         s->cluster_sectors = le32_to_cpu(header.granularity);
         s->l2_size = 1 << 9;
@@ -390,7 +384,7 @@ static int vmdk_open(BlockDriverState *bs, const char *filename, int flags)
     } else if (magic == VMDK4_MAGIC) {
         VMDK4Header header;
 
-        if (bdrv_pread(s->hd, sizeof(magic), &header, sizeof(header)) != sizeof(header))
+        if (bdrv_pread(bs->file, sizeof(magic), &header, sizeof(header)) != sizeof(header))
             goto fail;
         bs->total_sectors = le64_to_cpu(header.capacity);
         s->cluster_sectors = le64_to_cpu(header.granularity);
@@ -415,7 +409,7 @@ static int vmdk_open(BlockDriverState *bs, const char *filename, int flags)
     /* read the L1 table */
     l1_size = s->l1_size * sizeof(uint32_t);
     s->l1_table = qemu_malloc(l1_size);
-    if (bdrv_pread(s->hd, s->l1_table_offset, s->l1_table, l1_size) != l1_size)
+    if (bdrv_pread(bs->file, s->l1_table_offset, s->l1_table, l1_size) != l1_size)
         goto fail;
     for(i = 0; i < s->l1_size; i++) {
         le32_to_cpus(&s->l1_table[i]);
@@ -423,7 +417,7 @@ static int vmdk_open(BlockDriverState *bs, const char *filename, int flags)
 
     if (s->l1_backup_table_offset) {
         s->l1_backup_table = qemu_malloc(l1_size);
-        if (bdrv_pread(s->hd, s->l1_backup_table_offset, s->l1_backup_table, l1_size) != l1_size)
+        if (bdrv_pread(bs->file, s->l1_backup_table_offset, s->l1_backup_table, l1_size) != l1_size)
             goto fail;
         for(i = 0; i < s->l1_size; i++) {
             le32_to_cpus(&s->l1_backup_table[i]);
@@ -436,7 +430,6 @@ static int vmdk_open(BlockDriverState *bs, const char *filename, int flags)
     qemu_free(s->l1_backup_table);
     qemu_free(s->l1_table);
     qemu_free(s->l2_cache);
-    bdrv_delete(s->hd);
     return -1;
 }
 
@@ -464,7 +457,7 @@ static int get_whole_cluster(BlockDriverState *bs, uint64_t cluster_offset,
         }
 
         //Write grain only into the active image
-        ret = bdrv_write(s->hd, cluster_offset, whole_grain,
+        ret = bdrv_write(bs->file, cluster_offset, whole_grain,
             s->cluster_sectors);
         if (ret < 0) {
             return -1;
@@ -478,13 +471,13 @@ static int vmdk_L2update(BlockDriverState *bs, VmdkMetaData *m_data)
     BDRVVmdkState *s = bs->opaque;
 
     /* update L2 table */
-    if (bdrv_pwrite(s->hd, ((int64_t)m_data->l2_offset * 512) + (m_data->l2_index * sizeof(m_data->offset)),
+    if (bdrv_pwrite(bs->file, ((int64_t)m_data->l2_offset * 512) + (m_data->l2_index * sizeof(m_data->offset)),
                     &(m_data->offset), sizeof(m_data->offset)) != sizeof(m_data->offset))
         return -1;
     /* update backup L2 table */
     if (s->l1_backup_table_offset != 0) {
         m_data->l2_offset = s->l1_backup_table[m_data->l1_index];
-        if (bdrv_pwrite(s->hd, ((int64_t)m_data->l2_offset * 512) + (m_data->l2_index * sizeof(m_data->offset)),
+        if (bdrv_pwrite(bs->file, ((int64_t)m_data->l2_offset * 512) + (m_data->l2_index * sizeof(m_data->offset)),
                         &(m_data->offset), sizeof(m_data->offset)) != sizeof(m_data->offset))
             return -1;
     }
@@ -532,7 +525,7 @@ static uint64_t get_cluster_offset(BlockDriverState *bs, VmdkMetaData *m_data,
         }
     }
     l2_table = s->l2_cache + (min_index * s->l2_size);
-    if (bdrv_pread(s->hd, (int64_t)l2_offset * 512, l2_table, s->l2_size * sizeof(uint32_t)) !=
+    if (bdrv_pread(bs->file, (int64_t)l2_offset * 512, l2_table, s->l2_size * sizeof(uint32_t)) !=
                                                                         s->l2_size * sizeof(uint32_t))
         return 0;
 
@@ -547,8 +540,8 @@ static uint64_t get_cluster_offset(BlockDriverState *bs, VmdkMetaData *m_data,
             return 0;
 
         // Avoid the L2 tables update for the images that have snapshots.
-        cluster_offset = bdrv_getlength(s->hd);
-        bdrv_truncate(s->hd, cluster_offset + (s->cluster_sectors << 9));
+        cluster_offset = bdrv_getlength(bs->file);
+        bdrv_truncate(bs->file, cluster_offset + (s->cluster_sectors << 9));
 
         cluster_offset >>= 9;
         tmp = cpu_to_le32(cluster_offset);
@@ -615,7 +608,7 @@ static int vmdk_read(BlockDriverState *bs, int64_t sector_num,
                 memset(buf, 0, 512 * n);
             }
         } else {
-            if(bdrv_pread(s->hd, cluster_offset + index_in_cluster * 512, buf, n * 512) != n * 512)
+            if(bdrv_pread(bs->file, cluster_offset + index_in_cluster * 512, buf, n * 512) != n * 512)
                 return -1;
         }
         nb_sectors -= n;
@@ -651,7 +644,7 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
         if (!cluster_offset)
             return -1;
 
-        if (bdrv_pwrite(s->hd, cluster_offset + index_in_cluster * 512, buf, n * 512) != n * 512)
+        if (bdrv_pwrite(bs->file, cluster_offset + index_in_cluster * 512, buf, n * 512) != n * 512)
             return -1;
         if (m_data.valid) {
             /* update L2 tables */
@@ -828,13 +821,11 @@ static void vmdk_close(BlockDriverState *bs)
 
     qemu_free(s->l1_table);
     qemu_free(s->l2_cache);
-    bdrv_delete(s->hd);
 }
 
 static void vmdk_flush(BlockDriverState *bs)
 {
-    BDRVVmdkState *s = bs->opaque;
-    bdrv_flush(s->hd);
+    bdrv_flush(bs->file);
 }
 
 
@@ -861,7 +852,7 @@ static BlockDriver bdrv_vmdk = {
     .format_name	= "vmdk",
     .instance_size	= sizeof(BDRVVmdkState),
     .bdrv_probe		= vmdk_probe,
-    .bdrv_file_open	= vmdk_open,
+    .bdrv_open      = vmdk_open,
     .bdrv_read		= vmdk_read,
     .bdrv_write		= vmdk_write,
     .bdrv_close		= vmdk_close,
