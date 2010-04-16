@@ -2415,15 +2415,6 @@ static int do_getfd(Monitor *mon, const QDict *qdict, QObject **ret_data)
         return -1;
     }
 
-    fd = dup(fd);
-    if (fd == -1) {
-        if (errno == EMFILE)
-            qerror_report(QERR_TOO_MANY_FILES);
-        else
-            qerror_report(QERR_UNDEFINED_ERROR);
-        return -1;
-    }
-
     QLIST_FOREACH(monfd, &mon->fds, next) {
         if (strcmp(monfd->name, fdname) != 0) {
             continue;

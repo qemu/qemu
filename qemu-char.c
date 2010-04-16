@@ -2000,8 +2000,9 @@ static void tcp_chr_process_IAC_bytes(CharDriverState *chr,
 static int tcp_get_msgfd(CharDriverState *chr)
 {
     TCPCharDriver *s = chr->opaque;
-
-    return s->msgfd;
+    int fd = s->msgfd;
+    s->msgfd = -1;
+    return fd;
 }
 
 #ifndef _WIN32
@@ -2089,10 +2090,6 @@ static void tcp_chr_read(void *opaque)
             tcp_chr_process_IAC_bytes(chr, s, buf, &size);
         if (size > 0)
             qemu_chr_read(chr, buf, size);
-        if (s->msgfd != -1) {
-            close(s->msgfd);
-            s->msgfd = -1;
-        }
     }
 }
 
