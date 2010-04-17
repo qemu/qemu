@@ -1107,7 +1107,8 @@ static void tcg_out_cr7eq_from_cond (TCGContext *s, const TCGArg *args,
         op = (b->bit1 != b->bit2) ? CRANDC : CRAND;
         tcg_out_cmp (s, b->cond2, args[1], args[3], const_args[3], 5);
         tcg_out_cmp (s, TCG_COND_EQ, args[1], args[3], const_args[3], 6);
-        tcg_out_cmp (s, cond, args[0], args[2], const_args[2], 7);
+        tcg_out_cmp (s, tcg_unsigned_cond (cond), args[0], args[2],
+                     const_args[2], 7);
         tcg_out32 (s, op | BT (7, CR_EQ) | BA (6, CR_EQ) | BB (7, b->bit2));
         tcg_out32 (s, CROR | BT (7, CR_EQ) | BA (5, b->bit1) | BB (7, CR_EQ));
         break;
