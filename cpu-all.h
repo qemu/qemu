@@ -943,18 +943,6 @@ void dump_exec_info(FILE *f,
 int cpu_memory_rw_debug(CPUState *env, target_ulong addr,
                         uint8_t *buf, int len, int is_write);
 
-/* profiling */
-#ifdef CONFIG_PROFILER
-static inline int64_t profile_getclock(void)
-{
-    return cpu_get_real_ticks();
-}
-
-extern int64_t qemu_time, qemu_time_start;
-extern int64_t tlb_flush_time;
-extern int64_t dev_time;
-#endif
-
 void cpu_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
                         uint64_t mcg_status, uint64_t addr, uint64_t misc);
 

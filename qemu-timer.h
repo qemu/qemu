@@ -236,4 +236,15 @@ static inline int can_do_io(CPUState *env)
 }
 #endif
 
+#ifdef CONFIG_PROFILER
+static inline int64_t profile_getclock(void)
+{
+    return cpu_get_real_ticks();
+}
+
+extern int64_t qemu_time, qemu_time_start;
+extern int64_t tlb_flush_time;
+extern int64_t dev_time;
+#endif
+
 #endif
