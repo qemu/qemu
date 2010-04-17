@@ -2155,6 +2155,7 @@ static void disas_sparc_insn(DisasContext * dc)
                 rs1 = GET_FIELD(insn, 13, 17);
                 rs2 = GET_FIELD(insn, 27, 31);
                 xop = GET_FIELD(insn, 18, 26);
+                save_state(dc, cpu_cond);
                 switch (xop) {
                 case 0x1: /* fmovs */
                     tcg_gen_mov_i32(cpu_fpr[rd], cpu_fpr[rs2]);
@@ -2468,6 +2469,7 @@ static void disas_sparc_insn(DisasContext * dc)
                 rs1 = GET_FIELD(insn, 13, 17);
                 rs2 = GET_FIELD(insn, 27, 31);
                 xop = GET_FIELD(insn, 18, 26);
+                save_state(dc, cpu_cond);
 #ifdef TARGET_SPARC64
                 if ((xop & 0x11f) == 0x005) { // V9 fmovsr
                     int l1;
