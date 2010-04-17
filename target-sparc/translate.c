@@ -49,7 +49,7 @@ static TCGv cpu_y;
 #ifndef CONFIG_USER_ONLY
 static TCGv cpu_tbr;
 #endif
-static TCGv cpu_cond, cpu_src1, cpu_src2, cpu_dst, cpu_addr, cpu_val;
+static TCGv cpu_cond, cpu_dst, cpu_addr, cpu_val;
 #ifdef TARGET_SPARC64
 static TCGv_i32 cpu_xcc, cpu_asi, cpu_fprs;
 static TCGv cpu_gsr;
@@ -1631,12 +1631,13 @@ static inline TCGv get_src1(unsigned int insn, TCGv def)
     unsigned int rs1;
 
     rs1 = GET_FIELD(insn, 13, 17);
-    if (rs1 == 0)
-        r_rs1 = tcg_const_tl(0); // XXX how to free?
-    else if (rs1 < 8)
+    if (rs1 == 0) {
+        tcg_gen_movi_tl(def, 0);
+    } else if (rs1 < 8) {
         r_rs1 = cpu_gregs[rs1];
-    else
+    } else {
         tcg_gen_ld_tl(def, cpu_regwptr, (rs1 - 8) * sizeof(target_ulong));
+    }
     return r_rs1;
 }
 
@@ -1645,20 +1646,17 @@ static inline TCGv get_src2(unsigned int insn, TCGv def)
     TCGv r_rs2 = def;
 
     if (IS_IMM) { /* immediate */
-        target_long simm;
-
-        simm = GET_FIELDs(insn, 19, 31);
-        r_rs2 = tcg_const_tl(simm); // XXX how to free?
+        target_long simm = GET_FIELDs(insn, 19, 31);
+        tcg_gen_movi_tl(def, simm);
     } else { /* register */
-        unsigned int rs2;
-
-        rs2 = GET_FIELD(insn, 27, 31);
-        if (rs2 == 0)
-            r_rs2 = tcg_const_tl(0); // XXX how to free?
-        else if (rs2 < 8)
+        unsigned int rs2 = GET_FIELD(insn, 27, 31);
+        if (rs2 == 0) {
+            tcg_gen_movi_tl(def, 0);
+        } else if (rs2 < 8) {
             r_rs2 = cpu_gregs[rs2];
-        else
+        } else {
             tcg_gen_ld_tl(def, cpu_regwptr, (rs2 - 8) * sizeof(target_ulong));
+        }
     }
     return r_rs2;
 }
@@ -1701,6 +1699,7 @@ static inline void gen_load_trap_state_at_tl(TCGv_ptr r_tsptr, TCGv_ptr cpu_env)
 static void disas_sparc_insn(DisasContext * dc)
 {
     unsigned int insn, opc, rs1, rs2, rd;
+    TCGv cpu_src1, cpu_src2, cpu_tmp1, cpu_tmp2;
     target_long simm;
 
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP)))
@@ -1710,8 +1709,8 @@ static void disas_sparc_insn(DisasContext * dc)
 
     rd = GET_FIELD(insn, 2, 6);
 
-    cpu_src1 = tcg_temp_new(); // const
-    cpu_src2 = tcg_temp_new(); // const
+    cpu_tmp1 = cpu_src1 = tcg_temp_new();
+    cpu_tmp2 = cpu_src2 = tcg_temp_new();
 
     switch (opc) {
     case 0:                     /* branches/sethi */
@@ -4601,7 +4600,7 @@ static void disas_sparc_insn(DisasContext * dc)
         dc->npc = dc->npc + 4;
     }
  jmp_insn:
-    return;
+    goto egress;
  illegal_insn:
     {
         TCGv_i32 r_const;
@@ -4612,7 +4611,7 @@ static void disas_sparc_insn(DisasContext * dc)
         tcg_temp_free_i32(r_const);
         dc->is_br = 1;
     }
-    return;
+    goto egress;
  unimp_flush:
     {
         TCGv_i32 r_const;
@@ -4623,7 +4622,7 @@ static void disas_sparc_insn(DisasContext * dc)
         tcg_temp_free_i32(r_const);
         dc->is_br = 1;
     }
-    return;
+    goto egress;
 #if !defined(CONFIG_USER_ONLY)
  priv_insn:
     {
@@ -4635,19 +4634,19 @@ static void disas_sparc_insn(DisasContext * dc)
         tcg_temp_free_i32(r_const);
         dc->is_br = 1;
     }
-    return;
+    goto egress;
 #endif
  nfpu_insn:
     save_state(dc, cpu_cond);
     gen_op_fpexception_im(FSR_FTT_UNIMPFPOP);
     dc->is_br = 1;
-    return;
+    goto egress;
 #if !defined(CONFIG_USER_ONLY) && !defined(TARGET_SPARC64)
  nfq_insn:
     save_state(dc, cpu_cond);
     gen_op_fpexception_im(FSR_FTT_SEQ_ERROR);
     dc->is_br = 1;
-    return;
+    goto egress;
 #endif
 #ifndef TARGET_SPARC64
  ncp_insn:
@@ -4660,8 +4659,11 @@ static void disas_sparc_insn(DisasContext * dc)
         tcg_temp_free(r_const);
         dc->is_br = 1;
     }
-    return;
+    goto egress;
 #endif
+ egress:
+    tcg_temp_free(cpu_tmp1);
+    tcg_temp_free(cpu_tmp2);
 }
 
 static inline void gen_intermediate_code_internal(TranslationBlock * tb,
