@@ -36,6 +36,7 @@
 #include "isa.h"
 #include "fw_cfg.h"
 #include "escc.h"
+#include "empty_slot.h"
 #include "qdev-addr.h"
 #include "loader.h"
 #include "elf.h"
@@ -820,6 +821,10 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
 
     /* set up devices */
     ram_init(0, RAM_size, hwdef->max_mem);
+    /* models without ECC don't trap when missing ram is accessed */
+    if (!hwdef->ecc_base) {
+        empty_slot_init(RAM_size, hwdef->max_mem - RAM_size);
+    }
 
     prom_init(hwdef->slavio_base, bios_name);
 
