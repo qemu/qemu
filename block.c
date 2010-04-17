@@ -589,8 +589,10 @@ unlink_and_fail:
 void bdrv_close(BlockDriverState *bs)
 {
     if (bs->drv) {
-        if (bs->backing_hd)
+        if (bs->backing_hd) {
             bdrv_delete(bs->backing_hd);
+            bs->backing_hd = NULL;
+        }
         bs->drv->bdrv_close(bs);
         qemu_free(bs->opaque);
 #ifdef _WIN32
