@@ -556,8 +556,8 @@ static int64_t alloc_clusters_noref(BlockDriverState *bs, int64_t size)
     nb_clusters = size_to_clusters(s, size);
 retry:
     for(i = 0; i < nb_clusters; i++) {
-        int64_t i = s->free_cluster_index++;
-        if (get_refcount(bs, i) != 0)
+        int64_t next_cluster_index = s->free_cluster_index++;
+        if (get_refcount(bs, next_cluster_index) != 0)
             goto retry;
     }
 #ifdef DEBUG_ALLOC2
