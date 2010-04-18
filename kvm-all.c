@@ -33,10 +33,10 @@
 //#define DEBUG_KVM
 
 #ifdef DEBUG_KVM
-#define dprintf(fmt, ...) \
+#define DPRINTF(fmt, ...) \
     do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
 #else
-#define dprintf(fmt, ...) \
+#define DPRINTF(fmt, ...) \
     do { } while (0)
 #endif
 
@@ -173,11 +173,11 @@ int kvm_init_vcpu(CPUState *env)
     long mmap_size;
     int ret;
 
-    dprintf("kvm_init_vcpu\n");
+    DPRINTF("kvm_init_vcpu\n");
 
     ret = kvm_vm_ioctl(s, KVM_CREATE_VCPU, env->cpu_index);
     if (ret < 0) {
-        dprintf("kvm_create_vcpu failed\n");
+        DPRINTF("kvm_create_vcpu failed\n");
         goto err;
     }
 
@@ -186,7 +186,7 @@ int kvm_init_vcpu(CPUState *env)
 
     mmap_size = kvm_ioctl(s, KVM_GET_VCPU_MMAP_SIZE, 0);
     if (mmap_size < 0) {
-        dprintf("KVM_GET_VCPU_MMAP_SIZE failed\n");
+        DPRINTF("KVM_GET_VCPU_MMAP_SIZE failed\n");
         goto err;
     }
 
@@ -194,7 +194,7 @@ int kvm_init_vcpu(CPUState *env)
                         env->kvm_fd, 0);
     if (env->kvm_run == MAP_FAILED) {
         ret = -errno;
-        dprintf("mmap'ing vcpu state failed\n");
+        DPRINTF("mmap'ing vcpu state failed\n");
         goto err;
     }
 
@@ -325,7 +325,7 @@ static int kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
         d.slot = mem->slot;
 
         if (kvm_vm_ioctl(s, KVM_GET_DIRTY_LOG, &d) == -1) {
-            dprintf("ioctl failed %d\n", errno);
+            DPRINTF("ioctl failed %d\n", errno);
             ret = -1;
             break;
         }
@@ -768,12 +768,12 @@ int kvm_cpu_exec(CPUState *env)
     struct kvm_run *run = env->kvm_run;
     int ret;
 
-    dprintf("kvm_cpu_exec()\n");
+    DPRINTF("kvm_cpu_exec()\n");
 
     do {
 #ifndef CONFIG_IOTHREAD
         if (env->exit_request) {
-            dprintf("interrupt exit requested\n");
+            DPRINTF("interrupt exit requested\n");
             ret = 0;
             break;
         }
@@ -792,13 +792,13 @@ int kvm_cpu_exec(CPUState *env)
 
         if (ret == -EINTR || ret == -EAGAIN) {
             cpu_exit(env);
-            dprintf("io window exit\n");
+            DPRINTF("io window exit\n");
             ret = 0;
             break;
         }
 
         if (ret < 0) {
-            dprintf("kvm run failed %s\n", strerror(-ret));
+            DPRINTF("kvm run failed %s\n", strerror(-ret));
             abort();
         }
 
@@ -807,7 +807,7 @@ int kvm_cpu_exec(CPUState *env)
         ret = 0; /* exit loop */
         switch (run->exit_reason) {
         case KVM_EXIT_IO:
-            dprintf("handle_io\n");
+            DPRINTF("handle_io\n");
             ret = kvm_handle_io(run->io.port,
                                 (uint8_t *)run + run->io.data_offset,
                                 run->io.direction,
@@ -815,7 +815,7 @@ int kvm_cpu_exec(CPUState *env)
                                 run->io.count);
             break;
         case KVM_EXIT_MMIO:
-            dprintf("handle_mmio\n");
+            DPRINTF("handle_mmio\n");
             cpu_physical_memory_rw(run->mmio.phys_addr,
                                    run->mmio.data,
                                    run->mmio.len,
@@ -823,24 +823,24 @@ int kvm_cpu_exec(CPUState *env)
             ret = 1;
             break;
         case KVM_EXIT_IRQ_WINDOW_OPEN:
-            dprintf("irq_window_open\n");
+            DPRINTF("irq_window_open\n");
             break;
         case KVM_EXIT_SHUTDOWN:
-            dprintf("shutdown\n");
+            DPRINTF("shutdown\n");
             qemu_system_reset_request();
             ret = 1;
             break;
         case KVM_EXIT_UNKNOWN:
-            dprintf("kvm_exit_unknown\n");
+            DPRINTF("kvm_exit_unknown\n");
             break;
         case KVM_EXIT_FAIL_ENTRY:
-            dprintf("kvm_exit_fail_entry\n");
+            DPRINTF("kvm_exit_fail_entry\n");
             break;
         case KVM_EXIT_EXCEPTION:
-            dprintf("kvm_exit_exception\n");
+            DPRINTF("kvm_exit_exception\n");
             break;
         case KVM_EXIT_DEBUG:
-            dprintf("kvm_exit_debug\n");
+            DPRINTF("kvm_exit_debug\n");
 #ifdef KVM_CAP_SET_GUEST_DEBUG
             if (kvm_arch_debug(&run->debug.arch)) {
                 gdb_set_stop_cpu(env);
@@ -853,7 +853,7 @@ int kvm_cpu_exec(CPUState *env)
 #endif /* KVM_CAP_SET_GUEST_DEBUG */
             break;
         default:
-            dprintf("kvm_arch_handle_exit\n");
+            DPRINTF("kvm_arch_handle_exit\n");
             ret = kvm_arch_handle_exit(env, run);
             break;
         }
