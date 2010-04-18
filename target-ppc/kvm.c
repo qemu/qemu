@@ -37,20 +37,20 @@
     do { } while (0)
 #endif
 
-/* XXX For some odd reason we sometimes hang inside KVM forever. I'd guess it's
- *     a race condition where we actually have a level triggered interrupt, but
- *     the infrastructure can't expose that yet, so the guest ACKs it, goes to
- *     sleep and never gets notified that there's still an interrupt pending.
+/* XXX We have a race condition where we actually have a level triggered
+ *     interrupt, but the infrastructure can't expose that yet, so the guest
+ *     takes but ignores it, goes to sleep and never gets notified that there's
+ *     still an interrupt pending.
  *
- *     As a quick workaround, let's just wake up every 500 ms. That way we can
- *     assure that we're always reinjecting interrupts in time.
+ *     As a quick workaround, let's just wake up again 20 ms after we injected
+ *     an interrupt. That way we can assure that we're always reinjecting
+ *     interrupts in case the guest swallowed them.
  */
 static QEMUTimer *idle_timer;
 
-static void do_nothing(void *opaque)
+static void kvm_kick_env(void *env)
 {
-    qemu_mod_timer(idle_timer, qemu_get_clock(vm_clock) +
-                   (get_ticks_per_sec() / 2));
+    qemu_cpu_kick(env);
 }
 
 int kvm_arch_init(KVMState *s, int smp_cpus)
@@ -65,6 +65,8 @@ int kvm_arch_init_vcpu(CPUState *cenv)
 
     sregs.pvr = cenv->spr[SPR_PVR];
     ret = kvm_vcpu_ioctl(cenv, KVM_SET_SREGS, &sregs);
+
+    idle_timer = qemu_new_timer(vm_clock, kvm_kick_env, cenv);
 
     return ret;
 }
@@ -189,12 +191,6 @@ int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
     int r;
     unsigned irq;
 
-    if (!idle_timer) {
-        idle_timer = qemu_new_timer(vm_clock, do_nothing, NULL);
-        qemu_mod_timer(idle_timer, qemu_get_clock(vm_clock) +
-                       (get_ticks_per_sec() / 2));
-    }
-
     /* PowerPC Qemu tracks the various core input pins (interrupt, critical
      * interrupt, reset, etc) in PPC-specific env->irq_input_state. */
     if (run->ready_for_interrupt_injection &&
@@ -211,6 +207,10 @@ int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
         r = kvm_vcpu_ioctl(env, KVM_INTERRUPT, &irq);
         if (r < 0)
             printf("cpu %d fail inject %x\n", env->cpu_index, irq);
+
+        /* Always wake up soon in case the interrupt was level based */
+        qemu_mod_timer(idle_timer, qemu_get_clock(vm_clock) +
+                       (get_ticks_per_sec() / 50));
     }
 
     /* We don't know if there are more interrupts pending after this. However,
