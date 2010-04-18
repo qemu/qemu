@@ -3169,8 +3169,9 @@ static void disas_sparc_insn(DisasContext * dc)
                                 break;
                             case 0xf: /* V9 sir, nop if user */
 #if !defined(CONFIG_USER_ONLY)
-                                if (supervisor(dc))
+                                if (supervisor(dc)) {
                                     ; // XXX
+                                }
 #endif
                                 break;
                             case 0x13: /* Graphics Status */
