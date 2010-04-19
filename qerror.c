@@ -38,6 +38,10 @@ static const QType qerror_type = {
  * for example:
  *
  * "running out of foo: %(foo)%%"
+ *
+ * Please keep the entries in alphabetical order.
+ * Use "sed -n '/^static.*qerror_table\[\]/,/^};/s/QERR_/&/gp' qerror.c | sort -c"
+ * to check.
  */
 static const QErrorStringTable qerror_table[] = {
     {
@@ -65,8 +69,8 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Device '%(device)' could not be initialized",
     },
     {
-        .error_fmt = QERR_DEVICE_NOT_ENCRYPTED,
-        .desc      = "Device '%(device)' is not encrypted",
+        .error_fmt = QERR_DEVICE_IN_USE,
+        .desc      = "Device '%(device)' is in use",
     },
     {
         .error_fmt = QERR_DEVICE_LOCKED,
@@ -81,6 +85,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Device '%(device)' has not been activated by the guest",
     },
     {
+        .error_fmt = QERR_DEVICE_NOT_ENCRYPTED,
+        .desc      = "Device '%(device)' is not encrypted",
+    },
+    {
         .error_fmt = QERR_DEVICE_NOT_FOUND,
         .desc      = "Device '%(device)' not found",
     },
@@ -91,6 +99,10 @@ static const QErrorStringTable qerror_table[] = {
     {
         .error_fmt = QERR_DEVICE_NO_BUS,
         .desc      = "Device '%(device)' has no child bus",
+    },
+    {
+        .error_fmt = QERR_DUPLICATE_ID,
+        .desc      = "Duplicate ID '%(id)' for %(object)",
     },
     {
         .error_fmt = QERR_FD_NOT_FOUND,
@@ -111,6 +123,10 @@ static const QErrorStringTable qerror_table[] = {
     {
         .error_fmt = QERR_INVALID_PARAMETER_TYPE,
         .desc      = "Invalid parameter type, expected: %(expected)",
+    },
+    {
+        .error_fmt = QERR_INVALID_PARAMETER_VALUE,
+        .desc      = "Parameter '%(name)' expects %(expected)",
     },
     {
         .error_fmt = QERR_INVALID_PASSWORD,

@@ -207,7 +207,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     /* find driver */
     info = qdev_find_info(NULL, driver);
     if (!info || info->no_user) {
-        qerror_report(QERR_INVALID_PARAMETER, "driver");
+        qerror_report(QERR_INVALID_PARAMETER_VALUE, "driver", "a driver name");
         error_printf_unless_qmp("Try with argument '?' for a list.\n");
         return NULL;
     }
@@ -287,8 +287,7 @@ int qdev_init(DeviceState *dev)
 int qdev_unplug(DeviceState *dev)
 {
     if (!dev->parent_bus->allow_hotplug) {
-        error_report("Bus %s does not support hotplugging",
-                     dev->parent_bus->name);
+        qerror_report(QERR_BUS_NO_HOTPLUG, dev->parent_bus->name);
         return -1;
     }
     assert(dev->info->unplug != NULL);
@@ -800,15 +799,15 @@ int do_device_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
     return 0;
 }
 
-void do_device_del(Monitor *mon, const QDict *qdict)
+int do_device_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *id = qdict_get_str(qdict, "id");
     DeviceState *dev;
 
     dev = qdev_find_recursive(main_system_bus, id);
     if (NULL == dev) {
-        error_report("Device '%s' not found", id);
-        return;
+        qerror_report(QERR_DEVICE_NOT_FOUND, id);
+        return -1;
     }
-    qdev_unplug(dev);
+    return qdev_unplug(dev);
 }

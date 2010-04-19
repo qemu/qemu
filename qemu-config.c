@@ -472,7 +472,6 @@ int qemu_config_parse(FILE *fp, const char *fname)
                 goto out;
             }
             if (qemu_opt_set(opts, arg, value) != 0) {
-                error_report("failed to set \"%s\" for %s", arg, group);
                 goto out;
             }
             continue;

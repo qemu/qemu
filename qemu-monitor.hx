@@ -199,7 +199,8 @@ ETEXI
         .args_type  = "filename:F",
         .params     = "filename",
         .help       = "save screen into PPM image 'filename'",
-        .mhandler.cmd = do_screen_dump,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_screen_dump,
     },
 
 STEXI
@@ -589,7 +590,8 @@ ETEXI
         .args_type  = "id:s",
         .params     = "device",
         .help       = "remove device",
-        .mhandler.cmd = do_device_del,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_device_del,
     },
 
 STEXI
@@ -803,7 +805,7 @@ ETEXI
 
     {
         .name       = "migrate_set_speed",
-        .args_type  = "value:b",
+        .args_type  = "value:f",
         .params     = "value",
         .help       = "set maximum speed (in bytes) for migrations",
         .user_print = monitor_user_noop,
@@ -913,6 +915,36 @@ STEXI
 Remove host VLAN client.
 ETEXI
 
+    {
+        .name       = "netdev_add",
+        .args_type  = "netdev:O",
+        .params     = "[user|tap|socket],id=str[,prop=value][,...]",
+        .help       = "add host network device",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_netdev_add,
+    },
+
+STEXI
+@item netdev_add
+@findex netdev_add
+Add host network device.
+ETEXI
+
+    {
+        .name       = "netdev_del",
+        .args_type  = "id:s",
+        .params     = "id",
+        .help       = "remove host network device",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_netdev_del,
+    },
+
+STEXI
+@item netdev_del
+@findex netdev_del
+Remove host network device.
+ETEXI
+
 #ifdef CONFIG_SLIRP
     {
         .name       = "hostfwd_add",
@@ -955,16 +987,17 @@ ETEXI
 
     {
         .name       = "set_link",
-        .args_type  = "name:s,up_or_down:s",
-        .params     = "name up|down",
+        .args_type  = "name:s,up:b",
+        .params     = "name on|off",
         .help       = "change the link status of a network adapter",
-        .mhandler.cmd = do_set_link,
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_set_link,
     },
 
 STEXI
-@item set_link @var{name} [up|down]
+@item set_link @var{name} [on|off]
 @findex set_link
-Set link @var{name} up or down.
+Switch link @var{name} on (i.e. up) or off (i.e. down).
 ETEXI
 
     {

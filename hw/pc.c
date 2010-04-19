@@ -658,6 +658,12 @@ static void load_linux(void *fw_cfg,
 	}
 
 	initrd_size = get_image_size(initrd_filename);
+        if (initrd_size < 0) {
+            fprintf(stderr, "qemu: error reading initrd %s\n",
+                    initrd_filename);
+            exit(1);
+        }
+
         initrd_addr = (initrd_max-initrd_size) & ~4095;
 
         initrd_data = qemu_malloc(initrd_size);

@@ -316,8 +316,10 @@ static uint32_t cuda_readb(void *opaque, target_phys_addr_t addr)
         val = s->anh;
         break;
     }
-    if (addr != 13 || val != 0)
+    if (addr != 13 || val != 0) {
         CUDA_DPRINTF("read: reg=0x%x val=%02x\n", (int)addr, val);
+    }
+
     return val;
 }
 

@@ -143,6 +143,7 @@ hw-obj-$(CONFIG_PFLASH_CFI02) += pflash_cfi02.o
 
 hw-obj-$(CONFIG_M48T59) += m48t59.o
 hw-obj-$(CONFIG_ESCC) += escc.o
+hw-obj-$(CONFIG_EMPTY_SLOT) += empty_slot.o
 
 hw-obj-$(CONFIG_SERIAL) += serial.o
 hw-obj-$(CONFIG_PARALLEL) += parallel.o

@@ -46,6 +46,8 @@ QError *qobject_to_qerror(const QObject *obj);
 
 /*
  * QError class list
+ * Please keep the definitions in alphabetical order.
+ * Use "grep '^#define QERR_' qerror.h | sort -c" to check.
  */
 #define QERR_BAD_BUS_FOR_DEVICE \
     "{ 'class': 'BadBusForDevice', 'data': { 'device': %s, 'bad_bus_type': %s } }"
@@ -62,11 +64,11 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_DEVICE_ENCRYPTED \
     "{ 'class': 'DeviceEncrypted', 'data': { 'device': %s } }"
 
-#define QERR_DEVICE_NOT_ENCRYPTED \
-    "{ 'class': 'DeviceNotEncrypted', 'data': { 'device': %s } }"
-
 #define QERR_DEVICE_INIT_FAILED \
     "{ 'class': 'DeviceInitFailed', 'data': { 'device': %s } }"
+
+#define QERR_DEVICE_IN_USE \
+    "{ 'class': 'DeviceInUse', 'data': { 'device': %s } }"
 
 #define QERR_DEVICE_LOCKED \
     "{ 'class': 'DeviceLocked', 'data': { 'device': %s } }"
@@ -77,6 +79,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_DEVICE_NOT_ACTIVE \
     "{ 'class': 'DeviceNotActive', 'data': { 'device': %s } }"
 
+#define QERR_DEVICE_NOT_ENCRYPTED \
+    "{ 'class': 'DeviceNotEncrypted', 'data': { 'device': %s } }"
+
 #define QERR_DEVICE_NOT_FOUND \
     "{ 'class': 'DeviceNotFound', 'data': { 'device': %s } }"
 
@@ -85,6 +90,9 @@ QError *qobject_to_qerror(const QObject *obj);
 
 #define QERR_DEVICE_NO_BUS \
     "{ 'class': 'DeviceNoBus', 'data': { 'device': %s } }"
+
+#define QERR_DUPLICATE_ID \
+    "{ 'class': 'DuplicateId', 'data': { 'id': %s, 'object': %s } }"
 
 #define QERR_FD_NOT_FOUND \
     "{ 'class': 'FdNotFound', 'data': { 'name': %s } }"
@@ -100,6 +108,9 @@ QError *qobject_to_qerror(const QObject *obj);
 
 #define QERR_INVALID_PARAMETER_TYPE \
     "{ 'class': 'InvalidParameterType', 'data': { 'name': %s,'expected': %s } }"
+
+#define QERR_INVALID_PARAMETER_VALUE \
+    "{ 'class': 'InvalidParameterValue', 'data': { 'name': %s, 'expected': %s } }"
 
 #define QERR_INVALID_PASSWORD \
     "{ 'class': 'InvalidPassword', 'data': {} }"

@@ -35,10 +35,10 @@
 //#define DEBUG_KVM
 
 #ifdef DEBUG_KVM
-#define dprintf(fmt, ...) \
+#define DPRINTF(fmt, ...) \
     do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
 #else
-#define dprintf(fmt, ...) \
+#define DPRINTF(fmt, ...) \
     do { } while (0)
 #endif
 
@@ -960,7 +960,7 @@ int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
             struct kvm_interrupt intr;
             intr.irq = irq;
             /* FIXME: errors */
-            dprintf("injected interrupt %d\n", irq);
+            DPRINTF("injected interrupt %d\n", irq);
             kvm_vcpu_ioctl(env, KVM_INTERRUPT, &intr);
         }
     }
@@ -974,7 +974,7 @@ int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
     else
         run->request_interrupt_window = 0;
 
-    dprintf("setting tpr\n");
+    DPRINTF("setting tpr\n");
     run->cr8 = cpu_get_apic_tpr(env);
 
     return 0;
@@ -1012,7 +1012,7 @@ int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
 
     switch (run->exit_reason) {
     case KVM_EXIT_HLT:
-        dprintf("handle_hlt\n");
+        DPRINTF("handle_hlt\n");
         ret = kvm_handle_halt(env);
         break;
     }

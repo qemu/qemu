@@ -994,8 +994,9 @@ static uint32_t fdctrl_read_dir(FDCtrl *fdctrl)
 #endif
         )
         retval |= FD_DIR_DSKCHG;
-    if (retval != 0)
+    if (retval != 0) {
         FLOPPY_DPRINTF("Floppy digital input register: 0x%02x\n", retval);
+    }
 
     return retval;
 }

@@ -1099,9 +1099,10 @@ static void ohci_sof(OHCIState *ohci)
 static void ohci_process_lists(OHCIState *ohci, int completion)
 {
     if ((ohci->ctl & OHCI_CTL_CLE) && (ohci->status & OHCI_STATUS_CLF)) {
-        if (ohci->ctrl_cur && ohci->ctrl_cur != ohci->ctrl_head)
-          DPRINTF("usb-ohci: head %x, cur %x\n",
-                          ohci->ctrl_head, ohci->ctrl_cur);
+        if (ohci->ctrl_cur && ohci->ctrl_cur != ohci->ctrl_head) {
+            DPRINTF("usb-ohci: head %x, cur %x\n",
+                    ohci->ctrl_head, ohci->ctrl_cur);
+        }
         if (!ohci_service_ed_list(ohci, ohci->ctrl_head, completion)) {
             ohci->ctrl_cur = 0;
             ohci->status &= ~OHCI_STATUS_CLF;
@@ -1367,8 +1368,9 @@ static void ohci_port_set_status(OHCIState *ohci, int portnum, uint32_t val)
 
     ohci_port_set_if_connected(ohci, portnum, val & OHCI_PORT_PES);
 
-    if (ohci_port_set_if_connected(ohci, portnum, val & OHCI_PORT_PSS))
+    if (ohci_port_set_if_connected(ohci, portnum, val & OHCI_PORT_PSS)) {
         DPRINTF("usb-ohci: port %d: SUSPEND\n", portnum);
+    }
 
     if (ohci_port_set_if_connected(ohci, portnum, val & OHCI_PORT_PRS)) {
         DPRINTF("usb-ohci: port %d: RESET\n", portnum);

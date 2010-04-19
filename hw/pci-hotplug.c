@@ -56,8 +56,6 @@ static PCIDevice *qemu_pci_hot_add_nic(Monitor *mon,
 
     opts = qemu_opts_parse(&qemu_net_opts, opts_str ? opts_str : "", 0);
     if (!opts) {
-        monitor_printf(mon, "parsing network options '%s' failed\n",
-                       opts_str ? opts_str : "");
         return NULL;
     }
 

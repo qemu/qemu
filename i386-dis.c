@@ -155,7 +155,8 @@
 
 #include <setjmp.h>
 
-static int fetch_data (struct disassemble_info *, bfd_byte *);
+static int fetch_data2(struct disassemble_info *, bfd_byte *);
+static int fetch_data(struct disassemble_info *, bfd_byte *);
 static void ckprefix (void);
 static const char *prefix_name (int, int);
 static int print_insn (bfd_vma, disassemble_info *);
@@ -280,12 +281,8 @@ static int used_prefixes;
 /* Make sure that bytes from INFO->PRIVATE_DATA->BUFFER (inclusive)
    to ADDR (exclusive) are valid.  Returns 1 for success, longjmps
    on error.  */
-#define FETCH_DATA(info, addr) \
-  ((addr) <= ((struct dis_private *) (info->private_data))->max_fetched \
-   ? 1 : fetch_data ((info), (addr)))
-
 static int
-fetch_data (struct disassemble_info *info, bfd_byte *addr)
+fetch_data2(struct disassemble_info *info, bfd_byte *addr)
 {
   int status;
   struct dis_private *priv = (struct dis_private *) info->private_data;
@@ -312,6 +309,17 @@ fetch_data (struct disassemble_info *info, bfd_byte *addr)
     priv->max_fetched = addr;
   return 1;
 }
+
+static int
+fetch_data(struct disassemble_info *info, bfd_byte *addr)
+{
+    if (addr <= ((struct dis_private *) (info->private_data))->max_fetched) {
+        return 1;
+    } else {
+        return fetch_data2(info, addr);
+    }
+}
+
 
 #define XX { NULL, 0 }
 
@@ -3320,7 +3328,7 @@ ckprefix (void)
   rex_used = 0;
   while (1)
     {
-      FETCH_DATA (the_info, codep + 1);
+      fetch_data(the_info, codep + 1);
       newrex = 0;
       switch (*codep)
 	{
@@ -3684,7 +3692,7 @@ print_insn (bfd_vma pc, disassemble_info *info)
   insn_codep = codep;
   sizeflag = priv.orig_sizeflag;
 
-  FETCH_DATA (info, codep + 1);
+  fetch_data(info, codep + 1);
   two_source_ops = (*codep == 0x62) || (*codep == 0xc8);
 
   if (((prefixes & PREFIX_FWAIT)
@@ -3706,7 +3714,7 @@ print_insn (bfd_vma pc, disassemble_info *info)
   if (*codep == 0x0f)
     {
       unsigned char threebyte;
-      FETCH_DATA (info, codep + 2);
+      fetch_data(info, codep + 2);
       threebyte = *++codep;
       dp = &dis386_twobyte[threebyte];
       need_modrm = twobyte_has_modrm[*codep];
@@ -3717,7 +3725,7 @@ print_insn (bfd_vma pc, disassemble_info *info)
       codep++;
       if (dp->name == NULL && dp->op[0].bytemode == IS_3BYTE_OPCODE)
 	{
-	  FETCH_DATA (info, codep + 2);
+          fetch_data(info, codep + 2);
 	  op = *codep++;
 	  switch (threebyte)
 	    {
@@ -3802,7 +3810,7 @@ print_insn (bfd_vma pc, disassemble_info *info)
     }
   else if (need_modrm)
     {
-      FETCH_DATA (info, codep + 1);
+      fetch_data(info, codep + 1);
       modrm.mod = (*codep >> 6) & 3;
       modrm.reg = (*codep >> 3) & 7;
       modrm.rm = *codep & 7;
@@ -4968,7 +4976,7 @@ OP_E (int bytemode, int sizeflag)
       if (base == 4)
 	{
 	  havesib = 1;
-	  FETCH_DATA (the_info, codep + 1);
+          fetch_data(the_info, codep + 1);
 	  index = (*codep >> 3) & 7;
 	  if (address_mode == mode_64bit || index != 0x4)
 	    /* When INDEX == 0x4 in 32 bit mode, SCALE is ignored.  */
@@ -4993,7 +5001,7 @@ OP_E (int bytemode, int sizeflag)
 	    }
 	  break;
 	case 1:
-	  FETCH_DATA (the_info, codep + 1);
+          fetch_data (the_info, codep + 1);
 	  disp = *codep++;
 	  if ((disp & 0x80) != 0)
 	    disp -= 0x100;
@@ -5104,7 +5112,7 @@ OP_E (int bytemode, int sizeflag)
 	    }
 	  break;
 	case 1:
-	  FETCH_DATA (the_info, codep + 1);
+          fetch_data(the_info, codep + 1);
 	  disp = *codep++;
 	  if ((disp & 0x80) != 0)
 	    disp -= 0x100;
@@ -5226,7 +5234,7 @@ get64 (void)
   unsigned int a;
   unsigned int b;
 
-  FETCH_DATA (the_info, codep + 8);
+  fetch_data(the_info, codep + 8);
   a = *codep++ & 0xff;
   a |= (*codep++ & 0xff) << 8;
   a |= (*codep++ & 0xff) << 16;
@@ -5248,7 +5256,7 @@ get32 (void)
 {
   bfd_signed_vma x = 0;
 
-  FETCH_DATA (the_info, codep + 4);
+  fetch_data(the_info, codep + 4);
   x = *codep++ & (bfd_signed_vma) 0xff;
   x |= (*codep++ & (bfd_signed_vma) 0xff) << 8;
   x |= (*codep++ & (bfd_signed_vma) 0xff) << 16;
@@ -5261,7 +5269,7 @@ get32s (void)
 {
   bfd_signed_vma x = 0;
 
-  FETCH_DATA (the_info, codep + 4);
+  fetch_data(the_info, codep + 4);
   x = *codep++ & (bfd_signed_vma) 0xff;
   x |= (*codep++ & (bfd_signed_vma) 0xff) << 8;
   x |= (*codep++ & (bfd_signed_vma) 0xff) << 16;
@@ -5277,7 +5285,7 @@ get16 (void)
 {
   int x = 0;
 
-  FETCH_DATA (the_info, codep + 2);
+  fetch_data(the_info, codep + 2);
   x = *codep++ & 0xff;
   x |= (*codep++ & 0xff) << 8;
   return x;
@@ -5418,7 +5426,7 @@ OP_I (int bytemode, int sizeflag)
   switch (bytemode)
     {
     case b_mode:
-      FETCH_DATA (the_info, codep + 1);
+      fetch_data(the_info, codep + 1);
       op = *codep++;
       mask = 0xff;
       break;
@@ -5480,7 +5488,7 @@ OP_I64 (int bytemode, int sizeflag)
   switch (bytemode)
     {
     case b_mode:
-      FETCH_DATA (the_info, codep + 1);
+      fetch_data(the_info, codep + 1);
       op = *codep++;
       mask = 0xff;
       break;
@@ -5524,7 +5532,7 @@ OP_sI (int bytemode, int sizeflag)
   switch (bytemode)
     {
     case b_mode:
-      FETCH_DATA (the_info, codep + 1);
+      fetch_data(the_info, codep + 1);
       op = *codep++;
       if ((op & 0x80) != 0)
 	op -= 0x100;
@@ -5570,7 +5578,7 @@ OP_J (int bytemode, int sizeflag)
   switch (bytemode)
     {
     case b_mode:
-      FETCH_DATA (the_info, codep + 1);
+      fetch_data(the_info, codep + 1);
       disp = *codep++;
       if ((disp & 0x80) != 0)
 	disp -= 0x100;
@@ -6092,7 +6100,7 @@ OP_3DNowSuffix (int bytemode ATTRIBUTE_UNUSED, int sizeflag ATTRIBUTE_UNUSED)
 {
   const char *mnemonic;
 
-  FETCH_DATA (the_info, codep + 1);
+  fetch_data(the_info, codep + 1);
   /* AMD 3DNow! instructions are specified by an opcode suffix in the
      place where an 8-bit immediate would normally go.  ie. the last
      byte of the instruction.  */
@@ -6128,7 +6136,7 @@ OP_SIMD_Suffix (int bytemode ATTRIBUTE_UNUSED, int sizeflag ATTRIBUTE_UNUSED)
 {
   unsigned int cmp_type;
 
-  FETCH_DATA (the_info, codep + 1);
+  fetch_data(the_info, codep + 1);
   obufp = obuf + strlen (obuf);
   cmp_type = *codep++ & 0xff;
   if (cmp_type < 8)
