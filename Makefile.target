@@ -1,6 +1,7 @@
 # -*- Mode: makefile -*-
 
 GENERATED_HEADERS = config-target.h
+CONFIG_NO_KVM = $(if $(subst n,,$(CONFIG_KVM)),n,y)
 
 include ../config-host.mak
 include config-devices.mak
@@ -171,6 +172,7 @@ obj-y += vhost_net.o
 obj-$(CONFIG_VHOST_NET) += vhost.o
 obj-y += rwhandler.o
 obj-$(CONFIG_KVM) += kvm.o kvm-all.o
+obj-$(CONFIG_NO_KVM) += kvm-stub.o
 LIBS+=-lz
 
 QEMU_CFLAGS += $(VNC_TLS_CFLAGS)

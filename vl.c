@@ -3157,10 +3157,6 @@ int main(int argc, char **argv, char **envp)
                 do_smbios_option(optarg);
                 break;
             case QEMU_OPTION_enable_kvm:
-                if (!(kvm_available())) {
-                    printf("Option %s not supported for this target\n", popt->name);
-                    exit(1);
-                }
                 kvm_allowed = 1;
                 break;
             case QEMU_OPTION_usb:
@@ -3506,12 +3502,14 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
-    if (kvm_enabled()) {
-        int ret;
-
-        ret = kvm_init(smp_cpus);
+    if (kvm_allowed) {
+        int ret = kvm_init(smp_cpus);
         if (ret < 0) {
-            fprintf(stderr, "failed to initialize KVM\n");
+            if (!kvm_available()) {
+                printf("KVM not supported for this target\n");
+            } else {
+                fprintf(stderr, "failed to initialize KVM: %s\n", strerror(-ret));
+            }
             exit(1);
         }
     }
