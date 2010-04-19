@@ -105,7 +105,6 @@
 typedef struct BDRVRawState {
     int fd;
     int type;
-    unsigned int lseek_err_cnt;
     int open_flags;
 #if defined(__linux__)
     /* linux floppy specific */
@@ -133,8 +132,6 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
 {
     BDRVRawState *s = bs->opaque;
     int fd, ret;
-
-    s->lseek_err_cnt = 0;
 
     s->open_flags = open_flags | O_BINARY;
     s->open_flags &= ~O_ACCMODE;
@@ -243,19 +240,7 @@ static int raw_pread_aligned(BlockDriverState *bs, int64_t offset,
     if (ret < 0)
         return ret;
 
-    if (offset >= 0 && lseek(s->fd, offset, SEEK_SET) == (off_t)-1) {
-        ++(s->lseek_err_cnt);
-        if(s->lseek_err_cnt <= 10) {
-            DEBUG_BLOCK_PRINT("raw_pread(%d:%s, %" PRId64 ", %p, %d) [%" PRId64
-                              "] lseek failed : %d = %s\n",
-                              s->fd, bs->filename, offset, buf, count,
-                              bs->total_sectors, errno, strerror(errno));
-        }
-        return -1;
-    }
-    s->lseek_err_cnt=0;
-
-    ret = read(s->fd, buf, count);
+    ret = pread(s->fd, buf, count, offset);
     if (ret == count)
         goto label__raw_read__success;
 
@@ -276,12 +261,10 @@ static int raw_pread_aligned(BlockDriverState *bs, int64_t offset,
 
     /* Try harder for CDrom. */
     if (bs->type == BDRV_TYPE_CDROM) {
-        lseek(s->fd, offset, SEEK_SET);
-        ret = read(s->fd, buf, count);
+        ret = pread(s->fd, buf, count, offset);
         if (ret == count)
             goto label__raw_read__success;
-        lseek(s->fd, offset, SEEK_SET);
-        ret = read(s->fd, buf, count);
+        ret = pread(s->fd, buf, count, offset);
         if (ret == count)
             goto label__raw_read__success;
 
@@ -313,19 +296,7 @@ static int raw_pwrite_aligned(BlockDriverState *bs, int64_t offset,
     if (ret < 0)
         return -errno;
 
-    if (offset >= 0 && lseek(s->fd, offset, SEEK_SET) == (off_t)-1) {
-        ++(s->lseek_err_cnt);
-        if(s->lseek_err_cnt) {
-            DEBUG_BLOCK_PRINT("raw_pwrite(%d:%s, %" PRId64 ", %p, %d) [%"
-                              PRId64 "] lseek failed : %d = %s\n",
-                              s->fd, bs->filename, offset, buf, count,
-                              bs->total_sectors, errno, strerror(errno));
-        }
-        return -EIO;
-    }
-    s->lseek_err_cnt = 0;
-
-    ret = write(s->fd, buf, count);
+    ret = pwrite(s->fd, buf, count, offset);
     if (ret == count)
         goto label__raw_write__success;
 
