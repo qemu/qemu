@@ -352,6 +352,26 @@ static BlockDriver *find_image_format(const char *filename)
     return drv;
 }
 
+/**
+ * Set the current 'total_sectors' value
+ */
+static int refresh_total_sectors(BlockDriverState *bs, int64_t hint)
+{
+    BlockDriver *drv = bs->drv;
+
+    /* query actual device if possible, otherwise just trust the hint */
+    if (drv->bdrv_getlength) {
+        int64_t length = drv->bdrv_getlength(bs);
+        if (length < 0) {
+            return length;
+        }
+        hint = length >> BDRV_SECTOR_BITS;
+    }
+
+    bs->total_sectors = hint;
+    return 0;
+}
+
 /*
  * Common part for opening disk images and files
  */
@@ -363,6 +383,7 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
     assert(drv != NULL);
 
     bs->file = NULL;
+    bs->total_sectors = 0;
     bs->is_temporary = 0;
     bs->encrypted = 0;
     bs->valid_key = 0;
@@ -416,9 +437,12 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
     }
 
     bs->keep_read_only = bs->read_only = !(open_flags & BDRV_O_RDWR);
-    if (drv->bdrv_getlength) {
-        bs->total_sectors = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
+
+    ret = refresh_total_sectors(bs, bs->total_sectors);
+    if (ret < 0) {
+        goto free_and_fail;
     }
+
 #ifndef _WIN32
     if (bs->is_temporary) {
         unlink(filename);
@@ -959,13 +983,18 @@ int bdrv_pwrite(BlockDriverState *bs, int64_t offset,
 int bdrv_truncate(BlockDriverState *bs, int64_t offset)
 {
     BlockDriver *drv = bs->drv;
+    int ret;
     if (!drv)
         return -ENOMEDIUM;
     if (!drv->bdrv_truncate)
         return -ENOTSUP;
     if (bs->read_only)
         return -EACCES;
-    return drv->bdrv_truncate(bs, offset);
+    ret = drv->bdrv_truncate(bs, offset);
+    if (ret == 0) {
+        ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
+    }
+    return ret;
 }
 
 /**
@@ -976,8 +1005,12 @@ int64_t bdrv_getlength(BlockDriverState *bs)
     BlockDriver *drv = bs->drv;
     if (!drv)
         return -ENOMEDIUM;
-    if (!drv->bdrv_getlength) {
-        /* legacy mode */
+
+    /* Fixed size devices use the total_sectors value for speed instead of
+       issuing a length query (like lseek) on each call.  Also, legacy block
+       drivers don't provide a bdrv_getlength function and must use
+       total_sectors. */
+    if (!bs->growable || !drv->bdrv_getlength) {
         return bs->total_sectors * BDRV_SECTOR_SIZE;
     }
     return drv->bdrv_getlength(bs);
