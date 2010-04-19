@@ -394,12 +394,8 @@ static void sdl_process_key(SDL_KeyboardEvent *ev)
         else
             modifiers_state[keycode] = 1;
         break;
-    case 0x45: /* num lock */
-    case 0x3a: /* caps lock */
-        /* SDL does not send the key up event, so we generate it */
-        kbd_put_keycode(keycode);
-        kbd_put_keycode(keycode | SCANCODE_UP);
-        return;
+    //~ case 0x45: /* num lock */
+    //~ case 0x3a: /* caps lock */
     }
 
     /* now send the key code */
