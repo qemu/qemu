@@ -184,7 +184,8 @@ pxe-e1000.bin \
 pxe-ne2k_pci.bin pxe-pcnet.bin \
 pxe-rtl8139.bin pxe-virtio.bin \
 bamboo.dtb petalogix-s3adsp1800.dtb \
-multiboot.bin linuxboot.bin
+multiboot.bin linuxboot.bin \
+s390-zipl.rom
 else
 BLOBS=
 endif

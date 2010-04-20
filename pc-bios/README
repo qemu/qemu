@@ -27,3 +27,7 @@
   virtio 1af4:1000
 
   http://rom-o-matic.net/
+
+- The S390 zipl loader is an addition to the official IBM s390-tools
+  package. That fork is maintained in its own git repository at:
+  git://repo.or.cz/s390-tools.git
