@@ -213,7 +213,7 @@ static int i440fx_initfn(PCIDevice *dev)
     return 0;
 }
 
-PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn, qemu_irq *pic)
+PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn, qemu_irq *pic, int ram_size)
 {
     DeviceState *dev;
     PCIBus *b;
@@ -237,6 +237,11 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn, qemu_irq *
     (*pi440fx_state)->piix3 = piix3;
 
     *piix3_devfn = piix3->dev.devfn;
+
+    ram_size = ram_size / 8 / 1024 / 1024;
+    if (ram_size > 255)
+        ram_size = 255;
+    (*pi440fx_state)->dev.config[0x57]=ram_size;
 
     return b;
 }
