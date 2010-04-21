@@ -638,7 +638,7 @@ void qcow2_free_clusters(BlockDriverState *bs,
     ret = update_refcount(bs, offset, size, -1);
     if (ret < 0) {
         fprintf(stderr, "qcow2_free_clusters failed: %s\n", strerror(-ret));
-        abort();
+        /* TODO Remember the clusters to free them later and avoid leaking */
     }
 }
 
