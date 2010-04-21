@@ -1085,16 +1085,6 @@ int ppc_dcr_init (CPUState *env, int (*read_error)(int dcrn),
     return 0;
 }
 
-#if 0
-/*****************************************************************************/
-/* Handle system reset (for now, just stop emulation) */
-void cpu_reset(CPUState *env)
-{
-    printf("Reset asked... Stop emulation\n");
-    abort();
-}
-#endif
-
 /*****************************************************************************/
 /* Debug port */
 void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val)
