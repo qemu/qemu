@@ -115,23 +115,19 @@ static int sdl_unlock_and_post (SDLAudioState *s, const char *forfn)
     return sdl_post (s, forfn);
 }
 
-static int aud_to_sdlfmt (audfmt_e fmt, int *shift)
+static int aud_to_sdlfmt (audfmt_e fmt)
 {
     switch (fmt) {
     case AUD_FMT_S8:
-        *shift = 0;
         return AUDIO_S8;
 
     case AUD_FMT_U8:
-        *shift = 0;
         return AUDIO_U8;
 
     case AUD_FMT_S16:
-        *shift = 1;
         return AUDIO_S16LSB;
 
     case AUD_FMT_U16:
-        *shift = 1;
         return AUDIO_U16LSB;
 
     default:
@@ -326,16 +322,13 @@ static int sdl_init_out (HWVoiceOut *hw, struct audsettings *as)
     SDLVoiceOut *sdl = (SDLVoiceOut *) hw;
     SDLAudioState *s = &glob_sdl;
     SDL_AudioSpec req, obt;
-    int shift;
     int endianess;
     int err;
     audfmt_e effective_fmt;
     struct audsettings obt_as;
 
-    shift <<= as->nchannels == 2;
-
     req.freq = as->freq;
-    req.format = aud_to_sdlfmt (as->fmt, &shift);
+    req.format = aud_to_sdlfmt (as->fmt);
     req.channels = as->nchannels;
     req.samples = conf.nb_samples;
     req.callback = sdl_callback;
