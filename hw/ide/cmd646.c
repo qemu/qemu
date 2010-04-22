@@ -123,6 +123,9 @@ static void bmdma_writeb_common(PCIIDEState *pci_dev, BMDMAState *bm,
     printf("bmdma: writeb 0x%02x : 0x%02x\n", addr, val);
 #endif
     switch(addr & 3) {
+    case 0:
+        bmdma_cmd_writeb(bm, addr, val);
+        break;
     case 1:
         pci_dev->dev.config[MRDMODE] =
             (pci_dev->dev.config[MRDMODE] & ~0x30) | (val & 0x30);
@@ -168,13 +171,11 @@ static void bmdma_map(PCIDevice *pci_dev, int region_num,
         bm->bus = d->bus+i;
         qemu_add_vm_change_state_handler(ide_dma_restart_cb, bm);
 
-        register_ioport_write(addr, 1, 1, bmdma_cmd_writeb, bm);
-
         if (i == 0) {
-            register_ioport_write(addr + 1, 3, 1, bmdma_writeb_0, d);
+            register_ioport_write(addr, 4, 1, bmdma_writeb_0, d);
             register_ioport_read(addr, 4, 1, bmdma_readb_0, d);
         } else {
-            register_ioport_write(addr + 1, 3, 1, bmdma_writeb_1, d);
+            register_ioport_write(addr, 4, 1, bmdma_writeb_1, d);
             register_ioport_read(addr, 4, 1, bmdma_readb_1, d);
         }
 
