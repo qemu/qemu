@@ -1173,6 +1173,33 @@ static int expire_password(Monitor *mon, const QDict *qdict, QObject **ret_data)
     return -1;
 }
 
+static int client_migrate_info(Monitor *mon, const QDict *qdict, QObject **ret_data)
+{
+    const char *protocol = qdict_get_str(qdict, "protocol");
+    const char *hostname = qdict_get_str(qdict, "hostname");
+    const char *subject  = qdict_get_try_str(qdict, "cert-subject");
+    int port             = qdict_get_try_int(qdict, "port", -1);
+    int tls_port         = qdict_get_try_int(qdict, "tls-port", -1);
+    int ret;
+
+    if (strcmp(protocol, "spice") == 0) {
+        if (!using_spice) {
+            qerror_report(QERR_DEVICE_NOT_ACTIVE, "spice");
+            return -1;
+        }
+
+        ret = qemu_spice_migrate_info(hostname, port, tls_port, subject);
+        if (ret != 0) {
+            qerror_report(QERR_UNDEFINED_ERROR);
+            return -1;
+        }
+        return 0;
+    }
+
+    qerror_report(QERR_INVALID_PARAMETER, "protocol");
+    return -1;
+}
+
 static int do_screen_dump(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     vga_hw_screen_dump(qdict_get_str(qdict, "filename"));
