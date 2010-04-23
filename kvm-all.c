@@ -26,6 +26,7 @@
 #include "hw/hw.h"
 #include "gdbstub.h"
 #include "kvm.h"
+#include "bswap.h"
 
 /* KVM uses PAGE_SIZE in it's definition of COALESCED_MMIO_MAX */
 #define PAGE_SIZE TARGET_PAGE_SIZE
@@ -283,10 +284,40 @@ static int kvm_set_migration_log(int enable)
     return 0;
 }
 
-static int test_le_bit(unsigned long nr, unsigned char *addr)
+/* get kvm's dirty pages bitmap and update qemu's */
+static int kvm_get_dirty_pages_log_range(unsigned long start_addr,
+                                         unsigned long *bitmap,
+                                         unsigned long offset,
+                                         unsigned long mem_size)
 {
-    return (addr[nr >> 3] >> (nr & 7)) & 1;
+    unsigned int i, j;
+    unsigned long page_number, addr, addr1, c;
+    ram_addr_t ram_addr;
+    unsigned int len = ((mem_size / TARGET_PAGE_SIZE) + HOST_LONG_BITS - 1) /
+        HOST_LONG_BITS;
+
+    /*
+     * bitmap-traveling is faster than memory-traveling (for addr...)
+     * especially when most of the memory is not dirty.
+     */
+    for (i = 0; i < len; i++) {
+        if (bitmap[i] != 0) {
+            c = leul_to_cpu(bitmap[i]);
+            do {
+                j = ffsl(c) - 1;
+                c &= ~(1ul << j);
+                page_number = i * HOST_LONG_BITS + j;
+                addr1 = page_number * TARGET_PAGE_SIZE;
+                addr = offset + addr1;
+                ram_addr = cpu_get_physical_page_desc(addr);
+                cpu_physical_memory_set_dirty(ram_addr);
+            } while (c != 0);
+        }
+    }
+    return 0;
 }
+
+#define ALIGN(x, y)  (((x)+(y)-1) & ~((y)-1))
 
 /**
  * kvm_physical_sync_dirty_bitmap - Grab dirty bitmap from kernel space
@@ -301,8 +332,6 @@ static int kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
 {
     KVMState *s = kvm_state;
     unsigned long size, allocated_size = 0;
-    target_phys_addr_t phys_addr;
-    ram_addr_t addr;
     KVMDirtyLog d;
     KVMSlot *mem;
     int ret = 0;
@@ -314,7 +343,7 @@ static int kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
             break;
         }
 
-        size = ((mem->memory_size >> TARGET_PAGE_BITS) + 7) / 8;
+        size = ALIGN(((mem->memory_size) >> TARGET_PAGE_BITS), HOST_LONG_BITS) / 8;
         if (!d.dirty_bitmap) {
             d.dirty_bitmap = qemu_malloc(size);
         } else if (size > allocated_size) {
@@ -331,17 +360,9 @@ static int kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
             break;
         }
 
-        for (phys_addr = mem->start_addr, addr = mem->phys_offset;
-             phys_addr < mem->start_addr + mem->memory_size;
-             phys_addr += TARGET_PAGE_SIZE, addr += TARGET_PAGE_SIZE) {
-            unsigned char *bitmap = (unsigned char *)d.dirty_bitmap;
-            unsigned nr = (phys_addr - mem->start_addr) >> TARGET_PAGE_BITS;
-
-            if (test_le_bit(nr, bitmap)) {
-                cpu_physical_memory_set_dirty(addr);
-            }
-        }
-        start_addr = phys_addr;
+        kvm_get_dirty_pages_log_range(mem->start_addr, d.dirty_bitmap,
+                                      mem->start_addr, mem->memory_size);
+        start_addr = mem->start_addr + mem->memory_size;
     }
     qemu_free(d.dirty_bitmap);
 
