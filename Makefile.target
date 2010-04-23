@@ -88,7 +88,6 @@ obj-y = main.o syscall.o strace.o mmap.o signal.o thunk.o \
       elfload.o linuxload.o uaccess.o gdbstub.o cpu-uname.o
 
 obj-$(TARGET_HAS_BFLT) += flatload.o
-obj-$(TARGET_HAS_ELFLOAD32) += elfload32.o
 
 obj-$(TARGET_I386) += vm86.o
 
