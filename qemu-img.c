@@ -1225,6 +1225,98 @@ static int img_rebase(int argc, char **argv)
     return 0;
 }
 
+static int img_resize(int argc, char **argv)
+{
+    int c, ret, relative;
+    const char *filename, *fmt, *size;
+    int64_t n, total_size;
+    BlockDriverState *bs;
+    QEMUOptionParameter *param;
+    QEMUOptionParameter resize_options[] = {
+        {
+            .name = BLOCK_OPT_SIZE,
+            .type = OPT_SIZE,
+            .help = "Virtual disk size"
+        },
+        { NULL }
+    };
+
+    fmt = NULL;
+    for(;;) {
+        c = getopt(argc, argv, "f:h");
+        if (c == -1) {
+            break;
+        }
+        switch(c) {
+        case 'h':
+            help();
+            break;
+        case 'f':
+            fmt = optarg;
+            break;
+        }
+    }
+    if (optind + 1 >= argc) {
+        help();
+    }
+    filename = argv[optind++];
+    size = argv[optind++];
+
+    /* Choose grow, shrink, or absolute resize mode */
+    switch (size[0]) {
+    case '+':
+        relative = 1;
+        size++;
+        break;
+    case '-':
+        relative = -1;
+        size++;
+        break;
+    default:
+        relative = 0;
+        break;
+    }
+
+    /* Parse size */
+    param = parse_option_parameters("", resize_options, NULL);
+    if (set_option_parameter(param, BLOCK_OPT_SIZE, size)) {
+        /* Error message already printed when size parsing fails */
+        exit(1);
+    }
+    n = get_option_parameter(param, BLOCK_OPT_SIZE)->value.n;
+    free_option_parameters(param);
+
+    bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_RDWR);
+
+    if (relative) {
+        total_size = bdrv_getlength(bs) + n * relative;
+    } else {
+        total_size = n;
+    }
+    if (total_size <= 0) {
+        error("New image size must be positive");
+    }
+
+    ret = bdrv_truncate(bs, total_size);
+    switch (ret) {
+    case 0:
+        printf("Image resized.\n");
+        break;
+    case -ENOTSUP:
+        error("This image format does not support resize");
+        break;
+    case -EACCES:
+        error("Image is read-only");
+        break;
+    default:
+        error("Error resizing image (%d)", -ret);
+        break;
+    }
+
+    bdrv_delete(bs);
+    return 0;
+}
+
 static const img_cmd_t img_cmds[] = {
 #define DEF(option, callback, arg_string)        \
     { option, callback },
