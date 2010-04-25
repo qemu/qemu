@@ -234,7 +234,9 @@ int pic_read_irq(PicState2 *s)
                 irq2 = 7;
             }
             intno = s->pics[1].irq_base + irq2;
+#if defined(DEBUG_PIC) || defined(DEBUG_IRQ_LATENCY)
             irq = irq2 + 8;
+#endif
         } else {
             intno = s->pics[0].irq_base + irq;
         }
