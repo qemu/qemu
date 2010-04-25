@@ -160,7 +160,6 @@ static void smc91c111_do_tx(smc91c111_state *s)
     int i;
     int len;
     int control;
-    int add_crc;
     int packetnum;
     uint8_t *p;
 
@@ -187,20 +186,22 @@ static void smc91c111_do_tx(smc91c111_state *s)
             len = 64;
         }
 #if 0
-        /* The card is supposed to append the CRC to the frame.  However
-           none of the other network traffic has the CRC appended.
-           Suspect this is low level ethernet detail we don't need to worry
-           about.  */
-        add_crc = (control & 0x10) || (s->tcr & TCR_NOCRC) == 0;
-        if (add_crc) {
-            uint32_t crc;
+        {
+            int add_crc;
 
-            crc = crc32(~0, p, len);
-            memcpy(p + len, &crc, 4);
-            len += 4;
+            /* The card is supposed to append the CRC to the frame.
+               However none of the other network traffic has the CRC
+               appended.  Suspect this is low level ethernet detail we
+               don't need to worry about.  */
+            add_crc = (control & 0x10) || (s->tcr & TCR_NOCRC) == 0;
+            if (add_crc) {
+                uint32_t crc;
+
+                crc = crc32(~0, p, len);
+                memcpy(p + len, &crc, 4);
+                len += 4;
+            }
         }
-#else
-        add_crc = 0;
 #endif
         if (s->ctr & CTR_AUTO_RELEASE)
             /* Race?  */
@@ -670,14 +671,14 @@ static ssize_t smc91c111_receive(VLANClientState *nc, const uint8_t *buf, size_t
         *(p++) = crc & 0xff; crc >>= 8;
         *(p++) = crc & 0xff; crc >>= 8;
         *(p++) = crc & 0xff; crc >>= 8;
-        *(p++) = crc & 0xff; crc >>= 8;
+        *(p++) = crc & 0xff;
     }
     if (size & 1) {
         *(p++) = buf[size - 1];
-        *(p++) = 0x60;
+        *p = 0x60;
     } else {
         *(p++) = 0;
-        *(p++) = 0x40;
+        *p = 0x40;
     }
     /* TODO: Raise early RX interrupt?  */
     s->int_level |= INT_RCV;

@@ -126,7 +126,6 @@ static void sx1_init(ram_addr_t ram_size,
     static uint32_t cs1val = 0x00215070;
     static uint32_t cs2val = 0x00001139;
     static uint32_t cs3val = 0x00001139;
-    ram_addr_t phys_flash;
     DriveInfo *dinfo;
     int fl_idx;
     uint32_t flash_size = flash0_size;
@@ -140,7 +139,7 @@ static void sx1_init(ram_addr_t ram_size,
 
     /* External Flash (EMIFS) */
     cpu_register_physical_memory(OMAP_CS0_BASE, flash_size,
-                    (phys_flash = qemu_ram_alloc(flash_size)) | IO_MEM_ROM);
+                                 qemu_ram_alloc(flash_size) | IO_MEM_ROM);
 
     io = cpu_register_io_memory(static_readfn, static_writefn, &cs0val);
     cpu_register_physical_memory(OMAP_CS0_BASE + flash_size,
@@ -171,8 +170,7 @@ static void sx1_init(ram_addr_t ram_size,
     if ((version == 1) &&
             (dinfo = drive_get(IF_PFLASH, 0, fl_idx)) != NULL) {
         cpu_register_physical_memory(OMAP_CS1_BASE, flash1_size,
-                        (phys_flash = qemu_ram_alloc(flash1_size)) |
-                        IO_MEM_ROM);
+                                     qemu_ram_alloc(flash1_size) | IO_MEM_ROM);
         io = cpu_register_io_memory(static_readfn, static_writefn, &cs1val);
         cpu_register_physical_memory(OMAP_CS1_BASE + flash1_size,
                         OMAP_CS1_SIZE - flash1_size, io);

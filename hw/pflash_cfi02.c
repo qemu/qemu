@@ -582,7 +582,9 @@ static int ctz32 (uint32_t n)
     }
     if (!(n & 0x1)) {
         ret++;
+#if 0 /* This is not necessary as n is never 0 */
         n = n >> 1;
+#endif
     }
 #if 0 /* This is not necessary as n is never 0 */
     if (!n)

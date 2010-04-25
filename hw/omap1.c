@@ -2348,7 +2348,6 @@ static void omap_clkm_write(void *opaque, target_phys_addr_t addr,
         return;
 
     case 0x0c:	/* ARM_EWUPCT */
-        diff = s->clkm.arm_ewupct ^ value;
         s->clkm.arm_ewupct = value & 0x003f;
         return;
 

@@ -721,7 +721,7 @@ static void spitz_ssp_attach(PXA2xxState *cpu)
     mux = ssi_create_slave(cpu->ssp[CORGI_SSP_PORT - 1], "corgi-ssp");
 
     bus = qdev_get_child_bus(mux, "ssi0");
-    dev = ssi_create_slave(bus, "spitz-lcdtg");
+    ssi_create_slave(bus, "spitz-lcdtg");
 
     bus = qdev_get_child_bus(mux, "ssi1");
     dev = ssi_create_slave(bus, "ads7846");

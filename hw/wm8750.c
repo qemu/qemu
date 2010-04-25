@@ -62,12 +62,11 @@ static const uint8_t wm8750_vol_db_table[] = {
 
 static inline void wm8750_in_load(WM8750State *s)
 {
-    int acquired;
     if (s->idx_in + s->req_in <= sizeof(s->data_in))
         return;
     s->idx_in = audio_MAX(0, (int) sizeof(s->data_in) - s->req_in);
-    acquired = AUD_read(*s->in[0], s->data_in + s->idx_in,
-                    sizeof(s->data_in) - s->idx_in);
+    AUD_read(*s->in[0], s->data_in + s->idx_in,
+             sizeof(s->data_in) - s->idx_in);
 }
 
 static inline void wm8750_out_flush(WM8750State *s)

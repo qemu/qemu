@@ -5242,7 +5242,6 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
             if (!u) {
                 /* Extract.  */
                 imm = (insn >> 8) & 0xf;
-                count = q + 1;
 
                 if (imm > 7 && !q)
                     return 1;
