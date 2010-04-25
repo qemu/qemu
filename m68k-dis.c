@@ -572,38 +572,38 @@ static const char *const reg_half_names[] =
 #endif
 
 /* Get a 1 byte signed integer.  */
-#define NEXTBYTE(p)  (p += 2, FETCH_DATA (info, p), COERCE_SIGNED_CHAR(p[-1]))
+#define NEXTBYTE(p)  (p += 2, fetch_data(info, p), COERCE_SIGNED_CHAR(p[-1]))
 
 /* Get a 2 byte signed integer.  */
 #define COERCE16(x) ((int) (((x) ^ 0x8000) - 0x8000))
 #define NEXTWORD(p)  \
-  (p += 2, FETCH_DATA (info, p), \
+  (p += 2, fetch_data(info, p), \
    COERCE16 ((p[-2] << 8) + p[-1]))
 
 /* Get a 4 byte signed integer.  */
 #define COERCE32(x) ((bfd_signed_vma) ((x) ^ 0x80000000) - 0x80000000)
 #define NEXTLONG(p)  \
-  (p += 4, FETCH_DATA (info, p), \
+  (p += 4, fetch_data(info, p), \
    (COERCE32 ((((((p[-4] << 8) + p[-3]) << 8) + p[-2]) << 8) + p[-1])))
 
 /* Get a 4 byte unsigned integer.  */
 #define NEXTULONG(p)  \
-  (p += 4, FETCH_DATA (info, p), \
+  (p += 4, fetch_data(info, p), \
    (unsigned int) ((((((p[-4] << 8) + p[-3]) << 8) + p[-2]) << 8) + p[-1]))
 
 /* Get a single precision float.  */
 #define NEXTSINGLE(val, p) \
-  (p += 4, FETCH_DATA (info, p), \
+  (p += 4, fetch_data(info, p), \
    floatformat_to_double (&floatformat_ieee_single_big, (char *) p - 4, &val))
 
 /* Get a double precision float.  */
 #define NEXTDOUBLE(val, p) \
-  (p += 8, FETCH_DATA (info, p), \
+  (p += 8, fetch_data(info, p), \
    floatformat_to_double (&floatformat_ieee_double_big, (char *) p - 8, &val))
 
 /* Get an extended precision float.  */
 #define NEXTEXTEND(val, p) \
-  (p += 12, FETCH_DATA (info, p), \
+  (p += 12, fetch_data(info, p), \
    floatformat_to_double (&floatformat_m68881_ext, (char *) p - 12, &val))
 
 /* Need a function to convert from packed to double
@@ -611,7 +611,7 @@ static const char *const reg_half_names[] =
    packed number than a double anyway, so maybe
    there should be a special case to handle this... */
 #define NEXTPACKED(p) \
-  (p += 12, FETCH_DATA (info, p), 0.0)
+  (p += 12, fetch_data(info, p), 0.0)
 
 /* Maximum length of an instruction.  */
 #define MAXLEN 22
@@ -630,12 +630,8 @@ struct private
 /* Make sure that bytes from INFO->PRIVATE_DATA->BUFFER (inclusive)
    to ADDR (exclusive) are valid.  Returns 1 for success, longjmps
    on error.  */
-#define FETCH_DATA(info, addr) \
-  ((addr) <= ((struct private *) (info->private_data))->max_fetched \
-   ? 1 : fetch_data ((info), (addr)))
-
 static int
-fetch_data (struct disassemble_info *info, bfd_byte *addr)
+fetch_data2(struct disassemble_info *info, bfd_byte *addr)
 {
   int status;
   struct private *priv = (struct private *)info->private_data;
@@ -654,7 +650,17 @@ fetch_data (struct disassemble_info *info, bfd_byte *addr)
     priv->max_fetched = addr;
   return 1;
 }
-
+
+static int
+fetch_data(struct disassemble_info *info, bfd_byte *addr)
+{
+    if (addr <= ((struct private *) (info->private_data))->max_fetched) {
+        return 1;
+    } else {
+        return fetch_data2(info, addr);
+    }
+}
+
 /* This function is used to print to the bit-bucket.  */
 static int
 dummy_printer (FILE *file ATTRIBUTE_UNUSED,
@@ -728,64 +734,64 @@ fetch_arg (unsigned char *buffer,
       break;
 
     case 'k':
-      FETCH_DATA (info, buffer + 3);
+      fetch_data(info, buffer + 3);
       val = (buffer[3] >> 4);
       break;
 
     case 'C':
-      FETCH_DATA (info, buffer + 3);
+      fetch_data(info, buffer + 3);
       val = buffer[3];
       break;
 
     case '1':
-      FETCH_DATA (info, buffer + 3);
+      fetch_data(info, buffer + 3);
       val = (buffer[2] << 8) + buffer[3];
       val >>= 12;
       break;
 
     case '2':
-      FETCH_DATA (info, buffer + 3);
+      fetch_data(info, buffer + 3);
       val = (buffer[2] << 8) + buffer[3];
       val >>= 6;
       break;
 
     case '3':
     case 'j':
-      FETCH_DATA (info, buffer + 3);
+      fetch_data(info, buffer + 3);
       val = (buffer[2] << 8) + buffer[3];
       break;
 
     case '4':
-      FETCH_DATA (info, buffer + 5);
+      fetch_data(info, buffer + 5);
       val = (buffer[4] << 8) + buffer[5];
       val >>= 12;
       break;
 
     case '5':
-      FETCH_DATA (info, buffer + 5);
+      fetch_data(info, buffer + 5);
       val = (buffer[4] << 8) + buffer[5];
       val >>= 6;
       break;
 
     case '6':
-      FETCH_DATA (info, buffer + 5);
+      fetch_data(info, buffer + 5);
       val = (buffer[4] << 8) + buffer[5];
       break;
 
     case '7':
-      FETCH_DATA (info, buffer + 3);
+      fetch_data(info, buffer + 3);
       val = (buffer[2] << 8) + buffer[3];
       val >>= 7;
       break;
 
     case '8':
-      FETCH_DATA (info, buffer + 3);
+      fetch_data(info, buffer + 3);
       val = (buffer[2] << 8) + buffer[3];
       val >>= 10;
       break;
 
     case '9':
-      FETCH_DATA (info, buffer + 3);
+      fetch_data(info, buffer + 3);
       val = (buffer[2] << 8) + buffer[3];
       val >>= 5;
       break;
@@ -1793,12 +1799,12 @@ match_insn_m68k (bfd_vma memaddr,
 	 this because we know exactly what the second word is, and we
 	 aren't going to print anything based on it.  */
       p = buffer + 6;
-      FETCH_DATA (info, p);
+      fetch_data(info, p);
       buffer[2] = buffer[4];
       buffer[3] = buffer[5];
     }
 
-  FETCH_DATA (info, p);
+  fetch_data(info, p);
 
   d = best->args;
 
@@ -1963,7 +1969,7 @@ print_insn_m68k (bfd_vma memaddr, disassemble_info *info)
       break;
     }
 
-  FETCH_DATA (info, buffer + 2);
+  fetch_data(info, buffer + 2);
   major_opcode = (buffer[0] >> 4) & 15;
 
   for (i = 0; i < numopcodes[major_opcode]; i++)
@@ -1977,7 +1983,7 @@ print_insn_m68k (bfd_vma memaddr, disassemble_info *info)
 	  /* Only fetch the next two bytes if we need to.  */
 	  && (((0xffff & match) == 0)
 	      ||
-	      (FETCH_DATA (info, buffer + 4)
+              (fetch_data(info, buffer + 4)
 	       && ((0xff & buffer[2] & (match >> 8)) == (0xff & (opcode >> 8)))
 	       && ((0xff & buffer[3] & match) == (0xff & opcode)))
 	      )

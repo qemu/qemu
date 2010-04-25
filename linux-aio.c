@@ -123,7 +123,7 @@ static void qemu_laio_completion_cb(void *opaque)
 
         do {
             ret = read(s->efd, &val, sizeof(val));
-        } while (ret == 1 && errno == EINTR);
+        } while (ret == -1 && errno == EINTR);
 
         if (ret == -1 && errno == EAGAIN)
             break;

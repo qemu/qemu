@@ -8,13 +8,13 @@ qobject-obj-y += qerror.o
 # block-obj-y is code used by both qemu system emulation and qemu-img
 
 block-obj-y = cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o
-block-obj-y += nbd.o block.o aio.o aes.o osdep.o
+block-obj-y += nbd.o block.o aio.o aes.o osdep.o qemu-config.o
 block-obj-$(CONFIG_POSIX) += posix-aio-compat.o
 block-obj-$(CONFIG_LINUX_AIO) += linux-aio.o
 
 block-nested-y += cow.o qcow.o vdi.o vmdk.o cloop.o dmg.o bochs.o vpc.o vvfat.o
 block-nested-y += qcow2.o qcow2-refcount.o qcow2-cluster.o qcow2-snapshot.o
-block-nested-y += parallels.o nbd.o
+block-nested-y += parallels.o nbd.o blkdebug.o
 block-nested-$(CONFIG_WIN32) += raw-win32.o
 block-nested-$(CONFIG_POSIX) += raw-posix.o
 block-nested-$(CONFIG_CURL) += curl.o
@@ -77,7 +77,7 @@ common-obj-y += buffered_file.o migration.o migration-tcp.o qemu-sockets.o
 common-obj-y += qemu-char.o savevm.o #aio.o
 common-obj-y += msmouse.o ps2.o
 common-obj-y += qdev.o qdev-properties.o
-common-obj-y += qemu-config.o block-migration.o
+common-obj-y += block-migration.o
 
 common-obj-$(CONFIG_BRLAPI) += baum.o
 common-obj-$(CONFIG_POSIX) += migration-exec.o migration-unix.o migration-fd.o
@@ -105,7 +105,7 @@ common-obj-$(CONFIG_VNC_TLS) += vnc-tls.o vnc-auth-vencrypt.o
 common-obj-$(CONFIG_VNC_SASL) += vnc-auth-sasl.o
 common-obj-$(CONFIG_COCOA) += cocoa.o
 common-obj-$(CONFIG_IOTHREAD) += qemu-thread.o
-common-obj-y += notify.o
+common-obj-y += notify.o event_notifier.o
 common-obj-y += qemu-timer.o
 
 slirp-obj-y = cksum.o if.o ip_icmp.o ip_input.o ip_output.o
@@ -129,7 +129,7 @@ user-obj-y += cutils.o cache-utils.o
 # libhw
 
 hw-obj-y =
-hw-obj-y += loader.o
+hw-obj-y += vl.o loader.o
 hw-obj-y += virtio.o virtio-console.o
 hw-obj-y += fw_cfg.o pci.o pci_host.o pcie_host.o
 hw-obj-y += watchdog.o

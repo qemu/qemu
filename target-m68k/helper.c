@@ -769,10 +769,11 @@ void HELPER(mac_set_flags)(CPUState *env, uint32_t acc)
 {
     uint64_t val;
     val = env->macc[acc];
-    if (val == 0)
+    if (val == 0) {
         env->macsr |= MACSR_Z;
-    else if (val & (1ull << 47));
+    } else if (val & (1ull << 47)) {
         env->macsr |= MACSR_N;
+    }
     if (env->macsr & (MACSR_PAV0 << acc)) {
         env->macsr |= MACSR_V;
     }

@@ -1157,9 +1157,9 @@ int kvm_set_signal_mask(CPUState *env, const sigset_t *sigset)
     return r;
 }
 
-#ifdef KVM_IOEVENTFD
 int kvm_set_ioeventfd_pio_word(int fd, uint16_t addr, uint16_t val, bool assign)
 {
+#ifdef KVM_IOEVENTFD
     struct kvm_ioeventfd kick = {
         .datamatch = val,
         .addr = addr,
@@ -1176,5 +1176,7 @@ int kvm_set_ioeventfd_pio_word(int fd, uint16_t addr, uint16_t val, bool assign)
     if (r < 0)
         return r;
     return 0;
-}
+#else
+    return -ENOSYS;
 #endif
+}

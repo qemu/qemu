@@ -26,6 +26,7 @@
 
 #include "block.h"
 #include "qemu-option.h"
+#include "qemu-queue.h"
 
 #define BLOCK_FLAG_ENCRYPT	1
 #define BLOCK_FLAG_COMPRESS	2
@@ -120,10 +121,12 @@ struct BlockDriver {
     /* Returns number of errors in image, -errno for internal errors */
     int (*bdrv_check)(BlockDriverState* bs);
 
+    void (*bdrv_debug_event)(BlockDriverState *bs, BlkDebugEvent event);
+
     /* Set if newly created images are not guaranteed to contain only zeros */
     int no_zero_init;
 
-    struct BlockDriver *next;
+    QLIST_ENTRY(BlockDriver) list;
 };
 
 struct BlockDriverState {
@@ -178,7 +181,7 @@ struct BlockDriverState {
     char device_name[32];
     unsigned long *dirty_bitmap;
     int64_t dirty_count;
-    BlockDriverState *next;
+    QTAILQ_ENTRY(BlockDriverState) list;
     void *private;
 };
 
@@ -197,8 +200,6 @@ void *qemu_aio_get(AIOPool *pool, BlockDriverState *bs,
 void qemu_aio_release(void *p);
 
 void *qemu_blockalign(BlockDriverState *bs, size_t size);
-
-extern BlockDriverState *bdrv_first;
 
 #ifdef _WIN32
 int is_windows_drive(const char *filename);

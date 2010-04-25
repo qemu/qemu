@@ -273,7 +273,6 @@ void qdev_prop_set_macaddr(DeviceState *dev, const char *name, uint8_t *value);
 void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value);
 void qdev_prop_set_defaults(DeviceState *dev, Property *props);
 
-void qdev_prop_register_global(GlobalProperty *prop);
 void qdev_prop_register_global_list(GlobalProperty *props);
 void qdev_prop_set_globals(DeviceState *dev);
 

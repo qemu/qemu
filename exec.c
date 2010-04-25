@@ -2559,16 +2559,15 @@ static inline void tlb_set_dirty(CPUState *env,
 #define SUBPAGE_IDX(addr) ((addr) & ~TARGET_PAGE_MASK)
 typedef struct subpage_t {
     target_phys_addr_t base;
-    CPUReadMemoryFunc * const *mem_read[TARGET_PAGE_SIZE][4];
-    CPUWriteMemoryFunc * const *mem_write[TARGET_PAGE_SIZE][4];
-    void *opaque[TARGET_PAGE_SIZE][2][4];
-    ram_addr_t region_offset[TARGET_PAGE_SIZE][2][4];
+    ram_addr_t sub_io_index[TARGET_PAGE_SIZE];
+    ram_addr_t region_offset[TARGET_PAGE_SIZE];
 } subpage_t;
 
 static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
                              ram_addr_t memory, ram_addr_t region_offset);
-static void *subpage_init (target_phys_addr_t base, ram_addr_t *phys,
-                           ram_addr_t orig_memory, ram_addr_t region_offset);
+static subpage_t *subpage_init (target_phys_addr_t base, ram_addr_t *phys,
+                                ram_addr_t orig_memory,
+                                ram_addr_t region_offset);
 #define CHECK_SUBPAGE(addr, start_addr, start_addr2, end_addr, end_addr2, \
                       need_subpage)                                     \
     do {                                                                \
@@ -2606,7 +2605,7 @@ void cpu_register_physical_memory_offset(target_phys_addr_t start_addr,
     PhysPageDesc *p;
     CPUState *env;
     ram_addr_t orig_size = size;
-    void *subpage;
+    subpage_t *subpage;
 
     cpu_notify_set_memory(start_addr, size, phys_offset);
 
@@ -2634,7 +2633,7 @@ void cpu_register_physical_memory_offset(target_phys_addr_t start_addr,
 
             CHECK_SUBPAGE(addr, start_addr, start_addr2, end_addr, end_addr2,
                           need_subpage);
-            if (need_subpage || phys_offset & IO_MEM_SUBWIDTH) {
+            if (need_subpage) {
                 if (!(orig_memory & IO_MEM_SUBPAGE)) {
                     subpage = subpage_init((addr & TARGET_PAGE_MASK),
                                            &p->phys_offset, orig_memory,
@@ -2666,7 +2665,7 @@ void cpu_register_physical_memory_offset(target_phys_addr_t start_addr,
                 CHECK_SUBPAGE(addr, start_addr, start_addr2, end_addr,
                               end_addr2, need_subpage);
 
-                if (need_subpage || phys_offset & IO_MEM_SUBWIDTH) {
+                if (need_subpage) {
                     subpage = subpage_init((addr & TARGET_PAGE_MASK),
                                            &p->phys_offset, IO_MEM_UNASSIGNED,
                                            addr & TARGET_PAGE_MASK);
@@ -3207,89 +3206,65 @@ static CPUWriteMemoryFunc * const watch_mem_write[3] = {
     watch_mem_writel,
 };
 
-static inline uint32_t subpage_readlen (subpage_t *mmio, target_phys_addr_t addr,
-                                 unsigned int len)
+static inline uint32_t subpage_readlen (subpage_t *mmio,
+                                        target_phys_addr_t addr,
+                                        unsigned int len)
 {
-    uint32_t ret;
-    unsigned int idx;
-
-    idx = SUBPAGE_IDX(addr);
+    unsigned int idx = SUBPAGE_IDX(addr);
 #if defined(DEBUG_SUBPAGE)
     printf("%s: subpage %p len %d addr " TARGET_FMT_plx " idx %d\n", __func__,
            mmio, len, addr, idx);
 #endif
-    ret = (**mmio->mem_read[idx][len])(mmio->opaque[idx][0][len],
-                                       addr + mmio->region_offset[idx][0][len]);
 
-    return ret;
+    addr += mmio->region_offset[idx];
+    idx = mmio->sub_io_index[idx];
+    return io_mem_read[idx][len](io_mem_opaque[idx], addr);
 }
 
 static inline void subpage_writelen (subpage_t *mmio, target_phys_addr_t addr,
-                              uint32_t value, unsigned int len)
+                                     uint32_t value, unsigned int len)
 {
-    unsigned int idx;
-
-    idx = SUBPAGE_IDX(addr);
+    unsigned int idx = SUBPAGE_IDX(addr);
 #if defined(DEBUG_SUBPAGE)
-    printf("%s: subpage %p len %d addr " TARGET_FMT_plx " idx %d value %08x\n", __func__,
-           mmio, len, addr, idx, value);
+    printf("%s: subpage %p len %d addr " TARGET_FMT_plx " idx %d value %08x\n",
+           __func__, mmio, len, addr, idx, value);
 #endif
-    (**mmio->mem_write[idx][len])(mmio->opaque[idx][1][len],
-                                  addr + mmio->region_offset[idx][1][len],
-                                  value);
+
+    addr += mmio->region_offset[idx];
+    idx = mmio->sub_io_index[idx];
+    io_mem_write[idx][len](io_mem_opaque[idx], addr, value);
 }
 
 static uint32_t subpage_readb (void *opaque, target_phys_addr_t addr)
 {
-#if defined(DEBUG_SUBPAGE)
-    printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
-#endif
-
     return subpage_readlen(opaque, addr, 0);
 }
 
 static void subpage_writeb (void *opaque, target_phys_addr_t addr,
                             uint32_t value)
 {
-#if defined(DEBUG_SUBPAGE)
-    printf("%s: addr " TARGET_FMT_plx " val %08x\n", __func__, addr, value);
-#endif
     subpage_writelen(opaque, addr, value, 0);
 }
 
 static uint32_t subpage_readw (void *opaque, target_phys_addr_t addr)
 {
-#if defined(DEBUG_SUBPAGE)
-    printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
-#endif
-
     return subpage_readlen(opaque, addr, 1);
 }
 
 static void subpage_writew (void *opaque, target_phys_addr_t addr,
                             uint32_t value)
 {
-#if defined(DEBUG_SUBPAGE)
-    printf("%s: addr " TARGET_FMT_plx " val %08x\n", __func__, addr, value);
-#endif
     subpage_writelen(opaque, addr, value, 1);
 }
 
 static uint32_t subpage_readl (void *opaque, target_phys_addr_t addr)
 {
-#if defined(DEBUG_SUBPAGE)
-    printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
-#endif
-
     return subpage_readlen(opaque, addr, 2);
 }
 
-static void subpage_writel (void *opaque,
-                         target_phys_addr_t addr, uint32_t value)
+static void subpage_writel (void *opaque, target_phys_addr_t addr,
+                            uint32_t value)
 {
-#if defined(DEBUG_SUBPAGE)
-    printf("%s: addr " TARGET_FMT_plx " val %08x\n", __func__, addr, value);
-#endif
     subpage_writelen(opaque, addr, value, 2);
 }
 
@@ -3309,7 +3284,6 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
                              ram_addr_t memory, ram_addr_t region_offset)
 {
     int idx, eidx;
-    unsigned int i;
 
     if (start >= TARGET_PAGE_SIZE || end >= TARGET_PAGE_SIZE)
         return -1;
@@ -3319,27 +3293,18 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
     printf("%s: %p start %08x end %08x idx %08x eidx %08x mem %ld\n", __func__,
            mmio, start, end, idx, eidx, memory);
 #endif
-    memory >>= IO_MEM_SHIFT;
+    memory = (memory >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
     for (; idx <= eidx; idx++) {
-        for (i = 0; i < 4; i++) {
-            if (io_mem_read[memory][i]) {
-                mmio->mem_read[idx][i] = &io_mem_read[memory][i];
-                mmio->opaque[idx][0][i] = io_mem_opaque[memory];
-                mmio->region_offset[idx][0][i] = region_offset;
-            }
-            if (io_mem_write[memory][i]) {
-                mmio->mem_write[idx][i] = &io_mem_write[memory][i];
-                mmio->opaque[idx][1][i] = io_mem_opaque[memory];
-                mmio->region_offset[idx][1][i] = region_offset;
-            }
-        }
+        mmio->sub_io_index[idx] = memory;
+        mmio->region_offset[idx] = region_offset;
     }
 
     return 0;
 }
 
-static void *subpage_init (target_phys_addr_t base, ram_addr_t *phys,
-                           ram_addr_t orig_memory, ram_addr_t region_offset)
+static subpage_t *subpage_init (target_phys_addr_t base, ram_addr_t *phys,
+                                ram_addr_t orig_memory,
+                                ram_addr_t region_offset)
 {
     subpage_t *mmio;
     int subpage_memory;
@@ -3353,8 +3318,7 @@ static void *subpage_init (target_phys_addr_t base, ram_addr_t *phys,
            mmio, base, TARGET_PAGE_SIZE, subpage_memory);
 #endif
     *phys = subpage_memory | IO_MEM_SUBPAGE;
-    subpage_register(mmio, 0, TARGET_PAGE_SIZE - 1, orig_memory,
-                         region_offset);
+    subpage_register(mmio, 0, TARGET_PAGE_SIZE-1, orig_memory, region_offset);
 
     return mmio;
 }
@@ -3384,8 +3348,6 @@ static int cpu_register_io_memory_fixed(int io_index,
                                         CPUWriteMemoryFunc * const *mem_write,
                                         void *opaque)
 {
-    int i, subwidth = 0;
-
     if (io_index <= 0) {
         io_index = get_free_io_mem_idx();
         if (io_index == -1)
@@ -3396,14 +3358,11 @@ static int cpu_register_io_memory_fixed(int io_index,
             return -1;
     }
 
-    for(i = 0;i < 3; i++) {
-        if (!mem_read[i] || !mem_write[i])
-            subwidth = IO_MEM_SUBWIDTH;
-        io_mem_read[io_index][i] = mem_read[i];
-        io_mem_write[io_index][i] = mem_write[i];
-    }
+    memcpy(io_mem_read[io_index], mem_read, 3 * sizeof(CPUReadMemoryFunc*));
+    memcpy(io_mem_write[io_index], mem_write, 3 * sizeof(CPUWriteMemoryFunc*));
     io_mem_opaque[io_index] = opaque;
-    return (io_index << IO_MEM_SHIFT) | subwidth;
+
+    return (io_index << IO_MEM_SHIFT);
 }
 
 int cpu_register_io_memory(CPUReadMemoryFunc * const *mem_read,

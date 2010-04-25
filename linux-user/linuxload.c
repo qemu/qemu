@@ -188,11 +188,7 @@ int loader_exec(const char * filename, char ** argv, char ** envp,
                 && bprm->buf[1] == 'E'
                 && bprm->buf[2] == 'L'
                 && bprm->buf[3] == 'F') {
-#ifndef TARGET_HAS_ELFLOAD32
-            retval = load_elf_binary(bprm,regs,infop);
-#else
-            retval = load_elf_binary_multi(bprm, regs, infop);
-#endif
+            retval = load_elf_binary(bprm, regs, infop);
 #if defined(TARGET_HAS_BFLT)
         } else if (bprm->buf[0] == 'b'
                 && bprm->buf[1] == 'F'

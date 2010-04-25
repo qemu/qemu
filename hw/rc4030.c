@@ -240,8 +240,9 @@ static uint32_t rc4030_readl(void *opaque, target_phys_addr_t addr)
         break;
     }
 
-    if ((addr & ~3) != 0x230)
+    if ((addr & ~3) != 0x230) {
         DPRINTF("read 0x%02x at " TARGET_FMT_plx "\n", val, addr);
+    }
 
     return val;
 }

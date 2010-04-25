@@ -390,7 +390,7 @@ static int vmdk_parent_open(BlockDriverState *bs, const char * filename)
             return -1;
         }
         parent_open = 1;
-        if (bdrv_open(bs->backing_hd, parent_img_name, 0) < 0)
+        if (bdrv_open(bs->backing_hd, parent_img_name, 0, NULL) < 0)
             goto failure;
         parent_open = 0;
     }

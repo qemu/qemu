@@ -201,12 +201,13 @@ static void replace_tlb_1bit_lru(SparcTLBEntry *tlb,
 
 #endif
 
-static inline void address_mask(CPUState *env1, target_ulong *addr)
+static inline target_ulong address_mask(CPUState *env1, target_ulong addr)
 {
 #ifdef TARGET_SPARC64
     if (AM_CHECK(env1))
-        *addr &= 0xffffffffULL;
+        addr &= 0xffffffffULL;
 #endif
+    return addr;
 }
 
 static void QEMU_NORETURN raise_exception(int tt)
@@ -1923,7 +1924,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         raise_exception(TT_PRIV_ACT);
 
     helper_check_align(addr, size - 1);
-    address_mask(env, &addr);
+    addr = address_mask(env, addr);
 
     switch (asi) {
     case 0x82: // Primary no-fault
@@ -2026,7 +2027,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
         raise_exception(TT_PRIV_ACT);
 
     helper_check_align(addr, size - 1);
-    address_mask(env, &addr);
+    addr = address_mask(env, addr);
 
     /* Convert to little endian */
     switch (asi) {
@@ -2944,8 +2945,7 @@ void helper_stdf(target_ulong addr, int mem_idx)
         break;
     }
 #else
-    address_mask(env, &addr);
-    stfq_raw(addr, DT0);
+    stfq_raw(address_mask(env, addr), DT0);
 #endif
 }
 
@@ -2969,8 +2969,7 @@ void helper_lddf(target_ulong addr, int mem_idx)
         break;
     }
 #else
-    address_mask(env, &addr);
-    DT0 = ldfq_raw(addr);
+    DT0 = ldfq_raw(address_mask(env, addr));
 #endif
 }
 
@@ -3003,9 +3002,8 @@ void helper_ldqf(target_ulong addr, int mem_idx)
         break;
     }
 #else
-    address_mask(env, &addr);
-    u.ll.upper = ldq_raw(addr);
-    u.ll.lower = ldq_raw((addr + 8) & 0xffffffffULL);
+    u.ll.upper = ldq_raw(address_mask(env, addr));
+    u.ll.lower = ldq_raw(address_mask(env, addr + 8));
     QT0 = u.q;
 #endif
 }
@@ -3040,9 +3038,8 @@ void helper_stqf(target_ulong addr, int mem_idx)
     }
 #else
     u.q = QT0;
-    address_mask(env, &addr);
-    stq_raw(addr, u.ll.upper);
-    stq_raw((addr + 8) & 0xffffffffULL, u.ll.lower);
+    stq_raw(address_mask(env, addr), u.ll.upper);
+    stq_raw(address_mask(env, addr + 8), u.ll.lower);
 #endif
 }
 

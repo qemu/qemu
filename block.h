@@ -29,10 +29,6 @@ typedef struct QEMUSnapshotInfo {
 
 #define BDRV_O_RDWR        0x0002
 #define BDRV_O_SNAPSHOT    0x0008 /* open the file read only and save writes in a snapshot */
-#define BDRV_O_FILE        0x0010 /* open as a raw file (do not try to
-                                     use a disk image format on top of
-                                     it (default for
-                                     bdrv_file_open()) */
 #define BDRV_O_NOCACHE     0x0020 /* do not use the host page cache */
 #define BDRV_O_CACHE_WB    0x0040 /* use write-back caching */
 #define BDRV_O_NATIVE_AIO  0x0080 /* use native AIO instead of the thread pool */
@@ -61,16 +57,11 @@ BlockDriver *bdrv_find_format(const char *format_name);
 BlockDriver *bdrv_find_whitelisted_format(const char *format_name);
 int bdrv_create(BlockDriver *drv, const char* filename,
     QEMUOptionParameter *options);
-int bdrv_create2(BlockDriver *drv,
-                 const char *filename, int64_t size_in_sectors,
-                 const char *backing_file, const char *backing_format,
-                 int flags);
 BlockDriverState *bdrv_new(const char *device_name);
 void bdrv_delete(BlockDriverState *bs);
 int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags);
-int bdrv_open(BlockDriverState *bs, const char *filename, int flags);
-int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
-               BlockDriver *drv);
+int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
+              BlockDriver *drv);
 void bdrv_close(BlockDriverState *bs);
 int bdrv_check(BlockDriverState *bs);
 int bdrv_read(BlockDriverState *bs, int64_t sector_num,
@@ -207,4 +198,57 @@ int bdrv_get_dirty(BlockDriverState *bs, int64_t sector);
 void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
                       int nr_sectors);
 int64_t bdrv_get_dirty_count(BlockDriverState *bs);
+
+
+typedef enum {
+    BLKDBG_L1_UPDATE,
+
+    BLKDBG_L1_GROW_ALLOC_TABLE,
+    BLKDBG_L1_GROW_WRITE_TABLE,
+    BLKDBG_L1_GROW_ACTIVATE_TABLE,
+
+    BLKDBG_L2_LOAD,
+    BLKDBG_L2_UPDATE,
+    BLKDBG_L2_UPDATE_COMPRESSED,
+    BLKDBG_L2_ALLOC_COW_READ,
+    BLKDBG_L2_ALLOC_WRITE,
+
+    BLKDBG_READ,
+    BLKDBG_READ_AIO,
+    BLKDBG_READ_BACKING,
+    BLKDBG_READ_BACKING_AIO,
+    BLKDBG_READ_COMPRESSED,
+
+    BLKDBG_WRITE_AIO,
+    BLKDBG_WRITE_COMPRESSED,
+
+    BLKDBG_VMSTATE_LOAD,
+    BLKDBG_VMSTATE_SAVE,
+
+    BLKDBG_COW_READ,
+    BLKDBG_COW_WRITE,
+
+    BLKDBG_REFTABLE_LOAD,
+    BLKDBG_REFTABLE_GROW,
+
+    BLKDBG_REFBLOCK_LOAD,
+    BLKDBG_REFBLOCK_UPDATE,
+    BLKDBG_REFBLOCK_UPDATE_PART,
+    BLKDBG_REFBLOCK_ALLOC,
+    BLKDBG_REFBLOCK_ALLOC_HOOKUP,
+    BLKDBG_REFBLOCK_ALLOC_WRITE,
+    BLKDBG_REFBLOCK_ALLOC_WRITE_BLOCKS,
+    BLKDBG_REFBLOCK_ALLOC_WRITE_TABLE,
+    BLKDBG_REFBLOCK_ALLOC_SWITCH_TABLE,
+
+    BLKDBG_CLUSTER_ALLOC,
+    BLKDBG_CLUSTER_ALLOC_BYTES,
+    BLKDBG_CLUSTER_FREE,
+
+    BLKDBG_EVENT_MAX,
+} BlkDebugEvent;
+
+#define BLKDBG_EVENT(bs, evt) bdrv_debug_event(bs, evt)
+void bdrv_debug_event(BlockDriverState *bs, BlkDebugEvent event);
+
 #endif

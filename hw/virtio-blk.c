@@ -494,7 +494,6 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf)
     s->rq = NULL;
     s->sector_mask = (s->conf->logical_block_size / 512) - 1;
     bdrv_guess_geometry(s->bs, &cylinders, &heads, &secs);
-    bdrv_set_geometry_hint(s->bs, cylinders, heads, secs);
 
     s->vq = virtio_add_queue(&s->vdev, 128, virtio_blk_handle_output);
 

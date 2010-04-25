@@ -57,9 +57,11 @@ static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num,
 static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
                          const uint8_t *buf, int nb_sectors);
 
-BlockDriverState *bdrv_first;
+static QTAILQ_HEAD(, BlockDriverState) bdrv_states =
+    QTAILQ_HEAD_INITIALIZER(bdrv_states);
 
-static BlockDriver *first_drv;
+static QLIST_HEAD(, BlockDriver) bdrv_drivers =
+    QLIST_HEAD_INITIALIZER(bdrv_drivers);
 
 /* If non-zero, use only whitelisted block drivers */
 static int use_bdrv_whitelist;
@@ -143,23 +145,18 @@ void bdrv_register(BlockDriver *bdrv)
     if (!bdrv->bdrv_aio_flush)
         bdrv->bdrv_aio_flush = bdrv_aio_flush_em;
 
-    bdrv->next = first_drv;
-    first_drv = bdrv;
+    QLIST_INSERT_HEAD(&bdrv_drivers, bdrv, list);
 }
 
 /* create a new block device (by default it is empty) */
 BlockDriverState *bdrv_new(const char *device_name)
 {
-    BlockDriverState **pbs, *bs;
+    BlockDriverState *bs;
 
     bs = qemu_mallocz(sizeof(BlockDriverState));
     pstrcpy(bs->device_name, sizeof(bs->device_name), device_name);
     if (device_name[0] != '\0') {
-        /* insert at the end */
-        pbs = &bdrv_first;
-        while (*pbs != NULL)
-            pbs = &(*pbs)->next;
-        *pbs = bs;
+        QTAILQ_INSERT_TAIL(&bdrv_states, bs, list);
     }
     return bs;
 }
@@ -167,9 +164,10 @@ BlockDriverState *bdrv_new(const char *device_name)
 BlockDriver *bdrv_find_format(const char *format_name)
 {
     BlockDriver *drv1;
-    for(drv1 = first_drv; drv1 != NULL; drv1 = drv1->next) {
-        if (!strcmp(drv1->format_name, format_name))
+    QLIST_FOREACH(drv1, &bdrv_drivers, list) {
+        if (!strcmp(drv1->format_name, format_name)) {
             return drv1;
+        }
     }
     return NULL;
 }
@@ -270,10 +268,11 @@ static BlockDriver *find_protocol(const char *filename)
         len = sizeof(protocol) - 1;
     memcpy(protocol, filename, len);
     protocol[len] = '\0';
-    for(drv1 = first_drv; drv1 != NULL; drv1 = drv1->next) {
+    QLIST_FOREACH(drv1, &bdrv_drivers, list) {
         if (drv1->protocol_name &&
-            !strcmp(drv1->protocol_name, protocol))
+            !strcmp(drv1->protocol_name, protocol)) {
             return drv1;
+        }
     }
     return NULL;
 }
@@ -287,7 +286,7 @@ static BlockDriver *find_hdev_driver(const char *filename)
     int score_max = 0, score;
     BlockDriver *drv = NULL, *d;
 
-    for (d = first_drv; d; d = d->next) {
+    QLIST_FOREACH(d, &bdrv_drivers, list) {
         if (d->bdrv_probe_device) {
             score = d->bdrv_probe_device(filename);
             if (score > score_max) {
@@ -322,7 +321,7 @@ static BlockDriver *find_image_format(const char *filename)
     }
 
     score_max = 0;
-    for(drv1 = first_drv; drv1 != NULL; drv1 = drv1->next) {
+    QLIST_FOREACH(drv1, &bdrv_drivers, list) {
         if (drv1->bdrv_probe) {
             score = drv1->bdrv_probe(buf, ret, filename);
             if (score > score_max) {
@@ -337,10 +336,16 @@ static BlockDriver *find_image_format(const char *filename)
 int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags)
 {
     BlockDriverState *bs;
+    BlockDriver *drv;
     int ret;
 
+    drv = find_protocol(filename);
+    if (!drv) {
+        return -ENOENT;
+    }
+
     bs = bdrv_new("");
-    ret = bdrv_open2(bs, filename, flags | BDRV_O_FILE, NULL);
+    ret = bdrv_open(bs, filename, flags, drv);
     if (ret < 0) {
         bdrv_delete(bs);
         return ret;
@@ -350,13 +355,8 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags)
     return 0;
 }
 
-int bdrv_open(BlockDriverState *bs, const char *filename, int flags)
-{
-    return bdrv_open2(bs, filename, flags, NULL);
-}
-
-int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
-               BlockDriver *drv)
+int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
+              BlockDriver *drv)
 {
     int ret, open_flags;
     char tmp_filename[PATH_MAX];
@@ -381,7 +381,7 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
 
         /* if there is a backing file, use it */
         bs1 = bdrv_new("");
-        ret = bdrv_open2(bs1, filename, 0, drv);
+        ret = bdrv_open(bs1, filename, 0, drv);
         if (ret < 0) {
             bdrv_delete(bs1);
             return ret;
@@ -423,9 +423,8 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     }
 
     pstrcpy(bs->filename, sizeof(bs->filename), filename);
-    if (flags & BDRV_O_FILE) {
-        drv = find_protocol(filename);
-    } else if (!drv) {
+
+    if (!drv) {
         drv = find_hdev_driver(filename);
         if (!drv) {
             drv = find_image_format(filename);
@@ -457,14 +456,12 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
      * Clear flags that are internal to the block layer before opening the
      * image.
      */
-    open_flags = flags & ~(BDRV_O_FILE | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
+    open_flags = flags & ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
 
     /*
      * Snapshots should be writeable.
-     *
-     * XXX(hch): and what is the point of a snapshot during a read-only open?
      */
-    if (!(flags & BDRV_O_FILE) && bs->is_temporary) {
+    if (bs->is_temporary) {
         open_flags |= BDRV_O_RDWR;
     }
 
@@ -493,9 +490,8 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
 
         /* backing files always opened read-only */
         open_flags &= ~BDRV_O_RDWR;
-        
-        ret = bdrv_open2(bs->backing_hd, backing_filename, open_flags,
-                         back_drv);
+
+        ret = bdrv_open(bs->backing_hd, backing_filename, open_flags, back_drv);
         if (ret < 0) {
             bdrv_close(bs);
             return ret;
@@ -550,13 +546,10 @@ void bdrv_close(BlockDriverState *bs)
 
 void bdrv_delete(BlockDriverState *bs)
 {
-    BlockDriverState **pbs;
-
-    pbs = &bdrv_first;
-    while (*pbs != bs && *pbs != NULL)
-        pbs = &(*pbs)->next;
-    if (*pbs == bs)
-        *pbs = bs->next;
+    /* remove from list, if necessary */
+    if (bs->device_name[0] != '\0') {
+        QTAILQ_REMOVE(&bdrv_states, bs, list);
+    }
 
     bdrv_close(bs);
     qemu_free(bs);
@@ -607,12 +600,12 @@ int bdrv_commit(BlockDriverState *bs)
         bdrv_delete(bs->backing_hd);
         bs->backing_hd = NULL;
         bs_rw = bdrv_new("");
-        rw_ret = bdrv_open2(bs_rw, filename, open_flags | BDRV_O_RDWR, NULL);
+        rw_ret = bdrv_open(bs_rw, filename, open_flags | BDRV_O_RDWR, NULL);
         if (rw_ret < 0) {
             bdrv_delete(bs_rw);
             /* try to re-open read-only */
             bs_ro = bdrv_new("");
-            ret = bdrv_open2(bs_ro, filename, open_flags & ~BDRV_O_RDWR, NULL);
+            ret = bdrv_open(bs_ro, filename, open_flags & ~BDRV_O_RDWR, NULL);
             if (ret < 0) {
                 bdrv_delete(bs_ro);
                 /* drive not functional anymore */
@@ -664,7 +657,7 @@ ro_cleanup:
         bdrv_delete(bs->backing_hd);
         bs->backing_hd = NULL;
         bs_ro = bdrv_new("");
-        ret = bdrv_open2(bs_ro, filename, open_flags & ~BDRV_O_RDWR, NULL);
+        ret = bdrv_open(bs_ro, filename, open_flags & ~BDRV_O_RDWR, NULL);
         if (ret < 0) {
             bdrv_delete(bs_ro);
             /* drive not functional anymore */
@@ -1168,7 +1161,7 @@ void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
 {
     BlockDriver *drv;
 
-    for (drv = first_drv; drv != NULL; drv = drv->next) {
+    QLIST_FOREACH(drv, &bdrv_drivers, list) {
         it(opaque, drv->format_name);
     }
 }
@@ -1177,9 +1170,10 @@ BlockDriverState *bdrv_find(const char *name)
 {
     BlockDriverState *bs;
 
-    for (bs = bdrv_first; bs != NULL; bs = bs->next) {
-        if (!strcmp(name, bs->device_name))
+    QTAILQ_FOREACH(bs, &bdrv_states, list) {
+        if (!strcmp(name, bs->device_name)) {
             return bs;
+        }
     }
     return NULL;
 }
@@ -1188,7 +1182,7 @@ void bdrv_iterate(void (*it)(void *opaque, BlockDriverState *bs), void *opaque)
 {
     BlockDriverState *bs;
 
-    for (bs = bdrv_first; bs != NULL; bs = bs->next) {
+    QTAILQ_FOREACH(bs, &bdrv_states, list) {
         it(opaque, bs);
     }
 }
@@ -1208,10 +1202,12 @@ void bdrv_flush_all(void)
 {
     BlockDriverState *bs;
 
-    for (bs = bdrv_first; bs != NULL; bs = bs->next)
-        if (bs->drv && !bdrv_is_read_only(bs) && 
-            (!bdrv_is_removable(bs) || bdrv_is_inserted(bs)))
+    QTAILQ_FOREACH(bs, &bdrv_states, list) {
+        if (bs->drv && !bdrv_is_read_only(bs) &&
+            (!bdrv_is_removable(bs) || bdrv_is_inserted(bs))) {
             bdrv_flush(bs);
+        }
+    }
 }
 
 /*
@@ -1345,7 +1341,7 @@ void bdrv_info(Monitor *mon, QObject **ret_data)
 
     bs_list = qlist_new();
 
-    for (bs = bdrv_first; bs != NULL; bs = bs->next) {
+    QTAILQ_FOREACH(bs, &bdrv_states, list) {
         QObject *bs_obj;
         const char *type = "unknown";
 
@@ -1450,7 +1446,7 @@ void bdrv_info_stats(Monitor *mon, QObject **ret_data)
 
     devices = qlist_new();
 
-    for (bs = bdrv_first; bs != NULL; bs = bs->next) {
+    QTAILQ_FOREACH(bs, &bdrv_states, list) {
         obj = qobject_from_jsonf("{ 'device': %s, 'stats': {"
                                  "'rd_bytes': %" PRId64 ","
                                  "'wr_bytes': %" PRId64 ","
@@ -1535,6 +1531,18 @@ int bdrv_load_vmstate(BlockDriverState *bs, uint8_t *buf,
     if (!drv->bdrv_load_vmstate)
         return -ENOTSUP;
     return drv->bdrv_load_vmstate(bs, buf, pos, size);
+}
+
+void bdrv_debug_event(BlockDriverState *bs, BlkDebugEvent event)
+{
+    BlockDriver *drv = bs->drv;
+
+    if (!drv || !drv->bdrv_debug_event) {
+        return;
+    }
+
+    return drv->bdrv_debug_event(bs, event);
+
 }
 
 /**************************************************************/
@@ -1733,6 +1741,9 @@ static void multiwrite_user_cb(MultiwriteCB *mcb)
 
     for (i = 0; i < mcb->num_callbacks; i++) {
         mcb->callbacks[i].cb(mcb->callbacks[i].opaque, mcb->error);
+        if (mcb->callbacks[i].free_qiov) {
+            qemu_iovec_destroy(mcb->callbacks[i].free_qiov);
+        }
         qemu_free(mcb->callbacks[i].free_qiov);
         qemu_vfree(mcb->callbacks[i].free_buf);
     }

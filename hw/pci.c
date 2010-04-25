@@ -1568,23 +1568,30 @@ static void pci_bridge_write_config(PCIDevice *d,
 
 PCIBus *pci_find_bus(PCIBus *bus, int bus_num)
 {
-    PCIBus *sec, *ret;
+    PCIBus *sec;
 
-    if (!bus)
+    if (!bus) {
         return NULL;
+    }
 
     if (pci_bus_num(bus) == bus_num) {
         return bus;
     }
 
     /* try child bus */
-    QLIST_FOREACH(sec, &bus->child, sibling) {
-        if (!bus->parent_dev /* pci host bridge */
-            || (pci_bus_num(sec) <= bus_num &&
-                bus_num <= bus->parent_dev->config[PCI_SUBORDINATE_BUS]) ) {
-            ret = pci_find_bus(sec, bus_num);
-            if (ret) {
-                return ret;
+    if (!bus->parent_dev /* host pci bridge */ ||
+        (bus->parent_dev->config[PCI_SECONDARY_BUS] < bus_num &&
+         bus_num <= bus->parent_dev->config[PCI_SUBORDINATE_BUS])) {
+        for (; bus; bus = sec) {
+            QLIST_FOREACH(sec, &bus->child, sibling) {
+                assert(sec->parent_dev);
+                if (sec->parent_dev->config[PCI_SECONDARY_BUS] == bus_num) {
+                    return sec;
+                }
+                if (sec->parent_dev->config[PCI_SECONDARY_BUS] < bus_num &&
+                    bus_num <= sec->parent_dev->config[PCI_SUBORDINATE_BUS]) {
+                    break;
+                }
             }
         }
     }

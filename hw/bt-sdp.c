@@ -163,7 +163,7 @@ static ssize_t sdp_svc_search(struct bt_l2cap_sdp_state_s *sdp,
 
     if (len < 3)
         return -SDP_INVALID_SYNTAX;
-    end = (req[0] << 8) | req[1];
+    max = (req[0] << 8) | req[1];
     req += 2;
     len -= 2;
 
@@ -175,7 +175,7 @@ static ssize_t sdp_svc_search(struct bt_l2cap_sdp_state_s *sdp,
     } else
         start = 0;
 
-    if (len > 1);
+    if (len > 1)
         return -SDP_INVALID_SYNTAX;
 
     /* Output the results */

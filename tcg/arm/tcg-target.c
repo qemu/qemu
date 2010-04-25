@@ -483,9 +483,9 @@ static inline void tcg_out_ext8s(TCGContext *s, int cond,
         /* sxtb */
         tcg_out32(s, 0x06af0070 | (cond << 28) | (rd << 12) | rn);
     } else {
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+        tcg_out_dat_reg(s, cond, ARITH_MOV,
                         rd, 0, rn, SHIFT_IMM_LSL(24));
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+        tcg_out_dat_reg(s, cond, ARITH_MOV,
                         rd, 0, rd, SHIFT_IMM_ASR(24));
     }
 }
@@ -503,9 +503,9 @@ static inline void tcg_out_ext16s(TCGContext *s, int cond,
         /* sxth */
         tcg_out32(s, 0x06bf0070 | (cond << 28) | (rd << 12) | rn);
     } else {
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+        tcg_out_dat_reg(s, cond, ARITH_MOV,
                         rd, 0, rn, SHIFT_IMM_LSL(16));
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+        tcg_out_dat_reg(s, cond, ARITH_MOV,
                         rd, 0, rd, SHIFT_IMM_ASR(16));
     }
 }
@@ -517,9 +517,9 @@ static inline void tcg_out_ext16u(TCGContext *s, int cond,
         /* uxth */
         tcg_out32(s, 0x06ff0070 | (cond << 28) | (rd << 12) | rn);
     } else {
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+        tcg_out_dat_reg(s, cond, ARITH_MOV,
                         rd, 0, rn, SHIFT_IMM_LSL(16));
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+        tcg_out_dat_reg(s, cond, ARITH_MOV,
                         rd, 0, rd, SHIFT_IMM_LSR(16));
     }
 }

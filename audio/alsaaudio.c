@@ -411,10 +411,11 @@ static int alsa_to_audfmt (snd_pcm_format_t alsafmt, audfmt_e *fmt,
 }
 
 static void alsa_dump_info (struct alsa_params_req *req,
-                            struct alsa_params_obt *obt)
+                            struct alsa_params_obt *obt,
+                            snd_pcm_format_t obtfmt)
 {
     dolog ("parameter | requested value | obtained value\n");
-    dolog ("format    |      %10d |     %10d\n", req->fmt, obt->fmt);
+    dolog ("format    |      %10d |     %10d\n", req->fmt, obtfmt);
     dolog ("channels  |      %10d |     %10d\n",
            req->nchannels, obt->nchannels);
     dolog ("frequency |      %10d |     %10d\n", req->freq, obt->freq);
@@ -666,15 +667,15 @@ static int alsa_open (int in, struct alsa_params_req *req,
     *handlep = handle;
 
     if (conf.verbose &&
-        (obt->fmt != req->fmt ||
+        (obtfmt != req->fmt ||
          obt->nchannels != req->nchannels ||
          obt->freq != req->freq)) {
         dolog ("Audio parameters for %s\n", typ);
-        alsa_dump_info (req, obt);
+        alsa_dump_info (req, obt, obtfmt);
     }
 
 #ifdef DEBUG
-    alsa_dump_info (req, obt);
+    alsa_dump_info (req, obt, obtfmt);
 #endif
     return 0;
 

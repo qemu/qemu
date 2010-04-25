@@ -1,6 +1,7 @@
 # -*- Mode: makefile -*-
 
 GENERATED_HEADERS = config-target.h
+CONFIG_NO_KVM = $(if $(subst n,,$(CONFIG_KVM)),n,y)
 
 include ../config-host.mak
 include config-devices.mak
@@ -101,7 +102,6 @@ obj-y = main.o syscall.o strace.o mmap.o signal.o thunk.o \
       elfload.o linuxload.o uaccess.o gdbstub.o cpu-uname.o
 
 obj-$(TARGET_HAS_BFLT) += flatload.o
-obj-$(TARGET_HAS_ELFLOAD32) += elfload32.o
 
 obj-$(TARGET_I386) += vm86.o
 
@@ -175,16 +175,16 @@ endif #CONFIG_BSD_USER
 # System emulator target
 ifdef CONFIG_SOFTMMU
 
-obj-y = arch_init.o cpus.o monitor.o machine.o gdbstub.o vl.o balloon.o
+obj-y = arch_init.o cpus.o monitor.o machine.o gdbstub.o balloon.o
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
 obj-y += virtio-blk.o virtio-balloon.o virtio-net.o virtio-serial-bus.o
 obj-$(CONFIG_VIRTIO_PCI) += virtio-pci.o
-obj-y += event_notifier.o
 obj-y += vhost_net.o
 obj-$(CONFIG_VHOST_NET) += vhost.o
 obj-y += rwhandler.o
 obj-$(CONFIG_KVM) += kvm.o kvm-all.o
+obj-$(CONFIG_NO_KVM) += kvm-stub.o
 LIBS+=-lz
 
 QEMU_CFLAGS += $(VNC_TLS_CFLAGS)

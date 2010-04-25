@@ -996,10 +996,10 @@ static void l2cap_iframe_in(struct l2cap_chan_s *ch, uint16_t cid,
         l2cap_rexmit_enable(ch, !(hdr->data[0] >> 7));
 
     if (hdr->data[0] & 1) {
-        if (len != 4)
-            /* TODO: Signal an error? */;
+        if (len != 4) {
+            /* TODO: Signal an error? */
             return;
-
+        }
         return l2cap_sframe_in(ch, le16_to_cpup((void *) hdr->data));
     }
 

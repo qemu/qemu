@@ -1276,23 +1276,23 @@ static int openfile(char *name, int flags, int growable)
 		return 1;
 	}
 
-	bs = bdrv_new("hda");
-	if (!bs)
-		return 1;
-
 	if (growable) {
-		flags |= BDRV_O_FILE;
+		if (bdrv_file_open(&bs, name, flags)) {
+			fprintf(stderr, "%s: can't open device %s\n", progname, name);
+			return 1;
+		}
+	} else {
+		bs = bdrv_new("hda");
+		if (!bs)
+			return 1;
+
+		if (bdrv_open(bs, name, flags, NULL) < 0) {
+			fprintf(stderr, "%s: can't open device %s\n", progname, name);
+			bs = NULL;
+			return 1;
+		}
 	}
 
-	if (bdrv_open(bs, name, flags) < 0) {
-		fprintf(stderr, "%s: can't open device %s\n", progname, name);
-		bs = NULL;
-		return 1;
-	}
-
-	if (growable) {
-		bs->growable = 1;
-	}
 	return 0;
 }
 

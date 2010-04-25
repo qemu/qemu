@@ -42,6 +42,7 @@ static int write_refcount_block(BDRVQcowState *s)
         return 0;
     }
 
+    BLKDBG_EVENT(s->hd, BLKDBG_REFBLOCK_UPDATE);
     if (bdrv_pwrite(s->hd, s->refcount_block_cache_offset,
             s->refcount_block_cache, size) != size)
     {
@@ -63,6 +64,7 @@ int qcow2_refcount_init(BlockDriverState *bs)
     refcount_table_size2 = s->refcount_table_size * sizeof(uint64_t);
     s->refcount_table = qemu_malloc(refcount_table_size2);
     if (s->refcount_table_size > 0) {
+        BLKDBG_EVENT(s->hd, BLKDBG_REFTABLE_LOAD);
         ret = bdrv_pread(s->hd, s->refcount_table_offset,
                          s->refcount_table, refcount_table_size2);
         if (ret != refcount_table_size2)
@@ -93,6 +95,7 @@ static int load_refcount_block(BlockDriverState *bs,
         write_refcount_block(s);
     }
 
+    BLKDBG_EVENT(s->hd, BLKDBG_REFBLOCK_LOAD);
     ret = bdrv_pread(s->hd, refcount_block_offset, s->refcount_block_cache,
                      s->cluster_size);
     if (ret != s->cluster_size)
@@ -163,6 +166,8 @@ static int64_t alloc_refcount_block(BlockDriverState *bs, int64_t cluster_index)
     BDRVQcowState *s = bs->opaque;
     unsigned int refcount_table_index;
     int ret;
+
+    BLKDBG_EVENT(s->hd, BLKDBG_REFBLOCK_ALLOC);
 
     /* Find the refcount block for the given cluster */
     refcount_table_index = cluster_index >> (s->cluster_bits - REFCOUNT_SHIFT);
@@ -239,6 +244,7 @@ static int64_t alloc_refcount_block(BlockDriverState *bs, int64_t cluster_index)
     }
 
     /* Now the new refcount block needs to be written to disk */
+    BLKDBG_EVENT(s->hd, BLKDBG_REFBLOCK_ALLOC_WRITE);
     ret = bdrv_pwrite(s->hd, new_block, s->refcount_block_cache,
         s->cluster_size);
     if (ret < 0) {
@@ -248,6 +254,7 @@ static int64_t alloc_refcount_block(BlockDriverState *bs, int64_t cluster_index)
     /* If the refcount table is big enough, just hook the block up there */
     if (refcount_table_index < s->refcount_table_size) {
         uint64_t data64 = cpu_to_be64(new_block);
+        BLKDBG_EVENT(s->hd, BLKDBG_REFBLOCK_ALLOC_HOOKUP);
         ret = bdrv_pwrite(s->hd,
             s->refcount_table_offset + refcount_table_index * sizeof(uint64_t),
             &data64, sizeof(data64));
@@ -270,6 +277,8 @@ static int64_t alloc_refcount_block(BlockDriverState *bs, int64_t cluster_index)
      * refcount table at once without producing an inconsistent state in
      * between.
      */
+    BLKDBG_EVENT(s->hd, BLKDBG_REFTABLE_GROW);
+
     /* Calculate the number of refcount blocks needed so far */
     uint64_t refcount_block_clusters = 1 << (s->cluster_bits - REFCOUNT_SHIFT);
     uint64_t blocks_used = (s->free_cluster_index +
@@ -325,6 +334,7 @@ static int64_t alloc_refcount_block(BlockDriverState *bs, int64_t cluster_index)
     }
 
     /* Write refcount blocks to disk */
+    BLKDBG_EVENT(s->hd, BLKDBG_REFBLOCK_ALLOC_WRITE_BLOCKS);
     ret = bdrv_pwrite(s->hd, meta_offset, new_blocks,
         blocks_clusters * s->cluster_size);
     qemu_free(new_blocks);
@@ -337,6 +347,7 @@ static int64_t alloc_refcount_block(BlockDriverState *bs, int64_t cluster_index)
         cpu_to_be64s(&new_table[i]);
     }
 
+    BLKDBG_EVENT(s->hd, BLKDBG_REFBLOCK_ALLOC_WRITE_TABLE);
     ret = bdrv_pwrite(s->hd, table_offset, new_table,
         table_size * sizeof(uint64_t));
     if (ret < 0) {
@@ -351,6 +362,7 @@ static int64_t alloc_refcount_block(BlockDriverState *bs, int64_t cluster_index)
     uint8_t data[12];
     cpu_to_be64w((uint64_t*)data, table_offset);
     cpu_to_be32w((uint32_t*)(data + 8), table_clusters);
+    BLKDBG_EVENT(s->hd, BLKDBG_REFBLOCK_ALLOC_SWITCH_TABLE);
     ret = bdrv_pwrite(s->hd, offsetof(QCowHeader, refcount_table_offset),
         data, sizeof(data));
     if (ret < 0) {
@@ -400,6 +412,7 @@ static int write_refcount_block_entries(BDRVQcowState *s,
         & ~(REFCOUNTS_PER_SECTOR - 1);
 
     size = (last_index - first_index) << REFCOUNT_SHIFT;
+    BLKDBG_EVENT(s->hd, BLKDBG_REFBLOCK_UPDATE_PART);
     if (bdrv_pwrite(s->hd,
         refcount_block_offset + (first_index << REFCOUNT_SHIFT),
         &s->refcount_block_cache[first_index], size) != size)
@@ -555,9 +568,11 @@ retry:
 
 int64_t qcow2_alloc_clusters(BlockDriverState *bs, int64_t size)
 {
+    BDRVQcowState *s = bs->opaque;
     int64_t offset;
     int ret;
 
+    BLKDBG_EVENT(s->hd, BLKDBG_CLUSTER_ALLOC);
     offset = alloc_clusters_noref(bs, size);
     ret = update_refcount(bs, offset, size, 1);
     if (ret < 0) {
@@ -574,6 +589,7 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
     int64_t offset, cluster_offset;
     int free_in_cluster;
 
+    BLKDBG_EVENT(s->hd, BLKDBG_CLUSTER_ALLOC_BYTES);
     assert(size > 0 && size <= s->cluster_size);
     if (s->free_byte_offset == 0) {
         s->free_byte_offset = qcow2_alloc_clusters(bs, s->cluster_size);
@@ -615,8 +631,10 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
 void qcow2_free_clusters(BlockDriverState *bs,
                           int64_t offset, int64_t size)
 {
+    BDRVQcowState *s = bs->opaque;
     int ret;
 
+    BLKDBG_EVENT(s->hd, BLKDBG_CLUSTER_FREE);
     ret = update_refcount(bs, offset, size, -1);
     if (ret < 0) {
         fprintf(stderr, "qcow2_free_clusters failed: %s\n", strerror(-ret));
