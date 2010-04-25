@@ -1292,13 +1292,12 @@ static void dec_prep_alu_r(DisasContext *dc, int rs, int rd,
 static int dec_prep_move_m(DisasContext *dc, int s_ext, int memsize,
 			   TCGv dst)
 {
-	unsigned int rs, rd;
+	unsigned int rs;
 	uint32_t imm;
 	int is_imm;
 	int insn_len = 2;
 
 	rs = dc->op1;
-	rd = dc->op2;
 	is_imm = rs == 15 && dc->postinc;
 
 	/* Load [$rs] onto T1.  */
@@ -1367,14 +1366,12 @@ static unsigned int dec_bccq(DisasContext *dc)
 	int32_t offset;
 	int sign;
 	uint32_t cond = dc->op2;
-	int tmp;
 
 	offset = EXTRACT_FIELD (dc->ir, 1, 7);
 	sign = EXTRACT_FIELD(dc->ir, 0, 0);
 
 	offset *= 2;
 	offset |= sign << 8;
-	tmp = offset;
 	offset = sign_extend(offset, 8);
 
 	LOG_DIS("b%s %x\n", cc_name(cond), dc->pc + offset);
