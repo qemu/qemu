@@ -1087,6 +1087,7 @@ static int do_change_block(Monitor *mon, const char *device,
 {
     BlockDriverState *bs;
     BlockDriver *drv = NULL;
+    int bdrv_flags;
 
     bs = bdrv_find(device);
     if (!bs) {
@@ -1103,7 +1104,8 @@ static int do_change_block(Monitor *mon, const char *device,
     if (eject_device(mon, bs, 0) < 0) {
         return -1;
     }
-    if (bdrv_open(bs, filename, BDRV_O_RDWR, drv) < 0) {
+    bdrv_flags = bdrv_get_type_hint(bs) == BDRV_TYPE_CDROM ? 0 : BDRV_O_RDWR;
+    if (bdrv_open(bs, filename, bdrv_flags, drv) < 0) {
         qerror_report(QERR_OPEN_FILE_FAILED, filename);
         return -1;
     }
