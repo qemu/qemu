@@ -829,7 +829,6 @@ static void console_clear_xy(TextConsole *s, int x, int y)
     TextCell *c = &s->cells[y1 * s->width + x];
     c->ch = ' ';
     c->t_attrib = s->t_attrib_default;
-    c++;
     update_xy(s, x, y);
 }
 

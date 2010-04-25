@@ -110,7 +110,6 @@ int cksum(struct mbuf *m, int len)
 	if (byte_swapped) {
 		REDUCE;
 		sum <<= 8;
-		byte_swapped = 0;
 		if (mlen == -1) {
 			s_util.c[1] = *(u_int8_t *)w;
 			sum += s_util.s;

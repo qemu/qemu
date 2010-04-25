@@ -346,7 +346,7 @@ static int launch_script(const char *setup_script, const char *ifname, int fd)
         parg = args;
         *parg++ = (char *)setup_script;
         *parg++ = (char *)ifname;
-        *parg++ = NULL;
+        *parg = NULL;
         execv(setup_script, args);
         _exit(1);
     } else if (pid > 0) {
