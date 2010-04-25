@@ -187,7 +187,6 @@ static void ref405ep_init (ram_addr_t ram_size,
     target_ulong kernel_base, kernel_size, initrd_base, initrd_size;
     int linux_boot;
     int fl_idx, fl_sectors, len;
-    int ppc_boot_device = boot_device[0];
     DriveInfo *dinfo;
 
     /* XXX: fix this */
@@ -326,7 +325,6 @@ static void ref405ep_init (ram_addr_t ram_size,
         }
         env->gpr[4] = initrd_base;
         env->gpr[5] = initrd_size;
-        ppc_boot_device = 'm';
         if (kernel_cmdline != NULL) {
             len = strlen(kernel_cmdline);
             bdloc -= ((len + 255) & ~255);
@@ -508,7 +506,6 @@ static void taihu_405ep_init(ram_addr_t ram_size,
     target_ulong kernel_base, kernel_size, initrd_base, initrd_size;
     int linux_boot;
     int fl_idx, fl_sectors;
-    int ppc_boot_device = boot_device[0];
     DriveInfo *dinfo;
 
     /* RAM is soldered to the board so the size cannot be changed */
@@ -625,7 +622,6 @@ static void taihu_405ep_init(ram_addr_t ram_size,
             initrd_base = 0;
             initrd_size = 0;
         }
-        ppc_boot_device = 'm';
     } else {
         kernel_base = 0;
         kernel_size = 0;

@@ -3398,7 +3398,7 @@ static void gen_b(DisasContext *ctx)
 static inline void gen_bcond(DisasContext *ctx, int type)
 {
     uint32_t bo = BO(ctx->opcode);
-    int l1 = gen_new_label();
+    int l1;
     TCGv target;
 
     ctx->exception = POWERPC_EXCP_BRANCH;
