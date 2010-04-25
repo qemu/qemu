@@ -229,7 +229,6 @@ static void r2d_init(ram_addr_t ram_size,
     struct SH7750State *s;
     ram_addr_t sdram_addr;
     qemu_irq *irq;
-    PCIBus *pci;
     DriveInfo *dinfo;
     int i;
 
@@ -248,7 +247,7 @@ static void r2d_init(ram_addr_t ram_size,
     /* Register peripherals */
     s = sh7750_init(env);
     irq = r2d_fpga_init(0x04000000, sh7750_irl(s));
-    pci = sh_pci_register_bus(r2d_pci_set_irq, r2d_pci_map_irq, irq, 0, 4);
+    sh_pci_register_bus(r2d_pci_set_irq, r2d_pci_map_irq, irq, 0, 4);
 
     sm501_init(0x10000000, SM501_VRAM_SIZE, irq[SM501], serial_hds[2]);
 
