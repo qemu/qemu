@@ -994,13 +994,12 @@ static int bt_hci_features_req(struct bt_hci_s *hci, uint16_t handle)
 
 static int bt_hci_version_req(struct bt_hci_s *hci, uint16_t handle)
 {
-    struct bt_device_s *slave;
     evt_read_remote_version_complete params;
 
     if (bt_hci_handle_bad(hci, handle))
         return -ENODEV;
 
-    slave = bt_hci_remote_dev(hci, handle);
+    bt_hci_remote_dev(hci, handle);
 
     bt_hci_event_status(hci, HCI_SUCCESS);
 
@@ -2080,7 +2079,6 @@ static void bt_submit_sco(struct HCIInfo *info,
                 const uint8_t *data, int length)
 {
     struct bt_hci_s *hci = hci_from_info(info);
-    struct bt_link_s *link;
     uint16_t handle;
     int datalen;
 
@@ -2089,7 +2087,6 @@ static void bt_submit_sco(struct HCIInfo *info,
 
     handle = acl_handle((data[1] << 8) | data[0]);
     datalen = data[2];
-    data += 3;
     length -= 3;
 
     if (bt_hci_handle_bad(hci, handle)) {
@@ -2097,7 +2094,6 @@ static void bt_submit_sco(struct HCIInfo *info,
                         __FUNCTION__, handle);
         return;
     }
-    handle &= ~HCI_HANDLE_OFFSET;
 
     if (datalen > length) {
         fprintf(stderr, "%s: SCO packet too short (%iB < %iB)\n",
@@ -2105,7 +2101,6 @@ static void bt_submit_sco(struct HCIInfo *info,
         return;
     }
 
-    link = hci->lm.handle[handle].link;
     /* TODO */
 
     /* TODO: increase counter and send EVT_NUM_COMP_PKTS if synchronous

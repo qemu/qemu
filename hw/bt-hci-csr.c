@@ -226,7 +226,7 @@ static void csrhci_in_packet(struct csrhci_s *s, uint8_t *pkt)
         *rpkt ++ = 0x20;	/* Operational settings negotation Ok */
         memcpy(rpkt, pkt, 7); rpkt += 7;
         *rpkt ++ = 0xff;
-        *rpkt ++ = 0xff;
+        *rpkt = 0xff;
         break;
 
     case H4_ALIVE_PKT:
@@ -238,7 +238,7 @@ static void csrhci_in_packet(struct csrhci_s *s, uint8_t *pkt)
         rpkt = csrhci_out_packet_csr(s, H4_ALIVE_PKT, 2);
 
         *rpkt ++ = 0xcc;
-        *rpkt ++ = 0x00;
+        *rpkt = 0x00;
         break;
 
     default:
