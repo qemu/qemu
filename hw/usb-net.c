@@ -972,11 +972,10 @@ static int rndis_keepalive_response(USBNetState *s,
 
 static int rndis_parse(USBNetState *s, uint8_t *data, int length)
 {
-    uint32_t msg_type, msg_length;
+    uint32_t msg_type;
     le32 *tmp = (le32 *) data;
 
-    msg_type = le32_to_cpup(tmp++);
-    msg_length = le32_to_cpup(tmp++);
+    msg_type = le32_to_cpup(tmp);
 
     switch (msg_type) {
     case RNDIS_INITIALIZE_MSG:

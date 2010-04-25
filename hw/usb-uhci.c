@@ -698,7 +698,6 @@ static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_
 
     if (pid == USB_TOKEN_IN) {
         if (len > max_len) {
-            len = max_len;
             ret = USB_RET_BABBLE;
             goto out;
         }
@@ -865,8 +864,7 @@ static void uhci_async_complete(USBPacket *packet, void *opaque)
         UHCI_TD td;
         uint32_t link = async->td;
         uint32_t int_mask = 0, val;
-        int len;
- 
+
         cpu_physical_memory_read(link & ~0xf, (uint8_t *) &td, sizeof(td));
         le32_to_cpus(&td.link);
         le32_to_cpus(&td.ctrl);
@@ -874,7 +872,7 @@ static void uhci_async_complete(USBPacket *packet, void *opaque)
         le32_to_cpus(&td.buffer);
 
         uhci_async_unlink(s, async);
-        len = uhci_complete_td(s, &td, async, &int_mask);
+        uhci_complete_td(s, &td, async, &int_mask);
         s->pending_int_mask |= int_mask;
 
         /* update the status bits of the TD */

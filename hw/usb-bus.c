@@ -152,11 +152,10 @@ static void do_attach(USBDevice *dev)
 int usb_device_attach(USBDevice *dev)
 {
     USBBus *bus = usb_bus_from_device(dev);
-    USBDevice *hub;
 
     if (bus->nfree == 1) {
         /* Create a new hub and chain it on.  */
-        hub = usb_create_simple(bus, "usb-hub");
+        usb_create_simple(bus, "usb-hub");
     }
     do_attach(dev);
     return 0;

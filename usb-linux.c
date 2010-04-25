@@ -287,7 +287,7 @@ static void async_cancel(USBPacket *unused, void *opaque)
 static int usb_host_claim_interfaces(USBHostDevice *dev, int configuration)
 {
     int dev_descr_len, config_descr_len;
-    int interface, nb_interfaces, nb_configurations;
+    int interface, nb_interfaces;
     int ret, i;
 
     if (configuration == 0) /* address state - ignore */
@@ -299,7 +299,6 @@ static int usb_host_claim_interfaces(USBHostDevice *dev, int configuration)
     dev_descr_len = dev->descr[0];
     if (dev_descr_len > dev->descr_len)
         goto fail;
-    nb_configurations = dev->descr[17];
 
     i += dev_descr_len;
     while (i < dev->descr_len) {

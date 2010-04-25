@@ -366,11 +366,10 @@ static int usb_hub_handle_control(USBDevice *dev, int request, int value,
         {
             unsigned int n = index - 1;
             USBHubPort *port;
-            USBDevice *dev;
+
             if (n >= s->nb_ports)
                 goto fail;
             port = &s->ports[n];
-            dev = port->port.dev;
             switch(value) {
             case PORT_ENABLE:
                 port->wPortStatus &= ~PORT_STAT_ENABLE;

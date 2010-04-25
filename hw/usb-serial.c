@@ -449,7 +449,7 @@ static int usb_serial_handle_data(USBDevice *dev, USBPacket *p)
         /* handle serial break */
         if (s->event_trigger && s->event_trigger & FTDI_BI) {
             s->event_trigger &= ~FTDI_BI;
-            *data++ = FTDI_BI;
+            *data = FTDI_BI;
             ret = 2;
             break;
         } else {
