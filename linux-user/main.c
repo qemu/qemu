@@ -940,7 +940,8 @@ static void flush_windows(CPUSPARCState *env)
 
 void cpu_loop (CPUSPARCState *env)
 {
-    int trapnr, ret;
+    int trapnr;
+    abi_long ret;
     target_siginfo_t info;
 
     while (1) {
@@ -958,7 +959,7 @@ void cpu_loop (CPUSPARCState *env)
                               env->regwptr[0], env->regwptr[1],
                               env->regwptr[2], env->regwptr[3],
                               env->regwptr[4], env->regwptr[5]);
-            if ((unsigned int)ret >= (unsigned int)(-515)) {
+            if ((abi_ulong)ret >= (abi_ulong)(-515)) {
 #if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
                 env->xcc |= PSR_CARRY;
 #else
