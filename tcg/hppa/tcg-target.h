@@ -73,6 +73,8 @@ enum {
 #define TCG_CT_CONST_S5   0x0200
 #define TCG_CT_CONST_S11  0x0400
 #define TCG_CT_CONST_MS11 0x0800
+#define TCG_CT_CONST_AND  0x1000
+#define TCG_CT_CONST_OR   0x2000
 
 /* used for function call generation */
 #define TCG_REG_CALL_STACK TCG_REG_SP
@@ -87,14 +89,16 @@ enum {
 #define TCG_TARGET_HAS_rot_i32
 #define TCG_TARGET_HAS_ext8s_i32
 #define TCG_TARGET_HAS_ext16s_i32
-#define TCG_TARGET_HAS_ext8u_i32
-#define TCG_TARGET_HAS_ext16u_i32
 #define TCG_TARGET_HAS_bswap16_i32
 #define TCG_TARGET_HAS_bswap32_i32
 #define TCG_TARGET_HAS_not_i32
-#define TCG_TARGET_HAS_neg_i32
 #define TCG_TARGET_HAS_andc_i32
 // #define TCG_TARGET_HAS_orc_i32
+
+/* optional instructions automatically implemented */
+#undef TCG_TARGET_HAS_neg_i32           /* sub rd, 0, rs */
+#undef TCG_TARGET_HAS_ext8u_i32         /* and rd, rs, 0xff */
+#undef TCG_TARGET_HAS_ext16u_i32        /* and rd, rs, 0xffff */
 
 #define TCG_TARGET_HAS_GUEST_BASE
 
