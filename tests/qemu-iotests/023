@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # qcow2 pattern test with various cluster sizes
 #

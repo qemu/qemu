@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Make sure qemu-img rejects > 127GB images for the vpc format as the format
 # doesn't support this.

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Test for AIO allocation on the same cluster
 #

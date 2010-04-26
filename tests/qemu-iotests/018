@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Merge backing file into test image when converting the image
 #

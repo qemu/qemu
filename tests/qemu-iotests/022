@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Test bdrv_load/save_vmstate using the usual patterns
 #
