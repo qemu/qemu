@@ -164,7 +164,6 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
 
     if (kernel_filename) {
         uint64_t entry, low, high;
-        int kcmdline_len;
         uint32_t base32;
 
         /* Boots a kernel elf binary.  */
@@ -187,7 +186,7 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
         }
 
         boot_info.cmdline = ddr_base + kernel_size + 8192;
-        if (kernel_cmdline && (kcmdline_len = strlen(kernel_cmdline))) {
+        if (kernel_cmdline && strlen(kernel_cmdline)) {
             pstrcpy_targphys("cmdline", boot_info.cmdline, 256, kernel_cmdline);
         }
         /* Provide a device-tree.  */

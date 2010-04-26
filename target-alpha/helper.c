@@ -466,6 +466,7 @@ int cpu_alpha_mtpr (CPUState *env, int iprn, uint64_t val, uint64_t *oldvalp)
             env->ipr[IPR_SYSPTBR] = val;
         else
             ret = -1;
+        break;
     case IPR_TBCHK:
         /* Read-only */
         ret = -1;

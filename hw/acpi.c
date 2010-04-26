@@ -88,8 +88,7 @@ static uint32_t get_pmtmr(PIIX4PMState *s)
 static int get_pmsts(PIIX4PMState *s)
 {
     int64_t d;
-    int pmsts;
-    pmsts = s->pmsts;
+
     d = muldiv64(qemu_get_clock(vm_clock), PM_FREQ, get_ticks_per_sec());
     if (d >= s->tmr_overflow_time)
         s->pmsts |= TMROF_EN;
@@ -206,8 +205,8 @@ static uint32_t pm_ioport_readw(void *opaque, uint32_t addr)
 static void pm_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
 {
     //    PIIX4PMState *s = opaque;
-    addr &= 0x3f;
 #ifdef DEBUG
+    addr &= 0x3f;
     printf("PM writel port=0x%04x val=0x%08x\n", addr, val);
 #endif
 }

@@ -198,7 +198,6 @@ static inline int _pte_check(mmu_ctx_t *ctx, int is_64b, target_ulong pte0,
     target_ulong ptem, mmask;
     int access, ret, pteh, ptev, pp;
 
-    access = 0;
     ret = -1;
     /* Check validity and table match */
 #if defined(TARGET_PPC64)
@@ -493,7 +492,7 @@ static inline int get_bat(CPUState *env, mmu_ctx_t *ctx, target_ulong virtual,
                           int rw, int type)
 {
     target_ulong *BATlt, *BATut, *BATu, *BATl;
-    target_ulong base, BEPIl, BEPIu, bl;
+    target_ulong BEPIl, BEPIu, bl;
     int i, valid, prot;
     int ret = -1;
 
@@ -509,7 +508,6 @@ static inline int get_bat(CPUState *env, mmu_ctx_t *ctx, target_ulong virtual,
         BATut = env->DBAT[0];
         break;
     }
-    base = virtual & 0xFFFC0000;
     for (i = 0; i < env->nb_BATs; i++) {
         BATu = &BATut[i];
         BATl = &BATlt[i];
@@ -1756,11 +1754,15 @@ void ppc_store_dbatl (CPUPPCState *env, int nr, target_ulong value)
 void ppc_store_ibatu_601 (CPUPPCState *env, int nr, target_ulong value)
 {
     target_ulong mask;
+#if defined(FLUSH_ALL_TLBS)
     int do_inval;
+#endif
 
     dump_store_bat(env, 'I', 0, nr, value);
     if (env->IBAT[0][nr] != value) {
+#if defined(FLUSH_ALL_TLBS)
         do_inval = 0;
+#endif
         mask = (env->IBAT[1][nr] << 17) & 0x0FFE0000UL;
         if (env->IBAT[1][nr] & 0x40) {
             /* Invalidate BAT only if it is valid */
@@ -1793,11 +1795,15 @@ void ppc_store_ibatu_601 (CPUPPCState *env, int nr, target_ulong value)
 void ppc_store_ibatl_601 (CPUPPCState *env, int nr, target_ulong value)
 {
     target_ulong mask;
+#if defined(FLUSH_ALL_TLBS)
     int do_inval;
+#endif
 
     dump_store_bat(env, 'I', 1, nr, value);
     if (env->IBAT[1][nr] != value) {
+#if defined(FLUSH_ALL_TLBS)
         do_inval = 0;
+#endif
         if (env->IBAT[1][nr] & 0x40) {
 #if !defined(FLUSH_ALL_TLBS)
             mask = (env->IBAT[1][nr] << 17) & 0x0FFE0000UL;

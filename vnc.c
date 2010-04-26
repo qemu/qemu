@@ -1237,17 +1237,16 @@ static long vnc_client_write_plain(VncState *vs)
  */
 void vnc_client_write(void *opaque)
 {
-    long ret;
     VncState *vs = opaque;
 
 #ifdef CONFIG_VNC_SASL
     if (vs->sasl.conn &&
         vs->sasl.runSSF &&
-        !vs->sasl.waitWriteSSF)
-        ret = vnc_client_write_sasl(vs);
-    else
+        !vs->sasl.waitWriteSSF) {
+        vnc_client_write_sasl(vs);
+    } else
 #endif /* CONFIG_VNC_SASL */
-        ret = vnc_client_write_plain(vs);
+        vnc_client_write_plain(vs);
 }
 
 void vnc_read_when(VncState *vs, VncReadEvent *func, size_t expecting)
@@ -1733,12 +1732,8 @@ static void framebuffer_update_request(VncState *vs, int incremental,
                                        int x_position, int y_position,
                                        int w, int h)
 {
-    if (x_position > ds_get_width(vs->ds))
-        x_position = ds_get_width(vs->ds);
     if (y_position > ds_get_height(vs->ds))
         y_position = ds_get_height(vs->ds);
-    if (x_position + w >= ds_get_width(vs->ds))
-        w = ds_get_width(vs->ds)  - x_position;
     if (y_position + h >= ds_get_height(vs->ds))
         h = ds_get_height(vs->ds) - y_position;
 

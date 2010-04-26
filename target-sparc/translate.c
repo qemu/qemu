@@ -80,6 +80,7 @@ typedef struct DisasContext {
     int mem_idx;
     int fpu_enabled;
     int address_mask_32bit;
+    int singlestep;
     uint32_t cc_op;  /* current CC operation */
     struct TranslationBlock *tb;
     sparc_def_t *def;
@@ -235,7 +236,8 @@ static inline void gen_goto_tb(DisasContext *s, int tb_num,
 
     tb = s->tb;
     if ((pc & TARGET_PAGE_MASK) == (tb->pc & TARGET_PAGE_MASK) &&
-        (npc & TARGET_PAGE_MASK) == (tb->pc & TARGET_PAGE_MASK))  {
+        (npc & TARGET_PAGE_MASK) == (tb->pc & TARGET_PAGE_MASK) &&
+        !s->singlestep)  {
         /* jump to same page: we can use a direct jump */
         tcg_gen_goto_tb(tb_num);
         tcg_gen_movi_tl(cpu_pc, pc);
@@ -4695,6 +4697,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
 #ifdef TARGET_SPARC64
     dc->address_mask_32bit = env->pstate & PS_AM;
 #endif
+    dc->singlestep = (env->singlestep_enabled || singlestep);
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
 
     cpu_tmp0 = tcg_temp_new();
@@ -4755,9 +4758,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
             break;
         /* if single step mode, we generate only one instruction and
            generate an exception */
-        if (env->singlestep_enabled || singlestep) {
-            tcg_gen_movi_tl(cpu_pc, dc->pc);
-            tcg_gen_exit_tb(0);
+        if (dc->singlestep) {
             break;
         }
     } while ((gen_opc_ptr < gen_opc_end) &&

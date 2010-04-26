@@ -1968,7 +1968,7 @@ struct omap_eac_s *omap_eac_init(struct omap_target_agent_s *ta,
 
     s->irq = irq;
     s->codec.rxdrq = *drq ++;
-    s->codec.txdrq = *drq ++;
+    s->codec.txdrq = *drq;
     omap_eac_reset(s);
 
 #ifdef HAS_AUDIO

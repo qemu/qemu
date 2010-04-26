@@ -206,7 +206,6 @@ static void palmte_init(ram_addr_t ram_size,
     static uint32_t cs1val = 0x0000e1a0;
     static uint32_t cs2val = 0x0000e1a0;
     static uint32_t cs3val = 0xe1a0e1a0;
-    ram_addr_t phys_flash;
     int rom_size, rom_loaded = 0;
     DisplayState *ds = get_displaystate();
 
@@ -214,7 +213,7 @@ static void palmte_init(ram_addr_t ram_size,
 
     /* External Flash (EMIFS) */
     cpu_register_physical_memory(OMAP_CS0_BASE, flash_size,
-                    (phys_flash = qemu_ram_alloc(flash_size)) | IO_MEM_ROM);
+                    qemu_ram_alloc(flash_size) | IO_MEM_ROM);
 
     io = cpu_register_io_memory(static_readfn, static_writefn, &cs0val);
     cpu_register_physical_memory(OMAP_CS0_BASE + flash_size,

@@ -544,7 +544,6 @@ static TCGv gen_lea(DisasContext *s, uint16_t insn, int opsize)
             offset = read_im32(s);
             return gen_im32(offset);
         case 2: /* pc displacement  */
-            tmp = tcg_temp_new();
             offset = s->pc;
             offset += ldsw_code(s->pc);
             s->pc += 2;
@@ -2977,7 +2976,6 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
     int j, lj;
     target_ulong pc_start;
     int pc_offset;
-    int last_cc_op;
     int num_insns;
     int max_insns;
 
@@ -3031,7 +3029,6 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
         }
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
             gen_io_start();
-        last_cc_op = dc->cc_op;
         dc->insn_pc = dc->pc;
 	disas_m68k_insn(env, dc);
         num_insns++;

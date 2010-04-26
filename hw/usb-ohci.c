@@ -599,7 +599,9 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
 {
     int dir;
     size_t len = 0;
+#ifdef DEBUG_ISOCH
     const char *str = NULL;
+#endif
     int pid;
     int ret;
     int i;
@@ -663,15 +665,21 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
     dir = OHCI_BM(ed->flags, ED_D);
     switch (dir) {
     case OHCI_TD_DIR_IN:
+#ifdef DEBUG_ISOCH
         str = "in";
+#endif
         pid = USB_TOKEN_IN;
         break;
     case OHCI_TD_DIR_OUT:
+#ifdef DEBUG_ISOCH
         str = "out";
+#endif
         pid = USB_TOKEN_OUT;
         break;
     case OHCI_TD_DIR_SETUP:
+#ifdef DEBUG_ISOCH
         str = "setup";
+#endif
         pid = USB_TOKEN_SETUP;
         break;
     default:
@@ -834,7 +842,9 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
 {
     int dir;
     size_t len = 0;
+#ifdef DEBUG_PACKET
     const char *str = NULL;
+#endif
     int pid;
     int ret;
     int i;
@@ -871,15 +881,21 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
 
     switch (dir) {
     case OHCI_TD_DIR_IN:
+#ifdef DEBUG_PACKET
         str = "in";
+#endif
         pid = USB_TOKEN_IN;
         break;
     case OHCI_TD_DIR_OUT:
+#ifdef DEBUG_PACKET
         str = "out";
+#endif
         pid = USB_TOKEN_OUT;
         break;
     case OHCI_TD_DIR_SETUP:
+#ifdef DEBUG_PACKET
         str = "setup";
+#endif
         pid = USB_TOKEN_SETUP;
         break;
     default:

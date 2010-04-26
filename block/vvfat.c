@@ -1099,8 +1099,8 @@ static inline void vvfat_close_current_file(BDRVVVFATState *s)
  */
 static inline int find_mapping_for_cluster_aux(BDRVVVFATState* s,int cluster_num,int index1,int index2)
 {
-    int index3=index1+1;
     while(1) {
+        int index3;
 	mapping_t* mapping;
 	index3=(index1+index2)/2;
 	mapping=array_get(&(s->mapping),index3);

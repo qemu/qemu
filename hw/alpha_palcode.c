@@ -79,9 +79,7 @@ static void pal_reset (CPUState *env)
 static void do_swappal (CPUState *env, uint64_t palid)
 {
     pal_handler_t *pal_handler;
-    int status;
 
-    status = 0;
     switch (palid) {
     case 0 ... 2:
         pal_handler = &pal_handlers[palid];

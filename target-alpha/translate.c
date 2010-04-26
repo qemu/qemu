@@ -1234,8 +1234,8 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
 {
     uint32_t palcode;
     int32_t disp21, disp16, disp12;
-    uint16_t fn11, fn16;
-    uint8_t opc, ra, rb, rc, sbz, fpfn, fn7, fn2, islit, real_islit;
+    uint16_t fn11;
+    uint8_t opc, ra, rb, rc, fpfn, fn7, fn2, islit, real_islit;
     uint8_t lit;
     int ret;
 
@@ -1244,7 +1244,6 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
     ra = (insn >> 21) & 0x1F;
     rb = (insn >> 16) & 0x1F;
     rc = insn & 0x1F;
-    sbz = (insn >> 13) & 0x07;
     real_islit = islit = (insn >> 12) & 1;
     if (rb == 31 && !islit) {
         islit = 1;
@@ -1255,7 +1254,6 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
     disp21 = ((int32_t)((insn & 0x001FFFFF) << 11)) >> 11;
     disp16 = (int16_t)(insn & 0x0000FFFF);
     disp12 = (int32_t)((insn & 0x00000FFF) << 20) >> 20;
-    fn16 = insn & 0x0000FFFF;
     fn11 = (insn >> 5) & 0x000007FF;
     fpfn = fn11 & 0x3F;
     fn7 = (insn >> 5) & 0x0000007F;
@@ -1290,7 +1288,6 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             if (ctx->mem_idx & 1)
                 goto invalid_opc;
             gen_excp(ctx, EXCP_CALL_PALP + ((palcode & 0x3F) << 6), 0);
-            ret = 3;
         }
 #endif
         /* Invalid PAL call */
@@ -3140,8 +3137,8 @@ CPUAlphaState * cpu_alpha_init (const char *cpu_model)
     env->ipr[IPR_EXC_MASK] = 0;
 #else
     {
-        uint64_t hwpcb;
-        hwpcb = env->ipr[IPR_PCBB];
+        // uint64_t hwpcb;
+        // hwpcb = env->ipr[IPR_PCBB];
         env->ipr[IPR_ASN] = 0;
         env->ipr[IPR_ASTEN] = 0;
         env->ipr[IPR_ASTSR] = 0;

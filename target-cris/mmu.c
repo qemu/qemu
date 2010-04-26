@@ -327,7 +327,6 @@ int cris_mmu_translate(struct cris_mmu_result *res,
 		       CPUState *env, uint32_t vaddr,
 		       int rw, int mmu_idx)
 {
-	uint32_t phy = vaddr;
 	int seg;
 	int miss = 0;
 	int is_user = mmu_idx == MMU_USER_IDX;
@@ -351,8 +350,7 @@ int cris_mmu_translate(struct cris_mmu_result *res,
 
 		miss = 0;
 		base = cris_mmu_translate_seg(env, seg);
-		phy = base | (0x0fffffff & vaddr);
-		res->phy = phy;
+                res->phy = base | (0x0fffffff & vaddr);
 		res->prot = PAGE_BITS;
 	}
 	else

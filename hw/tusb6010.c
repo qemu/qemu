@@ -425,7 +425,6 @@ static uint32_t tusb_async_readw(void *opaque, target_phys_addr_t addr)
         return s->rx_config[epnum];
     case TUSB_EP_MAX_PACKET_SIZE_OFFSET ...
             (TUSB_EP_MAX_PACKET_SIZE_OFFSET + 0x3b):
-        epnum = (offset - TUSB_EP_MAX_PACKET_SIZE_OFFSET) >> 2;
         return 0x00000000;	/* TODO */
     case TUSB_WAIT_COUNT:
         return 0x00;		/* TODO */
@@ -630,7 +629,6 @@ static void tusb_async_writew(void *opaque, target_phys_addr_t addr,
         break;
     case TUSB_EP_MAX_PACKET_SIZE_OFFSET ...
             (TUSB_EP_MAX_PACKET_SIZE_OFFSET + 0x3b):
-        epnum = (offset - TUSB_EP_MAX_PACKET_SIZE_OFFSET) >> 2;
         return;		/* TODO */
     case TUSB_WAIT_COUNT:
         return;		/* TODO */

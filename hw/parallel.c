@@ -414,15 +414,14 @@ parallel_ioport_eppdata_read_hw4(void *opaque, uint32_t addr)
 
 static void parallel_ioport_ecp_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    addr &= 7;
-    pdebug("wecp%d=%02x\n", addr, val);
+    pdebug("wecp%d=%02x\n", addr & 7, val);
 }
 
 static uint32_t parallel_ioport_ecp_read(void *opaque, uint32_t addr)
 {
     uint8_t ret = 0xff;
-    addr &= 7;
-    pdebug("recp%d:%02x\n", addr, ret);
+
+    pdebug("recp%d:%02x\n", addr & 7, ret);
     return ret;
 }
 

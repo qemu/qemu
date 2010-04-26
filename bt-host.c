@@ -50,19 +50,19 @@ static void bt_host_send(struct HCIInfo *hci,
     struct bt_host_hci_s *s = (struct bt_host_hci_s *) hci;
     uint8_t pkt = type;
     struct iovec iv[2];
-    int ret;
 
     iv[0].iov_base = (void *)&pkt;
     iv[0].iov_len  = 1;
     iv[1].iov_base = (void *) data;
     iv[1].iov_len  = len;
 
-    while ((ret = writev(s->fd, iv, 2)) < 0)
+    while (writev(s->fd, iv, 2) < 0) {
         if (errno != EAGAIN && errno != EINTR) {
             fprintf(stderr, "qemu: error %i writing bluetooth packet.\n",
                             errno);
             return;
         }
+    }
 }
 
 static void bt_host_cmd(struct HCIInfo *hci, const uint8_t *data, int len)

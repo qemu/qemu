@@ -486,6 +486,7 @@ static uint32_t dcr_read_ebc (void *opaque, int dcrn)
             ret = 0x00000000;
             break;
         }
+        break;
     default:
         ret = 0x00000000;
         break;

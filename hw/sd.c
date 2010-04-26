@@ -1143,12 +1143,8 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
 }
 
 static sd_rsp_type_t sd_app_command(SDState *sd,
-                                    SDRequest req) {
-    uint32_t rca;
-
-    if (sd_cmd_type[req.cmd] == sd_ac || sd_cmd_type[req.cmd] == sd_adtc)
-        rca = req.arg >> 16;
-
+                                    SDRequest req)
+{
     DPRINTF("ACMD%d 0x%08x\n", req.cmd, req.arg);
     switch (req.cmd) {
     case 6:	/* ACMD6:  SET_BUS_WIDTH */

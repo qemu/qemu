@@ -2515,7 +2515,6 @@ print_insn_neon (struct disassemble_info *info, long given, bfd_boolean thumb)
 			  {
 			    func (stream, "<illegal constant %.8x:%x:%x>",
                                   bits, cmode, op);
-                            size = 32;
 			    break;
 			  }
                         switch (size)

@@ -60,8 +60,7 @@ static void mmu_change_pid(CPUState *env, unsigned int newpid)
 {
     struct microblaze_mmu *mmu = &env->mmu;
     unsigned int i;
-    unsigned int tlb_size;
-    uint32_t tlb_tag, mask, t;
+    uint32_t t;
 
     if (newpid & ~0xff)
         qemu_log("Illegal rpid=%x\n", newpid);
@@ -70,10 +69,6 @@ static void mmu_change_pid(CPUState *env, unsigned int newpid)
         /* Lookup and decode.  */
         t = mmu->rams[RAM_TAG][i];
         if (t & TLB_VALID) {
-            tlb_size = tlb_decode_size((t & TLB_PAGESZ_MASK) >> 7);
-            mask = ~(tlb_size - 1);
-
-            tlb_tag = t & TLB_EPN_MASK;
             if (mmu->tids[i] && ((mmu->regs[MMU_R_PID] & 0xff) == mmu->tids[i]))
                 mmu_flush_idx(env, i);
         }

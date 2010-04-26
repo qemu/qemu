@@ -171,7 +171,10 @@ static void vga_precise_update_retrace_info(VGACommonState *s)
     int vretr_start_line;
     int vretr_end_line;
 
-    int div2, sldiv2, dots;
+    int dots;
+#if 0
+    int div2, sldiv2;
+#endif
     int clocking_mode;
     int clock_sel;
     const int clk_hz[] = {25175000, 28322000, 25175000, 25175000};
@@ -192,8 +195,6 @@ static void vga_precise_update_retrace_info(VGACommonState *s)
     vretr_end_line = s->cr[0x11] & 0xf;
 
 
-    div2 = (s->cr[0x17] >> 2) & 1;
-    sldiv2 = (s->cr[0x17] >> 3) & 1;
 
     clocking_mode = (s->sr[0x01] >> 3) & 1;
     clock_sel = (s->msr >> 2) & 3;
@@ -218,6 +219,8 @@ static void vga_precise_update_retrace_info(VGACommonState *s)
     r->htotal = htotal_chars;
 
 #if 0
+    div2 = (s->cr[0x17] >> 2) & 1;
+    sldiv2 = (s->cr[0x17] >> 3) & 1;
     printf (
         "hz=%f\n"
         "htotal = %d\n"

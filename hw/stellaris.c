@@ -1367,7 +1367,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
             gpio_out[GPIO_D][0] = qdev_get_gpio_in(mux, 0);
 
             bus = qdev_get_child_bus(mux, "ssi0");
-            dev = ssi_create_slave(bus, "ssi-sd");
+            ssi_create_slave(bus, "ssi-sd");
 
             bus = qdev_get_child_bus(mux, "ssi1");
             dev = ssi_create_slave(bus, "ssd0323");
