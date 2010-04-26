@@ -1017,7 +1017,8 @@ static void do_info_cpu_stats(Monitor *mon)
  */
 static int do_quit(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
-    exit(0);
+    monitor_suspend(mon);
+    qemu_system_exit_request();
     return 0;
 }
 
@@ -2411,15 +2412,6 @@ static int do_getfd(Monitor *mon, const QDict *qdict, QObject **ret_data)
     if (qemu_isdigit(fdname[0])) {
         qerror_report(QERR_INVALID_PARAMETER_VALUE, "fdname",
                       "a name not starting with a digit");
-        return -1;
-    }
-
-    fd = dup(fd);
-    if (fd == -1) {
-        if (errno == EMFILE)
-            qerror_report(QERR_TOO_MANY_FILES);
-        else
-            qerror_report(QERR_UNDEFINED_ERROR);
         return -1;
     }
 
@@ -4404,7 +4396,7 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
         qerror_report(QERR_QMP_BAD_INPUT_OBJECT, "execute");
         goto err_input;
     } else if (qobject_type(obj) != QTYPE_QSTRING) {
-        qerror_report(QERR_QMP_BAD_INPUT_OBJECT, "string");
+        qerror_report(QERR_QMP_BAD_INPUT_OBJECT_MEMBER, "execute", "string");
         goto err_input;
     }
 
@@ -4437,6 +4429,9 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     obj = qdict_get(input, "arguments");
     if (!obj) {
         args = qdict_new();
+    } else if (qobject_type(obj) != QTYPE_QDICT) {
+        qerror_report(QERR_QMP_BAD_INPUT_OBJECT_MEMBER, "arguments", "object");
+        goto err_input;
     } else {
         args = qobject_to_qdict(obj);
         QINCREF(args);
