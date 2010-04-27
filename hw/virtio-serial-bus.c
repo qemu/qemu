@@ -374,10 +374,13 @@ static void virtio_serial_save(QEMUFile *f, void *opaque)
 
     /* Items in struct VirtIOSerial */
 
+    qemu_put_be32s(f, &s->bus->max_nr_ports);
+
     /* Do this because we might have hot-unplugged some ports */
     nr_active_ports = 0;
-    QTAILQ_FOREACH(port, &s->ports, next)
+    QTAILQ_FOREACH(port, &s->ports, next) {
         nr_active_ports++;
+    }
 
     qemu_put_be32s(f, &nr_active_ports);
 
@@ -399,7 +402,7 @@ static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
 {
     VirtIOSerial *s = opaque;
     VirtIOSerialPort *port;
-    uint32_t nr_active_ports;
+    uint32_t max_nr_ports, nr_active_ports;
     unsigned int i;
 
     if (version_id > 2) {
@@ -419,6 +422,12 @@ static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
     s->config.nr_ports = qemu_get_be32(f);
 
     /* Items in struct VirtIOSerial */
+
+    qemu_get_be32s(f, &max_nr_ports);
+    if (max_nr_ports > s->bus->max_nr_ports) {
+        /* Source could have more ports than us. Fail migration. */
+        return -EINVAL;
+    }
 
     qemu_get_be32s(f, &nr_active_ports);
 
