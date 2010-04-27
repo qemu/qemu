@@ -111,14 +111,14 @@ static size_t write_to_port(VirtIOSerialPort *port,
     return offset;
 }
 
-static void flush_queued_data(VirtIOSerialPort *port, VirtQueue *vq,
-                              VirtIODevice *vdev, bool discard)
+static void do_flush_queued_data(VirtIOSerialPort *port, VirtQueue *vq,
+                                 VirtIODevice *vdev, bool discard)
 {
     VirtQueueElement elem;
 
     assert(port || discard);
 
-    while (virtqueue_pop(vq, &elem)) {
+    while ((discard || !port->throttled) && virtqueue_pop(vq, &elem)) {
         uint8_t *buf;
         size_t ret, buf_size;
 
@@ -133,6 +133,13 @@ static void flush_queued_data(VirtIOSerialPort *port, VirtQueue *vq,
         virtqueue_push(vq, &elem, 0);
     }
     virtio_notify(vdev, vq);
+}
+
+static void flush_queued_data(VirtIOSerialPort *port, bool discard)
+{
+    assert(port || discard);
+
+    do_flush_queued_data(port, port->ovq, &port->vser->vdev, discard);
 }
 
 static size_t send_control_msg(VirtIOSerialPort *port, void *buf, size_t len)
@@ -186,6 +193,13 @@ int virtio_serial_open(VirtIOSerialPort *port)
 int virtio_serial_close(VirtIOSerialPort *port)
 {
     port->host_connected = false;
+    /*
+     * If there's any data the guest sent which the app didn't
+     * consume, reset the throttling flag and discard the data.
+     */
+    port->throttled = false;
+    flush_queued_data(port, true);
+
     send_control_event(port, VIRTIO_CONSOLE_PORT_OPEN, 0);
 
     return 0;
@@ -225,6 +239,20 @@ size_t virtio_serial_guest_ready(VirtIOSerialPort *port)
         return 1;
     }
     return 0;
+}
+
+void virtio_serial_throttle_port(VirtIOSerialPort *port, bool throttle)
+{
+    if (!port) {
+        return;
+    }
+
+    port->throttled = throttle;
+    if (throttle) {
+        return;
+    }
+
+    flush_queued_data(port, false);
 }
 
 /* Guest wants to notify us of some event */
@@ -380,7 +408,11 @@ static void handle_output(VirtIODevice *vdev, VirtQueue *vq)
         discard = true;
     }
 
-    flush_queued_data(port, vq, vdev, discard);
+    if (!discard && port->throttled) {
+        return;
+    }
+
+    do_flush_queued_data(port, vq, vdev, discard);
 }
 
 static void handle_input(VirtIODevice *vdev, VirtQueue *vq)
@@ -555,6 +587,8 @@ static void virtser_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
                    indent, "", port->guest_connected);
     monitor_printf(mon, "%*s dev-prop-int: host_connected: %d\n",
                    indent, "", port->host_connected);
+    monitor_printf(mon, "%*s dev-prop-int: throttled: %d\n",
+                   indent, "", port->throttled);
 }
 
 /* This function is only used if a port id is not provided by the user */
@@ -592,13 +626,17 @@ static void add_port(VirtIOSerial *vser, uint32_t port_id)
 
 static void remove_port(VirtIOSerial *vser, uint32_t port_id)
 {
+    VirtIOSerialPort *port;
     unsigned int i;
 
     i = port_id / 32;
     vser->ports_map[i] &= ~(1U << (port_id % 32));
 
-    send_control_event(find_port_by_id(vser, port_id),
-                       VIRTIO_CONSOLE_PORT_REMOVE, 1);
+    port = find_port_by_id(vser, port_id);
+    /* Flush out any unconsumed buffers first */
+    flush_queued_data(port, true);
+
+    send_control_event(port, VIRTIO_CONSOLE_PORT_REMOVE, 1);
 }
 
 static int virtser_port_qdev_init(DeviceState *qdev, DeviceInfo *base)

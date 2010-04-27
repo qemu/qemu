@@ -110,6 +110,8 @@ struct VirtIOSerialPort {
     bool guest_connected;
     /* Is this device open for IO on the host? */
     bool host_connected;
+    /* Do apps not want to receive data? */
+    bool throttled;
 };
 
 struct VirtIOSerialPortInfo {
@@ -172,5 +174,12 @@ ssize_t virtio_serial_write(VirtIOSerialPort *port, const uint8_t *buf,
  * Query whether a guest is ready to receive data.
  */
 size_t virtio_serial_guest_ready(VirtIOSerialPort *port);
+
+/*
+ * Flow control: Ports can signal to the virtio-serial core to stop
+ * sending data or re-start sending data, depending on the 'throttle'
+ * value here.
+ */
+void virtio_serial_throttle_port(VirtIOSerialPort *port, bool throttle);
 
 #endif
