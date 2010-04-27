@@ -136,10 +136,10 @@ struct VirtIOSerialPortInfo {
 
     /*
      * Guest wrote some data to the port. This data is handed over to
-     * the app via this callback. The app should return the number of
-     * bytes it successfully consumed.
+     * the app via this callback.  The app is supposed to consume all
+     * the data that is presented to it.
      */
-    size_t (*have_data)(VirtIOSerialPort *port, const uint8_t *buf, size_t len);
+    void (*have_data)(VirtIOSerialPort *port, const uint8_t *buf, size_t len);
 };
 
 /* Interface to the virtio-serial bus */

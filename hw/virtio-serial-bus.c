@@ -335,7 +335,7 @@ static void control_out(VirtIODevice *vdev, VirtQueue *vq)
         copied = iov_to_buf(elem.out_sg, elem.out_num, buf, 0, len);
 
         handle_control_message(vser, buf, copied);
-        virtqueue_push(vq, &elem, copied);
+        virtqueue_push(vq, &elem, 0);
     }
     qemu_free(buf);
     virtio_notify(vdev, vq);
@@ -379,11 +379,11 @@ static void handle_output(VirtIODevice *vdev, VirtQueue *vq)
         buf = qemu_malloc(buf_size);
         ret = iov_to_buf(elem.out_sg, elem.out_num, buf, 0, buf_size);
 
-        ret = port->info->have_data(port, buf, ret);
+        port->info->have_data(port, buf, ret);
         qemu_free(buf);
 
     next_buf:
-        virtqueue_push(vq, &elem, ret);
+        virtqueue_push(vq, &elem, 0);
     }
     virtio_notify(vdev, vq);
 }
