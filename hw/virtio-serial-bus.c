@@ -451,6 +451,13 @@ static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
 
         id = qemu_get_be32(f);
         port = find_port_by_id(s, id);
+        if (!port) {
+            /*
+             * The requested port was hot-plugged on the source but we
+             * don't have it
+             */
+            return -EINVAL;
+        }
 
         port->guest_connected = qemu_get_byte(f);
     }
