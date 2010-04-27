@@ -395,6 +395,7 @@ static void virtio_serial_save(QEMUFile *f, void *opaque)
          */
         qemu_put_be32s(f, &port->id);
         qemu_put_byte(f, port->guest_connected);
+        qemu_put_byte(f, port->host_connected);
     }
 }
 
@@ -448,6 +449,7 @@ static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
     /* Items in struct VirtIOSerialPort */
     for (i = 0; i < nr_active_ports; i++) {
         uint32_t id;
+        bool host_connected;
 
         id = qemu_get_be32(f);
         port = find_port_by_id(s, id);
@@ -460,6 +462,15 @@ static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
         }
 
         port->guest_connected = qemu_get_byte(f);
+        host_connected = qemu_get_byte(f);
+        if (host_connected != port->host_connected) {
+            /*
+             * We have to let the guest know of the host connection
+             * status change
+             */
+            send_control_event(port, VIRTIO_CONSOLE_PORT_OPEN,
+                               port->host_connected);
+        }
     }
 
     return 0;
