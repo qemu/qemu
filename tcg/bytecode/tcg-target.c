@@ -786,8 +786,14 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
 #if TCG_TARGET_REG_BITS == 32
     case INDEX_op_setcond2_i32:
+//~ * setcond2_i32 cond, t0, t1_low, t1_high, t2_low, t2_high
         tcg_out_op_t(s, opc);
-        TODO();
+        tcg_out_r(s, args[0]);
+        tcg_out_r(s, args[1]);
+        tcg_out_r(s, args[2]);
+        tcg_out_ri32(s, const_args[3], args[3]);
+        tcg_out_ri32(s, const_args[4], args[4]);
+        tcg_out8(s, args[5]);   /* condition */
         break;
 #elif TCG_TARGET_REG_BITS == 64
     case INDEX_op_setcond_i64:

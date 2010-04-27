@@ -481,7 +481,11 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             break;
 #if TCG_TARGET_REG_BITS == 32
         case INDEX_op_setcond2_i32:
-            TODO();
+            t0 = *tb_ptr++;
+            u64 = tci_read_r64(&tb_ptr);
+            v64 = tci_read_ri64(&tb_ptr);
+            condition = *tb_ptr++;
+            tci_write_reg32(t0, tci_compare64(u64, v64, condition));
             break;
 #elif TCG_TARGET_REG_BITS == 64
         case INDEX_op_setcond_i64:
