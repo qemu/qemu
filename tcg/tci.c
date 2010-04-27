@@ -38,9 +38,9 @@
 #define TRACE() ((void)0)
 #endif
 
-typedef tcg_target_ulong (*helper_function)(tcg_target_ulong, tcg_target_ulong,
-                                            tcg_target_ulong, tcg_target_ulong,
-                                            tcg_target_ulong, tcg_target_ulong);
+typedef uint64_t (*helper_function)(tcg_target_ulong, tcg_target_ulong,
+                                    tcg_target_ulong, tcg_target_ulong,
+                                    tcg_target_ulong, tcg_target_ulong);
 
 CPUState *env;
 
