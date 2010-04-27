@@ -351,7 +351,8 @@ static void handle_output(VirtIODevice *vdev, VirtQueue *vq)
 
     while (virtqueue_pop(vq, &elem)) {
         VirtIOSerialPort *port;
-        size_t ret;
+        uint8_t *buf;
+        size_t ret, buf_size;
 
         port = find_port_by_vq(vser, vq);
         if (!port) {
@@ -374,9 +375,12 @@ static void handle_output(VirtIODevice *vdev, VirtQueue *vq)
             goto next_buf;
         }
 
-        /* The guest always sends only one sg */
-        ret = port->info->have_data(port, elem.out_sg[0].iov_base,
-                                    elem.out_sg[0].iov_len);
+        buf_size = iov_size(elem.out_sg, elem.out_num);
+        buf = qemu_malloc(buf_size);
+        ret = iov_to_buf(elem.out_sg, elem.out_num, buf, 0, buf_size);
+
+        ret = port->info->have_data(port, buf, ret);
+        qemu_free(buf);
 
     next_buf:
         virtqueue_push(vq, &elem, ret);
