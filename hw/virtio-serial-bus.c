@@ -15,6 +15,7 @@
  * the COPYING file in the top-level directory.
  */
 
+#include "iov.h"
 #include "monitor.h"
 #include "qemu-queue.h"
 #include "sysbus.h"
@@ -84,27 +85,25 @@ static size_t write_to_port(VirtIOSerialPort *port,
 {
     VirtQueueElement elem;
     VirtQueue *vq;
-    size_t offset = 0;
-    size_t len = 0;
+    size_t offset;
 
     vq = port->ivq;
     if (!virtio_queue_ready(vq)) {
         return 0;
     }
 
+    offset = 0;
     while (offset < size) {
-        int i;
+        size_t len;
 
         if (!virtqueue_pop(vq, &elem)) {
             break;
         }
 
-        for (i = 0; offset < size && i < elem.in_num; i++) {
-            len = MIN(elem.in_sg[i].iov_len, size - offset);
+        len = iov_from_buf(elem.in_sg, elem.in_num,
+                           buf + offset, size - offset);
+        offset += len;
 
-            memcpy(elem.in_sg[i].iov_base, buf + offset, len);
-            offset += len;
-        }
         virtqueue_push(vq, &elem, len);
     }
 
