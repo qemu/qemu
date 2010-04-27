@@ -1175,32 +1175,33 @@ DEFHEADING()
 DEFHEADING(Character device options:)
 
 DEF("chardev", HAS_ARG, QEMU_OPTION_chardev,
-    "-chardev null,id=id\n"
+    "-chardev null,id=id[,mux=on|off]\n"
     "-chardev socket,id=id[,host=host],port=host[,to=to][,ipv4][,ipv6][,nodelay]\n"
-    "         [,server][,nowait][,telnet] (tcp)\n"
-    "-chardev socket,id=id,path=path[,server][,nowait][,telnet] (unix)\n"
+    "         [,server][,nowait][,telnet][,mux=on|off] (tcp)\n"
+    "-chardev socket,id=id,path=path[,server][,nowait][,telnet],[mux=on|off] (unix)\n"
     "-chardev udp,id=id[,host=host],port=port[,localaddr=localaddr]\n"
-    "         [,localport=localport][,ipv4][,ipv6]\n"
-    "-chardev msmouse,id=id\n"
+    "         [,localport=localport][,ipv4][,ipv6][,mux=on|off]\n"
+    "-chardev msmouse,id=id[,mux=on|off]\n"
     "-chardev vc,id=id[[,width=width][,height=height]][[,cols=cols][,rows=rows]]\n"
-    "-chardev file,id=id,path=path\n"
-    "-chardev pipe,id=id,path=path\n"
+    "         [,mux=on|off]\n"
+    "-chardev file,id=id,path=path[,mux=on|off]\n"
+    "-chardev pipe,id=id,path=path[,mux=on|off]\n"
 #ifdef _WIN32
-    "-chardev console,id=id\n"
-    "-chardev serial,id=id,path=path\n"
+    "-chardev console,id=id[,mux=on|off]\n"
+    "-chardev serial,id=id,path=path[,mux=on|off]\n"
 #else
-    "-chardev pty,id=id\n"
-    "-chardev stdio,id=id\n"
+    "-chardev pty,id=id[,mux=on|off]\n"
+    "-chardev stdio,id=id[,mux=on|off]\n"
 #endif
 #ifdef CONFIG_BRLAPI
-    "-chardev braille,id=id\n"
+    "-chardev braille,id=id[,mux=on|off]\n"
 #endif
 #if defined(__linux__) || defined(__sun__) || defined(__FreeBSD__) \
         || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
-    "-chardev tty,id=id,path=path\n"
+    "-chardev tty,id=id,path=path[,mux=on|off]\n"
 #endif
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__DragonFly__)
-    "-chardev parport,id=id,path=path\n"
+    "-chardev parport,id=id,path=path[,mux=on|off]\n"
 #endif
     , QEMU_ARCH_ALL
 )
@@ -1210,7 +1211,7 @@ STEXI
 The general form of a character device option is:
 @table @option
 
-@item -chardev @var{backend} ,id=@var{id} [,@var{options}]
+@item -chardev @var{backend} ,id=@var{id} [,mux=on|off] [,@var{options}]
 @findex -chardev
 Backend is one of:
 @option{null},
@@ -1231,6 +1232,10 @@ The specific backend will determine the applicable options.
 
 All devices must have an id, which can be any string up to 127 characters long.
 It is used to uniquely identify this device in other command line directives.
+
+A character device may be used in multiplexing mode by multiple front-ends.
+The key sequence of @key{Control-a} and @key{c} will rotate the input focus
+between attached front-ends. Specify @option{mux=on} to enable this mode.
 
 Options to each backend are described below.
 

@@ -21,6 +21,7 @@
 #include "host-utils.h"
 #include "softfloat.h"
 #include "helper.h"
+#include "qemu-timer.h"
 
 /*****************************************************************************/
 /* Exceptions processing helpers */
@@ -33,8 +34,8 @@ void QEMU_NORETURN helper_excp (int excp, int error)
 
 uint64_t helper_load_pcc (void)
 {
-    /* XXX: TODO */
-    return 0;
+    /* ??? This isn't a timer for which we have any rate info.  */
+    return (uint32_t)cpu_get_real_ticks();
 }
 
 uint64_t helper_load_fpcr (void)
@@ -45,32 +46,6 @@ uint64_t helper_load_fpcr (void)
 void helper_store_fpcr (uint64_t val)
 {
     cpu_alpha_store_fpcr (env, val);
-}
-
-static spinlock_t intr_cpu_lock = SPIN_LOCK_UNLOCKED;
-
-uint64_t helper_rs(void)
-{
-    uint64_t tmp;
-
-    spin_lock(&intr_cpu_lock);
-    tmp = env->intr_flag;
-    env->intr_flag = 1;
-    spin_unlock(&intr_cpu_lock);
-
-    return tmp;
-}
-
-uint64_t helper_rc(void)
-{
-    uint64_t tmp;
-
-    spin_lock(&intr_cpu_lock);
-    tmp = env->intr_flag;
-    env->intr_flag = 0;
-    spin_unlock(&intr_cpu_lock);
-
-    return tmp;
 }
 
 uint64_t helper_addqv (uint64_t op1, uint64_t op2)
@@ -921,24 +896,6 @@ uint64_t helper_sqrtt (uint64_t a)
     return float64_to_t(fr);
 }
 
-
-/* Sign copy */
-uint64_t helper_cpys(uint64_t a, uint64_t b)
-{
-    return (a & 0x8000000000000000ULL) | (b & ~0x8000000000000000ULL);
-}
-
-uint64_t helper_cpysn(uint64_t a, uint64_t b)
-{
-    return ((~a) & 0x8000000000000000ULL) | (b & ~0x8000000000000000ULL);
-}
-
-uint64_t helper_cpyse(uint64_t a, uint64_t b)
-{
-    return (a & 0xFFF0000000000000ULL) | (b & ~0xFFF0000000000000ULL);
-}
-
-
 /* Comparisons */
 uint64_t helper_cmptun (uint64_t a, uint64_t b)
 {
@@ -1196,19 +1153,14 @@ uint64_t helper_cvtqg (uint64_t a)
     return float64_to_g(fr);
 }
 
-uint64_t helper_cvtlq (uint64_t a)
-{
-    int32_t lo = a >> 29;
-    int32_t hi = a >> 32;
-    return (lo & 0x3FFFFFFF) | (hi & 0xc0000000);
-}
-
 /* PALcode support special instructions */
 #if !defined (CONFIG_USER_ONLY)
 void helper_hw_rei (void)
 {
     env->pc = env->ipr[IPR_EXC_ADDR] & ~3;
     env->ipr[IPR_EXC_ADDR] = env->ipr[IPR_EXC_ADDR] & 1;
+    env->intr_flag = 0;
+    env->lock_addr = -1;
     /* XXX: re-enable interrupts and memory mapping */
 }
 
@@ -1216,6 +1168,8 @@ void helper_hw_ret (uint64_t a)
 {
     env->pc = a & ~3;
     env->ipr[IPR_EXC_ADDR] = a & 1;
+    env->intr_flag = 0;
+    env->lock_addr = -1;
     /* XXX: re-enable interrupts and memory mapping */
 }
 

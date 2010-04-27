@@ -43,12 +43,13 @@
 
 typedef struct DisasContext DisasContext;
 struct DisasContext {
+    struct TranslationBlock *tb;
+    CPUAlphaState *env;
     uint64_t pc;
     int mem_idx;
 #if !defined (CONFIG_USER_ONLY)
     int pal_mode;
 #endif
-    CPUAlphaState *env;
     uint32_t amask;
 
     /* Current rounding mode for this TB.  */
@@ -57,12 +58,37 @@ struct DisasContext {
     int tb_ftz;
 };
 
+/* Return values from translate_one, indicating the state of the TB.
+   Note that zero indicates that we are not exiting the TB.  */
+
+typedef enum {
+    NO_EXIT,
+
+    /* We have emitted one or more goto_tb.  No fixup required.  */
+    EXIT_GOTO_TB,
+
+    /* We are not using a goto_tb (for whatever reason), but have updated
+       the PC (for whatever reason), so there's no need to do it again on
+       exiting the TB.  */
+    EXIT_PC_UPDATED,
+
+    /* We are exiting the TB, but have neither emitted a goto_tb, nor
+       updated the PC for the next instruction to be executed.  */
+    EXIT_PC_STALE,
+
+    /* We are ending the TB with a noreturn function call, e.g. longjmp.
+       No following code will be executed.  */
+    EXIT_NORETURN,
+} ExitStatus;
+
 /* global register indexes */
 static TCGv_ptr cpu_env;
 static TCGv cpu_ir[31];
 static TCGv cpu_fir[31];
 static TCGv cpu_pc;
-static TCGv cpu_lock;
+static TCGv cpu_lock_addr;
+static TCGv cpu_lock_st_addr;
+static TCGv cpu_lock_value;
 #ifdef CONFIG_USER_ONLY
 static TCGv cpu_uniq;
 #endif
@@ -99,8 +125,15 @@ static void alpha_translate_init(void)
     cpu_pc = tcg_global_mem_new_i64(TCG_AREG0,
                                     offsetof(CPUState, pc), "pc");
 
-    cpu_lock = tcg_global_mem_new_i64(TCG_AREG0,
-                                      offsetof(CPUState, lock), "lock");
+    cpu_lock_addr = tcg_global_mem_new_i64(TCG_AREG0,
+					   offsetof(CPUState, lock_addr),
+					   "lock_addr");
+    cpu_lock_st_addr = tcg_global_mem_new_i64(TCG_AREG0,
+					      offsetof(CPUState, lock_st_addr),
+					      "lock_st_addr");
+    cpu_lock_value = tcg_global_mem_new_i64(TCG_AREG0,
+					    offsetof(CPUState, lock_value),
+					    "lock_value");
 
 #ifdef CONFIG_USER_ONLY
     cpu_uniq = tcg_global_mem_new_i64(TCG_AREG0,
@@ -114,7 +147,7 @@ static void alpha_translate_init(void)
     done_init = 1;
 }
 
-static inline void gen_excp(DisasContext *ctx, int exception, int error_code)
+static ExitStatus gen_excp(DisasContext *ctx, int exception, int error_code)
 {
     TCGv_i32 tmp1, tmp2;
 
@@ -124,11 +157,13 @@ static inline void gen_excp(DisasContext *ctx, int exception, int error_code)
     gen_helper_excp(tmp1, tmp2);
     tcg_temp_free_i32(tmp2);
     tcg_temp_free_i32(tmp1);
+
+    return EXIT_NORETURN;
 }
 
-static inline void gen_invalid(DisasContext *ctx)
+static inline ExitStatus gen_invalid(DisasContext *ctx)
 {
-    gen_excp(ctx, EXCP_OPCDEC, 0);
+    return gen_excp(ctx, EXCP_OPCDEC, 0);
 }
 
 static inline void gen_qemu_ldf(TCGv t0, TCGv t1, int flags)
@@ -163,14 +198,16 @@ static inline void gen_qemu_lds(TCGv t0, TCGv t1, int flags)
 
 static inline void gen_qemu_ldl_l(TCGv t0, TCGv t1, int flags)
 {
-    tcg_gen_mov_i64(cpu_lock, t1);
     tcg_gen_qemu_ld32s(t0, t1, flags);
+    tcg_gen_mov_i64(cpu_lock_addr, t1);
+    tcg_gen_mov_i64(cpu_lock_value, t0);
 }
 
 static inline void gen_qemu_ldq_l(TCGv t0, TCGv t1, int flags)
 {
-    tcg_gen_mov_i64(cpu_lock, t1);
     tcg_gen_qemu_ld64(t0, t1, flags);
+    tcg_gen_mov_i64(cpu_lock_addr, t1);
+    tcg_gen_mov_i64(cpu_lock_value, t0);
 }
 
 static inline void gen_load_mem(DisasContext *ctx,
@@ -179,25 +216,31 @@ static inline void gen_load_mem(DisasContext *ctx,
                                 int ra, int rb, int32_t disp16, int fp,
                                 int clear)
 {
-    TCGv addr;
+    TCGv addr, va;
 
-    if (unlikely(ra == 31))
+    /* LDQ_U with ra $31 is UNOP.  Other various loads are forms of
+       prefetches, which we can treat as nops.  No worries about
+       missed exceptions here.  */
+    if (unlikely(ra == 31)) {
         return;
+    }
 
     addr = tcg_temp_new();
     if (rb != 31) {
         tcg_gen_addi_i64(addr, cpu_ir[rb], disp16);
-        if (clear)
+        if (clear) {
             tcg_gen_andi_i64(addr, addr, ~0x7);
+        }
     } else {
-        if (clear)
+        if (clear) {
             disp16 &= ~0x7;
+        }
         tcg_gen_movi_i64(addr, disp16);
     }
-    if (fp)
-        tcg_gen_qemu_load(cpu_fir[ra], addr, ctx->mem_idx);
-    else
-        tcg_gen_qemu_load(cpu_ir[ra], addr, ctx->mem_idx);
+
+    va = (fp ? cpu_fir[ra] : cpu_ir[ra]);
+    tcg_gen_qemu_load(va, addr, ctx->mem_idx);
+
     tcg_temp_free(addr);
 }
 
@@ -231,146 +274,227 @@ static inline void gen_qemu_sts(TCGv t0, TCGv t1, int flags)
     tcg_temp_free_i32(tmp32);
 }
 
-static inline void gen_qemu_stl_c(TCGv t0, TCGv t1, int flags)
-{
-    int l1, l2;
-
-    l1 = gen_new_label();
-    l2 = gen_new_label();
-    tcg_gen_brcond_i64(TCG_COND_NE, cpu_lock, t1, l1);
-    tcg_gen_qemu_st32(t0, t1, flags);
-    tcg_gen_movi_i64(t0, 1);
-    tcg_gen_br(l2);
-    gen_set_label(l1);
-    tcg_gen_movi_i64(t0, 0);
-    gen_set_label(l2);
-    tcg_gen_movi_i64(cpu_lock, -1);
-}
-
-static inline void gen_qemu_stq_c(TCGv t0, TCGv t1, int flags)
-{
-    int l1, l2;
-
-    l1 = gen_new_label();
-    l2 = gen_new_label();
-    tcg_gen_brcond_i64(TCG_COND_NE, cpu_lock, t1, l1);
-    tcg_gen_qemu_st64(t0, t1, flags);
-    tcg_gen_movi_i64(t0, 1);
-    tcg_gen_br(l2);
-    gen_set_label(l1);
-    tcg_gen_movi_i64(t0, 0);
-    gen_set_label(l2);
-    tcg_gen_movi_i64(cpu_lock, -1);
-}
-
 static inline void gen_store_mem(DisasContext *ctx,
                                  void (*tcg_gen_qemu_store)(TCGv t0, TCGv t1,
                                                             int flags),
                                  int ra, int rb, int32_t disp16, int fp,
-                                 int clear, int local)
+                                 int clear)
 {
-    TCGv addr;
-    if (local)
-        addr = tcg_temp_local_new();
-    else
-        addr = tcg_temp_new();
+    TCGv addr, va;
+
+    addr = tcg_temp_new();
     if (rb != 31) {
         tcg_gen_addi_i64(addr, cpu_ir[rb], disp16);
-        if (clear)
+        if (clear) {
             tcg_gen_andi_i64(addr, addr, ~0x7);
-    } else {
-        if (clear)
-            disp16 &= ~0x7;
-        tcg_gen_movi_i64(addr, disp16);
-    }
-    if (ra != 31) {
-        if (fp)
-            tcg_gen_qemu_store(cpu_fir[ra], addr, ctx->mem_idx);
-        else
-            tcg_gen_qemu_store(cpu_ir[ra], addr, ctx->mem_idx);
-    } else {
-        TCGv zero;
-        if (local)
-            zero = tcg_const_local_i64(0);
-        else
-            zero = tcg_const_i64(0);
-        tcg_gen_qemu_store(zero, addr, ctx->mem_idx);
-        tcg_temp_free(zero);
-    }
-    tcg_temp_free(addr);
-}
-
-static void gen_bcond_pcload(DisasContext *ctx, int32_t disp, int lab_true)
-{
-    int lab_over = gen_new_label();
-
-    tcg_gen_movi_i64(cpu_pc, ctx->pc);
-    tcg_gen_br(lab_over);
-    gen_set_label(lab_true);
-    tcg_gen_movi_i64(cpu_pc, ctx->pc + (int64_t)(disp << 2));
-    gen_set_label(lab_over);
-}
-
-static void gen_bcond(DisasContext *ctx, TCGCond cond, int ra,
-                      int32_t disp, int mask)
-{
-    int lab_true = gen_new_label();
-
-    if (likely(ra != 31)) {
-        if (mask) {
-            TCGv tmp = tcg_temp_new();
-            tcg_gen_andi_i64(tmp, cpu_ir[ra], 1);
-            tcg_gen_brcondi_i64(cond, tmp, 0, lab_true);
-            tcg_temp_free(tmp);
-        } else {
-            tcg_gen_brcondi_i64(cond, cpu_ir[ra], 0, lab_true);
         }
     } else {
-        /* Very uncommon case - Do not bother to optimize.  */
-        TCGv tmp = tcg_const_i64(0);
-        tcg_gen_brcondi_i64(cond, tmp, 0, lab_true);
-        tcg_temp_free(tmp);
+        if (clear) {
+            disp16 &= ~0x7;
+        }
+        tcg_gen_movi_i64(addr, disp16);
     }
-    gen_bcond_pcload(ctx, disp, lab_true);
+
+    if (ra == 31) {
+        va = tcg_const_i64(0);
+    } else {
+        va = (fp ? cpu_fir[ra] : cpu_ir[ra]);
+    }
+    tcg_gen_qemu_store(va, addr, ctx->mem_idx);
+
+    tcg_temp_free(addr);
+    if (ra == 31) {
+        tcg_temp_free(va);
+    }
 }
 
-/* Generate a forward TCG branch to LAB_TRUE if RA cmp 0.0.
-   This is complicated by the fact that -0.0 compares the same as +0.0.  */
-
-static void gen_fbcond_internal(TCGCond cond, TCGv src, int lab_true)
+static ExitStatus gen_store_conditional(DisasContext *ctx, int ra, int rb,
+                                        int32_t disp16, int quad)
 {
-    int lab_false = -1;
+    TCGv addr;
+
+    if (ra == 31) {
+        /* ??? Don't bother storing anything.  The user can't tell
+           the difference, since the zero register always reads zero.  */
+        return NO_EXIT;
+    }
+
+#if defined(CONFIG_USER_ONLY)
+    addr = cpu_lock_st_addr;
+#else
+    addr = tcg_local_new();
+#endif
+
+    if (rb != 31) {
+        tcg_gen_addi_i64(addr, cpu_ir[rb], disp16);
+    } else {
+        tcg_gen_movi_i64(addr, disp16);
+    }
+
+#if defined(CONFIG_USER_ONLY)
+    /* ??? This is handled via a complicated version of compare-and-swap
+       in the cpu_loop.  Hopefully one day we'll have a real CAS opcode
+       in TCG so that this isn't necessary.  */
+    return gen_excp(ctx, quad ? EXCP_STQ_C : EXCP_STL_C, ra);
+#else
+    /* ??? In system mode we are never multi-threaded, so CAS can be
+       implemented via a non-atomic load-compare-store sequence.  */
+    {
+        int lab_fail, lab_done;
+        TCGv val;
+
+        lab_fail = gen_new_label();
+        lab_done = gen_new_label();
+        tcg_gen_brcond(TCG_COND_NE, addr, cpu_lock_addr, lab_fail);
+
+        val = tcg_temp_new();
+        if (quad) {
+            tcg_gen_qemu_ld64(val, addr, ctx->mem_idx);
+        } else {
+            tcg_gen_qemu_ld32s(val, addr, ctx->mem_idx);
+        }
+        tcg_gen_brcond(TCG_COND_NE, val, cpu_lock_value, lab_fail);
+
+        if (quad) {
+            tcg_gen_qemu_st64(cpu_ir[ra], addr, ctx->mem_idx);
+        } else {
+            tcg_gen_qemu_st32(cpu_ir[ra], addr, ctx->mem_idx);
+        }
+        tcg_gen_movi_i64(cpu_ir[ra], 1);
+        tcg_gen_br(lab_done);
+
+        gen_set_label(lab_fail);
+        tcg_gen_movi_i64(cpu_ir[ra], 0);
+
+        gen_set_label(lab_done);
+        tcg_gen_movi_i64(cpu_lock_addr, -1);
+
+        tcg_temp_free(addr);
+        return NO_EXIT;
+    }
+#endif
+}
+
+static int use_goto_tb(DisasContext *ctx, uint64_t dest)
+{
+    /* Check for the dest on the same page as the start of the TB.  We
+       also want to suppress goto_tb in the case of single-steping and IO.  */
+    return (((ctx->tb->pc ^ dest) & TARGET_PAGE_MASK) == 0
+            && !ctx->env->singlestep_enabled
+            && !(ctx->tb->cflags & CF_LAST_IO));
+}
+
+static ExitStatus gen_bdirect(DisasContext *ctx, int ra, int32_t disp)
+{
+    uint64_t dest = ctx->pc + (disp << 2);
+
+    if (ra != 31) {
+        tcg_gen_movi_i64(cpu_ir[ra], ctx->pc);
+    }
+
+    /* Notice branch-to-next; used to initialize RA with the PC.  */
+    if (disp == 0) {
+        return 0;
+    } else if (use_goto_tb(ctx, dest)) {
+        tcg_gen_goto_tb(0);
+        tcg_gen_movi_i64(cpu_pc, dest);
+        tcg_gen_exit_tb((long)ctx->tb);
+        return EXIT_GOTO_TB;
+    } else {
+        tcg_gen_movi_i64(cpu_pc, dest);
+        return EXIT_PC_UPDATED;
+    }
+}
+
+static ExitStatus gen_bcond_internal(DisasContext *ctx, TCGCond cond,
+                                     TCGv cmp, int32_t disp)
+{
+    uint64_t dest = ctx->pc + (disp << 2);
+    int lab_true = gen_new_label();
+
+    if (use_goto_tb(ctx, dest)) {
+        tcg_gen_brcondi_i64(cond, cmp, 0, lab_true);
+
+        tcg_gen_goto_tb(0);
+        tcg_gen_movi_i64(cpu_pc, ctx->pc);
+        tcg_gen_exit_tb((long)ctx->tb);
+
+        gen_set_label(lab_true);
+        tcg_gen_goto_tb(1);
+        tcg_gen_movi_i64(cpu_pc, dest);
+        tcg_gen_exit_tb((long)ctx->tb + 1);
+
+        return EXIT_GOTO_TB;
+    } else {
+        int lab_over = gen_new_label();
+
+        /* ??? Consider using either
+             movi pc, next
+             addi tmp, pc, disp
+             movcond pc, cond, 0, tmp, pc
+           or
+             setcond tmp, cond, 0
+             movi pc, next
+             neg tmp, tmp
+             andi tmp, tmp, disp
+             add pc, pc, tmp
+           The current diamond subgraph surely isn't efficient.  */
+
+        tcg_gen_brcondi_i64(cond, cmp, 0, lab_true);
+        tcg_gen_movi_i64(cpu_pc, ctx->pc);
+        tcg_gen_br(lab_over);
+        gen_set_label(lab_true);
+        tcg_gen_movi_i64(cpu_pc, dest);
+        gen_set_label(lab_over);
+
+        return EXIT_PC_UPDATED;
+    }
+}
+
+static ExitStatus gen_bcond(DisasContext *ctx, TCGCond cond, int ra,
+                            int32_t disp, int mask)
+{
+    TCGv cmp_tmp;
+
+    if (unlikely(ra == 31)) {
+        cmp_tmp = tcg_const_i64(0);
+    } else {
+        cmp_tmp = tcg_temp_new();
+        if (mask) {
+            tcg_gen_andi_i64(cmp_tmp, cpu_ir[ra], 1);
+        } else {
+            tcg_gen_mov_i64(cmp_tmp, cpu_ir[ra]);
+        }
+    }
+
+    return gen_bcond_internal(ctx, cond, cmp_tmp, disp);
+}
+
+/* Fold -0.0 for comparison with COND.  */
+
+static void gen_fold_mzero(TCGCond cond, TCGv dest, TCGv src)
+{
     uint64_t mzero = 1ull << 63;
-    TCGv tmp;
 
     switch (cond) {
     case TCG_COND_LE:
     case TCG_COND_GT:
         /* For <= or >, the -0.0 value directly compares the way we want.  */
-        tcg_gen_brcondi_i64(cond, src, 0, lab_true);
+        tcg_gen_mov_i64(dest, src);
         break;
 
     case TCG_COND_EQ:
     case TCG_COND_NE:
         /* For == or !=, we can simply mask off the sign bit and compare.  */
-        /* ??? Assume that the temporary is reclaimed at the branch.  */
-        tmp = tcg_temp_new();
-        tcg_gen_andi_i64(tmp, src, mzero - 1);
-        tcg_gen_brcondi_i64(cond, tmp, 0, lab_true);
+        tcg_gen_andi_i64(dest, src, mzero - 1);
         break;
 
     case TCG_COND_GE:
-        /* For >=, emit two branches to the destination.  */
-        tcg_gen_brcondi_i64(cond, src, 0, lab_true);
-        tcg_gen_brcondi_i64(TCG_COND_EQ, src, mzero, lab_true);
-        break;
-
     case TCG_COND_LT:
-        /* For <, first filter out -0.0 to what will be the fallthru.  */
-        lab_false = gen_new_label();
-        tcg_gen_brcondi_i64(TCG_COND_EQ, src, mzero, lab_false);
-        tcg_gen_brcondi_i64(cond, src, 0, lab_true);
-        gen_set_label(lab_false);
+        /* For >= or <, map -0.0 to +0.0 via comparison and mask.  */
+        tcg_gen_setcondi_i64(TCG_COND_NE, dest, src, mzero);
+        tcg_gen_neg_i64(dest, dest);
+        tcg_gen_and_i64(dest, dest, src);
         break;
 
     default:
@@ -378,24 +502,24 @@ static void gen_fbcond_internal(TCGCond cond, TCGv src, int lab_true)
     }
 }
 
-static void gen_fbcond(DisasContext *ctx, TCGCond cond, int ra, int32_t disp)
+static ExitStatus gen_fbcond(DisasContext *ctx, TCGCond cond, int ra,
+                             int32_t disp)
 {
-    int lab_true;
+    TCGv cmp_tmp;
 
     if (unlikely(ra == 31)) {
         /* Very uncommon case, but easier to optimize it to an integer
            comparison than continuing with the floating point comparison.  */
-        gen_bcond(ctx, cond, ra, disp, 0);
-        return;
+        return gen_bcond(ctx, cond, ra, disp, 0);
     }
 
-    lab_true = gen_new_label();
-    gen_fbcond_internal(cond, cpu_fir[ra], lab_true);
-    gen_bcond_pcload(ctx, disp, lab_true);
+    cmp_tmp = tcg_temp_new();
+    gen_fold_mzero(cond, cmp_tmp, cpu_fir[ra]);
+    return gen_bcond_internal(ctx, cond, cmp_tmp, disp);
 }
 
 static void gen_cmov(TCGCond cond, int ra, int rb, int rc,
-		     int islit, uint8_t lit, int mask)
+                     int islit, uint8_t lit, int mask)
 {
     TCGCond inv_cond = tcg_invert_cond(cond);
     int l1;
@@ -429,18 +553,23 @@ static void gen_cmov(TCGCond cond, int ra, int rb, int rc,
 
 static void gen_fcmov(TCGCond cond, int ra, int rb, int rc)
 {
-    TCGv va = cpu_fir[ra];
+    TCGv cmp_tmp;
     int l1;
 
-    if (unlikely(rc == 31))
+    if (unlikely(rc == 31)) {
         return;
+    }
+
+    cmp_tmp = tcg_temp_new();
     if (unlikely(ra == 31)) {
-        /* ??? Assume that the temporary is reclaimed at the branch.  */
-        va = tcg_const_i64(0);
+        tcg_gen_movi_i64(cmp_tmp, 0);
+    } else {
+        gen_fold_mzero(cond, cmp_tmp, cpu_fir[ra]);
     }
 
     l1 = gen_new_label();
-    gen_fbcond_internal(tcg_invert_cond(cond), va, l1);
+    tcg_gen_brcondi_i64(tcg_invert_cond(cond), cmp_tmp, 0, l1);
+    tcg_temp_free(cmp_tmp);
 
     if (rb != 31)
         tcg_gen_mov_i64(cpu_fir[rc], cpu_fir[rb]);
@@ -598,6 +727,28 @@ static inline void gen_fp_exc_raise(int rc, int fn11)
     gen_fp_exc_raise_ignore(rc, fn11, fn11 & QUAL_I ? 0 : float_flag_inexact);
 }
 
+static void gen_fcvtlq(int rb, int rc)
+{
+    if (unlikely(rc == 31)) {
+        return;
+    }
+    if (unlikely(rb == 31)) {
+        tcg_gen_movi_i64(cpu_fir[rc], 0);
+    } else {
+        TCGv tmp = tcg_temp_new();
+
+        /* The arithmetic right shift here, plus the sign-extended mask below
+           yields a sign-extended result without an explicit ext32s_i64.  */
+        tcg_gen_sari_i64(tmp, cpu_fir[rb], 32);
+        tcg_gen_shri_i64(cpu_fir[rc], cpu_fir[rb], 29);
+        tcg_gen_andi_i64(tmp, tmp, (int32_t)0xc0000000);
+        tcg_gen_andi_i64(cpu_fir[rc], cpu_fir[rc], 0x3fffffff);
+        tcg_gen_or_i64(cpu_fir[rc], cpu_fir[rc], tmp);
+
+        tcg_temp_free(tmp);
+    }
+}
+
 static void gen_fcvtql(int rb, int rc)
 {
     if (unlikely(rc == 31)) {
@@ -647,7 +798,6 @@ static inline void glue(gen_f, name)(int rb, int rc)    \
         tcg_temp_free(tmp);                             \
     }                                                   \
 }
-FARITH2(cvtlq)
 
 /* ??? VAX instruction qualifiers ignored.  */
 FARITH2(sqrtf)
@@ -774,6 +924,81 @@ static inline void glue(gen_f, name)(DisasContext *ctx,         \
 IEEE_INTCVT(cvtqs)
 IEEE_INTCVT(cvtqt)
 
+static void gen_cpys_internal(int ra, int rb, int rc, int inv_a, uint64_t mask)
+{
+    TCGv va, vb, vmask;
+    int za = 0, zb = 0;
+
+    if (unlikely(rc == 31)) {
+        return;
+    }
+
+    vmask = tcg_const_i64(mask);
+
+    TCGV_UNUSED_I64(va);
+    if (ra == 31) {
+        if (inv_a) {
+            va = vmask;
+        } else {
+            za = 1;
+        }
+    } else {
+        va = tcg_temp_new_i64();
+        tcg_gen_mov_i64(va, cpu_fir[ra]);
+        if (inv_a) {
+            tcg_gen_andc_i64(va, vmask, va);
+        } else {
+            tcg_gen_and_i64(va, va, vmask);
+        }
+    }
+
+    TCGV_UNUSED_I64(vb);
+    if (rb == 31) {
+        zb = 1;
+    } else {
+        vb = tcg_temp_new_i64();
+        tcg_gen_andc_i64(vb, cpu_fir[rb], vmask);
+    }
+
+    switch (za << 1 | zb) {
+    case 0 | 0:
+        tcg_gen_or_i64(cpu_fir[rc], va, vb);
+        break;
+    case 0 | 1:
+        tcg_gen_mov_i64(cpu_fir[rc], va);
+        break;
+    case 2 | 0:
+        tcg_gen_mov_i64(cpu_fir[rc], vb);
+        break;
+    case 2 | 1:
+        tcg_gen_movi_i64(cpu_fir[rc], 0);
+        break;
+    }
+
+    tcg_temp_free(vmask);
+    if (ra != 31) {
+        tcg_temp_free(va);
+    }
+    if (rb != 31) {
+        tcg_temp_free(vb);
+    }
+}
+
+static inline void gen_fcpys(int ra, int rb, int rc)
+{
+    gen_cpys_internal(ra, rb, rc, 0, 0x8000000000000000ULL);
+}
+
+static inline void gen_fcpysn(int ra, int rb, int rc)
+{
+    gen_cpys_internal(ra, rb, rc, 1, 0x8000000000000000ULL);
+}
+
+static inline void gen_fcpyse(int ra, int rb, int rc)
+{
+    gen_cpys_internal(ra, rb, rc, 0, 0xFFF0000000000000ULL);
+}
+
 #define FARITH3(name)                                           \
 static inline void glue(gen_f, name)(int ra, int rb, int rc)    \
 {                                                               \
@@ -802,10 +1027,6 @@ static inline void glue(gen_f, name)(int ra, int rb, int rc)    \
         tcg_temp_free(vb);                                      \
     }                                                           \
 }
-/* ??? Ought to expand these inline; simple masking operations.  */
-FARITH3(cpys)
-FARITH3(cpysn)
-FARITH3(cpyse)
 
 /* ??? VAX instruction qualifiers ignored.  */
 FARITH3(addf)
@@ -1230,14 +1451,27 @@ static void gen_cmp(TCGCond cond, int ra, int rb, int rc,
     }
 }
 
-static inline int translate_one(DisasContext *ctx, uint32_t insn)
+static void gen_rx(int ra, int set)
+{
+    TCGv_i32 tmp;
+
+    if (ra != 31) {
+        tcg_gen_ld8u_i64(cpu_ir[ra], cpu_env, offsetof(CPUState, intr_flag));
+    }
+
+    tmp = tcg_const_i32(set);
+    tcg_gen_st8_i32(tmp, cpu_env, offsetof(CPUState, intr_flag));
+    tcg_temp_free_i32(tmp);
+}
+
+static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
 {
     uint32_t palcode;
     int32_t disp21, disp16, disp12;
     uint16_t fn11;
     uint8_t opc, ra, rb, rc, fpfn, fn7, fn2, islit, real_islit;
     uint8_t lit;
-    int ret;
+    ExitStatus ret;
 
     /* Decode all instruction fields */
     opc = insn >> 26;
@@ -1258,10 +1492,10 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
     fpfn = fn11 & 0x3F;
     fn7 = (insn >> 5) & 0x0000007F;
     fn2 = (insn >> 5) & 0x00000003;
-    ret = 0;
     LOG_DISAS("opc %02x ra %2d rb %2d rc %2d disp16 %6d\n",
               opc, ra, rb, rc, disp16);
 
+    ret = NO_EXIT;
     switch (opc) {
     case 0x00:
         /* CALL_PAL */
@@ -1278,8 +1512,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
 #endif
         if (palcode >= 0x80 && palcode < 0xC0) {
             /* Unprivileged PAL call */
-            gen_excp(ctx, EXCP_CALL_PAL + ((palcode & 0x3F) << 6), 0);
-            ret = 3;
+            ret = gen_excp(ctx, EXCP_CALL_PAL + ((palcode & 0x3F) << 6), 0);
             break;
         }
 #ifndef CONFIG_USER_ONLY
@@ -1287,7 +1520,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             /* Privileged PAL code */
             if (ctx->mem_idx & 1)
                 goto invalid_opc;
-            gen_excp(ctx, EXCP_CALL_PALP + ((palcode & 0x3F) << 6), 0);
+            ret = gen_excp(ctx, EXCP_CALL_PALP + ((palcode & 0x3F) << 6), 0);
         }
 #endif
         /* Invalid PAL call */
@@ -1349,15 +1582,15 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
         break;
     case 0x0D:
         /* STW */
-        gen_store_mem(ctx, &tcg_gen_qemu_st16, ra, rb, disp16, 0, 0, 0);
+        gen_store_mem(ctx, &tcg_gen_qemu_st16, ra, rb, disp16, 0, 0);
         break;
     case 0x0E:
         /* STB */
-        gen_store_mem(ctx, &tcg_gen_qemu_st8, ra, rb, disp16, 0, 0, 0);
+        gen_store_mem(ctx, &tcg_gen_qemu_st8, ra, rb, disp16, 0, 0);
         break;
     case 0x0F:
         /* STQ_U */
-        gen_store_mem(ctx, &tcg_gen_qemu_st64, ra, rb, disp16, 0, 1, 0);
+        gen_store_mem(ctx, &tcg_gen_qemu_st64, ra, rb, disp16, 0, 1);
         break;
     case 0x10:
         switch (fn7) {
@@ -2290,13 +2523,11 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
         switch ((uint16_t)disp16) {
         case 0x0000:
             /* TRAPB */
-            /* No-op. Just exit from the current tb */
-            ret = 2;
+            /* No-op.  */
             break;
         case 0x0400:
             /* EXCB */
-            /* No-op. Just exit from the current tb */
-            ret = 2;
+            /* No-op.  */
             break;
         case 0x4000:
             /* MB */
@@ -2321,16 +2552,14 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0xE000:
             /* RC */
-            if (ra != 31)
-                gen_helper_rc(cpu_ir[ra]);
+            gen_rx(ra, 0);
             break;
         case 0xE800:
             /* ECB */
             break;
         case 0xF000:
             /* RS */
-            if (ra != 31)
-                gen_helper_rs(cpu_ir[ra]);
+            gen_rx(ra, 1);
             break;
         case 0xF800:
             /* WH64 */
@@ -2355,28 +2584,17 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
         break;
 #endif
     case 0x1A:
-        if (rb != 31)
+        /* JMP, JSR, RET, JSR_COROUTINE.  These only differ by the branch
+           prediction stack action, which of course we don't implement.  */
+        if (rb != 31) {
             tcg_gen_andi_i64(cpu_pc, cpu_ir[rb], ~3);
-        else
+        } else {
             tcg_gen_movi_i64(cpu_pc, 0);
-        if (ra != 31)
-            tcg_gen_movi_i64(cpu_ir[ra], ctx->pc);
-        /* Those four jumps only differ by the branch prediction hint */
-        switch (fn2) {
-        case 0x0:
-            /* JMP */
-            break;
-        case 0x1:
-            /* JSR */
-            break;
-        case 0x2:
-            /* RET */
-            break;
-        case 0x3:
-            /* JSR_COROUTINE */
-            break;
         }
-        ret = 1;
+        if (ra != 31) {
+            tcg_gen_movi_i64(cpu_ir[ra], ctx->pc);
+        }
+        ret = EXIT_PC_UPDATED;
         break;
     case 0x1B:
         /* HW_LD (PALcode) */
@@ -2667,7 +2885,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
                 tcg_temp_free(tmp2);
             }
             tcg_temp_free(tmp1);
-            ret = 2;
+            ret = EXIT_PC_STALE;
         }
         break;
 #endif
@@ -2692,7 +2910,7 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
             gen_helper_hw_ret(tmp);
             tcg_temp_free(tmp);
         }
-        ret = 2;
+        ret = EXIT_PC_UPDATED;
         break;
 #endif
     case 0x1F:
@@ -2805,19 +3023,19 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
         break;
     case 0x24:
         /* STF */
-        gen_store_mem(ctx, &gen_qemu_stf, ra, rb, disp16, 1, 0, 0);
+        gen_store_mem(ctx, &gen_qemu_stf, ra, rb, disp16, 1, 0);
         break;
     case 0x25:
         /* STG */
-        gen_store_mem(ctx, &gen_qemu_stg, ra, rb, disp16, 1, 0, 0);
+        gen_store_mem(ctx, &gen_qemu_stg, ra, rb, disp16, 1, 0);
         break;
     case 0x26:
         /* STS */
-        gen_store_mem(ctx, &gen_qemu_sts, ra, rb, disp16, 1, 0, 0);
+        gen_store_mem(ctx, &gen_qemu_sts, ra, rb, disp16, 1, 0);
         break;
     case 0x27:
         /* STT */
-        gen_store_mem(ctx, &tcg_gen_qemu_st64, ra, rb, disp16, 1, 0, 0);
+        gen_store_mem(ctx, &tcg_gen_qemu_st64, ra, rb, disp16, 1, 0);
         break;
     case 0x28:
         /* LDL */
@@ -2837,101 +3055,80 @@ static inline int translate_one(DisasContext *ctx, uint32_t insn)
         break;
     case 0x2C:
         /* STL */
-        gen_store_mem(ctx, &tcg_gen_qemu_st32, ra, rb, disp16, 0, 0, 0);
+        gen_store_mem(ctx, &tcg_gen_qemu_st32, ra, rb, disp16, 0, 0);
         break;
     case 0x2D:
         /* STQ */
-        gen_store_mem(ctx, &tcg_gen_qemu_st64, ra, rb, disp16, 0, 0, 0);
+        gen_store_mem(ctx, &tcg_gen_qemu_st64, ra, rb, disp16, 0, 0);
         break;
     case 0x2E:
         /* STL_C */
-        gen_store_mem(ctx, &gen_qemu_stl_c, ra, rb, disp16, 0, 0, 1);
+        ret = gen_store_conditional(ctx, ra, rb, disp16, 0);
         break;
     case 0x2F:
         /* STQ_C */
-        gen_store_mem(ctx, &gen_qemu_stq_c, ra, rb, disp16, 0, 0, 1);
+        ret = gen_store_conditional(ctx, ra, rb, disp16, 1);
         break;
     case 0x30:
         /* BR */
-        if (ra != 31)
-            tcg_gen_movi_i64(cpu_ir[ra], ctx->pc);
-        tcg_gen_movi_i64(cpu_pc, ctx->pc + (int64_t)(disp21 << 2));
-        ret = 1;
+        ret = gen_bdirect(ctx, ra, disp21);
         break;
     case 0x31: /* FBEQ */
-        gen_fbcond(ctx, TCG_COND_EQ, ra, disp21);
-        ret = 1;
+        ret = gen_fbcond(ctx, TCG_COND_EQ, ra, disp21);
         break;
     case 0x32: /* FBLT */
-        gen_fbcond(ctx, TCG_COND_LT, ra, disp21);
-        ret = 1;
+        ret = gen_fbcond(ctx, TCG_COND_LT, ra, disp21);
         break;
     case 0x33: /* FBLE */
-        gen_fbcond(ctx, TCG_COND_LE, ra, disp21);
-        ret = 1;
+        ret = gen_fbcond(ctx, TCG_COND_LE, ra, disp21);
         break;
     case 0x34:
         /* BSR */
-        if (ra != 31)
-            tcg_gen_movi_i64(cpu_ir[ra], ctx->pc);
-        tcg_gen_movi_i64(cpu_pc, ctx->pc + (int64_t)(disp21 << 2));
-        ret = 1;
+        ret = gen_bdirect(ctx, ra, disp21);
         break;
     case 0x35: /* FBNE */
-        gen_fbcond(ctx, TCG_COND_NE, ra, disp21);
-        ret = 1;
+        ret = gen_fbcond(ctx, TCG_COND_NE, ra, disp21);
         break;
     case 0x36: /* FBGE */
-        gen_fbcond(ctx, TCG_COND_GE, ra, disp21);
-        ret = 1;
+        ret = gen_fbcond(ctx, TCG_COND_GE, ra, disp21);
         break;
     case 0x37: /* FBGT */
-        gen_fbcond(ctx, TCG_COND_GT, ra, disp21);
-        ret = 1;
+        ret = gen_fbcond(ctx, TCG_COND_GT, ra, disp21);
         break;
     case 0x38:
         /* BLBC */
-        gen_bcond(ctx, TCG_COND_EQ, ra, disp21, 1);
-        ret = 1;
+        ret = gen_bcond(ctx, TCG_COND_EQ, ra, disp21, 1);
         break;
     case 0x39:
         /* BEQ */
-        gen_bcond(ctx, TCG_COND_EQ, ra, disp21, 0);
-        ret = 1;
+        ret = gen_bcond(ctx, TCG_COND_EQ, ra, disp21, 0);
         break;
     case 0x3A:
         /* BLT */
-        gen_bcond(ctx, TCG_COND_LT, ra, disp21, 0);
-        ret = 1;
+        ret = gen_bcond(ctx, TCG_COND_LT, ra, disp21, 0);
         break;
     case 0x3B:
         /* BLE */
-        gen_bcond(ctx, TCG_COND_LE, ra, disp21, 0);
-        ret = 1;
+        ret = gen_bcond(ctx, TCG_COND_LE, ra, disp21, 0);
         break;
     case 0x3C:
         /* BLBS */
-        gen_bcond(ctx, TCG_COND_NE, ra, disp21, 1);
-        ret = 1;
+        ret = gen_bcond(ctx, TCG_COND_NE, ra, disp21, 1);
         break;
     case 0x3D:
         /* BNE */
-        gen_bcond(ctx, TCG_COND_NE, ra, disp21, 0);
-        ret = 1;
+        ret = gen_bcond(ctx, TCG_COND_NE, ra, disp21, 0);
         break;
     case 0x3E:
         /* BGE */
-        gen_bcond(ctx, TCG_COND_GE, ra, disp21, 0);
-        ret = 1;
+        ret = gen_bcond(ctx, TCG_COND_GE, ra, disp21, 0);
         break;
     case 0x3F:
         /* BGT */
-        gen_bcond(ctx, TCG_COND_GT, ra, disp21, 0);
-        ret = 1;
+        ret = gen_bcond(ctx, TCG_COND_GT, ra, disp21, 0);
         break;
     invalid_opc:
-        gen_invalid(ctx);
-        ret = 3;
+        ret = gen_invalid(ctx);
         break;
     }
 
@@ -2948,15 +3145,17 @@ static inline void gen_intermediate_code_internal(CPUState *env,
     uint16_t *gen_opc_end;
     CPUBreakpoint *bp;
     int j, lj = -1;
-    int ret;
+    ExitStatus ret;
     int num_insns;
     int max_insns;
 
     pc_start = tb->pc;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
+
+    ctx.tb = tb;
+    ctx.env = env;
     ctx.pc = pc_start;
     ctx.amask = env->amask;
-    ctx.env = env;
 #if defined (CONFIG_USER_ONLY)
     ctx.mem_idx = 0;
 #else
@@ -2980,7 +3179,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
         max_insns = CF_COUNT_MASK;
 
     gen_icount_start();
-    for (ret = 0; ret == 0;) {
+    do {
         if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
             QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
                 if (bp->pc == ctx.pc) {
@@ -3011,36 +3210,40 @@ static inline void gen_intermediate_code_internal(CPUState *env,
 
         ctx.pc += 4;
         ret = translate_one(ctxp, insn);
-        if (ret != 0)
-            break;
-        /* if we reach a page boundary or are single stepping, stop
-         * generation
-         */
-        if (env->singlestep_enabled) {
-            gen_excp(&ctx, EXCP_DEBUG, 0);
-            break;
+
+        if (ret == NO_EXIT) {
+            /* If we reach a page boundary, are single stepping,
+               or exhaust instruction count, stop generation.  */
+            if (env->singlestep_enabled) {
+                gen_excp(&ctx, EXCP_DEBUG, 0);
+                ret = EXIT_PC_UPDATED;
+            } else if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0
+                       || gen_opc_ptr >= gen_opc_end
+                       || num_insns >= max_insns
+                       || singlestep) {
+                ret = EXIT_PC_STALE;
+            }
         }
+    } while (ret == NO_EXIT);
 
-        if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0)
-            break;
-
-        if (gen_opc_ptr >= gen_opc_end)
-            break;
-
-        if (num_insns >= max_insns)
-            break;
-
-        if (singlestep) {
-            break;
-        }
-    }
-    if (ret != 1 && ret != 3) {
-        tcg_gen_movi_i64(cpu_pc, ctx.pc);
-    }
-    if (tb->cflags & CF_LAST_IO)
+    if (tb->cflags & CF_LAST_IO) {
         gen_io_end();
-    /* Generate the return instruction */
-    tcg_gen_exit_tb(0);
+    }
+
+    switch (ret) {
+    case EXIT_GOTO_TB:
+    case EXIT_NORETURN:
+        break;
+    case EXIT_PC_STALE:
+        tcg_gen_movi_i64(cpu_pc, ctx.pc);
+        /* FALLTHRU */
+    case EXIT_PC_UPDATED:
+        tcg_gen_exit_tb(0);
+        break;
+    default:
+        abort();
+    }
+
     gen_icount_end(tb, num_insns);
     *gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
@@ -3052,6 +3255,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
         tb->size = ctx.pc - pc_start;
         tb->icount = num_insns;
     }
+
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
@@ -3129,6 +3333,7 @@ CPUAlphaState * cpu_alpha_init (const char *cpu_model)
 #else
     pal_init(env);
 #endif
+    env->lock_addr = -1;
 
     /* Initialize IPR */
 #if defined (CONFIG_USER_ONLY)

@@ -557,12 +557,15 @@ void cpu_dump_state (CPUState *env, FILE *f,
         if ((i % 3) == 2)
             cpu_fprintf(f, "\n");
     }
-    cpu_fprintf(f, "\n");
+
+    cpu_fprintf(f, "lock_a   " TARGET_FMT_lx " lock_v   " TARGET_FMT_lx "\n",
+                env->lock_addr, env->lock_value);
+
     for (i = 0; i < 31; i++) {
         cpu_fprintf(f, "FIR%02d    " TARGET_FMT_lx " ", i,
                     *((uint64_t *)(&env->fir[i])));
         if ((i % 3) == 2)
             cpu_fprintf(f, "\n");
     }
-    cpu_fprintf(f, "\nlock     " TARGET_FMT_lx "\n", env->lock);
+    cpu_fprintf(f, "\n");
 }

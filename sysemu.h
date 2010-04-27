@@ -45,9 +45,11 @@ void cpu_disable_ticks(void);
 void qemu_system_reset_request(void);
 void qemu_system_shutdown_request(void);
 void qemu_system_powerdown_request(void);
+void qemu_system_exit_request(void);
 int qemu_shutdown_requested(void);
 int qemu_reset_requested(void);
 int qemu_powerdown_requested(void);
+int qemu_exit_requested(void);
 extern qemu_irq qemu_system_powerdown;
 void qemu_system_reset(void);
 
