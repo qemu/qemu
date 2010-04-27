@@ -370,6 +370,21 @@ void qemu_spice_init(void)
 
 int qemu_spice_add_interface(SpiceBaseInstance *sin)
 {
+    if (!spice_server) {
+        if (QTAILQ_FIRST(&qemu_spice_opts.head) != NULL) {
+            fprintf(stderr, "Oops: spice configured but not active\n");
+            exit(1);
+        }
+        /*
+         * Create a spice server instance.
+         * It does *not* listen on the network.
+         * It handles QXL local rendering only.
+         *
+         * With a command line like '-vnc :0 -vga qxl' you'll end up here.
+         */
+        spice_server = spice_server_new();
+        spice_server_init(spice_server, &core_interface);
+    }
     return spice_server_add_interface(spice_server, sin);
 }
 
