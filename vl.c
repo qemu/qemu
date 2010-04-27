@@ -1689,6 +1689,7 @@ void vm_start(void)
         vm_running = 1;
         vm_state_notify(1, 0);
         resume_all_vcpus();
+        monitor_protocol_event(QEVENT_RESUME, NULL);
     }
 }
 
