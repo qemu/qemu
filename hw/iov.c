@@ -31,3 +31,40 @@ size_t iov_from_buf(struct iovec *iov, unsigned int iovcnt,
     }
     return offset;
 }
+
+size_t iov_to_buf(const struct iovec *iov, const unsigned int iovcnt,
+                  void *buf, size_t offset, size_t size)
+{
+    uint8_t *ptr;
+    size_t iov_off, buf_off;
+    unsigned int i;
+
+    ptr = buf;
+    iov_off = 0;
+    buf_off = 0;
+    for (i = 0; i < iovcnt && size; i++) {
+        if (offset < (iov_off + iov[i].iov_len)) {
+            size_t len = MIN((iov_off + iov[i].iov_len) - offset , size);
+
+            memcpy(ptr + buf_off, iov[i].iov_base + (offset - iov_off), len);
+
+            buf_off += len;
+            offset += len;
+            size -= len;
+        }
+        iov_off += iov[i].iov_len;
+    }
+    return buf_off;
+}
+
+size_t iov_size(const struct iovec *iov, const unsigned int iovcnt)
+{
+    size_t len;
+    unsigned int i;
+
+    len = 0;
+    for (i = 0; i < iovcnt; i++) {
+        len += iov[i].iov_len;
+    }
+    return len;
+}

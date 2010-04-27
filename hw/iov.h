@@ -14,3 +14,6 @@
 
 size_t iov_from_buf(struct iovec *iov, unsigned int iovcnt,
                     const void *buf, size_t size);
+size_t iov_to_buf(const struct iovec *iov, const unsigned int iovcnt,
+                  void *buf, size_t offset, size_t size);
+size_t iov_size(const struct iovec *iov, const unsigned int iovcnt);

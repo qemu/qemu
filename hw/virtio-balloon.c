@@ -11,6 +11,7 @@
  *
  */
 
+#include "iov.h"
 #include "qemu-common.h"
 #include "virtio.h"
 #include "pc.h"
@@ -92,33 +93,6 @@ static QObject *get_stats_qobject(VirtIOBalloon *dev)
     return QOBJECT(dict);
 }
 
-/* FIXME: once we do a virtio refactoring, this will get subsumed into common
- * code */
-static size_t memcpy_from_iovector(void *data, size_t offset, size_t size,
-                                   struct iovec *iov, int iovlen)
-{
-    int i;
-    uint8_t *ptr = data;
-    size_t iov_off = 0;
-    size_t data_off = 0;
-
-    for (i = 0; i < iovlen && size; i++) {
-        if (offset < (iov_off + iov[i].iov_len)) {
-            size_t len = MIN((iov_off + iov[i].iov_len) - offset , size);
-
-            memcpy(ptr + data_off, iov[i].iov_base + (offset - iov_off), len);
-
-            data_off += len;
-            offset += len;
-            size -= len;
-        }
-
-        iov_off += iov[i].iov_len;
-    }
-
-    return data_off;
-}
-
 static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOBalloon *s = to_virtio_balloon(vdev);
@@ -128,8 +102,7 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
         size_t offset = 0;
         uint32_t pfn;
 
-        while (memcpy_from_iovector(&pfn, offset, 4,
-                                    elem.out_sg, elem.out_num) == 4) {
+        while (iov_to_buf(elem.out_sg, elem.out_num, &pfn, offset, 4) == 4) {
             ram_addr_t pa;
             ram_addr_t addr;
 
@@ -181,8 +154,8 @@ static void virtio_balloon_receive_stats(VirtIODevice *vdev, VirtQueue *vq)
      */
     reset_stats(s);
 
-    while (memcpy_from_iovector(&stat, offset, sizeof(stat), elem->out_sg,
-                                elem->out_num) == sizeof(stat)) {
+    while (iov_to_buf(elem->out_sg, elem->out_num, &stat, offset, sizeof(stat))
+           == sizeof(stat)) {
         uint16_t tag = tswap16(stat.tag);
         uint64_t val = tswap64(stat.val);
 
