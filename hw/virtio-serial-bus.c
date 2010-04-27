@@ -223,6 +223,11 @@ static void handle_control_message(VirtIOSerial *vser, void *buf)
 
     switch(cpkt.event) {
     case VIRTIO_CONSOLE_DEVICE_READY:
+        if (!cpkt.value) {
+            error_report("virtio-serial-bus: Guest failure in adding device %s\n",
+                         vser->bus->qbus.name);
+            break;
+        }
         /*
          * The device is up, we can now tell the device about all the
          * ports we have here.
@@ -233,6 +238,11 @@ static void handle_control_message(VirtIOSerial *vser, void *buf)
         break;
 
     case VIRTIO_CONSOLE_PORT_READY:
+        if (!cpkt.value) {
+            error_report("virtio-serial-bus: Guest failure in adding port %u for device %s\n",
+                         port->id, vser->bus->qbus.name);
+            break;
+        }
         /*
          * Now that we know the guest asked for the port name, we're
          * sure the guest has initialised whatever state is necessary
