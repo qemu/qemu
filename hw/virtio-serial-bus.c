@@ -41,12 +41,20 @@ struct VirtIOSerial {
     VirtIOSerialBus *bus;
 
     QTAILQ_HEAD(, VirtIOSerialPort) ports;
+
+    /* bitmap for identifying active ports */
+    uint32_t *ports_map;
+
     struct virtio_console_config config;
 };
 
 static VirtIOSerialPort *find_port_by_id(VirtIOSerial *vser, uint32_t id)
 {
     VirtIOSerialPort *port;
+
+    if (id == VIRTIO_CONSOLE_BAD_ID) {
+        return NULL;
+    }
 
     QTAILQ_FOREACH(port, &vser->ports, next) {
         if (port->id == id)
@@ -208,14 +216,25 @@ static void handle_control_message(VirtIOSerial *vser, void *buf)
     size_t buffer_len;
 
     gcpkt = buf;
-    port = find_port_by_id(vser, ldl_p(&gcpkt->id));
-    if (!port)
-        return;
 
     cpkt.event = lduw_p(&gcpkt->event);
     cpkt.value = lduw_p(&gcpkt->value);
 
+    port = find_port_by_id(vser, ldl_p(&gcpkt->id));
+    if (!port && cpkt.event != VIRTIO_CONSOLE_DEVICE_READY)
+        return;
+
     switch(cpkt.event) {
+    case VIRTIO_CONSOLE_DEVICE_READY:
+        /*
+         * The device is up, we can now tell the device about all the
+         * ports we have here.
+         */
+        QTAILQ_FOREACH(port, &vser->ports, next) {
+            send_control_event(port, VIRTIO_CONSOLE_PORT_ADD, 1);
+        }
+        break;
+
     case VIRTIO_CONSOLE_PORT_READY:
         /*
          * Now that we know the guest asked for the port name, we're
@@ -363,6 +382,7 @@ static void virtio_serial_save(QEMUFile *f, void *opaque)
     VirtIOSerial *s = opaque;
     VirtIOSerialPort *port;
     uint32_t nr_active_ports;
+    unsigned int i;
 
     /* The virtio device */
     virtio_save(&s->vdev, f);
@@ -370,13 +390,17 @@ static void virtio_serial_save(QEMUFile *f, void *opaque)
     /* The config space */
     qemu_put_be16s(f, &s->config.cols);
     qemu_put_be16s(f, &s->config.rows);
-    qemu_put_be32s(f, &s->config.nr_ports);
 
-    /* Items in struct VirtIOSerial */
+    qemu_put_be32s(f, &s->config.max_nr_ports);
 
-    qemu_put_be32s(f, &s->bus->max_nr_ports);
+    /* The ports map */
 
-    /* Do this because we might have hot-unplugged some ports */
+    for (i = 0; i < (s->config.max_nr_ports + 31) / 32; i++) {
+        qemu_put_be32s(f, &s->ports_map[i]);
+    }
+
+    /* Ports */
+
     nr_active_ports = 0;
     QTAILQ_FOREACH(port, &s->ports, next) {
         nr_active_ports++;
@@ -388,11 +412,6 @@ static void virtio_serial_save(QEMUFile *f, void *opaque)
      * Items in struct VirtIOSerialPort.
      */
     QTAILQ_FOREACH(port, &s->ports, next) {
-        /*
-         * We put the port number because we may not have an active
-         * port at id 0 that's reserved for a console port, or in case
-         * of ports that might have gotten unplugged
-         */
         qemu_put_be32s(f, &port->id);
         qemu_put_byte(f, port->guest_connected);
         qemu_put_byte(f, port->host_connected);
@@ -403,7 +422,8 @@ static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
 {
     VirtIOSerial *s = opaque;
     VirtIOSerialPort *port;
-    uint32_t max_nr_ports, nr_active_ports, nr_ports;
+    size_t ports_map_size;
+    uint32_t max_nr_ports, nr_active_ports, *ports_map;
     unsigned int i;
 
     if (version_id > 2) {
@@ -420,29 +440,29 @@ static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
     /* The config space */
     qemu_get_be16s(f, &s->config.cols);
     qemu_get_be16s(f, &s->config.rows);
-    nr_ports = qemu_get_be32(f);
-
-    if (nr_ports != s->config.nr_ports) {
-        /*
-         * Source hot-plugged/unplugged ports and we don't have all of
-         * them here.
-         *
-         * Note: This condition cannot check for all hotplug/unplug
-         * events: eg, if one port was hot-plugged and one was
-         * unplugged, the nr_ports remains the same but the port id's
-         * would have changed and we won't catch it here. A later
-         * check for !find_port_by_id() will confirm if this happened.
-         */
-        return -EINVAL;
-    }
-
-    /* Items in struct VirtIOSerial */
 
     qemu_get_be32s(f, &max_nr_ports);
-    if (max_nr_ports > s->bus->max_nr_ports) {
-        /* Source could have more ports than us. Fail migration. */
+    if (max_nr_ports > s->config.max_nr_ports) {
+        /* Source could have had more ports than us. Fail migration. */
         return -EINVAL;
     }
+
+    ports_map_size = sizeof(uint32_t) * (max_nr_ports + 31) / 32;
+    ports_map = qemu_malloc(ports_map_size);
+
+    for (i = 0; i < (max_nr_ports + 31) / 32; i++) {
+        qemu_get_be32s(f, &ports_map[i]);
+
+        if (ports_map[i] != s->ports_map[i]) {
+            /*
+             * Ports active on source and destination don't
+             * match. Fail migration.
+             */
+            qemu_free(ports_map);
+            return -EINVAL;
+        }
+    }
+    qemu_free(ports_map);
 
     qemu_get_be32s(f, &nr_active_ports);
 
@@ -453,13 +473,6 @@ static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
 
         id = qemu_get_be32(f);
         port = find_port_by_id(s, id);
-        if (!port) {
-            /*
-             * The requested port was hot-plugged on the source but we
-             * don't have it
-             */
-            return -EINVAL;
-        }
 
         port->guest_connected = qemu_get_byte(f);
         host_connected = qemu_get_byte(f);
@@ -472,7 +485,6 @@ static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
                                port->host_connected);
         }
     }
-
     return 0;
 }
 
@@ -507,6 +519,50 @@ static void virtser_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
                    indent, "", port->host_connected);
 }
 
+/* This function is only used if a port id is not provided by the user */
+static uint32_t find_free_port_id(VirtIOSerial *vser)
+{
+    unsigned int i;
+
+    for (i = 0; i < (vser->config.max_nr_ports + 31) / 32; i++) {
+        uint32_t map, bit;
+
+        map = vser->ports_map[i];
+        bit = ffs(~map);
+        if (bit) {
+            return (bit - 1) + i * 32;
+        }
+    }
+    return VIRTIO_CONSOLE_BAD_ID;
+}
+
+static void mark_port_added(VirtIOSerial *vser, uint32_t port_id)
+{
+    unsigned int i;
+
+    i = port_id / 32;
+    vser->ports_map[i] |= 1U << (port_id % 32);
+}
+
+static void add_port(VirtIOSerial *vser, uint32_t port_id)
+{
+    mark_port_added(vser, port_id);
+
+    send_control_event(find_port_by_id(vser, port_id),
+                       VIRTIO_CONSOLE_PORT_ADD, 1);
+}
+
+static void remove_port(VirtIOSerial *vser, uint32_t port_id)
+{
+    unsigned int i;
+
+    i = port_id / 32;
+    vser->ports_map[i] &= ~(1U << (port_id % 32));
+
+    send_control_event(find_port_by_id(vser, port_id),
+                       VIRTIO_CONSOLE_PORT_REMOVE, 1);
+}
+
 static int virtser_port_qdev_init(DeviceState *qdev, DeviceInfo *base)
 {
     VirtIOSerialDevice *dev = DO_UPCAST(VirtIOSerialDevice, qdev, qdev);
@@ -525,18 +581,35 @@ static int virtser_port_qdev_init(DeviceState *qdev, DeviceInfo *base)
      */
     plugging_port0 = port->is_console && !find_port_by_id(port->vser, 0);
 
-    if (port->vser->config.nr_ports == bus->max_nr_ports && !plugging_port0) {
-        error_report("virtio-serial-bus: Maximum device limit reached");
+    if (find_port_by_id(port->vser, port->id)) {
+        error_report("virtio-serial-bus: A port already exists at id %u\n",
+                     port->id);
         return -1;
     }
-    dev->info = info;
 
+    if (port->id == VIRTIO_CONSOLE_BAD_ID) {
+        if (plugging_port0) {
+            port->id = 0;
+        } else {
+            port->id = find_free_port_id(port->vser);
+            if (port->id == VIRTIO_CONSOLE_BAD_ID) {
+                error_report("virtio-serial-bus: Maximum port limit for this device reached\n");
+                return -1;
+            }
+        }
+    }
+
+    if (port->id >= port->vser->config.max_nr_ports) {
+        error_report("virtio-serial-bus: Out-of-range port id specified, max. allowed: %u\n",
+                     port->vser->config.max_nr_ports - 1);
+        return -1;
+    }
+
+    dev->info = info;
     ret = info->init(dev);
     if (ret) {
         return ret;
     }
-
-    port->id = plugging_port0 ? 0 : port->vser->config.nr_ports++;
 
     if (!use_multiport(port->vser)) {
         /*
@@ -550,6 +623,8 @@ static int virtser_port_qdev_init(DeviceState *qdev, DeviceInfo *base)
     port->ivq = port->vser->ivqs[port->id];
     port->ovq = port->vser->ovqs[port->id];
 
+    add_port(port->vser, port->id);
+
     /* Send an update to the guest about this new port added */
     virtio_notify_config(&port->vser->vdev);
 
@@ -562,26 +637,8 @@ static int virtser_port_qdev_exit(DeviceState *qdev)
     VirtIOSerialPort *port = DO_UPCAST(VirtIOSerialPort, dev, &dev->qdev);
     VirtIOSerial *vser = port->vser;
 
-    send_control_event(port, VIRTIO_CONSOLE_PORT_REMOVE, 1);
+    remove_port(port->vser, port->id);
 
-    /*
-     * Don't decrement nr_ports here; thus we keep a linearly
-     * increasing port id. Not utilising an id again saves us a couple
-     * of complications:
-     *
-     * - Not having to bother about sending the port id to the guest
-     *   kernel on hotplug or on addition of new ports; the guest can
-     *   also linearly increment the port number. This is preferable
-     *   because the config space won't have the need to store a
-     *   ports_map.
-     *
-     * - Extra state to be stored for all the "holes" that got created
-     *   so that we keep filling in the ids from the least available
-     *   index.
-     *
-     * When such a functionality is desired, a control message to add
-     * a port can be introduced.
-     */
     QTAILQ_REMOVE(&vser->ports, port, next);
 
     if (port->info->exit)
@@ -641,11 +698,12 @@ VirtIODevice *virtio_serial_init(DeviceState *dev, uint32_t max_nr_ports)
     }
 
     vser->config.max_nr_ports = max_nr_ports;
+    vser->ports_map = qemu_mallocz((max_nr_ports + 31) / 32);
     /*
      * Reserve location 0 for a console port for backward compat
      * (old kernel, new qemu)
      */
-    vser->config.nr_ports = 1;
+    mark_port_added(vser, 0);
 
     vser->vdev.get_features = get_features;
     vser->vdev.get_config = get_config;

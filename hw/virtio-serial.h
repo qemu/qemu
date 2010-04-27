@@ -27,6 +27,8 @@
 /* Features supported */
 #define VIRTIO_CONSOLE_F_MULTIPORT	1
 
+#define VIRTIO_CONSOLE_BAD_ID           (~(uint32_t)0)
+
 struct virtio_console_config {
     /*
      * These two fields are used by VIRTIO_CONSOLE_F_SIZE which
@@ -36,7 +38,6 @@ struct virtio_console_config {
     uint16_t rows;
 
     uint32_t max_nr_ports;
-    uint32_t nr_ports;
 } __attribute__((packed));
 
 struct virtio_console_control {
@@ -46,12 +47,14 @@ struct virtio_console_control {
 };
 
 /* Some events for the internal messages (control packets) */
-#define VIRTIO_CONSOLE_PORT_READY	0
-#define VIRTIO_CONSOLE_CONSOLE_PORT	1
-#define VIRTIO_CONSOLE_RESIZE		2
-#define VIRTIO_CONSOLE_PORT_OPEN	3
-#define VIRTIO_CONSOLE_PORT_NAME	4
-#define VIRTIO_CONSOLE_PORT_REMOVE	5
+#define VIRTIO_CONSOLE_DEVICE_READY	0
+#define VIRTIO_CONSOLE_PORT_ADD		1
+#define VIRTIO_CONSOLE_PORT_REMOVE	2
+#define VIRTIO_CONSOLE_PORT_READY	3
+#define VIRTIO_CONSOLE_CONSOLE_PORT	4
+#define VIRTIO_CONSOLE_RESIZE		5
+#define VIRTIO_CONSOLE_PORT_OPEN	6
+#define VIRTIO_CONSOLE_PORT_NAME	7
 
 /* == In-qemu interface == */
 
