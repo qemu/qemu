@@ -111,6 +111,30 @@ static size_t write_to_port(VirtIOSerialPort *port,
     return offset;
 }
 
+static void flush_queued_data(VirtIOSerialPort *port, VirtQueue *vq,
+                              VirtIODevice *vdev, bool discard)
+{
+    VirtQueueElement elem;
+
+    assert(port || discard);
+
+    while (virtqueue_pop(vq, &elem)) {
+        uint8_t *buf;
+        size_t ret, buf_size;
+
+        if (!discard) {
+            buf_size = iov_size(elem.out_sg, elem.out_num);
+            buf = qemu_malloc(buf_size);
+            ret = iov_to_buf(elem.out_sg, elem.out_num, buf, 0, buf_size);
+
+            port->info->have_data(port, buf, ret);
+            qemu_free(buf);
+        }
+        virtqueue_push(vq, &elem, 0);
+    }
+    virtio_notify(vdev, vq);
+}
+
 static size_t send_control_msg(VirtIOSerialPort *port, void *buf, size_t len)
 {
     VirtQueueElement elem;
@@ -345,47 +369,18 @@ static void control_out(VirtIODevice *vdev, VirtQueue *vq)
 static void handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOSerial *vser;
-    VirtQueueElement elem;
+    VirtIOSerialPort *port;
+    bool discard;
 
     vser = DO_UPCAST(VirtIOSerial, vdev, vdev);
+    port = find_port_by_vq(vser, vq);
 
-    while (virtqueue_pop(vq, &elem)) {
-        VirtIOSerialPort *port;
-        uint8_t *buf;
-        size_t ret, buf_size;
-
-        port = find_port_by_vq(vser, vq);
-        if (!port) {
-            ret = 0;
-            goto next_buf;
-        }
-
-	if (!port->host_connected) {
-            ret = 0;
-            goto next_buf;
-        }
-
-        /*
-         * A port may not have any handler registered for consuming the
-         * data that the guest sends or it may not have a chardev associated
-         * with it. Just ignore the data in that case.
-         */
-        if (!port->info->have_data) {
-            ret = 0;
-            goto next_buf;
-        }
-
-        buf_size = iov_size(elem.out_sg, elem.out_num);
-        buf = qemu_malloc(buf_size);
-        ret = iov_to_buf(elem.out_sg, elem.out_num, buf, 0, buf_size);
-
-        port->info->have_data(port, buf, ret);
-        qemu_free(buf);
-
-    next_buf:
-        virtqueue_push(vq, &elem, 0);
+    discard = false;
+    if (!port || !port->host_connected || !port->info->have_data) {
+        discard = true;
     }
-    virtio_notify(vdev, vq);
+
+    flush_queued_data(port, vq, vdev, discard);
 }
 
 static void handle_input(VirtIODevice *vdev, VirtQueue *vq)
