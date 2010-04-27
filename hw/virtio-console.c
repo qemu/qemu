@@ -1,7 +1,7 @@
 /*
  * Virtio Console and Generic Serial Port Devices
  *
- * Copyright Red Hat, Inc. 2009
+ * Copyright Red Hat, Inc. 2009, 2010
  *
  * Authors:
  *  Amit Shah <amit.shah@redhat.com>

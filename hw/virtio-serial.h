@@ -2,7 +2,7 @@
  * Virtio Serial / Console Support
  *
  * Copyright IBM, Corp. 2008
- * Copyright Red Hat, Inc. 2009
+ * Copyright Red Hat, Inc. 2009, 2010
  *
  * Authors:
  *  Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>

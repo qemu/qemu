@@ -1,7 +1,7 @@
 /*
  * A bus for connecting virtio serial and console ports
  *
- * Copyright (C) 2009 Red Hat, Inc.
+ * Copyright (C) 2009, 2010 Red Hat, Inc.
  *
  * Author(s):
  *  Amit Shah <amit.shah@redhat.com>
