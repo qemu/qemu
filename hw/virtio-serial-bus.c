@@ -335,6 +335,11 @@ static void handle_output(VirtIODevice *vdev, VirtQueue *vq)
             goto next_buf;
         }
 
+	if (!port->host_connected) {
+            ret = 0;
+            goto next_buf;
+        }
+
         /*
          * A port may not have any handler registered for consuming the
          * data that the guest sends or it may not have a chardev associated
