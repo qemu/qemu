@@ -204,7 +204,7 @@ size_t virtio_serial_guest_ready(VirtIOSerialPort *port)
 }
 
 /* Guest wants to notify us of some event */
-static void handle_control_message(VirtIOSerial *vser, void *buf)
+static void handle_control_message(VirtIOSerial *vser, void *buf, size_t len)
 {
     struct VirtIOSerialPort *port;
     struct virtio_console_control cpkt, *gcpkt;
@@ -212,6 +212,11 @@ static void handle_control_message(VirtIOSerial *vser, void *buf)
     size_t buffer_len;
 
     gcpkt = buf;
+
+    if (len < sizeof(cpkt)) {
+        /* The guest sent an invalid control packet */
+        return;
+    }
 
     cpkt.event = lduw_p(&gcpkt->event);
     cpkt.value = lduw_p(&gcpkt->value);
@@ -306,13 +311,33 @@ static void control_out(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtQueueElement elem;
     VirtIOSerial *vser;
+    uint8_t *buf;
+    size_t len;
 
     vser = DO_UPCAST(VirtIOSerial, vdev, vdev);
 
+    len = 0;
+    buf = NULL;
     while (virtqueue_pop(vq, &elem)) {
-        handle_control_message(vser, elem.out_sg[0].iov_base);
-        virtqueue_push(vq, &elem, elem.out_sg[0].iov_len);
+        size_t cur_len, copied;
+
+        cur_len = iov_size(elem.out_sg, elem.out_num);
+        /*
+         * Allocate a new buf only if we didn't have one previously or
+         * if the size of the buf differs
+         */
+        if (cur_len > len) {
+            qemu_free(buf);
+
+            buf = qemu_malloc(cur_len);
+            len = cur_len;
+        }
+        copied = iov_to_buf(elem.out_sg, elem.out_num, buf, 0, len);
+
+        handle_control_message(vser, buf, copied);
+        virtqueue_push(vq, &elem, copied);
     }
+    qemu_free(buf);
     virtio_notify(vdev, vq);
 }
 
