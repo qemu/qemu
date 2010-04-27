@@ -402,7 +402,7 @@ static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
 {
     VirtIOSerial *s = opaque;
     VirtIOSerialPort *port;
-    uint32_t max_nr_ports, nr_active_ports;
+    uint32_t max_nr_ports, nr_active_ports, nr_ports;
     unsigned int i;
 
     if (version_id > 2) {
@@ -419,7 +419,21 @@ static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
     /* The config space */
     qemu_get_be16s(f, &s->config.cols);
     qemu_get_be16s(f, &s->config.rows);
-    s->config.nr_ports = qemu_get_be32(f);
+    nr_ports = qemu_get_be32(f);
+
+    if (nr_ports != s->config.nr_ports) {
+        /*
+         * Source hot-plugged/unplugged ports and we don't have all of
+         * them here.
+         *
+         * Note: This condition cannot check for all hotplug/unplug
+         * events: eg, if one port was hot-plugged and one was
+         * unplugged, the nr_ports remains the same but the port id's
+         * would have changed and we won't catch it here. A later
+         * check for !find_port_by_id() will confirm if this happened.
+         */
+        return -EINVAL;
+    }
 
     /* Items in struct VirtIOSerial */
 
