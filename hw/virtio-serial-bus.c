@@ -91,9 +91,6 @@ static size_t write_to_port(VirtIOSerialPort *port,
     if (!virtio_queue_ready(vq)) {
         return 0;
     }
-    if (!size) {
-        return 0;
-    }
 
     while (offset < size) {
         int i;
