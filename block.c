@@ -880,6 +880,10 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
         set_dirty_bitmap(bs, sector_num, nb_sectors, 1);
     }
 
+    if (bs->wr_highest_sector < sector_num + nb_sectors - 1) {
+        bs->wr_highest_sector = sector_num + nb_sectors - 1;
+    }
+
     return drv->bdrv_write(bs, sector_num, buf, nb_sectors);
 }
 
@@ -1530,6 +1534,35 @@ void bdrv_stats_print(Monitor *mon, const QObject *data)
     qlist_iter(qobject_to_qlist(data), bdrv_stats_iter, mon);
 }
 
+static QObject* bdrv_info_stats_bs(BlockDriverState *bs)
+{
+    QObject *res;
+    QDict *dict;
+
+    res = qobject_from_jsonf("{ 'stats': {"
+                             "'rd_bytes': %" PRId64 ","
+                             "'wr_bytes': %" PRId64 ","
+                             "'rd_operations': %" PRId64 ","
+                             "'wr_operations': %" PRId64 ","
+                             "'wr_highest_offset': %" PRId64
+                             "} }",
+                             bs->rd_bytes, bs->wr_bytes,
+                             bs->rd_ops, bs->wr_ops,
+                             bs->wr_highest_sector * 512);
+    dict  = qobject_to_qdict(res);
+
+    if (*bs->device_name) {
+        qdict_put(dict, "device", qstring_from_str(bs->device_name));
+    }
+
+    if (bs->file) {
+        QObject *parent = bdrv_info_stats_bs(bs->file);
+        qdict_put_obj(dict, "parent", parent);
+    }
+
+    return res;
+}
+
 /**
  * bdrv_info_stats(): show block device statistics
  *
@@ -1544,19 +1577,34 @@ void bdrv_stats_print(Monitor *mon, const QObject *data)
  *     - "wr_bytes": bytes written
  *     - "rd_operations": read operations
  *     - "wr_operations": write operations
- * 
+ *     - "wr_highest_offset": Highest offset of a sector written since the
+ *       BlockDriverState has been opened
+ *     - "parent": Contains recursively the statistics of the underlying
+ *       protocol (e.g. the host file for a qcow2 image). If there is no
+ *       underlying protocol, this field is omitted.
+ *
  * Example:
  *
  * [ { "device": "ide0-hd0",
  *               "stats": { "rd_bytes": 512,
  *                          "wr_bytes": 0,
  *                          "rd_operations": 1,
- *                          "wr_operations": 0 } },
+ *                          "wr_operations": 0,
+ *                          "wr_highest_offset": 0,
+ *                          "parent": {
+ *                              "stats": { "rd_bytes": 1024,
+ *                                         "wr_bytes": 0,
+ *                                         "rd_operations": 2,
+ *                                         "wr_operations": 0,
+ *                                         "wr_highest_offset": 0,
+ *                              }
+ *                          } } },
  *   { "device": "ide1-cd0",
  *               "stats": { "rd_bytes": 0,
  *                          "wr_bytes": 0,
  *                          "rd_operations": 0,
- *                          "wr_operations": 0 } } ]
+ *                          "wr_operations": 0,
+ *                          "wr_highest_offset": 0 } },
  */
 void bdrv_info_stats(Monitor *mon, QObject **ret_data)
 {
@@ -1567,15 +1615,7 @@ void bdrv_info_stats(Monitor *mon, QObject **ret_data)
     devices = qlist_new();
 
     QTAILQ_FOREACH(bs, &bdrv_states, list) {
-        obj = qobject_from_jsonf("{ 'device': %s, 'stats': {"
-                                 "'rd_bytes': %" PRId64 ","
-                                 "'wr_bytes': %" PRId64 ","
-                                 "'rd_operations': %" PRId64 ","
-                                 "'wr_operations': %" PRId64
-                                 "} }",
-                                 bs->device_name,
-                                 bs->rd_bytes, bs->wr_bytes,
-                                 bs->rd_ops, bs->wr_ops);
+        obj = bdrv_info_stats_bs(bs);
         qlist_append_obj(devices, obj);
     }
 
@@ -1834,9 +1874,12 @@ BlockDriverAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
                                cb, opaque);
 
     if (ret) {
-	/* Update stats even though technically transfer has not happened. */
-	bs->wr_bytes += (unsigned) nb_sectors * BDRV_SECTOR_SIZE;
-	bs->wr_ops ++;
+        /* Update stats even though technically transfer has not happened. */
+        bs->wr_bytes += (unsigned) nb_sectors * BDRV_SECTOR_SIZE;
+        bs->wr_ops ++;
+        if (bs->wr_highest_sector < sector_num + nb_sectors - 1) {
+            bs->wr_highest_sector = sector_num + nb_sectors - 1;
+        }
     }
 
     return ret;

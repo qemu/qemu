@@ -167,6 +167,7 @@ struct BlockDriverState {
     uint64_t wr_bytes;
     uint64_t rd_ops;
     uint64_t wr_ops;
+    uint64_t wr_highest_sector;
 
     /* Whether the disk can expand beyond total_sectors */
     int growable;
