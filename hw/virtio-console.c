@@ -1,7 +1,7 @@
 /*
  * Virtio Console and Generic Serial Port Devices
  *
- * Copyright Red Hat, Inc. 2009
+ * Copyright Red Hat, Inc. 2009, 2010
  *
  * Authors:
  *  Amit Shah <amit.shah@redhat.com>
@@ -20,14 +20,11 @@ typedef struct VirtConsole {
 
 
 /* Callback function that's called when the guest sends us data */
-static size_t flush_buf(VirtIOSerialPort *port, const uint8_t *buf, size_t len)
+static void flush_buf(VirtIOSerialPort *port, const uint8_t *buf, size_t len)
 {
     VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
-    ssize_t ret;
 
-    ret = qemu_chr_write(vcon->chr, buf, len);
-
-    return ret < 0 ? 0 : ret;
+    qemu_chr_write(vcon->chr, buf, len);
 }
 
 /* Readiness of the guest to accept data on a port */
@@ -99,6 +96,7 @@ static VirtIOSerialPortInfo virtconsole_info = {
     .exit          = virtconsole_exitfn,
     .qdev.props = (Property[]) {
         DEFINE_PROP_UINT8("is_console", VirtConsole, port.is_console, 1),
+        DEFINE_PROP_UINT32("nr", VirtConsole, port.id, VIRTIO_CONSOLE_BAD_ID),
         DEFINE_PROP_CHR("chardev", VirtConsole, chr),
         DEFINE_PROP_STRING("name", VirtConsole, port.name),
         DEFINE_PROP_END_OF_LIST(),
@@ -133,6 +131,7 @@ static VirtIOSerialPortInfo virtserialport_info = {
     .init          = virtserialport_initfn,
     .exit          = virtconsole_exitfn,
     .qdev.props = (Property[]) {
+        DEFINE_PROP_UINT32("nr", VirtConsole, port.id, VIRTIO_CONSOLE_BAD_ID),
         DEFINE_PROP_CHR("chardev", VirtConsole, chr),
         DEFINE_PROP_STRING("name", VirtConsole, port.name),
         DEFINE_PROP_END_OF_LIST(),
