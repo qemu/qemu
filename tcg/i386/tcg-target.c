@@ -156,6 +156,10 @@ static inline int tcg_target_const_match(tcg_target_long val,
         return 0;
 }
 
+#define P_EXT   0x100 /* 0x0f opcode prefix */
+
+#define OPC_BSWAP	(0xc8 | P_EXT)
+
 #define ARITH_ADD 0
 #define ARITH_OR  1
 #define ARITH_ADC 2
@@ -281,6 +285,18 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, int arg,
 {
     /* movl */
     tcg_out_modrm_offset(s, 0x89, arg, arg1, arg2);
+}
+
+static inline void tcg_out_bswap32(TCGContext *s, int reg)
+{
+    tcg_out_opc(s, OPC_BSWAP + reg);
+}
+
+static inline void tcg_out_rolw_8(TCGContext *s, int reg)
+{
+    tcg_out8(s, 0x66);
+    tcg_out_modrm(s, 0xc1, 0, reg);
+    tcg_out8(s, 8);
 }
 
 static inline void tgen_arithi(TCGContext *s, int c, int r0, int32_t val, int cf)
@@ -695,20 +711,14 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
         /* movzwl */
         tcg_out_modrm_offset(s, 0xb7 | P_EXT, data_reg, r0, GUEST_BASE);
         if (bswap) {
-            /* rolw $8, data_reg */
-            tcg_out8(s, 0x66); 
-            tcg_out_modrm(s, 0xc1, 0, data_reg);
-            tcg_out8(s, 8);
+            tcg_out_rolw_8(s, data_reg);
         }
         break;
     case 1 | 4:
         /* movswl */
         tcg_out_modrm_offset(s, 0xbf | P_EXT, data_reg, r0, GUEST_BASE);
         if (bswap) {
-            /* rolw $8, data_reg */
-            tcg_out8(s, 0x66); 
-            tcg_out_modrm(s, 0xc1, 0, data_reg);
-            tcg_out8(s, 8);
+            tcg_out_rolw_8(s, data_reg);
 
             /* movswl data_reg, data_reg */
             tcg_out_modrm(s, 0xbf | P_EXT, data_reg, data_reg);
@@ -718,8 +728,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
         /* movl (r0), data_reg */
         tcg_out_modrm_offset(s, 0x8b, data_reg, r0, GUEST_BASE);
         if (bswap) {
-            /* bswap */
-            tcg_out_opc(s, (0xc8 + data_reg) | P_EXT);
+            tcg_out_bswap32(s, data_reg);
         }
         break;
     case 3:
@@ -736,11 +745,10 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
             tcg_out_modrm_offset(s, 0x8b, data_reg2, r0, GUEST_BASE + 4);
         } else {
             tcg_out_modrm_offset(s, 0x8b, data_reg, r0, GUEST_BASE + 4);
-            tcg_out_opc(s, (0xc8 + data_reg) | P_EXT);
+            tcg_out_bswap32(s, data_reg);
 
             tcg_out_modrm_offset(s, 0x8b, data_reg2, r0, GUEST_BASE);
-            /* bswap */
-            tcg_out_opc(s, (0xc8 + data_reg2) | P_EXT);
+            tcg_out_bswap32(s, data_reg2);
         }
         break;
     default:
@@ -924,9 +932,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     case 1:
         if (bswap) {
             tcg_out_mov(s, r1, data_reg);
-            tcg_out8(s, 0x66); /* rolw $8, %ecx */
-            tcg_out_modrm(s, 0xc1, 0, r1);
-            tcg_out8(s, 8);
+            tcg_out_rolw_8(s, r1);
             data_reg = r1;
         }
         /* movw */
@@ -936,8 +942,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     case 2:
         if (bswap) {
             tcg_out_mov(s, r1, data_reg);
-            /* bswap data_reg */
-            tcg_out_opc(s, (0xc8 + r1) | P_EXT);
+            tcg_out_bswap32(s, r1);
             data_reg = r1;
         }
         /* movl */
@@ -946,12 +951,10 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     case 3:
         if (bswap) {
             tcg_out_mov(s, r1, data_reg2);
-            /* bswap data_reg */
-            tcg_out_opc(s, (0xc8 + r1) | P_EXT);
+            tcg_out_bswap32(s, r1);
             tcg_out_modrm_offset(s, 0x89, r1, r0, GUEST_BASE);
             tcg_out_mov(s, r1, data_reg);
-            /* bswap data_reg */
-            tcg_out_opc(s, (0xc8 + r1) | P_EXT);
+            tcg_out_bswap32(s, r1);
             tcg_out_modrm_offset(s, 0x89, r1, r0, GUEST_BASE + 4);
         } else {
             tcg_out_modrm_offset(s, 0x89, data_reg, r0, GUEST_BASE);
@@ -1149,12 +1152,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_bswap16_i32:
-        tcg_out8(s, 0x66);
-        tcg_out_modrm(s, 0xc1, SHIFT_ROL, args[0]);
-        tcg_out8(s, 8);
+        tcg_out_rolw_8(s, args[0]);
         break;
     case INDEX_op_bswap32_i32:
-        tcg_out_opc(s, (0xc8 + args[0]) | P_EXT);
+        tcg_out_bswap32(s, args[0]);
         break;
 
     case INDEX_op_neg_i32:
