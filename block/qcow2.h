@@ -150,6 +150,12 @@ static inline int size_to_clusters(BDRVQcowState *s, int64_t size)
     return (size + (s->cluster_size - 1)) >> s->cluster_bits;
 }
 
+static inline int size_to_l1(BDRVQcowState *s, int64_t size)
+{
+    int shift = s->cluster_bits + s->l2_bits;
+    return (size + (1ULL << shift) - 1) >> shift;
+}
+
 static inline int64_t align_offset(int64_t offset, int n)
 {
     offset = (offset + n - 1) & ~(n - 1);

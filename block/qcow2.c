@@ -140,7 +140,7 @@ static int qcow_read_extensions(BlockDriverState *bs, uint64_t start_offset,
 static int qcow_open(BlockDriverState *bs, int flags)
 {
     BDRVQcowState *s = bs->opaque;
-    int len, i, shift;
+    int len, i;
     QCowHeader header;
     uint64_t ext_end;
 
@@ -188,8 +188,7 @@ static int qcow_open(BlockDriverState *bs, int flags)
 
     /* read the level 1 table */
     s->l1_size = header.l1_size;
-    shift = s->cluster_bits + s->l2_bits;
-    s->l1_vm_state_index = (header.size + (1LL << shift) - 1) >> shift;
+    s->l1_vm_state_index = size_to_l1(s, header.size);
     /* the L1 table must contain at least enough entries to put
        header.size bytes */
     if (s->l1_size < s->l1_vm_state_index)
@@ -851,6 +850,43 @@ static int qcow_make_empty(BlockDriverState *bs)
     return 0;
 }
 
+static int qcow2_truncate(BlockDriverState *bs, int64_t offset)
+{
+    BDRVQcowState *s = bs->opaque;
+    int ret, new_l1_size;
+
+    if (offset & 511) {
+        return -EINVAL;
+    }
+
+    /* cannot proceed if image has snapshots */
+    if (s->nb_snapshots) {
+        return -ENOTSUP;
+    }
+
+    /* shrinking is currently not supported */
+    if (offset < bs->total_sectors * 512) {
+        return -ENOTSUP;
+    }
+
+    new_l1_size = size_to_l1(s, offset);
+    ret = qcow2_grow_l1_table(bs, new_l1_size);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* write updated header.size */
+    offset = cpu_to_be64(offset);
+    ret = bdrv_pwrite(bs->file, offsetof(QCowHeader, size),
+                      &offset, sizeof(uint64_t));
+    if (ret < 0) {
+        return ret;
+    }
+
+    s->l1_vm_state_index = new_l1_size;
+    return 0;
+}
+
 /* XXX: put compressed sectors first, then all the cluster aligned
    tables to avoid losing bytes in alignment */
 static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
@@ -1050,7 +1086,9 @@ static BlockDriver bdrv_qcow2 = {
     .bdrv_aio_readv	= qcow_aio_readv,
     .bdrv_aio_writev	= qcow_aio_writev,
     .bdrv_aio_flush	= qcow_aio_flush,
-    .bdrv_write_compressed = qcow_write_compressed,
+
+    .bdrv_truncate          = qcow2_truncate,
+    .bdrv_write_compressed  = qcow_write_compressed,
 
     .bdrv_snapshot_create   = qcow2_snapshot_create,
     .bdrv_snapshot_goto     = qcow2_snapshot_goto,
