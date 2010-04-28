@@ -159,6 +159,9 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define P_EXT   0x100 /* 0x0f opcode prefix */
 
 #define OPC_BSWAP	(0xc8 | P_EXT)
+#define OPC_SHIFT_1	(0xd1)
+#define OPC_SHIFT_Ib	(0xc1)
+#define OPC_SHIFT_cl	(0xd3)
 
 #define ARITH_ADD 0
 #define ARITH_OR  1
@@ -287,6 +290,16 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, int arg,
     tcg_out_modrm_offset(s, 0x89, arg, arg1, arg2);
 }
 
+static void tcg_out_shifti(TCGContext *s, int subopc, int reg, int count)
+{
+    if (count == 1) {
+        tcg_out_modrm(s, OPC_SHIFT_1, subopc, reg);
+    } else {
+        tcg_out_modrm(s, OPC_SHIFT_Ib, subopc, reg);
+        tcg_out8(s, count);
+    }
+}
+
 static inline void tcg_out_bswap32(TCGContext *s, int reg)
 {
     tcg_out_opc(s, OPC_BSWAP + reg);
@@ -295,8 +308,7 @@ static inline void tcg_out_bswap32(TCGContext *s, int reg)
 static inline void tcg_out_rolw_8(TCGContext *s, int reg)
 {
     tcg_out8(s, 0x66);
-    tcg_out_modrm(s, 0xc1, 0, reg);
-    tcg_out8(s, 8);
+    tcg_out_shifti(s, SHIFT_ROL, reg, 8);
 }
 
 static inline void tgen_arithi(TCGContext *s, int c, int r0, int32_t val, int cf)
@@ -593,9 +605,8 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
 
     tcg_out_mov(s, r0, addr_reg); 
  
-    tcg_out_modrm(s, 0xc1, 5, r1); /* shr $x, r1 */
-    tcg_out8(s, TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS); 
-    
+    tcg_out_shifti(s, SHIFT_SHR, r1, TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
+
     tcg_out_modrm(s, 0x81, 4, r0); /* andl $x, r0 */
     tcg_out32(s, TARGET_PAGE_MASK | ((1 << s_bits) - 1));
     
@@ -797,9 +808,8 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
 
     tcg_out_mov(s, r0, addr_reg); 
  
-    tcg_out_modrm(s, 0xc1, 5, r1); /* shr $x, r1 */
-    tcg_out8(s, TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS); 
-    
+    tcg_out_shifti(s, SHIFT_SHR, r1, TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
+
     tcg_out_modrm(s, 0x81, 4, r0); /* andl $x, r0 */
     tcg_out32(s, TARGET_PAGE_MASK | ((1 << s_bits) - 1));
     
@@ -1100,14 +1110,9 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         c = SHIFT_SHL;
     gen_shift32:
         if (const_args[2]) {
-            if (args[2] == 1) {
-                tcg_out_modrm(s, 0xd1, c, args[0]);
-            } else {
-                tcg_out_modrm(s, 0xc1, c, args[0]);
-                tcg_out8(s, args[2]);
-            }
+            tcg_out_shifti(s, c, args[0], args[2]);
         } else {
-            tcg_out_modrm(s, 0xd3, c, args[0]);
+            tcg_out_modrm(s, OPC_SHIFT_cl, c, args[0]);
         }
         break;
     case INDEX_op_shr_i32:
