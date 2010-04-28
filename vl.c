@@ -2001,7 +2001,7 @@ static void main_loop(void)
 
 static void version(void)
 {
-    printf("QEMU PC emulator version " QEMU_VERSION QEMU_PKGVERSION ", Copyright (c) 2003-2008 Fabrice Bellard\n");
+    printf("QEMU emulator version " QEMU_VERSION QEMU_PKGVERSION ", Copyright (c) 2003-2008 Fabrice Bellard\n");
 }
 
 static void help(int exitcode)
@@ -2018,7 +2018,7 @@ static void help(int exitcode)
     version();
     printf("usage: %s [options] [disk_image]\n"
            "\n"
-           "'disk_image' is a raw hard image image for IDE hard disk 0\n"
+           "'disk_image' is a raw hard disk image for IDE hard disk 0\n"
            "\n"
            "%s\n"
            "During emulation, the following keys are useful:\n"
