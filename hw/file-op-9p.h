@@ -27,6 +27,11 @@ typedef struct FsContext
 
 typedef struct FileOperations
 {
+    int (*lstat)(FsContext *, const char *, struct stat *);
+    ssize_t (*readlink)(FsContext *, const char *, char *, size_t);
+    int (*setuid)(FsContext *, uid_t);
+    int (*close)(FsContext *, int);
+    int (*closedir)(FsContext *, DIR *);
     void *opaque;
 } FileOperations;
 #endif

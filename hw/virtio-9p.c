@@ -21,6 +21,41 @@
 int dotu = 1;
 int debug_9p_pdu;
 
+static int v9fs_do_lstat(V9fsState *s, V9fsString *path, struct stat *stbuf)
+{
+    return s->ops->lstat(&s->ctx, path->data, stbuf);
+}
+
+static int v9fs_do_setuid(V9fsState *s, uid_t uid)
+{
+    return s->ops->setuid(&s->ctx, uid);
+}
+
+static ssize_t v9fs_do_readlink(V9fsState *s, V9fsString *path, V9fsString *buf)
+{
+    ssize_t len;
+
+    buf->data = qemu_malloc(1024);
+
+    len = s->ops->readlink(&s->ctx, path->data, buf->data, 1024 - 1);
+    if (len > -1) {
+        buf->size = len;
+        buf->data[len] = 0;
+    }
+
+    return len;
+}
+
+static int v9fs_do_close(V9fsState *s, int fd)
+{
+    return s->ops->close(&s->ctx, fd);
+}
+
+static int v9fs_do_closedir(V9fsState *s, DIR *dir)
+{
+    return s->ops->closedir(&s->ctx, dir);
+}
+
 static void v9fs_string_init(V9fsString *str)
 {
     str->data = NULL;
@@ -437,9 +472,13 @@ static void v9fs_dummy(V9fsState *s, V9fsPDU *pdu)
     (void) v9fs_string_sprintf;
     (void) v9fs_string_copy;
     (void) v9fs_string_size;
-
-
+    (void) v9fs_do_lstat;
+    (void) v9fs_do_setuid;
+    (void) v9fs_do_readlink;
+    (void) v9fs_do_close;
+    (void) v9fs_do_closedir;
 }
+
 static void v9fs_version(V9fsState *s, V9fsPDU *pdu)
 {
     if (debug_9p_pdu) {
