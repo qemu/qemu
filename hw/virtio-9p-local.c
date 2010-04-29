@@ -127,6 +127,12 @@ static off_t local_lseek(FsContext *ctx, int fd, off_t offset, int whence)
     return lseek(fd, offset, whence);
 }
 
+static ssize_t local_writev(FsContext *ctx, int fd, const struct iovec *iov,
+                            int iovcnt)
+{
+    return writev(fd, iov, iovcnt);
+}
+
 FileOperations local_ops = {
     .lstat = local_lstat,
     .setuid = local_setuid,
@@ -141,4 +147,5 @@ FileOperations local_ops = {
     .seekdir = local_seekdir,
     .readv = local_readv,
     .lseek = local_lseek,
+    .writev = local_writev,
 };

@@ -97,6 +97,12 @@ static off_t v9fs_do_lseek(V9fsState *s, int fd, off_t offset, int whence)
     return s->ops->lseek(&s->ctx, fd, offset, whence);
 }
 
+static int v9fs_do_writev(V9fsState *s, int fd, const struct iovec *iov,
+                       int iovcnt)
+{
+    return s->ops->writev(&s->ctx, fd, iov, iovcnt);
+}
+
 static void v9fs_string_init(V9fsString *str)
 {
     str->data = NULL;
@@ -1534,11 +1540,113 @@ out:
     qemu_free(vs);
 }
 
+typedef struct V9fsWriteState {
+    V9fsPDU *pdu;
+    size_t offset;
+    int32_t len;
+    int32_t count;
+    int32_t total;
+    int64_t off;
+    V9fsFidState *fidp;
+    struct iovec iov[128]; /* FIXME: bad, bad, bad */
+    struct iovec *sg;
+    int cnt;
+} V9fsWriteState;
+
+static void v9fs_write_post_writev(V9fsState *s, V9fsWriteState *vs,
+                                   ssize_t err)
+{
+    if (err  < 0) {
+        /* IO error return the error */
+        err = -errno;
+        goto out;
+    }
+    vs->total += vs->len;
+    vs->sg = adjust_sg(vs->sg, vs->len, &vs->cnt);
+    if (vs->total < vs->count && vs->len > 0) {
+        do {
+            if (0) {
+                print_sg(vs->sg, vs->cnt);
+            }
+            vs->len =  v9fs_do_writev(s, vs->fidp->fd, vs->sg, vs->cnt);
+        } while (vs->len == -1 && errno == EINTR);
+        if (vs->len == -1) {
+            err  = -errno;
+        }
+        v9fs_write_post_writev(s, vs, err);
+        return;
+    }
+    vs->offset += pdu_marshal(vs->pdu, vs->offset, "d", vs->total);
+
+    err = vs->offset;
+out:
+    complete_pdu(s, vs->pdu, err);
+    qemu_free(vs);
+}
+
+static void v9fs_write_post_lseek(V9fsState *s, V9fsWriteState *vs, ssize_t err)
+{
+    if (err == -1) {
+        err = -errno;
+        goto out;
+    }
+    vs->sg = cap_sg(vs->sg, vs->count, &vs->cnt);
+
+    if (vs->total < vs->count) {
+        do {
+            if (0) {
+                print_sg(vs->sg, vs->cnt);
+            }
+            vs->len = v9fs_do_writev(s, vs->fidp->fd, vs->sg, vs->cnt);
+        } while (vs->len == -1 && errno == EINTR);
+        if (vs->len == -1) {
+            err  = -errno;
+        }
+        v9fs_write_post_writev(s, vs, err);
+        return;
+    }
+
+out:
+    complete_pdu(s, vs->pdu, err);
+    qemu_free(vs);
+}
+
 static void v9fs_write(V9fsState *s, V9fsPDU *pdu)
 {
-    if (debug_9p_pdu) {
-        pprint_pdu(pdu);
+    int32_t fid;
+    V9fsWriteState *vs;
+    ssize_t err;
+
+    vs = qemu_malloc(sizeof(*vs));
+
+    vs->pdu = pdu;
+    vs->offset = 7;
+    vs->sg = vs->iov;
+    vs->total = 0;
+    vs->len = 0;
+
+    pdu_unmarshal(vs->pdu, vs->offset, "dqdv", &fid, &vs->off, &vs->count,
+                    vs->sg, &vs->cnt);
+
+    vs->fidp = lookup_fid(s, fid);
+    if (vs->fidp == NULL) {
+        err = -EINVAL;
+        goto out;
     }
+
+    if (vs->fidp->fd == -1) {
+        err = -EINVAL;
+        goto out;
+    }
+
+    err = v9fs_do_lseek(s, vs->fidp->fd, vs->off, SEEK_SET);
+
+    v9fs_write_post_lseek(s, vs, err);
+    return;
+
+out:
+    complete_pdu(s, vs->pdu, err);
+    qemu_free(vs);
 }
 
 static void v9fs_create(V9fsState *s, V9fsPDU *pdu)

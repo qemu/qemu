@@ -39,6 +39,7 @@ typedef struct FileOperations
     struct dirent *(*readdir)(FsContext *, DIR *);
     void (*seekdir)(FsContext *, DIR *, off_t);
     ssize_t (*readv)(FsContext *, int, const struct iovec *, int);
+    ssize_t (*writev)(FsContext *, int, const struct iovec *, int);
     off_t (*lseek)(FsContext *, int, off_t, int);
     void *opaque;
 } FileOperations;
