@@ -29,11 +29,17 @@ typedef struct FileOperations
 {
     int (*lstat)(FsContext *, const char *, struct stat *);
     ssize_t (*readlink)(FsContext *, const char *, char *, size_t);
+    int (*chmod)(FsContext *, const char *, mode_t);
+    int (*mknod)(FsContext *, const char *, mode_t, dev_t);
+    int (*mksock)(FsContext *, const char *);
+    int (*symlink)(FsContext *, const char *, const char *);
+    int (*link)(FsContext *, const char *, const char *);
     int (*setuid)(FsContext *, uid_t);
     int (*close)(FsContext *, int);
     int (*closedir)(FsContext *, DIR *);
     DIR *(*opendir)(FsContext *, const char *);
     int (*open)(FsContext *, const char *, int);
+    int (*open2)(FsContext *, const char *, int, mode_t);
     void (*rewinddir)(FsContext *, DIR *);
     off_t (*telldir)(FsContext *, DIR *);
     struct dirent *(*readdir)(FsContext *, DIR *);
@@ -41,6 +47,8 @@ typedef struct FileOperations
     ssize_t (*readv)(FsContext *, int, const struct iovec *, int);
     ssize_t (*writev)(FsContext *, int, const struct iovec *, int);
     off_t (*lseek)(FsContext *, int, off_t, int);
+    int (*mkdir)(FsContext *, const char *, mode_t);
+    int (*fstat)(FsContext *, int, struct stat *);
     void *opaque;
 } FileOperations;
 #endif

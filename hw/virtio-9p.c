@@ -103,6 +103,47 @@ static int v9fs_do_writev(V9fsState *s, int fd, const struct iovec *iov,
     return s->ops->writev(&s->ctx, fd, iov, iovcnt);
 }
 
+static int v9fs_do_chmod(V9fsState *s, V9fsString *path, mode_t mode)
+{
+    return s->ops->chmod(&s->ctx, path->data, mode);
+}
+
+static int v9fs_do_mknod(V9fsState *s, V9fsString *path, mode_t mode, dev_t dev)
+{
+    return s->ops->mknod(&s->ctx, path->data, mode, dev);
+}
+
+static int v9fs_do_mksock(V9fsState *s, V9fsString *path)
+{
+    return s->ops->mksock(&s->ctx, path->data);
+}
+
+static int v9fs_do_mkdir(V9fsState *s, V9fsString *path, mode_t mode)
+{
+    return s->ops->mkdir(&s->ctx, path->data, mode);
+}
+
+static int v9fs_do_fstat(V9fsState *s, int fd, struct stat *stbuf)
+{
+    return s->ops->fstat(&s->ctx, fd, stbuf);
+}
+
+static int v9fs_do_open2(V9fsState *s, V9fsString *path, int flags, mode_t mode)
+{
+    return s->ops->open2(&s->ctx, path->data, flags, mode);
+}
+
+static int v9fs_do_symlink(V9fsState *s, V9fsString *oldpath,
+                            V9fsString *newpath)
+{
+    return s->ops->symlink(&s->ctx, oldpath->data, newpath->data);
+}
+
+static int v9fs_do_link(V9fsState *s, V9fsString *oldpath, V9fsString *newpath)
+{
+    return s->ops->link(&s->ctx, oldpath->data, newpath->data);
+}
+
 static void v9fs_string_init(V9fsString *str)
 {
     str->data = NULL;
@@ -1649,11 +1690,230 @@ out:
     qemu_free(vs);
 }
 
+typedef struct V9fsCreateState {
+    V9fsPDU *pdu;
+    size_t offset;
+    V9fsFidState *fidp;
+    V9fsQID qid;
+    int32_t perm;
+    int8_t mode;
+    struct stat stbuf;
+    V9fsString name;
+    V9fsString extension;
+    V9fsString fullname;
+} V9fsCreateState;
+
+static void v9fs_post_create(V9fsState *s, V9fsCreateState *vs, int err)
+{
+    if (err == 0) {
+        v9fs_string_copy(&vs->fidp->path, &vs->fullname);
+        stat_to_qid(&vs->stbuf, &vs->qid);
+
+        vs->offset += pdu_marshal(vs->pdu, vs->offset, "Qd", &vs->qid, 0);
+
+        err = vs->offset;
+    }
+
+    complete_pdu(s, vs->pdu, err);
+    v9fs_string_free(&vs->name);
+    v9fs_string_free(&vs->extension);
+    v9fs_string_free(&vs->fullname);
+    qemu_free(vs);
+}
+
+static void v9fs_create_post_perms(V9fsState *s, V9fsCreateState *vs, int err)
+{
+    if (err) {
+        err = -errno;
+    }
+    v9fs_post_create(s, vs, err);
+}
+
+static void v9fs_create_post_opendir(V9fsState *s, V9fsCreateState *vs,
+                                                                    int err)
+{
+    if (!vs->fidp->dir) {
+        err = -errno;
+    }
+    v9fs_post_create(s, vs, err);
+}
+
+static void v9fs_create_post_dir_lstat(V9fsState *s, V9fsCreateState *vs,
+                                                                    int err)
+{
+    if (err) {
+        err = -errno;
+        goto out;
+    }
+
+    vs->fidp->dir = v9fs_do_opendir(s, &vs->fullname);
+    v9fs_create_post_opendir(s, vs, err);
+    return;
+
+out:
+    v9fs_post_create(s, vs, err);
+}
+
+static void v9fs_create_post_mkdir(V9fsState *s, V9fsCreateState *vs, int err)
+{
+    if (err) {
+        err = -errno;
+        goto out;
+    }
+
+    err = v9fs_do_lstat(s, &vs->fullname, &vs->stbuf);
+    v9fs_create_post_dir_lstat(s, vs, err);
+    return;
+
+out:
+    v9fs_post_create(s, vs, err);
+}
+
+static void v9fs_create_post_mksock(V9fsState *s, V9fsCreateState *vs,
+                                                                int err)
+{
+    if (err) {
+        err = -errno;
+        goto out;
+    }
+
+    err = v9fs_do_chmod(s, &vs->fullname, vs->perm & 0777);
+    v9fs_create_post_perms(s, vs, err);
+    return;
+
+out:
+    v9fs_post_create(s, vs, err);
+}
+
+static void v9fs_create_post_fstat(V9fsState *s, V9fsCreateState *vs, int err)
+{
+    if (err) {
+        vs->fidp->fd = -1;
+        err = -errno;
+    }
+
+    v9fs_post_create(s, vs, err);
+    return;
+}
+
+static void v9fs_create_post_open2(V9fsState *s, V9fsCreateState *vs, int err)
+{
+    if (vs->fidp->fd == -1) {
+        err = -errno;
+        goto out;
+    }
+
+    err = v9fs_do_fstat(s, vs->fidp->fd, &vs->stbuf);
+    v9fs_create_post_fstat(s, vs, err);
+
+    return;
+
+out:
+    v9fs_post_create(s, vs, err);
+
+}
+
+static void v9fs_create_post_lstat(V9fsState *s, V9fsCreateState *vs, int err)
+{
+
+    if (err == 0 || errno != ENOENT) {
+        err = -errno;
+        goto out;
+    }
+
+    if (vs->perm & P9_STAT_MODE_DIR) {
+        err = v9fs_do_mkdir(s, &vs->fullname, vs->perm & 0777);
+        v9fs_create_post_mkdir(s, vs, err);
+    } else if (vs->perm & P9_STAT_MODE_SYMLINK) {
+        err = v9fs_do_symlink(s, &vs->extension, &vs->fullname);
+        v9fs_create_post_perms(s, vs, err);
+    } else if (vs->perm & P9_STAT_MODE_LINK) {
+        int32_t nfid = atoi(vs->extension.data);
+        V9fsFidState *nfidp = lookup_fid(s, nfid);
+        if (nfidp == NULL) {
+            err = -errno;
+            v9fs_post_create(s, vs, err);
+        }
+        err = v9fs_do_link(s, &nfidp->path, &vs->fullname);
+        v9fs_create_post_perms(s, vs, err);
+    } else if (vs->perm & P9_STAT_MODE_DEVICE) {
+        char ctype;
+        uint32_t major, minor;
+        mode_t nmode = 0;
+
+        if (sscanf(vs->extension.data, "%c %u %u", &ctype, &major,
+                                        &minor) != 3) {
+            err = -errno;
+            v9fs_post_create(s, vs, err);
+        }
+
+        switch (ctype) {
+        case 'c':
+            nmode = S_IFCHR;
+            break;
+        case 'b':
+            nmode = S_IFBLK;
+            break;
+        default:
+            err = -EIO;
+            v9fs_post_create(s, vs, err);
+        }
+
+        nmode |= vs->perm & 0777;
+        err = v9fs_do_mknod(s, &vs->fullname, nmode, makedev(major, minor));
+        v9fs_create_post_perms(s, vs, err);
+    } else if (vs->perm & P9_STAT_MODE_NAMED_PIPE) {
+        err = v9fs_do_mknod(s, &vs->fullname, S_IFIFO | (vs->mode & 0777), 0);
+        v9fs_post_create(s, vs, err);
+    } else if (vs->perm & P9_STAT_MODE_SOCKET) {
+        err = v9fs_do_mksock(s, &vs->fullname);
+        v9fs_create_post_mksock(s, vs, err);
+    } else {
+        vs->fidp->fd = v9fs_do_open2(s, &vs->fullname,
+                                omode_to_uflags(vs->mode) | O_CREAT,
+                                vs->perm & 0777);
+        v9fs_create_post_open2(s, vs, err);
+    }
+
+    return;
+
+out:
+    v9fs_post_create(s, vs, err);
+}
+
 static void v9fs_create(V9fsState *s, V9fsPDU *pdu)
 {
-    if (debug_9p_pdu) {
-        pprint_pdu(pdu);
+    int32_t fid;
+    V9fsCreateState *vs;
+    int err = 0;
+
+    vs = qemu_malloc(sizeof(*vs));
+    vs->pdu = pdu;
+    vs->offset = 7;
+
+    v9fs_string_init(&vs->fullname);
+
+    pdu_unmarshal(vs->pdu, vs->offset, "dsdbs", &fid, &vs->name,
+                                &vs->perm, &vs->mode, &vs->extension);
+
+    vs->fidp = lookup_fid(s, fid);
+    if (vs->fidp == NULL) {
+        err = -EINVAL;
+        goto out;
     }
+
+    v9fs_string_sprintf(&vs->fullname, "%s/%s", vs->fidp->path.data,
+                                                        vs->name.data);
+
+    err = v9fs_do_lstat(s, &vs->fullname, &vs->stbuf);
+    v9fs_create_post_lstat(s, vs, err);
+    return;
+
+out:
+    complete_pdu(s, vs->pdu, err);
+    v9fs_string_free(&vs->name);
+    v9fs_string_free(&vs->extension);
+    qemu_free(vs);
 }
 
 static void v9fs_flush(V9fsState *s, V9fsPDU *pdu)

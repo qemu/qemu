@@ -12,8 +12,11 @@
  */
 #include "virtio.h"
 #include "virtio-9p.h"
+#include <arpa/inet.h>
 #include <pwd.h>
 #include <grp.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 
 static const char *rpath(FsContext *ctx, const char *path)
 {
@@ -133,6 +136,82 @@ static ssize_t local_writev(FsContext *ctx, int fd, const struct iovec *iov,
     return writev(fd, iov, iovcnt);
 }
 
+static int local_chmod(FsContext *ctx, const char *path, mode_t mode)
+{
+    return chmod(rpath(ctx, path), mode);
+}
+
+static int local_mknod(FsContext *ctx, const char *path, mode_t mode, dev_t dev)
+{
+    return mknod(rpath(ctx, path), mode, dev);
+}
+
+static int local_mksock(FsContext *ctx2, const char *path)
+{
+    struct sockaddr_un addr;
+    int s;
+
+    addr.sun_family = AF_UNIX;
+    snprintf(addr.sun_path, 108, "%s", rpath(ctx2, path));
+
+    s = socket(PF_UNIX, SOCK_STREAM, 0);
+    if (s == -1) {
+        return -1;
+    }
+
+    if (bind(s, (struct sockaddr *)&addr, sizeof(addr))) {
+        close(s);
+        return -1;
+    }
+
+    close(s);
+    return 0;
+}
+
+static int local_mkdir(FsContext *ctx, const char *path, mode_t mode)
+{
+    return mkdir(rpath(ctx, path), mode);
+}
+
+static int local_fstat(FsContext *ctx, int fd, struct stat *stbuf)
+{
+    return fstat(fd, stbuf);
+}
+
+static int local_open2(FsContext *ctx, const char *path, int flags, mode_t mode)
+{
+    return open(rpath(ctx, path), flags, mode);
+}
+
+static int local_symlink(FsContext *ctx, const char *oldpath,
+                            const char *newpath)
+{
+    return symlink(oldpath, rpath(ctx, newpath));
+}
+
+static int local_link(FsContext *ctx, const char *oldpath, const char *newpath)
+{
+    char *tmp = qemu_strdup(rpath(ctx, oldpath));
+    int err, serrno = 0;
+
+    if (tmp == NULL) {
+        return -ENOMEM;
+    }
+
+    err = link(tmp, rpath(ctx, newpath));
+    if (err == -1) {
+        serrno = errno;
+    }
+
+    qemu_free(tmp);
+
+    if (err == -1) {
+        errno = serrno;
+    }
+
+    return err;
+}
+
 FileOperations local_ops = {
     .lstat = local_lstat,
     .setuid = local_setuid,
@@ -148,4 +227,12 @@ FileOperations local_ops = {
     .readv = local_readv,
     .lseek = local_lseek,
     .writev = local_writev,
+    .chmod = local_chmod,
+    .mknod = local_mknod,
+    .mksock = local_mksock,
+    .mkdir = local_mkdir,
+    .fstat = local_fstat,
+    .open2 = local_open2,
+    .symlink = local_symlink,
+    .link = local_link,
 };
