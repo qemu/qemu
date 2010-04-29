@@ -1311,9 +1311,21 @@ out:
 
 static void v9fs_clunk(V9fsState *s, V9fsPDU *pdu)
 {
-    if (debug_9p_pdu) {
-        pprint_pdu(pdu);
+    int32_t fid;
+    size_t offset = 7;
+    int err;
+
+    pdu_unmarshal(pdu, offset, "d", &fid);
+
+    err = free_fid(s, fid);
+    if (err < 0) {
+        goto out;
     }
+
+    offset = 7;
+    err = offset;
+out:
+    complete_pdu(s, pdu, err);
 }
 
 typedef struct V9fsReadState {
