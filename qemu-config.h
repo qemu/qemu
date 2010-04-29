@@ -5,6 +5,7 @@ extern QemuOptsList qemu_drive_opts;
 extern QemuOptsList qemu_chardev_opts;
 #ifdef CONFIG_LINUX
 extern QemuOptsList qemu_fsdev_opts;
+extern QemuOptsList qemu_virtfs_opts;
 #endif
 extern QemuOptsList qemu_device_opts;
 extern QemuOptsList qemu_netdev_opts;
