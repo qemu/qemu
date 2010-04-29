@@ -56,6 +56,16 @@ static int v9fs_do_closedir(V9fsState *s, DIR *dir)
     return s->ops->closedir(&s->ctx, dir);
 }
 
+static int v9fs_do_open(V9fsState *s, V9fsString *path, int flags)
+{
+    return s->ops->open(&s->ctx, path->data, flags);
+}
+
+static DIR *v9fs_do_opendir(V9fsState *s, V9fsString *path)
+{
+    return s->ops->opendir(&s->ctx, path->data);
+}
+
 static void v9fs_string_init(V9fsString *str)
 {
     str->data = NULL;
@@ -1129,17 +1139,150 @@ out:
     v9fs_walk_complete(s, vs, err);
 }
 
+typedef struct V9fsOpenState {
+    V9fsPDU *pdu;
+    size_t offset;
+    int8_t mode;
+    V9fsFidState *fidp;
+    V9fsQID qid;
+    struct stat stbuf;
+
+} V9fsOpenState;
+
+enum {
+    Oread   = 0x00,
+    Owrite  = 0x01,
+    Ordwr   = 0x02,
+    Oexec   = 0x03,
+    Oexcl   = 0x04,
+    Otrunc  = 0x10,
+    Orexec  = 0x20,
+    Orclose = 0x40,
+    Oappend = 0x80,
+};
+
+static int omode_to_uflags(int8_t mode)
+{
+    int ret = 0;
+
+    switch (mode & 3) {
+    case Oread:
+        ret = O_RDONLY;
+        break;
+    case Ordwr:
+        ret = O_RDWR;
+        break;
+    case Owrite:
+        ret = O_WRONLY;
+        break;
+    case Oexec:
+        ret = O_RDONLY;
+        break;
+    }
+
+    if (mode & Otrunc) {
+        ret |= O_TRUNC;
+    }
+
+    if (mode & Oappend) {
+        ret |= O_APPEND;
+    }
+
+    if (mode & Oexcl) {
+        ret |= O_EXCL;
+    }
+
+    return ret;
+}
+
+static void v9fs_open_post_opendir(V9fsState *s, V9fsOpenState *vs, int err)
+{
+    if (vs->fidp->dir == NULL) {
+        err = -errno;
+        goto out;
+    }
+
+    vs->offset += pdu_marshal(vs->pdu, vs->offset, "Qd", &vs->qid, 0);
+    err = vs->offset;
+out:
+    complete_pdu(s, vs->pdu, err);
+    qemu_free(vs);
+
+}
+
+static void v9fs_open_post_open(V9fsState *s, V9fsOpenState *vs, int err)
+{
+    if (vs->fidp->fd == -1) {
+        err = -errno;
+        goto out;
+    }
+
+    vs->offset += pdu_marshal(vs->pdu, vs->offset, "Qd", &vs->qid, 0);
+    err = vs->offset;
+out:
+    complete_pdu(s, vs->pdu, err);
+    qemu_free(vs);
+}
+
+static void v9fs_open_post_lstat(V9fsState *s, V9fsOpenState *vs, int err)
+{
+    if (err) {
+        err = -errno;
+        goto out;
+    }
+
+    stat_to_qid(&vs->stbuf, &vs->qid);
+
+    if (S_ISDIR(vs->stbuf.st_mode)) {
+        vs->fidp->dir = v9fs_do_opendir(s, &vs->fidp->path);
+        v9fs_open_post_opendir(s, vs, err);
+    } else {
+        vs->fidp->fd = v9fs_do_open(s, &vs->fidp->path,
+                                    omode_to_uflags(vs->mode));
+        v9fs_open_post_open(s, vs, err);
+    }
+    return;
+out:
+    complete_pdu(s, vs->pdu, err);
+    qemu_free(vs);
+}
+
+static void v9fs_open(V9fsState *s, V9fsPDU *pdu)
+{
+    int32_t fid;
+    V9fsOpenState *vs;
+    ssize_t err = 0;
+
+
+    vs = qemu_malloc(sizeof(*vs));
+    vs->pdu = pdu;
+    vs->offset = 7;
+
+    pdu_unmarshal(vs->pdu, vs->offset, "db", &fid, &vs->mode);
+
+    vs->fidp = lookup_fid(s, fid);
+    if (vs->fidp == NULL) {
+        err = -ENOENT;
+        goto out;
+    }
+
+    BUG_ON(vs->fidp->fd != -1);
+    BUG_ON(vs->fidp->dir);
+
+    err = v9fs_do_lstat(s, &vs->fidp->path, &vs->stbuf);
+
+    v9fs_open_post_lstat(s, vs, err);
+    return;
+out:
+    complete_pdu(s, pdu, err);
+    qemu_free(vs);
+}
+
 static void v9fs_clunk(V9fsState *s, V9fsPDU *pdu)
 {
     if (debug_9p_pdu) {
         pprint_pdu(pdu);
     }
-}
-
-static void v9fs_open(V9fsState *s, V9fsPDU *pdu)
-{    if (debug_9p_pdu) {
-        pprint_pdu(pdu);
-     }
 }
 
 static void v9fs_read(V9fsState *s, V9fsPDU *pdu)

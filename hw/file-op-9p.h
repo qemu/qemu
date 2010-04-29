@@ -32,6 +32,8 @@ typedef struct FileOperations
     int (*setuid)(FsContext *, uid_t);
     int (*close)(FsContext *, int);
     int (*closedir)(FsContext *, DIR *);
+    DIR *(*opendir)(FsContext *, const char *);
+    int (*open)(FsContext *, const char *, int);
     void *opaque;
 } FileOperations;
 #endif

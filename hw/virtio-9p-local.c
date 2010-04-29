@@ -86,10 +86,22 @@ static int local_closedir(FsContext *ctx, DIR *dir)
     return closedir(dir);
 }
 
+static int local_open(FsContext *ctx, const char *path, int flags)
+{
+    return open(rpath(ctx, path), flags);
+}
+
+static DIR *local_opendir(FsContext *ctx, const char *path)
+{
+    return opendir(rpath(ctx, path));
+}
+
 FileOperations local_ops = {
     .lstat = local_lstat,
     .setuid = local_setuid,
     .readlink = local_readlink,
     .close = local_close,
     .closedir = local_closedir,
+    .open = local_open,
+    .opendir = local_opendir,
 };
