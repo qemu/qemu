@@ -96,6 +96,37 @@ static DIR *local_opendir(FsContext *ctx, const char *path)
     return opendir(rpath(ctx, path));
 }
 
+static void local_rewinddir(FsContext *ctx, DIR *dir)
+{
+    return rewinddir(dir);
+}
+
+static off_t local_telldir(FsContext *ctx, DIR *dir)
+{
+    return telldir(dir);
+}
+
+static struct dirent *local_readdir(FsContext *ctx, DIR *dir)
+{
+    return readdir(dir);
+}
+
+static void local_seekdir(FsContext *ctx, DIR *dir, off_t off)
+{
+    return seekdir(dir, off);
+}
+
+static ssize_t local_readv(FsContext *ctx, int fd, const struct iovec *iov,
+                            int iovcnt)
+{
+    return readv(fd, iov, iovcnt);
+}
+
+static off_t local_lseek(FsContext *ctx, int fd, off_t offset, int whence)
+{
+    return lseek(fd, offset, whence);
+}
+
 FileOperations local_ops = {
     .lstat = local_lstat,
     .setuid = local_setuid,
@@ -104,4 +135,10 @@ FileOperations local_ops = {
     .closedir = local_closedir,
     .open = local_open,
     .opendir = local_opendir,
+    .rewinddir = local_rewinddir,
+    .telldir = local_telldir,
+    .readdir = local_readdir,
+    .seekdir = local_seekdir,
+    .readv = local_readv,
+    .lseek = local_lseek,
 };

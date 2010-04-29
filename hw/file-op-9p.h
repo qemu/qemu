@@ -34,6 +34,12 @@ typedef struct FileOperations
     int (*closedir)(FsContext *, DIR *);
     DIR *(*opendir)(FsContext *, const char *);
     int (*open)(FsContext *, const char *, int);
+    void (*rewinddir)(FsContext *, DIR *);
+    off_t (*telldir)(FsContext *, DIR *);
+    struct dirent *(*readdir)(FsContext *, DIR *);
+    void (*seekdir)(FsContext *, DIR *, off_t);
+    ssize_t (*readv)(FsContext *, int, const struct iovec *, int);
+    off_t (*lseek)(FsContext *, int, off_t, int);
     void *opaque;
 } FileOperations;
 #endif
