@@ -861,9 +861,38 @@ static void v9fs_version(V9fsState *s, V9fsPDU *pdu)
 
 static void v9fs_attach(V9fsState *s, V9fsPDU *pdu)
 {
-    if (debug_9p_pdu) {
-        pprint_pdu(pdu);
+    int32_t fid, afid, n_uname;
+    V9fsString uname, aname;
+    V9fsFidState *fidp;
+    V9fsQID qid;
+    size_t offset = 7;
+    ssize_t err;
+
+    pdu_unmarshal(pdu, offset, "ddssd", &fid, &afid, &uname, &aname, &n_uname);
+
+    fidp = alloc_fid(s, fid);
+    if (fidp == NULL) {
+        err = -EINVAL;
+        goto out;
     }
+
+    fidp->uid = n_uname;
+
+    v9fs_string_sprintf(&fidp->path, "%s", "/");
+    err = fid_to_qid(s, fidp, &qid);
+    if (err) {
+        err = -EINVAL;
+        free_fid(s, fid);
+        goto out;
+    }
+
+    offset += pdu_marshal(pdu, offset, "Q", &qid);
+
+    err = offset;
+out:
+    complete_pdu(s, pdu, err);
+    v9fs_string_free(&uname);
+    v9fs_string_free(&aname);
 }
 
 static void v9fs_stat(V9fsState *s, V9fsPDU *pdu)
