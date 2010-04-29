@@ -932,35 +932,6 @@ static void print_sg(struct iovec *sg, int cnt)
     printf("}\n");
 }
 
-static void v9fs_dummy(V9fsState *s, V9fsPDU *pdu)
-{
-    /* Note: The following have been added to prevent GCC from complaining
-     * They will be removed in the subsequent patches */
-    (void)pdu_unmarshal;
-    (void) complete_pdu;
-    (void) v9fs_string_init;
-    (void) v9fs_string_free;
-    (void) v9fs_string_null;
-    (void) v9fs_string_sprintf;
-    (void) v9fs_string_copy;
-    (void) v9fs_string_size;
-    (void) v9fs_do_lstat;
-    (void) v9fs_do_setuid;
-    (void) v9fs_do_readlink;
-    (void) v9fs_do_close;
-    (void) v9fs_do_closedir;
-    (void) alloc_fid;
-    (void) free_fid;
-    (void) fid_to_qid;
-    (void) v9mode_to_mode;
-    (void) donttouch_stat;
-    (void) v9fs_stat_free;
-    (void) stat_to_v9stat;
-    (void) adjust_sg;
-    (void) cap_sg;
-    (void) print_sg;
-}
-
 static void v9fs_fix_path(V9fsString *dst, V9fsString *src, int len)
 {
     V9fsString str;
@@ -1959,10 +1930,8 @@ out:
 
 static void v9fs_flush(V9fsState *s, V9fsPDU *pdu)
 {
-    v9fs_dummy(s, pdu);
-    if (debug_9p_pdu) {
-        pprint_pdu(pdu);
-    }
+    /* A nop call with no return */
+    complete_pdu(s, pdu, 7);
 }
 
 typedef struct V9fsRemoveState {
