@@ -21,6 +21,126 @@
 int dotu = 1;
 int debug_9p_pdu;
 
+static void v9fs_string_init(V9fsString *str)
+{
+    str->data = NULL;
+    str->size = 0;
+}
+
+static void v9fs_string_free(V9fsString *str)
+{
+    qemu_free(str->data);
+    str->data = NULL;
+    str->size = 0;
+}
+
+static void v9fs_string_null(V9fsString *str)
+{
+    v9fs_string_free(str);
+}
+
+static int number_to_string(void *arg, char type)
+{
+    unsigned int ret = 0;
+
+    switch (type) {
+    case 'u': {
+        unsigned int num = *(unsigned int *)arg;
+
+        do {
+            ret++;
+            num = num/10;
+        } while (num);
+        break;
+    }
+    default:
+        printf("Number_to_string: Unknown number format\n");
+        return -1;
+    }
+
+    return ret;
+}
+
+static int v9fs_string_alloc_printf(char **strp, const char *fmt, va_list ap)
+{
+    va_list ap2;
+    char *iter = (char *)fmt;
+    int len = 0;
+    int nr_args = 0;
+    char *arg_char_ptr;
+    unsigned int arg_uint;
+
+    /* Find the number of %'s that denotes an argument */
+    for (iter = strstr(iter, "%"); iter; iter = strstr(iter, "%")) {
+        nr_args++;
+        iter++;
+    }
+
+    len = strlen(fmt) - 2*nr_args;
+
+    if (!nr_args) {
+        goto alloc_print;
+    }
+
+    va_copy(ap2, ap);
+
+    iter = (char *)fmt;
+
+    /* Now parse the format string */
+    for (iter = strstr(iter, "%"); iter; iter = strstr(iter, "%")) {
+        iter++;
+        switch (*iter) {
+        case 'u':
+            arg_uint = va_arg(ap2, unsigned int);
+            len += number_to_string((void *)&arg_uint, 'u');
+            break;
+        case 's':
+            arg_char_ptr = va_arg(ap2, char *);
+            len += strlen(arg_char_ptr);
+            break;
+        case 'c':
+            len += 1;
+            break;
+        default:
+            fprintf(stderr,
+		    "v9fs_string_alloc_printf:Incorrect format %c", *iter);
+            return -1;
+        }
+        iter++;
+    }
+
+alloc_print:
+    *strp = qemu_malloc((len + 1) * sizeof(**strp));
+
+    return vsprintf(*strp, fmt, ap);
+}
+
+static void v9fs_string_sprintf(V9fsString *str, const char *fmt, ...)
+{
+    va_list ap;
+    int err;
+
+    v9fs_string_free(str);
+
+    va_start(ap, fmt);
+    err = v9fs_string_alloc_printf(&str->data, fmt, ap);
+    BUG_ON(err == -1);
+    va_end(ap);
+
+    str->size = err;
+}
+
+static void v9fs_string_copy(V9fsString *lhs, V9fsString *rhs)
+{
+    v9fs_string_free(lhs);
+    v9fs_string_sprintf(lhs, "%s", rhs->data);
+}
+
+static size_t v9fs_string_size(V9fsString *str)
+{
+    return str->size;
+}
+
 static V9fsPDU *alloc_pdu(V9fsState *s)
 {
     V9fsPDU *pdu = NULL;
@@ -311,6 +431,13 @@ static void v9fs_dummy(V9fsState *s, V9fsPDU *pdu)
      * They will be removed in the subsequent patches */
     (void)pdu_unmarshal;
     (void) complete_pdu;
+    (void) v9fs_string_init;
+    (void) v9fs_string_free;
+    (void) v9fs_string_null;
+    (void) v9fs_string_sprintf;
+    (void) v9fs_string_copy;
+    (void) v9fs_string_size;
+
 
 }
 static void v9fs_version(V9fsState *s, V9fsPDU *pdu)
