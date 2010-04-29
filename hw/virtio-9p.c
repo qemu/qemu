@@ -762,6 +762,56 @@ static int stat_to_v9stat(V9fsState *s, V9fsString *name,
     return 0;
 }
 
+static struct iovec *adjust_sg(struct iovec *sg, int len, int *iovcnt)
+{
+    while (len && *iovcnt) {
+        if (len < sg->iov_len) {
+            sg->iov_len -= len;
+            sg->iov_base += len;
+            len = 0;
+        } else {
+            len -= sg->iov_len;
+            sg++;
+            *iovcnt -= 1;
+        }
+    }
+
+    return sg;
+}
+
+static struct iovec *cap_sg(struct iovec *sg, int cap, int *cnt)
+{
+    int i;
+    int total = 0;
+
+    for (i = 0; i < *cnt; i++) {
+        if ((total + sg[i].iov_len) > cap) {
+            sg[i].iov_len -= ((total + sg[i].iov_len) - cap);
+            i++;
+            break;
+        }
+        total += sg[i].iov_len;
+    }
+
+    *cnt = i;
+
+    return sg;
+}
+
+static void print_sg(struct iovec *sg, int cnt)
+{
+    int i;
+
+    printf("sg[%d]: {", cnt);
+    for (i = 0; i < cnt; i++) {
+        if (i) {
+            printf(", ");
+        }
+        printf("(%p, %zd)", sg[i].iov_base, sg[i].iov_len);
+    }
+    printf("}\n");
+}
+
 static void v9fs_dummy(V9fsState *s, V9fsPDU *pdu)
 {
     /* Note: The following have been added to prevent GCC from complaining
@@ -786,6 +836,9 @@ static void v9fs_dummy(V9fsState *s, V9fsPDU *pdu)
     (void) donttouch_stat;
     (void) v9fs_stat_free;
     (void) stat_to_v9stat;
+    (void) adjust_sg;
+    (void) cap_sg;
+    (void) print_sg;
 }
 
 static void v9fs_version(V9fsState *s, V9fsPDU *pdu)
