@@ -252,6 +252,11 @@ static int local_utime(FsContext *ctx, const char *path,
     return utime(rpath(ctx, path), buf);
 }
 
+static int local_remove(FsContext *ctx, const char *path)
+{
+    return remove(rpath(ctx, path));
+}
+
 static int local_fsync(FsContext *ctx, int fd)
 {
     return fsync(fd);
@@ -284,5 +289,6 @@ FileOperations local_ops = {
     .rename = local_rename,
     .chown = local_chown,
     .utime = local_utime,
+    .remove = local_remove,
     .fsync = local_fsync,
 };

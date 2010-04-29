@@ -166,6 +166,11 @@ static int v9fs_do_utime(V9fsState *s, V9fsString *path,
     return s->ops->utime(&s->ctx, path->data, buf);
 }
 
+static int v9fs_do_remove(V9fsState *s, V9fsString *path)
+{
+    return s->ops->remove(&s->ctx, path->data);
+}
+
 static int v9fs_do_fsync(V9fsState *s, int fd)
 {
     return s->ops->fsync(&s->ctx, fd);
@@ -1960,11 +1965,52 @@ static void v9fs_flush(V9fsState *s, V9fsPDU *pdu)
     }
 }
 
+typedef struct V9fsRemoveState {
+    V9fsPDU *pdu;
+    size_t offset;
+    V9fsFidState *fidp;
+} V9fsRemoveState;
+
+static void v9fs_remove_post_remove(V9fsState *s, V9fsRemoveState *vs,
+                                                                int err)
+{
+    /* For TREMOVE we need to clunk the fid even on failed remove */
+    err = free_fid(s, vs->fidp->fid);
+    if (err < 0) {
+        goto out;
+    }
+
+    err = vs->offset;
+out:
+    complete_pdu(s, vs->pdu, err);
+    qemu_free(vs);
+}
+
 static void v9fs_remove(V9fsState *s, V9fsPDU *pdu)
 {
-    if (debug_9p_pdu) {
-        pprint_pdu(pdu);
+    int32_t fid;
+    V9fsRemoveState *vs;
+    int err = 0;
+
+    vs = qemu_malloc(sizeof(*vs));
+    vs->pdu = pdu;
+    vs->offset = 7;
+
+    pdu_unmarshal(vs->pdu, vs->offset, "d", &fid);
+
+    vs->fidp = lookup_fid(s, fid);
+    if (vs->fidp == NULL) {
+        err = -EINVAL;
+        goto out;
     }
+
+    err = v9fs_do_remove(s, &vs->fidp->path);
+    v9fs_remove_post_remove(s, vs, err);
+    return;
+
+out:
+    complete_pdu(s, pdu, err);
+    qemu_free(vs);
 }
 
 typedef struct V9fsWstatState
