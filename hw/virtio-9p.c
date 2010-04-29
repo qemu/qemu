@@ -176,6 +176,126 @@ static size_t v9fs_string_size(V9fsString *str)
     return str->size;
 }
 
+static V9fsFidState *lookup_fid(V9fsState *s, int32_t fid)
+{
+    V9fsFidState *f;
+
+    for (f = s->fid_list; f; f = f->next) {
+        if (f->fid == fid) {
+            v9fs_do_setuid(s, f->uid);
+            return f;
+        }
+    }
+
+    return NULL;
+}
+
+static V9fsFidState *alloc_fid(V9fsState *s, int32_t fid)
+{
+    V9fsFidState *f;
+
+    f = lookup_fid(s, fid);
+    if (f) {
+        return NULL;
+    }
+
+    f = qemu_mallocz(sizeof(V9fsFidState));
+
+    f->fid = fid;
+    f->fd = -1;
+    f->dir = NULL;
+
+    f->next = s->fid_list;
+    s->fid_list = f;
+
+    return f;
+}
+
+static int free_fid(V9fsState *s, int32_t fid)
+{
+    V9fsFidState **fidpp, *fidp;
+
+    for (fidpp = &s->fid_list; *fidpp; fidpp = &(*fidpp)->next) {
+        if ((*fidpp)->fid == fid) {
+            break;
+        }
+    }
+
+    if (*fidpp == NULL) {
+        return -ENOENT;
+    }
+
+    fidp = *fidpp;
+    *fidpp = fidp->next;
+
+    if (fidp->fd != -1) {
+        v9fs_do_close(s, fidp->fd);
+    }
+    if (fidp->dir) {
+        v9fs_do_closedir(s, fidp->dir);
+    }
+    v9fs_string_free(&fidp->path);
+    qemu_free(fidp);
+
+    return 0;
+}
+
+#define P9_QID_TYPE_DIR         0x80
+#define P9_QID_TYPE_SYMLINK     0x02
+
+#define P9_STAT_MODE_DIR        0x80000000
+#define P9_STAT_MODE_APPEND     0x40000000
+#define P9_STAT_MODE_EXCL       0x20000000
+#define P9_STAT_MODE_MOUNT      0x10000000
+#define P9_STAT_MODE_AUTH       0x08000000
+#define P9_STAT_MODE_TMP        0x04000000
+#define P9_STAT_MODE_SYMLINK    0x02000000
+#define P9_STAT_MODE_LINK       0x01000000
+#define P9_STAT_MODE_DEVICE     0x00800000
+#define P9_STAT_MODE_NAMED_PIPE 0x00200000
+#define P9_STAT_MODE_SOCKET     0x00100000
+#define P9_STAT_MODE_SETUID     0x00080000
+#define P9_STAT_MODE_SETGID     0x00040000
+#define P9_STAT_MODE_SETVTX     0x00010000
+
+#define P9_STAT_MODE_TYPE_BITS (P9_STAT_MODE_DIR |          \
+                                P9_STAT_MODE_SYMLINK |      \
+                                P9_STAT_MODE_LINK |         \
+                                P9_STAT_MODE_DEVICE |       \
+                                P9_STAT_MODE_NAMED_PIPE |   \
+                                P9_STAT_MODE_SOCKET)
+
+/* This is the algorithm from ufs in spfs */
+static void stat_to_qid(const struct stat *stbuf, V9fsQID *qidp)
+{
+    size_t size;
+
+    size = MIN(sizeof(stbuf->st_ino), sizeof(qidp->path));
+    memcpy(&qidp->path, &stbuf->st_ino, size);
+    qidp->version = stbuf->st_mtime ^ (stbuf->st_size << 8);
+    qidp->type = 0;
+    if (S_ISDIR(stbuf->st_mode)) {
+        qidp->type |= P9_QID_TYPE_DIR;
+    }
+    if (S_ISLNK(stbuf->st_mode)) {
+        qidp->type |= P9_QID_TYPE_SYMLINK;
+    }
+}
+
+static int fid_to_qid(V9fsState *s, V9fsFidState *fidp, V9fsQID *qidp)
+{
+    struct stat stbuf;
+    int err;
+
+    err = v9fs_do_lstat(s, &fidp->path, &stbuf);
+    if (err) {
+        return err;
+    }
+
+    stat_to_qid(&stbuf, qidp);
+    return 0;
+}
+
 static V9fsPDU *alloc_pdu(V9fsState *s)
 {
     V9fsPDU *pdu = NULL;
@@ -477,6 +597,9 @@ static void v9fs_dummy(V9fsState *s, V9fsPDU *pdu)
     (void) v9fs_do_readlink;
     (void) v9fs_do_close;
     (void) v9fs_do_closedir;
+    (void) alloc_fid;
+    (void) free_fid;
+    (void) fid_to_qid;
 }
 
 static void v9fs_version(V9fsState *s, V9fsPDU *pdu)
