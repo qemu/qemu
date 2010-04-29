@@ -30,8 +30,10 @@ typedef struct FileOperations
     int (*lstat)(FsContext *, const char *, struct stat *);
     ssize_t (*readlink)(FsContext *, const char *, char *, size_t);
     int (*chmod)(FsContext *, const char *, mode_t);
+    int (*chown)(FsContext *, const char *, uid_t, gid_t);
     int (*mknod)(FsContext *, const char *, mode_t, dev_t);
     int (*mksock)(FsContext *, const char *);
+    int (*utime)(FsContext *, const char *, const struct utimbuf *);
     int (*symlink)(FsContext *, const char *, const char *);
     int (*link)(FsContext *, const char *, const char *);
     int (*setuid)(FsContext *, uid_t);
@@ -49,6 +51,9 @@ typedef struct FileOperations
     off_t (*lseek)(FsContext *, int, off_t, int);
     int (*mkdir)(FsContext *, const char *, mode_t);
     int (*fstat)(FsContext *, int, struct stat *);
+    int (*rename)(FsContext *, const char *, const char *);
+    int (*truncate)(FsContext *, const char *, off_t);
+    int (*fsync)(FsContext *, int);
     void *opaque;
 } FileOperations;
 #endif

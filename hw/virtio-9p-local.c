@@ -212,6 +212,51 @@ static int local_link(FsContext *ctx, const char *oldpath, const char *newpath)
     return err;
 }
 
+static int local_truncate(FsContext *ctx, const char *path, off_t size)
+{
+    return truncate(rpath(ctx, path), size);
+}
+
+static int local_rename(FsContext *ctx, const char *oldpath,
+                        const char *newpath)
+{
+    char *tmp;
+    int err;
+
+    tmp = qemu_strdup(rpath(ctx, oldpath));
+    if (tmp == NULL) {
+        return -1;
+    }
+
+    err = rename(tmp, rpath(ctx, newpath));
+    if (err == -1) {
+        int serrno = errno;
+        qemu_free(tmp);
+        errno = serrno;
+    } else {
+        qemu_free(tmp);
+    }
+
+    return err;
+
+}
+
+static int local_chown(FsContext *ctx, const char *path, uid_t uid, gid_t gid)
+{
+    return chown(rpath(ctx, path), uid, gid);
+}
+
+static int local_utime(FsContext *ctx, const char *path,
+                        const struct utimbuf *buf)
+{
+    return utime(rpath(ctx, path), buf);
+}
+
+static int local_fsync(FsContext *ctx, int fd)
+{
+    return fsync(fd);
+}
+
 FileOperations local_ops = {
     .lstat = local_lstat,
     .setuid = local_setuid,
@@ -235,4 +280,9 @@ FileOperations local_ops = {
     .open2 = local_open2,
     .symlink = local_symlink,
     .link = local_link,
+    .truncate = local_truncate,
+    .rename = local_rename,
+    .chown = local_chown,
+    .utime = local_utime,
+    .fsync = local_fsync,
 };
