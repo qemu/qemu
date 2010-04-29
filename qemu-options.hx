@@ -478,6 +478,40 @@ To get a help on possible @var{driver}s, @var{option}s or @var{value}s, use
 @code{-device @var{driver},@var{option}=?}. 
 ETEXI
 
+#ifdef CONFIG_LINUX
+DEFHEADING(File system options:)
+
+DEF("fsdev", HAS_ARG, QEMU_OPTION_fsdev,
+    "-fsdev local,id=id,path=path\n",
+    QEMU_ARCH_ALL)
+
+STEXI
+
+The general form of a File system device option is:
+@table @option
+
+@item -fsdev @var{fstype} ,id=@var{id} [,@var{options}]
+@findex -fsdev
+Fstype is one of:
+@option{local},
+The specific Fstype will determine the applicable options.
+
+Options to each backend are described below.
+
+@item -fsdev local ,id=@var{id} ,path=@var{path}
+
+Create a file-system-"device" for local-filesystem.
+
+@option{local} is only available on Linux.
+
+@option{path} specifies the path to be exported. @option{path} is required.
+
+@end table
+ETEXI
+#endif
+
+DEFHEADING()
+
 DEF("name", HAS_ARG, QEMU_OPTION_name,
     "-name string1[,process=string2]\n"
     "                set the name of the guest\n"

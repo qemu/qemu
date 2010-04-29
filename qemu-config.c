@@ -151,6 +151,24 @@ QemuOptsList qemu_chardev_opts = {
     },
 };
 
+#ifdef CONFIG_LINUX
+QemuOptsList qemu_fsdev_opts = {
+    .name = "fsdev",
+    .implied_opt_name = "fstype",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_fsdev_opts.head),
+    .desc = {
+        {
+            .name = "fstype",
+            .type = QEMU_OPT_STRING,
+        }, {
+            .name = "path",
+            .type = QEMU_OPT_STRING,
+        },
+        { /*End of list */ }
+    },
+};
+#endif
+
 QemuOptsList qemu_device_opts = {
     .name = "device",
     .implied_opt_name = "driver",

@@ -149,6 +149,9 @@ int main(int argc, char **argv)
 #include "qemu-option.h"
 #include "qemu-config.h"
 #include "qemu-objects.h"
+#ifdef CONFIG_LINUX
+#include "fsdev/qemu-fsdev.h"
+#endif
 
 #include "disas.h"
 
@@ -2310,6 +2313,16 @@ static int chardev_init_func(QemuOpts *opts, void *opaque)
     return 0;
 }
 
+#ifdef CONFIG_LINUX
+static int fsdev_init_func(QemuOpts *opts, void *opaque)
+{
+    int ret;
+    ret = qemu_fsdev_add(opts);
+
+    return ret;
+}
+#endif
+
 static int mon_init_func(QemuOpts *opts, void *opaque)
 {
     CharDriverState *chr;
@@ -3081,6 +3094,15 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 break;
+#ifdef CONFIG_LINUX
+            case QEMU_OPTION_fsdev:
+                opts = qemu_opts_parse(&qemu_fsdev_opts, optarg, 1);
+                if (!opts) {
+                    fprintf(stderr, "parse error: %s\n", optarg);
+                    exit(1);
+                }
+                break;
+#endif
             case QEMU_OPTION_serial:
                 add_device_config(DEV_SERIAL, optarg);
                 default_serial = 0;
@@ -3437,6 +3459,11 @@ int main(int argc, char **argv, char **envp)
 
     if (qemu_opts_foreach(&qemu_chardev_opts, chardev_init_func, NULL, 1) != 0)
         exit(1);
+#ifdef CONFIG_LINUX
+    if (qemu_opts_foreach(&qemu_fsdev_opts, fsdev_init_func, NULL, 1) != 0) {
+        exit(1);
+    }
+#endif
 
 #ifndef _WIN32
     if (daemonize) {
