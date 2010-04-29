@@ -540,6 +540,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
         }
 
         ret = bdrv_create(bdrv_qcow2, tmp_filename, options);
+        free_option_parameters(options);
         if (ret < 0) {
             return ret;
         }
