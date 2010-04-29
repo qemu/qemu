@@ -953,11 +953,180 @@ out:
     qemu_free(vs);
 }
 
+typedef struct V9fsWalkState {
+    V9fsPDU *pdu;
+    size_t offset;
+    int16_t nwnames;
+    int name_idx;
+    V9fsQID *qids;
+    V9fsFidState *fidp;
+    V9fsFidState *newfidp;
+    V9fsString path;
+    V9fsString *wnames;
+    struct stat stbuf;
+} V9fsWalkState;
+
+static void v9fs_walk_complete(V9fsState *s, V9fsWalkState *vs, int err)
+{
+    complete_pdu(s, vs->pdu, err);
+
+    if (vs->nwnames) {
+        for (vs->name_idx = 0; vs->name_idx < vs->nwnames; vs->name_idx++) {
+            v9fs_string_free(&vs->wnames[vs->name_idx]);
+        }
+
+        qemu_free(vs->wnames);
+        qemu_free(vs->qids);
+    }
+}
+
+static void v9fs_walk_marshal(V9fsWalkState *vs)
+{
+    int i;
+    vs->offset = 7;
+    vs->offset += pdu_marshal(vs->pdu, vs->offset, "w", vs->nwnames);
+
+    for (i = 0; i < vs->nwnames; i++) {
+        vs->offset += pdu_marshal(vs->pdu, vs->offset, "Q", &vs->qids[i]);
+    }
+}
+
+static void v9fs_walk_post_newfid_lstat(V9fsState *s, V9fsWalkState *vs,
+                                                                int err)
+{
+    if (err == -1) {
+        free_fid(s, vs->newfidp->fid);
+        v9fs_string_free(&vs->path);
+        err = -ENOENT;
+        goto out;
+    }
+
+    stat_to_qid(&vs->stbuf, &vs->qids[vs->name_idx]);
+
+    vs->name_idx++;
+    if (vs->name_idx < vs->nwnames) {
+        v9fs_string_sprintf(&vs->path, "%s/%s", vs->newfidp->path.data,
+                                            vs->wnames[vs->name_idx].data);
+        v9fs_string_copy(&vs->newfidp->path, &vs->path);
+
+        err = v9fs_do_lstat(s, &vs->newfidp->path, &vs->stbuf);
+        v9fs_walk_post_newfid_lstat(s, vs, err);
+        return;
+    }
+
+    v9fs_string_free(&vs->path);
+    v9fs_walk_marshal(vs);
+    err = vs->offset;
+out:
+    v9fs_walk_complete(s, vs, err);
+}
+
+static void v9fs_walk_post_oldfid_lstat(V9fsState *s, V9fsWalkState *vs,
+        int err)
+{
+    if (err == -1) {
+        v9fs_string_free(&vs->path);
+        err = -ENOENT;
+        goto out;
+    }
+
+    stat_to_qid(&vs->stbuf, &vs->qids[vs->name_idx]);
+    vs->name_idx++;
+    if (vs->name_idx < vs->nwnames) {
+
+        v9fs_string_sprintf(&vs->path, "%s/%s",
+                vs->fidp->path.data, vs->wnames[vs->name_idx].data);
+        v9fs_string_copy(&vs->fidp->path, &vs->path);
+
+        err = v9fs_do_lstat(s, &vs->fidp->path, &vs->stbuf);
+        v9fs_walk_post_oldfid_lstat(s, vs, err);
+        return;
+    }
+
+    v9fs_string_free(&vs->path);
+    v9fs_walk_marshal(vs);
+    err = vs->offset;
+out:
+    v9fs_walk_complete(s, vs, err);
+}
+
 static void v9fs_walk(V9fsState *s, V9fsPDU *pdu)
 {
-    if (debug_9p_pdu) {
-        pprint_pdu(pdu);
+    int32_t fid, newfid;
+    V9fsWalkState *vs;
+    int err = 0;
+    int i;
+
+    vs = qemu_malloc(sizeof(*vs));
+    vs->pdu = pdu;
+    vs->wnames = NULL;
+    vs->qids = NULL;
+    vs->offset = 7;
+
+    vs->offset += pdu_unmarshal(vs->pdu, vs->offset, "ddw", &fid,
+                                            &newfid, &vs->nwnames);
+
+    if (vs->nwnames) {
+        vs->wnames = qemu_mallocz(sizeof(vs->wnames[0]) * vs->nwnames);
+
+        vs->qids = qemu_mallocz(sizeof(vs->qids[0]) * vs->nwnames);
+
+        for (i = 0; i < vs->nwnames; i++) {
+            vs->offset += pdu_unmarshal(vs->pdu, vs->offset, "s",
+                                            &vs->wnames[i]);
+        }
     }
+
+    vs->fidp = lookup_fid(s, fid);
+    if (vs->fidp == NULL) {
+        err = -ENOENT;
+        goto out;
+    }
+
+    /* FIXME: is this really valid? */
+    if (fid == newfid) {
+
+        BUG_ON(vs->fidp->fd != -1);
+        BUG_ON(vs->fidp->dir);
+        v9fs_string_init(&vs->path);
+        vs->name_idx = 0;
+
+        if (vs->name_idx < vs->nwnames) {
+            v9fs_string_sprintf(&vs->path, "%s/%s",
+                vs->fidp->path.data, vs->wnames[vs->name_idx].data);
+            v9fs_string_copy(&vs->fidp->path, &vs->path);
+
+            err = v9fs_do_lstat(s, &vs->fidp->path, &vs->stbuf);
+            v9fs_walk_post_oldfid_lstat(s, vs, err);
+            return;
+        }
+    } else {
+        vs->newfidp = alloc_fid(s, newfid);
+        if (vs->newfidp == NULL) {
+            err = -EINVAL;
+            goto out;
+        }
+
+        vs->newfidp->uid = vs->fidp->uid;
+        v9fs_string_init(&vs->path);
+        vs->name_idx = 0;
+        v9fs_string_copy(&vs->newfidp->path, &vs->fidp->path);
+
+        if (vs->name_idx < vs->nwnames) {
+            v9fs_string_sprintf(&vs->path, "%s/%s", vs->newfidp->path.data,
+                                vs->wnames[vs->name_idx].data);
+            v9fs_string_copy(&vs->newfidp->path, &vs->path);
+
+            err = v9fs_do_lstat(s, &vs->newfidp->path, &vs->stbuf);
+            v9fs_walk_post_newfid_lstat(s, vs, err);
+            return;
+        }
+    }
+
+    v9fs_walk_marshal(vs);
+    err = vs->offset;
+out:
+    v9fs_walk_complete(s, vs, err);
 }
 
 static void v9fs_clunk(V9fsState *s, V9fsPDU *pdu)
