@@ -580,6 +580,188 @@ static void complete_pdu(V9fsState *s, V9fsPDU *pdu, ssize_t len)
     free_pdu(s, pdu);
 }
 
+static mode_t v9mode_to_mode(uint32_t mode, V9fsString *extension)
+{
+    mode_t ret;
+
+    ret = mode & 0777;
+    if (mode & P9_STAT_MODE_DIR) {
+        ret |= S_IFDIR;
+    }
+
+    if (dotu) {
+        if (mode & P9_STAT_MODE_SYMLINK) {
+            ret |= S_IFLNK;
+        }
+        if (mode & P9_STAT_MODE_SOCKET) {
+            ret |= S_IFSOCK;
+        }
+        if (mode & P9_STAT_MODE_NAMED_PIPE) {
+            ret |= S_IFIFO;
+        }
+        if (mode & P9_STAT_MODE_DEVICE) {
+            if (extension && extension->data[0] == 'c') {
+                ret |= S_IFCHR;
+            } else {
+                ret |= S_IFBLK;
+            }
+        }
+    }
+
+    if (!(ret&~0777)) {
+        ret |= S_IFREG;
+    }
+
+    if (mode & P9_STAT_MODE_SETUID) {
+        ret |= S_ISUID;
+    }
+    if (mode & P9_STAT_MODE_SETGID) {
+        ret |= S_ISGID;
+    }
+    if (mode & P9_STAT_MODE_SETVTX) {
+        ret |= S_ISVTX;
+    }
+
+    return ret;
+}
+
+static int donttouch_stat(V9fsStat *stat)
+{
+    if (stat->type == -1 &&
+        stat->dev == -1 &&
+        stat->qid.type == -1 &&
+        stat->qid.version == -1 &&
+        stat->qid.path == -1 &&
+        stat->mode == -1 &&
+        stat->atime == -1 &&
+        stat->mtime == -1 &&
+        stat->length == -1 &&
+        !stat->name.size &&
+        !stat->uid.size &&
+        !stat->gid.size &&
+        !stat->muid.size &&
+        stat->n_uid == -1 &&
+        stat->n_gid == -1 &&
+        stat->n_muid == -1) {
+        return 1;
+    }
+
+    return 0;
+}
+
+static void v9fs_stat_free(V9fsStat *stat)
+{
+    v9fs_string_free(&stat->name);
+    v9fs_string_free(&stat->uid);
+    v9fs_string_free(&stat->gid);
+    v9fs_string_free(&stat->muid);
+    v9fs_string_free(&stat->extension);
+}
+
+static uint32_t stat_to_v9mode(const struct stat *stbuf)
+{
+    uint32_t mode;
+
+    mode = stbuf->st_mode & 0777;
+    if (S_ISDIR(stbuf->st_mode)) {
+        mode |= P9_STAT_MODE_DIR;
+    }
+
+    if (dotu) {
+        if (S_ISLNK(stbuf->st_mode)) {
+            mode |= P9_STAT_MODE_SYMLINK;
+        }
+
+        if (S_ISSOCK(stbuf->st_mode)) {
+            mode |= P9_STAT_MODE_SOCKET;
+        }
+
+        if (S_ISFIFO(stbuf->st_mode)) {
+            mode |= P9_STAT_MODE_NAMED_PIPE;
+        }
+
+        if (S_ISBLK(stbuf->st_mode) || S_ISCHR(stbuf->st_mode)) {
+            mode |= P9_STAT_MODE_DEVICE;
+        }
+
+        if (stbuf->st_mode & S_ISUID) {
+            mode |= P9_STAT_MODE_SETUID;
+        }
+
+        if (stbuf->st_mode & S_ISGID) {
+            mode |= P9_STAT_MODE_SETGID;
+        }
+
+        if (stbuf->st_mode & S_ISVTX) {
+            mode |= P9_STAT_MODE_SETVTX;
+        }
+    }
+
+    return mode;
+}
+
+static int stat_to_v9stat(V9fsState *s, V9fsString *name,
+                            const struct stat *stbuf,
+                            V9fsStat *v9stat)
+{
+    int err;
+    const char *str;
+
+    memset(v9stat, 0, sizeof(*v9stat));
+
+    stat_to_qid(stbuf, &v9stat->qid);
+    v9stat->mode = stat_to_v9mode(stbuf);
+    v9stat->atime = stbuf->st_atime;
+    v9stat->mtime = stbuf->st_mtime;
+    v9stat->length = stbuf->st_size;
+
+    v9fs_string_null(&v9stat->uid);
+    v9fs_string_null(&v9stat->gid);
+    v9fs_string_null(&v9stat->muid);
+
+    if (dotu) {
+        v9stat->n_uid = stbuf->st_uid;
+        v9stat->n_gid = stbuf->st_gid;
+        v9stat->n_muid = 0;
+
+        v9fs_string_null(&v9stat->extension);
+
+        if (v9stat->mode & P9_STAT_MODE_SYMLINK) {
+            err = v9fs_do_readlink(s, name, &v9stat->extension);
+            if (err == -1) {
+                err = -errno;
+                return err;
+            }
+            v9stat->extension.data[err] = 0;
+            v9stat->extension.size = err;
+        } else if (v9stat->mode & P9_STAT_MODE_DEVICE) {
+            v9fs_string_sprintf(&v9stat->extension, "%c %u %u",
+                    S_ISCHR(stbuf->st_mode) ? 'c' : 'b',
+                    major(stbuf->st_rdev), minor(stbuf->st_rdev));
+        } else if (S_ISDIR(stbuf->st_mode) || S_ISREG(stbuf->st_mode)) {
+            v9fs_string_sprintf(&v9stat->extension, "%s %u",
+                    "HARDLINKCOUNT", stbuf->st_nlink);
+        }
+    }
+
+    str = strrchr(name->data, '/');
+    if (str) {
+        str += 1;
+    } else {
+        str = name->data;
+    }
+
+    v9fs_string_sprintf(&v9stat->name, "%s", str);
+
+    v9stat->size = 61 +
+        v9fs_string_size(&v9stat->name) +
+        v9fs_string_size(&v9stat->uid) +
+        v9fs_string_size(&v9stat->gid) +
+        v9fs_string_size(&v9stat->muid) +
+        v9fs_string_size(&v9stat->extension);
+    return 0;
+}
+
 static void v9fs_dummy(V9fsState *s, V9fsPDU *pdu)
 {
     /* Note: The following have been added to prevent GCC from complaining
@@ -600,6 +782,10 @@ static void v9fs_dummy(V9fsState *s, V9fsPDU *pdu)
     (void) alloc_fid;
     (void) free_fid;
     (void) fid_to_qid;
+    (void) v9mode_to_mode;
+    (void) donttouch_stat;
+    (void) v9fs_stat_free;
+    (void) stat_to_v9stat;
 }
 
 static void v9fs_version(V9fsState *s, V9fsPDU *pdu)
