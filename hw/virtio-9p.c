@@ -843,9 +843,20 @@ static void v9fs_dummy(V9fsState *s, V9fsPDU *pdu)
 
 static void v9fs_version(V9fsState *s, V9fsPDU *pdu)
 {
-    if (debug_9p_pdu) {
-        pprint_pdu(pdu);
+    int32_t msize;
+    V9fsString version;
+    size_t offset = 7;
+
+    pdu_unmarshal(pdu, offset, "ds", &msize, &version);
+
+    if (strcmp(version.data, "9P2000.u")) {
+        v9fs_string_sprintf(&version, "unknown");
     }
+
+    offset += pdu_marshal(pdu, offset, "ds", msize, &version);
+    complete_pdu(s, pdu, offset);
+
+    v9fs_string_free(&version);
 }
 
 static void v9fs_attach(V9fsState *s, V9fsPDU *pdu)
