@@ -1136,7 +1136,7 @@ static int img_rebase(int argc, char **argv)
     if (!unsafe) {
         uint64_t num_sectors;
         uint64_t sector;
-        int n, n1;
+        int n;
         uint8_t * buf_old;
         uint8_t * buf_new;
 
@@ -1155,8 +1155,8 @@ static int img_rebase(int argc, char **argv)
             }
 
             /* If the cluster is allocated, we don't need to take action */
-            if (bdrv_is_allocated(bs, sector, n, &n1)) {
-                n = n1;
+            ret = bdrv_is_allocated(bs, sector, n, &n);
+            if (ret) {
                 continue;
             }
 
