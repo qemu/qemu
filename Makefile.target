@@ -168,6 +168,7 @@ obj-y += virtio-blk.o virtio-balloon.o virtio-net.o virtio-serial-bus.o
 obj-$(CONFIG_VIRTIO_PCI) += virtio-pci.o
 obj-y += vhost_net.o
 obj-$(CONFIG_VHOST_NET) += vhost.o
+obj-$(CONFIG_LINUX) += virtio-9p.o virtio-9p-debug.o virtio-9p-local.o
 obj-y += rwhandler.o
 obj-$(CONFIG_KVM) += kvm.o kvm-all.o
 obj-$(CONFIG_NO_KVM) += kvm-stub.o

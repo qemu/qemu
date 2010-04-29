@@ -50,4 +50,5 @@ typedef struct FsTypeListEntry {
 
 extern int qemu_fsdev_add(QemuOpts *opts);
 extern FsTypeEntry *get_fsdev_fsentry(char *id);
+extern FileOperations local_ops;
 #endif

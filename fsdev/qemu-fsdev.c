@@ -21,7 +21,7 @@ static QTAILQ_HEAD(FsTypeEntry_head, FsTypeListEntry) fstype_entries =
     QTAILQ_HEAD_INITIALIZER(fstype_entries);
 
 static FsTypeTable FsTypes[] = {
-    { .name = "local", .ops = NULL},
+    { .name = "local", .ops = &local_ops},
 };
 
 int qemu_fsdev_add(QemuOpts *opts)
