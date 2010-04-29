@@ -71,6 +71,248 @@ size_t pdu_packunpack(void *addr, struct iovec *sg, int sg_count,
     return copied;
 }
 
+static size_t pdu_unpack(void *dst, V9fsPDU *pdu, size_t offset, size_t size)
+{
+    return pdu_packunpack(dst, pdu->elem.out_sg, pdu->elem.out_num,
+                         offset, size, 0);
+}
+
+static size_t pdu_pack(V9fsPDU *pdu, size_t offset, const void *src,
+                        size_t size)
+{
+    return pdu_packunpack((void *)src, pdu->elem.in_sg, pdu->elem.in_num,
+                             offset, size, 1);
+}
+
+static int pdu_copy_sg(V9fsPDU *pdu, size_t offset, int rx, struct iovec *sg)
+{
+    size_t pos = 0;
+    int i, j;
+    struct iovec *src_sg;
+    unsigned int num;
+
+    if (rx) {
+        src_sg = pdu->elem.in_sg;
+        num = pdu->elem.in_num;
+    } else {
+        src_sg = pdu->elem.out_sg;
+        num = pdu->elem.out_num;
+    }
+
+    j = 0;
+    for (i = 0; i < num; i++) {
+        if (offset <= pos) {
+            sg[j].iov_base = src_sg[i].iov_base;
+            sg[j].iov_len = src_sg[i].iov_len;
+            j++;
+        } else if (offset < (src_sg[i].iov_len + pos)) {
+            sg[j].iov_base = src_sg[i].iov_base;
+            sg[j].iov_len = src_sg[i].iov_len;
+            sg[j].iov_base += (offset - pos);
+            sg[j].iov_len -= (offset - pos);
+            j++;
+        }
+        pos += src_sg[i].iov_len;
+    }
+
+    return j;
+}
+
+static size_t pdu_unmarshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...)
+{
+    size_t old_offset = offset;
+    va_list ap;
+    int i;
+
+    va_start(ap, fmt);
+    for (i = 0; fmt[i]; i++) {
+        switch (fmt[i]) {
+        case 'b': {
+            uint8_t *valp = va_arg(ap, uint8_t *);
+            offset += pdu_unpack(valp, pdu, offset, sizeof(*valp));
+            break;
+        }
+        case 'w': {
+            uint16_t val, *valp;
+            valp = va_arg(ap, uint16_t *);
+            val = le16_to_cpupu(valp);
+            offset += pdu_unpack(&val, pdu, offset, sizeof(val));
+            *valp = val;
+            break;
+        }
+        case 'd': {
+            uint32_t val, *valp;
+            valp = va_arg(ap, uint32_t *);
+            val = le32_to_cpupu(valp);
+            offset += pdu_unpack(&val, pdu, offset, sizeof(val));
+            *valp = val;
+            break;
+        }
+        case 'q': {
+            uint64_t val, *valp;
+            valp = va_arg(ap, uint64_t *);
+            val = le64_to_cpup(valp);
+            offset += pdu_unpack(&val, pdu, offset, sizeof(val));
+            *valp = val;
+            break;
+        }
+        case 'v': {
+            struct iovec *iov = va_arg(ap, struct iovec *);
+            int *iovcnt = va_arg(ap, int *);
+            *iovcnt = pdu_copy_sg(pdu, offset, 0, iov);
+            break;
+        }
+        case 's': {
+            V9fsString *str = va_arg(ap, V9fsString *);
+            offset += pdu_unmarshal(pdu, offset, "w", &str->size);
+            /* FIXME: sanity check str->size */
+            str->data = qemu_malloc(str->size + 1);
+            offset += pdu_unpack(str->data, pdu, offset, str->size);
+            str->data[str->size] = 0;
+            break;
+        }
+        case 'Q': {
+            V9fsQID *qidp = va_arg(ap, V9fsQID *);
+            offset += pdu_unmarshal(pdu, offset, "bdq",
+                        &qidp->type, &qidp->version, &qidp->path);
+            break;
+        }
+        case 'S': {
+            V9fsStat *statp = va_arg(ap, V9fsStat *);
+            offset += pdu_unmarshal(pdu, offset, "wwdQdddqsssssddd",
+                        &statp->size, &statp->type, &statp->dev,
+                        &statp->qid, &statp->mode, &statp->atime,
+                        &statp->mtime, &statp->length,
+                        &statp->name, &statp->uid, &statp->gid,
+                        &statp->muid, &statp->extension,
+                        &statp->n_uid, &statp->n_gid,
+                        &statp->n_muid);
+            break;
+        }
+        default:
+            break;
+        }
+    }
+
+    va_end(ap);
+
+    return offset - old_offset;
+}
+
+static size_t pdu_marshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...)
+{
+    size_t old_offset = offset;
+    va_list ap;
+    int i;
+
+    va_start(ap, fmt);
+    for (i = 0; fmt[i]; i++) {
+        switch (fmt[i]) {
+        case 'b': {
+            uint8_t val = va_arg(ap, int);
+            offset += pdu_pack(pdu, offset, &val, sizeof(val));
+            break;
+        }
+        case 'w': {
+            uint16_t val;
+            cpu_to_le16w(&val, va_arg(ap, int));
+            offset += pdu_pack(pdu, offset, &val, sizeof(val));
+            break;
+        }
+        case 'd': {
+            uint32_t val;
+            cpu_to_le32w(&val, va_arg(ap, uint32_t));
+            offset += pdu_pack(pdu, offset, &val, sizeof(val));
+            break;
+        }
+        case 'q': {
+            uint64_t val;
+            cpu_to_le64w(&val, va_arg(ap, uint64_t));
+            offset += pdu_pack(pdu, offset, &val, sizeof(val));
+            break;
+        }
+        case 'v': {
+            struct iovec *iov = va_arg(ap, struct iovec *);
+            int *iovcnt = va_arg(ap, int *);
+            *iovcnt = pdu_copy_sg(pdu, offset, 1, iov);
+            break;
+        }
+        case 's': {
+            V9fsString *str = va_arg(ap, V9fsString *);
+            offset += pdu_marshal(pdu, offset, "w", str->size);
+            offset += pdu_pack(pdu, offset, str->data, str->size);
+            break;
+        }
+        case 'Q': {
+            V9fsQID *qidp = va_arg(ap, V9fsQID *);
+            offset += pdu_marshal(pdu, offset, "bdq",
+                        qidp->type, qidp->version, qidp->path);
+            break;
+        }
+        case 'S': {
+            V9fsStat *statp = va_arg(ap, V9fsStat *);
+            offset += pdu_marshal(pdu, offset, "wwdQdddqsssssddd",
+                        statp->size, statp->type, statp->dev,
+                        &statp->qid, statp->mode, statp->atime,
+                        statp->mtime, statp->length, &statp->name,
+                        &statp->uid, &statp->gid, &statp->muid,
+                        &statp->extension, statp->n_uid,
+                        statp->n_gid, statp->n_muid);
+            break;
+        }
+        default:
+            break;
+        }
+    }
+    va_end(ap);
+
+    return offset - old_offset;
+}
+
+static void complete_pdu(V9fsState *s, V9fsPDU *pdu, ssize_t len)
+{
+    int8_t id = pdu->id + 1; /* Response */
+
+    if (len < 0) {
+        V9fsString str;
+        int err = -len;
+
+        str.data = strerror(err);
+        str.size = strlen(str.data);
+
+        len = 7;
+        len += pdu_marshal(pdu, len, "s", &str);
+        if (dotu) {
+            len += pdu_marshal(pdu, len, "d", err);
+        }
+
+        id = P9_RERROR;
+    }
+
+    /* fill out the header */
+    pdu_marshal(pdu, 0, "dbw", (int32_t)len, id, pdu->tag);
+
+    /* keep these in sync */
+    pdu->size = len;
+    pdu->id = id;
+
+    /* push onto queue and notify */
+    virtqueue_push(s->vq, &pdu->elem, len);
+
+    /* FIXME: we should batch these completions */
+    virtio_notify(&s->vdev, s->vq);
+
+    free_pdu(s, pdu);
+}
+
+static void v9fs_dummy(V9fsState *s, V9fsPDU *pdu)
+{
+    /* Note: The following have been added to prevent GCC from complaining
+     * They will be removed in the subsequent patches */
+    (void)pdu_unmarshal;
+    (void) complete_pdu;
+
+}
 static void v9fs_version(V9fsState *s, V9fsPDU *pdu)
 {
     if (debug_9p_pdu) {
@@ -135,6 +377,7 @@ static void v9fs_create(V9fsState *s, V9fsPDU *pdu)
 
 static void v9fs_flush(V9fsState *s, V9fsPDU *pdu)
 {
+    v9fs_dummy(s, pdu);
     if (debug_9p_pdu) {
         pprint_pdu(pdu);
     }
