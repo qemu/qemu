@@ -1193,6 +1193,13 @@ static void validate_bootdevices(char *devices)
 static void restore_boot_devices(void *opaque)
 {
     char *standard_boot_devices = opaque;
+    static int first = 1;
+
+    /* Restore boot order and remove ourselves after the first boot */
+    if (first) {
+        first = 0;
+        return;
+    }
 
     qemu_boot_set(standard_boot_devices);
 
