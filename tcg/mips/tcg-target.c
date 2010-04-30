@@ -1525,7 +1525,6 @@ void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_AT);   /* internal use */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_T0);   /* internal use */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_RA);   /* return address */
-    tcg_regset_set_reg(s->reserved_regs, TCG_REG_FP);   /* frame pointer */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_SP);   /* stack pointer */
 
     tcg_add_target_add_op_defs(mips_op_defs);
