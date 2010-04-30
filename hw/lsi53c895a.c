@@ -283,6 +283,8 @@ static inline int lsi_irq_on_rsl(LSIState *s)
 
 static void lsi_soft_reset(LSIState *s)
 {
+    lsi_request *p;
+
     DPRINTF("Reset\n");
     s->carry = 0;
 
@@ -345,6 +347,15 @@ static void lsi_soft_reset(LSIState *s)
     s->sbc = 0;
     s->csbc = 0;
     s->sbr = 0;
+    while (!QTAILQ_EMPTY(&s->queue)) {
+        p = QTAILQ_FIRST(&s->queue);
+        QTAILQ_REMOVE(&s->queue, p, next);
+        qemu_free(p);
+    }
+    if (s->current) {
+        qemu_free(s->current);
+        s->current = NULL;
+    }
 }
 
 static int lsi_dma_40bit(LSIState *s)
