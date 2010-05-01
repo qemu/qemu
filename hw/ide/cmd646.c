@@ -68,15 +68,9 @@ static void ide_map(PCIDevice *pci_dev, int region_num,
     }
 }
 
-static PCIIDEState *pci_from_bm(BMDMAState *bm)
+static uint32_t bmdma_readb_common(PCIIDEState *pci_dev, BMDMAState *bm,
+                                   uint32_t addr)
 {
-    return bm->pci_dev;
-}
-
-static uint32_t bmdma_readb(void *opaque, uint32_t addr)
-{
-    BMDMAState *bm = opaque;
-    PCIIDEState *pci_dev = pci_from_bm(bm);
     uint32_t val;
 
     switch(addr & 3) {
@@ -90,7 +84,7 @@ static uint32_t bmdma_readb(void *opaque, uint32_t addr)
         val = bm->status;
         break;
     case 3:
-        if (bm->unit == 0) {
+        if (bm == &pci_dev->bmdma[0]) {
             val = pci_dev->dev.config[UDIDETCR0];
         } else {
             val = pci_dev->dev.config[UDIDETCR1];
@@ -106,14 +100,32 @@ static uint32_t bmdma_readb(void *opaque, uint32_t addr)
     return val;
 }
 
-static void bmdma_writeb(void *opaque, uint32_t addr, uint32_t val)
+static uint32_t bmdma_readb_0(void *opaque, uint32_t addr)
 {
-    BMDMAState *bm = opaque;
-    PCIIDEState *pci_dev = pci_from_bm(bm);
+    PCIIDEState *pci_dev = opaque;
+    BMDMAState *bm = &pci_dev->bmdma[0];
+
+    return bmdma_readb_common(pci_dev, bm, addr);
+}
+
+static uint32_t bmdma_readb_1(void *opaque, uint32_t addr)
+{
+    PCIIDEState *pci_dev = opaque;
+    BMDMAState *bm = &pci_dev->bmdma[1];
+
+    return bmdma_readb_common(pci_dev, bm, addr);
+}
+
+static void bmdma_writeb_common(PCIIDEState *pci_dev, BMDMAState *bm,
+                                uint32_t addr, uint32_t val)
+{
 #ifdef DEBUG_IDE
     printf("bmdma: writeb 0x%02x : 0x%02x\n", addr, val);
 #endif
     switch(addr & 3) {
+    case 0:
+        bmdma_cmd_writeb(bm, addr, val);
+        break;
     case 1:
         pci_dev->dev.config[MRDMODE] =
             (pci_dev->dev.config[MRDMODE] & ~0x30) | (val & 0x30);
@@ -123,12 +135,28 @@ static void bmdma_writeb(void *opaque, uint32_t addr, uint32_t val)
         bm->status = (val & 0x60) | (bm->status & 1) | (bm->status & ~val & 0x06);
         break;
     case 3:
-        if (bm->unit == 0)
+        if (bm == &pci_dev->bmdma[0])
             pci_dev->dev.config[UDIDETCR0] = val;
         else
             pci_dev->dev.config[UDIDETCR1] = val;
         break;
     }
+}
+
+static void bmdma_writeb_0(void *opaque, uint32_t addr, uint32_t val)
+{
+    PCIIDEState *pci_dev = opaque;
+    BMDMAState *bm = &pci_dev->bmdma[0];
+
+    bmdma_writeb_common(pci_dev, bm, addr, val);
+}
+
+static void bmdma_writeb_1(void *opaque, uint32_t addr, uint32_t val)
+{
+    PCIIDEState *pci_dev = opaque;
+    BMDMAState *bm = &pci_dev->bmdma[1];
+
+    bmdma_writeb_common(pci_dev, bm, addr, val);
 }
 
 static void bmdma_map(PCIDevice *pci_dev, int region_num,
@@ -141,13 +169,15 @@ static void bmdma_map(PCIDevice *pci_dev, int region_num,
         BMDMAState *bm = &d->bmdma[i];
         d->bus[i].bmdma = bm;
         bm->bus = d->bus+i;
-        bm->pci_dev = d;
         qemu_add_vm_change_state_handler(ide_dma_restart_cb, bm);
 
-        register_ioport_write(addr, 1, 1, bmdma_cmd_writeb, bm);
-
-        register_ioport_write(addr + 1, 3, 1, bmdma_writeb, bm);
-        register_ioport_read(addr, 4, 1, bmdma_readb, bm);
+        if (i == 0) {
+            register_ioport_write(addr, 4, 1, bmdma_writeb_0, d);
+            register_ioport_read(addr, 4, 1, bmdma_readb_0, d);
+        } else {
+            register_ioport_write(addr, 4, 1, bmdma_writeb_1, d);
+            register_ioport_read(addr, 4, 1, bmdma_readb_1, d);
+        }
 
         register_ioport_write(addr + 4, 4, 1, bmdma_addr_writeb, bm);
         register_ioport_read(addr + 4, 4, 1, bmdma_addr_readb, bm);
