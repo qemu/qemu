@@ -113,7 +113,7 @@ static void arm_timer_write(void *opaque, target_phys_addr_t offset,
         case 1: freq >>= 4; break;
         case 2: freq >>= 8; break;
         }
-        arm_timer_recalibrate(s, 0);
+        arm_timer_recalibrate(s, s->control & TIMER_CTRL_ENABLE);
         ptimer_set_freq(s->timer, freq);
         if (s->control & TIMER_CTRL_ENABLE) {
             /* Restart the timer if still enabled.  */
