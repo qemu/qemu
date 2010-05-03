@@ -2499,8 +2499,15 @@ void cpu_loop (CPUState *env)
                                     env->ir[IR_A0], env->ir[IR_A1],
                                     env->ir[IR_A2], env->ir[IR_A3],
                                     env->ir[IR_A4], env->ir[IR_A5]);
-                if (trapnr != TARGET_NR_sigreturn
-                    && trapnr != TARGET_NR_rt_sigreturn) {
+                if (trapnr == TARGET_NR_sigreturn
+                    || trapnr == TARGET_NR_rt_sigreturn) {
+                    break;
+                }
+                /* Syscall writes 0 to V0 to bypass error check, similar
+                   to how this is handled internal to Linux kernel.  */
+                if (env->ir[IR_V0] == 0) {
+                    env->ir[IR_V0] = sysret;
+                } else {
                     env->ir[IR_V0] = (sysret < 0 ? -sysret : sysret);
                     env->ir[IR_A3] = (sysret < 0);
                 }

@@ -4983,11 +4983,41 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #ifdef TARGET_NR_sigprocmask
     case TARGET_NR_sigprocmask:
         {
-            int how = arg1;
+#if defined(TARGET_ALPHA)
+            sigset_t set, oldset;
+            abi_ulong mask;
+            int how;
+
+            switch (arg1) {
+            case TARGET_SIG_BLOCK:
+                how = SIG_BLOCK;
+                break;
+            case TARGET_SIG_UNBLOCK:
+                how = SIG_UNBLOCK;
+                break;
+            case TARGET_SIG_SETMASK:
+                how = SIG_SETMASK;
+                break;
+            default:
+                ret = -TARGET_EINVAL;
+                goto fail;
+            }
+            mask = arg2;
+            target_to_host_old_sigset(&set, &mask);
+
+            ret = get_errno(sigprocmask(how, &set, &oldset));
+
+            if (!is_error(ret)) {
+                host_to_target_old_sigset(&mask, &oldset);
+                ret = mask;
+                ((CPUAlphaState *)cpu_env)->[IR_V0] = 0; /* force no error */
+            }
+#else
             sigset_t set, oldset, *set_ptr;
+            int how;
 
             if (arg2) {
-                switch(how) {
+                switch (arg1) {
                 case TARGET_SIG_BLOCK:
                     how = SIG_BLOCK;
                     break;
@@ -5010,13 +5040,14 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 how = 0;
                 set_ptr = NULL;
             }
-            ret = get_errno(sigprocmask(arg1, set_ptr, &oldset));
+            ret = get_errno(sigprocmask(how, set_ptr, &oldset));
             if (!is_error(ret) && arg3) {
                 if (!(p = lock_user(VERIFY_WRITE, arg3, sizeof(target_sigset_t), 0)))
                     goto efault;
                 host_to_target_old_sigset(p, &oldset);
                 unlock_user(p, arg3, sizeof(target_sigset_t));
             }
+#endif
         }
         break;
 #endif
