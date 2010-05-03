@@ -102,6 +102,9 @@ typedef struct {
     BlockConf block;
     NICConf nic;
     uint32_t host_features;
+#ifdef CONFIG_LINUX
+    V9fsConf fsconf;
+#endif
     /* Max. number of ports we can have for a the virtio-serial device */
     uint32_t max_virtserial_ports;
 } VirtIOPCIProxy;
@@ -639,6 +642,23 @@ static int virtio_balloon_init_pci(PCIDevice *pci_dev)
     return 0;
 }
 
+#ifdef CONFIG_LINUX
+static int virtio_9p_init_pci(PCIDevice *pci_dev)
+{
+    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
+    VirtIODevice *vdev;
+
+    vdev = virtio_9p_init(&pci_dev->qdev, &proxy->fsconf);
+    virtio_init_pci(proxy, vdev,
+                    PCI_VENDOR_ID_REDHAT_QUMRANET,
+                    0x1009,
+                    0x2,
+                    0x00);
+
+    return 0;
+}
+#endif
+
 static PCIDeviceInfo virtio_info[] = {
     {
         .qdev.name = "virtio-blk-pci",
@@ -693,6 +713,18 @@ static PCIDeviceInfo virtio_info[] = {
         },
         .qdev.reset = virtio_pci_reset,
     },{
+#ifdef CONFIG_LINUX
+        .qdev.name = "virtio-9p-pci",
+        .qdev.size = sizeof(VirtIOPCIProxy),
+        .init      = virtio_9p_init_pci,
+        .qdev.props = (Property[]) {
+            DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
+            DEFINE_PROP_STRING("mount_tag", VirtIOPCIProxy, fsconf.tag),
+            DEFINE_PROP_STRING("fsdev", VirtIOPCIProxy, fsconf.fsdev_id),
+            DEFINE_PROP_END_OF_LIST(),
+        },
+    }, {
+#endif
         /* end of list */
     }
 };

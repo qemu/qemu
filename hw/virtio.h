@@ -20,6 +20,9 @@
 #include "sysemu.h"
 #include "block_int.h"
 #include "event_notifier.h"
+#ifdef CONFIG_LINUX
+#include "9p.h"
+#endif
 
 /* from Linux's linux/virtio_config.h */
 
@@ -185,6 +188,10 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf);
 VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf);
 VirtIODevice *virtio_serial_init(DeviceState *dev, uint32_t max_nr_ports);
 VirtIODevice *virtio_balloon_init(DeviceState *dev);
+#ifdef CONFIG_LINUX
+VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf);
+#endif
+
 
 void virtio_net_exit(VirtIODevice *vdev);
 

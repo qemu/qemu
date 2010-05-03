@@ -2831,6 +2831,7 @@ done # for target in $targets
 if test "$source_path_used" = "yes" ; then
     DIRS="tests tests/cris slirp audio block net pc-bios/optionrom"
     DIRS="$DIRS roms/seabios roms/vgabios"
+    DIRS="$DIRS fsdev"
     FILES="Makefile tests/Makefile"
     FILES="$FILES tests/cris/Makefile tests/cris/.gdbinit"
     FILES="$FILES tests/test-mmap.c"

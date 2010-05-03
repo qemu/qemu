@@ -35,6 +35,9 @@ net-nested-$(CONFIG_SLIRP) += slirp.o
 net-nested-$(CONFIG_VDE) += vde.o
 net-obj-y += $(addprefix net/, $(net-nested-y))
 
+fsdev-nested-$(CONFIG_LINUX) = qemu-fsdev.o
+fsdev-obj-$(CONFIG_LINUX) += $(addprefix fsdev/, $(fsdev-nested-y))
+
 ######################################################################
 # libqemu_common.a: Target independent part of system emulation. The
 # long term path is to suppress *all* target specific code in case of
@@ -44,8 +47,8 @@ net-obj-y += $(addprefix net/, $(net-nested-y))
 common-obj-y = $(block-obj-y)
 common-obj-y += $(net-obj-y)
 common-obj-y += $(qobject-obj-y)
+common-obj-$(CONFIG_LINUX) += $(fsdev-obj-$(CONFIG_LINUX))
 common-obj-y += readline.o console.o async.o qemu-error.o
-
 common-obj-y += tcg-runtime.o host-utils.o
 common-obj-y += irq.o ioport.o input.o
 common-obj-$(CONFIG_PTIMER) += ptimer.o
@@ -101,6 +104,7 @@ common-obj-y += keymaps.o
 common-obj-$(CONFIG_SDL) += sdl.o sdl_zoom.o x_keymap.o
 common-obj-$(CONFIG_CURSES) += curses.o
 common-obj-y += vnc.o acl.o d3des.o
+common-obj-y += vnc-encoding-zlib.o vnc-encoding-hextile.o
 common-obj-y += iov.o
 common-obj-$(CONFIG_VNC_TLS) += vnc-tls.o vnc-auth-vencrypt.o
 common-obj-$(CONFIG_VNC_SASL) += vnc-auth-sasl.o

@@ -135,8 +135,6 @@ struct VncState
     int last_y;
 
     uint32_t vnc_encoding;
-    uint8_t tight_quality;
-    uint8_t tight_compression;
 
     int major;
     int minor;
@@ -155,7 +153,6 @@ struct VncState
     Buffer input;
     /* current output mode information */
     VncWritePixels *write_pixels;
-    VncSendHextileTile *send_hextile_tile;
     DisplaySurface clientds;
 
     CaptureVoiceOut *audio_cap;
@@ -167,6 +164,16 @@ struct VncState
     uint8_t modifiers_state[256];
     QEMUPutLEDEntry *led;
 
+    /* Encoding specific */
+
+    /* Tight */
+    uint8_t tight_quality;
+    uint8_t tight_compression;
+
+    /* Hextile */
+    VncSendHextileTile *send_hextile_tile;
+
+    /* Zlib */
     Buffer zlib;
     Buffer zlib_tmp;
     z_stream zlib_stream[4];
@@ -378,5 +385,21 @@ void buffer_append(Buffer *buffer, const void *data, size_t len);
 
 char *vnc_socket_local_addr(const char *format, int fd);
 char *vnc_socket_remote_addr(const char *format, int fd);
+
+/* Framebuffer */
+void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
+                            int32_t encoding);
+
+void vnc_convert_pixel(VncState *vs, uint8_t *buf, uint32_t v);
+
+/* Encodings */
+void vnc_raw_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
+
+void vnc_hextile_send_framebuffer_update(VncState *vs, int x,
+                                         int y, int w, int h);
+void vnc_hextile_set_pixel_conversion(VncState *vs, int generic);
+
+void vnc_zlib_init(VncState *vs);
+void vnc_zlib_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
 
 #endif /* __QEMU_VNC_H */

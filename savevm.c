@@ -89,7 +89,7 @@ static BlockDriverState *bs_snapshots;
 #define SELF_ANNOUNCE_ROUNDS 5
 
 #ifndef ETH_P_RARP
-#define ETH_P_RARP 0x0835
+#define ETH_P_RARP 0x8035
 #endif
 #define ARP_HTYPE_ETH 0x0001
 #define ARP_PTYPE_IP 0x0800

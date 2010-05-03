@@ -47,7 +47,8 @@ long vnc_client_write_sasl(VncState *vs)
 {
     long ret;
 
-    VNC_DEBUG("Write SASL: Pending output %p size %d offset %d Encoded: %p size %d offset %d\n",
+    VNC_DEBUG("Write SASL: Pending output %p size %zd offset %zd "
+              "Encoded: %p size %d offset %d\n",
               vs->output.buffer, vs->output.capacity, vs->output.offset,
               vs->sasl.encoded, vs->sasl.encodedLength, vs->sasl.encodedOffset);
 

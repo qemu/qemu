@@ -128,6 +128,10 @@ vnc-auth-vencrypt.o: vnc-auth-vencrypt.c vnc.h
 
 vnc-auth-sasl.o: vnc-auth-sasl.c vnc.h
 
+vnc-encoding-zlib.o: vnc.h
+
+vnc-encoding-hextile.o: vnc.h
+
 curses.o: curses.c keymaps.h curses_keys.h
 
 bt-host.o: QEMU_CFLAGS += $(BLUEZ_CFLAGS)

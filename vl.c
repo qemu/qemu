@@ -153,6 +153,9 @@ int main(int argc, char **argv)
 #include "qemu-option.h"
 #include "qemu-config.h"
 #include "qemu-objects.h"
+#ifdef CONFIG_LINUX
+#include "fsdev/qemu-fsdev.h"
+#endif
 
 #include "disas.h"
 
@@ -1197,6 +1200,13 @@ static void validate_bootdevices(char *devices)
 static void restore_boot_devices(void *opaque)
 {
     char *standard_boot_devices = opaque;
+    static int first = 1;
+
+    /* Restore boot order and remove ourselves after the first boot */
+    if (first) {
+        first = 0;
+        return;
+    }
 
     qemu_boot_set(standard_boot_devices);
 
@@ -1683,6 +1693,7 @@ void vm_start(void)
         vm_running = 1;
         vm_state_notify(1, 0);
         resume_all_vcpus();
+        monitor_protocol_event(QEVENT_RESUME, NULL);
     }
 }
 
@@ -2341,6 +2352,16 @@ static int chardev_init_func(QemuOpts *opts, void *opaque)
         return -1;
     return 0;
 }
+
+#ifdef CONFIG_LINUX
+static int fsdev_init_func(QemuOpts *opts, void *opaque)
+{
+    int ret;
+    ret = qemu_fsdev_add(opts);
+
+    return ret;
+}
+#endif
 
 static int mon_init_func(QemuOpts *opts, void *opaque)
 {
@@ -3127,6 +3148,71 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 break;
+#ifdef CONFIG_LINUX
+            case QEMU_OPTION_fsdev:
+                opts = qemu_opts_parse(&qemu_fsdev_opts, optarg, 1);
+                if (!opts) {
+                    fprintf(stderr, "parse error: %s\n", optarg);
+                    exit(1);
+                }
+                break;
+            case QEMU_OPTION_virtfs: {
+                char *arg_fsdev = NULL;
+                char *arg_9p = NULL;
+                int len = 0;
+
+                opts = qemu_opts_parse(&qemu_virtfs_opts, optarg, 1);
+                if (!opts) {
+                    fprintf(stderr, "parse error: %s\n", optarg);
+                    exit(1);
+                }
+
+                len = strlen(",id=,path=");
+                len += strlen(qemu_opt_get(opts, "fstype"));
+                len += strlen(qemu_opt_get(opts, "mount_tag"));
+                len += strlen(qemu_opt_get(opts, "path"));
+                arg_fsdev = qemu_malloc((len + 1) * sizeof(*arg_fsdev));
+
+                if (!arg_fsdev) {
+                    fprintf(stderr, "No memory to parse -fsdev for %s\n",
+                            optarg);
+                    exit(1);
+                }
+
+                sprintf(arg_fsdev, "%s,id=%s,path=%s",
+                                qemu_opt_get(opts, "fstype"),
+                                qemu_opt_get(opts, "mount_tag"),
+                                qemu_opt_get(opts, "path"));
+
+                len = strlen("virtio-9p-pci,fsdev=,mount_tag=");
+                len += 2*strlen(qemu_opt_get(opts, "mount_tag"));
+                arg_9p = qemu_malloc((len + 1) * sizeof(*arg_9p));
+
+                if (!arg_9p) {
+                    fprintf(stderr, "No memory to parse -device for %s\n",
+                            optarg);
+                    exit(1);
+                }
+
+                sprintf(arg_9p, "virtio-9p-pci,fsdev=%s,mount_tag=%s",
+                                qemu_opt_get(opts, "mount_tag"),
+                                qemu_opt_get(opts, "mount_tag"));
+
+                if (!qemu_opts_parse(&qemu_fsdev_opts, arg_fsdev, 1)) {
+                    fprintf(stderr, "parse error [fsdev]: %s\n", optarg);
+                    exit(1);
+                }
+
+                if (!qemu_opts_parse(&qemu_device_opts, arg_9p, 1)) {
+                    fprintf(stderr, "parse error [device]: %s\n", optarg);
+                    exit(1);
+                }
+
+                qemu_free(arg_fsdev);
+                qemu_free(arg_9p);
+                break;
+            }
+#endif
             case QEMU_OPTION_serial:
                 add_device_config(DEV_SERIAL, optarg);
                 default_serial = 0;
@@ -3483,6 +3569,11 @@ int main(int argc, char **argv, char **envp)
 
     if (qemu_opts_foreach(&qemu_chardev_opts, chardev_init_func, NULL, 1) != 0)
         exit(1);
+#ifdef CONFIG_LINUX
+    if (qemu_opts_foreach(&qemu_fsdev_opts, fsdev_init_func, NULL, 1) != 0) {
+        exit(1);
+    }
+#endif
 
 #ifndef _WIN32
     if (daemonize) {

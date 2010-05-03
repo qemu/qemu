@@ -137,7 +137,7 @@ static void do_flush_queued_data(VirtIOSerialPort *port, VirtQueue *vq,
 
 static void flush_queued_data(VirtIOSerialPort *port, bool discard)
 {
-    assert(port || discard);
+    assert(port);
 
     do_flush_queued_data(port, port->ovq, &port->vser->vdev, discard);
 }

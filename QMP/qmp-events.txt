@@ -38,6 +38,18 @@ Example:
 { "event": "RESET",
     "timestamp": { "seconds": 1267041653, "microseconds": 9518 } }
 
+RESUME
+------
+
+Emitted when the Virtual Machine resumes execution.
+
+Data: None.
+
+Example:
+
+{ "event": "RESUME",
+    "timestamp": { "seconds": 1271770767, "microseconds": 582542 } }
+
 RTC_CHANGE
 ----------
 

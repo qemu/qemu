@@ -283,6 +283,8 @@ static inline int lsi_irq_on_rsl(LSIState *s)
 
 static void lsi_soft_reset(LSIState *s)
 {
+    lsi_request *p;
+
     DPRINTF("Reset\n");
     s->carry = 0;
 
@@ -345,6 +347,15 @@ static void lsi_soft_reset(LSIState *s)
     s->sbc = 0;
     s->csbc = 0;
     s->sbr = 0;
+    while (!QTAILQ_EMPTY(&s->queue)) {
+        p = QTAILQ_FIRST(&s->queue);
+        QTAILQ_REMOVE(&s->queue, p, next);
+        qemu_free(p);
+    }
+    if (s->current) {
+        qemu_free(s->current);
+        s->current = NULL;
+    }
 }
 
 static int lsi_dma_40bit(LSIState *s)
@@ -1996,6 +2007,13 @@ static void lsi_mmio_mapfunc(PCIDevice *pci_dev, int region_num,
     cpu_register_physical_memory(addr + 0, 0x400, s->mmio_io_addr);
 }
 
+static void lsi_scsi_reset(DeviceState *dev)
+{
+    LSIState *s = DO_UPCAST(LSIState, dev.qdev, dev);
+
+    lsi_soft_reset(s);
+}
+
 static void lsi_pre_save(void *opaque)
 {
     LSIState *s = opaque;
@@ -2136,8 +2154,6 @@ static int lsi_scsi_init(PCIDevice *dev)
                            PCI_BASE_ADDRESS_SPACE_MEMORY, lsi_ram_mapfunc);
     QTAILQ_INIT(&s->queue);
 
-    lsi_soft_reset(s);
-
     scsi_bus_new(&s->bus, &dev->qdev, 1, LSI_MAX_DEVS, lsi_command_complete);
     if (!dev->qdev.hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus);
@@ -2149,6 +2165,7 @@ static PCIDeviceInfo lsi_info = {
     .qdev.name  = "lsi53c895a",
     .qdev.alias = "lsi",
     .qdev.size  = sizeof(LSIState),
+    .qdev.reset = lsi_scsi_reset,
     .qdev.vmsd  = &vmstate_lsi_scsi,
     .init       = lsi_scsi_init,
     .exit       = lsi_scsi_uninit,
