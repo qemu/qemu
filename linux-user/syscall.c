@@ -5088,10 +5088,15 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_sigsuspend:
         {
             sigset_t set;
+#if defined(TARGET_ALPHA)
+            abi_ulong mask = arg1;
+            target_to_host_old_sigset(&set, &mask);
+#else
             if (!(p = lock_user(VERIFY_READ, arg1, sizeof(target_sigset_t), 1)))
                 goto efault;
             target_to_host_old_sigset(&set, p);
             unlock_user(p, arg1, 0);
+#endif
             ret = get_errno(sigsuspend(&set));
         }
         break;
