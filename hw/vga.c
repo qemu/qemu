@@ -1620,8 +1620,8 @@ void vga_dirty_log_stop(VGACommonState *s)
 	kvm_log_stop(s->map_addr, s->map_end - s->map_addr);
 
     if (kvm_enabled() && s->lfb_vram_mapped) {
-	kvm_log_stop(isa_mem_base + 0xa0000, 0x80000);
-	kvm_log_stop(isa_mem_base + 0xa8000, 0x80000);
+	kvm_log_stop(isa_mem_base + 0xa0000, 0x8000);
+	kvm_log_stop(isa_mem_base + 0xa8000, 0x8000);
     }
 
 #ifdef CONFIG_BOCHS_VBE

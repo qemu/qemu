@@ -197,10 +197,10 @@ static uint32_t nvic_readl(void *opaque, uint32_t offset)
     case 0xd18: case 0xd1c: case 0xd20: /* System Handler Priority.  */
         irq = offset - 0xd14;
         val = 0;
-        val = s->gic.priority1[irq++][0];
-        val = s->gic.priority1[irq++][0] << 8;
-        val = s->gic.priority1[irq++][0] << 16;
-        val = s->gic.priority1[irq][0] << 24;
+        val |= s->gic.priority1[irq++][0];
+        val |= s->gic.priority1[irq++][0] << 8;
+        val |= s->gic.priority1[irq++][0] << 16;
+        val |= s->gic.priority1[irq][0] << 24;
         return val;
     case 0xd24: /* System Handler Status.  */
         val = 0;

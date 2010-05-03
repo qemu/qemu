@@ -2827,7 +2827,7 @@ static void vvfat_close(BlockDriverState *bs)
 static BlockDriver bdrv_vvfat = {
     .format_name	= "vvfat",
     .instance_size	= sizeof(BDRVVVFATState),
-    .bdrv_open		= vvfat_open,
+    .bdrv_file_open	= vvfat_open,
     .bdrv_read		= vvfat_read,
     .bdrv_write		= vvfat_write,
     .bdrv_close		= vvfat_close,

@@ -106,6 +106,18 @@ they are displayed too.
 @item snapshot [-l | -a @var{snapshot} | -c @var{snapshot} | -d @var{snapshot} ] @var{filename}
 
 List, apply, create or delete snapshots in image @var{filename}.
+
+@item resize @var{filename} [+ | -]@var{size}
+
+Change the disk image as if it had been created with @var{size}.
+
+Before using this command to shrink a disk image, you MUST use file system and
+partitioning tools inside the VM to reduce allocated file systems and partition
+sizes accordingly.  Failure to do so will result in data loss!
+
+After using this command to grow a disk image, you must use file system and
+partitioning tools inside the VM to actually begin using the new space on the
+device.
 @end table
 
 Supported image file formats:

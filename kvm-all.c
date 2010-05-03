@@ -26,6 +26,7 @@
 #include "hw/hw.h"
 #include "gdbstub.h"
 #include "kvm.h"
+#include "bswap.h"
 
 /* KVM uses PAGE_SIZE in it's definition of COALESCED_MMIO_MAX */
 #define PAGE_SIZE TARGET_PAGE_SIZE
@@ -64,6 +65,7 @@ struct KVMState
     int migration_log;
     int vcpu_events;
     int robust_singlestep;
+    int debugregs;
 #ifdef KVM_CAP_SET_GUEST_DEBUG
     struct kvm_sw_breakpoint_head kvm_sw_breakpoints;
 #endif
@@ -282,10 +284,40 @@ static int kvm_set_migration_log(int enable)
     return 0;
 }
 
-static int test_le_bit(unsigned long nr, unsigned char *addr)
+/* get kvm's dirty pages bitmap and update qemu's */
+static int kvm_get_dirty_pages_log_range(unsigned long start_addr,
+                                         unsigned long *bitmap,
+                                         unsigned long offset,
+                                         unsigned long mem_size)
 {
-    return (addr[nr >> 3] >> (nr & 7)) & 1;
+    unsigned int i, j;
+    unsigned long page_number, addr, addr1, c;
+    ram_addr_t ram_addr;
+    unsigned int len = ((mem_size / TARGET_PAGE_SIZE) + HOST_LONG_BITS - 1) /
+        HOST_LONG_BITS;
+
+    /*
+     * bitmap-traveling is faster than memory-traveling (for addr...)
+     * especially when most of the memory is not dirty.
+     */
+    for (i = 0; i < len; i++) {
+        if (bitmap[i] != 0) {
+            c = leul_to_cpu(bitmap[i]);
+            do {
+                j = ffsl(c) - 1;
+                c &= ~(1ul << j);
+                page_number = i * HOST_LONG_BITS + j;
+                addr1 = page_number * TARGET_PAGE_SIZE;
+                addr = offset + addr1;
+                ram_addr = cpu_get_physical_page_desc(addr);
+                cpu_physical_memory_set_dirty(ram_addr);
+            } while (c != 0);
+        }
+    }
+    return 0;
 }
+
+#define ALIGN(x, y)  (((x)+(y)-1) & ~((y)-1))
 
 /**
  * kvm_physical_sync_dirty_bitmap - Grab dirty bitmap from kernel space
@@ -300,8 +332,6 @@ static int kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
 {
     KVMState *s = kvm_state;
     unsigned long size, allocated_size = 0;
-    target_phys_addr_t phys_addr;
-    ram_addr_t addr;
     KVMDirtyLog d;
     KVMSlot *mem;
     int ret = 0;
@@ -313,7 +343,7 @@ static int kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
             break;
         }
 
-        size = ((mem->memory_size >> TARGET_PAGE_BITS) + 7) / 8;
+        size = ALIGN(((mem->memory_size) >> TARGET_PAGE_BITS), HOST_LONG_BITS) / 8;
         if (!d.dirty_bitmap) {
             d.dirty_bitmap = qemu_malloc(size);
         } else if (size > allocated_size) {
@@ -330,17 +360,9 @@ static int kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
             break;
         }
 
-        for (phys_addr = mem->start_addr, addr = mem->phys_offset;
-             phys_addr < mem->start_addr + mem->memory_size;
-             phys_addr += TARGET_PAGE_SIZE, addr += TARGET_PAGE_SIZE) {
-            unsigned char *bitmap = (unsigned char *)d.dirty_bitmap;
-            unsigned nr = (phys_addr - mem->start_addr) >> TARGET_PAGE_BITS;
-
-            if (test_le_bit(nr, bitmap)) {
-                cpu_physical_memory_set_dirty(addr);
-            }
-        }
-        start_addr = phys_addr;
+        kvm_get_dirty_pages_log_range(mem->start_addr, d.dirty_bitmap,
+                                      mem->start_addr, mem->memory_size);
+        start_addr = mem->start_addr + mem->memory_size;
     }
     qemu_free(d.dirty_bitmap);
 
@@ -664,6 +686,11 @@ int kvm_init(int smp_cpus)
         kvm_check_extension(s, KVM_CAP_X86_ROBUST_SINGLESTEP);
 #endif
 
+    s->debugregs = 0;
+#ifdef KVM_CAP_DEBUGREGS
+    s->debugregs = kvm_check_extension(s, KVM_CAP_DEBUGREGS);
+#endif
+
     ret = kvm_arch_init(s, smp_cpus);
     if (ret < 0)
         goto err;
@@ -723,6 +750,32 @@ static int kvm_handle_io(uint16_t port, void *data, int direction, int size,
 
     return 1;
 }
+
+#ifdef KVM_CAP_INTERNAL_ERROR_DATA
+static void kvm_handle_internal_error(CPUState *env, struct kvm_run *run)
+{
+
+    if (kvm_check_extension(kvm_state, KVM_CAP_INTERNAL_ERROR_DATA)) {
+        int i;
+
+        fprintf(stderr, "KVM internal error. Suberror: %d\n",
+                run->internal.suberror);
+
+        for (i = 0; i < run->internal.ndata; ++i) {
+            fprintf(stderr, "extra data[%d]: %"PRIx64"\n",
+                    i, (uint64_t)run->internal.data[i]);
+        }
+    }
+    cpu_dump_state(env, stderr, fprintf, 0);
+    if (run->internal.suberror == KVM_INTERNAL_ERROR_EMULATION) {
+        fprintf(stderr, "emulation failure\n");
+    }
+    /* FIXME: Should trigger a qmp message to let management know
+     * something went wrong.
+     */
+    vm_stop(0);
+}
+#endif
 
 void kvm_flush_coalesced_mmio_buffer(void)
 {
@@ -839,6 +892,11 @@ int kvm_cpu_exec(CPUState *env)
         case KVM_EXIT_EXCEPTION:
             DPRINTF("kvm_exit_exception\n");
             break;
+#ifdef KVM_CAP_INTERNAL_ERROR_DATA
+        case KVM_EXIT_INTERNAL_ERROR:
+            kvm_handle_internal_error(env, run);
+            break;
+#endif
         case KVM_EXIT_DEBUG:
             DPRINTF("kvm_exit_debug\n");
 #ifdef KVM_CAP_SET_GUEST_DEBUG
@@ -937,6 +995,11 @@ int kvm_has_vcpu_events(void)
 int kvm_has_robust_singlestep(void)
 {
     return kvm_state->robust_singlestep;
+}
+
+int kvm_has_debugregs(void)
+{
+    return kvm_state->debugregs;
 }
 
 void kvm_setup_guest_memory(void *start, size_t size)

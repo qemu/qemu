@@ -205,8 +205,10 @@ static inline void cpu_to_be32wu(uint32_t *p, uint32_t v)
 
 #ifdef HOST_WORDS_BIGENDIAN
 #define cpu_to_32wu cpu_to_be32wu
+#define leul_to_cpu(v) le ## HOST_LONG_BITS ## _to_cpu(v)
 #else
 #define cpu_to_32wu cpu_to_le32wu
+#define leul_to_cpu(v) (v)
 #endif
 
 #undef le_bswap

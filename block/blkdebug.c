@@ -44,7 +44,6 @@ typedef struct BlkdebugVars {
 } BlkdebugVars;
 
 typedef struct BDRVBlkdebugState {
-    BlockDriverState *hd;
     BlkdebugVars vars;
     QLIST_HEAD(list, BlkdebugRule) rules[BLKDBG_EVENT_MAX];
 } BDRVBlkdebugState;
@@ -303,7 +302,7 @@ static int blkdebug_open(BlockDriverState *bs, const char *filename, int flags)
     filename = c + 1;
 
     /* Open the backing file */
-    ret = bdrv_file_open(&s->hd, filename, flags);
+    ret = bdrv_file_open(&bs->file, filename, flags);
     if (ret < 0) {
         return ret;
     }
@@ -362,7 +361,7 @@ static BlockDriverAIOCB *blkdebug_aio_readv(BlockDriverState *bs,
     }
 
     BlockDriverAIOCB *acb =
-        bdrv_aio_readv(s->hd, sector_num, qiov, nb_sectors, cb, opaque);
+        bdrv_aio_readv(bs->file, sector_num, qiov, nb_sectors, cb, opaque);
     return acb;
 }
 
@@ -377,7 +376,7 @@ static BlockDriverAIOCB *blkdebug_aio_writev(BlockDriverState *bs,
     }
 
     BlockDriverAIOCB *acb =
-        bdrv_aio_writev(s->hd, sector_num, qiov, nb_sectors, cb, opaque);
+        bdrv_aio_writev(bs->file, sector_num, qiov, nb_sectors, cb, opaque);
     return acb;
 }
 
@@ -393,21 +392,17 @@ static void blkdebug_close(BlockDriverState *bs)
             qemu_free(rule);
         }
     }
-
-    bdrv_delete(s->hd);
 }
 
 static void blkdebug_flush(BlockDriverState *bs)
 {
-    BDRVBlkdebugState *s = bs->opaque;
-    bdrv_flush(s->hd);
+    bdrv_flush(bs->file);
 }
 
 static BlockDriverAIOCB *blkdebug_aio_flush(BlockDriverState *bs,
     BlockDriverCompletionFunc *cb, void *opaque)
 {
-    BDRVBlkdebugState *s = bs->opaque;
-    return bdrv_aio_flush(s->hd, cb, opaque);
+    return bdrv_aio_flush(bs->file, cb, opaque);
 }
 
 static void process_rule(BlockDriverState *bs, struct BlkdebugRule *rule,
@@ -456,7 +451,7 @@ static BlockDriver bdrv_blkdebug = {
 
     .instance_size      = sizeof(BDRVBlkdebugState),
 
-    .bdrv_open          = blkdebug_open,
+    .bdrv_file_open     = blkdebug_open,
     .bdrv_close         = blkdebug_close,
     .bdrv_flush         = blkdebug_flush,
 

@@ -105,7 +105,6 @@
 typedef struct BDRVRawState {
     int fd;
     int type;
-    unsigned int lseek_err_cnt;
     int open_flags;
 #if defined(__linux__)
     /* linux floppy specific */
@@ -133,8 +132,6 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
 {
     BDRVRawState *s = bs->opaque;
     int fd, ret;
-
-    s->lseek_err_cnt = 0;
 
     s->open_flags = open_flags | O_BINARY;
     s->open_flags &= ~O_ACCMODE;
@@ -243,19 +240,7 @@ static int raw_pread_aligned(BlockDriverState *bs, int64_t offset,
     if (ret < 0)
         return ret;
 
-    if (offset >= 0 && lseek(s->fd, offset, SEEK_SET) == (off_t)-1) {
-        ++(s->lseek_err_cnt);
-        if(s->lseek_err_cnt <= 10) {
-            DEBUG_BLOCK_PRINT("raw_pread(%d:%s, %" PRId64 ", %p, %d) [%" PRId64
-                              "] lseek failed : %d = %s\n",
-                              s->fd, bs->filename, offset, buf, count,
-                              bs->total_sectors, errno, strerror(errno));
-        }
-        return -1;
-    }
-    s->lseek_err_cnt=0;
-
-    ret = read(s->fd, buf, count);
+    ret = pread(s->fd, buf, count, offset);
     if (ret == count)
         goto label__raw_read__success;
 
@@ -276,12 +261,10 @@ static int raw_pread_aligned(BlockDriverState *bs, int64_t offset,
 
     /* Try harder for CDrom. */
     if (bs->type == BDRV_TYPE_CDROM) {
-        lseek(s->fd, offset, SEEK_SET);
-        ret = read(s->fd, buf, count);
+        ret = pread(s->fd, buf, count, offset);
         if (ret == count)
             goto label__raw_read__success;
-        lseek(s->fd, offset, SEEK_SET);
-        ret = read(s->fd, buf, count);
+        ret = pread(s->fd, buf, count, offset);
         if (ret == count)
             goto label__raw_read__success;
 
@@ -313,19 +296,7 @@ static int raw_pwrite_aligned(BlockDriverState *bs, int64_t offset,
     if (ret < 0)
         return -errno;
 
-    if (offset >= 0 && lseek(s->fd, offset, SEEK_SET) == (off_t)-1) {
-        ++(s->lseek_err_cnt);
-        if(s->lseek_err_cnt) {
-            DEBUG_BLOCK_PRINT("raw_pwrite(%d:%s, %" PRId64 ", %p, %d) [%"
-                              PRId64 "] lseek failed : %d = %s\n",
-                              s->fd, bs->filename, offset, buf, count,
-                              bs->total_sectors, errno, strerror(errno));
-        }
-        return -EIO;
-    }
-    s->lseek_err_cnt = 0;
-
-    ret = write(s->fd, buf, count);
+    ret = pwrite(s->fd, buf, count, offset);
     if (ret == count)
         goto label__raw_write__success;
 
@@ -768,11 +739,12 @@ static QEMUOptionParameter raw_create_options[] = {
     { NULL }
 };
 
-static BlockDriver bdrv_raw = {
-    .format_name = "raw",
+static BlockDriver bdrv_file = {
+    .format_name = "file",
+    .protocol_name = "file",
     .instance_size = sizeof(BDRVRawState),
     .bdrv_probe = NULL, /* no probe for protocols */
-    .bdrv_open = raw_open,
+    .bdrv_file_open = raw_open,
     .bdrv_read = raw_read,
     .bdrv_write = raw_write,
     .bdrv_close = raw_close,
@@ -1026,9 +998,10 @@ static int hdev_create(const char *filename, QEMUOptionParameter *options)
 
 static BlockDriver bdrv_host_device = {
     .format_name        = "host_device",
+    .protocol_name        = "host_device",
     .instance_size      = sizeof(BDRVRawState),
     .bdrv_probe_device  = hdev_probe_device,
-    .bdrv_open          = hdev_open,
+    .bdrv_file_open     = hdev_open,
     .bdrv_close         = raw_close,
     .bdrv_create        = hdev_create,
     .create_options     = raw_create_options,
@@ -1140,9 +1113,10 @@ static int floppy_eject(BlockDriverState *bs, int eject_flag)
 
 static BlockDriver bdrv_host_floppy = {
     .format_name        = "host_floppy",
+    .protocol_name      = "host_floppy",
     .instance_size      = sizeof(BDRVRawState),
     .bdrv_probe_device	= floppy_probe_device,
-    .bdrv_open          = floppy_open,
+    .bdrv_file_open     = floppy_open,
     .bdrv_close         = raw_close,
     .bdrv_create        = hdev_create,
     .create_options     = raw_create_options,
@@ -1239,9 +1213,10 @@ static int cdrom_set_locked(BlockDriverState *bs, int locked)
 
 static BlockDriver bdrv_host_cdrom = {
     .format_name        = "host_cdrom",
+    .protocol_name      = "host_cdrom",
     .instance_size      = sizeof(BDRVRawState),
     .bdrv_probe_device	= cdrom_probe_device,
-    .bdrv_open          = cdrom_open,
+    .bdrv_file_open     = cdrom_open,
     .bdrv_close         = raw_close,
     .bdrv_create        = hdev_create,
     .create_options     = raw_create_options,
@@ -1361,9 +1336,10 @@ static int cdrom_set_locked(BlockDriverState *bs, int locked)
 
 static BlockDriver bdrv_host_cdrom = {
     .format_name        = "host_cdrom",
+    .protocol_name      = "host_cdrom",
     .instance_size      = sizeof(BDRVRawState),
     .bdrv_probe_device	= cdrom_probe_device,
-    .bdrv_open          = cdrom_open,
+    .bdrv_file_open     = cdrom_open,
     .bdrv_close         = raw_close,
     .bdrv_create        = hdev_create,
     .create_options     = raw_create_options,
@@ -1385,13 +1361,13 @@ static BlockDriver bdrv_host_cdrom = {
 };
 #endif /* __FreeBSD__ */
 
-static void bdrv_raw_init(void)
+static void bdrv_file_init(void)
 {
     /*
      * Register all the drivers.  Note that order is important, the driver
      * registered last will get probed first.
      */
-    bdrv_register(&bdrv_raw);
+    bdrv_register(&bdrv_file);
     bdrv_register(&bdrv_host_device);
 #ifdef __linux__
     bdrv_register(&bdrv_host_floppy);
@@ -1402,4 +1378,4 @@ static void bdrv_raw_init(void)
 #endif
 }
 
-block_init(bdrv_raw_init);
+block_init(bdrv_file_init);
