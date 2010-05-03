@@ -2434,7 +2434,7 @@ void cpu_loop (CPUState *env)
             info.si_signo = TARGET_SIGSEGV;
             info.si_errno = 0;
             info.si_code = 0;  /* ??? SEGV_MAPERR vs SEGV_ACCERR.  */
-            info._sifields._sigfault._addr = env->pc;
+            info._sifields._sigfault._addr = env->ipr[IPR_EXC_ADDR];
             queue_signal(env, info.si_signo, &info);
             break;
         case EXCP_DTB_MISS_PAL:
@@ -2458,7 +2458,7 @@ void cpu_loop (CPUState *env)
             info.si_signo = TARGET_SIGBUS;
             info.si_errno = 0;
             info.si_code = TARGET_BUS_ADRALN;
-            info._sifields._sigfault._addr = env->pc;
+            info._sifields._sigfault._addr = env->ipr[IPR_EXC_ADDR];
             queue_signal(env, info.si_signo, &info);
             break;
         case EXCP_OPCDEC:
