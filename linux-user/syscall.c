@@ -718,9 +718,17 @@ abi_long do_brk(abi_ulong new_brk)
                                         PROT_READ|PROT_WRITE,
                                         MAP_ANON|MAP_FIXED|MAP_PRIVATE, 0, 0));
 
-    if (!is_error(mapped_addr))
+#if defined(TARGET_ALPHA)
+    /* We (partially) emulate OSF/1 on Alpha, which requires we
+       return a proper errno, not an unchanged brk value.  */
+    if (is_error(mapped_addr)) {
+        return -TARGET_ENOMEM;
+    }
+#endif
+
+    if (!is_error(mapped_addr)) {
 	target_brk = new_brk;
-    
+    }
     return target_brk;
 }
 
