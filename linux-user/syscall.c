@@ -4497,13 +4497,18 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_lseek:
         ret = get_errno(lseek(arg1, arg2, arg3));
         break;
-#ifdef TARGET_NR_getxpid
+#if defined(TARGET_NR_getxpid) && defined(TARGET_ALPHA)
+    /* Alpha specific */
     case TARGET_NR_getxpid:
-#else
-    case TARGET_NR_getpid:
-#endif
+        ((CPUAlphaState *)cpu_env)->ir[IR_A4] = getppid();
         ret = get_errno(getpid());
         break;
+#endif
+#ifdef TARGET_NR_getpid
+    case TARGET_NR_getpid:
+        ret = get_errno(getpid());
+        break;
+#endif
     case TARGET_NR_mount:
 		{
 			/* need to look at the data field */
