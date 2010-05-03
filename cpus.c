@@ -401,6 +401,7 @@ static void *kvm_cpu_thread_fn(void *arg)
 {
     CPUState *env = arg;
 
+    qemu_mutex_lock(&qemu_global_mutex);
     qemu_thread_self(env->thread);
     if (kvm_enabled())
         kvm_init_vcpu(env);
@@ -408,7 +409,6 @@ static void *kvm_cpu_thread_fn(void *arg)
     kvm_block_io_signals(env);
 
     /* signal CPU creation */
-    qemu_mutex_lock(&qemu_global_mutex);
     env->created = 1;
     qemu_cond_signal(&qemu_cpu_cond);
 

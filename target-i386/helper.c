@@ -356,6 +356,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
                         cc_op_name);
         }
     }
+    cpu_fprintf(f, "EFER=%016" PRIx64 "\n", env->efer);
     if (flags & X86_DUMP_FPU) {
         int fptag;
         fptag = 0;
