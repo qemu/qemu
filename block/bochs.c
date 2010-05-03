@@ -252,7 +252,7 @@ static BlockDriver bdrv_bochs = {
     .format_name	= "bochs",
     .instance_size	= sizeof(BDRVBochsState),
     .bdrv_probe		= bochs_probe,
-    .bdrv_open		= bochs_open,
+    .bdrv_file_open	= bochs_open,
     .bdrv_read		= bochs_read,
     .bdrv_close		= bochs_close,
 };

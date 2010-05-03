@@ -57,6 +57,7 @@ BlockDriver *bdrv_find_format(const char *format_name);
 BlockDriver *bdrv_find_whitelisted_format(const char *format_name);
 int bdrv_create(BlockDriver *drv, const char* filename,
     QEMUOptionParameter *options);
+int bdrv_create_file(const char* filename, QEMUOptionParameter *options);
 BlockDriverState *bdrv_new(const char *device_name);
 void bdrv_delete(BlockDriverState *bs);
 int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags);
@@ -121,6 +122,7 @@ BlockDriverAIOCB *bdrv_aio_ioctl(BlockDriverState *bs,
 void bdrv_flush(BlockDriverState *bs);
 void bdrv_flush_all(void);
 
+int bdrv_has_zero_init(BlockDriverState *bs);
 int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
 	int *pnum);
 

@@ -77,7 +77,6 @@ static int qcow_probe(const uint8_t *buf, int buf_size, const char *filename)
 static int qcow_read_extensions(BlockDriverState *bs, uint64_t start_offset,
                                 uint64_t end_offset)
 {
-    BDRVQcowState *s = bs->opaque;
     QCowExtension ext;
     uint64_t offset;
 
@@ -95,7 +94,7 @@ static int qcow_read_extensions(BlockDriverState *bs, uint64_t start_offset,
         printf("attemting to read extended header in offset %lu\n", offset);
 #endif
 
-        if (bdrv_pread(s->hd, offset, &ext, sizeof(ext)) != sizeof(ext)) {
+        if (bdrv_pread(bs->file, offset, &ext, sizeof(ext)) != sizeof(ext)) {
             fprintf(stderr, "qcow_handle_extension: ERROR: pread fail from offset %llu\n",
                     (unsigned long long)offset);
             return 1;
@@ -117,7 +116,7 @@ static int qcow_read_extensions(BlockDriverState *bs, uint64_t start_offset,
                         ext.len, sizeof(bs->backing_format));
                 return 2;
             }
-            if (bdrv_pread(s->hd, offset , bs->backing_format,
+            if (bdrv_pread(bs->file, offset , bs->backing_format,
                            ext.len) != ext.len)
                 return 3;
             bs->backing_format[ext.len] = '\0';
@@ -138,17 +137,14 @@ static int qcow_read_extensions(BlockDriverState *bs, uint64_t start_offset,
 }
 
 
-static int qcow_open(BlockDriverState *bs, const char *filename, int flags)
+static int qcow_open(BlockDriverState *bs, int flags)
 {
     BDRVQcowState *s = bs->opaque;
-    int len, i, shift, ret;
+    int len, i;
     QCowHeader header;
     uint64_t ext_end;
 
-    ret = bdrv_file_open(&s->hd, filename, flags);
-    if (ret < 0)
-        return ret;
-    if (bdrv_pread(s->hd, 0, &header, sizeof(header)) != sizeof(header))
+    if (bdrv_pread(bs->file, 0, &header, sizeof(header)) != sizeof(header))
         goto fail;
     be32_to_cpus(&header.magic);
     be32_to_cpus(&header.version);
@@ -192,8 +188,7 @@ static int qcow_open(BlockDriverState *bs, const char *filename, int flags)
 
     /* read the level 1 table */
     s->l1_size = header.l1_size;
-    shift = s->cluster_bits + s->l2_bits;
-    s->l1_vm_state_index = (header.size + (1LL << shift) - 1) >> shift;
+    s->l1_vm_state_index = size_to_l1(s, header.size);
     /* the L1 table must contain at least enough entries to put
        header.size bytes */
     if (s->l1_size < s->l1_vm_state_index)
@@ -202,7 +197,7 @@ static int qcow_open(BlockDriverState *bs, const char *filename, int flags)
     if (s->l1_size > 0) {
         s->l1_table = qemu_mallocz(
             align_offset(s->l1_size * sizeof(uint64_t), 512));
-        if (bdrv_pread(s->hd, s->l1_table_offset, s->l1_table, s->l1_size * sizeof(uint64_t)) !=
+        if (bdrv_pread(bs->file, s->l1_table_offset, s->l1_table, s->l1_size * sizeof(uint64_t)) !=
             s->l1_size * sizeof(uint64_t))
             goto fail;
         for(i = 0;i < s->l1_size; i++) {
@@ -235,7 +230,7 @@ static int qcow_open(BlockDriverState *bs, const char *filename, int flags)
         len = header.backing_file_size;
         if (len > 1023)
             len = 1023;
-        if (bdrv_pread(s->hd, header.backing_file_offset, bs->backing_file, len) != len)
+        if (bdrv_pread(bs->file, header.backing_file_offset, bs->backing_file, len) != len)
             goto fail;
         bs->backing_file[len] = '\0';
     }
@@ -254,7 +249,6 @@ static int qcow_open(BlockDriverState *bs, const char *filename, int flags)
     qemu_free(s->l2_cache);
     qemu_free(s->cluster_cache);
     qemu_free(s->cluster_data);
-    bdrv_delete(s->hd);
     return -1;
 }
 
@@ -429,7 +423,7 @@ static void qcow_aio_read_cb(void *opaque, int ret)
                 acb->hd_iov.iov_base = (void *)acb->buf;
                 acb->hd_iov.iov_len = acb->cur_nr_sectors * 512;
                 qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
-                BLKDBG_EVENT(s->hd, BLKDBG_READ_BACKING_AIO);
+                BLKDBG_EVENT(bs->file, BLKDBG_READ_BACKING_AIO);
                 acb->hd_aiocb = bdrv_aio_readv(bs->backing_hd, acb->sector_num,
                                     &acb->hd_qiov, acb->cur_nr_sectors,
 				    qcow_aio_read_cb, acb);
@@ -449,7 +443,7 @@ static void qcow_aio_read_cb(void *opaque, int ret)
         }
     } else if (acb->cluster_offset & QCOW_OFLAG_COMPRESSED) {
         /* add AIO support for compressed blocks ? */
-        if (qcow2_decompress_cluster(s, acb->cluster_offset) < 0)
+        if (qcow2_decompress_cluster(bs, acb->cluster_offset) < 0)
             goto done;
         memcpy(acb->buf, s->cluster_cache + index_in_cluster * 512,
                512 * acb->cur_nr_sectors);
@@ -465,8 +459,8 @@ static void qcow_aio_read_cb(void *opaque, int ret)
         acb->hd_iov.iov_base = (void *)acb->buf;
         acb->hd_iov.iov_len = acb->cur_nr_sectors * 512;
         qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
-        BLKDBG_EVENT(s->hd, BLKDBG_READ_AIO);
-        acb->hd_aiocb = bdrv_aio_readv(s->hd,
+        BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
+        acb->hd_aiocb = bdrv_aio_readv(bs->file,
                             (acb->cluster_offset >> 9) + index_in_cluster,
                             &acb->hd_qiov, acb->cur_nr_sectors,
                             qcow_aio_read_cb, acb);
@@ -615,8 +609,8 @@ static void qcow_aio_write_cb(void *opaque, int ret)
     acb->hd_iov.iov_base = (void *)src_buf;
     acb->hd_iov.iov_len = acb->cur_nr_sectors * 512;
     qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
-    BLKDBG_EVENT(s->hd, BLKDBG_WRITE_AIO);
-    acb->hd_aiocb = bdrv_aio_writev(s->hd,
+    BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
+    acb->hd_aiocb = bdrv_aio_writev(bs->file,
                                     (acb->cluster_offset >> 9) + index_in_cluster,
                                     &acb->hd_qiov, acb->cur_nr_sectors,
                                     qcow_aio_write_cb, acb);
@@ -663,7 +657,6 @@ static void qcow_close(BlockDriverState *bs)
     qemu_free(s->cluster_cache);
     qemu_free(s->cluster_data);
     qcow2_refcount_close(bs);
-    bdrv_delete(s->hd);
 }
 
 /*
@@ -733,7 +726,7 @@ static int qcow2_update_ext_header(BlockDriverState *bs,
         backing_file_offset = sizeof(QCowHeader) + offset;
     }
 
-    ret = bdrv_pwrite(s->hd, sizeof(QCowHeader), buf, ext_size);
+    ret = bdrv_pwrite(bs->file, sizeof(QCowHeader), buf, ext_size);
     if (ret < 0) {
         goto fail;
     }
@@ -742,13 +735,13 @@ static int qcow2_update_ext_header(BlockDriverState *bs,
     uint64_t be_backing_file_offset = cpu_to_be64(backing_file_offset);
     uint32_t be_backing_file_size = cpu_to_be32(backing_file_len);
 
-    ret = bdrv_pwrite(s->hd, offsetof(QCowHeader, backing_file_offset),
+    ret = bdrv_pwrite(bs->file, offsetof(QCowHeader, backing_file_offset),
         &be_backing_file_offset, sizeof(uint64_t));
     if (ret < 0) {
         goto fail;
     }
 
-    ret = bdrv_pwrite(s->hd, offsetof(QCowHeader, backing_file_size),
+    ret = bdrv_pwrite(bs->file, offsetof(QCowHeader, backing_file_size),
         &be_backing_file_size, sizeof(uint32_t));
     if (ret < 0) {
         goto fail;
@@ -789,7 +782,6 @@ static int get_bits_from_size(size_t size)
 
 static int preallocate(BlockDriverState *bs)
 {
-    BDRVQcowState *s = bs->opaque;
     uint64_t nb_sectors;
     uint64_t offset;
     int num;
@@ -832,7 +824,7 @@ static int preallocate(BlockDriverState *bs)
     if (meta.cluster_offset != 0) {
         uint8_t buf[512];
         memset(buf, 0, 512);
-        bdrv_write(s->hd, (meta.cluster_offset >> 9) + num - 1, buf, 1);
+        bdrv_write(bs->file, (meta.cluster_offset >> 9) + num - 1, buf, 1);
     }
 
     return 0;
@@ -847,14 +839,51 @@ static int qcow_make_empty(BlockDriverState *bs)
     int ret;
 
     memset(s->l1_table, 0, l1_length);
-    if (bdrv_pwrite(s->hd, s->l1_table_offset, s->l1_table, l1_length) < 0)
+    if (bdrv_pwrite(bs->file, s->l1_table_offset, s->l1_table, l1_length) < 0)
         return -1;
-    ret = bdrv_truncate(s->hd, s->l1_table_offset + l1_length);
+    ret = bdrv_truncate(bs->file, s->l1_table_offset + l1_length);
     if (ret < 0)
         return ret;
 
     l2_cache_reset(bs);
 #endif
+    return 0;
+}
+
+static int qcow2_truncate(BlockDriverState *bs, int64_t offset)
+{
+    BDRVQcowState *s = bs->opaque;
+    int ret, new_l1_size;
+
+    if (offset & 511) {
+        return -EINVAL;
+    }
+
+    /* cannot proceed if image has snapshots */
+    if (s->nb_snapshots) {
+        return -ENOTSUP;
+    }
+
+    /* shrinking is currently not supported */
+    if (offset < bs->total_sectors * 512) {
+        return -ENOTSUP;
+    }
+
+    new_l1_size = size_to_l1(s, offset);
+    ret = qcow2_grow_l1_table(bs, new_l1_size);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* write updated header.size */
+    offset = cpu_to_be64(offset);
+    ret = bdrv_pwrite(bs->file, offsetof(QCowHeader, size),
+                      &offset, sizeof(uint64_t));
+    if (ret < 0) {
+        return ret;
+    }
+
+    s->l1_vm_state_index = new_l1_size;
     return 0;
 }
 
@@ -872,9 +901,9 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
     if (nb_sectors == 0) {
         /* align end of file to a sector boundary to ease reading with
            sector based I/Os */
-        cluster_offset = bdrv_getlength(s->hd);
+        cluster_offset = bdrv_getlength(bs->file);
         cluster_offset = (cluster_offset + 511) & ~511;
-        bdrv_truncate(s->hd, cluster_offset);
+        bdrv_truncate(bs->file, cluster_offset);
         return 0;
     }
 
@@ -917,8 +946,8 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
         if (!cluster_offset)
             return -1;
         cluster_offset &= s->cluster_offset_mask;
-        BLKDBG_EVENT(s->hd, BLKDBG_WRITE_COMPRESSED);
-        if (bdrv_pwrite(s->hd, cluster_offset, out_buf, out_len) != out_len) {
+        BLKDBG_EVENT(bs->file, BLKDBG_WRITE_COMPRESSED);
+        if (bdrv_pwrite(bs->file, cluster_offset, out_buf, out_len) != out_len) {
             qemu_free(out_buf);
             return -1;
         }
@@ -930,16 +959,13 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
 
 static void qcow_flush(BlockDriverState *bs)
 {
-    BDRVQcowState *s = bs->opaque;
-    bdrv_flush(s->hd);
+    bdrv_flush(bs->file);
 }
 
 static BlockDriverAIOCB *qcow_aio_flush(BlockDriverState *bs,
          BlockDriverCompletionFunc *cb, void *opaque)
 {
-     BDRVQcowState *s = bs->opaque;
-
-     return bdrv_aio_flush(s->hd, cb, opaque);
+    return bdrv_aio_flush(bs->file, cb, opaque);
 }
 
 static int64_t qcow_vm_state_offset(BDRVQcowState *s)
@@ -968,7 +994,7 @@ static void dump_refcounts(BlockDriverState *bs)
     int64_t nb_clusters, k, k1, size;
     int refcount;
 
-    size = bdrv_getlength(s->hd);
+    size = bdrv_getlength(bs->file);
     nb_clusters = size_to_clusters(s, size);
     for(k = 0; k < nb_clusters;) {
         k1 = k;
@@ -988,7 +1014,7 @@ static int qcow_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
     int growable = bs->growable;
     int ret;
 
-    BLKDBG_EVENT(s->hd, BLKDBG_VMSTATE_SAVE);
+    BLKDBG_EVENT(bs->file, BLKDBG_VMSTATE_SAVE);
     bs->growable = 1;
     ret = bdrv_pwrite(bs, qcow_vm_state_offset(s) + pos, buf, size);
     bs->growable = growable;
@@ -1003,7 +1029,7 @@ static int qcow_load_vmstate(BlockDriverState *bs, uint8_t *buf,
     int growable = bs->growable;
     int ret;
 
-    BLKDBG_EVENT(s->hd, BLKDBG_VMSTATE_LOAD);
+    BLKDBG_EVENT(bs->file, BLKDBG_VMSTATE_LOAD);
     bs->growable = 1;
     ret = bdrv_pread(bs, qcow_vm_state_offset(s) + pos, buf, size);
     bs->growable = growable;
@@ -1060,7 +1086,9 @@ static BlockDriver bdrv_qcow2 = {
     .bdrv_aio_readv	= qcow_aio_readv,
     .bdrv_aio_writev	= qcow_aio_writev,
     .bdrv_aio_flush	= qcow_aio_flush,
-    .bdrv_write_compressed = qcow_write_compressed,
+
+    .bdrv_truncate          = qcow2_truncate,
+    .bdrv_write_compressed  = qcow_write_compressed,
 
     .bdrv_snapshot_create   = qcow2_snapshot_create,
     .bdrv_snapshot_goto     = qcow2_snapshot_goto,

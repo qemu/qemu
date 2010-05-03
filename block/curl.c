@@ -495,7 +495,7 @@ static BlockDriver bdrv_http = {
     .protocol_name   = "http",
 
     .instance_size   = sizeof(BDRVCURLState),
-    .bdrv_open       = curl_open,
+    .bdrv_file_open  = curl_open,
     .bdrv_close      = curl_close,
     .bdrv_getlength  = curl_getlength,
 
@@ -507,7 +507,7 @@ static BlockDriver bdrv_https = {
     .protocol_name   = "https",
 
     .instance_size   = sizeof(BDRVCURLState),
-    .bdrv_open       = curl_open,
+    .bdrv_file_open  = curl_open,
     .bdrv_close      = curl_close,
     .bdrv_getlength  = curl_getlength,
 
@@ -519,7 +519,7 @@ static BlockDriver bdrv_ftp = {
     .protocol_name   = "ftp",
 
     .instance_size   = sizeof(BDRVCURLState),
-    .bdrv_open       = curl_open,
+    .bdrv_file_open  = curl_open,
     .bdrv_close      = curl_close,
     .bdrv_getlength  = curl_getlength,
 
@@ -531,7 +531,7 @@ static BlockDriver bdrv_ftps = {
     .protocol_name   = "ftps",
 
     .instance_size   = sizeof(BDRVCURLState),
-    .bdrv_open       = curl_open,
+    .bdrv_file_open  = curl_open,
     .bdrv_close      = curl_close,
     .bdrv_getlength  = curl_getlength,
 
@@ -543,7 +543,7 @@ static BlockDriver bdrv_tftp = {
     .protocol_name   = "tftp",
 
     .instance_size   = sizeof(BDRVCURLState),
-    .bdrv_open       = curl_open,
+    .bdrv_file_open  = curl_open,
     .bdrv_close      = curl_close,
     .bdrv_getlength  = curl_getlength,
 

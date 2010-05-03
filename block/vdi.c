@@ -376,21 +376,15 @@ static int vdi_probe(const uint8_t *buf, int buf_size, const char *filename)
     return result;
 }
 
-static int vdi_open(BlockDriverState *bs, const char *filename, int flags)
+static int vdi_open(BlockDriverState *bs, int flags)
 {
     BDRVVdiState *s = bs->opaque;
     VdiHeader header;
     size_t bmap_size;
-    int ret;
 
     logout("\n");
 
-    ret = bdrv_file_open(&s->hd, filename, flags);
-    if (ret < 0) {
-        return ret;
-    }
-
-    if (bdrv_read(s->hd, 0, (uint8_t *)&header, 1) < 0) {
+    if (bdrv_read(bs->file, 0, (uint8_t *)&header, 1) < 0) {
         goto fail;
     }
 
@@ -442,7 +436,7 @@ static int vdi_open(BlockDriverState *bs, const char *filename, int flags)
     bmap_size = header.blocks_in_image * sizeof(uint32_t);
     bmap_size = (bmap_size + SECTOR_SIZE - 1) / SECTOR_SIZE;
     s->bmap = qemu_malloc(bmap_size * SECTOR_SIZE);
-    if (bdrv_read(s->hd, s->bmap_sector, (uint8_t *)s->bmap, bmap_size) < 0) {
+    if (bdrv_read(bs->file, s->bmap_sector, (uint8_t *)s->bmap, bmap_size) < 0) {
         goto fail_free_bmap;
     }
 
@@ -452,7 +446,6 @@ static int vdi_open(BlockDriverState *bs, const char *filename, int flags)
     qemu_free(s->bmap);
 
  fail:
-    bdrv_delete(s->hd);
     return -1;
 }
 
@@ -607,7 +600,7 @@ static void vdi_aio_read_cb(void *opaque, int ret)
         acb->hd_iov.iov_base = (void *)acb->buf;
         acb->hd_iov.iov_len = n_sectors * SECTOR_SIZE;
         qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
-        acb->hd_aiocb = bdrv_aio_readv(s->hd, offset, &acb->hd_qiov,
+        acb->hd_aiocb = bdrv_aio_readv(bs->file, offset, &acb->hd_qiov,
                                        n_sectors, vdi_aio_read_cb, acb);
         if (acb->hd_aiocb == NULL) {
             goto done;
@@ -670,7 +663,7 @@ static void vdi_aio_write_cb(void *opaque, int ret)
             acb->hd_iov.iov_base = acb->block_buffer;
             acb->hd_iov.iov_len = SECTOR_SIZE;
             qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
-            acb->hd_aiocb = bdrv_aio_writev(s->hd, 0, &acb->hd_qiov, 1,
+            acb->hd_aiocb = bdrv_aio_writev(bs->file, 0, &acb->hd_qiov, 1,
                                             vdi_aio_write_cb, acb);
             if (acb->hd_aiocb == NULL) {
                 goto done;
@@ -699,7 +692,7 @@ static void vdi_aio_write_cb(void *opaque, int ret)
             qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
             logout("will write %u block map sectors starting from entry %u\n",
                    n_sectors, bmap_first);
-            acb->hd_aiocb = bdrv_aio_writev(s->hd, offset, &acb->hd_qiov,
+            acb->hd_aiocb = bdrv_aio_writev(bs->file, offset, &acb->hd_qiov,
                                             n_sectors, vdi_aio_write_cb, acb);
             if (acb->hd_aiocb == NULL) {
                 goto done;
@@ -748,7 +741,7 @@ static void vdi_aio_write_cb(void *opaque, int ret)
         acb->hd_iov.iov_base = (void *)block;
         acb->hd_iov.iov_len = s->block_size;
         qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
-        acb->hd_aiocb = bdrv_aio_writev(s->hd, offset,
+        acb->hd_aiocb = bdrv_aio_writev(bs->file, offset,
                                         &acb->hd_qiov, s->block_sectors,
                                         vdi_aio_write_cb, acb);
         if (acb->hd_aiocb == NULL) {
@@ -761,7 +754,7 @@ static void vdi_aio_write_cb(void *opaque, int ret)
         acb->hd_iov.iov_base = (void *)acb->buf;
         acb->hd_iov.iov_len = n_sectors * SECTOR_SIZE;
         qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
-        acb->hd_aiocb = bdrv_aio_writev(s->hd, offset, &acb->hd_qiov,
+        acb->hd_aiocb = bdrv_aio_writev(bs->file, offset, &acb->hd_qiov,
                                         n_sectors, vdi_aio_write_cb, acb);
         if (acb->hd_aiocb == NULL) {
             goto done;
@@ -891,16 +884,12 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
 
 static void vdi_close(BlockDriverState *bs)
 {
-    BDRVVdiState *s = bs->opaque;
-    logout("\n");
-    bdrv_delete(s->hd);
 }
 
 static void vdi_flush(BlockDriverState *bs)
 {
-    BDRVVdiState *s = bs->opaque;
     logout("\n");
-    bdrv_flush(s->hd);
+    bdrv_flush(bs->file);
 }
 
 
