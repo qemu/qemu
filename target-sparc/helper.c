@@ -420,10 +420,13 @@ static inline int ultrasparc_tag_match(SparcTLBEntry *tlb,
 
 static int get_physical_address_data(CPUState *env,
                                      target_phys_addr_t *physical, int *prot,
-                                     target_ulong address, int rw, int is_user)
+                                     target_ulong address, int rw, int mmu_idx)
 {
     unsigned int i;
     uint64_t context;
+
+    int is_user = (mmu_idx == MMU_USER_IDX ||
+                   mmu_idx == MMU_USER_SECONDARY_IDX);
 
     if ((env->lsu & DMMU_E) == 0) { /* DMMU disabled */
         *physical = ultrasparc_truncate_physical(address);
@@ -431,10 +434,18 @@ static int get_physical_address_data(CPUState *env,
         return 0;
     }
 
-    if (env->tl == 0) {
+    switch(mmu_idx) {
+    case MMU_USER_IDX:
+    case MMU_KERNEL_IDX:
         context = env->dmmu.mmu_primary_context & 0x1fff;
-    } else {
+        break;
+    case MMU_USER_SECONDARY_IDX:
+    case MMU_KERNEL_SECONDARY_IDX:
+        context = env->dmmu.mmu_secondary_context & 0x1fff;
+        break;
+    case MMU_NUCLEUS_IDX:
         context = 0;
+        break;
     }
 
     for (i = 0; i < 64; i++) {
@@ -482,10 +493,13 @@ static int get_physical_address_data(CPUState *env,
 
 static int get_physical_address_code(CPUState *env,
                                      target_phys_addr_t *physical, int *prot,
-                                     target_ulong address, int is_user)
+                                     target_ulong address, int mmu_idx)
 {
     unsigned int i;
     uint64_t context;
+
+    int is_user = (mmu_idx == MMU_USER_IDX ||
+                   mmu_idx == MMU_USER_SECONDARY_IDX);
 
     if ((env->lsu & IMMU_E) == 0 || (env->pstate & PS_RED) != 0) {
         /* IMMU disabled */
@@ -495,8 +509,10 @@ static int get_physical_address_code(CPUState *env,
     }
 
     if (env->tl == 0) {
+        /* PRIMARY context */
         context = env->dmmu.mmu_primary_context & 0x1fff;
     } else {
+        /* NUCLEUS context */
         context = 0;
     }
 
@@ -535,17 +551,15 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
                                 target_ulong address, int rw, int mmu_idx,
                                 target_ulong *page_size)
 {
-    int is_user = mmu_idx == MMU_USER_IDX;
-
     /* ??? We treat everything as a small page, then explicitly flush
        everything when an entry is evicted.  */
     *page_size = TARGET_PAGE_SIZE;
     if (rw == 2)
         return get_physical_address_code(env, physical, prot, address,
-                                         is_user);
+                                         mmu_idx);
     else
         return get_physical_address_data(env, physical, prot, address, rw,
-                                         is_user);
+                                         mmu_idx);
 }
 
 /* Perform address translation */
@@ -659,20 +673,26 @@ void dump_mmu(CPUState *env)
 
 
 #if !defined(CONFIG_USER_ONLY)
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+target_phys_addr_t cpu_get_phys_page_nofault(CPUState *env, target_ulong addr,
+                                           int mmu_idx)
 {
     target_phys_addr_t phys_addr;
     target_ulong page_size;
     int prot, access_index;
 
     if (get_physical_address(env, &phys_addr, &prot, &access_index, addr, 2,
-                             MMU_KERNEL_IDX, &page_size) != 0)
+                             mmu_idx, &page_size) != 0)
         if (get_physical_address(env, &phys_addr, &prot, &access_index, addr,
-                                 0, MMU_KERNEL_IDX, &page_size) != 0)
+                                 0, mmu_idx, &page_size) != 0)
             return -1;
     if (cpu_get_physical_page_desc(phys_addr) == IO_MEM_UNASSIGNED)
         return -1;
     return phys_addr;
+}
+
+target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+{
+    return cpu_get_phys_page_nofault(env, addr, MMU_KERNEL_IDX);
 }
 #endif
 

@@ -1,9 +1,6 @@
 #include "exec.h"
 #include "host-utils.h"
 #include "helper.h"
-#if !defined(CONFIG_USER_ONLY)
-#include "softmmu_exec.h"
-#endif /* !defined(CONFIG_USER_ONLY) */
 
 //#define DEBUG_MMU
 //#define DEBUG_MXCC
@@ -2142,17 +2139,29 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
     switch (asi) {
     case 0x82: // Primary no-fault
     case 0x8a: // Primary no-fault LE
-        if (cpu_get_phys_page_debug(env, addr) == -1ULL) {
+    case 0x83: // Secondary no-fault
+    case 0x8b: // Secondary no-fault LE
+        {
+            /* secondary space access has lowest asi bit equal to 1 */
+            int access_mmu_idx = ( asi & 1 ) ? MMU_KERNEL_IDX
+                                             : MMU_KERNEL_SECONDARY_IDX;
+
+            if (cpu_get_phys_page_nofault(env, addr, access_mmu_idx) == -1ULL) {
 #ifdef DEBUG_ASI
-            dump_asi("read ", last_addr, asi, size, ret);
+                dump_asi("read ", last_addr, asi, size, ret);
 #endif
-            return 0;
+                return 0;
+            }
         }
         // Fall through
     case 0x10: // As if user primary
+    case 0x11: // As if user secondary
     case 0x18: // As if user primary LE
+    case 0x19: // As if user secondary LE
     case 0x80: // Primary
+    case 0x81: // Secondary
     case 0x88: // Primary LE
+    case 0x89: // Secondary LE
     case 0xe2: // UA2007 Primary block init
     case 0xe3: // UA2007 Secondary block init
         if ((asi & 0x80) && (env->pstate & PS_PRIV)) {
@@ -2174,37 +2183,75 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
                     break;
                 }
             } else {
-                switch(size) {
-                case 1:
-                    ret = ldub_kernel(addr);
-                    break;
-                case 2:
-                    ret = lduw_kernel(addr);
-                    break;
-                case 4:
-                    ret = ldl_kernel(addr);
-                    break;
-                default:
-                case 8:
-                    ret = ldq_kernel(addr);
-                    break;
+                /* secondary space access has lowest asi bit equal to 1 */
+                if (asi & 1) {
+                    switch(size) {
+                    case 1:
+                        ret = ldub_kernel_secondary(addr);
+                        break;
+                    case 2:
+                        ret = lduw_kernel_secondary(addr);
+                        break;
+                    case 4:
+                        ret = ldl_kernel_secondary(addr);
+                        break;
+                    default:
+                    case 8:
+                        ret = ldq_kernel_secondary(addr);
+                        break;
+                    }
+                } else {
+                    switch(size) {
+                    case 1:
+                        ret = ldub_kernel(addr);
+                        break;
+                    case 2:
+                        ret = lduw_kernel(addr);
+                        break;
+                    case 4:
+                        ret = ldl_kernel(addr);
+                        break;
+                    default:
+                    case 8:
+                        ret = ldq_kernel(addr);
+                        break;
+                    }
                 }
             }
         } else {
-            switch(size) {
-            case 1:
-                ret = ldub_user(addr);
-                break;
-            case 2:
-                ret = lduw_user(addr);
-                break;
-            case 4:
-                ret = ldl_user(addr);
-                break;
-            default:
-            case 8:
-                ret = ldq_user(addr);
-                break;
+            /* secondary space access has lowest asi bit equal to 1 */
+            if (asi & 1) {
+                switch(size) {
+                case 1:
+                    ret = ldub_user_secondary(addr);
+                    break;
+                case 2:
+                    ret = lduw_user_secondary(addr);
+                    break;
+                case 4:
+                    ret = ldl_user_secondary(addr);
+                    break;
+                default:
+                case 8:
+                    ret = ldq_user_secondary(addr);
+                    break;
+                }
+            } else {
+                switch(size) {
+                case 1:
+                    ret = ldub_user(addr);
+                    break;
+                case 2:
+                    ret = lduw_user(addr);
+                    break;
+                case 4:
+                    ret = ldl_user(addr);
+                    break;
+                default:
+                case 8:
+                    ret = ldq_user(addr);
+                    break;
+                }
             }
         }
         break;
@@ -2235,22 +2282,27 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         //  Only ldda allowed
         raise_exception(TT_ILL_INSN);
         return 0;
-    case 0x83: // Secondary no-fault
-    case 0x8b: // Secondary no-fault LE
-        if (cpu_get_phys_page_debug(env, addr) == -1ULL) {
-#ifdef DEBUG_ASI
-            dump_asi("read ", last_addr, asi, size, ret);
-#endif
-            return 0;
-        }
-        // Fall through
     case 0x04: // Nucleus
     case 0x0c: // Nucleus Little Endian (LE)
-    case 0x11: // As if user secondary
-    case 0x19: // As if user secondary LE
+    {
+        switch(size) {
+        case 1:
+            ret = ldub_nucleus(addr);
+            break;
+        case 2:
+            ret = lduw_nucleus(addr);
+            break;
+        case 4:
+            ret = ldl_nucleus(addr);
+            break;
+        default:
+        case 8:
+            ret = ldq_nucleus(addr);
+            break;
+        }
+        break;
+    }
     case 0x4a: // UPA config
-    case 0x81: // Secondary
-    case 0x89: // Secondary LE
         // XXX
         break;
     case 0x45: // LSU
@@ -2464,9 +2516,13 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
 
     switch(asi) {
     case 0x10: // As if user primary
+    case 0x11: // As if user secondary
     case 0x18: // As if user primary LE
+    case 0x19: // As if user secondary LE
     case 0x80: // Primary
+    case 0x81: // Secondary
     case 0x88: // Primary LE
+    case 0x89: // Secondary LE
     case 0xe2: // UA2007 Primary block init
     case 0xe3: // UA2007 Secondary block init
         if ((asi & 0x80) && (env->pstate & PS_PRIV)) {
@@ -2488,37 +2544,75 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
                     break;
                 }
             } else {
-                switch(size) {
-                case 1:
-                    stb_kernel(addr, val);
-                    break;
-                case 2:
-                    stw_kernel(addr, val);
-                    break;
-                case 4:
-                    stl_kernel(addr, val);
-                    break;
-                case 8:
-                default:
-                    stq_kernel(addr, val);
-                    break;
+                /* secondary space access has lowest asi bit equal to 1 */
+                if (asi & 1) {
+                    switch(size) {
+                    case 1:
+                        stb_kernel_secondary(addr, val);
+                        break;
+                    case 2:
+                        stw_kernel_secondary(addr, val);
+                        break;
+                    case 4:
+                        stl_kernel_secondary(addr, val);
+                        break;
+                    case 8:
+                    default:
+                        stq_kernel_secondary(addr, val);
+                        break;
+                    }
+                } else {
+                    switch(size) {
+                    case 1:
+                        stb_kernel(addr, val);
+                        break;
+                    case 2:
+                        stw_kernel(addr, val);
+                        break;
+                    case 4:
+                        stl_kernel(addr, val);
+                        break;
+                    case 8:
+                    default:
+                        stq_kernel(addr, val);
+                        break;
+                    }
                 }
             }
         } else {
-            switch(size) {
-            case 1:
-                stb_user(addr, val);
-                break;
-            case 2:
-                stw_user(addr, val);
-                break;
-            case 4:
-                stl_user(addr, val);
-                break;
-            case 8:
-            default:
-                stq_user(addr, val);
-                break;
+            /* secondary space access has lowest asi bit equal to 1 */
+            if (asi & 1) {
+                switch(size) {
+                case 1:
+                    stb_user_secondary(addr, val);
+                    break;
+                case 2:
+                    stw_user_secondary(addr, val);
+                    break;
+                case 4:
+                    stl_user_secondary(addr, val);
+                    break;
+                case 8:
+                default:
+                    stq_user_secondary(addr, val);
+                    break;
+                }
+            } else {
+                switch(size) {
+                case 1:
+                    stb_user(addr, val);
+                    break;
+                case 2:
+                    stw_user(addr, val);
+                    break;
+                case 4:
+                    stl_user(addr, val);
+                    break;
+                case 8:
+                default:
+                    stq_user(addr, val);
+                    break;
+                }
             }
         }
         break;
@@ -2551,11 +2645,26 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
         return;
     case 0x04: // Nucleus
     case 0x0c: // Nucleus Little Endian (LE)
-    case 0x11: // As if user secondary
-    case 0x19: // As if user secondary LE
+    {
+        switch(size) {
+        case 1:
+            stb_nucleus(addr, val);
+            break;
+        case 2:
+            stw_nucleus(addr, val);
+            break;
+        case 4:
+            stl_nucleus(addr, val);
+            break;
+        default:
+        case 8:
+            stq_nucleus(addr, val);
+            break;
+        }
+        break;
+    }
+
     case 0x4a: // UPA config
-    case 0x81: // Secondary
-    case 0x89: // Secondary LE
         // XXX
         return;
     case 0x45: // LSU
