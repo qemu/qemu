@@ -115,9 +115,10 @@
 /* Offset to user memory in user mode. */
 #define TCG_TARGET_HAS_GUEST_BASE
 
-/* Number of registers available. */
-#define TCG_TARGET_NB_REGS 8
-//~ #define TCG_TARGET_NB_REGS 16
+/* Number of registers available.
+   For 32 bit hosts, we need more than 8 registers (call arguments). */
+//~ #define TCG_TARGET_NB_REGS 8
+#define TCG_TARGET_NB_REGS 16
 //~ #define TCG_TARGET_NB_REGS 32
 
 /* List of registers which are used by TCG. */
@@ -131,7 +132,7 @@ typedef enum {
     TCG_REG_R6,
     TCG_REG_R7,
     TCG_AREG0 = TCG_REG_R7,
-#if TCG_TARGET_NB_REGS == 16 || TCG_TARGET_NB_REGS == 32
+#if TCG_TARGET_NB_REGS >= 16
     TCG_REG_R8,
     TCG_REG_R9,
     TCG_REG_R10,
@@ -140,8 +141,7 @@ typedef enum {
     TCG_REG_R13,
     TCG_REG_R14,
     TCG_REG_R15,
-#endif
-#if TCG_TARGET_NB_REGS == 32
+#if TCG_TARGET_NB_REGS >= 32
     TCG_REG_R16,
     TCG_REG_R17,
     TCG_REG_R18,
@@ -158,6 +158,7 @@ typedef enum {
     TCG_REG_R29,
     TCG_REG_R30,
     TCG_REG_R31,
+#endif
 #endif
     // Special value UINT8_MAX is used by TCI to encode constant values.
     TCG_CONST = UINT8_MAX

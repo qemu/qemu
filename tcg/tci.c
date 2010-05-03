@@ -38,9 +38,18 @@
 #define TRACE() ((void)0)
 #endif
 
+#if MAX_OPC_PARAM_IARGS != 4
+# error Fix needed, number of supported input arguments changed!
+#endif
+#if TCG_TARGET_REG_BITS == 32
 typedef uint64_t (*helper_function)(tcg_target_ulong, tcg_target_ulong,
                                     tcg_target_ulong, tcg_target_ulong,
+                                    tcg_target_ulong, tcg_target_ulong,
                                     tcg_target_ulong, tcg_target_ulong);
+#else
+typedef uint64_t (*helper_function)(tcg_target_ulong, tcg_target_ulong,
+                                    tcg_target_ulong, tcg_target_ulong);
+#endif
 
 CPUState *env;
 
@@ -456,15 +465,23 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
             break;
         case INDEX_op_call:
             t0 = tci_read_ri(&tb_ptr);
+#if TCG_TARGET_REG_BITS == 32
             u64 = ((helper_function)t0)(tci_read_reg(TCG_REG_R0),
                                         tci_read_reg(TCG_REG_R1),
                                         tci_read_reg(TCG_REG_R2),
                                         tci_read_reg(TCG_REG_R3),
                                         tci_read_reg(TCG_REG_R5),
-                                        tci_read_reg(TCG_REG_R6));
+                                        tci_read_reg(TCG_REG_R6),
+                                        tci_read_reg(TCG_REG_R7),
+                                        tci_read_reg(TCG_REG_R8));
             tci_write_reg(TCG_REG_R0, u64);
-#if TCG_TARGET_REG_BITS == 32
             tci_write_reg(TCG_REG_R1, u64 >> 32);
+#else
+            u64 = ((helper_function)t0)(tci_read_reg(TCG_REG_R0),
+                                        tci_read_reg(TCG_REG_R1),
+                                        tci_read_reg(TCG_REG_R2),
+                                        tci_read_reg(TCG_REG_R3));
+            tci_write_reg(TCG_REG_R0, u64);
 #endif
             break;
         case INDEX_op_jmp:

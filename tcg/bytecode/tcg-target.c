@@ -290,19 +290,41 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_R5,
     TCG_REG_R6,
     TCG_REG_R7,
+#if TCG_TARGET_NB_REGS >= 16
+    TCG_REG_R8,
+    TCG_REG_R9,
+    TCG_REG_R10,
+    TCG_REG_R11,
+    TCG_REG_R12,
+    TCG_REG_R13,
+    TCG_REG_R14,
+    TCG_REG_R15,
+#endif
 };
+
+#if MAX_OPC_PARAM_IARGS != 4
+# error Fix needed, number of supported input arguments changed!
+#endif
 
 static const int tcg_target_call_iarg_regs[] = {
     TCG_REG_R0,
     TCG_REG_R1,
     TCG_REG_R2,
     TCG_REG_R3,
+#if TCG_TARGET_REG_BITS == 32
+    /* 32 bit hosts need 2 * MAX_OPC_PARAM_IARGS registers. */
 #if 0 /* used for TCG_REG_CALL_STACK */
     TCG_REG_R4,
 #endif
     TCG_REG_R5,
     TCG_REG_R6,
     TCG_REG_R7,
+#if TCG_TARGET_NB_REGS >= 16
+    TCG_REG_R8,
+#else
+# error Too few input registers available
+#endif
+#endif
 };
 
 static const int tcg_target_call_oarg_regs[] = {
@@ -323,7 +345,7 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "r05",
     "r06",
     "r07",
-#if TCG_TARGET_NB_REGS == 16 || TCG_TARGET_NB_REGS == 32
+#if TCG_TARGET_NB_REGS >= 16
     "r08",
     "r09",
     "r10",
@@ -332,8 +354,7 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "r13",
     "r14",
     "r15",
-#endif
-#if TCG_TARGET_NB_REGS == 32
+#if TCG_TARGET_NB_REGS >= 32
     "r16",
     "r17",
     "r18",
@@ -350,6 +371,7 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "r29",
     "r30",
     "r31"
+#endif
 #endif
 };
 #endif
@@ -1257,8 +1279,7 @@ void tcg_target_init(TCGContext *s)
     /* Registers available for 64 bit operations. */
     tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I64], 0, BIT(TCG_TARGET_NB_REGS) - 1);
     /* TODO: Which registers should be set here? */
-    tcg_regset_set32(tcg_target_call_clobber_regs, 0,
-                     BITS(TCG_REG_R7, TCG_REG_R0));
+    tcg_regset_set32(tcg_target_call_clobber_regs, 0, BIT(TCG_TARGET_NB_REGS) - 1);
     tcg_regset_clear(s->reserved_regs);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
     tcg_add_target_add_op_defs(tcg_target_op_defs);
