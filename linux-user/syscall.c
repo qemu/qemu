@@ -995,7 +995,8 @@ static abi_long do_pipe2(int host_pipe[], int flags)
 #endif
 }
 
-static abi_long do_pipe(void *cpu_env, abi_ulong pipedes, int flags)
+static abi_long do_pipe(void *cpu_env, abi_ulong pipedes,
+                        int flags, int is_pipe2)
 {
     int host_pipe[2];
     abi_long ret;
@@ -1003,20 +1004,25 @@ static abi_long do_pipe(void *cpu_env, abi_ulong pipedes, int flags)
 
     if (is_error(ret))
         return get_errno(ret);
-#if defined(TARGET_MIPS)
-    ((CPUMIPSState*)cpu_env)->active_tc.gpr[3] = host_pipe[1];
-    ret = host_pipe[0];
-#else
-#if defined(TARGET_SH4)
-    if (!flags) {
+
+    /* Several targets have special calling conventions for the original
+       pipe syscall, but didn't replicate this into the pipe2 syscall.  */
+    if (!is_pipe2) {
+#if defined(TARGET_ALPHA)
+        ((CPUAlphaState *)cpu_env)->ir[IR_A4] = host_pipe[1];
+        return host_pipe[0];
+#elif defined(TARGET_MIPS)
+        ((CPUMIPSState*)cpu_env)->active_tc.gpr[3] = host_pipe[1];
+        return host_pipe[0];
+#elif defined(TARGET_SH4)
         ((CPUSH4State*)cpu_env)->gregs[1] = host_pipe[1];
-        ret = host_pipe[0];
-    } else
+        return host_pipe[0];
 #endif
+    }
+
     if (put_user_s32(host_pipe[0], pipedes)
         || put_user_s32(host_pipe[1], pipedes + sizeof(host_pipe[0])))
         return -TARGET_EFAULT;
-#endif
     return get_errno(ret);
 }
 
@@ -4706,11 +4712,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = get_errno(dup(arg1));
         break;
     case TARGET_NR_pipe:
-        ret = do_pipe(cpu_env, arg1, 0);
+        ret = do_pipe(cpu_env, arg1, 0, 0);
         break;
 #ifdef TARGET_NR_pipe2
     case TARGET_NR_pipe2:
-        ret = do_pipe(cpu_env, arg1, arg2);
+        ret = do_pipe(cpu_env, arg1, arg2, 1);
         break;
 #endif
     case TARGET_NR_times:
