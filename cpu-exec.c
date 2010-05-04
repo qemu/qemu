@@ -213,6 +213,8 @@ static void cpu_handle_debug_exception(CPUState *env)
 
 /* main execution loop */
 
+volatile sig_atomic_t exit_request;
+
 int cpu_exec(CPUState *env1)
 {
     volatile host_reg_t saved_env_reg;
@@ -233,6 +235,11 @@ int cpu_exec(CPUState *env1)
     saved_env_reg = (host_reg_t) env;
     asm("");
     env = env1;
+
+    if (exit_request) {
+        env->exit_request = 1;
+        exit_request = 0;
+    }
 
 #if defined(TARGET_I386)
     if (!kvm_enabled()) {

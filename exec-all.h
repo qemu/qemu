@@ -351,4 +351,7 @@ CPUDebugExcpHandler *cpu_set_debug_excp_handler(CPUDebugExcpHandler *handler);
 /* vl.c */
 extern int singlestep;
 
+/* cpu-exec.c */
+extern volatile sig_atomic_t exit_request;
+
 #endif

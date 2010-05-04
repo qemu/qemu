@@ -472,6 +472,7 @@ static void cpu_signal(int sig)
 {
     if (cpu_single_env)
         cpu_exit(cpu_single_env);
+    exit_request = 1;
 }
 
 static void tcg_block_io_signals(void)
@@ -542,26 +543,20 @@ static void unblock_io_signals(void)
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 }
 
-static void qemu_signal_lock(unsigned int msecs)
-{
-    qemu_mutex_lock(&qemu_fair_mutex);
-
-    while (qemu_mutex_trylock(&qemu_global_mutex)) {
-        qemu_thread_signal(tcg_cpu_thread, SIG_IPI);
-        if (!qemu_mutex_timedlock(&qemu_global_mutex, msecs))
-            break;
-    }
-    qemu_mutex_unlock(&qemu_fair_mutex);
-}
-
 void qemu_mutex_lock_iothread(void)
 {
     if (kvm_enabled()) {
         qemu_mutex_lock(&qemu_fair_mutex);
         qemu_mutex_lock(&qemu_global_mutex);
         qemu_mutex_unlock(&qemu_fair_mutex);
-    } else
-        qemu_signal_lock(100);
+    } else {
+        qemu_mutex_lock(&qemu_fair_mutex);
+        if (qemu_mutex_trylock(&qemu_global_mutex)) {
+            qemu_thread_signal(tcg_cpu_thread, SIG_IPI);
+            qemu_mutex_lock(&qemu_global_mutex);
+        }
+        qemu_mutex_unlock(&qemu_fair_mutex);
+    }
 }
 
 void qemu_mutex_unlock_iothread(void)
