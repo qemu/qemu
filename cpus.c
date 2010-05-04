@@ -454,8 +454,7 @@ void qemu_cpu_kick(void *_env)
 {
     CPUState *env = _env;
     qemu_cond_broadcast(env->halt_cond);
-    if (kvm_enabled())
-        qemu_thread_signal(env->thread, SIG_IPI);
+    qemu_thread_signal(env->thread, SIG_IPI);
 }
 
 int qemu_cpu_self(void *_env)
@@ -583,7 +582,6 @@ void pause_all_vcpus(void)
 
     while (penv) {
         penv->stop = 1;
-        qemu_thread_signal(penv->thread, SIG_IPI);
         qemu_cpu_kick(penv);
         penv = (CPUState *)penv->next_cpu;
     }
@@ -592,7 +590,7 @@ void pause_all_vcpus(void)
         qemu_cond_timedwait(&qemu_pause_cond, &qemu_global_mutex, 100);
         penv = first_cpu;
         while (penv) {
-            qemu_thread_signal(penv->thread, SIG_IPI);
+            qemu_cpu_kick(penv);
             penv = (CPUState *)penv->next_cpu;
         }
     }
@@ -605,7 +603,6 @@ void resume_all_vcpus(void)
     while (penv) {
         penv->stop = 0;
         penv->stopped = 0;
-        qemu_thread_signal(penv->thread, SIG_IPI);
         qemu_cpu_kick(penv);
         penv = (CPUState *)penv->next_cpu;
     }
