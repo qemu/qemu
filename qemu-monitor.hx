@@ -1063,8 +1063,8 @@ ETEXI
     },
 
 STEXI
-@item acl_allow @var{aclname} @var{match} @code{allow|deny} [@var{index}]
-@findex acl_allow
+@item acl_add @var{aclname} @var{match} @code{allow|deny} [@var{index}]
+@findex acl_add
 Add a match rule to the access control list, allowing or denying access.
 The match will normally be an exact username or x509 distinguished name,
 but can optionally include wildcard globs. eg @code{*@@EXAMPLE.COM} to
@@ -1096,7 +1096,8 @@ ETEXI
     },
 
 STEXI
-@item acl_remove @var{aclname}
+@item acl_reset @var{aclname}
+@findex acl_reset
 Remove all matches from the access control list, and set the default
 policy back to @code{deny}.
 ETEXI
