@@ -2777,14 +2777,7 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_cpu:
                 /* hw initialization will check this */
                 if (*optarg == '?') {
-/* XXX: implement xxx_cpu_list for targets that still miss it */
-#if defined(cpu_list_id)
-                    cpu_list_id(stdout, &fprintf, optarg);
-#elif defined(cpu_list)
-                    cpu_list(stdout, &fprintf);	        /* deprecated */
-#else
-                    printf("Target ignores cpu selection\n");
-#endif
+                    list_cpus(stdout, &fprintf, optarg);
                     exit(0);
                 } else {
                     cpu_model = optarg;
