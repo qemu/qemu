@@ -80,8 +80,6 @@ struct bochs_header {
 };
 
 typedef struct BDRVBochsState {
-    int fd;
-
     uint32_t *catalog_bitmap;
     int catalog_size;
 
@@ -109,23 +107,16 @@ static int bochs_probe(const uint8_t *buf, int buf_size, const char *filename)
     return 0;
 }
 
-static int bochs_open(BlockDriverState *bs, const char *filename, int flags)
+static int bochs_open(BlockDriverState *bs, int flags)
 {
     BDRVBochsState *s = bs->opaque;
-    int fd, i;
+    int i;
     struct bochs_header bochs;
     struct bochs_header_v1 header_v1;
 
-    fd = open(filename, O_RDONLY | O_BINARY);
-    if (fd < 0) {
-        return -1;
-    }
-
     bs->read_only = 1; // no write support yet
 
-    s->fd = fd;
-
-    if (pread(fd, &bochs, sizeof(bochs), 0) != sizeof(bochs)) {
+    if (bdrv_pread(bs->file, 0, &bochs, sizeof(bochs)) != sizeof(bochs)) {
         goto fail;
     }
 
@@ -146,8 +137,8 @@ static int bochs_open(BlockDriverState *bs, const char *filename, int flags)
 
     s->catalog_size = le32_to_cpu(bochs.extra.redolog.catalog);
     s->catalog_bitmap = qemu_malloc(s->catalog_size * 4);
-    if (pread(s->fd, s->catalog_bitmap, s->catalog_size * 4,
-              le32_to_cpu(bochs.header)) != s->catalog_size * 4)
+    if (bdrv_pread(bs->file, le32_to_cpu(bochs.header), s->catalog_bitmap,
+                   s->catalog_size * 4) != s->catalog_size * 4)
 	goto fail;
     for (i = 0; i < s->catalog_size; i++)
 	le32_to_cpus(&s->catalog_bitmap[i]);
@@ -161,7 +152,6 @@ static int bochs_open(BlockDriverState *bs, const char *filename, int flags)
 
     return 0;
  fail:
-    close(fd);
     return -1;
 }
 
@@ -184,8 +174,8 @@ static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)
 	(s->extent_blocks + s->bitmap_blocks));
 
     /* read in bitmap for current extent */
-    if (pread(s->fd, &bitmap_entry, 1, bitmap_offset + (extent_offset / 8))
-            != 1) {
+    if (bdrv_pread(bs->file, bitmap_offset + (extent_offset / 8),
+                   &bitmap_entry, 1) != 1) {
         return -1;
     }
 
@@ -199,13 +189,12 @@ static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)
 static int bochs_read(BlockDriverState *bs, int64_t sector_num,
                     uint8_t *buf, int nb_sectors)
 {
-    BDRVBochsState *s = bs->opaque;
     int ret;
 
     while (nb_sectors > 0) {
         int64_t block_offset = seek_to_sector(bs, sector_num);
         if (block_offset >= 0) {
-            ret = pread(s->fd, buf, 512, block_offset);
+            ret = bdrv_pread(bs->file, block_offset, buf, 512);
             if (ret != 512) {
                 return -1;
             }
@@ -222,14 +211,13 @@ static void bochs_close(BlockDriverState *bs)
 {
     BDRVBochsState *s = bs->opaque;
     qemu_free(s->catalog_bitmap);
-    close(s->fd);
 }
 
 static BlockDriver bdrv_bochs = {
     .format_name	= "bochs",
     .instance_size	= sizeof(BDRVBochsState),
     .bdrv_probe		= bochs_probe,
-    .bdrv_file_open	= bochs_open,
+    .bdrv_open		= bochs_open,
     .bdrv_read		= bochs_read,
     .bdrv_close		= bochs_close,
 };
