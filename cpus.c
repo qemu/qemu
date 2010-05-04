@@ -91,6 +91,11 @@ void cpu_synchronize_all_post_init(void)
     }
 }
 
+int cpu_is_stopped(CPUState *env)
+{
+    return !vm_running || env->stopped;
+}
+
 static void do_vm_stop(int reason)
 {
     if (vm_running) {
