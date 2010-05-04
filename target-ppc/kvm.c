@@ -224,6 +224,11 @@ int kvm_arch_post_run(CPUState *env, struct kvm_run *run)
     return 0;
 }
 
+int kvm_arch_process_irqchip_events(CPUState *env)
+{
+    return 0;
+}
+
 static int kvmppc_handle_halt(CPUState *env)
 {
     if (!(env->interrupt_request & CPU_INTERRUPT_HARD) && (msr_ee)) {

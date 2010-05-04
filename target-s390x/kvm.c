@@ -175,6 +175,11 @@ int kvm_arch_post_run(CPUState *env, struct kvm_run *run)
     return 0;
 }
 
+int kvm_arch_process_irqchip_events(CPUState *env)
+{
+    return 0;
+}
+
 static void kvm_s390_interrupt_internal(CPUState *env, int type, uint32_t parm,
                                         uint64_t parm64, int vm)
 {

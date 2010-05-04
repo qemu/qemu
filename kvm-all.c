@@ -593,11 +593,6 @@ int kvm_init(int smp_cpus)
     int ret;
     int i;
 
-    if (smp_cpus > 1) {
-        fprintf(stderr, "No SMP KVM support, use '-smp 1'\n");
-        return -EINVAL;
-    }
-
     s = qemu_mallocz(sizeof(KVMState));
 
 #ifdef KVM_CAP_SET_GUEST_DEBUG
@@ -839,6 +834,11 @@ int kvm_cpu_exec(CPUState *env)
             break;
         }
 #endif
+
+        if (kvm_arch_process_irqchip_events(env)) {
+            ret = 0;
+            break;
+        }
 
         if (env->kvm_vcpu_dirty) {
             kvm_arch_put_registers(env, KVM_PUT_RUNTIME_STATE);
