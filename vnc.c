@@ -1594,7 +1594,7 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
 
     vnc_zlib_init(vs);
     vs->features = 0;
-    vs->vnc_encoding = 0;
+    vs->vnc_encoding = -1;
     vs->tight_compression = 9;
     vs->tight_quality = 9;
     vs->absolute = -1;
@@ -1603,18 +1603,24 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
         enc = encodings[i];
         switch (enc) {
         case VNC_ENCODING_RAW:
-            vs->vnc_encoding = enc;
+            if (vs->vnc_encoding != -1) {
+                vs->vnc_encoding = enc;
+            }
             break;
         case VNC_ENCODING_COPYRECT:
             vs->features |= VNC_FEATURE_COPYRECT_MASK;
             break;
         case VNC_ENCODING_HEXTILE:
             vs->features |= VNC_FEATURE_HEXTILE_MASK;
-            vs->vnc_encoding = enc;
+            if (vs->vnc_encoding != -1) {
+                vs->vnc_encoding = enc;
+            }
             break;
         case VNC_ENCODING_ZLIB:
             vs->features |= VNC_FEATURE_ZLIB_MASK;
-            vs->vnc_encoding = enc;
+            if (vs->vnc_encoding != -1) {
+                vs->vnc_encoding = enc;
+            }
             break;
         case VNC_ENCODING_DESKTOPRESIZE:
             vs->features |= VNC_FEATURE_RESIZE_MASK;
