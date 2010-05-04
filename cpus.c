@@ -115,6 +115,8 @@ static int cpu_has_work(CPUState *env)
 {
     if (env->stop)
         return 1;
+    if (env->queued_work_first)
+        return 1;
     if (env->stopped || !vm_running)
         return 0;
     if (!env->halted)
@@ -252,6 +254,11 @@ int qemu_cpu_self(void *env)
     return 1;
 }
 
+void run_on_cpu(CPUState *env, void (*func)(void *data), void *data)
+{
+    func(data);
+}
+
 void resume_all_vcpus(void)
 {
 }
@@ -304,6 +311,7 @@ static QemuCond qemu_cpu_cond;
 /* system init */
 static QemuCond qemu_system_cond;
 static QemuCond qemu_pause_cond;
+static QemuCond qemu_work_cond;
 
 static void tcg_block_io_signals(void);
 static void kvm_block_io_signals(CPUState *env);
@@ -334,6 +342,50 @@ void qemu_main_loop_start(void)
     qemu_cond_broadcast(&qemu_system_cond);
 }
 
+void run_on_cpu(CPUState *env, void (*func)(void *data), void *data)
+{
+    struct qemu_work_item wi;
+
+    if (qemu_cpu_self(env)) {
+        func(data);
+        return;
+    }
+
+    wi.func = func;
+    wi.data = data;
+    if (!env->queued_work_first)
+        env->queued_work_first = &wi;
+    else
+        env->queued_work_last->next = &wi;
+    env->queued_work_last = &wi;
+    wi.next = NULL;
+    wi.done = false;
+
+    qemu_cpu_kick(env);
+    while (!wi.done) {
+        CPUState *self_env = cpu_single_env;
+
+        qemu_cond_wait(&qemu_work_cond, &qemu_global_mutex);
+        cpu_single_env = self_env;
+    }
+}
+
+static void flush_queued_work(CPUState *env)
+{
+    struct qemu_work_item *wi;
+
+    if (!env->queued_work_first)
+        return;
+
+    while ((wi = env->queued_work_first)) {
+        env->queued_work_first = wi->next;
+        wi->func(wi->data);
+        wi->done = true;
+    }
+    env->queued_work_last = NULL;
+    qemu_cond_broadcast(&qemu_work_cond);
+}
+
 static void qemu_wait_io_event_common(CPUState *env)
 {
     if (env->stop) {
@@ -341,6 +393,7 @@ static void qemu_wait_io_event_common(CPUState *env)
         env->stopped = 1;
         qemu_cond_signal(&qemu_pause_cond);
     }
+    flush_queued_work(env);
 }
 
 static void qemu_wait_io_event(CPUState *env)
