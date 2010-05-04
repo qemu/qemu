@@ -129,24 +129,59 @@ static void demap_tlb(SparcTLBEntry *tlb, target_ulong demap_addr,
 {
     unsigned int i;
     target_ulong mask;
+    uint64_t context;
+
+    int is_demap_context = (demap_addr >> 6) & 1;
+
+    // demap context
+    switch ((demap_addr >> 4) & 3) {
+    case 0: // primary
+        context = env1->dmmu.mmu_primary_context;
+        break;
+    case 1: // secondary
+        context = env1->dmmu.mmu_secondary_context;
+        break;
+    case 2: // nucleus
+        context = 0;
+        break;
+    case 3: // reserved
+    default:
+        return;
+    }
 
     for (i = 0; i < 64; i++) {
         if (TTE_IS_VALID(tlb[i].tte)) {
 
-            mask = 0xffffffffffffe000ULL;
-            mask <<= 3 * ((tlb[i].tte >> 61) & 3);
+            if (is_demap_context) {
+                // will remove non-global entries matching context value
+                if (TTE_IS_GLOBAL(tlb[i].tte) ||
+                    !tlb_compare_context(&tlb[i], context)) {
+                    continue;
+                }
+            } else {
+                // demap page
+                // will remove any entry matching VA
+                mask = 0xffffffffffffe000ULL;
+                mask <<= 3 * ((tlb[i].tte >> 61) & 3);
 
-            if ((demap_addr & mask) == (tlb[i].tag & mask)) {
-                replace_tlb_entry(&tlb[i], 0, 0, env1);
-#ifdef DEBUG_MMU
-                DPRINTF_MMU("%s demap invalidated entry [%02u]\n", strmmu, i);
-                dump_mmu(env1);
-#endif
+                if (!compare_masked(demap_addr, tlb[i].tag, mask)) {
+                    continue;
+                }
+
+                // entry should be global or matching context value
+                if (!TTE_IS_GLOBAL(tlb[i].tte) &&
+                    !tlb_compare_context(&tlb[i], context)) {
+                    continue;
+                }
             }
-            //return;
+
+            replace_tlb_entry(&tlb[i], 0, 0, env1);
+#ifdef DEBUG_MMU
+            DPRINTF_MMU("%s demap invalidated entry [%02u]\n", strmmu, i);
+            dump_mmu(env1);
+#endif
         }
     }
-
 }
 
 static void replace_tlb_1bit_lru(SparcTLBEntry *tlb,

@@ -513,6 +513,24 @@ static inline void cpu_set_cwp(CPUSPARCState *env1, int new_cwp)
 /* sun4m.c, sun4u.c */
 void cpu_check_irqs(CPUSPARCState *env);
 
+#if defined (TARGET_SPARC64)
+
+static inline int compare_masked(uint64_t x, uint64_t y, uint64_t mask)
+{
+    return (x & mask) == (y & mask);
+}
+
+#define MMU_CONTEXT_BITS 13
+#define MMU_CONTEXT_MASK ((1 << MMU_CONTEXT_BITS) - 1)
+
+static inline int tlb_compare_context(const SparcTLBEntry *tlb,
+                                      uint64_t context)
+{
+    return compare_masked(context, tlb->tag, MMU_CONTEXT_MASK);
+}
+
+#endif
+
 static inline void PUT_PSR(CPUSPARCState *env1, target_ulong val)
 {
     env1->psr = val & PSR_ICC;

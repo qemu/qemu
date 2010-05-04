@@ -381,17 +381,11 @@ static inline target_phys_addr_t ultrasparc_truncate_physical(uint64_t x)
  * UltraSparc IIi I/DMMUs
  */
 
-static inline int compare_masked(uint64_t x, uint64_t y, uint64_t mask)
-{
-    return (x & mask) == (y & mask);
-}
-
 // Returns true if TTE tag is valid and matches virtual address value in context
 // requires virtual address mask value calculated from TTE entry size
 static inline int ultrasparc_tag_match(SparcTLBEntry *tlb,
                                        uint64_t address, uint64_t context,
-                                       target_phys_addr_t *physical,
-                                       int is_nucleus)
+                                       target_phys_addr_t *physical)
 {
     uint64_t mask;
 
@@ -413,8 +407,7 @@ static inline int ultrasparc_tag_match(SparcTLBEntry *tlb,
 
     // valid, context match, virtual address match?
     if (TTE_IS_VALID(tlb->tte) &&
-        ((is_nucleus && compare_masked(0, tlb->tag, 0x1fff))
-         || TTE_IS_GLOBAL(tlb->tte) || compare_masked(context, tlb->tag, 0x1fff))
+        (TTE_IS_GLOBAL(tlb->tte) || tlb_compare_context(tlb, context))
         && compare_masked(address, tlb->tag, mask))
     {
         // decode physical address
@@ -431,7 +424,6 @@ static int get_physical_address_data(CPUState *env,
 {
     unsigned int i;
     uint64_t context;
-    int is_nucleus;
 
     if ((env->lsu & DMMU_E) == 0) { /* DMMU disabled */
         *physical = ultrasparc_truncate_physical(address);
@@ -439,14 +431,16 @@ static int get_physical_address_data(CPUState *env,
         return 0;
     }
 
-    context = env->dmmu.mmu_primary_context & 0x1fff;
-    is_nucleus = env->tl > 0;
+    if (env->tl == 0) {
+        context = env->dmmu.mmu_primary_context & 0x1fff;
+    } else {
+        context = 0;
+    }
 
     for (i = 0; i < 64; i++) {
         // ctx match, vaddr match, valid?
         if (ultrasparc_tag_match(&env->dtlb[i],
-                                 address, context, physical,
-                                 is_nucleus)) {
+                                 address, context, physical)) {
             // access ok?
             if (((env->dtlb[i].tte & 0x4) && is_user) ||
                 (!(env->dtlb[i].tte & 0x2) && (rw == 1))) {
@@ -492,7 +486,6 @@ static int get_physical_address_code(CPUState *env,
 {
     unsigned int i;
     uint64_t context;
-    int is_nucleus;
 
     if ((env->lsu & IMMU_E) == 0 || (env->pstate & PS_RED) != 0) {
         /* IMMU disabled */
@@ -501,14 +494,16 @@ static int get_physical_address_code(CPUState *env,
         return 0;
     }
 
-    context = env->dmmu.mmu_primary_context & 0x1fff;
-    is_nucleus = env->tl > 0;
+    if (env->tl == 0) {
+        context = env->dmmu.mmu_primary_context & 0x1fff;
+    } else {
+        context = 0;
+    }
 
     for (i = 0; i < 64; i++) {
         // ctx match, vaddr match, valid?
         if (ultrasparc_tag_match(&env->itlb[i],
-                                 address, context, physical,
-                                 is_nucleus)) {
+                                 address, context, physical)) {
             // access ok?
             if ((env->itlb[i].tte & 0x4) && is_user) {
                 if (env->immu.sfsr) /* Fault status register */
