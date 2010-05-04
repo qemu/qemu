@@ -125,6 +125,8 @@ static void scsi_read_complete(void * opaque, int ret)
 {
     SCSIDiskReq *r = (SCSIDiskReq *)opaque;
 
+    r->req.aiocb = NULL;
+
     if (ret) {
         DPRINTF("IO error\n");
         r->req.bus->complete(r->req.bus, SCSI_REASON_DATA, r->req.tag, 0);
