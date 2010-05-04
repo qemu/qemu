@@ -62,23 +62,22 @@ static int cloop_open(BlockDriverState *bs, const char *filename, int flags)
     bs->read_only = 1;
 
     /* read header */
-    if(lseek(s->fd,128,SEEK_SET)<0) {
-cloop_close:
-	close(s->fd);
-	return -1;
+    if (pread(s->fd, &s->block_size, 4, 128) < 4) {
+        goto cloop_close;
     }
-    if(read(s->fd,&s->block_size,4)<4)
-	goto cloop_close;
-    s->block_size=be32_to_cpu(s->block_size);
-    if(read(s->fd,&s->n_blocks,4)<4)
-	goto cloop_close;
-    s->n_blocks=be32_to_cpu(s->n_blocks);
+    s->block_size = be32_to_cpu(s->block_size);
+
+    if (pread(s->fd, &s->n_blocks, 4, 128 + 4) < 4) {
+        goto cloop_close;
+    }
+    s->n_blocks = be32_to_cpu(s->n_blocks);
 
     /* read offsets */
-    offsets_size=s->n_blocks*sizeof(uint64_t);
-    s->offsets=(uint64_t*)qemu_malloc(offsets_size);
-    if(read(s->fd,s->offsets,offsets_size)<offsets_size)
+    offsets_size = s->n_blocks * sizeof(uint64_t);
+    s->offsets = qemu_malloc(offsets_size);
+    if (pread(s->fd, s->offsets, offsets_size, 128 + 4 + 4) < offsets_size) {
 	goto cloop_close;
+    }
     for(i=0;i<s->n_blocks;i++) {
 	s->offsets[i]=be64_to_cpu(s->offsets[i]);
 	if(i>0) {
@@ -98,6 +97,10 @@ cloop_close:
     s->sectors_per_block = s->block_size/512;
     bs->total_sectors = s->n_blocks*s->sectors_per_block;
     return 0;
+
+cloop_close:
+    close(s->fd);
+    return -1;
 }
 
 static inline int cloop_read_block(BDRVCloopState *s,int block_num)
@@ -106,8 +109,7 @@ static inline int cloop_read_block(BDRVCloopState *s,int block_num)
 	int ret;
         uint32_t bytes = s->offsets[block_num+1]-s->offsets[block_num];
 
-	lseek(s->fd, s->offsets[block_num], SEEK_SET);
-        ret = read(s->fd, s->compressed_block, bytes);
+        ret = pread(s->fd, s->compressed_block, bytes, s->offsets[block_num]);
         if (ret != bytes)
             return -1;
 
