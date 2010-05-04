@@ -611,6 +611,8 @@ ETEXI
     },
 
 STEXI
+@item cpu @var{index}
+@findex cpu
 Set the default CPU.
 ETEXI
 
