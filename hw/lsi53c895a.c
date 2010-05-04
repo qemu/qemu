@@ -298,8 +298,8 @@ static void lsi_soft_reset(LSIState *s)
     memset(s->scratch, 0, sizeof(s->scratch));
     s->istat0 = 0;
     s->istat1 = 0;
-    s->dcmd = 0;
-    s->dstat = 0;
+    s->dcmd = 0x40;
+    s->dstat = LSI_DSTAT_DFE;
     s->dien = 0;
     s->sist0 = 0;
     s->sist1 = 0;
@@ -308,7 +308,7 @@ static void lsi_soft_reset(LSIState *s)
     s->mbox0 = 0;
     s->mbox1 = 0;
     s->dfifo = 0;
-    s->ctest2 = 0;
+    s->ctest2 = LSI_CTEST2_DACK;
     s->ctest3 = 0;
     s->ctest4 = 0;
     s->ctest5 = 0;
@@ -327,6 +327,8 @@ static void lsi_soft_reset(LSIState *s)
     s->scid = 7;
     s->sxfer = 0;
     s->socl = 0;
+    s->sdid = 0;
+    s->ssid = 0;
     s->stest1 = 0;
     s->stest2 = 0;
     s->stest3 = 0;
