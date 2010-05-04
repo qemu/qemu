@@ -27,7 +27,6 @@
 #include <zlib.h>
 
 typedef struct BDRVCloopState {
-    int fd;
     uint32_t block_size;
     uint32_t n_blocks;
     uint64_t* offsets;
@@ -51,23 +50,20 @@ static int cloop_probe(const uint8_t *buf, int buf_size, const char *filename)
     return 0;
 }
 
-static int cloop_open(BlockDriverState *bs, const char *filename, int flags)
+static int cloop_open(BlockDriverState *bs, int flags)
 {
     BDRVCloopState *s = bs->opaque;
     uint32_t offsets_size,max_compressed_block_size=1,i;
 
-    s->fd = open(filename, O_RDONLY | O_BINARY);
-    if (s->fd < 0)
-        return -errno;
     bs->read_only = 1;
 
     /* read header */
-    if (pread(s->fd, &s->block_size, 4, 128) < 4) {
+    if (bdrv_pread(bs->file, 128, &s->block_size, 4) < 4) {
         goto cloop_close;
     }
     s->block_size = be32_to_cpu(s->block_size);
 
-    if (pread(s->fd, &s->n_blocks, 4, 128 + 4) < 4) {
+    if (bdrv_pread(bs->file, 128 + 4, &s->n_blocks, 4) < 4) {
         goto cloop_close;
     }
     s->n_blocks = be32_to_cpu(s->n_blocks);
@@ -75,7 +71,8 @@ static int cloop_open(BlockDriverState *bs, const char *filename, int flags)
     /* read offsets */
     offsets_size = s->n_blocks * sizeof(uint64_t);
     s->offsets = qemu_malloc(offsets_size);
-    if (pread(s->fd, s->offsets, offsets_size, 128 + 4 + 4) < offsets_size) {
+    if (bdrv_pread(bs->file, 128 + 4 + 4, s->offsets, offsets_size) <
+            offsets_size) {
 	goto cloop_close;
     }
     for(i=0;i<s->n_blocks;i++) {
@@ -99,17 +96,19 @@ static int cloop_open(BlockDriverState *bs, const char *filename, int flags)
     return 0;
 
 cloop_close:
-    close(s->fd);
     return -1;
 }
 
-static inline int cloop_read_block(BDRVCloopState *s,int block_num)
+static inline int cloop_read_block(BlockDriverState *bs, int block_num)
 {
+    BDRVCloopState *s = bs->opaque;
+
     if(s->current_block != block_num) {
 	int ret;
         uint32_t bytes = s->offsets[block_num+1]-s->offsets[block_num];
 
-        ret = pread(s->fd, s->compressed_block, bytes, s->offsets[block_num]);
+        ret = bdrv_pread(bs->file, s->offsets[block_num], s->compressed_block,
+                         bytes);
         if (ret != bytes)
             return -1;
 
@@ -138,7 +137,7 @@ static int cloop_read(BlockDriverState *bs, int64_t sector_num,
     for(i=0;i<nb_sectors;i++) {
 	uint32_t sector_offset_in_block=((sector_num+i)%s->sectors_per_block),
 	    block_num=(sector_num+i)/s->sectors_per_block;
-	if(cloop_read_block(s, block_num) != 0)
+	if(cloop_read_block(bs, block_num) != 0)
 	    return -1;
 	memcpy(buf+i*512,s->uncompressed_block+sector_offset_in_block*512,512);
     }
@@ -148,7 +147,6 @@ static int cloop_read(BlockDriverState *bs, int64_t sector_num,
 static void cloop_close(BlockDriverState *bs)
 {
     BDRVCloopState *s = bs->opaque;
-    close(s->fd);
     if(s->n_blocks>0)
 	free(s->offsets);
     free(s->compressed_block);
@@ -160,7 +158,7 @@ static BlockDriver bdrv_cloop = {
     .format_name	= "cloop",
     .instance_size	= sizeof(BDRVCloopState),
     .bdrv_probe		= cloop_probe,
-    .bdrv_file_open	= cloop_open,
+    .bdrv_open		= cloop_open,
     .bdrv_read		= cloop_read,
     .bdrv_close		= cloop_close,
 };
