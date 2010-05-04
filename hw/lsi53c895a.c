@@ -288,6 +288,8 @@ static void lsi_soft_reset(LSIState *s)
     DPRINTF("Reset\n");
     s->carry = 0;
 
+    s->msg_action = 0;
+    s->msg_len = 0;
     s->waiting = 0;
     s->dsa = 0;
     s->dnad = 0;
