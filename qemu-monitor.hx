@@ -953,7 +953,14 @@ ETEXI
         .help       = "redirect TCP or UDP connections from host to guest (requires -net user)",
         .mhandler.cmd = net_slirp_hostfwd_add,
     },
+#endif
+STEXI
+@item hostfwd_add
+@findex hostfwd_add
+Redirect TCP or UDP connections from host to guest (requires -net user).
+ETEXI
 
+#ifdef CONFIG_SLIRP
     {
         .name       = "hostfwd_remove",
         .args_type  = "arg1:s,arg2:s?,arg3:s?",
@@ -964,9 +971,9 @@ ETEXI
 
 #endif
 STEXI
-@item host_net_redir
-@findex host_net_redir
-Redirect TCP or UDP connections from host to guest (requires -net user).
+@item hostfwd_remove
+@findex hostfwd_remove
+Remove host-to-guest TCP or UDP redirection.
 ETEXI
 
     {
