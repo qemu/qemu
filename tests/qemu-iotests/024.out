@@ -11,6 +11,14 @@ qemu-io> wrote 65536/65536 bytes at offset 262144
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 65536/65536 bytes at offset 393216
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> wrote 65536/65536 bytes at offset 524288
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> wrote 65536/65536 bytes at offset 655360
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> wrote 65536/65536 bytes at offset 786432
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> wrote 65536/65536 bytes at offset 917504
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> Creating new backing file
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824 cluster_size=65536 
@@ -19,11 +27,18 @@ qemu-io> wrote 131072/131072 bytes at offset 0
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 131072/131072 bytes at offset 262144
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> wrote 131072/131072 bytes at offset 524288
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> wrote 131072/131072 bytes at offset 786432
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> Creating COW image
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824 backing_file='TEST_DIR/t.IMGFMT.base_old' cluster_size=65536 
 === IO: pattern 0x33
 qemu-io> wrote 262144/262144 bytes at offset 0
+256 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> === IO: pattern 0x33
+qemu-io> wrote 262144/262144 bytes at offset 524288
 256 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> Read before the rebase to make sure everything is set up correctly
 
@@ -51,6 +66,30 @@ qemu-io> read 65536/65536 bytes at offset 393216
 qemu-io> === IO: pattern 0x00
 qemu-io> read 65536/65536 bytes at offset 458752
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> === IO: pattern 0x33
+qemu-io> read 65536/65536 bytes at offset 524288
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> === IO: pattern 0x33
+qemu-io> read 65536/65536 bytes at offset 589824
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> === IO: pattern 0x33
+qemu-io> read 65536/65536 bytes at offset 655360
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> === IO: pattern 0x33
+qemu-io> read 65536/65536 bytes at offset 720896
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> === IO: pattern 0x11
+qemu-io> read 65536/65536 bytes at offset 786432
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> === IO: pattern 0x00
+qemu-io> read 65536/65536 bytes at offset 851968
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> === IO: pattern 0x11
+qemu-io> read 65536/65536 bytes at offset 917504
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> === IO: pattern 0x00
+qemu-io> read 65536/65536 bytes at offset 983040
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> 
 Rebase and test again
 
@@ -77,5 +116,29 @@ qemu-io> read 65536/65536 bytes at offset 393216
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 0x00
 qemu-io> read 65536/65536 bytes at offset 458752
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> === IO: pattern 0x33
+qemu-io> read 65536/65536 bytes at offset 524288
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> === IO: pattern 0x33
+qemu-io> read 65536/65536 bytes at offset 589824
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> === IO: pattern 0x33
+qemu-io> read 65536/65536 bytes at offset 655360
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> === IO: pattern 0x33
+qemu-io> read 65536/65536 bytes at offset 720896
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> === IO: pattern 0x11
+qemu-io> read 65536/65536 bytes at offset 786432
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> === IO: pattern 0x00
+qemu-io> read 65536/65536 bytes at offset 851968
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> === IO: pattern 0x11
+qemu-io> read 65536/65536 bytes at offset 917504
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> === IO: pattern 0x00
+qemu-io> read 65536/65536 bytes at offset 983040
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> *** done

@@ -52,19 +52,22 @@ CLUSTER_SIZE=65536
 # Backing (old) 11  --  11  --  11  --  11  --
 # Backing (new) 22  22  --  --  22  22  --  --
 # COW image     33  33  33  33  --  --  --  --
+#
+# The pattern is written twice to have both an alloc -> non-alloc and a
+# non-alloc -> alloc transition in the COW image.
 
 echo "Creating backing file"
 echo
 
 _make_test_img 1G
-io_pattern writev $((-2 * CLUSTER_SIZE)) $CLUSTER_SIZE $((2 * CLUSTER_SIZE)) 4 0x11
+io_pattern writev $((-2 * CLUSTER_SIZE)) $CLUSTER_SIZE $((2 * CLUSTER_SIZE)) 8 0x11
 mv $TEST_IMG $TEST_IMG.base_old
 
 echo "Creating new backing file"
 echo
 
 _make_test_img 1G
-io_pattern writev $((-4 * CLUSTER_SIZE)) $((2 * CLUSTER_SIZE)) $((4 * CLUSTER_SIZE)) 2 0x22
+io_pattern writev $((-4 * CLUSTER_SIZE)) $((2 * CLUSTER_SIZE)) $((4 * CLUSTER_SIZE)) 4 0x22
 mv $TEST_IMG $TEST_IMG.base_new
 
 echo "Creating COW image"
@@ -72,6 +75,7 @@ echo
 
 _make_test_img -b $TEST_IMG.base_old 1G
 io_pattern writev 0 $((4 * CLUSTER_SIZE)) 0 1 0x33
+io_pattern writev $((8 * CLUSTER_SIZE)) $((4 * CLUSTER_SIZE)) 0 1 0x33
 
 echo "Read before the rebase to make sure everything is set up correctly"
 echo
@@ -83,6 +87,14 @@ io_pattern readv $((4 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x11
 io_pattern readv $((5 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x00
 io_pattern readv $((6 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x11
 io_pattern readv $((7 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x00
+io_pattern readv $((8 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((9 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((10 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((11 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((12 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x11
+io_pattern readv $((13 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x00
+io_pattern readv $((14 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x11
+io_pattern readv $((15 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x00
 
 echo
 echo Rebase and test again
@@ -96,6 +108,14 @@ io_pattern readv $((4 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x11
 io_pattern readv $((5 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x00
 io_pattern readv $((6 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x11
 io_pattern readv $((7 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x00
+io_pattern readv $((8 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((9 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((10 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((11 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((12 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x11
+io_pattern readv $((13 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x00
+io_pattern readv $((14 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x11
+io_pattern readv $((15 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x00
 
 
 # success, all done
