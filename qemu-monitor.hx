@@ -374,16 +374,13 @@ data. Its syntax is: @option{/@{count@}@{format@}@{size@}}
 
 @table @var
 @item count
-@findex count
 is the number of items to be dumped.
 
 @item format
-@findex format
 can be x (hex), d (signed decimal), u (unsigned decimal), o (octal),
 c (char) or i (asm instruction).
 
 @item size
-@findex size
 can be b (8 bits), h (16 bits), w (32 bits) or g (64 bits). On x86,
 @code{h} or @code{w} can be specified with the @code{i} format to
 respectively select 16 or 32 bit code instruction size.
@@ -1181,6 +1178,7 @@ ETEXI
 
 STEXI
 @item qmp_capabilities
+@findex qmp_capabilities
 Enable the specified QMP capabilities
 ETEXI
 
