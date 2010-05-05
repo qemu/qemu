@@ -39,7 +39,7 @@ static int ide_qdev_init(DeviceState *qdev, DeviceInfo *base)
     IDEDeviceInfo *info = DO_UPCAST(IDEDeviceInfo, qdev, base);
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, qdev->parent_bus);
 
-    if (!dev->conf.dinfo) {
+    if (!dev->conf.bs) {
         fprintf(stderr, "%s: no drive specified\n", qdev->info->name);
         goto err;
     }
@@ -83,7 +83,7 @@ IDEDevice *ide_create_drive(IDEBus *bus, int unit, DriveInfo *drive)
 
     dev = qdev_create(&bus->qbus, "ide-drive");
     qdev_prop_set_uint32(dev, "unit", unit);
-    qdev_prop_set_drive(dev, "drive", drive);
+    qdev_prop_set_drive(dev, "drive", drive->bdrv);
     qdev_init_nofail(dev);
     return DO_UPCAST(IDEDevice, qdev, dev);
 }
@@ -99,14 +99,18 @@ static int ide_drive_initfn(IDEDevice *dev)
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, dev->qdev.parent_bus);
     IDEState *s = bus->ifs + dev->unit;
     const char *serial;
+    DriveInfo *dinfo;
 
     serial = dev->serial;
     if (!serial) {
         /* try to fall back to value set with legacy -drive serial=... */
-        serial = dev->conf.dinfo->serial;
+        dinfo = drive_get_by_blockdev(dev->conf.bs);
+        if (*dinfo->serial) {
+            serial = dinfo->serial;
+        }
     }
 
-    ide_init_drive(s, dev->conf.dinfo, dev->version, serial);
+    ide_init_drive(s, dev->conf.bs, dev->version, serial);
 
     if (!dev->version) {
         dev->version = qemu_strdup(s->version);

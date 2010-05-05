@@ -1043,26 +1043,24 @@ static void scsi_destroy(SCSIDevice *dev)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
 
     scsi_disk_purge_requests(s);
-    blockdev_mark_auto_del(s->qdev.conf.dinfo->bdrv);
+    blockdev_mark_auto_del(s->qdev.conf.bs);
 }
 
 static int scsi_disk_initfn(SCSIDevice *dev)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
+    DriveInfo *dinfo;
 
-    if (!s->qdev.conf.dinfo || !s->qdev.conf.dinfo->bdrv) {
+    if (!s->qdev.conf.bs) {
         error_report("scsi-disk: drive property not set");
         return -1;
     }
-    s->bs = s->qdev.conf.dinfo->bdrv;
+    s->bs = s->qdev.conf.bs;
 
     if (!s->serial) {
-        if (*dev->conf.dinfo->serial) {
-            /* try to fall back to value set with legacy -drive serial=... */
-            s->serial = qemu_strdup(dev->conf.dinfo->serial);
-        } else {
-            s->serial = qemu_strdup("0");
-        }
+        /* try to fall back to value set with legacy -drive serial=... */
+        dinfo = drive_get_by_blockdev(s->bs);
+        s->serial = qemu_strdup(*dinfo->serial ? dinfo->serial : "0");
     }
 
     if (!s->version) {

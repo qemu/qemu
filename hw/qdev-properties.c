@@ -305,33 +305,36 @@ PropertyInfo qdev_prop_string = {
 
 static int parse_drive(DeviceState *dev, Property *prop, const char *str)
 {
-    DriveInfo **ptr = qdev_get_prop_ptr(dev, prop);
+    BlockDriverState **ptr = qdev_get_prop_ptr(dev, prop);
+    BlockDriverState *bs;
 
-    *ptr = drive_get_by_id(str);
-    if (*ptr == NULL)
+    bs = bdrv_find(str);
+    if (bs == NULL)
         return -ENOENT;
+    *ptr = bs;
     return 0;
 }
 
 static void free_drive(DeviceState *dev, Property *prop)
 {
-    DriveInfo **ptr = qdev_get_prop_ptr(dev, prop);
+    BlockDriverState **ptr = qdev_get_prop_ptr(dev, prop);
 
     if (*ptr) {
-        blockdev_auto_del((*ptr)->bdrv);
+        blockdev_auto_del(*ptr);
     }
 }
 
 static int print_drive(DeviceState *dev, Property *prop, char *dest, size_t len)
 {
-    DriveInfo **ptr = qdev_get_prop_ptr(dev, prop);
-    return snprintf(dest, len, "%s", (*ptr) ? (*ptr)->id : "<null>");
+    BlockDriverState **ptr = qdev_get_prop_ptr(dev, prop);
+    return snprintf(dest, len, "%s",
+                    *ptr ? bdrv_get_device_name(*ptr) : "<null>");
 }
 
 PropertyInfo qdev_prop_drive = {
     .name  = "drive",
     .type  = PROP_TYPE_DRIVE,
-    .size  = sizeof(DriveInfo*),
+    .size  = sizeof(BlockDriverState *),
     .parse = parse_drive,
     .print = print_drive,
     .free  = free_drive,
@@ -657,7 +660,7 @@ void qdev_prop_set_string(DeviceState *dev, const char *name, char *value)
     qdev_prop_set(dev, name, &value, PROP_TYPE_STRING);
 }
 
-void qdev_prop_set_drive(DeviceState *dev, const char *name, DriveInfo *value)
+void qdev_prop_set_drive(DeviceState *dev, const char *name, BlockDriverState *value)
 {
     qdev_prop_set(dev, name, &value, PROP_TYPE_DRIVE);
 }
