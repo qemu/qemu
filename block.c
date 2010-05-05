@@ -292,12 +292,14 @@ static BlockDriver *find_protocol(const char *filename)
 
     /* TODO Drivers without bdrv_file_open must be specified explicitly */
 
-#ifdef _WIN32
-    if (is_windows_drive(filename) ||
-        is_windows_drive_prefix(filename))
-        return bdrv_find_format("file");
-#endif
     p = strchr(filename, ':');
+#ifdef _WIN32
+    if (p &&
+        (is_windows_drive(filename) ||
+         is_windows_drive_prefix(filename))) {
+        p = NULL;
+    }
+#endif
     if (!p) {
         drv1 = find_hdev_driver(filename);
         if (!drv1) {
