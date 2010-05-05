@@ -1579,7 +1579,8 @@ int main(void) { io_setup(0, NULL); io_set_eventfd(NULL, 0); eventfd(0, 0); retu
 EOF
   if compile_prog "" "-laio" ; then
     linux_aio=yes
-    LIBS="$LIBS -laio"
+    libs_softmmu="$libs_softmmu -laio"
+    libs_tools="$libs_tools -laio"
   else
     if test "$linux_aio" = "yes" ; then
       feature_not_found "linux AIO"
