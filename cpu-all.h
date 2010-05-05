@@ -742,7 +742,10 @@ extern unsigned long qemu_host_page_mask;
 /* original state of the write flag (used when tracking self-modifying
    code */
 #define PAGE_WRITE_ORG 0x0010
+#if defined(CONFIG_BSD) && defined(CONFIG_USER_ONLY)
+/* FIXME: Code that sets/uses this is broken and needs to go away.  */
 #define PAGE_RESERVED  0x0020
+#endif
 
 #if defined(CONFIG_USER_ONLY)
 void page_dump(FILE *f);

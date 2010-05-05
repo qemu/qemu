@@ -2159,12 +2159,6 @@ static int vma_walker(void *priv, abi_ulong start, abi_ulong end,
 {
     struct mm_struct *mm = (struct mm_struct *)priv;
 
-    /*
-     * Don't dump anything that qemu has reserved for internal use.
-     */
-    if (flags & PAGE_RESERVED)
-        return (0);
-
     vma_add_mapping(mm, start, end, flags);
     return (0);
 }
