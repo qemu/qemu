@@ -469,7 +469,7 @@ static int vdi_is_allocated(BlockDriverState *bs, int64_t sector_num,
 static void vdi_aio_cancel(BlockDriverAIOCB *blockacb)
 {
     /* TODO: This code is untested. How can I get it executed? */
-    VdiAIOCB *acb = (VdiAIOCB *)blockacb;
+    VdiAIOCB *acb = container_of(blockacb, VdiAIOCB, common);
     logout("\n");
     if (acb->hd_aiocb) {
         bdrv_aio_cancel(acb->hd_aiocb);

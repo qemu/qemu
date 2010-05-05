@@ -320,7 +320,7 @@ static void error_callback_bh(void *opaque)
 
 static void blkdebug_aio_cancel(BlockDriverAIOCB *blockacb)
 {
-    BlkdebugAIOCB *acb = (BlkdebugAIOCB*) blockacb;
+    BlkdebugAIOCB *acb = container_of(blockacb, BlkdebugAIOCB, common);
     qemu_aio_release(acb);
 }
 
@@ -347,7 +347,7 @@ static BlockDriverAIOCB *inject_error(BlockDriverState *bs,
     acb->bh = bh;
     qemu_bh_schedule(bh);
 
-    return (BlockDriverAIOCB*) acb;
+    return &acb->common;
 }
 
 static BlockDriverAIOCB *blkdebug_aio_readv(BlockDriverState *bs,
