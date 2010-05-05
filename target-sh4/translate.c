@@ -1916,12 +1916,6 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
     ctx.features = env->features;
     ctx.has_movcal = (tb->flags & TB_FLAG_PENDING_MOVCA);
 
-#ifdef DEBUG_DISAS
-    qemu_log_mask(CPU_LOG_TB_CPU,
-                 "------------------------------------------------\n");
-    log_cpu_state_mask(CPU_LOG_TB_CPU, env, 0);
-#endif
-
     ii = -1;
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;

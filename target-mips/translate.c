@@ -9427,11 +9427,6 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0)
         max_insns = CF_COUNT_MASK;
-#ifdef DEBUG_DISAS
-    qemu_log_mask(CPU_LOG_TB_CPU, "------------------------------------------------\n");
-    /* FIXME: This may print out stale hflags from env... */
-    log_cpu_state_mask(CPU_LOG_TB_CPU, env, 0);
-#endif
     LOG_DISAS("\ntb %p idx %d hflags %04x\n", tb, ctx.mem_idx, ctx.hflags);
     gen_icount_start();
     while (ctx.bstate == BS_NONE) {
@@ -9545,7 +9540,6 @@ done_generating:
         log_target_disas(pc_start, ctx.pc - pc_start, 0);
         qemu_log("\n");
     }
-    qemu_log_mask(CPU_LOG_TB_CPU, "---------------- %d %08x\n", ctx.bstate, ctx.hflags);
 #endif
 }
 
