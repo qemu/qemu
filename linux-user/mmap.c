@@ -85,14 +85,6 @@ void *qemu_vmalloc(size_t size)
     /* Use map and mark the pages as used.  */
     p = mmap(NULL, size, PROT_READ | PROT_WRITE,
              MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-
-    if (h2g_valid(p)) {
-        /* Allocated region overlaps guest address space. This may recurse.  */
-        abi_ulong addr = h2g(p);
-        page_set_flags(addr & TARGET_PAGE_MASK, TARGET_PAGE_ALIGN(addr + size),
-                       PAGE_RESERVED);
-    }
-
     mmap_unlock();
     return p;
 }
@@ -484,9 +476,6 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
         }
         start = h2g(host_start);
     } else {
-        int flg;
-        target_ulong addr;
-
         if (start & ~TARGET_PAGE_MASK) {
             errno = EINVAL;
             goto fail;
@@ -502,14 +491,6 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
         if ((unsigned long)start + len - 1 > (abi_ulong) -1) {
             errno = EINVAL;
             goto fail;
-        }
-
-        for(addr = real_start; addr < real_end; addr += TARGET_PAGE_SIZE) {
-            flg = page_get_flags(addr);
-            if (flg & PAGE_RESERVED) {
-                errno = ENXIO;
-                goto fail;
-            }
         }
 
         /* worst case: we cannot map the file because the offset is not

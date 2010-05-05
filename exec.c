@@ -291,7 +291,7 @@ static void page_init(void)
         qemu_host_page_bits++;
     qemu_host_page_mask = ~(qemu_host_page_size - 1);
 
-#if !defined(_WIN32) && defined(CONFIG_USER_ONLY)
+#if defined(CONFIG_BSD) && defined(CONFIG_USER_ONLY)
     {
 #ifdef HAVE_KINFO_GETVMMAP
         struct kinfo_vmentry *freep;
@@ -327,11 +327,7 @@ static void page_init(void)
 
         last_brk = (unsigned long)sbrk(0);
 
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
         f = fopen("/compat/linux/proc/self/maps", "r");
-#else
-        f = fopen("/proc/self/maps", "r");
-#endif
         if (f) {
             mmap_lock();
 
@@ -368,24 +364,11 @@ static PageDesc *page_find_alloc(tb_page_addr_t index, int alloc)
     int i;
 
 #if defined(CONFIG_USER_ONLY)
-    /* We can't use qemu_malloc because it may recurse into a locked mutex.
-       Neither can we record the new pages we reserve while allocating a
-       given page because that may recurse into an unallocated page table
-       entry.  Stuff the allocations we do make into a queue and process
-       them after having completed one entire page table allocation.  */
-
-    unsigned long reserve[2 * (V_L1_SHIFT / L2_BITS)];
-    int reserve_idx = 0;
-
+    /* We can't use qemu_malloc because it may recurse into a locked mutex. */
 # define ALLOC(P, SIZE)                                 \
     do {                                                \
         P = mmap(NULL, SIZE, PROT_READ | PROT_WRITE,    \
                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);   \
-        if (h2g_valid(P)) {                             \
-            reserve[reserve_idx] = h2g(P);              \
-            reserve[reserve_idx + 1] = SIZE;            \
-            reserve_idx += 2;                           \
-        }                                               \
     } while (0)
 #else
 # define ALLOC(P, SIZE) \
@@ -420,16 +403,6 @@ static PageDesc *page_find_alloc(tb_page_addr_t index, int alloc)
     }
 
 #undef ALLOC
-#if defined(CONFIG_USER_ONLY)
-    for (i = 0; i < reserve_idx; i += 2) {
-        unsigned long addr = reserve[i];
-        unsigned long len = reserve[i + 1];
-
-        page_set_flags(addr & TARGET_PAGE_MASK,
-                       TARGET_PAGE_ALIGN(addr + len),
-                       PAGE_RESERVED);
-    }
-#endif
 
     return pd + (index & (L2_SIZE - 1));
 }
