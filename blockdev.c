@@ -75,18 +75,6 @@ DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit)
     return NULL;
 }
 
-DriveInfo *drive_get_by_id(const char *id)
-{
-    DriveInfo *dinfo;
-
-    QTAILQ_FOREACH(dinfo, &drives, next) {
-        if (strcmp(id, dinfo->id))
-            continue;
-        return dinfo;
-    }
-    return NULL;
-}
-
 int drive_get_max_bus(BlockInterfaceType type)
 {
     int max_bus;
