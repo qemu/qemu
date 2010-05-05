@@ -1666,19 +1666,80 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
      */
     if (!have_guest_base) {
         /*
-         * Go through ELF program header table and find out whether
-	 * any of the segments drop below our current mmap_min_addr and
-         * in that case set guest_base to corresponding address.
-         */
+         * Go through ELF program header table and find the address
+         * range used by loadable segments.  Check that this is available on
+         * the host, and if not find a suitable value for guest_base.  */
+        abi_ulong app_start = ~0;
+        abi_ulong app_end = 0;
+        abi_ulong addr;
+        unsigned long host_start;
+        unsigned long real_start;
+        unsigned long host_size;
         for (i = 0, elf_ppnt = elf_phdata; i < elf_ex.e_phnum;
             i++, elf_ppnt++) {
             if (elf_ppnt->p_type != PT_LOAD)
                 continue;
-            if (HOST_PAGE_ALIGN(elf_ppnt->p_vaddr) < mmap_min_addr) {
-                guest_base = HOST_PAGE_ALIGN(mmap_min_addr);
-                break;
+            addr = elf_ppnt->p_vaddr;
+            if (addr < app_start) {
+                app_start = addr;
+            }
+            addr += elf_ppnt->p_memsz;
+            if (addr > app_end) {
+                app_end = addr;
             }
         }
+
+        /* If we don't have any loadable segments then something
+           is very wrong.  */
+        assert(app_start < app_end);
+
+        /* Round addresses to page boundaries.  */
+        app_start = app_start & qemu_host_page_mask;
+        app_end = HOST_PAGE_ALIGN(app_end);
+        if (app_start < mmap_min_addr) {
+            host_start = HOST_PAGE_ALIGN(mmap_min_addr);
+        } else {
+            host_start = app_start;
+            if (host_start != app_start) {
+                fprintf(stderr, "qemu: Address overflow loading ELF binary\n");
+                abort();
+            }
+        }
+        host_size = app_end - app_start;
+        while (1) {
+            /* Do not use mmap_find_vma here because that is limited to the
+               guest address space.  We are going to make the
+               guest address space fit whatever we're given.  */
+            real_start = (unsigned long)mmap((void *)host_start, host_size,
+                PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0);
+            if (real_start == (unsigned long)-1) {
+                fprintf(stderr, "qemu: Virtual memory exausted\n");
+                abort();
+            }
+            if (real_start == host_start) {
+                break;
+            }
+            /* That address didn't work.  Unmap and try a different one.
+               The address the host picked because is typically
+               right at the top of the host address space and leaves the
+               guest with no usable address space.  Resort to a linear search.
+               We already compensated for mmap_min_addr, so this should not
+               happen often.  Probably means we got unlucky and host address
+               space randomization put a shared library somewhere
+               inconvenient.  */
+            munmap((void *)real_start, host_size);
+            host_start += qemu_host_page_size;
+            if (host_start == app_start) {
+                /* Theoretically possible if host doesn't have any
+                   suitably aligned areas.  Normally the first mmap will
+                   fail.  */
+                fprintf(stderr, "qemu: Unable to find space for application\n");
+                abort();
+            }
+        }
+        qemu_log("Relocating guest address space from 0x" TARGET_ABI_FMT_lx
+                 " to 0x%lx\n", app_start, real_start);
+        guest_base = real_start - app_start;
     }
 #endif /* CONFIG_USE_GUEST_BASE */
 
