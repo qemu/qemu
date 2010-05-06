@@ -435,7 +435,9 @@ static int vdi_open(BlockDriverState *bs, int flags)
 
     bmap_size = header.blocks_in_image * sizeof(uint32_t);
     bmap_size = (bmap_size + SECTOR_SIZE - 1) / SECTOR_SIZE;
-    s->bmap = qemu_malloc(bmap_size * SECTOR_SIZE);
+    if (bmap_size > 0) {
+        s->bmap = qemu_malloc(bmap_size * SECTOR_SIZE);
+    }
     if (bdrv_read(bs->file, s->bmap_sector, (uint8_t *)s->bmap, bmap_size) < 0) {
         goto fail_free_bmap;
     }
@@ -857,7 +859,10 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
         result = -errno;
     }
 
-    bmap = (uint32_t *)qemu_mallocz(bmap_size);
+    bmap = NULL;
+    if (bmap_size > 0) {
+        bmap = (uint32_t *)qemu_mallocz(bmap_size);
+    }
     for (i = 0; i < blocks; i++) {
         if (image_type == VDI_TYPE_STATIC) {
             bmap[i] = i;
