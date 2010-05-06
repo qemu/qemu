@@ -1629,11 +1629,10 @@ void tcg_target_qemu_prologue(TCGContext *s)
     }
 
 #ifdef CONFIG_USE_GUEST_BASE
-    /* Note that GUEST_BASE can change after the prologue is generated.
-       To combat that, load the value from the variable instead of
-       embedding a constant here.  */
-    tcg_out_ld(s, TCG_TYPE_PTR, TCG_GUEST_BASE_REG,
-               TCG_REG_R0, (tcg_target_long)&guest_base);
+    if (GUEST_BASE != 0) {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_GUEST_BASE_REG, GUEST_BASE);
+        tcg_regset_set_reg(s->reserved_regs, TCG_GUEST_BASE_REG);
+    }
 #endif
 
     /* Jump to TB, and adjust R18 to be the return address.  */
@@ -1679,9 +1678,6 @@ void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_DP);  /* data pointer */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_SP);  /* stack pointer */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R31); /* ble link reg */
-#ifdef CONFIG_USE_GUEST_BASE
-    tcg_regset_set_reg(s->reserved_regs, TCG_GUEST_BASE_REG);
-#endif
 
     tcg_add_target_add_op_defs(hppa_op_defs);
 }
