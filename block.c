@@ -701,12 +701,12 @@ int bdrv_commit(BlockDriverState *bs)
         bdrv_delete(bs->backing_hd);
         bs->backing_hd = NULL;
         bs_rw = bdrv_new("");
-        rw_ret = bdrv_open(bs_rw, filename, open_flags | BDRV_O_RDWR, NULL);
+        rw_ret = bdrv_open(bs_rw, filename, open_flags | BDRV_O_RDWR, drv);
         if (rw_ret < 0) {
             bdrv_delete(bs_rw);
             /* try to re-open read-only */
             bs_ro = bdrv_new("");
-            ret = bdrv_open(bs_ro, filename, open_flags & ~BDRV_O_RDWR, NULL);
+            ret = bdrv_open(bs_ro, filename, open_flags & ~BDRV_O_RDWR, drv);
             if (ret < 0) {
                 bdrv_delete(bs_ro);
                 /* drive not functional anymore */
@@ -758,7 +758,7 @@ ro_cleanup:
         bdrv_delete(bs->backing_hd);
         bs->backing_hd = NULL;
         bs_ro = bdrv_new("");
-        ret = bdrv_open(bs_ro, filename, open_flags & ~BDRV_O_RDWR, NULL);
+        ret = bdrv_open(bs_ro, filename, open_flags & ~BDRV_O_RDWR, drv);
         if (ret < 0) {
             bdrv_delete(bs_ro);
             /* drive not functional anymore */
