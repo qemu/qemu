@@ -240,7 +240,10 @@ void tcg_context_init(TCGContext *s)
     }
     
     tcg_target_init(s);
+}
 
+void tcg_prologue_init(TCGContext *s)
+{
     /* init global prologue and epilogue */
     s->code_buf = code_gen_prologue;
     s->code_ptr = s->code_buf;
