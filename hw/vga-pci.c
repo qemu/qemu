@@ -103,11 +103,10 @@ static int pci_vga_initfn(PCIDevice *dev)
             bios_total_size <<= 1;
         pci_register_bar(&d->dev, PCI_ROM_SLOT, bios_total_size,
                          PCI_BASE_ADDRESS_MEM_PREFETCH, vga_map);
+     } else {
+         if (dev->romfile == NULL)
+             dev->romfile = qemu_strdup("vgabios-stdvga.bin");
      }
-
-    vga_init_vbe(s);
-     /* ROM BIOS */
-     rom_add_vga(VGABIOS_FILENAME);
      return 0;
 }
 
