@@ -933,7 +933,10 @@ static void tcg_target_qemu_prologue (TCGContext *s)
     tcg_out32 (s, STW | RS (0) | RA (1) | (frame_size + LR_OFFSET));
 
 #ifdef CONFIG_USE_GUEST_BASE
-    tcg_out_movi (s, TCG_TYPE_I32, TCG_GUEST_BASE_REG, GUEST_BASE);
+    if (GUEST_BASE) {
+        tcg_out_movi (s, TCG_TYPE_I32, TCG_GUEST_BASE_REG, GUEST_BASE);
+        tcg_regset_set_reg(s->reserved_regs, TCG_GUEST_BASE_REG);
+    }
 #endif
 
     tcg_out32 (s, MTSPR | RS (3) | CTR);
@@ -1913,9 +1916,6 @@ static void tcg_target_init(TCGContext *s)
 #endif
 #ifdef _CALL_SYSV
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R13);
-#endif
-#ifdef CONFIG_USE_GUEST_BASE
-    tcg_regset_set_reg(s->reserved_regs, TCG_GUEST_BASE_REG);
 #endif
 
     tcg_add_target_add_op_defs(ppc_op_defs);
