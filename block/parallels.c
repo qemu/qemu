@@ -46,7 +46,6 @@ struct parallels_header {
 } __attribute__((packed));
 
 typedef struct BDRVParallelsState {
-    int fd;
 
     uint32_t *catalog_bitmap;
     int catalog_size;
@@ -68,22 +67,15 @@ static int parallels_probe(const uint8_t *buf, int buf_size, const char *filenam
     return 0;
 }
 
-static int parallels_open(BlockDriverState *bs, const char *filename, int flags)
+static int parallels_open(BlockDriverState *bs, int flags)
 {
     BDRVParallelsState *s = bs->opaque;
-    int fd, i;
+    int i;
     struct parallels_header ph;
-
-    fd = open(filename, O_RDONLY | O_BINARY | O_LARGEFILE);
-    if (fd < 0) {
-        return -1;
-    }
 
     bs->read_only = 1; // no write support yet
 
-    s->fd = fd;
-
-    if (pread(fd, &ph, sizeof(ph), 0) != sizeof(ph))
+    if (bdrv_pread(bs->file, 0, &ph, sizeof(ph)) != sizeof(ph))
         goto fail;
 
     if (memcmp(ph.magic, HEADER_MAGIC, 16) ||
@@ -97,7 +89,7 @@ static int parallels_open(BlockDriverState *bs, const char *filename, int flags)
 
     s->catalog_size = le32_to_cpu(ph.catalog_entries);
     s->catalog_bitmap = qemu_malloc(s->catalog_size * 4);
-    if (pread(s->fd, s->catalog_bitmap, s->catalog_size * 4, 64) !=
+    if (bdrv_pread(bs->file, 64, s->catalog_bitmap, s->catalog_size * 4) !=
 	s->catalog_size * 4)
 	goto fail;
     for (i = 0; i < s->catalog_size; i++)
@@ -107,7 +99,6 @@ static int parallels_open(BlockDriverState *bs, const char *filename, int flags)
 fail:
     if (s->catalog_bitmap)
 	qemu_free(s->catalog_bitmap);
-    close(fd);
     return -1;
 }
 
@@ -128,12 +119,10 @@ static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)
 static int parallels_read(BlockDriverState *bs, int64_t sector_num,
                     uint8_t *buf, int nb_sectors)
 {
-    BDRVParallelsState *s = bs->opaque;
-
     while (nb_sectors > 0) {
         int64_t position = seek_to_sector(bs, sector_num);
         if (position >= 0) {
-            if (pread(s->fd, buf, 512, position) != 512)
+            if (bdrv_pread(bs->file, position, buf, 512) != 512)
                 return -1;
         } else {
             memset(buf, 0, 512);
@@ -149,14 +138,13 @@ static void parallels_close(BlockDriverState *bs)
 {
     BDRVParallelsState *s = bs->opaque;
     qemu_free(s->catalog_bitmap);
-    close(s->fd);
 }
 
 static BlockDriver bdrv_parallels = {
     .format_name	= "parallels",
     .instance_size	= sizeof(BDRVParallelsState),
     .bdrv_probe		= parallels_probe,
-    .bdrv_file_open	= parallels_open,
+    .bdrv_open		= parallels_open,
     .bdrv_read		= parallels_read,
     .bdrv_close		= parallels_close,
 };
