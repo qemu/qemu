@@ -2282,39 +2282,56 @@ void tcg_target_init(TCGContext *s)
                    0xffffffffffffffffull);
     tcg_regset_set(tcg_target_available_regs[TCG_TYPE_I64],
                    0xffffffffffffffffull);
-    tcg_regset_set(tcg_target_call_clobber_regs,
-                   (1 << TCG_REG_R8)  |
-                   (1 << TCG_REG_R9)  |
-                   (1 << TCG_REG_R10) |
-                   (1 << TCG_REG_R11) |
-                   (1 << TCG_REG_R13) |
-                   (1 << TCG_REG_R14) |
-                   (1 << TCG_REG_R15) |
-                   (1 << TCG_REG_R16) |
-                   (1 << TCG_REG_R17) |
-                   (1 << TCG_REG_R18) |
-                   (1 << TCG_REG_R19) |
-                   (1 << TCG_REG_R20) |
-                   (1 << TCG_REG_R21) |
-                   (1 << TCG_REG_R22) |
-                   (1 << TCG_REG_R23) |
-                   (1 << TCG_REG_R24) |
-                   (1 << TCG_REG_R25) |
-                   (1 << TCG_REG_R26) |
-                   (1 << TCG_REG_R27) |
-                   (1 << TCG_REG_R28) |
-                   (1 << TCG_REG_R29) |
-                   (1 << TCG_REG_R30) |
-                   (1 << TCG_REG_R31));
-    tcg_regset_clear(s->reserved_regs);
 
+    tcg_regset_clear(tcg_target_call_clobber_regs);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R8);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R9);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R10);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R11);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R14);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R15);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R16);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R17);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R18);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R19);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R20);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R21);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R22);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R23);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R24);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R25);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R26);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R27);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R28);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R29);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R30);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R31);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R56);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R57);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R58);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R59);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R60);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R61);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R62);
+    tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R63);
+
+    tcg_regset_clear(s->reserved_regs);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R0);   /* zero register */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R1);   /* global pointer */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R2);   /* internal use */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R3);   /* internal use */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R12);  /* stack pointer */
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_R13);  /* thread pointer */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R32);  /* return address */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R33);  /* PFS */
+
+    /* The following 3 are not in use, are call-saved, but *not* saved
+       by the prologue.  Therefore we cannot use them without modifying
+       the prologue.  There doesn't seem to be any good reason to use
+       these as opposed to the windowed registers.  */
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_R4);
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_R5);
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_R6);
 
     tcg_add_target_add_op_defs(ia64_op_defs);
 }
