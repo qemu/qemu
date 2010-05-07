@@ -52,8 +52,6 @@ typedef struct {
 #define  QCOW_EXT_MAGIC_END 0
 #define  QCOW_EXT_MAGIC_BACKING_FORMAT 0xE2792ACA
 
-static BlockDriver bdrv_qcow2;
-
 static int qcow_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
     const QCowHeader *cow_header = (const void *)buf;
@@ -1018,8 +1016,9 @@ exit:
     /* Preallocate metadata */
     if (ret == 0 && prealloc) {
         BlockDriverState *bs;
+        BlockDriver *drv = bdrv_find_format("qcow2");
         bs = bdrv_new("");
-        bdrv_open(bs, filename, BDRV_O_CACHE_WB | BDRV_O_RDWR, &bdrv_qcow2);
+        bdrv_open(bs, filename, BDRV_O_CACHE_WB | BDRV_O_RDWR, drv);
         preallocate(bs);
         bdrv_close(bs);
     }
