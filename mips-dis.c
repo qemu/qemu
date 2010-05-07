@@ -3035,7 +3035,7 @@ struct mips_abi_choice
   const char * const *fpr_names;
 };
 
-struct mips_abi_choice mips_abi_choices[] =
+static struct mips_abi_choice mips_abi_choices[] =
 {
   { "numeric", mips_gpr_names_numeric, mips_fpr_names_numeric },
   { "32", mips_gpr_names_oldabi, mips_fpr_names_32 },
@@ -3086,7 +3086,7 @@ struct mips_arch_choice
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 
-const struct mips_arch_choice mips_arch_choices[] =
+static const struct mips_arch_choice mips_arch_choices[] =
 {
   { "numeric",	0, 0, 0, 0,
     mips_cp0_names_numeric, NULL, 0, mips_hwr_names_numeric },
