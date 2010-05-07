@@ -3262,6 +3262,8 @@ static int cpu_register_io_memory_fixed(int io_index,
                                         CPUWriteMemoryFunc * const *mem_write,
                                         void *opaque)
 {
+    int i;
+
     if (io_index <= 0) {
         io_index = get_free_io_mem_idx();
         if (io_index == -1)
@@ -3272,8 +3274,14 @@ static int cpu_register_io_memory_fixed(int io_index,
             return -1;
     }
 
-    memcpy(io_mem_read[io_index], mem_read, 3 * sizeof(CPUReadMemoryFunc*));
-    memcpy(io_mem_write[io_index], mem_write, 3 * sizeof(CPUWriteMemoryFunc*));
+    for (i = 0; i < 3; ++i) {
+        io_mem_read[io_index][i]
+            = (mem_read[i] ? mem_read[i] : unassigned_mem_read[i]);
+    }
+    for (i = 0; i < 3; ++i) {
+        io_mem_write[io_index][i]
+            = (mem_write[i] ? mem_write[i] : unassigned_mem_write[i]);
+    }
     io_mem_opaque[io_index] = opaque;
 
     return (io_index << IO_MEM_SHIFT);
