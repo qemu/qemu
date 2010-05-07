@@ -444,6 +444,7 @@ static int get_physical_address_data(CPUState *env,
         context = env->dmmu.mmu_secondary_context & 0x1fff;
         break;
     case MMU_NUCLEUS_IDX:
+    default:
         context = 0;
         break;
     }
