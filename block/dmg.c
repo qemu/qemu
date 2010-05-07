@@ -239,7 +239,8 @@ static inline int dmg_read_chunk(BDRVDMGState *s,int sector_num)
 		return -1;
 	    break; }
 	case 1: /* copy */
-	    ret = read(s->fd, s->uncompressed_chunk, s->lengths[chunk]);
+	    ret = pread(s->fd, s->uncompressed_chunk, s->lengths[chunk],
+                        s->offsets[chunk]);
 	    if (ret != s->lengths[chunk])
 		return -1;
 	    break;
