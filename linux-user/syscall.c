@@ -5268,6 +5268,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         }
         break;
 #endif
+#ifdef TARGET_NR_pselect6
+    case TARGET_NR_pselect6:
+	    goto unimplemented_nowarn;
+#endif
     case TARGET_NR_symlink:
         {
             void *p2;
