@@ -148,13 +148,6 @@ typedef struct CPUARMState {
         int pending_exception;
     } v7m;
 
-    /* Coprocessor IO used by peripherals */
-    struct {
-        ARMReadCPFunc *cp_read;
-        ARMWriteCPFunc *cp_write;
-        void *opaque;
-    } cp[15];
-
     /* Thumb-2 EE state.  */
     uint32_t teecr;
     uint32_t teehbr;
@@ -204,6 +197,13 @@ typedef struct CPUARMState {
     CPU_COMMON
 
     /* These fields after the common ones so they are preserved on reset.  */
+
+    /* Coprocessor IO used by peripherals */
+    struct {
+        ARMReadCPFunc *cp_read;
+        ARMWriteCPFunc *cp_write;
+        void *opaque;
+    } cp[15];
     void *nvic;
     struct arm_boot_info *boot_info;
 } CPUARMState;
