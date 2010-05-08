@@ -381,17 +381,11 @@ static inline target_phys_addr_t ultrasparc_truncate_physical(uint64_t x)
  * UltraSparc IIi I/DMMUs
  */
 
-static inline int compare_masked(uint64_t x, uint64_t y, uint64_t mask)
-{
-    return (x & mask) == (y & mask);
-}
-
 // Returns true if TTE tag is valid and matches virtual address value in context
 // requires virtual address mask value calculated from TTE entry size
 static inline int ultrasparc_tag_match(SparcTLBEntry *tlb,
                                        uint64_t address, uint64_t context,
-                                       target_phys_addr_t *physical,
-                                       int is_nucleus)
+                                       target_phys_addr_t *physical)
 {
     uint64_t mask;
 
@@ -413,8 +407,7 @@ static inline int ultrasparc_tag_match(SparcTLBEntry *tlb,
 
     // valid, context match, virtual address match?
     if (TTE_IS_VALID(tlb->tte) &&
-        ((is_nucleus && compare_masked(0, tlb->tag, 0x1fff))
-         || TTE_IS_GLOBAL(tlb->tte) || compare_masked(context, tlb->tag, 0x1fff))
+        (TTE_IS_GLOBAL(tlb->tte) || tlb_compare_context(tlb, context))
         && compare_masked(address, tlb->tag, mask))
     {
         // decode physical address
@@ -427,11 +420,13 @@ static inline int ultrasparc_tag_match(SparcTLBEntry *tlb,
 
 static int get_physical_address_data(CPUState *env,
                                      target_phys_addr_t *physical, int *prot,
-                                     target_ulong address, int rw, int is_user)
+                                     target_ulong address, int rw, int mmu_idx)
 {
     unsigned int i;
     uint64_t context;
-    int is_nucleus;
+
+    int is_user = (mmu_idx == MMU_USER_IDX ||
+                   mmu_idx == MMU_USER_SECONDARY_IDX);
 
     if ((env->lsu & DMMU_E) == 0) { /* DMMU disabled */
         *physical = ultrasparc_truncate_physical(address);
@@ -439,14 +434,25 @@ static int get_physical_address_data(CPUState *env,
         return 0;
     }
 
-    context = env->dmmu.mmu_primary_context & 0x1fff;
-    is_nucleus = env->tl > 0;
+    switch(mmu_idx) {
+    case MMU_USER_IDX:
+    case MMU_KERNEL_IDX:
+        context = env->dmmu.mmu_primary_context & 0x1fff;
+        break;
+    case MMU_USER_SECONDARY_IDX:
+    case MMU_KERNEL_SECONDARY_IDX:
+        context = env->dmmu.mmu_secondary_context & 0x1fff;
+        break;
+    case MMU_NUCLEUS_IDX:
+    default:
+        context = 0;
+        break;
+    }
 
     for (i = 0; i < 64; i++) {
         // ctx match, vaddr match, valid?
         if (ultrasparc_tag_match(&env->dtlb[i],
-                                 address, context, physical,
-                                 is_nucleus)) {
+                                 address, context, physical)) {
             // access ok?
             if (((env->dtlb[i].tte & 0x4) && is_user) ||
                 (!(env->dtlb[i].tte & 0x2) && (rw == 1))) {
@@ -488,11 +494,13 @@ static int get_physical_address_data(CPUState *env,
 
 static int get_physical_address_code(CPUState *env,
                                      target_phys_addr_t *physical, int *prot,
-                                     target_ulong address, int is_user)
+                                     target_ulong address, int mmu_idx)
 {
     unsigned int i;
     uint64_t context;
-    int is_nucleus;
+
+    int is_user = (mmu_idx == MMU_USER_IDX ||
+                   mmu_idx == MMU_USER_SECONDARY_IDX);
 
     if ((env->lsu & IMMU_E) == 0 || (env->pstate & PS_RED) != 0) {
         /* IMMU disabled */
@@ -501,14 +509,18 @@ static int get_physical_address_code(CPUState *env,
         return 0;
     }
 
-    context = env->dmmu.mmu_primary_context & 0x1fff;
-    is_nucleus = env->tl > 0;
+    if (env->tl == 0) {
+        /* PRIMARY context */
+        context = env->dmmu.mmu_primary_context & 0x1fff;
+    } else {
+        /* NUCLEUS context */
+        context = 0;
+    }
 
     for (i = 0; i < 64; i++) {
         // ctx match, vaddr match, valid?
         if (ultrasparc_tag_match(&env->itlb[i],
-                                 address, context, physical,
-                                 is_nucleus)) {
+                                 address, context, physical)) {
             // access ok?
             if ((env->itlb[i].tte & 0x4) && is_user) {
                 if (env->immu.sfsr) /* Fault status register */
@@ -540,17 +552,15 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
                                 target_ulong address, int rw, int mmu_idx,
                                 target_ulong *page_size)
 {
-    int is_user = mmu_idx == MMU_USER_IDX;
-
     /* ??? We treat everything as a small page, then explicitly flush
        everything when an entry is evicted.  */
     *page_size = TARGET_PAGE_SIZE;
     if (rw == 2)
         return get_physical_address_code(env, physical, prot, address,
-                                         is_user);
+                                         mmu_idx);
     else
         return get_physical_address_data(env, physical, prot, address, rw,
-                                         is_user);
+                                         mmu_idx);
 }
 
 /* Perform address translation */
@@ -664,20 +674,26 @@ void dump_mmu(CPUState *env)
 
 
 #if !defined(CONFIG_USER_ONLY)
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+target_phys_addr_t cpu_get_phys_page_nofault(CPUState *env, target_ulong addr,
+                                           int mmu_idx)
 {
     target_phys_addr_t phys_addr;
     target_ulong page_size;
     int prot, access_index;
 
     if (get_physical_address(env, &phys_addr, &prot, &access_index, addr, 2,
-                             MMU_KERNEL_IDX, &page_size) != 0)
+                             mmu_idx, &page_size) != 0)
         if (get_physical_address(env, &phys_addr, &prot, &access_index, addr,
-                                 0, MMU_KERNEL_IDX, &page_size) != 0)
+                                 0, mmu_idx, &page_size) != 0)
             return -1;
     if (cpu_get_physical_page_desc(phys_addr) == IO_MEM_UNASSIGNED)
         return -1;
     return phys_addr;
+}
+
+target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+{
+    return cpu_get_phys_page_nofault(env, addr, MMU_KERNEL_IDX);
 }
 #endif
 

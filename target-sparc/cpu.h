@@ -224,7 +224,7 @@ enum {
 #if !defined(TARGET_SPARC64)
 #define NB_MMU_MODES 2
 #else
-#define NB_MMU_MODES 3
+#define NB_MMU_MODES 6
 typedef struct trap_state {
     uint64_t tpc;
     uint64_t tnpc;
@@ -513,6 +513,24 @@ static inline void cpu_set_cwp(CPUSPARCState *env1, int new_cwp)
 /* sun4m.c, sun4u.c */
 void cpu_check_irqs(CPUSPARCState *env);
 
+#if defined (TARGET_SPARC64)
+
+static inline int compare_masked(uint64_t x, uint64_t y, uint64_t mask)
+{
+    return (x & mask) == (y & mask);
+}
+
+#define MMU_CONTEXT_BITS 13
+#define MMU_CONTEXT_MASK ((1 << MMU_CONTEXT_BITS) - 1)
+
+static inline int tlb_compare_context(const SparcTLBEntry *tlb,
+                                      uint64_t context)
+{
+    return compare_masked(context, tlb->tag, MMU_CONTEXT_MASK);
+}
+
+#endif
+
 static inline void PUT_PSR(CPUSPARCState *env1, target_ulong val)
 {
     env1->psr = val & PSR_ICC;
@@ -553,6 +571,9 @@ static inline void PUT_CWP64(CPUSPARCState *env1, int cwp)
 #if !defined(CONFIG_USER_ONLY)
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
                           int is_asi, int size);
+target_phys_addr_t cpu_get_phys_page_nofault(CPUState *env, target_ulong addr,
+                                           int mmu_idx);
+
 #endif
 int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
 
@@ -569,10 +590,18 @@ int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
 #define MMU_MODE1_SUFFIX _kernel
 #ifdef TARGET_SPARC64
 #define MMU_MODE2_SUFFIX _hypv
+#define MMU_MODE3_SUFFIX _nucleus
+#define MMU_MODE4_SUFFIX _user_secondary
+#define MMU_MODE5_SUFFIX _kernel_secondary
 #endif
 #define MMU_USER_IDX   0
 #define MMU_KERNEL_IDX 1
 #define MMU_HYPV_IDX   2
+#ifdef TARGET_SPARC64
+#define MMU_NUCLEUS_IDX 3
+#define MMU_USER_SECONDARY_IDX   4
+#define MMU_KERNEL_SECONDARY_IDX 5
+#endif
 
 static inline int cpu_mmu_index(CPUState *env1)
 {
