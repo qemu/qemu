@@ -229,9 +229,6 @@ static void tosa_init(ram_addr_t ram_size,
 
     tosa_tg_init(cpu);
 
-    /* Setup initial (reset) machine state */
-    cpu->env->regs[15] = tosa_binfo.loader_start;
-
     tosa_binfo.kernel_filename = kernel_filename;
     tosa_binfo.kernel_cmdline = kernel_cmdline;
     tosa_binfo.initrd_filename = initrd_filename;

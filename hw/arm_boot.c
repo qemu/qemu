@@ -187,6 +187,7 @@ static void main_cpu_reset(void *opaque)
             env->regs[15] = info->entry & 0xfffffffe;
             env->thumb = info->entry & 1;
         } else {
+            env->regs[15] = info->loader_start;
             if (old_param) {
                 set_kernel_args_old(info, info->initrd_size,
                                     info->loader_start);
