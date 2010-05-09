@@ -322,7 +322,7 @@ static VMStateInfo vmstate_info_pci_config = {
 
 static int get_pci_irq_state(QEMUFile *f, void *pv, size_t size)
 {
-    PCIDevice *s = container_of(pv, PCIDevice, config);
+    PCIDevice *s = container_of(pv, PCIDevice, irq_state);
     uint32_t irq_state[PCI_NUM_PINS];
     int i;
     for (i = 0; i < PCI_NUM_PINS; ++i) {
@@ -344,7 +344,7 @@ static int get_pci_irq_state(QEMUFile *f, void *pv, size_t size)
 static void put_pci_irq_state(QEMUFile *f, void *pv, size_t size)
 {
     int i;
-    PCIDevice *s = container_of(pv, PCIDevice, config);
+    PCIDevice *s = container_of(pv, PCIDevice, irq_state);
 
     for (i = 0; i < PCI_NUM_PINS; ++i) {
         qemu_put_be32(f, pci_irq_state(s, i));
