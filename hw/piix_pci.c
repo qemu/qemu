@@ -216,7 +216,7 @@ static int i440fx_initfn(PCIDevice *dev)
     return 0;
 }
 
-PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn, qemu_irq *pic, int ram_size)
+PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn, qemu_irq *pic, ram_addr_t ram_size)
 {
     DeviceState *dev;
     PCIBus *b;
