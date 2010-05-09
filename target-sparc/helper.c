@@ -1490,10 +1490,10 @@ void cpu_dump_state(CPUState *env, FILE *f,
     }
 #ifdef TARGET_SPARC64
     cpu_fprintf(f, "pstate: %08x ccr: %02x (icc: ", env->pstate,
-                GET_CCR(env));
-    cpu_print_cc(f, cpu_fprintf, GET_CCR(env) << PSR_CARRY_SHIFT);
+                cpu_get_ccr(env));
+    cpu_print_cc(f, cpu_fprintf, cpu_get_ccr(env) << PSR_CARRY_SHIFT);
     cpu_fprintf(f, " xcc: ");
-    cpu_print_cc(f, cpu_fprintf, GET_CCR(env) << (PSR_CARRY_SHIFT - 4));
+    cpu_print_cc(f, cpu_fprintf, cpu_get_ccr(env) << (PSR_CARRY_SHIFT - 4));
     cpu_fprintf(f, ") asi: %02x tl: %d pil: %x\n", env->asi, env->tl,
                 env->psrpil);
     cpu_fprintf(f, "cansave: %d canrestore: %d otherwin: %d wstate: %d "
@@ -1503,8 +1503,8 @@ void cpu_dump_state(CPUState *env, FILE *f,
     cpu_fprintf(f, "fsr: " TARGET_FMT_lx " y: " TARGET_FMT_lx " fprs: "
                 TARGET_FMT_lx "\n", env->fsr, env->y, env->fprs);
 #else
-    cpu_fprintf(f, "psr: %08x (icc: ", GET_PSR(env));
-    cpu_print_cc(f, cpu_fprintf, GET_PSR(env));
+    cpu_fprintf(f, "psr: %08x (icc: ", cpu_get_psr(env));
+    cpu_print_cc(f, cpu_fprintf, cpu_get_psr(env));
     cpu_fprintf(f, " SPE: %c%c%c) wim: %08x\n", env->psrs? 'S' : '-',
                 env->psrps? 'P' : '-', env->psret? 'E' : '-',
                 env->wim);

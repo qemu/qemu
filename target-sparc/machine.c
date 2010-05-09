@@ -33,7 +33,7 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_betls(f, &env->pc);
     qemu_put_betls(f, &env->npc);
     qemu_put_betls(f, &env->y);
-    tmp = GET_PSR(env);
+    tmp = cpu_get_psr(env);
     qemu_put_be32(f, tmp);
     qemu_put_betls(f, &env->fsr);
     qemu_put_betls(f, &env->tbr);
@@ -130,7 +130,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     tmp = qemu_get_be32(f);
     env->cwp = 0; /* needed to ensure that the wrapping registers are
                      correctly updated */
-    PUT_PSR(env, tmp);
+    cpu_put_psr(env, tmp);
     qemu_get_betls(f, &env->fsr);
     qemu_get_betls(f, &env->tbr);
     tmp = qemu_get_be32(f);

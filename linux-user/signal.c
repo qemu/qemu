@@ -2111,8 +2111,8 @@ void sparc64_set_context(CPUSPARCState *env)
     err |= __get_user(env->y, &((*grp)[MC_Y]));
     err |= __get_user(tstate, &((*grp)[MC_TSTATE]));
     env->asi = (tstate >> 24) & 0xff;
-    PUT_CCR(env, tstate >> 32);
-    PUT_CWP64(env, tstate & 0x1f);
+    cpu_put_ccr(env, tstate >> 32);
+    cpu_put_cwp64(env, tstate & 0x1f);
     err |= __get_user(env->gregs[1], (&(*grp)[MC_G1]));
     err |= __get_user(env->gregs[2], (&(*grp)[MC_G2]));
     err |= __get_user(env->gregs[3], (&(*grp)[MC_G3]));
