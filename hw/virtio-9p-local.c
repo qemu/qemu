@@ -466,6 +466,11 @@ static int local_fsync(FsContext *ctx, int fd)
     return fsync(fd);
 }
 
+static int local_statfs(FsContext *s, const char *path, struct statfs *stbuf)
+{
+   return statfs(rpath(s, path), stbuf);
+}
+
 FileOperations local_ops = {
     .lstat = local_lstat,
     .readlink = local_readlink,
@@ -493,4 +498,5 @@ FileOperations local_ops = {
     .utime = local_utime,
     .remove = local_remove,
     .fsync = local_fsync,
+    .statfs = local_statfs,
 };

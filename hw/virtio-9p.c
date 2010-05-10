@@ -2144,9 +2144,72 @@ out:
     qemu_free(vs);
 }
 
+static int v9fs_do_statfs(V9fsState *s, V9fsString *path, struct statfs *stbuf)
+{
+    return s->ops->statfs(&s->ctx, path->data, stbuf);
+}
+
+static void v9fs_statfs_post_statfs(V9fsState *s, V9fsStatfsState *vs, int err)
+{
+    if (err) {
+        err = -errno;
+        goto out;
+    }
+
+    vs->v9statfs.f_type = vs->stbuf.f_type;
+    vs->v9statfs.f_bsize = vs->stbuf.f_bsize;
+    vs->v9statfs.f_blocks = vs->stbuf.f_blocks;
+    vs->v9statfs.f_bfree = vs->stbuf.f_bfree;
+    vs->v9statfs.f_bavail = vs->stbuf.f_bavail;
+    vs->v9statfs.f_files = vs->stbuf.f_files;
+    vs->v9statfs.f_ffree = vs->stbuf.f_ffree;
+    vs->v9statfs.fsid_val = (unsigned int) vs->stbuf.f_fsid.__val[0] |
+			(unsigned long long)vs->stbuf.f_fsid.__val[1] << 32;
+    vs->v9statfs.f_namelen = vs->stbuf.f_namelen;
+
+    vs->offset += pdu_marshal(vs->pdu, vs->offset, "ddqqqqqqd",
+         vs->v9statfs.f_type, vs->v9statfs.f_bsize, vs->v9statfs.f_blocks,
+         vs->v9statfs.f_bfree, vs->v9statfs.f_bavail, vs->v9statfs.f_files,
+         vs->v9statfs.f_ffree, vs->v9statfs.fsid_val,
+         vs->v9statfs.f_namelen);
+
+out:
+    complete_pdu(s, vs->pdu, vs->offset);
+    qemu_free(vs);
+}
+
+static void v9fs_statfs(V9fsState *s, V9fsPDU *pdu)
+{
+    V9fsStatfsState *vs;
+    ssize_t err = 0;
+
+    vs = qemu_malloc(sizeof(*vs));
+    vs->pdu = pdu;
+    vs->offset = 7;
+
+    memset(&vs->v9statfs, 0, sizeof(vs->v9statfs));
+
+    pdu_unmarshal(vs->pdu, vs->offset, "d", &vs->fid);
+
+    vs->fidp = lookup_fid(s, vs->fid);
+    if (vs->fidp == NULL) {
+        err = -ENOENT;
+        goto out;
+    }
+
+    err = v9fs_do_statfs(s, &vs->fidp->path, &vs->stbuf);
+    v9fs_statfs_post_statfs(s, vs, err);
+    return;
+
+out:
+    complete_pdu(s, vs->pdu, err);
+    qemu_free(vs);
+}
+
 typedef void (pdu_handler_t)(V9fsState *s, V9fsPDU *pdu);
 
 static pdu_handler_t *pdu_handlers[] = {
+    [P9_TSTATFS] = v9fs_statfs,
     [P9_TVERSION] = v9fs_version,
     [P9_TATTACH] = v9fs_attach,
     [P9_TSTAT] = v9fs_stat,

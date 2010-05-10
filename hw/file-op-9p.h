@@ -74,6 +74,7 @@ typedef struct FileOperations
     int (*rename)(FsContext *, const char *, const char *);
     int (*truncate)(FsContext *, const char *, off_t);
     int (*fsync)(FsContext *, int);
+    int (*statfs)(FsContext *s, const char *path, struct statfs *stbuf);
     void *opaque;
 } FileOperations;
 #endif

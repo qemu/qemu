@@ -13,6 +13,8 @@
 #define VIRTIO_9P_MOUNT_TAG 0
 
 enum {
+    P9_TSTATFS = 8,
+    P9_RSTATFS,
     P9_TVERSION = 100,
     P9_RVERSION,
     P9_TAUTH = 102,
@@ -251,6 +253,28 @@ struct virtio_9p_config
     /* Variable size tag name */
     uint8_t tag[0];
 } __attribute__((packed));
+
+typedef struct V9fsStatfs
+{
+    uint32_t f_type;
+    uint32_t f_bsize;
+    uint64_t f_blocks;
+    uint64_t f_bfree;
+    uint64_t f_bavail;
+    uint64_t f_files;
+    uint64_t f_ffree;
+    uint64_t fsid_val;
+    uint32_t f_namelen;
+} V9fsStatfs;
+
+typedef struct V9fsStatfsState {
+    V9fsPDU *pdu;
+    size_t offset;
+    int32_t fid;
+    V9fsStatfs v9statfs;
+    V9fsFidState *fidp;
+    struct statfs stbuf;
+} V9fsStatfsState;
 
 extern size_t pdu_packunpack(void *addr, struct iovec *sg, int sg_count,
                             size_t offset, size_t size, int pack);
