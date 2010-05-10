@@ -470,9 +470,7 @@ static int calculate_geometry(int64_t total_sectors, uint16_t* cyls,
         }
     }
 
-    // Note: Rounding up deviates from the Virtual PC behaviour
-    // However, we need this to avoid truncating images in qemu-img convert
-    *cyls = (cyls_times_heads + *heads - 1) / *heads;
+    *cyls = cyls_times_heads / *heads;
 
     return 0;
 }
@@ -484,9 +482,9 @@ static int vpc_create(const char *filename, QEMUOptionParameter *options)
     struct vhd_dyndisk_header* dyndisk_header =
         (struct vhd_dyndisk_header*) buf;
     int fd, i;
-    uint16_t cyls;
-    uint8_t heads;
-    uint8_t secs_per_cyl;
+    uint16_t cyls = 0;
+    uint8_t heads = 0;
+    uint8_t secs_per_cyl = 0;
     size_t block_size, num_bat_entries;
     int64_t total_sectors = 0;
 
@@ -503,9 +501,14 @@ static int vpc_create(const char *filename, QEMUOptionParameter *options)
     if (fd < 0)
         return -EIO;
 
-    // Calculate matching total_size and geometry
-    if (calculate_geometry(total_sectors, &cyls, &heads, &secs_per_cyl))
-        return -EFBIG;
+    /* Calculate matching total_size and geometry. Increase the number of
+       sectors requested until we get enough (or fail). */
+    for (i = 0; total_sectors > (int64_t)cyls * heads * secs_per_cyl; i++) {
+        if (calculate_geometry(total_sectors + i,
+                               &cyls, &heads, &secs_per_cyl)) {
+            return -EFBIG;
+        }
+    }
     total_sectors = (int64_t) cyls * heads * secs_per_cyl;
 
     // Prepare the Hard Disk Footer
