@@ -485,3 +485,8 @@ int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
 
     return ret;
 }
+
+bool kvm_arch_stop_on_emulation_error(CPUState *env)
+{
+    return true;
+}

@@ -326,3 +326,8 @@ uint32_t kvmppc_get_tbfreq(void)
     retval = atoi(ns);
     return retval;
 }
+
+bool kvm_arch_stop_on_emulation_error(CPUState *env)
+{
+    return true;
+}
