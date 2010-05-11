@@ -128,6 +128,7 @@ extern int max_cpus;
 extern int cursor_hide;
 extern int graphic_rotate;
 extern int no_quit;
+extern int no_shutdown;
 extern int semihosting_enabled;
 extern int old_param;
 extern int boot_menu;
