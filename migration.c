@@ -132,12 +132,12 @@ free_migrate_state:
     return -1;
 }
 
+static void migrate_fd_cancel(MigrationState *s);
+
 int do_migrate_cancel(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
-    MigrationState *s = current_migration;
-
-    if (s && s->state == MIG_STATE_ACTIVE) {
-        s->cancel(s);
+    if (current_migration) {
+        migrate_fd_cancel(current_migration);
     }
     return 0;
 }
@@ -488,7 +488,6 @@ static MigrationState *migrate_new(Monitor *mon, int64_t bandwidth_limit,
 {
     MigrationState *s = g_malloc0(sizeof(*s));
 
-    s->cancel = migrate_fd_cancel;
     s->blk = blk;
     s->shared = inc;
     s->mon = NULL;
