@@ -98,8 +98,6 @@ MigrationState *fd_start_outgoing_migration(Monitor *mon,
 					    int blk,
 					    int inc);
 
-void migrate_fd_monitor_suspend(MigrationState *s, Monitor *mon);
-
 void migrate_fd_error(MigrationState *s);
 
 int migrate_fd_cleanup(MigrationState *s);
@@ -112,15 +110,12 @@ void migrate_fd_connect(MigrationState *s);
 
 void migrate_fd_put_ready(void *opaque);
 
-int migrate_fd_get_status(MigrationState *mig_state);
-
-void migrate_fd_cancel(MigrationState *mig_state);
-
-void migrate_fd_release(MigrationState *mig_state);
-
 void migrate_fd_wait_for_unfreeze(void *opaque);
 
 int migrate_fd_close(void *opaque);
+
+MigrationState *migrate_new(Monitor *mon, int64_t bandwidth_limit,
+                            int detach, int blk, int inc);
 
 void add_migration_state_change_notifier(Notifier *notify);
 void remove_migration_state_change_notifier(Notifier *notify);

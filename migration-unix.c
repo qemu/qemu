@@ -88,21 +88,12 @@ MigrationState *unix_start_outgoing_migration(Monitor *mon,
     addr.sun_family = AF_UNIX;
     snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", path);
 
-    s = g_malloc0(sizeof(*s));
+    s = migrate_new(mon, bandwidth_limit, detach, blk, inc);
 
     s->get_error = unix_errno;
     s->write = unix_write;
     s->close = unix_close;
-    s->cancel = migrate_fd_cancel;
-    s->get_status = migrate_fd_get_status;
-    s->release = migrate_fd_release;
 
-    s->blk = blk;
-    s->shared = inc;
-
-    s->state = MIG_STATE_ACTIVE;
-    s->mon = NULL;
-    s->bandwidth_limit = bandwidth_limit;
     s->fd = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
     if (s->fd < 0) {
         DPRINTF("Unable to open socket");
@@ -123,10 +114,6 @@ MigrationState *unix_start_outgoing_migration(Monitor *mon,
     if (ret < 0 && ret != -EINPROGRESS && ret != -EWOULDBLOCK) {
         DPRINTF("connect failed\n");
         goto err_after_open;
-    }
-
-    if (!detach) {
-        migrate_fd_monitor_suspend(s, mon);
     }
 
     if (ret >= 0)

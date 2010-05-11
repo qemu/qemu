@@ -89,21 +89,12 @@ MigrationState *tcp_start_outgoing_migration(Monitor *mon,
     if (parse_host_port(&addr, host_port) < 0)
         return NULL;
 
-    s = g_malloc0(sizeof(*s));
+    s = migrate_new(mon, bandwidth_limit, detach, blk, inc);
 
     s->get_error = socket_errno;
     s->write = socket_write;
     s->close = tcp_close;
-    s->cancel = migrate_fd_cancel;
-    s->get_status = migrate_fd_get_status;
-    s->release = migrate_fd_release;
 
-    s->blk = blk;
-    s->shared = inc;
-
-    s->state = MIG_STATE_ACTIVE;
-    s->mon = NULL;
-    s->bandwidth_limit = bandwidth_limit;
     s->fd = qemu_socket(PF_INET, SOCK_STREAM, 0);
     if (s->fd == -1) {
         g_free(s);
@@ -111,10 +102,6 @@ MigrationState *tcp_start_outgoing_migration(Monitor *mon,
     }
 
     socket_set_nonblock(s->fd);
-
-    if (!detach) {
-        migrate_fd_monitor_suspend(s, mon);
-    }
 
     do {
         ret = connect(s->fd, (struct sockaddr *)&addr, sizeof(addr));

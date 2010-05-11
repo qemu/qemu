@@ -59,7 +59,7 @@ MigrationState *fd_start_outgoing_migration(Monitor *mon,
 {
     MigrationState *s;
 
-    s = g_malloc0(sizeof(*s));
+    s = migrate_new(mon, bandwidth_limit, detach, blk, inc);
 
     s->fd = monitor_get_fd(mon, fdname);
     if (s->fd == -1) {
@@ -75,20 +75,6 @@ MigrationState *fd_start_outgoing_migration(Monitor *mon,
     s->get_error = fd_errno;
     s->write = fd_write;
     s->close = fd_close;
-    s->cancel = migrate_fd_cancel;
-    s->get_status = migrate_fd_get_status;
-    s->release = migrate_fd_release;
-
-    s->blk = blk;
-    s->shared = inc;
-
-    s->state = MIG_STATE_ACTIVE;
-    s->mon = NULL;
-    s->bandwidth_limit = bandwidth_limit;
-
-    if (!detach) {
-        migrate_fd_monitor_suspend(s, mon);
-    }
 
     migrate_fd_connect(s);
     return s;

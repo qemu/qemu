@@ -263,7 +263,7 @@ void do_info_migrate(Monitor *mon, QObject **ret_data)
 
 /* shared migration helpers */
 
-void migrate_fd_monitor_suspend(MigrationState *s, Monitor *mon)
+static void migrate_fd_monitor_suspend(MigrationState *s, Monitor *mon)
 {
     s->mon = mon;
     if (monitor_suspend(mon) == 0) {
@@ -404,12 +404,12 @@ void migrate_fd_put_ready(void *opaque)
     }
 }
 
-int migrate_fd_get_status(MigrationState *s)
+static int migrate_fd_get_status(MigrationState *s)
 {
     return s->state;
 }
 
-void migrate_fd_cancel(MigrationState *s)
+static void migrate_fd_cancel(MigrationState *s)
 {
     if (s->state != MIG_STATE_ACTIVE)
         return;
@@ -423,7 +423,7 @@ void migrate_fd_cancel(MigrationState *s)
     migrate_fd_cleanup(s);
 }
 
-void migrate_fd_release(MigrationState *s)
+static void migrate_fd_release(MigrationState *s)
 {
 
     DPRINTF("releasing state\n");
@@ -487,4 +487,25 @@ int get_migration_state(void)
     } else {
         return MIG_STATE_ERROR;
     }
+}
+
+MigrationState *migrate_new(Monitor *mon, int64_t bandwidth_limit,
+                                     int detach, int blk, int inc)
+{
+    MigrationState *s = g_malloc0(sizeof(*s));
+
+    s->cancel = migrate_fd_cancel;
+    s->get_status = migrate_fd_get_status;
+    s->release = migrate_fd_release;
+    s->blk = blk;
+    s->shared = inc;
+    s->mon = NULL;
+    s->bandwidth_limit = bandwidth_limit;
+    s->state = MIG_STATE_ACTIVE;
+
+    if (!detach) {
+        migrate_fd_monitor_suspend(s, mon);
+    }
+
+    return s;
 }
