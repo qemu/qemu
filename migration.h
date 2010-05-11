@@ -40,7 +40,6 @@ struct MigrationState
     int (*write)(MigrationState *s, const void *buff, size_t size);
     void (*cancel)(MigrationState *s);
     int (*get_status)(MigrationState *s);
-    void (*release)(MigrationState *s);
     void *opaque;
     int blk;
     int shared;

@@ -123,10 +123,7 @@ int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
         goto free_migrate_state;
     }
 
-    if (current_migration) {
-        current_migration->release(current_migration);
-    }
-
+    g_free(current_migration);
     current_migration = s;
     notifier_list_notify(&migration_state_notifiers, NULL);
     return 0;
@@ -416,19 +413,6 @@ static void migrate_fd_cancel(MigrationState *s)
     migrate_fd_cleanup(s);
 }
 
-static void migrate_fd_release(MigrationState *s)
-{
-
-    DPRINTF("releasing state\n");
-   
-    if (s->state == MIG_STATE_ACTIVE) {
-        s->state = MIG_STATE_CANCELLED;
-        notifier_list_notify(&migration_state_notifiers, NULL);
-        migrate_fd_cleanup(s);
-    }
-    g_free(s);
-}
-
 static void migrate_fd_wait_for_unfreeze(void *opaque)
 {
     MigrationState *s = opaque;
@@ -511,7 +495,6 @@ static MigrationState *migrate_new(Monitor *mon, int64_t bandwidth_limit,
 
     s->cancel = migrate_fd_cancel;
     s->get_status = migrate_fd_get_status;
-    s->release = migrate_fd_release;
     s->blk = blk;
     s->shared = inc;
     s->mon = NULL;
