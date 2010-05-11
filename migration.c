@@ -239,6 +239,9 @@ void do_info_migrate(Monitor *mon, QObject **ret_data)
         MigrationState *s = current_migration;
 
         switch (s->get_status(current_migration)) {
+        case MIG_STATE_SETUP:
+            /* no migration has happened ever */
+            break;
         case MIG_STATE_ACTIVE:
             qdict = qdict_new();
             qdict_put(qdict, "status", qstring_from_str("active"));
@@ -478,6 +481,7 @@ void migrate_fd_connect(MigrationState *s)
 {
     int ret;
 
+    s->state = MIG_STATE_ACTIVE;
     s->file = qemu_fopen_ops_buffered(s,
                                       s->bandwidth_limit,
                                       migrate_fd_put_buffer,
@@ -507,7 +511,7 @@ static MigrationState *migrate_new(Monitor *mon, int64_t bandwidth_limit,
     s->shared = inc;
     s->mon = NULL;
     s->bandwidth_limit = bandwidth_limit;
-    s->state = MIG_STATE_ACTIVE;
+    s->state = MIG_STATE_SETUP;
 
     if (!detach) {
         migrate_fd_monitor_suspend(s, mon);
