@@ -61,7 +61,7 @@ static int exec_close(FdMigrationState *s)
     return ret;
 }
 
-MigrationState *exec_start_outgoing_migration(Monitor *mon,
+FdMigrationState *exec_start_outgoing_migration(Monitor *mon,
                                               const char *command,
 					      int64_t bandwidth_limit,
 					      int detach,
@@ -108,7 +108,7 @@ MigrationState *exec_start_outgoing_migration(Monitor *mon,
     }
 
     migrate_fd_connect(s);
-    return &s->mig_state;
+    return s;
 
 err_after_open:
     pclose(f);

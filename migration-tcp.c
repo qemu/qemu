@@ -75,7 +75,7 @@ static void tcp_wait_for_connect(void *opaque)
     }
 }
 
-MigrationState *tcp_start_outgoing_migration(Monitor *mon,
+FdMigrationState *tcp_start_outgoing_migration(Monitor *mon,
                                              const char *host_port,
                                              int64_t bandwidth_limit,
                                              int detach,
@@ -131,7 +131,7 @@ MigrationState *tcp_start_outgoing_migration(Monitor *mon,
     } else if (ret >= 0)
         migrate_fd_connect(s);
 
-    return &s->mig_state;
+    return s;
 }
 
 static void tcp_accept_incoming_migration(void *opaque)

@@ -74,7 +74,7 @@ static void unix_wait_for_connect(void *opaque)
     }
 }
 
-MigrationState *unix_start_outgoing_migration(Monitor *mon,
+FdMigrationState *unix_start_outgoing_migration(Monitor *mon,
                                               const char *path,
 					      int64_t bandwidth_limit,
 					      int detach,
@@ -132,7 +132,7 @@ MigrationState *unix_start_outgoing_migration(Monitor *mon,
     if (ret >= 0)
         migrate_fd_connect(s);
 
-    return &s->mig_state;
+    return s;
 
 err_after_open:
     close(s->fd);

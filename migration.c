@@ -79,7 +79,7 @@ void process_incoming_migration(QEMUFile *f)
 
 int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
-    MigrationState *s = NULL;
+    FdMigrationState *s = NULL;
     const char *p;
     int detach = qdict_get_try_bool(qdict, "detach", 0);
     int blk = qdict_get_try_bool(qdict, "blk", 0);
@@ -124,7 +124,7 @@ int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
         current_migration->release(current_migration);
     }
 
-    current_migration = s;
+    current_migration = &s->mig_state;
     notifier_list_notify(&migration_state_notifiers, NULL);
     return 0;
 }
