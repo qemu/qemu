@@ -23,23 +23,10 @@
 #define MIG_STATE_CANCELLED	1
 #define MIG_STATE_ACTIVE	2
 
-typedef struct MigrationState MigrationState;
-
 typedef struct FdMigrationState FdMigrationState;
-
-struct MigrationState
-{
-    /* FIXME: add more accessors to print migration info */
-    void (*cancel)(FdMigrationState *s);
-    int (*get_status)(FdMigrationState *s);
-    void (*release)(FdMigrationState *s);
-    int blk;
-    int shared;
-};
 
 struct FdMigrationState
 {
-    MigrationState mig_state;
     int64_t bandwidth_limit;
     QEMUFile *file;
     int fd;
@@ -48,7 +35,12 @@ struct FdMigrationState
     int (*get_error)(struct FdMigrationState*);
     int (*close)(struct FdMigrationState*);
     int (*write)(struct FdMigrationState*, const void *, size_t);
+    void (*cancel)(FdMigrationState *s);
+    int (*get_status)(FdMigrationState *s);
+    void (*release)(FdMigrationState *s);
     void *opaque;
+    int blk;
+    int shared;
 };
 
 void process_incoming_migration(QEMUFile *f);
@@ -129,11 +121,6 @@ void migrate_fd_release(FdMigrationState *mig_state);
 void migrate_fd_wait_for_unfreeze(void *opaque);
 
 int migrate_fd_close(void *opaque);
-
-static inline FdMigrationState *migrate_to_fms(MigrationState *mig_state)
-{
-    return container_of(mig_state, FdMigrationState, mig_state);
-}
 
 void add_migration_state_change_notifier(Notifier *notify);
 void remove_migration_state_change_notifier(Notifier *notify);

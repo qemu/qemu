@@ -87,8 +87,7 @@ int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
     const char *uri = qdict_get_str(qdict, "uri");
 
     if (current_migration &&
-        current_migration->mig_state.get_status(current_migration) ==
-        MIG_STATE_ACTIVE) {
+        current_migration->get_status(current_migration) == MIG_STATE_ACTIVE) {
         monitor_printf(mon, "migration already in progress\n");
         return -1;
     }
@@ -122,7 +121,7 @@ int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
     }
 
     if (current_migration) {
-        current_migration->mig_state.release(current_migration);
+        current_migration->release(current_migration);
     }
 
     current_migration = s;
@@ -134,8 +133,8 @@ int do_migrate_cancel(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     FdMigrationState *s = current_migration;
 
-    if (s && s->mig_state.get_status(s) == MIG_STATE_ACTIVE) {
-        s->mig_state.cancel(s);
+    if (s && s->get_status(s) == MIG_STATE_ACTIVE) {
+        s->cancel(s);
     }
     return 0;
 }
@@ -231,7 +230,7 @@ void do_info_migrate(Monitor *mon, QObject **ret_data)
     QDict *qdict;
 
     if (current_migration) {
-        MigrationState *s = &current_migration->mig_state;
+        FdMigrationState *s = current_migration;
 
         switch (s->get_status(current_migration)) {
         case MIG_STATE_ACTIVE:
@@ -355,8 +354,7 @@ void migrate_fd_connect(FdMigrationState *s)
                                       migrate_fd_close);
 
     DPRINTF("beginning savevm\n");
-    ret = qemu_savevm_state_begin(s->mon, s->file, s->mig_state.blk,
-                                  s->mig_state.shared);
+    ret = qemu_savevm_state_begin(s->mon, s->file, s->blk, s->shared);
     if (ret < 0) {
         DPRINTF("failed, %d\n", ret);
         migrate_fd_error(s);

@@ -75,12 +75,12 @@ FdMigrationState *fd_start_outgoing_migration(Monitor *mon,
     s->get_error = fd_errno;
     s->write = fd_write;
     s->close = fd_close;
-    s->mig_state.cancel = migrate_fd_cancel;
-    s->mig_state.get_status = migrate_fd_get_status;
-    s->mig_state.release = migrate_fd_release;
+    s->cancel = migrate_fd_cancel;
+    s->get_status = migrate_fd_get_status;
+    s->release = migrate_fd_release;
 
-    s->mig_state.blk = blk;
-    s->mig_state.shared = inc;
+    s->blk = blk;
+    s->shared = inc;
 
     s->state = MIG_STATE_ACTIVE;
     s->mon = NULL;
