@@ -625,6 +625,13 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     return pci_dev;
 }
 
+static void do_pci_unregister_device(PCIDevice *pci_dev)
+{
+    qemu_free_irqs(pci_dev->irq);
+    pci_dev->bus->devices[pci_dev->devfn] = NULL;
+    pci_config_free(pci_dev);
+}
+
 PCIDevice *pci_register_device(PCIBus *bus, const char *name,
                                int instance_size, int devfn,
                                PCIConfigReadFunc *config_read,
@@ -680,10 +687,7 @@ static int pci_unregister_device(DeviceState *dev)
         return ret;
 
     pci_unregister_io_regions(pci_dev);
-
-    qemu_free_irqs(pci_dev->irq);
-    pci_dev->bus->devices[pci_dev->devfn] = NULL;
-    pci_config_free(pci_dev);
+    do_pci_unregister_device(pci_dev);
     return 0;
 }
 
@@ -1652,8 +1656,10 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
     if (pci_dev == NULL)
         return -1;
     rc = info->init(pci_dev);
-    if (rc != 0)
+    if (rc != 0) {
+        do_pci_unregister_device(pci_dev);
         return rc;
+    }
 
     /* rom loading */
     if (pci_dev->romfile == NULL && info->romfile != NULL)
