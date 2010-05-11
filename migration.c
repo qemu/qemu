@@ -91,7 +91,7 @@ int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
     int ret;
 
     if (current_migration &&
-        current_migration->get_status(current_migration) == MIG_STATE_ACTIVE) {
+        current_migration->state == MIG_STATE_ACTIVE) {
         monitor_printf(mon, "migration already in progress\n");
         return -1;
     }
@@ -136,7 +136,7 @@ int do_migrate_cancel(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     MigrationState *s = current_migration;
 
-    if (s && s->get_status(s) == MIG_STATE_ACTIVE) {
+    if (s && s->state == MIG_STATE_ACTIVE) {
         s->cancel(s);
     }
     return 0;
@@ -235,7 +235,7 @@ void do_info_migrate(Monitor *mon, QObject **ret_data)
     if (current_migration) {
         MigrationState *s = current_migration;
 
-        switch (s->get_status(current_migration)) {
+        switch (s->state) {
         case MIG_STATE_SETUP:
             /* no migration has happened ever */
             break;
@@ -386,17 +386,12 @@ static void migrate_fd_put_ready(void *opaque)
         } else {
             migrate_fd_completed(s);
         }
-        if (s->get_status(s) != MIG_STATE_COMPLETED) {
+        if (s->state != MIG_STATE_COMPLETED) {
             if (old_vm_running) {
                 vm_start();
             }
         }
     }
-}
-
-static int migrate_fd_get_status(MigrationState *s)
-{
-    return s->state;
 }
 
 static void migrate_fd_cancel(MigrationState *s)
@@ -460,7 +455,7 @@ void remove_migration_state_change_notifier(Notifier *notify)
 int get_migration_state(void)
 {
     if (current_migration) {
-        return migrate_fd_get_status(current_migration);
+        return current_migration->state;
     } else {
         return MIG_STATE_ERROR;
     }
@@ -494,7 +489,6 @@ static MigrationState *migrate_new(Monitor *mon, int64_t bandwidth_limit,
     MigrationState *s = g_malloc0(sizeof(*s));
 
     s->cancel = migrate_fd_cancel;
-    s->get_status = migrate_fd_get_status;
     s->blk = blk;
     s->shared = inc;
     s->mon = NULL;
