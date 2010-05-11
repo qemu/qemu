@@ -34,7 +34,7 @@
 /* Migration speed throttling */
 static int64_t max_throttle = (32 << 20);
 
-static MigrationState *current_migration;
+static FdMigrationState *current_migration;
 
 static NotifierList migration_state_notifiers =
     NOTIFIER_LIST_INITIALIZER(migration_state_notifiers);
@@ -87,7 +87,8 @@ int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
     const char *uri = qdict_get_str(qdict, "uri");
 
     if (current_migration &&
-        current_migration->get_status(current_migration) == MIG_STATE_ACTIVE) {
+        current_migration->mig_state.get_status(current_migration) ==
+        MIG_STATE_ACTIVE) {
         monitor_printf(mon, "migration already in progress\n");
         return -1;
     }
@@ -121,20 +122,20 @@ int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
     }
 
     if (current_migration) {
-        current_migration->release(current_migration);
+        current_migration->mig_state.release(current_migration);
     }
 
-    current_migration = &s->mig_state;
+    current_migration = s;
     notifier_list_notify(&migration_state_notifiers, NULL);
     return 0;
 }
 
 int do_migrate_cancel(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
-    MigrationState *s = current_migration;
+    FdMigrationState *s = current_migration;
 
-    if (s && s->get_status(s) == MIG_STATE_ACTIVE) {
-        s->cancel(s);
+    if (s && s->mig_state.get_status(s) == MIG_STATE_ACTIVE) {
+        s->mig_state.cancel(s);
     }
     return 0;
 }
@@ -150,7 +151,7 @@ int do_migrate_set_speed(Monitor *mon, const QDict *qdict, QObject **ret_data)
     }
     max_throttle = d;
 
-    s = migrate_to_fms(current_migration);
+    s = current_migration;
     if (s && s->file) {
         qemu_file_set_rate_limit(s->file, max_throttle);
     }
@@ -228,10 +229,11 @@ static void migrate_put_status(QDict *qdict, const char *name,
 void do_info_migrate(Monitor *mon, QObject **ret_data)
 {
     QDict *qdict;
-    MigrationState *s = current_migration;
 
-    if (s) {
-        switch (s->get_status(s)) {
+    if (current_migration) {
+        MigrationState *s = &current_migration->mig_state;
+
+        switch (s->get_status(current_migration)) {
         case MIG_STATE_ACTIVE:
             qdict = qdict_new();
             qdict_put(qdict, "status", qstring_from_str("active"));
@@ -404,16 +406,13 @@ void migrate_fd_put_ready(void *opaque)
     }
 }
 
-int migrate_fd_get_status(MigrationState *mig_state)
+int migrate_fd_get_status(FdMigrationState *s)
 {
-    FdMigrationState *s = migrate_to_fms(mig_state);
     return s->state;
 }
 
-void migrate_fd_cancel(MigrationState *mig_state)
+void migrate_fd_cancel(FdMigrationState *s)
 {
-    FdMigrationState *s = migrate_to_fms(mig_state);
-
     if (s->state != MIG_STATE_ACTIVE)
         return;
 
@@ -426,9 +425,8 @@ void migrate_fd_cancel(MigrationState *mig_state)
     migrate_fd_cleanup(s);
 }
 
-void migrate_fd_release(MigrationState *mig_state)
+void migrate_fd_release(FdMigrationState *s)
 {
-    FdMigrationState *s = migrate_to_fms(mig_state);
 
     DPRINTF("releasing state\n");
    

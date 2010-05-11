@@ -25,17 +25,17 @@
 
 typedef struct MigrationState MigrationState;
 
+typedef struct FdMigrationState FdMigrationState;
+
 struct MigrationState
 {
     /* FIXME: add more accessors to print migration info */
-    void (*cancel)(MigrationState *s);
-    int (*get_status)(MigrationState *s);
-    void (*release)(MigrationState *s);
+    void (*cancel)(FdMigrationState *s);
+    int (*get_status)(FdMigrationState *s);
+    void (*release)(FdMigrationState *s);
     int blk;
     int shared;
 };
-
-typedef struct FdMigrationState FdMigrationState;
 
 struct FdMigrationState
 {
@@ -120,11 +120,11 @@ void migrate_fd_connect(FdMigrationState *s);
 
 void migrate_fd_put_ready(void *opaque);
 
-int migrate_fd_get_status(MigrationState *mig_state);
+int migrate_fd_get_status(FdMigrationState *mig_state);
 
-void migrate_fd_cancel(MigrationState *mig_state);
+void migrate_fd_cancel(FdMigrationState *mig_state);
 
-void migrate_fd_release(MigrationState *mig_state);
+void migrate_fd_release(FdMigrationState *mig_state);
 
 void migrate_fd_wait_for_unfreeze(void *opaque);
 
