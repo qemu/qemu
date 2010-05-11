@@ -28,17 +28,17 @@
     do { } while (0)
 #endif
 
-static int socket_errno(FdMigrationState *s)
+static int socket_errno(MigrationState *s)
 {
     return socket_error();
 }
 
-static int socket_write(FdMigrationState *s, const void * buf, size_t size)
+static int socket_write(MigrationState *s, const void * buf, size_t size)
 {
     return send(s->fd, buf, size, 0);
 }
 
-static int tcp_close(FdMigrationState *s)
+static int tcp_close(MigrationState *s)
 {
     DPRINTF("tcp_close\n");
     if (s->fd != -1) {
@@ -51,7 +51,7 @@ static int tcp_close(FdMigrationState *s)
 
 static void tcp_wait_for_connect(void *opaque)
 {
-    FdMigrationState *s = opaque;
+    MigrationState *s = opaque;
     int val, ret;
     socklen_t valsize = sizeof(val);
 
@@ -75,7 +75,7 @@ static void tcp_wait_for_connect(void *opaque)
     }
 }
 
-FdMigrationState *tcp_start_outgoing_migration(Monitor *mon,
+MigrationState *tcp_start_outgoing_migration(Monitor *mon,
                                              const char *host_port,
                                              int64_t bandwidth_limit,
                                              int detach,
@@ -83,7 +83,7 @@ FdMigrationState *tcp_start_outgoing_migration(Monitor *mon,
 					     int inc)
 {
     struct sockaddr_in addr;
-    FdMigrationState *s;
+    MigrationState *s;
     int ret;
 
     if (parse_host_port(&addr, host_port) < 0)

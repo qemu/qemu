@@ -34,7 +34,7 @@
 /* Migration speed throttling */
 static int64_t max_throttle = (32 << 20);
 
-static FdMigrationState *current_migration;
+static MigrationState *current_migration;
 
 static NotifierList migration_state_notifiers =
     NOTIFIER_LIST_INITIALIZER(migration_state_notifiers);
@@ -79,7 +79,7 @@ void process_incoming_migration(QEMUFile *f)
 
 int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
-    FdMigrationState *s = NULL;
+    MigrationState *s = NULL;
     const char *p;
     int detach = qdict_get_try_bool(qdict, "detach", 0);
     int blk = qdict_get_try_bool(qdict, "blk", 0);
@@ -131,7 +131,7 @@ int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
 int do_migrate_cancel(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
-    FdMigrationState *s = current_migration;
+    MigrationState *s = current_migration;
 
     if (s && s->get_status(s) == MIG_STATE_ACTIVE) {
         s->cancel(s);
@@ -142,7 +142,7 @@ int do_migrate_cancel(Monitor *mon, const QDict *qdict, QObject **ret_data)
 int do_migrate_set_speed(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     int64_t d;
-    FdMigrationState *s;
+    MigrationState *s;
 
     d = qdict_get_int(qdict, "value");
     if (d < 0) {
@@ -230,7 +230,7 @@ void do_info_migrate(Monitor *mon, QObject **ret_data)
     QDict *qdict;
 
     if (current_migration) {
-        FdMigrationState *s = current_migration;
+        MigrationState *s = current_migration;
 
         switch (s->get_status(current_migration)) {
         case MIG_STATE_ACTIVE:
@@ -263,7 +263,7 @@ void do_info_migrate(Monitor *mon, QObject **ret_data)
 
 /* shared migration helpers */
 
-void migrate_fd_monitor_suspend(FdMigrationState *s, Monitor *mon)
+void migrate_fd_monitor_suspend(MigrationState *s, Monitor *mon)
 {
     s->mon = mon;
     if (monitor_suspend(mon) == 0) {
@@ -274,7 +274,7 @@ void migrate_fd_monitor_suspend(FdMigrationState *s, Monitor *mon)
     }
 }
 
-void migrate_fd_error(FdMigrationState *s)
+void migrate_fd_error(MigrationState *s)
 {
     DPRINTF("setting error state\n");
     s->state = MIG_STATE_ERROR;
@@ -282,7 +282,7 @@ void migrate_fd_error(FdMigrationState *s)
     migrate_fd_cleanup(s);
 }
 
-int migrate_fd_cleanup(FdMigrationState *s)
+int migrate_fd_cleanup(MigrationState *s)
 {
     int ret = 0;
 
@@ -310,7 +310,7 @@ int migrate_fd_cleanup(FdMigrationState *s)
 
 void migrate_fd_put_notify(void *opaque)
 {
-    FdMigrationState *s = opaque;
+    MigrationState *s = opaque;
 
     qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
     qemu_file_put_notify(s->file);
@@ -321,7 +321,7 @@ void migrate_fd_put_notify(void *opaque)
 
 ssize_t migrate_fd_put_buffer(void *opaque, const void *data, size_t size)
 {
-    FdMigrationState *s = opaque;
+    MigrationState *s = opaque;
     ssize_t ret;
 
     if (s->state != MIG_STATE_ACTIVE) {
@@ -342,7 +342,7 @@ ssize_t migrate_fd_put_buffer(void *opaque, const void *data, size_t size)
     return ret;
 }
 
-void migrate_fd_connect(FdMigrationState *s)
+void migrate_fd_connect(MigrationState *s)
 {
     int ret;
 
@@ -366,7 +366,7 @@ void migrate_fd_connect(FdMigrationState *s)
 
 void migrate_fd_put_ready(void *opaque)
 {
-    FdMigrationState *s = opaque;
+    MigrationState *s = opaque;
     int ret;
 
     if (s->state != MIG_STATE_ACTIVE) {
@@ -404,12 +404,12 @@ void migrate_fd_put_ready(void *opaque)
     }
 }
 
-int migrate_fd_get_status(FdMigrationState *s)
+int migrate_fd_get_status(MigrationState *s)
 {
     return s->state;
 }
 
-void migrate_fd_cancel(FdMigrationState *s)
+void migrate_fd_cancel(MigrationState *s)
 {
     if (s->state != MIG_STATE_ACTIVE)
         return;
@@ -423,7 +423,7 @@ void migrate_fd_cancel(FdMigrationState *s)
     migrate_fd_cleanup(s);
 }
 
-void migrate_fd_release(FdMigrationState *s)
+void migrate_fd_release(MigrationState *s)
 {
 
     DPRINTF("releasing state\n");
@@ -438,7 +438,7 @@ void migrate_fd_release(FdMigrationState *s)
 
 void migrate_fd_wait_for_unfreeze(void *opaque)
 {
-    FdMigrationState *s = opaque;
+    MigrationState *s = opaque;
     int ret;
 
     DPRINTF("wait for unfreeze\n");
@@ -461,7 +461,7 @@ void migrate_fd_wait_for_unfreeze(void *opaque)
 
 int migrate_fd_close(void *opaque)
 {
-    FdMigrationState *s = opaque;
+    MigrationState *s = opaque;
 
     if (s->mon) {
         monitor_resume(s->mon);

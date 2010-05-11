@@ -28,17 +28,17 @@
     do { } while (0)
 #endif
 
-static int unix_errno(FdMigrationState *s)
+static int unix_errno(MigrationState *s)
 {
     return errno;
 }
 
-static int unix_write(FdMigrationState *s, const void * buf, size_t size)
+static int unix_write(MigrationState *s, const void * buf, size_t size)
 {
     return write(s->fd, buf, size);
 }
 
-static int unix_close(FdMigrationState *s)
+static int unix_close(MigrationState *s)
 {
     DPRINTF("unix_close\n");
     if (s->fd != -1) {
@@ -50,7 +50,7 @@ static int unix_close(FdMigrationState *s)
 
 static void unix_wait_for_connect(void *opaque)
 {
-    FdMigrationState *s = opaque;
+    MigrationState *s = opaque;
     int val, ret;
     socklen_t valsize = sizeof(val);
 
@@ -74,14 +74,14 @@ static void unix_wait_for_connect(void *opaque)
     }
 }
 
-FdMigrationState *unix_start_outgoing_migration(Monitor *mon,
+MigrationState *unix_start_outgoing_migration(Monitor *mon,
                                               const char *path,
 					      int64_t bandwidth_limit,
 					      int detach,
 					      int blk,
 					      int inc)
 {
-    FdMigrationState *s;
+    MigrationState *s;
     struct sockaddr_un addr;
     int ret;
 

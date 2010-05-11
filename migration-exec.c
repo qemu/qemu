@@ -32,17 +32,17 @@
     do { } while (0)
 #endif
 
-static int file_errno(FdMigrationState *s)
+static int file_errno(MigrationState *s)
 {
     return errno;
 }
 
-static int file_write(FdMigrationState *s, const void * buf, size_t size)
+static int file_write(MigrationState *s, const void * buf, size_t size)
 {
     return write(s->fd, buf, size);
 }
 
-static int exec_close(FdMigrationState *s)
+static int exec_close(MigrationState *s)
 {
     int ret = 0;
     DPRINTF("exec_close\n");
@@ -61,14 +61,14 @@ static int exec_close(FdMigrationState *s)
     return ret;
 }
 
-FdMigrationState *exec_start_outgoing_migration(Monitor *mon,
+MigrationState *exec_start_outgoing_migration(Monitor *mon,
                                               const char *command,
 					      int64_t bandwidth_limit,
 					      int detach,
 					      int blk,
 					      int inc)
 {
-    FdMigrationState *s;
+    MigrationState *s;
     FILE *f;
 
     s = g_malloc0(sizeof(*s));

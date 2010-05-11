@@ -30,17 +30,17 @@
     do { } while (0)
 #endif
 
-static int fd_errno(FdMigrationState *s)
+static int fd_errno(MigrationState *s)
 {
     return errno;
 }
 
-static int fd_write(FdMigrationState *s, const void * buf, size_t size)
+static int fd_write(MigrationState *s, const void * buf, size_t size)
 {
     return write(s->fd, buf, size);
 }
 
-static int fd_close(FdMigrationState *s)
+static int fd_close(MigrationState *s)
 {
     DPRINTF("fd_close\n");
     if (s->fd != -1) {
@@ -50,14 +50,14 @@ static int fd_close(FdMigrationState *s)
     return 0;
 }
 
-FdMigrationState *fd_start_outgoing_migration(Monitor *mon,
+MigrationState *fd_start_outgoing_migration(Monitor *mon,
 					    const char *fdname,
 					    int64_t bandwidth_limit,
 					    int detach,
 					    int blk,
 					    int inc)
 {
-    FdMigrationState *s;
+    MigrationState *s;
 
     s = g_malloc0(sizeof(*s));
 
