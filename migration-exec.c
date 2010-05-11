@@ -61,22 +61,14 @@ static int exec_close(MigrationState *s)
     return ret;
 }
 
-MigrationState *exec_start_outgoing_migration(Monitor *mon,
-                                              const char *command,
-					      int64_t bandwidth_limit,
-					      int detach,
-					      int blk,
-					      int inc)
+int exec_start_outgoing_migration(MigrationState *s, const char *command)
 {
-    MigrationState *s;
     FILE *f;
-
-    s = migrate_new(mon, bandwidth_limit, detach, blk, inc);
 
     f = popen(command, "w");
     if (f == NULL) {
         DPRINTF("Unable to popen exec target\n");
-        goto err_after_alloc;
+        goto err_after_popen;
     }
 
     s->fd = fileno(f);
@@ -94,13 +86,12 @@ MigrationState *exec_start_outgoing_migration(Monitor *mon,
     s->write = file_write;
 
     migrate_fd_connect(s);
-    return s;
+    return 0;
 
 err_after_open:
     pclose(f);
-err_after_alloc:
-    g_free(s);
-    return NULL;
+err_after_popen:
+    return -1;
 }
 
 static void exec_accept_incoming_migration(void *opaque)

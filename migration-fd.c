@@ -50,21 +50,12 @@ static int fd_close(MigrationState *s)
     return 0;
 }
 
-MigrationState *fd_start_outgoing_migration(Monitor *mon,
-					    const char *fdname,
-					    int64_t bandwidth_limit,
-					    int detach,
-					    int blk,
-					    int inc)
+int fd_start_outgoing_migration(MigrationState *s, const char *fdname)
 {
-    MigrationState *s;
-
-    s = migrate_new(mon, bandwidth_limit, detach, blk, inc);
-
-    s->fd = monitor_get_fd(mon, fdname);
+    s->fd = monitor_get_fd(s->mon, fdname);
     if (s->fd == -1) {
         DPRINTF("fd_migration: invalid file descriptor identifier\n");
-        goto err_after_alloc;
+        goto err_after_get_fd;
     }
 
     if (fcntl(s->fd, F_SETFL, O_NONBLOCK) == -1) {
@@ -77,13 +68,12 @@ MigrationState *fd_start_outgoing_migration(Monitor *mon,
     s->close = fd_close;
 
     migrate_fd_connect(s);
-    return s;
+    return 0;
 
 err_after_open:
     close(s->fd);
-err_after_alloc:
-    g_free(s);
-    return NULL;
+err_after_get_fd:
+    return -1;
 }
 
 static void fd_accept_incoming_migration(void *opaque)

@@ -77,6 +77,9 @@ void process_incoming_migration(QEMUFile *f)
     }
 }
 
+static MigrationState *migrate_new(Monitor *mon, int64_t bandwidth_limit,
+                                   int detach, int blk, int inc);
+
 int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     MigrationState *s = NULL;
@@ -85,6 +88,7 @@ int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
     int blk = qdict_get_try_bool(qdict, "blk", 0);
     int inc = qdict_get_try_bool(qdict, "inc", 0);
     const char *uri = qdict_get_str(qdict, "uri");
+    int ret;
 
     if (current_migration &&
         current_migration->get_status(current_migration) == MIG_STATE_ACTIVE) {
@@ -96,28 +100,27 @@ int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
         return -1;
     }
 
+    s = migrate_new(mon, max_throttle, detach, blk, inc);
+
     if (strstart(uri, "tcp:", &p)) {
-        s = tcp_start_outgoing_migration(mon, p, max_throttle, detach,
-                                         blk, inc);
+        ret = tcp_start_outgoing_migration(s, p);
 #if !defined(WIN32)
     } else if (strstart(uri, "exec:", &p)) {
-        s = exec_start_outgoing_migration(mon, p, max_throttle, detach,
-                                          blk, inc);
+        ret = exec_start_outgoing_migration(s, p);
     } else if (strstart(uri, "unix:", &p)) {
-        s = unix_start_outgoing_migration(mon, p, max_throttle, detach,
-                                          blk, inc);
+        ret = unix_start_outgoing_migration(s, p);
     } else if (strstart(uri, "fd:", &p)) {
-        s = fd_start_outgoing_migration(mon, p, max_throttle, detach, 
-                                        blk, inc);
+        ret = fd_start_outgoing_migration(s, p);
 #endif
     } else {
         monitor_printf(mon, "unknown migration protocol: %s\n", uri);
-        return -1;
+        ret  = -EINVAL;
+        goto free_migrate_state;
     }
 
-    if (s == NULL) {
+    if (ret < 0) {
         monitor_printf(mon, "migration failed\n");
-        return -1;
+        goto free_migrate_state;
     }
 
     if (current_migration) {
@@ -127,6 +130,9 @@ int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
     current_migration = s;
     notifier_list_notify(&migration_state_notifiers, NULL);
     return 0;
+free_migrate_state:
+    g_free(s);
+    return -1;
 }
 
 int do_migrate_cancel(Monitor *mon, const QDict *qdict, QObject **ret_data)
@@ -489,8 +495,8 @@ void migrate_fd_connect(MigrationState *s)
     migrate_fd_put_ready(s);
 }
 
-MigrationState *migrate_new(Monitor *mon, int64_t bandwidth_limit,
-                                     int detach, int blk, int inc)
+static MigrationState *migrate_new(Monitor *mon, int64_t bandwidth_limit,
+                                   int detach, int blk, int inc)
 {
     MigrationState *s = g_malloc0(sizeof(*s));
 

@@ -74,22 +74,13 @@ static void unix_wait_for_connect(void *opaque)
     }
 }
 
-MigrationState *unix_start_outgoing_migration(Monitor *mon,
-                                              const char *path,
-					      int64_t bandwidth_limit,
-					      int detach,
-					      int blk,
-					      int inc)
+int unix_start_outgoing_migration(MigrationState *s, const char *path)
 {
-    MigrationState *s;
     struct sockaddr_un addr;
     int ret;
 
     addr.sun_family = AF_UNIX;
     snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", path);
-
-    s = migrate_new(mon, bandwidth_limit, detach, blk, inc);
-
     s->get_error = unix_errno;
     s->write = unix_write;
     s->close = unix_close;
@@ -97,7 +88,7 @@ MigrationState *unix_start_outgoing_migration(Monitor *mon,
     s->fd = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
     if (s->fd < 0) {
         DPRINTF("Unable to open socket");
-        goto err_after_alloc;
+        goto err_after_socket;
     }
 
     socket_set_nonblock(s->fd);
@@ -119,14 +110,13 @@ MigrationState *unix_start_outgoing_migration(Monitor *mon,
     if (ret >= 0)
         migrate_fd_connect(s);
 
-    return s;
+    return 0;
 
 err_after_open:
     close(s->fd);
 
-err_after_alloc:
-    g_free(s);
-    return NULL;
+err_after_socket:
+    return -1;
 }
 
 static void unix_accept_incoming_migration(void *opaque)

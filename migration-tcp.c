@@ -75,30 +75,22 @@ static void tcp_wait_for_connect(void *opaque)
     }
 }
 
-MigrationState *tcp_start_outgoing_migration(Monitor *mon,
-                                             const char *host_port,
-                                             int64_t bandwidth_limit,
-                                             int detach,
-					     int blk,
-					     int inc)
+int tcp_start_outgoing_migration(MigrationState *s, const char *host_port)
 {
     struct sockaddr_in addr;
-    MigrationState *s;
     int ret;
 
-    if (parse_host_port(&addr, host_port) < 0)
-        return NULL;
-
-    s = migrate_new(mon, bandwidth_limit, detach, blk, inc);
-
+    ret = parse_host_port(&addr, host_port);
+    if (ret < 0) {
+        return ret;
+    }
     s->get_error = socket_errno;
     s->write = socket_write;
     s->close = tcp_close;
 
     s->fd = qemu_socket(PF_INET, SOCK_STREAM, 0);
     if (s->fd == -1) {
-        g_free(s);
-        return NULL;
+        return -1;
     }
 
     socket_set_nonblock(s->fd);
@@ -118,7 +110,7 @@ MigrationState *tcp_start_outgoing_migration(Monitor *mon,
     } else if (ret >= 0)
         migrate_fd_connect(s);
 
-    return s;
+    return 0;
 }
 
 static void tcp_accept_incoming_migration(void *opaque)
