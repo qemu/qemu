@@ -1020,7 +1020,10 @@ static void do_info_cpu_stats(Monitor *mon)
  */
 static int do_quit(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
-    exit(0);
+    monitor_suspend(mon);
+    no_shutdown = 0;
+    qemu_system_shutdown_request();
+
     return 0;
 }
 
