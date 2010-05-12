@@ -239,14 +239,6 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
         return l2_offset;
     }
 
-    /* update the L1 entry */
-
-    s->l1_table[l1_index] = l2_offset | QCOW_OFLAG_COPIED;
-    ret = write_l1_entry(bs, l1_index);
-    if (ret < 0) {
-        return ret;
-    }
-
     /* allocate a new entry in the l2 cache */
 
     min_index = l2_cache_new_entry(bs);
@@ -261,7 +253,7 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
         ret = bdrv_pread(bs->file, old_l2_offset, l2_table,
             s->l2_size * sizeof(uint64_t));
         if (ret < 0) {
-            return ret;
+            goto fail;
         }
     }
     /* write the l2 table to the file */
@@ -269,7 +261,14 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
     ret = bdrv_pwrite(bs->file, l2_offset, l2_table,
         s->l2_size * sizeof(uint64_t));
     if (ret < 0) {
-        return ret;
+        goto fail;
+    }
+
+    /* update the L1 entry */
+    s->l1_table[l1_index] = l2_offset | QCOW_OFLAG_COPIED;
+    ret = write_l1_entry(bs, l1_index);
+    if (ret < 0) {
+        goto fail;
     }
 
     /* update the l2 cache entry */
@@ -279,6 +278,10 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
 
     *table = l2_table;
     return 0;
+
+fail:
+    qcow2_l2_cache_reset(bs);
+    return ret;
 }
 
 static int count_contiguous_clusters(uint64_t nb_clusters, int cluster_size,
