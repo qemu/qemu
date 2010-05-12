@@ -326,11 +326,6 @@ static BlockDriver *find_image_format(const char *filename)
     uint8_t buf[2048];
     BlockDriverState *bs;
 
-    drv = find_protocol(filename);
-    /* no need to test disk image formats for vvfat */
-    if (drv && strcmp(drv->format_name, "vvfat") == 0)
-        return drv;
-
     ret = bdrv_file_open(&bs, filename, 0);
     if (ret < 0)
         return NULL;
