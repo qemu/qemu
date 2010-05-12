@@ -1,14 +1,15 @@
 /*
- * QInt data type.
+ * QInt Module
  *
  * Copyright (C) 2009 Red Hat Inc.
  *
  * Authors:
  *  Luiz Capitulino <lcapitulino@redhat.com>
  *
- * This work is licensed under the terms of the GNU GPL, version 2.  See
- * the COPYING file in the top-level directory.
+ * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
+ * See the COPYING.LIB file in the top-level directory.
  */
+
 #include "qint.h"
 #include "qobject.h"
 #include "qemu-common.h"

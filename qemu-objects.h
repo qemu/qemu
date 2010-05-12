@@ -6,9 +6,10 @@
  * Authors:
  *  Luiz Capitulino <lcapitulino@redhat.com>
  *
- * This work is licensed under the terms of the GNU GPL, version 2.  See
- * the COPYING file in the top-level directory.
+ * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
+ * See the COPYING.LIB file in the top-level directory.
  */
+
 #ifndef QEMU_OBJECTS_H
 #define QEMU_OBJECTS_H
 
