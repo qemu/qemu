@@ -108,7 +108,7 @@ static int ram_save_block(QEMUFile *f)
     static ram_addr_t current_addr = 0;
     ram_addr_t saved_addr = current_addr;
     ram_addr_t addr = 0;
-    int found = 0;
+    int bytes_sent = 0;
 
     while (addr < last_ram_offset) {
         if (cpu_physical_memory_get_dirty(current_addr, MIGRATION_DIRTY_FLAG)) {
@@ -123,19 +123,20 @@ static int ram_save_block(QEMUFile *f)
             if (is_dup_page(p, *p)) {
                 qemu_put_be64(f, current_addr | RAM_SAVE_FLAG_COMPRESS);
                 qemu_put_byte(f, *p);
+                bytes_sent = 1;
             } else {
                 qemu_put_be64(f, current_addr | RAM_SAVE_FLAG_PAGE);
                 qemu_put_buffer(f, p, TARGET_PAGE_SIZE);
+                bytes_sent = TARGET_PAGE_SIZE;
             }
 
-            found = 1;
             break;
         }
         addr += TARGET_PAGE_SIZE;
         current_addr = (saved_addr + addr) % last_ram_offset;
     }
 
-    return found;
+    return bytes_sent;
 }
 
 static uint64_t bytes_transferred;
@@ -206,11 +207,11 @@ int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
     bwidth = qemu_get_clock_ns(rt_clock);
 
     while (!qemu_file_rate_limit(f)) {
-        int ret;
+        int bytes_sent;
 
-        ret = ram_save_block(f);
-        bytes_transferred += ret * TARGET_PAGE_SIZE;
-        if (ret == 0) { /* no more blocks */
+        bytes_sent = ram_save_block(f);
+        bytes_transferred += bytes_sent;
+        if (bytes_sent == 0) { /* no more blocks */
             break;
         }
     }
@@ -226,9 +227,11 @@ int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
 
     /* try transferring iterative blocks of memory */
     if (stage == 3) {
+        int bytes_sent;
+
         /* flush all remaining blocks regardless of rate limiting */
-        while (ram_save_block(f) != 0) {
-            bytes_transferred += TARGET_PAGE_SIZE;
+        while ((bytes_sent = ram_save_block(f)) != 0) {
+            bytes_transferred += bytes_sent;
         }
         cpu_physical_memory_set_dirty_tracking(0);
     }
