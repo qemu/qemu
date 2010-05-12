@@ -277,8 +277,7 @@ int pci_device_hot_remove(Monitor *mon, const char *pci_addr)
     return qdev_unplug(&d->qdev);
 }
 
-int do_pci_device_hot_remove(Monitor *mon, const QDict *qdict,
-                             QObject **ret_data)
+void do_pci_device_hot_remove(Monitor *mon, const QDict *qdict)
 {
-    return pci_device_hot_remove(mon, qdict_get_str(qdict, "pci_addr"));
+    pci_device_hot_remove(mon, qdict_get_str(qdict, "pci_addr"));
 }
