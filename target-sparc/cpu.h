@@ -434,6 +434,7 @@ typedef struct CPUSPARCState {
     sparc_def_t *def;
 } CPUSPARCState;
 
+#ifndef NO_CPU_IO_DEFS
 /* helper.c */
 CPUSPARCState *cpu_sparc_init(const char *cpu_model);
 void cpu_sparc_set_id(CPUSPARCState *env, unsigned int cpu);
@@ -453,62 +454,18 @@ void gen_intermediate_code_init(CPUSPARCState *env);
 /* cpu-exec.c */
 int cpu_sparc_exec(CPUSPARCState *s);
 
-#if !defined (TARGET_SPARC64)
-#define GET_PSR(env) (env->version | (env->psr & PSR_ICC) |             \
-                      (env->psref? PSR_EF : 0) |                        \
-                      (env->psrpil << 8) |                              \
-                      (env->psrs? PSR_S : 0) |                          \
-                      (env->psrps? PSR_PS : 0) |                        \
-                      (env->psret? PSR_ET : 0) | env->cwp)
-#else
-#define GET_PSR(env) (env->version | (env->psr & PSR_ICC) |             \
-                      (env->psref? PSR_EF : 0) |                        \
-                      (env->psrpil << 8) |                              \
-                      (env->psrs? PSR_S : 0) |                          \
-                      (env->psrps? PSR_PS : 0) |                        \
-                      env->cwp)
+/* op_helper.c */
+target_ulong cpu_get_psr(CPUState *env1);
+void cpu_put_psr(CPUState *env1, target_ulong val);
+#ifdef TARGET_SPARC64
+target_ulong cpu_get_ccr(CPUState *env1);
+void cpu_put_ccr(CPUState *env1, target_ulong val);
+target_ulong cpu_get_cwp64(CPUState *env1);
+void cpu_put_cwp64(CPUState *env1, int cwp);
 #endif
-
-#ifndef NO_CPU_IO_DEFS
-
-static inline int cpu_cwp_inc(CPUSPARCState *env1, int cwp)
-{
-    if (unlikely(cwp >= env1->nwindows))
-        cwp -= env1->nwindows;
-    return cwp;
-}
-
-static inline int cpu_cwp_dec(CPUSPARCState *env1, int cwp)
-{
-    if (unlikely(cwp < 0))
-        cwp += env1->nwindows;
-    return cwp;
-}
-#endif
-
-static inline void memcpy32(target_ulong *dst, const target_ulong *src)
-{
-    dst[0] = src[0];
-    dst[1] = src[1];
-    dst[2] = src[2];
-    dst[3] = src[3];
-    dst[4] = src[4];
-    dst[5] = src[5];
-    dst[6] = src[6];
-    dst[7] = src[7];
-}
-
-static inline void cpu_set_cwp(CPUSPARCState *env1, int new_cwp)
-{
-    /* put the modified wrap registers at their proper location */
-    if (env1->cwp == env1->nwindows - 1)
-        memcpy32(env1->regbase, env1->regbase + env1->nwindows * 16);
-    env1->cwp = new_cwp;
-    /* put the wrap registers at their temporary location */
-    if (new_cwp == env1->nwindows - 1)
-        memcpy32(env1->regbase + env1->nwindows * 16, env1->regbase);
-    env1->regwptr = env1->regbase + (new_cwp * 16);
-}
+int cpu_cwp_inc(CPUState *env1, int cwp);
+int cpu_cwp_dec(CPUState *env1, int cwp);
+void cpu_set_cwp(CPUState *env1, int new_cwp);
 
 /* sun4m.c, sun4u.c */
 void cpu_check_irqs(CPUSPARCState *env);
@@ -529,41 +486,6 @@ static inline int tlb_compare_context(const SparcTLBEntry *tlb,
     return compare_masked(context, tlb->tag, MMU_CONTEXT_MASK);
 }
 
-#endif
-
-static inline void PUT_PSR(CPUSPARCState *env1, target_ulong val)
-{
-    env1->psr = val & PSR_ICC;
-    env1->psref = (val & PSR_EF)? 1 : 0;
-    env1->psrpil = (val & PSR_PIL) >> 8;
-#if ((!defined (TARGET_SPARC64)) && !defined(CONFIG_USER_ONLY))
-    cpu_check_irqs(env1);
-#endif
-    env1->psrs = (val & PSR_S)? 1 : 0;
-    env1->psrps = (val & PSR_PS)? 1 : 0;
-#if !defined (TARGET_SPARC64)
-    env1->psret = (val & PSR_ET)? 1 : 0;
-#endif
-    cpu_set_cwp(env1, val & PSR_CWP);
-    env1->cc_op = CC_OP_FLAGS;
-}
-
-#ifdef TARGET_SPARC64
-#define GET_CCR(env) (((env->xcc >> 20) << 4) | ((env->psr & PSR_ICC) >> 20))
-#define PUT_CCR(env, val) do { int _tmp = val;                          \
-        env->xcc = (_tmp >> 4) << 20;                                   \
-        env->psr = (_tmp & 0xf) << 20;                                  \
-        CC_OP = CC_OP_FLAGS;                                            \
-    } while (0)
-#define GET_CWP64(env) (env->nwindows - 1 - (env)->cwp)
-
-#ifndef NO_CPU_IO_DEFS
-static inline void PUT_CWP64(CPUSPARCState *env1, int cwp)
-{
-    if (unlikely(cwp >= env1->nwindows || cwp < 0))
-        cwp %= env1->nwindows;
-    cpu_set_cwp(env1, env1->nwindows - 1 - cwp);
-}
 #endif
 #endif
 

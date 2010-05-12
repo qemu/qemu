@@ -253,11 +253,6 @@ void QEMU_NORETURN HELPER(raise_exception)(int tt)
     raise_exception(tt);
 }
 
-static inline void set_cwp(int new_cwp)
-{
-    cpu_set_cwp(env, new_cwp);
-}
-
 void helper_check_align(target_ulong addr, uint32_t align)
 {
     if (addr & align) {
@@ -1292,6 +1287,142 @@ uint32_t helper_compute_C_icc(void)
     uint32_t ret;
 
     ret = icc_table[CC_OP].compute_c() >> PSR_CARRY_SHIFT;
+    return ret;
+}
+
+static inline void memcpy32(target_ulong *dst, const target_ulong *src)
+{
+    dst[0] = src[0];
+    dst[1] = src[1];
+    dst[2] = src[2];
+    dst[3] = src[3];
+    dst[4] = src[4];
+    dst[5] = src[5];
+    dst[6] = src[6];
+    dst[7] = src[7];
+}
+
+static void set_cwp(int new_cwp)
+{
+    /* put the modified wrap registers at their proper location */
+    if (env->cwp == env->nwindows - 1) {
+        memcpy32(env->regbase, env->regbase + env->nwindows * 16);
+    }
+    env->cwp = new_cwp;
+
+    /* put the wrap registers at their temporary location */
+    if (new_cwp == env->nwindows - 1) {
+        memcpy32(env->regbase + env->nwindows * 16, env->regbase);
+    }
+    env->regwptr = env->regbase + (new_cwp * 16);
+}
+
+void cpu_set_cwp(CPUState *env1, int new_cwp)
+{
+    CPUState *saved_env;
+
+    saved_env = env;
+    env = env1;
+    set_cwp(new_cwp);
+    env = saved_env;
+}
+
+static target_ulong get_psr(void)
+{
+    helper_compute_psr();
+
+#if !defined (TARGET_SPARC64)
+    return env->version | (env->psr & PSR_ICC) |
+        (env->psref? PSR_EF : 0) |
+        (env->psrpil << 8) |
+        (env->psrs? PSR_S : 0) |
+        (env->psrps? PSR_PS : 0) |
+        (env->psret? PSR_ET : 0) | env->cwp;
+#else
+    return env->version | (env->psr & PSR_ICC) |
+        (env->psref? PSR_EF : 0) |
+        (env->psrpil << 8) |
+        (env->psrs? PSR_S : 0) |
+        (env->psrps? PSR_PS : 0) | env->cwp;
+#endif
+}
+
+target_ulong cpu_get_psr(CPUState *env1)
+{
+    CPUState *saved_env;
+    target_ulong ret;
+
+    saved_env = env;
+    env = env1;
+    ret = get_psr();
+    env = saved_env;
+    return ret;
+}
+
+static void put_psr(target_ulong val)
+{
+    env->psr = val & PSR_ICC;
+    env->psref = (val & PSR_EF)? 1 : 0;
+    env->psrpil = (val & PSR_PIL) >> 8;
+#if ((!defined (TARGET_SPARC64)) && !defined(CONFIG_USER_ONLY))
+    cpu_check_irqs(env);
+#endif
+    env->psrs = (val & PSR_S)? 1 : 0;
+    env->psrps = (val & PSR_PS)? 1 : 0;
+#if !defined (TARGET_SPARC64)
+    env->psret = (val & PSR_ET)? 1 : 0;
+#endif
+    set_cwp(val & PSR_CWP);
+    env->cc_op = CC_OP_FLAGS;
+}
+
+void cpu_put_psr(CPUState *env1, target_ulong val)
+{
+    CPUState *saved_env;
+
+    saved_env = env;
+    env = env1;
+    put_psr(val);
+    env = saved_env;
+}
+
+static int cwp_inc(int cwp)
+{
+    if (unlikely(cwp >= env->nwindows)) {
+        cwp -= env->nwindows;
+    }
+    return cwp;
+}
+
+int cpu_cwp_inc(CPUState *env1, int cwp)
+{
+    CPUState *saved_env;
+    target_ulong ret;
+
+    saved_env = env;
+    env = env1;
+    ret = cwp_inc(cwp);
+    env = saved_env;
+    return ret;
+}
+
+static int cwp_dec(int cwp)
+{
+    if (unlikely(cwp < 0)) {
+        cwp += env->nwindows;
+    }
+    return cwp;
+}
+
+int cpu_cwp_dec(CPUState *env1, int cwp)
+{
+    CPUState *saved_env;
+    target_ulong ret;
+
+    saved_env = env;
+    env = env1;
+    ret = cwp_dec(cwp);
+    env = saved_env;
     return ret;
 }
 
@@ -3016,7 +3147,7 @@ void helper_rett(void)
         raise_exception(TT_ILL_INSN);
 
     env->psret = 1;
-    cwp = cpu_cwp_inc(env, env->cwp + 1) ;
+    cwp = cwp_inc(env->cwp + 1) ;
     if (env->wim & (1 << cwp)) {
         raise_exception(TT_WIN_UNF);
     }
@@ -3236,7 +3367,7 @@ void helper_save(void)
 {
     uint32_t cwp;
 
-    cwp = cpu_cwp_dec(env, env->cwp - 1);
+    cwp = cwp_dec(env->cwp - 1);
     if (env->wim & (1 << cwp)) {
         raise_exception(TT_WIN_OVF);
     }
@@ -3247,7 +3378,7 @@ void helper_restore(void)
 {
     uint32_t cwp;
 
-    cwp = cpu_cwp_inc(env, env->cwp + 1);
+    cwp = cwp_inc(env->cwp + 1);
     if (env->wim & (1 << cwp)) {
         raise_exception(TT_WIN_UNF);
     }
@@ -3256,15 +3387,16 @@ void helper_restore(void)
 
 void helper_wrpsr(target_ulong new_psr)
 {
-    if ((new_psr & PSR_CWP) >= env->nwindows)
+    if ((new_psr & PSR_CWP) >= env->nwindows) {
         raise_exception(TT_ILL_INSN);
-    else
-        PUT_PSR(env, new_psr);
+    } else {
+        cpu_put_psr(env, new_psr);
+    }
 }
 
 target_ulong helper_rdpsr(void)
 {
-    return GET_PSR(env);
+    return get_psr();
 }
 
 #else
@@ -3274,7 +3406,7 @@ void helper_save(void)
 {
     uint32_t cwp;
 
-    cwp = cpu_cwp_dec(env, env->cwp - 1);
+    cwp = cwp_dec(env->cwp - 1);
     if (env->cansave == 0) {
         raise_exception(TT_SPILL | (env->otherwin != 0 ?
                                     (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
@@ -3295,7 +3427,7 @@ void helper_restore(void)
 {
     uint32_t cwp;
 
-    cwp = cpu_cwp_inc(env, env->cwp + 1);
+    cwp = cwp_inc(env->cwp + 1);
     if (env->canrestore == 0) {
         raise_exception(TT_FILL | (env->otherwin != 0 ?
                                    (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
@@ -3336,26 +3468,101 @@ void helper_restored(void)
         env->otherwin--;
 }
 
+static target_ulong get_ccr(void)
+{
+    target_ulong psr;
+
+    psr = get_psr();
+
+    return ((env->xcc >> 20) << 4) | ((psr & PSR_ICC) >> 20);
+}
+
+target_ulong cpu_get_ccr(CPUState *env1)
+{
+    CPUState *saved_env;
+    target_ulong ret;
+
+    saved_env = env;
+    env = env1;
+    ret = get_ccr();
+    env = saved_env;
+    return ret;
+}
+
+static void put_ccr(target_ulong val)
+{
+    target_ulong tmp = val;
+
+    env->xcc = (tmp >> 4) << 20;
+    env->psr = (tmp & 0xf) << 20;
+    CC_OP = CC_OP_FLAGS;
+}
+
+void cpu_put_ccr(CPUState *env1, target_ulong val)
+{
+    CPUState *saved_env;
+
+    saved_env = env;
+    env = env1;
+    put_ccr(val);
+    env = saved_env;
+}
+
+static target_ulong get_cwp64(void)
+{
+    return env->nwindows - 1 - env->cwp;
+}
+
+target_ulong cpu_get_cwp64(CPUState *env1)
+{
+    CPUState *saved_env;
+    target_ulong ret;
+
+    saved_env = env;
+    env = env1;
+    ret = get_cwp64();
+    env = saved_env;
+    return ret;
+}
+
+static void put_cwp64(int cwp)
+{
+    if (unlikely(cwp >= env->nwindows || cwp < 0)) {
+        cwp %= env->nwindows;
+    }
+    set_cwp(env->nwindows - 1 - cwp);
+}
+
+void cpu_put_cwp64(CPUState *env1, int cwp)
+{
+    CPUState *saved_env;
+
+    saved_env = env;
+    env = env1;
+    put_cwp64(cwp);
+    env = saved_env;
+}
+
 target_ulong helper_rdccr(void)
 {
-    return GET_CCR(env);
+    return get_ccr();
 }
 
 void helper_wrccr(target_ulong new_ccr)
 {
-    PUT_CCR(env, new_ccr);
+    put_ccr(new_ccr);
 }
 
 // CWP handling is reversed in V9, but we still use the V8 register
 // order.
 target_ulong helper_rdcwp(void)
 {
-    return GET_CWP64(env);
+    return get_cwp64();
 }
 
 void helper_wrcwp(target_ulong new_cwp)
 {
-    PUT_CWP64(env, new_cwp);
+    put_cwp64(new_cwp);
 }
 
 // This function uses non-native bit order
@@ -3475,10 +3682,10 @@ void helper_done(void)
 
     env->pc = tsptr->tnpc;
     env->npc = tsptr->tnpc + 4;
-    PUT_CCR(env, tsptr->tstate >> 32);
+    put_ccr(tsptr->tstate >> 32);
     env->asi = (tsptr->tstate >> 24) & 0xff;
     change_pstate((tsptr->tstate >> 8) & 0xf3f);
-    PUT_CWP64(env, tsptr->tstate & 0xff);
+    put_cwp64(tsptr->tstate & 0xff);
     env->tl--;
 
     DPRINTF_PSTATE("... helper_done tl=%d\n", env->tl);
@@ -3496,10 +3703,10 @@ void helper_retry(void)
 
     env->pc = tsptr->tpc;
     env->npc = tsptr->tnpc;
-    PUT_CCR(env, tsptr->tstate >> 32);
+    put_ccr(tsptr->tstate >> 32);
     env->asi = (tsptr->tstate >> 24) & 0xff;
     change_pstate((tsptr->tstate >> 8) & 0xf3f);
-    PUT_CWP64(env, tsptr->tstate & 0xff);
+    put_cwp64(tsptr->tstate & 0xff);
     env->tl--;
 
     DPRINTF_PSTATE("... helper_retry tl=%d\n", env->tl);
@@ -3650,9 +3857,9 @@ void do_interrupt(CPUState *env)
     }
     tsptr = cpu_tsptr(env);
 
-    tsptr->tstate = ((uint64_t)GET_CCR(env) << 32) |
+    tsptr->tstate = (get_ccr() << 32) |
         ((env->asi & 0xff) << 24) | ((env->pstate & 0xf3f) << 8) |
-        GET_CWP64(env);
+        get_cwp64();
     tsptr->tpc = env->pc;
     tsptr->tnpc = env->npc;
     tsptr->tt = intno;
@@ -3673,12 +3880,13 @@ void do_interrupt(CPUState *env)
         break;
     }
 
-    if (intno == TT_CLRWIN)
-        cpu_set_cwp(env, cpu_cwp_dec(env, env->cwp - 1));
-    else if ((intno & 0x1c0) == TT_SPILL)
-        cpu_set_cwp(env, cpu_cwp_dec(env, env->cwp - env->cansave - 2));
-    else if ((intno & 0x1c0) == TT_FILL)
-        cpu_set_cwp(env, cpu_cwp_inc(env, env->cwp + 1));
+    if (intno == TT_CLRWIN) {
+        set_cwp(cwp_dec(env->cwp - 1));
+    } else if ((intno & 0x1c0) == TT_SPILL) {
+        set_cwp(cwp_dec(env->cwp - env->cansave - 2));
+    } else if ((intno & 0x1c0) == TT_FILL) {
+        set_cwp(cwp_inc(env->cwp + 1));
+    }
     env->tbr &= ~0x7fffULL;
     env->tbr |= ((env->tl > 1) ? 1 << 14 : 0) | (intno << 5);
     env->pc = env->tbr;
@@ -3769,8 +3977,8 @@ void do_interrupt(CPUState *env)
     }
 #endif
     env->psret = 0;
-    cwp = cpu_cwp_dec(env, env->cwp - 1);
-    cpu_set_cwp(env, cwp);
+    cwp = cwp_dec(env->cwp - 1);
+    set_cwp(cwp);
     env->regwptr[9] = env->pc;
     env->regwptr[10] = env->npc;
     env->psrps = env->psrs;

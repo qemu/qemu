@@ -374,16 +374,13 @@ data. Its syntax is: @option{/@{count@}@{format@}@{size@}}
 
 @table @var
 @item count
-@findex count
 is the number of items to be dumped.
 
 @item format
-@findex format
 can be x (hex), d (signed decimal), u (unsigned decimal), o (octal),
 c (char) or i (asm instruction).
 
 @item size
-@findex size
 can be b (8 bits), h (16 bits), w (32 bits) or g (64 bits). On x86,
 @code{h} or @code{w} can be specified with the @code{i} format to
 respectively select 16 or 32 bit code instruction size.
@@ -611,6 +608,8 @@ ETEXI
     },
 
 STEXI
+@item cpu @var{index}
+@findex cpu
 Set the default CPU.
 ETEXI
 
@@ -953,7 +952,14 @@ ETEXI
         .help       = "redirect TCP or UDP connections from host to guest (requires -net user)",
         .mhandler.cmd = net_slirp_hostfwd_add,
     },
+#endif
+STEXI
+@item hostfwd_add
+@findex hostfwd_add
+Redirect TCP or UDP connections from host to guest (requires -net user).
+ETEXI
 
+#ifdef CONFIG_SLIRP
     {
         .name       = "hostfwd_remove",
         .args_type  = "arg1:s,arg2:s?,arg3:s?",
@@ -964,9 +970,9 @@ ETEXI
 
 #endif
 STEXI
-@item host_net_redir
-@findex host_net_redir
-Redirect TCP or UDP connections from host to guest (requires -net user).
+@item hostfwd_remove
+@findex hostfwd_remove
+Remove host-to-guest TCP or UDP redirection.
 ETEXI
 
     {
@@ -1056,8 +1062,8 @@ ETEXI
     },
 
 STEXI
-@item acl_allow @var{aclname} @var{match} @code{allow|deny} [@var{index}]
-@findex acl_allow
+@item acl_add @var{aclname} @var{match} @code{allow|deny} [@var{index}]
+@findex acl_add
 Add a match rule to the access control list, allowing or denying access.
 The match will normally be an exact username or x509 distinguished name,
 but can optionally include wildcard globs. eg @code{*@@EXAMPLE.COM} to
@@ -1089,7 +1095,8 @@ ETEXI
     },
 
 STEXI
-@item acl_remove @var{aclname}
+@item acl_reset @var{aclname}
+@findex acl_reset
 Remove all matches from the access control list, and set the default
 policy back to @code{deny}.
 ETEXI
@@ -1171,6 +1178,7 @@ ETEXI
 
 STEXI
 @item qmp_capabilities
+@findex qmp_capabilities
 Enable the specified QMP capabilities
 ETEXI
 

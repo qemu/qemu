@@ -335,9 +335,9 @@ static inline void gen_op_add_cc(TCGv dst, TCGv src1, TCGv src2)
 
 static inline void gen_op_addxi_cc(TCGv dst, TCGv src1, target_long src2)
 {
+    gen_helper_compute_C_icc(cpu_tmp0);
     tcg_gen_mov_tl(cpu_cc_src, src1);
     tcg_gen_movi_tl(cpu_cc_src2, src2);
-    gen_mov_reg_C(cpu_tmp0, cpu_psr);
     tcg_gen_add_tl(cpu_cc_dst, cpu_cc_src, cpu_tmp0);
     tcg_gen_addi_tl(cpu_cc_dst, cpu_cc_dst, src2);
     tcg_gen_mov_tl(dst, cpu_cc_dst);
@@ -345,9 +345,9 @@ static inline void gen_op_addxi_cc(TCGv dst, TCGv src1, target_long src2)
 
 static inline void gen_op_addx_cc(TCGv dst, TCGv src1, TCGv src2)
 {
+    gen_helper_compute_C_icc(cpu_tmp0);
     tcg_gen_mov_tl(cpu_cc_src, src1);
     tcg_gen_mov_tl(cpu_cc_src2, src2);
-    gen_mov_reg_C(cpu_tmp0, cpu_psr);
     tcg_gen_add_tl(cpu_cc_dst, cpu_cc_src, cpu_tmp0);
     tcg_gen_add_tl(cpu_cc_dst, cpu_cc_dst, cpu_cc_src2);
     tcg_gen_mov_tl(dst, cpu_cc_dst);
@@ -418,9 +418,9 @@ static inline void gen_op_sub_cc(TCGv dst, TCGv src1, TCGv src2)
 
 static inline void gen_op_subxi_cc(TCGv dst, TCGv src1, target_long src2)
 {
+    gen_helper_compute_C_icc(cpu_tmp0);
     tcg_gen_mov_tl(cpu_cc_src, src1);
     tcg_gen_movi_tl(cpu_cc_src2, src2);
-    gen_mov_reg_C(cpu_tmp0, cpu_psr);
     tcg_gen_sub_tl(cpu_cc_dst, cpu_cc_src, cpu_tmp0);
     tcg_gen_subi_tl(cpu_cc_dst, cpu_cc_dst, src2);
     tcg_gen_mov_tl(dst, cpu_cc_dst);
@@ -428,9 +428,9 @@ static inline void gen_op_subxi_cc(TCGv dst, TCGv src1, target_long src2)
 
 static inline void gen_op_subx_cc(TCGv dst, TCGv src1, TCGv src2)
 {
+    gen_helper_compute_C_icc(cpu_tmp0);
     tcg_gen_mov_tl(cpu_cc_src, src1);
     tcg_gen_mov_tl(cpu_cc_src2, src2);
-    gen_mov_reg_C(cpu_tmp0, cpu_psr);
     tcg_gen_sub_tl(cpu_cc_dst, cpu_cc_src, cpu_tmp0);
     tcg_gen_sub_tl(cpu_cc_dst, cpu_cc_dst, cpu_cc_src2);
     tcg_gen_mov_tl(dst, cpu_cc_dst);
@@ -2954,25 +2954,21 @@ static void disas_sparc_insn(DisasContext * dc)
                         if (IS_IMM) {
                             simm = GET_FIELDs(insn, 19, 31);
                             if (xop & 0x10) {
-                                gen_helper_compute_psr();
                                 gen_op_addxi_cc(cpu_dst, cpu_src1, simm);
                                 tcg_gen_movi_i32(cpu_cc_op, CC_OP_ADDX);
                                 dc->cc_op = CC_OP_ADDX;
                             } else {
-                                gen_helper_compute_psr();
-                                gen_mov_reg_C(cpu_tmp0, cpu_psr);
+                                gen_helper_compute_C_icc(cpu_tmp0);
                                 tcg_gen_addi_tl(cpu_tmp0, cpu_tmp0, simm);
                                 tcg_gen_add_tl(cpu_dst, cpu_src1, cpu_tmp0);
                             }
                         } else {
                             if (xop & 0x10) {
-                                gen_helper_compute_psr();
                                 gen_op_addx_cc(cpu_dst, cpu_src1, cpu_src2);
                                 tcg_gen_movi_i32(cpu_cc_op, CC_OP_ADDX);
                                 dc->cc_op = CC_OP_ADDX;
                             } else {
-                                gen_helper_compute_psr();
-                                gen_mov_reg_C(cpu_tmp0, cpu_psr);
+                                gen_helper_compute_C_icc(cpu_tmp0);
                                 tcg_gen_add_tl(cpu_tmp0, cpu_src2, cpu_tmp0);
                                 tcg_gen_add_tl(cpu_dst, cpu_src1, cpu_tmp0);
                             }
@@ -3010,25 +3006,21 @@ static void disas_sparc_insn(DisasContext * dc)
                         if (IS_IMM) {
                             simm = GET_FIELDs(insn, 19, 31);
                             if (xop & 0x10) {
-                                gen_helper_compute_psr();
                                 gen_op_subxi_cc(cpu_dst, cpu_src1, simm);
                                 tcg_gen_movi_i32(cpu_cc_op, CC_OP_SUBX);
                                 dc->cc_op = CC_OP_SUBX;
                             } else {
-                                gen_helper_compute_psr();
-                                gen_mov_reg_C(cpu_tmp0, cpu_psr);
+                                gen_helper_compute_C_icc(cpu_tmp0);
                                 tcg_gen_addi_tl(cpu_tmp0, cpu_tmp0, simm);
                                 tcg_gen_sub_tl(cpu_dst, cpu_src1, cpu_tmp0);
                             }
                         } else {
                             if (xop & 0x10) {
-                                gen_helper_compute_psr();
                                 gen_op_subx_cc(cpu_dst, cpu_src1, cpu_src2);
                                 tcg_gen_movi_i32(cpu_cc_op, CC_OP_SUBX);
                                 dc->cc_op = CC_OP_SUBX;
                             } else {
-                                gen_helper_compute_psr();
-                                gen_mov_reg_C(cpu_tmp0, cpu_psr);
+                                gen_helper_compute_C_icc(cpu_tmp0);
                                 tcg_gen_add_tl(cpu_tmp0, cpu_src2, cpu_tmp0);
                                 tcg_gen_sub_tl(cpu_dst, cpu_src1, cpu_tmp0);
                             }

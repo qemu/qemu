@@ -2856,7 +2856,8 @@ static target_long monitor_get_tbl (const struct MonitorDef *md, int val)
 static target_long monitor_get_psr (const struct MonitorDef *md, int val)
 {
     CPUState *env = mon_get_cpu();
-    return GET_PSR(env);
+
+    return cpu_get_psr(env);
 }
 #endif
 

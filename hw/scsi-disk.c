@@ -125,6 +125,8 @@ static void scsi_read_complete(void * opaque, int ret)
 {
     SCSIDiskReq *r = (SCSIDiskReq *)opaque;
 
+    r->req.aiocb = NULL;
+
     if (ret) {
         DPRINTF("IO error\n");
         r->req.bus->complete(r->req.bus, SCSI_REASON_DATA, r->req.tag, 0);
@@ -1010,22 +1012,45 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     }
 }
 
-static void scsi_destroy(SCSIDevice *dev)
+static void scsi_disk_purge_requests(SCSIDiskState *s)
 {
-    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
     SCSIDiskReq *r;
 
     while (!QTAILQ_EMPTY(&s->qdev.requests)) {
         r = DO_UPCAST(SCSIDiskReq, req, QTAILQ_FIRST(&s->qdev.requests));
+        if (r->req.aiocb) {
+            bdrv_aio_cancel(r->req.aiocb);
+        }
         scsi_remove_request(r);
     }
+}
+
+static void scsi_disk_reset(DeviceState *dev)
+{
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev.qdev, dev);
+    uint64_t nb_sectors;
+
+    scsi_disk_purge_requests(s);
+
+    bdrv_get_geometry(s->bs, &nb_sectors);
+    nb_sectors /= s->cluster_size;
+    if (nb_sectors) {
+        nb_sectors--;
+    }
+    s->max_lba = nb_sectors;
+}
+
+static void scsi_destroy(SCSIDevice *dev)
+{
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
+
+    scsi_disk_purge_requests(s);
     drive_uninit(s->qdev.conf.dinfo);
 }
 
 static int scsi_disk_initfn(SCSIDevice *dev)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
-    uint64_t nb_sectors;
 
     if (!s->qdev.conf.dinfo || !s->qdev.conf.dinfo->bdrv) {
         error_report("scsi-disk: drive property not set");
@@ -1046,11 +1071,6 @@ static int scsi_disk_initfn(SCSIDevice *dev)
     s->cluster_size = s->qdev.blocksize / 512;
 
     s->qdev.type = TYPE_DISK;
-    bdrv_get_geometry(s->bs, &nb_sectors);
-    nb_sectors /= s->cluster_size;
-    if (nb_sectors)
-        nb_sectors--;
-    s->max_lba = nb_sectors;
     qemu_add_vm_change_state_handler(scsi_dma_restart_cb, s);
     return 0;
 }
@@ -1059,6 +1079,7 @@ static SCSIDeviceInfo scsi_disk_info = {
     .qdev.name    = "scsi-disk",
     .qdev.desc    = "virtual scsi disk or cdrom",
     .qdev.size    = sizeof(SCSIDiskState),
+    .qdev.reset   = scsi_disk_reset,
     .init         = scsi_disk_initfn,
     .destroy      = scsi_destroy,
     .send_command = scsi_send_command,

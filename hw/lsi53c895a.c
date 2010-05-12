@@ -175,7 +175,6 @@ do { fprintf(stderr, "lsi_scsi: error: " fmt , ## __VA_ARGS__);} while (0)
 
 typedef struct lsi_request {
     uint32_t tag;
-    SCSIDevice *dev;
     uint32_t dma_len;
     uint8_t *dma_buf;
     uint32_t pending;
@@ -202,7 +201,6 @@ typedef struct {
      * 3 if a DMA operation is in progress.  */
     int waiting;
     SCSIBus bus;
-    SCSIDevice *select_dev;
     int current_lun;
     /* The tag is a combination of the device ID and the SCSI tag.  */
     uint32_t select_tag;
@@ -288,6 +286,8 @@ static void lsi_soft_reset(LSIState *s)
     DPRINTF("Reset\n");
     s->carry = 0;
 
+    s->msg_action = 0;
+    s->msg_len = 0;
     s->waiting = 0;
     s->dsa = 0;
     s->dnad = 0;
@@ -296,8 +296,8 @@ static void lsi_soft_reset(LSIState *s)
     memset(s->scratch, 0, sizeof(s->scratch));
     s->istat0 = 0;
     s->istat1 = 0;
-    s->dcmd = 0;
-    s->dstat = 0;
+    s->dcmd = 0x40;
+    s->dstat = LSI_DSTAT_DFE;
     s->dien = 0;
     s->sist0 = 0;
     s->sist1 = 0;
@@ -306,7 +306,7 @@ static void lsi_soft_reset(LSIState *s)
     s->mbox0 = 0;
     s->mbox1 = 0;
     s->dfifo = 0;
-    s->ctest2 = 0;
+    s->ctest2 = LSI_CTEST2_DACK;
     s->ctest3 = 0;
     s->ctest4 = 0;
     s->ctest5 = 0;
@@ -325,6 +325,8 @@ static void lsi_soft_reset(LSIState *s)
     s->scid = 7;
     s->sxfer = 0;
     s->socl = 0;
+    s->sdid = 0;
+    s->ssid = 0;
     s->stest1 = 0;
     s->stest2 = 0;
     s->stest3 = 0;
@@ -514,16 +516,37 @@ static void lsi_resume_script(LSIState *s)
     }
 }
 
+static void lsi_disconnect(LSIState *s)
+{
+    s->scntl1 &= ~LSI_SCNTL1_CON;
+    s->sstat1 &= ~PHASE_MASK;
+}
+
+static void lsi_bad_selection(LSIState *s, uint32_t id)
+{
+    DPRINTF("Selected absent target %d\n", id);
+    lsi_script_scsi_interrupt(s, 0, LSI_SIST1_STO);
+    lsi_disconnect(s);
+}
+
 /* Initiate a SCSI layer data transfer.  */
 static void lsi_do_dma(LSIState *s, int out)
 {
-    uint32_t count;
+    uint32_t count, id;
     target_phys_addr_t addr;
+    SCSIDevice *dev;
 
     assert(s->current);
     if (!s->current->dma_len) {
         /* Wait until data is available.  */
         DPRINTF("DMA no data available\n");
+        return;
+    }
+
+    id = s->current->tag >> 8;
+    dev = s->bus.devs[id];
+    if (!dev) {
+        lsi_bad_selection(s, id);
         return;
     }
 
@@ -546,8 +569,7 @@ static void lsi_do_dma(LSIState *s, int out)
     s->dbc -= count;
 
     if (s->current->dma_buf == NULL) {
-        s->current->dma_buf = s->current->dev->info->get_buf(s->current->dev,
-                                                             s->current->tag);
+        s->current->dma_buf = dev->info->get_buf(dev, s->current->tag);
     }
 
     /* ??? Set SFBR to first data byte.  */
@@ -561,10 +583,10 @@ static void lsi_do_dma(LSIState *s, int out)
         s->current->dma_buf = NULL;
         if (out) {
             /* Write the data.  */
-            s->current->dev->info->write_data(s->current->dev, s->current->tag);
+            dev->info->write_data(dev, s->current->tag);
         } else {
             /* Request any remaining data.  */
-            s->current->dev->info->read_data(s->current->dev, s->current->tag);
+            dev->info->read_data(dev, s->current->tag);
         }
     } else {
         s->current->dma_buf += count;
@@ -711,7 +733,9 @@ static void lsi_command_complete(SCSIBus *bus, int reason, uint32_t tag,
 
 static void lsi_do_command(LSIState *s)
 {
+    SCSIDevice *dev;
     uint8_t buf[16];
+    uint32_t id;
     int n;
 
     DPRINTF("Send command len=%d\n", s->dbc);
@@ -721,19 +745,24 @@ static void lsi_do_command(LSIState *s)
     s->sfbr = buf[0];
     s->command_complete = 0;
 
+    id = s->select_tag >> 8;
+    dev = s->bus.devs[id];
+    if (!dev) {
+        lsi_bad_selection(s, id);
+        return;
+    }
+
     assert(s->current == NULL);
     s->current = qemu_mallocz(sizeof(lsi_request));
     s->current->tag = s->select_tag;
-    s->current->dev = s->select_dev;
 
-    n = s->current->dev->info->send_command(s->current->dev, s->current->tag, buf,
-                                            s->current_lun);
+    n = dev->info->send_command(dev, s->current->tag, buf, s->current_lun);
     if (n > 0) {
         lsi_set_phase(s, PHASE_DI);
-        s->current->dev->info->read_data(s->current->dev, s->current->tag);
+        dev->info->read_data(dev, s->current->tag);
     } else if (n < 0) {
         lsi_set_phase(s, PHASE_DO);
-        s->current->dev->info->write_data(s->current->dev, s->current->tag);
+        dev->info->write_data(dev, s->current->tag);
     }
 
     if (!s->command_complete) {
@@ -765,12 +794,6 @@ static void lsi_do_status(LSIState *s)
     lsi_set_phase(s, PHASE_MI);
     s->msg_action = 1;
     lsi_add_msg_byte(s, 0); /* COMMAND COMPLETE */
-}
-
-static void lsi_disconnect(LSIState *s)
-{
-    s->scntl1 &= ~LSI_SCNTL1_CON;
-    s->sstat1 &= ~PHASE_MASK;
 }
 
 static void lsi_do_msgin(LSIState *s)
@@ -1088,9 +1111,7 @@ again:
                 s->sstat0 |= LSI_SSTAT0_WOA;
                 s->scntl1 &= ~LSI_SCNTL1_IARB;
                 if (id >= LSI_MAX_DEVS || !s->bus.devs[id]) {
-                    DPRINTF("Selected absent target %d\n", id);
-                    lsi_script_scsi_interrupt(s, 0, LSI_SIST1_STO);
-                    lsi_disconnect(s);
+                    lsi_bad_selection(s, id);
                     break;
                 }
                 DPRINTF("Selected target %d%s\n",
@@ -1098,7 +1119,6 @@ again:
                 /* ??? Linux drivers compain when this is set.  Maybe
                    it only applies in low-level mode (unimplemented).
                 lsi_script_scsi_interrupt(s, LSI_SIST0_CMP, 0); */
-                s->select_dev = s->bus.devs[id];
                 s->select_tag = id << 8;
                 s->scntl1 |= LSI_SCNTL1_CON;
                 if (insn & (1 << 3)) {

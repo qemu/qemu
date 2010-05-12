@@ -804,7 +804,7 @@ static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
     /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
     switch (n) {
     case 64: GET_REGA(env->y);
-    case 65: GET_REGA(GET_PSR(env));
+    case 65: GET_REGA(cpu_get_psr(env));
     case 66: GET_REGA(env->wim);
     case 67: GET_REGA(env->tbr);
     case 68: GET_REGA(env->pc);
@@ -829,10 +829,10 @@ static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
     switch (n) {
     case 80: GET_REGL(env->pc);
     case 81: GET_REGL(env->npc);
-    case 82: GET_REGL(((uint64_t)GET_CCR(env) << 32) |
-                           ((env->asi & 0xff) << 24) |
-                           ((env->pstate & 0xfff) << 8) |
-                           GET_CWP64(env));
+    case 82: GET_REGL((cpu_get_ccr(env) << 32) |
+                      ((env->asi & 0xff) << 24) |
+                      ((env->pstate & 0xfff) << 8) |
+                      cpu_get_cwp64(env));
     case 83: GET_REGL(env->fsr);
     case 84: GET_REGL(env->fprs);
     case 85: GET_REGL(env->y);
@@ -868,7 +868,7 @@ static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
         /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
         switch (n) {
         case 64: env->y = tmp; break;
-        case 65: PUT_PSR(env, tmp); break;
+        case 65: cpu_put_psr(env, tmp); break;
         case 66: env->wim = tmp; break;
         case 67: env->tbr = tmp; break;
         case 68: env->pc = tmp; break;
@@ -892,10 +892,10 @@ static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
         case 80: env->pc = tmp; break;
         case 81: env->npc = tmp; break;
         case 82:
-	    PUT_CCR(env, tmp >> 32);
+            cpu_put_ccr(env, tmp >> 32);
 	    env->asi = (tmp >> 24) & 0xff;
 	    env->pstate = (tmp >> 8) & 0xfff;
-	    PUT_CWP64(env, tmp & 0xff);
+            cpu_put_cwp64(env, tmp & 0xff);
 	    break;
         case 83: env->fsr = tmp; break;
         case 84: env->fprs = tmp; break;
