@@ -901,14 +901,15 @@ static uint32_t compute_C_flags(void)
     return env->psr & PSR_CARRY;
 }
 
-static inline uint32_t get_NZ_icc(target_ulong dst)
+static inline uint32_t get_NZ_icc(int32_t dst)
 {
     uint32_t ret = 0;
 
-    if (!(dst & 0xffffffffULL))
-        ret |= PSR_ZERO;
-    if ((int32_t) (dst & 0xffffffffULL) < 0)
-        ret |= PSR_NEG;
+    if (dst == 0) {
+        ret = PSR_ZERO;
+    } else if (dst < 0) {
+        ret = PSR_NEG;
+    }
     return ret;
 }
 
@@ -923,14 +924,15 @@ static uint32_t compute_C_flags_xcc(void)
     return env->xcc & PSR_CARRY;
 }
 
-static inline uint32_t get_NZ_xcc(target_ulong dst)
+static inline uint32_t get_NZ_xcc(target_long dst)
 {
     uint32_t ret = 0;
 
-    if (!dst)
-        ret |= PSR_ZERO;
-    if ((int64_t)dst < 0)
-        ret |= PSR_NEG;
+    if (!dst) {
+        ret = PSR_ZERO;
+    } else if (dst < 0) {
+        ret = PSR_NEG;
+    }
     return ret;
 }
 #endif
@@ -939,8 +941,9 @@ static inline uint32_t get_V_div_icc(target_ulong src2)
 {
     uint32_t ret = 0;
 
-    if (src2 != 0)
-        ret |= PSR_OVF;
+    if (src2 != 0) {
+        ret = PSR_OVF;
+    }
     return ret;
 }
 
@@ -958,26 +961,35 @@ static uint32_t compute_C_div(void)
     return 0;
 }
 
-/* carry = (src1[31] & src2[31]) | ( ~dst[31] & (src1[31] | src2[31])) */
-static inline uint32_t get_C_add_icc(target_ulong dst, target_ulong src1,
-                                     target_ulong src2)
+static inline uint32_t get_C_add_icc(uint32_t dst, uint32_t src1)
 {
     uint32_t ret = 0;
 
-    if (((src1 & (1ULL << 31)) & (src2 & (1ULL << 31)))
-        | ((~(dst & (1ULL << 31)))
-           & ((src1 & (1ULL << 31)) | (src2 & (1ULL << 31)))))
-        ret |= PSR_CARRY;
+    if (dst < src1) {
+        ret = PSR_CARRY;
+    }
     return ret;
 }
 
-static inline uint32_t get_V_add_icc(target_ulong dst, target_ulong src1,
-                                         target_ulong src2)
+static inline uint32_t get_C_addx_icc(uint32_t dst, uint32_t src1,
+                                      uint32_t src2)
 {
     uint32_t ret = 0;
 
-    if (((src1 ^ src2 ^ -1) & (src1 ^ dst)) & (1ULL << 31))
-        ret |= PSR_OVF;
+    if (((src1 & src2) | (~dst & (src1 | src2))) & (1U << 31)) {
+        ret = PSR_CARRY;
+    }
+    return ret;
+}
+
+static inline uint32_t get_V_add_icc(uint32_t dst, uint32_t src1,
+                                     uint32_t src2)
+{
+    uint32_t ret = 0;
+
+    if (((src1 ^ src2 ^ -1) & (src1 ^ dst)) & (1U << 31)) {
+        ret = PSR_OVF;
+    }
     return ret;
 }
 
@@ -986,8 +998,20 @@ static inline uint32_t get_C_add_xcc(target_ulong dst, target_ulong src1)
 {
     uint32_t ret = 0;
 
-    if (dst < src1)
-        ret |= PSR_CARRY;
+    if (dst < src1) {
+        ret = PSR_CARRY;
+    }
+    return ret;
+}
+
+static inline uint32_t get_C_addx_xcc(target_ulong dst, target_ulong src1,
+                                      target_ulong src2)
+{
+    uint32_t ret = 0;
+
+    if (((src1 & src2) | (~dst & (src1 | src2))) & (1ULL << 63)) {
+        ret = PSR_CARRY;
+    }
     return ret;
 }
 
@@ -996,8 +1020,9 @@ static inline uint32_t get_V_add_xcc(target_ulong dst, target_ulong src1,
 {
     uint32_t ret = 0;
 
-    if (((src1 ^ src2 ^ -1) & (src1 ^ dst)) & (1ULL << 63))
-        ret |= PSR_OVF;
+    if (((src1 ^ src2 ^ -1) & (src1 ^ dst)) & (1ULL << 63)) {
+        ret = PSR_OVF;
+    }
     return ret;
 }
 
@@ -1022,14 +1047,14 @@ static uint32_t compute_all_add(void)
     uint32_t ret;
 
     ret = get_NZ_icc(CC_DST);
-    ret |= get_C_add_icc(CC_DST, CC_SRC, CC_SRC2);
+    ret |= get_C_add_icc(CC_DST, CC_SRC);
     ret |= get_V_add_icc(CC_DST, CC_SRC, CC_SRC2);
     return ret;
 }
 
 static uint32_t compute_C_add(void)
 {
-    return get_C_add_icc(CC_DST, CC_SRC, CC_SRC2);
+    return get_C_add_icc(CC_DST, CC_SRC);
 }
 
 #ifdef TARGET_SPARC64
@@ -1038,8 +1063,7 @@ static uint32_t compute_all_addx_xcc(void)
     uint32_t ret;
 
     ret = get_NZ_xcc(CC_DST);
-    ret |= get_C_add_xcc(CC_DST - CC_SRC2, CC_SRC);
-    ret |= get_C_add_xcc(CC_DST, CC_SRC);
+    ret |= get_C_addx_xcc(CC_DST, CC_SRC, CC_SRC2);
     ret |= get_V_add_xcc(CC_DST, CC_SRC, CC_SRC2);
     return ret;
 }
@@ -1048,18 +1072,36 @@ static uint32_t compute_C_addx_xcc(void)
 {
     uint32_t ret;
 
-    ret = get_C_add_xcc(CC_DST - CC_SRC2, CC_SRC);
-    ret |= get_C_add_xcc(CC_DST, CC_SRC);
+    ret = get_C_addx_xcc(CC_DST, CC_SRC, CC_SRC2);
     return ret;
 }
 #endif
+
+static uint32_t compute_all_addx(void)
+{
+    uint32_t ret;
+
+    ret = get_NZ_icc(CC_DST);
+    ret |= get_C_addx_icc(CC_DST, CC_SRC, CC_SRC2);
+    ret |= get_V_add_icc(CC_DST, CC_SRC, CC_SRC2);
+    return ret;
+}
+
+static uint32_t compute_C_addx(void)
+{
+    uint32_t ret;
+
+    ret = get_C_addx_icc(CC_DST, CC_SRC, CC_SRC2);
+    return ret;
+}
 
 static inline uint32_t get_V_tag_icc(target_ulong src1, target_ulong src2)
 {
     uint32_t ret = 0;
 
-    if ((src1 | src2) & 0x3)
-        ret |= PSR_OVF;
+    if ((src1 | src2) & 0x3) {
+        ret = PSR_OVF;
+    }
     return ret;
 }
 
@@ -1068,15 +1110,10 @@ static uint32_t compute_all_tadd(void)
     uint32_t ret;
 
     ret = get_NZ_icc(CC_DST);
-    ret |= get_C_add_icc(CC_DST, CC_SRC, CC_SRC2);
+    ret |= get_C_add_icc(CC_DST, CC_SRC);
     ret |= get_V_add_icc(CC_DST, CC_SRC, CC_SRC2);
     ret |= get_V_tag_icc(CC_SRC, CC_SRC2);
     return ret;
-}
-
-static uint32_t compute_C_tadd(void)
-{
-    return get_C_add_icc(CC_DST, CC_SRC, CC_SRC2);
 }
 
 static uint32_t compute_all_taddtv(void)
@@ -1084,35 +1121,39 @@ static uint32_t compute_all_taddtv(void)
     uint32_t ret;
 
     ret = get_NZ_icc(CC_DST);
-    ret |= get_C_add_icc(CC_DST, CC_SRC, CC_SRC2);
+    ret |= get_C_add_icc(CC_DST, CC_SRC);
     return ret;
 }
 
-static uint32_t compute_C_taddtv(void)
-{
-    return get_C_add_icc(CC_DST, CC_SRC, CC_SRC2);
-}
-
-/* carry = (~src1[31] & src2[31]) | ( dst[31]  & (~src1[31] | src2[31])) */
-static inline uint32_t get_C_sub_icc(target_ulong dst, target_ulong src1,
-                                     target_ulong src2)
+static inline uint32_t get_C_sub_icc(uint32_t src1, uint32_t src2)
 {
     uint32_t ret = 0;
 
-    if (((~(src1 & (1ULL << 31))) & (src2 & (1ULL << 31)))
-        | ((dst & (1ULL << 31)) & (( ~(src1 & (1ULL << 31)))
-                                   | (src2 & (1ULL << 31)))))
-        ret |= PSR_CARRY;
+    if (src1 < src2) {
+        ret = PSR_CARRY;
+    }
     return ret;
 }
 
-static inline uint32_t get_V_sub_icc(target_ulong dst, target_ulong src1,
-                                     target_ulong src2)
+static inline uint32_t get_C_subx_icc(uint32_t dst, uint32_t src1,
+                                      uint32_t src2)
 {
     uint32_t ret = 0;
 
-    if (((src1 ^ src2) & (src1 ^ dst)) & (1ULL << 31))
-        ret |= PSR_OVF;
+    if (((~src1 & src2) | (dst & (~src1 | src2))) & (1U << 31)) {
+        ret = PSR_CARRY;
+    }
+    return ret;
+}
+
+static inline uint32_t get_V_sub_icc(uint32_t dst, uint32_t src1,
+                                     uint32_t src2)
+{
+    uint32_t ret = 0;
+
+    if (((src1 ^ src2) & (src1 ^ dst)) & (1U << 31)) {
+        ret = PSR_OVF;
+    }
     return ret;
 }
 
@@ -1122,8 +1163,20 @@ static inline uint32_t get_C_sub_xcc(target_ulong src1, target_ulong src2)
 {
     uint32_t ret = 0;
 
-    if (src1 < src2)
-        ret |= PSR_CARRY;
+    if (src1 < src2) {
+        ret = PSR_CARRY;
+    }
+    return ret;
+}
+
+static inline uint32_t get_C_subx_xcc(target_ulong dst, target_ulong src1,
+                                      target_ulong src2)
+{
+    uint32_t ret = 0;
+
+    if (((~src1 & src2) | (dst & (~src1 | src2))) & (1ULL << 63)) {
+        ret = PSR_CARRY;
+    }
     return ret;
 }
 
@@ -1132,8 +1185,9 @@ static inline uint32_t get_V_sub_xcc(target_ulong dst, target_ulong src1,
 {
     uint32_t ret = 0;
 
-    if (((src1 ^ src2) & (src1 ^ dst)) & (1ULL << 63))
-        ret |= PSR_OVF;
+    if (((src1 ^ src2) & (src1 ^ dst)) & (1ULL << 63)) {
+        ret = PSR_OVF;
+    }
     return ret;
 }
 
@@ -1158,14 +1212,14 @@ static uint32_t compute_all_sub(void)
     uint32_t ret;
 
     ret = get_NZ_icc(CC_DST);
-    ret |= get_C_sub_icc(CC_DST, CC_SRC, CC_SRC2);
+    ret |= get_C_sub_icc(CC_SRC, CC_SRC2);
     ret |= get_V_sub_icc(CC_DST, CC_SRC, CC_SRC2);
     return ret;
 }
 
 static uint32_t compute_C_sub(void)
 {
-    return get_C_sub_icc(CC_DST, CC_SRC, CC_SRC2);
+    return get_C_sub_icc(CC_SRC, CC_SRC2);
 }
 
 #ifdef TARGET_SPARC64
@@ -1174,8 +1228,7 @@ static uint32_t compute_all_subx_xcc(void)
     uint32_t ret;
 
     ret = get_NZ_xcc(CC_DST);
-    ret |= get_C_sub_xcc(CC_DST - CC_SRC2, CC_SRC);
-    ret |= get_C_sub_xcc(CC_DST, CC_SRC2);
+    ret |= get_C_subx_xcc(CC_DST, CC_SRC, CC_SRC2);
     ret |= get_V_sub_xcc(CC_DST, CC_SRC, CC_SRC2);
     return ret;
 }
@@ -1184,26 +1237,38 @@ static uint32_t compute_C_subx_xcc(void)
 {
     uint32_t ret;
 
-    ret = get_C_sub_xcc(CC_DST - CC_SRC2, CC_SRC);
-    ret |= get_C_sub_xcc(CC_DST, CC_SRC2);
+    ret = get_C_subx_xcc(CC_DST, CC_SRC, CC_SRC2);
     return ret;
 }
 #endif
+
+static uint32_t compute_all_subx(void)
+{
+    uint32_t ret;
+
+    ret = get_NZ_icc(CC_DST);
+    ret |= get_C_subx_icc(CC_DST, CC_SRC, CC_SRC2);
+    ret |= get_V_sub_icc(CC_DST, CC_SRC, CC_SRC2);
+    return ret;
+}
+
+static uint32_t compute_C_subx(void)
+{
+    uint32_t ret;
+
+    ret = get_C_subx_icc(CC_DST, CC_SRC, CC_SRC2);
+    return ret;
+}
 
 static uint32_t compute_all_tsub(void)
 {
     uint32_t ret;
 
     ret = get_NZ_icc(CC_DST);
-    ret |= get_C_sub_icc(CC_DST, CC_SRC, CC_SRC2);
+    ret |= get_C_sub_icc(CC_SRC, CC_SRC2);
     ret |= get_V_sub_icc(CC_DST, CC_SRC, CC_SRC2);
     ret |= get_V_tag_icc(CC_SRC, CC_SRC2);
     return ret;
-}
-
-static uint32_t compute_C_tsub(void)
-{
-    return get_C_sub_icc(CC_DST, CC_SRC, CC_SRC2);
 }
 
 static uint32_t compute_all_tsubtv(void)
@@ -1211,13 +1276,8 @@ static uint32_t compute_all_tsubtv(void)
     uint32_t ret;
 
     ret = get_NZ_icc(CC_DST);
-    ret |= get_C_sub_icc(CC_DST, CC_SRC, CC_SRC2);
+    ret |= get_C_sub_icc(CC_SRC, CC_SRC2);
     return ret;
-}
-
-static uint32_t compute_C_tsubtv(void)
-{
-    return get_C_sub_icc(CC_DST, CC_SRC, CC_SRC2);
 }
 
 static uint32_t compute_all_logic(void)
@@ -1247,13 +1307,13 @@ static const CCTable icc_table[CC_OP_NB] = {
     [CC_OP_FLAGS] = { compute_all_flags, compute_C_flags },
     [CC_OP_DIV] = { compute_all_div, compute_C_div },
     [CC_OP_ADD] = { compute_all_add, compute_C_add },
-    [CC_OP_ADDX] = { compute_all_add, compute_C_add },
-    [CC_OP_TADD] = { compute_all_tadd, compute_C_tadd },
-    [CC_OP_TADDTV] = { compute_all_taddtv, compute_C_taddtv },
+    [CC_OP_ADDX] = { compute_all_addx, compute_C_addx },
+    [CC_OP_TADD] = { compute_all_tadd, compute_C_add },
+    [CC_OP_TADDTV] = { compute_all_taddtv, compute_C_add },
     [CC_OP_SUB] = { compute_all_sub, compute_C_sub },
-    [CC_OP_SUBX] = { compute_all_sub, compute_C_sub },
-    [CC_OP_TSUB] = { compute_all_tsub, compute_C_tsub },
-    [CC_OP_TSUBTV] = { compute_all_tsubtv, compute_C_tsubtv },
+    [CC_OP_SUBX] = { compute_all_subx, compute_C_subx },
+    [CC_OP_TSUB] = { compute_all_tsub, compute_C_sub },
+    [CC_OP_TSUBTV] = { compute_all_tsubtv, compute_C_sub },
     [CC_OP_LOGIC] = { compute_all_logic, compute_C_logic },
 };
 
