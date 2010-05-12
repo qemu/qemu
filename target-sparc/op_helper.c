@@ -1287,7 +1287,7 @@ void helper_compute_psr(void)
     CC_OP = CC_OP_FLAGS;
 }
 
-uint32_t helper_compute_C_icc(void)
+target_ulong helper_compute_C_icc(void)
 {
     uint32_t ret;
 
