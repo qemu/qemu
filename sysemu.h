@@ -201,8 +201,7 @@ extern DriveInfo *drive_init(QemuOpts *arg, void *machine, int *fatal_error);
 DriveInfo *add_init_drive(const char *opts);
 
 /* pci-hotplug */
-void pci_device_hot_add_print(Monitor *mon, const QObject *data);
-int pci_device_hot_add(Monitor *mon, const QDict *qdict, QObject **ret_data);
+void pci_device_hot_add(Monitor *mon, const QDict *qdict);
 void drive_hot_add(Monitor *mon, const QDict *qdict);
 int pci_device_hot_remove(Monitor *mon, const char *pci_addr);
 int do_pci_device_hot_remove(Monitor *mon, const QDict *qdict,

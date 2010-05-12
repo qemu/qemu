@@ -33,7 +33,6 @@
 #include "scsi.h"
 #include "virtio-blk.h"
 #include "qemu-config.h"
-#include "qemu-objects.h"
 
 #if defined(TARGET_I386)
 static PCIDevice *qemu_pci_hot_add_nic(Monitor *mon,
@@ -224,36 +223,7 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon,
     return dev;
 }
 
-void pci_device_hot_add_print(Monitor *mon, const QObject *data)
-{
-    QDict *qdict;
-
-    assert(qobject_type(data) == QTYPE_QDICT);
-    qdict = qobject_to_qdict(data);
-
-    monitor_printf(mon, "OK domain %d, bus %d, slot %d, function %d\n",
-                   (int) qdict_get_int(qdict, "domain"),
-                   (int) qdict_get_int(qdict, "bus"),
-                   (int) qdict_get_int(qdict, "slot"),
-                   (int) qdict_get_int(qdict, "function"));
-
-}
-
-/**
- * pci_device_hot_add(): Hot add a PCI device
- *
- * Return a QDict with the following device information:
- *
- * - "domain": domain number
- * - "bus": bus number
- * - "slot": slot number
- * - "function": function number
- *
- * Example:
- *
- * { "domain": 0, "bus": 0, "slot": 5, "function": 0 }
- */
-int pci_device_hot_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
+void pci_device_hot_add(Monitor *mon, const QDict *qdict)
 {
     PCIDevice *dev = NULL;
     const char *pci_addr = qdict_get_str(qdict, "pci_addr");
@@ -278,20 +248,14 @@ int pci_device_hot_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
         dev = qemu_pci_hot_add_storage(mon, pci_addr, opts);
     } else {
         monitor_printf(mon, "invalid type: %s\n", type);
-        return -1;
     }
 
     if (dev) {
-        *ret_data =
-        qobject_from_jsonf("{ 'domain': 0, 'bus': %d, 'slot': %d, "
-                           "'function': %d }", pci_bus_num(dev->bus),
-                           PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
-    } else {
+        monitor_printf(mon, "OK domain %d, bus %d, slot %d, function %d\n",
+                       0, pci_bus_num(dev->bus), PCI_SLOT(dev->devfn),
+                       PCI_FUNC(dev->devfn));
+    } else
         monitor_printf(mon, "failed to add %s\n", opts);
-        return -1;
-    }
-
-    return 0;
 }
 #endif
 

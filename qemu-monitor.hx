@@ -858,8 +858,7 @@ ETEXI
         .args_type  = "pci_addr:s,type:s,opts:s?",
         .params     = "auto|[[<domain>:]<bus>:]<slot> nic|storage [[vlan=n][,macaddr=addr][,model=type]] [file=file][,if=type][,bus=nr]...",
         .help       = "hot-add PCI device",
-        .user_print = pci_device_hot_add_print,
-        .mhandler.cmd_new = pci_device_hot_add,
+        .mhandler.cmd = pci_device_hot_add,
     },
 #endif
 
