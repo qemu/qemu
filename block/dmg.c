@@ -58,18 +58,18 @@ static int dmg_probe(const uint8_t *buf, int buf_size, const char *filename)
     return 0;
 }
 
-static off_t read_off(int fd)
+static off_t read_off(int fd, int64_t offset)
 {
 	uint64_t buffer;
-	if(read(fd,&buffer,8)<8)
+	if (pread(fd, &buffer, 8, offset) < 8)
 		return 0;
 	return be64_to_cpu(buffer);
 }
 
-static off_t read_uint32(int fd)
+static off_t read_uint32(int fd, int64_t offset)
 {
 	uint32_t buffer;
-	if(read(fd,&buffer,4)<4)
+	if (pread(fd, &buffer, 4, offset) < 4)
 		return 0;
 	return be32_to_cpu(buffer);
 }
@@ -80,6 +80,7 @@ static int dmg_open(BlockDriverState *bs, const char *filename, int flags)
     off_t info_begin,info_end,last_in_offset,last_out_offset;
     uint32_t count;
     uint32_t max_compressed_size=1,max_sectors_per_chunk=1,i;
+    int64_t offset;
 
     s->fd = open(filename, O_RDONLY | O_BINARY);
     if (s->fd < 0)
@@ -89,38 +90,45 @@ static int dmg_open(BlockDriverState *bs, const char *filename, int flags)
     s->offsets = s->lengths = s->sectors = s->sectorcounts = NULL;
 
     /* read offset of info blocks */
-    if(lseek(s->fd,-0x1d8,SEEK_END)<0) {
+    offset = lseek(s->fd, -0x1d8, SEEK_END);
+    if (offset < 0) {
         goto fail;
     }
 
-    info_begin=read_off(s->fd);
-    if(info_begin==0)
+    info_begin = read_off(s->fd, offset);
+    if (info_begin == 0) {
 	goto fail;
-    if(lseek(s->fd,info_begin,SEEK_SET)<0)
-	goto fail;
-    if(read_uint32(s->fd)!=0x100)
-	goto fail;
-    if((count = read_uint32(s->fd))==0)
-	goto fail;
-    info_end = info_begin+count;
-    if(lseek(s->fd,0xf8,SEEK_CUR)<0)
-	goto fail;
+    }
+
+    if (read_uint32(s->fd, info_begin) != 0x100) {
+        goto fail;
+    }
+
+    count = read_uint32(s->fd, info_begin + 4);
+    if (count == 0) {
+        goto fail;
+    }
+    info_end = info_begin + count;
+
+    offset = info_begin + 0x100;
 
     /* read offsets */
     last_in_offset = last_out_offset = 0;
-    while(lseek(s->fd,0,SEEK_CUR)<info_end) {
+    while (offset < info_end) {
         uint32_t type;
 
-	count = read_uint32(s->fd);
+	count = read_uint32(s->fd, offset);
 	if(count==0)
 	    goto fail;
-	type = read_uint32(s->fd);
-	if(type!=0x6d697368 || count<244)
-	    lseek(s->fd,count-4,SEEK_CUR);
-	else {
+        offset += 4;
+
+	type = read_uint32(s->fd, offset);
+	if (type == 0x6d697368 && count >= 244) {
 	    int new_size, chunk_count;
-	    if(lseek(s->fd,200,SEEK_CUR)<0)
-	        goto fail;
+
+            offset += 4;
+            offset += 200;
+
 	    chunk_count = (count-204)/40;
 	    new_size = sizeof(uint64_t) * (s->n_chunks + chunk_count);
 	    s->types = qemu_realloc(s->types, new_size/2);
@@ -130,7 +138,8 @@ static int dmg_open(BlockDriverState *bs, const char *filename, int flags)
 	    s->sectorcounts = qemu_realloc(s->sectorcounts, new_size);
 
 	    for(i=s->n_chunks;i<s->n_chunks+chunk_count;i++) {
-		s->types[i] = read_uint32(s->fd);
+		s->types[i] = read_uint32(s->fd, offset);
+		offset += 4;
 		if(s->types[i]!=0x80000005 && s->types[i]!=1 && s->types[i]!=2) {
 		    if(s->types[i]==0xffffffff) {
 			last_in_offset = s->offsets[i-1]+s->lengths[i-1];
@@ -138,15 +147,23 @@ static int dmg_open(BlockDriverState *bs, const char *filename, int flags)
 		    }
 		    chunk_count--;
 		    i--;
-		    if(lseek(s->fd,36,SEEK_CUR)<0)
-			goto fail;
+		    offset += 36;
 		    continue;
 		}
-		read_uint32(s->fd);
-		s->sectors[i] = last_out_offset+read_off(s->fd);
-		s->sectorcounts[i] = read_off(s->fd);
-		s->offsets[i] = last_in_offset+read_off(s->fd);
-		s->lengths[i] = read_off(s->fd);
+		offset += 4;
+
+		s->sectors[i] = last_out_offset+read_off(s->fd, offset);
+		offset += 8;
+
+		s->sectorcounts[i] = read_off(s->fd, offset);
+		offset += 8;
+
+		s->offsets[i] = last_in_offset+read_off(s->fd, offset);
+		offset += 8;
+
+		s->lengths[i] = read_off(s->fd, offset);
+		offset += 8;
+
 		if(s->lengths[i]>max_compressed_size)
 		    max_compressed_size = s->lengths[i];
 		if(s->sectorcounts[i]>max_sectors_per_chunk)
@@ -210,15 +227,12 @@ static inline int dmg_read_chunk(BDRVDMGState *s,int sector_num)
 	case 0x80000005: { /* zlib compressed */
 	    int i;
 
-	    ret = lseek(s->fd, s->offsets[chunk], SEEK_SET);
-	    if(ret<0)
-		return -1;
-
 	    /* we need to buffer, because only the chunk as whole can be
 	     * inflated. */
 	    i=0;
 	    do {
-		ret = read(s->fd, s->compressed_chunk+i, s->lengths[chunk]-i);
+		ret = pread(s->fd, s->compressed_chunk+i, s->lengths[chunk]-i,
+                            s->offsets[chunk] + i);
 		if(ret<0 && errno==EINTR)
 		    ret=0;
 		i+=ret;
