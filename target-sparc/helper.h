@@ -158,6 +158,6 @@ VIS_CMPHELPER(cmpne);
 #undef VIS_HELPER
 #undef VIS_CMPHELPER
 DEF_HELPER_0(compute_psr, void);
-DEF_HELPER_0(compute_C_icc, tl);
+DEF_HELPER_0(compute_C_icc, i32);
 
 #include "def-helper.h"
