@@ -28,8 +28,6 @@
 #include <zlib.h>
 
 typedef struct BDRVDMGState {
-    int fd;
-
     /* each chunk contains a certain number of sectors,
      * offsets[i] is the offset in the .dmg file,
      * lengths[i] is the length of the compressed chunk,
@@ -58,23 +56,23 @@ static int dmg_probe(const uint8_t *buf, int buf_size, const char *filename)
     return 0;
 }
 
-static off_t read_off(int fd, int64_t offset)
+static off_t read_off(BlockDriverState *bs, int64_t offset)
 {
 	uint64_t buffer;
-	if (pread(fd, &buffer, 8, offset) < 8)
+	if (bdrv_pread(bs->file, offset, &buffer, 8) < 8)
 		return 0;
 	return be64_to_cpu(buffer);
 }
 
-static off_t read_uint32(int fd, int64_t offset)
+static off_t read_uint32(BlockDriverState *bs, int64_t offset)
 {
 	uint32_t buffer;
-	if (pread(fd, &buffer, 4, offset) < 4)
+	if (bdrv_pread(bs->file, offset, &buffer, 4) < 4)
 		return 0;
 	return be32_to_cpu(buffer);
 }
 
-static int dmg_open(BlockDriverState *bs, const char *filename, int flags)
+static int dmg_open(BlockDriverState *bs, int flags)
 {
     BDRVDMGState *s = bs->opaque;
     off_t info_begin,info_end,last_in_offset,last_out_offset;
@@ -82,29 +80,27 @@ static int dmg_open(BlockDriverState *bs, const char *filename, int flags)
     uint32_t max_compressed_size=1,max_sectors_per_chunk=1,i;
     int64_t offset;
 
-    s->fd = open(filename, O_RDONLY | O_BINARY);
-    if (s->fd < 0)
-        return -errno;
     bs->read_only = 1;
     s->n_chunks = 0;
     s->offsets = s->lengths = s->sectors = s->sectorcounts = NULL;
 
     /* read offset of info blocks */
-    offset = lseek(s->fd, -0x1d8, SEEK_END);
+    offset = bdrv_getlength(bs->file);
     if (offset < 0) {
         goto fail;
     }
+    offset -= 0x1d8;
 
-    info_begin = read_off(s->fd, offset);
+    info_begin = read_off(bs, offset);
     if (info_begin == 0) {
 	goto fail;
     }
 
-    if (read_uint32(s->fd, info_begin) != 0x100) {
+    if (read_uint32(bs, info_begin) != 0x100) {
         goto fail;
     }
 
-    count = read_uint32(s->fd, info_begin + 4);
+    count = read_uint32(bs, info_begin + 4);
     if (count == 0) {
         goto fail;
     }
@@ -117,12 +113,12 @@ static int dmg_open(BlockDriverState *bs, const char *filename, int flags)
     while (offset < info_end) {
         uint32_t type;
 
-	count = read_uint32(s->fd, offset);
+	count = read_uint32(bs, offset);
 	if(count==0)
 	    goto fail;
         offset += 4;
 
-	type = read_uint32(s->fd, offset);
+	type = read_uint32(bs, offset);
 	if (type == 0x6d697368 && count >= 244) {
 	    int new_size, chunk_count;
 
@@ -138,7 +134,7 @@ static int dmg_open(BlockDriverState *bs, const char *filename, int flags)
 	    s->sectorcounts = qemu_realloc(s->sectorcounts, new_size);
 
 	    for(i=s->n_chunks;i<s->n_chunks+chunk_count;i++) {
-		s->types[i] = read_uint32(s->fd, offset);
+		s->types[i] = read_uint32(bs, offset);
 		offset += 4;
 		if(s->types[i]!=0x80000005 && s->types[i]!=1 && s->types[i]!=2) {
 		    if(s->types[i]==0xffffffff) {
@@ -152,16 +148,16 @@ static int dmg_open(BlockDriverState *bs, const char *filename, int flags)
 		}
 		offset += 4;
 
-		s->sectors[i] = last_out_offset+read_off(s->fd, offset);
+		s->sectors[i] = last_out_offset+read_off(bs, offset);
 		offset += 8;
 
-		s->sectorcounts[i] = read_off(s->fd, offset);
+		s->sectorcounts[i] = read_off(bs, offset);
 		offset += 8;
 
-		s->offsets[i] = last_in_offset+read_off(s->fd, offset);
+		s->offsets[i] = last_in_offset+read_off(bs, offset);
 		offset += 8;
 
-		s->lengths[i] = read_off(s->fd, offset);
+		s->lengths[i] = read_off(bs, offset);
 		offset += 8;
 
 		if(s->lengths[i]>max_compressed_size)
@@ -183,7 +179,6 @@ static int dmg_open(BlockDriverState *bs, const char *filename, int flags)
 
     return 0;
 fail:
-    close(s->fd);
     return -1;
 }
 
@@ -213,8 +208,10 @@ static inline uint32_t search_chunk(BDRVDMGState* s,int sector_num)
     return s->n_chunks; /* error */
 }
 
-static inline int dmg_read_chunk(BDRVDMGState *s,int sector_num)
+static inline int dmg_read_chunk(BlockDriverState *bs, int sector_num)
 {
+    BDRVDMGState *s = bs->opaque;
+
     if(!is_sector_in_chunk(s,s->current_chunk,sector_num)) {
 	int ret;
 	uint32_t chunk = search_chunk(s,sector_num);
@@ -231,8 +228,8 @@ static inline int dmg_read_chunk(BDRVDMGState *s,int sector_num)
 	     * inflated. */
 	    i=0;
 	    do {
-		ret = pread(s->fd, s->compressed_chunk+i, s->lengths[chunk]-i,
-                            s->offsets[chunk] + i);
+                ret = bdrv_pread(bs->file, s->offsets[chunk] + i,
+                                 s->compressed_chunk+i, s->lengths[chunk]-i);
 		if(ret<0 && errno==EINTR)
 		    ret=0;
 		i+=ret;
@@ -253,8 +250,8 @@ static inline int dmg_read_chunk(BDRVDMGState *s,int sector_num)
 		return -1;
 	    break; }
 	case 1: /* copy */
-	    ret = pread(s->fd, s->uncompressed_chunk, s->lengths[chunk],
-                        s->offsets[chunk]);
+	    ret = bdrv_pread(bs->file, s->offsets[chunk],
+                             s->uncompressed_chunk, s->lengths[chunk]);
 	    if (ret != s->lengths[chunk])
 		return -1;
 	    break;
@@ -275,7 +272,7 @@ static int dmg_read(BlockDriverState *bs, int64_t sector_num,
 
     for(i=0;i<nb_sectors;i++) {
 	uint32_t sector_offset_in_chunk;
-	if(dmg_read_chunk(s, sector_num+i) != 0)
+	if(dmg_read_chunk(bs, sector_num+i) != 0)
 	    return -1;
 	sector_offset_in_chunk = sector_num+i-s->sectors[s->current_chunk];
 	memcpy(buf+i*512,s->uncompressed_chunk+sector_offset_in_chunk*512,512);
@@ -286,7 +283,6 @@ static int dmg_read(BlockDriverState *bs, int64_t sector_num,
 static void dmg_close(BlockDriverState *bs)
 {
     BDRVDMGState *s = bs->opaque;
-    close(s->fd);
     if(s->n_chunks>0) {
 	free(s->types);
 	free(s->offsets);
@@ -303,7 +299,7 @@ static BlockDriver bdrv_dmg = {
     .format_name	= "dmg",
     .instance_size	= sizeof(BDRVDMGState),
     .bdrv_probe		= dmg_probe,
-    .bdrv_file_open	= dmg_open,
+    .bdrv_open		= dmg_open,
     .bdrv_read		= dmg_read,
     .bdrv_close		= dmg_close,
 };
