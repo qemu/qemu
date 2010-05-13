@@ -1490,7 +1490,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
     }
 #ifdef TARGET_SPARC64
     cpu_fprintf(f, "pstate: %08x ccr: %02x (icc: ", env->pstate,
-                cpu_get_ccr(env));
+                (unsigned)cpu_get_ccr(env));
     cpu_print_cc(f, cpu_fprintf, cpu_get_ccr(env) << PSR_CARRY_SHIFT);
     cpu_fprintf(f, " xcc: ");
     cpu_print_cc(f, cpu_fprintf, cpu_get_ccr(env) << (PSR_CARRY_SHIFT - 4));

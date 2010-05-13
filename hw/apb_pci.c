@@ -73,9 +73,8 @@ typedef struct APBState {
     uint32_t obio_irq_map[32];
     qemu_irq pci_irqs[32];
     uint32_t reset_control;
+    unsigned int nr_resets;
 } APBState;
-
-static unsigned int nr_resets;
 
 static void apb_config_writel (void *opaque, target_phys_addr_t addr,
                                uint32_t val)
@@ -108,7 +107,7 @@ static void apb_config_writel (void *opaque, target_phys_addr_t addr,
             s->reset_control &= ~(val & RESET_WCMASK);
             s->reset_control |= val & RESET_WMASK;
             if (val & SOFT_POR) {
-                nr_resets = 0;
+                s->nr_resets = 0;
                 qemu_system_reset_request();
             } else if (val & SOFT_XIR) {
                 qemu_system_reset_request();
@@ -374,7 +373,7 @@ static void pci_pbm_reset(DeviceState *d)
         s->pci_irq_map[i] &= PBM_PCI_IMR_MASK;
     }
 
-    if (nr_resets++ == 0) {
+    if (s->nr_resets++ == 0) {
         /* Power on reset */
         s->reset_control = POR;
     }

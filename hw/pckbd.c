@@ -126,8 +126,6 @@ typedef struct KBDState {
     target_phys_addr_t mask;
 } KBDState;
 
-static KBDState kbd_state;
-
 /* update irq and KBD_STAT_[MOUSE_]OBF */
 /* XXX: not generating the irqs if KBD_MODE_DISABLE_KBD is set may be
    incorrect, but it avoids having to simulate exact delays */
@@ -390,7 +388,7 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
                    target_phys_addr_t base, ram_addr_t size,
                    target_phys_addr_t mask)
 {
-    KBDState *s = &kbd_state;
+    KBDState *s = qemu_mallocz(sizeof(KBDState));
     int s_io_memory;
 
     s->irq_kbd = kbd_irq;
