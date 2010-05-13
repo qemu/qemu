@@ -1582,9 +1582,9 @@ static QObject* bdrv_info_stats_bs(BlockDriverState *bs)
  *     - "wr_operations": write operations
  *     - "wr_highest_offset": Highest offset of a sector written since the
  *       BlockDriverState has been opened
- *     - "parent": Contains recursively the statistics of the underlying
- *       protocol (e.g. the host file for a qcow2 image). If there is no
- *       underlying protocol, this field is omitted.
+ * - "parent": A QDict recursively holding the statistics of the underlying
+ *    protocol (e.g. the host file for a qcow2 image). If there is no
+ *    underlying protocol, this field is omitted.
  *
  * Example:
  *
@@ -1593,15 +1593,14 @@ static QObject* bdrv_info_stats_bs(BlockDriverState *bs)
  *                          "wr_bytes": 0,
  *                          "rd_operations": 1,
  *                          "wr_operations": 0,
- *                          "wr_highest_offset": 0,
- *                          "parent": {
- *                              "stats": { "rd_bytes": 1024,
- *                                         "wr_bytes": 0,
- *                                         "rd_operations": 2,
- *                                         "wr_operations": 0,
- *                                         "wr_highest_offset": 0,
- *                              }
- *                          } } },
+ *                          "wr_highest_offset": 0 },
+ *               "parent": {
+ *                      "stats": { "rd_bytes": 1024,
+ *                                 "wr_bytes": 0,
+ *                                 "rd_operations": 2,
+ *                                 "wr_operations": 0,
+ *                                 "wr_highest_offset": 0,
+ *                      } } },
  *   { "device": "ide1-cd0",
  *               "stats": { "rd_bytes": 0,
  *                          "wr_bytes": 0,
