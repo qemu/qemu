@@ -2075,7 +2075,7 @@ int bdrv_aio_multiwrite(BlockDriverState *bs, BlockRequest *reqs, int num_reqs)
     return 0;
 
 fail:
-    free(mcb);
+    qemu_free(mcb);
     return -1;
 }
 
