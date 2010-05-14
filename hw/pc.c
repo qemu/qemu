@@ -811,6 +811,24 @@ static CPUState *pc_new_cpu(const char *cpu_model)
     return env;
 }
 
+static void pc_cpus_init(const char *cpu_model)
+{
+    int i;
+
+    /* init CPUs */
+    if (cpu_model == NULL) {
+#ifdef TARGET_X86_64
+        cpu_model = "qemu64";
+#else
+        cpu_model = "qemu32";
+#endif
+    }
+
+    for(i = 0; i < smp_cpus; i++) {
+        pc_new_cpu(cpu_model);
+    }
+}
+
 static qemu_irq *pc_allocate_cpu_irq(void)
 {
     return qemu_allocate_irqs(pic_irq_request, NULL, 1);
@@ -855,18 +873,7 @@ static void pc_init1(ram_addr_t ram_size,
 
     linux_boot = (kernel_filename != NULL);
 
-    /* init CPUs */
-    if (cpu_model == NULL) {
-#ifdef TARGET_X86_64
-        cpu_model = "qemu64";
-#else
-        cpu_model = "qemu32";
-#endif
-    }
-
-    for (i = 0; i < smp_cpus; i++) {
-        pc_new_cpu(cpu_model);
-    }
+    pc_cpus_init(cpu_model);
 
     vmport_init();
 
