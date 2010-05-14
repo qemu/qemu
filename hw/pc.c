@@ -65,7 +65,6 @@
 
 #define MAX_IDE_BUS 2
 
-static FDCtrl *floppy_controller;
 static RTCState *rtc_state;
 
 #define E820_NR_ENTRIES		16
@@ -273,7 +272,8 @@ static int pc_boot_set(void *opaque, const char *boot_device)
 
 /* hd_table must contain 4 block drivers */
 static void cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
-                      const char *boot_device, DriveInfo **hd_table)
+                      const char *boot_device, DriveInfo **hd_table,
+                      FDCtrl *floppy_controller)
 {
     RTCState *s = rtc_state;
     int val;
@@ -834,6 +834,7 @@ static void pc_init1(ram_addr_t ram_size,
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DriveInfo *fd[MAX_FD];
     void *fw_cfg;
+    FDCtrl *floppy_controller;
     PITState *pit;
 
     if (ram_size >= 0xe0000000 ) {
@@ -1035,7 +1036,8 @@ static void pc_init1(ram_addr_t ram_size,
     }
     floppy_controller = fdctrl_init_isa(fd);
 
-    cmos_init(below_4g_mem_size, above_4g_mem_size, boot_device, hd);
+    cmos_init(below_4g_mem_size, above_4g_mem_size, boot_device, hd,
+              floppy_controller);
 
     if (pci_enabled && usb_enabled) {
         usb_uhci_piix3_init(pci_bus, piix3_devfn + 2);
