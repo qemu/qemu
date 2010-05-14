@@ -226,6 +226,8 @@ sound-obj-$(CONFIG_CS4231A) += cs4231a.o
 adlib.o fmopl.o: QEMU_CFLAGS += -DBUILD_Y8950=0
 hw-obj-$(CONFIG_SOUND) += $(sound-obj-y)
 
+hw-obj-$(CONFIG_LINUX) += virtio-9p-debug.o virtio-9p-local.o
+
 ######################################################################
 # libdis
 # NOTE: the disassembler code is only needed for debugging
