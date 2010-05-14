@@ -951,6 +951,52 @@ static void pc_vga_init(PCIBus *pci_bus)
     }
 }
 
+static void pc_basic_device_init(qemu_irq *isa_irq,
+                                 FDCtrl **floppy_controller,
+                                 RTCState **rtc_state)
+{
+    int i;
+    DriveInfo *fd[MAX_FD];
+    PITState *pit;
+
+    register_ioport_write(0x80, 1, 1, ioport80_write, NULL);
+
+    register_ioport_write(0xf0, 1, 1, ioportF0_write, NULL);
+
+    *rtc_state = rtc_init(2000);
+
+    qemu_register_boot_set(pc_boot_set, *rtc_state);
+
+    register_ioport_read(0x92, 1, 1, ioport92_read, NULL);
+    register_ioport_write(0x92, 1, 1, ioport92_write, NULL);
+
+    pit = pit_init(0x40, isa_reserve_irq(0));
+    pcspk_init(pit);
+    if (!no_hpet) {
+        hpet_init(isa_irq);
+    }
+
+    for(i = 0; i < MAX_SERIAL_PORTS; i++) {
+        if (serial_hds[i]) {
+            serial_isa_init(i, serial_hds[i]);
+        }
+    }
+
+    for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
+        if (parallel_hds[i]) {
+            parallel_init(i, parallel_hds[i]);
+        }
+    }
+
+    isa_create_simple("i8042");
+    DMA_init(0);
+
+    for(i = 0; i < MAX_FD; i++) {
+        fd[i] = drive_get(IF_FLOPPY, 0, i);
+    }
+    *floppy_controller = fdctrl_init_isa(fd);
+}
+
 /* PC hardware initialisation */
 static void pc_init1(ram_addr_t ram_size,
                      const char *boot_device,
@@ -972,10 +1018,8 @@ static void pc_init1(ram_addr_t ram_size,
     qemu_irq *smi_irq;
     IsaIrqState *isa_irq_state;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
-    DriveInfo *fd[MAX_FD];
     FDCtrl *floppy_controller;
     RTCState *rtc_state;
-    PITState *pit;
 
     pc_cpus_init(cpu_model);
 
@@ -1004,37 +1048,10 @@ static void pc_init1(ram_addr_t ram_size,
 
     pc_register_ferr_irq(isa_reserve_irq(13));
 
-    /* init basic PC hardware */
-    register_ioport_write(0x80, 1, 1, ioport80_write, NULL);
-
-    register_ioport_write(0xf0, 1, 1, ioportF0_write, NULL);
-
     pc_vga_init(pci_enabled? pci_bus: NULL);
 
-    rtc_state = rtc_init(2000);
-
-    qemu_register_boot_set(pc_boot_set, rtc_state);
-
-    register_ioport_read(0x92, 1, 1, ioport92_read, NULL);
-    register_ioport_write(0x92, 1, 1, ioport92_write, NULL);
-
-    pit = pit_init(0x40, isa_reserve_irq(0));
-    pcspk_init(pit);
-    if (!no_hpet) {
-        hpet_init(isa_irq);
-    }
-
-    for(i = 0; i < MAX_SERIAL_PORTS; i++) {
-        if (serial_hds[i]) {
-            serial_isa_init(i, serial_hds[i]);
-        }
-    }
-
-    for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
-        if (parallel_hds[i]) {
-            parallel_init(i, parallel_hds[i]);
-        }
-    }
+    /* init basic PC hardware */
+    pc_basic_device_init(isa_irq, &floppy_controller, &rtc_state);
 
     for(i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
@@ -1063,16 +1080,9 @@ static void pc_init1(ram_addr_t ram_size,
         }
     }
 
-    isa_create_simple("i8042");
-    DMA_init(0);
 #ifdef HAS_AUDIO
     audio_init(pci_enabled ? pci_bus : NULL, isa_irq);
 #endif
-
-    for(i = 0; i < MAX_FD; i++) {
-        fd[i] = drive_get(IF_FLOPPY, 0, i);
-    }
-    floppy_controller = fdctrl_init_isa(fd);
 
     cmos_init(below_4g_mem_size, above_4g_mem_size, boot_device, hd,
               floppy_controller, rtc_state);
