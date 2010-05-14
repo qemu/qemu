@@ -544,8 +544,8 @@ start_xmit(E1000State *s)
 static int
 receive_filter(E1000State *s, const uint8_t *buf, int size)
 {
-    static uint8_t bcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-    static int mta_shift[] = {4, 3, 2, 0};
+    static const uint8_t bcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+    static const int mta_shift[] = {4, 3, 2, 0};
     uint32_t f, rctl = s->mac_reg[RCTL], ra[2], *rp;
 
     if (is_vlan_packet(s, buf) && vlan_rx_filter_enabled(s)) {
