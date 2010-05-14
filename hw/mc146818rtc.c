@@ -32,6 +32,12 @@
 
 //#define DEBUG_CMOS
 
+#ifdef DEBUG_CMOS
+# define CMOS_DPRINTF(format, ...)      printf(format, ## __VA_ARGS__)
+#else
+# define CMOS_DPRINTF(format, ...)      do { } while (0)
+#endif
+
 #define RTC_REINJECT_ON_ACK_COUNT 20
 
 #define RTC_SECONDS             0
@@ -211,10 +217,8 @@ static void cmos_ioport_write(void *opaque, uint32_t addr, uint32_t data)
     if ((addr & 1) == 0) {
         s->cmos_index = data & 0x7f;
     } else {
-#ifdef DEBUG_CMOS
-        printf("cmos: write index=0x%02x val=0x%02x\n",
-               s->cmos_index, data);
-#endif
+        CMOS_DPRINTF("cmos: write index=0x%02x val=0x%02x\n",
+                     s->cmos_index, data);
         switch(s->cmos_index) {
         case RTC_SECONDS_ALARM:
         case RTC_MINUTES_ALARM:
@@ -485,10 +489,8 @@ static uint32_t cmos_ioport_read(void *opaque, uint32_t addr)
             ret = s->cmos_data[s->cmos_index];
             break;
         }
-#ifdef DEBUG_CMOS
-        printf("cmos: read index=0x%02x val=0x%02x\n",
-               s->cmos_index, ret);
-#endif
+        CMOS_DPRINTF("cmos: read index=0x%02x val=0x%02x\n",
+                     s->cmos_index, ret);
         return ret;
     }
 }
