@@ -27,6 +27,12 @@
 
 //#define DEBUG
 
+#ifdef DEBUG
+# define PIIX4_DPRINTF(format, ...)     printf(format, ## __VA_ARGS__)
+#else
+# define PIIX4_DPRINTF(format, ...)     do { } while (0)
+#endif
+
 #define ACPI_DBG_IO_ADDR  0xb044
 
 #define GPE_BASE 0xafe0
@@ -172,9 +178,7 @@ static void pm_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
     default:
         break;
     }
-#ifdef DEBUG
-    printf("PM writew port=0x%04x val=0x%04x\n", addr, val);
-#endif
+    PIIX4_DPRINTF("PM writew port=0x%04x val=0x%04x\n", addr, val);
 }
 
 static uint32_t pm_ioport_readw(void *opaque, uint32_t addr)
@@ -197,19 +201,14 @@ static uint32_t pm_ioport_readw(void *opaque, uint32_t addr)
         val = 0;
         break;
     }
-#ifdef DEBUG
-    printf("PM readw port=0x%04x val=0x%04x\n", addr, val);
-#endif
+    PIIX4_DPRINTF("PM readw port=0x%04x val=0x%04x\n", addr, val);
     return val;
 }
 
 static void pm_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
 {
     //    PIIX4PMState *s = opaque;
-#ifdef DEBUG
-    addr &= 0x3f;
-    printf("PM writel port=0x%04x val=0x%08x\n", addr, val);
-#endif
+    PIIX4_DPRINTF("PM writel port=0x%04x val=0x%08x\n", addr & 0x3f, val);
 }
 
 static uint32_t pm_ioport_readl(void *opaque, uint32_t addr)
@@ -226,9 +225,7 @@ static uint32_t pm_ioport_readl(void *opaque, uint32_t addr)
         val = 0;
         break;
     }
-#ifdef DEBUG
-    printf("PM readl port=0x%04x val=0x%08x\n", addr, val);
-#endif
+    PIIX4_DPRINTF("PM readl port=0x%04x val=0x%08x\n", addr, val);
     return val;
 }
 
@@ -252,9 +249,7 @@ static void apm_ctrl_changed(uint32_t val, void *arg)
 
 static void acpi_dbg_writel(void *opaque, uint32_t addr, uint32_t val)
 {
-#if defined(DEBUG)
-    printf("ACPI: DBG: 0x%08x\n", val);
-#endif
+    PIIX4_DPRINTF("ACPI: DBG: 0x%08x\n", val);
 }
 
 static void pm_io_space_update(PIIX4PMState *s)
@@ -266,9 +261,7 @@ static void pm_io_space_update(PIIX4PMState *s)
         pm_io_base &= 0xffc0;
 
         /* XXX: need to improve memory and ioport allocation */
-#if defined(DEBUG)
-        printf("PM: mapping to 0x%x\n", pm_io_base);
-#endif
+        PIIX4_DPRINTF("PM: mapping to 0x%x\n", pm_io_base);
         register_ioport_write(pm_io_base, 64, 2, pm_ioport_writew, s);
         register_ioport_read(pm_io_base, 64, 2, pm_ioport_readw, s);
         register_ioport_write(pm_io_base, 64, 4, pm_ioport_writel, s);
@@ -456,9 +449,7 @@ static uint32_t gpe_readb(void *opaque, uint32_t addr)
             break;
     }
 
-#if defined(DEBUG)
-    printf("gpe read %x == %x\n", addr, val);
-#endif
+    PIIX4_DPRINTF("gpe read %x == %x\n", addr, val);
     return val;
 }
 
@@ -498,9 +489,7 @@ static void gpe_writeb(void *opaque, uint32_t addr, uint32_t val)
             break;
    }
 
-#if defined(DEBUG)
-    printf("gpe write %x <== %d\n", addr, val);
-#endif
+    PIIX4_DPRINTF("gpe write %x <== %d\n", addr, val);
 }
 
 static uint32_t pcihotplug_read(void *opaque, uint32_t addr)
@@ -518,9 +507,7 @@ static uint32_t pcihotplug_read(void *opaque, uint32_t addr)
             break;
     }
 
-#if defined(DEBUG)
-    printf("pcihotplug read %x == %x\n", addr, val);
-#endif
+    PIIX4_DPRINTF("pcihotplug read %x == %x\n", addr, val);
     return val;
 }
 
@@ -536,16 +523,12 @@ static void pcihotplug_write(void *opaque, uint32_t addr, uint32_t val)
             break;
    }
 
-#if defined(DEBUG)
-    printf("pcihotplug write %x <== %d\n", addr, val);
-#endif
+    PIIX4_DPRINTF("pcihotplug write %x <== %d\n", addr, val);
 }
 
 static uint32_t pciej_read(void *opaque, uint32_t addr)
 {
-#if defined(DEBUG)
-    printf("pciej read %x\n", addr);
-#endif
+    PIIX4_DPRINTF("pciej read %x\n", addr);
     return 0;
 }
 
@@ -564,9 +547,7 @@ static void pciej_write(void *opaque, uint32_t addr, uint32_t val)
     }
 
 
-#if defined(DEBUG)
-    printf("pciej write %x <== %d\n", addr, val);
-#endif
+    PIIX4_DPRINTF("pciej write %x <== %d\n", addr, val);
 }
 
 static int piix4_device_hotplug(DeviceState *qdev, PCIDevice *dev, int state);
