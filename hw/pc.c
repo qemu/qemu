@@ -65,8 +65,6 @@
 
 #define MAX_IDE_BUS 2
 
-static RTCState *rtc_state;
-
 #define E820_NR_ENTRIES		16
 
 struct e820_entry {
@@ -207,9 +205,9 @@ static int cmos_get_fd_drive_type(int fd0)
     return val;
 }
 
-static void cmos_init_hd(int type_ofs, int info_ofs, BlockDriverState *hd)
+static void cmos_init_hd(int type_ofs, int info_ofs, BlockDriverState *hd,
+                         RTCState *s)
 {
-    RTCState *s = rtc_state;
     int cylinders, heads, sectors;
     bdrv_get_geometry_hint(hd, &cylinders, &heads, &sectors);
     rtc_set_memory(s, type_ofs, 47);
@@ -273,9 +271,8 @@ static int pc_boot_set(void *opaque, const char *boot_device)
 /* hd_table must contain 4 block drivers */
 static void cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
                       const char *boot_device, DriveInfo **hd_table,
-                      FDCtrl *floppy_controller)
+                      FDCtrl *floppy_controller, RTCState *s)
 {
-    RTCState *s = rtc_state;
     int val;
     int fd0, fd1, nb;
     int i;
@@ -350,9 +347,9 @@ static void cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
 
     rtc_set_memory(s, 0x12, (hd_table[0] ? 0xf0 : 0) | (hd_table[1] ? 0x0f : 0));
     if (hd_table[0])
-        cmos_init_hd(0x19, 0x1b, hd_table[0]->bdrv);
+        cmos_init_hd(0x19, 0x1b, hd_table[0]->bdrv, s);
     if (hd_table[1])
-        cmos_init_hd(0x1a, 0x24, hd_table[1]->bdrv);
+        cmos_init_hd(0x1a, 0x24, hd_table[1]->bdrv, s);
 
     val = 0;
     for (i = 0; i < 4; i++) {
@@ -835,6 +832,7 @@ static void pc_init1(ram_addr_t ram_size,
     DriveInfo *fd[MAX_FD];
     void *fw_cfg;
     FDCtrl *floppy_controller;
+    RTCState *rtc_state;
     PITState *pit;
 
     if (ram_size >= 0xe0000000 ) {
@@ -1037,7 +1035,7 @@ static void pc_init1(ram_addr_t ram_size,
     floppy_controller = fdctrl_init_isa(fd);
 
     cmos_init(below_4g_mem_size, above_4g_mem_size, boot_device, hd,
-              floppy_controller);
+              floppy_controller, rtc_state);
 
     if (pci_enabled && usb_enabled) {
         usb_uhci_piix3_init(pci_bus, piix3_devfn + 2);
