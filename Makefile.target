@@ -195,7 +195,7 @@ obj-i386-y += cirrus_vga.o apic.o ioapic.o piix_pci.o
 obj-i386-y += vmmouse.o vmport.o hpet.o
 obj-i386-y += device-hotplug.o pci-hotplug.o smbios.o wdt_ib700.o
 obj-i386-y += debugcon.o multiboot.o
-obj-i386-y += pm_smbus.o apm.o acpi_piix4.o
+obj-i386-y += pm_smbus.o apm.o acpi_piix4.o pc_piix.o
 
 # shared objects
 obj-ppc-y = ppc.o
