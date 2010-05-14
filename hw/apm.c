@@ -23,6 +23,12 @@
 
 //#define DEBUG
 
+#ifdef DEBUG
+# define APM_DPRINTF(format, ...)       printf(format, ## __VA_ARGS__)
+#else
+# define APM_DPRINTF(format, ...)       do { } while (0)
+#endif
+
 /* fixed I/O location */
 #define APM_CNT_IOPORT  0xb2
 #define APM_STS_IOPORT  0xb3
@@ -31,9 +37,7 @@ static void apm_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
     APMState *apm = opaque;
     addr &= 1;
-#ifdef DEBUG
-    printf("apm_ioport_writeb addr=0x%x val=0x%02x\n", addr, val);
-#endif
+    APM_DPRINTF("apm_ioport_writeb addr=0x%x val=0x%02x\n", addr, val);
     if (addr == 0) {
         apm->apmc = val;
 
@@ -56,9 +60,7 @@ static uint32_t apm_ioport_readb(void *opaque, uint32_t addr)
     } else {
         val = apm->apms;
     }
-#ifdef DEBUG
-    printf("apm_ioport_readb addr=0x%x val=0x%02x\n", addr, val);
-#endif
+    APM_DPRINTF("apm_ioport_readb addr=0x%x val=0x%02x\n", addr, val);
     return val;
 }
 
