@@ -102,6 +102,12 @@ static void ioport80_write(void *opaque, uint32_t addr, uint32_t data)
 
 /* MSDOS compatibility mode FPU exception support */
 static qemu_irq ferr_irq;
+
+void pc_register_ferr_irq(qemu_irq irq)
+{
+    ferr_irq = irq;
+}
+
 /* XXX: add IGNNE support */
 void cpu_set_ferr(CPUX86State *s)
 {
@@ -950,7 +956,7 @@ static void pc_init1(ram_addr_t ram_size,
     }
     isa_bus_irqs(isa_irq);
 
-    ferr_irq = isa_reserve_irq(13);
+    pc_register_ferr_irq(isa_reserve_irq(13));
 
     /* init basic PC hardware */
     register_ioport_write(0x80, 1, 1, ioport80_write, NULL);
