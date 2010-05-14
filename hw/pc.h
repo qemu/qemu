@@ -5,6 +5,7 @@
 #include "ioport.h"
 #include "isa.h"
 #include "fdc.h"
+#include "mc146818rtc.h"
 
 /* PC-style peripherals (also used by other machines).  */
 
@@ -75,14 +76,6 @@ void i8042_init(qemu_irq kbd_irq, qemu_irq mouse_irq, uint32_t io_base);
 void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
                    target_phys_addr_t base, ram_addr_t size,
                    target_phys_addr_t mask);
-
-/* mc146818rtc.c */
-
-typedef struct RTCState RTCState;
-
-RTCState *rtc_init(int base_year);
-void rtc_set_memory(RTCState *s, int addr, int val);
-void rtc_set_date(RTCState *s, const struct tm *tm);
 
 /* pc.c */
 extern int fd_bootchk;
