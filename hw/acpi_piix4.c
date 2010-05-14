@@ -41,6 +41,7 @@ typedef struct PIIX4PMState {
     int64_t tmr_overflow_time;
 
     PMSMBus smb;
+    uint32_t smb_io_base;
 
     qemu_irq irq;
     qemu_irq cmos_s3;
@@ -319,16 +320,11 @@ static void piix4_powerdown(void *opaque, int irq, int power_failing)
     }
 }
 
-i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
-                       qemu_irq sci_irq, qemu_irq cmos_s3, qemu_irq smi_irq,
-                       int kvm_enabled)
+static int piix4_pm_initfn(PCIDevice *dev)
 {
-    PIIX4PMState *s;
+    PIIX4PMState *s = DO_UPCAST(PIIX4PMState, dev, dev);
     uint8_t *pci_conf;
 
-    s = (PIIX4PMState *)pci_register_device(bus,
-                                         "PM", sizeof(PIIX4PMState),
-                                         devfn, NULL, pm_write_config);
     pm_state = s;
     pci_conf = s->dev.config;
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
@@ -348,7 +344,6 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
 
     register_ioport_write(ACPI_DBG_IO_ADDR, 4, 4, acpi_dbg_writel, s);
 
-    s->kvm_enabled = kvm_enabled;
     if (s->kvm_enabled) {
         /* Mark SMM as already inited to prevent SMM from running.  KVM does not
          * support SMM mode. */
@@ -362,26 +357,62 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
     pci_conf[0x67] = (serial_hds[0] != NULL ? 0x08 : 0) |
 	(serial_hds[1] != NULL ? 0x90 : 0);
 
-    pci_conf[0x90] = smb_io_base | 1;
-    pci_conf[0x91] = smb_io_base >> 8;
+    pci_conf[0x90] = s->smb_io_base | 1;
+    pci_conf[0x91] = s->smb_io_base >> 8;
     pci_conf[0xd2] = 0x09;
-    register_ioport_write(smb_io_base, 64, 1, smb_ioport_writeb, &s->smb);
-    register_ioport_read(smb_io_base, 64, 1, smb_ioport_readb, &s->smb);
+    register_ioport_write(s->smb_io_base, 64, 1, smb_ioport_writeb, &s->smb);
+    register_ioport_read(s->smb_io_base, 64, 1, smb_ioport_readb, &s->smb);
 
     s->tmr_timer = qemu_new_timer(vm_clock, pm_tmr_timer, s);
 
     qemu_system_powerdown = *qemu_allocate_irqs(piix4_powerdown, s, 1);
 
-    vmstate_register(0, &vmstate_acpi, s);
+    pm_smbus_init(&s->dev.qdev, &s->smb);
+    qemu_register_reset(piix4_reset, s);
 
-    pm_smbus_init(NULL, &s->smb);
+    return 0;
+}
+
+i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
+                       qemu_irq sci_irq, qemu_irq cmos_s3, qemu_irq smi_irq,
+                       int kvm_enabled)
+{
+    PCIDevice *dev;
+    PIIX4PMState *s;
+
+    dev = pci_create(bus, devfn, "PIIX4_PM");
+    qdev_prop_set_uint32(&dev->qdev, "smb_io_base", smb_io_base);
+
+    s = DO_UPCAST(PIIX4PMState, dev, dev);
     s->irq = sci_irq;
     s->cmos_s3 = cmos_s3;
     s->smi_irq = smi_irq;
-    qemu_register_reset(piix4_reset, s);
+    s->kvm_enabled = kvm_enabled;
+
+    qdev_init_nofail(&dev->qdev);
 
     return s->smb.smbus;
 }
+
+static PCIDeviceInfo piix4_pm_info = {
+    .qdev.name          = "PIIX4_PM",
+    .qdev.desc          = "PM",
+    .qdev.size          = sizeof(PIIX4PMState),
+    .qdev.vmsd          = &vmstate_acpi,
+    .init               = piix4_pm_initfn,
+    .config_write       = pm_write_config,
+    .qdev.props         = (Property[]) {
+        DEFINE_PROP_UINT32("smb_io_base", PIIX4PMState, smb_io_base, 0),
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
+
+static void piix4_pm_register(void)
+{
+    pci_qdev_register(&piix4_pm_info);
+}
+
+device_init(piix4_pm_register);
 
 #define GPE_BASE 0xafe0
 #define PCI_BASE 0xae00
