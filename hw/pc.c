@@ -997,6 +997,17 @@ static void pc_basic_device_init(qemu_irq *isa_irq,
     *floppy_controller = fdctrl_init_isa(fd);
 }
 
+static void pc_pci_device_init(PCIBus *pci_bus)
+{
+    int max_bus;
+    int bus;
+
+    max_bus = drive_get_max_bus(IF_SCSI);
+    for (bus = 0; bus <= max_bus; bus++) {
+        pci_create_simple(pci_bus, -1, "lsi53c895a");
+    }
+}
+
 /* PC hardware initialisation */
 static void pc_init1(ram_addr_t ram_size,
                      const char *boot_device,
@@ -1116,13 +1127,7 @@ static void pc_init1(ram_addr_t ram_size,
     }
 
     if (pci_enabled) {
-	int max_bus;
-        int bus;
-
-        max_bus = drive_get_max_bus(IF_SCSI);
-	for (bus = 0; bus <= max_bus; bus++) {
-            pci_create_simple(pci_bus, -1, "lsi53c895a");
-        }
+        pc_pci_device_init(pci_bus);
     }
 }
 
