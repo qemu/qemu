@@ -67,7 +67,6 @@
 
 static FDCtrl *floppy_controller;
 static RTCState *rtc_state;
-static PITState *pit;
 
 #define E820_NR_ENTRIES		16
 
@@ -835,6 +834,7 @@ static void pc_init1(ram_addr_t ram_size,
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DriveInfo *fd[MAX_FD];
     void *fw_cfg;
+    PITState *pit;
 
     if (ram_size >= 0xe0000000 ) {
         above_4g_mem_size = ram_size - 0xe0000000;
