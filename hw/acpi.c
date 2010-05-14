@@ -24,11 +24,9 @@
 #include "sysemu.h"
 #include "i2c.h"
 #include "smbus.h"
+#include "acpi.h"
 
 //#define DEBUG
-
-/* i82731AB (PIIX4) compatible power management function */
-#define PM_FREQ 3579545
 
 #define ACPI_DBG_IO_ADDR  0xb044
 
@@ -51,17 +49,6 @@ typedef struct PIIX4PMState {
     int kvm_enabled;
 } PIIX4PMState;
 
-#define RSM_STS (1 << 15)
-#define PWRBTN_STS (1 << 8)
-#define RTC_EN (1 << 10)
-#define PWRBTN_EN (1 << 8)
-#define GBL_EN (1 << 5)
-#define TMROF_EN (1 << 0)
-
-#define SCI_EN (1 << 0)
-
-#define SUS_EN (1 << 13)
-
 #define ACPI_ENABLE 0xf1
 #define ACPI_DISABLE 0xf0
 
@@ -70,7 +57,7 @@ static PIIX4PMState *pm_state;
 static uint32_t get_pmtmr(PIIX4PMState *s)
 {
     uint32_t d;
-    d = muldiv64(qemu_get_clock(vm_clock), PM_FREQ, get_ticks_per_sec());
+    d = muldiv64(qemu_get_clock(vm_clock), PM_TIMER_FREQUENCY, get_ticks_per_sec());
     return d & 0xffffff;
 }
 
@@ -78,9 +65,10 @@ static int get_pmsts(PIIX4PMState *s)
 {
     int64_t d;
 
-    d = muldiv64(qemu_get_clock(vm_clock), PM_FREQ, get_ticks_per_sec());
+    d = muldiv64(qemu_get_clock(vm_clock), PM_TIMER_FREQUENCY,
+                 get_ticks_per_sec());
     if (d >= s->tmr_overflow_time)
-        s->pmsts |= TMROF_EN;
+        s->pmsts |= ACPI_BITMASK_TIMER_STATUS;
     return s->pmsts;
 }
 
@@ -91,11 +79,16 @@ static void pm_update_sci(PIIX4PMState *s)
 
     pmsts = get_pmsts(s);
     sci_level = (((pmsts & s->pmen) &
-                  (RTC_EN | PWRBTN_EN | GBL_EN | TMROF_EN)) != 0);
+                  (ACPI_BITMASK_RT_CLOCK_ENABLE |
+                   ACPI_BITMASK_POWER_BUTTON_ENABLE |
+                   ACPI_BITMASK_GLOBAL_LOCK_ENABLE |
+                   ACPI_BITMASK_TIMER_ENABLE)) != 0);
     qemu_set_irq(s->irq, sci_level);
     /* schedule a timer interruption if needed */
-    if ((s->pmen & TMROF_EN) && !(pmsts & TMROF_EN)) {
-        expire_time = muldiv64(s->tmr_overflow_time, get_ticks_per_sec(), PM_FREQ);
+    if ((s->pmen & ACPI_BITMASK_TIMER_ENABLE) &&
+        !(pmsts & ACPI_BITMASK_TIMER_STATUS)) {
+        expire_time = muldiv64(s->tmr_overflow_time, get_ticks_per_sec(),
+                               PM_TIMER_FREQUENCY);
         qemu_mod_timer(s->tmr_timer, expire_time);
     } else {
         qemu_del_timer(s->tmr_timer);
@@ -118,9 +111,9 @@ static void pm_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
             int64_t d;
             int pmsts;
             pmsts = get_pmsts(s);
-            if (pmsts & val & TMROF_EN) {
+            if (pmsts & val & ACPI_BITMASK_TIMER_STATUS) {
                 /* if TMRSTS is reset, then compute the new overflow time */
-                d = muldiv64(qemu_get_clock(vm_clock), PM_FREQ,
+                d = muldiv64(qemu_get_clock(vm_clock), PM_TIMER_FREQUENCY,
                              get_ticks_per_sec());
                 s->tmr_overflow_time = (d + 0x800000LL) & ~0x7fffffLL;
             }
@@ -135,8 +128,8 @@ static void pm_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
     case 0x04:
         {
             int sus_typ;
-            s->pmcntrl = val & ~(SUS_EN);
-            if (val & SUS_EN) {
+            s->pmcntrl = val & ~(ACPI_BITMASK_SLEEP_ENABLE);
+            if (val & ACPI_BITMASK_SLEEP_ENABLE) {
                 /* change suspend type */
                 sus_typ = (val >> 10) & 7;
                 switch(sus_typ) {
@@ -144,9 +137,10 @@ static void pm_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
                     qemu_system_shutdown_request();
                     break;
                 case 1:
-                    /* RSM_STS should be set on resume. Pretend that resume
-                       was caused by power button */
-                    s->pmsts |= (RSM_STS | PWRBTN_STS);
+                    /* ACPI_BITMASK_WAKE_STATUS should be set on resume.
+                       Pretend that resume was caused by power button */
+                    s->pmsts |= (ACPI_BITMASK_WAKE_STATUS |
+                                 ACPI_BITMASK_POWER_BUTTON_STATUS);
                     qemu_system_reset_request();
                     if (s->cmos_s3) {
                         qemu_irq_raise(s->cmos_s3);
@@ -226,9 +220,9 @@ static void apm_ctrl_changed(uint32_t val, void *arg)
 
     /* ACPI specs 3.0, 4.7.2.5 */
     if (val == ACPI_ENABLE) {
-        s->pmcntrl |= SCI_EN;
+        s->pmcntrl |= ACPI_BITMASK_SCI_ENABLE;
     } else if (val == ACPI_DISABLE) {
-        s->pmcntrl &= ~SCI_EN;
+        s->pmcntrl &= ~ACPI_BITMASK_SCI_ENABLE;
     }
 
     if (s->dev.config[0x5b] & (1 << 1)) {
@@ -320,8 +314,8 @@ static void piix4_powerdown(void *opaque, int irq, int power_failing)
 
     if (!s) {
         qemu_system_shutdown_request();
-    } else if (s->pmen & PWRBTN_EN) {
-        s->pmsts |= PWRBTN_EN;
+    } else if (s->pmen & ACPI_BITMASK_POWER_BUTTON_ENABLE) {
+        s->pmsts |= ACPI_BITMASK_POWER_BUTTON_STATUS;
         pm_update_sci(s);
     }
 }
