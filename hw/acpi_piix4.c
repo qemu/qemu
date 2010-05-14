@@ -568,7 +568,7 @@ static void pciej_write(void *opaque, uint32_t addr, uint32_t val)
 #endif
 }
 
-static int piix4_device_hotplug(PCIDevice *dev, int state);
+static int piix4_device_hotplug(DeviceState *qdev, PCIDevice *dev, int state);
 
 void piix4_acpi_system_hot_add_init(PCIBus *bus)
 {
@@ -581,7 +581,7 @@ void piix4_acpi_system_hot_add_init(PCIBus *bus)
     register_ioport_write(PCI_EJ_BASE, 4, 4, pciej_write, bus);
     register_ioport_read(PCI_EJ_BASE, 4, 4,  pciej_read, bus);
 
-    pci_bus_hotplug(bus, piix4_device_hotplug);
+    pci_bus_hotplug(bus, piix4_device_hotplug, NULL);
 }
 
 static void enable_device(struct pci_status *p, struct gpe_regs *g, int slot)
@@ -596,7 +596,7 @@ static void disable_device(struct pci_status *p, struct gpe_regs *g, int slot)
     p->down |= (1 << slot);
 }
 
-static int piix4_device_hotplug(PCIDevice *dev, int state)
+static int piix4_device_hotplug(DeviceState *qdev, PCIDevice *dev, int state)
 {
     int slot = PCI_SLOT(dev->devfn);
 

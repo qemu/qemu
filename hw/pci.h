@@ -209,13 +209,13 @@ int pci_device_load(PCIDevice *s, QEMUFile *f);
 
 typedef void (*pci_set_irq_fn)(void *opaque, int irq_num, int level);
 typedef int (*pci_map_irq_fn)(PCIDevice *pci_dev, int irq_num);
-typedef int (*pci_hotplug_fn)(PCIDevice *pci_dev, int state);
+typedef int (*pci_hotplug_fn)(DeviceState *qdev, PCIDevice *pci_dev, int state);
 void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
                          const char *name, int devfn_min);
 PCIBus *pci_bus_new(DeviceState *parent, const char *name, int devfn_min);
 void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                   void *irq_opaque, int nirq);
-void pci_bus_hotplug(PCIBus *bus, pci_hotplug_fn hotplug);
+void pci_bus_hotplug(PCIBus *bus, pci_hotplug_fn hotplug, DeviceState *dev);
 PCIBus *pci_register_bus(DeviceState *parent, const char *name,
                          pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                          void *irq_opaque, int devfn_min, int nirq);
