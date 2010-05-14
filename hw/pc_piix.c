@@ -150,7 +150,6 @@ static void pc_init1(ram_addr_t ram_size,
             qdev_prop_set_ptr(eeprom, "data", eeprom_buf + (i * 256));
             qdev_init_nofail(eeprom);
         }
-        piix4_acpi_system_hot_add_init(pci_bus);
     }
 
     if (i440fx_state) {

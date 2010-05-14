@@ -29,6 +29,20 @@
 
 #define ACPI_DBG_IO_ADDR  0xb044
 
+#define GPE_BASE 0xafe0
+#define PCI_BASE 0xae00
+#define PCI_EJ_BASE 0xae08
+
+struct gpe_regs {
+    uint16_t sts; /* status */
+    uint16_t en;  /* enabled */
+};
+
+struct pci_status {
+    uint32_t up;
+    uint32_t down;
+};
+
 typedef struct PIIX4PMState {
     PCIDevice dev;
     uint16_t pmsts;
@@ -47,12 +61,16 @@ typedef struct PIIX4PMState {
     qemu_irq cmos_s3;
     qemu_irq smi_irq;
     int kvm_enabled;
+
+    /* for pci hotplug */
+    struct gpe_regs gpe;
+    struct pci_status pci0_status;
 } PIIX4PMState;
+
+static void piix4_acpi_system_hot_add_init(PCIBus *bus, PIIX4PMState *s);
 
 #define ACPI_ENABLE 0xf1
 #define ACPI_DISABLE 0xf0
-
-static PIIX4PMState *pm_state;
 
 static uint32_t get_pmtmr(PIIX4PMState *s)
 {
@@ -325,7 +343,6 @@ static int piix4_pm_initfn(PCIDevice *dev)
     PIIX4PMState *s = DO_UPCAST(PIIX4PMState, dev, dev);
     uint8_t *pci_conf;
 
-    pm_state = s;
     pci_conf = s->dev.config;
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82371AB_3);
@@ -369,6 +386,7 @@ static int piix4_pm_initfn(PCIDevice *dev)
 
     pm_smbus_init(&s->dev.qdev, &s->smb);
     qemu_register_reset(piix4_reset, s);
+    piix4_acpi_system_hot_add_init(dev->bus, s);
 
     return 0;
 }
@@ -413,23 +431,6 @@ static void piix4_pm_register(void)
 }
 
 device_init(piix4_pm_register);
-
-#define GPE_BASE 0xafe0
-#define PCI_BASE 0xae00
-#define PCI_EJ_BASE 0xae08
-
-struct gpe_regs {
-    uint16_t sts; /* status */
-    uint16_t en;  /* enabled */
-};
-
-struct pci_status {
-    uint32_t up;
-    uint32_t down;
-};
-
-static struct gpe_regs gpe;
-static struct pci_status pci0_status;
 
 static uint32_t gpe_read_val(uint16_t val, uint32_t addr)
 {
@@ -570,45 +571,51 @@ static void pciej_write(void *opaque, uint32_t addr, uint32_t val)
 
 static int piix4_device_hotplug(DeviceState *qdev, PCIDevice *dev, int state);
 
-void piix4_acpi_system_hot_add_init(PCIBus *bus)
+static void piix4_acpi_system_hot_add_init(PCIBus *bus, PIIX4PMState *s)
 {
-    register_ioport_write(GPE_BASE, 4, 1, gpe_writeb, &gpe);
-    register_ioport_read(GPE_BASE, 4, 1,  gpe_readb, &gpe);
+    struct gpe_regs *gpe = &s->gpe;
+    struct pci_status *pci0_status = &s->pci0_status;
 
-    register_ioport_write(PCI_BASE, 8, 4, pcihotplug_write, &pci0_status);
-    register_ioport_read(PCI_BASE, 8, 4,  pcihotplug_read, &pci0_status);
+    register_ioport_write(GPE_BASE, 4, 1, gpe_writeb, gpe);
+    register_ioport_read(GPE_BASE, 4, 1,  gpe_readb, gpe);
+
+    register_ioport_write(PCI_BASE, 8, 4, pcihotplug_write, pci0_status);
+    register_ioport_read(PCI_BASE, 8, 4,  pcihotplug_read, pci0_status);
 
     register_ioport_write(PCI_EJ_BASE, 4, 4, pciej_write, bus);
     register_ioport_read(PCI_EJ_BASE, 4, 4,  pciej_read, bus);
 
-    pci_bus_hotplug(bus, piix4_device_hotplug, NULL);
+    pci_bus_hotplug(bus, piix4_device_hotplug, &s->dev.qdev);
 }
 
-static void enable_device(struct pci_status *p, struct gpe_regs *g, int slot)
+static void enable_device(PIIX4PMState *s, int slot)
 {
-    g->sts |= 2;
-    p->up |= (1 << slot);
+    s->gpe.sts |= 2;
+    s->pci0_status.up |= (1 << slot);
 }
 
-static void disable_device(struct pci_status *p, struct gpe_regs *g, int slot)
+static void disable_device(PIIX4PMState *s, int slot)
 {
-    g->sts |= 2;
-    p->down |= (1 << slot);
+    s->gpe.sts |= 2;
+    s->pci0_status.down |= (1 << slot);
 }
 
 static int piix4_device_hotplug(DeviceState *qdev, PCIDevice *dev, int state)
 {
     int slot = PCI_SLOT(dev->devfn);
+    PIIX4PMState *s = DO_UPCAST(PIIX4PMState, dev,
+                                DO_UPCAST(PCIDevice, qdev, qdev));
 
-    pci0_status.up = 0;
-    pci0_status.down = 0;
-    if (state)
-        enable_device(&pci0_status, &gpe, slot);
-    else
-        disable_device(&pci0_status, &gpe, slot);
-    if (gpe.en & 2) {
-        qemu_set_irq(pm_state->irq, 1);
-        qemu_set_irq(pm_state->irq, 0);
+    s->pci0_status.up = 0;
+    s->pci0_status.down = 0;
+    if (state) {
+        enable_device(s, slot);
+    } else {
+        disable_device(s, slot);
+    }
+    if (s->gpe.en & 2) {
+        qemu_set_irq(s->irq, 1);
+        qemu_set_irq(s->irq, 0);
     }
     return 0;
 }
