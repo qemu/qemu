@@ -36,7 +36,7 @@
 
 #define IDE_PAGE_SIZE 4096
 
-static int smart_attributes[][5] = {
+static const int smart_attributes[][5] = {
     /* id,  flags, val, wrst, thrsh */
     { 0x01, 0x03, 0x64, 0x64, 0x06}, /* raw read */
     { 0x03, 0x03, 0x64, 0x64, 0x46}, /* spin up */
