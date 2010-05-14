@@ -921,6 +921,9 @@ static void pc_init1(ram_addr_t ram_size,
     i8259 = i8259_init(cpu_irq[0]);
     isa_irq_state = qemu_mallocz(sizeof(*isa_irq_state));
     isa_irq_state->i8259 = i8259;
+    if (pci_enabled) {
+        isa_irq_state->ioapic = ioapic_init();
+    }
     isa_irq = qemu_allocate_irqs(isa_irq_handler, isa_irq_state, 24);
 
     if (pci_enabled) {
@@ -964,9 +967,6 @@ static void pc_init1(ram_addr_t ram_size,
     register_ioport_read(0x92, 1, 1, ioport92_read, NULL);
     register_ioport_write(0x92, 1, 1, ioport92_write, NULL);
 
-    if (pci_enabled) {
-        isa_irq_state->ioapic = ioapic_init();
-    }
     pit = pit_init(0x40, isa_reserve_irq(0));
     pcspk_init(pit);
     if (!no_hpet) {
