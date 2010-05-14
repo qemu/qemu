@@ -147,7 +147,7 @@ static int io_thread_fd = -1;
 static void qemu_event_increment(void)
 {
     /* Write 8 bytes to be compatible with eventfd.  */
-    static uint64_t val = 1;
+    static const uint64_t val = 1;
     ssize_t ret;
 
     if (io_thread_fd == -1)
