@@ -834,35 +834,19 @@ static qemu_irq *pc_allocate_cpu_irq(void)
     return qemu_allocate_irqs(pic_irq_request, NULL, 1);
 }
 
-/* PC hardware initialisation */
-static void pc_init1(ram_addr_t ram_size,
-                     const char *boot_device,
-                     const char *kernel_filename,
-                     const char *kernel_cmdline,
-                     const char *initrd_filename,
-                     const char *cpu_model,
-                     int pci_enabled)
+static void pc_memory_init(ram_addr_t ram_size,
+                           const char *kernel_filename,
+                           const char *kernel_cmdline,
+                           const char *initrd_filename,
+                           ram_addr_t *below_4g_mem_size_p,
+                           ram_addr_t *above_4g_mem_size_p)
 {
     char *filename;
     int ret, linux_boot, i;
     ram_addr_t ram_addr, bios_offset, option_rom_offset;
     ram_addr_t below_4g_mem_size, above_4g_mem_size = 0;
     int bios_size, isa_bios_size;
-    PCIBus *pci_bus;
-    PCII440FXState *i440fx_state;
-    int piix3_devfn = -1;
-    qemu_irq *cpu_irq;
-    qemu_irq *isa_irq;
-    qemu_irq *i8259;
-    qemu_irq *cmos_s3;
-    qemu_irq *smi_irq;
-    IsaIrqState *isa_irq_state;
-    DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
-    DriveInfo *fd[MAX_FD];
-    void *fw_cfg;
-    FDCtrl *floppy_controller;
-    RTCState *rtc_state;
-    PITState *pit;
+    void **fw_cfg;
 
     if (ram_size >= 0xe0000000 ) {
         above_4g_mem_size = ram_size - 0xe0000000;
@@ -870,12 +854,10 @@ static void pc_init1(ram_addr_t ram_size,
     } else {
         below_4g_mem_size = ram_size;
     }
+    *above_4g_mem_size_p = above_4g_mem_size;
+    *below_4g_mem_size_p = below_4g_mem_size;
 
     linux_boot = (kernel_filename != NULL);
-
-    pc_cpus_init(cpu_model);
-
-    vmport_init();
 
     /* allocate RAM */
     ram_addr = qemu_ram_alloc(below_4g_mem_size);
@@ -939,12 +921,47 @@ static void pc_init1(ram_addr_t ram_size,
     rom_set_fw(fw_cfg);
 
     if (linux_boot) {
-        load_linux(fw_cfg, kernel_filename, initrd_filename, kernel_cmdline, below_4g_mem_size);
+        load_linux(*fw_cfg, kernel_filename, initrd_filename, kernel_cmdline, below_4g_mem_size);
     }
 
     for (i = 0; i < nb_option_roms; i++) {
         rom_add_option(option_rom[i]);
     }
+}
+
+/* PC hardware initialisation */
+static void pc_init1(ram_addr_t ram_size,
+                     const char *boot_device,
+                     const char *kernel_filename,
+                     const char *kernel_cmdline,
+                     const char *initrd_filename,
+                     const char *cpu_model,
+                     int pci_enabled)
+{
+    int i;
+    ram_addr_t below_4g_mem_size, above_4g_mem_size;
+    PCIBus *pci_bus;
+    PCII440FXState *i440fx_state;
+    int piix3_devfn = -1;
+    qemu_irq *cpu_irq;
+    qemu_irq *isa_irq;
+    qemu_irq *i8259;
+    qemu_irq *cmos_s3;
+    qemu_irq *smi_irq;
+    IsaIrqState *isa_irq_state;
+    DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+    DriveInfo *fd[MAX_FD];
+    FDCtrl *floppy_controller;
+    RTCState *rtc_state;
+    PITState *pit;
+
+    pc_cpus_init(cpu_model);
+
+    vmport_init();
+
+    /* allocate ram and load rom/bios */
+    pc_memory_init(ram_size, kernel_filename, kernel_cmdline, initrd_filename,
+                   &below_4g_mem_size, &above_4g_mem_size);
 
     cpu_irq = pc_allocate_cpu_irq();
     i8259 = i8259_init(cpu_irq[0]);
