@@ -80,6 +80,9 @@ extern int fd_bootchk;
 void ioport_set_a20(int enable);
 int ioport_get_a20(void);
 
+typedef void (*cpu_set_smm_t)(int smm, void *arg);
+void cpu_smm_register(cpu_set_smm_t callback, void *arg);
+
 /* acpi.c */
 extern int acpi_enabled;
 extern char *acpi_tables;
@@ -108,7 +111,6 @@ struct PCII440FXState;
 typedef struct PCII440FXState PCII440FXState;
 
 PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix_devfn, qemu_irq *pic, int ram_size);
-void i440fx_set_smm(PCII440FXState *d, int val);
 void i440fx_init_memory_mappings(PCII440FXState *d);
 
 /* piix4.c */

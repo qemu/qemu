@@ -114,8 +114,10 @@ static void i440fx_update_memory_mappings(PCII440FXState *d)
     }
 }
 
-void i440fx_set_smm(PCII440FXState *d, int val)
+static void i440fx_set_smm(int val, void *arg)
 {
+    PCII440FXState *d = arg;
+
     val = (val != 0);
     if (d->smm_enabled != val) {
         d->smm_enabled = val;
@@ -210,6 +212,7 @@ static int i440fx_initfn(PCIDevice *dev)
 
     d->dev.config[I440FX_SMRAM] = 0x02;
 
+    cpu_smm_register(&i440fx_set_smm, d);
     return 0;
 }
 
