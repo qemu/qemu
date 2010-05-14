@@ -44,6 +44,7 @@
 #include "ide.h"
 #include "loader.h"
 #include "elf.h"
+#include "mc146818rtc.h"
 
 //#define DEBUG_BOARD_INIT
 
@@ -776,7 +777,7 @@ void mips_malta_init (ram_addr_t ram_size,
     PCIBus *pci_bus;
     ISADevice *isa_dev;
     CPUState *env;
-    RTCState *rtc_state;
+    ISADevice *rtc_state;
     FDCtrl *floppy_controller;
     MaltaFPGAState *malta_fpga;
     qemu_irq *i8259;

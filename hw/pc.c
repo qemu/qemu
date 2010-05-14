@@ -34,6 +34,7 @@
 #include "loader.h"
 #include "elf.h"
 #include "multiboot.h"
+#include "mc146818rtc.h"
 
 /* output Bochs bios info messages */
 //#define DEBUG_BIOS
@@ -192,7 +193,7 @@ static int cmos_get_fd_drive_type(int fd0)
 }
 
 static void cmos_init_hd(int type_ofs, int info_ofs, BlockDriverState *hd,
-                         RTCState *s)
+                         ISADevice *s)
 {
     int cylinders, heads, sectors;
     bdrv_get_geometry_hint(hd, &cylinders, &heads, &sectors);
@@ -225,7 +226,7 @@ static int boot_device2nibble(char boot_device)
     return 0;
 }
 
-static int set_boot_dev(RTCState *s, const char *boot_device, int fd_bootchk)
+static int set_boot_dev(ISADevice *s, const char *boot_device, int fd_bootchk)
 {
 #define PC_MAX_BOOT_DEVICES 3
     int nbds, bds[3] = { 0, };
@@ -257,7 +258,7 @@ static int pc_boot_set(void *opaque, const char *boot_device)
 /* hd_table must contain 4 block drivers */
 void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
                   const char *boot_device, DriveInfo **hd_table,
-                  FDCtrl *floppy_controller, RTCState *s)
+                  FDCtrl *floppy_controller, ISADevice *s)
 {
     int val;
     int fd0, fd1, nb;
@@ -752,7 +753,7 @@ int cpu_is_bsp(CPUState *env)
    BIOS will read it and start S3 resume at POST Entry */
 void pc_cmos_set_s3_resume(void *opaque, int irq, int level)
 {
-    RTCState *s = opaque;
+    ISADevice *s = opaque;
 
     if (level) {
         rtc_set_memory(s, 0xF, 0xFE);
@@ -929,7 +930,7 @@ void pc_vga_init(PCIBus *pci_bus)
 
 void pc_basic_device_init(qemu_irq *isa_irq,
                           FDCtrl **floppy_controller,
-                          RTCState **rtc_state)
+                          ISADevice **rtc_state)
 {
     int i;
     DriveInfo *fd[MAX_FD];

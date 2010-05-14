@@ -5,7 +5,6 @@
 #include "ioport.h"
 #include "isa.h"
 #include "fdc.h"
-#include "mc146818rtc.h"
 
 /* PC-style peripherals (also used by other machines).  */
 
@@ -95,14 +94,14 @@ qemu_irq *pc_allocate_cpu_irq(void);
 void pc_vga_init(PCIBus *pci_bus);
 void pc_basic_device_init(qemu_irq *isa_irq,
                           FDCtrl **floppy_controller,
-                          RTCState **rtc_state);
+                          ISADevice **rtc_state);
 void pc_init_ne2k_isa(NICInfo *nd);
 #ifdef HAS_AUDIO
 void pc_audio_init (PCIBus *pci_bus, qemu_irq *pic);
 #endif
 void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
                   const char *boot_device, DriveInfo **hd_table,
-                  FDCtrl *floppy_controller, RTCState *s);
+                  FDCtrl *floppy_controller, ISADevice *s);
 void pc_pci_device_init(PCIBus *pci_bus);
 
 void ioport_set_a20(int enable);

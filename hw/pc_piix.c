@@ -61,7 +61,7 @@ static void pc_init1(ram_addr_t ram_size,
     IsaIrqState *isa_irq_state;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     FDCtrl *floppy_controller;
-    RTCState *rtc_state;
+    ISADevice *rtc_state;
 
     pc_cpus_init(cpu_model);
 

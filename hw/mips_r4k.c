@@ -21,6 +21,7 @@
 #include "ide.h"
 #include "loader.h"
 #include "elf.h"
+#include "mc146818rtc.h"
 
 #define MAX_IDE_BUS 2
 
@@ -165,7 +166,7 @@ void mips_r4k_init (ram_addr_t ram_size,
     int bios_size;
     CPUState *env;
     ResetData *reset_info;
-    RTCState *rtc_state;
+    ISADevice *rtc_state;
     int i;
     qemu_irq *i8259;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
