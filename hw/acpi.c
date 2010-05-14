@@ -17,6 +17,7 @@
  */
 #include "hw.h"
 #include "pc.h"
+#include "apm.h"
 #include "pm_smbus.h"
 #include "pci.h"
 #include "qemu-timer.h"
@@ -36,8 +37,9 @@ typedef struct PIIX4PMState {
     uint16_t pmsts;
     uint16_t pmen;
     uint16_t pmcntrl;
-    uint8_t apmc;
-    uint8_t apms;
+
+    APMState apm;
+
     QEMUTimer *tmr_timer;
     int64_t tmr_overflow_time;
 
@@ -218,48 +220,22 @@ static uint32_t pm_ioport_readl(void *opaque, uint32_t addr)
     return val;
 }
 
-static void pm_smi_writeb(void *opaque, uint32_t addr, uint32_t val)
+static void apm_ctrl_changed(uint32_t val, void *arg)
 {
-    PIIX4PMState *s = opaque;
-    addr &= 1;
-#ifdef DEBUG
-    printf("pm_smi_writeb addr=0x%x val=0x%02x\n", addr, val);
-#endif
-    if (addr == 0) {
-        s->apmc = val;
+    PIIX4PMState *s = arg;
 
-        /* ACPI specs 3.0, 4.7.2.5 */
-        if (val == ACPI_ENABLE) {
-            s->pmcntrl |= SCI_EN;
-        } else if (val == ACPI_DISABLE) {
-            s->pmcntrl &= ~SCI_EN;
-        }
-
-        if (s->dev.config[0x5b] & (1 << 1)) {
-            if (s->smi_irq) {
-                qemu_irq_raise(s->smi_irq);
-            }
-        }
-    } else {
-        s->apms = val;
+    /* ACPI specs 3.0, 4.7.2.5 */
+    if (val == ACPI_ENABLE) {
+        s->pmcntrl |= SCI_EN;
+    } else if (val == ACPI_DISABLE) {
+        s->pmcntrl &= ~SCI_EN;
     }
-}
 
-static uint32_t pm_smi_readb(void *opaque, uint32_t addr)
-{
-    PIIX4PMState *s = opaque;
-    uint32_t val;
-
-    addr &= 1;
-    if (addr == 0) {
-        val = s->apmc;
-    } else {
-        val = s->apms;
+    if (s->dev.config[0x5b] & (1 << 1)) {
+        if (s->smi_irq) {
+            qemu_irq_raise(s->smi_irq);
+        }
     }
-#ifdef DEBUG
-    printf("pm_smi_readb addr=0x%x val=0x%02x\n", addr, val);
-#endif
-    return val;
 }
 
 static void acpi_dbg_writel(void *opaque, uint32_t addr, uint32_t val)
@@ -315,8 +291,7 @@ static const VMStateDescription vmstate_acpi = {
         VMSTATE_UINT16(pmsts, PIIX4PMState),
         VMSTATE_UINT16(pmen, PIIX4PMState),
         VMSTATE_UINT16(pmcntrl, PIIX4PMState),
-        VMSTATE_UINT8(apmc, PIIX4PMState),
-        VMSTATE_UINT8(apms, PIIX4PMState),
+        VMSTATE_STRUCT(apm, PIIX4PMState, 0, vmstate_apm, APMState),
         VMSTATE_TIMER(tmr_timer, PIIX4PMState),
         VMSTATE_INT64(tmr_overflow_time, PIIX4PMState),
         VMSTATE_END_OF_LIST()
@@ -375,8 +350,8 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
 
     pci_conf[0x40] = 0x01; /* PM io base read only bit */
 
-    register_ioport_write(0xb2, 2, 1, pm_smi_writeb, s);
-    register_ioport_read(0xb2, 2, 1, pm_smi_readb, s);
+    /* APM */
+    apm_init(&s->apm, apm_ctrl_changed, s);
 
     register_ioport_write(ACPI_DBG_IO_ADDR, 4, 4, acpi_dbg_writel, s);
 
