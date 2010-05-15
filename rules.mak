@@ -12,7 +12,7 @@ MAKEFLAGS += -rR
 %.mak:
 
 # Flags for dependency generation
-QEMU_DGFLAGS += -MMD -MP -MT $@
+QEMU_DGFLAGS += -MMD -MP -MT $@ -MF $(*D)/$(*F).d
 
 %.o: %.c
 	$(call quiet-command,$(CC) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  CC    $(TARGET_DIR)$@")
