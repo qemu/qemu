@@ -609,7 +609,7 @@ static int rtc_initfn(ISADevice *dev)
     register_ioport_write(base, 2, 1, cmos_ioport_write, s);
     register_ioport_read(base, 2, 1, cmos_ioport_read, s);
 
-    vmstate_register(base, &vmstate_rtc, s);
+    qdev_set_legacy_instance_id(&dev->qdev, base, 2);
     qemu_register_reset(rtc_reset, s);
     return 0;
 }
@@ -628,6 +628,7 @@ static ISADeviceInfo mc146818rtc_info = {
     .qdev.name     = "mc146818rtc",
     .qdev.size     = sizeof(RTCState),
     .qdev.no_user  = 1,
+    .qdev.vmsd     = &vmstate_rtc,
     .init          = rtc_initfn,
     .qdev.props    = (Property[]) {
         DEFINE_PROP_INT32("base_year", RTCState, base_year, 1980),
