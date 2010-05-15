@@ -20,12 +20,7 @@
 #include "hw.h"
 #include "pc.h"
 #include "pm_smbus.h"
-#include "pci.h"
-#include "qemu-timer.h"
-#include "sysemu.h"
-#include "i2c.h"
 #include "smbus.h"
-#include "kvm.h"
 
 /* no save/load? */
 

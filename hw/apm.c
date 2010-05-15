@@ -19,7 +19,6 @@
 
 #include "apm.h"
 #include "hw.h"
-#include "isa.h"
 
 //#define DEBUG
 

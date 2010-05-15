@@ -20,9 +20,6 @@
 #include "apm.h"
 #include "pm_smbus.h"
 #include "pci.h"
-#include "sysemu.h"
-#include "i2c.h"
-#include "smbus.h"
 #include "acpi.h"
 
 //#define DEBUG

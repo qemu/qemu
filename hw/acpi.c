@@ -17,8 +17,6 @@
  */
 #include "hw.h"
 #include "pc.h"
-#include "pci.h"
-#include "sysemu.h"
 #include "acpi.h"
 
 struct acpi_table_header
