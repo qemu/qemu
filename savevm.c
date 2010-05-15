@@ -1231,9 +1231,6 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
         }
         field++;
     }
-    if (vmsd->post_save) {
-        vmsd->post_save(opaque);
-    }
 }
 
 static int vmstate_load(QEMUFile *f, SaveStateEntry *se, int version_id)
