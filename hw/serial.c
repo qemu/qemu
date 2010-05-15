@@ -771,7 +771,7 @@ static int serial_isa_initfn(ISADevice *dev)
     s->baudbase = 115200;
     isa_init_irq(dev, &s->irq, isa->isairq);
     serial_init_core(s);
-    vmstate_register(isa->iobase, &vmstate_serial, s);
+    qdev_set_legacy_instance_id(&dev->qdev, isa->iobase, 3);
 
     register_ioport_write(isa->iobase, 8, 1, serial_ioport_write, s);
     register_ioport_read(isa->iobase, 8, 1, serial_ioport_read, s);
@@ -789,6 +789,16 @@ SerialState *serial_isa_init(int index, CharDriverState *chr)
         return NULL;
     return &DO_UPCAST(ISASerialState, dev, dev)->state;
 }
+
+static const VMStateDescription vmstate_isa_serial = {
+    .name = "serial",
+    .version_id = 3,
+    .minimum_version_id = 2,
+    .fields      = (VMStateField []) {
+        VMSTATE_STRUCT(state, ISASerialState, 0, vmstate_serial, SerialState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 SerialState *serial_init(int base, qemu_irq irq, int baudbase,
                          CharDriverState *chr)
@@ -956,6 +966,7 @@ SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
 static ISADeviceInfo serial_isa_info = {
     .qdev.name  = "isa-serial",
     .qdev.size  = sizeof(ISASerialState),
+    .qdev.vmsd  = &vmstate_isa_serial,
     .init       = serial_isa_initfn,
     .qdev.props = (Property[]) {
         DEFINE_PROP_UINT32("index", ISASerialState, index,   -1),
