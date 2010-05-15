@@ -44,6 +44,8 @@ struct DeviceState {
     QLIST_HEAD(, BusState) child_bus;
     int num_child_bus;
     QLIST_ENTRY(DeviceState) sibling;
+    int instance_id_alias;
+    int alias_required_for_version;
 };
 
 typedef void (*bus_dev_printfn)(Monitor *mon, DeviceState *dev, int indent);
@@ -112,6 +114,8 @@ int qdev_device_help(QemuOpts *opts);
 DeviceState *qdev_device_add(QemuOpts *opts);
 int qdev_init(DeviceState *dev) QEMU_WARN_UNUSED_RESULT;
 void qdev_init_nofail(DeviceState *dev);
+void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
+                                 int required_for_version);
 int qdev_unplug(DeviceState *dev);
 void qdev_free(DeviceState *dev);
 int qdev_simple_unplug_cb(DeviceState *dev);

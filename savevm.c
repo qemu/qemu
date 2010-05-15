@@ -991,6 +991,7 @@ typedef struct SaveStateEntry {
     QTAILQ_ENTRY(SaveStateEntry) entry;
     char idstr[256];
     int instance_id;
+    int alias_id;
     int version_id;
     int section_id;
     SaveSetParamsHandler *set_params;
@@ -1079,10 +1080,15 @@ void unregister_savevm(const char *idstr, void *opaque)
     }
 }
 
-int vmstate_register(int instance_id, const VMStateDescription *vmsd,
-                     void *opaque)
+int vmstate_register_with_alias_id(int instance_id,
+                                   const VMStateDescription *vmsd,
+                                   void *opaque, int alias_id,
+                                   int required_for_version)
 {
     SaveStateEntry *se;
+
+    /* If this triggers, alias support can be dropped for the vmsd. */
+    assert(alias_id == -1 || required_for_version >= vmsd->minimum_version_id);
 
     se = qemu_mallocz(sizeof(SaveStateEntry));
     pstrcpy(se->idstr, sizeof(se->idstr), vmsd->name);
@@ -1093,6 +1099,7 @@ int vmstate_register(int instance_id, const VMStateDescription *vmsd,
     se->load_state = NULL;
     se->opaque = opaque;
     se->vmsd = vmsd;
+    se->alias_id = alias_id;
 
     if (instance_id == -1) {
         se->instance_id = calculate_new_instance_id(vmsd->name);
@@ -1102,6 +1109,12 @@ int vmstate_register(int instance_id, const VMStateDescription *vmsd,
     /* add at the end of list */
     QTAILQ_INSERT_TAIL(&savevm_handlers, se, entry);
     return 0;
+}
+
+int vmstate_register(int instance_id, const VMStateDescription *vmsd,
+                     void *opaque)
+{
+    return vmstate_register_with_alias_id(instance_id, vmsd, opaque, -1, 0);
 }
 
 void vmstate_unregister(const VMStateDescription *vmsd, void *opaque)
@@ -1433,7 +1446,8 @@ static SaveStateEntry *find_se(const char *idstr, int instance_id)
 
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         if (!strcmp(se->idstr, idstr) &&
-            instance_id == se->instance_id)
+            (instance_id == se->instance_id ||
+             instance_id == se->alias_id))
             return se;
     }
     return NULL;
