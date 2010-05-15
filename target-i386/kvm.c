@@ -112,7 +112,7 @@ uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function, int reg)
                      * so add missing bits according to the AMD spec:
                      */
                     cpuid_1_edx = kvm_arch_get_supported_cpuid(env, 1, R_EDX);
-                    ret |= cpuid_1_edx & 0xdfeff7ff;
+                    ret |= cpuid_1_edx & 0x183f7ff;
                     break;
                 }
                 break;
@@ -952,6 +952,8 @@ int kvm_arch_put_registers(CPUState *env, int level)
 {
     int ret;
 
+    assert(cpu_is_stopped(env) || qemu_cpu_self(env));
+
     ret = kvm_getput_regs(env, 1);
     if (ret < 0)
         return ret;
@@ -993,6 +995,8 @@ int kvm_arch_put_registers(CPUState *env, int level)
 int kvm_arch_get_registers(CPUState *env)
 {
     int ret;
+
+    assert(cpu_is_stopped(env) || qemu_cpu_self(env));
 
     ret = kvm_getput_regs(env, 0);
     if (ret < 0)
@@ -1070,6 +1074,22 @@ int kvm_arch_post_run(CPUState *env, struct kvm_run *run)
     cpu_set_apic_base(env, run->apic_base);
 
     return 0;
+}
+
+int kvm_arch_process_irqchip_events(CPUState *env)
+{
+    if (env->interrupt_request & CPU_INTERRUPT_INIT) {
+        kvm_cpu_synchronize_state(env);
+        do_cpu_init(env);
+        env->exception_index = EXCP_HALTED;
+    }
+
+    if (env->interrupt_request & CPU_INTERRUPT_SIPI) {
+        kvm_cpu_synchronize_state(env);
+        do_cpu_sipi(env);
+    }
+
+    return env->halted;
 }
 
 static int kvm_handle_halt(CPUState *env)
@@ -1272,3 +1292,10 @@ void kvm_arch_update_guest_debug(CPUState *env, struct kvm_guest_debug *dbg)
     }
 }
 #endif /* KVM_CAP_SET_GUEST_DEBUG */
+
+bool kvm_arch_stop_on_emulation_error(CPUState *env)
+{
+      return !(env->cr[0] & CR0_PE_MASK) ||
+              ((env->segs[R_CS].selector  & 3) != 3);
+}
+

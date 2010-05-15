@@ -2821,8 +2821,12 @@ ram_addr_t qemu_ram_alloc(ram_addr_t size)
     if (mem_path) {
 #if defined (__linux__) && !defined(TARGET_S390X)
         new_block->host = file_ram_alloc(size, mem_path);
-        if (!new_block->host)
-            exit(1);
+        if (!new_block->host) {
+            new_block->host = qemu_vmalloc(size);
+#ifdef MADV_MERGEABLE
+            madvise(new_block->host, size, MADV_MERGEABLE);
+#endif
+        }
 #else
         fprintf(stderr, "-mem-path option unsupported\n");
         exit(1);

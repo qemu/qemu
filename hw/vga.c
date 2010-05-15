@@ -1173,7 +1173,7 @@ static inline int get_depth_index(DisplayState *s)
     }
 }
 
-static vga_draw_glyph8_func *vga_draw_glyph8_table[NB_DEPTHS] = {
+static vga_draw_glyph8_func * const vga_draw_glyph8_table[NB_DEPTHS] = {
     vga_draw_glyph8_8,
     vga_draw_glyph8_16,
     vga_draw_glyph8_16,
@@ -1183,7 +1183,7 @@ static vga_draw_glyph8_func *vga_draw_glyph8_table[NB_DEPTHS] = {
     vga_draw_glyph8_16,
 };
 
-static vga_draw_glyph8_func *vga_draw_glyph16_table[NB_DEPTHS] = {
+static vga_draw_glyph8_func * const vga_draw_glyph16_table[NB_DEPTHS] = {
     vga_draw_glyph16_8,
     vga_draw_glyph16_16,
     vga_draw_glyph16_16,
@@ -1193,7 +1193,7 @@ static vga_draw_glyph8_func *vga_draw_glyph16_table[NB_DEPTHS] = {
     vga_draw_glyph16_16,
 };
 
-static vga_draw_glyph9_func *vga_draw_glyph9_table[NB_DEPTHS] = {
+static vga_draw_glyph9_func * const vga_draw_glyph9_table[NB_DEPTHS] = {
     vga_draw_glyph9_8,
     vga_draw_glyph9_16,
     vga_draw_glyph9_16,
@@ -1253,7 +1253,7 @@ static void vga_get_text_resolution(VGACommonState *s, int *pwidth, int *pheight
 
 typedef unsigned int rgb_to_pixel_dup_func(unsigned int r, unsigned int g, unsigned b);
 
-static rgb_to_pixel_dup_func *rgb_to_pixel_dup_table[NB_DEPTHS] = {
+static rgb_to_pixel_dup_func * const rgb_to_pixel_dup_table[NB_DEPTHS] = {
     rgb_to_pixel8_dup,
     rgb_to_pixel15_dup,
     rgb_to_pixel16_dup,
@@ -1449,7 +1449,7 @@ enum {
     VGA_DRAW_LINE_NB,
 };
 
-static vga_draw_line_func *vga_draw_line_table[NB_DEPTHS * VGA_DRAW_LINE_NB] = {
+static vga_draw_line_func * const vga_draw_line_table[NB_DEPTHS * VGA_DRAW_LINE_NB] = {
     vga_draw_line2_8,
     vga_draw_line2_16,
     vga_draw_line2_16,

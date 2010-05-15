@@ -593,11 +593,6 @@ int kvm_init(int smp_cpus)
     int ret;
     int i;
 
-    if (smp_cpus > 1) {
-        fprintf(stderr, "No SMP KVM support, use '-smp 1'\n");
-        return -EINVAL;
-    }
-
     s = qemu_mallocz(sizeof(KVMState));
 
 #ifdef KVM_CAP_SET_GUEST_DEBUG
@@ -769,6 +764,8 @@ static void kvm_handle_internal_error(CPUState *env, struct kvm_run *run)
     cpu_dump_state(env, stderr, fprintf, 0);
     if (run->internal.suberror == KVM_INTERNAL_ERROR_EMULATION) {
         fprintf(stderr, "emulation failure\n");
+        if (!kvm_arch_stop_on_emulation_error(env))
+		return;
     }
     /* FIXME: Should trigger a qmp message to let management know
      * something went wrong.
@@ -796,12 +793,20 @@ void kvm_flush_coalesced_mmio_buffer(void)
 #endif
 }
 
-void kvm_cpu_synchronize_state(CPUState *env)
+static void do_kvm_cpu_synchronize_state(void *_env)
 {
+    CPUState *env = _env;
+
     if (!env->kvm_vcpu_dirty) {
         kvm_arch_get_registers(env);
         env->kvm_vcpu_dirty = 1;
     }
+}
+
+void kvm_cpu_synchronize_state(CPUState *env)
+{
+    if (!env->kvm_vcpu_dirty)
+        run_on_cpu(env, do_kvm_cpu_synchronize_state, env);
 }
 
 void kvm_cpu_synchronize_post_reset(CPUState *env)
@@ -832,15 +837,22 @@ int kvm_cpu_exec(CPUState *env)
         }
 #endif
 
+        if (kvm_arch_process_irqchip_events(env)) {
+            ret = 0;
+            break;
+        }
+
         if (env->kvm_vcpu_dirty) {
             kvm_arch_put_registers(env, KVM_PUT_RUNTIME_STATE);
             env->kvm_vcpu_dirty = 0;
         }
 
         kvm_arch_pre_run(env, run);
+        cpu_single_env = NULL;
         qemu_mutex_unlock_iothread();
         ret = kvm_vcpu_ioctl(env, KVM_RUN, 0);
         qemu_mutex_lock_iothread();
+        cpu_single_env = env;
         kvm_arch_post_run(env, run);
 
         if (ret == -EINTR || ret == -EAGAIN) {

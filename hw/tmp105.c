@@ -173,15 +173,11 @@ static void tmp105_event(i2c_slave *i2c, enum i2c_event event)
     s->len = 0;
 }
 
-static void tmp105_post_save(void *opaque)
-{
-    TMP105State *s = opaque;
-    s->faults = tmp105_faultq[(s->config >> 3) & 3];		/* F */
-}
-
 static int tmp105_post_load(void *opaque, int version_id)
 {
     TMP105State *s = opaque;
+
+    s->faults = tmp105_faultq[(s->config >> 3) & 3];		/* F */
 
     tmp105_interrupt_update(s);
     return 0;
@@ -192,7 +188,6 @@ static const VMStateDescription vmstate_tmp105 = {
     .version_id = 0,
     .minimum_version_id = 0,
     .minimum_version_id_old = 0,
-    .post_save = tmp105_post_save,
     .post_load = tmp105_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_UINT8(len, TMP105State),
