@@ -18,7 +18,7 @@ all: $(hw-obj-y)
 	@true
 
 clean:
-	rm -f *.o *.d *.a *~
+	rm -f *.o */*.o *.d */*.d *.a */*.a *~ */*~
 
 # Include automatically generated dependency files
 -include $(wildcard *.d */*.d)
