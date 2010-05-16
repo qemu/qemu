@@ -5,11 +5,6 @@
 
 register struct CPUSPARCState *env asm(AREG0);
 
-#define DT0 (env->dt0)
-#define DT1 (env->dt1)
-#define QT0 (env->qt0)
-#define QT1 (env->qt1)
-
 #include "cpu.h"
 #include "exec-all.h"
 

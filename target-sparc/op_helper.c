@@ -44,6 +44,11 @@
 #endif
 #endif
 
+#define DT0 (env->dt0)
+#define DT1 (env->dt1)
+#define QT0 (env->qt0)
+#define QT1 (env->qt1)
+
 #if defined(CONFIG_USER_ONLY) && defined(TARGET_SPARC64)
 static void do_unassigned_access(target_ulong addr, int is_write, int is_exec,
                           int is_asi, int size);
