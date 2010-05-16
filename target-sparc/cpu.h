@@ -79,7 +79,7 @@
 #define TT_DPROT    0x6c
 #define TT_SPILL    0x80
 #define TT_FILL     0xc0
-#define TT_WOTHER   0x10
+#define TT_WOTHER   (1 << 5)
 #define TT_TRAP     0x100
 #endif
 
