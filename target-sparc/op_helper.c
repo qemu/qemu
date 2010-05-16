@@ -2877,7 +2877,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
             return;
         }
     case 0x57: // I-MMU demap
-        demap_tlb(env->itlb, val, "immu", env);
+        demap_tlb(env->itlb, addr, "immu", env);
         return;
     case 0x58: // D-MMU regs
         {
@@ -2942,7 +2942,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
             return;
         }
     case 0x5f: // D-MMU demap
-        demap_tlb(env->dtlb, val, "dmmu", env);
+        demap_tlb(env->dtlb, addr, "dmmu", env);
         return;
     case 0x49: // Interrupt data receive
         // XXX
