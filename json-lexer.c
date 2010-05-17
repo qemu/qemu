@@ -284,8 +284,6 @@ void json_lexer_init(JSONLexer *lexer, JSONLexerEmitter func)
 
 static int json_lexer_feed_char(JSONLexer *lexer, char ch)
 {
-    char buf[2];
-
     lexer->x++;
     if (ch == '\n') {
         lexer->x = 0;
@@ -313,10 +311,7 @@ static int json_lexer_feed_char(JSONLexer *lexer, char ch)
         break;
     }
 
-    buf[0] = ch;
-    buf[1] = 0;
-
-    qstring_append(lexer->token, buf);
+    qstring_append_chr(lexer->token, ch);
 
     return 0;
 }
