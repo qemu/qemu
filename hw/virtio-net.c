@@ -227,7 +227,7 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint32_t features)
     if (!tap_get_vhost_net(n->nic->nc.peer)) {
         return;
     }
-    return vhost_net_ack_features(tap_get_vhost_net(n->nic->nc.peer), features);
+    vhost_net_ack_features(tap_get_vhost_net(n->nic->nc.peer), features);
 }
 
 static int virtio_net_handle_rx_mode(VirtIONet *n, uint8_t cmd,

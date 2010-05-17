@@ -677,6 +677,8 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
                 features, supported_features);
         return -1;
     }
+    if (vdev->set_features)
+        vdev->set_features(vdev, features);
     vdev->guest_features = features;
     vdev->config_len = qemu_get_be32(f);
     qemu_get_buffer(f, vdev->config, vdev->config_len);
