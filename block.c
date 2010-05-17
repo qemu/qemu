@@ -287,16 +287,18 @@ static BlockDriver *find_protocol(const char *filename)
     char protocol[128];
     int len;
     const char *p;
+    int is_drive;
 
     /* TODO Drivers without bdrv_file_open must be specified explicitly */
 
 #ifdef _WIN32
-    if (is_windows_drive(filename) ||
-        is_windows_drive_prefix(filename))
-        return bdrv_find_format("file");
+    is_drive = is_windows_drive(filename) ||
+        is_windows_drive_prefix(filename);
+#else
+    is_drive = 0;
 #endif
     p = strchr(filename, ':');
-    if (!p) {
+    if (!p || is_drive) {
         drv1 = find_hdev_driver(filename);
         if (!drv1) {
             drv1 = bdrv_find_format("file");
@@ -323,11 +325,6 @@ static BlockDriver *find_image_format(const char *filename)
     BlockDriver *drv1, *drv;
     uint8_t buf[2048];
     BlockDriverState *bs;
-
-    drv = find_protocol(filename);
-    /* no need to test disk image formats for vvfat */
-    if (drv && strcmp(drv->format_name, "vvfat") == 0)
-        return drv;
 
     ret = bdrv_file_open(&bs, filename, 0);
     if (ret < 0)
@@ -699,12 +696,12 @@ int bdrv_commit(BlockDriverState *bs)
         bdrv_delete(bs->backing_hd);
         bs->backing_hd = NULL;
         bs_rw = bdrv_new("");
-        rw_ret = bdrv_open(bs_rw, filename, open_flags | BDRV_O_RDWR, NULL);
+        rw_ret = bdrv_open(bs_rw, filename, open_flags | BDRV_O_RDWR, drv);
         if (rw_ret < 0) {
             bdrv_delete(bs_rw);
             /* try to re-open read-only */
             bs_ro = bdrv_new("");
-            ret = bdrv_open(bs_ro, filename, open_flags & ~BDRV_O_RDWR, NULL);
+            ret = bdrv_open(bs_ro, filename, open_flags & ~BDRV_O_RDWR, drv);
             if (ret < 0) {
                 bdrv_delete(bs_ro);
                 /* drive not functional anymore */
@@ -756,7 +753,7 @@ ro_cleanup:
         bdrv_delete(bs->backing_hd);
         bs->backing_hd = NULL;
         bs_ro = bdrv_new("");
-        ret = bdrv_open(bs_ro, filename, open_flags & ~BDRV_O_RDWR, NULL);
+        ret = bdrv_open(bs_ro, filename, open_flags & ~BDRV_O_RDWR, drv);
         if (ret < 0) {
             bdrv_delete(bs_ro);
             /* drive not functional anymore */
@@ -1580,9 +1577,9 @@ static QObject* bdrv_info_stats_bs(BlockDriverState *bs)
  *     - "wr_operations": write operations
  *     - "wr_highest_offset": Highest offset of a sector written since the
  *       BlockDriverState has been opened
- *     - "parent": Contains recursively the statistics of the underlying
- *       protocol (e.g. the host file for a qcow2 image). If there is no
- *       underlying protocol, this field is omitted.
+ * - "parent": A QDict recursively holding the statistics of the underlying
+ *    protocol (e.g. the host file for a qcow2 image). If there is no
+ *    underlying protocol, this field is omitted.
  *
  * Example:
  *
@@ -1591,15 +1588,14 @@ static QObject* bdrv_info_stats_bs(BlockDriverState *bs)
  *                          "wr_bytes": 0,
  *                          "rd_operations": 1,
  *                          "wr_operations": 0,
- *                          "wr_highest_offset": 0,
- *                          "parent": {
- *                              "stats": { "rd_bytes": 1024,
- *                                         "wr_bytes": 0,
- *                                         "rd_operations": 2,
- *                                         "wr_operations": 0,
- *                                         "wr_highest_offset": 0,
- *                              }
- *                          } } },
+ *                          "wr_highest_offset": 0 },
+ *               "parent": {
+ *                      "stats": { "rd_bytes": 1024,
+ *                                 "wr_bytes": 0,
+ *                                 "rd_operations": 2,
+ *                                 "wr_operations": 0,
+ *                                 "wr_highest_offset": 0,
+ *                      } } },
  *   { "device": "ide1-cd0",
  *               "stats": { "rd_bytes": 0,
  *                          "wr_bytes": 0,
@@ -2073,7 +2069,7 @@ int bdrv_aio_multiwrite(BlockDriverState *bs, BlockRequest *reqs, int num_reqs)
     return 0;
 
 fail:
-    free(mcb);
+    qemu_free(mcb);
     return -1;
 }
 
@@ -2108,7 +2104,8 @@ typedef struct BlockDriverAIOCBSync {
 
 static void bdrv_aio_cancel_em(BlockDriverAIOCB *blockacb)
 {
-    BlockDriverAIOCBSync *acb = (BlockDriverAIOCBSync *)blockacb;
+    BlockDriverAIOCBSync *acb =
+        container_of(blockacb, BlockDriverAIOCBSync, common);
     qemu_bh_delete(acb->bh);
     acb->bh = NULL;
     qemu_aio_release(acb);
