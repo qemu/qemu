@@ -1918,7 +1918,7 @@ FDCtrl *sun4m_fdctrl_init(qemu_irq irq, target_phys_addr_t io_base,
     return fdctrl;
 }
 
-static int fdctrl_init_common(FDCtrl *fdctrl, target_phys_addr_t io_base)
+static int fdctrl_init_common(FDCtrl *fdctrl)
 {
     int i, j;
     static int command_tables_inited = 0;
@@ -1949,7 +1949,6 @@ static int fdctrl_init_common(FDCtrl *fdctrl, target_phys_addr_t io_base)
         DMA_register_channel(fdctrl->dma_chann, &fdctrl_transfer_handler, fdctrl);
     fdctrl_connect_drives(fdctrl);
 
-    vmstate_register(io_base, &vmstate_fdc, fdctrl);
     return 0;
 }
 
@@ -1973,7 +1972,8 @@ static int isabus_fdc_init1(ISADevice *dev)
     isa_init_irq(&isa->busdev, &fdctrl->irq, isairq);
     fdctrl->dma_chann = dma_chann;
 
-    ret = fdctrl_init_common(fdctrl, iobase);
+    qdev_set_legacy_instance_id(&dev->qdev, iobase, 2);
+    ret = fdctrl_init_common(fdctrl);
 
     return ret;
 }
@@ -1991,7 +1991,8 @@ static int sysbus_fdc_init1(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, fdctrl_handle_tc, 1);
     fdctrl->dma_chann = -1;
 
-    ret = fdctrl_init_common(fdctrl, io);
+    qdev_set_legacy_instance_id(&dev->qdev, io, 2);
+    ret = fdctrl_init_common(fdctrl);
 
     return ret;
 }
@@ -2008,14 +2009,26 @@ static int sun4m_fdc_init1(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, fdctrl_handle_tc, 1);
 
     fdctrl->sun4m = 1;
-    return fdctrl_init_common(fdctrl, io);
+    qdev_set_legacy_instance_id(&dev->qdev, io, 2);
+    return fdctrl_init_common(fdctrl);
 }
+
+static const VMStateDescription vmstate_isa_fdc ={
+    .name = "fdc",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .fields = (VMStateField []) {
+        VMSTATE_STRUCT(state, FDCtrlISABus, 0, vmstate_fdc, FDCtrl),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static ISADeviceInfo isa_fdc_info = {
     .init = isabus_fdc_init1,
     .qdev.name  = "isa-fdc",
     .qdev.size  = sizeof(FDCtrlISABus),
     .qdev.no_user = 1,
+    .qdev.vmsd  = &vmstate_isa_fdc,
     .qdev.reset = fdctrl_external_reset_isa,
     .qdev.props = (Property[]) {
         DEFINE_PROP_DRIVE("driveA", FDCtrlISABus, state.drives[0].dinfo),
@@ -2024,10 +2037,21 @@ static ISADeviceInfo isa_fdc_info = {
     },
 };
 
+static const VMStateDescription vmstate_sysbus_fdc ={
+    .name = "fdc",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .fields = (VMStateField []) {
+        VMSTATE_STRUCT(state, FDCtrlSysBus, 0, vmstate_fdc, FDCtrl),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static SysBusDeviceInfo sysbus_fdc_info = {
     .init = sysbus_fdc_init1,
     .qdev.name  = "sysbus-fdc",
     .qdev.size  = sizeof(FDCtrlSysBus),
+    .qdev.vmsd  = &vmstate_sysbus_fdc,
     .qdev.reset = fdctrl_external_reset_sysbus,
     .qdev.props = (Property[]) {
         DEFINE_PROP_DRIVE("driveA", FDCtrlSysBus, state.drives[0].dinfo),
@@ -2040,6 +2064,7 @@ static SysBusDeviceInfo sun4m_fdc_info = {
     .init = sun4m_fdc_init1,
     .qdev.name  = "SUNW,fdtwo",
     .qdev.size  = sizeof(FDCtrlSysBus),
+    .qdev.vmsd  = &vmstate_sysbus_fdc,
     .qdev.reset = fdctrl_external_reset_sysbus,
     .qdev.props = (Property[]) {
         DEFINE_PROP_DRIVE("drive", FDCtrlSysBus, state.drives[0].dinfo),

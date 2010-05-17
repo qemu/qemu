@@ -321,7 +321,6 @@ struct VMStateDescription {
     int (*pre_load)(void *opaque);
     int (*post_load)(void *opaque, int version_id);
     void (*pre_save)(void *opaque);
-    void (*post_save)(void *opaque);
     VMStateField *fields;
 };
 
@@ -759,5 +758,9 @@ extern void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
                                void *opaque);
 extern int vmstate_register(int instance_id, const VMStateDescription *vmsd,
                             void *base);
+extern int vmstate_register_with_alias_id(int instance_id,
+                                          const VMStateDescription *vmsd,
+                                          void *base, int alias_id,
+                                          int required_for_version);
 void vmstate_unregister(const VMStateDescription *vmsd, void *opaque);
 #endif

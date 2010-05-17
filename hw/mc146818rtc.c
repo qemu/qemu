@@ -28,8 +28,15 @@
 #include "apic.h"
 #include "isa.h"
 #include "hpet_emul.h"
+#include "mc146818rtc.h"
 
 //#define DEBUG_CMOS
+
+#ifdef DEBUG_CMOS
+# define CMOS_DPRINTF(format, ...)      printf(format, ## __VA_ARGS__)
+#else
+# define CMOS_DPRINTF(format, ...)      do { } while (0)
+#endif
 
 #define RTC_REINJECT_ON_ACK_COUNT 20
 
@@ -65,7 +72,7 @@
 #define REG_C_PF   0x40
 #define REG_C_AF   0x20
 
-struct RTCState {
+typedef struct RTCState {
     ISADevice dev;
     uint8_t cmos_data[128];
     uint8_t cmos_index;
@@ -85,7 +92,7 @@ struct RTCState {
     QEMUTimer *coalesced_timer;
     QEMUTimer *second_timer;
     QEMUTimer *second_timer2;
-};
+} RTCState;
 
 static void rtc_irq_raise(qemu_irq irq)
 {
@@ -210,10 +217,8 @@ static void cmos_ioport_write(void *opaque, uint32_t addr, uint32_t data)
     if ((addr & 1) == 0) {
         s->cmos_index = data & 0x7f;
     } else {
-#ifdef DEBUG_CMOS
-        printf("cmos: write index=0x%02x val=0x%02x\n",
-               s->cmos_index, data);
-#endif
+        CMOS_DPRINTF("cmos: write index=0x%02x val=0x%02x\n",
+                     s->cmos_index, data);
         switch(s->cmos_index) {
         case RTC_SECONDS_ALARM:
         case RTC_MINUTES_ALARM:
@@ -484,22 +489,22 @@ static uint32_t cmos_ioport_read(void *opaque, uint32_t addr)
             ret = s->cmos_data[s->cmos_index];
             break;
         }
-#ifdef DEBUG_CMOS
-        printf("cmos: read index=0x%02x val=0x%02x\n",
-               s->cmos_index, ret);
-#endif
+        CMOS_DPRINTF("cmos: read index=0x%02x val=0x%02x\n",
+                     s->cmos_index, ret);
         return ret;
     }
 }
 
-void rtc_set_memory(RTCState *s, int addr, int val)
+void rtc_set_memory(ISADevice *dev, int addr, int val)
 {
+    RTCState *s = DO_UPCAST(RTCState, dev, dev);
     if (addr >= 0 && addr <= 127)
         s->cmos_data[addr] = val;
 }
 
-void rtc_set_date(RTCState *s, const struct tm *tm)
+void rtc_set_date(ISADevice *dev, const struct tm *tm)
 {
+    RTCState *s = DO_UPCAST(RTCState, dev, dev);
     s->current_tm = *tm;
     rtc_copy_date(s);
 }
@@ -508,18 +513,19 @@ void rtc_set_date(RTCState *s, const struct tm *tm)
 #define REG_IBM_CENTURY_BYTE        0x32
 #define REG_IBM_PS2_CENTURY_BYTE    0x37
 
-static void rtc_set_date_from_host(RTCState *s)
+static void rtc_set_date_from_host(ISADevice *dev)
 {
+    RTCState *s = DO_UPCAST(RTCState, dev, dev);
     struct tm tm;
     int val;
 
     /* set the CMOS date */
     qemu_get_timedate(&tm, 0);
-    rtc_set_date(s, &tm);
+    rtc_set_date(dev, &tm);
 
     val = rtc_to_bcd(s, (tm.tm_year / 100) + 19);
-    rtc_set_memory(s, REG_IBM_CENTURY_BYTE, val);
-    rtc_set_memory(s, REG_IBM_PS2_CENTURY_BYTE, val);
+    rtc_set_memory(dev, REG_IBM_CENTURY_BYTE, val);
+    rtc_set_memory(dev, REG_IBM_PS2_CENTURY_BYTE, val);
 }
 
 static int rtc_post_load(void *opaque, int version_id)
@@ -591,7 +597,7 @@ static int rtc_initfn(ISADevice *dev)
     s->cmos_data[RTC_REG_C] = 0x00;
     s->cmos_data[RTC_REG_D] = 0x80;
 
-    rtc_set_date_from_host(s);
+    rtc_set_date_from_host(dev);
 
     s->periodic_timer = qemu_new_timer(rtc_clock, rtc_periodic_timer, s);
 #ifdef TARGET_I386
@@ -609,25 +615,26 @@ static int rtc_initfn(ISADevice *dev)
     register_ioport_write(base, 2, 1, cmos_ioport_write, s);
     register_ioport_read(base, 2, 1, cmos_ioport_read, s);
 
-    vmstate_register(base, &vmstate_rtc, s);
+    qdev_set_legacy_instance_id(&dev->qdev, base, 2);
     qemu_register_reset(rtc_reset, s);
     return 0;
 }
 
-RTCState *rtc_init(int base_year)
+ISADevice *rtc_init(int base_year)
 {
     ISADevice *dev;
 
     dev = isa_create("mc146818rtc");
     qdev_prop_set_int32(&dev->qdev, "base_year", base_year);
     qdev_init_nofail(&dev->qdev);
-    return DO_UPCAST(RTCState, dev, dev);
+    return dev;
 }
 
 static ISADeviceInfo mc146818rtc_info = {
     .qdev.name     = "mc146818rtc",
     .qdev.size     = sizeof(RTCState),
     .qdev.no_user  = 1,
+    .qdev.vmsd     = &vmstate_rtc,
     .init          = rtc_initfn,
     .qdev.props    = (Property[]) {
         DEFINE_PROP_INT32("base_year", RTCState, base_year, 1980),

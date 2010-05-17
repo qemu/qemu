@@ -27,26 +27,14 @@
 #include "fdc.h"
 #include "pci.h"
 #include "vmware_vga.h"
-#include "usb-uhci.h"
-#include "usb-ohci.h"
-#include "prep_pci.h"
-#include "apb_pci.h"
-#include "block.h"
-#include "sysemu.h"
-#include "audio/audio.h"
-#include "net.h"
-#include "smbus.h"
-#include "boards.h"
 #include "monitor.h"
 #include "fw_cfg.h"
 #include "hpet_emul.h"
-#include "watchdog.h"
 #include "smbios.h"
-#include "ide.h"
 #include "loader.h"
 #include "elf.h"
 #include "multiboot.h"
-#include "kvm.h"
+#include "mc146818rtc.h"
 
 /* output Bochs bios info messages */
 //#define DEBUG_BIOS
@@ -63,13 +51,6 @@
 #define FW_CFG_IRQ0_OVERRIDE (FW_CFG_ARCH_LOCAL + 2)
 #define FW_CFG_E820_TABLE (FW_CFG_ARCH_LOCAL + 3)
 
-#define MAX_IDE_BUS 2
-
-static FDCtrl *floppy_controller;
-static RTCState *rtc_state;
-static PITState *pit;
-static PCII440FXState *i440fx_state;
-
 #define E820_NR_ENTRIES		16
 
 struct e820_entry {
@@ -85,12 +66,7 @@ struct e820_table {
 
 static struct e820_table e820_table;
 
-typedef struct isa_irq_state {
-    qemu_irq *i8259;
-    qemu_irq *ioapic;
-} IsaIrqState;
-
-static void isa_irq_handler(void *opaque, int n, int level)
+void isa_irq_handler(void *opaque, int n, int level)
 {
     IsaIrqState *isa = (IsaIrqState *)opaque;
 
@@ -107,6 +83,12 @@ static void ioport80_write(void *opaque, uint32_t addr, uint32_t data)
 
 /* MSDOS compatibility mode FPU exception support */
 static qemu_irq ferr_irq;
+
+void pc_register_ferr_irq(qemu_irq irq)
+{
+    ferr_irq = irq;
+}
+
 /* XXX: add IGNNE support */
 void cpu_set_ferr(CPUX86State *s)
 {
@@ -125,10 +107,22 @@ uint64_t cpu_get_tsc(CPUX86State *env)
 }
 
 /* SMM support */
+
+static cpu_set_smm_t smm_set;
+static void *smm_arg;
+
+void cpu_smm_register(cpu_set_smm_t callback, void *arg)
+{
+    assert(smm_set == NULL);
+    assert(smm_arg == NULL);
+    smm_set = callback;
+    smm_arg = arg;
+}
+
 void cpu_smm_update(CPUState *env)
 {
-    if (i440fx_state && env == first_cpu)
-        i440fx_set_smm(i440fx_state, (env->hflags >> HF_SMM_SHIFT) & 1);
+    if (smm_set && smm_arg && env == first_cpu)
+        smm_set(!!(env->hflags & HF_SMM_MASK), smm_arg);
 }
 
 
@@ -198,9 +192,9 @@ static int cmos_get_fd_drive_type(int fd0)
     return val;
 }
 
-static void cmos_init_hd(int type_ofs, int info_ofs, BlockDriverState *hd)
+static void cmos_init_hd(int type_ofs, int info_ofs, BlockDriverState *hd,
+                         ISADevice *s)
 {
-    RTCState *s = rtc_state;
     int cylinders, heads, sectors;
     bdrv_get_geometry_hint(hd, &cylinders, &heads, &sectors);
     rtc_set_memory(s, type_ofs, 47);
@@ -232,7 +226,7 @@ static int boot_device2nibble(char boot_device)
     return 0;
 }
 
-static int set_boot_dev(RTCState *s, const char *boot_device, int fd_bootchk)
+static int set_boot_dev(ISADevice *s, const char *boot_device, int fd_bootchk)
 {
 #define PC_MAX_BOOT_DEVICES 3
     int nbds, bds[3] = { 0, };
@@ -262,10 +256,10 @@ static int pc_boot_set(void *opaque, const char *boot_device)
 }
 
 /* hd_table must contain 4 block drivers */
-static void cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
-                      const char *boot_device, DriveInfo **hd_table)
+void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
+                  const char *boot_device, DriveInfo **hd_table,
+                  FDCtrl *floppy_controller, ISADevice *s)
 {
-    RTCState *s = rtc_state;
     int val;
     int fd0, fd1, nb;
     int i;
@@ -340,9 +334,9 @@ static void cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
 
     rtc_set_memory(s, 0x12, (hd_table[0] ? 0xf0 : 0) | (hd_table[1] ? 0x0f : 0));
     if (hd_table[0])
-        cmos_init_hd(0x19, 0x1b, hd_table[0]->bdrv);
+        cmos_init_hd(0x19, 0x1b, hd_table[0]->bdrv, s);
     if (hd_table[1])
-        cmos_init_hd(0x1a, 0x24, hd_table[1]->bdrv);
+        cmos_init_hd(0x1a, 0x24, hd_table[1]->bdrv, s);
 
     val = 0;
     for (i = 0; i < 4; i++) {
@@ -710,10 +704,6 @@ static void load_linux(void *fw_cfg,
     nb_option_roms++;
 }
 
-static const int ide_iobase[2] = { 0x1f0, 0x170 };
-static const int ide_iobase2[2] = { 0x3f6, 0x376 };
-static const int ide_irq[2] = { 14, 15 };
-
 #define NE2000_NB_MAX 6
 
 static const int ne2000_io[NE2000_NB_MAX] = { 0x300, 0x320, 0x340, 0x360,
@@ -724,7 +714,7 @@ static const int parallel_io[MAX_PARALLEL_PORTS] = { 0x378, 0x278, 0x3bc };
 static const int parallel_irq[MAX_PARALLEL_PORTS] = { 7, 7, 7 };
 
 #ifdef HAS_AUDIO
-static void audio_init (PCIBus *pci_bus, qemu_irq *pic)
+void pc_audio_init (PCIBus *pci_bus, qemu_irq *pic)
 {
     struct soundhw *c;
 
@@ -742,7 +732,7 @@ static void audio_init (PCIBus *pci_bus, qemu_irq *pic)
 }
 #endif
 
-static void pc_init_ne2k_isa(NICInfo *nd)
+void pc_init_ne2k_isa(NICInfo *nd)
 {
     static int nb_ne2k = 0;
 
@@ -761,16 +751,16 @@ int cpu_is_bsp(CPUState *env)
 
 /* set CMOS shutdown status register (index 0xF) as S3_resume(0xFE)
    BIOS will read it and start S3 resume at POST Entry */
-static void cmos_set_s3_resume(void *opaque, int irq, int level)
+void pc_cmos_set_s3_resume(void *opaque, int irq, int level)
 {
-    RTCState *s = opaque;
+    ISADevice *s = opaque;
 
     if (level) {
         rtc_set_memory(s, 0xF, 0xFE);
     }
 }
 
-static void acpi_smi_interrupt(void *opaque, int irq, int level)
+void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
 {
     CPUState *s = opaque;
 
@@ -798,40 +788,9 @@ static CPUState *pc_new_cpu(const char *cpu_model)
     return env;
 }
 
-/* PC hardware initialisation */
-static void pc_init1(ram_addr_t ram_size,
-                     const char *boot_device,
-                     const char *kernel_filename,
-                     const char *kernel_cmdline,
-                     const char *initrd_filename,
-                     const char *cpu_model,
-                     int pci_enabled)
+void pc_cpus_init(const char *cpu_model)
 {
-    char *filename;
-    int ret, linux_boot, i;
-    ram_addr_t ram_addr, bios_offset, option_rom_offset;
-    ram_addr_t below_4g_mem_size, above_4g_mem_size = 0;
-    int bios_size, isa_bios_size;
-    PCIBus *pci_bus;
-    int piix3_devfn = -1;
-    qemu_irq *cpu_irq;
-    qemu_irq *isa_irq;
-    qemu_irq *i8259;
-    qemu_irq *cmos_s3;
-    qemu_irq *smi_irq;
-    IsaIrqState *isa_irq_state;
-    DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
-    DriveInfo *fd[MAX_FD];
-    void *fw_cfg;
-
-    if (ram_size >= 0xe0000000 ) {
-        above_4g_mem_size = ram_size - 0xe0000000;
-        below_4g_mem_size = 0xe0000000;
-    } else {
-        below_4g_mem_size = ram_size;
-    }
-
-    linux_boot = (kernel_filename != NULL);
+    int i;
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -842,11 +801,35 @@ static void pc_init1(ram_addr_t ram_size,
 #endif
     }
 
-    for (i = 0; i < smp_cpus; i++) {
+    for(i = 0; i < smp_cpus; i++) {
         pc_new_cpu(cpu_model);
     }
+}
 
-    vmport_init();
+void pc_memory_init(ram_addr_t ram_size,
+                    const char *kernel_filename,
+                    const char *kernel_cmdline,
+                    const char *initrd_filename,
+                    ram_addr_t *below_4g_mem_size_p,
+                    ram_addr_t *above_4g_mem_size_p)
+{
+    char *filename;
+    int ret, linux_boot, i;
+    ram_addr_t ram_addr, bios_offset, option_rom_offset;
+    ram_addr_t below_4g_mem_size, above_4g_mem_size = 0;
+    int bios_size, isa_bios_size;
+    void **fw_cfg;
+
+    if (ram_size >= 0xe0000000 ) {
+        above_4g_mem_size = ram_size - 0xe0000000;
+        below_4g_mem_size = 0xe0000000;
+    } else {
+        below_4g_mem_size = ram_size;
+    }
+    *above_4g_mem_size_p = above_4g_mem_size;
+    *below_4g_mem_size_p = below_4g_mem_size;
+
+    linux_boot = (kernel_filename != NULL);
 
     /* allocate RAM */
     ram_addr = qemu_ram_alloc(below_4g_mem_size);
@@ -910,63 +893,60 @@ static void pc_init1(ram_addr_t ram_size,
     rom_set_fw(fw_cfg);
 
     if (linux_boot) {
-        load_linux(fw_cfg, kernel_filename, initrd_filename, kernel_cmdline, below_4g_mem_size);
+        load_linux(*fw_cfg, kernel_filename, initrd_filename, kernel_cmdline, below_4g_mem_size);
     }
 
     for (i = 0; i < nb_option_roms; i++) {
         rom_add_option(option_rom[i]);
     }
+}
 
-    cpu_irq = qemu_allocate_irqs(pic_irq_request, NULL, 1);
-    i8259 = i8259_init(cpu_irq[0]);
-    isa_irq_state = qemu_mallocz(sizeof(*isa_irq_state));
-    isa_irq_state->i8259 = i8259;
-    isa_irq = qemu_allocate_irqs(isa_irq_handler, isa_irq_state, 24);
+qemu_irq *pc_allocate_cpu_irq(void)
+{
+    return qemu_allocate_irqs(pic_irq_request, NULL, 1);
+}
 
-    if (pci_enabled) {
-        pci_bus = i440fx_init(&i440fx_state, &piix3_devfn, isa_irq, ram_size);
-    } else {
-        pci_bus = NULL;
-        isa_bus_new(NULL);
-    }
-    isa_bus_irqs(isa_irq);
-
-    ferr_irq = isa_reserve_irq(13);
-
-    /* init basic PC hardware */
-    register_ioport_write(0x80, 1, 1, ioport80_write, NULL);
-
-    register_ioport_write(0xf0, 1, 1, ioportF0_write, NULL);
-
+void pc_vga_init(PCIBus *pci_bus)
+{
     if (cirrus_vga_enabled) {
-        if (pci_enabled) {
+        if (pci_bus) {
             pci_cirrus_vga_init(pci_bus);
         } else {
             isa_cirrus_vga_init();
         }
     } else if (vmsvga_enabled) {
-        if (pci_enabled)
+        if (pci_bus)
             pci_vmsvga_init(pci_bus);
         else
             fprintf(stderr, "%s: vmware_vga: no PCI bus\n", __FUNCTION__);
     } else if (std_vga_enabled) {
-        if (pci_enabled) {
+        if (pci_bus) {
             pci_vga_init(pci_bus, 0, 0);
         } else {
             isa_vga_init();
         }
     }
+}
 
-    rtc_state = rtc_init(2000);
+void pc_basic_device_init(qemu_irq *isa_irq,
+                          FDCtrl **floppy_controller,
+                          ISADevice **rtc_state)
+{
+    int i;
+    DriveInfo *fd[MAX_FD];
+    PITState *pit;
 
-    qemu_register_boot_set(pc_boot_set, rtc_state);
+    register_ioport_write(0x80, 1, 1, ioport80_write, NULL);
+
+    register_ioport_write(0xf0, 1, 1, ioportF0_write, NULL);
+
+    *rtc_state = rtc_init(2000);
+
+    qemu_register_boot_set(pc_boot_set, *rtc_state);
 
     register_ioport_read(0x92, 1, 1, ioport92_read, NULL);
     register_ioport_write(0x92, 1, 1, ioport92_write, NULL);
 
-    if (pci_enabled) {
-        isa_irq_state->ioapic = ioapic_init();
-    }
     pit = pit_init(0x40, isa_reserve_irq(0));
     pcspk_init(pit);
     if (!no_hpet) {
@@ -985,235 +965,22 @@ static void pc_init1(ram_addr_t ram_size,
         }
     }
 
-    for(i = 0; i < nb_nics; i++) {
-        NICInfo *nd = &nd_table[i];
-
-        if (!pci_enabled || (nd->model && strcmp(nd->model, "ne2k_isa") == 0))
-            pc_init_ne2k_isa(nd);
-        else
-            pci_nic_init_nofail(nd, "e1000", NULL);
-    }
-
-    if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {
-        fprintf(stderr, "qemu: too many IDE bus\n");
-        exit(1);
-    }
-
-    for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
-        hd[i] = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
-    }
-
-    if (pci_enabled) {
-        pci_piix3_ide_init(pci_bus, hd, piix3_devfn + 1);
-    } else {
-        for(i = 0; i < MAX_IDE_BUS; i++) {
-            isa_ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
-	                 hd[MAX_IDE_DEVS * i], hd[MAX_IDE_DEVS * i + 1]);
-        }
-    }
-
     isa_create_simple("i8042");
     DMA_init(0);
-#ifdef HAS_AUDIO
-    audio_init(pci_enabled ? pci_bus : NULL, isa_irq);
-#endif
 
     for(i = 0; i < MAX_FD; i++) {
         fd[i] = drive_get(IF_FLOPPY, 0, i);
     }
-    floppy_controller = fdctrl_init_isa(fd);
-
-    cmos_init(below_4g_mem_size, above_4g_mem_size, boot_device, hd);
-
-    if (pci_enabled && usb_enabled) {
-        usb_uhci_piix3_init(pci_bus, piix3_devfn + 2);
-    }
-
-    if (pci_enabled && acpi_enabled) {
-        uint8_t *eeprom_buf = qemu_mallocz(8 * 256); /* XXX: make this persistent */
-        i2c_bus *smbus;
-
-        cmos_s3 = qemu_allocate_irqs(cmos_set_s3_resume, rtc_state, 1);
-        smi_irq = qemu_allocate_irqs(acpi_smi_interrupt, first_cpu, 1);
-        /* TODO: Populate SPD eeprom data.  */
-        smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
-                              isa_reserve_irq(9), *cmos_s3, *smi_irq,
-                              kvm_enabled());
-        for (i = 0; i < 8; i++) {
-            DeviceState *eeprom;
-            eeprom = qdev_create((BusState *)smbus, "smbus-eeprom");
-            qdev_prop_set_uint8(eeprom, "address", 0x50 + i);
-            qdev_prop_set_ptr(eeprom, "data", eeprom_buf + (i * 256));
-            qdev_init_nofail(eeprom);
-        }
-        piix4_acpi_system_hot_add_init(pci_bus);
-    }
-
-    if (i440fx_state) {
-        i440fx_init_memory_mappings(i440fx_state);
-    }
-
-    if (pci_enabled) {
-	int max_bus;
-        int bus;
-
-        max_bus = drive_get_max_bus(IF_SCSI);
-	for (bus = 0; bus <= max_bus; bus++) {
-            pci_create_simple(pci_bus, -1, "lsi53c895a");
-        }
-    }
+    *floppy_controller = fdctrl_init_isa(fd);
 }
 
-static void pc_init_pci(ram_addr_t ram_size,
-                        const char *boot_device,
-                        const char *kernel_filename,
-                        const char *kernel_cmdline,
-                        const char *initrd_filename,
-                        const char *cpu_model)
+void pc_pci_device_init(PCIBus *pci_bus)
 {
-    pc_init1(ram_size, boot_device,
-             kernel_filename, kernel_cmdline,
-             initrd_filename, cpu_model, 1);
-}
+    int max_bus;
+    int bus;
 
-static void pc_init_isa(ram_addr_t ram_size,
-                        const char *boot_device,
-                        const char *kernel_filename,
-                        const char *kernel_cmdline,
-                        const char *initrd_filename,
-                        const char *cpu_model)
-{
-    if (cpu_model == NULL)
-        cpu_model = "486";
-    pc_init1(ram_size, boot_device,
-             kernel_filename, kernel_cmdline,
-             initrd_filename, cpu_model, 0);
-}
-
-static QEMUMachine pc_machine = {
-    .name = "pc-0.13",
-    .alias = "pc",
-    .desc = "Standard PC",
-    .init = pc_init_pci,
-    .max_cpus = 255,
-    .is_default = 1,
-};
-
-static QEMUMachine pc_machine_v0_12 = {
-    .name = "pc-0.12",
-    .desc = "Standard PC",
-    .init = pc_init_pci,
-    .max_cpus = 255,
-    .compat_props = (GlobalProperty[]) {
-        {
-            .driver   = "virtio-serial-pci",
-            .property = "max_nr_ports",
-            .value    = stringify(1),
-        },{
-            .driver   = "virtio-serial-pci",
-            .property = "vectors",
-            .value    = stringify(0),
-        },
-        { /* end of list */ }
+    max_bus = drive_get_max_bus(IF_SCSI);
+    for (bus = 0; bus <= max_bus; bus++) {
+        pci_create_simple(pci_bus, -1, "lsi53c895a");
     }
-};
-
-static QEMUMachine pc_machine_v0_11 = {
-    .name = "pc-0.11",
-    .desc = "Standard PC, qemu 0.11",
-    .init = pc_init_pci,
-    .max_cpus = 255,
-    .compat_props = (GlobalProperty[]) {
-        {
-            .driver   = "virtio-blk-pci",
-            .property = "vectors",
-            .value    = stringify(0),
-        },{
-            .driver   = "virtio-serial-pci",
-            .property = "max_nr_ports",
-            .value    = stringify(1),
-        },{
-            .driver   = "virtio-serial-pci",
-            .property = "vectors",
-            .value    = stringify(0),
-        },{
-            .driver   = "ide-drive",
-            .property = "ver",
-            .value    = "0.11",
-        },{
-            .driver   = "scsi-disk",
-            .property = "ver",
-            .value    = "0.11",
-        },{
-            .driver   = "PCI",
-            .property = "rombar",
-            .value    = stringify(0),
-        },
-        { /* end of list */ }
-    }
-};
-
-static QEMUMachine pc_machine_v0_10 = {
-    .name = "pc-0.10",
-    .desc = "Standard PC, qemu 0.10",
-    .init = pc_init_pci,
-    .max_cpus = 255,
-    .compat_props = (GlobalProperty[]) {
-        {
-            .driver   = "virtio-blk-pci",
-            .property = "class",
-            .value    = stringify(PCI_CLASS_STORAGE_OTHER),
-        },{
-            .driver   = "virtio-serial-pci",
-            .property = "class",
-            .value    = stringify(PCI_CLASS_DISPLAY_OTHER),
-        },{
-            .driver   = "virtio-serial-pci",
-            .property = "max_nr_ports",
-            .value    = stringify(1),
-        },{
-            .driver   = "virtio-serial-pci",
-            .property = "vectors",
-            .value    = stringify(0),
-        },{
-            .driver   = "virtio-net-pci",
-            .property = "vectors",
-            .value    = stringify(0),
-        },{
-            .driver   = "virtio-blk-pci",
-            .property = "vectors",
-            .value    = stringify(0),
-        },{
-            .driver   = "ide-drive",
-            .property = "ver",
-            .value    = "0.10",
-        },{
-            .driver   = "scsi-disk",
-            .property = "ver",
-            .value    = "0.10",
-        },{
-            .driver   = "PCI",
-            .property = "rombar",
-            .value    = stringify(0),
-        },
-        { /* end of list */ }
-    },
-};
-
-static QEMUMachine isapc_machine = {
-    .name = "isapc",
-    .desc = "ISA-only PC",
-    .init = pc_init_isa,
-    .max_cpus = 1,
-};
-
-static void pc_machine_init(void)
-{
-    qemu_register_machine(&pc_machine);
-    qemu_register_machine(&pc_machine_v0_12);
-    qemu_register_machine(&pc_machine_v0_11);
-    qemu_register_machine(&pc_machine_v0_10);
-    qemu_register_machine(&isapc_machine);
 }
-
-machine_init(pc_machine_init);

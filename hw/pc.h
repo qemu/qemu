@@ -3,6 +3,8 @@
 
 #include "qemu-common.h"
 #include "ioport.h"
+#include "isa.h"
+#include "fdc.h"
 
 /* PC-style peripherals (also used by other machines).  */
 
@@ -39,6 +41,14 @@ uint32_t pic_intack_read(PicState2 *s);
 void pic_info(Monitor *mon);
 void irq_info(Monitor *mon);
 
+/* ISA */
+typedef struct isa_irq_state {
+    qemu_irq *i8259;
+    qemu_irq *ioapic;
+} IsaIrqState;
+
+void isa_irq_handler(void *opaque, int n, int level);
+
 /* i8254.c */
 
 #define PIT_FREQ 1193182
@@ -69,19 +79,39 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
                    target_phys_addr_t base, ram_addr_t size,
                    target_phys_addr_t mask);
 
-/* mc146818rtc.c */
-
-typedef struct RTCState RTCState;
-
-RTCState *rtc_init(int base_year);
-void rtc_set_memory(RTCState *s, int addr, int val);
-void rtc_set_date(RTCState *s, const struct tm *tm);
-
 /* pc.c */
 extern int fd_bootchk;
 
+void pc_register_ferr_irq(qemu_irq irq);
+void pc_cmos_set_s3_resume(void *opaque, int irq, int level);
+void pc_acpi_smi_interrupt(void *opaque, int irq, int level);
+
+void pc_cpus_init(const char *cpu_model);
+void pc_memory_init(ram_addr_t ram_size,
+                    const char *kernel_filename,
+                    const char *kernel_cmdline,
+                    const char *initrd_filename,
+                    ram_addr_t *below_4g_mem_size_p,
+                    ram_addr_t *above_4g_mem_size_p);
+qemu_irq *pc_allocate_cpu_irq(void);
+void pc_vga_init(PCIBus *pci_bus);
+void pc_basic_device_init(qemu_irq *isa_irq,
+                          FDCtrl **floppy_controller,
+                          ISADevice **rtc_state);
+void pc_init_ne2k_isa(NICInfo *nd);
+#ifdef HAS_AUDIO
+void pc_audio_init (PCIBus *pci_bus, qemu_irq *pic);
+#endif
+void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
+                  const char *boot_device, DriveInfo **hd_table,
+                  FDCtrl *floppy_controller, ISADevice *s);
+void pc_pci_device_init(PCIBus *pci_bus);
+
 void ioport_set_a20(int enable);
 int ioport_get_a20(void);
+
+typedef void (*cpu_set_smm_t)(int smm, void *arg);
+void cpu_smm_register(cpu_set_smm_t callback, void *arg);
 
 /* acpi.c */
 extern int acpi_enabled;
@@ -97,7 +127,6 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
                        qemu_irq sci_irq, qemu_irq cmos_s3, qemu_irq smi_irq,
                        int kvm_enabled);
 void piix4_smbus_register_device(SMBusDevice *dev, uint8_t addr);
-void piix4_acpi_system_hot_add_init(PCIBus *bus);
 
 /* hpet.c */
 extern int no_hpet;
@@ -111,7 +140,6 @@ struct PCII440FXState;
 typedef struct PCII440FXState PCII440FXState;
 
 PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix_devfn, qemu_irq *pic, int ram_size);
-void i440fx_set_smm(PCII440FXState *d, int val);
 void i440fx_init_memory_mappings(PCII440FXState *d);
 
 /* piix4.c */
