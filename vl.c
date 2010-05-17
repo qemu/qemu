@@ -2662,12 +2662,12 @@ int main(int argc, char **argv, char **envp)
         int ret;
 
         ret = qemu_read_config_file(CONFIG_QEMU_CONFDIR "/qemu.conf");
-        if (ret == -EINVAL) {
+        if (ret < 0 && ret != -ENOENT) {
             exit(1);
         }
 
         ret = qemu_read_config_file(arch_config_name);
-        if (ret == -EINVAL) {
+        if (ret < 0 && ret != -ENOENT) {
             exit(1);
         }
     }
