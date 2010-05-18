@@ -669,6 +669,14 @@ struct target_rlimit {
         abi_ulong   rlim_max;
 };
 
+#if defined(TARGET_ALPHA)
+#define TARGET_RLIM_INFINITY	0x7ffffffffffffffful
+#elif defined(TARGET_MIPS) || defined(TARGET_SPARC)
+#define TARGET_RLIM_INFINITY	0x7fffffffUL
+#else
+#define TARGET_RLIM_INFINITY	((target_ulong)~0UL)
+#endif
+
 struct target_pollfd {
     int fd;           /* file descriptor */
     short events;     /* requested events */

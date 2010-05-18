@@ -3560,6 +3560,8 @@ int main(int argc, char **argv, char **envp)
     if (default_vga)
         vga_interface_type = VGA_CIRRUS;
 
+    socket_init();
+
     if (qemu_opts_foreach(&qemu_chardev_opts, chardev_init_func, NULL, 1) != 0)
         exit(1);
 #ifdef CONFIG_LINUX
@@ -3668,8 +3670,6 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
     configure_icount(icount_option);
-
-    socket_init();
 
     if (net_init_clients() < 0) {
         exit(1);

@@ -38,7 +38,7 @@ typedef struct QEMUSnapshotInfo {
 
 #define BDRV_SECTOR_BITS   9
 #define BDRV_SECTOR_SIZE   (1 << BDRV_SECTOR_BITS)
-#define BDRV_SECTOR_MASK   ~(BDRV_SECTOR_SIZE - 1);
+#define BDRV_SECTOR_MASK   ~(BDRV_SECTOR_SIZE - 1)
 
 typedef enum {
     BDRV_ACTION_REPORT, BDRV_ACTION_IGNORE, BDRV_ACTION_STOP

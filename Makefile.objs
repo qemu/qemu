@@ -156,7 +156,8 @@ hw-obj-$(CONFIG_I8254) += i8254.o
 hw-obj-$(CONFIG_PCSPK) += pcspk.o
 hw-obj-$(CONFIG_USB_UHCI) += usb-uhci.o
 hw-obj-$(CONFIG_FDC) += fdc.o
-hw-obj-$(CONFIG_ACPI) += acpi.o
+hw-obj-$(CONFIG_ACPI) += acpi.o acpi_piix4.o
+hw-obj-$(CONFIG_APM) += pm_smbus.o apm.o
 
 # PPC devices
 hw-obj-$(CONFIG_OPENPIC) += openpic.o

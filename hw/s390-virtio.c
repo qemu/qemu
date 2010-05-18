@@ -52,6 +52,10 @@
 #define INITRD_PARM_SIZE                0x010410UL
 #define PARMFILE_START                  0x001000UL
 
+#define ZIPL_START			0x009000UL
+#define ZIPL_LOAD_ADDR			0x009000UL
+#define ZIPL_FILENAME			"s390-zipl.rom"
+
 #define MAX_BLK_DEVS                    10
 
 static VirtIOS390Bus *s390_bus;
@@ -187,6 +191,28 @@ static void s390_init(ram_addr_t ram_size,
         }
 
         env->psw.addr = KERN_IMAGE_START;
+        env->psw.mask = 0x0000000180000000ULL;
+    } else {
+        ram_addr_t bios_size = 0;
+        char *bios_filename;
+
+        /* Load zipl bootloader */
+        if (bios_name == NULL) {
+            bios_name = ZIPL_FILENAME;
+        }
+
+        bios_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+        bios_size = load_image(bios_filename, qemu_get_ram_ptr(ZIPL_LOAD_ADDR));
+
+        if ((long)bios_size < 0) {
+            hw_error("could not load bootloader '%s'\n", bios_name);
+        }
+
+        if (bios_size > 4096) {
+            hw_error("stage1 bootloader is > 4k\n");
+        }
+
+        env->psw.addr = ZIPL_START;
         env->psw.mask = 0x0000000180000000ULL;
     }
 
