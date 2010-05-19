@@ -974,6 +974,8 @@ static void vnc_disconnect_finish(VncState *vs)
 
     qobject_decref(vs->info);
 
+    vnc_zlib_clear(vs);
+
 #ifdef CONFIG_VNC_TLS
     vnc_tls_client_cleanup(vs);
 #endif /* CONFIG_VNC_TLS */

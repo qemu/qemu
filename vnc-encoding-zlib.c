@@ -140,3 +140,11 @@ void vnc_zlib_send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
     vnc_write_u32(vs, bytes_written);
     vs->output.offset = new_offset;
 }
+
+void vnc_zlib_clear(VncState *vs)
+{
+    if (vs->zlib_stream.opaque) {
+        deflateEnd(&vs->zlib_stream);
+    }
+    buffer_free(&vs->zlib);
+}

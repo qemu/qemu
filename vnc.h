@@ -405,5 +405,6 @@ void vnc_hextile_send_framebuffer_update(VncState *vs, int x,
 void vnc_hextile_set_pixel_conversion(VncState *vs, int generic);
 
 void vnc_zlib_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
+void vnc_zlib_clear(VncState *vs);
 
 #endif /* __QEMU_VNC_H */
