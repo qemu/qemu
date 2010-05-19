@@ -344,9 +344,20 @@ static int s390_store_status(CPUState *env, uint32_t parameter)
 
 static int s390_cpu_initial_reset(CPUState *env)
 {
-    /* XXX */
-    fprintf(stderr, "XXX SIGP init\n");
-    return -1;
+    int i;
+
+    if (kvm_vcpu_ioctl(env, KVM_S390_INITIAL_RESET, NULL) < 0) {
+        perror("cannot init reset vcpu");
+    }
+
+    /* Manually zero out all registers */
+    cpu_synchronize_state(env);
+    for (i = 0; i < 16; i++) {
+        env->regs[i] = 0;
+    }
+
+    dprintf("DONE: SIGP initial reset: %p\n", env);
+    return 0;
 }
 
 static int handle_sigp(CPUState *env, struct kvm_run *run, uint8_t ipa1)

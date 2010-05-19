@@ -119,7 +119,8 @@ typedef int64_t  Elf64_Sxword;
  */
 #define EM_S390_OLD     0xA390
 
-#define EM_XILINX_MICROBLAZE    0xBAAB
+#define EM_MICROBLAZE      189
+#define EM_MICROBLAZE_OLD  0xBAAB
 
 /* This is the info that is needed to parse the dynamic section of the file */
 #define DT_NULL		0

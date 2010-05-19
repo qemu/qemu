@@ -31,7 +31,7 @@ struct CPUMBState;
 
 #define TARGET_HAS_ICE 1
 
-#define ELF_MACHINE	EM_XILINX_MICROBLAZE
+#define ELF_MACHINE	EM_MICROBLAZE
 
 #define EXCP_NMI        1
 #define EXCP_MMU        2
