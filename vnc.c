@@ -1649,6 +1649,11 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
     vs->tight_quality = 9;
     vs->absolute = -1;
 
+    /*
+     * Start from the end because the encodings are sent in order of preference.
+     * This way the prefered encoding (first encoding defined in the array)
+     * will be set at the end of the loop.
+     */
     for (i = n_encodings - 1; i >= 0; i--) {
         enc = encodings[i];
         switch (enc) {
