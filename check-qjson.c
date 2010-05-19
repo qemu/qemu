@@ -29,6 +29,13 @@ START_TEST(escaped_string)
         const char *decoded;
         int skip;
     } test_cases[] = {
+        { "\"\\b\"", "\b" },
+        { "\"\\f\"", "\f" },
+        { "\"\\n\"", "\n" },
+        { "\"\\r\"", "\r" },
+        { "\"\\t\"", "\t" },
+        { "\"\\/\"", "\\/" },
+        { "\"\\\\\"", "\\" },
         { "\"\\\"\"", "\"" },
         { "\"hello world \\\"embedded string\\\"\"",
           "hello world \"embedded string\"" },
@@ -49,11 +56,14 @@ START_TEST(escaped_string)
         fail_unless(qobject_type(obj) == QTYPE_QSTRING);
         
         str = qobject_to_qstring(obj);
-        fail_unless(strcmp(qstring_get_str(str), test_cases[i].decoded) == 0);
+        fail_unless(strcmp(qstring_get_str(str), test_cases[i].decoded) == 0,
+                    "%s != %s\n", qstring_get_str(str), test_cases[i].decoded);
 
         if (test_cases[i].skip == 0) {
             str = qobject_to_json(obj);
-            fail_unless(strcmp(qstring_get_str(str), test_cases[i].encoded) == 0);
+            fail_unless(strcmp(qstring_get_str(str),test_cases[i].encoded) == 0,
+                        "%s != %s\n", qstring_get_str(str),
+                                      test_cases[i].encoded);
 
             qobject_decref(obj);
         }
