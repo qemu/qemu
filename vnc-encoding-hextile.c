@@ -62,8 +62,8 @@ static void hextile_enc_cord(uint8_t *ptr, int x, int y, int w, int h)
 #undef BPP
 #undef GENERIC
 
-void vnc_hextile_send_framebuffer_update(VncState *vs, int x,
-                                         int y, int w, int h)
+int vnc_hextile_send_framebuffer_update(VncState *vs, int x,
+                                        int y, int w, int h)
 {
     int i, j;
     int has_fg, has_bg;
@@ -83,6 +83,7 @@ void vnc_hextile_send_framebuffer_update(VncState *vs, int x,
     free(last_fg);
     free(last_bg);
 
+    return 1;
 }
 
 void vnc_hextile_set_pixel_conversion(VncState *vs, int generic)

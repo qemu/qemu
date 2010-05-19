@@ -116,7 +116,7 @@ static int vnc_zlib_stop(VncState *vs)
     return zstream->total_out - previous_out;
 }
 
-void vnc_zlib_send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
+int vnc_zlib_send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
 {
     int old_offset, new_offset, bytes_written;
 
@@ -132,13 +132,15 @@ void vnc_zlib_send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
     bytes_written = vnc_zlib_stop(vs);
 
     if (bytes_written == -1)
-        return;
+        return 0;
 
     // hack in the size
     new_offset = vs->output.offset;
     vs->output.offset = old_offset;
     vnc_write_u32(vs, bytes_written);
     vs->output.offset = new_offset;
+
+    return 1;
 }
 
 void vnc_zlib_clear(VncState *vs)

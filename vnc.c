@@ -652,7 +652,7 @@ static void vnc_write_pixels_generic(VncState *vs, struct PixelFormat *pf,
     }
 }
 
-void vnc_raw_send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
+int vnc_raw_send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
 {
     int i;
     uint8_t *row;
@@ -663,23 +663,27 @@ void vnc_raw_send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
         vs->write_pixels(vs, &vd->server->pf, row, w * ds_get_bytes_per_pixel(vs->ds));
         row += ds_get_linesize(vs->ds);
     }
+    return 1;
 }
 
-static void send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
+static int send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
 {
+    int n = 0;
+
     switch(vs->vnc_encoding) {
         case VNC_ENCODING_ZLIB:
-            vnc_zlib_send_framebuffer_update(vs, x, y, w, h);
+            n = vnc_zlib_send_framebuffer_update(vs, x, y, w, h);
             break;
         case VNC_ENCODING_HEXTILE:
             vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_HEXTILE);
-            vnc_hextile_send_framebuffer_update(vs, x, y, w, h);
+            n = vnc_hextile_send_framebuffer_update(vs, x, y, w, h);
             break;
         default:
             vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_RAW);
-            vnc_raw_send_framebuffer_update(vs, x, y, w, h);
+            n = vnc_raw_send_framebuffer_update(vs, x, y, w, h);
             break;
     }
+    return n;
 }
 
 static void vnc_copy(VncState *vs, int src_x, int src_y, int dst_x, int dst_y, int w, int h)
@@ -834,6 +838,7 @@ static int vnc_update_client(VncState *vs, int has_dirty)
         int y;
         int n_rectangles;
         int saved_offset;
+        int n;
 
         if (vs->output.offset && !vs->audio_cap && !vs->force_update)
             /* kernel send buffers are full -> drop frames to throttle */
@@ -866,16 +871,18 @@ static int vnc_update_client(VncState *vs, int has_dirty)
                 } else {
                     if (last_x != -1) {
                         int h = find_and_clear_dirty_height(vs, y, last_x, x);
-                        send_framebuffer_update(vs, last_x * 16, y, (x - last_x) * 16, h);
-                        n_rectangles++;
+                        n = send_framebuffer_update(vs, last_x * 16, y,
+                                                    (x - last_x) * 16, h);
+                        n_rectangles += n;
                     }
                     last_x = -1;
                 }
             }
             if (last_x != -1) {
                 int h = find_and_clear_dirty_height(vs, y, last_x, x);
-                send_framebuffer_update(vs, last_x * 16, y, (x - last_x) * 16, h);
-                n_rectangles++;
+                n = send_framebuffer_update(vs, last_x * 16, y,
+                                            (x - last_x) * 16, h);
+                n_rectangles += n;
             }
         }
         vs->output.buffer[saved_offset] = (n_rectangles >> 8) & 0xFF;
