@@ -670,7 +670,7 @@ struct target_rlimit {
 };
 
 #if defined(TARGET_ALPHA)
-#define TARGET_RLIM_INFINITY	0x7ffffffffffffffful
+#define TARGET_RLIM_INFINITY	0x7fffffffffffffffull
 #elif defined(TARGET_MIPS) || defined(TARGET_SPARC)
 #define TARGET_RLIM_INFINITY	0x7fffffffUL
 #else
