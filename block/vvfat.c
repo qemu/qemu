@@ -2865,7 +2865,7 @@ static void checkpoint(void) {
     return;
     /* avoid compiler warnings: */
     hexdump(NULL, 100);
-    remove_mapping(vvv, NULL);
+    remove_mapping(vvv, 0);
     print_mapping(NULL);
     print_direntry(NULL);
 }
