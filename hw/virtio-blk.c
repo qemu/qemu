@@ -278,9 +278,19 @@ static void do_multiwrite(BlockDriverState *bs, BlockRequest *blkreq,
     }
 }
 
-static void virtio_blk_handle_flush(VirtIOBlockReq *req)
+static void virtio_blk_handle_flush(BlockRequest *blkreq, int *num_writes,
+    VirtIOBlockReq *req, BlockDriverState **old_bs)
 {
     BlockDriverAIOCB *acb;
+
+    /*
+     * Make sure all outstanding writes are posted to the backing device.
+     */
+    if (*old_bs != NULL) {
+        do_multiwrite(*old_bs, blkreq, *num_writes);
+    }
+    *num_writes = 0;
+    *old_bs = req->dev->bs;
 
     acb = bdrv_aio_flush(req->dev->bs, virtio_blk_flush_complete, req);
     if (!acb) {
@@ -344,7 +354,8 @@ static void virtio_blk_handle_request(VirtIOBlockReq *req,
     req->in = (void *)req->elem.in_sg[req->elem.in_num - 1].iov_base;
 
     if (req->out->type & VIRTIO_BLK_T_FLUSH) {
-        virtio_blk_handle_flush(req);
+        virtio_blk_handle_flush(mrb->blkreq, &mrb->num_writes,
+            req, &mrb->old_bs);
     } else if (req->out->type & VIRTIO_BLK_T_SCSI_CMD) {
         virtio_blk_handle_scsi(req);
     } else if (req->out->type & VIRTIO_BLK_T_OUT) {
