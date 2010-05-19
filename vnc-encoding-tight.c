@@ -28,6 +28,8 @@
 
 #include <stdbool.h>
 
+#include "qdict.h"
+#include "qint.h"
 #include "vnc.h"
 #include "vnc-encoding-tight.h"
 
@@ -54,6 +56,285 @@ static const struct {
     { 65536, 2048,  32,  8192, 9, 9, 8, 6, 190, 475,  64, 75,   500,  1200 },
     { 65536, 2048,  32,  8192, 9, 9, 9, 6, 200, 500,  96, 80,   200,   500 }
 };
+
+/*
+ * Code to determine how many different colors used in rectangle.
+ */
+
+static void tight_palette_rgb2buf(uint32_t rgb, int bpp, uint8_t buf[6])
+{
+    memset(buf, 0, 6);
+
+    if (bpp == 32) {
+        buf[0] = ((rgb >> 24) & 0xFF);
+        buf[1] = ((rgb >> 16) & 0xFF);
+        buf[2] = ((rgb >>  8) & 0xFF);
+        buf[3] = ((rgb >>  0) & 0xFF);
+        buf[4] = ((buf[0] & 1) == 0) << 3 | ((buf[1] & 1) == 0) << 2;
+        buf[4]|= ((buf[2] & 1) == 0) << 1 | ((buf[3] & 1) == 0) << 0;
+        buf[0] |= 1;
+        buf[1] |= 1;
+        buf[2] |= 1;
+        buf[3] |= 1;
+    }
+    if (bpp == 16) {
+        buf[0] = ((rgb >> 8) & 0xFF);
+        buf[1] = ((rgb >> 0) & 0xFF);
+        buf[2] = ((buf[0] & 1) == 0) << 1 | ((buf[1] & 1) == 0) << 0;
+        buf[0] |= 1;
+        buf[1] |= 1;
+    }
+}
+
+static uint32_t tight_palette_buf2rgb(int bpp, const uint8_t *buf)
+{
+    uint32_t rgb = 0;
+
+    if (bpp == 32) {
+        rgb |= ((buf[0] & ~1) | !((buf[4] >> 3) & 1)) << 24;
+        rgb |= ((buf[1] & ~1) | !((buf[4] >> 2) & 1)) << 16;
+        rgb |= ((buf[2] & ~1) | !((buf[4] >> 1) & 1)) <<  8;
+        rgb |= ((buf[3] & ~1) | !((buf[4] >> 0) & 1)) <<  0;
+    }
+    if (bpp == 16) {
+        rgb |= ((buf[0] & ~1) | !((buf[2] >> 1) & 1)) << 8;
+        rgb |= ((buf[1] & ~1) | !((buf[2] >> 0) & 1)) << 0;
+    }
+    return rgb;
+}
+
+
+static int tight_palette_insert(QDict *palette, uint32_t rgb, int bpp, int max)
+{
+    uint8_t key[6];
+    int idx = qdict_size(palette);
+    bool present;
+
+    tight_palette_rgb2buf(rgb, bpp, key);
+    present = qdict_haskey(palette, (char *)key);
+    if (idx >= max && !present) {
+        return 0;
+    }
+    if (!present) {
+        qdict_put(palette, (char *)key, qint_from_int(idx));
+    }
+    return qdict_size(palette);
+}
+
+#define DEFINE_FILL_PALETTE_FUNCTION(bpp)                               \
+                                                                        \
+    static int                                                          \
+    tight_fill_palette##bpp(VncState *vs, int x, int y,                 \
+                            int max, size_t count,                      \
+                            uint32_t *bg, uint32_t *fg,                 \
+                            struct QDict **palette) {                   \
+        uint##bpp##_t *data;                                            \
+        uint##bpp##_t c0, c1, ci;                                       \
+        int i, n0, n1;                                                  \
+                                                                        \
+        data = (uint##bpp##_t *)vs->tight.buffer;                       \
+                                                                        \
+        c0 = data[0];                                                   \
+        i = 1;                                                          \
+        while (i < count && data[i] == c0)                              \
+            i++;                                                        \
+        if (i >= count) {                                               \
+            *bg = *fg = c0;                                             \
+            return 1;                                                   \
+        }                                                               \
+                                                                        \
+        if (max < 2) {                                                  \
+            return 0;                                                   \
+        }                                                               \
+                                                                        \
+        n0 = i;                                                         \
+        c1 = data[i];                                                   \
+        n1 = 0;                                                         \
+        for (i++; i < count; i++) {                                     \
+            ci = data[i];                                               \
+            if (ci == c0) {                                             \
+                n0++;                                                   \
+            } else if (ci == c1) {                                      \
+                n1++;                                                   \
+            } else                                                      \
+                break;                                                  \
+        }                                                               \
+        if (i >= count) {                                               \
+            if (n0 > n1) {                                              \
+                *bg = (uint32_t)c0;                                     \
+                *fg = (uint32_t)c1;                                     \
+            } else {                                                    \
+                *bg = (uint32_t)c1;                                     \
+                *fg = (uint32_t)c0;                                     \
+            }                                                           \
+            return 2;                                                   \
+        }                                                               \
+                                                                        \
+        if (max == 2) {                                                 \
+            return 0;                                                   \
+        }                                                               \
+                                                                        \
+        *palette = qdict_new();                                         \
+        tight_palette_insert(*palette, c0, bpp, max);                   \
+        tight_palette_insert(*palette, c1, bpp, max);                   \
+                                                                        \
+        for (i++; i < count; i++) {                                     \
+            if (data[i] == ci) {                                        \
+                continue;                                               \
+            } else {                                                    \
+                if (!tight_palette_insert(*palette, (uint32_t)ci,       \
+                                          bpp, max)) {                  \
+                    return 0;                                           \
+                }                                                       \
+                ci = data[i];                                           \
+            }                                                           \
+        }                                                               \
+                                                                        \
+        return qdict_size(*palette);                                    \
+    }
+
+DEFINE_FILL_PALETTE_FUNCTION(8)
+DEFINE_FILL_PALETTE_FUNCTION(16)
+DEFINE_FILL_PALETTE_FUNCTION(32)
+
+static int tight_fill_palette(VncState *vs, int x, int y,
+                              size_t count, uint32_t *bg, uint32_t *fg,
+                              struct QDict **palette)
+{
+    int max;
+
+    max = count / tight_conf[vs->tight_compression].idx_max_colors_divisor;
+    if (max < 2 &&
+        count >= tight_conf[vs->tight_compression].mono_min_rect_size) {
+        max = 2;
+    }
+    if (max >= 256) {
+        max = 256;
+    }
+
+    switch(vs->clientds.pf.bytes_per_pixel) {
+    case 4:
+        return tight_fill_palette32(vs, x, y, max, count, bg, fg, palette);
+    case 2:
+        return tight_fill_palette16(vs, x, y, max, count, bg, fg, palette);
+    default:
+        max = 2;
+        return tight_fill_palette8(vs, x, y, max, count, bg, fg, palette);
+    }
+    return 0;
+}
+
+/* Callback to dump a palette with qdict_iter
+static void print_palette(const char *key, QObject *obj, void *opaque)
+{
+    uint8_t idx = qint_get_int(qobject_to_qint(obj));
+    uint32_t rgb = tight_palette_buf2rgb(32, (uint8_t *)key);
+
+    fprintf(stderr, "%.2x ", (unsigned char)*key);
+    while (*key++)
+        fprintf(stderr, "%.2x ", (unsigned char)*key);
+
+    fprintf(stderr, ": idx: %x rgb: %x\n", idx, rgb);
+}
+*/
+
+/*
+ * Converting truecolor samples into palette indices.
+ */
+#define DEFINE_IDX_ENCODE_FUNCTION(bpp)                                 \
+                                                                        \
+    static void                                                         \
+    tight_encode_indexed_rect##bpp(uint8_t *buf, int count,             \
+                                   struct QDict *palette) {             \
+        uint##bpp##_t *src;                                             \
+        uint##bpp##_t rgb;                                              \
+        uint8_t key[6];                                                 \
+        int rep = 0;                                                    \
+        uint8_t idx;                                                    \
+                                                                        \
+        src = (uint##bpp##_t *) buf;                                    \
+                                                                        \
+        count -= 1;                                                     \
+        while (count--) {                                               \
+            rgb = *src++;                                               \
+            rep = 0;                                                    \
+            while (count && *src == rgb) {                              \
+                rep++, src++, count--;                                  \
+            }                                                           \
+            tight_palette_rgb2buf(rgb, bpp, key);                       \
+            if (!qdict_haskey(palette, (char *)key)) {                  \
+                /*                                                      \
+                 * Should never happen, but don't break everything      \
+                 * if it does, use the first color instead              \
+                 */                                                     \
+                idx = 0;                                                \
+            } else {                                                    \
+                idx = qdict_get_int(palette, (char *)key);              \
+            }                                                           \
+            while (rep >= 0) {                                          \
+                *buf++ = idx;                                           \
+                rep--;                                                  \
+            }                                                           \
+        }                                                               \
+    }
+
+DEFINE_IDX_ENCODE_FUNCTION(16)
+DEFINE_IDX_ENCODE_FUNCTION(32)
+
+#define DEFINE_MONO_ENCODE_FUNCTION(bpp)                                \
+                                                                        \
+    static void                                                         \
+    tight_encode_mono_rect##bpp(uint8_t *buf, int w, int h,             \
+                                uint##bpp##_t bg, uint##bpp##_t fg) {   \
+        uint##bpp##_t *ptr;                                             \
+        unsigned int value, mask;                                       \
+        int aligned_width;                                              \
+        int x, y, bg_bits;                                              \
+                                                                        \
+        ptr = (uint##bpp##_t *) buf;                                    \
+        aligned_width = w - w % 8;                                      \
+                                                                        \
+        for (y = 0; y < h; y++) {                                       \
+            for (x = 0; x < aligned_width; x += 8) {                    \
+                for (bg_bits = 0; bg_bits < 8; bg_bits++) {             \
+                    if (*ptr++ != bg) {                                 \
+                        break;                                          \
+                    }                                                   \
+                }                                                       \
+                if (bg_bits == 8) {                                     \
+                    *buf++ = 0;                                         \
+                    continue;                                           \
+                }                                                       \
+                mask = 0x80 >> bg_bits;                                 \
+                value = mask;                                           \
+                for (bg_bits++; bg_bits < 8; bg_bits++) {               \
+                    mask >>= 1;                                         \
+                    if (*ptr++ != bg) {                                 \
+                        value |= mask;                                  \
+                    }                                                   \
+                }                                                       \
+                *buf++ = (uint8_t)value;                                \
+            }                                                           \
+                                                                        \
+            mask = 0x80;                                                \
+            value = 0;                                                  \
+            if (x >= w) {                                               \
+                continue;                                               \
+            }                                                           \
+                                                                        \
+            for (; x < w; x++) {                                        \
+                if (*ptr++ != bg) {                                     \
+                    value |= mask;                                      \
+                }                                                       \
+                mask >>= 1;                                             \
+            }                                                           \
+            *buf++ = (uint8_t)value;                                    \
+        }                                                               \
+    }
+
+DEFINE_MONO_ENCODE_FUNCTION(8)
+DEFINE_MONO_ENCODE_FUNCTION(16)
+DEFINE_MONO_ENCODE_FUNCTION(32)
 
 /*
  * Check if a rectangle is all of the same color. If needSameColor is
@@ -288,14 +569,12 @@ static int tight_compress_data(VncState *vs, int stream_id, size_t bytes,
 /*
  * Subencoding implementations.
  */
-static void tight_pack24(VncState *vs, size_t count)
+static void tight_pack24(VncState *vs, uint8_t *buf, size_t count, size_t *ret)
 {
-    unsigned char *buf;
     uint32_t *buf32;
     uint32_t pix;
     int rshift, gshift, bshift;
 
-    buf = vs->tight.buffer;
     buf32 = (uint32_t *)buf;
 
     if ((vs->clientds.flags & QEMU_BIG_ENDIAN_FLAG) ==
@@ -309,7 +588,9 @@ static void tight_pack24(VncState *vs, size_t count)
         bshift = 24 - vs->clientds.pf.bshift;
     }
 
-    vs->tight.offset = count * 3;
+    if (ret) {
+        *ret = count * 3;
+    }
 
     while (count--) {
         pix = *buf32++;
@@ -327,7 +608,7 @@ static int send_full_color_rect(VncState *vs, int w, int h)
     vnc_write_u8(vs, stream << 4); /* no flushing, no filter */
 
     if (vs->tight_pixel24) {
-        tight_pack24(vs, w * h);
+        tight_pack24(vs, vs->tight.buffer, w * h, &vs->tight.offset);
         bytes = 3;
     } else {
         bytes = vs->clientds.pf.bytes_per_pixel;
@@ -347,7 +628,7 @@ static int send_solid_rect(VncState *vs)
     vnc_write_u8(vs, VNC_TIGHT_FILL << 4); /* no flushing, no filter */
 
     if (vs->tight_pixel24) {
-        tight_pack24(vs, 1);
+        tight_pack24(vs, vs->tight.buffer, 1, &vs->tight.offset);
         bytes = 3;
     } else {
         bytes = vs->clientds.pf.bytes_per_pixel;
@@ -355,6 +636,126 @@ static int send_solid_rect(VncState *vs)
 
     vnc_write(vs, vs->tight.buffer, bytes);
     return 1;
+}
+
+static int send_mono_rect(VncState *vs, int w, int h, uint32_t bg, uint32_t fg)
+{
+    size_t bytes;
+    int stream = 1;
+    int level = tight_conf[vs->tight_compression].mono_zlib_level;
+
+    bytes = ((w + 7) / 8) * h;
+
+    vnc_write_u8(vs, (stream | VNC_TIGHT_EXPLICIT_FILTER) << 4);
+    vnc_write_u8(vs, VNC_TIGHT_FILTER_PALETTE);
+    vnc_write_u8(vs, 1);
+
+    switch(vs->clientds.pf.bytes_per_pixel) {
+    case 4:
+    {
+        uint32_t buf[2] = {bg, fg};
+        size_t ret = sizeof (buf);
+
+        if (vs->tight_pixel24) {
+            tight_pack24(vs, (unsigned char*)buf, 2, &ret);
+        }
+        vnc_write(vs, buf, ret);
+
+        tight_encode_mono_rect32(vs->tight.buffer, w, h, bg, fg);
+        break;
+    }
+    case 2:
+        vnc_write(vs, &bg, 2);
+        vnc_write(vs, &fg, 2);
+        tight_encode_mono_rect16(vs->tight.buffer, w, h, bg, fg);
+        break;
+    default:
+        vnc_write_u8(vs, bg);
+        vnc_write_u8(vs, fg);
+        tight_encode_mono_rect8(vs->tight.buffer, w, h, bg, fg);
+        break;
+    }
+    vs->tight.offset = bytes;
+
+    bytes = tight_compress_data(vs, stream, bytes, level, Z_DEFAULT_STRATEGY);
+    return (bytes >= 0);
+}
+
+struct palette_cb_priv {
+    VncState *vs;
+    uint8_t *header;
+};
+
+static void write_palette(const char *key, QObject *obj, void *opaque)
+{
+    struct palette_cb_priv *priv = opaque;
+    VncState *vs = priv->vs;
+    uint32_t bytes = vs->clientds.pf.bytes_per_pixel;
+    uint8_t idx = qint_get_int(qobject_to_qint(obj));
+
+    if (bytes == 4) {
+        uint32_t color = tight_palette_buf2rgb(32, (uint8_t *)key);
+
+        ((uint32_t*)priv->header)[idx] = color;
+    } else {
+        uint16_t color = tight_palette_buf2rgb(16, (uint8_t *)key);
+
+        ((uint16_t*)priv->header)[idx] = color;
+    }
+}
+
+static int send_palette_rect(VncState *vs, int w, int h, struct QDict *palette)
+{
+    int stream = 2;
+    int level = tight_conf[vs->tight_compression].idx_zlib_level;
+    int colors;
+    size_t bytes;
+
+    colors = qdict_size(palette);
+
+    vnc_write_u8(vs, (stream | VNC_TIGHT_EXPLICIT_FILTER) << 4);
+    vnc_write_u8(vs, VNC_TIGHT_FILTER_PALETTE);
+    vnc_write_u8(vs, colors - 1);
+
+    switch(vs->clientds.pf.bytes_per_pixel) {
+    case 4:
+    {
+        size_t old_offset, offset;
+        uint32_t header[qdict_size(palette)];
+        struct palette_cb_priv priv = { vs, (uint8_t *)header };
+
+        old_offset = vs->output.offset;
+        qdict_iter(palette, write_palette, &priv);
+        vnc_write(vs, header, sizeof(header));
+
+        if (vs->tight_pixel24) {
+            tight_pack24(vs, vs->output.buffer + old_offset, colors, &offset);
+            vs->output.offset = old_offset + offset;
+        }
+
+        tight_encode_indexed_rect32(vs->tight.buffer, w * h, palette);
+        break;
+    }
+    case 2:
+    {
+        uint16_t header[qdict_size(palette)];
+        struct palette_cb_priv priv = { vs, (uint8_t *)header };
+
+        qdict_iter(palette, write_palette, &priv);
+        vnc_write(vs, header, sizeof(header));
+        tight_encode_indexed_rect16(vs->tight.buffer, w * h, palette);
+        break;
+    }
+    default:
+        return -1; /* No palette for 8bits colors */
+        break;
+    }
+    bytes = w * h;
+    vs->tight.offset = bytes;
+
+    bytes = tight_compress_data(vs, stream, bytes,
+                                level, Z_DEFAULT_STRATEGY);
+    return (bytes >= 0);
 }
 
 static void vnc_tight_start(VncState *vs)
@@ -375,18 +776,30 @@ static void vnc_tight_stop(VncState *vs)
 
 static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
 {
+    struct QDict *palette = NULL;
+    uint32_t bg = 0, fg = 0;
+    int colors;
+    int ret = 0;
+
     vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_TIGHT);
 
-    /*
-     * Convert pixels and store them in vs->tight
-     * We will probably rework that later, probably
-     * when adding other sub-encodings
-     */
     vnc_tight_start(vs);
     vnc_raw_send_framebuffer_update(vs, x, y, w, h);
     vnc_tight_stop(vs);
 
-    return send_full_color_rect(vs, w, h);
+    colors = tight_fill_palette(vs, x, y, w * h, &fg, &bg, &palette);
+
+    if (colors == 0) {
+        ret = send_full_color_rect(vs, w, h);
+    } else if (colors == 1) {
+        ret = send_solid_rect(vs);
+    } else if (colors == 2) {
+        ret = send_mono_rect(vs, w, h, bg, fg);
+    } else if (colors <= 256) {
+        ret = send_palette_rect(vs, w, h, palette);
+    }
+    QDECREF(palette);
+    return ret;
 }
 
 static int send_sub_rect_solid(VncState *vs, int x, int y, int w, int h)
