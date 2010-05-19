@@ -774,7 +774,8 @@ VirtIODevice *virtio_serial_init(DeviceState *dev, uint32_t max_nr_ports)
     }
 
     vser->config.max_nr_ports = max_nr_ports;
-    vser->ports_map = qemu_mallocz((max_nr_ports + 31) / 32);
+    vser->ports_map = qemu_mallocz(((max_nr_ports + 31) / 32)
+        * sizeof(vser->ports_map[0]));
     /*
      * Reserve location 0 for a console port for backward compat
      * (old kernel, new qemu)
