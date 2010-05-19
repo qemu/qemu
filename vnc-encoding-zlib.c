@@ -83,10 +83,17 @@ static int vnc_zlib_stop(VncState *vs)
             return -1;
         }
 
+        vs->zlib_level = vs->tight_compression;
         zstream->opaque = vs;
     }
 
-    // XXX what to do if tight_compression changed in between?
+    if (vs->tight_compression != vs->zlib_level) {
+        if (deflateParams(zstream, vs->tight_compression,
+                          Z_DEFAULT_STRATEGY) != Z_OK) {
+            return -1;
+        }
+        vs->zlib_level = vs->tight_compression;
+    }
 
     // reserve memory in output buffer
     buffer_reserve(&vs->output, vs->zlib.offset + 64);
