@@ -1033,16 +1033,6 @@ void kvm_setup_guest_memory(void *start, size_t size)
 }
 
 #ifdef KVM_CAP_SET_GUEST_DEBUG
-static void on_vcpu(CPUState *env, void (*func)(void *data), void *data)
-{
-#ifdef CONFIG_IOTHREAD
-    if (env != cpu_single_env) {
-        abort();
-    }
-#endif
-    func(data);
-}
-
 struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUState *env,
                                                  target_ulong pc)
 {
@@ -1086,7 +1076,7 @@ int kvm_update_guest_debug(CPUState *env, unsigned long reinject_trap)
     kvm_arch_update_guest_debug(env, &data.dbg);
     data.env = env;
 
-    on_vcpu(env, kvm_invoke_set_guest_debug, &data);
+    run_on_cpu(env, kvm_invoke_set_guest_debug, &data);
     return data.err;
 }
 
