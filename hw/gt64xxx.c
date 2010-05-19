@@ -276,7 +276,7 @@ static void gt64120_isd_mapping(GT64120State *s)
     check_reserved_space(&start, &length);
     length = 0x1000;
     /* Map new address */
-    DPRINTF("ISD: %x@%x -> %x@%x, %x\n", s->ISD_length, s->ISD_start,
+    DPRINTF("ISD: "TARGET_FMT_plx"@"TARGET_FMT_plx" -> "TARGET_FMT_plx"@"TARGET_FMT_plx", %x\n", s->ISD_length, s->ISD_start,
             length, start, s->ISD_handle);
     s->ISD_start = start;
     s->ISD_length = length;
