@@ -508,6 +508,14 @@ void buffer_reset(Buffer *buffer)
         buffer->offset = 0;
 }
 
+void buffer_free(Buffer *buffer)
+{
+    qemu_free(buffer->buffer);
+    buffer->offset = 0;
+    buffer->capacity = 0;
+    buffer->buffer = NULL;
+}
+
 void buffer_append(Buffer *buffer, const void *data, size_t len)
 {
     memcpy(buffer->buffer + buffer->offset, data, len);
@@ -961,14 +969,8 @@ static void vnc_disconnect_finish(VncState *vs)
 {
     vnc_qmp_event(vs, QEVENT_VNC_DISCONNECTED);
 
-    if (vs->input.buffer) {
-        qemu_free(vs->input.buffer);
-        vs->input.buffer = NULL;
-    }
-    if (vs->output.buffer) {
-        qemu_free(vs->output.buffer);
-        vs->output.buffer = NULL;
-    }
+    buffer_free(&vs->input);
+    buffer_free(&vs->output);
 
     qobject_decref(vs->info);
 
