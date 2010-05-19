@@ -140,8 +140,3 @@ void vnc_zlib_send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
     vnc_write_u32(vs, bytes_written);
     vs->output.offset = new_offset;
 }
-
-void vnc_zlib_init(VncState *vs)
-{
-    vs->zlib_stream.opaque = NULL;
-}

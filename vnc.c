@@ -1642,7 +1642,6 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
     int i;
     unsigned int enc = 0;
 
-    vnc_zlib_init(vs);
     vs->features = 0;
     vs->vnc_encoding = 0;
     vs->tight_compression = 9;
