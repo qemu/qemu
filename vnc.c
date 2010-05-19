@@ -678,6 +678,9 @@ static int send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
             vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_HEXTILE);
             n = vnc_hextile_send_framebuffer_update(vs, x, y, w, h);
             break;
+        case VNC_ENCODING_TIGHT:
+            n = vnc_tight_send_framebuffer_update(vs, x, y, w, h);
+            break;
         default:
             vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_RAW);
             n = vnc_raw_send_framebuffer_update(vs, x, y, w, h);
@@ -982,6 +985,7 @@ static void vnc_disconnect_finish(VncState *vs)
     qobject_decref(vs->info);
 
     vnc_zlib_clear(vs);
+    vnc_tight_clear(vs);
 
 #ifdef CONFIG_VNC_TLS
     vnc_tls_client_cleanup(vs);
@@ -1675,6 +1679,10 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             break;
         case VNC_ENCODING_HEXTILE:
             vs->features |= VNC_FEATURE_HEXTILE_MASK;
+            vs->vnc_encoding = enc;
+            break;
+        case VNC_ENCODING_TIGHT:
+            vs->features |= VNC_FEATURE_TIGHT_MASK;
             vs->vnc_encoding = enc;
             break;
         case VNC_ENCODING_ZLIB:

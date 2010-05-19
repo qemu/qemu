@@ -170,6 +170,12 @@ struct VncState
     /* Tight */
     uint8_t tight_quality;
     uint8_t tight_compression;
+    uint8_t tight_pixel24;
+    Buffer tight;
+    Buffer tight_tmp;
+    Buffer tight_zlib;
+    int tight_levels[4];
+    z_stream tight_stream[4];
 
     /* Hextile */
     VncSendHextileTile *send_hextile_tile;
@@ -404,7 +410,13 @@ int vnc_hextile_send_framebuffer_update(VncState *vs, int x,
                                          int y, int w, int h);
 void vnc_hextile_set_pixel_conversion(VncState *vs, int generic);
 
+void *vnc_zlib_zalloc(void *x, unsigned items, unsigned size);
+void vnc_zlib_zfree(void *x, void *addr);
 int vnc_zlib_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
 void vnc_zlib_clear(VncState *vs);
+
+
+int vnc_tight_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
+void vnc_tight_clear(VncState *vs);
 
 #endif /* __QEMU_VNC_H */

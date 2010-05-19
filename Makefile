@@ -124,6 +124,8 @@ vnc-encoding-zlib.o: vnc.h
 
 vnc-encoding-hextile.o: vnc.h
 
+vnc-encoding-tight.o: vnc.h vnc-encoding-tight.h
+
 curses.o: curses.c keymaps.h curses_keys.h
 
 bt-host.o: QEMU_CFLAGS += $(BLUEZ_CFLAGS)

@@ -28,7 +28,7 @@
 
 #define ZALLOC_ALIGNMENT 16
 
-static void *zalloc(void *x, unsigned items, unsigned size)
+void *vnc_zlib_zalloc(void *x, unsigned items, unsigned size)
 {
     void *p;
 
@@ -40,7 +40,7 @@ static void *zalloc(void *x, unsigned items, unsigned size)
     return (p);
 }
 
-static void zfree(void *x, void *addr)
+void vnc_zlib_zfree(void *x, void *addr)
 {
     qemu_free(addr);
 }
@@ -72,8 +72,8 @@ static int vnc_zlib_stop(VncState *vs)
 
         VNC_DEBUG("VNC: initializing zlib stream\n");
         VNC_DEBUG("VNC: opaque = %p | vs = %p\n", zstream->opaque, vs);
-        zstream->zalloc = zalloc;
-        zstream->zfree = zfree;
+        zstream->zalloc = vnc_zlib_zalloc;
+        zstream->zfree = vnc_zlib_zfree;
 
         err = deflateInit2(zstream, vs->tight_compression, Z_DEFLATED, MAX_WBITS,
                            MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
