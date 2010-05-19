@@ -55,6 +55,139 @@ static const struct {
     { 65536, 2048,  32,  8192, 9, 9, 9, 6, 200, 500,  96, 80,   200,   500 }
 };
 
+/*
+ * Check if a rectangle is all of the same color. If needSameColor is
+ * set to non-zero, then also check that its color equals to the
+ * *colorPtr value. The result is 1 if the test is successfull, and in
+ * that case new color will be stored in *colorPtr.
+ */
+
+#define DEFINE_CHECK_SOLID_FUNCTION(bpp)                                \
+                                                                        \
+    static bool                                                         \
+    check_solid_tile##bpp(VncState *vs, int x, int y, int w, int h,     \
+                          uint32_t* color, bool samecolor)              \
+    {                                                                   \
+        VncDisplay *vd = vs->vd;                                        \
+        uint##bpp##_t *fbptr;                                           \
+        uint##bpp##_t c;                                                \
+        int dx, dy;                                                     \
+                                                                        \
+        fbptr = (uint##bpp##_t *)                                       \
+            (vd->server->data + y * ds_get_linesize(vs->ds) +           \
+             x * ds_get_bytes_per_pixel(vs->ds));                       \
+                                                                        \
+        c = *fbptr;                                                     \
+        if (samecolor && (uint32_t)c != *color) {                       \
+            return false;                                               \
+        }                                                               \
+                                                                        \
+        for (dy = 0; dy < h; dy++) {                                    \
+            for (dx = 0; dx < w; dx++) {                                \
+                if (c != fbptr[dx]) {                                   \
+                    return false;                                       \
+                }                                                       \
+            }                                                           \
+            fbptr = (uint##bpp##_t *)                                   \
+                ((uint8_t *)fbptr + ds_get_linesize(vs->ds));           \
+        }                                                               \
+                                                                        \
+        *color = (uint32_t)c;                                           \
+        return true;                                                    \
+    }
+
+DEFINE_CHECK_SOLID_FUNCTION(32)
+DEFINE_CHECK_SOLID_FUNCTION(16)
+DEFINE_CHECK_SOLID_FUNCTION(8)
+
+static bool check_solid_tile(VncState *vs, int x, int y, int w, int h,
+                             uint32_t* color, bool samecolor)
+{
+    VncDisplay *vd = vs->vd;
+
+    switch(vd->server->pf.bytes_per_pixel) {
+    case 4:
+        return check_solid_tile32(vs, x, y, w, h, color, samecolor);
+    case 2:
+        return check_solid_tile16(vs, x, y, w, h, color, samecolor);
+    default:
+        return check_solid_tile8(vs, x, y, w, h, color, samecolor);
+    }
+}
+
+static void find_best_solid_area(VncState *vs, int x, int y, int w, int h,
+                                 uint32_t color, int *w_ptr, int *h_ptr)
+{
+    int dx, dy, dw, dh;
+    int w_prev;
+    int w_best = 0, h_best = 0;
+
+    w_prev = w;
+
+    for (dy = y; dy < y + h; dy += VNC_TIGHT_MAX_SPLIT_TILE_SIZE) {
+
+        dh = MIN(VNC_TIGHT_MAX_SPLIT_TILE_SIZE, y + h - dy);
+        dw = MIN(VNC_TIGHT_MAX_SPLIT_TILE_SIZE, w_prev);
+
+        if (!check_solid_tile(vs, x, dy, dw, dh, &color, true)) {
+            break;
+        }
+
+        for (dx = x + dw; dx < x + w_prev;) {
+            dw = MIN(VNC_TIGHT_MAX_SPLIT_TILE_SIZE, x + w_prev - dx);
+
+            if (!check_solid_tile(vs, dx, dy, dw, dh, &color, true)) {
+                break;
+            }
+            dx += dw;
+        }
+
+        w_prev = dx - x;
+        if (w_prev * (dy + dh - y) > w_best * h_best) {
+            w_best = w_prev;
+            h_best = dy + dh - y;
+        }
+    }
+
+    *w_ptr = w_best;
+    *h_ptr = h_best;
+}
+
+static void extend_solid_area(VncState *vs, int x, int y, int w, int h,
+                              uint32_t color, int *x_ptr, int *y_ptr,
+                              int *w_ptr, int *h_ptr)
+{
+    int cx, cy;
+
+    /* Try to extend the area upwards. */
+    for ( cy = *y_ptr - 1;
+          cy >= y && check_solid_tile(vs, *x_ptr, cy, *w_ptr, 1, &color, true);
+          cy-- );
+    *h_ptr += *y_ptr - (cy + 1);
+    *y_ptr = cy + 1;
+
+    /* ... downwards. */
+    for ( cy = *y_ptr + *h_ptr;
+          cy < y + h &&
+              check_solid_tile(vs, *x_ptr, cy, *w_ptr, 1, &color, true);
+          cy++ );
+    *h_ptr += cy - (*y_ptr + *h_ptr);
+
+    /* ... to the left. */
+    for ( cx = *x_ptr - 1;
+          cx >= x && check_solid_tile(vs, cx, *y_ptr, 1, *h_ptr, &color, true);
+          cx-- );
+    *w_ptr += *x_ptr - (cx + 1);
+    *x_ptr = cx + 1;
+
+    /* ... to the right. */
+    for ( cx = *x_ptr + *w_ptr;
+          cx < x + w &&
+              check_solid_tile(vs, cx, *y_ptr, 1, *h_ptr, &color, true);
+          cx++ );
+    *w_ptr += cx - (*x_ptr + *w_ptr);
+}
+
 static int tight_init_stream(VncState *vs, int stream_id,
                              int level, int strategy)
 {
@@ -104,7 +237,7 @@ static void tight_send_compact_size(VncState *vs, size_t len)
             buf[bytes++] = (len >> 14) & 0xFF;
         }
     }
-    for(lpc = 0; lpc < bytes; lpc++) {
+    for (lpc = 0; lpc < bytes; lpc++) {
         vnc_write_u8(vs, buf[lpc]);
     }
 }
@@ -207,6 +340,23 @@ static int send_full_color_rect(VncState *vs, int w, int h)
     return (bytes >= 0);
 }
 
+static int send_solid_rect(VncState *vs)
+{
+    size_t bytes;
+
+    vnc_write_u8(vs, VNC_TIGHT_FILL << 4); /* no flushing, no filter */
+
+    if (vs->tight_pixel24) {
+        tight_pack24(vs, 1);
+        bytes = 3;
+    } else {
+        bytes = vs->clientds.pf.bytes_per_pixel;
+    }
+
+    vnc_write(vs, vs->tight.buffer, bytes);
+    return 1;
+}
+
 static void vnc_tight_start(VncState *vs)
 {
     buffer_reset(&vs->tight);
@@ -239,6 +389,17 @@ static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
     return send_full_color_rect(vs, w, h);
 }
 
+static int send_sub_rect_solid(VncState *vs, int x, int y, int w, int h)
+{
+    vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_TIGHT);
+
+    vnc_tight_start(vs);
+    vnc_raw_send_framebuffer_update(vs, x, y, w, h);
+    vnc_tight_stop(vs);
+
+    return send_solid_rect(vs);
+}
+
 static int send_rect_simple(VncState *vs, int x, int y, int w, int h)
 {
     int max_size, max_width;
@@ -268,9 +429,93 @@ static int send_rect_simple(VncState *vs, int x, int y, int w, int h)
     return n;
 }
 
+static int find_large_solid_color_rect(VncState *vs, int x, int y,
+                                       int w, int h, int max_rows)
+{
+    int dx, dy, dw, dh;
+    int n = 0;
+
+    /* Try to find large solid-color areas and send them separately. */
+
+    for (dy = y; dy < y + h; dy += VNC_TIGHT_MAX_SPLIT_TILE_SIZE) {
+
+        /* If a rectangle becomes too large, send its upper part now. */
+
+        if (dy - y >= max_rows) {
+            n += send_rect_simple(vs, x, y, w, max_rows);
+            y += max_rows;
+            h -= max_rows;
+        }
+
+        dh = MIN(VNC_TIGHT_MAX_SPLIT_TILE_SIZE, (y + h - dy));
+
+        for (dx = x; dx < x + w; dx += VNC_TIGHT_MAX_SPLIT_TILE_SIZE) {
+            uint32_t color_value;
+            int x_best, y_best, w_best, h_best;
+
+            dw = MIN(VNC_TIGHT_MAX_SPLIT_TILE_SIZE, (x + w - dx));
+
+            if (!check_solid_tile(vs, dx, dy, dw, dh, &color_value, false)) {
+                continue ;
+            }
+
+            /* Get dimensions of solid-color area. */
+
+            find_best_solid_area(vs, dx, dy, w - (dx - x), h - (dy - y),
+                                 color_value, &w_best, &h_best);
+
+            /* Make sure a solid rectangle is large enough
+               (or the whole rectangle is of the same color). */
+
+            if (w_best * h_best != w * h &&
+                w_best * h_best < VNC_TIGHT_MIN_SOLID_SUBRECT_SIZE) {
+                continue;
+            }
+
+            /* Try to extend solid rectangle to maximum size. */
+
+            x_best = dx; y_best = dy;
+            extend_solid_area(vs, x, y, w, h, color_value,
+                              &x_best, &y_best, &w_best, &h_best);
+
+            /* Send rectangles at top and left to solid-color area. */
+
+            if (y_best != y) {
+                n += send_rect_simple(vs, x, y, w, y_best-y);
+            }
+            if (x_best != x) {
+                n += vnc_tight_send_framebuffer_update(vs, x, y_best,
+                                                       x_best-x, h_best);
+            }
+
+            /* Send solid-color rectangle. */
+            n += send_sub_rect_solid(vs, x_best, y_best, w_best, h_best);
+
+            /* Send remaining rectangles (at right and bottom). */
+
+            if (x_best + w_best != x + w) {
+                n += vnc_tight_send_framebuffer_update(vs, x_best+w_best,
+                                                       y_best,
+                                                       w-(x_best-x)-w_best,
+                                                       h_best);
+            }
+            if (y_best + h_best != y + h) {
+                n += vnc_tight_send_framebuffer_update(vs, x, y_best+h_best,
+                                                       w, h-(y_best-y)-h_best);
+            }
+
+            /* Return after all recursive calls are done. */
+            return n;
+        }
+    }
+    return n + send_rect_simple(vs, x, y, w, h);
+}
+
 int vnc_tight_send_framebuffer_update(VncState *vs, int x, int y,
                                       int w, int h)
 {
+    int max_rows;
+
     if (vs->clientds.pf.bytes_per_pixel == 4 && vs->clientds.pf.rmax == 0xFF &&
         vs->clientds.pf.bmax == 0xFF && vs->clientds.pf.gmax == 0xFF) {
         vs->tight_pixel24 = true;
@@ -278,7 +523,15 @@ int vnc_tight_send_framebuffer_update(VncState *vs, int x, int y,
         vs->tight_pixel24 = false;
     }
 
-    return send_rect_simple(vs, x, y, w, h);
+    if (w * h < VNC_TIGHT_MIN_SPLIT_RECT_SIZE)
+        return send_rect_simple(vs, x, y, w, h);
+
+    /* Calculate maximum number of rows in one non-solid rectangle. */
+
+    max_rows = tight_conf[vs->tight_compression].max_rect_size;
+    max_rows /= MIN(tight_conf[vs->tight_compression].max_rect_width, w);
+
+    return find_large_solid_color_rect(vs, x, y, w, h, max_rows);
 }
 
 void vnc_tight_clear(VncState *vs)
