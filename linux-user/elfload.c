@@ -629,11 +629,11 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
 
 #define ELF_START_MMAP 0x80000000
 
-#define elf_check_arch(x) ( (x) == EM_XILINX_MICROBLAZE )
+#define elf_check_arch(x) ( (x) == EM_MICROBLAZE || (x) == EM_MICROBLAZE_OLD)
 
 #define ELF_CLASS   ELFCLASS32
 #define ELF_DATA	ELFDATA2MSB
-#define ELF_ARCH    EM_XILINX_MICROBLAZE
+#define ELF_ARCH    EM_MICROBLAZE
 
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
