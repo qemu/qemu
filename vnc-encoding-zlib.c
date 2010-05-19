@@ -54,9 +54,9 @@ static void vnc_zlib_start(VncState *vs)
     vs->output = vs->zlib;
 }
 
-static int vnc_zlib_stop(VncState *vs, int stream_id)
+static int vnc_zlib_stop(VncState *vs)
 {
-    z_streamp zstream = &vs->zlib_stream[stream_id];
+    z_streamp zstream = &vs->zlib_stream;
     int previous_out;
 
     // switch back to normal output/zlib buffers
@@ -70,7 +70,7 @@ static int vnc_zlib_stop(VncState *vs, int stream_id)
     if (zstream->opaque != vs) {
         int err;
 
-        VNC_DEBUG("VNC: initializing zlib stream %d\n", stream_id);
+        VNC_DEBUG("VNC: initializing zlib stream\n");
         VNC_DEBUG("VNC: opaque = %p | vs = %p\n", zstream->opaque, vs);
         zstream->zalloc = zalloc;
         zstream->zfree = zfree;
@@ -122,7 +122,7 @@ void vnc_zlib_send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
     // compress the stream
     vnc_zlib_start(vs);
     vnc_raw_send_framebuffer_update(vs, x, y, w, h);
-    bytes_written = vnc_zlib_stop(vs, 0);
+    bytes_written = vnc_zlib_stop(vs);
 
     if (bytes_written == -1)
         return;
@@ -136,7 +136,5 @@ void vnc_zlib_send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
 
 void vnc_zlib_init(VncState *vs)
 {
-    int i;
-    for (i=0; i<(sizeof(vs->zlib_stream) / sizeof(z_stream)); i++)
-        vs->zlib_stream[i].opaque = NULL;
+    vs->zlib_stream.opaque = NULL;
 }
