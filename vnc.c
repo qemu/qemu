@@ -661,7 +661,7 @@ static void send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
 {
     switch(vs->vnc_encoding) {
         case VNC_ENCODING_ZLIB:
-            vnc_hextile_send_framebuffer_update(vs, x, y, w, h);
+            vnc_zlib_send_framebuffer_update(vs, x, y, w, h);
             break;
         case VNC_ENCODING_HEXTILE:
             vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_HEXTILE);
