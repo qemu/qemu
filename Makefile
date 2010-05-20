@@ -146,6 +146,8 @@ qemu-io$(EXESUF): qemu-io.o cmd.o qemu-tool.o qemu-error.o $(block-obj-y) $(qobj
 qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $@")
 
+check-qint.o check-qstring.o check-qdict.o check-qlist.o check-qfloat.o check-qjson.o: $(GENERATED_HEADERS)
+
 check-qint: check-qint.o qint.o qemu-malloc.o
 check-qstring: check-qstring.o qstring.o qemu-malloc.o
 check-qdict: check-qdict.o qdict.o qfloat.o qint.o qstring.o qbool.o qemu-malloc.o qlist.o
