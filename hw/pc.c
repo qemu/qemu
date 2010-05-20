@@ -818,7 +818,7 @@ void pc_memory_init(ram_addr_t ram_size,
     ram_addr_t ram_addr, bios_offset, option_rom_offset;
     ram_addr_t below_4g_mem_size, above_4g_mem_size = 0;
     int bios_size, isa_bios_size;
-    void **fw_cfg;
+    void *fw_cfg;
 
     if (ram_size >= 0xe0000000 ) {
         above_4g_mem_size = ram_size - 0xe0000000;
@@ -893,7 +893,7 @@ void pc_memory_init(ram_addr_t ram_size,
     rom_set_fw(fw_cfg);
 
     if (linux_boot) {
-        load_linux(*fw_cfg, kernel_filename, initrd_filename, kernel_cmdline, below_4g_mem_size);
+        load_linux(fw_cfg, kernel_filename, initrd_filename, kernel_cmdline, below_4g_mem_size);
     }
 
     for (i = 0; i < nb_option_roms; i++) {
