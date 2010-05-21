@@ -158,6 +158,8 @@ static inline int tcg_target_const_match(tcg_target_long val,
 
 #define P_EXT   0x100 /* 0x0f opcode prefix */
 
+#define OPC_ARITH_EvIz	(0x81)
+#define OPC_ARITH_EvIb	(0x83)
 #define OPC_BSWAP	(0xc8 | P_EXT)
 #define OPC_JCC_long	(0x80 | P_EXT)	/* ... plus condition code */
 #define OPC_JCC_short	(0x70)		/* ... plus condition code */
@@ -360,14 +362,14 @@ static inline void tgen_arithi(TCGContext *s, int c, int r0, int32_t val, int cf
         /* dec */
         tcg_out_opc(s, 0x48 + r0);
     } else if (val == (int8_t)val) {
-        tcg_out_modrm(s, 0x83, c, r0);
+        tcg_out_modrm(s, OPC_ARITH_EvIb, c, r0);
         tcg_out8(s, val);
     } else if (c == ARITH_AND && val == 0xffu && r0 < 4) {
         tcg_out_ext8u(s, r0, r0);
     } else if (c == ARITH_AND && val == 0xffffu) {
         tcg_out_ext16u(s, r0, r0);
     } else {
-        tcg_out_modrm(s, 0x81, c, r0);
+        tcg_out_modrm(s, OPC_ARITH_EvIz, c, r0);
         tcg_out32(s, val);
     }
 }
@@ -536,7 +538,7 @@ static void tcg_out_setcond(TCGContext *s, TCGCond cond, TCGArg dest,
     tcg_out_cmp(s, arg1, arg2, const_arg2);
     /* setcc */
     tcg_out_modrm(s, 0x90 | tcg_cond_to_jcc[cond] | P_EXT, 0, dest);
-    tgen_arithi(s, ARITH_AND, dest, 0xff, 0);
+    tcg_out_ext8u(s, dest, dest);
 }
 
 static void tcg_out_setcond2(TCGContext *s, const TCGArg *args,
@@ -638,16 +640,12 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
 
 #if defined(CONFIG_SOFTMMU)
     tcg_out_mov(s, r1, addr_reg); 
-
     tcg_out_mov(s, r0, addr_reg); 
- 
+
     tcg_out_shifti(s, SHIFT_SHR, r1, TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
 
-    tcg_out_modrm(s, 0x81, 4, r0); /* andl $x, r0 */
-    tcg_out32(s, TARGET_PAGE_MASK | ((1 << s_bits) - 1));
-    
-    tcg_out_modrm(s, 0x81, 4, r1); /* andl $x, r1 */
-    tcg_out32(s, (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS);
+    tgen_arithi(s, ARITH_AND, r0, TARGET_PAGE_MASK | ((1 << s_bits) - 1), 0);
+    tgen_arithi(s, ARITH_AND, r1, (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS, 0);
 
     tcg_out_opc(s, 0x8d); /* lea offset(r1, %ebp), r1 */
     tcg_out8(s, 0x80 | (r1 << 3) | 0x04);
@@ -834,16 +832,12 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
 
 #if defined(CONFIG_SOFTMMU)
     tcg_out_mov(s, r1, addr_reg); 
-
     tcg_out_mov(s, r0, addr_reg); 
  
     tcg_out_shifti(s, SHIFT_SHR, r1, TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
 
-    tcg_out_modrm(s, 0x81, 4, r0); /* andl $x, r0 */
-    tcg_out32(s, TARGET_PAGE_MASK | ((1 << s_bits) - 1));
-    
-    tcg_out_modrm(s, 0x81, 4, r1); /* andl $x, r1 */
-    tcg_out32(s, (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS);
+    tgen_arithi(s, ARITH_AND, r0, TARGET_PAGE_MASK | ((1 << s_bits) - 1), 0);
+    tgen_arithi(s, ARITH_AND, r1, (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS, 0);
 
     tcg_out_opc(s, 0x8d); /* lea offset(r1, %ebp), r1 */
     tcg_out8(s, 0x80 | (r1 << 3) | 0x04);
