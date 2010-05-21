@@ -77,58 +77,6 @@ void mmap_unlock(void)
 }
 #endif
 
-void *qemu_vmalloc(size_t size)
-{
-    void *p;
-
-    mmap_lock();
-    /* Use map and mark the pages as used.  */
-    p = mmap(NULL, size, PROT_READ | PROT_WRITE,
-             MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    mmap_unlock();
-    return p;
-}
-
-void *qemu_malloc(size_t size)
-{
-    char * p;
-    size += 16;
-    p = qemu_vmalloc(size);
-    *(size_t *)p = size;
-    return p + 16;
-}
-
-/* We use map, which is always zero initialized.  */
-void * qemu_mallocz(size_t size)
-{
-    return qemu_malloc(size);
-}
-
-void qemu_free(void *ptr)
-{
-    /* FIXME: We should unmark the reserved pages here.  However this gets
-       complicated when one target page spans multiple host pages, so we
-       don't bother.  */
-    size_t *p;
-    p = (size_t *)((char *)ptr - 16);
-    munmap(p, *p);
-}
-
-void *qemu_realloc(void *ptr, size_t size)
-{
-    size_t old_size, copy;
-    void *new_ptr;
-
-    if (!ptr)
-        return qemu_malloc(size);
-    old_size = *(size_t *)((char *)ptr - 16);
-    copy = old_size < size ? old_size : size;
-    new_ptr = qemu_malloc(size);
-    memcpy(new_ptr, ptr, copy);
-    qemu_free(ptr);
-    return new_ptr;
-}
-
 /* NOTE: all the constants are the HOST ones, but addresses are target. */
 int target_mprotect(abi_ulong start, abi_ulong len, int prot)
 {
