@@ -345,7 +345,13 @@ static int qcow_read(BlockDriverState *bs, int64_t sector_num,
 
     while (nb_sectors > 0) {
         n = nb_sectors;
-        cluster_offset = qcow2_get_cluster_offset(bs, sector_num << 9, &n);
+
+        ret = qcow2_get_cluster_offset(bs, sector_num << 9, &n,
+            &cluster_offset);
+        if (ret < 0) {
+            return ret;
+        }
+
         index_in_cluster = sector_num & (s->cluster_sectors - 1);
         if (!cluster_offset) {
             if (bs->backing_hd) {
@@ -412,25 +418,25 @@ static int copy_sectors(BlockDriverState *bs, uint64_t start_sect,
 /*
  * get_cluster_offset
  *
- * For a given offset of the disk image, return cluster offset in
- * qcow2 file.
+ * For a given offset of the disk image, find the cluster offset in
+ * qcow2 file. The offset is stored in *cluster_offset.
  *
  * on entry, *num is the number of contiguous clusters we'd like to
  * access following offset.
  *
  * on exit, *num is the number of contiguous clusters we can read.
  *
- * Return 1, if the offset is found
- * Return 0, otherwise.
+ * Return 0, if the offset is found
+ * Return -errno, otherwise.
  *
  */
 
-uint64_t qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
-    int *num)
+int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
+    int *num, uint64_t *cluster_offset)
 {
     BDRVQcowState *s = bs->opaque;
     unsigned int l1_index, l2_index;
-    uint64_t l2_offset, *l2_table, cluster_offset;
+    uint64_t l2_offset, *l2_table;
     int l1_bits, c;
     unsigned int index_in_cluster, nb_clusters;
     uint64_t nb_available, nb_needed;
@@ -454,7 +460,7 @@ uint64_t qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
         nb_needed = nb_available;
     }
 
-    cluster_offset = 0;
+    *cluster_offset = 0;
 
     /* seek the the l2 offset in the l1 table */
 
@@ -473,16 +479,17 @@ uint64_t qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
 
     l2_offset &= ~QCOW_OFLAG_COPIED;
     l2_table = l2_load(bs, l2_offset);
-    if (l2_table == NULL)
-        return 0;
+    if (l2_table == NULL) {
+        return -EIO;
+    }
 
     /* find the cluster offset for the given disk offset */
 
     l2_index = (offset >> s->cluster_bits) & (s->l2_size - 1);
-    cluster_offset = be64_to_cpu(l2_table[l2_index]);
+    *cluster_offset = be64_to_cpu(l2_table[l2_index]);
     nb_clusters = size_to_clusters(s, nb_needed << 9);
 
-    if (!cluster_offset) {
+    if (!*cluster_offset) {
         /* how many empty clusters ? */
         c = count_contiguous_free_clusters(nb_clusters, &l2_table[l2_index]);
     } else {
@@ -498,7 +505,8 @@ out:
 
     *num = nb_available - index_in_cluster;
 
-    return cluster_offset & ~QCOW_OFLAG_COPIED;
+    *cluster_offset &=~QCOW_OFLAG_COPIED;
+    return 0;
 }
 
 /*
