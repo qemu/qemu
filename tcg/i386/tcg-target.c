@@ -190,7 +190,11 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define OPC_SHIFT_cl	(0xd3)
 #define OPC_TESTL	(0x85)
 
-/* Group 1 opcode extensions for 0x80-0x83.  */
+#define OPC_GRP3_Ev	(0xf7)
+#define OPC_GRP5	(0xff)
+
+/* Group 1 opcode extensions for 0x80-0x83.
+   These are also used as modifiers for OPC_ARITH.  */
 #define ARITH_ADD 0
 #define ARITH_OR  1
 #define ARITH_ADC 2
@@ -207,9 +211,17 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define SHIFT_SHR 5
 #define SHIFT_SAR 7
 
-/* Group 5 opcode extensions for 0xff.  */
-#define EXT_CALLN_Ev	2
-#define EXT_JMPN_Ev	4
+/* Group 3 opcode extensions for 0xf6, 0xf7.  To be used with OPC_GRP3.  */
+#define EXT3_NOT   2
+#define EXT3_NEG   3
+#define EXT3_MUL   4
+#define EXT3_IMUL  5
+#define EXT3_DIV   6
+#define EXT3_IDIV  7
+
+/* Group 5 opcode extensions for 0xff.  To be used with OPC_GRP5.  */
+#define EXT5_CALLN_Ev	2
+#define EXT5_JMPN_Ev	4
 
 /* Condition codes to be added to OPC_JCC_{long,short}.  */
 #define JCC_JMP (-1)
@@ -1060,7 +1072,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
             tcg_out32(s, 0);
         } else {
             /* indirect jump method */
-            tcg_out_modrm_offset(s, 0xff, EXT_JMPN_Ev, -1,
+            tcg_out_modrm_offset(s, OPC_GRP5, EXT5_JMPN_Ev, -1,
                                  (tcg_target_long)(s->tb_next + args[0]));
         }
         s->tb_next_offset[args[0]] = s->code_ptr - s->code_buf;
@@ -1070,7 +1082,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
             tcg_out_calli(s, args[0]);
         } else {
             /* call *reg */
-            tcg_out_modrm(s, 0xff, EXT_CALLN_Ev, args[0]);
+            tcg_out_modrm(s, OPC_GRP5, EXT5_CALLN_Ev, args[0]);
         }
         break;
     case INDEX_op_jmp:
@@ -1079,7 +1091,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
             tcg_out32(s, args[0] - (tcg_target_long)s->code_ptr - 4);
         } else {
             /* jmp *reg */
-            tcg_out_modrm(s, 0xff, EXT_JMPN_Ev, args[0]);
+            tcg_out_modrm(s, OPC_GRP5, EXT5_JMPN_Ev, args[0]);
         }
         break;
     case INDEX_op_br:
@@ -1156,13 +1168,13 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
     case INDEX_op_mulu2_i32:
-        tcg_out_modrm(s, 0xf7, 4, args[3]);
+        tcg_out_modrm(s, OPC_GRP3_Ev, EXT3_MUL, args[3]);
         break;
     case INDEX_op_div2_i32:
-        tcg_out_modrm(s, 0xf7, 7, args[4]);
+        tcg_out_modrm(s, OPC_GRP3_Ev, EXT3_IDIV, args[4]);
         break;
     case INDEX_op_divu2_i32:
-        tcg_out_modrm(s, 0xf7, 6, args[4]);
+        tcg_out_modrm(s, OPC_GRP3_Ev, EXT3_DIV, args[4]);
         break;
     case INDEX_op_shl_i32:
         c = SHIFT_SHL;
@@ -1226,11 +1238,11 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_neg_i32:
-        tcg_out_modrm(s, 0xf7, 3, args[0]);
+        tcg_out_modrm(s, OPC_GRP3_Ev, EXT3_NEG, args[0]);
         break;
 
     case INDEX_op_not_i32:
-        tcg_out_modrm(s, 0xf7, 2, args[0]);
+        tcg_out_modrm(s, OPC_GRP3_Ev, EXT3_NOT, args[0]);
         break;
 
     case INDEX_op_ext8s_i32:
@@ -1398,7 +1410,7 @@ void tcg_target_qemu_prologue(TCGContext *s)
     stack_addend = frame_size - push_size;
     tcg_out_addi(s, TCG_REG_ESP, -stack_addend);
 
-    tcg_out_modrm(s, 0xff, EXT_JMPN_Ev, TCG_REG_EAX); /* jmp *%eax */
+    tcg_out_modrm(s, OPC_GRP5, EXT5_JMPN_Ev, TCG_REG_EAX); /* jmp *%eax */
     
     /* TB epilogue */
     tb_ret_addr = s->code_ptr;
