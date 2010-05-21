@@ -49,6 +49,8 @@
 static VncDisplay *vnc_display; /* needed for info vnc */
 static DisplayChangeListener *dcl;
 
+static int vnc_cursor_define(VncState *vs);
+
 static char *addr_to_string(const char *format,
                             struct sockaddr_storage *sa,
                             socklen_t salen) {
@@ -549,12 +551,16 @@ static void vnc_dpy_resize(DisplayState *ds)
                 vnc_flush(vs);
             }
         }
+        if (vs->vd->cursor) {
+            vnc_cursor_define(vs);
+        }
         memset(vs->dirty, 0xFF, sizeof(vs->dirty));
     }
 }
 
 /* fastest code */
-static void vnc_write_pixels_copy(VncState *vs, void *pixels, int size)
+static void vnc_write_pixels_copy(VncState *vs, struct PixelFormat *pf,
+                                  void *pixels, int size)
 {
     vnc_write(vs, pixels, size);
 }
@@ -604,12 +610,12 @@ void vnc_convert_pixel(VncState *vs, uint8_t *buf, uint32_t v)
     }
 }
 
-static void vnc_write_pixels_generic(VncState *vs, void *pixels1, int size)
+static void vnc_write_pixels_generic(VncState *vs, struct PixelFormat *pf,
+                                     void *pixels1, int size)
 {
     uint8_t buf[4];
-    VncDisplay *vd = vs->vd;
 
-    if (vd->server->pf.bytes_per_pixel == 4) {
+    if (pf->bytes_per_pixel == 4) {
         uint32_t *pixels = pixels1;
         int n, i;
         n = size >> 2;
@@ -617,7 +623,7 @@ static void vnc_write_pixels_generic(VncState *vs, void *pixels1, int size)
             vnc_convert_pixel(vs, buf, pixels[i]);
             vnc_write(vs, buf, vs->clientds.pf.bytes_per_pixel);
         }
-    } else if (vd->server->pf.bytes_per_pixel == 2) {
+    } else if (pf->bytes_per_pixel == 2) {
         uint16_t *pixels = pixels1;
         int n, i;
         n = size >> 1;
@@ -625,7 +631,7 @@ static void vnc_write_pixels_generic(VncState *vs, void *pixels1, int size)
             vnc_convert_pixel(vs, buf, pixels[i]);
             vnc_write(vs, buf, vs->clientds.pf.bytes_per_pixel);
         }
-    } else if (vd->server->pf.bytes_per_pixel == 1) {
+    } else if (pf->bytes_per_pixel == 1) {
         uint8_t *pixels = pixels1;
         int n, i;
         n = size;
@@ -646,7 +652,7 @@ void vnc_raw_send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
 
     row = vd->server->data + y * ds_get_linesize(vs->ds) + x * ds_get_bytes_per_pixel(vs->ds);
     for (i = 0; i < h; i++) {
-        vs->write_pixels(vs, row, w * ds_get_bytes_per_pixel(vs->ds));
+        vs->write_pixels(vs, &vd->server->pf, row, w * ds_get_bytes_per_pixel(vs->ds));
         row += ds_get_linesize(vs->ds);
     }
 }
@@ -749,6 +755,50 @@ static void vnc_dpy_copy(DisplayState *ds, int src_x, int src_y, int dst_x, int 
         if (vnc_has_feature(vs, VNC_FEATURE_COPYRECT)) {
             vnc_copy(vs, src_x, src_y, dst_x, dst_y, w, h);
         }
+    }
+}
+
+static void vnc_mouse_set(int x, int y, int visible)
+{
+    /* can we ask the client(s) to move the pointer ??? */
+}
+
+static int vnc_cursor_define(VncState *vs)
+{
+    QEMUCursor *c = vs->vd->cursor;
+    PixelFormat pf = qemu_default_pixelformat(32);
+    int isize;
+
+    if (vnc_has_feature(vs, VNC_FEATURE_RICH_CURSOR)) {
+        vnc_write_u8(vs,  VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
+        vnc_write_u8(vs,  0);  /*  padding     */
+        vnc_write_u16(vs, 1);  /*  # of rects  */
+        vnc_framebuffer_update(vs, c->hot_x, c->hot_y, c->width, c->height,
+                               VNC_ENCODING_RICH_CURSOR);
+        isize = c->width * c->height * vs->clientds.pf.bytes_per_pixel;
+        vnc_write_pixels_generic(vs, &pf, c->data, isize);
+        vnc_write(vs, vs->vd->cursor_mask, vs->vd->cursor_msize);
+        return 0;
+    }
+    return -1;
+}
+
+static void vnc_dpy_cursor_define(QEMUCursor *c)
+{
+    VncDisplay *vd = vnc_display;
+    VncState *vs;
+
+    cursor_put(vd->cursor);
+    qemu_free(vd->cursor_mask);
+
+    vd->cursor = c;
+    cursor_get(vd->cursor);
+    vd->cursor_msize = cursor_get_mono_bpl(c) * c->height;
+    vd->cursor_mask = qemu_mallocz(vd->cursor_msize);
+    cursor_get_mono_mask(c, 0, vd->cursor_mask);
+
+    QTAILQ_FOREACH(vs, &vd->clients, next) {
+        vnc_cursor_define(vs);
     }
 }
 
@@ -1628,6 +1678,9 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
         case VNC_ENCODING_POINTER_TYPE_CHANGE:
             vs->features |= VNC_FEATURE_POINTER_TYPE_CHANGE_MASK;
             break;
+        case VNC_ENCODING_RICH_CURSOR:
+            vs->features |= VNC_FEATURE_RICH_CURSOR_MASK;
+            break;
         case VNC_ENCODING_EXT_KEY_EVENT:
             send_ext_key_event_ack(vs);
             break;
@@ -1648,7 +1701,6 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             break;
         }
     }
-
     check_pointer_type_change(&vs->mouse_mode_notifier);
 }
 
@@ -2294,6 +2346,8 @@ void vnc_display_init(DisplayState *ds)
     dcl->dpy_resize = vnc_dpy_resize;
     dcl->dpy_setdata = vnc_dpy_setdata;
     register_displaychangelistener(ds, dcl);
+    ds->mouse_set = vnc_mouse_set;
+    ds->cursor_define = vnc_dpy_cursor_define;
 }
 
 
