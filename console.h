@@ -126,6 +126,27 @@ struct DisplaySurface {
     struct PixelFormat pf;
 };
 
+/* cursor data format is 32bit RGBA */
+typedef struct QEMUCursor {
+    int                 width, height;
+    int                 hot_x, hot_y;
+    int                 refcount;
+    uint32_t            data[];
+} QEMUCursor;
+
+QEMUCursor *cursor_alloc(int width, int height);
+void cursor_get(QEMUCursor *c);
+void cursor_put(QEMUCursor *c);
+QEMUCursor *cursor_builtin_hidden(void);
+QEMUCursor *cursor_builtin_left_ptr(void);
+void cursor_print_ascii_art(QEMUCursor *c, const char *prefix);
+int cursor_get_mono_bpl(QEMUCursor *c);
+void cursor_set_mono(QEMUCursor *c,
+                     uint32_t foreground, uint32_t background, uint8_t *image,
+                     int transparent, uint8_t *mask);
+void cursor_get_mono_image(QEMUCursor *c, int foreground, uint8_t *mask);
+void cursor_get_mono_mask(QEMUCursor *c, int transparent, uint8_t *mask);
+
 struct DisplayChangeListener {
     int idle;
     uint64_t gui_timer_interval;
@@ -158,8 +179,7 @@ struct DisplayState {
     struct DisplayChangeListener* listeners;
 
     void (*mouse_set)(int x, int y, int on);
-    void (*cursor_define)(int width, int height, int bpp, int hot_x, int hot_y,
-                          uint8_t *image, uint8_t *mask);
+    void (*cursor_define)(QEMUCursor *cursor);
 
     struct DisplayState *next;
 };
