@@ -157,31 +157,36 @@ static uint64_t *seek_l2_table(BDRVQcowState *s, uint64_t l2_offset)
  * the image file failed.
  */
 
-static uint64_t *l2_load(BlockDriverState *bs, uint64_t l2_offset)
+static int l2_load(BlockDriverState *bs, uint64_t l2_offset,
+    uint64_t **l2_table)
 {
     BDRVQcowState *s = bs->opaque;
     int min_index;
-    uint64_t *l2_table;
+    int ret;
 
     /* seek if the table for the given offset is in the cache */
 
-    l2_table = seek_l2_table(s, l2_offset);
-    if (l2_table != NULL)
-        return l2_table;
+    *l2_table = seek_l2_table(s, l2_offset);
+    if (*l2_table != NULL) {
+        return 0;
+    }
 
     /* not found: load a new entry in the least used one */
 
     min_index = l2_cache_new_entry(bs);
-    l2_table = s->l2_cache + (min_index << s->l2_bits);
+    *l2_table = s->l2_cache + (min_index << s->l2_bits);
 
     BLKDBG_EVENT(bs->file, BLKDBG_L2_LOAD);
-    if (bdrv_pread(bs->file, l2_offset, l2_table, s->l2_size * sizeof(uint64_t)) !=
-        s->l2_size * sizeof(uint64_t))
-        return NULL;
+    ret = bdrv_pread(bs->file, l2_offset, *l2_table,
+        s->l2_size * sizeof(uint64_t));
+    if (ret < 0) {
+        return ret;
+    }
+
     s->l2_cache_offsets[min_index] = l2_offset;
     s->l2_cache_counts[min_index] = 1;
 
-    return l2_table;
+    return 0;
 }
 
 /*
@@ -440,6 +445,7 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
     int l1_bits, c;
     unsigned int index_in_cluster, nb_clusters;
     uint64_t nb_available, nb_needed;
+    int ret;
 
     index_in_cluster = (offset >> 9) & (s->cluster_sectors - 1);
     nb_needed = *num + index_in_cluster;
@@ -478,9 +484,9 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
     /* load the l2 table in memory */
 
     l2_offset &= ~QCOW_OFLAG_COPIED;
-    l2_table = l2_load(bs, l2_offset);
-    if (l2_table == NULL) {
-        return -EIO;
+    ret = l2_load(bs, l2_offset, &l2_table);
+    if (ret < 0) {
+        return ret;
     }
 
     /* find the cluster offset for the given disk offset */
@@ -547,9 +553,9 @@ static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
     if (l2_offset & QCOW_OFLAG_COPIED) {
         /* load the l2 table in memory */
         l2_offset &= ~QCOW_OFLAG_COPIED;
-        l2_table = l2_load(bs, l2_offset);
-        if (l2_table == NULL) {
-            return -EIO;
+        ret = l2_load(bs, l2_offset, &l2_table);
+        if (ret < 0) {
+            return ret;
         }
     } else {
         if (l2_offset)
