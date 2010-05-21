@@ -184,6 +184,7 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define OPC_PUSH_Iv	(0x68)
 #define OPC_PUSH_Ib	(0x6a)
 #define OPC_RET		(0xc3)
+#define OPC_SETCC	(0x90 | P_EXT)	/* ... plus condition code */
 #define OPC_SHIFT_1	(0xd1)
 #define OPC_SHIFT_Ib	(0xc1)
 #define OPC_SHIFT_cl	(0xd3)
@@ -577,8 +578,7 @@ static void tcg_out_setcond(TCGContext *s, TCGCond cond, TCGArg dest,
                             TCGArg arg1, TCGArg arg2, int const_arg2)
 {
     tcg_out_cmp(s, arg1, arg2, const_arg2);
-    /* setcc */
-    tcg_out_modrm(s, 0x90 | tcg_cond_to_jcc[cond] | P_EXT, 0, dest);
+    tcg_out_modrm(s, OPC_SETCC | tcg_cond_to_jcc[cond], 0, dest);
     tcg_out_ext8u(s, dest, dest);
 }
 
