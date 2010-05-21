@@ -183,6 +183,7 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define OPC_PUSH_r32	(0x50)
 #define OPC_PUSH_Iv	(0x68)
 #define OPC_PUSH_Ib	(0x6a)
+#define OPC_RET		(0xc3)
 #define OPC_SHIFT_1	(0xd1)
 #define OPC_SHIFT_Ib	(0xc1)
 #define OPC_SHIFT_cl	(0xd3)
@@ -1405,7 +1406,7 @@ void tcg_target_qemu_prologue(TCGContext *s)
     for(i = ARRAY_SIZE(tcg_target_callee_save_regs) - 1; i >= 0; i--) {
         tcg_out_pop(s, tcg_target_callee_save_regs[i]);
     }
-    tcg_out8(s, 0xc3); /* ret */
+    tcg_out_opc(s, OPC_RET);
 }
 
 void tcg_target_init(TCGContext *s)
