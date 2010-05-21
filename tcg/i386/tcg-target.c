@@ -842,7 +842,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     int data_reg, data_reg2 = 0;
     int addrlo_idx;
 #if defined(CONFIG_SOFTMMU)
-    int mem_index, s_bits;
+    int mem_index, s_bits, arg_idx;
     uint8_t *label_ptr[3];
 #endif
 
@@ -877,12 +877,14 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     }
 
     /* XXX: move that code at the end of the TB */
-#if TARGET_LONG_BITS == 32
-    tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_EDX, mem_index);
-#else
-    tcg_out_mov(s, TCG_REG_EDX, args[addrlo_idx + 1]);
-    tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_ECX, mem_index);
-#endif
+    /* EAX is already loaded.  */
+    arg_idx = 1;
+    if (TARGET_LONG_BITS == 64) {
+        tcg_out_mov(s, tcg_target_call_iarg_regs[arg_idx++],
+                    args[addrlo_idx + 1]);
+    }
+    tcg_out_movi(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[arg_idx],
+                 mem_index);
     tcg_out_calli(s, (tcg_target_long)qemu_ld_helpers[s_bits]);
 
     switch(opc) {
@@ -1018,51 +1020,40 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     }
 
     /* XXX: move that code at the end of the TB */
-#if TARGET_LONG_BITS == 32
-    if (opc == 3) {
+    if (TARGET_LONG_BITS == 32) {
         tcg_out_mov(s, TCG_REG_EDX, data_reg);
-        tcg_out_mov(s, TCG_REG_ECX, data_reg2);
-        tcg_out_pushi(s, mem_index);
-        stack_adjust = 4;
-    } else {
-        switch(opc) {
-        case 0:
-            tcg_out_ext8u(s, TCG_REG_EDX, data_reg);
-            break;
-        case 1:
-            tcg_out_ext16u(s, TCG_REG_EDX, data_reg);
-            break;
-        case 2:
-            tcg_out_mov(s, TCG_REG_EDX, data_reg);
-            break;
+        if (opc == 3) {
+            tcg_out_mov(s, TCG_REG_ECX, data_reg2);
+            tcg_out_pushi(s, mem_index);
+            stack_adjust = 4;
+        } else {
+            tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_ECX, mem_index);
+            stack_adjust = 0;
         }
-        tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_ECX, mem_index);
-        stack_adjust = 0;
-    }
-#else
-    if (opc == 3) {
-        tcg_out_mov(s, TCG_REG_EDX, args[addrlo_idx + 1]);
-        tcg_out_pushi(s, mem_index);
-        tcg_out_push(s, data_reg2);
-        tcg_out_push(s, data_reg);
-        stack_adjust = 12;
     } else {
-        tcg_out_mov(s, TCG_REG_EDX, args[addrlo_idx + 1]);
-        switch(opc) {
-        case 0:
-            tcg_out_ext8u(s, TCG_REG_ECX, data_reg);
-            break;
-        case 1:
-            tcg_out_ext16u(s, TCG_REG_ECX, data_reg);
-            break;
-        case 2:
-            tcg_out_mov(s, TCG_REG_ECX, data_reg);
-            break;
+        if (opc == 3) {
+            tcg_out_mov(s, TCG_REG_EDX, args[addrlo_idx + 1]);
+            tcg_out_pushi(s, mem_index);
+            tcg_out_push(s, data_reg2);
+            tcg_out_push(s, data_reg);
+            stack_adjust = 12;
+        } else {
+            tcg_out_mov(s, TCG_REG_EDX, args[addrlo_idx + 1]);
+            switch(opc) {
+            case 0:
+                tcg_out_ext8u(s, TCG_REG_ECX, data_reg);
+                break;
+            case 1:
+                tcg_out_ext16u(s, TCG_REG_ECX, data_reg);
+                break;
+            case 2:
+                tcg_out_mov(s, TCG_REG_ECX, data_reg);
+                break;
+            }
+            tcg_out_pushi(s, mem_index);
+            stack_adjust = 4;
         }
-        tcg_out_pushi(s, mem_index);
-        stack_adjust = 4;
     }
-#endif
 
     tcg_out_calli(s, (tcg_target_long)qemu_st_helpers[s_bits]);
 
