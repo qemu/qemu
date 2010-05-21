@@ -2355,6 +2355,9 @@ for d in libdis libdis-user; do
     ln -s $source_path/Makefile.dis $d/Makefile
     echo > $d/config.mak
 done
+if test "$static" = "no" -a "$user_pie" = "yes" ; then
+  echo "QEMU_CFLAGS+=-fpie" > libdis-user/config.mak
+fi
 
 for target in $target_list; do
 target_dir="$target"
