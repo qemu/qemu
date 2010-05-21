@@ -174,6 +174,7 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define OPC_JCC_short	(0x70)		/* ... plus condition code */
 #define OPC_JMP_long	(0xe9)
 #define OPC_JMP_short	(0xeb)
+#define OPC_LEA         (0x8d)
 #define OPC_MOVB_EvGv	(0x88)		/* stores, more or less */
 #define OPC_MOVL_EvGv	(0x89)		/* stores, more or less */
 #define OPC_MOVL_GvEv	(0x8b)		/* loads, more or less */
@@ -272,38 +273,68 @@ static inline void tcg_out_modrm(TCGContext *s, int opc, int r, int rm)
     tcg_out8(s, 0xc0 | (r << 3) | rm);
 }
 
-/* rm == -1 means no register index */
-static inline void tcg_out_modrm_offset(TCGContext *s, int opc, int r, int rm, 
-                                        int32_t offset)
+/* Output an opcode with a full "rm + (index<<shift) + offset" address mode.
+   We handle either RM and INDEX missing with a -1 value.  */
+
+static void tcg_out_modrm_sib_offset(TCGContext *s, int opc, int r, int rm,
+                                     int index, int shift, int32_t offset)
 {
-    tcg_out_opc(s, opc);
-    if (rm == -1) {
-        tcg_out8(s, 0x05 | (r << 3));
+    int mod, len;
+
+    if (index == -1 && rm == -1) {
+        /* Absolute address.  */
+        tcg_out_opc(s, opc);
+        tcg_out8(s, (r << 3) | 5);
         tcg_out32(s, offset);
+        return;
+    }
+
+    tcg_out_opc(s, opc);
+
+    /* Find the length of the immediate addend.  Note that the encoding
+       that would be used for (%ebp) indicates absolute addressing.  */
+    if (rm == -1) {
+        mod = 0, len = 4, rm = 5;
     } else if (offset == 0 && rm != TCG_REG_EBP) {
-        if (rm == TCG_REG_ESP) {
-            tcg_out8(s, 0x04 | (r << 3));
-            tcg_out8(s, 0x24);
-        } else {
-            tcg_out8(s, 0x00 | (r << 3) | rm);
-        }
-    } else if ((int8_t)offset == offset) {
-        if (rm == TCG_REG_ESP) {
-            tcg_out8(s, 0x44 | (r << 3));
-            tcg_out8(s, 0x24);
-        } else {
-            tcg_out8(s, 0x40 | (r << 3) | rm);
-        }
-        tcg_out8(s, offset);
+        mod = 0, len = 0;
+    } else if (offset == (int8_t)offset) {
+        mod = 0x40, len = 1;
     } else {
-        if (rm == TCG_REG_ESP) {
-            tcg_out8(s, 0x84 | (r << 3));
-            tcg_out8(s, 0x24);
+        mod = 0x80, len = 4;
+    }
+
+    /* Use a single byte MODRM format if possible.  Note that the encoding
+       that would be used for %esp is the escape to the two byte form.  */
+    if (index == -1 && rm != TCG_REG_ESP) {
+        /* Single byte MODRM format.  */
+        tcg_out8(s, mod | (r << 3) | rm);
+    } else {
+        /* Two byte MODRM+SIB format.  */
+
+        /* Note that the encoding that would place %esp into the index
+           field indicates no index register.  */
+        if (index == -1) {
+            index = 4;
         } else {
-            tcg_out8(s, 0x80 | (r << 3) | rm);
+            assert(index != TCG_REG_ESP);
         }
+
+        tcg_out8(s, mod | (r << 3) | 4);
+        tcg_out8(s, (shift << 6) | (index << 3) | rm);
+    }
+
+    if (len == 1) {
+        tcg_out8(s, offset);
+    } else if (len == 4) {
         tcg_out32(s, offset);
     }
+}
+
+/* rm == -1 means no register index */
+static inline void tcg_out_modrm_offset(TCGContext *s, int opc, int r, int rm,
+                                        int32_t offset)
+{
+    tcg_out_modrm_sib_offset(s, opc, r, rm, -1, 0, offset);
 }
 
 /* Generate dest op= src.  Uses the same ARITH_* codes as tgen_arithi.  */
@@ -710,10 +741,9 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     tgen_arithi(s, ARITH_AND, r0, TARGET_PAGE_MASK | ((1 << s_bits) - 1), 0);
     tgen_arithi(s, ARITH_AND, r1, (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS, 0);
 
-    tcg_out_opc(s, 0x8d); /* lea offset(r1, %ebp), r1 */
-    tcg_out8(s, 0x80 | (r1 << 3) | 0x04);
-    tcg_out8(s, (5 << 3) | r1);
-    tcg_out32(s, offsetof(CPUState, tlb_table[mem_index][0].addr_read));
+    tcg_out_modrm_sib_offset(s, OPC_LEA, r1, TCG_AREG0, r1, 0,
+                             offsetof(CPUState,
+                                      tlb_table[mem_index][0].addr_read));
 
     /* cmp 0(r1), r0 */
     tcg_out_modrm_offset(s, OPC_CMP_GvEv, r0, r1, 0);
@@ -903,10 +933,9 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     tgen_arithi(s, ARITH_AND, r0, TARGET_PAGE_MASK | ((1 << s_bits) - 1), 0);
     tgen_arithi(s, ARITH_AND, r1, (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS, 0);
 
-    tcg_out_opc(s, 0x8d); /* lea offset(r1, %ebp), r1 */
-    tcg_out8(s, 0x80 | (r1 << 3) | 0x04);
-    tcg_out8(s, (5 << 3) | r1);
-    tcg_out32(s, offsetof(CPUState, tlb_table[mem_index][0].addr_write));
+    tcg_out_modrm_sib_offset(s, OPC_LEA, r1, TCG_AREG0, r1, 0,
+                             offsetof(CPUState,
+                                      tlb_table[mem_index][0].addr_write));
 
     /* cmp 0(r1), r0 */
     tcg_out_modrm_offset(s, OPC_CMP_GvEv, r0, r1, 0);
