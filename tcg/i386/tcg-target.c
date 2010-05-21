@@ -173,6 +173,7 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define OPC_MOVB_EvGv	(0x88)		/* stores, more or less */
 #define OPC_MOVL_EvGv	(0x89)		/* stores, more or less */
 #define OPC_MOVL_GvEv	(0x8b)		/* loads, more or less */
+#define OPC_MOVL_Iv     (0xb8)
 #define OPC_MOVSBL	(0xbe | P_EXT)
 #define OPC_MOVSWL	(0xbf | P_EXT)
 #define OPC_MOVZBL	(0xb6 | P_EXT)
@@ -300,7 +301,7 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
     if (arg == 0) {
         tgen_arithr(s, ARITH_XOR, ret, ret);
     } else {
-        tcg_out8(s, 0xb8 + ret);
+        tcg_out8(s, OPC_MOVL_Iv + ret);
         tcg_out32(s, arg);
     }
 }
