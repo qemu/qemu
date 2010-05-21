@@ -306,6 +306,8 @@ static inline int ds_get_bytes_per_pixel(DisplayState *ds)
 typedef unsigned long console_ch_t;
 static inline void console_write_ch(console_ch_t *dest, uint32_t ch)
 {
+    if (!(ch & 0xff))
+        ch |= ' ';
     cpu_to_le32wu((uint32_t *) dest, ch);
 }
 
