@@ -778,49 +778,23 @@ static void sdl_mouse_warp(int x, int y, int on)
     guest_x = x, guest_y = y;
 }
 
-static void sdl_mouse_define(int width, int height, int bpp,
-                             int hot_x, int hot_y,
-                             uint8_t *image, uint8_t *mask)
+static void sdl_mouse_define(QEMUCursor *c)
 {
-    uint8_t sprite[256], *line;
-    int x, y, dst, bypl, src = 0;
+    uint8_t *image, *mask;
+    int bpl;
+
     if (guest_sprite)
         SDL_FreeCursor(guest_sprite);
 
-    memset(sprite, 0, 256);
-    bypl = ((width * bpp + 31) >> 5) << 2;
-    for (y = 0, dst = 0; y < height; y ++, image += bypl) {
-        line = image;
-        for (x = 0; x < width; x ++, dst ++) {
-            switch (bpp) {
-            case 32:
-                src = *(line ++); src |= *(line ++); src |= *(line ++); line++;
-                break;
-            case 24:
-                src = *(line ++); src |= *(line ++); src |= *(line ++);
-                break;
-            case 16:
-            case 15:
-                src = *(line ++); src |= *(line ++);
-                break;
-            case 8:
-                src = *(line ++);
-                break;
-            case 4:
-                src = 0xf & (line[x >> 1] >> ((x & 1)) << 2);
-                break;
-            case 2:
-                src = 3 & (line[x >> 2] >> ((x & 3)) << 1);
-                break;
-            case 1:
-                src = 1 & (line[x >> 3] >> (x & 7));
-                break;
-            }
-            if (!src)
-                sprite[dst >> 3] |= (1 << (~dst & 7)) & mask[dst >> 3];
-        }
-    }
-    guest_sprite = SDL_CreateCursor(sprite, mask, width, height, hot_x, hot_y);
+    bpl = cursor_get_mono_bpl(c);
+    image = qemu_mallocz(bpl * c->height);
+    mask  = qemu_mallocz(bpl * c->height);
+    cursor_get_mono_image(c, 0x000000, image);
+    cursor_get_mono_mask(c, 0, mask);
+    guest_sprite = SDL_CreateCursor(image, mask, c->width, c->height,
+                                    c->hot_x, c->hot_y);
+    qemu_free(image);
+    qemu_free(mask);
 
     if (guest_cursor &&
             (gui_grab || kbd_mouse_is_absolute() || absolute_enabled))
