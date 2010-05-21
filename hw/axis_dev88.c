@@ -240,13 +240,22 @@ static CPUWriteMemoryFunc * const gpio_write[] = {
 
 #define INTMEM_SIZE (128 * 1024)
 
-static uint32_t bootstrap_pc;
+static struct {
+    uint32_t bootstrap_pc;
+    uint32_t regs[16];
+} loadargs;
+
 static void main_cpu_reset(void *opaque)
 {
+    int i;
+
     CPUState *env = opaque;
     cpu_reset(env);
 
-    env->pc = bootstrap_pc;
+    env->pc = loadargs.bootstrap_pc;
+    for (i = 0; i < 16; i++) {
+        env->regs[i] = loadargs.regs[i];
+    }
 }
 
 static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
@@ -352,15 +361,15 @@ void axisdev88_init (ram_addr_t ram_size,
            devboard SDK.  */
         kernel_size = load_elf(kernel_filename, translate_kernel_address, NULL,
                                &entry, NULL, &high, 0, ELF_MACHINE, 0);
-        bootstrap_pc = entry;
+        loadargs.bootstrap_pc = entry;
         if (kernel_size < 0) {
             /* Takes a kimage from the axis devboard SDK.  */
             kernel_size = load_image_targphys(kernel_filename, 0x40004000,
                                               ram_size);
-            bootstrap_pc = 0x40004000;
-            env->regs[9] = 0x40004000 + kernel_size;
+            loadargs.bootstrap_pc = 0x40004000;
+            loadargs.regs[9] = 0x40004000 + kernel_size;
         }
-        env->regs[8] = 0x56902387; /* RAM init magic.  */
+        loadargs.regs[8] = 0x56902387; /* RAM init magic.  */
 
         if (kernel_cmdline && (kcmdline_len = strlen(kernel_cmdline))) {
             if (kcmdline_len > 256) {
@@ -368,15 +377,11 @@ void axisdev88_init (ram_addr_t ram_size,
                 exit(1);
             }
             /* Let the kernel know we are modifying the cmdline.  */
-            env->regs[10] = 0x87109563;
-            env->regs[11] = 0x40000000;
-            pstrcpy_targphys("cmdline", env->regs[11], 256, kernel_cmdline);
+            loadargs.regs[10] = 0x87109563;
+            loadargs.regs[11] = 0x40000000;
+            pstrcpy_targphys("cmdline", loadargs.regs[11], 256, kernel_cmdline);
         }
     }
-    env->pc = bootstrap_pc;
-
-    printf ("pc =%x\n", env->pc);
-    printf ("ram size =%ld\n", ram_size);
 }
 
 static QEMUMachine axisdev88_machine = {
