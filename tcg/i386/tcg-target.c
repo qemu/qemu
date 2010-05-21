@@ -192,6 +192,7 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define OPC_SHIFT_Ib	(0xc1)
 #define OPC_SHIFT_cl	(0xd3)
 #define OPC_TESTL	(0x85)
+#define OPC_XCHG_ax_r32	(0x90)
 
 #define OPC_GRP3_Ev	(0xf7)
 #define OPC_GRP5	(0xff)
@@ -770,7 +771,8 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
         break;
     case 3:
         if (data_reg == TCG_REG_EDX) {
-            tcg_out_opc(s, 0x90 + TCG_REG_EDX); /* xchg %edx, %eax */
+            /* xchg %edx, %eax */
+            tcg_out_opc(s, OPC_XCHG_ax_r32 + TCG_REG_EDX);
             tcg_out_mov(s, data_reg2, TCG_REG_EAX);
         } else {
             tcg_out_mov(s, data_reg, TCG_REG_EAX);
