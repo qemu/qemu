@@ -1165,6 +1165,25 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_st_i32:
         tcg_out_st(s, TCG_TYPE_I32, args[0], args[1], args[2]);
         break;
+    case INDEX_op_add_i32:
+        /* For 3-operand addition, use LEA.  */
+        if (args[0] != args[1]) {
+            TCGArg a0 = args[0], a1 = args[1], a2 = args[2], c3 = 0;
+
+            if (const_args[2]) {
+                c3 = a2, a2 = -1;
+            } else if (a0 == a2) {
+                /* Watch out for dest = src + dest, since we've removed
+                   the matching constraint on the add.  */
+                tgen_arithr(s, ARITH_ADD, a0, a1);
+                break;
+            }
+
+            tcg_out_modrm_sib_offset(s, OPC_LEA, a0, a1, a2, 0, c3);
+            break;
+        }
+        c = ARITH_ADD;
+        goto gen_arith;
     case INDEX_op_sub_i32:
         c = ARITH_SUB;
         goto gen_arith;
@@ -1177,8 +1196,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_xor_i32:
         c = ARITH_XOR;
         goto gen_arith;
-    case INDEX_op_add_i32:
-        c = ARITH_ADD;
     gen_arith:
         if (const_args[2]) {
             tgen_arithi(s, c, args[0], args[2], 0);
@@ -1353,7 +1370,7 @@ static const TCGTargetOpDef x86_op_defs[] = {
     { INDEX_op_st16_i32, { "r", "r" } },
     { INDEX_op_st_i32, { "r", "r" } },
 
-    { INDEX_op_add_i32, { "r", "0", "ri" } },
+    { INDEX_op_add_i32, { "r", "r", "ri" } },
     { INDEX_op_sub_i32, { "r", "0", "ri" } },
     { INDEX_op_mul_i32, { "r", "0", "ri" } },
     { INDEX_op_mulu2_i32, { "a", "d", "a", "r" } },
