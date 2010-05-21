@@ -166,6 +166,9 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define OPC_CALL_Jz	(0xe8)
 #define OPC_CMP_GvEv	(OPC_ARITH_GvEv | (ARITH_CMP << 3))
 #define OPC_DEC_r32	(0x48)
+#define OPC_IMUL_GvEv	(0xaf | P_EXT)
+#define OPC_IMUL_GvEvIb	(0x6b)
+#define OPC_IMUL_GvEvIz	(0x69)
 #define OPC_INC_r32	(0x40)
 #define OPC_JCC_long	(0x80 | P_EXT)	/* ... plus condition code */
 #define OPC_JCC_short	(0x70)		/* ... plus condition code */
@@ -1157,14 +1160,14 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
             int32_t val;
             val = args[2];
             if (val == (int8_t)val) {
-                tcg_out_modrm(s, 0x6b, args[0], args[0]);
+                tcg_out_modrm(s, OPC_IMUL_GvEvIb, args[0], args[0]);
                 tcg_out8(s, val);
             } else {
-                tcg_out_modrm(s, 0x69, args[0], args[0]);
+                tcg_out_modrm(s, OPC_IMUL_GvEvIz, args[0], args[0]);
                 tcg_out32(s, val);
             }
         } else {
-            tcg_out_modrm(s, 0xaf | P_EXT, args[0], args[2]);
+            tcg_out_modrm(s, OPC_IMUL_GvEv, args[0], args[2]);
         }
         break;
     case INDEX_op_mulu2_i32:
