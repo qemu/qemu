@@ -178,6 +178,10 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define OPC_MOVSWL	(0xbf | P_EXT)
 #define OPC_MOVZBL	(0xb6 | P_EXT)
 #define OPC_MOVZWL	(0xb7 | P_EXT)
+#define OPC_POP_r32	(0x58)
+#define OPC_PUSH_r32	(0x50)
+#define OPC_PUSH_Iv	(0x68)
+#define OPC_PUSH_Ib	(0x6a)
 #define OPC_SHIFT_1	(0xd1)
 #define OPC_SHIFT_Ib	(0xc1)
 #define OPC_SHIFT_cl	(0xd3)
@@ -304,6 +308,27 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
         tcg_out8(s, OPC_MOVL_Iv + ret);
         tcg_out32(s, arg);
     }
+}
+
+static inline void tcg_out_pushi(TCGContext *s, tcg_target_long val)
+{
+    if (val == (int8_t)val) {
+        tcg_out_opc(s, OPC_PUSH_Ib);
+        tcg_out8(s, val);
+    } else {
+        tcg_out_opc(s, OPC_PUSH_Iv);
+        tcg_out32(s, val);
+    }
+}
+
+static inline void tcg_out_push(TCGContext *s, int reg)
+{
+    tcg_out_opc(s, OPC_PUSH_r32 + reg);
+}
+
+static inline void tcg_out_pop(TCGContext *s, int reg)
+{
+    tcg_out_opc(s, OPC_POP_r32 + reg);
 }
 
 static inline void tcg_out_ld(TCGContext *s, TCGType type, int ret,
@@ -891,8 +916,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     if (opc == 3) {
         tcg_out_mov(s, TCG_REG_EDX, data_reg);
         tcg_out_mov(s, TCG_REG_ECX, data_reg2);
-        tcg_out8(s, 0x6a); /* push Ib */
-        tcg_out8(s, mem_index);
+        tcg_out_pushi(s, mem_index);
         tcg_out8(s, 0xe8);
         tcg_out32(s, (tcg_target_long)qemu_st_helpers[s_bits] - 
                   (tcg_target_long)s->code_ptr - 4);
@@ -917,10 +941,9 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
 #else
     if (opc == 3) {
         tcg_out_mov(s, TCG_REG_EDX, addr_reg2);
-        tcg_out8(s, 0x6a); /* push Ib */
-        tcg_out8(s, mem_index);
-        tcg_out_opc(s, 0x50 + data_reg2); /* push */
-        tcg_out_opc(s, 0x50 + data_reg); /* push */
+        tcg_out_pushi(s, mem_index);
+        tcg_out_push(s, data_reg2);
+        tcg_out_push(s, data_reg);
         tcg_out8(s, 0xe8);
         tcg_out32(s, (tcg_target_long)qemu_st_helpers[s_bits] - 
                   (tcg_target_long)s->code_ptr - 4);
@@ -938,8 +961,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
             tcg_out_mov(s, TCG_REG_ECX, data_reg);
             break;
         }
-        tcg_out8(s, 0x6a); /* push Ib */
-        tcg_out8(s, mem_index);
+        tcg_out_pushi(s, mem_index);
         tcg_out8(s, 0xe8);
         tcg_out32(s, (tcg_target_long)qemu_st_helpers[s_bits] - 
                   (tcg_target_long)s->code_ptr - 4);
@@ -1351,16 +1373,6 @@ static int tcg_target_callee_save_regs[] = {
     TCG_REG_ESI,
     TCG_REG_EDI,
 };
-
-static inline void tcg_out_push(TCGContext *s, int reg)
-{
-    tcg_out_opc(s, 0x50 + reg);
-}
-
-static inline void tcg_out_pop(TCGContext *s, int reg)
-{
-    tcg_out_opc(s, 0x58 + reg);
-}
 
 /* Generate global QEMU prologue and epilogue code */
 void tcg_target_qemu_prologue(TCGContext *s)
