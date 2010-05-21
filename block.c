@@ -2019,7 +2019,7 @@ static int multiwrite_merge(BlockDriverState *bs, BlockRequest *reqs,
             // Add the second request
             qemu_iovec_concat(qiov, reqs[i].qiov, reqs[i].qiov->size);
 
-            reqs[outidx].nb_sectors += reqs[i].nb_sectors;
+            reqs[outidx].nb_sectors = qiov->size >> 9;
             reqs[outidx].qiov = qiov;
 
             mcb->callbacks[i].free_qiov = reqs[outidx].qiov;
