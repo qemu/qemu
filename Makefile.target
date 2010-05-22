@@ -310,6 +310,7 @@ obj-y += $(addprefix $(HWDIR)/, $(hw-obj-y))
 
 endif # CONFIG_SOFTMMU
 
+obj-y += $(addprefix ../, $(trace-obj-y))
 obj-$(CONFIG_GDBSTUB_XML) += gdbstub-xml.o
 
 $(QEMU_PROG): $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y)

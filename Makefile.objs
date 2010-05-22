@@ -265,6 +265,11 @@ libdis-$(CONFIG_S390_DIS) += s390-dis.o
 libdis-$(CONFIG_SH4_DIS) += sh4-dis.o
 libdis-$(CONFIG_SPARC_DIS) += sparc-dis.o
 
+######################################################################
+# trace
+
+trace-obj-y = trace.o
+
 vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
 vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)

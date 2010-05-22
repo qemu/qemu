@@ -1,6 +1,6 @@
 # Makefile for QEMU.
 
-GENERATED_HEADERS = config-host.h
+GENERATED_HEADERS = config-host.h trace.h
 
 ifneq ($(wildcard config-host.mak),)
 # Put the all: rule here so that config-host.mak can contain dependencies.
@@ -104,16 +104,24 @@ ui/vnc.o: QEMU_CFLAGS += $(VNC_TLS_CFLAGS)
 
 bt-host.o: QEMU_CFLAGS += $(BLUEZ_CFLAGS)
 
+trace.h: $(SRC_PATH)/trace-events config-host.mak
+	$(call quiet-command,sh $(SRC_PATH)/tracetool --$(TRACE_BACKEND) -h < $< > $@,"  GEN   $@")
+
+trace.c: $(SRC_PATH)/trace-events config-host.mak
+	$(call quiet-command,sh $(SRC_PATH)/tracetool --$(TRACE_BACKEND) -c < $< > $@,"  GEN   $@")
+
+trace.o: trace.c $(GENERATED_HEADERS)
+
 ######################################################################
 
 qemu-img.o: qemu-img-cmds.h
 qemu-img.o qemu-tool.o qemu-nbd.o qemu-io.o: $(GENERATED_HEADERS)
 
-qemu-img$(EXESUF): qemu-img.o qemu-tool.o qemu-error.o $(block-obj-y) $(qobject-obj-y)
+qemu-img$(EXESUF): qemu-img.o qemu-tool.o qemu-error.o $(trace-obj-y) $(block-obj-y) $(qobject-obj-y)
 
-qemu-nbd$(EXESUF): qemu-nbd.o qemu-tool.o qemu-error.o $(block-obj-y) $(qobject-obj-y)
+qemu-nbd$(EXESUF): qemu-nbd.o qemu-tool.o qemu-error.o $(trace-obj-y) $(block-obj-y) $(qobject-obj-y)
 
-qemu-io$(EXESUF): qemu-io.o cmd.o qemu-tool.o qemu-error.o $(block-obj-y) $(qobject-obj-y)
+qemu-io$(EXESUF): qemu-io.o cmd.o qemu-tool.o qemu-error.o $(trace-obj-y) $(block-obj-y) $(qobject-obj-y)
 
 qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $@")
@@ -133,6 +141,7 @@ clean:
 	rm -f *.o *.d *.a $(TOOLS) TAGS cscope.* *.pod *~ */*~
 	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d net/*.o net/*.d fsdev/*.o fsdev/*.d ui/*.o ui/*.d
 	rm -f qemu-img-cmds.h
+	rm -f trace.c trace.h
 	$(MAKE) -C tests clean
 	for d in $(ALL_SUBDIRS) libhw32 libhw64 libuser libdis libdis-user; do \
 	if test -d $$d; then $(MAKE) -C $$d $@ || exit 1; fi; \
