@@ -30,6 +30,13 @@
 //#define DEBUG_MMU
 //#define DEBUG_FEATURES
 
+#ifdef DEBUG_MMU
+#define DPRINTF_MMU(fmt, ...) \
+    do { printf("MMU: " fmt , ## __VA_ARGS__); } while (0)
+#else
+#define DPRINTF_MMU(fmt, ...) do {} while (0)
+#endif
+
 static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model);
 
 /* Sparc MMU emulation */
@@ -451,42 +458,50 @@ static int get_physical_address_data(CPUState *env,
 
     for (i = 0; i < 64; i++) {
         // ctx match, vaddr match, valid?
-        if (ultrasparc_tag_match(&env->dtlb[i],
-                                 address, context, physical)) {
+        if (ultrasparc_tag_match(&env->dtlb[i], address, context, physical)) {
+
+            uint8_t fault_type = 0;
+
             // access ok?
-            if (((env->dtlb[i].tte & 0x4) && is_user) ||
-                (!(env->dtlb[i].tte & 0x2) && (rw == 1))) {
-                uint8_t fault_type = 0;
+            if ((env->dtlb[i].tte & 0x4) && is_user) {
+                fault_type |= 1; /* privilege violation */
+                env->exception_index = TT_DFAULT;
 
-                if ((env->dtlb[i].tte & 0x4) && is_user) {
-                    fault_type |= 1; /* privilege violation */
-                }
+                DPRINTF_MMU("DFAULT at %" PRIx64 " context %" PRIx64
+                            " mmu_idx=%d tl=%d\n",
+                            address, context, mmu_idx, env->tl);
+            } else if (!(env->dtlb[i].tte & 0x2) && (rw == 1)) {
+                env->exception_index = TT_DPROT;
 
-                if (env->dmmu.sfsr & 1) /* Fault status register */
-                    env->dmmu.sfsr = 2; /* overflow (not read before
+                DPRINTF_MMU("DPROT at %" PRIx64 " context %" PRIx64
+                            " mmu_idx=%d tl=%d\n",
+                            address, context, mmu_idx, env->tl);
+            } else {
+                *prot = PAGE_READ;
+                if (env->dtlb[i].tte & 0x2)
+                    *prot |= PAGE_WRITE;
+
+                TTE_SET_USED(env->dtlb[i].tte);
+
+                return 0;
+            }
+
+            if (env->dmmu.sfsr & 1) /* Fault status register */
+                env->dmmu.sfsr = 2; /* overflow (not read before
                                              another fault) */
 
-                env->dmmu.sfsr |= (is_user << 3) | ((rw == 1) << 2) | 1;
+            env->dmmu.sfsr |= (is_user << 3) | ((rw == 1) << 2) | 1;
 
-                env->dmmu.sfsr |= (fault_type << 7);
+            env->dmmu.sfsr |= (fault_type << 7);
 
-                env->dmmu.sfar = address; /* Fault address register */
-                env->exception_index = TT_DFAULT;
-#ifdef DEBUG_MMU
-                printf("DFAULT at 0x%" PRIx64 "\n", address);
-#endif
-                return 1;
-            }
-            *prot = PAGE_READ;
-            if (env->dtlb[i].tte & 0x2)
-                *prot |= PAGE_WRITE;
-            TTE_SET_USED(env->dtlb[i].tte);
-            return 0;
+            env->dmmu.sfar = address; /* Fault address register */
+            return 1;
         }
     }
-#ifdef DEBUG_MMU
-    printf("DMISS at 0x%" PRIx64 "\n", address);
-#endif
+
+    DPRINTF_MMU("DMISS at %" PRIx64 " context %" PRIx64 "\n",
+                address, context);
+
     env->dmmu.tag_access = (address & ~0x1fffULL) | context;
     env->exception_index = TT_DMISS;
     return 1;
@@ -528,9 +543,10 @@ static int get_physical_address_code(CPUState *env,
                                              another fault) */
                 env->immu.sfsr |= (is_user << 3) | 1;
                 env->exception_index = TT_TFAULT;
-#ifdef DEBUG_MMU
-                printf("TFAULT at 0x%" PRIx64 "\n", address);
-#endif
+
+                DPRINTF_MMU("TFAULT at %" PRIx64 " context %" PRIx64 "\n",
+                            address, context);
+
                 return 1;
             }
             *prot = PAGE_EXEC;
@@ -538,9 +554,10 @@ static int get_physical_address_code(CPUState *env,
             return 0;
         }
     }
-#ifdef DEBUG_MMU
-    printf("TMISS at 0x%" PRIx64 "\n", address);
-#endif
+
+    DPRINTF_MMU("TMISS at %" PRIx64 " context %" PRIx64 "\n",
+                address, context);
+
     /* Context is stored in DMMU (dmmuregs[1]) also for IMMU */
     env->immu.tag_access = (address & ~0x1fffULL) | context;
     env->exception_index = TT_TMISS;
@@ -578,10 +595,18 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
         virt_addr = address & TARGET_PAGE_MASK;
         vaddr = virt_addr + ((address & TARGET_PAGE_MASK) &
                              (TARGET_PAGE_SIZE - 1));
-#ifdef DEBUG_MMU
-        printf("Translate at 0x%" PRIx64 " -> 0x%" PRIx64 ", vaddr 0x%" PRIx64
-               "\n", address, paddr, vaddr);
-#endif
+
+        DPRINTF_MMU("Translate at %" PRIx64 " -> %" PRIx64 ","
+                    " vaddr %" PRIx64
+                    " mmu_idx=%d"
+                    " tl=%d"
+                    " primary context=%" PRIx64
+                    " secondary context=%" PRIx64
+                    "\n",
+                    address, paddr, vaddr, mmu_idx, env->tl,
+                    env->dmmu.mmu_primary_context,
+                    env->dmmu.mmu_secondary_context);
+
         tlb_set_page(env, vaddr, paddr, prot, mmu_idx, page_size);
         return 0;
     }
