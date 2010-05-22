@@ -234,7 +234,7 @@ static void vga_precise_update_retrace_info(VGACommonState *s)
         "clocking_mode = %d\n"
         "clock_sel = %d %d\n"
         "dots = %d\n"
-        "ticks/char = %lld\n"
+        "ticks/char = %" PRId64 "\n"
         "\n",
         (double) get_ticks_per_sec() / (r->ticks_per_char * r->total_chars),
         htotal_chars,

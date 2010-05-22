@@ -383,43 +383,22 @@ tar:
 	cd /tmp && tar zcvf ~/$(FILE).tar.gz $(FILE) --exclude CVS --exclude .git --exclude .svn
 	rm -rf /tmp/$(FILE)
 
+SYSTEM_TARGETS=$(filter %-softmmu,$(TARGET_DIRS))
+SYSTEM_PROGS=$(patsubst qemu-system-i386,qemu, \
+             $(patsubst %-softmmu,qemu-system-%, \
+             $(SYSTEM_TARGETS)))
+
+USER_TARGETS=$(filter %-user,$(TARGET_DIRS))
+USER_PROGS=$(patsubst %-bsd-user,qemu-%, \
+           $(patsubst %-darwin-user,qemu-%, \
+           $(patsubst %-linux-user,qemu-%, \
+           $(USER_TARGETS))))
+
 # generate a binary distribution
 tarbin:
 	cd / && tar zcvf ~/qemu-$(VERSION)-$(ARCH).tar.gz \
-	$(bindir)/qemu \
-	$(bindir)/qemu-system-x86_64 \
-	$(bindir)/qemu-system-arm \
-	$(bindir)/qemu-system-cris \
-	$(bindir)/qemu-system-m68k \
-	$(bindir)/qemu-system-microblaze \
-	$(bindir)/qemu-system-mips \
-	$(bindir)/qemu-system-mipsel \
-	$(bindir)/qemu-system-mips64 \
-	$(bindir)/qemu-system-mips64el \
-	$(bindir)/qemu-system-ppc \
-	$(bindir)/qemu-system-ppcemb \
-	$(bindir)/qemu-system-ppc64 \
-	$(bindir)/qemu-system-sh4 \
-	$(bindir)/qemu-system-sh4eb \
-	$(bindir)/qemu-system-sparc \
-	$(bindir)/qemu-i386 \
-	$(bindir)/qemu-x86_64 \
-	$(bindir)/qemu-alpha \
-	$(bindir)/qemu-arm \
-	$(bindir)/qemu-armeb \
-	$(bindir)/qemu-cris \
-	$(bindir)/qemu-m68k \
-	$(bindir)/qemu-microblaze \
-	$(bindir)/qemu-mips \
-	$(bindir)/qemu-mipsel \
-	$(bindir)/qemu-ppc \
-	$(bindir)/qemu-ppc64 \
-	$(bindir)/qemu-ppc64abi32 \
-	$(bindir)/qemu-sh4 \
-	$(bindir)/qemu-sh4eb \
-	$(bindir)/qemu-sparc \
-	$(bindir)/qemu-sparc64 \
-	$(bindir)/qemu-sparc32plus \
+	$(patsubst %,$(bindir)/%, $(SYSTEM_PROGS)) \
+	$(patsubst %,$(bindir)/%, $(USER_PROGS)) \
 	$(bindir)/qemu-img \
 	$(bindir)/qemu-nbd \
 	$(datadir)/bios.bin \

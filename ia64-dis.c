@@ -10560,11 +10560,14 @@ print_insn_ia64 (bfd_vma memaddr, struct disassemble_info *info)
 	    if (str)
 	      (*info->fprintf_func) (info->stream, "%s", str);
 	    else if (odesc->flags & IA64_OPND_FLAG_DECIMAL_SIGNED)
-	      (*info->fprintf_func) (info->stream, "%lld", (long long) value);
+              (*info->fprintf_func) (info->stream, "%" PRId64,
+                                     (int64_t) value);
 	    else if (odesc->flags & IA64_OPND_FLAG_DECIMAL_UNSIGNED)
-	      (*info->fprintf_func) (info->stream, "%llu", (long long) value);
+              (*info->fprintf_func) (info->stream, "%" PRIu64,
+                                     (uint64_t) value);
 	    else
-	      (*info->fprintf_func) (info->stream, "0x%llx", (long long) value);
+              (*info->fprintf_func) (info->stream, "0x%" PRIx64,
+                                     (uint64_t) value);
 	    break;
 
 	  case IA64_OPND_CLASS_REL:

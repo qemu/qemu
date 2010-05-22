@@ -7,7 +7,7 @@ HXCOMM HXCOMM can be used for comments, discarded from both texi and C
 
 STEXI
 @table @option
-STEXI
+ETEXI
 
 DEF("check", img_check,
     "check [-f fmt] filename")

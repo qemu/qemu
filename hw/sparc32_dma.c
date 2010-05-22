@@ -62,6 +62,9 @@
 #define DMA_DRAIN_FIFO 0x40
 #define DMA_RESET 0x80
 
+/* XXX SCSI and ethernet should have different read-only bit masks */
+#define DMA_CSR_RO_MASK 0xfe000007
+
 typedef struct DMAState DMAState;
 
 struct DMAState {
@@ -187,7 +190,7 @@ static void dma_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     switch (saddr) {
     case 0:
         if (val & DMA_INTREN) {
-            if (val & DMA_INTR) {
+            if (s->dmaregs[0] & DMA_INTR) {
                 DPRINTF("Raise IRQ\n");
                 qemu_irq_raise(s->irq);
             }
@@ -204,16 +207,17 @@ static void dma_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
             val &= ~DMA_DRAIN_FIFO;
         } else if (val == 0)
             val = DMA_DRAIN_FIFO;
-        val &= 0x0fffffff;
+        val &= ~DMA_CSR_RO_MASK;
         val |= DMA_VER;
+        s->dmaregs[0] = (s->dmaregs[0] & DMA_CSR_RO_MASK) | val;
         break;
     case 1:
         s->dmaregs[0] |= DMA_LOADED;
-        break;
+        /* fall through */
     default:
+        s->dmaregs[saddr] = val;
         break;
     }
-    s->dmaregs[saddr] = val;
 }
 
 static CPUReadMemoryFunc * const dma_mem_read[3] = {

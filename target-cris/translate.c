@@ -3227,14 +3227,14 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 
 	if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
 		qemu_log(
-			"srch=%d pc=%x %x flg=%llx bt=%x ds=%u ccs=%x\n"
+                        "srch=%d pc=%x %x flg=%" PRIx64 " bt=%x ds=%u ccs=%x\n"
 			"pid=%x usp=%x\n"
 			"%x.%x.%x.%x\n"
 			"%x.%x.%x.%x\n"
 			"%x.%x.%x.%x\n"
 			"%x.%x.%x.%x\n",
 			search_pc, dc->pc, dc->ppc,
-			(unsigned long long)tb->flags,
+                        (uint64_t)tb->flags,
 			env->btarget, (unsigned)tb->flags & 7,
 			env->pregs[PR_CCS], 
 			env->pregs[PR_PID], env->pregs[PR_USP],

@@ -353,8 +353,7 @@ int nbd_init(int fd, int csock, off_t size, size_t blocksize)
 		return -1;
 	}
 
-	TRACE("Setting size to %llu block(s)",
-	      (unsigned long long)(size / blocksize));
+        TRACE("Setting size to %zd block(s)", (size_t)(size / blocksize));
 
 	if (ioctl(fd, NBD_SET_SIZE_BLOCKS, size / blocksize) == -1) {
 		int serrno = errno;

@@ -34,7 +34,7 @@
 #endif
 /* For tb_lock */
 #include "exec-all.h"
-
+#include "tcg.h"
 #include "qemu-timer.h"
 #include "envlist.h"
 
@@ -2471,7 +2471,7 @@ void cpu_loop (CPUState *env)
             info.si_signo = TARGET_SIGSEGV;
             info.si_errno = 0;
             info.si_code = 0;  /* ??? SEGV_MAPERR vs SEGV_ACCERR.  */
-            info._sifields._sigfault._addr = env->pc;
+            info._sifields._sigfault._addr = env->ipr[IPR_EXC_ADDR];
             queue_signal(env, info.si_signo, &info);
             break;
         case EXCP_DTB_MISS_PAL:
@@ -2495,7 +2495,7 @@ void cpu_loop (CPUState *env)
             info.si_signo = TARGET_SIGBUS;
             info.si_errno = 0;
             info.si_code = TARGET_BUS_ADRALN;
-            info._sifields._sigfault._addr = env->pc;
+            info._sifields._sigfault._addr = env->ipr[IPR_EXC_ADDR];
             queue_signal(env, info.si_signo, &info);
             break;
         case EXCP_OPCDEC:
@@ -2536,8 +2536,15 @@ void cpu_loop (CPUState *env)
                                     env->ir[IR_A0], env->ir[IR_A1],
                                     env->ir[IR_A2], env->ir[IR_A3],
                                     env->ir[IR_A4], env->ir[IR_A5]);
-                if (trapnr != TARGET_NR_sigreturn
-                    && trapnr != TARGET_NR_rt_sigreturn) {
+                if (trapnr == TARGET_NR_sigreturn
+                    || trapnr == TARGET_NR_rt_sigreturn) {
+                    break;
+                }
+                /* Syscall writes 0 to V0 to bypass error check, similar
+                   to how this is handled internal to Linux kernel.  */
+                if (env->ir[IR_V0] == 0) {
+                    env->ir[IR_V0] = sysret;
+                } else {
                     env->ir[IR_V0] = (sysret < 0 ? -sysret : sysret);
                     env->ir[IR_A3] = (sysret < 0);
                 }
@@ -3021,6 +3028,13 @@ int main(int argc, char **argv, char **envp)
     target_set_brk(info->brk);
     syscall_init();
     signal_init();
+
+#if defined(CONFIG_USE_GUEST_BASE)
+    /* Now that we've loaded the binary, GUEST_BASE is fixed.  Delay
+       generating the prologue until now so that the prologue can take
+       the real value of GUEST_BASE into account.  */
+    tcg_prologue_init(&tcg_ctx);
+#endif
 
 #if defined(TARGET_I386)
     cpu_x86_set_cpl(env, 3);

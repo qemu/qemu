@@ -19,11 +19,24 @@ hxtoh()
 hxtotexi()
 {
     flag=0
+    line=1
     while read -r str; do
         case "$str" in
             HXCOMM*)
             ;;
-            STEXI*|ETEXI*) flag=$(($flag^1))
+            STEXI*)
+            if test $flag -eq 1 ; then
+                echo "line $line: syntax error: expected ETEXI, found $str" >&2
+                exit 1
+            fi
+            flag=1
+            ;;
+            ETEXI*)
+            if test $flag -ne 1 ; then
+                echo "line $line: syntax error: expected STEXI, found $str" >&2
+                exit 1
+            fi
+            flag=0
             ;;
             DEFHEADING*)
             echo "$(expr "$str" : "DEFHEADING(\(.*\))")"
@@ -32,6 +45,7 @@ hxtotexi()
             test $flag -eq 1 && echo "$str"
             ;;
         esac
+        line=$((line+1))
     done
 }
 

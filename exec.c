@@ -577,6 +577,11 @@ void cpu_exec_init_all(unsigned long tb_size)
 #if !defined(CONFIG_USER_ONLY)
     io_mem_init();
 #endif
+#if !defined(CONFIG_USER_ONLY) || !defined(CONFIG_USE_GUEST_BASE)
+    /* There's no guest base to take into account, so go ahead and
+       initialize the prologue now.  */
+    tcg_prologue_init(&tcg_ctx);
+#endif
 }
 
 #if defined(CPU_SAVE_VERSION) && !defined(CONFIG_USER_ONLY)

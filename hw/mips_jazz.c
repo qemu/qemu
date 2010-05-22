@@ -114,6 +114,15 @@ static void audio_init(qemu_irq *pic)
 #define MAGNUM_BIOS_SIZE_MAX 0x7e000
 #define MAGNUM_BIOS_SIZE (BIOS_SIZE < MAGNUM_BIOS_SIZE_MAX ? BIOS_SIZE : MAGNUM_BIOS_SIZE_MAX)
 
+static void cpu_request_exit(void *opaque, int irq, int level)
+{
+    CPUState *env = cpu_single_env;
+
+    if (env && level) {
+        cpu_exit(env);
+    }
+}
+
 static
 void mips_jazz_init (ram_addr_t ram_size,
                      const char *cpu_model,
@@ -130,6 +139,7 @@ void mips_jazz_init (ram_addr_t ram_size,
     PITState *pit;
     DriveInfo *fds[MAX_FD];
     qemu_irq esp_reset;
+    qemu_irq *cpu_exit_irq;
     ram_addr_t ram_offset;
     ram_addr_t bios_offset;
 
@@ -189,7 +199,8 @@ void mips_jazz_init (ram_addr_t ram_size,
     i8259 = i8259_init(env->irq[4]);
     isa_bus_new(NULL);
     isa_bus_irqs(i8259);
-    DMA_init(0);
+    cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
+    DMA_init(0, cpu_exit_irq);
     pit = pit_init(0x40, i8259[0]);
     pcspk_init(pit);
 

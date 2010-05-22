@@ -166,6 +166,22 @@ static uint32_t pflash_read (pflash_t *pfl, target_phys_addr_t offset,
         ret = pfl->status;
         DPRINTF("%s: status %x\n", __func__, ret);
         break;
+    case 0x90:
+        switch (boff) {
+        case 0:
+            ret = pfl->ident[0] << 8 | pfl->ident[1];
+            DPRINTF("%s: Manufacturer Code %04x\n", __func__, ret);
+            break;
+        case 1:
+            ret = pfl->ident[2] << 8 | pfl->ident[3];
+            DPRINTF("%s: Device ID Code %04x\n", __func__, ret);
+            break;
+        default:
+            DPRINTF("%s: Read Device Information boff=%x\n", __func__, boff);
+            ret = 0;
+            break;
+        }
+        break;
     case 0x98: /* Query mode */
         if (boff > pfl->cfi_len)
             ret = 0;
@@ -281,6 +297,10 @@ static void pflash_write(pflash_t *pfl, target_phys_addr_t offset,
             break;
         case 0x70: /* Status Register */
             DPRINTF("%s: Read status register\n", __func__);
+            pfl->cmd = cmd;
+            return;
+        case 0x90: /* Read Device ID */
+            DPRINTF("%s: Read Device information\n", __func__);
             pfl->cmd = cmd;
             return;
         case 0x98: /* CFI query */

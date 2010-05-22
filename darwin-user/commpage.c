@@ -237,7 +237,7 @@ void do_compare_and_swap64(void *cpu_env, int num)
     uint64_t *value = (uint64_t*)((CPUX86State*)cpu_env)->regs[R_ESI];
     old = (uint64_t)((uint64_t)((CPUX86State*)cpu_env)->regs[R_EDX]) << 32 | (uint64_t)((CPUX86State*)cpu_env)->regs[R_EAX];
 
-    DPRINTF("commpage: compare_and_swap64(%llx,new,%p)\n", old, value);
+    DPRINTF("commpage: compare_and_swap64(%" PRIx64 ",new,%p)\n", old, value);
     swapped_val = tswap64(*value);
 
     if(old == swapped_val)

@@ -464,18 +464,15 @@ DEF("device", HAS_ARG, QEMU_OPTION_device,
     "                add device (based on driver)\n"
     "                prop=value,... sets driver properties\n"
     "                use -device ? to print all possible drivers\n"
-    "                use -device driver,? to print all possible options\n"
-    "                use -device driver,option=? to print a help for value\n",
+    "                use -device driver,? to print all possible properties\n",
     QEMU_ARCH_ALL)
 STEXI
-@item -device @var{driver}[,@var{option}[=@var{value}][,...]]
+@item -device @var{driver}[,@var{prop}[=@var{value}][,...]]
 @findex -device
-Add device @var{driver}. Depending on the device type,
-@var{option} (with default or given @var{value}) may be useful.
-To get a help on possible @var{driver}s, @var{option}s or @var{value}s, use
-@code{-device ?},
-@code{-device @var{driver},?} or
-@code{-device @var{driver},@var{option}=?}. 
+Add device @var{driver}.  @var{prop}=@var{value} sets driver
+properties.  Valid properties depend on the driver.  To get help on
+possible drivers and properties, use @code{-device ?} and
+@code{-device @var{driver},?}.
 ETEXI
 
 #ifdef CONFIG_LINUX

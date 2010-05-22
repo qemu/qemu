@@ -30,7 +30,7 @@
 #include "qemu-common.h"
 /* For tb_lock */
 #include "exec-all.h"
-
+#include "tcg.h"
 #include "qemu-timer.h"
 #include "envlist.h"
 
@@ -969,6 +969,13 @@ int main(int argc, char **argv)
     target_set_brk(info->brk);
     syscall_init();
     signal_init();
+
+#if defined(CONFIG_USE_GUEST_BASE)
+    /* Now that we've loaded the binary, GUEST_BASE is fixed.  Delay
+       generating the prologue until now so that the prologue can take
+       the real value of GUEST_BASE into account.  */
+    tcg_prologue_init(&tcg_ctx);
+#endif
 
     /* build Task State */
     memset(ts, 0, sizeof(TaskState));
