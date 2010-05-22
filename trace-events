@@ -27,3 +27,13 @@
 # system may not have the necessary headers included.
 #
 # The <format-string> should be a sprintf()-compatible format string.
+
+# qemu-malloc.c
+disable qemu_malloc(size_t size, void *ptr) "size %zu ptr %p"
+disable qemu_realloc(void *ptr, size_t size, void *newptr) "ptr %p size %zu newptr %p"
+disable qemu_free(void *ptr) "ptr %p"
+
+# osdep.c
+disable qemu_memalign(size_t alignment, size_t size, void *ptr) "alignment %zu size %zu ptr %p"
+disable qemu_valloc(size_t size, void *ptr) "size %zu ptr %p"
+disable qemu_vfree(void *ptr) "ptr %p"
