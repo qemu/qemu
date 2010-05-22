@@ -746,12 +746,12 @@ void cpu_reset(CPUSPARCState *env)
 #else
 #if !defined(TARGET_SPARC64)
     env->psret = 0;
-#endif
     env->psrs = 1;
     env->psrps = 1;
+#endif
 #ifdef TARGET_SPARC64
     env->pstate = PS_PRIV|PS_RED|PS_PEF|PS_AG;
-    env->hpstate = HS_PRIV;
+    env->hpstate = cpu_has_hypervisor(env) ? HS_PRIV : 0;
     env->tl = env->maxtl;
     cpu_tsptr(env)->tt = TT_POWER_ON_RESET;
     env->lsu = 0;

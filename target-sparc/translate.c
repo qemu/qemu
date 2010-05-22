@@ -183,9 +183,9 @@ static void gen_op_store_QT0_fpr(unsigned int dst)
 #define hypervisor(dc) 0
 #endif
 #else
-#define supervisor(dc) (dc->mem_idx >= 1)
+#define supervisor(dc) (dc->mem_idx >= MMU_KERNEL_IDX)
 #ifdef TARGET_SPARC64
-#define hypervisor(dc) (dc->mem_idx == 2)
+#define hypervisor(dc) (dc->mem_idx == MMU_HYPV_IDX)
 #else
 #endif
 #endif

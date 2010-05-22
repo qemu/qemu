@@ -1404,11 +1404,7 @@ static target_ulong get_psr(void)
         (env->psrps? PSR_PS : 0) |
         (env->psret? PSR_ET : 0) | env->cwp;
 #else
-    return env->version | (env->psr & PSR_ICC) |
-        (env->psref? PSR_EF : 0) |
-        (env->psrpil << 8) |
-        (env->psrs? PSR_S : 0) |
-        (env->psrps? PSR_PS : 0) | env->cwp;
+    return env->psr & PSR_ICC;
 #endif
 }
 
@@ -1427,17 +1423,19 @@ target_ulong cpu_get_psr(CPUState *env1)
 static void put_psr(target_ulong val)
 {
     env->psr = val & PSR_ICC;
+#if !defined (TARGET_SPARC64)
     env->psref = (val & PSR_EF)? 1 : 0;
     env->psrpil = (val & PSR_PIL) >> 8;
+#endif
 #if ((!defined (TARGET_SPARC64)) && !defined(CONFIG_USER_ONLY))
     cpu_check_irqs(env);
 #endif
+#if !defined (TARGET_SPARC64)
     env->psrs = (val & PSR_S)? 1 : 0;
     env->psrps = (val & PSR_PS)? 1 : 0;
-#if !defined (TARGET_SPARC64)
     env->psret = (val & PSR_ET)? 1 : 0;
-#endif
     set_cwp(val & PSR_CWP);
+#endif
     env->cc_op = CC_OP_FLAGS;
 }
 
@@ -2326,7 +2324,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
     asi &= 0xff;
 
     if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
-        || ((env->def->features & CPU_FEATURE_HYPV)
+        || (cpu_has_hypervisor(env)
             && asi >= 0x30 && asi < 0x80
             && !(env->hpstate & HS_PRIV)))
         raise_exception(TT_PRIV_ACT);
@@ -2361,8 +2359,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
     case 0xe2: // UA2007 Primary block init
     case 0xe3: // UA2007 Secondary block init
         if ((asi & 0x80) && (env->pstate & PS_PRIV)) {
-            if ((env->def->features & CPU_FEATURE_HYPV)
-                && env->hpstate & HS_PRIV) {
+            if (cpu_hypervisor_mode(env)) {
                 switch(size) {
                 case 1:
                     ret = ldub_hypv(addr);
@@ -2678,7 +2675,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
     asi &= 0xff;
 
     if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
-        || ((env->def->features & CPU_FEATURE_HYPV)
+        || (cpu_has_hypervisor(env)
             && asi >= 0x30 && asi < 0x80
             && !(env->hpstate & HS_PRIV)))
         raise_exception(TT_PRIV_ACT);
@@ -2722,8 +2719,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
     case 0xe2: // UA2007 Primary block init
     case 0xe3: // UA2007 Secondary block init
         if ((asi & 0x80) && (env->pstate & PS_PRIV)) {
-            if ((env->def->features & CPU_FEATURE_HYPV)
-                && env->hpstate & HS_PRIV) {
+            if (cpu_hypervisor_mode(env)) {
                 switch(size) {
                 case 1:
                     stb_hypv(addr, val);
@@ -3048,7 +3044,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
 void helper_ldda_asi(target_ulong addr, int asi, int rd)
 {
     if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
-        || ((env->def->features & CPU_FEATURE_HYPV)
+        || (cpu_has_hypervisor(env)
             && asi >= 0x30 && asi < 0x80
             && !(env->hpstate & HS_PRIV)))
         raise_exception(TT_PRIV_ACT);

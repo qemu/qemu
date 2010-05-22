@@ -92,12 +92,14 @@
 #define PSR_CARRY_SHIFT 20
 #define PSR_CARRY (1 << PSR_CARRY_SHIFT)
 #define PSR_ICC   (PSR_NEG|PSR_ZERO|PSR_OVF|PSR_CARRY)
+#if !defined(TARGET_SPARC64)
 #define PSR_EF    (1<<12)
 #define PSR_PIL   0xf00
 #define PSR_S     (1<<7)
 #define PSR_PS    (1<<6)
 #define PSR_ET    (1<<5)
 #define PSR_CWP   0x1f
+#endif
 
 #define CC_SRC (env->cc_src)
 #define CC_SRC2 (env->cc_src2)
@@ -341,14 +343,16 @@ typedef struct CPUSPARCState {
     uint32_t wim;      /* window invalid mask */
 #endif
     target_ulong tbr;  /* trap base register */
+#if !defined(TARGET_SPARC64)
     int      psrs;     /* supervisor mode (extracted from PSR) */
     int      psrps;    /* previous supervisor mode */
-#if !defined(TARGET_SPARC64)
     int      psret;    /* enable traps */
 #endif
     uint32_t psrpil;   /* interrupt blocking level */
     uint32_t pil_in;   /* incoming interrupt level bitmap */
+#if !defined(TARGET_SPARC64)
     int      psref;    /* enable fpu */
+#endif
     target_ulong version;
     int interrupt_index;
     uint32_t nwindows;
@@ -508,21 +512,41 @@ int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
 #define CPU_SAVE_VERSION 6
 
 /* MMU modes definitions */
-#define MMU_MODE0_SUFFIX _user
-#define MMU_MODE1_SUFFIX _kernel
-#ifdef TARGET_SPARC64
-#define MMU_MODE2_SUFFIX _hypv
-#define MMU_MODE3_SUFFIX _nucleus
-#define MMU_MODE4_SUFFIX _user_secondary
-#define MMU_MODE5_SUFFIX _kernel_secondary
-#endif
+#if defined (TARGET_SPARC64)
 #define MMU_USER_IDX   0
+#define MMU_MODE0_SUFFIX _user
+#define MMU_USER_SECONDARY_IDX   1
+#define MMU_MODE1_SUFFIX _user_secondary
+#define MMU_KERNEL_IDX 2
+#define MMU_MODE2_SUFFIX _kernel
+#define MMU_KERNEL_SECONDARY_IDX 3
+#define MMU_MODE3_SUFFIX _kernel_secondary
+#define MMU_NUCLEUS_IDX 4
+#define MMU_MODE4_SUFFIX _nucleus
+#define MMU_HYPV_IDX   5
+#define MMU_MODE5_SUFFIX _hypv
+#else
+#define MMU_USER_IDX   0
+#define MMU_MODE0_SUFFIX _user
 #define MMU_KERNEL_IDX 1
-#define MMU_HYPV_IDX   2
-#ifdef TARGET_SPARC64
-#define MMU_NUCLEUS_IDX 3
-#define MMU_USER_SECONDARY_IDX   4
-#define MMU_KERNEL_SECONDARY_IDX 5
+#define MMU_MODE1_SUFFIX _kernel
+#endif
+
+#if defined (TARGET_SPARC64)
+static inline int cpu_has_hypervisor(CPUState *env1)
+{
+    return env1->def->features & CPU_FEATURE_HYPV;
+}
+
+static inline int cpu_hypervisor_mode(CPUState *env1)
+{
+    return cpu_has_hypervisor(env1) && (env1->hpstate & HS_PRIV);
+}
+
+static inline int cpu_supervisor_mode(CPUState *env1)
+{
+    return env1->pstate & PS_PRIV;
+}
 #endif
 
 static inline int cpu_mmu_index(CPUState *env1)
@@ -532,12 +556,13 @@ static inline int cpu_mmu_index(CPUState *env1)
 #elif !defined(TARGET_SPARC64)
     return env1->psrs;
 #else
-    if (!env1->psrs)
-        return MMU_USER_IDX;
-    else if ((env1->hpstate & HS_PRIV) == 0)
-        return MMU_KERNEL_IDX;
-    else
+    if (cpu_hypervisor_mode(env1)) {
         return MMU_HYPV_IDX;
+    } else if (cpu_supervisor_mode(env1)) {
+        return MMU_KERNEL_IDX;
+    } else {
+        return MMU_USER_IDX;
+    }
 #endif
 }
 
