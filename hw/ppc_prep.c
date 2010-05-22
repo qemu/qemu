@@ -547,6 +547,15 @@ static CPUReadMemoryFunc * const PPC_prep_io_read[] = {
 
 #define NVRAM_SIZE        0x2000
 
+static void cpu_request_exit(void *opaque, int irq, int level)
+{
+    CPUState *env = cpu_single_env;
+
+    if (env && level) {
+        cpu_exit(env);
+    }
+}
+
 /* PowerPC PREP hardware initialisation */
 static void ppc_prep_init (ram_addr_t ram_size,
                            const char *boot_device,
@@ -565,6 +574,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
     uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
     PCIBus *pci_bus;
     qemu_irq *i8259;
+    qemu_irq *cpu_exit_irq;
     int ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DriveInfo *fd[MAX_FD];
@@ -719,7 +729,10 @@ static void ppc_prep_init (ram_addr_t ram_size,
 		     hd[2 * i + 1]);
     }
     isa_create_simple("i8042");
-    DMA_init(1);
+
+    cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
+    DMA_init(1, cpu_exit_irq);
+
     //    SB16_init();
 
     for(i = 0; i < MAX_FD; i++) {

@@ -914,6 +914,15 @@ void pc_vga_init(PCIBus *pci_bus)
     }
 }
 
+static void cpu_request_exit(void *opaque, int irq, int level)
+{
+    CPUState *env = cpu_single_env;
+
+    if (env && level) {
+        cpu_exit(env);
+    }
+}
+
 void pc_basic_device_init(qemu_irq *isa_irq,
                           FDCtrl **floppy_controller,
                           ISADevice **rtc_state)
@@ -923,6 +932,7 @@ void pc_basic_device_init(qemu_irq *isa_irq,
     PITState *pit;
     qemu_irq *a20_line;
     ISADevice *i8042;
+    qemu_irq *cpu_exit_irq;
 
     register_ioport_write(0x80, 1, 1, ioport80_write, NULL);
 
@@ -955,7 +965,8 @@ void pc_basic_device_init(qemu_irq *isa_irq,
     i8042_setup_a20_line(i8042, a20_line);
     vmmouse_init(i8042);
 
-    DMA_init(0);
+    cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
+    DMA_init(0, cpu_exit_irq);
 
     for(i = 0; i < MAX_FD; i++) {
         fd[i] = drive_get(IF_FLOPPY, 0, i);

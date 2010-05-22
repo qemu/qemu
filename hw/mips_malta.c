@@ -763,6 +763,15 @@ static void main_cpu_reset(void *opaque)
     }
 }
 
+static void cpu_request_exit(void *opaque, int irq, int level)
+{
+    CPUState *env = cpu_single_env;
+
+    if (env && level) {
+        cpu_exit(env);
+    }
+}
+
 static
 void mips_malta_init (ram_addr_t ram_size,
                       const char *boot_device,
@@ -781,6 +790,7 @@ void mips_malta_init (ram_addr_t ram_size,
     FDCtrl *floppy_controller;
     MaltaFPGAState *malta_fpga;
     qemu_irq *i8259;
+    qemu_irq *cpu_exit_irq;
     int piix4_devfn;
     uint8_t *eeprom_buf;
     i2c_bus *smbus;
@@ -943,7 +953,8 @@ void mips_malta_init (ram_addr_t ram_size,
         qdev_init_nofail(eeprom);
     }
     pit = pit_init(0x40, isa_reserve_irq(0));
-    DMA_init(0);
+    cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
+    DMA_init(0, cpu_exit_irq);
 
     /* Super I/O */
     isa_dev = isa_create_simple("i8042");

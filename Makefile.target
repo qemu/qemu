@@ -188,7 +188,6 @@ obj-y += rtl8139.o
 obj-y += e1000.o
 
 # Hardware support
-obj-i386-y = dma.o
 obj-i386-y += vga.o
 obj-i386-y += mc146818rtc.o i8259.o pc.o
 obj-i386-y += cirrus_vga.o apic.o ioapic.o piix_pci.o
@@ -199,7 +198,7 @@ obj-i386-y += pc_piix.o
 
 # shared objects
 obj-ppc-y = ppc.o
-obj-ppc-y += vga.o dma.o
+obj-ppc-y += vga.o
 # PREP target
 obj-ppc-y += i8259.o mc146818rtc.o
 obj-ppc-y += ppc_prep.o
@@ -217,7 +216,7 @@ obj-ppc-$(CONFIG_FDT) += device_tree.o
 
 obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 obj-mips-y += mips_addr.o mips_timer.o mips_int.o
-obj-mips-y += dma.o vga.o i8259.o
+obj-mips-y += vga.o i8259.o
 obj-mips-y += g364fb.o jazz_led.o
 obj-mips-y += gt64xxx.o mc146818rtc.o
 obj-mips-y += piix4.o cirrus_vga.o
