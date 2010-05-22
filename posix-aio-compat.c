@@ -25,6 +25,7 @@
 #include "qemu-queue.h"
 #include "osdep.h"
 #include "qemu-common.h"
+#include "trace.h"
 #include "block_int.h"
 
 #include "block/raw-posix-aio.h"
@@ -583,6 +584,7 @@ BlockDriverAIOCB *paio_submit(BlockDriverState *bs, int fd,
     acb->next = posix_aio_state->first_aio;
     posix_aio_state->first_aio = acb;
 
+    trace_paio_submit(acb, opaque, sector_num, nb_sectors, type);
     qemu_paio_submit(acb);
     return &acb->common;
 }
