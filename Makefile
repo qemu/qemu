@@ -112,6 +112,8 @@ trace.c: $(SRC_PATH)/trace-events config-host.mak
 
 trace.o: trace.c $(GENERATED_HEADERS)
 
+simpletrace.o: simpletrace.c $(GENERATED_HEADERS)
+
 ######################################################################
 
 qemu-img.o: qemu-img-cmds.h

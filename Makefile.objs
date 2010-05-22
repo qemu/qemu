@@ -269,6 +269,9 @@ libdis-$(CONFIG_SPARC_DIS) += sparc-dis.o
 # trace
 
 trace-obj-y = trace.o
+ifeq ($(TRACE_BACKEND),simple)
+trace-obj-y += simpletrace.o
+endif
 
 vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 

@@ -900,7 +900,7 @@ echo "  --enable-docs            enable documentation build"
 echo "  --disable-docs           disable documentation build"
 echo "  --disable-vhost-net      disable vhost-net acceleration support"
 echo "  --enable-vhost-net       enable vhost-net acceleration support"
-echo "  --trace-backend=B        Trace backend nop"
+echo "  --trace-backend=B        Trace backend nop simple"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1

@@ -13,11 +13,12 @@ set -f
 usage()
 {
     cat >&2 <<EOF
-usage: $0 --nop [-h | -c]
+usage: $0 [--nop | --simple] [-h | -c]
 Generate tracing code for a file on stdin.
 
 Backends:
-  --nop Tracing disabled
+  --nop     Tracing disabled
+  --simple  Simple built-in backend
 
 Output formats:
   -h    Generate .h file
@@ -64,6 +65,17 @@ get_argnames()
     then
         printf "%s" "$name"
     fi
+}
+
+# Get the number of arguments to a trace event
+get_argc()
+{
+    local name argc
+    argc=0
+    for name in $(get_argnames "$1"); do
+        argc=$((argc + 1))
+    done
+    echo $argc
 }
 
 # Get the format string for a trace event
@@ -115,6 +127,66 @@ linetoc_end_nop()
     return
 }
 
+linetoh_begin_simple()
+{
+    cat <<EOF
+#include "simpletrace.h"
+EOF
+
+    simple_event_num=0
+}
+
+cast_args_to_uint64_t()
+{
+    local arg
+    for arg in $(get_argnames "$1"); do
+        printf "%s" "(uint64_t)(uintptr_t)$arg"
+    done
+}
+
+linetoh_simple()
+{
+    local name args argc trace_args
+    name=$(get_name "$1")
+    args=$(get_args "$1")
+    argc=$(get_argc "$1")
+
+    trace_args="$simple_event_num"
+    if [ "$argc" -gt 0 ]
+    then
+        trace_args="$trace_args, $(cast_args_to_uint64_t "$1")"
+    fi
+
+    cat <<EOF
+static inline void trace_$name($args)
+{
+    trace$argc($trace_args);
+}
+EOF
+
+    simple_event_num=$((simple_event_num + 1))
+}
+
+linetoh_end_simple()
+{
+    return
+}
+
+linetoc_begin_simple()
+{
+    return
+}
+
+linetoc_simple()
+{
+    return
+}
+
+linetoc_end_simple()
+{
+    return
+}
+
 # Process stdin by calling begin, line, and end functions for the backend
 convert()
 {
@@ -160,7 +232,7 @@ tracetoc()
 
 # Choose backend
 case "$1" in
-"--nop") backend="${1#--}" ;;
+"--nop" | "--simple") backend="${1#--}" ;;
 *) usage ;;
 esac
 shift
