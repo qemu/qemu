@@ -556,7 +556,9 @@ static inline int cpu_mmu_index(CPUState *env1)
 #elif !defined(TARGET_SPARC64)
     return env1->psrs;
 #else
-    if (cpu_hypervisor_mode(env1)) {
+    if (env1->tl > 0) {
+        return MMU_NUCLEUS_IDX;
+    } else if (cpu_hypervisor_mode(env1)) {
         return MMU_HYPV_IDX;
     } else if (cpu_supervisor_mode(env1)) {
         return MMU_KERNEL_IDX;
@@ -636,9 +638,13 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
     *cs_base = env->npc;
 #ifdef TARGET_SPARC64
     // AM . Combined FPU enable bits . PRIV . DMMU enabled . IMMU enabled
-    *flags = ((env->pstate & PS_AM) << 2)
-        | (((env->pstate & PS_PEF) >> 1) | ((env->fprs & FPRS_FEF) << 2))
-        | (env->pstate & PS_PRIV) | ((env->lsu & (DMMU_E | IMMU_E)) >> 2);
+    *flags = ((env->pstate & PS_AM) << 2)          /* 5 */
+        | (((env->pstate & PS_PEF) >> 1)           /* 3 */
+        | ((env->fprs & FPRS_FEF) << 2))           /* 4 */
+        | (env->pstate & PS_PRIV)                  /* 2 */
+        | ((env->lsu & (DMMU_E | IMMU_E)) >> 2)    /* 1, 0 */
+        | ((env->tl & 0xff) << 8)
+        | (env->dmmu.mmu_primary_context << 16);   /* 16... */
 #else
     // FPU enable . Supervisor
     *flags = (env->psref << 4) | env->psrs;

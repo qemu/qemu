@@ -572,6 +572,23 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
     /* ??? We treat everything as a small page, then explicitly flush
        everything when an entry is evicted.  */
     *page_size = TARGET_PAGE_SIZE;
+
+#if defined (DEBUG_MMU)
+    /* safety net to catch wrong softmmu index use from dynamic code */
+    if (env->tl > 0 && mmu_idx != MMU_NUCLEUS_IDX) {
+        DPRINTF_MMU("get_physical_address %s tl=%d mmu_idx=%d"
+                    " primary context=%" PRIx64
+                    " secondary context=%" PRIx64
+                " address=%" PRIx64
+                "\n",
+                (rw == 2 ? "CODE" : "DATA"),
+                env->tl, mmu_idx,
+                env->dmmu.mmu_primary_context,
+                env->dmmu.mmu_secondary_context,
+                address);
+    }
+#endif
+
     if (rw == 2)
         return get_physical_address_code(env, physical, prot, address,
                                          mmu_idx);
@@ -718,7 +735,7 @@ target_phys_addr_t cpu_get_phys_page_nofault(CPUState *env, target_ulong addr,
 
 target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
-    return cpu_get_phys_page_nofault(env, addr, MMU_KERNEL_IDX);
+    return cpu_get_phys_page_nofault(env, addr, cpu_mmu_index(env));
 }
 #endif
 
