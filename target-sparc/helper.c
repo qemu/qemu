@@ -653,7 +653,7 @@ void dump_mmu(CPUState *env)
                        env->dtlb[i].tte & 0x2? "RW": "RO",
                        env->dtlb[i].tte & 0x40? "locked": "unlocked",
                        env->dtlb[i].tag & (uint64_t)0x1fffULL,
-                       TTE_IS_GLOBAL(env->dtlb[i].tag)? "global" : "local");
+                       TTE_IS_GLOBAL(env->dtlb[i].tte)? "global" : "local");
             }
         }
     }
@@ -687,7 +687,7 @@ void dump_mmu(CPUState *env)
                        env->itlb[i].tte & 0x4? "priv": "user",
                        env->itlb[i].tte & 0x40? "locked": "unlocked",
                        env->itlb[i].tag & (uint64_t)0x1fffULL,
-                       TTE_IS_GLOBAL(env->itlb[i].tag)? "global" : "local");
+                       TTE_IS_GLOBAL(env->itlb[i].tte)? "global" : "local");
             }
         }
     }
