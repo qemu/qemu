@@ -701,9 +701,9 @@ static int img_convert(int argc, char **argv)
                     bs_offset += bs_sectors;
                     bdrv_get_geometry(bs[bs_i], &bs_sectors);
                     bs_num = 0;
-                    /* printf("changing part: sector_num=%lld, "
-                       "bs_i=%d, bs_offset=%lld, bs_sectors=%lld\n",
-                       sector_num, bs_i, bs_offset, bs_sectors); */
+                    /* printf("changing part: sector_num=%" PRId64 ", "
+                       "bs_i=%d, bs_offset=%" PRId64 ", bs_sectors=%" PRId64
+                       "\n", sector_num, bs_i, bs_offset, bs_sectors); */
                 }
                 assert (bs_num < bs_sectors);
 
@@ -749,8 +749,8 @@ static int img_convert(int argc, char **argv)
                 assert (bs_i < bs_n);
                 bs_offset += bs_sectors;
                 bdrv_get_geometry(bs[bs_i], &bs_sectors);
-                /* printf("changing part: sector_num=%lld, bs_i=%d, "
-                  "bs_offset=%lld, bs_sectors=%lld\n",
+                /* printf("changing part: sector_num=%" PRId64 ", bs_i=%d, "
+                  "bs_offset=%" PRId64 ", bs_sectors=%" PRId64 "\n",
                    sector_num, bs_i, bs_offset, bs_sectors); */
             }
 

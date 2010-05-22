@@ -1310,7 +1310,7 @@ static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model)
     char *featurestr, *name = strtok(s, ",");
     uint32_t plus_features = 0;
     uint32_t minus_features = 0;
-    long long iu_version;
+    uint64_t iu_version;
     uint32_t fpu_version, mmu_version, nwindows;
 
     for (i = 0; i < ARRAY_SIZE(sparc_defs); i++) {
@@ -1342,7 +1342,7 @@ static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model)
                 }
                 cpu_def->iu_version = iu_version;
 #ifdef DEBUG_FEATURES
-                fprintf(stderr, "iu_version %llx\n", iu_version);
+                fprintf(stderr, "iu_version %" PRIx64 "\n", iu_version);
 #endif
             } else if (!strcmp(featurestr, "fpu_version")) {
                 char *err;

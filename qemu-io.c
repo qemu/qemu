@@ -84,7 +84,7 @@ dump_buffer(const void *buffer, int64_t offset, int len)
 	for (i = 0, p = buffer; i < len; i += 16) {
 		const uint8_t *s = p;
 
-		printf("%08llx:  ", (unsigned long long)offset + i);
+                printf("%08" PRIx64 ":  ", offset + i);
 		for (j = 0; j < 16 && i + j < len; j++, p++)
 			printf("%02x ", *p);
 		printf(" ");
@@ -108,8 +108,8 @@ print_report(const char *op, struct timeval *t, int64_t offset,
 	if (!Cflag) {
 		cvtstr((double)total, s1, sizeof(s1));
 		cvtstr(tdiv((double)total, *t), s2, sizeof(s2));
-		printf("%s %d/%d bytes at offset %lld\n",
-			op, total, count, (long long)offset);
+                printf("%s %d/%d bytes at offset %" PRId64 "\n",
+                       op, total, count, offset);
 		printf("%s, %d ops; %s (%s/sec and %.4f ops/sec)\n",
 			s1, cnt, ts, s2, tdiv((double)cnt, *t));
 	} else {/* bytes,ops,time,bytes/sec,ops/sec */
@@ -135,7 +135,7 @@ create_iovec(QEMUIOVector *qiov, char **argv, int nr_iov, int pattern)
 
 	for (i = 0; i < nr_iov; i++) {
 		char *arg = argv[i];
-		long long len;
+                uint64_t len;
 
 		len = cvtnum(arg);
 		if (len < 0) {
@@ -150,8 +150,8 @@ create_iovec(QEMUIOVector *qiov, char **argv, int nr_iov, int pattern)
 		}
 
 		if (len & 0x1ff) {
-			printf("length argument %lld is not sector aligned\n",
-				len);
+                        printf("length argument %" PRId64
+                               " is not sector aligned\n", len);
 			goto fail;
 		}
 
@@ -398,8 +398,8 @@ read_f(int argc, char **argv)
 
 	if (!pflag)
 		if (offset & 0x1ff) {
-			printf("offset %lld is not sector aligned\n",
-				(long long)offset);
+                        printf("offset %" PRId64 " is not sector aligned\n",
+                               offset);
 			return 0;
 
 		if (count & 0x1ff) {
@@ -429,9 +429,9 @@ read_f(int argc, char **argv)
 		void* cmp_buf = malloc(pattern_count);
 		memset(cmp_buf, pattern, pattern_count);
 		if (memcmp(buf + pattern_offset, cmp_buf, pattern_count)) {
-			printf("Pattern verification failed at offset %lld, "
-				"%d bytes\n",
-				(long long) offset + pattern_offset, pattern_count);
+			printf("Pattern verification failed at offset %"
+                               PRId64 ", %d bytes\n",
+                               offset + pattern_offset, pattern_count);
 		}
 		free(cmp_buf);
 	}
@@ -533,8 +533,8 @@ readv_f(int argc, char **argv)
 	optind++;
 
 	if (offset & 0x1ff) {
-		printf("offset %lld is not sector aligned\n",
-			(long long)offset);
+                printf("offset %" PRId64 " is not sector aligned\n",
+                       offset);
 		return 0;
 	}
 
@@ -554,9 +554,9 @@ readv_f(int argc, char **argv)
 		void* cmp_buf = malloc(qiov.size);
 		memset(cmp_buf, pattern, qiov.size);
 		if (memcmp(buf, cmp_buf, qiov.size)) {
-			printf("Pattern verification failed at offset %lld, "
-				"%zd bytes\n",
-				(long long) offset, qiov.size);
+			printf("Pattern verification failed at offset %"
+                               PRId64 ", %zd bytes\n",
+                               offset, qiov.size);
 		}
 		free(cmp_buf);
 	}
@@ -669,8 +669,8 @@ write_f(int argc, char **argv)
 
 	if (!pflag) {
 		if (offset & 0x1ff) {
-			printf("offset %lld is not sector aligned\n",
-				(long long)offset);
+                        printf("offset %" PRId64 " is not sector aligned\n",
+                               offset);
 			return 0;
 		}
 
@@ -783,8 +783,8 @@ writev_f(int argc, char **argv)
 	optind++;
 
 	if (offset & 0x1ff) {
-		printf("offset %lld is not sector aligned\n",
-			(long long)offset);
+                printf("offset %" PRId64 " is not sector aligned\n",
+                       offset);
 		return 0;
 	}
 
@@ -868,9 +868,9 @@ aio_read_done(void *opaque, int ret)
 
 		memset(cmp_buf, ctx->pattern, ctx->qiov.size);
 		if (memcmp(ctx->buf, cmp_buf, ctx->qiov.size)) {
-			printf("Pattern verification failed at offset %lld, "
-				"%zd bytes\n",
-				(long long) ctx->offset, ctx->qiov.size);
+			printf("Pattern verification failed at offset %"
+                               PRId64 ", %zd bytes\n",
+                               ctx->offset, ctx->qiov.size);
 		}
 		free(cmp_buf);
 	}
@@ -969,8 +969,8 @@ aio_read_f(int argc, char **argv)
 	optind++;
 
 	if (ctx->offset & 0x1ff) {
-		printf("offset %lld is not sector aligned\n",
-			(long long)ctx->offset);
+		printf("offset %" PRId64 " is not sector aligned\n",
+                       ctx->offset);
 		free(ctx);
 		return 0;
 	}
@@ -1064,8 +1064,8 @@ aio_write_f(int argc, char **argv)
 	optind++;
 
 	if (ctx->offset & 0x1ff) {
-		printf("offset %lld is not sector aligned\n",
-			(long long)ctx->offset);
+		printf("offset %" PRId64 " is not sector aligned\n",
+                       ctx->offset);
 		free(ctx);
 		return 0;
 	}
@@ -1214,8 +1214,8 @@ alloc_f(int argc, char **argv)
 
 	offset = cvtnum(argv[1]);
 	if (offset & 0x1ff) {
-		printf("offset %lld is not sector aligned\n",
-			(long long)offset);
+                printf("offset %" PRId64 " is not sector aligned\n",
+                       offset);
 		return 0;
 	}
 

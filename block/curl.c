@@ -104,10 +104,11 @@ static size_t curl_size_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
 {
     CURLState *s = ((CURLState*)opaque);
     size_t realsize = size * nmemb;
-    long long fsize;
+    size_t fsize;
 
-    if(sscanf(ptr, "Content-Length: %lld", &fsize) == 1)
+    if(sscanf(ptr, "Content-Length: %zd", &fsize) == 1) {
         s->s->len = fsize;
+    }
 
     return realsize;
 }
@@ -118,7 +119,7 @@ static size_t curl_read_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
     size_t realsize = size * nmemb;
     int i;
 
-    DPRINTF("CURL: Just reading %lld bytes\n", (unsigned long long)realsize);
+    DPRINTF("CURL: Just reading %zd bytes\n", realsize);
 
     if (!s || !s->orig_buf)
         goto read_end;
@@ -368,7 +369,7 @@ static int curl_open(BlockDriverState *bs, const char *filename, int flags)
         s->len = (size_t)d;
     else if(!s->len)
         goto out;
-    DPRINTF("CURL: Size = %lld\n", (long long)s->len);
+    DPRINTF("CURL: Size = %zd\n", s->len);
 
     curl_clean_state(state);
     curl_easy_cleanup(state->curl);
@@ -450,8 +451,9 @@ static BlockDriverAIOCB *curl_aio_readv(BlockDriverState *bs,
     state->orig_buf = qemu_malloc(state->buf_len);
     state->acb[0] = acb;
 
-    snprintf(state->range, 127, "%lld-%lld", (long long)start, (long long)end);
-    DPRINTF("CURL (AIO): Reading %d at %lld (%s)\n", (nb_sectors * SECTOR_SIZE), start, state->range);
+    snprintf(state->range, 127, "%zd-%zd", start, end);
+    DPRINTF("CURL (AIO): Reading %d at %zd (%s)\n",
+            (nb_sectors * SECTOR_SIZE), start, state->range);
     curl_easy_setopt(state->curl, CURLOPT_RANGE, state->range);
 
     curl_multi_add_handle(s->multi, state->curl);
