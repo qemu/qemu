@@ -75,6 +75,8 @@ void i8042_init(qemu_irq kbd_irq, qemu_irq mouse_irq, uint32_t io_base);
 void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
                    target_phys_addr_t base, ram_addr_t size,
                    target_phys_addr_t mask);
+void i8042_isa_mouse_fake_event(void *opaque);
+void i8042_setup_a20_line(ISADevice *dev, qemu_irq *a20_out);
 
 /* pc.c */
 extern int fd_bootchk;
@@ -103,9 +105,6 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
                   const char *boot_device, DriveInfo **hd_table,
                   FDCtrl *floppy_controller, ISADevice *s);
 void pc_pci_device_init(PCIBus *pci_bus);
-
-void ioport_set_a20(int enable);
-int ioport_get_a20(void);
 
 typedef void (*cpu_set_smm_t)(int smm, void *arg);
 void cpu_smm_register(cpu_set_smm_t callback, void *arg);
