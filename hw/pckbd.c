@@ -29,6 +29,12 @@
 
 /* debug PC keyboard */
 //#define DEBUG_KBD
+#ifdef DEBUG_KBD
+#define DPRINTF(fmt, ...)                                       \
+    do { printf("KBD: " fmt , ## __VA_ARGS__); } while (0)
+#else
+#define DPRINTF(fmt, ...)
+#endif
 
 /*	Keyboard Controller Commands */
 #define KBD_CCMD_READ_MODE	0x20	/* Read mode bits */
@@ -191,9 +197,7 @@ static uint32_t kbd_read_status(void *opaque, uint32_t addr)
     KBDState *s = opaque;
     int val;
     val = s->status;
-#if defined(DEBUG_KBD)
-    printf("kbd: read status=0x%02x\n", val);
-#endif
+    DPRINTF("kbd: read status=0x%02x\n", val);
     return val;
 }
 
@@ -209,6 +213,7 @@ static void ioport92_write(void *opaque, uint32_t addr, uint32_t val)
 {
     KBDState *s = opaque;
 
+    DPRINTF("kbd: write outport=0x%02x\n", val);
     s->outport = val;
     if (s->a20_out) {
         qemu_set_irq(*s->a20_out, (val >> 1) & 1);
@@ -221,17 +226,18 @@ static void ioport92_write(void *opaque, uint32_t addr, uint32_t val)
 static uint32_t ioport92_read(void *opaque, uint32_t addr)
 {
     KBDState *s = opaque;
+    uint32_t ret;
 
-    return s->outport;
+    ret = s->outport;
+    DPRINTF("kbd: read outport=0x%02x\n", ret);
+    return ret;
 }
 
 static void kbd_write_command(void *opaque, uint32_t addr, uint32_t val)
 {
     KBDState *s = opaque;
 
-#ifdef DEBUG_KBD
-    printf("kbd: write cmd=0x%02x\n", val);
-#endif
+    DPRINTF("kbd: write cmd=0x%02x\n", val);
     switch(val) {
     case KBD_CCMD_READ_MODE:
         kbd_queue(s, s->mode, 0);
@@ -307,9 +313,7 @@ static uint32_t kbd_read_data(void *opaque, uint32_t addr)
     else
         val = ps2_read_data(s->kbd);
 
-#if defined(DEBUG_KBD)
-    printf("kbd: read data=0x%02x\n", val);
-#endif
+    DPRINTF("kbd: read data=0x%02x\n", val);
     return val;
 }
 
@@ -317,9 +321,7 @@ static void kbd_write_data(void *opaque, uint32_t addr, uint32_t val)
 {
     KBDState *s = opaque;
 
-#ifdef DEBUG_KBD
-    printf("kbd: write data=0x%02x\n", val);
-#endif
+    DPRINTF("kbd: write data=0x%02x\n", val);
 
     switch(s->write_cmd) {
     case 0:
