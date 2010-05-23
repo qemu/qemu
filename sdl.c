@@ -855,6 +855,10 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     if (no_frame)
         gui_noframe = 1;
 
+    if (!full_screen) {
+        setenv("SDL_VIDEO_ALLOW_SCREENSAVER", "1", 0);
+    }
+
     flags = SDL_INIT_VIDEO | SDL_INIT_NOPARACHUTE;
     if (SDL_Init (flags)) {
         fprintf(stderr, "Could not initialize SDL(%s) - exiting\n",
