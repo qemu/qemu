@@ -2800,6 +2800,8 @@ int main(int argc, char **argv, char **envp)
 /* XXX: implement xxx_cpu_list for targets that still miss it */
 #if defined(cpu_list_id)
                 cpu_list_id(stdout, &fprintf, "");
+#elif defined(cpu_list)
+                cpu_list(stdout, &fprintf); /* deprecated */
 #endif
                 exit(1);
             }
