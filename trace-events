@@ -12,9 +12,14 @@
 #
 # Format of a trace event:
 #
-# <name>(<type1> <arg1>[, <type2> <arg2>] ...) "<format-string>"
+# [disable] <name>(<type1> <arg1>[, <type2> <arg2>] ...) "<format-string>"
 #
 # Example: qemu_malloc(size_t size) "size %zu"
+#
+# The "disable" keyword will build without the trace event.
+# In case of 'simple' trace backend, it will allow the trace event to be
+# compiled, but this would be turned off by default. It can be toggled on via
+# the monitor.
 #
 # The <name> must be a valid as a C function name.
 #
