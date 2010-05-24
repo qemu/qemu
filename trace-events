@@ -38,6 +38,14 @@ disable qemu_memalign(size_t alignment, size_t size, void *ptr) "alignment %zu s
 disable qemu_valloc(size_t size, void *ptr) "size %zu ptr %p"
 disable qemu_vfree(void *ptr) "ptr %p"
 
+# hw/virtio.c
+disable virtqueue_fill(void *vq, const void *elem, unsigned int len, unsigned int idx) "vq %p elem %p len %u idx %u"
+disable virtqueue_flush(void *vq, unsigned int count) "vq %p count %u"
+disable virtqueue_pop(void *vq, void *elem, unsigned int in_num, unsigned int out_num) "vq %p elem %p in_num %u out_num %u"
+disable virtio_queue_notify(void *vdev, int n, void *vq) "vdev %p n %d vq %p"
+disable virtio_irq(void *vq) "vq %p"
+disable virtio_notify(void *vdev, void *vq) "vdev %p vq %p"
+
 # block.c
 disable multiwrite_cb(void *mcb, int ret) "mcb %p ret %d"
 disable bdrv_aio_multiwrite(void *mcb, int num_callbacks, int num_reqs) "mcb %p num_callbacks %d num_reqs %d"

@@ -13,6 +13,7 @@
 
 #include <inttypes.h>
 
+#include "trace.h"
 #include "virtio.h"
 #include "sysemu.h"
 
@@ -205,6 +206,8 @@ void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
     unsigned int offset;
     int i;
 
+    trace_virtqueue_fill(vq, elem, len, idx);
+
     offset = 0;
     for (i = 0; i < elem->in_num; i++) {
         size_t size = MIN(len - offset, elem->in_sg[i].iov_len);
@@ -232,6 +235,7 @@ void virtqueue_flush(VirtQueue *vq, unsigned int count)
 {
     /* Make sure buffer is written before we update index. */
     wmb();
+    trace_virtqueue_flush(vq, count);
     vring_used_idx_increment(vq, count);
     vq->inuse -= count;
 }
@@ -432,6 +436,7 @@ int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
 
     vq->inuse++;
 
+    trace_virtqueue_pop(vq, elem, elem->in_num, elem->out_num);
     return elem->in_num + elem->out_num;
 }
 
@@ -570,6 +575,7 @@ int virtio_queue_get_num(VirtIODevice *vdev, int n)
 void virtio_queue_notify(VirtIODevice *vdev, int n)
 {
     if (n < VIRTIO_PCI_QUEUE_MAX && vdev->vq[n].vring.desc) {
+        trace_virtio_queue_notify(vdev, n, &vdev->vq[n]);
         vdev->vq[n].handle_output(vdev, &vdev->vq[n]);
     }
 }
@@ -607,6 +613,7 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
 
 void virtio_irq(VirtQueue *vq)
 {
+    trace_virtio_irq(vq);
     vq->vdev->isr |= 0x01;
     virtio_notify_vector(vq->vdev, vq->vector);
 }
@@ -619,6 +626,7 @@ void virtio_notify(VirtIODevice *vdev, VirtQueue *vq)
          (vq->inuse || vring_avail_idx(vq) != vq->last_avail_idx)))
         return;
 
+    trace_virtio_notify(vdev, vq);
     vdev->isr |= 0x01;
     virtio_notify_vector(vdev, vq->vector);
 }
