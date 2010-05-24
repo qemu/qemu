@@ -1220,6 +1220,17 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
     tcg_temp_free(t0);
 }
 
+static void gen_cop1_ldst(CPUState *env, DisasContext *ctx,
+                          uint32_t op, int rt, int rs, int16_t imm)
+{
+    if (env->CP0_Config1 & (1 << CP0C1_FP)) {
+        check_cp1_enabled(ctx);
+        gen_flt_ldst(ctx, op, rt, rs, imm);
+    } else {
+        generate_exception_err(ctx, EXCP_CpU, 1);
+    }
+}
+
 /* Arithmetic with immediate operand */
 static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
                            int rt, int rs, int16_t imm)
@@ -7528,6 +7539,52 @@ static void gen_flt3_arith (DisasContext *ctx, uint32_t opc,
                fregnames[fs], fregnames[ft]);
 }
 
+static void
+gen_rdhwr (CPUState *env, DisasContext *ctx, int rt, int rd)
+{
+    TCGv t0;
+
+    check_insn(env, ctx, ISA_MIPS32R2);
+    t0 = tcg_temp_new();
+
+    switch (rd) {
+    case 0:
+        save_cpu_state(ctx, 1);
+        gen_helper_rdhwr_cpunum(t0);
+        gen_store_gpr(t0, rt);
+        break;
+    case 1:
+        save_cpu_state(ctx, 1);
+        gen_helper_rdhwr_synci_step(t0);
+        gen_store_gpr(t0, rt);
+        break;
+    case 2:
+        save_cpu_state(ctx, 1);
+        gen_helper_rdhwr_cc(t0);
+        gen_store_gpr(t0, rt);
+        break;
+    case 3:
+        save_cpu_state(ctx, 1);
+        gen_helper_rdhwr_ccres(t0);
+        gen_store_gpr(t0, rt);
+        break;
+    case 29:
+#if defined(CONFIG_USER_ONLY)
+        tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, tls_value));
+        gen_store_gpr(t0, rt);
+        break;
+#else
+        /* XXX: Some CPUs implement this in hardware.
+           Not supported yet. */
+#endif
+    default:            /* Invalid */
+        MIPS_INVAL("rdhwr");
+        generate_exception(ctx, EXCP_RI);
+        break;
+    }
+    tcg_temp_free(t0);
+}
+
 static void handle_delay_slot (CPUState *env, DisasContext *ctx,
                                int insn_bytes)
 {
@@ -8999,47 +9056,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx, int *is_branch)
             gen_bshfl(ctx, op2, rt, rd);
             break;
         case OPC_RDHWR:
-            check_insn(env, ctx, ISA_MIPS32R2);
-            {
-                TCGv t0 = tcg_temp_new();
-
-                switch (rd) {
-                case 0:
-                    save_cpu_state(ctx, 1);
-                    gen_helper_rdhwr_cpunum(t0);
-                    gen_store_gpr(t0, rt);
-                    break;
-                case 1:
-                    save_cpu_state(ctx, 1);
-                    gen_helper_rdhwr_synci_step(t0);
-                    gen_store_gpr(t0, rt);
-                    break;
-                case 2:
-                    save_cpu_state(ctx, 1);
-                    gen_helper_rdhwr_cc(t0);
-                    gen_store_gpr(t0, rt);
-                    break;
-                case 3:
-                    save_cpu_state(ctx, 1);
-                    gen_helper_rdhwr_ccres(t0);
-                    gen_store_gpr(t0, rt);
-                    break;
-                case 29:
-#if defined(CONFIG_USER_ONLY)
-                    tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, tls_value));
-                    gen_store_gpr(t0, rt);
-                    break;
-#else
-                    /* XXX: Some CPUs implement this in hardware.
-                       Not supported yet. */
-#endif
-                default:            /* Invalid */
-                    MIPS_INVAL("rdhwr");
-                    generate_exception(ctx, EXCP_RI);
-                    break;
-                }
-                tcg_temp_free(t0);
-            }
+            gen_rdhwr(env, ctx, rt, rd);
             break;
         case OPC_FORK:
             check_insn(env, ctx, ASE_MT);
@@ -9242,12 +9259,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx, int *is_branch)
     case OPC_LDC1:
     case OPC_SWC1:
     case OPC_SDC1:
-        if (env->CP0_Config1 & (1 << CP0C1_FP)) {
-            check_cp1_enabled(ctx);
-            gen_flt_ldst(ctx, op, rt, rs, imm);
-        } else {
-            generate_exception_err(ctx, EXCP_CpU, 1);
-        }
+        gen_cop1_ldst(env, ctx, op, rt, rs, imm);
         break;
 
     case OPC_CP1:
