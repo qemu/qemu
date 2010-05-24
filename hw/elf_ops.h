@@ -216,6 +216,11 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                 if (EM_386 != ehdr.e_machine)
                     goto fail;
             break;
+        case EM_MICROBLAZE:
+            if (EM_MICROBLAZE != ehdr.e_machine)
+                if (EM_MICROBLAZE_OLD != ehdr.e_machine)
+                    goto fail;
+            break;
         default:
             if (elf_machine != ehdr.e_machine)
                 goto fail;
