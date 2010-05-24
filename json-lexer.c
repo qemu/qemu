@@ -29,7 +29,6 @@
 
 enum json_lexer_state {
     ERROR = 0,
-    IN_DONE_STRING,
     IN_DQ_UCODE3,
     IN_DQ_UCODE2,
     IN_DQ_UCODE1,
@@ -57,9 +56,7 @@ enum json_lexer_state {
     IN_ESCAPE_I,
     IN_ESCAPE_I6,
     IN_ESCAPE_I64,
-    IN_ESCAPE_DONE,
     IN_WHITESPACE,
-    IN_OPERATOR_DONE,
     IN_START,
 };
 
@@ -72,10 +69,6 @@ enum json_lexer_state {
             (json_lexer[(old_state)][0] == (terminal))
 
 static const uint8_t json_lexer[][256] =  {
-    [IN_DONE_STRING] = {
-        TERMINAL(JSON_STRING),
-    },
-
     /* double quote string */
     [IN_DQ_UCODE3] = {
         ['0' ... '9'] = IN_DQ_STRING,
@@ -112,7 +105,7 @@ static const uint8_t json_lexer[][256] =  {
     [IN_DQ_STRING] = {
         [1 ... 0xFF] = IN_DQ_STRING,
         ['\\'] = IN_DQ_STRING_ESCAPE,
-        ['"'] = IN_DONE_STRING,
+        ['"'] = JSON_STRING,
     },
 
     /* single quote string */
@@ -151,7 +144,7 @@ static const uint8_t json_lexer[][256] =  {
     [IN_SQ_STRING] = {
         [1 ... 0xFF] = IN_SQ_STRING,
         ['\\'] = IN_SQ_STRING_ESCAPE,
-        ['\''] = IN_DONE_STRING,
+        ['\''] = JSON_STRING,
     },
 
     /* Zero */
@@ -217,27 +210,18 @@ static const uint8_t json_lexer[][256] =  {
         ['\n'] = IN_WHITESPACE,
     },        
 
-    /* operator */
-    [IN_OPERATOR_DONE] = {
-        TERMINAL(JSON_OPERATOR),
-    },
-
     /* escape */
-    [IN_ESCAPE_DONE] = {
-        TERMINAL(JSON_ESCAPE),
-    },
-
     [IN_ESCAPE_LL] = {
-        ['d'] = IN_ESCAPE_DONE,
+        ['d'] = JSON_ESCAPE,
     },
 
     [IN_ESCAPE_L] = {
-        ['d'] = IN_ESCAPE_DONE,
+        ['d'] = JSON_ESCAPE,
         ['l'] = IN_ESCAPE_LL,
     },
 
     [IN_ESCAPE_I64] = {
-        ['d'] = IN_ESCAPE_DONE,
+        ['d'] = JSON_ESCAPE,
     },
 
     [IN_ESCAPE_I6] = {
@@ -249,11 +233,11 @@ static const uint8_t json_lexer[][256] =  {
     },
 
     [IN_ESCAPE] = {
-        ['d'] = IN_ESCAPE_DONE,
-        ['i'] = IN_ESCAPE_DONE,
-        ['p'] = IN_ESCAPE_DONE,
-        ['s'] = IN_ESCAPE_DONE,
-        ['f'] = IN_ESCAPE_DONE,
+        ['d'] = JSON_ESCAPE,
+        ['i'] = JSON_ESCAPE,
+        ['p'] = JSON_ESCAPE,
+        ['s'] = JSON_ESCAPE,
+        ['f'] = JSON_ESCAPE,
         ['l'] = IN_ESCAPE_L,
         ['I'] = IN_ESCAPE_I,
     },
@@ -265,12 +249,12 @@ static const uint8_t json_lexer[][256] =  {
         ['0'] = IN_ZERO,
         ['1' ... '9'] = IN_NONZERO_NUMBER,
         ['-'] = IN_NEG_NONZERO_NUMBER,
-        ['{'] = IN_OPERATOR_DONE,
-        ['}'] = IN_OPERATOR_DONE,
-        ['['] = IN_OPERATOR_DONE,
-        [']'] = IN_OPERATOR_DONE,
-        [','] = IN_OPERATOR_DONE,
-        [':'] = IN_OPERATOR_DONE,
+        ['{'] = JSON_OPERATOR,
+        ['}'] = JSON_OPERATOR,
+        ['['] = JSON_OPERATOR,
+        [']'] = JSON_OPERATOR,
+        [','] = JSON_OPERATOR,
+        [':'] = JSON_OPERATOR,
         ['a' ... 'z'] = IN_KEYWORD,
         ['%'] = IN_ESCAPE,
         [' '] = IN_WHITESPACE,
