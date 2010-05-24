@@ -23,7 +23,8 @@ struct EventNotifier {
 #ifdef _WIN32
     HANDLE event;
 #else
-    int fd;
+    int rfd;
+    int wfd;
 #endif
 };
 
