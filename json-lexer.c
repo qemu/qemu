@@ -65,6 +65,12 @@ enum json_lexer_state {
 
 #define TERMINAL(state) [0 ... 0x7F] = (state)
 
+/* Return whether TERMINAL is a terminal state and the transition to it
+   from OLD_STATE required lookahead.  This happens whenever the table
+   below uses the TERMINAL macro.  */
+#define TERMINAL_NEEDED_LOOKAHEAD(old_state, terminal) \
+            (json_lexer[(old_state)][0] == (terminal))
+
 static const uint8_t json_lexer[][256] =  {
     [IN_DONE_STRING] = {
         TERMINAL(JSON_STRING),
@@ -284,35 +290,41 @@ void json_lexer_init(JSONLexer *lexer, JSONLexerEmitter func)
 
 static int json_lexer_feed_char(JSONLexer *lexer, char ch)
 {
+    int char_consumed, new_state;
+
     lexer->x++;
     if (ch == '\n') {
         lexer->x = 0;
         lexer->y++;
     }
 
-    lexer->state = json_lexer[lexer->state][(uint8_t)ch];
+    do {
+        new_state = json_lexer[lexer->state][(uint8_t)ch];
+        char_consumed = !TERMINAL_NEEDED_LOOKAHEAD(lexer->state, new_state);
+        if (char_consumed) {
+            qstring_append_chr(lexer->token, ch);
+        }
 
-    switch (lexer->state) {
-    case JSON_OPERATOR:
-    case JSON_ESCAPE:
-    case JSON_INTEGER:
-    case JSON_FLOAT:
-    case JSON_KEYWORD:
-    case JSON_STRING:
-        lexer->emit(lexer, lexer->token, lexer->state, lexer->x, lexer->y);
-    case JSON_SKIP:
-        lexer->state = json_lexer[IN_START][(uint8_t)ch];
-        QDECREF(lexer->token);
-        lexer->token = qstring_new();
-        break;
-    case ERROR:
-        return -EINVAL;
-    default:
-        break;
-    }
-
-    qstring_append_chr(lexer->token, ch);
-
+        switch (new_state) {
+        case JSON_OPERATOR:
+        case JSON_ESCAPE:
+        case JSON_INTEGER:
+        case JSON_FLOAT:
+        case JSON_KEYWORD:
+        case JSON_STRING:
+            lexer->emit(lexer, lexer->token, new_state, lexer->x, lexer->y);
+        case JSON_SKIP:
+            QDECREF(lexer->token);
+            lexer->token = qstring_new();
+            new_state = IN_START;
+            break;
+        case ERROR:
+            return -EINVAL;
+        default:
+            break;
+        }
+        lexer->state = new_state;
+    } while (!char_consumed);
     return 0;
 }
 
@@ -334,7 +346,7 @@ int json_lexer_feed(JSONLexer *lexer, const char *buffer, size_t size)
 
 int json_lexer_flush(JSONLexer *lexer)
 {
-    return json_lexer_feed_char(lexer, 0);
+    return lexer->state == IN_START ? 0 : json_lexer_feed_char(lexer, 0);
 }
 
 void json_lexer_destroy(JSONLexer *lexer)
