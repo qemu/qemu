@@ -1,11 +1,6 @@
 /*
  * QFloat unit-tests.
  *
- * Copyright (C) 2009 Red Hat Inc.
- *
- * Authors:
- *  Luiz Capitulino <lcapitulino@redhat.com>
- *
  * Copyright IBM, Corp. 2009
  *
  * Authors:

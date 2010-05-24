@@ -45,11 +45,9 @@ void cpu_disable_ticks(void);
 void qemu_system_reset_request(void);
 void qemu_system_shutdown_request(void);
 void qemu_system_powerdown_request(void);
-void qemu_system_exit_request(void);
 int qemu_shutdown_requested(void);
 int qemu_reset_requested(void);
 int qemu_powerdown_requested(void);
-int qemu_exit_requested(void);
 extern qemu_irq qemu_system_powerdown;
 void qemu_system_reset(void);
 
@@ -130,6 +128,7 @@ extern int max_cpus;
 extern int cursor_hide;
 extern int graphic_rotate;
 extern int no_quit;
+extern int no_shutdown;
 extern int semihosting_enabled;
 extern int old_param;
 extern int boot_menu;
@@ -201,12 +200,10 @@ extern DriveInfo *drive_init(QemuOpts *arg, void *machine, int *fatal_error);
 DriveInfo *add_init_drive(const char *opts);
 
 /* pci-hotplug */
-void pci_device_hot_add_print(Monitor *mon, const QObject *data);
-int pci_device_hot_add(Monitor *mon, const QDict *qdict, QObject **ret_data);
+void pci_device_hot_add(Monitor *mon, const QDict *qdict);
 void drive_hot_add(Monitor *mon, const QDict *qdict);
 int pci_device_hot_remove(Monitor *mon, const char *pci_addr);
-int do_pci_device_hot_remove(Monitor *mon, const QDict *qdict,
-                             QObject **ret_data);
+void do_pci_device_hot_remove(Monitor *mon, const QDict *qdict);
 
 /* serial ports */
 
