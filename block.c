@@ -329,6 +329,11 @@ static BlockDriver *find_image_format(const char *filename)
     ret = bdrv_file_open(&bs, filename, 0);
     if (ret < 0)
         return NULL;
+
+    /* Return the raw BlockDriver * to scsi-generic devices */
+    if (bs->sg)
+        return bdrv_find_format("raw");
+
     ret = bdrv_pread(bs, 0, buf, sizeof(buf));
     bdrv_delete(bs);
     if (ret < 0) {
@@ -355,6 +360,10 @@ static BlockDriver *find_image_format(const char *filename)
 static int refresh_total_sectors(BlockDriverState *bs, int64_t hint)
 {
     BlockDriver *drv = bs->drv;
+
+    /* Do not attempt drv->bdrv_getlength() on scsi-generic devices */
+    if (bs->sg)
+        return 0;
 
     /* query actual device if possible, otherwise just trust the hint */
     if (drv->bdrv_getlength) {
@@ -1929,7 +1938,19 @@ static void multiwrite_cb(void *opaque, int ret)
 
 static int multiwrite_req_compare(const void *a, const void *b)
 {
-    return (((BlockRequest*) a)->sector - ((BlockRequest*) b)->sector);
+    const BlockRequest *req1 = a, *req2 = b;
+
+    /*
+     * Note that we can't simply subtract req2->sector from req1->sector
+     * here as that could overflow the return value.
+     */
+    if (req1->sector > req2->sector) {
+        return 1;
+    } else if (req1->sector < req2->sector) {
+        return -1;
+    } else {
+        return 0;
+    }
 }
 
 /*
