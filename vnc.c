@@ -522,6 +522,21 @@ void buffer_append(Buffer *buffer, const void *data, size_t len)
     buffer->offset += len;
 }
 
+static void vnc_desktop_resize(VncState *vs)
+{
+    DisplayState *ds = vs->ds;
+
+    if (vs->csock == -1 || !vnc_has_feature(vs, VNC_FEATURE_RESIZE)) {
+        return;
+    }
+    vnc_write_u8(vs, VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
+    vnc_write_u8(vs, 0);
+    vnc_write_u16(vs, 1); /* number of rects */
+    vnc_framebuffer_update(vs, 0, 0, ds_get_width(ds), ds_get_height(ds),
+                           VNC_ENCODING_DESKTOPRESIZE);
+    vnc_flush(vs);
+}
+
 static void vnc_dpy_resize(DisplayState *ds)
 {
     int size_changed;
@@ -550,14 +565,7 @@ static void vnc_dpy_resize(DisplayState *ds)
     QTAILQ_FOREACH(vs, &vd->clients, next) {
         vnc_colordepth(vs);
         if (size_changed) {
-            if (vs->csock != -1 && vnc_has_feature(vs, VNC_FEATURE_RESIZE)) {
-                vnc_write_u8(vs, VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
-                vnc_write_u8(vs, 0);
-                vnc_write_u16(vs, 1); /* number of rects */
-                vnc_framebuffer_update(vs, 0, 0, ds_get_width(ds), ds_get_height(ds),
-                        VNC_ENCODING_DESKTOPRESIZE);
-                vnc_flush(vs);
-            }
+            vnc_desktop_resize(vs);
         }
         if (vs->vd->cursor) {
             vnc_cursor_define(vs);
