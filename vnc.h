@@ -134,6 +134,8 @@ struct VncState
     int absolute;
     int last_x;
     int last_y;
+    int client_width;
+    int client_height;
 
     uint32_t vnc_encoding;
 
