@@ -859,7 +859,7 @@ enum {
 static const struct hwdef hwdefs[] = {
     /* Sun4u generic PC-like machine */
     {
-        .default_cpu_model = "TI UltraSparc II",
+        .default_cpu_model = "TI UltraSparc IIi",
         .machine_id = sun4u_id,
         .prom_addr = 0x1fff0000000ULL,
         .console_serial_base = 0,
