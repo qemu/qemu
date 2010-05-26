@@ -928,6 +928,13 @@ if test -z "$target_list" ; then
     echo "No targets enabled"
     exit 1
 fi
+# see if system emulation was really requested
+case " $target_list " in
+  *"-softmmu "*) softmmu=yes
+  ;;
+  *) softmmu=no
+  ;;
+esac
 
 feature_not_found() {
   feature=$1
@@ -2282,7 +2289,7 @@ bsd)
 esac
 
 tools=
-if test `expr "$target_list" : ".*softmmu.*"` != 0 ; then
+if test "$softmmu" = yes ; then
   tools="qemu-img\$(EXESUF) qemu-io\$(EXESUF) $tools"
   if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
       tools="qemu-nbd\$(EXESUF) $tools"
@@ -2298,7 +2305,7 @@ echo "TOOLS=$tools" >> $config_host_mak
 roms=
 if test \( "$cpu" = "i386" -o "$cpu" = "x86_64" \) -a \
         "$targetos" != "Darwin" -a "$targetos" != "SunOS" -a \
-        `expr "$target_list" : ".*softmmu.*"` != 0 ; then
+        "$softmmu" = yes ; then
   roms="optionrom"
 fi
 echo "ROMS=$roms" >> $config_host_mak
