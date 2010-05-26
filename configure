@@ -232,7 +232,8 @@ case "$cpu" in
     cpu="sparc"
   ;;
   *)
-    cpu="unknown"
+    echo "Unsupported CPU = $cpu"
+    exit 1
   ;;
 esac
 
@@ -2067,10 +2068,6 @@ case "$cpu" in
   ;;
   armv4b|armv4l)
     ARCH=arm
-  ;;
-  *)
-    echo "Unsupported CPU = $cpu"
-    exit 1
   ;;
 esac
 echo "ARCH=$ARCH" >> $config_host_mak
