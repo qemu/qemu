@@ -65,14 +65,8 @@ path_of() {
 
 # default parameters
 cpu=""
-prefix=""
 interp_prefix="/usr/gnemul/qemu-%M"
 static="no"
-mandir=""
-datadir=""
-docdir=""
-bindir=""
-sysconfdir=""
 sparc_cpu=""
 cross_prefix=""
 cc="gcc"
@@ -280,6 +274,13 @@ strip_opt="yes"
 bigendian="no"
 mingw32="no"
 EXESUF=""
+prefix="/usr/local"
+mandir="\${prefix}/share/man"
+datadir="\${prefix}/share/qemu"
+docdir="\${prefix}/share/doc/qemu"
+bindir="\${prefix}/bin"
+sysconfdir="\${prefix}/etc"
+confsuffix="/qemu"
 slirp="yes"
 fmod_lib=""
 fmod_inc=""
@@ -454,6 +455,13 @@ if test "$mingw32" = "yes" ; then
   # enable C99/POSIX format strings (needs mingw32-runtime 3.15 or later)
   QEMU_CFLAGS="-D__USE_MINGW_ANSI_STDIO=1 $QEMU_CFLAGS"
   LIBS="-lwinmm -lws2_32 -liphlpapi $LIBS"
+  prefix="c:/Program Files/Qemu"
+  mandir="\${prefix}"
+  datadir="\${prefix}"
+  docdir="\${prefix}"
+  bindir="\${prefix}"
+  sysconfdir="\${prefix}"
+  confsuffix=""
 fi
 
 # find source path
@@ -1981,33 +1989,6 @@ if test "$solaris" = "no" ; then
     fi
 fi
 
-if test "$mingw32" = "yes" ; then
-  if test -z "$prefix" ; then
-      prefix="c:/Program Files/Qemu"
-  fi
-  mansuffix=""
-  datasuffix=""
-  docsuffix=""
-  binsuffix=""
-  sysconfsuffix=""
-  confsuffix=""
-else
-  if test -z "$prefix" ; then
-      prefix="/usr/local"
-  fi
-  mansuffix="/share/man"
-  datasuffix="/share/qemu"
-  docsuffix="/share/doc/qemu"
-  binsuffix="/bin"
-  sysconfsuffix="/etc"
-  confsuffix="/qemu"
-fi
-
-: ${mandir:="\${prefix}$mansuffix"}
-: ${datadir:="\${prefix}$datasuffix"}
-: ${docdir:="\${prefix}$docsuffix"}
-: ${bindir:="\${prefix}$binsuffix"}
-: ${sysconfdir:="\${prefix}$sysconfsuffix"}
 confdir=$sysconfdir$confsuffix
 
 echo "Install prefix    $prefix"
