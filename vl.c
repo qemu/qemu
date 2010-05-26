@@ -3423,7 +3423,7 @@ int main(int argc, char **argv, char **envp)
     }
     /* If all else fails use the install patch specified when building.  */
     if (!data_dir) {
-        data_dir = CONFIG_QEMU_SHAREDIR;
+        data_dir = CONFIG_QEMU_DATADIR;
     }
 
     /*
