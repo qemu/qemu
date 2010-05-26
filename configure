@@ -1972,9 +1972,7 @@ if test "$mingw32" = "yes" ; then
   confsuffix=""
   docsuffix=""
   binsuffix=""
-  if test -z "$sysconfdir" ; then
-      sysconfdir="${prefix}"
-  fi
+  sysconfsuffix=""
 else
   if test -z "$prefix" ; then
       prefix="/usr/local"
@@ -1983,10 +1981,10 @@ else
   datasuffix="/share/qemu"
   docsuffix="/share/doc/qemu"
   binsuffix="/bin"
-  if test -z "$sysconfdir" ; then
-      sysconfdir="${prefix}/etc"
-  fi
+  sysconfsuffix="/etc"
 fi
+
+: ${sysconfdir:="${prefix}$sysconfsuffix"}
 
 echo "Install prefix    $prefix"
 echo "BIOS directory    $prefix$datasuffix"
