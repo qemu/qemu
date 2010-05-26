@@ -177,6 +177,9 @@ static inline void mon_print_count_init(Monitor *mon) { }
 static inline int mon_print_count_get(const Monitor *mon) { return 0; }
 #endif /* CONFIG_DEBUG_MONITOR */
 
+/* QMP checker flags */
+#define QMP_ACCEPT_UNKNOWNS 1
+
 static QLIST_HEAD(mon_list, Monitor) mon_list;
 
 static const mon_cmd_t mon_cmds[];
@@ -4147,6 +4150,104 @@ static int invalid_qmp_mode(const Monitor *mon, const char *cmd_name)
     return (qmp_cmd_mode(mon) ? is_cap : !is_cap);
 }
 
+/*
+ * - Check if the client has passed all mandatory args
+ * - Set special flags for argument validation
+ */
+static int check_mandatory_args(const QDict *cmd_args,
+                                const QDict *client_args, int *flags)
+{
+    const QDictEntry *ent;
+
+    for (ent = qdict_first(cmd_args); ent; ent = qdict_next(cmd_args, ent)) {
+        const char *cmd_arg_name = qdict_entry_key(ent);
+        QString *type = qobject_to_qstring(qdict_entry_value(ent));
+        assert(type != NULL);
+
+        if (qstring_get_str(type)[0] == 'O') {
+            assert((*flags & QMP_ACCEPT_UNKNOWNS) == 0);
+            *flags |= QMP_ACCEPT_UNKNOWNS;
+        } else if (qstring_get_str(type)[0] != '-' &&
+                   qstring_get_str(type)[1] != '?' &&
+                   !qdict_haskey(client_args, cmd_arg_name)) {
+            qerror_report(QERR_MISSING_PARAMETER, cmd_arg_name);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static QDict *qdict_from_args_type(const char *args_type)
+{
+    int i;
+    QDict *qdict;
+    QString *key, *type, *cur_qs;
+
+    assert(args_type != NULL);
+
+    qdict = qdict_new();
+
+    if (args_type == NULL || args_type[0] == '\0') {
+        /* no args, empty qdict */
+        goto out;
+    }
+
+    key = qstring_new();
+    type = qstring_new();
+
+    cur_qs = key;
+
+    for (i = 0;; i++) {
+        switch (args_type[i]) {
+            case ',':
+            case '\0':
+                qdict_put(qdict, qstring_get_str(key), type);
+                QDECREF(key);
+                if (args_type[i] == '\0') {
+                    goto out;
+                }
+                type = qstring_new(); /* qdict has ref */
+                cur_qs = key = qstring_new();
+                break;
+            case ':':
+                cur_qs = type;
+                break;
+            default:
+                qstring_append_chr(cur_qs, args_type[i]);
+                break;
+        }
+    }
+
+out:
+    return qdict;
+}
+
+/*
+ * Client argument checking rules:
+ *
+ * 1. Client must provide all mandatory arguments
+ */
+static int qmp_check_client_args(const mon_cmd_t *cmd, QDict *client_args)
+{
+    int flags, err;
+    QDict *cmd_args;
+
+    cmd_args = qdict_from_args_type(cmd->args_type);
+
+    flags = 0;
+    err = check_mandatory_args(cmd_args, client_args, &flags);
+    if (err) {
+        goto out;
+    }
+
+    /* TODO: Check client args type */
+
+out:
+    QDECREF(cmd_args);
+    return err;
+}
+
 static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
 {
     int err;
@@ -4221,6 +4322,11 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     }
 
     QDECREF(input);
+
+    err = qmp_check_client_args(cmd, args);
+    if (err < 0) {
+        goto err_out;
+    }
 
     err = monitor_check_qmp_args(cmd, args);
     if (err < 0) {
