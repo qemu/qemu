@@ -68,6 +68,10 @@ cpu=""
 prefix=""
 interp_prefix="/usr/gnemul/qemu-%M"
 static="no"
+mandir=""
+datadir=""
+docdir=""
+bindir=""
 sysconfdir=""
 sparc_cpu=""
 cross_prefix=""
@@ -501,6 +505,14 @@ for opt do
     static="yes"
     LDFLAGS="-static $LDFLAGS"
   ;;
+  --mandir=*) mandir="$optarg"
+  ;;
+  --bindir=*) bindir="$optarg"
+  ;;
+  --datadir=*) datadir="$optarg"
+  ;;
+  --docdir=*) docdir="$optarg"
+  ;;
   --sysconfdir=*) sysconfdir="$optarg"
   ;;
   --disable-sdl) sdl="no"
@@ -755,7 +767,11 @@ echo "  --extra-ldflags=LDFLAGS  append extra linker flags LDFLAGS"
 echo "  --make=MAKE              use specified make [$make]"
 echo "  --install=INSTALL        use specified install [$install]"
 echo "  --static                 enable static build [$static]"
-echo "  --sysconfdir=PATH        install config in PATH"
+echo "  --mandir=PATH            install man pages in PATH"
+echo "  --datadir=PATH           install firmware in PATH"
+echo "  --docdir=PATH            install documentation in PATH"
+echo "  --bindir=PATH            install binaries in PATH"
+echo "  --sysconfdir=PATH        install config in PATH/qemu"
 echo "  --enable-debug-tcg       enable TCG debugging"
 echo "  --disable-debug-tcg      disable TCG debugging (default)"
 echo "  --enable-debug           enable common debug build options"
@@ -1985,10 +2001,10 @@ else
   confsuffix="/qemu"
 fi
 
-mandir="\${prefix}$mansuffix"
-datadir="\${prefix}$datasuffix"
-docdir="\${prefix}$docsuffix"
-bindir="\${prefix}$binsuffix"
+: ${mandir:="\${prefix}$mansuffix"}
+: ${datadir:="\${prefix}$datasuffix"}
+: ${docdir:="\${prefix}$docsuffix"}
+: ${bindir:="\${prefix}$binsuffix"}
 : ${sysconfdir:="\${prefix}$sysconfsuffix"}
 confdir=$sysconfdir$confsuffix
 
