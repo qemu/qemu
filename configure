@@ -1969,10 +1969,10 @@ if test "$mingw32" = "yes" ; then
   fi
   mansuffix=""
   datasuffix=""
-  confsuffix=""
   docsuffix=""
   binsuffix=""
   sysconfsuffix=""
+  confsuffix=""
 else
   if test -z "$prefix" ; then
       prefix="/usr/local"
@@ -1982,9 +1982,11 @@ else
   docsuffix="/share/doc/qemu"
   binsuffix="/bin"
   sysconfsuffix="/etc"
+  confsuffix="/qemu"
 fi
 
 : ${sysconfdir:="${prefix}$sysconfsuffix"}
+confdir=$sysconfdir$confsuffix
 
 echo "Install prefix    $prefix"
 echo "BIOS directory    $prefix$datasuffix"
@@ -2062,11 +2064,7 @@ printf " '%s'" "$0" "$@" >> $config_host_mak
 echo >> $config_host_mak
 
 echo "CONFIG_QEMU_SHAREDIR=\"$prefix$datasuffix\"" >> $config_host_mak
-if test "$mingw32" = "yes" ; then
-  echo "CONFIG_QEMU_CONFDIR=\"$sysconfdir\"" >> $config_host_mak
-else
-  echo "CONFIG_QEMU_CONFDIR=\"${sysconfdir}/qemu\"" >> $config_host_mak
-fi
+echo "CONFIG_QEMU_CONFDIR=\"$confdir\"" >> $config_host_mak
 
 case "$cpu" in
   i386|x86_64|alpha|cris|hppa|ia64|m68k|microblaze|mips|mips64|ppc|ppc64|s390|s390x|sparc|sparc64)
