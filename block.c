@@ -56,7 +56,6 @@ static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num,
                         uint8_t *buf, int nb_sectors);
 static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
                          const uint8_t *buf, int nb_sectors);
-static BlockDriver *find_protocol(const char *filename);
 
 static QTAILQ_HEAD(, BlockDriverState) bdrv_states =
     QTAILQ_HEAD_INITIALIZER(bdrv_states);
@@ -210,7 +209,7 @@ int bdrv_create_file(const char* filename, QEMUOptionParameter *options)
 {
     BlockDriver *drv;
 
-    drv = find_protocol(filename);
+    drv = bdrv_find_protocol(filename);
     if (drv == NULL) {
         drv = bdrv_find_format("file");
     }
@@ -283,7 +282,7 @@ static BlockDriver *find_hdev_driver(const char *filename)
     return drv;
 }
 
-static BlockDriver *find_protocol(const char *filename)
+BlockDriver *bdrv_find_protocol(const char *filename)
 {
     BlockDriver *drv1;
     char protocol[128];
@@ -478,7 +477,7 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags)
     BlockDriver *drv;
     int ret;
 
-    drv = find_protocol(filename);
+    drv = bdrv_find_protocol(filename);
     if (!drv) {
         return -ENOENT;
     }
