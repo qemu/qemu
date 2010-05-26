@@ -673,6 +673,8 @@ for opt do
   ;;
   --enable-vhost-net) vhost_net="yes"
   ;;
+  --*dir)
+  ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
   esac
