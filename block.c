@@ -50,6 +50,8 @@ static BlockDriverAIOCB *bdrv_aio_writev_em(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque);
 static BlockDriverAIOCB *bdrv_aio_flush_em(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque);
+static BlockDriverAIOCB *bdrv_aio_noop_em(BlockDriverState *bs,
+        BlockDriverCompletionFunc *cb, void *opaque);
 static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num,
                         uint8_t *buf, int nb_sectors);
 static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
@@ -1312,6 +1314,10 @@ const char *bdrv_get_device_name(BlockDriverState *bs)
 
 void bdrv_flush(BlockDriverState *bs)
 {
+    if (bs->open_flags & BDRV_O_NO_FLUSH) {
+        return;
+    }
+
     if (bs->drv && bs->drv->bdrv_flush)
         bs->drv->bdrv_flush(bs);
 }
@@ -2099,6 +2105,10 @@ BlockDriverAIOCB *bdrv_aio_flush(BlockDriverState *bs,
 {
     BlockDriver *drv = bs->drv;
 
+    if (bs->open_flags & BDRV_O_NO_FLUSH) {
+        return bdrv_aio_noop_em(bs, cb, opaque);
+    }
+
     if (!drv)
         return NULL;
     return drv->bdrv_aio_flush(bs, cb, opaque);
@@ -2210,6 +2220,25 @@ static BlockDriverAIOCB *bdrv_aio_flush_em(BlockDriverState *bs,
         acb->bh = qemu_bh_new(bdrv_aio_bh_cb, acb);
 
     bdrv_flush(bs);
+    qemu_bh_schedule(acb->bh);
+    return &acb->common;
+}
+
+static BlockDriverAIOCB *bdrv_aio_noop_em(BlockDriverState *bs,
+        BlockDriverCompletionFunc *cb, void *opaque)
+{
+    BlockDriverAIOCBSync *acb;
+
+    acb = qemu_aio_get(&bdrv_em_aio_pool, bs, cb, opaque);
+    acb->is_write = 1; /* don't bounce in the completion handler */
+    acb->qiov = NULL;
+    acb->bounce = NULL;
+    acb->ret = 0;
+
+    if (!acb->bh) {
+        acb->bh = qemu_bh_new(bdrv_aio_bh_cb, acb);
+    }
+
     qemu_bh_schedule(acb->bh);
     return &acb->common;
 }

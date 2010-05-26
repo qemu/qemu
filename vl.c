@@ -913,6 +913,9 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
             bdrv_flags |= BDRV_O_NOCACHE;
         } else if (!strcmp(buf, "writeback")) {
             bdrv_flags |= BDRV_O_CACHE_WB;
+        } else if (!strcmp(buf, "unsafe")) {
+            bdrv_flags |= BDRV_O_CACHE_WB;
+            bdrv_flags |= BDRV_O_NO_FLUSH;
         } else if (!strcmp(buf, "writethrough")) {
             /* this is the default */
         } else {
