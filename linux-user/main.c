@@ -47,7 +47,7 @@ int have_guest_base;
 unsigned long reserved_va;
 #endif
 
-static const char *interp_prefix = CONFIG_QEMU_PREFIX;
+static const char *interp_prefix = CONFIG_QEMU_INTERP_PREFIX;
 const char *qemu_uname_release = CONFIG_UNAME_RELEASE;
 
 /* XXX: on x86 MAP_GROWSDOWN only works if ESP <= address + 32, so
