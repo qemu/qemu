@@ -1985,14 +1985,18 @@ else
   confsuffix="/qemu"
 fi
 
-: ${sysconfdir:="${prefix}$sysconfsuffix"}
+mandir="\${prefix}$mansuffix"
+datadir="\${prefix}$datasuffix"
+docdir="\${prefix}$docsuffix"
+bindir="\${prefix}$binsuffix"
+: ${sysconfdir:="\${prefix}$sysconfsuffix"}
 confdir=$sysconfdir$confsuffix
 
 echo "Install prefix    $prefix"
-echo "BIOS directory    $prefix$datasuffix"
-echo "binary directory  $prefix$binsuffix"
+echo "BIOS directory    `eval echo $datadir`"
+echo "binary directory  `eval echo $bindir`"
 if test "$mingw32" = "no" ; then
-echo "Manual directory  $prefix$mansuffix"
+echo "Manual directory  `eval echo $mandir`"
 echo "ELF interp prefix $interp_prefix"
 fi
 echo "Source path       $source_path"
@@ -2308,11 +2312,11 @@ fi
 echo "ROMS=$roms" >> $config_host_mak
 
 echo "prefix=$prefix" >> $config_host_mak
-echo "bindir=\${prefix}$binsuffix" >> $config_host_mak
-echo "mandir=\${prefix}$mansuffix" >> $config_host_mak
-echo "datadir=\${prefix}$datasuffix" >> $config_host_mak
+echo "bindir=$bindir" >> $config_host_mak
+echo "mandir=$mandir" >> $config_host_mak
+echo "datadir=$datadir" >> $config_host_mak
 echo "sysconfdir=$sysconfdir" >> $config_host_mak
-echo "docdir=\${prefix}$docsuffix" >> $config_host_mak
+echo "docdir=$docdir" >> $config_host_mak
 echo "MAKE=$make" >> $config_host_mak
 echo "INSTALL=$install" >> $config_host_mak
 echo "INSTALL_DIR=$install -d -m0755 -p" >> $config_host_mak
