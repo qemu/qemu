@@ -2067,6 +2067,12 @@ printf "# Configured with:" >> $config_host_mak
 printf " '%s'" "$0" "$@" >> $config_host_mak
 echo >> $config_host_mak
 
+echo "prefix=$prefix" >> $config_host_mak
+echo "bindir=$bindir" >> $config_host_mak
+echo "mandir=$mandir" >> $config_host_mak
+echo "datadir=$datadir" >> $config_host_mak
+echo "sysconfdir=$sysconfdir" >> $config_host_mak
+echo "docdir=$docdir" >> $config_host_mak
 echo "CONFIG_QEMU_SHAREDIR=\"$prefix$datasuffix\"" >> $config_host_mak
 echo "CONFIG_QEMU_CONFDIR=\"$confdir\"" >> $config_host_mak
 
@@ -2310,13 +2316,6 @@ if test \( "$cpu" = "i386" -o "$cpu" = "x86_64" \) -a \
   roms="optionrom"
 fi
 echo "ROMS=$roms" >> $config_host_mak
-
-echo "prefix=$prefix" >> $config_host_mak
-echo "bindir=$bindir" >> $config_host_mak
-echo "mandir=$mandir" >> $config_host_mak
-echo "datadir=$datadir" >> $config_host_mak
-echo "sysconfdir=$sysconfdir" >> $config_host_mak
-echo "docdir=$docdir" >> $config_host_mak
 echo "MAKE=$make" >> $config_host_mak
 echo "INSTALL=$install" >> $config_host_mak
 echo "INSTALL_DIR=$install -d -m0755 -p" >> $config_host_mak
