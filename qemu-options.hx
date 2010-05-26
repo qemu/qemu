@@ -170,8 +170,7 @@ the storage subsystem.
 Writeback caching will report data writes as completed as soon as the data is
 present in the host page cache.  This is safe as long as you trust your host.
 If your host crashes or loses power, then the guest may experience data
-corruption.  When using the @option{-snapshot} option, writeback caching is
-used by default.
+corruption.
 
 The host page cache can be avoided entirely with @option{cache=none}.  This will
 attempt to do disk IO directly to the guests memory.  QEMU may still perform
@@ -185,7 +184,8 @@ In case you don't care about data integrity over host failures, use
 cache=unsafe. This option tells qemu that it never needs to write any data
 to the disk but can instead keeps things in cache. If anything goes wrong,
 like your host losing power, the disk storage getting disconnected accidently,
-etc. you're image will most probably be rendered unusable.
+etc. you're image will most probably be rendered unusable.   When using
+the @option{-snapshot} option, unsafe caching is always used.
 
 Instead of @option{-cdrom} you can use:
 @example

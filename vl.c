@@ -1105,9 +1105,9 @@ DriveInfo *drive_init(QemuOpts *opts, void *opaque,
         return NULL;
     }
     if (snapshot) {
-        /* always use write-back with snapshot */
+        /* always use cache=unsafe with snapshot */
         bdrv_flags &= ~BDRV_O_CACHE_MASK;
-        bdrv_flags |= (BDRV_O_SNAPSHOT|BDRV_O_CACHE_WB);
+        bdrv_flags |= (BDRV_O_SNAPSHOT|BDRV_O_CACHE_WB|BDRV_O_NO_FLUSH);
     }
 
     if (media == MEDIA_CDROM) {
