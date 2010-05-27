@@ -684,7 +684,7 @@ int bdrv_commit(BlockDriverState *bs)
     int64_t i, total_sectors;
     int n, j, ro, open_flags;
     int ret = 0, rw_ret = 0;
-    unsigned char sector[512];
+    unsigned char sector[BDRV_SECTOR_SIZE];
     char filename[1024];
     BlockDriverState *bs_rw, *bs_ro;
 
@@ -824,7 +824,8 @@ static int bdrv_check_byte_request(BlockDriverState *bs, int64_t offset,
 static int bdrv_check_request(BlockDriverState *bs, int64_t sector_num,
                               int nb_sectors)
 {
-    return bdrv_check_byte_request(bs, sector_num * 512, nb_sectors * 512);
+    return bdrv_check_byte_request(bs, sector_num * BDRV_SECTOR_SIZE,
+                                   nb_sectors * BDRV_SECTOR_SIZE);
 }
 
 /* return < 0 if error. See bdrv_write() for the return codes */
@@ -1059,7 +1060,7 @@ struct partition {
 static int guess_disk_lchs(BlockDriverState *bs,
                            int *pcylinders, int *pheads, int *psectors)
 {
-    uint8_t buf[512];
+    uint8_t buf[BDRV_SECTOR_SIZE];
     int ret, i, heads, sectors, cylinders;
     struct partition *p;
     uint32_t nr_sects;
@@ -1535,7 +1536,7 @@ static QObject* bdrv_info_stats_bs(BlockDriverState *bs)
                              "} }",
                              bs->rd_bytes, bs->wr_bytes,
                              bs->rd_ops, bs->wr_ops,
-                             bs->wr_highest_sector * 512);
+                             bs->wr_highest_sector * (long)BDRV_SECTOR_SIZE);
     dict  = qobject_to_qdict(res);
 
     if (*bs->device_name) {
@@ -2197,7 +2198,7 @@ static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num,
 
     async_ret = NOT_DONE;
     iov.iov_base = (void *)buf;
-    iov.iov_len = nb_sectors * 512;
+    iov.iov_len = nb_sectors * BDRV_SECTOR_SIZE;
     qemu_iovec_init_external(&qiov, &iov, 1);
     acb = bdrv_aio_readv(bs, sector_num, &qiov, nb_sectors,
         bdrv_rw_em_cb, &async_ret);
@@ -2228,7 +2229,7 @@ static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
 
     async_ret = NOT_DONE;
     iov.iov_base = (void *)buf;
-    iov.iov_len = nb_sectors * 512;
+    iov.iov_len = nb_sectors * BDRV_SECTOR_SIZE;
     qemu_iovec_init_external(&qiov, &iov, 1);
     acb = bdrv_aio_writev(bs, sector_num, &qiov, nb_sectors,
         bdrv_rw_em_cb, &async_ret);
