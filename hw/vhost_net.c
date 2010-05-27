@@ -100,7 +100,7 @@ struct vhost_net *vhost_net_init(VLANClientState *backend, int devfd)
     }
     if (~net->dev.features & net->dev.backend_features) {
         fprintf(stderr, "vhost lacks feature mask %" PRIu64 " for backend\n",
-                ~net->dev.features & net->dev.backend_features);
+                (uint64_t)(~net->dev.features & net->dev.backend_features));
         vhost_dev_cleanup(&net->dev);
         goto fail;
     }
