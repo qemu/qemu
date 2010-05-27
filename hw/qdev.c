@@ -326,8 +326,10 @@ void qdev_init_nofail(DeviceState *dev)
 {
     DeviceInfo *info = dev->info;
 
-    if (qdev_init(dev) < 0)
-        hw_error("Initialization of device %s failed\n", info->name);
+    if (qdev_init(dev) < 0) {
+        error_report("Initialization of device %s failed\n", info->name);
+        exit(1);
+    }
 }
 
 /* Unlink device from bus and free the structure.  */
