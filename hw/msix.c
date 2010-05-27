@@ -15,14 +15,6 @@
 #include "msix.h"
 #include "pci.h"
 
-/* Declaration from linux/pci_regs.h */
-#define  PCI_CAP_ID_MSIX 0x11 /* MSI-X */
-#define  PCI_MSIX_FLAGS 2     /* Table at lower 11 bits */
-#define  PCI_MSIX_FLAGS_QSIZE	0x7FF
-#define  PCI_MSIX_FLAGS_ENABLE	(1 << 15)
-#define  PCI_MSIX_FLAGS_MASKALL	(1 << 14)
-#define  PCI_MSIX_FLAGS_BIRMASK	(7 << 0)
-
 /* MSI-X capability structure */
 #define MSIX_TABLE_OFFSET 4
 #define MSIX_PBA_OFFSET 8
