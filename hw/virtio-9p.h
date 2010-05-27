@@ -57,6 +57,11 @@ enum {
     P9_QTFILE = 0x00,
 };
 
+enum p9_proto_version {
+    V9FS_PROTO_2000U = 0x01,
+    V9FS_PROTO_2000L = 0x02,
+};
+
 #define P9_NOTAG    (u16)(~0)
 #define P9_NOFID    (u32)(~0)
 #define P9_MAXWELEM 16
@@ -144,6 +149,7 @@ typedef struct V9fsState
     uint16_t tag_len;
     uint8_t *tag;
     size_t config_size;
+    enum p9_proto_version proto_version;
 } V9fsState;
 
 typedef struct V9fsCreateState {

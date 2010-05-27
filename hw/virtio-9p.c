@@ -1025,7 +1025,11 @@ static void v9fs_version(V9fsState *s, V9fsPDU *pdu)
 
     pdu_unmarshal(pdu, offset, "ds", &msize, &version);
 
-    if (strcmp(version.data, "9P2000.u")) {
+    if (!strcmp(version.data, "9P2000.u")) {
+        s->proto_version = V9FS_PROTO_2000U;
+    } else if (!strcmp(version.data, "9P2000.L")) {
+        s->proto_version = V9FS_PROTO_2000L;
+    } else {
         v9fs_string_sprintf(&version, "unknown");
     }
 
