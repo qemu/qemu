@@ -350,12 +350,12 @@ void pci_qdev_register_many(PCIDeviceInfo *info);
 PCIDevice *pci_create(PCIBus *bus, int devfn, const char *name);
 PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name);
 
-static inline int pci_is_express(PCIDevice *d)
+static inline int pci_is_express(const PCIDevice *d)
 {
     return d->cap_present & QEMU_PCI_CAP_EXPRESS;
 }
 
-static inline uint32_t pci_config_size(PCIDevice *d)
+static inline uint32_t pci_config_size(const PCIDevice *d)
 {
     return pci_is_express(d) ? PCIE_CONFIG_SPACE_SIZE : PCI_CONFIG_SPACE_SIZE;
 }
