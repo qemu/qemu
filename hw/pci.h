@@ -97,17 +97,6 @@ typedef struct PCIIORegion {
 /* PCI HEADER_TYPE */
 #define  PCI_HEADER_TYPE_MULTI_FUNCTION 0x80
 
-#define PCI_STATUS_RESERVED_MASK_LO (PCI_STATUS_RESERVED1 | \
-                PCI_STATUS_INT_STATUS | PCI_STATUS_CAPABILITIES | \
-                PCI_STATUS_66MHZ | PCI_STATUS_RESERVED2 | PCI_STATUS_FAST_BACK)
-
-#define PCI_STATUS_RESERVED_MASK_HI (PCI_STATUS_DEVSEL >> 8)
-
-/* Bits in the PCI Command Register (PCI 2.3 spec) */
-#define PCI_COMMAND_RESERVED	0xf800
-
-#define PCI_COMMAND_RESERVED_MASK_HI (PCI_COMMAND_RESERVED >> 8)
-
 /* Size of the standard PCI config header */
 #define PCI_CONFIG_HEADER_SIZE 0x40
 /* Size of the standard PCI config space */
