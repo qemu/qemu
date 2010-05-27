@@ -121,10 +121,6 @@ int isa_vga_mm_init(target_phys_addr_t vram_base,
     s->vga.ds = graphic_console_init(s->vga.update, s->vga.invalidate,
                                      s->vga.screen_dump, s->vga.text_update, s);
 
-#ifdef CONFIG_BOCHS_VBE
-    /* XXX: use optimized standard vga accesses */
-    cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS,
-                                 VGA_RAM_SIZE, s->vga.vram_offset);
-#endif
+    vga_init_vbe(&s->vga);
     return 0;
 }
