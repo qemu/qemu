@@ -332,8 +332,10 @@ static BlockDriver *find_image_format(const char *filename)
         return NULL;
 
     /* Return the raw BlockDriver * to scsi-generic devices */
-    if (bs->sg)
+    if (bs->sg) {
+        bdrv_delete(bs);
         return bdrv_find_format("raw");
+    }
 
     ret = bdrv_pread(bs, 0, buf, sizeof(buf));
     bdrv_delete(bs);
