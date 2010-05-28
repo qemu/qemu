@@ -2593,7 +2593,6 @@ static inline void powerpc_excp(CPUState *env, int excp_model, int excp)
 #if 0 /* Fix this: not on all targets */
     new_msr &= ~((target_ulong)1 << MSR_PMM);
 #endif
-    new_msr &= ~((target_ulong)1 << MSR_LE);
     if (msr_ile)
         new_msr |= (target_ulong)1 << MSR_LE;
     else
