@@ -184,9 +184,9 @@ static void gen_op_store_QT0_fpr(unsigned int dst)
 #define hypervisor(dc) 0
 #endif
 #else
-#define supervisor(dc) (dc->mem_idx >= 1)
+#define supervisor(dc) (dc->mem_idx >= MMU_KERNEL_IDX)
 #ifdef TARGET_SPARC64
-#define hypervisor(dc) (dc->mem_idx == 2)
+#define hypervisor(dc) (dc->mem_idx == MMU_HYPV_IDX)
 #else
 #endif
 #endif
@@ -3485,14 +3485,14 @@ static void disas_sparc_insn(DisasContext * dc)
                             case 6: // pstate
                                 save_state(dc, cpu_cond);
                                 gen_helper_wrpstate(cpu_tmp0);
-                                gen_op_next_insn();
-                                tcg_gen_exit_tb(0);
-                                dc->is_br = 1;
+                                dc->npc = DYNAMIC_PC;
                                 break;
                             case 7: // tl
+                                save_state(dc, cpu_cond);
                                 tcg_gen_trunc_tl_i32(cpu_tmp32, cpu_tmp0);
                                 tcg_gen_st_i32(cpu_tmp32, cpu_env,
                                                offsetof(CPUSPARCState, tl));
+                                dc->npc = DYNAMIC_PC;
                                 break;
                             case 8: // pil
                                 gen_helper_wrpil(cpu_tmp0);
@@ -4551,6 +4551,7 @@ static void disas_sparc_insn(DisasContext * dc)
 #endif
                     save_state(dc, cpu_cond);
                     gen_st_asi(cpu_val, cpu_addr, insn, 4);
+                    dc->npc = DYNAMIC_PC;
                     break;
                 case 0x15: /* stba, store byte alternate */
 #ifndef TARGET_SPARC64
@@ -4561,6 +4562,7 @@ static void disas_sparc_insn(DisasContext * dc)
 #endif
                     save_state(dc, cpu_cond);
                     gen_st_asi(cpu_val, cpu_addr, insn, 1);
+                    dc->npc = DYNAMIC_PC;
                     break;
                 case 0x16: /* stha, store halfword alternate */
 #ifndef TARGET_SPARC64
@@ -4571,6 +4573,7 @@ static void disas_sparc_insn(DisasContext * dc)
 #endif
                     save_state(dc, cpu_cond);
                     gen_st_asi(cpu_val, cpu_addr, insn, 2);
+                    dc->npc = DYNAMIC_PC;
                     break;
                 case 0x17: /* stda, store double word alternate */
 #ifndef TARGET_SPARC64
@@ -4595,6 +4598,7 @@ static void disas_sparc_insn(DisasContext * dc)
                 case 0x1e: /* V9 stxa */
                     save_state(dc, cpu_cond);
                     gen_st_asi(cpu_val, cpu_addr, insn, 8);
+                    dc->npc = DYNAMIC_PC;
                     break;
 #endif
                 default:

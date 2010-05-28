@@ -61,7 +61,7 @@ typedef struct VncState VncState;
 
 typedef int VncReadEvent(VncState *vs, uint8_t *data, size_t len);
 
-typedef void VncWritePixels(VncState *vs, void *data, int size);
+typedef void VncWritePixels(VncState *vs, struct PixelFormat *pf, void *data, int size);
 
 typedef void VncSendHextileTile(VncState *vs,
                                 int x, int y, int w, int h,
@@ -100,6 +100,10 @@ struct VncDisplay
     DisplayState *ds;
     kbd_layout_t *kbd_layout;
     int lock_key_sync;
+
+    QEMUCursor *cursor;
+    int cursor_msize;
+    uint8_t *cursor_mask;
 
     struct VncSurface guest;   /* guest visible surface (aka ds->surface) */
     DisplaySurface *server;  /* vnc server surface */
@@ -276,6 +280,7 @@ enum {
 #define VNC_FEATURE_TIGHT                    4
 #define VNC_FEATURE_ZLIB                     5
 #define VNC_FEATURE_COPYRECT                 6
+#define VNC_FEATURE_RICH_CURSOR              7
 
 #define VNC_FEATURE_RESIZE_MASK              (1 << VNC_FEATURE_RESIZE)
 #define VNC_FEATURE_HEXTILE_MASK             (1 << VNC_FEATURE_HEXTILE)
@@ -284,6 +289,7 @@ enum {
 #define VNC_FEATURE_TIGHT_MASK               (1 << VNC_FEATURE_TIGHT)
 #define VNC_FEATURE_ZLIB_MASK                (1 << VNC_FEATURE_ZLIB)
 #define VNC_FEATURE_COPYRECT_MASK            (1 << VNC_FEATURE_COPYRECT)
+#define VNC_FEATURE_RICH_CURSOR_MASK         (1 << VNC_FEATURE_RICH_CURSOR)
 
 
 /* Client -> Server message IDs */

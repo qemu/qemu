@@ -54,8 +54,8 @@
 
 struct virtio_net_config
 {
-    /* The config defining mac address (6 bytes) */
-    uint8_t mac[6];
+    /* The config defining mac address ($ETH_ALEN bytes) */
+    uint8_t mac[ETH_ALEN];
     /* See VIRTIO_NET_F_STATUS and VIRTIO_NET_S_* above */
     uint16_t status;
 } __attribute__((packed));

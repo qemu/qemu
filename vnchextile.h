@@ -189,16 +189,17 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
     vnc_write_u8(vs, flags);
     if (n_colors < 4) {
 	if (flags & 0x02)
-	    vs->write_pixels(vs, last_bg, sizeof(pixel_t));
+	    vs->write_pixels(vs, &vd->server->pf, last_bg, sizeof(pixel_t));
 	if (flags & 0x04)
-	    vs->write_pixels(vs, last_fg, sizeof(pixel_t));
+	    vs->write_pixels(vs, &vd->server->pf, last_fg, sizeof(pixel_t));
 	if (n_subtiles) {
 	    vnc_write_u8(vs, n_subtiles);
 	    vnc_write(vs, data, n_data);
 	}
     } else {
 	for (j = 0; j < h; j++) {
-	    vs->write_pixels(vs, row, w * ds_get_bytes_per_pixel(vs->ds));
+	    vs->write_pixels(vs, &vd->server->pf, row,
+                             w * ds_get_bytes_per_pixel(vs->ds));
 	    row += ds_get_linesize(vs->ds);
 	}
     }

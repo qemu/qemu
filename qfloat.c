@@ -1,14 +1,6 @@
 /*
  * QFloat Module
  *
- * Copyright (C) 2009 Red Hat Inc.
- *
- * Authors:
- *  Luiz Capitulino <lcapitulino@redhat.com>
- *
- * This work is licensed under the terms of the GNU GPL, version 2.  See
- * the COPYING file in the top-level directory.
- *
  * Copyright IBM, Corp. 2009
  *
  * Authors:

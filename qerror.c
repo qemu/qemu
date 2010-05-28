@@ -1,5 +1,5 @@
 /*
- * QError: QEMU Error data-type.
+ * QError Module
  *
  * Copyright (C) 2009 Red Hat Inc.
  *

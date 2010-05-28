@@ -70,7 +70,7 @@
 #define PROM_VADDR           0x000ffd00000ULL
 #define APB_SPECIAL_BASE     0x1fe00000000ULL
 #define APB_MEM_BASE         0x1ff00000000ULL
-#define VGA_BASE             (APB_MEM_BASE + 0x400000ULL)
+#define APB_PCI_IO_BASE      (APB_SPECIAL_BASE + 0x02000000ULL)
 #define PROM_FILENAME        "openbios-sparc64"
 #define NVRAM_SIZE           0x2000
 #define MAX_IDE_BUS          2
@@ -766,7 +766,7 @@ static void sun4uv_init(ram_addr_t RAM_size,
     irq = qemu_allocate_irqs(cpu_set_irq, env, MAX_PILS);
     pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, irq, &pci_bus2,
                            &pci_bus3);
-    isa_mem_base = VGA_BASE;
+    isa_mem_base = APB_PCI_IO_BASE;
     pci_vga_init(pci_bus, 0, 0);
 
     // XXX Should be pci_bus3
@@ -859,7 +859,7 @@ enum {
 static const struct hwdef hwdefs[] = {
     /* Sun4u generic PC-like machine */
     {
-        .default_cpu_model = "TI UltraSparc II",
+        .default_cpu_model = "TI UltraSparc IIi",
         .machine_id = sun4u_id,
         .prom_addr = 0x1fff0000000ULL,
         .console_serial_base = 0,

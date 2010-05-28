@@ -54,7 +54,7 @@ QemuOptsList qemu_drive_opts = {
         },{
             .name = "cache",
             .type = QEMU_OPT_STRING,
-            .help = "host cache usage (none, writeback, writethrough)",
+            .help = "host cache usage (none, writeback, writethrough, unsafe)",
         },{
             .name = "aio",
             .type = QEMU_OPT_STRING,
@@ -521,14 +521,18 @@ out:
 int qemu_read_config_file(const char *filename)
 {
     FILE *f = fopen(filename, "r");
+    int ret;
+
     if (f == NULL) {
         return -errno;
     }
 
-    if (qemu_config_parse(f, vm_config_groups, filename) != 0) {
-        return -EINVAL;
-    }
+    ret = qemu_config_parse(f, vm_config_groups, filename);
     fclose(f);
 
-    return 0;
+    if (ret == 0) {
+        return 0;
+    } else {
+        return -EINVAL;
+    }
 }

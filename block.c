@@ -52,6 +52,8 @@ static BlockDriverAIOCB *bdrv_aio_writev_em(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque);
 static BlockDriverAIOCB *bdrv_aio_flush_em(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque);
+static BlockDriverAIOCB *bdrv_aio_noop_em(BlockDriverState *bs,
+        BlockDriverCompletionFunc *cb, void *opaque);
 static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num,
                         uint8_t *buf, int nb_sectors);
 static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
@@ -331,6 +333,11 @@ static BlockDriver *find_image_format(const char *filename)
     ret = bdrv_file_open(&bs, filename, 0);
     if (ret < 0)
         return NULL;
+
+    /* Return the raw BlockDriver * to scsi-generic devices */
+    if (bs->sg)
+        return bdrv_find_format("raw");
+
     ret = bdrv_pread(bs, 0, buf, sizeof(buf));
     bdrv_delete(bs);
     if (ret < 0) {
@@ -357,6 +364,10 @@ static BlockDriver *find_image_format(const char *filename)
 static int refresh_total_sectors(BlockDriverState *bs, int64_t hint)
 {
     BlockDriver *drv = bs->drv;
+
+    /* Do not attempt drv->bdrv_getlength() on scsi-generic devices */
+    if (bs->sg)
+        return 0;
 
     /* query actual device if possible, otherwise just trust the hint */
     if (drv->bdrv_getlength) {
@@ -1305,6 +1316,10 @@ const char *bdrv_get_device_name(BlockDriverState *bs)
 
 void bdrv_flush(BlockDriverState *bs)
 {
+    if (bs->open_flags & BDRV_O_NO_FLUSH) {
+        return;
+    }
+
     if (bs->drv && bs->drv->bdrv_flush)
         bs->drv->bdrv_flush(bs);
 }
@@ -1931,7 +1946,19 @@ static void multiwrite_cb(void *opaque, int ret)
 
 static int multiwrite_req_compare(const void *a, const void *b)
 {
-    return (((BlockRequest*) a)->sector - ((BlockRequest*) b)->sector);
+    const BlockRequest *req1 = a, *req2 = b;
+
+    /*
+     * Note that we can't simply subtract req2->sector from req1->sector
+     * here as that could overflow the return value.
+     */
+    if (req1->sector > req2->sector) {
+        return 1;
+    } else if (req1->sector < req2->sector) {
+        return -1;
+    } else {
+        return 0;
+    }
 }
 
 /*
@@ -2080,6 +2107,10 @@ BlockDriverAIOCB *bdrv_aio_flush(BlockDriverState *bs,
 {
     BlockDriver *drv = bs->drv;
 
+    if (bs->open_flags & BDRV_O_NO_FLUSH) {
+        return bdrv_aio_noop_em(bs, cb, opaque);
+    }
+
     if (!drv)
         return NULL;
     return drv->bdrv_aio_flush(bs, cb, opaque);
@@ -2191,6 +2222,25 @@ static BlockDriverAIOCB *bdrv_aio_flush_em(BlockDriverState *bs,
         acb->bh = qemu_bh_new(bdrv_aio_bh_cb, acb);
 
     bdrv_flush(bs);
+    qemu_bh_schedule(acb->bh);
+    return &acb->common;
+}
+
+static BlockDriverAIOCB *bdrv_aio_noop_em(BlockDriverState *bs,
+        BlockDriverCompletionFunc *cb, void *opaque)
+{
+    BlockDriverAIOCBSync *acb;
+
+    acb = qemu_aio_get(&bdrv_em_aio_pool, bs, cb, opaque);
+    acb->is_write = 1; /* don't bounce in the completion handler */
+    acb->qiov = NULL;
+    acb->bounce = NULL;
+    acb->ret = 0;
+
+    if (!acb->bh) {
+        acb->bh = qemu_bh_new(bdrv_aio_bh_cb, acb);
+    }
+
     qemu_bh_schedule(acb->bh);
     return &acb->common;
 }
