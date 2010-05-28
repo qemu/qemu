@@ -98,6 +98,7 @@ static void ide_identify(IDEState *s)
 {
     uint16_t *p;
     unsigned int oldsize;
+    IDEDevice *dev;
 
     if (s->identify_set) {
 	memcpy(s->io_buffer, s->identify_data, sizeof(s->identify_data));
@@ -165,8 +166,9 @@ static void ide_identify(IDEState *s)
     put_le16(p + 101, s->nb_sectors >> 16);
     put_le16(p + 102, s->nb_sectors >> 32);
     put_le16(p + 103, s->nb_sectors >> 48);
-    if (s->conf && s->conf->physical_block_size)
-        put_le16(p + 106, 0x6000 | get_physical_block_exp(s->conf));
+    dev = s->unit ? s->bus->slave : s->bus->master;
+    if (dev && dev->conf.physical_block_size)
+        put_le16(p + 106, 0x6000 | get_physical_block_exp(&dev->conf));
 
     memcpy(s->identify_data, p, sizeof(s->identify_data));
     s->identify_set = 1;
@@ -2594,8 +2596,7 @@ void ide_bus_reset(IDEBus *bus)
     ide_clear_hob(bus);
 }
 
-void ide_init_drive(IDEState *s, DriveInfo *dinfo, BlockConf *conf,
-        const char *version)
+void ide_init_drive(IDEState *s, DriveInfo *dinfo, const char *version)
 {
     int cylinders, heads, secs;
     uint64_t nb_sectors;
@@ -2620,9 +2621,6 @@ void ide_init_drive(IDEState *s, DriveInfo *dinfo, BlockConf *conf,
         }
         strncpy(s->drive_serial_str, drive_get_serial(s->bs),
                 sizeof(s->drive_serial_str));
-        if (conf) {
-            s->conf = conf;
-        }
     }
     if (strlen(s->drive_serial_str) == 0)
         snprintf(s->drive_serial_str, sizeof(s->drive_serial_str),
@@ -2653,9 +2651,9 @@ void ide_init2(IDEBus *bus, DriveInfo *hd0, DriveInfo *hd1,
         s->sector_write_timer = qemu_new_timer(vm_clock,
                                                ide_sector_write_timer_cb, s);
         if (i == 0)
-            ide_init_drive(s, hd0, NULL, NULL);
+            ide_init_drive(s, hd0, NULL);
         if (i == 1)
-            ide_init_drive(s, hd1, NULL, NULL);
+            ide_init_drive(s, hd1, NULL);
     }
     bus->irq = irq;
 }
