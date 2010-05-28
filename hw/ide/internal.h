@@ -464,8 +464,6 @@ typedef int (*ide_qdev_initfn)(IDEDevice *dev);
 struct IDEDeviceInfo {
     DeviceInfo qdev;
     ide_qdev_initfn init;
-    uint32_t unit;
-    DriveInfo *drive;
 };
 
 #define BM_STATUS_DMAING 0x01
