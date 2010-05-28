@@ -176,7 +176,6 @@ typedef struct DriveInfo {
 
 #define MAX_IDE_DEVS	2
 #define MAX_SCSI_DEVS	7
-#define MAX_DRIVES 32
 
 extern QTAILQ_HEAD(drivelist, DriveInfo) drives;
 extern QTAILQ_HEAD(driveoptlist, DriveOpt) driveopts;

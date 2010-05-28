@@ -172,8 +172,6 @@ int main(int argc, char **argv)
 
 static const char *data_dir;
 const char *bios_name = NULL;
-/* Note: drives_table[MAX_DRIVES] is a dummy block driver if none available
-   to store the VM snapshots */
 struct drivelist drives = QTAILQ_HEAD_INITIALIZER(drives);
 struct driveoptlist driveopts = QTAILQ_HEAD_INITIALIZER(driveopts);
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
