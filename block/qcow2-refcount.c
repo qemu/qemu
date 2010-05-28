@@ -404,6 +404,7 @@ static int write_refcount_block_entries(BlockDriverState *bs,
 {
     BDRVQcowState *s = bs->opaque;
     size_t size;
+    int ret;
 
     if (cache_refcount_updates) {
         return 0;
@@ -414,12 +415,13 @@ static int write_refcount_block_entries(BlockDriverState *bs,
         & ~(REFCOUNTS_PER_SECTOR - 1);
 
     size = (last_index - first_index) << REFCOUNT_SHIFT;
+
     BLKDBG_EVENT(bs->file, BLKDBG_REFBLOCK_UPDATE_PART);
-    if (bdrv_pwrite(bs->file,
+    ret = bdrv_pwrite(bs->file,
         refcount_block_offset + (first_index << REFCOUNT_SHIFT),
-        &s->refcount_block_cache[first_index], size) != size)
-    {
-        return -EIO;
+        &s->refcount_block_cache[first_index], size);
+    if (ret < 0) {
+        return ret;
     }
 
     return 0;
@@ -460,10 +462,10 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
         table_index = cluster_index >> (s->cluster_bits - REFCOUNT_SHIFT);
         if ((old_table_index >= 0) && (table_index != old_table_index)) {
 
-            if (write_refcount_block_entries(bs, refcount_block_offset,
-                first_index, last_index) < 0)
-            {
-                return -EIO;
+            ret = write_refcount_block_entries(bs, refcount_block_offset,
+                first_index, last_index);
+            if (ret < 0) {
+                return ret;
             }
 
             first_index = -1;
@@ -505,10 +507,11 @@ fail:
 
     /* Write last changed block to disk */
     if (refcount_block_offset != 0) {
-        if (write_refcount_block_entries(bs, refcount_block_offset,
-            first_index, last_index) < 0)
-        {
-            return ret < 0 ? ret : -EIO;
+        int wret;
+        wret = write_refcount_block_entries(bs, refcount_block_offset,
+            first_index, last_index);
+        if (wret < 0) {
+            return ret < 0 ? ret : wret;
         }
     }
 
