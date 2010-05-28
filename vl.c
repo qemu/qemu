@@ -1991,6 +1991,7 @@ static void main_loop(void)
             vm_stop(r);
         }
     }
+    bdrv_close_all();
     pause_all_vcpus();
 }
 

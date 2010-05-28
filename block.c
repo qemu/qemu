@@ -648,6 +648,15 @@ void bdrv_close(BlockDriverState *bs)
     }
 }
 
+void bdrv_close_all(void)
+{
+    BlockDriverState *bs;
+
+    QTAILQ_FOREACH(bs, &bdrv_states, list) {
+        bdrv_close(bs);
+    }
+}
+
 void bdrv_delete(BlockDriverState *bs)
 {
     /* remove from list, if necessary */
