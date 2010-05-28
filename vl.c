@@ -173,7 +173,6 @@ int main(int argc, char **argv)
 static const char *data_dir;
 const char *bios_name = NULL;
 struct drivelist drives = QTAILQ_HEAD_INITIALIZER(drives);
-struct driveoptlist driveopts = QTAILQ_HEAD_INITIALIZER(driveopts);
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 DisplayType display_type = DT_DEFAULT;
 const char* keyboard_layout = NULL;

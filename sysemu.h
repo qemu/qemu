@@ -178,7 +178,6 @@ typedef struct DriveInfo {
 #define MAX_SCSI_DEVS	7
 
 extern QTAILQ_HEAD(drivelist, DriveInfo) drives;
-extern QTAILQ_HEAD(driveoptlist, DriveOpt) driveopts;
 
 extern DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit);
 extern DriveInfo *drive_get_by_id(const char *id);
