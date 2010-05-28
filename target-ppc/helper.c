@@ -2080,7 +2080,6 @@ static inline void powerpc_excp(CPUState *env, int excp_model, int excp)
     srr1 = SPR_SRR1;
     asrr0 = -1;
     asrr1 = -1;
-    msr &= ~((target_ulong)0x783F0000);
     switch (excp) {
     case POWERPC_EXCP_NONE:
         /* Should never happen */
