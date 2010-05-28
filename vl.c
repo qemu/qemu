@@ -1315,7 +1315,7 @@ static void smp_parse(const char *optarg)
 /***********************************************************/
 /* USB devices */
 
-static int usb_device_add(const char *devname, int is_hotplug)
+static int usb_device_add(const char *devname)
 {
     const char *p;
     USBDevice *dev = NULL;
@@ -1367,7 +1367,7 @@ static int usb_device_del(const char *devname)
 static int usb_parse(const char *cmdline)
 {
     int r;
-    r = usb_device_add(cmdline, 0);
+    r = usb_device_add(cmdline);
     if (r < 0) {
         fprintf(stderr, "qemu: could not add USB device '%s'\n", cmdline);
     }
@@ -1377,7 +1377,7 @@ static int usb_parse(const char *cmdline)
 void do_usb_add(Monitor *mon, const QDict *qdict)
 {
     const char *devname = qdict_get_str(qdict, "devname");
-    if (usb_device_add(devname, 1) < 0) {
+    if (usb_device_add(devname) < 0) {
         error_report("could not add USB device '%s'", devname);
     }
 }
