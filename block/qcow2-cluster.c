@@ -672,8 +672,9 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
                     (i << s->cluster_bits)) | QCOW_OFLAG_COPIED);
      }
 
-    if (write_l2_entries(s, l2_table, l2_offset, l2_index, m->nb_clusters) < 0) {
-        ret = -1;
+    ret = write_l2_entries(s, l2_table, l2_offset, l2_index, m->nb_clusters);
+    if (ret < 0) {
+        qcow2_l2_cache_reset(bs);
         goto err;
     }
 
