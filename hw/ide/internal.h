@@ -362,6 +362,8 @@ typedef struct BMDMAState BMDMAState;
 #define SMART_DISABLE         0xd9
 #define SMART_STATUS          0xda
 
+typedef enum { IDE_HD, IDE_CD, IDE_CFATA } IDEDriveKind;
+
 typedef void EndTransferFunc(IDEState *);
 
 /* NOTE: IDEState represents in fact one drive */
@@ -369,8 +371,7 @@ struct IDEState {
     IDEBus *bus;
     uint8_t unit;
     /* ide config */
-    int is_cdrom;
-    int is_cf;
+    IDEDriveKind drive_kind;
     int cylinders, heads, sectors;
     int64_t nb_sectors;
     int mult_sectors;
