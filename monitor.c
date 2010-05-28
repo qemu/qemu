@@ -3565,7 +3565,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
         case '-':
             {
                 const char *tmp = p;
-                int has_option, skip_key = 0;
+                int skip_key = 0;
                 /* option */
 
                 c = *typestr++;
@@ -3573,7 +3573,6 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                     goto bad_type;
                 while (qemu_isspace(*p))
                     p++;
-                has_option = 0;
                 if (*p == '-') {
                     p++;
                     if(c != *p) {
@@ -3589,11 +3588,11 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                     if(skip_key) {
                         p = tmp;
                     } else {
+                        /* has option */
                         p++;
-                        has_option = 1;
+                        qdict_put(qdict, key, qbool_from_int(1));
                     }
                 }
-                qdict_put(qdict, key, qint_from_int(has_option));
             }
             break;
         default:
@@ -3985,11 +3984,6 @@ static int check_opt(const CmdArgs *cmd_args, const char *name, QDict *args)
         return -1;
     }
 
-    if (cmd_args->type == '-') {
-        /* handlers expect a value, they need to be changed */
-        qdict_put(args, name, qint_from_int(0));
-    }
-
     return 0;
 }
 
@@ -4061,11 +4055,6 @@ static int check_arg(const CmdArgs *cmd_args, QDict *args)
                 qobject_type(value) != QTYPE_QBOOL) {
                 qerror_report(QERR_INVALID_PARAMETER_TYPE, name, "bool");
                 return -1;
-            }
-            if (qobject_type(value) == QTYPE_QBOOL) {
-                /* handlers expect a QInt, they need to be changed */
-                qdict_put(args, name,
-                         qint_from_int(qbool_get_int(qobject_to_qbool(value))));
             }
             break;
         case 'O':
