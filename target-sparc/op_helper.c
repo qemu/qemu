@@ -3060,19 +3060,19 @@ void helper_ldda_asi(target_ulong addr, int asi, int rd)
     case 0x2c: // Nucleus quad LDD 128 bit atomic LE
         helper_check_align(addr, 0xf);
         if (rd == 0) {
-            env->gregs[1] = ldq_kernel(addr + 8);
+            env->gregs[1] = ldq_nucleus(addr + 8);
             if (asi == 0x2c)
                 bswap64s(&env->gregs[1]);
         } else if (rd < 8) {
-            env->gregs[rd] = ldq_kernel(addr);
-            env->gregs[rd + 1] = ldq_kernel(addr + 8);
+            env->gregs[rd] = ldq_nucleus(addr);
+            env->gregs[rd + 1] = ldq_nucleus(addr + 8);
             if (asi == 0x2c) {
                 bswap64s(&env->gregs[rd]);
                 bswap64s(&env->gregs[rd + 1]);
             }
         } else {
-            env->regwptr[rd] = ldq_kernel(addr);
-            env->regwptr[rd + 1] = ldq_kernel(addr + 8);
+            env->regwptr[rd] = ldq_nucleus(addr);
+            env->regwptr[rd + 1] = ldq_nucleus(addr + 8);
             if (asi == 0x2c) {
                 bswap64s(&env->regwptr[rd]);
                 bswap64s(&env->regwptr[rd + 1]);
