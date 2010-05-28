@@ -215,8 +215,6 @@ static int64_t alloc_refcount_block(BlockDriverState *bs, int64_t cluster_index)
 
     /* Allocate the refcount block itself and mark it as used */
     uint64_t new_block = alloc_clusters_noref(bs, s->cluster_size);
-    memset(s->refcount_block_cache, 0, s->cluster_size);
-    s->refcount_block_cache_offset = new_block;
 
 #ifdef DEBUG_ALLOC2
     fprintf(stderr, "qcow2: Allocate refcount block %d for %" PRIx64
@@ -225,6 +223,10 @@ static int64_t alloc_refcount_block(BlockDriverState *bs, int64_t cluster_index)
 #endif
 
     if (in_same_refcount_block(s, new_block, cluster_index << s->cluster_bits)) {
+        /* Zero the new refcount block before updating it */
+        memset(s->refcount_block_cache, 0, s->cluster_size);
+        s->refcount_block_cache_offset = new_block;
+
         /* The block describes itself, need to update the cache */
         int block_index = (new_block >> s->cluster_bits) &
             ((1 << (s->cluster_bits - REFCOUNT_SHIFT)) - 1);
@@ -236,6 +238,11 @@ static int64_t alloc_refcount_block(BlockDriverState *bs, int64_t cluster_index)
         if (ret < 0) {
             goto fail_block;
         }
+
+        /* Initialize the new refcount block only after updating its refcount,
+         * update_refcount uses the refcount cache itself */
+        memset(s->refcount_block_cache, 0, s->cluster_size);
+        s->refcount_block_cache_offset = new_block;
     }
 
     /* Now the new refcount block needs to be written to disk */
