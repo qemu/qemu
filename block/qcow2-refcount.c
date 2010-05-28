@@ -402,6 +402,10 @@ static int write_refcount_block_entries(BDRVQcowState *s,
         return 0;
     }
 
+    if (first_index < 0) {
+        return 0;
+    }
+
     first_index &= ~(REFCOUNTS_PER_SECTOR - 1);
     last_index = (last_index + REFCOUNTS_PER_SECTOR)
         & ~(REFCOUNTS_PER_SECTOR - 1);
