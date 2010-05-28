@@ -1646,20 +1646,20 @@ static inline void do_rfi(target_ulong nip, target_ulong msr,
 void helper_rfi (void)
 {
     do_rfi(env->spr[SPR_SRR0], env->spr[SPR_SRR1],
-           ~((target_ulong)0x0), 1);
+           ~((target_ulong)0x783F0000), 1);
 }
 
 #if defined(TARGET_PPC64)
 void helper_rfid (void)
 {
     do_rfi(env->spr[SPR_SRR0], env->spr[SPR_SRR1],
-           ~((target_ulong)0x0), 0);
+           ~((target_ulong)0x783F0000), 0);
 }
 
 void helper_hrfid (void)
 {
     do_rfi(env->spr[SPR_HSRR0], env->spr[SPR_HSRR1],
-           ~((target_ulong)0x0), 0);
+           ~((target_ulong)0x783F0000), 0);
 }
 #endif
 #endif
