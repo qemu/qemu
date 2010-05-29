@@ -3056,6 +3056,7 @@ void helper_ldda_asi(target_ulong addr, int asi, int rd)
         raise_exception(TT_PRIV_ACT);
 
     switch (asi) {
+#if !defined(CONFIG_USER_ONLY)
     case 0x24: // Nucleus quad LDD 128 bit atomic
     case 0x2c: // Nucleus quad LDD 128 bit atomic LE
         helper_check_align(addr, 0xf);
@@ -3079,6 +3080,7 @@ void helper_ldda_asi(target_ulong addr, int asi, int rd)
             }
         }
         break;
+#endif
     default:
         helper_check_align(addr, 0x3);
         if (rd == 0)
