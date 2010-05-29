@@ -627,6 +627,7 @@ static inline void stfq_be_p(void *ptr, float64 v)
 #if defined(CONFIG_USE_GUEST_BASE)
 extern unsigned long guest_base;
 extern int have_guest_base;
+extern unsigned long reserved_va;
 #define GUEST_BASE guest_base
 #else
 #define GUEST_BASE 0ul

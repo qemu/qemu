@@ -1682,7 +1682,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
      * In case where user has not explicitly set the guest_base, we
      * probe here that should we set it automatically.
      */
-    if (!have_guest_base) {
+    if (!(have_guest_base || reserved_va)) {
         /*
          * Go through ELF program header table and find the address
          * range used by loadable segments.  Check that this is available on
