@@ -1745,6 +1745,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
     case 0x31: // Turbosparc RAM snoop
     case 0x32: // Turbosparc page table descriptor diagnostic
     case 0x39: /* data cache diagnostic register */
+    case 0x4c: /* SuperSPARC MMU Breakpoint Action register */
         ret = 0;
         break;
     case 0x38: /* SuperSPARC MMU Breakpoint Control Registers */
