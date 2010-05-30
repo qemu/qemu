@@ -31,11 +31,18 @@
 #include "mc146818rtc.h"
 
 //#define DEBUG_CMOS
+//#define DEBUG_COALESCED
 
 #ifdef DEBUG_CMOS
 # define CMOS_DPRINTF(format, ...)      printf(format, ## __VA_ARGS__)
 #else
 # define CMOS_DPRINTF(format, ...)      do { } while (0)
+#endif
+
+#ifdef DEBUG_COALESCED
+# define DPRINTF_C(format, ...)      printf(format, ## __VA_ARGS__)
+#else
+# define DPRINTF_C(format, ...)      do { } while (0)
 #endif
 
 #define RTC_REINJECT_ON_ACK_COUNT 20
@@ -131,9 +138,12 @@ static void rtc_coalesced_timer(void *opaque)
     if (s->irq_coalesced != 0) {
         apic_reset_irq_delivered();
         s->cmos_data[RTC_REG_C] |= 0xc0;
+        DPRINTF_C("cmos: injecting from timer\n");
         rtc_irq_raise(s->irq);
         if (apic_get_irq_delivered()) {
             s->irq_coalesced--;
+            DPRINTF_C("cmos: coalesced irqs decreased to %d\n",
+                      s->irq_coalesced);
         }
     }
 
@@ -164,8 +174,10 @@ static void rtc_timer_update(RTCState *s, int64_t current_time)
         /* period in 32 Khz cycles */
         period = 1 << (period_code - 1);
 #ifdef TARGET_I386
-        if(period != s->period)
+        if (period != s->period) {
             s->irq_coalesced = (s->irq_coalesced * s->period) / period;
+            DPRINTF_C("cmos: coalesced irqs scaled to %d\n", s->irq_coalesced);
+        }
         s->period = period;
 #endif
         /* compute 32 khz clock */
@@ -198,6 +210,8 @@ static void rtc_periodic_timer(void *opaque)
             if (!apic_get_irq_delivered()) {
                 s->irq_coalesced++;
                 rtc_coalesced_timer_update(s);
+                DPRINTF_C("cmos: coalesced irqs increased to %d\n",
+                          s->irq_coalesced);
             }
         } else
 #endif
@@ -476,9 +490,13 @@ static uint32_t cmos_ioport_read(void *opaque, uint32_t addr)
                     s->irq_reinject_on_ack_count < RTC_REINJECT_ON_ACK_COUNT) {
                 s->irq_reinject_on_ack_count++;
                 apic_reset_irq_delivered();
+                DPRINTF_C("cmos: injecting on ack\n");
                 qemu_irq_raise(s->irq);
-                if (apic_get_irq_delivered())
+                if (apic_get_irq_delivered()) {
                     s->irq_coalesced--;
+                    DPRINTF_C("cmos: coalesced irqs decreased to %d\n",
+                              s->irq_coalesced);
+                }
                 break;
             }
 #endif
