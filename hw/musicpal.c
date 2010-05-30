@@ -1295,8 +1295,6 @@ static int musicpal_gpio_init(SysBusDevice *dev)
                                        musicpal_gpio_writefn, s);
     sysbus_init_mmio(dev, MP_GPIO_SIZE, iomemtype);
 
-    musicpal_gpio_reset(&dev->qdev);
-
     qdev_init_gpio_out(&dev->qdev, s->out, ARRAY_SIZE(s->out));
 
     qdev_init_gpio_in(&dev->qdev, musicpal_gpio_pin_event, 32);

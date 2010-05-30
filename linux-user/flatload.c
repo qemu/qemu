@@ -338,7 +338,7 @@ failed:
 static void old_reloc(struct lib_info *libinfo, uint32_t rl)
 {
 #ifdef DEBUG
-	char *segment[] = { "TEXT", "DATA", "BSS", "*UNKNOWN*" };
+	const char *segment[] = { "TEXT", "DATA", "BSS", "*UNKNOWN*" };
 #endif
 	uint32_t *ptr;
         uint32_t offset;

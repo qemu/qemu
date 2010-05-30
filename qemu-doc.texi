@@ -2122,7 +2122,7 @@ qemu-i386 /usr/local/qemu-i386/wine/bin/wine \
 @subsection Command line options
 
 @example
-usage: qemu-i386 [-h] [-d] [-L path] [-s size] [-cpu model] [-g port] [-B offset] program [arguments...]
+usage: qemu-i386 [-h] [-d] [-L path] [-s size] [-cpu model] [-g port] [-B offset] [-R size] program [arguments...]
 @end example
 
 @table @option
@@ -2138,6 +2138,9 @@ Select CPU model (-cpu ? for list and additional feature selection)
 Offset guest address by the specified number of bytes.  This is useful when
 the address region rewuired by guest applications is reserved on the host.
 Ths option is currently only supported on some hosts.
+@item -R size
+Pre-allocate a guest virtual address space of the given size (in bytes).
+"G", "M", and "k" suffixes may be used when specifying the size.  
 @end table
 
 Debug options:

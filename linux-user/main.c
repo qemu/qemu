@@ -47,6 +47,7 @@ unsigned long mmap_min_addr;
 #if defined(CONFIG_USE_GUEST_BASE)
 unsigned long guest_base;
 int have_guest_base;
+unsigned long reserved_va;
 #endif
 
 static const char *interp_prefix = CONFIG_QEMU_PREFIX;
@@ -2470,7 +2471,8 @@ void cpu_loop (CPUState *env)
             env->lock_addr = -1;
             info.si_signo = TARGET_SIGSEGV;
             info.si_errno = 0;
-            info.si_code = 0;  /* ??? SEGV_MAPERR vs SEGV_ACCERR.  */
+            info.si_code = (page_get_flags(env->ipr[IPR_EXC_ADDR]) & PAGE_VALID
+                            ? TARGET_SEGV_ACCERR : TARGET_SEGV_MAPERR);
             info._sifields._sigfault._addr = env->ipr[IPR_EXC_ADDR];
             queue_signal(env, info.si_signo, &info);
             break;
@@ -2646,6 +2648,7 @@ static void QEMU_NORETURN usage(void)
            "-0 argv0          forces target process argv[0] to be argv0\n"
 #if defined(CONFIG_USE_GUEST_BASE)
            "-B address        set guest_base address to address\n"
+           "-R size           reserve size bytes for guest virtual address space\n"
 #endif
            "\n"
            "Debug options:\n"
@@ -2849,6 +2852,39 @@ int main(int argc, char **argv, char **envp)
         } else if (!strcmp(r, "B")) {
            guest_base = strtol(argv[optind++], NULL, 0);
            have_guest_base = 1;
+        } else if (!strcmp(r, "R")) {
+            char *p;
+            int shift = 0;
+            reserved_va = strtoul(argv[optind++], &p, 0);
+            switch (*p) {
+            case 'k':
+            case 'K':
+                shift = 10;
+                break;
+            case 'M':
+                shift = 20;
+                break;
+            case 'G':
+                shift = 30;
+                break;
+            }
+            if (shift) {
+                unsigned long unshifted = reserved_va;
+                p++;
+                reserved_va <<= shift;
+                if (((reserved_va >> shift) != unshifted)
+#if HOST_LONG_BITS > TARGET_VIRT_ADDR_SPACE_BITS
+                    || (reserved_va > (1ul << TARGET_VIRT_ADDR_SPACE_BITS))
+#endif
+                    ) {
+                    fprintf(stderr, "Reserved virtual address too big\n");
+                    exit(1);
+                }
+            }
+            if (*p) {
+                fprintf(stderr, "Unrecognised -R size suffix '%s'\n", p);
+                exit(1);
+            }
 #endif
         } else if (!strcmp(r, "drop-ld-preload")) {
             (void) envlist_unsetenv(envlist, "LD_PRELOAD");
@@ -2937,6 +2973,34 @@ int main(int argc, char **argv, char **envp)
      * proper page alignment for guest_base.
      */
     guest_base = HOST_PAGE_ALIGN(guest_base);
+
+    if (reserved_va) {
+        void *p;
+        int flags;
+
+        flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE;
+        if (have_guest_base) {
+            flags |= MAP_FIXED;
+        }
+        p = mmap((void *)guest_base, reserved_va, PROT_NONE, flags, -1, 0);
+        if (p == MAP_FAILED) {
+            fprintf(stderr, "Unable to reserve guest address space\n");
+            exit(1);
+        }
+        guest_base = (unsigned long)p;
+        /* Make sure the address is properly aligned.  */
+        if (guest_base & ~qemu_host_page_mask) {
+            munmap(p, reserved_va);
+            p = mmap((void *)guest_base, reserved_va + qemu_host_page_size,
+                     PROT_NONE, flags, -1, 0);
+            if (p == MAP_FAILED) {
+                fprintf(stderr, "Unable to reserve guest address space\n");
+                exit(1);
+            }
+            guest_base = HOST_PAGE_ALIGN((unsigned long)p);
+        }
+        qemu_log("Reserved 0x%lx bytes of guest address space\n", reserved_va);
+    }
 #endif /* CONFIG_USE_GUEST_BASE */
 
     /*

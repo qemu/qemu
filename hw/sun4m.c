@@ -93,7 +93,7 @@
 #define ESCC_CLOCK 4915200
 
 struct sun4m_hwdef {
-    target_phys_addr_t iommu_base, slavio_base;
+    target_phys_addr_t iommu_base, iommu_pad_base, iommu_pad_len, slavio_base;
     target_phys_addr_t intctl_base, counter_base, nvram_base, ms_kb_base;
     target_phys_addr_t serial_base, fd_base;
     target_phys_addr_t afx_base, idreg_base, dma_base, esp_base, le_base;
@@ -854,6 +854,14 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     iommu = iommu_init(hwdef->iommu_base, hwdef->iommu_version,
                        slavio_irq[30]);
 
+    if (hwdef->iommu_pad_base) {
+        /* On the real hardware (SS-5, LX) the MMU is not padded, but aliased.
+           Software shouldn't use aliased addresses, neither should it crash
+           when does. Using empty_slot instead of aliasing can help with
+           debugging such accesses */
+        empty_slot_init(hwdef->iommu_pad_base,hwdef->iommu_pad_len);
+    }
+
     espdma = sparc32_dma_init(hwdef->dma_base, slavio_irq[18],
                               iommu, &espdma_irq);
 
@@ -965,6 +973,8 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
     /* SS-5 */
     {
         .iommu_base   = 0x10000000,
+        .iommu_pad_base = 0x10004000,
+        .iommu_pad_len  = 0x0fffb000,
         .tcx_base     = 0x50000000,
         .cs_base      = 0x6c000000,
         .slavio_base  = 0x70000000,
@@ -1091,6 +1101,8 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
     /* LX */
     {
         .iommu_base   = 0x10000000,
+        .iommu_pad_base = 0x10004000,
+        .iommu_pad_len  = 0x0fffb000,
         .tcx_base     = 0x50000000,
         .slavio_base  = 0x70000000,
         .ms_kb_base   = 0x71000000,

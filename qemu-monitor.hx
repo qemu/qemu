@@ -54,13 +54,15 @@ Show various information about the system state.
 @table @option
 @item info version
 show the version of QEMU
+@item info commands
+list QMP available commands
 @item info network
 show the various VLANs and the associated devices
 @item info chardev
 show the character devices
 @item info block
 show the block devices
-@item info block
+@item info blockstats
 show block device statistics
 @item info registers
 show the cpu registers
@@ -80,8 +82,12 @@ show virtual to physical memory mappings (i386 only)
 show the active virtual memory mappings (i386 only)
 @item info hpet
 show state of HPET (i386 only)
+@item info jit
+show dynamic compiler info
 @item info kvm
 show KVM information
+@item info numa
+show NUMA information
 @item info usb
 show USB devices plugged on the virtual USB hub
 @item info usbhost
@@ -114,6 +120,10 @@ show migration status
 show balloon information
 @item info qtree
 show device tree
+@item info qdm
+show qdev device model list
+@item info roms
+show roms
 @end table
 ETEXI
 
@@ -977,7 +987,7 @@ ETEXI
         .name       = "balloon",
         .args_type  = "value:M",
         .params     = "target",
-        .help       = "request VM to change it's memory allocation (in MB)",
+        .help       = "request VM to change its memory allocation (in MB)",
         .user_print = monitor_user_noop,
         .mhandler.cmd_async = do_balloon,
         .async      = 1,

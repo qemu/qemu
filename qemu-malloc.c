@@ -69,10 +69,10 @@ void *qemu_realloc(void *ptr, size_t size)
 
 void *qemu_mallocz(size_t size)
 {
-    void *ptr;
-    ptr = qemu_malloc(size);
-    memset(ptr, 0, size);
-    return ptr;
+    if (!size && !allow_zero_malloc()) {
+        abort();
+    }
+    return oom_check(calloc(1, size ? size : 1));
 }
 
 char *qemu_strdup(const char *str)
