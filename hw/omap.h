@@ -645,8 +645,11 @@ struct omap_32khz_timer_s;
 struct omap_32khz_timer_s *omap_os_timer_init(target_phys_addr_t base,
                 qemu_irq irq, omap_clk clk);
 
-void omap_synctimer_init(struct omap_target_agent_s *ta,
+/* OMAP2 sysctimer */
+struct omap_synctimer_s;
+struct omap_synctimer_s *omap_synctimer_init(struct omap_target_agent_s *ta,
                 struct omap_mpu_state_s *mpu, omap_clk fclk, omap_clk iclk);
+void omap_synctimer_reset(struct omap_synctimer_s *s);
 
 struct omap_tipb_bridge_s;
 struct omap_tipb_bridge_s *omap_tipb_bridge_init(target_phys_addr_t base,
@@ -939,11 +942,7 @@ struct omap_mpu_state_s {
     struct omap_l4_s *l4;
 
     struct omap_gp_timer_s *gptimer[12];
-
-    struct omap_synctimer_s {
-        uint32_t val;
-        uint16_t readh;
-    } synctimer;
+    struct omap_synctimer_s *synctimer;
 
     struct omap_prcm_s *prcm;
     struct omap_sdrc_s *sdrc;

@@ -29,74 +29,6 @@
 #include "soc_dma.h"
 #include "audio/audio.h"
 
-/* 32-kHz Sync Timer of the OMAP2 */
-static uint32_t omap_synctimer_read(struct omap_synctimer_s *s) {
-    return muldiv64(qemu_get_clock(vm_clock), 0x8000, get_ticks_per_sec());
-}
-
-static void omap_synctimer_reset(struct omap_synctimer_s *s)
-{
-    s->val = omap_synctimer_read(s);
-}
-
-static uint32_t omap_synctimer_readw(void *opaque, target_phys_addr_t addr)
-{
-    struct omap_synctimer_s *s = (struct omap_synctimer_s *) opaque;
-
-    switch (addr) {
-    case 0x00:	/* 32KSYNCNT_REV */
-        return 0x21;
-
-    case 0x10:	/* CR */
-        return omap_synctimer_read(s) - s->val;
-    }
-
-    OMAP_BAD_REG(addr);
-    return 0;
-}
-
-static uint32_t omap_synctimer_readh(void *opaque, target_phys_addr_t addr)
-{
-    struct omap_synctimer_s *s = (struct omap_synctimer_s *) opaque;
-    uint32_t ret;
-
-    if (addr & 2)
-        return s->readh;
-    else {
-        ret = omap_synctimer_readw(opaque, addr);
-        s->readh = ret >> 16;
-        return ret & 0xffff;
-    }
-}
-
-static CPUReadMemoryFunc * const omap_synctimer_readfn[] = {
-    omap_badwidth_read32,
-    omap_synctimer_readh,
-    omap_synctimer_readw,
-};
-
-static void omap_synctimer_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
-{
-    OMAP_BAD_REG(addr);
-}
-
-static CPUWriteMemoryFunc * const omap_synctimer_writefn[] = {
-    omap_badwidth_write32,
-    omap_synctimer_write,
-    omap_synctimer_write,
-};
-
-void omap_synctimer_init(struct omap_target_agent_s *ta,
-                struct omap_mpu_state_s *mpu, omap_clk fclk, omap_clk iclk)
-{
-    struct omap_synctimer_s *s = &mpu->synctimer;
-
-    omap_synctimer_reset(s);
-    omap_l4_attach(ta, 0, l4_register_io_memory(
-                      omap_synctimer_readfn, omap_synctimer_writefn, s));
-}
-
 /* Multichannel SPI */
 struct omap_mcspi_s {
     qemu_irq irq;
@@ -3473,7 +3405,7 @@ static void omap2_mpu_reset(void *opaque)
     omap_gp_timer_reset(mpu->gptimer[9]);
     omap_gp_timer_reset(mpu->gptimer[10]);
     omap_gp_timer_reset(mpu->gptimer[11]);
-    omap_synctimer_reset(&mpu->synctimer);
+    omap_synctimer_reset(mpu->synctimer);
     omap_sdrc_reset(mpu->sdrc);
     omap_gpmc_reset(mpu->gpmc);
     omap_dss_reset(mpu->dss);
@@ -3634,7 +3566,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
 
     omap_tap_init(omap_l4ta(s->l4, 2), s);
 
-    omap_synctimer_init(omap_l4tao(s->l4, 2), s,
+    s->synctimer = omap_synctimer_init(omap_l4tao(s->l4, 2), s,
                     omap_findclk(s, "clk32-kHz"),
                     omap_findclk(s, "core_l4_iclk"));
 
