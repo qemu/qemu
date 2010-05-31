@@ -4241,10 +4241,6 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
         // FIXME: should be triggered in json_parser_parse()
         qerror_report(QERR_JSON_PARSING);
         goto err_out;
-    } else if (qobject_type(obj) != QTYPE_QDICT) {
-        qerror_report(QERR_QMP_BAD_INPUT_OBJECT, "object");
-        qobject_decref(obj);
-        goto err_out;
     }
 
     input = qmp_check_input_obj(obj);
@@ -4256,17 +4252,7 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     mon->mc->id = qdict_get(input, "id");
     qobject_incref(mon->mc->id);
 
-    obj = qdict_get(input, "execute");
-    if (!obj) {
-        qerror_report(QERR_QMP_BAD_INPUT_OBJECT, "execute");
-        goto err_input;
-    } else if (qobject_type(obj) != QTYPE_QSTRING) {
-        qerror_report(QERR_QMP_BAD_INPUT_OBJECT_MEMBER, "execute", "string");
-        goto err_input;
-    }
-
-    cmd_name = qstring_get_str(qobject_to_qstring(obj));
-
+    cmd_name = qdict_get_str(input, "execute");
     if (invalid_qmp_mode(mon, cmd_name)) {
         qerror_report(QERR_COMMAND_NOT_FOUND, cmd_name);
         goto err_input;
@@ -4294,9 +4280,6 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     obj = qdict_get(input, "arguments");
     if (!obj) {
         args = qdict_new();
-    } else if (qobject_type(obj) != QTYPE_QDICT) {
-        qerror_report(QERR_QMP_BAD_INPUT_OBJECT_MEMBER, "arguments", "object");
-        goto err_input;
     } else {
         args = qobject_to_qdict(obj);
         QINCREF(args);
