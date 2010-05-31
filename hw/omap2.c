@@ -585,7 +585,7 @@ static CPUWriteMemoryFunc * const omap_eac_writefn[] = {
     omap_badwidth_write16,
 };
 
-struct omap_eac_s *omap_eac_init(struct omap_target_agent_s *ta,
+static struct omap_eac_s *omap_eac_init(struct omap_target_agent_s *ta,
                 qemu_irq irq, qemu_irq *drq, omap_clk fclk, omap_clk iclk)
 {
     int iomemtype;
@@ -1783,7 +1783,7 @@ static void omap_prcm_coldreset(struct omap_prcm_s *s)
     omap_prcm_reset(s);
 }
 
-struct omap_prcm_s *omap_prcm_init(struct omap_target_agent_s *ta,
+static struct omap_prcm_s *omap_prcm_init(struct omap_target_agent_s *ta,
                 qemu_irq mpu_int, qemu_irq dsp_int, qemu_irq iva_int,
                 struct omap_mpu_state_s *mpu)
 {
@@ -2157,7 +2157,7 @@ static void omap_sysctl_reset(struct omap_sysctl_s *s)
     s->padconf[0x44] = 0x00000800;
 }
 
-struct omap_sysctl_s *omap_sysctl_init(struct omap_target_agent_s *ta,
+static struct omap_sysctl_s *omap_sysctl_init(struct omap_target_agent_s *ta,
                 omap_clk iclk, struct omap_mpu_state_s *mpu)
 {
     int iomemtype;

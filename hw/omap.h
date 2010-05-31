@@ -108,15 +108,6 @@ struct omap_intr_handler_s *omap2_inth_init(target_phys_addr_t base,
 void omap_inth_reset(struct omap_intr_handler_s *s);
 qemu_irq omap_inth_get_pin(struct omap_intr_handler_s *s, int n);
 
-struct omap_prcm_s;
-struct omap_prcm_s *omap_prcm_init(struct omap_target_agent_s *ta,
-                qemu_irq mpu_int, qemu_irq dsp_int, qemu_irq iva_int,
-                struct omap_mpu_state_s *mpu);
-
-struct omap_sysctl_s;
-struct omap_sysctl_s *omap_sysctl_init(struct omap_target_agent_s *ta,
-                omap_clk iclk, struct omap_mpu_state_s *mpu);
-
 /* OMAP2 SDRAM controller */
 struct omap_sdrc_s;
 struct omap_sdrc_s *omap_sdrc_init(target_phys_addr_t base);
@@ -658,33 +649,17 @@ struct omap_dma_lcd_channel_s {
 # define OMAP24XX_DMA_EXT_DMAREQ5	64
 
 /* omap[123].c */
-struct omap_mpu_timer_s;
-struct omap_mpu_timer_s *omap_mpu_timer_init(target_phys_addr_t base,
-                qemu_irq irq, omap_clk clk);
-
 /* OMAP2 gp timer */
 struct omap_gp_timer_s;
 struct omap_gp_timer_s *omap_gp_timer_init(struct omap_target_agent_s *ta,
                 qemu_irq irq, omap_clk fclk, omap_clk iclk);
 void omap_gp_timer_reset(struct omap_gp_timer_s *s);
 
-struct omap_watchdog_timer_s;
-struct omap_watchdog_timer_s *omap_wd_timer_init(target_phys_addr_t base,
-                qemu_irq irq, omap_clk clk);
-
-struct omap_32khz_timer_s;
-struct omap_32khz_timer_s *omap_os_timer_init(target_phys_addr_t base,
-                qemu_irq irq, omap_clk clk);
-
 /* OMAP2 sysctimer */
 struct omap_synctimer_s;
 struct omap_synctimer_s *omap_synctimer_init(struct omap_target_agent_s *ta,
                 struct omap_mpu_state_s *mpu, omap_clk fclk, omap_clk iclk);
 void omap_synctimer_reset(struct omap_synctimer_s *s);
-
-struct omap_tipb_bridge_s;
-struct omap_tipb_bridge_s *omap_tipb_bridge_init(target_phys_addr_t base,
-                qemu_irq abort_irq, omap_clk clk);
 
 struct omap_uart_s;
 struct omap_uart_s *omap_uart_init(target_phys_addr_t base,
@@ -740,10 +715,6 @@ void omap_mcspi_attach(struct omap_mcspi_s *s,
                 int chipselect);
 void omap_mcspi_reset(struct omap_mcspi_s *s);
 
-struct omap_rtc_s;
-struct omap_rtc_s *omap_rtc_init(target_phys_addr_t base,
-                qemu_irq *irq, omap_clk clk);
-
 struct I2SCodec {
     void *opaque;
 
@@ -773,15 +744,8 @@ struct omap_mcbsp_s *omap_mcbsp_init(target_phys_addr_t base,
                 qemu_irq *irq, qemu_irq *dma, omap_clk clk);
 void omap_mcbsp_i2s_attach(struct omap_mcbsp_s *s, I2SCodec *slave);
 
-struct omap_lpg_s;
-struct omap_lpg_s *omap_lpg_init(target_phys_addr_t base, omap_clk clk);
-
 void omap_tap_init(struct omap_target_agent_s *ta,
                 struct omap_mpu_state_s *mpu);
-
-struct omap_eac_s;
-struct omap_eac_s *omap_eac_init(struct omap_target_agent_s *ta,
-                qemu_irq irq, qemu_irq *drq, omap_clk fclk, omap_clk iclk);
 
 /* omap_lcdc.c */
 struct omap_lcd_panel_s;

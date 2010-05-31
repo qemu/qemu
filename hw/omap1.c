@@ -247,7 +247,7 @@ static void omap_mpu_timer_reset(struct omap_mpu_timer_s *s)
     s->it_ena = 1;
 }
 
-struct omap_mpu_timer_s *omap_mpu_timer_init(target_phys_addr_t base,
+static struct omap_mpu_timer_s *omap_mpu_timer_init(target_phys_addr_t base,
                 qemu_irq irq, omap_clk clk)
 {
     int iomemtype;
@@ -371,7 +371,7 @@ static void omap_wd_timer_reset(struct omap_watchdog_timer_s *s)
     omap_timer_update(&s->timer);
 }
 
-struct omap_watchdog_timer_s *omap_wd_timer_init(target_phys_addr_t base,
+static struct omap_watchdog_timer_s *omap_wd_timer_init(target_phys_addr_t base,
                 qemu_irq irq, omap_clk clk)
 {
     int iomemtype;
@@ -473,7 +473,7 @@ static void omap_os_timer_reset(struct omap_32khz_timer_s *s)
     s->timer.ar = 1;
 }
 
-struct omap_32khz_timer_s *omap_os_timer_init(target_phys_addr_t base,
+static struct omap_32khz_timer_s *omap_os_timer_init(target_phys_addr_t base,
                 qemu_irq irq, omap_clk clk)
 {
     int iomemtype;
@@ -1180,7 +1180,7 @@ static void omap_tipb_bridge_reset(struct omap_tipb_bridge_s *s)
     s->enh_control = 0x000f;
 }
 
-struct omap_tipb_bridge_s *omap_tipb_bridge_init(target_phys_addr_t base,
+static struct omap_tipb_bridge_s *omap_tipb_bridge_init(target_phys_addr_t base,
                 qemu_irq abort_irq, omap_clk clk)
 {
     int iomemtype;
@@ -2809,7 +2809,7 @@ static void omap_rtc_reset(struct omap_rtc_s *s)
     omap_rtc_tick(s);
 }
 
-struct omap_rtc_s *omap_rtc_init(target_phys_addr_t base,
+static struct omap_rtc_s *omap_rtc_init(target_phys_addr_t base,
                 qemu_irq *irq, omap_clk clk)
 {
     int iomemtype;
@@ -3506,7 +3506,7 @@ static void omap_lpg_clk_update(void *opaque, int line, int on)
     omap_lpg_update(s);
 }
 
-struct omap_lpg_s *omap_lpg_init(target_phys_addr_t base, omap_clk clk)
+static struct omap_lpg_s *omap_lpg_init(target_phys_addr_t base, omap_clk clk)
 {
     int iomemtype;
     struct omap_lpg_s *s = (struct omap_lpg_s *)
