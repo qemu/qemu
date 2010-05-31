@@ -631,9 +631,11 @@ struct omap_mpu_timer_s;
 struct omap_mpu_timer_s *omap_mpu_timer_init(target_phys_addr_t base,
                 qemu_irq irq, omap_clk clk);
 
+/* OMAP2 gp timer */
 struct omap_gp_timer_s;
 struct omap_gp_timer_s *omap_gp_timer_init(struct omap_target_agent_s *ta,
                 qemu_irq irq, omap_clk fclk, omap_clk iclk);
+void omap_gp_timer_reset(struct omap_gp_timer_s *s);
 
 struct omap_watchdog_timer_s;
 struct omap_watchdog_timer_s *omap_wd_timer_init(target_phys_addr_t base,
