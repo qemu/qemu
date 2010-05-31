@@ -671,6 +671,7 @@ void omap_mpuio_key(struct omap_mpuio_s *s, int row, int col, int down);
 struct omap_gpio_s;
 struct omap_gpio_s *omap_gpio_init(target_phys_addr_t base,
                 qemu_irq irq, omap_clk clk);
+void omap_gpio_reset(struct omap_gpio_s *s);
 qemu_irq *omap_gpio_in_get(struct omap_gpio_s *s);
 void omap_gpio_out_set(struct omap_gpio_s *s, int line, qemu_irq handler);
 
