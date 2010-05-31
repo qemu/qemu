@@ -492,8 +492,7 @@ static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
 {
     VirtIOSerial *s = opaque;
     VirtIOSerialPort *port;
-    size_t ports_map_size;
-    uint32_t max_nr_ports, nr_active_ports, *ports_map;
+    uint32_t max_nr_ports, nr_active_ports, ports_map;
     unsigned int i;
 
     if (version_id > 2) {
@@ -517,22 +516,17 @@ static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
         return -EINVAL;
     }
 
-    ports_map_size = sizeof(uint32_t) * (max_nr_ports + 31) / 32;
-    ports_map = qemu_malloc(ports_map_size);
-
     for (i = 0; i < (max_nr_ports + 31) / 32; i++) {
-        qemu_get_be32s(f, &ports_map[i]);
+        qemu_get_be32s(f, &ports_map);
 
-        if (ports_map[i] != s->ports_map[i]) {
+        if (ports_map != s->ports_map[i]) {
             /*
              * Ports active on source and destination don't
              * match. Fail migration.
              */
-            qemu_free(ports_map);
             return -EINVAL;
         }
     }
-    qemu_free(ports_map);
 
     qemu_get_be32s(f, &nr_active_ports);
 
