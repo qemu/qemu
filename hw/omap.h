@@ -61,15 +61,40 @@ void omap_clk_setrate(omap_clk clk, int divide, int multiply);
 int64_t omap_clk_getrate(omap_clk clk);
 void omap_clk_reparent(omap_clk clk, omap_clk parent);
 
-/* omap[123].c */
+/* OMAP2 l4 Interconnect */
 struct omap_l4_s;
+struct omap_l4_region_s {
+    target_phys_addr_t offset;
+    size_t size;
+    int access;
+};
+struct omap_l4_agent_info_s {
+    int ta;
+    int region;
+    int regions;
+    int ta_region;
+};
+struct omap_target_agent_s {
+    struct omap_l4_s *bus;
+    int regions;
+    const struct omap_l4_region_s *start;
+    target_phys_addr_t base;
+    uint32_t component;
+    uint32_t control;
+    uint32_t status;
+};
 struct omap_l4_s *omap_l4_init(target_phys_addr_t base, int ta_num);
 
 struct omap_target_agent_s;
-struct omap_target_agent_s *omap_l4ta_get(struct omap_l4_s *bus, int cs);
+struct omap_target_agent_s *omap_l4ta_get(
+    struct omap_l4_s *bus,
+    const struct omap_l4_region_s *regions,
+    const struct omap_l4_agent_info_s *agents,
+    int cs);
 target_phys_addr_t omap_l4_attach(struct omap_target_agent_s *ta, int region,
                 int iotype);
-# define l4_register_io_memory	cpu_register_io_memory
+int l4_register_io_memory(CPUReadMemoryFunc * const *mem_read,
+                CPUWriteMemoryFunc * const *mem_write, void *opaque);
 
 /* OMAP interrupt controller */
 struct omap_intr_handler_s;
@@ -1145,11 +1170,5 @@ inline static int debug_register_io_memory(CPUReadMemoryFunc * const *mem_read,
 
 /* Define when we want to reduce the number of IO regions registered.  */
 /*# define L4_MUX_HACK*/
-
-# ifdef L4_MUX_HACK
-#  undef l4_register_io_memory
-int l4_register_io_memory(CPUReadMemoryFunc * const *mem_read,
-                          CPUWriteMemoryFunc * const *mem_write, void *opaque);
-# endif
 
 #endif /* hw_omap_h */
