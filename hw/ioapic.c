@@ -28,6 +28,13 @@
 
 //#define DEBUG_IOAPIC
 
+#ifdef DEBUG_IOAPIC
+#define DPRINTF(fmt, ...)                                       \
+    do { printf("ioapic: " fmt , ## __VA_ARGS__); } while (0)
+#else
+#define DPRINTF(fmt, ...)
+#endif
+
 #define IOAPIC_NUM_PINS			0x18
 #define IOAPIC_LVT_MASKED 		(1<<16)
 
@@ -95,6 +102,7 @@ void ioapic_set_irq(void *opaque, int vector, int level)
      * to GSI 2.  GSI maps to ioapic 1-1.  This is not
      * the cleanest way of doing it but it should work. */
 
+    DPRINTF("%s: %s vec %x\n", __func__, level? "raise" : "lower", vector);
     if (vector == 0)
         vector = 2;
 
@@ -149,9 +157,7 @@ static uint32_t ioapic_mem_readl(void *opaque, target_phys_addr_t addr)
                         val = s->ioredtbl[index] & 0xffffffff;
                 }
         }
-#ifdef DEBUG_IOAPIC
-        printf("I/O APIC read: %08x = %08x\n", s->ioregsel, val);
-#endif
+        DPRINTF("read: %08x = %08x\n", s->ioregsel, val);
     }
     return val;
 }
@@ -166,9 +172,7 @@ static void ioapic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t va
         s->ioregsel = val;
         return;
     } else if (addr == 0x10) {
-#ifdef DEBUG_IOAPIC
-        printf("I/O APIC write: %08x = %08x\n", s->ioregsel, val);
-#endif
+        DPRINTF("write: %08x = %08x\n", s->ioregsel, val);
         switch (s->ioregsel) {
             case 0x00:
                 s->id = (val >> 24) & 0xff;
