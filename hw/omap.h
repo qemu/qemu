@@ -93,8 +93,10 @@ struct omap_sysctl_s *omap_sysctl_init(struct omap_target_agent_s *ta,
 struct omap_sdrc_s;
 struct omap_sdrc_s *omap_sdrc_init(target_phys_addr_t base);
 
+/* OMAP2 general purpose memory controller */
 struct omap_gpmc_s;
 struct omap_gpmc_s *omap_gpmc_init(target_phys_addr_t base, qemu_irq irq);
+void omap_gpmc_reset(struct omap_gpmc_s *s);
 void omap_gpmc_attach(struct omap_gpmc_s *s, int cs, int iomemtype,
                 void (*base_upd)(void *opaque, target_phys_addr_t new),
                 void (*unmap)(void *opaque), void *opaque);
