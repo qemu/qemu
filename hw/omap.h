@@ -71,6 +71,7 @@ target_phys_addr_t omap_l4_attach(struct omap_target_agent_s *ta, int region,
                 int iotype);
 # define l4_register_io_memory	cpu_register_io_memory
 
+/* OMAP interrupt controller */
 struct omap_intr_handler_s;
 struct omap_intr_handler_s *omap_inth_init(target_phys_addr_t base,
                 unsigned long size, unsigned char nbanks, qemu_irq **pins,
@@ -80,6 +81,7 @@ struct omap_intr_handler_s *omap2_inth_init(target_phys_addr_t base,
                 qemu_irq parent_irq, qemu_irq parent_fiq,
                 omap_clk fclk, omap_clk iclk);
 void omap_inth_reset(struct omap_intr_handler_s *s);
+qemu_irq omap_inth_get_pin(struct omap_intr_handler_s *s, int n);
 
 struct omap_prcm_s;
 struct omap_prcm_s *omap_prcm_init(struct omap_target_agent_s *ta,
