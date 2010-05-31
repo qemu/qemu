@@ -706,12 +706,14 @@ struct omap_uwire_s *omap_uwire_init(target_phys_addr_t base,
 void omap_uwire_attach(struct omap_uwire_s *s,
                 uWireSlave *slave, int chipselect);
 
+/* OMAP2 spi */
 struct omap_mcspi_s;
 struct omap_mcspi_s *omap_mcspi_init(struct omap_target_agent_s *ta, int chnum,
                 qemu_irq irq, qemu_irq *drq, omap_clk fclk, omap_clk iclk);
 void omap_mcspi_attach(struct omap_mcspi_s *s,
                 uint32_t (*txrx)(void *opaque, uint32_t, int), void *opaque,
                 int chipselect);
+void omap_mcspi_reset(struct omap_mcspi_s *s);
 
 struct omap_rtc_s;
 struct omap_rtc_s *omap_rtc_init(target_phys_addr_t base,
