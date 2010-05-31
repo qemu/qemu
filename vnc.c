@@ -323,35 +323,6 @@ void do_info_vnc_print(Monitor *mon, const QObject *data)
     }
 }
 
-/**
- * do_info_vnc(): Show VNC server information
- *
- * Return a QDict with server information. Connected clients are returned
- * as a QList of QDicts.
- *
- * The main QDict contains the following:
- *
- * - "enabled": true or false
- * - "host": server's IP address
- * - "family": address family ("ipv4" or "ipv6")
- * - "service": server's port number
- * - "auth": authentication method
- * - "clients": a QList of all connected clients
- *
- * Clients are described by a QDict, with the following information:
- *
- * - "host": client's IP address
- * - "family": address family ("ipv4" or "ipv6")
- * - "service": client's port number
- * - "x509_dname": TLS dname (optional)
- * - "sasl_username": SASL username (optional)
- *
- * Example:
- *
- * { "enabled": true, "host": "0.0.0.0", "service": "50402", "auth": "vnc",
- *   "family": "ipv4",
- *   "clients": [{ "host": "127.0.0.1", "service": "50401", "family": "ipv4" }]}
- */
 void do_info_vnc(Monitor *mon, QObject **ret_data)
 {
     if (vnc_display == NULL || vnc_display->display == NULL) {

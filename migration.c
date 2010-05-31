@@ -197,44 +197,6 @@ static void migrate_put_status(QDict *qdict, const char *name,
     qdict_put_obj(qdict, name, obj);
 }
 
-/**
- * do_info_migrate(): Migration status
- *
- * Return a QDict. If migration is active there will be another
- * QDict with RAM migration status and if block migration is active
- * another one with block migration status.
- *
- * The main QDict contains the following:
- *
- * - "status": migration status
- * - "ram": only present if "status" is "active", it is a QDict with the
- *   following RAM information (in bytes):
- *          - "transferred": amount transferred
- *          - "remaining": amount remaining
- *          - "total": total
- * - "disk": only present if "status" is "active" and it is a block migration,
- *   it is a QDict with the following disk information (in bytes):
- *          - "transferred": amount transferred
- *          - "remaining": amount remaining
- *          - "total": total
- *
- * Examples:
- *
- * 1. Migration is "completed":
- *
- * { "status": "completed" }
- *
- * 2. Migration is "active" and it is not a block migration:
- *
- * { "status": "active",
- *            "ram": { "transferred": 123, "remaining": 123, "total": 246 } }
- *
- * 3. Migration is "active" and it is a block migration:
- *
- * { "status": "active",
- *   "ram": { "total": 1057024, "remaining": 1053304, "transferred": 3720 },
- *   "disk": { "total": 20971520, "remaining": 20880384, "transferred": 91136 }}
- */
 void do_info_migrate(Monitor *mon, QObject **ret_data)
 {
     QDict *qdict;

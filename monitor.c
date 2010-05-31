@@ -677,18 +677,6 @@ static void do_info_version_print(Monitor *mon, const QObject *data)
                                   qdict_get_str(qdict, "package"));
 }
 
-/**
- * do_info_version(): Show QEMU version
- *
- * Return a QDict with the following information:
- *
- * - "qemu": QEMU's version
- * - "package": package's version
- *
- * Example:
- *
- * { "qemu": "0.11.50", "package": "" }
- */
 static void do_info_version(Monitor *mon, QObject **ret_data)
 {
     *ret_data = qobject_from_jsonf("{ 'qemu': %s, 'package': %s }",
@@ -707,17 +695,6 @@ static void do_info_name_print(Monitor *mon, const QObject *data)
     monitor_printf(mon, "%s\n", qdict_get_str(qdict, "name"));
 }
 
-/**
- * do_info_name(): Show VM name
- *
- * Return a QDict with the following information:
- *
- * - "name": VM's name (optional)
- *
- * Example:
- *
- * { "name": "qemu-name" }
- */
 static void do_info_name(Monitor *mon, QObject **ret_data)
 {
     *ret_data = qemu_name ? qobject_from_jsonf("{'name': %s }", qemu_name) :
@@ -739,20 +716,6 @@ static QObject *get_cmd_dict(const char *name)
     return qobject_from_jsonf("{ 'name': %s }", p);
 }
 
-/**
- * do_info_commands(): List QMP available commands
- *
- * Each command is represented by a QDict, the returned QObject is a QList
- * of all commands.
- *
- * The QDict contains:
- *
- * - "name": command's name
- *
- * Example:
- *
- * { [ { "name": "query-balloon" }, { "name": "system_powerdown" } ] }
- */
 static void do_info_commands(Monitor *mon, QObject **ret_data)
 {
     QList *cmd_list;
@@ -785,17 +748,6 @@ static void do_info_hpet_print(Monitor *mon, const QObject *data)
                    "enabled" : "disabled");
 }
 
-/**
- * do_info_hpet(): Show HPET state
- *
- * Return a QDict with the following information:
- *
- * - "enabled": true if hpet if enabled, false otherwise
- *
- * Example:
- *
- * { "enabled": true }
- */
 static void do_info_hpet(Monitor *mon, QObject **ret_data)
 {
     *ret_data = qobject_from_jsonf("{ 'enabled': %i }", !no_hpet);
@@ -807,17 +759,6 @@ static void do_info_uuid_print(Monitor *mon, const QObject *data)
     monitor_printf(mon, "%s\n", qdict_get_str(qobject_to_qdict(data), "UUID"));
 }
 
-/**
- * do_info_uuid(): Show VM UUID
- *
- * Return a QDict with the following information:
- *
- * - "UUID": Universally Unique Identifier
- *
- * Example:
- *
- * { "UUID": "550e8400-e29b-41d4-a716-446655440000" }
- */
 static void do_info_uuid(Monitor *mon, QObject **ret_data)
 {
     char uuid[64];
@@ -913,25 +854,6 @@ static void monitor_print_cpus(Monitor *mon, const QObject *data)
     qlist_iter(cpu_list, print_cpu_iter, mon);
 }
 
-/**
- * do_info_cpus(): Show CPU information
- *
- * Return a QList. Each CPU is represented by a QDict, which contains:
- *
- * - "cpu": CPU index
- * - "current": true if this is the current CPU, false otherwise
- * - "halted": true if the cpu is halted, false otherwise
- * - Current program counter. The key's name depends on the architecture:
- *      "pc": i386/x86)64
- *      "nip": PPC
- *      "pc" and "npc": sparc
- *      "PC": mips
- *
- * Example:
- *
- * [ { "CPU": 0, "current": true, "halted": false, "pc": 3227107138 },
- *   { "CPU": 1, "current": false, "halted": true, "pc": 7108165 } ]
- */
 static void do_info_cpus(Monitor *mon, QObject **ret_data)
 {
     CPUState *env;
@@ -2106,18 +2028,6 @@ static void do_info_kvm_print(Monitor *mon, const QObject *data)
     }
 }
 
-/**
- * do_info_kvm(): Show KVM information
- *
- * Return a QDict with the following information:
- *
- * - "enabled": true if KVM support is enabled, false otherwise
- * - "present": true if QEMU has KVM support, false otherwise
- *
- * Example:
- *
- * { "enabled": true, "present": true }
- */
 static void do_info_kvm(Monitor *mon, QObject **ret_data)
 {
 #ifdef CONFIG_KVM
@@ -2261,18 +2171,6 @@ static void do_info_status_print(Monitor *mon, const QObject *data)
     monitor_printf(mon, "\n");
 }
 
-/**
- * do_info_status(): VM status
- *
- * Return a QDict with the following information:
- *
- * - "running": true if the VM is running, or false if it is paused
- * - "singlestep": true if the VM is in single step mode, false otherwise
- *
- * Example:
- *
- * { "running": true, "singlestep": false }
- */
 static void do_info_status(Monitor *mon, QObject **ret_data)
 {
     *ret_data = qobject_from_jsonf("{ 'running': %i, 'singlestep': %i }",

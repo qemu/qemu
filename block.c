@@ -1444,33 +1444,6 @@ void bdrv_info_print(Monitor *mon, const QObject *data)
     qlist_iter(qobject_to_qlist(data), bdrv_print_dict, mon);
 }
 
-/**
- * bdrv_info(): Block devices information
- *
- * Each block device information is stored in a QDict and the
- * returned QObject is a QList of all devices.
- *
- * The QDict contains the following:
- *
- * - "device": device name
- * - "type": device type
- * - "removable": true if the device is removable, false otherwise
- * - "locked": true if the device is locked, false otherwise
- * - "inserted": only present if the device is inserted, it is a QDict
- *    containing the following:
- *          - "file": device file name
- *          - "ro": true if read-only, false otherwise
- *          - "drv": driver format name
- *          - "backing_file": backing file name if one is used
- *          - "encrypted": true if encrypted, false otherwise
- *
- * Example:
- *
- * [ { "device": "ide0-hd0", "type": "hd", "removable": false, "locked": false,
- *     "inserted": { "file": "/tmp/foobar", "ro": false, "drv": "qcow2" } },
- *   { "device": "floppy0", "type": "floppy", "removable": true,
- *     "locked": false } ]
- */
 void bdrv_info(Monitor *mon, QObject **ret_data)
 {
     QList *bs_list;
@@ -1576,48 +1549,6 @@ static QObject* bdrv_info_stats_bs(BlockDriverState *bs)
     return res;
 }
 
-/**
- * bdrv_info_stats(): show block device statistics
- *
- * Each device statistic information is stored in a QDict and
- * the returned QObject is a QList of all devices.
- *
- * The QDict contains the following:
- *
- * - "device": device name
- * - "stats": A QDict with the statistics information, it contains:
- *     - "rd_bytes": bytes read
- *     - "wr_bytes": bytes written
- *     - "rd_operations": read operations
- *     - "wr_operations": write operations
- *     - "wr_highest_offset": Highest offset of a sector written since the
- *       BlockDriverState has been opened
- * - "parent": A QDict recursively holding the statistics of the underlying
- *    protocol (e.g. the host file for a qcow2 image). If there is no
- *    underlying protocol, this field is omitted.
- *
- * Example:
- *
- * [ { "device": "ide0-hd0",
- *               "stats": { "rd_bytes": 512,
- *                          "wr_bytes": 0,
- *                          "rd_operations": 1,
- *                          "wr_operations": 0,
- *                          "wr_highest_offset": 0 },
- *               "parent": {
- *                      "stats": { "rd_bytes": 1024,
- *                                 "wr_bytes": 0,
- *                                 "rd_operations": 2,
- *                                 "wr_operations": 0,
- *                                 "wr_highest_offset": 0,
- *                      } } },
- *   { "device": "ide1-cd0",
- *               "stats": { "rd_bytes": 0,
- *                          "wr_bytes": 0,
- *                          "rd_operations": 0,
- *                          "wr_operations": 0,
- *                          "wr_highest_offset": 0 } },
- */
 void bdrv_info_stats(Monitor *mon, QObject **ret_data)
 {
     QObject *obj;

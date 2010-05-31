@@ -779,19 +779,6 @@ void do_info_qdm(Monitor *mon)
     }
 }
 
-/**
- * do_device_add(): Add a device
- *
- * Argument qdict contains
- * - "driver": the name of the new device's driver
- * - "bus": the device's parent bus (device tree path)
- * - "id": the device's ID (must be unique)
- * - device properties
- *
- * Example:
- *
- * { "driver": "usb-net", "id": "eth1", "netdev": "netdev1" }
- */
 int do_device_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     QemuOpts *opts;

@@ -1380,67 +1380,6 @@ static QObject *pci_get_bus_dict(PCIBus *bus, int bus_num)
     return NULL;
 }
 
-/**
- * do_pci_info(): PCI buses and devices information
- *
- * The returned QObject is a QList of all buses. Each bus is
- * represented by a QDict, which has a key with a QList of all
- * PCI devices attached to it. Each device is represented by
- * a QDict.
- *
- * The bus QDict contains the following:
- *
- * - "bus": bus number
- * - "devices": a QList of QDicts, each QDict represents a PCI
- *   device
- *
- * The PCI device QDict contains the following:
- *
- * - "bus": identical to the parent's bus number
- * - "slot": slot number
- * - "function": function number
- * - "class_info": a QDict containing:
- *      - "desc": device class description (optional)
- *      - "class": device class number
- * - "id": a QDict containing:
- *      - "device": device ID
- *      - "vendor": vendor ID
- * - "irq": device's IRQ if assigned (optional)
- * - "qdev_id": qdev id string
- * - "pci_bridge": It's a QDict, only present if this device is a
- *   PCI bridge, contains:
- *      - "bus": bus number
- *      - "secondary": secondary bus number
- *      - "subordinate": subordinate bus number
- *      - "io_range": a QDict with memory range information
- *      - "memory_range": a QDict with memory range information
- *      - "prefetchable_range": a QDict with memory range information
- *      - "devices": a QList of PCI devices if there's any attached (optional)
- * - "regions": a QList of QDicts, each QDict represents a
- *   memory region of this device
- *
- * The memory range QDict contains the following:
- *
- * - "base": base memory address
- * - "limit": limit value
- *
- * The region QDict can be an I/O region or a memory region,
- * an I/O region QDict contains the following:
- *
- * - "type": "io"
- * - "bar": BAR number
- * - "address": memory address
- * - "size": memory size
- *
- * A memory region QDict contains the following:
- *
- * - "type": "memory"
- * - "bar": BAR number
- * - "address": memory address
- * - "size": memory size
- * - "mem_type_64": true or false
- * - "prefetch": true or false
- */
 void do_pci_info(Monitor *mon, QObject **ret_data)
 {
     QList *bus_list;
