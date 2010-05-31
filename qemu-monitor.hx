@@ -38,96 +38,6 @@ Commit changes to the disk images (if -snapshot is used) or backing files.
 ETEXI
 
     {
-        .name       = "info",
-        .args_type  = "item:s?",
-        .params     = "[subcommand]",
-        .help       = "show various information about the system state",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_info,
-    },
-
-STEXI
-@item info @var{subcommand}
-@findex info
-Show various information about the system state.
-
-@table @option
-@item info version
-show the version of QEMU
-@item info commands
-list QMP available commands
-@item info network
-show the various VLANs and the associated devices
-@item info chardev
-show the character devices
-@item info block
-show the block devices
-@item info blockstats
-show block device statistics
-@item info registers
-show the cpu registers
-@item info cpus
-show infos for each CPU
-@item info history
-show the command line history
-@item info irq
-show the interrupts statistics (if available)
-@item info pic
-show i8259 (PIC) state
-@item info pci
-show emulated PCI device info
-@item info tlb
-show virtual to physical memory mappings (i386 only)
-@item info mem
-show the active virtual memory mappings (i386 only)
-@item info hpet
-show state of HPET (i386 only)
-@item info jit
-show dynamic compiler info
-@item info kvm
-show KVM information
-@item info numa
-show NUMA information
-@item info usb
-show USB devices plugged on the virtual USB hub
-@item info usbhost
-show all USB host devices
-@item info profile
-show profiling information
-@item info capture
-show information about active capturing
-@item info snapshots
-show list of VM snapshots
-@item info status
-show the current VM status (running|paused)
-@item info pcmcia
-show guest PCMCIA status
-@item info mice
-show which guest mouse is receiving events
-@item info vnc
-show the vnc server status
-@item info name
-show the current VM name
-@item info uuid
-show the current VM UUID
-@item info cpustats
-show CPU statistics
-@item info usernet
-show user network stack connection states
-@item info migrate
-show migration status
-@item info balloon
-show balloon information
-@item info qtree
-show device tree
-@item info qdm
-show qdev device model list
-@item info roms
-show roms
-@end table
-ETEXI
-
-    {
         .name       = "q|quit",
         .args_type  = "",
         .params     = "",
@@ -1189,6 +1099,102 @@ STEXI
 @findex qmp_capabilities
 Enable the specified QMP capabilities
 ETEXI
+
+
+HXCOMM Keep the 'info' command at the end!
+HXCOMM This is required for the QMP documentation layout.
+
+    {
+        .name       = "info",
+        .args_type  = "item:s?",
+        .params     = "[subcommand]",
+        .help       = "show various information about the system state",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_info,
+    },
+
+STEXI
+@item info @var{subcommand}
+@findex info
+Show various information about the system state.
+
+@table @option
+@item info version
+show the version of QEMU
+@item info commands
+list QMP available commands
+@item info network
+show the various VLANs and the associated devices
+@item info chardev
+show the character devices
+@item info block
+show the block devices
+@item info blockstats
+show block device statistics
+@item info registers
+show the cpu registers
+@item info cpus
+show infos for each CPU
+@item info history
+show the command line history
+@item info irq
+show the interrupts statistics (if available)
+@item info pic
+show i8259 (PIC) state
+@item info pci
+show emulated PCI device info
+@item info tlb
+show virtual to physical memory mappings (i386 only)
+@item info mem
+show the active virtual memory mappings (i386 only)
+@item info hpet
+show state of HPET (i386 only)
+@item info jit
+show dynamic compiler info
+@item info kvm
+show KVM information
+@item info numa
+show NUMA information
+@item info usb
+show USB devices plugged on the virtual USB hub
+@item info usbhost
+show all USB host devices
+@item info profile
+show profiling information
+@item info capture
+show information about active capturing
+@item info snapshots
+show list of VM snapshots
+@item info status
+show the current VM status (running|paused)
+@item info pcmcia
+show guest PCMCIA status
+@item info mice
+show which guest mouse is receiving events
+@item info vnc
+show the vnc server status
+@item info name
+show the current VM name
+@item info uuid
+show the current VM UUID
+@item info cpustats
+show CPU statistics
+@item info usernet
+show user network stack connection states
+@item info migrate
+show migration status
+@item info balloon
+show balloon information
+@item info qtree
+show device tree
+@item info qdm
+show qdev device model list
+@item info roms
+show roms
+@end table
+ETEXI
+
+HXCOMM DO NOT add new commands after 'info', move your addition before it!
 
 STEXI
 @end table
