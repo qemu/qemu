@@ -135,8 +135,8 @@ static int pci_piix_ide_initfn(PCIIDEState *d)
     ide_init_ioport(&d->bus[0], 0x1f0, 0x3f6);
     ide_init_ioport(&d->bus[1], 0x170, 0x376);
 
-    ide_init2(&d->bus[0], NULL, NULL, isa_reserve_irq(14));
-    ide_init2(&d->bus[1], NULL, NULL, isa_reserve_irq(15));
+    ide_init2(&d->bus[0], isa_reserve_irq(14));
+    ide_init2(&d->bus[1], isa_reserve_irq(15));
     return 0;
 }
 

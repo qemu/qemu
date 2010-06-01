@@ -260,8 +260,8 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
     irq = qemu_allocate_irqs(cmd646_set_irq, d, 2);
     ide_bus_new(&d->bus[0], &d->dev.qdev);
     ide_bus_new(&d->bus[1], &d->dev.qdev);
-    ide_init2(&d->bus[0], NULL, NULL, irq[0]);
-    ide_init2(&d->bus[1], NULL, NULL, irq[1]);
+    ide_init2(&d->bus[0], irq[0]);
+    ide_init2(&d->bus[1], irq[1]);
 
     vmstate_register(0, &vmstate_ide_pci, d);
     qemu_register_reset(cmd646_reset, d);

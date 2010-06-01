@@ -2632,7 +2632,7 @@ void ide_init_drive(IDEState *s, DriveInfo *dinfo, const char *version)
     ide_reset(s);
 }
 
-static void ide_init1(IDEBus *bus, int unit, DriveInfo *dinfo)
+static void ide_init1(IDEBus *bus, int unit)
 {
     static int drive_serial = 1;
     IDEState *s = &bus->ifs[unit];
@@ -2645,20 +2645,34 @@ static void ide_init1(IDEBus *bus, int unit, DriveInfo *dinfo)
     s->smart_selftest_data = qemu_blockalign(s->bs, 512);
     s->sector_write_timer = qemu_new_timer(vm_clock,
                                            ide_sector_write_timer_cb, s);
-    if (dinfo) {
-        ide_init_drive(s, dinfo, NULL);
-    } else {
-        ide_reset(s);
-    }
 }
 
-void ide_init2(IDEBus *bus, DriveInfo *hd0, DriveInfo *hd1,
-               qemu_irq irq)
+void ide_init2(IDEBus *bus, qemu_irq irq)
 {
     int i;
 
     for(i = 0; i < 2; i++) {
-        ide_init1(bus, i, i == 0 ? hd0 : hd1);
+        ide_init1(bus, i);
+        ide_reset(&bus->ifs[i]);
+    }
+    bus->irq = irq;
+}
+
+/* TODO convert users to qdev and remove */
+void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
+                                    DriveInfo *hd1, qemu_irq irq)
+{
+    int i;
+    DriveInfo *dinfo;
+
+    for(i = 0; i < 2; i++) {
+        dinfo = i == 0 ? hd0 : hd1;
+        ide_init1(bus, i);
+        if (dinfo) {
+            ide_init_drive(&bus->ifs[i], dinfo, NULL);
+        } else {
+            ide_reset(&bus->ifs[i]);
+        }
     }
     bus->irq = irq;
 }

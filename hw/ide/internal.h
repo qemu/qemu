@@ -555,8 +555,9 @@ void ide_data_writel(void *opaque, uint32_t addr, uint32_t val);
 uint32_t ide_data_readl(void *opaque, uint32_t addr);
 
 void ide_init_drive(IDEState *s, DriveInfo *dinfo, const char *version);
-void ide_init2(IDEBus *bus, DriveInfo *hd0, DriveInfo *hd1,
-               qemu_irq irq);
+void ide_init2(IDEBus *bus, qemu_irq irq);
+void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
+                                    DriveInfo *hd1, qemu_irq irq);
 void ide_init_ioport(IDEBus *bus, int iobase, int iobase2);
 
 /* hw/ide/qdev.c */
