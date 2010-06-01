@@ -462,8 +462,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     }
     memcpy(&outbuf[8], "QEMU    ", 8);
     memset(&outbuf[32], 0, 4);
-    memcpy(&outbuf[32], s->version ? s->version : QEMU_VERSION,
-           MIN(4, strlen(s->version ? s->version : QEMU_VERSION)));
+    memcpy(&outbuf[32], s->version, MIN(4, strlen(s->version)));
     /*
      * We claim conformance to SPC-3, which is required for guests
      * to ask for modern features like READ CAPACITY(16) or the
@@ -1064,6 +1063,10 @@ static int scsi_disk_initfn(SCSIDevice *dev)
         } else {
             s->serial = qemu_strdup("0");
         }
+    }
+
+    if (!s->version) {
+        s->version = qemu_strdup(QEMU_VERSION);
     }
 
     if (bdrv_is_sg(s->bs)) {
