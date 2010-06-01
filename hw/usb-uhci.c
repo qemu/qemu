@@ -375,7 +375,7 @@ static const VMStateDescription vmstate_uhci_port = {
 
 static const VMStateDescription vmstate_uhci = {
     .name = "uhci",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .pre_save = uhci_pre_save,
@@ -392,6 +392,7 @@ static const VMStateDescription vmstate_uhci = {
         VMSTATE_UINT8(sof_timing, UHCIState),
         VMSTATE_UINT8(status2, UHCIState),
         VMSTATE_TIMER(frame_timer, UHCIState),
+        VMSTATE_INT64_V(expire_time, UHCIState, 2),
         VMSTATE_END_OF_LIST()
     }
 };
