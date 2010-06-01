@@ -98,6 +98,7 @@ struct PropertyInfo {
     enum PropertyType type;
     int (*parse)(DeviceState *dev, Property *prop, const char *str);
     int (*print)(DeviceState *dev, Property *prop, char *dest, size_t len);
+    void (*free)(DeviceState *dev, Property *prop);
 };
 
 typedef struct GlobalProperty {

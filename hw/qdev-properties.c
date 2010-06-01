@@ -260,6 +260,11 @@ static int parse_string(DeviceState *dev, Property *prop, const char *str)
     return 0;
 }
 
+static void free_string(DeviceState *dev, Property *prop)
+{
+    qemu_free(*(char **)qdev_get_prop_ptr(dev, prop));
+}
+
 static int print_string(DeviceState *dev, Property *prop, char *dest, size_t len)
 {
     char **ptr = qdev_get_prop_ptr(dev, prop);
@@ -274,6 +279,7 @@ PropertyInfo qdev_prop_string = {
     .size  = sizeof(char*),
     .parse = parse_string,
     .print = print_string,
+    .free  = free_string,
 };
 
 /* --- drive --- */
