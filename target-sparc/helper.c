@@ -495,6 +495,9 @@ static int get_physical_address_data(CPUState *env,
             env->dmmu.sfsr |= (fault_type << 7);
 
             env->dmmu.sfar = address; /* Fault address register */
+
+            env->dmmu.tag_access = (address & ~0x1fffULL) | context;
+
             return 1;
         }
     }
@@ -543,6 +546,8 @@ static int get_physical_address_code(CPUState *env,
                                              another fault) */
                 env->immu.sfsr |= (is_user << 3) | 1;
                 env->exception_index = TT_TFAULT;
+
+                env->immu.tag_access = (address & ~0x1fffULL) | context;
 
                 DPRINTF_MMU("TFAULT at %" PRIx64 " context %" PRIx64 "\n",
                             address, context);
