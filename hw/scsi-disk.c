@@ -66,6 +66,7 @@ struct SCSIDiskState
     uint64_t max_lba;
     QEMUBH *bh;
     char *version;
+    char *serial;
 };
 
 static SCSIDiskReq *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun)
@@ -359,9 +360,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
 
         case 0x80: /* Device serial number, optional */
         {
-            const char *serial = req->dev->conf.dinfo->serial ?
-                req->dev->conf.dinfo->serial : "0";
-            int l = strlen(serial);
+            int l = strlen(s->serial);
 
             if (l > req->cmd.xfer)
                 l = req->cmd.xfer;
@@ -371,7 +370,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             DPRINTF("Inquiry EVPD[Serial number] "
                     "buffer size %zd\n", req->cmd.xfer);
             outbuf[buflen++] = l;
-            memcpy(outbuf+buflen, serial, l);
+            memcpy(outbuf+buflen, s->serial, l);
             buflen += l;
             break;
         }
@@ -1058,6 +1057,15 @@ static int scsi_disk_initfn(SCSIDevice *dev)
     }
     s->bs = s->qdev.conf.dinfo->bdrv;
 
+    if (!s->serial) {
+        if (*dev->conf.dinfo->serial) {
+            /* try to fall back to value set with legacy -drive serial=... */
+            s->serial = qemu_strdup(dev->conf.dinfo->serial);
+        } else {
+            s->serial = qemu_strdup("0");
+        }
+    }
+
     if (bdrv_is_sg(s->bs)) {
         error_report("scsi-disk: unwanted /dev/sg*");
         return -1;
@@ -1090,6 +1098,7 @@ static SCSIDeviceInfo scsi_disk_info = {
     .qdev.props   = (Property[]) {
         DEFINE_BLOCK_PROPERTIES(SCSIDiskState, qdev.conf),
         DEFINE_PROP_STRING("ver",  SCSIDiskState, version),
+        DEFINE_PROP_STRING("serial",  SCSIDiskState, serial),
         DEFINE_PROP_END_OF_LIST(),
     },
 };
