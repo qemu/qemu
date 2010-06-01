@@ -331,8 +331,8 @@ static BlockDriver *find_image_format(const char *filename)
     if (ret < 0)
         return NULL;
 
-    /* Return the raw BlockDriver * to scsi-generic devices */
-    if (bs->sg) {
+    /* Return the raw BlockDriver * to scsi-generic devices or empty drives */
+    if (bs->sg || !bdrv_is_inserted(bs)) {
         bdrv_delete(bs);
         return bdrv_find_format("raw");
     }
