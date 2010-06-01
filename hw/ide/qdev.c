@@ -110,6 +110,9 @@ static int ide_drive_initfn(IDEDevice *dev)
 
     ide_init_drive(s, dev->conf.dinfo, dev->version, serial);
 
+    if (!dev->version) {
+        dev->version = qemu_strdup(s->version);
+    }
     if (!dev->serial) {
         dev->serial = qemu_strdup(s->drive_serial_str);
     }
