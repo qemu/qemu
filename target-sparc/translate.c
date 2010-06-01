@@ -4476,7 +4476,11 @@ static void disas_sparc_insn(DisasContext * dc)
                     if (rd == 1) {
                         tcg_gen_qemu_ld64(cpu_tmp64, cpu_addr, dc->mem_idx);
                         gen_helper_ldxfsr(cpu_tmp64);
-                    } else
+                    } else {
+                        tcg_gen_qemu_ld32u(cpu_tmp0, cpu_addr, dc->mem_idx);
+                        tcg_gen_trunc_tl_i32(cpu_tmp32, cpu_tmp0);
+                        gen_helper_ldfsr(cpu_tmp32);
+                    }
 #else
                     {
                         tcg_gen_qemu_ld32u(cpu_tmp32, cpu_addr, dc->mem_idx);
