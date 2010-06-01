@@ -106,10 +106,10 @@ copy_kernel:
 	/* We're now running in 16-bit CS, but 32-bit ES! */
 
 	/* Load kernel and initrd */
-	read_fw_blob(FW_CFG_KERNEL)
-	read_fw_blob(FW_CFG_INITRD)
-	read_fw_blob(FW_CFG_CMDLINE)
-	read_fw_blob(FW_CFG_SETUP)
+	read_fw_blob_addr32(FW_CFG_KERNEL)
+	read_fw_blob_addr32(FW_CFG_INITRD)
+	read_fw_blob_addr32(FW_CFG_CMDLINE)
+	read_fw_blob_addr32(FW_CFG_SETUP)
 
 	/* And now jump into Linux! */
 	mov		$0, %eax
