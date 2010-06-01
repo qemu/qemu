@@ -268,6 +268,7 @@ void qdev_prop_set_uint16(DeviceState *dev, const char *name, uint16_t value);
 void qdev_prop_set_uint32(DeviceState *dev, const char *name, uint32_t value);
 void qdev_prop_set_int32(DeviceState *dev, const char *name, int32_t value);
 void qdev_prop_set_uint64(DeviceState *dev, const char *name, uint64_t value);
+void qdev_prop_set_string(DeviceState *dev, const char *name, char *value);
 void qdev_prop_set_chr(DeviceState *dev, const char *name, CharDriverState *value);
 void qdev_prop_set_netdev(DeviceState *dev, const char *name, VLANClientState *value);
 void qdev_prop_set_vlan(DeviceState *dev, const char *name, VLANState *value);

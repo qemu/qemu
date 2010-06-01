@@ -617,6 +617,11 @@ void qdev_prop_set_uint64(DeviceState *dev, const char *name, uint64_t value)
     qdev_prop_set(dev, name, &value, PROP_TYPE_UINT64);
 }
 
+void qdev_prop_set_string(DeviceState *dev, const char *name, char *value)
+{
+    qdev_prop_set(dev, name, &value, PROP_TYPE_STRING);
+}
+
 void qdev_prop_set_drive(DeviceState *dev, const char *name, DriveInfo *value)
 {
     qdev_prop_set(dev, name, &value, PROP_TYPE_DRIVE);
