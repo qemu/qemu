@@ -249,17 +249,16 @@ static void print_palette(const char *key, QObject *obj, void *opaque)
         uint##bpp##_t *src;                                             \
         uint##bpp##_t rgb;                                              \
         uint8_t key[6];                                                 \
-        int rep = 0;                                                    \
+        int i, rep;                                                     \
         uint8_t idx;                                                    \
                                                                         \
         src = (uint##bpp##_t *) buf;                                    \
                                                                         \
-        count -= 1;                                                     \
-        while (count--) {                                               \
+        for (i = 0; i < count; i++) {                                   \
             rgb = *src++;                                               \
             rep = 0;                                                    \
-            while (count && *src == rgb) {                              \
-                rep++, src++, count--;                                  \
+            while (i < count && *src == rgb) {                          \
+                rep++, src++, i++;                                      \
             }                                                           \
             tight_palette_rgb2buf(rgb, bpp, key);                       \
             if (!qdict_haskey(palette, (char *)key)) {                  \
