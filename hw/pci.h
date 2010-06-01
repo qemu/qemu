@@ -97,17 +97,6 @@ typedef struct PCIIORegion {
 /* PCI HEADER_TYPE */
 #define  PCI_HEADER_TYPE_MULTI_FUNCTION 0x80
 
-#define PCI_STATUS_RESERVED_MASK_LO (PCI_STATUS_RESERVED1 | \
-                PCI_STATUS_INT_STATUS | PCI_STATUS_CAPABILITIES | \
-                PCI_STATUS_66MHZ | PCI_STATUS_RESERVED2 | PCI_STATUS_FAST_BACK)
-
-#define PCI_STATUS_RESERVED_MASK_HI (PCI_STATUS_DEVSEL >> 8)
-
-/* Bits in the PCI Command Register (PCI 2.3 spec) */
-#define PCI_COMMAND_RESERVED	0xf800
-
-#define PCI_COMMAND_RESERVED_MASK_HI (PCI_COMMAND_RESERVED >> 8)
-
 /* Size of the standard PCI config header */
 #define PCI_CONFIG_HEADER_SIZE 0x40
 /* Size of the standard PCI config space */
@@ -229,6 +218,7 @@ PCIDevice *pci_nic_init_nofail(NICInfo *nd, const char *default_model,
 int pci_bus_num(PCIBus *s);
 void pci_for_each_device(PCIBus *bus, int bus_num, void (*fn)(PCIBus *bus, PCIDevice *d));
 PCIBus *pci_find_root_bus(int domain);
+int pci_find_domain(const PCIBus *bus);
 PCIBus *pci_find_bus(PCIBus *bus, int bus_num);
 PCIDevice *pci_find_device(PCIBus *bus, int bus_num, int slot, int function);
 PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr);
@@ -350,12 +340,12 @@ void pci_qdev_register_many(PCIDeviceInfo *info);
 PCIDevice *pci_create(PCIBus *bus, int devfn, const char *name);
 PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name);
 
-static inline int pci_is_express(PCIDevice *d)
+static inline int pci_is_express(const PCIDevice *d)
 {
     return d->cap_present & QEMU_PCI_CAP_EXPRESS;
 }
 
-static inline uint32_t pci_config_size(PCIDevice *d)
+static inline uint32_t pci_config_size(const PCIDevice *d)
 {
     return pci_is_express(d) ? PCIE_CONFIG_SPACE_SIZE : PCI_CONFIG_SPACE_SIZE;
 }

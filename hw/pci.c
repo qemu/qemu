@@ -200,6 +200,26 @@ PCIBus *pci_find_root_bus(int domain)
     return NULL;
 }
 
+int pci_find_domain(const PCIBus *bus)
+{
+    PCIDevice *d;
+    struct PCIHostBus *host;
+
+    /* obtain root bus */
+    while ((d = bus->parent_dev) != NULL) {
+        bus = d->bus;
+    }
+
+    QLIST_FOREACH(host, &host_buses, next) {
+        if (host->bus == bus) {
+            return host->domain;
+        }
+    }
+
+    abort();    /* should not be reached */
+    return -1;
+}
+
 void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
                          const char *name, int devfn_min)
 {
@@ -419,14 +439,12 @@ int pci_device_load(PCIDevice *s, QEMUFile *f)
     return ret;
 }
 
-static int pci_set_default_subsystem_id(PCIDevice *pci_dev)
+static void pci_set_default_subsystem_id(PCIDevice *pci_dev)
 {
-    uint16_t *id;
-
-    id = (void*)(&pci_dev->config[PCI_SUBSYSTEM_VENDOR_ID]);
-    id[0] = cpu_to_le16(pci_default_sub_vendor_id);
-    id[1] = cpu_to_le16(pci_default_sub_device_id);
-    return 0;
+    pci_set_word(pci_dev->config + PCI_SUBSYSTEM_VENDOR_ID,
+                 pci_default_sub_vendor_id);
+    pci_set_word(pci_dev->config + PCI_SUBSYSTEM_ID,
+                 pci_default_sub_device_id);
 }
 
 /*
@@ -507,7 +525,7 @@ PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr)
     }
 
     *devfnp = slot << 3;
-    return pci_find_bus(pci_find_root_bus(0), bus);
+    return pci_find_bus(pci_find_root_bus(dom), bus);
 }
 
 static void pci_init_cmask(PCIDevice *dev)
