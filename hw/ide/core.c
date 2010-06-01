@@ -2596,7 +2596,8 @@ void ide_bus_reset(IDEBus *bus)
     ide_clear_hob(bus);
 }
 
-void ide_init_drive(IDEState *s, DriveInfo *dinfo, const char *version)
+void ide_init_drive(IDEState *s, DriveInfo *dinfo,
+                    const char *version, const char *serial)
 {
     int cylinders, heads, secs;
     uint64_t nb_sectors;
@@ -2618,9 +2619,9 @@ void ide_init_drive(IDEState *s, DriveInfo *dinfo, const char *version)
         s->is_cdrom = 1;
         bdrv_set_change_cb(s->bs, cdrom_change_cb, s);
     }
-    strncpy(s->drive_serial_str, drive_get_serial(s->bs),
-            sizeof(s->drive_serial_str));
-    if (!*s->drive_serial_str) {
+    if (serial && *serial) {
+        strncpy(s->drive_serial_str, serial, sizeof(s->drive_serial_str));
+    } else {
         snprintf(s->drive_serial_str, sizeof(s->drive_serial_str),
                  "QM%05d", s->drive_serial);
     }
@@ -2669,7 +2670,7 @@ void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
         dinfo = i == 0 ? hd0 : hd1;
         ide_init1(bus, i);
         if (dinfo) {
-            ide_init_drive(&bus->ifs[i], dinfo, NULL);
+            ide_init_drive(&bus->ifs[i], dinfo, NULL, dinfo->serial);
         } else {
             ide_reset(&bus->ifs[i]);
         }

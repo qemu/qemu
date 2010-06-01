@@ -99,7 +99,20 @@ typedef struct IDEDrive {
 static int ide_drive_initfn(IDEDevice *dev)
 {
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, dev->qdev.parent_bus);
-    ide_init_drive(bus->ifs + dev->unit, dev->conf.dinfo, dev->version);
+    IDEState *s = bus->ifs + dev->unit;
+    const char *serial;
+
+    serial = dev->serial;
+    if (!serial) {
+        /* try to fall back to value set with legacy -drive serial=... */
+        serial = dev->conf.dinfo->serial;
+    }
+
+    ide_init_drive(s, dev->conf.dinfo, dev->version, serial);
+
+    if (!dev->serial) {
+        dev->serial = qemu_strdup(s->drive_serial_str);
+    }
     return 0;
 }
 
@@ -111,6 +124,7 @@ static IDEDeviceInfo ide_drive_info = {
         DEFINE_PROP_UINT32("unit", IDEDrive, dev.unit, -1),
         DEFINE_BLOCK_PROPERTIES(IDEDrive, dev.conf),
         DEFINE_PROP_STRING("ver",  IDEDrive, dev.version),
+        DEFINE_PROP_STRING("serial",  IDEDrive, dev.serial),
         DEFINE_PROP_END_OF_LIST(),
     }
 };
