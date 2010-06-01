@@ -177,6 +177,7 @@ static int tight_palette_insert(QDict *palette, uint32_t rgb, int bpp, int max)
         *palette = qdict_new();                                         \
         tight_palette_insert(*palette, c0, bpp, max);                   \
         tight_palette_insert(*palette, c1, bpp, max);                   \
+        tight_palette_insert(*palette, ci, bpp, max);                   \
                                                                         \
         for (i++; i < count; i++) {                                     \
             if (data[i] == ci) {                                        \
