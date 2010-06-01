@@ -3164,6 +3164,20 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
         }
 
         return;
+    case 0x70: // Block load primary, user privilege
+    case 0x71: // Block load secondary, user privilege
+        if (rd & 7) {
+            raise_exception(TT_ILL_INSN);
+            return;
+        }
+        helper_check_align(addr, 0x3f);
+        for (i = 0; i < 16; i++) {
+            *(uint32_t *)&env->fpr[rd++] = helper_ld_asi(addr, asi & 0x1f, 4,
+                                                         0);
+            addr += 4;
+        }
+
+        return;
     default:
         break;
     }
@@ -3206,6 +3220,20 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
         for (i = 0; i < 16; i++) {
             val = *(uint32_t *)&env->fpr[rd++];
             helper_st_asi(addr, val, asi & 0x8f, 4);
+            addr += 4;
+        }
+
+        return;
+    case 0x70: // Block store primary, user privilege
+    case 0x71: // Block store secondary, user privilege
+        if (rd & 7) {
+            raise_exception(TT_ILL_INSN);
+            return;
+        }
+        helper_check_align(addr, 0x3f);
+        for (i = 0; i < 16; i++) {
+            val = *(uint32_t *)&env->fpr[rd++];
+            helper_st_asi(addr, val, asi & 0x1f, 4);
             addr += 4;
         }
 
