@@ -594,6 +594,9 @@ static USBDevice *usb_serial_init(const char *filename)
         return NULL;
 
     dev = usb_create(NULL /* FIXME */, "usb-serial");
+    if (!dev) {
+        return NULL;
+    }
     qdev_prop_set_chr(&dev->qdev, "chardev", cdrv);
     if (vendorid)
         qdev_prop_set_uint16(&dev->qdev, "vendorid", vendorid);

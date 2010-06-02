@@ -102,6 +102,9 @@ USBDevice *usb_create(USBBus *bus, const char *name)
 USBDevice *usb_create_simple(USBBus *bus, const char *name)
 {
     USBDevice *dev = usb_create(bus, name);
+    if (!dev) {
+        hw_error("Failed to create USB device '%s'\n", name);
+    }
     qdev_init_nofail(&dev->qdev);
     return dev;
 }

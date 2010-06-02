@@ -592,6 +592,9 @@ static USBDevice *usb_msd_init(const char *filename)
 
     /* create guest device */
     dev = usb_create(NULL /* FIXME */, "usb-storage");
+    if (!dev) {
+        return NULL;
+    }
     qdev_prop_set_drive(&dev->qdev, "drive", dinfo);
     if (qdev_init(&dev->qdev) < 0)
         return NULL;
