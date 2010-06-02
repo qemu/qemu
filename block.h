@@ -42,6 +42,11 @@ typedef struct QEMUSnapshotInfo {
 #define BDRV_SECTOR_MASK   ~(BDRV_SECTOR_SIZE - 1)
 
 typedef enum {
+    BLOCK_ERR_REPORT, BLOCK_ERR_IGNORE, BLOCK_ERR_STOP_ENOSPC,
+    BLOCK_ERR_STOP_ANY
+} BlockErrorAction;
+
+typedef enum {
     BDRV_ACTION_REPORT, BDRV_ACTION_IGNORE, BDRV_ACTION_STOP
 } BlockMonEventAction;
 
@@ -146,6 +151,9 @@ void bdrv_get_geometry_hint(BlockDriverState *bs,
                             int *pcyls, int *pheads, int *psecs);
 int bdrv_get_type_hint(BlockDriverState *bs);
 int bdrv_get_translation_hint(BlockDriverState *bs);
+void bdrv_set_on_error(BlockDriverState *bs, BlockErrorAction on_read_error,
+                       BlockErrorAction on_write_error);
+BlockErrorAction bdrv_get_on_error(BlockDriverState *bs, int is_read);
 int bdrv_is_removable(BlockDriverState *bs);
 int bdrv_is_read_only(BlockDriverState *bs);
 int bdrv_is_sg(BlockDriverState *bs);

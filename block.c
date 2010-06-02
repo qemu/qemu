@@ -1206,6 +1206,18 @@ int bdrv_get_translation_hint(BlockDriverState *bs)
     return bs->translation;
 }
 
+void bdrv_set_on_error(BlockDriverState *bs, BlockErrorAction on_read_error,
+                       BlockErrorAction on_write_error)
+{
+    bs->on_read_error = on_read_error;
+    bs->on_write_error = on_write_error;
+}
+
+BlockErrorAction bdrv_get_on_error(BlockDriverState *bs, int is_read)
+{
+    return is_read ? bs->on_read_error : bs->on_write_error;
+}
+
 int bdrv_is_removable(BlockDriverState *bs)
 {
     return bs->removable;

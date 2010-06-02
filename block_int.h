@@ -182,6 +182,7 @@ struct BlockDriverState {
        drivers. They are not used by the block driver */
     int cyls, heads, secs, translation;
     int type;
+    BlockErrorAction on_read_error, on_write_error;
     char device_name[32];
     unsigned long *dirty_bitmap;
     int64_t dirty_count;

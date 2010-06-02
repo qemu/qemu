@@ -481,7 +481,7 @@ void ide_dma_error(IDEState *s)
 static int ide_handle_rw_error(IDEState *s, int error, int op)
 {
     int is_read = (op & BM_STATUS_RETRY_READ);
-    BlockInterfaceErrorAction action = drive_get_on_error(s->bs, is_read);
+    BlockErrorAction action = bdrv_get_on_error(s->bs, is_read);
 
     if (action == BLOCK_ERR_IGNORE) {
         bdrv_mon_event(s->bs, BDRV_ACTION_IGNORE, is_read);
