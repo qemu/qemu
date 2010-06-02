@@ -726,7 +726,7 @@ static void *qemu_st_helpers[4] = {
 
 static inline void tcg_out_tlb_load(TCGContext *s, int addrlo_idx,
                                     int mem_index, int s_bits,
-                                    const TCGArg *args
+                                    const TCGArg *args,
                                     uint8_t **label_ptr, int which)
 {
     const int addrlo = args[addrlo_idx];
