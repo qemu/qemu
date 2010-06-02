@@ -982,7 +982,7 @@ static void get_cpuid_vendor(CPUX86State *env, uint32_t *ebx,
      * this if you want to use KVM's sysenter/syscall emulation
      * in compatibility mode and when doing cross vendor migration
      */
-    if (kvm_enabled() && env->cpuid_vendor_override) {
+    if (kvm_enabled() && ! env->cpuid_vendor_override) {
         host_cpuid(0, 0, NULL, ebx, ecx, edx);
     }
 }
