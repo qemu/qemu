@@ -17,6 +17,8 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+
+#include "blockdev.h"
 #include "hw.h"
 #include "arm-misc.h"
 #include "omap.h"

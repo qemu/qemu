@@ -10,6 +10,7 @@
 #include "sysbus.h"
 #include "net.h"
 #include "devices.h"
+#include "sysemu.h"
 /* For crc32 */
 #include <zlib.h>
 

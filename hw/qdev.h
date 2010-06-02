@@ -2,7 +2,7 @@
 #define QDEV_H
 
 #include "hw.h"
-#include "sysemu.h"
+#include "blockdev.h"
 #include "qemu-queue.h"
 #include "qemu-char.h"
 #include "qemu-option.h"

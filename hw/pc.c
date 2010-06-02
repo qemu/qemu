@@ -35,6 +35,7 @@
 #include "elf.h"
 #include "multiboot.h"
 #include "mc146818rtc.h"
+#include "sysemu.h"
 
 /* output Bochs bios info messages */
 //#define DEBUG_BIOS

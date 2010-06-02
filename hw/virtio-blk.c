@@ -12,9 +12,7 @@
  */
 
 #include <qemu-common.h>
-#include <sysemu.h>
 #include "virtio-blk.h"
-#include "block_int.h"
 #ifdef __linux__
 # include <scsi/sg.h>
 #endif

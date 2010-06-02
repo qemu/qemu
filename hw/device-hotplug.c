@@ -25,8 +25,6 @@
 #include "hw.h"
 #include "boards.h"
 #include "net.h"
-#include "block_int.h"
-#include "sysemu.h"
 
 DriveInfo *add_init_drive(const char *optstr)
 {

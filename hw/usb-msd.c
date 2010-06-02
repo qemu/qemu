@@ -11,10 +11,10 @@
 #include "qemu-option.h"
 #include "qemu-config.h"
 #include "usb.h"
-#include "block.h"
 #include "scsi.h"
 #include "console.h"
 #include "monitor.h"
+#include "sysemu.h"
 
 //#define DEBUG_MSD
 

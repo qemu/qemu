@@ -1,4 +1,3 @@
-#include "sysemu.h"
 #include "net.h"
 #include "qdev.h"
 #include "qerror.h"

@@ -17,7 +17,6 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include <hw/hw.h>
-#include "sysemu.h"
 #include "dma.h"
 
 #include <hw/ide/internal.h>
