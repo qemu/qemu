@@ -264,7 +264,8 @@ USBDevice *usbdevice_create(const char *cmdline)
     USBBus *bus = usb_bus_find(-1 /* any */);
     DeviceInfo *info;
     USBDeviceInfo *usb;
-    char driver[32], *params;
+    char driver[32];
+    const char *params;
     int len;
 
     params = strchr(cmdline,':');
@@ -275,6 +276,7 @@ USBDevice *usbdevice_create(const char *cmdline)
             len = sizeof(driver);
         pstrcpy(driver, len, cmdline);
     } else {
+        params = "";
         pstrcpy(driver, sizeof(driver), cmdline);
     }
 
