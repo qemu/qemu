@@ -1330,6 +1330,14 @@ BlockDriverState *bdrv_find(const char *name)
     return NULL;
 }
 
+BlockDriverState *bdrv_next(BlockDriverState *bs)
+{
+    if (!bs) {
+        return QTAILQ_FIRST(&bdrv_states);
+    }
+    return QTAILQ_NEXT(bs, list);
+}
+
 void bdrv_iterate(void (*it)(void *opaque, BlockDriverState *bs), void *opaque)
 {
     BlockDriverState *bs;
