@@ -247,6 +247,42 @@ static inline target_ulong address_mask(CPUState *env1, target_ulong addr)
     return addr;
 }
 
+/* returns true if access using this ASI is to have address translated by MMU
+   otherwise access is to raw physical address */
+static inline int is_translating_asi(int asi)
+{
+#ifdef TARGET_SPARC64
+    /* Ultrasparc IIi translating asi
+       - note this list is defined by cpu implementation
+     */
+    switch (asi) {
+    case 0x04 ... 0x11:
+    case 0x18 ... 0x19:
+    case 0x24 ... 0x2C:
+    case 0x70 ... 0x73:
+    case 0x78 ... 0x79:
+    case 0x80 ... 0xFF:
+        return 1;
+
+    default:
+        return 0;
+    }
+#else
+    /* TODO: check sparc32 bits */
+    return 0;
+#endif
+}
+
+static inline target_ulong asi_address_mask(CPUState *env1,
+                                            int asi, target_ulong addr)
+{
+    if (is_translating_asi(asi)) {
+        return address_mask(env, addr);
+    } else {
+        return addr;
+    }
+}
+
 static void raise_exception(int tt)
 {
     env->exception_index = tt;
@@ -2151,7 +2187,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         raise_exception(TT_PRIV_ACT);
 
     helper_check_align(addr, size - 1);
-    addr = address_mask(env, addr);
+    addr = asi_address_mask(env, asi, addr);
 
     switch (asi) {
     case 0x82: // Primary no-fault
@@ -2254,7 +2290,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
         raise_exception(TT_PRIV_ACT);
 
     helper_check_align(addr, size - 1);
-    addr = address_mask(env, addr);
+    addr = asi_address_mask(env, asi, addr);
 
     /* Convert to little endian */
     switch (asi) {
@@ -2331,6 +2367,8 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         raise_exception(TT_PRIV_ACT);
 
     helper_check_align(addr, size - 1);
+    addr = asi_address_mask(env, asi, addr);
+
     switch (asi) {
     case 0x82: // Primary no-fault
     case 0x8a: // Primary no-fault LE
@@ -2682,6 +2720,8 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
         raise_exception(TT_PRIV_ACT);
 
     helper_check_align(addr, size - 1);
+    addr = asi_address_mask(env, asi, addr);
+
     /* Convert to little endian */
     switch (asi) {
     case 0x0c: // Nucleus Little Endian (LE)
@@ -3056,6 +3096,8 @@ void helper_ldda_asi(target_ulong addr, int asi, int rd)
             && !(env->hpstate & HS_PRIV)))
         raise_exception(TT_PRIV_ACT);
 
+    addr = asi_address_mask(env, asi, addr);
+
     switch (asi) {
 #if !defined(CONFIG_USER_ONLY)
     case 0x24: // Nucleus quad LDD 128 bit atomic
@@ -3103,6 +3145,8 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
     target_ulong val;
 
     helper_check_align(addr, 3);
+    addr = asi_address_mask(env, asi, addr);
+
     switch (asi) {
     case 0xf0: // Block load primary
     case 0xf1: // Block load secondary
@@ -3145,6 +3189,8 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
     target_ulong val = 0;
 
     helper_check_align(addr, 3);
+    addr = asi_address_mask(env, asi, addr);
+
     switch (asi) {
     case 0xe0: // UA2007 Block commit store primary (cache flush)
     case 0xe1: // UA2007 Block commit store secondary (cache flush)

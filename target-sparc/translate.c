@@ -4490,6 +4490,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
                         CHECK_FPU_FEATURE(dc, FLOAT128);
                         r_const = tcg_const_i32(dc->mem_idx);
+                        gen_address_mask(dc, cpu_addr);
                         gen_helper_ldqf(cpu_addr, r_const);
                         tcg_temp_free_i32(r_const);
                         gen_op_store_QT0_fpr(QFPREG(rd));
@@ -4500,6 +4501,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         TCGv_i32 r_const;
 
                         r_const = tcg_const_i32(dc->mem_idx);
+                        gen_address_mask(dc, cpu_addr);
                         gen_helper_lddf(cpu_addr, r_const);
                         tcg_temp_free_i32(r_const);
                         gen_op_store_DT0_fpr(DFPREG(rd));
@@ -4635,6 +4637,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         CHECK_FPU_FEATURE(dc, FLOAT128);
                         gen_op_load_fpr_QT0(QFPREG(rd));
                         r_const = tcg_const_i32(dc->mem_idx);
+                        gen_address_mask(dc, cpu_addr);
                         gen_helper_stqf(cpu_addr, r_const);
                         tcg_temp_free_i32(r_const);
                     }
@@ -4657,6 +4660,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
                         gen_op_load_fpr_DT0(DFPREG(rd));
                         r_const = tcg_const_i32(dc->mem_idx);
+                        gen_address_mask(dc, cpu_addr);
                         gen_helper_stdf(cpu_addr, r_const);
                         tcg_temp_free_i32(r_const);
                     }
