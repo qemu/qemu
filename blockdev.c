@@ -422,7 +422,7 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi, int *fatal_error)
     dinfo->on_write_error = on_write_error;
     dinfo->opts = opts;
     if (serial)
-        strncpy(dinfo->serial, serial, sizeof(serial));
+        strncpy(dinfo->serial, serial, sizeof(dinfo->serial) - 1);
     QTAILQ_INSERT_TAIL(&drives, dinfo, next);
 
     switch(type) {
