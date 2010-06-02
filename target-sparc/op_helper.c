@@ -3321,18 +3321,19 @@ void helper_stdf(target_ulong addr, int mem_idx)
     helper_check_align(addr, 7);
 #if !defined(CONFIG_USER_ONLY)
     switch (mem_idx) {
-    case 0:
+    case MMU_USER_IDX:
         stfq_user(addr, DT0);
         break;
-    case 1:
+    case MMU_KERNEL_IDX:
         stfq_kernel(addr, DT0);
         break;
 #ifdef TARGET_SPARC64
-    case 2:
+    case MMU_HYPV_IDX:
         stfq_hypv(addr, DT0);
         break;
 #endif
     default:
+        DPRINTF_MMU("helper_stdf: need to check MMU idx %d\n", mem_idx);
         break;
     }
 #else
@@ -3345,18 +3346,19 @@ void helper_lddf(target_ulong addr, int mem_idx)
     helper_check_align(addr, 7);
 #if !defined(CONFIG_USER_ONLY)
     switch (mem_idx) {
-    case 0:
+    case MMU_USER_IDX:
         DT0 = ldfq_user(addr);
         break;
-    case 1:
+    case MMU_KERNEL_IDX:
         DT0 = ldfq_kernel(addr);
         break;
 #ifdef TARGET_SPARC64
-    case 2:
+    case MMU_HYPV_IDX:
         DT0 = ldfq_hypv(addr);
         break;
 #endif
     default:
+        DPRINTF_MMU("helper_lddf: need to check MMU idx %d\n", mem_idx);
         break;
     }
 #else
@@ -3372,24 +3374,25 @@ void helper_ldqf(target_ulong addr, int mem_idx)
     helper_check_align(addr, 7);
 #if !defined(CONFIG_USER_ONLY)
     switch (mem_idx) {
-    case 0:
+    case MMU_USER_IDX:
         u.ll.upper = ldq_user(addr);
         u.ll.lower = ldq_user(addr + 8);
         QT0 = u.q;
         break;
-    case 1:
+    case MMU_KERNEL_IDX:
         u.ll.upper = ldq_kernel(addr);
         u.ll.lower = ldq_kernel(addr + 8);
         QT0 = u.q;
         break;
 #ifdef TARGET_SPARC64
-    case 2:
+    case MMU_HYPV_IDX:
         u.ll.upper = ldq_hypv(addr);
         u.ll.lower = ldq_hypv(addr + 8);
         QT0 = u.q;
         break;
 #endif
     default:
+        DPRINTF_MMU("helper_ldqf: need to check MMU idx %d\n", mem_idx);
         break;
     }
 #else
@@ -3407,24 +3410,25 @@ void helper_stqf(target_ulong addr, int mem_idx)
     helper_check_align(addr, 7);
 #if !defined(CONFIG_USER_ONLY)
     switch (mem_idx) {
-    case 0:
+    case MMU_USER_IDX:
         u.q = QT0;
         stq_user(addr, u.ll.upper);
         stq_user(addr + 8, u.ll.lower);
         break;
-    case 1:
+    case MMU_KERNEL_IDX:
         u.q = QT0;
         stq_kernel(addr, u.ll.upper);
         stq_kernel(addr + 8, u.ll.lower);
         break;
 #ifdef TARGET_SPARC64
-    case 2:
+    case MMU_HYPV_IDX:
         u.q = QT0;
         stq_hypv(addr, u.ll.upper);
         stq_hypv(addr + 8, u.ll.lower);
         break;
 #endif
     default:
+        DPRINTF_MMU("helper_stqf: need to check MMU idx %d\n", mem_idx);
         break;
     }
 #else
