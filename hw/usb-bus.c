@@ -299,7 +299,7 @@ USBDevice *usbdevice_create(const char *cmdline)
     }
 
     if (!usb->usbdevice_init) {
-        if (params) {
+        if (*params) {
             qemu_error("usbdevice %s accepts no params\n", driver);
             return NULL;
         }
