@@ -1447,7 +1447,8 @@ static const KeyDef key_defs[] = {
     { 0x17, "i" },
     { 0x18, "o" },
     { 0x19, "p" },
-
+    { 0x1a, "bracket_left" },
+    { 0x1b, "bracket_right" },
     { 0x1c, "ret" },
 
     { 0x1e, "a" },
@@ -1459,7 +1460,11 @@ static const KeyDef key_defs[] = {
     { 0x24, "j" },
     { 0x25, "k" },
     { 0x26, "l" },
+    { 0x27, "semicolon" },
+    { 0x28, "apostrophe" },
+    { 0x29, "grave_accent" },
 
+    { 0x2b, "backslash" },
     { 0x2c, "z" },
     { 0x2d, "x" },
     { 0x2e, "c" },
