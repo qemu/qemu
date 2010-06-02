@@ -486,16 +486,16 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi, int *fatal_error)
 
 void do_commit(Monitor *mon, const QDict *qdict)
 {
-    int all_devices;
-    DriveInfo *dinfo;
     const char *device = qdict_get_str(qdict, "device");
+    BlockDriverState *bs;
 
-    all_devices = !strcmp(device, "all");
-    QTAILQ_FOREACH(dinfo, &drives, next) {
-        if (!all_devices)
-            if (strcmp(bdrv_get_device_name(dinfo->bdrv), device))
-                continue;
-        bdrv_commit(dinfo->bdrv);
+    if (!strcmp(device, "all")) {
+        bdrv_commit_all();
+    } else {
+        bs = bdrv_find(device);
+        if (bs) {
+            bdrv_commit(bs);
+        }
     }
 }
 
