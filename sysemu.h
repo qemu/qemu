@@ -191,7 +191,8 @@ extern BlockInterfaceErrorAction drive_get_on_error(
 BlockDriverState *qdev_init_bdrv(DeviceState *dev, BlockInterfaceType type);
 
 extern QemuOpts *drive_add(const char *file, const char *fmt, ...);
-extern DriveInfo *drive_init(QemuOpts *arg, void *machine, int *fatal_error);
+extern DriveInfo *drive_init(QemuOpts *arg, int default_to_scsi,
+                             int *fatal_error);
 
 /* device-hotplug */
 
