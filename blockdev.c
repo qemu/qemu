@@ -493,9 +493,11 @@ void do_commit(Monitor *mon, const QDict *qdict)
         bdrv_commit_all();
     } else {
         bs = bdrv_find(device);
-        if (bs) {
-            bdrv_commit(bs);
+        if (!bs) {
+            qerror_report(QERR_DEVICE_NOT_FOUND, device);
+            return;
         }
+        bdrv_commit(bs);
     }
 }
 
