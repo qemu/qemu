@@ -481,4 +481,6 @@ void pprint_pdu(V9fsPDU *pdu)
     }
 
     fprintf(llogfile, ")\n");
+    /* Flush the log message out */
+    fflush(llogfile);
 }
