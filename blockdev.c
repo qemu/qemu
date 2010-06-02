@@ -15,7 +15,7 @@
 #include "qemu-config.h"
 #include "sysemu.h"
 
-struct drivelist drives = QTAILQ_HEAD_INITIALIZER(drives);
+static QTAILQ_HEAD(drivelist, DriveInfo) drives = QTAILQ_HEAD_INITIALIZER(drives);
 
 QemuOpts *drive_add(const char *file, const char *fmt, ...)
 {
