@@ -59,6 +59,7 @@ hxtoqmp()
 {
     IFS=
     flag=0
+    line=1
     while read -r str; do
         case "$str" in
             HXCOMM*)
@@ -87,6 +88,7 @@ hxtoqmp()
             test $flag -eq 1 && echo "$str"
             ;;
         esac
+        line=$((line+1))
     done
 }
 
