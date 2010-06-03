@@ -157,31 +157,36 @@ static uint64_t *seek_l2_table(BDRVQcowState *s, uint64_t l2_offset)
  * the image file failed.
  */
 
-static uint64_t *l2_load(BlockDriverState *bs, uint64_t l2_offset)
+static int l2_load(BlockDriverState *bs, uint64_t l2_offset,
+    uint64_t **l2_table)
 {
     BDRVQcowState *s = bs->opaque;
     int min_index;
-    uint64_t *l2_table;
+    int ret;
 
     /* seek if the table for the given offset is in the cache */
 
-    l2_table = seek_l2_table(s, l2_offset);
-    if (l2_table != NULL)
-        return l2_table;
+    *l2_table = seek_l2_table(s, l2_offset);
+    if (*l2_table != NULL) {
+        return 0;
+    }
 
     /* not found: load a new entry in the least used one */
 
     min_index = l2_cache_new_entry(bs);
-    l2_table = s->l2_cache + (min_index << s->l2_bits);
+    *l2_table = s->l2_cache + (min_index << s->l2_bits);
 
     BLKDBG_EVENT(bs->file, BLKDBG_L2_LOAD);
-    if (bdrv_pread(bs->file, l2_offset, l2_table, s->l2_size * sizeof(uint64_t)) !=
-        s->l2_size * sizeof(uint64_t))
-        return NULL;
+    ret = bdrv_pread(bs->file, l2_offset, *l2_table,
+        s->l2_size * sizeof(uint64_t));
+    if (ret < 0) {
+        return ret;
+    }
+
     s->l2_cache_offsets[min_index] = l2_offset;
     s->l2_cache_counts[min_index] = 1;
 
-    return l2_table;
+    return 0;
 }
 
 /*
@@ -239,14 +244,6 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
         return l2_offset;
     }
 
-    /* update the L1 entry */
-
-    s->l1_table[l1_index] = l2_offset | QCOW_OFLAG_COPIED;
-    ret = write_l1_entry(bs, l1_index);
-    if (ret < 0) {
-        return ret;
-    }
-
     /* allocate a new entry in the l2 cache */
 
     min_index = l2_cache_new_entry(bs);
@@ -261,7 +258,7 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
         ret = bdrv_pread(bs->file, old_l2_offset, l2_table,
             s->l2_size * sizeof(uint64_t));
         if (ret < 0) {
-            return ret;
+            goto fail;
         }
     }
     /* write the l2 table to the file */
@@ -269,7 +266,14 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
     ret = bdrv_pwrite(bs->file, l2_offset, l2_table,
         s->l2_size * sizeof(uint64_t));
     if (ret < 0) {
-        return ret;
+        goto fail;
+    }
+
+    /* update the L1 entry */
+    s->l1_table[l1_index] = l2_offset | QCOW_OFLAG_COPIED;
+    ret = write_l1_entry(bs, l1_index);
+    if (ret < 0) {
+        goto fail;
     }
 
     /* update the l2 cache entry */
@@ -279,6 +283,10 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
 
     *table = l2_table;
     return 0;
+
+fail:
+    qcow2_l2_cache_reset(bs);
+    return ret;
 }
 
 static int count_contiguous_clusters(uint64_t nb_clusters, int cluster_size,
@@ -342,7 +350,13 @@ static int qcow_read(BlockDriverState *bs, int64_t sector_num,
 
     while (nb_sectors > 0) {
         n = nb_sectors;
-        cluster_offset = qcow2_get_cluster_offset(bs, sector_num << 9, &n);
+
+        ret = qcow2_get_cluster_offset(bs, sector_num << 9, &n,
+            &cluster_offset);
+        if (ret < 0) {
+            return ret;
+        }
+
         index_in_cluster = sector_num & (s->cluster_sectors - 1);
         if (!cluster_offset) {
             if (bs->backing_hd) {
@@ -409,28 +423,29 @@ static int copy_sectors(BlockDriverState *bs, uint64_t start_sect,
 /*
  * get_cluster_offset
  *
- * For a given offset of the disk image, return cluster offset in
- * qcow2 file.
+ * For a given offset of the disk image, find the cluster offset in
+ * qcow2 file. The offset is stored in *cluster_offset.
  *
  * on entry, *num is the number of contiguous clusters we'd like to
  * access following offset.
  *
  * on exit, *num is the number of contiguous clusters we can read.
  *
- * Return 1, if the offset is found
- * Return 0, otherwise.
+ * Return 0, if the offset is found
+ * Return -errno, otherwise.
  *
  */
 
-uint64_t qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
-    int *num)
+int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
+    int *num, uint64_t *cluster_offset)
 {
     BDRVQcowState *s = bs->opaque;
     unsigned int l1_index, l2_index;
-    uint64_t l2_offset, *l2_table, cluster_offset;
+    uint64_t l2_offset, *l2_table;
     int l1_bits, c;
     unsigned int index_in_cluster, nb_clusters;
     uint64_t nb_available, nb_needed;
+    int ret;
 
     index_in_cluster = (offset >> 9) & (s->cluster_sectors - 1);
     nb_needed = *num + index_in_cluster;
@@ -451,7 +466,7 @@ uint64_t qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
         nb_needed = nb_available;
     }
 
-    cluster_offset = 0;
+    *cluster_offset = 0;
 
     /* seek the the l2 offset in the l1 table */
 
@@ -469,17 +484,18 @@ uint64_t qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
     /* load the l2 table in memory */
 
     l2_offset &= ~QCOW_OFLAG_COPIED;
-    l2_table = l2_load(bs, l2_offset);
-    if (l2_table == NULL)
-        return 0;
+    ret = l2_load(bs, l2_offset, &l2_table);
+    if (ret < 0) {
+        return ret;
+    }
 
     /* find the cluster offset for the given disk offset */
 
     l2_index = (offset >> s->cluster_bits) & (s->l2_size - 1);
-    cluster_offset = be64_to_cpu(l2_table[l2_index]);
+    *cluster_offset = be64_to_cpu(l2_table[l2_index]);
     nb_clusters = size_to_clusters(s, nb_needed << 9);
 
-    if (!cluster_offset) {
+    if (!*cluster_offset) {
         /* how many empty clusters ? */
         c = count_contiguous_free_clusters(nb_clusters, &l2_table[l2_index]);
     } else {
@@ -495,7 +511,8 @@ out:
 
     *num = nb_available - index_in_cluster;
 
-    return cluster_offset & ~QCOW_OFLAG_COPIED;
+    *cluster_offset &=~QCOW_OFLAG_COPIED;
+    return 0;
 }
 
 /*
@@ -536,9 +553,9 @@ static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
     if (l2_offset & QCOW_OFLAG_COPIED) {
         /* load the l2 table in memory */
         l2_offset &= ~QCOW_OFLAG_COPIED;
-        l2_table = l2_load(bs, l2_offset);
-        if (l2_table == NULL) {
-            return -EIO;
+        ret = l2_load(bs, l2_offset, &l2_table);
+        if (ret < 0) {
+            return ret;
         }
     } else {
         if (l2_offset)
@@ -696,6 +713,7 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
 
     ret = write_l2_entries(bs, l2_table, l2_offset, l2_index, m->nb_clusters);
     if (ret < 0) {
+        qcow2_l2_cache_reset(bs);
         goto err;
     }
 

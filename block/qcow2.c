@@ -297,9 +297,15 @@ static int qcow_is_allocated(BlockDriverState *bs, int64_t sector_num,
                              int nb_sectors, int *pnum)
 {
     uint64_t cluster_offset;
+    int ret;
 
     *pnum = nb_sectors;
-    cluster_offset = qcow2_get_cluster_offset(bs, sector_num << 9, pnum);
+    /* FIXME We can get errors here, but the bdrv_is_allocated interface can't
+     * pass them on today */
+    ret = qcow2_get_cluster_offset(bs, sector_num << 9, pnum, &cluster_offset);
+    if (ret < 0) {
+        *pnum = 0;
+    }
 
     return (cluster_offset != 0);
 }
@@ -409,8 +415,12 @@ static void qcow_aio_read_cb(void *opaque, int ret)
 
     /* prepare next AIO request */
     acb->cur_nr_sectors = acb->remaining_sectors;
-    acb->cluster_offset = qcow2_get_cluster_offset(bs, acb->sector_num << 9,
-                                                   &acb->cur_nr_sectors);
+    ret = qcow2_get_cluster_offset(bs, acb->sector_num << 9,
+        &acb->cur_nr_sectors, &acb->cluster_offset);
+    if (ret < 0) {
+        goto done;
+    }
+
     index_in_cluster = acb->sector_num & (s->cluster_sectors - 1);
 
     if (!acb->cluster_offset) {

@@ -56,7 +56,6 @@ static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num,
                         uint8_t *buf, int nb_sectors);
 static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
                          const uint8_t *buf, int nb_sectors);
-static BlockDriver *find_protocol(const char *filename);
 
 static QTAILQ_HEAD(, BlockDriverState) bdrv_states =
     QTAILQ_HEAD_INITIALIZER(bdrv_states);
@@ -210,7 +209,7 @@ int bdrv_create_file(const char* filename, QEMUOptionParameter *options)
 {
     BlockDriver *drv;
 
-    drv = find_protocol(filename);
+    drv = bdrv_find_protocol(filename);
     if (drv == NULL) {
         drv = bdrv_find_format("file");
     }
@@ -283,7 +282,7 @@ static BlockDriver *find_hdev_driver(const char *filename)
     return drv;
 }
 
-static BlockDriver *find_protocol(const char *filename)
+BlockDriver *bdrv_find_protocol(const char *filename)
 {
     BlockDriver *drv1;
     char protocol[128];
@@ -333,8 +332,10 @@ static BlockDriver *find_image_format(const char *filename)
         return NULL;
 
     /* Return the raw BlockDriver * to scsi-generic devices */
-    if (bs->sg)
+    if (bs->sg) {
+        bdrv_delete(bs);
         return bdrv_find_format("raw");
+    }
 
     ret = bdrv_pread(bs, 0, buf, sizeof(buf));
     bdrv_delete(bs);
@@ -478,7 +479,7 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags)
     BlockDriver *drv;
     int ret;
 
-    drv = find_protocol(filename);
+    drv = bdrv_find_protocol(filename);
     if (!drv) {
         return -ENOENT;
     }
@@ -1950,7 +1951,7 @@ static int multiwrite_merge(BlockDriverState *bs, BlockRequest *reqs,
             // Add the second request
             qemu_iovec_concat(qiov, reqs[i].qiov, reqs[i].qiov->size);
 
-            reqs[outidx].nb_sectors += reqs[i].nb_sectors;
+            reqs[outidx].nb_sectors = qiov->size >> 9;
             reqs[outidx].qiov = qiov;
 
             mcb->callbacks[i].free_qiov = reqs[outidx].qiov;

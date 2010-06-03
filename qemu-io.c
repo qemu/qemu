@@ -267,6 +267,47 @@ static int do_aio_writev(QEMUIOVector *qiov, int64_t offset, int *total)
 	return async_ret < 0 ? async_ret : 1;
 }
 
+struct multiwrite_async_ret {
+	int num_done;
+	int error;
+};
+
+static void multiwrite_cb(void *opaque, int ret)
+{
+	struct multiwrite_async_ret *async_ret = opaque;
+
+	async_ret->num_done++;
+	if (ret < 0) {
+		async_ret->error = ret;
+	}
+}
+
+static int do_aio_multiwrite(BlockRequest* reqs, int num_reqs, int *total)
+{
+	int i, ret;
+	struct multiwrite_async_ret async_ret = {
+		.num_done = 0,
+		.error = 0,
+	};
+
+	*total = 0;
+	for (i = 0; i < num_reqs; i++) {
+		reqs[i].cb = multiwrite_cb;
+		reqs[i].opaque = &async_ret;
+		*total += reqs[i].qiov->size;
+	}
+
+	ret = bdrv_aio_multiwrite(bs, reqs, num_reqs);
+	if (ret < 0) {
+		return ret;
+	}
+
+	while (async_ret.num_done < num_reqs) {
+		qemu_aio_wait();
+	}
+
+	return async_ret.error < 0 ? async_ret.error : 1;
+}
 
 static void
 read_help(void)
@@ -808,6 +849,156 @@ writev_f(int argc, char **argv)
 	print_report("wrote", &t2, offset, qiov.size, total, cnt, Cflag);
 out:
 	qemu_io_free(buf);
+	return 0;
+}
+
+static void
+multiwrite_help(void)
+{
+	printf(
+"\n"
+" writes a range of bytes from the given offset source from multiple buffers,\n"
+" in a batch of requests that may be merged by qemu\n"
+"\n"
+" Example:\n"
+" 'multiwrite 512 1k 1k ; 4k 1k' \n"
+"  writes 2 kB at 512 bytes and 1 kB at 4 kB into the open file\n"
+"\n"
+" Writes into a segment of the currently open file, using a buffer\n"
+" filled with a set pattern (0xcdcdcdcd). The pattern byte is increased\n"
+" by one for each request contained in the multiwrite command.\n"
+" -P, -- use different pattern to fill file\n"
+" -C, -- report statistics in a machine parsable format\n"
+" -q, -- quiet mode, do not show I/O statistics\n"
+"\n");
+}
+
+static int multiwrite_f(int argc, char **argv);
+
+static const cmdinfo_t multiwrite_cmd = {
+	.name		= "multiwrite",
+	.cfunc		= multiwrite_f,
+	.argmin		= 2,
+	.argmax		= -1,
+	.args		= "[-Cq] [-P pattern ] off len [len..] [; off len [len..]..]",
+	.oneline	= "issues multiple write requests at once",
+	.help		= multiwrite_help,
+};
+
+static int
+multiwrite_f(int argc, char **argv)
+{
+	struct timeval t1, t2;
+	int Cflag = 0, qflag = 0;
+	int c, cnt;
+	char **buf;
+	int64_t offset, first_offset = 0;
+	/* Some compilers get confused and warn if this is not initialized.  */
+	int total = 0;
+	int nr_iov;
+	int nr_reqs;
+	int pattern = 0xcd;
+	QEMUIOVector *qiovs;
+	int i;
+	BlockRequest *reqs;
+
+	while ((c = getopt(argc, argv, "CqP:")) != EOF) {
+		switch (c) {
+		case 'C':
+			Cflag = 1;
+			break;
+		case 'q':
+			qflag = 1;
+			break;
+		case 'P':
+			pattern = parse_pattern(optarg);
+			if (pattern < 0)
+				return 0;
+			break;
+		default:
+			return command_usage(&writev_cmd);
+		}
+	}
+
+	if (optind > argc - 2)
+		return command_usage(&writev_cmd);
+
+	nr_reqs = 1;
+	for (i = optind; i < argc; i++) {
+		if (!strcmp(argv[i], ";")) {
+			nr_reqs++;
+		}
+	}
+
+	reqs = qemu_malloc(nr_reqs * sizeof(*reqs));
+	buf = qemu_malloc(nr_reqs * sizeof(*buf));
+	qiovs = qemu_malloc(nr_reqs * sizeof(*qiovs));
+
+	for (i = 0; i < nr_reqs; i++) {
+		int j;
+
+		/* Read the offset of the request */
+		offset = cvtnum(argv[optind]);
+		if (offset < 0) {
+			printf("non-numeric offset argument -- %s\n", argv[optind]);
+			return 0;
+		}
+		optind++;
+
+		if (offset & 0x1ff) {
+			printf("offset %lld is not sector aligned\n",
+				(long long)offset);
+			return 0;
+		}
+
+        if (i == 0) {
+            first_offset = offset;
+        }
+
+		/* Read lengths for qiov entries */
+		for (j = optind; j < argc; j++) {
+			if (!strcmp(argv[j], ";")) {
+				break;
+			}
+		}
+
+		nr_iov = j - optind;
+
+		/* Build request */
+		reqs[i].qiov = &qiovs[i];
+		buf[i] = create_iovec(reqs[i].qiov, &argv[optind], nr_iov, pattern);
+		reqs[i].sector = offset >> 9;
+		reqs[i].nb_sectors = reqs[i].qiov->size >> 9;
+
+		optind = j + 1;
+
+		offset += reqs[i].qiov->size;
+		pattern++;
+	}
+
+	gettimeofday(&t1, NULL);
+	cnt = do_aio_multiwrite(reqs, nr_reqs, &total);
+	gettimeofday(&t2, NULL);
+
+	if (cnt < 0) {
+		printf("aio_multiwrite failed: %s\n", strerror(-cnt));
+		goto out;
+	}
+
+	if (qflag)
+		goto out;
+
+	/* Finally, report back -- -C gives a parsable format */
+	t2 = tsub(t2, t1);
+	print_report("wrote", &t2, first_offset, total, total, cnt, Cflag);
+out:
+	for (i = 0; i < nr_reqs; i++) {
+		qemu_io_free(buf[i]);
+		qemu_iovec_destroy(&qiovs[i]);
+	}
+	qemu_free(buf);
+	qemu_free(reqs);
+	qemu_free(qiovs);
 	return 0;
 }
 
@@ -1483,6 +1674,7 @@ int main(int argc, char **argv)
 	add_command(&readv_cmd);
 	add_command(&write_cmd);
 	add_command(&writev_cmd);
+	add_command(&multiwrite_cmd);
 	add_command(&aio_read_cmd);
 	add_command(&aio_write_cmd);
 	add_command(&aio_flush_cmd);
