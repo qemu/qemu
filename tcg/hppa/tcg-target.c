@@ -1600,7 +1600,7 @@ static int tcg_target_callee_save_regs[] = {
     TCG_REG_R18
 };
 
-void tcg_target_qemu_prologue(TCGContext *s)
+static void tcg_target_qemu_prologue(TCGContext *s)
 {
     int frame_size, i;
 
@@ -1652,7 +1652,7 @@ void tcg_target_qemu_prologue(TCGContext *s)
                  TCG_REG_SP, -frame_size, INSN_LDWM);
 }
 
-void tcg_target_init(TCGContext *s)
+static void tcg_target_init(TCGContext *s)
 {
     tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffffffff);
 

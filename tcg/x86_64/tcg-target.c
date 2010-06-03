@@ -1279,7 +1279,7 @@ static inline void tcg_out_pop(TCGContext *s, int reg)
 }
 
 /* Generate global QEMU prologue and epilogue code */
-void tcg_target_qemu_prologue(TCGContext *s)
+static void tcg_target_qemu_prologue(TCGContext *s)
 {
     int i, frame_size, push_size, stack_addend;
 
@@ -1417,7 +1417,7 @@ static const TCGTargetOpDef x86_64_op_defs[] = {
     { -1 },
 };
 
-void tcg_target_init(TCGContext *s)
+static void tcg_target_init(TCGContext *s)
 {
 #if !defined(CONFIG_USER_ONLY)
     /* fail safe */

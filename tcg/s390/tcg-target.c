@@ -84,12 +84,12 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     tcg_abort();
 }
 
-void tcg_target_init(TCGContext *s)
+static void tcg_target_init(TCGContext *s)
 {
     /* gets called with KVM */
 }
 
-void tcg_target_qemu_prologue(TCGContext *s)
+static void tcg_target_qemu_prologue(TCGContext *s)
 {
     /* gets called with KVM */
 }

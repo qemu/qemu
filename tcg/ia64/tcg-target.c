@@ -2266,7 +2266,7 @@ static const TCGTargetOpDef ia64_op_defs[] = {
 };
 
 /* Generate global QEMU prologue and epilogue code */
-void tcg_target_qemu_prologue(TCGContext *s)
+static void tcg_target_qemu_prologue(TCGContext *s)
 {
     int frame_size;
 
@@ -2321,7 +2321,7 @@ void tcg_target_qemu_prologue(TCGContext *s)
                                TCG_REG_B0));
 }
 
-void tcg_target_init(TCGContext *s)
+static void tcg_target_init(TCGContext *s)
 {
     tcg_regset_set(tcg_target_available_regs[TCG_TYPE_I32],
                    0xffffffffffffffffull);

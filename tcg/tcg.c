@@ -63,6 +63,8 @@
 #error GUEST_BASE not supported on this host.
 #endif
 
+static void tcg_target_init(TCGContext *s);
+static void tcg_target_qemu_prologue(TCGContext *s);
 static void patch_reloc(uint8_t *code_ptr, int type, 
                         tcg_target_long value, tcg_target_long addend);
 

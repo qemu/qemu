@@ -1466,7 +1466,7 @@ static int tcg_target_callee_save_regs[] = {
 };
 
 /* Generate global QEMU prologue and epilogue code */
-void tcg_target_qemu_prologue(TCGContext *s)
+static void tcg_target_qemu_prologue(TCGContext *s)
 {
     int i, frame_size;
 
@@ -1498,7 +1498,7 @@ void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out_addi(s, TCG_REG_SP, frame_size);
 }
 
-void tcg_target_init(TCGContext *s)
+static void tcg_target_init(TCGContext *s)
 {
     tcg_regset_set(tcg_target_available_regs[TCG_TYPE_I32], 0xffffffff);
     tcg_regset_set(tcg_target_call_clobber_regs,

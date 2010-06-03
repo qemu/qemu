@@ -1430,7 +1430,7 @@ static int tcg_target_callee_save_regs[] = {
 };
 
 /* Generate global QEMU prologue and epilogue code */
-void tcg_target_qemu_prologue(TCGContext *s)
+static void tcg_target_qemu_prologue(TCGContext *s)
 {
     int i, frame_size, push_size, stack_addend;
 
@@ -1458,7 +1458,7 @@ void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out_opc(s, OPC_RET);
 }
 
-void tcg_target_init(TCGContext *s)
+static void tcg_target_init(TCGContext *s)
 {
 #if !defined(CONFIG_USER_ONLY)
     /* fail safe */
