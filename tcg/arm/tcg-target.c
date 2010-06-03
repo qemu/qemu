@@ -1798,7 +1798,7 @@ static void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val)
     }
 }
 
-static inline void tcg_out_mov(TCGContext *s, int ret, int arg)
+static inline void tcg_out_mov(TCGContext *s, TCGType type, int ret, int arg)
 {
     tcg_out_dat_reg(s, COND_AL, ARITH_MOV, ret, 0, arg, SHIFT_IMM_LSL(0));
 }

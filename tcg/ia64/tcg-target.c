@@ -827,7 +827,8 @@ static inline void tcg_out_bundle(TCGContext *s, int template,
     s->code_ptr += 16;
 }
 
-static inline void tcg_out_mov(TCGContext *s, TCGArg ret, TCGArg arg)
+static inline void tcg_out_mov(TCGContext *s, TCGType type,
+                               TCGArg ret, TCGArg arg)
 {
     tcg_out_bundle(s, mmI,
                    tcg_opc_m48(TCG_REG_P0, OPC_NOP_M48, 0),

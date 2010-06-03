@@ -94,7 +94,7 @@ void tcg_target_qemu_prologue(TCGContext *s)
     /* gets called with KVM */
 }
 
-static inline void tcg_out_mov(TCGContext *s, int ret, int arg)
+static inline void tcg_out_mov(TCGContext *s, TCGType type, int ret, int arg)
 {
     tcg_abort();
 }
