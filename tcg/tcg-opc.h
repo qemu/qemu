@@ -21,283 +21,284 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef DEF2
-#define DEF2(name, oargs, iargs, cargs, flags) DEF(name, oargs + iargs + cargs)
-#endif
+
+/*
+ * DEF(name, oargs, iargs, cargs, flags)
+ */
 
 /* predefined ops */
-DEF2(end, 0, 0, 0, 0) /* must be kept first */
-DEF2(nop, 0, 0, 0, 0)
-DEF2(nop1, 0, 0, 1, 0)
-DEF2(nop2, 0, 0, 2, 0)
-DEF2(nop3, 0, 0, 3, 0)
-DEF2(nopn, 0, 0, 1, 0) /* variable number of parameters */
+DEF(end, 0, 0, 0, 0) /* must be kept first */
+DEF(nop, 0, 0, 0, 0)
+DEF(nop1, 0, 0, 1, 0)
+DEF(nop2, 0, 0, 2, 0)
+DEF(nop3, 0, 0, 3, 0)
+DEF(nopn, 0, 0, 1, 0) /* variable number of parameters */
 
-DEF2(discard, 1, 0, 0, 0)
+DEF(discard, 1, 0, 0, 0)
 
-DEF2(set_label, 0, 0, 1, 0)
-DEF2(call, 0, 1, 2, TCG_OPF_SIDE_EFFECTS) /* variable number of parameters */
-DEF2(jmp, 0, 1, 0, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
-DEF2(br, 0, 0, 1, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
+DEF(set_label, 0, 0, 1, 0)
+DEF(call, 0, 1, 2, TCG_OPF_SIDE_EFFECTS) /* variable number of parameters */
+DEF(jmp, 0, 1, 0, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
+DEF(br, 0, 0, 1, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
 
-DEF2(mov_i32, 1, 1, 0, 0)
-DEF2(movi_i32, 1, 0, 1, 0)
-DEF2(setcond_i32, 1, 2, 1, 0)
+DEF(mov_i32, 1, 1, 0, 0)
+DEF(movi_i32, 1, 0, 1, 0)
+DEF(setcond_i32, 1, 2, 1, 0)
 /* load/store */
-DEF2(ld8u_i32, 1, 1, 1, 0)
-DEF2(ld8s_i32, 1, 1, 1, 0)
-DEF2(ld16u_i32, 1, 1, 1, 0)
-DEF2(ld16s_i32, 1, 1, 1, 0)
-DEF2(ld_i32, 1, 1, 1, 0)
-DEF2(st8_i32, 0, 2, 1, TCG_OPF_SIDE_EFFECTS)
-DEF2(st16_i32, 0, 2, 1, TCG_OPF_SIDE_EFFECTS)
-DEF2(st_i32, 0, 2, 1, TCG_OPF_SIDE_EFFECTS)
+DEF(ld8u_i32, 1, 1, 1, 0)
+DEF(ld8s_i32, 1, 1, 1, 0)
+DEF(ld16u_i32, 1, 1, 1, 0)
+DEF(ld16s_i32, 1, 1, 1, 0)
+DEF(ld_i32, 1, 1, 1, 0)
+DEF(st8_i32, 0, 2, 1, TCG_OPF_SIDE_EFFECTS)
+DEF(st16_i32, 0, 2, 1, TCG_OPF_SIDE_EFFECTS)
+DEF(st_i32, 0, 2, 1, TCG_OPF_SIDE_EFFECTS)
 /* arith */
-DEF2(add_i32, 1, 2, 0, 0)
-DEF2(sub_i32, 1, 2, 0, 0)
-DEF2(mul_i32, 1, 2, 0, 0)
+DEF(add_i32, 1, 2, 0, 0)
+DEF(sub_i32, 1, 2, 0, 0)
+DEF(mul_i32, 1, 2, 0, 0)
 #ifdef TCG_TARGET_HAS_div_i32
-DEF2(div_i32, 1, 2, 0, 0)
-DEF2(divu_i32, 1, 2, 0, 0)
-DEF2(rem_i32, 1, 2, 0, 0)
-DEF2(remu_i32, 1, 2, 0, 0)
+DEF(div_i32, 1, 2, 0, 0)
+DEF(divu_i32, 1, 2, 0, 0)
+DEF(rem_i32, 1, 2, 0, 0)
+DEF(remu_i32, 1, 2, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_div2_i32
-DEF2(div2_i32, 2, 3, 0, 0)
-DEF2(divu2_i32, 2, 3, 0, 0)
+DEF(div2_i32, 2, 3, 0, 0)
+DEF(divu2_i32, 2, 3, 0, 0)
 #endif
-DEF2(and_i32, 1, 2, 0, 0)
-DEF2(or_i32, 1, 2, 0, 0)
-DEF2(xor_i32, 1, 2, 0, 0)
+DEF(and_i32, 1, 2, 0, 0)
+DEF(or_i32, 1, 2, 0, 0)
+DEF(xor_i32, 1, 2, 0, 0)
 /* shifts/rotates */
-DEF2(shl_i32, 1, 2, 0, 0)
-DEF2(shr_i32, 1, 2, 0, 0)
-DEF2(sar_i32, 1, 2, 0, 0)
+DEF(shl_i32, 1, 2, 0, 0)
+DEF(shr_i32, 1, 2, 0, 0)
+DEF(sar_i32, 1, 2, 0, 0)
 #ifdef TCG_TARGET_HAS_rot_i32
-DEF2(rotl_i32, 1, 2, 0, 0)
-DEF2(rotr_i32, 1, 2, 0, 0)
+DEF(rotl_i32, 1, 2, 0, 0)
+DEF(rotr_i32, 1, 2, 0, 0)
 #endif
 
-DEF2(brcond_i32, 0, 2, 2, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
+DEF(brcond_i32, 0, 2, 2, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
 #if TCG_TARGET_REG_BITS == 32
-DEF2(add2_i32, 2, 4, 0, 0)
-DEF2(sub2_i32, 2, 4, 0, 0)
-DEF2(brcond2_i32, 0, 4, 2, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
-DEF2(mulu2_i32, 2, 2, 0, 0)
-DEF2(setcond2_i32, 1, 4, 1, 0)
+DEF(add2_i32, 2, 4, 0, 0)
+DEF(sub2_i32, 2, 4, 0, 0)
+DEF(brcond2_i32, 0, 4, 2, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
+DEF(mulu2_i32, 2, 2, 0, 0)
+DEF(setcond2_i32, 1, 4, 1, 0)
 #endif
 #ifdef TCG_TARGET_HAS_ext8s_i32
-DEF2(ext8s_i32, 1, 1, 0, 0)
+DEF(ext8s_i32, 1, 1, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_ext16s_i32
-DEF2(ext16s_i32, 1, 1, 0, 0)
+DEF(ext16s_i32, 1, 1, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_ext8u_i32
-DEF2(ext8u_i32, 1, 1, 0, 0)
+DEF(ext8u_i32, 1, 1, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_ext16u_i32
-DEF2(ext16u_i32, 1, 1, 0, 0)
+DEF(ext16u_i32, 1, 1, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_bswap16_i32
-DEF2(bswap16_i32, 1, 1, 0, 0)
+DEF(bswap16_i32, 1, 1, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_bswap32_i32
-DEF2(bswap32_i32, 1, 1, 0, 0)
+DEF(bswap32_i32, 1, 1, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_not_i32
-DEF2(not_i32, 1, 1, 0, 0)
+DEF(not_i32, 1, 1, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_neg_i32
-DEF2(neg_i32, 1, 1, 0, 0)
+DEF(neg_i32, 1, 1, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_andc_i32
-DEF2(andc_i32, 1, 2, 0, 0)
+DEF(andc_i32, 1, 2, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_orc_i32
-DEF2(orc_i32, 1, 2, 0, 0)
+DEF(orc_i32, 1, 2, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_eqv_i32
-DEF2(eqv_i32, 1, 2, 0, 0)
+DEF(eqv_i32, 1, 2, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_nand_i32
-DEF2(nand_i32, 1, 2, 0, 0)
+DEF(nand_i32, 1, 2, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_nor_i32
-DEF2(nor_i32, 1, 2, 0, 0)
+DEF(nor_i32, 1, 2, 0, 0)
 #endif
 
 #if TCG_TARGET_REG_BITS == 64
-DEF2(mov_i64, 1, 1, 0, 0)
-DEF2(movi_i64, 1, 0, 1, 0)
-DEF2(setcond_i64, 1, 2, 1, 0)
+DEF(mov_i64, 1, 1, 0, 0)
+DEF(movi_i64, 1, 0, 1, 0)
+DEF(setcond_i64, 1, 2, 1, 0)
 /* load/store */
-DEF2(ld8u_i64, 1, 1, 1, 0)
-DEF2(ld8s_i64, 1, 1, 1, 0)
-DEF2(ld16u_i64, 1, 1, 1, 0)
-DEF2(ld16s_i64, 1, 1, 1, 0)
-DEF2(ld32u_i64, 1, 1, 1, 0)
-DEF2(ld32s_i64, 1, 1, 1, 0)
-DEF2(ld_i64, 1, 1, 1, 0)
-DEF2(st8_i64, 0, 2, 1, TCG_OPF_SIDE_EFFECTS)
-DEF2(st16_i64, 0, 2, 1, TCG_OPF_SIDE_EFFECTS)
-DEF2(st32_i64, 0, 2, 1, TCG_OPF_SIDE_EFFECTS)
-DEF2(st_i64, 0, 2, 1, TCG_OPF_SIDE_EFFECTS)
+DEF(ld8u_i64, 1, 1, 1, 0)
+DEF(ld8s_i64, 1, 1, 1, 0)
+DEF(ld16u_i64, 1, 1, 1, 0)
+DEF(ld16s_i64, 1, 1, 1, 0)
+DEF(ld32u_i64, 1, 1, 1, 0)
+DEF(ld32s_i64, 1, 1, 1, 0)
+DEF(ld_i64, 1, 1, 1, 0)
+DEF(st8_i64, 0, 2, 1, TCG_OPF_SIDE_EFFECTS)
+DEF(st16_i64, 0, 2, 1, TCG_OPF_SIDE_EFFECTS)
+DEF(st32_i64, 0, 2, 1, TCG_OPF_SIDE_EFFECTS)
+DEF(st_i64, 0, 2, 1, TCG_OPF_SIDE_EFFECTS)
 /* arith */
-DEF2(add_i64, 1, 2, 0, 0)
-DEF2(sub_i64, 1, 2, 0, 0)
-DEF2(mul_i64, 1, 2, 0, 0)
+DEF(add_i64, 1, 2, 0, 0)
+DEF(sub_i64, 1, 2, 0, 0)
+DEF(mul_i64, 1, 2, 0, 0)
 #ifdef TCG_TARGET_HAS_div_i64
-DEF2(div_i64, 1, 2, 0, 0)
-DEF2(divu_i64, 1, 2, 0, 0)
-DEF2(rem_i64, 1, 2, 0, 0)
-DEF2(remu_i64, 1, 2, 0, 0)
+DEF(div_i64, 1, 2, 0, 0)
+DEF(divu_i64, 1, 2, 0, 0)
+DEF(rem_i64, 1, 2, 0, 0)
+DEF(remu_i64, 1, 2, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_div2_i64
-DEF2(div2_i64, 2, 3, 0, 0)
-DEF2(divu2_i64, 2, 3, 0, 0)
+DEF(div2_i64, 2, 3, 0, 0)
+DEF(divu2_i64, 2, 3, 0, 0)
 #endif
-DEF2(and_i64, 1, 2, 0, 0)
-DEF2(or_i64, 1, 2, 0, 0)
-DEF2(xor_i64, 1, 2, 0, 0)
+DEF(and_i64, 1, 2, 0, 0)
+DEF(or_i64, 1, 2, 0, 0)
+DEF(xor_i64, 1, 2, 0, 0)
 /* shifts/rotates */
-DEF2(shl_i64, 1, 2, 0, 0)
-DEF2(shr_i64, 1, 2, 0, 0)
-DEF2(sar_i64, 1, 2, 0, 0)
+DEF(shl_i64, 1, 2, 0, 0)
+DEF(shr_i64, 1, 2, 0, 0)
+DEF(sar_i64, 1, 2, 0, 0)
 #ifdef TCG_TARGET_HAS_rot_i64
-DEF2(rotl_i64, 1, 2, 0, 0)
-DEF2(rotr_i64, 1, 2, 0, 0)
+DEF(rotl_i64, 1, 2, 0, 0)
+DEF(rotr_i64, 1, 2, 0, 0)
 #endif
 
-DEF2(brcond_i64, 0, 2, 2, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
+DEF(brcond_i64, 0, 2, 2, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
 #ifdef TCG_TARGET_HAS_ext8s_i64
-DEF2(ext8s_i64, 1, 1, 0, 0)
+DEF(ext8s_i64, 1, 1, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_ext16s_i64
-DEF2(ext16s_i64, 1, 1, 0, 0)
+DEF(ext16s_i64, 1, 1, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_ext32s_i64
-DEF2(ext32s_i64, 1, 1, 0, 0)
+DEF(ext32s_i64, 1, 1, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_ext8u_i64
-DEF2(ext8u_i64, 1, 1, 0, 0)
+DEF(ext8u_i64, 1, 1, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_ext16u_i64
-DEF2(ext16u_i64, 1, 1, 0, 0)
+DEF(ext16u_i64, 1, 1, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_ext32u_i64
-DEF2(ext32u_i64, 1, 1, 0, 0)
+DEF(ext32u_i64, 1, 1, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_bswap16_i64
-DEF2(bswap16_i64, 1, 1, 0, 0)
+DEF(bswap16_i64, 1, 1, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_bswap32_i64
-DEF2(bswap32_i64, 1, 1, 0, 0)
+DEF(bswap32_i64, 1, 1, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_bswap64_i64
-DEF2(bswap64_i64, 1, 1, 0, 0)
+DEF(bswap64_i64, 1, 1, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_not_i64
-DEF2(not_i64, 1, 1, 0, 0)
+DEF(not_i64, 1, 1, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_neg_i64
-DEF2(neg_i64, 1, 1, 0, 0)
+DEF(neg_i64, 1, 1, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_andc_i64
-DEF2(andc_i64, 1, 2, 0, 0)
+DEF(andc_i64, 1, 2, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_orc_i64
-DEF2(orc_i64, 1, 2, 0, 0)
+DEF(orc_i64, 1, 2, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_eqv_i64
-DEF2(eqv_i64, 1, 2, 0, 0)
+DEF(eqv_i64, 1, 2, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_nand_i64
-DEF2(nand_i64, 1, 2, 0, 0)
+DEF(nand_i64, 1, 2, 0, 0)
 #endif
 #ifdef TCG_TARGET_HAS_nor_i64
-DEF2(nor_i64, 1, 2, 0, 0)
+DEF(nor_i64, 1, 2, 0, 0)
 #endif
 #endif
 
 /* QEMU specific */
 #if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
-DEF2(debug_insn_start, 0, 0, 2, 0)
+DEF(debug_insn_start, 0, 0, 2, 0)
 #else
-DEF2(debug_insn_start, 0, 0, 1, 0)
+DEF(debug_insn_start, 0, 0, 1, 0)
 #endif
-DEF2(exit_tb, 0, 0, 1, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
-DEF2(goto_tb, 0, 0, 1, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
+DEF(exit_tb, 0, 0, 1, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
+DEF(goto_tb, 0, 0, 1, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
 /* Note: even if TARGET_LONG_BITS is not defined, the INDEX_op
    constants must be defined */
 #if TCG_TARGET_REG_BITS == 32
 #if TARGET_LONG_BITS == 32
-DEF2(qemu_ld8u, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_ld8u, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 #else
-DEF2(qemu_ld8u, 1, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_ld8u, 1, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 #endif
 #if TARGET_LONG_BITS == 32
-DEF2(qemu_ld8s, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_ld8s, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 #else
-DEF2(qemu_ld8s, 1, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_ld8s, 1, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 #endif
 #if TARGET_LONG_BITS == 32
-DEF2(qemu_ld16u, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_ld16u, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 #else
-DEF2(qemu_ld16u, 1, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_ld16u, 1, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 #endif
 #if TARGET_LONG_BITS == 32
-DEF2(qemu_ld16s, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_ld16s, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 #else
-DEF2(qemu_ld16s, 1, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_ld16s, 1, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 #endif
 #if TARGET_LONG_BITS == 32
-DEF2(qemu_ld32, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_ld32, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 #else
-DEF2(qemu_ld32, 1, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_ld32, 1, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 #endif
 #if TARGET_LONG_BITS == 32
-DEF2(qemu_ld64, 2, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_ld64, 2, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 #else
-DEF2(qemu_ld64, 2, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_ld64, 2, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 #endif
 
 #if TARGET_LONG_BITS == 32
-DEF2(qemu_st8, 0, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_st8, 0, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 #else
-DEF2(qemu_st8, 0, 3, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_st8, 0, 3, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 #endif
 #if TARGET_LONG_BITS == 32
-DEF2(qemu_st16, 0, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_st16, 0, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 #else
-DEF2(qemu_st16, 0, 3, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_st16, 0, 3, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 #endif
 #if TARGET_LONG_BITS == 32
-DEF2(qemu_st32, 0, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_st32, 0, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 #else
-DEF2(qemu_st32, 0, 3, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_st32, 0, 3, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 #endif
 #if TARGET_LONG_BITS == 32
-DEF2(qemu_st64, 0, 3, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_st64, 0, 3, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 #else
-DEF2(qemu_st64, 0, 4, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_st64, 0, 4, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 #endif
 
 #else /* TCG_TARGET_REG_BITS == 32 */
 
-DEF2(qemu_ld8u, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
-DEF2(qemu_ld8s, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
-DEF2(qemu_ld16u, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
-DEF2(qemu_ld16s, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
-DEF2(qemu_ld32, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
-DEF2(qemu_ld32u, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
-DEF2(qemu_ld32s, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
-DEF2(qemu_ld64, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_ld8u, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_ld8s, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_ld16u, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_ld16s, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_ld32, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_ld32u, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_ld32s, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_ld64, 1, 1, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 
-DEF2(qemu_st8, 0, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
-DEF2(qemu_st16, 0, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
-DEF2(qemu_st32, 0, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
-DEF2(qemu_st64, 0, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_st8, 0, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_st16, 0, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_st32, 0, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
+DEF(qemu_st64, 0, 2, 1, TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 
 #endif /* TCG_TARGET_REG_BITS != 32 */
 
-#undef DEF2
+#undef DEF

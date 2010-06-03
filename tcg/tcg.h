@@ -48,7 +48,7 @@ typedef uint64_t TCGRegSet;
 #endif
 
 typedef enum TCGOpcode {
-#define DEF(s, n) INDEX_op_ ## s,
+#define DEF(name, oargs, iargs, cargs, flags) INDEX_op_ ## name,
 #include "tcg-opc.h"
 #undef DEF
     NB_OPS,
