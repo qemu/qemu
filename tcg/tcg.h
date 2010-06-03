@@ -48,7 +48,7 @@ typedef uint64_t TCGRegSet;
 #endif
 
 typedef enum TCGOpcode {
-#define DEF(s, n, copy_size) INDEX_op_ ## s,
+#define DEF(s, n) INDEX_op_ ## s,
 #include "tcg-opc.h"
 #undef DEF
     NB_OPS,
@@ -422,7 +422,6 @@ typedef struct TCGOpDef {
     const char *name;
     uint8_t nb_oargs, nb_iargs, nb_cargs, nb_args;
     uint8_t flags;
-    uint16_t copy_size;
     TCGArgConstraint *args_ct;
     int *sorted_args;
 #if defined(CONFIG_DEBUG_TCG)

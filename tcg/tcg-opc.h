@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #ifndef DEF2
-#define DEF2(name, oargs, iargs, cargs, flags) DEF(name, oargs + iargs + cargs, 0)
+#define DEF2(name, oargs, iargs, cargs, flags) DEF(name, oargs + iargs + cargs)
 #endif
 
 /* predefined ops */
