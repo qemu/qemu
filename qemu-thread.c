@@ -137,9 +137,16 @@ void qemu_thread_create(QemuThread *thread,
 {
     int err;
 
+    /* Leave signal handling to the iothread.  */
+    sigset_t set, oldset;
+
+    sigfillset(&set);
+    pthread_sigmask(SIG_SETMASK, &set, &oldset);
     err = pthread_create(&thread->thread, NULL, start_routine, arg);
     if (err)
         error_exit(err, __func__);
+
+    pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 }
 
 void qemu_thread_signal(QemuThread *thread, int sig)

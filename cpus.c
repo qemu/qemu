@@ -318,8 +318,8 @@ static QemuCond qemu_system_cond;
 static QemuCond qemu_pause_cond;
 static QemuCond qemu_work_cond;
 
-static void tcg_block_io_signals(void);
-static void kvm_block_io_signals(CPUState *env);
+static void tcg_init_ipi(void);
+static void kvm_init_ipi(CPUState *env);
 static void unblock_io_signals(void);
 
 int qemu_init_main_loop(void)
@@ -464,7 +464,7 @@ static void *kvm_cpu_thread_fn(void *arg)
     if (kvm_enabled())
         kvm_init_vcpu(env);
 
-    kvm_block_io_signals(env);
+    kvm_init_ipi(env);
 
     /* signal CPU creation */
     env->created = 1;
@@ -487,7 +487,7 @@ static void *tcg_cpu_thread_fn(void *arg)
 {
     CPUState *env = arg;
 
-    tcg_block_io_signals();
+    tcg_init_ipi();
     qemu_thread_self(env->thread);
 
     /* signal CPU creation */
@@ -532,52 +532,36 @@ static void cpu_signal(int sig)
     exit_request = 1;
 }
 
-static void tcg_block_io_signals(void)
+static void tcg_init_ipi(void)
 {
     sigset_t set;
     struct sigaction sigact;
 
-    sigemptyset(&set);
-    sigaddset(&set, SIGUSR2);
-    sigaddset(&set, SIGIO);
-    sigaddset(&set, SIGALRM);
-    sigaddset(&set, SIGCHLD);
-    pthread_sigmask(SIG_BLOCK, &set, NULL);
+    memset(&sigact, 0, sizeof(sigact));
+    sigact.sa_handler = cpu_signal;
+    sigaction(SIG_IPI, &sigact, NULL);
 
     sigemptyset(&set);
     sigaddset(&set, SIG_IPI);
     pthread_sigmask(SIG_UNBLOCK, &set, NULL);
-
-    memset(&sigact, 0, sizeof(sigact));
-    sigact.sa_handler = cpu_signal;
-    sigaction(SIG_IPI, &sigact, NULL);
 }
 
 static void dummy_signal(int sig)
 {
 }
 
-static void kvm_block_io_signals(CPUState *env)
+static void kvm_init_ipi(CPUState *env)
 {
     int r;
     sigset_t set;
     struct sigaction sigact;
 
-    sigemptyset(&set);
-    sigaddset(&set, SIGUSR2);
-    sigaddset(&set, SIGIO);
-    sigaddset(&set, SIGALRM);
-    sigaddset(&set, SIGCHLD);
-    sigaddset(&set, SIG_IPI);
-    pthread_sigmask(SIG_BLOCK, &set, NULL);
-
-    pthread_sigmask(SIG_BLOCK, NULL, &set);
-    sigdelset(&set, SIG_IPI);
-
     memset(&sigact, 0, sizeof(sigact));
     sigact.sa_handler = dummy_signal;
     sigaction(SIG_IPI, &sigact, NULL);
 
+    pthread_sigmask(SIG_BLOCK, NULL, &set);
+    sigdelset(&set, SIG_IPI);
     r = kvm_set_signal_mask(env, &set);
     if (r) {
         fprintf(stderr, "kvm_set_signal_mask: %s\n", strerror(r));
