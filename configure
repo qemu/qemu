@@ -720,7 +720,12 @@ case "$cpu" in
            fi
            ;;
     s390)
-           QEMU_CFLAGS="-march=z900 $QEMU_CFLAGS"
+           QEMU_CFLAGS="-m31 -march=z990 $QEMU_CFLAGS"
+           LDFLAGS="-m31 $LDFLAGS"
+           ;;
+    s390x)
+           QEMU_CFLAGS="-m64 -march=z990 $QEMU_CFLAGS"
+           LDFLAGS="-m64 $LDFLAGS"
            ;;
     i386)
            QEMU_CFLAGS="-m32 $QEMU_CFLAGS"
