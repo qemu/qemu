@@ -272,16 +272,16 @@ const char *qdict_get_str(const QDict *qdict, const char *key)
  *
  * Return integer mapped by 'key', if it is not present in
  * the dictionary or if the stored object is not of QInt type
- * 'err_value' will be returned.
+ * 'def_value' will be returned.
  */
 int64_t qdict_get_try_int(const QDict *qdict, const char *key,
-                          int64_t err_value)
+                          int64_t def_value)
 {
     QObject *obj;
 
     obj = qdict_get(qdict, key);
     if (!obj || qobject_type(obj) != QTYPE_QINT)
-        return err_value;
+        return def_value;
 
     return qint_get_int(qobject_to_qint(obj));
 }

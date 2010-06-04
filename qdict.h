@@ -56,7 +56,7 @@ QList *qdict_get_qlist(const QDict *qdict, const char *key);
 QDict *qdict_get_qdict(const QDict *qdict, const char *key);
 const char *qdict_get_str(const QDict *qdict, const char *key);
 int64_t qdict_get_try_int(const QDict *qdict, const char *key,
-                          int64_t err_value);
+                          int64_t def_value);
 const char *qdict_get_try_str(const QDict *qdict, const char *key);
 
 #endif /* QDICT_H */
