@@ -164,7 +164,7 @@ struct DisplayChangeListener {
                      int w, int h, uint32_t c);
     void (*dpy_text_cursor)(struct DisplayState *s, int x, int y);
 
-    struct DisplayChangeListener *next;
+    QLIST_ENTRY(DisplayChangeListener) next;
 };
 
 struct DisplayAllocator {
@@ -179,7 +179,7 @@ struct DisplayState {
     struct QEMUTimer *gui_timer;
 
     struct DisplayAllocator* allocator;
-    struct DisplayChangeListener* listeners;
+    QLIST_HEAD(, DisplayChangeListener) listeners;
 
     void (*mouse_set)(int x, int y, int on);
     void (*cursor_define)(QEMUCursor *cursor);
@@ -231,72 +231,76 @@ static inline int is_buffer_shared(DisplaySurface *surface)
 
 static inline void register_displaychangelistener(DisplayState *ds, DisplayChangeListener *dcl)
 {
-    dcl->next = ds->listeners;
-    ds->listeners = dcl;
+    QLIST_INSERT_HEAD(&ds->listeners, dcl, next);
 }
 
 static inline void dpy_update(DisplayState *s, int x, int y, int w, int h)
 {
-    struct DisplayChangeListener *dcl = s->listeners;
-    while (dcl != NULL) {
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
         dcl->dpy_update(s, x, y, w, h);
-        dcl = dcl->next;
     }
 }
 
 static inline void dpy_resize(DisplayState *s)
 {
-    struct DisplayChangeListener *dcl = s->listeners;
-    while (dcl != NULL) {
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
         dcl->dpy_resize(s);
-        dcl = dcl->next;
     }
 }
 
 static inline void dpy_setdata(DisplayState *s)
 {
-    struct DisplayChangeListener *dcl = s->listeners;
-    while (dcl != NULL) {
-        if (dcl->dpy_setdata) dcl->dpy_setdata(s);
-        dcl = dcl->next;
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->dpy_setdata) {
+            dcl->dpy_setdata(s);
+        }
     }
 }
 
 static inline void dpy_refresh(DisplayState *s)
 {
-    struct DisplayChangeListener *dcl = s->listeners;
-    while (dcl != NULL) {
-        if (dcl->dpy_refresh) dcl->dpy_refresh(s);
-        dcl = dcl->next;
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->dpy_refresh) {
+            dcl->dpy_refresh(s);
+        }
     }
 }
 
 static inline void dpy_copy(struct DisplayState *s, int src_x, int src_y,
-                             int dst_x, int dst_y, int w, int h) {
-    struct DisplayChangeListener *dcl = s->listeners;
-    while (dcl != NULL) {
-        if (dcl->dpy_copy)
+                             int dst_x, int dst_y, int w, int h)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->dpy_copy) {
             dcl->dpy_copy(s, src_x, src_y, dst_x, dst_y, w, h);
-        else /* TODO */
+        } else { /* TODO */
             dcl->dpy_update(s, dst_x, dst_y, w, h);
-        dcl = dcl->next;
+        }
     }
 }
 
 static inline void dpy_fill(struct DisplayState *s, int x, int y,
-                             int w, int h, uint32_t c) {
-    struct DisplayChangeListener *dcl = s->listeners;
-    while (dcl != NULL) {
-        if (dcl->dpy_fill) dcl->dpy_fill(s, x, y, w, h, c);
-        dcl = dcl->next;
+                             int w, int h, uint32_t c)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->dpy_fill) {
+            dcl->dpy_fill(s, x, y, w, h, c);
+        }
     }
 }
 
-static inline void dpy_cursor(struct DisplayState *s, int x, int y) {
-    struct DisplayChangeListener *dcl = s->listeners;
-    while (dcl != NULL) {
-        if (dcl->dpy_text_cursor) dcl->dpy_text_cursor(s, x, y);
-        dcl = dcl->next;
+static inline void dpy_cursor(struct DisplayState *s, int x, int y)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->dpy_text_cursor) {
+            dcl->dpy_text_cursor(s, x, y);
+        }
     }
 }
 

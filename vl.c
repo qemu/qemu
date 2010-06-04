@@ -1359,15 +1359,14 @@ static void gui_update(void *opaque)
 {
     uint64_t interval = GUI_REFRESH_INTERVAL;
     DisplayState *ds = opaque;
-    DisplayChangeListener *dcl = ds->listeners;
+    DisplayChangeListener *dcl;
 
     dpy_refresh(ds);
 
-    while (dcl != NULL) {
+    QLIST_FOREACH(dcl, &ds->listeners, next) {
         if (dcl->gui_timer_interval &&
             dcl->gui_timer_interval < interval)
             interval = dcl->gui_timer_interval;
-        dcl = dcl->next;
     }
     qemu_mod_timer(ds->gui_timer, interval + qemu_get_clock_ms(rt_clock));
 }
@@ -3846,14 +3845,12 @@ int main(int argc, char **argv, char **envp)
 
     /* display setup */
     dpy_resize(ds);
-    dcl = ds->listeners;
-    while (dcl != NULL) {
+    QLIST_FOREACH(dcl, &ds->listeners, next) {
         if (dcl->dpy_refresh != NULL) {
             ds->gui_timer = qemu_new_timer_ms(rt_clock, gui_update, ds);
             qemu_mod_timer(ds->gui_timer, qemu_get_clock_ms(rt_clock));
             break;
         }
-        dcl = dcl->next;
     }
     text_consoles_set_display(ds);
 
