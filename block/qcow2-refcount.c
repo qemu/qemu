@@ -93,14 +93,19 @@ static int load_refcount_block(BlockDriverState *bs,
     int ret;
 
     if (cache_refcount_updates) {
-        write_refcount_block(bs);
+        ret = write_refcount_block(bs);
+        if (ret < 0) {
+            return ret;
+        }
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_REFBLOCK_LOAD);
     ret = bdrv_pread(bs->file, refcount_block_offset, s->refcount_block_cache,
                      s->cluster_size);
-    if (ret != s->cluster_size)
-        return -EIO;
+    if (ret < 0) {
+        return ret;
+    }
+
     s->refcount_block_cache_offset = refcount_block_offset;
     return 0;
 }
