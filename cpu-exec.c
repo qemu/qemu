@@ -1156,11 +1156,47 @@ int cpu_signal_handler(int host_signum, void *pinfo,
     siginfo_t *info = pinfo;
     struct ucontext *uc = puc;
     unsigned long pc;
-    int is_write;
+    uint16_t *pinsn;
+    int is_write = 0;
 
     pc = uc->uc_mcontext.psw.addr;
-    /* XXX: compute is_write */
-    is_write = 0;
+
+    /* ??? On linux, the non-rt signal handler has 4 (!) arguments instead
+       of the normal 2 arguments.  The 3rd argument contains the "int_code"
+       from the hardware which does in fact contain the is_write value.
+       The rt signal handler, as far as I can tell, does not give this value
+       at all.  Not that we could get to it from here even if it were.  */
+    /* ??? This is not even close to complete, since it ignores all
+       of the read-modify-write instructions.  */
+    pinsn = (uint16_t *)pc;
+    switch (pinsn[0] >> 8) {
+    case 0x50: /* ST */
+    case 0x42: /* STC */
+    case 0x40: /* STH */
+        is_write = 1;
+        break;
+    case 0xc4: /* RIL format insns */
+        switch (pinsn[0] & 0xf) {
+        case 0xf: /* STRL */
+        case 0xb: /* STGRL */
+        case 0x7: /* STHRL */
+            is_write = 1;
+        }
+        break;
+    case 0xe3: /* RXY format insns */
+        switch (pinsn[2] & 0xff) {
+        case 0x50: /* STY */
+        case 0x24: /* STG */
+        case 0x72: /* STCY */
+        case 0x70: /* STHY */
+        case 0x8e: /* STPQ */
+        case 0x3f: /* STRVH */
+        case 0x3e: /* STRV */
+        case 0x2f: /* STRVG */
+            is_write = 1;
+        }
+        break;
+    }
     return handle_cpu_signal(pc, (unsigned long)info->si_addr,
                              is_write, &uc->uc_sigmask, puc);
 }
