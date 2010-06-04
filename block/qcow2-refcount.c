@@ -105,11 +105,17 @@ static int load_refcount_block(BlockDriverState *bs,
     return 0;
 }
 
+/*
+ * Returns the refcount of the cluster given by its index. Any non-negative
+ * return value is the refcount of the cluster, negative values are -errno
+ * and indicate an error.
+ */
 static int get_refcount(BlockDriverState *bs, int64_t cluster_index)
 {
     BDRVQcowState *s = bs->opaque;
     int refcount_table_index, block_index;
     int64_t refcount_block_offset;
+    int ret;
 
     refcount_table_index = cluster_index >> (s->cluster_bits - REFCOUNT_SHIFT);
     if (refcount_table_index >= s->refcount_table_size)
@@ -119,8 +125,10 @@ static int get_refcount(BlockDriverState *bs, int64_t cluster_index)
         return 0;
     if (refcount_block_offset != s->refcount_block_cache_offset) {
         /* better than nothing: return allocated if read error */
-        if (load_refcount_block(bs, refcount_block_offset) < 0)
-            return 1;
+        ret = load_refcount_block(bs, refcount_block_offset);
+        if (ret < 0) {
+            return ret;
+        }
     }
     block_index = cluster_index &
         ((1 << (s->cluster_bits - REFCOUNT_SHIFT)) - 1);
@@ -538,7 +546,13 @@ fail:
     return ret;
 }
 
-/* addend must be 1 or -1 */
+/*
+ * Increases or decreases the refcount of a given cluster by one.
+ * addend must be 1 or -1.
+ *
+ * If the return value is non-negative, it is the new refcount of the cluster.
+ * If it is negative, it is -errno and indicates an error.
+ */
 static int update_cluster_refcount(BlockDriverState *bs,
                                    int64_t cluster_index,
                                    int addend)
@@ -779,6 +793,10 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                         } else {
                             refcount = get_refcount(bs, offset >> s->cluster_bits);
                         }
+
+                        if (refcount < 0) {
+                            goto fail;
+                        }
                     }
 
                     if (refcount == 1) {
@@ -801,7 +819,9 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
             } else {
                 refcount = get_refcount(bs, l2_offset >> s->cluster_bits);
             }
-            if (refcount == 1) {
+            if (refcount < 0) {
+                goto fail;
+            } else if (refcount == 1) {
                 l2_offset |= QCOW_OFLAG_COPIED;
             }
             if (l2_offset != old_l2_offset) {
@@ -934,6 +954,10 @@ static int check_refcounts_l2(BlockDriverState *bs,
                     uint64_t entry = offset;
                     offset &= ~QCOW_OFLAG_COPIED;
                     refcount = get_refcount(bs, offset >> s->cluster_bits);
+                    if (refcount < 0) {
+                        fprintf(stderr, "Can't get refcount for offset %"
+                            PRIx64 ": %s\n", entry, strerror(-refcount));
+                    }
                     if ((refcount == 1) != ((entry & QCOW_OFLAG_COPIED) != 0)) {
                         fprintf(stderr, "ERROR OFLAG_COPIED: offset=%"
                             PRIx64 " refcount=%d\n", entry, refcount);
@@ -1011,6 +1035,10 @@ static int check_refcounts_l1(BlockDriverState *bs,
             if (check_copied) {
                 refcount = get_refcount(bs, (l2_offset & ~QCOW_OFLAG_COPIED)
                     >> s->cluster_bits);
+                if (refcount < 0) {
+                    fprintf(stderr, "Can't get refcount for l2_offset %"
+                        PRIx64 ": %s\n", l2_offset, strerror(-refcount));
+                }
                 if ((refcount == 1) != ((l2_offset & QCOW_OFLAG_COPIED) != 0)) {
                     fprintf(stderr, "ERROR OFLAG_COPIED: l2_offset=%" PRIx64
                         " refcount=%d\n", l2_offset, refcount);
@@ -1118,6 +1146,11 @@ int qcow2_check_refcounts(BlockDriverState *bs)
     /* compare ref counts */
     for(i = 0; i < nb_clusters; i++) {
         refcount1 = get_refcount(bs, i);
+        if (refcount1 < 0) {
+            fprintf(stderr, "Can't get refcount for cluster %d: %s\n",
+                i, strerror(-refcount1));
+        }
+
         refcount2 = refcount_table[i];
         if (refcount1 != refcount2) {
             fprintf(stderr, "ERROR cluster %d refcount=%d reference=%d\n",
