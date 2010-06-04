@@ -20,6 +20,8 @@
 #include "sysemu.h"
 #include "buffered_file.h"
 #include "block.h"
+#include <sys/types.h>
+#include <sys/wait.h>
 
 //#define DEBUG_MIGRATION_EXEC
 
