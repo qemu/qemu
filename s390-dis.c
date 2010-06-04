@@ -1,3 +1,4 @@
+/* opcodes/s390-dis.c revision 1.12 */
 /* s390-dis.c -- Disassemble S390 instructions
    Copyright 2000, 2001, 2002, 2003, 2005 Free Software Foundation, Inc.
    Contributed by Martin Schwidefsky (schwidefsky@de.ibm.com).
@@ -15,11 +16,14 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, see <http://www.gnu.org/licenses/>.  */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
-#include <stdio.h>
+#include "qemu-common.h"
 #include "dis-asm.h"
 
+/* include/opcode/s390.h revision 1.9 */
 /* s390.h -- Header file for S390 opcode table
    Copyright 2000, 2001, 2003 Free Software Foundation, Inc.
    Contributed by Martin Schwidefsky (schwidefsky@de.ibm.com).
@@ -37,7 +41,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, see <http://www.gnu.org/licenses/>.  */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #ifndef S390_H
 #define S390_H
@@ -57,7 +63,8 @@ enum s390_opcode_cpu_val
     S390_OPCODE_Z900,
     S390_OPCODE_Z990,
     S390_OPCODE_Z9_109,
-    S390_OPCODE_Z9_EC
+    S390_OPCODE_Z9_EC,
+    S390_OPCODE_Z10
   };
 
 /* The opcode table is an array of struct s390_opcode.  */
@@ -95,12 +102,13 @@ struct s390_opcode
 /* The table itself is sorted by major opcode number, and is otherwise
    in the order in which the disassembler should consider
    instructions.  */
-extern const struct s390_opcode s390_opcodes[];
-extern const int                s390_num_opcodes;
+/* QEMU: Mark these static.  */
+static const struct s390_opcode s390_opcodes[];
+static const int                s390_num_opcodes;
 
 /* A opcode format table for the .insn pseudo mnemonic.  */
-extern const struct s390_opcode s390_opformats[];
-extern const int                s390_num_opformats;
+static const struct s390_opcode s390_opformats[];
+static const int                s390_num_opformats;
 
 /* Values defined for the flags field of a struct powerpc_opcode.  */
 
@@ -121,7 +129,7 @@ struct s390_operand
 /* Elements in the table are retrieved by indexing with values from
    the operands field of the powerpc_opcodes table.  */
 
-extern const struct s390_operand s390_operands[];
+static const struct s390_operand s390_operands[];
 
 /* Values defined for the flags field of a struct s390_operand.  */
 
@@ -164,12 +172,13 @@ extern const struct s390_operand s390_operands[];
    the instruction may be optional.  */
 #define S390_OPERAND_OPTIONAL 0x400
 
-	#endif /* S390_H */
-
+#endif /* S390_H */
 
 static int init_flag = 0;
 static int opc_index[256];
-static int current_arch_mask = 0;
+
+/* QEMU: We've disabled the architecture check below.  */
+/* static int current_arch_mask = 0; */
 
 /* Set up index table for first opcode byte.  */
 
@@ -188,17 +197,21 @@ init_disasm (struct disassemble_info *info)
 	     (opcode[1].opcode[0] == opcode->opcode[0]))
 	opcode++;
     }
-//  switch (info->mach)
-//    {
-//    case bfd_mach_s390_31:
+
+#ifdef QEMU_DISABLE
+  switch (info->mach)
+    {
+    case bfd_mach_s390_31:
       current_arch_mask = 1 << S390_OPCODE_ESA;
-//      break;
-//    case bfd_mach_s390_64:
-//      current_arch_mask = 1 << S390_OPCODE_ZARCH;
-//      break;
-//    default:
-//      abort ();
-//    }
+      break;
+    case bfd_mach_s390_64:
+      current_arch_mask = 1 << S390_OPCODE_ZARCH;
+      break;
+    default:
+      abort ();
+    }
+#endif /* QEMU_DISABLE */
+
   init_flag = 1;
 }
 
@@ -297,9 +310,12 @@ print_insn_s390 (bfd_vma memaddr, struct disassemble_info *info)
 	  const struct s390_operand *operand;
 	  const unsigned char *opindex;
 
+#ifdef QEMU_DISABLE
 	  /* Check architecture.  */
 	  if (!(opcode->modes & current_arch_mask))
 	    continue;
+#endif /* QEMU_DISABLE */
+
 	  /* Check signature of the opcode.  */
 	  if ((buffer[1] & opcode->mask[1]) != opcode->opcode[1]
 	      || (buffer[2] & opcode->mask[2]) != opcode->opcode[2]
@@ -392,6 +408,8 @@ print_insn_s390 (bfd_vma memaddr, struct disassemble_info *info)
       return 1;
     }
 }
+
+/* opcodes/s390-opc.c revision 1.16 */
 /* s390-opc.c -- S390 opcode list
    Copyright 2000, 2001, 2003 Free Software Foundation, Inc.
    Contributed by Martin Schwidefsky (schwidefsky@de.ibm.com).
@@ -409,9 +427,9 @@ print_insn_s390 (bfd_vma memaddr, struct disassemble_info *info)
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, see <http://www.gnu.org/licenses/>.  */
-
-#include <stdio.h>
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* This file holds the S390 opcode table.  The opcode table
    includes almost all of the extended instruction mnemonics.  This
@@ -427,7 +445,7 @@ print_insn_s390 (bfd_vma memaddr, struct disassemble_info *info)
 /* The operands table.
    The fields are bits, shift, insert, extract, flags.  */
 
-const struct s390_operand s390_operands[] =
+static const struct s390_operand s390_operands[] =
 {
 #define UNUSED 0
   { 0, 0, 0 },                    /* Indicates the end of the operand list */
@@ -739,7 +757,7 @@ const struct s390_operand s390_operands[] =
 
 /* The opcode formats table (blueprints for .insn pseudo mnemonic).  */
 
-const struct s390_opcode s390_opformats[] =
+static const struct s390_opcode s390_opformats[] =
   {
   { "e",	OP8(0x00LL),	MASK_E,		INSTR_E,	3, 0 },
   { "ri",	OP8(0x00LL),	MASK_RI_RI,	INSTR_RI_RI,	3, 0 },
@@ -765,9 +783,10 @@ const struct s390_opcode s390_opformats[] =
   { "ssf",	OP8(0x00LL),	MASK_SSF_RRDRD,	INSTR_SSF_RRDRD,3, 0 },
 };
 
-const int s390_num_opformats =
+static const int s390_num_opformats =
   sizeof (s390_opformats) / sizeof (s390_opformats[0]);
 
+/* include "s390-opc.tab" generated from opcodes/s390-opc.txt rev 1.17 */
 /* The opcode table. This file was generated by s390-mkopc.
 
    The format of the opcode table is:
@@ -783,7 +802,7 @@ const int s390_num_opformats =
    The disassembler reads the table in order and prints the first
    instruction which matches.  */
 
-const struct s390_opcode s390_opcodes[] =
+static const struct s390_opcode s390_opcodes[] =
   {
   { "dp", OP8(0xfdLL), MASK_SS_LLRDRD, INSTR_SS_LLRDRD, 3, 0},
   { "mp", OP8(0xfcLL), MASK_SS_LLRDRD, INSTR_SS_LLRDRD, 3, 0},
@@ -1700,5 +1719,5 @@ const struct s390_opcode s390_opcodes[] =
   { "pr", OP16(0x0101LL), MASK_E, INSTR_E, 3, 0}
 };
 
-const int s390_num_opcodes =
+static const int s390_num_opcodes =
   sizeof (s390_opcodes) / sizeof (s390_opcodes[0]);
