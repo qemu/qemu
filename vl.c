@@ -1371,6 +1371,29 @@ static void gui_update(void *opaque)
     qemu_mod_timer(ds->gui_timer, interval + qemu_get_clock_ms(rt_clock));
 }
 
+void gui_setup_refresh(DisplayState *ds)
+{
+    DisplayChangeListener *dcl;
+    bool need_timer = false;
+
+    QLIST_FOREACH(dcl, &ds->listeners, next) {
+        if (dcl->dpy_refresh != NULL) {
+            need_timer = true;
+            break;
+        }
+    }
+
+    if (need_timer && ds->gui_timer == NULL) {
+        ds->gui_timer = qemu_new_timer_ms(rt_clock, gui_update, ds);
+        qemu_mod_timer(ds->gui_timer, qemu_get_clock_ms(rt_clock));
+    }
+    if (!need_timer && ds->gui_timer != NULL) {
+        qemu_del_timer(ds->gui_timer);
+        qemu_free_timer(ds->gui_timer);
+        ds->gui_timer = NULL;
+    }
+}
+
 struct vm_change_state_entry {
     VMChangeStateHandler *cb;
     void *opaque;
@@ -2454,7 +2477,6 @@ int main(int argc, char **argv, char **envp)
     const char *kernel_filename, *kernel_cmdline;
     char boot_devices[33] = "cad"; /* default to HD->floppy->CD-ROM */
     DisplayState *ds;
-    DisplayChangeListener *dcl;
     int cyls, heads, secs, translation;
     QemuOpts *hda_opts = NULL, *opts, *machine_opts;
     QemuOptsList *olist;
@@ -3845,13 +3867,6 @@ int main(int argc, char **argv, char **envp)
 
     /* display setup */
     dpy_resize(ds);
-    QLIST_FOREACH(dcl, &ds->listeners, next) {
-        if (dcl->dpy_refresh != NULL) {
-            ds->gui_timer = qemu_new_timer_ms(rt_clock, gui_update, ds);
-            qemu_mod_timer(ds->gui_timer, qemu_get_clock_ms(rt_clock));
-            break;
-        }
-    }
     text_consoles_set_display(ds);
 
     if (foreach_device_config(DEV_GDB, gdbserver_start) < 0) {

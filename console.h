@@ -229,9 +229,19 @@ static inline int is_buffer_shared(DisplaySurface *surface)
             !(surface->flags & QEMU_REALPIXELS_FLAG));
 }
 
+void gui_setup_refresh(DisplayState *ds);
+
 static inline void register_displaychangelistener(DisplayState *ds, DisplayChangeListener *dcl)
 {
     QLIST_INSERT_HEAD(&ds->listeners, dcl, next);
+    gui_setup_refresh(ds);
+}
+
+static inline void unregister_displaychangelistener(DisplayState *ds,
+                                                    DisplayChangeListener *dcl)
+{
+    QLIST_REMOVE(dcl, next);
+    gui_setup_refresh(ds);
 }
 
 static inline void dpy_update(DisplayState *s, int x, int y, int w, int h)
