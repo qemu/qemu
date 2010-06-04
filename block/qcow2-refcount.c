@@ -228,7 +228,10 @@ static int64_t alloc_refcount_block(BlockDriverState *bs, int64_t cluster_index)
     }
 
     /* Allocate the refcount block itself and mark it as used */
-    uint64_t new_block = alloc_clusters_noref(bs, s->cluster_size);
+    int64_t new_block = alloc_clusters_noref(bs, s->cluster_size);
+    if (new_block < 0) {
+        return new_block;
+    }
 
 #ifdef DEBUG_ALLOC2
     fprintf(stderr, "qcow2: Allocate refcount block %d for %" PRIx64
@@ -579,14 +582,19 @@ static int update_cluster_refcount(BlockDriverState *bs,
 static int64_t alloc_clusters_noref(BlockDriverState *bs, int64_t size)
 {
     BDRVQcowState *s = bs->opaque;
-    int i, nb_clusters;
+    int i, nb_clusters, refcount;
 
     nb_clusters = size_to_clusters(s, size);
 retry:
     for(i = 0; i < nb_clusters; i++) {
         int64_t next_cluster_index = s->free_cluster_index++;
-        if (get_refcount(bs, next_cluster_index) != 0)
+        refcount = get_refcount(bs, next_cluster_index);
+
+        if (refcount < 0) {
+            return refcount;
+        } else if (refcount != 0) {
             goto retry;
+        }
     }
 #ifdef DEBUG_ALLOC2
     printf("alloc_clusters: size=%" PRId64 " -> %" PRId64 "\n",
@@ -603,6 +611,10 @@ int64_t qcow2_alloc_clusters(BlockDriverState *bs, int64_t size)
 
     BLKDBG_EVENT(bs->file, BLKDBG_CLUSTER_ALLOC);
     offset = alloc_clusters_noref(bs, size);
+    if (offset < 0) {
+        return offset;
+    }
+
     ret = update_refcount(bs, offset, size, 1);
     if (ret < 0) {
         return ret;
