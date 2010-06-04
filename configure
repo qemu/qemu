@@ -2643,6 +2643,8 @@ if test "$ARCH" = "sparc64" ; then
   cflags="-I\$(SRC_PATH)/tcg/sparc $cflags"
 elif test "$ARCH" = "s390x" ; then
   cflags="-I\$(SRC_PATH)/tcg/s390 $cflags"
+elif test "$ARCH" = "x86_64" ; then
+  cflags="-I\$(SRC_PATH)/tcg/i386 $cflags"
 else
   cflags="-I\$(SRC_PATH)/tcg/\$(ARCH) $cflags"
 fi
