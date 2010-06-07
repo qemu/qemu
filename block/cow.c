@@ -42,7 +42,6 @@ struct cow_header_v2 {
 };
 
 typedef struct BDRVCowState {
-    int fd;
     int64_t cow_sectors_offset;
 } BDRVCowState;
 
@@ -58,23 +57,16 @@ static int cow_probe(const uint8_t *buf, int buf_size, const char *filename)
         return 0;
 }
 
-static int cow_open(BlockDriverState *bs, const char *filename, int flags)
+static int cow_open(BlockDriverState *bs, int flags)
 {
     BDRVCowState *s = bs->opaque;
-    int fd;
     struct cow_header_v2 cow_header;
     int bitmap_size;
     int64_t size;
 
-    fd = open(filename, O_RDWR | O_BINARY | O_LARGEFILE);
-    if (fd < 0) {
-        fd = open(filename, O_RDONLY | O_BINARY | O_LARGEFILE);
-        if (fd < 0)
-            return -1;
-    }
-    s->fd = fd;
     /* see if it is a cow image */
-    if (pread(fd, &cow_header, sizeof(cow_header), 0) != sizeof(cow_header)) {
+    if (bdrv_pread(bs->file, 0, &cow_header, sizeof(cow_header)) !=
+            sizeof(cow_header)) {
         goto fail;
     }
 
@@ -94,7 +86,6 @@ static int cow_open(BlockDriverState *bs, const char *filename, int flags)
     s->cow_sectors_offset = (bitmap_size + 511) & ~511;
     return 0;
  fail:
-    close(fd);
     return -1;
 }
 
@@ -104,18 +95,17 @@ static int cow_open(BlockDriverState *bs, const char *filename, int flags)
  */
 static inline int cow_set_bit(BlockDriverState *bs, int64_t bitnum)
 {
-    BDRVCowState *s = bs->opaque;
     uint64_t offset = sizeof(struct cow_header_v2) + bitnum / 8;
     uint8_t bitmap;
 
-    if (pread(s->fd, &bitmap, sizeof(bitmap), offset) !=
+    if (bdrv_pread(bs->file, offset, &bitmap, sizeof(bitmap)) !=
 	    sizeof(bitmap)) {
        return -errno;
     }
 
     bitmap |= (1 << (bitnum % 8));
 
-    if (pwrite(s->fd, &bitmap, sizeof(bitmap), offset) !=
+    if (bdrv_pwrite(bs->file, offset, &bitmap, sizeof(bitmap)) !=
 	    sizeof(bitmap)) {
        return -errno;
     }
@@ -124,11 +114,10 @@ static inline int cow_set_bit(BlockDriverState *bs, int64_t bitnum)
 
 static inline int is_bit_set(BlockDriverState *bs, int64_t bitnum)
 {
-    BDRVCowState *s = bs->opaque;
     uint64_t offset = sizeof(struct cow_header_v2) + bitnum / 8;
     uint8_t bitmap;
 
-    if (pread(s->fd, &bitmap, sizeof(bitmap), offset) !=
+    if (bdrv_pread(bs->file, offset, &bitmap, sizeof(bitmap)) !=
 	    sizeof(bitmap)) {
        return -errno;
     }
@@ -186,8 +175,9 @@ static int cow_read(BlockDriverState *bs, int64_t sector_num,
 
     while (nb_sectors > 0) {
         if (cow_is_allocated(bs, sector_num, nb_sectors, &n)) {
-            ret = pread(s->fd, buf, n * 512,
-                        s->cow_sectors_offset + sector_num * 512);
+            ret = bdrv_pread(bs->file,
+                        s->cow_sectors_offset + sector_num * 512,
+                        buf, n * 512);
             if (ret != n * 512)
                 return -1;
         } else {
@@ -213,8 +203,8 @@ static int cow_write(BlockDriverState *bs, int64_t sector_num,
     BDRVCowState *s = bs->opaque;
     int ret;
 
-    ret = pwrite(s->fd, buf, nb_sectors * 512,
-                 s->cow_sectors_offset + sector_num * 512);
+    ret = bdrv_pwrite(bs->file, s->cow_sectors_offset + sector_num * 512,
+                      buf, nb_sectors * 512);
     if (ret != nb_sectors * 512)
         return -1;
 
@@ -223,8 +213,6 @@ static int cow_write(BlockDriverState *bs, int64_t sector_num,
 
 static void cow_close(BlockDriverState *bs)
 {
-    BDRVCowState *s = bs->opaque;
-    close(s->fd);
 }
 
 static int cow_create(const char *filename, QEMUOptionParameter *options)
@@ -294,8 +282,7 @@ exit:
 
 static void cow_flush(BlockDriverState *bs)
 {
-    BDRVCowState *s = bs->opaque;
-    qemu_fdatasync(s->fd);
+    bdrv_flush(bs->file);
 }
 
 static QEMUOptionParameter cow_create_options[] = {
@@ -316,7 +303,7 @@ static BlockDriver bdrv_cow = {
     .format_name	= "cow",
     .instance_size	= sizeof(BDRVCowState),
     .bdrv_probe		= cow_probe,
-    .bdrv_file_open	= cow_open,
+    .bdrv_open		= cow_open,
     .bdrv_read		= cow_read,
     .bdrv_write		= cow_write,
     .bdrv_close		= cow_close,
