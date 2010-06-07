@@ -18,7 +18,7 @@
 #include "qemu-queue.h"
 #include <stdint.h>
 
-#define QDICT_HASH_SIZE 512
+#define QDICT_BUCKET_MAX 512
 
 typedef struct QDictEntry {
     char *key;
@@ -29,7 +29,7 @@ typedef struct QDictEntry {
 typedef struct QDict {
     QObject_HEAD;
     size_t size;
-    QLIST_HEAD(,QDictEntry) table[QDICT_HASH_SIZE];
+    QLIST_HEAD(,QDictEntry) table[QDICT_BUCKET_MAX];
 } QDict;
 
 /* Object API */
