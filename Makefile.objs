@@ -106,6 +106,7 @@ common-obj-$(CONFIG_SDL) += sdl.o sdl_zoom.o x_keymap.o
 common-obj-$(CONFIG_CURSES) += curses.o
 common-obj-y += vnc.o acl.o d3des.o
 common-obj-y += vnc-encoding-zlib.o vnc-encoding-hextile.o
+common-obj-y += vnc-encoding-tight.o
 common-obj-y += iov.o
 common-obj-$(CONFIG_VNC_TLS) += vnc-tls.o vnc-auth-vencrypt.o
 common-obj-$(CONFIG_VNC_SASL) += vnc-auth-sasl.o

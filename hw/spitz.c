@@ -993,9 +993,6 @@ static void spitz_common_init(ram_addr_t ram_size,
         /* A 4.0 GB microdrive is permanently sitting in CF slot 0.  */
         spitz_microdrive_attach(cpu, 0);
 
-    /* Setup initial (reset) machine state */
-    cpu->env->regs[15] = spitz_binfo.loader_start;
-
     spitz_binfo.kernel_filename = kernel_filename;
     spitz_binfo.kernel_cmdline = kernel_cmdline;
     spitz_binfo.initrd_filename = initrd_filename;

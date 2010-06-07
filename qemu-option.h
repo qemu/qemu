@@ -70,6 +70,8 @@ int set_option_parameter(QEMUOptionParameter *list, const char *name,
     const char *value);
 int set_option_parameter_int(QEMUOptionParameter *list, const char *name,
     uint64_t value);
+QEMUOptionParameter *append_option_parameters(QEMUOptionParameter *dest,
+    QEMUOptionParameter *list);
 QEMUOptionParameter *parse_option_parameters(const char *param,
     QEMUOptionParameter *list, QEMUOptionParameter *dest);
 void free_option_parameters(QEMUOptionParameter *list);

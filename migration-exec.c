@@ -20,6 +20,8 @@
 #include "sysemu.h"
 #include "buffered_file.h"
 #include "block.h"
+#include <sys/types.h>
+#include <sys/wait.h>
 
 //#define DEBUG_MIGRATION_EXEC
 
@@ -43,13 +45,21 @@ static int file_write(FdMigrationState *s, const void * buf, size_t size)
 
 static int exec_close(FdMigrationState *s)
 {
+    int ret = 0;
     DPRINTF("exec_close\n");
     if (s->opaque) {
-        qemu_fclose(s->opaque);
+        ret = qemu_fclose(s->opaque);
         s->opaque = NULL;
         s->fd = -1;
+        if (ret != -1 &&
+            WIFEXITED(ret)
+            && WEXITSTATUS(ret) == 0) {
+            ret = 0;
+        } else {
+            ret = -1;
+        }
     }
-    return 0;
+    return ret;
 }
 
 MigrationState *exec_start_outgoing_migration(Monitor *mon,

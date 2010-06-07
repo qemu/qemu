@@ -2081,7 +2081,6 @@ static inline void powerpc_excp(CPUState *env, int excp_model, int excp)
     srr1 = SPR_SRR1;
     asrr0 = -1;
     asrr1 = -1;
-    msr &= ~((target_ulong)0x783F0000);
     switch (excp) {
     case POWERPC_EXCP_NONE:
         /* Should never happen */
@@ -2595,7 +2594,6 @@ static inline void powerpc_excp(CPUState *env, int excp_model, int excp)
 #if 0 /* Fix this: not on all targets */
     new_msr &= ~((target_ulong)1 << MSR_PMM);
 #endif
-    new_msr &= ~((target_ulong)1 << MSR_LE);
     if (msr_ile)
         new_msr |= (target_ulong)1 << MSR_LE;
     else

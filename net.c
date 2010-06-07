@@ -1194,18 +1194,6 @@ void net_host_device_remove(Monitor *mon, const QDict *qdict)
     qemu_del_vlan_client(vc);
 }
 
-/**
- * do_netdev_add(): Add a host network device
- *
- * Argument qdict contains
- * - "type": the device type, "tap", "user", ...
- * - "id": the device's ID (must be unique)
- * - device options
- *
- * Example:
- *
- * { "type": "user", "id": "netdev1", "hostname": "a-guest" }
- */
 int do_netdev_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     QemuOpts *opts;
@@ -1220,16 +1208,6 @@ int do_netdev_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
     return res;
 }
 
-/**
- * do_netdev_del(): Delete a host network device
- *
- * Argument qdict contains
- * - "id": the device's ID
- *
- * Example:
- *
- * { "id": "netdev1" }
- */
 int do_netdev_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *id = qdict_get_str(qdict, "id");

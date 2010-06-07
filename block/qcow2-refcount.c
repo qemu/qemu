@@ -221,8 +221,6 @@ static int64_t alloc_refcount_block(BlockDriverState *bs, int64_t cluster_index)
 
     /* Allocate the refcount block itself and mark it as used */
     uint64_t new_block = alloc_clusters_noref(bs, s->cluster_size);
-    memset(s->refcount_block_cache, 0, s->cluster_size);
-    s->refcount_block_cache_offset = new_block;
 
 #ifdef DEBUG_ALLOC2
     fprintf(stderr, "qcow2: Allocate refcount block %d for %" PRIx64
@@ -231,6 +229,10 @@ static int64_t alloc_refcount_block(BlockDriverState *bs, int64_t cluster_index)
 #endif
 
     if (in_same_refcount_block(s, new_block, cluster_index << s->cluster_bits)) {
+        /* Zero the new refcount block before updating it */
+        memset(s->refcount_block_cache, 0, s->cluster_size);
+        s->refcount_block_cache_offset = new_block;
+
         /* The block describes itself, need to update the cache */
         int block_index = (new_block >> s->cluster_bits) &
             ((1 << (s->cluster_bits - REFCOUNT_SHIFT)) - 1);
@@ -242,6 +244,11 @@ static int64_t alloc_refcount_block(BlockDriverState *bs, int64_t cluster_index)
         if (ret < 0) {
             goto fail_block;
         }
+
+        /* Initialize the new refcount block only after updating its refcount,
+         * update_refcount uses the refcount cache itself */
+        memset(s->refcount_block_cache, 0, s->cluster_size);
+        s->refcount_block_cache_offset = new_block;
     }
 
     /* Now the new refcount block needs to be written to disk */
@@ -404,8 +411,13 @@ static int write_refcount_block_entries(BlockDriverState *bs,
 {
     BDRVQcowState *s = bs->opaque;
     size_t size;
+    int ret;
 
     if (cache_refcount_updates) {
+        return 0;
+    }
+
+    if (first_index < 0) {
         return 0;
     }
 
@@ -414,12 +426,13 @@ static int write_refcount_block_entries(BlockDriverState *bs,
         & ~(REFCOUNTS_PER_SECTOR - 1);
 
     size = (last_index - first_index) << REFCOUNT_SHIFT;
+
     BLKDBG_EVENT(bs->file, BLKDBG_REFBLOCK_UPDATE_PART);
-    if (bdrv_pwrite(bs->file,
+    ret = bdrv_pwrite(bs->file,
         refcount_block_offset + (first_index << REFCOUNT_SHIFT),
-        &s->refcount_block_cache[first_index], size) != size)
-    {
-        return -EIO;
+        &s->refcount_block_cache[first_index], size);
+    if (ret < 0) {
+        return ret;
     }
 
     return 0;
@@ -460,10 +473,10 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
         table_index = cluster_index >> (s->cluster_bits - REFCOUNT_SHIFT);
         if ((old_table_index >= 0) && (table_index != old_table_index)) {
 
-            if (write_refcount_block_entries(bs, refcount_block_offset,
-                first_index, last_index) < 0)
-            {
-                return -EIO;
+            ret = write_refcount_block_entries(bs, refcount_block_offset,
+                first_index, last_index);
+            if (ret < 0) {
+                return ret;
             }
 
             first_index = -1;
@@ -505,10 +518,11 @@ fail:
 
     /* Write last changed block to disk */
     if (refcount_block_offset != 0) {
-        if (write_refcount_block_entries(bs, refcount_block_offset,
-            first_index, last_index) < 0)
-        {
-            return ret < 0 ? ret : -EIO;
+        int wret;
+        wret = write_refcount_block_entries(bs, refcount_block_offset,
+            first_index, last_index);
+        if (wret < 0) {
+            return ret < 0 ? ret : wret;
         }
     }
 

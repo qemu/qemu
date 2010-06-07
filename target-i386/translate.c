@@ -2021,7 +2021,7 @@ static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_
             break;
         default:
         case 2:
-            disp = ldl_code(s->pc);
+            disp = (int32_t)ldl_code(s->pc);
             s->pc += 4;
             break;
         }

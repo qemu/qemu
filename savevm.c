@@ -235,9 +235,10 @@ static int stdio_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
 static int stdio_pclose(void *opaque)
 {
     QEMUFileStdio *s = opaque;
-    pclose(s->stdio_file);
+    int ret;
+    ret = pclose(s->stdio_file);
     qemu_free(s);
-    return 0;
+    return ret;
 }
 
 static int stdio_fclose(void *opaque)

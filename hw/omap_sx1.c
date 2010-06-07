@@ -195,15 +195,10 @@ static void sx1_init(ram_addr_t ram_size,
 
     /* Load the kernel.  */
     if (kernel_filename) {
-        /* Start at bootloader.  */
-        cpu->env->regs[15] = sx1_binfo.loader_start;
-
         sx1_binfo.kernel_filename = kernel_filename;
         sx1_binfo.kernel_cmdline = kernel_cmdline;
         sx1_binfo.initrd_filename = initrd_filename;
         arm_load_kernel(cpu->env, &sx1_binfo);
-    } else {
-        cpu->env->regs[15] = 0x00000000;
     }
 
     /* TODO: fix next line */

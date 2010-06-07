@@ -243,7 +243,6 @@ static void palmte_init(ram_addr_t ram_size,
             rom_size = load_image_targphys(option_rom[0], OMAP_CS0_BASE,
                                            flash_size);
             rom_loaded = 1;
-            cpu->env->regs[15] = 0x00000000;
         }
         if (rom_size < 0) {
             fprintf(stderr, "%s: error loading '%s'\n",
@@ -258,9 +257,6 @@ static void palmte_init(ram_addr_t ram_size,
 
     /* Load the kernel.  */
     if (kernel_filename) {
-        /* Start at bootloader.  */
-        cpu->env->regs[15] = palmte_binfo.loader_start;
-
         palmte_binfo.kernel_filename = kernel_filename;
         palmte_binfo.kernel_cmdline = kernel_cmdline;
         palmte_binfo.initrd_filename = initrd_filename;

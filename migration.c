@@ -197,44 +197,6 @@ static void migrate_put_status(QDict *qdict, const char *name,
     qdict_put_obj(qdict, name, obj);
 }
 
-/**
- * do_info_migrate(): Migration status
- *
- * Return a QDict. If migration is active there will be another
- * QDict with RAM migration status and if block migration is active
- * another one with block migration status.
- *
- * The main QDict contains the following:
- *
- * - "status": migration status
- * - "ram": only present if "status" is "active", it is a QDict with the
- *   following RAM information (in bytes):
- *          - "transferred": amount transferred
- *          - "remaining": amount remaining
- *          - "total": total
- * - "disk": only present if "status" is "active" and it is a block migration,
- *   it is a QDict with the following disk information (in bytes):
- *          - "transferred": amount transferred
- *          - "remaining": amount remaining
- *          - "total": total
- *
- * Examples:
- *
- * 1. Migration is "completed":
- *
- * { "status": "completed" }
- *
- * 2. Migration is "active" and it is not a block migration:
- *
- * { "status": "active",
- *            "ram": { "transferred": 123, "remaining": 123, "total": 246 } }
- *
- * 3. Migration is "active" and it is a block migration:
- *
- * { "status": "active",
- *   "ram": { "total": 1057024, "remaining": 1053304, "transferred": 3720 },
- *   "disk": { "total": 20971520, "remaining": 20880384, "transferred": 91136 }}
- */
 void do_info_migrate(Monitor *mon, QObject **ret_data)
 {
     QDict *qdict;
@@ -290,13 +252,17 @@ void migrate_fd_error(FdMigrationState *s)
     migrate_fd_cleanup(s);
 }
 
-void migrate_fd_cleanup(FdMigrationState *s)
+int migrate_fd_cleanup(FdMigrationState *s)
 {
+    int ret = 0;
+
     qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
 
     if (s->file) {
         DPRINTF("closing file\n");
-        qemu_fclose(s->file);
+        if (qemu_fclose(s->file) != 0) {
+            ret = -1;
+        }
         s->file = NULL;
     }
 
@@ -309,6 +275,8 @@ void migrate_fd_cleanup(FdMigrationState *s)
     }
 
     s->fd = -1;
+
+    return ret;
 }
 
 void migrate_fd_put_notify(void *opaque)
@@ -387,7 +355,12 @@ void migrate_fd_put_ready(void *opaque)
         } else {
             state = MIG_STATE_COMPLETED;
         }
-        migrate_fd_cleanup(s);
+        if (migrate_fd_cleanup(s) < 0) {
+            if (old_vm_running) {
+                vm_start();
+            }
+            state = MIG_STATE_ERROR;
+        }
         s->state = state;
     }
 }

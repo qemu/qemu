@@ -1016,7 +1016,6 @@ static void n8x0_boot_init(void *opaque)
     n800_dss_init(&s->blizzard);
 
     /* CPU setup */
-    s->cpu->env->regs[15] = s->cpu->env->boot_info->loader_start;
     s->cpu->env->GE = 0x5;
 
     /* If the machine has a slided keyboard, open it */
@@ -1317,11 +1316,6 @@ static void n8x0_init(ram_addr_t ram_size, const char *boot_device,
     if (usb_enabled)
         n8x0_usb_setup(s);
 
-    /* Setup initial (reset) machine state */
-
-    /* Start at the OneNAND bootloader.  */
-    s->cpu->env->regs[15] = 0;
-
     if (kernel_filename) {
         /* Or at the linux loader.  */
         binfo->kernel_filename = kernel_filename;
@@ -1330,7 +1324,6 @@ static void n8x0_init(ram_addr_t ram_size, const char *boot_device,
         arm_load_kernel(s->cpu->env, binfo);
 
         qemu_register_reset(n8x0_boot_init, s);
-        n8x0_boot_init(s);
     }
 
     if (option_rom[0] && (boot_device[0] == 'n' || !kernel_filename)) {

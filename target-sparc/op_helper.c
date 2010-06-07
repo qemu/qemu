@@ -247,6 +247,42 @@ static inline target_ulong address_mask(CPUState *env1, target_ulong addr)
     return addr;
 }
 
+/* returns true if access using this ASI is to have address translated by MMU
+   otherwise access is to raw physical address */
+static inline int is_translating_asi(int asi)
+{
+#ifdef TARGET_SPARC64
+    /* Ultrasparc IIi translating asi
+       - note this list is defined by cpu implementation
+     */
+    switch (asi) {
+    case 0x04 ... 0x11:
+    case 0x18 ... 0x19:
+    case 0x24 ... 0x2C:
+    case 0x70 ... 0x73:
+    case 0x78 ... 0x79:
+    case 0x80 ... 0xFF:
+        return 1;
+
+    default:
+        return 0;
+    }
+#else
+    /* TODO: check sparc32 bits */
+    return 0;
+#endif
+}
+
+static inline target_ulong asi_address_mask(CPUState *env1,
+                                            int asi, target_ulong addr)
+{
+    if (is_translating_asi(asi)) {
+        return address_mask(env, addr);
+    } else {
+        return addr;
+    }
+}
+
 static void QEMU_NORETURN raise_exception(int tt)
 {
     env->exception_index = tt;
@@ -2151,7 +2187,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         raise_exception(TT_PRIV_ACT);
 
     helper_check_align(addr, size - 1);
-    addr = address_mask(env, addr);
+    addr = asi_address_mask(env, asi, addr);
 
     switch (asi) {
     case 0x82: // Primary no-fault
@@ -2254,7 +2290,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
         raise_exception(TT_PRIV_ACT);
 
     helper_check_align(addr, size - 1);
-    addr = address_mask(env, addr);
+    addr = asi_address_mask(env, asi, addr);
 
     /* Convert to little endian */
     switch (asi) {
@@ -2331,6 +2367,8 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         raise_exception(TT_PRIV_ACT);
 
     helper_check_align(addr, size - 1);
+    addr = asi_address_mask(env, asi, addr);
+
     switch (asi) {
     case 0x82: // Primary no-fault
     case 0x8a: // Primary no-fault LE
@@ -2682,6 +2720,8 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
         raise_exception(TT_PRIV_ACT);
 
     helper_check_align(addr, size - 1);
+    addr = asi_address_mask(env, asi, addr);
+
     /* Convert to little endian */
     switch (asi) {
     case 0x0c: // Nucleus Little Endian (LE)
@@ -3056,6 +3096,8 @@ void helper_ldda_asi(target_ulong addr, int asi, int rd)
             && !(env->hpstate & HS_PRIV)))
         raise_exception(TT_PRIV_ACT);
 
+    addr = asi_address_mask(env, asi, addr);
+
     switch (asi) {
 #if !defined(CONFIG_USER_ONLY)
     case 0x24: // Nucleus quad LDD 128 bit atomic
@@ -3103,6 +3145,8 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
     target_ulong val;
 
     helper_check_align(addr, 3);
+    addr = asi_address_mask(env, asi, addr);
+
     switch (asi) {
     case 0xf0: // Block load primary
     case 0xf1: // Block load secondary
@@ -3115,6 +3159,20 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
         helper_check_align(addr, 0x3f);
         for (i = 0; i < 16; i++) {
             *(uint32_t *)&env->fpr[rd++] = helper_ld_asi(addr, asi & 0x8f, 4,
+                                                         0);
+            addr += 4;
+        }
+
+        return;
+    case 0x70: // Block load primary, user privilege
+    case 0x71: // Block load secondary, user privilege
+        if (rd & 7) {
+            raise_exception(TT_ILL_INSN);
+            return;
+        }
+        helper_check_align(addr, 0x3f);
+        for (i = 0; i < 16; i++) {
+            *(uint32_t *)&env->fpr[rd++] = helper_ld_asi(addr, asi & 0x1f, 4,
                                                          0);
             addr += 4;
         }
@@ -3145,6 +3203,8 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
     target_ulong val = 0;
 
     helper_check_align(addr, 3);
+    addr = asi_address_mask(env, asi, addr);
+
     switch (asi) {
     case 0xe0: // UA2007 Block commit store primary (cache flush)
     case 0xe1: // UA2007 Block commit store secondary (cache flush)
@@ -3160,6 +3220,20 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
         for (i = 0; i < 16; i++) {
             val = *(uint32_t *)&env->fpr[rd++];
             helper_st_asi(addr, val, asi & 0x8f, 4);
+            addr += 4;
+        }
+
+        return;
+    case 0x70: // Block store primary, user privilege
+    case 0x71: // Block store secondary, user privilege
+        if (rd & 7) {
+            raise_exception(TT_ILL_INSN);
+            return;
+        }
+        helper_check_align(addr, 0x3f);
+        for (i = 0; i < 16; i++) {
+            val = *(uint32_t *)&env->fpr[rd++];
+            helper_st_asi(addr, val, asi & 0x1f, 4);
             addr += 4;
         }
 
@@ -3232,7 +3306,7 @@ target_ulong helper_udiv(target_ulong a, target_ulong b)
     uint32_t x1;
 
     x0 = (a & 0xffffffff) | ((int64_t) (env->y) << 32);
-    x1 = b;
+    x1 = (b & 0xffffffff);
 
     if (x1 == 0) {
         raise_exception(TT_DIV_ZERO);
@@ -3254,7 +3328,7 @@ target_ulong helper_sdiv(target_ulong a, target_ulong b)
     int32_t x1;
 
     x0 = (a & 0xffffffff) | ((int64_t) (env->y) << 32);
-    x1 = b;
+    x1 = (b & 0xffffffff);
 
     if (x1 == 0) {
         raise_exception(TT_DIV_ZERO);
@@ -3275,18 +3349,19 @@ void helper_stdf(target_ulong addr, int mem_idx)
     helper_check_align(addr, 7);
 #if !defined(CONFIG_USER_ONLY)
     switch (mem_idx) {
-    case 0:
+    case MMU_USER_IDX:
         stfq_user(addr, DT0);
         break;
-    case 1:
+    case MMU_KERNEL_IDX:
         stfq_kernel(addr, DT0);
         break;
 #ifdef TARGET_SPARC64
-    case 2:
+    case MMU_HYPV_IDX:
         stfq_hypv(addr, DT0);
         break;
 #endif
     default:
+        DPRINTF_MMU("helper_stdf: need to check MMU idx %d\n", mem_idx);
         break;
     }
 #else
@@ -3299,18 +3374,19 @@ void helper_lddf(target_ulong addr, int mem_idx)
     helper_check_align(addr, 7);
 #if !defined(CONFIG_USER_ONLY)
     switch (mem_idx) {
-    case 0:
+    case MMU_USER_IDX:
         DT0 = ldfq_user(addr);
         break;
-    case 1:
+    case MMU_KERNEL_IDX:
         DT0 = ldfq_kernel(addr);
         break;
 #ifdef TARGET_SPARC64
-    case 2:
+    case MMU_HYPV_IDX:
         DT0 = ldfq_hypv(addr);
         break;
 #endif
     default:
+        DPRINTF_MMU("helper_lddf: need to check MMU idx %d\n", mem_idx);
         break;
     }
 #else
@@ -3326,24 +3402,25 @@ void helper_ldqf(target_ulong addr, int mem_idx)
     helper_check_align(addr, 7);
 #if !defined(CONFIG_USER_ONLY)
     switch (mem_idx) {
-    case 0:
+    case MMU_USER_IDX:
         u.ll.upper = ldq_user(addr);
         u.ll.lower = ldq_user(addr + 8);
         QT0 = u.q;
         break;
-    case 1:
+    case MMU_KERNEL_IDX:
         u.ll.upper = ldq_kernel(addr);
         u.ll.lower = ldq_kernel(addr + 8);
         QT0 = u.q;
         break;
 #ifdef TARGET_SPARC64
-    case 2:
+    case MMU_HYPV_IDX:
         u.ll.upper = ldq_hypv(addr);
         u.ll.lower = ldq_hypv(addr + 8);
         QT0 = u.q;
         break;
 #endif
     default:
+        DPRINTF_MMU("helper_ldqf: need to check MMU idx %d\n", mem_idx);
         break;
     }
 #else
@@ -3361,24 +3438,25 @@ void helper_stqf(target_ulong addr, int mem_idx)
     helper_check_align(addr, 7);
 #if !defined(CONFIG_USER_ONLY)
     switch (mem_idx) {
-    case 0:
+    case MMU_USER_IDX:
         u.q = QT0;
         stq_user(addr, u.ll.upper);
         stq_user(addr + 8, u.ll.lower);
         break;
-    case 1:
+    case MMU_KERNEL_IDX:
         u.q = QT0;
         stq_kernel(addr, u.ll.upper);
         stq_kernel(addr + 8, u.ll.lower);
         break;
 #ifdef TARGET_SPARC64
-    case 2:
+    case MMU_HYPV_IDX:
         u.q = QT0;
         stq_hypv(addr, u.ll.upper);
         stq_hypv(addr + 8, u.ll.lower);
         break;
 #endif
     default:
+        DPRINTF_MMU("helper_stqf: need to check MMU idx %d\n", mem_idx);
         break;
     }
 #else

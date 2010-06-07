@@ -63,7 +63,7 @@
 #if DATA_SIZE == 8
 #define RES_TYPE uint64_t
 #else
-#define RES_TYPE int
+#define RES_TYPE uint32_t
 #endif
 
 #if ACCESS_TYPE == (NB_MMU_MODES + 1)

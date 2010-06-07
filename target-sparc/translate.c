@@ -663,50 +663,53 @@ static inline void gen_op_mulscc(TCGv dst, TCGv src1, TCGv src2)
     tcg_gen_mov_tl(dst, cpu_cc_dst);
 }
 
-static inline void gen_op_umul(TCGv dst, TCGv src1, TCGv src2)
+static inline void gen_op_multiply(TCGv dst, TCGv src1, TCGv src2, int sign_ext)
 {
+    TCGv_i32 r_src1, r_src2;
     TCGv_i64 r_temp, r_temp2;
+
+    r_src1 = tcg_temp_new_i32();
+    r_src2 = tcg_temp_new_i32();
+
+    tcg_gen_trunc_tl_i32(r_src1, src1);
+    tcg_gen_trunc_tl_i32(r_src2, src2);
 
     r_temp = tcg_temp_new_i64();
     r_temp2 = tcg_temp_new_i64();
 
-    tcg_gen_extu_tl_i64(r_temp, src2);
-    tcg_gen_extu_tl_i64(r_temp2, src1);
+    if (sign_ext) {
+        tcg_gen_ext_i32_i64(r_temp, r_src2);
+        tcg_gen_ext_i32_i64(r_temp2, r_src1);
+    } else {
+        tcg_gen_extu_i32_i64(r_temp, r_src2);
+        tcg_gen_extu_i32_i64(r_temp2, r_src1);
+    }
+
     tcg_gen_mul_i64(r_temp2, r_temp, r_temp2);
 
     tcg_gen_shri_i64(r_temp, r_temp2, 32);
     tcg_gen_trunc_i64_tl(cpu_tmp0, r_temp);
     tcg_temp_free_i64(r_temp);
     tcg_gen_andi_tl(cpu_y, cpu_tmp0, 0xffffffff);
-#ifdef TARGET_SPARC64
-    tcg_gen_mov_i64(dst, r_temp2);
-#else
+
     tcg_gen_trunc_i64_tl(dst, r_temp2);
-#endif
+
     tcg_temp_free_i64(r_temp2);
+
+    tcg_temp_free_i32(r_src1);
+    tcg_temp_free_i32(r_src2);
+}
+
+static inline void gen_op_umul(TCGv dst, TCGv src1, TCGv src2)
+{
+    /* zero-extend truncated operands before multiplication */
+    gen_op_multiply(dst, src1, src2, 0);
 }
 
 static inline void gen_op_smul(TCGv dst, TCGv src1, TCGv src2)
 {
-    TCGv_i64 r_temp, r_temp2;
-
-    r_temp = tcg_temp_new_i64();
-    r_temp2 = tcg_temp_new_i64();
-
-    tcg_gen_ext_tl_i64(r_temp, src2);
-    tcg_gen_ext_tl_i64(r_temp2, src1);
-    tcg_gen_mul_i64(r_temp2, r_temp, r_temp2);
-
-    tcg_gen_shri_i64(r_temp, r_temp2, 32);
-    tcg_gen_trunc_i64_tl(cpu_tmp0, r_temp);
-    tcg_temp_free_i64(r_temp);
-    tcg_gen_andi_tl(cpu_y, cpu_tmp0, 0xffffffff);
-#ifdef TARGET_SPARC64
-    tcg_gen_mov_i64(dst, r_temp2);
-#else
-    tcg_gen_trunc_i64_tl(dst, r_temp2);
-#endif
-    tcg_temp_free_i64(r_temp2);
+    /* sign-extend truncated operands before multiplication */
+    gen_op_multiply(dst, src1, src2, 1);
 }
 
 #ifdef TARGET_SPARC64
@@ -4477,7 +4480,11 @@ static void disas_sparc_insn(DisasContext * dc)
                     if (rd == 1) {
                         tcg_gen_qemu_ld64(cpu_tmp64, cpu_addr, dc->mem_idx);
                         gen_helper_ldxfsr(cpu_tmp64);
-                    } else
+                    } else {
+                        tcg_gen_qemu_ld32u(cpu_tmp0, cpu_addr, dc->mem_idx);
+                        tcg_gen_trunc_tl_i32(cpu_tmp32, cpu_tmp0);
+                        gen_helper_ldfsr(cpu_tmp32);
+                    }
 #else
                     {
                         tcg_gen_qemu_ld32u(cpu_tmp32, cpu_addr, dc->mem_idx);
@@ -4491,6 +4498,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
                         CHECK_FPU_FEATURE(dc, FLOAT128);
                         r_const = tcg_const_i32(dc->mem_idx);
+                        gen_address_mask(dc, cpu_addr);
                         gen_helper_ldqf(cpu_addr, r_const);
                         tcg_temp_free_i32(r_const);
                         gen_op_store_QT0_fpr(QFPREG(rd));
@@ -4501,6 +4509,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         TCGv_i32 r_const;
 
                         r_const = tcg_const_i32(dc->mem_idx);
+                        gen_address_mask(dc, cpu_addr);
                         gen_helper_lddf(cpu_addr, r_const);
                         tcg_temp_free_i32(r_const);
                         gen_op_store_DT0_fpr(DFPREG(rd));
@@ -4636,6 +4645,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         CHECK_FPU_FEATURE(dc, FLOAT128);
                         gen_op_load_fpr_QT0(QFPREG(rd));
                         r_const = tcg_const_i32(dc->mem_idx);
+                        gen_address_mask(dc, cpu_addr);
                         gen_helper_stqf(cpu_addr, r_const);
                         tcg_temp_free_i32(r_const);
                     }
@@ -4658,6 +4668,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
                         gen_op_load_fpr_DT0(DFPREG(rd));
                         r_const = tcg_const_i32(dc->mem_idx);
+                        gen_address_mask(dc, cpu_addr);
                         gen_helper_stdf(cpu_addr, r_const);
                         tcg_temp_free_i32(r_const);
                     }

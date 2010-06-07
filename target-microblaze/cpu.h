@@ -217,8 +217,7 @@ typedef struct CPUMBState {
 #define DRTB_FLAG	(1 << 18)
 #define D_FLAG		(1 << 19)  /* Bit in ESR.  */
 /* TB dependant CPUState.  */
-#define IFLAGS_TB_MASK  (D_FLAG | IMM_FLAG | DRTI_FLAG \
-                         | DRTE_FLAG | DRTB_FLAG | MSR_EE_FLAG)
+#define IFLAGS_TB_MASK  (D_FLAG | IMM_FLAG | DRTI_FLAG | DRTE_FLAG | DRTB_FLAG)
     uint32_t iflags;
 
     struct {
@@ -323,8 +322,8 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
 {
     *pc = env->sregs[SR_PC];
     *cs_base = 0;
-    env->iflags |= env->sregs[SR_MSR] & MSR_EE;
-    *flags = env->iflags & IFLAGS_TB_MASK;
+    *flags = (env->iflags & IFLAGS_TB_MASK) |
+                 (env->sregs[SR_MSR] & (MSR_UM | MSR_VM | MSR_EE));
 }
 
 #if !defined(CONFIG_USER_ONLY)

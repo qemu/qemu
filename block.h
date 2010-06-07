@@ -38,7 +38,7 @@ typedef struct QEMUSnapshotInfo {
 #define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_CACHE_WB)
 
 #define BDRV_SECTOR_BITS   9
-#define BDRV_SECTOR_SIZE   (1 << BDRV_SECTOR_BITS)
+#define BDRV_SECTOR_SIZE   (1ULL << BDRV_SECTOR_BITS)
 #define BDRV_SECTOR_MASK   ~(BDRV_SECTOR_SIZE - 1)
 
 typedef enum {
@@ -54,6 +54,7 @@ void bdrv_info_stats(Monitor *mon, QObject **ret_data);
 
 void bdrv_init(void);
 void bdrv_init_with_whitelist(void);
+BlockDriver *bdrv_find_protocol(const char *filename);
 BlockDriver *bdrv_find_format(const char *format_name);
 BlockDriver *bdrv_find_whitelisted_format(const char *format_name);
 int bdrv_create(BlockDriver *drv, const char* filename,

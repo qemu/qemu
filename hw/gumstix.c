@@ -74,8 +74,6 @@ static void connex_init(ram_addr_t ram_size,
         exit(1);
     }
 
-    cpu->env->regs[15] = 0x00000000;
-
     /* Interrupt line of NIC is connected to GPIO line 36 */
     smc91c111_init(&nd_table[0], 0x04000300,
                     pxa2xx_gpio_in_get(cpu->gpio)[36]);
@@ -113,8 +111,6 @@ static void verdex_init(ram_addr_t ram_size,
         fprintf(stderr, "qemu: Error registering flash memory.\n");
         exit(1);
     }
-
-    cpu->env->regs[15] = 0x00000000;
 
     /* Interrupt line of NIC is connected to GPIO line 99 */
     smc91c111_init(&nd_table[0], 0x04000300,

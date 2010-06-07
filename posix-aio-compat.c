@@ -35,7 +35,7 @@ struct qemu_paiocb {
     int aio_fildes;
     union {
         struct iovec *aio_iov;
-	void *aio_ioctl_buf;
+        void *aio_ioctl_buf;
     };
     int aio_niov;
     size_t aio_nbytes;
@@ -119,21 +119,21 @@ static void thread_create(pthread_t *thread, pthread_attr_t *attr,
 
 static ssize_t handle_aiocb_ioctl(struct qemu_paiocb *aiocb)
 {
-	int ret;
+    int ret;
 
-	ret = ioctl(aiocb->aio_fildes, aiocb->aio_ioctl_cmd, aiocb->aio_ioctl_buf);
-	if (ret == -1)
-		return -errno;
+    ret = ioctl(aiocb->aio_fildes, aiocb->aio_ioctl_cmd, aiocb->aio_ioctl_buf);
+    if (ret == -1)
+        return -errno;
 
-	/*
-	 * This looks weird, but the aio code only consideres a request
-	 * successfull if it has written the number full number of bytes.
-	 *
-	 * Now we overload aio_nbytes as aio_ioctl_cmd for the ioctl command,
-	 * so in fact we return the ioctl command here to make posix_aio_read()
-	 * happy..
-	 */
-	return aiocb->aio_nbytes;
+    /*
+     * This looks weird, but the aio code only consideres a request
+     * successfull if it has written the number full number of bytes.
+     *
+     * Now we overload aio_nbytes as aio_ioctl_cmd for the ioctl command,
+     * so in fact we return the ioctl command here to make posix_aio_read()
+     * happy..
+     */
+    return aiocb->aio_nbytes;
 }
 
 static ssize_t handle_aiocb_flush(struct qemu_paiocb *aiocb)
@@ -249,10 +249,10 @@ static ssize_t handle_aiocb_rw(struct qemu_paiocb *aiocb)
          * Try preadv/pwritev first and fall back to linearizing the
          * buffer if it's not supported.
          */
-	if (preadv_present) {
+        if (preadv_present) {
             nbytes = handle_aiocb_rw_vector(aiocb);
             if (nbytes == aiocb->aio_nbytes)
-	        return nbytes;
+                return nbytes;
             if (nbytes < 0 && nbytes != -ENOSYS)
                 return nbytes;
             preadv_present = 0;
@@ -335,19 +335,19 @@ static void *aio_thread(void *unused)
         switch (aiocb->aio_type & QEMU_AIO_TYPE_MASK) {
         case QEMU_AIO_READ:
         case QEMU_AIO_WRITE:
-		ret = handle_aiocb_rw(aiocb);
-		break;
+            ret = handle_aiocb_rw(aiocb);
+            break;
         case QEMU_AIO_FLUSH:
-                ret = handle_aiocb_flush(aiocb);
-                break;
+            ret = handle_aiocb_flush(aiocb);
+            break;
         case QEMU_AIO_IOCTL:
-		ret = handle_aiocb_ioctl(aiocb);
-		break;
-	default:
-		fprintf(stderr, "invalid aio request (0x%x)\n", aiocb->aio_type);
-		ret = -EINVAL;
-		break;
-	}
+            ret = handle_aiocb_ioctl(aiocb);
+            break;
+        default:
+            fprintf(stderr, "invalid aio request (0x%x)\n", aiocb->aio_type);
+            ret = -EINVAL;
+            break;
+        }
 
         mutex_lock(&lock);
         aiocb->ret = ret;

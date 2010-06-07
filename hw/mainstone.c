@@ -89,9 +89,6 @@ static void mainstone_common_init(ram_addr_t ram_size,
     cpu_register_physical_memory(0, MAINSTONE_ROM,
                     qemu_ram_alloc(MAINSTONE_ROM) | IO_MEM_ROM);
 
-    /* Setup initial (reset) machine state */
-    cpu->env->regs[15] = mainstone_binfo.loader_start;
-
 #ifdef TARGET_WORDS_BIGENDIAN
     be = 1;
 #else

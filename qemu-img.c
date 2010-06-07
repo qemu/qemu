@@ -252,8 +252,8 @@ static int img_create(int argc, char **argv)
     const char *base_fmt = NULL;
     const char *filename;
     const char *base_filename = NULL;
-    BlockDriver *drv;
-    QEMUOptionParameter *param = NULL;
+    BlockDriver *drv, *proto_drv;
+    QEMUOptionParameter *param = NULL, *create_options = NULL;
     char *options = NULL;
 
     flags = 0;
@@ -286,32 +286,41 @@ static int img_create(int argc, char **argv)
         }
     }
 
+    /* Get the filename */
+    if (optind >= argc)
+        help();
+    filename = argv[optind++];
+
     /* Find driver and parse its options */
     drv = bdrv_find_format(fmt);
     if (!drv)
         error("Unknown file format '%s'", fmt);
 
+    proto_drv = bdrv_find_protocol(filename);
+    if (!proto_drv)
+        error("Unknown protocol '%s'", filename);
+
+    create_options = append_option_parameters(create_options,
+                                              drv->create_options);
+    create_options = append_option_parameters(create_options,
+                                              proto_drv->create_options);
+
     if (options && !strcmp(options, "?")) {
-        print_option_help(drv->create_options);
+        print_option_help(create_options);
         return 0;
     }
 
     /* Create parameter list with default values */
-    param = parse_option_parameters("", drv->create_options, param);
+    param = parse_option_parameters("", create_options, param);
     set_option_parameter_int(param, BLOCK_OPT_SIZE, -1);
 
     /* Parse -o options */
     if (options) {
-        param = parse_option_parameters(options, drv->create_options, param);
+        param = parse_option_parameters(options, create_options, param);
         if (param == NULL) {
             error("Invalid options for file format '%s'.", fmt);
         }
     }
-
-    /* Get the filename */
-    if (optind >= argc)
-        help();
-    filename = argv[optind++];
 
     /* Add size to parameters */
     if (optind < argc) {
@@ -362,6 +371,7 @@ static int img_create(int argc, char **argv)
     puts("");
 
     ret = bdrv_create(drv, filename, param);
+    free_option_parameters(create_options);
     free_option_parameters(param);
 
     if (ret < 0) {
@@ -543,14 +553,14 @@ static int img_convert(int argc, char **argv)
 {
     int c, ret, n, n1, bs_n, bs_i, flags, cluster_size, cluster_sectors;
     const char *fmt, *out_fmt, *out_baseimg, *out_filename;
-    BlockDriver *drv;
+    BlockDriver *drv, *proto_drv;
     BlockDriverState **bs, *out_bs;
     int64_t total_sectors, nb_sectors, sector_num, bs_offset;
     uint64_t bs_sectors;
     uint8_t * buf;
     const uint8_t *buf1;
     BlockDriverInfo bdi;
-    QEMUOptionParameter *param = NULL;
+    QEMUOptionParameter *param = NULL, *create_options = NULL;
     char *options = NULL;
 
     fmt = NULL;
@@ -615,19 +625,27 @@ static int img_convert(int argc, char **argv)
     if (!drv)
         error("Unknown file format '%s'", out_fmt);
 
+    proto_drv = bdrv_find_protocol(out_filename);
+    if (!proto_drv)
+        error("Unknown protocol '%s'", out_filename);
+
+    create_options = append_option_parameters(create_options,
+                                              drv->create_options);
+    create_options = append_option_parameters(create_options,
+                                              proto_drv->create_options);
     if (options && !strcmp(options, "?")) {
-        print_option_help(drv->create_options);
+        print_option_help(create_options);
         free(bs);
         return 0;
     }
 
     if (options) {
-        param = parse_option_parameters(options, drv->create_options, param);
+        param = parse_option_parameters(options, create_options, param);
         if (param == NULL) {
             error("Invalid options for file format '%s'.", out_fmt);
         }
     } else {
-        param = parse_option_parameters("", drv->create_options, param);
+        param = parse_option_parameters("", create_options, param);
     }
 
     set_option_parameter_int(param, BLOCK_OPT_SIZE, total_sectors * 512);
@@ -649,6 +667,7 @@ static int img_convert(int argc, char **argv)
 
     /* Create the new image */
     ret = bdrv_create(drv, out_filename, param);
+    free_option_parameters(create_options);
     free_option_parameters(param);
 
     if (ret < 0) {

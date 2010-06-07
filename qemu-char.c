@@ -2528,22 +2528,6 @@ void qemu_chr_info_print(Monitor *mon, const QObject *ret_data)
     qlist_iter(qobject_to_qlist(ret_data), qemu_chr_qlist_iter, mon);
 }
 
-/**
- * qemu_chr_info(): Character devices information
- *
- * Each device is represented by a QDict. The returned QObject is a QList
- * of all devices.
- *
- * The QDict contains the following:
- *
- * - "label": device's label
- * - "filename": device's file
- *
- * Example:
- *
- * [ { "label": "monitor", "filename", "stdio" },
- *   { "label": "serial0", "filename": "vc" } ]
- */
 void qemu_chr_info(Monitor *mon, QObject **ret_data)
 {
     QList *chr_list;

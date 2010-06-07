@@ -137,6 +137,8 @@ struct VncState
     int absolute;
     int last_x;
     int last_y;
+    int client_width;
+    int client_height;
 
     uint32_t vnc_encoding;
 
@@ -173,6 +175,12 @@ struct VncState
     /* Tight */
     uint8_t tight_quality;
     uint8_t tight_compression;
+    uint8_t tight_pixel24;
+    Buffer tight;
+    Buffer tight_tmp;
+    Buffer tight_zlib;
+    int tight_levels[4];
+    z_stream tight_stream[4];
 
     /* Hextile */
     VncSendHextileTile *send_hextile_tile;
@@ -180,7 +188,8 @@ struct VncState
     /* Zlib */
     Buffer zlib;
     Buffer zlib_tmp;
-    z_stream zlib_stream[4];
+    z_stream zlib_stream;
+    int zlib_level;
 
     Notifier mouse_mode_notifier;
 
@@ -384,6 +393,7 @@ void buffer_reserve(Buffer *buffer, size_t len);
 int buffer_empty(Buffer *buffer);
 uint8_t *buffer_end(Buffer *buffer);
 void buffer_reset(Buffer *buffer);
+void buffer_free(Buffer *buffer);
 void buffer_append(Buffer *buffer, const void *data, size_t len);
 
 
@@ -399,13 +409,19 @@ void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
 void vnc_convert_pixel(VncState *vs, uint8_t *buf, uint32_t v);
 
 /* Encodings */
-void vnc_raw_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
+int vnc_raw_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
 
-void vnc_hextile_send_framebuffer_update(VncState *vs, int x,
+int vnc_hextile_send_framebuffer_update(VncState *vs, int x,
                                          int y, int w, int h);
 void vnc_hextile_set_pixel_conversion(VncState *vs, int generic);
 
-void vnc_zlib_init(VncState *vs);
-void vnc_zlib_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
+void *vnc_zlib_zalloc(void *x, unsigned items, unsigned size);
+void vnc_zlib_zfree(void *x, void *addr);
+int vnc_zlib_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
+void vnc_zlib_clear(VncState *vs);
+
+
+int vnc_tight_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
+void vnc_tight_clear(VncState *vs);
 
 #endif /* __QEMU_VNC_H */
