@@ -345,6 +345,43 @@ void qdict_iter(const QDict *qdict,
     }
 }
 
+static QDictEntry *qdict_next_entry(const QDict *qdict, int first_bucket)
+{
+    int i;
+
+    for (i = first_bucket; i < QDICT_BUCKET_MAX; i++) {
+        if (!QLIST_EMPTY(&qdict->table[i])) {
+            return QLIST_FIRST(&qdict->table[i]);
+        }
+    }
+
+    return NULL;
+}
+
+/**
+ * qdict_first(): Return first qdict entry for iteration.
+ */
+const QDictEntry *qdict_first(const QDict *qdict)
+{
+    return qdict_next_entry(qdict, 0);
+}
+
+/**
+ * qdict_next(): Return next qdict entry in an iteration.
+ */
+const QDictEntry *qdict_next(const QDict *qdict, const QDictEntry *entry)
+{
+    QDictEntry *ret;
+
+    ret = QLIST_NEXT(entry, next);
+    if (!ret) {
+        unsigned int bucket = tdb_hash(entry->key) % QDICT_BUCKET_MAX;
+        ret = qdict_next_entry(qdict, bucket + 1);
+    }
+
+    return ret;
+}
+
 /**
  * qentry_destroy(): Free all the memory allocated by a QDictEntry
  */

@@ -45,6 +45,8 @@ QDict *qobject_to_qdict(const QObject *obj);
 void qdict_iter(const QDict *qdict,
                 void (*iter)(const char *key, QObject *obj, void *opaque),
                 void *opaque);
+const QDictEntry *qdict_first(const QDict *qdict);
+const QDictEntry *qdict_next(const QDict *qdict, const QDictEntry *entry);
 
 /* Helper to qdict_put_obj(), accepts any object */
 #define qdict_put(qdict, key, obj) \
