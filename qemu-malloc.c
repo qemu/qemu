@@ -32,11 +32,6 @@ static void *oom_check(void *ptr)
     return ptr;
 }
 
-void *get_mmap_addr(unsigned long size)
-{
-    return NULL;
-}
-
 void qemu_free(void *ptr)
 {
     free(ptr);
