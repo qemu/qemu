@@ -14,6 +14,7 @@ extern Monitor *default_mon;
 #define MONITOR_IS_DEFAULT    0x01
 #define MONITOR_USE_READLINE  0x02
 #define MONITOR_USE_CONTROL   0x04
+#define MONITOR_USE_PRETTY    0x08
 
 /* flags for monitor commands */
 #define MONITOR_CMD_ASYNC       0x0001

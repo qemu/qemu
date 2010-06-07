@@ -351,7 +351,10 @@ static void monitor_json_emitter(Monitor *mon, const QObject *data)
 {
     QString *json;
 
-    json = qobject_to_json(data);
+    if (mon->flags & MONITOR_USE_PRETTY)
+	json = qobject_to_json_pretty(data);
+    else
+	json = qobject_to_json(data);
     assert(json != NULL);
 
     qstring_append_chr(json, '\n');

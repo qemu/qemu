@@ -1562,6 +1562,9 @@ static int mon_init_func(QemuOpts *opts, void *opaque)
         exit(1);
     }
 
+    if (qemu_opt_get_bool(opts, "pretty", 0))
+        flags |= MONITOR_USE_PRETTY;
+
     if (qemu_opt_get_bool(opts, "default", 0))
         flags |= MONITOR_IS_DEFAULT;
 
