@@ -185,12 +185,12 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
             boot_info.bootstrap_pc = ddr_base;
         }
 
-        boot_info.cmdline = ddr_base + kernel_size + 8192;
+        boot_info.cmdline = high + 4096;
         if (kernel_cmdline && strlen(kernel_cmdline)) {
             pstrcpy_targphys("cmdline", boot_info.cmdline, 256, kernel_cmdline);
         }
         /* Provide a device-tree.  */
-        boot_info.fdt = boot_info.cmdline + 256;
+        boot_info.fdt = boot_info.cmdline + 4096; 
         petalogix_load_device_tree(boot_info.fdt, ram_size,
                                    0, 0,
                                    kernel_cmdline);
