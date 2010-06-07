@@ -78,7 +78,7 @@ static int cow_open(BlockDriverState *bs, const char *filename, int flags)
     }
     s->fd = fd;
     /* see if it is a cow image */
-    if (read(fd, &cow_header, sizeof(cow_header)) != sizeof(cow_header)) {
+    if (pread(fd, &cow_header, sizeof(cow_header), 0) != sizeof(cow_header)) {
         goto fail;
     }
 
@@ -159,8 +159,8 @@ static int cow_read(BlockDriverState *bs, int64_t sector_num,
 
     while (nb_sectors > 0) {
         if (is_changed(s->cow_bitmap, sector_num, nb_sectors, &n)) {
-            lseek(s->fd, s->cow_sectors_offset + sector_num * 512, SEEK_SET);
-            ret = read(s->fd, buf, n * 512);
+            ret = pread(s->fd, buf, n * 512,
+                        s->cow_sectors_offset + sector_num * 512);
             if (ret != n * 512)
                 return -1;
         } else {
@@ -186,8 +186,8 @@ static int cow_write(BlockDriverState *bs, int64_t sector_num,
     BDRVCowState *s = bs->opaque;
     int ret, i;
 
-    lseek(s->fd, s->cow_sectors_offset + sector_num * 512, SEEK_SET);
-    ret = write(s->fd, buf, nb_sectors * 512);
+    ret = pwrite(s->fd, buf, nb_sectors * 512,
+                 s->cow_sectors_offset + sector_num * 512);
     if (ret != nb_sectors * 512)
         return -1;
     for (i = 0; i < nb_sectors; i++)
