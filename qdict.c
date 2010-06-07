@@ -83,6 +83,27 @@ static QDictEntry *alloc_entry(const char *key, QObject *value)
 }
 
 /**
+ * qdict_entry_value(): Return qdict entry value
+ *
+ * Return weak reference.
+ */
+QObject *qdict_entry_value(const QDictEntry *entry)
+{
+    return entry->value;
+}
+
+/**
+ * qdict_entry_key(): Return qdict entry key
+ *
+ * Return a *pointer* to the string, it has to be duplicated before being
+ * stored.
+ */
+const char *qdict_entry_key(const QDictEntry *entry)
+{
+    return entry->key;
+}
+
+/**
  * qdict_find(): List lookup function
  */
 static QDictEntry *qdict_find(const QDict *qdict,

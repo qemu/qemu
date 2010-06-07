@@ -34,6 +34,8 @@ typedef struct QDict {
 
 /* Object API */
 QDict *qdict_new(void);
+const char *qdict_entry_key(const QDictEntry *entry);
+QObject *qdict_entry_value(const QDictEntry *entry);
 size_t qdict_size(const QDict *qdict);
 void qdict_put_obj(QDict *qdict, const char *key, QObject *value);
 void qdict_del(QDict *qdict, const char *key);
