@@ -354,6 +354,19 @@ enum {
 /* Coprocessor 1 (rs field) */
 #define MASK_CP1(op)       MASK_OP_MAJOR(op) | (op & (0x1F << 21))
 
+/* Values for the fmt field in FP instructions */
+enum {
+    /* 0 - 15 are reserved */
+    FMT_S = 16,
+    FMT_D = 17,
+    FMT_E = 18,
+    FMT_Q = 19,
+    FMT_W = 20,
+    FMT_L = 21,
+    FMT_PS = 22,
+    /* 23 - 31 are reserved */
+};
+
 enum {
     OPC_MFC1     = (0x00 << 21) | OPC_CP1,
     OPC_DMFC1    = (0x01 << 21) | OPC_CP1,
@@ -366,13 +379,13 @@ enum {
     OPC_BC1      = (0x08 << 21) | OPC_CP1, /* bc */
     OPC_BC1ANY2  = (0x09 << 21) | OPC_CP1,
     OPC_BC1ANY4  = (0x0A << 21) | OPC_CP1,
-    OPC_S_FMT    = (0x10 << 21) | OPC_CP1, /* 16: fmt=single fp */
-    OPC_D_FMT    = (0x11 << 21) | OPC_CP1, /* 17: fmt=double fp */
-    OPC_E_FMT    = (0x12 << 21) | OPC_CP1, /* 18: fmt=extended fp */
-    OPC_Q_FMT    = (0x13 << 21) | OPC_CP1, /* 19: fmt=quad fp */
-    OPC_W_FMT    = (0x14 << 21) | OPC_CP1, /* 20: fmt=32bit fixed */
-    OPC_L_FMT    = (0x15 << 21) | OPC_CP1, /* 21: fmt=64bit fixed */
-    OPC_PS_FMT   = (0x16 << 21) | OPC_CP1, /* 22: fmt=paired single fp */
+    OPC_S_FMT    = (FMT_S << 21) | OPC_CP1,  /* 16: fmt=single fp */
+    OPC_D_FMT    = (FMT_D << 21) | OPC_CP1,  /* 17: fmt=double fp */
+    OPC_E_FMT    = (FMT_E << 21) | OPC_CP1,  /* 18: fmt=extended fp */
+    OPC_Q_FMT    = (FMT_Q << 21) | OPC_CP1,  /* 19: fmt=quad fp */
+    OPC_W_FMT    = (FMT_W << 21) | OPC_CP1,  /* 20: fmt=32bit fixed */
+    OPC_L_FMT    = (FMT_L << 21) | OPC_CP1,  /* 21: fmt=64bit fixed */
+    OPC_PS_FMT   = (FMT_PS << 21) | OPC_CP1, /* 22: fmt=paired single fp */
 };
 
 #define MASK_CP1_FUNC(op)       MASK_CP1(op) | (op & 0x3F)
@@ -5714,6 +5727,146 @@ static void gen_compute_branch1 (CPUState *env, DisasContext *ctx, uint32_t op,
 
 #define FOP(func, fmt) (((fmt) << 21) | (func))
 
+enum fopcode {
+    OPC_ADD_S = FOP(0, FMT_S),
+    OPC_SUB_S = FOP(1, FMT_S),
+    OPC_MUL_S = FOP(2, FMT_S),
+    OPC_DIV_S = FOP(3, FMT_S),
+    OPC_SQRT_S = FOP(4, FMT_S),
+    OPC_ABS_S = FOP(5, FMT_S),
+    OPC_MOV_S = FOP(6, FMT_S),
+    OPC_NEG_S = FOP(7, FMT_S),
+    OPC_ROUND_L_S = FOP(8, FMT_S),
+    OPC_TRUNC_L_S = FOP(9, FMT_S),
+    OPC_CEIL_L_S = FOP(10, FMT_S),
+    OPC_FLOOR_L_S = FOP(11, FMT_S),
+    OPC_ROUND_W_S = FOP(12, FMT_S),
+    OPC_TRUNC_W_S = FOP(13, FMT_S),
+    OPC_CEIL_W_S = FOP(14, FMT_S),
+    OPC_FLOOR_W_S = FOP(15, FMT_S),
+    OPC_MOVCF_S = FOP(17, FMT_S),
+    OPC_MOVZ_S = FOP(18, FMT_S),
+    OPC_MOVN_S = FOP(19, FMT_S),
+    OPC_RECIP_S = FOP(21, FMT_S),
+    OPC_RSQRT_S = FOP(22, FMT_S),
+    OPC_RECIP2_S = FOP(28, FMT_S),
+    OPC_RECIP1_S = FOP(29, FMT_S),
+    OPC_RSQRT1_S = FOP(30, FMT_S),
+    OPC_RSQRT2_S = FOP(31, FMT_S),
+    OPC_CVT_D_S = FOP(33, FMT_S),
+    OPC_CVT_W_S = FOP(36, FMT_S),
+    OPC_CVT_L_S = FOP(37, FMT_S),
+    OPC_CVT_PS_S = FOP(38, FMT_S),
+    OPC_CMP_F_S = FOP (48, FMT_S),
+    OPC_CMP_UN_S = FOP (49, FMT_S),
+    OPC_CMP_EQ_S = FOP (50, FMT_S),
+    OPC_CMP_UEQ_S = FOP (51, FMT_S),
+    OPC_CMP_OLT_S = FOP (52, FMT_S),
+    OPC_CMP_ULT_S = FOP (53, FMT_S),
+    OPC_CMP_OLE_S = FOP (54, FMT_S),
+    OPC_CMP_ULE_S = FOP (55, FMT_S),
+    OPC_CMP_SF_S = FOP (56, FMT_S),
+    OPC_CMP_NGLE_S = FOP (57, FMT_S),
+    OPC_CMP_SEQ_S = FOP (58, FMT_S),
+    OPC_CMP_NGL_S = FOP (59, FMT_S),
+    OPC_CMP_LT_S = FOP (60, FMT_S),
+    OPC_CMP_NGE_S = FOP (61, FMT_S),
+    OPC_CMP_LE_S = FOP (62, FMT_S),
+    OPC_CMP_NGT_S = FOP (63, FMT_S),
+
+    OPC_ADD_D = FOP(0, FMT_D),
+    OPC_SUB_D = FOP(1, FMT_D),
+    OPC_MUL_D = FOP(2, FMT_D),
+    OPC_DIV_D = FOP(3, FMT_D),
+    OPC_SQRT_D = FOP(4, FMT_D),
+    OPC_ABS_D = FOP(5, FMT_D),
+    OPC_MOV_D = FOP(6, FMT_D),
+    OPC_NEG_D = FOP(7, FMT_D),
+    OPC_ROUND_L_D = FOP(8, FMT_D),
+    OPC_TRUNC_L_D = FOP(9, FMT_D),
+    OPC_CEIL_L_D = FOP(10, FMT_D),
+    OPC_FLOOR_L_D = FOP(11, FMT_D),
+    OPC_ROUND_W_D = FOP(12, FMT_D),
+    OPC_TRUNC_W_D = FOP(13, FMT_D),
+    OPC_CEIL_W_D = FOP(14, FMT_D),
+    OPC_FLOOR_W_D = FOP(15, FMT_D),
+    OPC_MOVCF_D = FOP(17, FMT_D),
+    OPC_MOVZ_D = FOP(18, FMT_D),
+    OPC_MOVN_D = FOP(19, FMT_D),
+    OPC_RECIP_D = FOP(21, FMT_D),
+    OPC_RSQRT_D = FOP(22, FMT_D),
+    OPC_RECIP2_D = FOP(28, FMT_D),
+    OPC_RECIP1_D = FOP(29, FMT_D),
+    OPC_RSQRT1_D = FOP(30, FMT_D),
+    OPC_RSQRT2_D = FOP(31, FMT_D),
+    OPC_CVT_S_D = FOP(32, FMT_D),
+    OPC_CVT_W_D = FOP(36, FMT_D),
+    OPC_CVT_L_D = FOP(37, FMT_D),
+    OPC_CMP_F_D = FOP (48, FMT_D),
+    OPC_CMP_UN_D = FOP (49, FMT_D),
+    OPC_CMP_EQ_D = FOP (50, FMT_D),
+    OPC_CMP_UEQ_D = FOP (51, FMT_D),
+    OPC_CMP_OLT_D = FOP (52, FMT_D),
+    OPC_CMP_ULT_D = FOP (53, FMT_D),
+    OPC_CMP_OLE_D = FOP (54, FMT_D),
+    OPC_CMP_ULE_D = FOP (55, FMT_D),
+    OPC_CMP_SF_D = FOP (56, FMT_D),
+    OPC_CMP_NGLE_D = FOP (57, FMT_D),
+    OPC_CMP_SEQ_D = FOP (58, FMT_D),
+    OPC_CMP_NGL_D = FOP (59, FMT_D),
+    OPC_CMP_LT_D = FOP (60, FMT_D),
+    OPC_CMP_NGE_D = FOP (61, FMT_D),
+    OPC_CMP_LE_D = FOP (62, FMT_D),
+    OPC_CMP_NGT_D = FOP (63, FMT_D),
+
+    OPC_CVT_S_W = FOP(32, FMT_W),
+    OPC_CVT_D_W = FOP(33, FMT_W),
+    OPC_CVT_S_L = FOP(32, FMT_L),
+    OPC_CVT_D_L = FOP(33, FMT_L),
+    OPC_CVT_PS_PW = FOP(38, FMT_W),
+
+    OPC_ADD_PS = FOP(0, FMT_PS),
+    OPC_SUB_PS = FOP(1, FMT_PS),
+    OPC_MUL_PS = FOP(2, FMT_PS),
+    OPC_DIV_PS = FOP(3, FMT_PS),
+    OPC_ABS_PS = FOP(5, FMT_PS),
+    OPC_MOV_PS = FOP(6, FMT_PS),
+    OPC_NEG_PS = FOP(7, FMT_PS),
+    OPC_MOVCF_PS = FOP(17, FMT_PS),
+    OPC_MOVZ_PS = FOP(18, FMT_PS),
+    OPC_MOVN_PS = FOP(19, FMT_PS),
+    OPC_ADDR_PS = FOP(24, FMT_PS),
+    OPC_MULR_PS = FOP(26, FMT_PS),
+    OPC_RECIP2_PS = FOP(28, FMT_PS),
+    OPC_RECIP1_PS = FOP(29, FMT_PS),
+    OPC_RSQRT1_PS = FOP(30, FMT_PS),
+    OPC_RSQRT2_PS = FOP(31, FMT_PS),
+
+    OPC_CVT_S_PU = FOP(32, FMT_PS),
+    OPC_CVT_PW_PS = FOP(36, FMT_PS),
+    OPC_CVT_S_PL = FOP(40, FMT_PS),
+    OPC_PLL_PS = FOP(44, FMT_PS),
+    OPC_PLU_PS = FOP(45, FMT_PS),
+    OPC_PUL_PS = FOP(46, FMT_PS),
+    OPC_PUU_PS = FOP(47, FMT_PS),
+    OPC_CMP_F_PS = FOP (48, FMT_PS),
+    OPC_CMP_UN_PS = FOP (49, FMT_PS),
+    OPC_CMP_EQ_PS = FOP (50, FMT_PS),
+    OPC_CMP_UEQ_PS = FOP (51, FMT_PS),
+    OPC_CMP_OLT_PS = FOP (52, FMT_PS),
+    OPC_CMP_ULT_PS = FOP (53, FMT_PS),
+    OPC_CMP_OLE_PS = FOP (54, FMT_PS),
+    OPC_CMP_ULE_PS = FOP (55, FMT_PS),
+    OPC_CMP_SF_PS = FOP (56, FMT_PS),
+    OPC_CMP_NGLE_PS = FOP (57, FMT_PS),
+    OPC_CMP_SEQ_PS = FOP (58, FMT_PS),
+    OPC_CMP_NGL_PS = FOP (59, FMT_PS),
+    OPC_CMP_LT_PS = FOP (60, FMT_PS),
+    OPC_CMP_NGE_PS = FOP (61, FMT_PS),
+    OPC_CMP_LE_PS = FOP (62, FMT_PS),
+    OPC_CMP_NGT_PS = FOP (63, FMT_PS),
+};
+
 static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
 {
     const char *opn = "cp1 move";
@@ -5894,7 +6047,7 @@ static inline void gen_movcf_ps (int fs, int fd, int cc, int tf)
 }
 
 
-static void gen_farith (DisasContext *ctx, uint32_t op1,
+static void gen_farith (DisasContext *ctx, enum fopcode op1,
                         int ft, int fs, int fd, int cc)
 {
     const char *opn = "farith";
@@ -5937,8 +6090,8 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     enum { BINOP, CMPOP, OTHEROP } optype = OTHEROP;
     uint32_t func = ctx->opcode & 0x3f;
 
-    switch (ctx->opcode & FOP(0x3f, 0x1f)) {
-    case FOP(0, 16):
+    switch (op1) {
+    case OPC_ADD_S:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv_i32 fp1 = tcg_temp_new_i32();
@@ -5953,7 +6106,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         opn = "add.s";
         optype = BINOP;
         break;
-    case FOP(1, 16):
+    case OPC_SUB_S:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv_i32 fp1 = tcg_temp_new_i32();
@@ -5968,7 +6121,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         opn = "sub.s";
         optype = BINOP;
         break;
-    case FOP(2, 16):
+    case OPC_MUL_S:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv_i32 fp1 = tcg_temp_new_i32();
@@ -5983,7 +6136,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         opn = "mul.s";
         optype = BINOP;
         break;
-    case FOP(3, 16):
+    case OPC_DIV_S:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv_i32 fp1 = tcg_temp_new_i32();
@@ -5998,7 +6151,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         opn = "div.s";
         optype = BINOP;
         break;
-    case FOP(4, 16):
+    case OPC_SQRT_S:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
@@ -6009,7 +6162,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "sqrt.s";
         break;
-    case FOP(5, 16):
+    case OPC_ABS_S:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
@@ -6020,7 +6173,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "abs.s";
         break;
-    case FOP(6, 16):
+    case OPC_MOV_S:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
@@ -6030,7 +6183,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "mov.s";
         break;
-    case FOP(7, 16):
+    case OPC_NEG_S:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
@@ -6041,7 +6194,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "neg.s";
         break;
-    case FOP(8, 16):
+    case OPC_ROUND_L_S:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i32 fp32 = tcg_temp_new_i32();
@@ -6055,7 +6208,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "round.l.s";
         break;
-    case FOP(9, 16):
+    case OPC_TRUNC_L_S:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i32 fp32 = tcg_temp_new_i32();
@@ -6069,7 +6222,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "trunc.l.s";
         break;
-    case FOP(10, 16):
+    case OPC_CEIL_L_S:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i32 fp32 = tcg_temp_new_i32();
@@ -6083,7 +6236,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "ceil.l.s";
         break;
-    case FOP(11, 16):
+    case OPC_FLOOR_L_S:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i32 fp32 = tcg_temp_new_i32();
@@ -6097,7 +6250,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "floor.l.s";
         break;
-    case FOP(12, 16):
+    case OPC_ROUND_W_S:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
@@ -6108,7 +6261,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "round.w.s";
         break;
-    case FOP(13, 16):
+    case OPC_TRUNC_W_S:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
@@ -6119,7 +6272,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "trunc.w.s";
         break;
-    case FOP(14, 16):
+    case OPC_CEIL_W_S:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
@@ -6130,7 +6283,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "ceil.w.s";
         break;
-    case FOP(15, 16):
+    case OPC_FLOOR_W_S:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
@@ -6141,11 +6294,11 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "floor.w.s";
         break;
-    case FOP(17, 16):
+    case OPC_MOVCF_S:
         gen_movcf_s(fs, fd, (ft >> 2) & 0x7, ft & 0x1);
         opn = "movcf.s";
         break;
-    case FOP(18, 16):
+    case OPC_MOVZ_S:
         {
             int l1 = gen_new_label();
             TCGv_i32 fp0;
@@ -6161,7 +6314,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "movz.s";
         break;
-    case FOP(19, 16):
+    case OPC_MOVN_S:
         {
             int l1 = gen_new_label();
             TCGv_i32 fp0;
@@ -6177,7 +6330,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "movn.s";
         break;
-    case FOP(21, 16):
+    case OPC_RECIP_S:
         check_cop1x(ctx);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
@@ -6189,7 +6342,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "recip.s";
         break;
-    case FOP(22, 16):
+    case OPC_RSQRT_S:
         check_cop1x(ctx);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
@@ -6201,7 +6354,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "rsqrt.s";
         break;
-    case FOP(28, 16):
+    case OPC_RECIP2_S:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
@@ -6216,7 +6369,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "recip2.s";
         break;
-    case FOP(29, 16):
+    case OPC_RECIP1_S:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
@@ -6228,7 +6381,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "recip1.s";
         break;
-    case FOP(30, 16):
+    case OPC_RSQRT1_S:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
@@ -6240,7 +6393,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "rsqrt1.s";
         break;
-    case FOP(31, 16):
+    case OPC_RSQRT2_S:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
@@ -6255,7 +6408,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "rsqrt2.s";
         break;
-    case FOP(33, 16):
+    case OPC_CVT_D_S:
         check_cp1_registers(ctx, fd);
         {
             TCGv_i32 fp32 = tcg_temp_new_i32();
@@ -6269,7 +6422,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "cvt.d.s";
         break;
-    case FOP(36, 16):
+    case OPC_CVT_W_S:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
@@ -6280,7 +6433,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "cvt.w.s";
         break;
-    case FOP(37, 16):
+    case OPC_CVT_L_S:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i32 fp32 = tcg_temp_new_i32();
@@ -6294,7 +6447,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "cvt.l.s";
         break;
-    case FOP(38, 16):
+    case OPC_CVT_PS_S:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp64 = tcg_temp_new_i64();
@@ -6311,22 +6464,22 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "cvt.ps.s";
         break;
-    case FOP(48, 16):
-    case FOP(49, 16):
-    case FOP(50, 16):
-    case FOP(51, 16):
-    case FOP(52, 16):
-    case FOP(53, 16):
-    case FOP(54, 16):
-    case FOP(55, 16):
-    case FOP(56, 16):
-    case FOP(57, 16):
-    case FOP(58, 16):
-    case FOP(59, 16):
-    case FOP(60, 16):
-    case FOP(61, 16):
-    case FOP(62, 16):
-    case FOP(63, 16):
+    case OPC_CMP_F_S:
+    case OPC_CMP_UN_S:
+    case OPC_CMP_EQ_S:
+    case OPC_CMP_UEQ_S:
+    case OPC_CMP_OLT_S:
+    case OPC_CMP_ULT_S:
+    case OPC_CMP_OLE_S:
+    case OPC_CMP_ULE_S:
+    case OPC_CMP_SF_S:
+    case OPC_CMP_NGLE_S:
+    case OPC_CMP_SEQ_S:
+    case OPC_CMP_NGL_S:
+    case OPC_CMP_LT_S:
+    case OPC_CMP_NGE_S:
+    case OPC_CMP_LE_S:
+    case OPC_CMP_NGT_S:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv_i32 fp1 = tcg_temp_new_i32();
@@ -6345,7 +6498,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
             tcg_temp_free_i32(fp1);
         }
         break;
-    case FOP(0, 17):
+    case OPC_ADD_D:
         check_cp1_registers(ctx, fs | ft | fd);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6361,7 +6514,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         opn = "add.d";
         optype = BINOP;
         break;
-    case FOP(1, 17):
+    case OPC_SUB_D:
         check_cp1_registers(ctx, fs | ft | fd);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6377,7 +6530,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         opn = "sub.d";
         optype = BINOP;
         break;
-    case FOP(2, 17):
+    case OPC_MUL_D:
         check_cp1_registers(ctx, fs | ft | fd);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6393,7 +6546,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         opn = "mul.d";
         optype = BINOP;
         break;
-    case FOP(3, 17):
+    case OPC_DIV_D:
         check_cp1_registers(ctx, fs | ft | fd);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6409,7 +6562,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         opn = "div.d";
         optype = BINOP;
         break;
-    case FOP(4, 17):
+    case OPC_SQRT_D:
         check_cp1_registers(ctx, fs | fd);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6421,7 +6574,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "sqrt.d";
         break;
-    case FOP(5, 17):
+    case OPC_ABS_D:
         check_cp1_registers(ctx, fs | fd);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6433,7 +6586,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "abs.d";
         break;
-    case FOP(6, 17):
+    case OPC_MOV_D:
         check_cp1_registers(ctx, fs | fd);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6444,7 +6597,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "mov.d";
         break;
-    case FOP(7, 17):
+    case OPC_NEG_D:
         check_cp1_registers(ctx, fs | fd);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6456,7 +6609,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "neg.d";
         break;
-    case FOP(8, 17):
+    case OPC_ROUND_L_D:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6468,7 +6621,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "round.l.d";
         break;
-    case FOP(9, 17):
+    case OPC_TRUNC_L_D:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6480,7 +6633,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "trunc.l.d";
         break;
-    case FOP(10, 17):
+    case OPC_CEIL_L_D:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6492,7 +6645,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "ceil.l.d";
         break;
-    case FOP(11, 17):
+    case OPC_FLOOR_L_D:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6504,7 +6657,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "floor.l.d";
         break;
-    case FOP(12, 17):
+    case OPC_ROUND_W_D:
         check_cp1_registers(ctx, fs);
         {
             TCGv_i32 fp32 = tcg_temp_new_i32();
@@ -6518,7 +6671,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "round.w.d";
         break;
-    case FOP(13, 17):
+    case OPC_TRUNC_W_D:
         check_cp1_registers(ctx, fs);
         {
             TCGv_i32 fp32 = tcg_temp_new_i32();
@@ -6532,7 +6685,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "trunc.w.d";
         break;
-    case FOP(14, 17):
+    case OPC_CEIL_W_D:
         check_cp1_registers(ctx, fs);
         {
             TCGv_i32 fp32 = tcg_temp_new_i32();
@@ -6546,7 +6699,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "ceil.w.d";
         break;
-    case FOP(15, 17):
+    case OPC_FLOOR_W_D:
         check_cp1_registers(ctx, fs);
         {
             TCGv_i32 fp32 = tcg_temp_new_i32();
@@ -6560,11 +6713,11 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "floor.w.d";
         break;
-    case FOP(17, 17):
+    case OPC_MOVCF_D:
         gen_movcf_d(ctx, fs, fd, (ft >> 2) & 0x7, ft & 0x1);
         opn = "movcf.d";
         break;
-    case FOP(18, 17):
+    case OPC_MOVZ_D:
         {
             int l1 = gen_new_label();
             TCGv_i64 fp0;
@@ -6580,7 +6733,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "movz.d";
         break;
-    case FOP(19, 17):
+    case OPC_MOVN_D:
         {
             int l1 = gen_new_label();
             TCGv_i64 fp0;
@@ -6596,7 +6749,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "movn.d";
         break;
-    case FOP(21, 17):
+    case OPC_RECIP_D:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6608,7 +6761,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "recip.d";
         break;
-    case FOP(22, 17):
+    case OPC_RSQRT_D:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6620,7 +6773,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "rsqrt.d";
         break;
-    case FOP(28, 17):
+    case OPC_RECIP2_D:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6635,7 +6788,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "recip2.d";
         break;
-    case FOP(29, 17):
+    case OPC_RECIP1_D:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6647,7 +6800,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "recip1.d";
         break;
-    case FOP(30, 17):
+    case OPC_RSQRT1_D:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6659,7 +6812,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "rsqrt1.d";
         break;
-    case FOP(31, 17):
+    case OPC_RSQRT2_D:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6674,22 +6827,22 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "rsqrt2.d";
         break;
-    case FOP(48, 17):
-    case FOP(49, 17):
-    case FOP(50, 17):
-    case FOP(51, 17):
-    case FOP(52, 17):
-    case FOP(53, 17):
-    case FOP(54, 17):
-    case FOP(55, 17):
-    case FOP(56, 17):
-    case FOP(57, 17):
-    case FOP(58, 17):
-    case FOP(59, 17):
-    case FOP(60, 17):
-    case FOP(61, 17):
-    case FOP(62, 17):
-    case FOP(63, 17):
+    case OPC_CMP_F_D:
+    case OPC_CMP_UN_D:
+    case OPC_CMP_EQ_D:
+    case OPC_CMP_UEQ_D:
+    case OPC_CMP_OLT_D:
+    case OPC_CMP_ULT_D:
+    case OPC_CMP_OLE_D:
+    case OPC_CMP_ULE_D:
+    case OPC_CMP_SF_D:
+    case OPC_CMP_NGLE_D:
+    case OPC_CMP_SEQ_D:
+    case OPC_CMP_NGL_D:
+    case OPC_CMP_LT_D:
+    case OPC_CMP_NGE_D:
+    case OPC_CMP_LE_D:
+    case OPC_CMP_NGT_D:
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
             TCGv_i64 fp1 = tcg_temp_new_i64();
@@ -6710,7 +6863,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
             tcg_temp_free_i64(fp1);
         }
         break;
-    case FOP(32, 17):
+    case OPC_CVT_S_D:
         check_cp1_registers(ctx, fs);
         {
             TCGv_i32 fp32 = tcg_temp_new_i32();
@@ -6724,7 +6877,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "cvt.s.d";
         break;
-    case FOP(36, 17):
+    case OPC_CVT_W_D:
         check_cp1_registers(ctx, fs);
         {
             TCGv_i32 fp32 = tcg_temp_new_i32();
@@ -6738,7 +6891,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "cvt.w.d";
         break;
-    case FOP(37, 17):
+    case OPC_CVT_L_D:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6750,7 +6903,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "cvt.l.d";
         break;
-    case FOP(32, 20):
+    case OPC_CVT_S_W:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
@@ -6761,7 +6914,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "cvt.s.w";
         break;
-    case FOP(33, 20):
+    case OPC_CVT_D_W:
         check_cp1_registers(ctx, fd);
         {
             TCGv_i32 fp32 = tcg_temp_new_i32();
@@ -6775,7 +6928,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "cvt.d.w";
         break;
-    case FOP(32, 21):
+    case OPC_CVT_S_L:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i32 fp32 = tcg_temp_new_i32();
@@ -6789,7 +6942,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "cvt.s.l";
         break;
-    case FOP(33, 21):
+    case OPC_CVT_D_L:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6801,7 +6954,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "cvt.d.l";
         break;
-    case FOP(38, 20):
+    case OPC_CVT_PS_PW:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6813,7 +6966,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "cvt.ps.pw";
         break;
-    case FOP(0, 22):
+    case OPC_ADD_PS:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6828,7 +6981,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "add.ps";
         break;
-    case FOP(1, 22):
+    case OPC_SUB_PS:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6843,7 +6996,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "sub.ps";
         break;
-    case FOP(2, 22):
+    case OPC_MUL_PS:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6858,7 +7011,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "mul.ps";
         break;
-    case FOP(5, 22):
+    case OPC_ABS_PS:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6870,7 +7023,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "abs.ps";
         break;
-    case FOP(6, 22):
+    case OPC_MOV_PS:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6881,7 +7034,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "mov.ps";
         break;
-    case FOP(7, 22):
+    case OPC_NEG_PS:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6893,12 +7046,12 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "neg.ps";
         break;
-    case FOP(17, 22):
+    case OPC_MOVCF_PS:
         check_cp1_64bitmode(ctx);
         gen_movcf_ps(fs, fd, (ft >> 2) & 0x7, ft & 0x1);
         opn = "movcf.ps";
         break;
-    case FOP(18, 22):
+    case OPC_MOVZ_PS:
         check_cp1_64bitmode(ctx);
         {
             int l1 = gen_new_label();
@@ -6914,7 +7067,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "movz.ps";
         break;
-    case FOP(19, 22):
+    case OPC_MOVN_PS:
         check_cp1_64bitmode(ctx);
         {
             int l1 = gen_new_label();
@@ -6931,7 +7084,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "movn.ps";
         break;
-    case FOP(24, 22):
+    case OPC_ADDR_PS:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6946,7 +7099,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "addr.ps";
         break;
-    case FOP(26, 22):
+    case OPC_MULR_PS:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6961,7 +7114,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "mulr.ps";
         break;
-    case FOP(28, 22):
+    case OPC_RECIP2_PS:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6976,7 +7129,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "recip2.ps";
         break;
-    case FOP(29, 22):
+    case OPC_RECIP1_PS:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -6988,7 +7141,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "recip1.ps";
         break;
-    case FOP(30, 22):
+    case OPC_RSQRT1_PS:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -7000,7 +7153,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "rsqrt1.ps";
         break;
-    case FOP(31, 22):
+    case OPC_RSQRT2_PS:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -7015,7 +7168,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "rsqrt2.ps";
         break;
-    case FOP(32, 22):
+    case OPC_CVT_S_PU:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
@@ -7027,7 +7180,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "cvt.s.pu";
         break;
-    case FOP(36, 22):
+    case OPC_CVT_PW_PS:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -7039,7 +7192,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "cvt.pw.ps";
         break;
-    case FOP(40, 22):
+    case OPC_CVT_S_PL:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
@@ -7051,7 +7204,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "cvt.s.pl";
         break;
-    case FOP(44, 22):
+    case OPC_PLL_PS:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
@@ -7066,7 +7219,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "pll.ps";
         break;
-    case FOP(45, 22):
+    case OPC_PLU_PS:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
@@ -7081,7 +7234,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "plu.ps";
         break;
-    case FOP(46, 22):
+    case OPC_PUL_PS:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
@@ -7096,7 +7249,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "pul.ps";
         break;
-    case FOP(47, 22):
+    case OPC_PUU_PS:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
@@ -7111,22 +7264,22 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         }
         opn = "puu.ps";
         break;
-    case FOP(48, 22):
-    case FOP(49, 22):
-    case FOP(50, 22):
-    case FOP(51, 22):
-    case FOP(52, 22):
-    case FOP(53, 22):
-    case FOP(54, 22):
-    case FOP(55, 22):
-    case FOP(56, 22):
-    case FOP(57, 22):
-    case FOP(58, 22):
-    case FOP(59, 22):
-    case FOP(60, 22):
-    case FOP(61, 22):
-    case FOP(62, 22):
-    case FOP(63, 22):
+    case OPC_CMP_F_PS:
+    case OPC_CMP_UN_PS:
+    case OPC_CMP_EQ_PS:
+    case OPC_CMP_UEQ_PS:
+    case OPC_CMP_OLT_PS:
+    case OPC_CMP_ULT_PS:
+    case OPC_CMP_OLE_PS:
+    case OPC_CMP_ULE_PS:
+    case OPC_CMP_SF_PS:
+    case OPC_CMP_NGLE_PS:
+    case OPC_CMP_SEQ_PS:
+    case OPC_CMP_NGL_PS:
+    case OPC_CMP_LT_PS:
+    case OPC_CMP_NGE_PS:
+    case OPC_CMP_LE_PS:
+    case OPC_CMP_NGT_PS:
         check_cp1_64bitmode(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -9298,7 +9451,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx, int *is_branch)
             case OPC_W_FMT:
             case OPC_L_FMT:
             case OPC_PS_FMT:
-                gen_farith(ctx, MASK_CP1_FUNC(ctx->opcode), rt, rd, sa,
+                gen_farith(ctx, ctx->opcode & FOP(0x3f, 0x1f), rt, rd, sa,
                            (imm >> 8) & 0x7);
                 break;
             default:
