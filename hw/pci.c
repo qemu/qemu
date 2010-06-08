@@ -609,12 +609,12 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
             if (!bus->devices[devfn])
                 goto found;
         }
-        error_report("PCI: no devfn available for %s, all in use", name);
+        error_report("PCI: no slot/function available for %s, all in use", name);
         return NULL;
     found: ;
     } else if (bus->devices[devfn]) {
-        error_report("PCI: devfn %d not available for %s, in use by %s",
-                     devfn, name, bus->devices[devfn]->name);
+        error_report("PCI: slot %d function %d not available for %s, in use by %s",
+                     PCI_SLOT(devfn), PCI_FUNC(devfn), name, bus->devices[devfn]->name);
         return NULL;
     }
     pci_dev->bus = bus;
