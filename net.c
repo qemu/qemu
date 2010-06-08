@@ -1106,6 +1106,7 @@ int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev)
     for (i = 0; net_client_types[i].type != NULL; i++) {
         if (!strcmp(net_client_types[i].type, type)) {
             VLANState *vlan = NULL;
+            int ret;
 
             if (qemu_opts_validate(opts, &net_client_types[i].desc[0]) == -1) {
                 return -1;
@@ -1118,14 +1119,16 @@ int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev)
                 vlan = qemu_find_vlan(qemu_opt_get_number(opts, "vlan", 0), 1);
             }
 
+            ret = -1;
             if (net_client_types[i].init) {
-                if (net_client_types[i].init(opts, mon, name, vlan) < 0) {
+                ret = net_client_types[i].init(opts, mon, name, vlan);
+                if (ret < 0) {
                     /* TODO push error reporting into init() methods */
                     qerror_report(QERR_DEVICE_INIT_FAILED, type);
                     return -1;
                 }
             }
-            return 0;
+            return ret;
         }
     }
 
