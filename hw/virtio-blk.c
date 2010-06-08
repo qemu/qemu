@@ -223,33 +223,39 @@ static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
 }
 #endif /* __linux__ */
 
-static void do_multiwrite(BlockDriverState *bs, BlockRequest *blkreq,
-    int num_writes)
+typedef struct MultiReqBuffer {
+    BlockRequest        blkreq[32];
+    unsigned int        num_writes;
+} MultiReqBuffer;
+
+static void virtio_submit_multiwrite(BlockDriverState *bs, MultiReqBuffer *mrb)
 {
     int i, ret;
-    ret = bdrv_aio_multiwrite(bs, blkreq, num_writes);
 
+    if (!mrb->num_writes) {
+        return;
+    }
+
+    ret = bdrv_aio_multiwrite(bs, mrb->blkreq, mrb->num_writes);
     if (ret != 0) {
-        for (i = 0; i < num_writes; i++) {
-            if (blkreq[i].error) {
-                virtio_blk_rw_complete(blkreq[i].opaque, -EIO);
+        for (i = 0; i < mrb->num_writes; i++) {
+            if (mrb->blkreq[i].error) {
+                virtio_blk_rw_complete(mrb->blkreq[i].opaque, -EIO);
             }
         }
     }
+
+    mrb->num_writes = 0;
 }
 
-static void virtio_blk_handle_flush(BlockRequest *blkreq, int *num_writes,
-    VirtIOBlockReq *req)
+static void virtio_blk_handle_flush(VirtIOBlockReq *req, MultiReqBuffer *mrb)
 {
     BlockDriverAIOCB *acb;
 
     /*
      * Make sure all outstanding writes are posted to the backing device.
      */
-    if (*num_writes > 0) {
-        do_multiwrite(req->dev->bs, blkreq, *num_writes);
-    }
-    *num_writes = 0;
+    virtio_submit_multiwrite(req->dev->bs, mrb);
 
     acb = bdrv_aio_flush(req->dev->bs, virtio_blk_flush_complete, req);
     if (!acb) {
@@ -257,27 +263,28 @@ static void virtio_blk_handle_flush(BlockRequest *blkreq, int *num_writes,
     }
 }
 
-static void virtio_blk_handle_write(BlockRequest *blkreq, int *num_writes,
-    VirtIOBlockReq *req)
+static void virtio_blk_handle_write(VirtIOBlockReq *req, MultiReqBuffer *mrb)
 {
+    BlockRequest *blkreq;
+
     if (req->out->sector & req->dev->sector_mask) {
         virtio_blk_rw_complete(req, -EIO);
         return;
     }
 
-    if (*num_writes == 32) {
-        do_multiwrite(req->dev->bs, blkreq, *num_writes);
-        *num_writes = 0;
+    if (mrb->num_writes == 32) {
+        virtio_submit_multiwrite(req->dev->bs, mrb);
     }
 
-    blkreq[*num_writes].sector = req->out->sector;
-    blkreq[*num_writes].nb_sectors = req->qiov.size / BDRV_SECTOR_SIZE;
-    blkreq[*num_writes].qiov = &req->qiov;
-    blkreq[*num_writes].cb = virtio_blk_rw_complete;
-    blkreq[*num_writes].opaque = req;
-    blkreq[*num_writes].error = 0;
+    blkreq = &mrb->blkreq[mrb->num_writes];
+    blkreq->sector = req->out->sector;
+    blkreq->nb_sectors = req->qiov.size / BDRV_SECTOR_SIZE;
+    blkreq->qiov = &req->qiov;
+    blkreq->cb = virtio_blk_rw_complete;
+    blkreq->opaque = req;
+    blkreq->error = 0;
 
-    (*num_writes)++;
+    mrb->num_writes++;
 }
 
 static void virtio_blk_handle_read(VirtIOBlockReq *req)
@@ -297,11 +304,6 @@ static void virtio_blk_handle_read(VirtIOBlockReq *req)
     }
 }
 
-typedef struct MultiReqBuffer {
-    BlockRequest        blkreq[32];
-    int                 num_writes;
-} MultiReqBuffer;
-
 static void virtio_blk_handle_request(VirtIOBlockReq *req,
     MultiReqBuffer *mrb)
 {
@@ -320,13 +322,13 @@ static void virtio_blk_handle_request(VirtIOBlockReq *req,
     req->in = (void *)req->elem.in_sg[req->elem.in_num - 1].iov_base;
 
     if (req->out->type & VIRTIO_BLK_T_FLUSH) {
-        virtio_blk_handle_flush(mrb->blkreq, &mrb->num_writes, req);
+        virtio_blk_handle_flush(req, mrb);
     } else if (req->out->type & VIRTIO_BLK_T_SCSI_CMD) {
         virtio_blk_handle_scsi(req);
     } else if (req->out->type & VIRTIO_BLK_T_OUT) {
         qemu_iovec_init_external(&req->qiov, &req->elem.out_sg[1],
                                  req->elem.out_num - 1);
-        virtio_blk_handle_write(mrb->blkreq, &mrb->num_writes, req);
+        virtio_blk_handle_write(req, mrb);
     } else {
         qemu_iovec_init_external(&req->qiov, &req->elem.in_sg[0],
                                  req->elem.in_num - 1);
@@ -346,9 +348,7 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
         virtio_blk_handle_request(req, &mrb);
     }
 
-    if (mrb.num_writes > 0) {
-        do_multiwrite(s->bs, mrb.blkreq, mrb.num_writes);
-    }
+    virtio_submit_multiwrite(s->bs, &mrb);
 
     /*
      * FIXME: Want to check for completions before returning to guest mode,
@@ -375,9 +375,7 @@ static void virtio_blk_dma_restart_bh(void *opaque)
         req = req->next;
     }
 
-    if (mrb.num_writes > 0) {
-        do_multiwrite(s->bs, mrb.blkreq, mrb.num_writes);
-    }
+    virtio_submit_multiwrite(s->bs, &mrb);
 }
 
 static void virtio_blk_dma_restart_cb(void *opaque, int running, int reason)
