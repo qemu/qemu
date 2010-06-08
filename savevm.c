@@ -1575,22 +1575,6 @@ out:
     return ret;
 }
 
-/* device can contain snapshots */
-static int bdrv_can_snapshot(BlockDriverState *bs)
-{
-    return (bs &&
-            !bdrv_is_removable(bs) &&
-            !bdrv_is_read_only(bs));
-}
-
-/* device must be snapshots in order to have a reliable snapshot */
-static int bdrv_has_snapshot(BlockDriverState *bs)
-{
-    return (bs &&
-            !bdrv_is_removable(bs) &&
-            !bdrv_is_read_only(bs));
-}
-
 static BlockDriverState *get_bs_snapshots(void)
 {
     BlockDriverState *bs;
@@ -1600,8 +1584,9 @@ static BlockDriverState *get_bs_snapshots(void)
         return bs_snapshots;
     QTAILQ_FOREACH(dinfo, &drives, next) {
         bs = dinfo->bdrv;
-        if (bdrv_can_snapshot(bs))
+        if (bdrv_can_snapshot(bs)) {
             goto ok;
+        }
     }
     return NULL;
  ok:
@@ -1675,12 +1660,26 @@ void do_savevm(Monitor *mon, const QDict *qdict)
 #endif
     const char *name = qdict_get_try_str(qdict, "name");
 
+    /* Verify if there is a device that doesn't support snapshots and is writable */
+    QTAILQ_FOREACH(dinfo, &drives, next) {
+        bs = dinfo->bdrv;
+
+        if (bdrv_is_removable(bs) || bdrv_is_read_only(bs)) {
+            continue;
+        }
+
+        if (!bdrv_can_snapshot(bs)) {
+            monitor_printf(mon, "Device '%s' is writable but does not support snapshots.\n",
+                               bdrv_get_device_name(bs));
+            return;
+        }
+    }
+
     bs = get_bs_snapshots();
     if (!bs) {
         monitor_printf(mon, "No block device can accept snapshots\n");
         return;
     }
-
     /* ??? Should this occur after vm_stop?  */
     qemu_aio_flush();
 
@@ -1733,7 +1732,7 @@ void do_savevm(Monitor *mon, const QDict *qdict)
 
     QTAILQ_FOREACH(dinfo, &drives, next) {
         bs1 = dinfo->bdrv;
-        if (bdrv_has_snapshot(bs1)) {
+        if (bdrv_can_snapshot(bs1)) {
             /* Write VM state size only to the image that contains the state */
             sn->vm_state_size = (bs == bs1 ? vm_state_size : 0);
             ret = bdrv_snapshot_create(bs1, sn);
@@ -1757,6 +1756,21 @@ int load_vmstate(const char *name)
     QEMUFile *f;
     int ret;
 
+    /* Verify if there is a device that doesn't support snapshots and is writable */
+    QTAILQ_FOREACH(dinfo, &drives, next) {
+        bs = dinfo->bdrv;
+
+        if (bdrv_is_removable(bs) || bdrv_is_read_only(bs)) {
+            continue;
+        }
+
+        if (!bdrv_can_snapshot(bs)) {
+            error_report("Device '%s' is writable but does not support snapshots.",
+                               bdrv_get_device_name(bs));
+            return -ENOTSUP;
+        }
+    }
+
     bs = get_bs_snapshots();
     if (!bs) {
         error_report("No block device supports snapshots");
@@ -1768,7 +1782,7 @@ int load_vmstate(const char *name)
 
     QTAILQ_FOREACH(dinfo, &drives, next) {
         bs1 = dinfo->bdrv;
-        if (bdrv_has_snapshot(bs1)) {
+        if (bdrv_can_snapshot(bs1)) {
             ret = bdrv_snapshot_goto(bs1, name);
             if (ret < 0) {
                 switch(ret) {
@@ -1830,7 +1844,7 @@ void do_delvm(Monitor *mon, const QDict *qdict)
 
     QTAILQ_FOREACH(dinfo, &drives, next) {
         bs1 = dinfo->bdrv;
-        if (bdrv_has_snapshot(bs1)) {
+        if (bdrv_can_snapshot(bs1)) {
             ret = bdrv_snapshot_delete(bs1, name);
             if (ret < 0) {
                 if (ret == -ENOTSUP)
@@ -1861,7 +1875,7 @@ void do_info_snapshots(Monitor *mon)
     monitor_printf(mon, "Snapshot devices:");
     QTAILQ_FOREACH(dinfo, &drives, next) {
         bs1 = dinfo->bdrv;
-        if (bdrv_has_snapshot(bs1)) {
+        if (bdrv_can_snapshot(bs1)) {
             if (bs == bs1)
                 monitor_printf(mon, " %s", bdrv_get_device_name(bs1));
         }
