@@ -239,18 +239,17 @@ static void do_multiwrite(BlockDriverState *bs, BlockRequest *blkreq,
 }
 
 static void virtio_blk_handle_flush(BlockRequest *blkreq, int *num_writes,
-    VirtIOBlockReq *req, BlockDriverState **old_bs)
+    VirtIOBlockReq *req)
 {
     BlockDriverAIOCB *acb;
 
     /*
      * Make sure all outstanding writes are posted to the backing device.
      */
-    if (*old_bs != NULL) {
-        do_multiwrite(*old_bs, blkreq, *num_writes);
+    if (*num_writes > 0) {
+        do_multiwrite(req->dev->bs, blkreq, *num_writes);
     }
     *num_writes = 0;
-    *old_bs = req->dev->bs;
 
     acb = bdrv_aio_flush(req->dev->bs, virtio_blk_flush_complete, req);
     if (!acb) {
@@ -259,19 +258,16 @@ static void virtio_blk_handle_flush(BlockRequest *blkreq, int *num_writes,
 }
 
 static void virtio_blk_handle_write(BlockRequest *blkreq, int *num_writes,
-    VirtIOBlockReq *req, BlockDriverState **old_bs)
+    VirtIOBlockReq *req)
 {
     if (req->out->sector & req->dev->sector_mask) {
         virtio_blk_rw_complete(req, -EIO);
         return;
     }
 
-    if (req->dev->bs != *old_bs || *num_writes == 32) {
-        if (*old_bs != NULL) {
-            do_multiwrite(*old_bs, blkreq, *num_writes);
-        }
+    if (*num_writes == 32) {
+        do_multiwrite(req->dev->bs, blkreq, *num_writes);
         *num_writes = 0;
-        *old_bs = req->dev->bs;
     }
 
     blkreq[*num_writes].sector = req->out->sector;
@@ -304,7 +300,6 @@ static void virtio_blk_handle_read(VirtIOBlockReq *req)
 typedef struct MultiReqBuffer {
     BlockRequest        blkreq[32];
     int                 num_writes;
-    BlockDriverState    *old_bs;
 } MultiReqBuffer;
 
 static void virtio_blk_handle_request(VirtIOBlockReq *req,
@@ -325,15 +320,13 @@ static void virtio_blk_handle_request(VirtIOBlockReq *req,
     req->in = (void *)req->elem.in_sg[req->elem.in_num - 1].iov_base;
 
     if (req->out->type & VIRTIO_BLK_T_FLUSH) {
-        virtio_blk_handle_flush(mrb->blkreq, &mrb->num_writes,
-            req, &mrb->old_bs);
+        virtio_blk_handle_flush(mrb->blkreq, &mrb->num_writes, req);
     } else if (req->out->type & VIRTIO_BLK_T_SCSI_CMD) {
         virtio_blk_handle_scsi(req);
     } else if (req->out->type & VIRTIO_BLK_T_OUT) {
         qemu_iovec_init_external(&req->qiov, &req->elem.out_sg[1],
                                  req->elem.out_num - 1);
-        virtio_blk_handle_write(mrb->blkreq, &mrb->num_writes,
-            req, &mrb->old_bs);
+        virtio_blk_handle_write(mrb->blkreq, &mrb->num_writes, req);
     } else {
         qemu_iovec_init_external(&req->qiov, &req->elem.in_sg[0],
                                  req->elem.in_num - 1);
@@ -347,7 +340,6 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
     VirtIOBlockReq *req;
     MultiReqBuffer mrb = {
         .num_writes = 0,
-        .old_bs = NULL,
     };
 
     while ((req = virtio_blk_get_request(s))) {
@@ -355,7 +347,7 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
     }
 
     if (mrb.num_writes > 0) {
-        do_multiwrite(mrb.old_bs, mrb.blkreq, mrb.num_writes);
+        do_multiwrite(s->bs, mrb.blkreq, mrb.num_writes);
     }
 
     /*
@@ -371,7 +363,6 @@ static void virtio_blk_dma_restart_bh(void *opaque)
     VirtIOBlockReq *req = s->rq;
     MultiReqBuffer mrb = {
         .num_writes = 0,
-        .old_bs = NULL,
     };
 
     qemu_bh_delete(s->bh);
@@ -385,7 +376,7 @@ static void virtio_blk_dma_restart_bh(void *opaque)
     }
 
     if (mrb.num_writes > 0) {
-        do_multiwrite(mrb.old_bs, mrb.blkreq, mrb.num_writes);
+        do_multiwrite(s->bs, mrb.blkreq, mrb.num_writes);
     }
 }
 
