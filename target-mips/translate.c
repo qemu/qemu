@@ -68,6 +68,7 @@ enum {
     /* Jump and branches */
     OPC_J        = (0x02 << 26),
     OPC_JAL      = (0x03 << 26),
+    OPC_JALS     = OPC_JAL | 0x5,
     OPC_BEQ      = (0x04 << 26),  /* Unconditional if rs = rt = 0 (B) */
     OPC_BEQL     = (0x14 << 26),
     OPC_BNE      = (0x05 << 26),
@@ -77,6 +78,7 @@ enum {
     OPC_BGTZ     = (0x07 << 26),
     OPC_BGTZL    = (0x17 << 26),
     OPC_JALX     = (0x1D << 26),  /* MIPS 16 only */
+    OPC_JALXS    = OPC_JALX | 0x5,
     /* Load and stores */
     OPC_LDL      = (0x1A << 26),
     OPC_LDR      = (0x1B << 26),
@@ -177,6 +179,7 @@ enum {
     OPC_JR       = 0x08 | OPC_SPECIAL, /* Also JR.HB */
     OPC_JALR     = 0x09 | OPC_SPECIAL, /* Also JALR.HB */
     OPC_JALRC    = OPC_JALR | (0x5 << 6),
+    OPC_JALRS    = 0x10 | OPC_SPECIAL | (0x5 << 6),
     /* Traps */
     OPC_TGE      = 0x30 | OPC_SPECIAL,
     OPC_TGEU     = 0x31 | OPC_SPECIAL,
@@ -2466,12 +2469,15 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
     case OPC_J:
     case OPC_JAL:
     case OPC_JALX:
+    case OPC_JALS:
+    case OPC_JALXS:
         /* Jump to immediate */
         btgt = ((ctx->pc + insn_bytes) & (int32_t)0xF0000000) | (uint32_t)offset;
         break;
     case OPC_JR:
     case OPC_JALR:
     case OPC_JALRC:
+    case OPC_JALRS:
         /* Jump to register */
         if (offset != 0 && offset != 16) {
             /* Hint = 0 is JR/JALR, hint 16 is JR.HB/JALR.HB, the
@@ -2534,29 +2540,33 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             ctx->hflags |= MIPS_HFLAG_B;
             MIPS_DEBUG("j " TARGET_FMT_lx, btgt);
             break;
+        case OPC_JALXS:
         case OPC_JALX:
             ctx->hflags |= MIPS_HFLAG_BX;
             /* Fallthrough */
+        case OPC_JALS:
         case OPC_JAL:
             blink = 31;
             ctx->hflags |= MIPS_HFLAG_B;
-            ctx->hflags |= (ctx->hflags & MIPS_HFLAG_M16
+            ctx->hflags |= ((opc == OPC_JALS || opc == OPC_JALXS)
                             ? MIPS_HFLAG_BDS16
                             : MIPS_HFLAG_BDS32);
             MIPS_DEBUG("jal " TARGET_FMT_lx, btgt);
             break;
         case OPC_JR:
             ctx->hflags |= MIPS_HFLAG_BR;
-            if (ctx->hflags & MIPS_HFLAG_M16)
-                ctx->hflags |= MIPS_HFLAG_BDS16;
+            if (insn_bytes == 4)
+                ctx->hflags |= MIPS_HFLAG_BDS32;
             MIPS_DEBUG("jr %s", regnames[rs]);
             break;
+        case OPC_JALRS:
         case OPC_JALR:
         case OPC_JALRC:
             blink = rt;
             ctx->hflags |= MIPS_HFLAG_BR;
-            if (ctx->hflags & MIPS_HFLAG_M16)
-                ctx->hflags |= MIPS_HFLAG_BDS16;
+            ctx->hflags |= (opc == OPC_JALRS
+                            ? MIPS_HFLAG_BDS16
+                            : MIPS_HFLAG_BDS32);
             MIPS_DEBUG("jalr %s, %s", regnames[rt], regnames[rs]);
             break;
         default:
@@ -8487,7 +8497,7 @@ static int decode_mips16_opc (CPUState *env, DisasContext *ctx,
         offset = (((ctx->opcode & 0x1f) << 21)
                   | ((ctx->opcode >> 5) & 0x1f) << 16
                   | offset) << 2;
-        op = ((ctx->opcode >> 10) & 0x1) ? OPC_JALX : OPC_JAL;
+        op = ((ctx->opcode >> 10) & 0x1) ? OPC_JALXS : OPC_JALS;
         gen_compute_branch(ctx, op, 4, rx, ry, offset);
         n_bytes = 4;
         *is_branch = 1;
@@ -8726,7 +8736,7 @@ static int decode_mips16_opc (CPUState *env, DisasContext *ctx,
                 int ra = (ctx->opcode >> 5) & 0x1;
 
                 if (link) {
-                    op = nd ? OPC_JALRC : OPC_JALR;
+                    op = nd ? OPC_JALRC : OPC_JALRS;
                 } else {
                     op = OPC_JR;
                 }
