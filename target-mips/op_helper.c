@@ -565,6 +565,142 @@ void helper_sdr(target_ulong arg1, target_ulong arg2, int mem_idx)
 }
 #endif /* TARGET_MIPS64 */
 
+static const int multiple_regs[] = { 16, 17, 18, 19, 20, 21, 22, 23, 30 };
+
+void helper_lwm (target_ulong addr, target_ulong reglist, uint32_t mem_idx)
+{
+    target_ulong base_reglist = reglist & 0xf;
+    target_ulong do_r31 = reglist & 0x10;
+#ifdef CONFIG_USER_ONLY
+#undef ldfun
+#define ldfun ldl_raw
+#else
+    uint32_t (*ldfun)(target_ulong);
+
+    switch (mem_idx)
+    {
+    case 0: ldfun = ldl_kernel; break;
+    case 1: ldfun = ldl_super; break;
+    default:
+    case 2: ldfun = ldl_user; break;
+    }
+#endif
+
+    if (base_reglist > 0 && base_reglist <= ARRAY_SIZE (multiple_regs)) {
+        target_ulong i;
+
+        for (i = 0; i < base_reglist; i++) {
+            env->active_tc.gpr[multiple_regs[i]] = (target_long) ldfun(addr);
+            addr += 4;
+        }
+    }
+
+    if (do_r31) {
+        env->active_tc.gpr[31] = (target_long) ldfun(addr);
+    }
+}
+
+void helper_swm (target_ulong addr, target_ulong reglist, uint32_t mem_idx)
+{
+    target_ulong base_reglist = reglist & 0xf;
+    target_ulong do_r31 = reglist & 0x10;
+#ifdef CONFIG_USER_ONLY
+#undef stfun
+#define stfun stl_raw
+#else
+    void (*stfun)(target_ulong, uint32_t);
+
+    switch (mem_idx)
+    {
+    case 0: stfun = stl_kernel; break;
+    case 1: stfun = stl_super; break;
+     default:
+    case 2: stfun = stl_user; break;
+    }
+#endif
+
+    if (base_reglist > 0 && base_reglist <= ARRAY_SIZE (multiple_regs)) {
+        target_ulong i;
+
+        for (i = 0; i < base_reglist; i++) {
+            stfun(addr, env->active_tc.gpr[multiple_regs[i]]);
+            addr += 4;
+        }
+    }
+
+    if (do_r31) {
+        stfun(addr, env->active_tc.gpr[31]);
+    }
+}
+
+#if defined(TARGET_MIPS64)
+void helper_ldm (target_ulong addr, target_ulong reglist, uint32_t mem_idx)
+{
+    target_ulong base_reglist = reglist & 0xf;
+    target_ulong do_r31 = reglist & 0x10;
+#ifdef CONFIG_USER_ONLY
+#undef ldfun
+#define ldfun ldq_raw
+#else
+    uint64_t (*ldfun)(target_ulong);
+
+    switch (mem_idx)
+    {
+    case 0: ldfun = ldq_kernel; break;
+    case 1: ldfun = ldq_super; break;
+    default:
+    case 2: ldfun = ldq_user; break;
+    }
+#endif
+
+    if (base_reglist > 0 && base_reglist <= ARRAY_SIZE (multiple_regs)) {
+        target_ulong i;
+
+        for (i = 0; i < base_reglist; i++) {
+            env->active_tc.gpr[multiple_regs[i]] = ldfun(addr);
+            addr += 8;
+        }
+    }
+
+    if (do_r31) {
+        env->active_tc.gpr[31] = ldfun(addr);
+    }
+}
+
+void helper_sdm (target_ulong addr, target_ulong reglist, uint32_t mem_idx)
+{
+    target_ulong base_reglist = reglist & 0xf;
+    target_ulong do_r31 = reglist & 0x10;
+#ifdef CONFIG_USER_ONLY
+#undef stfun
+#define stfun stq_raw
+#else
+    void (*stfun)(target_ulong, uint64_t);
+
+    switch (mem_idx)
+    {
+    case 0: stfun = stq_kernel; break;
+    case 1: stfun = stq_super; break;
+     default:
+    case 2: stfun = stq_user; break;
+    }
+#endif
+
+    if (base_reglist > 0 && base_reglist <= ARRAY_SIZE (multiple_regs)) {
+        target_ulong i;
+
+        for (i = 0; i < base_reglist; i++) {
+            stfun(addr, env->active_tc.gpr[multiple_regs[i]]);
+            addr += 8;
+        }
+    }
+
+    if (do_r31) {
+        stfun(addr, env->active_tc.gpr[31]);
+    }
+}
+#endif
+
 #ifndef CONFIG_USER_ONLY
 /* CP0 helpers */
 target_ulong helper_mfc0_mvpcontrol (void)

@@ -38,6 +38,7 @@
 #define		ASE_DSPR2	0x00010000
 #define		ASE_MT		0x00020000
 #define		ASE_SMARTMIPS	0x00040000
+#define 	ASE_MICROMIPS	0x00080000
 
 /* Chip specific instructions. */
 #define		INSN_VR54XX	0x80000000

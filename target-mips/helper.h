@@ -160,6 +160,15 @@ DEF_HELPER_1(emt, tl, tl)
 DEF_HELPER_1(dvpe, tl, tl)
 DEF_HELPER_1(evpe, tl, tl)
 #endif /* !CONFIG_USER_ONLY */
+
+/* microMIPS functions */
+DEF_HELPER_3(lwm, void, tl, tl, i32);
+DEF_HELPER_3(swm, void, tl, tl, i32);
+#ifdef TARGET_MIPS64
+DEF_HELPER_3(ldm, void, tl, tl, i32);
+DEF_HELPER_3(sdm, void, tl, tl, i32);
+#endif
+
 DEF_HELPER_2(fork, void, tl, tl)
 DEF_HELPER_1(yield, tl, tl)
 
