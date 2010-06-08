@@ -363,6 +363,7 @@ struct CPUMIPSState {
 #define CP0C2_SA   0
     int32_t CP0_Config3;
 #define CP0C3_M    31
+#define CP0C3_ISA_ON_EXC 16
 #define CP0C3_DSPP 10
 #define CP0C3_LPA  7
 #define CP0C3_VEIC 6
