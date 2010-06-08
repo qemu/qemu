@@ -673,11 +673,31 @@ QemuOpts *qemu_opts_find(QemuOptsList *list, const char *id)
     return NULL;
 }
 
+static int id_wellformed(const char *id)
+{
+    int i;
+
+    if (!qemu_isalpha(id[0])) {
+        return 0;
+    }
+    for (i = 1; id[i]; i++) {
+        if (!qemu_isalnum(id[i]) && !strchr("-._", id[i])) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id, int fail_if_exists)
 {
     QemuOpts *opts = NULL;
 
     if (id) {
+        if (!id_wellformed(id)) {
+            qerror_report(QERR_INVALID_PARAMETER_VALUE, "id", "an identifier");
+            error_printf_unless_qmp("Identifiers consist of letters, digits, '-', '.', '_', starting with a letter.\n");
+            return NULL;
+        }
         opts = qemu_opts_find(list, id);
         if (opts != NULL) {
             if (fail_if_exists) {
