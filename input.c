@@ -42,6 +42,12 @@ void qemu_add_kbd_event_handler(QEMUPutKBDEvent *func, void *opaque)
     qemu_put_kbd_event = func;
 }
 
+void qemu_remove_kbd_event_handler(void)
+{
+    qemu_put_kbd_event_opaque = NULL;
+    qemu_put_kbd_event = NULL;
+}
+
 static void check_mode_change(void)
 {
     static int current_is_absolute, current_has_absolute;
