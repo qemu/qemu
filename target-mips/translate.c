@@ -676,39 +676,6 @@ static inline int get_fp_bit (int cc)
         return 23;
 }
 
-#define FOP_CONDS(type, fmt, bits)                                            \
-static inline void gen_cmp ## type ## _ ## fmt(int n, TCGv_i##bits a,         \
-                                               TCGv_i##bits b, int cc)        \
-{                                                                             \
-    switch (n) {                                                              \
-    case  0: gen_helper_2i(cmp ## type ## _ ## fmt ## _f, a, b, cc);    break;\
-    case  1: gen_helper_2i(cmp ## type ## _ ## fmt ## _un, a, b, cc);   break;\
-    case  2: gen_helper_2i(cmp ## type ## _ ## fmt ## _eq, a, b, cc);   break;\
-    case  3: gen_helper_2i(cmp ## type ## _ ## fmt ## _ueq, a, b, cc);  break;\
-    case  4: gen_helper_2i(cmp ## type ## _ ## fmt ## _olt, a, b, cc);  break;\
-    case  5: gen_helper_2i(cmp ## type ## _ ## fmt ## _ult, a, b, cc);  break;\
-    case  6: gen_helper_2i(cmp ## type ## _ ## fmt ## _ole, a, b, cc);  break;\
-    case  7: gen_helper_2i(cmp ## type ## _ ## fmt ## _ule, a, b, cc);  break;\
-    case  8: gen_helper_2i(cmp ## type ## _ ## fmt ## _sf, a, b, cc);   break;\
-    case  9: gen_helper_2i(cmp ## type ## _ ## fmt ## _ngle, a, b, cc); break;\
-    case 10: gen_helper_2i(cmp ## type ## _ ## fmt ## _seq, a, b, cc);  break;\
-    case 11: gen_helper_2i(cmp ## type ## _ ## fmt ## _ngl, a, b, cc);  break;\
-    case 12: gen_helper_2i(cmp ## type ## _ ## fmt ## _lt, a, b, cc);   break;\
-    case 13: gen_helper_2i(cmp ## type ## _ ## fmt ## _nge, a, b, cc);  break;\
-    case 14: gen_helper_2i(cmp ## type ## _ ## fmt ## _le, a, b, cc);   break;\
-    case 15: gen_helper_2i(cmp ## type ## _ ## fmt ## _ngt, a, b, cc);  break;\
-    default: abort();                                                         \
-    }                                                                         \
-}
-
-FOP_CONDS(, d, 64)
-FOP_CONDS(abs, d, 64)
-FOP_CONDS(, s, 32)
-FOP_CONDS(abs, s, 32)
-FOP_CONDS(, ps, 64)
-FOP_CONDS(abs, ps, 64)
-#undef FOP_CONDS
-
 /* Tests */
 static inline void gen_save_pc(target_ulong pc)
 {
@@ -848,6 +815,69 @@ static inline void check_mips_64(DisasContext *ctx)
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_64)))
         generate_exception(ctx, EXCP_RI);
 }
+
+/* Define small wrappers for gen_load_fpr* so that we have a uniform
+   calling interface for 32 and 64-bit FPRs.  No sense in changing
+   all callers for gen_load_fpr32 when we need the CTX parameter for
+   this one use.  */
+#define gen_ldcmp_fpr32(ctx, x, y) gen_load_fpr32(x, y)
+#define gen_ldcmp_fpr64(ctx, x, y) gen_load_fpr64(ctx, x, y)
+#define FOP_CONDS(type, abs, fmt, ifmt, bits)                                 \
+static inline void gen_cmp ## type ## _ ## fmt(DisasContext *ctx, int n,      \
+                                               int ft, int fs, int cc)        \
+{                                                                             \
+    TCGv_i##bits fp0 = tcg_temp_new_i##bits ();                               \
+    TCGv_i##bits fp1 = tcg_temp_new_i##bits ();                               \
+    switch (ifmt) {                                                           \
+    case FMT_PS:                                                              \
+        check_cp1_64bitmode(ctx);                                             \
+        break;                                                                \
+    case FMT_D:                                                               \
+        if (abs) {                                                            \
+            check_cop1x(ctx);                                                 \
+        }                                                                     \
+        check_cp1_registers(ctx, fs | ft);                                    \
+        break;                                                                \
+    case FMT_S:                                                               \
+        if (abs) {                                                            \
+            check_cop1x(ctx);                                                 \
+        }                                                                     \
+        break;                                                                \
+    }                                                                         \
+    gen_ldcmp_fpr##bits (ctx, fp0, fs);                                       \
+    gen_ldcmp_fpr##bits (ctx, fp1, ft);                                       \
+    switch (n) {                                                              \
+    case  0: gen_helper_2i(cmp ## type ## _ ## fmt ## _f, fp0, fp1, cc);    break;\
+    case  1: gen_helper_2i(cmp ## type ## _ ## fmt ## _un, fp0, fp1, cc);   break;\
+    case  2: gen_helper_2i(cmp ## type ## _ ## fmt ## _eq, fp0, fp1, cc);   break;\
+    case  3: gen_helper_2i(cmp ## type ## _ ## fmt ## _ueq, fp0, fp1, cc);  break;\
+    case  4: gen_helper_2i(cmp ## type ## _ ## fmt ## _olt, fp0, fp1, cc);  break;\
+    case  5: gen_helper_2i(cmp ## type ## _ ## fmt ## _ult, fp0, fp1, cc);  break;\
+    case  6: gen_helper_2i(cmp ## type ## _ ## fmt ## _ole, fp0, fp1, cc);  break;\
+    case  7: gen_helper_2i(cmp ## type ## _ ## fmt ## _ule, fp0, fp1, cc);  break;\
+    case  8: gen_helper_2i(cmp ## type ## _ ## fmt ## _sf, fp0, fp1, cc);   break;\
+    case  9: gen_helper_2i(cmp ## type ## _ ## fmt ## _ngle, fp0, fp1, cc); break;\
+    case 10: gen_helper_2i(cmp ## type ## _ ## fmt ## _seq, fp0, fp1, cc);  break;\
+    case 11: gen_helper_2i(cmp ## type ## _ ## fmt ## _ngl, fp0, fp1, cc);  break;\
+    case 12: gen_helper_2i(cmp ## type ## _ ## fmt ## _lt, fp0, fp1, cc);   break;\
+    case 13: gen_helper_2i(cmp ## type ## _ ## fmt ## _nge, fp0, fp1, cc);  break;\
+    case 14: gen_helper_2i(cmp ## type ## _ ## fmt ## _le, fp0, fp1, cc);   break;\
+    case 15: gen_helper_2i(cmp ## type ## _ ## fmt ## _ngt, fp0, fp1, cc);  break;\
+    default: abort();                                                         \
+    }                                                                         \
+    tcg_temp_free_i##bits (fp0);                                              \
+    tcg_temp_free_i##bits (fp1);                                              \
+}
+
+FOP_CONDS(, 0, d, FMT_D, 64)
+FOP_CONDS(abs, 1, d, FMT_D, 64)
+FOP_CONDS(, 0, s, FMT_S, 32)
+FOP_CONDS(abs, 1, s, FMT_S, 32)
+FOP_CONDS(, 0, ps, FMT_PS, 64)
+FOP_CONDS(abs, 1, ps, FMT_PS, 64)
+#undef FOP_CONDS
+#undef gen_ldcmp_fpr32
+#undef gen_ldcmp_fpr64
 
 /* load/store instructions. */
 #define OP_LD(insn,fname)                                                 \
@@ -6480,22 +6510,12 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
     case OPC_CMP_NGE_S:
     case OPC_CMP_LE_S:
     case OPC_CMP_NGT_S:
-        {
-            TCGv_i32 fp0 = tcg_temp_new_i32();
-            TCGv_i32 fp1 = tcg_temp_new_i32();
-
-            gen_load_fpr32(fp0, fs);
-            gen_load_fpr32(fp1, ft);
-            if (ctx->opcode & (1 << 6)) {
-                check_cop1x(ctx);
-                gen_cmpabs_s(func-48, fp0, fp1, cc);
-                opn = condnames_abs[func-48];
-            } else {
-                gen_cmp_s(func-48, fp0, fp1, cc);
-                opn = condnames[func-48];
-            }
-            tcg_temp_free_i32(fp0);
-            tcg_temp_free_i32(fp1);
+        if (ctx->opcode & (1 << 6)) {
+            gen_cmpabs_s(ctx, func-48, ft, fs, cc);
+            opn = condnames_abs[func-48];
+        } else {
+            gen_cmp_s(ctx, func-48, ft, fs, cc);
+            opn = condnames[func-48];
         }
         break;
     case OPC_ADD_D:
@@ -6843,24 +6863,12 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
     case OPC_CMP_NGE_D:
     case OPC_CMP_LE_D:
     case OPC_CMP_NGT_D:
-        {
-            TCGv_i64 fp0 = tcg_temp_new_i64();
-            TCGv_i64 fp1 = tcg_temp_new_i64();
-
-            gen_load_fpr64(ctx, fp0, fs);
-            gen_load_fpr64(ctx, fp1, ft);
-            if (ctx->opcode & (1 << 6)) {
-                check_cop1x(ctx);
-                check_cp1_registers(ctx, fs | ft);
-                gen_cmpabs_d(func-48, fp0, fp1, cc);
-                opn = condnames_abs[func-48];
-            } else {
-                check_cp1_registers(ctx, fs | ft);
-                gen_cmp_d(func-48, fp0, fp1, cc);
-                opn = condnames[func-48];
-            }
-            tcg_temp_free_i64(fp0);
-            tcg_temp_free_i64(fp1);
+        if (ctx->opcode & (1 << 6)) {
+            gen_cmpabs_d(ctx, func-48, ft, fs, cc);
+            opn = condnames_abs[func-48];
+        } else {
+            gen_cmp_d(ctx, func-48, ft, fs, cc);
+            opn = condnames[func-48];
         }
         break;
     case OPC_CVT_S_D:
@@ -7280,22 +7288,12 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
     case OPC_CMP_NGE_PS:
     case OPC_CMP_LE_PS:
     case OPC_CMP_NGT_PS:
-        check_cp1_64bitmode(ctx);
-        {
-            TCGv_i64 fp0 = tcg_temp_new_i64();
-            TCGv_i64 fp1 = tcg_temp_new_i64();
-
-            gen_load_fpr64(ctx, fp0, fs);
-            gen_load_fpr64(ctx, fp1, ft);
-            if (ctx->opcode & (1 << 6)) {
-                gen_cmpabs_ps(func-48, fp0, fp1, cc);
-                opn = condnames_abs[func-48];
-            } else {
-                gen_cmp_ps(func-48, fp0, fp1, cc);
-                opn = condnames[func-48];
-            }
-            tcg_temp_free_i64(fp0);
-            tcg_temp_free_i64(fp1);
+        if (ctx->opcode & (1 << 6)) {
+            gen_cmpabs_ps(ctx, func-48, ft, fs, cc);
+            opn = condnames_abs[func-48];
+        } else {
+            gen_cmp_ps(ctx, func-48, ft, fs, cc);
+            opn = condnames[func-48];
         }
         break;
     default:
