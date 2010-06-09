@@ -2015,6 +2015,7 @@ fi
 echo "Install prefix    $prefix"
 echo "BIOS directory    `eval echo $datadir`"
 echo "binary directory  `eval echo $bindir`"
+echo "config directory  `eval echo $sysconfdir`"
 if test "$mingw32" = "no" ; then
 echo "Manual directory  `eval echo $mandir`"
 echo "ELF interp prefix $interp_prefix"
