@@ -52,7 +52,7 @@ typedef struct FileOperations
     int (*chmod)(FsContext *, const char *, FsCred *);
     int (*chown)(FsContext *, const char *, FsCred *);
     int (*mknod)(FsContext *, const char *, FsCred *);
-    int (*utime)(FsContext *, const char *, const struct utimbuf *);
+    int (*utimensat)(FsContext *, const char *, const struct timespec *);
     int (*remove)(FsContext *, const char *);
     int (*symlink)(FsContext *, const char *, const char *, FsCred *);
     int (*link)(FsContext *, const char *, const char *);

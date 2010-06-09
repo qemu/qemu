@@ -450,10 +450,10 @@ static int local_chown(FsContext *fs_ctx, const char *path, FsCred *credp)
     return -1;
 }
 
-static int local_utime(FsContext *ctx, const char *path,
-                        const struct utimbuf *buf)
+static int local_utimensat(FsContext *s, const char *path,
+		       const struct timespec *buf)
 {
-    return utime(rpath(ctx, path), buf);
+    return utimensat(AT_FDCWD, rpath(s, path), buf, AT_SYMLINK_NOFOLLOW);
 }
 
 static int local_remove(FsContext *ctx, const char *path)
@@ -495,7 +495,7 @@ FileOperations local_ops = {
     .truncate = local_truncate,
     .rename = local_rename,
     .chown = local_chown,
-    .utime = local_utime,
+    .utimensat = local_utimensat,
     .remove = local_remove,
     .fsync = local_fsync,
     .statfs = local_statfs,
