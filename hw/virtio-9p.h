@@ -70,6 +70,12 @@ enum p9_proto_version {
 #define P9_NOFID    (u32)(~0)
 #define P9_MAXWELEM 16
 
+/*
+ * ample room for Twrite/Rread header
+ * size[4] Tread/Twrite tag[2] fid[4] offset[8] count[4]
+ */
+#define P9_IOHDRSZ 24
+
 typedef struct V9fsPDU V9fsPDU;
 
 struct V9fsPDU
@@ -154,6 +160,7 @@ typedef struct V9fsState
     uint8_t *tag;
     size_t config_size;
     enum p9_proto_version proto_version;
+    int32_t msize;
 } V9fsState;
 
 typedef struct V9fsCreateState {
@@ -167,6 +174,7 @@ typedef struct V9fsCreateState {
     V9fsString name;
     V9fsString extension;
     V9fsString fullname;
+    int iounit;
 } V9fsCreateState;
 
 typedef struct V9fsStatState {
@@ -197,6 +205,7 @@ typedef struct V9fsOpenState {
     V9fsFidState *fidp;
     V9fsQID qid;
     struct stat stbuf;
+    int iounit;
 } V9fsOpenState;
 
 typedef struct V9fsReadState {

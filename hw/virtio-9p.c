@@ -253,6 +253,11 @@ static int v9fs_do_fsync(V9fsState *s, int fd)
     return s->ops->fsync(&s->ctx, fd);
 }
 
+static int v9fs_do_statfs(V9fsState *s, V9fsString *path, struct statfs *stbuf)
+{
+    return s->ops->statfs(&s->ctx, path->data, stbuf);
+}
+
 static void v9fs_string_init(V9fsString *str)
 {
     str->data = NULL;
@@ -1019,11 +1024,10 @@ static void v9fs_fix_path(V9fsString *dst, V9fsString *src, int len)
 
 static void v9fs_version(V9fsState *s, V9fsPDU *pdu)
 {
-    int32_t msize;
     V9fsString version;
     size_t offset = 7;
 
-    pdu_unmarshal(pdu, offset, "ds", &msize, &version);
+    pdu_unmarshal(pdu, offset, "ds", &s->msize, &version);
 
     if (!strcmp(version.data, "9P2000.u")) {
         s->proto_version = V9FS_PROTO_2000U;
@@ -1033,7 +1037,7 @@ static void v9fs_version(V9fsState *s, V9fsPDU *pdu)
         v9fs_string_sprintf(&version, "unknown");
     }
 
-    offset += pdu_marshal(pdu, offset, "ds", msize, &version);
+    offset += pdu_marshal(pdu, offset, "ds", s->msize, &version);
     complete_pdu(s, pdu, offset);
 
     v9fs_string_free(&version);
@@ -1288,6 +1292,26 @@ out:
     v9fs_walk_complete(s, vs, err);
 }
 
+static int32_t get_iounit(V9fsState *s, V9fsString *name)
+{
+    struct statfs stbuf;
+    int32_t iounit = 0;
+
+    /*
+     * iounit should be multiples of f_bsize (host filesystem block size
+     * and as well as less than (client msize - P9_IOHDRSZ))
+     */
+    if (!v9fs_do_statfs(s, name, &stbuf)) {
+        iounit = stbuf.f_bsize;
+        iounit *= (s->msize - P9_IOHDRSZ)/stbuf.f_bsize;
+    }
+
+    if (!iounit) {
+        iounit = s->msize - P9_IOHDRSZ;
+    }
+    return iounit;
+}
+
 static void v9fs_open_post_opendir(V9fsState *s, V9fsOpenState *vs, int err)
 {
     if (vs->fidp->dir == NULL) {
@@ -1303,6 +1327,15 @@ out:
 
 }
 
+static void v9fs_open_post_getiounit(V9fsState *s, V9fsOpenState *vs)
+{
+    int err;
+    vs->offset += pdu_marshal(vs->pdu, vs->offset, "Qd", &vs->qid, vs->iounit);
+    err = vs->offset;
+    complete_pdu(s, vs->pdu, err);
+    qemu_free(vs);
+}
+
 static void v9fs_open_post_open(V9fsState *s, V9fsOpenState *vs, int err)
 {
     if (vs->fidp->fd == -1) {
@@ -1310,8 +1343,9 @@ static void v9fs_open_post_open(V9fsState *s, V9fsOpenState *vs, int err)
         goto out;
     }
 
-    vs->offset += pdu_marshal(vs->pdu, vs->offset, "Qd", &vs->qid, 0);
-    err = vs->offset;
+    vs->iounit = get_iounit(s, &vs->fidp->path);
+    v9fs_open_post_getiounit(s, vs);
+    return;
 out:
     complete_pdu(s, vs->pdu, err);
     qemu_free(vs);
@@ -1794,15 +1828,28 @@ out:
     qemu_free(vs);
 }
 
+static void v9fs_create_post_getiounit(V9fsState *s, V9fsCreateState *vs)
+{
+    int err;
+    v9fs_string_copy(&vs->fidp->path, &vs->fullname);
+    stat_to_qid(&vs->stbuf, &vs->qid);
+
+    vs->offset += pdu_marshal(vs->pdu, vs->offset, "Qd", &vs->qid, vs->iounit);
+    err = vs->offset;
+
+    complete_pdu(s, vs->pdu, err);
+    v9fs_string_free(&vs->name);
+    v9fs_string_free(&vs->extension);
+    v9fs_string_free(&vs->fullname);
+    qemu_free(vs);
+}
+
 static void v9fs_post_create(V9fsState *s, V9fsCreateState *vs, int err)
 {
     if (err == 0) {
-        v9fs_string_copy(&vs->fidp->path, &vs->fullname);
-        stat_to_qid(&vs->stbuf, &vs->qid);
-
-        vs->offset += pdu_marshal(vs->pdu, vs->offset, "Qd", &vs->qid, 0);
-
-        err = vs->offset;
+        vs->iounit = get_iounit(s, &vs->fidp->path);
+        v9fs_create_post_getiounit(s, vs);
+        return;
     }
 
     complete_pdu(s, vs->pdu, err);
@@ -2266,23 +2313,34 @@ out:
     qemu_free(vs);
 }
 
-static int v9fs_do_statfs(V9fsState *s, V9fsString *path, struct statfs *stbuf)
-{
-    return s->ops->statfs(&s->ctx, path->data, stbuf);
-}
-
 static void v9fs_statfs_post_statfs(V9fsState *s, V9fsStatfsState *vs, int err)
 {
+    int32_t bsize_factor;
+
     if (err) {
         err = -errno;
         goto out;
     }
 
+    /*
+     * compute bsize factor based on host file system block size
+     * and client msize
+     */
+    bsize_factor = (s->msize - P9_IOHDRSZ)/vs->stbuf.f_bsize;
+    if (!bsize_factor) {
+        bsize_factor = 1;
+    }
     vs->v9statfs.f_type = vs->stbuf.f_type;
     vs->v9statfs.f_bsize = vs->stbuf.f_bsize;
-    vs->v9statfs.f_blocks = vs->stbuf.f_blocks;
-    vs->v9statfs.f_bfree = vs->stbuf.f_bfree;
-    vs->v9statfs.f_bavail = vs->stbuf.f_bavail;
+    vs->v9statfs.f_bsize *= bsize_factor;
+    /*
+     * f_bsize is adjusted(multiplied) by bsize factor, so we need to
+     * adjust(divide) the number of blocks, free blocks and available
+     * blocks by bsize factor
+     */
+    vs->v9statfs.f_blocks = vs->stbuf.f_blocks/bsize_factor;
+    vs->v9statfs.f_bfree = vs->stbuf.f_bfree/bsize_factor;
+    vs->v9statfs.f_bavail = vs->stbuf.f_bavail/bsize_factor;
     vs->v9statfs.f_files = vs->stbuf.f_files;
     vs->v9statfs.f_ffree = vs->stbuf.f_ffree;
     vs->v9statfs.fsid_val = (unsigned int) vs->stbuf.f_fsid.__val[0] |
