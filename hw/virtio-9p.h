@@ -15,6 +15,8 @@
 enum {
     P9_TSTATFS = 8,
     P9_RSTATFS,
+    P9_TSYMLINK = 16,
+    P9_RSYMLINK,
     P9_TGETATTR = 24,
     P9_RGETATTR,
     P9_TSETATTR = 26,
@@ -293,6 +295,18 @@ typedef struct V9fsWstatState
     struct stat stbuf;
     V9fsString nname;
 } V9fsWstatState;
+
+typedef struct V9fsSymlinkState
+{
+    V9fsPDU *pdu;
+    size_t offset;
+    V9fsString name;
+    V9fsString symname;
+    V9fsString fullname;
+    V9fsFidState *dfidp;
+    V9fsQID qid;
+    struct stat stbuf;
+} V9fsSymlinkState;
 
 typedef struct V9fsIattr
 {

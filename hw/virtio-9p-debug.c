@@ -464,6 +464,17 @@ void pprint_pdu(V9fsPDU *pdu)
         pprint_qid(pdu, 1, &offset, "qid");
         pprint_int32(pdu, 1, &offset, ", iounit");
         break;
+    case P9_TSYMLINK:
+        fprintf(llogfile, "TSYMLINK: (");
+        pprint_int32(pdu, 0, &offset, "fid");
+        pprint_str(pdu, 0, &offset, ", name");
+        pprint_str(pdu, 0, &offset, ", symname");
+        pprint_int32(pdu, 0, &offset, ", gid");
+        break;
+    case P9_RSYMLINK:
+        fprintf(llogfile, "RSYMLINK: (");
+        pprint_qid(pdu, 1, &offset, "qid");
+        break;
     case P9_TREAD:
         fprintf(llogfile, "TREAD: (");
         pprint_int32(pdu, 0, &offset, "fid");

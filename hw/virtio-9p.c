@@ -200,15 +200,16 @@ static int v9fs_do_open2(V9fsState *s, V9fsCreateState *vs)
     return s->ops->open2(&s->ctx, vs->fullname.data, flags, &cred);
 }
 
-static int v9fs_do_symlink(V9fsState *s, V9fsCreateState *vs)
+static int v9fs_do_symlink(V9fsState *s, V9fsFidState *fidp,
+        const char *oldpath, const char *newpath, gid_t gid)
 {
     FsCred cred;
     cred_init(&cred);
-    cred.fc_uid = vs->fidp->uid;
-    cred.fc_mode = vs->perm | 0777;
+    cred.fc_uid = fidp->uid;
+    cred.fc_gid = gid;
+    cred.fc_mode = 0777;
 
-    return s->ops->symlink(&s->ctx, vs->extension.data, vs->fullname.data,
-            &cred);
+    return s->ops->symlink(&s->ctx, oldpath, newpath, &cred);
 }
 
 static int v9fs_do_link(V9fsState *s, V9fsString *oldpath, V9fsString *newpath)
@@ -2212,7 +2213,8 @@ static void v9fs_create_post_lstat(V9fsState *s, V9fsCreateState *vs, int err)
         err = v9fs_do_mkdir(s, vs);
         v9fs_create_post_mkdir(s, vs, err);
     } else if (vs->perm & P9_STAT_MODE_SYMLINK) {
-        err = v9fs_do_symlink(s, vs);
+        err = v9fs_do_symlink(s, vs->fidp, vs->extension.data,
+                vs->fullname.data, -1);
         v9fs_create_post_perms(s, vs, err);
     } else if (vs->perm & P9_STAT_MODE_LINK) {
         int32_t nfid = atoi(vs->extension.data);
@@ -2298,6 +2300,69 @@ out:
     complete_pdu(s, vs->pdu, err);
     v9fs_string_free(&vs->name);
     v9fs_string_free(&vs->extension);
+    qemu_free(vs);
+}
+
+static void v9fs_post_symlink(V9fsState *s, V9fsSymlinkState *vs, int err)
+{
+    if (err == 0) {
+        stat_to_qid(&vs->stbuf, &vs->qid);
+        vs->offset += pdu_marshal(vs->pdu, vs->offset, "Q", &vs->qid);
+        err = vs->offset;
+    } else {
+        err = -errno;
+    }
+    complete_pdu(s, vs->pdu, err);
+    v9fs_string_free(&vs->name);
+    v9fs_string_free(&vs->symname);
+    v9fs_string_free(&vs->fullname);
+    qemu_free(vs);
+}
+
+static void v9fs_symlink_post_do_symlink(V9fsState *s, V9fsSymlinkState *vs,
+        int err)
+{
+    if (err) {
+        goto out;
+    }
+    err = v9fs_do_lstat(s, &vs->fullname, &vs->stbuf);
+out:
+    v9fs_post_symlink(s, vs, err);
+}
+
+static void v9fs_symlink(V9fsState *s, V9fsPDU *pdu)
+{
+    int32_t dfid;
+    V9fsSymlinkState *vs;
+    int err = 0;
+    gid_t gid;
+
+    vs = qemu_malloc(sizeof(*vs));
+    vs->pdu = pdu;
+    vs->offset = 7;
+
+    v9fs_string_init(&vs->fullname);
+
+    pdu_unmarshal(vs->pdu, vs->offset, "dssd", &dfid, &vs->name,
+            &vs->symname, &gid);
+
+    vs->dfidp = lookup_fid(s, dfid);
+    if (vs->dfidp == NULL) {
+        err = -EINVAL;
+        goto out;
+    }
+
+    v9fs_string_sprintf(&vs->fullname, "%s/%s", vs->dfidp->path.data,
+            vs->name.data);
+    err = v9fs_do_symlink(s, vs->dfidp, vs->symname.data,
+            vs->fullname.data, gid);
+    v9fs_symlink_post_do_symlink(s, vs, err);
+    return;
+
+out:
+    complete_pdu(s, vs->pdu, err);
+    v9fs_string_free(&vs->name);
+    v9fs_string_free(&vs->symname);
     qemu_free(vs);
 }
 
@@ -2718,6 +2783,7 @@ static pdu_handler_t *pdu_handlers[] = {
 #endif
     [P9_TFLUSH] = v9fs_flush,
     [P9_TLINK] = v9fs_link,
+    [P9_TSYMLINK] = v9fs_symlink,
     [P9_TCREATE] = v9fs_create,
     [P9_TWRITE] = v9fs_write,
     [P9_TWSTAT] = v9fs_wstat,
