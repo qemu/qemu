@@ -1877,14 +1877,15 @@ static void v9fs_flush(V9fsState *s, V9fsPDU *pdu)
 static void v9fs_remove_post_remove(V9fsState *s, V9fsRemoveState *vs,
                                                                 int err)
 {
-    /* For TREMOVE we need to clunk the fid even on failed remove */
-    err = free_fid(s, vs->fidp->fid);
     if (err < 0) {
-        goto out;
+        err = -errno;
+    } else {
+        err = vs->offset;
     }
 
-    err = vs->offset;
-out:
+    /* For TREMOVE we need to clunk the fid even on failed remove */
+    free_fid(s, vs->fidp->fid);
+
     complete_pdu(s, vs->pdu, err);
     qemu_free(vs);
 }
