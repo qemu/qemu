@@ -827,7 +827,8 @@ static inline void tcg_out_bundle(TCGContext *s, int template,
     s->code_ptr += 16;
 }
 
-static inline void tcg_out_mov(TCGContext *s, TCGArg ret, TCGArg arg)
+static inline void tcg_out_mov(TCGContext *s, TCGType type,
+                               TCGArg ret, TCGArg arg)
 {
     tcg_out_bundle(s, mmI,
                    tcg_opc_m48(TCG_REG_P0, OPC_NOP_M48, 0),
@@ -2265,7 +2266,7 @@ static const TCGTargetOpDef ia64_op_defs[] = {
 };
 
 /* Generate global QEMU prologue and epilogue code */
-void tcg_target_qemu_prologue(TCGContext *s)
+static void tcg_target_qemu_prologue(TCGContext *s)
 {
     int frame_size;
 
@@ -2320,7 +2321,7 @@ void tcg_target_qemu_prologue(TCGContext *s)
                                TCG_REG_B0));
 }
 
-void tcg_target_init(TCGContext *s)
+static void tcg_target_init(TCGContext *s)
 {
     tcg_regset_set(tcg_target_available_regs[TCG_TYPE_I32],
                    0xffffffffffffffffull);

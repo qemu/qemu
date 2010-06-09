@@ -354,9 +354,10 @@ static void tcg_out_modrm_offset2(TCGContext *s, int opc, int r, int rm,
 }
 #endif
 
-static inline void tcg_out_mov(TCGContext *s, int ret, int arg)
+static inline void tcg_out_mov(TCGContext *s, TCGType type, int ret, int arg)
 {
-    tcg_out_modrm(s, 0x8b | P_REXW, ret, arg);
+    int rexw = (type == TCG_TYPE_I64 ? P_REXW : 0);
+    tcg_out_modrm(s, 0x8b | rexw, ret, arg);
 }
 
 static inline void tcg_out_movi(TCGContext *s, TCGType type, 
@@ -577,11 +578,8 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     rexw = P_REXW;
 #endif
 #if defined(CONFIG_SOFTMMU)
-    /* mov */
-    tcg_out_modrm(s, 0x8b | rexw, r1, addr_reg);
-
-    /* mov */
-    tcg_out_modrm(s, 0x8b | rexw, r0, addr_reg);
+    tcg_out_mov(s, TCG_TYPE_TL, r1, addr_reg);
+    tcg_out_mov(s, TCG_TYPE_TL, r0, addr_reg);
  
     tcg_out_modrm(s, 0xc1 | rexw, 5, r1); /* shr $x, r1 */
     tcg_out8(s, TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS); 
@@ -599,8 +597,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     /* cmp 0(r1), r0 */
     tcg_out_modrm_offset(s, 0x3b | rexw, r0, r1, 0);
     
-    /* mov */
-    tcg_out_modrm(s, 0x8b | rexw, r0, addr_reg);
+    tcg_out_mov(s, TCG_TYPE_TL, r0, addr_reg);
     
     /* je label1 */
     tcg_out8(s, 0x70 + JCC_JE);
@@ -634,11 +631,10 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
         break;
     case 2:
     default:
-        /* movl */
-        tcg_out_modrm(s, 0x8b, data_reg, TCG_REG_RAX);
+        tcg_out_mov(s, TCG_TYPE_I32, data_reg, TCG_REG_RAX);
         break;
     case 3:
-        tcg_out_mov(s, data_reg, TCG_REG_RAX);
+        tcg_out_mov(s, TCG_TYPE_I64, data_reg, TCG_REG_RAX);
         break;
     }
 
@@ -772,11 +768,8 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     rexw = P_REXW;
 #endif
 #if defined(CONFIG_SOFTMMU)
-    /* mov */
-    tcg_out_modrm(s, 0x8b | rexw, r1, addr_reg);
-
-    /* mov */
-    tcg_out_modrm(s, 0x8b | rexw, r0, addr_reg);
+    tcg_out_mov(s, TCG_TYPE_TL, r1, addr_reg);
+    tcg_out_mov(s, TCG_TYPE_TL, r0, addr_reg);
  
     tcg_out_modrm(s, 0xc1 | rexw, 5, r1); /* shr $x, r1 */
     tcg_out8(s, TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS); 
@@ -793,10 +786,9 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
 
     /* cmp 0(r1), r0 */
     tcg_out_modrm_offset(s, 0x3b | rexw, r0, r1, 0);
-    
-    /* mov */
-    tcg_out_modrm(s, 0x8b | rexw, r0, addr_reg);
-    
+
+    tcg_out_mov(s, TCG_TYPE_TL, r0, addr_reg);
+
     /* je label1 */
     tcg_out8(s, 0x70 + JCC_JE);
     label1_ptr = s->code_ptr;
@@ -813,12 +805,11 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
         tcg_out_modrm(s, 0xb7 | P_EXT, TCG_REG_RSI, data_reg);
         break;
     case 2:
-        /* movl */
-        tcg_out_modrm(s, 0x8b, TCG_REG_RSI, data_reg);
+        tcg_out_mov(s, TCG_TYPE_I32, TCG_REG_RSI, data_reg);
         break;
     default:
     case 3:
-        tcg_out_mov(s, TCG_REG_RSI, data_reg);
+        tcg_out_mov(s, TCG_TYPE_I64, TCG_REG_RSI, data_reg);
         break;
     }
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_RDX, mem_index);
@@ -863,7 +854,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
         break;
     case 1:
         if (bswap) {
-            tcg_out_modrm(s, 0x8b, r1, data_reg); /* movl */
+            tcg_out_mov(s, TCG_TYPE_I32, r1, data_reg);
             tcg_out8(s, 0x66); /* rolw $8, %ecx */
             tcg_out_modrm(s, 0xc1, 0, r1);
             tcg_out8(s, 8);
@@ -875,7 +866,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
         break;
     case 2:
         if (bswap) {
-            tcg_out_modrm(s, 0x8b, r1, data_reg); /* movl */
+            tcg_out_mov(s, TCG_TYPE_I32, r1, data_reg);
             /* bswap data_reg */
             tcg_out_opc(s, (0xc8 + r1) | P_EXT, 0, r1, 0);
             data_reg = r1;
@@ -885,7 +876,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
         break;
     case 3:
         if (bswap) {
-            tcg_out_mov(s, r1, data_reg);
+            tcg_out_mov(s, TCG_TYPE_I64, r1, data_reg);
             /* bswap data_reg */
             tcg_out_opc(s, (0xc8 + r1) | P_EXT | P_REXW, 0, r1, 0);
             data_reg = r1;
@@ -1288,7 +1279,7 @@ static inline void tcg_out_pop(TCGContext *s, int reg)
 }
 
 /* Generate global QEMU prologue and epilogue code */
-void tcg_target_qemu_prologue(TCGContext *s)
+static void tcg_target_qemu_prologue(TCGContext *s)
 {
     int i, frame_size, push_size, stack_addend;
 
@@ -1426,7 +1417,7 @@ static const TCGTargetOpDef x86_64_op_defs[] = {
     { -1 },
 };
 
-void tcg_target_init(TCGContext *s)
+static void tcg_target_init(TCGContext *s)
 {
 #if !defined(CONFIG_USER_ONLY)
     /* fail safe */

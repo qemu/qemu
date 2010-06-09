@@ -403,6 +403,18 @@ static target_ulong exception_resume_pc (CPUState *env)
 
     return bad_pc;
 }
+
+static void set_hflags_for_handler (CPUState *env)
+{
+    /* Exception handlers are entered in 32-bit mode.  */
+    env->hflags &= ~(MIPS_HFLAG_M16);
+    /* ...except that microMIPS lets you choose.  */
+    if (env->insn_flags & ASE_MICROMIPS) {
+        env->hflags |= (!!(env->CP0_Config3
+                           & (1 << CP0C3_ISA_ON_EXC))
+                        << MIPS_HFLAG_M16_SHIFT);
+    }
+}
 #endif
 
 void do_interrupt (CPUState *env)
@@ -458,8 +470,7 @@ void do_interrupt (CPUState *env)
         if (!(env->CP0_Status & (1 << CP0St_EXL)))
             env->CP0_Cause &= ~(1 << CP0Ca_BD);
         env->active_tc.PC = (int32_t)0xBFC00480;
-        /* Exception handlers are entered in 32-bit mode.  */
-        env->hflags &= ~(MIPS_HFLAG_M16);
+        set_hflags_for_handler(env);
         break;
     case EXCP_RESET:
         cpu_reset(env);
@@ -479,8 +490,7 @@ void do_interrupt (CPUState *env)
         if (!(env->CP0_Status & (1 << CP0St_EXL)))
             env->CP0_Cause &= ~(1 << CP0Ca_BD);
         env->active_tc.PC = (int32_t)0xBFC00000;
-        /* Exception handlers are entered in 32-bit mode.  */
-        env->hflags &= ~(MIPS_HFLAG_M16);
+        set_hflags_for_handler(env);
         break;
     case EXCP_EXT_INTERRUPT:
         cause = 0;
@@ -599,8 +609,7 @@ void do_interrupt (CPUState *env)
             env->active_tc.PC = (int32_t)(env->CP0_EBase & ~0x3ff);
         }
         env->active_tc.PC += offset;
-        /* Exception handlers are entered in 32-bit mode.  */
-        env->hflags &= ~(MIPS_HFLAG_M16);
+        set_hflags_for_handler(env);
         env->CP0_Cause = (env->CP0_Cause & ~(0x1f << CP0Ca_EC)) | (cause << CP0Ca_EC);
         break;
     default:

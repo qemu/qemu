@@ -3316,7 +3316,10 @@ int main(int argc, char **argv, char **envp)
         for(i = 0; i < 32; i++) {
             env->active_tc.gpr[i] = regs->regs[i];
         }
-        env->active_tc.PC = regs->cp0_epc;
+        env->active_tc.PC = regs->cp0_epc & ~(target_ulong)1;
+        if (regs->cp0_epc & 1) {
+            env->hflags |= MIPS_HFLAG_M16;
+        }
     }
 #elif defined(TARGET_SH4)
     {

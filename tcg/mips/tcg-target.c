@@ -377,7 +377,7 @@ static inline void tcg_out_nop(TCGContext *s)
     tcg_out32(s, 0);
 }
 
-static inline void tcg_out_mov(TCGContext *s, int ret, int arg)
+static inline void tcg_out_mov(TCGContext *s, TCGType type, int ret, int arg)
 {
     tcg_out_opc_reg(s, OPC_ADDU, ret, arg, TCG_REG_ZERO);
 }
@@ -849,9 +849,9 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
 
     /* slow path */
     sp_args = TCG_REG_A0;
-    tcg_out_mov(s, sp_args++, addr_reg1);
+    tcg_out_mov(s, TCG_TYPE_I32, sp_args++, addr_reg1);
 # if TARGET_LONG_BITS == 64
-    tcg_out_mov(s, sp_args++, addr_reg2);
+    tcg_out_mov(s, TCG_TYPE_I32, sp_args++, addr_reg2);
 # endif
     tcg_out_movi(s, TCG_TYPE_I32, sp_args++, mem_index);
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_T9, (tcg_target_long)qemu_ld_helpers[s_bits]);
@@ -872,11 +872,11 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
         tcg_out_ext16s(s, data_reg1, TCG_REG_V0);
         break;
     case 2:
-        tcg_out_mov(s, data_reg1, TCG_REG_V0);
+        tcg_out_mov(s, TCG_TYPE_I32, data_reg1, TCG_REG_V0);
         break;
     case 3:
-        tcg_out_mov(s, data_reg2, TCG_REG_V1);
-        tcg_out_mov(s, data_reg1, TCG_REG_V0);
+        tcg_out_mov(s, TCG_TYPE_I32, data_reg2, TCG_REG_V1);
+        tcg_out_mov(s, TCG_TYPE_I32, data_reg1, TCG_REG_V0);
         break;
     default:
         tcg_abort();
@@ -1035,9 +1035,9 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
 
     /* slow path */
     sp_args = TCG_REG_A0;
-    tcg_out_mov(s, sp_args++, addr_reg1);
+    tcg_out_mov(s, TCG_TYPE_I32, sp_args++, addr_reg1);
 # if TARGET_LONG_BITS == 64
-    tcg_out_mov(s, sp_args++, addr_reg2);
+    tcg_out_mov(s, TCG_TYPE_I32, sp_args++, addr_reg2);
 # endif
     switch(opc) {
     case 0:
@@ -1047,12 +1047,12 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
         tcg_out_opc_imm(s, OPC_ANDI, sp_args++, data_reg1, 0xffff);
         break;
     case 2:
-        tcg_out_mov(s, sp_args++, data_reg1);
+        tcg_out_mov(s, TCG_TYPE_I32, sp_args++, data_reg1);
         break;
     case 3:
         sp_args = (sp_args + 1) & ~1;
-        tcg_out_mov(s, sp_args++, data_reg1);
-        tcg_out_mov(s, sp_args++, data_reg2);
+        tcg_out_mov(s, TCG_TYPE_I32, sp_args++, data_reg1);
+        tcg_out_mov(s, TCG_TYPE_I32, sp_args++, data_reg2);
         break;
     default:
         tcg_abort();
@@ -1165,7 +1165,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_mov_i32:
-        tcg_out_mov(s, args[0], args[1]);
+        tcg_out_mov(s, TCG_TYPE_I32, args[0], args[1]);
         break;
     case INDEX_op_movi_i32:
         tcg_out_movi(s, TCG_TYPE_I32, args[0], args[1]);
@@ -1216,7 +1216,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
              tcg_out_opc_reg(s, OPC_ADDU, args[1], args[3], args[5]);
         }
         tcg_out_opc_reg(s, OPC_ADDU, args[1], args[1], TCG_REG_T0);
-        tcg_out_mov(s, args[0], TCG_REG_AT);
+        tcg_out_mov(s, TCG_TYPE_I32, args[0], TCG_REG_AT);
         break;
     case INDEX_op_sub_i32:
         if (const_args[2]) {
@@ -1238,7 +1238,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
              tcg_out_opc_reg(s, OPC_SUBU, args[1], args[3], args[5]);
         }
         tcg_out_opc_reg(s, OPC_SUBU, args[1], args[1], TCG_REG_T0);
-        tcg_out_mov(s, args[0], TCG_REG_AT);
+        tcg_out_mov(s, TCG_TYPE_I32, args[0], TCG_REG_AT);
         break;
     case INDEX_op_mul_i32:
         tcg_out_opc_reg(s, OPC_MULT, 0, args[1], args[2]);
@@ -1466,7 +1466,7 @@ static int tcg_target_callee_save_regs[] = {
 };
 
 /* Generate global QEMU prologue and epilogue code */
-void tcg_target_qemu_prologue(TCGContext *s)
+static void tcg_target_qemu_prologue(TCGContext *s)
 {
     int i, frame_size;
 
@@ -1498,7 +1498,7 @@ void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out_addi(s, TCG_REG_SP, frame_size);
 }
 
-void tcg_target_init(TCGContext *s)
+static void tcg_target_init(TCGContext *s)
 {
     tcg_regset_set(tcg_target_available_regs[TCG_TYPE_I32], 0xffffffff);
     tcg_regset_set(tcg_target_call_clobber_regs,

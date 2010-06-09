@@ -435,7 +435,7 @@ static const uint32_t tcg_to_bc[10] = {
     [TCG_COND_GTU] = BC | BI (7, CR_GT) | BO_COND_TRUE,
 };
 
-static void tcg_out_mov (TCGContext *s, int ret, int arg)
+static void tcg_out_mov (TCGContext *s, TCGType type, int ret, int arg)
 {
     tcg_out32 (s, OR | SAB (arg, ret, arg));
 }
@@ -644,7 +644,7 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 #endif
 
     /* slow path */
-    tcg_out_mov (s, 3, addr_reg);
+    tcg_out_mov (s, TCG_TYPE_I64, 3, addr_reg);
     tcg_out_movi (s, TCG_TYPE_I64, 4, mem_index);
 
     tcg_out_call (s, (tcg_target_long) qemu_ld_helpers[s_bits], 1);
@@ -664,7 +664,7 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
     case 2:
     case 3:
         if (data_reg != 3)
-            tcg_out_mov (s, data_reg, 3);
+            tcg_out_mov (s, TCG_TYPE_I64, data_reg, 3);
         break;
     }
     label2_ptr = s->code_ptr;
@@ -746,7 +746,7 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
         else tcg_out32 (s, LDX | TAB (data_reg, rbase, r0));
 #else
         if (bswap) {
-            tcg_out_movi32 (s, 0, 4);
+            tcg_out_movi32 (s, TCG_TYPE_I64, 0, 4);
             tcg_out32 (s, LWBRX | RT (data_reg) | RB (r0));
             tcg_out32 (s, LWBRX | RT (      r1) | RA (r0));
             tcg_out_rld (s, RLDIMI, data_reg, r1, 32, 0);
@@ -790,7 +790,7 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 #endif
 
     /* slow path */
-    tcg_out_mov (s, 3, addr_reg);
+    tcg_out_mov (s, TCG_TYPE_I64, 3, addr_reg);
     tcg_out_rld (s, RLDICL, 4, data_reg, 0, 64 - (1 << (3 + opc)));
     tcg_out_movi (s, TCG_TYPE_I64, 5, mem_index);
 
@@ -860,7 +860,7 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 #endif
 }
 
-void tcg_target_qemu_prologue (TCGContext *s)
+static void tcg_target_qemu_prologue (TCGContext *s)
 {
     int i, frame_size;
 #ifndef __APPLE__
@@ -1663,7 +1663,7 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { -1 },
 };
 
-void tcg_target_init (TCGContext *s)
+static void tcg_target_init (TCGContext *s)
 {
     tcg_regset_set32 (tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffffffff);
     tcg_regset_set32 (tcg_target_available_regs[TCG_TYPE_I64], 0, 0xffffffff);

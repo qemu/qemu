@@ -1746,7 +1746,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { -1 },
 };
 
-void tcg_target_init(TCGContext *s)
+static void tcg_target_init(TCGContext *s)
 {
 #if !defined(CONFIG_USER_ONLY)
     /* fail safe */
@@ -1798,7 +1798,7 @@ static void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val)
     }
 }
 
-static inline void tcg_out_mov(TCGContext *s, int ret, int arg)
+static inline void tcg_out_mov(TCGContext *s, TCGType type, int ret, int arg)
 {
     tcg_out_dat_reg(s, COND_AL, ARITH_MOV, ret, 0, arg, SHIFT_IMM_LSL(0));
 }
@@ -1809,7 +1809,7 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
     tcg_out_movi32(s, COND_AL, ret, arg);
 }
 
-void tcg_target_qemu_prologue(TCGContext *s)
+static void tcg_target_qemu_prologue(TCGContext *s)
 {
     /* There is no need to save r7, it is used to store the address
        of the env structure and is not modified by GCC. */

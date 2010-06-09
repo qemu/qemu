@@ -106,7 +106,10 @@ static void main_cpu_reset(void *opaque)
     CPUState *env = s->env;
 
     cpu_reset(env);
-    env->active_tc.PC = s->vector;
+    env->active_tc.PC = s->vector & ~(target_ulong)1;
+    if (s->vector & 1) {
+        env->hflags |= MIPS_HFLAG_M16;
+    }
 }
 
 static void

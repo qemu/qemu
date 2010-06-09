@@ -304,7 +304,7 @@ static void tcg_out_arithc(TCGContext *s, int rd, int rs1,
               | (val2const ? INSN_IMM13(val2) : INSN_RS2(val2)));
 }
 
-static inline void tcg_out_mov(TCGContext *s, int ret, int arg)
+static inline void tcg_out_mov(TCGContext *s, TCGType type, int ret, int arg)
 {
     tcg_out_arith(s, ret, arg, TCG_REG_G0, ARITH_OR);
 }
@@ -691,7 +691,7 @@ static void tcg_out_setcond2_i32(TCGContext *s, TCGCond cond, TCGArg ret,
 #endif
 
 /* Generate global QEMU prologue and epilogue code */
-void tcg_target_qemu_prologue(TCGContext *s)
+static void tcg_target_qemu_prologue(TCGContext *s)
 {
     tcg_out32(s, SAVE | INSN_RD(TCG_REG_O6) | INSN_RS1(TCG_REG_O6) |
               INSN_IMM13(-TCG_TARGET_STACK_MINFRAME));
@@ -795,7 +795,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     tcg_out32(s, 0);
 
     /* mov (delay slot) */
-    tcg_out_mov(s, arg0, addr_reg);
+    tcg_out_mov(s, TCG_TYPE_PTR, arg0, addr_reg);
 
     /* mov */
     tcg_out_movi(s, TCG_TYPE_I32, arg1, mem_index);
@@ -845,7 +845,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     case 3:
     default:
         /* mov */
-        tcg_out_mov(s, data_reg, arg0);
+        tcg_out_mov(s, TCG_TYPE_REG, data_reg, arg0);
         break;
     }
 
@@ -1007,10 +1007,10 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     tcg_out32(s, 0);
 
     /* mov (delay slot) */
-    tcg_out_mov(s, arg0, addr_reg);
+    tcg_out_mov(s, TCG_TYPE_PTR, arg0, addr_reg);
 
     /* mov */
-    tcg_out_mov(s, arg1, data_reg);
+    tcg_out_mov(s, TCG_TYPE_REG, arg1, data_reg);
 
     /* mov */
     tcg_out_movi(s, TCG_TYPE_I32, arg2, mem_index);
@@ -1533,7 +1533,7 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { -1 },
 };
 
-void tcg_target_init(TCGContext *s)
+static void tcg_target_init(TCGContext *s)
 {
     tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffffffff);
 #if TCG_TARGET_REG_BITS == 64

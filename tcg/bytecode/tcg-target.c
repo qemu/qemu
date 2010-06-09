@@ -727,7 +727,7 @@ static void tcg_out_ld(TCGContext *s, TCGType type, int ret, int arg1,
     }
 }
 
-static void tcg_out_mov(TCGContext *s, int ret, int arg)
+static void tcg_out_mov(TCGContext *s, TCGType type, int ret, int arg)
 {
     assert(ret != arg);
     TCGArg args[2] = { ret, arg };
@@ -1261,7 +1261,7 @@ static int tcg_target_get_call_iarg_regs_count(int flags)
     return ARRAY_SIZE(tcg_target_call_iarg_regs);
 }
 
-void tcg_target_init(TCGContext *s)
+static void tcg_target_init(TCGContext *s)
 {
 #if defined(CONFIG_DEBUG_TCG_INTERPRETER)
     const char *env = getenv("DEBUG_TCG");
@@ -1286,7 +1286,7 @@ void tcg_target_init(TCGContext *s)
 }
 
 /* Generate global QEMU prologue and epilogue code. */
-void tcg_target_qemu_prologue(TCGContext *s)
+static void tcg_target_qemu_prologue(TCGContext *s)
 {
     TRACE();
     tb_ret_addr = s->code_ptr;

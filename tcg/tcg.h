@@ -48,7 +48,7 @@ typedef uint64_t TCGRegSet;
 #endif
 
 typedef enum TCGOpcode {
-#define DEF(s, n, copy_size) INDEX_op_ ## s,
+#define DEF(name, oargs, iargs, cargs, flags) INDEX_op_ ## name,
 #include "tcg-opc.h"
 #undef DEF
     NB_OPS,
@@ -101,11 +101,18 @@ typedef enum TCGType {
     TCG_TYPE_I64,
     TCG_TYPE_COUNT, /* number of different types */
 
+    /* An alias for the size of the host register.  */
 #if TCG_TARGET_REG_BITS == 32
-    TCG_TYPE_PTR = TCG_TYPE_I32,
+    TCG_TYPE_REG = TCG_TYPE_I32,
 #else
-    TCG_TYPE_PTR = TCG_TYPE_I64,
+    TCG_TYPE_REG = TCG_TYPE_I64,
 #endif
+
+    /* An alias for the size of the native pointer.  We don't currently
+       support any hosts with 64-bit registers and 32-bit pointers.  */
+    TCG_TYPE_PTR = TCG_TYPE_REG,
+
+    /* An alias for the size of the target "long", aka register.  */
 #if TARGET_LONG_BITS == 64
     TCG_TYPE_TL = TCG_TYPE_I64,
 #else
@@ -414,7 +421,6 @@ typedef struct TCGOpDef {
     const char *name;
     uint8_t nb_oargs, nb_iargs, nb_cargs, nb_args;
     uint8_t flags;
-    uint16_t copy_size;
     TCGArgConstraint *args_ct;
     int *sorted_args;
 #if defined(CONFIG_DEBUG_TCG)
@@ -426,9 +432,6 @@ typedef struct TCGTargetOpDef {
     TCGOpcode op;
     const char *args_ct_str[TCG_MAX_OP_ARGS];
 } TCGTargetOpDef;
-
-void tcg_target_init(TCGContext *s);
-void tcg_target_qemu_prologue(TCGContext *s);
 
 #define tcg_abort() \
 do {\
