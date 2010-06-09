@@ -237,25 +237,10 @@ static int v9fs_do_chown(V9fsState *s, V9fsString *path, uid_t uid, gid_t gid)
     return s->ops->chown(&s->ctx, path->data, &cred);
 }
 
-static int v9fs_do_utimensat(V9fsState *s, V9fsString *path, V9fsStat v9stat)
+static int v9fs_do_utimensat(V9fsState *s, V9fsString *path,
+                                           const struct timespec times[2])
 {
-    struct timespec ts[2];
-
-    if (v9stat.atime != -1) {
-        ts[0].tv_sec = v9stat.atime;
-        ts[0].tv_nsec = 0;
-    } else {
-        ts[0].tv_nsec = UTIME_OMIT;
-    }
-
-    if (v9stat.mtime != -1) {
-        ts[1].tv_sec = v9stat.mtime;
-        ts[1].tv_nsec = 0;
-    } else {
-        ts[1].tv_nsec = UTIME_OMIT;
-    }
-
-    return s->ops->utimensat(&s->ctx, path->data, ts);
+    return s->ops->utimensat(&s->ctx, path->data, times);
 }
 
 static int v9fs_do_remove(V9fsState *s, V9fsString *path)
@@ -2341,7 +2326,21 @@ static void v9fs_wstat_post_chmod(V9fsState *s, V9fsWstatState *vs, int err)
     }
 
     if (vs->v9stat.mtime != -1 || vs->v9stat.atime != -1) {
-        if (v9fs_do_utimensat(s, &vs->fidp->path, vs->v9stat)) {
+        struct timespec times[2];
+        if (vs->v9stat.atime != -1) {
+            times[0].tv_sec = vs->v9stat.atime;
+            times[0].tv_nsec = 0;
+        } else {
+            times[0].tv_nsec = UTIME_OMIT;
+        }
+        if (vs->v9stat.mtime != -1) {
+            times[1].tv_sec = vs->v9stat.mtime;
+            times[1].tv_nsec = 0;
+        } else {
+            times[1].tv_nsec = UTIME_OMIT;
+        }
+
+        if (v9fs_do_utimensat(s, &vs->fidp->path, times)) {
             err = -errno;
         }
     }
