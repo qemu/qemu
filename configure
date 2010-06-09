@@ -15,7 +15,7 @@ TMPC="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.c"
 TMPO="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.o"
 TMPE="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.exe"
 
-trap "rm -f $TMPC $TMPO $TMPE ; exit" 0 2 3 15
+trap "rm -f $TMPC $TMPO $TMPE ; exit" EXIT INT QUIT TERM
 
 compile_object() {
   $cc $QEMU_CFLAGS -c -o $TMPO $TMPC > /dev/null 2> /dev/null
@@ -1546,7 +1546,7 @@ EOF
             fi
     else
             if test "$vhost_net" = "yes" ; then
-                echo -e "NOTE: vhost-net feature requires KVM (--enable-kvm)."
+                echo "NOTE: vhost-net feature requires KVM (--enable-kvm)."
                 feature_not_found "vhost-net"
             fi
             vhost_net=no
