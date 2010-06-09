@@ -330,6 +330,19 @@ void pprint_pdu(V9fsPDU *pdu)
     BUG_ON(!llogfile);
 
     switch (pdu->id) {
+    case P9_TREADDIR:
+        fprintf(llogfile, "TREADDIR: (");
+        pprint_int32(pdu, 0, &offset, "fid");
+        pprint_int64(pdu, 0, &offset, ", initial offset");
+        pprint_int32(pdu, 0, &offset, ", max count");
+        break;
+    case P9_RREADDIR:
+        fprintf(llogfile, "RREADDIR: (");
+        pprint_int32(pdu, 1, &offset, "count");
+#ifdef DEBUG_DATA
+        pprint_data(pdu, 1, &offset, ", data");
+#endif
+        break;
     case P9_TVERSION:
         fprintf(llogfile, "TVERSION: (");
         pprint_int32(pdu, 0, &offset, "msize");

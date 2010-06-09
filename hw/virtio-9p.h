@@ -15,6 +15,8 @@
 enum {
     P9_TSTATFS = 8,
     P9_RSTATFS,
+    P9_TREADDIR = 40,
+    P9_RREADDIR,
     P9_TVERSION = 100,
     P9_RVERSION,
     P9_TAUTH = 102,
