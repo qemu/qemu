@@ -357,13 +357,13 @@ enum {
 /* Values for the fmt field in FP instructions */
 enum {
     /* 0 - 15 are reserved */
-    FMT_S = 16,
-    FMT_D = 17,
-    FMT_E = 18,
-    FMT_Q = 19,
-    FMT_W = 20,
-    FMT_L = 21,
-    FMT_PS = 22,
+    FMT_S = 16,          /* single fp */
+    FMT_D = 17,          /* double fp */
+    FMT_E = 18,          /* extended fp */
+    FMT_Q = 19,          /* quad fp */
+    FMT_W = 20,          /* 32-bit fixed */
+    FMT_L = 21,          /* 64-bit fixed */
+    FMT_PS = 22,         /* paired single fp */
     /* 23 - 31 are reserved */
 };
 
@@ -379,13 +379,13 @@ enum {
     OPC_BC1      = (0x08 << 21) | OPC_CP1, /* bc */
     OPC_BC1ANY2  = (0x09 << 21) | OPC_CP1,
     OPC_BC1ANY4  = (0x0A << 21) | OPC_CP1,
-    OPC_S_FMT    = (FMT_S << 21) | OPC_CP1,  /* 16: fmt=single fp */
-    OPC_D_FMT    = (FMT_D << 21) | OPC_CP1,  /* 17: fmt=double fp */
-    OPC_E_FMT    = (FMT_E << 21) | OPC_CP1,  /* 18: fmt=extended fp */
-    OPC_Q_FMT    = (FMT_Q << 21) | OPC_CP1,  /* 19: fmt=quad fp */
-    OPC_W_FMT    = (FMT_W << 21) | OPC_CP1,  /* 20: fmt=32bit fixed */
-    OPC_L_FMT    = (FMT_L << 21) | OPC_CP1,  /* 21: fmt=64bit fixed */
-    OPC_PS_FMT   = (FMT_PS << 21) | OPC_CP1, /* 22: fmt=paired single fp */
+    OPC_S_FMT    = (FMT_S << 21) | OPC_CP1,
+    OPC_D_FMT    = (FMT_D << 21) | OPC_CP1,
+    OPC_E_FMT    = (FMT_E << 21) | OPC_CP1,
+    OPC_Q_FMT    = (FMT_Q << 21) | OPC_CP1,
+    OPC_W_FMT    = (FMT_W << 21) | OPC_CP1,
+    OPC_L_FMT    = (FMT_L << 21) | OPC_CP1,
+    OPC_PS_FMT   = (FMT_PS << 21) | OPC_CP1,
 };
 
 #define MASK_CP1_FUNC(op)       MASK_CP1(op) | (op & 0x3F)
