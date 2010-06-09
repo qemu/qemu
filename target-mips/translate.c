@@ -9484,7 +9484,7 @@ static void gen_ldst_multiple (DisasContext *ctx, uint32_t opc, int reglist,
     }
     MIPS_DEBUG("%s, %x, %d(%s)", opn, reglist, offset, regnames[base]);
     tcg_temp_free(t0);
-    tcg_temp_free_i32(t1);
+    tcg_temp_free(t1);
     tcg_temp_free_i32(t2);
 }
 
