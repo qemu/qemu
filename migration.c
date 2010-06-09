@@ -58,6 +58,19 @@ int qemu_start_incoming_migration(const char *uri)
     return ret;
 }
 
+void process_incoming_migration(QEMUFile *f)
+{
+    if (qemu_loadvm_state(f) < 0) {
+        fprintf(stderr, "load of migration failed\n");
+        exit(0);
+    }
+    qemu_announce_self();
+    DPRINTF("successfully loaded vm state\n");
+
+    if (autostart)
+        vm_start();
+}
+
 int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     MigrationState *s = NULL;
