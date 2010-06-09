@@ -396,7 +396,7 @@ void migrate_fd_release(MigrationState *mig_state)
         s->state = MIG_STATE_CANCELLED;
         migrate_fd_cleanup(s);
     }
-    free(s);
+    qemu_free(s);
 }
 
 void migrate_fd_wait_for_unfreeze(void *opaque)
