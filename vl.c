@@ -2975,7 +2975,12 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (incoming) {
-        qemu_start_incoming_migration(incoming);
+        int ret = qemu_start_incoming_migration(incoming);
+        if (ret < 0) {
+            fprintf(stderr, "Migration failed. Exit code %s(%d), exiting.\n",
+                    incoming, ret);
+            exit(ret);
+        }
     } else if (autostart) {
         vm_start();
     }

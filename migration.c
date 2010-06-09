@@ -36,22 +36,26 @@ static uint32_t max_throttle = (32 << 20);
 
 static MigrationState *current_migration;
 
-void qemu_start_incoming_migration(const char *uri)
+int qemu_start_incoming_migration(const char *uri)
 {
     const char *p;
+    int ret;
 
     if (strstart(uri, "tcp:", &p))
-        tcp_start_incoming_migration(p);
+        ret = tcp_start_incoming_migration(p);
 #if !defined(WIN32)
     else if (strstart(uri, "exec:", &p))
-        exec_start_incoming_migration(p);
+        ret =  exec_start_incoming_migration(p);
     else if (strstart(uri, "unix:", &p))
-        unix_start_incoming_migration(p);
+        ret = unix_start_incoming_migration(p);
     else if (strstart(uri, "fd:", &p))
-        fd_start_incoming_migration(p);
+        ret = fd_start_incoming_migration(p);
 #endif
-    else
+    else {
         fprintf(stderr, "unknown migration protocol: %s\n", uri);
+        ret = -EPROTONOSUPPORT;
+    }
+    return ret;
 }
 
 int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
