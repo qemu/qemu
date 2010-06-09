@@ -21,6 +21,8 @@ enum {
     P9_RSETATTR,
     P9_TREADDIR = 40,
     P9_RREADDIR,
+    P9_TLINK = 70,
+    P9_RLINK,
     P9_TVERSION = 100,
     P9_RVERSION,
     P9_TAUTH = 102,

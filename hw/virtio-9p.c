@@ -2307,6 +2307,43 @@ static void v9fs_flush(V9fsState *s, V9fsPDU *pdu)
     complete_pdu(s, pdu, 7);
 }
 
+static void v9fs_link(V9fsState *s, V9fsPDU *pdu)
+{
+    int32_t dfid, oldfid;
+    V9fsFidState *dfidp, *oldfidp;
+    V9fsString name, fullname;
+    size_t offset = 7;
+    int err = 0;
+
+    v9fs_string_init(&fullname);
+
+    pdu_unmarshal(pdu, offset, "dds", &dfid, &oldfid, &name);
+
+    dfidp = lookup_fid(s, dfid);
+    if (dfidp == NULL) {
+        err = -errno;
+        goto out;
+    }
+
+    oldfidp = lookup_fid(s, oldfid);
+    if (oldfidp == NULL) {
+        err = -errno;
+        goto out;
+    }
+
+    v9fs_string_sprintf(&fullname, "%s/%s", dfidp->path.data, name.data);
+    err = offset;
+    err = v9fs_do_link(s, &oldfidp->path, &fullname);
+    if (err) {
+        err = -errno;
+    }
+    v9fs_string_free(&fullname);
+
+out:
+    v9fs_string_free(&name);
+    complete_pdu(s, pdu, err);
+}
+
 static void v9fs_remove_post_remove(V9fsState *s, V9fsRemoveState *vs,
                                                                 int err)
 {
@@ -2680,6 +2717,7 @@ static pdu_handler_t *pdu_handlers[] = {
     [P9_TAUTH] = v9fs_auth,
 #endif
     [P9_TFLUSH] = v9fs_flush,
+    [P9_TLINK] = v9fs_link,
     [P9_TCREATE] = v9fs_create,
     [P9_TWRITE] = v9fs_write,
     [P9_TWSTAT] = v9fs_wstat,
