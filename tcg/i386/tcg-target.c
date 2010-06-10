@@ -679,7 +679,7 @@ static void tgen_arithi(TCGContext *s, int c, int r0,
                 rexw = 0;
             }
         }
-        if (val == 0xffu) {
+        if (val == 0xffu && (r0 < 4 || TCG_TARGET_REG_BITS == 64)) {
             tcg_out_ext8u(s, r0, r0);
             return;
         }
