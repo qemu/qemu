@@ -28,6 +28,7 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <pwd.h>
 #include <libgen.h>
 
 /* Needed early for CONFIG_BSD etc. */
@@ -35,6 +36,8 @@
 #include "sysemu.h"
 #include "net/slirp.h"
 #include "qemu-options.h"
+
+static struct passwd *user_pwd;
 
 void os_setup_early_signal_handling(void)
 {
@@ -146,6 +149,31 @@ void os_parse_cmd_args(int index, const char *optarg)
             exit(1);
         break;
 #endif
+    case QEMU_OPTION_runas:
+        user_pwd = getpwnam(optarg);
+        if (!user_pwd) {
+            fprintf(stderr, "User \"%s\" doesn't exist\n", optarg);
+            exit(1);
+        }
+        break;
     }
     return;
+}
+
+void os_change_process_uid(void)
+{
+    if (user_pwd) {
+        if (setgid(user_pwd->pw_gid) < 0) {
+            fprintf(stderr, "Failed to setgid(%d)\n", user_pwd->pw_gid);
+            exit(1);
+        }
+        if (setuid(user_pwd->pw_uid) < 0) {
+            fprintf(stderr, "Failed to setuid(%d)\n", user_pwd->pw_uid);
+            exit(1);
+        }
+        if (setuid(0) != -1) {
+            fprintf(stderr, "Dropping privileges failed\n");
+            exit(1);
+        }
+    }
 }

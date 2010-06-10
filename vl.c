@@ -34,7 +34,6 @@
 
 #ifndef _WIN32
 #include <libgen.h>
-#include <pwd.h>
 #include <sys/times.h>
 #include <sys/wait.h>
 #include <termios.h>
@@ -2310,9 +2309,7 @@ int main(int argc, char **argv, char **envp)
     const char *incoming = NULL;
 #ifndef _WIN32
     int fd = 0;
-    struct passwd *pwd = NULL;
     const char *chroot_dir = NULL;
-    const char *run_as = NULL;
 #endif
     int show_vnc_port = 0;
     int defconfig = 1;
@@ -3060,9 +3057,6 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_chroot:
                 chroot_dir = optarg;
                 break;
-            case QEMU_OPTION_runas:
-                run_as = optarg;
-                break;
 #endif
             case QEMU_OPTION_xen_domid:
                 if (!(xen_available())) {
@@ -3554,14 +3548,6 @@ int main(int argc, char **argv, char **envp)
 	    exit(1);
     }
 
-    if (run_as) {
-        pwd = getpwnam(run_as);
-        if (!pwd) {
-            fprintf(stderr, "User \"%s\" doesn't exist\n", run_as);
-            exit(1);
-        }
-    }
-
     if (chroot_dir) {
         if (chroot(chroot_dir) < 0) {
             fprintf(stderr, "chroot failed\n");
@@ -3573,20 +3559,7 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
-    if (run_as) {
-        if (setgid(pwd->pw_gid) < 0) {
-            fprintf(stderr, "Failed to setgid(%d)\n", pwd->pw_gid);
-            exit(1);
-        }
-        if (setuid(pwd->pw_uid) < 0) {
-            fprintf(stderr, "Failed to setuid(%d)\n", pwd->pw_uid);
-            exit(1);
-        }
-        if (setuid(0) != -1) {
-            fprintf(stderr, "Dropping privileges failed\n");
-            exit(1);
-        }
-    }
+    os_change_process_uid();
 
     if (daemonize) {
         dup2(fd, 0);
