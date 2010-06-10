@@ -79,7 +79,7 @@ int qemu_loadvm_state(QEMUFile *f);
 /* SLIRP */
 void do_info_slirp(Monitor *mon);
 
-void os_setup_signal_handling(void);
+void os_setup_early_signal_handling(void);
 
 typedef enum DisplayType
 {

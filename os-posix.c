@@ -31,7 +31,7 @@
 #include "config-host.h"
 #include "sysemu.h"
 
-void os_setup_signal_handling(void)
+void os_setup_early_signal_handling(void)
 {
     struct sigaction act;
     sigfillset(&act.sa_mask);

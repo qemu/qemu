@@ -159,7 +159,7 @@ static BOOL WINAPI qemu_ctrl_handler(DWORD type)
     return TRUE;
 }
 
-void os_setup_signal_handling(void)
+void os_setup_early_signal_handling(void)
 {
     /* Note: cpu_interrupt() is currently not SMP safe, so we force
        QEMU to run on a single CPU */
