@@ -30,6 +30,7 @@
 #include "etraxfs.h"
 #include "loader.h"
 #include "elf.h"
+#include "cris-boot.h"
 
 #define D(x)
 #define DNAND(x)
@@ -240,28 +241,7 @@ static CPUWriteMemoryFunc * const gpio_write[] = {
 
 #define INTMEM_SIZE (128 * 1024)
 
-static struct {
-    uint32_t bootstrap_pc;
-    uint32_t regs[16];
-} loadargs;
-
-static void main_cpu_reset(void *opaque)
-{
-    int i;
-
-    CPUState *env = opaque;
-    cpu_reset(env);
-
-    env->pc = loadargs.bootstrap_pc;
-    for (i = 0; i < 16; i++) {
-        env->regs[i] = loadargs.regs[i];
-    }
-}
-
-static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
-{
-    return addr - 0x80000000LL;
-}
+static struct cris_load_info li;
 
 static
 void axisdev88_init (ram_addr_t ram_size,
@@ -275,7 +255,6 @@ void axisdev88_init (ram_addr_t ram_size,
     qemu_irq irq[30], nmi[2], *cpu_irq;
     void *etraxfs_dmac;
     struct etraxfs_dma_client *eth[2] = {NULL, NULL};
-    int kernel_size;
     int i;
     int nand_regs;
     int gpio_regs;
@@ -287,7 +266,6 @@ void axisdev88_init (ram_addr_t ram_size,
         cpu_model = "crisv32";
     }
     env = cpu_init(cpu_model);
-    qemu_register_reset(main_cpu_reset, env);
 
     /* allocate RAM */
     phys_ram = qemu_ram_alloc(ram_size);
@@ -353,35 +331,14 @@ void axisdev88_init (ram_addr_t ram_size,
                              irq[0x14 + i]);
     }
 
-    if (kernel_filename) {
-        uint64_t entry, high;
-        int kcmdline_len;
-
-        /* Boots a kernel elf binary, os/linux-2.6/vmlinux from the axis 
-           devboard SDK.  */
-        kernel_size = load_elf(kernel_filename, translate_kernel_address, NULL,
-                               &entry, NULL, &high, 0, ELF_MACHINE, 0);
-        loadargs.bootstrap_pc = entry;
-        if (kernel_size < 0) {
-            /* Takes a kimage from the axis devboard SDK.  */
-            kernel_size = load_image_targphys(kernel_filename, 0x40004000,
-                                              ram_size);
-            loadargs.bootstrap_pc = 0x40004000;
-            loadargs.regs[9] = 0x40004000 + kernel_size;
-        }
-        loadargs.regs[8] = 0x56902387; /* RAM init magic.  */
-
-        if (kernel_cmdline && (kcmdline_len = strlen(kernel_cmdline))) {
-            if (kcmdline_len > 256) {
-                fprintf(stderr, "Too long CRIS kernel cmdline (max 256)\n");
-                exit(1);
-            }
-            /* Let the kernel know we are modifying the cmdline.  */
-            loadargs.regs[10] = 0x87109563;
-            loadargs.regs[11] = 0x40000000;
-            pstrcpy_targphys("cmdline", loadargs.regs[11], 256, kernel_cmdline);
-        }
+    if (!kernel_filename) {
+        fprintf(stderr, "Kernel image must be specified\n");
+        exit(1);
     }
+
+    li.image_filename = kernel_filename;
+    li.cmdline = kernel_cmdline;
+    cris_load_image(env, &li);
 }
 
 static QEMUMachine axisdev88_machine = {
