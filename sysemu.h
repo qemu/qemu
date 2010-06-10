@@ -12,6 +12,10 @@
 #include "qemu-os-win32.h"
 #endif
 
+#ifdef CONFIG_POSIX
+#include "qemu-os-posix.h"
+#endif
+
 /* vl.c */
 extern const char *bios_name;
 

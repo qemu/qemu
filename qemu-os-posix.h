@@ -1,5 +1,5 @@
 /*
- * win32 specific declarations
+ * posix specific declarations
  *
  * Copyright (c) 2003-2008 Fabrice Bellard
  * Copyright (c) 2010 Jes Sorensen <Jes.Sorensen@redhat.com>
@@ -23,22 +23,11 @@
  * THE SOFTWARE.
  */
 
-#ifndef QEMU_OS_WIN32_H
-#define QEMU_OS_WIN32_H
+#ifndef QEMU_OS_POSIX_H
+#define QEMU_OS_POSIX_H
 
-/* Polling handling */
+static inline void os_host_main_loop_wait(int *timeout)
+{
+}
 
-/* return TRUE if no sleep should be done afterwards */
-typedef int PollingFunc(void *opaque);
-
-int qemu_add_polling_cb(PollingFunc *func, void *opaque);
-void qemu_del_polling_cb(PollingFunc *func, void *opaque);
-
-/* Wait objects handling */
-typedef void WaitObjectFunc(void *opaque);
-
-int qemu_add_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque);
-void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque);
-
-void os_host_main_loop_wait(int *timeout);
 #endif
