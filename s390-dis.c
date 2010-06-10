@@ -1,3 +1,4 @@
+/* opcodes/s390-dis.c revision 1.12 */
 /* s390-dis.c -- Disassemble S390 instructions
    Copyright 2000, 2001, 2002, 2003, 2005 Free Software Foundation, Inc.
    Contributed by Martin Schwidefsky (schwidefsky@de.ibm.com).
@@ -15,11 +16,14 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, see <http://www.gnu.org/licenses/>.  */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
-#include <stdio.h>
+#include "qemu-common.h"
 #include "dis-asm.h"
 
+/* include/opcode/s390.h revision 1.9 */
 /* s390.h -- Header file for S390 opcode table
    Copyright 2000, 2001, 2003 Free Software Foundation, Inc.
    Contributed by Martin Schwidefsky (schwidefsky@de.ibm.com).
@@ -37,7 +41,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, see <http://www.gnu.org/licenses/>.  */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #ifndef S390_H
 #define S390_H
@@ -57,7 +63,8 @@ enum s390_opcode_cpu_val
     S390_OPCODE_Z900,
     S390_OPCODE_Z990,
     S390_OPCODE_Z9_109,
-    S390_OPCODE_Z9_EC
+    S390_OPCODE_Z9_EC,
+    S390_OPCODE_Z10
   };
 
 /* The opcode table is an array of struct s390_opcode.  */
@@ -95,12 +102,13 @@ struct s390_opcode
 /* The table itself is sorted by major opcode number, and is otherwise
    in the order in which the disassembler should consider
    instructions.  */
-extern const struct s390_opcode s390_opcodes[];
-extern const int                s390_num_opcodes;
+/* QEMU: Mark these static.  */
+static const struct s390_opcode s390_opcodes[];
+static const int                s390_num_opcodes;
 
 /* A opcode format table for the .insn pseudo mnemonic.  */
-extern const struct s390_opcode s390_opformats[];
-extern const int                s390_num_opformats;
+static const struct s390_opcode s390_opformats[];
+static const int                s390_num_opformats;
 
 /* Values defined for the flags field of a struct powerpc_opcode.  */
 
@@ -121,7 +129,7 @@ struct s390_operand
 /* Elements in the table are retrieved by indexing with values from
    the operands field of the powerpc_opcodes table.  */
 
-extern const struct s390_operand s390_operands[];
+static const struct s390_operand s390_operands[];
 
 /* Values defined for the flags field of a struct s390_operand.  */
 
@@ -164,12 +172,38 @@ extern const struct s390_operand s390_operands[];
    the instruction may be optional.  */
 #define S390_OPERAND_OPTIONAL 0x400
 
-	#endif /* S390_H */
+/* QEMU-ADD */
+/* ??? Not quite the format the assembler takes, but easy to implement
+   without recourse to the table generator.  */
+#define S390_OPERAND_CCODE  0x800
 
+static const char s390_ccode_name[16][4] = {
+    "n",    /* 0000 */
+    "o",    /* 0001 */
+    "h",    /* 0010 */
+    "nle",  /* 0011 */
+    "l",    /* 0100 */
+    "nhe",  /* 0101 */
+    "lh",   /* 0110 */
+    "ne",   /* 0111 */
+    "e",    /* 1000 */
+    "nlh",  /* 1001 */
+    "he",   /* 1010 */
+    "nl",   /* 1011 */
+    "le",   /* 1100 */
+    "nh",   /* 1101 */
+    "no",   /* 1110 */
+    "a"     /* 1111 */
+};
+/* QEMU-END */
+
+#endif /* S390_H */
 
 static int init_flag = 0;
 static int opc_index[256];
-static int current_arch_mask = 0;
+
+/* QEMU: We've disabled the architecture check below.  */
+/* static int current_arch_mask = 0; */
 
 /* Set up index table for first opcode byte.  */
 
@@ -188,17 +222,21 @@ init_disasm (struct disassemble_info *info)
 	     (opcode[1].opcode[0] == opcode->opcode[0]))
 	opcode++;
     }
-//  switch (info->mach)
-//    {
-//    case bfd_mach_s390_31:
-//      current_arch_mask = 1 << S390_OPCODE_ESA;
-//      break;
-//    case bfd_mach_s390_64:
+
+#ifdef QEMU_DISABLE
+  switch (info->mach)
+    {
+    case bfd_mach_s390_31:
+      current_arch_mask = 1 << S390_OPCODE_ESA;
+      break;
+    case bfd_mach_s390_64:
       current_arch_mask = 1 << S390_OPCODE_ZARCH;
-//      break;
-//    default:
-//      abort ();
-//    }
+      break;
+    default:
+      abort ();
+    }
+#endif /* QEMU_DISABLE */
+
   init_flag = 1;
 }
 
@@ -297,9 +335,12 @@ print_insn_s390 (bfd_vma memaddr, struct disassemble_info *info)
 	  const struct s390_operand *operand;
 	  const unsigned char *opindex;
 
+#ifdef QEMU_DISABLE
 	  /* Check architecture.  */
 	  if (!(opcode->modes & current_arch_mask))
 	    continue;
+#endif /* QEMU_DISABLE */
+
 	  /* Check signature of the opcode.  */
 	  if ((buffer[1] & opcode->mask[1]) != opcode->opcode[1]
 	      || (buffer[2] & opcode->mask[2]) != opcode->opcode[2]
@@ -309,13 +350,16 @@ print_insn_s390 (bfd_vma memaddr, struct disassemble_info *info)
 	    continue;
 
 	  /* The instruction is valid.  */
-	  if (opcode->operands[0] != 0)
-	    (*info->fprintf_func) (info->stream, "%s\t", opcode->name);
-	  else
-	    (*info->fprintf_func) (info->stream, "%s", opcode->name);
+/* QEMU-MOD */
+         (*info->fprintf_func) (info->stream, "%s", opcode->name);
+
+         if (s390_operands[opcode->operands[0]].flags & S390_OPERAND_CCODE)
+           separator = 0;
+         else
+           separator = '\t';
+/* QEMU-END */
 
 	  /* Extract the operands.  */
-	  separator = 0;
 	  for (opindex = opcode->operands; *opindex != 0; opindex++)
 	    {
 	      unsigned int value;
@@ -347,6 +391,15 @@ print_insn_s390 (bfd_vma memaddr, struct disassemble_info *info)
 		(*info->print_address_func) (memaddr + (int) value, info);
 	      else if (operand->flags & S390_OPERAND_SIGNED)
 		(*info->fprintf_func) (info->stream, "%i", (int) value);
+/* QEMU-ADD */
+              else if (operand->flags & S390_OPERAND_CCODE)
+                {
+		  (*info->fprintf_func) (info->stream, "%s",
+                                         s390_ccode_name[(int) value]);
+                  separator = '\t';
+                  continue;
+                }
+/* QEMU-END */
 	      else
 		(*info->fprintf_func) (info->stream, "%u", value);
 
@@ -392,6 +445,8 @@ print_insn_s390 (bfd_vma memaddr, struct disassemble_info *info)
       return 1;
     }
 }
+
+/* opcodes/s390-opc.c revision 1.16 */
 /* s390-opc.c -- S390 opcode list
    Copyright 2000, 2001, 2003 Free Software Foundation, Inc.
    Contributed by Martin Schwidefsky (schwidefsky@de.ibm.com).
@@ -409,9 +464,9 @@ print_insn_s390 (bfd_vma memaddr, struct disassemble_info *info)
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, see <http://www.gnu.org/licenses/>.  */
-
-#include <stdio.h>
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* This file holds the S390 opcode table.  The opcode table
    includes almost all of the extended instruction mnemonics.  This
@@ -427,7 +482,7 @@ print_insn_s390 (bfd_vma memaddr, struct disassemble_info *info)
 /* The operands table.
    The fields are bits, shift, insert, extract, flags.  */
 
-const struct s390_operand s390_operands[] =
+static const struct s390_operand s390_operands[] =
 {
 #define UNUSED 0
   { 0, 0, 0 },                    /* Indicates the end of the operand list */
@@ -525,8 +580,16 @@ const struct s390_operand s390_operands[] =
 #define M_16   42                 /* 4 bit optional mask starting at 16 */
   { 4, 16, S390_OPERAND_OPTIONAL },
 #define RO_28  43                 /* optional GPR starting at position 28 */
-  { 4, 28, (S390_OPERAND_GPR | S390_OPERAND_OPTIONAL) }
+  { 4, 28, (S390_OPERAND_GPR | S390_OPERAND_OPTIONAL) },
 
+/* QEMU-ADD: */
+#define M4_12 44                  /* 4-bit condition-code starting at 12 */
+  { 4, 12, S390_OPERAND_CCODE },
+#define M4_32 45                  /* 4-bit condition-code starting at 32 */
+  { 4, 32, S390_OPERAND_CCODE },
+#define I8_32 46                  /* 8 bit signed value starting at 32 */
+  { 8, 32, S390_OPERAND_SIGNED },
+/* QEMU-END */
 };
 
 
@@ -737,9 +800,17 @@ const struct s390_operand s390_operands[] =
 #define MASK_S_RD        { 0xff, 0xff, 0x00, 0x00, 0x00, 0x00 }
 #define MASK_SSF_RRDRD   { 0xff, 0x0f, 0x00, 0x00, 0x00, 0x00 }
 
+/* QEMU-ADD: */
+#define INSTR_RIE_MRRP   6, { M4_32,R_8,R_12,J16_16,0,0 }	/* e.g. crj */
+#define MASK_RIE_MRRP    { 0xff, 0x00, 0x00, 0x00, 0x0f, 0xff }
+
+#define INSTR_RIE_MRIP   6, { M4_12,R_8,I8_32,J16_16,0,0 }      /* e.g. cij */
+#define MASK_RIE_MRIP    { 0xff, 0x00, 0x00, 0x00, 0x00, 0xff }
+/* QEMU-END */
+
 /* The opcode formats table (blueprints for .insn pseudo mnemonic).  */
 
-const struct s390_opcode s390_opformats[] =
+static const struct s390_opcode s390_opformats[] =
   {
   { "e",	OP8(0x00LL),	MASK_E,		INSTR_E,	3, 0 },
   { "ri",	OP8(0x00LL),	MASK_RI_RI,	INSTR_RI_RI,	3, 0 },
@@ -765,9 +836,10 @@ const struct s390_opcode s390_opformats[] =
   { "ssf",	OP8(0x00LL),	MASK_SSF_RRDRD,	INSTR_SSF_RRDRD,3, 0 },
 };
 
-const int s390_num_opformats =
+static const int s390_num_opformats =
   sizeof (s390_opformats) / sizeof (s390_opformats[0]);
 
+/* include "s390-opc.tab" generated from opcodes/s390-opc.txt rev 1.17 */
 /* The opcode table. This file was generated by s390-mkopc.
 
    The format of the opcode table is:
@@ -783,7 +855,7 @@ const int s390_num_opformats =
    The disassembler reads the table in order and prints the first
    instruction which matches.  */
 
-const struct s390_opcode s390_opcodes[] =
+static const struct s390_opcode s390_opcodes[] =
   {
   { "dp", OP8(0xfdLL), MASK_SS_LLRDRD, INSTR_SS_LLRDRD, 3, 0},
   { "mp", OP8(0xfcLL), MASK_SS_LLRDRD, INSTR_SS_LLRDRD, 3, 0},
@@ -1073,6 +1145,10 @@ const struct s390_opcode s390_opcodes[] =
   { "agfi", OP16(0xc208LL), MASK_RIL_RI, INSTR_RIL_RI, 2, 4},
   { "slfi", OP16(0xc205LL), MASK_RIL_RU, INSTR_RIL_RU, 2, 4},
   { "slgfi", OP16(0xc204LL), MASK_RIL_RU, INSTR_RIL_RU, 2, 4},
+/* QEMU-ADD: */
+  { "msfi",  OP16(0xc201ll), MASK_RIL_RI, INSTR_RIL_RI, 3, 6},
+  { "msgfi", OP16(0xc200ll), MASK_RIL_RI, INSTR_RIL_RI, 3, 6},
+/* QEMU-END */
   { "jg", OP16(0xc0f4LL), MASK_RIL_0P, INSTR_RIL_0P, 3, 2},
   { "jgno", OP16(0xc0e4LL), MASK_RIL_0P, INSTR_RIL_0P, 3, 2},
   { "jgnh", OP16(0xc0d4LL), MASK_RIL_0P, INSTR_RIL_0P, 3, 2},
@@ -1697,8 +1773,24 @@ const struct s390_opcode s390_opcodes[] =
   { "pfpo", OP16(0x010aLL), MASK_E, INSTR_E, 2, 5},
   { "sckpf", OP16(0x0107LL), MASK_E, INSTR_E, 3, 0},
   { "upt", OP16(0x0102LL), MASK_E, INSTR_E, 3, 0},
-  { "pr", OP16(0x0101LL), MASK_E, INSTR_E, 3, 0}
+  { "pr", OP16(0x0101LL), MASK_E, INSTR_E, 3, 0},
+
+/* QEMU-ADD: */
+  { "crj",   OP48(0xec0000000076LL), MASK_RIE_MRRP, INSTR_RIE_MRRP, 3, 6},
+  { "cgrj",  OP48(0xec0000000064LL), MASK_RIE_MRRP, INSTR_RIE_MRRP, 3, 6},
+  { "clrj",  OP48(0xec0000000077LL), MASK_RIE_MRRP, INSTR_RIE_MRRP, 3, 6},
+  { "clgrj", OP48(0xec0000000065LL), MASK_RIE_MRRP, INSTR_RIE_MRRP, 3, 6},
+
+  { "cij",   OP48(0xec000000007eLL), MASK_RIE_MRIP, INSTR_RIE_MRIP, 3, 6},
+  { "cgij",  OP48(0xec000000007cLL), MASK_RIE_MRIP, INSTR_RIE_MRIP, 3, 6},
+  { "clij",  OP48(0xec000000007fLL), MASK_RIE_MRIP, INSTR_RIE_MRIP, 3, 6},
+  { "clgij", OP48(0xec000000007dLL), MASK_RIE_MRIP, INSTR_RIE_MRIP, 3, 6},
+
+  { "lrl",   OP16(0xc40dll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+  { "lgrl",  OP16(0xc408ll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+  { "lgfrl", OP16(0xc40cll), MASK_RIL_RP, INSTR_RIL_RP, 3, 6},
+/* QEMU-END */
 };
 
-const int s390_num_opcodes =
+static const int s390_num_opcodes =
   sizeof (s390_opcodes) / sizeof (s390_opcodes[0]);

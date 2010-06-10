@@ -250,7 +250,10 @@ obj-microblaze-y += xilinx_ethlite.o
 obj-microblaze-$(CONFIG_FDT) += device_tree.o
 
 # Boards
-obj-cris-y = cris_pic_cpu.o etraxfs.o axis_dev88.o
+obj-cris-y = cris_pic_cpu.o
+obj-cris-y += cris-boot.o
+obj-cris-y += etraxfs.o axis_dev88.o
+obj-cris-y += axis_dev88.o
 
 # IO blocks
 obj-cris-y += etraxfs_dma.o

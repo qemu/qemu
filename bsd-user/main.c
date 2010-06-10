@@ -43,7 +43,7 @@ unsigned long guest_base;
 int have_guest_base;
 #endif
 
-static const char *interp_prefix = CONFIG_QEMU_PREFIX;
+static const char *interp_prefix = CONFIG_QEMU_INTERP_PREFIX;
 const char *qemu_uname_release = CONFIG_UNAME_RELEASE;
 extern char **environ;
 enum BSDType bsd_type;

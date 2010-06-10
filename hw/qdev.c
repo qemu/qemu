@@ -700,6 +700,7 @@ void qbus_free(BusState *bus)
         QLIST_REMOVE(bus, sibling);
         bus->parent->num_child_bus--;
     }
+    qemu_free((void*)bus->name);
     if (bus->qdev_allocated) {
         qemu_free(bus);
     }

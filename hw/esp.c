@@ -419,7 +419,7 @@ static void handle_ti(ESPState *s)
     }
 }
 
-static void esp_reset(DeviceState *d)
+static void esp_hard_reset(DeviceState *d)
 {
     ESPState *s = container_of(d, ESPState, busdev.qdev);
 
@@ -435,10 +435,19 @@ static void esp_reset(DeviceState *d)
     s->rregs[ESP_CFG1] = 7;
 }
 
+static void esp_soft_reset(DeviceState *d)
+{
+    ESPState *s = container_of(d, ESPState, busdev.qdev);
+
+    qemu_irq_lower(s->irq);
+    esp_hard_reset(d);
+}
+
 static void parent_esp_reset(void *opaque, int irq, int level)
 {
-    if (level)
-        esp_reset(opaque);
+    if (level) {
+        esp_soft_reset(opaque);
+    }
 }
 
 static uint32_t esp_mem_readb(void *opaque, target_phys_addr_t addr)
@@ -528,7 +537,7 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
             break;
         case CMD_RESET:
             DPRINTF("Chip reset (%2.2x)\n", val);
-            esp_reset(&s->busdev.qdev);
+            esp_soft_reset(&s->busdev.qdev);
             break;
         case CMD_BUSRESET:
             DPRINTF("Bus reset (%2.2x)\n", val);
@@ -679,7 +688,7 @@ static SysBusDeviceInfo esp_info = {
     .qdev.name  = "esp",
     .qdev.size  = sizeof(ESPState),
     .qdev.vmsd  = &vmstate_esp,
-    .qdev.reset = esp_reset,
+    .qdev.reset = esp_hard_reset,
     .qdev.props = (Property[]) {
         {.name = NULL}
     }

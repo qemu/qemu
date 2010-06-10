@@ -30,23 +30,17 @@
 #include "etraxfs.h"
 #include "loader.h"
 #include "elf.h"
+#include "cris-boot.h"
 
 #define FLASH_SIZE 0x2000000
 #define INTMEM_SIZE (128 * 1024)
 
-static uint32_t bootstrap_pc;
+static struct cris_load_info li;
 
-static void main_cpu_reset(void *opaque)
+static void flash_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
     cpu_reset(env);
-
-    env->pc = bootstrap_pc;
-}
-
-static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
-{
-    return addr - 0x80000000LL;
 }
 
 static
@@ -61,7 +55,6 @@ void bareetraxfs_init (ram_addr_t ram_size,
     qemu_irq irq[30], nmi[2], *cpu_irq; 
     void *etraxfs_dmac;
     struct etraxfs_dma_client *eth[2] = {NULL, NULL};
-    int kernel_size;
     DriveInfo *dinfo;
     int i;
     ram_addr_t phys_ram;
@@ -73,7 +66,6 @@ void bareetraxfs_init (ram_addr_t ram_size,
         cpu_model = "crisv32";
     }
     env = cpu_init(cpu_model);
-    qemu_register_reset(main_cpu_reset, env);
 
     /* allocate RAM */
     phys_ram = qemu_ram_alloc(ram_size);
@@ -137,38 +129,19 @@ void bareetraxfs_init (ram_addr_t ram_size,
     }
 
     if (kernel_filename) {
-        uint64_t entry, high;
-        int kcmdline_len;
-
-        /* Boots a kernel elf binary, os/linux-2.6/vmlinux from the axis 
-           devboard SDK.  */
-        kernel_size = load_elf(kernel_filename, translate_kernel_address, NULL,
-                               &entry, NULL, &high, 0, ELF_MACHINE, 0);
-        bootstrap_pc = entry;
-        if (kernel_size < 0) {
-            /* Takes a kimage from the axis devboard SDK.  */
-            kernel_size = load_image_targphys(kernel_filename, 0x40004000,
-                                              ram_size);
-            bootstrap_pc = 0x40004000;
-            env->regs[9] = 0x40004000 + kernel_size;
+        li.image_filename = kernel_filename;
+        li.cmdline = kernel_cmdline;
+        cris_load_image(env, &li);
+    } else {
+        if (!dinfo) {
+            fprintf(stderr,
+                    "Provide a kernel image or a flash image to boot from.\n");
+           exit(1);
         }
-        env->regs[8] = 0x56902387; /* RAM init magic.  */
 
-        if (kernel_cmdline && (kcmdline_len = strlen(kernel_cmdline))) {
-            if (kcmdline_len > 256) {
-                fprintf(stderr, "Too long CRIS kernel cmdline (max 256)\n");
-                exit(1);
-            }
-            /* Let the kernel know we are modifying the cmdline.  */
-            env->regs[10] = 0x87109563;
-            env->regs[11] = 0x40000000;
-            pstrcpy_targphys("cmdline", env->regs[11], 256, kernel_cmdline);
-        }
+        /* Nothing more to do for flash images, those boot from addr 0.  */
+        qemu_register_reset(flash_cpu_reset, env);
     }
-    env->pc = bootstrap_pc;
-
-    printf ("pc =%x\n", env->pc);
-    printf ("ram size =%ld\n", ram_size);
 }
 
 static QEMUMachine bareetraxfs_machine = {

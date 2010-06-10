@@ -155,6 +155,8 @@ typedef struct CPUCRISState {
 		uint32_t lo;
 	} tlbsets[2][4][16];
 
+	void *load_info;
+
 	CPU_COMMON
 } CPUCRISState;
 

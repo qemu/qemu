@@ -15,7 +15,7 @@ TMPC="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.c"
 TMPO="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.o"
 TMPE="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.exe"
 
-trap "rm -f $TMPC $TMPO $TMPE ; exit" 0 2 3 15
+trap "rm -f $TMPC $TMPO $TMPE ; exit" EXIT INT QUIT TERM
 
 compile_object() {
   $cc $QEMU_CFLAGS -c -o $TMPO $TMPC > /dev/null 2> /dev/null
@@ -65,10 +65,8 @@ path_of() {
 
 # default parameters
 cpu=""
-prefix=""
 interp_prefix="/usr/gnemul/qemu-%M"
 static="no"
-sysconfdir=""
 sparc_cpu=""
 cross_prefix=""
 cc="gcc"
@@ -248,7 +246,8 @@ case "$cpu" in
     cpu="sparc"
   ;;
   *)
-    cpu="unknown"
+    echo "Unsupported CPU = $cpu"
+    exit 1
   ;;
 esac
 
@@ -293,6 +292,13 @@ tcg_interpreter="no"
 bigendian="no"
 mingw32="no"
 EXESUF=""
+prefix="/usr/local"
+mandir="\${prefix}/share/man"
+datadir="\${prefix}/share/qemu"
+docdir="\${prefix}/share/doc/qemu"
+bindir="\${prefix}/bin"
+sysconfdir="\${prefix}/etc"
+confsuffix="/qemu"
 slirp="yes"
 fmod_lib=""
 fmod_inc=""
@@ -467,6 +473,13 @@ if test "$mingw32" = "yes" ; then
   # enable C99/POSIX format strings (needs mingw32-runtime 3.15 or later)
   QEMU_CFLAGS="-D__USE_MINGW_ANSI_STDIO=1 $QEMU_CFLAGS"
   LIBS="-lwinmm -lws2_32 -liphlpapi $LIBS"
+  prefix="c:/Program Files/Qemu"
+  mandir="\${prefix}"
+  datadir="\${prefix}"
+  docdir="\${prefix}"
+  bindir="\${prefix}"
+  sysconfdir="\${prefix}"
+  confsuffix=""
 fi
 
 # find source path
@@ -517,6 +530,14 @@ for opt do
   --static)
     static="yes"
     LDFLAGS="-static $LDFLAGS"
+  ;;
+  --mandir=*) mandir="$optarg"
+  ;;
+  --bindir=*) bindir="$optarg"
+  ;;
+  --datadir=*) datadir="$optarg"
+  ;;
+  --docdir=*) docdir="$optarg"
   ;;
   --sysconfdir=*) sysconfdir="$optarg"
   ;;
@@ -686,6 +707,8 @@ for opt do
   ;;
   --enable-vhost-net) vhost_net="yes"
   ;;
+  --*dir)
+  ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
   esac
@@ -773,13 +796,18 @@ echo "Advanced options (experts only):"
 echo "  --source-path=PATH       path of source code [$source_path]"
 echo "  --cross-prefix=PREFIX    use PREFIX for compile tools [$cross_prefix]"
 echo "  --cc=CC                  use C compiler CC [$cc]"
-echo "  --host-cc=CC             use C compiler CC [$host_cc] for dyngen etc."
+echo "  --host-cc=CC             use C compiler CC [$host_cc] for code run at"
+echo "                           build time"
 echo "  --extra-cflags=CFLAGS    append extra C compiler flags QEMU_CFLAGS"
 echo "  --extra-ldflags=LDFLAGS  append extra linker flags LDFLAGS"
 echo "  --make=MAKE              use specified make [$make]"
 echo "  --install=INSTALL        use specified install [$install]"
 echo "  --static                 enable static build [$static]"
-echo "  --sysconfdir=PATH        install config in PATH"
+echo "  --mandir=PATH            install man pages in PATH"
+echo "  --datadir=PATH           install firmware in PATH"
+echo "  --docdir=PATH            install documentation in PATH"
+echo "  --bindir=PATH            install binaries in PATH"
+echo "  --sysconfdir=PATH        install config in PATH/qemu"
 echo "  --enable-debug-tcg       enable TCG debugging"
 echo "  --disable-debug-tcg      disable TCG debugging (default)"
 echo "  --enable-debug           enable common debug build options"
@@ -954,6 +982,13 @@ if test -z "$target_list" ; then
     echo "No targets enabled"
     exit 1
 fi
+# see if system emulation was really requested
+case " $target_list " in
+  *"-softmmu "*) softmmu=yes
+  ;;
+  *) softmmu=no
+  ;;
+esac
 
 feature_not_found() {
   feature=$1
@@ -1587,7 +1622,7 @@ EOF
             fi
     else
             if test "$vhost_net" = "yes" ; then
-                echo -e "NOTE: vhost-net feature requires KVM (--enable-kvm)."
+                echo "NOTE: vhost-net feature requires KVM (--enable-kvm)."
                 feature_not_found "vhost-net"
             fi
             vhost_net=no
@@ -2005,36 +2040,35 @@ if test "$solaris" = "no" ; then
     fi
 fi
 
-if test "$mingw32" = "yes" ; then
-  if test -z "$prefix" ; then
-      prefix="c:/Program Files/Qemu"
-  fi
-  mansuffix=""
-  datasuffix=""
-  confsuffix=""
-  docsuffix=""
-  binsuffix=""
-  if test -z "$sysconfdir" ; then
-      sysconfdir="${prefix}"
-  fi
-else
-  if test -z "$prefix" ; then
-      prefix="/usr/local"
-  fi
-  mansuffix="/share/man"
-  datasuffix="/share/qemu"
-  docsuffix="/share/doc/qemu"
-  binsuffix="/bin"
-  if test -z "$sysconfdir" ; then
-      sysconfdir="${prefix}/etc"
+confdir=$sysconfdir$confsuffix
+
+tools=
+if test "$softmmu" = yes ; then
+  tools="qemu-img\$(EXESUF) qemu-io\$(EXESUF) $tools"
+  if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
+      tools="qemu-nbd\$(EXESUF) $tools"
+    if [ "$check_utests" = "yes" ]; then
+      tools="check-qint check-qstring check-qdict check-qlist $tools"
+      tools="check-qfloat check-qjson $tools"
+    fi
   fi
 fi
 
+# Mac OS X ships with a broken assembler
+roms=
+if test \( "$cpu" = "i386" -o "$cpu" = "x86_64" \) -a \
+        "$targetos" != "Darwin" -a "$targetos" != "SunOS" -a \
+        "$softmmu" = yes ; then
+  roms="optionrom"
+fi
+
+
 echo "Install prefix    $prefix"
-echo "BIOS directory    $prefix$datasuffix"
-echo "binary directory  $prefix$binsuffix"
+echo "BIOS directory    `eval echo $datadir`"
+echo "binary directory  `eval echo $bindir`"
+echo "config directory  `eval echo $sysconfdir`"
 if test "$mingw32" = "no" ; then
-echo "Manual directory  $prefix$mansuffix"
+echo "Manual directory  `eval echo $mandir`"
 echo "ELF interp prefix $interp_prefix"
 fi
 echo "Source path       $source_path"
@@ -2107,12 +2141,13 @@ printf "# Configured with:" >> $config_host_mak
 printf " '%s'" "$0" "$@" >> $config_host_mak
 echo >> $config_host_mak
 
-echo "CONFIG_QEMU_SHAREDIR=\"$prefix$datasuffix\"" >> $config_host_mak
-if test "$mingw32" = "yes" ; then
-  echo "CONFIG_QEMU_CONFDIR=\"$sysconfdir\"" >> $config_host_mak
-else
-  echo "CONFIG_QEMU_CONFDIR=\"${sysconfdir}/qemu\"" >> $config_host_mak
-fi
+echo "prefix=$prefix" >> $config_host_mak
+echo "bindir=$bindir" >> $config_host_mak
+echo "mandir=$mandir" >> $config_host_mak
+echo "datadir=$datadir" >> $config_host_mak
+echo "sysconfdir=$sysconfdir" >> $config_host_mak
+echo "docdir=$docdir" >> $config_host_mak
+echo "confdir=$confdir" >> $config_host_mak
 
 case "$cpu" in
   i386|x86_64|alpha|cris|hppa|ia64|m68k|microblaze|ppc|ppc64|s390|s390x|sparc|sparc64)
@@ -2362,22 +2397,7 @@ if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
   fi
 fi
 echo "TOOLS=$tools" >> $config_host_mak
-
-# Mac OS X ships with a broken assembler
-roms=
-if test \( "$cpu" = "i386" -o "$cpu" = "x86_64" \) -a \
-        "$targetos" != "Darwin" -a "$targetos" != "SunOS" -a \
-        `expr "$target_list" : ".*softmmu.*"` != 0 ; then
-  roms="optionrom"
-fi
 echo "ROMS=$roms" >> $config_host_mak
-
-echo "prefix=$prefix" >> $config_host_mak
-echo "bindir=\${prefix}$binsuffix" >> $config_host_mak
-echo "mandir=\${prefix}$mansuffix" >> $config_host_mak
-echo "datadir=\${prefix}$datasuffix" >> $config_host_mak
-echo "sysconfdir=$sysconfdir" >> $config_host_mak
-echo "docdir=\${prefix}$docsuffix" >> $config_host_mak
 echo "MAKE=$make" >> $config_host_mak
 echo "INSTALL=$install" >> $config_host_mak
 echo "INSTALL_DIR=$install -d -m0755 -p" >> $config_host_mak
@@ -2495,7 +2515,7 @@ echo "# Automatically generated by configure - do not modify" > $config_target_m
 bflt="no"
 target_nptl="no"
 interp_prefix1=`echo "$interp_prefix" | sed "s/%M/$target_arch2/g"`
-echo "CONFIG_QEMU_PREFIX=\"$interp_prefix1\"" >> $config_target_mak
+echo "CONFIG_QEMU_INTERP_PREFIX=\"$interp_prefix1\"" >> $config_target_mak
 gdb_xml_files=""
 
 TARGET_ARCH="$target_arch2"
@@ -2706,6 +2726,8 @@ elif test "$ARCH" = "sparc64" ; then
   cflags="-I\$(SRC_PATH)/tcg/sparc $cflags"
 elif test "$ARCH" = "s390x" ; then
   cflags="-I\$(SRC_PATH)/tcg/s390 $cflags"
+elif test "$ARCH" = "x86_64" ; then
+  cflags="-I\$(SRC_PATH)/tcg/i386 $cflags"
 else
   cflags="-I\$(SRC_PATH)/tcg/\$(ARCH) $cflags"
 fi
