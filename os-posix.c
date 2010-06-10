@@ -37,6 +37,10 @@
 #include "net/slirp.h"
 #include "qemu-options.h"
 
+#ifdef CONFIG_LINUX
+#include <sys/prctl.h>
+#endif
+
 static struct passwd *user_pwd;
 static const char *chroot_dir;
 static int daemonize;
@@ -138,6 +142,26 @@ char *os_find_datadir(const char *argv0)
 }
 #undef SHARE_SUFFIX
 #undef BUILD_SUFFIX
+
+void os_set_proc_name(const char *s)
+{
+#if defined(PR_SET_NAME)
+    char name[16];
+    if (!s)
+        return;
+    name[sizeof(name) - 1] = 0;
+    strncpy(name, s, sizeof(name));
+    /* Could rewrite argv[0] too, but that's a bit more complicated.
+       This simple way is enough for `top'. */
+    if (prctl(PR_SET_NAME, name)) {
+        perror("unable to change process name");
+        exit(1);
+    }
+#else
+    fprintf(stderr, "Change of process name not supported by your OS\n");
+    exit(1);
+#endif
+}
 
 /*
  * Parse OS specific command line options.

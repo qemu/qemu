@@ -59,7 +59,6 @@
 #ifdef __linux__
 #include <pty.h>
 #include <malloc.h>
-#include <sys/prctl.h>
 
 #include <linux/ppdev.h>
 #include <linux/parport.h>
@@ -283,22 +282,6 @@ static int default_driver_check(QemuOpts *opts, void *opaque)
     return 0;
 }
 
-/***********************************************************/
-
-static void set_proc_name(const char *s)
-{
-#if defined(__linux__) && defined(PR_SET_NAME)
-    char name[16];
-    if (!s)
-        return;
-    name[sizeof(name) - 1] = 0;
-    strncpy(name, s, sizeof(name));
-    /* Could rewrite argv[0] too, but that's a bit more complicated.
-       This simple way is enough for `top'. */
-    prctl(PR_SET_NAME, name);
-#endif    	
-}
- 
 /***********************************************************/
 /* real time host monotonic timer */
 
@@ -2988,7 +2971,7 @@ int main(int argc, char **argv, char **envp)
 			    exit(1);
 			}
 			p += 8;
-			set_proc_name(p);
+			os_set_proc_name(p);
 		     }	
 		 }	
                 break;

@@ -47,5 +47,6 @@ static inline void os_daemonize(void) {}
 static inline void os_setup_post(void) {}
 /* Win32 doesn't support line-buffering and requires size >= 2 */
 static inline void os_set_line_buffering(void) {}
+static inline void os_set_proc_name(const char *dummy) {}
 
 #endif
