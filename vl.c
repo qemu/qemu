@@ -1986,14 +1986,6 @@ static int balloon_parse(const char *arg)
     return -1;
 }
 
-#ifdef _WIN32
-static BOOL WINAPI qemu_ctrl_handler(DWORD type)
-{
-    exit(STATUS_CONTROL_C_EXIT);
-    return TRUE;
-}
-#endif
-
 #ifndef _WIN32
 
 static void termsig_handler(int signal)
@@ -2459,29 +2451,7 @@ int main(int argc, char **argv, char **envp)
     qemu_cache_utils_init(envp);
 
     QLIST_INIT (&vm_change_state_head);
-#ifndef _WIN32
     os_setup_signal_handling();
-#else
-    SetConsoleCtrlHandler(qemu_ctrl_handler, TRUE);
-    /* Note: cpu_interrupt() is currently not SMP safe, so we force
-       QEMU to run on a single CPU */
-    {
-        HANDLE h;
-        DWORD mask, smask;
-        int i;
-        h = GetCurrentProcess();
-        if (GetProcessAffinityMask(h, &mask, &smask)) {
-            for(i = 0; i < 32; i++) {
-                if (mask & (1 << i))
-                    break;
-            }
-            if (i != 32) {
-                mask = 1 << i;
-                SetProcessAffinityMask(h, mask);
-            }
-        }
-    }
-#endif
 
     module_call_init(MODULE_INIT_MACHINE);
     machine = find_default_machine();
