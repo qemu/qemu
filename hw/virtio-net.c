@@ -532,15 +532,16 @@ static ssize_t virtio_net_receive(VLANClientState *nc, const uint8_t *buf, size_
     if (!virtio_net_can_receive(&n->nic->nc))
         return -1;
 
-    if (!virtio_net_has_buffers(n, size))
+    /* hdr_len refers to the header we supply to the guest */
+    hdr_len = n->mergeable_rx_bufs ?
+        sizeof(struct virtio_net_hdr_mrg_rxbuf) : sizeof(struct virtio_net_hdr);
+
+
+    if (!virtio_net_has_buffers(n, size + hdr_len))
         return 0;
 
     if (!receive_filter(n, buf, size))
         return size;
-
-    /* hdr_len refers to the header we supply to the guest */
-    hdr_len = n->mergeable_rx_bufs ?
-        sizeof(struct virtio_net_hdr_mrg_rxbuf) : sizeof(struct virtio_net_hdr);
 
     offset = i = 0;
 
@@ -555,7 +556,9 @@ static ssize_t virtio_net_receive(VLANClientState *nc, const uint8_t *buf, size_
             virtqueue_pop(n->rx_vq, &elem) == 0) {
             if (i == 0)
                 return -1;
-            fprintf(stderr, "virtio-net truncating packet\n");
+            fprintf(stderr, "virtio-net truncating packet: "
+                    "offset %zd, size %zd, hdr_len %zd\n",
+                    offset, size, hdr_len);
             exit(1);
         }
 
@@ -877,12 +880,11 @@ static void virtio_net_set_status(struct VirtIODevice *vdev, uint8_t status)
 static void virtio_net_vmstate_change(void *opaque, int running, int reason)
 {
     VirtIONet *n = opaque;
-    if (!running) {
-        return;
-    }
-    /* This is called when vm is started, it will start vhost backend if
-     * appropriate e.g. after migration. */
-    virtio_net_set_status(&n->vdev, n->vdev.status);
+    uint8_t status = running ? VIRTIO_CONFIG_S_DRIVER_OK : 0;
+    /* This is called when vm is started/stopped,
+     * it will start/stop vhost backend if * appropriate
+     * e.g. after migration. */
+    virtio_net_set_status(&n->vdev, n->vdev.status & status);
 }
 
 VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf)
