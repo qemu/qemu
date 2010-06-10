@@ -28,6 +28,7 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <libgen.h>
 
 /* Needed early for CONFIG_BSD etc. */
 #include "config-host.h"
@@ -66,3 +67,66 @@ void os_setup_signal_handling(void)
     act.sa_flags = SA_NOCLDSTOP;
     sigaction(SIGCHLD, &act, NULL);
 }
+
+/* Find a likely location for support files using the location of the binary.
+   For installed binaries this will be "$bindir/../share/qemu".  When
+   running from the build tree this will be "$bindir/../pc-bios".  */
+#define SHARE_SUFFIX "/share/qemu"
+#define BUILD_SUFFIX "/pc-bios"
+char *os_find_datadir(const char *argv0)
+{
+    char *dir;
+    char *p = NULL;
+    char *res;
+    char buf[PATH_MAX];
+    size_t max_len;
+
+#if defined(__linux__)
+    {
+        int len;
+        len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+        if (len > 0) {
+            buf[len] = 0;
+            p = buf;
+        }
+    }
+#elif defined(__FreeBSD__)
+    {
+        static int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1};
+        size_t len = sizeof(buf) - 1;
+
+        *buf = '\0';
+        if (!sysctl(mib, sizeof(mib)/sizeof(*mib), buf, &len, NULL, 0) &&
+            *buf) {
+            buf[sizeof(buf) - 1] = '\0';
+            p = buf;
+        }
+    }
+#endif
+    /* If we don't have any way of figuring out the actual executable
+       location then try argv[0].  */
+    if (!p) {
+        p = realpath(argv0, buf);
+        if (!p) {
+            return NULL;
+        }
+    }
+    dir = dirname(p);
+    dir = dirname(dir);
+
+    max_len = strlen(dir) +
+        MAX(strlen(SHARE_SUFFIX), strlen(BUILD_SUFFIX)) + 1;
+    res = qemu_mallocz(max_len);
+    snprintf(res, max_len, "%s%s", dir, SHARE_SUFFIX);
+    if (access(res, R_OK)) {
+        snprintf(res, max_len, "%s%s", dir, BUILD_SUFFIX);
+        if (access(res, R_OK)) {
+            qemu_free(res);
+            res = NULL;
+        }
+    }
+
+    return res;
+}
+#undef SHARE_SUFFIX
+#undef BUILD_SUFFIX
