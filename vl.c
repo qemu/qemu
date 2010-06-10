@@ -148,6 +148,7 @@ int main(int argc, char **argv)
 #include "qemu-option.h"
 #include "qemu-config.h"
 #include "qemu-objects.h"
+#include "qemu-options.h"
 #ifdef CONFIG_LINUX
 #include "fsdev/qemu-fsdev.h"
 #endif
@@ -1899,16 +1900,6 @@ static void help(int exitcode)
 
 #define HAS_ARG 0x0001
 
-enum {
-#define DEF(option, opt_arg, opt_enum, opt_help, arch_mask)     \
-    opt_enum,
-#define DEFHEADING(text)
-#include "qemu-options.def"
-#undef DEF
-#undef DEFHEADING
-#undef GEN_DOCS
-};
-
 typedef struct QEMUOption {
     const char *name;
     int flags;
@@ -2624,12 +2615,6 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_bootp:
                 legacy_bootp_filename = optarg;
                 break;
-#ifndef _WIN32
-            case QEMU_OPTION_smb:
-                if (net_slirp_smb(optarg) < 0)
-                    exit(1);
-                break;
-#endif
             case QEMU_OPTION_redir:
                 if (net_slirp_redir(optarg) < 0)
                     exit(1);
@@ -3126,6 +3111,8 @@ int main(int argc, char **argv, char **envp)
                     fclose(fp);
                     break;
                 }
+            default:
+                os_parse_cmd_args(popt->index, optarg);
             }
         }
     }

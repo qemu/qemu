@@ -31,6 +31,7 @@
 #include <sys/time.h>
 #include "config-host.h"
 #include "sysemu.h"
+#include "qemu-options.h"
 
 /***********************************************************/
 /* Polling handling */
@@ -203,4 +204,13 @@ char *os_find_datadir(const char *argv0)
         return qemu_strdup(buf);
     }
     return NULL;
+}
+
+/*
+ * Parse OS specific command line options.
+ * return 0 if option handled, -1 otherwise
+ */
+void os_parse_cmd_args(int index, const char *optarg)
+{
+    return;
 }

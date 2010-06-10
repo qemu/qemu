@@ -33,6 +33,8 @@
 /* Needed early for CONFIG_BSD etc. */
 #include "config-host.h"
 #include "sysemu.h"
+#include "net/slirp.h"
+#include "qemu-options.h"
 
 void os_setup_early_signal_handling(void)
 {
@@ -130,3 +132,20 @@ char *os_find_datadir(const char *argv0)
 }
 #undef SHARE_SUFFIX
 #undef BUILD_SUFFIX
+
+/*
+ * Parse OS specific command line options.
+ * return 0 if option handled, -1 otherwise
+ */
+void os_parse_cmd_args(int index, const char *optarg)
+{
+    switch (index) {
+#ifdef CONFIG_SLIRP
+    case QEMU_OPTION_smb:
+        if (net_slirp_smb(optarg) < 0)
+            exit(1);
+        break;
+#endif
+    }
+    return;
+}
