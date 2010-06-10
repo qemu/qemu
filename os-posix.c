@@ -39,6 +39,8 @@
 
 static struct passwd *user_pwd;
 static const char *chroot_dir;
+static int daemonize;
+static int fds[2];
 
 void os_setup_early_signal_handling(void)
 {
@@ -160,6 +162,9 @@ void os_parse_cmd_args(int index, const char *optarg)
     case QEMU_OPTION_chroot:
         chroot_dir = optarg;
         break;
+    case QEMU_OPTION_daemonize:
+        daemonize = 1;
+        break;
     }
     return;
 }
@@ -195,4 +200,101 @@ void os_change_root(void)
         }
     }
 
+}
+
+void os_daemonize(void)
+{
+    if (daemonize) {
+	pid_t pid;
+
+	if (pipe(fds) == -1)
+	    exit(1);
+
+	pid = fork();
+	if (pid > 0) {
+	    uint8_t status;
+	    ssize_t len;
+
+	    close(fds[1]);
+
+	again:
+            len = read(fds[0], &status, 1);
+            if (len == -1 && (errno == EINTR))
+                goto again;
+
+            if (len != 1)
+                exit(1);
+            else if (status == 1) {
+                fprintf(stderr, "Could not acquire pidfile: %s\n", strerror(errno));
+                exit(1);
+            } else
+                exit(0);
+	} else if (pid < 0)
+            exit(1);
+
+	close(fds[0]);
+	qemu_set_cloexec(fds[1]);
+
+	setsid();
+
+	pid = fork();
+	if (pid > 0)
+	    exit(0);
+	else if (pid < 0)
+	    exit(1);
+
+	umask(027);
+
+        signal(SIGTSTP, SIG_IGN);
+        signal(SIGTTOU, SIG_IGN);
+        signal(SIGTTIN, SIG_IGN);
+    }
+}
+
+void os_setup_post(void)
+{
+    int fd = 0;
+
+    if (daemonize) {
+	uint8_t status = 0;
+	ssize_t len;
+
+    again1:
+	len = write(fds[1], &status, 1);
+	if (len == -1 && (errno == EINTR))
+	    goto again1;
+
+	if (len != 1)
+	    exit(1);
+
+        if (chdir("/")) {
+            perror("not able to chdir to /");
+            exit(1);
+        }
+	TFR(fd = qemu_open("/dev/null", O_RDWR));
+	if (fd == -1)
+	    exit(1);
+    }
+
+    os_change_root();
+    os_change_process_uid();
+
+    if (daemonize) {
+        dup2(fd, 0);
+        dup2(fd, 1);
+        dup2(fd, 2);
+
+        close(fd);
+    }
+}
+
+void os_pidfile_error(void)
+{
+    if (daemonize) {
+        uint8_t status = 1;
+        if (write(fds[1], &status, 1) != 1) {
+            perror("daemonize. Writing to pipe\n");
+        }
+    } else
+        fprintf(stderr, "Could not acquire pid file: %s\n", strerror(errno));
 }

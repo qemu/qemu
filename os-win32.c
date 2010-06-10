@@ -214,3 +214,8 @@ void os_parse_cmd_args(int index, const char *optarg)
 {
     return;
 }
+
+void os_pidfile_error(void)
+{
+    fprintf(stderr, "Could not acquire pid file: %s\n", strerror(errno));
+}
