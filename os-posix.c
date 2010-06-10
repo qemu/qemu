@@ -26,6 +26,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 /* Needed early for CONFIG_BSD etc. */
 #include "config-host.h"
@@ -38,4 +40,29 @@ void os_setup_early_signal_handling(void)
     act.sa_flags = 0;
     act.sa_handler = SIG_IGN;
     sigaction(SIGPIPE, &act, NULL);
+}
+
+static void termsig_handler(int signal)
+{
+    qemu_system_shutdown_request();
+}
+
+static void sigchld_handler(int signal)
+{
+    waitpid(-1, NULL, WNOHANG);
+}
+
+void os_setup_signal_handling(void)
+{
+    struct sigaction act;
+
+    memset(&act, 0, sizeof(act));
+    act.sa_handler = termsig_handler;
+    sigaction(SIGINT,  &act, NULL);
+    sigaction(SIGHUP,  &act, NULL);
+    sigaction(SIGTERM, &act, NULL);
+
+    act.sa_handler = sigchld_handler;
+    act.sa_flags = SA_NOCLDSTOP;
+    sigaction(SIGCHLD, &act, NULL);
 }

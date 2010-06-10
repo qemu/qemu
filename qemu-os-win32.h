@@ -41,4 +41,7 @@ int qemu_add_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque);
 void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque);
 
 void os_host_main_loop_wait(int *timeout);
+
+static inline void os_setup_signal_handling(void) {}
+
 #endif

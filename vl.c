@@ -1986,35 +1986,6 @@ static int balloon_parse(const char *arg)
     return -1;
 }
 
-#ifndef _WIN32
-
-static void termsig_handler(int signal)
-{
-    qemu_system_shutdown_request();
-}
-
-static void sigchld_handler(int signal)
-{
-    waitpid(-1, NULL, WNOHANG);
-}
-
-static void sighandler_setup(void)
-{
-    struct sigaction act;
-
-    memset(&act, 0, sizeof(act));
-    act.sa_handler = termsig_handler;
-    sigaction(SIGINT,  &act, NULL);
-    sigaction(SIGHUP,  &act, NULL);
-    sigaction(SIGTERM, &act, NULL);
-
-    act.sa_handler = sigchld_handler;
-    act.sa_flags = SA_NOCLDSTOP;
-    sigaction(SIGCHLD, &act, NULL);
-}
-
-#endif
-
 #ifdef _WIN32
 /* Look for support files in the same directory as the executable.  */
 static char *find_datadir(const char *argv0)
@@ -3556,10 +3527,8 @@ int main(int argc, char **argv, char **envp)
 
     cpu_synchronize_all_post_init();
 
-#ifndef _WIN32
     /* must be after terminal init, SDL library changes signal handlers */
-    sighandler_setup();
-#endif
+    os_setup_signal_handling();
 
     set_numa_modes();
 
