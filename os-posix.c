@@ -298,3 +298,8 @@ void os_pidfile_error(void)
     } else
         fprintf(stderr, "Could not acquire pid file: %s\n", strerror(errno));
 }
+
+void os_set_line_buffering(void)
+{
+    setvbuf(stdout, NULL, _IOLBF, 0);
+}

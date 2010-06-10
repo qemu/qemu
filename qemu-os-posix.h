@@ -30,6 +30,7 @@ static inline void os_host_main_loop_wait(int *timeout)
 {
 }
 
+void os_set_line_buffering(void);
 void os_setup_signal_handling(void);
 void os_daemonize(void);
 void os_setup_post(void);

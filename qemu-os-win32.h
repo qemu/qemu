@@ -45,5 +45,7 @@ void os_host_main_loop_wait(int *timeout);
 static inline void os_setup_signal_handling(void) {}
 static inline void os_daemonize(void) {}
 static inline void os_setup_post(void) {}
+/* Win32 doesn't support line-buffering and requires size >= 2 */
+static inline void os_set_line_buffering(void) {}
 
 #endif

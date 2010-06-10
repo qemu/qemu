@@ -3215,10 +3215,7 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
-#ifndef _WIN32
-    /* Win32 doesn't support line-buffering and requires size >= 2 */
-    setvbuf(stdout, NULL, _IOLBF, 0);
-#endif
+    os_set_line_buffering();
 
     if (init_timer_alarm() < 0) {
         fprintf(stderr, "could not initialize alarm timer\n");
