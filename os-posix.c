@@ -169,7 +169,7 @@ void os_parse_cmd_args(int index, const char *optarg)
     return;
 }
 
-void os_change_process_uid(void)
+static void change_process_uid(void)
 {
     if (user_pwd) {
         if (setgid(user_pwd->pw_gid) < 0) {
@@ -187,7 +187,7 @@ void os_change_process_uid(void)
     }
 }
 
-void os_change_root(void)
+static void change_root(void)
 {
     if (chroot_dir) {
         if (chroot(chroot_dir) < 0) {
@@ -276,8 +276,8 @@ void os_setup_post(void)
 	    exit(1);
     }
 
-    os_change_root();
-    os_change_process_uid();
+    change_root();
+    change_process_uid();
 
     if (daemonize) {
         dup2(fd, 0);
