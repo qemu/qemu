@@ -1,8 +1,8 @@
 /*
- * posix specific declarations
+ * os-posix.c
  *
  * Copyright (c) 2003-2008 Fabrice Bellard
- * Copyright (c) 2010 Jes Sorensen <Jes.Sorensen@redhat.com>
+ * Copyright (c) 2010 Red Hat, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,13 +23,19 @@
  * THE SOFTWARE.
  */
 
-#ifndef QEMU_OS_POSIX_H
-#define QEMU_OS_POSIX_H
+#include <unistd.h>
+#include <fcntl.h>
+#include <signal.h>
 
-static inline void os_host_main_loop_wait(int *timeout)
+/* Needed early for CONFIG_BSD etc. */
+#include "config-host.h"
+#include "sysemu.h"
+
+void os_setup_signal_handling(void)
 {
+    struct sigaction act;
+    sigfillset(&act.sa_mask);
+    act.sa_flags = 0;
+    act.sa_handler = SIG_IGN;
+    sigaction(SIGPIPE, &act, NULL);
 }
-
-void os_setup_signal_handling(void);
-
-#endif

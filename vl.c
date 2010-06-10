@@ -2460,13 +2460,7 @@ int main(int argc, char **argv, char **envp)
 
     QLIST_INIT (&vm_change_state_head);
 #ifndef _WIN32
-    {
-        struct sigaction act;
-        sigfillset(&act.sa_mask);
-        act.sa_flags = 0;
-        act.sa_handler = SIG_IGN;
-        sigaction(SIGPIPE, &act, NULL);
-    }
+    os_setup_signal_handling();
 #else
     SetConsoleCtrlHandler(qemu_ctrl_handler, TRUE);
     /* Note: cpu_interrupt() is currently not SMP safe, so we force
