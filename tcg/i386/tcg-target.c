@@ -656,7 +656,7 @@ static void tgen_arithi(TCGContext *s, int c, int r0,
        partial flags update stalls on Pentium4 and are not recommended
        by current Intel optimization manuals.  */
     if (!cf && (c == ARITH_ADD || c == ARITH_SUB) && (val == 1 || val == -1)) {
-        _Bool is_inc = (c == ARITH_ADD) ^ (val < 0);
+        int is_inc = (c == ARITH_ADD) ^ (val < 0);
         if (TCG_TARGET_REG_BITS == 64) {
             /* The single-byte increment encodings are re-tasked as the
                REX prefixes.  Use the MODRM encoding.  */
