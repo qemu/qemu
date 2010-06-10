@@ -1875,7 +1875,7 @@ static void help(int exitcode)
 #define DEF(option, opt_arg, opt_enum, opt_help, arch_mask)     \
         opt_help
 #define DEFHEADING(text) stringify(text) "\n"
-#include "qemu-options.h"
+#include "qemu-options.def"
 #undef DEF
 #undef DEFHEADING
 #undef GEN_DOCS
@@ -1903,7 +1903,7 @@ enum {
 #define DEF(option, opt_arg, opt_enum, opt_help, arch_mask)     \
     opt_enum,
 #define DEFHEADING(text)
-#include "qemu-options.h"
+#include "qemu-options.def"
 #undef DEF
 #undef DEFHEADING
 #undef GEN_DOCS
@@ -1921,7 +1921,7 @@ static const QEMUOption qemu_options[] = {
 #define DEF(option, opt_arg, opt_enum, opt_help, arch_mask)     \
     { option, opt_arg, opt_enum, arch_mask },
 #define DEFHEADING(text)
-#include "qemu-options.h"
+#include "qemu-options.def"
 #undef DEF
 #undef DEFHEADING
 #undef GEN_DOCS

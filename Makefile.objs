@@ -258,8 +258,8 @@ vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
 vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)
 
-vl.o: qemu-options.h
+vl.o: qemu-options.def
 
-qemu-options.h: $(SRC_PATH)/qemu-options.hx
+qemu-options.def: $(SRC_PATH)/qemu-options.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
 
