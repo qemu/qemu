@@ -38,6 +38,7 @@
 #include "qemu-options.h"
 
 static struct passwd *user_pwd;
+static const char *chroot_dir;
 
 void os_setup_early_signal_handling(void)
 {
@@ -156,6 +157,9 @@ void os_parse_cmd_args(int index, const char *optarg)
             exit(1);
         }
         break;
+    case QEMU_OPTION_chroot:
+        chroot_dir = optarg;
+        break;
     }
     return;
 }
@@ -176,4 +180,19 @@ void os_change_process_uid(void)
             exit(1);
         }
     }
+}
+
+void os_change_root(void)
+{
+    if (chroot_dir) {
+        if (chroot(chroot_dir) < 0) {
+            fprintf(stderr, "chroot failed\n");
+            exit(1);
+        }
+        if (chdir("/")) {
+            perror("not able to chdir to /");
+            exit(1);
+        }
+    }
+
 }

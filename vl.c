@@ -2309,7 +2309,6 @@ int main(int argc, char **argv, char **envp)
     const char *incoming = NULL;
 #ifndef _WIN32
     int fd = 0;
-    const char *chroot_dir = NULL;
 #endif
     int show_vnc_port = 0;
     int defconfig = 1;
@@ -3053,11 +3052,6 @@ int main(int argc, char **argv, char **envp)
                 default_cdrom = 0;
                 default_sdcard = 0;
                 break;
-#ifndef _WIN32
-            case QEMU_OPTION_chroot:
-                chroot_dir = optarg;
-                break;
-#endif
             case QEMU_OPTION_xen_domid:
                 if (!(xen_available())) {
                     printf("Option %s not supported for this target\n", popt->name);
@@ -3548,17 +3542,7 @@ int main(int argc, char **argv, char **envp)
 	    exit(1);
     }
 
-    if (chroot_dir) {
-        if (chroot(chroot_dir) < 0) {
-            fprintf(stderr, "chroot failed\n");
-            exit(1);
-        }
-        if (chdir("/")) {
-            perror("not able to chdir to /");
-            exit(1);
-        }
-    }
-
+    os_change_root();
     os_change_process_uid();
 
     if (daemonize) {
