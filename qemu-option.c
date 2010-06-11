@@ -378,6 +378,7 @@ QEMUOptionParameter *append_option_parameters(QEMUOptionParameter *dest,
     num_options += count_option_parameters(list);
 
     dest = qemu_realloc(dest, (num_options + 1) * sizeof(QEMUOptionParameter));
+    dest[num_dest_options].name = NULL;
 
     while (list && list->name) {
         if (get_option_parameter(dest, list->name) == NULL) {
