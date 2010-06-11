@@ -859,9 +859,21 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr);
 /* memory API */
 
 extern int phys_ram_fd;
-extern uint8_t *phys_ram_dirty;
 extern ram_addr_t ram_size;
-extern ram_addr_t last_ram_offset;
+
+typedef struct RAMBlock {
+    uint8_t *host;
+    ram_addr_t offset;
+    ram_addr_t length;
+    QLIST_ENTRY(RAMBlock) next;
+} RAMBlock;
+
+typedef struct RAMList {
+    uint8_t *phys_dirty;
+    ram_addr_t last_offset;
+    QLIST_HEAD(ram, RAMBlock) blocks;
+} RAMList;
+extern RAMList ram_list;
 
 extern const char *mem_path;
 extern int mem_prealloc;
@@ -891,29 +903,29 @@ extern int mem_prealloc;
 /* read dirty bit (return 0 or 1) */
 static inline int cpu_physical_memory_is_dirty(ram_addr_t addr)
 {
-    return phys_ram_dirty[addr >> TARGET_PAGE_BITS] == 0xff;
+    return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] == 0xff;
 }
 
 static inline int cpu_physical_memory_get_dirty_flags(ram_addr_t addr)
 {
-    return phys_ram_dirty[addr >> TARGET_PAGE_BITS];
+    return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS];
 }
 
 static inline int cpu_physical_memory_get_dirty(ram_addr_t addr,
                                                 int dirty_flags)
 {
-    return phys_ram_dirty[addr >> TARGET_PAGE_BITS] & dirty_flags;
+    return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] & dirty_flags;
 }
 
 static inline void cpu_physical_memory_set_dirty(ram_addr_t addr)
 {
-    phys_ram_dirty[addr >> TARGET_PAGE_BITS] = 0xff;
+    ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] = 0xff;
 }
 
 static inline int cpu_physical_memory_set_dirty_flags(ram_addr_t addr,
                                                       int dirty_flags)
 {
-    return phys_ram_dirty[addr >> TARGET_PAGE_BITS] |= dirty_flags;
+    return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] |= dirty_flags;
 }
 
 static inline void cpu_physical_memory_mask_dirty_range(ram_addr_t start,
@@ -925,7 +937,7 @@ static inline void cpu_physical_memory_mask_dirty_range(ram_addr_t start,
 
     len = length >> TARGET_PAGE_BITS;
     mask = ~dirty_flags;
-    p = phys_ram_dirty + (start >> TARGET_PAGE_BITS);
+    p = ram_list.phys_dirty + (start >> TARGET_PAGE_BITS);
     for (i = 0; i < len; i++) {
         p[i] &= mask;
     }

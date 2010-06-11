@@ -110,7 +110,7 @@ static int ram_save_block(QEMUFile *f)
     ram_addr_t addr = 0;
     int bytes_sent = 0;
 
-    while (addr < last_ram_offset) {
+    while (addr < ram_list.last_offset) {
         if (cpu_physical_memory_get_dirty(current_addr, MIGRATION_DIRTY_FLAG)) {
             uint8_t *p;
 
@@ -133,7 +133,7 @@ static int ram_save_block(QEMUFile *f)
             break;
         }
         addr += TARGET_PAGE_SIZE;
-        current_addr = (saved_addr + addr) % last_ram_offset;
+        current_addr = (saved_addr + addr) % ram_list.last_offset;
     }
 
     return bytes_sent;
@@ -146,7 +146,7 @@ static ram_addr_t ram_save_remaining(void)
     ram_addr_t addr;
     ram_addr_t count = 0;
 
-    for (addr = 0; addr < last_ram_offset; addr += TARGET_PAGE_SIZE) {
+    for (addr = 0; addr < ram_list.last_offset; addr += TARGET_PAGE_SIZE) {
         if (cpu_physical_memory_get_dirty(addr, MIGRATION_DIRTY_FLAG)) {
             count++;
         }
@@ -167,7 +167,7 @@ uint64_t ram_bytes_transferred(void)
 
 uint64_t ram_bytes_total(void)
 {
-    return last_ram_offset;
+    return ram_list.last_offset;
 }
 
 int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
@@ -191,7 +191,7 @@ int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
         bytes_transferred = 0;
 
         /* Make sure all dirty bits are set */
-        for (addr = 0; addr < last_ram_offset; addr += TARGET_PAGE_SIZE) {
+        for (addr = 0; addr < ram_list.last_offset; addr += TARGET_PAGE_SIZE) {
             if (!cpu_physical_memory_get_dirty(addr, MIGRATION_DIRTY_FLAG)) {
                 cpu_physical_memory_set_dirty(addr);
             }
@@ -200,7 +200,7 @@ int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
         /* Enable dirty memory tracking */
         cpu_physical_memory_set_dirty_tracking(1);
 
-        qemu_put_be64(f, last_ram_offset | RAM_SAVE_FLAG_MEM_SIZE);
+        qemu_put_be64(f, ram_list.last_offset | RAM_SAVE_FLAG_MEM_SIZE);
     }
 
     bytes_transferred_last = bytes_transferred;
@@ -259,7 +259,7 @@ int ram_load(QEMUFile *f, void *opaque, int version_id)
         addr &= TARGET_PAGE_MASK;
 
         if (flags & RAM_SAVE_FLAG_MEM_SIZE) {
-            if (addr != last_ram_offset) {
+            if (addr != ram_list.last_offset) {
                 return -EINVAL;
             }
         }
