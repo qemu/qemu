@@ -3855,7 +3855,8 @@ static int disas_neon_ls_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             tcg_gen_addi_i32(addr, addr, stride);
                             tmp2 = gen_ld16u(addr, IS_USER(s));
                             tcg_gen_addi_i32(addr, addr, stride);
-                            gen_bfi(tmp, tmp, tmp2, 16, 0xffff);
+                            tcg_gen_shli_i32(tmp2, tmp2, 16);
+                            tcg_gen_or_i32(tmp, tmp, tmp2);
                             dead_tmp(tmp2);
                             neon_store_reg(rd, pass, tmp);
                         } else {
@@ -3876,7 +3877,8 @@ static int disas_neon_ls_insn(CPUState * env, DisasContext *s, uint32_t insn)
                                 if (n == 0) {
                                     tmp2 = tmp;
                                 } else {
-                                    gen_bfi(tmp2, tmp2, tmp, n * 8, 0xff);
+                                    tcg_gen_shli_i32(tmp, tmp, n * 8);
+                                    tcg_gen_or_i32(tmp2, tmp2, tmp);
                                     dead_tmp(tmp);
                                 }
                             }

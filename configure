@@ -746,7 +746,12 @@ case "$cpu" in
            fi
            ;;
     s390)
-           QEMU_CFLAGS="-march=z900 $QEMU_CFLAGS"
+           QEMU_CFLAGS="-m31 -march=z990 $QEMU_CFLAGS"
+           LDFLAGS="-m31 $LDFLAGS"
+           ;;
+    s390x)
+           QEMU_CFLAGS="-m64 -march=z990 $QEMU_CFLAGS"
+           LDFLAGS="-m64 $LDFLAGS"
            ;;
     i386)
            QEMU_CFLAGS="-m32 $QEMU_CFLAGS"
@@ -2850,6 +2855,9 @@ if test "$target_linux_user" = "yes" -o "$target_bsd_user" = "yes" ; then
   sparc)
     # -static is used to avoid g1/g3 usage by the dynamic linker
     ldflags="$linker_script -static $ldflags"
+    ;;
+  alpha | s390x)
+    # The default placement of the application is fine.
     ;;
   *)
     ldflags="$linker_script $ldflags"

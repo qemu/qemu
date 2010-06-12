@@ -208,7 +208,7 @@ _syscall3(int, sys_getdents, uint, fd, struct linux_dirent *, dirp, uint, count)
 _syscall3(int, sys_getdents64, uint, fd, struct linux_dirent64 *, dirp, uint, count);
 #endif
 _syscall2(int, sys_getpriority, int, which, int, who);
-#if defined(TARGET_NR__llseek) && !defined (__x86_64__)
+#if defined(TARGET_NR__llseek) && defined(__NR_llseek)
 _syscall5(int, _llseek,  uint,  fd, ulong, hi, ulong, lo,
           loff_t *, res, uint, wh);
 #endif
@@ -5931,7 +5931,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #ifdef TARGET_NR__llseek /* Not on alpha */
     case TARGET_NR__llseek:
         {
-#if defined (__x86_64__)
+#if !defined(__NR_llseek)
             ret = get_errno(lseek(arg1, ((uint64_t )arg2 << 32) | arg3, arg5));
             if (put_user_s64(ret, arg4))
                 goto efault;

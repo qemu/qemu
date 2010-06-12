@@ -94,9 +94,4 @@ enum {
 
 static inline void flush_icache_range(unsigned long start, unsigned long stop)
 {
-#if QEMU_GNUC_PREREQ(4, 1)
-    __builtin___clear_cache((char *) start, (char *) stop);
-#else
-#error not implemented
-#endif
 }
