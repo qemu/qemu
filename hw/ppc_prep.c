@@ -74,7 +74,7 @@ qemu_log_mask(CPU_LOG_IOPORT, fmt, ## __VA_ARGS__)
 /* Constants for devices init */
 static const int ide_iobase[2] = { 0x1f0, 0x170 };
 static const int ide_iobase2[2] = { 0x3f6, 0x376 };
-static const int ide_irq[2] = { 13, 13 };
+static const int ide_irq[2] = { 14, 15 };
 
 #define NE2000_NB_MAX 6
 
