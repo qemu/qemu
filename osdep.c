@@ -167,6 +167,13 @@ int qemu_create_pidfile(const char *filename)
 
 #ifdef _WIN32
 
+/* mingw32 needs ffs for compilations without optimization. */
+int ffs(int i)
+{
+    /* Use gcc's builtin ffs. */
+    return __builtin_ffs(i);
+}
+
 /* Offset between 1/1/1601 and 1/1/1970 in 100 nanosec units */
 #define _W32_FT_OFFSET (116444736000000000ULL)
 
