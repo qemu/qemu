@@ -740,20 +740,6 @@ static void do_info_commands(Monitor *mon, QObject **ret_data)
     *ret_data = QOBJECT(cmd_list);
 }
 
-#if defined(TARGET_I386)
-static void do_info_hpet_print(Monitor *mon, const QObject *data)
-{
-    monitor_printf(mon, "HPET is %s by QEMU\n",
-                   qdict_get_bool(qobject_to_qdict(data), "enabled") ?
-                   "enabled" : "disabled");
-}
-
-static void do_info_hpet(Monitor *mon, QObject **ret_data)
-{
-    *ret_data = qobject_from_jsonf("{ 'enabled': %i }", !no_hpet);
-}
-#endif
-
 static void do_info_uuid_print(Monitor *mon, const QObject *data)
 {
     monitor_printf(mon, "%s\n", qdict_get_str(qobject_to_qdict(data), "UUID"));
@@ -2508,14 +2494,6 @@ static const mon_cmd_t info_cmds[] = {
         .params     = "",
         .help       = "show the active virtual memory mappings",
         .mhandler.info = mem_info,
-    },
-    {
-        .name       = "hpet",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show state of HPET",
-        .user_print = do_info_hpet_print,
-        .mhandler.info_new = do_info_hpet,
     },
 #endif
     {
