@@ -47,8 +47,4 @@
 #define HPET_TN_INT_ROUTE_CAP_SHIFT 32
 #define HPET_TN_CFG_BITS_READONLY_OR_RESERVED 0xffff80b1U
 
-#if defined TARGET_I386
-extern uint32_t hpet_in_legacy_mode(void);
-#endif
-
 #endif

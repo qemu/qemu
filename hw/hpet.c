@@ -30,6 +30,7 @@
 #include "qemu-timer.h"
 #include "hpet_emul.h"
 #include "sysbus.h"
+#include "mc146818rtc.h"
 
 //#define HPET_DEBUG
 #ifdef HPET_DEBUG
@@ -58,6 +59,7 @@ typedef struct HPETState {
     SysBusDevice busdev;
     uint64_t hpet_offset;
     qemu_irq irqs[HPET_NUM_IRQ_ROUTES];
+    uint8_t rtc_irq_level;
     HPETTimer timer[HPET_NUM_TIMERS];
 
     /* Memory-mapped, software visible registers */
@@ -69,12 +71,9 @@ typedef struct HPETState {
 
 static HPETState *hpet_statep;
 
-uint32_t hpet_in_legacy_mode(void)
+static uint32_t hpet_in_legacy_mode(HPETState *s)
 {
-    if (!hpet_statep) {
-        return 0;
-    }
-    return hpet_statep->config & HPET_CFG_LEGACY;
+    return s->config & HPET_CFG_LEGACY;
 }
 
 static uint32_t timer_int_route(struct HPETTimer *timer)
@@ -166,12 +165,12 @@ static void update_irq(struct HPETTimer *timer)
 {
     int route;
 
-    if (timer->tn <= 1 && hpet_in_legacy_mode()) {
+    if (timer->tn <= 1 && hpet_in_legacy_mode(timer->state)) {
         /* if LegacyReplacementRoute bit is set, HPET specification requires
          * timer0 be routed to IRQ0 in NON-APIC or IRQ2 in the I/O APIC,
          * timer1 be routed to IRQ8 in NON-APIC or IRQ8 in the I/O APIC.
          */
-        route = (timer->tn == 0) ? 0 : 8;
+        route = (timer->tn == 0) ? 0 : RTC_ISA_IRQ;
     } else {
         route = timer_int_route(timer);
     }
@@ -515,8 +514,10 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
             /* i8254 and RTC are disabled when HPET is in legacy mode */
             if (activating_bit(old_val, new_val, HPET_CFG_LEGACY)) {
                 hpet_pit_disable();
+                qemu_irq_lower(s->irqs[RTC_ISA_IRQ]);
             } else if (deactivating_bit(old_val, new_val, HPET_CFG_LEGACY)) {
                 hpet_pit_enable();
+                qemu_set_irq(s->irqs[RTC_ISA_IRQ], s->rtc_irq_level);
             }
             break;
         case HPET_CFG + 4:
@@ -607,6 +608,16 @@ static void hpet_reset(DeviceState *d)
     count = 1;
 }
 
+static void hpet_handle_rtc_irq(void *opaque, int n, int level)
+{
+    HPETState *s = FROM_SYSBUS(HPETState, opaque);
+
+    s->rtc_irq_level = level;
+    if (!hpet_in_legacy_mode(s)) {
+        qemu_set_irq(s->irqs[RTC_ISA_IRQ], level);
+    }
+}
+
 static int hpet_init(SysBusDevice *dev)
 {
     HPETState *s = FROM_SYSBUS(HPETState, dev);
@@ -624,6 +635,9 @@ static int hpet_init(SysBusDevice *dev)
         timer->tn = i;
         timer->state = s;
     }
+
+    isa_reserve_irq(RTC_ISA_IRQ);
+    qdev_init_gpio_in(&dev->qdev, hpet_handle_rtc_irq, 1);
 
     /* HPET Area */
     iomemtype = cpu_register_io_memory(hpet_ram_read,

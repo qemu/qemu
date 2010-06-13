@@ -943,6 +943,7 @@ void pc_basic_device_init(qemu_irq *isa_irq,
     int i;
     DriveInfo *fd[MAX_FD];
     PITState *pit;
+    qemu_irq rtc_irq = NULL;
     qemu_irq *a20_line;
     ISADevice *i8042;
     qemu_irq *cpu_exit_irq;
@@ -951,19 +952,20 @@ void pc_basic_device_init(qemu_irq *isa_irq,
 
     register_ioport_write(0xf0, 1, 1, ioportF0_write, NULL);
 
-    *rtc_state = rtc_init(2000);
-
-    qemu_register_boot_set(pc_boot_set, *rtc_state);
-
-    pit = pit_init(0x40, isa_reserve_irq(0));
-    pcspk_init(pit);
     if (!no_hpet) {
         DeviceState *hpet = sysbus_create_simple("hpet", HPET_BASE, NULL);
 
         for (i = 0; i < 24; i++) {
             sysbus_connect_irq(sysbus_from_qdev(hpet), i, isa_irq[i]);
         }
+        rtc_irq = qdev_get_gpio_in(hpet, 0);
     }
+    *rtc_state = rtc_init(2000, rtc_irq);
+
+    qemu_register_boot_set(pc_boot_set, *rtc_state);
+
+    pit = pit_init(0x40, isa_reserve_irq(0));
+    pcspk_init(pit);
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {
