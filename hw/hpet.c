@@ -520,7 +520,7 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
             break;
         case HPET_COUNTER:
             if (hpet_enabled()) {
-                printf("qemu: Writing counter while HPET enabled!\n");
+                DPRINTF("qemu: Writing counter while HPET enabled!\n");
             }
             s->hpet_counter =
                 (s->hpet_counter & 0xffffffff00000000ULL) | value;
@@ -529,7 +529,7 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
             break;
         case HPET_COUNTER + 4:
             if (hpet_enabled()) {
-                printf("qemu: Writing counter while HPET enabled!\n");
+                DPRINTF("qemu: Writing counter while HPET enabled!\n");
             }
             s->hpet_counter =
                 (s->hpet_counter & 0xffffffffULL) | (((uint64_t)value) << 32);
