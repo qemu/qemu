@@ -17,8 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdbool.h>    /* bool */
-
 #include "config.h"
 #include "qemu-common.h"
 #include "tcg-op.h"
