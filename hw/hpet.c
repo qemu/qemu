@@ -430,6 +430,11 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
                 printf("qemu: level-triggered hpet not supported\n");
                 exit (-1);
             }
+            if (activating_bit(old_val, new_val, HPET_TN_ENABLE)) {
+                hpet_set_timer(timer);
+            } else if (deactivating_bit(old_val, new_val, HPET_TN_ENABLE)) {
+                hpet_del_timer(timer);
+            }
             break;
         case HPET_TN_CFG + 4: // Interrupt capabilities
             DPRINTF("qemu: invalid HPET_TN_CFG+4 write\n");
