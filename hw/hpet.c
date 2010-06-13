@@ -39,6 +39,8 @@
 #define DPRINTF(...)
 #endif
 
+#define HPET_MSI_SUPPORT        0
+
 struct HPETState;
 typedef struct HPETTimer {  /* timers */
     uint8_t tn;             /*timer number*/
@@ -47,7 +49,7 @@ typedef struct HPETTimer {  /* timers */
     /* Memory-mapped, software visible timer registers */
     uint64_t config;        /* configuration/cap */
     uint64_t cmp;           /* comparator */
-    uint64_t fsb;           /* FSB route, not supported now */
+    uint64_t fsb;           /* FSB route */
     /* Hidden register state */
     uint64_t period;        /* Last value written to comparator */
     uint8_t wrap_flag;      /* timer pop will indicate wrap for one-shot 32-bit
@@ -59,6 +61,7 @@ typedef struct HPETState {
     SysBusDevice busdev;
     uint64_t hpet_offset;
     qemu_irq irqs[HPET_NUM_IRQ_ROUTES];
+    uint32_t flags;
     uint8_t rtc_irq_level;
     uint8_t num_timers;
     HPETTimer timer[HPET_MAX_TIMERS];
@@ -78,6 +81,11 @@ static uint32_t hpet_in_legacy_mode(HPETState *s)
 static uint32_t timer_int_route(struct HPETTimer *timer)
 {
     return (timer->config & HPET_TN_INT_ROUTE_MASK) >> HPET_TN_INT_ROUTE_SHIFT;
+}
+
+static uint32_t timer_fsb_route(HPETTimer *t)
+{
+    return t->config & HPET_TN_FSB_ENABLE;
 }
 
 static uint32_t hpet_enabled(HPETState *s)
@@ -179,7 +187,11 @@ static void update_irq(struct HPETTimer *timer, int set)
     mask = 1 << timer->tn;
     if (!set || !timer_enabled(timer) || !hpet_enabled(timer->state)) {
         s->isr &= ~mask;
-        qemu_irq_lower(s->irqs[route]);
+        if (!timer_fsb_route(timer)) {
+            qemu_irq_lower(s->irqs[route]);
+        }
+    } else if (timer_fsb_route(timer)) {
+        stl_phys(timer->fsb >> 32, timer->fsb & 0xffffffff);
     } else if (timer->config & HPET_TN_TYPE_LEVEL) {
         s->isr |= mask;
         qemu_irq_raise(s->irqs[route]);
@@ -216,6 +228,12 @@ static int hpet_post_load(void *opaque, int version_id)
     /* Push number of timers into capability returned via HPET_ID */
     s->capability &= ~HPET_ID_NUM_TIM_MASK;
     s->capability |= (s->num_timers - 1) << HPET_ID_NUM_TIM_SHIFT;
+
+    /* Derive HPET_MSI_SUPPORT from the capability of the first timer. */
+    s->flags &= ~(1 << HPET_MSI_SUPPORT);
+    if (s->timer[0].config & HPET_TN_FSB_CAP) {
+        s->flags |= 1 << HPET_MSI_SUPPORT;
+    }
     return 0;
 }
 
@@ -361,6 +379,8 @@ static uint32_t hpet_ram_readl(void *opaque, target_phys_addr_t addr)
         case HPET_TN_CMP + 4:
             return timer->cmp >> 32;
         case HPET_TN_ROUTE:
+            return timer->fsb;
+        case HPET_TN_ROUTE + 4:
             return timer->fsb >> 32;
         default:
             DPRINTF("qemu: invalid hpet_ram_readl\n");
@@ -444,6 +464,9 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
         switch ((addr - 0x100) % 0x20) {
         case HPET_TN_CFG:
             DPRINTF("qemu: hpet_ram_writel HPET_TN_CFG\n");
+            if (activating_bit(old_val, new_val, HPET_TN_FSB_ENABLE)) {
+                update_irq(timer, 0);
+            }
             val = hpet_fixup_reg(new_val, old_val, HPET_TN_CFG_WRITE_MASK);
             timer->config = (timer->config & 0xffffffff00000000ULL) | val;
             if (new_val & HPET_TN_32BIT) {
@@ -501,8 +524,11 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
                     hpet_set_timer(timer);
                 }
                 break;
+        case HPET_TN_ROUTE:
+            timer->fsb = (timer->fsb & 0xffffffff00000000ULL) | new_val;
+            break;
         case HPET_TN_ROUTE + 4:
-            DPRINTF("qemu: hpet_ram_writel HPET_TN_ROUTE + 4\n");
+            timer->fsb = (new_val << 32) | (timer->fsb & 0xffffffff);
             break;
         default:
             DPRINTF("qemu: invalid hpet_ram_writel\n");
@@ -610,7 +636,10 @@ static void hpet_reset(DeviceState *d)
 
         hpet_del_timer(timer);
         timer->cmp = ~0ULL;
-        timer->config =  HPET_TN_PERIODIC_CAP | HPET_TN_SIZE_CAP;
+        timer->config = HPET_TN_PERIODIC_CAP | HPET_TN_SIZE_CAP;
+        if (s->flags & (1 << HPET_MSI_SUPPORT)) {
+            timer->config |= HPET_TN_FSB_CAP;
+        }
         /* advertise availability of ioapic inti2 */
         timer->config |=  0x00000004ULL << 32;
         timer->period = 0ULL;
@@ -686,6 +715,7 @@ static SysBusDeviceInfo hpet_device_info = {
     .init         = hpet_init,
     .qdev.props = (Property[]) {
         DEFINE_PROP_UINT8("timers", HPETState, num_timers, HPET_MIN_TIMERS),
+        DEFINE_PROP_BIT("msi", HPETState, flags, HPET_MSI_SUPPORT, false),
         DEFINE_PROP_END_OF_LIST(),
     },
 };
