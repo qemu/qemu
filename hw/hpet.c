@@ -69,8 +69,6 @@ typedef struct HPETState {
     uint64_t hpet_counter;      /* main counter */
 } HPETState;
 
-static HPETState *hpet_statep;
-
 static uint32_t hpet_in_legacy_mode(HPETState *s)
 {
     return s->config & HPET_CFG_LEGACY;
@@ -81,9 +79,9 @@ static uint32_t timer_int_route(struct HPETTimer *timer)
     return (timer->config & HPET_TN_INT_ROUTE_MASK) >> HPET_TN_INT_ROUTE_SHIFT;
 }
 
-static uint32_t hpet_enabled(void)
+static uint32_t hpet_enabled(HPETState *s)
 {
-    return hpet_statep->config & HPET_CFG_ENABLE;
+    return s->config & HPET_CFG_ENABLE;
 }
 
 static uint32_t timer_is_periodic(HPETTimer *t)
@@ -133,9 +131,9 @@ static int deactivating_bit(uint64_t old, uint64_t new, uint64_t mask)
     return ((old & mask) && !(new & mask));
 }
 
-static uint64_t hpet_get_ticks(void)
+static uint64_t hpet_get_ticks(HPETState *s)
 {
-    return ns_to_ticks(qemu_get_clock(vm_clock) + hpet_statep->hpet_offset);
+    return ns_to_ticks(qemu_get_clock(vm_clock) + s->hpet_offset);
 }
 
 /*
@@ -174,7 +172,7 @@ static void update_irq(struct HPETTimer *timer)
     } else {
         route = timer_int_route(timer);
     }
-    if (!timer_enabled(timer) || !hpet_enabled()) {
+    if (!timer_enabled(timer) || !hpet_enabled(timer->state)) {
         return;
     }
     qemu_irq_pulse(timer->state->irqs[route]);
@@ -185,7 +183,7 @@ static void hpet_pre_save(void *opaque)
     HPETState *s = opaque;
 
     /* save current counter value */
-    s->hpet_counter = hpet_get_ticks();
+    s->hpet_counter = hpet_get_ticks(s);
 }
 
 static int hpet_post_load(void *opaque, int version_id)
@@ -240,7 +238,7 @@ static void hpet_timer(void *opaque)
     uint64_t diff;
 
     uint64_t period = t->period;
-    uint64_t cur_tick = hpet_get_ticks();
+    uint64_t cur_tick = hpet_get_ticks(t->state);
 
     if (timer_is_periodic(t) && period != 0) {
         if (t->config & HPET_TN_32BIT) {
@@ -270,7 +268,7 @@ static void hpet_set_timer(HPETTimer *t)
 {
     uint64_t diff;
     uint32_t wrap_diff;  /* how many ticks until we wrap? */
-    uint64_t cur_tick = hpet_get_ticks();
+    uint64_t cur_tick = hpet_get_ticks(t->state);
 
     /* whenever new timer is being set up, make sure wrap_flag is 0 */
     t->wrap_flag = 0;
@@ -353,16 +351,16 @@ static uint32_t hpet_ram_readl(void *opaque, target_phys_addr_t addr)
             DPRINTF("qemu: invalid HPET_CFG + 4 hpet_ram_readl \n");
             return 0;
         case HPET_COUNTER:
-            if (hpet_enabled()) {
-                cur_tick = hpet_get_ticks();
+            if (hpet_enabled(s)) {
+                cur_tick = hpet_get_ticks(s);
             } else {
                 cur_tick = s->hpet_counter;
             }
             DPRINTF("qemu: reading counter  = %" PRIx64 "\n", cur_tick);
             return cur_tick;
         case HPET_COUNTER + 4:
-            if (hpet_enabled()) {
-                cur_tick = hpet_get_ticks();
+            if (hpet_enabled(s)) {
+                cur_tick = hpet_get_ticks(s);
             } else {
                 cur_tick = s->hpet_counter;
             }
@@ -457,7 +455,7 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
                     (timer->period & 0xffffffff00000000ULL) | new_val;
             }
             timer->config &= ~HPET_TN_SETVAL;
-            if (hpet_enabled()) {
+            if (hpet_enabled(s)) {
                 hpet_set_timer(timer);
             }
             break;
@@ -476,7 +474,7 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
                     (timer->period & 0xffffffffULL) | new_val << 32;
                 }
                 timer->config &= ~HPET_TN_SETVAL;
-                if (hpet_enabled()) {
+                if (hpet_enabled(s)) {
                     hpet_set_timer(timer);
                 }
                 break;
@@ -506,7 +504,7 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
                 }
             } else if (deactivating_bit(old_val, new_val, HPET_CFG_ENABLE)) {
                 /* Halt main counter and disable interrupt generation. */
-                s->hpet_counter = hpet_get_ticks();
+                s->hpet_counter = hpet_get_ticks(s);
                 for (i = 0; i < HPET_NUM_TIMERS; i++) {
                     hpet_del_timer(&s->timer[i]);
                 }
@@ -527,7 +525,7 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
             /* FIXME: need to handle level-triggered interrupts */
             break;
         case HPET_COUNTER:
-            if (hpet_enabled()) {
+            if (hpet_enabled(s)) {
                 DPRINTF("qemu: Writing counter while HPET enabled!\n");
             }
             s->hpet_counter =
@@ -536,7 +534,7 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
                     value, s->hpet_counter);
             break;
         case HPET_COUNTER + 4:
-            if (hpet_enabled()) {
+            if (hpet_enabled(s)) {
                 DPRINTF("qemu: Writing counter while HPET enabled!\n");
             }
             s->hpet_counter =
@@ -624,8 +622,6 @@ static int hpet_init(SysBusDevice *dev)
     int i, iomemtype;
     HPETTimer *timer;
 
-    assert(!hpet_statep);
-    hpet_statep = s;
     for (i = 0; i < HPET_NUM_IRQ_ROUTES; i++) {
         sysbus_init_irq(dev, &s->irqs[i]);
     }
