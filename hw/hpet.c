@@ -294,7 +294,7 @@ static uint32_t hpet_ram_readl(void *opaque, target_phys_addr_t addr)
     if (index >= 0x100 && index <= 0x3ff) {
         uint8_t timer_id = (addr - 0x100) / 0x20;
         if (timer_id > HPET_NUM_TIMERS - 1) {
-            printf("qemu: timer id out of range\n");
+            DPRINTF("qemu: timer id out of range\n");
             return 0;
         }
         HPETTimer *timer = &s->timer[timer_id];
@@ -383,6 +383,10 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
         DPRINTF("qemu: hpet_ram_writel timer_id = %#x \n", timer_id);
         HPETTimer *timer = &s->timer[timer_id];
 
+        if (timer_id > HPET_NUM_TIMERS - 1) {
+            DPRINTF("qemu: timer id out of range\n");
+            return;
+        }
         switch ((addr - 0x100) % 0x20) {
             case HPET_TN_CFG:
                 DPRINTF("qemu: hpet_ram_writel HPET_TN_CFG\n");
