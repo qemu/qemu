@@ -17,7 +17,8 @@
 #define HPET_CLK_PERIOD         10000000ULL /* 10000000 femtoseconds == 10ns*/
 
 #define FS_PER_NS 1000000
-#define HPET_NUM_TIMERS 3
+#define HPET_MIN_TIMERS         3
+#define HPET_MAX_TIMERS         32
 
 #define HPET_NUM_IRQ_ROUTES     32
 
@@ -33,6 +34,9 @@
 #define HPET_TN_CMP     0x008
 #define HPET_TN_ROUTE   0x010
 #define HPET_CFG_WRITE_MASK  0x3
+
+#define HPET_ID_NUM_TIM_SHIFT   8
+#define HPET_ID_NUM_TIM_MASK    0x1f00
 
 #define HPET_TN_TYPE_LEVEL       0x002
 #define HPET_TN_ENABLE           0x004

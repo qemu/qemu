@@ -60,7 +60,8 @@ typedef struct HPETState {
     uint64_t hpet_offset;
     qemu_irq irqs[HPET_NUM_IRQ_ROUTES];
     uint8_t rtc_irq_level;
-    HPETTimer timer[HPET_NUM_TIMERS];
+    uint8_t num_timers;
+    HPETTimer timer[HPET_MAX_TIMERS];
 
     /* Memory-mapped, software visible registers */
     uint64_t capability;        /* capabilities */
@@ -196,12 +197,25 @@ static void hpet_pre_save(void *opaque)
     s->hpet_counter = hpet_get_ticks(s);
 }
 
+static int hpet_pre_load(void *opaque)
+{
+    HPETState *s = opaque;
+
+    /* version 1 only supports 3, later versions will load the actual value */
+    s->num_timers = HPET_MIN_TIMERS;
+    return 0;
+}
+
 static int hpet_post_load(void *opaque, int version_id)
 {
     HPETState *s = opaque;
 
     /* Recalculate the offset between the main counter and guest time */
     s->hpet_offset = ticks_to_ns(s->hpet_counter) - qemu_get_clock(vm_clock);
+
+    /* Push number of timers into capability returned via HPET_ID */
+    s->capability &= ~HPET_ID_NUM_TIM_MASK;
+    s->capability |= (s->num_timers - 1) << HPET_ID_NUM_TIM_SHIFT;
     return 0;
 }
 
@@ -224,17 +238,19 @@ static const VMStateDescription vmstate_hpet_timer = {
 
 static const VMStateDescription vmstate_hpet = {
     .name = "hpet",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .pre_save = hpet_pre_save,
+    .pre_load = hpet_pre_load,
     .post_load = hpet_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_UINT64(config, HPETState),
         VMSTATE_UINT64(isr, HPETState),
         VMSTATE_UINT64(hpet_counter, HPETState),
-        VMSTATE_STRUCT_ARRAY(timer, HPETState, HPET_NUM_TIMERS, 0,
-                             vmstate_hpet_timer, HPETTimer),
+        VMSTATE_UINT8_V(num_timers, HPETState, 2),
+        VMSTATE_STRUCT_VARRAY_UINT8(timer, HPETState, num_timers, 0,
+                                    vmstate_hpet_timer, HPETTimer),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -330,7 +346,7 @@ static uint32_t hpet_ram_readl(void *opaque, target_phys_addr_t addr)
         uint8_t timer_id = (addr - 0x100) / 0x20;
         HPETTimer *timer = &s->timer[timer_id];
 
-        if (timer_id > HPET_NUM_TIMERS - 1) {
+        if (timer_id > s->num_timers) {
             DPRINTF("qemu: timer id out of range\n");
             return 0;
         }
@@ -421,7 +437,7 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
         HPETTimer *timer = &s->timer[timer_id];
 
         DPRINTF("qemu: hpet_ram_writel timer_id = %#x \n", timer_id);
-        if (timer_id > HPET_NUM_TIMERS - 1) {
+        if (timer_id > s->num_timers) {
             DPRINTF("qemu: timer id out of range\n");
             return;
         }
@@ -504,7 +520,7 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
                 /* Enable main counter and interrupt generation. */
                 s->hpet_offset =
                     ticks_to_ns(s->hpet_counter) - qemu_get_clock(vm_clock);
-                for (i = 0; i < HPET_NUM_TIMERS; i++) {
+                for (i = 0; i < s->num_timers; i++) {
                     if ((&s->timer[i])->cmp != ~0ULL) {
                         hpet_set_timer(&s->timer[i]);
                     }
@@ -512,7 +528,7 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
             } else if (deactivating_bit(old_val, new_val, HPET_CFG_ENABLE)) {
                 /* Halt main counter and disable interrupt generation. */
                 s->hpet_counter = hpet_get_ticks(s);
-                for (i = 0; i < HPET_NUM_TIMERS; i++) {
+                for (i = 0; i < s->num_timers; i++) {
                     hpet_del_timer(&s->timer[i]);
                 }
             }
@@ -530,7 +546,7 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
             break;
         case HPET_STATUS:
             val = new_val & s->isr;
-            for (i = 0; i < HPET_NUM_TIMERS; i++) {
+            for (i = 0; i < s->num_timers; i++) {
                 if (val & (1 << i)) {
                     update_irq(&s->timer[i], 0);
                 }
@@ -589,7 +605,7 @@ static void hpet_reset(DeviceState *d)
     int i;
     static int count = 0;
 
-    for (i = 0; i < HPET_NUM_TIMERS; i++) {
+    for (i = 0; i < s->num_timers; i++) {
         HPETTimer *timer = &s->timer[i];
 
         hpet_del_timer(timer);
@@ -603,8 +619,9 @@ static void hpet_reset(DeviceState *d)
 
     s->hpet_counter = 0ULL;
     s->hpet_offset = 0ULL;
-    /* 64-bit main counter; 3 timers supported; LegacyReplacementRoute. */
-    s->capability = 0x8086a201ULL;
+    /* 64-bit main counter; LegacyReplacementRoute. */
+    s->capability = 0x8086a001ULL;
+    s->capability |= (s->num_timers - 1) << HPET_ID_NUM_TIM_SHIFT;
     s->capability |= ((HPET_CLK_PERIOD) << 32);
     s->config = 0ULL;
     if (count > 0) {
@@ -637,7 +654,13 @@ static int hpet_init(SysBusDevice *dev)
     for (i = 0; i < HPET_NUM_IRQ_ROUTES; i++) {
         sysbus_init_irq(dev, &s->irqs[i]);
     }
-    for (i = 0; i < HPET_NUM_TIMERS; i++) {
+
+    if (s->num_timers < HPET_MIN_TIMERS) {
+        s->num_timers = HPET_MIN_TIMERS;
+    } else if (s->num_timers > HPET_MAX_TIMERS) {
+        s->num_timers = HPET_MAX_TIMERS;
+    }
+    for (i = 0; i < HPET_MAX_TIMERS; i++) {
         timer = &s->timer[i];
         timer->qemu_timer = qemu_new_timer(vm_clock, hpet_timer, timer);
         timer->tn = i;
@@ -661,6 +684,10 @@ static SysBusDeviceInfo hpet_device_info = {
     .qdev.vmsd    = &vmstate_hpet,
     .qdev.reset   = hpet_reset,
     .init         = hpet_init,
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_UINT8("timers", HPETState, num_timers, HPET_MIN_TIMERS),
+        DEFINE_PROP_END_OF_LIST(),
+    },
 };
 
 static void hpet_register_device(void)
