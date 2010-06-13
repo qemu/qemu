@@ -29,6 +29,7 @@
 #include "console.h"
 #include "qemu-timer.h"
 #include "hpet_emul.h"
+#include "sysbus.h"
 
 //#define HPET_DEBUG
 #ifdef HPET_DEBUG
@@ -54,8 +55,9 @@ typedef struct HPETTimer {  /* timers */
 } HPETTimer;
 
 typedef struct HPETState {
+    SysBusDevice busdev;
     uint64_t hpet_offset;
-    qemu_irq *irqs;
+    qemu_irq irqs[HPET_NUM_IRQ_ROUTES];
     HPETTimer timer[HPET_NUM_TIMERS];
 
     /* Memory-mapped, software visible registers */
@@ -565,9 +567,9 @@ static CPUWriteMemoryFunc * const hpet_ram_write[] = {
     hpet_ram_writel,
 };
 
-static void hpet_reset(void *opaque)
+static void hpet_reset(DeviceState *d)
 {
-    HPETState *s = opaque;
+    HPETState *s = FROM_SYSBUS(HPETState, sysbus_from_qdev(d));
     int i;
     static int count = 0;
 
@@ -600,28 +602,43 @@ static void hpet_reset(void *opaque)
     count = 1;
 }
 
-
-void hpet_init(qemu_irq *irq)
+static int hpet_init(SysBusDevice *dev)
 {
+    HPETState *s = FROM_SYSBUS(HPETState, dev);
     int i, iomemtype;
     HPETTimer *timer;
-    HPETState *s;
 
-    DPRINTF ("hpet_init\n");
-
-    s = qemu_mallocz(sizeof(HPETState));
+    assert(!hpet_statep);
     hpet_statep = s;
-    s->irqs = irq;
+    for (i = 0; i < HPET_NUM_IRQ_ROUTES; i++) {
+        sysbus_init_irq(dev, &s->irqs[i]);
+    }
     for (i = 0; i < HPET_NUM_TIMERS; i++) {
         timer = &s->timer[i];
         timer->qemu_timer = qemu_new_timer(vm_clock, hpet_timer, timer);
         timer->tn = i;
         timer->state = s;
     }
-    vmstate_register(-1, &vmstate_hpet, s);
-    qemu_register_reset(hpet_reset, s);
+
     /* HPET Area */
     iomemtype = cpu_register_io_memory(hpet_ram_read,
                                        hpet_ram_write, s);
-    cpu_register_physical_memory(HPET_BASE, 0x400, iomemtype);
+    sysbus_init_mmio(dev, 0x400, iomemtype);
+    return 0;
 }
+
+static SysBusDeviceInfo hpet_device_info = {
+    .qdev.name    = "hpet",
+    .qdev.size    = sizeof(HPETState),
+    .qdev.no_user = 1,
+    .qdev.vmsd    = &vmstate_hpet,
+    .qdev.reset   = hpet_reset,
+    .init         = hpet_init,
+};
+
+static void hpet_register_device(void)
+{
+    sysbus_register_withprop(&hpet_device_info);
+}
+
+device_init(hpet_register_device)

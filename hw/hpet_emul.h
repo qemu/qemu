@@ -19,6 +19,8 @@
 #define FS_PER_NS 1000000
 #define HPET_NUM_TIMERS 3
 
+#define HPET_NUM_IRQ_ROUTES     32
+
 #define HPET_CFG_ENABLE 0x001
 #define HPET_CFG_LEGACY 0x002
 
@@ -47,7 +49,6 @@
 
 #if defined TARGET_I386
 extern uint32_t hpet_in_legacy_mode(void);
-extern void hpet_init(qemu_irq *irq);
 #endif
 
 #endif

@@ -35,6 +35,7 @@
 #include "elf.h"
 #include "multiboot.h"
 #include "mc146818rtc.h"
+#include "sysbus.h"
 
 /* output Bochs bios info messages */
 //#define DEBUG_BIOS
@@ -957,7 +958,11 @@ void pc_basic_device_init(qemu_irq *isa_irq,
     pit = pit_init(0x40, isa_reserve_irq(0));
     pcspk_init(pit);
     if (!no_hpet) {
-        hpet_init(isa_irq);
+        DeviceState *hpet = sysbus_create_simple("hpet", HPET_BASE, NULL);
+
+        for (i = 0; i < 24; i++) {
+            sysbus_connect_irq(sysbus_from_qdev(hpet), i, isa_irq[i]);
+        }
     }
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
