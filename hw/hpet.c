@@ -159,8 +159,10 @@ static inline uint64_t hpet_calculate_diff(HPETTimer *t, uint64_t current)
     }
 }
 
-static void update_irq(struct HPETTimer *timer)
+static void update_irq(struct HPETTimer *timer, int set)
 {
+    uint64_t mask;
+    HPETState *s;
     int route;
 
     if (timer->tn <= 1 && hpet_in_legacy_mode(timer->state)) {
@@ -172,10 +174,18 @@ static void update_irq(struct HPETTimer *timer)
     } else {
         route = timer_int_route(timer);
     }
-    if (!timer_enabled(timer) || !hpet_enabled(timer->state)) {
-        return;
+    s = timer->state;
+    mask = 1 << timer->tn;
+    if (!set || !timer_enabled(timer) || !hpet_enabled(timer->state)) {
+        s->isr &= ~mask;
+        qemu_irq_lower(s->irqs[route]);
+    } else if (timer->config & HPET_TN_TYPE_LEVEL) {
+        s->isr |= mask;
+        qemu_irq_raise(s->irqs[route]);
+    } else {
+        s->isr &= ~mask;
+        qemu_irq_pulse(s->irqs[route]);
     }
-    qemu_irq_pulse(timer->state->irqs[route]);
 }
 
 static void hpet_pre_save(void *opaque)
@@ -261,7 +271,7 @@ static void hpet_timer(void *opaque)
             t->wrap_flag = 0;
         }
     }
-    update_irq(t);
+    update_irq(t, 1);
 }
 
 static void hpet_set_timer(HPETTimer *t)
@@ -291,6 +301,7 @@ static void hpet_set_timer(HPETTimer *t)
 static void hpet_del_timer(HPETTimer *t)
 {
     qemu_del_timer(t->qemu_timer);
+    update_irq(t, 0);
 }
 
 #ifdef HPET_DEBUG
@@ -423,10 +434,6 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
                 timer->cmp = (uint32_t)timer->cmp;
                 timer->period = (uint32_t)timer->period;
             }
-            if (new_val & HPET_TN_TYPE_LEVEL) {
-                printf("qemu: level-triggered hpet not supported\n");
-                exit (-1);
-            }
             if (activating_bit(old_val, new_val, HPET_TN_ENABLE)) {
                 hpet_set_timer(timer);
             } else if (deactivating_bit(old_val, new_val, HPET_TN_ENABLE)) {
@@ -522,7 +529,12 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
             DPRINTF("qemu: invalid HPET_CFG+4 write \n");
             break;
         case HPET_STATUS:
-            /* FIXME: need to handle level-triggered interrupts */
+            val = new_val & s->isr;
+            for (i = 0; i < HPET_NUM_TIMERS; i++) {
+                if (val & (1 << i)) {
+                    update_irq(&s->timer[i], 0);
+                }
+            }
             break;
         case HPET_COUNTER:
             if (hpet_enabled(s)) {
