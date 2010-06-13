@@ -26,8 +26,6 @@
 #include "block_int.h"
 #include "module.h"
 
-#include <stdbool.h>
-
 typedef struct BlkdebugVars {
     int state;
 

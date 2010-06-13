@@ -14,8 +14,6 @@
 #ifndef QEMU_9P_H
 #define QEMU_9P_H
 
-#include <stdbool.h>
-
 typedef struct V9fsConf
 {
     /* tag name for the device */

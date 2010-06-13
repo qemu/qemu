@@ -11,7 +11,6 @@
  *
  */
 
-#include <stdbool.h>
 #include <stdarg.h>
 
 #include "qemu-common.h"

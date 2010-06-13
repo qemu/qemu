@@ -8,7 +8,6 @@
 #include "cpu-common.h"
 #endif
 
-#include <stdbool.h>
 #include "ioport.h"
 #include "irq.h"
 

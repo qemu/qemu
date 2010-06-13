@@ -9,7 +9,6 @@
  *
  */
 #include <check.h>
-#include <stdbool.h>
 
 #include "qstring.h"
 #include "qint.h"
