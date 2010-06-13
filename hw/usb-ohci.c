@@ -1415,6 +1415,8 @@ static uint32_t ohci_mem_read(void *ptr, target_phys_addr_t addr)
     OHCIState *ohci = ptr;
     uint32_t retval;
 
+    addr &= 0xff;
+
     /* Only aligned reads are allowed on OHCI */
     if (addr & 3) {
         fprintf(stderr, "usb-ohci: Mis-aligned read\n");
@@ -1537,6 +1539,8 @@ static uint32_t ohci_mem_read(void *ptr, target_phys_addr_t addr)
 static void ohci_mem_write(void *ptr, target_phys_addr_t addr, uint32_t val)
 {
     OHCIState *ohci = ptr;
+
+    addr &= 0xff;
 
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
