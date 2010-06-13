@@ -575,12 +575,10 @@ static void hpet_reset(void *opaque)
         HPETTimer *timer = &s->timer[i];
 
         hpet_del_timer(timer);
-        timer->tn = i;
         timer->cmp = ~0ULL;
         timer->config =  HPET_TN_PERIODIC_CAP | HPET_TN_SIZE_CAP;
         /* advertise availability of ioapic inti2 */
         timer->config |=  0x00000004ULL << 32;
-        timer->state = s;
         timer->period = 0ULL;
         timer->wrap_flag = 0;
     }
@@ -617,6 +615,8 @@ void hpet_init(qemu_irq *irq)
     for (i = 0; i < HPET_NUM_TIMERS; i++) {
         timer = &s->timer[i];
         timer->qemu_timer = qemu_new_timer(vm_clock, hpet_timer, timer);
+        timer->tn = i;
+        timer->state = s;
     }
     vmstate_register(-1, &vmstate_hpet, s);
     qemu_register_reset(hpet_reset, s);
