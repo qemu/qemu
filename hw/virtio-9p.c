@@ -170,9 +170,15 @@ static int v9fs_do_mksock(V9fsState *s, V9fsString *path)
     return s->ops->mksock(&s->ctx, path->data);
 }
 
-static int v9fs_do_mkdir(V9fsState *s, V9fsString *path, mode_t mode)
+static int v9fs_do_mkdir(V9fsState *s, V9fsCreateState *vs)
 {
-    return s->ops->mkdir(&s->ctx, path->data, mode);
+    FsCred cred;
+
+    cred_init(&cred);
+    cred.fc_uid = vs->fidp->uid;
+    cred.fc_mode = vs->perm & 0777;
+
+    return s->ops->mkdir(&s->ctx, vs->fullname.data, &cred);
 }
 
 static int v9fs_do_fstat(V9fsState *s, int fd, struct stat *stbuf)
@@ -1776,7 +1782,7 @@ static void v9fs_create_post_lstat(V9fsState *s, V9fsCreateState *vs, int err)
     }
 
     if (vs->perm & P9_STAT_MODE_DIR) {
-        err = v9fs_do_mkdir(s, &vs->fullname, vs->perm & 0777);
+        err = v9fs_do_mkdir(s, vs);
         v9fs_create_post_mkdir(s, vs, err);
     } else if (vs->perm & P9_STAT_MODE_SYMLINK) {
         err = v9fs_do_symlink(s, &vs->extension, &vs->fullname);

@@ -70,7 +70,7 @@ typedef struct FileOperations
     ssize_t (*readv)(FsContext *, int, const struct iovec *, int);
     ssize_t (*writev)(FsContext *, int, const struct iovec *, int);
     off_t (*lseek)(FsContext *, int, off_t, int);
-    int (*mkdir)(FsContext *, const char *, mode_t);
+    int (*mkdir)(FsContext *, const char *, FsCred *);
     int (*fstat)(FsContext *, int, struct stat *);
     int (*rename)(FsContext *, const char *, const char *);
     int (*truncate)(FsContext *, const char *, off_t);
