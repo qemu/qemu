@@ -28,7 +28,6 @@
 #include "sysemu.h"
 #include "qemu-timer.h"
 #include "qemu-char.h"
-#include "block.h"
 #include "hw/usb.h"
 #include "hw/baum.h"
 #include "hw/msmouse.h"

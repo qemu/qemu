@@ -13,9 +13,8 @@
 
 # include "hw.h"
 # include "flash.h"
-# include "block.h"
+# include "blockdev.h"
 /* FIXME: Pass block device as an argument.  */
-# include "sysemu.h"
 
 # define NAND_CMD_READ0		0x00
 # define NAND_CMD_READ1		0x01

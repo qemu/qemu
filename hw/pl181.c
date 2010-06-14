@@ -9,7 +9,6 @@
 
 #include "sysbus.h"
 #include "sd.h"
-#include "sysemu.h"
 
 //#define DEBUG_PL181 1
 

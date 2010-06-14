@@ -11,10 +11,10 @@
 #include "qemu-option.h"
 #include "qemu-config.h"
 #include "usb.h"
-#include "block.h"
 #include "scsi.h"
 #include "console.h"
 #include "monitor.h"
+#include "sysemu.h"
 
 //#define DEBUG_MSD
 
@@ -584,7 +584,7 @@ static USBDevice *usb_msd_init(const char *filename)
     qemu_opt_set(opts, "if", "none");
 
     /* create host drive */
-    dinfo = drive_init(opts, NULL, &fatal_error);
+    dinfo = drive_init(opts, 0, &fatal_error);
     if (!dinfo) {
         qemu_opts_del(opts);
         return NULL;

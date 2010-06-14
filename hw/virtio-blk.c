@@ -12,9 +12,7 @@
  */
 
 #include <qemu-common.h>
-#include <sysemu.h>
 #include "virtio-blk.h"
-#include "block_int.h"
 #ifdef __linux__
 # include <scsi/sg.h>
 #endif
@@ -277,7 +275,7 @@ static void virtio_blk_handle_write(BlockRequest *blkreq, int *num_writes,
     }
 
     blkreq[*num_writes].sector = req->out->sector;
-    blkreq[*num_writes].nb_sectors = req->qiov.size / 512;
+    blkreq[*num_writes].nb_sectors = req->qiov.size / BDRV_SECTOR_SIZE;
     blkreq[*num_writes].qiov = &req->qiov;
     blkreq[*num_writes].cb = virtio_blk_rw_complete;
     blkreq[*num_writes].opaque = req;
@@ -296,7 +294,8 @@ static void virtio_blk_handle_read(VirtIOBlockReq *req)
     }
 
     acb = bdrv_aio_readv(req->dev->bs, req->out->sector, &req->qiov,
-                         req->qiov.size / 512, virtio_blk_rw_complete, req);
+                         req->qiov.size / BDRV_SECTOR_SIZE,
+                         virtio_blk_rw_complete, req);
     if (!acb) {
         virtio_blk_rw_complete(req, -EIO);
     }
@@ -505,7 +504,7 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf)
     s->bs = conf->dinfo->bdrv;
     s->conf = conf;
     s->rq = NULL;
-    s->sector_mask = (s->conf->logical_block_size / 512) - 1;
+    s->sector_mask = (s->conf->logical_block_size / BDRV_SECTOR_SIZE) - 1;
     bdrv_guess_geometry(s->bs, &cylinders, &heads, &secs);
 
     s->vq = virtio_add_queue(&s->vdev, 128, virtio_blk_handle_output);

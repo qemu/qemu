@@ -70,7 +70,7 @@ static int isa_ide_initfn(ISADevice *dev)
     ide_bus_new(&s->bus, &s->dev.qdev);
     ide_init_ioport(&s->bus, s->iobase, s->iobase2);
     isa_init_irq(dev, &s->irq, s->isairq);
-    ide_init2(&s->bus, NULL, NULL, s->irq);
+    ide_init2(&s->bus, s->irq);
     vmstate_register(0, &vmstate_ide_isa, s);
     return 0;
 };

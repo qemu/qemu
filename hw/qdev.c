@@ -334,6 +334,7 @@ void qdev_init_nofail(DeviceState *dev)
 void qdev_free(DeviceState *dev)
 {
     BusState *bus;
+    Property *prop;
 
     if (dev->state == DEV_STATE_INITIALIZED) {
         while (dev->num_child_bus) {
@@ -349,6 +350,11 @@ void qdev_free(DeviceState *dev)
     }
     qemu_unregister_reset(qdev_reset, dev);
     QLIST_REMOVE(dev, sibling);
+    for (prop = dev->info->props; prop && prop->name; prop++) {
+        if (prop->info->free) {
+            prop->info->free(dev, prop);
+        }
+    }
     qemu_free(dev);
 }
 

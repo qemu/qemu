@@ -21,8 +21,7 @@
 #include "qemu-common.h"
 #include "flash.h"
 #include "irq.h"
-#include "sysemu.h"
-#include "block.h"
+#include "blockdev.h"
 
 /* 11 for 2kB-page OneNAND ("2nd generation") and 10 for 1kB-page chips */
 #define PAGE_SHIFT	11

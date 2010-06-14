@@ -9,7 +9,6 @@
 
 #include "ssi.h"
 #include "sd.h"
-#include "sysemu.h"
 
 //#define DEBUG_SSI_SD 1
 

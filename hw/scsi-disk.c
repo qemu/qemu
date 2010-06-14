@@ -33,9 +33,9 @@ do { fprintf(stderr, "scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 
 #include "qemu-common.h"
 #include "qemu-error.h"
-#include "block.h"
 #include "scsi.h"
 #include "scsi-defs.h"
+#include "sysemu.h"
 
 #define SCSI_DMA_BUF_SIZE    131072
 #define SCSI_MAX_INQUIRY_LEN 256
@@ -66,6 +66,7 @@ struct SCSIDiskState
     uint64_t max_lba;
     QEMUBH *bh;
     char *version;
+    char *serial;
 };
 
 static SCSIDiskReq *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun)
@@ -359,9 +360,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
 
         case 0x80: /* Device serial number, optional */
         {
-            const char *serial = req->dev->conf.dinfo->serial ?
-                req->dev->conf.dinfo->serial : "0";
-            int l = strlen(serial);
+            int l = strlen(s->serial);
 
             if (l > req->cmd.xfer)
                 l = req->cmd.xfer;
@@ -371,7 +370,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             DPRINTF("Inquiry EVPD[Serial number] "
                     "buffer size %zd\n", req->cmd.xfer);
             outbuf[buflen++] = l;
-            memcpy(outbuf+buflen, serial, l);
+            memcpy(outbuf+buflen, s->serial, l);
             buflen += l;
             break;
         }
@@ -463,8 +462,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     }
     memcpy(&outbuf[8], "QEMU    ", 8);
     memset(&outbuf[32], 0, 4);
-    memcpy(&outbuf[32], s->version ? s->version : QEMU_VERSION,
-           MIN(4, strlen(s->version ? s->version : QEMU_VERSION)));
+    memcpy(&outbuf[32], s->version, MIN(4, strlen(s->version)));
     /*
      * We claim conformance to SPC-3, which is required for guests
      * to ask for modern features like READ CAPACITY(16) or the
@@ -1058,6 +1056,19 @@ static int scsi_disk_initfn(SCSIDevice *dev)
     }
     s->bs = s->qdev.conf.dinfo->bdrv;
 
+    if (!s->serial) {
+        if (*dev->conf.dinfo->serial) {
+            /* try to fall back to value set with legacy -drive serial=... */
+            s->serial = qemu_strdup(dev->conf.dinfo->serial);
+        } else {
+            s->serial = qemu_strdup("0");
+        }
+    }
+
+    if (!s->version) {
+        s->version = qemu_strdup(QEMU_VERSION);
+    }
+
     if (bdrv_is_sg(s->bs)) {
         error_report("scsi-disk: unwanted /dev/sg*");
         return -1;
@@ -1090,6 +1101,7 @@ static SCSIDeviceInfo scsi_disk_info = {
     .qdev.props   = (Property[]) {
         DEFINE_BLOCK_PROPERTIES(SCSIDiskState, qdev.conf),
         DEFINE_PROP_STRING("ver",  SCSIDiskState, version),
+        DEFINE_PROP_STRING("serial",  SCSIDiskState, serial),
         DEFINE_PROP_END_OF_LIST(),
     },
 };

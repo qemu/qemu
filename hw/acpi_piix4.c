@@ -21,6 +21,7 @@
 #include "pm_smbus.h"
 #include "pci.h"
 #include "acpi.h"
+#include "sysemu.h"
 
 //#define DEBUG
 
