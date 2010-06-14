@@ -52,7 +52,6 @@ typedef struct FileOperations
     int (*chmod)(FsContext *, const char *, FsCred *);
     int (*chown)(FsContext *, const char *, FsCred *);
     int (*mknod)(FsContext *, const char *, FsCred *);
-    int (*mksock)(FsContext *, const char *);
     int (*utime)(FsContext *, const char *, const struct utimbuf *);
     int (*remove)(FsContext *, const char *);
     int (*symlink)(FsContext *, const char *, const char *, FsCred *);
