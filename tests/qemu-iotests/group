@@ -32,3 +32,4 @@
 023 rw auto
 024 rw backing auto
 025 rw auto
+026 rw blkdbg auto
