@@ -33,9 +33,9 @@
 
 #include "e1000_hw.h"
 
-#define DEBUG
+#define E1000_DEBUG
 
-#ifdef DEBUG
+#ifdef E1000_DEBUG
 enum {
     DEBUG_GENERAL,	DEBUG_IO,	DEBUG_MMIO,	DEBUG_INTERRUPT,
     DEBUG_RX,		DEBUG_TX,	DEBUG_MDIC,	DEBUG_EEPROM,
