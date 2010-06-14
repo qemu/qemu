@@ -160,9 +160,15 @@ static int v9fs_do_chmod(V9fsState *s, V9fsString *path, mode_t mode)
     return s->ops->chmod(&s->ctx, path->data, &cred);
 }
 
-static int v9fs_do_mknod(V9fsState *s, V9fsString *path, mode_t mode, dev_t dev)
+static int v9fs_do_mknod(V9fsState *s, V9fsCreateState *vs, mode_t mode,
+        dev_t dev)
 {
-    return s->ops->mknod(&s->ctx, path->data, mode, dev);
+    FsCred cred;
+    cred_init(&cred);
+    cred.fc_uid = vs->fidp->uid;
+    cred.fc_mode = mode;
+    cred.fc_rdev = dev;
+    return s->ops->mknod(&s->ctx, vs->fullname.data, &cred);
 }
 
 static int v9fs_do_mksock(V9fsState *s, V9fsString *path)
@@ -1825,10 +1831,10 @@ static void v9fs_create_post_lstat(V9fsState *s, V9fsCreateState *vs, int err)
         }
 
         nmode |= vs->perm & 0777;
-        err = v9fs_do_mknod(s, &vs->fullname, nmode, makedev(major, minor));
+        err = v9fs_do_mknod(s, vs, nmode, makedev(major, minor));
         v9fs_create_post_perms(s, vs, err);
     } else if (vs->perm & P9_STAT_MODE_NAMED_PIPE) {
-        err = v9fs_do_mknod(s, &vs->fullname, S_IFIFO | (vs->mode & 0777), 0);
+        err = v9fs_do_mknod(s, vs, S_IFIFO | (vs->perm & 0777), 0);
         v9fs_post_create(s, vs, err);
     } else if (vs->perm & P9_STAT_MODE_SOCKET) {
         err = v9fs_do_mksock(s, &vs->fullname);

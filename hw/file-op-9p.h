@@ -51,7 +51,7 @@ typedef struct FileOperations
     ssize_t (*readlink)(FsContext *, const char *, char *, size_t);
     int (*chmod)(FsContext *, const char *, FsCred *);
     int (*chown)(FsContext *, const char *, FsCred *);
-    int (*mknod)(FsContext *, const char *, mode_t, dev_t);
+    int (*mknod)(FsContext *, const char *, FsCred *);
     int (*mksock)(FsContext *, const char *);
     int (*utime)(FsContext *, const char *, const struct utimbuf *);
     int (*remove)(FsContext *, const char *);
