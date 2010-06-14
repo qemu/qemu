@@ -486,7 +486,7 @@ ETEXI
 DEFHEADING(File system options:)
 
 DEF("fsdev", HAS_ARG, QEMU_OPTION_fsdev,
-    "-fsdev local,id=id,path=path\n",
+    "-fsdev local,id=id,path=path,security_model=[mapped|passthrough]\n",
     QEMU_ARCH_ALL)
 
 STEXI
@@ -502,13 +502,16 @@ The specific Fstype will determine the applicable options.
 
 Options to each backend are described below.
 
-@item -fsdev local ,id=@var{id} ,path=@var{path}
+@item -fsdev local ,id=@var{id} ,path=@var{path} ,security_model=@var{security_model}
 
 Create a file-system-"device" for local-filesystem.
 
 @option{local} is only available on Linux.
 
 @option{path} specifies the path to be exported. @option{path} is required.
+
+@option{security_model} specifies the security model to be followed.
+@option{security_model} is required.
 
 @end table
 ETEXI
@@ -518,7 +521,7 @@ ETEXI
 DEFHEADING(Virtual File system pass-through options:)
 
 DEF("virtfs", HAS_ARG, QEMU_OPTION_virtfs,
-    "-virtfs local,path=path,mount_tag=tag\n",
+    "-virtfs local,path=path,mount_tag=tag,security_model=[mapped|passthrough]\n",
     QEMU_ARCH_ALL)
 
 STEXI
@@ -534,13 +537,17 @@ The specific Fstype will determine the applicable options.
 
 Options to each backend are described below.
 
-@item -virtfs local ,path=@var{path} ,mount_tag=@var{mount_tag}
+@item -virtfs local ,path=@var{path} ,mount_tag=@var{mount_tag} ,security_model=@var{security_model}
 
 Create a Virtual file-system-pass through for local-filesystem.
 
 @option{local} is only available on Linux.
 
 @option{path} specifies the path to be exported. @option{path} is required.
+
+@option{security_model} specifies the security model to be followed.
+@option{security_model} is required.
+
 
 @option{mount_tag} specifies the tag with which the exported file is mounted.
 @option{mount_tag} is required.

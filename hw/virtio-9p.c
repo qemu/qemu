@@ -2253,6 +2253,15 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
         exit(1);
     }
 
+    if (!strcmp(fse->security_model, "passthrough") &&
+                !strcmp(fse->security_model, "mapped")) {
+        /* user haven't specified a correct security option */
+        fprintf(stderr, "one of the following must be specified as the"
+                "security option:\n\t security_model=passthrough \n\t "
+                "security_model=mapped\n");
+        return NULL;
+    }
+
     if (lstat(fse->path, &stat)) {
         fprintf(stderr, "share path %s does not exist\n", fse->path);
         exit(1);

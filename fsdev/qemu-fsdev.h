@@ -40,6 +40,7 @@ typedef struct FsTypeTable {
 typedef struct FsTypeEntry {
     char *fsdev_id;
     char *path;
+    char *security_model;
     FileOperations *ops;
 } FsTypeEntry;
 
