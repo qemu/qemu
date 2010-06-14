@@ -641,7 +641,7 @@ static int virtio_balloon_init_pci(PCIDevice *pci_dev)
     return 0;
 }
 
-#ifdef CONFIG_LINUX
+#ifdef CONFIG_VIRTFS
 static int virtio_9p_init_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
@@ -712,7 +712,7 @@ static PCIDeviceInfo virtio_info[] = {
         },
         .qdev.reset = virtio_pci_reset,
     },{
-#ifdef CONFIG_LINUX
+#ifdef CONFIG_VIRTFS
         .qdev.name = "virtio-9p-pci",
         .qdev.size = sizeof(VirtIOPCIProxy),
         .init      = virtio_9p_init_pci,

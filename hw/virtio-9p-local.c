@@ -17,6 +17,7 @@
 #include <grp.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <attr/xattr.h>
 
 static const char *rpath(FsContext *ctx, const char *path)
 {
@@ -31,45 +32,37 @@ static int local_lstat(FsContext *ctx, const char *path, struct stat *stbuf)
     return lstat(rpath(ctx, path), stbuf);
 }
 
-static int local_setuid(FsContext *ctx, uid_t uid)
+static int local_set_xattr(const char *path, FsCred *credp)
 {
-    struct passwd *pw;
-    gid_t groups[33];
-    int ngroups;
-    static uid_t cur_uid = -1;
-
-    if (cur_uid == uid) {
-        return 0;
+    int err;
+    if (credp->fc_uid != -1) {
+        err = setxattr(path, "user.virtfs.uid", &credp->fc_uid, sizeof(uid_t),
+                0);
+        if (err) {
+            return err;
+        }
     }
-
-    if (setreuid(0, 0)) {
-        return -1;
+    if (credp->fc_gid != -1) {
+        err = setxattr(path, "user.virtfs.gid", &credp->fc_gid, sizeof(gid_t),
+                0);
+        if (err) {
+            return err;
+        }
     }
-
-    pw = getpwuid(uid);
-    if (pw == NULL) {
-        return -1;
+    if (credp->fc_mode != -1) {
+        err = setxattr(path, "user.virtfs.mode", &credp->fc_mode,
+                sizeof(mode_t), 0);
+        if (err) {
+            return err;
+        }
     }
-
-    ngroups = 33;
-    if (getgrouplist(pw->pw_name, pw->pw_gid, groups, &ngroups) == -1) {
-        return -1;
+    if (credp->fc_rdev != -1) {
+        err = setxattr(path, "user.virtfs.rdev", &credp->fc_rdev,
+                sizeof(dev_t), 0);
+        if (err) {
+            return err;
+        }
     }
-
-    if (setgroups(ngroups, groups)) {
-        return -1;
-    }
-
-    if (setregid(-1, pw->pw_gid)) {
-        return -1;
-    }
-
-    if (setreuid(-1, uid)) {
-        return -1;
-    }
-
-    cur_uid = uid;
-
     return 0;
 }
 
@@ -183,6 +176,7 @@ static int local_open2(FsContext *ctx, const char *path, int flags, mode_t mode)
     return open(rpath(ctx, path), flags, mode);
 }
 
+
 static int local_symlink(FsContext *ctx, const char *oldpath,
                             const char *newpath)
 {
@@ -259,12 +253,13 @@ static int local_remove(FsContext *ctx, const char *path)
 
 static int local_fsync(FsContext *ctx, int fd)
 {
+    if (0) /* Just to supress the warning. Will be removed in next patch. */
+        (void)local_set_xattr(NULL, NULL);
     return fsync(fd);
 }
 
 FileOperations local_ops = {
     .lstat = local_lstat,
-    .setuid = local_setuid,
     .readlink = local_readlink,
     .close = local_close,
     .closedir = local_closedir,

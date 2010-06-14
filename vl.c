@@ -147,7 +147,7 @@ int main(int argc, char **argv)
 #include "qemu-config.h"
 #include "qemu-objects.h"
 #include "qemu-options.h"
-#ifdef CONFIG_LINUX
+#ifdef CONFIG_VIRTFS
 #include "fsdev/qemu-fsdev.h"
 #endif
 
@@ -1532,7 +1532,7 @@ static int chardev_init_func(QemuOpts *opts, void *opaque)
     return 0;
 }
 
-#ifdef CONFIG_LINUX
+#ifdef CONFIG_VIRTFS
 static int fsdev_init_func(QemuOpts *opts, void *opaque)
 {
     int ret;
@@ -2281,7 +2281,7 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 break;
-#ifdef CONFIG_LINUX
+#ifdef CONFIG_VIRTFS
             case QEMU_OPTION_fsdev:
                 opts = qemu_opts_parse(&qemu_fsdev_opts, optarg, 1);
                 if (!opts) {
@@ -2705,7 +2705,7 @@ int main(int argc, char **argv, char **envp)
 
     if (qemu_opts_foreach(&qemu_chardev_opts, chardev_init_func, NULL, 1) != 0)
         exit(1);
-#ifdef CONFIG_LINUX
+#ifdef CONFIG_VIRTFS
     if (qemu_opts_foreach(&qemu_fsdev_opts, fsdev_init_func, NULL, 1) != 0) {
         exit(1);
     }

@@ -270,6 +270,7 @@ vnc_tls=""
 vnc_sasl=""
 xen=""
 linux_aio=""
+attr=""
 vhost_net=""
 
 gprof="no"
@@ -671,6 +672,10 @@ for opt do
   ;;
   --enable-linux-aio) linux_aio="yes"
   ;;
+  --disable-attr) attr="no"
+  ;;
+  --enable-attr) attr="yes"
+  ;;
   --enable-io-thread) io_thread="yes"
   ;;
   --disable-blobs) blobs="no"
@@ -858,6 +863,8 @@ echo "  --disable-vde            disable support for vde network"
 echo "  --enable-vde             enable support for vde network"
 echo "  --disable-linux-aio      disable Linux AIO support"
 echo "  --enable-linux-aio       enable Linux AIO support"
+echo "  --disable-attr           disables attr and xattr support"
+echo "  --enable-attr            enable attr and xattr support"
 echo "  --enable-io-thread       enable IO thread"
 echo "  --disable-blobs          disable installing provided firmware blobs"
 echo "  --kerneldir=PATH         look for kernel includes in PATH"
@@ -1646,6 +1653,27 @@ EOF
 fi
 
 ##########################################
+# attr probe
+
+if test "$attr" != "no" ; then
+  cat > $TMPC <<EOF
+#include <stdio.h>
+#include <sys/types.h>
+#include <attr/xattr.h>
+int main(void) { getxattr(NULL, NULL, NULL, 0); setxattr(NULL, NULL, NULL, 0, 0); return 0; }
+EOF
+  if compile_prog "" "-lattr" ; then
+    attr=yes
+    LIBS="-lattr $LIBS"
+  else
+    if test "$attr" = "yes" ; then
+      feature_not_found "ATTR"
+    fi
+    attr=no
+  fi
+fi
+
+##########################################
 # iovec probe
 cat > $TMPC <<EOF
 #include <sys/types.h>
@@ -2079,6 +2107,7 @@ echo "PIE user targets  $user_pie"
 echo "vde support       $vde"
 echo "IO thread         $io_thread"
 echo "Linux AIO support $linux_aio"
+echo "ATTR/XATTR support $attr"
 echo "Install blobs     $blobs"
 echo "KVM support       $kvm"
 echo "fdt support       $fdt"
@@ -2279,6 +2308,14 @@ if test "$io_thread" = "yes" ; then
 fi
 if test "$linux_aio" = "yes" ; then
   echo "CONFIG_LINUX_AIO=y" >> $config_host_mak
+fi
+if test "$attr" = "yes" ; then
+  echo "CONFIG_ATTR=y" >> $config_host_mak
+fi
+if test "$linux" = "yes" ; then
+  if test "$attr" = "yes" ; then
+    echo "CONFIG_VIRTFS=y" >> $config_host_mak
+  fi
 fi
 if test "$blobs" = "yes" ; then
   echo "INSTALL_BLOBS=yes" >> $config_host_mak

@@ -67,14 +67,17 @@ static int omode_to_uflags(int8_t mode)
     return ret;
 }
 
+void cred_init(FsCred *credp)
+{
+    credp->fc_uid = -1;
+    credp->fc_gid = -1;
+    credp->fc_mode = -1;
+    credp->fc_rdev = -1;
+}
+
 static int v9fs_do_lstat(V9fsState *s, V9fsString *path, struct stat *stbuf)
 {
     return s->ops->lstat(&s->ctx, path->data, stbuf);
-}
-
-static int v9fs_do_setuid(V9fsState *s, uid_t uid)
-{
-    return s->ops->setuid(&s->ctx, uid);
 }
 
 static ssize_t v9fs_do_readlink(V9fsState *s, V9fsString *path, V9fsString *buf)
@@ -348,7 +351,6 @@ static V9fsFidState *lookup_fid(V9fsState *s, int32_t fid)
 
     for (f = s->fid_list; f; f = f->next) {
         if (f->fid == fid) {
-            v9fs_do_setuid(s, f->uid);
             return f;
         }
     }
@@ -2253,8 +2255,15 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
         exit(1);
     }
 
-    if (!strcmp(fse->security_model, "passthrough") &&
-                !strcmp(fse->security_model, "mapped")) {
+    if (!strcmp(fse->security_model, "passthrough")) {
+        /* Files on the Fileserver set to client user credentials */
+        s->ctx.fs_sm = SM_PASSTHROUGH;
+    } else if (!strcmp(fse->security_model, "mapped")) {
+        /* Files on the fileserver are set to QEMU credentials.
+         * Client user credentials are saved in extended attributes.
+         */
+        s->ctx.fs_sm = SM_MAPPED;
+    } else {
         /* user haven't specified a correct security option */
         fprintf(stderr, "one of the following must be specified as the"
                 "security option:\n\t security_model=passthrough \n\t "

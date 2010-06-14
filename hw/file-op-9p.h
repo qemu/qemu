@@ -18,12 +18,32 @@
 #include <utime.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
+#include <sys/vfs.h>
+#define SM_LOCAL_MODE_BITS    0600
+#define SM_LOCAL_DIR_MODE_BITS    0700
+
+typedef enum
+{
+    SM_PASSTHROUGH = 1, /* uid/gid set on fileserver files */
+    SM_MAPPED,  /* uid/gid part of xattr */
+} SecModel;
+
+typedef struct FsCred
+{
+    uid_t   fc_uid;
+    gid_t   fc_gid;
+    mode_t  fc_mode;
+    dev_t   fc_rdev;
+} FsCred;
 
 typedef struct FsContext
 {
     char *fs_root;
+    SecModel fs_sm;
     uid_t uid;
 } FsContext;
+
+extern void cred_init(FsCred *);
 
 typedef struct FileOperations
 {
