@@ -240,9 +240,14 @@ static int local_rename(FsContext *ctx, const char *oldpath,
 
 }
 
-static int local_chown(FsContext *ctx, const char *path, uid_t uid, gid_t gid)
+static int local_chown(FsContext *fs_ctx, const char *path, FsCred *credp)
 {
-    return chown(rpath(ctx, path), uid, gid);
+    if (fs_ctx->fs_sm == SM_MAPPED) {
+        return local_set_xattr(rpath(fs_ctx, path), credp);
+    } else if (fs_ctx->fs_sm == SM_PASSTHROUGH) {
+        return lchown(rpath(fs_ctx, path), credp->fc_uid, credp->fc_gid);
+    }
+    return -1;
 }
 
 static int local_utime(FsContext *ctx, const char *path,

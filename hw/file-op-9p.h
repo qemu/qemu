@@ -50,7 +50,7 @@ typedef struct FileOperations
     int (*lstat)(FsContext *, const char *, struct stat *);
     ssize_t (*readlink)(FsContext *, const char *, char *, size_t);
     int (*chmod)(FsContext *, const char *, FsCred *);
-    int (*chown)(FsContext *, const char *, uid_t, gid_t);
+    int (*chown)(FsContext *, const char *, FsCred *);
     int (*mknod)(FsContext *, const char *, mode_t, dev_t);
     int (*mksock)(FsContext *, const char *);
     int (*utime)(FsContext *, const char *, const struct utimbuf *);

@@ -209,7 +209,12 @@ static int v9fs_do_rename(V9fsState *s, V9fsString *oldpath,
 
 static int v9fs_do_chown(V9fsState *s, V9fsString *path, uid_t uid, gid_t gid)
 {
-    return s->ops->chown(&s->ctx, path->data, uid, gid);
+    FsCred cred;
+    cred_init(&cred);
+    cred.fc_uid = uid;
+    cred.fc_gid = gid;
+
+    return s->ops->chown(&s->ctx, path->data, &cred);
 }
 
 static int v9fs_do_utime(V9fsState *s, V9fsString *path,
@@ -2014,7 +2019,7 @@ static void v9fs_wstat_post_utime(V9fsState *s, V9fsWstatState *vs, int err)
         goto out;
     }
 
-    if (vs->v9stat.n_gid != -1) {
+    if (vs->v9stat.n_gid != -1 || vs->v9stat.n_uid != -1) {
         if (v9fs_do_chown(s, &vs->fidp->path, vs->v9stat.n_uid,
                     vs->v9stat.n_gid)) {
             err = -errno;
