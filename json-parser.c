@@ -205,6 +205,10 @@ static QString *qstring_from_escaped_str(JSONParserContext *ctxt, QObject *token
                 qstring_append(str, "\b");
                 ptr++;
                 break;
+            case 'f':
+                qstring_append(str, "\f");
+                ptr++;
+                break;
             case 'n':
                 qstring_append(str, "\n");
                 ptr++;

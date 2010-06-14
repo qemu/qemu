@@ -29,7 +29,6 @@
 
 enum json_lexer_state {
     ERROR = 0,
-    IN_DONE_STRING,
     IN_DQ_UCODE3,
     IN_DQ_UCODE2,
     IN_DQ_UCODE1,
@@ -57,19 +56,19 @@ enum json_lexer_state {
     IN_ESCAPE_I,
     IN_ESCAPE_I6,
     IN_ESCAPE_I64,
-    IN_ESCAPE_DONE,
     IN_WHITESPACE,
-    IN_OPERATOR_DONE,
     IN_START,
 };
 
 #define TERMINAL(state) [0 ... 0x7F] = (state)
 
-static const uint8_t json_lexer[][256] =  {
-    [IN_DONE_STRING] = {
-        TERMINAL(JSON_STRING),
-    },
+/* Return whether TERMINAL is a terminal state and the transition to it
+   from OLD_STATE required lookahead.  This happens whenever the table
+   below uses the TERMINAL macro.  */
+#define TERMINAL_NEEDED_LOOKAHEAD(old_state, terminal) \
+            (json_lexer[(old_state)][0] == (terminal))
 
+static const uint8_t json_lexer[][256] =  {
     /* double quote string */
     [IN_DQ_UCODE3] = {
         ['0' ... '9'] = IN_DQ_STRING,
@@ -97,6 +96,8 @@ static const uint8_t json_lexer[][256] =  {
         ['n'] =  IN_DQ_STRING,
         ['r'] =  IN_DQ_STRING,
         ['t'] =  IN_DQ_STRING,
+        ['/'] = IN_DQ_STRING,
+        ['\\'] = IN_DQ_STRING,
         ['\''] = IN_DQ_STRING,
         ['\"'] = IN_DQ_STRING,
         ['u'] = IN_DQ_UCODE0,
@@ -104,7 +105,7 @@ static const uint8_t json_lexer[][256] =  {
     [IN_DQ_STRING] = {
         [1 ... 0xFF] = IN_DQ_STRING,
         ['\\'] = IN_DQ_STRING_ESCAPE,
-        ['"'] = IN_DONE_STRING,
+        ['"'] = JSON_STRING,
     },
 
     /* single quote string */
@@ -134,6 +135,8 @@ static const uint8_t json_lexer[][256] =  {
         ['n'] =  IN_SQ_STRING,
         ['r'] =  IN_SQ_STRING,
         ['t'] =  IN_SQ_STRING,
+        ['/'] = IN_DQ_STRING,
+        ['\\'] = IN_DQ_STRING,
         ['\''] = IN_SQ_STRING,
         ['\"'] = IN_SQ_STRING,
         ['u'] = IN_SQ_UCODE0,
@@ -141,7 +144,7 @@ static const uint8_t json_lexer[][256] =  {
     [IN_SQ_STRING] = {
         [1 ... 0xFF] = IN_SQ_STRING,
         ['\\'] = IN_SQ_STRING_ESCAPE,
-        ['\''] = IN_DONE_STRING,
+        ['\''] = JSON_STRING,
     },
 
     /* Zero */
@@ -207,27 +210,18 @@ static const uint8_t json_lexer[][256] =  {
         ['\n'] = IN_WHITESPACE,
     },        
 
-    /* operator */
-    [IN_OPERATOR_DONE] = {
-        TERMINAL(JSON_OPERATOR),
-    },
-
     /* escape */
-    [IN_ESCAPE_DONE] = {
-        TERMINAL(JSON_ESCAPE),
-    },
-
     [IN_ESCAPE_LL] = {
-        ['d'] = IN_ESCAPE_DONE,
+        ['d'] = JSON_ESCAPE,
     },
 
     [IN_ESCAPE_L] = {
-        ['d'] = IN_ESCAPE_DONE,
+        ['d'] = JSON_ESCAPE,
         ['l'] = IN_ESCAPE_LL,
     },
 
     [IN_ESCAPE_I64] = {
-        ['d'] = IN_ESCAPE_DONE,
+        ['d'] = JSON_ESCAPE,
     },
 
     [IN_ESCAPE_I6] = {
@@ -239,11 +233,11 @@ static const uint8_t json_lexer[][256] =  {
     },
 
     [IN_ESCAPE] = {
-        ['d'] = IN_ESCAPE_DONE,
-        ['i'] = IN_ESCAPE_DONE,
-        ['p'] = IN_ESCAPE_DONE,
-        ['s'] = IN_ESCAPE_DONE,
-        ['f'] = IN_ESCAPE_DONE,
+        ['d'] = JSON_ESCAPE,
+        ['i'] = JSON_ESCAPE,
+        ['p'] = JSON_ESCAPE,
+        ['s'] = JSON_ESCAPE,
+        ['f'] = JSON_ESCAPE,
         ['l'] = IN_ESCAPE_L,
         ['I'] = IN_ESCAPE_I,
     },
@@ -255,12 +249,12 @@ static const uint8_t json_lexer[][256] =  {
         ['0'] = IN_ZERO,
         ['1' ... '9'] = IN_NONZERO_NUMBER,
         ['-'] = IN_NEG_NONZERO_NUMBER,
-        ['{'] = IN_OPERATOR_DONE,
-        ['}'] = IN_OPERATOR_DONE,
-        ['['] = IN_OPERATOR_DONE,
-        [']'] = IN_OPERATOR_DONE,
-        [','] = IN_OPERATOR_DONE,
-        [':'] = IN_OPERATOR_DONE,
+        ['{'] = JSON_OPERATOR,
+        ['}'] = JSON_OPERATOR,
+        ['['] = JSON_OPERATOR,
+        [']'] = JSON_OPERATOR,
+        [','] = JSON_OPERATOR,
+        [':'] = JSON_OPERATOR,
         ['a' ... 'z'] = IN_KEYWORD,
         ['%'] = IN_ESCAPE,
         [' '] = IN_WHITESPACE,
@@ -275,11 +269,12 @@ void json_lexer_init(JSONLexer *lexer, JSONLexerEmitter func)
     lexer->emit = func;
     lexer->state = IN_START;
     lexer->token = qstring_new();
+    lexer->x = lexer->y = 0;
 }
 
 static int json_lexer_feed_char(JSONLexer *lexer, char ch)
 {
-    char buf[2];
+    int char_consumed, new_state;
 
     lexer->x++;
     if (ch == '\n') {
@@ -287,32 +282,33 @@ static int json_lexer_feed_char(JSONLexer *lexer, char ch)
         lexer->y++;
     }
 
-    lexer->state = json_lexer[lexer->state][(uint8_t)ch];
+    do {
+        new_state = json_lexer[lexer->state][(uint8_t)ch];
+        char_consumed = !TERMINAL_NEEDED_LOOKAHEAD(lexer->state, new_state);
+        if (char_consumed) {
+            qstring_append_chr(lexer->token, ch);
+        }
 
-    switch (lexer->state) {
-    case JSON_OPERATOR:
-    case JSON_ESCAPE:
-    case JSON_INTEGER:
-    case JSON_FLOAT:
-    case JSON_KEYWORD:
-    case JSON_STRING:
-        lexer->emit(lexer, lexer->token, lexer->state, lexer->x, lexer->y);
-    case JSON_SKIP:
-        lexer->state = json_lexer[IN_START][(uint8_t)ch];
-        QDECREF(lexer->token);
-        lexer->token = qstring_new();
-        break;
-    case ERROR:
-        return -EINVAL;
-    default:
-        break;
-    }
-
-    buf[0] = ch;
-    buf[1] = 0;
-
-    qstring_append(lexer->token, buf);
-
+        switch (new_state) {
+        case JSON_OPERATOR:
+        case JSON_ESCAPE:
+        case JSON_INTEGER:
+        case JSON_FLOAT:
+        case JSON_KEYWORD:
+        case JSON_STRING:
+            lexer->emit(lexer, lexer->token, new_state, lexer->x, lexer->y);
+        case JSON_SKIP:
+            QDECREF(lexer->token);
+            lexer->token = qstring_new();
+            new_state = IN_START;
+            break;
+        case ERROR:
+            return -EINVAL;
+        default:
+            break;
+        }
+        lexer->state = new_state;
+    } while (!char_consumed);
     return 0;
 }
 
@@ -334,7 +330,7 @@ int json_lexer_feed(JSONLexer *lexer, const char *buffer, size_t size)
 
 int json_lexer_flush(JSONLexer *lexer)
 {
-    return json_lexer_feed_char(lexer, 0);
+    return lexer->state == IN_START ? 0 : json_lexer_feed_char(lexer, 0);
 }
 
 void json_lexer_destroy(JSONLexer *lexer)
