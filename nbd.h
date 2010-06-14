@@ -20,7 +20,6 @@
 #define NBD_H
 
 #include <sys/types.h>
-#include <stdbool.h>
 
 #include <qemu-common.h>
 #include "block_int.h"

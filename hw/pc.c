@@ -35,6 +35,8 @@
 #include "elf.h"
 #include "multiboot.h"
 #include "mc146818rtc.h"
+#include "sysbus.h"
+#include "sysemu.h"
 
 /* output Bochs bios info messages */
 //#define DEBUG_BIOS
@@ -60,6 +62,7 @@
 #define FW_CFG_SMBIOS_ENTRIES (FW_CFG_ARCH_LOCAL + 1)
 #define FW_CFG_IRQ0_OVERRIDE (FW_CFG_ARCH_LOCAL + 2)
 #define FW_CFG_E820_TABLE (FW_CFG_ARCH_LOCAL + 3)
+#define FW_CFG_HPET (FW_CFG_ARCH_LOCAL + 4)
 
 #define E820_NR_ENTRIES		16
 
@@ -483,6 +486,8 @@ static void *bochs_bios_init(void)
     fw_cfg_add_bytes(fw_cfg, FW_CFG_E820_TABLE, (uint8_t *)&e820_table,
                      sizeof(struct e820_table));
 
+    fw_cfg_add_bytes(fw_cfg, FW_CFG_HPET, (uint8_t *)&hpet_cfg,
+                     sizeof(struct hpet_fw_config));
     /* allocate memory for the NUMA channel: one (64bit) word for the number
      * of nodes, one word for each VCPU->node and one word for each node to
      * hold the amount of memory.
@@ -942,6 +947,7 @@ void pc_basic_device_init(qemu_irq *isa_irq,
     int i;
     DriveInfo *fd[MAX_FD];
     PITState *pit;
+    qemu_irq rtc_irq = NULL;
     qemu_irq *a20_line;
     ISADevice *i8042;
     qemu_irq *cpu_exit_irq;
@@ -950,15 +956,20 @@ void pc_basic_device_init(qemu_irq *isa_irq,
 
     register_ioport_write(0xf0, 1, 1, ioportF0_write, NULL);
 
-    *rtc_state = rtc_init(2000);
+    if (!no_hpet) {
+        DeviceState *hpet = sysbus_create_simple("hpet", HPET_BASE, NULL);
+
+        for (i = 0; i < 24; i++) {
+            sysbus_connect_irq(sysbus_from_qdev(hpet), i, isa_irq[i]);
+        }
+        rtc_irq = qdev_get_gpio_in(hpet, 0);
+    }
+    *rtc_state = rtc_init(2000, rtc_irq);
 
     qemu_register_boot_set(pc_boot_set, *rtc_state);
 
     pit = pit_init(0x40, isa_reserve_irq(0));
     pcspk_init(pit);
-    if (!no_hpet) {
-        hpet_init(isa_irq);
-    }
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {

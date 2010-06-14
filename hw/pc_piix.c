@@ -32,6 +32,7 @@
 #include "boards.h"
 #include "ide.h"
 #include "kvm.h"
+#include "sysemu.h"
 
 #define MAX_IDE_BUS 2
 

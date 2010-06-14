@@ -25,6 +25,7 @@
 #include "hw.h"
 #include "console.h"
 #include "usb.h"
+#include "sysemu.h"
 
 /* HID interface requests */
 #define GET_REPORT   0xa101

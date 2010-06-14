@@ -277,7 +277,7 @@ static void mips_init(ram_addr_t ram_size,
     isa_bus_new(NULL);
     isa_bus_irqs(i8259);
 
-    rtc_state = rtc_init(2000);
+    rtc_state = rtc_init(2000, NULL);
 
     /* Register 64 KB of ISA IO space at 0x14000000 */
 #ifdef TARGET_WORDS_BIGENDIAN

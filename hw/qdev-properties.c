@@ -1,4 +1,3 @@
-#include "sysemu.h"
 #include "net.h"
 #include "qdev.h"
 #include "qerror.h"
@@ -260,6 +259,11 @@ static int parse_string(DeviceState *dev, Property *prop, const char *str)
     return 0;
 }
 
+static void free_string(DeviceState *dev, Property *prop)
+{
+    qemu_free(*(char **)qdev_get_prop_ptr(dev, prop));
+}
+
 static int print_string(DeviceState *dev, Property *prop, char *dest, size_t len)
 {
     char **ptr = qdev_get_prop_ptr(dev, prop);
@@ -274,6 +278,7 @@ PropertyInfo qdev_prop_string = {
     .size  = sizeof(char*),
     .parse = parse_string,
     .print = print_string,
+    .free  = free_string,
 };
 
 /* --- drive --- */
@@ -615,6 +620,11 @@ void qdev_prop_set_int32(DeviceState *dev, const char *name, int32_t value)
 void qdev_prop_set_uint64(DeviceState *dev, const char *name, uint64_t value)
 {
     qdev_prop_set(dev, name, &value, PROP_TYPE_UINT64);
+}
+
+void qdev_prop_set_string(DeviceState *dev, const char *name, char *value)
+{
+    qdev_prop_set(dev, name, &value, PROP_TYPE_STRING);
 }
 
 void qdev_prop_set_drive(DeviceState *dev, const char *name, DriveInfo *value)

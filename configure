@@ -203,6 +203,12 @@ elif check_define __mips__ ; then
   fi
 elif check_define __ia64__ ; then
   cpu="ia64"
+elif check_define __s390__ ; then
+  if check_define __s390x__ ; then
+    cpu="s390x"
+  else
+    cpu="s390"
+  fi
 else
   cpu=`uname -m`
 fi

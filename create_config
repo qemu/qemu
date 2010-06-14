@@ -13,7 +13,7 @@ case $line in
     pkgversion=${line#*=}
     echo "#define QEMU_PKGVERSION \"$pkgversion\""
     ;;
- prefix=* | *dir=*) # directory configuration
+ prefix=* | [a-z]*dir=*) # directory configuration
     name=${line%=*}
     value=${line#*=}
     define_name=`echo $name | tr '[:lower:]' '[:upper:]'`

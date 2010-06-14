@@ -29,7 +29,6 @@
 
 #include "hw.h"
 #include "fdc.h"
-#include "block.h"
 #include "qemu-timer.h"
 #include "isa.h"
 #include "sysbus.h"

@@ -158,6 +158,9 @@ static void to_json(const QObject *obj, QString *str)
                 case '\b':
                     qstring_append(str, "\\b");
                     break;
+                case '\f':
+                    qstring_append(str, "\\f");
+                    break;
                 case '\n':
                     qstring_append(str, "\\n");
                     break;

@@ -15,7 +15,6 @@
 #ifndef _QEMU_VIRTIO_SERIAL_H
 #define _QEMU_VIRTIO_SERIAL_H
 
-#include <stdbool.h>
 #include "qdev.h"
 #include "virtio.h"
 

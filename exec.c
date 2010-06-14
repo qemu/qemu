@@ -113,21 +113,9 @@ uint8_t *code_gen_ptr;
 
 #if !defined(CONFIG_USER_ONLY)
 int phys_ram_fd;
-uint8_t *phys_ram_dirty;
 static int in_migration;
 
-typedef struct RAMBlock {
-    uint8_t *host;
-    ram_addr_t offset;
-    ram_addr_t length;
-    struct RAMBlock *next;
-} RAMBlock;
-
-static RAMBlock *ram_blocks;
-/* TODO: When we implement (and use) ram deallocation (e.g. for hotplug)
-   then we can no longer assume contiguous ram offsets, and external uses
-   of this variable will break.  */
-ram_addr_t last_ram_offset;
+RAMList ram_list = { .blocks = QLIST_HEAD_INITIALIZER(ram_list) };
 #endif
 
 CPUState *first_cpu;
@@ -2856,18 +2844,17 @@ ram_addr_t qemu_ram_alloc(ram_addr_t size)
         madvise(new_block->host, size, MADV_MERGEABLE);
 #endif
     }
-    new_block->offset = last_ram_offset;
+    new_block->offset = ram_list.last_offset;
     new_block->length = size;
 
-    new_block->next = ram_blocks;
-    ram_blocks = new_block;
+    QLIST_INSERT_HEAD(&ram_list.blocks, new_block, next);
 
-    phys_ram_dirty = qemu_realloc(phys_ram_dirty,
-        (last_ram_offset + size) >> TARGET_PAGE_BITS);
-    memset(phys_ram_dirty + (last_ram_offset >> TARGET_PAGE_BITS),
+    ram_list.phys_dirty = qemu_realloc(ram_list.phys_dirty,
+        (ram_list.last_offset + size) >> TARGET_PAGE_BITS);
+    memset(ram_list.phys_dirty + (ram_list.last_offset >> TARGET_PAGE_BITS),
            0xff, size >> TARGET_PAGE_BITS);
 
-    last_ram_offset += size;
+    ram_list.last_offset += size;
 
     if (kvm_enabled())
         kvm_setup_guest_memory(new_block->host, size);
@@ -2890,31 +2877,20 @@ void qemu_ram_free(ram_addr_t addr)
  */
 void *qemu_get_ram_ptr(ram_addr_t addr)
 {
-    RAMBlock *prev;
-    RAMBlock **prevp;
     RAMBlock *block;
 
-    prev = NULL;
-    prevp = &ram_blocks;
-    block = ram_blocks;
-    while (block && (block->offset > addr
-                     || block->offset + block->length <= addr)) {
-        if (prev)
-          prevp = &prev->next;
-        prev = block;
-        block = block->next;
+    QLIST_FOREACH(block, &ram_list.blocks, next) {
+        if (addr - block->offset < block->length) {
+            QLIST_REMOVE(block, next);
+            QLIST_INSERT_HEAD(&ram_list.blocks, block, next);
+            return block->host + (addr - block->offset);
+        }
     }
-    if (!block) {
-        fprintf(stderr, "Bad ram offset %" PRIx64 "\n", (uint64_t)addr);
-        abort();
-    }
-    /* Move this entry to to start of the list.  */
-    if (prev) {
-        prev->next = block->next;
-        block->next = *prevp;
-        *prevp = block;
-    }
-    return block->host + (addr - block->offset);
+
+    fprintf(stderr, "Bad ram offset %" PRIx64 "\n", (uint64_t)addr);
+    abort();
+
+    return NULL;
 }
 
 /* Some of the softmmu routines need to translate from a host pointer
@@ -2924,16 +2900,16 @@ ram_addr_t qemu_ram_addr_from_host(void *ptr)
     RAMBlock *block;
     uint8_t *host = ptr;
 
-    block = ram_blocks;
-    while (block && (block->host > host
-                     || block->host + block->length <= host)) {
-        block = block->next;
+    QLIST_FOREACH(block, &ram_list.blocks, next) {
+        if (host - block->host < block->length) {
+            return block->offset + (host - block->host);
+        }
     }
-    if (!block) {
-        fprintf(stderr, "Bad ram pointer %p\n", ptr);
-        abort();
-    }
-    return block->offset + (host - block->host);
+
+    fprintf(stderr, "Bad ram pointer %p\n", ptr);
+    abort();
+
+    return 0;
 }
 
 static uint32_t unassigned_mem_readb(void *opaque, target_phys_addr_t addr)

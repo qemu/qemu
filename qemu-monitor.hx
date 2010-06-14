@@ -2144,27 +2144,6 @@ show the active virtual memory mappings (i386 only)
 ETEXI
 
 STEXI
-@item info hpet
-show state of HPET (i386 only)
-ETEXI
-SQMP
-query-hpet
-----------
-
-Show HPET state.
-
-Return a json-object with the following information:
-
-- "enabled": true if hpet if enabled, false otherwise (json-bool)
-
-Example:
-
--> { "execute": "query-hpet" }
-<- { "return": { "enabled": true } }
-
-EQMP
-
-STEXI
 @item info jit
 show dynamic compiler info
 @item info kvm

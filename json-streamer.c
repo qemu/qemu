@@ -43,11 +43,11 @@ static void json_message_process_token(JSONLexer *lexer, QString *token, JSONTok
     }
 
     dict = qdict_new();
-    qdict_put_obj(dict, "type", QOBJECT(qint_from_int(type)));
+    qdict_put(dict, "type", qint_from_int(type));
     QINCREF(token);
-    qdict_put_obj(dict, "token", QOBJECT(token));
-    qdict_put_obj(dict, "x", QOBJECT(qint_from_int(x)));
-    qdict_put_obj(dict, "y", QOBJECT(qint_from_int(y)));
+    qdict_put(dict, "token", token);
+    qdict_put(dict, "x", qint_from_int(x));
+    qdict_put(dict, "y", qint_from_int(y));
 
     qlist_append(parser->tokens, dict);
 

@@ -27,7 +27,6 @@
 #include "pc.h"
 #include "apic.h"
 #include "isa.h"
-#include "hpet_emul.h"
 #include "mc146818rtc.h"
 
 //#define DEBUG_CMOS
@@ -101,19 +100,6 @@ typedef struct RTCState {
     QEMUTimer *second_timer2;
 } RTCState;
 
-static void rtc_irq_raise(qemu_irq irq)
-{
-    /* When HPET is operating in legacy mode, RTC interrupts are disabled
-     * We block qemu_irq_raise, but not qemu_irq_lower, in case legacy
-     * mode is established while interrupt is raised. We want it to
-     * be lowered in any case
-     */
-#if defined TARGET_I386
-    if (!hpet_in_legacy_mode())
-#endif
-        qemu_irq_raise(irq);
-}
-
 static void rtc_set_time(RTCState *s);
 static void rtc_copy_date(RTCState *s);
 
@@ -139,7 +125,7 @@ static void rtc_coalesced_timer(void *opaque)
         apic_reset_irq_delivered();
         s->cmos_data[RTC_REG_C] |= 0xc0;
         DPRINTF_C("cmos: injecting from timer\n");
-        rtc_irq_raise(s->irq);
+        qemu_irq_raise(s->irq);
         if (apic_get_irq_delivered()) {
             s->irq_coalesced--;
             DPRINTF_C("cmos: coalesced irqs decreased to %d\n",
@@ -155,19 +141,10 @@ static void rtc_timer_update(RTCState *s, int64_t current_time)
 {
     int period_code, period;
     int64_t cur_clock, next_irq_clock;
-    int enable_pie;
 
     period_code = s->cmos_data[RTC_REG_A] & 0x0f;
-#if defined TARGET_I386
-    /* disable periodic timer if hpet is in legacy mode, since interrupts are
-     * disabled anyway.
-     */
-    enable_pie = !hpet_in_legacy_mode();
-#else
-    enable_pie = 1;
-#endif
     if (period_code != 0
-        && (((s->cmos_data[RTC_REG_B] & REG_B_PIE) && enable_pie)
+        && ((s->cmos_data[RTC_REG_B] & REG_B_PIE)
             || ((s->cmos_data[RTC_REG_B] & REG_B_SQWE) && s->sqw_irq))) {
         if (period_code <= 2)
             period_code += 7;
@@ -206,7 +183,7 @@ static void rtc_periodic_timer(void *opaque)
             if (s->irq_reinject_on_ack_count >= RTC_REINJECT_ON_ACK_COUNT)
                 s->irq_reinject_on_ack_count = 0;		
             apic_reset_irq_delivered();
-            rtc_irq_raise(s->irq);
+            qemu_irq_raise(s->irq);
             if (!apic_get_irq_delivered()) {
                 s->irq_coalesced++;
                 rtc_coalesced_timer_update(s);
@@ -215,7 +192,7 @@ static void rtc_periodic_timer(void *opaque)
             }
         } else
 #endif
-        rtc_irq_raise(s->irq);
+        qemu_irq_raise(s->irq);
     }
     if (s->cmos_data[RTC_REG_B] & REG_B_SQWE) {
         /* Not square wave at all but we don't want 2048Hz interrupts!
@@ -444,15 +421,15 @@ static void rtc_update_second2(void *opaque)
              s->cmos_data[RTC_HOURS_ALARM] == s->current_tm.tm_hour)) {
 
             s->cmos_data[RTC_REG_C] |= 0xa0;
-            rtc_irq_raise(s->irq);
+            qemu_irq_raise(s->irq);
         }
     }
 
     /* update ended interrupt */
     s->cmos_data[RTC_REG_C] |= REG_C_UF;
     if (s->cmos_data[RTC_REG_B] & REG_B_UIE) {
-      s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
-      rtc_irq_raise(s->irq);
+        s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
+        qemu_irq_raise(s->irq);
     }
 
     /* clear update in progress bit */
@@ -606,9 +583,6 @@ static int rtc_initfn(ISADevice *dev)
 {
     RTCState *s = DO_UPCAST(RTCState, dev, dev);
     int base = 0x70;
-    int isairq = 8;
-
-    isa_init_irq(dev, &s->irq, isairq);
 
     s->cmos_data[RTC_REG_A] = 0x26;
     s->cmos_data[RTC_REG_B] = 0x02;
@@ -638,13 +612,20 @@ static int rtc_initfn(ISADevice *dev)
     return 0;
 }
 
-ISADevice *rtc_init(int base_year)
+ISADevice *rtc_init(int base_year, qemu_irq intercept_irq)
 {
     ISADevice *dev;
+    RTCState *s;
 
     dev = isa_create("mc146818rtc");
+    s = DO_UPCAST(RTCState, dev, dev);
     qdev_prop_set_int32(&dev->qdev, "base_year", base_year);
     qdev_init_nofail(&dev->qdev);
+    if (intercept_irq) {
+        s->irq = intercept_irq;
+    } else {
+        isa_init_irq(dev, &s->irq, RTC_ISA_IRQ);
+    }
     return dev;
 }
 

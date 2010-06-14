@@ -8,7 +8,6 @@
 #include "cpu-common.h"
 #endif
 
-#include <stdbool.h>
 #include "ioport.h"
 #include "irq.h"
 
@@ -472,6 +471,16 @@ extern const VMStateInfo vmstate_info_unused_buffer;
     .size       = sizeof(_type),                                     \
     .flags      = VMS_STRUCT|VMS_ARRAY,                              \
     .offset     = vmstate_offset_array(_state, _field, _type, _num), \
+}
+
+#define VMSTATE_STRUCT_VARRAY_UINT8(_field, _state, _field_num, _version, _vmsd, _type) { \
+    .name       = (stringify(_field)),                               \
+    .num_offset = vmstate_offset_value(_state, _field_num, uint8_t),  \
+    .version_id = (_version),                                        \
+    .vmsd       = &(_vmsd),                                          \
+    .size       = sizeof(_type),                                     \
+    .flags      = VMS_STRUCT|VMS_VARRAY_INT32,                       \
+    .offset     = offsetof(_state, _field),                          \
 }
 
 #define VMSTATE_STATIC_BUFFER(_field, _state, _version, _test, _start, _size) { \

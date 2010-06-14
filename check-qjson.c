@@ -9,7 +9,6 @@
  *
  */
 #include <check.h>
-#include <stdbool.h>
 
 #include "qstring.h"
 #include "qint.h"
@@ -29,6 +28,13 @@ START_TEST(escaped_string)
         const char *decoded;
         int skip;
     } test_cases[] = {
+        { "\"\\b\"", "\b" },
+        { "\"\\f\"", "\f" },
+        { "\"\\n\"", "\n" },
+        { "\"\\r\"", "\r" },
+        { "\"\\t\"", "\t" },
+        { "\"\\/\"", "\\/" },
+        { "\"\\\\\"", "\\" },
         { "\"\\\"\"", "\"" },
         { "\"hello world \\\"embedded string\\\"\"",
           "hello world \"embedded string\"" },
@@ -49,11 +55,14 @@ START_TEST(escaped_string)
         fail_unless(qobject_type(obj) == QTYPE_QSTRING);
         
         str = qobject_to_qstring(obj);
-        fail_unless(strcmp(qstring_get_str(str), test_cases[i].decoded) == 0);
+        fail_unless(strcmp(qstring_get_str(str), test_cases[i].decoded) == 0,
+                    "%s != %s\n", qstring_get_str(str), test_cases[i].decoded);
 
         if (test_cases[i].skip == 0) {
             str = qobject_to_json(obj);
-            fail_unless(strcmp(qstring_get_str(str), test_cases[i].encoded) == 0);
+            fail_unless(strcmp(qstring_get_str(str),test_cases[i].encoded) == 0,
+                        "%s != %s\n", qstring_get_str(str),
+                                      test_cases[i].encoded);
 
             qobject_decref(obj);
         }
@@ -628,11 +637,90 @@ START_TEST(simple_varargs)
 }
 END_TEST
 
+START_TEST(empty_input)
+{
+    QObject *obj = qobject_from_json("");
+    fail_unless(obj == NULL);
+}
+END_TEST
+
+START_TEST(unterminated_string)
+{
+    QObject *obj = qobject_from_json("\"abc");
+    fail_unless(obj == NULL);
+}
+END_TEST
+
+START_TEST(unterminated_sq_string)
+{
+    QObject *obj = qobject_from_json("'abc");
+    fail_unless(obj == NULL);
+}
+END_TEST
+
+START_TEST(unterminated_escape)
+{
+    QObject *obj = qobject_from_json("\"abc\\\"");
+    fail_unless(obj == NULL);
+}
+END_TEST
+
+START_TEST(unterminated_array)
+{
+    QObject *obj = qobject_from_json("[32");
+    fail_unless(obj == NULL);
+}
+END_TEST
+
+START_TEST(unterminated_array_comma)
+{
+    QObject *obj = qobject_from_json("[32,");
+    fail_unless(obj == NULL);
+}
+END_TEST
+
+START_TEST(invalid_array_comma)
+{
+    QObject *obj = qobject_from_json("[32,}");
+    fail_unless(obj == NULL);
+}
+END_TEST
+
+START_TEST(unterminated_dict)
+{
+    QObject *obj = qobject_from_json("{'abc':32");
+    fail_unless(obj == NULL);
+}
+END_TEST
+
+START_TEST(unterminated_dict_comma)
+{
+    QObject *obj = qobject_from_json("{'abc':32,");
+    fail_unless(obj == NULL);
+}
+END_TEST
+
+#if 0
+START_TEST(invalid_dict_comma)
+{
+    QObject *obj = qobject_from_json("{'abc':32,}");
+    fail_unless(obj == NULL);
+}
+END_TEST
+
+START_TEST(unterminated_literal)
+{
+    QObject *obj = qobject_from_json("nul");
+    fail_unless(obj == NULL);
+}
+END_TEST
+#endif
+
 static Suite *qjson_suite(void)
 {
     Suite *suite;
     TCase *string_literals, *number_literals, *keyword_literals;
-    TCase *dicts, *lists, *whitespace, *varargs;
+    TCase *dicts, *lists, *whitespace, *varargs, *errors;
 
     string_literals = tcase_create("String Literals");
     tcase_add_test(string_literals, simple_string);
@@ -658,6 +746,22 @@ static Suite *qjson_suite(void)
     varargs = tcase_create("Varargs");
     tcase_add_test(varargs, simple_varargs);
 
+    errors = tcase_create("Invalid JSON");
+    tcase_add_test(errors, empty_input);
+    tcase_add_test(errors, unterminated_string);
+    tcase_add_test(errors, unterminated_escape);
+    tcase_add_test(errors, unterminated_sq_string);
+    tcase_add_test(errors, unterminated_array);
+    tcase_add_test(errors, unterminated_array_comma);
+    tcase_add_test(errors, invalid_array_comma);
+    tcase_add_test(errors, unterminated_dict);
+    tcase_add_test(errors, unterminated_dict_comma);
+#if 0
+    /* FIXME: this print parse error messages on stderr.  */
+    tcase_add_test(errors, invalid_dict_comma);
+    tcase_add_test(errors, unterminated_literal);
+#endif
+
     suite = suite_create("QJSON test-suite");
     suite_add_tcase(suite, string_literals);
     suite_add_tcase(suite, number_literals);
@@ -666,6 +770,7 @@ static Suite *qjson_suite(void)
     suite_add_tcase(suite, lists);
     suite_add_tcase(suite, whitespace);
     suite_add_tcase(suite, varargs);
+    suite_add_tcase(suite, errors);
 
     return suite;
 }

@@ -27,6 +27,7 @@
 #include "isa.h"
 #include "pc.h"
 #include "qemu-timer.h"
+#include "sysemu.h"
 
 //#define DEBUG_SERIAL
 

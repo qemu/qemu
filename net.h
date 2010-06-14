@@ -1,7 +1,6 @@
 #ifndef QEMU_NET_H
 #define QEMU_NET_H
 
-#include <stdbool.h>
 #include "qemu-queue.h"
 #include "qemu-common.h"
 #include "qdict.h"

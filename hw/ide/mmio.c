@@ -125,7 +125,7 @@ void mmio_ide_init (target_phys_addr_t membase, target_phys_addr_t membase2,
     MMIOState *s = qemu_mallocz(sizeof(MMIOState));
     int mem1, mem2;
 
-    ide_init2(&s->bus, hd0, hd1, irq);
+    ide_init2_with_non_qdev_drives(&s->bus, hd0, hd1, irq);
 
     s->shift = shift;
 

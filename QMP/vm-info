@@ -25,7 +25,7 @@ def main():
     qemu = qmp.QEMUMonitorProtocol(argv[1])
     qemu.connect()
 
-    for cmd in [ 'version', 'hpet', 'kvm', 'status', 'uuid', 'balloon' ]:
+    for cmd in [ 'version', 'kvm', 'status', 'uuid', 'balloon' ]:
         print cmd + ': ' + str(qemu.send('query-' + cmd))
 
 if __name__ == '__main__':

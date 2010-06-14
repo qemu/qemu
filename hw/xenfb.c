@@ -29,7 +29,6 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <stdbool.h>
 #include <sys/mman.h>
 #include <errno.h>
 #include <stdio.h>

@@ -26,8 +26,6 @@
  * THE SOFTWARE.
  */
 
-#include <stdbool.h>
-
 #include "qdict.h"
 #include "qint.h"
 #include "vnc.h"

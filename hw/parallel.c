@@ -26,6 +26,7 @@
 #include "qemu-char.h"
 #include "isa.h"
 #include "pc.h"
+#include "sysemu.h"
 
 //#define DEBUG_PARALLEL
 

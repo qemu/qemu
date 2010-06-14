@@ -42,15 +42,6 @@
 #define MSIX_MAX_ENTRIES 32
 
 
-#ifdef MSIX_DEBUG
-#define DEBUG(fmt, ...)                                       \
-    do {                                                      \
-      fprintf(stderr, "%s: " fmt, __func__ , __VA_ARGS__);    \
-    } while (0)
-#else
-#define DEBUG(fmt, ...) do { } while(0)
-#endif
-
 /* Flag for interrupt controller to declare MSI-X support */
 int msix_supported;
 

@@ -392,8 +392,9 @@ static int raw_read(BlockDriverState *bs, int64_t sector_num,
 {
     int ret;
 
-    ret = raw_pread(bs, sector_num * 512, buf, nb_sectors * 512);
-    if (ret == (nb_sectors * 512))
+    ret = raw_pread(bs, sector_num * BDRV_SECTOR_SIZE, buf,
+                    nb_sectors * BDRV_SECTOR_SIZE);
+    if (ret == (nb_sectors * BDRV_SECTOR_SIZE))
         ret = 0;
     return ret;
 }
@@ -480,8 +481,9 @@ static int raw_write(BlockDriverState *bs, int64_t sector_num,
                      const uint8_t *buf, int nb_sectors)
 {
     int ret;
-    ret = raw_pwrite(bs, sector_num * 512, buf, nb_sectors * 512);
-    if (ret == (nb_sectors * 512))
+    ret = raw_pwrite(bs, sector_num * BDRV_SECTOR_SIZE, buf,
+                     nb_sectors * BDRV_SECTOR_SIZE);
+    if (ret == (nb_sectors * BDRV_SECTOR_SIZE))
         ret = 0;
     return ret;
 }
@@ -494,7 +496,7 @@ static int qiov_is_aligned(QEMUIOVector *qiov)
     int i;
 
     for (i = 0; i < qiov->niov; i++) {
-        if ((uintptr_t) qiov->iov[i].iov_base % 512) {
+        if ((uintptr_t) qiov->iov[i].iov_base % BDRV_SECTOR_SIZE) {
             return 0;
         }
     }
@@ -703,7 +705,7 @@ static int raw_create(const char *filename, QEMUOptionParameter *options)
     /* Read out options */
     while (options && options->name) {
         if (!strcmp(options->name, BLOCK_OPT_SIZE)) {
-            total_size = options->value.n / 512;
+            total_size = options->value.n / BDRV_SECTOR_SIZE;
         }
         options++;
     }
@@ -713,7 +715,7 @@ static int raw_create(const char *filename, QEMUOptionParameter *options)
     if (fd < 0) {
         result = -errno;
     } else {
-        if (ftruncate(fd, total_size * 512) != 0) {
+        if (ftruncate(fd, total_size * BDRV_SECTOR_SIZE) != 0) {
             result = -errno;
         }
         if (close(fd) != 0) {
@@ -976,7 +978,7 @@ static int hdev_create(const char *filename, QEMUOptionParameter *options)
     /* Read out options */
     while (options && options->name) {
         if (!strcmp(options->name, "size")) {
-            total_size = options->value.n / 512;
+            total_size = options->value.n / BDRV_SECTOR_SIZE;
         }
         options++;
     }
@@ -989,7 +991,7 @@ static int hdev_create(const char *filename, QEMUOptionParameter *options)
         ret = -errno;
     else if (!S_ISBLK(stat_buf.st_mode) && !S_ISCHR(stat_buf.st_mode))
         ret = -ENODEV;
-    else if (lseek(fd, 0, SEEK_END) < total_size * 512)
+    else if (lseek(fd, 0, SEEK_END) < total_size * BDRV_SECTOR_SIZE)
         ret = -ENOSPC;
 
     close(fd);

@@ -26,8 +26,6 @@
 #include <hw/pc.h>
 #include <hw/pci.h>
 #include <hw/scsi.h>
-#include "block.h"
-#include "block_int.h"
 #include "qemu-timer.h"
 #include "sysemu.h"
 #include "dma.h"
@@ -98,6 +96,7 @@ static void ide_identify(IDEState *s)
 {
     uint16_t *p;
     unsigned int oldsize;
+    IDEDevice *dev;
 
     if (s->identify_set) {
 	memcpy(s->io_buffer, s->identify_data, sizeof(s->identify_data));
@@ -165,8 +164,9 @@ static void ide_identify(IDEState *s)
     put_le16(p + 101, s->nb_sectors >> 16);
     put_le16(p + 102, s->nb_sectors >> 32);
     put_le16(p + 103, s->nb_sectors >> 48);
-    if (s->conf && s->conf->physical_block_size)
-        put_le16(p + 106, 0x6000 | get_physical_block_exp(s->conf));
+    dev = s->unit ? s->bus->slave : s->bus->master;
+    if (dev && dev->conf.physical_block_size)
+        put_le16(p + 106, 0x6000 | get_physical_block_exp(&dev->conf));
 
     memcpy(s->identify_data, p, sizeof(s->identify_data));
     s->identify_set = 1;
@@ -2594,39 +2594,35 @@ void ide_bus_reset(IDEBus *bus)
     ide_clear_hob(bus);
 }
 
-void ide_init_drive(IDEState *s, DriveInfo *dinfo, BlockConf *conf,
-        const char *version)
+void ide_init_drive(IDEState *s, DriveInfo *dinfo,
+                    const char *version, const char *serial)
 {
     int cylinders, heads, secs;
     uint64_t nb_sectors;
 
-    if (dinfo && dinfo->bdrv) {
-        s->bs = dinfo->bdrv;
-        bdrv_get_geometry(s->bs, &nb_sectors);
-        bdrv_guess_geometry(s->bs, &cylinders, &heads, &secs);
-        s->cylinders = cylinders;
-        s->heads = heads;
-        s->sectors = secs;
-        s->nb_sectors = nb_sectors;
-        /* The SMART values should be preserved across power cycles
-           but they aren't.  */
-        s->smart_enabled = 1;
-        s->smart_autosave = 1;
-        s->smart_errors = 0;
-        s->smart_selftest_count = 0;
-        if (bdrv_get_type_hint(s->bs) == BDRV_TYPE_CDROM) {
-            s->is_cdrom = 1;
-            bdrv_set_change_cb(s->bs, cdrom_change_cb, s);
-        }
-        strncpy(s->drive_serial_str, drive_get_serial(s->bs),
-                sizeof(s->drive_serial_str));
-        if (conf) {
-            s->conf = conf;
-        }
+    s->bs = dinfo->bdrv;
+    bdrv_get_geometry(s->bs, &nb_sectors);
+    bdrv_guess_geometry(s->bs, &cylinders, &heads, &secs);
+    s->cylinders = cylinders;
+    s->heads = heads;
+    s->sectors = secs;
+    s->nb_sectors = nb_sectors;
+    /* The SMART values should be preserved across power cycles
+       but they aren't.  */
+    s->smart_enabled = 1;
+    s->smart_autosave = 1;
+    s->smart_errors = 0;
+    s->smart_selftest_count = 0;
+    if (bdrv_get_type_hint(s->bs) == BDRV_TYPE_CDROM) {
+        s->is_cdrom = 1;
+        bdrv_set_change_cb(s->bs, cdrom_change_cb, s);
     }
-    if (strlen(s->drive_serial_str) == 0)
+    if (serial && *serial) {
+        strncpy(s->drive_serial_str, serial, sizeof(s->drive_serial_str));
+    } else {
         snprintf(s->drive_serial_str, sizeof(s->drive_serial_str),
                  "QM%05d", s->drive_serial);
+    }
     if (version) {
         pstrcpy(s->version, sizeof(s->version), version);
     } else {
@@ -2635,27 +2631,47 @@ void ide_init_drive(IDEState *s, DriveInfo *dinfo, BlockConf *conf,
     ide_reset(s);
 }
 
-void ide_init2(IDEBus *bus, DriveInfo *hd0, DriveInfo *hd1,
-               qemu_irq irq)
+static void ide_init1(IDEBus *bus, int unit)
 {
-    IDEState *s;
     static int drive_serial = 1;
+    IDEState *s = &bus->ifs[unit];
+
+    s->bus = bus;
+    s->unit = unit;
+    s->drive_serial = drive_serial++;
+    s->io_buffer = qemu_blockalign(s->bs, IDE_DMA_BUF_SECTORS*512 + 4);
+    s->io_buffer_total_len = IDE_DMA_BUF_SECTORS*512 + 4;
+    s->smart_selftest_data = qemu_blockalign(s->bs, 512);
+    s->sector_write_timer = qemu_new_timer(vm_clock,
+                                           ide_sector_write_timer_cb, s);
+}
+
+void ide_init2(IDEBus *bus, qemu_irq irq)
+{
     int i;
 
     for(i = 0; i < 2; i++) {
-        s = bus->ifs + i;
-        s->bus = bus;
-        s->unit = i;
-        s->drive_serial = drive_serial++;
-        s->io_buffer = qemu_blockalign(s->bs, IDE_DMA_BUF_SECTORS*512 + 4);
-        s->io_buffer_total_len = IDE_DMA_BUF_SECTORS*512 + 4;
-        s->smart_selftest_data = qemu_blockalign(s->bs, 512);
-        s->sector_write_timer = qemu_new_timer(vm_clock,
-                                               ide_sector_write_timer_cb, s);
-        if (i == 0)
-            ide_init_drive(s, hd0, NULL, NULL);
-        if (i == 1)
-            ide_init_drive(s, hd1, NULL, NULL);
+        ide_init1(bus, i);
+        ide_reset(&bus->ifs[i]);
+    }
+    bus->irq = irq;
+}
+
+/* TODO convert users to qdev and remove */
+void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
+                                    DriveInfo *hd1, qemu_irq irq)
+{
+    int i;
+    DriveInfo *dinfo;
+
+    for(i = 0; i < 2; i++) {
+        dinfo = i == 0 ? hd0 : hd1;
+        ide_init1(bus, i);
+        if (dinfo) {
+            ide_init_drive(&bus->ifs[i], dinfo, NULL, dinfo->serial);
+        } else {
+            ide_reset(&bus->ifs[i]);
+        }
     }
     bus->irq = irq;
 }

@@ -314,7 +314,7 @@ int pmac_ide_init (DriveInfo **hd_table, qemu_irq irq,
     int pmac_ide_memory;
 
     d = qemu_mallocz(sizeof(MACIOIDEState));
-    ide_init2(&d->bus, hd_table[0], hd_table[1], irq);
+    ide_init2_with_non_qdev_drives(&d->bus, hd_table[0], hd_table[1], irq);
 
     if (dbdma)
         DBDMA_register_channel(dbdma, channel, dma_irq, pmac_ide_transfer, pmac_ide_flush, d);

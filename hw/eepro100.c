@@ -45,7 +45,6 @@
  * EE100   eepro100_read2          feature is missing in this emulation: unknown word read
  */
 
-#include <stdbool.h>            /* bool */
 #include <stddef.h>             /* offsetof */
 #include "hw.h"
 #include "pci.h"
