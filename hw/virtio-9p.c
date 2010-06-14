@@ -180,9 +180,17 @@ static int v9fs_do_fstat(V9fsState *s, int fd, struct stat *stbuf)
     return s->ops->fstat(&s->ctx, fd, stbuf);
 }
 
-static int v9fs_do_open2(V9fsState *s, V9fsString *path, int flags, mode_t mode)
+static int v9fs_do_open2(V9fsState *s, V9fsCreateState *vs)
 {
-    return s->ops->open2(&s->ctx, path->data, flags, mode);
+    FsCred cred;
+    int flags;
+
+    cred_init(&cred);
+    cred.fc_uid = vs->fidp->uid;
+    cred.fc_mode = vs->perm & 0777;
+    flags = omode_to_uflags(vs->mode) | O_CREAT;
+
+    return s->ops->open2(&s->ctx, vs->fullname.data, flags, &cred);
 }
 
 static int v9fs_do_symlink(V9fsState *s, V9fsString *oldpath,
@@ -1815,9 +1823,7 @@ static void v9fs_create_post_lstat(V9fsState *s, V9fsCreateState *vs, int err)
         err = v9fs_do_mksock(s, &vs->fullname);
         v9fs_create_post_mksock(s, vs, err);
     } else {
-        vs->fidp->fd = v9fs_do_open2(s, &vs->fullname,
-                                omode_to_uflags(vs->mode) | O_CREAT,
-                                vs->perm & 0777);
+        vs->fidp->fd = v9fs_do_open2(s, vs);
         v9fs_create_post_open2(s, vs, err);
     }
 
