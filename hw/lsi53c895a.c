@@ -490,10 +490,10 @@ static void lsi_bad_phase(LSIState *s, int out, int new_phase)
 {
     /* Trigger a phase mismatch.  */
     if (s->ccntl0 & LSI_CCNTL0_ENPMJ) {
-        if ((s->ccntl0 & LSI_CCNTL0_PMJCTL) || out) {
-            s->dsp = s->pmjad1;
+        if ((s->ccntl0 & LSI_CCNTL0_PMJCTL)) {
+            s->dsp = out ? s->pmjad1 : s->pmjad2;
         } else {
-            s->dsp = s->pmjad2;
+            s->dsp = (s->scntl2 & LSI_SCNTL2_WSR ? s->pmjad2 : s->pmjad1);
         }
         DPRINTF("Data phase mismatch jump to %08x\n", s->dsp);
     } else {
