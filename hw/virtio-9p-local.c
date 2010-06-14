@@ -129,9 +129,14 @@ static ssize_t local_writev(FsContext *ctx, int fd, const struct iovec *iov,
     return writev(fd, iov, iovcnt);
 }
 
-static int local_chmod(FsContext *ctx, const char *path, mode_t mode)
+static int local_chmod(FsContext *fs_ctx, const char *path, FsCred *credp)
 {
-    return chmod(rpath(ctx, path), mode);
+    if (fs_ctx->fs_sm == SM_MAPPED) {
+        return local_set_xattr(rpath(fs_ctx, path), credp);
+    } else if (fs_ctx->fs_sm == SM_PASSTHROUGH) {
+        return chmod(rpath(fs_ctx, path), credp->fc_mode);
+    }
+    return -1;
 }
 
 static int local_mknod(FsContext *ctx, const char *path, mode_t mode, dev_t dev)
@@ -253,8 +258,6 @@ static int local_remove(FsContext *ctx, const char *path)
 
 static int local_fsync(FsContext *ctx, int fd)
 {
-    if (0) /* Just to supress the warning. Will be removed in next patch. */
-        (void)local_set_xattr(NULL, NULL);
     return fsync(fd);
 }
 
