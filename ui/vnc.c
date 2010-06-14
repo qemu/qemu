@@ -2445,7 +2445,7 @@ static int vnc_refresh_server_surface(VncDisplay *vd)
             guest_ptr  = guest_row;
             server_ptr = server_row;
 
-            for (x = 0; x < vd->guest.ds->width;
+            for (x = 0; x + 15 < vd->guest.ds->width;
                     x += 16, guest_ptr += cmp_bytes, server_ptr += cmp_bytes) {
                 if (!test_and_clear_bit((x / 16), vd->guest.dirty[y]))
                     continue;
