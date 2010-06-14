@@ -648,10 +648,6 @@ static void hpet_reset(DeviceState *d)
 
     s->hpet_counter = 0ULL;
     s->hpet_offset = 0ULL;
-    /* 64-bit main counter; LegacyReplacementRoute. */
-    s->capability = 0x8086a001ULL;
-    s->capability |= (s->num_timers - 1) << HPET_ID_NUM_TIM_SHIFT;
-    s->capability |= ((HPET_CLK_PERIOD) << 32);
     s->config = 0ULL;
     if (count > 0) {
         /* we don't enable pit when hpet_reset is first called (by hpet_init)
@@ -695,6 +691,11 @@ static int hpet_init(SysBusDevice *dev)
         timer->tn = i;
         timer->state = s;
     }
+
+    /* 64-bit main counter; LegacyReplacementRoute. */
+    s->capability = 0x8086a001ULL;
+    s->capability |= (s->num_timers - 1) << HPET_ID_NUM_TIM_SHIFT;
+    s->capability |= ((HPET_CLK_PERIOD) << 32);
 
     isa_reserve_irq(RTC_ISA_IRQ);
     qdev_init_gpio_in(&dev->qdev, hpet_handle_rtc_irq, 1);
