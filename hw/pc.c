@@ -62,6 +62,7 @@
 #define FW_CFG_SMBIOS_ENTRIES (FW_CFG_ARCH_LOCAL + 1)
 #define FW_CFG_IRQ0_OVERRIDE (FW_CFG_ARCH_LOCAL + 2)
 #define FW_CFG_E820_TABLE (FW_CFG_ARCH_LOCAL + 3)
+#define FW_CFG_HPET (FW_CFG_ARCH_LOCAL + 4)
 
 #define E820_NR_ENTRIES		16
 
@@ -485,6 +486,8 @@ static void *bochs_bios_init(void)
     fw_cfg_add_bytes(fw_cfg, FW_CFG_E820_TABLE, (uint8_t *)&e820_table,
                      sizeof(struct e820_table));
 
+    fw_cfg_add_bytes(fw_cfg, FW_CFG_HPET, (uint8_t *)&hpet_cfg,
+                     sizeof(struct hpet_fw_config));
     /* allocate memory for the NUMA channel: one (64bit) word for the number
      * of nodes, one word for each VCPU->node and one word for each node to
      * hold the amount of memory.

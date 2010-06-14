@@ -71,7 +71,10 @@ typedef struct HPETState {
     uint64_t config;            /* configuration */
     uint64_t isr;               /* interrupt status reg */
     uint64_t hpet_counter;      /* main counter */
+    uint8_t  hpet_id;           /* instance id */
 } HPETState;
+
+struct hpet_fw_config hpet_cfg = {.count = ~0};
 
 static uint32_t hpet_in_legacy_mode(HPETState *s)
 {
@@ -228,6 +231,7 @@ static int hpet_post_load(void *opaque, int version_id)
     /* Push number of timers into capability returned via HPET_ID */
     s->capability &= ~HPET_ID_NUM_TIM_MASK;
     s->capability |= (s->num_timers - 1) << HPET_ID_NUM_TIM_SHIFT;
+    hpet_cfg.hpet[s->hpet_id].event_timer_block_id = (uint32_t)s->capability;
 
     /* Derive HPET_MSI_SUPPORT from the capability of the first timer. */
     s->flags &= ~(1 << HPET_MSI_SUPPORT);
@@ -657,6 +661,8 @@ static void hpet_reset(DeviceState *d)
          */
         hpet_pit_enable();
     }
+    hpet_cfg.hpet[s->hpet_id].event_timer_block_id = (uint32_t)s->capability;
+    hpet_cfg.hpet[s->hpet_id].address = sysbus_from_qdev(d)->mmio[0].addr;
     count = 1;
 }
 
@@ -675,6 +681,16 @@ static int hpet_init(SysBusDevice *dev)
     HPETState *s = FROM_SYSBUS(HPETState, dev);
     int i, iomemtype;
     HPETTimer *timer;
+
+    if (hpet_cfg.count == ~0) /* first instance */
+        hpet_cfg.count = 0;
+
+    if (hpet_cfg.count == 8) {
+        fprintf(stderr, "Only 8 instances of HPET is allowed\n");
+        return -1;
+    }
+
+    s->hpet_id = hpet_cfg.count++;
 
     for (i = 0; i < HPET_NUM_IRQ_ROUTES; i++) {
         sysbus_init_irq(dev, &s->irqs[i]);

@@ -53,4 +53,19 @@
 #define HPET_TN_INT_ROUTE_CAP_SHIFT 32
 #define HPET_TN_CFG_BITS_READONLY_OR_RESERVED 0xffff80b1U
 
+struct hpet_fw_entry
+{
+    uint32_t event_timer_block_id;
+    uint64_t address;
+    uint16_t min_tick;
+    uint8_t page_prot;
+} __attribute__ ((packed));
+
+struct hpet_fw_config
+{
+    uint8_t count;
+    struct hpet_fw_entry hpet[8];
+} __attribute__ ((packed));
+
+extern struct hpet_fw_config hpet_cfg;
 #endif
