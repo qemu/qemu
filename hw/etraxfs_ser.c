@@ -49,8 +49,11 @@ struct etrax_serial
     CharDriverState *chr;
     qemu_irq irq;
 
-    /* This pending thing is a hack.  */
     int pending_tx;
+
+    uint8_t rx_fifo[16];
+    unsigned int rx_fifo_pos;
+    unsigned int rx_fifo_len;
 
     /* Control registers.  */
     uint32_t regs[R_MAX];
@@ -58,11 +61,15 @@ struct etrax_serial
 
 static void ser_update_irq(struct etrax_serial *s)
 {
-    s->regs[R_INTR] &= ~(s->regs[RW_ACK_INTR]);
-    s->regs[R_MASKED_INTR] = s->regs[R_INTR] & s->regs[RW_INTR_MASK];
 
+    if (s->rx_fifo_len) {
+        s->regs[R_INTR] |= 8;
+    } else {
+        s->regs[R_INTR] &= ~8;
+    }
+
+    s->regs[R_MASKED_INTR] = s->regs[R_INTR] & s->regs[RW_INTR_MASK];
     qemu_set_irq(s->irq, !!s->regs[R_MASKED_INTR]);
-    s->regs[RW_ACK_INTR] = 0;
 }
 
 static uint32_t ser_readl (void *opaque, target_phys_addr_t addr)
@@ -75,16 +82,25 @@ static uint32_t ser_readl (void *opaque, target_phys_addr_t addr)
     switch (addr)
     {
         case R_STAT_DIN:
-            r = s->regs[RS_STAT_DIN];
+            r = s->rx_fifo[(s->rx_fifo_pos - s->rx_fifo_len) & 15];
+            if (s->rx_fifo_len) {
+                r |= 1 << STAT_DAV;
+            }
+            r |= 1 << STAT_TR_RDY;
+            r |= 1 << STAT_TR_IDLE;
             break;
         case RS_STAT_DIN:
-            r = s->regs[addr];
-            /* Read side-effect: clear dav.  */
-            s->regs[addr] &= ~(1 << STAT_DAV);
+            r = s->rx_fifo[(s->rx_fifo_pos - s->rx_fifo_len) & 15];
+            if (s->rx_fifo_len) {
+                r |= 1 << STAT_DAV;
+                s->rx_fifo_len--;
+            }
+            r |= 1 << STAT_TR_RDY;
+            r |= 1 << STAT_TR_IDLE;
             break;
         default:
             r = s->regs[addr];
-            D(printf ("%s %x=%x\n", __func__, addr, r));
+            D(printf ("%s " TARGET_FMT_plx "=%x\n", __func__, addr, r));
             break;
     }
     return r;
@@ -97,23 +113,25 @@ ser_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
     unsigned char ch = value;
     D(CPUState *env = s->env);
 
-    D(printf ("%s %x %x\n",  __func__, addr, value));
+    D(printf ("%s " TARGET_FMT_plx "=%x\n",  __func__, addr, value));
     addr >>= 2;
     switch (addr)
     {
         case RW_DOUT:
             qemu_chr_write(s->chr, &ch, 1);
-            s->regs[R_INTR] |= 1;
+            s->regs[R_INTR] |= 3;
             s->pending_tx = 1;
             s->regs[addr] = value;
             break;
         case RW_ACK_INTR:
-            s->regs[addr] = value;
-            if (s->pending_tx && (s->regs[addr] & 1)) {
-                s->regs[R_INTR] |= 1;
+            if (s->pending_tx) {
+                value &= ~1;
                 s->pending_tx = 0;
-                s->regs[addr] &= ~1;
+                D(printf("fixedup value=%x r_intr=%x\n", value, s->regs[R_INTR]));
             }
+            s->regs[addr] = value;
+            s->regs[R_INTR] &= ~value;
+            D(printf("r_intr=%x\n", s->regs[R_INTR]));
             break;
         default:
             s->regs[addr] = value;
@@ -135,11 +153,21 @@ static CPUWriteMemoryFunc * const ser_write[] = {
 static void serial_receive(void *opaque, const uint8_t *buf, int size)
 {
     struct etrax_serial *s = opaque;
+    int i;
 
-    s->regs[R_INTR] |= 8;
-    s->regs[RS_STAT_DIN] &= ~0xff;
-    s->regs[RS_STAT_DIN] |= (buf[0] & 0xff);
-    s->regs[RS_STAT_DIN] |= (1 << STAT_DAV); /* dav.  */
+    /* Got a byte.  */
+    if (s->rx_fifo_len >= 16) {
+        printf("WARNING: UART dropped char.\n");
+        return;
+    }
+
+    for (i = 0; i < size; i++) { 
+        s->rx_fifo[s->rx_fifo_pos] = buf[i];
+        s->rx_fifo_pos++;
+        s->rx_fifo_pos &= 15;
+        s->rx_fifo_len++;
+    }
+
     ser_update_irq(s);
 }
 
@@ -149,10 +177,11 @@ static int serial_can_receive(void *opaque)
     int r;
 
     /* Is the receiver enabled?  */
-    r = s->regs[RW_REC_CTRL] & 1;
+    if (!(s->regs[RW_REC_CTRL] & (1 << 3))) {
+        return 0;
+    }
 
-    /* Pending rx data?  */
-    r |= !(s->regs[R_INTR] & 8);
+    r = sizeof(s->rx_fifo) - s->rx_fifo_len;
     return r;
 }
 
