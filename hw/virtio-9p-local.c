@@ -27,9 +27,38 @@ static const char *rpath(FsContext *ctx, const char *path)
     return buffer;
 }
 
-static int local_lstat(FsContext *ctx, const char *path, struct stat *stbuf)
+
+static int local_lstat(FsContext *fs_ctx, const char *path, struct stat *stbuf)
 {
-    return lstat(rpath(ctx, path), stbuf);
+    int err;
+    err =  lstat(rpath(fs_ctx, path), stbuf);
+    if (err) {
+        return err;
+    }
+    if (fs_ctx->fs_sm == SM_MAPPED) {
+        /* Actual credentials are part of extended attrs */
+        uid_t tmp_uid;
+        gid_t tmp_gid;
+        mode_t tmp_mode;
+        dev_t tmp_dev;
+        if (getxattr(rpath(fs_ctx, path), "user.virtfs.uid", &tmp_uid,
+                    sizeof(uid_t)) > 0) {
+            stbuf->st_uid = tmp_uid;
+        }
+        if (getxattr(rpath(fs_ctx, path), "user.virtfs.gid", &tmp_gid,
+                    sizeof(gid_t)) > 0) {
+            stbuf->st_gid = tmp_gid;
+        }
+        if (getxattr(rpath(fs_ctx, path), "user.virtfs.mode", &tmp_mode,
+                    sizeof(mode_t)) > 0) {
+            stbuf->st_mode = tmp_mode;
+        }
+        if (getxattr(rpath(fs_ctx, path), "user.virtfs.rdev", &tmp_dev,
+                        sizeof(dev_t)) > 0) {
+                stbuf->st_rdev = tmp_dev;
+        }
+    }
+    return err;
 }
 
 static int local_set_xattr(const char *path, FsCred *credp)
@@ -171,9 +200,34 @@ static int local_mkdir(FsContext *ctx, const char *path, mode_t mode)
     return mkdir(rpath(ctx, path), mode);
 }
 
-static int local_fstat(FsContext *ctx, int fd, struct stat *stbuf)
+static int local_fstat(FsContext *fs_ctx, int fd, struct stat *stbuf)
 {
-    return fstat(fd, stbuf);
+    int err;
+    err = fstat(fd, stbuf);
+    if (err) {
+        return err;
+    }
+    if (fs_ctx->fs_sm == SM_MAPPED) {
+        /* Actual credentials are part of extended attrs */
+        uid_t tmp_uid;
+        gid_t tmp_gid;
+        mode_t tmp_mode;
+        dev_t tmp_dev;
+
+        if (fgetxattr(fd, "user.virtfs.uid", &tmp_uid, sizeof(uid_t)) > 0) {
+            stbuf->st_uid = tmp_uid;
+        }
+        if (fgetxattr(fd, "user.virtfs.gid", &tmp_gid, sizeof(gid_t)) > 0) {
+            stbuf->st_gid = tmp_gid;
+        }
+        if (fgetxattr(fd, "user.virtfs.mode", &tmp_mode, sizeof(mode_t)) > 0) {
+            stbuf->st_mode = tmp_mode;
+        }
+        if (fgetxattr(fd, "user.virtfs.rdev", &tmp_dev, sizeof(dev_t)) > 0) {
+                stbuf->st_rdev = tmp_dev;
+        }
+    }
+    return err;
 }
 
 static int local_open2(FsContext *ctx, const char *path, int flags, mode_t mode)
