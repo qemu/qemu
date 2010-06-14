@@ -1574,7 +1574,8 @@ static QObject* bdrv_info_stats_bs(BlockDriverState *bs)
                              "} }",
                              bs->rd_bytes, bs->wr_bytes,
                              bs->rd_ops, bs->wr_ops,
-                             bs->wr_highest_sector * (long)BDRV_SECTOR_SIZE);
+                             bs->wr_highest_sector *
+                             (uint64_t)BDRV_SECTOR_SIZE);
     dict  = qobject_to_qdict(res);
 
     if (*bs->device_name) {
