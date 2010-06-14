@@ -55,7 +55,7 @@ typedef struct FileOperations
     int (*mksock)(FsContext *, const char *);
     int (*utime)(FsContext *, const char *, const struct utimbuf *);
     int (*remove)(FsContext *, const char *);
-    int (*symlink)(FsContext *, const char *, const char *);
+    int (*symlink)(FsContext *, const char *, const char *, FsCred *);
     int (*link)(FsContext *, const char *, const char *);
     int (*setuid)(FsContext *, uid_t);
     int (*close)(FsContext *, int);

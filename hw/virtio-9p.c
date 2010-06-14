@@ -199,10 +199,15 @@ static int v9fs_do_open2(V9fsState *s, V9fsCreateState *vs)
     return s->ops->open2(&s->ctx, vs->fullname.data, flags, &cred);
 }
 
-static int v9fs_do_symlink(V9fsState *s, V9fsString *oldpath,
-                            V9fsString *newpath)
+static int v9fs_do_symlink(V9fsState *s, V9fsCreateState *vs)
 {
-    return s->ops->symlink(&s->ctx, oldpath->data, newpath->data);
+    FsCred cred;
+    cred_init(&cred);
+    cred.fc_uid = vs->fidp->uid;
+    cred.fc_mode = vs->perm | 0777;
+
+    return s->ops->symlink(&s->ctx, vs->extension.data, vs->fullname.data,
+            &cred);
 }
 
 static int v9fs_do_link(V9fsState *s, V9fsString *oldpath, V9fsString *newpath)
@@ -1785,7 +1790,7 @@ static void v9fs_create_post_lstat(V9fsState *s, V9fsCreateState *vs, int err)
         err = v9fs_do_mkdir(s, vs);
         v9fs_create_post_mkdir(s, vs, err);
     } else if (vs->perm & P9_STAT_MODE_SYMLINK) {
-        err = v9fs_do_symlink(s, &vs->extension, &vs->fullname);
+        err = v9fs_do_symlink(s, vs);
         v9fs_create_post_perms(s, vs, err);
     } else if (vs->perm & P9_STAT_MODE_LINK) {
         int32_t nfid = atoi(vs->extension.data);

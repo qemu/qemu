@@ -107,10 +107,25 @@ static int local_post_create_passthrough(FsContext *fs_ctx, const char *path,
     return 0;
 }
 
-static ssize_t local_readlink(FsContext *ctx, const char *path,
-                                char *buf, size_t bufsz)
+static ssize_t local_readlink(FsContext *fs_ctx, const char *path,
+        char *buf, size_t bufsz)
 {
-    return readlink(rpath(ctx, path), buf, bufsz);
+    ssize_t tsize = -1;
+    if (fs_ctx->fs_sm == SM_MAPPED) {
+        int fd;
+        fd = open(rpath(fs_ctx, path), O_RDONLY);
+        if (fd == -1) {
+            return -1;
+        }
+        do {
+            tsize = read(fd, (void *)buf, bufsz);
+        } while (tsize == -1 && errno == EINTR);
+        close(fd);
+        return tsize;
+    } else if (fs_ctx->fs_sm == SM_PASSTHROUGH) {
+        tsize = readlink(rpath(fs_ctx, path), buf, bufsz);
+    }
+    return tsize;
 }
 
 static int local_close(FsContext *ctx, int fd)
@@ -314,10 +329,58 @@ err_end:
 }
 
 
-static int local_symlink(FsContext *ctx, const char *oldpath,
-                            const char *newpath)
+static int local_symlink(FsContext *fs_ctx, const char *oldpath,
+        const char *newpath, FsCred *credp)
 {
-    return symlink(oldpath, rpath(ctx, newpath));
+    int err = -1;
+    int serrno = 0;
+
+    /* Determine the security model */
+    if (fs_ctx->fs_sm == SM_MAPPED) {
+        int fd;
+        ssize_t oldpath_size, write_size;
+        fd = open(rpath(fs_ctx, newpath), O_CREAT|O_EXCL|O_RDWR,
+                SM_LOCAL_MODE_BITS);
+        if (fd == -1) {
+            return fd;
+        }
+        /* Write the oldpath (target) to the file. */
+        oldpath_size = strlen(oldpath) + 1;
+        do {
+            write_size = write(fd, (void *)oldpath, oldpath_size);
+        } while (write_size == -1 && errno == EINTR);
+
+        if (write_size != oldpath_size) {
+            serrno = errno;
+            close(fd);
+            err = -1;
+            goto err_end;
+        }
+        close(fd);
+        /* Set cleint credentials in symlink's xattr */
+        credp->fc_mode = credp->fc_mode|S_IFLNK;
+        err = local_set_xattr(rpath(fs_ctx, newpath), credp);
+        if (err == -1) {
+            serrno = errno;
+            goto err_end;
+        }
+    } else if (fs_ctx->fs_sm == SM_PASSTHROUGH) {
+        err = symlink(oldpath, rpath(fs_ctx, newpath));
+        if (err) {
+            return err;
+        }
+        err = lchown(rpath(fs_ctx, newpath), credp->fc_uid, credp->fc_gid);
+        if (err == -1) {
+            serrno = errno;
+            goto err_end;
+        }
+    }
+    return err;
+
+err_end:
+    remove(rpath(fs_ctx, newpath));
+    errno = serrno;
+    return err;
 }
 
 static int local_link(FsContext *ctx, const char *oldpath, const char *newpath)
