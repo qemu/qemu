@@ -42,6 +42,7 @@ def main():
 
     qemu = qmp.QEMUMonitorProtocol(argv[1])
     qemu.connect()
+    qemu.send("qmp_capabilities")
 
     print 'Connected!'
 
