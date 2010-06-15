@@ -74,7 +74,7 @@ typedef struct HPETState {
     uint8_t  hpet_id;           /* instance id */
 } HPETState;
 
-struct hpet_fw_config hpet_cfg = {.count = ~0};
+struct hpet_fw_config hpet_cfg = {.count = UINT8_MAX};
 
 static uint32_t hpet_in_legacy_mode(HPETState *s)
 {
@@ -682,8 +682,10 @@ static int hpet_init(SysBusDevice *dev)
     int i, iomemtype;
     HPETTimer *timer;
 
-    if (hpet_cfg.count == ~0) /* first instance */
+    if (hpet_cfg.count == UINT8_MAX) {
+        /* first instance */
         hpet_cfg.count = 0;
+    }
 
     if (hpet_cfg.count == 8) {
         fprintf(stderr, "Only 8 instances of HPET is allowed\n");
