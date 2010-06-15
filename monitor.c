@@ -112,7 +112,7 @@ typedef struct mon_cmd_t {
         int  (*cmd_async)(Monitor *mon, const QDict *params,
                           MonitorCompletion *cb, void *opaque);
     } mhandler;
-    int async;
+    int flags;
 } mon_cmd_t;
 
 /* file descriptors passed via SCM_RIGHTS */
@@ -327,7 +327,7 @@ static inline int monitor_handler_ported(const mon_cmd_t *cmd)
 
 static inline bool monitor_handler_is_async(const mon_cmd_t *cmd)
 {
-    return cmd->async != 0;
+    return cmd->flags & MONITOR_CMD_ASYNC;
 }
 
 static inline int monitor_has_error(const Monitor *mon)
@@ -2536,7 +2536,7 @@ static const mon_cmd_t info_cmds[] = {
         .help       = "show balloon information",
         .user_print = monitor_print_balloon,
         .mhandler.info_async = do_info_balloon,
-        .async      = 1,
+        .flags      = MONITOR_CMD_ASYNC,
     },
     {
         .name       = "qtree",
