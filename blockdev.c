@@ -15,7 +15,7 @@
 #include "qemu-config.h"
 #include "sysemu.h"
 
-struct drivelist drives = QTAILQ_HEAD_INITIALIZER(drives);
+static QTAILQ_HEAD(drivelist, DriveInfo) drives = QTAILQ_HEAD_INITIALIZER(drives);
 
 QemuOpts *drive_add(const char *file, const char *fmt, ...)
 {
@@ -88,19 +88,6 @@ const char *drive_get_serial(BlockDriverState *bdrv)
     }
 
     return "\0";
-}
-
-BlockInterfaceErrorAction drive_get_on_error(
-    BlockDriverState *bdrv, int is_read)
-{
-    DriveInfo *dinfo;
-
-    QTAILQ_FOREACH(dinfo, &drives, next) {
-        if (dinfo->bdrv == bdrv)
-            return is_read ? dinfo->on_read_error : dinfo->on_write_error;
-    }
-
-    return is_read ? BLOCK_ERR_REPORT : BLOCK_ERR_STOP_ENOSPC;
 }
 
 static void bdrv_format_print(void *opaque, const char *name)
@@ -418,12 +405,12 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi, int *fatal_error)
     dinfo->type = type;
     dinfo->bus = bus_id;
     dinfo->unit = unit_id;
-    dinfo->on_read_error = on_read_error;
-    dinfo->on_write_error = on_write_error;
     dinfo->opts = opts;
     if (serial)
         strncpy(dinfo->serial, serial, sizeof(dinfo->serial) - 1);
     QTAILQ_INSERT_TAIL(&drives, dinfo, next);
+
+    bdrv_set_on_error(dinfo->bdrv, on_read_error, on_write_error);
 
     switch(type) {
     case IF_IDE:
@@ -462,7 +449,7 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi, int *fatal_error)
     case IF_COUNT:
         abort();
     }
-    if (!file) {
+    if (!file || !*file) {
         *fatal_error = 0;
         return NULL;
     }
@@ -499,16 +486,18 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi, int *fatal_error)
 
 void do_commit(Monitor *mon, const QDict *qdict)
 {
-    int all_devices;
-    DriveInfo *dinfo;
     const char *device = qdict_get_str(qdict, "device");
+    BlockDriverState *bs;
 
-    all_devices = !strcmp(device, "all");
-    QTAILQ_FOREACH(dinfo, &drives, next) {
-        if (!all_devices)
-            if (strcmp(bdrv_get_device_name(dinfo->bdrv), device))
-                continue;
-        bdrv_commit(dinfo->bdrv);
+    if (!strcmp(device, "all")) {
+        bdrv_commit_all();
+    } else {
+        bs = bdrv_find(device);
+        if (!bs) {
+            qerror_report(QERR_DEVICE_NOT_FOUND, device);
+            return;
+        }
+        bdrv_commit(bs);
     }
 }
 

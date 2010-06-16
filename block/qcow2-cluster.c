@@ -285,6 +285,7 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
     return 0;
 
 fail:
+    s->l1_table[l1_index] = old_l2_offset;
     qcow2_l2_cache_reset(bs);
     return ret;
 }

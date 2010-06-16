@@ -182,7 +182,7 @@ static void scsi_read_data(SCSIDevice *d, uint32_t tag)
 static int scsi_handle_write_error(SCSIDiskReq *r, int error)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
-    BlockInterfaceErrorAction action = drive_get_on_error(s->bs, 0);
+    BlockErrorAction action = bdrv_get_on_error(s->bs, 0);
 
     if (action == BLOCK_ERR_IGNORE) {
         bdrv_mon_event(s->bs, BDRV_ACTION_IGNORE, 0);

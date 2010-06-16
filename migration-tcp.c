@@ -128,9 +128,7 @@ MigrationState *tcp_start_outgoing_migration(Monitor *mon,
 
     if (ret < 0 && ret != -EINPROGRESS && ret != -EWOULDBLOCK) {
         DPRINTF("connect failed\n");
-        close(s->fd);
-        qemu_free(s);
-        return NULL;
+        migrate_fd_error(s);
     } else if (ret >= 0)
         migrate_fd_connect(s);
 

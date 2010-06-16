@@ -81,9 +81,29 @@
 #define dh_is_64bit_ptr (TCG_TARGET_REG_BITS == 64)
 #define dh_is_64bit(t) glue(dh_is_64bit_, dh_alias(t))
 
+#define dh_is_signed_void 0
+#define dh_is_signed_i32 0
+#define dh_is_signed_s32 1
+#define dh_is_signed_i64 0
+#define dh_is_signed_s64 1
+#define dh_is_signed_f32 0
+#define dh_is_signed_f64 0
+#define dh_is_signed_tl  0
+#define dh_is_signed_int 1
+/* ??? This is highly specific to the host cpu.  There are even special
+   extension instructions that may be required, e.g. ia64's addp4.  But
+   for now we don't support any 64-bit targets with 32-bit pointers.  */
+#define dh_is_signed_ptr 0
+#define dh_is_signed_env dh_is_signed_ptr
+#define dh_is_signed(t) dh_is_signed_##t
+
+#define dh_sizemask(t, n) \
+  sizemask |= dh_is_64bit(t) << (n*2); \
+  sizemask |= dh_is_signed(t) << (n*2+1)
+
 #define dh_arg(t, n) \
   args[n - 1] = glue(GET_TCGV_, dh_alias(t))(glue(arg, n)); \
-  sizemask |= dh_is_64bit(t) << n
+  dh_sizemask(t, n)
 
 #define dh_arg_decl(t, n) glue(TCGv_, dh_alias(t)) glue(arg, n)
 
@@ -138,8 +158,8 @@ static inline void glue(gen_helper_, name)(dh_retvar_decl0(ret)) \
 static inline void glue(gen_helper_, name)(dh_retvar_decl(ret) dh_arg_decl(t1, 1)) \
 { \
   TCGArg args[1]; \
-  int sizemask; \
-  sizemask = dh_is_64bit(ret); \
+  int sizemask = 0; \
+  dh_sizemask(ret, 0); \
   dh_arg(t1, 1); \
   tcg_gen_helperN(HELPER(name), flags, sizemask, dh_retvar(ret), 1, args); \
 }
@@ -149,8 +169,8 @@ static inline void glue(gen_helper_, name)(dh_retvar_decl(ret) dh_arg_decl(t1, 1
     dh_arg_decl(t2, 2)) \
 { \
   TCGArg args[2]; \
-  int sizemask; \
-  sizemask = dh_is_64bit(ret); \
+  int sizemask = 0; \
+  dh_sizemask(ret, 0); \
   dh_arg(t1, 1); \
   dh_arg(t2, 2); \
   tcg_gen_helperN(HELPER(name), flags, sizemask, dh_retvar(ret), 2, args); \
@@ -161,8 +181,8 @@ static inline void glue(gen_helper_, name)(dh_retvar_decl(ret) dh_arg_decl(t1, 1
     dh_arg_decl(t2, 2), dh_arg_decl(t3, 3)) \
 { \
   TCGArg args[3]; \
-  int sizemask; \
-  sizemask = dh_is_64bit(ret); \
+  int sizemask = 0; \
+  dh_sizemask(ret, 0); \
   dh_arg(t1, 1); \
   dh_arg(t2, 2); \
   dh_arg(t3, 3); \
@@ -174,8 +194,8 @@ static inline void glue(gen_helper_, name)(dh_retvar_decl(ret) dh_arg_decl(t1, 1
     dh_arg_decl(t2, 2), dh_arg_decl(t3, 3), dh_arg_decl(t4, 4)) \
 { \
   TCGArg args[4]; \
-  int sizemask; \
-  sizemask = dh_is_64bit(ret); \
+  int sizemask = 0; \
+  dh_sizemask(ret, 0); \
   dh_arg(t1, 1); \
   dh_arg(t2, 2); \
   dh_arg(t3, 3); \

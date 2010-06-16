@@ -609,12 +609,12 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
             if (!bus->devices[devfn])
                 goto found;
         }
-        error_report("PCI: no devfn available for %s, all in use", name);
+        error_report("PCI: no slot/function available for %s, all in use", name);
         return NULL;
     found: ;
     } else if (bus->devices[devfn]) {
-        error_report("PCI: devfn %d not available for %s, in use by %s",
-                     devfn, name, bus->devices[devfn]->name);
+        error_report("PCI: slot %d function %d not available for %s, in use by %s",
+                     PCI_SLOT(devfn), PCI_FUNC(devfn), name, bus->devices[devfn]->name);
         return NULL;
     }
     pci_dev->bus = bus;
@@ -1468,8 +1468,6 @@ PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
 
     pci_dev = pci_create(bus, devfn, pci_nic_names[i]);
     dev = &pci_dev->qdev;
-    if (nd->name)
-        dev->id = qemu_strdup(nd->name);
     qdev_set_nic_properties(dev, nd);
     if (qdev_init(dev) < 0)
         return NULL;

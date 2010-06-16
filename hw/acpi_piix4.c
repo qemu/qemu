@@ -283,9 +283,33 @@ static int vmstate_acpi_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateDescription vmstate_gpe = {
+    .name = "gpe",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT16(sts, struct gpe_regs),
+        VMSTATE_UINT16(en, struct gpe_regs),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_pci_status = {
+    .name = "pci_status",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32(up, struct pci_status),
+        VMSTATE_UINT32(down, struct pci_status),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_acpi = {
     .name = "piix4_pm",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .post_load = vmstate_acpi_post_load,
@@ -297,6 +321,9 @@ static const VMStateDescription vmstate_acpi = {
         VMSTATE_STRUCT(apm, PIIX4PMState, 0, vmstate_apm, APMState),
         VMSTATE_TIMER(tmr_timer, PIIX4PMState),
         VMSTATE_INT64(tmr_overflow_time, PIIX4PMState),
+        VMSTATE_STRUCT(gpe, PIIX4PMState, 2, vmstate_gpe, struct gpe_regs),
+        VMSTATE_STRUCT(pci0_status, PIIX4PMState, 2, vmstate_pci_status,
+                       struct pci_status),
         VMSTATE_END_OF_LIST()
     }
 };

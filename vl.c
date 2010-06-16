@@ -238,6 +238,9 @@ uint8_t qemu_uuid[16];
 static QEMUBootSetHandler *boot_set_handler;
 static void *boot_set_opaque;
 
+static NotifierList exit_notifiers =
+    NOTIFIER_LIST_INITIALIZER(exit_notifiers);
+
 int kvm_allowed = 0;
 uint32_t xen_domid;
 enum xen_mode xen_mode = XEN_EMULATE;
@@ -1780,6 +1783,21 @@ static int debugcon_parse(const char *devname)
     return 0;
 }
 
+void qemu_add_exit_notifier(Notifier *notify)
+{
+    notifier_list_add(&exit_notifiers, notify);
+}
+
+void qemu_remove_exit_notifier(Notifier *notify)
+{
+    notifier_list_remove(&exit_notifiers, notify);
+}
+
+static void qemu_run_exit_notifiers(void)
+{
+    notifier_list_notify(&exit_notifiers);
+}
+
 static const QEMUOption *lookup_opt(int argc, char **argv,
                                     const char **poptarg, int *poptind)
 {
@@ -1844,6 +1862,7 @@ int main(int argc, char **argv, char **envp)
     int show_vnc_port = 0;
     int defconfig = 1;
 
+    atexit(qemu_run_exit_notifiers);
     error_set_progname(argv[0]);
 
     init_clocks();

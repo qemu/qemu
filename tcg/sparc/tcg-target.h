@@ -87,6 +87,10 @@ enum {
 #define TCG_TARGET_STACK_ALIGN 8
 #endif
 
+#ifdef __arch64__
+#define TCG_TARGET_EXTEND_ARGS 1
+#endif
+
 /* optional instructions */
 #define TCG_TARGET_HAS_div_i32
 // #define TCG_TARGET_HAS_rot_i32
