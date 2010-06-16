@@ -991,6 +991,7 @@ static int usb_host_close(USBHostDevice *dev)
     async_complete(dev);
     dev->closing = 0;
     usb_device_detach(&dev->dev);
+    ioctl(dev->fd, USBDEVFS_RESET);
     close(dev->fd);
     dev->fd = -1;
     return 0;
