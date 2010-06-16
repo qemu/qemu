@@ -5400,6 +5400,17 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = get_errno(target_munmap(arg1, arg2));
         break;
     case TARGET_NR_mprotect:
+        {
+            TaskState *ts = ((CPUState *)cpu_env)->opaque;
+            /* Special hack to detect libc making the stack executable.  */
+            if ((arg3 & PROT_GROWSDOWN)
+                && arg1 >= ts->info->stack_limit
+                && arg1 <= ts->info->start_stack) {
+                arg3 &= ~PROT_GROWSDOWN;
+                arg2 = arg2 + arg1 - ts->info->stack_limit;
+                arg1 = ts->info->stack_limit;
+            }
+        }
         ret = get_errno(target_mprotect(arg1, arg2, arg3));
         break;
 #ifdef TARGET_NR_mremap
