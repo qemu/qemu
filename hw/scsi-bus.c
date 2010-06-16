@@ -306,6 +306,7 @@ static void scsi_req_xfer_mode(SCSIRequest *req)
     case MEDIUM_SCAN:
     case SEND_VOLUME_TAG:
     case WRITE_LONG_2:
+    case PERSISTENT_RESERVE_OUT:
         req->cmd.mode = SCSI_XFER_TO_DEV;
         break;
     default:
