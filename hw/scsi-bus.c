@@ -242,6 +242,13 @@ static int scsi_req_length(SCSIRequest *req, uint8_t *cmd)
     case INQUIRY:
         req->cmd.xfer = cmd[4] | (cmd[3] << 8);
         break;
+    case MAINTENANCE_OUT:
+    case MAINTENANCE_IN:
+        if (req->dev->type == TYPE_ROM) {
+            /* GPCMD_REPORT_KEY and GPCMD_SEND_KEY from multi media commands */
+            req->cmd.xfer = cmd[9] | (cmd[8] << 8);
+        }
+        break;
     }
     return 0;
 }
@@ -307,6 +314,7 @@ static void scsi_req_xfer_mode(SCSIRequest *req)
     case SEND_VOLUME_TAG:
     case WRITE_LONG_2:
     case PERSISTENT_RESERVE_OUT:
+    case MAINTENANCE_OUT:
         req->cmd.mode = SCSI_XFER_TO_DEV;
         break;
     default:
@@ -387,6 +395,8 @@ static const char *scsi_command_name(uint8_t cmd)
         [ SPACE                    ] = "SPACE",
         [ INQUIRY                  ] = "INQUIRY",
         [ RECOVER_BUFFERED_DATA    ] = "RECOVER_BUFFERED_DATA",
+        [ MAINTENANCE_IN           ] = "MAINTENANCE_IN",
+        [ MAINTENANCE_OUT          ] = "MAINTENANCE_OUT",
         [ MODE_SELECT              ] = "MODE_SELECT",
         [ RESERVE                  ] = "RESERVE",
         [ RELEASE                  ] = "RELEASE",
