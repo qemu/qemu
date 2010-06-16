@@ -227,6 +227,19 @@ static inline void t_gen_mov_preg_TN(DisasContext *dc, int r, TCGv tn)
 	}
 }
 
+/* Sign extend at translation time.  */
+static int sign_extend(unsigned int val, unsigned int width)
+{
+	int sval;
+
+	/* LSL.  */
+	val <<= 31 - width;
+	sval = val;
+	/* ASR.  */
+	sval >>= 31 - width;
+	return sval;
+}
+
 static int cris_fetch(DisasContext *dc, uint32_t addr,
 		      unsigned int size, unsigned int sign)
 {
@@ -592,19 +605,6 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
 		tcg_gen_movi_tl(env_pc, dest);
 		tcg_gen_exit_tb(0);
 	}
-}
-
-/* Sign extend at translation time.  */
-static int sign_extend(unsigned int val, unsigned int width)
-{
-	int sval;
-
-	/* LSL.  */
-	val <<= 31 - width;
-	sval = val;
-	/* ASR.  */
-	sval >>= 31 - width;
-	return sval;
 }
 
 static inline void cris_clear_x_flag(DisasContext *dc)
