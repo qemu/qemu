@@ -946,6 +946,12 @@ struct target_winsize {
 
 #include "termbits.h"
 
+#if defined(TARGET_MIPS)
+#define TARGET_PROT_SEM         0x10
+#else
+#define TARGET_PROT_SEM         0x08
+#endif
+
 /* Common */
 #define TARGET_MAP_SHARED	0x01		/* Share changes */
 #define TARGET_MAP_PRIVATE	0x02		/* Changes are private */
