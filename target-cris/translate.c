@@ -227,6 +227,42 @@ static inline void t_gen_mov_preg_TN(DisasContext *dc, int r, TCGv tn)
 	}
 }
 
+static int cris_fetch(DisasContext *dc, uint32_t addr,
+		      unsigned int size, unsigned int sign)
+{
+	int r;
+
+	switch (size) {
+		case 4:
+		{
+			r = ldl_code(addr);
+			break;
+		}
+		case 2:
+		{
+			if (sign) {
+				r = ldsw_code(addr);
+			} else {
+				r = lduw_code(addr);
+			}
+			break;
+		}
+		case 1:
+		{
+			if (sign) {
+				r = ldsb_code(addr);
+			} else {
+				r = ldub_code(addr);
+			}
+			break;
+		}
+		default:
+			cpu_abort(dc->env, "Invalid fetch size %d\n", size);
+			break;
+	}
+	return r;
+}
+
 static void cris_lock_irq(DisasContext *dc)
 {
 	dc->clear_locked_irq = 0;
@@ -1306,21 +1342,7 @@ static int dec_prep_move_m(DisasContext *dc, int s_ext, int memsize,
 		if (memsize == 1)
 			insn_len++;
 
-		if (memsize != 4) {
-			if (s_ext) {
-				if (memsize == 1)
-					imm = ldsb_code(dc->pc + 2);
-				else
-					imm = ldsw_code(dc->pc + 2);
-			} else {
-				if (memsize == 1)
-					imm = ldub_code(dc->pc + 2);
-				else
-					imm = lduw_code(dc->pc + 2);
-			}
-		} else
-			imm = ldl_code(dc->pc + 2);
-			
+		imm = cris_fetch(dc, dc->pc + 2, memsize, s_ext);
 		tcg_gen_movi_tl(dst, imm);
 		dc->postinc = 0;
 	} else {
@@ -2758,7 +2780,7 @@ static int dec_lapc_im(DisasContext *dc)
 	rd = dc->op2;
 
 	cris_cc_mask(dc, 0);
-	imm = ldl_code(dc->pc + 2);
+	imm = cris_fetch(dc, dc->pc + 2, 4, 0);
 	LOG_DIS("lapc 0x%x, $r%u\n", imm + dc->pc, dc->op2);
 
 	pc = dc->pc;
@@ -2801,7 +2823,7 @@ static int dec_jas_im(DisasContext *dc)
 {
 	uint32_t imm;
 
-	imm = ldl_code(dc->pc + 2);
+	imm = cris_fetch(dc, dc->pc + 2, 4, 0);
 
 	LOG_DIS("jas 0x%x\n", imm);
 	cris_cc_mask(dc, 0);
@@ -2817,7 +2839,7 @@ static int dec_jasc_im(DisasContext *dc)
 {
 	uint32_t imm;
 
-	imm = ldl_code(dc->pc + 2);
+	imm = cris_fetch(dc, dc->pc + 2, 4, 0);
 
 	LOG_DIS("jasc 0x%x\n", imm);
 	cris_cc_mask(dc, 0);
@@ -2845,7 +2867,7 @@ static int dec_bcc_im(DisasContext *dc)
 	int32_t offset;
 	uint32_t cond = dc->op2;
 
-	offset = ldsw_code(dc->pc + 2);
+	offset = cris_fetch(dc, dc->pc + 2, 2, 1);
 
 	LOG_DIS("b%s %d pc=%x dst=%x\n",
 		    cc_name(cond), offset,
@@ -2862,7 +2884,7 @@ static int dec_bas_im(DisasContext *dc)
 	int32_t simm;
 
 
-	simm = ldl_code(dc->pc + 2);
+	simm = cris_fetch(dc, dc->pc + 2, 4, 0);
 
 	LOG_DIS("bas 0x%x, $p%u\n", dc->pc + simm, dc->op2);
 	cris_cc_mask(dc, 0);
@@ -2877,7 +2899,7 @@ static int dec_bas_im(DisasContext *dc)
 static int dec_basc_im(DisasContext *dc)
 {
 	int32_t simm;
-	simm = ldl_code(dc->pc + 2);
+	simm = cris_fetch(dc, dc->pc + 2, 4, 0);
 
 	LOG_DIS("basc 0x%x, $p%u\n", dc->pc + simm, dc->op2);
 	cris_cc_mask(dc, 0);
@@ -3075,7 +3097,7 @@ static unsigned int crisv32_decoder(DisasContext *dc)
 		tcg_gen_debug_insn_start(dc->pc);
 
 	/* Load a halfword onto the instruction register.  */
-	dc->ir = lduw_code(dc->pc);
+	dc->ir = cris_fetch(dc, dc->pc, 2, 0);
 
 	/* Now decode it.  */
 	dc->opcode   = EXTRACT_FIELD(dc->ir, 4, 11);
