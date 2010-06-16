@@ -735,7 +735,7 @@ static int qcow2_update_ext_header(BlockDriverState *bs,
         backing_file_offset = sizeof(QCowHeader) + offset;
     }
 
-    ret = bdrv_pwrite(bs->file, sizeof(QCowHeader), buf, ext_size);
+    ret = bdrv_pwrite_sync(bs->file, sizeof(QCowHeader), buf, ext_size);
     if (ret < 0) {
         goto fail;
     }
@@ -744,13 +744,13 @@ static int qcow2_update_ext_header(BlockDriverState *bs,
     uint64_t be_backing_file_offset = cpu_to_be64(backing_file_offset);
     uint32_t be_backing_file_size = cpu_to_be32(backing_file_len);
 
-    ret = bdrv_pwrite(bs->file, offsetof(QCowHeader, backing_file_offset),
+    ret = bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, backing_file_offset),
         &be_backing_file_offset, sizeof(uint64_t));
     if (ret < 0) {
         goto fail;
     }
 
-    ret = bdrv_pwrite(bs->file, offsetof(QCowHeader, backing_file_size),
+    ret = bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, backing_file_size),
         &be_backing_file_size, sizeof(uint32_t));
     if (ret < 0) {
         goto fail;
@@ -1131,8 +1131,8 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset)
 
     /* write updated header.size */
     offset = cpu_to_be64(offset);
-    ret = bdrv_pwrite(bs->file, offsetof(QCowHeader, size),
-                      &offset, sizeof(uint64_t));
+    ret = bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, size),
+                           &offset, sizeof(uint64_t));
     if (ret < 0) {
         return ret;
     }
