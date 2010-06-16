@@ -33,6 +33,7 @@
 #include "qemu-common.h"
 #include "qemu-timer.h"
 #include "monitor.h"
+#include "sysemu.h"
 
 #include <dirent.h>
 #include <sys/ioctl.h>
@@ -132,6 +133,7 @@ typedef struct USBHostDevice {
     int       configuration;
     int       ninterfaces;
     int       closing;
+    Notifier  exit;
 
     struct ctrl_struct ctrl;
     struct endp_data endp_table[MAX_ENDPOINTS];
@@ -404,6 +406,7 @@ static void usb_host_handle_destroy(USBDevice *dev)
 
     usb_host_close(s);
     QTAILQ_REMOVE(&hostdevs, s, next);
+    qemu_remove_exit_notifier(&s->exit);
 }
 
 static int usb_linux_update_endp_table(USBHostDevice *s);
@@ -997,6 +1000,15 @@ static int usb_host_close(USBHostDevice *dev)
     return 0;
 }
 
+static void usb_host_exit_notifier(struct Notifier* n)
+{
+    USBHostDevice *s = container_of(n, USBHostDevice, exit);
+
+    if (s->fd != -1) {
+        ioctl(s->fd, USBDEVFS_RESET);
+    }
+}
+
 static int usb_host_initfn(USBDevice *dev)
 {
     USBHostDevice *s = DO_UPCAST(USBHostDevice, dev, dev);
@@ -1004,6 +1016,8 @@ static int usb_host_initfn(USBDevice *dev)
     dev->auto_attach = 0;
     s->fd = -1;
     QTAILQ_INSERT_TAIL(&hostdevs, s, next);
+    s->exit.notify = usb_host_exit_notifier;
+    qemu_add_exit_notifier(&s->exit);
     usb_host_auto_check(NULL);
     return 0;
 }
