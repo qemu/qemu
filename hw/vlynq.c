@@ -22,14 +22,60 @@
 
 #include "vlynq.h"
 
-struct _VLYNQBus {
-    BusState qbus;
-};
-
 static struct BusInfo vlynq_bus_info = {
     .name = "VLYNQ",
     .size = sizeof(VLYNQBus),
 };
+
+static int vlynq_qdev_init(DeviceState *qdev, DeviceInfo *base)
+{
+    VLYNQDevice *vlynq_dev = (VLYNQDevice *)qdev;
+    VLYNQDeviceInfo *info = container_of(base, VLYNQDeviceInfo, qdev);
+    //~ int devfn;
+    int rc;
+
+    //~ VLYNQBus *bus = FROM_QBUS(VLYNQBus, qdev_get_parent_bus(qdev));
+    //~ devfn = pci_dev->devfn;
+    //~ vlynq_dev = do_pci_register_device(pci_dev, bus, base->name, devfn,
+                                     //~ info->config_read, info->config_write,
+                                     //~ info->header_type);
+    //~ if (vlynq_dev == NULL) {
+        //~ return -1;
+    //~ }
+    rc = info->init(vlynq_dev);
+    if (rc != 0) {
+        //~ do_pci_unregister_device(pci_dev);
+    }
+
+    return rc;
+}
+
+static int vlynq_unregister_device(DeviceState *dev)
+{
+    VLYNQDevice *vlynq_dev = DO_UPCAST(VLYNQDevice, qdev, dev);
+    VLYNQDeviceInfo *info = DO_UPCAST(VLYNQDeviceInfo, qdev, dev->info);
+    int ret = 0;
+
+    if (info->exit) {
+        ret = info->exit(vlynq_dev);
+    }
+    if (ret) {
+        return ret;
+    }
+
+    //~ pci_unregister_io_regions(pci_dev);
+    //~ do_pci_unregister_device(pci_dev);
+    return 0;
+}
+
+void vlynq_qdev_register(VLYNQDeviceInfo *info)
+{
+    info->qdev.init = vlynq_qdev_init;
+    //~ info->qdev.unplug = vlynq_unplug_device;
+    info->qdev.exit = vlynq_unregister_device;
+    info->qdev.bus_info = &vlynq_bus_info;
+    qdev_register(&info->qdev);
+}
 
 #if 0
 static int vlynq_slave_init(DeviceState *dev, DeviceInfo *base_info)
@@ -56,6 +102,8 @@ void vlynq_register_slave(VLYNQSlaveInfo *info)
     qdev_register(&info->qdev);
 }
 
+#endif
+
 DeviceState *vlynq_create_slave(VLYNQBus *bus, const char *name)
 {
     DeviceState *dev;
@@ -63,7 +111,6 @@ DeviceState *vlynq_create_slave(VLYNQBus *bus, const char *name)
     qdev_init_nofail(dev);
     return dev;
 }
-#endif
 
 VLYNQBus *vlynq_create_bus(DeviceState *parent, const char *name)
 {

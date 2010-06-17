@@ -3658,8 +3658,6 @@ static void ar7_init(CPUState * env, int be)
     ar7_serial_init(env, be);
     ar7_display_init(env);
     ar7_nic_init();
-    // TODO: tnetw1130 must be integrated again (QEMU interface changed).
-    //~ vlynq_tnetw1130_init();
 
     //~ for (offset = 0; offset < 0x2800; offset += 0x100) {
     //~ if (offset == 0xe00) continue;
@@ -3841,6 +3839,8 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     ram_addr_t ram_offset;
     ram_addr_t rom_offset;
     int rom_size;
+    VLYNQBus *vlynq_bus0;
+    VLYNQBus *vlynq_bus1;
 
 #if defined(DEBUG_AR7)
     set_traceflags();
@@ -3872,9 +3872,9 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     qdev_prop_set_uint8(dev, "vlynq tnetw1130", 0);
     qdev_init_nofail(dev);
 
-    // TODO: finish vlynq bus integration.
-    vlynq_create_bus(dev, "vlynq");
-    vlynq_create_bus(dev, "vlynq");
+    vlynq_bus0 = vlynq_create_bus(dev, "vlynq");
+    vlynq_bus1 = vlynq_create_bus(dev, "vlynq");
+    vlynq_create_slave(vlynq_bus0, "tnetw1130-vlynq");
 
     loaderparams.ram_size = machine_ram_size;
     loaderparams.kernel_filename = kernel_filename;

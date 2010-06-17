@@ -33,7 +33,10 @@
 
 #include "qdev.h"
 
-typedef struct _VLYNQBus VLYNQBus;
+typedef struct {
+    BusState qbus;
+} VLYNQBus;
+
 typedef struct _VLYNQSlave VLYNQSlave;
 typedef struct _VLYNQSlaveInfo VLYNQSlaveInfo;
 
@@ -50,20 +53,26 @@ struct VLYNQSlave {
     VLYNQSlaveInfo *info;
 };
 
-typedef struct {
-    DeviceInfo qdev;
-    pci_qdev_initfn init;
-    PCIUnregisterFunc *exit;
-    //~ PCIConfigReadFunc *config_read;
-    //~ PCIConfigWriteFunc *config_write;
-
-    /* pci config header type */
-    //~ uint8_t header_type;
-} VLYNQDeviceInfo;
-
 #define VLYNQ_SLAVE_FROM_QDEV(dev) DO_UPCAST(VLYNQSlave, qdev, dev)
 #define FROM_VLYNQ_SLAVE(type, dev) DO_UPCAST(type, vlynqdev, dev)
 #endif
+
+typedef struct {
+    DeviceState qdev;
+    //~ uint32_t isairq[2];
+    //~ int nirqs;
+} VLYNQDevice;
+
+typedef int (*vlynq_qdev_initfn)(VLYNQDevice *vlynq_dev);
+typedef int (*VLYNQUnregisterFunc)(VLYNQDevice *vlynq_dev);
+
+typedef struct {
+    DeviceInfo qdev;
+    vlynq_qdev_initfn init;
+    VLYNQUnregisterFunc exit;
+} VLYNQDeviceInfo;
+
+void vlynq_qdev_register(VLYNQDeviceInfo *info);
 
 void vlynq_register_slave(VLYNQSlaveInfo *info);
 
