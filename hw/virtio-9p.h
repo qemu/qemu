@@ -17,6 +17,8 @@ enum {
     P9_RSTATFS,
     P9_TGETATTR = 24,
     P9_RGETATTR,
+    P9_TSETATTR = 26,
+    P9_RSETATTR,
     P9_TREADDIR = 40,
     P9_RREADDIR,
     P9_TVERSION = 100,
@@ -289,6 +291,27 @@ typedef struct V9fsWstatState
     struct stat stbuf;
     V9fsString nname;
 } V9fsWstatState;
+
+typedef struct V9fsIattr
+{
+    int32_t valid;
+    int32_t mode;
+    int32_t uid;
+    int32_t gid;
+    int64_t size;
+    int64_t atime_sec;
+    int64_t atime_nsec;
+    int64_t mtime_sec;
+    int64_t mtime_nsec;
+} V9fsIattr;
+
+typedef struct V9fsSetattrState
+{
+    V9fsPDU *pdu;
+    size_t offset;
+    V9fsIattr v9iattr;
+    V9fsFidState *fidp;
+} V9fsSetattrState;
 
 struct virtio_9p_config
 {
