@@ -718,6 +718,11 @@ typedef struct CPUX86State {
     uint16_t fpus_vmstate;
     uint16_t fptag_vmstate;
     uint16_t fpregs_format_vmstate;
+
+    uint64_t xstate_bv;
+    XMMReg ymmh_regs[CPU_NB_REGS];
+
+    uint64_t xcr0;
 } CPUX86State;
 
 CPUX86State *cpu_x86_init(const char *cpu_model);
@@ -899,7 +904,7 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 #define cpu_list_id x86_cpu_list
 #define cpudef_setup	x86_cpudef_setup
 
-#define CPU_SAVE_VERSION 11
+#define CPU_SAVE_VERSION 12
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel
