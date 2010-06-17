@@ -94,7 +94,7 @@ static void ioapic_service(IOAPICState *s)
     }
 }
 
-void ioapic_set_irq(void *opaque, int vector, int level)
+static void ioapic_set_irq(void *opaque, int vector, int level)
 {
     IOAPICState *s = opaque;
 
