@@ -1240,9 +1240,6 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
 
     pci_config_set_vendor_id(s->card.config, PCI_VENDOR_ID_VMWARE);
     pci_config_set_device_id(s->card.config, SVGA_PCI_DEVICE_ID);
-    s->card.config[PCI_COMMAND]	= PCI_COMMAND_IO |
-                                  PCI_COMMAND_MEMORY |
-                                  PCI_COMMAND_MASTER; /* I/O + Memory */
     pci_config_set_class(s->card.config, PCI_CLASS_DISPLAY_VGA);
     s->card.config[PCI_CACHE_LINE_SIZE]	= 0x08;		/* Cache line size */
     s->card.config[PCI_LATENCY_TIMER] = 0x40;		/* Latency timer */
