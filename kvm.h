@@ -144,7 +144,7 @@ bool kvm_arch_stop_on_emulation_error(CPUState *env);
 int kvm_check_extension(KVMState *s, unsigned int extension);
 
 uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function,
-                                      int reg);
+                                      uint32_t index, int reg);
 void kvm_cpu_synchronize_state(CPUState *env);
 void kvm_cpu_synchronize_post_reset(CPUState *env);
 void kvm_cpu_synchronize_post_init(CPUState *env);
