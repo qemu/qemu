@@ -155,15 +155,24 @@ static void pci_device_reset(PCIDevice *dev)
 
     dev->irq_state = 0;
     pci_update_irq_status(dev);
-    dev->config[PCI_COMMAND] &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY |
-                                  PCI_COMMAND_MASTER);
+    /* Clear all writeable bits */
+    pci_set_word(dev->config + PCI_COMMAND,
+                 pci_get_word(dev->config + PCI_COMMAND) &
+                 ~pci_get_word(dev->wmask + PCI_COMMAND));
     dev->config[PCI_CACHE_LINE_SIZE] = 0x0;
     dev->config[PCI_INTERRUPT_LINE] = 0x0;
     for (r = 0; r < PCI_NUM_REGIONS; ++r) {
-        if (!dev->io_regions[r].size) {
+        PCIIORegion *region = &dev->io_regions[r];
+        if (!region->size) {
             continue;
         }
-        pci_set_long(dev->config + pci_bar(dev, r), dev->io_regions[r].type);
+
+        if (!(region->type & PCI_BASE_ADDRESS_SPACE_IO) &&
+            region->type & PCI_BASE_ADDRESS_MEM_TYPE_64) {
+            pci_set_quad(dev->config + pci_bar(dev, r), region->type);
+        } else {
+            pci_set_long(dev->config + pci_bar(dev, r), region->type);
+        }
     }
     pci_update_mappings(dev);
 }
