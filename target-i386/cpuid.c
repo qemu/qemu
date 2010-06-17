@@ -1087,6 +1087,27 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ecx = 0;
         *edx = 0;
         break;
+    case 0xD:
+        /* Processor Extended State */
+        if (!(env->cpuid_ext_features & CPUID_EXT_XSAVE)) {
+            *eax = 0;
+            *ebx = 0;
+            *ecx = 0;
+            *edx = 0;
+            break;
+        }
+        if (kvm_enabled()) {
+            *eax = kvm_arch_get_supported_cpuid(env, 0xd, count, R_EAX);
+            *ebx = kvm_arch_get_supported_cpuid(env, 0xd, count, R_EBX);
+            *ecx = kvm_arch_get_supported_cpuid(env, 0xd, count, R_ECX);
+            *edx = kvm_arch_get_supported_cpuid(env, 0xd, count, R_EDX);
+        } else {
+            *eax = 0;
+            *ebx = 0;
+            *ecx = 0;
+            *edx = 0;
+        }
+        break;
     case 0x80000000:
         *eax = env->cpuid_xlevel;
         *ebx = env->cpuid_vendor1;
