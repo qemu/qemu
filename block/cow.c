@@ -97,17 +97,18 @@ static inline int cow_set_bit(BlockDriverState *bs, int64_t bitnum)
 {
     uint64_t offset = sizeof(struct cow_header_v2) + bitnum / 8;
     uint8_t bitmap;
+    int ret;
 
-    if (bdrv_pread(bs->file, offset, &bitmap, sizeof(bitmap)) !=
-	    sizeof(bitmap)) {
-       return -errno;
+    ret = bdrv_pread(bs->file, offset, &bitmap, sizeof(bitmap));
+    if (ret < 0) {
+       return ret;
     }
 
     bitmap |= (1 << (bitnum % 8));
 
-    if (bdrv_pwrite(bs->file, offset, &bitmap, sizeof(bitmap)) !=
-	    sizeof(bitmap)) {
-       return -errno;
+    ret = bdrv_pwrite_sync(bs->file, offset, &bitmap, sizeof(bitmap));
+    if (ret < 0) {
+       return ret;
     }
     return 0;
 }
@@ -116,10 +117,11 @@ static inline int is_bit_set(BlockDriverState *bs, int64_t bitnum)
 {
     uint64_t offset = sizeof(struct cow_header_v2) + bitnum / 8;
     uint8_t bitmap;
+    int ret;
 
-    if (bdrv_pread(bs->file, offset, &bitmap, sizeof(bitmap)) !=
-	    sizeof(bitmap)) {
-       return -errno;
+    ret = bdrv_pread(bs->file, offset, &bitmap, sizeof(bitmap));
+    if (ret < 0) {
+       return ret;
     }
 
     return !!(bitmap & (1 << (bitnum % 8)));
