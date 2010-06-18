@@ -15,6 +15,8 @@
 enum {
     P9_TSTATFS = 8,
     P9_RSTATFS,
+    P9_TLCREATE = 14,
+    P9_RLCREATE,
     P9_TSYMLINK = 16,
     P9_RSYMLINK,
     P9_TGETATTR = 24,
@@ -184,6 +186,17 @@ typedef struct V9fsCreateState {
     V9fsString fullname;
     int iounit;
 } V9fsCreateState;
+
+typedef struct V9fsLcreateState {
+    V9fsPDU *pdu;
+    size_t offset;
+    V9fsFidState *fidp;
+    V9fsQID qid;
+    int32_t iounit;
+    struct stat stbuf;
+    V9fsString name;
+    V9fsString fullname;
+} V9fsLcreateState;
 
 typedef struct V9fsStatState {
     V9fsPDU *pdu;

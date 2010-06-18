@@ -475,6 +475,19 @@ void pprint_pdu(V9fsPDU *pdu)
         fprintf(llogfile, "RSYMLINK: (");
         pprint_qid(pdu, 1, &offset, "qid");
         break;
+    case P9_TLCREATE:
+        fprintf(llogfile, "TLCREATE: (");
+        pprint_int32(pdu, 0, &offset, "dfid");
+        pprint_str(pdu, 0, &offset, ", name");
+        pprint_int32(pdu, 0, &offset, ", flags");
+        pprint_int32(pdu, 0, &offset, ", mode");
+        pprint_int32(pdu, 0, &offset, ", gid");
+        break;
+    case P9_RLCREATE:
+        fprintf(llogfile, "RLCREATE: (");
+        pprint_qid(pdu, 1, &offset, "qid");
+        pprint_int32(pdu, 1, &offset, ", iounit");
+        break;
     case P9_TREAD:
         fprintf(llogfile, "TREAD: (");
         pprint_int32(pdu, 0, &offset, "fid");
