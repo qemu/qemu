@@ -261,7 +261,7 @@ static inline int64_t get_sector_offset(BlockDriverState *bs,
 
         s->last_bitmap_offset = bitmap_offset;
         memset(bitmap, 0xff, s->bitmap_size);
-        bdrv_pwrite(bs->file, bitmap_offset, bitmap, s->bitmap_size);
+        bdrv_pwrite_sync(bs->file, bitmap_offset, bitmap, s->bitmap_size);
     }
 
 //    printf("sector: %" PRIx64 ", index: %x, offset: %x, bioff: %" PRIx64 ", bloff: %" PRIx64 "\n",
@@ -311,7 +311,7 @@ static int rewrite_footer(BlockDriverState* bs)
     BDRVVPCState *s = bs->opaque;
     int64_t offset = s->free_data_block_offset;
 
-    ret = bdrv_pwrite(bs->file, offset, s->footer_buf, HEADER_SIZE);
+    ret = bdrv_pwrite_sync(bs->file, offset, s->footer_buf, HEADER_SIZE);
     if (ret < 0)
         return ret;
 
@@ -346,7 +346,8 @@ static int64_t alloc_block(BlockDriverState* bs, int64_t sector_num)
 
     // Initialize the block's bitmap
     memset(bitmap, 0xff, s->bitmap_size);
-    bdrv_pwrite(bs->file, s->free_data_block_offset, bitmap, s->bitmap_size);
+    bdrv_pwrite_sync(bs->file, s->free_data_block_offset, bitmap,
+        s->bitmap_size);
 
     // Write new footer (the old one will be overwritten)
     s->free_data_block_offset += s->block_size + s->bitmap_size;
@@ -357,7 +358,7 @@ static int64_t alloc_block(BlockDriverState* bs, int64_t sector_num)
     // Write BAT entry to disk
     bat_offset = s->bat_offset + (4 * index);
     bat_value = be32_to_cpu(s->pagetable[index]);
-    ret = bdrv_pwrite(bs->file, bat_offset, &bat_value, 4);
+    ret = bdrv_pwrite_sync(bs->file, bat_offset, &bat_value, 4);
     if (ret < 0)
         goto fail;
 
