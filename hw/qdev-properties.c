@@ -67,12 +67,14 @@ PropertyInfo qdev_prop_bit = {
 static int parse_uint8(DeviceState *dev, Property *prop, const char *str)
 {
     uint8_t *ptr = qdev_get_prop_ptr(dev, prop);
-    const char *fmt;
+    char *end;
 
     /* accept both hex and decimal */
-    fmt = strncasecmp(str, "0x",2) == 0 ? "%" PRIx8 : "%" PRIu8;
-    if (sscanf(str, fmt, ptr) != 1)
+    *ptr = strtoul(str, &end, 0);
+    if ((*end != '\0') || (end == str)) {
         return -EINVAL;
+    }
+
     return 0;
 }
 
@@ -95,12 +97,14 @@ PropertyInfo qdev_prop_uint8 = {
 static int parse_uint16(DeviceState *dev, Property *prop, const char *str)
 {
     uint16_t *ptr = qdev_get_prop_ptr(dev, prop);
-    const char *fmt;
+    char *end;
 
     /* accept both hex and decimal */
-    fmt = strncasecmp(str, "0x",2) == 0 ? "%" PRIx16 : "%" PRIu16;
-    if (sscanf(str, fmt, ptr) != 1)
+    *ptr = strtoul(str, &end, 0);
+    if ((*end != '\0') || (end == str)) {
         return -EINVAL;
+    }
+
     return 0;
 }
 
@@ -123,12 +127,14 @@ PropertyInfo qdev_prop_uint16 = {
 static int parse_uint32(DeviceState *dev, Property *prop, const char *str)
 {
     uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
-    const char *fmt;
+    char *end;
 
     /* accept both hex and decimal */
-    fmt = strncasecmp(str, "0x",2) == 0 ? "%" PRIx32 : "%" PRIu32;
-    if (sscanf(str, fmt, ptr) != 1)
+    *ptr = strtoul(str, &end, 0);
+    if ((*end != '\0') || (end == str)) {
         return -EINVAL;
+    }
+
     return 0;
 }
 
@@ -149,9 +155,13 @@ PropertyInfo qdev_prop_uint32 = {
 static int parse_int32(DeviceState *dev, Property *prop, const char *str)
 {
     int32_t *ptr = qdev_get_prop_ptr(dev, prop);
+    char *end;
 
-    if (sscanf(str, "%" PRId32, ptr) != 1)
+    *ptr = strtol(str, &end, 10);
+    if ((*end != '\0') || (end == str)) {
         return -EINVAL;
+    }
+
     return 0;
 }
 
@@ -174,9 +184,13 @@ PropertyInfo qdev_prop_int32 = {
 static int parse_hex32(DeviceState *dev, Property *prop, const char *str)
 {
     uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
+    char *end;
 
-    if (sscanf(str, "%" PRIx32, ptr) != 1)
+    *ptr = strtoul(str, &end, 16);
+    if ((*end != '\0') || (end == str)) {
         return -EINVAL;
+    }
+
     return 0;
 }
 
@@ -199,12 +213,14 @@ PropertyInfo qdev_prop_hex32 = {
 static int parse_uint64(DeviceState *dev, Property *prop, const char *str)
 {
     uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
-    const char *fmt;
+    char *end;
 
     /* accept both hex and decimal */
-    fmt = strncasecmp(str, "0x",2) == 0 ? "%" PRIx64 : "%" PRIu64;
-    if (sscanf(str, fmt, ptr) != 1)
+    *ptr = strtoull(str, &end, 0);
+    if ((*end != '\0') || (end == str)) {
         return -EINVAL;
+    }
+
     return 0;
 }
 
@@ -227,9 +243,13 @@ PropertyInfo qdev_prop_uint64 = {
 static int parse_hex64(DeviceState *dev, Property *prop, const char *str)
 {
     uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
+    char *end;
 
-    if (sscanf(str, "%" PRIx64, ptr) != 1)
+    *ptr = strtoull(str, &end, 16);
+    if ((*end != '\0') || (end == str)) {
         return -EINVAL;
+    }
+
     return 0;
 }
 
