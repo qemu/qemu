@@ -944,6 +944,12 @@ static int cpudef_register(QemuOpts *opts, void *opaque)
     x86_defs = def;
     return (0);
 }
+
+void cpu_clear_apic_feature(CPUX86State *env)
+{
+    env->cpuid_features &= ~CPUID_APIC;
+}
+
 #endif /* !CONFIG_USER_ONLY */
 
 /* register "cpudef" models defined in configuration file.  Here we first

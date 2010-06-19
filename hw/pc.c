@@ -754,6 +754,15 @@ int cpu_is_bsp(CPUState *env)
     return env->cpu_index == 0;
 }
 
+APICState *cpu_get_current_apic(void)
+{
+    if (cpu_single_env) {
+        return cpu_single_env->apic_state;
+    } else {
+        return NULL;
+    }
+}
+
 /* set CMOS shutdown status register (index 0xF) as S3_resume(0xFE)
    BIOS will read it and start S3 resume at POST Entry */
 void pc_cmos_set_s3_resume(void *opaque, int irq, int level)
@@ -774,6 +783,22 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
     }
 }
 
+static void bsp_cpu_reset(void *opaque)
+{
+    CPUState *env = opaque;
+
+    cpu_reset(env);
+    env->halted = 0;
+}
+
+static void ap_cpu_reset(void *opaque)
+{
+    CPUState *env = opaque;
+
+    cpu_reset(env);
+    env->halted = 1;
+}
+
 static CPUState *pc_new_cpu(const char *cpu_model)
 {
     CPUState *env;
@@ -786,9 +811,14 @@ static CPUState *pc_new_cpu(const char *cpu_model)
     if ((env->cpuid_features & CPUID_APIC) || smp_cpus > 1) {
         env->cpuid_apic_id = env->cpu_index;
         /* APIC reset callback resets cpu */
-        apic_init(env);
+        env->apic_state = apic_init(env, env->cpuid_apic_id);
+    }
+    if (cpu_is_bsp(env)) {
+        qemu_register_reset(bsp_cpu_reset, env);
+        env->halted = 0;
     } else {
-        qemu_register_reset((QEMUResetHandler*)cpu_reset, env);
+        qemu_register_reset(ap_cpu_reset, env);
+        env->halted = 1;
     }
     return env;
 }

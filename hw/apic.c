@@ -320,7 +320,7 @@ void cpu_set_apic_base(APICState *s, uint64_t val)
     /* if disabled, cannot be enabled again */
     if (!(val & MSR_IA32_APICBASE_ENABLE)) {
         s->apicbase &= ~MSR_IA32_APICBASE_ENABLE;
-        s->cpu_env->cpuid_features &= ~CPUID_APIC;
+        cpu_clear_apic_feature(s->cpu_env);
         s->spurious_vec &= ~APIC_SV_ENABLE;
     }
 }
@@ -508,8 +508,6 @@ void apic_init_reset(APICState *s)
     s->initial_count_load_time = 0;
     s->next_time = 0;
     s->wait_for_sipi = 1;
-
-    s->cpu_env->halted = !(s->apicbase & MSR_IA32_APICBASE_BSP);
 }
 
 static void apic_startup(APICState *s, int vector_num)
@@ -524,13 +522,7 @@ void apic_sipi(APICState *s)
 
     if (!s->wait_for_sipi)
         return;
-
-    s->cpu_env->eip = 0;
-    cpu_x86_load_seg_cache(s->cpu_env, R_CS, s->sipi_vector << 8,
-                           s->sipi_vector << 12,
-                           s->cpu_env->segs[R_CS].limit,
-                           s->cpu_env->segs[R_CS].flags);
-    s->cpu_env->halted = 0;
+    cpu_x86_load_seg_cache_sipi(s->cpu_env, s->sipi_vector);
     s->wait_for_sipi = 0;
 }
 
@@ -692,15 +684,14 @@ static void apic_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 
 static uint32_t apic_mem_readl(void *opaque, target_phys_addr_t addr)
 {
-    CPUState *env;
     APICState *s;
     uint32_t val;
     int index;
 
-    env = cpu_single_env;
-    if (!env)
+    s = cpu_get_current_apic();
+    if (!s) {
         return 0;
-    s = env->apic_state;
+    }
 
     index = (addr >> 4) & 0xff;
     switch(index) {
@@ -782,7 +773,6 @@ static void apic_send_msi(target_phys_addr_t addr, uint32 data)
 
 static void apic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
-    CPUState *env;
     APICState *s;
     int index = (addr >> 4) & 0xff;
     if (addr > 0xfff || !index) {
@@ -795,10 +785,10 @@ static void apic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
         return;
     }
 
-    env = cpu_single_env;
-    if (!env)
+    s = cpu_get_current_apic();
+    if (!s) {
         return;
-    s = env->apic_state;
+    }
 
     DPRINTF("write: " TARGET_FMT_plx " = %08x\n", addr, val);
 
@@ -949,7 +939,6 @@ static void apic_reset(void *opaque)
     s->apicbase = 0xfee00000 |
         (bsp ? MSR_IA32_APICBASE_BSP : 0) | MSR_IA32_APICBASE_ENABLE;
 
-    cpu_reset(s->cpu_env);
     apic_init_reset(s);
 
     if (bsp) {
@@ -974,16 +963,16 @@ static CPUWriteMemoryFunc * const apic_mem_write[3] = {
     apic_mem_writel,
 };
 
-int apic_init(CPUState *env)
+APICState *apic_init(CPUState *env, uint32_t apic_id)
 {
     APICState *s;
 
-    if (last_apic_idx >= MAX_APICS)
-        return -1;
+    if (last_apic_idx >= MAX_APICS) {
+        return NULL;
+    }
     s = qemu_mallocz(sizeof(APICState));
-    env->apic_state = s;
     s->idx = last_apic_idx++;
-    s->id = env->cpuid_apic_id;
+    s->id = apic_id;
     s->cpu_env = env;
 
     msix_supported = 1;
@@ -1004,5 +993,5 @@ int apic_init(CPUState *env)
     qemu_register_reset(apic_reset, s);
 
     local_apics[s->idx] = s;
-    return 0;
+    return s;
 }
