@@ -860,11 +860,12 @@ void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3);
 void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4);
 
 /* hw/apic.c */
-void cpu_set_apic_base(CPUX86State *env, uint64_t val);
-uint64_t cpu_get_apic_base(CPUX86State *env);
-void cpu_set_apic_tpr(CPUX86State *env, uint8_t val);
+typedef struct APICState APICState;
+void cpu_set_apic_base(APICState *s, uint64_t val);
+uint64_t cpu_get_apic_base(APICState *s);
+void cpu_set_apic_tpr(APICState *s, uint8_t val);
 #ifndef NO_CPU_IO_DEFS
-uint8_t cpu_get_apic_tpr(CPUX86State *env);
+uint8_t cpu_get_apic_tpr(APICState *s);
 #endif
 
 /* hw/pc.c */
@@ -942,8 +943,8 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
         (env->eflags & (IOPL_MASK | TF_MASK | RF_MASK | VM_MASK));
 }
 
-void apic_init_reset(CPUState *env);
-void apic_sipi(CPUState *env);
+void apic_init_reset(APICState *s);
+void apic_sipi(APICState *s);
 void do_cpu_init(CPUState *env);
 void do_cpu_sipi(CPUState *env);
 #endif /* CPU_I386_H */

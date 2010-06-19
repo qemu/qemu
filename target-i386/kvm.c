@@ -540,8 +540,8 @@ static int kvm_put_sregs(CPUState *env)
     sregs.cr3 = env->cr[3];
     sregs.cr4 = env->cr[4];
 
-    sregs.cr8 = cpu_get_apic_tpr(env);
-    sregs.apic_base = cpu_get_apic_base(env);
+    sregs.cr8 = cpu_get_apic_tpr(env->apic_state);
+    sregs.apic_base = cpu_get_apic_base(env->apic_state);
 
     sregs.efer = env->efer;
 
@@ -652,10 +652,10 @@ static int kvm_get_sregs(CPUState *env)
     env->cr[3] = sregs.cr3;
     env->cr[4] = sregs.cr4;
 
-    cpu_set_apic_base(env, sregs.apic_base);
+    cpu_set_apic_base(env->apic_state, sregs.apic_base);
 
     env->efer = sregs.efer;
-    //cpu_set_apic_tpr(env, sregs.cr8);
+    //cpu_set_apic_tpr(env->apic_state, sregs.cr8);
 
 #define HFLAG_COPY_MASK ~( \
 			HF_CPL_MASK | HF_PE_MASK | HF_MP_MASK | HF_EM_MASK | \
@@ -1055,7 +1055,7 @@ int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
         run->request_interrupt_window = 0;
 
     DPRINTF("setting tpr\n");
-    run->cr8 = cpu_get_apic_tpr(env);
+    run->cr8 = cpu_get_apic_tpr(env->apic_state);
 
     return 0;
 }
@@ -1067,8 +1067,8 @@ int kvm_arch_post_run(CPUState *env, struct kvm_run *run)
     else
         env->eflags &= ~IF_MASK;
     
-    cpu_set_apic_tpr(env, run->cr8);
-    cpu_set_apic_base(env, run->apic_base);
+    cpu_set_apic_tpr(env->apic_state, run->cr8);
+    cpu_set_apic_base(env->apic_state, run->apic_base);
 
     return 0;
 }

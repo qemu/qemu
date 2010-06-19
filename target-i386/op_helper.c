@@ -2888,7 +2888,7 @@ target_ulong helper_read_crN(int reg)
         break;
     case 8:
         if (!(env->hflags2 & HF2_VINTR_MASK)) {
-            val = cpu_get_apic_tpr(env);
+            val = cpu_get_apic_tpr(env->apic_state);
         } else {
             val = env->v_tpr;
         }
@@ -2912,7 +2912,7 @@ void helper_write_crN(int reg, target_ulong t0)
         break;
     case 8:
         if (!(env->hflags2 & HF2_VINTR_MASK)) {
-            cpu_set_apic_tpr(env, t0);
+            cpu_set_apic_tpr(env->apic_state, t0);
         }
         env->v_tpr = t0 & 0x0f;
         break;
@@ -3020,7 +3020,7 @@ void helper_wrmsr(void)
         env->sysenter_eip = val;
         break;
     case MSR_IA32_APICBASE:
-        cpu_set_apic_base(env, val);
+        cpu_set_apic_base(env->apic_state, val);
         break;
     case MSR_EFER:
         {
@@ -3153,7 +3153,7 @@ void helper_rdmsr(void)
         val = env->sysenter_eip;
         break;
     case MSR_IA32_APICBASE:
-        val = cpu_get_apic_base(env);
+        val = cpu_get_apic_base(env->apic_state);
         break;
     case MSR_EFER:
         val = env->efer;

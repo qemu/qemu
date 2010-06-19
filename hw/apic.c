@@ -310,10 +310,8 @@ void apic_deliver_irq(uint8_t dest, uint8_t dest_mode,
                      trigger_mode);
 }
 
-void cpu_set_apic_base(CPUState *env, uint64_t val)
+void cpu_set_apic_base(APICState *s, uint64_t val)
 {
-    APICState *s = env->apic_state;
-
     DPRINTF("cpu_set_apic_base: %016" PRIx64 "\n", val);
     if (!s)
         return;
@@ -322,32 +320,28 @@ void cpu_set_apic_base(CPUState *env, uint64_t val)
     /* if disabled, cannot be enabled again */
     if (!(val & MSR_IA32_APICBASE_ENABLE)) {
         s->apicbase &= ~MSR_IA32_APICBASE_ENABLE;
-        env->cpuid_features &= ~CPUID_APIC;
+        s->cpu_env->cpuid_features &= ~CPUID_APIC;
         s->spurious_vec &= ~APIC_SV_ENABLE;
     }
 }
 
-uint64_t cpu_get_apic_base(CPUState *env)
+uint64_t cpu_get_apic_base(APICState *s)
 {
-    APICState *s = env->apic_state;
-
     DPRINTF("cpu_get_apic_base: %016" PRIx64 "\n",
             s ? (uint64_t)s->apicbase: 0);
     return s ? s->apicbase : 0;
 }
 
-void cpu_set_apic_tpr(CPUX86State *env, uint8_t val)
+void cpu_set_apic_tpr(APICState *s, uint8_t val)
 {
-    APICState *s = env->apic_state;
     if (!s)
         return;
     s->tpr = (val & 0x0f) << 4;
     apic_update_irq(s);
 }
 
-uint8_t cpu_get_apic_tpr(CPUX86State *env)
+uint8_t cpu_get_apic_tpr(APICState *s)
 {
-    APICState *s = env->apic_state;
     return s ? s->tpr >> 4 : 0;
 }
 
@@ -490,9 +484,8 @@ static void apic_get_delivery_bitmask(uint32_t *deliver_bitmask,
 }
 
 
-void apic_init_reset(CPUState *env)
+void apic_init_reset(APICState *s)
 {
-    APICState *s = env->apic_state;
     int i;
 
     if (!s)
@@ -516,7 +509,7 @@ void apic_init_reset(CPUState *env)
     s->next_time = 0;
     s->wait_for_sipi = 1;
 
-    env->halted = !(s->apicbase & MSR_IA32_APICBASE_BSP);
+    s->cpu_env->halted = !(s->apicbase & MSR_IA32_APICBASE_BSP);
 }
 
 static void apic_startup(APICState *s, int vector_num)
@@ -525,19 +518,19 @@ static void apic_startup(APICState *s, int vector_num)
     cpu_interrupt(s->cpu_env, CPU_INTERRUPT_SIPI);
 }
 
-void apic_sipi(CPUState *env)
+void apic_sipi(APICState *s)
 {
-    APICState *s = env->apic_state;
-
-    cpu_reset_interrupt(env, CPU_INTERRUPT_SIPI);
+    cpu_reset_interrupt(s->cpu_env, CPU_INTERRUPT_SIPI);
 
     if (!s->wait_for_sipi)
         return;
 
-    env->eip = 0;
-    cpu_x86_load_seg_cache(env, R_CS, s->sipi_vector << 8, s->sipi_vector << 12,
-                           env->segs[R_CS].limit, env->segs[R_CS].flags);
-    env->halted = 0;
+    s->cpu_env->eip = 0;
+    cpu_x86_load_seg_cache(s->cpu_env, R_CS, s->sipi_vector << 8,
+                           s->sipi_vector << 12,
+                           s->cpu_env->segs[R_CS].limit,
+                           s->cpu_env->segs[R_CS].flags);
+    s->cpu_env->halted = 0;
     s->wait_for_sipi = 0;
 }
 
@@ -957,7 +950,7 @@ static void apic_reset(void *opaque)
         (bsp ? MSR_IA32_APICBASE_BSP : 0) | MSR_IA32_APICBASE_ENABLE;
 
     cpu_reset(s->cpu_env);
-    apic_init_reset(s->cpu_env);
+    apic_init_reset(s);
 
     if (bsp) {
         /*

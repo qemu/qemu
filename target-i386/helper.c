@@ -1150,12 +1150,12 @@ void do_cpu_init(CPUState *env)
     int sipi = env->interrupt_request & CPU_INTERRUPT_SIPI;
     cpu_reset(env);
     env->interrupt_request = sipi;
-    apic_init_reset(env);
+    apic_init_reset(env->apic_state);
 }
 
 void do_cpu_sipi(CPUState *env)
 {
-    apic_sipi(env);
+    apic_sipi(env->apic_state);
 }
 #else
 void do_cpu_init(CPUState *env)
