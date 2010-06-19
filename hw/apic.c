@@ -94,7 +94,7 @@
 #define MSI_ADDR_BASE                   0xfee00000
 #define MSI_ADDR_SIZE                   0x100000
 
-typedef struct APICState {
+struct APICState {
     CPUState *cpu_env;
     uint32_t apicbase;
     uint8_t id;
@@ -118,7 +118,7 @@ typedef struct APICState {
     QEMUTimer *timer;
     int sipi_vector;
     int wait_for_sipi;
-} APICState;
+};
 
 static int apic_io_memory;
 static APICState *local_apics[MAX_APICS + 1];
@@ -167,9 +167,8 @@ static inline int get_bit(uint32_t *tab, int index)
     return !!(tab[i] & mask);
 }
 
-static void apic_local_deliver(CPUState *env, int vector)
+static void apic_local_deliver(APICState *s, int vector)
 {
-    APICState *s = env->apic_state;
     uint32_t lvt = s->lvt[vector];
     int trigger_mode;
 
@@ -180,15 +179,15 @@ static void apic_local_deliver(CPUState *env, int vector)
 
     switch ((lvt >> 8) & 7) {
     case APIC_DM_SMI:
-        cpu_interrupt(env, CPU_INTERRUPT_SMI);
+        cpu_interrupt(s->cpu_env, CPU_INTERRUPT_SMI);
         break;
 
     case APIC_DM_NMI:
-        cpu_interrupt(env, CPU_INTERRUPT_NMI);
+        cpu_interrupt(s->cpu_env, CPU_INTERRUPT_NMI);
         break;
 
     case APIC_DM_EXTINT:
-        cpu_interrupt(env, CPU_INTERRUPT_HARD);
+        cpu_interrupt(s->cpu_env, CPU_INTERRUPT_HARD);
         break;
 
     case APIC_DM_FIXED:
@@ -200,12 +199,11 @@ static void apic_local_deliver(CPUState *env, int vector)
     }
 }
 
-void apic_deliver_pic_intr(CPUState *env, int level)
+void apic_deliver_pic_intr(APICState *s, int level)
 {
-    if (level)
-        apic_local_deliver(env, APIC_LVT_LINT0);
-    else {
-        APICState *s = env->apic_state;
+    if (level) {
+        apic_local_deliver(s, APIC_LVT_LINT0);
+    } else {
         uint32_t lvt = s->lvt[APIC_LVT_LINT0];
 
         switch ((lvt >> 8) & 7) {
@@ -215,7 +213,7 @@ void apic_deliver_pic_intr(CPUState *env, int level)
             reset_bit(s->irr, lvt & 0xff);
             /* fall through */
         case APIC_DM_EXTINT:
-            cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+            cpu_reset_interrupt(s->cpu_env, CPU_INTERRUPT_HARD);
             break;
         }
     }
@@ -591,9 +589,8 @@ static void apic_deliver(APICState *s, uint8_t dest, uint8_t dest_mode,
                      trigger_mode);
 }
 
-int apic_get_interrupt(CPUState *env)
+int apic_get_interrupt(APICState *s)
 {
-    APICState *s = env->apic_state;
     int intno;
 
     /* if the APIC is installed or enabled, we let the 8259 handle the
@@ -615,9 +612,8 @@ int apic_get_interrupt(CPUState *env)
     return intno;
 }
 
-int apic_accept_pic_intr(CPUState *env)
+int apic_accept_pic_intr(APICState *s)
 {
-    APICState *s = env->apic_state;
     uint32_t lvt0;
 
     if (!s)
@@ -679,7 +675,7 @@ static void apic_timer(void *opaque)
 {
     APICState *s = opaque;
 
-    apic_local_deliver(s->cpu_env, APIC_LVT_TIMER);
+    apic_local_deliver(s, APIC_LVT_TIMER);
     apic_timer_update(s, s->next_time);
 }
 

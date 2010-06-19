@@ -145,7 +145,7 @@ int cpu_get_pic_interrupt(CPUState *env)
 {
     int intno;
 
-    intno = apic_get_interrupt(env);
+    intno = apic_get_interrupt(env->apic_state);
     if (intno >= 0) {
         /* set irq request if a PIC irq is still pending */
         /* XXX: improve that */
@@ -153,8 +153,9 @@ int cpu_get_pic_interrupt(CPUState *env)
         return intno;
     }
     /* read the irq from the PIC */
-    if (!apic_accept_pic_intr(env))
+    if (!apic_accept_pic_intr(env->apic_state)) {
         return -1;
+    }
 
     intno = pic_read_irq(isa_pic);
     return intno;
@@ -167,8 +168,9 @@ static void pic_irq_request(void *opaque, int irq, int level)
     DPRINTF("pic_irqs: %s irq %d\n", level? "raise" : "lower", irq);
     if (env->apic_state) {
         while (env) {
-            if (apic_accept_pic_intr(env))
-                apic_deliver_pic_intr(env, level);
+            if (apic_accept_pic_intr(env->apic_state)) {
+                apic_deliver_pic_intr(env->apic_state, level);
+            }
             env = env->next_cpu;
         }
     } else {
