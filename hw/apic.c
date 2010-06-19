@@ -17,13 +17,11 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>
  */
 #include "hw.h"
-#include "pc.h"
 #include "apic.h"
-#include "pci.h"
 #include "msix.h"
 #include "qemu-timer.h"
 #include "host-utils.h"
-#include "kvm.h"
+#include "sysbus.h"
 
 //#define DEBUG_APIC
 //#define DEBUG_COALESCING
@@ -95,7 +93,8 @@
 #define MSI_ADDR_SIZE                   0x100000
 
 struct APICState {
-    CPUState *cpu_env;
+    SysBusDevice busdev;
+    void *cpu_env;
     uint32_t apicbase;
     uint8_t id;
     uint8_t arb_id;
@@ -120,11 +119,8 @@ struct APICState {
     int wait_for_sipi;
 };
 
-static int apic_io_memory;
 static APICState *local_apics[MAX_APICS + 1];
-static int last_apic_idx = 0;
 static int apic_irq_delivered;
-
 
 static void apic_set_irq(APICState *s, int vector_num, int trigger_mode);
 static void apic_update_irq(APICState *s);
@@ -930,9 +926,9 @@ static const VMStateDescription vmstate_apic = {
     }
 };
 
-static void apic_reset(void *opaque)
+static void apic_reset(DeviceState *d)
 {
-    APICState *s = opaque;
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
     int bsp;
 
     bsp = cpu_is_bsp(s->cpu_env);
@@ -963,35 +959,71 @@ static CPUWriteMemoryFunc * const apic_mem_write[3] = {
     apic_mem_writel,
 };
 
-APICState *apic_init(CPUState *env, uint32_t apic_id)
+APICState *apic_init(void *env, uint8_t apic_id)
 {
+    DeviceState *dev;
+    SysBusDevice *d;
     APICState *s;
+    static int apic_mapped;
 
-    if (last_apic_idx >= MAX_APICS) {
-        return NULL;
+    dev = qdev_create(NULL, "apic");
+    qdev_prop_set_uint8(dev, "id", apic_id);
+    qdev_prop_set_ptr(dev, "cpu_env", env);
+    qdev_init_nofail(dev);
+    d = sysbus_from_qdev(dev);
+
+    /* XXX: mapping more APICs at the same memory location */
+    if (apic_mapped == 0) {
+        /* NOTE: the APIC is directly connected to the CPU - it is not
+           on the global memory bus. */
+        /* XXX: what if the base changes? */
+        sysbus_mmio_map(d, 0, MSI_ADDR_BASE);
+        apic_mapped = 1;
     }
-    s = qemu_mallocz(sizeof(APICState));
-    s->idx = last_apic_idx++;
-    s->id = apic_id;
-    s->cpu_env = env;
 
     msix_supported = 1;
 
-    /* XXX: mapping more APICs at the same memory location */
-    if (apic_io_memory == 0) {
-        /* NOTE: the APIC is directly connected to the CPU - it is not
-           on the global memory bus. */
-        apic_io_memory = cpu_register_io_memory(apic_mem_read,
-                                                apic_mem_write, NULL);
-        /* XXX: what if the base changes? */
-        cpu_register_physical_memory(MSI_ADDR_BASE, MSI_ADDR_SIZE,
-                                     apic_io_memory);
-    }
-    s->timer = qemu_new_timer(vm_clock, apic_timer, s);
+    s = DO_UPCAST(APICState, busdev.qdev, dev);
 
-    vmstate_register(s->idx, &vmstate_apic, s);
-    qemu_register_reset(apic_reset, s);
-
-    local_apics[s->idx] = s;
     return s;
 }
+
+static int apic_init1(SysBusDevice *dev)
+{
+    APICState *s = FROM_SYSBUS(APICState, dev);
+    int apic_io_memory;
+    static int last_apic_idx;
+
+    if (last_apic_idx >= MAX_APICS) {
+        return -1;
+    }
+    apic_io_memory = cpu_register_io_memory(apic_mem_read,
+                                            apic_mem_write, NULL);
+    sysbus_init_mmio(dev, MSI_ADDR_SIZE, apic_io_memory);
+
+    s->timer = qemu_new_timer(vm_clock, apic_timer, s);
+    s->idx = last_apic_idx++;
+    local_apics[s->idx] = s;
+    return 0;
+}
+
+static SysBusDeviceInfo apic_info = {
+    .init = apic_init1,
+    .qdev.name = "apic",
+    .qdev.size = sizeof(APICState),
+    .qdev.vmsd = &vmstate_apic,
+    .qdev.reset = apic_reset,
+    .qdev.no_user = 1,
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_UINT8("id", APICState, id, -1),
+        DEFINE_PROP_PTR("cpu_env", APICState, cpu_env),
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
+
+static void apic_register_devices(void)
+{
+    sysbus_register_withprop(&apic_info);
+}
+
+device_init(apic_register_devices)
