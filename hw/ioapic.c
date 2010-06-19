@@ -25,6 +25,7 @@
 #include "apic.h"
 #include "qemu-timer.h"
 #include "host-utils.h"
+#include "sysbus.h"
 
 //#define DEBUG_IOAPIC
 
@@ -35,7 +36,6 @@
 #define DPRINTF(fmt, ...)
 #endif
 
-#define IOAPIC_NUM_PINS			0x18
 #define IOAPIC_LVT_MASKED 		(1<<16)
 
 #define IOAPIC_TRIGGER_EDGE		0
@@ -50,7 +50,10 @@
 #define IOAPIC_DM_SIPI			0x5
 #define IOAPIC_DM_EXTINT		0x7
 
+typedef struct IOAPICState IOAPICState;
+
 struct IOAPICState {
+    SysBusDevice busdev;
     uint8_t id;
     uint8_t ioregsel;
 
@@ -209,12 +212,14 @@ static const VMStateDescription vmstate_ioapic = {
     }
 };
 
-static void ioapic_reset(void *opaque)
+static void ioapic_reset(DeviceState *d)
 {
-    IOAPICState *s = opaque;
+    IOAPICState *s = DO_UPCAST(IOAPICState, busdev.qdev, d);
     int i;
 
-    memset(s, 0, sizeof(*s));
+    s->id = 0;
+    s->ioregsel = 0;
+    s->irr = 0;
     for(i = 0; i < IOAPIC_NUM_PINS; i++)
         s->ioredtbl[i] = 1 << 16; /* mask LVT */
 }
@@ -231,22 +236,32 @@ static CPUWriteMemoryFunc * const ioapic_mem_write[3] = {
     ioapic_mem_writel,
 };
 
-qemu_irq *ioapic_init(void)
+static int ioapic_init1(SysBusDevice *dev)
 {
-    IOAPICState *s;
-    qemu_irq *irq;
+    IOAPICState *s = FROM_SYSBUS(IOAPICState, dev);
     int io_memory;
-
-    s = qemu_mallocz(sizeof(IOAPICState));
-    ioapic_reset(s);
 
     io_memory = cpu_register_io_memory(ioapic_mem_read,
                                        ioapic_mem_write, s);
-    cpu_register_physical_memory(0xfec00000, 0x1000, io_memory);
+    sysbus_init_mmio(dev, 0x1000, io_memory);
 
-    vmstate_register(0, &vmstate_ioapic, s);
-    qemu_register_reset(ioapic_reset, s);
-    irq = qemu_allocate_irqs(ioapic_set_irq, s, IOAPIC_NUM_PINS);
+    qdev_init_gpio_in(&dev->qdev, ioapic_set_irq, IOAPIC_NUM_PINS);
 
-    return irq;
+    return 0;
 }
+
+static SysBusDeviceInfo ioapic_info = {
+    .init = ioapic_init1,
+    .qdev.name = "ioapic",
+    .qdev.size = sizeof(IOAPICState),
+    .qdev.vmsd = &vmstate_ioapic,
+    .qdev.reset = ioapic_reset,
+    .qdev.no_user = 1,
+};
+
+static void ioapic_register_devices(void)
+{
+    sysbus_register_withprop(&ioapic_info);
+}
+
+device_init(ioapic_register_devices)
