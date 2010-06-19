@@ -35,6 +35,7 @@
 #include "elf.h"
 #include "multiboot.h"
 #include "mc146818rtc.h"
+#include "msix.h"
 #include "sysbus.h"
 #include "sysemu.h"
 
@@ -63,6 +64,8 @@
 #define FW_CFG_IRQ0_OVERRIDE (FW_CFG_ARCH_LOCAL + 2)
 #define FW_CFG_E820_TABLE (FW_CFG_ARCH_LOCAL + 3)
 #define FW_CFG_HPET (FW_CFG_ARCH_LOCAL + 4)
+
+#define MSI_ADDR_BASE 0xfee00000
 
 #define E820_NR_ENTRIES		16
 
@@ -754,13 +757,39 @@ int cpu_is_bsp(CPUState *env)
     return env->cpu_index == 0;
 }
 
-APICState *cpu_get_current_apic(void)
+DeviceState *cpu_get_current_apic(void)
 {
     if (cpu_single_env) {
         return cpu_single_env->apic_state;
     } else {
         return NULL;
     }
+}
+
+static DeviceState *apic_init(void *env, uint8_t apic_id)
+{
+    DeviceState *dev;
+    SysBusDevice *d;
+    static int apic_mapped;
+
+    dev = qdev_create(NULL, "apic");
+    qdev_prop_set_uint8(dev, "id", apic_id);
+    qdev_prop_set_ptr(dev, "cpu_env", env);
+    qdev_init_nofail(dev);
+    d = sysbus_from_qdev(dev);
+
+    /* XXX: mapping more APICs at the same memory location */
+    if (apic_mapped == 0) {
+        /* NOTE: the APIC is directly connected to the CPU - it is not
+           on the global memory bus. */
+        /* XXX: what if the base changes? */
+        sysbus_mmio_map(d, 0, MSI_ADDR_BASE);
+        apic_mapped = 1;
+    }
+
+    msix_supported = 1;
+
+    return dev;
 }
 
 /* set CMOS shutdown status register (index 0xF) as S3_resume(0xFE)

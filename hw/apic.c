@@ -18,7 +18,6 @@
  */
 #include "hw.h"
 #include "apic.h"
-#include "msix.h"
 #include "qemu-timer.h"
 #include "host-utils.h"
 #include "sysbus.h"
@@ -89,8 +88,9 @@
 #define MSI_ADDR_DEST_ID_SHIFT		12
 #define	MSI_ADDR_DEST_ID_MASK		0x00ffff0
 
-#define MSI_ADDR_BASE                   0xfee00000
 #define MSI_ADDR_SIZE                   0x100000
+
+typedef struct APICState APICState;
 
 struct APICState {
     SysBusDevice busdev;
@@ -195,8 +195,10 @@ static void apic_local_deliver(APICState *s, int vector)
     }
 }
 
-void apic_deliver_pic_intr(APICState *s, int level)
+void apic_deliver_pic_intr(DeviceState *d, int level)
 {
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
+
     if (level) {
         apic_local_deliver(s, APIC_LVT_LINT0);
     } else {
@@ -306,8 +308,10 @@ void apic_deliver_irq(uint8_t dest, uint8_t dest_mode,
                      trigger_mode);
 }
 
-void cpu_set_apic_base(APICState *s, uint64_t val)
+void cpu_set_apic_base(DeviceState *d, uint64_t val)
 {
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
+
     DPRINTF("cpu_set_apic_base: %016" PRIx64 "\n", val);
     if (!s)
         return;
@@ -321,23 +325,29 @@ void cpu_set_apic_base(APICState *s, uint64_t val)
     }
 }
 
-uint64_t cpu_get_apic_base(APICState *s)
+uint64_t cpu_get_apic_base(DeviceState *d)
 {
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
+
     DPRINTF("cpu_get_apic_base: %016" PRIx64 "\n",
             s ? (uint64_t)s->apicbase: 0);
     return s ? s->apicbase : 0;
 }
 
-void cpu_set_apic_tpr(APICState *s, uint8_t val)
+void cpu_set_apic_tpr(DeviceState *d, uint8_t val)
 {
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
+
     if (!s)
         return;
     s->tpr = (val & 0x0f) << 4;
     apic_update_irq(s);
 }
 
-uint8_t cpu_get_apic_tpr(APICState *s)
+uint8_t cpu_get_apic_tpr(DeviceState *d)
 {
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
+
     return s ? s->tpr >> 4 : 0;
 }
 
@@ -479,9 +489,9 @@ static void apic_get_delivery_bitmask(uint32_t *deliver_bitmask,
     }
 }
 
-
-void apic_init_reset(APICState *s)
+void apic_init_reset(DeviceState *d)
 {
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
     int i;
 
     if (!s)
@@ -512,8 +522,10 @@ static void apic_startup(APICState *s, int vector_num)
     cpu_interrupt(s->cpu_env, CPU_INTERRUPT_SIPI);
 }
 
-void apic_sipi(APICState *s)
+void apic_sipi(DeviceState *d)
 {
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
+
     cpu_reset_interrupt(s->cpu_env, CPU_INTERRUPT_SIPI);
 
     if (!s->wait_for_sipi)
@@ -522,10 +534,11 @@ void apic_sipi(APICState *s)
     s->wait_for_sipi = 0;
 }
 
-static void apic_deliver(APICState *s, uint8_t dest, uint8_t dest_mode,
+static void apic_deliver(DeviceState *d, uint8_t dest, uint8_t dest_mode,
                          uint8_t delivery_mode, uint8_t vector_num,
                          uint8_t polarity, uint8_t trigger_mode)
 {
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
     uint32_t deliver_bitmask[MAX_APIC_WORDS];
     int dest_shorthand = (s->icr[0] >> 18) & 3;
     APICState *apic_iter;
@@ -570,8 +583,9 @@ static void apic_deliver(APICState *s, uint8_t dest, uint8_t dest_mode,
                      trigger_mode);
 }
 
-int apic_get_interrupt(APICState *s)
+int apic_get_interrupt(DeviceState *d)
 {
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
     int intno;
 
     /* if the APIC is installed or enabled, we let the 8259 handle the
@@ -593,8 +607,9 @@ int apic_get_interrupt(APICState *s)
     return intno;
 }
 
-int apic_accept_pic_intr(APICState *s)
+int apic_accept_pic_intr(DeviceState *d)
 {
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
     uint32_t lvt0;
 
     if (!s)
@@ -680,14 +695,16 @@ static void apic_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 
 static uint32_t apic_mem_readl(void *opaque, target_phys_addr_t addr)
 {
+    DeviceState *d;
     APICState *s;
     uint32_t val;
     int index;
 
-    s = cpu_get_current_apic();
-    if (!s) {
+    d = cpu_get_current_apic();
+    if (!d) {
         return 0;
     }
+    s = DO_UPCAST(APICState, busdev.qdev, d);
 
     index = (addr >> 4) & 0xff;
     switch(index) {
@@ -769,6 +786,7 @@ static void apic_send_msi(target_phys_addr_t addr, uint32 data)
 
 static void apic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
+    DeviceState *d;
     APICState *s;
     int index = (addr >> 4) & 0xff;
     if (addr > 0xfff || !index) {
@@ -781,10 +799,11 @@ static void apic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
         return;
     }
 
-    s = cpu_get_current_apic();
-    if (!s) {
+    d = cpu_get_current_apic();
+    if (!d) {
         return;
     }
+    s = DO_UPCAST(APICState, busdev.qdev, d);
 
     DPRINTF("write: " TARGET_FMT_plx " = %08x\n", addr, val);
 
@@ -821,7 +840,7 @@ static void apic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
         break;
     case 0x30:
         s->icr[0] = val;
-        apic_deliver(s, (s->icr[1] >> 24) & 0xff, (s->icr[0] >> 11) & 1,
+        apic_deliver(d, (s->icr[1] >> 24) & 0xff, (s->icr[0] >> 11) & 1,
                      (s->icr[0] >> 8) & 7, (s->icr[0] & 0xff),
                      (s->icr[0] >> 14) & 1, (s->icr[0] >> 15) & 1);
         break;
@@ -935,7 +954,7 @@ static void apic_reset(DeviceState *d)
     s->apicbase = 0xfee00000 |
         (bsp ? MSR_IA32_APICBASE_BSP : 0) | MSR_IA32_APICBASE_ENABLE;
 
-    apic_init_reset(s);
+    apic_init_reset(d);
 
     if (bsp) {
         /*
@@ -958,35 +977,6 @@ static CPUWriteMemoryFunc * const apic_mem_write[3] = {
     apic_mem_writew,
     apic_mem_writel,
 };
-
-APICState *apic_init(void *env, uint8_t apic_id)
-{
-    DeviceState *dev;
-    SysBusDevice *d;
-    APICState *s;
-    static int apic_mapped;
-
-    dev = qdev_create(NULL, "apic");
-    qdev_prop_set_uint8(dev, "id", apic_id);
-    qdev_prop_set_ptr(dev, "cpu_env", env);
-    qdev_init_nofail(dev);
-    d = sysbus_from_qdev(dev);
-
-    /* XXX: mapping more APICs at the same memory location */
-    if (apic_mapped == 0) {
-        /* NOTE: the APIC is directly connected to the CPU - it is not
-           on the global memory bus. */
-        /* XXX: what if the base changes? */
-        sysbus_mmio_map(d, 0, MSI_ADDR_BASE);
-        apic_mapped = 1;
-    }
-
-    msix_supported = 1;
-
-    s = DO_UPCAST(APICState, busdev.qdev, dev);
-
-    return s;
-}
 
 static int apic_init1(SysBusDevice *dev)
 {
