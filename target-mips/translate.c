@@ -11350,7 +11350,8 @@ static void decode_opc (CPUState *env, DisasContext *ctx, int *is_branch)
             break;
         case OPC_MOVN:         /* Conditional move */
         case OPC_MOVZ:
-            check_insn(env, ctx, ISA_MIPS4 | ISA_MIPS32);
+            check_insn(env, ctx, ISA_MIPS4 | ISA_MIPS32 |
+                                 INSN_LOONGSON2E | INSN_LOONGSON2F);
             gen_cond_move(env, op1, rd, rs, rt);
             break;
         case OPC_ADD ... OPC_SUBU:
