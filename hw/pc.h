@@ -42,9 +42,11 @@ void pic_info(Monitor *mon);
 void irq_info(Monitor *mon);
 
 /* ISA */
+#define IOAPIC_NUM_PINS 0x18
+
 typedef struct isa_irq_state {
     qemu_irq *i8259;
-    qemu_irq *ioapic;
+    qemu_irq ioapic[IOAPIC_NUM_PINS];
 } IsaIrqState;
 
 void isa_irq_handler(void *opaque, int n, int level);

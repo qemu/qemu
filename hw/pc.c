@@ -35,6 +35,7 @@
 #include "elf.h"
 #include "multiboot.h"
 #include "mc146818rtc.h"
+#include "msix.h"
 #include "sysbus.h"
 #include "sysemu.h"
 
@@ -63,6 +64,8 @@
 #define FW_CFG_IRQ0_OVERRIDE (FW_CFG_ARCH_LOCAL + 2)
 #define FW_CFG_E820_TABLE (FW_CFG_ARCH_LOCAL + 3)
 #define FW_CFG_HPET (FW_CFG_ARCH_LOCAL + 4)
+
+#define MSI_ADDR_BASE 0xfee00000
 
 #define E820_NR_ENTRIES		16
 
@@ -145,7 +148,7 @@ int cpu_get_pic_interrupt(CPUState *env)
 {
     int intno;
 
-    intno = apic_get_interrupt(env);
+    intno = apic_get_interrupt(env->apic_state);
     if (intno >= 0) {
         /* set irq request if a PIC irq is still pending */
         /* XXX: improve that */
@@ -153,8 +156,9 @@ int cpu_get_pic_interrupt(CPUState *env)
         return intno;
     }
     /* read the irq from the PIC */
-    if (!apic_accept_pic_intr(env))
+    if (!apic_accept_pic_intr(env->apic_state)) {
         return -1;
+    }
 
     intno = pic_read_irq(isa_pic);
     return intno;
@@ -167,8 +171,9 @@ static void pic_irq_request(void *opaque, int irq, int level)
     DPRINTF("pic_irqs: %s irq %d\n", level? "raise" : "lower", irq);
     if (env->apic_state) {
         while (env) {
-            if (apic_accept_pic_intr(env))
-                apic_deliver_pic_intr(env, level);
+            if (apic_accept_pic_intr(env->apic_state)) {
+                apic_deliver_pic_intr(env->apic_state, level);
+            }
             env = env->next_cpu;
         }
     } else {
@@ -752,6 +757,41 @@ int cpu_is_bsp(CPUState *env)
     return env->cpu_index == 0;
 }
 
+DeviceState *cpu_get_current_apic(void)
+{
+    if (cpu_single_env) {
+        return cpu_single_env->apic_state;
+    } else {
+        return NULL;
+    }
+}
+
+static DeviceState *apic_init(void *env, uint8_t apic_id)
+{
+    DeviceState *dev;
+    SysBusDevice *d;
+    static int apic_mapped;
+
+    dev = qdev_create(NULL, "apic");
+    qdev_prop_set_uint8(dev, "id", apic_id);
+    qdev_prop_set_ptr(dev, "cpu_env", env);
+    qdev_init_nofail(dev);
+    d = sysbus_from_qdev(dev);
+
+    /* XXX: mapping more APICs at the same memory location */
+    if (apic_mapped == 0) {
+        /* NOTE: the APIC is directly connected to the CPU - it is not
+           on the global memory bus. */
+        /* XXX: what if the base changes? */
+        sysbus_mmio_map(d, 0, MSI_ADDR_BASE);
+        apic_mapped = 1;
+    }
+
+    msix_supported = 1;
+
+    return dev;
+}
+
 /* set CMOS shutdown status register (index 0xF) as S3_resume(0xFE)
    BIOS will read it and start S3 resume at POST Entry */
 void pc_cmos_set_s3_resume(void *opaque, int irq, int level)
@@ -772,6 +812,22 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
     }
 }
 
+static void bsp_cpu_reset(void *opaque)
+{
+    CPUState *env = opaque;
+
+    cpu_reset(env);
+    env->halted = 0;
+}
+
+static void ap_cpu_reset(void *opaque)
+{
+    CPUState *env = opaque;
+
+    cpu_reset(env);
+    env->halted = 1;
+}
+
 static CPUState *pc_new_cpu(const char *cpu_model)
 {
     CPUState *env;
@@ -784,9 +840,14 @@ static CPUState *pc_new_cpu(const char *cpu_model)
     if ((env->cpuid_features & CPUID_APIC) || smp_cpus > 1) {
         env->cpuid_apic_id = env->cpu_index;
         /* APIC reset callback resets cpu */
-        apic_init(env);
+        env->apic_state = apic_init(env, env->cpuid_apic_id);
+    }
+    if (cpu_is_bsp(env)) {
+        qemu_register_reset(bsp_cpu_reset, env);
+        env->halted = 0;
     } else {
-        qemu_register_reset((QEMUResetHandler*)cpu_reset, env);
+        qemu_register_reset(ap_cpu_reset, env);
+        env->halted = 1;
     }
     return env;
 }

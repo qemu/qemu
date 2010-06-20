@@ -17,13 +17,10 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>
  */
 #include "hw.h"
-#include "pc.h"
 #include "apic.h"
-#include "pci.h"
-#include "msix.h"
 #include "qemu-timer.h"
 #include "host-utils.h"
-#include "kvm.h"
+#include "sysbus.h"
 
 //#define DEBUG_APIC
 //#define DEBUG_COALESCING
@@ -91,11 +88,13 @@
 #define MSI_ADDR_DEST_ID_SHIFT		12
 #define	MSI_ADDR_DEST_ID_MASK		0x00ffff0
 
-#define MSI_ADDR_BASE                   0xfee00000
 #define MSI_ADDR_SIZE                   0x100000
 
-typedef struct APICState {
-    CPUState *cpu_env;
+typedef struct APICState APICState;
+
+struct APICState {
+    SysBusDevice busdev;
+    void *cpu_env;
     uint32_t apicbase;
     uint8_t id;
     uint8_t arb_id;
@@ -118,13 +117,10 @@ typedef struct APICState {
     QEMUTimer *timer;
     int sipi_vector;
     int wait_for_sipi;
-} APICState;
+};
 
-static int apic_io_memory;
 static APICState *local_apics[MAX_APICS + 1];
-static int last_apic_idx = 0;
 static int apic_irq_delivered;
-
 
 static void apic_set_irq(APICState *s, int vector_num, int trigger_mode);
 static void apic_update_irq(APICState *s);
@@ -167,9 +163,8 @@ static inline int get_bit(uint32_t *tab, int index)
     return !!(tab[i] & mask);
 }
 
-static void apic_local_deliver(CPUState *env, int vector)
+static void apic_local_deliver(APICState *s, int vector)
 {
-    APICState *s = env->apic_state;
     uint32_t lvt = s->lvt[vector];
     int trigger_mode;
 
@@ -180,15 +175,15 @@ static void apic_local_deliver(CPUState *env, int vector)
 
     switch ((lvt >> 8) & 7) {
     case APIC_DM_SMI:
-        cpu_interrupt(env, CPU_INTERRUPT_SMI);
+        cpu_interrupt(s->cpu_env, CPU_INTERRUPT_SMI);
         break;
 
     case APIC_DM_NMI:
-        cpu_interrupt(env, CPU_INTERRUPT_NMI);
+        cpu_interrupt(s->cpu_env, CPU_INTERRUPT_NMI);
         break;
 
     case APIC_DM_EXTINT:
-        cpu_interrupt(env, CPU_INTERRUPT_HARD);
+        cpu_interrupt(s->cpu_env, CPU_INTERRUPT_HARD);
         break;
 
     case APIC_DM_FIXED:
@@ -200,12 +195,13 @@ static void apic_local_deliver(CPUState *env, int vector)
     }
 }
 
-void apic_deliver_pic_intr(CPUState *env, int level)
+void apic_deliver_pic_intr(DeviceState *d, int level)
 {
-    if (level)
-        apic_local_deliver(env, APIC_LVT_LINT0);
-    else {
-        APICState *s = env->apic_state;
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
+
+    if (level) {
+        apic_local_deliver(s, APIC_LVT_LINT0);
+    } else {
         uint32_t lvt = s->lvt[APIC_LVT_LINT0];
 
         switch ((lvt >> 8) & 7) {
@@ -215,7 +211,7 @@ void apic_deliver_pic_intr(CPUState *env, int level)
             reset_bit(s->irr, lvt & 0xff);
             /* fall through */
         case APIC_DM_EXTINT:
-            cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+            cpu_reset_interrupt(s->cpu_env, CPU_INTERRUPT_HARD);
             break;
         }
     }
@@ -312,9 +308,9 @@ void apic_deliver_irq(uint8_t dest, uint8_t dest_mode,
                      trigger_mode);
 }
 
-void cpu_set_apic_base(CPUState *env, uint64_t val)
+void cpu_set_apic_base(DeviceState *d, uint64_t val)
 {
-    APICState *s = env->apic_state;
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
 
     DPRINTF("cpu_set_apic_base: %016" PRIx64 "\n", val);
     if (!s)
@@ -324,32 +320,34 @@ void cpu_set_apic_base(CPUState *env, uint64_t val)
     /* if disabled, cannot be enabled again */
     if (!(val & MSR_IA32_APICBASE_ENABLE)) {
         s->apicbase &= ~MSR_IA32_APICBASE_ENABLE;
-        env->cpuid_features &= ~CPUID_APIC;
+        cpu_clear_apic_feature(s->cpu_env);
         s->spurious_vec &= ~APIC_SV_ENABLE;
     }
 }
 
-uint64_t cpu_get_apic_base(CPUState *env)
+uint64_t cpu_get_apic_base(DeviceState *d)
 {
-    APICState *s = env->apic_state;
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
 
     DPRINTF("cpu_get_apic_base: %016" PRIx64 "\n",
             s ? (uint64_t)s->apicbase: 0);
     return s ? s->apicbase : 0;
 }
 
-void cpu_set_apic_tpr(CPUX86State *env, uint8_t val)
+void cpu_set_apic_tpr(DeviceState *d, uint8_t val)
 {
-    APICState *s = env->apic_state;
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
+
     if (!s)
         return;
     s->tpr = (val & 0x0f) << 4;
     apic_update_irq(s);
 }
 
-uint8_t cpu_get_apic_tpr(CPUX86State *env)
+uint8_t cpu_get_apic_tpr(DeviceState *d)
 {
-    APICState *s = env->apic_state;
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
+
     return s ? s->tpr >> 4 : 0;
 }
 
@@ -491,10 +489,9 @@ static void apic_get_delivery_bitmask(uint32_t *deliver_bitmask,
     }
 }
 
-
-void apic_init_reset(CPUState *env)
+void apic_init_reset(DeviceState *d)
 {
-    APICState *s = env->apic_state;
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
     int i;
 
     if (!s)
@@ -517,8 +514,6 @@ void apic_init_reset(CPUState *env)
     s->initial_count_load_time = 0;
     s->next_time = 0;
     s->wait_for_sipi = 1;
-
-    env->halted = !(s->apicbase & MSR_IA32_APICBASE_BSP);
 }
 
 static void apic_startup(APICState *s, int vector_num)
@@ -527,26 +522,23 @@ static void apic_startup(APICState *s, int vector_num)
     cpu_interrupt(s->cpu_env, CPU_INTERRUPT_SIPI);
 }
 
-void apic_sipi(CPUState *env)
+void apic_sipi(DeviceState *d)
 {
-    APICState *s = env->apic_state;
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
 
-    cpu_reset_interrupt(env, CPU_INTERRUPT_SIPI);
+    cpu_reset_interrupt(s->cpu_env, CPU_INTERRUPT_SIPI);
 
     if (!s->wait_for_sipi)
         return;
-
-    env->eip = 0;
-    cpu_x86_load_seg_cache(env, R_CS, s->sipi_vector << 8, s->sipi_vector << 12,
-                           env->segs[R_CS].limit, env->segs[R_CS].flags);
-    env->halted = 0;
+    cpu_x86_load_seg_cache_sipi(s->cpu_env, s->sipi_vector);
     s->wait_for_sipi = 0;
 }
 
-static void apic_deliver(APICState *s, uint8_t dest, uint8_t dest_mode,
+static void apic_deliver(DeviceState *d, uint8_t dest, uint8_t dest_mode,
                          uint8_t delivery_mode, uint8_t vector_num,
                          uint8_t polarity, uint8_t trigger_mode)
 {
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
     uint32_t deliver_bitmask[MAX_APIC_WORDS];
     int dest_shorthand = (s->icr[0] >> 18) & 3;
     APICState *apic_iter;
@@ -591,9 +583,9 @@ static void apic_deliver(APICState *s, uint8_t dest, uint8_t dest_mode,
                      trigger_mode);
 }
 
-int apic_get_interrupt(CPUState *env)
+int apic_get_interrupt(DeviceState *d)
 {
-    APICState *s = env->apic_state;
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
     int intno;
 
     /* if the APIC is installed or enabled, we let the 8259 handle the
@@ -615,9 +607,9 @@ int apic_get_interrupt(CPUState *env)
     return intno;
 }
 
-int apic_accept_pic_intr(CPUState *env)
+int apic_accept_pic_intr(DeviceState *d)
 {
-    APICState *s = env->apic_state;
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
     uint32_t lvt0;
 
     if (!s)
@@ -679,7 +671,7 @@ static void apic_timer(void *opaque)
 {
     APICState *s = opaque;
 
-    apic_local_deliver(s->cpu_env, APIC_LVT_TIMER);
+    apic_local_deliver(s, APIC_LVT_TIMER);
     apic_timer_update(s, s->next_time);
 }
 
@@ -703,15 +695,16 @@ static void apic_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 
 static uint32_t apic_mem_readl(void *opaque, target_phys_addr_t addr)
 {
-    CPUState *env;
+    DeviceState *d;
     APICState *s;
     uint32_t val;
     int index;
 
-    env = cpu_single_env;
-    if (!env)
+    d = cpu_get_current_apic();
+    if (!d) {
         return 0;
-    s = env->apic_state;
+    }
+    s = DO_UPCAST(APICState, busdev.qdev, d);
 
     index = (addr >> 4) & 0xff;
     switch(index) {
@@ -793,7 +786,7 @@ static void apic_send_msi(target_phys_addr_t addr, uint32 data)
 
 static void apic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
-    CPUState *env;
+    DeviceState *d;
     APICState *s;
     int index = (addr >> 4) & 0xff;
     if (addr > 0xfff || !index) {
@@ -806,10 +799,11 @@ static void apic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
         return;
     }
 
-    env = cpu_single_env;
-    if (!env)
+    d = cpu_get_current_apic();
+    if (!d) {
         return;
-    s = env->apic_state;
+    }
+    s = DO_UPCAST(APICState, busdev.qdev, d);
 
     DPRINTF("write: " TARGET_FMT_plx " = %08x\n", addr, val);
 
@@ -846,7 +840,7 @@ static void apic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
         break;
     case 0x30:
         s->icr[0] = val;
-        apic_deliver(s, (s->icr[1] >> 24) & 0xff, (s->icr[0] >> 11) & 1,
+        apic_deliver(d, (s->icr[1] >> 24) & 0xff, (s->icr[0] >> 11) & 1,
                      (s->icr[0] >> 8) & 7, (s->icr[0] & 0xff),
                      (s->icr[0] >> 14) & 1, (s->icr[0] >> 15) & 1);
         break;
@@ -951,17 +945,16 @@ static const VMStateDescription vmstate_apic = {
     }
 };
 
-static void apic_reset(void *opaque)
+static void apic_reset(DeviceState *d)
 {
-    APICState *s = opaque;
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
     int bsp;
 
     bsp = cpu_is_bsp(s->cpu_env);
     s->apicbase = 0xfee00000 |
         (bsp ? MSR_IA32_APICBASE_BSP : 0) | MSR_IA32_APICBASE_ENABLE;
 
-    cpu_reset(s->cpu_env);
-    apic_init_reset(s->cpu_env);
+    apic_init_reset(d);
 
     if (bsp) {
         /*
@@ -985,35 +978,42 @@ static CPUWriteMemoryFunc * const apic_mem_write[3] = {
     apic_mem_writel,
 };
 
-int apic_init(CPUState *env)
+static int apic_init1(SysBusDevice *dev)
 {
-    APICState *s;
+    APICState *s = FROM_SYSBUS(APICState, dev);
+    int apic_io_memory;
+    static int last_apic_idx;
 
-    if (last_apic_idx >= MAX_APICS)
+    if (last_apic_idx >= MAX_APICS) {
         return -1;
-    s = qemu_mallocz(sizeof(APICState));
-    env->apic_state = s;
-    s->idx = last_apic_idx++;
-    s->id = env->cpuid_apic_id;
-    s->cpu_env = env;
-
-    msix_supported = 1;
-
-    /* XXX: mapping more APICs at the same memory location */
-    if (apic_io_memory == 0) {
-        /* NOTE: the APIC is directly connected to the CPU - it is not
-           on the global memory bus. */
-        apic_io_memory = cpu_register_io_memory(apic_mem_read,
-                                                apic_mem_write, NULL);
-        /* XXX: what if the base changes? */
-        cpu_register_physical_memory(MSI_ADDR_BASE, MSI_ADDR_SIZE,
-                                     apic_io_memory);
     }
+    apic_io_memory = cpu_register_io_memory(apic_mem_read,
+                                            apic_mem_write, NULL);
+    sysbus_init_mmio(dev, MSI_ADDR_SIZE, apic_io_memory);
+
     s->timer = qemu_new_timer(vm_clock, apic_timer, s);
-
-    vmstate_register(s->idx, &vmstate_apic, s);
-    qemu_register_reset(apic_reset, s);
-
+    s->idx = last_apic_idx++;
     local_apics[s->idx] = s;
     return 0;
 }
+
+static SysBusDeviceInfo apic_info = {
+    .init = apic_init1,
+    .qdev.name = "apic",
+    .qdev.size = sizeof(APICState),
+    .qdev.vmsd = &vmstate_apic,
+    .qdev.reset = apic_reset,
+    .qdev.no_user = 1,
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_UINT8("id", APICState, id, -1),
+        DEFINE_PROP_PTR("cpu_env", APICState, cpu_env),
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
+
+static void apic_register_devices(void)
+{
+    sysbus_register_withprop(&apic_info);
+}
+
+device_init(apic_register_devices)
