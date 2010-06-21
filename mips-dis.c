@@ -565,6 +565,11 @@ struct mips_opcode
 /* DSP R2 ASE  */
 #define INSN_DSPR2                0x20000000
 
+/* ST Microelectronics Loongson 2E.  */
+#define INSN_LOONGSON_2E          0x40000000
+/* ST Microelectronics Loongson 2F.  */
+#define INSN_LOONGSON_2F          0x80000000
+
 /* MIPS ISA defines, use instead of hardcoding ISA level.  */
 
 #define       ISA_UNKNOWN     0               /* Gas internal use.  */
@@ -1128,6 +1133,9 @@ extern const int bfd_mips16_num_opcodes;
 
 /* MIPS64 MDMX ASE support.  */
 #define MX      INSN_MDMX
+
+#define IL2E	(INSN_LOONGSON_2E)
+#define IL2F	(INSN_LOONGSON_2F)
 
 #define P3	INSN_4650
 #define L1	INSN_4010
@@ -2719,6 +2727,31 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"bc0fl",   "p",	0x41020000, 0xffff0000,	CBL|RD_CC,		0,		I2|T3	},
 {"bc0t",    "p",	0x41010000, 0xffff0000,	CBD|RD_CC,		0,		I1	},
 {"bc0tl",   "p",	0x41030000, 0xffff0000,	CBL|RD_CC,		0,		I2|T3	},
+/* ST Microelectronics Loongson-2E and -2F.  */
+{"mult.g",	"d,s,t",	0x7c000018,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2E	},
+{"mult.g",	"d,s,t",	0x70000010,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2F	},
+{"multu.g",	"d,s,t",	0x7c000019,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2E	},
+{"multu.g",	"d,s,t",	0x70000012,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2F	},
+{"dmult.g",	"d,s,t",	0x7c00001c,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2E	},
+{"dmult.g",	"d,s,t",	0x70000011,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2F	},
+{"dmultu.g",	"d,s,t",	0x7c00001d,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2E	},
+{"dmultu.g",	"d,s,t",	0x70000013,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2F	},
+{"div.g",	"d,s,t",	0x7c00001a,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2E	},
+{"div.g",	"d,s,t",	0x70000014,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2F	},
+{"divu.g",	"d,s,t",	0x7c00001b,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2E	},
+{"divu.g",	"d,s,t",	0x70000016,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2F	},
+{"ddiv.g",	"d,s,t",	0x7c00001e,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2E	},
+{"ddiv.g",	"d,s,t",	0x70000015,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2F	},
+{"ddivu.g",	"d,s,t",	0x7c00001f,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2E	},
+{"ddivu.g",	"d,s,t",	0x70000017,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2F	},
+{"mod.g",	"d,s,t",	0x7c000022,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2E	},
+{"mod.g",	"d,s,t",	0x7000001c,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2F	},
+{"modu.g",	"d,s,t",	0x7c000023,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2E	},
+{"modu.g",	"d,s,t",	0x7000001e,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2F	},
+{"dmod.g",	"d,s,t",	0x7c000026,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2E	},
+{"dmod.g",	"d,s,t",	0x7000001d,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2F	},
+{"dmodu.g",	"d,s,t",	0x7c000027,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2E	},
+{"dmodu.g",	"d,s,t",	0x7000001f,	0xfc0007ff,	RD_s|RD_t|WR_d,	0,	IL2F	},
 };
 
 #define MIPS_NUM_OPCODES \
