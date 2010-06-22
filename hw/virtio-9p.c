@@ -1621,8 +1621,19 @@ out:
     qemu_free(vs);
 }
 
+static inline int valid_flags(int flag)
+{
+    if (flag & O_NOCTTY || flag & O_NONBLOCK || flag & O_ASYNC ||
+            flag & O_CLOEXEC)
+        return 0;
+    else
+        return 1;
+}
+
 static void v9fs_open_post_lstat(V9fsState *s, V9fsOpenState *vs, int err)
 {
+    int flags;
+
     if (err) {
         err = -errno;
         goto out;
@@ -1634,8 +1645,16 @@ static void v9fs_open_post_lstat(V9fsState *s, V9fsOpenState *vs, int err)
         vs->fidp->dir = v9fs_do_opendir(s, &vs->fidp->path);
         v9fs_open_post_opendir(s, vs, err);
     } else {
-        vs->fidp->fd = v9fs_do_open(s, &vs->fidp->path,
-                                    omode_to_uflags(vs->mode));
+        if (s->proto_version == V9FS_PROTO_2000L) {
+            if (!valid_flags(vs->mode)) {
+                err = -EINVAL;
+                goto out;
+            }
+            flags = vs->mode;
+        } else {
+            flags = omode_to_uflags(vs->mode);
+        }
+        vs->fidp->fd = v9fs_do_open(s, &vs->fidp->path, flags);
         v9fs_open_post_open(s, vs, err);
     }
     return;
@@ -1650,12 +1669,16 @@ static void v9fs_open(V9fsState *s, V9fsPDU *pdu)
     V9fsOpenState *vs;
     ssize_t err = 0;
 
-
     vs = qemu_malloc(sizeof(*vs));
     vs->pdu = pdu;
     vs->offset = 7;
+    vs->mode = 0;
 
-    pdu_unmarshal(vs->pdu, vs->offset, "db", &fid, &vs->mode);
+    if (s->proto_version == V9FS_PROTO_2000L) {
+        pdu_unmarshal(vs->pdu, vs->offset, "dd", &fid, &vs->mode);
+    } else {
+        pdu_unmarshal(vs->pdu, vs->offset, "db", &fid, &vs->mode);
+    }
 
     vs->fidp = lookup_fid(s, fid);
     if (vs->fidp == NULL) {
@@ -3076,6 +3099,7 @@ static pdu_handler_t *pdu_handlers[] = {
     [P9_TRENAME] = v9fs_rename,
     [P9_TMKDIR] = v9fs_mkdir,
     [P9_TVERSION] = v9fs_version,
+    [P9_TLOPEN] = v9fs_open,
     [P9_TATTACH] = v9fs_attach,
     [P9_TSTAT] = v9fs_stat,
     [P9_TWALK] = v9fs_walk,

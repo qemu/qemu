@@ -15,6 +15,8 @@
 enum {
     P9_TSTATFS = 8,
     P9_RSTATFS,
+    P9_TLOPEN = 12,
+    P9_RLOPEN,
     P9_TLCREATE = 14,
     P9_RLCREATE,
     P9_TSYMLINK = 16,
@@ -259,7 +261,7 @@ typedef struct V9fsWalkState {
 typedef struct V9fsOpenState {
     V9fsPDU *pdu;
     size_t offset;
-    int8_t mode;
+    int32_t mode;
     V9fsFidState *fidp;
     V9fsQID qid;
     struct stat stbuf;
