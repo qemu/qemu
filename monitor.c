@@ -4151,6 +4151,95 @@ static int invalid_qmp_mode(const Monitor *mon, const char *cmd_name)
 }
 
 /*
+ * Argument validation rules:
+ *
+ * 1. The argument must exist in cmd_args qdict
+ * 2. The argument type must be the expected one
+ *
+ * Special case: If the argument doesn't exist in cmd_args and
+ *               the QMP_ACCEPT_UNKNOWNS flag is set, then the
+ *               checking is skipped for it.
+ */
+static int check_client_args_type(const QDict *client_args,
+                                  const QDict *cmd_args, int flags)
+{
+    const QDictEntry *ent;
+
+    for (ent = qdict_first(client_args); ent;ent = qdict_next(client_args,ent)){
+        QObject *obj;
+        QString *arg_type;
+        const QObject *client_arg = qdict_entry_value(ent);
+        const char *client_arg_name = qdict_entry_key(ent);
+
+        obj = qdict_get(cmd_args, client_arg_name);
+        if (!obj) {
+            if (flags & QMP_ACCEPT_UNKNOWNS) {
+                /* handler accepts unknowns */
+                continue;
+            }
+            /* client arg doesn't exist */
+            qerror_report(QERR_INVALID_PARAMETER, client_arg_name);
+            return -1;
+        }
+
+        arg_type = qobject_to_qstring(obj);
+        assert(arg_type != NULL);
+
+        /* check if argument's type is correct */
+        switch (qstring_get_str(arg_type)[0]) {
+        case 'F':
+        case 'B':
+        case 's':
+            if (qobject_type(client_arg) != QTYPE_QSTRING) {
+                qerror_report(QERR_INVALID_PARAMETER_TYPE, client_arg_name,
+                              "string");
+                return -1;
+            }
+        break;
+        case 'i':
+        case 'l':
+        case 'M':
+            if (qobject_type(client_arg) != QTYPE_QINT) {
+                qerror_report(QERR_INVALID_PARAMETER_TYPE, client_arg_name,
+                              "int");
+                return -1; 
+            }
+            break;
+        case 'f':
+        case 'T':
+            if (qobject_type(client_arg) != QTYPE_QINT &&
+                qobject_type(client_arg) != QTYPE_QFLOAT) {
+                qerror_report(QERR_INVALID_PARAMETER_TYPE, client_arg_name,
+                              "number");
+               return -1; 
+            }
+            break;
+        case 'b':
+        case '-':
+            if (qobject_type(client_arg) != QTYPE_QBOOL) {
+                qerror_report(QERR_INVALID_PARAMETER_TYPE, client_arg_name,
+                              "bool");
+               return -1; 
+            }
+            break;
+        case 'O':
+            assert(flags & QMP_ACCEPT_UNKNOWNS);
+            break;
+        case '/':
+        case '.':
+            /*
+             * These types are not supported by QMP and thus are not
+             * handled here. Fall through.
+             */
+        default:
+            abort();
+        }
+    }
+
+    return 0;
+}
+
+/*
  * - Check if the client has passed all mandatory args
  * - Set special flags for argument validation
  */
@@ -4227,6 +4316,9 @@ out:
  * Client argument checking rules:
  *
  * 1. Client must provide all mandatory arguments
+ * 2. Each argument provided by the client must be expected
+ * 3. Each argument provided by the client must have the type expected
+ *    by the command
  */
 static int qmp_check_client_args(const mon_cmd_t *cmd, QDict *client_args)
 {
@@ -4241,7 +4333,7 @@ static int qmp_check_client_args(const mon_cmd_t *cmd, QDict *client_args)
         goto out;
     }
 
-    /* TODO: Check client args type */
+    err = check_client_args_type(client_args, cmd_args, flags);
 
 out:
     QDECREF(cmd_args);
