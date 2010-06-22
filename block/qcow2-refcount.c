@@ -1174,6 +1174,7 @@ int qcow2_check_refcounts(BlockDriverState *bs)
         if (refcount1 < 0) {
             fprintf(stderr, "Can't get refcount for cluster %d: %s\n",
                 i, strerror(-refcount1));
+            continue;
         }
 
         refcount2 = refcount_table[i];
