@@ -488,6 +488,19 @@ void pprint_pdu(V9fsPDU *pdu)
         pprint_qid(pdu, 1, &offset, "qid");
         pprint_int32(pdu, 1, &offset, ", iounit");
         break;
+    case P9_TMKNOD:
+	fprintf(llogfile, "TMKNOD: (");
+        pprint_int32(pdu, 0, &offset, "fid");
+        pprint_str(pdu, 0, &offset, "name");
+        pprint_int32(pdu, 0, &offset, "mode");
+        pprint_int32(pdu, 0, &offset, "major");
+        pprint_int32(pdu, 0, &offset, "minor");
+        pprint_int32(pdu, 0, &offset, "gid");
+        break;
+    case P9_RMKNOD:
+        fprintf(llogfile, "RMKNOD: )");
+        pprint_qid(pdu, 0, &offset, "qid");
+        break;
     case P9_TREAD:
         fprintf(llogfile, "TREAD: (");
         pprint_int32(pdu, 0, &offset, "fid");

@@ -160,15 +160,16 @@ static int v9fs_do_chmod(V9fsState *s, V9fsString *path, mode_t mode)
     return s->ops->chmod(&s->ctx, path->data, &cred);
 }
 
-static int v9fs_do_mknod(V9fsState *s, V9fsCreateState *vs, mode_t mode,
-        dev_t dev)
+static int v9fs_do_mknod(V9fsState *s, char *name,
+        mode_t mode, dev_t dev, uid_t uid, gid_t gid)
 {
     FsCred cred;
     cred_init(&cred);
-    cred.fc_uid = vs->fidp->uid;
+    cred.fc_uid = uid;
+    cred.fc_gid = gid;
     cred.fc_mode = mode;
     cred.fc_rdev = dev;
-    return s->ops->mknod(&s->ctx, vs->fullname.data, &cred);
+    return s->ops->mknod(&s->ctx, name, &cred);
 }
 
 static int v9fs_do_mkdir(V9fsState *s, V9fsCreateState *vs)
@@ -2332,13 +2333,16 @@ static void v9fs_create_post_lstat(V9fsState *s, V9fsCreateState *vs, int err)
         }
 
         nmode |= vs->perm & 0777;
-        err = v9fs_do_mknod(s, vs, nmode, makedev(major, minor));
+        err = v9fs_do_mknod(s, vs->fullname.data, nmode,
+                makedev(major, minor), vs->fidp->uid, -1);
         v9fs_create_post_perms(s, vs, err);
     } else if (vs->perm & P9_STAT_MODE_NAMED_PIPE) {
-        err = v9fs_do_mknod(s, vs, S_IFIFO | (vs->perm & 0777), 0);
+        err = v9fs_do_mknod(s, vs->fullname.data, S_IFIFO | (vs->perm & 0777),
+                0, vs->fidp->uid, -1);
         v9fs_post_create(s, vs, err);
     } else if (vs->perm & P9_STAT_MODE_SOCKET) {
-        err = v9fs_do_mknod(s, vs, S_IFSOCK | (vs->perm & 0777), 0);
+        err = v9fs_do_mknod(s, vs->fullname.data, S_IFSOCK | (vs->perm & 0777),
+                0, vs->fidp->uid, -1);
         v9fs_post_create(s, vs, err);
     } else {
         vs->fidp->fd = v9fs_do_open2(s, vs->fullname.data, vs->fidp->uid,
@@ -2849,6 +2853,77 @@ out:
     qemu_free(vs);
 }
 
+static void v9fs_mknod_post_lstat(V9fsState *s, V9fsMkState *vs, int err)
+{
+    if (err == -1) {
+        err = -errno;
+        goto out;
+    }
+
+    stat_to_qid(&vs->stbuf, &vs->qid);
+    vs->offset += pdu_marshal(vs->pdu, vs->offset, "Q", &vs->qid);
+    err = vs->offset;
+out:
+    complete_pdu(s, vs->pdu, err);
+    v9fs_string_free(&vs->fullname);
+    v9fs_string_free(&vs->name);
+    qemu_free(vs);
+}
+
+static void v9fs_mknod_post_mknod(V9fsState *s, V9fsMkState *vs, int err)
+{
+    if (err == -1) {
+        err = -errno;
+        goto out;
+    }
+
+    err = v9fs_do_lstat(s, &vs->fullname, &vs->stbuf);
+    v9fs_mknod_post_lstat(s, vs, err);
+    return;
+out:
+    complete_pdu(s, vs->pdu, err);
+    v9fs_string_free(&vs->fullname);
+    v9fs_string_free(&vs->name);
+    qemu_free(vs);
+}
+
+static void v9fs_mknod(V9fsState *s, V9fsPDU *pdu)
+{
+    int32_t fid;
+    V9fsMkState *vs;
+    int err = 0;
+    V9fsFidState *fidp;
+    gid_t gid;
+    int mode;
+    int major, minor;
+
+    vs = qemu_malloc(sizeof(*vs));
+    vs->pdu = pdu;
+    vs->offset = 7;
+
+    v9fs_string_init(&vs->fullname);
+    pdu_unmarshal(vs->pdu, vs->offset, "dsdddd", &fid, &vs->name, &mode,
+        &major, &minor, &gid);
+
+    fidp = lookup_fid(s, fid);
+    if (fidp == NULL) {
+        err = -ENOENT;
+        goto out;
+    }
+
+    v9fs_string_sprintf(&vs->fullname, "%s/%s", fidp->path.data, vs->name.data);
+    err = v9fs_do_mknod(s, vs->fullname.data, mode, makedev(major, minor),
+        fidp->uid, gid);
+    v9fs_mknod_post_mknod(s, vs, err);
+    return;
+
+out:
+    complete_pdu(s, vs->pdu, err);
+    v9fs_string_free(&vs->fullname);
+    v9fs_string_free(&vs->name);
+    qemu_free(vs);
+}
+
 typedef void (pdu_handler_t)(V9fsState *s, V9fsPDU *pdu);
 
 static pdu_handler_t *pdu_handlers[] = {
@@ -2856,6 +2931,7 @@ static pdu_handler_t *pdu_handlers[] = {
     [P9_TSTATFS] = v9fs_statfs,
     [P9_TGETATTR] = v9fs_getattr,
     [P9_TSETATTR] = v9fs_setattr,
+    [P9_TMKNOD] = v9fs_mknod,
     [P9_TVERSION] = v9fs_version,
     [P9_TATTACH] = v9fs_attach,
     [P9_TSTAT] = v9fs_stat,

@@ -19,6 +19,8 @@ enum {
     P9_RLCREATE,
     P9_TSYMLINK = 16,
     P9_RSYMLINK,
+    P9_TMKNOD = 18,
+    P9_RMKNOD,
     P9_TGETATTR = 24,
     P9_RGETATTR,
     P9_TSETATTR = 26,
@@ -371,6 +373,15 @@ typedef struct V9fsStatfsState {
     V9fsFidState *fidp;
     struct statfs stbuf;
 } V9fsStatfsState;
+
+typedef struct V9fsMkState {
+    V9fsPDU *pdu;
+    size_t offset;
+    V9fsQID qid;
+    struct stat stbuf;
+    V9fsString name;
+    V9fsString fullname;
+} V9fsMkState;
 
 extern size_t pdu_packunpack(void *addr, struct iovec *sg, int sg_count,
                             size_t offset, size_t size, int pack);
