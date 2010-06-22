@@ -2563,11 +2563,6 @@ static void v9fs_wstat_post_rename(V9fsState *s, V9fsWstatState *vs, int err)
     if (err < 0) {
         goto out;
     }
-
-    if (vs->v9stat.name.size != 0) {
-        v9fs_string_free(&vs->nname);
-    }
-
     if (vs->v9stat.length != -1) {
         if (v9fs_do_truncate(s, &vs->fidp->path, vs->v9stat.length) < 0) {
             err = -errno;
@@ -2582,17 +2577,30 @@ out:
     qemu_free(vs);
 }
 
-static void v9fs_wstat_post_chown(V9fsState *s, V9fsWstatState *vs, int err)
+static int v9fs_complete_rename(V9fsState *s, V9fsRenameState *vs)
 {
-    V9fsFidState *fidp;
-    if (err < 0) {
-        goto out;
-    }
+    int err = 0;
+    char *old_name, *new_name;
+    char *end;
 
-    if (vs->v9stat.name.size != 0) {
-        char *old_name, *new_name;
-        char *end;
+    if (vs->newdirfid != -1) {
+        V9fsFidState *dirfidp;
+        dirfidp = lookup_fid(s, vs->newdirfid);
 
+        if (dirfidp == NULL) {
+            err = -ENOENT;
+            goto out;
+        }
+
+        BUG_ON(dirfidp->fd != -1);
+        BUG_ON(dirfidp->dir);
+
+        new_name = qemu_mallocz(dirfidp->path.size + vs->name.size + 2);
+
+        strcpy(new_name, dirfidp->path.data);
+        strcat(new_name, "/");
+        strcat(new_name + dirfidp->path.size, vs->name.data);
+    } else {
         old_name = vs->fidp->path.data;
         end = strrchr(old_name, '/');
         if (end) {
@@ -2600,48 +2608,109 @@ static void v9fs_wstat_post_chown(V9fsState *s, V9fsWstatState *vs, int err)
         } else {
             end = old_name;
         }
+        new_name = qemu_mallocz(end - old_name + vs->name.size + 1);
 
-        new_name = qemu_mallocz(end - old_name + vs->v9stat.name.size + 1);
+        strncat(new_name, old_name, end - old_name);
+        strncat(new_name + (end - old_name), vs->name.data, vs->name.size);
+    }
 
-        memcpy(new_name, old_name, end - old_name);
-        memcpy(new_name + (end - old_name), vs->v9stat.name.data,
-                vs->v9stat.name.size);
-        vs->nname.data = new_name;
-        vs->nname.size = strlen(new_name);
+    v9fs_string_free(&vs->name);
+    vs->name.data = qemu_strdup(new_name);
+    vs->name.size = strlen(new_name);
 
-        if (strcmp(new_name, vs->fidp->path.data) != 0) {
-            if (v9fs_do_rename(s, &vs->fidp->path, &vs->nname)) {
-                err = -errno;
-            } else {
-                /*
-                 * Fixup fid's pointing to the old name to
-                 * start pointing to the new name
-                 */
-                for (fidp = s->fid_list; fidp; fidp = fidp->next) {
-
-                    if (vs->fidp == fidp) {
-                        /*
-                         * we replace name of this fid towards the end
-                         * so that our below strcmp will work
-                         */
-                        continue;
-                    }
-                    if (!strncmp(vs->fidp->path.data, fidp->path.data,
-                                 strlen(vs->fidp->path.data))) {
-                        /* replace the name */
-                        v9fs_fix_path(&fidp->path, &vs->nname,
-                                      strlen(vs->fidp->path.data));
-                    }
+    if (strcmp(new_name, vs->fidp->path.data) != 0) {
+        if (v9fs_do_rename(s, &vs->fidp->path, &vs->name)) {
+            err = -errno;
+        } else {
+            V9fsFidState *fidp;
+            /*
+            * Fixup fid's pointing to the old name to
+            * start pointing to the new name
+            */
+            for (fidp = s->fid_list; fidp; fidp = fidp->next) {
+                if (vs->fidp == fidp) {
+                    /*
+                    * we replace name of this fid towards the end
+                    * so that our below strcmp will work
+                    */
+                    continue;
                 }
-                v9fs_string_copy(&vs->fidp->path, &vs->nname);
+                if (!strncmp(vs->fidp->path.data, fidp->path.data,
+                    strlen(vs->fidp->path.data))) {
+                    /* replace the name */
+                    v9fs_fix_path(&fidp->path, &vs->name,
+                                  strlen(vs->fidp->path.data));
+                }
             }
+            v9fs_string_copy(&vs->fidp->path, &vs->name);
         }
+    }
+out:
+    v9fs_string_free(&vs->name);
+    return err;
+}
+
+static void v9fs_rename_post_rename(V9fsState *s, V9fsRenameState *vs, int err)
+{
+    complete_pdu(s, vs->pdu, err);
+    qemu_free(vs);
+}
+
+static void v9fs_wstat_post_chown(V9fsState *s, V9fsWstatState *vs, int err)
+{
+    if (err < 0) {
+        goto out;
+    }
+
+    if (vs->v9stat.name.size != 0) {
+        V9fsRenameState *vr;
+
+        vr = qemu_malloc(sizeof(V9fsRenameState));
+        memset(vr, sizeof(*vr), 0);
+        vr->newdirfid = -1;
+        vr->pdu = vs->pdu;
+        vr->fidp = vs->fidp;
+        vr->offset = vs->offset;
+        vr->name.size = vs->v9stat.name.size;
+        vr->name.data = qemu_strdup(vs->v9stat.name.data);
+
+        err = v9fs_complete_rename(s, vr);
+        qemu_free(vr);
     }
     v9fs_wstat_post_rename(s, vs, err);
     return;
 
 out:
     v9fs_stat_free(&vs->v9stat);
+    complete_pdu(s, vs->pdu, err);
+    qemu_free(vs);
+}
+
+static void v9fs_rename(V9fsState *s, V9fsPDU *pdu)
+{
+    int32_t fid;
+    V9fsRenameState *vs;
+    ssize_t err = 0;
+
+    vs = qemu_malloc(sizeof(*vs));
+    vs->pdu = pdu;
+    vs->offset = 7;
+
+    pdu_unmarshal(vs->pdu, vs->offset, "dds", &fid, &vs->newdirfid, &vs->name);
+
+    vs->fidp = lookup_fid(s, fid);
+    if (vs->fidp == NULL) {
+        err = -ENOENT;
+        goto out;
+    }
+
+    BUG_ON(vs->fidp->fd != -1);
+    BUG_ON(vs->fidp->dir);
+
+    err = v9fs_complete_rename(s, vs);
+    v9fs_rename_post_rename(s, vs, err);
+    return;
+out:
     complete_pdu(s, vs->pdu, err);
     qemu_free(vs);
 }
@@ -3004,6 +3073,7 @@ static pdu_handler_t *pdu_handlers[] = {
     [P9_TGETATTR] = v9fs_getattr,
     [P9_TSETATTR] = v9fs_setattr,
     [P9_TMKNOD] = v9fs_mknod,
+    [P9_TRENAME] = v9fs_rename,
     [P9_TMKDIR] = v9fs_mkdir,
     [P9_TVERSION] = v9fs_version,
     [P9_TATTACH] = v9fs_attach,

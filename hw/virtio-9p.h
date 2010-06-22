@@ -21,6 +21,8 @@ enum {
     P9_RSYMLINK,
     P9_TMKNOD = 18,
     P9_RMKNOD,
+    P9_TRENAME = 20,
+    P9_RRENAME,
     P9_TGETATTR = 24,
     P9_RGETATTR,
     P9_TSETATTR = 26,
@@ -310,7 +312,6 @@ typedef struct V9fsWstatState
     V9fsStat v9stat;
     V9fsFidState *fidp;
     struct stat stbuf;
-    V9fsString nname;
 } V9fsWstatState;
 
 typedef struct V9fsSymlinkState
@@ -384,6 +385,14 @@ typedef struct V9fsMkState {
     V9fsString name;
     V9fsString fullname;
 } V9fsMkState;
+
+typedef struct V9fsRenameState {
+    V9fsPDU *pdu;
+    V9fsFidState *fidp;
+    size_t offset;
+    int32_t newdirfid;
+    V9fsString name;
+} V9fsRenameState;
 
 extern size_t pdu_packunpack(void *addr, struct iovec *sg, int sg_count,
                             size_t offset, size_t size, int pack);
