@@ -1140,22 +1140,30 @@ int qcow2_check_refcounts(BlockDriverState *bs)
                   s->refcount_table_offset,
                   s->refcount_table_size * sizeof(uint64_t));
     for(i = 0; i < s->refcount_table_size; i++) {
-        int64_t offset;
+        uint64_t offset, cluster;
         offset = s->refcount_table[i];
+        cluster = offset >> s->cluster_bits;
 
         /* Refcount blocks are cluster aligned */
         if (offset & (s->cluster_size - 1)) {
             fprintf(stderr, "ERROR refcount block %d is not "
                 "cluster aligned; refcount table entry corrupted\n", i);
             errors++;
+            continue;
+        }
+
+        if (cluster >= nb_clusters) {
+            fprintf(stderr, "ERROR refcount block %d is outside image\n", i);
+            errors++;
+            continue;
         }
 
         if (offset != 0) {
             errors += inc_refcounts(bs, refcount_table, nb_clusters,
                           offset, s->cluster_size);
-            if (refcount_table[offset / s->cluster_size] != 1) {
+            if (refcount_table[cluster] != 1) {
                 fprintf(stderr, "ERROR refcount block %d refcount=%d\n",
-                    i, refcount_table[offset / s->cluster_size]);
+                    i, refcount_table[cluster]);
             }
         }
     }
