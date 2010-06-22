@@ -1693,8 +1693,14 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
         pci_dev->romfile = qemu_strdup(info->romfile);
     pci_add_option_rom(pci_dev);
 
-    if (qdev->hotplugged)
-        bus->hotplug(bus->hotplug_qdev, pci_dev, 1);
+    if (qdev->hotplugged) {
+        rc = bus->hotplug(bus->hotplug_qdev, pci_dev, 1);
+        if (rc != 0) {
+            int r = pci_unregister_device(&pci_dev->qdev);
+            assert(!r);
+            return rc;
+        }
+    }
     return 0;
 }
 
@@ -1702,8 +1708,7 @@ static int pci_unplug_device(DeviceState *qdev)
 {
     PCIDevice *dev = DO_UPCAST(PCIDevice, qdev, qdev);
 
-    dev->bus->hotplug(dev->bus->hotplug_qdev, dev, 0);
-    return 0;
+    return dev->bus->hotplug(dev->bus->hotplug_qdev, dev, 0);
 }
 
 void pci_qdev_register(PCIDeviceInfo *info)
