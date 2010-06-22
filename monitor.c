@@ -546,10 +546,10 @@ static void qmp_monitor_complete(void *opaque, QObject *ret_data)
     monitor_protocol_emitter(opaque, ret_data);
 }
 
-static void qmp_async_cmd_handler(Monitor *mon, const mon_cmd_t *cmd,
-                                  const QDict *params)
+static int qmp_async_cmd_handler(Monitor *mon, const mon_cmd_t *cmd,
+                                 const QDict *params)
 {
-    cmd->mhandler.cmd_async(mon, params, qmp_monitor_complete, mon);
+    return cmd->mhandler.cmd_async(mon, params, qmp_monitor_complete, mon);
 }
 
 static void qmp_async_info_handler(Monitor *mon, const mon_cmd_t *cmd)
@@ -4239,7 +4239,11 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     }
 
     if (monitor_handler_is_async(cmd)) {
-        qmp_async_cmd_handler(mon, cmd, args);
+        err = qmp_async_cmd_handler(mon, cmd, args);
+        if (err) {
+            /* emit the error response */
+            goto err_out;
+        }
     } else {
         monitor_call_handler(mon, cmd, args);
     }
