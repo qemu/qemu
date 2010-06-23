@@ -247,11 +247,9 @@ QemuOptsList qemu_rtc_opts = {
         },{
             .name = "clock",
             .type = QEMU_OPT_STRING,
-#ifdef TARGET_I386
         },{
             .name = "driftfix",
             .type = QEMU_OPT_STRING,
-#endif
         },
         { /* end if list */ }
     },
