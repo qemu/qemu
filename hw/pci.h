@@ -325,8 +325,12 @@ typedef struct {
     PCIConfigReadFunc *config_read;
     PCIConfigWriteFunc *config_write;
 
-    /* pci config header type */
-    uint8_t header_type;
+    /*
+     * pci-to-pci bridge or normal device.
+     * This doesn't mean pci host switch.
+     * When card bus bridge is supported, this would be enhanced.
+     */
+    int is_bridge;
 
     /* pcie stuff */
     int is_express;   /* is this device pci express? */

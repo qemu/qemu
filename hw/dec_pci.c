@@ -90,7 +90,7 @@ static PCIDeviceInfo dec_21154_pci_host_info = {
     .qdev.name = "dec-21154",
     .qdev.size = sizeof(PCIDevice),
     .init      = dec_21154_pci_host_init,
-    .header_type  = PCI_HEADER_TYPE_BRIDGE,
+    .is_bridge  = 1,
 };
 
 static void dec_register_devices(void)

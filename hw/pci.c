@@ -605,7 +605,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
                                          const char *name, int devfn,
                                          PCIConfigReadFunc *config_read,
                                          PCIConfigWriteFunc *config_write,
-                                         uint8_t header_type)
+                                         bool is_bridge)
 {
     if (devfn < 0) {
         for(devfn = bus->devfn_min ; devfn < ARRAY_SIZE(bus->devices);
@@ -627,13 +627,12 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     pci_dev->irq_state = 0;
     pci_config_alloc(pci_dev);
 
-    header_type &= ~PCI_HEADER_TYPE_MULTI_FUNCTION;
-    if (header_type == PCI_HEADER_TYPE_NORMAL) {
+    if (!is_bridge) {
         pci_set_default_subsystem_id(pci_dev);
     }
     pci_init_cmask(pci_dev);
     pci_init_wmask(pci_dev);
-    if (header_type == PCI_HEADER_TYPE_BRIDGE) {
+    if (is_bridge) {
         pci_init_wmask_bridge(pci_dev);
     }
 
@@ -1563,7 +1562,9 @@ static int pci_bridge_initfn(PCIDevice *dev)
     pci_set_word(dev->config + PCI_STATUS,
                  PCI_STATUS_66MHZ | PCI_STATUS_FAST_BACK);
     pci_config_set_class(dev->config, PCI_CLASS_BRIDGE_PCI);
-    dev->config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_BRIDGE;
+    dev->config[PCI_HEADER_TYPE] =
+        (dev->config[PCI_HEADER_TYPE] & PCI_HEADER_TYPE_MULTI_FUNCTION) |
+        PCI_HEADER_TYPE_BRIDGE;
     pci_set_word(dev->config + PCI_SEC_STATUS,
                  PCI_STATUS_66MHZ | PCI_STATUS_FAST_BACK);
     return 0;
@@ -1614,7 +1615,7 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
     devfn = pci_dev->devfn;
     pci_dev = do_pci_register_device(pci_dev, bus, base->name, devfn,
                                      info->config_read, info->config_write,
-                                     info->header_type);
+                                     info->is_bridge);
     if (pci_dev == NULL)
         return -1;
     rc = info->init(pci_dev);
@@ -1890,7 +1891,7 @@ static PCIDeviceInfo bridge_info = {
     .init         = pci_bridge_initfn,
     .exit         = pci_bridge_exitfn,
     .config_write = pci_bridge_write_config,
-    .header_type  = PCI_HEADER_TYPE_BRIDGE,
+    .is_bridge    = 1,
     .qdev.props   = (Property[]) {
         DEFINE_PROP_HEX32("vendorid", PCIBridge, vid, 0),
         DEFINE_PROP_HEX32("deviceid", PCIBridge, did, 0),
