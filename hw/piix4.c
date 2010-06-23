@@ -93,8 +93,6 @@ static int piix4_initfn(PCIDevice *d)
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82371AB_0); // 82371AB/EB/MB PIIX4 PCI-to-ISA bridge
     pci_config_set_class(pci_conf, PCI_CLASS_BRIDGE_ISA);
-    pci_conf[PCI_HEADER_TYPE] =
-        PCI_HEADER_TYPE_NORMAL | PCI_HEADER_TYPE_MULTI_FUNCTION; // header_type = PCI_multifunction, generic
 
     piix4_dev = d;
     qemu_register_reset(piix4_reset, d);

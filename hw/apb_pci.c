@@ -312,9 +312,6 @@ static void apb_pci_bridge_init(PCIBus *b)
                  PCI_STATUS_FAST_BACK | PCI_STATUS_66MHZ |
                  PCI_STATUS_DEVSEL_MEDIUM);
     pci_set_byte(dev->config + PCI_REVISION_ID, 0x11);
-    pci_set_byte(dev->config + PCI_HEADER_TYPE,
-                 pci_get_byte(dev->config + PCI_HEADER_TYPE) |
-                 PCI_HEADER_TYPE_MULTI_FUNCTION);
 }
 
 PCIBus *pci_apb_init(target_phys_addr_t special_base,
