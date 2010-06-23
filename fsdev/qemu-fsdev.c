@@ -34,7 +34,7 @@ int qemu_fsdev_add(QemuOpts *opts)
         return -1;
     }
 
-     for (i = 0; i < ARRAY_SIZE(FsTypes); i++) {
+    for (i = 0; i < ARRAY_SIZE(FsTypes); i++) {
         if (strcmp(FsTypes[i].name, qemu_opt_get(opts, "fstype")) == 0) {
             break;
         }
@@ -46,10 +46,17 @@ int qemu_fsdev_add(QemuOpts *opts)
         return -1;
     }
 
+    if (qemu_opt_get(opts, "security_model") == NULL) {
+        fprintf(stderr, "fsdev: No security_model specified.\n");
+        return -1;
+    }
+
     fsle = qemu_malloc(sizeof(*fsle));
 
     fsle->fse.fsdev_id = qemu_strdup(qemu_opts_id(opts));
     fsle->fse.path = qemu_strdup(qemu_opt_get(opts, "path"));
+    fsle->fse.security_model = qemu_strdup(qemu_opt_get(opts,
+                "security_model"));
     fsle->fse.ops = FsTypes[i].ops;
 
     QTAILQ_INSERT_TAIL(&fstype_entries, fsle, next);

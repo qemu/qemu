@@ -146,6 +146,98 @@ typedef struct V9fsState
     size_t config_size;
 } V9fsState;
 
+typedef struct V9fsCreateState {
+    V9fsPDU *pdu;
+    size_t offset;
+    V9fsFidState *fidp;
+    V9fsQID qid;
+    int32_t perm;
+    int8_t mode;
+    struct stat stbuf;
+    V9fsString name;
+    V9fsString extension;
+    V9fsString fullname;
+} V9fsCreateState;
+
+typedef struct V9fsStatState {
+    V9fsPDU *pdu;
+    size_t offset;
+    V9fsStat v9stat;
+    V9fsFidState *fidp;
+    struct stat stbuf;
+} V9fsStatState;
+
+typedef struct V9fsWalkState {
+    V9fsPDU *pdu;
+    size_t offset;
+    int16_t nwnames;
+    int name_idx;
+    V9fsQID *qids;
+    V9fsFidState *fidp;
+    V9fsFidState *newfidp;
+    V9fsString path;
+    V9fsString *wnames;
+    struct stat stbuf;
+} V9fsWalkState;
+
+typedef struct V9fsOpenState {
+    V9fsPDU *pdu;
+    size_t offset;
+    int8_t mode;
+    V9fsFidState *fidp;
+    V9fsQID qid;
+    struct stat stbuf;
+} V9fsOpenState;
+
+typedef struct V9fsReadState {
+    V9fsPDU *pdu;
+    size_t offset;
+    int32_t count;
+    int32_t total;
+    int64_t off;
+    V9fsFidState *fidp;
+    struct iovec iov[128]; /* FIXME: bad, bad, bad */
+    struct iovec *sg;
+    off_t dir_pos;
+    struct dirent *dent;
+    struct stat stbuf;
+    V9fsString name;
+    V9fsStat v9stat;
+    int32_t len;
+    int32_t cnt;
+    int32_t max_count;
+} V9fsReadState;
+
+typedef struct V9fsWriteState {
+    V9fsPDU *pdu;
+    size_t offset;
+    int32_t len;
+    int32_t count;
+    int32_t total;
+    int64_t off;
+    V9fsFidState *fidp;
+    struct iovec iov[128]; /* FIXME: bad, bad, bad */
+    struct iovec *sg;
+    int cnt;
+} V9fsWriteState;
+
+typedef struct V9fsRemoveState {
+    V9fsPDU *pdu;
+    size_t offset;
+    V9fsFidState *fidp;
+} V9fsRemoveState;
+
+typedef struct V9fsWstatState
+{
+    V9fsPDU *pdu;
+    size_t offset;
+    int16_t unused;
+    V9fsStat v9stat;
+    V9fsFidState *fidp;
+    struct stat stbuf;
+    V9fsString nname;
+} V9fsWstatState;
+
 struct virtio_9p_config
 {
     /* number of characters in tag */

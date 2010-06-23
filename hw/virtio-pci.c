@@ -155,7 +155,7 @@ static int virtio_pci_load_config(void * opaque, QEMUFile *f)
 
     /* Try to find out if the guest has bus master disabled, but is
        in ready state. Then we have a buggy guest OS. */
-    if (!(proxy->vdev->status & VIRTIO_CONFIG_S_DRIVER_OK) &&
+    if ((proxy->vdev->status & VIRTIO_CONFIG_S_DRIVER_OK) &&
         !(proxy->pci_dev.config[PCI_COMMAND] & PCI_COMMAND_MASTER)) {
         proxy->bugs |= VIRTIO_PCI_BUG_BUS_MASTER;
     }
@@ -641,7 +641,7 @@ static int virtio_balloon_init_pci(PCIDevice *pci_dev)
     return 0;
 }
 
-#ifdef CONFIG_LINUX
+#ifdef CONFIG_VIRTFS
 static int virtio_9p_init_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
@@ -712,7 +712,7 @@ static PCIDeviceInfo virtio_info[] = {
         },
         .qdev.reset = virtio_pci_reset,
     },{
-#ifdef CONFIG_LINUX
+#ifdef CONFIG_VIRTFS
         .qdev.name = "virtio-9p-pci",
         .qdev.size = sizeof(VirtIOPCIProxy),
         .init      = virtio_9p_init_pci,

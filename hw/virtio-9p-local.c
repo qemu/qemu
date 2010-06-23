@@ -17,6 +17,7 @@
 #include <grp.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <attr/xattr.h>
 
 static const char *rpath(FsContext *ctx, const char *path)
 {
@@ -26,57 +27,105 @@ static const char *rpath(FsContext *ctx, const char *path)
     return buffer;
 }
 
-static int local_lstat(FsContext *ctx, const char *path, struct stat *stbuf)
+
+static int local_lstat(FsContext *fs_ctx, const char *path, struct stat *stbuf)
 {
-    return lstat(rpath(ctx, path), stbuf);
+    int err;
+    err =  lstat(rpath(fs_ctx, path), stbuf);
+    if (err) {
+        return err;
+    }
+    if (fs_ctx->fs_sm == SM_MAPPED) {
+        /* Actual credentials are part of extended attrs */
+        uid_t tmp_uid;
+        gid_t tmp_gid;
+        mode_t tmp_mode;
+        dev_t tmp_dev;
+        if (getxattr(rpath(fs_ctx, path), "user.virtfs.uid", &tmp_uid,
+                    sizeof(uid_t)) > 0) {
+            stbuf->st_uid = tmp_uid;
+        }
+        if (getxattr(rpath(fs_ctx, path), "user.virtfs.gid", &tmp_gid,
+                    sizeof(gid_t)) > 0) {
+            stbuf->st_gid = tmp_gid;
+        }
+        if (getxattr(rpath(fs_ctx, path), "user.virtfs.mode", &tmp_mode,
+                    sizeof(mode_t)) > 0) {
+            stbuf->st_mode = tmp_mode;
+        }
+        if (getxattr(rpath(fs_ctx, path), "user.virtfs.rdev", &tmp_dev,
+                        sizeof(dev_t)) > 0) {
+                stbuf->st_rdev = tmp_dev;
+        }
+    }
+    return err;
 }
 
-static int local_setuid(FsContext *ctx, uid_t uid)
+static int local_set_xattr(const char *path, FsCred *credp)
 {
-    struct passwd *pw;
-    gid_t groups[33];
-    int ngroups;
-    static uid_t cur_uid = -1;
-
-    if (cur_uid == uid) {
-        return 0;
+    int err;
+    if (credp->fc_uid != -1) {
+        err = setxattr(path, "user.virtfs.uid", &credp->fc_uid, sizeof(uid_t),
+                0);
+        if (err) {
+            return err;
+        }
     }
-
-    if (setreuid(0, 0)) {
-        return -1;
+    if (credp->fc_gid != -1) {
+        err = setxattr(path, "user.virtfs.gid", &credp->fc_gid, sizeof(gid_t),
+                0);
+        if (err) {
+            return err;
+        }
     }
-
-    pw = getpwuid(uid);
-    if (pw == NULL) {
-        return -1;
+    if (credp->fc_mode != -1) {
+        err = setxattr(path, "user.virtfs.mode", &credp->fc_mode,
+                sizeof(mode_t), 0);
+        if (err) {
+            return err;
+        }
     }
-
-    ngroups = 33;
-    if (getgrouplist(pw->pw_name, pw->pw_gid, groups, &ngroups) == -1) {
-        return -1;
+    if (credp->fc_rdev != -1) {
+        err = setxattr(path, "user.virtfs.rdev", &credp->fc_rdev,
+                sizeof(dev_t), 0);
+        if (err) {
+            return err;
+        }
     }
-
-    if (setgroups(ngroups, groups)) {
-        return -1;
-    }
-
-    if (setregid(-1, pw->pw_gid)) {
-        return -1;
-    }
-
-    if (setreuid(-1, uid)) {
-        return -1;
-    }
-
-    cur_uid = uid;
-
     return 0;
 }
 
-static ssize_t local_readlink(FsContext *ctx, const char *path,
-                                char *buf, size_t bufsz)
+static int local_post_create_passthrough(FsContext *fs_ctx, const char *path,
+        FsCred *credp)
 {
-    return readlink(rpath(ctx, path), buf, bufsz);
+    if (chmod(rpath(fs_ctx, path), credp->fc_mode & 07777) < 0) {
+        return -1;
+    }
+    if (chown(rpath(fs_ctx, path), credp->fc_uid, credp->fc_gid) < 0) {
+        return -1;
+    }
+    return 0;
+}
+
+static ssize_t local_readlink(FsContext *fs_ctx, const char *path,
+        char *buf, size_t bufsz)
+{
+    ssize_t tsize = -1;
+    if (fs_ctx->fs_sm == SM_MAPPED) {
+        int fd;
+        fd = open(rpath(fs_ctx, path), O_RDONLY);
+        if (fd == -1) {
+            return -1;
+        }
+        do {
+            tsize = read(fd, (void *)buf, bufsz);
+        } while (tsize == -1 && errno == EINTR);
+        close(fd);
+        return tsize;
+    } else if (fs_ctx->fs_sm == SM_PASSTHROUGH) {
+        tsize = readlink(rpath(fs_ctx, path), buf, bufsz);
+    }
+    return tsize;
 }
 
 static int local_close(FsContext *ctx, int fd)
@@ -136,57 +185,210 @@ static ssize_t local_writev(FsContext *ctx, int fd, const struct iovec *iov,
     return writev(fd, iov, iovcnt);
 }
 
-static int local_chmod(FsContext *ctx, const char *path, mode_t mode)
+static int local_chmod(FsContext *fs_ctx, const char *path, FsCred *credp)
 {
-    return chmod(rpath(ctx, path), mode);
-}
-
-static int local_mknod(FsContext *ctx, const char *path, mode_t mode, dev_t dev)
-{
-    return mknod(rpath(ctx, path), mode, dev);
-}
-
-static int local_mksock(FsContext *ctx2, const char *path)
-{
-    struct sockaddr_un addr;
-    int s;
-
-    addr.sun_family = AF_UNIX;
-    snprintf(addr.sun_path, 108, "%s", rpath(ctx2, path));
-
-    s = socket(PF_UNIX, SOCK_STREAM, 0);
-    if (s == -1) {
-        return -1;
+    if (fs_ctx->fs_sm == SM_MAPPED) {
+        return local_set_xattr(rpath(fs_ctx, path), credp);
+    } else if (fs_ctx->fs_sm == SM_PASSTHROUGH) {
+        return chmod(rpath(fs_ctx, path), credp->fc_mode);
     }
+    return -1;
+}
 
-    if (bind(s, (struct sockaddr *)&addr, sizeof(addr))) {
-        close(s);
-        return -1;
+static int local_mknod(FsContext *fs_ctx, const char *path, FsCred *credp)
+{
+    int err = -1;
+    int serrno = 0;
+
+    /* Determine the security model */
+    if (fs_ctx->fs_sm == SM_MAPPED) {
+        err = mknod(rpath(fs_ctx, path), SM_LOCAL_MODE_BITS|S_IFREG, 0);
+        if (err == -1) {
+            return err;
+        }
+        local_set_xattr(rpath(fs_ctx, path), credp);
+        if (err == -1) {
+            serrno = errno;
+            goto err_end;
+        }
+    } else if (fs_ctx->fs_sm == SM_PASSTHROUGH) {
+        err = mknod(rpath(fs_ctx, path), credp->fc_mode, credp->fc_rdev);
+        if (err == -1) {
+            return err;
+        }
+        err = local_post_create_passthrough(fs_ctx, path, credp);
+        if (err == -1) {
+            serrno = errno;
+            goto err_end;
+        }
     }
+    return err;
 
-    close(s);
-    return 0;
+err_end:
+    remove(rpath(fs_ctx, path));
+    errno = serrno;
+    return err;
 }
 
-static int local_mkdir(FsContext *ctx, const char *path, mode_t mode)
+static int local_mkdir(FsContext *fs_ctx, const char *path, FsCred *credp)
 {
-    return mkdir(rpath(ctx, path), mode);
+    int err = -1;
+    int serrno = 0;
+
+    /* Determine the security model */
+    if (fs_ctx->fs_sm == SM_MAPPED) {
+        err = mkdir(rpath(fs_ctx, path), SM_LOCAL_DIR_MODE_BITS);
+        if (err == -1) {
+            return err;
+        }
+        credp->fc_mode = credp->fc_mode|S_IFDIR;
+        err = local_set_xattr(rpath(fs_ctx, path), credp);
+        if (err == -1) {
+            serrno = errno;
+            goto err_end;
+        }
+    } else if (fs_ctx->fs_sm == SM_PASSTHROUGH) {
+        err = mkdir(rpath(fs_ctx, path), credp->fc_mode);
+        if (err == -1) {
+            return err;
+        }
+        err = local_post_create_passthrough(fs_ctx, path, credp);
+        if (err == -1) {
+            serrno = errno;
+            goto err_end;
+        }
+    }
+    return err;
+
+err_end:
+    remove(rpath(fs_ctx, path));
+    errno = serrno;
+    return err;
 }
 
-static int local_fstat(FsContext *ctx, int fd, struct stat *stbuf)
+static int local_fstat(FsContext *fs_ctx, int fd, struct stat *stbuf)
 {
-    return fstat(fd, stbuf);
+    int err;
+    err = fstat(fd, stbuf);
+    if (err) {
+        return err;
+    }
+    if (fs_ctx->fs_sm == SM_MAPPED) {
+        /* Actual credentials are part of extended attrs */
+        uid_t tmp_uid;
+        gid_t tmp_gid;
+        mode_t tmp_mode;
+        dev_t tmp_dev;
+
+        if (fgetxattr(fd, "user.virtfs.uid", &tmp_uid, sizeof(uid_t)) > 0) {
+            stbuf->st_uid = tmp_uid;
+        }
+        if (fgetxattr(fd, "user.virtfs.gid", &tmp_gid, sizeof(gid_t)) > 0) {
+            stbuf->st_gid = tmp_gid;
+        }
+        if (fgetxattr(fd, "user.virtfs.mode", &tmp_mode, sizeof(mode_t)) > 0) {
+            stbuf->st_mode = tmp_mode;
+        }
+        if (fgetxattr(fd, "user.virtfs.rdev", &tmp_dev, sizeof(dev_t)) > 0) {
+                stbuf->st_rdev = tmp_dev;
+        }
+    }
+    return err;
 }
 
-static int local_open2(FsContext *ctx, const char *path, int flags, mode_t mode)
+static int local_open2(FsContext *fs_ctx, const char *path, int flags,
+        FsCred *credp)
 {
-    return open(rpath(ctx, path), flags, mode);
+    int fd = -1;
+    int err = -1;
+    int serrno = 0;
+
+    /* Determine the security model */
+    if (fs_ctx->fs_sm == SM_MAPPED) {
+        fd = open(rpath(fs_ctx, path), flags, SM_LOCAL_MODE_BITS);
+        if (fd == -1) {
+            return fd;
+        }
+        credp->fc_mode = credp->fc_mode|S_IFREG;
+        /* Set cleint credentials in xattr */
+        err = local_set_xattr(rpath(fs_ctx, path), credp);
+        if (err == -1) {
+            serrno = errno;
+            goto err_end;
+        }
+    } else if (fs_ctx->fs_sm == SM_PASSTHROUGH) {
+        fd = open(rpath(fs_ctx, path), flags, credp->fc_mode);
+        if (fd == -1) {
+            return fd;
+        }
+        err = local_post_create_passthrough(fs_ctx, path, credp);
+        if (err == -1) {
+            serrno = errno;
+            goto err_end;
+        }
+    }
+    return fd;
+
+err_end:
+    close(fd);
+    remove(rpath(fs_ctx, path));
+    errno = serrno;
+    return err;
 }
 
-static int local_symlink(FsContext *ctx, const char *oldpath,
-                            const char *newpath)
+
+static int local_symlink(FsContext *fs_ctx, const char *oldpath,
+        const char *newpath, FsCred *credp)
 {
-    return symlink(oldpath, rpath(ctx, newpath));
+    int err = -1;
+    int serrno = 0;
+
+    /* Determine the security model */
+    if (fs_ctx->fs_sm == SM_MAPPED) {
+        int fd;
+        ssize_t oldpath_size, write_size;
+        fd = open(rpath(fs_ctx, newpath), O_CREAT|O_EXCL|O_RDWR,
+                SM_LOCAL_MODE_BITS);
+        if (fd == -1) {
+            return fd;
+        }
+        /* Write the oldpath (target) to the file. */
+        oldpath_size = strlen(oldpath) + 1;
+        do {
+            write_size = write(fd, (void *)oldpath, oldpath_size);
+        } while (write_size == -1 && errno == EINTR);
+
+        if (write_size != oldpath_size) {
+            serrno = errno;
+            close(fd);
+            err = -1;
+            goto err_end;
+        }
+        close(fd);
+        /* Set cleint credentials in symlink's xattr */
+        credp->fc_mode = credp->fc_mode|S_IFLNK;
+        err = local_set_xattr(rpath(fs_ctx, newpath), credp);
+        if (err == -1) {
+            serrno = errno;
+            goto err_end;
+        }
+    } else if (fs_ctx->fs_sm == SM_PASSTHROUGH) {
+        err = symlink(oldpath, rpath(fs_ctx, newpath));
+        if (err) {
+            return err;
+        }
+        err = lchown(rpath(fs_ctx, newpath), credp->fc_uid, credp->fc_gid);
+        if (err == -1) {
+            serrno = errno;
+            goto err_end;
+        }
+    }
+    return err;
+
+err_end:
+    remove(rpath(fs_ctx, newpath));
+    errno = serrno;
+    return err;
 }
 
 static int local_link(FsContext *ctx, const char *oldpath, const char *newpath)
@@ -241,9 +443,14 @@ static int local_rename(FsContext *ctx, const char *oldpath,
 
 }
 
-static int local_chown(FsContext *ctx, const char *path, uid_t uid, gid_t gid)
+static int local_chown(FsContext *fs_ctx, const char *path, FsCred *credp)
 {
-    return chown(rpath(ctx, path), uid, gid);
+    if (fs_ctx->fs_sm == SM_MAPPED) {
+        return local_set_xattr(rpath(fs_ctx, path), credp);
+    } else if (fs_ctx->fs_sm == SM_PASSTHROUGH) {
+        return lchown(rpath(fs_ctx, path), credp->fc_uid, credp->fc_gid);
+    }
+    return -1;
 }
 
 static int local_utime(FsContext *ctx, const char *path,
@@ -264,7 +471,6 @@ static int local_fsync(FsContext *ctx, int fd)
 
 FileOperations local_ops = {
     .lstat = local_lstat,
-    .setuid = local_setuid,
     .readlink = local_readlink,
     .close = local_close,
     .closedir = local_closedir,
@@ -279,7 +485,6 @@ FileOperations local_ops = {
     .writev = local_writev,
     .chmod = local_chmod,
     .mknod = local_mknod,
-    .mksock = local_mksock,
     .mkdir = local_mkdir,
     .fstat = local_fstat,
     .open2 = local_open2,

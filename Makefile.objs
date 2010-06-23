@@ -35,8 +35,8 @@ net-nested-$(CONFIG_SLIRP) += slirp.o
 net-nested-$(CONFIG_VDE) += vde.o
 net-obj-y += $(addprefix net/, $(net-nested-y))
 
-fsdev-nested-$(CONFIG_LINUX) = qemu-fsdev.o
-fsdev-obj-$(CONFIG_LINUX) += $(addprefix fsdev/, $(fsdev-nested-y))
+fsdev-nested-$(CONFIG_VIRTFS) = qemu-fsdev.o
+fsdev-obj-$(CONFIG_VIRTFS) += $(addprefix fsdev/, $(fsdev-nested-y))
 
 ######################################################################
 # libqemu_common.a: Target independent part of system emulation. The
@@ -245,7 +245,7 @@ sound-obj-$(CONFIG_CS4231A) += cs4231a.o
 adlib.o fmopl.o: QEMU_CFLAGS += -DBUILD_Y8950=0
 hw-obj-$(CONFIG_SOUND) += $(sound-obj-y)
 
-hw-obj-$(CONFIG_LINUX) += virtio-9p-debug.o virtio-9p-local.o
+hw-obj-$(CONFIG_VIRTFS) += virtio-9p-debug.o virtio-9p-local.o
 
 ######################################################################
 # libdis

@@ -224,7 +224,9 @@ static inline unsigned int get_physical_block_exp(BlockConf *conf)
 {
     unsigned int exp = 0, size;
 
-    for (size = conf->physical_block_size; size > 512; size >>= 1) {
+    for (size = conf->physical_block_size;
+        size > conf->logical_block_size;
+        size >>= 1) {
         exp++;
     }
 

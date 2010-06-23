@@ -163,6 +163,9 @@ QemuOptsList qemu_fsdev_opts = {
         }, {
             .name = "path",
             .type = QEMU_OPT_STRING,
+        }, {
+            .name = "security_model",
+            .type = QEMU_OPT_STRING,
         },
         { /*End of list */ }
     },
@@ -183,6 +186,9 @@ QemuOptsList qemu_virtfs_opts = {
             .type = QEMU_OPT_STRING,
         }, {
             .name = "mount_tag",
+            .type = QEMU_OPT_STRING,
+        }, {
+            .name = "security_model",
             .type = QEMU_OPT_STRING,
         },
 

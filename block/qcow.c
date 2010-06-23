@@ -273,8 +273,9 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
         /* update the L1 entry */
         s->l1_table[l1_index] = l2_offset;
         tmp = cpu_to_be64(l2_offset);
-        if (bdrv_pwrite(bs->file, s->l1_table_offset + l1_index * sizeof(tmp),
-                        &tmp, sizeof(tmp)) != sizeof(tmp))
+        if (bdrv_pwrite_sync(bs->file,
+                s->l1_table_offset + l1_index * sizeof(tmp),
+                &tmp, sizeof(tmp)) < 0)
             return 0;
         new_l2_table = 1;
     }
@@ -302,8 +303,8 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
     l2_table = s->l2_cache + (min_index << s->l2_bits);
     if (new_l2_table) {
         memset(l2_table, 0, s->l2_size * sizeof(uint64_t));
-        if (bdrv_pwrite(bs->file, l2_offset, l2_table, s->l2_size * sizeof(uint64_t)) !=
-            s->l2_size * sizeof(uint64_t))
+        if (bdrv_pwrite_sync(bs->file, l2_offset, l2_table,
+                s->l2_size * sizeof(uint64_t)) < 0)
             return 0;
     } else {
         if (bdrv_pread(bs->file, l2_offset, l2_table, s->l2_size * sizeof(uint64_t)) !=
@@ -368,8 +369,8 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
         /* update L2 table */
         tmp = cpu_to_be64(cluster_offset);
         l2_table[l2_index] = tmp;
-        if (bdrv_pwrite(bs->file,
-                        l2_offset + l2_index * sizeof(tmp), &tmp, sizeof(tmp)) != sizeof(tmp))
+        if (bdrv_pwrite_sync(bs->file, l2_offset + l2_index * sizeof(tmp),
+                &tmp, sizeof(tmp)) < 0)
             return 0;
     }
     return cluster_offset;
@@ -835,8 +836,9 @@ static int qcow_make_empty(BlockDriverState *bs)
     int ret;
 
     memset(s->l1_table, 0, l1_length);
-    if (bdrv_pwrite(bs->file, s->l1_table_offset, s->l1_table, l1_length) < 0)
-	return -1;
+    if (bdrv_pwrite_sync(bs->file, s->l1_table_offset, s->l1_table,
+            l1_length) < 0)
+        return -1;
     ret = bdrv_truncate(bs->file, s->l1_table_offset + l1_length);
     if (ret < 0)
         return ret;

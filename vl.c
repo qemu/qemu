@@ -151,7 +151,7 @@ int main(int argc, char **argv)
 #include "qemu-config.h"
 #include "qemu-objects.h"
 #include "qemu-options.h"
-#ifdef CONFIG_LINUX
+#ifdef CONFIG_VIRTFS
 #include "fsdev/qemu-fsdev.h"
 #endif
 
@@ -1572,7 +1572,7 @@ static int chardev_init_func(QemuOpts *opts, void *opaque)
     return 0;
 }
 
-#ifdef CONFIG_LINUX
+#ifdef CONFIG_VIRTFS
 static int fsdev_init_func(QemuOpts *opts, void *opaque)
 {
     int ret;
@@ -2329,7 +2329,7 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 break;
-#ifdef CONFIG_LINUX
+#ifdef CONFIG_VIRTFS
             case QEMU_OPTION_fsdev:
                 opts = qemu_opts_parse(&qemu_fsdev_opts, optarg, 1);
                 if (!opts) {
@@ -2348,10 +2348,21 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
 
-                len = strlen(",id=,path=");
+                if (qemu_opt_get(opts, "fstype") == NULL ||
+                        qemu_opt_get(opts, "mount_tag") == NULL ||
+                        qemu_opt_get(opts, "path") == NULL ||
+                        qemu_opt_get(opts, "security_model") == NULL) {
+                    fprintf(stderr, "Usage: -virtfs fstype,path=/share_path/,"
+                            "security_model=[mapped|passthrough],"
+                            "mnt_tag=tag.\n");
+                    exit(1);
+                }
+
+                len = strlen(",id=,path=,security_model=");
                 len += strlen(qemu_opt_get(opts, "fstype"));
                 len += strlen(qemu_opt_get(opts, "mount_tag"));
                 len += strlen(qemu_opt_get(opts, "path"));
+                len += strlen(qemu_opt_get(opts, "security_model"));
                 arg_fsdev = qemu_malloc((len + 1) * sizeof(*arg_fsdev));
 
                 if (!arg_fsdev) {
@@ -2360,10 +2371,11 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
 
-                sprintf(arg_fsdev, "%s,id=%s,path=%s",
+                sprintf(arg_fsdev, "%s,id=%s,path=%s,security_model=%s",
                                 qemu_opt_get(opts, "fstype"),
                                 qemu_opt_get(opts, "mount_tag"),
-                                qemu_opt_get(opts, "path"));
+                                qemu_opt_get(opts, "path"),
+                                qemu_opt_get(opts, "security_model"));
 
                 len = strlen("virtio-9p-pci,fsdev=,mount_tag=");
                 len += 2*strlen(qemu_opt_get(opts, "mount_tag"));
@@ -2741,7 +2753,7 @@ int main(int argc, char **argv, char **envp)
 
     if (qemu_opts_foreach(&qemu_chardev_opts, chardev_init_func, NULL, 1) != 0)
         exit(1);
-#ifdef CONFIG_LINUX
+#ifdef CONFIG_VIRTFS
     if (qemu_opts_foreach(&qemu_fsdev_opts, fsdev_init_func, NULL, 1) != 0) {
         exit(1);
     }
@@ -3011,7 +3023,12 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (incoming) {
-        qemu_start_incoming_migration(incoming);
+        int ret = qemu_start_incoming_migration(incoming);
+        if (ret < 0) {
+            fprintf(stderr, "Migration failed. Exit code %s(%d), exiting.\n",
+                    incoming, ret);
+            exit(ret);
+        }
     } else if (autostart) {
         vm_start();
     }
