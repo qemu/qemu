@@ -126,7 +126,6 @@ static int grackle_pci_host_init(PCIDevice *d)
     d->config[0x08] = 0x00; // revision
     d->config[0x09] = 0x01;
     pci_config_set_class(d->config, PCI_CLASS_BRIDGE_HOST);
-    d->config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
     return 0;
 }
 

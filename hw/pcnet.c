@@ -1990,7 +1990,6 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
     /* TODO: 0 is the default anyway, no need to set it. */
     pci_conf[PCI_CLASS_PROG] = 0x00;
     pci_config_set_class(pci_conf, PCI_CLASS_NETWORK_ETHERNET);
-    pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
 
     /* TODO: not necessary, is set when BAR is registered. */
     pci_set_long(pci_conf + PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_SPACE_IO);

@@ -1295,7 +1295,6 @@ static int ac97_initfn (PCIDevice *dev)
     c[PCI_REVISION_ID] = 0x01;      /* rid revision ro */
     c[PCI_CLASS_PROG] = 0x00;      /* pi programming interface ro */
     pci_config_set_class (c, PCI_CLASS_MULTIMEDIA_AUDIO); /* ro */
-    c[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; /* headtyp header type ro */
 
     /* TODO set when bar is registered. no need to override. */
     /* nabmar native audio mixer base address rw */

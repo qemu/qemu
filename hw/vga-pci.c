@@ -90,7 +90,6 @@ static int pci_vga_initfn(PCIDevice *dev)
      pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_QEMU);
      pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_QEMU_VGA);
      pci_config_set_class(pci_conf, PCI_CLASS_DISPLAY_VGA);
-     pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
 
      /* XXX: VGA_RAM_SIZE must be a power of two */
      pci_register_bar(&d->dev, 0, VGA_RAM_SIZE,

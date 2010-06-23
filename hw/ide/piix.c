@@ -122,7 +122,6 @@ static int pci_piix_ide_initfn(PCIIDEState *d)
 
     pci_conf[PCI_CLASS_PROG] = 0x80; // legacy ATA mode
     pci_config_set_class(pci_conf, PCI_CLASS_STORAGE_IDE);
-    pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
 
     qemu_register_reset(piix3_reset, d);
 

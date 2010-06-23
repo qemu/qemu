@@ -240,7 +240,6 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
     pci_conf[PCI_CLASS_PROG] = 0x8f;
 
     pci_config_set_class(pci_conf, PCI_CLASS_STORAGE_IDE);
-    pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
 
     pci_conf[0x51] = 0x04; // enable IDE0
     if (d->secondary) {

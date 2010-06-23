@@ -208,7 +208,6 @@ static int i440fx_initfn(PCIDevice *dev)
     pci_config_set_device_id(d->dev.config, PCI_DEVICE_ID_INTEL_82441);
     d->dev.config[0x08] = 0x02; // revision
     pci_config_set_class(d->dev.config, PCI_CLASS_BRIDGE_HOST);
-    d->dev.config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
 
     d->dev.config[I440FX_SMRAM] = 0x02;
 

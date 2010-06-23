@@ -300,7 +300,6 @@ static int unin_main_pci_host_init(PCIDevice *d)
     pci_config_set_class(d->config, PCI_CLASS_BRIDGE_HOST);
     d->config[0x0C] = 0x08; // cache_line_size
     d->config[0x0D] = 0x10; // latency_timer
-    d->config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
     d->config[0x34] = 0x00; // capabilities_pointer
     return 0;
 }
@@ -313,7 +312,6 @@ static int unin_agp_pci_host_init(PCIDevice *d)
     pci_config_set_class(d->config, PCI_CLASS_BRIDGE_HOST);
     d->config[0x0C] = 0x08; // cache_line_size
     d->config[0x0D] = 0x10; // latency_timer
-    d->config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
     //    d->config[0x34] = 0x80; // capabilities_pointer
     return 0;
 }
@@ -329,7 +327,6 @@ static int u3_agp_pci_host_init(PCIDevice *d)
     d->config[0x0C] = 0x08;
     /* latency timer */
     d->config[0x0D] = 0x10;
-    d->config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL;
     return 0;
 }
 
@@ -341,7 +338,6 @@ static int unin_internal_pci_host_init(PCIDevice *d)
     pci_config_set_class(d->config, PCI_CLASS_BRIDGE_HOST);
     d->config[0x0C] = 0x08; // cache_line_size
     d->config[0x0D] = 0x10; // latency_timer
-    d->config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
     d->config[0x34] = 0x00; // capabilities_pointer
     return 0;
 }

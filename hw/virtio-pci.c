@@ -506,7 +506,6 @@ static void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev,
 
     config[0x09] = pif;
     pci_config_set_class(config, class_code);
-    config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL;
 
     config[0x2c] = vendor & 0xFF;
     config[0x2d] = (vendor >> 8) & 0xFF;
