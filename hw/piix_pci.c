@@ -233,7 +233,7 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn, qemu_irq *
     *pi440fx_state = DO_UPCAST(PCII440FXState, dev, d);
 
     piix3 = DO_UPCAST(PIIX3State, dev,
-                                 pci_create_simple(b, -1, "PIIX3"));
+                      pci_create_simple_multifunction(b, -1, true, "PIIX3"));
     piix3->pic = pic;
     pci_bus_irqs(b, piix3_set_irq, pci_slot_get_pirq, piix3, 4);
     (*pi440fx_state)->piix3 = piix3;

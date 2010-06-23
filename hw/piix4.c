@@ -105,7 +105,7 @@ int piix4_init(PCIBus *bus, int devfn)
 {
     PCIDevice *d;
 
-    d = pci_create_simple(bus, devfn, "PIIX4");
+    d = pci_create_simple_multifunction(bus, devfn, true, "PIIX4");
     return d->devfn;
 }
 
