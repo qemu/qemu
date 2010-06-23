@@ -227,6 +227,7 @@ void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
                          const char *name, int devfn_min)
 {
     qbus_create_inplace(&bus->qbus, &pci_bus_info, parent, name);
+    assert(PCI_FUNC(devfn_min) == 0);
     bus->devfn_min = devfn_min;
 
     /* host bridge */
@@ -608,7 +609,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
 {
     if (devfn < 0) {
         for(devfn = bus->devfn_min ; devfn < ARRAY_SIZE(bus->devices);
-            devfn += 8) {
+            devfn += PCI_FUNC_MAX) {
             if (!bus->devices[devfn])
                 goto found;
         }

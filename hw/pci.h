@@ -14,6 +14,7 @@
 #define PCI_DEVFN(slot, func)   ((((slot) & 0x1f) << 3) | ((func) & 0x07))
 #define PCI_SLOT(devfn)         (((devfn) >> 3) & 0x1f)
 #define PCI_FUNC(devfn)         ((devfn) & 0x07)
+#define PCI_FUNC_MAX            8
 
 /* Class, Vendor and Device IDs from Linux's pci_ids.h */
 #include "pci_ids.h"
