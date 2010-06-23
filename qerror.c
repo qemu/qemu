@@ -82,7 +82,7 @@ static const QErrorStringTable qerror_table[] = {
     },
     {
         .error_fmt = QERR_DEVICE_NOT_ACTIVE,
-        .desc      = "Device '%(device)' has not been activated by the guest",
+        .desc      = "Device '%(device)' has not been activated",
     },
     {
         .error_fmt = QERR_DEVICE_NOT_ENCRYPTED,
