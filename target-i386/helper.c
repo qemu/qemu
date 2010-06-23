@@ -1151,6 +1151,7 @@ void do_cpu_init(CPUState *env)
     cpu_reset(env);
     env->interrupt_request = sipi;
     apic_init_reset(env->apic_state);
+    env->halted = !cpu_is_bsp(env);
 }
 
 void do_cpu_sipi(CPUState *env)
