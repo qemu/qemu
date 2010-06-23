@@ -69,6 +69,8 @@ static struct BusInfo pci_bus_info = {
         DEFINE_PROP_PCI_DEVFN("addr", PCIDevice, devfn, -1),
         DEFINE_PROP_STRING("romfile", PCIDevice, romfile),
         DEFINE_PROP_UINT32("rombar",  PCIDevice, rom_bar, 1),
+        DEFINE_PROP_BIT("multifunction", PCIDevice, cap_present,
+                        QEMU_PCI_CAP_MULTIFUNCTION_BITNR, false),
         DEFINE_PROP_END_OF_LIST()
     }
 };
@@ -1659,20 +1661,34 @@ void pci_qdev_register_many(PCIDeviceInfo *info)
     }
 }
 
-PCIDevice *pci_create(PCIBus *bus, int devfn, const char *name)
+PCIDevice *pci_create_multifunction(PCIBus *bus, int devfn, bool multifunction,
+                                    const char *name)
 {
     DeviceState *dev;
 
     dev = qdev_create(&bus->qbus, name);
     qdev_prop_set_uint32(dev, "addr", devfn);
+    qdev_prop_set_bit(dev, "multifunction", multifunction);
     return DO_UPCAST(PCIDevice, qdev, dev);
+}
+
+PCIDevice *pci_create_simple_multifunction(PCIBus *bus, int devfn,
+                                           bool multifunction,
+                                           const char *name)
+{
+    PCIDevice *dev = pci_create_multifunction(bus, devfn, multifunction, name);
+    qdev_init_nofail(&dev->qdev);
+    return dev;
+}
+
+PCIDevice *pci_create(PCIBus *bus, int devfn, const char *name)
+{
+    return pci_create_multifunction(bus, devfn, false, name);
 }
 
 PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name)
 {
-    PCIDevice *dev = pci_create(bus, devfn, name);
-    qdev_init_nofail(&dev->qdev);
-    return dev;
+    return pci_create_simple_multifunction(bus, devfn, false, name);
 }
 
 static int pci_find_space(PCIDevice *pdev, uint8_t size)
