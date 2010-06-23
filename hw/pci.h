@@ -233,7 +233,8 @@ int pci_read_devaddr(Monitor *mon, const char *addr, int *domp, int *busp,
 
 void do_pci_info_print(Monitor *mon, const QObject *data);
 void do_pci_info(Monitor *mon, QObject **ret_data);
-PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
+PCIBus *pci_bridge_init(PCIBus *bus, int devfn, bool multifunction,
+                        uint16_t vid, uint16_t did,
                         pci_map_irq_fn map_irq, const char *name);
 PCIDevice *pci_bridge_get_device(PCIBus *bus);
 

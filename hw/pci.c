@@ -1580,13 +1580,14 @@ static int pci_bridge_exitfn(PCIDevice *pci_dev)
     return 0;
 }
 
-PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
+PCIBus *pci_bridge_init(PCIBus *bus, int devfn, bool multifunction,
+                        uint16_t vid, uint16_t did,
                         pci_map_irq_fn map_irq, const char *name)
 {
     PCIDevice *dev;
     PCIBridge *s;
 
-    dev = pci_create(bus, devfn, "pci-bridge");
+    dev = pci_create_multifunction(bus, devfn, multifunction, "pci-bridge");
     qdev_prop_set_uint32(&dev->qdev, "vendorid", vid);
     qdev_prop_set_uint32(&dev->qdev, "deviceid", did);
     qdev_init_nofail(&dev->qdev);
