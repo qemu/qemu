@@ -810,20 +810,12 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
     }
 }
 
-static void bsp_cpu_reset(void *opaque)
+static void pc_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
 
     cpu_reset(env);
-    env->halted = 0;
-}
-
-static void ap_cpu_reset(void *opaque)
-{
-    CPUState *env = opaque;
-
-    cpu_reset(env);
-    env->halted = 1;
+    env->halted = !cpu_is_bsp(env);
 }
 
 static CPUState *pc_new_cpu(const char *cpu_model)
@@ -837,16 +829,10 @@ static CPUState *pc_new_cpu(const char *cpu_model)
     }
     if ((env->cpuid_features & CPUID_APIC) || smp_cpus > 1) {
         env->cpuid_apic_id = env->cpu_index;
-        /* APIC reset callback resets cpu */
         env->apic_state = apic_init(env, env->cpuid_apic_id);
     }
-    if (cpu_is_bsp(env)) {
-        qemu_register_reset(bsp_cpu_reset, env);
-        env->halted = 0;
-    } else {
-        qemu_register_reset(ap_cpu_reset, env);
-        env->halted = 1;
-    }
+    qemu_register_reset(pc_cpu_reset, env);
+    pc_cpu_reset(env);
     return env;
 }
 
