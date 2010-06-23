@@ -633,6 +633,11 @@ void qdev_prop_set(DeviceState *dev, const char *name, void *src, enum PropertyT
     qdev_prop_cpy(dev, prop, src);
 }
 
+void qdev_prop_set_bit(DeviceState *dev, const char *name, bool value)
+{
+    qdev_prop_set(dev, name, &value, PROP_TYPE_BIT);
+}
+
 void qdev_prop_set_uint8(DeviceState *dev, const char *name, uint8_t value)
 {
     qdev_prop_set(dev, name, &value, PROP_TYPE_UINT8);
