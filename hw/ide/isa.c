@@ -75,8 +75,8 @@ static int isa_ide_initfn(ISADevice *dev)
     return 0;
 };
 
-int isa_ide_init(int iobase, int iobase2, int isairq,
-                 DriveInfo *hd0, DriveInfo *hd1)
+ISADevice *isa_ide_init(int iobase, int iobase2, int isairq,
+                        DriveInfo *hd0, DriveInfo *hd1)
 {
     ISADevice *dev;
     ISAIDEState *s;
@@ -86,14 +86,14 @@ int isa_ide_init(int iobase, int iobase2, int isairq,
     qdev_prop_set_uint32(&dev->qdev, "iobase2", iobase2);
     qdev_prop_set_uint32(&dev->qdev, "irq",     isairq);
     if (qdev_init(&dev->qdev) < 0)
-        return -1;
+        return NULL;
 
     s = DO_UPCAST(ISAIDEState, dev, dev);
     if (hd0)
         ide_create_drive(&s->bus, 0, hd0);
     if (hd1)
         ide_create_drive(&s->bus, 1, hd1);
-    return 0;
+    return dev;
 }
 
 static ISADeviceInfo isa_ide_info = {
