@@ -88,6 +88,13 @@ IDEDevice *ide_create_drive(IDEBus *bus, int unit, DriveInfo *drive)
     return DO_UPCAST(IDEDevice, qdev, dev);
 }
 
+void ide_get_bs(BlockDriverState *bs[], BusState *qbus)
+{
+    IDEBus *bus = DO_UPCAST(IDEBus, qbus, qbus);
+    bs[0] = bus->master ? bus->master->conf.bs : NULL;
+    bs[1] = bus->slave  ? bus->slave->conf.bs  : NULL;
+}
+
 /* --------------------------------- */
 
 typedef struct IDEDrive {

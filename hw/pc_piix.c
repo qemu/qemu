@@ -79,6 +79,7 @@ static void pc_init1(ram_addr_t ram_size,
     IsaIrqState *isa_irq_state;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     FDCtrl *floppy_controller;
+    BusState *idebus[MAX_IDE_BUS];
     ISADevice *rtc_state;
 
     pc_cpus_init(cpu_model);
@@ -132,18 +133,23 @@ static void pc_init1(ram_addr_t ram_size,
     }
 
     if (pci_enabled) {
-        pci_piix3_ide_init(pci_bus, hd, piix3_devfn + 1);
+        PCIDevice *dev;
+        dev = pci_piix3_ide_init(pci_bus, hd, piix3_devfn + 1);
+        idebus[0] = qdev_get_child_bus(&dev->qdev, "ide.0");
+        idebus[1] = qdev_get_child_bus(&dev->qdev, "ide.1");
     } else {
         for(i = 0; i < MAX_IDE_BUS; i++) {
-            isa_ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
-	                 hd[MAX_IDE_DEVS * i], hd[MAX_IDE_DEVS * i + 1]);
+            ISADevice *dev;
+            dev = isa_ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
+                               hd[MAX_IDE_DEVS * i], hd[MAX_IDE_DEVS * i + 1]);
+            idebus[i] = qdev_get_child_bus(&dev->qdev, "ide.0");
         }
     }
 
     pc_audio_init(pci_enabled ? pci_bus : NULL, isa_irq);
 
-    pc_cmos_init(below_4g_mem_size, above_4g_mem_size, boot_device, hd,
-                 floppy_controller, rtc_state);
+    pc_cmos_init(below_4g_mem_size, above_4g_mem_size, boot_device,
+                 idebus[0], idebus[1], floppy_controller, rtc_state);
 
     if (pci_enabled && usb_enabled) {
         usb_uhci_piix3_init(pci_bus, piix3_devfn + 2);

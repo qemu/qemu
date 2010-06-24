@@ -24,4 +24,6 @@ void mmio_ide_init (target_phys_addr_t membase, target_phys_addr_t membase2,
                     qemu_irq irq, int shift,
                     DriveInfo *hd0, DriveInfo *hd1);
 
+void ide_get_bs(BlockDriverState *bs[], BusState *qbus);
+
 #endif /* HW_IDE_H */
