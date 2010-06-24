@@ -78,6 +78,18 @@ int drive_get_max_bus(BlockInterfaceType type)
     return max_bus;
 }
 
+DriveInfo *drive_get_by_blockdev(BlockDriverState *bs)
+{
+    DriveInfo *dinfo;
+
+    QTAILQ_FOREACH(dinfo, &drives, next) {
+        if (dinfo->bdrv == bs) {
+            return dinfo;
+        }
+    }
+    return NULL;
+}
+
 static void bdrv_format_print(void *opaque, const char *name)
 {
     fprintf(stderr, " %s", name);
