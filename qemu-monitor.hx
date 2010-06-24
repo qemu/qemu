@@ -281,6 +281,22 @@ STEXI
 Output logs to @var{filename}.
 ETEXI
 
+#ifdef CONFIG_SIMPLE_TRACE
+    {
+        .name       = "trace-event",
+        .args_type  = "name:s,option:b",
+        .params     = "name on|off",
+        .help       = "changes status of a specific trace event",
+        .mhandler.cmd = do_change_trace_event_state,
+    },
+
+STEXI
+@item trace-event
+@findex trace-event
+changes status of a trace event
+ETEXI
+#endif
+
     {
         .name       = "log",
         .args_type  = "items:s",
@@ -2528,6 +2544,15 @@ show qdev device model list
 show roms
 @end table
 ETEXI
+
+#ifdef CONFIG_SIMPLE_TRACE
+STEXI
+@item info trace
+show contents of trace buffer
+@item info trace-events
+show available trace events and their state
+ETEXI
+#endif
 
 HXCOMM DO NOT add new commands after 'info', move your addition before it!
 

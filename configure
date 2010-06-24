@@ -2468,6 +2468,9 @@ bsd)
 esac
 
 echo "TRACE_BACKEND=$trace_backend" >> $config_host_mak
+if test "$trace_backend" = "simple"; then
+  echo "CONFIG_SIMPLE_TRACE=y" >> $config_host_mak
+fi
 echo "TOOLS=$tools" >> $config_host_mak
 echo "ROMS=$roms" >> $config_host_mak
 echo "MAKE=$make" >> $config_host_mak

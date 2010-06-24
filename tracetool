@@ -169,22 +169,38 @@ EOF
 
 linetoh_end_simple()
 {
-    return
+    cat <<EOF
+#define NR_TRACE_EVENTS $simple_event_num
+extern TraceEvent trace_list[NR_TRACE_EVENTS];
+EOF
 }
 
 linetoc_begin_simple()
 {
-    return
+    cat <<EOF
+#include "trace.h"
+
+TraceEvent trace_list[] = {
+EOF
+    simple_event_num=0
+
 }
 
 linetoc_simple()
 {
-    return
+    local name
+    name=$(get_name "$1")
+    cat <<EOF
+{.tp_name = "$name", .state=0},
+EOF
+    simple_event_num=$((simple_event_num + 1))
 }
 
 linetoc_end_simple()
 {
-    return
+    cat <<EOF
+};
+EOF
 }
 
 # Process stdin by calling begin, line, and end functions for the backend

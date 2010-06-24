@@ -56,6 +56,9 @@
 #include "json-parser.h"
 #include "osdep.h"
 #include "exec-all.h"
+#ifdef CONFIG_SIMPLE_TRACE
+#include "trace.h"
+#endif
 
 //#define DEBUG
 //#define DEBUG_COMPLETION
@@ -539,6 +542,15 @@ static void do_help_cmd(Monitor *mon, const QDict *qdict)
     help_cmd(mon, qdict_get_try_str(qdict, "name"));
 }
 
+#ifdef CONFIG_SIMPLE_TRACE
+static void do_change_trace_event_state(Monitor *mon, const QDict *qdict)
+{
+    const char *tp_name = qdict_get_str(qdict, "name");
+    bool new_state = qdict_get_bool(qdict, "option");
+    st_change_trace_event_state(tp_name, new_state);
+}
+#endif
+
 static void user_monitor_complete(void *opaque, QObject *ret_data)
 {
     MonitorCompletionData *data = (MonitorCompletionData *)opaque; 
@@ -935,6 +947,18 @@ static void do_info_cpu_stats(Monitor *mon)
 
     env = mon_get_cpu();
     cpu_dump_statistics(env, (FILE *)mon, &monitor_fprintf, 0);
+}
+#endif
+
+#if defined(CONFIG_SIMPLE_TRACE)
+static void do_info_trace(Monitor *mon)
+{
+    st_print_trace((FILE *)mon, &monitor_fprintf);
+}
+
+static void do_info_trace_events(Monitor *mon)
+{
+    st_print_trace_events((FILE *)mon, &monitor_fprintf);
 }
 #endif
 
@@ -2594,6 +2618,22 @@ static const mon_cmd_t info_cmds[] = {
         .help       = "show roms",
         .mhandler.info = do_info_roms,
     },
+#if defined(CONFIG_SIMPLE_TRACE)
+    {
+        .name       = "trace",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show current contents of trace buffer",
+        .mhandler.info = do_info_trace,
+    },
+    {
+        .name       = "trace-events",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show available trace-events & their state",
+        .mhandler.info = do_info_trace_events,
+    },
+#endif
     {
         .name       = NULL,
     },
