@@ -6,6 +6,7 @@ config-target.*
 *-darwin-user
 *-linux-user
 *-bsd-user
+libdis*
 libhw32
 libhw64
 libuser
@@ -21,6 +22,7 @@ qemu-img
 qemu-nbd
 qemu-nbd.8
 qemu-nbd.pod
+qemu-options.def
 qemu-options.texi
 qemu-img-cmds.texi
 qemu-img-cmds.h
