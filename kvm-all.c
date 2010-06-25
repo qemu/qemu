@@ -924,8 +924,6 @@ int kvm_cpu_exec(CPUState *env)
             DPRINTF("kvm_exit_debug\n");
 #ifdef KVM_CAP_SET_GUEST_DEBUG
             if (kvm_arch_debug(&run->debug.arch)) {
-                gdb_set_stop_cpu(env);
-                vm_stop(EXCP_DEBUG);
                 env->exception_index = EXCP_DEBUG;
                 return 0;
             }

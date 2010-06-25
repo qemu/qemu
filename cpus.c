@@ -141,6 +141,13 @@ static int any_cpu_has_work(void)
     return 0;
 }
 
+static void cpu_debug_handler(CPUState *env)
+{
+    gdb_set_stop_cpu(env);
+    debug_requested = EXCP_DEBUG;
+    vm_stop(EXCP_DEBUG);
+}
+
 #ifndef _WIN32
 static int io_thread_fd = -1;
 
@@ -236,6 +243,8 @@ static void qemu_event_increment(void)
 #ifndef CONFIG_IOTHREAD
 int qemu_init_main_loop(void)
 {
+    cpu_set_debug_excp_handler(cpu_debug_handler);
+
     return qemu_event_init();
 }
 
@@ -325,6 +334,8 @@ static void unblock_io_signals(void);
 int qemu_init_main_loop(void)
 {
     int ret;
+
+    cpu_set_debug_excp_handler(cpu_debug_handler);
 
     ret = qemu_event_init();
     if (ret)
@@ -770,8 +781,6 @@ static int qemu_cpu_exec(CPUState *env)
 
 bool cpu_exec_all(void)
 {
-    int ret = 0;
-
     if (next_cpu == NULL)
         next_cpu = first_cpu;
     for (; next_cpu != NULL && !exit_request; next_cpu = next_cpu->next_cpu) {
@@ -782,14 +791,11 @@ bool cpu_exec_all(void)
 
         if (qemu_alarm_pending())
             break;
-        if (cpu_can_run(env))
-            ret = qemu_cpu_exec(env);
-        else if (env->stop)
-            break;
-
-        if (ret == EXCP_DEBUG) {
-            gdb_set_stop_cpu(env);
-            debug_requested = EXCP_DEBUG;
+        if (cpu_can_run(env)) {
+            if (qemu_cpu_exec(env) == EXCP_DEBUG) {
+                break;
+            }
+        } else if (env->stop) {
             break;
         }
     }
