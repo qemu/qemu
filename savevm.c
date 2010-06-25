@@ -83,9 +83,6 @@
 #include "qemu_socket.h"
 #include "qemu-queue.h"
 
-/* point to the block driver where the snapshots are managed */
-static BlockDriverState *bs_snapshots;
-
 #define SELF_ANNOUNCE_ROUNDS 5
 
 #ifndef ETH_P_RARP
@@ -1575,26 +1572,6 @@ out:
     return ret;
 }
 
-static BlockDriverState *get_bs_snapshots(void)
-{
-    BlockDriverState *bs;
-
-    if (bs_snapshots)
-        return bs_snapshots;
-    /* FIXME what if bs_snapshots gets hot-unplugged? */
-
-    bs = NULL;
-    while ((bs = bdrv_next(bs))) {
-        if (bdrv_can_snapshot(bs)) {
-            goto ok;
-        }
-    }
-    return NULL;
- ok:
-    bs_snapshots = bs;
-    return bs;
-}
-
 static int bdrv_snapshot_find(BlockDriverState *bs, QEMUSnapshotInfo *sn_info,
                               const char *name)
 {
@@ -1674,7 +1651,7 @@ void do_savevm(Monitor *mon, const QDict *qdict)
         }
     }
 
-    bs = get_bs_snapshots();
+    bs = bdrv_snapshots();
     if (!bs) {
         monitor_printf(mon, "No block device can accept snapshots\n");
         return;
@@ -1769,7 +1746,7 @@ int load_vmstate(const char *name)
         }
     }
 
-    bs = get_bs_snapshots();
+    bs = bdrv_snapshots();
     if (!bs) {
         error_report("No block device supports snapshots");
         return -EINVAL;
@@ -1833,7 +1810,7 @@ void do_delvm(Monitor *mon, const QDict *qdict)
     int ret;
     const char *name = qdict_get_str(qdict, "name");
 
-    bs = get_bs_snapshots();
+    bs = bdrv_snapshots();
     if (!bs) {
         monitor_printf(mon, "No block device supports snapshots\n");
         return;
@@ -1863,7 +1840,7 @@ void do_info_snapshots(Monitor *mon)
     int nb_sns, i;
     char buf[256];
 
-    bs = get_bs_snapshots();
+    bs = bdrv_snapshots();
     if (!bs) {
         monitor_printf(mon, "No available block device supports snapshots\n");
         return;
