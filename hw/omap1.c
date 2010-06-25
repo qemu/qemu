@@ -3732,9 +3732,11 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
 
     /* Memory-mapped stuff */
     cpu_register_physical_memory(OMAP_EMIFF_BASE, s->sdram_size,
-                    (emiff_base = qemu_ram_alloc(s->sdram_size)) | IO_MEM_RAM);
+                    (emiff_base = qemu_ram_alloc(NULL, "omap1.dram",
+                                                 s->sdram_size)) | IO_MEM_RAM);
     cpu_register_physical_memory(OMAP_IMIF_BASE, s->sram_size,
-                    (imif_base = qemu_ram_alloc(s->sram_size)) | IO_MEM_RAM);
+                    (imif_base = qemu_ram_alloc(NULL, "omap1.sram",
+                                                s->sram_size)) | IO_MEM_RAM);
 
     omap_clkm_init(0xfffece00, 0xe1008000, s);
 

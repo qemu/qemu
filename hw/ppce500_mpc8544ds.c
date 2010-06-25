@@ -189,7 +189,8 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     ram_size &= ~(RAM_SIZES_ALIGN - 1);
 
     /* Register Memory */
-    cpu_register_physical_memory(0, ram_size, qemu_ram_alloc(ram_size));
+    cpu_register_physical_memory(0, ram_size, qemu_ram_alloc(NULL,
+                                 "mpc8544ds.ram", ram_size));
 
     /* MPIC */
     irqs = qemu_mallocz(sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);

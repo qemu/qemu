@@ -253,7 +253,7 @@ static int integratorcm_init(SysBusDevice *dev)
     }
     memcpy(integrator_spd + 73, "QEMU-MEMORY", 11);
     s->cm_init = 0x00000112;
-    s->flash_offset = qemu_ram_alloc(0x100000);
+    s->flash_offset = qemu_ram_alloc(NULL, "integrator.flash", 0x100000);
 
     iomemtype = cpu_register_io_memory(integratorcm_readfn,
                                        integratorcm_writefn, s);
@@ -467,7 +467,7 @@ static void integratorcp_init(ram_addr_t ram_size,
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    ram_offset = qemu_ram_alloc(ram_size);
+    ram_offset = qemu_ram_alloc(NULL, "integrator.ram", ram_size);
     /* ??? On a real system the first 1Mb is mapped as SSRAM or boot flash.  */
     /* ??? RAM should repeat to fill physical memory space.  */
     /* SDRAM at address zero*/

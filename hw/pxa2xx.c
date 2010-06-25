@@ -2054,9 +2054,11 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
 
     /* SDRAM & Internal Memory Storage */
     cpu_register_physical_memory(PXA2XX_SDRAM_BASE,
-                    sdram_size, qemu_ram_alloc(sdram_size) | IO_MEM_RAM);
+                    sdram_size, qemu_ram_alloc(NULL, "pxa270.sdram",
+                                               sdram_size) | IO_MEM_RAM);
     cpu_register_physical_memory(PXA2XX_INTERNAL_BASE,
-                    0x40000, qemu_ram_alloc(0x40000) | IO_MEM_RAM);
+                    0x40000, qemu_ram_alloc(NULL, "pxa270.internal",
+                                            0x40000) | IO_MEM_RAM);
 
     s->pic = pxa2xx_pic_init(0x40d00000, s->env);
 
@@ -2175,9 +2177,11 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
 
     /* SDRAM & Internal Memory Storage */
     cpu_register_physical_memory(PXA2XX_SDRAM_BASE, sdram_size,
-                    qemu_ram_alloc(sdram_size) | IO_MEM_RAM);
+                    qemu_ram_alloc(NULL, "pxa255.sdram",
+                                   sdram_size) | IO_MEM_RAM);
     cpu_register_physical_memory(PXA2XX_INTERNAL_BASE, PXA2XX_INTERNAL_SIZE,
-                    qemu_ram_alloc(PXA2XX_INTERNAL_SIZE) | IO_MEM_RAM);
+                    qemu_ram_alloc(NULL, "pxa255.internal",
+                                   PXA2XX_INTERNAL_SIZE) | IO_MEM_RAM);
 
     s->pic = pxa2xx_pic_init(0x40d00000, s->env);
 

@@ -604,11 +604,11 @@ static void ppc_prep_init (ram_addr_t ram_size,
     }
 
     /* allocate RAM */
-    ram_offset = qemu_ram_alloc(ram_size);
+    ram_offset = qemu_ram_alloc(NULL, "ppc_prep.ram", ram_size);
     cpu_register_physical_memory(0, ram_size, ram_offset);
 
     /* allocate and load BIOS */
-    bios_offset = qemu_ram_alloc(BIOS_SIZE);
+    bios_offset = qemu_ram_alloc(NULL, "ppc_prep.bios", BIOS_SIZE);
     if (bios_name == NULL)
         bios_name = BIOS_FILENAME;
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);

@@ -2778,7 +2778,7 @@ static ram_addr_t find_ram_offset(ram_addr_t size)
     return last;
 }
 
-ram_addr_t qemu_ram_alloc(ram_addr_t size)
+ram_addr_t qemu_ram_alloc(DeviceState *dev, const char *name, ram_addr_t size)
 {
     RAMBlock *new_block;
 

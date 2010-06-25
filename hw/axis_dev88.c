@@ -268,12 +268,12 @@ void axisdev88_init (ram_addr_t ram_size,
     env = cpu_init(cpu_model);
 
     /* allocate RAM */
-    phys_ram = qemu_ram_alloc(ram_size);
+    phys_ram = qemu_ram_alloc(NULL, "axisdev88.ram", ram_size);
     cpu_register_physical_memory(0x40000000, ram_size, phys_ram | IO_MEM_RAM);
 
     /* The ETRAX-FS has 128Kb on chip ram, the docs refer to it as the 
        internal memory.  */
-    phys_intmem = qemu_ram_alloc(INTMEM_SIZE);
+    phys_intmem = qemu_ram_alloc(NULL, "axisdev88.chipram", INTMEM_SIZE);
     cpu_register_physical_memory(0x38000000, INTMEM_SIZE,
                                  phys_intmem | IO_MEM_RAM);
 

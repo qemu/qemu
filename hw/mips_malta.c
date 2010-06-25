@@ -831,8 +831,8 @@ void mips_malta_init (ram_addr_t ram_size,
                 ((unsigned int)ram_size / (1 << 20)));
         exit(1);
     }
-    ram_offset = qemu_ram_alloc(ram_size);
-    bios_offset = qemu_ram_alloc(BIOS_SIZE);
+    ram_offset = qemu_ram_alloc(NULL, "mips_malta.ram", ram_size);
+    bios_offset = qemu_ram_alloc(NULL, "mips_malta.bios", BIOS_SIZE);
 
 
     cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);

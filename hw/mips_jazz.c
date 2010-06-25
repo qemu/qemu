@@ -158,10 +158,10 @@ void mips_jazz_init (ram_addr_t ram_size,
     qemu_register_reset(main_cpu_reset, env);
 
     /* allocate RAM */
-    ram_offset = qemu_ram_alloc(ram_size);
+    ram_offset = qemu_ram_alloc(NULL, "mips_jazz.ram", ram_size);
     cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
 
-    bios_offset = qemu_ram_alloc(MAGNUM_BIOS_SIZE);
+    bios_offset = qemu_ram_alloc(NULL, "mips_jazz.bios", MAGNUM_BIOS_SIZE);
     cpu_register_physical_memory(0x1fc00000LL,
                                  MAGNUM_BIOS_SIZE, bios_offset | IO_MEM_ROM);
     cpu_register_physical_memory(0xfff00000LL,

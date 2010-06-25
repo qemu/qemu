@@ -51,7 +51,7 @@ static void syborg_init(ram_addr_t ram_size,
     }
 
     /* RAM at address zero. */
-    ram_addr = qemu_ram_alloc(ram_size);
+    ram_addr = qemu_ram_alloc(NULL, "syborg.ram", ram_size);
     cpu_register_physical_memory(0, ram_size, ram_addr | IO_MEM_RAM);
 
     cpu_pic = arm_pic_init_cpu(env);

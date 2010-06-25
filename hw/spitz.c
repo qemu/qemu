@@ -962,7 +962,7 @@ static void spitz_common_init(ram_addr_t ram_size,
     sl_flash_register(cpu, (model == spitz) ? FLASH_128M : FLASH_1024M);
 
     cpu_register_physical_memory(0, SPITZ_ROM,
-                    qemu_ram_alloc(SPITZ_ROM) | IO_MEM_ROM);
+                    qemu_ram_alloc(NULL, "spitz.rom", SPITZ_ROM) | IO_MEM_ROM);
 
     /* Setup peripherals */
     spitz_keyboard_register(cpu);

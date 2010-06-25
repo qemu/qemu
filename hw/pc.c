@@ -909,7 +909,8 @@ void pc_memory_init(ram_addr_t ram_size,
     linux_boot = (kernel_filename != NULL);
 
     /* allocate RAM */
-    ram_addr = qemu_ram_alloc(below_4g_mem_size + above_4g_mem_size);
+    ram_addr = qemu_ram_alloc(NULL, "pc.ram",
+                              below_4g_mem_size + above_4g_mem_size);
     cpu_register_physical_memory(0, 0xa0000, ram_addr);
     cpu_register_physical_memory(0x100000,
                  below_4g_mem_size - 0x100000,
@@ -932,7 +933,7 @@ void pc_memory_init(ram_addr_t ram_size,
         (bios_size % 65536) != 0) {
         goto bios_error;
     }
-    bios_offset = qemu_ram_alloc(bios_size);
+    bios_offset = qemu_ram_alloc(NULL, "pc.bios", bios_size);
     ret = rom_add_file_fixed(bios_name, (uint32_t)(-bios_size));
     if (ret != 0) {
     bios_error:
@@ -950,7 +951,7 @@ void pc_memory_init(ram_addr_t ram_size,
                                  isa_bios_size,
                                  (bios_offset + bios_size - isa_bios_size) | IO_MEM_ROM);
 
-    option_rom_offset = qemu_ram_alloc(PC_ROM_SIZE);
+    option_rom_offset = qemu_ram_alloc(NULL, "pc.rom", PC_ROM_SIZE);
     cpu_register_physical_memory(PC_ROM_MIN_VGA, PC_ROM_SIZE, option_rom_offset);
 
     /* map all the bios at the top of memory */

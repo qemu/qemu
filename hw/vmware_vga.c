@@ -1164,7 +1164,7 @@ static void vmsvga_init(struct vmsvga_state_s *s, int vga_ram_size)
 
 
     s->fifo_size = SVGA_FIFO_SIZE;
-    s->fifo_offset = qemu_ram_alloc(s->fifo_size);
+    s->fifo_offset = qemu_ram_alloc(NULL, "vmsvga.fifo", s->fifo_size);
     s->fifo_ptr = qemu_get_ram_ptr(s->fifo_offset);
 
     vga_common_init(&s->vga, vga_ram_size);

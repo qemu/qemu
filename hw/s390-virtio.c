@@ -157,7 +157,7 @@ static void s390_init(ram_addr_t ram_size,
     s390_bus = s390_virtio_bus_init(&ram_size);
 
     /* allocate RAM */
-    ram_addr = qemu_ram_alloc(ram_size);
+    ram_addr = qemu_ram_alloc(NULL, "s390.ram", ram_size);
     cpu_register_physical_memory(0, ram_size, ram_addr);
 
     /* init CPUs */

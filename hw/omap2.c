@@ -2253,9 +2253,11 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
 
     /* Memory-mapped stuff */
     cpu_register_physical_memory(OMAP2_Q2_BASE, s->sdram_size,
-                    (q2_base = qemu_ram_alloc(s->sdram_size)) | IO_MEM_RAM);
+                    (q2_base = qemu_ram_alloc(NULL, "omap2.dram",
+                                              s->sdram_size)) | IO_MEM_RAM);
     cpu_register_physical_memory(OMAP2_SRAM_BASE, s->sram_size,
-                    (sram_base = qemu_ram_alloc(s->sram_size)) | IO_MEM_RAM);
+                    (sram_base = qemu_ram_alloc(NULL, "omap2.sram",
+                                                s->sram_size)) | IO_MEM_RAM);
 
     s->l4 = omap_l4_init(OMAP2_L4_BASE, 54);
 

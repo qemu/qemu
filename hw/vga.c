@@ -2261,7 +2261,7 @@ void vga_common_init(VGACommonState *s, int vga_ram_size)
 #else
     s->is_vbe_vmstate = 0;
 #endif
-    s->vram_offset = qemu_ram_alloc(vga_ram_size);
+    s->vram_offset = qemu_ram_alloc(NULL, "vga.vram", vga_ram_size);
     s->vram_ptr = qemu_get_ram_ptr(s->vram_offset);
     s->vram_size = vga_ram_size;
     s->get_bpp = vga_get_bpp;

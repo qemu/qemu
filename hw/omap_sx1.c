@@ -139,7 +139,8 @@ static void sx1_init(ram_addr_t ram_size,
 
     /* External Flash (EMIFS) */
     cpu_register_physical_memory(OMAP_CS0_BASE, flash_size,
-                                 qemu_ram_alloc(flash_size) | IO_MEM_ROM);
+                                 qemu_ram_alloc(NULL, "omap_sx1.flash0-0",
+                                                flash_size) | IO_MEM_ROM);
 
     io = cpu_register_io_memory(static_readfn, static_writefn, &cs0val);
     cpu_register_physical_memory(OMAP_CS0_BASE + flash_size,
@@ -157,7 +158,8 @@ static void sx1_init(ram_addr_t ram_size,
 #endif
 
     if ((dinfo = drive_get(IF_PFLASH, 0, fl_idx)) != NULL) {
-        if (!pflash_cfi01_register(OMAP_CS0_BASE, qemu_ram_alloc(flash_size),
+        if (!pflash_cfi01_register(OMAP_CS0_BASE, qemu_ram_alloc(NULL,
+                                   "omap_sx1.flash0-1", flash_size),
                                    dinfo->bdrv, sector_size,
                                    flash_size / sector_size,
                                    4, 0, 0, 0, 0, be)) {
@@ -170,12 +172,14 @@ static void sx1_init(ram_addr_t ram_size,
     if ((version == 1) &&
             (dinfo = drive_get(IF_PFLASH, 0, fl_idx)) != NULL) {
         cpu_register_physical_memory(OMAP_CS1_BASE, flash1_size,
-                                     qemu_ram_alloc(flash1_size) | IO_MEM_ROM);
+                                     qemu_ram_alloc(NULL, "omap_sx1.flash1-0",
+                                                    flash1_size) | IO_MEM_ROM);
         io = cpu_register_io_memory(static_readfn, static_writefn, &cs1val);
         cpu_register_physical_memory(OMAP_CS1_BASE + flash1_size,
                         OMAP_CS1_SIZE - flash1_size, io);
 
-        if (!pflash_cfi01_register(OMAP_CS1_BASE, qemu_ram_alloc(flash1_size),
+        if (!pflash_cfi01_register(OMAP_CS1_BASE, qemu_ram_alloc(NULL,
+                                   "omap_sx1.flash1-1", flash1_size),
                                    dinfo->bdrv, sector_size,
                                    flash1_size / sector_size,
                                    4, 0, 0, 0, 0, be)) {

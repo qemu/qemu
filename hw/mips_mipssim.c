@@ -144,8 +144,8 @@ mips_mipssim_init (ram_addr_t ram_size,
     qemu_register_reset(main_cpu_reset, reset_info);
 
     /* Allocate RAM. */
-    ram_offset = qemu_ram_alloc(ram_size);
-    bios_offset = qemu_ram_alloc(BIOS_SIZE);
+    ram_offset = qemu_ram_alloc(NULL, "mips_mipssim.ram", ram_size);
+    bios_offset = qemu_ram_alloc(NULL, "mips_mipssim.bios", BIOS_SIZE);
 
     cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
 
