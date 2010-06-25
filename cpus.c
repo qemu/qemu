@@ -332,6 +332,7 @@ int qemu_init_main_loop(void)
         return ret;
 
     qemu_cond_init(&qemu_pause_cond);
+    qemu_cond_init(&qemu_system_cond);
     qemu_mutex_init(&qemu_fair_mutex);
     qemu_mutex_init(&qemu_global_mutex);
     qemu_mutex_lock(&qemu_global_mutex);
