@@ -40,7 +40,6 @@
 #define SIG_IPI SIGUSR1
 #endif
 
-static CPUState *cur_cpu;
 static CPUState *next_cpu;
 
 /***********************************************************/
@@ -776,10 +775,10 @@ bool tcg_cpu_exec(void)
     if (next_cpu == NULL)
         next_cpu = first_cpu;
     for (; next_cpu != NULL && !exit_request; next_cpu = next_cpu->next_cpu) {
-        CPUState *env = cur_cpu = next_cpu;
+        CPUState *env = next_cpu;
 
         qemu_clock_enable(vm_clock,
-                          (cur_cpu->singlestep_enabled & SSTEP_NOTIMER) == 0);
+                          (env->singlestep_enabled & SSTEP_NOTIMER) == 0);
 
         if (qemu_alarm_pending())
             break;
