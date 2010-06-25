@@ -923,7 +923,7 @@ VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf)
 
     n->vlans = qemu_mallocz(MAX_VLAN >> 3);
 
-    register_savevm("virtio-net", virtio_net_id++, VIRTIO_NET_VM_VERSION,
+    register_savevm(NULL, "virtio-net", virtio_net_id++, VIRTIO_NET_VM_VERSION,
                     virtio_net_save, virtio_net_load, n);
     n->vmstate = qemu_add_vm_change_state_handler(virtio_net_vmstate_change, n);
 
@@ -941,7 +941,7 @@ void virtio_net_exit(VirtIODevice *vdev)
 
     qemu_purge_queued_packets(&n->nic->nc);
 
-    unregister_savevm("virtio-net", n);
+    unregister_savevm(NULL, "virtio-net", n);
 
     qemu_free(n->mac_table.macs);
     qemu_free(n->vlans);

@@ -87,7 +87,7 @@ static int piix4_initfn(PCIDevice *d)
     uint8_t *pci_conf;
 
     isa_bus_new(&d->qdev);
-    register_savevm("PIIX4", 0, 2, piix_save, piix_load, d);
+    register_savevm(&d->qdev, "PIIX4", 0, 2, piix_save, piix_load, d);
 
     pci_conf = d->config;
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);

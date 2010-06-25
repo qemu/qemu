@@ -638,6 +638,6 @@ void blk_mig_init(void)
     QSIMPLEQ_INIT(&block_mig_state.bmds_list);
     QSIMPLEQ_INIT(&block_mig_state.blk_list);
 
-    register_savevm_live("block", 0, 1, block_set_params, block_save_live,
-                         NULL, block_load, &block_mig_state);
+    register_savevm_live(NULL, "block", 0, 1, block_set_params,
+                         block_save_live, NULL, block_load, &block_mig_state);
 }

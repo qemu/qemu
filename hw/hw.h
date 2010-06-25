@@ -245,14 +245,16 @@ typedef int SaveLiveStateHandler(Monitor *mon, QEMUFile *f, int stage,
                                  void *opaque);
 typedef int LoadStateHandler(QEMUFile *f, void *opaque, int version_id);
 
-int register_savevm(const char *idstr,
+int register_savevm(DeviceState *dev,
+                    const char *idstr,
                     int instance_id,
                     int version_id,
                     SaveStateHandler *save_state,
                     LoadStateHandler *load_state,
                     void *opaque);
 
-int register_savevm_live(const char *idstr,
+int register_savevm_live(DeviceState *dev,
+                         const char *idstr,
                          int instance_id,
                          int version_id,
                          SaveSetParamsHandler *set_params,
@@ -261,7 +263,7 @@ int register_savevm_live(const char *idstr,
                          LoadStateHandler *load_state,
                          void *opaque);
 
-void unregister_savevm(const char *idstr, void *opaque);
+void unregister_savevm(DeviceState *dev, const char *idstr, void *opaque);
 
 typedef void QEMUResetHandler(void *opaque);
 
@@ -765,11 +767,13 @@ extern int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                               void *opaque, int version_id);
 extern void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
                                void *opaque);
-extern int vmstate_register(int instance_id, const VMStateDescription *vmsd,
-                            void *base);
-extern int vmstate_register_with_alias_id(int instance_id,
+extern int vmstate_register(DeviceState *dev, int instance_id,
+                            const VMStateDescription *vmsd, void *base);
+extern int vmstate_register_with_alias_id(DeviceState *dev,
+                                          int instance_id,
                                           const VMStateDescription *vmsd,
                                           void *base, int alias_id,
                                           int required_for_version);
-void vmstate_unregister(const VMStateDescription *vmsd, void *opaque);
+void vmstate_unregister(DeviceState *dev, const VMStateDescription *vmsd,
+                        void *opaque);
 #endif

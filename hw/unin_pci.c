@@ -158,7 +158,8 @@ static int pci_unin_main_init_device(SysBusDevice *dev)
     sysbus_init_mmio(dev, 0x1000, pci_mem_config);
     sysbus_init_mmio(dev, 0x1000, pci_mem_data);
 
-    register_savevm("uninorth", 0, 1, pci_unin_save, pci_unin_load, &s->host_state);
+    register_savevm(&dev->qdev, "uninorth", 0, 1,
+                    pci_unin_save, pci_unin_load, &s->host_state);
     qemu_register_reset(pci_unin_reset, &s->host_state);
     return 0;
 }
@@ -178,7 +179,8 @@ static int pci_u3_agp_init_device(SysBusDevice *dev)
     sysbus_init_mmio(dev, 0x1000, pci_mem_config);
     sysbus_init_mmio(dev, 0x1000, pci_mem_data);
 
-    register_savevm("uninorth", 0, 1, pci_unin_save, pci_unin_load, &s->host_state);
+    register_savevm(&dev->qdev, "uninorth", 0, 1,
+                    pci_unin_save, pci_unin_load, &s->host_state);
     qemu_register_reset(pci_unin_reset, &s->host_state);
 
     return 0;

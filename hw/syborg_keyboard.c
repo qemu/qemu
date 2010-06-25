@@ -220,7 +220,7 @@ static int syborg_keyboard_init(SysBusDevice *dev)
 
     qemu_add_kbd_event_handler(syborg_keyboard_event, s);
 
-    register_savevm("syborg_keyboard", -1, 1,
+    register_savevm(&dev->qdev, "syborg_keyboard", -1, 1,
                     syborg_keyboard_save, syborg_keyboard_load, s);
     return 0;
 }

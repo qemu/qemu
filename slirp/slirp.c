@@ -232,7 +232,8 @@ Slirp *slirp_init(int restricted, struct in_addr vnetwork,
 
     slirp->opaque = opaque;
 
-    register_savevm("slirp", 0, 3, slirp_state_save, slirp_state_load, slirp);
+    register_savevm(NULL, "slirp", 0, 3,
+                    slirp_state_save, slirp_state_load, slirp);
 
     QTAILQ_INSERT_TAIL(&slirp_instances, slirp, entry);
 
@@ -243,7 +244,7 @@ void slirp_cleanup(Slirp *slirp)
 {
     QTAILQ_REMOVE(&slirp_instances, slirp, entry);
 
-    unregister_savevm("slirp", slirp);
+    unregister_savevm(NULL, "slirp", slirp);
 
     qemu_free(slirp->tftp_prefix);
     qemu_free(slirp->bootp_filename);

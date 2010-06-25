@@ -860,7 +860,7 @@ static int pxa2xx_ssp_init(SysBusDevice *dev)
     iomemtype = cpu_register_io_memory(pxa2xx_ssp_readfn,
                                        pxa2xx_ssp_writefn, s);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
-    register_savevm("pxa2xx_ssp", -1, 0,
+    register_savevm(&dev->qdev, "pxa2xx_ssp", -1, 0,
                     pxa2xx_ssp_save, pxa2xx_ssp_load, s);
 
     s->bus = ssi_create_bus(&dev->qdev, "ssi");
@@ -1515,7 +1515,7 @@ PXA2xxI2CState *pxa2xx_i2c_init(target_phys_addr_t base,
     cpu_register_physical_memory(base & ~region_size,
                     region_size + 1, iomemtype);
 
-    vmstate_register(base, &vmstate_pxa2xx_i2c, s);
+    vmstate_register(NULL, base, &vmstate_pxa2xx_i2c, s);
 
     return s;
 }
@@ -1751,7 +1751,7 @@ static PXA2xxI2SState *pxa2xx_i2s_init(target_phys_addr_t base,
                     pxa2xx_i2s_writefn, s);
     cpu_register_physical_memory(base, 0x100000, iomemtype);
 
-    register_savevm("pxa2xx_i2s", base, 0,
+    register_savevm(NULL, "pxa2xx_i2s", base, 0,
                     pxa2xx_i2s_save, pxa2xx_i2s_load, s);
 
     return s;
@@ -2014,7 +2014,8 @@ static PXA2xxFIrState *pxa2xx_fir_init(target_phys_addr_t base,
         qemu_chr_add_handlers(chr, pxa2xx_fir_is_empty,
                         pxa2xx_fir_rx, pxa2xx_fir_event, s);
 
-    register_savevm("pxa2xx_fir", 0, 0, pxa2xx_fir_save, pxa2xx_fir_load, s);
+    register_savevm(NULL, "pxa2xx_fir", 0, 0, pxa2xx_fir_save,
+                    pxa2xx_fir_load, s);
 
     return s;
 }
@@ -2099,7 +2100,7 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
     iomemtype = cpu_register_io_memory(pxa2xx_cm_readfn,
                     pxa2xx_cm_writefn, s);
     cpu_register_physical_memory(s->cm_base, 0x1000, iomemtype);
-    register_savevm("pxa2xx_cm", 0, 0, pxa2xx_cm_save, pxa2xx_cm_load, s);
+    register_savevm(NULL, "pxa2xx_cm", 0, 0, pxa2xx_cm_save, pxa2xx_cm_load, s);
 
     cpu_arm_set_cp_io(s->env, 14, pxa2xx_cp14_read, pxa2xx_cp14_write, s);
 
@@ -2110,13 +2111,13 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
     iomemtype = cpu_register_io_memory(pxa2xx_mm_readfn,
                     pxa2xx_mm_writefn, s);
     cpu_register_physical_memory(s->mm_base, 0x1000, iomemtype);
-    register_savevm("pxa2xx_mm", 0, 0, pxa2xx_mm_save, pxa2xx_mm_load, s);
+    register_savevm(NULL, "pxa2xx_mm", 0, 0, pxa2xx_mm_save, pxa2xx_mm_load, s);
 
     s->pm_base = 0x40f00000;
     iomemtype = cpu_register_io_memory(pxa2xx_pm_readfn,
                     pxa2xx_pm_writefn, s);
     cpu_register_physical_memory(s->pm_base, 0x100, iomemtype);
-    register_savevm("pxa2xx_pm", 0, 0, pxa2xx_pm_save, pxa2xx_pm_load, s);
+    register_savevm(NULL, "pxa2xx_pm", 0, 0, pxa2xx_pm_save, pxa2xx_pm_load, s);
 
     for (i = 0; pxa27x_ssp[i].io_base; i ++);
     s->ssp = (SSIBus **)qemu_mallocz(sizeof(SSIBus *) * i);
@@ -2140,7 +2141,8 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
                     pxa2xx_rtc_writefn, s);
     cpu_register_physical_memory(s->rtc_base, 0x1000, iomemtype);
     pxa2xx_rtc_init(s);
-    register_savevm("pxa2xx_rtc", 0, 0, pxa2xx_rtc_save, pxa2xx_rtc_load, s);
+    register_savevm(NULL, "pxa2xx_rtc", 0, 0, pxa2xx_rtc_save,
+                    pxa2xx_rtc_load, s);
 
     s->i2c[0] = pxa2xx_i2c_init(0x40301600, s->pic[PXA2XX_PIC_I2C], 0xffff);
     s->i2c[1] = pxa2xx_i2c_init(0x40f00100, s->pic[PXA2XX_PIC_PWRI2C], 0xff);
@@ -2219,7 +2221,7 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
     iomemtype = cpu_register_io_memory(pxa2xx_cm_readfn,
                     pxa2xx_cm_writefn, s);
     cpu_register_physical_memory(s->cm_base, 0x1000, iomemtype);
-    register_savevm("pxa2xx_cm", 0, 0, pxa2xx_cm_save, pxa2xx_cm_load, s);
+    register_savevm(NULL, "pxa2xx_cm", 0, 0, pxa2xx_cm_save, pxa2xx_cm_load, s);
 
     cpu_arm_set_cp_io(s->env, 14, pxa2xx_cp14_read, pxa2xx_cp14_write, s);
 
@@ -2230,13 +2232,13 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
     iomemtype = cpu_register_io_memory(pxa2xx_mm_readfn,
                     pxa2xx_mm_writefn, s);
     cpu_register_physical_memory(s->mm_base, 0x1000, iomemtype);
-    register_savevm("pxa2xx_mm", 0, 0, pxa2xx_mm_save, pxa2xx_mm_load, s);
+    register_savevm(NULL, "pxa2xx_mm", 0, 0, pxa2xx_mm_save, pxa2xx_mm_load, s);
 
     s->pm_base = 0x40f00000;
     iomemtype = cpu_register_io_memory(pxa2xx_pm_readfn,
                     pxa2xx_pm_writefn, s);
     cpu_register_physical_memory(s->pm_base, 0x100, iomemtype);
-    register_savevm("pxa2xx_pm", 0, 0, pxa2xx_pm_save, pxa2xx_pm_load, s);
+    register_savevm(NULL, "pxa2xx_pm", 0, 0, pxa2xx_pm_save, pxa2xx_pm_load, s);
 
     for (i = 0; pxa255_ssp[i].io_base; i ++);
     s->ssp = (SSIBus **)qemu_mallocz(sizeof(SSIBus *) * i);
@@ -2260,7 +2262,8 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
                     pxa2xx_rtc_writefn, s);
     cpu_register_physical_memory(s->rtc_base, 0x1000, iomemtype);
     pxa2xx_rtc_init(s);
-    register_savevm("pxa2xx_rtc", 0, 0, pxa2xx_rtc_save, pxa2xx_rtc_load, s);
+    register_savevm(NULL, "pxa2xx_rtc", 0, 0, pxa2xx_rtc_save,
+                    pxa2xx_rtc_load, s);
 
     s->i2c[0] = pxa2xx_i2c_init(0x40301600, s->pic[PXA2XX_PIC_I2C], 0xffff);
     s->i2c[1] = pxa2xx_i2c_init(0x40f00100, s->pic[PXA2XX_PIC_PWRI2C], 0xff);

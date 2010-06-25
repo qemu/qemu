@@ -545,7 +545,7 @@ PCMCIACardState *dscm1xxxx_init(DriveInfo *bdrv)
     md->bus.ifs[0].mdata_size = METADATA_SIZE;
     md->bus.ifs[0].mdata_storage = (uint8_t *) qemu_mallocz(METADATA_SIZE);
 
-    vmstate_register(-1, &vmstate_microdrive, md);
+    vmstate_register(NULL, -1, &vmstate_microdrive, md);
 
     return &md->card;
 }

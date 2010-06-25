@@ -1146,7 +1146,8 @@ PCIBus *pci_gt64120_init(qemu_irq *pic)
 
     gt64120_reset(s);
 
-    register_savevm("GT64120 PCI Bus", 0, 1, gt64120_save, gt64120_load, d);
+    register_savevm(&d->qdev, "GT64120 PCI Bus", 0, 1,
+                    gt64120_save, gt64120_load, d);
 
     return s->pci->bus;
 }

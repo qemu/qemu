@@ -784,7 +784,7 @@ VirtIODevice *virtio_serial_init(DeviceState *dev, uint32_t max_nr_ports)
      * Register for the savevm section with the virtio-console name
      * to preserve backward compat
      */
-    register_savevm("virtio-console", -1, 2, virtio_serial_save,
+    register_savevm(dev, "virtio-console", -1, 2, virtio_serial_save,
                     virtio_serial_load, vser);
 
     return vdev;

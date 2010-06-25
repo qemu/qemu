@@ -239,7 +239,7 @@ static void mipsnet_cleanup(VLANClientState *nc)
 {
     MIPSnetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
-    unregister_savevm("mipsnet", s);
+    unregister_savevm(NULL, "mipsnet", s);
 
     isa_unassign_ioport(s->io_base, 36);
 
@@ -284,5 +284,5 @@ void mipsnet_init (int base, qemu_irq irq, NICInfo *nd)
     }
 
     mipsnet_reset(s);
-    register_savevm("mipsnet", 0, 0, mipsnet_save, mipsnet_load, s);
+    register_savevm(NULL, "mipsnet", 0, 0, mipsnet_save, mipsnet_load, s);
 }

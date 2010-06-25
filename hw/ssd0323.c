@@ -335,7 +335,8 @@ static int ssd0323_init(SSISlave *dev)
 
     qdev_init_gpio_in(&dev->qdev, ssd0323_cd, 1);
 
-    register_savevm("ssd0323_oled", -1, 1, ssd0323_save, ssd0323_load, s);
+    register_savevm(&dev->qdev, "ssd0323_oled", -1, 1,
+                    ssd0323_save, ssd0323_load, s);
     return 0;
 }
 

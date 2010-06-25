@@ -316,7 +316,7 @@ eeprom_t *eeprom93xx_new(uint16_t nwords)
     /* Output DO is tristate, read results in 1. */
     eeprom->eedo = 1;
     logout("eeprom = 0x%p, nwords = %u\n", eeprom, nwords);
-    vmstate_register(0, &vmstate_eeprom, eeprom);
+    vmstate_register(NULL, 0, &vmstate_eeprom, eeprom);
     return eeprom;
 }
 
@@ -324,7 +324,7 @@ void eeprom93xx_free(eeprom_t *eeprom)
 {
     /* Destroy EEPROM. */
     logout("eeprom = 0x%p\n", eeprom);
-    vmstate_unregister(&vmstate_eeprom, eeprom);
+    vmstate_unregister(NULL, &vmstate_eeprom, eeprom);
     qemu_free(eeprom);
 }
 

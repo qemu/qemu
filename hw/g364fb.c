@@ -598,7 +598,7 @@ int g364fb_mm_init(target_phys_addr_t vram_base,
     s->irq = irq;
 
     qemu_register_reset(g364fb_reset, s);
-    register_savevm("g364fb", 0, 1, g364fb_save, g364fb_load, s);
+    register_savevm(NULL, "g364fb", 0, 1, g364fb_save, g364fb_load, s);
     g364fb_reset(s);
 
     s->ds = graphic_console_init(g364fb_update_display,

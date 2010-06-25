@@ -1234,7 +1234,8 @@ qemu_irq *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
     opp->irq_out = irq_out;
     opp->need_swap = 1;
 
-    register_savevm("openpic", 0, 2, openpic_save, openpic_load, opp);
+    register_savevm(&opp->pci_dev.qdev, "openpic", 0, 2,
+                    openpic_save, openpic_load, opp);
     qemu_register_reset(openpic_reset, opp);
 
     opp->irq_raise = openpic_irq_raise;
@@ -1692,7 +1693,7 @@ qemu_irq *mpic_init (target_phys_addr_t base, int nb_cpus,
     mpp->irq_raise = mpic_irq_raise;
     mpp->reset = mpic_reset;
 
-    register_savevm("mpic", 0, 2, openpic_save, openpic_load, mpp);
+    register_savevm(NULL, "mpic", 0, 2, openpic_save, openpic_load, mpp);
     qemu_register_reset(mpic_reset, mpp);
 
     return qemu_allocate_irqs(openpic_set_irq, mpp, mpp->max_irq);

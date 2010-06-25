@@ -218,7 +218,7 @@ static int syborg_pointer_init(SysBusDevice *dev)
     qemu_add_mouse_event_handler(syborg_pointer_event, s, s->absolute,
                                  "Syborg Pointer");
 
-    register_savevm("syborg_pointer", -1, 1,
+    register_savevm(&dev->qdev, "syborg_pointer", -1, 1,
                     syborg_pointer_save, syborg_pointer_load, s);
     return 0;
 }

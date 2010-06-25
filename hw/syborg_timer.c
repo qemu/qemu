@@ -221,7 +221,7 @@ static int syborg_timer_init(SysBusDevice *dev)
     bh = qemu_bh_new(syborg_timer_tick, s);
     s->timer = ptimer_init(bh);
     ptimer_set_freq(s->timer, s->freq);
-    register_savevm("syborg_timer", -1, 1,
+    register_savevm(&dev->qdev, "syborg_timer", -1, 1,
                     syborg_timer_save, syborg_timer_load, s);
     return 0;
 }

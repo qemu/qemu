@@ -299,7 +299,7 @@ static int pl022_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
     s->ssi = ssi_create_bus(&dev->qdev, "ssi");
     pl022_reset(s);
-    register_savevm("pl022_ssp", -1, 1, pl022_save, pl022_load, s);
+    register_savevm(&dev->qdev, "pl022_ssp", -1, 1, pl022_save, pl022_load, s);
     return 0;
 }
 

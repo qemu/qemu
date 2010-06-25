@@ -310,8 +310,8 @@ PCIBus *ppce500_pci_init(qemu_irq pci_irqs[4], target_phys_addr_t registers)
                                    PCIE500_REG_SIZE, index);
 
     /* XXX load/save code not tested. */
-    register_savevm("ppce500_pci", ppce500_pci_id++, 1,
-                    ppce500_pci_save, ppce500_pci_load, controller);
+    register_savevm(&d->qdev, "ppce500_pci", ppce500_pci_id++,
+                    1, ppce500_pci_save, ppce500_pci_load, controller);
 
     return controller->pci_state.bus;
 

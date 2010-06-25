@@ -86,6 +86,6 @@ void stellaris_gamepad_init(int n, qemu_irq *irq, const int *keycode)
     }
     s->num_buttons = n;
     qemu_add_kbd_event_handler(stellaris_gamepad_put_key, s);
-    register_savevm("stellaris_gamepad", -1, 1,
+    register_savevm(NULL, "stellaris_gamepad", -1, 1,
                     stellaris_gamepad_save, stellaris_gamepad_load, s);
 }

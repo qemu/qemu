@@ -1169,7 +1169,7 @@ static void vmsvga_init(struct vmsvga_state_s *s, int vga_ram_size)
 
     vga_common_init(&s->vga, vga_ram_size);
     vga_init(&s->vga);
-    vmstate_register(0, &vmstate_vga_common, &s->vga);
+    vmstate_register(NULL, 0, &vmstate_vga_common, &s->vga);
 
     vga_init_vbe(&s->vga);
 

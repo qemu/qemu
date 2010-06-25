@@ -128,7 +128,7 @@ static int pci_piix_ide_initfn(PCIIDEState *d)
 
     pci_register_bar(&d->dev, 4, 0x10, PCI_BASE_ADDRESS_SPACE_IO, bmdma_map);
 
-    vmstate_register(0, &vmstate_ide_pci, d);
+    vmstate_register(&d->dev.qdev, 0, &vmstate_ide_pci, d);
 
     ide_bus_new(&d->bus[0], &d->dev.qdev);
     ide_bus_new(&d->bus[1], &d->dev.qdev);

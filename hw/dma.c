@@ -548,8 +548,8 @@ void DMA_init(int high_page_enable, qemu_irq *cpu_request_exit)
               high_page_enable ? 0x480 : -1, cpu_request_exit);
     dma_init2(&dma_controllers[1], 0xc0, 1, 0x88,
               high_page_enable ? 0x488 : -1, cpu_request_exit);
-    vmstate_register (0, &vmstate_dma, &dma_controllers[0]);
-    vmstate_register (1, &vmstate_dma, &dma_controllers[1]);
+    vmstate_register (NULL, 0, &vmstate_dma, &dma_controllers[0]);
+    vmstate_register (NULL, 1, &vmstate_dma, &dma_controllers[1]);
 
     dma_bh = qemu_bh_new(DMA_run_bh, NULL);
 }

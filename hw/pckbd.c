@@ -418,7 +418,7 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
     s->irq_mouse = mouse_irq;
     s->mask = mask;
 
-    vmstate_register(0, &vmstate_kbd, s);
+    vmstate_register(NULL, 0, &vmstate_kbd, s);
     s_io_memory = cpu_register_io_memory(kbd_mm_read, kbd_mm_write, s);
     cpu_register_physical_memory(base, size, s_io_memory);
 

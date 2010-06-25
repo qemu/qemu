@@ -813,7 +813,7 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
     s->chr = chr;
     serial_init_core(s);
 
-    vmstate_register(base, &vmstate_serial, s);
+    vmstate_register(NULL, base, &vmstate_serial, s);
 
     register_ioport_write(base, 8, 1, serial_ioport_write, s);
     register_ioport_read(base, 8, 1, serial_ioport_read, s);
@@ -948,7 +948,7 @@ SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
     s->chr = chr;
 
     serial_init_core(s);
-    vmstate_register(base, &vmstate_serial, s);
+    vmstate_register(NULL, base, &vmstate_serial, s);
 
     if (ioregister) {
         if (be) {

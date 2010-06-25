@@ -306,7 +306,7 @@ static int pl011_init(SysBusDevice *dev, const unsigned char *id)
         qemu_chr_add_handlers(s->chr, pl011_can_receive, pl011_receive,
                               pl011_event, s);
     }
-    register_savevm("pl011_uart", -1, 1, pl011_save, pl011_load, s);
+    register_savevm(&dev->qdev, "pl011_uart", -1, 1, pl011_save, pl011_load, s);
     return 0;
 }
 

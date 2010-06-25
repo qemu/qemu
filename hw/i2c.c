@@ -62,7 +62,7 @@ i2c_bus *i2c_init_bus(DeviceState *parent, const char *name)
     i2c_bus *bus;
 
     bus = FROM_QBUS(i2c_bus, qbus_create(&i2c_bus_info, parent, name));
-    vmstate_register(-1, &vmstate_i2c_bus, bus);
+    vmstate_register(NULL, -1, &vmstate_i2c_bus, bus);
     return bus;
 }
 

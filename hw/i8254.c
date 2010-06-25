@@ -508,7 +508,7 @@ PITState *pit_init(int base, qemu_irq irq)
     s->irq_timer = qemu_new_timer(vm_clock, pit_irq_timer, s);
     s->irq = irq;
 
-    vmstate_register(base, &vmstate_pit, pit);
+    vmstate_register(NULL, base, &vmstate_pit, pit);
     qemu_register_reset(pit_reset, pit);
     register_ioport_write(base, 4, 1, pit_ioport_write, pit);
     register_ioport_read(base, 3, 1, pit_ioport_read, pit);

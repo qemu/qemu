@@ -232,7 +232,7 @@ void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
     QLIST_INIT(&bus->child);
     pci_host_bus_register(0, bus); /* for now only pci domain 0 is supported */
 
-    vmstate_register(-1, &vmstate_pcibus, bus);
+    vmstate_register(NULL, -1, &vmstate_pcibus, bus);
     qemu_register_reset(pci_bus_reset, bus);
 }
 

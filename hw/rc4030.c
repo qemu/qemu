@@ -813,7 +813,7 @@ void *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
     s->jazz_bus_irq = jazz_bus;
 
     qemu_register_reset(rc4030_reset, s);
-    register_savevm("rc4030", 0, 2, rc4030_save, rc4030_load, s);
+    register_savevm(NULL, "rc4030", 0, 2, rc4030_save, rc4030_load, s);
     rc4030_reset(s);
 
     s_chipset = cpu_register_io_memory(rc4030_read, rc4030_write, s);

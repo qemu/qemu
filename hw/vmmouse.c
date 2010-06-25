@@ -274,7 +274,7 @@ void *vmmouse_init(void *m)
     vmport_register(VMMOUSE_STATUS, vmmouse_ioport_read, s);
     vmport_register(VMMOUSE_COMMAND, vmmouse_ioport_read, s);
     vmport_register(VMMOUSE_DATA, vmmouse_ioport_read, s);
-    vmstate_register(0, &vmstate_vmmouse, s);
+    vmstate_register(NULL, 0, &vmstate_vmmouse, s);
 
     return s;
 }

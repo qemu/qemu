@@ -392,8 +392,8 @@ PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
     qemu_register_reset(ppc4xx_pci_reset, controller);
 
     /* XXX load/save code not tested. */
-    register_savevm("ppc4xx_pci", ppc4xx_pci_id++, 1,
-                    ppc4xx_pci_save, ppc4xx_pci_load, controller);
+    register_savevm(&controller->pci_dev->qdev, "ppc4xx_pci", ppc4xx_pci_id++,
+                    1, ppc4xx_pci_save, ppc4xx_pci_load, controller);
 
     return controller->pci_state.bus;
 

@@ -113,8 +113,8 @@ static int pci_grackle_init_device(SysBusDevice *dev)
     sysbus_init_mmio(dev, 0x1000, pci_mem_config);
     sysbus_init_mmio(dev, 0x1000, pci_mem_data);
 
-    register_savevm("grackle", 0, 1, pci_grackle_save, pci_grackle_load,
-                    &s->host_state);
+    register_savevm(&dev->qdev, "grackle", 0, 1, pci_grackle_save,
+                    pci_grackle_load, &s->host_state);
     qemu_register_reset(pci_grackle_reset, &s->host_state);
     return 0;
 }

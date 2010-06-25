@@ -263,7 +263,7 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
     ide_init2(&d->bus[0], irq[0]);
     ide_init2(&d->bus[1], irq[1]);
 
-    vmstate_register(0, &vmstate_ide_pci, d);
+    vmstate_register(&dev->qdev, 0, &vmstate_ide_pci, d);
     qemu_register_reset(cmd646_reset, d);
     return 0;
 }

@@ -136,7 +136,8 @@ static int syborg_rtc_init(SysBusDevice *dev)
     qemu_get_timedate(&tm, 0);
     s->offset = (uint64_t)mktime(&tm) * 1000000000;
 
-    register_savevm("syborg_rtc", -1, 1, syborg_rtc_save, syborg_rtc_load, s);
+    register_savevm(&dev->qdev, "syborg_rtc", -1, 1,
+                    syborg_rtc_save, syborg_rtc_load, s);
     return 0;
 }
 
