@@ -403,10 +403,12 @@ static void qemu_wait_io_event_common(CPUState *env)
     flush_queued_work(env);
 }
 
-static void qemu_wait_io_event(CPUState *env)
+static void qemu_tcg_wait_io_event(void)
 {
+    CPUState *env;
+
     while (!tcg_has_work())
-        qemu_cond_timedwait(env->halt_cond, &qemu_global_mutex, 1000);
+        qemu_cond_timedwait(tcg_halt_cond, &qemu_global_mutex, 1000);
 
     qemu_mutex_unlock(&qemu_global_mutex);
 
@@ -419,7 +421,10 @@ static void qemu_wait_io_event(CPUState *env)
     qemu_mutex_unlock(&qemu_fair_mutex);
 
     qemu_mutex_lock(&qemu_global_mutex);
-    qemu_wait_io_event_common(env);
+
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        qemu_wait_io_event_common(env);
+    }
 }
 
 static void qemu_kvm_eat_signal(CPUState *env, int timeout)
@@ -504,7 +509,7 @@ static void *tcg_cpu_thread_fn(void *arg)
 
     while (1) {
         tcg_cpu_exec();
-        qemu_wait_io_event(cur_cpu);
+        qemu_tcg_wait_io_event();
     }
 
     return NULL;
