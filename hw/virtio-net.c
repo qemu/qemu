@@ -60,6 +60,7 @@ typedef struct VirtIONet
         uint8_t *macs;
     } mac_table;
     uint32_t *vlans;
+    DeviceState *qdev;
 } VirtIONet;
 
 /* TODO
@@ -890,7 +891,6 @@ static void virtio_net_vmstate_change(void *opaque, int running, int reason)
 VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf)
 {
     VirtIONet *n;
-    static int virtio_net_id;
 
     n = (VirtIONet *)virtio_common_init("virtio-net", VIRTIO_ID_NET,
                                         sizeof(struct virtio_net_config),
@@ -923,7 +923,8 @@ VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf)
 
     n->vlans = qemu_mallocz(MAX_VLAN >> 3);
 
-    register_savevm(NULL, "virtio-net", virtio_net_id++, VIRTIO_NET_VM_VERSION,
+    n->qdev = dev;
+    register_savevm(dev, "virtio-net", -1, VIRTIO_NET_VM_VERSION,
                     virtio_net_save, virtio_net_load, n);
     n->vmstate = qemu_add_vm_change_state_handler(virtio_net_vmstate_change, n);
 
@@ -941,7 +942,7 @@ void virtio_net_exit(VirtIODevice *vdev)
 
     qemu_purge_queued_packets(&n->nic->nc);
 
-    unregister_savevm(NULL, "virtio-net", n);
+    unregister_savevm(n->qdev, "virtio-net", n);
 
     qemu_free(n->mac_table.macs);
     qemu_free(n->vlans);
