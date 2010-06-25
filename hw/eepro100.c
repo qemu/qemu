@@ -1835,7 +1835,7 @@ static int pci_nic_uninit(PCIDevice *pci_dev)
 
     cpu_unregister_io_memory(s->mmio_index);
     vmstate_unregister(&pci_dev->qdev, s->vmstate, s);
-    eeprom93xx_free(s->eeprom);
+    eeprom93xx_free(&pci_dev->qdev, s->eeprom);
     qemu_del_vlan_client(&s->nic->nc);
     return 0;
 }
@@ -1862,7 +1862,7 @@ static int e100_nic_init(PCIDevice *pci_dev)
 
     /* Add 64 * 2 EEPROM. i82557 and i82558 support a 64 word EEPROM,
      * i82559 and later support 64 or 256 word EEPROM. */
-    s->eeprom = eeprom93xx_new(EEPROM_SIZE);
+    s->eeprom = eeprom93xx_new(&pci_dev->qdev, EEPROM_SIZE);
 
     /* Handler for memory-mapped I/O */
     s->mmio_index =

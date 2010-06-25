@@ -23,10 +23,10 @@
 typedef struct _eeprom_t eeprom_t;
 
 /* Create a new EEPROM with (nwords * 2) bytes. */
-eeprom_t *eeprom93xx_new(uint16_t nwords);
+eeprom_t *eeprom93xx_new(DeviceState *dev, uint16_t nwords);
 
 /* Destroy an existing EEPROM. */
-void eeprom93xx_free(eeprom_t *eeprom);
+void eeprom93xx_free(DeviceState *dev, eeprom_t *eeprom);
 
 /* Read from the EEPROM. */
 uint16_t eeprom93xx_read(eeprom_t *eeprom);
