@@ -108,9 +108,10 @@ static int ram_save_block(QEMUFile *f)
     static ram_addr_t current_addr = 0;
     ram_addr_t saved_addr = current_addr;
     ram_addr_t addr = 0;
+    uint64_t total_ram = ram_bytes_total();
     int bytes_sent = 0;
 
-    while (addr < ram_list.last_offset) {
+    while (addr < total_ram) {
         if (cpu_physical_memory_get_dirty(current_addr, MIGRATION_DIRTY_FLAG)) {
             uint8_t *p;
 
@@ -133,7 +134,7 @@ static int ram_save_block(QEMUFile *f)
             break;
         }
         addr += TARGET_PAGE_SIZE;
-        current_addr = (saved_addr + addr) % ram_list.last_offset;
+        current_addr = (saved_addr + addr) % total_ram;
     }
 
     return bytes_sent;
@@ -145,8 +146,9 @@ static ram_addr_t ram_save_remaining(void)
 {
     ram_addr_t addr;
     ram_addr_t count = 0;
+    uint64_t total_ram = ram_bytes_total();
 
-    for (addr = 0; addr < ram_list.last_offset; addr += TARGET_PAGE_SIZE) {
+    for (addr = 0; addr < total_ram; addr += TARGET_PAGE_SIZE) {
         if (cpu_physical_memory_get_dirty(addr, MIGRATION_DIRTY_FLAG)) {
             count++;
         }
@@ -167,7 +169,13 @@ uint64_t ram_bytes_transferred(void)
 
 uint64_t ram_bytes_total(void)
 {
-    return ram_list.last_offset;
+    RAMBlock *block;
+    uint64_t total = 0;
+
+    QLIST_FOREACH(block, &ram_list.blocks, next)
+        total += block->length;
+
+    return total;
 }
 
 int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
@@ -188,10 +196,11 @@ int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
     }
 
     if (stage == 1) {
+        uint64_t total_ram = ram_bytes_total();
         bytes_transferred = 0;
 
         /* Make sure all dirty bits are set */
-        for (addr = 0; addr < ram_list.last_offset; addr += TARGET_PAGE_SIZE) {
+        for (addr = 0; addr < total_ram; addr += TARGET_PAGE_SIZE) {
             if (!cpu_physical_memory_get_dirty(addr, MIGRATION_DIRTY_FLAG)) {
                 cpu_physical_memory_set_dirty(addr);
             }
@@ -200,7 +209,7 @@ int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
         /* Enable dirty memory tracking */
         cpu_physical_memory_set_dirty_tracking(1);
 
-        qemu_put_be64(f, ram_list.last_offset | RAM_SAVE_FLAG_MEM_SIZE);
+        qemu_put_be64(f, total_ram | RAM_SAVE_FLAG_MEM_SIZE);
     }
 
     bytes_transferred_last = bytes_transferred;
@@ -259,7 +268,7 @@ int ram_load(QEMUFile *f, void *opaque, int version_id)
         addr &= TARGET_PAGE_MASK;
 
         if (flags & RAM_SAVE_FLAG_MEM_SIZE) {
-            if (addr != ram_list.last_offset) {
+            if (addr != ram_bytes_total()) {
                 return -EINVAL;
             }
         }

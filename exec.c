@@ -2767,6 +2767,17 @@ static void *file_ram_alloc(ram_addr_t memory, const char *path)
 }
 #endif
 
+static ram_addr_t find_ram_offset(ram_addr_t size)
+{
+    RAMBlock *block;
+    ram_addr_t last = 0;
+
+    QLIST_FOREACH(block, &ram_list.blocks, next)
+        last = MAX(last, block->offset + block->length);
+
+    return last;
+}
+
 ram_addr_t qemu_ram_alloc(ram_addr_t size)
 {
     RAMBlock *new_block;
@@ -2800,17 +2811,15 @@ ram_addr_t qemu_ram_alloc(ram_addr_t size)
         madvise(new_block->host, size, MADV_MERGEABLE);
 #endif
     }
-    new_block->offset = ram_list.last_offset;
+    new_block->offset = find_ram_offset(size);
     new_block->length = size;
 
     QLIST_INSERT_HEAD(&ram_list.blocks, new_block, next);
 
     ram_list.phys_dirty = qemu_realloc(ram_list.phys_dirty,
-        (ram_list.last_offset + size) >> TARGET_PAGE_BITS);
-    memset(ram_list.phys_dirty + (ram_list.last_offset >> TARGET_PAGE_BITS),
+        (new_block->offset + size) >> TARGET_PAGE_BITS);
+    memset(ram_list.phys_dirty + (new_block->offset >> TARGET_PAGE_BITS),
            0xff, size >> TARGET_PAGE_BITS);
-
-    ram_list.last_offset += size;
 
     if (kvm_enabled())
         kvm_setup_guest_memory(new_block->host, size);
