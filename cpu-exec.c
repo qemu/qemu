@@ -21,6 +21,7 @@
 #include "disas.h"
 #include "tcg.h"
 #include "kvm.h"
+#include "qemu-barrier.h"
 
 #if !defined(CONFIG_SOFTMMU)
 #undef EAX
@@ -233,7 +234,7 @@ int cpu_exec(CPUState *env1)
        use it.  */
     QEMU_BUILD_BUG_ON (sizeof (saved_env_reg) != sizeof (env));
     saved_env_reg = (host_reg_t) env;
-    asm("");
+    barrier();
     env = env1;
 
     if (exit_request) {
@@ -669,7 +670,7 @@ int cpu_exec(CPUState *env1)
 #endif
 
     /* restore global registers */
-    asm("");
+    barrier();
     env = (void *) saved_env_reg;
 
     /* fail safe : never use cpu_single_env outside cpu_exec() */
