@@ -87,6 +87,7 @@ const uint32_t arch_type = QEMU_ARCH;
 #define RAM_SAVE_FLAG_MEM_SIZE	0x04
 #define RAM_SAVE_FLAG_PAGE	0x08
 #define RAM_SAVE_FLAG_EOS	0x10
+#define RAM_SAVE_FLAG_CONTINUE	0x20
 
 static int is_dup_page(uint8_t *page, uint8_t ch)
 {
@@ -120,6 +121,7 @@ static int ram_save_block(QEMUFile *f)
     do {
         if (cpu_physical_memory_get_dirty(current_addr, MIGRATION_DIRTY_FLAG)) {
             uint8_t *p;
+            int cont = (block == last_block) ? RAM_SAVE_FLAG_CONTINUE : 0;
 
             cpu_physical_memory_reset_dirty(current_addr,
                                             current_addr + TARGET_PAGE_SIZE,
@@ -128,17 +130,21 @@ static int ram_save_block(QEMUFile *f)
             p = block->host + offset;
 
             if (is_dup_page(p, *p)) {
-                qemu_put_be64(f, offset | RAM_SAVE_FLAG_COMPRESS);
-                qemu_put_byte(f, strlen(block->idstr));
-                qemu_put_buffer(f, (uint8_t *)block->idstr,
-                                strlen(block->idstr));
+                qemu_put_be64(f, offset | cont | RAM_SAVE_FLAG_COMPRESS);
+                if (!cont) {
+                    qemu_put_byte(f, strlen(block->idstr));
+                    qemu_put_buffer(f, (uint8_t *)block->idstr,
+                                    strlen(block->idstr));
+                }
                 qemu_put_byte(f, *p);
                 bytes_sent = 1;
             } else {
-                qemu_put_be64(f, offset | RAM_SAVE_FLAG_PAGE);
-                qemu_put_byte(f, strlen(block->idstr));
-                qemu_put_buffer(f, (uint8_t *)block->idstr,
-                                strlen(block->idstr));
+                qemu_put_be64(f, offset | cont | RAM_SAVE_FLAG_PAGE);
+                if (!cont) {
+                    qemu_put_byte(f, strlen(block->idstr));
+                    qemu_put_buffer(f, (uint8_t *)block->idstr,
+                                    strlen(block->idstr));
+                }
                 qemu_put_buffer(f, p, TARGET_PAGE_SIZE);
                 bytes_sent = TARGET_PAGE_SIZE;
             }
@@ -289,6 +295,36 @@ int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
     return (stage == 2) && (expected_time <= migrate_max_downtime());
 }
 
+static inline void *host_from_stream_offset(QEMUFile *f,
+                                            ram_addr_t offset,
+                                            int flags)
+{
+    static RAMBlock *block = NULL;
+    char id[256];
+    uint8_t len;
+
+    if (flags & RAM_SAVE_FLAG_CONTINUE) {
+        if (!block) {
+            fprintf(stderr, "Ack, bad migration stream!\n");
+            return NULL;
+        }
+
+        return block->host + offset;
+    }
+
+    len = qemu_get_byte(f);
+    qemu_get_buffer(f, (uint8_t *)id, len);
+    id[len] = 0;
+
+    QLIST_FOREACH(block, &ram_list.blocks, next) {
+        if (!strncmp(id, block->idstr, sizeof(id)))
+            return block->host + offset;
+    }
+
+    fprintf(stderr, "Can't find block %s!\n", id);
+    return NULL;
+}
+
 int ram_load(QEMUFile *f, void *opaque, int version_id)
 {
     ram_addr_t addr;
@@ -346,26 +382,11 @@ int ram_load(QEMUFile *f, void *opaque, int version_id)
             void *host;
             uint8_t ch;
 
-            if (version_id == 3) {
+            if (version_id == 3)
                 host = qemu_get_ram_ptr(addr);
-            } else {
-                RAMBlock *block;
-                char id[256];
-                uint8_t len;
+            else
+                host = host_from_stream_offset(f, addr, flags);
 
-                len = qemu_get_byte(f);
-                qemu_get_buffer(f, (uint8_t *)id, len);
-                id[len] = 0;
-
-                QLIST_FOREACH(block, &ram_list.blocks, next) {
-                    if (!strncmp(id, block->idstr, sizeof(id)))
-                        break;
-                }
-                if (!block)
-                    return -EINVAL;
-
-                host = block->host + addr;
-            }
             ch = qemu_get_byte(f);
             memset(host, ch, TARGET_PAGE_SIZE);
 #ifndef _WIN32
@@ -377,26 +398,11 @@ int ram_load(QEMUFile *f, void *opaque, int version_id)
         } else if (flags & RAM_SAVE_FLAG_PAGE) {
             void *host;
 
-            if (version_id == 3) {
+            if (version_id == 3)
                 host = qemu_get_ram_ptr(addr);
-            } else {
-                RAMBlock *block;
-                char id[256];
-                uint8_t len;
+            else
+                host = host_from_stream_offset(f, addr, flags);
 
-                len = qemu_get_byte(f);
-                qemu_get_buffer(f, (uint8_t *)id, len);
-                id[len] = 0;
-
-                QLIST_FOREACH(block, &ram_list.blocks, next) {
-                    if (!strncmp(id, block->idstr, sizeof(id)))
-                        break;
-                }
-                if (!block)
-                    return -EINVAL;
-
-                host = block->host + addr;
-            }
             qemu_get_buffer(f, host, TARGET_PAGE_SIZE);
         }
         if (qemu_file_has_error(f)) {
