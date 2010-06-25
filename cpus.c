@@ -131,7 +131,7 @@ static int cpu_has_work(CPUState *env)
     return 0;
 }
 
-static int tcg_has_work(void)
+static int any_cpu_has_work(void)
 {
     CPUState *env;
 
@@ -406,7 +406,7 @@ static void qemu_tcg_wait_io_event(void)
 {
     CPUState *env;
 
-    while (!tcg_has_work())
+    while (!any_cpu_has_work())
         qemu_cond_timedwait(tcg_halt_cond, &qemu_global_mutex, 1000);
 
     qemu_mutex_unlock(&qemu_global_mutex);
@@ -507,7 +507,7 @@ static void *tcg_cpu_thread_fn(void *arg)
         qemu_cond_timedwait(&qemu_system_cond, &qemu_global_mutex, 100);
 
     while (1) {
-        tcg_cpu_exec();
+        cpu_exec_all();
         qemu_tcg_wait_io_event();
     }
 
@@ -768,7 +768,7 @@ static int qemu_cpu_exec(CPUState *env)
     return ret;
 }
 
-bool tcg_cpu_exec(void)
+bool cpu_exec_all(void)
 {
     int ret = 0;
 
@@ -794,7 +794,7 @@ bool tcg_cpu_exec(void)
         }
     }
     exit_request = 0;
-    return tcg_has_work();
+    return any_cpu_has_work();
 }
 
 void set_numa_modes(void)

@@ -1325,7 +1325,7 @@ static void main_loop(void)
             int64_t ti;
 #endif
 #ifndef CONFIG_IOTHREAD
-            nonblocking = tcg_cpu_exec();
+            nonblocking = cpu_exec_all();
 #endif
 #ifdef CONFIG_PROFILER
             ti = profile_getclock();
