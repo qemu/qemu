@@ -1049,6 +1049,7 @@ static void scsi_destroy(SCSIDevice *dev)
 static int scsi_disk_initfn(SCSIDevice *dev)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
+    int is_cd;
     DriveInfo *dinfo;
 
     if (!s->qdev.conf.bs) {
@@ -1056,6 +1057,7 @@ static int scsi_disk_initfn(SCSIDevice *dev)
         return -1;
     }
     s->bs = s->qdev.conf.bs;
+    is_cd = bdrv_get_type_hint(s->bs) == BDRV_TYPE_CDROM;
 
     if (!s->serial) {
         /* try to fall back to value set with legacy -drive serial=... */
@@ -1072,7 +1074,7 @@ static int scsi_disk_initfn(SCSIDevice *dev)
         return -1;
     }
 
-    if (bdrv_get_type_hint(s->bs) == BDRV_TYPE_CDROM) {
+    if (is_cd) {
         s->qdev.blocksize = 2048;
     } else {
         s->qdev.blocksize = s->qdev.conf.logical_block_size;
@@ -1081,6 +1083,7 @@ static int scsi_disk_initfn(SCSIDevice *dev)
 
     s->qdev.type = TYPE_DISK;
     qemu_add_vm_change_state_handler(scsi_dma_restart_cb, s);
+    bdrv_set_removable(s->bs, is_cd);
     return 0;
 }
 

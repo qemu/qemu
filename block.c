@@ -1299,6 +1299,14 @@ BlockErrorAction bdrv_get_on_error(BlockDriverState *bs, int is_read)
     return is_read ? bs->on_read_error : bs->on_write_error;
 }
 
+void bdrv_set_removable(BlockDriverState *bs, int removable)
+{
+    bs->removable = removable;
+    if (removable && bs == bs_snapshots) {
+        bs_snapshots = NULL;
+    }
+}
+
 int bdrv_is_removable(BlockDriverState *bs)
 {
     return bs->removable;

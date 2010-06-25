@@ -500,6 +500,7 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf)
     qemu_add_vm_change_state_handler(virtio_blk_dma_restart_cb, s);
     register_savevm("virtio-blk", virtio_blk_id++, 2,
                     virtio_blk_save, virtio_blk_load, s);
+    bdrv_set_removable(s->bs, 0);
 
     return &s->vdev;
 }

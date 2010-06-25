@@ -2629,6 +2629,7 @@ void ide_init_drive(IDEState *s, BlockDriverState *bs,
         pstrcpy(s->version, sizeof(s->version), QEMU_VERSION);
     }
     ide_reset(s);
+    bdrv_set_removable(bs, s->is_cdrom);
 }
 
 static void ide_init1(IDEBus *bus, int unit)

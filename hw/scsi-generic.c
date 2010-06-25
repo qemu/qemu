@@ -509,6 +509,7 @@ static int scsi_generic_initfn(SCSIDevice *dev)
     DPRINTF("block size %d\n", s->qdev.blocksize);
     s->driver_status = 0;
     memset(s->sensebuf, 0, sizeof(s->sensebuf));
+    bdrv_set_removable(s->bs, 0);
     return 0;
 }
 
