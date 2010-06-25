@@ -237,9 +237,8 @@ int cpu_exec(CPUState *env1)
     barrier();
     env = env1;
 
-    if (exit_request) {
+    if (unlikely(exit_request)) {
         env->exit_request = 1;
-        exit_request = 0;
     }
 
 #if defined(TARGET_I386)

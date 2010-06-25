@@ -770,7 +770,7 @@ bool tcg_cpu_exec(void)
 
     if (next_cpu == NULL)
         next_cpu = first_cpu;
-    for (; next_cpu != NULL; next_cpu = next_cpu->next_cpu) {
+    for (; next_cpu != NULL && !exit_request; next_cpu = next_cpu->next_cpu) {
         CPUState *env = cur_cpu = next_cpu;
 
         qemu_clock_enable(vm_clock,
@@ -789,6 +789,7 @@ bool tcg_cpu_exec(void)
             break;
         }
     }
+    exit_request = 0;
     return tcg_has_work();
 }
 
