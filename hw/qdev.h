@@ -49,10 +49,13 @@ struct DeviceState {
 };
 
 typedef void (*bus_dev_printfn)(Monitor *mon, DeviceState *dev, int indent);
+typedef char *(*bus_get_dev_path)(DeviceState *dev);
+
 struct BusInfo {
     const char *name;
     size_t size;
     bus_dev_printfn print_dev;
+    bus_get_dev_path get_dev_path;
     Property *props;
 };
 
