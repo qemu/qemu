@@ -113,20 +113,33 @@ static int ram_save_block(QEMUFile *f)
 
     while (addr < total_ram) {
         if (cpu_physical_memory_get_dirty(current_addr, MIGRATION_DIRTY_FLAG)) {
+            RAMBlock *block;
+            ram_addr_t offset;
             uint8_t *p;
 
             cpu_physical_memory_reset_dirty(current_addr,
                                             current_addr + TARGET_PAGE_SIZE,
                                             MIGRATION_DIRTY_FLAG);
 
-            p = qemu_get_ram_ptr(current_addr);
+            QLIST_FOREACH(block, &ram_list.blocks, next) {
+                if (current_addr - block->offset < block->length)
+                    break;
+            }
+            offset = current_addr - block->offset;
+            p = block->host + offset;
 
             if (is_dup_page(p, *p)) {
-                qemu_put_be64(f, current_addr | RAM_SAVE_FLAG_COMPRESS);
+                qemu_put_be64(f, offset | RAM_SAVE_FLAG_COMPRESS);
+                qemu_put_byte(f, strlen(block->idstr));
+                qemu_put_buffer(f, (uint8_t *)block->idstr,
+                                strlen(block->idstr));
                 qemu_put_byte(f, *p);
                 bytes_sent = 1;
             } else {
-                qemu_put_be64(f, current_addr | RAM_SAVE_FLAG_PAGE);
+                qemu_put_be64(f, offset | RAM_SAVE_FLAG_PAGE);
+                qemu_put_byte(f, strlen(block->idstr));
+                qemu_put_buffer(f, (uint8_t *)block->idstr,
+                                strlen(block->idstr));
                 qemu_put_buffer(f, p, TARGET_PAGE_SIZE);
                 bytes_sent = TARGET_PAGE_SIZE;
             }
@@ -196,6 +209,7 @@ int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
     }
 
     if (stage == 1) {
+        RAMBlock *block;
         uint64_t total_ram = ram_bytes_total();
         bytes_transferred = 0;
 
@@ -210,6 +224,12 @@ int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
         cpu_physical_memory_set_dirty_tracking(1);
 
         qemu_put_be64(f, total_ram | RAM_SAVE_FLAG_MEM_SIZE);
+
+        QLIST_FOREACH(block, &ram_list.blocks, next) {
+            qemu_put_byte(f, strlen(block->idstr));
+            qemu_put_buffer(f, (uint8_t *)block->idstr, strlen(block->idstr));
+            qemu_put_be64(f, block->length);
+        }
     }
 
     bytes_transferred_last = bytes_transferred;
@@ -257,7 +277,7 @@ int ram_load(QEMUFile *f, void *opaque, int version_id)
     ram_addr_t addr;
     int flags;
 
-    if (version_id != 3) {
+    if (version_id < 3 || version_id > 4) {
         return -EINVAL;
     }
 
@@ -268,23 +288,99 @@ int ram_load(QEMUFile *f, void *opaque, int version_id)
         addr &= TARGET_PAGE_MASK;
 
         if (flags & RAM_SAVE_FLAG_MEM_SIZE) {
-            if (addr != ram_bytes_total()) {
-                return -EINVAL;
+            if (version_id == 3) {
+                if (addr != ram_bytes_total()) {
+                    return -EINVAL;
+                }
+            } else {
+                /* Synchronize RAM block list */
+                char id[256];
+                ram_addr_t length;
+                ram_addr_t total_ram_bytes = addr;
+
+                while (total_ram_bytes) {
+                    RAMBlock *block;
+                    uint8_t len;
+
+                    len = qemu_get_byte(f);
+                    qemu_get_buffer(f, (uint8_t *)id, len);
+                    id[len] = 0;
+                    length = qemu_get_be64(f);
+
+                    QLIST_FOREACH(block, &ram_list.blocks, next) {
+                        if (!strncmp(id, block->idstr, sizeof(id))) {
+                            if (block->length != length)
+                                return -EINVAL;
+                            break;
+                        }
+                    }
+
+                    if (!block) {
+                        if (!qemu_ram_alloc(NULL, id, length))
+                            return -ENOMEM;
+                    }
+
+                    total_ram_bytes -= length;
+                }
             }
         }
 
         if (flags & RAM_SAVE_FLAG_COMPRESS) {
-            uint8_t ch = qemu_get_byte(f);
-            memset(qemu_get_ram_ptr(addr), ch, TARGET_PAGE_SIZE);
+            void *host;
+            uint8_t ch;
+
+            if (version_id == 3) {
+                host = qemu_get_ram_ptr(addr);
+            } else {
+                RAMBlock *block;
+                char id[256];
+                uint8_t len;
+
+                len = qemu_get_byte(f);
+                qemu_get_buffer(f, (uint8_t *)id, len);
+                id[len] = 0;
+
+                QLIST_FOREACH(block, &ram_list.blocks, next) {
+                    if (!strncmp(id, block->idstr, sizeof(id)))
+                        break;
+                }
+                if (!block)
+                    return -EINVAL;
+
+                host = block->host + addr;
+            }
+            ch = qemu_get_byte(f);
+            memset(host, ch, TARGET_PAGE_SIZE);
 #ifndef _WIN32
             if (ch == 0 &&
                 (!kvm_enabled() || kvm_has_sync_mmu())) {
-                madvise(qemu_get_ram_ptr(addr), TARGET_PAGE_SIZE,
-                        MADV_DONTNEED);
+                madvise(host, TARGET_PAGE_SIZE, MADV_DONTNEED);
             }
 #endif
         } else if (flags & RAM_SAVE_FLAG_PAGE) {
-            qemu_get_buffer(f, qemu_get_ram_ptr(addr), TARGET_PAGE_SIZE);
+            void *host;
+
+            if (version_id == 3) {
+                host = qemu_get_ram_ptr(addr);
+            } else {
+                RAMBlock *block;
+                char id[256];
+                uint8_t len;
+
+                len = qemu_get_byte(f);
+                qemu_get_buffer(f, (uint8_t *)id, len);
+                id[len] = 0;
+
+                QLIST_FOREACH(block, &ram_list.blocks, next) {
+                    if (!strncmp(id, block->idstr, sizeof(id)))
+                        break;
+                }
+                if (!block)
+                    return -EINVAL;
+
+                host = block->host + addr;
+            }
+            qemu_get_buffer(f, host, TARGET_PAGE_SIZE);
         }
         if (qemu_file_has_error(f)) {
             return -EIO;

@@ -2794,7 +2794,7 @@ int main(int argc, char **argv, char **envp)
     if (qemu_opts_foreach(&qemu_drive_opts, drive_init_func, &machine->use_scsi, 1) != 0)
         exit(1);
 
-    register_savevm_live(NULL, "ram", 0, 3, NULL, ram_save_live, NULL, 
+    register_savevm_live(NULL, "ram", 0, 4, NULL, ram_save_live, NULL,
                          ram_load, NULL);
 
     if (nb_numa_nodes > 0) {
