@@ -865,6 +865,7 @@ typedef struct RAMBlock {
     uint8_t *host;
     ram_addr_t offset;
     ram_addr_t length;
+    char idstr[256];
     QLIST_ENTRY(RAMBlock) next;
 } RAMBlock;
 
