@@ -679,8 +679,7 @@ static int esp_init1(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, parent_esp_reset, 1);
 
     scsi_bus_new(&s->bus, &dev->qdev, 0, ESP_MAX_DEVS, esp_command_complete);
-    scsi_bus_legacy_handle_cmdline(&s->bus);
-    return 0;
+    return scsi_bus_legacy_handle_cmdline(&s->bus);
 }
 
 static SysBusDeviceInfo esp_info = {

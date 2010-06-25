@@ -98,7 +98,7 @@ static inline SCSIBus *scsi_bus_from_device(SCSIDevice *d)
 }
 
 SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, DriveInfo *dinfo, int unit);
-void scsi_bus_legacy_handle_cmdline(SCSIBus *bus);
+int scsi_bus_legacy_handle_cmdline(SCSIBus *bus);
 
 void scsi_dev_clear_sense(SCSIDevice *dev);
 void scsi_dev_set_sense(SCSIDevice *dev, uint8_t key);

@@ -83,7 +83,6 @@ void scsi_qdev_register(SCSIDeviceInfo *info)
 }
 
 /* handle legacy '-drive if=scsi,...' cmd line args */
-/* FIXME callers should check for failure, but don't */
 SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, DriveInfo *dinfo, int unit)
 {
     const char *driver;
@@ -98,18 +97,22 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, DriveInfo *dinfo, int unit)
     return DO_UPCAST(SCSIDevice, qdev, dev);
 }
 
-void scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
+int scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
 {
     DriveInfo *dinfo;
-    int unit;
+    int res = 0, unit;
 
     for (unit = 0; unit < MAX_SCSI_DEVS; unit++) {
         dinfo = drive_get(IF_SCSI, bus->busnr, unit);
         if (dinfo == NULL) {
             continue;
         }
-        scsi_bus_legacy_add_drive(bus, dinfo, unit);
+        if (!scsi_bus_legacy_add_drive(bus, dinfo, unit)) {
+            res = -1;
+            break;
+        }
     }
+    return res;
 }
 
 void scsi_dev_clear_sense(SCSIDevice *dev)

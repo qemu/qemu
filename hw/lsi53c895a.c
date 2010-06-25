@@ -2176,7 +2176,7 @@ static int lsi_scsi_init(PCIDevice *dev)
 
     scsi_bus_new(&s->bus, &dev->qdev, 1, LSI_MAX_DEVS, lsi_command_complete);
     if (!dev->qdev.hotplugged) {
-        scsi_bus_legacy_handle_cmdline(&s->bus);
+        return scsi_bus_legacy_handle_cmdline(&s->bus);
     }
     return 0;
 }
