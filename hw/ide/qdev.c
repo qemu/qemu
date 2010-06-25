@@ -84,8 +84,7 @@ IDEDevice *ide_create_drive(IDEBus *bus, int unit, DriveInfo *drive)
     dev = qdev_create(&bus->qbus, "ide-drive");
     qdev_prop_set_uint32(dev, "unit", unit);
     qdev_prop_set_drive(dev, "drive", drive);
-    if (qdev_init(dev) < 0)
-        return NULL;
+    qdev_init_nofail(dev);
     return DO_UPCAST(IDEDevice, qdev, dev);
 }
 
