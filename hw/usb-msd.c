@@ -522,24 +522,36 @@ static void usb_msd_password_cb(void *opaque, int err)
 static int usb_msd_initfn(USBDevice *dev)
 {
     MSDState *s = DO_UPCAST(MSDState, dev, dev);
+    DriveInfo *dinfo = s->conf.dinfo;
 
-    if (!s->conf.dinfo || !s->conf.dinfo->bdrv) {
+    if (!dinfo || !dinfo->bdrv) {
         error_report("usb-msd: drive property not set");
         return -1;
     }
 
+    /*
+     * Hack alert: this pretends to be a block device, but it's really
+     * a SCSI bus that can serve only a single device, which it
+     * creates automatically.  Two drive properties pointing to the
+     * same drive is not good: free_drive() dies for the second one.
+     * Zap the one we're not going to use.
+     *
+     * The hack is probably a bad idea.
+     */
+    s->conf.dinfo = NULL;
+
     s->dev.speed = USB_SPEED_FULL;
     scsi_bus_new(&s->bus, &s->dev.qdev, 0, 1, usb_msd_command_complete);
-    s->scsi_dev = scsi_bus_legacy_add_drive(&s->bus, s->conf.dinfo, 0);
+    s->scsi_dev = scsi_bus_legacy_add_drive(&s->bus, dinfo, 0);
     if (!s->scsi_dev) {
         return -1;
     }
     s->bus.qbus.allow_hotplug = 0;
     usb_msd_handle_reset(dev);
 
-    if (bdrv_key_required(s->conf.dinfo->bdrv)) {
+    if (bdrv_key_required(dinfo->bdrv)) {
         if (cur_mon) {
-            monitor_read_bdrv_key_start(cur_mon, s->conf.dinfo->bdrv,
+            monitor_read_bdrv_key_start(cur_mon, dinfo->bdrv,
                                         usb_msd_password_cb, s);
             s->dev.auto_attach = 0;
         } else {

@@ -13,6 +13,9 @@
 #include "block.h"
 #include "qemu-queue.h"
 
+void blockdev_mark_auto_del(BlockDriverState *bs);
+void blockdev_auto_del(BlockDriverState *bs);
+
 typedef enum {
     IF_NONE,
     IF_IDE, IF_SCSI, IF_FLOPPY, IF_PFLASH, IF_MTD, IF_SD, IF_VIRTIO, IF_XEN,
@@ -28,6 +31,7 @@ typedef struct DriveInfo {
     BlockInterfaceType type;
     int bus;
     int unit;
+    int auto_del;               /* see blockdev_mark_auto_del() */
     QemuOpts *opts;
     char serial[BLOCK_SERIAL_STRLEN + 1];
     QTAILQ_ENTRY(DriveInfo) next;

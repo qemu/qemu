@@ -1043,7 +1043,7 @@ static void scsi_destroy(SCSIDevice *dev)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
 
     scsi_disk_purge_requests(s);
-    drive_uninit(s->qdev.conf.dinfo);
+    blockdev_mark_auto_del(s->qdev.conf.dinfo->bdrv);
 }
 
 static int scsi_disk_initfn(SCSIDevice *dev)

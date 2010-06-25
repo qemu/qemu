@@ -313,6 +313,15 @@ static int parse_drive(DeviceState *dev, Property *prop, const char *str)
     return 0;
 }
 
+static void free_drive(DeviceState *dev, Property *prop)
+{
+    DriveInfo **ptr = qdev_get_prop_ptr(dev, prop);
+
+    if (*ptr) {
+        blockdev_auto_del((*ptr)->bdrv);
+    }
+}
+
 static int print_drive(DeviceState *dev, Property *prop, char *dest, size_t len)
 {
     DriveInfo **ptr = qdev_get_prop_ptr(dev, prop);
@@ -325,6 +334,7 @@ PropertyInfo qdev_prop_drive = {
     .size  = sizeof(DriveInfo*),
     .parse = parse_drive,
     .print = print_drive,
+    .free  = free_drive,
 };
 
 /* --- character device --- */

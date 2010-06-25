@@ -453,7 +453,7 @@ static void scsi_destroy(SCSIDevice *d)
         r = DO_UPCAST(SCSIGenericReq, req, QTAILQ_FIRST(&s->qdev.requests));
         scsi_remove_request(r);
     }
-    drive_uninit(s->qdev.conf.dinfo);
+    blockdev_mark_auto_del(s->qdev.conf.dinfo->bdrv);
 }
 
 static int scsi_generic_initfn(SCSIDevice *dev)
