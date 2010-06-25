@@ -600,8 +600,9 @@ int cpu_exec(CPUState *env1)
                    TB, but before it is linked into a potentially
                    infinite loop and becomes env->current_tb. Avoid
                    starting execution if there is a pending interrupt. */
-                if (!unlikely (env->exit_request)) {
-                    env->current_tb = tb;
+                env->current_tb = tb;
+                barrier();
+                if (likely(!env->exit_request)) {
                     tc_ptr = tb->tc_ptr;
                 /* execute the generated code */
 #if defined(__sparc__) && !defined(CONFIG_SOLARIS)
@@ -610,7 +611,6 @@ int cpu_exec(CPUState *env1)
 #define env cpu_single_env
 #endif
                     next_tb = tcg_qemu_tb_exec(tc_ptr);
-                    env->current_tb = NULL;
                     if ((next_tb & 3) == 2) {
                         /* Instruction counter expired.  */
                         int insns_left;
@@ -639,6 +639,7 @@ int cpu_exec(CPUState *env1)
                         }
                     }
                 }
+                env->current_tb = NULL;
                 /* reset soft MMU for next block (it can currently
                    only be set by a memory fault) */
             } /* for(;;) */
