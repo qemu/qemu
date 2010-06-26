@@ -3472,6 +3472,9 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
         case 0x171: /* shift xmm, im */
         case 0x172:
         case 0x173:
+            if (b1 >= 2) {
+	        goto illegal_op;
+            }
             val = ldub_code(s->pc++);
             if (is_xmm) {
                 gen_op_movl_T0_im(val);
@@ -3699,6 +3702,9 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
             rm = modrm & 7;
             reg = ((modrm >> 3) & 7) | rex_r;
             mod = (modrm >> 6) & 3;
+            if (b1 >= 2) {
+                goto illegal_op;
+            }
 
             sse_op2 = sse_op_table6[b].op[b1];
             if (!sse_op2)
@@ -3798,6 +3804,9 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
             rm = modrm & 7;
             reg = ((modrm >> 3) & 7) | rex_r;
             mod = (modrm >> 6) & 3;
+            if (b1 >= 2) {
+                goto illegal_op;
+            }
 
             sse_op2 = sse_op_table7[b].op[b1];
             if (!sse_op2)
