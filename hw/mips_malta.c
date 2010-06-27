@@ -456,7 +456,6 @@ static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, qemu_irq uart_ir
 }
 
 /* Audio support */
-#ifdef HAS_AUDIO
 static void audio_init (PCIBus *pci_bus)
 {
     struct soundhw *c;
@@ -474,7 +473,6 @@ static void audio_init (PCIBus *pci_bus)
         }
     }
 }
-#endif
 
 /* Network support */
 static void network_init(void)
@@ -970,9 +968,7 @@ void mips_malta_init (ram_addr_t ram_size,
     floppy_controller = fdctrl_init_isa(fd);
 
     /* Sound card */
-#ifdef HAS_AUDIO
     audio_init(pci_bus);
-#endif
 
     /* Network card */
     network_init();

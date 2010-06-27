@@ -768,7 +768,6 @@ static void spitz_microdrive_attach(PXA2xxState *cpu, int slot)
 
 #define SPITZ_GPIO_WM	5
 
-#ifdef HAS_AUDIO
 static void spitz_wm8750_addr(void *opaque, int line, int level)
 {
     i2c_slave *wm = (i2c_slave *) opaque;
@@ -777,14 +776,12 @@ static void spitz_wm8750_addr(void *opaque, int line, int level)
     else
         i2c_set_slave_address(wm, SPITZ_WM_ADDRL);
 }
-#endif
 
 static void spitz_i2c_setup(PXA2xxState *cpu)
 {
     /* Attach the CPU on one end of our I2C bus.  */
     i2c_bus *bus = pxa2xx_i2c_bus(cpu->i2c[0]);
 
-#ifdef HAS_AUDIO
     DeviceState *wm;
 
     /* Attach a WM8750 to the bus */
@@ -798,7 +795,6 @@ static void spitz_i2c_setup(PXA2xxState *cpu)
     cpu->i2s->codec_out = wm8750_dac_dat;
     cpu->i2s->codec_in = wm8750_adc_dat;
     wm8750_data_req_set(wm, cpu->i2s->data_req, cpu->i2s);
-#endif
 }
 
 static void spitz_akita_i2c_setup(PXA2xxState *cpu)

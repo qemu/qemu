@@ -34,7 +34,6 @@
 #define MP_AUDIO_CLOCK_24MHZ    (1 << 9)
 #define MP_AUDIO_MONO           (1 << 14)
 
-#ifdef HAS_AUDIO
 typedef struct mv88w8618_audio_state {
     SysBusDevice busdev;
     qemu_irq irq;
@@ -290,13 +289,10 @@ static SysBusDeviceInfo mv88w8618_audio_info = {
         {/* end of list */}
     }
 };
-#endif
 
 static void mv88w8618_register_devices(void)
 {
-#ifdef HAS_AUDIO
     sysbus_register_withprop(&mv88w8618_audio_info);
-#endif
 }
 
 device_init(mv88w8618_register_devices)

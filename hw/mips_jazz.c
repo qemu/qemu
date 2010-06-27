@@ -89,7 +89,6 @@ static CPUWriteMemoryFunc * const dma_dummy_write[3] = {
     dma_dummy_writeb,
 };
 
-#ifdef HAS_AUDIO
 static void audio_init(qemu_irq *pic)
 {
     struct soundhw *c;
@@ -109,7 +108,6 @@ static void audio_init(qemu_irq *pic)
         }
     }
 }
-#endif
 
 #define MAGNUM_BIOS_SIZE_MAX 0x7e000
 #define MAGNUM_BIOS_SIZE (BIOS_SIZE < MAGNUM_BIOS_SIZE_MAX ? BIOS_SIZE : MAGNUM_BIOS_SIZE_MAX)
@@ -288,9 +286,7 @@ void mips_jazz_init (ram_addr_t ram_size,
 
     /* Sound card */
     /* FIXME: missing Jazz sound at 0x8000c000, rc4030[2] */
-#ifdef HAS_AUDIO
     audio_init(i8259);
-#endif
 
     /* NVRAM: Unprotected at 0x9000, Protected at 0xa000, Read only at 0xb000 */
     ds1225y_init(0x80009000, "nvram");

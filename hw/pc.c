@@ -721,7 +721,6 @@ static const int ne2000_irq[NE2000_NB_MAX] = { 9, 10, 11, 3, 4, 5 };
 static const int parallel_io[MAX_PARALLEL_PORTS] = { 0x378, 0x278, 0x3bc };
 static const int parallel_irq[MAX_PARALLEL_PORTS] = { 7, 7, 7 };
 
-#ifdef HAS_AUDIO
 void pc_audio_init (PCIBus *pci_bus, qemu_irq *pic)
 {
     struct soundhw *c;
@@ -738,7 +737,6 @@ void pc_audio_init (PCIBus *pci_bus, qemu_irq *pic)
         }
     }
 }
-#endif
 
 void pc_init_ne2k_isa(NICInfo *nd)
 {
