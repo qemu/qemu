@@ -333,6 +333,11 @@ static inline bool monitor_handler_is_async(const mon_cmd_t *cmd)
     return cmd->flags & MONITOR_CMD_ASYNC;
 }
 
+static inline bool monitor_cmd_user_only(const mon_cmd_t *cmd)
+{
+    return (cmd->flags & MONITOR_CMD_USER_ONLY);
+}
+
 static inline int monitor_has_error(const Monitor *mon)
 {
     return mon->error != NULL;
@@ -615,6 +620,11 @@ static int do_info(Monitor *mon, const QDict *qdict, QObject **ret_data)
         goto help;
     }
 
+    if (monitor_ctrl_mode(mon) && monitor_cmd_user_only(cmd)) {
+        qerror_report(QERR_COMMAND_NOT_FOUND, item);
+        return -1;
+    }
+
     if (monitor_handler_is_async(cmd)) {
         if (monitor_ctrl_mode(mon)) {
             qmp_async_info_handler(mon, cmd);
@@ -712,13 +722,14 @@ static void do_info_commands(Monitor *mon, QObject **ret_data)
     cmd_list = qlist_new();
 
     for (cmd = mon_cmds; cmd->name != NULL; cmd++) {
-        if (monitor_handler_ported(cmd) && !compare_cmd(cmd->name, "info")) {
+        if (monitor_handler_ported(cmd) && !monitor_cmd_user_only(cmd) &&
+            !compare_cmd(cmd->name, "info")) {
             qlist_append_obj(cmd_list, get_cmd_dict(cmd->name));
         }
     }
 
     for (cmd = info_cmds; cmd->name != NULL; cmd++) {
-        if (monitor_handler_ported(cmd)) {
+        if (monitor_handler_ported(cmd) && !monitor_cmd_user_only(cmd)) {
             char buf[128];
             snprintf(buf, sizeof(buf), "query-%s", cmd->name);
             qlist_append_obj(cmd_list, get_cmd_dict(buf));
@@ -4271,7 +4282,8 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
                       qobject_from_jsonf("{ 'item': %s }", info_item));
     } else {
         cmd = monitor_find_command(cmd_name);
-        if (!cmd || !monitor_handler_ported(cmd)) {
+        if (!cmd || !monitor_handler_ported(cmd)
+            || monitor_cmd_user_only(cmd)) {
             qerror_report(QERR_COMMAND_NOT_FOUND, cmd_name);
             goto err_out;
         }

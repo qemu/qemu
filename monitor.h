@@ -17,6 +17,7 @@ extern Monitor *default_mon;
 
 /* flags for monitor commands */
 #define MONITOR_CMD_ASYNC       0x0001
+#define MONITOR_CMD_USER_ONLY   0x0002
 
 /* QMP events */
 typedef enum MonitorEvent {
