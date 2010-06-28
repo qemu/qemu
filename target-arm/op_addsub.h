@@ -73,8 +73,8 @@ uint32_t HELPER(glue(PFX,subaddx))(uint32_t a, uint32_t b GE_ARG)
     uint32_t res = 0;
     DECLARE_GE;
 
-    ADD16(a, b, 0);
-    SUB16(a >> 16, b >> 16, 1);
+    ADD16(a, b >> 16, 0);
+    SUB16(a >> 16, b, 1);
     SET_GE;
     return res;
 }
@@ -84,8 +84,8 @@ uint32_t HELPER(glue(PFX,addsubx))(uint32_t a, uint32_t b GE_ARG)
     uint32_t res = 0;
     DECLARE_GE;
 
-    SUB16(a, b, 0);
-    ADD16(a >> 16, b >> 16, 1);
+    SUB16(a, b >> 16, 0);
+    ADD16(a >> 16, b, 1);
     SET_GE;
     return res;
 }
