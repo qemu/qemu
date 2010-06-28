@@ -242,15 +242,14 @@ static int raw_pread_aligned(BlockDriverState *bs, int64_t offset,
 
     ret = pread(s->fd, buf, count, offset);
     if (ret == count)
-        goto label__raw_read__success;
+        return ret;
 
     /* Allow reads beyond the end (needed for pwrite) */
     if ((ret == 0) && bs->growable) {
         int64_t size = raw_getlength(bs);
         if (offset >= size) {
             memset(buf, 0, count);
-            ret = count;
-            goto label__raw_read__success;
+            return count;
         }
     }
 
@@ -260,21 +259,19 @@ static int raw_pread_aligned(BlockDriverState *bs, int64_t offset,
                       bs->total_sectors, ret, errno, strerror(errno));
 
     /* Try harder for CDrom. */
-    if (bs->type == BDRV_TYPE_CDROM) {
+    if (s->type != FTYPE_FILE) {
         ret = pread(s->fd, buf, count, offset);
         if (ret == count)
-            goto label__raw_read__success;
+            return ret;
         ret = pread(s->fd, buf, count, offset);
         if (ret == count)
-            goto label__raw_read__success;
+            return ret;
 
         DEBUG_BLOCK_PRINT("raw_pread(%d:%s, %" PRId64 ", %p, %d) [%" PRId64
                           "] retry read failed %d : %d = %s\n",
                           s->fd, bs->filename, offset, buf, count,
                           bs->total_sectors, ret, errno, strerror(errno));
     }
-
-label__raw_read__success:
 
     return  (ret < 0) ? -errno : ret;
 }
@@ -298,14 +295,12 @@ static int raw_pwrite_aligned(BlockDriverState *bs, int64_t offset,
 
     ret = pwrite(s->fd, buf, count, offset);
     if (ret == count)
-        goto label__raw_write__success;
+        return ret;
 
     DEBUG_BLOCK_PRINT("raw_pwrite(%d:%s, %" PRId64 ", %p, %d) [%" PRId64
                       "] write failed %d : %d = %s\n",
                       s->fd, bs->filename, offset, buf, count,
                       bs->total_sectors, ret, errno, strerror(errno));
-
-label__raw_write__success:
 
     return  (ret < 0) ? -errno : ret;
 }
