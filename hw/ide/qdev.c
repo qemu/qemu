@@ -118,7 +118,9 @@ static int ide_drive_initfn(IDEDevice *dev)
         }
     }
 
-    ide_init_drive(s, dev->conf.bs, dev->version, serial);
+    if (ide_init_drive(s, dev->conf.bs, dev->version, serial) < 0) {
+        return -1;
+    }
 
     if (!dev->version) {
         dev->version = qemu_strdup(s->version);

@@ -556,8 +556,8 @@ uint32_t ide_data_readw(void *opaque, uint32_t addr);
 void ide_data_writel(void *opaque, uint32_t addr, uint32_t val);
 uint32_t ide_data_readl(void *opaque, uint32_t addr);
 
-void ide_init_drive(IDEState *s, BlockDriverState *bs,
-                    const char *version, const char *serial);
+int ide_init_drive(IDEState *s, BlockDriverState *bs,
+                   const char *version, const char *serial);
 void ide_init2(IDEBus *bus, qemu_irq irq);
 void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
                                     DriveInfo *hd1, qemu_irq irq);
