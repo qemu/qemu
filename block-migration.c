@@ -236,7 +236,7 @@ static void init_blk_migration_it(void *opaque, BlockDriverState *bs)
     BlkMigDevState *bmds;
     int64_t sectors;
 
-    if (bs->type == BDRV_TYPE_HD) {
+    if (!bdrv_is_read_only(bs)) {
         sectors = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
         if (sectors == 0) {
             return;
