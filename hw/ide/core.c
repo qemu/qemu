@@ -2604,6 +2604,18 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs,
     s->bs = bs;
     bdrv_get_geometry(bs, &nb_sectors);
     bdrv_guess_geometry(bs, &cylinders, &heads, &secs);
+    if (cylinders < 1 || cylinders > 16383) {
+        error_report("cyls must be between 1 and 16383");
+        return -1;
+    }
+    if (heads < 1 || heads > 16) {
+        error_report("heads must be between 1 and 16");
+        return -1;
+    }
+    if (secs < 1 || secs > 63) {
+        error_report("secs must be between 1 and 63");
+        return -1;
+    }
     s->cylinders = cylinders;
     s->heads = heads;
     s->sectors = secs;
