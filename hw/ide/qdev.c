@@ -18,7 +18,7 @@
  */
 #include <hw/hw.h>
 #include "dma.h"
-
+#include "qemu-error.h"
 #include <hw/ide/internal.h>
 
 /* --------------------------------- */
@@ -40,7 +40,7 @@ static int ide_qdev_init(DeviceState *qdev, DeviceInfo *base)
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, qdev->parent_bus);
 
     if (!dev->conf.bs) {
-        fprintf(stderr, "%s: no drive specified\n", qdev->info->name);
+        error_report("No drive specified");
         goto err;
     }
     if (dev->unit == -1) {
@@ -49,19 +49,20 @@ static int ide_qdev_init(DeviceState *qdev, DeviceInfo *base)
     switch (dev->unit) {
     case 0:
         if (bus->master) {
-            fprintf(stderr, "ide: tried to assign master twice\n");
+            error_report("IDE unit %d is in use", dev->unit);
             goto err;
         }
         bus->master = dev;
         break;
     case 1:
         if (bus->slave) {
-            fprintf(stderr, "ide: tried to assign slave twice\n");
+            error_report("IDE unit %d is in use", dev->unit);
             goto err;
         }
         bus->slave = dev;
         break;
     default:
+        error_report("Invalid IDE unit %d", dev->unit);
         goto err;
     }
     return info->init(dev);
