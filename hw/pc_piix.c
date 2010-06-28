@@ -140,9 +140,7 @@ static void pc_init1(ram_addr_t ram_size,
         }
     }
 
-#ifdef HAS_AUDIO
     pc_audio_init(pci_enabled ? pci_bus : NULL, isa_irq);
-#endif
 
     pc_cmos_init(below_4g_mem_size, above_4g_mem_size, boot_device, hd,
                  floppy_controller, rtc_state);

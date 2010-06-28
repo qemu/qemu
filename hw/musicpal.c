@@ -1486,10 +1486,8 @@ static void musicpal_init(ram_addr_t ram_size,
     DeviceState *i2c_dev;
     DeviceState *lcd_dev;
     DeviceState *key_dev;
-#ifdef HAS_AUDIO
     DeviceState *wm8750_dev;
     SysBusDevice *s;
-#endif
     i2c_bus *i2c;
     int i;
     unsigned long flash_size;
@@ -1611,7 +1609,6 @@ static void musicpal_init(ram_addr_t ram_size,
         qdev_connect_gpio_out(key_dev, i, qdev_get_gpio_in(dev, i + 15));
     }
 
-#ifdef HAS_AUDIO
     wm8750_dev = i2c_create_slave(i2c, "wm8750", MP_WM_ADDR);
     dev = qdev_create(NULL, "mv88w8618_audio");
     s = sysbus_from_qdev(dev);
@@ -1619,7 +1616,6 @@ static void musicpal_init(ram_addr_t ram_size,
     qdev_init_nofail(dev);
     sysbus_mmio_map(s, 0, MP_AUDIO_BASE);
     sysbus_connect_irq(s, 0, pic[MP_AUDIO_IRQ]);
-#endif
 
     musicpal_binfo.ram_size = MP_RAM_DEFAULT_SIZE;
     musicpal_binfo.kernel_filename = kernel_filename;

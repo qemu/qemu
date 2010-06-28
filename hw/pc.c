@@ -721,7 +721,6 @@ static const int ne2000_irq[NE2000_NB_MAX] = { 9, 10, 11, 3, 4, 5 };
 static const int parallel_io[MAX_PARALLEL_PORTS] = { 0x378, 0x278, 0x3bc };
 static const int parallel_irq[MAX_PARALLEL_PORTS] = { 7, 7, 7 };
 
-#ifdef HAS_AUDIO
 void pc_audio_init (PCIBus *pci_bus, qemu_irq *pic)
 {
     struct soundhw *c;
@@ -738,7 +737,6 @@ void pc_audio_init (PCIBus *pci_bus, qemu_irq *pic)
         }
     }
 }
-#endif
 
 void pc_init_ne2k_isa(NICInfo *nd)
 {
@@ -812,20 +810,12 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
     }
 }
 
-static void bsp_cpu_reset(void *opaque)
+static void pc_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
 
     cpu_reset(env);
-    env->halted = 0;
-}
-
-static void ap_cpu_reset(void *opaque)
-{
-    CPUState *env = opaque;
-
-    cpu_reset(env);
-    env->halted = 1;
+    env->halted = !cpu_is_bsp(env);
 }
 
 static CPUState *pc_new_cpu(const char *cpu_model)
@@ -839,16 +829,10 @@ static CPUState *pc_new_cpu(const char *cpu_model)
     }
     if ((env->cpuid_features & CPUID_APIC) || smp_cpus > 1) {
         env->cpuid_apic_id = env->cpu_index;
-        /* APIC reset callback resets cpu */
         env->apic_state = apic_init(env, env->cpuid_apic_id);
     }
-    if (cpu_is_bsp(env)) {
-        qemu_register_reset(bsp_cpu_reset, env);
-        env->halted = 0;
-    } else {
-        qemu_register_reset(ap_cpu_reset, env);
-        env->halted = 1;
-    }
+    qemu_register_reset(pc_cpu_reset, env);
+    pc_cpu_reset(env);
     return env;
 }
 

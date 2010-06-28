@@ -167,19 +167,11 @@ int qemu_create_pidfile(const char *filename)
 
 #ifdef _WIN32
 
+/* mingw32 needs ffs for compilations without optimization. */
 int ffs(int i)
 {
-    int position;
-    for (position = 1; position <= HOST_LONG_BITS && i != 0; position++) {
-        if (i & 1) {
-            break;
-        }
-        i >>= 1;
-    }
-    if (position > HOST_LONG_BITS || i == 0) {
-        position = 0;
-    }
-    return position;
+    /* Use gcc's builtin ffs. */
+    return __builtin_ffs(i);
 }
 
 int setenv(const char *name, const char *value, int overwrite)

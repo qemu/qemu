@@ -289,9 +289,12 @@ static void slavio_check_interrupts(SLAVIO_INTCTLState *s, int set_irqs)
             }
         }
 
-        /* Level 15 and CPU timer interrupts are not maskable */
-        pil_pending |= s->slaves[i].intreg_pending &
-            (CPU_IRQ_INT15_IN | CPU_IRQ_TIMER_IN);
+        /* Level 15 and CPU timer interrupts are only masked when
+           the MASTER_DISABLE bit is set */
+        if (!(s->intregm_disabled & MASTER_DISABLE)) {
+            pil_pending |= s->slaves[i].intreg_pending &
+                (CPU_IRQ_INT15_IN | CPU_IRQ_TIMER_IN);
+        }
 
         /* Add soft interrupts */
         pil_pending |= (s->slaves[i].intreg_pending & CPU_SOFTIRQ_MASK) >> 16;
