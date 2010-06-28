@@ -561,7 +561,7 @@ static void gen_arm_parallel_addsub(int op1, int op2, TCGv a, TCGv b)
 
 /* For unknown reasons Arm and Thumb-2 use arbitrarily different encodings.  */
 #define PAS_OP(pfx) \
-    switch (op2) {  \
+    switch (op1) {  \
     case 0: gen_pas_helper(glue(pfx,add8)); break; \
     case 1: gen_pas_helper(glue(pfx,add16)); break; \
     case 2: gen_pas_helper(glue(pfx,addsubx)); break; \
@@ -573,7 +573,7 @@ static void gen_thumb2_parallel_addsub(int op1, int op2, TCGv a, TCGv b)
 {
     TCGv_ptr tmp;
 
-    switch (op1) {
+    switch (op2) {
 #define gen_pas_helper(name) glue(gen_helper_,name)(a, a, b, tmp)
     case 0:
         tmp = tcg_temp_new_ptr();
