@@ -400,7 +400,6 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
 
     bs->file = NULL;
     bs->total_sectors = 0;
-    bs->is_temporary = 0;
     bs->encrypted = 0;
     bs->valid_key = 0;
     bs->open_flags = flags;
