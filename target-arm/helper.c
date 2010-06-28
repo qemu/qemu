@@ -2043,7 +2043,7 @@ static inline uint16_t add16_usat(uint16_t a, uint16_t b)
 
 static inline uint16_t sub16_usat(uint16_t a, uint16_t b)
 {
-    if (a < b)
+    if (a > b)
         return a - b;
     else
         return 0;
@@ -2060,7 +2060,7 @@ static inline uint8_t add8_usat(uint8_t a, uint8_t b)
 
 static inline uint8_t sub8_usat(uint8_t a, uint8_t b)
 {
-    if (a < b)
+    if (a > b)
         return a - b;
     else
         return 0;
