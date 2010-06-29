@@ -28,9 +28,6 @@ register struct CPUCRISState *env asm(AREG0);
 #include "softmmu_exec.h"
 #endif
 
-void cpu_cris_flush_flags(CPUCRISState *env, int cc_op);
-void helper_movec(CPUCRISState *env, int reg, uint32_t val);
-
 static inline int cpu_has_work(CPUState *env)
 {
     return (env->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI));

@@ -22,6 +22,11 @@
 #include "host-utils.h"
 
 #include "helper.h"
+
+#ifndef CONFIG_USER_ONLY
+static inline void cpu_mips_tlb_flush (CPUState *env, int flush_global);
+#endif
+
 /*****************************************************************************/
 /* Exceptions processing helpers */
 
@@ -1635,7 +1640,7 @@ target_ulong helper_yield(target_ulong arg1)
 
 #ifndef CONFIG_USER_ONLY
 /* TLB management */
-void cpu_mips_tlb_flush (CPUState *env, int flush_global)
+static void cpu_mips_tlb_flush (CPUState *env, int flush_global)
 {
     /* Flush qemu's TLB and discard all shadowed entries.  */
     tlb_flush (env, flush_global);

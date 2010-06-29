@@ -27,8 +27,6 @@ register struct CPUMBState *env asm(AREG0);
 #include "softmmu_exec.h"
 #endif
 
-void cpu_mb_flush_flags(CPUMBState *env, int cc_op);
-
 static inline int cpu_has_work(CPUState *env)
 {
     return (env->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI));

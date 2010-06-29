@@ -28,8 +28,6 @@
 
 register struct CPUAlphaState *env asm(AREG0);
 
-#define PARAM(n) ((uint64_t)PARAM##n)
-#define SPARAM(n) ((int32_t)PARAM##n)
 #define FP_STATUS (env->fp_status)
 
 #include "cpu.h"
