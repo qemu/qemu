@@ -76,4 +76,11 @@ static inline void compute_hflags(CPUState *env)
     }
 }
 
+static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+{
+    env->active_tc.PC = tb->pc;
+    env->hflags &= ~MIPS_HFLAG_BMASK;
+    env->hflags |= tb->flags & MIPS_HFLAG_BMASK;
+}
+
 #endif /* !defined(__QEMU_MIPS_EXEC_H__) */

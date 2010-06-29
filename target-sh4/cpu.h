@@ -303,12 +303,6 @@ static inline int cpu_ptel_pr (uint32_t ptel)
 #define PTEA_TC        (1 << 3)
 #define cpu_ptea_tc(ptea) (((ptea) & PTEA_TC) >> 3)
 
-static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
-{
-    env->pc = tb->pc;
-    env->flags = tb->flags;
-}
-
 #define TB_FLAG_PENDING_MOVCA  (1 << 4)
 
 static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,

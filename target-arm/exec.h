@@ -50,3 +50,9 @@ static inline int cpu_halted(CPUState *env) {
 #endif
 
 void raise_exception(int);
+
+static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+{
+    env->regs[15] = tb->pc;
+}
+

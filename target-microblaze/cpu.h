@@ -307,11 +307,6 @@ static inline int cpu_interrupts_enabled(CPUState *env)
 #include "cpu-all.h"
 #include "exec-all.h"
 
-static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
-{
-    env->sregs[SR_PC] = tb->pc;
-}
-
 static inline target_ulong cpu_get_pc(CPUState *env)
 {
     return env->sregs[SR_PC];

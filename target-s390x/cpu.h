@@ -123,11 +123,6 @@ extern CPUState *s390_cpu_addr2state(uint16_t cpu_addr);
 #define EXCP_ADDR 5 /* addressing exception */
 #define EXCP_EXECUTE_SVC 0xff00000 /* supervisor call via execute insn */
 
-static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock* tb)
-{
-    env->psw.addr = tb->pc;
-}
-
 static inline void cpu_get_tb_cpu_state(CPUState* env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {

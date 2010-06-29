@@ -327,3 +327,9 @@ static inline void cpu_load_efer(CPUState *env, uint64_t val)
     if (env->efer & MSR_EFER_SVME)
         env->hflags |= HF_SVME_MASK;
 }
+
+static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+{
+    env->eip = tb->pc - tb->cs_base;
+}
+
