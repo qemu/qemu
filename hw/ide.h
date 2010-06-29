@@ -12,6 +12,7 @@ void pci_cmd646_ide_init(PCIBus *bus, DriveInfo **hd_table,
                          int secondary_ide_enabled);
 void pci_piix3_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn);
 void pci_piix4_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn);
+void vt82c686b_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn);
 
 /* ide-macio.c */
 int pmac_ide_init (DriveInfo **hd_table, qemu_irq irq,
