@@ -221,6 +221,7 @@ obj-mips-y += vga.o i8259.o
 obj-mips-y += g364fb.o jazz_led.o
 obj-mips-y += gt64xxx.o mc146818rtc.o
 obj-mips-y += piix4.o cirrus_vga.o
+obj-mips-$(CONFIG_FULONG) += bonito.o
 
 obj-microblaze-y = petalogix_s3adsp1800_mmu.o
 
