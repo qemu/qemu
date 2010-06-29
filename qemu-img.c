@@ -425,11 +425,20 @@ out:
     return 0;
 }
 
+/*
+ * Checks an image for consistency. Exit codes:
+ *
+ * 0 - Check completed, image is good
+ * 1 - Check not completed because of internal errors
+ * 2 - Check completed, image is corrupted
+ * 3 - Check completed, image has leaked clusters, but is good otherwise
+ */
 static int img_check(int argc, char **argv)
 {
     int c, ret;
     const char *filename, *fmt;
     BlockDriverState *bs;
+    BdrvCheckResult result;
 
     fmt = NULL;
     for(;;) {
@@ -453,28 +462,52 @@ static int img_check(int argc, char **argv)
     if (!bs) {
         return 1;
     }
-    ret = bdrv_check(bs);
-    switch(ret) {
-    case 0:
-        printf("No errors were found on the image.\n");
-        break;
-    case -ENOTSUP:
+    ret = bdrv_check(bs, &result);
+
+    if (ret == -ENOTSUP) {
         error("This image format does not support checks");
-        break;
-    default:
-        if (ret < 0) {
-            error("An error occurred during the check");
-        } else {
-            printf("%d errors were found on the image.\n", ret);
+        bdrv_delete(bs);
+        return 1;
+    }
+
+    if (!(result.corruptions || result.leaks || result.check_errors)) {
+        printf("No errors were found on the image.\n");
+    } else {
+        if (result.corruptions) {
+            printf("\n%d errors were found on the image.\n"
+                "Data may be corrupted, or further writes to the image "
+                "may corrupt it.\n",
+                result.corruptions);
         }
-        break;
+
+        if (result.leaks) {
+            printf("\n%d leaked clusters were found on the image.\n"
+                "This means waste of disk space, but no harm to data.\n",
+                result.leaks);
+        }
+
+        if (result.check_errors) {
+            printf("\n%d internal errors have occurred during the check.\n",
+                result.check_errors);
+        }
     }
 
     bdrv_delete(bs);
-    if (ret) {
+
+    if (ret < 0 || result.check_errors) {
+        printf("\nAn error has occurred during the check: %s\n"
+            "The check is not complete and may have missed error.\n",
+            strerror(-ret));
         return 1;
     }
-    return 0;
+
+    if (result.corruptions) {
+        return 2;
+    } else if (result.leaks) {
+        return 3;
+    } else {
+        return 0;
+    }
 }
 
 static int img_commit(int argc, char **argv)

@@ -74,7 +74,6 @@ void bdrv_close(BlockDriverState *bs);
 int bdrv_attach(BlockDriverState *bs, DeviceState *qdev);
 void bdrv_detach(BlockDriverState *bs, DeviceState *qdev);
 DeviceState *bdrv_get_attached(BlockDriverState *bs);
-int bdrv_check(BlockDriverState *bs);
 int bdrv_read(BlockDriverState *bs, int64_t sector_num,
               uint8_t *buf, int nb_sectors);
 int bdrv_write(BlockDriverState *bs, int64_t sector_num,
@@ -96,6 +95,15 @@ void bdrv_commit_all(void);
 int bdrv_change_backing_file(BlockDriverState *bs,
     const char *backing_file, const char *backing_fmt);
 void bdrv_register(BlockDriver *bdrv);
+
+
+typedef struct BdrvCheckResult {
+    int corruptions;
+    int leaks;
+    int check_errors;
+} BdrvCheckResult;
+
+int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res);
 
 /* async block I/O */
 typedef struct BlockDriverAIOCB BlockDriverAIOCB;
