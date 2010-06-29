@@ -532,12 +532,13 @@ static int usb_msd_initfn(USBDevice *dev)
     /*
      * Hack alert: this pretends to be a block device, but it's really
      * a SCSI bus that can serve only a single device, which it
-     * creates automatically.  Two drive properties pointing to the
-     * same drive is not good: free_drive() dies for the second one.
-     * Zap the one we're not going to use.
+     * creates automatically.  But first it needs to detach from its
+     * blockdev, or else scsi_bus_legacy_add_drive() dies when it
+     * attaches again.
      *
      * The hack is probably a bad idea.
      */
+    bdrv_detach(bs, &s->dev.qdev);
     s->conf.bs = NULL;
 
     s->dev.speed = USB_SPEED_FULL;
@@ -609,7 +610,10 @@ static USBDevice *usb_msd_init(const char *filename)
     if (!dev) {
         return NULL;
     }
-    qdev_prop_set_drive(&dev->qdev, "drive", dinfo->bdrv);
+    if (qdev_prop_set_drive(&dev->qdev, "drive", dinfo->bdrv) < 0) {
+        qdev_free(&dev->qdev);
+        return NULL;
+    }
     if (qdev_init(&dev->qdev) < 0)
         return NULL;
 

@@ -311,6 +311,8 @@ static int parse_drive(DeviceState *dev, Property *prop, const char *str)
     bs = bdrv_find(str);
     if (bs == NULL)
         return -ENOENT;
+    if (bdrv_attach(bs, dev) < 0)
+        return -EEXIST;
     *ptr = bs;
     return 0;
 }
@@ -320,6 +322,7 @@ static void free_drive(DeviceState *dev, Property *prop)
     BlockDriverState **ptr = qdev_get_prop_ptr(dev, prop);
 
     if (*ptr) {
+        bdrv_detach(*ptr, dev);
         blockdev_auto_del(*ptr);
     }
 }
@@ -660,11 +663,28 @@ void qdev_prop_set_string(DeviceState *dev, const char *name, char *value)
     qdev_prop_set(dev, name, &value, PROP_TYPE_STRING);
 }
 
-void qdev_prop_set_drive(DeviceState *dev, const char *name, BlockDriverState *value)
+int qdev_prop_set_drive(DeviceState *dev, const char *name, BlockDriverState *value)
 {
+    int res;
+
+    res = bdrv_attach(value, dev);
+    if (res < 0) {
+        error_report("Can't attach drive %s to %s.%s: %s",
+                     bdrv_get_device_name(value),
+                     dev->id ? dev->id : dev->info->name,
+                     name, strerror(-res));
+        return -1;
+    }
     qdev_prop_set(dev, name, &value, PROP_TYPE_DRIVE);
+    return 0;
 }
 
+void qdev_prop_set_drive_nofail(DeviceState *dev, const char *name, BlockDriverState *value)
+{
+    if (qdev_prop_set_drive(dev, name, value) < 0) {
+        exit(1);
+    }
+}
 void qdev_prop_set_chr(DeviceState *dev, const char *name, CharDriverState *value)
 {
     qdev_prop_set(dev, name, &value, PROP_TYPE_CHR);

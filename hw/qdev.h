@@ -275,7 +275,8 @@ void qdev_prop_set_string(DeviceState *dev, const char *name, char *value);
 void qdev_prop_set_chr(DeviceState *dev, const char *name, CharDriverState *value);
 void qdev_prop_set_netdev(DeviceState *dev, const char *name, VLANClientState *value);
 void qdev_prop_set_vlan(DeviceState *dev, const char *name, VLANState *value);
-void qdev_prop_set_drive(DeviceState *dev, const char *name, BlockDriverState *value);
+int qdev_prop_set_drive(DeviceState *dev, const char *name, BlockDriverState *value) QEMU_WARN_UNUSED_RESULT;
+void qdev_prop_set_drive_nofail(DeviceState *dev, const char *name, BlockDriverState *value);
 void qdev_prop_set_macaddr(DeviceState *dev, const char *name, uint8_t *value);
 /* FIXME: Remove opaque pointer properties.  */
 void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value);
