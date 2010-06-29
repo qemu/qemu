@@ -47,6 +47,22 @@ static const VMStateDescription vmstate_xmm_reg = {
 #define VMSTATE_XMM_REGS(_field, _state, _n)                         \
     VMSTATE_STRUCT_ARRAY(_field, _state, _n, 0, vmstate_xmm_reg, XMMReg)
 
+/* YMMH format is the same as XMM */
+static const VMStateDescription vmstate_ymmh_reg = {
+    .name = "ymmh_reg",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(XMM_Q(0), XMMReg),
+        VMSTATE_UINT64(XMM_Q(1), XMMReg),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+#define VMSTATE_YMMH_REGS_VARS(_field, _state, _n, _v)                         \
+    VMSTATE_STRUCT_ARRAY(_field, _state, _n, _v, vmstate_ymmh_reg, XMMReg)
+
 static const VMStateDescription vmstate_mtrr_var = {
     .name = "mtrr_var",
     .version_id = 1,
@@ -453,6 +469,10 @@ static const VMStateDescription vmstate_cpu = {
         /* KVM pvclock msr */
         VMSTATE_UINT64_V(system_time_msr, CPUState, 11),
         VMSTATE_UINT64_V(wall_clock_msr, CPUState, 11),
+        /* XSAVE related fields */
+        VMSTATE_UINT64_V(xcr0, CPUState, 12),
+        VMSTATE_UINT64_V(xstate_bv, CPUState, 12),
+        VMSTATE_YMMH_REGS_VARS(ymmh_regs, CPUState, CPU_NB_REGS, 12),
         VMSTATE_END_OF_LIST()
         /* The above list is not sorted /wrt version numbers, watch out! */
     }

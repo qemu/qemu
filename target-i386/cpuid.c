@@ -981,7 +981,7 @@ static void get_cpuid_vendor(CPUX86State *env, uint32_t *ebx,
      * this if you want to use KVM's sysenter/syscall emulation
      * in compatibility mode and when doing cross vendor migration
      */
-    if (kvm_enabled() && env->cpuid_vendor_override) {
+    if (kvm_enabled() && ! env->cpuid_vendor_override) {
         host_cpuid(0, 0, NULL, ebx, ecx, edx);
     }
 }
@@ -1085,6 +1085,27 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ebx = 0;
         *ecx = 0;
         *edx = 0;
+        break;
+    case 0xD:
+        /* Processor Extended State */
+        if (!(env->cpuid_ext_features & CPUID_EXT_XSAVE)) {
+            *eax = 0;
+            *ebx = 0;
+            *ecx = 0;
+            *edx = 0;
+            break;
+        }
+        if (kvm_enabled()) {
+            *eax = kvm_arch_get_supported_cpuid(env, 0xd, count, R_EAX);
+            *ebx = kvm_arch_get_supported_cpuid(env, 0xd, count, R_EBX);
+            *ecx = kvm_arch_get_supported_cpuid(env, 0xd, count, R_ECX);
+            *edx = kvm_arch_get_supported_cpuid(env, 0xd, count, R_EDX);
+        } else {
+            *eax = 0;
+            *ebx = 0;
+            *ecx = 0;
+            *edx = 0;
+        }
         break;
     case 0x80000000:
         *eax = env->cpuid_xlevel;

@@ -26,6 +26,7 @@
 #include "gdbstub.h"
 #include "host-utils.h"
 #include "hw/pc.h"
+#include "hw/apic.h"
 #include "ioport.h"
 
 #ifdef CONFIG_KVM_PARA
@@ -72,7 +73,8 @@ static struct kvm_cpuid2 *try_get_cpuid(KVMState *s, int max)
     return cpuid;
 }
 
-uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function, int reg)
+uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function,
+                                      uint32_t index, int reg)
 {
     struct kvm_cpuid2 *cpuid;
     int i, max;
@@ -89,7 +91,8 @@ uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function, int reg)
     }
 
     for (i = 0; i < cpuid->nent; ++i) {
-        if (cpuid->entries[i].function == function) {
+        if (cpuid->entries[i].function == function &&
+            cpuid->entries[i].index == index) {
             switch (reg) {
             case R_EAX:
                 ret = cpuid->entries[i].eax;
@@ -111,7 +114,7 @@ uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function, int reg)
                     /* On Intel, kvm returns cpuid according to the Intel spec,
                      * so add missing bits according to the AMD spec:
                      */
-                    cpuid_1_edx = kvm_arch_get_supported_cpuid(env, 1, R_EDX);
+                    cpuid_1_edx = kvm_arch_get_supported_cpuid(env, 1, 0, R_EDX);
                     ret |= cpuid_1_edx & 0x183f7ff;
                     break;
                 }
@@ -127,7 +130,8 @@ uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function, int reg)
 
 #else
 
-uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function, int reg)
+uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function,
+                                      uint32_t index, int reg)
 {
     return -1U;
 }
@@ -179,16 +183,16 @@ int kvm_arch_init_vcpu(CPUState *env)
 
     env->mp_state = KVM_MP_STATE_RUNNABLE;
 
-    env->cpuid_features &= kvm_arch_get_supported_cpuid(env, 1, R_EDX);
+    env->cpuid_features &= kvm_arch_get_supported_cpuid(env, 1, 0, R_EDX);
 
     i = env->cpuid_ext_features & CPUID_EXT_HYPERVISOR;
-    env->cpuid_ext_features &= kvm_arch_get_supported_cpuid(env, 1, R_ECX);
+    env->cpuid_ext_features &= kvm_arch_get_supported_cpuid(env, 1, 0, R_ECX);
     env->cpuid_ext_features |= i;
 
     env->cpuid_ext2_features &= kvm_arch_get_supported_cpuid(env, 0x80000001,
-                                                             R_EDX);
+                                                             0, R_EDX);
     env->cpuid_ext3_features &= kvm_arch_get_supported_cpuid(env, 0x80000001,
-                                                             R_ECX);
+                                                             0, R_ECX);
 
     cpuid_i = 0;
 
@@ -282,6 +286,12 @@ void kvm_arch_reset_vcpu(CPUState *env)
     env->interrupt_injected = -1;
     env->nmi_injected = 0;
     env->nmi_pending = 0;
+    if (kvm_irqchip_in_kernel()) {
+        env->mp_state = cpu_is_bsp(env) ? KVM_MP_STATE_RUNNABLE :
+                                          KVM_MP_STATE_UNINITIALIZED;
+    } else {
+        env->mp_state = KVM_MP_STATE_RUNNABLE;
+    }
 }
 
 static int kvm_has_msr_star(CPUState *env)
@@ -497,6 +507,68 @@ static int kvm_put_fpu(CPUState *env)
     return kvm_vcpu_ioctl(env, KVM_SET_FPU, &fpu);
 }
 
+#ifdef KVM_CAP_XSAVE
+#define XSAVE_CWD_RIP     2
+#define XSAVE_CWD_RDP     4
+#define XSAVE_MXCSR       6
+#define XSAVE_ST_SPACE    8
+#define XSAVE_XMM_SPACE   40
+#define XSAVE_XSTATE_BV   128
+#define XSAVE_YMMH_SPACE  144
+#endif
+
+static int kvm_put_xsave(CPUState *env)
+{
+#ifdef KVM_CAP_XSAVE
+    int i;
+    struct kvm_xsave* xsave;
+    uint16_t cwd, swd, twd, fop;
+
+    if (!kvm_has_xsave())
+        return kvm_put_fpu(env);
+
+    xsave = qemu_memalign(4096, sizeof(struct kvm_xsave));
+    memset(xsave, 0, sizeof(struct kvm_xsave));
+    cwd = swd = twd = fop = 0;
+    swd = env->fpus & ~(7 << 11);
+    swd |= (env->fpstt & 7) << 11;
+    cwd = env->fpuc;
+    for (i = 0; i < 8; ++i)
+        twd |= (!env->fptags[i]) << i;
+    xsave->region[0] = (uint32_t)(swd << 16) + cwd;
+    xsave->region[1] = (uint32_t)(fop << 16) + twd;
+    memcpy(&xsave->region[XSAVE_ST_SPACE], env->fpregs,
+            sizeof env->fpregs);
+    memcpy(&xsave->region[XSAVE_XMM_SPACE], env->xmm_regs,
+            sizeof env->xmm_regs);
+    xsave->region[XSAVE_MXCSR] = env->mxcsr;
+    *(uint64_t *)&xsave->region[XSAVE_XSTATE_BV] = env->xstate_bv;
+    memcpy(&xsave->region[XSAVE_YMMH_SPACE], env->ymmh_regs,
+            sizeof env->ymmh_regs);
+    return kvm_vcpu_ioctl(env, KVM_SET_XSAVE, xsave);
+#else
+    return kvm_put_fpu(env);
+#endif
+}
+
+static int kvm_put_xcrs(CPUState *env)
+{
+#ifdef KVM_CAP_XCRS
+    struct kvm_xcrs xcrs;
+
+    if (!kvm_has_xcrs())
+        return 0;
+
+    xcrs.nr_xcrs = 1;
+    xcrs.flags = 0;
+    xcrs.xcrs[0].xcr = 0;
+    xcrs.xcrs[0].value = env->xcr0;
+    return kvm_vcpu_ioctl(env, KVM_SET_XCRS, &xcrs);
+#else
+    return 0;
+#endif
+}
+
 static int kvm_put_sregs(CPUState *env)
 {
     struct kvm_sregs sregs;
@@ -612,6 +684,69 @@ static int kvm_get_fpu(CPUState *env)
     env->mxcsr = fpu.mxcsr;
 
     return 0;
+}
+
+static int kvm_get_xsave(CPUState *env)
+{
+#ifdef KVM_CAP_XSAVE
+    struct kvm_xsave* xsave;
+    int ret, i;
+    uint16_t cwd, swd, twd, fop;
+
+    if (!kvm_has_xsave())
+        return kvm_get_fpu(env);
+
+    xsave = qemu_memalign(4096, sizeof(struct kvm_xsave));
+    ret = kvm_vcpu_ioctl(env, KVM_GET_XSAVE, xsave);
+    if (ret < 0)
+        return ret;
+
+    cwd = (uint16_t)xsave->region[0];
+    swd = (uint16_t)(xsave->region[0] >> 16);
+    twd = (uint16_t)xsave->region[1];
+    fop = (uint16_t)(xsave->region[1] >> 16);
+    env->fpstt = (swd >> 11) & 7;
+    env->fpus = swd;
+    env->fpuc = cwd;
+    for (i = 0; i < 8; ++i)
+        env->fptags[i] = !((twd >> i) & 1);
+    env->mxcsr = xsave->region[XSAVE_MXCSR];
+    memcpy(env->fpregs, &xsave->region[XSAVE_ST_SPACE],
+            sizeof env->fpregs);
+    memcpy(env->xmm_regs, &xsave->region[XSAVE_XMM_SPACE],
+            sizeof env->xmm_regs);
+    env->xstate_bv = *(uint64_t *)&xsave->region[XSAVE_XSTATE_BV];
+    memcpy(env->ymmh_regs, &xsave->region[XSAVE_YMMH_SPACE],
+            sizeof env->ymmh_regs);
+    return 0;
+#else
+    return kvm_get_fpu(env);
+#endif
+}
+
+static int kvm_get_xcrs(CPUState *env)
+{
+#ifdef KVM_CAP_XCRS
+    int i, ret;
+    struct kvm_xcrs xcrs;
+
+    if (!kvm_has_xcrs())
+        return 0;
+
+    ret = kvm_vcpu_ioctl(env, KVM_GET_XCRS, &xcrs);
+    if (ret < 0)
+        return ret;
+
+    for (i = 0; i < xcrs.nr_xcrs; i++)
+        /* Only support xcr0 now */
+        if (xcrs.xcrs[0].xcr == 0) {
+            env->xcr0 = xcrs.xcrs[0].value;
+            break;
+        }
+    return 0;
+#else
+    return 0;
+#endif
 }
 
 static int kvm_get_sregs(CPUState *env)
@@ -958,7 +1093,11 @@ int kvm_arch_put_registers(CPUState *env, int level)
     if (ret < 0)
         return ret;
 
-    ret = kvm_put_fpu(env);
+    ret = kvm_put_xsave(env);
+    if (ret < 0)
+        return ret;
+
+    ret = kvm_put_xcrs(env);
     if (ret < 0)
         return ret;
 
@@ -1002,7 +1141,11 @@ int kvm_arch_get_registers(CPUState *env)
     if (ret < 0)
         return ret;
 
-    ret = kvm_get_fpu(env);
+    ret = kvm_get_xsave(env);
+    if (ret < 0)
+        return ret;
+
+    ret = kvm_get_xcrs(env);
     if (ret < 0)
         return ret;
 
@@ -1290,6 +1433,8 @@ void kvm_arch_update_guest_debug(CPUState *env, struct kvm_guest_debug *dbg)
                 (len_code[hw_breakpoint[n].len] << (18 + n*4));
         }
     }
+    /* Legal xcr0 for loading */
+    env->xcr0 = 1;
 }
 #endif /* KVM_CAP_SET_GUEST_DEBUG */
 
