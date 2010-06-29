@@ -119,8 +119,11 @@ struct BlockDriver {
     QEMUOptionParameter *create_options;
 
 
-    /* Returns number of errors in image, -errno for internal errors */
-    int (*bdrv_check)(BlockDriverState* bs);
+    /*
+     * Returns 0 for completed check, -errno for internal errors.
+     * The check results are stored in result.
+     */
+    int (*bdrv_check)(BlockDriverState* bs, BdrvCheckResult *result);
 
     void (*bdrv_debug_event)(BlockDriverState *bs, BlkDebugEvent event);
 

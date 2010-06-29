@@ -721,8 +721,7 @@ int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res)
     }
 
     memset(res, 0, sizeof(*res));
-    res->corruptions = bs->drv->bdrv_check(bs);
-    return res->corruptions < 0 ? res->corruptions : 0;
+    return bs->drv->bdrv_check(bs, res);
 }
 
 /* commit COW file into the raw image */

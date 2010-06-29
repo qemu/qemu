@@ -1239,9 +1239,9 @@ static int qcow_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 }
 
 
-static int qcow_check(BlockDriverState *bs)
+static int qcow_check(BlockDriverState *bs, BdrvCheckResult *result)
 {
-    return qcow2_check_refcounts(bs);
+    return qcow2_check_refcounts(bs, result);
 }
 
 #if 0
