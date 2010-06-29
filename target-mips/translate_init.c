@@ -454,6 +454,41 @@ static const mips_def_t mips_defs[] =
         .insn_flags = CPU_MIPS64R2 | ASE_MIPS3D,
         .mmu_type = MMU_TYPE_R4000,
     },
+    {
+        .name = "Loongson-2E",
+        .CP0_PRid = 0x6302,
+        /*64KB I-cache and d-cache. 4 way with 32 bit cache line size*/
+        .CP0_Config0 = (0x1<<17) | (0x1<<16) | (0x1<<11) | (0x1<<8) | (0x1<<5) |
+                       (0x1<<4) | (0x1<<1),
+        /* Note: Config1 is only used internally, Loongson-2E has only Config0. */
+        .CP0_Config1 = (1 << CP0C1_FP) | (47 << CP0C1_MMU),
+        .SYNCI_Step = 16,
+        .CCRes = 2,
+        .CP0_Status_rw_bitmask = 0x35D0FFFF,
+        .CP1_fcr0 = (0x5 << FCR0_PRID) | (0x1 << FCR0_REV),
+        .SEGBITS = 40,
+        .PABITS = 40,
+        .insn_flags = CPU_LOONGSON2E,
+        .mmu_type = MMU_TYPE_R4000,
+    },
+    {
+      .name = "Loongson-2F",
+      .CP0_PRid = 0x6303,
+      /*64KB I-cache and d-cache. 4 way with 32 bit cache line size*/
+      .CP0_Config0 = (0x1<<17) | (0x1<<16) | (0x1<<11) | (0x1<<8) | (0x1<<5) |
+                     (0x1<<4) | (0x1<<1),
+      /* Note: Config1 is only used internally, Loongson-2F has only Config0. */
+      .CP0_Config1 = (1 << CP0C1_FP) | (47 << CP0C1_MMU),
+      .SYNCI_Step = 16,
+      .CCRes = 2,
+      .CP0_Status_rw_bitmask = 0xF5D0FF1F,   /*bit5:7 not writeable*/
+      .CP1_fcr0 = (0x5 << FCR0_PRID) | (0x1 << FCR0_REV),
+      .SEGBITS = 40,
+      .PABITS = 40,
+      .insn_flags = CPU_LOONGSON2F,
+      .mmu_type = MMU_TYPE_R4000,
+    },
+
 #endif
 };
 
