@@ -413,7 +413,6 @@ static inline int cpu_mmu_index (CPUState *env)
 }
 
 #include "cpu-all.h"
-#include "exec-all.h"
 
 enum {
     FEATURE_ASN    = 0x00000001,

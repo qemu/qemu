@@ -526,7 +526,6 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 }
 
 #include "cpu-all.h"
-#include "exec-all.h"
 
 /* Memory access type :
  * may be needed for precise access rights control and precise exceptions.

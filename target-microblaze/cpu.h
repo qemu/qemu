@@ -305,7 +305,6 @@ static inline int cpu_interrupts_enabled(CPUState *env)
 }
 
 #include "cpu-all.h"
-#include "exec-all.h"
 
 static inline target_ulong cpu_get_pc(CPUState *env)
 {

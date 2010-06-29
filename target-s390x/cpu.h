@@ -116,7 +116,6 @@ extern CPUState *s390_cpu_addr2state(uint16_t cpu_addr);
 #define cpu_gen_code cpu_s390x_gen_code
 
 #include "cpu-all.h"
-#include "exec-all.h"
 
 #define EXCP_OPEX 1 /* operation exception (sigill) */
 #define EXCP_SVC 2 /* supervisor call (syscall) */
