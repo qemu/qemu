@@ -1119,7 +1119,7 @@ int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev)
                 vlan = qemu_find_vlan(qemu_opt_get_number(opts, "vlan", 0), 1);
             }
 
-            ret = -1;
+            ret = 0;
             if (net_client_types[i].init) {
                 ret = net_client_types[i].init(opts, mon, name, vlan);
                 if (ret < 0) {

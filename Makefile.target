@@ -285,8 +285,10 @@ obj-arm-y += pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
 obj-arm-y += pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o pxa2xx_keypad.o
 obj-arm-y += gumstix.o
 obj-arm-y += zaurus.o ide/microdrive.o spitz.o tosa.o tc6393xb.o
-obj-arm-y += omap1.o omap_lcdc.o omap_dma.o omap_clk.o omap_mmc.o omap_i2c.o
-obj-arm-y += omap2.o omap_dss.o soc_dma.o
+obj-arm-y += omap1.o omap_lcdc.o omap_dma.o omap_clk.o omap_mmc.o omap_i2c.o \
+		omap_gpio.o omap_intc.o omap_uart.o
+obj-arm-y += omap2.o omap_dss.o soc_dma.o omap_gptimer.o omap_synctimer.o \
+		omap_gpmc.o omap_sdrc.o omap_spi.o omap_tap.o omap_l4.o
 obj-arm-y += omap_sx1.o palm.o tsc210x.o
 obj-arm-y += nseries.o blizzard.o onenand.o vga.o cbus.o tusb6010.o usb-musb.o
 obj-arm-y += mst_fpga.o mainstone.o
