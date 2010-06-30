@@ -5,6 +5,9 @@
 /* gt64xxx.c */
 PCIBus *pci_gt64120_init(qemu_irq *pic);
 
+/* bonito.c */
+PCIBus *bonito_init(qemu_irq *pic);
+
 /* ds1225y.c */
 void *ds1225y_init(target_phys_addr_t mem_base, const char *filename);
 void ds1225y_set_protection(void *opaque, int protection);

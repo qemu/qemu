@@ -257,6 +257,7 @@ static void r2d_init(ram_addr_t ram_size,
                   dinfo, NULL);
 
     /* onboard flash memory */
+    dinfo = drive_get(IF_PFLASH, 0, 0);
     pflash_cfi02_register(0x0, qemu_ram_alloc(FLASH_SIZE),
                           dinfo ? dinfo->bdrv : NULL, (16 * 1024),
                           FLASH_SIZE >> 16,

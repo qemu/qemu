@@ -759,10 +759,12 @@ case "$cpu" in
     s390)
            QEMU_CFLAGS="-m31 -march=z990 $QEMU_CFLAGS"
            LDFLAGS="-m31 $LDFLAGS"
+           host_guest_base="yes"
            ;;
     s390x)
            QEMU_CFLAGS="-m64 -march=z990 $QEMU_CFLAGS"
            LDFLAGS="-m64 $LDFLAGS"
+           host_guest_base="yes"
            ;;
     i386)
            QEMU_CFLAGS="-m32 $QEMU_CFLAGS"
