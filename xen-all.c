@@ -40,6 +40,18 @@ void xen_piix_pci_write_config_client(uint32_t address, uint32_t val, int len)
     }
 }
 
+/* Xen Interrupt Controller */
+
+static void xen_set_irq(void *opaque, int irq, int level)
+{
+    xc_hvm_set_isa_irq_level(xen_xc, xen_domid, irq, level);
+}
+
+qemu_irq *xen_interrupt_controller_init(void)
+{
+    return qemu_allocate_irqs(xen_set_irq, NULL, 16);
+}
+
 /* VCPU Operations, MMIO, IO ring ... */
 
 static void xen_reset_vcpu(void *opaque)

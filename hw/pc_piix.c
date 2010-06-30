@@ -110,8 +110,12 @@ static void pc_init1(ram_addr_t ram_size,
                        below_4g_mem_size, above_4g_mem_size);
     }
 
-    cpu_irq = pc_allocate_cpu_irq();
-    i8259 = i8259_init(cpu_irq[0]);
+    if (!xen_enabled()) {
+        cpu_irq = pc_allocate_cpu_irq();
+        i8259 = i8259_init(cpu_irq[0]);
+    } else {
+        i8259 = xen_interrupt_controller_init();
+    }
     isa_irq_state = qemu_mallocz(sizeof(*isa_irq_state));
     isa_irq_state->i8259 = i8259;
     if (pci_enabled) {

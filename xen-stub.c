@@ -22,6 +22,11 @@ void xen_piix_pci_write_config_client(uint32_t address, uint32_t val, int len)
 {
 }
 
+qemu_irq *xen_interrupt_controller_init(void)
+{
+    return NULL;
+}
+
 int xen_init(void)
 {
     return -ENOSYS;
