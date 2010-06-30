@@ -301,6 +301,9 @@ static int blkdebug_open(BlockDriverState *bs, const char *filename, int flags)
     }
     filename = c + 1;
 
+    /* Set initial state */
+    s->vars.state = 1;
+
     /* Open the backing file */
     ret = bdrv_file_open(&bs->file, filename, flags);
     if (ret < 0) {
