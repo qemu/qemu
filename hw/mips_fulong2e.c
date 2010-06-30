@@ -256,7 +256,6 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
                         const char *initrd_filename, const char *cpu_model)
 {
     char *filename;
-    char buf[1024];
     unsigned long ram_offset, bios_offset;
     unsigned long bios_size;
     int64_t kernel_entry;
@@ -311,8 +310,8 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
         kernel_entry = load_kernel (env);
         write_bootloader(env, qemu_get_ram_ptr(bios_offset), kernel_entry);
     } else {
-	    if (bios_name == NULL) {
-		    bios_name = FULONG_BIOSNAME;
+        if (bios_name == NULL) {
+                bios_name = FULONG_BIOSNAME;
         }
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         if (filename) {
@@ -323,10 +322,10 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
             bios_size = -1;
         }
 
-	    if ((bios_size < 0 || bios_size > BIOS_SIZE) && !kernel_filename) {
-            fprintf(stderr, "qemu: Could not load MIPS bios '%s'\n", buf);
+        if ((bios_size < 0 || bios_size > BIOS_SIZE) && !kernel_filename) {
+            fprintf(stderr, "qemu: Could not load MIPS bios '%s'\n", bios_name);
             exit(1);
-	    }
+        }
     }
 
     /* Init internal devices */
