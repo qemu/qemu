@@ -267,6 +267,8 @@ static int read_config(BDRVBlkdebugState *s, const char *filename)
 
     ret = 0;
 fail:
+    qemu_opts_reset(&inject_error_opts);
+    qemu_opts_reset(&set_state_opts);
     fclose(f);
     return ret;
 }
