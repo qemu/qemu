@@ -111,7 +111,7 @@ static QemuOptsList inject_error_opts = {
 
 static QemuOptsList set_state_opts = {
     .name = "set-state",
-    .head = QTAILQ_HEAD_INITIALIZER(inject_error_opts.head),
+    .head = QTAILQ_HEAD_INITIALIZER(set_state_opts.head),
     .desc = {
         {
             .name = "event",
