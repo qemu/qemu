@@ -2761,7 +2761,7 @@ static void gen_bitops (DisasContext *ctx, uint32_t opc, int rt,
     case OPC_DINSU:
         if (lsb > msb)
             goto fail;
-        mask = ((1ULL << (msb - lsb + 1)) - 1) << lsb;
+        mask = ((1ULL << (msb - lsb + 1)) - 1) << (lsb + 32);
         gen_load_gpr(t0, rt);
         tcg_gen_andi_tl(t0, t0, ~mask);
         tcg_gen_shli_tl(t1, t1, lsb + 32);
