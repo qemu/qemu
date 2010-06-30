@@ -9,6 +9,25 @@
 #include "hw/xen_common.h"
 #include "hw/xen_backend.h"
 
+/* VCPU Operations, MMIO, IO ring ... */
+
+static void xen_reset_vcpu(void *opaque)
+{
+    CPUState *env = opaque;
+
+    env->halted = 1;
+}
+
+void xen_vcpu_init(void)
+{
+    CPUState *first_cpu;
+
+    if ((first_cpu = qemu_get_cpu(0))) {
+        qemu_register_reset(xen_reset_vcpu, first_cpu);
+        xen_reset_vcpu(first_cpu);
+    }
+}
+
 /* Initialise Xen */
 
 int xen_init(void)
@@ -19,5 +38,10 @@ int xen_init(void)
         return -1;
     }
 
+    return 0;
+}
+
+int xen_hvm_init(void)
+{
     return 0;
 }

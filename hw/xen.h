@@ -30,5 +30,11 @@ static inline int xen_enabled(void)
 }
 
 int xen_init(void);
+int xen_hvm_init(void);
+void xen_vcpu_init(void);
+
+#if defined(CONFIG_XEN) && CONFIG_XEN_CTRL_INTERFACE_VERSION < 400
+#  define HVM_MAX_VCPUS 32
+#endif
 
 #endif /* QEMU_HW_XEN_H */
