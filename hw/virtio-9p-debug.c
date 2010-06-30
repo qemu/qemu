@@ -327,6 +327,8 @@ void pprint_pdu(V9fsPDU *pdu)
         llogfile = fopen("/tmp/pdu.log", "w");
     }
 
+    BUG_ON(!llogfile);
+
     switch (pdu->id) {
     case P9_TVERSION:
         fprintf(llogfile, "TVERSION: (");
