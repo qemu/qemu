@@ -1789,19 +1789,18 @@ BlockDriverState *bdrv_snapshots(void)
 {
     BlockDriverState *bs;
 
-    if (bs_snapshots)
+    if (bs_snapshots) {
         return bs_snapshots;
+    }
 
     bs = NULL;
     while ((bs = bdrv_next(bs))) {
         if (bdrv_can_snapshot(bs)) {
-            goto ok;
+            bs_snapshots = bs;
+            return bs;
         }
     }
     return NULL;
- ok:
-    bs_snapshots = bs;
-    return bs;
 }
 
 int bdrv_snapshot_create(BlockDriverState *bs,
