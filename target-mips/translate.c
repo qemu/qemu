@@ -1006,16 +1006,24 @@ static target_ulong pc_relative_pc (DisasContext *ctx)
 }
 
 /* Load */
-static void gen_ld (DisasContext *ctx, uint32_t opc, int rt,
-                      int base, int16_t offset)
+static void gen_ld (CPUState *env, DisasContext *ctx, uint32_t opc,
+                    int rt, int base, int16_t offset)
 {
     const char *opn = "ld";
-    TCGv t0 = tcg_temp_new();
-    TCGv t1 = tcg_temp_new();
+    TCGv t0, t1;
 
+    if (rt == 0 && env->insn_flags & (INSN_LOONGSON2E | INSN_LOONGSON2F)) {
+        /* Loongson CPU uses a load to zero register for prefetch.
+           We emulate it as a NOP. On other CPU we must perform the
+           actual memory access. */
+        MIPS_DEBUG("NOP");
+        return;
+    }
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
     gen_base_offset_addr(ctx, t0, base, offset);
-    /* Don't do NOP if destination is zero: we must perform the actual
-       memory access. */
+
     switch (opc) {
 #if defined(TARGET_MIPS64)
     case OPC_LWU:
@@ -8258,7 +8266,7 @@ static void decode_i64_mips16 (CPUState *env, DisasContext *ctx,
     case I64_LDSP:
         check_mips_64(ctx);
         offset = extended ? offset : offset << 3;
-        gen_ld(ctx, OPC_LD, ry, 29, offset);
+        gen_ld(env, ctx, OPC_LD, ry, 29, offset);
         break;
     case I64_SDSP:
         check_mips_64(ctx);
@@ -8280,7 +8288,7 @@ static void decode_i64_mips16 (CPUState *env, DisasContext *ctx,
             generate_exception(ctx, EXCP_RI);
         } else {
             offset = extended ? offset : offset << 3;
-            gen_ld(ctx, OPC_LDPC, ry, 0, offset);
+            gen_ld(env, ctx, OPC_LDPC, ry, 0, offset);
         }
         break;
     case I64_DADDIU5:
@@ -8364,7 +8372,7 @@ static int decode_extended_mips16_opc (CPUState *env, DisasContext *ctx,
 #if defined(TARGET_MIPS64)
     case M16_OPC_LD:
             check_mips_64(ctx);
-        gen_ld(ctx, OPC_LD, ry, rx, offset);
+        gen_ld(env, ctx, OPC_LD, ry, rx, offset);
         break;
 #endif
     case M16_OPC_RRIA:
@@ -8444,29 +8452,29 @@ static int decode_extended_mips16_opc (CPUState *env, DisasContext *ctx,
         break;
 #endif
     case M16_OPC_LB:
-        gen_ld(ctx, OPC_LB, ry, rx, offset);
+        gen_ld(env, ctx, OPC_LB, ry, rx, offset);
         break;
     case M16_OPC_LH:
-        gen_ld(ctx, OPC_LH, ry, rx, offset);
+        gen_ld(env, ctx, OPC_LH, ry, rx, offset);
         break;
     case M16_OPC_LWSP:
-        gen_ld(ctx, OPC_LW, rx, 29, offset);
+        gen_ld(env, ctx, OPC_LW, rx, 29, offset);
         break;
     case M16_OPC_LW:
-        gen_ld(ctx, OPC_LW, ry, rx, offset);
+        gen_ld(env, ctx, OPC_LW, ry, rx, offset);
         break;
     case M16_OPC_LBU:
-        gen_ld(ctx, OPC_LBU, ry, rx, offset);
+        gen_ld(env, ctx, OPC_LBU, ry, rx, offset);
         break;
     case M16_OPC_LHU:
-        gen_ld(ctx, OPC_LHU, ry, rx, offset);
+        gen_ld(env, ctx, OPC_LHU, ry, rx, offset);
         break;
     case M16_OPC_LWPC:
-        gen_ld(ctx, OPC_LWPC, rx, 0, offset);
+        gen_ld(env, ctx, OPC_LWPC, rx, 0, offset);
         break;
 #if defined(TARGET_MIPS64)
     case M16_OPC_LWU:
-        gen_ld(ctx, OPC_LWU, ry, rx, offset);
+        gen_ld(env, ctx, OPC_LWU, ry, rx, offset);
         break;
 #endif
     case M16_OPC_SB:
@@ -8572,7 +8580,7 @@ static int decode_mips16_opc (CPUState *env, DisasContext *ctx,
 #if defined(TARGET_MIPS64)
     case M16_OPC_LD:
         check_mips_64(ctx);
-        gen_ld(ctx, OPC_LD, ry, rx, offset << 3);
+        gen_ld(env, ctx, OPC_LD, ry, rx, offset << 3);
         break;
 #endif
     case M16_OPC_RRIA:
@@ -8695,30 +8703,30 @@ static int decode_mips16_opc (CPUState *env, DisasContext *ctx,
         break;
 #endif
     case M16_OPC_LB:
-        gen_ld(ctx, OPC_LB, ry, rx, offset);
+        gen_ld(env, ctx, OPC_LB, ry, rx, offset);
         break;
     case M16_OPC_LH:
-        gen_ld(ctx, OPC_LH, ry, rx, offset << 1);
+        gen_ld(env, ctx, OPC_LH, ry, rx, offset << 1);
         break;
     case M16_OPC_LWSP:
-        gen_ld(ctx, OPC_LW, rx, 29, ((uint8_t)ctx->opcode) << 2);
+        gen_ld(env, ctx, OPC_LW, rx, 29, ((uint8_t)ctx->opcode) << 2);
         break;
     case M16_OPC_LW:
-        gen_ld(ctx, OPC_LW, ry, rx, offset << 2);
+        gen_ld(env, ctx, OPC_LW, ry, rx, offset << 2);
         break;
     case M16_OPC_LBU:
-        gen_ld(ctx, OPC_LBU, ry, rx, offset);
+        gen_ld(env, ctx, OPC_LBU, ry, rx, offset);
         break;
     case M16_OPC_LHU:
-        gen_ld(ctx, OPC_LHU, ry, rx, offset << 1);
+        gen_ld(env, ctx, OPC_LHU, ry, rx, offset << 1);
         break;
     case M16_OPC_LWPC:
-        gen_ld(ctx, OPC_LWPC, rx, 0, ((uint8_t)ctx->opcode) << 2);
+        gen_ld(env, ctx, OPC_LWPC, rx, 0, ((uint8_t)ctx->opcode) << 2);
         break;
 #if defined (TARGET_MIPS64)
     case M16_OPC_LWU:
         check_mips_64(ctx);
-        gen_ld(ctx, OPC_LWU, ry, rx, offset << 2);
+        gen_ld(env, ctx, OPC_LWU, ry, rx, offset << 2);
         break;
 #endif
     case M16_OPC_SB:
@@ -10846,7 +10854,7 @@ static void decode_micromips32_opc (CPUState *env, DisasContext *ctx,
             mips32_op = OPC_LL;
             goto do_ld_lr;
         do_ld_lr:
-            gen_ld(ctx, mips32_op, rt, rs, SIMM(ctx->opcode, 0, 12));
+            gen_ld(env, ctx, mips32_op, rt, rs, SIMM(ctx->opcode, 0, 12));
             break;
         do_st_lr:
             gen_st(ctx, mips32_op, rt, rs, SIMM(ctx->opcode, 0, 12));
@@ -10984,7 +10992,7 @@ static void decode_micromips32_opc (CPUState *env, DisasContext *ctx,
         mips32_op = OPC_SW;
         goto do_st;
     do_ld:
-        gen_ld(ctx, mips32_op, rt, rs, imm);
+        gen_ld(env, ctx, mips32_op, rt, rs, imm);
         break;
     do_st:
         gen_st(ctx, mips32_op, rt, rs, imm);
@@ -11137,7 +11145,7 @@ static int decode_micromips_opc (CPUState *env, DisasContext *ctx, int *is_branc
             int rb = 28;            /* GP */
             int16_t offset = SIMM(ctx->opcode, 0, 7) << 2;
 
-            gen_ld(ctx, OPC_LW, rd, rb, offset);
+            gen_ld(env, ctx, OPC_LW, rd, rb, offset);
         }
         break;
     case POOL16F:
@@ -11169,7 +11177,7 @@ static int decode_micromips_opc (CPUState *env, DisasContext *ctx, int *is_branc
             int16_t offset = ZIMM(ctx->opcode, 0, 4);
             offset = (offset == 0xf ? -1 : offset);
 
-            gen_ld(ctx, OPC_LBU, rd, rb, offset);
+            gen_ld(env, ctx, OPC_LBU, rd, rb, offset);
         }
         break;
     case LHU16:
@@ -11178,7 +11186,7 @@ static int decode_micromips_opc (CPUState *env, DisasContext *ctx, int *is_branc
             int rb = mmreg(uMIPS_RS(ctx->opcode));
             int16_t offset = ZIMM(ctx->opcode, 0, 4) << 1;
 
-            gen_ld(ctx, OPC_LHU, rd, rb, offset);
+            gen_ld(env, ctx, OPC_LHU, rd, rb, offset);
         }
         break;
     case LWSP16:
@@ -11187,7 +11195,7 @@ static int decode_micromips_opc (CPUState *env, DisasContext *ctx, int *is_branc
             int rb = 29;            /* SP */
             int16_t offset = ZIMM(ctx->opcode, 0, 5) << 2;
 
-            gen_ld(ctx, OPC_LW, rd, rb, offset);
+            gen_ld(env, ctx, OPC_LW, rd, rb, offset);
         }
         break;
     case LW16:
@@ -11196,7 +11204,7 @@ static int decode_micromips_opc (CPUState *env, DisasContext *ctx, int *is_branc
             int rb = mmreg(uMIPS_RS(ctx->opcode));
             int16_t offset = ZIMM(ctx->opcode, 0, 4) << 2;
 
-            gen_ld(ctx, OPC_LW, rd, rb, offset);
+            gen_ld(env, ctx, OPC_LW, rd, rb, offset);
         }
         break;
     case SB16:
@@ -11798,7 +11806,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx, int *is_branch)
          break;
     case OPC_LB ... OPC_LWR: /* Load and stores */
     case OPC_LL:
-         gen_ld(ctx, op, rt, rs, imm);
+         gen_ld(env, ctx, op, rt, rs, imm);
          break;
     case OPC_SB ... OPC_SW:
     case OPC_SWR:
@@ -11932,7 +11940,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx, int *is_branch)
     case OPC_LD:
         check_insn(env, ctx, ISA_MIPS3);
         check_mips_64(ctx);
-        gen_ld(ctx, op, rt, rs, imm);
+        gen_ld(env, ctx, op, rt, rs, imm);
         break;
     case OPC_SDL ... OPC_SDR:
     case OPC_SD:
