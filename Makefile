@@ -168,6 +168,7 @@ clean:
 
 distclean: clean
 	rm -f config-host.mak config-host.h* config-host.ld $(DOCS) qemu-options.texi qemu-img-cmds.texi qemu-monitor.texi
+	rm -f qemu-options.def
 	rm -f config-all-devices.mak
 	rm -f roms/seabios/config.mak roms/vgabios/config.mak
 	rm -f qemu-{doc,tech}.{info,aux,cp,dvi,fn,info,ky,log,pdf,pg,toc,tp,vr}
