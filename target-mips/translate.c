@@ -886,7 +886,7 @@ FOP_CONDS(abs, 1, ps, FMT_PS, 64)
 
 /* load/store instructions. */
 #define OP_LD(insn,fname)                                                 \
-static inline void op_ldst_##insn(TCGv ret, TCGv arg1, DisasContext *ctx) \
+static inline void op_ld_##insn(TCGv ret, TCGv arg1, DisasContext *ctx)   \
 {                                                                         \
     tcg_gen_qemu_##fname(ret, arg1, ctx->mem_idx);                        \
 }
@@ -902,7 +902,7 @@ OP_LD(ld,ld64);
 #undef OP_LD
 
 #define OP_ST(insn,fname)                                                  \
-static inline void op_ldst_##insn(TCGv arg1, TCGv arg2, DisasContext *ctx) \
+static inline void op_st_##insn(TCGv arg1, TCGv arg2, DisasContext *ctx)   \
 {                                                                          \
     tcg_gen_qemu_##fname(arg1, arg2, ctx->mem_idx);                        \
 }
@@ -916,7 +916,7 @@ OP_ST(sd,st64);
 
 #ifdef CONFIG_USER_ONLY
 #define OP_LD_ATOMIC(insn,fname)                                           \
-static inline void op_ldst_##insn(TCGv ret, TCGv arg1, DisasContext *ctx)  \
+static inline void op_ld_##insn(TCGv ret, TCGv arg1, DisasContext *ctx)    \
 {                                                                          \
     TCGv t0 = tcg_temp_new();                                              \
     tcg_gen_mov_tl(t0, arg1);                                              \
@@ -927,7 +927,7 @@ static inline void op_ldst_##insn(TCGv ret, TCGv arg1, DisasContext *ctx)  \
 }
 #else
 #define OP_LD_ATOMIC(insn,fname)                                           \
-static inline void op_ldst_##insn(TCGv ret, TCGv arg1, DisasContext *ctx)  \
+static inline void op_ld_##insn(TCGv ret, TCGv arg1, DisasContext *ctx)    \
 {                                                                          \
     gen_helper_2i(insn, ret, arg1, ctx->mem_idx);                          \
 }
@@ -940,7 +940,7 @@ OP_LD_ATOMIC(lld,ld64);
 
 #ifdef CONFIG_USER_ONLY
 #define OP_ST_ATOMIC(insn,fname,ldname,almask)                               \
-static inline void op_ldst_##insn(TCGv arg1, TCGv arg2, int rt, DisasContext *ctx) \
+static inline void op_st_##insn(TCGv arg1, TCGv arg2, int rt, DisasContext *ctx) \
 {                                                                            \
     TCGv t0 = tcg_temp_new();                                                \
     int l1 = gen_new_label();                                                \
@@ -964,7 +964,7 @@ static inline void op_ldst_##insn(TCGv arg1, TCGv arg2, int rt, DisasContext *ct
 }
 #else
 #define OP_ST_ATOMIC(insn,fname,ldname,almask)                               \
-static inline void op_ldst_##insn(TCGv arg1, TCGv arg2, int rt, DisasContext *ctx) \
+static inline void op_st_##insn(TCGv arg1, TCGv arg2, int rt, DisasContext *ctx) \
 {                                                                            \
     TCGv t0 = tcg_temp_new();                                                \
     gen_helper_3i(insn, t0, arg1, arg2, ctx->mem_idx);                       \
@@ -1005,11 +1005,11 @@ static target_ulong pc_relative_pc (DisasContext *ctx)
     return pc;
 }
 
-/* Load and store */
-static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
+/* Load */
+static void gen_ld (DisasContext *ctx, uint32_t opc, int rt,
                       int base, int16_t offset)
 {
-    const char *opn = "ldst";
+    const char *opn = "ld";
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
 
@@ -1020,27 +1020,21 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
 #if defined(TARGET_MIPS64)
     case OPC_LWU:
         save_cpu_state(ctx, 0);
-        op_ldst_lwu(t0, t0, ctx);
+        op_ld_lwu(t0, t0, ctx);
         gen_store_gpr(t0, rt);
         opn = "lwu";
         break;
     case OPC_LD:
         save_cpu_state(ctx, 0);
-        op_ldst_ld(t0, t0, ctx);
+        op_ld_ld(t0, t0, ctx);
         gen_store_gpr(t0, rt);
         opn = "ld";
         break;
     case OPC_LLD:
         save_cpu_state(ctx, 0);
-        op_ldst_lld(t0, t0, ctx);
+        op_ld_lld(t0, t0, ctx);
         gen_store_gpr(t0, rt);
         opn = "lld";
-        break;
-    case OPC_SD:
-        save_cpu_state(ctx, 0);
-        gen_load_gpr(t1, rt);
-        op_ldst_sd(t1, t0, ctx);
-        opn = "sd";
         break;
     case OPC_LDL:
         save_cpu_state(ctx, 1);
@@ -1049,12 +1043,6 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
         gen_store_gpr(t1, rt);
         opn = "ldl";
         break;
-    case OPC_SDL:
-        save_cpu_state(ctx, 1);
-        gen_load_gpr(t1, rt);
-        gen_helper_2i(sdl, t1, t0, ctx->mem_idx);
-        opn = "sdl";
-        break;
     case OPC_LDR:
         save_cpu_state(ctx, 1);
         gen_load_gpr(t1, rt);
@@ -1062,72 +1050,50 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
         gen_store_gpr(t1, rt);
         opn = "ldr";
         break;
-    case OPC_SDR:
-        save_cpu_state(ctx, 1);
-        gen_load_gpr(t1, rt);
-        gen_helper_2i(sdr, t1, t0, ctx->mem_idx);
-        opn = "sdr";
-        break;
     case OPC_LDPC:
         save_cpu_state(ctx, 1);
         tcg_gen_movi_tl(t1, pc_relative_pc(ctx));
         gen_op_addr_add(ctx, t0, t0, t1);
-        op_ldst_ld(t0, t0, ctx);
+        op_ld_ld(t0, t0, ctx);
         gen_store_gpr(t0, rt);
+        opn = "ldpc";
         break;
 #endif
     case OPC_LWPC:
         save_cpu_state(ctx, 1);
         tcg_gen_movi_tl(t1, pc_relative_pc(ctx));
         gen_op_addr_add(ctx, t0, t0, t1);
-        op_ldst_lw(t0, t0, ctx);
+        op_ld_lw(t0, t0, ctx);
         gen_store_gpr(t0, rt);
+        opn = "lwpc";
         break;
     case OPC_LW:
         save_cpu_state(ctx, 0);
-        op_ldst_lw(t0, t0, ctx);
+        op_ld_lw(t0, t0, ctx);
         gen_store_gpr(t0, rt);
         opn = "lw";
         break;
-    case OPC_SW:
-        save_cpu_state(ctx, 0);
-        gen_load_gpr(t1, rt);
-        op_ldst_sw(t1, t0, ctx);
-        opn = "sw";
-        break;
     case OPC_LH:
         save_cpu_state(ctx, 0);
-        op_ldst_lh(t0, t0, ctx);
+        op_ld_lh(t0, t0, ctx);
         gen_store_gpr(t0, rt);
         opn = "lh";
         break;
-    case OPC_SH:
-        save_cpu_state(ctx, 0);
-        gen_load_gpr(t1, rt);
-        op_ldst_sh(t1, t0, ctx);
-        opn = "sh";
-        break;
     case OPC_LHU:
         save_cpu_state(ctx, 0);
-        op_ldst_lhu(t0, t0, ctx);
+        op_ld_lhu(t0, t0, ctx);
         gen_store_gpr(t0, rt);
         opn = "lhu";
         break;
     case OPC_LB:
         save_cpu_state(ctx, 0);
-        op_ldst_lb(t0, t0, ctx);
+        op_ld_lb(t0, t0, ctx);
         gen_store_gpr(t0, rt);
         opn = "lb";
         break;
-    case OPC_SB:
-        save_cpu_state(ctx, 0);
-        gen_load_gpr(t1, rt);
-        op_ldst_sb(t1, t0, ctx);
-        opn = "sb";
-        break;
     case OPC_LBU:
         save_cpu_state(ctx, 0);
-        op_ldst_lbu(t0, t0, ctx);
+        op_ld_lbu(t0, t0, ctx);
         gen_store_gpr(t0, rt);
         opn = "lbu";
         break;
@@ -1138,12 +1104,6 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
         gen_store_gpr(t1, rt);
         opn = "lwl";
         break;
-    case OPC_SWL:
-        save_cpu_state(ctx, 1);
-        gen_load_gpr(t1, rt);
-        gen_helper_2i(swl, t1, t0, ctx->mem_idx);
-        opn = "swr";
-        break;
     case OPC_LWR:
         save_cpu_state(ctx, 1);
         gen_load_gpr(t1, rt);
@@ -1151,15 +1111,9 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
         gen_store_gpr(t1, rt);
         opn = "lwr";
         break;
-    case OPC_SWR:
-        save_cpu_state(ctx, 1);
-        gen_load_gpr(t1, rt);
-        gen_helper_2i(swr, t1, t0, ctx->mem_idx);
-        opn = "swr";
-        break;
     case OPC_LL:
         save_cpu_state(ctx, 1);
-        op_ldst_ll(t0, t0, ctx);
+        op_ld_ll(t0, t0, ctx);
         gen_store_gpr(t0, rt);
         opn = "ll";
         break;
@@ -1168,6 +1122,66 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
     tcg_temp_free(t0);
     tcg_temp_free(t1);
 }
+
+/* Store */
+static void gen_st (DisasContext *ctx, uint32_t opc, int rt,
+                    int base, int16_t offset)
+{
+    const char *opn = "st";
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+
+    gen_base_offset_addr(ctx, t0, base, offset);
+    gen_load_gpr(t1, rt);
+    switch (opc) {
+#if defined(TARGET_MIPS64)
+    case OPC_SD:
+        save_cpu_state(ctx, 0);
+        op_st_sd(t1, t0, ctx);
+        opn = "sd";
+        break;
+    case OPC_SDL:
+        save_cpu_state(ctx, 1);
+        gen_helper_2i(sdl, t1, t0, ctx->mem_idx);
+        opn = "sdl";
+        break;
+    case OPC_SDR:
+        save_cpu_state(ctx, 1);
+        gen_helper_2i(sdr, t1, t0, ctx->mem_idx);
+        opn = "sdr";
+        break;
+#endif
+    case OPC_SW:
+        save_cpu_state(ctx, 0);
+        op_st_sw(t1, t0, ctx);
+        opn = "sw";
+        break;
+    case OPC_SH:
+        save_cpu_state(ctx, 0);
+        op_st_sh(t1, t0, ctx);
+        opn = "sh";
+        break;
+    case OPC_SB:
+        save_cpu_state(ctx, 0);
+        op_st_sb(t1, t0, ctx);
+        opn = "sb";
+        break;
+    case OPC_SWL:
+        save_cpu_state(ctx, 1);
+        gen_helper_2i(swl, t1, t0, ctx->mem_idx);
+        opn = "swl";
+        break;
+    case OPC_SWR:
+        save_cpu_state(ctx, 1);
+        gen_helper_2i(swr, t1, t0, ctx->mem_idx);
+        opn = "swr";
+        break;
+    }
+    MIPS_DEBUG("%s %s, %d(%s)", opn, regnames[rt], offset, regnames[base]);
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+}
+
 
 /* Store conditional */
 static void gen_st_cond (DisasContext *ctx, uint32_t opc, int rt,
@@ -1188,13 +1202,13 @@ static void gen_st_cond (DisasContext *ctx, uint32_t opc, int rt,
 #if defined(TARGET_MIPS64)
     case OPC_SCD:
         save_cpu_state(ctx, 0);
-        op_ldst_scd(t1, t0, rt, ctx);
+        op_st_scd(t1, t0, rt, ctx);
         opn = "scd";
         break;
 #endif
     case OPC_SC:
         save_cpu_state(ctx, 1);
-        op_ldst_sc(t1, t0, rt, ctx);
+        op_st_sc(t1, t0, rt, ctx);
         opn = "sc";
         break;
     }
@@ -8003,22 +8017,22 @@ static void gen_mips16_save (DisasContext *ctx,
     case 4:
         gen_base_offset_addr(ctx, t0, 29, 12);
         gen_load_gpr(t1, 7);
-        op_ldst_sw(t1, t0, ctx);
+        op_st_sw(t1, t0, ctx);
         /* Fall through */
     case 3:
         gen_base_offset_addr(ctx, t0, 29, 8);
         gen_load_gpr(t1, 6);
-        op_ldst_sw(t1, t0, ctx);
+        op_st_sw(t1, t0, ctx);
         /* Fall through */
     case 2:
         gen_base_offset_addr(ctx, t0, 29, 4);
         gen_load_gpr(t1, 5);
-        op_ldst_sw(t1, t0, ctx);
+        op_st_sw(t1, t0, ctx);
         /* Fall through */
     case 1:
         gen_base_offset_addr(ctx, t0, 29, 0);
         gen_load_gpr(t1, 4);
-        op_ldst_sw(t1, t0, ctx);
+        op_st_sw(t1, t0, ctx);
     }
 
     gen_load_gpr(t0, 29);
@@ -8026,7 +8040,7 @@ static void gen_mips16_save (DisasContext *ctx,
 #define DECR_AND_STORE(reg) do {                \
         tcg_gen_subi_tl(t0, t0, 4);             \
         gen_load_gpr(t1, reg);                  \
-        op_ldst_sw(t1, t0, ctx);                \
+        op_st_sw(t1, t0, ctx);                  \
     } while (0)
 
     if (do_ra) {
@@ -8126,7 +8140,7 @@ static void gen_mips16_restore (DisasContext *ctx,
 
 #define DECR_AND_LOAD(reg) do {                 \
         tcg_gen_subi_tl(t0, t0, 4);             \
-        op_ldst_lw(t1, t0, ctx);                \
+        op_ld_lw(t1, t0, ctx);                  \
         gen_store_gpr(t1, reg);                 \
     } while (0)
 
@@ -8244,17 +8258,17 @@ static void decode_i64_mips16 (CPUState *env, DisasContext *ctx,
     case I64_LDSP:
         check_mips_64(ctx);
         offset = extended ? offset : offset << 3;
-        gen_ldst(ctx, OPC_LD, ry, 29, offset);
+        gen_ld(ctx, OPC_LD, ry, 29, offset);
         break;
     case I64_SDSP:
         check_mips_64(ctx);
         offset = extended ? offset : offset << 3;
-        gen_ldst(ctx, OPC_SD, ry, 29, offset);
+        gen_st(ctx, OPC_SD, ry, 29, offset);
         break;
     case I64_SDRASP:
         check_mips_64(ctx);
         offset = extended ? offset : (ctx->opcode & 0xff) << 3;
-        gen_ldst(ctx, OPC_SD, 31, 29, offset);
+        gen_st(ctx, OPC_SD, 31, 29, offset);
         break;
     case I64_DADJSP:
         check_mips_64(ctx);
@@ -8266,7 +8280,7 @@ static void decode_i64_mips16 (CPUState *env, DisasContext *ctx,
             generate_exception(ctx, EXCP_RI);
         } else {
             offset = extended ? offset : offset << 3;
-            gen_ldst(ctx, OPC_LDPC, ry, 0, offset);
+            gen_ld(ctx, OPC_LDPC, ry, 0, offset);
         }
         break;
     case I64_DADDIU5:
@@ -8350,7 +8364,7 @@ static int decode_extended_mips16_opc (CPUState *env, DisasContext *ctx,
 #if defined(TARGET_MIPS64)
     case M16_OPC_LD:
             check_mips_64(ctx);
-        gen_ldst(ctx, OPC_LD, ry, rx, offset);
+        gen_ld(ctx, OPC_LD, ry, rx, offset);
         break;
 #endif
     case M16_OPC_RRIA:
@@ -8387,7 +8401,7 @@ static int decode_extended_mips16_opc (CPUState *env, DisasContext *ctx,
             gen_compute_branch(ctx, OPC_BNE, 4, 24, 0, offset << 1);
             break;
         case I8_SWRASP:
-            gen_ldst(ctx, OPC_SW, 31, 29, imm);
+            gen_st(ctx, OPC_SW, 31, 29, imm);
             break;
         case I8_ADJSP:
             gen_arith_imm(env, ctx, OPC_ADDIU, 29, 29, imm);
@@ -8426,46 +8440,46 @@ static int decode_extended_mips16_opc (CPUState *env, DisasContext *ctx,
         break;
 #if defined(TARGET_MIPS64)
     case M16_OPC_SD:
-        gen_ldst(ctx, OPC_SD, ry, rx, offset);
+        gen_st(ctx, OPC_SD, ry, rx, offset);
         break;
 #endif
     case M16_OPC_LB:
-        gen_ldst(ctx, OPC_LB, ry, rx, offset);
+        gen_ld(ctx, OPC_LB, ry, rx, offset);
         break;
     case M16_OPC_LH:
-        gen_ldst(ctx, OPC_LH, ry, rx, offset);
+        gen_ld(ctx, OPC_LH, ry, rx, offset);
         break;
     case M16_OPC_LWSP:
-        gen_ldst(ctx, OPC_LW, rx, 29, offset);
+        gen_ld(ctx, OPC_LW, rx, 29, offset);
         break;
     case M16_OPC_LW:
-        gen_ldst(ctx, OPC_LW, ry, rx, offset);
+        gen_ld(ctx, OPC_LW, ry, rx, offset);
         break;
     case M16_OPC_LBU:
-        gen_ldst(ctx, OPC_LBU, ry, rx, offset);
+        gen_ld(ctx, OPC_LBU, ry, rx, offset);
         break;
     case M16_OPC_LHU:
-        gen_ldst(ctx, OPC_LHU, ry, rx, offset);
+        gen_ld(ctx, OPC_LHU, ry, rx, offset);
         break;
     case M16_OPC_LWPC:
-        gen_ldst(ctx, OPC_LWPC, rx, 0, offset);
+        gen_ld(ctx, OPC_LWPC, rx, 0, offset);
         break;
 #if defined(TARGET_MIPS64)
     case M16_OPC_LWU:
-        gen_ldst(ctx, OPC_LWU, ry, rx, offset);
+        gen_ld(ctx, OPC_LWU, ry, rx, offset);
         break;
 #endif
     case M16_OPC_SB:
-        gen_ldst(ctx, OPC_SB, ry, rx, offset);
+        gen_st(ctx, OPC_SB, ry, rx, offset);
         break;
     case M16_OPC_SH:
-        gen_ldst(ctx, OPC_SH, ry, rx, offset);
+        gen_st(ctx, OPC_SH, ry, rx, offset);
         break;
     case M16_OPC_SWSP:
-        gen_ldst(ctx, OPC_SW, rx, 29, offset);
+        gen_st(ctx, OPC_SW, rx, 29, offset);
         break;
     case M16_OPC_SW:
-        gen_ldst(ctx, OPC_SW, ry, rx, offset);
+        gen_st(ctx, OPC_SW, ry, rx, offset);
         break;
 #if defined(TARGET_MIPS64)
     case M16_OPC_I64:
@@ -8558,7 +8572,7 @@ static int decode_mips16_opc (CPUState *env, DisasContext *ctx,
 #if defined(TARGET_MIPS64)
     case M16_OPC_LD:
         check_mips_64(ctx);
-        gen_ldst(ctx, OPC_LD, ry, rx, offset << 3);
+        gen_ld(ctx, OPC_LD, ry, rx, offset << 3);
         break;
 #endif
     case M16_OPC_RRIA:
@@ -8613,7 +8627,7 @@ static int decode_mips16_opc (CPUState *env, DisasContext *ctx,
                                    ((int8_t)ctx->opcode) << 1);
                 break;
             case I8_SWRASP:
-                gen_ldst(ctx, OPC_SW, 31, 29, (ctx->opcode & 0xff) << 2);
+                gen_st(ctx, OPC_SW, 31, 29, (ctx->opcode & 0xff) << 2);
                 break;
             case I8_ADJSP:
                 gen_arith_imm(env, ctx, OPC_ADDIU, 29, 29,
@@ -8677,47 +8691,47 @@ static int decode_mips16_opc (CPUState *env, DisasContext *ctx,
 #if defined(TARGET_MIPS64)
     case M16_OPC_SD:
         check_mips_64(ctx);
-        gen_ldst(ctx, OPC_SD, ry, rx, offset << 3);
+        gen_st(ctx, OPC_SD, ry, rx, offset << 3);
         break;
 #endif
     case M16_OPC_LB:
-        gen_ldst(ctx, OPC_LB, ry, rx, offset);
+        gen_ld(ctx, OPC_LB, ry, rx, offset);
         break;
     case M16_OPC_LH:
-        gen_ldst(ctx, OPC_LH, ry, rx, offset << 1);
+        gen_ld(ctx, OPC_LH, ry, rx, offset << 1);
         break;
     case M16_OPC_LWSP:
-        gen_ldst(ctx, OPC_LW, rx, 29, ((uint8_t)ctx->opcode) << 2);
+        gen_ld(ctx, OPC_LW, rx, 29, ((uint8_t)ctx->opcode) << 2);
         break;
     case M16_OPC_LW:
-        gen_ldst(ctx, OPC_LW, ry, rx, offset << 2);
+        gen_ld(ctx, OPC_LW, ry, rx, offset << 2);
         break;
     case M16_OPC_LBU:
-        gen_ldst(ctx, OPC_LBU, ry, rx, offset);
+        gen_ld(ctx, OPC_LBU, ry, rx, offset);
         break;
     case M16_OPC_LHU:
-        gen_ldst(ctx, OPC_LHU, ry, rx, offset << 1);
+        gen_ld(ctx, OPC_LHU, ry, rx, offset << 1);
         break;
     case M16_OPC_LWPC:
-        gen_ldst(ctx, OPC_LWPC, rx, 0, ((uint8_t)ctx->opcode) << 2);
+        gen_ld(ctx, OPC_LWPC, rx, 0, ((uint8_t)ctx->opcode) << 2);
         break;
 #if defined (TARGET_MIPS64)
     case M16_OPC_LWU:
         check_mips_64(ctx);
-        gen_ldst(ctx, OPC_LWU, ry, rx, offset << 2);
+        gen_ld(ctx, OPC_LWU, ry, rx, offset << 2);
         break;
 #endif
     case M16_OPC_SB:
-        gen_ldst(ctx, OPC_SB, ry, rx, offset);
+        gen_st(ctx, OPC_SB, ry, rx, offset);
         break;
     case M16_OPC_SH:
-        gen_ldst(ctx, OPC_SH, ry, rx, offset << 1);
+        gen_st(ctx, OPC_SH, ry, rx, offset << 1);
         break;
     case M16_OPC_SWSP:
-        gen_ldst(ctx, OPC_SW, rx, 29, ((uint8_t)ctx->opcode) << 2);
+        gen_st(ctx, OPC_SW, rx, 29, ((uint8_t)ctx->opcode) << 2);
         break;
     case M16_OPC_SW:
-        gen_ldst(ctx, OPC_SW, ry, rx, offset << 2);
+        gen_st(ctx, OPC_SW, ry, rx, offset << 2);
         break;
     case M16_OPC_RRR:
         {
@@ -9631,7 +9645,7 @@ static void gen_ldxs (DisasContext *ctx, int base, int index, int rd)
     }
 
     save_cpu_state(ctx, 0);
-    op_ldst_lw(t1, t0, ctx);
+    op_ld_lw(t1, t0, ctx);
     gen_store_gpr(t1, rd);
 
     tcg_temp_free(t0);
@@ -9657,43 +9671,43 @@ static void gen_ldst_pair (DisasContext *ctx, uint32_t opc, int rd,
     switch (opc) {
     case LWP:
         save_cpu_state(ctx, 0);
-        op_ldst_lw(t1, t0, ctx);
+        op_ld_lw(t1, t0, ctx);
         gen_store_gpr(t1, rd);
         tcg_gen_movi_tl(t1, 4);
         gen_op_addr_add(ctx, t0, t0, t1);
-        op_ldst_lw(t1, t0, ctx);
+        op_ld_lw(t1, t0, ctx);
         gen_store_gpr(t1, rd+1);
         opn = "lwp";
         break;
     case SWP:
         save_cpu_state(ctx, 1);
         gen_load_gpr(t1, rd);
-        op_ldst_sw(t1, t0, ctx);
+        op_st_sw(t1, t0, ctx);
         tcg_gen_movi_tl(t1, 4);
         gen_op_addr_add(ctx, t0, t0, t1);
         gen_load_gpr(t1, rd+1);
-        op_ldst_sw(t1, t0, ctx);
+        op_st_sw(t1, t0, ctx);
         opn = "swp";
         break;
 #ifdef TARGET_MIPS64
     case LDP:
         save_cpu_state(ctx, 0);
-        op_ldst_ld(t1, t0, ctx);
+        op_ld_ld(t1, t0, ctx);
         gen_store_gpr(t1, rd);
         tcg_gen_movi_tl(t1, 8);
         gen_op_addr_add(ctx, t0, t0, t1);
-        op_ldst_ld(t1, t0, ctx);
+        op_ld_ld(t1, t0, ctx);
         gen_store_gpr(t1, rd+1);
         opn = "ldp";
         break;
     case SDP:
         save_cpu_state(ctx, 1);
         gen_load_gpr(t1, rd);
-        op_ldst_sd(t1, t0, ctx);
+        op_st_sd(t1, t0, ctx);
         tcg_gen_movi_tl(t1, 8);
         gen_op_addr_add(ctx, t0, t0, t1);
         gen_load_gpr(t1, rd+1);
-        op_ldst_sd(t1, t0, ctx);
+        op_st_sd(t1, t0, ctx);
         opn = "sdp";
         break;
 #endif
@@ -10798,40 +10812,44 @@ static void decode_micromips32_opc (CPUState *env, DisasContext *ctx,
         switch (minor) {
         case LWL:
             mips32_op = OPC_LWL;
-            goto do_ldst_lr;
+            goto do_ld_lr;
         case SWL:
             mips32_op = OPC_SWL;
-            goto do_ldst_lr;
+            goto do_st_lr;
         case LWR:
             mips32_op = OPC_LWR;
-            goto do_ldst_lr;
+            goto do_ld_lr;
         case SWR:
             mips32_op = OPC_SWR;
-            goto do_ldst_lr;
+            goto do_st_lr;
 #if defined(TARGET_MIPS64)
         case LDL:
             mips32_op = OPC_LDL;
-            goto do_ldst_lr;
+            goto do_ld_lr;
         case SDL:
             mips32_op = OPC_SDL;
-            goto do_ldst_lr;
+            goto do_st_lr;
         case LDR:
             mips32_op = OPC_LDR;
-            goto do_ldst_lr;
+            goto do_ld_lr;
         case SDR:
             mips32_op = OPC_SDR;
-            goto do_ldst_lr;
+            goto do_st_lr;
         case LWU:
             mips32_op = OPC_LWU;
-            goto do_ldst_lr;
+            goto do_ld_lr;
         case LLD:
             mips32_op = OPC_LLD;
-            goto do_ldst_lr;
+            goto do_ld_lr;
 #endif
         case LL:
             mips32_op = OPC_LL;
-        do_ldst_lr:
-            gen_ldst(ctx, mips32_op, rt, rs, SIMM(ctx->opcode, 0, 12));
+            goto do_ld_lr;
+        do_ld_lr:
+            gen_ld(ctx, mips32_op, rt, rs, SIMM(ctx->opcode, 0, 12));
+            break;
+        do_st_lr:
+            gen_st(ctx, mips32_op, rt, rs, SIMM(ctx->opcode, 0, 12));
             break;
         case SC:
             gen_st_cond(ctx, OPC_SC, rt, rs, SIMM(ctx->opcode, 0, 12));
@@ -10935,37 +10953,41 @@ static void decode_micromips32_opc (CPUState *env, DisasContext *ctx,
         /* Loads and stores */
     case LB32:
         mips32_op = OPC_LB;
-        goto do_ldst;
+        goto do_ld;
     case LBU32:
         mips32_op = OPC_LBU;
-        goto do_ldst;
+        goto do_ld;
     case LH32:
         mips32_op = OPC_LH;
-        goto do_ldst;
+        goto do_ld;
     case LHU32:
         mips32_op = OPC_LHU;
-        goto do_ldst;
+        goto do_ld;
     case LW32:
         mips32_op = OPC_LW;
-        goto do_ldst;
+        goto do_ld;
 #ifdef TARGET_MIPS64
     case LD32:
         mips32_op = OPC_LD;
-        goto do_ldst;
+        goto do_ld;
     case SD32:
         mips32_op = OPC_SD;
-        goto do_ldst;
+        goto do_st;
 #endif
     case SB32:
         mips32_op = OPC_SB;
-        goto do_ldst;
+        goto do_st;
     case SH32:
         mips32_op = OPC_SH;
-        goto do_ldst;
+        goto do_st;
     case SW32:
         mips32_op = OPC_SW;
-    do_ldst:
-        gen_ldst(ctx, mips32_op, rt, rs, imm);
+        goto do_st;
+    do_ld:
+        gen_ld(ctx, mips32_op, rt, rs, imm);
+        break;
+    do_st:
+        gen_st(ctx, mips32_op, rt, rs, imm);
         break;
     default:
         generate_exception(ctx, EXCP_RI);
@@ -11115,7 +11137,7 @@ static int decode_micromips_opc (CPUState *env, DisasContext *ctx, int *is_branc
             int rb = 28;            /* GP */
             int16_t offset = SIMM(ctx->opcode, 0, 7) << 2;
 
-            gen_ldst(ctx, OPC_LW, rd, rb, offset);
+            gen_ld(ctx, OPC_LW, rd, rb, offset);
         }
         break;
     case POOL16F:
@@ -11147,7 +11169,7 @@ static int decode_micromips_opc (CPUState *env, DisasContext *ctx, int *is_branc
             int16_t offset = ZIMM(ctx->opcode, 0, 4);
             offset = (offset == 0xf ? -1 : offset);
 
-            gen_ldst(ctx, OPC_LBU, rd, rb, offset);
+            gen_ld(ctx, OPC_LBU, rd, rb, offset);
         }
         break;
     case LHU16:
@@ -11156,7 +11178,7 @@ static int decode_micromips_opc (CPUState *env, DisasContext *ctx, int *is_branc
             int rb = mmreg(uMIPS_RS(ctx->opcode));
             int16_t offset = ZIMM(ctx->opcode, 0, 4) << 1;
 
-            gen_ldst(ctx, OPC_LHU, rd, rb, offset);
+            gen_ld(ctx, OPC_LHU, rd, rb, offset);
         }
         break;
     case LWSP16:
@@ -11165,7 +11187,7 @@ static int decode_micromips_opc (CPUState *env, DisasContext *ctx, int *is_branc
             int rb = 29;            /* SP */
             int16_t offset = ZIMM(ctx->opcode, 0, 5) << 2;
 
-            gen_ldst(ctx, OPC_LW, rd, rb, offset);
+            gen_ld(ctx, OPC_LW, rd, rb, offset);
         }
         break;
     case LW16:
@@ -11174,7 +11196,7 @@ static int decode_micromips_opc (CPUState *env, DisasContext *ctx, int *is_branc
             int rb = mmreg(uMIPS_RS(ctx->opcode));
             int16_t offset = ZIMM(ctx->opcode, 0, 4) << 2;
 
-            gen_ldst(ctx, OPC_LW, rd, rb, offset);
+            gen_ld(ctx, OPC_LW, rd, rb, offset);
         }
         break;
     case SB16:
@@ -11183,7 +11205,7 @@ static int decode_micromips_opc (CPUState *env, DisasContext *ctx, int *is_branc
             int rb = mmreg(uMIPS_RS(ctx->opcode));
             int16_t offset = ZIMM(ctx->opcode, 0, 4);
 
-            gen_ldst(ctx, OPC_SB, rd, rb, offset);
+            gen_st(ctx, OPC_SB, rd, rb, offset);
         }
         break;
     case SH16:
@@ -11192,7 +11214,7 @@ static int decode_micromips_opc (CPUState *env, DisasContext *ctx, int *is_branc
             int rb = mmreg(uMIPS_RS(ctx->opcode));
             int16_t offset = ZIMM(ctx->opcode, 0, 4) << 1;
 
-            gen_ldst(ctx, OPC_SH, rd, rb, offset);
+            gen_st(ctx, OPC_SH, rd, rb, offset);
         }
         break;
     case SWSP16:
@@ -11201,7 +11223,7 @@ static int decode_micromips_opc (CPUState *env, DisasContext *ctx, int *is_branc
             int rb = 29;            /* SP */
             int16_t offset = ZIMM(ctx->opcode, 0, 5) << 2;
 
-            gen_ldst(ctx, OPC_SW, rd, rb, offset);
+            gen_st(ctx, OPC_SW, rd, rb, offset);
         }
         break;
     case SW16:
@@ -11210,7 +11232,7 @@ static int decode_micromips_opc (CPUState *env, DisasContext *ctx, int *is_branc
             int rb = mmreg(uMIPS_RS(ctx->opcode));
             int16_t offset = ZIMM(ctx->opcode, 0, 4) << 2;
 
-            gen_ldst(ctx, OPC_SW, rd, rb, offset);
+            gen_st(ctx, OPC_SW, rd, rb, offset);
         }
         break;
     case MOVE16:
@@ -11775,10 +11797,12 @@ static void decode_opc (CPUState *env, DisasContext *ctx, int *is_branch)
          *is_branch = 1;
          break;
     case OPC_LB ... OPC_LWR: /* Load and stores */
+    case OPC_LL:
+         gen_ld(ctx, op, rt, rs, imm);
+         break;
     case OPC_SB ... OPC_SW:
     case OPC_SWR:
-    case OPC_LL:
-         gen_ldst(ctx, op, rt, rs, imm);
+         gen_st(ctx, op, rt, rs, imm);
          break;
     case OPC_SC:
          gen_st_cond(ctx, op, rt, rs, imm);
@@ -11904,13 +11928,17 @@ static void decode_opc (CPUState *env, DisasContext *ctx, int *is_branch)
     /* MIPS64 opcodes */
     case OPC_LWU:
     case OPC_LDL ... OPC_LDR:
-    case OPC_SDL ... OPC_SDR:
     case OPC_LLD:
     case OPC_LD:
+        check_insn(env, ctx, ISA_MIPS3);
+        check_mips_64(ctx);
+        gen_ld(ctx, op, rt, rs, imm);
+        break;
+    case OPC_SDL ... OPC_SDR:
     case OPC_SD:
         check_insn(env, ctx, ISA_MIPS3);
         check_mips_64(ctx);
-        gen_ldst(ctx, op, rt, rs, imm);
+        gen_st(ctx, op, rt, rs, imm);
         break;
     case OPC_SCD:
         check_insn(env, ctx, ISA_MIPS3);
