@@ -5296,6 +5296,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         break;
 
     case 0x91 ... 0x97: /* xchg R, EAX */
+    do_xchg_reg_eax:
         ot = dflag + OT_WORD;
         reg = (b & 7) | REX_B(s);
         rm = R_EAX;
@@ -6666,10 +6667,14 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         /************************/
         /* misc */
     case 0x90: /* nop */
-        /* XXX: xchg + rex handling */
         /* XXX: correct lock test for all insn */
-        if (prefixes & PREFIX_LOCK)
+        if (prefixes & PREFIX_LOCK) {
             goto illegal_op;
+        }
+        /* If REX_B is set, then this is xchg eax, r8d, not a nop.  */
+        if (REX_B(s)) {
+            goto do_xchg_reg_eax;
+        }
         if (prefixes & PREFIX_REPZ) {
             gen_svm_check_intercept(s, pc_start, SVM_EXIT_PAUSE);
         }
