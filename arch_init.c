@@ -369,8 +369,9 @@ int ram_load(QEMUFile *f, void *opaque, int version_id)
                     }
 
                     if (!block) {
-                        if (!qemu_ram_alloc(NULL, id, length))
-                            return -ENOMEM;
+                        fprintf(stderr, "Unknown ramblock \"%s\", cannot "
+                                "accept migration\n", id);
+                        return -EINVAL;
                     }
 
                     total_ram_bytes -= length;
