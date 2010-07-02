@@ -867,6 +867,9 @@ typedef struct RAMBlock {
     ram_addr_t length;
     char idstr[256];
     QLIST_ENTRY(RAMBlock) next;
+#if defined(__linux__) && !defined(TARGET_S390X)
+    int fd;
+#endif
 } RAMBlock;
 
 typedef struct RAMList {
