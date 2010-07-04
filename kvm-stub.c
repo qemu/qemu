@@ -13,6 +13,7 @@
 #include "qemu-common.h"
 #include "sysemu.h"
 #include "hw/hw.h"
+#include "exec-all.h"
 #include "gdbstub.h"
 #include "kvm.h"
 

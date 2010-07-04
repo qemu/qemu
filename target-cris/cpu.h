@@ -250,12 +250,6 @@ static inline void cpu_set_tls(CPUCRISState *env, target_ulong newtls)
 #define SFR_RW_MM_TLB_HI   env->pregs[PR_SRS]][6
 
 #include "cpu-all.h"
-#include "exec-all.h"
-
-static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
-{
-    env->pc = tb->pc;
-}
 
 static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)

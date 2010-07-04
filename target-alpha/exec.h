@@ -32,8 +32,6 @@ extern struct CPUAlphaState *env;
 register struct CPUAlphaState *env asm(AREG0);
 #endif
 
-#define PARAM(n) ((uint64_t)PARAM##n)
-#define SPARAM(n) ((int32_t)PARAM##n)
 #define FP_STATUS (env->fp_status)
 
 #include "cpu.h"
@@ -57,6 +55,11 @@ static inline int cpu_halted(CPUState *env)
         return 0;
     }
     return EXCP_HALTED;
+}
+
+static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+{
+    env->pc = tb->pc;
 }
 
 #endif /* !defined (__ALPHA_EXEC_H__) */

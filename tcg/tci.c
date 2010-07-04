@@ -19,6 +19,7 @@
 
 #include "config.h"
 #include "qemu-common.h"
+#include "exec-all.h"           /* MAX_OPC_PARAM_IARGS */
 #include "tcg-op.h"
 
 /* Marker for missing code. */

@@ -21,11 +21,6 @@ register struct CPUMIPSState *env asm(AREG0);
 #include "softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-void dump_fpu(CPUState *env);
-
-void cpu_mips_clock_init (CPUState *env);
-void cpu_mips_tlb_flush (CPUState *env, int flush_global);
-
 static inline int cpu_has_work(CPUState *env)
 {
     return (env->interrupt_request &
@@ -83,6 +78,13 @@ static inline void compute_hflags(CPUState *env)
         if (env->CP0_Status & (1 << CP0St_CU3))
             env->hflags |= MIPS_HFLAG_COP1X;
     }
+}
+
+static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+{
+    env->active_tc.PC = tb->pc;
+    env->hflags &= ~MIPS_HFLAG_BMASK;
+    env->hflags |= tb->flags & MIPS_HFLAG_BMASK;
 }
 
 #endif /* !defined(__QEMU_MIPS_EXEC_H__) */

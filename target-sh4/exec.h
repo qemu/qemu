@@ -51,4 +51,10 @@ static inline int cpu_halted(CPUState *env) {
 #include "softmmu_exec.h"
 #endif
 
+static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+{
+    env->pc = tb->pc;
+    env->flags = tb->flags;
+}
+
 #endif				/* _EXEC_SH4_H */

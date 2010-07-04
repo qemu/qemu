@@ -183,6 +183,9 @@ hw-obj-$(CONFIG_DEC_PCI) += dec_pci.o
 # PowerPC E500 boards
 hw-obj-$(CONFIG_PPCE500_PCI) += ppce500_pci.o
 
+# MIPS devices
+hw-obj-$(CONFIG_PIIX4) += piix4.o
+
 # PCI watchdog devices
 hw-obj-y += wdt_i6300esb.o
 

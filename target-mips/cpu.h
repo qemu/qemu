@@ -529,7 +529,6 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 }
 
 #include "cpu-all.h"
-#include "exec-all.h"
 
 /* Memory access type :
  * may be needed for precise access rights control and precise exceptions.
@@ -613,13 +612,6 @@ void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra);
 target_phys_addr_t cpu_mips_translate_address (CPUState *env, target_ulong address,
 		                               int rw);
 #endif
-
-static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
-{
-    env->active_tc.PC = tb->pc;
-    env->hflags &= ~MIPS_HFLAG_BMASK;
-    env->hflags |= tb->flags & MIPS_HFLAG_BMASK;
-}
 
 static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)

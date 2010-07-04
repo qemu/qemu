@@ -55,6 +55,7 @@
 #include "json-streamer.h"
 #include "json-parser.h"
 #include "osdep.h"
+#include "exec-all.h"
 
 //#define DEBUG
 //#define DEBUG_COMPLETION

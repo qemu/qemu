@@ -413,7 +413,6 @@ static inline int cpu_mmu_index (CPUState *env)
 }
 
 #include "cpu-all.h"
-#include "exec-all.h"
 
 enum {
     FEATURE_ASN    = 0x00000001,
@@ -511,11 +510,6 @@ int cpu_alpha_mtpr (CPUState *env, int iprn, uint64_t val, uint64_t *oldvalp);
 void pal_init (CPUState *env);
 void call_pal (CPUState *env);
 #endif
-
-static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
-{
-    env->pc = tb->pc;
-}
 
 static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)

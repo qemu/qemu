@@ -3,6 +3,7 @@
 #include "xen_domainbuild.h"
 #include "sysemu.h"
 #include "qemu-timer.h"
+#include "qemu-log.h"
 
 #include <xenguest.h>
 
