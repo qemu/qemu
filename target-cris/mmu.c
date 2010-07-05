@@ -135,7 +135,7 @@ static void dump_tlb(CPUState *env, int mmu)
 /* rw 0 = read, 1 = write, 2 = exec.  */
 static int cris_mmu_translate_page(struct cris_mmu_result *res,
 				   CPUState *env, uint32_t vaddr,
-				   int rw, int usermode)
+				   int rw, int usermode, int debug)
 {
 	unsigned int vpage;
 	unsigned int idx;
@@ -261,7 +261,7 @@ static int cris_mmu_translate_page(struct cris_mmu_result *res,
 		set = env->mmu_rand_lfsr & 3;
 	}
 
-	if (!match) {
+	if (!match && !debug) {
 		cris_mmu_update_rand_lfsr(env);
 
 		/* Compute index.  */
@@ -330,7 +330,7 @@ void cris_mmu_flush_pid(CPUState *env, uint32_t pid)
 
 int cris_mmu_translate(struct cris_mmu_result *res,
 		       CPUState *env, uint32_t vaddr,
-		       int rw, int mmu_idx)
+		       int rw, int mmu_idx, int debug)
 {
 	int seg;
 	int miss = 0;
@@ -357,9 +357,10 @@ int cris_mmu_translate(struct cris_mmu_result *res,
 		base = cris_mmu_translate_seg(env, seg);
                 res->phy = base | (0x0fffffff & vaddr);
 		res->prot = PAGE_BITS;
+	} else {
+		miss = cris_mmu_translate_page(res, env, vaddr, rw,
+					       is_user, debug);
 	}
-	else
-		miss = cris_mmu_translate_page(res, env, vaddr, rw, is_user);
   done:
 	env->pregs[PR_SRS] = old_srs;
 	return miss;

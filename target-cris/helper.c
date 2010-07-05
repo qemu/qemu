@@ -78,7 +78,7 @@ int cpu_cris_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 
 	D(printf ("%s addr=%x pc=%x rw=%x\n", __func__, address, env->pc, rw));
 	miss = cris_mmu_translate(&res, env, address & TARGET_PAGE_MASK,
-				  rw, mmu_idx);
+				  rw, mmu_idx, 0);
 	if (miss)
 	{
 		if (env->exception_index == EXCP_BUSFAULT)
@@ -248,25 +248,14 @@ void do_interrupt(CPUState *env)
 target_phys_addr_t cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
 {
 	uint32_t phy = addr;
-	uint32_t r_cause, r_tlb_sel, rand_lfsr;
 	struct cris_mmu_result res;
 	int miss;
 
-	/* Save MMU state.  */
-	r_tlb_sel = env->sregs[SFR_RW_MM_TLB_SEL];
-	r_cause = env->sregs[SFR_R_MM_CAUSE];
-	rand_lfsr = env->mmu_rand_lfsr;
-
-	miss = cris_mmu_translate(&res, env, addr, 0, 0);
+	miss = cris_mmu_translate(&res, env, addr, 0, 0, 1);
 	/* If D TLB misses, try I TLB.  */
 	if (miss) {
-		miss = cris_mmu_translate(&res, env, addr, 2, 0);
+		miss = cris_mmu_translate(&res, env, addr, 2, 0, 1);
 	}
-
-	/* Restore MMU state.  */
-	env->sregs[SFR_RW_MM_TLB_SEL] = r_tlb_sel;
-	env->sregs[SFR_R_MM_CAUSE] = r_cause;
-	env->mmu_rand_lfsr = rand_lfsr;
 
 	if (!miss)
 		phy = res.phy;
