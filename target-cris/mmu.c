@@ -55,6 +55,17 @@ static inline unsigned int compute_polynom(unsigned int sr)
 	return f;
 }
 
+static void cris_mmu_update_rand_lfsr(CPUState *env)
+{
+	unsigned int f;
+
+	/* Update lfsr at every fault.  */
+	f = compute_polynom(env->mmu_rand_lfsr);
+	env->mmu_rand_lfsr >>= 1;
+	env->mmu_rand_lfsr |= (f << 15);
+	env->mmu_rand_lfsr &= 0xffff;
+}
+
 static inline int cris_mmu_enabled(uint32_t rw_gc_cfg)
 {
 	return (rw_gc_cfg & 12) != 0;
@@ -251,14 +262,8 @@ static int cris_mmu_translate_page(struct cris_mmu_result *res,
 	}
 
 	if (!match) {
-		unsigned int f;
+		cris_mmu_update_rand_lfsr(env);
 
-		/* Update lfsr at every fault.  */
-		f = compute_polynom(env->mmu_rand_lfsr);
-		env->mmu_rand_lfsr >>= 1;
-		env->mmu_rand_lfsr |= (f << 15);
-		env->mmu_rand_lfsr &= 0xffff;
-		
 		/* Compute index.  */
 		idx = vpage & 15;
 
