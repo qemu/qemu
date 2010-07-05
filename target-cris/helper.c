@@ -78,7 +78,7 @@ int cpu_cris_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 
 	D(printf ("%s addr=%x pc=%x rw=%x\n", __func__, address, env->pc, rw));
 	miss = cris_mmu_translate(&res, env, address & TARGET_PAGE_MASK,
-				  rw, mmu_idx);
+				  rw, mmu_idx, 0);
 	if (miss)
 	{
 		if (env->exception_index == EXCP_BUSFAULT)
@@ -250,7 +250,13 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
 	uint32_t phy = addr;
 	struct cris_mmu_result res;
 	int miss;
-	miss = cris_mmu_translate(&res, env, addr, 0, 0);
+
+	miss = cris_mmu_translate(&res, env, addr, 0, 0, 1);
+	/* If D TLB misses, try I TLB.  */
+	if (miss) {
+		miss = cris_mmu_translate(&res, env, addr, 2, 0, 1);
+	}
+
 	if (!miss)
 		phy = res.phy;
 	D(fprintf(stderr, "%s %x -> %x\n", __func__, addr, phy));
