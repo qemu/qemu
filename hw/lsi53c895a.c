@@ -1590,8 +1590,19 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
             BADF("Immediate Arbritration not implemented\n");
         }
         if (val & LSI_SCNTL1_RST) {
-            s->sstat0 |= LSI_SSTAT0_RST;
-            lsi_script_scsi_interrupt(s, LSI_SIST0_RST, 0);
+            if (!(s->sstat0 & LSI_SSTAT0_RST)) {
+                DeviceState *dev;
+                int id;
+
+                for (id = 0; id < s->bus.ndev; id++) {
+                    if (s->bus.devs[id]) {
+                        dev = &s->bus.devs[id]->qdev;
+                        dev->info->reset(dev);
+                    }
+                }
+                s->sstat0 |= LSI_SSTAT0_RST;
+                lsi_script_scsi_interrupt(s, LSI_SIST0_RST, 0);
+            }
         } else {
             s->sstat0 &= ~LSI_SSTAT0_RST;
         }
