@@ -551,6 +551,9 @@ static int virtio_blk_init_pci(PCIDevice *pci_dev)
         return -1;
     }
     vdev = virtio_blk_init(&pci_dev->qdev, &proxy->block);
+    if (!vdev) {
+        return -1;
+    }
     vdev->nvectors = proxy->nvectors;
     virtio_init_pci(proxy, vdev,
                     PCI_VENDOR_ID_REDHAT_QUMRANET,
