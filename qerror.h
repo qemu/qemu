@@ -148,6 +148,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_QMP_BAD_INPUT_OBJECT_MEMBER \
     "{ 'class': 'QMPBadInputObjectMember', 'data': { 'member': %s, 'expected': %s } }"
 
+#define QERR_QMP_EXTRA_MEMBER \
+    "{ 'class': 'QMPExtraInputObjectMember', 'data': { 'member': %s } }"
+
 #define QERR_SET_PASSWD_FAILED \
     "{ 'class': 'SetPasswdFailed', 'data': {} }"
 

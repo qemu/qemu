@@ -1287,7 +1287,7 @@ ETEXI
         .help       = "request VM to change its memory allocation (in MB)",
         .user_print = monitor_user_noop,
         .mhandler.cmd_async = do_balloon,
-        .async      = 1,
+        .flags      = MONITOR_CMD_ASYNC,
     },
 
 STEXI
