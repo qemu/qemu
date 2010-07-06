@@ -489,7 +489,7 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf)
     s->vdev.get_config = virtio_blk_update_config;
     s->vdev.get_features = virtio_blk_get_features;
     s->vdev.reset = virtio_blk_reset;
-    s->bs = conf->dinfo->bdrv;
+    s->bs = conf->bs;
     s->conf = conf;
     s->rq = NULL;
     s->sector_mask = (s->conf->logical_block_size / BDRV_SECTOR_SIZE) - 1;
@@ -500,6 +500,7 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf)
     qemu_add_vm_change_state_handler(virtio_blk_dma_restart_cb, s);
     register_savevm("virtio-blk", virtio_blk_id++, 2,
                     virtio_blk_save, virtio_blk_load, s);
+    bdrv_set_removable(s->bs, 0);
 
     return &s->vdev;
 }

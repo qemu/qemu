@@ -805,14 +805,14 @@ static int preallocate(BlockDriverState *bs)
     while (nb_sectors) {
         num = MIN(nb_sectors, INT_MAX >> 9);
         ret = qcow2_alloc_cluster_offset(bs, offset, 0, num, &num, &meta);
-
         if (ret < 0) {
-            return -1;
+            return ret;
         }
 
-        if (qcow2_alloc_cluster_link_l2(bs, &meta) < 0) {
+        ret = qcow2_alloc_cluster_link_l2(bs, &meta);
+        if (ret < 0) {
             qcow2_free_any_clusters(bs, meta.cluster_offset, meta.nb_clusters);
-            return -1;
+            return ret;
         }
 
         /* There are no dependent requests, but we need to remove our request
@@ -833,7 +833,10 @@ static int preallocate(BlockDriverState *bs)
     if (meta.cluster_offset != 0) {
         uint8_t buf[512];
         memset(buf, 0, 512);
-        bdrv_write(bs->file, (meta.cluster_offset >> 9) + num - 1, buf, 1);
+        ret = bdrv_write(bs->file, (meta.cluster_offset >> 9) + num - 1, buf, 1);
+        if (ret < 0) {
+            return ret;
+        }
     }
 
     return 0;
@@ -1030,7 +1033,7 @@ exit:
         BlockDriver *drv = bdrv_find_format("qcow2");
         bs = bdrv_new("");
         bdrv_open(bs, filename, BDRV_O_CACHE_WB | BDRV_O_RDWR, drv);
-        preallocate(bs);
+        ret = preallocate(bs);
         bdrv_close(bs);
     }
 

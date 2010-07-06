@@ -262,7 +262,7 @@ static void s390_init(ram_addr_t ram_size,
         }
 
         dev = qdev_create((BusState *)s390_bus, "virtio-blk-s390");
-        qdev_prop_set_drive(dev, "drive", dinfo);
+        qdev_prop_set_drive_nofail(dev, "drive", dinfo->bdrv);
         qdev_init_nofail(dev);
     }
 }

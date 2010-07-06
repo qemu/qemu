@@ -97,8 +97,8 @@ static inline SCSIBus *scsi_bus_from_device(SCSIDevice *d)
     return DO_UPCAST(SCSIBus, qbus, d->qdev.parent_bus);
 }
 
-SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, DriveInfo *dinfo, int unit);
-void scsi_bus_legacy_handle_cmdline(SCSIBus *bus);
+SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockDriverState *bdrv, int unit);
+int scsi_bus_legacy_handle_cmdline(SCSIBus *bus);
 
 void scsi_dev_clear_sense(SCSIDevice *dev);
 void scsi_dev_set_sense(SCSIDevice *dev, uint8_t key);

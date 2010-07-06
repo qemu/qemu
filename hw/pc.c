@@ -25,6 +25,7 @@
 #include "pc.h"
 #include "apic.h"
 #include "fdc.h"
+#include "ide.h"
 #include "pci.h"
 #include "vmware_vga.h"
 #include "monitor.h"
@@ -275,14 +276,65 @@ static int pc_boot_set(void *opaque, const char *boot_device)
     return set_boot_dev(opaque, boot_device, 0);
 }
 
-/* hd_table must contain 4 block drivers */
+typedef struct pc_cmos_init_late_arg {
+    ISADevice *rtc_state;
+    BusState *idebus0, *idebus1;
+} pc_cmos_init_late_arg;
+
+static void pc_cmos_init_late(void *opaque)
+{
+    pc_cmos_init_late_arg *arg = opaque;
+    ISADevice *s = arg->rtc_state;
+    int val;
+    BlockDriverState *hd_table[4];
+    int i;
+
+    ide_get_bs(hd_table, arg->idebus0);
+    ide_get_bs(hd_table + 2, arg->idebus1);
+
+    rtc_set_memory(s, 0x12, (hd_table[0] ? 0xf0 : 0) | (hd_table[1] ? 0x0f : 0));
+    if (hd_table[0])
+        cmos_init_hd(0x19, 0x1b, hd_table[0], s);
+    if (hd_table[1])
+        cmos_init_hd(0x1a, 0x24, hd_table[1], s);
+
+    val = 0;
+    for (i = 0; i < 4; i++) {
+        if (hd_table[i]) {
+            int cylinders, heads, sectors, translation;
+            /* NOTE: bdrv_get_geometry_hint() returns the physical
+                geometry.  It is always such that: 1 <= sects <= 63, 1
+                <= heads <= 16, 1 <= cylinders <= 16383. The BIOS
+                geometry can be different if a translation is done. */
+            translation = bdrv_get_translation_hint(hd_table[i]);
+            if (translation == BIOS_ATA_TRANSLATION_AUTO) {
+                bdrv_get_geometry_hint(hd_table[i], &cylinders, &heads, &sectors);
+                if (cylinders <= 1024 && heads <= 16 && sectors <= 63) {
+                    /* No translation. */
+                    translation = 0;
+                } else {
+                    /* LBA translation. */
+                    translation = 1;
+                }
+            } else {
+                translation--;
+            }
+            val |= translation << (i * 2);
+        }
+    }
+    rtc_set_memory(s, 0x39, val);
+
+    qemu_unregister_reset(pc_cmos_init_late, opaque);
+}
+
 void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
-                  const char *boot_device, DriveInfo **hd_table,
+                  const char *boot_device,
+                  BusState *idebus0, BusState *idebus1,
                   FDCtrl *floppy_controller, ISADevice *s)
 {
     int val;
     int fd0, fd1, nb;
-    int i;
+    static pc_cmos_init_late_arg arg;
 
     /* various important CMOS locations needed by PC/Bochs bios */
 
@@ -351,38 +403,10 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
     rtc_set_memory(s, REG_EQUIPMENT_BYTE, val);
 
     /* hard drives */
-
-    rtc_set_memory(s, 0x12, (hd_table[0] ? 0xf0 : 0) | (hd_table[1] ? 0x0f : 0));
-    if (hd_table[0])
-        cmos_init_hd(0x19, 0x1b, hd_table[0]->bdrv, s);
-    if (hd_table[1])
-        cmos_init_hd(0x1a, 0x24, hd_table[1]->bdrv, s);
-
-    val = 0;
-    for (i = 0; i < 4; i++) {
-        if (hd_table[i]) {
-            int cylinders, heads, sectors, translation;
-            /* NOTE: bdrv_get_geometry_hint() returns the physical
-                geometry.  It is always such that: 1 <= sects <= 63, 1
-                <= heads <= 16, 1 <= cylinders <= 16383. The BIOS
-                geometry can be different if a translation is done. */
-            translation = bdrv_get_translation_hint(hd_table[i]->bdrv);
-            if (translation == BIOS_ATA_TRANSLATION_AUTO) {
-                bdrv_get_geometry_hint(hd_table[i]->bdrv, &cylinders, &heads, &sectors);
-                if (cylinders <= 1024 && heads <= 16 && sectors <= 63) {
-                    /* No translation. */
-                    translation = 0;
-                } else {
-                    /* LBA translation. */
-                    translation = 1;
-                }
-            } else {
-                translation--;
-            }
-            val |= translation << (i * 2);
-        }
-    }
-    rtc_set_memory(s, 0x39, val);
+    arg.rtc_state = s;
+    arg.idebus0 = idebus0;
+    arg.idebus1 = idebus1;
+    qemu_register_reset(pc_cmos_init_late, &arg);
 }
 
 static void handle_a20_line_change(void *opaque, int irq, int level)

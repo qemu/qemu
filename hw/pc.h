@@ -104,7 +104,8 @@ void pc_init_ne2k_isa(NICInfo *nd);
 void pc_audio_init (PCIBus *pci_bus, qemu_irq *pic);
 #endif
 void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
-                  const char *boot_device, DriveInfo **hd_table,
+                  const char *boot_device,
+                  BusState *ide0, BusState *ide1,
                   FDCtrl *floppy_controller, ISADevice *s);
 void pc_pci_device_init(PCIBus *pci_bus);
 

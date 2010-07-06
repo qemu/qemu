@@ -17,6 +17,29 @@
 
 static QTAILQ_HEAD(drivelist, DriveInfo) drives = QTAILQ_HEAD_INITIALIZER(drives);
 
+/*
+ * We automatically delete the drive when a device using it gets
+ * unplugged.  Questionable feature, but we can't just drop it.
+ * Device models call blockdev_mark_auto_del() to schedule the
+ * automatic deletion, and generic qdev code calls blockdev_auto_del()
+ * when deletion is actually safe.
+ */
+void blockdev_mark_auto_del(BlockDriverState *bs)
+{
+    DriveInfo *dinfo = drive_get_by_blockdev(bs);
+
+    dinfo->auto_del = 1;
+}
+
+void blockdev_auto_del(BlockDriverState *bs)
+{
+    DriveInfo *dinfo = drive_get_by_blockdev(bs);
+
+    if (dinfo->auto_del) {
+        drive_uninit(dinfo);
+    }
+}
+
 QemuOpts *drive_add(const char *file, const char *fmt, ...)
 {
     va_list ap;
@@ -52,18 +75,6 @@ DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit)
     return NULL;
 }
 
-DriveInfo *drive_get_by_id(const char *id)
-{
-    DriveInfo *dinfo;
-
-    QTAILQ_FOREACH(dinfo, &drives, next) {
-        if (strcmp(id, dinfo->id))
-            continue;
-        return dinfo;
-    }
-    return NULL;
-}
-
 int drive_get_max_bus(BlockInterfaceType type)
 {
     int max_bus;
@@ -78,16 +89,16 @@ int drive_get_max_bus(BlockInterfaceType type)
     return max_bus;
 }
 
-const char *drive_get_serial(BlockDriverState *bdrv)
+DriveInfo *drive_get_by_blockdev(BlockDriverState *bs)
 {
     DriveInfo *dinfo;
 
     QTAILQ_FOREACH(dinfo, &drives, next) {
-        if (dinfo->bdrv == bdrv)
-            return dinfo->serial;
+        if (dinfo->bdrv == bs) {
+            return dinfo;
+        }
     }
-
-    return "\0";
+    return NULL;
 }
 
 static void bdrv_format_print(void *opaque, const char *name)

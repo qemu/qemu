@@ -63,6 +63,9 @@ static QTAILQ_HEAD(, BlockDriverState) bdrv_states =
 static QLIST_HEAD(, BlockDriver) bdrv_drivers =
     QLIST_HEAD_INITIALIZER(bdrv_drivers);
 
+/* The device to use for VM snapshots */
+static BlockDriverState *bs_snapshots;
+
 /* If non-zero, use only whitelisted block drivers */
 static int use_bdrv_whitelist;
 
@@ -288,23 +291,30 @@ BlockDriver *bdrv_find_protocol(const char *filename)
     char protocol[128];
     int len;
     const char *p;
-    int is_drive;
 
     /* TODO Drivers without bdrv_file_open must be specified explicitly */
 
-#ifdef _WIN32
-    is_drive = is_windows_drive(filename) ||
-        is_windows_drive_prefix(filename);
-#else
-    is_drive = 0;
-#endif
-    p = strchr(filename, ':');
-    if (!p || is_drive) {
-        drv1 = find_hdev_driver(filename);
-        if (!drv1) {
-            drv1 = bdrv_find_format("file");
-        }
+    /*
+     * XXX(hch): we really should not let host device detection
+     * override an explicit protocol specification, but moving this
+     * later breaks access to device names with colons in them.
+     * Thanks to the brain-dead persistent naming schemes on udev-
+     * based Linux systems those actually are quite common.
+     */
+    drv1 = find_hdev_driver(filename);
+    if (drv1) {
         return drv1;
+    }
+
+#ifdef _WIN32
+     if (is_windows_drive(filename) ||
+         is_windows_drive_prefix(filename))
+         return bdrv_find_format("file");
+#endif
+
+    p = strchr(filename, ':');
+    if (!p) {
+        return bdrv_find_format("file");
     }
     len = p - filename;
     if (len > sizeof(protocol) - 1)
@@ -393,7 +403,6 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
 
     bs->file = NULL;
     bs->total_sectors = 0;
-    bs->is_temporary = 0;
     bs->encrypted = 0;
     bs->valid_key = 0;
     bs->open_flags = flags;
@@ -623,6 +632,9 @@ unlink_and_fail:
 void bdrv_close(BlockDriverState *bs)
 {
     if (bs->drv) {
+        if (bs == bs_snapshots) {
+            bs_snapshots = NULL;
+        }
         if (bs->backing_hd) {
             bdrv_delete(bs->backing_hd);
             bs->backing_hd = NULL;
@@ -659,6 +671,8 @@ void bdrv_close_all(void)
 
 void bdrv_delete(BlockDriverState *bs)
 {
+    assert(!bs->peer);
+
     /* remove from list, if necessary */
     if (bs->device_name[0] != '\0') {
         QTAILQ_REMOVE(&bdrv_states, bs, list);
@@ -669,7 +683,28 @@ void bdrv_delete(BlockDriverState *bs)
         bdrv_delete(bs->file);
     }
 
+    assert(bs != bs_snapshots);
     qemu_free(bs);
+}
+
+int bdrv_attach(BlockDriverState *bs, DeviceState *qdev)
+{
+    if (bs->peer) {
+        return -EBUSY;
+    }
+    bs->peer = qdev;
+    return 0;
+}
+
+void bdrv_detach(BlockDriverState *bs, DeviceState *qdev)
+{
+    assert(bs->peer == qdev);
+    bs->peer = NULL;
+}
+
+DeviceState *bdrv_get_attached(BlockDriverState *bs)
+{
+    return bs->peer;
 }
 
 /*
@@ -1264,6 +1299,14 @@ BlockErrorAction bdrv_get_on_error(BlockDriverState *bs, int is_read)
     return is_read ? bs->on_read_error : bs->on_write_error;
 }
 
+void bdrv_set_removable(BlockDriverState *bs, int removable)
+{
+    bs->removable = removable;
+    if (removable && bs == bs_snapshots) {
+        bs_snapshots = NULL;
+    }
+}
+
 int bdrv_is_removable(BlockDriverState *bs)
 {
     return bs->removable;
@@ -1750,6 +1793,24 @@ int bdrv_can_snapshot(BlockDriverState *bs)
     return 1;
 }
 
+BlockDriverState *bdrv_snapshots(void)
+{
+    BlockDriverState *bs;
+
+    if (bs_snapshots) {
+        return bs_snapshots;
+    }
+
+    bs = NULL;
+    while ((bs = bdrv_next(bs))) {
+        if (bdrv_can_snapshot(bs)) {
+            bs_snapshots = bs;
+            return bs;
+        }
+    }
+    return NULL;
+}
+
 int bdrv_snapshot_create(BlockDriverState *bs,
                          QEMUSnapshotInfo *sn_info)
 {
@@ -1981,14 +2042,11 @@ static void multiwrite_cb(void *opaque, int ret)
 
     if (ret < 0 && !mcb->error) {
         mcb->error = ret;
-        multiwrite_user_cb(mcb);
     }
 
     mcb->num_requests--;
     if (mcb->num_requests == 0) {
-        if (mcb->error == 0) {
-            multiwrite_user_cb(mcb);
-        }
+        multiwrite_user_cb(mcb);
         qemu_free(mcb);
     }
 }
@@ -2122,8 +2180,29 @@ int bdrv_aio_multiwrite(BlockDriverState *bs, BlockRequest *reqs, int num_reqs)
     // Check for mergable requests
     num_reqs = multiwrite_merge(bs, reqs, num_reqs, mcb);
 
-    // Run the aio requests
+    /*
+     * Run the aio requests. As soon as one request can't be submitted
+     * successfully, fail all requests that are not yet submitted (we must
+     * return failure for all requests anyway)
+     *
+     * num_requests cannot be set to the right value immediately: If
+     * bdrv_aio_writev fails for some request, num_requests would be too high
+     * and therefore multiwrite_cb() would never recognize the multiwrite
+     * request as completed. We also cannot use the loop variable i to set it
+     * when the first request fails because the callback may already have been
+     * called for previously submitted requests. Thus, num_requests must be
+     * incremented for each request that is submitted.
+     *
+     * The problem that callbacks may be called early also means that we need
+     * to take care that num_requests doesn't become 0 before all requests are
+     * submitted - multiwrite_cb() would consider the multiwrite request
+     * completed. A dummy request that is "completed" by a manual call to
+     * multiwrite_cb() takes care of this.
+     */
+    mcb->num_requests = 1;
+
     for (i = 0; i < num_reqs; i++) {
+        mcb->num_requests++;
         acb = bdrv_aio_writev(bs, reqs[i].sector, reqs[i].qiov,
             reqs[i].nb_sectors, multiwrite_cb, mcb);
 
@@ -2131,22 +2210,24 @@ int bdrv_aio_multiwrite(BlockDriverState *bs, BlockRequest *reqs, int num_reqs)
             // We can only fail the whole thing if no request has been
             // submitted yet. Otherwise we'll wait for the submitted AIOs to
             // complete and report the error in the callback.
-            if (mcb->num_requests == 0) {
-                reqs[i].error = -EIO;
+            if (i == 0) {
                 goto fail;
             } else {
-                mcb->num_requests++;
                 multiwrite_cb(mcb, -EIO);
                 break;
             }
-        } else {
-            mcb->num_requests++;
         }
     }
+
+    /* Complete the dummy request */
+    multiwrite_cb(mcb, 0);
 
     return 0;
 
 fail:
+    for (i = 0; i < mcb->num_callbacks; i++) {
+        reqs[i].error = -EIO;
+    }
     qemu_free(mcb);
     return -1;
 }

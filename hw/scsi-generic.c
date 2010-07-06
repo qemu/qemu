@@ -453,7 +453,7 @@ static void scsi_destroy(SCSIDevice *d)
         r = DO_UPCAST(SCSIGenericReq, req, QTAILQ_FIRST(&s->qdev.requests));
         scsi_remove_request(r);
     }
-    drive_uninit(s->qdev.conf.dinfo);
+    blockdev_mark_auto_del(s->qdev.conf.bs);
 }
 
 static int scsi_generic_initfn(SCSIDevice *dev)
@@ -462,11 +462,11 @@ static int scsi_generic_initfn(SCSIDevice *dev)
     int sg_version;
     struct sg_scsi_id scsiid;
 
-    if (!s->qdev.conf.dinfo || !s->qdev.conf.dinfo->bdrv) {
+    if (!s->qdev.conf.bs) {
         error_report("scsi-generic: drive property not set");
         return -1;
     }
-    s->bs = s->qdev.conf.dinfo->bdrv;
+    s->bs = s->qdev.conf.bs;
 
     /* check we are really using a /dev/sg* file */
     if (!bdrv_is_sg(s->bs)) {
@@ -509,6 +509,7 @@ static int scsi_generic_initfn(SCSIDevice *dev)
     DPRINTF("block size %d\n", s->qdev.blocksize);
     s->driver_status = 0;
     memset(s->sensebuf, 0, sizeof(s->sensebuf));
+    bdrv_set_removable(s->bs, 0);
     return 0;
 }
 
