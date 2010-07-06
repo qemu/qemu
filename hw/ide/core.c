@@ -26,6 +26,7 @@
 #include <hw/pc.h>
 #include <hw/pci.h>
 #include <hw/scsi.h>
+#include "qemu-error.h"
 #include "qemu-timer.h"
 #include "sysemu.h"
 #include "dma.h"
@@ -292,7 +293,7 @@ static void ide_set_signature(IDEState *s)
     /* put signature */
     s->nsector = 1;
     s->sector = 1;
-    if (s->is_cdrom) {
+    if (s->drive_kind == IDE_CD) {
         s->lcyl = 0x14;
         s->hcyl = 0xeb;
     } else if (s->bs) {
@@ -1827,15 +1828,15 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 
         switch(val) {
         case WIN_IDENTIFY:
-            if (s->bs && !s->is_cdrom) {
-                if (!s->is_cf)
+            if (s->bs && s->drive_kind != IDE_CD) {
+                if (s->drive_kind != IDE_CFATA)
                     ide_identify(s);
                 else
                     ide_cfata_identify(s);
                 s->status = READY_STAT | SEEK_STAT;
                 ide_transfer_start(s, s->io_buffer, 512, ide_transfer_stop);
             } else {
-                if (s->is_cdrom) {
+                if (s->drive_kind == IDE_CD) {
                     ide_set_signature(s);
                 }
                 ide_abort_command(s);
@@ -1849,7 +1850,7 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             ide_set_irq(s->bus);
             break;
         case WIN_SETMULT:
-            if (s->is_cf && s->nsector == 0) {
+            if (s->drive_kind == IDE_CFATA && s->nsector == 0) {
                 /* Disable Read and Write Multiple */
                 s->mult_sectors = 0;
                 s->status = READY_STAT | SEEK_STAT;
@@ -2033,7 +2034,7 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             ide_set_irq(s->bus);
             break;
         case WIN_SEEK:
-            if(s->is_cdrom)
+            if(s->drive_kind == IDE_CD)
                 goto abort_cmd;
             /* XXX: Check that seek is within bounds */
             s->status = READY_STAT | SEEK_STAT;
@@ -2041,7 +2042,7 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             break;
             /* ATAPI commands */
         case WIN_PIDENTIFY:
-            if (s->is_cdrom) {
+            if (s->drive_kind == IDE_CD) {
                 ide_atapi_identify(s);
                 s->status = READY_STAT | SEEK_STAT;
                 ide_transfer_start(s, s->io_buffer, 512, ide_transfer_stop);
@@ -2052,7 +2053,7 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             break;
         case WIN_DIAGNOSE:
             ide_set_signature(s);
-            if (s->is_cdrom)
+            if (s->drive_kind == IDE_CD)
                 s->status = 0; /* ATAPI spec (v6) section 9.10 defines packet
                                 * devices to return a clear status register
                                 * with READY_STAT *not* set. */
@@ -2064,14 +2065,14 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             ide_set_irq(s->bus);
             break;
         case WIN_SRST:
-            if (!s->is_cdrom)
+            if (s->drive_kind != IDE_CD)
                 goto abort_cmd;
             ide_set_signature(s);
             s->status = 0x00; /* NOTE: READY is _not_ set */
             s->error = 0x01;
             break;
         case WIN_PACKETCMD:
-            if (!s->is_cdrom)
+            if (s->drive_kind != IDE_CD)
                 goto abort_cmd;
             /* overlapping commands not supported */
             if (s->feature & 0x02)
@@ -2084,7 +2085,7 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             break;
         /* CF-ATA commands */
         case CFA_REQ_EXT_ERROR_CODE:
-            if (!s->is_cf)
+            if (s->drive_kind != IDE_CFATA)
                 goto abort_cmd;
             s->error = 0x09;    /* miscellaneous error */
             s->status = READY_STAT | SEEK_STAT;
@@ -2092,7 +2093,7 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             break;
         case CFA_ERASE_SECTORS:
         case CFA_WEAR_LEVEL:
-            if (!s->is_cf)
+            if (s->drive_kind != IDE_CFATA)
                 goto abort_cmd;
             if (val == CFA_WEAR_LEVEL)
                 s->nsector = 0;
@@ -2103,7 +2104,7 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             ide_set_irq(s->bus);
             break;
         case CFA_TRANSLATE_SECTOR:
-            if (!s->is_cf)
+            if (s->drive_kind != IDE_CFATA)
                 goto abort_cmd;
             s->error = 0x00;
             s->status = READY_STAT | SEEK_STAT;
@@ -2123,7 +2124,7 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             ide_set_irq(s->bus);
             break;
         case CFA_ACCESS_METADATA_STORAGE:
-            if (!s->is_cf)
+            if (s->drive_kind != IDE_CFATA)
                 goto abort_cmd;
             switch (s->feature) {
             case 0x02:	/* Inquiry Metadata Storage */
@@ -2143,7 +2144,7 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             ide_set_irq(s->bus);
             break;
         case IBM_SENSE_CONDITION:
-            if (!s->is_cf)
+            if (s->drive_kind != IDE_CFATA)
                 goto abort_cmd;
             switch (s->feature) {
             case 0x01:  /* sense temperature in device */
@@ -2157,7 +2158,7 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             break;
 
 	case WIN_SMART:
-	    if (s->is_cdrom)
+	    if (s->drive_kind == IDE_CD)
 		goto abort_cmd;
 	    if (s->hcyl != 0xc2 || s->lcyl != 0x4f)
 		goto abort_cmd;
@@ -2438,7 +2439,7 @@ void ide_cmd_write(void *opaque, uint32_t addr, uint32_t val)
         /* high to low */
         for(i = 0;i < 2; i++) {
             s = &bus->ifs[i];
-            if (s->is_cdrom)
+            if (s->drive_kind == IDE_CD)
                 s->status = 0x00; /* NOTE: READY is _not_ set */
             else
                 s->status = READY_STAT | SEEK_STAT;
@@ -2540,7 +2541,7 @@ static void ide_reset(IDEState *s)
 #ifdef DEBUG_IDE
     printf("ide: reset\n");
 #endif
-    if (s->is_cf)
+    if (s->drive_kind == IDE_CFATA)
         s->mult_sectors = 0;
     else
         s->mult_sectors = MAX_MULT_SECTORS;
@@ -2594,8 +2595,8 @@ void ide_bus_reset(IDEBus *bus)
     ide_clear_hob(bus);
 }
 
-void ide_init_drive(IDEState *s, BlockDriverState *bs,
-                    const char *version, const char *serial)
+int ide_init_drive(IDEState *s, BlockDriverState *bs,
+                   const char *version, const char *serial)
 {
     int cylinders, heads, secs;
     uint64_t nb_sectors;
@@ -2603,6 +2604,18 @@ void ide_init_drive(IDEState *s, BlockDriverState *bs,
     s->bs = bs;
     bdrv_get_geometry(bs, &nb_sectors);
     bdrv_guess_geometry(bs, &cylinders, &heads, &secs);
+    if (cylinders < 1 || cylinders > 16383) {
+        error_report("cyls must be between 1 and 16383");
+        return -1;
+    }
+    if (heads < 1 || heads > 16) {
+        error_report("heads must be between 1 and 16");
+        return -1;
+    }
+    if (secs < 1 || secs > 63) {
+        error_report("secs must be between 1 and 63");
+        return -1;
+    }
     s->cylinders = cylinders;
     s->heads = heads;
     s->sectors = secs;
@@ -2614,8 +2627,13 @@ void ide_init_drive(IDEState *s, BlockDriverState *bs,
     s->smart_errors = 0;
     s->smart_selftest_count = 0;
     if (bdrv_get_type_hint(bs) == BDRV_TYPE_CDROM) {
-        s->is_cdrom = 1;
+        s->drive_kind = IDE_CD;
         bdrv_set_change_cb(bs, cdrom_change_cb, s);
+    } else {
+        if (bdrv_is_read_only(bs)) {
+            error_report("Can't use a read-only drive");
+            return -1;
+        }
     }
     if (serial) {
         strncpy(s->drive_serial_str, serial, sizeof(s->drive_serial_str));
@@ -2629,7 +2647,8 @@ void ide_init_drive(IDEState *s, BlockDriverState *bs,
         pstrcpy(s->version, sizeof(s->version), QEMU_VERSION);
     }
     ide_reset(s);
-    bdrv_set_removable(bs, s->is_cdrom);
+    bdrv_set_removable(bs, s->drive_kind == IDE_CD);
+    return 0;
 }
 
 static void ide_init1(IDEBus *bus, int unit)
@@ -2669,8 +2688,11 @@ void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
         dinfo = i == 0 ? hd0 : hd1;
         ide_init1(bus, i);
         if (dinfo) {
-            ide_init_drive(&bus->ifs[i], dinfo->bdrv, NULL,
-                           *dinfo->serial ? dinfo->serial : NULL);
+            if (ide_init_drive(&bus->ifs[i], dinfo->bdrv, NULL,
+                               *dinfo->serial ? dinfo->serial : NULL) < 0) {
+                error_report("Can't set up IDE drive %s", dinfo->id);
+                exit(1);
+            }
         } else {
             ide_reset(&bus->ifs[i]);
         }

@@ -1059,6 +1059,11 @@ static int scsi_disk_initfn(SCSIDevice *dev)
     s->bs = s->qdev.conf.bs;
     is_cd = bdrv_get_type_hint(s->bs) == BDRV_TYPE_CDROM;
 
+    if (bdrv_get_on_error(s->bs, 1) != BLOCK_ERR_REPORT) {
+        error_report("Device doesn't support drive option rerror");
+        return -1;
+    }
+
     if (!s->serial) {
         /* try to fall back to value set with legacy -drive serial=... */
         dinfo = drive_get_by_blockdev(s->bs);

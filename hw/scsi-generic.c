@@ -474,6 +474,15 @@ static int scsi_generic_initfn(SCSIDevice *dev)
         return -1;
     }
 
+    if (bdrv_get_on_error(s->bs, 0) != BLOCK_ERR_STOP_ENOSPC) {
+        error_report("Device doesn't support drive option werror");
+        return -1;
+    }
+    if (bdrv_get_on_error(s->bs, 1) != BLOCK_ERR_REPORT) {
+        error_report("Device doesn't support drive option rerror");
+        return -1;
+    }
+
     /* check we are using a driver managing SG_IO (version 3 and after */
     if (bdrv_ioctl(s->bs, SG_GET_VERSION_NUM, &sg_version) < 0 ||
         sg_version < 30000) {

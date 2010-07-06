@@ -291,11 +291,10 @@ static void vdi_header_print(VdiHeader *header)
 }
 #endif
 
-static int vdi_check(BlockDriverState *bs)
+static int vdi_check(BlockDriverState *bs, BdrvCheckResult *res)
 {
     /* TODO: additional checks possible. */
     BDRVVdiState *s = (BDRVVdiState *)bs->opaque;
-    int n_errors = 0;
     uint32_t blocks_allocated = 0;
     uint32_t block;
     uint32_t *bmap;
@@ -315,11 +314,12 @@ static int vdi_check(BlockDriverState *bs)
                 } else {
                     fprintf(stderr, "ERROR: block index %" PRIu32
                             " also used by %" PRIu32 "\n", bmap[bmap_entry], bmap_entry);
+                    res->corruptions++;
                 }
             } else {
                 fprintf(stderr, "ERROR: block index %" PRIu32
                         " too large, is %" PRIu32 "\n", block, bmap_entry);
-                n_errors++;
+                res->corruptions++;
             }
         }
     }
@@ -327,12 +327,12 @@ static int vdi_check(BlockDriverState *bs)
         fprintf(stderr, "ERROR: allocated blocks mismatch, is %" PRIu32
                ", should be %" PRIu32 "\n",
                blocks_allocated, s->header.blocks_allocated);
-        n_errors++;
+        res->corruptions++;
     }
 
     qemu_free(bmap);
 
-    return n_errors;
+    return 0;
 }
 
 static int vdi_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)

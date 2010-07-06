@@ -710,15 +710,18 @@ DeviceState *bdrv_get_attached(BlockDriverState *bs)
 /*
  * Run consistency checks on an image
  *
- * Returns the number of errors or -errno when an internal error occurs
+ * Returns 0 if the check could be completed (it doesn't mean that the image is
+ * free of errors) or -errno when an internal error occured. The results of the
+ * check are stored in res.
  */
-int bdrv_check(BlockDriverState *bs)
+int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res)
 {
     if (bs->drv->bdrv_check == NULL) {
         return -ENOTSUP;
     }
 
-    return bs->drv->bdrv_check(bs);
+    memset(res, 0, sizeof(*res));
+    return bs->drv->bdrv_check(bs, res);
 }
 
 /* commit COW file into the raw image */

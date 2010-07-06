@@ -59,6 +59,9 @@ struct virtio_blk_config
 /* Flush the volatile write cache */
 #define VIRTIO_BLK_T_FLUSH      4
 
+/* return the device ID string */
+#define VIRTIO_BLK_T_GET_ID     8
+
 /* Barrier before this op. */
 #define VIRTIO_BLK_T_BARRIER    0x80000000
 

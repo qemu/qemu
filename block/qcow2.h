@@ -185,7 +185,7 @@ void qcow2_create_refcount_update(QCowCreateState *s, int64_t offset,
 int qcow2_update_snapshot_refcount(BlockDriverState *bs,
     int64_t l1_table_offset, int l1_size, int addend);
 
-int qcow2_check_refcounts(BlockDriverState *bs);
+int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res);
 
 /* qcow2-cluster.c functions */
 int qcow2_grow_l1_table(BlockDriverState *bs, int min_size);

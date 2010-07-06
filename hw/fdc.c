@@ -29,6 +29,7 @@
 
 #include "hw.h"
 #include "fdc.h"
+#include "qemu-error.h"
 #include "qemu-timer.h"
 #include "isa.h"
 #include "sysbus.h"
@@ -1844,7 +1845,7 @@ static void fdctrl_result_timer(void *opaque)
 }
 
 /* Init functions */
-static void fdctrl_connect_drives(FDCtrl *fdctrl)
+static int fdctrl_connect_drives(FDCtrl *fdctrl)
 {
     unsigned int i;
     FDrive *drive;
@@ -1852,12 +1853,24 @@ static void fdctrl_connect_drives(FDCtrl *fdctrl)
     for (i = 0; i < MAX_FD; i++) {
         drive = &fdctrl->drives[i];
 
+        if (drive->bs) {
+            if (bdrv_get_on_error(drive->bs, 0) != BLOCK_ERR_STOP_ENOSPC) {
+                error_report("fdc doesn't support drive option werror");
+                return -1;
+            }
+            if (bdrv_get_on_error(drive->bs, 1) != BLOCK_ERR_REPORT) {
+                error_report("fdc doesn't support drive option rerror");
+                return -1;
+            }
+        }
+
         fd_init(drive);
         fd_revalidate(drive);
         if (drive->bs) {
             bdrv_set_removable(drive->bs, 1);
         }
     }
+    return 0;
 }
 
 FDCtrl *fdctrl_init_isa(DriveInfo **fds)
@@ -1871,8 +1884,7 @@ FDCtrl *fdctrl_init_isa(DriveInfo **fds)
     if (fds[1]) {
         qdev_prop_set_drive_nofail(&dev->qdev, "driveB", fds[1]->bdrv);
     }
-    if (qdev_init(&dev->qdev) < 0)
-        return NULL;
+    qdev_init_nofail(&dev->qdev);
     return &(DO_UPCAST(FDCtrlISABus, busdev, dev)->state);
 }
 
@@ -1950,9 +1962,7 @@ static int fdctrl_init_common(FDCtrl *fdctrl)
 
     if (fdctrl->dma_chann != -1)
         DMA_register_channel(fdctrl->dma_chann, &fdctrl_transfer_handler, fdctrl);
-    fdctrl_connect_drives(fdctrl);
-
-    return 0;
+    return fdctrl_connect_drives(fdctrl);
 }
 
 static int isabus_fdc_init1(ISADevice *dev)
