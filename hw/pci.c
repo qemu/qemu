@@ -1568,7 +1568,9 @@ static void pci_bridge_write_config(PCIDevice *d,
         /* memory base/limit, prefetchable base/limit and
            io base/limit upper 16 */
         ranges_overlap(address, len, PCI_MEMORY_BASE, 20)) {
-        pci_bridge_update_mappings(d->bus);
+        PCIBridge *s = container_of(d, PCIBridge, dev);
+        PCIBus *secondary_bus = &s->bus;
+        pci_bridge_update_mappings(secondary_bus);
     }
 }
 
