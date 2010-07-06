@@ -71,7 +71,9 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags);
 int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
               BlockDriver *drv);
 void bdrv_close(BlockDriverState *bs);
-int bdrv_check(BlockDriverState *bs);
+int bdrv_attach(BlockDriverState *bs, DeviceState *qdev);
+void bdrv_detach(BlockDriverState *bs, DeviceState *qdev);
+DeviceState *bdrv_get_attached(BlockDriverState *bs);
 int bdrv_read(BlockDriverState *bs, int64_t sector_num,
               uint8_t *buf, int nb_sectors);
 int bdrv_write(BlockDriverState *bs, int64_t sector_num,
@@ -93,6 +95,15 @@ void bdrv_commit_all(void);
 int bdrv_change_backing_file(BlockDriverState *bs,
     const char *backing_file, const char *backing_fmt);
 void bdrv_register(BlockDriver *bdrv);
+
+
+typedef struct BdrvCheckResult {
+    int corruptions;
+    int leaks;
+    int check_errors;
+} BdrvCheckResult;
+
+int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res);
 
 /* async block I/O */
 typedef struct BlockDriverAIOCB BlockDriverAIOCB;
@@ -159,6 +170,7 @@ int bdrv_get_translation_hint(BlockDriverState *bs);
 void bdrv_set_on_error(BlockDriverState *bs, BlockErrorAction on_read_error,
                        BlockErrorAction on_write_error);
 BlockErrorAction bdrv_get_on_error(BlockDriverState *bs, int is_read);
+void bdrv_set_removable(BlockDriverState *bs, int removable);
 int bdrv_is_removable(BlockDriverState *bs);
 int bdrv_is_read_only(BlockDriverState *bs);
 int bdrv_is_sg(BlockDriverState *bs);
@@ -190,6 +202,7 @@ const char *bdrv_get_encrypted_filename(BlockDriverState *bs);
 void bdrv_get_backing_filename(BlockDriverState *bs,
                                char *filename, int filename_size);
 int bdrv_can_snapshot(BlockDriverState *bs);
+BlockDriverState *bdrv_snapshots(void);
 int bdrv_snapshot_create(BlockDriverState *bs,
                          QEMUSnapshotInfo *sn_info);
 int bdrv_snapshot_goto(BlockDriverState *bs,

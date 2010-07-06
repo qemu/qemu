@@ -668,7 +668,9 @@ ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
             unsigned int bank_size = sdram_bank_sizes[j];
 
             if (bank_size <= size_left) {
-                ram_bases[i] = qemu_ram_alloc(bank_size);
+                char name[32];
+                snprintf(name, sizeof(name), "ppc4xx.sdram%d", i);
+                ram_bases[i] = qemu_ram_alloc(NULL, name, bank_size);
                 ram_sizes[i] = bank_size;
                 size_left -= bank_size;
                 break;

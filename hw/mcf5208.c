@@ -220,11 +220,11 @@ static void mcf5208evb_init(ram_addr_t ram_size,
 
     /* DRAM at 0x40000000 */
     cpu_register_physical_memory(0x40000000, ram_size,
-        qemu_ram_alloc(ram_size) | IO_MEM_RAM);
+        qemu_ram_alloc(NULL, "mcf5208.ram", ram_size) | IO_MEM_RAM);
 
     /* Internal SRAM.  */
     cpu_register_physical_memory(0x80000000, 16384,
-        qemu_ram_alloc(16384) | IO_MEM_RAM);
+        qemu_ram_alloc(NULL, "mcf5208.sram", 16384) | IO_MEM_RAM);
 
     /* Internal peripherals.  */
     pic = mcf_intc_init(0xfc048000, env);

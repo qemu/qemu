@@ -347,7 +347,8 @@ static int pci_Atheros_WLAN_init(PCIDevice *pci_dev)
     Atheros_WLAN_setup_ap(nd, d);
 
     /* TODO: we don't support multiple instance yet!! */
-    register_savevm("Atheros_WLAN", 0, 3, Atheros_WLAN_save, Atheros_WLAN_load, s);
+    /* TODO: replace NULL by &dev->qdev. */
+    register_savevm(NULL, "Atheros_WLAN", 0, 3, Atheros_WLAN_save, Atheros_WLAN_load, s);
 
     Atheros_WLAN_reset(nd, s);
     return 0;

@@ -510,7 +510,7 @@ static int tcx_init1(SysBusDevice *dev)
     int size;
     uint8_t *vram_base;
 
-    vram_offset = qemu_ram_alloc(s->vram_size * (1 + 4 + 4));
+    vram_offset = qemu_ram_alloc(NULL, "tcx.vram", s->vram_size * (1 + 4 + 4));
     vram_base = qemu_get_ram_ptr(vram_offset);
     s->vram_offset = vram_offset;
 

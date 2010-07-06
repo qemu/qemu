@@ -1043,26 +1043,31 @@ static void scsi_destroy(SCSIDevice *dev)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
 
     scsi_disk_purge_requests(s);
-    drive_uninit(s->qdev.conf.dinfo);
+    blockdev_mark_auto_del(s->qdev.conf.bs);
 }
 
 static int scsi_disk_initfn(SCSIDevice *dev)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
+    int is_cd;
+    DriveInfo *dinfo;
 
-    if (!s->qdev.conf.dinfo || !s->qdev.conf.dinfo->bdrv) {
+    if (!s->qdev.conf.bs) {
         error_report("scsi-disk: drive property not set");
         return -1;
     }
-    s->bs = s->qdev.conf.dinfo->bdrv;
+    s->bs = s->qdev.conf.bs;
+    is_cd = bdrv_get_type_hint(s->bs) == BDRV_TYPE_CDROM;
+
+    if (bdrv_get_on_error(s->bs, 1) != BLOCK_ERR_REPORT) {
+        error_report("Device doesn't support drive option rerror");
+        return -1;
+    }
 
     if (!s->serial) {
-        if (*dev->conf.dinfo->serial) {
-            /* try to fall back to value set with legacy -drive serial=... */
-            s->serial = qemu_strdup(dev->conf.dinfo->serial);
-        } else {
-            s->serial = qemu_strdup("0");
-        }
+        /* try to fall back to value set with legacy -drive serial=... */
+        dinfo = drive_get_by_blockdev(s->bs);
+        s->serial = qemu_strdup(*dinfo->serial ? dinfo->serial : "0");
     }
 
     if (!s->version) {
@@ -1074,7 +1079,7 @@ static int scsi_disk_initfn(SCSIDevice *dev)
         return -1;
     }
 
-    if (bdrv_get_type_hint(s->bs) == BDRV_TYPE_CDROM) {
+    if (is_cd) {
         s->qdev.blocksize = 2048;
     } else {
         s->qdev.blocksize = s->qdev.conf.logical_block_size;
@@ -1083,6 +1088,7 @@ static int scsi_disk_initfn(SCSIDevice *dev)
 
     s->qdev.type = TYPE_DISK;
     qemu_add_vm_change_state_handler(scsi_dma_restart_cb, s);
+    bdrv_set_removable(s->bs, is_cd);
     return 0;
 }
 

@@ -719,6 +719,20 @@ QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id, int fail_if_exist
     return opts;
 }
 
+void qemu_opts_reset(QemuOptsList *list)
+{
+    QemuOpts *opts, *next_opts;
+
+    QTAILQ_FOREACH_SAFE(opts, &list->head, next, next_opts) {
+        qemu_opts_del(opts);
+    }
+}
+
+void qemu_opts_loc_restore(QemuOpts *opts)
+{
+    loc_restore(&opts->loc);
+}
+
 int qemu_opts_set(QemuOptsList *list, const char *id,
                   const char *name, const char *value)
 {

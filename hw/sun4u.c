@@ -629,7 +629,7 @@ static int prom_init1(SysBusDevice *dev)
 {
     ram_addr_t prom_offset;
 
-    prom_offset = qemu_ram_alloc(PROM_SIZE_MAX);
+    prom_offset = qemu_ram_alloc(NULL, "sun4u.prom", PROM_SIZE_MAX);
     sysbus_init_mmio(dev, PROM_SIZE_MAX, prom_offset | IO_MEM_ROM);
     return 0;
 }
@@ -665,7 +665,7 @@ static int ram_init1(SysBusDevice *dev)
 
     RAM_size = d->size;
 
-    ram_offset = qemu_ram_alloc(RAM_size);
+    ram_offset = qemu_ram_alloc(NULL, "sun4u.ram", RAM_size);
     sysbus_init_mmio(dev, RAM_size, ram_offset);
     return 0;
 }

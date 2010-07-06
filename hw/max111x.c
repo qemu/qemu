@@ -143,7 +143,8 @@ static int max111x_init(SSISlave *dev, int inputs)
     s->input[7] = 0x80;
     s->com = 0;
 
-    register_savevm("max111x", -1, 0, max111x_save, max111x_load, s);
+    register_savevm(&dev->qdev, "max111x", -1, 0,
+                    max111x_save, max111x_load, s);
     return 0;
 }
 

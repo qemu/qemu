@@ -213,7 +213,8 @@ static void palmte_init(ram_addr_t ram_size,
 
     /* External Flash (EMIFS) */
     cpu_register_physical_memory(OMAP_CS0_BASE, flash_size,
-                    qemu_ram_alloc(flash_size) | IO_MEM_ROM);
+                                 qemu_ram_alloc(NULL, "palmte.flash",
+                                                flash_size) | IO_MEM_ROM);
 
     io = cpu_register_io_memory(static_readfn, static_writefn, &cs0val);
     cpu_register_physical_memory(OMAP_CS0_BASE + flash_size,

@@ -3128,7 +3128,7 @@ void isa_cirrus_vga_init(void)
     s->vga.ds = graphic_console_init(s->vga.update, s->vga.invalidate,
                                      s->vga.screen_dump, s->vga.text_update,
                                      &s->vga);
-    vmstate_register(0, &vmstate_cirrus_vga, s);
+    vmstate_register(NULL, 0, &vmstate_cirrus_vga, s);
     rom_add_vga(VGABIOS_CIRRUS_FILENAME);
     /* XXX ISA-LFB support */
 }

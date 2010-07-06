@@ -281,7 +281,7 @@ void eeprom93xx_reset(eeprom_t *eeprom)
 }
 #endif
 
-eeprom_t *eeprom93xx_new(uint16_t nwords)
+eeprom_t *eeprom93xx_new(DeviceState *dev, uint16_t nwords)
 {
     /* Add a new EEPROM (with 16, 64 or 256 words). */
     eeprom_t *eeprom;
@@ -308,15 +308,15 @@ eeprom_t *eeprom93xx_new(uint16_t nwords)
     /* Output DO is tristate, read results in 1. */
     eeprom->eedo = 1;
     logout("eeprom = 0x%p, nwords = %u\n", eeprom, nwords);
-    vmstate_register(0, &vmstate_eeprom, eeprom);
+    vmstate_register(dev, 0, &vmstate_eeprom, eeprom);
     return eeprom;
 }
 
-void eeprom93xx_free(eeprom_t *eeprom)
+void eeprom93xx_free(DeviceState *dev, eeprom_t *eeprom)
 {
     /* Destroy EEPROM. */
     logout("eeprom = 0x%p\n", eeprom);
-    vmstate_unregister(&vmstate_eeprom, eeprom);
+    vmstate_unregister(dev, &vmstate_eeprom, eeprom);
     qemu_free(eeprom);
 }
 

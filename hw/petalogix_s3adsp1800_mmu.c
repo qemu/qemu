@@ -137,14 +137,15 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
     qemu_register_reset(main_cpu_reset, env);
 
     /* Attach emulated BRAM through the LMB.  */
-    phys_lmb_bram = qemu_ram_alloc(LMB_BRAM_SIZE);
+    phys_lmb_bram = qemu_ram_alloc(NULL, "petalogix_s3adsp1800.lmb_bram",
+                                   LMB_BRAM_SIZE);
     cpu_register_physical_memory(0x00000000, LMB_BRAM_SIZE,
                                  phys_lmb_bram | IO_MEM_RAM);
 
-    phys_ram = qemu_ram_alloc(ram_size);
+    phys_ram = qemu_ram_alloc(NULL, "petalogix_s3adsp1800.ram", ram_size);
     cpu_register_physical_memory(ddr_base, ram_size, phys_ram | IO_MEM_RAM);
 
-    phys_flash = qemu_ram_alloc(FLASH_SIZE);
+    phys_flash = qemu_ram_alloc(NULL, "petalogix_s3adsp1800.flash", FLASH_SIZE);
     dinfo = drive_get(IF_PFLASH, 0, 0);
     pflash_cfi01_register(0xa0000000, phys_flash,
                           dinfo ? dinfo->bdrv : NULL, (64 * 1024),

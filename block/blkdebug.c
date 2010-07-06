@@ -111,7 +111,7 @@ static QemuOptsList inject_error_opts = {
 
 static QemuOptsList set_state_opts = {
     .name = "set-state",
-    .head = QTAILQ_HEAD_INITIALIZER(inject_error_opts.head),
+    .head = QTAILQ_HEAD_INITIALIZER(set_state_opts.head),
     .desc = {
         {
             .name = "event",
@@ -267,6 +267,8 @@ static int read_config(BDRVBlkdebugState *s, const char *filename)
 
     ret = 0;
 fail:
+    qemu_opts_reset(&inject_error_opts);
+    qemu_opts_reset(&set_state_opts);
     fclose(f);
     return ret;
 }
@@ -298,6 +300,9 @@ static int blkdebug_open(BlockDriverState *bs, const char *filename, int flags)
         return ret;
     }
     filename = c + 1;
+
+    /* Set initial state */
+    s->vars.state = 1;
 
     /* Open the backing file */
     ret = bdrv_file_open(&bs->file, filename, flags);

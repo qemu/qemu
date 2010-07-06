@@ -63,10 +63,14 @@ class QEMUMonitorProtocol:
 
     def __json_read(self):
         try:
-            return json.loads(self.sock.recv(1024))
+            while True:
+                line = json.loads(self.sockfile.readline())
+                if not 'event' in line:
+                    return line
         except ValueError:
             return
 
     def __init__(self, filename):
         self.filename = filename
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.sockfile = self.sock.makefile()

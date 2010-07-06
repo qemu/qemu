@@ -140,8 +140,8 @@ MacIONVRAMState *macio_nvram_init (int *mem_index, target_phys_addr_t size,
 
     s->mem_index = cpu_register_io_memory(nvram_read, nvram_write, s);
     *mem_index = s->mem_index;
-    register_savevm("macio_nvram", -1, 1, macio_nvram_save, macio_nvram_load,
-                    s);
+    register_savevm(NULL, "macio_nvram", -1, 1, macio_nvram_save,
+                    macio_nvram_load, s);
     qemu_register_reset(macio_nvram_reset, s);
 
     return s;

@@ -119,8 +119,11 @@ struct BlockDriver {
     QEMUOptionParameter *create_options;
 
 
-    /* Returns number of errors in image, -errno for internal errors */
-    int (*bdrv_check)(BlockDriverState* bs);
+    /*
+     * Returns 0 for completed check, -errno for internal errors.
+     * The check results are stored in result.
+     */
+    int (*bdrv_check)(BlockDriverState* bs, BdrvCheckResult *result);
 
     void (*bdrv_debug_event)(BlockDriverState *bs, BlkDebugEvent event);
 
@@ -147,6 +150,8 @@ struct BlockDriverState {
 
     BlockDriver *drv; /* NULL means no media */
     void *opaque;
+
+    DeviceState *peer;
 
     char filename[1024];
     char backing_file[1024]; /* if non zero, the image is a diff of
@@ -210,10 +215,8 @@ void *qemu_blockalign(BlockDriverState *bs, size_t size);
 int is_windows_drive(const char *filename);
 #endif
 
-struct DriveInfo;
-
 typedef struct BlockConf {
-    struct DriveInfo *dinfo;
+    BlockDriverState *bs;
     uint16_t physical_block_size;
     uint16_t logical_block_size;
     uint16_t min_io_size;
@@ -234,7 +237,7 @@ static inline unsigned int get_physical_block_exp(BlockConf *conf)
 }
 
 #define DEFINE_BLOCK_PROPERTIES(_state, _conf)                          \
-    DEFINE_PROP_DRIVE("drive", _state, _conf.dinfo),                    \
+    DEFINE_PROP_DRIVE("drive", _state, _conf.bs),                       \
     DEFINE_PROP_UINT16("logical_block_size", _state,                    \
                        _conf.logical_block_size, 512),                  \
     DEFINE_PROP_UINT16("physical_block_size", _state,                   \

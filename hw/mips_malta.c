@@ -861,8 +861,8 @@ void mips_malta_init (ram_addr_t ram_size,
 
     logout("RAM size = %d MiB\n", ram_size / MiB);
 
-    ram_offset = qemu_ram_alloc(ram_size);
-    bios_offset = qemu_ram_alloc(BIOS_SIZE);
+    ram_offset = qemu_ram_alloc(NULL, "mips_malta.ram", ram_size);
+    bios_offset = qemu_ram_alloc(NULL, "mips_malta.bios", BIOS_SIZE);
 
     cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
 
@@ -988,7 +988,7 @@ void mips_malta_init (ram_addr_t ram_size,
     /* Super I/O */
     //~ super_io_init();
     isa_dev = isa_create_simple("i8042");
- 
+
     rtc_state = rtc_init(2000, NULL);
     serial_isa_init(0, serial_hds[0]);
     serial_isa_init(1, serial_hds[1]);

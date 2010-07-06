@@ -39,7 +39,7 @@ static void dummy_m68k_init(ram_addr_t ram_size,
 
     /* RAM at address zero */
     cpu_register_physical_memory(0, ram_size,
-        qemu_ram_alloc(ram_size) | IO_MEM_RAM);
+        qemu_ram_alloc(NULL, "dummy_m68k.ram", ram_size) | IO_MEM_RAM);
 
     /* Load kernel.  */
     if (kernel_filename) {

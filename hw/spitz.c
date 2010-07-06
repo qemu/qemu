@@ -178,7 +178,7 @@ static void sl_flash_register(PXA2xxState *cpu, int size)
                     sl_writefn, s);
     cpu_register_physical_memory(FLASH_BASE, 0x40, iomemtype);
 
-    register_savevm("sl_flash", 0, 0, sl_save, sl_load, s);
+    register_savevm(NULL, "sl_flash", 0, 0, sl_save, sl_load, s);
 }
 
 /* Spitz Keyboard */
@@ -508,7 +508,7 @@ static void spitz_keyboard_register(PXA2xxState *cpu)
     spitz_keyboard_pre_map(s);
     qemu_add_kbd_event_handler((QEMUPutKBDEvent *) spitz_keyboard_handler, s);
 
-    register_savevm("spitz_keyboard", 0, 0,
+    register_savevm(NULL, "spitz_keyboard", 0, 0,
                     spitz_keyboard_save, spitz_keyboard_load, s);
 }
 
@@ -613,7 +613,7 @@ static int spitz_lcdtg_init(SSISlave *dev)
     s->bl_power = 0;
     s->bl_intensity = 0x20;
 
-    register_savevm("spitz-lcdtg", -1, 1,
+    register_savevm(&dev->qdev, "spitz-lcdtg", -1, 1,
                     spitz_lcdtg_save, spitz_lcdtg_load, s);
     return 0;
 }
@@ -708,7 +708,8 @@ static int corgi_ssp_init(SSISlave *dev)
     s->bus[1] = ssi_create_bus(&dev->qdev, "ssi1");
     s->bus[2] = ssi_create_bus(&dev->qdev, "ssi2");
 
-    register_savevm("spitz_ssp", -1, 1, spitz_ssp_save, spitz_ssp_load, s);
+    register_savevm(&dev->qdev, "spitz_ssp", -1, 1,
+                    spitz_ssp_save, spitz_ssp_load, s);
     return 0;
 }
 
@@ -961,7 +962,7 @@ static void spitz_common_init(ram_addr_t ram_size,
     sl_flash_register(cpu, (model == spitz) ? FLASH_128M : FLASH_1024M);
 
     cpu_register_physical_memory(0, SPITZ_ROM,
-                    qemu_ram_alloc(SPITZ_ROM) | IO_MEM_ROM);
+                    qemu_ram_alloc(NULL, "spitz.rom", SPITZ_ROM) | IO_MEM_ROM);
 
     /* Setup peripherals */
     spitz_keyboard_register(cpu);

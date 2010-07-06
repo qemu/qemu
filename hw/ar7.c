@@ -3881,7 +3881,7 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     loaderparams.kernel_cmdline = kernel_cmdline;
     loaderparams.initrd_filename = initrd_filename;
 
-    ram_offset = qemu_ram_alloc(machine_ram_size);
+    ram_offset = qemu_ram_alloc(NULL, "ar7.ram", machine_ram_size);
     cpu_register_physical_memory_offset(KERNEL_LOAD_ADDR, machine_ram_size, ram_offset | IO_MEM_RAM, KERNEL_LOAD_ADDR);
     fprintf(stderr, "%s: ram_size = 0x%08x\n",
         __func__, (unsigned)machine_ram_size);
@@ -3890,7 +3890,7 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     assert(ram_offset == 0);
 
     /* The AR7 processor has 4 KiB internal RAM at physical address 0x00000000. */
-    ram_offset = qemu_ram_alloc(4 * KiB);
+    ram_offset = qemu_ram_alloc(NULL, "ar7.internal", 4 * KiB);
     logout("ram_offset (internal RAM) = %x\n", (unsigned)ram_offset);
     cpu_register_physical_memory_offset(0, 4 * KiB, ram_offset | IO_MEM_RAM, 0);
 
@@ -3906,7 +3906,7 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
             flash_size = image_size;
         }
     }
-    flash_offset = qemu_ram_alloc(flash_size);
+    flash_offset = qemu_ram_alloc(NULL, "ar7.flash", flash_size);
     pflash_device_register(FLASH_ADDR, flash_offset,
                           flash_driver, flash_size, 2,
                           flash_manufacturer, flash_type, be);
@@ -3921,7 +3921,7 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
             __func__, "flashimage.bin", flash_size);
 
     /* The AR7 processor has 4 KiB internal ROM at physical address 0x1fc00000. */
-    rom_offset = qemu_ram_alloc(4 * KiB);
+    rom_offset = qemu_ram_alloc(NULL, "ar7.rom", 4 * KiB);
     cpu_register_physical_memory(PROM_ADDR,
                                  4 * KiB, rom_offset | IO_MEM_ROM);
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "mips_bios.bin");

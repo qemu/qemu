@@ -335,7 +335,7 @@ static int syborg_serial_init(SysBusDevice *dev)
     }
     s->read_fifo = qemu_mallocz(s->fifo_size * sizeof(s->read_fifo[0]));
 
-    register_savevm("syborg_serial", -1, 1,
+    register_savevm(&dev->qdev, "syborg_serial", -1, 1,
                     syborg_serial_save, syborg_serial_load, s);
     return 0;
 }

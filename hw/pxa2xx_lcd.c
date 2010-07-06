@@ -970,7 +970,7 @@ PXA2xxLCDState *pxa2xx_lcdc_init(target_phys_addr_t base, qemu_irq irq)
         exit(1);
     }
 
-    register_savevm("pxa2xx_lcdc", 0, 0,
+    register_savevm(NULL, "pxa2xx_lcdc", 0, 0,
                     pxa2xx_lcdc_save, pxa2xx_lcdc_load, s);
 
     return s;

@@ -282,7 +282,7 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
         exit(1);
     }
 
-    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
+    register_savevm(NULL, "cpu", 0, 3, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);
 
     /* fulong 2e has 256M ram. */
@@ -292,8 +292,8 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
     bios_size = 1024 * 1024;
 
     /* allocate RAM */
-    ram_offset = qemu_ram_alloc(ram_size);
-    bios_offset = qemu_ram_alloc(bios_size);
+    ram_offset = qemu_ram_alloc(NULL, "fulong2e.ram", ram_size);
+    bios_offset = qemu_ram_alloc(NULL, "fulong2e.bios", bios_size);
 
     cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
     cpu_register_physical_memory(0x1fc00000LL,

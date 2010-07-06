@@ -208,7 +208,7 @@ static void mips_init(ram_addr_t ram_size,
                 ((unsigned int)ram_size / (1 << 20)));
         exit(1);
     }
-    ram_offset = qemu_ram_alloc(ram_size);
+    ram_offset = qemu_ram_alloc(NULL, "mips_r4k.ram", ram_size);
 
     cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
 
@@ -236,14 +236,14 @@ static void mips_init(ram_addr_t ram_size,
     be = 0;
 #endif
     if ((bios_size > 0) && (bios_size <= BIOS_SIZE)) {
-        bios_offset = qemu_ram_alloc(BIOS_SIZE);
+        bios_offset = qemu_ram_alloc(NULL, "mips_r4k.bios", BIOS_SIZE);
         cpu_register_physical_memory(0x1fc00000, BIOS_SIZE,
                                      bios_offset | IO_MEM_ROM);
 
         load_image_targphys(filename, 0x1fc00000, BIOS_SIZE);
     } else if ((dinfo = drive_get(IF_PFLASH, 0, 0)) != NULL) {
         uint32_t mips_rom = 0x00400000;
-        bios_offset = qemu_ram_alloc(mips_rom);
+        bios_offset = qemu_ram_alloc(NULL, "mips_r4k.bios", mips_rom);
         if (!pflash_cfi01_register(0x1fc00000, bios_offset,
                                    dinfo->bdrv, sector_len,
                                    mips_rom / sector_len,

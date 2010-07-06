@@ -1,6 +1,6 @@
 /*
  * QEMU emulation for National Semiconductor DP83815 / DP83816.
- * 
+ *
  * Copyright (C) 2006-2009 Stefan Weil
  *
  * This program is free software: you can redistribute it and/or modify
@@ -1358,7 +1358,8 @@ static void nic_cleanup(VLANClientState *vc)
 {
     dp8381x_t *s = DO_UPCAST(NICState, nc, vc)->opaque;
 
-    unregister_savevm("dp8381x", s);
+    /* TODO: replace NULL by &dev->qdev. */
+    unregister_savevm(NULL, "dp8381x", s);
 
 #if 0
     qemu_del_timer(d->poll_timer);
@@ -1518,7 +1519,7 @@ static int pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
 
 #if defined(CONFIG_EEPROM)
     /* Add EEPROM (16 x 16 bit). */
-    s->eeprom = eeprom93xx_new(EEPROM_SIZE);
+    s->eeprom = eeprom93xx_new(&pci_dev->qdev, EEPROM_SIZE);
     eeprom_init(s);
 #endif
 
@@ -1530,7 +1531,8 @@ static int pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
     qemu_register_reset(dp8381x_nic_reset, s);
 
     // TODO: use &s->nic->nc->model or d->name instead of "dp8381x".
-    register_savevm("dp8381x", dp8381x_instance, dp8381x_version,
+    /* TODO: replace NULL by &dev->qdev. */
+    register_savevm(NULL, "dp8381x", dp8381x_instance, dp8381x_version,
                     dp8381x_save, dp8381x_load, s);
 
     return 0;

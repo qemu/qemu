@@ -230,7 +230,7 @@ ScoopInfo *scoop_init(PXA2xxState *cpu,
     iomemtype = cpu_register_io_memory(scoop_readfn,
                     scoop_writefn, s);
     cpu_register_physical_memory(target_base, 0x1000, iomemtype);
-    register_savevm("scoop", instance, 1, scoop_save, scoop_load, s);
+    register_savevm(NULL, "scoop", instance, 1, scoop_save, scoop_load, s);
 
     return s;
 }

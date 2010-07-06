@@ -151,7 +151,7 @@ static int ads7846_init(SSISlave *dev)
 
     ads7846_int_update(s);
 
-    register_savevm("ads7846", -1, 0, ads7846_save, ads7846_load, s);
+    register_savevm(NULL, "ads7846", -1, 0, ads7846_save, ads7846_load, s);
     return 0;
 }
 

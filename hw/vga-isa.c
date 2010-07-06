@@ -37,7 +37,7 @@ int isa_vga_init(void)
 
     vga_common_init(s, VGA_RAM_SIZE);
     vga_init(s);
-    vmstate_register(0, &vmstate_vga_common, s);
+    vmstate_register(NULL, 0, &vmstate_vga_common, s);
 
     s->ds = graphic_console_init(s->update, s->invalidate,
                                  s->screen_dump, s->text_update, s);

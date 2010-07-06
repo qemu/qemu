@@ -242,7 +242,7 @@ static void r2d_init(ram_addr_t ram_size,
     }
 
     /* Allocate memory space */
-    sdram_addr = qemu_ram_alloc(SDRAM_SIZE);
+    sdram_addr = qemu_ram_alloc(NULL, "r2d.sdram", SDRAM_SIZE);
     cpu_register_physical_memory(SDRAM_BASE, SDRAM_SIZE, sdram_addr);
     /* Register peripherals */
     s = sh7750_init(env);
@@ -258,7 +258,7 @@ static void r2d_init(ram_addr_t ram_size,
 
     /* onboard flash memory */
     dinfo = drive_get(IF_PFLASH, 0, 0);
-    pflash_cfi02_register(0x0, qemu_ram_alloc(FLASH_SIZE),
+    pflash_cfi02_register(0x0, qemu_ram_alloc(NULL, "r2d.flash", FLASH_SIZE),
                           dinfo ? dinfo->bdrv : NULL, (16 * 1024),
                           FLASH_SIZE >> 16,
                           1, 4, 0x0000, 0x0000, 0x0000, 0x0000,

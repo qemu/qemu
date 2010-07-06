@@ -1371,7 +1371,7 @@ void sm501_init(uint32_t base, uint32_t local_mem_bytes, qemu_irq irq,
     s->dc_crt_control = 0x00010000;
 
     /* allocate local memory */
-    s->local_mem_offset = qemu_ram_alloc(local_mem_bytes);
+    s->local_mem_offset = qemu_ram_alloc(NULL, "sm501.local", local_mem_bytes);
     s->local_mem = qemu_get_ram_ptr(s->local_mem_offset);
     cpu_register_physical_memory(base, local_mem_bytes, s->local_mem_offset);
 

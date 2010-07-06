@@ -507,7 +507,7 @@ static PXA2xxDMAState *pxa2xx_dma_init(target_phys_addr_t base,
                     pxa2xx_dma_writefn, s);
     cpu_register_physical_memory(base, 0x00010000, iomemtype);
 
-    register_savevm("pxa2xx_dma", 0, 0, pxa2xx_dma_save, pxa2xx_dma_load, s);
+    register_savevm(NULL, "pxa2xx_dma", 0, 0, pxa2xx_dma_save, pxa2xx_dma_load, s);
 
     return s;
 }

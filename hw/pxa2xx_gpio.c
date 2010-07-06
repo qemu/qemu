@@ -312,7 +312,7 @@ PXA2xxGPIOInfo *pxa2xx_gpio_init(target_phys_addr_t base,
                     pxa2xx_gpio_writefn, s);
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
 
-    register_savevm("pxa2xx_gpio", 0, 0,
+    register_savevm(NULL, "pxa2xx_gpio", 0, 0,
                     pxa2xx_gpio_save, pxa2xx_gpio_load, s);
 
     return s;

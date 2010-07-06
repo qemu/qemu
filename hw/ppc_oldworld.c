@@ -179,11 +179,11 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
         exit(1);
     }
 
-    ram_offset = qemu_ram_alloc(ram_size);
+    ram_offset = qemu_ram_alloc(NULL, "ppc_heathrow.ram", ram_size);
     cpu_register_physical_memory(0, ram_size, ram_offset);
 
     /* allocate and load BIOS */
-    bios_offset = qemu_ram_alloc(BIOS_SIZE);
+    bios_offset = qemu_ram_alloc(NULL, "ppc_heathrow.bios", BIOS_SIZE);
     if (bios_name == NULL)
         bios_name = PROM_FILENAME;
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
@@ -203,7 +203,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
     }
 
     /* allocate and load VGA BIOS */
-    vga_bios_offset = qemu_ram_alloc(VGA_BIOS_SIZE);
+    vga_bios_offset = qemu_ram_alloc(NULL, "ppc_heathrow.vbios", VGA_BIOS_SIZE);
     vga_bios_ptr = qemu_get_ram_ptr(vga_bios_offset);
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, VGABIOS_FILENAME);
     if (filename) {

@@ -534,7 +534,7 @@ PXA2xxMMCIState *pxa2xx_mmci_init(target_phys_addr_t base,
     /* Instantiate the actual storage */
     s->card = sd_init(bd, 0);
 
-    register_savevm("pxa2xx_mmci", 0, 0,
+    register_savevm(NULL, "pxa2xx_mmci", 0, 0,
                     pxa2xx_mmci_save, pxa2xx_mmci_load, s);
 
     return s;

@@ -82,7 +82,7 @@ static const QErrorStringTable qerror_table[] = {
     },
     {
         .error_fmt = QERR_DEVICE_NOT_ACTIVE,
-        .desc      = "Device '%(device)' has not been activated by the guest",
+        .desc      = "Device '%(device)' has not been activated",
     },
     {
         .error_fmt = QERR_DEVICE_NOT_ENCRYPTED,
@@ -175,6 +175,10 @@ static const QErrorStringTable qerror_table[] = {
     {
         .error_fmt = QERR_QMP_BAD_INPUT_OBJECT_MEMBER,
         .desc      = "QMP input object member '%(member)' expects '%(expected)'",
+    },
+    {
+        .error_fmt = QERR_QMP_EXTRA_MEMBER,
+        .desc      = "QMP input object member '%(member)' is unexpected",
     },
     {
         .error_fmt = QERR_SET_PASSWD_FAILED,

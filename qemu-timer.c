@@ -660,7 +660,7 @@ static const VMStateDescription vmstate_timers = {
 
 void configure_icount(const char *option)
 {
-    vmstate_register(0, &vmstate_timers, &timers_state);
+    vmstate_register(NULL, 0, &vmstate_timers, &timers_state);
     if (!option)
         return;
 

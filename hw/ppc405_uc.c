@@ -995,7 +995,7 @@ static void ppc405_ocm_init(CPUState *env)
     ppc405_ocm_t *ocm;
 
     ocm = qemu_mallocz(sizeof(ppc405_ocm_t));
-    ocm->offset = qemu_ram_alloc(4096);
+    ocm->offset = qemu_ram_alloc(NULL, "ppc405.ocm", 4096);
     qemu_register_reset(&ocm_reset, ocm);
     ppc_dcr_register(env, OCM0_ISARC,
                      ocm, &dcr_read_ocm, &dcr_write_ocm);

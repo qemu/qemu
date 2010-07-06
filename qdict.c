@@ -83,14 +83,35 @@ static QDictEntry *alloc_entry(const char *key, QObject *value)
 }
 
 /**
+ * qdict_entry_value(): Return qdict entry value
+ *
+ * Return weak reference.
+ */
+QObject *qdict_entry_value(const QDictEntry *entry)
+{
+    return entry->value;
+}
+
+/**
+ * qdict_entry_key(): Return qdict entry key
+ *
+ * Return a *pointer* to the string, it has to be duplicated before being
+ * stored.
+ */
+const char *qdict_entry_key(const QDictEntry *entry)
+{
+    return entry->key;
+}
+
+/**
  * qdict_find(): List lookup function
  */
 static QDictEntry *qdict_find(const QDict *qdict,
-                              const char *key, unsigned int hash)
+                              const char *key, unsigned int bucket)
 {
     QDictEntry *entry;
 
-    QLIST_FOREACH(entry, &qdict->table[hash], next)
+    QLIST_FOREACH(entry, &qdict->table[bucket], next)
         if (!strcmp(entry->key, key))
             return entry;
 
@@ -110,11 +131,11 @@ static QDictEntry *qdict_find(const QDict *qdict,
  */
 void qdict_put_obj(QDict *qdict, const char *key, QObject *value)
 {
-    unsigned int hash;
+    unsigned int bucket;
     QDictEntry *entry;
 
-    hash = tdb_hash(key) % QDICT_HASH_SIZE;
-    entry = qdict_find(qdict, key, hash);
+    bucket = tdb_hash(key) % QDICT_BUCKET_MAX;
+    entry = qdict_find(qdict, key, bucket);
     if (entry) {
         /* replace key's value */
         qobject_decref(entry->value);
@@ -122,7 +143,7 @@ void qdict_put_obj(QDict *qdict, const char *key, QObject *value)
     } else {
         /* allocate a new entry */
         entry = alloc_entry(key, value);
-        QLIST_INSERT_HEAD(&qdict->table[hash], entry, next);
+        QLIST_INSERT_HEAD(&qdict->table[bucket], entry, next);
         qdict->size++;
     }
 }
@@ -137,7 +158,7 @@ QObject *qdict_get(const QDict *qdict, const char *key)
 {
     QDictEntry *entry;
 
-    entry = qdict_find(qdict, key, tdb_hash(key) % QDICT_HASH_SIZE);
+    entry = qdict_find(qdict, key, tdb_hash(key) % QDICT_BUCKET_MAX);
     return (entry == NULL ? NULL : entry->value);
 }
 
@@ -148,8 +169,8 @@ QObject *qdict_get(const QDict *qdict, const char *key)
  */
 int qdict_haskey(const QDict *qdict, const char *key)
 {
-    unsigned int hash = tdb_hash(key) % QDICT_HASH_SIZE;
-    return (qdict_find(qdict, key, hash) == NULL ? 0 : 1);
+    unsigned int bucket = tdb_hash(key) % QDICT_BUCKET_MAX;
+    return (qdict_find(qdict, key, bucket) == NULL ? 0 : 1);
 }
 
 /**
@@ -272,18 +293,36 @@ const char *qdict_get_str(const QDict *qdict, const char *key)
  *
  * Return integer mapped by 'key', if it is not present in
  * the dictionary or if the stored object is not of QInt type
- * 'err_value' will be returned.
+ * 'def_value' will be returned.
  */
 int64_t qdict_get_try_int(const QDict *qdict, const char *key,
-                          int64_t err_value)
+                          int64_t def_value)
 {
     QObject *obj;
 
     obj = qdict_get(qdict, key);
     if (!obj || qobject_type(obj) != QTYPE_QINT)
-        return err_value;
+        return def_value;
 
     return qint_get_int(qobject_to_qint(obj));
+}
+
+/**
+ * qdict_get_try_bool(): Try to get a bool mapped by 'key'
+ *
+ * Return bool mapped by 'key', if it is not present in the
+ * dictionary or if the stored object is not of QBool type
+ * 'def_value' will be returned.
+ */
+int qdict_get_try_bool(const QDict *qdict, const char *key, int def_value)
+{
+    QObject *obj;
+
+    obj = qdict_get(qdict, key);
+    if (!obj || qobject_type(obj) != QTYPE_QBOOL)
+        return def_value;
+
+    return qbool_get_int(qobject_to_qbool(obj));
 }
 
 /**
@@ -318,10 +357,47 @@ void qdict_iter(const QDict *qdict,
     int i;
     QDictEntry *entry;
 
-    for (i = 0; i < QDICT_HASH_SIZE; i++) {
+    for (i = 0; i < QDICT_BUCKET_MAX; i++) {
         QLIST_FOREACH(entry, &qdict->table[i], next)
             iter(entry->key, entry->value, opaque);
     }
+}
+
+static QDictEntry *qdict_next_entry(const QDict *qdict, int first_bucket)
+{
+    int i;
+
+    for (i = first_bucket; i < QDICT_BUCKET_MAX; i++) {
+        if (!QLIST_EMPTY(&qdict->table[i])) {
+            return QLIST_FIRST(&qdict->table[i]);
+        }
+    }
+
+    return NULL;
+}
+
+/**
+ * qdict_first(): Return first qdict entry for iteration.
+ */
+const QDictEntry *qdict_first(const QDict *qdict)
+{
+    return qdict_next_entry(qdict, 0);
+}
+
+/**
+ * qdict_next(): Return next qdict entry in an iteration.
+ */
+const QDictEntry *qdict_next(const QDict *qdict, const QDictEntry *entry)
+{
+    QDictEntry *ret;
+
+    ret = QLIST_NEXT(entry, next);
+    if (!ret) {
+        unsigned int bucket = tdb_hash(entry->key) % QDICT_BUCKET_MAX;
+        ret = qdict_next_entry(qdict, bucket + 1);
+    }
+
+    return ret;
 }
 
 /**
@@ -347,7 +423,7 @@ void qdict_del(QDict *qdict, const char *key)
 {
     QDictEntry *entry;
 
-    entry = qdict_find(qdict, key, tdb_hash(key) % QDICT_HASH_SIZE);
+    entry = qdict_find(qdict, key, tdb_hash(key) % QDICT_BUCKET_MAX);
     if (entry) {
         QLIST_REMOVE(entry, next);
         qentry_destroy(entry);
@@ -366,7 +442,7 @@ static void qdict_destroy_obj(QObject *obj)
     assert(obj != NULL);
     qdict = qobject_to_qdict(obj);
 
-    for (i = 0; i < QDICT_HASH_SIZE; i++) {
+    for (i = 0; i < QDICT_BUCKET_MAX; i++) {
         QDictEntry *entry = QLIST_FIRST(&qdict->table[i]);
         while (entry) {
             QDictEntry *tmp = QLIST_NEXT(entry, next);

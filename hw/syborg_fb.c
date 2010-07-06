@@ -526,7 +526,7 @@ static int syborg_fb_init(SysBusDevice *dev)
     if (!s->rows)
         s->rows = ds_get_height(s->ds);
 
-    register_savevm("syborg_framebuffer", -1, 1,
+    register_savevm(&dev->qdev, "syborg_framebuffer", -1, 1,
                     syborg_fb_save, syborg_fb_load, s);
     return 0;
 }

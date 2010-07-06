@@ -128,7 +128,7 @@ static int pci_piix_ide_initfn(PCIIDEState *d)
 
     pci_register_bar(&d->dev, 4, 0x10, PCI_BASE_ADDRESS_SPACE_IO, bmdma_map);
 
-    vmstate_register(0, &vmstate_ide_pci, d);
+    vmstate_register(&d->dev.qdev, 0, &vmstate_ide_pci, d);
 
     ide_bus_new(&d->bus[0], &d->dev.qdev);
     ide_bus_new(&d->bus[1], &d->dev.qdev);
@@ -160,22 +160,24 @@ static int pci_piix4_ide_initfn(PCIDevice *dev)
 
 /* hd_table must contain 4 block drivers */
 /* NOTE: for the PIIX3, the IRQs and IOports are hardcoded */
-void pci_piix3_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
+PCIDevice *pci_piix3_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
 {
     PCIDevice *dev;
 
     dev = pci_create_simple(bus, devfn, "piix3-ide");
     pci_ide_create_devs(dev, hd_table);
+    return dev;
 }
 
 /* hd_table must contain 4 block drivers */
 /* NOTE: for the PIIX4, the IRQs and IOports are hardcoded */
-void pci_piix4_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
+PCIDevice *pci_piix4_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
 {
     PCIDevice *dev;
 
     dev = pci_create_simple(bus, devfn, "piix4-ide");
     pci_ide_create_devs(dev, hd_table);
+    return dev;
 }
 
 static PCIDeviceInfo piix_ide_info[] = {

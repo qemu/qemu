@@ -548,7 +548,7 @@ void *tsc2005_init(qemu_irq pintdav)
                     "QEMU TSC2005-driven Touchscreen");
 
     qemu_register_reset((void *) tsc2005_reset, s);
-    register_savevm("tsc2005", -1, 0, tsc2005_save, tsc2005_load, s);
+    register_savevm(NULL, "tsc2005", -1, 0, tsc2005_save, tsc2005_load, s);
 
     return s;
 }

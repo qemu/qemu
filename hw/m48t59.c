@@ -694,7 +694,7 @@ static void m48t59_init_common(M48t59State *s)
     }
     qemu_get_timedate(&s->alarm, 0);
 
-    register_savevm("m48t59", -1, 1, m48t59_save, m48t59_load, s);
+    register_savevm(NULL, "m48t59", -1, 1, m48t59_save, m48t59_load, s);
 }
 
 static int m48t59_init_isa1(ISADevice *dev)

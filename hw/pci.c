@@ -58,11 +58,13 @@ struct PCIBus {
 };
 
 static void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent);
+static char *pcibus_get_dev_path(DeviceState *dev);
 
 static struct BusInfo pci_bus_info = {
     .name       = "PCI",
     .size       = sizeof(PCIBus),
     .print_dev  = pcibus_dev_print,
+    .get_dev_path = pcibus_get_dev_path,
     .props      = (Property[]) {
         DEFINE_PROP_PCI_DEVFN("addr", PCIDevice, devfn, -1),
         DEFINE_PROP_STRING("romfile", PCIDevice, romfile),
@@ -74,6 +76,7 @@ static struct BusInfo pci_bus_info = {
 static void pci_update_mappings(PCIDevice *d);
 static void pci_set_irq(void *opaque, int irq_num, int level);
 static int pci_add_option_rom(PCIDevice *pdev);
+static void pci_del_option_rom(PCIDevice *pdev);
 
 static uint16_t pci_default_sub_vendor_id = PCI_SUBVENDOR_ID_REDHAT_QUMRANET;
 static uint16_t pci_default_sub_device_id = PCI_SUBDEVICE_ID_QEMU;
@@ -230,7 +233,7 @@ void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
     QLIST_INIT(&bus->child);
     pci_host_bus_register(0, bus); /* for now only pci domain 0 is supported */
 
-    vmstate_register(-1, &vmstate_pcibus, bus);
+    vmstate_register(NULL, -1, &vmstate_pcibus, bus);
     qemu_register_reset(pci_bus_reset, bus);
 }
 
@@ -707,6 +710,7 @@ static int pci_unregister_device(DeviceState *dev)
         return ret;
 
     pci_unregister_io_regions(pci_dev);
+    pci_del_option_rom(pci_dev);
     do_pci_unregister_device(pci_dev);
     return 0;
 }
@@ -1733,6 +1737,7 @@ static int pci_add_option_rom(PCIDevice *pdev)
     int size;
     char *path;
     void *ptr;
+    char name[32];
 
     if (!pdev->romfile)
         return 0;
@@ -1768,7 +1773,11 @@ static int pci_add_option_rom(PCIDevice *pdev)
         size = 1 << qemu_fls(size);
     }
 
-    pdev->rom_offset = qemu_ram_alloc(size);
+    if (pdev->qdev.info->vmsd)
+        snprintf(name, sizeof(name), "%s.rom", pdev->qdev.info->vmsd->name);
+    else
+        snprintf(name, sizeof(name), "%s.rom", pdev->qdev.info->name);
+    pdev->rom_offset = qemu_ram_alloc(&pdev->qdev, name, size);
 
     ptr = qemu_get_ram_ptr(pdev->rom_offset);
     load_image(path, ptr);
@@ -1778,6 +1787,15 @@ static int pci_add_option_rom(PCIDevice *pdev)
                      0, pci_map_option_rom);
 
     return 0;
+}
+
+static void pci_del_option_rom(PCIDevice *pdev)
+{
+    if (!pdev->rom_offset)
+        return;
+
+    qemu_ram_free(pdev->rom_offset);
+    pdev->rom_offset = 0;
 }
 
 /* Reserve space and add capability to the linked list in pci config space */
@@ -1873,6 +1891,18 @@ static void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent)
                        i, r->type & PCI_BASE_ADDRESS_SPACE_IO ? "i/o" : "mem",
                        r->addr, r->addr + r->size - 1);
     }
+}
+
+static char *pcibus_get_dev_path(DeviceState *dev)
+{
+    PCIDevice *d = (PCIDevice *)dev;
+    char path[16];
+
+    snprintf(path, sizeof(path), "%04x:%02x:%02x.%x",
+             pci_find_domain(d->bus), d->config[PCI_SECONDARY_BUS],
+             PCI_SLOT(d->devfn), PCI_FUNC(d->devfn));
+
+    return strdup(path);
 }
 
 static PCIDeviceInfo bridge_info = {

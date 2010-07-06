@@ -305,7 +305,7 @@ void adb_kbd_init(ADBBusState *bus)
     d = adb_register_device(bus, ADB_KEYBOARD, adb_kbd_request,
                             adb_kbd_reset, s);
     qemu_add_kbd_event_handler(adb_kbd_put_keycode, d);
-    register_savevm("adb_kbd", -1, 1, adb_kbd_save,
+    register_savevm(NULL, "adb_kbd", -1, 1, adb_kbd_save,
                     adb_kbd_load, s);
 }
 
@@ -475,6 +475,6 @@ void adb_mouse_init(ADBBusState *bus)
     d = adb_register_device(bus, ADB_MOUSE, adb_mouse_request,
                             adb_mouse_reset, s);
     qemu_add_mouse_event_handler(adb_mouse_event, d, 0, "QEMU ADB Mouse");
-    register_savevm("adb_mouse", -1, 1, adb_mouse_save,
+    register_savevm(NULL, "adb_mouse", -1, 1, adb_mouse_save,
                     adb_mouse_load, s);
 }

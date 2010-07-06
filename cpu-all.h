@@ -871,12 +871,15 @@ typedef struct RAMBlock {
     uint8_t *host;
     ram_addr_t offset;
     ram_addr_t length;
+    char idstr[256];
     QLIST_ENTRY(RAMBlock) next;
+#if defined(__linux__) && !defined(TARGET_S390X)
+    int fd;
+#endif
 } RAMBlock;
 
 typedef struct RAMList {
     uint8_t *phys_dirty;
-    ram_addr_t last_offset;
     QLIST_HEAD(ram, RAMBlock) blocks;
 } RAMList;
 extern RAMList ram_list;

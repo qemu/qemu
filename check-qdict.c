@@ -50,7 +50,7 @@ START_TEST(qdict_put_obj_test)
     qdict_put_obj(qdict, "", QOBJECT(qint_from_int(num)));
 
     fail_unless(qdict_size(qdict) == 1);
-    ent = QLIST_FIRST(&qdict->table[12345 % QDICT_HASH_SIZE]);
+    ent = QLIST_FIRST(&qdict->table[12345 % QDICT_BUCKET_MAX]);
     qi = qobject_to_qint(ent->value);
     fail_unless(qint_get_int(qi) == num);
 
@@ -191,6 +191,36 @@ END_TEST
 START_TEST(qobject_to_qdict_test)
 {
     fail_unless(qobject_to_qdict(QOBJECT(tests_dict)) == tests_dict);
+}
+END_TEST
+
+START_TEST(qdict_iterapi_test)
+{
+    int count;
+    const QDictEntry *ent;
+
+    fail_unless(qdict_first(tests_dict) == NULL);
+
+    qdict_put(tests_dict, "key1", qint_from_int(1));
+    qdict_put(tests_dict, "key2", qint_from_int(2));
+    qdict_put(tests_dict, "key3", qint_from_int(3));
+
+    count = 0;
+    for (ent = qdict_first(tests_dict); ent; ent = qdict_next(tests_dict, ent)){
+        fail_unless(qdict_haskey(tests_dict, qdict_entry_key(ent)) == 1);
+        count++;
+    }
+
+    fail_unless(count == qdict_size(tests_dict));
+
+    /* Do it again to test restarting */
+    count = 0;
+    for (ent = qdict_first(tests_dict); ent; ent = qdict_next(tests_dict, ent)){
+        fail_unless(qdict_haskey(tests_dict, qdict_entry_key(ent)) == 1);
+        count++;
+    }
+
+    fail_unless(count == qdict_size(tests_dict));
 }
 END_TEST
 
@@ -338,6 +368,7 @@ static Suite *qdict_suite(void)
     tcase_add_test(qdict_public2_tcase, qdict_haskey_test);
     tcase_add_test(qdict_public2_tcase, qdict_del_test);
     tcase_add_test(qdict_public2_tcase, qobject_to_qdict_test);
+    tcase_add_test(qdict_public2_tcase, qdict_iterapi_test);
 
     qdict_errors_tcase = tcase_create("Errors");
     suite_add_tcase(s, qdict_errors_tcase);

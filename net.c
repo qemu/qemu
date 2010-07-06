@@ -1208,6 +1208,10 @@ int do_netdev_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
     }
 
     res = net_client_init(mon, opts, 1);
+    if (res < 0) {
+        qemu_opts_del(opts);
+    }
+
     return res;
 }
 

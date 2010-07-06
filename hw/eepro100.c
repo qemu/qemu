@@ -1969,8 +1969,8 @@ static int pci_nic_uninit(PCIDevice *pci_dev)
     EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
 
     cpu_unregister_io_memory(s->mmio_index);
-    vmstate_unregister(s->vmstate, s);
-    eeprom93xx_free(s->eeprom);
+    vmstate_unregister(&pci_dev->qdev, s->vmstate, s);
+    eeprom93xx_free(&pci_dev->qdev, s->eeprom);
     qemu_del_vlan_client(&s->nic->nc);
     return 0;
 }
@@ -1998,7 +1998,7 @@ static int e100_nic_init(PCIDevice *pci_dev)
 #if EEPROM_SIZE > 0
     /* Add 64 * 2 EEPROM. i82557 and i82558 support a 64 word EEPROM,
      * i82559 and later support 64 or 256 word EEPROM. */
-    s->eeprom = eeprom93xx_new(EEPROM_SIZE);
+    s->eeprom = eeprom93xx_new(&pci_dev->qdev, EEPROM_SIZE);
 #endif
 
     /* Handler for memory-mapped I/O */
@@ -2030,7 +2030,7 @@ static int e100_nic_init(PCIDevice *pci_dev)
     s->vmstate = qemu_malloc(sizeof(vmstate_eepro100));
     memcpy(s->vmstate, &vmstate_eepro100, sizeof(vmstate_eepro100));
     s->vmstate->name = s->nic->nc.model;
-    vmstate_register(-1, s->vmstate, s);
+    vmstate_register(&pci_dev->qdev, -1, s->vmstate, s);
 
     return 0;
 }

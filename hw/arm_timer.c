@@ -174,7 +174,7 @@ static arm_timer_state *arm_timer_init(uint32_t freq)
 
     bh = qemu_bh_new(arm_timer_tick, s);
     s->timer = ptimer_init(bh);
-    register_savevm("arm_timer", -1, 1, arm_timer_save, arm_timer_load, s);
+    register_savevm(NULL, "arm_timer", -1, 1, arm_timer_save, arm_timer_load, s);
     return s;
 }
 
@@ -271,7 +271,7 @@ static int sp804_init(SysBusDevice *dev)
     iomemtype = cpu_register_io_memory(sp804_readfn,
                                        sp804_writefn, s);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
-    register_savevm("sp804", -1, 1, sp804_save, sp804_load, s);
+    register_savevm(&dev->qdev, "sp804", -1, 1, sp804_save, sp804_load, s);
     return 0;
 }
 

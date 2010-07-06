@@ -25,6 +25,7 @@
 #include "pc.h"
 #include "apic.h"
 #include "fdc.h"
+#include "ide.h"
 #include "pci.h"
 #include "vmware_vga.h"
 #include "monitor.h"
@@ -275,14 +276,65 @@ static int pc_boot_set(void *opaque, const char *boot_device)
     return set_boot_dev(opaque, boot_device, 0);
 }
 
-/* hd_table must contain 4 block drivers */
+typedef struct pc_cmos_init_late_arg {
+    ISADevice *rtc_state;
+    BusState *idebus0, *idebus1;
+} pc_cmos_init_late_arg;
+
+static void pc_cmos_init_late(void *opaque)
+{
+    pc_cmos_init_late_arg *arg = opaque;
+    ISADevice *s = arg->rtc_state;
+    int val;
+    BlockDriverState *hd_table[4];
+    int i;
+
+    ide_get_bs(hd_table, arg->idebus0);
+    ide_get_bs(hd_table + 2, arg->idebus1);
+
+    rtc_set_memory(s, 0x12, (hd_table[0] ? 0xf0 : 0) | (hd_table[1] ? 0x0f : 0));
+    if (hd_table[0])
+        cmos_init_hd(0x19, 0x1b, hd_table[0], s);
+    if (hd_table[1])
+        cmos_init_hd(0x1a, 0x24, hd_table[1], s);
+
+    val = 0;
+    for (i = 0; i < 4; i++) {
+        if (hd_table[i]) {
+            int cylinders, heads, sectors, translation;
+            /* NOTE: bdrv_get_geometry_hint() returns the physical
+                geometry.  It is always such that: 1 <= sects <= 63, 1
+                <= heads <= 16, 1 <= cylinders <= 16383. The BIOS
+                geometry can be different if a translation is done. */
+            translation = bdrv_get_translation_hint(hd_table[i]);
+            if (translation == BIOS_ATA_TRANSLATION_AUTO) {
+                bdrv_get_geometry_hint(hd_table[i], &cylinders, &heads, &sectors);
+                if (cylinders <= 1024 && heads <= 16 && sectors <= 63) {
+                    /* No translation. */
+                    translation = 0;
+                } else {
+                    /* LBA translation. */
+                    translation = 1;
+                }
+            } else {
+                translation--;
+            }
+            val |= translation << (i * 2);
+        }
+    }
+    rtc_set_memory(s, 0x39, val);
+
+    qemu_unregister_reset(pc_cmos_init_late, opaque);
+}
+
 void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
-                  const char *boot_device, DriveInfo **hd_table,
+                  const char *boot_device,
+                  BusState *idebus0, BusState *idebus1,
                   FDCtrl *floppy_controller, ISADevice *s)
 {
     int val;
     int fd0, fd1, nb;
-    int i;
+    static pc_cmos_init_late_arg arg;
 
     /* various important CMOS locations needed by PC/Bochs bios */
 
@@ -351,38 +403,10 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
     rtc_set_memory(s, REG_EQUIPMENT_BYTE, val);
 
     /* hard drives */
-
-    rtc_set_memory(s, 0x12, (hd_table[0] ? 0xf0 : 0) | (hd_table[1] ? 0x0f : 0));
-    if (hd_table[0])
-        cmos_init_hd(0x19, 0x1b, hd_table[0]->bdrv, s);
-    if (hd_table[1])
-        cmos_init_hd(0x1a, 0x24, hd_table[1]->bdrv, s);
-
-    val = 0;
-    for (i = 0; i < 4; i++) {
-        if (hd_table[i]) {
-            int cylinders, heads, sectors, translation;
-            /* NOTE: bdrv_get_geometry_hint() returns the physical
-                geometry.  It is always such that: 1 <= sects <= 63, 1
-                <= heads <= 16, 1 <= cylinders <= 16383. The BIOS
-                geometry can be different if a translation is done. */
-            translation = bdrv_get_translation_hint(hd_table[i]->bdrv);
-            if (translation == BIOS_ATA_TRANSLATION_AUTO) {
-                bdrv_get_geometry_hint(hd_table[i]->bdrv, &cylinders, &heads, &sectors);
-                if (cylinders <= 1024 && heads <= 16 && sectors <= 63) {
-                    /* No translation. */
-                    translation = 0;
-                } else {
-                    /* LBA translation. */
-                    translation = 1;
-                }
-            } else {
-                translation--;
-            }
-            val |= translation << (i * 2);
-        }
-    }
-    rtc_set_memory(s, 0x39, val);
+    arg.rtc_state = s;
+    arg.idebus0 = idebus0;
+    arg.idebus1 = idebus1;
+    qemu_register_reset(pc_cmos_init_late, &arg);
 }
 
 static void handle_a20_line_change(void *opaque, int irq, int level)
@@ -877,27 +901,24 @@ void pc_memory_init(ram_addr_t ram_size,
     *above_4g_mem_size_p = above_4g_mem_size;
     *below_4g_mem_size_p = below_4g_mem_size;
 
+#if TARGET_PHYS_ADDR_BITS == 32
+    if (above_4g_mem_size > 0) {
+        hw_error("To much RAM for 32-bit physical address");
+    }
+#endif
     linux_boot = (kernel_filename != NULL);
 
     /* allocate RAM */
-    ram_addr = qemu_ram_alloc(below_4g_mem_size);
+    ram_addr = qemu_ram_alloc(NULL, "pc.ram",
+                              below_4g_mem_size + above_4g_mem_size);
     cpu_register_physical_memory(0, 0xa0000, ram_addr);
     cpu_register_physical_memory(0x100000,
                  below_4g_mem_size - 0x100000,
                  ram_addr + 0x100000);
-
-    /* above 4giga memory allocation */
-    if (above_4g_mem_size > 0) {
-#if TARGET_PHYS_ADDR_BITS == 32
-        hw_error("To much RAM for 32-bit physical address");
-#else
-        ram_addr = qemu_ram_alloc(above_4g_mem_size);
-        cpu_register_physical_memory(0x100000000ULL,
-                                     above_4g_mem_size,
-                                     ram_addr);
+#if TARGET_PHYS_ADDR_BITS > 32
+    cpu_register_physical_memory(0x100000000ULL, above_4g_mem_size,
+                                 ram_addr + below_4g_mem_size);
 #endif
-    }
-
 
     /* BIOS load */
     if (bios_name == NULL)
@@ -912,7 +933,7 @@ void pc_memory_init(ram_addr_t ram_size,
         (bios_size % 65536) != 0) {
         goto bios_error;
     }
-    bios_offset = qemu_ram_alloc(bios_size);
+    bios_offset = qemu_ram_alloc(NULL, "pc.bios", bios_size);
     ret = rom_add_file_fixed(bios_name, (uint32_t)(-bios_size));
     if (ret != 0) {
     bios_error:
@@ -930,7 +951,7 @@ void pc_memory_init(ram_addr_t ram_size,
                                  isa_bios_size,
                                  (bios_offset + bios_size - isa_bios_size) | IO_MEM_ROM);
 
-    option_rom_offset = qemu_ram_alloc(PC_ROM_SIZE);
+    option_rom_offset = qemu_ram_alloc(NULL, "pc.rom", PC_ROM_SIZE);
     cpu_register_physical_memory(PC_ROM_MIN_VGA, PC_ROM_SIZE, option_rom_offset);
 
     /* map all the bios at the top of memory */

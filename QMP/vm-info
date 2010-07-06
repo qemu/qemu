@@ -24,6 +24,7 @@ def main():
 
     qemu = qmp.QEMUMonitorProtocol(argv[1])
     qemu.connect()
+    qemu.send("qmp_capabilities")
 
     for cmd in [ 'version', 'kvm', 'status', 'uuid', 'balloon' ]:
         print cmd + ': ' + str(qemu.send('query-' + cmd))

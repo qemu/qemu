@@ -502,7 +502,7 @@ NANDFlashState *nand_init(int manf_id, int chip_id)
        is used.  */
     s->ioaddr = s->io;
 
-    register_savevm("nand", -1, 0, nand_save, nand_load, s);
+    register_savevm(NULL, "nand", -1, 0, nand_save, nand_load, s);
 
     return s;
 }

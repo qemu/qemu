@@ -72,6 +72,7 @@
 
 #include "qemu-common.h"
 #include "hw/hw.h"
+#include "hw/qdev.h"
 #include "net.h"
 #include "monitor.h"
 #include "sysemu.h"
@@ -82,9 +83,6 @@
 #include "migration.h"
 #include "qemu_socket.h"
 #include "qemu-queue.h"
-
-/* point to the block driver where the snapshots are managed */
-static BlockDriverState *bs_snapshots;
 
 #define SELF_ANNOUNCE_ROUNDS 5
 
@@ -988,6 +986,11 @@ const VMStateInfo vmstate_info_unused_buffer = {
     .put  = put_unused_buffer,
 };
 
+typedef struct CompatEntry {
+    char idstr[256];
+    int instance_id;
+} CompatEntry;
+
 typedef struct SaveStateEntry {
     QTAILQ_ENTRY(SaveStateEntry) entry;
     char idstr[256];
@@ -1001,6 +1004,7 @@ typedef struct SaveStateEntry {
     LoadStateHandler *load_state;
     const VMStateDescription *vmsd;
     void *opaque;
+    CompatEntry *compat;
 } SaveStateEntry;
 
 
@@ -1022,11 +1026,29 @@ static int calculate_new_instance_id(const char *idstr)
     return instance_id;
 }
 
+static int calculate_compat_instance_id(const char *idstr)
+{
+    SaveStateEntry *se;
+    int instance_id = 0;
+
+    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
+        if (!se->compat)
+            continue;
+
+        if (strcmp(idstr, se->compat->idstr) == 0
+            && instance_id <= se->compat->instance_id) {
+            instance_id = se->compat->instance_id + 1;
+        }
+    }
+    return instance_id;
+}
+
 /* TODO: Individual devices generally have very little idea about the rest
    of the system, so instance_id should be removed/replaced.
    Meanwhile pass -1 as instance_id if you do not already have a clearly
    distinguishing id for all instances of your device class. */
-int register_savevm_live(const char *idstr,
+int register_savevm_live(DeviceState *dev,
+                         const char *idstr,
                          int instance_id,
                          int version_id,
                          SaveSetParamsHandler *set_params,
@@ -1038,7 +1060,6 @@ int register_savevm_live(const char *idstr,
     SaveStateEntry *se;
 
     se = qemu_mallocz(sizeof(SaveStateEntry));
-    pstrcpy(se->idstr, sizeof(se->idstr), idstr);
     se->version_id = version_id;
     se->section_id = global_section_id++;
     se->set_params = set_params;
@@ -1048,40 +1069,69 @@ int register_savevm_live(const char *idstr,
     se->opaque = opaque;
     se->vmsd = NULL;
 
+    if (dev && dev->parent_bus && dev->parent_bus->info->get_dev_path) {
+        char *id = dev->parent_bus->info->get_dev_path(dev);
+        if (id) {
+            pstrcpy(se->idstr, sizeof(se->idstr), id);
+            pstrcat(se->idstr, sizeof(se->idstr), "/");
+            qemu_free(id);
+
+            se->compat = qemu_mallocz(sizeof(CompatEntry));
+            pstrcpy(se->compat->idstr, sizeof(se->compat->idstr), idstr);
+            se->compat->instance_id = instance_id == -1 ?
+                         calculate_compat_instance_id(idstr) : instance_id;
+            instance_id = -1;
+        }
+    }
+    pstrcat(se->idstr, sizeof(se->idstr), idstr);
+
     if (instance_id == -1) {
-        se->instance_id = calculate_new_instance_id(idstr);
+        se->instance_id = calculate_new_instance_id(se->idstr);
     } else {
         se->instance_id = instance_id;
     }
+    assert(!se->compat || se->instance_id == 0);
     /* add at the end of list */
     QTAILQ_INSERT_TAIL(&savevm_handlers, se, entry);
     return 0;
 }
 
-int register_savevm(const char *idstr,
+int register_savevm(DeviceState *dev,
+                    const char *idstr,
                     int instance_id,
                     int version_id,
                     SaveStateHandler *save_state,
                     LoadStateHandler *load_state,
                     void *opaque)
 {
-    return register_savevm_live(idstr, instance_id, version_id,
+    return register_savevm_live(dev, idstr, instance_id, version_id,
                                 NULL, NULL, save_state, load_state, opaque);
 }
 
-void unregister_savevm(const char *idstr, void *opaque)
+void unregister_savevm(DeviceState *dev, const char *idstr, void *opaque)
 {
     SaveStateEntry *se, *new_se;
+    char id[256] = "";
+
+    if (dev && dev->parent_bus && dev->parent_bus->info->get_dev_path) {
+        char *path = dev->parent_bus->info->get_dev_path(dev);
+        if (path) {
+            pstrcpy(id, sizeof(id), path);
+            pstrcat(id, sizeof(id), "/");
+            qemu_free(path);
+        }
+    }
+    pstrcat(id, sizeof(id), idstr);
 
     QTAILQ_FOREACH_SAFE(se, &savevm_handlers, entry, new_se) {
-        if (strcmp(se->idstr, idstr) == 0 && se->opaque == opaque) {
+        if (strcmp(se->idstr, id) == 0 && se->opaque == opaque) {
             QTAILQ_REMOVE(&savevm_handlers, se, entry);
             qemu_free(se);
         }
     }
 }
 
-int vmstate_register_with_alias_id(int instance_id,
+int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
                                    const VMStateDescription *vmsd,
                                    void *opaque, int alias_id,
                                    int required_for_version)
@@ -1092,7 +1142,6 @@ int vmstate_register_with_alias_id(int instance_id,
     assert(alias_id == -1 || required_for_version >= vmsd->minimum_version_id);
 
     se = qemu_mallocz(sizeof(SaveStateEntry));
-    pstrcpy(se->idstr, sizeof(se->idstr), vmsd->name);
     se->version_id = vmsd->version_id;
     se->section_id = global_section_id++;
     se->save_live_state = NULL;
@@ -1102,23 +1151,42 @@ int vmstate_register_with_alias_id(int instance_id,
     se->vmsd = vmsd;
     se->alias_id = alias_id;
 
+    if (dev && dev->parent_bus && dev->parent_bus->info->get_dev_path) {
+        char *id = dev->parent_bus->info->get_dev_path(dev);
+        if (id) {
+            pstrcpy(se->idstr, sizeof(se->idstr), id);
+            pstrcat(se->idstr, sizeof(se->idstr), "/");
+            qemu_free(id);
+
+            se->compat = qemu_mallocz(sizeof(CompatEntry));
+            pstrcpy(se->compat->idstr, sizeof(se->compat->idstr), vmsd->name);
+            se->compat->instance_id = instance_id == -1 ?
+                         calculate_compat_instance_id(vmsd->name) : instance_id;
+            instance_id = -1;
+        }
+    }
+    pstrcat(se->idstr, sizeof(se->idstr), vmsd->name);
+
     if (instance_id == -1) {
-        se->instance_id = calculate_new_instance_id(vmsd->name);
+        se->instance_id = calculate_new_instance_id(se->idstr);
     } else {
         se->instance_id = instance_id;
     }
+    assert(!se->compat || se->instance_id == 0);
     /* add at the end of list */
     QTAILQ_INSERT_TAIL(&savevm_handlers, se, entry);
     return 0;
 }
 
-int vmstate_register(int instance_id, const VMStateDescription *vmsd,
-                     void *opaque)
+int vmstate_register(DeviceState *dev, int instance_id,
+                     const VMStateDescription *vmsd, void *opaque)
 {
-    return vmstate_register_with_alias_id(instance_id, vmsd, opaque, -1, 0);
+    return vmstate_register_with_alias_id(dev, instance_id, vmsd,
+                                          opaque, -1, 0);
 }
 
-void vmstate_unregister(const VMStateDescription *vmsd, void *opaque)
+void vmstate_unregister(DeviceState *dev, const VMStateDescription *vmsd,
+                        void *opaque)
 {
     SaveStateEntry *se, *new_se;
 
@@ -1450,6 +1518,13 @@ static SaveStateEntry *find_se(const char *idstr, int instance_id)
             (instance_id == se->instance_id ||
              instance_id == se->alias_id))
             return se;
+        /* Migrating from an older version? */
+        if (strstr(se->idstr, idstr) && se->compat) {
+            if (!strcmp(se->compat->idstr, idstr) &&
+                (instance_id == se->compat->instance_id ||
+                 instance_id == se->alias_id))
+                return se;
+        }
     }
     return NULL;
 }
@@ -1575,26 +1650,6 @@ out:
     return ret;
 }
 
-static BlockDriverState *get_bs_snapshots(void)
-{
-    BlockDriverState *bs;
-
-    if (bs_snapshots)
-        return bs_snapshots;
-    /* FIXME what if bs_snapshots gets hot-unplugged? */
-
-    bs = NULL;
-    while ((bs = bdrv_next(bs))) {
-        if (bdrv_can_snapshot(bs)) {
-            goto ok;
-        }
-    }
-    return NULL;
- ok:
-    bs_snapshots = bs;
-    return bs;
-}
-
 static int bdrv_snapshot_find(BlockDriverState *bs, QEMUSnapshotInfo *sn_info,
                               const char *name)
 {
@@ -1674,7 +1729,7 @@ void do_savevm(Monitor *mon, const QDict *qdict)
         }
     }
 
-    bs = get_bs_snapshots();
+    bs = bdrv_snapshots();
     if (!bs) {
         monitor_printf(mon, "No block device can accept snapshots\n");
         return;
@@ -1769,7 +1824,7 @@ int load_vmstate(const char *name)
         }
     }
 
-    bs = get_bs_snapshots();
+    bs = bdrv_snapshots();
     if (!bs) {
         error_report("No block device supports snapshots");
         return -EINVAL;
@@ -1833,7 +1888,7 @@ void do_delvm(Monitor *mon, const QDict *qdict)
     int ret;
     const char *name = qdict_get_str(qdict, "name");
 
-    bs = get_bs_snapshots();
+    bs = bdrv_snapshots();
     if (!bs) {
         monitor_printf(mon, "No block device supports snapshots\n");
         return;
@@ -1863,7 +1918,7 @@ void do_info_snapshots(Monitor *mon)
     int nb_sns, i;
     char buf[256];
 
-    bs = get_bs_snapshots();
+    bs = bdrv_snapshots();
     if (!bs) {
         monitor_printf(mon, "No available block device supports snapshots\n");
         return;
