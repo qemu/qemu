@@ -916,8 +916,10 @@ void pc_memory_init(ram_addr_t ram_size,
                  below_4g_mem_size - 0x100000,
                  ram_addr + 0x100000);
 #if TARGET_PHYS_ADDR_BITS > 32
-    cpu_register_physical_memory(0x100000000ULL, above_4g_mem_size,
-                                 ram_addr + below_4g_mem_size);
+    if (above_4g_mem_size > 0) {
+        cpu_register_physical_memory(0x100000000ULL, above_4g_mem_size,
+                                     ram_addr + below_4g_mem_size);
+    }
 #endif
 
     /* BIOS load */
