@@ -495,6 +495,10 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf)
         error_report("virtio-blk-pci: drive property not set");
         return NULL;
     }
+    if (!bdrv_is_inserted(conf->bs)) {
+        error_report("Device needs media, but drive is empty");
+        return NULL;
+    }
 
     s = (VirtIOBlock *)virtio_common_init("virtio-blk", VIRTIO_ID_BLOCK,
                                           sizeof(struct virtio_blk_config),

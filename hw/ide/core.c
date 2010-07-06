@@ -2630,6 +2630,10 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs,
         s->drive_kind = IDE_CD;
         bdrv_set_change_cb(bs, cdrom_change_cb, s);
     } else {
+        if (!bdrv_is_inserted(s->bs)) {
+            error_report("Device needs media, but drive is empty");
+            return -1;
+        }
         if (bdrv_is_read_only(bs)) {
             error_report("Can't use a read-only drive");
             return -1;
