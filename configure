@@ -270,7 +270,7 @@ vnc_tls=""
 vnc_sasl=""
 vnc_jpeg=""
 vnc_png=""
-vnc_thread=""
+vnc_thread="no"
 xen=""
 linux_aio=""
 attr=""
@@ -842,7 +842,7 @@ echo "  --disable-vnc-sasl       disable SASL encryption for VNC server"
 echo "  --enable-vnc-sasl        enable SASL encryption for VNC server"
 echo "  --disable-vnc-jpeg       disable JPEG lossy compression for VNC server"
 echo "  --enable-vnc-jpeg        enable JPEG lossy compression for VNC server"
-echo "  --disable-vnc-png        disable PNG compression for VNC server"
+echo "  --disable-vnc-png        disable PNG compression for VNC server (default)"
 echo "  --enable-vnc-png         enable PNG compression for VNC server"
 echo "  --disable-vnc-thread     disable threaded VNC server"
 echo "  --enable-vnc-thread      enable threaded VNC server"
@@ -1268,7 +1268,7 @@ fi
 
 ##########################################
 # VNC JPEG detection
-if test "$vnc_jpeg" = "yes" ; then
+if test "$vnc_jpeg" != "no" ; then
 cat > $TMPC <<EOF
 #include <stdio.h>
 #include <jpeglib.h>
@@ -1289,7 +1289,7 @@ fi
 
 ##########################################
 # VNC PNG detection
-if test "$vnc_png" = "yes" ; then
+if test "$vnc_png" != "no" ; then
 cat > $TMPC <<EOF
 //#include <stdio.h>
 #include <png.h>
@@ -2301,15 +2301,15 @@ if test "$vnc_sasl" = "yes" ; then
   echo "CONFIG_VNC_SASL=y" >> $config_host_mak
   echo "VNC_SASL_CFLAGS=$vnc_sasl_cflags" >> $config_host_mak
 fi
-if test "$vnc_jpeg" = "yes" ; then
+if test "$vnc_jpeg" != "no" ; then
   echo "CONFIG_VNC_JPEG=y" >> $config_host_mak
   echo "VNC_JPEG_CFLAGS=$vnc_jpeg_cflags" >> $config_host_mak
 fi
-if test "$vnc_png" = "yes" ; then
+if test "$vnc_png" != "no" ; then
   echo "CONFIG_VNC_PNG=y" >> $config_host_mak
   echo "VNC_PNG_CFLAGS=$vnc_png_cflags" >> $config_host_mak
 fi
-if test "$vnc_thread" = "yes" ; then
+if test "$vnc_thread" != "no" ; then
   echo "CONFIG_VNC_THREAD=y" >> $config_host_mak
   echo "CONFIG_THREAD=y" >> $config_host_mak
 fi
