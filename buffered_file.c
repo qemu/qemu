@@ -156,6 +156,14 @@ static int buffered_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, in
         offset = size;
     }
 
+    if (pos == 0 && size == 0) {
+        DPRINTF("file is ready\n");
+        if (s->bytes_xfer <= s->xfer_limit) {
+            DPRINTF("notifying client\n");
+            s->put_ready(s->opaque);
+        }
+    }
+
     return offset;
 }
 
