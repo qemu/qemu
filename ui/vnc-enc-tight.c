@@ -73,6 +73,21 @@ static int tight_send_framebuffer_update(VncState *vs, int x, int y,
                                          int w, int h);
 
 #ifdef CONFIG_VNC_PNG
+static const struct {
+    int png_zlib_level, png_filters;
+} tight_png_conf[] = {
+    { 0, PNG_NO_FILTERS },
+    { 1, PNG_NO_FILTERS },
+    { 2, PNG_NO_FILTERS },
+    { 3, PNG_NO_FILTERS },
+    { 4, PNG_NO_FILTERS },
+    { 5, PNG_ALL_FILTERS },
+    { 6, PNG_ALL_FILTERS },
+    { 7, PNG_ALL_FILTERS },
+    { 8, PNG_ALL_FILTERS },
+    { 9, PNG_ALL_FILTERS },
+};
+
 static int send_png_rect(VncState *vs, int x, int y, int w, int h,
                          QDict *palette);
 
@@ -1425,7 +1440,8 @@ static int send_png_rect(VncState *vs, int x, int y, int w, int h,
     png_infop info_ptr;
     png_colorp png_palette = NULL;
     size_t offset;
-    int level = tight_conf[vs->tight_compression].raw_zlib_level;
+    int level = tight_png_conf[vs->tight_compression].png_zlib_level;
+    int filters = tight_png_conf[vs->tight_compression].png_filters;
     uint8_t *buf;
     int dy;
 
@@ -1444,6 +1460,7 @@ static int send_png_rect(VncState *vs, int x, int y, int w, int h,
 
     png_set_write_fn(png_ptr, (void *) vs, png_write_data, png_flush_data);
     png_set_compression_level(png_ptr, level);
+    png_set_filter(png_ptr, PNG_FILTER_TYPE_DEFAULT, filters);
 
     if (palette) {
         color_type = PNG_COLOR_TYPE_PALETTE;
