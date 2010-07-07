@@ -1452,6 +1452,60 @@ static void vnc_tight_stop(VncState *vs)
     vs->output = vs->tight.tmp;
 }
 
+static int send_sub_rect_nojpeg(VncState *vs, int x, int y, int w, int h,
+                                int bg, int fg, int colors, VncPalette *palette)
+{
+    int ret;
+
+    if (colors == 0) {
+        if (tight_detect_smooth_image(vs, w, h)) {
+            ret = send_gradient_rect(vs, x, y, w, h);
+        } else {
+            ret = send_full_color_rect(vs, x, y, w, h);
+        }
+    } else if (colors == 1) {
+        ret = send_solid_rect(vs);
+    } else if (colors == 2) {
+        ret = send_mono_rect(vs, x, y, w, h, bg, fg);
+    } else if (colors <= 256) {
+        ret = send_palette_rect(vs, x, y, w, h, palette);
+    }
+    return ret;
+}
+
+#ifdef CONFIG_VNC_JPEG
+static int send_sub_rect_jpeg(VncState *vs, int x, int y, int w, int h,
+                              int bg, int fg, int colors,
+                              VncPalette *palette)
+{
+    int ret;
+
+    if (colors == 0) {
+        if (tight_detect_smooth_image(vs, w, h)) {
+            int quality = tight_conf[vs->tight.quality].jpeg_quality;
+
+            ret = send_jpeg_rect(vs, x, y, w, h, quality);
+        } else {
+            ret = send_full_color_rect(vs, x, y, w, h);
+        }
+    } else if (colors == 1) {
+        ret = send_solid_rect(vs);
+    } else if (colors == 2) {
+        ret = send_mono_rect(vs, x, y, w, h, bg, fg);
+    } else if (colors <= 256) {
+        if (colors > 96 &&
+            tight_detect_smooth_image(vs, w, h)) {
+            int quality = tight_conf[vs->tight.quality].jpeg_quality;
+
+            ret = send_jpeg_rect(vs, x, y, w, h, quality);
+        } else {
+            ret = send_palette_rect(vs, x, y, w, h, palette);
+        }
+    }
+    return ret;
+}
+#endif
+
 static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
 {
     VncPalette *palette = NULL;
@@ -1467,40 +1521,16 @@ static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
 
     colors = tight_fill_palette(vs, x, y, w * h, &fg, &bg, &palette);
 
-    if (colors == 0) {
-        if (tight_detect_smooth_image(vs, w, h)) {
-            if (vs->tight.quality == -1) {
-                ret = send_gradient_rect(vs, x, y, w, h);
-            } else {
 #ifdef CONFIG_VNC_JPEG
-                int quality = tight_conf[vs->tight.quality].jpeg_quality;
-
-                ret = send_jpeg_rect(vs, x, y, w, h, quality);
-#else
-                ret = send_full_color_rect(vs, x, y, w, h);
-#endif
-            }
-        } else {
-            ret = send_full_color_rect(vs, x, y, w, h);
-        }
-    } else if (colors == 1) {
-        ret = send_solid_rect(vs);
-    } else if (colors == 2) {
-        ret = send_mono_rect(vs, x, y, w, h, bg, fg);
-    } else if (colors <= 256) {
-#ifdef CONFIG_VNC_JPEG
-        if (colors > 96 && vs->tight.quality != -1 && vs->tight.quality <= 3 &&
-            tight_detect_smooth_image(vs, w, h)) {
-            int quality = tight_conf[vs->tight.quality].jpeg_quality;
-
-            ret = send_jpeg_rect(vs, x, y, w, h, quality);
-        } else {
-            ret = send_palette_rect(vs, x, y, w, h, palette);
-        }
-#else
-        ret = send_palette_rect(vs, x, y, w, h, palette);
-#endif
+    if (vs->tight.quality != -1) {
+        ret = send_sub_rect_jpeg(vs, x, y, w, h, bg, fg, colors, palette);
+    } else {
+        ret = send_sub_rect_nojpeg(vs, x, y, w, h, bg, fg, colors, palette);
     }
+#else
+    ret = send_sub_rect_nojpeg(vs, x, y, w, h, bg, fg, colors, palette);
+#endif
+
     palette_destroy(palette);
     return ret;
 }
