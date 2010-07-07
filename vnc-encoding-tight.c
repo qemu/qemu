@@ -26,6 +26,14 @@
  * THE SOFTWARE.
  */
 
+#include "qemu-common.h"
+
+#ifdef CONFIG_VNC_JPEG
+#include <stdio.h>
+#include <jpeglib.h>
+#endif
+
+#include "bswap.h"
 #include "qdict.h"
 #include "qint.h"
 #include "vnc.h"
@@ -54,6 +62,206 @@ static const struct {
     { 65536, 2048,  32,  8192, 9, 9, 8, 6, 190, 475,  64, 75,   500,  1200 },
     { 65536, 2048,  32,  8192, 9, 9, 9, 6, 200, 500,  96, 80,   200,   500 }
 };
+
+/*
+ * Code to guess if given rectangle is suitable for smooth image
+ * compression (by applying "gradient" filter or JPEG coder).
+ */
+
+static uint
+tight_detect_smooth_image24(VncState *vs, int w, int h)
+{
+    int off;
+    int x, y, d, dx;
+    uint c;
+    uint stats[256];
+    int pixels = 0;
+    int pix, left[3];
+    uint errors;
+    unsigned char *buf = vs->tight.buffer;
+
+    /*
+     * If client is big-endian, color samples begin from the second
+     * byte (offset 1) of a 32-bit pixel value.
+     */
+    off = !!(vs->clientds.flags & QEMU_BIG_ENDIAN_FLAG);
+
+    memset(stats, 0, sizeof (stats));
+
+    for (y = 0, x = 0; y < h && x < w;) {
+        for (d = 0; d < h - y && d < w - x - VNC_TIGHT_DETECT_SUBROW_WIDTH;
+             d++) {
+            for (c = 0; c < 3; c++) {
+                left[c] = buf[((y+d)*w+x+d)*4+off+c] & 0xFF;
+            }
+            for (dx = 1; dx <= VNC_TIGHT_DETECT_SUBROW_WIDTH; dx++) {
+                for (c = 0; c < 3; c++) {
+                    pix = buf[((y+d)*w+x+d+dx)*4+off+c] & 0xFF;
+                    stats[abs(pix - left[c])]++;
+                    left[c] = pix;
+                }
+                pixels++;
+            }
+        }
+        if (w > h) {
+            x += h;
+            y = 0;
+        } else {
+            x = 0;
+            y += w;
+        }
+    }
+
+    /* 95% smooth or more ... */
+    if (stats[0] * 33 / pixels >= 95) {
+        return 0;
+    }
+
+    errors = 0;
+    for (c = 1; c < 8; c++) {
+        errors += stats[c] * (c * c);
+        if (stats[c] == 0 || stats[c] > stats[c-1] * 2) {
+            return 0;
+        }
+    }
+    for (; c < 256; c++) {
+        errors += stats[c] * (c * c);
+    }
+    errors /= (pixels * 3 - stats[0]);
+
+    return errors;
+}
+
+#define DEFINE_DETECT_FUNCTION(bpp)                                     \
+                                                                        \
+    static uint                                                         \
+    tight_detect_smooth_image##bpp(VncState *vs, int w, int h) {        \
+        bool endian;                                                    \
+        uint##bpp##_t pix;                                              \
+        int max[3], shift[3];                                           \
+        int x, y, d, dx;                                                \
+        uint c;                                                         \
+        uint stats[256];                                                \
+        int pixels = 0;                                                 \
+        int sample, sum, left[3];                                       \
+        uint errors;                                                    \
+        unsigned char *buf = vs->tight.buffer;                          \
+                                                                        \
+        endian = ((vs->clientds.flags & QEMU_BIG_ENDIAN_FLAG) !=        \
+                  (vs->ds->surface->flags & QEMU_BIG_ENDIAN_FLAG));     \
+                                                                        \
+                                                                        \
+        max[0] = vs->clientds.pf.rmax;                                  \
+        max[1] = vs->clientds.pf.gmax;                                  \
+        max[2] = vs->clientds.pf.bmax;                                  \
+        shift[0] = vs->clientds.pf.rshift;                              \
+        shift[1] = vs->clientds.pf.gshift;                              \
+        shift[2] = vs->clientds.pf.bshift;                              \
+                                                                        \
+        memset(stats, 0, sizeof(stats));                                \
+                                                                        \
+        y = 0, x = 0;                                                   \
+        while (y < h && x < w) {                                        \
+            for (d = 0; d < h - y &&                                    \
+                     d < w - x - VNC_TIGHT_DETECT_SUBROW_WIDTH; d++) {  \
+                pix = ((uint##bpp##_t *)buf)[(y+d)*w+x+d];              \
+                if (endian) {                                           \
+                    pix = bswap_##bpp(pix);                             \
+                }                                                       \
+                for (c = 0; c < 3; c++) {                               \
+                    left[c] = (int)(pix >> shift[c] & max[c]);          \
+                }                                                       \
+                for (dx = 1; dx <= VNC_TIGHT_DETECT_SUBROW_WIDTH;       \
+                     dx++) {                                            \
+                    pix = ((uint##bpp##_t *)buf)[(y+d)*w+x+d+dx];       \
+                    if (endian) {                                       \
+                        pix = bswap_##bpp(pix);                         \
+                    }                                                   \
+                    sum = 0;                                            \
+                    for (c = 0; c < 3; c++) {                           \
+                        sample = (int)(pix >> shift[c] & max[c]);       \
+                        sum += abs(sample - left[c]);                   \
+                        left[c] = sample;                               \
+                    }                                                   \
+                    if (sum > 255) {                                    \
+                        sum = 255;                                      \
+                    }                                                   \
+                    stats[sum]++;                                       \
+                    pixels++;                                           \
+                }                                                       \
+            }                                                           \
+            if (w > h) {                                                \
+                x += h;                                                 \
+                y = 0;                                                  \
+            } else {                                                    \
+                x = 0;                                                  \
+                y += w;                                                 \
+            }                                                           \
+        }                                                               \
+                                                                        \
+        if ((stats[0] + stats[1]) * 100 / pixels >= 90) {               \
+            return 0;                                                   \
+        }                                                               \
+                                                                        \
+        errors = 0;                                                     \
+        for (c = 1; c < 8; c++) {                                       \
+            errors += stats[c] * (c * c);                               \
+            if (stats[c] == 0 || stats[c] > stats[c-1] * 2) {           \
+                return 0;                                               \
+            }                                                           \
+        }                                                               \
+        for (; c < 256; c++) {                                          \
+            errors += stats[c] * (c * c);                               \
+        }                                                               \
+        errors /= (pixels - stats[0]);                                  \
+                                                                        \
+        return errors;                                                  \
+    }
+
+DEFINE_DETECT_FUNCTION(16)
+DEFINE_DETECT_FUNCTION(32)
+
+static int
+tight_detect_smooth_image(VncState *vs, int w, int h)
+{
+    uint errors;
+    int compression = vs->tight_compression;
+    int quality = vs->tight_quality;
+
+    if (ds_get_bytes_per_pixel(vs->ds) == 1 ||
+        vs->clientds.pf.bytes_per_pixel == 1 ||
+        w < VNC_TIGHT_DETECT_MIN_WIDTH || h < VNC_TIGHT_DETECT_MIN_HEIGHT) {
+        return 0;
+    }
+
+    if (vs->tight_quality != -1) {
+        if (w * h < VNC_TIGHT_JPEG_MIN_RECT_SIZE) {
+            return 0;
+        }
+    } else {
+        if (w * h < tight_conf[compression].gradient_min_rect_size) {
+            return 0;
+        }
+    }
+
+    if (vs->clientds.pf.bytes_per_pixel == 4) {
+        if (vs->tight_pixel24) {
+            errors = tight_detect_smooth_image24(vs, w, h);
+            if (vs->tight_quality != -1) {
+                return (errors < tight_conf[quality].jpeg_threshold24);
+            }
+            return (errors < tight_conf[compression].gradient_threshold24);
+        } else {
+            errors = tight_detect_smooth_image32(vs, w, h);
+        }
+    } else {
+        errors = tight_detect_smooth_image16(vs, w, h);
+    }
+    if (quality != -1) {
+        return (errors < tight_conf[quality].jpeg_threshold);
+    }
+    return (errors < tight_conf[compression].gradient_threshold);
+}
 
 /*
  * Code to determine how many different colors used in rectangle.
@@ -333,6 +541,133 @@ DEFINE_IDX_ENCODE_FUNCTION(32)
 DEFINE_MONO_ENCODE_FUNCTION(8)
 DEFINE_MONO_ENCODE_FUNCTION(16)
 DEFINE_MONO_ENCODE_FUNCTION(32)
+
+/*
+ * ``Gradient'' filter for 24-bit color samples.
+ * Should be called only when redMax, greenMax and blueMax are 255.
+ * Color components assumed to be byte-aligned.
+ */
+
+static void
+tight_filter_gradient24(VncState *vs, uint8_t *buf, int w, int h)
+{
+    uint32_t *buf32;
+    uint32_t pix32;
+    int shift[3];
+    int *prev;
+    int here[3], upper[3], left[3], upperleft[3];
+    int prediction;
+    int x, y, c;
+
+    buf32 = (uint32_t *)buf;
+    memset(vs->tight_gradient.buffer, 0, w * 3 * sizeof(int));
+
+    if ((vs->clientds.flags & QEMU_BIG_ENDIAN_FLAG) ==
+        (vs->ds->surface->flags & QEMU_BIG_ENDIAN_FLAG)) {
+        shift[0] = vs->clientds.pf.rshift;
+        shift[1] = vs->clientds.pf.gshift;
+        shift[2] = vs->clientds.pf.bshift;
+    } else {
+        shift[0] = 24 - vs->clientds.pf.rshift;
+        shift[1] = 24 - vs->clientds.pf.gshift;
+        shift[2] = 24 - vs->clientds.pf.bshift;
+    }
+
+    for (y = 0; y < h; y++) {
+        for (c = 0; c < 3; c++) {
+            upper[c] = 0;
+            here[c] = 0;
+        }
+        prev = (int *)vs->tight_gradient.buffer;
+        for (x = 0; x < w; x++) {
+            pix32 = *buf32++;
+            for (c = 0; c < 3; c++) {
+                upperleft[c] = upper[c];
+                left[c] = here[c];
+                upper[c] = *prev;
+                here[c] = (int)(pix32 >> shift[c] & 0xFF);
+                *prev++ = here[c];
+
+                prediction = left[c] + upper[c] - upperleft[c];
+                if (prediction < 0) {
+                    prediction = 0;
+                } else if (prediction > 0xFF) {
+                    prediction = 0xFF;
+                }
+                *buf++ = (char)(here[c] - prediction);
+            }
+        }
+    }
+}
+
+
+/*
+ * ``Gradient'' filter for other color depths.
+ */
+
+#define DEFINE_GRADIENT_FILTER_FUNCTION(bpp)                            \
+                                                                        \
+    static void                                                         \
+    tight_filter_gradient##bpp(VncState *vs, uint##bpp##_t *buf,        \
+                               int w, int h) {                          \
+        uint##bpp##_t pix, diff;                                        \
+        bool endian;                                                    \
+        int *prev;                                                      \
+        int max[3], shift[3];                                           \
+        int here[3], upper[3], left[3], upperleft[3];                   \
+        int prediction;                                                 \
+        int x, y, c;                                                    \
+                                                                        \
+        memset (vs->tight_gradient.buffer, 0, w * 3 * sizeof(int));     \
+                                                                        \
+        endian = ((vs->clientds.flags & QEMU_BIG_ENDIAN_FLAG) !=        \
+                  (vs->ds->surface->flags & QEMU_BIG_ENDIAN_FLAG));     \
+                                                                        \
+        max[0] = vs->clientds.pf.rmax;                                  \
+        max[1] = vs->clientds.pf.gmax;                                  \
+        max[2] = vs->clientds.pf.bmax;                                  \
+        shift[0] = vs->clientds.pf.rshift;                              \
+        shift[1] = vs->clientds.pf.gshift;                              \
+        shift[2] = vs->clientds.pf.bshift;                              \
+                                                                        \
+        for (y = 0; y < h; y++) {                                       \
+            for (c = 0; c < 3; c++) {                                   \
+                upper[c] = 0;                                           \
+                here[c] = 0;                                            \
+            }                                                           \
+            prev = (int *)vs->tight_gradient.buffer;                    \
+            for (x = 0; x < w; x++) {                                   \
+                pix = *buf;                                             \
+                if (endian) {                                           \
+                    pix = bswap_##bpp(pix);                             \
+                }                                                       \
+                diff = 0;                                               \
+                for (c = 0; c < 3; c++) {                               \
+                    upperleft[c] = upper[c];                            \
+                    left[c] = here[c];                                  \
+                    upper[c] = *prev;                                   \
+                    here[c] = (int)(pix >> shift[c] & max[c]);          \
+                    *prev++ = here[c];                                  \
+                                                                        \
+                    prediction = left[c] + upper[c] - upperleft[c];     \
+                    if (prediction < 0) {                               \
+                        prediction = 0;                                 \
+                    } else if (prediction > max[c]) {                   \
+                        prediction = max[c];                            \
+                    }                                                   \
+                    diff |= ((here[c] - prediction) & max[c])           \
+                        << shift[c];                                    \
+                }                                                       \
+                if (endian) {                                           \
+                    diff = bswap_##bpp(diff);                           \
+                }                                                       \
+                *buf++ = diff;                                          \
+            }                                                           \
+        }                                                               \
+    }
+
+DEFINE_GRADIENT_FILTER_FUNCTION(16)
+DEFINE_GRADIENT_FILTER_FUNCTION(32)
 
 /*
  * Check if a rectangle is all of the same color. If needSameColor is
@@ -702,6 +1037,41 @@ static void write_palette(const char *key, QObject *obj, void *opaque)
     }
 }
 
+static bool send_gradient_rect(VncState *vs, int w, int h)
+{
+    int stream = 3;
+    int level = tight_conf[vs->tight_compression].gradient_zlib_level;
+    size_t bytes;
+
+    if (vs->clientds.pf.bytes_per_pixel == 1)
+        return send_full_color_rect(vs, w, h);
+
+    vnc_write_u8(vs, (stream | VNC_TIGHT_EXPLICIT_FILTER) << 4);
+    vnc_write_u8(vs, VNC_TIGHT_FILTER_GRADIENT);
+
+    buffer_reserve(&vs->tight_gradient, w * 3 * sizeof (int));
+
+    if (vs->tight_pixel24) {
+        tight_filter_gradient24(vs, vs->tight.buffer, w, h);
+        bytes = 3;
+    } else if (vs->clientds.pf.bytes_per_pixel == 4) {
+        tight_filter_gradient32(vs, (uint32_t *)vs->tight.buffer, w, h);
+        bytes = 4;
+    } else {
+        tight_filter_gradient16(vs, (uint16_t *)vs->tight.buffer, w, h);
+        bytes = 2;
+    }
+
+    buffer_reset(&vs->tight_gradient);
+
+    bytes = w * h * bytes;
+    vs->tight.offset = bytes;
+
+    bytes = tight_compress_data(vs, stream, bytes,
+                                level, Z_FILTERED);
+    return (bytes >= 0);
+}
+
 static int send_palette_rect(VncState *vs, int w, int h, struct QDict *palette)
 {
     int stream = 2;
@@ -756,6 +1126,164 @@ static int send_palette_rect(VncState *vs, int w, int h, struct QDict *palette)
     return (bytes >= 0);
 }
 
+/*
+ * JPEG compression stuff.
+ */
+#ifdef CONFIG_VNC_JPEG
+static void jpeg_prepare_row24(VncState *vs, uint8_t *dst, int x, int y,
+                                     int count)
+{
+    VncDisplay *vd = vs->vd;
+    uint32_t *fbptr;
+    uint32_t pix;
+
+    fbptr = (uint32_t *)(vd->server->data + y * ds_get_linesize(vs->ds) +
+                         x * ds_get_bytes_per_pixel(vs->ds));
+
+    while (count--) {
+        pix = *fbptr++;
+        *dst++ = (uint8_t)(pix >> vs->ds->surface->pf.rshift);
+        *dst++ = (uint8_t)(pix >> vs->ds->surface->pf.gshift);
+        *dst++ = (uint8_t)(pix >> vs->ds->surface->pf.bshift);
+    }
+}
+
+#define DEFINE_JPEG_GET_ROW_FUNCTION(bpp)                               \
+                                                                        \
+    static void                                                         \
+    jpeg_prepare_row##bpp(VncState *vs, uint8_t *dst,                   \
+                                int x, int y, int count)                \
+    {                                                                   \
+        VncDisplay *vd = vs->vd;                                        \
+        uint##bpp##_t *fbptr;                                           \
+        uint##bpp##_t pix;                                              \
+        int r, g, b;                                                    \
+                                                                        \
+        fbptr = (uint##bpp##_t *)                                       \
+            (vd->server->data + y * ds_get_linesize(vs->ds) +           \
+             x * ds_get_bytes_per_pixel(vs->ds));                       \
+                                                                        \
+        while (count--) {                                               \
+            pix = *fbptr++;                                             \
+                                                                        \
+            r = (int)((pix >> vs->ds->surface->pf.rshift)               \
+                      & vs->ds->surface->pf.rmax);                      \
+            g = (int)((pix >> vs->ds->surface->pf.gshift)               \
+                      & vs->ds->surface->pf.gmax);                      \
+            b = (int)((pix >> vs->ds->surface->pf.bshift)               \
+                      & vs->ds->surface->pf.bmax);                      \
+                                                                        \
+            *dst++ = (uint8_t)((r * 255 + vs->ds->surface->pf.rmax / 2) \
+                               / vs->ds->surface->pf.rmax);             \
+            *dst++ = (uint8_t)((g * 255 + vs->ds->surface->pf.gmax / 2) \
+                               / vs->ds->surface->pf.gmax);             \
+            *dst++ = (uint8_t)((b * 255 + vs->ds->surface->pf.bmax / 2) \
+                               / vs->ds->surface->pf.bmax);             \
+        }                                                               \
+    }
+
+DEFINE_JPEG_GET_ROW_FUNCTION(16)
+DEFINE_JPEG_GET_ROW_FUNCTION(32)
+
+static void jpeg_prepare_row(VncState *vs, uint8_t *dst, int x, int y,
+                                       int count)
+{
+    if (vs->tight_pixel24)
+        jpeg_prepare_row24(vs, dst, x, y, count);
+    else if (ds_get_bytes_per_pixel(vs->ds) == 4)
+        jpeg_prepare_row32(vs, dst, x, y, count);
+    else
+        jpeg_prepare_row16(vs, dst, x, y, count);
+}
+
+/*
+ * Destination manager implementation for JPEG library.
+ */
+
+/* This is called once per encoding */
+static void jpeg_init_destination(j_compress_ptr cinfo)
+{
+    VncState *vs = cinfo->client_data;
+    Buffer *buffer = &vs->tight_jpeg;
+
+    cinfo->dest->next_output_byte = (JOCTET *)buffer->buffer + buffer->offset;
+    cinfo->dest->free_in_buffer = (size_t)(buffer->capacity - buffer->offset);
+}
+
+/* This is called when we ran out of buffer (shouldn't happen!) */
+static boolean jpeg_empty_output_buffer(j_compress_ptr cinfo)
+{
+    VncState *vs = cinfo->client_data;
+    Buffer *buffer = &vs->tight_jpeg;
+
+    buffer->offset = buffer->capacity;
+    buffer_reserve(buffer, 2048);
+    jpeg_init_destination(cinfo);
+    return TRUE;
+}
+
+/* This is called when we are done processing data */
+static void jpeg_term_destination(j_compress_ptr cinfo)
+{
+    VncState *vs = cinfo->client_data;
+    Buffer *buffer = &vs->tight_jpeg;
+
+    buffer->offset = buffer->capacity - cinfo->dest->free_in_buffer;
+}
+
+static int send_jpeg_rect(VncState *vs, int x, int y, int w, int h, int quality)
+{
+    struct jpeg_compress_struct cinfo;
+    struct jpeg_error_mgr jerr;
+    struct jpeg_destination_mgr manager;
+    JSAMPROW row[1];
+    uint8_t *buf;
+    int dy;
+
+    if (ds_get_bytes_per_pixel(vs->ds) == 1)
+        return send_full_color_rect(vs, w, h);
+
+    buf = qemu_malloc(w * 3);
+    row[0] = buf;
+    buffer_reserve(&vs->tight_jpeg, 2048);
+
+    cinfo.err = jpeg_std_error(&jerr);
+    jpeg_create_compress(&cinfo);
+
+    cinfo.client_data = vs;
+    cinfo.image_width = w;
+    cinfo.image_height = h;
+    cinfo.input_components = 3;
+    cinfo.in_color_space = JCS_RGB;
+
+    jpeg_set_defaults(&cinfo);
+    jpeg_set_quality(&cinfo, quality, true);
+
+    manager.init_destination = jpeg_init_destination;
+    manager.empty_output_buffer = jpeg_empty_output_buffer;
+    manager.term_destination = jpeg_term_destination;
+    cinfo.dest = &manager;
+
+    jpeg_start_compress(&cinfo, true);
+
+    for (dy = 0; dy < h; dy++) {
+        jpeg_prepare_row(vs, buf, x, y + dy, w);
+        jpeg_write_scanlines(&cinfo, row, 1);
+    }
+
+    jpeg_finish_compress(&cinfo);
+    jpeg_destroy_compress(&cinfo);
+
+    vnc_write_u8(vs, VNC_TIGHT_JPEG << 4);
+
+    tight_send_compact_size(vs, vs->tight_jpeg.offset);
+    vnc_write(vs, vs->tight_jpeg.buffer, vs->tight_jpeg.offset);
+    buffer_reset(&vs->tight_jpeg);
+
+    return 1;
+}
+#endif /* CONFIG_VNC_JPEG */
+
 static void vnc_tight_start(VncState *vs)
 {
     buffer_reset(&vs->tight);
@@ -788,13 +1316,38 @@ static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
     colors = tight_fill_palette(vs, x, y, w * h, &fg, &bg, &palette);
 
     if (colors == 0) {
-        ret = send_full_color_rect(vs, w, h);
+        if (tight_detect_smooth_image(vs, w, h)) {
+            if (vs->tight_quality == -1) {
+                ret = send_gradient_rect(vs, w, h);
+            } else {
+#ifdef CONFIG_VNC_JPEG
+                int quality = tight_conf[vs->tight_quality].jpeg_quality;
+
+                ret = send_jpeg_rect(vs, x, y, w, h, quality);
+#else
+                ret = send_full_color_rect(vs, w, h);
+#endif
+            }
+        } else {
+            ret = send_full_color_rect(vs, w, h);
+        }
     } else if (colors == 1) {
         ret = send_solid_rect(vs);
     } else if (colors == 2) {
         ret = send_mono_rect(vs, w, h, bg, fg);
     } else if (colors <= 256) {
+#ifdef CONFIG_VNC_JPEG
+        if (colors > 96 && vs->tight_quality != -1 && vs->tight_quality <= 3 &&
+            tight_detect_smooth_image(vs, w, h)) {
+            int quality = tight_conf[vs->tight_quality].jpeg_quality;
+
+            ret = send_jpeg_rect(vs, x, y, w, h, quality);
+        } else {
+            ret = send_palette_rect(vs, w, h, palette);
+        }
+#else
         ret = send_palette_rect(vs, w, h, palette);
+#endif
     }
     QDECREF(palette);
     return ret;
@@ -956,4 +1509,8 @@ void vnc_tight_clear(VncState *vs)
 
     buffer_free(&vs->tight);
     buffer_free(&vs->tight_zlib);
+    buffer_free(&vs->tight_gradient);
+#ifdef CONFIG_VNC_JPEG
+    buffer_free(&vs->tight_jpeg);
+#endif
 }

@@ -176,6 +176,10 @@ struct VncState
     Buffer tight;
     Buffer tight_tmp;
     Buffer tight_zlib;
+    Buffer tight_gradient;
+#ifdef CONFIG_VNC_JPEG
+    Buffer tight_jpeg;
+#endif
     int tight_levels[4];
     z_stream tight_stream[4];
 

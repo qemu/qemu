@@ -268,6 +268,7 @@ uuid=""
 vde=""
 vnc_tls=""
 vnc_sasl=""
+vnc_jpeg=""
 xen=""
 linux_aio=""
 attr=""
@@ -575,6 +576,10 @@ for opt do
   ;;
   --enable-vnc-sasl) vnc_sasl="yes"
   ;;
+  --disable-vnc-jpeg) vnc_jpeg="no"
+  ;;
+  --enable-vnc-jpeg) vnc_jpeg="yes"
+  ;;
   --disable-slirp) slirp="no"
   ;;
   --disable-uuid) uuid="no"
@@ -825,6 +830,8 @@ echo "  --disable-vnc-tls        disable TLS encryption for VNC server"
 echo "  --enable-vnc-tls         enable TLS encryption for VNC server"
 echo "  --disable-vnc-sasl       disable SASL encryption for VNC server"
 echo "  --enable-vnc-sasl        enable SASL encryption for VNC server"
+echo "  --disable-vnc-jpeg       disable JPEG lossy compression for VNC server"
+echo "  --enable-vnc-jpeg        enable JPEG lossy compression for VNC server"
 echo "  --disable-curses         disable curses output"
 echo "  --enable-curses          enable curses output"
 echo "  --disable-curl           disable curl connectivity"
@@ -1242,6 +1249,27 @@ EOF
       feature_not_found "vnc-sasl"
     fi
     vnc_sasl=no
+  fi
+fi
+
+##########################################
+# VNC JPEG detection
+if test "$vnc_jpeg" = "yes" ; then
+cat > $TMPC <<EOF
+#include <stdio.h>
+#include <jpeglib.h>
+int main(void) { struct jpeg_compress_struct s; jpeg_create_compress(&s); return 0; }
+EOF
+    vnc_jpeg_cflags=""
+    vnc_jpeg_libs="-ljpeg"
+  if compile_prog "$vnc_jpeg_cflags" "$vnc_jpeg_libs" ; then
+    vnc_jpeg=yes
+    libs_softmmu="$vnc_jpeg_libs $libs_softmmu"
+  else
+    if test "$vnc_jpeg" = "yes" ; then
+      feature_not_found "vnc-jpeg"
+    fi
+    vnc_jpeg=no
   fi
 fi
 
@@ -2094,6 +2122,7 @@ echo "Block whitelist   $block_drv_whitelist"
 echo "Mixer emulation   $mixemu"
 echo "VNC TLS support   $vnc_tls"
 echo "VNC SASL support  $vnc_sasl"
+echo "VNC JPEG support  $vnc_jpeg"
 if test -n "$sparc_cpu"; then
     echo "Target Sparc Arch $sparc_cpu"
 fi
@@ -2230,6 +2259,10 @@ fi
 if test "$vnc_sasl" = "yes" ; then
   echo "CONFIG_VNC_SASL=y" >> $config_host_mak
   echo "VNC_SASL_CFLAGS=$vnc_sasl_cflags" >> $config_host_mak
+fi
+if test "$vnc_jpeg" = "yes" ; then
+  echo "CONFIG_VNC_JPEG=y" >> $config_host_mak
+  echo "VNC_JPEG_CFLAGS=$vnc_jpeg_cflags" >> $config_host_mak
 fi
 if test "$fnmatch" = "yes" ; then
   echo "CONFIG_FNMATCH=y" >> $config_host_mak
