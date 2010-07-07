@@ -34,6 +34,15 @@ void qemu_mutex_init(QemuMutex *mutex)
         error_exit(err, __func__);
 }
 
+void qemu_mutex_destroy(QemuMutex *mutex)
+{
+    int err;
+
+    err = pthread_mutex_destroy(&mutex->lock);
+    if (err)
+        error_exit(err, __func__);
+}
+
 void qemu_mutex_lock(QemuMutex *mutex)
 {
     int err;
@@ -86,6 +95,15 @@ void qemu_cond_init(QemuCond *cond)
     int err;
 
     err = pthread_cond_init(&cond->cond, NULL);
+    if (err)
+        error_exit(err, __func__);
+}
+
+void qemu_cond_destroy(QemuCond *cond)
+{
+    int err;
+
+    err = pthread_cond_destroy(&cond->cond);
     if (err)
         error_exit(err, __func__);
 }
@@ -168,3 +186,7 @@ int qemu_thread_equal(QemuThread *thread1, QemuThread *thread2)
    return pthread_equal(thread1->thread, thread2->thread);
 }
 
+void qemu_thread_exit(void *retval)
+{
+    pthread_exit(retval);
+}
