@@ -93,7 +93,7 @@ static int send_png_rect(VncState *vs, int x, int y, int w, int h,
 
 static bool tight_can_send_png_rect(VncState *vs, int w, int h)
 {
-    if (vs->tight_type != VNC_ENCODING_TIGHT_PNG) {
+    if (vs->tight.type != VNC_ENCODING_TIGHT_PNG) {
         return false;
     }
 
@@ -121,7 +121,7 @@ tight_detect_smooth_image24(VncState *vs, int w, int h)
     int pixels = 0;
     int pix, left[3];
     uint errors;
-    unsigned char *buf = vs->tight.buffer;
+    unsigned char *buf = vs->tight.tight.buffer;
 
     /*
      * If client is big-endian, color samples begin from the second
@@ -188,7 +188,7 @@ tight_detect_smooth_image24(VncState *vs, int w, int h)
         int pixels = 0;                                                 \
         int sample, sum, left[3];                                       \
         uint errors;                                                    \
-        unsigned char *buf = vs->tight.buffer;                          \
+        unsigned char *buf = vs->tight.tight.buffer;                    \
                                                                         \
         endian = ((vs->clientds.flags & QEMU_BIG_ENDIAN_FLAG) !=        \
                   (vs->ds->surface->flags & QEMU_BIG_ENDIAN_FLAG));     \
@@ -268,8 +268,8 @@ static int
 tight_detect_smooth_image(VncState *vs, int w, int h)
 {
     uint errors;
-    int compression = vs->tight_compression;
-    int quality = vs->tight_quality;
+    int compression = vs->tight.compression;
+    int quality = vs->tight.quality;
 
     if (!vs->vd->lossy) {
         return 0;
@@ -281,7 +281,7 @@ tight_detect_smooth_image(VncState *vs, int w, int h)
         return 0;
     }
 
-    if (vs->tight_quality != -1) {
+    if (vs->tight.quality != -1) {
         if (w * h < VNC_TIGHT_JPEG_MIN_RECT_SIZE) {
             return 0;
         }
@@ -292,9 +292,9 @@ tight_detect_smooth_image(VncState *vs, int w, int h)
     }
 
     if (vs->clientds.pf.bytes_per_pixel == 4) {
-        if (vs->tight_pixel24) {
+        if (vs->tight.pixel24) {
             errors = tight_detect_smooth_image24(vs, w, h);
-            if (vs->tight_quality != -1) {
+            if (vs->tight.quality != -1) {
                 return (errors < tight_conf[quality].jpeg_threshold24);
             }
             return (errors < tight_conf[compression].gradient_threshold24);
@@ -324,7 +324,7 @@ tight_detect_smooth_image(VncState *vs, int w, int h)
         uint##bpp##_t c0, c1, ci;                                       \
         int i, n0, n1;                                                  \
                                                                         \
-        data = (uint##bpp##_t *)vs->tight.buffer;                       \
+        data = (uint##bpp##_t *)vs->tight.tight.buffer;                 \
                                                                         \
         c0 = data[0];                                                   \
         i = 1;                                                          \
@@ -395,9 +395,9 @@ static int tight_fill_palette(VncState *vs, int x, int y,
 {
     int max;
 
-    max = count / tight_conf[vs->tight_compression].idx_max_colors_divisor;
+    max = count / tight_conf[vs->tight.compression].idx_max_colors_divisor;
     if (max < 2 &&
-        count >= tight_conf[vs->tight_compression].mono_min_rect_size) {
+        count >= tight_conf[vs->tight.compression].mono_min_rect_size) {
         max = 2;
     }
     if (max >= 256) {
@@ -529,7 +529,7 @@ tight_filter_gradient24(VncState *vs, uint8_t *buf, int w, int h)
     int x, y, c;
 
     buf32 = (uint32_t *)buf;
-    memset(vs->tight_gradient.buffer, 0, w * 3 * sizeof(int));
+    memset(vs->tight.gradient.buffer, 0, w * 3 * sizeof(int));
 
     if ((vs->clientds.flags & QEMU_BIG_ENDIAN_FLAG) ==
         (vs->ds->surface->flags & QEMU_BIG_ENDIAN_FLAG)) {
@@ -547,7 +547,7 @@ tight_filter_gradient24(VncState *vs, uint8_t *buf, int w, int h)
             upper[c] = 0;
             here[c] = 0;
         }
-        prev = (int *)vs->tight_gradient.buffer;
+        prev = (int *)vs->tight.gradient.buffer;
         for (x = 0; x < w; x++) {
             pix32 = *buf32++;
             for (c = 0; c < 3; c++) {
@@ -587,7 +587,7 @@ tight_filter_gradient24(VncState *vs, uint8_t *buf, int w, int h)
         int prediction;                                                 \
         int x, y, c;                                                    \
                                                                         \
-        memset (vs->tight_gradient.buffer, 0, w * 3 * sizeof(int));     \
+        memset (vs->tight.gradient.buffer, 0, w * 3 * sizeof(int));     \
                                                                         \
         endian = ((vs->clientds.flags & QEMU_BIG_ENDIAN_FLAG) !=        \
                   (vs->ds->surface->flags & QEMU_BIG_ENDIAN_FLAG));     \
@@ -604,7 +604,7 @@ tight_filter_gradient24(VncState *vs, uint8_t *buf, int w, int h)
                 upper[c] = 0;                                           \
                 here[c] = 0;                                            \
             }                                                           \
-            prev = (int *)vs->tight_gradient.buffer;                    \
+            prev = (int *)vs->tight.gradient.buffer;                    \
             for (x = 0; x < w; x++) {                                   \
                 pix = *buf;                                             \
                 if (endian) {                                           \
@@ -774,7 +774,7 @@ static void extend_solid_area(VncState *vs, int x, int y, int w, int h,
 static int tight_init_stream(VncState *vs, int stream_id,
                              int level, int strategy)
 {
-    z_streamp zstream = &vs->tight_stream[stream_id];
+    z_streamp zstream = &vs->tight.stream[stream_id];
 
     if (zstream->opaque == NULL) {
         int err;
@@ -792,15 +792,15 @@ static int tight_init_stream(VncState *vs, int stream_id,
             return -1;
         }
 
-        vs->tight_levels[stream_id] = level;
+        vs->tight.levels[stream_id] = level;
         zstream->opaque = vs;
     }
 
-    if (vs->tight_levels[stream_id] != level) {
+    if (vs->tight.levels[stream_id] != level) {
         if (deflateParams(zstream, level, strategy) != Z_OK) {
             return -1;
         }
-        vs->tight_levels[stream_id] = level;
+        vs->tight.levels[stream_id] = level;
     }
     return 0;
 }
@@ -828,11 +828,11 @@ static void tight_send_compact_size(VncState *vs, size_t len)
 static int tight_compress_data(VncState *vs, int stream_id, size_t bytes,
                                int level, int strategy)
 {
-    z_streamp zstream = &vs->tight_stream[stream_id];
+    z_streamp zstream = &vs->tight.stream[stream_id];
     int previous_out;
 
     if (bytes < VNC_TIGHT_MIN_TO_COMPRESS) {
-        vnc_write(vs, vs->tight.buffer, vs->tight.offset);
+        vnc_write(vs, vs->tight.tight.buffer, vs->tight.tight.offset);
         return bytes;
     }
 
@@ -841,13 +841,13 @@ static int tight_compress_data(VncState *vs, int stream_id, size_t bytes,
     }
 
     /* reserve memory in output buffer */
-    buffer_reserve(&vs->tight_zlib, bytes + 64);
+    buffer_reserve(&vs->tight.zlib, bytes + 64);
 
     /* set pointers */
-    zstream->next_in = vs->tight.buffer;
-    zstream->avail_in = vs->tight.offset;
-    zstream->next_out = vs->tight_zlib.buffer + vs->tight_zlib.offset;
-    zstream->avail_out = vs->tight_zlib.capacity - vs->tight_zlib.offset;
+    zstream->next_in = vs->tight.tight.buffer;
+    zstream->avail_in = vs->tight.tight.offset;
+    zstream->next_out = vs->tight.zlib.buffer + vs->tight.zlib.offset;
+    zstream->avail_out = vs->tight.zlib.capacity - vs->tight.zlib.offset;
     zstream->data_type = Z_BINARY;
     previous_out = zstream->total_out;
 
@@ -857,13 +857,13 @@ static int tight_compress_data(VncState *vs, int stream_id, size_t bytes,
         return -1;
     }
 
-    vs->tight_zlib.offset = vs->tight_zlib.capacity - zstream->avail_out;
+    vs->tight.zlib.offset = vs->tight.zlib.capacity - zstream->avail_out;
     bytes = zstream->total_out - previous_out;
 
     tight_send_compact_size(vs, bytes);
-    vnc_write(vs, vs->tight_zlib.buffer, bytes);
+    vnc_write(vs, vs->tight.zlib.buffer, bytes);
 
-    buffer_reset(&vs->tight_zlib);
+    buffer_reset(&vs->tight.zlib);
 
     return bytes;
 }
@@ -915,15 +915,15 @@ static int send_full_color_rect(VncState *vs, int x, int y, int w, int h)
 
     vnc_write_u8(vs, stream << 4); /* no flushing, no filter */
 
-    if (vs->tight_pixel24) {
-        tight_pack24(vs, vs->tight.buffer, w * h, &vs->tight.offset);
+    if (vs->tight.pixel24) {
+        tight_pack24(vs, vs->tight.tight.buffer, w * h, &vs->tight.tight.offset);
         bytes = 3;
     } else {
         bytes = vs->clientds.pf.bytes_per_pixel;
     }
 
     bytes = tight_compress_data(vs, stream, w * h * bytes,
-                                tight_conf[vs->tight_compression].raw_zlib_level,
+                                tight_conf[vs->tight.compression].raw_zlib_level,
                                 Z_DEFAULT_STRATEGY);
 
     return (bytes >= 0);
@@ -935,14 +935,14 @@ static int send_solid_rect(VncState *vs)
 
     vnc_write_u8(vs, VNC_TIGHT_FILL << 4); /* no flushing, no filter */
 
-    if (vs->tight_pixel24) {
-        tight_pack24(vs, vs->tight.buffer, 1, &vs->tight.offset);
+    if (vs->tight.pixel24) {
+        tight_pack24(vs, vs->tight.tight.buffer, 1, &vs->tight.tight.offset);
         bytes = 3;
     } else {
         bytes = vs->clientds.pf.bytes_per_pixel;
     }
 
-    vnc_write(vs, vs->tight.buffer, bytes);
+    vnc_write(vs, vs->tight.tight.buffer, bytes);
     return 1;
 }
 
@@ -951,7 +951,7 @@ static int send_mono_rect(VncState *vs, int x, int y,
 {
     size_t bytes;
     int stream = 1;
-    int level = tight_conf[vs->tight_compression].mono_zlib_level;
+    int level = tight_conf[vs->tight.compression].mono_zlib_level;
 
 #ifdef CONFIG_VNC_PNG
     if (tight_can_send_png_rect(vs, w, h)) {
@@ -979,26 +979,26 @@ static int send_mono_rect(VncState *vs, int x, int y,
         uint32_t buf[2] = {bg, fg};
         size_t ret = sizeof (buf);
 
-        if (vs->tight_pixel24) {
+        if (vs->tight.pixel24) {
             tight_pack24(vs, (unsigned char*)buf, 2, &ret);
         }
         vnc_write(vs, buf, ret);
 
-        tight_encode_mono_rect32(vs->tight.buffer, w, h, bg, fg);
+        tight_encode_mono_rect32(vs->tight.tight.buffer, w, h, bg, fg);
         break;
     }
     case 2:
         vnc_write(vs, &bg, 2);
         vnc_write(vs, &fg, 2);
-        tight_encode_mono_rect16(vs->tight.buffer, w, h, bg, fg);
+        tight_encode_mono_rect16(vs->tight.tight.buffer, w, h, bg, fg);
         break;
     default:
         vnc_write_u8(vs, bg);
         vnc_write_u8(vs, fg);
-        tight_encode_mono_rect8(vs->tight.buffer, w, h, bg, fg);
+        tight_encode_mono_rect8(vs->tight.tight.buffer, w, h, bg, fg);
         break;
     }
-    vs->tight.offset = bytes;
+    vs->tight.tight.offset = bytes;
 
     bytes = tight_compress_data(vs, stream, bytes, level, Z_DEFAULT_STRATEGY);
     return (bytes >= 0);
@@ -1028,7 +1028,7 @@ static void write_palette(int idx, uint32_t color, void *opaque)
 static bool send_gradient_rect(VncState *vs, int x, int y, int w, int h)
 {
     int stream = 3;
-    int level = tight_conf[vs->tight_compression].gradient_zlib_level;
+    int level = tight_conf[vs->tight.compression].gradient_zlib_level;
     size_t bytes;
 
     if (vs->clientds.pf.bytes_per_pixel == 1)
@@ -1037,23 +1037,23 @@ static bool send_gradient_rect(VncState *vs, int x, int y, int w, int h)
     vnc_write_u8(vs, (stream | VNC_TIGHT_EXPLICIT_FILTER) << 4);
     vnc_write_u8(vs, VNC_TIGHT_FILTER_GRADIENT);
 
-    buffer_reserve(&vs->tight_gradient, w * 3 * sizeof (int));
+    buffer_reserve(&vs->tight.gradient, w * 3 * sizeof (int));
 
-    if (vs->tight_pixel24) {
-        tight_filter_gradient24(vs, vs->tight.buffer, w, h);
+    if (vs->tight.pixel24) {
+        tight_filter_gradient24(vs, vs->tight.tight.buffer, w, h);
         bytes = 3;
     } else if (vs->clientds.pf.bytes_per_pixel == 4) {
-        tight_filter_gradient32(vs, (uint32_t *)vs->tight.buffer, w, h);
+        tight_filter_gradient32(vs, (uint32_t *)vs->tight.tight.buffer, w, h);
         bytes = 4;
     } else {
-        tight_filter_gradient16(vs, (uint16_t *)vs->tight.buffer, w, h);
+        tight_filter_gradient16(vs, (uint16_t *)vs->tight.tight.buffer, w, h);
         bytes = 2;
     }
 
-    buffer_reset(&vs->tight_gradient);
+    buffer_reset(&vs->tight.gradient);
 
     bytes = w * h * bytes;
-    vs->tight.offset = bytes;
+    vs->tight.tight.offset = bytes;
 
     bytes = tight_compress_data(vs, stream, bytes,
                                 level, Z_FILTERED);
@@ -1064,7 +1064,7 @@ static int send_palette_rect(VncState *vs, int x, int y,
                              int w, int h, VncPalette *palette)
 {
     int stream = 2;
-    int level = tight_conf[vs->tight_compression].idx_zlib_level;
+    int level = tight_conf[vs->tight.compression].idx_zlib_level;
     int colors;
     size_t bytes;
 
@@ -1091,12 +1091,12 @@ static int send_palette_rect(VncState *vs, int x, int y,
         palette_iter(palette, write_palette, &priv);
         vnc_write(vs, header, sizeof(header));
 
-        if (vs->tight_pixel24) {
+        if (vs->tight.pixel24) {
             tight_pack24(vs, vs->output.buffer + old_offset, colors, &offset);
             vs->output.offset = old_offset + offset;
         }
 
-        tight_encode_indexed_rect32(vs->tight.buffer, w * h, palette);
+        tight_encode_indexed_rect32(vs->tight.tight.buffer, w * h, palette);
         break;
     }
     case 2:
@@ -1106,7 +1106,7 @@ static int send_palette_rect(VncState *vs, int x, int y,
 
         palette_iter(palette, write_palette, &priv);
         vnc_write(vs, header, sizeof(header));
-        tight_encode_indexed_rect16(vs->tight.buffer, w * h, palette);
+        tight_encode_indexed_rect16(vs->tight.tight.buffer, w * h, palette);
         break;
     }
     default:
@@ -1114,7 +1114,7 @@ static int send_palette_rect(VncState *vs, int x, int y,
         break;
     }
     bytes = w * h;
-    vs->tight.offset = bytes;
+    vs->tight.tight.offset = bytes;
 
     bytes = tight_compress_data(vs, stream, bytes,
                                 level, Z_DEFAULT_STRATEGY);
@@ -1180,7 +1180,7 @@ DEFINE_RGB_GET_ROW_FUNCTION(32)
 static void rgb_prepare_row(VncState *vs, uint8_t *dst, int x, int y,
                             int count)
 {
-    if (vs->tight_pixel24)
+    if (vs->tight.pixel24)
         rgb_prepare_row24(vs, dst, x, y, count);
     else if (ds_get_bytes_per_pixel(vs->ds) == 4)
         rgb_prepare_row32(vs, dst, x, y, count);
@@ -1201,7 +1201,7 @@ static void rgb_prepare_row(VncState *vs, uint8_t *dst, int x, int y,
 static void jpeg_init_destination(j_compress_ptr cinfo)
 {
     VncState *vs = cinfo->client_data;
-    Buffer *buffer = &vs->tight_jpeg;
+    Buffer *buffer = &vs->tight.jpeg;
 
     cinfo->dest->next_output_byte = (JOCTET *)buffer->buffer + buffer->offset;
     cinfo->dest->free_in_buffer = (size_t)(buffer->capacity - buffer->offset);
@@ -1211,7 +1211,7 @@ static void jpeg_init_destination(j_compress_ptr cinfo)
 static boolean jpeg_empty_output_buffer(j_compress_ptr cinfo)
 {
     VncState *vs = cinfo->client_data;
-    Buffer *buffer = &vs->tight_jpeg;
+    Buffer *buffer = &vs->tight.jpeg;
 
     buffer->offset = buffer->capacity;
     buffer_reserve(buffer, 2048);
@@ -1223,7 +1223,7 @@ static boolean jpeg_empty_output_buffer(j_compress_ptr cinfo)
 static void jpeg_term_destination(j_compress_ptr cinfo)
 {
     VncState *vs = cinfo->client_data;
-    Buffer *buffer = &vs->tight_jpeg;
+    Buffer *buffer = &vs->tight.jpeg;
 
     buffer->offset = buffer->capacity - cinfo->dest->free_in_buffer;
 }
@@ -1240,7 +1240,7 @@ static int send_jpeg_rect(VncState *vs, int x, int y, int w, int h, int quality)
     if (ds_get_bytes_per_pixel(vs->ds) == 1)
         return send_full_color_rect(vs, x, y, w, h);
 
-    buffer_reserve(&vs->tight_jpeg, 2048);
+    buffer_reserve(&vs->tight.jpeg, 2048);
 
     cinfo.err = jpeg_std_error(&jerr);
     jpeg_create_compress(&cinfo);
@@ -1274,9 +1274,9 @@ static int send_jpeg_rect(VncState *vs, int x, int y, int w, int h, int quality)
 
     vnc_write_u8(vs, VNC_TIGHT_JPEG << 4);
 
-    tight_send_compact_size(vs, vs->tight_jpeg.offset);
-    vnc_write(vs, vs->tight_jpeg.buffer, vs->tight_jpeg.offset);
-    buffer_reset(&vs->tight_jpeg);
+    tight_send_compact_size(vs, vs->tight.jpeg.offset);
+    vnc_write(vs, vs->tight.jpeg.buffer, vs->tight.jpeg.offset);
+    buffer_reset(&vs->tight.jpeg);
 
     return 1;
 }
@@ -1292,7 +1292,7 @@ static void write_png_palette(int idx, uint32_t pix, void *opaque)
     VncState *vs = priv->vs;
     png_colorp color = &priv->png_palette[idx];
 
-    if (vs->tight_pixel24)
+    if (vs->tight.pixel24)
     {
         color->red = (pix >> vs->clientds.pf.rshift) & vs->clientds.pf.rmax;
         color->green = (pix >> vs->clientds.pf.gshift) & vs->clientds.pf.gmax;
@@ -1319,10 +1319,10 @@ static void png_write_data(png_structp png_ptr, png_bytep data,
 {
     VncState *vs = png_get_io_ptr(png_ptr);
 
-    buffer_reserve(&vs->tight_png, vs->tight_png.offset + length);
-    memcpy(vs->tight_png.buffer + vs->tight_png.offset, data, length);
+    buffer_reserve(&vs->tight.png, vs->tight.png.offset + length);
+    memcpy(vs->tight.png.buffer + vs->tight.png.offset, data, length);
 
-    vs->tight_png.offset += length;
+    vs->tight.png.offset += length;
 }
 
 static void png_flush_data(png_structp png_ptr)
@@ -1347,8 +1347,8 @@ static int send_png_rect(VncState *vs, int x, int y, int w, int h,
     png_infop info_ptr;
     png_colorp png_palette = NULL;
     size_t offset;
-    int level = tight_png_conf[vs->tight_compression].png_zlib_level;
-    int filters = tight_png_conf[vs->tight_compression].png_filters;
+    int level = tight_png_conf[vs->tight.compression].png_zlib_level;
+    int filters = tight_png_conf[vs->tight.compression].png_filters;
     uint8_t *buf;
     int dy;
 
@@ -1391,22 +1391,22 @@ static int send_png_rect(VncState *vs, int x, int y, int w, int h,
 
         png_set_PLTE(png_ptr, info_ptr, png_palette, palette_size(palette));
 
-        offset = vs->tight.offset;
+        offset = vs->tight.tight.offset;
         if (vs->clientds.pf.bytes_per_pixel == 4) {
-            tight_encode_indexed_rect32(vs->tight.buffer, w * h, palette);
+            tight_encode_indexed_rect32(vs->tight.tight.buffer, w * h, palette);
         } else {
-            tight_encode_indexed_rect16(vs->tight.buffer, w * h, palette);
+            tight_encode_indexed_rect16(vs->tight.tight.buffer, w * h, palette);
         }
     }
 
     png_write_info(png_ptr, info_ptr);
 
-    buffer_reserve(&vs->tight_png, 2048);
+    buffer_reserve(&vs->tight.png, 2048);
     buf = qemu_malloc(w * 3);
     for (dy = 0; dy < h; dy++)
     {
         if (color_type == PNG_COLOR_TYPE_PALETTE) {
-            memcpy(buf, vs->tight.buffer + (dy * w), w);
+            memcpy(buf, vs->tight.tight.buffer + (dy * w), w);
         } else {
             rgb_prepare_row(vs, buf, x, y + dy, w);
         }
@@ -1424,27 +1424,27 @@ static int send_png_rect(VncState *vs, int x, int y, int w, int h,
 
     vnc_write_u8(vs, VNC_TIGHT_PNG << 4);
 
-    tight_send_compact_size(vs, vs->tight_png.offset);
-    vnc_write(vs, vs->tight_png.buffer, vs->tight_png.offset);
-    buffer_reset(&vs->tight_png);
+    tight_send_compact_size(vs, vs->tight.png.offset);
+    vnc_write(vs, vs->tight.png.buffer, vs->tight.png.offset);
+    buffer_reset(&vs->tight.png);
     return 1;
 }
 #endif /* CONFIG_VNC_PNG */
 
 static void vnc_tight_start(VncState *vs)
 {
-    buffer_reset(&vs->tight);
+    buffer_reset(&vs->tight.tight);
 
     // make the output buffer be the zlib buffer, so we can compress it later
-    vs->tight_tmp = vs->output;
-    vs->output = vs->tight;
+    vs->tight.tmp = vs->output;
+    vs->output = vs->tight.tight;
 }
 
 static void vnc_tight_stop(VncState *vs)
 {
     // switch back to normal output/zlib buffers
-    vs->tight = vs->output;
-    vs->output = vs->tight_tmp;
+    vs->tight.tight = vs->output;
+    vs->output = vs->tight.tmp;
 }
 
 static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
@@ -1454,7 +1454,7 @@ static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
     int colors;
     int ret = 0;
 
-    vnc_framebuffer_update(vs, x, y, w, h, vs->tight_type);
+    vnc_framebuffer_update(vs, x, y, w, h, vs->tight.type);
 
     vnc_tight_start(vs);
     vnc_raw_send_framebuffer_update(vs, x, y, w, h);
@@ -1464,11 +1464,11 @@ static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
 
     if (colors == 0) {
         if (tight_detect_smooth_image(vs, w, h)) {
-            if (vs->tight_quality == -1) {
+            if (vs->tight.quality == -1) {
                 ret = send_gradient_rect(vs, x, y, w, h);
             } else {
 #ifdef CONFIG_VNC_JPEG
-                int quality = tight_conf[vs->tight_quality].jpeg_quality;
+                int quality = tight_conf[vs->tight.quality].jpeg_quality;
 
                 ret = send_jpeg_rect(vs, x, y, w, h, quality);
 #else
@@ -1484,9 +1484,9 @@ static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
         ret = send_mono_rect(vs, x, y, w, h, bg, fg);
     } else if (colors <= 256) {
 #ifdef CONFIG_VNC_JPEG
-        if (colors > 96 && vs->tight_quality != -1 && vs->tight_quality <= 3 &&
+        if (colors > 96 && vs->tight.quality != -1 && vs->tight.quality <= 3 &&
             tight_detect_smooth_image(vs, w, h)) {
-            int quality = tight_conf[vs->tight_quality].jpeg_quality;
+            int quality = tight_conf[vs->tight.quality].jpeg_quality;
 
             ret = send_jpeg_rect(vs, x, y, w, h, quality);
         } else {
@@ -1502,7 +1502,7 @@ static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
 
 static int send_sub_rect_solid(VncState *vs, int x, int y, int w, int h)
 {
-    vnc_framebuffer_update(vs, x, y, w, h, vs->tight_type);
+    vnc_framebuffer_update(vs, x, y, w, h, vs->tight.type);
 
     vnc_tight_start(vs);
     vnc_raw_send_framebuffer_update(vs, x, y, w, h);
@@ -1519,8 +1519,8 @@ static int send_rect_simple(VncState *vs, int x, int y, int w, int h)
     int rw, rh;
     int n = 0;
 
-    max_size = tight_conf[vs->tight_compression].max_rect_size;
-    max_width = tight_conf[vs->tight_compression].max_rect_width;
+    max_size = tight_conf[vs->tight.compression].max_rect_size;
+    max_width = tight_conf[vs->tight.compression].max_rect_width;
 
     if (w > max_width || w * h > max_size) {
         max_sub_width = (w > max_width) ? max_width : w;
@@ -1629,9 +1629,9 @@ static int tight_send_framebuffer_update(VncState *vs, int x, int y,
 
     if (vs->clientds.pf.bytes_per_pixel == 4 && vs->clientds.pf.rmax == 0xFF &&
         vs->clientds.pf.bmax == 0xFF && vs->clientds.pf.gmax == 0xFF) {
-        vs->tight_pixel24 = true;
+        vs->tight.pixel24 = true;
     } else {
-        vs->tight_pixel24 = false;
+        vs->tight.pixel24 = false;
     }
 
     if (w * h < VNC_TIGHT_MIN_SPLIT_RECT_SIZE)
@@ -1639,8 +1639,8 @@ static int tight_send_framebuffer_update(VncState *vs, int x, int y,
 
     /* Calculate maximum number of rows in one non-solid rectangle. */
 
-    max_rows = tight_conf[vs->tight_compression].max_rect_size;
-    max_rows /= MIN(tight_conf[vs->tight_compression].max_rect_width, w);
+    max_rows = tight_conf[vs->tight.compression].max_rect_size;
+    max_rows /= MIN(tight_conf[vs->tight.compression].max_rect_width, w);
 
     return find_large_solid_color_rect(vs, x, y, w, h, max_rows);
 }
@@ -1648,30 +1648,30 @@ static int tight_send_framebuffer_update(VncState *vs, int x, int y,
 int vnc_tight_send_framebuffer_update(VncState *vs, int x, int y,
                                       int w, int h)
 {
-    vs->tight_type = VNC_ENCODING_TIGHT;
+    vs->tight.type = VNC_ENCODING_TIGHT;
     return tight_send_framebuffer_update(vs, x, y, w, h);
 }
 
 int vnc_tight_png_send_framebuffer_update(VncState *vs, int x, int y,
                                           int w, int h)
 {
-    vs->tight_type = VNC_ENCODING_TIGHT_PNG;
+    vs->tight.type = VNC_ENCODING_TIGHT_PNG;
     return tight_send_framebuffer_update(vs, x, y, w, h);
 }
 
 void vnc_tight_clear(VncState *vs)
 {
     int i;
-    for (i=0; i<ARRAY_SIZE(vs->tight_stream); i++) {
-        if (vs->tight_stream[i].opaque) {
-            deflateEnd(&vs->tight_stream[i]);
+    for (i=0; i<ARRAY_SIZE(vs->tight.stream); i++) {
+        if (vs->tight.stream[i].opaque) {
+            deflateEnd(&vs->tight.stream[i]);
         }
     }
 
-    buffer_free(&vs->tight);
-    buffer_free(&vs->tight_zlib);
-    buffer_free(&vs->tight_gradient);
+    buffer_free(&vs->tight.tight);
+    buffer_free(&vs->tight.zlib);
+    buffer_free(&vs->tight.gradient);
 #ifdef CONFIG_VNC_JPEG
-    buffer_free(&vs->tight_jpeg);
+    buffer_free(&vs->tight.jpeg);
 #endif
 }

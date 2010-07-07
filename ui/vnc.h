@@ -122,6 +122,36 @@ struct VncDisplay
 #endif
 };
 
+typedef struct VncTight {
+    int type;
+    uint8_t quality;
+    uint8_t compression;
+    uint8_t pixel24;
+    Buffer tight;
+    Buffer tmp;
+    Buffer zlib;
+    Buffer gradient;
+#ifdef CONFIG_VNC_JPEG
+    Buffer jpeg;
+#endif
+#ifdef CONFIG_VNC_PNG
+    Buffer png;
+#endif
+    int levels[4];
+    z_stream stream[4];
+} VncTight;
+
+typedef struct VncHextile {
+    VncSendHextileTile *send_tile;
+} VncHextile;
+
+typedef struct VncZlib {
+    Buffer zlib;
+    Buffer tmp;
+    z_stream stream;
+    int level;
+} VncZlib;
+
 struct VncState
 {
     int csock;
@@ -170,33 +200,10 @@ struct VncState
     QEMUPutLEDEntry *led;
 
     /* Encoding specific */
+    VncTight tight;
+    VncZlib zlib;
+    VncHextile hextile;
 
-    /* Tight */
-    int tight_type;
-    uint8_t tight_quality;
-    uint8_t tight_compression;
-    uint8_t tight_pixel24;
-    Buffer tight;
-    Buffer tight_tmp;
-    Buffer tight_zlib;
-    Buffer tight_gradient;
-#ifdef CONFIG_VNC_JPEG
-    Buffer tight_jpeg;
-#endif
-#ifdef CONFIG_VNC_PNG
-    Buffer tight_png;
-#endif
-    int tight_levels[4];
-    z_stream tight_stream[4];
-
-    /* Hextile */
-    VncSendHextileTile *send_hextile_tile;
-
-    /* Zlib */
-    Buffer zlib;
-    Buffer zlib_tmp;
-    z_stream zlib_stream;
-    int zlib_level;
 
     Notifier mouse_mode_notifier;
 

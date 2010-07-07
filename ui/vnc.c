@@ -1642,8 +1642,8 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
 
     vs->features = 0;
     vs->vnc_encoding = 0;
-    vs->tight_compression = 9;
-    vs->tight_quality = -1; /* Lossless by default */
+    vs->tight.compression = 9;
+    vs->tight.quality = -1; /* Lossless by default */
     vs->absolute = -1;
 
     /*
@@ -1695,10 +1695,10 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             vs->features |= VNC_FEATURE_WMVI_MASK;
             break;
         case VNC_ENCODING_COMPRESSLEVEL0 ... VNC_ENCODING_COMPRESSLEVEL0 + 9:
-            vs->tight_compression = (enc & 0x0F);
+            vs->tight.compression = (enc & 0x0F);
             break;
         case VNC_ENCODING_QUALITYLEVEL0 ... VNC_ENCODING_QUALITYLEVEL0 + 9:
-            vs->tight_quality = (enc & 0x0F);
+            vs->tight.quality = (enc & 0x0F);
             break;
         default:
             VNC_DEBUG("Unknown encoding: %d (0x%.8x): %d\n", i, enc, enc);
