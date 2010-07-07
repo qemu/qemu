@@ -96,41 +96,13 @@ audio/audio.o audio/fmodaudio.o: QEMU_CFLAGS += $(FMOD_CFLAGS)
 
 QEMU_CFLAGS+=$(CURL_CFLAGS)
 
-cocoa.o: cocoa.m
+ui/cocoa.o: ui/cocoa.m
 
-keymaps.o: keymaps.c keymaps.h
+ui/sdl.o audio/sdlaudio.o ui/sdl_zoom.o baum.o: QEMU_CFLAGS += $(SDL_CFLAGS)
 
-sdl_zoom.o: sdl_zoom.c sdl_zoom.h sdl_zoom_template.h
-
-sdl.o: sdl.c keymaps.h sdl_keysym.h sdl_zoom.h
-
-sdl.o audio/sdlaudio.o sdl_zoom.o baum.o: QEMU_CFLAGS += $(SDL_CFLAGS)
-
-acl.o: acl.h acl.c
-
-vnc.h: vnc-tls.h vnc-auth-vencrypt.h vnc-auth-sasl.h keymaps.h
-
-vnc.o: vnc.c vnc.h vnc_keysym.h vnchextile.h d3des.c d3des.h acl.h
-
-vnc.o: QEMU_CFLAGS += $(VNC_TLS_CFLAGS)
-
-vnc-tls.o: vnc-tls.c vnc.h
-
-vnc-auth-vencrypt.o: vnc-auth-vencrypt.c vnc.h
-
-vnc-auth-sasl.o: vnc-auth-sasl.c vnc.h
-
-vnc-encoding-zlib.o: vnc-encoding-zlib.c vnc.h
-
-vnc-encoding-hextile.o: vnc-encoding-hextile.c vnc.h
-
-vnc-encoding-tight.o: vnc-encoding-tight.c vnc.h vnc-encoding-tight.h
-
-curses.o: curses.c keymaps.h curses_keys.h
+ui/vnc.o: QEMU_CFLAGS += $(VNC_TLS_CFLAGS)
 
 bt-host.o: QEMU_CFLAGS += $(BLUEZ_CFLAGS)
-
-iov.o: iov.c iov.h
 
 ######################################################################
 
@@ -159,7 +131,7 @@ clean:
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	rm -f *.o *.d *.a $(TOOLS) TAGS cscope.* *.pod *~ */*~
-	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d net/*.o net/*.d fsdev/*.o fsdev/*.d
+	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d net/*.o net/*.d fsdev/*.o fsdev/*.d ui/*.o ui/*.d
 	rm -f qemu-img-cmds.h
 	$(MAKE) -C tests clean
 	for d in $(ALL_SUBDIRS) libhw32 libhw64 libuser libdis libdis-user; do \
@@ -345,4 +317,4 @@ tarbin:
 	$(mandir)/man8/qemu-nbd.8
 
 # Include automatically generated dependency files
--include $(wildcard *.d audio/*.d slirp/*.d block/*.d net/*.d)
+-include $(wildcard *.d audio/*.d slirp/*.d block/*.d net/*.d ui/*.d)
