@@ -37,7 +37,7 @@
 #include "qdict.h"
 #include "qint.h"
 #include "vnc.h"
-#include "vnc-encoding-tight.h"
+#include "vnc-enc-tight.h"
 
 /* Compression level stuff. The following array contains various
    encoder parameters for each of 10 compression levels (0..9).

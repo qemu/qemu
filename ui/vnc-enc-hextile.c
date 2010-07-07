@@ -33,32 +33,32 @@ static void hextile_enc_cord(uint8_t *ptr, int x, int y, int w, int h)
 }
 
 #define BPP 8
-#include "vnchextile.h"
+#include "vnc-enc-hextile-template.h"
 #undef BPP
 
 #define BPP 16
-#include "vnchextile.h"
+#include "vnc-enc-hextile-template.h"
 #undef BPP
 
 #define BPP 32
-#include "vnchextile.h"
+#include "vnc-enc-hextile-template.h"
 #undef BPP
 
 #define GENERIC
 #define BPP 8
-#include "vnchextile.h"
+#include "vnc-enc-hextile-template.h"
 #undef BPP
 #undef GENERIC
 
 #define GENERIC
 #define BPP 16
-#include "vnchextile.h"
+#include "vnc-enc-hextile-template.h"
 #undef BPP
 #undef GENERIC
 
 #define GENERIC
 #define BPP 32
-#include "vnchextile.h"
+#include "vnc-enc-hextile-template.h"
 #undef BPP
 #undef GENERIC
 
