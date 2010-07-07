@@ -1247,8 +1247,6 @@ static int send_jpeg_rect(VncState *vs, int x, int y, int w, int h, int quality)
     if (ds_get_bytes_per_pixel(vs->ds) == 1)
         return send_full_color_rect(vs, w, h);
 
-    buf = qemu_malloc(w * 3);
-    row[0] = buf;
     buffer_reserve(&vs->tight_jpeg, 2048);
 
     cinfo.err = jpeg_std_error(&jerr);
@@ -1270,10 +1268,13 @@ static int send_jpeg_rect(VncState *vs, int x, int y, int w, int h, int quality)
 
     jpeg_start_compress(&cinfo, true);
 
+    buf = qemu_malloc(w * 3);
+    row[0] = buf;
     for (dy = 0; dy < h; dy++) {
         jpeg_prepare_row(vs, buf, x, y + dy, w);
         jpeg_write_scanlines(&cinfo, row, 1);
     }
+    qemu_free(buf);
 
     jpeg_finish_compress(&cinfo);
     jpeg_destroy_compress(&cinfo);
