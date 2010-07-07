@@ -393,11 +393,11 @@ static int tight_palette_insert(QDict *palette, uint32_t rgb, int bpp, int max)
             if (data[i] == ci) {                                        \
                 continue;                                               \
             } else {                                                    \
+                ci = data[i];                                           \
                 if (!tight_palette_insert(*palette, (uint32_t)ci,       \
                                           bpp, max)) {                  \
                     return 0;                                           \
                 }                                                       \
-                ci = data[i];                                           \
             }                                                           \
         }                                                               \
                                                                         \
