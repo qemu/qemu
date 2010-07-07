@@ -835,6 +835,13 @@ empty, with a @code{deny} policy. Thus no one will be allowed to
 use the VNC server until the ACLs have been loaded. This can be
 achieved using the @code{acl} monitor command.
 
+@item lossy
+
+Enable lossy compression methods (gradient, JPEG, ...). If this
+option is set, VNC client may receive lossy framebuffer updates
+depending on its encoding settings. Enabling this option can save
+a lot of bandwidth at the expense of quality.
+
 @end table
 ETEXI
 

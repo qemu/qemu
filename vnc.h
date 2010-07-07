@@ -33,6 +33,7 @@
 #include "monitor.h"
 #include "audio/audio.h"
 #include <zlib.h>
+#include <stdbool.h>
 
 #include "keymaps.h"
 
@@ -111,6 +112,7 @@ struct VncDisplay
     char *display;
     char *password;
     int auth;
+    bool lossy;
 #ifdef CONFIG_VNC_TLS
     int subauth; /* Used by VeNCrypt */
     VncDisplayTLS tls;

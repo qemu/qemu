@@ -2482,6 +2482,8 @@ int vnc_display_open(DisplayState *ds, const char *display)
 #endif
         } else if (strncmp(options, "acl", 3) == 0) {
             acl = 1;
+        } else if (strncmp(options, "lossy", 5) == 0) {
+            vs->lossy = true;
         }
     }
 

@@ -228,6 +228,10 @@ tight_detect_smooth_image(VncState *vs, int w, int h)
     int compression = vs->tight_compression;
     int quality = vs->tight_quality;
 
+    if (!vs->vd->lossy) {
+        return 0;
+    }
+
     if (ds_get_bytes_per_pixel(vs->ds) == 1 ||
         vs->clientds.pf.bytes_per_pixel == 1 ||
         w < VNC_TIGHT_DETECT_MIN_WIDTH || h < VNC_TIGHT_DETECT_MIN_HEIGHT) {
