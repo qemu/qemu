@@ -889,7 +889,7 @@ static int aio_flush_request(void *opaque)
     return !QLIST_EMPTY(&s->outstanding_aio_head);
 }
 
-#ifdef _WIN32
+#if !defined(SOL_TCP) || !defined(TCP_CORK)
 
 static int set_cork(int fd, int v)
 {
