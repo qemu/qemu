@@ -270,6 +270,7 @@ vnc_tls=""
 vnc_sasl=""
 vnc_jpeg=""
 vnc_png=""
+vnc_thread=""
 xen=""
 linux_aio=""
 attr=""
@@ -585,6 +586,10 @@ for opt do
   ;;
   --enable-vnc-png) vnc_png="yes"
   ;;
+  --disable-vnc-thread) vnc_thread="no"
+  ;;
+  --enable-vnc-thread) vnc_thread="yes"
+  ;;
   --disable-slirp) slirp="no"
   ;;
   --disable-uuid) uuid="no"
@@ -839,6 +844,8 @@ echo "  --disable-vnc-jpeg       disable JPEG lossy compression for VNC server"
 echo "  --enable-vnc-jpeg        enable JPEG lossy compression for VNC server"
 echo "  --disable-vnc-png        disable PNG compression for VNC server"
 echo "  --enable-vnc-png         enable PNG compression for VNC server"
+echo "  --disable-vnc-thread     disable threaded VNC server"
+echo "  --enable-vnc-thread      enable threaded VNC server"
 echo "  --disable-curses         disable curses output"
 echo "  --enable-curses          enable curses output"
 echo "  --disable-curl           disable curl connectivity"
@@ -2156,6 +2163,7 @@ echo "VNC TLS support   $vnc_tls"
 echo "VNC SASL support  $vnc_sasl"
 echo "VNC JPEG support  $vnc_jpeg"
 echo "VNC PNG support   $vnc_png"
+echo "VNC thread        $vnc_thread"
 if test -n "$sparc_cpu"; then
     echo "Target Sparc Arch $sparc_cpu"
 fi
@@ -2301,6 +2309,10 @@ if test "$vnc_png" = "yes" ; then
   echo "CONFIG_VNC_PNG=y" >> $config_host_mak
   echo "VNC_PNG_CFLAGS=$vnc_png_cflags" >> $config_host_mak
 fi
+if test "$vnc_thread" = "yes" ; then
+  echo "CONFIG_VNC_THREAD=y" >> $config_host_mak
+  echo "CONFIG_THREAD=y" >> $config_host_mak
+fi
 if test "$fnmatch" = "yes" ; then
   echo "CONFIG_FNMATCH=y" >> $config_host_mak
 fi
@@ -2377,6 +2389,7 @@ if test "$xen" = "yes" ; then
 fi
 if test "$io_thread" = "yes" ; then
   echo "CONFIG_IOTHREAD=y" >> $config_host_mak
+  echo "CONFIG_THREAD=y" >> $config_host_mak
 fi
 if test "$linux_aio" = "yes" ; then
   echo "CONFIG_LINUX_AIO=y" >> $config_host_mak

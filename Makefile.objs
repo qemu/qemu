@@ -111,10 +111,15 @@ ui-obj-y += vnc-enc-tight.o vnc-palette.o
 ui-obj-$(CONFIG_VNC_TLS) += vnc-tls.o vnc-auth-vencrypt.o
 ui-obj-$(CONFIG_VNC_SASL) += vnc-auth-sasl.o
 ui-obj-$(CONFIG_COCOA) += cocoa.o
+ifdef CONFIG_VNC_THREAD
+ui-obj-y += vnc-jobs-async.o
+else
+ui-obj-y += vnc-jobs-sync.o
+endif
 common-obj-y += $(addprefix ui/, $(ui-obj-y))
 
 common-obj-y += iov.o acl.o
-common-obj-$(CONFIG_IOTHREAD) += qemu-thread.o
+common-obj-$(CONFIG_THREAD) += qemu-thread.o
 common-obj-y += notify.o event_notifier.o
 common-obj-y += qemu-timer.o
 

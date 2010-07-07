@@ -29,6 +29,9 @@
 
 #include "qemu-common.h"
 #include "qemu-queue.h"
+#ifdef CONFIG_VNC_THREAD
+#include "qemu-thread.h"
+#endif
 #include "console.h"
 #include "monitor.h"
 #include "audio/audio.h"
@@ -59,6 +62,9 @@ typedef struct Buffer
 } Buffer;
 
 typedef struct VncState VncState;
+typedef struct VncJob VncJob;
+typedef struct VncRect VncRect;
+typedef struct VncRectEntry VncRectEntry;
 
 typedef int VncReadEvent(VncState *vs, uint8_t *data, size_t len);
 
@@ -101,6 +107,9 @@ struct VncDisplay
     DisplayState *ds;
     kbd_layout_t *kbd_layout;
     int lock_key_sync;
+#ifdef CONFIG_VNC_THREAD
+    QemuMutex mutex;
+#endif
 
     QEMUCursor *cursor;
     int cursor_msize;
@@ -152,6 +161,37 @@ typedef struct VncZlib {
     int level;
 } VncZlib;
 
+#ifdef CONFIG_VNC_THREAD
+struct VncRect
+{
+    int x;
+    int y;
+    int w;
+    int h;
+};
+
+struct VncRectEntry
+{
+    struct VncRect rect;
+    QLIST_ENTRY(VncRectEntry) next;
+};
+
+struct VncJob
+{
+    VncState *vs;
+
+    QLIST_HEAD(, VncRectEntry) rectangles;
+    QTAILQ_ENTRY(VncJob) next;
+};
+#else
+struct VncJob
+{
+    VncState *vs;
+    int rectangles;
+    size_t saved_offset;
+};
+#endif
+
 struct VncState
 {
     int csock;
@@ -199,7 +239,16 @@ struct VncState
     uint8_t modifiers_state[256];
     QEMUPutLEDEntry *led;
 
-    /* Encoding specific */
+    bool abort;
+#ifndef CONFIG_VNC_THREAD
+    VncJob job;
+#else
+    QemuMutex output_mutex;
+#endif
+
+    /* Encoding specific, if you add something here, don't forget to
+     *  update vnc_async_encoding_start()
+     */
     VncTight tight;
     VncZlib zlib;
     VncHextile hextile;
@@ -431,6 +480,8 @@ void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
 void vnc_convert_pixel(VncState *vs, uint8_t *buf, uint32_t v);
 
 /* Encodings */
+int vnc_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
+
 int vnc_raw_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
 
 int vnc_hextile_send_framebuffer_update(VncState *vs, int x,
