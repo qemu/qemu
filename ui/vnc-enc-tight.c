@@ -39,10 +39,10 @@
 #include "qemu-common.h"
 
 #include "bswap.h"
-#include "qdict.h"
 #include "qint.h"
 #include "vnc.h"
 #include "vnc-enc-tight.h"
+#include "vnc-palette.h"
 
 /* Compression level stuff. The following array contains various
    encoder parameters for each of 10 compression levels (0..9).
@@ -89,7 +89,7 @@ static const struct {
 };
 
 static int send_png_rect(VncState *vs, int x, int y, int w, int h,
-                         QDict *palette);
+                         VncPalette *palette);
 
 static bool tight_can_send_png_rect(VncState *vs, int w, int h)
 {
@@ -313,74 +313,13 @@ tight_detect_smooth_image(VncState *vs, int w, int h)
 /*
  * Code to determine how many different colors used in rectangle.
  */
-
-static void tight_palette_rgb2buf(uint32_t rgb, int bpp, uint8_t buf[6])
-{
-    memset(buf, 0, 6);
-
-    if (bpp == 32) {
-        buf[0] = ((rgb >> 24) & 0xFF);
-        buf[1] = ((rgb >> 16) & 0xFF);
-        buf[2] = ((rgb >>  8) & 0xFF);
-        buf[3] = ((rgb >>  0) & 0xFF);
-        buf[4] = ((buf[0] & 1) == 0) << 3 | ((buf[1] & 1) == 0) << 2;
-        buf[4]|= ((buf[2] & 1) == 0) << 1 | ((buf[3] & 1) == 0) << 0;
-        buf[0] |= 1;
-        buf[1] |= 1;
-        buf[2] |= 1;
-        buf[3] |= 1;
-    }
-    if (bpp == 16) {
-        buf[0] = ((rgb >> 8) & 0xFF);
-        buf[1] = ((rgb >> 0) & 0xFF);
-        buf[2] = ((buf[0] & 1) == 0) << 1 | ((buf[1] & 1) == 0) << 0;
-        buf[0] |= 1;
-        buf[1] |= 1;
-    }
-}
-
-static uint32_t tight_palette_buf2rgb(int bpp, const uint8_t *buf)
-{
-    uint32_t rgb = 0;
-
-    if (bpp == 32) {
-        rgb |= ((buf[0] & ~1) | !((buf[4] >> 3) & 1)) << 24;
-        rgb |= ((buf[1] & ~1) | !((buf[4] >> 2) & 1)) << 16;
-        rgb |= ((buf[2] & ~1) | !((buf[4] >> 1) & 1)) <<  8;
-        rgb |= ((buf[3] & ~1) | !((buf[4] >> 0) & 1)) <<  0;
-    }
-    if (bpp == 16) {
-        rgb |= ((buf[0] & ~1) | !((buf[2] >> 1) & 1)) << 8;
-        rgb |= ((buf[1] & ~1) | !((buf[2] >> 0) & 1)) << 0;
-    }
-    return rgb;
-}
-
-
-static int tight_palette_insert(QDict *palette, uint32_t rgb, int bpp, int max)
-{
-    uint8_t key[6];
-    int idx = qdict_size(palette);
-    bool present;
-
-    tight_palette_rgb2buf(rgb, bpp, key);
-    present = qdict_haskey(palette, (char *)key);
-    if (idx >= max && !present) {
-        return 0;
-    }
-    if (!present) {
-        qdict_put(palette, (char *)key, qint_from_int(idx));
-    }
-    return qdict_size(palette);
-}
-
 #define DEFINE_FILL_PALETTE_FUNCTION(bpp)                               \
                                                                         \
     static int                                                          \
     tight_fill_palette##bpp(VncState *vs, int x, int y,                 \
                             int max, size_t count,                      \
                             uint32_t *bg, uint32_t *fg,                 \
-                            struct QDict **palette) {                   \
+                            VncPalette **palette) {                     \
         uint##bpp##_t *data;                                            \
         uint##bpp##_t c0, c1, ci;                                       \
         int i, n0, n1;                                                  \
@@ -427,24 +366,23 @@ static int tight_palette_insert(QDict *palette, uint32_t rgb, int bpp, int max)
             return 0;                                                   \
         }                                                               \
                                                                         \
-        *palette = qdict_new();                                         \
-        tight_palette_insert(*palette, c0, bpp, max);                   \
-        tight_palette_insert(*palette, c1, bpp, max);                   \
-        tight_palette_insert(*palette, ci, bpp, max);                   \
+        *palette = palette_new(max, bpp);                               \
+        palette_put(*palette, c0);                                      \
+        palette_put(*palette, c1);                                      \
+        palette_put(*palette, ci);                                      \
                                                                         \
         for (i++; i < count; i++) {                                     \
             if (data[i] == ci) {                                        \
                 continue;                                               \
             } else {                                                    \
                 ci = data[i];                                           \
-                if (!tight_palette_insert(*palette, (uint32_t)ci,       \
-                                          bpp, max)) {                  \
+                if (!palette_put(*palette, (uint32_t)ci)) {             \
                     return 0;                                           \
                 }                                                       \
             }                                                           \
         }                                                               \
                                                                         \
-        return qdict_size(*palette);                                    \
+        return palette_size(*palette);                                  \
     }
 
 DEFINE_FILL_PALETTE_FUNCTION(8)
@@ -453,7 +391,7 @@ DEFINE_FILL_PALETTE_FUNCTION(32)
 
 static int tight_fill_palette(VncState *vs, int x, int y,
                               size_t count, uint32_t *bg, uint32_t *fg,
-                              struct QDict **palette)
+                              VncPalette **palette)
 {
     int max;
 
@@ -478,20 +416,6 @@ static int tight_fill_palette(VncState *vs, int x, int y,
     return 0;
 }
 
-/* Callback to dump a palette with qdict_iter
-static void print_palette(const char *key, QObject *obj, void *opaque)
-{
-    uint8_t idx = qint_get_int(qobject_to_qint(obj));
-    uint32_t rgb = tight_palette_buf2rgb(32, (uint8_t *)key);
-
-    fprintf(stderr, "%.2x ", (unsigned char)*key);
-    while (*key++)
-        fprintf(stderr, "%.2x ", (unsigned char)*key);
-
-    fprintf(stderr, ": idx: %x rgb: %x\n", idx, rgb);
-}
-*/
-
 /*
  * Converting truecolor samples into palette indices.
  */
@@ -499,10 +423,9 @@ static void print_palette(const char *key, QObject *obj, void *opaque)
                                                                         \
     static void                                                         \
     tight_encode_indexed_rect##bpp(uint8_t *buf, int count,             \
-                                   struct QDict *palette) {             \
+                                   VncPalette *palette) {               \
         uint##bpp##_t *src;                                             \
         uint##bpp##_t rgb;                                              \
-        uint8_t key[6];                                                 \
         int i, rep;                                                     \
         uint8_t idx;                                                    \
                                                                         \
@@ -515,15 +438,13 @@ static void print_palette(const char *key, QObject *obj, void *opaque)
             while (i < count && *src == rgb) {                          \
                 rep++, src++, i++;                                      \
             }                                                           \
-            tight_palette_rgb2buf(rgb, bpp, key);                       \
-            if (!qdict_haskey(palette, (char *)key)) {                  \
-                /*                                                      \
-                 * Should never happen, but don't break everything      \
-                 * if it does, use the first color instead              \
-                 */                                                     \
+            idx = palette_idx(palette, rgb);                            \
+            /*                                                          \
+             * Should never happen, but don't break everything          \
+             * if it does, use the first color instead                  \
+             */                                                         \
+            if (idx == -1) {                                            \
                 idx = 0;                                                \
-            } else {                                                    \
-                idx = qdict_get_int(palette, (char *)key);              \
             }                                                           \
             while (rep >= 0) {                                          \
                 *buf++ = idx;                                           \
@@ -1035,13 +956,13 @@ static int send_mono_rect(VncState *vs, int x, int y,
 #ifdef CONFIG_VNC_PNG
     if (tight_can_send_png_rect(vs, w, h)) {
         int ret;
-        QDict *palette = qdict_new();
         int bpp = vs->clientds.pf.bytes_per_pixel * 8;
+        VncPalette *palette = palette_new(2, bpp);
 
-        tight_palette_insert(palette, bg, bpp, 2);
-        tight_palette_insert(palette, fg, bpp, 2);
+        palette_put(palette, bg);
+        palette_put(palette, fg);
         ret = send_png_rect(vs, x, y, w, h, palette);
-        QDECREF(palette);
+        palette_destroy(palette);
         return ret;
     }
 #endif
@@ -1091,20 +1012,15 @@ struct palette_cb_priv {
 #endif
 };
 
-static void write_palette(const char *key, QObject *obj, void *opaque)
+static void write_palette(int idx, uint32_t color, void *opaque)
 {
     struct palette_cb_priv *priv = opaque;
     VncState *vs = priv->vs;
     uint32_t bytes = vs->clientds.pf.bytes_per_pixel;
-    uint8_t idx = qint_get_int(qobject_to_qint(obj));
 
     if (bytes == 4) {
-        uint32_t color = tight_palette_buf2rgb(32, (uint8_t *)key);
-
         ((uint32_t*)priv->header)[idx] = color;
     } else {
-        uint16_t color = tight_palette_buf2rgb(16, (uint8_t *)key);
-
         ((uint16_t*)priv->header)[idx] = color;
     }
 }
@@ -1145,7 +1061,7 @@ static bool send_gradient_rect(VncState *vs, int x, int y, int w, int h)
 }
 
 static int send_palette_rect(VncState *vs, int x, int y,
-                             int w, int h, struct QDict *palette)
+                             int w, int h, VncPalette *palette)
 {
     int stream = 2;
     int level = tight_conf[vs->tight_compression].idx_zlib_level;
@@ -1158,7 +1074,7 @@ static int send_palette_rect(VncState *vs, int x, int y,
     }
 #endif
 
-    colors = qdict_size(palette);
+    colors = palette_size(palette);
 
     vnc_write_u8(vs, (stream | VNC_TIGHT_EXPLICIT_FILTER) << 4);
     vnc_write_u8(vs, VNC_TIGHT_FILTER_PALETTE);
@@ -1168,11 +1084,11 @@ static int send_palette_rect(VncState *vs, int x, int y,
     case 4:
     {
         size_t old_offset, offset;
-        uint32_t header[qdict_size(palette)];
+        uint32_t header[palette_size(palette)];
         struct palette_cb_priv priv = { vs, (uint8_t *)header };
 
         old_offset = vs->output.offset;
-        qdict_iter(palette, write_palette, &priv);
+        palette_iter(palette, write_palette, &priv);
         vnc_write(vs, header, sizeof(header));
 
         if (vs->tight_pixel24) {
@@ -1185,10 +1101,10 @@ static int send_palette_rect(VncState *vs, int x, int y,
     }
     case 2:
     {
-        uint16_t header[qdict_size(palette)];
+        uint16_t header[palette_size(palette)];
         struct palette_cb_priv priv = { vs, (uint8_t *)header };
 
-        qdict_iter(palette, write_palette, &priv);
+        palette_iter(palette, write_palette, &priv);
         vnc_write(vs, header, sizeof(header));
         tight_encode_indexed_rect16(vs->tight.buffer, w * h, palette);
         break;
@@ -1370,20 +1286,11 @@ static int send_jpeg_rect(VncState *vs, int x, int y, int w, int h, int quality)
  * PNG compression stuff.
  */
 #ifdef CONFIG_VNC_PNG
-static void write_png_palette(const char *key, QObject *obj, void *opaque)
+static void write_png_palette(int idx, uint32_t pix, void *opaque)
 {
     struct palette_cb_priv *priv = opaque;
     VncState *vs = priv->vs;
-    uint32_t bytes = vs->clientds.pf.bytes_per_pixel;
-    uint8_t idx = qint_get_int(qobject_to_qint(obj));
     png_colorp color = &priv->png_palette[idx];
-    uint32_t pix;
-
-    if (bytes == 4) {
-        pix = tight_palette_buf2rgb(32, (uint8_t *)key);
-    } else {
-        pix = tight_palette_buf2rgb(16, (uint8_t *)key);
-    }
 
     if (vs->tight_pixel24)
     {
@@ -1433,7 +1340,7 @@ static void vnc_png_free(png_structp png_ptr, png_voidp ptr)
 }
 
 static int send_png_rect(VncState *vs, int x, int y, int w, int h,
-                         QDict *palette)
+                         VncPalette *palette)
 {
     png_byte color_type;
     png_structp png_ptr;
@@ -1476,13 +1383,13 @@ static int send_png_rect(VncState *vs, int x, int y, int w, int h,
         struct palette_cb_priv priv;
 
         png_palette = png_malloc(png_ptr, sizeof(*png_palette) *
-                                 qdict_size(palette));
+                                 palette_size(palette));
 
         priv.vs = vs;
         priv.png_palette = png_palette;
-        qdict_iter(palette, write_png_palette, &priv);
+        palette_iter(palette, write_png_palette, &priv);
 
-        png_set_PLTE(png_ptr, info_ptr, png_palette, qdict_size(palette));
+        png_set_PLTE(png_ptr, info_ptr, png_palette, palette_size(palette));
 
         offset = vs->tight.offset;
         if (vs->clientds.pf.bytes_per_pixel == 4) {
@@ -1542,7 +1449,7 @@ static void vnc_tight_stop(VncState *vs)
 
 static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
 {
-    struct QDict *palette = NULL;
+    VncPalette *palette = NULL;
     uint32_t bg = 0, fg = 0;
     int colors;
     int ret = 0;
@@ -1589,7 +1496,7 @@ static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
         ret = send_palette_rect(vs, x, y, w, h, palette);
 #endif
     }
-    QDECREF(palette);
+    palette_destroy(palette);
     return ret;
 }
 
