@@ -1674,4 +1674,7 @@ void vnc_tight_clear(VncState *vs)
 #ifdef CONFIG_VNC_JPEG
     buffer_free(&vs->tight.jpeg);
 #endif
+#ifdef CONFIG_VNC_PNG
+    buffer_free(&vs->tight.png);
+#endif
 }
