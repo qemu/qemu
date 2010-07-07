@@ -172,6 +172,7 @@ struct VncState
     /* Encoding specific */
 
     /* Tight */
+    int tight_type;
     uint8_t tight_quality;
     uint8_t tight_compression;
     uint8_t tight_pixel24;
@@ -181,6 +182,9 @@ struct VncState
     Buffer tight_gradient;
 #ifdef CONFIG_VNC_JPEG
     Buffer tight_jpeg;
+#endif
+#ifdef CONFIG_VNC_PNG
+    Buffer tight_png;
 #endif
     int tight_levels[4];
     z_stream tight_stream[4];
@@ -259,6 +263,7 @@ enum {
 #define VNC_ENCODING_POINTER_TYPE_CHANGE  0XFFFFFEFF /* -257 */
 #define VNC_ENCODING_EXT_KEY_EVENT        0XFFFFFEFE /* -258 */
 #define VNC_ENCODING_AUDIO                0XFFFFFEFD /* -259 */
+#define VNC_ENCODING_TIGHT_PNG            0xFFFFFEFC /* -260 */
 #define VNC_ENCODING_WMVi                 0x574D5669
 
 /*****************************************************************************
@@ -275,6 +280,7 @@ enum {
 #define VNC_TIGHT_CCB_TYPE_MASK    (0x0f << 4)
 #define VNC_TIGHT_CCB_TYPE_FILL    (0x08 << 4)
 #define VNC_TIGHT_CCB_TYPE_JPEG    (0x09 << 4)
+#define VNC_TIGHT_CCB_TYPE_PNG     (0x0A << 4)
 #define VNC_TIGHT_CCB_BASIC_MAX    (0x07 << 4)
 #define VNC_TIGHT_CCB_BASIC_ZLIB   (0x03 << 4)
 #define VNC_TIGHT_CCB_BASIC_FILTER (0x04 << 4)
@@ -293,6 +299,7 @@ enum {
 #define VNC_FEATURE_ZLIB                     5
 #define VNC_FEATURE_COPYRECT                 6
 #define VNC_FEATURE_RICH_CURSOR              7
+#define VNC_FEATURE_TIGHT_PNG                8
 
 #define VNC_FEATURE_RESIZE_MASK              (1 << VNC_FEATURE_RESIZE)
 #define VNC_FEATURE_HEXTILE_MASK             (1 << VNC_FEATURE_HEXTILE)
@@ -302,6 +309,7 @@ enum {
 #define VNC_FEATURE_ZLIB_MASK                (1 << VNC_FEATURE_ZLIB)
 #define VNC_FEATURE_COPYRECT_MASK            (1 << VNC_FEATURE_COPYRECT)
 #define VNC_FEATURE_RICH_CURSOR_MASK         (1 << VNC_FEATURE_RICH_CURSOR)
+#define VNC_FEATURE_TIGHT_PNG_MASK           (1 << VNC_FEATURE_TIGHT_PNG)
 
 
 /* Client -> Server message IDs */
@@ -405,6 +413,10 @@ void buffer_append(Buffer *buffer, const void *data, size_t len);
 char *vnc_socket_local_addr(const char *format, int fd);
 char *vnc_socket_remote_addr(const char *format, int fd);
 
+static inline uint32_t vnc_has_feature(VncState *vs, int feature) {
+    return (vs->features & (1 << feature));
+}
+
 /* Framebuffer */
 void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
                             int32_t encoding);
@@ -423,8 +435,9 @@ void vnc_zlib_zfree(void *x, void *addr);
 int vnc_zlib_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
 void vnc_zlib_clear(VncState *vs);
 
-
 int vnc_tight_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
+int vnc_tight_png_send_framebuffer_update(VncState *vs, int x, int y,
+                                          int w, int h);
 void vnc_tight_clear(VncState *vs);
 
 #endif /* __QEMU_VNC_H */

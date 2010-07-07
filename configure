@@ -269,6 +269,7 @@ vde=""
 vnc_tls=""
 vnc_sasl=""
 vnc_jpeg=""
+vnc_png=""
 xen=""
 linux_aio=""
 attr=""
@@ -580,6 +581,10 @@ for opt do
   ;;
   --enable-vnc-jpeg) vnc_jpeg="yes"
   ;;
+  --disable-vnc-png) vnc_png="no"
+  ;;
+  --enable-vnc-png) vnc_png="yes"
+  ;;
   --disable-slirp) slirp="no"
   ;;
   --disable-uuid) uuid="no"
@@ -832,6 +837,8 @@ echo "  --disable-vnc-sasl       disable SASL encryption for VNC server"
 echo "  --enable-vnc-sasl        enable SASL encryption for VNC server"
 echo "  --disable-vnc-jpeg       disable JPEG lossy compression for VNC server"
 echo "  --enable-vnc-jpeg        enable JPEG lossy compression for VNC server"
+echo "  --disable-vnc-png        disable PNG compression for VNC server"
+echo "  --enable-vnc-png         enable PNG compression for VNC server"
 echo "  --disable-curses         disable curses output"
 echo "  --enable-curses          enable curses output"
 echo "  --disable-curl           disable curl connectivity"
@@ -1270,6 +1277,31 @@ EOF
       feature_not_found "vnc-jpeg"
     fi
     vnc_jpeg=no
+  fi
+fi
+
+##########################################
+# VNC PNG detection
+if test "$vnc_png" = "yes" ; then
+cat > $TMPC <<EOF
+//#include <stdio.h>
+#include <png.h>
+int main(void) {
+    png_structp png_ptr;
+    png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    return 0;
+}
+EOF
+    vnc_png_cflags=""
+    vnc_png_libs="-lpng"
+  if compile_prog "$vnc_png_cflags" "$vnc_png_libs" ; then
+    vnc_png=yes
+    libs_softmmu="$vnc_png_libs $libs_softmmu"
+  else
+    if test "$vnc_png" = "yes" ; then
+      feature_not_found "vnc-png"
+    fi
+    vnc_png=no
   fi
 fi
 
@@ -2123,6 +2155,7 @@ echo "Mixer emulation   $mixemu"
 echo "VNC TLS support   $vnc_tls"
 echo "VNC SASL support  $vnc_sasl"
 echo "VNC JPEG support  $vnc_jpeg"
+echo "VNC PNG support   $vnc_png"
 if test -n "$sparc_cpu"; then
     echo "Target Sparc Arch $sparc_cpu"
 fi
@@ -2263,6 +2296,10 @@ fi
 if test "$vnc_jpeg" = "yes" ; then
   echo "CONFIG_VNC_JPEG=y" >> $config_host_mak
   echo "VNC_JPEG_CFLAGS=$vnc_jpeg_cflags" >> $config_host_mak
+fi
+if test "$vnc_png" = "yes" ; then
+  echo "CONFIG_VNC_PNG=y" >> $config_host_mak
+  echo "VNC_PNG_CFLAGS=$vnc_png_cflags" >> $config_host_mak
 fi
 if test "$fnmatch" = "yes" ; then
   echo "CONFIG_FNMATCH=y" >> $config_host_mak

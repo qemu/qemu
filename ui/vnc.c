@@ -351,10 +351,6 @@ void do_info_vnc(Monitor *mon, QObject **ret_data)
     }
 }
 
-static inline uint32_t vnc_has_feature(VncState *vs, int feature) {
-    return (vs->features & (1 << feature));
-}
-
 /* TODO
    1) Get the queue working for IO.
    2) there is some weirdness when using the -S option (the screen is grey
@@ -660,6 +656,9 @@ static int send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
             break;
         case VNC_ENCODING_TIGHT:
             n = vnc_tight_send_framebuffer_update(vs, x, y, w, h);
+            break;
+        case VNC_ENCODING_TIGHT_PNG:
+            n = vnc_tight_png_send_framebuffer_update(vs, x, y, w, h);
             break;
         default:
             vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_RAW);
@@ -1667,6 +1666,10 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             break;
         case VNC_ENCODING_TIGHT:
             vs->features |= VNC_FEATURE_TIGHT_MASK;
+            vs->vnc_encoding = enc;
+            break;
+        case VNC_ENCODING_TIGHT_PNG:
+            vs->features |= VNC_FEATURE_TIGHT_PNG_MASK;
             vs->vnc_encoding = enc;
             break;
         case VNC_ENCODING_ZLIB:
