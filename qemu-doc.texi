@@ -2138,8 +2138,8 @@ Set the x86 stack size in bytes (default=524288)
 Select CPU model (-cpu ? for list and additional feature selection)
 @item -B offset
 Offset guest address by the specified number of bytes.  This is useful when
-the address region rewuired by guest applications is reserved on the host.
-Ths option is currently only supported on some hosts.
+the address region required by guest applications is reserved on the host.
+This option is currently only supported on some hosts.
 @item -R size
 Pre-allocate a guest virtual address space of the given size (in bytes).
 "G", "M", and "k" suffixes may be used when specifying the size.  
