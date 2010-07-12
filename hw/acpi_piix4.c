@@ -369,7 +369,6 @@ static int piix4_pm_initfn(PCIDevice *dev)
     pci_conf[0x08] = 0x03; // revision number
     pci_conf[0x09] = 0x00;
     pci_config_set_class(pci_conf, PCI_CLASS_BRIDGE_OTHER);
-    pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
     pci_conf[0x3d] = 0x01; // interrupt pin 1
 
     pci_conf[0x40] = 0x01; /* PM io base read only bit */

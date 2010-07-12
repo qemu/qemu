@@ -230,10 +230,10 @@ PCIBus *pci_pmac_init(qemu_irq *pic)
     d = FROM_SYSBUS(UNINState, s);
     d->host_state.bus = pci_register_bus(&d->busdev.qdev, "pci",
                                          pci_unin_set_irq, pci_unin_map_irq,
-                                         pic, 11 << 3, 4);
+                                         pic, PCI_DEVFN(11, 0), 4);
 
 #if 0
-    pci_create_simple(d->host_state.bus, 11 << 3, "uni-north");
+    pci_create_simple(d->host_state.bus, PCI_DEVFN(11, 0), "uni-north");
 #endif
 
     sysbus_mmio_map(s, 0, 0xf2800000);
@@ -242,11 +242,11 @@ PCIBus *pci_pmac_init(qemu_irq *pic)
     /* DEC 21154 bridge */
 #if 0
     /* XXX: not activated as PPC BIOS doesn't handle multiple buses properly */
-    pci_create_simple(d->host_state.bus, 12 << 3, "dec-21154");
+    pci_create_simple(d->host_state.bus, PCI_DEVFN(12, 0), "dec-21154");
 #endif
 
     /* Uninorth AGP bus */
-    pci_create_simple(d->host_state.bus, 11 << 3, "uni-north-agp");
+    pci_create_simple(d->host_state.bus, PCI_DEVFN(11, 0), "uni-north-agp");
     dev = qdev_create(NULL, "uni-north-agp");
     qdev_init_nofail(dev);
     s = sysbus_from_qdev(dev);
@@ -256,7 +256,7 @@ PCIBus *pci_pmac_init(qemu_irq *pic)
     /* Uninorth internal bus */
 #if 0
     /* XXX: not needed for now */
-    pci_create_simple(d->host_state.bus, 14 << 3, "uni-north-pci");
+    pci_create_simple(d->host_state.bus, PCI_DEVFN(14, 0), "uni-north-pci");
     dev = qdev_create(NULL, "uni-north-pci");
     qdev_init_nofail(dev);
     s = sysbus_from_qdev(dev);
@@ -282,7 +282,7 @@ PCIBus *pci_pmac_u3_init(qemu_irq *pic)
 
     d->host_state.bus = pci_register_bus(&d->busdev.qdev, "pci",
                                          pci_unin_set_irq, pci_unin_map_irq,
-                                         pic, 11 << 3, 4);
+                                         pic, PCI_DEVFN(11, 0), 4);
 
     sysbus_mmio_map(s, 0, 0xf0800000);
     sysbus_mmio_map(s, 1, 0xf0c00000);
@@ -300,7 +300,6 @@ static int unin_main_pci_host_init(PCIDevice *d)
     pci_config_set_class(d->config, PCI_CLASS_BRIDGE_HOST);
     d->config[0x0C] = 0x08; // cache_line_size
     d->config[0x0D] = 0x10; // latency_timer
-    d->config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
     d->config[0x34] = 0x00; // capabilities_pointer
     return 0;
 }
@@ -313,7 +312,6 @@ static int unin_agp_pci_host_init(PCIDevice *d)
     pci_config_set_class(d->config, PCI_CLASS_BRIDGE_HOST);
     d->config[0x0C] = 0x08; // cache_line_size
     d->config[0x0D] = 0x10; // latency_timer
-    d->config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
     //    d->config[0x34] = 0x80; // capabilities_pointer
     return 0;
 }
@@ -329,7 +327,6 @@ static int u3_agp_pci_host_init(PCIDevice *d)
     d->config[0x0C] = 0x08;
     /* latency timer */
     d->config[0x0D] = 0x10;
-    d->config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL;
     return 0;
 }
 
@@ -341,7 +338,6 @@ static int unin_internal_pci_host_init(PCIDevice *d)
     pci_config_set_class(d->config, PCI_CLASS_BRIDGE_HOST);
     d->config[0x0C] = 0x08; // cache_line_size
     d->config[0x0D] = 0x10; // latency_timer
-    d->config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
     d->config[0x34] = 0x00; // capabilities_pointer
     return 0;
 }

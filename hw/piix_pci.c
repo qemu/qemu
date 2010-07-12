@@ -208,7 +208,6 @@ static int i440fx_initfn(PCIDevice *dev)
     pci_config_set_device_id(d->dev.config, PCI_DEVICE_ID_INTEL_82441);
     d->dev.config[0x08] = 0x02; // revision
     pci_config_set_class(d->dev.config, PCI_CLASS_BRIDGE_HOST);
-    d->dev.config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
 
     d->dev.config[I440FX_SMRAM] = 0x02;
 
@@ -234,7 +233,7 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn, qemu_irq *
     *pi440fx_state = DO_UPCAST(PCII440FXState, dev, d);
 
     piix3 = DO_UPCAST(PIIX3State, dev,
-                                 pci_create_simple(b, -1, "PIIX3"));
+                      pci_create_simple_multifunction(b, -1, true, "PIIX3"));
     piix3->pic = pic;
     pci_bus_irqs(b, piix3_set_irq, pci_slot_get_pirq, piix3, 4);
     (*pi440fx_state)->piix3 = piix3;
@@ -336,8 +335,6 @@ static int piix3_initfn(PCIDevice *dev)
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82371SB_0); // 82371SB PIIX3 PCI-to-ISA bridge (Step A1)
     pci_config_set_class(pci_conf, PCI_CLASS_BRIDGE_ISA);
-    pci_conf[PCI_HEADER_TYPE] =
-        PCI_HEADER_TYPE_NORMAL | PCI_HEADER_TYPE_MULTI_FUNCTION; // header_type = PCI_multifunction, generic
 
     qemu_register_reset(piix3_reset, d);
     return 0;

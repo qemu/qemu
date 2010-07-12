@@ -312,9 +312,6 @@ static void apb_pci_bridge_init(PCIBus *b)
                  PCI_STATUS_FAST_BACK | PCI_STATUS_66MHZ |
                  PCI_STATUS_DEVSEL_MEDIUM);
     pci_set_byte(dev->config + PCI_REVISION_ID, 0x11);
-    pci_set_byte(dev->config + PCI_HEADER_TYPE,
-                 pci_get_byte(dev->config + PCI_HEADER_TYPE) |
-                 PCI_HEADER_TYPE_MULTI_FUNCTION);
 }
 
 PCIBus *pci_apb_init(target_phys_addr_t special_base,
@@ -350,13 +347,13 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
     pci_create_simple(d->bus, 0, "pbm");
 
     /* APB secondary busses */
-    *bus2 = pci_bridge_init(d->bus, PCI_DEVFN(1, 0),
+    *bus2 = pci_bridge_init(d->bus, PCI_DEVFN(1, 0), true,
                             PCI_VENDOR_ID_SUN, PCI_DEVICE_ID_SUN_SIMBA,
                             pci_apb_map_irq,
                             "Advanced PCI Bus secondary bridge 1");
     apb_pci_bridge_init(*bus2);
 
-    *bus3 = pci_bridge_init(d->bus, PCI_DEVFN(1, 1),
+    *bus3 = pci_bridge_init(d->bus, PCI_DEVFN(1, 1), true,
                             PCI_VENDOR_ID_SUN, PCI_DEVICE_ID_SUN_SIMBA,
                             pci_apb_map_irq,
                             "Advanced PCI Bus secondary bridge 2");
@@ -427,8 +424,6 @@ static int pbm_pci_host_init(PCIDevice *d)
                  PCI_STATUS_FAST_BACK | PCI_STATUS_66MHZ |
                  PCI_STATUS_DEVSEL_MEDIUM);
     pci_config_set_class(d->config, PCI_CLASS_BRIDGE_HOST);
-    pci_set_byte(d->config + PCI_HEADER_TYPE,
-                 PCI_HEADER_TYPE_NORMAL);
     return 0;
 }
 
@@ -436,7 +431,7 @@ static PCIDeviceInfo pbm_pci_host_info = {
     .qdev.name = "pbm",
     .qdev.size = sizeof(PCIDevice),
     .init      = pbm_pci_host_init,
-    .header_type  = PCI_HEADER_TYPE_BRIDGE,
+    .is_bridge = 1,
 };
 
 static SysBusDeviceInfo pbm_host_info = {

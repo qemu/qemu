@@ -14,6 +14,7 @@
 #define PCI_DEVFN(slot, func)   ((((slot) & 0x1f) << 3) | ((func) & 0x07))
 #define PCI_SLOT(devfn)         (((devfn) >> 3) & 0x1f)
 #define PCI_FUNC(devfn)         ((devfn) & 0x07)
+#define PCI_FUNC_MAX            8
 
 /* Class, Vendor and Device IDs from Linux's pci_ids.h */
 #include "pci_ids.h"
@@ -110,6 +111,10 @@ typedef struct PCIIORegion {
 enum {
     QEMU_PCI_CAP_MSIX = 0x1,
     QEMU_PCI_CAP_EXPRESS = 0x2,
+
+    /* multifunction capable device */
+#define QEMU_PCI_CAP_MULTIFUNCTION_BITNR        2
+    QEMU_PCI_CAP_MULTIFUNCTION = (1 << QEMU_PCI_CAP_MULTIFUNCTION_BITNR),
 };
 
 struct PCIDevice {
@@ -228,7 +233,8 @@ int pci_read_devaddr(Monitor *mon, const char *addr, int *domp, int *busp,
 
 void do_pci_info_print(Monitor *mon, const QObject *data);
 void do_pci_info(Monitor *mon, QObject **ret_data);
-PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
+PCIBus *pci_bridge_init(PCIBus *bus, int devfn, bool multifunction,
+                        uint16_t vid, uint16_t did,
                         pci_map_irq_fn map_irq, const char *name);
 PCIDevice *pci_bridge_get_device(PCIBus *bus);
 
@@ -324,8 +330,12 @@ typedef struct {
     PCIConfigReadFunc *config_read;
     PCIConfigWriteFunc *config_write;
 
-    /* pci config header type */
-    uint8_t header_type;
+    /*
+     * pci-to-pci bridge or normal device.
+     * This doesn't mean pci host switch.
+     * When card bus bridge is supported, this would be enhanced.
+     */
+    int is_bridge;
 
     /* pcie stuff */
     int is_express;   /* is this device pci express? */
@@ -337,6 +347,11 @@ typedef struct {
 void pci_qdev_register(PCIDeviceInfo *info);
 void pci_qdev_register_many(PCIDeviceInfo *info);
 
+PCIDevice *pci_create_multifunction(PCIBus *bus, int devfn, bool multifunction,
+                                    const char *name);
+PCIDevice *pci_create_simple_multifunction(PCIBus *bus, int devfn,
+                                           bool multifunction,
+                                           const char *name);
 PCIDevice *pci_create(PCIBus *bus, int devfn, const char *name);
 PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name);
 

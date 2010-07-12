@@ -55,7 +55,7 @@ PCIBus *pci_dec_21154_init(PCIBus *parent_bus, int devfn)
 
     dev = qdev_create(NULL, "dec-21154");
     qdev_init_nofail(dev);
-    ret = pci_bridge_init(parent_bus, devfn,
+    ret = pci_bridge_init(parent_bus, devfn, false,
                           PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_21154,
                           dec_map_irq, "DEC 21154 PCI-PCI bridge");
 
@@ -90,7 +90,7 @@ static PCIDeviceInfo dec_21154_pci_host_info = {
     .qdev.name = "dec-21154",
     .qdev.size = sizeof(PCIDevice),
     .init      = dec_21154_pci_host_init,
-    .header_type  = PCI_HEADER_TYPE_BRIDGE,
+    .is_bridge  = 1,
 };
 
 static void dec_register_devices(void)
