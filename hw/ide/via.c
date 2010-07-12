@@ -150,7 +150,6 @@ static int vt82c686b_ide_initfn(PCIDevice *dev)
     pci_config_set_class(pci_conf, PCI_CLASS_STORAGE_IDE);
     pci_config_set_prog_interface(pci_conf, 0x8a); /* legacy ATA mode */
     pci_config_set_revision(pci_conf,0x06); /* Revision 0.6 */
-    pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; /* header_type */
     pci_set_long(pci_conf + PCI_CAPABILITY_LIST, 0x000000c0);
 
     qemu_register_reset(via_reset, d);
