@@ -23,6 +23,7 @@
  */
 #include "hw.h"
 #include "pci.h"
+#include "pci_internals.h"
 #include "monitor.h"
 #include "net.h"
 #include "sysemu.h"
@@ -36,31 +37,10 @@
 # define PCI_DPRINTF(format, ...)       do { } while (0)
 #endif
 
-struct PCIBus {
-    BusState qbus;
-    int devfn_min;
-    pci_set_irq_fn set_irq;
-    pci_map_irq_fn map_irq;
-    pci_hotplug_fn hotplug;
-    DeviceState *hotplug_qdev;
-    void *irq_opaque;
-    PCIDevice *devices[256];
-    PCIDevice *parent_dev;
-    target_phys_addr_t mem_base;
-
-    QLIST_HEAD(, PCIBus) child; /* this will be replaced by qdev later */
-    QLIST_ENTRY(PCIBus) sibling;/* this will be replaced by qdev later */
-
-    /* The bus IRQ state is the logical OR of the connected devices.
-       Keep a count of the number of devices with raised IRQs.  */
-    int nirq;
-    int *irq_count;
-};
-
 static void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent);
 static char *pcibus_get_dev_path(DeviceState *dev);
 
-static struct BusInfo pci_bus_info = {
+struct BusInfo pci_bus_info = {
     .name       = "PCI",
     .size       = sizeof(PCIBus),
     .print_dev  = pcibus_dev_print,
@@ -1532,14 +1512,6 @@ PCIDevice *pci_nic_init_nofail(NICInfo *nd, const char *default_model,
         exit(1);
     return res;
 }
-
-typedef struct {
-    PCIDevice dev;
-    PCIBus bus;
-    uint32_t vid;
-    uint32_t did;
-} PCIBridge;
-
 
 static void pci_bridge_update_mappings_fn(PCIBus *b, PCIDevice *d)
 {
