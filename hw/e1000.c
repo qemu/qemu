@@ -649,7 +649,6 @@ e1000_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
     }
 
     rdh_start = s->mac_reg[RDH];
-    size += 4; // for the header
     do {
         if (s->mac_reg[RDH] == s->mac_reg[RDT] && s->check_rxov) {
             set_ics(s, 0, E1000_ICS_RXO);
@@ -663,7 +662,7 @@ e1000_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
         if (desc.buffer_addr) {
             cpu_physical_memory_write(le64_to_cpu(desc.buffer_addr),
                                       (void *)(buf + vlan_offset), size);
-            desc.length = cpu_to_le16(size);
+            desc.length = cpu_to_le16(size + 4 /* for FCS */);
             desc.status |= E1000_RXD_STAT_EOP|E1000_RXD_STAT_IXSM;
         } else // as per intel docs; skip descriptors with null buf addr
             DBGOUT(RX, "Null RX descriptor!!\n");
