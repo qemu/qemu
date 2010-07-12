@@ -1511,7 +1511,7 @@ static void _decode_opc(DisasContext * ctx)
 	    tcg_temp_free(addr);
 	}
 	return;
-#define LDST(reg,ldnum,ldpnum,stnum,stpnum,prechk)		\
+#define LD(reg,ldnum,ldpnum,prechk)		\
   case ldnum:							\
     prechk    							\
     tcg_gen_mov_i32 (cpu_##reg, REG(B11_8));			\
@@ -1520,7 +1520,8 @@ static void _decode_opc(DisasContext * ctx)
     prechk    							\
     tcg_gen_qemu_ld32s (cpu_##reg, REG(B11_8), ctx->memidx);	\
     tcg_gen_addi_i32(REG(B11_8), REG(B11_8), 4);		\
-    return;							\
+    return;
+#define ST(reg,stnum,stpnum,prechk)		\
   case stnum:							\
     prechk    							\
     tcg_gen_mov_i32 (REG(B11_8), cpu_##reg);			\
@@ -1535,6 +1536,9 @@ static void _decode_opc(DisasContext * ctx)
 	tcg_temp_free(addr);					\
     }								\
     return;
+#define LDST(reg,ldnum,ldpnum,stnum,stpnum,prechk)		\
+	LD(reg,ldnum,ldpnum,prechk)				\
+	ST(reg,stnum,stpnum,prechk)
 	LDST(gbr,  0x401e, 0x4017, 0x0012, 0x4013, {})
 	LDST(vbr,  0x402e, 0x4027, 0x0022, 0x4023, CHECK_PRIVILEGED)
 	LDST(ssr,  0x403e, 0x4037, 0x0032, 0x4033, CHECK_PRIVILEGED)
