@@ -29,6 +29,7 @@
 #include "sysbus.h"
 #include "pci.h"
 #include "pci_host.h"
+#include "pci_bridge.h"
 #include "rwhandler.h"
 #include "apb_pci.h"
 #include "sysemu.h"

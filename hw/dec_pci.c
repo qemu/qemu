@@ -27,6 +27,7 @@
 #include "sysbus.h"
 #include "pci.h"
 #include "pci_host.h"
+#include "pci_bridge.h"
 
 /* debug DEC */
 //#define DEBUG_DEC
