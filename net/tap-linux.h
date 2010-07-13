@@ -52,4 +52,10 @@ struct virtio_net_hdr
     uint16_t csum_offset;
 };
 
+struct virtio_net_hdr_mrg_rxbuf
+{
+    struct virtio_net_hdr hdr;
+    uint16_t num_buffers;   /* Number of merged rx buffers */
+};
+
 #endif /* QEMU_TAP_H */
