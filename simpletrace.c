@@ -42,6 +42,14 @@ enum {
 static TraceRecord trace_buf[TRACE_BUF_LEN];
 static unsigned int trace_idx;
 static FILE *trace_fp;
+static char *trace_file_name = NULL;
+static bool trace_file_enabled = false;
+
+void st_print_trace_file_status(FILE *stream, int (*stream_printf)(FILE *stream, const char *fmt, ...))
+{
+    stream_printf(stream, "Trace file \"%s\" %s.\n",
+                  trace_file_name, trace_file_enabled ? "on" : "off");
+}
 
 static bool write_header(FILE *fp)
 {
@@ -54,30 +62,56 @@ static bool write_header(FILE *fp)
     return fwrite(&header, sizeof header, 1, fp) == 1;
 }
 
-static bool open_trace_file(void)
+/**
+ * set_trace_file : To set the name of a trace file.
+ * @file : pointer to the name to be set.
+ *         If NULL, set to the default name-<pid> set at config time.
+ */
+bool st_set_trace_file(const char *file)
 {
-    char *filename;
+    st_set_trace_file_enabled(false);
 
-    if (asprintf(&filename, CONFIG_TRACE_FILE, getpid()) < 0) {
-        return false;
+    free(trace_file_name);
+
+    if (!file) {
+        if (asprintf(&trace_file_name, CONFIG_TRACE_FILE, getpid()) < 0) {
+            trace_file_name = NULL;
+            return false;
+        }
+    } else {
+        if (asprintf(&trace_file_name, "%s", file) < 0) {
+            trace_file_name = NULL;
+            return false;
+        }
     }
 
-    trace_fp = fopen(filename, "w");
-    free(filename);
-    if (!trace_fp) {
-        return false;
-    }
-    return write_header(trace_fp);
+    st_set_trace_file_enabled(true);
+    return true;
 }
 
-static void flush_trace_buffer(void)
+static void flush_trace_file(void)
 {
+    /* If the trace file is not open yet, open it now */
     if (!trace_fp) {
-        open_trace_file();
+        trace_fp = fopen(trace_file_name, "w");
+        if (!trace_fp) {
+            /* Avoid repeatedly trying to open file on failure */
+            trace_file_enabled = false;
+            return;
+        }
+        write_header(trace_fp);
     }
+
     if (trace_fp) {
         size_t unused; /* for when fwrite(3) is declared warn_unused_result */
         unused = fwrite(trace_buf, trace_idx * sizeof(trace_buf[0]), 1, trace_fp);
+    }
+}
+
+void st_flush_trace_buffer(void)
+{
+    if (trace_file_enabled) {
+        flush_trace_file();
     }
 
     /* Discard written trace records */
@@ -128,7 +162,7 @@ static void trace(TraceEventID event, uint64_t x1, uint64_t x2, uint64_t x3,
     rec->x6 = x6;
 
     if (++trace_idx == TRACE_BUF_LEN) {
-        flush_trace_buffer();
+        st_flush_trace_buffer();
     }
 }
 

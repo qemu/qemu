@@ -549,6 +549,29 @@ static void do_change_trace_event_state(Monitor *mon, const QDict *qdict)
     bool new_state = qdict_get_bool(qdict, "option");
     st_change_trace_event_state(tp_name, new_state);
 }
+
+static void do_trace_file(Monitor *mon, const QDict *qdict)
+{
+    const char *op = qdict_get_try_str(qdict, "op");
+    const char *arg = qdict_get_try_str(qdict, "arg");
+
+    if (!op) {
+        st_print_trace_file_status((FILE *)mon, &monitor_fprintf);
+    } else if (!strcmp(op, "on")) {
+        st_set_trace_file_enabled(true);
+    } else if (!strcmp(op, "off")) {
+        st_set_trace_file_enabled(false);
+    } else if (!strcmp(op, "flush")) {
+        st_flush_trace_buffer();
+    } else if (!strcmp(op, "set")) {
+        if (arg) {
+            st_set_trace_file(arg);
+        }
+    } else {
+        monitor_printf(mon, "unexpected argument \"%s\"\n", op);
+        help_cmd(mon, "trace-file");
+    }
+}
 #endif
 
 static void user_monitor_complete(void *opaque, QObject *ret_data)
