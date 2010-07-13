@@ -468,7 +468,6 @@ static int vt82c686b_pm_initfn(PCIDevice *dev)
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_VIA_ACPI);
     pci_config_set_class(pci_conf, PCI_CLASS_BRIDGE_OTHER);
     pci_config_set_revision(pci_conf, 0x40);
-    pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
 
     pci_set_word(pci_conf + PCI_COMMAND, 0);
     pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_FAST_BACK |
@@ -556,8 +555,6 @@ static int vt82c686b_initfn(PCIDevice *d)
     pci_config_set_class(pci_conf, PCI_CLASS_BRIDGE_ISA);
     pci_config_set_prog_interface(pci_conf, 0x0);
     pci_config_set_revision(pci_conf,0x40); /* Revision 4.0 */
-    pci_conf[PCI_HEADER_TYPE] =
-        PCI_HEADER_TYPE_NORMAL | PCI_HEADER_TYPE_MULTI_FUNCTION;
 
     wmask = d->wmask;
     for (i = 0x00; i < 0xff; i++) {
@@ -575,7 +572,7 @@ int vt82c686b_init(PCIBus *bus, int devfn)
 {
     PCIDevice *d;
 
-    d = pci_create_simple(bus, devfn, "VT82C686B");
+    d = pci_create_simple_multifunction(bus, devfn, true, "VT82C686B");
 
     return d->devfn;
 }

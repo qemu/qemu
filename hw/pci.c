@@ -155,15 +155,24 @@ static void pci_device_reset(PCIDevice *dev)
 
     dev->irq_state = 0;
     pci_update_irq_status(dev);
-    dev->config[PCI_COMMAND] &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY |
-                                  PCI_COMMAND_MASTER);
+    /* Clear all writeable bits */
+    pci_set_word(dev->config + PCI_COMMAND,
+                 pci_get_word(dev->config + PCI_COMMAND) &
+                 ~pci_get_word(dev->wmask + PCI_COMMAND));
     dev->config[PCI_CACHE_LINE_SIZE] = 0x0;
     dev->config[PCI_INTERRUPT_LINE] = 0x0;
     for (r = 0; r < PCI_NUM_REGIONS; ++r) {
-        if (!dev->io_regions[r].size) {
+        PCIIORegion *region = &dev->io_regions[r];
+        if (!region->size) {
             continue;
         }
-        pci_set_long(dev->config + pci_bar(dev, r), dev->io_regions[r].type);
+
+        if (!(region->type & PCI_BASE_ADDRESS_SPACE_IO) &&
+            region->type & PCI_BASE_ADDRESS_MEM_TYPE_64) {
+            pci_set_quad(dev->config + pci_bar(dev, r), region->type);
+        } else {
+            pci_set_long(dev->config + pci_bar(dev, r), region->type);
+        }
     }
     pci_update_mappings(dev);
 }
@@ -1581,7 +1590,9 @@ static void pci_bridge_write_config(PCIDevice *d,
         /* memory base/limit, prefetchable base/limit and
            io base/limit upper 16 */
         ranges_overlap(address, len, PCI_MEMORY_BASE, 20)) {
-        pci_bridge_update_mappings(d->bus);
+        PCIBridge *s = container_of(d, PCIBridge, dev);
+        PCIBus *secondary_bus = &s->bus;
+        pci_bridge_update_mappings(secondary_bus);
     }
 }
 
@@ -1706,8 +1717,14 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
         pci_dev->romfile = qemu_strdup(info->romfile);
     pci_add_option_rom(pci_dev);
 
-    if (qdev->hotplugged)
-        bus->hotplug(bus->hotplug_qdev, pci_dev, 1);
+    if (qdev->hotplugged) {
+        rc = bus->hotplug(bus->hotplug_qdev, pci_dev, 1);
+        if (rc != 0) {
+            int r = pci_unregister_device(&pci_dev->qdev);
+            assert(!r);
+            return rc;
+        }
+    }
     return 0;
 }
 
@@ -1715,8 +1732,7 @@ static int pci_unplug_device(DeviceState *qdev)
 {
     PCIDevice *dev = DO_UPCAST(PCIDevice, qdev, qdev);
 
-    dev->bus->hotplug(dev->bus->hotplug_qdev, dev, 0);
-    return 0;
+    return dev->bus->hotplug(dev->bus->hotplug_qdev, dev, 0);
 }
 
 void pci_qdev_register(PCIDeviceInfo *info)

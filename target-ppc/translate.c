@@ -6382,6 +6382,7 @@ GEN_VXFORM_NOA(vupkhpx, 7, 13);
 GEN_VXFORM_NOA(vupklpx, 7, 15);
 GEN_VXFORM_NOA(vrefp, 5, 4);
 GEN_VXFORM_NOA(vrsqrtefp, 5, 5);
+GEN_VXFORM_NOA(vexptefp, 5, 6);
 GEN_VXFORM_NOA(vlogefp, 5, 7);
 GEN_VXFORM_NOA(vrfim, 5, 8);
 GEN_VXFORM_NOA(vrfin, 5, 9);
@@ -8696,6 +8697,7 @@ GEN_VXFORM_NOA(vupkhpx, 7, 13),
 GEN_VXFORM_NOA(vupklpx, 7, 15),
 GEN_VXFORM_NOA(vrefp, 5, 4),
 GEN_VXFORM_NOA(vrsqrtefp, 5, 5),
+GEN_VXFORM_NOA(vexptefp, 5, 6),
 GEN_VXFORM_NOA(vlogefp, 5, 7),
 GEN_VXFORM_NOA(vrfim, 5, 8),
 GEN_VXFORM_NOA(vrfin, 5, 9),

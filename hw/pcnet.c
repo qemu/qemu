@@ -1981,24 +1981,14 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
 
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_AMD);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_AMD_LANCE);
-    /* TODO: value should be 0 at RST# */
-    pci_set_word(pci_conf + PCI_COMMAND,
-                 PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
     pci_set_word(pci_conf + PCI_STATUS,
                  PCI_STATUS_FAST_BACK | PCI_STATUS_DEVSEL_MEDIUM);
     pci_conf[PCI_REVISION_ID] = 0x10;
-    /* TODO: 0 is the default anyway, no need to set it. */
-    pci_conf[PCI_CLASS_PROG] = 0x00;
     pci_config_set_class(pci_conf, PCI_CLASS_NETWORK_ETHERNET);
-
-    /* TODO: not necessary, is set when BAR is registered. */
-    pci_set_long(pci_conf + PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_SPACE_IO);
-    pci_set_long(pci_conf + PCI_BASE_ADDRESS_1, PCI_BASE_ADDRESS_SPACE_MEMORY);
 
     pci_set_word(pci_conf + PCI_SUBSYSTEM_VENDOR_ID, 0x0);
     pci_set_word(pci_conf + PCI_SUBSYSTEM_ID, 0x0);
 
-    /* TODO: value must be 0 at RST# */
     pci_conf[PCI_INTERRUPT_PIN] = 1; // interrupt pin 0
     pci_conf[PCI_MIN_GNT] = 0x06;
     pci_conf[PCI_MAX_LAT] = 0xff;
@@ -2007,11 +1997,10 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
     s->mmio_index =
       cpu_register_io_memory(pcnet_mmio_read, pcnet_mmio_write, &d->state);
 
-    /* TODO: use pci_dev, avoid cast below. */
-    pci_register_bar((PCIDevice *)d, 0, PCNET_IOPORT_SIZE,
+    pci_register_bar(pci_dev, 0, PCNET_IOPORT_SIZE,
                            PCI_BASE_ADDRESS_SPACE_IO, pcnet_ioport_map);
 
-    pci_register_bar((PCIDevice *)d, 1, PCNET_PNPMMIO_SIZE,
+    pci_register_bar(pci_dev, 1, PCNET_PNPMMIO_SIZE,
                            PCI_BASE_ADDRESS_SPACE_MEMORY, pcnet_mmio_map);
 
     s->irq = pci_dev->irq[0];
