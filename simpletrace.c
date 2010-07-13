@@ -54,13 +54,26 @@ static bool write_header(FILE *fp)
     return fwrite(&header, sizeof header, 1, fp) == 1;
 }
 
+static bool open_trace_file(void)
+{
+    char *filename;
+
+    if (asprintf(&filename, CONFIG_TRACE_FILE, getpid()) < 0) {
+        return false;
+    }
+
+    trace_fp = fopen(filename, "w");
+    free(filename);
+    if (!trace_fp) {
+        return false;
+    }
+    return write_header(trace_fp);
+}
+
 static void flush_trace_buffer(void)
 {
     if (!trace_fp) {
-        trace_fp = fopen("trace.log", "w");
-        if (trace_fp) {
-            write_header(trace_fp);
-        }
+        open_trace_file();
     }
     if (trace_fp) {
         size_t unused; /* for when fwrite(3) is declared warn_unused_result */

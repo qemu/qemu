@@ -318,6 +318,7 @@ check_utests="no"
 user_pie="no"
 zero_malloc=""
 trace_backend="nop"
+trace_file="trace"
 
 # OS specific
 if check_define __linux__ ; then
@@ -521,6 +522,8 @@ for opt do
   --target-list=*) target_list="$optarg"
   ;;
   --trace-backend=*) trace_backend="$optarg"
+  ;;
+  --trace-file=*) trace_file="$optarg"
   ;;
   --enable-gprof) gprof="yes"
   ;;
@@ -901,6 +904,8 @@ echo "  --disable-docs           disable documentation build"
 echo "  --disable-vhost-net      disable vhost-net acceleration support"
 echo "  --enable-vhost-net       enable vhost-net acceleration support"
 echo "  --trace-backend=B        Trace backend nop simple"
+echo "  --trace-file=NAME        Full PATH,NAME of file to store traces"
+echo "                           Default:trace-<pid>"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -2206,6 +2211,7 @@ echo "fdatasync         $fdatasync"
 echo "uuid support      $uuid"
 echo "vhost-net support $vhost_net"
 echo "Trace backend     $trace_backend"
+echo "Trace output file $trace_file-<pid>"
 
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -2471,6 +2477,12 @@ echo "TRACE_BACKEND=$trace_backend" >> $config_host_mak
 if test "$trace_backend" = "simple"; then
   echo "CONFIG_SIMPLE_TRACE=y" >> $config_host_mak
 fi
+# Set the appropriate trace file.
+if test "$trace_backend" = "simple"; then
+  trace_file="\"$trace_file-%u\""
+fi
+echo "CONFIG_TRACE_FILE=$trace_file" >> $config_host_mak
+
 echo "TOOLS=$tools" >> $config_host_mak
 echo "ROMS=$roms" >> $config_host_mak
 echo "MAKE=$make" >> $config_host_mak
