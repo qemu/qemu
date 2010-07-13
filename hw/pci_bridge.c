@@ -37,26 +37,6 @@ PCIDevice *pci_bridge_get_device(PCIBus *bus)
     return bus->parent_dev;
 }
 
-static void pci_register_secondary_bus(PCIBus *parent,
-                                       PCIBus *bus,
-                                       PCIDevice *dev,
-                                       pci_map_irq_fn map_irq,
-                                       const char *name)
-{
-    qbus_create_inplace(&bus->qbus, &pci_bus_info, &dev->qdev, name);
-    bus->map_irq = map_irq;
-    bus->parent_dev = dev;
-
-    QLIST_INIT(&bus->child);
-    QLIST_INSERT_HEAD(&parent->child, bus, sibling);
-}
-
-static void pci_unregister_secondary_bus(PCIBus *bus)
-{
-    assert(QLIST_EMPTY(&bus->child));
-    QLIST_REMOVE(bus, sibling);
-}
-
 static uint32_t pci_config_get_io_base(PCIDevice *d,
                                        uint32_t base, uint32_t base_upper16)
 {
@@ -163,7 +143,8 @@ static int pci_bridge_initfn(PCIDevice *dev)
 static int pci_bridge_exitfn(PCIDevice *pci_dev)
 {
     PCIBridge *s = DO_UPCAST(PCIBridge, dev, pci_dev);
-    pci_unregister_secondary_bus(&s->sec_bus);
+    assert(QLIST_EMPTY(&s->sec_bus.child));
+    QLIST_REMOVE(&s->sec_bus, sibling);
     return 0;
 }
 
@@ -173,6 +154,7 @@ PCIBus *pci_bridge_init(PCIBus *bus, int devfn, bool multifunction,
 {
     PCIDevice *dev;
     PCIBridge *s;
+    PCIBus *sec_bus;
 
     dev = pci_create_multifunction(bus, devfn, multifunction, "pci-bridge");
     qdev_prop_set_uint32(&dev->qdev, "vendorid", vid);
@@ -180,7 +162,13 @@ PCIBus *pci_bridge_init(PCIBus *bus, int devfn, bool multifunction,
     qdev_init_nofail(&dev->qdev);
 
     s = DO_UPCAST(PCIBridge, dev, dev);
-    pci_register_secondary_bus(bus, &s->sec_bus, &s->dev, map_irq, name);
+    sec_bus = &s->sec_bus;
+    qbus_create_inplace(&sec_bus->qbus, &pci_bus_info, &dev->qdev, name);
+    sec_bus->parent_dev = dev;
+    sec_bus->map_irq = map_irq;
+
+    QLIST_INIT(&sec_bus->child);
+    QLIST_INSERT_HEAD(&bus->child, sec_bus, sibling);
     return &s->sec_bus;
 }
 
