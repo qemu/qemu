@@ -5,6 +5,11 @@
  * This header files is private to pci.c and pci_bridge.c
  * So following structures are opaque to others and shouldn't be
  * accessed.
+ *
+ * For pci-to-pci bridge needs to include this header file to embed
+ * PCIBridge in its structure or to get sizeof(PCIBridge),
+ * However, they shouldn't access those following members directly.
+ * Use accessor function in pci.h, pci_bridge.h
  */
 
 extern struct BusInfo pci_bus_info;
@@ -30,11 +35,13 @@ struct PCIBus {
     int *irq_count;
 };
 
-typedef struct {
+struct PCIBridge {
     PCIDevice dev;
+
+    /* private member */
     PCIBus sec_bus;
-    uint32_t vid;
-    uint32_t did;
-} PCIBridge;
+    pci_map_irq_fn map_irq;
+    const char *bus_name;
+};
 
 #endif /* QEMU_PCI_INTERNALS_H */

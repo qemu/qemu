@@ -32,12 +32,19 @@
 #include "pci_bridge.h"
 #include "pci_internals.h"
 
+/* Accessor function to get parent bridge device from pci bus. */
 PCIDevice *pci_bridge_get_device(PCIBus *bus)
 {
     return bus->parent_dev;
 }
 
-static uint32_t pci_config_get_io_base(PCIDevice *d,
+/* Accessor function to get secondary bus from pci-to-pci bridge device */
+PCIBus *pci_bridge_get_sec_bus(PCIBridge *br)
+{
+    return &br->sec_bus;
+}
+
+static uint32_t pci_config_get_io_base(const PCIDevice *d,
                                        uint32_t base, uint32_t base_upper16)
 {
     uint32_t val;
@@ -49,13 +56,13 @@ static uint32_t pci_config_get_io_base(PCIDevice *d,
     return val;
 }
 
-static pcibus_t pci_config_get_memory_base(PCIDevice *d, uint32_t base)
+static pcibus_t pci_config_get_memory_base(const PCIDevice *d, uint32_t base)
 {
     return ((pcibus_t)pci_get_word(d->config + base) & PCI_MEMORY_RANGE_MASK)
         << 16;
 }
 
-static pcibus_t pci_config_get_pref_base(PCIDevice *d,
+static pcibus_t pci_config_get_pref_base(const PCIDevice *d,
                                          uint32_t base, uint32_t upper)
 {
     pcibus_t tmp;
@@ -69,7 +76,8 @@ static pcibus_t pci_config_get_pref_base(PCIDevice *d,
     return val;
 }
 
-pcibus_t pci_bridge_get_base(PCIDevice *bridge, uint8_t type)
+/* accessor function to get bridge filtering base address */
+pcibus_t pci_bridge_get_base(const PCIDevice *bridge, uint8_t type)
 {
     pcibus_t base;
     if (type & PCI_BASE_ADDRESS_SPACE_IO) {
@@ -87,7 +95,8 @@ pcibus_t pci_bridge_get_base(PCIDevice *bridge, uint8_t type)
     return base;
 }
 
-pcibus_t pci_bridge_get_limit(PCIDevice *bridge, uint8_t type)
+/* accessor funciton to get bridge filtering limit */
+pcibus_t pci_bridge_get_limit(const PCIDevice *bridge, uint8_t type)
 {
     pcibus_t limit;
     if (type & PCI_BASE_ADDRESS_SPACE_IO) {
@@ -106,7 +115,8 @@ pcibus_t pci_bridge_get_limit(PCIDevice *bridge, uint8_t type)
     return limit;
 }
 
-static void pci_bridge_write_config(PCIDevice *d,
+/* default write_config function for PCI-to-PCI bridge */
+void pci_bridge_write_config(PCIDevice *d,
                              uint32_t address, uint32_t val, int len)
 {
     pci_default_write_config(d, address, val, len);
@@ -122,12 +132,41 @@ static void pci_bridge_write_config(PCIDevice *d,
     }
 }
 
-static int pci_bridge_initfn(PCIDevice *dev)
+/* reset bridge specific configuration registers */
+void pci_bridge_reset_reg(PCIDevice *dev)
 {
-    PCIBridge *s = DO_UPCAST(PCIBridge, dev, dev);
+    uint8_t *conf = dev->config;
 
-    pci_config_set_vendor_id(s->dev.config, s->vid);
-    pci_config_set_device_id(s->dev.config, s->did);
+    conf[PCI_PRIMARY_BUS] = 0;
+    conf[PCI_SECONDARY_BUS] = 0;
+    conf[PCI_SUBORDINATE_BUS] = 0;
+    conf[PCI_SEC_LATENCY_TIMER] = 0;
+
+    conf[PCI_IO_BASE] = 0;
+    conf[PCI_IO_LIMIT] = 0;
+    pci_set_word(conf + PCI_MEMORY_BASE, 0);
+    pci_set_word(conf + PCI_MEMORY_LIMIT, 0);
+    pci_set_word(conf + PCI_PREF_MEMORY_BASE, 0);
+    pci_set_word(conf + PCI_PREF_MEMORY_LIMIT, 0);
+    pci_set_word(conf + PCI_PREF_BASE_UPPER32, 0);
+    pci_set_word(conf + PCI_PREF_LIMIT_UPPER32, 0);
+
+    pci_set_word(conf + PCI_BRIDGE_CONTROL, 0);
+}
+
+/* default reset function for PCI-to-PCI bridge */
+void pci_bridge_reset(DeviceState *qdev)
+{
+    PCIDevice *dev = DO_UPCAST(PCIDevice, qdev, qdev);
+    pci_bridge_reset_reg(dev);
+}
+
+/* default qdev initialization function for PCI-to-PCI bridge */
+int pci_bridge_initfn(PCIDevice *dev)
+{
+    PCIBus *parent = dev->bus;
+    PCIBridge *br = DO_UPCAST(PCIBridge, dev, dev);
+    PCIBus *sec_bus = &br->sec_bus;
 
     pci_set_word(dev->config + PCI_STATUS,
                  PCI_STATUS_66MHZ | PCI_STATUS_FAST_BACK);
@@ -137,58 +176,35 @@ static int pci_bridge_initfn(PCIDevice *dev)
         PCI_HEADER_TYPE_BRIDGE;
     pci_set_word(dev->config + PCI_SEC_STATUS,
                  PCI_STATUS_66MHZ | PCI_STATUS_FAST_BACK);
+
+    qbus_create_inplace(&sec_bus->qbus, &pci_bus_info, &dev->qdev,
+                        br->bus_name);
+    sec_bus->parent_dev = dev;
+    sec_bus->map_irq = br->map_irq;
+
+    QLIST_INIT(&sec_bus->child);
+    QLIST_INSERT_HEAD(&parent->child, sec_bus, sibling);
     return 0;
 }
 
-static int pci_bridge_exitfn(PCIDevice *pci_dev)
+/* default qdev clean up function for PCI-to-PCI bridge */
+int pci_bridge_exitfn(PCIDevice *pci_dev)
 {
     PCIBridge *s = DO_UPCAST(PCIBridge, dev, pci_dev);
     assert(QLIST_EMPTY(&s->sec_bus.child));
     QLIST_REMOVE(&s->sec_bus, sibling);
+    /* qbus_free() is called automatically by qdev_free() */
     return 0;
 }
 
-PCIBus *pci_bridge_init(PCIBus *bus, int devfn, bool multifunction,
-                        uint16_t vid, uint16_t did,
-                        pci_map_irq_fn map_irq, const char *name)
+/*
+ * before qdev initialization(qdev_init()), this function sets bus_name and
+ * map_irq callback which are necessry for pci_bridge_initfn() to
+ * initialize bus.
+ */
+void pci_bridge_map_irq(PCIBridge *br, const char* bus_name,
+                        pci_map_irq_fn map_irq)
 {
-    PCIDevice *dev;
-    PCIBridge *s;
-    PCIBus *sec_bus;
-
-    dev = pci_create_multifunction(bus, devfn, multifunction, "pci-bridge");
-    qdev_prop_set_uint32(&dev->qdev, "vendorid", vid);
-    qdev_prop_set_uint32(&dev->qdev, "deviceid", did);
-    qdev_init_nofail(&dev->qdev);
-
-    s = DO_UPCAST(PCIBridge, dev, dev);
-    sec_bus = &s->sec_bus;
-    qbus_create_inplace(&sec_bus->qbus, &pci_bus_info, &dev->qdev, name);
-    sec_bus->parent_dev = dev;
-    sec_bus->map_irq = map_irq;
-
-    QLIST_INIT(&sec_bus->child);
-    QLIST_INSERT_HEAD(&bus->child, sec_bus, sibling);
-    return &s->sec_bus;
+    br->map_irq = map_irq;
+    br->bus_name = bus_name;
 }
-
-static PCIDeviceInfo bridge_info = {
-    .qdev.name    = "pci-bridge",
-    .qdev.size    = sizeof(PCIBridge),
-    .init         = pci_bridge_initfn,
-    .exit         = pci_bridge_exitfn,
-    .config_write = pci_bridge_write_config,
-    .is_bridge    = 1,
-    .qdev.props   = (Property[]) {
-        DEFINE_PROP_HEX32("vendorid", PCIBridge, vid, 0),
-        DEFINE_PROP_HEX32("deviceid", PCIBridge, did, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    }
-};
-
-static void pci_register_devices(void)
-{
-    pci_qdev_register(&bridge_info);
-}
-
-device_init(pci_register_devices)

@@ -29,13 +29,27 @@
 #include "pci.h"
 
 PCIDevice *pci_bridge_get_device(PCIBus *bus);
+PCIBus *pci_bridge_get_sec_bus(PCIBridge *br);
 
-pcibus_t pci_bridge_get_base(PCIDevice *bridge, uint8_t type);
-pcibus_t pci_bridge_get_limit(PCIDevice *bridge, uint8_t type);
+pcibus_t pci_bridge_get_base(const PCIDevice *bridge, uint8_t type);
+pcibus_t pci_bridge_get_limit(const PCIDevice *bridge, uint8_t type);
 
-PCIBus *pci_bridge_init(PCIBus *bus, int devfn, bool multifunction,
-                        uint16_t vid, uint16_t did,
-                        pci_map_irq_fn map_irq, const char *name);
+void pci_bridge_write_config(PCIDevice *d,
+                             uint32_t address, uint32_t val, int len);
+void pci_bridge_reset_reg(PCIDevice *dev);
+void pci_bridge_reset(DeviceState *qdev);
+
+int pci_bridge_initfn(PCIDevice *pci_dev);
+int pci_bridge_exitfn(PCIDevice *pci_dev);
+
+
+/*
+ * before qdev initialization(qdev_init()), this function sets bus_name and
+ * map_irq callback which are necessry for pci_bridge_initfn() to
+ * initialize bus.
+ */
+void pci_bridge_map_irq(PCIBridge *br, const char* bus_name,
+                        pci_map_irq_fn map_irq);
 
 #endif  /* QEMU_PCI_BRIDGE_H */
 /*
