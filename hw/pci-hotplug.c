@@ -265,7 +265,7 @@ void pci_device_hot_add(Monitor *mon, const QDict *qdict)
 }
 #endif
 
-int pci_device_hot_remove(Monitor *mon, const char *pci_addr)
+static int pci_device_hot_remove(Monitor *mon, const char *pci_addr)
 {
     PCIDevice *d;
     int dom, bus;
