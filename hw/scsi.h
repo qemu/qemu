@@ -43,6 +43,7 @@ typedef struct SCSIRequest {
         enum SCSIXferMode mode;
     } cmd;
     BlockDriverAIOCB  *aiocb;
+    bool enqueued;
     QTAILQ_ENTRY(SCSIRequest) next;
 } SCSIRequest;
 

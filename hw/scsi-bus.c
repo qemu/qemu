@@ -142,6 +142,7 @@ SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag, uint32_t l
     req->tag = tag;
     req->lun = lun;
     req->status = -1;
+    req->enqueued = true;
     QTAILQ_INSERT_TAIL(&d->requests, req, next);
     return req;
 }
@@ -158,9 +159,17 @@ SCSIRequest *scsi_req_find(SCSIDevice *d, uint32_t tag)
     return NULL;
 }
 
+static void scsi_req_dequeue(SCSIRequest *req)
+{
+    if (req->enqueued) {
+        QTAILQ_REMOVE(&req->dev->requests, req, next);
+        req->enqueued = false;
+    }
+}
+
 void scsi_req_free(SCSIRequest *req)
 {
-    QTAILQ_REMOVE(&req->dev->requests, req, next);
+    scsi_req_dequeue(req);
     qemu_free(req);
 }
 
@@ -512,6 +521,7 @@ void scsi_req_print(SCSIRequest *req)
 void scsi_req_complete(SCSIRequest *req)
 {
     assert(req->status != -1);
+    scsi_req_dequeue(req);
     req->bus->complete(req->bus, SCSI_REASON_DONE,
                        req->tag,
                        req->status);
