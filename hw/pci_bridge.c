@@ -138,8 +138,7 @@ static void pci_bridge_write_config(PCIDevice *d,
            io base/limit upper 16 */
         ranges_overlap(address, len, PCI_MEMORY_BASE, 20)) {
         PCIBridge *s = container_of(d, PCIBridge, dev);
-        PCIBus *secondary_bus = &s->bus;
-        pci_bridge_update_mappings(secondary_bus);
+        pci_bridge_update_mappings(&s->sec_bus);
     }
 }
 
@@ -164,8 +163,7 @@ static int pci_bridge_initfn(PCIDevice *dev)
 static int pci_bridge_exitfn(PCIDevice *pci_dev)
 {
     PCIBridge *s = DO_UPCAST(PCIBridge, dev, pci_dev);
-    PCIBus *bus = &s->bus;
-    pci_unregister_secondary_bus(bus);
+    pci_unregister_secondary_bus(&s->sec_bus);
     return 0;
 }
 
@@ -182,8 +180,8 @@ PCIBus *pci_bridge_init(PCIBus *bus, int devfn, bool multifunction,
     qdev_init_nofail(&dev->qdev);
 
     s = DO_UPCAST(PCIBridge, dev, dev);
-    pci_register_secondary_bus(bus, &s->bus, &s->dev, map_irq, name);
-    return &s->bus;
+    pci_register_secondary_bus(bus, &s->sec_bus, &s->dev, map_irq, name);
+    return &s->sec_bus;
 }
 
 static PCIDeviceInfo bridge_info = {

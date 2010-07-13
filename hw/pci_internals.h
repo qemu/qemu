@@ -32,7 +32,7 @@ struct PCIBus {
 
 typedef struct {
     PCIDevice dev;
-    PCIBus bus;
+    PCIBus sec_bus;
     uint32_t vid;
     uint32_t did;
 } PCIBridge;
