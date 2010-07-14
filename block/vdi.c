@@ -399,6 +399,15 @@ static int vdi_open(BlockDriverState *bs, const char *filename, int flags)
     vdi_header_print(&header);
 #endif
 
+    if (header.disk_size % SECTOR_SIZE != 0) {
+        /* 'VBoxManage convertfromraw' can create images with odd disk sizes.
+           We accept them but round the disk size to the next multiple of
+           SECTOR_SIZE. */
+        logout("odd disk size %" PRIu64 " B, round up\n", header.disk_size);
+        header.disk_size += SECTOR_SIZE - 1;
+        header.disk_size &= ~(SECTOR_SIZE - 1);
+    }
+
     if (header.version != VDI_VERSION_1_1) {
         logout("unsupported version %u.%u\n",
                header.version >> 16, header.version & 0xffff);
@@ -417,9 +426,9 @@ static int vdi_open(BlockDriverState *bs, const char *filename, int flags)
     } else if (header.block_size != 1 * MiB) {
         logout("unsupported block size %u B\n", header.block_size);
         goto fail;
-    } else if (header.disk_size !=
+    } else if (header.disk_size >
                (uint64_t)header.blocks_in_image * header.block_size) {
-        logout("unexpected block number %u B\n", header.blocks_in_image);
+        logout("unsupported disk size %" PRIu64 " B\n", header.disk_size);
         goto fail;
     } else if (!uuid_is_null(header.uuid_link)) {
         logout("link uuid != 0, unsupported\n");
@@ -831,7 +840,10 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
         return -errno;
     }
 
-    blocks = bytes / block_size;
+    /* We need enough blocks to store the given disk size,
+       so always round up. */
+    blocks = (bytes + block_size - 1) / block_size;
+
     bmap_size = blocks * sizeof(uint32_t);
     bmap_size = ((bmap_size + SECTOR_SIZE - 1) & ~(SECTOR_SIZE -1));
 
