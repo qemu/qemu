@@ -274,6 +274,9 @@ static int kvm_set_migration_log(int enable)
     for (i = 0; i < ARRAY_SIZE(s->slots); i++) {
         mem = &s->slots[i];
 
+        if (!mem->memory_size) {
+            continue;
+        }
         if (!!(mem->flags & KVM_MEM_LOG_DIRTY_PAGES) == enable) {
             continue;
         }
