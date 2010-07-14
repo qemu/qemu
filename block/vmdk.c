@@ -285,7 +285,6 @@ static int vmdk_snapshot_create(const char *filename, const char *backing_file)
         goto fail_rgd;
     if (write(snp_fd, rgd_buf, gd_size) == -1)
         goto fail_rgd;
-    qemu_free(rgd_buf);
 
     /* write GD */
     gd_buf = qemu_malloc(gd_size);
@@ -298,6 +297,7 @@ static int vmdk_snapshot_create(const char *filename, const char *backing_file)
     if (write(snp_fd, gd_buf, gd_size) == -1)
         goto fail_gd;
     qemu_free(gd_buf);
+    qemu_free(rgd_buf);
 
     close(p_fd);
     close(snp_fd);
