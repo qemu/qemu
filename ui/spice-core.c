@@ -137,6 +137,59 @@ static SpiceCoreInterface core_interface = {
     .watch_remove       = watch_remove,
 };
 
+/* config string parsing */
+
+static int name2enum(const char *string, const char *table[], int entries)
+{
+    int i;
+
+    if (string) {
+        for (i = 0; i < entries; i++) {
+            if (!table[i]) {
+                continue;
+            }
+            if (strcmp(string, table[i]) != 0) {
+                continue;
+            }
+            return i;
+        }
+    }
+    return -1;
+}
+
+static int parse_name(const char *string, const char *optname,
+                      const char *table[], int entries)
+{
+    int value = name2enum(string, table, entries);
+
+    if (value != -1) {
+        return value;
+    }
+    fprintf(stderr, "spice: invalid %s: %s\n", optname, string);
+    exit(1);
+}
+
+static const char *compression_names[] = {
+    [ SPICE_IMAGE_COMPRESS_OFF ]      = "off",
+    [ SPICE_IMAGE_COMPRESS_AUTO_GLZ ] = "auto_glz",
+    [ SPICE_IMAGE_COMPRESS_AUTO_LZ ]  = "auto_lz",
+    [ SPICE_IMAGE_COMPRESS_QUIC ]     = "quic",
+    [ SPICE_IMAGE_COMPRESS_GLZ ]      = "glz",
+    [ SPICE_IMAGE_COMPRESS_LZ ]       = "lz",
+};
+#define parse_compression(_name)                                        \
+    parse_name(_name, "image compression",                              \
+               compression_names, ARRAY_SIZE(compression_names))
+
+static const char *wan_compression_names[] = {
+    [ SPICE_WAN_COMPRESSION_AUTO   ] = "auto",
+    [ SPICE_WAN_COMPRESSION_NEVER  ] = "never",
+    [ SPICE_WAN_COMPRESSION_ALWAYS ] = "always",
+};
+#define parse_wan_compression(_name)                                    \
+    parse_name(_name, "wan compression",                                \
+               wan_compression_names, ARRAY_SIZE(wan_compression_names))
+
 /* functions for the rest of qemu */
 
 void qemu_spice_init(void)
@@ -150,6 +203,8 @@ void qemu_spice_init(void)
         *x509_cert_file = NULL,
         *x509_cacert_file = NULL;
     int port, tls_port, len;
+    spice_image_compression_t compression;
+    spice_wan_compression_t wan_compr;
 
     if (!opts) {
         return;
@@ -217,8 +272,26 @@ void qemu_spice_init(void)
         spice_server_set_noauth(spice_server);
     }
 
-    /* TODO: make configurable via cmdline */
-    spice_server_set_image_compression(spice_server, SPICE_IMAGE_COMPRESS_AUTO_GLZ);
+    compression = SPICE_IMAGE_COMPRESS_AUTO_GLZ;
+    str = qemu_opt_get(opts, "image-compression");
+    if (str) {
+        compression = parse_compression(str);
+    }
+    spice_server_set_image_compression(spice_server, compression);
+
+    wan_compr = SPICE_WAN_COMPRESSION_AUTO;
+    str = qemu_opt_get(opts, "jpeg-wan-compression");
+    if (str) {
+        wan_compr = parse_wan_compression(str);
+    }
+    spice_server_set_jpeg_compression(spice_server, wan_compr);
+
+    wan_compr = SPICE_WAN_COMPRESSION_AUTO;
+    str = qemu_opt_get(opts, "zlib-glz-wan-compression");
+    if (str) {
+        wan_compr = parse_wan_compression(str);
+    }
+    spice_server_set_zlib_glz_compression(spice_server, wan_compr);
 
     spice_server_init(spice_server, &core_interface);
     using_spice = 1;

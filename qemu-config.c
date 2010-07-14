@@ -391,6 +391,15 @@ QemuOptsList qemu_spice_opts = {
         },{
             .name = "tls-ciphers",
             .type = QEMU_OPT_STRING,
+        },{
+            .name = "image-compression",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "jpeg-wan-compression",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "zlib-glz-wan-compression",
+            .type = QEMU_OPT_STRING,
         },
         { /* end if list */ }
     },
