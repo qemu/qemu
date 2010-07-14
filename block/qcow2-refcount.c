@@ -42,8 +42,8 @@ static int write_refcount_block(BDRVQcowState *s)
         return 0;
     }
 
-    if (bdrv_pwrite(s->hd, s->refcount_block_cache_offset,
-            s->refcount_block_cache, size) != size)
+    if (bdrv_pwrite_sync(s->hd, s->refcount_block_cache_offset,
+            s->refcount_block_cache, size) < 0)
     {
         return -EIO;
     }
@@ -246,7 +246,7 @@ static int64_t alloc_refcount_block(BlockDriverState *bs, int64_t cluster_index)
     }
 
     /* Now the new refcount block needs to be written to disk */
-    ret = bdrv_pwrite(s->hd, new_block, s->refcount_block_cache,
+    ret = bdrv_pwrite_sync(s->hd, new_block, s->refcount_block_cache,
         s->cluster_size);
     if (ret < 0) {
         goto fail_block;
@@ -255,7 +255,7 @@ static int64_t alloc_refcount_block(BlockDriverState *bs, int64_t cluster_index)
     /* If the refcount table is big enough, just hook the block up there */
     if (refcount_table_index < s->refcount_table_size) {
         uint64_t data64 = cpu_to_be64(new_block);
-        ret = bdrv_pwrite(s->hd,
+        ret = bdrv_pwrite_sync(s->hd,
             s->refcount_table_offset + refcount_table_index * sizeof(uint64_t),
             &data64, sizeof(data64));
         if (ret < 0) {
@@ -332,7 +332,7 @@ static int64_t alloc_refcount_block(BlockDriverState *bs, int64_t cluster_index)
     }
 
     /* Write refcount blocks to disk */
-    ret = bdrv_pwrite(s->hd, meta_offset, new_blocks,
+    ret = bdrv_pwrite_sync(s->hd, meta_offset, new_blocks,
         blocks_clusters * s->cluster_size);
     qemu_free(new_blocks);
     if (ret < 0) {
@@ -344,7 +344,7 @@ static int64_t alloc_refcount_block(BlockDriverState *bs, int64_t cluster_index)
         cpu_to_be64s(&new_table[i]);
     }
 
-    ret = bdrv_pwrite(s->hd, table_offset, new_table,
+    ret = bdrv_pwrite_sync(s->hd, table_offset, new_table,
         table_size * sizeof(uint64_t));
     if (ret < 0) {
         goto fail_table;
@@ -358,7 +358,7 @@ static int64_t alloc_refcount_block(BlockDriverState *bs, int64_t cluster_index)
     uint8_t data[12];
     cpu_to_be64w((uint64_t*)data, table_offset);
     cpu_to_be32w((uint32_t*)(data + 8), table_clusters);
-    ret = bdrv_pwrite(s->hd, offsetof(QCowHeader, refcount_table_offset),
+    ret = bdrv_pwrite_sync(s->hd, offsetof(QCowHeader, refcount_table_offset),
         data, sizeof(data));
     if (ret < 0) {
         goto fail_table;
@@ -397,6 +397,7 @@ static int write_refcount_block_entries(BDRVQcowState *s,
     int64_t refcount_block_offset, int first_index, int last_index)
 {
     size_t size;
+    int ret;
 
     if (cache_refcount_updates) {
         return 0;
@@ -411,11 +412,11 @@ static int write_refcount_block_entries(BDRVQcowState *s,
         & ~(REFCOUNTS_PER_SECTOR - 1);
 
     size = (last_index - first_index) << REFCOUNT_SHIFT;
-    if (bdrv_pwrite(s->hd,
+    ret = bdrv_pwrite_sync(s->hd,
         refcount_block_offset + (first_index << REFCOUNT_SHIFT),
-        &s->refcount_block_cache[first_index], size) != size)
-    {
-        return -EIO;
+        &s->refcount_block_cache[first_index], size);
+    if (ret < 0) {
+        return ret;
     }
 
     return 0;
@@ -771,8 +772,8 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                 }
             }
             if (l2_modified) {
-                if (bdrv_pwrite(s->hd,
-                                l2_offset, l2_table, l2_size) != l2_size)
+                if (bdrv_pwrite_sync(s->hd,
+                                l2_offset, l2_table, l2_size) < 0)
                     goto fail;
             }
 
@@ -793,8 +794,8 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
     if (l1_modified) {
         for(i = 0; i < l1_size; i++)
             cpu_to_be64s(&l1_table[i]);
-        if (bdrv_pwrite(s->hd, l1_table_offset, l1_table,
-                        l1_size2) != l1_size2)
+        if (bdrv_pwrite_sync(s->hd, l1_table_offset, l1_table,
+                        l1_size2) < 0)
             goto fail;
         for(i = 0; i < l1_size; i++)
             be64_to_cpus(&l1_table[i]);

@@ -62,8 +62,8 @@ int qcow2_grow_l1_table(BlockDriverState *bs, int min_size)
 
     for(i = 0; i < s->l1_size; i++)
         new_l1_table[i] = cpu_to_be64(new_l1_table[i]);
-    ret = bdrv_pwrite(s->hd, new_l1_table_offset, new_l1_table, new_l1_size2);
-    if (ret != new_l1_size2)
+    ret = bdrv_pwrite_sync(s->hd, new_l1_table_offset, new_l1_table, new_l1_size2);
+    if (ret < 0)
         goto fail;
     for(i = 0; i < s->l1_size; i++)
         new_l1_table[i] = be64_to_cpu(new_l1_table[i]);
@@ -71,8 +71,8 @@ int qcow2_grow_l1_table(BlockDriverState *bs, int min_size)
     /* set new table */
     cpu_to_be32w((uint32_t*)data, new_l1_size);
     cpu_to_be64w((uint64_t*)(data + 4), new_l1_table_offset);
-    ret = bdrv_pwrite(s->hd, offsetof(QCowHeader, l1_size), data,sizeof(data));
-    if (ret != sizeof(data)) {
+    ret = bdrv_pwrite_sync(s->hd, offsetof(QCowHeader, l1_size), data,sizeof(data));
+    if (ret < 0) {
         goto fail;
     }
     qemu_free(s->l1_table);
@@ -84,7 +84,7 @@ int qcow2_grow_l1_table(BlockDriverState *bs, int min_size)
  fail:
     qemu_free(new_l1_table);
     qcow2_free_clusters(bs, new_l1_table_offset, new_l1_size2);
-    return ret < 0 ? ret : -EIO;
+    return ret;
 }
 
 void qcow2_l2_cache_reset(BlockDriverState *bs)
@@ -188,17 +188,17 @@ static int write_l1_entry(BDRVQcowState *s, int l1_index)
 {
     uint64_t buf[L1_ENTRIES_PER_SECTOR];
     int l1_start_index;
-    int i;
+    int i, ret;
 
     l1_start_index = l1_index & ~(L1_ENTRIES_PER_SECTOR - 1);
     for (i = 0; i < L1_ENTRIES_PER_SECTOR; i++) {
         buf[i] = cpu_to_be64(s->l1_table[l1_start_index + i]);
     }
 
-    if (bdrv_pwrite(s->hd, s->l1_table_offset + 8 * l1_start_index,
-        buf, sizeof(buf)) != sizeof(buf))
-    {
-        return -1;
+    ret = bdrv_pwrite_sync(s->hd, s->l1_table_offset + 8 * l1_start_index,
+        buf, sizeof(buf));
+    if (ret < 0) {
+        return ret;
     }
 
     return 0;
@@ -221,6 +221,7 @@ static uint64_t *l2_allocate(BlockDriverState *bs, int l1_index)
     uint64_t old_l2_offset;
     uint64_t *l2_table;
     int64_t l2_offset;
+    int ret;
 
     old_l2_offset = s->l1_table[l1_index];
 
@@ -247,10 +248,11 @@ static uint64_t *l2_allocate(BlockDriverState *bs, int l1_index)
             goto fail;
     }
     /* write the l2 table to the file */
-    if (bdrv_pwrite(s->hd, l2_offset,
-                    l2_table, s->l2_size * sizeof(uint64_t)) !=
-        s->l2_size * sizeof(uint64_t))
+    ret = bdrv_pwrite_sync(s->hd, l2_offset, l2_table,
+        s->l2_size * sizeof(uint64_t));
+    if (ret < 0) {
         goto fail;
+    }
 
     /* update the L1 entry */
     s->l1_table[l1_index] = l2_offset | QCOW_OFLAG_COPIED;
@@ -384,8 +386,8 @@ static int copy_sectors(BlockDriverState *bs, uint64_t start_sect,
                         s->cluster_data, n, 1,
                         &s->aes_encrypt_key);
     }
-    ret = bdrv_write(s->hd, (cluster_offset >> 9) + n_start,
-                     s->cluster_data, n);
+    ret = bdrv_write_sync(s->hd, (cluster_offset >> 9) + n_start,
+        s->cluster_data, n);
     if (ret < 0)
         return ret;
     return 0;
@@ -597,10 +599,10 @@ uint64_t qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
     /* compressed clusters never have the copied flag */
 
     l2_table[l2_index] = cpu_to_be64(cluster_offset);
-    if (bdrv_pwrite(s->hd,
+    if (bdrv_pwrite_sync(s->hd,
                     l2_offset + l2_index * sizeof(uint64_t),
                     l2_table + l2_index,
-                    sizeof(uint64_t)) != sizeof(uint64_t))
+                    sizeof(uint64_t)) < 0)
         return 0;
 
     return cluster_offset;
@@ -618,11 +620,12 @@ static int write_l2_entries(BDRVQcowState *s, uint64_t *l2_table,
     int start_offset = (8 * l2_index) & ~511;
     int end_offset = (8 * (l2_index + num) + 511) & ~511;
     size_t len = end_offset - start_offset;
+    int ret;
 
-    if (bdrv_pwrite(s->hd, l2_offset + start_offset, &l2_table[l2_start_index],
-        len) != len)
-    {
-        return -1;
+    ret = bdrv_pwrite_sync(s->hd, l2_offset + start_offset,
+        &l2_table[l2_start_index], len);
+    if (ret < 0) {
+        return ret;
     }
 
     return 0;

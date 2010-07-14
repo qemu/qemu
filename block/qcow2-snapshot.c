@@ -158,25 +158,25 @@ static int qcow_write_snapshots(BlockDriverState *bs)
         h.id_str_size = cpu_to_be16(id_str_size);
         h.name_size = cpu_to_be16(name_size);
         offset = align_offset(offset, 8);
-        if (bdrv_pwrite(s->hd, offset, &h, sizeof(h)) != sizeof(h))
+        if (bdrv_pwrite_sync(s->hd, offset, &h, sizeof(h)) < 0)
             goto fail;
         offset += sizeof(h);
-        if (bdrv_pwrite(s->hd, offset, sn->id_str, id_str_size) != id_str_size)
+        if (bdrv_pwrite_sync(s->hd, offset, sn->id_str, id_str_size) < 0)
             goto fail;
         offset += id_str_size;
-        if (bdrv_pwrite(s->hd, offset, sn->name, name_size) != name_size)
+        if (bdrv_pwrite_sync(s->hd, offset, sn->name, name_size) < 0)
             goto fail;
         offset += name_size;
     }
 
     /* update the various header fields */
     data64 = cpu_to_be64(snapshots_offset);
-    if (bdrv_pwrite(s->hd, offsetof(QCowHeader, snapshots_offset),
-                    &data64, sizeof(data64)) != sizeof(data64))
+    if (bdrv_pwrite_sync(s->hd, offsetof(QCowHeader, snapshots_offset),
+                    &data64, sizeof(data64)) < 0)
         goto fail;
     data32 = cpu_to_be32(s->nb_snapshots);
-    if (bdrv_pwrite(s->hd, offsetof(QCowHeader, nb_snapshots),
-                    &data32, sizeof(data32)) != sizeof(data32))
+    if (bdrv_pwrite_sync(s->hd, offsetof(QCowHeader, nb_snapshots),
+                    &data32, sizeof(data32)) < 0)
         goto fail;
 
     /* free the old snapshot table */
@@ -284,9 +284,8 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     for(i = 0; i < s->l1_size; i++) {
         l1_table[i] = cpu_to_be64(s->l1_table[i]);
     }
-    if (bdrv_pwrite(s->hd, sn->l1_table_offset,
-                    l1_table, s->l1_size * sizeof(uint64_t)) !=
-        (s->l1_size * sizeof(uint64_t)))
+    if (bdrv_pwrite_sync(s->hd, sn->l1_table_offset,
+                    l1_table, s->l1_size * sizeof(uint64_t)) < 0)
         goto fail;
     qemu_free(l1_table);
     l1_table = NULL;
@@ -335,8 +334,8 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
     if (bdrv_pread(s->hd, sn->l1_table_offset,
                    s->l1_table, l1_size2) != l1_size2)
         goto fail;
-    if (bdrv_pwrite(s->hd, s->l1_table_offset,
-                    s->l1_table, l1_size2) != l1_size2)
+    if (bdrv_pwrite_sync(s->hd, s->l1_table_offset,
+                    s->l1_table, l1_size2) < 0)
         goto fail;
     for(i = 0;i < s->l1_size; i++) {
         be64_to_cpus(&s->l1_table[i]);
