@@ -153,7 +153,7 @@ static int vmdk_write_cid(BlockDriverState *bs, uint32_t cid)
         pstrcat(desc, sizeof(desc), tmp_desc);
     }
 
-    if (bdrv_pwrite(s->hd, 0x200, desc, DESC_SIZE) != DESC_SIZE)
+    if (bdrv_pwrite_sync(s->hd, 0x200, desc, DESC_SIZE) < 0)
         return -1;
     return 0;
 }
@@ -482,14 +482,14 @@ static int vmdk_L2update(BlockDriverState *bs, VmdkMetaData *m_data)
     BDRVVmdkState *s = bs->opaque;
 
     /* update L2 table */
-    if (bdrv_pwrite(s->hd, ((int64_t)m_data->l2_offset * 512) + (m_data->l2_index * sizeof(m_data->offset)),
-                    &(m_data->offset), sizeof(m_data->offset)) != sizeof(m_data->offset))
+    if (bdrv_pwrite_sync(s->hd, ((int64_t)m_data->l2_offset * 512) + (m_data->l2_index * sizeof(m_data->offset)),
+                    &(m_data->offset), sizeof(m_data->offset)) < 0)
         return -1;
     /* update backup L2 table */
     if (s->l1_backup_table_offset != 0) {
         m_data->l2_offset = s->l1_backup_table[m_data->l1_index];
-        if (bdrv_pwrite(s->hd, ((int64_t)m_data->l2_offset * 512) + (m_data->l2_index * sizeof(m_data->offset)),
-                        &(m_data->offset), sizeof(m_data->offset)) != sizeof(m_data->offset))
+        if (bdrv_pwrite_sync(s->hd, ((int64_t)m_data->l2_offset * 512) + (m_data->l2_index * sizeof(m_data->offset)),
+                        &(m_data->offset), sizeof(m_data->offset)) < 0)
             return -1;
     }
 
