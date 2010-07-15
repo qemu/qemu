@@ -775,7 +775,6 @@ PCIBus *bonito_init(qemu_irq *pic)
                          pci_bonito_map_irq, pic, 0x28, 32);
     pcihost->bus = b;
     qdev_init_nofail(dev);
-    pci_bus_set_mem_base(pcihost->bus, 0x10000000);
 
     d = pci_create_simple(b, PCI_DEVFN(0, 0), "Bonito");
     s = DO_UPCAST(PCIBonitoState, dev, d);

@@ -3214,7 +3214,8 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     env->regs[1] = (unsigned long) frame;
     /* Signal handler args: */
     env->regs[5] = sig; /* Arg 0: signum */
-    env->regs[6] = (unsigned long) &frame->sc; /* arg 1: sigcontext */
+    env->regs[6] = 0;
+    env->regs[7] = (unsigned long) &frame->sc; /* arg 1: sigcontext */
 
     /* Offset of 4 to handle microblaze rtid r14, 0 */
     env->sregs[SR_PC] = (unsigned long)ka->_sa_handler;
