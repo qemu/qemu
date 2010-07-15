@@ -63,10 +63,46 @@
 #error GUEST_BASE not supported on this host.
 #endif
 
+/* Forward declarations for functions declared in tcg-target.c and used here. */
 static void tcg_target_init(TCGContext *s);
 static void tcg_target_qemu_prologue(TCGContext *s);
 static void patch_reloc(uint8_t *code_ptr, int type, 
                         tcg_target_long value, tcg_target_long addend);
+
+/* Forward declarations for functions declared and used in tcg-target.c. */
+static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str);
+static void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val);
+static void tcg_out_ld(TCGContext *s, TCGType type, int ret, int arg1,
+                       tcg_target_long arg2);
+static void tcg_out_mov(TCGContext *s, TCGType type, int ret, int arg);
+static void tcg_out_movi(TCGContext *s, TCGType type,
+                         int ret, tcg_target_long arg);
+static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
+                       const int *const_args);
+static void tcg_out_st(TCGContext *s, TCGType type, int arg, int arg1,
+                       tcg_target_long arg2);
+static int tcg_target_const_match(tcg_target_long val,
+                                  const TCGArgConstraint *arg_ct);
+static int tcg_target_get_call_iarg_regs_count(int flags);
+
+/* Forward declarations for functions which may be used in tcg-target.c. */
+static char *tcg_get_arg_str_idx(TCGContext *s, char *buf, int buf_size,
+                                 int idx);
+static TCGHelperInfo *tcg_find_helper(TCGContext *s, tcg_target_ulong val);
+
+static const char * const cond_name[] =
+{
+    [TCG_COND_EQ] = "eq",
+    [TCG_COND_NE] = "ne",
+    [TCG_COND_LT] = "lt",
+    [TCG_COND_GE] = "ge",
+    [TCG_COND_LE] = "le",
+    [TCG_COND_GT] = "gt",
+    [TCG_COND_LTU] = "ltu",
+    [TCG_COND_GEU] = "geu",
+    [TCG_COND_LEU] = "leu",
+    [TCG_COND_GTU] = "gtu"
+};
 
 static TCGOpDef tcg_op_defs[] = {
 #define DEF(s, oargs, iargs, cargs, flags) { #s, oargs, iargs, cargs, iargs + oargs + cargs, flags },
@@ -155,27 +191,6 @@ int gen_new_label(void)
     l->u.first_reloc = NULL;
     return idx;
 }
-
-static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str);
-static void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val);
-static void tcg_out_ld(TCGContext *s, TCGType type, int ret, int arg1,
-                       tcg_target_long arg2);
-static void tcg_out_mov(TCGContext *s, TCGType type, int ret, int arg);
-static void tcg_out_movi(TCGContext *s, TCGType type,
-                         int ret, tcg_target_long arg);
-static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
-                       const int *const_args);
-static void tcg_out_st(TCGContext *s, TCGType type, int arg, int arg1,
-                       tcg_target_long arg2);
-static int tcg_target_const_match(tcg_target_long val,
-                                  const TCGArgConstraint *arg_ct);
-static int tcg_target_get_call_iarg_regs_count(int flags);
-
-/* Forward declarations for functions which may be used in tcg-target.c. */
-static char *tcg_get_arg_str_idx(TCGContext *s, char *buf, int buf_size,
-                                 int idx);
-static TCGHelperInfo *tcg_find_helper(TCGContext *s, tcg_target_ulong val);
-static const char * const cond_name[10];
 
 #include "tcg-target.c"
 
@@ -833,20 +848,6 @@ static TCGHelperInfo *tcg_find_helper(TCGContext *s, tcg_target_ulong val)
     }
     return NULL;
 }
-
-static const char * const cond_name[] =
-{
-    [TCG_COND_EQ] = "eq",
-    [TCG_COND_NE] = "ne",
-    [TCG_COND_LT] = "lt",
-    [TCG_COND_GE] = "ge",
-    [TCG_COND_LE] = "le",
-    [TCG_COND_GT] = "gt",
-    [TCG_COND_LTU] = "ltu",
-    [TCG_COND_GEU] = "geu",
-    [TCG_COND_LEU] = "leu",
-    [TCG_COND_GTU] = "gtu"
-};
 
 void tcg_dump_ops(TCGContext *s, FILE *outfile)
 {
