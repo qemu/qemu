@@ -2056,6 +2056,85 @@ float32 float32_sqrt( float32 a STATUS_PARAM )
 }
 
 /*----------------------------------------------------------------------------
+| Returns the binary exponential of the single-precision floating-point value
+| `a'. The operation is performed according to the IEC/IEEE Standard for
+| Binary Floating-Point Arithmetic.
+|
+| Uses the following identities:
+|
+| 1. -------------------------------------------------------------------------
+|      x    x*ln(2)
+|     2  = e
+|
+| 2. -------------------------------------------------------------------------
+|                      2     3     4     5           n
+|      x        x     x     x     x     x           x
+|     e  = 1 + --- + --- + --- + --- + --- + ... + --- + ...
+|               1!    2!    3!    4!    5!          n!
+*----------------------------------------------------------------------------*/
+
+static const float64 float32_exp2_coefficients[15] =
+{
+    make_float64( 0x3ff0000000000000ll ), /*  1 */
+    make_float64( 0x3fe0000000000000ll ), /*  2 */
+    make_float64( 0x3fc5555555555555ll ), /*  3 */
+    make_float64( 0x3fa5555555555555ll ), /*  4 */
+    make_float64( 0x3f81111111111111ll ), /*  5 */
+    make_float64( 0x3f56c16c16c16c17ll ), /*  6 */
+    make_float64( 0x3f2a01a01a01a01all ), /*  7 */
+    make_float64( 0x3efa01a01a01a01all ), /*  8 */
+    make_float64( 0x3ec71de3a556c734ll ), /*  9 */
+    make_float64( 0x3e927e4fb7789f5cll ), /* 10 */
+    make_float64( 0x3e5ae64567f544e4ll ), /* 11 */
+    make_float64( 0x3e21eed8eff8d898ll ), /* 12 */
+    make_float64( 0x3de6124613a86d09ll ), /* 13 */
+    make_float64( 0x3da93974a8c07c9dll ), /* 14 */
+    make_float64( 0x3d6ae7f3e733b81fll ), /* 15 */
+};
+
+float32 float32_exp2( float32 a STATUS_PARAM )
+{
+    flag aSign;
+    int16 aExp;
+    bits32 aSig;
+    float64 r, x, xn;
+    int i;
+
+    aSig = extractFloat32Frac( a );
+    aExp = extractFloat32Exp( a );
+    aSign = extractFloat32Sign( a );
+
+    if ( aExp == 0xFF) {
+        if ( aSig ) return propagateFloat32NaN( a, float32_zero STATUS_VAR );
+        return (aSign) ? float32_zero : a;
+    }
+    if (aExp == 0) {
+        if (aSig == 0) return float32_one;
+    }
+
+    float_raise( float_flag_inexact STATUS_VAR);
+
+    /* ******************************* */
+    /* using float64 for approximation */
+    /* ******************************* */
+    x = float32_to_float64(a STATUS_VAR);
+    x = float64_mul(x, float64_ln2 STATUS_VAR);
+
+    xn = x;
+    r = float64_one;
+    for (i = 0 ; i < 15 ; i++) {
+        float64 f;
+
+        f = float64_mul(xn, float32_exp2_coefficients[i] STATUS_VAR);
+        r = float64_add(r, f STATUS_VAR);
+
+        xn = float64_mul(xn, x STATUS_VAR);
+    }
+
+    return float64_to_float32(r, status);
+}
+
+/*----------------------------------------------------------------------------
 | Returns the binary log of the single-precision floating-point value `a'.
 | The operation is performed according to the IEC/IEEE Standard for Binary
 | Floating-Point Arithmetic.

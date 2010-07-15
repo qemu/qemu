@@ -275,6 +275,7 @@ float32 float32_mul( float32, float32 STATUS_PARAM );
 float32 float32_div( float32, float32 STATUS_PARAM );
 float32 float32_rem( float32, float32 STATUS_PARAM );
 float32 float32_sqrt( float32 STATUS_PARAM );
+float32 float32_exp2( float32 STATUS_PARAM );
 float32 float32_log2( float32 STATUS_PARAM );
 int float32_eq( float32, float32 STATUS_PARAM );
 int float32_le( float32, float32 STATUS_PARAM );
@@ -315,6 +316,7 @@ INLINE int float32_is_zero(float32 a)
 
 #define float32_zero make_float32(0)
 #define float32_one make_float32(0x3f800000)
+#define float32_ln2 make_float32(0x3f317218)
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE double-precision conversion routines.
@@ -386,6 +388,7 @@ INLINE int float64_is_zero(float64 a)
 
 #define float64_zero make_float64(0)
 #define float64_one make_float64(0x3ff0000000000000LL)
+#define float64_ln2 make_float64(0x3fe62e42fefa39efLL)
 
 #ifdef FLOATX80
 
