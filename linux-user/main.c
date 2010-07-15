@@ -2790,6 +2790,12 @@ int main(int argc, char **argv, char **envp)
             r = argv[optind++];
             if (envlist_setenv(envlist, r) != 0)
                 usage();
+        } else if (!strcmp(r, "ignore-environment")) {
+            envlist_free(envlist);
+            if ((envlist = envlist_create()) == NULL) {
+                (void) fprintf(stderr, "Unable to allocate envlist\n");
+                exit(1);
+            }
         } else if (!strcmp(r, "U")) {
             r = argv[optind++];
             if (envlist_unsetenv(envlist, r) != 0)

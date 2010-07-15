@@ -2186,6 +2186,13 @@ Set the x86 elf interpreter prefix (default=/usr/local/qemu-i386)
 Set the x86 stack size in bytes (default=524288)
 @item -cpu model
 Select CPU model (-cpu ? for list and additional feature selection)
+@item -ignore-environment
+Start with an empty environment. Without this option,
+the inital environment is a copy of the caller's environment.
+@item -E @var{var}=@var{value}
+Set environment @var{var} to @var{value}.
+@item -U @var{var}
+Remove @var{var} from the environment.
 @item -B offset
 Offset guest address by the specified number of bytes.  This is useful when
 the address region required by guest applications is reserved on the host.
@@ -2409,6 +2416,13 @@ Print the help
 Set the library root path (default=/)
 @item -s size
 Set the stack size in bytes (default=524288)
+@item -ignore-environment
+Start with an empty environment. Without this option,
+the inital environment is a copy of the caller's environment.
+@item -E @var{var}=@var{value}
+Set environment @var{var} to @var{value}.
+@item -U @var{var}
+Remove @var{var} from the environment.
 @item -bsd type
 Set the type of the emulated BSD Operating system. Valid values are
 FreeBSD, NetBSD and OpenBSD (default).
