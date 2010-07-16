@@ -739,14 +739,16 @@ int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res)
     return bs->drv->bdrv_check(bs, res);
 }
 
+#define COMMIT_BUF_SECTORS 2048
+
 /* commit COW file into the raw image */
 int bdrv_commit(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
-    int64_t i, total_sectors;
-    int n, j, ro, open_flags;
+    int64_t sector, total_sectors;
+    int n, ro, open_flags;
     int ret = 0, rw_ret = 0;
-    unsigned char sector[BDRV_SECTOR_SIZE];
+    uint8_t *buf;
     char filename[1024];
     BlockDriverState *bs_rw, *bs_ro;
 
@@ -789,22 +791,20 @@ int bdrv_commit(BlockDriverState *bs)
     }
 
     total_sectors = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
-    for (i = 0; i < total_sectors;) {
-        if (drv->bdrv_is_allocated(bs, i, 65536, &n)) {
-            for(j = 0; j < n; j++) {
-                if (bdrv_read(bs, i, sector, 1) != 0) {
-                    ret = -EIO;
-                    goto ro_cleanup;
-                }
+    buf = qemu_malloc(COMMIT_BUF_SECTORS * BDRV_SECTOR_SIZE);
 
-                if (bdrv_write(bs->backing_hd, i, sector, 1) != 0) {
-                    ret = -EIO;
-                    goto ro_cleanup;
-                }
-                i++;
-	    }
-	} else {
-            i += n;
+    for (sector = 0; sector < total_sectors; sector += n) {
+        if (drv->bdrv_is_allocated(bs, sector, COMMIT_BUF_SECTORS, &n)) {
+
+            if (bdrv_read(bs, sector, buf, n) != 0) {
+                ret = -EIO;
+                goto ro_cleanup;
+            }
+
+            if (bdrv_write(bs->backing_hd, sector, buf, n) != 0) {
+                ret = -EIO;
+                goto ro_cleanup;
+            }
         }
     }
 
@@ -821,6 +821,7 @@ int bdrv_commit(BlockDriverState *bs)
         bdrv_flush(bs->backing_hd);
 
 ro_cleanup:
+    qemu_free(buf);
 
     if (ro) {
         /* re-open as RO */
