@@ -176,6 +176,7 @@ struct PCII440FXState;
 typedef struct PCII440FXState PCII440FXState;
 
 PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix_devfn, qemu_irq *pic, ram_addr_t ram_size);
+PCIBus *i440fx_xen_init(PCII440FXState **pi440fx_state, int *piix3_devfn, qemu_irq *pic, ram_addr_t ram_size);
 void i440fx_init_memory_mappings(PCII440FXState *d);
 
 /* piix4.c */
