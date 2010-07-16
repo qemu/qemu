@@ -513,6 +513,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
               BlockDriver *drv)
 {
     int ret;
+    int probed = 0;
 
     if (flags & BDRV_O_SNAPSHOT) {
         BlockDriverState *bs1;
@@ -573,6 +574,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
     /* Find the right image format driver */
     if (!drv) {
         drv = find_image_format(filename);
+        probed = 1;
     }
 
     if (!drv) {
@@ -585,6 +587,8 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
     if (ret < 0) {
         goto unlink_and_fail;
     }
+
+    bs->probed = probed;
 
     /* If there is a backing file, use it */
     if ((flags & BDRV_O_NO_BACKING) == 0 && bs->backing_file[0] != '\0') {

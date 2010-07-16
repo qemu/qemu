@@ -54,6 +54,6 @@ ETEXI
 DEF("resize", img_resize,
     "resize filename [+ | -]size")
 STEXI
-@item rebase @var{filename} [+ | -]@var{size}
+@item resize @var{filename} [+ | -]@var{size}
 @end table
 ETEXI

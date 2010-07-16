@@ -144,6 +144,7 @@ struct BlockDriverState {
     int encrypted; /* if true, the media is encrypted */
     int valid_key; /* if true, a valid encryption key has been set */
     int sg;        /* if true, the device is a /dev/sg* */
+    int probed;    /* if true, format was probed automatically */
     /* event callback when inserting/removing */
     void (*change_cb)(void *opaque);
     void *change_opaque;

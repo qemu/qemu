@@ -546,11 +546,10 @@ static int virtio_blk_init_pci(PCIDevice *pci_dev)
         proxy->class_code != PCI_CLASS_STORAGE_OTHER)
         proxy->class_code = PCI_CLASS_STORAGE_SCSI;
 
-    if (!proxy->block.bs) {
-        error_report("virtio-blk-pci: drive property not set");
+    vdev = virtio_blk_init(&pci_dev->qdev, &proxy->block);
+    if (!vdev) {
         return -1;
     }
-    vdev = virtio_blk_init(&pci_dev->qdev, &proxy->block);
     vdev->nvectors = proxy->nvectors;
     virtio_init_pci(proxy, vdev,
                     PCI_VENDOR_ID_REDHAT_QUMRANET,

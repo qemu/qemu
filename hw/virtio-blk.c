@@ -12,6 +12,7 @@
  */
 
 #include <qemu-common.h>
+#include "qemu-error.h"
 #include "virtio-blk.h"
 #ifdef __linux__
 # include <scsi/sg.h>
@@ -489,6 +490,15 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf)
     int cylinders, heads, secs;
     static int virtio_blk_id;
     DriveInfo *dinfo;
+
+    if (!conf->bs) {
+        error_report("virtio-blk-pci: drive property not set");
+        return NULL;
+    }
+    if (!bdrv_is_inserted(conf->bs)) {
+        error_report("Device needs media, but drive is empty");
+        return NULL;
+    }
 
     s = (VirtIOBlock *)virtio_common_init("virtio-blk", VIRTIO_ID_BLOCK,
                                           sizeof(struct virtio_blk_config),

@@ -117,6 +117,7 @@ static void do_flush_queued_data(VirtIOSerialPort *port, VirtQueue *vq,
     VirtQueueElement elem;
 
     assert(port || discard);
+    assert(virtio_queue_ready(vq));
 
     while ((discard || !port->throttled) && virtqueue_pop(vq, &elem)) {
         uint8_t *buf;
@@ -139,6 +140,9 @@ static void flush_queued_data(VirtIOSerialPort *port, bool discard)
 {
     assert(port);
 
+    if (!virtio_queue_ready(port->ovq)) {
+        return;
+    }
     do_flush_queued_data(port, port->ovq, &port->vser->vdev, discard);
 }
 
