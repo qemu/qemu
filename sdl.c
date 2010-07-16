@@ -63,6 +63,10 @@ static SDL_PixelFormat host_format;
 static int scaling_active = 0;
 static Notifier mouse_mode_notifier;
 
+static bool disabledLockKeys;
+static bool fakedCapsLockUpEvent;
+static bool fakedNumLockUpEvent;
+
 static void sdl_update(DisplayState *ds, int x, int y, int w, int h)
 {
     //    printf("updating x=%d y=%d w=%d h=%d\n", x, y, w, h);
@@ -394,8 +398,26 @@ static void sdl_process_key(SDL_KeyboardEvent *ev)
         else
             modifiers_state[keycode] = 1;
         break;
-    //~ case 0x45: /* num lock */
-    //~ case 0x3a: /* caps lock */
+    case 0x45: /* num lock */
+    case 0x3a: /* caps lock */
+        /* Up to libSDL 1.6.13, these keys do not send the key up event.
+           libSDL 1.6.14 (and earlier patched versions from Debian and Ubuntu)
+           can send up events. Assume that we don't get up events
+           (so we generate them). Change this strategy if we get an up event. */
+        if (!disabledLockKeys) {
+            if (ev->type == SDL_KEYUP) {
+                disabledLockKeys = true;
+            } else {
+                kbd_put_keycode(keycode);
+                kbd_put_keycode(keycode | SCANCODE_UP);
+                if (keycode == 0x3a) {
+                  fakedCapsLockUpEvent = true;
+                } else {
+                  fakedNumLockUpEvent = true;
+                }
+            }
+            return;
+        }
     }
 
     /* now send the key code */
