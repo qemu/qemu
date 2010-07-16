@@ -27,6 +27,8 @@
 #define TUNSETOFFLOAD  _IOW('T', 208, unsigned int)
 #define TUNGETIFF      _IOR('T', 210, unsigned int)
 #define TUNSETSNDBUF   _IOW('T', 212, int)
+#define TUNGETVNETHDRSZ _IOR('T', 215, int)
+#define TUNSETVNETHDRSZ _IOW('T', 216, int)
 
 #endif
 

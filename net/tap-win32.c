@@ -728,6 +728,15 @@ int tap_has_vnet_hdr(VLANClientState *vc)
     return 0;
 }
 
+int tap_probe_vnet_hdr_len(int fd, int len)
+{
+    return 0;
+}
+
+void tap_fd_set_vnet_hdr_len(int fd, int len)
+{
+}
+
 void tap_using_vnet_hdr(VLANClientState *vc, int using_vnet_hdr)
 {
 }

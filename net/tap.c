@@ -232,6 +232,27 @@ int tap_has_vnet_hdr(VLANClientState *nc)
     return !!s->host_vnet_hdr_len;
 }
 
+int tap_has_vnet_hdr_len(VLANClientState *nc, int len)
+{
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
+
+    assert(nc->info->type == NET_CLIENT_TYPE_TAP);
+
+    return tap_probe_vnet_hdr_len(s->fd, len);
+}
+
+void tap_set_vnet_hdr_len(VLANClientState *nc, int len)
+{
+    TAPState *s = DO_UPCAST(TAPState, nc, nc);
+
+    assert(nc->info->type == NET_CLIENT_TYPE_TAP);
+    assert(len == sizeof(struct virtio_net_hdr_mrg_rxbuf) ||
+           len == sizeof(struct virtio_net_hdr));
+
+    tap_fd_set_vnet_hdr_len(s->fd, len);
+    s->host_vnet_hdr_len = len;
+}
+
 void tap_using_vnet_hdr(VLANClientState *nc, int using_vnet_hdr)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
