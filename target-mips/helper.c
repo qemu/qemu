@@ -509,7 +509,8 @@ void do_interrupt (CPUState *env)
             int SX = (env->CP0_Status & (1 << CP0St_SX)) != 0;
             int KX = (env->CP0_Status & (1 << CP0St_KX)) != 0;
 
-            if ((R == 0 && UX) || (R == 1 && SX) || (R == 3 && KX))
+            if (((R == 0 && UX) || (R == 1 && SX) || (R == 3 && KX)) &&
+                (!(env->insn_flags & (INSN_LOONGSON2E | INSN_LOONGSON2F))))
                 offset = 0x080;
             else
 #endif
@@ -525,7 +526,8 @@ void do_interrupt (CPUState *env)
             int SX = (env->CP0_Status & (1 << CP0St_SX)) != 0;
             int KX = (env->CP0_Status & (1 << CP0St_KX)) != 0;
 
-            if ((R == 0 && UX) || (R == 1 && SX) || (R == 3 && KX))
+            if (((R == 0 && UX) || (R == 1 && SX) || (R == 3 && KX)) &&
+                (!(env->insn_flags & (INSN_LOONGSON2E | INSN_LOONGSON2F))))
                 offset = 0x080;
             else
 #endif
