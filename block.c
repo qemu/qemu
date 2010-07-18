@@ -332,16 +332,20 @@ BlockDriver *bdrv_find_protocol(const char *filename)
     return NULL;
 }
 
-static BlockDriver *find_image_format(const char *filename)
+static BlockDriver *find_image_format(const char *filename, int *error)
 {
     int ret, score, score_max;
     BlockDriver *drv1, *drv;
     uint8_t buf[2048];
     BlockDriverState *bs;
 
+    *error = -ENOENT;
+
     ret = bdrv_file_open(&bs, filename, 0);
-    if (ret < 0)
+    if (ret < 0) {
+        *error = ret;
         return NULL;
+    }
 
     /* Return the raw BlockDriver * to scsi-generic devices or empty drives */
     if (bs->sg || !bdrv_is_inserted(bs)) {
@@ -352,6 +356,7 @@ static BlockDriver *find_image_format(const char *filename)
     ret = bdrv_pread(bs, 0, buf, sizeof(buf));
     bdrv_delete(bs);
     if (ret < 0) {
+        *error = ret;
         return NULL;
     }
 
@@ -573,12 +578,11 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
 
     /* Find the right image format driver */
     if (!drv) {
-        drv = find_image_format(filename);
+        drv = find_image_format(filename, &ret);
         probed = 1;
     }
 
     if (!drv) {
-        ret = -ENOENT;
         goto unlink_and_fail;
     }
 
