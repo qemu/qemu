@@ -80,7 +80,7 @@
 #define SMC_BITMAP_USE_THRESHOLD 10
 
 static TranslationBlock *tbs;
-int code_gen_max_blocks;
+static int code_gen_max_blocks;
 TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
 static int nb_tbs;
 /* any access to the tbs or the page table must use this lock */
@@ -107,7 +107,7 @@ static uint8_t *code_gen_buffer;
 static unsigned long code_gen_buffer_size;
 /* threshold to flush the translated code buffer */
 static unsigned long code_gen_buffer_max_size;
-uint8_t *code_gen_ptr;
+static uint8_t *code_gen_ptr;
 
 #if !defined(CONFIG_USER_ONLY)
 int phys_ram_fd;

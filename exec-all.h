@@ -191,8 +191,6 @@ void tb_link_page(TranslationBlock *tb,
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr);
 
 extern TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
-extern uint8_t *code_gen_ptr;
-extern int code_gen_max_blocks;
 
 #if defined(USE_DIRECT_JUMP)
 
