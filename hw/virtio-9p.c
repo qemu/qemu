@@ -736,6 +736,21 @@ static size_t pdu_marshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...)
                         statp->n_gid, statp->n_muid);
             break;
         }
+        case 'A': {
+            V9fsStatDotl *statp = va_arg(ap, V9fsStatDotl *);
+            offset += pdu_marshal(pdu, offset, "qQdddqqqqqqqqqqqqqqq",
+                        statp->st_result_mask,
+                        &statp->qid, statp->st_mode,
+                        statp->st_uid, statp->st_gid,
+                        statp->st_nlink, statp->st_rdev,
+                        statp->st_size, statp->st_blksize, statp->st_blocks,
+                        statp->st_atime_sec, statp->st_atime_nsec,
+                        statp->st_mtime_sec, statp->st_mtime_nsec,
+                        statp->st_ctime_sec, statp->st_ctime_nsec,
+                        statp->st_btime_sec, statp->st_btime_nsec,
+                        statp->st_gen, statp->st_data_version);
+            break;
+        }
         default:
             break;
         }
@@ -963,6 +978,51 @@ static int stat_to_v9stat(V9fsState *s, V9fsString *name,
     return 0;
 }
 
+#define P9_STATS_MODE          0x00000001ULL
+#define P9_STATS_NLINK         0x00000002ULL
+#define P9_STATS_UID           0x00000004ULL
+#define P9_STATS_GID           0x00000008ULL
+#define P9_STATS_RDEV          0x00000010ULL
+#define P9_STATS_ATIME         0x00000020ULL
+#define P9_STATS_MTIME         0x00000040ULL
+#define P9_STATS_CTIME         0x00000080ULL
+#define P9_STATS_INO           0x00000100ULL
+#define P9_STATS_SIZE          0x00000200ULL
+#define P9_STATS_BLOCKS        0x00000400ULL
+
+#define P9_STATS_BTIME         0x00000800ULL
+#define P9_STATS_GEN           0x00001000ULL
+#define P9_STATS_DATA_VERSION  0x00002000ULL
+
+#define P9_STATS_BASIC         0x000007ffULL /* Mask for fields up to BLOCKS */
+#define P9_STATS_ALL           0x00003fffULL /* Mask for All fields above */
+
+
+static void stat_to_v9stat_dotl(V9fsState *s, const struct stat *stbuf,
+                            V9fsStatDotl *v9lstat)
+{
+    memset(v9lstat, 0, sizeof(*v9lstat));
+
+    v9lstat->st_mode = stbuf->st_mode;
+    v9lstat->st_nlink = stbuf->st_nlink;
+    v9lstat->st_uid = stbuf->st_uid;
+    v9lstat->st_gid = stbuf->st_gid;
+    v9lstat->st_rdev = stbuf->st_rdev;
+    v9lstat->st_size = stbuf->st_size;
+    v9lstat->st_blksize = stbuf->st_blksize;
+    v9lstat->st_blocks = stbuf->st_blocks;
+    v9lstat->st_atime_sec = stbuf->st_atime;
+    v9lstat->st_atime_nsec = stbuf->st_atim.tv_nsec;
+    v9lstat->st_mtime_sec = stbuf->st_mtime;
+    v9lstat->st_mtime_nsec = stbuf->st_mtim.tv_nsec;
+    v9lstat->st_ctime_sec = stbuf->st_ctime;
+    v9lstat->st_ctime_nsec = stbuf->st_ctim.tv_nsec;
+    /* Currently we only support BASIC fields in stat */
+    v9lstat->st_result_mask = P9_STATS_BASIC;
+
+    stat_to_qid(stbuf, &v9lstat->qid);
+}
+
 static struct iovec *adjust_sg(struct iovec *sg, int len, int *iovcnt)
 {
     while (len && *iovcnt) {
@@ -1126,6 +1186,57 @@ static void v9fs_stat(V9fsState *s, V9fsPDU *pdu)
 out:
     complete_pdu(s, vs->pdu, err);
     v9fs_stat_free(&vs->v9stat);
+    qemu_free(vs);
+}
+
+static void v9fs_getattr_post_lstat(V9fsState *s, V9fsStatStateDotl *vs,
+                                                                int err)
+{
+    if (err == -1) {
+        err = -errno;
+        goto out;
+    }
+
+    stat_to_v9stat_dotl(s, &vs->stbuf, &vs->v9stat_dotl);
+    vs->offset += pdu_marshal(vs->pdu, vs->offset, "A", &vs->v9stat_dotl);
+    err = vs->offset;
+
+out:
+    complete_pdu(s, vs->pdu, err);
+    qemu_free(vs);
+}
+
+static void v9fs_getattr(V9fsState *s, V9fsPDU *pdu)
+{
+    int32_t fid;
+    V9fsStatStateDotl *vs;
+    ssize_t err = 0;
+    V9fsFidState *fidp;
+    uint64_t request_mask;
+
+    vs = qemu_malloc(sizeof(*vs));
+    vs->pdu = pdu;
+    vs->offset = 7;
+
+    memset(&vs->v9stat_dotl, 0, sizeof(vs->v9stat_dotl));
+
+    pdu_unmarshal(vs->pdu, vs->offset, "dq", &fid, &request_mask);
+
+    fidp = lookup_fid(s, fid);
+    if (fidp == NULL) {
+        err = -ENOENT;
+        goto out;
+    }
+
+    /* Currently we only support BASIC fields in stat, so there is no
+     * need to look at request_mask.
+     */
+    err = v9fs_do_lstat(s, &fidp->path, &vs->stbuf);
+    v9fs_getattr_post_lstat(s, vs, err);
+    return;
+
+out:
+    complete_pdu(s, vs->pdu, err);
     qemu_free(vs);
 }
 
@@ -2391,6 +2502,7 @@ typedef void (pdu_handler_t)(V9fsState *s, V9fsPDU *pdu);
 static pdu_handler_t *pdu_handlers[] = {
     [P9_TREADDIR] = v9fs_readdir,
     [P9_TSTATFS] = v9fs_statfs,
+    [P9_TGETATTR] = v9fs_getattr,
     [P9_TVERSION] = v9fs_version,
     [P9_TATTACH] = v9fs_attach,
     [P9_TSTAT] = v9fs_stat,

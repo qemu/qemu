@@ -178,6 +178,30 @@ static void pprint_stat(V9fsPDU *pdu, int rx, size_t *offsetp, const char *name)
     fprintf(llogfile, "}");
 }
 
+static void pprint_stat_dotl(V9fsPDU *pdu, int rx, size_t *offsetp,
+                                                  const char *name)
+{
+    fprintf(llogfile, "%s={", name);
+    pprint_qid(pdu, rx, offsetp, "qid");
+    pprint_int32(pdu, rx, offsetp, ", st_mode");
+    pprint_int64(pdu, rx, offsetp, ", st_nlink");
+    pprint_int32(pdu, rx, offsetp, ", st_uid");
+    pprint_int32(pdu, rx, offsetp, ", st_gid");
+    pprint_int64(pdu, rx, offsetp, ", st_rdev");
+    pprint_int64(pdu, rx, offsetp, ", st_size");
+    pprint_int64(pdu, rx, offsetp, ", st_blksize");
+    pprint_int64(pdu, rx, offsetp, ", st_blocks");
+    pprint_int64(pdu, rx, offsetp, ", atime");
+    pprint_int64(pdu, rx, offsetp, ", atime_nsec");
+    pprint_int64(pdu, rx, offsetp, ", mtime");
+    pprint_int64(pdu, rx, offsetp, ", mtime_nsec");
+    pprint_int64(pdu, rx, offsetp, ", ctime");
+    pprint_int64(pdu, rx, offsetp, ", ctime_nsec");
+    fprintf(llogfile, "}");
+}
+
+
+
 static void pprint_strs(V9fsPDU *pdu, int rx, size_t *offsetp, const char *name)
 {
     int sg_count = get_sg_count(pdu, rx);
@@ -352,6 +376,14 @@ void pprint_pdu(V9fsPDU *pdu)
         fprintf(llogfile, "RVERSION: (");
         pprint_int32(pdu, 1, &offset, "msize");
         pprint_str(pdu, 1, &offset, ", version");
+        break;
+    case P9_TGETATTR:
+        fprintf(llogfile, "TGETATTR: (");
+        pprint_int32(pdu, 0, &offset, "fid");
+        break;
+    case P9_RGETATTR:
+        fprintf(llogfile, "RGETATTR: (");
+        pprint_stat_dotl(pdu, 1, &offset, "getattr");
         break;
     case P9_TAUTH:
         fprintf(llogfile, "TAUTH: (");

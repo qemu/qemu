@@ -15,6 +15,8 @@
 enum {
     P9_TSTATFS = 8,
     P9_RSTATFS,
+    P9_TGETATTR = 24,
+    P9_RGETATTR,
     P9_TREADDIR = 40,
     P9_RREADDIR,
     P9_TVERSION = 100,
@@ -184,6 +186,37 @@ typedef struct V9fsStatState {
     V9fsFidState *fidp;
     struct stat stbuf;
 } V9fsStatState;
+
+typedef struct V9fsStatDotl {
+    uint64_t st_result_mask;
+    V9fsQID qid;
+    uint32_t st_mode;
+    uint32_t st_uid;
+    uint32_t st_gid;
+    uint64_t st_nlink;
+    uint64_t st_rdev;
+    uint64_t st_size;
+    uint64_t st_blksize;
+    uint64_t st_blocks;
+    uint64_t st_atime_sec;
+    uint64_t st_atime_nsec;
+    uint64_t st_mtime_sec;
+    uint64_t st_mtime_nsec;
+    uint64_t st_ctime_sec;
+    uint64_t st_ctime_nsec;
+    uint64_t st_btime_sec;
+    uint64_t st_btime_nsec;
+    uint64_t st_gen;
+    uint64_t st_data_version;
+} V9fsStatDotl;
+
+typedef struct V9fsStatStateDotl {
+    V9fsPDU *pdu;
+    size_t offset;
+    V9fsStatDotl v9stat_dotl;
+    struct stat stbuf;
+} V9fsStatStateDotl;
+
 
 typedef struct V9fsWalkState {
     V9fsPDU *pdu;
