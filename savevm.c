@@ -1139,6 +1139,9 @@ void unregister_savevm(DeviceState *dev, const char *idstr, void *opaque)
     QTAILQ_FOREACH_SAFE(se, &savevm_handlers, entry, new_se) {
         if (strcmp(se->idstr, id) == 0 && se->opaque == opaque) {
             QTAILQ_REMOVE(&savevm_handlers, se, entry);
+            if (se->compat) {
+                qemu_free(se->compat);
+            }
             qemu_free(se);
         }
     }
@@ -1206,6 +1209,9 @@ void vmstate_unregister(DeviceState *dev, const VMStateDescription *vmsd,
     QTAILQ_FOREACH_SAFE(se, &savevm_handlers, entry, new_se) {
         if (se->vmsd == vmsd && se->opaque == opaque) {
             QTAILQ_REMOVE(&savevm_handlers, se, entry);
+            if (se->compat) {
+                qemu_free(se->compat);
+            }
             qemu_free(se);
         }
     }
