@@ -89,6 +89,7 @@
 
 #define MAX_CPUS 16
 #define MAX_PILS 16
+#define MAX_VSIMMS 4
 
 #define ESCC_CLOCK 4915200
 
@@ -98,6 +99,10 @@ struct sun4m_hwdef {
     target_phys_addr_t serial_base, fd_base;
     target_phys_addr_t afx_base, idreg_base, dma_base, esp_base, le_base;
     target_phys_addr_t tcx_base, cs_base, apc_base, aux1_base, aux2_base;
+    target_phys_addr_t bpp_base, dbri_base, sx_base;
+    struct {
+        target_phys_addr_t reg_base, vram_base;
+    } vsimm[MAX_VSIMMS];
     target_phys_addr_t ecc_base;
     uint32_t ecc_version;
     uint8_t nvram_machine_id;
@@ -810,6 +815,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     unsigned long kernel_size;
     DriveInfo *fd[MAX_FD];
     void *fw_cfg;
+    unsigned int num_vsimms;
 
     /* init CPUs */
     if (!cpu_model)
@@ -872,8 +878,22 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
         fprintf(stderr, "qemu: Unsupported depth: %d\n", graphic_depth);
         exit (1);
     }
-    tcx_init(hwdef->tcx_base, 0x00100000, graphic_width, graphic_height,
-             graphic_depth);
+    num_vsimms = 0;
+    if (num_vsimms == 0) {
+        tcx_init(hwdef->tcx_base, 0x00100000, graphic_width, graphic_height,
+                 graphic_depth);
+    }
+
+    for (i = num_vsimms; i < MAX_VSIMMS; i++) {
+        /* vsimm registers probed by OBP */
+        if (hwdef->vsimm[i].reg_base) {
+            empty_slot_init(hwdef->vsimm[i].reg_base, 0x2000);
+        }
+    }
+
+    if (hwdef->sx_base) {
+        empty_slot_init(hwdef->sx_base, 0x2000);
+    }
 
     lance_init(&nd_table[0], hwdef->le_base, ledma, ledma_irq);
 
@@ -918,6 +938,19 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     if (hwdef->cs_base) {
         sysbus_create_simple("SUNW,CS4231", hwdef->cs_base,
                              slavio_irq[5]);
+    }
+
+    if (hwdef->dbri_base) {
+        /* ISDN chip with attached CS4215 audio codec */
+        /* prom space */
+        empty_slot_init(hwdef->dbri_base+0x1000, 0x30);
+        /* reg space */
+        empty_slot_init(hwdef->dbri_base+0x10000, 0x100);
+    }
+
+    if (hwdef->bpp_base) {
+        /* parallel port */
+        empty_slot_init(hwdef->bpp_base, 0x20);
     }
 
     kernel_size = sun4m_load_kernel(kernel_filename, initrd_filename,
@@ -1063,9 +1096,25 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .dma_base     = 0xef0400000ULL,
         .esp_base     = 0xef0800000ULL,
         .le_base      = 0xef0c00000ULL,
+        .bpp_base     = 0xef4800000ULL,
         .apc_base     = 0xefa000000ULL, // XXX should not exist
         .aux1_base    = 0xff1800000ULL,
         .aux2_base    = 0xff1a01000ULL,
+        .dbri_base    = 0xee0000000ULL,
+        .sx_base      = 0xf80000000ULL,
+        .vsimm        = {
+            {
+                .reg_base  = 0x9c000000ULL,
+                .vram_base = 0xfc000000ULL
+            }, {
+                .reg_base  = 0x90000000ULL,
+                .vram_base = 0xf0000000ULL
+            }, {
+                .reg_base  = 0x94000000ULL
+            }, {
+                .reg_base  = 0x98000000ULL
+            }
+        },
         .ecc_base     = 0xf00000000ULL,
         .ecc_version  = 0x20000000, // version 0, implementation 2
         .nvram_machine_id = 0x72,
