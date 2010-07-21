@@ -734,10 +734,18 @@ VirtIODevice *virtio_serial_init(DeviceState *dev, uint32_t max_nr_ports)
 {
     VirtIOSerial *vser;
     VirtIODevice *vdev;
-    uint32_t i;
+    uint32_t i, max_supported_ports;
 
     if (!max_nr_ports)
         return NULL;
+
+    /* Each port takes 2 queues, and one pair is for the control queue */
+    max_supported_ports = VIRTIO_PCI_QUEUE_MAX / 2 - 1;
+
+    if (max_nr_ports > max_supported_ports) {
+        error_report("maximum ports supported: %u", max_supported_ports);
+        return NULL;
+    }
 
     vdev = virtio_common_init("virtio-serial", VIRTIO_ID_CONSOLE,
                               sizeof(struct virtio_console_config),
