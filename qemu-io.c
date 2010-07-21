@@ -135,7 +135,7 @@ create_iovec(QEMUIOVector *qiov, char **argv, int nr_iov, int pattern)
 
 	for (i = 0; i < nr_iov; i++) {
 		char *arg = argv[i];
-                uint64_t len;
+                int64_t len;
 
 		len = cvtnum(arg);
 		if (len < 0) {
@@ -144,7 +144,7 @@ create_iovec(QEMUIOVector *qiov, char **argv, int nr_iov, int pattern)
 		}
 
 		/* should be SIZE_T_MAX, but that doesn't exist */
-		if (len > UINT_MAX) {
+		if (len > INT_MAX) {
 			printf("too large length argument -- %s\n", arg);
 			goto fail;
 		}
