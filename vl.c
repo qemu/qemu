@@ -801,9 +801,7 @@ static void smp_parse(const char *optarg)
             threads = threads > 0 ? threads : 1;
             cores = smp / (sockets * threads);
         } else {
-            if (sockets) {
-                threads = smp / (cores * sockets);
-            }
+            threads = smp / (cores * sockets);
         }
     }
     smp_cpus = smp;
