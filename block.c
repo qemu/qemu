@@ -28,8 +28,6 @@
 #include "module.h"
 #include "qemu-objects.h"
 
-#include <sys/param.h>          /* PATH_MAX */
-
 #ifdef CONFIG_BSD
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -332,32 +330,35 @@ BlockDriver *bdrv_find_protocol(const char *filename)
     return NULL;
 }
 
-static BlockDriver *find_image_format(const char *filename, int *error)
+static int find_image_format(const char *filename, BlockDriver **pdrv)
 {
     int ret, score, score_max;
     BlockDriver *drv1, *drv;
     uint8_t buf[2048];
     BlockDriverState *bs;
 
-    *error = -ENOENT;
-
     ret = bdrv_file_open(&bs, filename, 0);
     if (ret < 0) {
-        *error = ret;
-        return NULL;
+        *pdrv = NULL;
+        return ret;
     }
 
     /* Return the raw BlockDriver * to scsi-generic devices or empty drives */
     if (bs->sg || !bdrv_is_inserted(bs)) {
         bdrv_delete(bs);
-        return bdrv_find_format("raw");
+        drv = bdrv_find_format("raw");
+        if (!drv) {
+            ret = -ENOENT;
+        }
+        *pdrv = drv;
+        return ret;
     }
 
     ret = bdrv_pread(bs, 0, buf, sizeof(buf));
     bdrv_delete(bs);
     if (ret < 0) {
-        *error = ret;
-        return NULL;
+        *pdrv = NULL;
+        return ret;
     }
 
     score_max = 0;
@@ -371,7 +372,11 @@ static BlockDriver *find_image_format(const char *filename, int *error)
             }
         }
     }
-    return drv;
+    if (!drv) {
+        ret = -ENOENT;
+    }
+    *pdrv = drv;
+    return ret;
 }
 
 /**
@@ -578,7 +583,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
 
     /* Find the right image format driver */
     if (!drv) {
-        drv = find_image_format(filename, &ret);
+        ret = find_image_format(filename, &drv);
         probed = 1;
     }
 
@@ -747,7 +752,7 @@ int bdrv_commit(BlockDriverState *bs)
 
     if (!drv)
         return -ENOMEDIUM;
-    
+
     if (!bs->backing_hd) {
         return -ENOTSUP;
     }
@@ -755,7 +760,7 @@ int bdrv_commit(BlockDriverState *bs)
     if (bs->backing_hd->keep_read_only) {
         return -EACCES;
     }
-    
+
     ro = bs->backing_hd->read_only;
     strncpy(filename, bs->backing_hd->filename, sizeof(filename));
     open_flags =  bs->backing_hd->open_flags;
