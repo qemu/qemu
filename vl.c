@@ -1161,6 +1161,16 @@ static int powerdown_requested;
 static int debug_requested;
 static int vmstop_requested;
 
+int qemu_shutdown_requested_get(void)
+{
+    return shutdown_requested;
+}
+
+int qemu_reset_requested_get(void)
+{
+    return reset_requested;
+}
+
 int qemu_shutdown_requested(void)
 {
     int r = shutdown_requested;
