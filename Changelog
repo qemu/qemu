@@ -1,3 +1,50 @@
+version 0.12.5
+ - audio/alsa: Handle SND_PCM_STATE_SETUP in alsa_poll_handler
+ - block: Handle multiwrite errors only when all requests have completed
+ - block: Fix early failure in multiwrite
+ - vpc: Use bdrv_(p)write_sync for metadata writes
+ - vmdk: Use bdrv_(p)write_sync for metadata writes
+ - qcow2: Use bdrv_(p)write_sync for metadata writes
+ - qcow: Use bdrv_(p)write_sync for metadata writes
+ - block: Add bdrv_(p)write_sync
+ - qcow2: Restore L1 entry on l2_allocate failure
+ - block/vdi: Fix image opening and creation for odd disk sizes
+ - block/vpc: Fix conversion from size to disk geometry
+ - qcow2: Remove abort on free_clusters failure
+ - vmdk: Fix COW
+ - qcow2: Fix creation of large images
+ - vmdk: fix double free
+ - qemu-options: add documentation for stdio signal=on|off
+ - target-arm : fix parallel saturated subtraction implementation
+ - target-arm : fix thumb2 parallel add/sub opcode decoding
+ - target-arm: fix addsub/subadd implementation
+ - target-i386: fix xchg rax,r8
+ - block/vvfat.c: fix warnings with _FORTIFY_SOURCE
+ - audio/alsa: Spelling typo (paramters)
+ - target-mips: fix DINSU instruction
+ - Correct definitions for FD_CMD_SAVE and FD_CMD_RESTORE
+ - qcow2: Fix corruption after error in update_refcount
+ - qcow2: Fix corruption after refblock allocation
+ - block: Fix multiwrite with overlapping requests
+ - qcow2: Fix error handling in l2_allocate
+ - qcow2: Clear L2 table cache after write error
+ - ide: Fix ide_dma_cancel
+ - usb-bus: fix no params
+ - Avoid crash on '-usbdevice <device>' without parameters
+ - Fix -usbdevice crash
+ - Fix multiboot compilation
+ - Fix missing symbols in .rel/.rela.plt sections
+ - target-ppc: fix RFI by clearing some bits of MSR
+ - Fix typo in balloon help
+ - arm_timer: fix oneshot mode
+ - arm_timer: reload timer when enabled
+ - qemu-sockets: avoid strlen of NULL pointer
+ - block: fix aio_flush segfaults for read-only protocols (e.g. curl)
+ - virtio-blk: fix barrier support
+ - block: fix sector comparism in multiwrite_req_compare
+ - pci: irq_state vmstate breakage
+ - qemu-img: use the heap instead of the huge stack array for win32
+
 version 0.12.4
  - Workaround for broken OSS_GETVERSION on FreeBSD, part two (Juergen Lock)
  - oss: fix fragment setting (malc)
