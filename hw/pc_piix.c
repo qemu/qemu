@@ -226,7 +226,7 @@ static QEMUMachine pc_machine_v0_12 = {
     .compat_props = (GlobalProperty[]) {
         {
             .driver   = "virtio-serial-pci",
-            .property = "max_nr_ports",
+            .property = "max_ports",
             .value    = stringify(1),
         },{
             .driver   = "virtio-serial-pci",
@@ -249,7 +249,7 @@ static QEMUMachine pc_machine_v0_11 = {
             .value    = stringify(0),
         },{
             .driver   = "virtio-serial-pci",
-            .property = "max_nr_ports",
+            .property = "max_ports",
             .value    = stringify(1),
         },{
             .driver   = "virtio-serial-pci",
@@ -288,7 +288,7 @@ static QEMUMachine pc_machine_v0_10 = {
             .value    = stringify(PCI_CLASS_DISPLAY_OTHER),
         },{
             .driver   = "virtio-serial-pci",
-            .property = "max_nr_ports",
+            .property = "max_ports",
             .value    = stringify(1),
         },{
             .driver   = "virtio-serial-pci",

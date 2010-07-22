@@ -40,7 +40,6 @@
 #define SIG_IPI SIGUSR1
 #endif
 
-static CPUState *cur_cpu;
 static CPUState *next_cpu;
 
 /***********************************************************/
@@ -132,7 +131,7 @@ static int cpu_has_work(CPUState *env)
     return 0;
 }
 
-static int tcg_has_work(void)
+static int any_cpu_has_work(void)
 {
     CPUState *env;
 
@@ -140,6 +139,13 @@ static int tcg_has_work(void)
         if (cpu_has_work(env))
             return 1;
     return 0;
+}
+
+static void cpu_debug_handler(CPUState *env)
+{
+    gdb_set_stop_cpu(env);
+    debug_requested = EXCP_DEBUG;
+    vm_stop(EXCP_DEBUG);
 }
 
 #ifndef _WIN32
@@ -237,6 +243,8 @@ static void qemu_event_increment(void)
 #ifndef CONFIG_IOTHREAD
 int qemu_init_main_loop(void)
 {
+    cpu_set_debug_excp_handler(cpu_debug_handler);
+
     return qemu_event_init();
 }
 
@@ -327,11 +335,14 @@ int qemu_init_main_loop(void)
 {
     int ret;
 
+    cpu_set_debug_excp_handler(cpu_debug_handler);
+
     ret = qemu_event_init();
     if (ret)
         return ret;
 
     qemu_cond_init(&qemu_pause_cond);
+    qemu_cond_init(&qemu_system_cond);
     qemu_mutex_init(&qemu_fair_mutex);
     qemu_mutex_init(&qemu_global_mutex);
     qemu_mutex_lock(&qemu_global_mutex);
@@ -402,10 +413,12 @@ static void qemu_wait_io_event_common(CPUState *env)
     flush_queued_work(env);
 }
 
-static void qemu_wait_io_event(CPUState *env)
+static void qemu_tcg_wait_io_event(void)
 {
-    while (!tcg_has_work())
-        qemu_cond_timedwait(env->halt_cond, &qemu_global_mutex, 1000);
+    CPUState *env;
+
+    while (!any_cpu_has_work())
+        qemu_cond_timedwait(tcg_halt_cond, &qemu_global_mutex, 1000);
 
     qemu_mutex_unlock(&qemu_global_mutex);
 
@@ -418,7 +431,10 @@ static void qemu_wait_io_event(CPUState *env)
     qemu_mutex_unlock(&qemu_fair_mutex);
 
     qemu_mutex_lock(&qemu_global_mutex);
-    qemu_wait_io_event_common(env);
+
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        qemu_wait_io_event_common(env);
+    }
 }
 
 static void qemu_kvm_eat_signal(CPUState *env, int timeout)
@@ -502,8 +518,8 @@ static void *tcg_cpu_thread_fn(void *arg)
         qemu_cond_timedwait(&qemu_system_cond, &qemu_global_mutex, 100);
 
     while (1) {
-        tcg_cpu_exec();
-        qemu_wait_io_event(cur_cpu);
+        cpu_exec_all();
+        qemu_tcg_wait_io_event();
     }
 
     return NULL;
@@ -763,32 +779,28 @@ static int qemu_cpu_exec(CPUState *env)
     return ret;
 }
 
-bool tcg_cpu_exec(void)
+bool cpu_exec_all(void)
 {
-    int ret = 0;
-
     if (next_cpu == NULL)
         next_cpu = first_cpu;
-    for (; next_cpu != NULL; next_cpu = next_cpu->next_cpu) {
-        CPUState *env = cur_cpu = next_cpu;
+    for (; next_cpu != NULL && !exit_request; next_cpu = next_cpu->next_cpu) {
+        CPUState *env = next_cpu;
 
         qemu_clock_enable(vm_clock,
-                          (cur_cpu->singlestep_enabled & SSTEP_NOTIMER) == 0);
+                          (env->singlestep_enabled & SSTEP_NOTIMER) == 0);
 
         if (qemu_alarm_pending())
             break;
-        if (cpu_can_run(env))
-            ret = qemu_cpu_exec(env);
-        else if (env->stop)
-            break;
-
-        if (ret == EXCP_DEBUG) {
-            gdb_set_stop_cpu(env);
-            debug_requested = EXCP_DEBUG;
+        if (cpu_can_run(env)) {
+            if (qemu_cpu_exec(env) == EXCP_DEBUG) {
+                break;
+            }
+        } else if (env->stop) {
             break;
         }
     }
-    return tcg_has_work();
+    exit_request = 0;
+    return any_cpu_has_work();
 }
 
 void set_numa_modes(void)

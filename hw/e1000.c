@@ -262,19 +262,18 @@ set_eecd(E1000State *s, int index, uint32_t val)
 
     s->eecd_state.old_eecd = val & (E1000_EECD_SK | E1000_EECD_CS |
             E1000_EECD_DI|E1000_EECD_FWE_MASK|E1000_EECD_REQ);
+    if (!(E1000_EECD_CS & val))			// CS inactive; nothing to do
+	return;
+    if (E1000_EECD_CS & (val ^ oldval)) {	// CS rise edge; reset state
+	s->eecd_state.val_in = 0;
+	s->eecd_state.bitnum_in = 0;
+	s->eecd_state.bitnum_out = 0;
+	s->eecd_state.reading = 0;
+    }
     if (!(E1000_EECD_SK & (val ^ oldval)))	// no clock edge
         return;
     if (!(E1000_EECD_SK & val)) {		// falling edge
         s->eecd_state.bitnum_out++;
-        return;
-    }
-    if (!(val & E1000_EECD_CS)) {		// rising, no CS (EEPROM reset)
-        memset(&s->eecd_state, 0, sizeof s->eecd_state);
-        /*
-         * restore old_eecd's E1000_EECD_SK (known to be on)
-         * to avoid false detection of a clock edge
-         */
-        s->eecd_state.old_eecd = E1000_EECD_SK;
         return;
     }
     s->eecd_state.val_in <<= 1;

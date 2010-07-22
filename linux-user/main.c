@@ -2182,7 +2182,7 @@ void cpu_loop (CPUState *env)
 {
     int trapnr, ret;
     target_siginfo_t info;
-    
+
     while (1) {
         trapnr = cpu_cris_exec (env);
         switch (trapnr) {
@@ -2200,13 +2200,13 @@ void cpu_loop (CPUState *env)
 	  /* just indicate that signals should be handled asap */
 	  break;
         case EXCP_BREAK:
-            ret = do_syscall(env, 
-                             env->regs[9], 
-                             env->regs[10], 
-                             env->regs[11], 
-                             env->regs[12], 
-                             env->regs[13], 
-                             env->pregs[7], 
+            ret = do_syscall(env,
+                             env->regs[9],
+                             env->regs[10],
+                             env->regs[11],
+                             env->regs[12],
+                             env->regs[13],
+                             env->pregs[7],
                              env->pregs[11]);
             env->regs[10] = ret;
             break;
@@ -2239,7 +2239,7 @@ void cpu_loop (CPUState *env)
 {
     int trapnr, ret;
     target_siginfo_t info;
-    
+
     while (1) {
         trapnr = cpu_mb_exec (env);
         switch (trapnr) {
@@ -2259,13 +2259,13 @@ void cpu_loop (CPUState *env)
         case EXCP_BREAK:
             /* Return address is 4 bytes after the call.  */
             env->regs[14] += 4;
-            ret = do_syscall(env, 
-                             env->regs[12], 
-                             env->regs[5], 
-                             env->regs[6], 
-                             env->regs[7], 
-                             env->regs[8], 
-                             env->regs[9], 
+            ret = do_syscall(env,
+                             env->regs[12],
+                             env->regs[5],
+                             env->regs[6],
+                             env->regs[7],
+                             env->regs[8],
+                             env->regs[9],
                              env->regs[10]);
             env->regs[3] = ret;
             env->sregs[SR_PC] = env->regs[14];
@@ -2701,7 +2701,7 @@ void stop_all_tasks(void)
 void init_task_state(TaskState *ts)
 {
     int i;
- 
+
     ts->used = 1;
     ts->first_free = ts->sigqueue_table;
     for (i = 0; i < MAX_SIGQUEUE_SIZE - 1; i++) {
@@ -2709,7 +2709,7 @@ void init_task_state(TaskState *ts)
     }
     ts->sigqueue_table[i].next = NULL;
 }
- 
+
 int main(int argc, char **argv, char **envp)
 {
     const char *filename;
@@ -2843,6 +2843,8 @@ int main(int argc, char **argv, char **envp)
 /* XXX: implement xxx_cpu_list for targets that still miss it */
 #if defined(cpu_list_id)
                 cpu_list_id(stdout, &fprintf, "");
+#elif defined(cpu_list)
+                cpu_list(stdout, &fprintf); /* deprecated */
 #else
                 printf("Target ignores cpu selection\n");
 #endif
@@ -3290,23 +3292,23 @@ int main(int argc, char **argv, char **envp)
         env->regs[12] = regs->r12;
         env->regs[13] = regs->r13;
         env->regs[14] = regs->r14;
-        env->regs[15] = regs->r15;	    
-        env->regs[16] = regs->r16;	    
-        env->regs[17] = regs->r17;	    
-        env->regs[18] = regs->r18;	    
-        env->regs[19] = regs->r19;	    
-        env->regs[20] = regs->r20;	    
-        env->regs[21] = regs->r21;	    
-        env->regs[22] = regs->r22;	    
-        env->regs[23] = regs->r23;	    
-        env->regs[24] = regs->r24;	    
-        env->regs[25] = regs->r25;	    
-        env->regs[26] = regs->r26;	    
-        env->regs[27] = regs->r27;	    
-        env->regs[28] = regs->r28;	    
-        env->regs[29] = regs->r29;	    
-        env->regs[30] = regs->r30;	    
-        env->regs[31] = regs->r31;	    
+        env->regs[15] = regs->r15;
+        env->regs[16] = regs->r16;
+        env->regs[17] = regs->r17;
+        env->regs[18] = regs->r18;
+        env->regs[19] = regs->r19;
+        env->regs[20] = regs->r20;
+        env->regs[21] = regs->r21;
+        env->regs[22] = regs->r22;
+        env->regs[23] = regs->r23;
+        env->regs[24] = regs->r24;
+        env->regs[25] = regs->r25;
+        env->regs[26] = regs->r26;
+        env->regs[27] = regs->r27;
+        env->regs[28] = regs->r28;
+        env->regs[29] = regs->r29;
+        env->regs[30] = regs->r30;
+        env->regs[31] = regs->r31;
         env->sregs[SR_PC] = regs->pc;
     }
 #elif defined(TARGET_MIPS)
@@ -3357,7 +3359,7 @@ int main(int argc, char **argv, char **envp)
 	    env->regs[12] = regs->r12;
 	    env->regs[13] = regs->r13;
 	    env->regs[14] = info->start_stack;
-	    env->regs[15] = regs->acr;	    
+	    env->regs[15] = regs->acr;
 	    env->pc = regs->erp;
     }
 #else
