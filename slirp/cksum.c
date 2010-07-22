@@ -47,23 +47,23 @@
 
 int cksum(struct mbuf *m, int len)
 {
-	register u_int16_t *w;
+	register uint16_t *w;
 	register int sum = 0;
 	register int mlen = 0;
 	int byte_swapped = 0;
 
 	union {
-		u_int8_t	c[2];
-		u_int16_t	s;
+		uint8_t  c[2];
+		uint16_t s;
 	} s_util;
 	union {
-		u_int16_t s[2];
-		u_int32_t l;
+		uint16_t s[2];
+		uint32_t l;
 	} l_util;
 
 	if (m->m_len == 0)
 	   goto cont;
-	w = mtod(m, u_int16_t *);
+	w = mtod(m, uint16_t *);
 
 	mlen = m->m_len;
 
@@ -78,8 +78,8 @@ int cksum(struct mbuf *m, int len)
 	if ((1 & (long) w) && (mlen > 0)) {
 		REDUCE;
 		sum <<= 8;
-		s_util.c[0] = *(u_int8_t *)w;
-		w = (u_int16_t *)((int8_t *)w + 1);
+		s_util.c[0] = *(uint8_t *)w;
+		w = (uint16_t *)((int8_t *)w + 1);
 		mlen--;
 		byte_swapped = 1;
 	}
@@ -111,14 +111,14 @@ int cksum(struct mbuf *m, int len)
 		REDUCE;
 		sum <<= 8;
 		if (mlen == -1) {
-			s_util.c[1] = *(u_int8_t *)w;
+			s_util.c[1] = *(uint8_t *)w;
 			sum += s_util.s;
 			mlen = 0;
 		} else
 
 		   mlen = -1;
 	} else if (mlen == -1)
-	   s_util.c[0] = *(u_int8_t *)w;
+	   s_util.c[0] = *(uint8_t *)w;
 
 cont:
 #ifdef DEBUG

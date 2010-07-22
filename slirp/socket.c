@@ -580,7 +580,7 @@ sosendto(struct socket *so, struct mbuf *m)
  * Listen for incoming TCP connections
  */
 struct socket *
-tcp_listen(Slirp *slirp, u_int32_t haddr, u_int hport, u_int32_t laddr,
+tcp_listen(Slirp *slirp, uint32_t haddr, u_int hport, uint32_t laddr,
            u_int lport, int flags)
 {
 	struct sockaddr_in addr;

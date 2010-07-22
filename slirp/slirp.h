@@ -233,7 +233,7 @@ struct Slirp {
 
     /* ip states */
     struct ipq ipq;         /* ip reass. queue */
-    u_int16_t ip_id;        /* ip packet ctr, for ids */
+    uint16_t ip_id;         /* ip packet ctr, for ids */
 
     /* bootp/dhcp states */
     BOOTPClient bootp_clients[NB_BOOTP_CLIENTS];
@@ -243,7 +243,7 @@ struct Slirp {
     struct socket tcb;
     struct socket *tcp_last_so;
     tcp_seq tcp_iss;        /* tcp initial send seq # */
-    u_int32_t tcp_now;      /* for RFC 1323 timestamps */
+    uint32_t tcp_now;       /* for RFC 1323 timestamps */
 
     /* udp states */
     struct socket udb;
@@ -339,7 +339,7 @@ void tcp_sockclosed(struct tcpcb *);
 int tcp_fconnect(struct socket *);
 void tcp_connect(struct socket *);
 int tcp_attach(struct socket *);
-u_int8_t tcp_tos(struct socket *);
+uint8_t tcp_tos(struct socket *);
 int tcp_emu(struct socket *, struct mbuf *);
 int tcp_ctl(struct socket *);
 struct tcpcb *tcp_drop(struct tcpcb *tp, int err);

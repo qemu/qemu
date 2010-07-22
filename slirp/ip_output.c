@@ -75,9 +75,9 @@ ip_output(struct socket *so, struct mbuf *m0)
 	/*
 	 * If small enough for interface, can just send directly.
 	 */
-	if ((u_int16_t)ip->ip_len <= IF_MTU) {
-		ip->ip_len = htons((u_int16_t)ip->ip_len);
-		ip->ip_off = htons((u_int16_t)ip->ip_off);
+	if ((uint16_t)ip->ip_len <= IF_MTU) {
+		ip->ip_len = htons((uint16_t)ip->ip_len);
+		ip->ip_off = htons((uint16_t)ip->ip_off);
 		ip->ip_sum = 0;
 		ip->ip_sum = cksum(m, hlen);
 
@@ -110,7 +110,7 @@ ip_output(struct socket *so, struct mbuf *m0)
 	 */
 	m0 = m;
 	mhlen = sizeof (struct ip);
-	for (off = hlen + len; off < (u_int16_t)ip->ip_len; off += len) {
+	for (off = hlen + len; off < (uint16_t)ip->ip_len; off += len) {
 	  register struct ip *mhip;
 	  m = m_get(slirp);
           if (m == NULL) {
@@ -125,18 +125,18 @@ ip_output(struct socket *so, struct mbuf *m0)
 	  mhip->ip_off = ((off - hlen) >> 3) + (ip->ip_off & ~IP_MF);
 	  if (ip->ip_off & IP_MF)
 	    mhip->ip_off |= IP_MF;
-	  if (off + len >= (u_int16_t)ip->ip_len)
-	    len = (u_int16_t)ip->ip_len - off;
+	  if (off + len >= (uint16_t)ip->ip_len)
+	    len = (uint16_t)ip->ip_len - off;
 	  else
 	    mhip->ip_off |= IP_MF;
-	  mhip->ip_len = htons((u_int16_t)(len + mhlen));
+	  mhip->ip_len = htons((uint16_t)(len + mhlen));
 
 	  if (m_copy(m, m0, off, len) < 0) {
 	    error = -1;
 	    goto sendorfree;
 	  }
 
-	  mhip->ip_off = htons((u_int16_t)mhip->ip_off);
+	  mhip->ip_off = htons((uint16_t)mhip->ip_off);
 	  mhip->ip_sum = 0;
 	  mhip->ip_sum = cksum(m, mhlen);
 	  *mnext = m;
@@ -147,9 +147,9 @@ ip_output(struct socket *so, struct mbuf *m0)
 	 * and updating header, then send each fragment (in order).
 	 */
 	m = m0;
-	m_adj(m, hlen + firstlen - (u_int16_t)ip->ip_len);
-	ip->ip_len = htons((u_int16_t)m->m_len);
-	ip->ip_off = htons((u_int16_t)(ip->ip_off | IP_MF));
+	m_adj(m, hlen + firstlen - (uint16_t)ip->ip_len);
+	ip->ip_len = htons((uint16_t)m->m_len);
+	ip->ip_off = htons((uint16_t)(ip->ip_off | IP_MF));
 	ip->ip_sum = 0;
 	ip->ip_sum = cksum(m, hlen);
 sendorfree:

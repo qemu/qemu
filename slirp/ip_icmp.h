@@ -38,7 +38,7 @@
  * Per RFC 792, September 1981.
  */
 
-typedef u_int32_t n_time;
+typedef uint32_t n_time;
 
 /*
  * Structure of an icmp header.

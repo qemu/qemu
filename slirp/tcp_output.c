@@ -263,11 +263,11 @@ send:
 	if (flags & TH_SYN) {
 		tp->snd_nxt = tp->iss;
 		if ((tp->t_flags & TF_NOOPT) == 0) {
-			u_int16_t mss;
+			uint16_t mss;
 
 			opt[0] = TCPOPT_MAXSEG;
 			opt[1] = 4;
-			mss = htons((u_int16_t) tcp_mss(tp, 0));
+			mss = htons((uint16_t) tcp_mss(tp, 0));
 			memcpy((caddr_t)(opt + 2), (caddr_t)&mss, sizeof(mss));
 			optlen = 4;
 		}
@@ -364,10 +364,10 @@ send:
 		win = (long)TCP_MAXWIN << tp->rcv_scale;
 	if (win < (long)(tp->rcv_adv - tp->rcv_nxt))
 		win = (long)(tp->rcv_adv - tp->rcv_nxt);
-	ti->ti_win = htons((u_int16_t) (win>>tp->rcv_scale));
+	ti->ti_win = htons((uint16_t) (win>>tp->rcv_scale));
 
 	if (SEQ_GT(tp->snd_up, tp->snd_una)) {
-		ti->ti_urp = htons((u_int16_t)(tp->snd_up - ntohl(ti->ti_seq)));
+		ti->ti_urp = htons((uint16_t)(tp->snd_up - ntohl(ti->ti_seq)));
 		ti->ti_flags |= TH_URG;
 	} else
 		/*
@@ -383,7 +383,7 @@ send:
 	 * checksum extended header and data.
 	 */
 	if (len + optlen)
-		ti->ti_len = htons((u_int16_t)(sizeof (struct tcphdr) +
+		ti->ti_len = htons((uint16_t)(sizeof (struct tcphdr) +
 		    optlen + len));
 	ti->ti_sum = cksum(m, (int)(hdrlen + len));
 

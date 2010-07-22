@@ -41,10 +41,10 @@
  * Per RFC 768, September, 1981.
  */
 struct udphdr {
-	u_int16_t	uh_sport;		/* source port */
-	u_int16_t	uh_dport;		/* destination port */
-	int16_t	uh_ulen;		/* udp length */
-	u_int16_t	uh_sum;			/* udp checksum */
+    uint16_t uh_sport;          /* source port */
+    uint16_t uh_dport;          /* destination port */
+    int16_t  uh_ulen;           /* udp length */
+    uint16_t uh_sum;            /* udp checksum */
 };
 
 /*
@@ -78,7 +78,7 @@ void udp_input(register struct mbuf *, int);
 int udp_output(struct socket *, struct mbuf *, struct sockaddr_in *);
 int udp_attach(struct socket *);
 void udp_detach(struct socket *);
-struct socket * udp_listen(Slirp *, u_int32_t, u_int, u_int32_t, u_int,
+struct socket * udp_listen(Slirp *, uint32_t, u_int, uint32_t, u_int,
                            int);
 int udp_output2(struct socket *so, struct mbuf *m,
                 struct sockaddr_in *saddr, struct sockaddr_in *daddr,
