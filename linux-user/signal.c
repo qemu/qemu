@@ -3064,9 +3064,23 @@ struct target_sigcontext {
     uint32_t oldmask;
 };
 
+struct target_stack_t {
+    abi_ulong ss_sp;
+    int ss_flags;
+    unsigned int ss_size;
+};
+
+struct target_ucontext {
+    abi_ulong uc_flags;
+    abi_ulong uc_link;
+    struct target_stack_t uc_stack;
+    struct target_sigcontext sc;
+    uint32_t extramask[TARGET_NSIG_WORDS - 1];
+};
+
 /* Signal frames. */
 struct target_signal_frame {
-    struct target_sigcontext sc;
+    struct target_ucontext uc;
     uint32_t extramask[TARGET_NSIG_WORDS - 1];
     uint32_t tramp[2];
 };
@@ -3175,7 +3189,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
         goto badframe;
 
     /* Save the mask.  */
-    err |= __put_user(set->sig[0], &frame->sc.oldmask);
+    err |= __put_user(set->sig[0], &frame->uc.sc.oldmask);
     if (err)
         goto badframe;
 
@@ -3184,7 +3198,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
             goto badframe;
     }
 
-    setup_sigcontext(&frame->sc, env);
+    setup_sigcontext(&frame->uc.sc, env);
 
     /* Set up to return from userspace. If provided, use a stub
        already in userspace. */
@@ -3214,7 +3228,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     /* Signal handler args: */
     env->regs[5] = sig; /* Arg 0: signum */
     env->regs[6] = 0;
-    env->regs[7] = (unsigned long) &frame->sc; /* arg 1: sigcontext */
+    env->regs[7] = (unsigned long) &frame->uc; /* arg 1: sigcontext */
 
     /* Offset of 4 to handle microblaze rtid r14, 0 */
     env->sregs[SR_PC] = (unsigned long)ka->_sa_handler;
@@ -3247,7 +3261,7 @@ long do_sigreturn(CPUState *env)
         goto badframe;
 
     /* Restore blocked signals */
-    if (__get_user(target_set.sig[0], &frame->sc.oldmask))
+    if (__get_user(target_set.sig[0], &frame->uc.sc.oldmask))
         goto badframe;
     for(i = 1; i < TARGET_NSIG_WORDS; i++) {
         if (__get_user(target_set.sig[i], &frame->extramask[i - 1]))
@@ -3256,7 +3270,7 @@ long do_sigreturn(CPUState *env)
     target_to_host_sigset_internal(&set, &target_set);
     sigprocmask(SIG_SETMASK, &set, NULL);
 
-    restore_sigcontext(&frame->sc, env);
+    restore_sigcontext(&frame->uc.sc, env);
     /* We got here through a sigreturn syscall, our path back is via an
        rtb insn so setup r14 for that.  */
     env->regs[14] = env->sregs[SR_PC];
