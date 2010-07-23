@@ -2322,7 +2322,7 @@ static inline void gen_jcc(DisasContext *s, int b,
 
         gen_set_label(l1);
         gen_goto_tb(s, 1, val);
-        s->is_jmp = 3;
+        s->is_jmp = DISAS_TB_JUMP;
     } else {
 
         l1 = gen_new_label();
@@ -2400,11 +2400,11 @@ static void gen_movl_seg_T0(DisasContext *s, int seg_reg, target_ulong cur_eip)
            stop as a special handling must be done to disable hardware
            interrupts for the next instruction */
         if (seg_reg == R_SS || (s->code32 && seg_reg < R_FS))
-            s->is_jmp = 3;
+            s->is_jmp = DISAS_TB_JUMP;
     } else {
         gen_op_movl_seg_T0_vm(seg_reg);
         if (seg_reg == R_SS)
-            s->is_jmp = 3;
+            s->is_jmp = DISAS_TB_JUMP;
     }
 }
 
@@ -2672,7 +2672,7 @@ static void gen_exception(DisasContext *s, int trapno, target_ulong cur_eip)
         gen_op_set_cc_op(s->cc_op);
     gen_jmp_im(cur_eip);
     gen_helper_raise_exception(tcg_const_i32(trapno));
-    s->is_jmp = 3;
+    s->is_jmp = DISAS_TB_JUMP;
 }
 
 /* an interrupt is different from an exception because of the
@@ -2685,7 +2685,7 @@ static void gen_interrupt(DisasContext *s, int intno,
     gen_jmp_im(cur_eip);
     gen_helper_raise_interrupt(tcg_const_i32(intno), 
                                tcg_const_i32(next_eip - cur_eip));
-    s->is_jmp = 3;
+    s->is_jmp = DISAS_TB_JUMP;
 }
 
 static void gen_debug(DisasContext *s, target_ulong cur_eip)
@@ -2694,7 +2694,7 @@ static void gen_debug(DisasContext *s, target_ulong cur_eip)
         gen_op_set_cc_op(s->cc_op);
     gen_jmp_im(cur_eip);
     gen_helper_debug();
-    s->is_jmp = 3;
+    s->is_jmp = DISAS_TB_JUMP;
 }
 
 /* generate a generic end of block. Trace exception is also generated
@@ -2716,7 +2716,7 @@ static void gen_eob(DisasContext *s)
     } else {
         tcg_gen_exit_tb(0);
     }
-    s->is_jmp = 3;
+    s->is_jmp = DISAS_TB_JUMP;
 }
 
 /* generate a jump to eip. No segment change must happen before as a
@@ -2729,7 +2729,7 @@ static void gen_jmp_tb(DisasContext *s, target_ulong eip, int tb_num)
             s->cc_op = CC_OP_DYNAMIC;
         }
         gen_goto_tb(s, tb_num, eip);
-        s->is_jmp = 3;
+        s->is_jmp = DISAS_TB_JUMP;
     } else {
         gen_jmp_im(eip);
         gen_eob(s);
@@ -6968,7 +6968,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                 gen_op_set_cc_op(s->cc_op);
             gen_jmp_im(pc_start - s->cs_base);
             gen_helper_hlt(tcg_const_i32(s->pc - pc_start));
-            s->is_jmp = 3;
+            s->is_jmp = DISAS_TB_JUMP;
         }
         break;
     case 0x100:
@@ -7125,7 +7125,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                         gen_helper_vmrun(tcg_const_i32(s->aflag),
                                          tcg_const_i32(s->pc - pc_start));
                         tcg_gen_exit_tb(0);
-                        s->is_jmp = 3;
+                        s->is_jmp = DISAS_TB_JUMP;
                     }
                     break;
                 case 1: /* VMMCALL */
