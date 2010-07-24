@@ -788,6 +788,13 @@ static inline TCGv *compute_ldst_addr(DisasContext *dc, TCGv *t)
 
     /* Treat the fast cases first.  */
     if (!dc->type_b) {
+        /* If any of the regs is r0, return a ptr to the other.  */
+        if (dc->ra == 0) {
+            return &cpu_R[dc->rb];
+        } else if (dc->rb == 0) {
+            return &cpu_R[dc->ra];
+        }
+
         *t = tcg_temp_new();
         tcg_gen_add_tl(*t, cpu_R[dc->ra], cpu_R[dc->rb]);
         return t;
