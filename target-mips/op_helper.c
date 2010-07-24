@@ -1313,7 +1313,6 @@ void helper_mtc0_status (target_ulong arg1)
         default: cpu_abort(env, "Invalid MMU mode!\n"); break;
         }
     }
-    cpu_mips_update_irq(env);
 }
 
 void helper_mttc0_status(target_ulong arg1)
@@ -1360,12 +1359,6 @@ void helper_mtc0_cause (target_ulong arg1)
             cpu_mips_stop_count(env);
         else
             cpu_mips_start_count(env);
-    }
-
-    /* Handle the software interrupt as an hardware one, as they
-       are very similar */
-    if (arg1 & CP0Ca_IP_mask) {
-        cpu_mips_update_irq(env);
     }
 }
 
@@ -1795,8 +1788,6 @@ target_ulong helper_di (void)
     target_ulong t0 = env->CP0_Status;
 
     env->CP0_Status = t0 & ~(1 << CP0St_IE);
-    cpu_mips_update_irq(env);
-
     return t0;
 }
 
@@ -1805,8 +1796,6 @@ target_ulong helper_ei (void)
     target_ulong t0 = env->CP0_Status;
 
     env->CP0_Status = t0 | (1 << CP0St_IE);
-    cpu_mips_update_irq(env);
-
     return t0;
 }
 
