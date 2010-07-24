@@ -153,6 +153,14 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
     }
 }
 
+/* True if ALU operand b is a small immediate that may deserve
+   faster treatment.  */
+static inline int dec_alu_op_b_is_small_imm(DisasContext *dc)
+{
+    /* Immediate insn without the imm prefix ?  */
+    return dc->type_b && !(dc->tb_flags & IMM_FLAG);
+}
+
 static inline TCGv *dec_alu_op_b(DisasContext *dc)
 {
     if (dc->type_b) {
@@ -984,10 +992,16 @@ static void dec_bcc(DisasContext *dc)
                       cpu_env, offsetof(CPUState, bimm));
     }
 
-    tcg_gen_movi_tl(env_btarget, dc->pc);
-    tcg_gen_add_tl(env_btarget, env_btarget, *(dec_alu_op_b(dc)));
-    eval_cc(dc, cc, env_btaken, cpu_R[dc->ra], tcg_const_tl(0));
+    if (dec_alu_op_b_is_small_imm(dc)) {
+        int32_t offset = (int32_t)((int16_t)dc->imm); /* sign-extend.  */
+
+        tcg_gen_movi_tl(env_btarget, dc->pc + offset);
+    } else {
+        tcg_gen_movi_tl(env_btarget, dc->pc);
+        tcg_gen_add_tl(env_btarget, env_btarget, *(dec_alu_op_b(dc)));
+    }
     dc->jmp = JMP_INDIRECT;
+    eval_cc(dc, cc, env_btaken, cpu_R[dc->ra], tcg_const_tl(0));
 }
 
 static void dec_br(DisasContext *dc)
@@ -1031,13 +1045,13 @@ static void dec_br(DisasContext *dc)
             }
         }
     } else {
-        if (!dc->type_b || (dc->tb_flags & IMM_FLAG)) {
+        if (dec_alu_op_b_is_small_imm(dc)) {
+            dc->jmp = JMP_DIRECT;
+            dc->jmp_pc = dc->pc + (int32_t)((int16_t)dc->imm);
+        } else {
             tcg_gen_movi_tl(env_btaken, 1);
             tcg_gen_movi_tl(env_btarget, dc->pc);
             tcg_gen_add_tl(env_btarget, env_btarget, *(dec_alu_op_b(dc)));
-        } else {
-            dc->jmp = JMP_DIRECT;
-            dc->jmp_pc = dc->pc + (int32_t)((int16_t)dc->imm);
         }
     }
 }
