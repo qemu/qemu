@@ -912,50 +912,24 @@ static void dec_store(DisasContext *dc)
 static inline void eval_cc(DisasContext *dc, unsigned int cc,
                            TCGv d, TCGv a, TCGv b)
 {
-    int l1;
-
     switch (cc) {
         case CC_EQ:
-            l1 = gen_new_label();
-            tcg_gen_movi_tl(env_btaken, 1);
-            tcg_gen_brcond_tl(TCG_COND_EQ, a, b, l1);
-            tcg_gen_movi_tl(env_btaken, 0);
-            gen_set_label(l1);
+            tcg_gen_setcond_tl(TCG_COND_EQ, d, a, b);
             break;
         case CC_NE:
-            l1 = gen_new_label();
-            tcg_gen_movi_tl(env_btaken, 1);
-            tcg_gen_brcond_tl(TCG_COND_NE, a, b, l1);
-            tcg_gen_movi_tl(env_btaken, 0);
-            gen_set_label(l1);
+            tcg_gen_setcond_tl(TCG_COND_NE, d, a, b);
             break;
         case CC_LT:
-            l1 = gen_new_label();
-            tcg_gen_movi_tl(env_btaken, 1);
-            tcg_gen_brcond_tl(TCG_COND_LT, a, b, l1);
-            tcg_gen_movi_tl(env_btaken, 0);
-            gen_set_label(l1);
+            tcg_gen_setcond_tl(TCG_COND_LT, d, a, b);
             break;
         case CC_LE:
-            l1 = gen_new_label();
-            tcg_gen_movi_tl(env_btaken, 1);
-            tcg_gen_brcond_tl(TCG_COND_LE, a, b, l1);
-            tcg_gen_movi_tl(env_btaken, 0);
-            gen_set_label(l1);
+            tcg_gen_setcond_tl(TCG_COND_LE, d, a, b);
             break;
         case CC_GE:
-            l1 = gen_new_label();
-            tcg_gen_movi_tl(env_btaken, 1);
-            tcg_gen_brcond_tl(TCG_COND_GE, a, b, l1);
-            tcg_gen_movi_tl(env_btaken, 0);
-            gen_set_label(l1);
+            tcg_gen_setcond_tl(TCG_COND_GE, d, a, b);
             break;
         case CC_GT:
-            l1 = gen_new_label();
-            tcg_gen_movi_tl(env_btaken, 1);
-            tcg_gen_brcond_tl(TCG_COND_GT, a, b, l1);
-            tcg_gen_movi_tl(env_btaken, 0);
-            gen_set_label(l1);
+            tcg_gen_setcond_tl(TCG_COND_GT, d, a, b);
             break;
         default:
             cpu_abort(dc->env, "Unknown condition code %x.\n", cc);
