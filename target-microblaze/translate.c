@@ -63,8 +63,7 @@ static TCGv env_iflags;
 /* This is the state at translation time.  */
 typedef struct DisasContext {
     CPUState *env;
-    target_ulong pc, ppc;
-    target_ulong cache_pc;
+    target_ulong pc;
 
     /* Decoder.  */
     int type_b;
@@ -1274,9 +1273,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
     dc->is_jmp = DISAS_NEXT;
     dc->jmp = 0;
     dc->delayed_branch = !!(dc->tb_flags & D_FLAG);
-    dc->ppc = pc_start;
     dc->pc = pc_start;
-    dc->cache_pc = -1;
     dc->singlestep_enabled = env->singlestep_enabled;
     dc->cpustate_changed = 0;
     dc->abort_at_next_insn = 0;
@@ -1332,7 +1329,6 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 	decode(dc);
         if (dc->clear_imm)
             dc->tb_flags &= ~IMM_FLAG;
-        dc->ppc = dc->pc;
         dc->pc += 4;
         num_insns++;
 
