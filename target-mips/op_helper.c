@@ -46,18 +46,6 @@ void helper_raise_exception (uint32_t exception)
     helper_raise_exception_err(exception, 0);
 }
 
-void helper_interrupt_restart (void)
-{
-    if (!(env->CP0_Status & (1 << CP0St_EXL)) &&
-        !(env->CP0_Status & (1 << CP0St_ERL)) &&
-        !(env->hflags & MIPS_HFLAG_DM) &&
-        (env->CP0_Status & (1 << CP0St_IE)) &&
-        (env->CP0_Status & env->CP0_Cause & CP0Ca_IP_mask)) {
-        env->CP0_Cause &= ~(0x1f << CP0Ca_EC);
-        helper_raise_exception(EXCP_EXT_INTERRUPT);
-    }
-}
-
 #if !defined(CONFIG_USER_ONLY)
 static void do_restore_state (void *pc_ptr)
 {
@@ -1346,6 +1334,7 @@ void helper_mtc0_cause (target_ulong arg1)
 {
     uint32_t mask = 0x00C00300;
     uint32_t old = env->CP0_Cause;
+    int i;
 
     if (env->insn_flags & ISA_MIPS32R2)
         mask |= 1 << CP0Ca_DC;
@@ -1357,6 +1346,13 @@ void helper_mtc0_cause (target_ulong arg1)
             cpu_mips_stop_count(env);
         else
             cpu_mips_start_count(env);
+    }
+
+    /* Set/reset software interrupts */
+    for (i = 0 ; i < 2 ; i++) {
+        if ((old ^ env->CP0_Cause) & (1 << (CP0Ca_IP + i))) {
+            cpu_mips_soft_irq(env, i, env->CP0_Cause & (1 << (CP0Ca_IP + i)));
+        }
     }
 }
 

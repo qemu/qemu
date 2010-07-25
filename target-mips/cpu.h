@@ -597,6 +597,9 @@ void cpu_mips_store_compare (CPUState *env, uint32_t value);
 void cpu_mips_start_count(CPUState *env);
 void cpu_mips_stop_count(CPUState *env);
 
+/* mips_int.c */
+void cpu_mips_soft_irq(CPUState *env, int irq, int level);
+
 /* helper.c */
 int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                                int mmu_idx, int is_softmmu);

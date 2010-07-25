@@ -2,7 +2,6 @@
 
 DEF_HELPER_2(raise_exception_err, void, i32, int)
 DEF_HELPER_1(raise_exception, void, i32)
-DEF_HELPER_0(interrupt_restart, void)
 
 #ifdef TARGET_MIPS64
 DEF_HELPER_3(ldl, tl, tl, tl, int)
