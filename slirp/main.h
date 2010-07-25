@@ -14,7 +14,7 @@
 extern int slirp_socket;
 extern int slirp_socket_unit;
 extern int slirp_socket_port;
-extern u_int32_t slirp_socket_addr;
+extern uint32_t slirp_socket_addr;
 extern char *slirp_socket_passwd;
 extern int ctty_closed;
 

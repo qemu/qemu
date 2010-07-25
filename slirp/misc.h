@@ -37,24 +37,24 @@ void do_wait(int);
 #define EMU_NOCONNECT 0x10	/* Don't connect */
 
 struct tos_t {
-	u_int16_t lport;
-	u_int16_t fport;
-	u_int8_t tos;
-	u_int8_t emu;
+    uint16_t lport;
+    uint16_t fport;
+    uint8_t tos;
+    uint8_t emu;
 };
 
 struct emu_t {
-	u_int16_t lport;
-	u_int16_t fport;
-	u_int8_t tos;
-	u_int8_t emu;
-	struct emu_t *next;
+    uint16_t lport;
+    uint16_t fport;
+    uint8_t tos;
+    uint8_t emu;
+    struct emu_t *next;
 };
 
 extern int x_port, x_server, x_display;
 
 int show_x(char *, struct socket *);
-void redir_x(u_int32_t, int, int, int);
+void redir_x(uint32_t, int, int, int);
 void slirp_insque(void *, void *);
 void slirp_remque(void *);
 int add_exec(struct ex_list **, int, char *, struct in_addr, int);

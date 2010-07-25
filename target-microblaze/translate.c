@@ -63,8 +63,7 @@ static TCGv env_iflags;
 /* This is the state at translation time.  */
 typedef struct DisasContext {
     CPUState *env;
-    target_ulong pc, ppc;
-    target_ulong cache_pc;
+    target_ulong pc;
 
     /* Decoder.  */
     int type_b;
@@ -151,6 +150,14 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
         tcg_gen_movi_tl(cpu_SR[SR_PC], dest);
         tcg_gen_exit_tb(0);
     }
+}
+
+/* True if ALU operand b is a small immediate that may deserve
+   faster treatment.  */
+static inline int dec_alu_op_b_is_small_imm(DisasContext *dc)
+{
+    /* Immediate insn without the imm prefix ?  */
+    return dc->type_b && !(dc->tb_flags & IMM_FLAG);
 }
 
 static inline TCGv *dec_alu_op_b(DisasContext *dc)
@@ -780,6 +787,13 @@ static inline TCGv *compute_ldst_addr(DisasContext *dc, TCGv *t)
 
     /* Treat the fast cases first.  */
     if (!dc->type_b) {
+        /* If any of the regs is r0, return a ptr to the other.  */
+        if (dc->ra == 0) {
+            return &cpu_R[dc->rb];
+        } else if (dc->rb == 0) {
+            return &cpu_R[dc->ra];
+        }
+
         *t = tcg_temp_new();
         tcg_gen_add_tl(*t, cpu_R[dc->ra], cpu_R[dc->rb]);
         return t;
@@ -904,50 +918,24 @@ static void dec_store(DisasContext *dc)
 static inline void eval_cc(DisasContext *dc, unsigned int cc,
                            TCGv d, TCGv a, TCGv b)
 {
-    int l1;
-
     switch (cc) {
         case CC_EQ:
-            l1 = gen_new_label();
-            tcg_gen_movi_tl(env_btaken, 1);
-            tcg_gen_brcond_tl(TCG_COND_EQ, a, b, l1);
-            tcg_gen_movi_tl(env_btaken, 0);
-            gen_set_label(l1);
+            tcg_gen_setcond_tl(TCG_COND_EQ, d, a, b);
             break;
         case CC_NE:
-            l1 = gen_new_label();
-            tcg_gen_movi_tl(env_btaken, 1);
-            tcg_gen_brcond_tl(TCG_COND_NE, a, b, l1);
-            tcg_gen_movi_tl(env_btaken, 0);
-            gen_set_label(l1);
+            tcg_gen_setcond_tl(TCG_COND_NE, d, a, b);
             break;
         case CC_LT:
-            l1 = gen_new_label();
-            tcg_gen_movi_tl(env_btaken, 1);
-            tcg_gen_brcond_tl(TCG_COND_LT, a, b, l1);
-            tcg_gen_movi_tl(env_btaken, 0);
-            gen_set_label(l1);
+            tcg_gen_setcond_tl(TCG_COND_LT, d, a, b);
             break;
         case CC_LE:
-            l1 = gen_new_label();
-            tcg_gen_movi_tl(env_btaken, 1);
-            tcg_gen_brcond_tl(TCG_COND_LE, a, b, l1);
-            tcg_gen_movi_tl(env_btaken, 0);
-            gen_set_label(l1);
+            tcg_gen_setcond_tl(TCG_COND_LE, d, a, b);
             break;
         case CC_GE:
-            l1 = gen_new_label();
-            tcg_gen_movi_tl(env_btaken, 1);
-            tcg_gen_brcond_tl(TCG_COND_GE, a, b, l1);
-            tcg_gen_movi_tl(env_btaken, 0);
-            gen_set_label(l1);
+            tcg_gen_setcond_tl(TCG_COND_GE, d, a, b);
             break;
         case CC_GT:
-            l1 = gen_new_label();
-            tcg_gen_movi_tl(env_btaken, 1);
-            tcg_gen_brcond_tl(TCG_COND_GT, a, b, l1);
-            tcg_gen_movi_tl(env_btaken, 0);
-            gen_set_label(l1);
+            tcg_gen_setcond_tl(TCG_COND_GT, d, a, b);
             break;
         default:
             cpu_abort(dc->env, "Unknown condition code %x.\n", cc);
@@ -984,10 +972,16 @@ static void dec_bcc(DisasContext *dc)
                       cpu_env, offsetof(CPUState, bimm));
     }
 
-    tcg_gen_movi_tl(env_btarget, dc->pc);
-    tcg_gen_add_tl(env_btarget, env_btarget, *(dec_alu_op_b(dc)));
-    eval_cc(dc, cc, env_btaken, cpu_R[dc->ra], tcg_const_tl(0));
+    if (dec_alu_op_b_is_small_imm(dc)) {
+        int32_t offset = (int32_t)((int16_t)dc->imm); /* sign-extend.  */
+
+        tcg_gen_movi_tl(env_btarget, dc->pc + offset);
+    } else {
+        tcg_gen_movi_tl(env_btarget, dc->pc);
+        tcg_gen_add_tl(env_btarget, env_btarget, *(dec_alu_op_b(dc)));
+    }
     dc->jmp = JMP_INDIRECT;
+    eval_cc(dc, cc, env_btaken, cpu_R[dc->ra], tcg_const_tl(0));
 }
 
 static void dec_br(DisasContext *dc)
@@ -1031,13 +1025,13 @@ static void dec_br(DisasContext *dc)
             }
         }
     } else {
-        if (!dc->type_b || (dc->tb_flags & IMM_FLAG)) {
+        if (dec_alu_op_b_is_small_imm(dc)) {
+            dc->jmp = JMP_DIRECT;
+            dc->jmp_pc = dc->pc + (int32_t)((int16_t)dc->imm);
+        } else {
             tcg_gen_movi_tl(env_btaken, 1);
             tcg_gen_movi_tl(env_btarget, dc->pc);
             tcg_gen_add_tl(env_btarget, env_btarget, *(dec_alu_op_b(dc)));
-        } else {
-            dc->jmp = JMP_DIRECT;
-            dc->jmp_pc = dc->pc + (int32_t)((int16_t)dc->imm);
         }
     }
 }
@@ -1279,9 +1273,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
     dc->is_jmp = DISAS_NEXT;
     dc->jmp = 0;
     dc->delayed_branch = !!(dc->tb_flags & D_FLAG);
-    dc->ppc = pc_start;
     dc->pc = pc_start;
-    dc->cache_pc = -1;
     dc->singlestep_enabled = env->singlestep_enabled;
     dc->cpustate_changed = 0;
     dc->abort_at_next_insn = 0;
@@ -1337,7 +1329,6 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 	decode(dc);
         if (dc->clear_imm)
             dc->tb_flags &= ~IMM_FLAG;
-        dc->ppc = dc->pc;
         dc->pc += 4;
         num_insns++;
 

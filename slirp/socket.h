@@ -31,11 +31,11 @@ struct socket {
   int so_urgc;
   struct in_addr so_faddr;	   /* foreign host table entry */
   struct in_addr so_laddr;	   /* local host table entry */
-  u_int16_t so_fport;		   /* foreign port */
-  u_int16_t so_lport;		   /* local port */
+  uint16_t so_fport;		   /* foreign port */
+  uint16_t so_lport;		   /* local port */
 
-  u_int8_t	so_iptos;	/* Type of service */
-  u_int8_t	so_emu;		/* Is the socket emulated? */
+  uint8_t	so_iptos;	/* Type of service */
+  uint8_t	so_emu;		/* Is the socket emulated? */
 
   u_char	so_type;		/* Type of socket, UDP or TCP */
   int	so_state;		/* internal state flags SS_*, below */
@@ -83,7 +83,7 @@ int sosendoob(struct socket *);
 int sowrite(struct socket *);
 void sorecvfrom(struct socket *);
 int sosendto(struct socket *, struct mbuf *);
-struct socket * tcp_listen(Slirp *, u_int32_t, u_int, u_int32_t, u_int,
+struct socket * tcp_listen(Slirp *, uint32_t, u_int, uint32_t, u_int,
                                int);
 void soisfconnecting(register struct socket *);
 void soisfconnected(register struct socket *);

@@ -134,8 +134,8 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
 		m->m_len = sizeof (struct tcpiphdr);
 		tlen = 0;
 #define xchg(a,b,type) { type t; t=a; a=b; b=t; }
-		xchg(ti->ti_dst.s_addr, ti->ti_src.s_addr, u_int32_t);
-		xchg(ti->ti_dport, ti->ti_sport, u_int16_t);
+		xchg(ti->ti_dst.s_addr, ti->ti_src.s_addr, uint32_t);
+		xchg(ti->ti_dport, ti->ti_sport, uint16_t);
 #undef xchg
 	}
 	ti->ti_len = htons((u_short)(sizeof (struct tcphdr) + tlen));
@@ -150,9 +150,9 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
 	ti->ti_off = sizeof (struct tcphdr) >> 2;
 	ti->ti_flags = flags;
 	if (tp)
-		ti->ti_win = htons((u_int16_t) (win >> tp->rcv_scale));
+		ti->ti_win = htons((uint16_t) (win >> tp->rcv_scale));
 	else
-		ti->ti_win = htons((u_int16_t)win);
+		ti->ti_win = htons((uint16_t)win);
 	ti->ti_urp = 0;
 	ti->ti_sum = 0;
 	ti->ti_sum = cksum(m, tlen);
@@ -491,7 +491,7 @@ static struct emu_t *tcpemu = NULL;
 /*
  * Return TOS according to the above table
  */
-u_int8_t
+uint8_t
 tcp_tos(struct socket *so)
 {
 	int i = 0;
@@ -548,7 +548,7 @@ tcp_emu(struct socket *so, struct mbuf *m)
 	Slirp *slirp = so->slirp;
 	u_int n1, n2, n3, n4, n5, n6;
         char buff[257];
-	u_int32_t laddr;
+	uint32_t laddr;
 	u_int lport;
 	char *bptr;
 

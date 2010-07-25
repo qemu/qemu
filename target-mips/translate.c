@@ -5191,7 +5191,17 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, TCGv arg, int reg, int 
         switch (sel) {
         case 0:
             save_cpu_state(ctx, 1);
+            /* Mark as an IO operation because we may trigger a software
+               interrupt.  */
+            if (use_icount) {
+                gen_io_start();
+            }
             gen_helper_mtc0_cause(arg);
+            if (use_icount) {
+                gen_io_end();
+            }
+            /* Stop translation as we may have triggered an intetrupt */
+            ctx->bstate = BS_STOP;
             rn = "Cause";
             break;
         default:
@@ -12366,7 +12376,6 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     } else {
         switch (ctx.bstate) {
         case BS_STOP:
-            gen_helper_interrupt_restart();
             gen_goto_tb(&ctx, 0, ctx.pc);
             break;
         case BS_NONE:
@@ -12374,7 +12383,6 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
             gen_goto_tb(&ctx, 0, ctx.pc);
             break;
         case BS_EXCP:
-            gen_helper_interrupt_restart();
             tcg_gen_exit_tb(0);
             break;
         case BS_BRANCH:

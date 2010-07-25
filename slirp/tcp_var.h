@@ -75,9 +75,9 @@ struct tcpcb {
 	tcp_seq	snd_wl1;		/* window update seg seq number */
 	tcp_seq	snd_wl2;		/* window update seg ack number */
 	tcp_seq	iss;			/* initial send sequence number */
-	u_int32_t snd_wnd;		/* send window */
+	uint32_t snd_wnd;		/* send window */
 /* receive sequence variables */
-	u_int32_t rcv_wnd;		/* receive window */
+	uint32_t rcv_wnd;		/* receive window */
 	tcp_seq	rcv_nxt;		/* receive next */
 	tcp_seq	rcv_up;			/* receive urgent pointer */
 	tcp_seq	irs;			/* initial receive sequence number */
@@ -91,8 +91,8 @@ struct tcpcb {
 					 * used to recognize retransmits
 					 */
 /* congestion control (for slow start, source quench, retransmit after loss) */
-	u_int32_t snd_cwnd;		/* congestion-controlled window */
-	u_int32_t snd_ssthresh;		/* snd_cwnd size threshold for
+	uint32_t snd_cwnd;		/* congestion-controlled window */
+	uint32_t snd_ssthresh;		/* snd_cwnd size threshold for
 					 * for slow start exponential to
 					 * linear switch
 					 */
@@ -106,7 +106,7 @@ struct tcpcb {
 	short	t_srtt;			/* smoothed round-trip time */
 	short	t_rttvar;		/* variance in round-trip time */
 	u_short	t_rttmin;		/* minimum rtt allowed */
-	u_int32_t max_sndwnd;		/* largest window peer has offered */
+	uint32_t max_sndwnd;		/* largest window peer has offered */
 
 /* out-of-band data */
 	char	t_oobflags;		/* have some */
@@ -120,8 +120,8 @@ struct tcpcb {
 	u_char	rcv_scale;		/* window scaling for recv window */
 	u_char	request_r_scale;	/* pending window scaling */
 	u_char	requested_s_scale;
-	u_int32_t	ts_recent;		/* timestamp echo data */
-	u_int32_t	ts_recent_age;		/* when last updated */
+	uint32_t	ts_recent;		/* timestamp echo data */
+	uint32_t	ts_recent_age;		/* when last updated */
 	tcp_seq	last_ack_sent;
 
 };

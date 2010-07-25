@@ -41,7 +41,7 @@
 #include <slirp.h>
 #include "ip_icmp.h"
 
-static u_int8_t udp_tos(struct socket *so);
+static uint8_t udp_tos(struct socket *so);
 
 void
 udp_init(Slirp *slirp)
@@ -88,7 +88,7 @@ udp_input(register struct mbuf *m, int iphlen)
 	 * Make mbuf data length reflect UDP length.
 	 * If not enough data to reflect UDP length, drop.
 	 */
-	len = ntohs((u_int16_t)uh->uh_ulen);
+	len = ntohs((uint16_t)uh->uh_ulen);
 
 	if (ip->ip_len != len) {
 		if (len > ip->ip_len) {
@@ -321,7 +321,7 @@ static const struct tos_t udptos[] = {
 	{0, 0, 0, 0}
 };
 
-static u_int8_t
+static uint8_t
 udp_tos(struct socket *so)
 {
 	int i = 0;
@@ -339,7 +339,7 @@ udp_tos(struct socket *so)
 }
 
 struct socket *
-udp_listen(Slirp *slirp, u_int32_t haddr, u_int hport, u_int32_t laddr,
+udp_listen(Slirp *slirp, uint32_t haddr, u_int hport, uint32_t laddr,
            u_int lport, int flags)
 {
 	struct sockaddr_in addr;

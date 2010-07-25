@@ -216,7 +216,7 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
         }
 #endif
 #ifdef CONFIG_COCOA
-        u_int32_t   blockSize = 512;
+        uint32_t blockSize = 512;
         if ( !ioctl( fd, DKIOCGETBLOCKSIZE, &blockSize ) && blockSize > bufsize) {
             bufsize = blockSize;
         }

@@ -54,3 +54,12 @@ void cpu_mips_irq_init_cpu(CPUState *env)
         env->irq[i] = qi[i];
     }
 }
+
+void cpu_mips_soft_irq(CPUState *env, int irq, int level)
+{
+    if (irq < 0 || irq > 2) {
+        return;
+    }
+
+    qemu_set_irq(env->irq[irq], level);
+}

@@ -280,7 +280,7 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
         tcpiphdr2qlink(ti)->next = tcpiphdr2qlink(ti)->prev = NULL;
         memset(&ti->ti_i.ih_mbuf, 0 , sizeof(struct mbuf_ptr));
 	ti->ti_x1 = 0;
-	ti->ti_len = htons((u_int16_t)tlen);
+	ti->ti_len = htons((uint16_t)tlen);
 	len = sizeof(struct ip ) + tlen;
 	if(cksum(m, len)) {
 	  goto drop;
@@ -1289,7 +1289,7 @@ drop:
 static void
 tcp_dooptions(struct tcpcb *tp, u_char *cp, int cnt, struct tcpiphdr *ti)
 {
-	u_int16_t mss;
+	uint16_t mss;
 	int opt, optlen;
 
 	DEBUG_CALL("tcp_dooptions");

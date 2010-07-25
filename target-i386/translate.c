@@ -2315,10 +2315,7 @@ static inline void gen_jcc(DisasContext *s, int b,
     int l1, l2, cc_op;
 
     cc_op = s->cc_op;
-    if (s->cc_op != CC_OP_DYNAMIC) {
-        gen_op_set_cc_op(s->cc_op);
-        s->cc_op = CC_OP_DYNAMIC;
-    }
+    gen_update_cc_op(s);
     if (s->jmp_opt) {
         l1 = gen_new_label();
         gen_jcc1(s, cc_op, b, l1);
@@ -2729,10 +2726,7 @@ static void gen_eob(DisasContext *s)
 static void gen_jmp_tb(DisasContext *s, target_ulong eip, int tb_num)
 {
     if (s->jmp_opt) {
-        if (s->cc_op != CC_OP_DYNAMIC) {
-            gen_op_set_cc_op(s->cc_op);
-            s->cc_op = CC_OP_DYNAMIC;
-        }
+        gen_update_cc_op(s);
         gen_goto_tb(s, tb_num, eip);
         s->is_jmp = DISAS_TB_JUMP;
     } else {
@@ -6906,10 +6900,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         if (!s->pe) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
-            if (s->cc_op != CC_OP_DYNAMIC) {
-                gen_op_set_cc_op(s->cc_op);
-                s->cc_op = CC_OP_DYNAMIC;
-            }
+            gen_update_cc_op(s);
             gen_jmp_im(pc_start - s->cs_base);
             gen_helper_sysenter();
             gen_eob(s);
@@ -6922,10 +6913,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         if (!s->pe) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
-            if (s->cc_op != CC_OP_DYNAMIC) {
-                gen_op_set_cc_op(s->cc_op);
-                s->cc_op = CC_OP_DYNAMIC;
-            }
+            gen_update_cc_op(s);
             gen_jmp_im(pc_start - s->cs_base);
             gen_helper_sysexit(tcg_const_i32(dflag));
             gen_eob(s);
@@ -6934,10 +6922,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
 #ifdef TARGET_X86_64
     case 0x105: /* syscall */
         /* XXX: is it usable in real mode ? */
-        if (s->cc_op != CC_OP_DYNAMIC) {
-            gen_op_set_cc_op(s->cc_op);
-            s->cc_op = CC_OP_DYNAMIC;
-        }
+        gen_update_cc_op(s);
         gen_jmp_im(pc_start - s->cs_base);
         gen_helper_syscall(tcg_const_i32(s->pc - pc_start));
         gen_eob(s);
@@ -6946,10 +6931,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         if (!s->pe) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
-            if (s->cc_op != CC_OP_DYNAMIC) {
-                gen_op_set_cc_op(s->cc_op);
-                s->cc_op = CC_OP_DYNAMIC;
-            }
+            gen_update_cc_op(s);
             gen_jmp_im(pc_start - s->cs_base);
             gen_helper_sysret(tcg_const_i32(s->dflag));
             /* condition codes are modified only in long mode */
@@ -7090,10 +7072,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                     if (!(s->cpuid_ext_features & CPUID_EXT_MONITOR) ||
                         s->cpl != 0)
                         goto illegal_op;
-                    if (s->cc_op != CC_OP_DYNAMIC) {
-                        gen_op_set_cc_op(s->cc_op);
-                        s->cc_op = CC_OP_DYNAMIC;
-                    }
+                    gen_update_cc_op(s);
                     gen_jmp_im(pc_start - s->cs_base);
                     gen_helper_mwait(tcg_const_i32(s->pc - pc_start));
                     gen_eob(s);
@@ -7618,10 +7597,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         gen_svm_check_intercept(s, pc_start, SVM_EXIT_RSM);
         if (!(s->flags & HF_SMM_MASK))
             goto illegal_op;
-        if (s->cc_op != CC_OP_DYNAMIC) {
-            gen_op_set_cc_op(s->cc_op);
-            s->cc_op = CC_OP_DYNAMIC;
-        }
+        gen_update_cc_op(s);
         gen_jmp_im(s->pc - s->cs_base);
         gen_helper_rsm();
         gen_eob(s);

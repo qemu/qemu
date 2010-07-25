@@ -151,7 +151,7 @@ static void tcp_accept_incoming_migration(void *opaque)
 
     if (c == -1) {
         fprintf(stderr, "could not accept migration connection\n");
-        return;
+        goto out2;
     }
 
     f = qemu_fopen_socket(c);
@@ -163,9 +163,10 @@ static void tcp_accept_incoming_migration(void *opaque)
     process_incoming_migration(f);
     qemu_fclose(f);
 out:
+    close(c);
+out2:
     qemu_set_fd_handler2(s, NULL, NULL, NULL, NULL);
     close(s);
-    close(c);
 }
 
 int tcp_start_incoming_migration(const char *host_port)

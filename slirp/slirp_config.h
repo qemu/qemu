@@ -133,12 +133,6 @@
 /* Define if your compiler doesn't like prototypes */
 #undef NO_PROTOTYPES
 
-/* Define if you don't have u_int32_t etc. typedef'd */
-#undef NEED_TYPEDEFS
-#ifdef __sun__
-#define NEED_TYPEDEFS
-#endif
-
 /* Define to sizeof(char) */
 #define SIZEOF_CHAR 1
 
