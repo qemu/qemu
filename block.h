@@ -202,6 +202,7 @@ const char *bdrv_get_encrypted_filename(BlockDriverState *bs);
 void bdrv_get_backing_filename(BlockDriverState *bs,
                                char *filename, int filename_size);
 int bdrv_can_snapshot(BlockDriverState *bs);
+int bdrv_is_snapshot(BlockDriverState *bs);
 BlockDriverState *bdrv_snapshots(void);
 int bdrv_snapshot_create(BlockDriverState *bs,
                          QEMUSnapshotInfo *sn_info);
