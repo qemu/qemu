@@ -659,18 +659,6 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
         r = -errno;
         goto fail;
     }
-    if (hdev->log_enabled) {
-        hdev->log_size = vhost_get_log_size(hdev);
-        hdev->log = hdev->log_size ?
-            qemu_mallocz(hdev->log_size * sizeof *hdev->log) : NULL;
-        r = ioctl(hdev->control, VHOST_SET_LOG_BASE,
-                  (uint64_t)(unsigned long)hdev->log);
-        if (r < 0) {
-            r = -errno;
-            goto fail;
-        }
-    }
-
     for (i = 0; i < hdev->nvqs; ++i) {
         r = vhost_virtqueue_init(hdev,
                                  vdev,
@@ -680,6 +668,19 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
             goto fail_vq;
         }
     }
+
+    if (hdev->log_enabled) {
+        hdev->log_size = vhost_get_log_size(hdev);
+        hdev->log = hdev->log_size ?
+            qemu_mallocz(hdev->log_size * sizeof *hdev->log) : NULL;
+        r = ioctl(hdev->control, VHOST_SET_LOG_BASE,
+                  (uint64_t)(unsigned long)hdev->log);
+        if (r < 0) {
+            r = -errno;
+            goto fail_vq;
+        }
+    }
+
     hdev->started = true;
 
     return 0;
