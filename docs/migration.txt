@@ -1,0 +1,303 @@
+= Migration =
+
+QEMU has code to load/save the state of the guest that it is running.
+This are two complementary operations.  Saving the state just does
+that, saves the state for each device that the guest is running.
+Restoring a guest is just the opposite operation: we need to load the
+state of each device.
+
+For this to work, QEMU has to be launch with the same arguments the
+two times.  I.e. it can only restore the state in one guest that has
+the same devices that the one it was saved (this last requirement can
+be relaxed a bit, but for now we can consider that configuration have
+to be exactly the same).
+
+Once that we are able to save/restore a guest, a new functionality is
+requested: migration.  This means that QEMU is able to start in one
+machine and being "migrated" to other machine.  I.e. being moved to
+other machine.
+
+Next was the "live migration" functionality.  This is important
+because some guests run with a lot of state (specially RAM), and it
+can take a while to move all state from one machine to another.  Live
+migration allows the guest to continue running while the state is
+transferred.  Only while the last part of the state is transferred has
+the guest to be stopped.  Typically the time that the guest is
+unresponsive during live migration is the low hundred of milliseconds
+(notice that this depends on lot of things).
+
+=== Types of migration ===
+
+Now that we have talked about live migration, there are several ways
+to do migration:
+
+- tcp migration: do the migration using tcp sockets
+- unix migration: do the migration using unix sockets
+- exec migration: do the migration using the stdin/stdout through a process.
+- fd migration: do the migration using an file descriptor that is
+  passed to QEMU.  QEMU don't cares how this file descriptor is opened.
+
+All this four migration protocols use the same infrastructure to
+save/restore state devices.  This infrastructure is shared with the
+savevm/loadvm functionality.
+
+=== State Live Migration ==
+
+This is used for RAM and block devices.  It is not yet ported to vmstate.
+<Fill more information here>
+
+=== What is the common infrastructure ===
+
+QEMU uses a QEMUFile abstraction to be able to do migration.  Any type
+of migration that what to use QEMU infrastructure has to create a
+QEMUFile with:
+
+QEMUFile *qemu_fopen_ops(void *opaque,
+	 		 QEMUFilePutBufferFunc *put_buffer,
+                         QEMUFileGetBufferFunc *get_buffer,
+                         QEMUFileCloseFunc *close,
+                         QEMUFileRateLimit *rate_limit,
+                         QEMUFileSetRateLimit *set_rate_limit,
+			 QEMUFileGetRateLimit *get_rate_limit);
+
+The functions have the following functionality:
+
+This function writes a chunk of data to a file at the given position.
+The pos argument can be ignored if the file is only being used for
+streaming.  The handler should try to write all of the data it can.
+
+typedef int (QEMUFilePutBufferFunc)(void *opaque, const uint8_t *buf,
+                                    int64_t pos, int size);
+
+Read a chunk of data from a file at the given position.  The pos argument
+can be ignored if the file is only be used for streaming.  The number of
+bytes actually read should be returned.
+
+typedef int (QEMUFileGetBufferFunc)(void *opaque, uint8_t *buf,
+                                    int64_t pos, int size);
+
+Close a file and return an error code
+
+typedef int (QEMUFileCloseFunc)(void *opaque);
+
+Called to determine if the file has exceeded it's bandwidth allocation.  The
+bandwidth capping is a soft limit, not a hard limit.
+
+typedef int (QEMUFileRateLimit)(void *opaque);
+
+Called to change the current bandwidth allocation. This function must return
+the new actual bandwidth. It should be new_rate if everything goes OK, and
+the old rate otherwise
+
+typedef size_t (QEMUFileSetRateLimit)(void *opaque, size_t new_rate);
+typedef size_t (QEMUFileGetRateLimit)(void *opaque);
+
+You can use any internal state that you need using the opaque void *
+pointer that is passed to all functions.
+
+The rate limiting functions are used to limit the bandwidth used by
+QEMU migration.
+
+The important functions for us are put_buffer()/get_buffer() that
+allow to write/read a buffer into the QEMUFile.
+
+=== How to save the state of one device ==
+
+The state of a device is saved using intermediate buffers.  There are
+some helper functions to assist this saving.
+
+There is a new concept that we have to explain here: device state
+version.  When we migrate a device, we save/load the state as a series
+of fields.  Some times, due to bugs or new functionality, we need to
+change the state to store more/different information.  We use the
+version to identify each time that we do a change.  Each version is
+associated with a series of fields saved.  The save_state always save
+the state as the newer version.  But load_state some times is able to
+load state from an older version.
+
+ === Legacy way ===
+
+This way is going to disappear as soon as all current users are ported to VMSTATE.
+
+Each device has to register two functions, one to save the state and
+another to load the state back.
+
+int register_savevm(DeviceState *dev,
+                    const char *idstr,
+                    int instance_id,
+                    int version_id,
+                    SaveStateHandler *save_state,
+                    LoadStateHandler *load_state,
+                    void *opaque);
+
+typedef void SaveStateHandler(QEMUFile *f, void *opaque);
+typedef int LoadStateHandler(QEMUFile *f, void *opaque, int version_id);
+
+The important functions for the device state format are the save_state
+and load_state.  Notice that load_state receives a version_id
+parameter to know what state format is receiving.  save_state don't
+have a version_id parameter because it uses always the latest version.
+
+=== VMState ===
+
+The legacy way of saving/loading state of the device had the problem
+that we have to maintain in sync two functions.  If we did one change
+in one of them and not on the other, we got a failed migration.
+
+VMState changed the way that state is saved/loaded.  Instead of using
+a function to save the state and another to load it, it was changed to
+a declarative way of what the state consisted of.  Now VMState is able
+to interpret that definition to be able to load/save the state.  As
+the state is declared only once, it can't go out of sync in the
+save/load functions.
+
+An example (from hw/pckbd.c)
+
+static const VMStateDescription vmstate_kbd = {
+    .name = "pckbd",
+    .version_id = 3,
+    .minimum_version_id = 3,
+    .minimum_version_id_old = 3,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT8(write_cmd, KBDState),
+        VMSTATE_UINT8(status, KBDState),
+        VMSTATE_UINT8(mode, KBDState),
+        VMSTATE_UINT8(pending, KBDState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+We are declaring the state with name "pckbd".
+The version_id is 3, and the fields are 4 uint8_t in a KBDState structure.
+We registered this with:
+
+    vmstate_register(NULL, 0, &vmstate_kbd, s);
+
+Note: talk about how vmstate <-> qdev interact, and what the instance id's mean.
+
+You can search for VMSTATE_* macros for lots of types used in QEMU in
+hw/hw.h.
+
+=== More about versions ==
+
+You can see that there are several version fields:
+
+- version_id: the maximum version_id supported by VMState for that device
+- minimum_version_id: the minimum version_id that VMState is able to understand
+  for that device.
+- minimum_version_id_old: For devices that were not able to port to vmstate, we can
+  assign a function that knows how to read this old state.
+
+So, VMState is able to read versions from minimum_version_id to
+version_id.  And the function load_state_old() is able to load state
+from minimum_version_id_old to minimum_version_id.  This function is
+deprecated and will be removed when no more users are left.
+
+===  Massaging functions ===
+
+Some times, it is not enough to be able to save the state directly
+from one structure, we need to fill the correct values there.  One
+example is when we are using kvm.  Before saving the cpu state, we
+need to ask kvm to copy to QEMU the state that it is using.  And the
+opposite when we are loading the state, we need a way to tell kvm to
+load the state for the cpu that we have just loaded from the QEMUFile.
+
+The functions to do that are inside a vmstate definition, and are called:
+
+- int (*pre_load)(void *opaque);
+
+  This function is called before we load the state of one device.
+
+- int (*post_load)(void *opaque, int version_id);
+
+  This function is called after we load the state of one device.
+
+- void (*pre_save)(void *opaque);
+
+  This function is called before we save the state of one device.
+
+Example: You can look at hpet.c, that uses the three function to
+         massage the state that is transferred.
+
+=== Subsections ===
+
+The use of version_id allows to be able to migrate from older versions
+to newer versions of a device.  But not the other way around.  This
+makes very complicated to fix bugs in stable branches.  If we need to
+add anything to the state to fix a bug, we have to disable migration
+to older versions that don't have that bug-fix (i.e. a new field).
+
+But some time, that bug-fix is only needed sometimes, not always.  For
+instance, if the device is in the middle of a DMA operation, it is
+using a specific functionality, ....
+
+It is impossible to create a way to make migration from any version to
+any other version to work.  But we can do better that only allowing
+migration from older versions no newer ones.  For that fields that are
+only needed sometimes, we add the idea of subsections.  a subsection
+is "like" a device vmstate, but with a particularity, it has a Boolean
+function that tells if that values are needed to be sent or not.  If
+this functions returns false, the subsection is not sent.
+
+On the receiving side, if we found a subsection for a device that we
+don't understand, we just fail the migration.  If we understand all
+the subsections, then we load the state with success.
+
+One important note is that the post_load() function is called "after"
+loading all subsections, because a newer subsection could change same
+value that it uses.
+
+Example:
+
+static bool ide_drive_pio_state_needed(void *opaque)
+{
+    IDEState *s = opaque;
+
+    return (s->status & DRQ_STAT) != 0;
+}
+
+const VMStateDescription vmstate_ide_drive_pio_state = {
+    .name = "ide_drive/pio_state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .pre_save = ide_drive_pio_pre_save,
+    .post_load = ide_drive_pio_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_INT32(req_nb_sectors, IDEState),
+        VMSTATE_VARRAY_INT32(io_buffer, IDEState, io_buffer_total_len, 1,
+			     vmstate_info_uint8, uint8_t),
+        VMSTATE_INT32(cur_io_buffer_offset, IDEState),
+        VMSTATE_INT32(cur_io_buffer_len, IDEState),
+        VMSTATE_UINT8(end_transfer_fn_idx, IDEState),
+        VMSTATE_INT32(elementary_transfer_size, IDEState),
+        VMSTATE_INT32(packet_transfer_size, IDEState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+const VMStateDescription vmstate_ide_drive = {
+    .name = "ide_drive",
+    .version_id = 3,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .post_load = ide_drive_post_load,
+    .fields      = (VMStateField []) {
+        .... several fields ....
+        VMSTATE_END_OF_LIST()
+    },
+    .subsections = (VMStateSubsection []) {
+        {
+            .vmsd = &vmstate_ide_drive_pio_state,
+            .needed = ide_drive_pio_state_needed,
+        }, {
+            /* empty */
+        }
+    }
+};
+
+Here we have a subsection for the pio state.  We only need to
+save/send this state when we are in the middle of a pio operation
+(that is what ide_drive_pio_state_needed() checks).  If DRQ_STAT is
+not enabled, the values on that fields are garbage and don't need to
+be sent.
