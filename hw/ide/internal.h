@@ -419,6 +419,11 @@ struct IDEState {
     uint8_t *data_ptr;
     uint8_t *data_end;
     uint8_t *io_buffer;
+    /* PIO save/restore */
+    int32_t io_buffer_total_len;
+    int cur_io_buffer_offset;
+    int cur_io_buffer_len;
+    uint8_t end_transfer_fn_idx;
     QEMUTimer *sector_write_timer; /* only used for win2k install hack */
     uint32_t irq_count; /* counts IRQs when using win2k install hack */
     /* CF-ATA extended error */
