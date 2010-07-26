@@ -551,6 +551,19 @@ int qemu_get_buffer(QEMUFile *f, uint8_t *buf, int size1)
     return size1 - size;
 }
 
+static int qemu_peek_byte(QEMUFile *f)
+{
+    if (f->is_write)
+        abort();
+
+    if (f->buf_index >= f->buf_size) {
+        qemu_fill_buffer(f);
+        if (f->buf_index >= f->buf_size)
+            return 0;
+    }
+    return f->buf[f->buf_index];
+}
+
 int qemu_get_byte(QEMUFile *f)
 {
     if (f->is_write)
@@ -1198,10 +1211,16 @@ void vmstate_unregister(DeviceState *dev, const VMStateDescription *vmsd,
     }
 }
 
+static void vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
+                                    void *opaque);
+static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
+                                   void *opaque);
+
 int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, int version_id)
 {
     VMStateField *field = vmsd->fields;
+    int ret;
 
     if (version_id > vmsd->version_id) {
         return -EINVAL;
@@ -1223,7 +1242,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
             (!field->field_exists &&
              field->version_id <= version_id)) {
             void *base_addr = opaque + field->offset;
-            int ret, i, n_elems = 1;
+            int i, n_elems = 1;
             int size = field->size;
 
             if (field->flags & VMS_VBUFFER) {
@@ -1260,6 +1279,10 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
             }
         }
         field++;
+    }
+    ret = vmstate_subsection_load(f, vmsd, opaque);
+    if (ret != 0) {
+        return ret;
     }
     if (vmsd->post_load) {
         return vmsd->post_load(opaque, version_id);
@@ -1313,6 +1336,7 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
         }
         field++;
     }
+    vmstate_subsection_save(f, vmsd, opaque);
 }
 
 static int vmstate_load(QEMUFile *f, SaveStateEntry *se, int version_id)
@@ -1341,6 +1365,7 @@ static void vmstate_save(QEMUFile *f, SaveStateEntry *se)
 #define QEMU_VM_SECTION_PART         0x02
 #define QEMU_VM_SECTION_END          0x03
 #define QEMU_VM_SECTION_FULL         0x04
+#define QEMU_VM_SUBSECTION           0x05
 
 int qemu_savevm_state_begin(Monitor *mon, QEMUFile *f, int blk_enable,
                             int shared)
@@ -1527,6 +1552,65 @@ static SaveStateEntry *find_se(const char *idstr, int instance_id)
         }
     }
     return NULL;
+}
+
+static const VMStateDescription *vmstate_get_subsection(const VMStateSubsection *sub, char *idstr)
+{
+    while(sub && sub->needed) {
+        if (strcmp(idstr, sub->vmsd->name) == 0) {
+            return sub->vmsd;
+        }
+        sub++;
+    }
+    return NULL;
+}
+
+static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
+                                   void *opaque)
+{
+    while (qemu_peek_byte(f) == QEMU_VM_SUBSECTION) {
+        char idstr[256];
+        int ret;
+        uint8_t version_id, subsection, len;
+        const VMStateDescription *sub_vmsd;
+
+        subsection = qemu_get_byte(f);
+        len = qemu_get_byte(f);
+        qemu_get_buffer(f, (uint8_t *)idstr, len);
+        idstr[len] = 0;
+        version_id = qemu_get_be32(f);
+
+        sub_vmsd = vmstate_get_subsection(vmsd->subsections, idstr);
+        if (sub_vmsd == NULL) {
+            return -ENOENT;
+        }
+        ret = vmstate_load_state(f, sub_vmsd, opaque, version_id);
+        if (ret) {
+            return ret;
+        }
+    }
+    return 0;
+}
+
+static void vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
+                                    void *opaque)
+{
+    const VMStateSubsection *sub = vmsd->subsections;
+
+    while (sub && sub->needed) {
+        if (sub->needed(opaque)) {
+            const VMStateDescription *vmsd = sub->vmsd;
+            uint8_t len;
+
+            qemu_put_byte(f, QEMU_VM_SUBSECTION);
+            len = strlen(vmsd->name);
+            qemu_put_byte(f, len);
+            qemu_put_buffer(f, (uint8_t *)vmsd->name, len);
+            qemu_put_be32(f, vmsd->version_id);
+            vmstate_save_state(f, vmsd, opaque);
+        }
+        sub++;
+    }
 }
 
 typedef struct LoadStateEntry {

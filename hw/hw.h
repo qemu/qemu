@@ -313,6 +313,11 @@ typedef struct {
     bool (*field_exists)(void *opaque, int version_id);
 } VMStateField;
 
+typedef struct VMStateSubsection {
+    const VMStateDescription *vmsd;
+    bool (*needed)(void *opaque);
+} VMStateSubsection;
+
 struct VMStateDescription {
     const char *name;
     int version_id;
@@ -323,6 +328,7 @@ struct VMStateDescription {
     int (*post_load)(void *opaque, int version_id);
     void (*pre_save)(void *opaque);
     VMStateField *fields;
+    const VMStateSubsection *subsections;
 };
 
 extern const VMStateInfo vmstate_info_int8;
