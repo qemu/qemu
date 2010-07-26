@@ -437,6 +437,7 @@ eth_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 				eth_validate_duplex(eth);
 			}
 			eth->mdio_bus.mdc = !!(value & 4);
+			eth->regs[addr] = value;
 			break;
 
 		case RW_REC_CTRL:
