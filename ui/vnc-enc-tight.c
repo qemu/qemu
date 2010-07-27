@@ -281,7 +281,7 @@ tight_detect_smooth_image(VncState *vs, int w, int h)
         return 0;
     }
 
-    if (vs->tight.quality != -1) {
+    if (vs->tight.quality != (uint8_t)-1) {
         if (w * h < VNC_TIGHT_JPEG_MIN_RECT_SIZE) {
             return 0;
         }
@@ -294,7 +294,7 @@ tight_detect_smooth_image(VncState *vs, int w, int h)
     if (vs->clientds.pf.bytes_per_pixel == 4) {
         if (vs->tight.pixel24) {
             errors = tight_detect_smooth_image24(vs, w, h);
-            if (vs->tight.quality != -1) {
+            if (vs->tight.quality != (uint8_t)-1) {
                 return (errors < tight_conf[quality].jpeg_threshold24);
             }
             return (errors < tight_conf[compression].gradient_threshold24);
@@ -443,7 +443,7 @@ static int tight_fill_palette(VncState *vs, int x, int y,
              * Should never happen, but don't break everything          \
              * if it does, use the first color instead                  \
              */                                                         \
-            if (idx == -1) {                                            \
+            if (idx == (uint8_t)-1) {                                   \
                 idx = 0;                                                \
             }                                                           \
             while (rep >= 0) {                                          \
