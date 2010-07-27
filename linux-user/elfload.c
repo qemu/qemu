@@ -1034,60 +1034,47 @@ static abi_ulong setup_arg_pages(abi_ulong p, struct linux_binprm *bprm,
     return p;
 }
 
-static void set_brk(abi_ulong start, abi_ulong end)
+/* Map and zero the bss.  We need to explicitly zero any fractional pages
+   after the data section (i.e. bss).  */
+static void zero_bss(abi_ulong elf_bss, abi_ulong last_bss, int prot)
 {
-	/* page-align the start and end addresses... */
-        start = HOST_PAGE_ALIGN(start);
-        end = HOST_PAGE_ALIGN(end);
-        if (end <= start)
-                return;
-        if(target_mmap(start, end - start,
-                       PROT_READ | PROT_WRITE | PROT_EXEC,
-                       MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0) == -1) {
-	    perror("cannot mmap brk");
-	    exit(-1);
-	}
-}
+    uintptr_t host_start, host_map_start, host_end;
 
+    last_bss = TARGET_PAGE_ALIGN(last_bss);
 
-/* We need to explicitly zero any fractional pages after the data
-   section (i.e. bss).  This would contain the junk from the file that
-   should not be in memory. */
-static void padzero(abi_ulong elf_bss, abi_ulong last_bss)
-{
-        abi_ulong nbyte;
+    /* ??? There is confusion between qemu_real_host_page_size and
+       qemu_host_page_size here and elsewhere in target_mmap, which
+       may lead to the end of the data section mapping from the file
+       not being mapped.  At least there was an explicit test and
+       comment for that here, suggesting that "the file size must
+       be known".  The comment probably pre-dates the introduction
+       of the fstat system call in target_mmap which does in fact
+       find out the size.  What isn't clear is if the workaround
+       here is still actually needed.  For now, continue with it,
+       but merge it with the "normal" mmap that would allocate the bss.  */
 
-	if (elf_bss >= last_bss)
-		return;
+    host_start = (uintptr_t) g2h(elf_bss);
+    host_end = (uintptr_t) g2h(last_bss);
+    host_map_start = (host_start + qemu_real_host_page_size - 1);
+    host_map_start &= -qemu_real_host_page_size;
 
-        /* XXX: this is really a hack : if the real host page size is
-           smaller than the target page size, some pages after the end
-           of the file may not be mapped. A better fix would be to
-           patch target_mmap(), but it is more complicated as the file
-           size must be known */
-        if (qemu_real_host_page_size < qemu_host_page_size) {
-            abi_ulong end_addr, end_addr1;
-            end_addr1 = (elf_bss + qemu_real_host_page_size - 1) &
-                ~(qemu_real_host_page_size - 1);
-            end_addr = HOST_PAGE_ALIGN(elf_bss);
-            if (end_addr1 < end_addr) {
-                mmap((void *)g2h(end_addr1), end_addr - end_addr1,
-                     PROT_READ|PROT_WRITE|PROT_EXEC,
-                     MAP_FIXED|MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-            }
+    if (host_map_start < host_end) {
+        void *p = mmap((void *)host_map_start, host_end - host_map_start,
+                       prot, MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        if (p == MAP_FAILED) {
+            perror("cannot mmap brk");
+            exit(-1);
         }
 
-        nbyte = elf_bss & (qemu_host_page_size-1);
-        if (nbyte) {
-	    nbyte = qemu_host_page_size - nbyte;
-	    do {
-                /* FIXME - what to do if put_user() fails? */
-		put_user_u8(0, elf_bss);
-                elf_bss++;
-	    } while (--nbyte);
-        }
-}
+        /* Since we didn't use target_mmap, make sure to record
+           the validity of the pages with qemu.  */
+        page_set_flags(elf_bss & TARGET_PAGE_MASK, last_bss, prot|PAGE_VALID);
+    }
 
+    if (host_start < host_map_start) {
+        memset((void *)host_start, 0, host_map_start - host_start);
+    }
+}
 
 static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
                                    struct elfhdr * exec,
@@ -1179,12 +1166,9 @@ static abi_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
 	abi_ulong load_addr = 0;
 	int load_addr_set = 0;
 	int retval;
-	abi_ulong last_bss, elf_bss;
 	abi_ulong error;
 	int i;
 
-	elf_bss = 0;
-	last_bss = 0;
 	error = 0;
 
 #ifdef BSWAP_NEEDED
@@ -1257,7 +1241,6 @@ static abi_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
 	    int elf_type = MAP_PRIVATE | MAP_DENYWRITE;
 	    int elf_prot = 0;
 	    abi_ulong vaddr = 0;
-	    abi_ulong k;
 
 	    if (eppnt->p_flags & PF_R) elf_prot =  PROT_READ;
 	    if (eppnt->p_flags & PF_W) elf_prot |= PROT_WRITE;
@@ -1285,40 +1268,17 @@ static abi_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
 	      load_addr_set = 1;
 	    }
 
-	    /*
-	     * Find the end of the file  mapping for this phdr, and keep
-	     * track of the largest address we see for this.
-	     */
-	    k = load_addr + eppnt->p_vaddr + eppnt->p_filesz;
-	    if (k > elf_bss) elf_bss = k;
-
-	    /*
-	     * Do the same thing for the memory mapping - between
-	     * elf_bss and last_bss is the bss section.
-	     */
-	    k = load_addr + eppnt->p_memsz + eppnt->p_vaddr;
-	    if (k > last_bss) last_bss = k;
+            /* If the load segment requests extra zeros (e.g. bss), map it.  */
+            if (eppnt->p_filesz < eppnt->p_memsz) {
+                abi_ulong base = load_addr + eppnt->p_vaddr;
+                zero_bss(base + eppnt->p_filesz,
+                         base + eppnt->p_memsz, elf_prot);
+            }
 	  }
 
 	/* Now use mmap to map the library into memory. */
 
 	close(interpreter_fd);
-
-	/*
-	 * Now fill out the bss section.  First pad the last page up
-	 * to the page boundary, and then perform a mmap to make sure
-	 * that there are zeromapped pages up to and including the last
-	 * bss page.
-	 */
-	padzero(elf_bss, last_bss);
-	elf_bss = TARGET_ELF_PAGESTART(elf_bss + qemu_host_page_size - 1); /* What we have mapped so far */
-
-	/* Map the last of the bss segment */
-	if (last_bss > elf_bss) {
-            target_mmap(elf_bss, last_bss-elf_bss,
-                        PROT_READ|PROT_WRITE|PROT_EXEC,
-                        MAP_FIXED|MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-	}
 	free(elf_phdata);
 
 	*interp_load_addr = load_addr;
@@ -1472,7 +1432,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     abi_ulong mapped_addr;
     struct elf_phdr * elf_ppnt;
     struct elf_phdr *elf_phdata;
-    abi_ulong elf_bss, k, elf_brk;
+    abi_ulong k, elf_brk;
     int retval;
     char * elf_interpreter;
     abi_ulong elf_entry, interp_load_addr = 0;
@@ -1531,9 +1491,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
 #endif
     elf_ppnt = elf_phdata;
 
-    elf_bss = 0;
     elf_brk = 0;
-
 
     elf_stack = ~((abi_ulong)0UL);
     elf_interpreter = NULL;
@@ -1838,18 +1796,24 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
         if (start_data < k)
             start_data = k;
         k = elf_ppnt->p_vaddr + elf_ppnt->p_filesz;
-        if (k > elf_bss)
-            elf_bss = k;
         if ((elf_ppnt->p_flags & PF_X) && end_code <  k)
             end_code = k;
         if (end_data < k)
             end_data = k;
         k = elf_ppnt->p_vaddr + elf_ppnt->p_memsz;
-        if (k > elf_brk) elf_brk = k;
+        if (k > elf_brk) {
+            elf_brk = TARGET_PAGE_ALIGN(k);
+        }
+
+        /* If the load segment requests extra zeros (e.g. bss), map it.  */
+        if (elf_ppnt->p_filesz < elf_ppnt->p_memsz) {
+            abi_ulong base = load_bias + elf_ppnt->p_vaddr;
+            zero_bss(base + elf_ppnt->p_filesz,
+                     base + elf_ppnt->p_memsz, elf_prot);
+        }
     }
 
     elf_entry += load_bias;
-    elf_bss += load_bias;
     elf_brk += load_bias;
     start_code += load_bias;
     end_code += load_bias;
@@ -1903,12 +1867,6 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     info->start_data = start_data;
     info->end_data = end_data;
     info->start_stack = bprm->p;
-
-    /* Calling set_brk effectively mmaps the pages that we need for the bss and break
-       sections */
-    set_brk(elf_bss, elf_brk);
-
-    padzero(elf_bss, elf_brk);
 
 #if 0
     printf("(start_brk) %x\n" , info->start_brk);
