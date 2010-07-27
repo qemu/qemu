@@ -1079,11 +1079,9 @@ static void zero_bss(abi_ulong elf_bss, abi_ulong last_bss, int prot)
 }
 
 static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
-                                   struct elfhdr * exec,
-                                   abi_ulong load_addr,
-                                   abi_ulong load_bias,
-                                   abi_ulong interp_load_addr,
-                                   struct image_info *info)
+                                   struct elfhdr *exec,
+                                   struct image_info *info,
+                                   struct image_info *interp_info)
 {
     abi_ulong sp;
     int size;
@@ -1128,13 +1126,13 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     NEW_AUX_ENT (AT_NULL, 0);
 
     /* There must be exactly DLINFO_ITEMS entries here.  */
-    NEW_AUX_ENT(AT_PHDR, (abi_ulong)(load_addr + exec->e_phoff));
+    NEW_AUX_ENT(AT_PHDR, (abi_ulong)(info->load_addr + exec->e_phoff));
     NEW_AUX_ENT(AT_PHENT, (abi_ulong)(sizeof (struct elf_phdr)));
     NEW_AUX_ENT(AT_PHNUM, (abi_ulong)(exec->e_phnum));
     NEW_AUX_ENT(AT_PAGESZ, (abi_ulong)(TARGET_PAGE_SIZE));
-    NEW_AUX_ENT(AT_BASE, (abi_ulong)(interp_load_addr));
+    NEW_AUX_ENT(AT_BASE, (abi_ulong)(interp_info ? interp_info->load_addr : 0));
     NEW_AUX_ENT(AT_FLAGS, (abi_ulong)0);
-    NEW_AUX_ENT(AT_ENTRY, load_bias + exec->e_entry);
+    NEW_AUX_ENT(AT_ENTRY, info->entry);
     NEW_AUX_ENT(AT_UID, (abi_ulong) getuid());
     NEW_AUX_ENT(AT_EUID, (abi_ulong) geteuid());
     NEW_AUX_ENT(AT_GID, (abi_ulong) getgid());
@@ -1158,51 +1156,60 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     return sp;
 }
 
+/* Load an ELF image into the address space.
 
-static abi_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
-                                 int interpreter_fd,
-                                 abi_ulong *interp_load_addr,
-                                 char bprm_buf[BPRM_BUF_SIZE])
+   IMAGE_NAME is the filename of the image, to use in error messages.
+   IMAGE_FD is the open file descriptor for the image.
+
+   BPRM_BUF is a copy of the beginning of the file; this of course
+   contains the elf file header at offset 0.  It is assumed that this
+   buffer is sufficiently aligned to present no problems to the host
+   in accessing data at aligned offsets within the buffer.
+
+   On return: INFO values will be filled in, as necessary or available.  */
+
+static void load_elf_image(const char *image_name, int image_fd,
+                           struct image_info *info,
+                           char bprm_buf[BPRM_BUF_SIZE])
 {
-    struct elf_phdr *elf_phdata  =  NULL;
-    abi_ulong load_addr, load_bias, loaddr, hiaddr;
-    int retval;
-    abi_ulong error;
-    int i;
+    struct elfhdr *ehdr = (struct elfhdr *)bprm_buf;
+    struct elf_phdr *phdr;
+    abi_ulong load_addr, load_bias, loaddr, hiaddr, error;
+    int i, retval;
+    const char *errmsg;
 
-    bswap_ehdr(interp_elf_ex);
-    if (!elf_check_ehdr(interp_elf_ex)) {
-        return ~((abi_ulong)0UL);
+    /* First of all, some simple consistency checks */
+    errmsg = "Invalid ELF image for this architecture";
+    if (!elf_check_ident(ehdr)) {
+        goto exit_errmsg;
+    }
+    bswap_ehdr(ehdr);
+    if (!elf_check_ehdr(ehdr)) {
+        goto exit_errmsg;
     }
 
-    /* Now read in all of the header information */
-    elf_phdata =  (struct elf_phdr *)
-        malloc(sizeof(struct elf_phdr) * interp_elf_ex->e_phnum);
-    if (!elf_phdata)
-        return ~((abi_ulong)0UL);
-
-    i = interp_elf_ex->e_phnum * sizeof(struct elf_phdr);
-    if (interp_elf_ex->e_phoff + i <= BPRM_BUF_SIZE) {
-        memcpy(elf_phdata, bprm_buf + interp_elf_ex->e_phoff, i);
+    i = ehdr->e_phnum * sizeof(struct elf_phdr);
+    if (ehdr->e_phoff + i <= BPRM_BUF_SIZE) {
+        phdr = (struct elf_phdr *)(bprm_buf + ehdr->e_phoff);
     } else {
-        retval = pread(interpreter_fd, elf_phdata, i, interp_elf_ex->e_phoff);
+        phdr = (struct elf_phdr *) alloca(i);
+        retval = pread(image_fd, phdr, i, ehdr->e_phoff);
         if (retval != i) {
-            perror("load_elf_interp");
-            exit(-1);
+            goto exit_read;
         }
     }
-    bswap_phdr(elf_phdata, interp_elf_ex->e_phnum);
+    bswap_phdr(phdr, ehdr->e_phnum);
 
     /* Find the maximum size of the image and allocate an appropriate
        amount of memory to handle that.  */
     loaddr = -1, hiaddr = 0;
-    for (i = 0; i < interp_elf_ex->e_phnum; ++i) {
-        if (elf_phdata[i].p_type == PT_LOAD) {
-            abi_ulong a = elf_phdata[i].p_vaddr;
+    for (i = 0; i < ehdr->e_phnum; ++i) {
+        if (phdr[i].p_type == PT_LOAD) {
+            abi_ulong a = phdr[i].p_vaddr;
             if (a < loaddr) {
                 loaddr = a;
             }
-            a += elf_phdata[i].p_memsz;
+            a += phdr[i].p_memsz;
             if (a > hiaddr) {
                 hiaddr = a;
             }
@@ -1210,7 +1217,7 @@ static abi_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
     }
 
     load_addr = loaddr;
-    if (interp_elf_ex->e_type == ET_DYN) {
+    if (ehdr->e_type == ET_DYN) {
         /* The image indicates that it can be loaded anywhere.  Find a
            location that can hold the memory space required.  If the
            image is pre-linked, LOADDR will be non-zero.  Since we do
@@ -1220,14 +1227,22 @@ static abi_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
                                 MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
                                 -1, 0);
         if (load_addr == -1) {
-            perror("mmap");
-            exit(-1);
+            goto exit_perror;
         }
     }
     load_bias = load_addr - loaddr;
 
-    for (i = 0; i < interp_elf_ex->e_phnum; i++) {
-        struct elf_phdr *eppnt = elf_phdata + i;
+    info->load_bias = load_bias;
+    info->load_addr = load_addr;
+    info->entry = ehdr->e_entry + load_bias;
+    info->start_code = -1;
+    info->end_code = 0;
+    info->start_data = -1;
+    info->end_data = 0;
+    info->brk = 0;
+
+    for (i = 0; i < ehdr->e_phnum; i++) {
+        struct elf_phdr *eppnt = phdr + i;
         if (eppnt->p_type == PT_LOAD) {
             abi_ulong vaddr, vaddr_po, vaddr_ps, vaddr_ef, vaddr_em;
             int elf_prot = 0;
@@ -1242,12 +1257,9 @@ static abi_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
 
             error = target_mmap(vaddr_ps, eppnt->p_filesz + vaddr_po,
                                 elf_prot, MAP_PRIVATE | MAP_FIXED,
-                                interpreter_fd, eppnt->p_offset - vaddr_po);
+                                image_fd, eppnt->p_offset - vaddr_po);
             if (error == -1) {
-                /* Real error */
-                close(interpreter_fd);
-                free(elf_phdata);
-                return ~((abi_ulong)0UL);
+                goto exit_perror;
             }
 
             vaddr_ef = vaddr + eppnt->p_filesz;
@@ -1257,18 +1269,79 @@ static abi_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
             if (vaddr_ef < vaddr_em) {
                 zero_bss(vaddr_ef, vaddr_em, elf_prot);
             }
+
+            /* Find the full program boundaries.  */
+            if (elf_prot & PROT_EXEC) {
+                if (vaddr < info->start_code) {
+                    info->start_code = vaddr;
+                }
+                if (vaddr_ef > info->end_code) {
+                    info->end_code = vaddr_ef;
+                }
+            }
+            if (elf_prot & PROT_WRITE) {
+                if (vaddr < info->start_data) {
+                    info->start_data = vaddr;
+                }
+                if (vaddr_ef > info->end_data) {
+                    info->end_data = vaddr_ef;
+                }
+                if (vaddr_em > info->brk) {
+                    info->brk = vaddr_em;
+                }
+            }
         }
     }
 
-    if (qemu_log_enabled()) {
-        load_symbols(interp_elf_ex, interpreter_fd, load_bias);
+    if (info->end_data == 0) {
+        info->start_data = info->end_code;
+        info->end_data = info->end_code;
+        info->brk = info->end_code;
     }
 
-    close(interpreter_fd);
-    free(elf_phdata);
+    if (qemu_log_enabled()) {
+        load_symbols(ehdr, image_fd, load_bias);
+    }
 
-    *interp_load_addr = load_addr;
-    return ((abi_ulong) interp_elf_ex->e_entry) + load_bias;
+    close(image_fd);
+    return;
+
+ exit_read:
+    if (retval >= 0) {
+        errmsg = "Incomplete read of file header";
+        goto exit_errmsg;
+    }
+ exit_perror:
+    errmsg = strerror(errno);
+ exit_errmsg:
+    fprintf(stderr, "%s: %s\n", image_name, errmsg);
+    exit(-1);
+}
+
+static void load_elf_interp(const char *filename, struct image_info *info,
+                            char bprm_buf[BPRM_BUF_SIZE])
+{
+    int fd, retval;
+
+    fd = open(path(filename), O_RDONLY);
+    if (fd < 0) {
+        goto exit_perror;
+    }
+
+    retval = read(fd, bprm_buf, BPRM_BUF_SIZE);
+    if (retval < 0) {
+        goto exit_perror;
+    }
+    if (retval < BPRM_BUF_SIZE) {
+        memset(bprm_buf + retval, 0, BPRM_BUF_SIZE - retval);
+    }
+
+    load_elf_image(filename, fd, info, bprm_buf);
+    return;
+
+ exit_perror:
+    fprintf(stderr, "%s: %s\n", filename, strerror(errno));
+    exit(-1);
 }
 
 static int symfind(const void *s0, const void *s1)
@@ -1405,26 +1478,21 @@ static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
 int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
                     struct image_info * info)
 {
+    struct image_info interp_info;
     struct elfhdr elf_ex;
-    struct elfhdr interp_elf_ex;
-    int interpreter_fd = -1; /* avoid warning */
     abi_ulong load_addr, load_bias;
     int load_addr_set = 0;
-    unsigned char ibcs2_interpreter;
     int i;
-    abi_ulong mapped_addr;
     struct elf_phdr * elf_ppnt;
     struct elf_phdr *elf_phdata;
     abi_ulong k, elf_brk;
     int retval;
-    char * elf_interpreter;
-    abi_ulong elf_entry, interp_load_addr = 0;
+    char *elf_interpreter = NULL;
+    abi_ulong elf_entry;
     int status;
     abi_ulong start_code, end_code, start_data, end_data;
-    abi_ulong reloc_func_desc = 0;
     abi_ulong elf_stack;
 
-    ibcs2_interpreter = 0;
     status = 0;
     load_addr = 0;
     load_bias = 0;
@@ -1467,7 +1535,6 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
 
     elf_brk = 0;
     elf_stack = ~((abi_ulong)0UL);
-    elf_interpreter = NULL;
     start_code = ~((abi_ulong)0UL);
     end_code = 0;
     start_data = 0;
@@ -1476,80 +1543,19 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     elf_ppnt = elf_phdata;
     for(i=0;i < elf_ex.e_phnum; i++) {
         if (elf_ppnt->p_type == PT_INTERP) {
-            if ( elf_interpreter != NULL )
-            {
-                free (elf_phdata);
-                free(elf_interpreter);
-                close(bprm->fd);
-                return -EINVAL;
-            }
-
-            /* This is the program interpreter used for
-             * shared libraries - for now assume that this
-             * is an a.out format binary
-             */
-
-            elf_interpreter = (char *)malloc(elf_ppnt->p_filesz);
-
-            if (elf_interpreter == NULL) {
-                free (elf_phdata);
-                close(bprm->fd);
-                return -ENOMEM;
-            }
-
             if (elf_ppnt->p_offset + elf_ppnt->p_filesz <= BPRM_BUF_SIZE) {
-                memcpy(elf_interpreter, bprm->buf + elf_ppnt->p_offset,
-                       elf_ppnt->p_filesz);
+                elf_interpreter = bprm->buf + elf_ppnt->p_offset;
             } else {
+                elf_interpreter = alloca(elf_ppnt->p_filesz);
                 retval = pread(bprm->fd, elf_interpreter, elf_ppnt->p_filesz,
                                elf_ppnt->p_offset);
                 if (retval != elf_ppnt->p_filesz) {
-                    perror("load_elf_binary2");
+                    perror("load_elf_binary");
                     exit(-1);
                 }
             }
-
-            /* If the program interpreter is one of these two,
-               then assume an iBCS2 image. Otherwise assume
-               a native linux image. */
-
-            /* JRP - Need to add X86 lib dir stuff here... */
-
-            if (strcmp(elf_interpreter,"/usr/lib/libc.so.1") == 0 ||
-                strcmp(elf_interpreter,"/usr/lib/ld.so.1") == 0) {
-                ibcs2_interpreter = 1;
-            }
-
-            retval = open(path(elf_interpreter), O_RDONLY);
-            if (retval < 0) {
-                perror(elf_interpreter);
-                exit(-1);
-            }
-            interpreter_fd = retval;
-
-            retval = read(interpreter_fd, bprm->buf, BPRM_BUF_SIZE);
-            if (retval < 0) {
-                perror("load_elf_binary3");
-                exit(-1);
-            }
-            if (retval < BPRM_BUF_SIZE) {
-                memset(bprm->buf, 0, BPRM_BUF_SIZE - retval);
-            }
-
-            interp_elf_ex = *((struct elfhdr *) bprm->buf);
         }
         elf_ppnt++;
-    }
-
-    /* Some simple consistency checks for the interpreter */
-    if (elf_interpreter) {
-        if (!elf_check_ident(&interp_elf_ex)) {
-            free(elf_interpreter);
-            free(elf_phdata);
-            close(bprm->fd);
-            close(interpreter_fd);
-            return -ELIBBAD;
-        }
     }
 
     /* OK, This is the point of no return */
@@ -1710,7 +1716,6 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
                 load_bias += error -
                     TARGET_ELF_PAGESTART(load_bias + elf_ppnt->p_vaddr);
                 load_addr += load_bias;
-                reloc_func_desc = load_bias;
             }
         }
         k = elf_ppnt->p_vaddr;
@@ -1743,19 +1748,15 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     start_data += load_bias;
     end_data += load_bias;
 
-    if (elf_interpreter) {
-        elf_entry = load_elf_interp(&interp_elf_ex, interpreter_fd,
-                                    &interp_load_addr, bprm->buf);
-        reloc_func_desc = interp_load_addr;
-        free(elf_interpreter);
-
-        if (elf_entry == ~((abi_ulong)0UL)) {
-            printf("Unable to load interpreter\n");
-            free(elf_phdata);
-            exit(-1);
-            return 0;
-        }
-    }
+    info->load_bias = load_bias;
+    info->load_addr = load_addr;
+    info->entry = elf_entry;
+    info->start_brk = info->brk = elf_brk;
+    info->end_code = end_code;
+    info->start_code = start_code;
+    info->start_data = start_data;
+    info->end_data = end_data;
+    info->personality = PER_LINUX;
 
     free(elf_phdata);
 
@@ -1764,46 +1765,38 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     }
 
     close(bprm->fd);
-    info->personality = (ibcs2_interpreter ? PER_SVR4 : PER_LINUX);
 
-#ifdef LOW_ELF_STACK
-    info->start_stack = bprm->p = elf_stack - 4;
-#endif
-    bprm->p = create_elf_tables(bprm->p,
-                                bprm->argc,
-                                bprm->envc,
-                                &elf_ex,
-                                load_addr, load_bias,
-                                interp_load_addr,
-                                info);
-    info->load_addr = reloc_func_desc;
-    info->start_brk = info->brk = elf_brk;
-    info->end_code = end_code;
-    info->start_code = start_code;
-    info->start_data = start_data;
-    info->end_data = end_data;
-    info->start_stack = bprm->p;
+    if (elf_interpreter) {
+        load_elf_interp(elf_interpreter, &interp_info, bprm->buf);
 
-#if 0
-    printf("(start_brk) %x\n" , info->start_brk);
-    printf("(end_code) %x\n" , info->end_code);
-    printf("(start_code) %x\n" , info->start_code);
-    printf("(end_data) %x\n" , info->end_data);
-    printf("(start_stack) %x\n" , info->start_stack);
-    printf("(brk) %x\n" , info->brk);
-#endif
+        /* If the program interpreter is one of these two, then assume
+           an iBCS2 image.  Otherwise assume a native linux image.  */
 
-    if ( info->personality == PER_SVR4 )
-    {
-        /* Why this, you ask???  Well SVr4 maps page 0 as read-only,
-           and some applications "depend" upon this behavior.
-           Since we do not have the power to recompile these, we
-           emulate the SVr4 behavior.  Sigh.  */
-        mapped_addr = target_mmap(0, qemu_host_page_size, PROT_READ | PROT_EXEC,
-                                  MAP_FIXED | MAP_PRIVATE, -1, 0);
+        if (strcmp(elf_interpreter, "/usr/lib/libc.so.1") == 0
+            || strcmp(elf_interpreter, "/usr/lib/ld.so.1") == 0) {
+            info->personality = PER_SVR4;
+
+            /* Why this, you ask???  Well SVr4 maps page 0 as read-only,
+               and some applications "depend" upon this behavior.  Since
+               we do not have the power to recompile these, we emulate
+               the SVr4 behavior.  Sigh.  */
+            target_mmap(0, qemu_host_page_size, PROT_READ | PROT_EXEC,
+                        MAP_FIXED | MAP_PRIVATE, -1, 0);
+        }
     }
 
-    info->entry = elf_entry;
+    bprm->p = create_elf_tables(bprm->p, bprm->argc, bprm->envc, &elf_ex,
+                                info, (elf_interpreter ? &interp_info : NULL));
+    info->start_stack = bprm->p;
+
+    /* If we have an interpreter, set that as the program's entry point.
+       Copy the load_addr as well, to help PPC64 interpret the entry
+       point as a function descriptor.  Do this after creating elf tables
+       so that we copy the original program entry point into the AUXV.  */
+    if (elf_interpreter) {
+        info->load_addr = interp_info.load_addr;
+        info->entry = interp_info.entry;
+    }
 
 #ifdef USE_ELF_CORE_DUMP
     bprm->core_dump = &elf_core_dump;
