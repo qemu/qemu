@@ -1469,6 +1469,8 @@ static int send_sub_rect_nojpeg(VncState *vs, int x, int y, int w, int h,
         ret = send_mono_rect(vs, x, y, w, h, bg, fg);
     } else if (colors <= 256) {
         ret = send_palette_rect(vs, x, y, w, h, palette);
+    } else {
+        ret = 0;
     }
     return ret;
 }
