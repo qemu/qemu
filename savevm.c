@@ -1018,6 +1018,7 @@ typedef struct SaveStateEntry {
     const VMStateDescription *vmsd;
     void *opaque;
     CompatEntry *compat;
+    int no_migrate;
 } SaveStateEntry;
 
 
@@ -1081,6 +1082,7 @@ int register_savevm_live(DeviceState *dev,
     se->load_state = load_state;
     se->opaque = opaque;
     se->vmsd = NULL;
+    se->no_migrate = 0;
 
     if (dev && dev->parent_bus && dev->parent_bus->info->get_dev_path) {
         char *id = dev->parent_bus->info->get_dev_path(dev);
@@ -1143,6 +1145,31 @@ void unregister_savevm(DeviceState *dev, const char *idstr, void *opaque)
                 qemu_free(se->compat);
             }
             qemu_free(se);
+        }
+    }
+}
+
+/* mark a device as not to be migrated, that is the device should be
+   unplugged before migration */
+void register_device_unmigratable(DeviceState *dev, const char *idstr,
+                                                            void *opaque)
+{
+    SaveStateEntry *se;
+    char id[256] = "";
+
+    if (dev && dev->parent_bus && dev->parent_bus->info->get_dev_path) {
+        char *path = dev->parent_bus->info->get_dev_path(dev);
+        if (path) {
+            pstrcpy(id, sizeof(id), path);
+            pstrcat(id, sizeof(id), "/");
+            qemu_free(path);
+        }
+    }
+    pstrcat(id, sizeof(id), idstr);
+
+    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
+        if (strcmp(se->idstr, id) == 0 && se->opaque == opaque) {
+            se->no_migrate = 1;
         }
     }
 }
@@ -1353,13 +1380,19 @@ static int vmstate_load(QEMUFile *f, SaveStateEntry *se, int version_id)
     return vmstate_load_state(f, se->vmsd, se->opaque, version_id);
 }
 
-static void vmstate_save(QEMUFile *f, SaveStateEntry *se)
+static int vmstate_save(QEMUFile *f, SaveStateEntry *se)
 {
+    if (se->no_migrate) {
+        return -1;
+    }
+
     if (!se->vmsd) {         /* Old style */
         se->save_state(f, se->opaque);
-        return;
+        return 0;
     }
     vmstate_save_state(f,se->vmsd, se->opaque);
+
+    return 0;
 }
 
 #define QEMU_VM_FILE_MAGIC           0x5145564d
@@ -1454,6 +1487,7 @@ int qemu_savevm_state_iterate(Monitor *mon, QEMUFile *f)
 int qemu_savevm_state_complete(Monitor *mon, QEMUFile *f)
 {
     SaveStateEntry *se;
+    int r;
 
     cpu_synchronize_all_states();
 
@@ -1486,7 +1520,11 @@ int qemu_savevm_state_complete(Monitor *mon, QEMUFile *f)
         qemu_put_be32(f, se->instance_id);
         qemu_put_be32(f, se->version_id);
 
-        vmstate_save(f, se);
+        r = vmstate_save(f, se);
+        if (r < 0) {
+            monitor_printf(mon, "cannot migrate with device '%s'\n", se->idstr);
+            return r;
+        }
     }
 
     qemu_put_byte(f, QEMU_VM_EOF);
