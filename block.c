@@ -2517,7 +2517,7 @@ int bdrv_is_inserted(BlockDriverState *bs)
     if (!drv)
         return 0;
     if (!drv->bdrv_is_inserted)
-        return 1;
+        return !bs->tray_open;
     ret = drv->bdrv_is_inserted(bs);
     return ret;
 }
@@ -2559,9 +2559,10 @@ int bdrv_eject(BlockDriverState *bs, int eject_flag)
         ret = drv->bdrv_eject(bs, eject_flag);
     }
     if (ret == -ENOTSUP) {
-        if (eject_flag)
-            bdrv_close(bs);
         ret = 0;
+    }
+    if (ret >= 0) {
+        bs->tray_open = eject_flag;
     }
 
     return ret;
