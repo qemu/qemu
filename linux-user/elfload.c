@@ -919,6 +919,30 @@ static int elf_core_dump(int, const CPUState *);
 #endif /* USE_ELF_CORE_DUMP */
 static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias);
 
+/* Verify the portions of EHDR within E_IDENT for the target.
+   This can be performed before bswapping the entire header.  */
+static bool elf_check_ident(struct elfhdr *ehdr)
+{
+    return (ehdr->e_ident[EI_MAG0] == ELFMAG0
+            && ehdr->e_ident[EI_MAG1] == ELFMAG1
+            && ehdr->e_ident[EI_MAG2] == ELFMAG2
+            && ehdr->e_ident[EI_MAG3] == ELFMAG3
+            && ehdr->e_ident[EI_CLASS] == ELF_CLASS
+            && ehdr->e_ident[EI_DATA] == ELF_DATA
+            && ehdr->e_ident[EI_VERSION] == EV_CURRENT);
+}
+
+/* Verify the portions of EHDR outside of E_IDENT for the target.
+   This has to wait until after bswapping the header.  */
+static bool elf_check_ehdr(struct elfhdr *ehdr)
+{
+    return (elf_check_arch(ehdr->e_machine)
+            && ehdr->e_ehsize == sizeof(struct elfhdr)
+            && ehdr->e_phentsize == sizeof(struct elf_phdr)
+            && ehdr->e_shentsize == sizeof(struct elf_shdr)
+            && (ehdr->e_type == ET_EXEC || ehdr->e_type == ET_DYN));
+}
+
 /*
  * 'copy_elf_strings()' copies argument/envelope strings from user
  * memory to free pages in kernel mem. These are in a format ready
@@ -1150,32 +1174,15 @@ static abi_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
     int i;
 
     bswap_ehdr(interp_elf_ex);
-    /* First of all, some simple consistency checks */
-    if ((interp_elf_ex->e_type != ET_EXEC &&
-         interp_elf_ex->e_type != ET_DYN) ||
-        !elf_check_arch(interp_elf_ex->e_machine)) {
+    if (!elf_check_ehdr(interp_elf_ex)) {
         return ~((abi_ulong)0UL);
     }
 
     /* Now read in all of the header information */
-
-    if (sizeof(struct elf_phdr) * interp_elf_ex->e_phnum > TARGET_PAGE_SIZE)
-        return ~(abi_ulong)0UL;
-
     elf_phdata =  (struct elf_phdr *)
         malloc(sizeof(struct elf_phdr) * interp_elf_ex->e_phnum);
-
     if (!elf_phdata)
         return ~((abi_ulong)0UL);
-
-    /*
-     * If the size of this structure has changed, then punt, since
-     * we will be doing the wrong thing.
-     */
-    if (interp_elf_ex->e_phentsize != sizeof(struct elf_phdr)) {
-        free(elf_phdata);
-        return ~((abi_ulong)0UL);
-    }
 
     i = interp_elf_ex->e_phnum * sizeof(struct elf_phdr);
     if (interp_elf_ex->e_phoff + i <= BPRM_BUF_SIZE) {
@@ -1428,11 +1435,13 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     load_addr = 0;
     load_bias = 0;
     elf_ex = *((struct elfhdr *) bprm->buf);          /* exec-header */
-    bswap_ehdr(&elf_ex);
 
     /* First of all, some simple consistency checks */
-    if ((elf_ex.e_type != ET_EXEC && elf_ex.e_type != ET_DYN) ||
-        (! elf_check_arch(elf_ex.e_machine))) {
+    if (!elf_check_ident(&elf_ex)) {
+        return -ENOEXEC;
+    }
+    bswap_ehdr(&elf_ex);
+    if (!elf_check_ehdr(&elf_ex)) {
         return -ENOEXEC;
     }
 
@@ -1444,7 +1453,8 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     }
 
     /* Now read in all of the header information */
-    elf_phdata = (struct elf_phdr *)malloc(elf_ex.e_phentsize*elf_ex.e_phnum);
+    elf_phdata = (struct elf_phdr *)
+        malloc(elf_ex.e_phnum * sizeof(struct elf_phdr));
     if (elf_phdata == NULL) {
         return -ENOMEM;
     }
@@ -1549,8 +1559,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
             interpreter_type = INTERPRETER_ELF;
         }
 
-        if (interp_elf_ex.e_ident[0] != 0x7f ||
-            strncmp((char *)&interp_elf_ex.e_ident[1], "ELF",3) != 0) {
+        if (!elf_check_ident(&interp_elf_ex)) {
             interpreter_type &= ~INTERPRETER_ELF;
         }
 
