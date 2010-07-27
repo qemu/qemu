@@ -1002,29 +1002,32 @@ static abi_ulong copy_elf_strings(int argc,char ** argv, void **page,
 static abi_ulong setup_arg_pages(abi_ulong p, struct linux_binprm *bprm,
                                  struct image_info *info)
 {
-    abi_ulong stack_base, size, error;
+    abi_ulong stack_base, size, error, guard;
     int i;
 
     /* Create enough stack to hold everything.  If we don't use
-     * it for args, we'll use it for something else...
-     */
+       it for args, we'll use it for something else.  */
     size = guest_stack_size;
-    if (size < MAX_ARG_PAGES*TARGET_PAGE_SIZE)
+    if (size < MAX_ARG_PAGES*TARGET_PAGE_SIZE) {
         size = MAX_ARG_PAGES*TARGET_PAGE_SIZE;
-    error = target_mmap(0,
-                        size + qemu_host_page_size,
-                        PROT_READ | PROT_WRITE,
-                        MAP_PRIVATE | MAP_ANONYMOUS,
-                        -1, 0);
+    }
+    guard = TARGET_PAGE_SIZE;
+    if (guard < qemu_real_host_page_size) {
+        guard = qemu_real_host_page_size;
+    }
+
+    error = target_mmap(0, size + guard, PROT_READ | PROT_WRITE,
+                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (error == -1) {
-        perror("stk mmap");
+        perror("mmap stack");
         exit(-1);
     }
-    /* we reserve one extra page at the top of the stack as guard */
-    target_mprotect(error + size, qemu_host_page_size, PROT_NONE);
 
-    info->stack_limit = error;
-    stack_base = error + size - MAX_ARG_PAGES*TARGET_PAGE_SIZE;
+    /* We reserve one extra page at the top of the stack as guard.  */
+    target_mprotect(error, guard, PROT_NONE);
+
+    info->stack_limit = error + guard;
+    stack_base = info->stack_limit + size - MAX_ARG_PAGES*TARGET_PAGE_SIZE;
     p += stack_base;
 
     for (i = 0 ; i < MAX_ARG_PAGES ; i++) {
