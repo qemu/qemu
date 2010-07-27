@@ -829,9 +829,6 @@ struct exec
 #define ZMAGIC 0413
 #define QMAGIC 0314
 
-/* max code+data+bss+brk space allocated to ET_DYN executables */
-#define ET_DYN_MAP_SIZE (128 * 1024 * 1024)
-
 /* Necessary parameters */
 #define TARGET_ELF_EXEC_PAGESIZE TARGET_PAGE_SIZE
 #define TARGET_ELF_PAGESTART(_v) ((_v) & ~(unsigned long)(TARGET_ELF_EXEC_PAGESIZE-1))
@@ -1169,7 +1166,7 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
    On return: INFO values will be filled in, as necessary or available.  */
 
 static void load_elf_image(const char *image_name, int image_fd,
-                           struct image_info *info,
+                           struct image_info *info, char **pinterp_name,
                            char bprm_buf[BPRM_BUF_SIZE])
 {
     struct elfhdr *ehdr = (struct elfhdr *)bprm_buf;
@@ -1229,6 +1226,67 @@ static void load_elf_image(const char *image_name, int image_fd,
         if (load_addr == -1) {
             goto exit_perror;
         }
+    } else if (pinterp_name != NULL) {
+        /* This is the main executable.  Make sure that the low
+           address does not conflict with MMAP_MIN_ADDR or the
+           QEMU application itself.  */
+#if defined(CONFIG_USE_GUEST_BASE)
+        /*
+         * In case where user has not explicitly set the guest_base, we
+         * probe here that should we set it automatically.
+         */
+        if (!have_guest_base && !reserved_va) {
+            unsigned long host_start, real_start, host_size;
+
+            /* Round addresses to page boundaries.  */
+            loaddr &= qemu_host_page_mask;
+            hiaddr = HOST_PAGE_ALIGN(hiaddr);
+
+            if (loaddr < mmap_min_addr) {
+                host_start = HOST_PAGE_ALIGN(mmap_min_addr);
+            } else {
+                host_start = loaddr;
+                if (host_start != loaddr) {
+                    errmsg = "Address overflow loading ELF binary";
+                    goto exit_errmsg;
+                }
+            }
+            host_size = hiaddr - loaddr;
+            while (1) {
+                /* Do not use mmap_find_vma here because that is limited to the
+                   guest address space.  We are going to make the
+                   guest address space fit whatever we're given.  */
+                real_start = (unsigned long)
+                    mmap((void *)host_start, host_size, PROT_NONE,
+                         MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0);
+                if (real_start == (unsigned long)-1) {
+                    goto exit_perror;
+                }
+                if (real_start == host_start) {
+                    break;
+                }
+                /* That address didn't work.  Unmap and try a different one.
+                   The address the host picked because is typically right at
+                   the top of the host address space and leaves the guest with
+                   no usable address space.  Resort to a linear search.  We
+                   already compensated for mmap_min_addr, so this should not
+                   happen often.  Probably means we got unlucky and host
+                   address space randomization put a shared library somewhere
+                   inconvenient.  */
+                munmap((void *)real_start, host_size);
+                host_start += qemu_host_page_size;
+                if (host_start == loaddr) {
+                    /* Theoretically possible if host doesn't have any suitably
+                       aligned areas.  Normally the first mmap will fail.  */
+                    errmsg = "Unable to find space for application";
+                    goto exit_errmsg;
+                }
+            }
+            qemu_log("Relocating guest address space from 0x"
+                     TARGET_ABI_FMT_lx " to 0x%lx\n", loaddr, real_start);
+            guest_base = real_start - loaddr;
+        }
+#endif
     }
     load_bias = load_addr - loaddr;
 
@@ -1290,6 +1348,33 @@ static void load_elf_image(const char *image_name, int image_fd,
                     info->brk = vaddr_em;
                 }
             }
+        } else if (eppnt->p_type == PT_INTERP && pinterp_name) {
+            char *interp_name;
+
+            if (*pinterp_name) {
+                errmsg = "Multiple PT_INTERP entries";
+                goto exit_errmsg;
+            }
+            interp_name = malloc(eppnt->p_filesz);
+            if (!interp_name) {
+                goto exit_perror;
+            }
+
+            if (eppnt->p_offset + eppnt->p_filesz <= BPRM_BUF_SIZE) {
+                memcpy(interp_name, bprm_buf + eppnt->p_offset,
+                       eppnt->p_filesz);
+            } else {
+                retval = pread(image_fd, interp_name, eppnt->p_filesz,
+                               eppnt->p_offset);
+                if (retval != eppnt->p_filesz) {
+                    goto exit_perror;
+                }
+            }
+            if (interp_name[eppnt->p_filesz - 1] != 0) {
+                errmsg = "Invalid PT_INTERP entry";
+                goto exit_errmsg;
+            }
+            *pinterp_name = interp_name;
         }
     }
 
@@ -1336,7 +1421,7 @@ static void load_elf_interp(const char *filename, struct image_info *info,
         memset(bprm_buf + retval, 0, BPRM_BUF_SIZE - retval);
     }
 
-    load_elf_image(filename, fd, info, bprm_buf);
+    load_elf_image(filename, fd, info, NULL, bprm_buf);
     return;
 
  exit_perror:
@@ -1480,291 +1565,31 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
 {
     struct image_info interp_info;
     struct elfhdr elf_ex;
-    abi_ulong load_addr, load_bias;
-    int load_addr_set = 0;
-    int i;
-    struct elf_phdr * elf_ppnt;
-    struct elf_phdr *elf_phdata;
-    abi_ulong k, elf_brk;
-    int retval;
     char *elf_interpreter = NULL;
-    abi_ulong elf_entry;
-    int status;
-    abi_ulong start_code, end_code, start_data, end_data;
-    abi_ulong elf_stack;
 
-    status = 0;
-    load_addr = 0;
-    load_bias = 0;
-    elf_ex = *((struct elfhdr *) bprm->buf);          /* exec-header */
+    info->start_mmap = (abi_ulong)ELF_START_MMAP;
+    info->mmap = 0;
+    info->rss = 0;
 
-    /* First of all, some simple consistency checks */
-    if (!elf_check_ident(&elf_ex)) {
-        return -ENOEXEC;
-    }
-    bswap_ehdr(&elf_ex);
-    if (!elf_check_ehdr(&elf_ex)) {
-        return -ENOEXEC;
-    }
+    load_elf_image(bprm->filename, bprm->fd, info,
+                   &elf_interpreter, bprm->buf);
+
+    /* ??? We need a copy of the elf header for passing to create_elf_tables.
+       If we do nothing, we'll have overwritten this when we re-use bprm->buf
+       when we load the interpreter.  */
+    elf_ex = *(struct elfhdr *)bprm->buf;
 
     bprm->p = copy_elf_strings(1, &bprm->filename, bprm->page, bprm->p);
     bprm->p = copy_elf_strings(bprm->envc,bprm->envp,bprm->page,bprm->p);
     bprm->p = copy_elf_strings(bprm->argc,bprm->argv,bprm->page,bprm->p);
     if (!bprm->p) {
-        retval = -E2BIG;
+        fprintf(stderr, "%s: %s\n", bprm->filename, strerror(E2BIG));
+        exit(-1);
     }
-
-    /* Now read in all of the header information */
-    elf_phdata = (struct elf_phdr *)
-        malloc(elf_ex.e_phnum * sizeof(struct elf_phdr));
-    if (elf_phdata == NULL) {
-        return -ENOMEM;
-    }
-
-    i = elf_ex.e_phnum * sizeof(struct elf_phdr);
-    if (elf_ex.e_phoff + i <= BPRM_BUF_SIZE) {
-        memcpy(elf_phdata, bprm->buf + elf_ex.e_phoff, i);
-    } else {
-        retval = pread(bprm->fd, (char *) elf_phdata, i, elf_ex.e_phoff);
-        if (retval != i) {
-            perror("load_elf_binary");
-            exit(-1);
-        }
-    }
-    bswap_phdr(elf_phdata, elf_ex.e_phnum);
-
-    elf_brk = 0;
-    elf_stack = ~((abi_ulong)0UL);
-    start_code = ~((abi_ulong)0UL);
-    end_code = 0;
-    start_data = 0;
-    end_data = 0;
-
-    elf_ppnt = elf_phdata;
-    for(i=0;i < elf_ex.e_phnum; i++) {
-        if (elf_ppnt->p_type == PT_INTERP) {
-            if (elf_ppnt->p_offset + elf_ppnt->p_filesz <= BPRM_BUF_SIZE) {
-                elf_interpreter = bprm->buf + elf_ppnt->p_offset;
-            } else {
-                elf_interpreter = alloca(elf_ppnt->p_filesz);
-                retval = pread(bprm->fd, elf_interpreter, elf_ppnt->p_filesz,
-                               elf_ppnt->p_offset);
-                if (retval != elf_ppnt->p_filesz) {
-                    perror("load_elf_binary");
-                    exit(-1);
-                }
-            }
-        }
-        elf_ppnt++;
-    }
-
-    /* OK, This is the point of no return */
-    info->end_data = 0;
-    info->end_code = 0;
-    info->start_mmap = (abi_ulong)ELF_START_MMAP;
-    info->mmap = 0;
-    elf_entry = (abi_ulong) elf_ex.e_entry;
-
-#if defined(CONFIG_USE_GUEST_BASE)
-    /*
-     * In case where user has not explicitly set the guest_base, we
-     * probe here that should we set it automatically.
-     */
-    if (!(have_guest_base || reserved_va)) {
-        /*
-         * Go through ELF program header table and find the address
-         * range used by loadable segments.  Check that this is available on
-         * the host, and if not find a suitable value for guest_base.  */
-        abi_ulong app_start = ~0;
-        abi_ulong app_end = 0;
-        abi_ulong addr;
-        unsigned long host_start;
-        unsigned long real_start;
-        unsigned long host_size;
-        for (i = 0, elf_ppnt = elf_phdata; i < elf_ex.e_phnum;
-             i++, elf_ppnt++) {
-            if (elf_ppnt->p_type != PT_LOAD)
-                continue;
-            addr = elf_ppnt->p_vaddr;
-            if (addr < app_start) {
-                app_start = addr;
-            }
-            addr += elf_ppnt->p_memsz;
-            if (addr > app_end) {
-                app_end = addr;
-            }
-        }
-
-        /* If we don't have any loadable segments then something
-           is very wrong.  */
-        assert(app_start < app_end);
-
-        /* Round addresses to page boundaries.  */
-        app_start = app_start & qemu_host_page_mask;
-        app_end = HOST_PAGE_ALIGN(app_end);
-        if (app_start < mmap_min_addr) {
-            host_start = HOST_PAGE_ALIGN(mmap_min_addr);
-        } else {
-            host_start = app_start;
-            if (host_start != app_start) {
-                fprintf(stderr, "qemu: Address overflow loading ELF binary\n");
-                abort();
-            }
-        }
-        host_size = app_end - app_start;
-        while (1) {
-            /* Do not use mmap_find_vma here because that is limited to the
-               guest address space.  We are going to make the
-               guest address space fit whatever we're given.  */
-            real_start = (unsigned long)mmap((void *)host_start, host_size,
-                PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0);
-            if (real_start == (unsigned long)-1) {
-                fprintf(stderr, "qemu: Virtual memory exausted\n");
-                abort();
-            }
-            if (real_start == host_start) {
-                break;
-            }
-            /* That address didn't work.  Unmap and try a different one.
-               The address the host picked because is typically
-               right at the top of the host address space and leaves the
-               guest with no usable address space.  Resort to a linear search.
-               We already compensated for mmap_min_addr, so this should not
-               happen often.  Probably means we got unlucky and host address
-               space randomization put a shared library somewhere
-               inconvenient.  */
-            munmap((void *)real_start, host_size);
-            host_start += qemu_host_page_size;
-            if (host_start == app_start) {
-                /* Theoretically possible if host doesn't have any
-                   suitably aligned areas.  Normally the first mmap will
-                   fail.  */
-                fprintf(stderr, "qemu: Unable to find space for application\n");
-                abort();
-            }
-        }
-        qemu_log("Relocating guest address space from 0x" TARGET_ABI_FMT_lx
-                 " to 0x%lx\n", app_start, real_start);
-        guest_base = real_start - app_start;
-    }
-#endif /* CONFIG_USE_GUEST_BASE */
 
     /* Do this so that we can load the interpreter, if need be.  We will
        change some of these later */
-    info->rss = 0;
     bprm->p = setup_arg_pages(bprm->p, bprm, info);
-    info->start_stack = bprm->p;
-
-    /* Now we do a little grungy work by mmaping the ELF image into
-     * the correct location in memory.  At this point, we assume that
-     * the image should be loaded at fixed address, not at a variable
-     * address.
-     */
-
-    for(i = 0, elf_ppnt = elf_phdata; i < elf_ex.e_phnum; i++, elf_ppnt++) {
-        int elf_prot = 0;
-        int elf_flags = 0;
-        abi_ulong error;
-
-        if (elf_ppnt->p_type != PT_LOAD)
-            continue;
-
-        if (elf_ppnt->p_flags & PF_R) elf_prot |= PROT_READ;
-        if (elf_ppnt->p_flags & PF_W) elf_prot |= PROT_WRITE;
-        if (elf_ppnt->p_flags & PF_X) elf_prot |= PROT_EXEC;
-        elf_flags = MAP_PRIVATE | MAP_DENYWRITE;
-        if (elf_ex.e_type == ET_EXEC || load_addr_set) {
-            elf_flags |= MAP_FIXED;
-        } else if (elf_ex.e_type == ET_DYN) {
-            /* Try and get dynamic programs out of the way of the default mmap
-               base, as well as whatever program they might try to exec.  This
-               is because the brk will follow the loader, and is not movable.  */
-            /* NOTE: for qemu, we do a big mmap to get enough space
-               without hardcoding any address */
-            error = target_mmap(0, ET_DYN_MAP_SIZE,
-                                PROT_NONE, MAP_PRIVATE | MAP_ANON,
-                                -1, 0);
-            if (error == -1) {
-                perror("mmap");
-                exit(-1);
-            }
-            load_bias = TARGET_ELF_PAGESTART(error - elf_ppnt->p_vaddr);
-        }
-
-        error = target_mmap(TARGET_ELF_PAGESTART(load_bias + elf_ppnt->p_vaddr),
-                            (elf_ppnt->p_filesz +
-                             TARGET_ELF_PAGEOFFSET(elf_ppnt->p_vaddr)),
-                            elf_prot,
-                            (MAP_FIXED | MAP_PRIVATE | MAP_DENYWRITE),
-                            bprm->fd,
-                            (elf_ppnt->p_offset -
-                             TARGET_ELF_PAGEOFFSET(elf_ppnt->p_vaddr)));
-        if (error == -1) {
-            perror("mmap");
-            exit(-1);
-        }
-
-#ifdef LOW_ELF_STACK
-        if (TARGET_ELF_PAGESTART(elf_ppnt->p_vaddr) < elf_stack)
-            elf_stack = TARGET_ELF_PAGESTART(elf_ppnt->p_vaddr);
-#endif
-
-        if (!load_addr_set) {
-            load_addr_set = 1;
-            load_addr = elf_ppnt->p_vaddr - elf_ppnt->p_offset;
-            if (elf_ex.e_type == ET_DYN) {
-                load_bias += error -
-                    TARGET_ELF_PAGESTART(load_bias + elf_ppnt->p_vaddr);
-                load_addr += load_bias;
-            }
-        }
-        k = elf_ppnt->p_vaddr;
-        if (k < start_code)
-            start_code = k;
-        if (start_data < k)
-            start_data = k;
-        k = elf_ppnt->p_vaddr + elf_ppnt->p_filesz;
-        if ((elf_ppnt->p_flags & PF_X) && end_code <  k)
-            end_code = k;
-        if (end_data < k)
-            end_data = k;
-        k = elf_ppnt->p_vaddr + elf_ppnt->p_memsz;
-        if (k > elf_brk) {
-            elf_brk = TARGET_PAGE_ALIGN(k);
-        }
-
-        /* If the load segment requests extra zeros (e.g. bss), map it.  */
-        if (elf_ppnt->p_filesz < elf_ppnt->p_memsz) {
-            abi_ulong base = load_bias + elf_ppnt->p_vaddr;
-            zero_bss(base + elf_ppnt->p_filesz,
-                     base + elf_ppnt->p_memsz, elf_prot);
-        }
-    }
-
-    elf_entry += load_bias;
-    elf_brk += load_bias;
-    start_code += load_bias;
-    end_code += load_bias;
-    start_data += load_bias;
-    end_data += load_bias;
-
-    info->load_bias = load_bias;
-    info->load_addr = load_addr;
-    info->entry = elf_entry;
-    info->start_brk = info->brk = elf_brk;
-    info->end_code = end_code;
-    info->start_code = start_code;
-    info->start_data = start_data;
-    info->end_data = end_data;
-    info->personality = PER_LINUX;
-
-    free(elf_phdata);
-
-    if (qemu_log_enabled()) {
-        load_symbols(&elf_ex, bprm->fd, load_bias);
-    }
-
-    close(bprm->fd);
 
     if (elf_interpreter) {
         load_elf_interp(elf_interpreter, &interp_info, bprm->buf);
@@ -1796,6 +1621,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     if (elf_interpreter) {
         info->load_addr = interp_info.load_addr;
         info->entry = interp_info.entry;
+        free(elf_interpreter);
     }
 
 #ifdef USE_ELF_CORE_DUMP
