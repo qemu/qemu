@@ -94,6 +94,9 @@ void qemu_chr_info_print(Monitor *mon, const QObject *ret_data);
 void qemu_chr_info(Monitor *mon, QObject **ret_data);
 CharDriverState *qemu_chr_find(const char *name);
 
+/* add an eventfd to the qemu devices that are polled */
+CharDriverState *qemu_chr_open_eventfd(int eventfd);
+
 extern int term_escape_char;
 
 /* async I/O support */
