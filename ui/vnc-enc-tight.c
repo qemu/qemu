@@ -111,16 +111,16 @@ static bool tight_can_send_png_rect(VncState *vs, int w, int h)
  * compression (by applying "gradient" filter or JPEG coder).
  */
 
-static uint
+static unsigned int
 tight_detect_smooth_image24(VncState *vs, int w, int h)
 {
     int off;
     int x, y, d, dx;
-    uint c;
-    uint stats[256];
+    unsigned int c;
+    unsigned int stats[256];
     int pixels = 0;
     int pix, left[3];
-    uint errors;
+    unsigned int errors;
     unsigned char *buf = vs->tight.tight.buffer;
 
     /*
@@ -177,17 +177,17 @@ tight_detect_smooth_image24(VncState *vs, int w, int h)
 
 #define DEFINE_DETECT_FUNCTION(bpp)                                     \
                                                                         \
-    static uint                                                         \
+    static unsigned int                                                 \
     tight_detect_smooth_image##bpp(VncState *vs, int w, int h) {        \
         bool endian;                                                    \
         uint##bpp##_t pix;                                              \
         int max[3], shift[3];                                           \
         int x, y, d, dx;                                                \
-        uint c;                                                         \
-        uint stats[256];                                                \
+        unsigned int c;                                                 \
+        unsigned int stats[256];                                        \
         int pixels = 0;                                                 \
         int sample, sum, left[3];                                       \
-        uint errors;                                                    \
+        unsigned int errors;                                            \
         unsigned char *buf = vs->tight.tight.buffer;                    \
                                                                         \
         endian = ((vs->clientds.flags & QEMU_BIG_ENDIAN_FLAG) !=        \
@@ -267,7 +267,7 @@ DEFINE_DETECT_FUNCTION(32)
 static int
 tight_detect_smooth_image(VncState *vs, int w, int h)
 {
-    uint errors;
+    unsigned int errors;
     int compression = vs->tight.compression;
     int quality = vs->tight.quality;
 
