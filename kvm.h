@@ -175,6 +175,7 @@ static inline void cpu_synchronize_post_init(CPUState *env)
 }
 
 #endif
+int kvm_set_ioeventfd_mmio_long(int fd, uint32_t adr, uint32_t val, bool assign);
 
 int kvm_set_ioeventfd_pio_word(int fd, uint16_t adr, uint16_t val, bool assign);
 #endif
