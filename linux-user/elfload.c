@@ -837,18 +837,12 @@ struct exec
 #define TARGET_ELF_PAGESTART(_v) ((_v) & ~(unsigned long)(TARGET_ELF_EXEC_PAGESIZE-1))
 #define TARGET_ELF_PAGEOFFSET(_v) ((_v) & (TARGET_ELF_EXEC_PAGESIZE-1))
 
-#define INTERPRETER_NONE 0
-#define INTERPRETER_AOUT 1
-#define INTERPRETER_ELF 2
-
 #define DLINFO_ITEMS 12
 
 static inline void memcpy_fromfs(void * to, const void * from, unsigned long n)
 {
     memcpy(to, from, n);
 }
-
-static int load_aout_interp(void * exptr, int interp_fd);
 
 #ifdef BSWAP_NEEDED
 static void bswap_ehdr(struct elfhdr *ehdr)
@@ -1088,7 +1082,7 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
                                    struct elfhdr * exec,
                                    abi_ulong load_addr,
                                    abi_ulong load_bias,
-                                   abi_ulong interp_load_addr, int ibcs,
+                                   abi_ulong interp_load_addr,
                                    struct image_info *info)
 {
     abi_ulong sp;
@@ -1118,7 +1112,7 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     size += DLINFO_ARCH_ITEMS * 2;
 #endif
     size += envc + argc + 2;
-    size += (!ibcs ? 3 : 1);    /* argc itself */
+    size += 1;  /* argc itself */
     size *= n;
     if (size & 15)
         sp -= 16 - (size & 15);
@@ -1160,7 +1154,7 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
 
     info->saved_auxv = sp;
 
-    sp = loader_build_argptr(envc, argc, sp, p, !ibcs);
+    sp = loader_build_argptr(envc, argc, sp, p, 0);
     return sp;
 }
 
@@ -1413,11 +1407,9 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
 {
     struct elfhdr elf_ex;
     struct elfhdr interp_elf_ex;
-    struct exec interp_ex;
     int interpreter_fd = -1; /* avoid warning */
     abi_ulong load_addr, load_bias;
     int load_addr_set = 0;
-    unsigned int interpreter_type = INTERPRETER_NONE;
     unsigned char ibcs2_interpreter;
     int i;
     abi_ulong mapped_addr;
@@ -1431,7 +1423,6 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     abi_ulong start_code, end_code, start_data, end_data;
     abi_ulong reloc_func_desc = 0;
     abi_ulong elf_stack;
-    char passed_fileno[6];
 
     ibcs2_interpreter = 0;
     status = 0;
@@ -1481,7 +1472,6 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     end_code = 0;
     start_data = 0;
     end_data = 0;
-    interp_ex.a_info = 0;
 
     elf_ppnt = elf_phdata;
     for(i=0;i < elf_ex.e_phnum; i++) {
@@ -1546,56 +1536,19 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
                 memset(bprm->buf, 0, BPRM_BUF_SIZE - retval);
             }
 
-            interp_ex = *((struct exec *) bprm->buf); /* aout exec-header */
-            interp_elf_ex = *((struct elfhdr *) bprm->buf); /* elf exec-header */
+            interp_elf_ex = *((struct elfhdr *) bprm->buf);
         }
         elf_ppnt++;
     }
 
     /* Some simple consistency checks for the interpreter */
-    if (elf_interpreter){
-        interpreter_type = INTERPRETER_ELF | INTERPRETER_AOUT;
-
-        /* Now figure out which format our binary is */
-        if ((N_MAGIC(interp_ex) != OMAGIC) && (N_MAGIC(interp_ex) != ZMAGIC) &&
-            (N_MAGIC(interp_ex) != QMAGIC)) {
-            interpreter_type = INTERPRETER_ELF;
-        }
-
+    if (elf_interpreter) {
         if (!elf_check_ident(&interp_elf_ex)) {
-            interpreter_type &= ~INTERPRETER_ELF;
-        }
-
-        if (!interpreter_type) {
             free(elf_interpreter);
             free(elf_phdata);
             close(bprm->fd);
+            close(interpreter_fd);
             return -ELIBBAD;
-        }
-    }
-
-    /* OK, we are done with that, now set up the arg stuff,
-       and then start this sucker up */
-
-    {
-        char * passed_p;
-
-        if (interpreter_type == INTERPRETER_AOUT) {
-            snprintf(passed_fileno, sizeof(passed_fileno), "%d", bprm->fd);
-            passed_p = passed_fileno;
-
-            if (elf_interpreter) {
-                bprm->p = copy_elf_strings(1,&passed_p,bprm->page,bprm->p);
-                bprm->argc++;
-            }
-        }
-        if (!bprm->p) {
-            if (elf_interpreter) {
-                free(elf_interpreter);
-            }
-            free (elf_phdata);
-            close(bprm->fd);
-            return -E2BIG;
         }
     }
 
@@ -1791,15 +1744,9 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     end_data += load_bias;
 
     if (elf_interpreter) {
-        if (interpreter_type & 1) {
-            elf_entry = load_aout_interp(&interp_ex, interpreter_fd);
-        } else if (interpreter_type & 2) {
-            elf_entry = load_elf_interp(&interp_elf_ex, interpreter_fd,
-                                        &interp_load_addr, bprm->buf);
-        }
+        elf_entry = load_elf_interp(&interp_elf_ex, interpreter_fd,
+                                    &interp_load_addr, bprm->buf);
         reloc_func_desc = interp_load_addr;
-
-        close(interpreter_fd);
         free(elf_interpreter);
 
         if (elf_entry == ~((abi_ulong)0UL)) {
@@ -1816,7 +1763,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
         load_symbols(&elf_ex, bprm->fd, load_bias);
     }
 
-    if (interpreter_type != INTERPRETER_AOUT) close(bprm->fd);
+    close(bprm->fd);
     info->personality = (ibcs2_interpreter ? PER_SVR4 : PER_LINUX);
 
 #ifdef LOW_ELF_STACK
@@ -1828,7 +1775,6 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
                                 &elf_ex,
                                 load_addr, load_bias,
                                 interp_load_addr,
-                                (interpreter_type == INTERPRETER_AOUT ? 0 : 1),
                                 info);
     info->load_addr = reloc_func_desc;
     info->start_brk = info->brk = elf_brk;
@@ -2711,14 +2657,7 @@ static int elf_core_dump(int signr, const CPUState *env)
         return (-errno);
     return (0);
 }
-
 #endif /* USE_ELF_CORE_DUMP */
-
-static int load_aout_interp(void * exptr, int interp_fd)
-{
-    printf("a.out interpreter not yet supported\n");
-    return(0);
-}
 
 void do_init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
