@@ -2733,6 +2733,7 @@ static EndTransferFunc* transfer_end_table[] = {
         ide_transfer_stop,
         ide_atapi_cmd_reply_end,
         ide_atapi_cmd,
+        ide_dummy_transfer_stop,
 };
 
 static int transfer_end_table_idx(EndTransferFunc *fn)
@@ -2756,25 +2757,27 @@ static int ide_drive_post_load(void *opaque, int version_id)
             s->cdrom_changed = 1;
         }
     }
-
-    if (s->cur_io_buffer_len) {
-        s->end_transfer_func = transfer_end_table[s->end_transfer_fn_idx];
-        s->data_ptr = s->io_buffer + s->cur_io_buffer_offset;
-        s->data_end = s->data_ptr + s->cur_io_buffer_len;
-    }
-        
     return 0;
 }
 
-static void ide_drive_pre_save(void *opaque)
+static int ide_drive_pio_post_load(void *opaque, int version_id)
+{
+    IDEState *s = opaque;
+
+    if (s->end_transfer_fn_idx > ARRAY_SIZE(transfer_end_table)) {
+        return -EINVAL;
+    }
+    s->end_transfer_func = transfer_end_table[s->end_transfer_fn_idx];
+    s->data_ptr = s->io_buffer + s->cur_io_buffer_offset;
+    s->data_end = s->data_ptr + s->cur_io_buffer_len;
+
+    return 0;
+}
+
+static void ide_drive_pio_pre_save(void *opaque)
 {
     IDEState *s = opaque;
     int idx;
-
-    s->cur_io_buffer_len = 0;
-
-    if (!(s->status & DRQ_STAT))
-        return;
 
     s->cur_io_buffer_offset = s->data_ptr - s->io_buffer;
     s->cur_io_buffer_len = s->data_end - s->data_ptr;
@@ -2789,12 +2792,38 @@ static void ide_drive_pre_save(void *opaque)
     }
 }
 
+static bool ide_drive_pio_state_needed(void *opaque)
+{
+    IDEState *s = opaque;
+
+    return (s->status & DRQ_STAT) != 0;
+}
+
+const VMStateDescription vmstate_ide_drive_pio_state = {
+    .name = "ide_drive/pio_state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .pre_save = ide_drive_pio_pre_save,
+    .post_load = ide_drive_pio_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_INT32(req_nb_sectors, IDEState),
+        VMSTATE_VARRAY_INT32(io_buffer, IDEState, io_buffer_total_len, 1,
+			     vmstate_info_uint8, uint8_t),
+        VMSTATE_INT32(cur_io_buffer_offset, IDEState),
+        VMSTATE_INT32(cur_io_buffer_len, IDEState),
+        VMSTATE_UINT8(end_transfer_fn_idx, IDEState),
+        VMSTATE_INT32(elementary_transfer_size, IDEState),
+        VMSTATE_INT32(packet_transfer_size, IDEState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_ide_drive = {
     .name = "ide_drive",
-    .version_id = 4,
+    .version_id = 3,
     .minimum_version_id = 0,
     .minimum_version_id_old = 0,
-    .pre_save = ide_drive_pre_save,
     .post_load = ide_drive_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_INT32(mult_sectors, IDEState),
@@ -2817,15 +2846,15 @@ const VMStateDescription vmstate_ide_drive = {
         VMSTATE_UINT8(sense_key, IDEState),
         VMSTATE_UINT8(asc, IDEState),
         VMSTATE_UINT8_V(cdrom_changed, IDEState, 3),
-        VMSTATE_INT32_V(req_nb_sectors, IDEState, 4),
-        VMSTATE_VARRAY_INT32(io_buffer, IDEState, io_buffer_total_len, 4,
-			     vmstate_info_uint8, uint8_t),
-        VMSTATE_INT32_V(cur_io_buffer_offset, IDEState, 4),
-        VMSTATE_INT32_V(cur_io_buffer_len, IDEState, 4),
-        VMSTATE_UINT8_V(end_transfer_fn_idx, IDEState, 4),
-        VMSTATE_INT32_V(elementary_transfer_size, IDEState, 4),
-        VMSTATE_INT32_V(packet_transfer_size, IDEState, 4),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (VMStateSubsection []) {
+        {
+            .vmsd = &vmstate_ide_drive_pio_state,
+            .needed = ide_drive_pio_state_needed,
+        }, {
+            /* empty */
+        }
     }
 };
 

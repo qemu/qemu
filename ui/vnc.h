@@ -29,10 +29,14 @@
 
 #include "qemu-common.h"
 #include "qemu-queue.h"
+#ifdef CONFIG_VNC_THREAD
+#include "qemu-thread.h"
+#endif
 #include "console.h"
 #include "monitor.h"
 #include "audio/audio.h"
 #include <zlib.h>
+#include <stdbool.h>
 
 #include "keymaps.h"
 
@@ -58,6 +62,9 @@ typedef struct Buffer
 } Buffer;
 
 typedef struct VncState VncState;
+typedef struct VncJob VncJob;
+typedef struct VncRect VncRect;
+typedef struct VncRectEntry VncRectEntry;
 
 typedef int VncReadEvent(VncState *vs, uint8_t *data, size_t len);
 
@@ -100,6 +107,9 @@ struct VncDisplay
     DisplayState *ds;
     kbd_layout_t *kbd_layout;
     int lock_key_sync;
+#ifdef CONFIG_VNC_THREAD
+    QemuMutex mutex;
+#endif
 
     QEMUCursor *cursor;
     int cursor_msize;
@@ -111,6 +121,7 @@ struct VncDisplay
     char *display;
     char *password;
     int auth;
+    bool lossy;
 #ifdef CONFIG_VNC_TLS
     int subauth; /* Used by VeNCrypt */
     VncDisplayTLS tls;
@@ -120,11 +131,69 @@ struct VncDisplay
 #endif
 };
 
-#define VNCSTATE_MAGIC 0x11222211
+typedef struct VncTight {
+    int type;
+    uint8_t quality;
+    uint8_t compression;
+    uint8_t pixel24;
+    Buffer tight;
+    Buffer tmp;
+    Buffer zlib;
+    Buffer gradient;
+#ifdef CONFIG_VNC_JPEG
+    Buffer jpeg;
+#endif
+#ifdef CONFIG_VNC_PNG
+    Buffer png;
+#endif
+    int levels[4];
+    z_stream stream[4];
+} VncTight;
+
+typedef struct VncHextile {
+    VncSendHextileTile *send_tile;
+} VncHextile;
+
+typedef struct VncZlib {
+    Buffer zlib;
+    Buffer tmp;
+    z_stream stream;
+    int level;
+} VncZlib;
+
+#ifdef CONFIG_VNC_THREAD
+struct VncRect
+{
+    int x;
+    int y;
+    int w;
+    int h;
+};
+
+struct VncRectEntry
+{
+    struct VncRect rect;
+    QLIST_ENTRY(VncRectEntry) next;
+};
+
+struct VncJob
+{
+    VncState *vs;
+
+    QLIST_HEAD(, VncRectEntry) rectangles;
+    QTAILQ_ENTRY(VncJob) next;
+};
+#else
+struct VncJob
+{
+    VncState *vs;
+    int rectangles;
+    size_t saved_offset;
+};
+#endif
 
 struct VncState
 {
-    uint32_t magic;
     int csock;
 
     DisplayState *ds;
@@ -170,26 +239,20 @@ struct VncState
     uint8_t modifiers_state[256];
     QEMUPutLEDEntry *led;
 
-    /* Encoding specific */
+    bool abort;
+#ifndef CONFIG_VNC_THREAD
+    VncJob job;
+#else
+    QemuMutex output_mutex;
+#endif
 
-    /* Tight */
-    uint8_t tight_quality;
-    uint8_t tight_compression;
-    uint8_t tight_pixel24;
-    Buffer tight;
-    Buffer tight_tmp;
-    Buffer tight_zlib;
-    int tight_levels[4];
-    z_stream tight_stream[4];
+    /* Encoding specific, if you add something here, don't forget to
+     *  update vnc_async_encoding_start()
+     */
+    VncTight tight;
+    VncZlib zlib;
+    VncHextile hextile;
 
-    /* Hextile */
-    VncSendHextileTile *send_hextile_tile;
-
-    /* Zlib */
-    Buffer zlib;
-    Buffer zlib_tmp;
-    z_stream zlib_stream;
-    int zlib_level;
 
     Notifier mouse_mode_notifier;
 
@@ -256,6 +319,7 @@ enum {
 #define VNC_ENCODING_POINTER_TYPE_CHANGE  0XFFFFFEFF /* -257 */
 #define VNC_ENCODING_EXT_KEY_EVENT        0XFFFFFEFE /* -258 */
 #define VNC_ENCODING_AUDIO                0XFFFFFEFD /* -259 */
+#define VNC_ENCODING_TIGHT_PNG            0xFFFFFEFC /* -260 */
 #define VNC_ENCODING_WMVi                 0x574D5669
 
 /*****************************************************************************
@@ -272,6 +336,7 @@ enum {
 #define VNC_TIGHT_CCB_TYPE_MASK    (0x0f << 4)
 #define VNC_TIGHT_CCB_TYPE_FILL    (0x08 << 4)
 #define VNC_TIGHT_CCB_TYPE_JPEG    (0x09 << 4)
+#define VNC_TIGHT_CCB_TYPE_PNG     (0x0A << 4)
 #define VNC_TIGHT_CCB_BASIC_MAX    (0x07 << 4)
 #define VNC_TIGHT_CCB_BASIC_ZLIB   (0x03 << 4)
 #define VNC_TIGHT_CCB_BASIC_FILTER (0x04 << 4)
@@ -290,6 +355,7 @@ enum {
 #define VNC_FEATURE_ZLIB                     5
 #define VNC_FEATURE_COPYRECT                 6
 #define VNC_FEATURE_RICH_CURSOR              7
+#define VNC_FEATURE_TIGHT_PNG                8
 
 #define VNC_FEATURE_RESIZE_MASK              (1 << VNC_FEATURE_RESIZE)
 #define VNC_FEATURE_HEXTILE_MASK             (1 << VNC_FEATURE_HEXTILE)
@@ -299,6 +365,7 @@ enum {
 #define VNC_FEATURE_ZLIB_MASK                (1 << VNC_FEATURE_ZLIB)
 #define VNC_FEATURE_COPYRECT_MASK            (1 << VNC_FEATURE_COPYRECT)
 #define VNC_FEATURE_RICH_CURSOR_MASK         (1 << VNC_FEATURE_RICH_CURSOR)
+#define VNC_FEATURE_TIGHT_PNG_MASK           (1 << VNC_FEATURE_TIGHT_PNG)
 
 
 /* Client -> Server message IDs */
@@ -402,6 +469,10 @@ void buffer_append(Buffer *buffer, const void *data, size_t len);
 char *vnc_socket_local_addr(const char *format, int fd);
 char *vnc_socket_remote_addr(const char *format, int fd);
 
+static inline uint32_t vnc_has_feature(VncState *vs, int feature) {
+    return (vs->features & (1 << feature));
+}
+
 /* Framebuffer */
 void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
                             int32_t encoding);
@@ -409,6 +480,8 @@ void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
 void vnc_convert_pixel(VncState *vs, uint8_t *buf, uint32_t v);
 
 /* Encodings */
+int vnc_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
+
 int vnc_raw_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
 
 int vnc_hextile_send_framebuffer_update(VncState *vs, int x,
@@ -420,8 +493,9 @@ void vnc_zlib_zfree(void *x, void *addr);
 int vnc_zlib_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
 void vnc_zlib_clear(VncState *vs);
 
-
 int vnc_tight_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
+int vnc_tight_png_send_framebuffer_update(VncState *vs, int x, int y,
+                                          int w, int h);
 void vnc_tight_clear(VncState *vs);
 
 #endif /* __QEMU_VNC_H */

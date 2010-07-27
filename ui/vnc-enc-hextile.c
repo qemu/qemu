@@ -33,32 +33,32 @@ static void hextile_enc_cord(uint8_t *ptr, int x, int y, int w, int h)
 }
 
 #define BPP 8
-#include "vnchextile.h"
+#include "vnc-enc-hextile-template.h"
 #undef BPP
 
 #define BPP 16
-#include "vnchextile.h"
+#include "vnc-enc-hextile-template.h"
 #undef BPP
 
 #define BPP 32
-#include "vnchextile.h"
+#include "vnc-enc-hextile-template.h"
 #undef BPP
 
 #define GENERIC
 #define BPP 8
-#include "vnchextile.h"
+#include "vnc-enc-hextile-template.h"
 #undef BPP
 #undef GENERIC
 
 #define GENERIC
 #define BPP 16
-#include "vnchextile.h"
+#include "vnc-enc-hextile-template.h"
 #undef BPP
 #undef GENERIC
 
 #define GENERIC
 #define BPP 32
-#include "vnchextile.h"
+#include "vnc-enc-hextile-template.h"
 #undef BPP
 #undef GENERIC
 
@@ -75,7 +75,7 @@ int vnc_hextile_send_framebuffer_update(VncState *vs, int x,
     has_fg = has_bg = 0;
     for (j = y; j < (y + h); j += 16) {
         for (i = x; i < (x + w); i += 16) {
-            vs->send_hextile_tile(vs, i, j,
+            vs->hextile.send_tile(vs, i, j,
                                   MIN(16, x + w - i), MIN(16, y + h - j),
                                   last_bg, last_fg, &has_bg, &has_fg);
         }
@@ -91,25 +91,25 @@ void vnc_hextile_set_pixel_conversion(VncState *vs, int generic)
     if (!generic) {
         switch (vs->ds->surface->pf.bits_per_pixel) {
             case 8:
-                vs->send_hextile_tile = send_hextile_tile_8;
+                vs->hextile.send_tile = send_hextile_tile_8;
                 break;
             case 16:
-                vs->send_hextile_tile = send_hextile_tile_16;
+                vs->hextile.send_tile = send_hextile_tile_16;
                 break;
             case 32:
-                vs->send_hextile_tile = send_hextile_tile_32;
+                vs->hextile.send_tile = send_hextile_tile_32;
                 break;
         }
     } else {
         switch (vs->ds->surface->pf.bits_per_pixel) {
             case 8:
-                vs->send_hextile_tile = send_hextile_tile_generic_8;
+                vs->hextile.send_tile = send_hextile_tile_generic_8;
                 break;
             case 16:
-                vs->send_hextile_tile = send_hextile_tile_generic_16;
+                vs->hextile.send_tile = send_hextile_tile_generic_16;
                 break;
             case 32:
-                vs->send_hextile_tile = send_hextile_tile_generic_32;
+                vs->hextile.send_tile = send_hextile_tile_generic_32;
                 break;
         }
     }

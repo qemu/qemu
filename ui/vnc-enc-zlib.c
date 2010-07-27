@@ -47,21 +47,21 @@ void vnc_zlib_zfree(void *x, void *addr)
 
 static void vnc_zlib_start(VncState *vs)
 {
-    buffer_reset(&vs->zlib);
+    buffer_reset(&vs->zlib.zlib);
 
     // make the output buffer be the zlib buffer, so we can compress it later
-    vs->zlib_tmp = vs->output;
-    vs->output = vs->zlib;
+    vs->zlib.tmp = vs->output;
+    vs->output = vs->zlib.zlib;
 }
 
 static int vnc_zlib_stop(VncState *vs)
 {
-    z_streamp zstream = &vs->zlib_stream;
+    z_streamp zstream = &vs->zlib.stream;
     int previous_out;
 
     // switch back to normal output/zlib buffers
-    vs->zlib = vs->output;
-    vs->output = vs->zlib_tmp;
+    vs->zlib.zlib = vs->output;
+    vs->output = vs->zlib.tmp;
 
     // compress the zlib buffer
 
@@ -75,7 +75,7 @@ static int vnc_zlib_stop(VncState *vs)
         zstream->zalloc = vnc_zlib_zalloc;
         zstream->zfree = vnc_zlib_zfree;
 
-        err = deflateInit2(zstream, vs->tight_compression, Z_DEFLATED, MAX_WBITS,
+        err = deflateInit2(zstream, vs->tight.compression, Z_DEFLATED, MAX_WBITS,
                            MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
 
         if (err != Z_OK) {
@@ -83,24 +83,24 @@ static int vnc_zlib_stop(VncState *vs)
             return -1;
         }
 
-        vs->zlib_level = vs->tight_compression;
+        vs->zlib.level = vs->tight.compression;
         zstream->opaque = vs;
     }
 
-    if (vs->tight_compression != vs->zlib_level) {
-        if (deflateParams(zstream, vs->tight_compression,
+    if (vs->tight.compression != vs->zlib.level) {
+        if (deflateParams(zstream, vs->tight.compression,
                           Z_DEFAULT_STRATEGY) != Z_OK) {
             return -1;
         }
-        vs->zlib_level = vs->tight_compression;
+        vs->zlib.level = vs->tight.compression;
     }
 
     // reserve memory in output buffer
-    buffer_reserve(&vs->output, vs->zlib.offset + 64);
+    buffer_reserve(&vs->output, vs->zlib.zlib.offset + 64);
 
     // set pointers
-    zstream->next_in = vs->zlib.buffer;
-    zstream->avail_in = vs->zlib.offset;
+    zstream->next_in = vs->zlib.zlib.buffer;
+    zstream->avail_in = vs->zlib.zlib.offset;
     zstream->next_out = vs->output.buffer + vs->output.offset;
     zstream->avail_out = vs->output.capacity - vs->output.offset;
     zstream->data_type = Z_BINARY;
@@ -145,8 +145,8 @@ int vnc_zlib_send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
 
 void vnc_zlib_clear(VncState *vs)
 {
-    if (vs->zlib_stream.opaque) {
-        deflateEnd(&vs->zlib_stream);
+    if (vs->zlib.stream.opaque) {
+        deflateEnd(&vs->zlib.stream);
     }
-    buffer_free(&vs->zlib);
+    buffer_free(&vs->zlib.zlib);
 }

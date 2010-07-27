@@ -121,9 +121,31 @@ void bmdma_addr_writel(void *opaque, uint32_t addr, uint32_t val)
     bm->cur_addr = bm->addr;
 }
 
+static bool ide_bmdma_current_needed(void *opaque)
+{
+    BMDMAState *bm = opaque;
+
+    return (bm->cur_prd_len != 0);
+}
+
+static const VMStateDescription vmstate_bmdma_current = {
+    .name = "ide bmdma_current",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT32(cur_addr, BMDMAState),
+        VMSTATE_UINT32(cur_prd_last, BMDMAState),
+        VMSTATE_UINT32(cur_prd_addr, BMDMAState),
+        VMSTATE_UINT32(cur_prd_len, BMDMAState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+
 static const VMStateDescription vmstate_bmdma = {
     .name = "ide bmdma",
-    .version_id = 4,
+    .version_id = 3,
     .minimum_version_id = 0,
     .minimum_version_id_old = 0,
     .fields      = (VMStateField []) {
@@ -133,11 +155,15 @@ static const VMStateDescription vmstate_bmdma = {
         VMSTATE_INT64(sector_num, BMDMAState),
         VMSTATE_UINT32(nsector, BMDMAState),
         VMSTATE_UINT8(unit, BMDMAState),
-        VMSTATE_UINT32_V(cur_addr, BMDMAState, 4),
-        VMSTATE_UINT32_V(cur_prd_last, BMDMAState, 4),
-        VMSTATE_UINT32_V(cur_prd_addr, BMDMAState, 4),
-        VMSTATE_UINT32_V(cur_prd_len, BMDMAState, 4),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (VMStateSubsection []) {
+        {
+            .vmsd = &vmstate_bmdma_current,
+            .needed = ide_bmdma_current_needed,
+        }, {
+            /* empty */
+        }
     }
 };
 
@@ -156,7 +182,7 @@ static int ide_pci_post_load(void *opaque, int version_id)
 
 const VMStateDescription vmstate_ide_pci = {
     .name = "ide",
-    .version_id = 4,
+    .version_id = 3,
     .minimum_version_id = 0,
     .minimum_version_id_old = 0,
     .post_load = ide_pci_post_load,

@@ -20,12 +20,14 @@ typedef struct QemuCond QemuCond;
 typedef struct QemuThread QemuThread;
 
 void qemu_mutex_init(QemuMutex *mutex);
+void qemu_mutex_destroy(QemuMutex *mutex);
 void qemu_mutex_lock(QemuMutex *mutex);
 int qemu_mutex_trylock(QemuMutex *mutex);
 int qemu_mutex_timedlock(QemuMutex *mutex, uint64_t msecs);
 void qemu_mutex_unlock(QemuMutex *mutex);
 
 void qemu_cond_init(QemuCond *cond);
+void qemu_cond_destroy(QemuCond *cond);
 void qemu_cond_signal(QemuCond *cond);
 void qemu_cond_broadcast(QemuCond *cond);
 void qemu_cond_wait(QemuCond *cond, QemuMutex *mutex);
@@ -37,4 +39,6 @@ void qemu_thread_create(QemuThread *thread,
 void qemu_thread_signal(QemuThread *thread, int sig);
 void qemu_thread_self(QemuThread *thread);
 int qemu_thread_equal(QemuThread *thread1, QemuThread *thread2);
+void qemu_thread_exit(void *retval);
+
 #endif

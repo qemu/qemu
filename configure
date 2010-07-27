@@ -285,6 +285,9 @@ uuid=""
 vde=""
 vnc_tls=""
 vnc_sasl=""
+vnc_jpeg=""
+vnc_png=""
+vnc_thread="no"
 xen=""
 linux_aio=""
 attr=""
@@ -593,6 +596,18 @@ for opt do
   ;;
   --enable-vnc-sasl) vnc_sasl="yes"
   ;;
+  --disable-vnc-jpeg) vnc_jpeg="no"
+  ;;
+  --enable-vnc-jpeg) vnc_jpeg="yes"
+  ;;
+  --disable-vnc-png) vnc_png="no"
+  ;;
+  --enable-vnc-png) vnc_png="yes"
+  ;;
+  --disable-vnc-thread) vnc_thread="no"
+  ;;
+  --enable-vnc-thread) vnc_thread="yes"
+  ;;
   --disable-slirp) slirp="no"
   ;;
   --disable-uuid) uuid="no"
@@ -851,6 +866,12 @@ echo "  --disable-vnc-tls        disable TLS encryption for VNC server"
 echo "  --enable-vnc-tls         enable TLS encryption for VNC server"
 echo "  --disable-vnc-sasl       disable SASL encryption for VNC server"
 echo "  --enable-vnc-sasl        enable SASL encryption for VNC server"
+echo "  --disable-vnc-jpeg       disable JPEG lossy compression for VNC server"
+echo "  --enable-vnc-jpeg        enable JPEG lossy compression for VNC server"
+echo "  --disable-vnc-png        disable PNG compression for VNC server (default)"
+echo "  --enable-vnc-png         enable PNG compression for VNC server"
+echo "  --disable-vnc-thread     disable threaded VNC server"
+echo "  --enable-vnc-thread      enable threaded VNC server"
 echo "  --disable-curses         disable curses output"
 echo "  --enable-curses          enable curses output"
 echo "  --disable-curl           disable curl connectivity"
@@ -1283,6 +1304,52 @@ EOF
       feature_not_found "vnc-sasl"
     fi
     vnc_sasl=no
+  fi
+fi
+
+##########################################
+# VNC JPEG detection
+if test "$vnc_jpeg" != "no" ; then
+cat > $TMPC <<EOF
+#include <stdio.h>
+#include <jpeglib.h>
+int main(void) { struct jpeg_compress_struct s; jpeg_create_compress(&s); return 0; }
+EOF
+    vnc_jpeg_cflags=""
+    vnc_jpeg_libs="-ljpeg"
+  if compile_prog "$vnc_jpeg_cflags" "$vnc_jpeg_libs" ; then
+    vnc_jpeg=yes
+    libs_softmmu="$vnc_jpeg_libs $libs_softmmu"
+  else
+    if test "$vnc_jpeg" = "yes" ; then
+      feature_not_found "vnc-jpeg"
+    fi
+    vnc_jpeg=no
+  fi
+fi
+
+##########################################
+# VNC PNG detection
+if test "$vnc_png" != "no" ; then
+cat > $TMPC <<EOF
+//#include <stdio.h>
+#include <png.h>
+int main(void) {
+    png_structp png_ptr;
+    png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    return 0;
+}
+EOF
+    vnc_png_cflags=""
+    vnc_png_libs="-lpng"
+  if compile_prog "$vnc_png_cflags" "$vnc_png_libs" ; then
+    vnc_png=yes
+    libs_softmmu="$vnc_png_libs $libs_softmmu"
+  else
+    if test "$vnc_png" = "yes" ; then
+      feature_not_found "vnc-png"
+    fi
+    vnc_png=no
   fi
 fi
 
@@ -2145,6 +2212,9 @@ echo "Block whitelist   $block_drv_whitelist"
 echo "Mixer emulation   $mixemu"
 echo "VNC TLS support   $vnc_tls"
 echo "VNC SASL support  $vnc_sasl"
+echo "VNC JPEG support  $vnc_jpeg"
+echo "VNC PNG support   $vnc_png"
+echo "VNC thread        $vnc_thread"
 if test -n "$sparc_cpu"; then
     echo "Target Sparc Arch $sparc_cpu"
 fi
@@ -2298,6 +2368,18 @@ if test "$vnc_sasl" = "yes" ; then
   echo "CONFIG_VNC_SASL=y" >> $config_host_mak
   echo "VNC_SASL_CFLAGS=$vnc_sasl_cflags" >> $config_host_mak
 fi
+if test "$vnc_jpeg" != "no" ; then
+  echo "CONFIG_VNC_JPEG=y" >> $config_host_mak
+  echo "VNC_JPEG_CFLAGS=$vnc_jpeg_cflags" >> $config_host_mak
+fi
+if test "$vnc_png" != "no" ; then
+  echo "CONFIG_VNC_PNG=y" >> $config_host_mak
+  echo "VNC_PNG_CFLAGS=$vnc_png_cflags" >> $config_host_mak
+fi
+if test "$vnc_thread" != "no" ; then
+  echo "CONFIG_VNC_THREAD=y" >> $config_host_mak
+  echo "CONFIG_THREAD=y" >> $config_host_mak
+fi
 if test "$fnmatch" = "yes" ; then
   echo "CONFIG_FNMATCH=y" >> $config_host_mak
 fi
@@ -2377,6 +2459,7 @@ if test "$xen" = "yes" ; then
 fi
 if test "$io_thread" = "yes" ; then
   echo "CONFIG_IOTHREAD=y" >> $config_host_mak
+  echo "CONFIG_THREAD=y" >> $config_host_mak
 fi
 if test "$linux_aio" = "yes" ; then
   echo "CONFIG_LINUX_AIO=y" >> $config_host_mak
@@ -2919,7 +3002,7 @@ done # for target in $targets
 if test "$source_path_used" = "yes" ; then
     DIRS="tests tests/cris slirp audio block net pc-bios/optionrom"
     DIRS="$DIRS roms/seabios roms/vgabios"
-    DIRS="$DIRS fsdev"
+    DIRS="$DIRS fsdev ui"
     FILES="Makefile tests/Makefile"
     FILES="$FILES tests/cris/Makefile tests/cris/.gdbinit"
     FILES="$FILES tests/test-mmap.c"
