@@ -147,8 +147,37 @@ typedef int64_t  Elf64_Sxword;
 #define DT_DEBUG	21
 #define DT_TEXTREL	22
 #define DT_JMPREL	23
+#define DT_BINDNOW	24
+#define DT_INIT_ARRAY	25
+#define DT_FINI_ARRAY	26
+#define DT_INIT_ARRAYSZ	27
+#define DT_FINI_ARRAYSZ	28
+#define DT_RUNPATH	29
+#define DT_FLAGS	30
+#define DT_LOOS		0x6000000d
+#define DT_HIOS		0x6ffff000
 #define DT_LOPROC	0x70000000
 #define DT_HIPROC	0x7fffffff
+
+/* DT_ entries which fall between DT_VALRNGLO and DT_VALRNDHI use
+   the d_val field of the Elf*_Dyn structure.  I.e. they contain scalars.  */
+#define DT_VALRNGLO	0x6ffffd00
+#define DT_VALRNGHI	0x6ffffdff
+
+/* DT_ entries which fall between DT_ADDRRNGLO and DT_ADDRRNGHI use
+   the d_ptr field of the Elf*_Dyn structure.  I.e. they contain pointers.  */
+#define DT_ADDRRNGLO	0x6ffffe00
+#define DT_ADDRRNGHI	0x6ffffeff
+
+#define	DT_VERSYM	0x6ffffff0
+#define DT_RELACOUNT	0x6ffffff9
+#define DT_RELCOUNT	0x6ffffffa
+#define DT_FLAGS_1	0x6ffffffb
+#define DT_VERDEF	0x6ffffffc
+#define DT_VERDEFNUM	0x6ffffffd
+#define DT_VERNEED	0x6ffffffe
+#define DT_VERNEEDNUM	0x6fffffff
+
 #define DT_MIPS_RLD_VERSION	0x70000001
 #define DT_MIPS_TIME_STAMP	0x70000002
 #define DT_MIPS_ICHECKSUM	0x70000003
@@ -207,6 +236,21 @@ typedef int64_t  Elf64_Sxword;
 #define AT_PLATFORM 15  /* string identifying CPU for optimizations */
 #define AT_HWCAP  16    /* arch dependent hints at CPU capabilities */
 #define AT_CLKTCK 17	/* frequency at which times() increments */
+#define AT_FPUCW  18	/* info about fpu initialization by kernel */
+#define AT_DCACHEBSIZE	19	/* data cache block size */
+#define AT_ICACHEBSIZE	20	/* instruction cache block size */
+#define AT_UCACHEBSIZE	21	/* unified cache block size */
+#define AT_IGNOREPPC	22	/* ppc only; entry should be ignored */
+#define AT_SECURE	23	/* boolean, was exec suid-like? */
+#define AT_BASE_PLATFORM 24	/* string identifying real platforms */
+#define AT_RANDOM	25	/* address of 16 random bytes */
+#define AT_EXECFN	31	/* filename of the executable */
+#define AT_SYSINFO	32	/* address of kernel entry point */
+#define AT_SYSINFO_EHDR	33	/* address of kernel vdso */
+#define AT_L1I_CACHESHAPE 34	/* shapes of the caches: */
+#define AT_L1D_CACHESHAPE 35	/*   bits 0-3: cache associativity.  */
+#define AT_L2_CACHESHAPE  36	/*   bits 4-7: log2 of line size.  */
+#define AT_L3_CACHESHAPE  37	/*   val&~255: cache size.  */
 
 typedef struct dynamic{
   Elf32_Sword d_tag;

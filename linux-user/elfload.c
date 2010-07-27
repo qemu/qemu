@@ -480,15 +480,6 @@ static uint32_t get_elf_hwcap(void)
 }
 
 /*
- * We need to put in some extra aux table entries to tell glibc what
- * the cache block size is, so it can use the dcbz instruction safely.
- */
-#define AT_DCACHEBSIZE          19
-#define AT_ICACHEBSIZE          20
-#define AT_UCACHEBSIZE          21
-/* A special ignored type value for PPC, for glibc compatibility.  */
-#define AT_IGNOREPPC            22
-/*
  * The requirements here are:
  * - keep the final alignment of sp (sp & 0xf)
  * - make sure the 32-bit value at the first 16 byte aligned position of
