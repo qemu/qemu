@@ -95,6 +95,12 @@ enum {
 #define ELIBBAD 80
 #endif
 
+#ifdef TARGET_WORDS_BIGENDIAN
+#define ELF_DATA        ELFDATA2MSB
+#else
+#define ELF_DATA        ELFDATA2LSB
+#endif
+
 typedef target_ulong    target_elf_greg_t;
 #ifdef USE_UID16
 typedef uint16_t        target_uid_t;
@@ -132,7 +138,6 @@ static uint32_t get_elf_hwcap(void)
 #define elf_check_arch(x) ( ((x) == ELF_ARCH) )
 
 #define ELF_CLASS      ELFCLASS64
-#define ELF_DATA       ELFDATA2LSB
 #define ELF_ARCH       EM_X86_64
 
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
@@ -196,7 +201,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
  * These are used to set parameters in the core dumps.
  */
 #define ELF_CLASS       ELFCLASS32
-#define ELF_DATA        ELFDATA2LSB
 #define ELF_ARCH        EM_386
 
 static inline void init_thread(struct target_pt_regs *regs,
@@ -259,11 +263,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
 #define elf_check_arch(x) ( (x) == EM_ARM )
 
 #define ELF_CLASS       ELFCLASS32
-#ifdef TARGET_WORDS_BIGENDIAN
-#define ELF_DATA        ELFDATA2MSB
-#else
-#define ELF_DATA        ELFDATA2LSB
-#endif
 #define ELF_ARCH        EM_ARM
 
 static inline void init_thread(struct target_pt_regs *regs,
@@ -352,7 +351,6 @@ enum
 #endif
 
 #define ELF_CLASS   ELFCLASS64
-#define ELF_DATA    ELFDATA2MSB
 #define ELF_ARCH    EM_SPARCV9
 
 #define STACK_BIAS              2047
@@ -382,7 +380,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 #define elf_check_arch(x) ( (x) == EM_SPARC )
 
 #define ELF_CLASS   ELFCLASS32
-#define ELF_DATA    ELFDATA2MSB
 #define ELF_ARCH    EM_SPARC
 
 static inline void init_thread(struct target_pt_regs *regs,
@@ -416,11 +413,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 
 #endif
 
-#ifdef TARGET_WORDS_BIGENDIAN
-#define ELF_DATA        ELFDATA2MSB
-#else
-#define ELF_DATA        ELFDATA2LSB
-#endif
 #define ELF_ARCH        EM_PPC
 
 /* Feature masks for the Aux Vector Hardware Capabilities (AT_HWCAP).
@@ -554,11 +546,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
 #else
 #define ELF_CLASS   ELFCLASS32
 #endif
-#ifdef TARGET_WORDS_BIGENDIAN
-#define ELF_DATA        ELFDATA2MSB
-#else
-#define ELF_DATA        ELFDATA2LSB
-#endif
 #define ELF_ARCH    EM_MIPS
 
 static inline void init_thread(struct target_pt_regs *regs,
@@ -626,7 +613,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
 #define elf_check_arch(x) ( (x) == EM_MICROBLAZE || (x) == EM_MICROBLAZE_OLD)
 
 #define ELF_CLASS   ELFCLASS32
-#define ELF_DATA    ELFDATA2MSB
 #define ELF_ARCH    EM_MICROBLAZE
 
 static inline void init_thread(struct target_pt_regs *regs,
@@ -666,7 +652,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
 #define elf_check_arch(x) ( (x) == EM_SH )
 
 #define ELF_CLASS ELFCLASS32
-#define ELF_DATA  ELFDATA2LSB
 #define ELF_ARCH  EM_SH
 
 static inline void init_thread(struct target_pt_regs *regs,
@@ -722,7 +707,6 @@ static inline void elf_core_copy_regs(target_elf_gregset_t *regs,
 #define elf_check_arch(x) ( (x) == EM_CRIS )
 
 #define ELF_CLASS ELFCLASS32
-#define ELF_DATA  ELFDATA2LSB
 #define ELF_ARCH  EM_CRIS
 
 static inline void init_thread(struct target_pt_regs *regs,
@@ -742,7 +726,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 #define elf_check_arch(x) ( (x) == EM_68K )
 
 #define ELF_CLASS       ELFCLASS32
-#define ELF_DATA        ELFDATA2MSB
 #define ELF_ARCH        EM_68K
 
 /* ??? Does this need to do anything?
@@ -796,7 +779,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
 #define elf_check_arch(x) ( (x) == ELF_ARCH )
 
 #define ELF_CLASS      ELFCLASS64
-#define ELF_DATA       ELFDATA2MSB
 #define ELF_ARCH       EM_ALPHA
 
 static inline void init_thread(struct target_pt_regs *regs,
