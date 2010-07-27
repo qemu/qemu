@@ -829,9 +829,6 @@ struct exec
 #define ZMAGIC 0413
 #define QMAGIC 0314
 
-/* max code+data+bss space allocated to elf interpreter */
-#define INTERP_MAP_SIZE (32 * 1024 * 1024)
-
 /* max code+data+bss+brk space allocated to ET_DYN executables */
 #define ET_DYN_MAP_SIZE (128 * 1024 * 1024)
 
@@ -920,6 +917,7 @@ static inline void bswap_sym(struct elf_sym *sym) { }
 #ifdef USE_ELF_CORE_DUMP
 static int elf_core_dump(int, const CPUState *);
 #endif /* USE_ELF_CORE_DUMP */
+static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias);
 
 /*
  * 'copy_elf_strings()' copies argument/envelope strings from user
@@ -1146,14 +1144,10 @@ static abi_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
                                  char bprm_buf[BPRM_BUF_SIZE])
 {
     struct elf_phdr *elf_phdata  =  NULL;
-    struct elf_phdr *eppnt;
-    abi_ulong load_addr = 0;
-    int load_addr_set = 0;
+    abi_ulong load_addr, load_bias, loaddr, hiaddr;
     int retval;
     abi_ulong error;
     int i;
-
-    error = 0;
 
     bswap_ehdr(interp_elf_ex);
     /* First of all, some simple consistency checks */
@@ -1162,7 +1156,6 @@ static abi_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
         !elf_check_arch(interp_elf_ex->e_machine)) {
         return ~((abi_ulong)0UL);
     }
-
 
     /* Now read in all of the header information */
 
@@ -1196,41 +1189,56 @@ static abi_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
     }
     bswap_phdr(elf_phdata, interp_elf_ex->e_phnum);
 
+    /* Find the maximum size of the image and allocate an appropriate
+       amount of memory to handle that.  */
+    loaddr = -1, hiaddr = 0;
+    for (i = 0; i < interp_elf_ex->e_phnum; ++i) {
+        if (elf_phdata[i].p_type == PT_LOAD) {
+            abi_ulong a = elf_phdata[i].p_vaddr;
+            if (a < loaddr) {
+                loaddr = a;
+            }
+            a += elf_phdata[i].p_memsz;
+            if (a > hiaddr) {
+                hiaddr = a;
+            }
+        }
+    }
+
+    load_addr = loaddr;
     if (interp_elf_ex->e_type == ET_DYN) {
-        /* in order to avoid hardcoding the interpreter load
-           address in qemu, we allocate a big enough memory zone */
-        error = target_mmap(0, INTERP_MAP_SIZE,
-                            PROT_NONE, MAP_PRIVATE | MAP_ANON,
-                            -1, 0);
-        if (error == -1) {
+        /* The image indicates that it can be loaded anywhere.  Find a
+           location that can hold the memory space required.  If the
+           image is pre-linked, LOADDR will be non-zero.  Since we do
+           not supply MAP_FIXED here we'll use that address if and
+           only if it remains available.  */
+        load_addr = target_mmap(loaddr, hiaddr - loaddr, PROT_NONE,
+                                MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
+                                -1, 0);
+        if (load_addr == -1) {
             perror("mmap");
             exit(-1);
         }
-        load_addr = error;
-        load_addr_set = 1;
     }
+    load_bias = load_addr - loaddr;
 
-    eppnt = elf_phdata;
-    for(i=0; i<interp_elf_ex->e_phnum; i++, eppnt++)
+    for (i = 0; i < interp_elf_ex->e_phnum; i++) {
+        struct elf_phdr *eppnt = elf_phdata + i;
         if (eppnt->p_type == PT_LOAD) {
-            int elf_type = MAP_PRIVATE | MAP_DENYWRITE;
+            abi_ulong vaddr, vaddr_po, vaddr_ps, vaddr_ef, vaddr_em;
             int elf_prot = 0;
-            abi_ulong vaddr = 0;
 
             if (eppnt->p_flags & PF_R) elf_prot =  PROT_READ;
             if (eppnt->p_flags & PF_W) elf_prot |= PROT_WRITE;
             if (eppnt->p_flags & PF_X) elf_prot |= PROT_EXEC;
-            if (interp_elf_ex->e_type == ET_EXEC || load_addr_set) {
-                elf_type |= MAP_FIXED;
-                vaddr = eppnt->p_vaddr;
-            }
-            error = target_mmap(load_addr+TARGET_ELF_PAGESTART(vaddr),
-                                eppnt->p_filesz + TARGET_ELF_PAGEOFFSET(eppnt->p_vaddr),
-                                elf_prot,
-                                elf_type,
-                                interpreter_fd,
-                                eppnt->p_offset - TARGET_ELF_PAGEOFFSET(eppnt->p_vaddr));
 
+            vaddr = load_bias + eppnt->p_vaddr;
+            vaddr_po = TARGET_ELF_PAGEOFFSET(vaddr);
+            vaddr_ps = TARGET_ELF_PAGESTART(vaddr);
+
+            error = target_mmap(vaddr_ps, eppnt->p_filesz + vaddr_po,
+                                elf_prot, MAP_PRIVATE | MAP_FIXED,
+                                interpreter_fd, eppnt->p_offset - vaddr_po);
             if (error == -1) {
                 /* Real error */
                 close(interpreter_fd);
@@ -1238,26 +1246,25 @@ static abi_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
                 return ~((abi_ulong)0UL);
             }
 
-            if (!load_addr_set && interp_elf_ex->e_type == ET_DYN) {
-                load_addr = error;
-                load_addr_set = 1;
-            }
+            vaddr_ef = vaddr + eppnt->p_filesz;
+            vaddr_em = vaddr + eppnt->p_memsz;
 
             /* If the load segment requests extra zeros (e.g. bss), map it.  */
-            if (eppnt->p_filesz < eppnt->p_memsz) {
-                abi_ulong base = load_addr + eppnt->p_vaddr;
-                zero_bss(base + eppnt->p_filesz,
-                         base + eppnt->p_memsz, elf_prot);
+            if (vaddr_ef < vaddr_em) {
+                zero_bss(vaddr_ef, vaddr_em, elf_prot);
             }
         }
+    }
 
-    /* Now use mmap to map the library into memory. */
+    if (qemu_log_enabled()) {
+        load_symbols(interp_elf_ex, interpreter_fd, load_bias);
+    }
 
     close(interpreter_fd);
     free(elf_phdata);
 
     *interp_load_addr = load_addr;
-    return ((abi_ulong) interp_elf_ex->e_entry) + load_addr;
+    return ((abi_ulong) interp_elf_ex->e_entry) + load_bias;
 }
 
 static int symfind(const void *s0, const void *s1)
@@ -1306,82 +1313,87 @@ static int symcmp(const void *s0, const void *s1)
 }
 
 /* Best attempt to load symbols from this ELF object. */
-static void load_symbols(struct elfhdr *hdr, int fd)
+static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
 {
-    unsigned int i, nsyms;
-    struct elf_shdr sechdr, symtab, strtab;
+    int i, shnum, nsyms, sym_idx = 0, str_idx = 0;
+    struct elf_shdr *shdr;
     char *strings;
     struct syminfo *s;
     struct elf_sym *syms;
 
-    lseek(fd, hdr->e_shoff, SEEK_SET);
-    for (i = 0; i < hdr->e_shnum; i++) {
-        if (read(fd, &sechdr, sizeof(sechdr)) != sizeof(sechdr))
-            return;
-        bswap_shdr(&sechdr, 1);
-        if (sechdr.sh_type == SHT_SYMTAB) {
-            symtab = sechdr;
-            lseek(fd, hdr->e_shoff
-                  + sizeof(sechdr) * sechdr.sh_link, SEEK_SET);
-            if (read(fd, &strtab, sizeof(strtab))
-                != sizeof(strtab))
-                return;
-            bswap_shdr(&strtab, 1);
+    shnum = hdr->e_shnum;
+    i = shnum * sizeof(struct elf_shdr);
+    shdr = (struct elf_shdr *)alloca(i);
+    if (pread(fd, shdr, i, hdr->e_shoff) != i) {
+        return;
+    }
+
+    bswap_shdr(shdr, shnum);
+    for (i = 0; i < shnum; ++i) {
+        if (shdr[i].sh_type == SHT_SYMTAB) {
+            sym_idx = i;
+            str_idx = shdr[i].sh_link;
             goto found;
         }
     }
-    return; /* Shouldn't happen... */
+
+    /* There will be no symbol table if the file was stripped.  */
+    return;
 
  found:
-    /* Now know where the strtab and symtab are.  Snarf them. */
+    /* Now know where the strtab and symtab are.  Snarf them.  */
     s = malloc(sizeof(*s));
-    syms = malloc(symtab.sh_size);
-    if (!syms)
+    if (!s) {
         return;
-    s->disas_strtab = strings = malloc(strtab.sh_size);
-    if (!s->disas_strtab)
+    }
+
+    i = shdr[str_idx].sh_size;
+    s->disas_strtab = strings = malloc(i);
+    if (!strings || pread(fd, strings, i, shdr[str_idx].sh_offset) != i) {
+        free(s);
+        free(strings);
         return;
+    }
 
-    lseek(fd, symtab.sh_offset, SEEK_SET);
-    if (read(fd, syms, symtab.sh_size) != symtab.sh_size)
+    i = shdr[sym_idx].sh_size;
+    syms = malloc(i);
+    if (!syms || pread(fd, syms, i, shdr[sym_idx].sh_offset) != i) {
+        free(s);
+        free(strings);
+        free(syms);
         return;
+    }
 
-    nsyms = symtab.sh_size / sizeof(struct elf_sym);
-
-    i = 0;
-    while (i < nsyms) {
+    nsyms = i / sizeof(struct elf_sym);
+    for (i = 0; i < nsyms; ) {
         bswap_sym(syms + i);
-        // Throw away entries which we do not need.
-        if (syms[i].st_shndx == SHN_UNDEF ||
-            syms[i].st_shndx >= SHN_LORESERVE ||
-            ELF_ST_TYPE(syms[i].st_info) != STT_FUNC) {
-            nsyms--;
-            if (i < nsyms) {
+        /* Throw away entries which we do not need.  */
+        if (syms[i].st_shndx == SHN_UNDEF
+            || syms[i].st_shndx >= SHN_LORESERVE
+            || ELF_ST_TYPE(syms[i].st_info) != STT_FUNC) {
+            if (i < --nsyms) {
                 syms[i] = syms[nsyms];
             }
-            continue;
-        }
+        } else {
 #if defined(TARGET_ARM) || defined (TARGET_MIPS)
-        /* The bottom address bit marks a Thumb or MIPS16 symbol.  */
-        syms[i].st_value &= ~(target_ulong)1;
+            /* The bottom address bit marks a Thumb or MIPS16 symbol.  */
+            syms[i].st_value &= ~(target_ulong)1;
 #endif
-        i++;
+            syms[i].st_value += load_bias;
+            i++;
+        }
     }
-    syms = realloc(syms, nsyms * sizeof(*syms));
 
+    syms = realloc(syms, nsyms * sizeof(*syms));
     qsort(syms, nsyms, sizeof(*syms), symcmp);
 
-    lseek(fd, strtab.sh_offset, SEEK_SET);
-    if (read(fd, strings, strtab.sh_size) != strtab.sh_size)
-        return;
     s->disas_num_syms = nsyms;
 #if ELF_CLASS == ELFCLASS32
     s->disas_symtab.elf32 = syms;
-    s->lookup_symbol = lookup_symbolxx;
 #else
     s->disas_symtab.elf64 = syms;
-    s->lookup_symbol = lookup_symbolxx;
 #endif
+    s->lookup_symbol = lookup_symbolxx;
     s->next = syminfos;
     syminfos = s;
 }
@@ -1788,8 +1800,9 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
 
     free(elf_phdata);
 
-    if (qemu_log_enabled())
-        load_symbols(&elf_ex, bprm->fd);
+    if (qemu_log_enabled()) {
+        load_symbols(&elf_ex, bprm->fd, load_bias);
+    }
 
     if (interpreter_type != INTERPRETER_AOUT) close(bprm->fd);
     info->personality = (ibcs2_interpreter ? PER_SVR4 : PER_LINUX);
