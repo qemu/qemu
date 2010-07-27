@@ -219,8 +219,8 @@ uint8_t eeprom_spd[0x80] = {
 #ifdef HAS_AUDIO
 static void audio_init (PCIBus *pci_bus)
 {
-    vt82c686b_ac97_init(pci_bus, (FULONG2E_VIA_SLOT << 3) + 5);
-    vt82c686b_mc97_init(pci_bus, (FULONG2E_VIA_SLOT << 3) + 6);
+    vt82c686b_ac97_init(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 5));
+    vt82c686b_mc97_init(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 6));
 }
 #endif
 
@@ -349,18 +349,18 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
         hd[i] = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
     }
 
-    via_devfn = vt82c686b_init(pci_bus, FULONG2E_VIA_SLOT << 3);
+    via_devfn = vt82c686b_init(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 0));
     if (via_devfn < 0) {
         fprintf(stderr, "vt82c686b_init error \n");
         exit(1);
     }
 
     isa_bus_irqs(i8259);
-    vt82c686b_ide_init(pci_bus, hd, (FULONG2E_VIA_SLOT << 3) + 1);
-    usb_uhci_vt82c686b_init(pci_bus, (FULONG2E_VIA_SLOT << 3) + 2);
-    usb_uhci_vt82c686b_init(pci_bus, (FULONG2E_VIA_SLOT << 3) + 3);
+    vt82c686b_ide_init(pci_bus, hd, PCI_DEVFN(FULONG2E_VIA_SLOT, 1));
+    usb_uhci_vt82c686b_init(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 2));
+    usb_uhci_vt82c686b_init(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 3));
 
-    smbus = vt82c686b_pm_init(pci_bus, (FULONG2E_VIA_SLOT << 3) + 4,
+    smbus = vt82c686b_pm_init(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 4),
                               0xeee1, NULL);
     eeprom_buf = qemu_mallocz(8 * 256); /* XXX: make this persistent */
     memcpy(eeprom_buf, eeprom_spd, sizeof(eeprom_spd));
