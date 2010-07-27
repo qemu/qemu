@@ -1159,7 +1159,8 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
 
 static abi_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
                                  int interpreter_fd,
-                                 abi_ulong *interp_load_addr)
+                                 abi_ulong *interp_load_addr,
+                                 char bprm_buf[BPRM_BUF_SIZE])
 {
     struct elf_phdr *elf_phdata  =  NULL;
     struct elf_phdr *eppnt;
@@ -1202,17 +1203,15 @@ static abi_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
         return ~((abi_ulong)0UL);
     }
 
-    retval = lseek(interpreter_fd, interp_elf_ex->e_phoff, SEEK_SET);
-    if(retval >= 0) {
-        retval = read(interpreter_fd,
-                      (char *) elf_phdata,
-                      sizeof(struct elf_phdr) * interp_elf_ex->e_phnum);
-    }
-    if (retval < 0) {
-        perror("load_elf_interp");
-        exit(-1);
-        free (elf_phdata);
-        return retval;
+    i = interp_elf_ex->e_phnum * sizeof(struct elf_phdr);
+    if (interp_elf_ex->e_phoff + i <= BPRM_BUF_SIZE) {
+        memcpy(elf_phdata, bprm_buf + interp_elf_ex->e_phoff, i);
+    } else {
+        retval = pread(interpreter_fd, elf_phdata, i, interp_elf_ex->e_phoff);
+        if (retval != i) {
+            perror("load_elf_interp");
+            exit(-1);
+        }
     }
 #ifdef BSWAP_NEEDED
     eppnt = elf_phdata;
@@ -1470,17 +1469,15 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
         return -ENOMEM;
     }
 
-    retval = lseek(bprm->fd, elf_ex.e_phoff, SEEK_SET);
-    if(retval > 0) {
-        retval = read(bprm->fd, (char *) elf_phdata,
-                      elf_ex.e_phentsize * elf_ex.e_phnum);
-    }
-
-    if (retval < 0) {
-        perror("load_elf_binary");
-        exit(-1);
-        free (elf_phdata);
-        return -errno;
+    i = elf_ex.e_phnum * sizeof(struct elf_phdr);
+    if (elf_ex.e_phoff + i <= BPRM_BUF_SIZE) {
+        memcpy(elf_phdata, bprm->buf + elf_ex.e_phoff, i);
+    } else {
+        retval = pread(bprm->fd, (char *) elf_phdata, i, elf_ex.e_phoff);
+        if (retval != i) {
+            perror("load_elf_binary");
+            exit(-1);
+        }
     }
 
 #ifdef BSWAP_NEEDED
@@ -1524,13 +1521,16 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
                 return -ENOMEM;
             }
 
-            retval = lseek(bprm->fd, elf_ppnt->p_offset, SEEK_SET);
-            if(retval >= 0) {
-                retval = read(bprm->fd, elf_interpreter, elf_ppnt->p_filesz);
-            }
-            if(retval < 0) {
-                perror("load_elf_binary2");
-                exit(-1);
+            if (elf_ppnt->p_offset + elf_ppnt->p_filesz <= BPRM_BUF_SIZE) {
+                memcpy(elf_interpreter, bprm->buf + elf_ppnt->p_offset,
+                       elf_ppnt->p_filesz);
+            } else {
+                retval = pread(bprm->fd, elf_interpreter, elf_ppnt->p_filesz,
+                               elf_ppnt->p_offset);
+                if (retval != elf_ppnt->p_filesz) {
+                    perror("load_elf_binary2");
+                    exit(-1);
+                }
             }
 
             /* If the program interpreter is one of these two,
@@ -1544,39 +1544,24 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
                 ibcs2_interpreter = 1;
             }
 
-#if 0
-            printf("Using ELF interpreter %s\n", path(elf_interpreter));
-#endif
-            if (retval >= 0) {
-                retval = open(path(elf_interpreter), O_RDONLY);
-                if(retval >= 0) {
-                    interpreter_fd = retval;
-                }
-                else {
-                    perror(elf_interpreter);
-                    exit(-1);
-                    /* retval = -errno; */
-                }
+            retval = open(path(elf_interpreter), O_RDONLY);
+            if (retval < 0) {
+                perror(elf_interpreter);
+                exit(-1);
             }
+            interpreter_fd = retval;
 
-            if (retval >= 0) {
-                retval = lseek(interpreter_fd, 0, SEEK_SET);
-                if(retval >= 0) {
-                    retval = read(interpreter_fd,bprm->buf,128);
-                }
-            }
-            if (retval >= 0) {
-                interp_ex = *((struct exec *) bprm->buf); /* aout exec-header */
-                interp_elf_ex = *((struct elfhdr *) bprm->buf); /* elf exec-header */
-            }
+            retval = read(interpreter_fd, bprm->buf, BPRM_BUF_SIZE);
             if (retval < 0) {
                 perror("load_elf_binary3");
                 exit(-1);
-                free (elf_phdata);
-                free(elf_interpreter);
-                close(bprm->fd);
-                return retval;
             }
+            if (retval < BPRM_BUF_SIZE) {
+                memset(bprm->buf, 0, BPRM_BUF_SIZE - retval);
+            }
+
+            interp_ex = *((struct exec *) bprm->buf); /* aout exec-header */
+            interp_elf_ex = *((struct elfhdr *) bprm->buf); /* elf exec-header */
         }
         elf_ppnt++;
     }
@@ -1823,10 +1808,9 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     if (elf_interpreter) {
         if (interpreter_type & 1) {
             elf_entry = load_aout_interp(&interp_ex, interpreter_fd);
-        }
-        else if (interpreter_type & 2) {
+        } else if (interpreter_type & 2) {
             elf_entry = load_elf_interp(&interp_elf_ex, interpreter_fd,
-                                        &interp_load_addr);
+                                        &interp_load_addr, bprm->buf);
         }
         reloc_func_desc = interp_load_addr;
 

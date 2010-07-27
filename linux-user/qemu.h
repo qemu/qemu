@@ -31,6 +31,7 @@
  * task_struct fields in the kernel
  */
 struct image_info {
+        abi_ulong       load_bias;
         abi_ulong       load_addr;
         abi_ulong       start_code;
         abi_ulong       end_code;
@@ -144,12 +145,16 @@ extern unsigned long mmap_min_addr;
  */
 #define MAX_ARG_PAGES 33
 
+/* Read a good amount of data initially, to hopefully get all the
+   program headers loaded.  */
+#define BPRM_BUF_SIZE  1024
+
 /*
  * This structure is used to hold the arguments that are
  * used when loading binaries.
  */
 struct linux_binprm {
-        char buf[128];
+        char buf[BPRM_BUF_SIZE] __attribute__((aligned));
         void *page[MAX_ARG_PAGES];
         abi_ulong p;
 	int fd;
