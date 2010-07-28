@@ -18,7 +18,6 @@
 #include "fsdev/qemu-fsdev.h"
 #include "virtio-9p-debug.h"
 
-int dotu = 1;
 int debug_9p_pdu;
 
 enum {
@@ -853,9 +852,7 @@ static void complete_pdu(V9fsState *s, V9fsPDU *pdu, ssize_t len)
 
         len = 7;
         len += pdu_marshal(pdu, len, "s", &str);
-        if (dotu) {
-            len += pdu_marshal(pdu, len, "d", err);
-        }
+        len += pdu_marshal(pdu, len, "d", err);
 
         id = P9_RERROR;
     }
@@ -885,22 +882,20 @@ static mode_t v9mode_to_mode(uint32_t mode, V9fsString *extension)
         ret |= S_IFDIR;
     }
 
-    if (dotu) {
-        if (mode & P9_STAT_MODE_SYMLINK) {
-            ret |= S_IFLNK;
-        }
-        if (mode & P9_STAT_MODE_SOCKET) {
-            ret |= S_IFSOCK;
-        }
-        if (mode & P9_STAT_MODE_NAMED_PIPE) {
-            ret |= S_IFIFO;
-        }
-        if (mode & P9_STAT_MODE_DEVICE) {
-            if (extension && extension->data[0] == 'c') {
-                ret |= S_IFCHR;
-            } else {
-                ret |= S_IFBLK;
-            }
+    if (mode & P9_STAT_MODE_SYMLINK) {
+        ret |= S_IFLNK;
+    }
+    if (mode & P9_STAT_MODE_SOCKET) {
+        ret |= S_IFSOCK;
+    }
+    if (mode & P9_STAT_MODE_NAMED_PIPE) {
+        ret |= S_IFIFO;
+    }
+    if (mode & P9_STAT_MODE_DEVICE) {
+        if (extension && extension->data[0] == 'c') {
+            ret |= S_IFCHR;
+        } else {
+            ret |= S_IFBLK;
         }
     }
 
@@ -963,34 +958,32 @@ static uint32_t stat_to_v9mode(const struct stat *stbuf)
         mode |= P9_STAT_MODE_DIR;
     }
 
-    if (dotu) {
-        if (S_ISLNK(stbuf->st_mode)) {
-            mode |= P9_STAT_MODE_SYMLINK;
-        }
+    if (S_ISLNK(stbuf->st_mode)) {
+        mode |= P9_STAT_MODE_SYMLINK;
+    }
 
-        if (S_ISSOCK(stbuf->st_mode)) {
-            mode |= P9_STAT_MODE_SOCKET;
-        }
+    if (S_ISSOCK(stbuf->st_mode)) {
+        mode |= P9_STAT_MODE_SOCKET;
+    }
 
-        if (S_ISFIFO(stbuf->st_mode)) {
-            mode |= P9_STAT_MODE_NAMED_PIPE;
-        }
+    if (S_ISFIFO(stbuf->st_mode)) {
+        mode |= P9_STAT_MODE_NAMED_PIPE;
+    }
 
-        if (S_ISBLK(stbuf->st_mode) || S_ISCHR(stbuf->st_mode)) {
-            mode |= P9_STAT_MODE_DEVICE;
-        }
+    if (S_ISBLK(stbuf->st_mode) || S_ISCHR(stbuf->st_mode)) {
+        mode |= P9_STAT_MODE_DEVICE;
+    }
 
-        if (stbuf->st_mode & S_ISUID) {
-            mode |= P9_STAT_MODE_SETUID;
-        }
+    if (stbuf->st_mode & S_ISUID) {
+        mode |= P9_STAT_MODE_SETUID;
+    }
 
-        if (stbuf->st_mode & S_ISGID) {
-            mode |= P9_STAT_MODE_SETGID;
-        }
+    if (stbuf->st_mode & S_ISGID) {
+        mode |= P9_STAT_MODE_SETGID;
+    }
 
-        if (stbuf->st_mode & S_ISVTX) {
-            mode |= P9_STAT_MODE_SETVTX;
-        }
+    if (stbuf->st_mode & S_ISVTX) {
+        mode |= P9_STAT_MODE_SETVTX;
     }
 
     return mode;
@@ -1015,29 +1008,27 @@ static int stat_to_v9stat(V9fsState *s, V9fsString *name,
     v9fs_string_null(&v9stat->gid);
     v9fs_string_null(&v9stat->muid);
 
-    if (dotu) {
-        v9stat->n_uid = stbuf->st_uid;
-        v9stat->n_gid = stbuf->st_gid;
-        v9stat->n_muid = 0;
+    v9stat->n_uid = stbuf->st_uid;
+    v9stat->n_gid = stbuf->st_gid;
+    v9stat->n_muid = 0;
 
-        v9fs_string_null(&v9stat->extension);
+    v9fs_string_null(&v9stat->extension);
 
-        if (v9stat->mode & P9_STAT_MODE_SYMLINK) {
-            err = v9fs_do_readlink(s, name, &v9stat->extension);
-            if (err == -1) {
-                err = -errno;
-                return err;
-            }
-            v9stat->extension.data[err] = 0;
-            v9stat->extension.size = err;
-        } else if (v9stat->mode & P9_STAT_MODE_DEVICE) {
-            v9fs_string_sprintf(&v9stat->extension, "%c %u %u",
-                    S_ISCHR(stbuf->st_mode) ? 'c' : 'b',
-                    major(stbuf->st_rdev), minor(stbuf->st_rdev));
-        } else if (S_ISDIR(stbuf->st_mode) || S_ISREG(stbuf->st_mode)) {
-            v9fs_string_sprintf(&v9stat->extension, "%s %u",
-                    "HARDLINKCOUNT", stbuf->st_nlink);
+    if (v9stat->mode & P9_STAT_MODE_SYMLINK) {
+        err = v9fs_do_readlink(s, name, &v9stat->extension);
+        if (err == -1) {
+            err = -errno;
+            return err;
         }
+        v9stat->extension.data[err] = 0;
+        v9stat->extension.size = err;
+    } else if (v9stat->mode & P9_STAT_MODE_DEVICE) {
+        v9fs_string_sprintf(&v9stat->extension, "%c %u %u",
+                S_ISCHR(stbuf->st_mode) ? 'c' : 'b',
+                major(stbuf->st_rdev), minor(stbuf->st_rdev));
+    } else if (S_ISDIR(stbuf->st_mode) || S_ISREG(stbuf->st_mode)) {
+        v9fs_string_sprintf(&v9stat->extension, "%s %u",
+                "HARDLINKCOUNT", stbuf->st_nlink);
     }
 
     str = strrchr(name->data, '/');

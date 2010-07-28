@@ -169,12 +169,10 @@ static void pprint_stat(V9fsPDU *pdu, int rx, size_t *offsetp, const char *name)
     pprint_str(pdu, rx, offsetp, ", uid");
     pprint_str(pdu, rx, offsetp, ", gid");
     pprint_str(pdu, rx, offsetp, ", muid");
-    if (dotu) {
-        pprint_str(pdu, rx, offsetp, ", extension");
-        pprint_int32(pdu, rx, offsetp, ", uid");
-        pprint_int32(pdu, rx, offsetp, ", gid");
-        pprint_int32(pdu, rx, offsetp, ", muid");
-    }
+    pprint_str(pdu, rx, offsetp, ", extension");
+    pprint_int32(pdu, rx, offsetp, ", uid");
+    pprint_int32(pdu, rx, offsetp, ", gid");
+    pprint_int32(pdu, rx, offsetp, ", muid");
     fprintf(llogfile, "}");
 }
 
@@ -401,9 +399,7 @@ void pprint_pdu(V9fsPDU *pdu)
         pprint_int32(pdu, 0, &offset, "afid");
         pprint_str(pdu, 0, &offset, ", uname");
         pprint_str(pdu, 0, &offset, ", aname");
-        if (dotu) {
-            pprint_int32(pdu, 0, &offset, ", n_uname");
-        }
+        pprint_int32(pdu, 0, &offset, ", n_uname");
         break;
     case P9_RAUTH:
         fprintf(llogfile, "RAUTH: (");
@@ -415,9 +411,7 @@ void pprint_pdu(V9fsPDU *pdu)
         pprint_int32(pdu, 0, &offset, ", afid");
         pprint_str(pdu, 0, &offset, ", uname");
         pprint_str(pdu, 0, &offset, ", aname");
-        if (dotu) {
-            pprint_int32(pdu, 0, &offset, ", n_uname");
-        }
+        pprint_int32(pdu, 0, &offset, ", n_uname");
         break;
     case P9_RATTACH:
         fprintf(llogfile, "RATTACH: (");
@@ -429,9 +423,7 @@ void pprint_pdu(V9fsPDU *pdu)
     case P9_RERROR:
         fprintf(llogfile, "RERROR: (");
         pprint_str(pdu, 1, &offset, "ename");
-        if (dotu) {
-            pprint_int32(pdu, 1, &offset, ", ecode");
-        }
+        pprint_int32(pdu, 1, &offset, ", ecode");
         break;
     case P9_TFLUSH:
         fprintf(llogfile, "TFLUSH: (");
@@ -466,9 +458,7 @@ void pprint_pdu(V9fsPDU *pdu)
         pprint_str(pdu, 0, &offset, ", name");
         pprint_int32(pdu, 0, &offset, ", perm");
         pprint_int8(pdu, 0, &offset, ", mode");
-        if (dotu) {
-            pprint_str(pdu, 0, &offset, ", extension");
-        }
+        pprint_str(pdu, 0, &offset, ", extension");
         break;
     case P9_RCREATE:
         fprintf(llogfile, "RCREATE: (");
