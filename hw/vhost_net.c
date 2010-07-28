@@ -20,7 +20,6 @@
 
 #ifdef CONFIG_VHOST_NET
 #include <linux/vhost.h>
-#include <sys/eventfd.h>
 #include <sys/socket.h>
 #include <linux/kvm.h>
 #include <fcntl.h>
