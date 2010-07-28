@@ -50,6 +50,8 @@ int acpi_table_add(const char *t)
     char buf[1024], *p, *f;
     struct acpi_table_header acpi_hdr;
     unsigned long val;
+    uint32_t length;
+    struct acpi_table_header *acpi_hdr_p;
     size_t off;
 
     memset(&acpi_hdr, 0, sizeof(acpi_hdr));
@@ -108,7 +110,7 @@ int acpi_table_add(const char *t)
          buf[0] = '\0';
     }
 
-    acpi_hdr.length = sizeof(acpi_hdr);
+    length = sizeof(acpi_hdr);
 
     f = buf;
     while (buf[0]) {
@@ -120,7 +122,7 @@ int acpi_table_add(const char *t)
             fprintf(stderr, "Can't stat file '%s': %s\n", f, strerror(errno));
             goto out;
         }
-        acpi_hdr.length += s.st_size;
+        length += s.st_size;
         if (!n)
             break;
         *n = ':';
@@ -131,12 +133,12 @@ int acpi_table_add(const char *t)
         acpi_tables_len = sizeof(uint16_t);
         acpi_tables = qemu_mallocz(acpi_tables_len);
     }
+    acpi_tables = qemu_realloc(acpi_tables,
+                               acpi_tables_len + sizeof(uint16_t) + length);
     p = acpi_tables + acpi_tables_len;
-    acpi_tables_len += sizeof(uint16_t) + acpi_hdr.length;
-    acpi_tables = qemu_realloc(acpi_tables, acpi_tables_len);
+    acpi_tables_len += sizeof(uint16_t) + length;
 
-    acpi_hdr.length = cpu_to_le32(acpi_hdr.length);
-    *(uint16_t*)p = acpi_hdr.length;
+    *(uint16_t*)p = cpu_to_le32(length);
     p += sizeof(uint16_t);
     memcpy(p, &acpi_hdr, sizeof(acpi_hdr));
     off = sizeof(acpi_hdr);
@@ -157,7 +159,9 @@ int acpi_table_add(const char *t)
             goto out;
         }
 
-        do {
+        /* off < length is necessary because file size can be changed
+           under our foot */
+        while(s.st_size && off < length); {
             int r;
             r = read(fd, p + off, s.st_size);
             if (r > 0) {
@@ -167,15 +171,21 @@ int acpi_table_add(const char *t)
                 close(fd);
                 goto out;
             }
-        } while(s.st_size);
+        }
 
         close(fd);
         if (!n)
             break;
         f = n + 1;
     }
+    if (off < length) {
+        /* don't pass random value in process to guest */
+        memset(p + off, 0, length - off);
+    }
 
-    ((struct acpi_table_header*)p)->checksum = acpi_checksum((uint8_t*)p, off);
+    acpi_hdr_p = (struct acpi_table_header*)p;
+    acpi_hdr_p->length = cpu_to_le32(length);
+    acpi_hdr_p->checksum = acpi_checksum((uint8_t*)p, length);
     /* increase number of tables */
     (*(uint16_t*)acpi_tables) =
 	    cpu_to_le32(le32_to_cpu(*(uint16_t*)acpi_tables) + 1);
