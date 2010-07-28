@@ -127,8 +127,11 @@ struct BlockDriver {
 
     void (*bdrv_debug_event)(BlockDriverState *bs, BlkDebugEvent event);
 
-    /* Set if newly created images are not guaranteed to contain only zeros */
-    int no_zero_init;
+    /*
+     * Returns 1 if newly created images are guaranteed to contain only
+     * zeros, 0 otherwise.
+     */
+    int (*bdrv_has_zero_init)(BlockDriverState *bs);
 
     QLIST_ENTRY(BlockDriver) list;
 };
