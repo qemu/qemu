@@ -394,6 +394,11 @@ static int raw_set_locked(BlockDriverState *bs, int locked)
 }
 #endif
 
+static int hdev_has_zero_init(BlockDriverState *bs)
+{
+    return 0;
+}
+
 static BlockDriver bdrv_host_device = {
     .format_name	= "host_device",
     .protocol_name	= "host_device",
@@ -402,6 +407,7 @@ static BlockDriver bdrv_host_device = {
     .bdrv_file_open	= hdev_open,
     .bdrv_close		= raw_close,
     .bdrv_flush		= raw_flush,
+    .bdrv_has_zero_init = hdev_has_zero_init,
 
     .bdrv_read		= raw_read,
     .bdrv_write	        = raw_write,
