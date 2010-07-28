@@ -844,17 +844,24 @@ static void complete_pdu(V9fsState *s, V9fsPDU *pdu, ssize_t len)
     int8_t id = pdu->id + 1; /* Response */
 
     if (len < 0) {
-        V9fsString str;
         int err = -len;
-
-        str.data = strerror(err);
-        str.size = strlen(str.data);
-
         len = 7;
-        len += pdu_marshal(pdu, len, "s", &str);
+
+        if (s->proto_version != V9FS_PROTO_2000L) {
+            V9fsString str;
+
+            str.data = strerror(err);
+            str.size = strlen(str.data);
+
+            len += pdu_marshal(pdu, len, "s", &str);
+            id = P9_RERROR;
+        }
+
         len += pdu_marshal(pdu, len, "d", err);
 
-        id = P9_RERROR;
+        if (s->proto_version == V9FS_PROTO_2000L) {
+            id = P9_RLERROR;
+        }
     }
 
     /* fill out the header */

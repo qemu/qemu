@@ -13,6 +13,8 @@
 #define VIRTIO_9P_MOUNT_TAG 0
 
 enum {
+    P9_TLERROR = 6,
+    P9_RLERROR,
     P9_TSTATFS = 8,
     P9_RSTATFS,
     P9_TLOPEN = 12,
