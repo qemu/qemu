@@ -3293,6 +3293,8 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
     printf("%s: %p start %08x end %08x idx %08x eidx %08x mem %ld\n", __func__,
            mmio, start, end, idx, eidx, memory);
 #endif
+    if ((memory & ~TARGET_PAGE_MASK) == IO_MEM_RAM)
+        memory = IO_MEM_UNASSIGNED;
     memory = (memory >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
     for (; idx <= eidx; idx++) {
         mmio->sub_io_index[idx] = memory;
