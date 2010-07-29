@@ -11,11 +11,15 @@
 
 int main (void)
 {
-    unsigned long tp;
+    unsigned long tp, old_tp;
     int ret;
+
+    asm volatile ("move $pid,%0" : "=r" (old_tp));
+    old_tp &= ~0xff;
 
     ret = syscall (SYS_set_thread_area, 0xf0);
     if (ret != -1 || errno != EINVAL) {
+        syscall (SYS_set_thread_area, old_tp);
         perror ("Invalid thread area accepted:");
         abort();
     }
@@ -26,10 +30,12 @@ int main (void)
         abort ();
     }
 
-    asm ("move $pid,%0" : "=r" (tp));
+    asm volatile ("move $pid,%0" : "=r" (tp));
     tp &= ~0xff;
+    syscall (SYS_set_thread_area, old_tp);
 
     if (tp != 0xeddeed00) {
+	* (volatile int *) 0 = 0;
         perror ("tls2");
         abort ();
     }
