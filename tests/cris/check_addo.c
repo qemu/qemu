@@ -85,7 +85,7 @@ int main(void)
 	cris_tst_cc_init();
 	asm volatile ("setf\tzvnc\n");
 	cris_addo_pi_b(p, t);
-	cris_tst_cc(1, 1, 1, 1);
+	cris_tst_cc(0, 0, 0, 0);
 	asm volatile ("move.d\t$acr, %0\n" : "=r" (r));
 	if (*(uint16_t*)r != 0xff22)
 		err();
@@ -114,7 +114,7 @@ int main(void)
 	cris_tst_cc_init();
 	asm volatile ("setf\tzvnc\n");
 	cris_addo_pi_d(p, t);
-	cris_tst_cc(1, 1, 1, 1);
+	cris_tst_cc(0, 0, 0, 0);
 	asm volatile ("move.d\t$acr, %0\n" : "=r" (r));
 	r = (void*)(((char *)r) + 76789885);
 	if (*r != 0x55aa77ff)

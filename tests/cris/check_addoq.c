@@ -27,7 +27,7 @@ int main(void)
 	cris_tst_cc_init();
 	asm volatile ("setf\tzvnc\n");
 	cris_addoq(4, t);
-	cris_tst_cc(1, 1, 1, 1);
+	cris_tst_cc(0, 0, 0, 0);
 	asm volatile ("move.d\t$acr, %0\n" : "=r" (p));
 	if (*p != 0x88ccee19)
 		err();
