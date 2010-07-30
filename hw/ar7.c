@@ -3576,7 +3576,7 @@ static void ar7_display_init(CPUState *env)
     qemu_chr_add_handlers(ar7.gpio_display, ar7_display_can_receive,
                           ar7_display_receive, ar7_display_event, 0);
 
-    malta_display.display = qemu_chr_open("led display", "vc:320x200", malta_fpga_led_init);
+    malta_display.display = qemu_chr_open("led-display", "vc:320x200", malta_fpga_led_init);
 }
 
 #if 0 // TODO
