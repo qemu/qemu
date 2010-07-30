@@ -243,7 +243,7 @@ static inline unsigned int get_physical_block_exp(BlockConf *conf)
                        _conf.logical_block_size, 512),                  \
     DEFINE_PROP_UINT16("physical_block_size", _state,                   \
                        _conf.physical_block_size, 512),                 \
-    DEFINE_PROP_UINT16("min_io_size", _state, _conf.min_io_size, 512),  \
-    DEFINE_PROP_UINT32("opt_io_size", _state, _conf.opt_io_size, 512)
+    DEFINE_PROP_UINT16("min_io_size", _state, _conf.min_io_size, 0),  \
+    DEFINE_PROP_UINT32("opt_io_size", _state, _conf.opt_io_size, 0)
 
 #endif /* BLOCK_INT_H */

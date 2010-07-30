@@ -590,6 +590,7 @@ int do_change_block(Monitor *mon, const char *device,
         return -1;
     }
     bdrv_flags = bdrv_is_read_only(bs) ? 0 : BDRV_O_RDWR;
+    bdrv_flags |= bdrv_is_snapshot(bs) ? BDRV_O_SNAPSHOT : 0;
     if (bdrv_open(bs, filename, bdrv_flags, drv) < 0) {
         qerror_report(QERR_OPEN_FILE_FAILED, filename);
         return -1;

@@ -629,8 +629,10 @@ extern unsigned long guest_base;
 extern int have_guest_base;
 extern unsigned long reserved_va;
 #define GUEST_BASE guest_base
+#define RESERVED_VA reserved_va
 #else
 #define GUEST_BASE 0ul
+#define RESERVED_VA 0ul
 #endif
 
 /* All direct uses of g2h and h2g need to go away for usermode softmmu.  */

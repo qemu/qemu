@@ -194,6 +194,7 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf);
 
 
 void virtio_net_exit(VirtIODevice *vdev);
+void virtio_blk_exit(VirtIODevice *vdev);
 
 #define DEFINE_VIRTIO_COMMON_FEATURES(_state, _field) \
 	DEFINE_PROP_BIT("indirect_desc", _state, _field, \
