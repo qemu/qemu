@@ -1546,7 +1546,17 @@ static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
         }
     }
 
+    /* Attempt to free the storage associated with the local symbols
+       that we threw away.  Whether or not this has any effect on the
+       memory allocation depends on the malloc implementation and how
+       many symbols we managed to discard.  */
     syms = realloc(syms, nsyms * sizeof(*syms));
+    if (syms == NULL) {
+        free(s);
+        free(strings);
+        return;
+    }
+
     qsort(syms, nsyms, sizeof(*syms), symcmp);
 
     s->disas_num_syms = nsyms;
