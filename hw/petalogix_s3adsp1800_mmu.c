@@ -184,6 +184,7 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
             kernel_size = load_image_targphys(kernel_filename, ddr_base,
                                               ram_size);
             boot_info.bootstrap_pc = ddr_base;
+            high = (ddr_base + kernel_size + 3) & ~3;
         }
 
         boot_info.cmdline = high + 4096;
