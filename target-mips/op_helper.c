@@ -1359,8 +1359,7 @@ void helper_mtc0_cause (target_ulong arg1)
 void helper_mtc0_ebase (target_ulong arg1)
 {
     /* vectored interrupts not implemented */
-    /* Multi-CPU not implemented */
-    env->CP0_EBase = 0x80000000 | (arg1 & 0x3FFFF000);
+    env->CP0_EBase = (env->CP0_EBase & ~0x3FFFF000) | (arg1 & 0x3FFFF000);
 }
 
 void helper_mtc0_config0 (target_ulong arg1)

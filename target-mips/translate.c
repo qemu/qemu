@@ -12679,8 +12679,7 @@ void cpu_reset (CPUMIPSState *env)
     env->CP0_Random = env->tlb->nb_tlb - 1;
     env->tlb->tlb_in_use = env->tlb->nb_tlb;
     env->CP0_Wired = 0;
-    /* SMP not implemented */
-    env->CP0_EBase = 0x80000000;
+    env->CP0_EBase = 0x80000000 | (env->cpu_index & 0x3FF);
     env->CP0_Status = (1 << CP0St_BEV) | (1 << CP0St_ERL);
     /* vectored interrupts not implemented, timer on int 7,
        no performance counters. */
