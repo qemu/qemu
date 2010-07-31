@@ -1503,6 +1503,8 @@ static int send_sub_rect_jpeg(VncState *vs, int x, int y, int w, int h,
         } else {
             ret = send_palette_rect(vs, x, y, w, h, palette);
         }
+    } else {
+        ret = 0;
     }
     return ret;
 }
