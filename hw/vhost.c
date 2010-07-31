@@ -11,7 +11,6 @@
  */
 
 #include <sys/ioctl.h>
-#include <sys/eventfd.h>
 #include "vhost.h"
 #include "hw/hw.h"
 /* For range_get_last */

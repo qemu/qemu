@@ -29,6 +29,15 @@
 
 //#define DEBUG_LED
 
+#ifdef DEBUG_LED
+#define DPRINTF(fmt, ...) \
+do { printf("jazz led: " fmt , ## __VA_ARGS__); } while (0)
+#else
+#define DPRINTF(fmt, ...) do {} while (0)
+#endif
+#define BADF(fmt, ...) \
+do { fprintf(stderr, "jazz led ERROR: " fmt , ## __VA_ARGS__);} while (0)
+
 typedef enum {
     REDRAW_NONE = 0, REDRAW_SEGMENTS = 1, REDRAW_BACKGROUND = 2,
 } screen_state_t;
@@ -49,11 +58,11 @@ static uint32_t led_readb(void *opaque, target_phys_addr_t addr)
             val = s->segments;
             break;
         default:
-#ifdef DEBUG_LED
-            printf("jazz led: invalid read [0x%x]\n", relative_addr);
-#endif
+            BADF("invalid read at [" TARGET_FMT_plx "]\n", addr);
             val = 0;
     }
+
+    DPRINTF("read addr=" TARGET_FMT_plx " val=0x%02x\n", addr, val);
 
     return val;
 }
@@ -92,15 +101,15 @@ static void led_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     LedState *s = opaque;
 
+    DPRINTF("write addr=" TARGET_FMT_plx " val=0x%02x\n", addr, val);
+
     switch (addr) {
         case 0:
             s->segments = val;
             s->state |= REDRAW_SEGMENTS;
             break;
         default:
-#ifdef DEBUG_LED
-            printf("jazz led: invalid write of 0x%02x at [0x%x]\n", val, relative_addr);
-#endif
+            BADF("invalid write of 0x%08x at [" TARGET_FMT_plx "]\n", val, addr);
             break;
     }
 }

@@ -186,6 +186,7 @@ int nb_nics;
 NICInfo nd_table[MAX_NICS];
 int vm_running;
 int autostart;
+int incoming_expected; /* Started with -incoming and waiting for incoming */
 static int rtc_utc = 1;
 static int rtc_date_offset = -1; /* -1 means no change */
 QEMUClock *rtc_clock;
@@ -805,9 +806,7 @@ static void smp_parse(const char *optarg)
             threads = threads > 0 ? threads : 1;
             cores = smp / (sockets * threads);
         } else {
-            if (sockets) {
-                threads = smp / (cores * sockets);
-            }
+            threads = smp / (cores * sockets);
         }
     }
     smp_cpus = smp;
@@ -2605,6 +2604,7 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_incoming:
                 incoming = optarg;
+                incoming_expected = true;
                 break;
             case QEMU_OPTION_nodefaults:
                 default_serial = 0;

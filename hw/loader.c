@@ -733,11 +733,6 @@ int rom_copy(uint8_t *dest, target_phys_addr_t addr, size_t size)
         s = rom->data;
         l = rom->romsize;
 
-        if (rom->addr < addr) {
-            d = dest;
-            s += (addr - rom->addr);
-            l -= (addr - rom->addr);
-        }
         if ((d + l) > (dest + size)) {
             l = dest - d;
         }
