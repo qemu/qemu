@@ -38,6 +38,7 @@
 #include <net/if.h>
 #include <syslog.h>
 #include <stropts.h>
+#include "qemu-error.h"
 
 ssize_t tap_read_packet(int tapfd, uint8_t *buf, int maxlen)
 {
