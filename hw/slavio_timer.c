@@ -377,12 +377,12 @@ static void slavio_timer_reset(DeviceState *d)
         curr_timer->limit = 0;
         curr_timer->count = 0;
         curr_timer->reached = 0;
-        if (i < s->num_cpus) {
+        if (i <= s->num_cpus) {
             ptimer_set_limit(curr_timer->timer,
                              LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 1);
             ptimer_run(curr_timer->timer, 0);
+            curr_timer->running = 1;
         }
-        curr_timer->running = 1;
     }
     s->cputimer_mode = 0;
 }
