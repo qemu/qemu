@@ -15,5 +15,6 @@ int kvmppc_read_host_property(const char *node_path, const char *prop,
                                      void *val, size_t len);
 
 uint32_t kvmppc_get_tbfreq(void);
+int kvmppc_get_hypercall(CPUState *env, uint8_t *buf, int buf_len);
 
 #endif /* __KVM_PPC_H__ */
