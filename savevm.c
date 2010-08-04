@@ -1837,8 +1837,10 @@ void do_savevm(Monitor *mon, const QDict *qdict)
     uint32_t vm_state_size;
 #ifdef _WIN32
     struct _timeb tb;
+    struct tm *ptm;
 #else
     struct timeval tv;
+    struct tm tm;
 #endif
     const char *name = qdict_get_try_str(qdict, "name");
 
@@ -1869,15 +1871,6 @@ void do_savevm(Monitor *mon, const QDict *qdict)
     vm_stop(0);
 
     memset(sn, 0, sizeof(*sn));
-    if (name) {
-        ret = bdrv_snapshot_find(bs, old_sn, name);
-        if (ret >= 0) {
-            pstrcpy(sn->name, sizeof(sn->name), old_sn->name);
-            pstrcpy(sn->id_str, sizeof(sn->id_str), old_sn->id_str);
-        } else {
-            pstrcpy(sn->name, sizeof(sn->name), name);
-        }
-    }
 
     /* fill auxiliary fields */
 #ifdef _WIN32
@@ -1890,6 +1883,24 @@ void do_savevm(Monitor *mon, const QDict *qdict)
     sn->date_nsec = tv.tv_usec * 1000;
 #endif
     sn->vm_clock_nsec = qemu_get_clock(vm_clock);
+
+    if (name) {
+        ret = bdrv_snapshot_find(bs, old_sn, name);
+        if (ret >= 0) {
+            pstrcpy(sn->name, sizeof(sn->name), old_sn->name);
+            pstrcpy(sn->id_str, sizeof(sn->id_str), old_sn->id_str);
+        } else {
+            pstrcpy(sn->name, sizeof(sn->name), name);
+        }
+    } else {
+#ifdef _WIN32
+        ptm = localtime(&tb.time);
+        strftime(sn->name, sizeof(sn->name), "vm-%Y%m%d%H%M%S", ptm);
+#else
+        localtime_r(&tv.tv_sec, &tm);
+        strftime(sn->name, sizeof(sn->name), "vm-%Y%m%d%H%M%S", &tm);
+#endif
+    }
 
     /* Delete old snapshots of the same name */
     if (name && del_existing_snapshots(mon, name) < 0) {
