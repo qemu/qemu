@@ -684,7 +684,7 @@ ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
     }
 
     ram_size -= size_left;
-    if (ram_size)
+    if (size_left)
         printf("Truncating memory to %d MiB to fit SDRAM controller limits.\n",
                (int)(ram_size >> 20));
 
