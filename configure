@@ -80,6 +80,7 @@ make="make"
 install="install"
 objcopy="objcopy"
 ld="ld"
+strip="strip"
 helper_cflags=""
 libs_softmmu=""
 libs_tools=""
@@ -125,6 +126,7 @@ cc="${cross_prefix}${cc}"
 ar="${cross_prefix}${ar}"
 objcopy="${cross_prefix}${objcopy}"
 ld="${cross_prefix}${ld}"
+strip="${cross_prefix}${strip}"
 
 # default flags for all hosts
 QEMU_CFLAGS="-fno-strict-aliasing $QEMU_CFLAGS"
@@ -2227,7 +2229,7 @@ if test "$debug" = "yes" ; then
   echo "CONFIG_DEBUG_EXEC=y" >> $config_host_mak
 fi
 if test "$strip_opt" = "yes" ; then
-  echo "STRIP_OPT=-s" >> $config_host_mak
+  echo "STRIP=${strip}" >> $config_host_mak
 fi
 if test "$bigendian" = "yes" ; then
   echo "HOST_WORDS_BIGENDIAN=y" >> $config_host_mak

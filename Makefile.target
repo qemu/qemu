@@ -329,7 +329,10 @@ clean:
 
 install: all
 ifneq ($(PROGS),)
-	$(INSTALL) -m 755 $(STRIP_OPT) $(PROGS) "$(DESTDIR)$(bindir)"
+	$(INSTALL) -m 755 $(PROGS) "$(DESTDIR)$(bindir)"
+ifneq ($(STRIP),)
+	$(STRIP) $(patsubst %,"$(DESTDIR)$(bindir)/%",$(PROGS))
+endif
 endif
 
 # Include automatically generated dependency files
