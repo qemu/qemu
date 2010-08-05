@@ -619,7 +619,6 @@ static void sdram_reset (void *opaque)
     /* We pre-initialize RAM banks */
     sdram->status = 0x00000000;
     sdram->cfg = 0x00800000;
-    sdram_unmap_bcr(sdram);
 }
 
 void ppc4xx_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
