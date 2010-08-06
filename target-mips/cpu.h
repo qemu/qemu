@@ -525,6 +525,29 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
     env->active_tc.gpr[2] = 0;
 }
 
+static inline int cpu_mips_hw_interrupts_pending(CPUState *env)
+{
+    int32_t pending;
+    int32_t status;
+    int r;
+
+    pending = env->CP0_Cause & CP0Ca_IP_mask;
+    status = env->CP0_Status & CP0Ca_IP_mask;
+
+    if (env->CP0_Config3 & (1 << CP0C3_VEIC)) {
+        /* A MIPS configured with a vectorizing external interrupt controller
+           will feed a vector into the Cause pending lines. The core treats
+           the status lines as a vector level, not as indiviual masks.  */
+        r = pending > status;
+    } else {
+        /* A MIPS configured with compatibility or VInt (Vectored Interrupts)
+           treats the pending lines as individual interrupt lines, the status
+           lines are individual masks.  */
+        r = pending & status;
+    }
+    return r;
+}
+
 #include "cpu-all.h"
 
 /* Memory access type :
