@@ -641,7 +641,7 @@ DEFINE_GRADIENT_FILTER_FUNCTION(32)
 /*
  * Check if a rectangle is all of the same color. If needSameColor is
  * set to non-zero, then also check that its color equals to the
- * *colorPtr value. The result is 1 if the test is successfull, and in
+ * *colorPtr value. The result is 1 if the test is successful, and in
  * that case new color will be stored in *colorPtr.
  */
 
