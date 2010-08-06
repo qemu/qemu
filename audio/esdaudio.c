@@ -24,7 +24,6 @@
 #include <esd.h>
 #include "qemu-common.h"
 #include "audio.h"
-#include <signal.h>
 
 #define AUDIO_CAP "esd"
 #include "audio_int.h"
@@ -190,10 +189,6 @@ static int qesd_init_out (HWVoiceOut *hw, struct audsettings *as)
     ESDVoiceOut *esd = (ESDVoiceOut *) hw;
     struct audsettings obt_as = *as;
     int esdfmt = ESD_STREAM | ESD_PLAY;
-    int err;
-    sigset_t set, old_set;
-
-    sigfillset (&set);
 
     esdfmt |= (as->nchannels == 2) ? ESD_STEREO : ESD_MONO;
     switch (as->fmt) {
@@ -231,42 +226,24 @@ static int qesd_init_out (HWVoiceOut *hw, struct audsettings *as)
         return -1;
     }
 
-    esd->fd = -1;
-    err = pthread_sigmask (SIG_BLOCK, &set, &old_set);
-    if (err) {
-        qesd_logerr (err, "pthread_sigmask failed\n");
-        goto fail1;
-    }
-
     esd->fd = esd_play_stream (esdfmt, as->freq, conf.dac_host, NULL);
     if (esd->fd < 0) {
         qesd_logerr (errno, "esd_play_stream failed\n");
-        goto fail2;
+        goto fail1;
     }
 
     if (audio_pt_init (&esd->pt, qesd_thread_out, esd, AUDIO_CAP, AUDIO_FUNC)) {
-        goto fail3;
-    }
-
-    err = pthread_sigmask (SIG_SETMASK, &old_set, NULL);
-    if (err) {
-        qesd_logerr (err, "pthread_sigmask(restore) failed\n");
+        goto fail2;
     }
 
     return 0;
 
- fail3:
+ fail2:
     if (close (esd->fd)) {
         qesd_logerr (errno, "%s: close on esd socket(%d) failed\n",
                      AUDIO_FUNC, esd->fd);
     }
     esd->fd = -1;
-
- fail2:
-    err = pthread_sigmask (SIG_SETMASK, &old_set, NULL);
-    if (err) {
-        qesd_logerr (err, "pthread_sigmask(restore) failed\n");
-    }
 
  fail1:
     qemu_free (esd->pcm_buf);
@@ -423,10 +400,6 @@ static int qesd_init_in (HWVoiceIn *hw, struct audsettings *as)
     ESDVoiceIn *esd = (ESDVoiceIn *) hw;
     struct audsettings obt_as = *as;
     int esdfmt = ESD_STREAM | ESD_RECORD;
-    int err;
-    sigset_t set, old_set;
-
-    sigfillset (&set);
 
     esdfmt |= (as->nchannels == 2) ? ESD_STEREO : ESD_MONO;
     switch (as->fmt) {
@@ -461,43 +434,24 @@ static int qesd_init_in (HWVoiceIn *hw, struct audsettings *as)
         return -1;
     }
 
-    esd->fd = -1;
-
-    err = pthread_sigmask (SIG_BLOCK, &set, &old_set);
-    if (err) {
-        qesd_logerr (err, "pthread_sigmask failed\n");
-        goto fail1;
-    }
-
     esd->fd = esd_record_stream (esdfmt, as->freq, conf.adc_host, NULL);
     if (esd->fd < 0) {
         qesd_logerr (errno, "esd_record_stream failed\n");
-        goto fail2;
+        goto fail1;
     }
 
     if (audio_pt_init (&esd->pt, qesd_thread_in, esd, AUDIO_CAP, AUDIO_FUNC)) {
-        goto fail3;
-    }
-
-    err = pthread_sigmask (SIG_SETMASK, &old_set, NULL);
-    if (err) {
-        qesd_logerr (err, "pthread_sigmask(restore) failed\n");
+        goto fail2;
     }
 
     return 0;
 
- fail3:
+ fail2:
     if (close (esd->fd)) {
         qesd_logerr (errno, "%s: close on esd socket(%d) failed\n",
                      AUDIO_FUNC, esd->fd);
     }
     esd->fd = -1;
-
- fail2:
-    err = pthread_sigmask (SIG_SETMASK, &old_set, NULL);
-    if (err) {
-        qesd_logerr (err, "pthread_sigmask(restore) failed\n");
-    }
 
  fail1:
     qemu_free (esd->pcm_buf);
