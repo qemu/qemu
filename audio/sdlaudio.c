@@ -184,11 +184,19 @@ static int sdl_open (SDL_AudioSpec *req, SDL_AudioSpec *obt)
 {
     int status;
 #ifndef _WIN32
+    int err;
     sigset_t new, old;
 
     /* Make sure potential threads created by SDL don't hog signals.  */
-    sigfillset (&new);
-    pthread_sigmask (SIG_BLOCK, &new, &old);
+    err = sigfillset (&new);
+    if (err) {
+        dolog ("sdl_open: sigfillset failed: %s\n", strerror (errno));
+    }
+    err = pthread_sigmask (SIG_BLOCK, &new, &old);
+    if (err) {
+        dolog ("sdl_open: pthread_sigmask failed: %s\n", strerror (err));
+        return -1;
+    }
 #endif
 
     status = SDL_OpenAudio (req, obt);
@@ -197,7 +205,14 @@ static int sdl_open (SDL_AudioSpec *req, SDL_AudioSpec *obt)
     }
 
 #ifndef _WIN32
-    pthread_sigmask (SIG_SETMASK, &old, NULL);
+    err = pthread_sigmask (SIG_SETMASK, &old, NULL);
+    if (err) {
+        dolog ("sdl_open: pthread_sigmask (restore) failed: %s\n",
+               strerror (errno));
+        /* We have failed to restore original signal mask, all bets are off,
+           so exit the process */
+        exit (EXIT_FAILURE);
+    }
 #endif
     return status;
 }

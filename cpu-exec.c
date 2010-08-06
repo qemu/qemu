@@ -448,7 +448,7 @@ int cpu_exec(CPUState *env1)
                     }
 #elif defined(TARGET_MIPS)
                     if ((interrupt_request & CPU_INTERRUPT_HARD) &&
-                        (env->CP0_Status & env->CP0_Cause & CP0Ca_IP_mask) &&
+                        cpu_mips_hw_interrupts_pending(env) &&
                         (env->CP0_Status & (1 << CP0St_IE)) &&
                         !(env->CP0_Status & (1 << CP0St_EXL)) &&
                         !(env->CP0_Status & (1 << CP0St_ERL)) &&

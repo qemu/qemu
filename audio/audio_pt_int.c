@@ -6,6 +6,8 @@
 #include "audio_int.h"
 #include "audio_pt_int.h"
 
+#include <signal.h>
+
 static void logerr (struct audio_pt *pt, int err, const char *fmt, ...)
 {
     va_list ap;
@@ -23,8 +25,15 @@ int audio_pt_init (struct audio_pt *p, void *(*func) (void *),
 {
     int err, err2;
     const char *efunc;
+    sigset_t set, old_set;
 
     p->drv = drv;
+
+    err = sigfillset (&set);
+    if (err) {
+        logerr (p, errno, "%s(%s): sigfillset failed", cap, AUDIO_FUNC);
+        return -1;
+    }
 
     err = pthread_mutex_init (&p->mutex, NULL);
     if (err) {
@@ -38,7 +47,23 @@ int audio_pt_init (struct audio_pt *p, void *(*func) (void *),
         goto err1;
     }
 
+    err = pthread_sigmask (SIG_BLOCK, &set, &old_set);
+    if (err) {
+        efunc = "pthread_sigmask";
+        goto err2;
+    }
+
     err = pthread_create (&p->thread, NULL, func, opaque);
+
+    err2 = pthread_sigmask (SIG_SETMASK, &old_set, NULL);
+    if (err2) {
+        logerr (p, err2, "%s(%s): pthread_sigmask (restore) failed",
+                cap, AUDIO_FUNC);
+        /* We have failed to restore original signal mask, all bets are off,
+           so terminate the process */
+        exit (EXIT_FAILURE);
+    }
+
     if (err) {
         efunc = "pthread_create";
         goto err2;
