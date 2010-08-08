@@ -2291,13 +2291,16 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
                     omap_findclk(s, "uart1_fclk"),
                     omap_findclk(s, "uart1_iclk"),
                     s->drq[OMAP24XX_DMA_UART1_TX],
-                    s->drq[OMAP24XX_DMA_UART1_RX], serial_hds[0]);
+                    s->drq[OMAP24XX_DMA_UART1_RX],
+                    "uart1",
+                    serial_hds[0]);
     s->uart[1] = omap2_uart_init(omap_l4ta(s->l4, 20),
                     s->irq[0][OMAP_INT_24XX_UART2_IRQ],
                     omap_findclk(s, "uart2_fclk"),
                     omap_findclk(s, "uart2_iclk"),
                     s->drq[OMAP24XX_DMA_UART2_TX],
                     s->drq[OMAP24XX_DMA_UART2_RX],
+                    "uart2",
                     serial_hds[0] ? serial_hds[1] : NULL);
     s->uart[2] = omap2_uart_init(omap_l4ta(s->l4, 21),
                     s->irq[0][OMAP_INT_24XX_UART3_IRQ],
@@ -2305,6 +2308,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
                     omap_findclk(s, "uart3_iclk"),
                     s->drq[OMAP24XX_DMA_UART3_TX],
                     s->drq[OMAP24XX_DMA_UART3_RX],
+                    "uart3",
                     serial_hds[0] && serial_hds[1] ? serial_hds[2] : NULL);
 
     s->gptimer[0] = omap_gp_timer_init(omap_l4ta(s->l4, 7),
