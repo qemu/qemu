@@ -209,7 +209,7 @@ tight_detect_smooth_image24(VncState *vs, int w, int h)
                      d < w - x - VNC_TIGHT_DETECT_SUBROW_WIDTH; d++) {  \
                 pix = ((uint##bpp##_t *)buf)[(y+d)*w+x+d];              \
                 if (endian) {                                           \
-                    pix = bswap_##bpp(pix);                             \
+                    pix = bswap##bpp(pix);                              \
                 }                                                       \
                 for (c = 0; c < 3; c++) {                               \
                     left[c] = (int)(pix >> shift[c] & max[c]);          \
@@ -218,7 +218,7 @@ tight_detect_smooth_image24(VncState *vs, int w, int h)
                      dx++) {                                            \
                     pix = ((uint##bpp##_t *)buf)[(y+d)*w+x+d+dx];       \
                     if (endian) {                                       \
-                        pix = bswap_##bpp(pix);                         \
+                        pix = bswap##bpp(pix);                          \
                     }                                                   \
                     sum = 0;                                            \
                     for (c = 0; c < 3; c++) {                           \
@@ -608,7 +608,7 @@ tight_filter_gradient24(VncState *vs, uint8_t *buf, int w, int h)
             for (x = 0; x < w; x++) {                                   \
                 pix = *buf;                                             \
                 if (endian) {                                           \
-                    pix = bswap_##bpp(pix);                             \
+                    pix = bswap##bpp(pix);                              \
                 }                                                       \
                 diff = 0;                                               \
                 for (c = 0; c < 3; c++) {                               \
@@ -628,7 +628,7 @@ tight_filter_gradient24(VncState *vs, uint8_t *buf, int w, int h)
                         << shift[c];                                    \
                 }                                                       \
                 if (endian) {                                           \
-                    diff = bswap_##bpp(diff);                           \
+                    diff = bswap##bpp(diff);                            \
                 }                                                       \
                 *buf++ = diff;                                          \
             }                                                           \
