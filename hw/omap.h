@@ -664,10 +664,12 @@ void omap_synctimer_reset(struct omap_synctimer_s *s);
 struct omap_uart_s;
 struct omap_uart_s *omap_uart_init(target_phys_addr_t base,
                 qemu_irq irq, omap_clk fclk, omap_clk iclk,
-                qemu_irq txdma, qemu_irq rxdma, CharDriverState *chr);
+                qemu_irq txdma, qemu_irq rxdma,
+                const char *label, CharDriverState *chr);
 struct omap_uart_s *omap2_uart_init(struct omap_target_agent_s *ta,
                 qemu_irq irq, omap_clk fclk, omap_clk iclk,
-                qemu_irq txdma, qemu_irq rxdma, CharDriverState *chr);
+                qemu_irq txdma, qemu_irq rxdma,
+                const char *label, CharDriverState *chr);
 void omap_uart_reset(struct omap_uart_s *s);
 void omap_uart_attach(struct omap_uart_s *s, CharDriverState *chr);
 

@@ -51,7 +51,8 @@ void omap_uart_reset(struct omap_uart_s *s)
 
 struct omap_uart_s *omap_uart_init(target_phys_addr_t base,
                 qemu_irq irq, omap_clk fclk, omap_clk iclk,
-                qemu_irq txdma, qemu_irq rxdma, CharDriverState *chr)
+                qemu_irq txdma, qemu_irq rxdma,
+                const char *label, CharDriverState *chr)
 {
     struct omap_uart_s *s = (struct omap_uart_s *)
             qemu_mallocz(sizeof(struct omap_uart_s));
@@ -61,11 +62,11 @@ struct omap_uart_s *omap_uart_init(target_phys_addr_t base,
     s->irq = irq;
 #ifdef TARGET_WORDS_BIGENDIAN
     s->serial = serial_mm_init(base, 2, irq, omap_clk_getrate(fclk)/16,
-                               chr ?: qemu_chr_open("null", "null", NULL), 1,
+                               chr ?: qemu_chr_open(label, "null", NULL), 1,
                                1);
 #else
     s->serial = serial_mm_init(base, 2, irq, omap_clk_getrate(fclk)/16,
-                               chr ?: qemu_chr_open("null", "null", NULL), 1,
+                               chr ?: qemu_chr_open(label, "null", NULL), 1,
                                0);
 #endif
     return s;
@@ -162,11 +163,12 @@ static CPUWriteMemoryFunc * const omap_uart_writefn[] = {
 
 struct omap_uart_s *omap2_uart_init(struct omap_target_agent_s *ta,
                 qemu_irq irq, omap_clk fclk, omap_clk iclk,
-                qemu_irq txdma, qemu_irq rxdma, CharDriverState *chr)
+                qemu_irq txdma, qemu_irq rxdma,
+                const char *label, CharDriverState *chr)
 {
     target_phys_addr_t base = omap_l4_attach(ta, 0, 0);
     struct omap_uart_s *s = omap_uart_init(base, irq,
-                    fclk, iclk, txdma, rxdma, chr);
+                    fclk, iclk, txdma, rxdma, label, chr);
     int iomemtype = cpu_register_io_memory(omap_uart_readfn,
                     omap_uart_writefn, s);
 
