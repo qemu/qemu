@@ -191,6 +191,7 @@ static int sdl_open (SDL_AudioSpec *req, SDL_AudioSpec *obt)
     err = sigfillset (&new);
     if (err) {
         dolog ("sdl_open: sigfillset failed: %s\n", strerror (errno));
+        return -1;
     }
     err = pthread_sigmask (SIG_BLOCK, &new, &old);
     if (err) {
