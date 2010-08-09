@@ -153,6 +153,11 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
         syms = qemu_realloc(syms, nsyms * sizeof(*syms));
 
         qsort(syms, nsyms, sizeof(*syms), glue(symcmp, SZ));
+        for (i = 0; i < nsyms - 1; i++) {
+            if (syms[i].st_size == 0) {
+                syms[i].st_size = syms[i + 1].st_value - syms[i].st_value;
+            }
+        }
     } else {
         qemu_free(syms);
         syms = NULL;
