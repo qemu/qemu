@@ -1470,7 +1470,7 @@ static SysBusDeviceInfo musicpal_key_info = {
 };
 
 static struct arm_boot_info musicpal_binfo = {
-    .loader_start = 0x0,
+    .loader_start = MP_SRAM_BASE,
     .board_id = 0x20e,
 };
 
