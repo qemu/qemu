@@ -1282,7 +1282,10 @@ struct target_stat {
 /* FIXME: Microblaze no-mmu user-space has a difference stat64 layout...  */
 struct __attribute__((__packed__)) target_stat64 {
 	uint64_t st_dev;
-        uint64_t st_ino;
+#define TARGET_STAT64_HAS_BROKEN_ST_INO 1
+	uint32_t pad0;
+	uint32_t __st_ino;
+
 	uint32_t st_mode;
 	uint32_t st_nlink;
 	uint32_t st_uid;
@@ -1296,13 +1299,12 @@ struct __attribute__((__packed__)) target_stat64 {
 	int64_t st_blocks;	/* Number 512-byte blocks allocated. */
 
 	int	       target_st_atime;
-        unsigned int   target_st_atime_nsec;
+	unsigned int   target_st_atime_nsec;
 	int	       target_st_mtime;
-        unsigned int   target_st_mtime_nsec;
+	unsigned int   target_st_mtime_nsec;
 	int            target_st_ctime;
-        unsigned int   target_st_ctime_nsec;
-        uint32_t   __unused4;
-        uint32_t   __unused5;
+	unsigned int   target_st_ctime_nsec;
+	uint64_t st_ino;
 };
 
 #elif defined(TARGET_M68K)
