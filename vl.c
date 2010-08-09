@@ -47,6 +47,10 @@
 #include <dirent.h>
 #include <netdb.h>
 #include <sys/select.h>
+#ifdef CONFIG_SIMPLE_TRACE
+#include "trace.h"
+#endif
+
 #ifdef CONFIG_BSD
 #include <sys/stat.h>
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
@@ -1823,6 +1827,9 @@ int main(int argc, char **argv, char **envp)
     int show_vnc_port = 0;
     int defconfig = 1;
 
+#ifdef CONFIG_SIMPLE_TRACE
+    const char *trace_file = NULL;
+#endif
     atexit(qemu_run_exit_notifiers);
     error_set_progname(argv[0]);
 
@@ -2595,6 +2602,14 @@ int main(int argc, char **argv, char **envp)
                 }
                 xen_mode = XEN_ATTACH;
                 break;
+#ifdef CONFIG_SIMPLE_TRACE
+            case QEMU_OPTION_trace:
+                opts = qemu_opts_parse(qemu_find_opts("trace"), optarg, 0);
+                if (opts) {
+                    trace_file = qemu_opt_get(opts, "file");
+                }
+                break;
+#endif
             case QEMU_OPTION_readconfig:
                 {
                     int ret = qemu_read_config_file(optarg);
@@ -2638,6 +2653,12 @@ int main(int argc, char **argv, char **envp)
         data_dir = CONFIG_QEMU_DATADIR;
     }
 
+#ifdef CONFIG_SIMPLE_TRACE
+    /*
+     * Set the trace file name, if specified.
+     */
+    st_set_trace_file(trace_file);
+#endif
     /*
      * Default to max_cpus = smp_cpus, in case the user doesn't
      * specify a max_cpus value.

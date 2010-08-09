@@ -288,6 +288,21 @@ static QemuOptsList qemu_mon_opts = {
     },
 };
 
+#ifdef CONFIG_SIMPLE_TRACE
+static QemuOptsList qemu_trace_opts = {
+    .name = "trace",
+    .implied_opt_name = "trace",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_trace_opts.head),
+    .desc = {
+        {
+            .name = "file",
+            .type = QEMU_OPT_STRING,
+        },
+        { /* end if list */ }
+    },
+};
+#endif
+
 static QemuOptsList qemu_cpudef_opts = {
     .name = "cpudef",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_cpudef_opts.head),
@@ -346,6 +361,9 @@ static QemuOptsList *vm_config_groups[32] = {
     &qemu_global_opts,
     &qemu_mon_opts,
     &qemu_cpudef_opts,
+#ifdef CONFIG_SIMPLE_TRACE
+    &qemu_trace_opts,
+#endif
     NULL,
 };
 
