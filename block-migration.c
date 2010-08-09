@@ -346,7 +346,7 @@ static int mig_save_device_dirty(Monitor *mon, QEMUFile *f,
                 blk->iov.iov_len = nr_sectors * BDRV_SECTOR_SIZE;
                 qemu_iovec_init_external(&blk->qiov, &blk->iov, 1);
 
-		blk->time = qemu_get_clock_ns(rt_clock);
+                blk->time = qemu_get_clock_ns(rt_clock);
 
                 blk->aiocb = bdrv_aio_readv(bmds->bs, sector, &blk->qiov,
                                             nr_sectors, blk_mig_read_cb, blk);
@@ -449,13 +449,13 @@ static int is_stage2_completed(void)
     if (block_mig_state.bulk_completed == 1) {
 
         remaining_dirty = get_remaining_dirty();
-	if (remaining_dirty == 0) {
-	    return 1;
-	}
+        if (remaining_dirty == 0) {
+            return 1;
+        }
 
-	bwidth = compute_read_bwidth();
+        bwidth = compute_read_bwidth();
 
-	if ((remaining_dirty / bwidth) <=
+        if ((remaining_dirty / bwidth) <=
             migrate_max_downtime()) {
             /* finish stage2 because we think that we can finish remaing work
                below max_downtime */
