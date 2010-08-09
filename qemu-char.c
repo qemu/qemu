@@ -2279,6 +2279,10 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
     const char *p;
     QemuOpts *opts;
 
+    /* Initialize data to 0 to avoid warnings from Valgrind. */
+    memset(width, 0, sizeof(width));
+    memset(height, 0, sizeof(height));
+
     opts = qemu_opts_create(&qemu_chardev_opts, label, 1);
     if (NULL == opts)
         return NULL;

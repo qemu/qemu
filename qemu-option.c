@@ -783,6 +783,10 @@ int qemu_opts_do_parse(QemuOpts *opts, const char *params, const char *firstname
     char option[128], value[1024];
     const char *p,*pe,*pc;
 
+    /* Initialize data to 0 to avoid warnings from Valgrind. */
+    memset(option, 0, sizeof(option));
+    memset(value, 0, sizeof(value));
+
     for (p = params; *p != '\0'; p++) {
         pe = strchr(p, '=');
         pc = strchr(p, ',');
