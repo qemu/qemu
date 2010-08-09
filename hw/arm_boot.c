@@ -204,7 +204,7 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
     int kernel_size;
     int initrd_size;
     int n;
-    int is_linux = 0;
+    int is_linux;
     uint64_t elf_entry;
     target_phys_addr_t entry;
     int big_endian;
@@ -226,6 +226,8 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
 #endif
 
     /* Assume that raw images are linux kernels, and ELF images are not.  */
+    /* If the filename contains 'vmlinux', assume ELF images are linux, too. */
+    is_linux = (strstr(info->kernel_filename, "vmlinux") != NULL);
     kernel_size = load_elf(info->kernel_filename, NULL, NULL, &elf_entry,
                            NULL, NULL, big_endian, ELF_MACHINE, 1);
     entry = elf_entry;
