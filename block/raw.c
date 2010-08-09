@@ -237,6 +237,11 @@ static QEMUOptionParameter raw_create_options[] = {
     { NULL }
 };
 
+static int raw_has_zero_init(BlockDriverState *bs)
+{
+    return bdrv_has_zero_init(bs->file);
+}
+
 static BlockDriver bdrv_raw = {
     .format_name        = "raw",
 
@@ -264,6 +269,7 @@ static BlockDriver bdrv_raw = {
 
     .bdrv_create        = raw_create,
     .create_options     = raw_create_options,
+    .bdrv_has_zero_init = raw_has_zero_init,
 };
 
 static void bdrv_raw_init(void)
