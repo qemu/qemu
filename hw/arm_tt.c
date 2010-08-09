@@ -1,9 +1,16 @@
 /*
- * Marvell MV88W8618 / Freecom MusicPal emulation.
+ * TomTom GO 730 with Samsung S3C2443X emulation.
  *
+ * Copyright (c) 2010 Stefan Weil
+ *
+ * Code based on hw/musicpal.c
  * Copyright (c) 2008 Jan Kiszka
  *
  * This code is licenced under the GNU GPL v2.
+ *
+ * References:
+ * http://www.opentom.org/TomTom_GO_730
+ * ARM 920T Technical Reference Manual
  */
 
 #include "sysbus.h"
@@ -18,6 +25,70 @@
 #include "flash.h"
 #include "console.h"
 #include "i2c.h"
+
+#ifdef TARGET_WORDS_BIGENDIAN
+int bigendian = 1;
+#else
+int bigendian = 0;
+#endif
+
+#define logout(fmt, ...) \
+    fprintf(stderr, "S3C2443\t%-24s" fmt, __func__, ##__VA_ARGS__)
+
+#define TODO() logout("%s:%u: missing\n", __FILE__, __LINE__)
+
+/*
+Base Address of Special Registers
+Address    Module
+0x51000000 PWM
+0x5B000000 AC97
+0x50000000 UART
+0x5A000000 SDI
+0x4F800000 TIC
+0x4F000000 SSMC
+0x59000000 SPI
+0x4E800000 MATRIX
+0x58000000 TSADC
+0x4E000000 NFCON
+0x4D800000 CAM I/F
+0x4D000000 STN-LCD
+0x57000000 RTC
+0x4C800000 TFT-LCD
+0x4B800000 CF Card
+0x4B000000 DMA
+0x55000000 IIS
+0x4A800000 HS-MMC
+0x54000000 IIC
+0x4A000000 INTC
+0x49800000 USB Device
+0x53000000 WDT
+0x49000000 USB HOST
+0x48800000 EBI
+0x48000000 Module SDRAM
+0x52000000 HS-SPI
+*/
+
+#define S3C2443X_SYSCON         0x4c000000
+#define S3C2443X_IO_PORT        0x56000000
+
+typedef struct {
+    unsigned offset;
+    const char *name;
+} offset_name_t;
+
+static const char *offset2name(const offset_name_t *o2n, unsigned offset)
+{
+    static char buffer[12];
+    const char *name = buffer;
+    snprintf(buffer, sizeof(buffer), "0x%08x", offset);
+    for (; o2n->name != 0; o2n++) {
+        if (offset == o2n->offset) {
+            name = o2n->name;
+            break;
+        }
+    }
+    return name;
+}
 
 #define MP_MISC_BASE            0x80002000
 #define MP_MISC_SIZE            0x00001000
@@ -48,11 +119,11 @@
 #define MP_LCD_BASE             0x9000c000
 #define MP_LCD_SIZE             0x00001000
 
-#define MP_SRAM_BASE            0xC0000000
-#define MP_SRAM_SIZE            0x00020000
+#define TT_SRAM_BASE            0xC0000000
+#define TT_SRAM_SIZE            0x00020000
 
-#define MP_RAM_DEFAULT_SIZE     32*1024*1024
-#define MP_FLASH_SIZE_MAX       32*1024*1024
+#define MP_RAM_DEFAULT_SIZE     (64 * MiB)
+#define MP_FLASH_SIZE_MAX       32*MiB
 
 #define MP_TIMER1_IRQ           4
 #define MP_TIMER2_IRQ           5
@@ -998,46 +1069,149 @@ static SysBusDeviceInfo mv88w8618_flashcfg_info = {
     .qdev.vmsd  = &mv88w8618_flashcfg_vmsd,
 };
 
-/* Misc register offsets */
-#define MP_MISC_BOARD_REVISION  0x18
+/******************************************************************************/
 
-#define MP_BOARD_REVISION       0x31
+#define S3C2443_MPLLCON         0x10
+#define S3C2443_CLKDIV0         0x24
 
-static uint32_t tt_misc_read(void *opaque, target_phys_addr_t offset)
+/******************************************************************************/
+
+/* SYSCON register offsets. */
+#define SYSCON_MPLLCON          0x10
+#define SYSCON_CLKDIV0          0x24
+
+static uint32_t tt_syscon_read(void *opaque, target_phys_addr_t offset)
 {
+    uint32_t value = 0;
+    logout("0x" TARGET_FMT_plx "\n", offset);
     switch (offset) {
-    case MP_MISC_BOARD_REVISION:
-        return MP_BOARD_REVISION;
+        case SYSCON_MPLLCON:
+        case SYSCON_CLKDIV0:
+        default:
+            TODO();
+    }
+    return value;
+}
 
-    default:
-        return 0;
+static void tt_syscon_write(void *opaque, target_phys_addr_t offset,
+                                uint32_t value)
+{
+    logout("0x" TARGET_FMT_plx " 0x%08x\n", offset, value);
+    switch (offset) {
+        default:
+            TODO();
     }
 }
 
-static void tt_misc_write(void *opaque, target_phys_addr_t offset,
-                                uint32_t value)
+static CPUReadMemoryFunc * const tt_syscon_readfn[] = {
+    tt_syscon_read,
+    tt_syscon_read,
+    tt_syscon_read,
+};
+
+static CPUWriteMemoryFunc * const tt_syscon_writefn[] = {
+    tt_syscon_write,
+    tt_syscon_write,
+    tt_syscon_write,
+};
+
+/******************************************************************************/
+
+/* I/O port register offsets. */
+#define IOPORT_GPBCON           0x10
+#define IOPORT_GPBDAT           0x14
+#define IOPORT_GPBUDP           0x18
+#define IOPORT_EXTINT0          0x88
+#define IOPORT_EXTINT1          0x8c
+#define IOPORT_EXTINT2          0x90
+#define IOPORT_GSTATUS1         0xb0
+
+/*
+tt_ioport_write: 0x00000010
+tt_ioport_write: 0x00000018
+tt_ioport_write: 0x00000010
+tt_ioport_write: 0x00000018
+*/
+
+static uint32_t tt_ioport_read(void *opaque, target_phys_addr_t offset)
 {
+    uint32_t value = 0;
+    logout("0x" TARGET_FMT_plx "\n", offset);
+    switch (offset) {
+        case IOPORT_GPBCON:
+            TODO();
+            break;
+        case IOPORT_GPBDAT:
+            TODO();
+            break;
+        case IOPORT_GPBUDP:
+            value = 0x2aaaaa;
+            break;
+        //~ case IOPORT_EXTINT0:
+        //~ case IOPORT_EXTINT1:
+        //~ case IOPORT_EXTINT2:
+        case IOPORT_GSTATUS1:
+            value = 0x32443001;
+            break;
+        default:
+            TODO();
+    }
+    return value;
 }
 
-static CPUReadMemoryFunc * const tt_misc_readfn[] = {
-    tt_misc_read,
-    tt_misc_read,
-    tt_misc_read,
-};
-
-static CPUWriteMemoryFunc * const tt_misc_writefn[] = {
-    tt_misc_write,
-    tt_misc_write,
-    tt_misc_write,
-};
-
-static void tt_misc_init(void)
+static void tt_ioport_write(void *opaque, target_phys_addr_t offset,
+                                uint32_t value)
 {
-    int iomemtype;
+    logout("0x" TARGET_FMT_plx " 0x%08x\n", offset, value);
+    switch (offset) {
+        case IOPORT_GPBCON:
+            TODO();
+            break;
+        //~ case IOPORT_GPBDAT:
+        case IOPORT_GPBUDP:
+            TODO();
+            break;
+        case IOPORT_EXTINT0:
+            TODO();
+            break;
+        case IOPORT_EXTINT1:
+            TODO();
+            break;
+        case IOPORT_EXTINT2:
+            TODO();
+            break;
+        //~ case IOPORT_GSTATUS1:
+        default:
+            TODO();
+    }
+}
 
-    iomemtype = cpu_register_io_memory(tt_misc_readfn,
-                                       tt_misc_writefn, NULL);
-    cpu_register_physical_memory(MP_MISC_BASE, MP_MISC_SIZE, iomemtype);
+static CPUReadMemoryFunc * const tt_ioport_readfn[] = {
+    tt_ioport_read,
+    tt_ioport_read,
+    tt_ioport_read,
+};
+
+static CPUWriteMemoryFunc * const tt_ioport_writefn[] = {
+    tt_ioport_write,
+    tt_ioport_write,
+    tt_ioport_write,
+};
+
+/******************************************************************************/
+
+static void tt_syscon_init(void)
+{
+    int iomemtype = cpu_register_io_memory(tt_syscon_readfn,
+                                           tt_syscon_writefn, NULL);
+    cpu_register_physical_memory(S3C2443X_SYSCON, 0x10000, iomemtype);
+}
+
+static void tt_ioport_init(void)
+{
+    int iomemtype = cpu_register_io_memory(tt_ioport_readfn,
+                                           tt_ioport_writefn, NULL);
+    cpu_register_physical_memory(S3C2443X_IO_PORT, 0x10000, iomemtype);
 }
 
 /* WLAN register offsets */
@@ -1470,9 +1644,10 @@ static SysBusDeviceInfo tt_key_info = {
 };
 
 static struct arm_boot_info tt_binfo = {
-    .loader_start = MP_SRAM_BASE,
-    //~ .board_id = 0x20e,
-    .board_id = 0x666,
+    .loader_start = 0,
+    //~ .loader_start = TT_SRAM_BASE,
+    /* GO 730 */
+    .board_id = 0x25d,
 };
 
 static void tt_init(ram_addr_t ram_size,
@@ -1482,6 +1657,7 @@ static void tt_init(ram_addr_t ram_size,
 {
     CPUState *env;
     qemu_irq *cpu_pic;
+#if 0
     qemu_irq pic[32];
     DeviceState *dev;
     DeviceState *i2c_dev;
@@ -1493,25 +1669,29 @@ static void tt_init(ram_addr_t ram_size,
     int i;
     unsigned long flash_size;
     DriveInfo *dinfo;
-    ram_addr_t sram_off;
+#endif
+    ram_addr_t ram_off;
+    //~ ram_addr_t sram_off;
 
     if (!cpu_model) {
-        cpu_model = "arm926";
+        cpu_model = "arm920";
     }
     env = cpu_init(cpu_model);
     if (!env) {
-        fprintf(stderr, "Unable to find CPU definition\n");
+        logout("Unable to find CPU definition\n");
         exit(1);
     }
     cpu_pic = arm_pic_init_cpu(env);
 
-    /* For now we use a fixed - the original - RAM size */
-    cpu_register_physical_memory(0, MP_RAM_DEFAULT_SIZE,
-                                 qemu_ram_alloc(NULL, "musicpal.ram",
-                                                MP_RAM_DEFAULT_SIZE));
+    ram_off = qemu_ram_alloc(NULL, "arm920.ram", ram_size);
+    cpu_register_physical_memory(0x00000000, ram_size, ram_off | IO_MEM_RAM);
+    cpu_register_physical_memory(0x30000000, ram_size, ram_off | IO_MEM_RAM);
+    //~ cpu_register_physical_memory(0x80000000, ram_size, ram_off | IO_MEM_RAM);
+    cpu_register_physical_memory(0xc0000000, ram_size, ram_off | IO_MEM_RAM);
 
-    sram_off = qemu_ram_alloc(NULL, "musicpal.sram", MP_SRAM_SIZE);
-    cpu_register_physical_memory(MP_SRAM_BASE, MP_SRAM_SIZE, sram_off);
+#if 0
+    sram_off = qemu_ram_alloc(NULL, "musicpal.sram", TT_SRAM_SIZE);
+    cpu_register_physical_memory(TT_SRAM_BASE, TT_SRAM_SIZE, sram_off);
 
     dev = sysbus_create_simple("mv88w8618_pic", MP_PIC_BASE,
                                cpu_pic[ARM_PIC_CPU_IRQ]);
@@ -1523,31 +1703,21 @@ static void tt_init(ram_addr_t ram_size,
                           pic[MP_TIMER4_IRQ], NULL);
 
     if (serial_hds[0]) {
-#ifdef TARGET_WORDS_BIGENDIAN
         serial_mm_init(MP_UART1_BASE, 2, pic[MP_UART1_IRQ], 1825000,
-                       serial_hds[0], 1, 1);
-#else
-        serial_mm_init(MP_UART1_BASE, 2, pic[MP_UART1_IRQ], 1825000,
-                       serial_hds[0], 1, 0);
-#endif
+                       serial_hds[0], 1, bigendian);
     }
     if (serial_hds[1]) {
-#ifdef TARGET_WORDS_BIGENDIAN
         serial_mm_init(MP_UART2_BASE, 2, pic[MP_UART2_IRQ], 1825000,
-                       serial_hds[1], 1, 1);
-#else
-        serial_mm_init(MP_UART2_BASE, 2, pic[MP_UART2_IRQ], 1825000,
-                       serial_hds[1], 1, 0);
-#endif
+                       serial_hds[1], 1, bigendian);
     }
 
     /* Register flash */
     dinfo = drive_get(IF_PFLASH, 0, 0);
     if (dinfo) {
         flash_size = bdrv_getlength(dinfo->bdrv);
-        if (flash_size != 8*1024*1024 && flash_size != 16*1024*1024 &&
-            flash_size != 32*1024*1024) {
-            fprintf(stderr, "Invalid flash image size\n");
+        if (flash_size != 8*MiB && flash_size != 16*MiB &&
+            flash_size != 32*MiB) {
+            logout("Invalid flash image size\n");
             exit(1);
         }
 
@@ -1556,24 +1726,13 @@ static void tt_init(ram_addr_t ram_size,
          * 0xFF800000 (if there is 8 MB flash). So remap flash access if the
          * image is smaller than 32 MB.
          */
-#ifdef TARGET_WORDS_BIGENDIAN
         pflash_cfi02_register(0-MP_FLASH_SIZE_MAX, qemu_ram_alloc(NULL,
                               "musicpal.flash", flash_size),
                               dinfo->bdrv, 0x10000,
                               (flash_size + 0xffff) >> 16,
                               MP_FLASH_SIZE_MAX / flash_size,
                               2, 0x00BF, 0x236D, 0x0000, 0x0000,
-                              0x5555, 0x2AAA, 1);
-#else
-        pflash_cfi02_register(0-MP_FLASH_SIZE_MAX, qemu_ram_alloc(NULL,
-                              "musicpal.flash", flash_size),
-                              dinfo->bdrv, 0x10000,
-                              (flash_size + 0xffff) >> 16,
-                              MP_FLASH_SIZE_MAX / flash_size,
-                              2, 0x00BF, 0x236D, 0x0000, 0x0000,
-                              0x5555, 0x2AAA, 0);
-#endif
-
+                              0x5555, 0x2AAA, bigendian);
     }
     sysbus_create_simple("mv88w8618_flashcfg", MP_FLASHCFG_BASE, NULL);
 
@@ -1585,9 +1744,12 @@ static void tt_init(ram_addr_t ram_size,
     sysbus_connect_irq(sysbus_from_qdev(dev), 0, pic[MP_ETH_IRQ]);
 
     sysbus_create_simple("mv88w8618_wlan", MP_WLAN_BASE, NULL);
+#endif
 
-    tt_misc_init();
+    tt_syscon_init();
+    tt_ioport_init();
 
+#if 0
     dev = sysbus_create_simple("tt_gpio", MP_GPIO_BASE, pic[MP_GPIO_IRQ]);
     i2c_dev = sysbus_create_simple("gpio_i2c", 0, NULL);
     i2c = (i2c_bus *)qdev_get_child_bus(i2c_dev, "i2c");
@@ -1620,23 +1782,72 @@ static void tt_init(ram_addr_t ram_size,
     qdev_init_nofail(dev);
     sysbus_mmio_map(s, 0, MP_AUDIO_BASE);
     sysbus_connect_irq(s, 0, pic[MP_AUDIO_IRQ]);
+#endif
 
-    tt_binfo.ram_size = MP_RAM_DEFAULT_SIZE;
+    tt_binfo.ram_size = ram_size;
     tt_binfo.kernel_filename = kernel_filename;
     tt_binfo.kernel_cmdline = kernel_cmdline;
     tt_binfo.initrd_filename = initrd_filename;
     arm_load_kernel(env, &tt_binfo);
 }
 
+static void tt_init_go(ram_addr_t ram_size,
+               const char *boot_device,
+               const char *kernel_filename, const char *kernel_cmdline,
+               const char *initrd_filename, const char *cpu_model)
+{
+    tt_binfo.board_id = 0x25d;
+    ram_size = 64 * MiB;
+    tt_init(ram_size, boot_device,
+            kernel_filename, kernel_cmdline,
+            initrd_filename, cpu_model);
+}
+
+static void tt_init_666(ram_addr_t ram_size,
+               const char *boot_device,
+               const char *kernel_filename, const char *kernel_cmdline,
+               const char *initrd_filename, const char *cpu_model)
+{
+    tt_binfo.board_id = 0x666;
+    tt_init(ram_size, boot_device,
+            kernel_filename, kernel_cmdline,
+            initrd_filename, cpu_model);
+}
+
+static void tt_init_smdk2443(ram_addr_t ram_size,
+               const char *boot_device,
+               const char *kernel_filename, const char *kernel_cmdline,
+               const char *initrd_filename, const char *cpu_model)
+{
+    tt_binfo.board_id = 0x666;
+    tt_init(ram_size, boot_device,
+            kernel_filename, kernel_cmdline,
+            initrd_filename, cpu_model);
+}
+
 static QEMUMachine tt_machine = {
     .name = "tt",
-    .desc = "OpenTom (ARM926-T)",
-    .init = tt_init,
+    .desc = "OpenTom (ARM920-T)",
+    .init = tt_init_go,
+};
+
+static QEMUMachine tt_machine_666 = {
+    .name = "tt666",
+    .desc = "OpenTom (ARM920-T)",
+    .init = tt_init_666,
+};
+
+static QEMUMachine tt_machine_smdk2443 = {
+    .name = "smdk2443",
+    .desc = "smdk2443 (ARM920-T)",
+    .init = tt_init_smdk2443,
 };
 
 static void tt_machine_init(void)
 {
     qemu_register_machine(&tt_machine);
+    qemu_register_machine(&tt_machine_666);
+    qemu_register_machine(&tt_machine_smdk2443);
 }
 
 machine_init(tt_machine_init);
