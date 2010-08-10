@@ -1674,7 +1674,7 @@ static void tt_init(ram_addr_t ram_size,
     //~ ram_addr_t sram_off;
 
     if (!cpu_model) {
-        cpu_model = "arm920";
+        cpu_model = "arm920t";
     }
     env = cpu_init(cpu_model);
     if (!env) {

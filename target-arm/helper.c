@@ -51,6 +51,8 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     case ARM_CPUID_ARM920T:
         //~ set_feature(env, ARM_FEATURE_ABORT_BU);
         //~ set_feature(env, ARM_FEATURE_CP15);
+        //~ set_feature(env, ARM_FEATURE_VFP);
+        //~ env->vfp.xregs[ARM_VFP_FPSID] = 0x41011090;
         env->cp15.c0_cachetype = 0x0d172172;
         env->cp15.c1_sys = 0x00000078;
         break;
@@ -1344,7 +1346,7 @@ void HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
             /* This may enable/disable the MMU, so do a TLB flush.  */
             tlb_flush(env, 1);
             break;
-        case 1: /* Auxiliary cotrol register.  */
+        case 1: /* Auxiliary control register.  */
             if (arm_feature(env, ARM_FEATURE_XSCALE)) {
                 env->cp15.c1_xscaleauxcr = val;
                 break;
