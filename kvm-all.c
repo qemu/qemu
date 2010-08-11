@@ -1241,6 +1241,38 @@ int kvm_set_signal_mask(CPUState *env, const sigset_t *sigset)
     return r;
 }
 
+int kvm_set_ioeventfd_mmio_long(int fd, uint32_t addr, uint32_t val, bool assign)
+{
+#ifdef KVM_IOEVENTFD
+    int ret;
+    struct kvm_ioeventfd iofd;
+
+    iofd.datamatch = val;
+    iofd.addr = addr;
+    iofd.len = 4;
+    iofd.flags = KVM_IOEVENTFD_FLAG_DATAMATCH;
+    iofd.fd = fd;
+
+    if (!kvm_enabled()) {
+        return -ENOSYS;
+    }
+
+    if (!assign) {
+        iofd.flags |= KVM_IOEVENTFD_FLAG_DEASSIGN;
+    }
+
+    ret = kvm_vm_ioctl(kvm_state, KVM_IOEVENTFD, &iofd);
+
+    if (ret < 0) {
+        return -errno;
+    }
+
+    return 0;
+#else
+    return -ENOSYS;
+#endif
+}
+
 int kvm_set_ioeventfd_pio_word(int fd, uint16_t addr, uint16_t val, bool assign)
 {
 #ifdef KVM_IOEVENTFD

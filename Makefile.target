@@ -206,6 +206,9 @@ obj-y += eepro100.o
 obj-y += rtl8139.o
 obj-y += e1000.o
 
+# Inter-VM PCI shared memory
+obj-y += ivshmem.o
+
 # Hardware support
 obj-i386-y += vga.o
 obj-i386-y += mc146818rtc.o i8259.o pc.o

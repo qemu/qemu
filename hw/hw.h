@@ -264,6 +264,8 @@ int register_savevm_live(DeviceState *dev,
                          void *opaque);
 
 void unregister_savevm(DeviceState *dev, const char *idstr, void *opaque);
+void register_device_unmigratable(DeviceState *dev, const char *idstr,
+                                                                void *opaque);
 
 typedef void QEMUResetHandler(void *opaque);
 
