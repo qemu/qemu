@@ -26,6 +26,7 @@
  */
 
 #include "ioport.h"
+#include "trace.h"
 
 /***********************************************************/
 /* IO Port */
@@ -195,18 +196,21 @@ void isa_unassign_ioport(pio_addr_t start, int length)
 void cpu_outb(pio_addr_t addr, uint8_t val)
 {
     LOG_IOPORT("outb: %04"FMT_pioaddr" %02"PRIx8"\n", addr, val);
+    trace_cpu_out(addr, val);
     ioport_write(0, addr, val);
 }
 
 void cpu_outw(pio_addr_t addr, uint16_t val)
 {
     LOG_IOPORT("outw: %04"FMT_pioaddr" %04"PRIx16"\n", addr, val);
+    trace_cpu_out(addr, val);
     ioport_write(1, addr, val);
 }
 
 void cpu_outl(pio_addr_t addr, uint32_t val)
 {
     LOG_IOPORT("outl: %04"FMT_pioaddr" %08"PRIx32"\n", addr, val);
+    trace_cpu_out(addr, val);
     ioport_write(2, addr, val);
 }
 
@@ -214,6 +218,7 @@ uint8_t cpu_inb(pio_addr_t addr)
 {
     uint8_t val;
     val = ioport_read(0, addr);
+    trace_cpu_in(addr, val);
     LOG_IOPORT("inb : %04"FMT_pioaddr" %02"PRIx8"\n", addr, val);
     return val;
 }
@@ -222,6 +227,7 @@ uint16_t cpu_inw(pio_addr_t addr)
 {
     uint16_t val;
     val = ioport_read(1, addr);
+    trace_cpu_in(addr, val);
     LOG_IOPORT("inw : %04"FMT_pioaddr" %04"PRIx16"\n", addr, val);
     return val;
 }
@@ -230,6 +236,7 @@ uint32_t cpu_inl(pio_addr_t addr)
 {
     uint32_t val;
     val = ioport_read(2, addr);
+    trace_cpu_in(addr, val);
     LOG_IOPORT("inl : %04"FMT_pioaddr" %08"PRIx32"\n", addr, val);
     return val;
 }

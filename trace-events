@@ -59,3 +59,7 @@ disable virtio_blk_handle_write(void *req, unsigned long sector, unsigned long n
 
 # posix-aio-compat.c
 disable paio_submit(void *acb, void *opaque, unsigned long sector_num, unsigned long nb_sectors, unsigned long type) "acb %p opaque %p sector_num %lu nb_sectors %lu type %lu"
+
+# ioport.c
+disable cpu_in(unsigned int addr, unsigned int val) "addr %#x value %u"
+disable cpu_out(unsigned int addr, unsigned int val) "addr %#x value %u"
