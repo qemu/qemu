@@ -352,8 +352,8 @@ static int check_shm_size(IVShmemState *s, int fd) {
 
     if (s->ivshmem_size > buf.st_size) {
         fprintf(stderr, "IVSHMEM ERROR: Requested memory size greater");
-        fprintf(stderr, " than shared object size (%" PRIu64 " > %ld)\n",
-                                          s->ivshmem_size, buf.st_size);
+        fprintf(stderr, " than shared object size (%" PRIu64 " > %" PRIu64 ")\n",
+                                          s->ivshmem_size, (uint64_t)buf.st_size);
         return -1;
     } else {
         return 0;
