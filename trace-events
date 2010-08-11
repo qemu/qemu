@@ -63,3 +63,7 @@ disable paio_submit(void *acb, void *opaque, unsigned long sector_num, unsigned 
 # ioport.c
 disable cpu_in(unsigned int addr, unsigned int val) "addr %#x value %u"
 disable cpu_out(unsigned int addr, unsigned int val) "addr %#x value %u"
+
+# balloon.c
+# Since requests are raised via monitor, not many tracepoints are needed.
+disable balloon_event(void *opaque, unsigned long addr) "opaque %p addr %lu"

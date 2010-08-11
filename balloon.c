@@ -29,6 +29,7 @@
 #include "cpu-common.h"
 #include "kvm.h"
 #include "balloon.h"
+#include "trace.h"
 
 
 static QEMUBalloonEvent *qemu_balloon_event;
@@ -43,6 +44,7 @@ void qemu_add_balloon_handler(QEMUBalloonEvent *func, void *opaque)
 int qemu_balloon(ram_addr_t target, MonitorCompletion cb, void *opaque)
 {
     if (qemu_balloon_event) {
+        trace_balloon_event(qemu_balloon_event_opaque, target);
         qemu_balloon_event(qemu_balloon_event_opaque, target, cb, opaque);
         return 1;
     } else {
