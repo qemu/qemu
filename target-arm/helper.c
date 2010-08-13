@@ -49,10 +49,13 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     env->cp15.c0_cpuid = id;
     switch (id) {
     case ARM_CPUID_ARM920T:
+        //~ set_feature(env, ARM_FEATURE_ABORT_BU);
+        //~ set_feature(env, ARM_FEATURE_CP15);
         env->cp15.c0_cachetype = 0x0d172172;
         env->cp15.c1_sys = 0x00000078;
         break;
     case ARM_CPUID_ARM926:
+        /* TODO: distinguish between v5t and v5te. */
         set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_VFP);
         env->vfp.xregs[ARM_VFP_FPSID] = 0x41011090;
