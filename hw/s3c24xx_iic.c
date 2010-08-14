@@ -148,7 +148,7 @@ static uint32_t s3c24xx_i2c_read(void *opaque, target_phys_addr_t addr)
         return s->data;
 
     default:
-        printf("%s: Bad register 0x%lx\n", __func__, addr);
+        printf("%s: Bad register 0x" TARGET_FMT_plx "\n", __func__, addr);
         break;
     }
     return 0;
@@ -184,7 +184,7 @@ static void s3c24xx_i2c_write(void *opaque, target_phys_addr_t addr,
         break;
 
     default:
-        printf("%s: Bad register 0x%lx\n", __func__, addr);
+        printf("%s: Bad register 0x" TARGET_FMT_plx "\n", __func__, addr);
         break;
     }
 }
