@@ -746,7 +746,7 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
         else tcg_out32 (s, LDX | TAB (data_reg, rbase, r0));
 #else
         if (bswap) {
-            tcg_out_movi32 (s, TCG_TYPE_I64, 0, 4);
+            tcg_out_movi32 (s, 0, 4);
             tcg_out32 (s, LWBRX | RT (data_reg) | RB (r0));
             tcg_out32 (s, LWBRX | RT (      r1) | RA (r0));
             tcg_out_rld (s, RLDIMI, data_reg, r1, 32, 0);
