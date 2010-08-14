@@ -78,7 +78,7 @@ s3c2410x_init(int sdram_size)
                                  offset | IO_MEM_RAM);
 
     /* S3C2410X SRAM */
-    offset = qemu_ram_alloc(NULL, "s3c2410x.sdram", CPU_S3C2410X_SRAM_SIZE);
+    offset = qemu_ram_alloc(NULL, "s3c2410x.sram", CPU_S3C2410X_SRAM_SIZE);
     cpu_register_physical_memory(CPU_S3C2410X_SRAM_BASE,
                                  CPU_S3C2410X_SRAM_SIZE,
                                  offset | IO_MEM_RAM);
