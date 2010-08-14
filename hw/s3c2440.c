@@ -13,6 +13,9 @@
 
 #include "s3c2440.h"
 
+/* Use the PXA OHCI USB mapping */
+#include "pxa.h"
+
 /* S3C2440 SoC ID */
 #define CPU_S3C2440_IDENT_S3C2440A 0x32440001
 
@@ -24,6 +27,9 @@
 
 /* Memory control */
 #define CPU_S3C2440_MEMC_BASE (CPU_S3C2440_PERIPHERAL + 0x8000000)
+
+/* USB controller */
+#define CPU_S3C2440_OHCI_BASE (CPU_S3C2440_PERIPHERAL + 0x9000000)
 
 /* Interrupt controller */
 #define CPU_S3C2440_IRQ_BASE (CPU_S3C2440_PERIPHERAL + 0xA000000)
@@ -109,6 +115,9 @@ s3c2440_init(int sdram_size)
 
     /* NAND controller */
     s->nand = s3c24xx_nand_init(CPU_S3C2440_NAND_BASE);
+
+    /* A two port OHCI controller */
+    //~ usb_ohci_init_pxa(CPU_S3C2440_OHCI_BASE, 2, -1, s3c24xx_get_irq(s->irq, 26));
 
     return s;
 }

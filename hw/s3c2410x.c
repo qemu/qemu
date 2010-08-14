@@ -13,6 +13,9 @@
 
 #include "s3c2410x.h"
 
+/* Use the PXA OHCI USB mapping */
+#include "pxa.h"
+
 /* S3C2410 SoC IDs */
 #define CPU_S3C2410X_IDENT_S3C2410X 0x32410000
 #define CPU_S3C2410X_IDENT_S3C2410A 0x32410002
@@ -25,6 +28,9 @@
 
 /* Memory control */
 #define CPU_S3C2410X_MEMC_BASE (CPU_S3C2410X_PERIPHERAL + 0x8000000)
+
+/* USB controller */
+#define CPU_S3C2410X_OHCI_BASE (CPU_S3C2410X_PERIPHERAL + 0x9000000)
 
 /* Interrupt controller */
 #define CPU_S3C2410X_IRQ_BASE (CPU_S3C2410X_PERIPHERAL + 0xA000000)
@@ -110,6 +116,9 @@ s3c2410x_init(int sdram_size)
 
     /* NAND controller */
     s->nand = s3c24xx_nand_init(CPU_S3C2410X_NAND_BASE);
+
+    /* A two port OHCI controller */
+    usb_ohci_init_pxa(CPU_S3C2410X_OHCI_BASE, 2, -1, s3c24xx_get_irq(s->irq, 26));
 
     return s;
 }
