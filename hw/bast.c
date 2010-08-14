@@ -11,6 +11,7 @@
 #include "hw.h"
 #include "sysemu.h"
 #include "arm-misc.h"
+#include "loader.h"             /* load_image_targphys */
 #include "net.h"
 #include "smbus.h"
 #include "devices.h"
@@ -20,25 +21,21 @@
 
 #define BIOS_FILENAME "able.bin"
 
+static int bigendian = 0;
+
 typedef struct {
     S3CState *soc;
     unsigned char cpld_ctrl2;
     NANDFlashState *nand[4];
 } STCBState;
 
-/* Bytes in a Kilobyte */
-#define KILO 1024
-/* Bytes in a megabyte */
-#define MEGA 1024 * KILO
-/* Bytes */
-#define BYTE 1
 /* Bits in a byte */
 #define BIT 8
 
 /* Useful defines */
 #define BAST_NOR_RO_BASE CPU_S3C2410X_CS0
 #define BAST_NOR_RW_BASE (CPU_S3C2410X_CS1 + 0x4000000)
-#define BAST_NOR_SIZE 16 * MEGA / BIT
+#define BAST_NOR_SIZE 16 * MiB / BIT
 #define BAST_BOARD_ID 331
 
 #define BAST_CS1_CPLD_BASE ((target_phys_addr_t)(CPU_S3C2410X_CS1 | (0xc << 23)))
@@ -85,11 +82,6 @@ static void stcb_cpld_register(STCBState *stcb)
     stcb->cpld_ctrl2 = 0;
 }
 
-static void stcb_i2c_setup(STCBState *stcb)
-{
-    i2c_bus *bus = s3c24xx_i2c_bus(stcb->soc->iic);
-}
-
 static struct arm_boot_info bast_binfo = {
     .board_id = BAST_BOARD_ID,
     .ram_size = 0x10000000, /* 256MB */
@@ -101,13 +93,15 @@ static void stcb_init(ram_addr_t _ram_size,
                       const char *initrd_filename, const char *cpu_model)
 {
     STCBState *stcb;
-    int ret, index;
+    DriveInfo *dinfo;
+    int ret;
     ram_addr_t flash_mem;
     BlockDriverState *flash_bds = NULL;
 
     /* ensure memory is limited to 256MB */
-    if (_ram_size > (256 * MEGA * BYTE))
-        _ram_size = 256 * MEGA * BYTE;
+    if (_ram_size > (256 * MiB)) {
+        _ram_size = 256 * MiB;
+    }
     ram_size = _ram_size;
 
     /* initialise board informations */
@@ -132,23 +126,24 @@ static void stcb_init(ram_addr_t _ram_size,
                                  BAST_NOR_SIZE,
                                  flash_mem | IO_MEM_ROM);
 
-#if 0 // TODO
+    dinfo = drive_get(IF_PFLASH, 0, 0);
     /* Aquire flash contents and register pflash device */
-    index = drive_get_index(IF_PFLASH, 0, 0);
-    if (index != -1) {
+    if (dinfo) {
         /* load from specified flash device */
-        flash_bds = drives_table[index].bdrv;
+        flash_bds = dinfo->bdrv;
     } else {
         /* Try and load default bootloader image */
-        char buf[PATH_MAX];
-
-        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
-        ret = load_image_targphys(buf, BAST_NOR_RO_BASE, BAST_NOR_SIZE);
+        char *filename= qemu_find_file(QEMU_FILE_TYPE_BIOS, BIOS_FILENAME);
+        if (filename) {
+            ret = load_image_targphys(filename,
+                                      BAST_NOR_RO_BASE, BAST_NOR_SIZE);
+            free(filename);
+        }
     }
     pflash_cfi02_register(BAST_NOR_RW_BASE, flash_mem, flash_bds,
                           65536, 32, 1, 2,
-                          0x00BF, 0x234B, 0x0000, 0x0000, 0x5555, 0x2AAA);
-#endif
+                          0x00BF, 0x234B, 0x0000, 0x0000, 0x5555, 0x2AAA,
+                          bigendian);
 
     /* if kernel is given, boot that directly */
     if (kernel_filename != NULL) {
@@ -163,18 +158,17 @@ static void stcb_init(ram_addr_t _ram_size,
     stcb_cpld_register(stcb);
 
     /* attach i2c devices */
-    stcb_i2c_setup(stcb);
+    /*i2c_bus *bus =*/ s3c24xx_i2c_bus(stcb->soc->iic);
 
     /* Attach some NAND devices */
     stcb->nand[0] = NULL;
     stcb->nand[1] = NULL;
-#if 0 // TODO
-    index = drive_get_index(IF_MTD, 0, 0);
-    if (index == -1)
+    dinfo = drive_get(IF_MTD, 0, 0);
+    if (!dinfo) {
         stcb->nand[2] = NULL;
-    else
+    } else {
         stcb->nand[2] = nand_init(0xEC, 0x79); /* 128MiB small-page */
-#endif
+    }
 }
 
 
