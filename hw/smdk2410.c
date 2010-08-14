@@ -11,6 +11,7 @@
 #include "hw.h"
 #include "sysemu.h"
 #include "arm-misc.h"
+#include "loader.h"             /* load_image_targphys */
 #include "net.h"
 #include "smbus.h"
 #include "devices.h"
@@ -26,18 +27,12 @@ typedef struct {
     NANDFlashState *nand[4];
 } SMDK2410State;
 
-/* Bytes in a Kilobyte */
-#define KILO 1024
-/* Bytes in a megabyte */
-#define MEGA 1024 * KILO
-/* Bytes */
-#define BYTE 1
 /* Bits in a byte */
 #define BIT 8
 
 /* Useful defines */
 #define SMDK2410_NOR_BASE CPU_S3C2410X_CS0
-#define SMDK2410_NOR_SIZE 16 * MEGA / BIT
+#define SMDK2410_NOR_SIZE 16 * MiB / BIT
 #define SMDK2410_BOARD_ID 193
 
 static struct arm_boot_info smdk2410_binfo = {
@@ -51,12 +46,14 @@ static void smdk2410_init(ram_addr_t _ram_size,
                       const char *initrd_filename, const char *cpu_model)
 {
     ram_addr_t offset;
+    DriveInfo *dinfo;
     SMDK2410State *stcb;
-    int ret, index;
+    int ret;
 
     /* ensure memory is limited to 256MB */
-    if (_ram_size > (256 * MEGA * BYTE))
-        _ram_size = 256 * MEGA * BYTE;
+    if (_ram_size > (256 * MiB)) {
+        _ram_size = 256 * MiB;
+    }
     ram_size = _ram_size;
 
     /* allocate storage for board state */
@@ -80,20 +77,29 @@ static void smdk2410_init(ram_addr_t _ram_size,
     smdk2410_binfo.loader_start = SMDK2410_NOR_BASE;
 
     if (kernel_filename == NULL) {
-#if 0 // TODO
         /* No kernel given so try and aquire a bootloader */
-        char buf[PATH_MAX];
-
-        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
-        ret = load_image_targphys(buf, smdk2410_binfo.loader_start, SMDK2410_NOR_SIZE);
-        if (ret <= 0) {
-            perror("qemu");
-            fprintf(stderr, "qemu: warning, could not load SMDK2410 BIOS from %s\n", buf);
-            exit (1);
+        char *filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BIOS_FILENAME);
+        if (filename) {
+            ret = load_image_targphys(filename, smdk2410_binfo.loader_start,
+                                      SMDK2410_NOR_SIZE);
+            if (ret <= 0) {
+                perror("qemu");
+                fprintf(stderr,
+                        "qemu: warning, could not load SMDK2410 BIOS from %s\n",
+                        filename);
+                exit (1);
+            }
+            fprintf(stdout,
+                    "qemu: info, loaded SMDK2410 BIOS %d bytes from %s\n",
+                    ret, filename);
+            free(filename);
         } else {
-            fprintf(stdout, "qemu: info, loaded SMDK2410 BIOS %d bytes from %s\n", ret, buf);
+            perror("qemu");
+            fprintf(stderr,
+                    "qemu: warning, could not load SMDK2410 BIOS from %s\n",
+                    BIOS_FILENAME);
+            exit(1);
         }
-#endif
     } else {
         smdk2410_binfo.loader_start = CPU_S3C2410X_DRAM;
         arm_load_kernel(stcb->soc->cpu_env, &smdk2410_binfo);
@@ -105,13 +111,12 @@ static void smdk2410_init(ram_addr_t _ram_size,
     /* Attach some NAND devices */
     stcb->nand[0] = NULL;
     stcb->nand[1] = NULL;
-#if 0 // TODO
-    index = drive_get_index(IF_MTD, 0, 0);
-    if (index == -1)
+    dinfo = drive_get(IF_MTD, 0, 0);
+    if (!dinfo) {
         stcb->nand[2] = NULL;
-    else
+    } else {
         stcb->nand[2] = nand_init(0xEC, 0x79); /* 128MiB small-page */
-#endif
+    }
 }
 
 
