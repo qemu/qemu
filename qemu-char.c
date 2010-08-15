@@ -2087,11 +2087,12 @@ static void tcp_chr_read(void *opaque)
     }
 }
 
-CharDriverState *qemu_chr_open_eventfd(int eventfd){
-
+#ifndef _WIN32
+CharDriverState *qemu_chr_open_eventfd(int eventfd)
+{
     return qemu_chr_open_fd(eventfd, eventfd);
-
 }
+#endif
 
 static void tcp_chr_connect(void *opaque)
 {
