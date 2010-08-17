@@ -1286,7 +1286,7 @@ static int img_rebase(int argc, char **argv)
         }
 
         bs_new_backing = bdrv_new("new_backing");
-        ret = bdrv_open(bs_new_backing, out_baseimg, BDRV_O_FLAGS | BDRV_O_RDWR,
+        ret = bdrv_open(bs_new_backing, out_baseimg, BDRV_O_FLAGS,
                         new_backing_drv);
         if (ret) {
             error("Could not open new backing file '%s'", out_baseimg);
