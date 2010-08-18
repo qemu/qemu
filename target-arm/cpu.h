@@ -330,23 +330,30 @@ enum arm_cpu_mode {
 #define ARM_IWMMXT_wCGR3	11
 
 enum arm_features {
-    ARM_FEATURE_VFP,
+    ARM_FEATURE_VFP,    /* Vector Floating-point. */
     ARM_FEATURE_AUXCR,  /* ARM1026 Auxiliary control register.  */
     ARM_FEATURE_XSCALE, /* Intel XScale extensions.  */
     ARM_FEATURE_IWMMXT, /* Intel iwMMXt extension.  */
+    //~ ARM_FEATURE_V4,     /* TODO: still unused. */
+    //~ See http://lists.nongnu.org/archive/html/qemu-devel/2009-05/msg01570.html
     ARM_FEATURE_V5,
     ARM_FEATURE_V6,
     ARM_FEATURE_V6K,
     ARM_FEATURE_V7,
+    //~ ARM_FEATURE_THUMB,  /* TODO: still unused. */
+    //~ ARM_FEATURE_THUMB1 = ARM_FEATURE_THUMB, /* TODO: still unused. */
     ARM_FEATURE_THUMB2,
     ARM_FEATURE_MPU,    /* Only has Memory Protection Unit, not full MMU.  */
     ARM_FEATURE_VFP3,
     ARM_FEATURE_VFP_FP16,
     ARM_FEATURE_NEON,
     ARM_FEATURE_DIV,
-    ARM_FEATURE_M, /* Microcontroller profile.  */
+    ARM_FEATURE_M,      /* Microcontroller profile.  */
     ARM_FEATURE_OMAPCP, /* OMAP specific CP15 ops handling.  */
     ARM_FEATURE_THUMB2EE
+    // TODO: long multiply instructions (M variant), standard for v4 and v5.
+    // TODO: enhanced dsp instructions (E variant).
+    // TODO: ARMv5TExP.
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)
