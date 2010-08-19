@@ -2316,12 +2316,6 @@ int main(int argc, char **argv, char **envp)
                 len += strlen(qemu_opt_get(opts, "security_model"));
                 arg_fsdev = qemu_malloc((len + 1) * sizeof(*arg_fsdev));
 
-                if (!arg_fsdev) {
-                    fprintf(stderr, "No memory to parse -fsdev for %s\n",
-                            optarg);
-                    exit(1);
-                }
-
                 sprintf(arg_fsdev, "%s,id=%s,path=%s,security_model=%s",
                                 qemu_opt_get(opts, "fstype"),
                                 qemu_opt_get(opts, "mount_tag"),
@@ -2331,12 +2325,6 @@ int main(int argc, char **argv, char **envp)
                 len = strlen("virtio-9p-pci,fsdev=,mount_tag=");
                 len += 2*strlen(qemu_opt_get(opts, "mount_tag"));
                 arg_9p = qemu_malloc((len + 1) * sizeof(*arg_9p));
-
-                if (!arg_9p) {
-                    fprintf(stderr, "No memory to parse -device for %s\n",
-                            optarg);
-                    exit(1);
-                }
 
                 sprintf(arg_9p, "virtio-9p-pci,fsdev=%s,mount_tag=%s",
                                 qemu_opt_get(opts, "mount_tag"),
