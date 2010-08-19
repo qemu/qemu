@@ -18,4 +18,17 @@ enum xen_mode {
 extern uint32_t xen_domid;
 extern enum xen_mode xen_mode;
 
+extern int xen_allowed;
+
+static inline int xen_enabled(void)
+{
+#ifdef CONFIG_XEN
+    return xen_allowed;
+#else
+    return 0;
+#endif
+}
+
+int xen_init(void);
+
 #endif /* QEMU_HW_XEN_H */

@@ -665,9 +665,8 @@ int xen_be_init(void)
         goto err;
     }
 
-    xen_xc = xen_xc_interface_open(0, 0, 0);
     if (xen_xc == XC_HANDLER_INITIAL_VALUE) {
-        xen_be_printf(NULL, 0, "can't open xen interface\n");
+        /* Check if xen_init() have been called */
         goto err;
     }
     return 0;

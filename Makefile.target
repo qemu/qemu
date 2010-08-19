@@ -208,6 +208,15 @@ QEMU_CFLAGS += $(VNC_PNG_CFLAGS)
 # xen backend driver support
 obj-i386-$(CONFIG_XEN) += xen_machine_pv.o xen_domainbuild.o
 
+ifeq ($(TARGET_BASE_ARCH), i386)
+  CONFIG_NO_XEN = $(if $(subst n,,$(CONFIG_XEN)),n,y)
+else
+  CONFIG_NO_XEN = y
+endif
+# xen support
+obj-i386-$(CONFIG_XEN) += xen-all.o
+obj-$(CONFIG_NO_XEN) += xen-stub.o
+
 # Inter-VM PCI shared memory
 CONFIG_IVSHMEM =
 ifeq ($(CONFIG_KVM), y)

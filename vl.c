@@ -259,6 +259,7 @@ static NotifierList machine_init_done_notifiers =
 
 static int tcg_allowed = 1;
 int kvm_allowed = 0;
+int xen_allowed = 0;
 uint32_t xen_domid;
 enum xen_mode xen_mode = XEN_EMULATE;
 
@@ -1890,6 +1891,7 @@ static struct {
     int *allowed;
 } accel_list[] = {
     { "tcg", "tcg", tcg_available, tcg_init, &tcg_allowed },
+    { "xen", "Xen", xen_available, xen_init, &xen_allowed },
     { "kvm", "KVM", kvm_available, kvm_init, &kvm_allowed },
 };
 
