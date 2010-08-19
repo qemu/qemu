@@ -230,8 +230,10 @@ static void buffered_rate_tick(void *opaque)
 {
     QEMUFileBuffered *s = opaque;
 
-    if (s->has_error)
+    if (s->has_error) {
+        buffered_close(s);
         return;
+    }
 
     qemu_mod_timer(s->timer, qemu_get_clock(rt_clock) + 100);
 
