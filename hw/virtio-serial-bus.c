@@ -41,6 +41,8 @@ struct VirtIOSerial {
 
     VirtIOSerialBus *bus;
 
+    DeviceState *qdev;
+
     QTAILQ_HEAD(, VirtIOSerialPort) ports;
 
     /* bitmap for identifying active ports */
@@ -792,6 +794,8 @@ VirtIODevice *virtio_serial_init(DeviceState *dev, uint32_t max_nr_ports)
     vser->vdev.get_config = get_config;
     vser->vdev.set_config = set_config;
 
+    vser->qdev = dev;
+
     /*
      * Register for the savevm section with the virtio-console name
      * to preserve backward compat
@@ -800,4 +804,17 @@ VirtIODevice *virtio_serial_init(DeviceState *dev, uint32_t max_nr_ports)
                     virtio_serial_load, vser);
 
     return vdev;
+}
+
+void virtio_serial_exit(VirtIODevice *vdev)
+{
+    VirtIOSerial *vser = DO_UPCAST(VirtIOSerial, vdev, vdev);
+
+    unregister_savevm(vser->qdev, "virtio-console", vser);
+
+    qemu_free(vser->ivqs);
+    qemu_free(vser->ovqs);
+    qemu_free(vser->ports_map);
+
+    virtio_cleanup(vdev);
 }
