@@ -1623,13 +1623,25 @@ Show QEMU version.
 
 Return a json-object with the following information:
 
-- "qemu": QEMU's version (json-string)
+- "qemu": A json-object containing three integer values:
+    - "major": QEMU's major version (json-int)
+    - "minor": QEMU's minor version (json-int)
+    - "micro": QEMU's micro version (json-int)
 - "package": package's version (json-string)
 
 Example:
 
 -> { "execute": "query-version" }
-<- { "return": { "qemu": "0.11.50", "package": "" } }
+<- {
+      "return":{
+         "qemu":{
+            "major":0,
+            "minor":11,
+            "micro":5
+         },
+         "package":""
+      }
+   }
 
 EQMP
 
