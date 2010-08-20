@@ -543,7 +543,7 @@ static int check_features_against_host(x86_def_t *guest_def)
             ~CPUID_EXT3_SVM, ext3_feature_name, 0x80000001}};
 
     cpu_x86_fill_host(&host_def);
-    for (rv = 0, i = 0; i < sizeof (ft) / sizeof (ft[0]); ++i)
+    for (rv = 0, i = 0; i < ARRAY_SIZE(ft); ++i)
         for (mask = 1; mask; mask <<= 1)
             if (ft[i].check_feat & mask && *ft[i].guest_feat & mask &&
                 !(*ft[i].host_feat & mask)) {

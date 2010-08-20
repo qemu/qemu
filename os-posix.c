@@ -110,7 +110,7 @@ char *os_find_datadir(const char *argv0)
         size_t len = sizeof(buf) - 1;
 
         *buf = '\0';
-        if (!sysctl(mib, sizeof(mib)/sizeof(*mib), buf, &len, NULL, 0) &&
+        if (!sysctl(mib, ARRAY_SIZE(mib), buf, &len, NULL, 0) &&
             *buf) {
             buf[sizeof(buf) - 1] = '\0';
             p = buf;
