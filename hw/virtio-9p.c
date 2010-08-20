@@ -1684,15 +1684,6 @@ out:
     qemu_free(vs);
 }
 
-static inline int valid_flags(int flag)
-{
-    if (flag & O_NOCTTY || flag & O_NONBLOCK || flag & O_ASYNC ||
-            flag & O_CLOEXEC)
-        return 0;
-    else
-        return 1;
-}
-
 static void v9fs_open_post_lstat(V9fsState *s, V9fsOpenState *vs, int err)
 {
     int flags;
@@ -1709,11 +1700,8 @@ static void v9fs_open_post_lstat(V9fsState *s, V9fsOpenState *vs, int err)
         v9fs_open_post_opendir(s, vs, err);
     } else {
         if (s->proto_version == V9FS_PROTO_2000L) {
-            if (!valid_flags(vs->mode)) {
-                err = -EINVAL;
-                goto out;
-            }
             flags = vs->mode;
+            flags &= ~(O_NOCTTY | O_ASYNC | O_CREAT);
         } else {
             flags = omode_to_uflags(vs->mode);
         }
