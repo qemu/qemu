@@ -2286,7 +2286,7 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
     const char *p;
     QemuOpts *opts;
 
-    opts = qemu_opts_create(&qemu_chardev_opts, label, 1);
+    opts = qemu_opts_create(qemu_find_opts("chardev"), label, 1);
     if (NULL == opts)
         return NULL;
 

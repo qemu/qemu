@@ -575,7 +575,7 @@ static USBDevice *usb_msd_init(const char *filename)
 
     /* parse -usbdevice disk: syntax into drive opts */
     snprintf(id, sizeof(id), "usb%d", nr++);
-    opts = qemu_opts_create(&qemu_drive_opts, id, 0);
+    opts = qemu_opts_create(qemu_find_opts("drive"), id, 0);
 
     p1 = strchr(filename, ':');
     if (p1++) {

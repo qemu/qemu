@@ -772,5 +772,5 @@ static int qdev_add_one_global(QemuOpts *opts, void *opaque)
 
 void qemu_add_globals(void)
 {
-    qemu_opts_foreach(&qemu_global_opts, qdev_add_one_global, NULL, 0);
+    qemu_opts_foreach(qemu_find_opts("global"), qdev_add_one_global, NULL, 0);
 }

@@ -51,7 +51,7 @@ static PCIDevice *qemu_pci_hot_add_nic(Monitor *mon,
         return NULL;
     }
 
-    opts = qemu_opts_parse(&qemu_net_opts, opts_str ? opts_str : "", 0);
+    opts = qemu_opts_parse(qemu_find_opts("net"), opts_str ? opts_str : "", 0);
     if (!opts) {
         return NULL;
     }
