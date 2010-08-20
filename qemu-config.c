@@ -340,7 +340,7 @@ QemuOptsList qemu_cpudef_opts = {
     },
 };
 
-static QemuOptsList *vm_config_groups[] = {
+static QemuOptsList *vm_config_groups[32] = {
     &qemu_drive_opts,
     &qemu_chardev_opts,
     &qemu_device_opts,
@@ -370,6 +370,22 @@ static QemuOptsList *find_list(QemuOptsList **lists, const char *group)
 QemuOptsList *qemu_find_opts(const char *group)
 {
     return find_list(vm_config_groups, group);
+}
+
+void qemu_add_opts(QemuOptsList *list)
+{
+    int entries, i;
+
+    entries = ARRAY_SIZE(vm_config_groups);
+    entries--; /* keep list NULL terminated */
+    for (i = 0; i < entries; i++) {
+        if (vm_config_groups[i] == NULL) {
+            vm_config_groups[i] = list;
+            return;
+        }
+    }
+    fprintf(stderr, "ran out of space in vm_config_groups");
+    abort();
 }
 
 int qemu_set_option(const char *str)
