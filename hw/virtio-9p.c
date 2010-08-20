@@ -1969,9 +1969,8 @@ static void v9fs_wstat_post_chown(V9fsState *s, V9fsWstatState *vs, int err)
             end = old_name;
         }
 
-        new_name = qemu_malloc(end - old_name + vs->v9stat.name.size + 1);
+        new_name = qemu_mallocz(end - old_name + vs->v9stat.name.size + 1);
 
-        memset(new_name, 0, end - old_name + vs->v9stat.name.size + 1);
         memcpy(new_name, old_name, end - old_name);
         memcpy(new_name + (end - old_name), vs->v9stat.name.data,
                 vs->v9stat.name.size);
