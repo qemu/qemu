@@ -104,24 +104,13 @@ static int scsi_hot_add(Monitor *mon, DeviceState *adapter,
     return 0;
 }
 
-void drive_hot_add(Monitor *mon, const QDict *qdict)
+int pci_drive_hot_add(Monitor *mon, const QDict *qdict,
+                      DriveInfo *dinfo, int type)
 {
     int dom, pci_bus;
     unsigned slot;
-    int type;
     PCIDevice *dev;
-    DriveInfo *dinfo = NULL;
     const char *pci_addr = qdict_get_str(qdict, "pci_addr");
-    const char *opts = qdict_get_str(qdict, "opts");
-
-    dinfo = add_init_drive(opts);
-    if (!dinfo)
-        goto err;
-    if (dinfo->devaddr) {
-        monitor_printf(mon, "Parameter addr not supported\n");
-        goto err;
-    }
-    type = dinfo->type;
 
     switch (type) {
     case IF_SCSI:
@@ -138,19 +127,14 @@ void drive_hot_add(Monitor *mon, const QDict *qdict)
             goto err;
         }
         break;
-    case IF_NONE:
-        monitor_printf(mon, "OK\n");
-        break;
     default:
         monitor_printf(mon, "Can't hot-add drive to type %d\n", type);
         goto err;
     }
-    return;
 
+    return 0;
 err:
-    if (dinfo)
-        drive_put_ref(dinfo);
-    return;
+    return -1;
 }
 
 static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon,
