@@ -274,6 +274,9 @@ static int kvm_set_migration_log(int enable)
     for (i = 0; i < ARRAY_SIZE(s->slots); i++) {
         mem = &s->slots[i];
 
+        if (!mem->memory_size) {
+            continue;
+        }
         if (!!(mem->flags & KVM_MEM_LOG_DIRTY_PAGES) == enable) {
             continue;
         }
@@ -429,18 +432,10 @@ static void kvm_set_phys_mem(target_phys_addr_t start_addr,
     KVMSlot *mem, old;
     int err;
 
-    if (start_addr & ~TARGET_PAGE_MASK) {
-        if (flags >= IO_MEM_UNASSIGNED) {
-            if (!kvm_lookup_overlapping_slot(s, start_addr,
-                                             start_addr + size)) {
-                return;
-            }
-            fprintf(stderr, "Unaligned split of a KVM memory slot\n");
-        } else {
-            fprintf(stderr, "Only page-aligned memory slots supported\n");
-        }
-        abort();
-    }
+    /* kvm works in page size chunks, but the function may be called
+       with sub-page size and unaligned start address. */
+    size = TARGET_PAGE_ALIGN(size);
+    start_addr = TARGET_PAGE_ALIGN(start_addr);
 
     /* KVM does not support read-only slots */
     phys_offset &= ~IO_MEM_ROM;
