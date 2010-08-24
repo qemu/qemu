@@ -34,6 +34,7 @@
 #include "kvm.h"
 #include "sysemu.h"
 #include "sysbus.h"
+#include "blockdev.h"
 
 #define MAX_IDE_BUS 2
 

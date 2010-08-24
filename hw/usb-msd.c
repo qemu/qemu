@@ -15,6 +15,7 @@
 #include "console.h"
 #include "monitor.h"
 #include "sysemu.h"
+#include "blockdev.h"
 
 //#define DEBUG_MSD
 

@@ -25,6 +25,7 @@
 #include "soc_dma.h"
 /* We use pc-style serial ports.  */
 #include "pc.h"
+#include "blockdev.h"
 
 /* Should signal the TCMI/GPMC */
 uint32_t omap_badwidth_read8(void *opaque, target_phys_addr_t addr)

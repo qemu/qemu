@@ -32,6 +32,7 @@
 #include "boards.h"
 #include "arm-misc.h"
 #include "flash.h"
+#include "blockdev.h"
 
 /*****************************************************************************/
 /* Siemens SX1 Cellphone V1 */

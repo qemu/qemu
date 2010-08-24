@@ -19,6 +19,7 @@
 #include "boards.h"
 #include "i2c.h"
 #include "ssi.h"
+#include "blockdev.h"
 
 #define TOSA_RAM    0x04000000
 #define TOSA_ROM	0x00800000

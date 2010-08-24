@@ -22,6 +22,7 @@
 #include "loader.h"
 #include "elf.h"
 #include "mc146818rtc.h"
+#include "blockdev.h"
 
 #define MAX_IDE_BUS 2
 

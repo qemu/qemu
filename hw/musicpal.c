@@ -18,6 +18,7 @@
 #include "flash.h"
 #include "console.h"
 #include "i2c.h"
+#include "blockdev.h"
 
 #define MP_MISC_BASE            0x80002000
 #define MP_MISC_SIZE            0x00001000

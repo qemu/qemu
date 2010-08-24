@@ -1,7 +1,6 @@
 /* PCMCIA/Cardbus */
 
 #include "qemu-common.h"
-#include "blockdev.h"
 
 typedef struct {
     qemu_irq irq;

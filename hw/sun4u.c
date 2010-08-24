@@ -37,6 +37,7 @@
 #include "ide.h"
 #include "loader.h"
 #include "elf.h"
+#include "blockdev.h"
 
 //#define DEBUG_IRQ
 //#define DEBUG_EBUS

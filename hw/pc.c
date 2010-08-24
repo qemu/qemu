@@ -39,6 +39,7 @@
 #include "msix.h"
 #include "sysbus.h"
 #include "sysemu.h"
+#include "blockdev.h"
 
 /* output Bochs bios info messages */
 //#define DEBUG_BIOS

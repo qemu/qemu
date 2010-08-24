@@ -38,6 +38,7 @@
 #include "sysemu.h"
 #include "devices.h"
 #include "boards.h"
+#include "blockdev.h"
 
 static const int sector_len = 128 * 1024;
 

@@ -24,6 +24,7 @@
 #include "net.h"
 #include "loader.h"
 #include "kvm.h"
+#include "blockdev.h"
 
 /* from Linux's linux/virtio_pci.h */
 

@@ -29,6 +29,7 @@
 #include "qdev.h"
 #include "sysemu.h"
 #include "monitor.h"
+#include "blockdev.h"
 
 static int qdev_hotplug = 0;
 

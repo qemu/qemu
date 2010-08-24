@@ -41,6 +41,7 @@
 #include "qemu-char.h"
 #include "xen_blkif.h"
 #include "xen_backend.h"
+#include "blockdev.h"
 
 /* ------------------------------------------------------------- */
 

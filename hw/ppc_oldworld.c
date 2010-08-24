@@ -41,6 +41,7 @@
 #include "elf.h"
 #include "kvm.h"
 #include "kvm_ppc.h"
+#include "blockdev.h"
 
 #define MAX_IDE_BUS 2
 #define VGA_BIOS_SIZE 65536

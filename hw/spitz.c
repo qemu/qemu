@@ -22,6 +22,7 @@
 #include "block.h"
 #include "audio/audio.h"
 #include "boards.h"
+#include "blockdev.h"
 
 #undef REG_FMT
 #define REG_FMT			"0x%02lx"

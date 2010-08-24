@@ -16,15 +16,9 @@
 void blockdev_mark_auto_del(BlockDriverState *bs);
 void blockdev_auto_del(BlockDriverState *bs);
 
-typedef enum {
-    IF_NONE,
-    IF_IDE, IF_SCSI, IF_FLOPPY, IF_PFLASH, IF_MTD, IF_SD, IF_VIRTIO, IF_XEN,
-    IF_COUNT
-} BlockInterfaceType;
-
 #define BLOCK_SERIAL_STRLEN 20
 
-typedef struct DriveInfo {
+struct DriveInfo {
     BlockDriverState *bdrv;
     char *id;
     const char *devaddr;
@@ -35,7 +29,7 @@ typedef struct DriveInfo {
     QemuOpts *opts;
     char serial[BLOCK_SERIAL_STRLEN + 1];
     QTAILQ_ENTRY(DriveInfo) next;
-} DriveInfo;
+};
 
 #define MAX_IDE_DEVS	2
 #define MAX_SCSI_DEVS	7
