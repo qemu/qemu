@@ -33,6 +33,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#define EN_OPTSTR ":exportname="
+
 typedef struct BDRVNBDState {
     int sock;
     off_t size;
@@ -42,55 +44,83 @@ typedef struct BDRVNBDState {
 static int nbd_open(BlockDriverState *bs, const char* filename, int flags)
 {
     BDRVNBDState *s = bs->opaque;
+    uint32_t nbdflags;
+
+    char *file;
+    char *name;
     const char *host;
     const char *unixpath;
     int sock;
     off_t size;
     size_t blocksize;
     int ret;
+    int err = -EINVAL;
 
-    if (!strstart(filename, "nbd:", &host))
-        return -EINVAL;
+    file = qemu_strdup(filename);
+
+    name = strstr(file, EN_OPTSTR);
+    if (name) {
+        if (name[strlen(EN_OPTSTR)] == 0) {
+            goto out;
+        }
+        name[0] = 0;
+        name += strlen(EN_OPTSTR);
+    }
+
+    if (!strstart(file, "nbd:", &host)) {
+        goto out;
+    }
 
     if (strstart(host, "unix:", &unixpath)) {
 
-        if (unixpath[0] != '/')
-            return -EINVAL;
+        if (unixpath[0] != '/') {
+            goto out;
+        }
 
         sock = unix_socket_outgoing(unixpath);
 
     } else {
-        uint16_t port;
+        uint16_t port = NBD_DEFAULT_PORT;
         char *p, *r;
         char hostname[128];
 
         pstrcpy(hostname, 128, host);
 
         p = strchr(hostname, ':');
-        if (p == NULL)
-            return -EINVAL;
+        if (p != NULL) {
+            *p = '\0';
+            p++;
 
-        *p = '\0';
-        p++;
+            port = strtol(p, &r, 0);
+            if (r == p) {
+                goto out;
+            }
+        } else if (name == NULL) {
+            goto out;
+        }
 
-        port = strtol(p, &r, 0);
-        if (r == p)
-            return -EINVAL;
         sock = tcp_socket_outgoing(hostname, port);
     }
 
-    if (sock == -1)
-        return -errno;
+    if (sock == -1) {
+        err = -errno;
+        goto out;
+    }
 
-    ret = nbd_receive_negotiate(sock, &size, &blocksize);
-    if (ret == -1)
-        return -errno;
+    ret = nbd_receive_negotiate(sock, name, &nbdflags, &size, &blocksize);
+    if (ret == -1) {
+        err = -errno;
+        goto out;
+    }
 
     s->sock = sock;
     s->size = size;
     s->blocksize = blocksize;
+    err = 0;
 
-    return 0;
+out:
+    qemu_free(file);
+    return err;
 }
 
 static int nbd_read(BlockDriverState *bs, int64_t sector_num,

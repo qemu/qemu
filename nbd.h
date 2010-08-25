@@ -42,6 +42,8 @@ enum {
     NBD_CMD_DISC = 2
 };
 
+#define NBD_DEFAULT_PORT	10809
+
 size_t nbd_wr_sync(int fd, void *buffer, size_t size, bool do_read);
 int tcp_socket_outgoing(const char *address, uint16_t port);
 int tcp_socket_incoming(const char *address, uint16_t port);
@@ -49,7 +51,8 @@ int unix_socket_outgoing(const char *path);
 int unix_socket_incoming(const char *path);
 
 int nbd_negotiate(int csock, off_t size);
-int nbd_receive_negotiate(int csock, off_t *size, size_t *blocksize);
+int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
+                          off_t *size, size_t *blocksize);
 int nbd_init(int fd, int csock, off_t size, size_t blocksize);
 int nbd_send_request(int csock, struct nbd_request *request);
 int nbd_receive_reply(int csock, struct nbd_reply *reply);
