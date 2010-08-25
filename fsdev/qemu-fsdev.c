@@ -16,6 +16,7 @@
 #include "qemu-queue.h"
 #include "osdep.h"
 #include "qemu-common.h"
+#include "qemu-config.h"
 
 static QTAILQ_HEAD(FsTypeEntry_head, FsTypeListEntry) fstype_entries =
     QTAILQ_HEAD_INITIALIZER(fstype_entries);
@@ -75,3 +76,11 @@ FsTypeEntry *get_fsdev_fsentry(char *id)
     }
     return NULL;
 }
+
+static void fsdev_register_config(void)
+{
+    qemu_add_opts(&qemu_fsdev_opts);
+    qemu_add_opts(&qemu_virtfs_opts);
+}
+machine_init(fsdev_register_config);
+

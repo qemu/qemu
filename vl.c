@@ -1863,11 +1863,6 @@ int main(int argc, char **argv, char **envp)
     tb_size = 0;
     autostart= 1;
 
-#ifdef CONFIG_VIRTFS
-    qemu_add_opts(&qemu_fsdev_opts);
-    qemu_add_opts(&qemu_virtfs_opts);
-#endif
-
     /* first pass of option parsing */
     optind = 1;
     while (optind < argc) {
