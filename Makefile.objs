@@ -88,7 +88,7 @@ common-obj-y += pflib.o
 common-obj-$(CONFIG_BRLAPI) += baum.o
 common-obj-$(CONFIG_POSIX) += migration-exec.o migration-unix.o migration-fd.o
 
-common-obj-$(CONFIG_SPICE) += ui/spice-core.o ui/spice-input.o
+common-obj-$(CONFIG_SPICE) += ui/spice-core.o ui/spice-input.o ui/spice-display.o
 
 audio-obj-y = audio.o noaudio.o wavaudio.o mixeng.o
 audio-obj-$(CONFIG_SDL) += sdlaudio.o
