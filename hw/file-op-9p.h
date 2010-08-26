@@ -91,6 +91,7 @@ typedef struct FileOperations
     ssize_t (*llistxattr)(FsContext *, const char *, void *, size_t);
     int (*lsetxattr)(FsContext *, const char *,
                      const char *, void *, size_t, int);
+    int (*lremovexattr)(FsContext *, const char *, const char *);
     void *opaque;
 } FileOperations;
 #endif

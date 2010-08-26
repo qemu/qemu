@@ -286,6 +286,14 @@ static int v9fs_do_lsetxattr(V9fsState *s, V9fsString *path,
                              xattr_name->data, value, size, flags);
 }
 
+static int v9fs_do_lremovexattr(V9fsState *s, V9fsString *path,
+                                V9fsString *xattr_name)
+{
+    return s->ops->lremovexattr(&s->ctx, path->data,
+                                xattr_name->data);
+}
+
+
 static void v9fs_string_init(V9fsString *str)
 {
     str->data = NULL;
@@ -456,10 +464,14 @@ static int v9fs_xattr_fid_clunk(V9fsState *s, V9fsFidState *fidp)
         retval = -EINVAL;
         goto free_out;
     }
-    retval = v9fs_do_lsetxattr(s, &fidp->path, &fidp->fs.xattr.name,
-                               fidp->fs.xattr.value,
-                               fidp->fs.xattr.len,
-                               fidp->fs.xattr.flags);
+    if (fidp->fs.xattr.len) {
+        retval = v9fs_do_lsetxattr(s, &fidp->path, &fidp->fs.xattr.name,
+                                   fidp->fs.xattr.value,
+                                   fidp->fs.xattr.len,
+                                   fidp->fs.xattr.flags);
+    } else {
+        retval = v9fs_do_lremovexattr(s, &fidp->path, &fidp->fs.xattr.name);
+    }
 free_out:
     v9fs_string_free(&fidp->fs.xattr.name);
 free_value:
@@ -3392,7 +3404,10 @@ static void v9fs_xattrcreate(V9fsState *s, V9fsPDU *pdu)
     vs->xattr_fidp->fs.xattr.flags = flags;
     v9fs_string_init(&vs->xattr_fidp->fs.xattr.name);
     v9fs_string_copy(&vs->xattr_fidp->fs.xattr.name, &vs->name);
-    vs->xattr_fidp->fs.xattr.value = qemu_malloc(vs->size);
+    if (vs->size)
+        vs->xattr_fidp->fs.xattr.value = qemu_malloc(vs->size);
+    else
+        vs->xattr_fidp->fs.xattr.value = NULL;
 
 out:
     complete_pdu(s, vs->pdu, err);
