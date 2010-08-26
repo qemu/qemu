@@ -464,7 +464,7 @@ static int eth_match_groupaddr(struct fs_eth *eth, const unsigned char *sa)
 
 	/* First bit on the wire of a MAC address signals multicast or
 	   physical address.  */
-	if (!m_individual && !sa[0] & 1)
+	if (!m_individual && !(sa[0] & 1))
 		return 0;
 
 	/* Calculate the hash index for the GA registers. */
