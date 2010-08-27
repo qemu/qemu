@@ -682,6 +682,13 @@ Enable the spice remote desktop protocol. Valid options are
 @item port=<nr>
 Set the TCP port spice is listening on for plaintext channels.
 
+@item addr=<addr>
+Set the IP address spice is listening on.  Default is any address.
+
+@item ipv4
+@item ipv6
+Force using the specified IP version.
+
 @item password=<secret>
 Set the password you need to authenticate.
 

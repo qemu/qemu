@@ -365,6 +365,15 @@ QemuOptsList qemu_spice_opts = {
             .name = "tls-port",
             .type = QEMU_OPT_NUMBER,
         },{
+            .name = "addr",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "ipv4",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "ipv6",
+            .type = QEMU_OPT_BOOL,
+        },{
             .name = "password",
             .type = QEMU_OPT_STRING,
         },{

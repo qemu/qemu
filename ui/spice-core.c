@@ -221,14 +221,14 @@ static int add_channel(const char *name, const char *value, void *opaque)
 void qemu_spice_init(void)
 {
     QemuOpts *opts = QTAILQ_FIRST(&qemu_spice_opts.head);
-    const char *password, *str, *x509_dir,
+    const char *password, *str, *x509_dir, *addr,
         *x509_key_password = NULL,
         *x509_dh_file = NULL,
         *tls_ciphers = NULL;
     char *x509_key_file = NULL,
         *x509_cert_file = NULL,
         *x509_cacert_file = NULL;
-    int port, tls_port, len;
+    int port, tls_port, len, addr_flags;
     spice_image_compression_t compression;
     spice_wan_compression_t wan_compr;
 
@@ -278,7 +278,16 @@ void qemu_spice_init(void)
         tls_ciphers = qemu_opt_get(opts, "tls-ciphers");
     }
 
+    addr = qemu_opt_get(opts, "addr");
+    addr_flags = 0;
+    if (qemu_opt_get_bool(opts, "ipv4", 0)) {
+        addr_flags |= SPICE_ADDR_FLAG_IPV4_ONLY;
+    } else if (qemu_opt_get_bool(opts, "ipv6", 0)) {
+        addr_flags |= SPICE_ADDR_FLAG_IPV6_ONLY;
+    }
+
     spice_server = spice_server_new();
+    spice_server_set_addr(spice_server, addr ? addr : "", addr_flags);
     if (port) {
         spice_server_set_port(spice_server, port);
     }
