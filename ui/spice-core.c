@@ -192,6 +192,32 @@ static const char *wan_compression_names[] = {
 
 /* functions for the rest of qemu */
 
+static int add_channel(const char *name, const char *value, void *opaque)
+{
+    int security = 0;
+    int rc;
+
+    if (strcmp(name, "tls-channel") == 0) {
+        security = SPICE_CHANNEL_SECURITY_SSL;
+    }
+    if (strcmp(name, "plaintext-channel") == 0) {
+        security = SPICE_CHANNEL_SECURITY_NONE;
+    }
+    if (security == 0) {
+        return 0;
+    }
+    if (strcmp(value, "default") == 0) {
+        rc = spice_server_set_channel_security(spice_server, NULL, security);
+    } else {
+        rc = spice_server_set_channel_security(spice_server, value, security);
+    }
+    if (rc != 0) {
+        fprintf(stderr, "spice: failed to set channel security for %s\n", value);
+        exit(1);
+    }
+    return 0;
+}
+
 void qemu_spice_init(void)
 {
     QemuOpts *opts = QTAILQ_FIRST(&qemu_spice_opts.head);
@@ -292,6 +318,8 @@ void qemu_spice_init(void)
         wan_compr = parse_wan_compression(str);
     }
     spice_server_set_zlib_glz_compression(spice_server, wan_compr);
+
+    qemu_opt_foreach(opts, add_channel, NULL, 0);
 
     spice_server_init(spice_server, &core_interface);
     using_spice = 1;

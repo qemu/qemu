@@ -392,6 +392,12 @@ QemuOptsList qemu_spice_opts = {
             .name = "tls-ciphers",
             .type = QEMU_OPT_STRING,
         },{
+            .name = "tls-channel",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "plaintext-channel",
+            .type = QEMU_OPT_STRING,
+        },{
             .name = "image-compression",
             .type = QEMU_OPT_STRING,
         },{

@@ -704,6 +704,14 @@ The x509 file names can also be configured individually.
 @item tls-ciphers=<list>
 Specify which ciphers to use.
 
+@item tls-channel=[main|display|inputs|record|playback|tunnel]
+@item plaintext-channel=[main|display|inputs|record|playback|tunnel]
+Force specific channel to be used with or without TLS encryption.  The
+options can be specified multiple times to configure multiple
+channels.  The special name "default" can be used to set the default
+mode.  For channels which are not explicitly forced into one mode the
+spice client is allowed to pick tls/plaintext as he pleases.
+
 @item image-compression=[auto_glz|auto_lz|quic|glz|lz|off]
 Configure image compression (lossless).
 Default is auto_glz.
