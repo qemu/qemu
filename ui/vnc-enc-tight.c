@@ -1351,7 +1351,6 @@ static int send_png_rect(VncState *vs, int x, int y, int w, int h,
     png_structp png_ptr;
     png_infop info_ptr;
     png_colorp png_palette = NULL;
-    size_t offset;
     int level = tight_png_conf[vs->tight.compression].png_zlib_level;
     int filters = tight_png_conf[vs->tight.compression].png_filters;
     uint8_t *buf;
@@ -1396,7 +1395,6 @@ static int send_png_rect(VncState *vs, int x, int y, int w, int h,
 
         png_set_PLTE(png_ptr, info_ptr, png_palette, palette_size(palette));
 
-        offset = vs->tight.tight.offset;
         if (vs->clientds.pf.bytes_per_pixel == 4) {
             tight_encode_indexed_rect32(vs->tight.tight.buffer, w * h, palette);
         } else {
