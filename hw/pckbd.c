@@ -56,7 +56,9 @@
 #define KBD_CCMD_WRITE_MOUSE	0xD4	/* Write the following byte to the mouse */
 #define KBD_CCMD_DISABLE_A20    0xDD    /* HP vectra only ? */
 #define KBD_CCMD_ENABLE_A20     0xDF    /* HP vectra only ? */
-#define KBD_CCMD_RESET	        0xFE
+#define KBD_CCMD_PULSE_BITS_3_0 0xF0    /* Pulse bits 3-0 of the output port P2. */
+#define KBD_CCMD_RESET          0xFE    /* Pulse bit 0 of the output port P2 = CPU reset. */
+#define KBD_CCMD_NO_OP          0xFF    /* Pulse no bits of the output port P2. */
 
 /* Keyboard Commands */
 #define KBD_CMD_SET_LEDS	0xED	/* Set keyboard leds */
@@ -238,6 +240,21 @@ static void kbd_write_command(void *opaque, uint32_t addr, uint32_t val)
     KBDState *s = opaque;
 
     DPRINTF("kbd: write cmd=0x%02x\n", val);
+
+    /* Bits 3-0 of the output port P2 of the keyboard controller may be pulsed
+     * low for approximately 6 micro seconds. Bits 3-0 of the KBD_CCMD_PULSE
+     * command specify the output port bits to be pulsed.
+     * 0: Bit should be pulsed. 1: Bit should not be modified.
+     * The only useful version of this command is pulsing bit 0,
+     * which does a CPU reset.
+     */
+    if((val & KBD_CCMD_PULSE_BITS_3_0) == KBD_CCMD_PULSE_BITS_3_0) {
+        if(!(val & 1))
+            val = KBD_CCMD_RESET;
+        else
+            val = KBD_CCMD_NO_OP;
+    }
+
     switch(val) {
     case KBD_CCMD_READ_MODE:
         kbd_queue(s, s->mode, 0);
@@ -294,8 +311,8 @@ static void kbd_write_command(void *opaque, uint32_t addr, uint32_t val)
     case KBD_CCMD_RESET:
         qemu_system_reset_request();
         break;
-    case 0xff:
-        /* ignore that - I don't know what is its use */
+    case KBD_CCMD_NO_OP:
+        /* ignore that */
         break;
     default:
         fprintf(stderr, "qemu: unsupported keyboard cmd=0x%02x\n", val);

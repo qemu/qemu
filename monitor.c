@@ -669,17 +669,32 @@ help:
 static void do_info_version_print(Monitor *mon, const QObject *data)
 {
     QDict *qdict;
+    QDict *qemu;
 
     qdict = qobject_to_qdict(data);
+    qemu = qdict_get_qdict(qdict, "qemu");
 
-    monitor_printf(mon, "%s%s\n", qdict_get_str(qdict, "qemu"),
-                                  qdict_get_str(qdict, "package"));
+    monitor_printf(mon, "%" PRId64 ".%" PRId64 ".%" PRId64 "%s\n",
+                  qdict_get_int(qemu, "major"),
+                  qdict_get_int(qemu, "minor"),
+                  qdict_get_int(qemu, "micro"),
+                  qdict_get_str(qdict, "package"));
 }
 
 static void do_info_version(Monitor *mon, QObject **ret_data)
 {
-    *ret_data = qobject_from_jsonf("{ 'qemu': %s, 'package': %s }",
-                                   QEMU_VERSION, QEMU_PKGVERSION);
+    const char *version = QEMU_VERSION;
+    int major = 0, minor = 0, micro = 0;
+    char *tmp;
+
+    major = strtol(version, &tmp, 10);
+    tmp++;
+    minor = strtol(tmp, &tmp, 10);
+    tmp++;
+    micro = strtol(tmp, &tmp, 10);
+
+    *ret_data = qobject_from_jsonf("{ 'qemu': { 'major': %d, 'minor': %d, \
+        'micro': %d }, 'package': %s }", major, minor, micro, QEMU_PKGVERSION);
 }
 
 static void do_info_name_print(Monitor *mon, const QObject *data)

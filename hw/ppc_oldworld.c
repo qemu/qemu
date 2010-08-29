@@ -41,6 +41,7 @@
 #include "elf.h"
 #include "kvm.h"
 #include "kvm_ppc.h"
+#include "blockdev.h"
 
 #define MAX_IDE_BUS 2
 #define VGA_BIOS_SIZE 65536
@@ -398,9 +399,16 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
     fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_HEIGHT, graphic_height);
     fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_DEPTH, graphic_depth);
 
+    fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_IS_KVM, kvm_enabled());
     if (kvm_enabled()) {
 #ifdef CONFIG_KVM
+        uint8_t *hypercall;
+
         fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, kvmppc_get_tbfreq());
+        hypercall = qemu_malloc(16);
+        kvmppc_get_hypercall(env, hypercall, 16);
+        fw_cfg_add_bytes(fw_cfg, FW_CFG_PPC_KVM_HC, hypercall, 16);
+        fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_KVM_PID, getpid());
 #endif
     } else {
         fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, get_ticks_per_sec());

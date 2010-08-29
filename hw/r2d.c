@@ -36,6 +36,7 @@
 #include "loader.h"
 #include "usb.h"
 #include "flash.h"
+#include "blockdev.h"
 
 #define FLASH_BASE 0x00000000
 #define FLASH_SIZE 0x02000000

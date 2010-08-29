@@ -17,6 +17,7 @@
 #include "mainstone.h"
 #include "sysemu.h"
 #include "flash.h"
+#include "blockdev.h"
 
 static struct keymap map[0xE0] = {
     [0 ... 0xDF] = { -1, -1 },

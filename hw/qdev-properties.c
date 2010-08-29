@@ -1,6 +1,7 @@
 #include "net.h"
 #include "qdev.h"
 #include "qerror.h"
+#include "blockdev.h"
 
 void *qdev_get_prop_ptr(DeviceState *dev, Property *prop)
 {
@@ -772,5 +773,5 @@ static int qdev_add_one_global(QemuOpts *opts, void *opaque)
 
 void qemu_add_globals(void)
 {
-    qemu_opts_foreach(&qemu_global_opts, qdev_add_one_global, NULL, 0);
+    qemu_opts_foreach(qemu_find_opts("global"), qdev_add_one_global, NULL, 0);
 }

@@ -29,6 +29,7 @@
 #include "qdev.h"
 #include "sysemu.h"
 #include "monitor.h"
+#include "blockdev.h"
 
 static int qdev_hotplug = 0;
 
@@ -792,7 +793,7 @@ int do_device_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     QemuOpts *opts;
 
-    opts = qemu_opts_from_qdict(&qemu_device_opts, qdict);
+    opts = qemu_opts_from_qdict(qemu_find_opts("device"), qdict);
     if (!opts) {
         return -1;
     }

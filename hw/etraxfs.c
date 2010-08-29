@@ -31,6 +31,7 @@
 #include "loader.h"
 #include "elf.h"
 #include "cris-boot.h"
+#include "blockdev.h"
 
 #define FLASH_SIZE 0x2000000
 #define INTMEM_SIZE (128 * 1024)

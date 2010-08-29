@@ -1716,8 +1716,8 @@ static QLIST_HEAD(memory_client_list, CPUPhysMemoryClient) memory_client_list
     = QLIST_HEAD_INITIALIZER(memory_client_list);
 
 static void cpu_notify_set_memory(target_phys_addr_t start_addr,
-				  ram_addr_t size,
-				  ram_addr_t phys_offset)
+                                  ram_addr_t size,
+                                  ram_addr_t phys_offset)
 {
     CPUPhysMemoryClient *client;
     QLIST_FOREACH(client, &memory_client_list, list) {
@@ -1726,7 +1726,7 @@ static void cpu_notify_set_memory(target_phys_addr_t start_addr,
 }
 
 static int cpu_notify_sync_dirty_bitmap(target_phys_addr_t start,
-					target_phys_addr_t end)
+                                        target_phys_addr_t end)
 {
     CPUPhysMemoryClient *client;
     QLIST_FOREACH(client, &memory_client_list, list) {
@@ -1813,17 +1813,17 @@ int cpu_str_to_log_mask(const char *str)
         p1 = strchr(p, ',');
         if (!p1)
             p1 = p + strlen(p);
-	if(cmp1(p,p1-p,"all")) {
-		for(item = cpu_log_items; item->mask != 0; item++) {
-			mask |= item->mask;
-		}
-	} else {
-        for(item = cpu_log_items; item->mask != 0; item++) {
-            if (cmp1(p, p1 - p, item->name))
-                goto found;
+        if(cmp1(p,p1-p,"all")) {
+            for(item = cpu_log_items; item->mask != 0; item++) {
+                mask |= item->mask;
+            }
+        } else {
+            for(item = cpu_log_items; item->mask != 0; item++) {
+                if (cmp1(p, p1 - p, item->name))
+                    goto found;
+            }
+            return 0;
         }
-        return 0;
-	}
     found:
         mask |= item->mask;
         if (*p1 != ',')
@@ -1917,11 +1917,11 @@ static inline void tlb_flush_jmp_cache(CPUState *env, target_ulong addr)
        overlap the flushed page.  */
     i = tb_jmp_cache_hash_page(addr - TARGET_PAGE_SIZE);
     memset (&env->tb_jmp_cache[i], 0, 
-	    TB_JMP_PAGE_SIZE * sizeof(TranslationBlock *));
+            TB_JMP_PAGE_SIZE * sizeof(TranslationBlock *));
 
     i = tb_jmp_cache_hash_page(addr);
     memset (&env->tb_jmp_cache[i], 0, 
-	    TB_JMP_PAGE_SIZE * sizeof(TranslationBlock *));
+            TB_JMP_PAGE_SIZE * sizeof(TranslationBlock *));
 }
 
 static CPUTLBEntry s_cputlb_empty_entry = {
@@ -2733,16 +2733,16 @@ static long gethugepagesize(const char *path)
     int ret;
 
     do {
-	    ret = statfs(path, &fs);
+        ret = statfs(path, &fs);
     } while (ret != 0 && errno == EINTR);
 
     if (ret != 0) {
-	    perror(path);
-	    return 0;
+        perror(path);
+        return 0;
     }
 
     if (fs.f_type != HUGETLBFS_MAGIC)
-	    fprintf(stderr, "Warning: path not on HugeTLBFS: %s\n", path);
+        fprintf(stderr, "Warning: path not on HugeTLBFS: %s\n", path);
 
     return fs.f_bsize;
 }
@@ -2761,7 +2761,7 @@ static void *file_ram_alloc(RAMBlock *block,
 
     hpagesize = gethugepagesize(path);
     if (!hpagesize) {
-	return NULL;
+        return NULL;
     }
 
     if (memory < hpagesize) {
@@ -2774,14 +2774,14 @@ static void *file_ram_alloc(RAMBlock *block,
     }
 
     if (asprintf(&filename, "%s/qemu_back_mem.XXXXXX", path) == -1) {
-	return NULL;
+        return NULL;
     }
 
     fd = mkstemp(filename);
     if (fd < 0) {
-	perror("unable to create backing store for hugepages");
-	free(filename);
-	return NULL;
+        perror("unable to create backing store for hugepages");
+        free(filename);
+        return NULL;
     }
     unlink(filename);
     free(filename);
@@ -2795,7 +2795,7 @@ static void *file_ram_alloc(RAMBlock *block,
      * mmap will fail.
      */
     if (ftruncate(fd, memory))
-	perror("ftruncate");
+        perror("ftruncate");
 
 #ifdef MAP_POPULATE
     /* NB: MAP_POPULATE won't exhaustively alloc all phys pages in the case
@@ -2808,9 +2808,9 @@ static void *file_ram_alloc(RAMBlock *block,
     area = mmap(0, memory, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
 #endif
     if (area == MAP_FAILED) {
-	perror("file_ram_alloc: can't mmap RAM pages");
-	close(fd);
-	return (NULL);
+        perror("file_ram_alloc: can't mmap RAM pages");
+        close(fd);
+        return (NULL);
     }
     block->fd = fd;
     return area;
@@ -2855,7 +2855,7 @@ static ram_addr_t last_ram_offset(void)
 }
 
 ram_addr_t qemu_ram_alloc_from_ptr(DeviceState *dev, const char *name,
-                        ram_addr_t size, void *host)
+                                   ram_addr_t size, void *host)
 {
     RAMBlock *new_block, *block;
 
@@ -2879,7 +2879,36 @@ ram_addr_t qemu_ram_alloc_from_ptr(DeviceState *dev, const char *name,
         }
     }
 
-    new_block->host = host;
+    if (host) {
+        new_block->host = host;
+    } else {
+        if (mem_path) {
+#if defined (__linux__) && !defined(TARGET_S390X)
+            new_block->host = file_ram_alloc(new_block, size, mem_path);
+            if (!new_block->host) {
+                new_block->host = qemu_vmalloc(size);
+#ifdef MADV_MERGEABLE
+                madvise(new_block->host, size, MADV_MERGEABLE);
+#endif
+            }
+#else
+            fprintf(stderr, "-mem-path option unsupported\n");
+            exit(1);
+#endif
+        } else {
+#if defined(TARGET_S390X) && defined(CONFIG_KVM)
+            /* XXX S390 KVM requires the topmost vma of the RAM to be < 256GB */
+            new_block->host = mmap((void*)0x1000000, size,
+                                   PROT_EXEC|PROT_READ|PROT_WRITE,
+                                   MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+#else
+            new_block->host = qemu_vmalloc(size);
+#endif
+#ifdef MADV_MERGEABLE
+            madvise(new_block->host, size, MADV_MERGEABLE);
+#endif
+        }
+    }
 
     new_block->offset = find_ram_offset(size);
     new_block->length = size;
@@ -2899,68 +2928,7 @@ ram_addr_t qemu_ram_alloc_from_ptr(DeviceState *dev, const char *name,
 
 ram_addr_t qemu_ram_alloc(DeviceState *dev, const char *name, ram_addr_t size)
 {
-    RAMBlock *new_block, *block;
-
-    size = TARGET_PAGE_ALIGN(size);
-    new_block = qemu_mallocz(sizeof(*new_block));
-
-    if (dev && dev->parent_bus && dev->parent_bus->info->get_dev_path) {
-        char *id = dev->parent_bus->info->get_dev_path(dev);
-        if (id) {
-            snprintf(new_block->idstr, sizeof(new_block->idstr), "%s/", id);
-            qemu_free(id);
-        }
-    }
-    pstrcat(new_block->idstr, sizeof(new_block->idstr), name);
-
-    QLIST_FOREACH(block, &ram_list.blocks, next) {
-        if (!strcmp(block->idstr, new_block->idstr)) {
-            fprintf(stderr, "RAMBlock \"%s\" already registered, abort!\n",
-                    new_block->idstr);
-            abort();
-        }
-    }
-
-    if (mem_path) {
-#if defined (__linux__) && !defined(TARGET_S390X)
-        new_block->host = file_ram_alloc(new_block, size, mem_path);
-        if (!new_block->host) {
-            new_block->host = qemu_vmalloc(size);
-#ifdef MADV_MERGEABLE
-            madvise(new_block->host, size, MADV_MERGEABLE);
-#endif
-        }
-#else
-        fprintf(stderr, "-mem-path option unsupported\n");
-        exit(1);
-#endif
-    } else {
-#if defined(TARGET_S390X) && defined(CONFIG_KVM)
-        /* XXX S390 KVM requires the topmost vma of the RAM to be < 256GB */
-        new_block->host = mmap((void*)0x1000000, size,
-                                PROT_EXEC|PROT_READ|PROT_WRITE,
-                                MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-#else
-        new_block->host = qemu_vmalloc(size);
-#endif
-#ifdef MADV_MERGEABLE
-        madvise(new_block->host, size, MADV_MERGEABLE);
-#endif
-    }
-    new_block->offset = find_ram_offset(size);
-    new_block->length = size;
-
-    QLIST_INSERT_HEAD(&ram_list.blocks, new_block, next);
-
-    ram_list.phys_dirty = qemu_realloc(ram_list.phys_dirty,
-                                       last_ram_offset() >> TARGET_PAGE_BITS);
-    memset(ram_list.phys_dirty + (new_block->offset >> TARGET_PAGE_BITS),
-           0xff, size >> TARGET_PAGE_BITS);
-
-    if (kvm_enabled())
-        kvm_setup_guest_memory(new_block->host, size);
-
-    return new_block->offset;
+    return qemu_ram_alloc_from_ptr(dev, name, size, NULL);
 }
 
 void qemu_ram_free(ram_addr_t addr)
@@ -3387,6 +3355,8 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
     printf("%s: %p start %08x end %08x idx %08x eidx %08x mem %ld\n", __func__,
            mmio, start, end, idx, eidx, memory);
 #endif
+    if ((memory & ~TARGET_PAGE_MASK) == IO_MEM_RAM)
+        memory = IO_MEM_UNASSIGNED;
     memory = (memory >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
     for (; idx <= eidx; idx++) {
         mmio->sub_io_index[idx] = memory;

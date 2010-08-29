@@ -18,6 +18,7 @@
 #include "boards.h"
 #include "bitbang_i2c.h"
 #include "sysbus.h"
+#include "blockdev.h"
 
 #define SMP_BOOT_ADDR 0xe0000000
 

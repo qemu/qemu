@@ -1,4 +1,6 @@
 #include "xen_backend.h"
+#include "blockdev.h"
+#include "block_int.h" /* XXX */
 
 /* ------------------------------------------------------------- */
 

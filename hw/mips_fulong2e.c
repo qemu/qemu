@@ -37,6 +37,7 @@
 #include "elf.h"
 #include "vt82c686.h"
 #include "mc146818rtc.h"
+#include "blockdev.h"
 
 #define DEBUG_FULONG2E_INIT
 

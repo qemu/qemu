@@ -82,12 +82,12 @@ const uint32_t arch_type = QEMU_ARCH;
 /***********************************************************/
 /* ram save/restore */
 
-#define RAM_SAVE_FLAG_FULL	0x01 /* Obsolete, not used anymore */
-#define RAM_SAVE_FLAG_COMPRESS	0x02
-#define RAM_SAVE_FLAG_MEM_SIZE	0x04
-#define RAM_SAVE_FLAG_PAGE	0x08
-#define RAM_SAVE_FLAG_EOS	0x10
-#define RAM_SAVE_FLAG_CONTINUE	0x20
+#define RAM_SAVE_FLAG_FULL     0x01 /* Obsolete, not used anymore */
+#define RAM_SAVE_FLAG_COMPRESS 0x02
+#define RAM_SAVE_FLAG_MEM_SIZE 0x04
+#define RAM_SAVE_FLAG_PAGE     0x08
+#define RAM_SAVE_FLAG_EOS      0x10
+#define RAM_SAVE_FLAG_CONTINUE 0x20
 
 static int is_dup_page(uint8_t *page, uint8_t ch)
 {
@@ -104,10 +104,11 @@ static int is_dup_page(uint8_t *page, uint8_t ch)
     return 1;
 }
 
+static RAMBlock *last_block;
+static ram_addr_t last_offset;
+
 static int ram_save_block(QEMUFile *f)
 {
-    static RAMBlock *last_block = NULL;
-    static ram_addr_t last_offset = 0;
     RAMBlock *block = last_block;
     ram_addr_t offset = last_offset;
     ram_addr_t current_addr;
@@ -231,6 +232,8 @@ int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
     if (stage == 1) {
         RAMBlock *block;
         bytes_transferred = 0;
+        last_block = NULL;
+        last_offset = 0;
 
         /* Make sure all dirty bits are set */
         QLIST_FOREACH(block, &ram_list.blocks, next) {

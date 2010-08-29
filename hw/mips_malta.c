@@ -46,6 +46,7 @@
 #include "elf.h"
 #include "mc146818rtc.h"
 #include "hw/sysbus.h"
+#include "blockdev.h"
 
 #undef BIOS_SIZE
 #define BIOS_SIZE (16 * MiB)

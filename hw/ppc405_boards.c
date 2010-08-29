@@ -31,6 +31,7 @@
 #include "boards.h"
 #include "qemu-log.h"
 #include "loader.h"
+#include "blockdev.h"
 
 #define BIOS_FILENAME "ppc405_rom.bin"
 #define BIOS_SIZE (2048 * 1024)

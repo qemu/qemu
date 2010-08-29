@@ -426,9 +426,6 @@ static int local_rename(FsContext *ctx, const char *oldpath,
     int err;
 
     tmp = qemu_strdup(rpath(ctx, oldpath));
-    if (tmp == NULL) {
-        return -1;
-    }
 
     err = rename(tmp, rpath(ctx, newpath));
     if (err == -1) {

@@ -30,6 +30,7 @@
 #include "qemu-timer.h"
 #include "sysemu.h"
 #include "dma.h"
+#include "blockdev.h"
 
 #include <hw/ide/internal.h>
 

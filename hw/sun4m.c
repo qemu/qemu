@@ -40,6 +40,7 @@
 #include "qdev-addr.h"
 #include "loader.h"
 #include "elf.h"
+#include "blockdev.h"
 
 //#define DEBUG_IRQ
 

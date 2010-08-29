@@ -13,6 +13,7 @@
 
 #include <qemu-common.h>
 #include "qemu-error.h"
+#include "blockdev.h"
 #include "virtio-blk.h"
 #ifdef __linux__
 # include <scsi/sg.h>

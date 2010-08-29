@@ -1168,7 +1168,7 @@ void net_host_device_add(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    opts = qemu_opts_parse(&qemu_net_opts, opts_str ? opts_str : "", 0);
+    opts = qemu_opts_parse(qemu_find_opts("net"), opts_str ? opts_str : "", 0);
     if (!opts) {
         return;
     }
@@ -1202,7 +1202,7 @@ int do_netdev_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
     QemuOpts *opts;
     int res;
 
-    opts = qemu_opts_from_qdict(&qemu_netdev_opts, qdict);
+    opts = qemu_opts_from_qdict(qemu_find_opts("netdev"), qdict);
     if (!opts) {
         return -1;
     }
@@ -1226,7 +1226,7 @@ int do_netdev_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
         return -1;
     }
     qemu_del_vlan_client(vc);
-    qemu_opts_del(qemu_opts_find(&qemu_netdev_opts, id));
+    qemu_opts_del(qemu_opts_find(qemu_find_opts("netdev"), id));
     return 0;
 }
 
@@ -1349,21 +1349,23 @@ static int net_init_netdev(QemuOpts *opts, void *dummy)
 
 int net_init_clients(void)
 {
+    QemuOptsList *net = qemu_find_opts("net");
+
     if (default_net) {
         /* if no clients, we use a default config */
-        qemu_opts_set(&qemu_net_opts, NULL, "type", "nic");
+        qemu_opts_set(net, NULL, "type", "nic");
 #ifdef CONFIG_SLIRP
-        qemu_opts_set(&qemu_net_opts, NULL, "type", "user");
+        qemu_opts_set(net, NULL, "type", "user");
 #endif
     }
 
     QTAILQ_INIT(&vlans);
     QTAILQ_INIT(&non_vlan_clients);
 
-    if (qemu_opts_foreach(&qemu_netdev_opts, net_init_netdev, NULL, 1) == -1)
+    if (qemu_opts_foreach(qemu_find_opts("netdev"), net_init_netdev, NULL, 1) == -1)
         return -1;
 
-    if (qemu_opts_foreach(&qemu_net_opts, net_init_client, NULL, 1) == -1) {
+    if (qemu_opts_foreach(net, net_init_client, NULL, 1) == -1) {
         return -1;
     }
 

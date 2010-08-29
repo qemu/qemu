@@ -70,6 +70,7 @@
 #include "qemu-timer.h"         /* vm_clock */
 
 #include "block.h"              /* bdrv_getlength */
+#include "blockdev.h"           /* drive_get */
 #include "console.h"            /* console_select */
 #include "disas.h"              /* lookup_symbol */
 #include "exec-all.h"           /* logfile */

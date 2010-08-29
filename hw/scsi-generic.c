@@ -14,6 +14,7 @@
 #include "qemu-common.h"
 #include "qemu-error.h"
 #include "scsi.h"
+#include "blockdev.h"
 
 #ifdef __linux__
 

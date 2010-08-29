@@ -327,6 +327,38 @@ uint32_t kvmppc_get_tbfreq(void)
     return retval;
 }
 
+int kvmppc_get_hypercall(CPUState *env, uint8_t *buf, int buf_len)
+{
+    uint32_t *hc = (uint32_t*)buf;
+
+#ifdef KVM_CAP_PPC_GET_PVINFO
+    struct kvm_ppc_pvinfo pvinfo;
+
+    if (kvm_check_extension(env->kvm_state, KVM_CAP_PPC_GET_PVINFO) &&
+        !kvm_vm_ioctl(env->kvm_state, KVM_PPC_GET_PVINFO, &pvinfo)) {
+        memcpy(buf, pvinfo.hcall, buf_len);
+
+        return 0;
+    }
+#endif
+
+    /*
+     * Fallback to always fail hypercalls:
+     *
+     *     li r3, -1
+     *     nop
+     *     nop
+     *     nop
+     */
+
+    hc[0] = 0x3860ffff;
+    hc[1] = 0x60000000;
+    hc[2] = 0x60000000;
+    hc[3] = 0x60000000;
+
+    return 0;
+}
+
 bool kvm_arch_stop_on_emulation_error(CPUState *env)
 {
     return true;

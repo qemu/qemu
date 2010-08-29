@@ -27,6 +27,11 @@
 
 #define BINARY_DEVICE_TREE_FILE "bamboo.dtb"
 
+/* from u-boot */
+#define KERNEL_ADDR  0x1000000
+#define FDT_ADDR     0x1800000
+#define RAMDISK_ADDR 0x1900000
+
 static int bamboo_load_device_tree(target_phys_addr_t addr,
                                      uint32_t ramsize,
                                      target_phys_addr_t initrd_base,
@@ -98,10 +103,8 @@ static void bamboo_init(ram_addr_t ram_size,
     uint64_t elf_lowaddr;
     target_phys_addr_t entry = 0;
     target_phys_addr_t loadaddr = 0;
-    target_long kernel_size = 0;
-    target_ulong initrd_base = 0;
     target_long initrd_size = 0;
-    target_ulong dt_base = 0;
+    int success;
     int i;
 
     /* Setup CPU. */
@@ -118,15 +121,15 @@ static void bamboo_init(ram_addr_t ram_size,
 
     /* Load kernel. */
     if (kernel_filename) {
-        kernel_size = load_uimage(kernel_filename, &entry, &loadaddr, NULL);
-        if (kernel_size < 0) {
-            kernel_size = load_elf(kernel_filename, NULL, NULL, &elf_entry,
-                                   &elf_lowaddr, NULL, 1, ELF_MACHINE, 0);
+        success = load_uimage(kernel_filename, &entry, &loadaddr, NULL);
+        if (success < 0) {
+            success = load_elf(kernel_filename, NULL, NULL, &elf_entry,
+                               &elf_lowaddr, NULL, 1, ELF_MACHINE, 0);
             entry = elf_entry;
             loadaddr = elf_lowaddr;
         }
         /* XXX try again as binary */
-        if (kernel_size < 0) {
+        if (success < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n",
                     kernel_filename);
             exit(1);
@@ -135,26 +138,20 @@ static void bamboo_init(ram_addr_t ram_size,
 
     /* Load initrd. */
     if (initrd_filename) {
-        initrd_base = kernel_size + loadaddr;
-        initrd_size = load_image_targphys(initrd_filename, initrd_base,
-                                          ram_size - initrd_base);
+        initrd_size = load_image_targphys(initrd_filename, RAMDISK_ADDR,
+                                          ram_size - RAMDISK_ADDR);
 
         if (initrd_size < 0) {
-            fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
-                    initrd_filename);
+            fprintf(stderr, "qemu: could not load ram disk '%s' at %x\n",
+                    initrd_filename, RAMDISK_ADDR);
             exit(1);
         }
     }
 
     /* If we're loading a kernel directly, we must load the device tree too. */
     if (kernel_filename) {
-        if (initrd_base)
-            dt_base = initrd_base + initrd_size;
-        else
-            dt_base = kernel_size + loadaddr;
-
-        if (bamboo_load_device_tree(dt_base, ram_size,
-                        initrd_base, initrd_size, kernel_cmdline) < 0) {
+        if (bamboo_load_device_tree(FDT_ADDR, ram_size, RAMDISK_ADDR,
+                                    initrd_size, kernel_cmdline) < 0) {
             fprintf(stderr, "couldn't load device tree\n");
             exit(1);
         }
@@ -163,7 +160,7 @@ static void bamboo_init(ram_addr_t ram_size,
 
         /* Set initial guest state. */
         env->gpr[1] = (16<<20) - 8;
-        env->gpr[3] = dt_base;
+        env->gpr[3] = FDT_ADDR;
         env->nip = entry;
         /* XXX we currently depend on KVM to create some initial TLB entries. */
     }

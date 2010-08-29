@@ -2,7 +2,6 @@
 #define HW_FDC_H
 
 /* fdc.c */
-#include "blockdev.h"
 #define MAX_FD 2
 
 typedef struct FDCtrl FDCtrl;

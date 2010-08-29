@@ -24,6 +24,7 @@
 #include "net.h"
 #include "loader.h"
 #include "kvm.h"
+#include "blockdev.h"
 
 /* from Linux's linux/virtio_pci.h */
 
@@ -599,6 +600,14 @@ static int virtio_serial_init_pci(PCIDevice *pci_dev)
     return 0;
 }
 
+static int virtio_serial_exit_pci(PCIDevice *pci_dev)
+{
+    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
+
+    virtio_serial_exit(proxy->vdev);
+    return virtio_exit_pci(pci_dev);
+}
+
 static int virtio_net_init_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
@@ -689,7 +698,7 @@ static PCIDeviceInfo virtio_info[] = {
         .qdev.alias = "virtio-serial",
         .qdev.size = sizeof(VirtIOPCIProxy),
         .init      = virtio_serial_init_pci,
-        .exit      = virtio_exit_pci,
+        .exit      = virtio_serial_exit_pci,
         .qdev.props = (Property[]) {
             DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors,
                                DEV_NVECTORS_UNSPECIFIED),

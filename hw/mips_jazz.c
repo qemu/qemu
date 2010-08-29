@@ -36,6 +36,7 @@
 #include "mips-bios.h"
 #include "loader.h"
 #include "mc146818rtc.h"
+#include "blockdev.h"
 
 enum jazz_model_e
 {

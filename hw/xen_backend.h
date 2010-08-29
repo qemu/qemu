@@ -4,8 +4,6 @@
 #include "xen_common.h"
 #include "sysemu.h"
 #include "net.h"
-#include "block_int.h"
-#include "blockdev.h"
 
 /* ------------------------------------------------------------- */
 

@@ -37,6 +37,7 @@
 #include "ide.h"
 #include "loader.h"
 #include "mc146818rtc.h"
+#include "blockdev.h"
 
 //#define HARD_DEBUG_PPC_IO
 //#define DEBUG_PPC_IO

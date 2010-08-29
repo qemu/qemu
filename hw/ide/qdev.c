@@ -20,6 +20,7 @@
 #include "dma.h"
 #include "qemu-error.h"
 #include <hw/ide/internal.h>
+#include "blockdev.h"
 
 /* --------------------------------- */
 

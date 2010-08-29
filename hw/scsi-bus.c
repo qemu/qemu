@@ -3,6 +3,7 @@
 #include "scsi.h"
 #include "scsi-defs.h"
 #include "qdev.h"
+#include "blockdev.h"
 
 static struct BusInfo scsi_bus_info = {
     .name  = "SCSI",

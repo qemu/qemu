@@ -16,6 +16,7 @@
 #include "pci.h"
 #include "usb-ohci.h"
 #include "boards.h"
+#include "blockdev.h"
 
 /* Primary interrupt controller.  */
 

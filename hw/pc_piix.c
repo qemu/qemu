@@ -34,6 +34,7 @@
 #include "kvm.h"
 #include "sysemu.h"
 #include "sysbus.h"
+#include "blockdev.h"
 
 #define MAX_IDE_BUS 2
 
@@ -103,6 +104,7 @@ static void pc_init1(ram_addr_t ram_size,
         pci_bus = i440fx_init(&i440fx_state, &piix3_devfn, isa_irq, ram_size);
     } else {
         pci_bus = NULL;
+        i440fx_state = NULL;
         isa_bus_new(NULL);
     }
     isa_bus_irqs(isa_irq);
