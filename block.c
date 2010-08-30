@@ -743,6 +743,7 @@ int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res)
 int bdrv_commit(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
+    BlockDriver *backing_drv;
     int64_t i, total_sectors;
     int n, j, ro, open_flags;
     int ret = 0, rw_ret = 0;
@@ -760,7 +761,8 @@ int bdrv_commit(BlockDriverState *bs)
     if (bs->backing_hd->keep_read_only) {
         return -EACCES;
     }
-    
+
+    backing_drv = bs->backing_hd->drv;
     ro = bs->backing_hd->read_only;
     strncpy(filename, bs->backing_hd->filename, sizeof(filename));
     open_flags =  bs->backing_hd->open_flags;
@@ -770,12 +772,14 @@ int bdrv_commit(BlockDriverState *bs)
         bdrv_delete(bs->backing_hd);
         bs->backing_hd = NULL;
         bs_rw = bdrv_new("");
-        rw_ret = bdrv_open(bs_rw, filename, open_flags | BDRV_O_RDWR, drv);
+        rw_ret = bdrv_open(bs_rw, filename, open_flags | BDRV_O_RDWR,
+            backing_drv);
         if (rw_ret < 0) {
             bdrv_delete(bs_rw);
             /* try to re-open read-only */
             bs_ro = bdrv_new("");
-            ret = bdrv_open(bs_ro, filename, open_flags & ~BDRV_O_RDWR, drv);
+            ret = bdrv_open(bs_ro, filename, open_flags & ~BDRV_O_RDWR,
+                backing_drv);
             if (ret < 0) {
                 bdrv_delete(bs_ro);
                 /* drive not functional anymore */
@@ -827,7 +831,8 @@ ro_cleanup:
         bdrv_delete(bs->backing_hd);
         bs->backing_hd = NULL;
         bs_ro = bdrv_new("");
-        ret = bdrv_open(bs_ro, filename, open_flags & ~BDRV_O_RDWR, drv);
+        ret = bdrv_open(bs_ro, filename, open_flags & ~BDRV_O_RDWR,
+            backing_drv);
         if (ret < 0) {
             bdrv_delete(bs_ro);
             /* drive not functional anymore */
