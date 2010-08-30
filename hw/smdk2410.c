@@ -9,6 +9,7 @@
  */
 
 #include "hw.h"
+#include "blockdev.h"           /* drive_get */
 #include "sysemu.h"
 #include "arm-misc.h"
 #include "loader.h"             /* load_image_targphys */
