@@ -313,7 +313,7 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
     cpu_register_physical_memory(registers + PCIE500_CFGADDR, 4, index);
 
     /* CFGDATA */
-    index = pci_host_data_register_mmio(&s->pci_state, 0);
+    index = pci_host_data_register_mmio(&s->pci_state, 1);
     if (index < 0)
         return -1;
     cpu_register_physical_memory(registers + PCIE500_CFGDATA, 4, index);
