@@ -73,11 +73,11 @@ struct pci_inbound {
 };
 
 struct PPCE500PCIState {
+    PCIHostState pci_state;
     struct pci_outbound pob[PPCE500_PCI_NR_POBS];
     struct pci_inbound pib[PPCE500_PCI_NR_PIBS];
     uint32_t gasket_time;
-    PCIHostState pci_state;
-    PCIDevice *pci_dev;
+    uint64_t base_addr;
 };
 
 typedef struct PPCE500PCIState PPCE500PCIState;
@@ -221,7 +221,7 @@ static void ppce500_pci_save(QEMUFile *f, void *opaque)
     PPCE500PCIState *controller = opaque;
     int i;
 
-    pci_device_save(controller->pci_dev, f);
+    /* pci_device_save(controller->pci_dev, f); */
 
     for (i = 0; i < PPCE500_PCI_NR_POBS; i++) {
         qemu_put_be32s(f, &controller->pob[i].potar);
@@ -247,7 +247,7 @@ static int ppce500_pci_load(QEMUFile *f, void *opaque, int version_id)
     if (version_id != 1)
         return -EINVAL;
 
-    pci_device_load(controller->pci_dev, f);
+    /* pci_device_load(controller->pci_dev, f); */
 
     for (i = 0; i < PPCE500_PCI_NR_POBS; i++) {
         qemu_get_be32s(f, &controller->pob[i].potar);
@@ -269,55 +269,95 @@ static int ppce500_pci_load(QEMUFile *f, void *opaque, int version_id)
 
 PCIBus *ppce500_pci_init(qemu_irq pci_irqs[4], target_phys_addr_t registers)
 {
-    PPCE500PCIState *controller;
+    DeviceState *dev;
+    PCIBus *b;
+    PCIHostState *h;
+    PPCE500PCIState *s;
     PCIDevice *d;
-    int index;
     static int ppce500_pci_id;
 
-    controller = qemu_mallocz(sizeof(PPCE500PCIState));
+    dev = qdev_create(NULL, "e500-pcihost");
+    h = FROM_SYSBUS(PCIHostState, sysbus_from_qdev(dev));
+    s = DO_UPCAST(PPCE500PCIState, pci_state, h);
 
-    controller->pci_state.bus = pci_register_bus(NULL, "pci",
-                                                 mpc85xx_pci_set_irq,
-                                                 mpc85xx_pci_map_irq,
-                                                 pci_irqs, PCI_DEVFN(0x11, 0),
-                                                 4);
-    d = pci_register_device(controller->pci_state.bus,
-                            "host bridge", sizeof(PCIDevice),
-                            0, NULL, NULL);
+    qdev_prop_set_uint64(dev, "base_addr", registers);
+    b = pci_register_bus(&s->pci_state.busdev.qdev, NULL, mpc85xx_pci_set_irq,
+                         mpc85xx_pci_map_irq, pci_irqs, PCI_DEVFN(0x11, 0), 4);
 
-    pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_FREESCALE);
-    pci_config_set_device_id(d->config, PCI_DEVICE_ID_MPC8533E);
-    pci_config_set_class(d->config, PCI_CLASS_PROCESSOR_POWERPC);
-
-    controller->pci_dev = d;
-
-    /* CFGADDR */
-    index = pci_host_conf_register_mmio(&controller->pci_state, 0);
-    if (index < 0)
-        goto free;
-    cpu_register_physical_memory(registers + PCIE500_CFGADDR, 4, index);
-
-    /* CFGDATA */
-    index = pci_host_data_register_mmio(&controller->pci_state, 0);
-    if (index < 0)
-        goto free;
-    cpu_register_physical_memory(registers + PCIE500_CFGDATA, 4, index);
-
-    index = cpu_register_io_memory(e500_pci_reg_read,
-                                   e500_pci_reg_write, controller);
-    if (index < 0)
-        goto free;
-    cpu_register_physical_memory(registers + PCIE500_REG_BASE,
-                                   PCIE500_REG_SIZE, index);
+    s->pci_state.bus = b;
+    qdev_init_nofail(dev);
+    d = pci_create_simple(b, 0, "e500-host-bridge");
 
     /* XXX load/save code not tested. */
     register_savevm(&d->qdev, "ppce500_pci", ppce500_pci_id++,
-                    1, ppce500_pci_save, ppce500_pci_load, controller);
+                    1, ppce500_pci_save, ppce500_pci_load, s);
 
-    return controller->pci_state.bus;
-
-free:
-    printf("%s error\n", __func__);
-    qemu_free(controller);
-    return NULL;
+    return b;
 }
+
+static int e500_pcihost_initfn(SysBusDevice *dev)
+{
+    PCIHostState *h;
+    PPCE500PCIState *s;
+    target_phys_addr_t registers;
+    int index;
+
+    h = FROM_SYSBUS(PCIHostState, sysbus_from_qdev(dev));
+    s = DO_UPCAST(PPCE500PCIState, pci_state, h);
+    registers = (target_phys_addr_t)s->base_addr;
+
+    /* CFGADDR */
+    index = pci_host_conf_register_mmio(&s->pci_state, 0);
+    if (index < 0)
+        return -1;
+    cpu_register_physical_memory(registers + PCIE500_CFGADDR, 4, index);
+
+    /* CFGDATA */
+    index = pci_host_data_register_mmio(&s->pci_state, 0);
+    if (index < 0)
+        return -1;
+    cpu_register_physical_memory(registers + PCIE500_CFGDATA, 4, index);
+
+    index = cpu_register_io_memory(e500_pci_reg_read,
+                                   e500_pci_reg_write, s);
+    if (index < 0)
+        return -1;
+    cpu_register_physical_memory(registers + PCIE500_REG_BASE,
+                                   PCIE500_REG_SIZE, index);
+    return 0;
+}
+
+static int e500_host_bridge_initfn(PCIDevice *dev)
+{
+    pci_config_set_vendor_id(dev->config, PCI_VENDOR_ID_FREESCALE);
+    pci_config_set_device_id(dev->config, PCI_DEVICE_ID_MPC8533E);
+    pci_config_set_class(dev->config, PCI_CLASS_PROCESSOR_POWERPC);
+
+    return 0;
+}
+
+static PCIDeviceInfo e500_host_bridge_info = {
+    .qdev.name    = "e500-host-bridge",
+    .qdev.desc    = "Host bridge",
+    .qdev.size    = sizeof(PCIDevice),
+    .qdev.no_user = 1,
+    .init         = e500_host_bridge_initfn,
+};
+
+static SysBusDeviceInfo e500_pcihost_info = {
+    .init         = e500_pcihost_initfn,
+    .qdev.name    = "e500-pcihost",
+    .qdev.size    = sizeof(PPCE500PCIState),
+    .qdev.no_user = 1,
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_UINT64("base_addr", PPCE500PCIState, base_addr, 0),
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
+
+static void e500_pci_register(void)
+{
+    sysbus_register_withprop(&e500_pcihost_info);
+    pci_qdev_register(&e500_host_bridge_info);
+}
+device_init(e500_pci_register);
