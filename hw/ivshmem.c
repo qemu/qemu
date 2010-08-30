@@ -199,13 +199,13 @@ static void ivshmem_io_writel(void *opaque, target_phys_addr_t addr,
 
         case DOORBELL:
             /* check that dest VM ID is reasonable */
-            if ((dest < 0) || (dest > s->max_peer)) {
+            if (dest > s->max_peer) {
                 IVSHMEM_DPRINTF("Invalid destination VM ID (%d)\n", dest);
                 break;
             }
 
             /* check doorbell range */
-            if ((vector >= 0) && (vector < s->peers[dest].nb_eventfds)) {
+            if (vector < s->peers[dest].nb_eventfds) {
                 IVSHMEM_DPRINTF("Writing %" PRId64 " to VM %d on vector %d\n",
                                                     write_one, dest, vector);
                 if (write(s->peers[dest].eventfds[vector],
