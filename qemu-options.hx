@@ -728,6 +728,15 @@ Default is auto_glz.
 Configure wan image compression (lossy for slow links).
 Default is auto.
 
+@item streaming-video=[off|all|filter]
+Configure video stream detection.  Default is filter.
+
+@item agent-mouse=[on|off]
+Enable/disable passing mouse events via vdagent.  Default is on.
+
+@item playback-compression=[on|off]
+Enable/disable audio stream compression (using celt 0.5.1).  Default is on.
+
 @end table
 ETEXI
 

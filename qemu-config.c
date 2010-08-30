@@ -415,6 +415,15 @@ QemuOptsList qemu_spice_opts = {
         },{
             .name = "zlib-glz-wan-compression",
             .type = QEMU_OPT_STRING,
+        },{
+            .name = "streaming-video",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "agent-mouse",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "playback-compression",
+            .type = QEMU_OPT_BOOL,
         },
         { /* end if list */ }
     },
