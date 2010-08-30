@@ -29,9 +29,9 @@
 #include "device_tree.h"
 #include "openpic.h"
 #include "ppc.h"
-#include "ppce500.h"
 #include "loader.h"
 #include "elf.h"
+#include "sysbus.h"
 
 #define BINARY_DEVICE_TREE_FILE    "mpc8544ds.dtb"
 #define UIMAGE_LOAD_BASE           0
@@ -222,7 +222,8 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     target_long initrd_size=0;
     int i=0;
     unsigned int pci_irq_nrs[4] = {1, 2, 3, 4};
-    qemu_irq *irqs, *mpic, *pci_irqs;
+    qemu_irq *irqs, *mpic;
+    DeviceState *dev;
     struct boot_info *boot_info;
 
     /* Setup CPU */
@@ -270,12 +271,11 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     }
 
     /* PCI */
-    pci_irqs = qemu_malloc(sizeof(qemu_irq) * 4);
-    pci_irqs[0] = mpic[pci_irq_nrs[0]];
-    pci_irqs[1] = mpic[pci_irq_nrs[1]];
-    pci_irqs[2] = mpic[pci_irq_nrs[2]];
-    pci_irqs[3] = mpic[pci_irq_nrs[3]];
-    pci_bus = ppce500_pci_init(pci_irqs, MPC8544_PCI_REGS_BASE);
+    dev = sysbus_create_varargs("e500-pcihost", MPC8544_PCI_REGS_BASE,
+                                mpic[pci_irq_nrs[0]], mpic[pci_irq_nrs[1]],
+                                mpic[pci_irq_nrs[2]], mpic[pci_irq_nrs[3]],
+                                NULL);
+    pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci");
     if (!pci_bus)
         printf("couldn't create PCI controller!\n");
 
