@@ -626,6 +626,12 @@ void cpu_exec_init(CPUState *env)
     CPUState **penv;
     int cpu_index;
 
+#ifdef TARGET_WORDS_BIGENDIAN
+    env->bigendian = 1;
+#else
+    env->bigendian = 0;
+#endif
+
 #if defined(CONFIG_USER_ONLY)
     cpu_list_lock();
 #endif
