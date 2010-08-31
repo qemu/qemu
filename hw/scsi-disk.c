@@ -662,9 +662,8 @@ static int scsi_disk_emulate_mode_sense(SCSIRequest *req, uint8_t *outbuf)
             outbuf[7] = 8; /* Block descriptor length  */
         }
         nb_sectors /= s->cluster_size;
-        nb_sectors--;
         if (nb_sectors > 0xffffff)
-            nb_sectors = 0xffffff;
+            nb_sectors = 0;
         p[0] = 0; /* media density code */
         p[1] = (nb_sectors >> 16) & 0xff;
         p[2] = (nb_sectors >> 8) & 0xff;
