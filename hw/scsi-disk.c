@@ -655,7 +655,7 @@ static int scsi_disk_emulate_mode_sense(SCSIRequest *req, uint8_t *outbuf)
     }
 
     bdrv_get_geometry(s->bs, &nb_sectors);
-    if ((~dbd) & nb_sectors) {
+    if (!dbd && nb_sectors) {
         if (req->cmd.buf[0] == MODE_SENSE) {
             outbuf[3] = 8; /* Block descriptor length  */
         } else { /* MODE_SENSE_10 */
