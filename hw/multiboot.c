@@ -252,7 +252,7 @@ int load_multiboot(void *fw_cfg,
 
         do {
             char *next_space;
-            uint32_t mb_mod_length;
+            int mb_mod_length;
             uint32_t offs = mbs.mb_buf_size;
 
             next_initrd = strchr(initrd_filename, ',');
