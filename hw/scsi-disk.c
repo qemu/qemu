@@ -607,6 +607,7 @@ static int scsi_disk_emulate_mode_sense(SCSIRequest *req, uint8_t *outbuf)
     uint64_t nb_sectors;
     int page, dbd, buflen;
     uint8_t *p;
+    uint8_t dev_specific_param;
 
     dbd = req->cmd.buf[1]  & 0x8;
     page = req->cmd.buf[2] & 0x3f;
@@ -614,16 +615,31 @@ static int scsi_disk_emulate_mode_sense(SCSIRequest *req, uint8_t *outbuf)
     memset(outbuf, 0, req->cmd.xfer);
     p = outbuf;
 
-    p[1] = 0; /* Default media type.  */
-    p[3] = 0; /* Block descriptor length.  */
     if (bdrv_is_read_only(s->bs)) {
-        p[2] = 0x80; /* Readonly.  */
+        dev_specific_param = 0x80; /* Readonly.  */
+    } else {
+        dev_specific_param = 0x00;
     }
-    p += 4;
+
+    if (req->cmd.buf[0] == MODE_SENSE) {
+        p[1] = 0; /* Default media type.  */
+        p[2] = dev_specific_param;
+        p[3] = 0; /* Block descriptor length.  */
+        p += 4;
+    } else { /* MODE_SENSE_10 */
+        p[2] = 0; /* Default media type.  */
+        p[3] = dev_specific_param;
+        p[6] = p[7] = 0; /* Block descriptor length.  */
+        p += 8;
+    }
 
     bdrv_get_geometry(s->bs, &nb_sectors);
     if ((~dbd) & nb_sectors) {
-        outbuf[3] = 8; /* Block descriptor length  */
+        if (req->cmd.buf[0] == MODE_SENSE) {
+            outbuf[3] = 8; /* Block descriptor length  */
+        } else { /* MODE_SENSE_10 */
+            outbuf[7] = 8; /* Block descriptor length  */
+        }
         nb_sectors /= s->cluster_size;
         nb_sectors--;
         if (nb_sectors > 0xffffff)
@@ -653,7 +669,17 @@ static int scsi_disk_emulate_mode_sense(SCSIRequest *req, uint8_t *outbuf)
     }
 
     buflen = p - outbuf;
-    outbuf[0] = buflen - 1;
+    /*
+     * The mode data length field specifies the length in bytes of the
+     * following data that is available to be transferred. The mode data
+     * length does not include itself.
+     */
+    if (req->cmd.buf[0] == MODE_SENSE) {
+        outbuf[0] = buflen - 1;
+    } else { /* MODE_SENSE_10 */
+        outbuf[0] = ((buflen - 2) >> 8) & 0xff;
+        outbuf[1] = (buflen - 2) & 0xff;
+    }
     if (buflen > req->cmd.xfer)
         buflen = req->cmd.xfer;
     return buflen;
