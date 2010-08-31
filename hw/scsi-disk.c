@@ -653,7 +653,7 @@ static int scsi_disk_emulate_mode_sense(SCSIRequest *req, uint8_t *outbuf)
     }
 
     buflen = p - outbuf;
-    outbuf[0] = buflen - 4;
+    outbuf[0] = buflen - 1;
     if (buflen > req->cmd.xfer)
         buflen = req->cmd.xfer;
     return buflen;
