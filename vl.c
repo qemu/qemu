@@ -2332,19 +2332,21 @@ int main(int argc, char **argv, char **envp)
                 len += strlen(qemu_opt_get(opts, "security_model"));
                 arg_fsdev = qemu_malloc((len + 1) * sizeof(*arg_fsdev));
 
-                sprintf(arg_fsdev, "%s,id=%s,path=%s,security_model=%s",
-                                qemu_opt_get(opts, "fstype"),
-                                qemu_opt_get(opts, "mount_tag"),
-                                qemu_opt_get(opts, "path"),
-                                qemu_opt_get(opts, "security_model"));
+                snprintf(arg_fsdev, len * sizeof(*arg_fsdev),
+                         "%s,id=%s,path=%s,security_model=%s",
+                         qemu_opt_get(opts, "fstype"),
+                         qemu_opt_get(opts, "mount_tag"),
+                         qemu_opt_get(opts, "path"),
+                         qemu_opt_get(opts, "security_model"));
 
                 len = strlen("virtio-9p-pci,fsdev=,mount_tag=");
                 len += 2*strlen(qemu_opt_get(opts, "mount_tag"));
                 arg_9p = qemu_malloc((len + 1) * sizeof(*arg_9p));
 
-                sprintf(arg_9p, "virtio-9p-pci,fsdev=%s,mount_tag=%s",
-                                qemu_opt_get(opts, "mount_tag"),
-                                qemu_opt_get(opts, "mount_tag"));
+                snprintf(arg_9p, len * sizeof(*arg_9p),
+                         "virtio-9p-pci,fsdev=%s,mount_tag=%s",
+                         qemu_opt_get(opts, "mount_tag"),
+                         qemu_opt_get(opts, "mount_tag"));
 
                 if (!qemu_opts_parse(qemu_find_opts("fsdev"), arg_fsdev, 1)) {
                     fprintf(stderr, "parse error [fsdev]: %s\n", optarg);
