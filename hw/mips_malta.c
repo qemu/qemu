@@ -86,6 +86,7 @@ typedef struct {
     CharDriverState *display;
     char display_text[9];
     SerialState *uart;
+    int bigendian;
 } MaltaFPGAState;
 
 static PITState *pit;
@@ -247,11 +248,11 @@ static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
 
     /* STATUS Register */
     case 0x00208:
-#ifdef TARGET_WORDS_BIGENDIAN
-        val = 0x00000012;
-#else
-        val = 0x00000010;
-#endif
+        if (s->bigendian) {
+            val = 0x00000012;
+        } else {
+            val = 0x00000010;
+        }
         break;
 
     /* JMPRS Register */
@@ -452,7 +453,10 @@ static void malta_fpga_led_init(CharDriverState *chr)
     qemu_chr_printf(chr, "+--------+\r\n");
 }
 
-static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, qemu_irq uart_irq, CharDriverState *uart_chr)
+static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base,
+                                       qemu_irq uart_irq,
+                                       CharDriverState *uart_chr,
+                                       int bigendian)
 {
     MaltaFPGAState *s;
     int malta;
@@ -466,13 +470,11 @@ static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, qemu_irq uart_ir
     /* 0xa00 is less than a page, so will still get the right offsets.  */
     cpu_register_physical_memory(base + 0xa00, 0x100000 - 0xa00, malta);
 
+    s->bigendian = bigendian;
     s->display = qemu_chr_open("fpga", "vc:320x200", malta_fpga_led_init);
 
-#ifdef TARGET_WORDS_BIGENDIAN
-    s->uart = serial_mm_init(base + 0x900, 3, uart_irq, 230400, uart_chr, 1, 1);
-#else
-    s->uart = serial_mm_init(base + 0x900, 3, uart_irq, 230400, uart_chr, 1, 0);
-#endif
+    s->uart = serial_mm_init(base + 0x900, 3, uart_irq, 230400,
+                             uart_chr, 1, bigendian);
 
     malta_fpga_reset(s);
     qemu_register_reset(malta_fpga_reset, s);
@@ -583,52 +585,52 @@ static void write_bootloader (CPUState *env, uint8_t *base,
     /* Load BAR registers as done by YAMON */
     stl_raw(p++, 0x3c09b400);                                      /* lui t1, 0xb400 */
 
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_raw(p++, 0x3c08df00);                                      /* lui t0, 0xdf00 */
-#else
-    stl_raw(p++, 0x340800df);                                      /* ori t0, r0, 0x00df */
-#endif
+    if (env->bigendian) {
+        stl_raw(p++, 0x3c08df00);                                  /* lui t0, 0xdf00 */
+    } else {
+        stl_raw(p++, 0x340800df);                                  /* ori t0, r0, 0x00df */
+    }
     stl_raw(p++, 0xad280068);                                      /* sw t0, 0x0068(t1) */
 
     stl_raw(p++, 0x3c09bbe0);                                      /* lui t1, 0xbbe0 */
 
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_raw(p++, 0x3c08c000);                                      /* lui t0, 0xc000 */
-#else
-    stl_raw(p++, 0x340800c0);                                      /* ori t0, r0, 0x00c0 */
-#endif
+    if (env->bigendian) {
+        stl_raw(p++, 0x3c08c000);                                  /* lui t0, 0xc000 */
+    } else {
+        stl_raw(p++, 0x340800c0);                                  /* ori t0, r0, 0x00c0 */
+    }
     stl_raw(p++, 0xad280048);                                      /* sw t0, 0x0048(t1) */
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_raw(p++, 0x3c084000);                                      /* lui t0, 0x4000 */
-#else
-    stl_raw(p++, 0x34080040);                                      /* ori t0, r0, 0x0040 */
-#endif
+    if (env->bigendian) {
+        stl_raw(p++, 0x3c084000);                                  /* lui t0, 0x4000 */
+    } else {
+        stl_raw(p++, 0x34080040);                                  /* ori t0, r0, 0x0040 */
+    }
     stl_raw(p++, 0xad280050);                                      /* sw t0, 0x0050(t1) */
 
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_raw(p++, 0x3c088000);                                      /* lui t0, 0x8000 */
-#else
-    stl_raw(p++, 0x34080080);                                      /* ori t0, r0, 0x0080 */
-#endif
+    if (env->bigendian) {
+        stl_raw(p++, 0x3c088000);                                  /* lui t0, 0x8000 */
+    } else {
+        stl_raw(p++, 0x34080080);                                  /* ori t0, r0, 0x0080 */
+    }
     stl_raw(p++, 0xad280058);                                      /* sw t0, 0x0058(t1) */
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_raw(p++, 0x3c083f00);                                      /* lui t0, 0x3f00 */
-#else
-    stl_raw(p++, 0x3408003f);                                      /* ori t0, r0, 0x003f */
-#endif
+    if (env->bigendian) {
+        stl_raw(p++, 0x3c083f00);                                  /* lui t0, 0x3f00 */
+    } else {
+        stl_raw(p++, 0x3408003f);                                  /* ori t0, r0, 0x003f */
+    }
     stl_raw(p++, 0xad280060);                                      /* sw t0, 0x0060(t1) */
 
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_raw(p++, 0x3c08c100);                                      /* lui t0, 0xc100 */
-#else
-    stl_raw(p++, 0x340800c1);                                      /* ori t0, r0, 0x00c1 */
-#endif
+    if (env->bigendian) {
+        stl_raw(p++, 0x3c08c100);                                  /* lui t0, 0xc100 */
+    } else {
+        stl_raw(p++, 0x340800c1);                                  /* ori t0, r0, 0x00c1 */
+    }
     stl_raw(p++, 0xad280080);                                      /* sw t0, 0x0080(t1) */
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_raw(p++, 0x3c085e00);                                      /* lui t0, 0x5e00 */
-#else
-    stl_raw(p++, 0x3408005e);                                      /* ori t0, r0, 0x005e */
-#endif
+    if (env->bigendian) {
+        stl_raw(p++, 0x3c085e00);                                  /* lui t0, 0x5e00 */
+    } else {
+        stl_raw(p++, 0x3408005e);                                  /* ori t0, r0, 0x005e */
+    }
     stl_raw(p++, 0xad280088);                                      /* sw t0, 0x0088(t1) */
 
     /* Jump to kernel code */
@@ -679,7 +681,6 @@ static void write_bootloader (CPUState *env, uint8_t *base,
     stl_raw(p++, 0x00000000);                                     /* nop */
     stl_raw(p++, 0x03e00008);                                     /* jr ra */
     stl_raw(p++, 0xa1040000);                                     /* sb a0,0(t0) */
-
 }
 
 static void prom_set(uint32_t* prom_buf, int index, const char *string, ...)
@@ -785,7 +786,7 @@ static void main_cpu_reset(void *opaque)
 
 static void cpu_request_exit(void *opaque, int irq, int level)
 {
-    CPUState *env = cpu_single_env;
+    CPUState *env = opaque;
 
     if (env && level) {
         cpu_exit(env);
@@ -819,11 +820,6 @@ void mips_malta_init (ram_addr_t ram_size,
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DriveInfo *fd[MAX_FD];
     int fl_sectors;
-#ifdef TARGET_WORDS_BIGENDIAN
-    const int be = 1;
-#else
-    const int be = 0;
-#endif
 
     //~ DeviceState *dev =
     qdev_create(NULL, "mips malta");
@@ -874,7 +870,8 @@ void mips_malta_init (ram_addr_t ram_size,
                                  BIOS_SIZE, bios_offset | IO_MEM_ROM);
 
     /* FPGA */
-    malta_fpga = malta_fpga_init(0x1f000000LL, env->irq[2], serial_hds[2]);
+    malta_fpga = malta_fpga_init(0x1f000000LL, env->irq[2], serial_hds[2],
+                                 env->bigendian);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     const char *flashfile = NULL;
@@ -893,7 +890,7 @@ void mips_malta_init (ram_addr_t ram_size,
 #endif
     pflash_cfi01_register(FLASH_ADDRESS, bios_offset,
                           flashdriver, 65536, fl_sectors,
-                          4, 0x0000, 0x0000, 0x0000, 0x0000, be);
+                          4, 0x0000, 0x0000, 0x0000, 0x0000, env->bigendian);
 
     /* Load firmware in flash / BIOS unless we boot directly into a kernel. */
     if (kernel_filename) {
@@ -902,7 +899,7 @@ void mips_malta_init (ram_addr_t ram_size,
         loaderparams.kernel_filename = kernel_filename;
         loaderparams.kernel_cmdline = kernel_cmdline;
         loaderparams.initrd_filename = initrd_filename;
-        kernel_entry = load_kernel(be);
+        kernel_entry = load_kernel(env->bigendian);
         write_bootloader(env, qemu_get_ram_ptr(bios_offset), kernel_entry);
     } else {
         if (dinfo) {
@@ -983,11 +980,10 @@ void mips_malta_init (ram_addr_t ram_size,
         qdev_init_nofail(eeprom);
     }
     pit = pit_init(0x40, isa_reserve_irq(0));
-    cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
+    cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, env, 1);
     DMA_init(0, cpu_exit_irq);
 
     /* Super I/O */
-    //~ super_io_init();
     isa_dev = isa_create_simple("i8042");
 
     rtc_state = rtc_init(2000, NULL);
@@ -1022,17 +1018,9 @@ typedef struct {
     //~ QEMUTimer *wd_timer;
     //~ qemu_irq *primary_irq;
     //~ qemu_irq *secondary_irq;
-    //~ NICState nic[2];
-    //~ /* Address of phy device (0...31). Only one phy device is supported.
-       //~ The internal phy has address 31. */
-    //~ uint8_t phyaddr;
-    //~ /* VLYNQ index for TNETW1130. Set to >1 to disable WLAN. */
-    //~ uint8_t vlynq_tnetw1130;
     //~ CharDriverState *gpio_display;
     //~ SerialState *serial[2];
-    //~ uint8_t *cpmac[2];
     //~ ar7_timer_t timer[2];
-    //~ uint8_t *vlynq[2];
 } MaltaState;
 
 static int mips_malta_sysbus_device_init(SysBusDevice *sysbusdev)
@@ -1049,7 +1037,6 @@ static void mips_malta_reset(DeviceState *d)
     /* TODO: fix code. */
     MaltaState *s = container_of(d, MaltaState, busdev.qdev);
     (void)s;
-    //~ CPUState *env = opaque;
     logout("%s:%u\n", __FILE__, __LINE__);
     //~ env->exception_index = EXCP_RESET;
     //~ env->exception_index = EXCP_SRESET;
