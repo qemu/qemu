@@ -102,9 +102,9 @@ typedef struct CPUTLBEntry {
        use the corresponding iotlb value.  */
     unsigned long addend;
     /* padding to get a power of two size */
-    uint8_t dummy[(1 << CPU_TLB_ENTRY_BITS) - 
-                  (sizeof(target_ulong) * 3 + 
-                   ((-sizeof(target_ulong) * 3) & (sizeof(unsigned long) - 1)) + 
+    uint8_t dummy[(1 << CPU_TLB_ENTRY_BITS) -
+                  (sizeof(target_ulong) * 3 +
+                   ((-sizeof(target_ulong) * 3) & (sizeof(unsigned long) - 1)) +
                    sizeof(unsigned long))];
 } CPUTLBEntry;
 
