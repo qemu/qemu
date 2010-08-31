@@ -31,6 +31,15 @@ static inline int xen_enabled(void)
 #endif
 }
 
+static inline int xen_mapcache_enabled(void)
+{
+#ifdef CONFIG_XEN_MAPCACHE
+    return xen_enabled();
+#else
+    return 0;
+#endif
+}
+
 int xen_pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num);
 void xen_piix3_set_irq(void *opaque, int irq_num, int level);
 void xen_piix_pci_write_config_client(uint32_t address, uint32_t val, int len);
@@ -40,6 +49,10 @@ qemu_irq *xen_interrupt_controller_init(void);
 int xen_init(void);
 int xen_hvm_init(void);
 void xen_vcpu_init(void);
+
+#if defined(NEED_CPU_H) && !defined(CONFIG_USER_ONLY)
+void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size);
+#endif
 
 #if defined(CONFIG_XEN) && CONFIG_XEN_CTRL_INTERFACE_VERSION < 400
 #  define HVM_MAX_VCPUS 32

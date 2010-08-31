@@ -22,6 +22,10 @@ void xen_piix_pci_write_config_client(uint32_t address, uint32_t val, int len)
 {
 }
 
+void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size)
+{
+}
+
 qemu_irq *xen_interrupt_controller_init(void)
 {
     return NULL;

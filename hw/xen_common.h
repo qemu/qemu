@@ -63,6 +63,15 @@ static inline int xc_fd(int xen_xc)
 }
 
 
+static inline int xc_domain_populate_physmap_exact
+    (XenXC xc_handle, uint32_t domid, unsigned long nr_extents,
+     unsigned int extent_order, unsigned int mem_flags, xen_pfn_t *extent_start)
+{
+    return xc_domain_memory_populate_physmap
+        (xc_handle, domid, nr_extents, extent_order, mem_flags, extent_start);
+}
+
+
 /* Xen 4.1 */
 #else
 

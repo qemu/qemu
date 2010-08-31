@@ -10,6 +10,9 @@
 #include "hw/xen_common.h"
 #include "hw/xen_backend.h"
 
+#include "xen-mapcache.h"
+#include "trace.h"
+
 /* Xen specific function for piix pci */
 
 int xen_pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
@@ -52,6 +55,65 @@ qemu_irq *xen_interrupt_controller_init(void)
     return qemu_allocate_irqs(xen_set_irq, NULL, 16);
 }
 
+/* Memory Ops */
+
+static void xen_ram_init(ram_addr_t ram_size)
+{
+    RAMBlock *new_block;
+    ram_addr_t below_4g_mem_size, above_4g_mem_size = 0;
+
+    new_block = qemu_mallocz(sizeof (*new_block));
+    pstrcpy(new_block->idstr, sizeof (new_block->idstr), "xen.ram");
+    new_block->host = NULL;
+    new_block->offset = 0;
+    new_block->length = ram_size;
+
+    QLIST_INSERT_HEAD(&ram_list.blocks, new_block, next);
+
+    ram_list.phys_dirty = qemu_realloc(ram_list.phys_dirty,
+                                       new_block->length >> TARGET_PAGE_BITS);
+    memset(ram_list.phys_dirty + (new_block->offset >> TARGET_PAGE_BITS),
+           0xff, new_block->length >> TARGET_PAGE_BITS);
+
+    if (ram_size >= 0xe0000000 ) {
+        above_4g_mem_size = ram_size - 0xe0000000;
+        below_4g_mem_size = 0xe0000000;
+    } else {
+        below_4g_mem_size = ram_size;
+    }
+
+    cpu_register_physical_memory(0, below_4g_mem_size, new_block->offset);
+#if TARGET_PHYS_ADDR_BITS > 32
+    if (above_4g_mem_size > 0) {
+        cpu_register_physical_memory(0x100000000ULL, above_4g_mem_size,
+                                     new_block->offset + below_4g_mem_size);
+    }
+#endif
+}
+
+void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size)
+{
+    unsigned long nr_pfn;
+    xen_pfn_t *pfn_list;
+    int i;
+
+    trace_xen_ram_alloc(ram_addr, size);
+
+    nr_pfn = size >> TARGET_PAGE_BITS;
+    pfn_list = qemu_malloc(sizeof (*pfn_list) * nr_pfn);
+
+    for (i = 0; i < nr_pfn; i++) {
+        pfn_list[i] = (ram_addr >> TARGET_PAGE_BITS) + i;
+    }
+
+    if (xc_domain_populate_physmap_exact(xen_xc, xen_domid, nr_pfn, 0, 0, pfn_list)) {
+        hw_error("xen: failed to populate ram at %lx", ram_addr);
+    }
+
+    qemu_free(pfn_list);
+}
+
+
 /* VCPU Operations, MMIO, IO ring ... */
 
 static void xen_reset_vcpu(void *opaque)
@@ -86,5 +148,9 @@ int xen_init(void)
 
 int xen_hvm_init(void)
 {
+    /* Init RAM management */
+    qemu_map_cache_init();
+    xen_ram_init(ram_size);
+
     return 0;
 }
