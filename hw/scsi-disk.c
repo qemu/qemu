@@ -690,6 +690,8 @@ static int scsi_disk_emulate_mode_sense(SCSIRequest *req, uint8_t *outbuf)
         p += mode_sense_page(req, 0x08, p, page_control);
         p += mode_sense_page(req, 0x2a, p, page_control);
         break;
+    default:
+        return -1; /* ILLEGAL_REQUEST */
     }
 
     buflen = p - outbuf;
