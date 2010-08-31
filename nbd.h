@@ -55,7 +55,7 @@ int nbd_send_request(int csock, struct nbd_request *request);
 int nbd_receive_reply(int csock, struct nbd_reply *reply);
 int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset,
              off_t *offset, bool readonly, uint8_t *data, int data_size);
-int nbd_client(int fd, int csock);
+int nbd_client(int fd);
 int nbd_disconnect(int fd);
 
 #endif

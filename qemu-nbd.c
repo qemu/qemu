@@ -417,7 +417,7 @@ int main(int argc, char **argv)
 
             show_parts(device);
 
-            nbd_client(fd, sock);
+            nbd_client(fd);
             close(fd);
  out:
             kill(pid, SIGTERM);

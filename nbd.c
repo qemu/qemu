@@ -393,7 +393,7 @@ int nbd_disconnect(int fd)
 	return 0;
 }
 
-int nbd_client(int fd, int csock)
+int nbd_client(int fd)
 {
 	int ret;
 	int serrno;
@@ -427,7 +427,7 @@ int nbd_disconnect(int fd)
     return -1;
 }
 
-int nbd_client(int fd, int csock)
+int nbd_client(int fd)
 {
     errno = ENOTSUP;
     return -1;
