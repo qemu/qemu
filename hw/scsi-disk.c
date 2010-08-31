@@ -486,16 +486,26 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     return buflen;
 }
 
-static int mode_sense_page(SCSIRequest *req, int page, uint8_t *p)
+static int mode_sense_page(SCSIRequest *req, int page, uint8_t *p,
+                           int page_control)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
     BlockDriverState *bdrv = s->bs;
     int cylinders, heads, secs;
 
+    /*
+     * If Changeable Values are requested, a mask denoting those mode parameters
+     * that are changeable shall be returned. As we currently don't support
+     * parameter changes via MODE_SELECT all bits are returned set to zero.
+     * The buffer was already menset to zero by the caller of this function.
+     */
     switch (page) {
     case 4: /* Rigid disk device geometry page. */
         p[0] = 4;
         p[1] = 0x16;
+        if (page_control == 1) { /* Changeable Values */
+            return p[1] + 2;
+        }
         /* if a geometry hint is available, use it */
         bdrv_get_geometry_hint(bdrv, &cylinders, &heads, &secs);
         p[2] = (cylinders >> 16) & 0xff;
@@ -520,11 +530,14 @@ static int mode_sense_page(SCSIRequest *req, int page, uint8_t *p)
         /* Medium rotation rate [rpm], 5400 rpm */
         p[20] = (5400 >> 8) & 0xff;
         p[21] = 5400 & 0xff;
-        return 0x16;
+        return p[1] + 2;
 
     case 5: /* Flexible disk device geometry page. */
         p[0] = 5;
         p[1] = 0x1e;
+        if (page_control == 1) { /* Changeable Values */
+            return p[1] + 2;
+        }
         /* Transfer rate [kbit/s], 5Mbit/s */
         p[2] = 5000 >> 8;
         p[3] = 5000 & 0xff;
@@ -556,21 +569,27 @@ static int mode_sense_page(SCSIRequest *req, int page, uint8_t *p)
         /* Medium rotation rate [rpm], 5400 rpm */
         p[28] = (5400 >> 8) & 0xff;
         p[29] = 5400 & 0xff;
-        return 0x1e;
+        return p[1] + 2;
 
     case 8: /* Caching page.  */
         p[0] = 8;
         p[1] = 0x12;
+        if (page_control == 1) { /* Changeable Values */
+            return p[1] + 2;
+        }
         if (bdrv_enable_write_cache(s->bs)) {
             p[2] = 4; /* WCE */
         }
-        return 20;
+        return p[1] + 2;
 
     case 0x2a: /* CD Capabilities and Mechanical Status page. */
         if (bdrv_get_type_hint(bdrv) != BDRV_TYPE_CDROM)
             return 0;
         p[0] = 0x2a;
         p[1] = 0x14;
+        if (page_control == 1) { /* Changeable Values */
+            return p[1] + 2;
+        }
         p[2] = 3; // CD-R & CD-RW read
         p[3] = 0; // Writing not supported
         p[4] = 0x7f; /* Audio, composite, digital out,
@@ -594,7 +613,7 @@ static int mode_sense_page(SCSIRequest *req, int page, uint8_t *p)
         p[19] = (16 * 176) & 0xff;
         p[20] = (16 * 176) >> 8; // 16x write speed current
         p[21] = (16 * 176) & 0xff;
-        return 22;
+        return p[1] + 2;
 
     default:
         return 0;
@@ -605,13 +624,15 @@ static int scsi_disk_emulate_mode_sense(SCSIRequest *req, uint8_t *outbuf)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
     uint64_t nb_sectors;
-    int page, dbd, buflen;
+    int page, dbd, buflen, page_control;
     uint8_t *p;
     uint8_t dev_specific_param;
 
     dbd = req->cmd.buf[1]  & 0x8;
     page = req->cmd.buf[2] & 0x3f;
-    DPRINTF("Mode Sense (page %d, len %zd)\n", page, req->cmd.xfer);
+    page_control = (req->cmd.buf[2] & 0xc0) >> 6;
+    DPRINTF("Mode Sense(%d) (page %d, len %d, page_control %d)\n",
+        (req->cmd.buf[0] == MODE_SENSE) ? 6 : 10, page, len, page_control);
     memset(outbuf, 0, req->cmd.xfer);
     p = outbuf;
 
@@ -655,16 +676,20 @@ static int scsi_disk_emulate_mode_sense(SCSIRequest *req, uint8_t *outbuf)
         p += 8;
     }
 
+    if (page_control == 3) { /* Saved Values */
+        return -1; /* ILLEGAL_REQUEST */
+    }
+
     switch (page) {
     case 0x04:
     case 0x05:
     case 0x08:
     case 0x2a:
-        p += mode_sense_page(req, page, p);
+        p += mode_sense_page(req, page, p, page_control);
         break;
     case 0x3f:
-        p += mode_sense_page(req, 0x08, p);
-        p += mode_sense_page(req, 0x2a, p);
+        p += mode_sense_page(req, 0x08, p, page_control);
+        p += mode_sense_page(req, 0x2a, p, page_control);
         break;
     }
 
