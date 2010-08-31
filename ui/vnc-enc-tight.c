@@ -905,7 +905,7 @@ static void tight_pack24(VncState *vs, uint8_t *buf, size_t count, size_t *ret)
 static int send_full_color_rect(VncState *vs, int x, int y, int w, int h)
 {
     int stream = 0;
-    size_t bytes;
+    ssize_t bytes;
 
 #ifdef CONFIG_VNC_PNG
     if (tight_can_send_png_rect(vs, w, h)) {
@@ -949,7 +949,7 @@ static int send_solid_rect(VncState *vs)
 static int send_mono_rect(VncState *vs, int x, int y,
                           int w, int h, uint32_t bg, uint32_t fg)
 {
-    size_t bytes;
+    ssize_t bytes;
     int stream = 1;
     int level = tight_conf[vs->tight.compression].mono_zlib_level;
 
@@ -1029,7 +1029,7 @@ static bool send_gradient_rect(VncState *vs, int x, int y, int w, int h)
 {
     int stream = 3;
     int level = tight_conf[vs->tight.compression].gradient_zlib_level;
-    size_t bytes;
+    ssize_t bytes;
 
     if (vs->clientds.pf.bytes_per_pixel == 1)
         return send_full_color_rect(vs, x, y, w, h);
@@ -1066,7 +1066,7 @@ static int send_palette_rect(VncState *vs, int x, int y,
     int stream = 2;
     int level = tight_conf[vs->tight.compression].idx_zlib_level;
     int colors;
-    size_t bytes;
+    ssize_t bytes;
 
 #ifdef CONFIG_VNC_PNG
     if (tight_can_send_png_rect(vs, w, h)) {
