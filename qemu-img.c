@@ -783,7 +783,8 @@ static int img_convert(int argc, char **argv)
         goto out;
     }
 
-    out_bs = bdrv_new_open(out_filename, out_fmt, BDRV_O_FLAGS | BDRV_O_RDWR);
+    out_bs = bdrv_new_open(out_filename, out_fmt,
+        BDRV_O_FLAGS | BDRV_O_RDWR | BDRV_O_NO_FLUSH);
     if (!out_bs) {
         ret = -1;
         goto out;
