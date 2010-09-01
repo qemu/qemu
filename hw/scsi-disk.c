@@ -135,7 +135,7 @@ static void scsi_read_complete(void * opaque, int ret)
         scsi_command_complete(r, CHECK_CONDITION, NO_SENSE);
         return;
     }
-    DPRINTF("Data ready tag=0x%x len=%" PRId64 "\n", r->req.tag, r->iov.iov_len);
+    DPRINTF("Data ready tag=0x%x len=%zd\n", r->req.tag, r->iov.iov_len);
 
     r->req.bus->complete(r->req.bus, SCSI_REASON_DATA, r->req.tag, r->iov.iov_len);
 }
@@ -155,7 +155,7 @@ static void scsi_read_data(SCSIDevice *d, uint32_t tag)
         return;
     }
     if (r->sector_count == (uint32_t)-1) {
-        DPRINTF("Read buf_len=%" PRId64 "\n", r->iov.iov_len);
+        DPRINTF("Read buf_len=%zd\n", r->iov.iov_len);
         r->sector_count = 0;
         r->req.bus->complete(r->req.bus, SCSI_REASON_DATA, r->req.tag, r->iov.iov_len);
         return;
@@ -631,8 +631,8 @@ static int scsi_disk_emulate_mode_sense(SCSIRequest *req, uint8_t *outbuf)
     dbd = req->cmd.buf[1]  & 0x8;
     page = req->cmd.buf[2] & 0x3f;
     page_control = (req->cmd.buf[2] & 0xc0) >> 6;
-    DPRINTF("Mode Sense(%d) (page %d, len %d, page_control %d)\n",
-        (req->cmd.buf[0] == MODE_SENSE) ? 6 : 10, page, len, page_control);
+    DPRINTF("Mode Sense(%d) (page %d, xfer %zd, page_control %d)\n",
+        (req->cmd.buf[0] == MODE_SENSE) ? 6 : 10, page, req->cmd.xfer, page_control);
     memset(outbuf, 0, req->cmd.xfer);
     p = outbuf;
 

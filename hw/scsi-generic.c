@@ -164,7 +164,7 @@ static void scsi_read_complete(void * opaque, int ret)
     int len;
 
     if (ret) {
-        DPRINTF("IO error\n");
+        DPRINTF("IO error ret %d\n", ret);
         scsi_command_complete(r, ret);
         return;
     }
@@ -236,7 +236,7 @@ static void scsi_write_complete(void * opaque, int ret)
     if (r->req.cmd.buf[0] == MODE_SELECT && r->req.cmd.buf[4] == 12 &&
         s->qdev.type == TYPE_TAPE) {
         s->qdev.blocksize = (r->buf[9] << 16) | (r->buf[10] << 8) | r->buf[11];
-        DPRINTF("block size %d\n", s->blocksize);
+        DPRINTF("block size %d\n", s->qdev.blocksize);
     }
 
     scsi_command_complete(r, ret);
@@ -351,8 +351,18 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     }
     scsi_req_fixup(&r->req);
 
-    DPRINTF("Command: lun=%d tag=0x%x data=0x%02x len %d\n", lun, tag,
-            cmd[0], r->req.cmd.xfer);
+    DPRINTF("Command: lun=%d tag=0x%x len %zd data=0x%02x", lun, tag,
+            r->req.cmd.xfer, cmd[0]);
+
+#ifdef DEBUG_SCSI
+    {
+        int i;
+        for (i = 1; i < r->req.cmd.len; i++) {
+            printf(" 0x%02x", cmd[i]);
+        }
+        printf("\n");
+    }
+#endif
 
     if (r->req.cmd.xfer == 0) {
         if (r->buf != NULL)
