@@ -573,7 +573,7 @@ static ssize_t dm9000_receive(VLANClientState *nc, const uint8_t *buf, size_t si
         return -1; /* La La La, I can't hear you */
     }
     /* Fill out the magical header structure */
-    DM9000_DBF("DM9000:RX_Packet: %d bytes into buffer at %04x\n", size, rxptr);
+    DM9000_DBF("DM9000:RX_Packet: %zu bytes into buffer at %04x\n", size, rxptr);
     if( size < 64 ) magic_padding += (64 - size);
     DM9000_DBF("DM9000:RX_Packet: Magical padding is %d bytes\n", magic_padding);
     size += magic_padding; /* The magical CRC word */
