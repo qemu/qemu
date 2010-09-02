@@ -49,6 +49,11 @@
 
 #define TX_TIMER_INTERVAL 150000 /* 150 us */
 
+typedef struct virtio_net_conf
+{
+    uint32_t txtimer;
+} virtio_net_conf;
+
 /* Maximum packet size we can receive from tap device: header + 64k */
 #define VIRTIO_NET_MAX_BUFSIZE (sizeof(struct virtio_net_hdr) + (64 << 10))
 

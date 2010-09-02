@@ -36,6 +36,7 @@ typedef struct VirtIONet
     VirtQueue *ctrl_vq;
     NICState *nic;
     QEMUTimer *tx_timer;
+    uint32_t tx_timeout;
     int tx_timer_active;
     uint32_t has_vnet_hdr;
     uint8_t has_ufo;
@@ -702,7 +703,7 @@ static void virtio_net_handle_tx(VirtIODevice *vdev, VirtQueue *vq)
         virtio_net_flush_tx(n, vq);
     } else {
         qemu_mod_timer(n->tx_timer,
-                       qemu_get_clock(vm_clock) + TX_TIMER_INTERVAL);
+                       qemu_get_clock(vm_clock) + n->tx_timeout);
         n->tx_timer_active = 1;
         virtio_queue_set_notification(vq, 0);
     }
@@ -842,7 +843,7 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
 
     if (n->tx_timer_active) {
         qemu_mod_timer(n->tx_timer,
-                       qemu_get_clock(vm_clock) + TX_TIMER_INTERVAL);
+                       qemu_get_clock(vm_clock) + n->tx_timeout);
     }
     return 0;
 }
@@ -903,7 +904,8 @@ static void virtio_net_vmstate_change(void *opaque, int running, int reason)
     virtio_net_set_status(&n->vdev, n->vdev.status & status);
 }
 
-VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf)
+VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
+                              virtio_net_conf *net)
 {
     VirtIONet *n;
 
@@ -931,6 +933,7 @@ VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf)
 
     n->tx_timer = qemu_new_timer(vm_clock, virtio_net_tx_timer, n);
     n->tx_timer_active = 0;
+    n->tx_timeout = net->txtimer;
     n->mergeable_rx_bufs = 0;
     n->promisc = 1; /* for compatibility */
 
