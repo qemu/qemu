@@ -38,7 +38,7 @@ typedef struct VirtIONet
     QEMUTimer *tx_timer;
     uint32_t tx_timeout;
     int32_t tx_burst;
-    int tx_timer_active;
+    int tx_waiting;
     uint32_t has_vnet_hdr;
     uint8_t has_ufo;
     struct {
@@ -704,15 +704,15 @@ static void virtio_net_handle_tx(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIONet *n = to_virtio_net(vdev);
 
-    if (n->tx_timer_active) {
+    if (n->tx_waiting) {
         virtio_queue_set_notification(vq, 1);
         qemu_del_timer(n->tx_timer);
-        n->tx_timer_active = 0;
+        n->tx_waiting = 0;
         virtio_net_flush_tx(n, vq);
     } else {
         qemu_mod_timer(n->tx_timer,
                        qemu_get_clock(vm_clock) + n->tx_timeout);
-        n->tx_timer_active = 1;
+        n->tx_waiting = 1;
         virtio_queue_set_notification(vq, 0);
     }
 }
@@ -721,7 +721,7 @@ static void virtio_net_tx_timer(void *opaque)
 {
     VirtIONet *n = opaque;
 
-    n->tx_timer_active = 0;
+    n->tx_waiting = 0;
 
     /* Just in case the driver is not ready on more */
     if (!(n->vdev.status & VIRTIO_CONFIG_S_DRIVER_OK))
@@ -744,7 +744,7 @@ static void virtio_net_save(QEMUFile *f, void *opaque)
     virtio_save(&n->vdev, f);
 
     qemu_put_buffer(f, n->mac, ETH_ALEN);
-    qemu_put_be32(f, n->tx_timer_active);
+    qemu_put_be32(f, n->tx_waiting);
     qemu_put_be32(f, n->mergeable_rx_bufs);
     qemu_put_be16(f, n->status);
     qemu_put_byte(f, n->promisc);
@@ -773,7 +773,7 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
     virtio_load(&n->vdev, f);
 
     qemu_get_buffer(f, n->mac, ETH_ALEN);
-    n->tx_timer_active = qemu_get_be32(f);
+    n->tx_waiting = qemu_get_be32(f);
     n->mergeable_rx_bufs = qemu_get_be32(f);
 
     if (version_id >= 3)
@@ -849,7 +849,7 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
     }
     n->mac_table.first_multi = i;
 
-    if (n->tx_timer_active) {
+    if (n->tx_waiting) {
         qemu_mod_timer(n->tx_timer,
                        qemu_get_clock(vm_clock) + n->tx_timeout);
     }
@@ -940,7 +940,7 @@ VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
     qemu_format_nic_info_str(&n->nic->nc, conf->macaddr.a);
 
     n->tx_timer = qemu_new_timer(vm_clock, virtio_net_tx_timer, n);
-    n->tx_timer_active = 0;
+    n->tx_waiting = 0;
     n->tx_timeout = net->txtimer;
     n->tx_burst = net->txburst;
     n->mergeable_rx_bufs = 0;
