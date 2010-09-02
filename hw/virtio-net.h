@@ -49,9 +49,17 @@
 
 #define TX_TIMER_INTERVAL 150000 /* 150 us */
 
+/* Limit the number of packets that can be sent via a single flush
+ * of the TX queue.  This gives us a guaranteed exit condition and
+ * ensures fairness in the io path.  256 conveniently matches the
+ * length of the TX queue and shows a good balance of performance
+ * and latency. */
+#define TX_BURST 256
+
 typedef struct virtio_net_conf
 {
     uint32_t txtimer;
+    int32_t txburst;
 } virtio_net_conf;
 
 /* Maximum packet size we can receive from tap device: header + 64k */

@@ -37,6 +37,7 @@ typedef struct VirtIONet
     NICState *nic;
     QEMUTimer *tx_timer;
     uint32_t tx_timeout;
+    int32_t tx_burst;
     int tx_timer_active;
     uint32_t has_vnet_hdr;
     uint8_t has_ufo;
@@ -620,7 +621,7 @@ static ssize_t virtio_net_receive(VLANClientState *nc, const uint8_t *buf, size_
     return size;
 }
 
-static void virtio_net_flush_tx(VirtIONet *n, VirtQueue *vq);
+static int32_t virtio_net_flush_tx(VirtIONet *n, VirtQueue *vq);
 
 static void virtio_net_tx_complete(VLANClientState *nc, ssize_t len)
 {
@@ -636,16 +637,18 @@ static void virtio_net_tx_complete(VLANClientState *nc, ssize_t len)
 }
 
 /* TX */
-static void virtio_net_flush_tx(VirtIONet *n, VirtQueue *vq)
+static int32_t virtio_net_flush_tx(VirtIONet *n, VirtQueue *vq)
 {
     VirtQueueElement elem;
+    int32_t num_packets = 0;
 
-    if (!(n->vdev.status & VIRTIO_CONFIG_S_DRIVER_OK))
-        return;
+    if (!(n->vdev.status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+        return num_packets;
+    }
 
     if (n->async_tx.elem.out_num) {
         virtio_queue_set_notification(n->tx_vq, 0);
-        return;
+        return num_packets;
     }
 
     while (virtqueue_pop(vq, &elem)) {
@@ -682,14 +685,19 @@ static void virtio_net_flush_tx(VirtIONet *n, VirtQueue *vq)
             virtio_queue_set_notification(n->tx_vq, 0);
             n->async_tx.elem = elem;
             n->async_tx.len  = len;
-            return;
+            return -EBUSY;
         }
 
         len += ret;
 
         virtqueue_push(vq, &elem, len);
         virtio_notify(&n->vdev, vq);
+
+        if (++num_packets >= n->tx_burst) {
+            break;
+        }
     }
+    return num_packets;
 }
 
 static void virtio_net_handle_tx(VirtIODevice *vdev, VirtQueue *vq)
@@ -934,6 +942,7 @@ VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
     n->tx_timer = qemu_new_timer(vm_clock, virtio_net_tx_timer, n);
     n->tx_timer_active = 0;
     n->tx_timeout = net->txtimer;
+    n->tx_burst = net->txburst;
     n->mergeable_rx_bufs = 0;
     n->promisc = 1; /* for compatibility */
 

@@ -298,6 +298,8 @@ static SysBusDeviceInfo syborg_virtio_net_info = {
         DEFINE_VIRTIO_NET_FEATURES(SyborgVirtIOProxy, host_features),
         DEFINE_PROP_UINT32("x-txtimer", SyborgVirtIOProxy,
                            net.txtimer, TX_TIMER_INTERVAL),
+        DEFINE_PROP_INT32("x-txburst", SyborgVirtIOProxy,
+                          net.txburst, TX_BURST),
         DEFINE_PROP_END_OF_LIST(),
     }
 };

@@ -330,6 +330,8 @@ static VirtIOS390DeviceInfo s390_virtio_net = {
         DEFINE_NIC_PROPERTIES(VirtIOS390Device, nic),
         DEFINE_PROP_UINT32("x-txtimer", VirtIOS390Device,
                            net.txtimer, TX_TIMER_INTERVAL),
+        DEFINE_PROP_INT32("x-txburst", VirtIOS390Device,
+                          net.txburst, TX_BURST),
         DEFINE_PROP_END_OF_LIST(),
     },
 };
