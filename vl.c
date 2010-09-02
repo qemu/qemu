@@ -2320,7 +2320,7 @@ int main(int argc, char **argv, char **envp)
                         qemu_opt_get(opts, "path") == NULL ||
                         qemu_opt_get(opts, "security_model") == NULL) {
                     fprintf(stderr, "Usage: -virtfs fstype,path=/share_path/,"
-                            "security_model=[mapped|passthrough],"
+                            "security_model=[mapped|passthrough|none],"
                             "mnt_tag=tag.\n");
                     exit(1);
                 }

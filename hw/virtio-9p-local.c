@@ -102,7 +102,13 @@ static int local_post_create_passthrough(FsContext *fs_ctx, const char *path,
         return -1;
     }
     if (chown(rpath(fs_ctx, path), credp->fc_uid, credp->fc_gid) < 0) {
-        return -1;
+        /*
+         * If we fail to change ownership and if we are
+         * using security model none. Ignore the error
+         */
+        if (fs_ctx->fs_sm != SM_NONE) {
+            return -1;
+        }
     }
     return 0;
 }
@@ -122,7 +128,8 @@ static ssize_t local_readlink(FsContext *fs_ctx, const char *path,
         } while (tsize == -1 && errno == EINTR);
         close(fd);
         return tsize;
-    } else if (fs_ctx->fs_sm == SM_PASSTHROUGH) {
+    } else if ((fs_ctx->fs_sm == SM_PASSTHROUGH) ||
+               (fs_ctx->fs_sm == SM_NONE)) {
         tsize = readlink(rpath(fs_ctx, path), buf, bufsz);
     }
     return tsize;
@@ -189,7 +196,8 @@ static int local_chmod(FsContext *fs_ctx, const char *path, FsCred *credp)
 {
     if (fs_ctx->fs_sm == SM_MAPPED) {
         return local_set_xattr(rpath(fs_ctx, path), credp);
-    } else if (fs_ctx->fs_sm == SM_PASSTHROUGH) {
+    } else if ((fs_ctx->fs_sm == SM_PASSTHROUGH) ||
+               (fs_ctx->fs_sm == SM_NONE)) {
         return chmod(rpath(fs_ctx, path), credp->fc_mode);
     }
     return -1;
@@ -211,7 +219,8 @@ static int local_mknod(FsContext *fs_ctx, const char *path, FsCred *credp)
             serrno = errno;
             goto err_end;
         }
-    } else if (fs_ctx->fs_sm == SM_PASSTHROUGH) {
+    } else if ((fs_ctx->fs_sm == SM_PASSTHROUGH) ||
+               (fs_ctx->fs_sm == SM_NONE)) {
         err = mknod(rpath(fs_ctx, path), credp->fc_mode, credp->fc_rdev);
         if (err == -1) {
             return err;
@@ -247,7 +256,8 @@ static int local_mkdir(FsContext *fs_ctx, const char *path, FsCred *credp)
             serrno = errno;
             goto err_end;
         }
-    } else if (fs_ctx->fs_sm == SM_PASSTHROUGH) {
+    } else if ((fs_ctx->fs_sm == SM_PASSTHROUGH) ||
+               (fs_ctx->fs_sm == SM_NONE)) {
         err = mkdir(rpath(fs_ctx, path), credp->fc_mode);
         if (err == -1) {
             return err;
@@ -316,7 +326,8 @@ static int local_open2(FsContext *fs_ctx, const char *path, int flags,
             serrno = errno;
             goto err_end;
         }
-    } else if (fs_ctx->fs_sm == SM_PASSTHROUGH) {
+    } else if ((fs_ctx->fs_sm == SM_PASSTHROUGH) ||
+               (fs_ctx->fs_sm == SM_NONE)) {
         fd = open(rpath(fs_ctx, path), flags, credp->fc_mode);
         if (fd == -1) {
             return fd;
@@ -372,15 +383,23 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
             serrno = errno;
             goto err_end;
         }
-    } else if (fs_ctx->fs_sm == SM_PASSTHROUGH) {
+    } else if ((fs_ctx->fs_sm == SM_PASSTHROUGH) ||
+               (fs_ctx->fs_sm == SM_NONE)) {
         err = symlink(oldpath, rpath(fs_ctx, newpath));
         if (err) {
             return err;
         }
         err = lchown(rpath(fs_ctx, newpath), credp->fc_uid, credp->fc_gid);
         if (err == -1) {
-            serrno = errno;
-            goto err_end;
+            /*
+             * If we fail to change ownership and if we are
+             * using security model none. Ignore the error
+             */
+            if (fs_ctx->fs_sm != SM_NONE) {
+                serrno = errno;
+                goto err_end;
+            } else
+                err = 0;
         }
     }
     return err;
@@ -447,7 +466,8 @@ static int local_chown(FsContext *fs_ctx, const char *path, FsCred *credp)
         return lchown(rpath(fs_ctx, path), credp->fc_uid, credp->fc_gid);
     } else if (fs_ctx->fs_sm == SM_MAPPED) {
         return local_set_xattr(rpath(fs_ctx, path), credp);
-    } else if (fs_ctx->fs_sm == SM_PASSTHROUGH) {
+    } else if ((fs_ctx->fs_sm == SM_PASSTHROUGH) ||
+               (fs_ctx->fs_sm == SM_NONE)) {
         return lchown(rpath(fs_ctx, path), credp->fc_uid, credp->fc_gid);
     }
     return -1;

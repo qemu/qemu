@@ -24,8 +24,19 @@
 
 typedef enum
 {
-    SM_PASSTHROUGH = 1, /* uid/gid set on fileserver files */
-    SM_MAPPED,  /* uid/gid part of xattr */
+    /*
+     * Server will try to set uid/gid.
+     * On failure ignore the error.
+     */
+    SM_NONE = 0,
+    /*
+     * uid/gid set on fileserver files
+     */
+    SM_PASSTHROUGH = 1,
+    /*
+     * uid/gid part of xattr
+     */
+    SM_MAPPED,
 } SecModel;
 
 typedef struct FsCred

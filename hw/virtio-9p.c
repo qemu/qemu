@@ -3546,12 +3546,18 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
          * Client user credentials are saved in extended attributes.
          */
         s->ctx.fs_sm = SM_MAPPED;
+    } else if (!strcmp(fse->security_model, "none")) {
+        /*
+         * Files on the fileserver are set to QEMU credentials.
+         */
+        s->ctx.fs_sm = SM_NONE;
+
     } else {
-        /* user haven't specified a correct security option */
-        fprintf(stderr, "one of the following must be specified as the"
+        fprintf(stderr, "Default to security_model=none. You may want"
+                " enable advanced security model using "
                 "security option:\n\t security_model=passthrough \n\t "
                 "security_model=mapped\n");
-        return NULL;
+        s->ctx.fs_sm = SM_NONE;
     }
 
     if (lstat(fse->path, &stat)) {

@@ -485,7 +485,7 @@ ETEXI
 DEFHEADING(File system options:)
 
 DEF("fsdev", HAS_ARG, QEMU_OPTION_fsdev,
-    "-fsdev local,id=id,path=path,security_model=[mapped|passthrough]\n",
+    "-fsdev local,id=id,path=path,security_model=[mapped|passthrough|none]\n",
     QEMU_ARCH_ALL)
 
 STEXI
@@ -518,7 +518,7 @@ ETEXI
 DEFHEADING(Virtual File system pass-through options:)
 
 DEF("virtfs", HAS_ARG, QEMU_OPTION_virtfs,
-    "-virtfs local,path=path,mount_tag=tag,security_model=[mapped|passthrough]\n",
+    "-virtfs local,path=path,mount_tag=tag,security_model=[mapped|passthrough|none]\n",
     QEMU_ARCH_ALL)
 
 STEXI
