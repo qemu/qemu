@@ -2332,7 +2332,7 @@ int main(int argc, char **argv, char **envp)
                 len += strlen(qemu_opt_get(opts, "security_model"));
                 arg_fsdev = qemu_malloc((len + 1) * sizeof(*arg_fsdev));
 
-                snprintf(arg_fsdev, len * sizeof(*arg_fsdev),
+                snprintf(arg_fsdev, (len + 1) * sizeof(*arg_fsdev),
                          "%s,id=%s,path=%s,security_model=%s",
                          qemu_opt_get(opts, "fstype"),
                          qemu_opt_get(opts, "mount_tag"),
@@ -2343,7 +2343,7 @@ int main(int argc, char **argv, char **envp)
                 len += 2*strlen(qemu_opt_get(opts, "mount_tag"));
                 arg_9p = qemu_malloc((len + 1) * sizeof(*arg_9p));
 
-                snprintf(arg_9p, len * sizeof(*arg_9p),
+                snprintf(arg_9p, (len + 1) * sizeof(*arg_9p),
                          "virtio-9p-pci,fsdev=%s,mount_tag=%s",
                          qemu_opt_get(opts, "mount_tag"),
                          qemu_opt_get(opts, "mount_tag"));
