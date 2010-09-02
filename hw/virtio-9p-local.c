@@ -474,6 +474,18 @@ static int local_statfs(FsContext *s, const char *path, struct statfs *stbuf)
    return statfs(rpath(s, path), stbuf);
 }
 
+static ssize_t local_lgetxattr(FsContext *ctx, const char *path,
+                               const char *name, void *value, size_t size)
+{
+    return lgetxattr(rpath(ctx, path), name, value, size);
+}
+
+static ssize_t local_llistxattr(FsContext *ctx, const char *path,
+                                void *value, size_t size)
+{
+    return llistxattr(rpath(ctx, path), value, size);
+}
+
 FileOperations local_ops = {
     .lstat = local_lstat,
     .readlink = local_readlink,
@@ -502,4 +514,6 @@ FileOperations local_ops = {
     .remove = local_remove,
     .fsync = local_fsync,
     .statfs = local_statfs,
+    .lgetxattr = local_lgetxattr,
+    .llistxattr = local_llistxattr,
 };

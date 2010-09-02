@@ -29,6 +29,8 @@ enum {
     P9_RGETATTR,
     P9_TSETATTR = 26,
     P9_RSETATTR,
+    P9_TXATTRWALK = 30,
+    P9_RXATTRWALK,
     P9_TREADDIR = 40,
     P9_RREADDIR,
     P9_TLINK = 70,
@@ -415,6 +417,18 @@ typedef struct V9fsRenameState {
     int32_t newdirfid;
     V9fsString name;
 } V9fsRenameState;
+
+typedef struct V9fsXattrState
+{
+    V9fsPDU *pdu;
+    size_t offset;
+    V9fsFidState *file_fidp;
+    V9fsFidState *xattr_fidp;
+    V9fsString name;
+    int64_t size;
+    int flags;
+    void *value;
+} V9fsXattrState;
 
 extern size_t pdu_packunpack(void *addr, struct iovec *sg, int sg_count,
                             size_t offset, size_t size, int pack);

@@ -579,6 +579,16 @@ void pprint_pdu(V9fsPDU *pdu)
     case P9_RWSTAT:
         fprintf(llogfile, "RWSTAT: (");
         break;
+    case P9_TXATTRWALK:
+        fprintf(llogfile, "TXATTRWALK: (");
+        pprint_int32(pdu, 0, &offset, "fid");
+        pprint_int32(pdu, 0, &offset, ", newfid");
+        pprint_str(pdu, 0, &offset, ", xattr name");
+        break;
+    case P9_RXATTRWALK:
+        fprintf(llogfile, "RXATTRWALK: (");
+        pprint_int64(pdu, 1, &offset, "xattrsize");
+        break;
     default:
         fprintf(llogfile, "unknown(%d): (", pdu->id);
         break;

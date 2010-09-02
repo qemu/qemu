@@ -263,6 +263,21 @@ static int v9fs_do_statfs(V9fsState *s, V9fsString *path, struct statfs *stbuf)
     return s->ops->statfs(&s->ctx, path->data, stbuf);
 }
 
+static ssize_t v9fs_do_lgetxattr(V9fsState *s, V9fsString *path,
+                             V9fsString *xattr_name,
+                             void *value, size_t size)
+{
+    return s->ops->lgetxattr(&s->ctx, path->data,
+                             xattr_name->data, value, size);
+}
+
+static ssize_t v9fs_do_llistxattr(V9fsState *s, V9fsString *path,
+                              void *value, size_t size)
+{
+    return s->ops->llistxattr(&s->ctx, path->data,
+                              value, size);
+}
+
 static void v9fs_string_init(V9fsString *str)
 {
     str->data = NULL;
@@ -1946,6 +1961,31 @@ out:
     qemu_free(vs);
 }
 
+static void v9fs_xattr_read(V9fsState *s, V9fsReadState *vs)
+{
+    ssize_t err = 0;
+    int read_count;
+    int64_t xattr_len;
+
+    xattr_len = vs->fidp->fs.xattr.len;
+    read_count = xattr_len - vs->off;
+    if (read_count > vs->count) {
+        read_count = vs->count;
+    } else if (read_count < 0) {
+        /*
+         * read beyond XATTR value
+         */
+        read_count = 0;
+    }
+    vs->offset += pdu_marshal(vs->pdu, vs->offset, "d", read_count);
+    vs->offset += pdu_pack(vs->pdu, vs->offset,
+                           ((char *)vs->fidp->fs.xattr.value) + vs->off,
+                           read_count);
+    err = vs->offset;
+    complete_pdu(s, vs->pdu, err);
+    qemu_free(vs);
+}
+
 static void v9fs_read(V9fsState *s, V9fsPDU *pdu)
 {
     int32_t fid;
@@ -1967,7 +2007,7 @@ static void v9fs_read(V9fsState *s, V9fsPDU *pdu)
         goto out;
     }
 
-    if (vs->fidp->fs.dir) {
+    if (vs->fidp->fid_type == P9_FID_DIR) {
         vs->max_count = vs->count;
         vs->count = 0;
         if (vs->off == 0) {
@@ -1975,11 +2015,14 @@ static void v9fs_read(V9fsState *s, V9fsPDU *pdu)
         }
         v9fs_read_post_rewinddir(s, vs, err);
         return;
-    } else if (vs->fidp->fs.fd != -1) {
+    } else if (vs->fidp->fid_type == P9_FID_FILE) {
         vs->sg = vs->iov;
         pdu_marshal(vs->pdu, vs->offset + 4, "v", vs->sg, &vs->cnt);
         err = v9fs_do_lseek(s, vs->fidp->fs.fd, vs->off, SEEK_SET);
         v9fs_read_post_lseek(s, vs, err);
+        return;
+    } else if (vs->fidp->fid_type == P9_FID_XATTR) {
+        v9fs_xattr_read(s, vs);
         return;
     } else {
         err = -EINVAL;
@@ -3090,6 +3133,150 @@ out:
     qemu_free(vs);
 }
 
+static void v9fs_post_xattr_getvalue(V9fsState *s, V9fsXattrState *vs, int err)
+{
+
+    if (err < 0) {
+        err = -errno;
+        free_fid(s, vs->xattr_fidp->fid);
+        goto out;
+    }
+    vs->offset += pdu_marshal(vs->pdu, vs->offset, "q", vs->size);
+    err = vs->offset;
+out:
+    complete_pdu(s, vs->pdu, err);
+    v9fs_string_free(&vs->name);
+    qemu_free(vs);
+    return;
+}
+
+static void v9fs_post_xattr_check(V9fsState *s, V9fsXattrState *vs, ssize_t err)
+{
+    if (err < 0) {
+        err = -errno;
+        free_fid(s, vs->xattr_fidp->fid);
+        goto out;
+    }
+    /*
+     * Read the xattr value
+     */
+    vs->xattr_fidp->fs.xattr.len = vs->size;
+    vs->xattr_fidp->fid_type = P9_FID_XATTR;
+    vs->xattr_fidp->fs.xattr.copied_len = -1;
+    if (vs->size) {
+        vs->xattr_fidp->fs.xattr.value = qemu_malloc(vs->size);
+        err = v9fs_do_lgetxattr(s, &vs->xattr_fidp->path,
+                                &vs->name, vs->xattr_fidp->fs.xattr.value,
+                                vs->xattr_fidp->fs.xattr.len);
+    }
+    v9fs_post_xattr_getvalue(s, vs, err);
+    return;
+out:
+    complete_pdu(s, vs->pdu, err);
+    v9fs_string_free(&vs->name);
+    qemu_free(vs);
+}
+
+static void v9fs_post_lxattr_getvalue(V9fsState *s,
+                                      V9fsXattrState *vs, int err)
+{
+    if (err < 0) {
+        err = -errno;
+        free_fid(s, vs->xattr_fidp->fid);
+        goto out;
+    }
+    vs->offset += pdu_marshal(vs->pdu, vs->offset, "q", vs->size);
+    err = vs->offset;
+out:
+    complete_pdu(s, vs->pdu, err);
+    v9fs_string_free(&vs->name);
+    qemu_free(vs);
+    return;
+}
+
+static void v9fs_post_lxattr_check(V9fsState *s,
+                                   V9fsXattrState *vs, ssize_t err)
+{
+    if (err < 0) {
+        err = -errno;
+        free_fid(s, vs->xattr_fidp->fid);
+        goto out;
+    }
+    /*
+     * Read the xattr value
+     */
+    vs->xattr_fidp->fs.xattr.len = vs->size;
+    vs->xattr_fidp->fid_type = P9_FID_XATTR;
+    vs->xattr_fidp->fs.xattr.copied_len = -1;
+    if (vs->size) {
+        vs->xattr_fidp->fs.xattr.value = qemu_malloc(vs->size);
+        err = v9fs_do_llistxattr(s, &vs->xattr_fidp->path,
+                                 vs->xattr_fidp->fs.xattr.value,
+                                 vs->xattr_fidp->fs.xattr.len);
+    }
+    v9fs_post_lxattr_getvalue(s, vs, err);
+    return;
+out:
+    complete_pdu(s, vs->pdu, err);
+    v9fs_string_free(&vs->name);
+    qemu_free(vs);
+}
+
+static void v9fs_xattrwalk(V9fsState *s, V9fsPDU *pdu)
+{
+    ssize_t err = 0;
+    V9fsXattrState *vs;
+    int32_t fid, newfid;
+
+    vs = qemu_malloc(sizeof(*vs));
+    vs->pdu = pdu;
+    vs->offset = 7;
+
+    pdu_unmarshal(vs->pdu, vs->offset, "dds", &fid, &newfid, &vs->name);
+    vs->file_fidp = lookup_fid(s, fid);
+    if (vs->file_fidp == NULL) {
+        err = -ENOENT;
+        goto out;
+    }
+
+    vs->xattr_fidp = alloc_fid(s, newfid);
+    if (vs->xattr_fidp == NULL) {
+        err = -EINVAL;
+        goto out;
+    }
+
+    v9fs_string_copy(&vs->xattr_fidp->path, &vs->file_fidp->path);
+    if (vs->name.data[0] == 0) {
+        /*
+         * listxattr request. Get the size first
+         */
+        vs->size = v9fs_do_llistxattr(s, &vs->xattr_fidp->path,
+                                      NULL, 0);
+        if (vs->size < 0) {
+            err = vs->size;
+        }
+        v9fs_post_lxattr_check(s, vs, err);
+        return;
+    } else {
+        /*
+         * specific xattr fid. We check for xattr
+         * presence also collect the xattr size
+         */
+        vs->size = v9fs_do_lgetxattr(s, &vs->xattr_fidp->path,
+                                     &vs->name, NULL, 0);
+        if (vs->size < 0) {
+            err = vs->size;
+        }
+        v9fs_post_xattr_check(s, vs, err);
+        return;
+    }
+out:
+    complete_pdu(s, vs->pdu, err);
+    v9fs_string_free(&vs->name);
+    qemu_free(vs);
+}
+
+
 typedef void (pdu_handler_t)(V9fsState *s, V9fsPDU *pdu);
 
 static pdu_handler_t *pdu_handlers[] = {
@@ -3097,6 +3284,7 @@ static pdu_handler_t *pdu_handlers[] = {
     [P9_TSTATFS] = v9fs_statfs,
     [P9_TGETATTR] = v9fs_getattr,
     [P9_TSETATTR] = v9fs_setattr,
+    [P9_TXATTRWALK] = v9fs_xattrwalk,
     [P9_TMKNOD] = v9fs_mknod,
     [P9_TRENAME] = v9fs_rename,
     [P9_TMKDIR] = v9fs_mkdir,
