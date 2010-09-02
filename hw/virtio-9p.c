@@ -408,8 +408,7 @@ static V9fsFidState *alloc_fid(V9fsState *s, int32_t fid)
     f = qemu_mallocz(sizeof(V9fsFidState));
 
     f->fid = fid;
-    f->fd = -1;
-    f->dir = NULL;
+    f->fid_type = P9_FID_NONE;
 
     f->next = s->fid_list;
     s->fid_list = f;
@@ -434,11 +433,14 @@ static int free_fid(V9fsState *s, int32_t fid)
     fidp = *fidpp;
     *fidpp = fidp->next;
 
-    if (fidp->fd != -1) {
-        v9fs_do_close(s, fidp->fd);
-    }
-    if (fidp->dir) {
-        v9fs_do_closedir(s, fidp->dir);
+    if (fidp->fid_type == P9_FID_FILE) {
+        v9fs_do_close(s, fidp->fs.fd);
+    } else if (fidp->fid_type == P9_FID_DIR) {
+        v9fs_do_closedir(s, fidp->fs.dir);
+    } else if (fidp->fid_type == P9_FID_XATTR) {
+        if (fidp->fs.xattr.value) {
+            qemu_free(fidp->fs.xattr.value);
+        }
     }
     v9fs_string_free(&fidp->path);
     qemu_free(fidp);
@@ -1519,8 +1521,7 @@ static void v9fs_walk(V9fsState *s, V9fsPDU *pdu)
     /* FIXME: is this really valid? */
     if (fid == newfid) {
 
-        BUG_ON(vs->fidp->fd != -1);
-        BUG_ON(vs->fidp->dir);
+        BUG_ON(vs->fidp->fid_type != P9_FID_NONE);
         v9fs_string_init(&vs->path);
         vs->name_idx = 0;
 
@@ -1584,11 +1585,11 @@ static int32_t get_iounit(V9fsState *s, V9fsString *name)
 
 static void v9fs_open_post_opendir(V9fsState *s, V9fsOpenState *vs, int err)
 {
-    if (vs->fidp->dir == NULL) {
+    if (vs->fidp->fs.dir == NULL) {
         err = -errno;
         goto out;
     }
-
+    vs->fidp->fid_type = P9_FID_DIR;
     vs->offset += pdu_marshal(vs->pdu, vs->offset, "Qd", &vs->qid, 0);
     err = vs->offset;
 out:
@@ -1608,11 +1609,11 @@ static void v9fs_open_post_getiounit(V9fsState *s, V9fsOpenState *vs)
 
 static void v9fs_open_post_open(V9fsState *s, V9fsOpenState *vs, int err)
 {
-    if (vs->fidp->fd == -1) {
+    if (vs->fidp->fs.fd == -1) {
         err = -errno;
         goto out;
     }
-
+    vs->fidp->fid_type = P9_FID_FILE;
     vs->iounit = get_iounit(s, &vs->fidp->path);
     v9fs_open_post_getiounit(s, vs);
     return;
@@ -1642,7 +1643,7 @@ static void v9fs_open_post_lstat(V9fsState *s, V9fsOpenState *vs, int err)
     stat_to_qid(&vs->stbuf, &vs->qid);
 
     if (S_ISDIR(vs->stbuf.st_mode)) {
-        vs->fidp->dir = v9fs_do_opendir(s, &vs->fidp->path);
+        vs->fidp->fs.dir = v9fs_do_opendir(s, &vs->fidp->path);
         v9fs_open_post_opendir(s, vs, err);
     } else {
         if (s->proto_version == V9FS_PROTO_2000L) {
@@ -1654,7 +1655,7 @@ static void v9fs_open_post_lstat(V9fsState *s, V9fsOpenState *vs, int err)
         } else {
             flags = omode_to_uflags(vs->mode);
         }
-        vs->fidp->fd = v9fs_do_open(s, &vs->fidp->path, flags);
+        vs->fidp->fs.fd = v9fs_do_open(s, &vs->fidp->path, flags);
         v9fs_open_post_open(s, vs, err);
     }
     return;
@@ -1686,8 +1687,7 @@ static void v9fs_open(V9fsState *s, V9fsPDU *pdu)
         goto out;
     }
 
-    BUG_ON(vs->fidp->fd != -1);
-    BUG_ON(vs->fidp->dir);
+    BUG_ON(vs->fidp->fid_type != P9_FID_NONE);
 
     err = v9fs_do_lstat(s, &vs->fidp->path, &vs->stbuf);
 
@@ -1707,6 +1707,8 @@ static void v9fs_post_lcreate(V9fsState *s, V9fsLcreateState *vs, int err)
                 &vs->iounit);
         err = vs->offset;
     } else {
+        vs->fidp->fid_type = P9_FID_NONE;
+        close(vs->fidp->fs.fd);
         err = -errno;
     }
 
@@ -1732,10 +1734,11 @@ out:
 static void v9fs_lcreate_post_do_open2(V9fsState *s, V9fsLcreateState *vs,
         int err)
 {
-    if (vs->fidp->fd == -1) {
+    if (vs->fidp->fs.fd == -1) {
         err = -errno;
         goto out;
     }
+    vs->fidp->fid_type = P9_FID_FILE;
     vs->iounit =  get_iounit(s, &vs->fullname);
     v9fs_lcreate_post_get_iounit(s, vs, err);
     return;
@@ -1769,7 +1772,7 @@ static void v9fs_lcreate(V9fsState *s, V9fsPDU *pdu)
     v9fs_string_sprintf(&vs->fullname, "%s/%s", vs->fidp->path.data,
              vs->name.data);
 
-    vs->fidp->fd = v9fs_do_open2(s, vs->fullname.data, vs->fidp->uid,
+    vs->fidp->fs.fd = v9fs_do_open2(s, vs->fullname.data, vs->fidp->uid,
             gid, flags, mode);
     v9fs_lcreate_post_do_open2(s, vs, err);
     return;
@@ -1833,7 +1836,7 @@ static void v9fs_read_post_dir_lstat(V9fsState *s, V9fsReadState *vs,
                             &vs->v9stat);
     if ((vs->len != (vs->v9stat.size + 2)) ||
             ((vs->count + vs->len) > vs->max_count)) {
-        v9fs_do_seekdir(s, vs->fidp->dir, vs->dir_pos);
+        v9fs_do_seekdir(s, vs->fidp->fs.dir, vs->dir_pos);
         v9fs_read_post_seekdir(s, vs, err);
         return;
     }
@@ -1841,11 +1844,11 @@ static void v9fs_read_post_dir_lstat(V9fsState *s, V9fsReadState *vs,
     v9fs_stat_free(&vs->v9stat);
     v9fs_string_free(&vs->name);
     vs->dir_pos = vs->dent->d_off;
-    vs->dent = v9fs_do_readdir(s, vs->fidp->dir);
+    vs->dent = v9fs_do_readdir(s, vs->fidp->fs.dir);
     v9fs_read_post_readdir(s, vs, err);
     return;
 out:
-    v9fs_do_seekdir(s, vs->fidp->dir, vs->dir_pos);
+    v9fs_do_seekdir(s, vs->fidp->fs.dir, vs->dir_pos);
     v9fs_read_post_seekdir(s, vs, err);
     return;
 
@@ -1873,7 +1876,7 @@ static void v9fs_read_post_readdir(V9fsState *s, V9fsReadState *vs, ssize_t err)
 
 static void v9fs_read_post_telldir(V9fsState *s, V9fsReadState *vs, ssize_t err)
 {
-    vs->dent = v9fs_do_readdir(s, vs->fidp->dir);
+    vs->dent = v9fs_do_readdir(s, vs->fidp->fs.dir);
     v9fs_read_post_readdir(s, vs, err);
     return;
 }
@@ -1881,7 +1884,7 @@ static void v9fs_read_post_telldir(V9fsState *s, V9fsReadState *vs, ssize_t err)
 static void v9fs_read_post_rewinddir(V9fsState *s, V9fsReadState *vs,
                                        ssize_t err)
 {
-    vs->dir_pos = v9fs_do_telldir(s, vs->fidp->dir);
+    vs->dir_pos = v9fs_do_telldir(s, vs->fidp->fs.dir);
     v9fs_read_post_telldir(s, vs, err);
     return;
 }
@@ -1900,7 +1903,7 @@ static void v9fs_read_post_readv(V9fsState *s, V9fsReadState *vs, ssize_t err)
             if (0) {
                 print_sg(vs->sg, vs->cnt);
             }
-            vs->len = v9fs_do_readv(s, vs->fidp->fd, vs->sg, vs->cnt);
+            vs->len = v9fs_do_readv(s, vs->fidp->fs.fd, vs->sg, vs->cnt);
         } while (vs->len == -1 && errno == EINTR);
         if (vs->len == -1) {
             err  = -errno;
@@ -1930,7 +1933,7 @@ static void v9fs_read_post_lseek(V9fsState *s, V9fsReadState *vs, ssize_t err)
             if (0) {
                 print_sg(vs->sg, vs->cnt);
             }
-            vs->len = v9fs_do_readv(s, vs->fidp->fd, vs->sg, vs->cnt);
+            vs->len = v9fs_do_readv(s, vs->fidp->fs.fd, vs->sg, vs->cnt);
         } while (vs->len == -1 && errno == EINTR);
         if (vs->len == -1) {
             err  = -errno;
@@ -1964,18 +1967,18 @@ static void v9fs_read(V9fsState *s, V9fsPDU *pdu)
         goto out;
     }
 
-    if (vs->fidp->dir) {
+    if (vs->fidp->fs.dir) {
         vs->max_count = vs->count;
         vs->count = 0;
         if (vs->off == 0) {
-            v9fs_do_rewinddir(s, vs->fidp->dir);
+            v9fs_do_rewinddir(s, vs->fidp->fs.dir);
         }
         v9fs_read_post_rewinddir(s, vs, err);
         return;
-    } else if (vs->fidp->fd != -1) {
+    } else if (vs->fidp->fs.fd != -1) {
         vs->sg = vs->iov;
         pdu_marshal(vs->pdu, vs->offset + 4, "v", vs->sg, &vs->cnt);
-        err = v9fs_do_lseek(s, vs->fidp->fd, vs->off, SEEK_SET);
+        err = v9fs_do_lseek(s, vs->fidp->fs.fd, vs->off, SEEK_SET);
         v9fs_read_post_lseek(s, vs, err);
         return;
     } else {
@@ -2024,7 +2027,7 @@ static void v9fs_readdir_post_readdir(V9fsState *s, V9fsReadDirState *vs)
 
         if ((vs->count + V9_READDIR_DATA_SZ) > vs->max_count) {
             /* Ran out of buffer. Set dir back to old position and return */
-            v9fs_do_seekdir(s, vs->fidp->dir, vs->saved_dir_pos);
+            v9fs_do_seekdir(s, vs->fidp->fs.dir, vs->saved_dir_pos);
             v9fs_readdir_post_seekdir(s, vs);
             return;
         }
@@ -2045,7 +2048,7 @@ static void v9fs_readdir_post_readdir(V9fsState *s, V9fsReadDirState *vs)
         vs->count += len;
         v9fs_string_free(&vs->name);
         vs->saved_dir_pos = vs->dent->d_off;
-        vs->dent = v9fs_do_readdir(s, vs->fidp->dir);
+        vs->dent = v9fs_do_readdir(s, vs->fidp->fs.dir);
         v9fs_readdir_post_readdir(s, vs);
         return;
     }
@@ -2059,14 +2062,14 @@ static void v9fs_readdir_post_readdir(V9fsState *s, V9fsReadDirState *vs)
 
 static void v9fs_readdir_post_telldir(V9fsState *s, V9fsReadDirState *vs)
 {
-    vs->dent = v9fs_do_readdir(s, vs->fidp->dir);
+    vs->dent = v9fs_do_readdir(s, vs->fidp->fs.dir);
     v9fs_readdir_post_readdir(s, vs);
     return;
 }
 
 static void v9fs_readdir_post_setdir(V9fsState *s, V9fsReadDirState *vs)
 {
-    vs->saved_dir_pos = v9fs_do_telldir(s, vs->fidp->dir);
+    vs->saved_dir_pos = v9fs_do_telldir(s, vs->fidp->fs.dir);
     v9fs_readdir_post_telldir(s, vs);
     return;
 }
@@ -2087,15 +2090,15 @@ static void v9fs_readdir(V9fsState *s, V9fsPDU *pdu)
                                                         &vs->max_count);
 
     vs->fidp = lookup_fid(s, fid);
-    if (vs->fidp == NULL || !(vs->fidp->dir)) {
+    if (vs->fidp == NULL || !(vs->fidp->fs.dir)) {
         err = -EINVAL;
         goto out;
     }
 
     if (vs->initial_offset == 0) {
-        v9fs_do_rewinddir(s, vs->fidp->dir);
+        v9fs_do_rewinddir(s, vs->fidp->fs.dir);
     } else {
-        v9fs_do_seekdir(s, vs->fidp->dir, vs->initial_offset);
+        v9fs_do_seekdir(s, vs->fidp->fs.dir, vs->initial_offset);
     }
 
     v9fs_readdir_post_setdir(s, vs);
@@ -2122,7 +2125,7 @@ static void v9fs_write_post_writev(V9fsState *s, V9fsWriteState *vs,
             if (0) {
                 print_sg(vs->sg, vs->cnt);
             }
-            vs->len =  v9fs_do_writev(s, vs->fidp->fd, vs->sg, vs->cnt);
+            vs->len =  v9fs_do_writev(s, vs->fidp->fs.fd, vs->sg, vs->cnt);
         } while (vs->len == -1 && errno == EINTR);
         if (vs->len == -1) {
             err  = -errno;
@@ -2151,7 +2154,7 @@ static void v9fs_write_post_lseek(V9fsState *s, V9fsWriteState *vs, ssize_t err)
             if (0) {
                 print_sg(vs->sg, vs->cnt);
             }
-            vs->len = v9fs_do_writev(s, vs->fidp->fd, vs->sg, vs->cnt);
+            vs->len = v9fs_do_writev(s, vs->fidp->fs.fd, vs->sg, vs->cnt);
         } while (vs->len == -1 && errno == EINTR);
         if (vs->len == -1) {
             err  = -errno;
@@ -2188,12 +2191,12 @@ static void v9fs_write(V9fsState *s, V9fsPDU *pdu)
         goto out;
     }
 
-    if (vs->fidp->fd == -1) {
+    if (vs->fidp->fs.fd == -1) {
         err = -EINVAL;
         goto out;
     }
 
-    err = v9fs_do_lseek(s, vs->fidp->fd, vs->off, SEEK_SET);
+    err = v9fs_do_lseek(s, vs->fidp->fs.fd, vs->off, SEEK_SET);
 
     v9fs_write_post_lseek(s, vs, err);
     return;
@@ -2245,9 +2248,10 @@ static void v9fs_create_post_perms(V9fsState *s, V9fsCreateState *vs, int err)
 static void v9fs_create_post_opendir(V9fsState *s, V9fsCreateState *vs,
                                                                     int err)
 {
-    if (!vs->fidp->dir) {
+    if (!vs->fidp->fs.dir) {
         err = -errno;
     }
+    vs->fidp->fid_type = P9_FID_DIR;
     v9fs_post_create(s, vs, err);
 }
 
@@ -2259,7 +2263,7 @@ static void v9fs_create_post_dir_lstat(V9fsState *s, V9fsCreateState *vs,
         goto out;
     }
 
-    vs->fidp->dir = v9fs_do_opendir(s, &vs->fullname);
+    vs->fidp->fs.dir = v9fs_do_opendir(s, &vs->fullname);
     v9fs_create_post_opendir(s, vs, err);
     return;
 
@@ -2285,22 +2289,22 @@ out:
 static void v9fs_create_post_fstat(V9fsState *s, V9fsCreateState *vs, int err)
 {
     if (err) {
-        vs->fidp->fd = -1;
+        vs->fidp->fid_type = P9_FID_NONE;
+        close(vs->fidp->fs.fd);
         err = -errno;
     }
-
     v9fs_post_create(s, vs, err);
     return;
 }
 
 static void v9fs_create_post_open2(V9fsState *s, V9fsCreateState *vs, int err)
 {
-    if (vs->fidp->fd == -1) {
+    if (vs->fidp->fs.fd == -1) {
         err = -errno;
         goto out;
     }
-
-    err = v9fs_do_fstat(s, vs->fidp->fd, &vs->stbuf);
+    vs->fidp->fid_type = P9_FID_FILE;
+    err = v9fs_do_fstat(s, vs->fidp->fs.fd, &vs->stbuf);
     v9fs_create_post_fstat(s, vs, err);
 
     return;
@@ -2371,7 +2375,7 @@ static void v9fs_create_post_lstat(V9fsState *s, V9fsCreateState *vs, int err)
                 0, vs->fidp->uid, -1);
         v9fs_post_create(s, vs, err);
     } else {
-        vs->fidp->fd = v9fs_do_open2(s, vs->fullname.data, vs->fidp->uid,
+        vs->fidp->fs.fd = v9fs_do_open2(s, vs->fullname.data, vs->fidp->uid,
                 -1, omode_to_uflags(vs->mode)|O_CREAT, vs->perm);
 
         v9fs_create_post_open2(s, vs, err);
@@ -2615,8 +2619,7 @@ static int v9fs_complete_rename(V9fsState *s, V9fsRenameState *vs)
             goto out;
         }
 
-        BUG_ON(dirfidp->fd != -1);
-        BUG_ON(dirfidp->dir);
+        BUG_ON(dirfidp->fid_type != P9_FID_NONE);
 
         new_name = qemu_mallocz(dirfidp->path.size + vs->name.size + 2);
 
@@ -2727,8 +2730,7 @@ static void v9fs_rename(V9fsState *s, V9fsPDU *pdu)
         goto out;
     }
 
-    BUG_ON(vs->fidp->fd != -1);
-    BUG_ON(vs->fidp->dir);
+    BUG_ON(vs->fidp->fid_type != P9_FID_NONE);
 
     err = v9fs_complete_rename(s, vs);
     v9fs_rename_post_rename(s, vs, err);
@@ -2855,7 +2857,7 @@ static void v9fs_wstat(V9fsState *s, V9fsPDU *pdu)
 
     /* do we need to sync the file? */
     if (donttouch_stat(&vs->v9stat)) {
-        err = v9fs_do_fsync(s, vs->fidp->fd);
+        err = v9fs_do_fsync(s, vs->fidp->fs.fd);
         v9fs_wstat_post_fsync(s, vs, err);
         return;
     }

@@ -155,12 +155,32 @@ typedef struct V9fsStat
     int32_t n_muid;
 } V9fsStat;
 
+enum {
+    P9_FID_NONE = 0,
+    P9_FID_FILE,
+    P9_FID_DIR,
+    P9_FID_XATTR,
+};
+
+typedef struct V9fsXattr
+{
+    int64_t copied_len;
+    int64_t len;
+    void *value;
+    V9fsString name;
+    int flags;
+} V9fsXattr;
+
 struct V9fsFidState
 {
+    int fid_type;
     int32_t fid;
     V9fsString path;
-    int fd;
-    DIR *dir;
+    union {
+	int fd;
+	DIR *dir;
+	V9fsXattr xattr;
+    } fs;
     uid_t uid;
     V9fsFidState *next;
 };
