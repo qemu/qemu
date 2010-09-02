@@ -486,6 +486,12 @@ static ssize_t local_llistxattr(FsContext *ctx, const char *path,
     return llistxattr(rpath(ctx, path), value, size);
 }
 
+static int local_lsetxattr(FsContext *ctx, const char *path, const char *name,
+                           void *value, size_t size, int flags)
+{
+    return lsetxattr(rpath(ctx, path), name, value, size, flags);
+}
+
 FileOperations local_ops = {
     .lstat = local_lstat,
     .readlink = local_readlink,
@@ -516,4 +522,5 @@ FileOperations local_ops = {
     .statfs = local_statfs,
     .lgetxattr = local_lgetxattr,
     .llistxattr = local_llistxattr,
+    .lsetxattr = local_lsetxattr,
 };

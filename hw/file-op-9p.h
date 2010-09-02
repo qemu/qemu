@@ -78,6 +78,8 @@ typedef struct FileOperations
     ssize_t (*lgetxattr)(FsContext *, const char *,
                          const char *, void *, size_t);
     ssize_t (*llistxattr)(FsContext *, const char *, void *, size_t);
+    int (*lsetxattr)(FsContext *, const char *,
+                     const char *, void *, size_t, int);
     void *opaque;
 } FileOperations;
 #endif

@@ -278,6 +278,14 @@ static ssize_t v9fs_do_llistxattr(V9fsState *s, V9fsString *path,
                               value, size);
 }
 
+static int v9fs_do_lsetxattr(V9fsState *s, V9fsString *path,
+                             V9fsString *xattr_name,
+                             void *value, size_t size, int flags)
+{
+    return s->ops->lsetxattr(&s->ctx, path->data,
+                             xattr_name->data, value, size, flags);
+}
+
 static void v9fs_string_init(V9fsString *str)
 {
     str->data = NULL;
@@ -431,8 +439,39 @@ static V9fsFidState *alloc_fid(V9fsState *s, int32_t fid)
     return f;
 }
 
+static int v9fs_xattr_fid_clunk(V9fsState *s, V9fsFidState *fidp)
+{
+    int retval = 0;
+
+    if (fidp->fs.xattr.copied_len == -1) {
+        /* getxattr/listxattr fid */
+        goto free_value;
+    }
+    /*
+     * if this is fid for setxattr. clunk should
+     * result in setxattr localcall
+     */
+    if (fidp->fs.xattr.len != fidp->fs.xattr.copied_len) {
+        /* clunk after partial write */
+        retval = -EINVAL;
+        goto free_out;
+    }
+    retval = v9fs_do_lsetxattr(s, &fidp->path, &fidp->fs.xattr.name,
+                               fidp->fs.xattr.value,
+                               fidp->fs.xattr.len,
+                               fidp->fs.xattr.flags);
+free_out:
+    v9fs_string_free(&fidp->fs.xattr.name);
+free_value:
+    if (fidp->fs.xattr.value) {
+        qemu_free(fidp->fs.xattr.value);
+    }
+    return retval;
+}
+
 static int free_fid(V9fsState *s, int32_t fid)
 {
+    int retval = 0;
     V9fsFidState **fidpp, *fidp;
 
     for (fidpp = &s->fid_list; *fidpp; fidpp = &(*fidpp)->next) {
@@ -453,14 +492,12 @@ static int free_fid(V9fsState *s, int32_t fid)
     } else if (fidp->fid_type == P9_FID_DIR) {
         v9fs_do_closedir(s, fidp->fs.dir);
     } else if (fidp->fid_type == P9_FID_XATTR) {
-        if (fidp->fs.xattr.value) {
-            qemu_free(fidp->fs.xattr.value);
-        }
+        retval = v9fs_xattr_fid_clunk(s, fidp);
     }
     v9fs_string_free(&fidp->path);
     qemu_free(fidp);
 
-    return 0;
+    return retval;
 }
 
 #define P9_QID_TYPE_DIR         0x80
@@ -2211,6 +2248,48 @@ out:
     qemu_free(vs);
 }
 
+static void v9fs_xattr_write(V9fsState *s, V9fsWriteState *vs)
+{
+    int i, to_copy;
+    ssize_t err = 0;
+    int write_count;
+    int64_t xattr_len;
+
+    xattr_len = vs->fidp->fs.xattr.len;
+    write_count = xattr_len - vs->off;
+    if (write_count > vs->count) {
+        write_count = vs->count;
+    } else if (write_count < 0) {
+        /*
+         * write beyond XATTR value len specified in
+         * xattrcreate
+         */
+        err = -ENOSPC;
+        goto out;
+    }
+    vs->offset += pdu_marshal(vs->pdu, vs->offset, "d", write_count);
+    err = vs->offset;
+    vs->fidp->fs.xattr.copied_len += write_count;
+    /*
+     * Now copy the content from sg list
+     */
+    for (i = 0; i < vs->cnt; i++) {
+        if (write_count > vs->sg[i].iov_len) {
+            to_copy = vs->sg[i].iov_len;
+        } else {
+            to_copy = write_count;
+        }
+        memcpy((char *)vs->fidp->fs.xattr.value + vs->off,
+               vs->sg[i].iov_base, to_copy);
+        /* updating vs->off since we are not using below */
+        vs->off += to_copy;
+        write_count -= to_copy;
+    }
+out:
+    complete_pdu(s, vs->pdu, err);
+    qemu_free(vs);
+}
+
 static void v9fs_write(V9fsState *s, V9fsPDU *pdu)
 {
     int32_t fid;
@@ -2226,7 +2305,7 @@ static void v9fs_write(V9fsState *s, V9fsPDU *pdu)
     vs->len = 0;
 
     pdu_unmarshal(vs->pdu, vs->offset, "dqdv", &fid, &vs->off, &vs->count,
-                    vs->sg, &vs->cnt);
+                  vs->sg, &vs->cnt);
 
     vs->fidp = lookup_fid(s, fid);
     if (vs->fidp == NULL) {
@@ -2234,11 +2313,21 @@ static void v9fs_write(V9fsState *s, V9fsPDU *pdu)
         goto out;
     }
 
-    if (vs->fidp->fs.fd == -1) {
+    if (vs->fidp->fid_type == P9_FID_FILE) {
+        if (vs->fidp->fs.fd == -1) {
+            err = -EINVAL;
+            goto out;
+        }
+    } else if (vs->fidp->fid_type == P9_FID_XATTR) {
+        /*
+         * setxattr operation
+         */
+        v9fs_xattr_write(s, vs);
+        return;
+    } else {
         err = -EINVAL;
         goto out;
     }
-
     err = v9fs_do_lseek(s, vs->fidp->fs.fd, vs->off, SEEK_SET);
 
     v9fs_write_post_lseek(s, vs, err);
@@ -3276,6 +3365,41 @@ out:
     qemu_free(vs);
 }
 
+static void v9fs_xattrcreate(V9fsState *s, V9fsPDU *pdu)
+{
+    int flags;
+    int32_t fid;
+    ssize_t err = 0;
+    V9fsXattrState *vs;
+
+    vs = qemu_malloc(sizeof(*vs));
+    vs->pdu = pdu;
+    vs->offset = 7;
+
+    pdu_unmarshal(vs->pdu, vs->offset, "dsqd",
+                  &fid, &vs->name, &vs->size, &flags);
+
+    vs->file_fidp = lookup_fid(s, fid);
+    if (vs->file_fidp == NULL) {
+        err = -EINVAL;
+        goto out;
+    }
+
+    /* Make the file fid point to xattr */
+    vs->xattr_fidp = vs->file_fidp;
+    vs->xattr_fidp->fid_type = P9_FID_XATTR;
+    vs->xattr_fidp->fs.xattr.copied_len = 0;
+    vs->xattr_fidp->fs.xattr.len = vs->size;
+    vs->xattr_fidp->fs.xattr.flags = flags;
+    v9fs_string_init(&vs->xattr_fidp->fs.xattr.name);
+    v9fs_string_copy(&vs->xattr_fidp->fs.xattr.name, &vs->name);
+    vs->xattr_fidp->fs.xattr.value = qemu_malloc(vs->size);
+
+out:
+    complete_pdu(s, vs->pdu, err);
+    v9fs_string_free(&vs->name);
+    qemu_free(vs);
+}
 
 typedef void (pdu_handler_t)(V9fsState *s, V9fsPDU *pdu);
 
@@ -3285,6 +3409,7 @@ static pdu_handler_t *pdu_handlers[] = {
     [P9_TGETATTR] = v9fs_getattr,
     [P9_TSETATTR] = v9fs_setattr,
     [P9_TXATTRWALK] = v9fs_xattrwalk,
+    [P9_TXATTRCREATE] = v9fs_xattrcreate,
     [P9_TMKNOD] = v9fs_mknod,
     [P9_TRENAME] = v9fs_rename,
     [P9_TMKDIR] = v9fs_mkdir,

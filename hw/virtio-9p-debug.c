@@ -588,6 +588,15 @@ void pprint_pdu(V9fsPDU *pdu)
     case P9_RXATTRWALK:
         fprintf(llogfile, "RXATTRWALK: (");
         pprint_int64(pdu, 1, &offset, "xattrsize");
+    case P9_TXATTRCREATE:
+        fprintf(llogfile, "TXATTRCREATE: (");
+        pprint_int32(pdu, 0, &offset, "fid");
+        pprint_str(pdu, 0, &offset, ", name");
+        pprint_int64(pdu, 0, &offset, ", xattrsize");
+        pprint_int32(pdu, 0, &offset, ", flags");
+        break;
+    case P9_RXATTRCREATE:
+        fprintf(llogfile, "RXATTRCREATE: (");
         break;
     default:
         fprintf(llogfile, "unknown(%d): (", pdu->id);
