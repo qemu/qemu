@@ -2823,8 +2823,7 @@ static void v9fs_wstat_post_chown(V9fsState *s, V9fsWstatState *vs, int err)
     if (vs->v9stat.name.size != 0) {
         V9fsRenameState *vr;
 
-        vr = qemu_malloc(sizeof(V9fsRenameState));
-        memset(vr, sizeof(*vr), 0);
+        vr = qemu_mallocz(sizeof(V9fsRenameState));
         vr->newdirfid = -1;
         vr->pdu = vs->pdu;
         vr->fidp = vs->fidp;
