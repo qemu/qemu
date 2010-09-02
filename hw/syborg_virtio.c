@@ -300,6 +300,7 @@ static SysBusDeviceInfo syborg_virtio_net_info = {
                            net.txtimer, TX_TIMER_INTERVAL),
         DEFINE_PROP_INT32("x-txburst", SyborgVirtIOProxy,
                           net.txburst, TX_BURST),
+        DEFINE_PROP_STRING("tx", SyborgVirtIOProxy, net.tx),
         DEFINE_PROP_END_OF_LIST(),
     }
 };

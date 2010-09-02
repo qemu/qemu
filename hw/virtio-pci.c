@@ -695,6 +695,7 @@ static PCIDeviceInfo virtio_info[] = {
                                net.txtimer, TX_TIMER_INTERVAL),
             DEFINE_PROP_INT32("x-txburst", VirtIOPCIProxy,
                               net.txburst, TX_BURST),
+            DEFINE_PROP_STRING("tx", VirtIOPCIProxy, net.tx),
             DEFINE_PROP_END_OF_LIST(),
         },
         .qdev.reset = virtio_pci_reset,
