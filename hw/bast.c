@@ -10,6 +10,7 @@
 
 #include "hw.h"
 #include "blockdev.h"           /* drive_get */
+#include "sysbus.h"             /* sysbus_from_qdev, ... */
 #include "sysemu.h"
 #include "arm-misc.h"
 #include "loader.h"             /* load_image_targphys */
@@ -30,18 +31,22 @@ typedef struct {
     NANDFlashState *nand[4];
 } STCBState;
 
-/* Bits in a byte */
-#define BIT 8
-
 /* Useful defines */
 #define BAST_NOR_RO_BASE CPU_S3C2410X_CS0
 #define BAST_NOR_RW_BASE (CPU_S3C2410X_CS1 + 0x4000000)
-#define BAST_NOR_SIZE 16 * MiB / BIT
+#define BAST_NOR_SIZE    (2 * MiB)
 #define BAST_BOARD_ID 331
 
 #define BAST_CS1_CPLD_BASE ((target_phys_addr_t)(CPU_S3C2410X_CS1 | (0xc << 23)))
 #define BAST_CS5_CPLD_BASE ((target_phys_addr_t)(CPU_S3C2410X_CS5 | (0xc << 23)))
 #define BAST_CPLD_SIZE (4<<23)
+
+/* GPIO */
+#define CPU_S3C2410X_GPIO_BASE (CPU_S3C2410X_PERIPHERAL + 0x16000000)
+
+/* S3C2410 SoC IDs */
+#define CPU_S3C2410X_IDENT_S3C2410X 0x32410000
+#define CPU_S3C2410X_IDENT_S3C2410A 0x32410002
 
 static uint32_t cpld_read(void *opaque, target_phys_addr_t address)
 {
@@ -95,6 +100,7 @@ static void stcb_init(ram_addr_t _ram_size,
 {
     STCBState *stcb;
     DriveInfo *dinfo;
+    NICInfo *nd;
     int ret;
     ram_addr_t flash_mem;
     BlockDriverState *flash_bds = NULL;
@@ -114,7 +120,7 @@ static void stcb_init(ram_addr_t _ram_size,
     bast_binfo.loader_start = BAST_NOR_RO_BASE;
 
     /* allocate storage for board state */
-    stcb = malloc(sizeof(STCBState));
+    stcb = qemu_mallocz(sizeof(STCBState));
 
     /* initialise SOC */
     stcb->soc = s3c2410x_init(ram_size);
@@ -138,7 +144,7 @@ static void stcb_init(ram_addr_t _ram_size,
         if (filename) {
             ret = load_image_targphys(filename,
                                       BAST_NOR_RO_BASE, BAST_NOR_SIZE);
-            free(filename);
+            qemu_free(filename);
         }
     }
     pflash_cfi02_register(BAST_NOR_RW_BASE, flash_mem, flash_bds,
@@ -149,11 +155,25 @@ static void stcb_init(ram_addr_t _ram_size,
     /* if kernel is given, boot that directly */
     if (kernel_filename != NULL) {
         bast_binfo.loader_start = CPU_S3C2410X_DRAM;
+        //~ bast_binfo.loader_start = 0xc0108000 - 0x00010000;
         arm_load_kernel(stcb->soc->cpu_env, &bast_binfo);
     }
 
     /* Setup initial (reset) program counter */
     stcb->soc->cpu_env->regs[15] = bast_binfo.loader_start;
+
+    nd = &nd_table[0];
+    if (nd->vlan) {
+        DeviceState *dev;
+        SysBusDevice *s;
+        qemu_check_nic_model(nd, "dm9000");
+        dev = qdev_create(NULL, "dm9000");
+        qdev_set_nic_properties(dev, nd);
+        qdev_init_nofail(dev);
+        s = sysbus_from_qdev(dev);
+        sysbus_mmio_map(s, 0, 0x2d000000);
+        sysbus_connect_irq(s, 0, s3c24xx_get_eirq(stcb->soc->gpio, 10));
+    }
 
     /* Initialise the BAST CPLD */
     stcb_cpld_register(stcb);
