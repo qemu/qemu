@@ -115,9 +115,10 @@
 
 typedef struct {
     SysBusDevice busdev;
+    NICState *nic;
+    NICConf conf;
     target_phys_addr_t addr; /* address port */
     target_phys_addr_t data; /* data port */
-    VLANClientState *vc;
     qemu_irq irq;
     uint8_t multihash[8]; /* multicast hash table */
     uint8_t address; /* The internal magial address */
@@ -140,8 +141,6 @@ typedef struct {
     uint16_t dm9k_mii_bmcr;
     uint16_t dm9k_mii_anar;
     uint16_t dm9k_mii_dscr;
-    NICState *nic;
-    NICConf conf;
 } dm9000_state;
 
 static void dm9000_raise_irq(dm9000_state *state)
@@ -211,7 +210,7 @@ static void dm9000_do_transmit(dm9000_state *state)
     if( idx == 0x0C00 ) idx = 0;
     state->dm9k_trpa = idx;
     /* We have the copy buffer, now we do the transmit */
-    qemu_send_packet(state->vc, state->packet_copy_buffer, state->dm9k_txpl);
+    qemu_send_packet(&state->nic->nc, state->packet_copy_buffer, state->dm9k_txpl);
     /* Clear the "please xmit" bit */
     state->dm9k_tcr &= ~DM9000_TCR_TXREQ;
     /* Set the TXEND bit */
@@ -629,12 +628,14 @@ static int dm9000_init(SysBusDevice *dev)
     int mmio_index;
     dm9000_state *s = FROM_SYSBUS(dm9000_state, dev);
     sysbus_init_irq(dev, &s->irq);
+    qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_dm9000_info, &s->conf,
                           dev->qdev.info->name, dev->qdev.id, s);
     mmio_index = cpu_register_io_memory(dm9000_readfn,
                                            dm9000_writefn, s);
     sysbus_init_mmio(dev, 0x1000, mmio_index);
     dm9000_hard_reset(s);
+    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
 
     return 0;
 }
