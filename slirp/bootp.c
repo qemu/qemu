@@ -33,7 +33,7 @@ static const uint8_t rfc1533_cookie[] = { RFC1533_COOKIE };
 #define DPRINTF(fmt, ...) \
 do if (slirp_debug & DBG_CALL) { fprintf(dfd, fmt, ##  __VA_ARGS__); fflush(dfd); } while (0)
 #else
-#define DPRINTF(fmt, ...)
+#define DPRINTF(fmt, ...) do{}while(0)
 #endif
 
 static BOOTPClient *get_new_addr(Slirp *slirp, struct in_addr *paddr,

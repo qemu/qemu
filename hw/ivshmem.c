@@ -199,13 +199,13 @@ static void ivshmem_io_writel(void *opaque, target_phys_addr_t addr,
 
         case DOORBELL:
             /* check that dest VM ID is reasonable */
-            if ((dest < 0) || (dest > s->max_peer)) {
+            if (dest > s->max_peer) {
                 IVSHMEM_DPRINTF("Invalid destination VM ID (%d)\n", dest);
                 break;
             }
 
             /* check doorbell range */
-            if ((vector >= 0) && (vector < s->peers[dest].nb_eventfds)) {
+            if (vector < s->peers[dest].nb_eventfds) {
                 IVSHMEM_DPRINTF("Writing %" PRId64 " to VM %d on vector %d\n",
                                                     write_one, dest, vector);
                 if (write(s->peers[dest].eventfds[vector],
@@ -351,9 +351,10 @@ static int check_shm_size(IVShmemState *s, int fd) {
     fstat(fd, &buf);
 
     if (s->ivshmem_size > buf.st_size) {
-        fprintf(stderr, "IVSHMEM ERROR: Requested memory size greater");
-        fprintf(stderr, " than shared object size (%" PRIu64 " > %" PRIu64 ")\n",
-                                          s->ivshmem_size, (uint64_t)buf.st_size);
+        fprintf(stderr,
+                "IVSHMEM ERROR: Requested memory size greater"
+                " than shared object size (%" PRIu64 " > %" PRIu64")\n",
+                s->ivshmem_size, (uint64_t)buf.st_size);
         return -1;
     } else {
         return 0;
