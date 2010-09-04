@@ -2683,7 +2683,25 @@ ram_addr_t cpu_get_physical_page_desc(target_phys_addr_t addr)
 }
 
 #if defined(DEBUG_UNASSIGNED)
-#if defined(TARGET_MIPS)
+#if defined(TARGET_ARM)
+#include <assert.h>
+#include <disas.h>
+static const char *backtrace(char *buffer, size_t length)
+{
+    char *p = buffer;
+    if (cpu_single_env) {
+        const char *symbol;
+        symbol = lookup_symbol(cpu_single_env->regs[15]);
+        p += sprintf(p, "[%s]", symbol);
+        symbol = lookup_symbol(cpu_single_env->regs[14]);
+        p += sprintf(p, "[%s]", symbol);
+    } else {
+        p += sprintf(p, "[cpu not running]");
+    }
+    assert((p - buffer) < length);
+    return buffer;
+}
+#elif defined(TARGET_MIPS)
 #include <assert.h>
 #include <disas.h>
 static const char *backtrace(char *buffer, size_t length)
