@@ -14,6 +14,9 @@
 
 #include "s3c24xx.h"
 
+#define logout(fmt, ...) \
+    fprintf(stderr, "S3C24xx\t%-24s" fmt, __func__, ##__VA_ARGS__)
+
 /* S3C24XX serial port registers */
 
 /* Line control         RW WORD */
@@ -57,6 +60,8 @@ s3c24xx_serial_write_f(void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     s3c24xx_serial_dev *s = opaque;
     int reg = addr & 0x3f;
+
+    logout("0x" TARGET_FMT_plx " 0x%08x\n", addr, value);
 
     switch(reg) {
     case S3C_SERIAL_ULCON:
@@ -133,6 +138,8 @@ s3c24xx_serial_read_f(void *opaque, target_phys_addr_t addr)
 {
     s3c24xx_serial_dev *s = opaque;
     int reg = addr & 0x3f;
+
+    logout("0x" TARGET_FMT_plx "\n", addr);
 
     switch (reg) {
     case S3C_SERIAL_ULCON:

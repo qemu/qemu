@@ -37,18 +37,17 @@
 struct s3c24xx_clkcon_state_s {
     CPUState *cpu_env;
     uint32_t ref_freq; /* frequency of reference xtal or extclock */
-    uint32_t clkcon_reg[6];
+    uint32_t clkcon_reg[7];
 };
 
 static void
 s3c24xx_clkcon_write_f(void *opaque, target_phys_addr_t addr_, uint32_t value)
 {
     struct s3c24xx_clkcon_state_s *s = (struct s3c24xx_clkcon_state_s *)opaque;
-    int addr = (addr_ & 0x1F) >> 2;
+    unsigned addr = (addr_ & 0x1F) >> 2;
     int idle_rising_edge = 0;
 
-    if (addr < 0 || addr > 5)
-        addr = 5;
+    assert(addr < ARRAY_SIZE(s->clkcon_reg));
 
     if (addr == S3C_REG_CLKCON) {
         if (!(s->clkcon_reg[addr] & S3C_REG_CLKCON_IDLE) &&
@@ -67,10 +66,9 @@ static uint32_t
 s3c24xx_clkcon_read_f(void *opaque, target_phys_addr_t addr_)
 {
     struct s3c24xx_clkcon_state_s *s = (struct s3c24xx_clkcon_state_s *)opaque;
-    int addr = (addr_ & 0x1F) >> 2;
+    unsigned addr = (addr_ & 0x1F) >> 2;
 
-    if (addr < 0 || addr > 5)
-        addr = 5;
+    assert(addr < ARRAY_SIZE(s->clkcon_reg));
 
     return s->clkcon_reg[addr];
 }
@@ -92,7 +90,7 @@ static void s3c24xx_clkcon_save(QEMUFile *f, void *opaque)
     struct s3c24xx_clkcon_state_s *s = (struct s3c24xx_clkcon_state_s *)opaque;
     int i;
 
-    for (i = 0; i < 6; i ++) {
+    for (i = 0; i < ARRAY_SIZE(s->clkcon_reg); i ++) {
         qemu_put_be32s(f, &s->clkcon_reg[i]);
     }
 }
@@ -102,7 +100,7 @@ static int s3c24xx_clkcon_load(QEMUFile *f, void *opaque, int version_id)
     struct s3c24xx_clkcon_state_s *s = (struct s3c24xx_clkcon_state_s *)opaque;
     int i;
 
-    for (i = 0; i < 6; i ++) {
+    for (i = 0; i < ARRAY_SIZE(s->clkcon_reg); i ++) {
         qemu_get_be32s(f, &s->clkcon_reg[i]);
     }
 
@@ -118,7 +116,7 @@ s3c24xx_clkcon_init(S3CState *soc, target_phys_addr_t base_addr, uint32_t ref_fr
     s = qemu_mallocz(sizeof(struct s3c24xx_clkcon_state_s));
 
     tag = cpu_register_io_memory(s3c24xx_clkcon_read, s3c24xx_clkcon_write, s);
-    cpu_register_physical_memory(base_addr, 6 * 4, tag);
+    cpu_register_physical_memory(base_addr, ARRAY_SIZE(s->clkcon_reg) * 4, tag);
     register_savevm(NULL, "s3c24xx_clkcon", 0, 0, s3c24xx_clkcon_save, s3c24xx_clkcon_load, s);
 
     s->cpu_env = soc->cpu_env;

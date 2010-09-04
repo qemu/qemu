@@ -1,6 +1,6 @@
 /* hw/s3c2410x.h
  *
- * Samsung s3c2410x cpu register definitions
+ * Samsung s3c2440 cpu register definitions
  *
  * Copyright 2009 Daniel Silverstone and Vincent Sanders
  *
