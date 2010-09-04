@@ -24,8 +24,8 @@ static uint32_t bootloader[] = {
   0xe3811c00, /* orr     r1, r1, #0x??00 */
   0xe59f2000, /* ldr     r2, [pc, #0] */
   0xe59ff000, /* ldr     pc, [pc, #0] */
-  0, /* Address of kernel args.  Set by integratorcp_init.  */
-  0  /* Kernel entry point.  Set by integratorcp_init.  */
+  0, /* Address of kernel args. */
+  0  /* Kernel entry point. */
 };
 
 /* Entry point for secondary CPUs.  Enable interrupt controller and
@@ -49,12 +49,11 @@ static uint32_t smpboot[] = {
     p += 4;                       \
 } while (0)
 
-static void set_kernel_args(struct arm_boot_info *info,
-                int initrd_size, target_phys_addr_t base)
+static void set_kernel_args(struct arm_boot_info *info)
 {
     target_phys_addr_t p;
 
-    p = base + KERNEL_ARGS_ADDR;
+    p = info->loader_start + KERNEL_ARGS_ADDR;
     /* ATAG_CORE */
     WRITE_WORD(p, 5);
     WRITE_WORD(p, 0x54410001);
@@ -67,13 +66,17 @@ static void set_kernel_args(struct arm_boot_info *info,
     WRITE_WORD(p, 0x54410002);
     WRITE_WORD(p, info->ram_size);
     WRITE_WORD(p, info->loader_start);
-    if (initrd_size) {
+    if (info->initrd_size) {
         /* ATAG_INITRD2 */
         WRITE_WORD(p, 4);
         WRITE_WORD(p, 0x54420005);
         WRITE_WORD(p, info->loader_start + INITRD_LOAD_ADDR);
-        WRITE_WORD(p, initrd_size);
+        WRITE_WORD(p, info->initrd_size);
     }
+    /* ATAG REVISION. */
+    WRITE_WORD(p, 3);
+    WRITE_WORD(p, 0x54410007);
+    WRITE_WORD(p, 0x4000a);
     if (info->kernel_cmdline && *info->kernel_cmdline) {
         /* ATAG_CMDLINE */
         int cmdline_size;
@@ -102,15 +105,13 @@ static void set_kernel_args(struct arm_boot_info *info,
     WRITE_WORD(p, 0);
 }
 
-static void set_kernel_args_old(struct arm_boot_info *info,
-                int initrd_size, target_phys_addr_t base)
+static void set_kernel_args_old(struct arm_boot_info *info)
 {
     target_phys_addr_t p;
     const char *s;
 
-
     /* see linux/include/asm-arm/setup.h */
-    p = base + KERNEL_ARGS_ADDR;
+    p = info->loader_start + KERNEL_ARGS_ADDR;
     /* page_size */
     WRITE_WORD(p, 4096);
     /* nr_pages */
@@ -147,12 +148,12 @@ static void set_kernel_args_old(struct arm_boot_info *info,
     /* pages_in_vram */
     WRITE_WORD(p, 0);
     /* initrd_start */
-    if (initrd_size)
+    if (info->initrd_size)
         WRITE_WORD(p, info->loader_start + INITRD_LOAD_ADDR);
     else
         WRITE_WORD(p, 0);
     /* initrd_size */
-    WRITE_WORD(p, initrd_size);
+    WRITE_WORD(p, info->initrd_size);
     /* rd_start */
     WRITE_WORD(p, 0);
     /* system_rev */
@@ -164,7 +165,7 @@ static void set_kernel_args_old(struct arm_boot_info *info,
     /* mem_fclk_21285 */
     WRITE_WORD(p, 0);
     /* zero unused fields */
-    while (p < base + KERNEL_ARGS_ADDR + 256 + 1024) {
+    while (p < info->loader_start + KERNEL_ARGS_ADDR + 256 + 1024) {
         WRITE_WORD(p, 0);
     }
     s = info->kernel_cmdline;
@@ -189,10 +190,9 @@ static void main_cpu_reset(void *opaque)
         } else {
             env->regs[15] = info->loader_start;
             if (old_param) {
-                set_kernel_args_old(info, info->initrd_size,
-                                    info->loader_start);
+                set_kernel_args_old(info);
             } else {
-                set_kernel_args(info, info->initrd_size, info->loader_start);
+                set_kernel_args(info);
             }
         }
     }
@@ -207,7 +207,6 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
     int is_linux;
     uint64_t elf_entry;
     target_phys_addr_t entry;
-    int big_endian;
 
     /* Load the kernel.  */
     if (!info->kernel_filename) {
@@ -219,17 +218,11 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
         info->nb_cpus = 1;
     env->boot_info = info;
 
-#ifdef TARGET_WORDS_BIGENDIAN
-    big_endian = 1;
-#else
-    big_endian = 0;
-#endif
-
     /* Assume that raw images are linux kernels, and ELF images are not.  */
     /* If the filename contains 'vmlinux', assume ELF images are linux, too. */
     is_linux = (strstr(info->kernel_filename, "vmlinux") != NULL);
     kernel_size = load_elf(info->kernel_filename, NULL, NULL, &elf_entry,
-                           NULL, NULL, big_endian, ELF_MACHINE, 1);
+                           NULL, NULL, env->bigendian, ELF_MACHINE, 1);
     entry = elf_entry;
     if (kernel_size < 0) {
         kernel_size = load_uimage(info->kernel_filename, &entry, NULL,
