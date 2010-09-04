@@ -26,6 +26,8 @@
 #include "console.h"
 #include "i2c.h"
 
+#include "s3c2440.h"
+
 #ifdef TARGET_WORDS_BIGENDIAN
 int bigendian = 1;
 #else
@@ -72,11 +74,15 @@ Address    Module
 #define S3C2443X_IO_PORT        0x56000000
 
 typedef struct {
+    S3CState *soc;
+} TTState;
+
+typedef struct {
     unsigned offset;
     const char *name;
-} offset_name_t;
+} OffsetNamePair;
 
-static const char *offset2name(const offset_name_t *o2n, unsigned offset)
+static const char *offset2name(const OffsetNamePair *o2n, unsigned offset)
 {
     static char buffer[12];
     const char *name = buffer;
@@ -139,358 +145,6 @@ static const char *offset2name(const offset_name_t *o2n, unsigned offset)
 
 /* Wolfson 8750 I2C address */
 #define MP_WM_ADDR              0x1A
-
-/* Ethernet register offsets */
-#define MP_ETH_SMIR             0x010
-#define MP_ETH_PCXR             0x408
-#define MP_ETH_SDCMR            0x448
-#define MP_ETH_ICR              0x450
-#define MP_ETH_IMR              0x458
-#define MP_ETH_FRDP0            0x480
-#define MP_ETH_FRDP1            0x484
-#define MP_ETH_FRDP2            0x488
-#define MP_ETH_FRDP3            0x48C
-#define MP_ETH_CRDP0            0x4A0
-#define MP_ETH_CRDP1            0x4A4
-#define MP_ETH_CRDP2            0x4A8
-#define MP_ETH_CRDP3            0x4AC
-#define MP_ETH_CTDP0            0x4E0
-#define MP_ETH_CTDP1            0x4E4
-#define MP_ETH_CTDP2            0x4E8
-#define MP_ETH_CTDP3            0x4EC
-
-/* MII PHY access */
-#define MP_ETH_SMIR_DATA        0x0000FFFF
-#define MP_ETH_SMIR_ADDR        0x03FF0000
-#define MP_ETH_SMIR_OPCODE      (1 << 26) /* Read value */
-#define MP_ETH_SMIR_RDVALID     (1 << 27)
-
-/* PHY registers */
-#define MP_ETH_PHY1_BMSR        0x00210000
-#define MP_ETH_PHY1_PHYSID1     0x00410000
-#define MP_ETH_PHY1_PHYSID2     0x00610000
-
-#define MP_PHY_BMSR_LINK        0x0004
-#define MP_PHY_BMSR_AUTONEG     0x0008
-
-#define MP_PHY_88E3015          0x01410E20
-
-/* TX descriptor status */
-#define MP_ETH_TX_OWN           (1 << 31)
-
-/* RX descriptor status */
-#define MP_ETH_RX_OWN           (1 << 31)
-
-/* Interrupt cause/mask bits */
-#define MP_ETH_IRQ_RX_BIT       0
-#define MP_ETH_IRQ_RX           (1 << MP_ETH_IRQ_RX_BIT)
-#define MP_ETH_IRQ_TXHI_BIT     2
-#define MP_ETH_IRQ_TXLO_BIT     3
-
-/* Port config bits */
-#define MP_ETH_PCXR_2BSM_BIT    28 /* 2-byte incoming suffix */
-
-/* SDMA command bits */
-#define MP_ETH_CMD_TXHI         (1 << 23)
-#define MP_ETH_CMD_TXLO         (1 << 22)
-
-typedef struct mv88w8618_tx_desc {
-    uint32_t cmdstat;
-    uint16_t res;
-    uint16_t bytes;
-    uint32_t buffer;
-    uint32_t next;
-} mv88w8618_tx_desc;
-
-typedef struct mv88w8618_rx_desc {
-    uint32_t cmdstat;
-    uint16_t bytes;
-    uint16_t buffer_size;
-    uint32_t buffer;
-    uint32_t next;
-} mv88w8618_rx_desc;
-
-typedef struct mv88w8618_eth_state {
-    SysBusDevice busdev;
-    qemu_irq irq;
-    uint32_t smir;
-    uint32_t icr;
-    uint32_t imr;
-    int mmio_index;
-    uint32_t vlan_header;
-    uint32_t tx_queue[2];
-    uint32_t rx_queue[4];
-    uint32_t frx_queue[4];
-    uint32_t cur_rx[4];
-    NICState *nic;
-    NICConf conf;
-} mv88w8618_eth_state;
-
-static void eth_rx_desc_put(uint32_t addr, mv88w8618_rx_desc *desc)
-{
-    cpu_to_le32s(&desc->cmdstat);
-    cpu_to_le16s(&desc->bytes);
-    cpu_to_le16s(&desc->buffer_size);
-    cpu_to_le32s(&desc->buffer);
-    cpu_to_le32s(&desc->next);
-    cpu_physical_memory_write(addr, (void *)desc, sizeof(*desc));
-}
-
-static void eth_rx_desc_get(uint32_t addr, mv88w8618_rx_desc *desc)
-{
-    cpu_physical_memory_read(addr, (void *)desc, sizeof(*desc));
-    le32_to_cpus(&desc->cmdstat);
-    le16_to_cpus(&desc->bytes);
-    le16_to_cpus(&desc->buffer_size);
-    le32_to_cpus(&desc->buffer);
-    le32_to_cpus(&desc->next);
-}
-
-static int eth_can_receive(VLANClientState *nc)
-{
-    return 1;
-}
-
-static ssize_t eth_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
-{
-    mv88w8618_eth_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
-    uint32_t desc_addr;
-    mv88w8618_rx_desc desc;
-    int i;
-
-    for (i = 0; i < 4; i++) {
-        desc_addr = s->cur_rx[i];
-        if (!desc_addr) {
-            continue;
-        }
-        do {
-            eth_rx_desc_get(desc_addr, &desc);
-            if ((desc.cmdstat & MP_ETH_RX_OWN) && desc.buffer_size >= size) {
-                cpu_physical_memory_write(desc.buffer + s->vlan_header,
-                                          buf, size);
-                desc.bytes = size + s->vlan_header;
-                desc.cmdstat &= ~MP_ETH_RX_OWN;
-                s->cur_rx[i] = desc.next;
-
-                s->icr |= MP_ETH_IRQ_RX;
-                if (s->icr & s->imr) {
-                    qemu_irq_raise(s->irq);
-                }
-                eth_rx_desc_put(desc_addr, &desc);
-                return size;
-            }
-            desc_addr = desc.next;
-        } while (desc_addr != s->rx_queue[i]);
-    }
-    return size;
-}
-
-static void eth_tx_desc_put(uint32_t addr, mv88w8618_tx_desc *desc)
-{
-    cpu_to_le32s(&desc->cmdstat);
-    cpu_to_le16s(&desc->res);
-    cpu_to_le16s(&desc->bytes);
-    cpu_to_le32s(&desc->buffer);
-    cpu_to_le32s(&desc->next);
-    cpu_physical_memory_write(addr, (void *)desc, sizeof(*desc));
-}
-
-static void eth_tx_desc_get(uint32_t addr, mv88w8618_tx_desc *desc)
-{
-    cpu_physical_memory_read(addr, (void *)desc, sizeof(*desc));
-    le32_to_cpus(&desc->cmdstat);
-    le16_to_cpus(&desc->res);
-    le16_to_cpus(&desc->bytes);
-    le32_to_cpus(&desc->buffer);
-    le32_to_cpus(&desc->next);
-}
-
-static void eth_send(mv88w8618_eth_state *s, int queue_index)
-{
-    uint32_t desc_addr = s->tx_queue[queue_index];
-    mv88w8618_tx_desc desc;
-    uint32_t next_desc;
-    uint8_t buf[2048];
-    int len;
-
-    do {
-        eth_tx_desc_get(desc_addr, &desc);
-        next_desc = desc.next;
-        if (desc.cmdstat & MP_ETH_TX_OWN) {
-            len = desc.bytes;
-            if (len < 2048) {
-                cpu_physical_memory_read(desc.buffer, buf, len);
-                qemu_send_packet(&s->nic->nc, buf, len);
-            }
-            desc.cmdstat &= ~MP_ETH_TX_OWN;
-            s->icr |= 1 << (MP_ETH_IRQ_TXLO_BIT - queue_index);
-            eth_tx_desc_put(desc_addr, &desc);
-        }
-        desc_addr = next_desc;
-    } while (desc_addr != s->tx_queue[queue_index]);
-}
-
-static uint32_t mv88w8618_eth_read(void *opaque, target_phys_addr_t offset)
-{
-    mv88w8618_eth_state *s = opaque;
-
-    switch (offset) {
-    case MP_ETH_SMIR:
-        if (s->smir & MP_ETH_SMIR_OPCODE) {
-            switch (s->smir & MP_ETH_SMIR_ADDR) {
-            case MP_ETH_PHY1_BMSR:
-                return MP_PHY_BMSR_LINK | MP_PHY_BMSR_AUTONEG |
-                       MP_ETH_SMIR_RDVALID;
-            case MP_ETH_PHY1_PHYSID1:
-                return (MP_PHY_88E3015 >> 16) | MP_ETH_SMIR_RDVALID;
-            case MP_ETH_PHY1_PHYSID2:
-                return (MP_PHY_88E3015 & 0xFFFF) | MP_ETH_SMIR_RDVALID;
-            default:
-                return MP_ETH_SMIR_RDVALID;
-            }
-        }
-        return 0;
-
-    case MP_ETH_ICR:
-        return s->icr;
-
-    case MP_ETH_IMR:
-        return s->imr;
-
-    case MP_ETH_FRDP0 ... MP_ETH_FRDP3:
-        return s->frx_queue[(offset - MP_ETH_FRDP0)/4];
-
-    case MP_ETH_CRDP0 ... MP_ETH_CRDP3:
-        return s->rx_queue[(offset - MP_ETH_CRDP0)/4];
-
-    case MP_ETH_CTDP0 ... MP_ETH_CTDP3:
-        return s->tx_queue[(offset - MP_ETH_CTDP0)/4];
-
-    default:
-        return 0;
-    }
-}
-
-static void mv88w8618_eth_write(void *opaque, target_phys_addr_t offset,
-                                uint32_t value)
-{
-    mv88w8618_eth_state *s = opaque;
-
-    switch (offset) {
-    case MP_ETH_SMIR:
-        s->smir = value;
-        break;
-
-    case MP_ETH_PCXR:
-        s->vlan_header = ((value >> MP_ETH_PCXR_2BSM_BIT) & 1) * 2;
-        break;
-
-    case MP_ETH_SDCMR:
-        if (value & MP_ETH_CMD_TXHI) {
-            eth_send(s, 1);
-        }
-        if (value & MP_ETH_CMD_TXLO) {
-            eth_send(s, 0);
-        }
-        if (value & (MP_ETH_CMD_TXHI | MP_ETH_CMD_TXLO) && s->icr & s->imr) {
-            qemu_irq_raise(s->irq);
-        }
-        break;
-
-    case MP_ETH_ICR:
-        s->icr &= value;
-        break;
-
-    case MP_ETH_IMR:
-        s->imr = value;
-        if (s->icr & s->imr) {
-            qemu_irq_raise(s->irq);
-        }
-        break;
-
-    case MP_ETH_FRDP0 ... MP_ETH_FRDP3:
-        s->frx_queue[(offset - MP_ETH_FRDP0)/4] = value;
-        break;
-
-    case MP_ETH_CRDP0 ... MP_ETH_CRDP3:
-        s->rx_queue[(offset - MP_ETH_CRDP0)/4] =
-            s->cur_rx[(offset - MP_ETH_CRDP0)/4] = value;
-        break;
-
-    case MP_ETH_CTDP0 ... MP_ETH_CTDP3:
-        s->tx_queue[(offset - MP_ETH_CTDP0)/4] = value;
-        break;
-    }
-}
-
-static CPUReadMemoryFunc * const mv88w8618_eth_readfn[] = {
-    mv88w8618_eth_read,
-    mv88w8618_eth_read,
-    mv88w8618_eth_read
-};
-
-static CPUWriteMemoryFunc * const mv88w8618_eth_writefn[] = {
-    mv88w8618_eth_write,
-    mv88w8618_eth_write,
-    mv88w8618_eth_write
-};
-
-static void eth_cleanup(VLANClientState *nc)
-{
-    mv88w8618_eth_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
-
-    s->nic = NULL;
-}
-
-static NetClientInfo net_mv88w8618_info = {
-    .type = NET_CLIENT_TYPE_NIC,
-    .size = sizeof(NICState),
-    .can_receive = eth_can_receive,
-    .receive = eth_receive,
-    .cleanup = eth_cleanup,
-};
-
-static int mv88w8618_eth_init(SysBusDevice *dev)
-{
-    mv88w8618_eth_state *s = FROM_SYSBUS(mv88w8618_eth_state, dev);
-
-    sysbus_init_irq(dev, &s->irq);
-    s->nic = qemu_new_nic(&net_mv88w8618_info, &s->conf,
-                          dev->qdev.info->name, dev->qdev.id, s);
-    s->mmio_index = cpu_register_io_memory(mv88w8618_eth_readfn,
-                                           mv88w8618_eth_writefn, s);
-    sysbus_init_mmio(dev, MP_ETH_SIZE, s->mmio_index);
-    return 0;
-}
-
-static const VMStateDescription mv88w8618_eth_vmsd = {
-    .name = "mv88w8618_eth",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT32(smir, mv88w8618_eth_state),
-        VMSTATE_UINT32(icr, mv88w8618_eth_state),
-        VMSTATE_UINT32(imr, mv88w8618_eth_state),
-        VMSTATE_UINT32(vlan_header, mv88w8618_eth_state),
-        VMSTATE_UINT32_ARRAY(tx_queue, mv88w8618_eth_state, 2),
-        VMSTATE_UINT32_ARRAY(rx_queue, mv88w8618_eth_state, 4),
-        VMSTATE_UINT32_ARRAY(frx_queue, mv88w8618_eth_state, 4),
-        VMSTATE_UINT32_ARRAY(cur_rx, mv88w8618_eth_state, 4),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
-static SysBusDeviceInfo mv88w8618_eth_info = {
-    .init = mv88w8618_eth_init,
-    .qdev.name = "mv88w8618_eth",
-    .qdev.size = sizeof(mv88w8618_eth_state),
-    .qdev.vmsd = &mv88w8618_eth_vmsd,
-    .qdev.props = (Property[]) {
-        DEFINE_NIC_PROPERTIES(mv88w8618_eth_state, conf),
-        DEFINE_PROP_END_OF_LIST(),
-    },
-};
 
 /* LCD register offsets */
 #define MP_LCD_IRQCTRL          0x180
@@ -1080,10 +734,14 @@ static SysBusDeviceInfo mv88w8618_flashcfg_info = {
 #define SYSCON_MPLLCON          0x10
 #define SYSCON_CLKDIV0          0x24
 
+static const OffsetNamePair tt_syscon_names[] = {
+    {}
+};
+
 static uint32_t tt_syscon_read(void *opaque, target_phys_addr_t offset)
 {
     uint32_t value = 0;
-    logout("0x" TARGET_FMT_plx "\n", offset);
+    logout("%s\n", offset2name(tt_syscon_names, offset));
     switch (offset) {
         case SYSCON_MPLLCON:
         case SYSCON_CLKDIV0:
@@ -1096,7 +754,7 @@ static uint32_t tt_syscon_read(void *opaque, target_phys_addr_t offset)
 static void tt_syscon_write(void *opaque, target_phys_addr_t offset,
                                 uint32_t value)
 {
-    logout("0x" TARGET_FMT_plx " 0x%08x\n", offset, value);
+    logout("%s 0x%08x\n", offset2name(tt_syscon_names, offset), value);
     switch (offset) {
         default:
             TODO();
@@ -1133,10 +791,14 @@ tt_ioport_write: 0x00000010
 tt_ioport_write: 0x00000018
 */
 
+static const OffsetNamePair tt_ioport_names[] = {
+    {}
+};
+
 static uint32_t tt_ioport_read(void *opaque, target_phys_addr_t offset)
 {
     uint32_t value = 0;
-    logout("0x" TARGET_FMT_plx "\n", offset);
+    logout("%s\n", offset2name(tt_ioport_names, offset));
     switch (offset) {
         case IOPORT_GPBCON:
             TODO();
@@ -1162,7 +824,7 @@ static uint32_t tt_ioport_read(void *opaque, target_phys_addr_t offset)
 static void tt_ioport_write(void *opaque, target_phys_addr_t offset,
                                 uint32_t value)
 {
-    logout("0x" TARGET_FMT_plx " 0x%08x\n", offset, value);
+    logout("%s 0x%08x\n", offset2name(tt_ioport_names, offset), value);
     switch (offset) {
         case IOPORT_GPBCON:
             TODO();
@@ -1200,6 +862,7 @@ static CPUWriteMemoryFunc * const tt_ioport_writefn[] = {
 
 /******************************************************************************/
 
+#if 0
 static void tt_syscon_init(void)
 {
     int iomemtype = cpu_register_io_memory(tt_syscon_readfn,
@@ -1213,6 +876,7 @@ static void tt_ioport_init(void)
                                            tt_ioport_writefn, NULL);
     cpu_register_physical_memory(S3C2443X_IO_PORT, 0x10000, iomemtype);
 }
+#endif
 
 /* WLAN register offsets */
 #define MP_WLAN_MAGIC1          0x11c
@@ -1645,7 +1309,7 @@ static SysBusDeviceInfo tt_key_info = {
 
 static struct arm_boot_info tt_binfo = {
     .loader_start = 0,
-    //~ .loader_start = TT_SRAM_BASE,
+    .loader_start = TT_SRAM_BASE,
     /* GO 730 */
     .board_id = 0x25d,
 };
@@ -1656,7 +1320,8 @@ static void tt_init(ram_addr_t ram_size,
                const char *initrd_filename, const char *cpu_model)
 {
     CPUState *env;
-    qemu_irq *cpu_pic;
+    //~ qemu_irq *cpu_pic;
+    TTState *s;
 #if 0
     qemu_irq pic[32];
     DeviceState *dev;
@@ -1670,24 +1335,28 @@ static void tt_init(ram_addr_t ram_size,
     unsigned long flash_size;
     DriveInfo *dinfo;
 #endif
-    ram_addr_t ram_off;
+    //~ ram_addr_t ram_off;
     //~ ram_addr_t sram_off;
 
-    if (!cpu_model) {
-        cpu_model = "arm920t";
-    }
-    env = cpu_init(cpu_model);
-    if (!env) {
-        logout("Unable to find CPU definition\n");
+    if (cpu_model && strcmp(cpu_model, "arm920t")) {
+        fprintf(stderr, "only working with cpu arm920t\n");
         exit(1);
     }
-    cpu_pic = arm_pic_init_cpu(env);
 
-    ram_off = qemu_ram_alloc(NULL, "arm920.ram", ram_size);
-    cpu_register_physical_memory(0x00000000, ram_size, ram_off | IO_MEM_RAM);
-    cpu_register_physical_memory(0x30000000, ram_size, ram_off | IO_MEM_RAM);
+    /* Allocate storage for board state. */
+    s = qemu_mallocz(sizeof(TTState));
+
+    /* Initialise SOC. */
+    s->soc = s3c2440_init(ram_size);
+
+    env = s->soc->cpu_env;
+    //~ cpu_pic = arm_pic_init_cpu(env);
+
+    //~ ram_off = qemu_ram_alloc(NULL, "arm920.ram", ram_size);
+    //~ cpu_register_physical_memory(0x00000000, ram_size, ram_off | IO_MEM_RAM);
+    //~ cpu_register_physical_memory(0x30000000, ram_size, ram_off | IO_MEM_RAM);
     //~ cpu_register_physical_memory(0x80000000, ram_size, ram_off | IO_MEM_RAM);
-    cpu_register_physical_memory(0xc0000000, ram_size, ram_off | IO_MEM_RAM);
+    //~ cpu_register_physical_memory(0xc0000000, ram_size, ram_off | IO_MEM_RAM);
 
 #if 0
     sram_off = qemu_ram_alloc(NULL, "musicpal.sram", TT_SRAM_SIZE);
@@ -1746,8 +1415,8 @@ static void tt_init(ram_addr_t ram_size,
     sysbus_create_simple("mv88w8618_wlan", MP_WLAN_BASE, NULL);
 #endif
 
-    tt_syscon_init();
-    tt_ioport_init();
+    //~ tt_syscon_init();
+    //~ tt_ioport_init();
 
 #if 0
     dev = sysbus_create_simple("tt_gpio", MP_GPIO_BASE, pic[MP_GPIO_IRQ]);
@@ -1788,7 +1457,9 @@ static void tt_init(ram_addr_t ram_size,
     tt_binfo.kernel_filename = kernel_filename;
     tt_binfo.kernel_cmdline = kernel_cmdline;
     tt_binfo.initrd_filename = initrd_filename;
-    arm_load_kernel(env, &tt_binfo);
+    if (kernel_filename != NULL) {
+        arm_load_kernel(env, &tt_binfo);
+    }
 }
 
 static void tt_init_go(ram_addr_t ram_size,
@@ -1819,7 +1490,7 @@ static void tt_init_smdk2443(ram_addr_t ram_size,
                const char *kernel_filename, const char *kernel_cmdline,
                const char *initrd_filename, const char *cpu_model)
 {
-    tt_binfo.board_id = 0x666;
+    tt_binfo.board_id = 0x43c;
     tt_init(ram_size, boot_device,
             kernel_filename, kernel_cmdline,
             initrd_filename, cpu_model);
@@ -1857,7 +1528,6 @@ static void tt_register_devices(void)
     sysbus_register_withprop(&mv88w8618_pic_info);
     sysbus_register_withprop(&mv88w8618_pit_info);
     sysbus_register_withprop(&mv88w8618_flashcfg_info);
-    sysbus_register_withprop(&mv88w8618_eth_info);
     sysbus_register_dev("mv88w8618_wlan", sizeof(SysBusDevice),
                         mv88w8618_wlan_init);
     sysbus_register_withprop(&tt_lcd_info);
