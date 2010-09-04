@@ -37,7 +37,6 @@
  * - vlynq emulation only very rudimentary
  * - Ethernet not stable. Linux kernel problem? Fixed by latest OpenWrt?
  * - much more
- * - ar7.cpu_env is not needed
  * - Sinus 154 DSL Basic SE raises assertion in pflash_cfi01.c
  *
  * Interrupts:
@@ -372,7 +371,6 @@ typedef struct {
 /* Emulation registers of the AR7. */
 typedef struct {
     SysBusDevice busdev;
-    CPUState *cpu_env;
     QEMUTimer *wd_timer;
     qemu_irq *primary_irq;
     qemu_irq *secondary_irq;
@@ -408,7 +406,6 @@ static const char *mips_backtrace(void)
     static char buffer[256];
     char *p = buffer;
     if (cpu_single_env != 0) {
-      assert(ar7.cpu_env == 0 || cpu_single_env == ar7.cpu_env);
       p += sprintf(p, "[%s]", lookup_symbol(cpu_single_env->active_tc.PC));
       p += sprintf(p, "[%s]", lookup_symbol(cpu_single_env->active_tc.gpr[31]));
     } else {
@@ -653,7 +650,6 @@ static void ar7_update_interrupt(void)
     static int intset;
 
     CPUState *env = first_cpu;
-    assert(env == ar7.cpu_env);
     uint32_t masked_int1;
     uint32_t masked_int2;
 
@@ -666,8 +662,8 @@ static void ar7_update_interrupt(void)
             //~ reg_set(av.intc, INTC_EXCR, BIT(2));
             qemu_irq_raise(env->irq[2]);
             //~ /* use hardware interrupt 0 */
-            //~ cpu_env->CP0_Cause |= 0x00000400;
-            //~ cpu_interrupt(cpu_env, CPU_INTERRUPT_HARD);
+            //~ env->CP0_Cause |= 0x00000400;
+            //~ cpu_interrupt(env, CPU_INTERRUPT_HARD);
             TRACE(INTC, logout("raise hardware interrupt, mask 0x%08x%08x\n",
                 masked_int2, masked_int1));
         } else {
@@ -690,8 +686,8 @@ static void ar7_update_interrupt(void)
         if (intset) {
             intset = 0;
             qemu_irq_lower(env->irq[2]);
-            //~ cpu_env->CP0_Cause &= ~0x00000400;
-            //~ cpu_reset_interrupt(cpu_env, CPU_INTERRUPT_HARD);
+            //~ env->CP0_Cause &= ~0x00000400;
+            //~ cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
             TRACE(INTC, logout("clear hardware interrupt\n"));
         } else {
             TRACE(INTC, logout("interrupt still cleared\n"));
@@ -702,7 +698,7 @@ static void ar7_update_interrupt(void)
 static void ar7_primary_irq(void *opaque, int channel, int level)
 {
     /* AR7 primary interrupt. */
-    CPUState *env = (CPUState *)opaque;
+    CPUState *env = opaque;
     unsigned irq_num = channel + MIPS_EXCEPTION_OFFSET;
     unsigned cindex = channel / 32;
     unsigned offset = channel % 32;
@@ -710,7 +706,6 @@ static void ar7_primary_irq(void *opaque, int channel, int level)
           logout("(%p,%d,%d)\n", opaque, irq_num, level));
     if (level) {
         assert(env == first_cpu);
-        assert(env == ar7.cpu_env);
         uint32_t intmask = reg_read(av.intc, INTC_ESR1 + 4 * cindex);
         if (intmask & BIT(offset)) {
             TRACE(INTC && (irq_num != 15 || UART),
@@ -718,8 +713,8 @@ static void ar7_primary_irq(void *opaque, int channel, int level)
             reg_write(av.intc, INTC_PIIR, (channel << 16) | channel);
             /* use hardware interrupt 0 */
             qemu_irq_raise(env->irq[2]);
-            //~ cpu_env->CP0_Cause |= 0x00000400;
-            //~ cpu_interrupt(cpu_env, CPU_INTERRUPT_HARD);
+            //~ env->CP0_Cause |= 0x00000400;
+            //~ cpu_interrupt(env, CPU_INTERRUPT_HARD);
         } else {
             TRACE(INTC && (irq_num != 15 || UART),
                   logout("(%p,%d,%d) is disabled\n", opaque, irq_num, level));
@@ -2267,8 +2262,8 @@ static void ar7_reset_write(uint32_t offset, uint32_t val)
     } else if (offset == 4) {
         TRACE(RESET, logout("reset\n"));
         qemu_system_reset_request();
-        //~ CPUState *cpu_env = first_cpu;
-        //~ cpu_env->active_tc.PC = 0xbfc00000;
+        //~ CPUState *env = first_cpu;
+        //~ env->active_tc.PC = 0xbfc00000;
     } else {
         TRACE(RESET, logout("reset[%u]=0x%08x\n", offset, val));
     }
@@ -3311,7 +3306,7 @@ static CPUReadMemoryFunc *const io_read[] = {
     io_readl,
 };
 
-static void ar7_serial_init(CPUState * env, int be)
+static void ar7_serial_init(CPUState * env)
 {
     /* By default, QEMU only opens one serial console.
      * In this case we open a second console here because
@@ -3324,7 +3319,7 @@ static void ar7_serial_init(CPUState * env, int be)
     for (uart_index = 0; uart_index < 2; uart_index++) {
         ar7.serial[uart_index] = serial_mm_init(uart_base[uart_index], 2,
             AR7_PRIMARY_IRQ(uart_interrupt[uart_index]), io_frequency,
-            serial_hds[uart_index], 0, be);
+            serial_hds[uart_index], 0, env->bigendian);
         serial_set_frequency(ar7.serial[uart_index], io_frequency / 16);
     }
 
@@ -3613,7 +3608,7 @@ static void ar7_reset(DeviceState *d)
     //~ cpu_interrupt(env, CPU_INTERRUPT_RESET);
 }
 
-static void ar7_init(CPUState * env, int be)
+static void ar7_init(CPUState * env)
 {
     //~ target_phys_addr_t addr = (0x08610000 & 0xffff);
     //~ unsigned offset;
@@ -3646,17 +3641,15 @@ static void ar7_init(CPUState * env, int be)
 
     //~ .dcl = 0x025d4297
     reg_write(av.dcl, DCL_BOOT_CONFIG, 0x025d4291);
-#if defined(TARGET_WORDS_BIGENDIAN)
-    reg_set(av.dcl, DCL_BOOT_CONFIG, CONFIG_ENDIAN);
-#endif
-
+    if (env->bigendian) {
+        reg_set(av.dcl, DCL_BOOT_CONFIG, CONFIG_ENDIAN);
+    }
     ar7.cpmac[0].addr = av.cpmac0;
     ar7.cpmac[1].addr = av.cpmac1;
     ar7.vlynq[0] = av.vlynq0;
     ar7.vlynq[1] = av.vlynq1;
-    ar7.cpu_env = env;
 
-    ar7_serial_init(env, be);
+    ar7_serial_init(env);
     ar7_display_init(env);
     ar7_nic_init();
 
@@ -3681,7 +3674,7 @@ static void ar7_init(CPUState * env, int be)
 }
 
 /* Kernel */
-static void kernel_load(CPUState *env, int be)
+static void kernel_load(CPUState *env)
 {
     uint64_t kernel_addr = 0;
     uint64_t kernel_low, kernel_high;
@@ -3689,7 +3682,7 @@ static void kernel_load(CPUState *env, int be)
     kernel_size = load_elf(loaderparams.kernel_filename,
                            cpu_mips_kseg0_to_phys, NULL,
                            &kernel_addr, &kernel_low, &kernel_high,
-                           be, ELF_MACHINE, 1);
+                           env->bigendian, ELF_MACHINE, 1);
     if (kernel_size < 0) {
         kernel_size = load_image_targphys(loaderparams.kernel_filename,
                                           KERNEL_LOAD_ADDR,
@@ -3794,11 +3787,11 @@ static void ar7_mips_init(CPUState *env)
     if (env->CP0_Config1 != 0x9e9b4d8a) printf("CP0_Config1 = 0x%08x\n", env->CP0_Config1);
     if (env->CP0_Config2 != 0x80000000) printf("CP0_Config2 = 0x%08x\n", env->CP0_Config2);
 #if !defined(UR8)
-#if defined(TARGET_WORDS_BIGENDIAN)
-    assert(env->CP0_Config0 == 0x80240082 + (1 << CP0C0_BE));
-#else
-    assert(env->CP0_Config0 == 0x80240082);
-#endif
+    if (env->bigendian) {
+        assert(env->CP0_Config0 == 0x80240082 + (1 << CP0C0_BE));
+    } else {
+        assert(env->CP0_Config0 == 0x80240082);
+    }
 #endif
     assert(env->CP0_Config1 == 0x9e9b4d8a);
     assert(env->CP0_Config2 == 0x80000000);
@@ -3826,11 +3819,6 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
                             const char *kernel_cmdline,
                             const char *initrd_filename, const char *cpu_model)
 {
-#if defined(TARGET_WORDS_BIGENDIAN)
-        int be = 1;
-#else
-        int be = 0;
-#endif
     char *filename;
     CPUState *env;
     DeviceState *dev;
@@ -3867,7 +3855,7 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
 
     qemu_register_reset(main_cpu_reset, env);
 
-    dev = qdev_create(NULL, "mips ar7");
+    dev = qdev_create(NULL, "ar7");
     //~ qdev_prop_set_uint32(dev, "memsz", machine_ram_size / MiB);
     qdev_prop_set_uint8(dev, "phy addr", 31);
     qdev_prop_set_uint8(dev, "vlynq tnetw1130", 0);
@@ -3910,7 +3898,7 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     flash_offset = qemu_ram_alloc(NULL, "ar7.flash", flash_size);
     pflash_device_register(FLASH_ADDR, flash_offset,
                           flash_driver, flash_size, 2,
-                          flash_manufacturer, flash_type, be);
+                          flash_manufacturer, flash_type, env->bigendian);
     if (!dinfo) {
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "flashimage.bin");
         if (filename) {
@@ -3943,7 +3931,7 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     }
 
     if (kernel_filename) {
-        kernel_load(env, be);
+        kernel_load(env);
         kernel_init(env);
     }
 
@@ -3973,7 +3961,7 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     ar7.vlynq_tnetw1130 = 0;
     //~ ar7.vlynq_tnetw1130 = 99;
 
-    ar7_init(env, be);
+    ar7_init(env);
 }
 
 static int ar7_sysbus_device_init(SysBusDevice *sysbusdev)
@@ -4257,7 +4245,7 @@ static const VMStateDescription vmstate_ar7 = {
 
 static SysBusDeviceInfo ar7_info = {
     .init = ar7_sysbus_device_init,
-    .qdev.name  = "mips ar7",
+    .qdev.name  = "ar7",
     .qdev.size  = sizeof(ar7_status_t),
     .qdev.vmsd  = &vmstate_ar7,
     .qdev.reset = ar7_reset,
