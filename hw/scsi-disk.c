@@ -892,6 +892,12 @@ static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
         break;
     case VERIFY:
         break;
+    case REZERO_UNIT:
+        DPRINTF("Rezero Unit\n");
+        if (!bdrv_is_inserted(s->bs)) {
+            goto not_ready;
+        }
+        break;
     default:
         goto illegal_request;
     }
@@ -1011,6 +1017,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case SERVICE_ACTION_IN:
     case REPORT_LUNS:
     case VERIFY:
+    case REZERO_UNIT:
         rc = scsi_disk_emulate_command(&r->req, outbuf);
         if (rc > 0) {
             r->iov.iov_len = rc;
@@ -1034,12 +1041,39 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case WRITE_10:
     case WRITE_12:
     case WRITE_16:
-        DPRINTF("Write (sector %" PRId64 ", count %d)\n", lba, len);
+    case WRITE_VERIFY:
+    case WRITE_VERIFY_12:
+    case WRITE_VERIFY_16:
+        DPRINTF("Write %s(sector %" PRId64 ", count %d)\n",
+                (command & 0xe) == 0xe ? "And Verify " : "", lba, len);
         if (lba > s->max_lba)
             goto illegal_lba;
         r->sector = lba * s->cluster_size;
         r->sector_count = len * s->cluster_size;
         is_write = 1;
+        break;
+    case MODE_SELECT:
+        DPRINTF("Mode Select(6) (len %d)\n", len);
+        /* We don't support mode parameter changes.
+           Allow the mode parameter header + block descriptors only. */
+        if (len > 12) {
+            goto fail;
+        }
+        break;
+    case MODE_SELECT_10:
+        DPRINTF("Mode Select(10) (len %d)\n", len);
+        /* We don't support mode parameter changes.
+           Allow the mode parameter header + block descriptors only. */
+        if (len > 16) {
+            goto fail;
+        }
+        break;
+    case SEEK_6:
+    case SEEK_10:
+        DPRINTF("Seek(%d) (sector %" PRId64 ")\n", command == SEEK_6 ? 6 : 10, lba);
+        if (lba > s->max_lba) {
+            goto illegal_lba;
+        }
         break;
     default:
 	DPRINTF("Unknown SCSI command (%2.2x)\n", buf[0]);
