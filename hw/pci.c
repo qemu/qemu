@@ -1514,7 +1514,8 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
         pci_dev->romfile = qemu_strdup(info->romfile);
     pci_add_option_rom(pci_dev);
 
-    if (qdev->hotplugged) {
+    if (bus->hotplug) {
+        /* lower layer must check qdev->hotplugged */
         rc = bus->hotplug(bus->hotplug_qdev, pci_dev, 1);
         if (rc != 0) {
             int r = pci_unregister_device(&pci_dev->qdev);

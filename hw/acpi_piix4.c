@@ -611,6 +611,9 @@ static int piix4_device_hotplug(DeviceState *qdev, PCIDevice *dev, int state)
     PIIX4PMState *s = DO_UPCAST(PIIX4PMState, dev,
                                 DO_UPCAST(PCIDevice, qdev, qdev));
 
+    if (!dev->qdev.hotplugged)
+        return 0;
+
     s->pci0_status.up = 0;
     s->pci0_status.down = 0;
     if (state) {
