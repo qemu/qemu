@@ -455,15 +455,31 @@ static int get_stream_blocksize(BlockDriverState *bdrv)
     return (buf[9] << 16) | (buf[10] << 8) | buf[11];
 }
 
-static void scsi_destroy(SCSIDevice *d)
+static void scsi_generic_purge_requests(SCSIGenericState *s)
 {
-    SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, d);
     SCSIGenericReq *r;
 
     while (!QTAILQ_EMPTY(&s->qdev.requests)) {
         r = DO_UPCAST(SCSIGenericReq, req, QTAILQ_FIRST(&s->qdev.requests));
+        if (r->req.aiocb) {
+            bdrv_aio_cancel(r->req.aiocb);
+        }
         scsi_remove_request(r);
     }
+}
+
+static void scsi_generic_reset(DeviceState *dev)
+{
+    SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev.qdev, dev);
+
+    scsi_generic_purge_requests(s);
+}
+
+static void scsi_destroy(SCSIDevice *d)
+{
+    SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, d);
+
+    scsi_generic_purge_requests(s);
     blockdev_mark_auto_del(s->qdev.conf.bs);
 }
 
@@ -537,6 +553,7 @@ static SCSIDeviceInfo scsi_generic_info = {
     .qdev.name    = "scsi-generic",
     .qdev.desc    = "pass through generic scsi device (/dev/sg*)",
     .qdev.size    = sizeof(SCSIGenericState),
+    .qdev.reset   = scsi_generic_reset,
     .init         = scsi_generic_initfn,
     .destroy      = scsi_destroy,
     .send_command = scsi_send_command,
