@@ -64,6 +64,8 @@ typedef struct XenIOState {
     /* which vcpu we are serving */
     int send_vcpu;
 
+    struct xs_handle *xenstore;
+
     Notifier exit;
 } XenIOState;
 
@@ -450,6 +452,17 @@ static void cpu_handle_ioreq(void *opaque)
     }
 }
 
+static void xenstore_record_dm_state(XenIOState *s, const char *state)
+{
+    char path[50];
+
+    snprintf(path, sizeof (path), "/local/domain/0/device-model/%u/state", xen_domid);
+    if (!xs_write(s->xenstore, XBT_NULL, path, state, strlen(state))) {
+        fprintf(stderr, "error recording dm state\n");
+        exit(1);
+    }
+}
+
 static void xen_main_loop_prepare(XenIOState *state)
 {
     int evtchn_fd = -1;
@@ -465,6 +478,9 @@ static void xen_main_loop_prepare(XenIOState *state)
     if (evtchn_fd != -1) {
         qemu_set_fd_handler(evtchn_fd, cpu_handle_ioreq, NULL, state);
     }
+
+    /* record state running */
+    xenstore_record_dm_state(state, "running");
 }
 
 
@@ -483,6 +499,7 @@ static void xen_exit_notifier(Notifier *n)
     XenIOState *state = container_of(n, XenIOState, exit);
 
     xc_evtchn_close(state->xce_handle);
+    xs_daemon_close(state->xenstore);
 }
 
 int xen_init(void)
@@ -507,6 +524,12 @@ int xen_hvm_init(void)
     state->xce_handle = xen_xc_evtchn_open(NULL, 0);
     if (state->xce_handle == XC_HANDLER_INITIAL_VALUE) {
         perror("xen: event channel open");
+        return -errno;
+    }
+
+    state->xenstore = xs_daemon_open();
+    if (state->xenstore == NULL) {
+        perror("xen: xenstore open");
         return -errno;
     }
 
