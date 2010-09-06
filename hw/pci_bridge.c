@@ -32,6 +32,25 @@
 #include "pci_bridge.h"
 #include "pci_internals.h"
 
+/* PCI bridge subsystem vendor ID helper functions */
+#define PCI_SSVID_SIZEOF        8
+#define PCI_SSVID_SVID          4
+#define PCI_SSVID_SSID          6
+
+int pci_bridge_ssvid_init(PCIDevice *dev, uint8_t offset,
+                          uint16_t svid, uint16_t ssid)
+{
+    int pos;
+    pos = pci_add_capability(dev, PCI_CAP_ID_SSVID, offset, PCI_SSVID_SIZEOF);
+    if (pos < 0) {
+        return pos;
+    }
+
+    pci_set_word(dev->config + pos + PCI_SSVID_SVID, svid);
+    pci_set_word(dev->config + pos + PCI_SSVID_SSID, ssid);
+    return pos;
+}
+
 /* Accessor function to get parent bridge device from pci bus. */
 PCIDevice *pci_bridge_get_device(PCIBus *bus)
 {
