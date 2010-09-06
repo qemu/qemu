@@ -183,9 +183,8 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
                             pcibus_t size, int type,
                             PCIMapIORegionFunc *map_func);
 
-int pci_add_capability(PCIDevice *pci_dev, uint8_t cap_id, uint8_t cap_size);
-int pci_add_capability_at_offset(PCIDevice *pci_dev, uint8_t cap_id,
-                                 uint8_t cap_offset, uint8_t cap_size);
+int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
+                       uint8_t offset, uint8_t size);
 
 void pci_del_capability(PCIDevice *pci_dev, uint8_t cap_id, uint8_t cap_size);
 

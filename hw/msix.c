@@ -73,7 +73,8 @@ static int msix_add_config(struct PCIDevice *pdev, unsigned short nentries,
     }
 
     pdev->msix_bar_size = new_size;
-    config_offset = pci_add_capability(pdev, PCI_CAP_ID_MSIX, MSIX_CAP_LENGTH);
+    config_offset = pci_add_capability(pdev, PCI_CAP_ID_MSIX,
+                                       0, MSIX_CAP_LENGTH);
     if (config_offset < 0)
         return config_offset;
     config = pdev->config + config_offset;

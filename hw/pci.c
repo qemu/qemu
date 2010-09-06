@@ -1682,11 +1682,25 @@ static void pci_del_option_rom(PCIDevice *pdev)
     pdev->rom_offset = 0;
 }
 
-/* Reserve space and add capability to the linked list in pci config space */
-int pci_add_capability_at_offset(PCIDevice *pdev, uint8_t cap_id,
-                                 uint8_t offset, uint8_t size)
+/*
+ * if !offset
+ * Reserve space and add capability to the linked list in pci config space
+ *
+ * if offset = 0,
+ * Find and reserve space and add capability to the linked list
+ * in pci config space */
+int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
+                       uint8_t offset, uint8_t size)
 {
-    uint8_t *config = pdev->config + offset;
+    uint8_t *config;
+    if (!offset) {
+        offset = pci_find_space(pdev, size);
+        if (!offset) {
+            return -ENOSPC;
+        }
+    }
+
+    config = pdev->config + offset;
     config[PCI_CAP_LIST_ID] = cap_id;
     config[PCI_CAP_LIST_NEXT] = pdev->config[PCI_CAPABILITY_LIST];
     pdev->config[PCI_CAPABILITY_LIST] = offset;
@@ -1697,17 +1711,6 @@ int pci_add_capability_at_offset(PCIDevice *pdev, uint8_t cap_id,
     /* Check capability by default */
     memset(pdev->cmask + offset, 0xFF, size);
     return offset;
-}
-
-/* Find and reserve space and add capability to the linked list
- * in pci config space */
-int pci_add_capability(PCIDevice *pdev, uint8_t cap_id, uint8_t size)
-{
-    uint8_t offset = pci_find_space(pdev, size);
-    if (!offset) {
-        return -ENOSPC;
-    }
-    return pci_add_capability_at_offset(pdev, cap_id, offset, size);
 }
 
 /* Unlink capability from the pci config space. */
