@@ -3154,6 +3154,55 @@ out:
     qemu_free(vs);
 }
 
+/*
+ * Implement posix byte range locking code
+ * Server side handling of locking code is very simple, because 9p server in
+ * QEMU can handle only one client. And most of the lock handling
+ * (like conflict, merging) etc is done by the VFS layer itself, so no need to
+ * do any thing in * qemu 9p server side lock code path.
+ * So when a TLOCK request comes, always return success
+ */
+
+static void v9fs_lock(V9fsState *s, V9fsPDU *pdu)
+{
+    int32_t fid, err = 0;
+    V9fsLockState *vs;
+
+    vs = qemu_mallocz(sizeof(*vs));
+    vs->pdu = pdu;
+    vs->offset = 7;
+
+    vs->flock = qemu_malloc(sizeof(*vs->flock));
+    pdu_unmarshal(vs->pdu, vs->offset, "dbdqqds", &fid, &vs->flock->type,
+                &vs->flock->flags, &vs->flock->start, &vs->flock->length,
+                            &vs->flock->proc_id, &vs->flock->client_id);
+
+    vs->status = P9_LOCK_ERROR;
+
+    /* We support only block flag now (that too ignored currently) */
+    if (vs->flock->flags & ~P9_LOCK_FLAGS_BLOCK) {
+        err = -EINVAL;
+        goto out;
+    }
+    vs->fidp = lookup_fid(s, fid);
+    if (vs->fidp == NULL) {
+        err = -ENOENT;
+        goto out;
+    }
+
+    err = v9fs_do_fstat(s, vs->fidp->fs.fd, &vs->stbuf);
+    if (err < 0) {
+        err = -errno;
+        goto out;
+    }
+    vs->status = P9_LOCK_SUCCESS;
+out:
+    vs->offset += pdu_marshal(vs->pdu, vs->offset, "b", vs->status);
+    complete_pdu(s, vs->pdu, err);
+    qemu_free(vs->flock);
+    qemu_free(vs);
+}
+
 static void v9fs_mkdir_post_lstat(V9fsState *s, V9fsMkState *vs, int err)
 {
     if (err == -1) {
@@ -3416,6 +3465,7 @@ static pdu_handler_t *pdu_handlers[] = {
     [P9_TXATTRCREATE] = v9fs_xattrcreate,
     [P9_TMKNOD] = v9fs_mknod,
     [P9_TRENAME] = v9fs_rename,
+    [P9_TLOCK] = v9fs_lock,
     [P9_TMKDIR] = v9fs_mkdir,
     [P9_TVERSION] = v9fs_version,
     [P9_TLOPEN] = v9fs_open,

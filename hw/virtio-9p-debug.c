@@ -588,6 +588,20 @@ void pprint_pdu(V9fsPDU *pdu)
     case P9_RXATTRCREATE:
         fprintf(llogfile, "RXATTRCREATE: (");
         break;
+    case P9_TLOCK:
+        fprintf(llogfile, "TLOCK: (");
+        pprint_int32(pdu, 0, &offset, "fid");
+        pprint_int8(pdu, 0, &offset, ", type");
+        pprint_int32(pdu, 0, &offset, ", flags");
+        pprint_int64(pdu, 0, &offset, ", start");
+        pprint_int64(pdu, 0, &offset, ", length");
+        pprint_int32(pdu, 0, &offset, ", proc_id");
+        pprint_str(pdu, 0, &offset, ", client_id");
+        break;
+    case P9_RLOCK:
+        fprintf(llogfile, "RLOCK: (");
+        pprint_int8(pdu, 0, &offset, "status");
+        break;
     default:
         fprintf(llogfile, "unknown(%d): (", pdu->id);
         break;

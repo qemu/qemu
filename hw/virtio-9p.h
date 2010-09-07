@@ -37,6 +37,8 @@ enum {
     P9_RXATTRCREATE,
     P9_TREADDIR = 40,
     P9_RREADDIR,
+    P9_TLOCK = 52,
+    P9_RLOCK,
     P9_TLINK = 70,
     P9_RLINK,
     P9_TMKDIR = 72,
@@ -433,6 +435,34 @@ typedef struct V9fsXattrState
     int flags;
     void *value;
 } V9fsXattrState;
+
+#define P9_LOCK_SUCCESS 0
+#define P9_LOCK_BLOCKED 1
+#define P9_LOCK_ERROR 2
+#define P9_LOCK_GRACE 3
+
+#define P9_LOCK_FLAGS_BLOCK 1
+#define P9_LOCK_FLAGS_RECLAIM 2
+
+typedef struct V9fsFlock
+{
+    uint8_t type;
+    uint32_t flags;
+    uint64_t start; /* absolute offset */
+    uint64_t length;
+    uint32_t proc_id;
+    V9fsString client_id;
+} V9fsFlock;
+
+typedef struct V9fsLockState
+{
+    V9fsPDU *pdu;
+    size_t offset;
+    int8_t status;
+    struct stat stbuf;
+    V9fsFidState *fidp;
+    V9fsFlock *flock;
+} V9fsLockState;
 
 extern size_t pdu_packunpack(void *addr, struct iovec *sg, int sg_count,
                             size_t offset, size_t size, int pack);
