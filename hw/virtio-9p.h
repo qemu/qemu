@@ -39,6 +39,8 @@ enum {
     P9_RREADDIR,
     P9_TLOCK = 52,
     P9_RLOCK,
+    P9_TGETLOCK = 54,
+    P9_RGETLOCK,
     P9_TLINK = 70,
     P9_RLINK,
     P9_TMKDIR = 72,
@@ -463,6 +465,25 @@ typedef struct V9fsLockState
     V9fsFidState *fidp;
     V9fsFlock *flock;
 } V9fsLockState;
+
+typedef struct V9fsGetlock
+{
+    uint8_t type;
+    uint64_t start; /* absolute offset */
+    uint64_t length;
+    uint32_t proc_id;
+    V9fsString client_id;
+} V9fsGetlock;
+
+typedef struct V9fsGetlockState
+{
+    V9fsPDU *pdu;
+    size_t offset;
+    struct stat stbuf;
+    V9fsFidState *fidp;
+    V9fsGetlock *glock;
+} V9fsGetlockState;
+
 
 extern size_t pdu_packunpack(void *addr, struct iovec *sg, int sg_count,
                             size_t offset, size_t size, int pack);

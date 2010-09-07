@@ -602,6 +602,23 @@ void pprint_pdu(V9fsPDU *pdu)
         fprintf(llogfile, "RLOCK: (");
         pprint_int8(pdu, 0, &offset, "status");
         break;
+    case P9_TGETLOCK:
+        fprintf(llogfile, "TGETLOCK: (");
+        pprint_int32(pdu, 0, &offset, "fid");
+        pprint_int8(pdu, 0, &offset, ", type");
+        pprint_int64(pdu, 0, &offset, ", start");
+        pprint_int64(pdu, 0, &offset, ", length");
+        pprint_int32(pdu, 0, &offset, ", proc_id");
+        pprint_str(pdu, 0, &offset, ", client_id");
+        break;
+    case P9_RGETLOCK:
+        fprintf(llogfile, "RGETLOCK: (");
+        pprint_int8(pdu, 0, &offset, "type");
+        pprint_int64(pdu, 0, &offset, ", start");
+        pprint_int64(pdu, 0, &offset, ", length");
+        pprint_int32(pdu, 0, &offset, ", proc_id");
+        pprint_str(pdu, 0, &offset, ", client_id");
+        break;
     default:
         fprintf(llogfile, "unknown(%d): (", pdu->id);
         break;

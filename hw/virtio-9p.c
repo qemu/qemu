@@ -3203,6 +3203,46 @@ out:
     qemu_free(vs);
 }
 
+/*
+ * When a TGETLOCK request comes, always return success because all lock
+ * handling is done by client's VFS layer.
+ */
+
+static void v9fs_getlock(V9fsState *s, V9fsPDU *pdu)
+{
+    int32_t fid, err = 0;
+    V9fsGetlockState *vs;
+
+    vs = qemu_mallocz(sizeof(*vs));
+    vs->pdu = pdu;
+    vs->offset = 7;
+
+    vs->glock = qemu_malloc(sizeof(*vs->glock));
+    pdu_unmarshal(vs->pdu, vs->offset, "dbqqds", &fid, &vs->glock->type,
+                &vs->glock->start, &vs->glock->length, &vs->glock->proc_id,
+		&vs->glock->client_id);
+
+    vs->fidp = lookup_fid(s, fid);
+    if (vs->fidp == NULL) {
+        err = -ENOENT;
+        goto out;
+    }
+
+    err = v9fs_do_fstat(s, vs->fidp->fs.fd, &vs->stbuf);
+    if (err < 0) {
+        err = -errno;
+        goto out;
+    }
+    vs->glock->type = F_UNLCK;
+    vs->offset += pdu_marshal(vs->pdu, vs->offset, "bqqds", vs->glock->type,
+                vs->glock->start, vs->glock->length, vs->glock->proc_id,
+		&vs->glock->client_id);
+out:
+    complete_pdu(s, vs->pdu, err);
+    qemu_free(vs->glock);
+    qemu_free(vs);
+}
+
 static void v9fs_mkdir_post_lstat(V9fsState *s, V9fsMkState *vs, int err)
 {
     if (err == -1) {
@@ -3466,6 +3506,7 @@ static pdu_handler_t *pdu_handlers[] = {
     [P9_TMKNOD] = v9fs_mknod,
     [P9_TRENAME] = v9fs_rename,
     [P9_TLOCK] = v9fs_lock,
+    [P9_TGETLOCK] = v9fs_getlock,
     [P9_TMKDIR] = v9fs_mkdir,
     [P9_TVERSION] = v9fs_version,
     [P9_TLOPEN] = v9fs_open,
