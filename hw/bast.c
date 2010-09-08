@@ -132,9 +132,6 @@ static void stcb_init(ram_addr_t _ram_size,
     cpu_register_physical_memory(BAST_NOR_RO_BASE,
                                  BAST_NOR_SIZE,
                                  flash_mem | IO_MEM_ROM);
-    //~ cpu_register_physical_memory(BAST_NOR_RO_BASE + 0x80000000,
-                                 //~ BAST_NOR_SIZE,
-                                 //~ flash_mem | IO_MEM_ROM);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     /* Aquire flash contents and register pflash device */
