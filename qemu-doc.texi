@@ -620,6 +620,13 @@ qemu linux1.img -hdb nbd:unix:/tmp/my_socket
 qemu linux2.img -hdb nbd:unix:/tmp/my_socket
 @end example
 
+If the nbd-server uses named exports (since NBD 2.9.18), you must use the
+"exportname" option:
+@example
+qemu -cdrom nbd:localhost:exportname=debian-500-ppc-netinst
+qemu -cdrom nbd:localhost:exportname=openSUSE-11.1-ppc-netinst
+@end example
+
 @node pcsys_network
 @section Network emulation
 

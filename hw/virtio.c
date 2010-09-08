@@ -360,11 +360,26 @@ int virtqueue_avail_bytes(VirtQueue *vq, int in_bytes, int out_bytes)
     return 0;
 }
 
+void virtqueue_map_sg(struct iovec *sg, target_phys_addr_t *addr,
+    size_t num_sg, int is_write)
+{
+    unsigned int i;
+    target_phys_addr_t len;
+
+    for (i = 0; i < num_sg; i++) {
+        len = sg[i].iov_len;
+        sg[i].iov_base = cpu_physical_memory_map(addr[i], &len, is_write);
+        if (sg[i].iov_base == NULL || len != sg[i].iov_len) {
+            fprintf(stderr, "virtio: trying to map MMIO memory\n");
+            exit(1);
+        }
+    }
+}
+
 int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
 {
     unsigned int i, head, max;
     target_phys_addr_t desc_pa = vq->vring.desc;
-    target_phys_addr_t len;
 
     if (!virtqueue_num_heads(vq, vq->last_avail_idx))
         return 0;
@@ -388,28 +403,19 @@ int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
         i = 0;
     }
 
+    /* Collect all the descriptors */
     do {
         struct iovec *sg;
-        int is_write = 0;
 
         if (vring_desc_flags(desc_pa, i) & VRING_DESC_F_WRITE) {
             elem->in_addr[elem->in_num] = vring_desc_addr(desc_pa, i);
             sg = &elem->in_sg[elem->in_num++];
-            is_write = 1;
-        } else
+        } else {
+            elem->out_addr[elem->out_num] = vring_desc_addr(desc_pa, i);
             sg = &elem->out_sg[elem->out_num++];
-
-        /* Grab the first descriptor, and check it's OK. */
-        sg->iov_len = vring_desc_len(desc_pa, i);
-        len = sg->iov_len;
-
-        sg->iov_base = cpu_physical_memory_map(vring_desc_addr(desc_pa, i),
-                                               &len, is_write);
-
-        if (sg->iov_base == NULL || len != sg->iov_len) {
-            fprintf(stderr, "virtio: trying to map MMIO memory\n");
-            exit(1);
         }
+
+        sg->iov_len = vring_desc_len(desc_pa, i);
 
         /* If we've got too many, that implies a descriptor loop. */
         if ((elem->in_num + elem->out_num) > max) {
@@ -417,6 +423,10 @@ int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
             exit(1);
         }
     } while ((i = virtqueue_next_desc(desc_pa, i, max)) != max);
+
+    /* Now map what we have collected */
+    virtqueue_map_sg(elem->in_sg, elem->in_addr, elem->in_num, 1);
+    virtqueue_map_sg(elem->out_sg, elem->out_addr, elem->out_num, 0);
 
     elem->index = head;
 

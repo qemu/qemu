@@ -8,16 +8,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-#ifdef _WIN32
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#else
-#include <netdb.h>
-#include <netinet/tcp.h>
-
-#define closesocket(s) close(s)
-#endif
 
 #include "qemu-common.h"
 #include "qemu-error.h"
