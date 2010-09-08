@@ -600,7 +600,7 @@ static void lsi_queue_command(LSIState *s)
 {
     lsi_request *p = s->current;
 
-    DPRINTF("Queueing tag=0x%x\n", s->current_tag);
+    DPRINTF("Queueing tag=0x%x\n", p->tag);
     assert(s->current != NULL);
     assert(s->current->dma_len == 0);
     QTAILQ_INSERT_TAIL(&s->queue, s->current, next);
@@ -880,7 +880,7 @@ static void lsi_do_msgout(LSIState *s)
             break;
         case 0x20: /* SIMPLE queue */
             s->select_tag |= lsi_get_msgbyte(s) | LSI_TAG_VALID;
-            DPRINTF("SIMPLE queue tag=0x%x\n", s->current_tag & 0xff);
+            DPRINTF("SIMPLE queue tag=0x%x\n", s->select_tag & 0xff);
             break;
         case 0x21: /* HEAD of queue */
             BADF("HEAD queue not implemented\n");

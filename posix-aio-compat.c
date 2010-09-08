@@ -599,6 +599,7 @@ BlockDriverAIOCB *paio_ioctl(BlockDriverState *bs, int fd,
     acb->aio_type = QEMU_AIO_IOCTL;
     acb->aio_fildes = fd;
     acb->ev_signo = SIGUSR2;
+    acb->async_context_id = get_async_context_id();
     acb->aio_offset = 0;
     acb->aio_ioctl_buf = buf;
     acb->aio_ioctl_cmd = req;

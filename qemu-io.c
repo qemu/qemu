@@ -1427,11 +1427,8 @@ alloc_f(int argc, char **argv)
 
 	cvtstr(offset, s1, sizeof(s1));
 
-	if (nb_sectors == 1)
-		printf("sector allocated at offset %s\n", s1);
-	else
-		printf("%d/%d sectors allocated at offset %s\n",
-			sum_alloc, nb_sectors, s1);
+	printf("%d/%d sectors allocated at offset %s\n",
+	       sum_alloc, nb_sectors, s1);
 	return 0;
 }
 

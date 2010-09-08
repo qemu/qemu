@@ -43,6 +43,7 @@ typedef struct VirtIOS390Device {
     uint32_t host_features;
     /* Max. number of ports we can have for a the virtio-serial device */
     uint32_t max_virtserial_ports;
+    virtio_net_conf net;
 } VirtIOS390Device;
 
 typedef struct VirtIOS390Bus {

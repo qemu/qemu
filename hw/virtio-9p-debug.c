@@ -169,14 +169,36 @@ static void pprint_stat(V9fsPDU *pdu, int rx, size_t *offsetp, const char *name)
     pprint_str(pdu, rx, offsetp, ", uid");
     pprint_str(pdu, rx, offsetp, ", gid");
     pprint_str(pdu, rx, offsetp, ", muid");
-    if (dotu) {
-        pprint_str(pdu, rx, offsetp, ", extension");
-        pprint_int32(pdu, rx, offsetp, ", uid");
-        pprint_int32(pdu, rx, offsetp, ", gid");
-        pprint_int32(pdu, rx, offsetp, ", muid");
-    }
+    pprint_str(pdu, rx, offsetp, ", extension");
+    pprint_int32(pdu, rx, offsetp, ", uid");
+    pprint_int32(pdu, rx, offsetp, ", gid");
+    pprint_int32(pdu, rx, offsetp, ", muid");
     fprintf(llogfile, "}");
 }
+
+static void pprint_stat_dotl(V9fsPDU *pdu, int rx, size_t *offsetp,
+                                                  const char *name)
+{
+    fprintf(llogfile, "%s={", name);
+    pprint_qid(pdu, rx, offsetp, "qid");
+    pprint_int32(pdu, rx, offsetp, ", st_mode");
+    pprint_int64(pdu, rx, offsetp, ", st_nlink");
+    pprint_int32(pdu, rx, offsetp, ", st_uid");
+    pprint_int32(pdu, rx, offsetp, ", st_gid");
+    pprint_int64(pdu, rx, offsetp, ", st_rdev");
+    pprint_int64(pdu, rx, offsetp, ", st_size");
+    pprint_int64(pdu, rx, offsetp, ", st_blksize");
+    pprint_int64(pdu, rx, offsetp, ", st_blocks");
+    pprint_int64(pdu, rx, offsetp, ", atime");
+    pprint_int64(pdu, rx, offsetp, ", atime_nsec");
+    pprint_int64(pdu, rx, offsetp, ", mtime");
+    pprint_int64(pdu, rx, offsetp, ", mtime_nsec");
+    pprint_int64(pdu, rx, offsetp, ", ctime");
+    pprint_int64(pdu, rx, offsetp, ", ctime_nsec");
+    fprintf(llogfile, "}");
+}
+
+
 
 static void pprint_strs(V9fsPDU *pdu, int rx, size_t *offsetp, const char *name)
 {
@@ -330,6 +352,30 @@ void pprint_pdu(V9fsPDU *pdu)
     BUG_ON(!llogfile);
 
     switch (pdu->id) {
+    case P9_TREADDIR:
+        fprintf(llogfile, "TREADDIR: (");
+        pprint_int32(pdu, 0, &offset, "fid");
+        pprint_int64(pdu, 0, &offset, ", initial offset");
+        pprint_int32(pdu, 0, &offset, ", max count");
+        break;
+    case P9_RREADDIR:
+        fprintf(llogfile, "RREADDIR: (");
+        pprint_int32(pdu, 1, &offset, "count");
+#ifdef DEBUG_DATA
+        pprint_data(pdu, 1, &offset, ", data");
+#endif
+        break;
+    case P9_TMKDIR:
+        fprintf(llogfile, "TMKDIR: (");
+        pprint_int32(pdu, 0, &offset, "fid");
+        pprint_str(pdu, 0, &offset, "name");
+        pprint_int32(pdu, 0, &offset, "mode");
+        pprint_int32(pdu, 0, &offset, "gid");
+        break;
+    case P9_RMKDIR:
+        fprintf(llogfile, "RMKDIR: (");
+        pprint_qid(pdu, 0, &offset, "qid");
+        break;
     case P9_TVERSION:
         fprintf(llogfile, "TVERSION: (");
         pprint_int32(pdu, 0, &offset, "msize");
@@ -340,14 +386,20 @@ void pprint_pdu(V9fsPDU *pdu)
         pprint_int32(pdu, 1, &offset, "msize");
         pprint_str(pdu, 1, &offset, ", version");
         break;
+    case P9_TGETATTR:
+        fprintf(llogfile, "TGETATTR: (");
+        pprint_int32(pdu, 0, &offset, "fid");
+        break;
+    case P9_RGETATTR:
+        fprintf(llogfile, "RGETATTR: (");
+        pprint_stat_dotl(pdu, 1, &offset, "getattr");
+        break;
     case P9_TAUTH:
         fprintf(llogfile, "TAUTH: (");
         pprint_int32(pdu, 0, &offset, "afid");
         pprint_str(pdu, 0, &offset, ", uname");
         pprint_str(pdu, 0, &offset, ", aname");
-        if (dotu) {
-            pprint_int32(pdu, 0, &offset, ", n_uname");
-        }
+        pprint_int32(pdu, 0, &offset, ", n_uname");
         break;
     case P9_RAUTH:
         fprintf(llogfile, "RAUTH: (");
@@ -359,9 +411,7 @@ void pprint_pdu(V9fsPDU *pdu)
         pprint_int32(pdu, 0, &offset, ", afid");
         pprint_str(pdu, 0, &offset, ", uname");
         pprint_str(pdu, 0, &offset, ", aname");
-        if (dotu) {
-            pprint_int32(pdu, 0, &offset, ", n_uname");
-        }
+        pprint_int32(pdu, 0, &offset, ", n_uname");
         break;
     case P9_RATTACH:
         fprintf(llogfile, "RATTACH: (");
@@ -373,9 +423,7 @@ void pprint_pdu(V9fsPDU *pdu)
     case P9_RERROR:
         fprintf(llogfile, "RERROR: (");
         pprint_str(pdu, 1, &offset, "ename");
-        if (dotu) {
-            pprint_int32(pdu, 1, &offset, ", ecode");
-        }
+        pprint_int32(pdu, 1, &offset, ", ecode");
         break;
     case P9_TFLUSH:
         fprintf(llogfile, "TFLUSH: (");
@@ -410,14 +458,49 @@ void pprint_pdu(V9fsPDU *pdu)
         pprint_str(pdu, 0, &offset, ", name");
         pprint_int32(pdu, 0, &offset, ", perm");
         pprint_int8(pdu, 0, &offset, ", mode");
-        if (dotu) {
-            pprint_str(pdu, 0, &offset, ", extension");
-        }
+        pprint_str(pdu, 0, &offset, ", extension");
         break;
     case P9_RCREATE:
         fprintf(llogfile, "RCREATE: (");
         pprint_qid(pdu, 1, &offset, "qid");
         pprint_int32(pdu, 1, &offset, ", iounit");
+        break;
+    case P9_TSYMLINK:
+        fprintf(llogfile, "TSYMLINK: (");
+        pprint_int32(pdu, 0, &offset, "fid");
+        pprint_str(pdu, 0, &offset, ", name");
+        pprint_str(pdu, 0, &offset, ", symname");
+        pprint_int32(pdu, 0, &offset, ", gid");
+        break;
+    case P9_RSYMLINK:
+        fprintf(llogfile, "RSYMLINK: (");
+        pprint_qid(pdu, 1, &offset, "qid");
+        break;
+    case P9_TLCREATE:
+        fprintf(llogfile, "TLCREATE: (");
+        pprint_int32(pdu, 0, &offset, "dfid");
+        pprint_str(pdu, 0, &offset, ", name");
+        pprint_int32(pdu, 0, &offset, ", flags");
+        pprint_int32(pdu, 0, &offset, ", mode");
+        pprint_int32(pdu, 0, &offset, ", gid");
+        break;
+    case P9_RLCREATE:
+        fprintf(llogfile, "RLCREATE: (");
+        pprint_qid(pdu, 1, &offset, "qid");
+        pprint_int32(pdu, 1, &offset, ", iounit");
+        break;
+    case P9_TMKNOD:
+	fprintf(llogfile, "TMKNOD: (");
+        pprint_int32(pdu, 0, &offset, "fid");
+        pprint_str(pdu, 0, &offset, "name");
+        pprint_int32(pdu, 0, &offset, "mode");
+        pprint_int32(pdu, 0, &offset, "major");
+        pprint_int32(pdu, 0, &offset, "minor");
+        pprint_int32(pdu, 0, &offset, "gid");
+        break;
+    case P9_RMKNOD:
+        fprintf(llogfile, "RMKNOD: )");
+        pprint_qid(pdu, 0, &offset, "qid");
         break;
     case P9_TREAD:
         fprintf(llogfile, "TREAD: (");
@@ -452,6 +535,15 @@ void pprint_pdu(V9fsPDU *pdu)
     case P9_RCLUNK:
         fprintf(llogfile, "RCLUNK: (");
         break;
+    case P9_TLINK:
+        fprintf(llogfile, "TLINK: (");
+        pprint_int32(pdu, 0, &offset, "fid");
+        pprint_str(pdu, 0, &offset, ", oldpath");
+        pprint_str(pdu, 0, &offset, ", newpath");
+        break;
+    case P9_RLINK:
+        fprintf(llogfile, "RLINK: (");
+        break;
     case P9_TREMOVE:
         fprintf(llogfile, "TREMOVE: (");
         pprint_int32(pdu, 0, &offset, "fid");
@@ -476,6 +568,25 @@ void pprint_pdu(V9fsPDU *pdu)
         break;
     case P9_RWSTAT:
         fprintf(llogfile, "RWSTAT: (");
+        break;
+    case P9_TXATTRWALK:
+        fprintf(llogfile, "TXATTRWALK: (");
+        pprint_int32(pdu, 0, &offset, "fid");
+        pprint_int32(pdu, 0, &offset, ", newfid");
+        pprint_str(pdu, 0, &offset, ", xattr name");
+        break;
+    case P9_RXATTRWALK:
+        fprintf(llogfile, "RXATTRWALK: (");
+        pprint_int64(pdu, 1, &offset, "xattrsize");
+    case P9_TXATTRCREATE:
+        fprintf(llogfile, "TXATTRCREATE: (");
+        pprint_int32(pdu, 0, &offset, "fid");
+        pprint_str(pdu, 0, &offset, ", name");
+        pprint_int64(pdu, 0, &offset, ", xattrsize");
+        pprint_int32(pdu, 0, &offset, ", flags");
+        break;
+    case P9_RXATTRCREATE:
+        fprintf(llogfile, "RXATTRCREATE: (");
         break;
     default:
         fprintf(llogfile, "unknown(%d): (", pdu->id);

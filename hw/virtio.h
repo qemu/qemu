@@ -81,6 +81,7 @@ typedef struct VirtQueueElement
     unsigned int out_num;
     unsigned int in_num;
     target_phys_addr_t in_addr[VIRTQUEUE_MAX_SIZE];
+    target_phys_addr_t out_addr[VIRTQUEUE_MAX_SIZE];
     struct iovec in_sg[VIRTQUEUE_MAX_SIZE];
     struct iovec out_sg[VIRTQUEUE_MAX_SIZE];
 } VirtQueueElement;
@@ -142,6 +143,8 @@ void virtqueue_flush(VirtQueue *vq, unsigned int count);
 void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len, unsigned int idx);
 
+void virtqueue_map_sg(struct iovec *sg, target_phys_addr_t *addr,
+    size_t num_sg, int is_write);
 int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem);
 int virtqueue_avail_bytes(VirtQueue *vq, int in_bytes, int out_bytes);
 
@@ -185,7 +188,9 @@ void virtio_bind_device(VirtIODevice *vdev, const VirtIOBindings *binding,
 
 /* Base devices.  */
 VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf);
-VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf);
+struct virtio_net_conf;
+VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
+                              struct virtio_net_conf *net);
 VirtIODevice *virtio_serial_init(DeviceState *dev, uint32_t max_nr_ports);
 VirtIODevice *virtio_balloon_init(DeviceState *dev);
 #ifdef CONFIG_LINUX

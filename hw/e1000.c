@@ -345,7 +345,7 @@ is_vlan_txd(uint32_t txd_lower)
 
 /* FCS aka Ethernet CRC-32. We don't get it from backends and can't
  * fill it in, just pad descriptor length by 4 bytes unless guest
- * told us to trip it off the packet. */
+ * told us to strip it off the packet. */
 static inline int
 fcs_len(E1000State *s)
 {
@@ -690,9 +690,14 @@ e1000_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
 
     s->mac_reg[GPRC]++;
     s->mac_reg[TPR]++;
-    n = s->mac_reg[TORL];
-    if ((s->mac_reg[TORL] += size) < n)
+    /* TOR - Total Octets Received:
+     * This register includes bytes received in a packet from the <Destination
+     * Address> field through the <CRC> field, inclusively.
+     */
+    n = s->mac_reg[TORL] + size + /* Always include FCS length. */ 4;
+    if (n < s->mac_reg[TORL])
         s->mac_reg[TORH]++;
+    s->mac_reg[TORL] = n;
 
     n = E1000_ICS_RXT0;
     if ((rdt = s->mac_reg[RDT]) < s->mac_reg[RDH])

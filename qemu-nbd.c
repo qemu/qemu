@@ -230,6 +230,7 @@ int main(int argc, char **argv)
     int nb_fds = 0;
     int max_fd;
     int persistent = 0;
+    uint32_t nbdflags;
 
     while ((ch = getopt_long(argc, argv, sopt, lopt, &opt_ind)) != -1) {
         switch (ch) {
@@ -398,7 +399,8 @@ int main(int argc, char **argv)
                 goto out;
             }
 
-            ret = nbd_receive_negotiate(sock, &size, &blocksize);
+            ret = nbd_receive_negotiate(sock, NULL, &nbdflags,
+					&size, &blocksize);
             if (ret == -1) {
                 ret = 1;
                 goto out;

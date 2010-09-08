@@ -135,7 +135,7 @@ static void scsi_read_complete(void * opaque, int ret)
         scsi_command_complete(r, CHECK_CONDITION, NO_SENSE);
         return;
     }
-    DPRINTF("Data ready tag=0x%x len=%" PRId64 "\n", r->req.tag, r->iov.iov_len);
+    DPRINTF("Data ready tag=0x%x len=%zd\n", r->req.tag, r->iov.iov_len);
 
     r->req.bus->complete(r->req.bus, SCSI_REASON_DATA, r->req.tag, r->iov.iov_len);
 }
@@ -155,7 +155,7 @@ static void scsi_read_data(SCSIDevice *d, uint32_t tag)
         return;
     }
     if (r->sector_count == (uint32_t)-1) {
-        DPRINTF("Read buf_len=%" PRId64 "\n", r->iov.iov_len);
+        DPRINTF("Read buf_len=%zd\n", r->iov.iov_len);
         r->sector_count = 0;
         r->req.bus->complete(r->req.bus, SCSI_REASON_DATA, r->req.tag, r->iov.iov_len);
         return;
@@ -486,16 +486,26 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     return buflen;
 }
 
-static int mode_sense_page(SCSIRequest *req, int page, uint8_t *p)
+static int mode_sense_page(SCSIRequest *req, int page, uint8_t *p,
+                           int page_control)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
     BlockDriverState *bdrv = s->bs;
     int cylinders, heads, secs;
 
+    /*
+     * If Changeable Values are requested, a mask denoting those mode parameters
+     * that are changeable shall be returned. As we currently don't support
+     * parameter changes via MODE_SELECT all bits are returned set to zero.
+     * The buffer was already menset to zero by the caller of this function.
+     */
     switch (page) {
     case 4: /* Rigid disk device geometry page. */
         p[0] = 4;
         p[1] = 0x16;
+        if (page_control == 1) { /* Changeable Values */
+            return p[1] + 2;
+        }
         /* if a geometry hint is available, use it */
         bdrv_get_geometry_hint(bdrv, &cylinders, &heads, &secs);
         p[2] = (cylinders >> 16) & 0xff;
@@ -520,11 +530,14 @@ static int mode_sense_page(SCSIRequest *req, int page, uint8_t *p)
         /* Medium rotation rate [rpm], 5400 rpm */
         p[20] = (5400 >> 8) & 0xff;
         p[21] = 5400 & 0xff;
-        return 0x16;
+        return p[1] + 2;
 
     case 5: /* Flexible disk device geometry page. */
         p[0] = 5;
         p[1] = 0x1e;
+        if (page_control == 1) { /* Changeable Values */
+            return p[1] + 2;
+        }
         /* Transfer rate [kbit/s], 5Mbit/s */
         p[2] = 5000 >> 8;
         p[3] = 5000 & 0xff;
@@ -556,21 +569,27 @@ static int mode_sense_page(SCSIRequest *req, int page, uint8_t *p)
         /* Medium rotation rate [rpm], 5400 rpm */
         p[28] = (5400 >> 8) & 0xff;
         p[29] = 5400 & 0xff;
-        return 0x1e;
+        return p[1] + 2;
 
     case 8: /* Caching page.  */
         p[0] = 8;
         p[1] = 0x12;
+        if (page_control == 1) { /* Changeable Values */
+            return p[1] + 2;
+        }
         if (bdrv_enable_write_cache(s->bs)) {
             p[2] = 4; /* WCE */
         }
-        return 20;
+        return p[1] + 2;
 
     case 0x2a: /* CD Capabilities and Mechanical Status page. */
         if (bdrv_get_type_hint(bdrv) != BDRV_TYPE_CDROM)
             return 0;
         p[0] = 0x2a;
         p[1] = 0x14;
+        if (page_control == 1) { /* Changeable Values */
+            return p[1] + 2;
+        }
         p[2] = 3; // CD-R & CD-RW read
         p[3] = 0; // Writing not supported
         p[4] = 0x7f; /* Audio, composite, digital out,
@@ -594,7 +613,7 @@ static int mode_sense_page(SCSIRequest *req, int page, uint8_t *p)
         p[19] = (16 * 176) & 0xff;
         p[20] = (16 * 176) >> 8; // 16x write speed current
         p[21] = (16 * 176) & 0xff;
-        return 22;
+        return p[1] + 2;
 
     default:
         return 0;
@@ -605,29 +624,46 @@ static int scsi_disk_emulate_mode_sense(SCSIRequest *req, uint8_t *outbuf)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
     uint64_t nb_sectors;
-    int page, dbd, buflen;
+    int page, dbd, buflen, page_control;
     uint8_t *p;
+    uint8_t dev_specific_param;
 
     dbd = req->cmd.buf[1]  & 0x8;
     page = req->cmd.buf[2] & 0x3f;
-    DPRINTF("Mode Sense (page %d, len %zd)\n", page, req->cmd.xfer);
+    page_control = (req->cmd.buf[2] & 0xc0) >> 6;
+    DPRINTF("Mode Sense(%d) (page %d, xfer %zd, page_control %d)\n",
+        (req->cmd.buf[0] == MODE_SENSE) ? 6 : 10, page, req->cmd.xfer, page_control);
     memset(outbuf, 0, req->cmd.xfer);
     p = outbuf;
 
-    p[1] = 0; /* Default media type.  */
-    p[3] = 0; /* Block descriptor length.  */
     if (bdrv_is_read_only(s->bs)) {
-        p[2] = 0x80; /* Readonly.  */
+        dev_specific_param = 0x80; /* Readonly.  */
+    } else {
+        dev_specific_param = 0x00;
     }
-    p += 4;
+
+    if (req->cmd.buf[0] == MODE_SENSE) {
+        p[1] = 0; /* Default media type.  */
+        p[2] = dev_specific_param;
+        p[3] = 0; /* Block descriptor length.  */
+        p += 4;
+    } else { /* MODE_SENSE_10 */
+        p[2] = 0; /* Default media type.  */
+        p[3] = dev_specific_param;
+        p[6] = p[7] = 0; /* Block descriptor length.  */
+        p += 8;
+    }
 
     bdrv_get_geometry(s->bs, &nb_sectors);
-    if ((~dbd) & nb_sectors) {
-        outbuf[3] = 8; /* Block descriptor length  */
+    if (!dbd && nb_sectors) {
+        if (req->cmd.buf[0] == MODE_SENSE) {
+            outbuf[3] = 8; /* Block descriptor length  */
+        } else { /* MODE_SENSE_10 */
+            outbuf[7] = 8; /* Block descriptor length  */
+        }
         nb_sectors /= s->cluster_size;
-        nb_sectors--;
         if (nb_sectors > 0xffffff)
-            nb_sectors = 0xffffff;
+            nb_sectors = 0;
         p[0] = 0; /* media density code */
         p[1] = (nb_sectors >> 16) & 0xff;
         p[2] = (nb_sectors >> 8) & 0xff;
@@ -639,21 +675,37 @@ static int scsi_disk_emulate_mode_sense(SCSIRequest *req, uint8_t *outbuf)
         p += 8;
     }
 
+    if (page_control == 3) { /* Saved Values */
+        return -1; /* ILLEGAL_REQUEST */
+    }
+
     switch (page) {
     case 0x04:
     case 0x05:
     case 0x08:
     case 0x2a:
-        p += mode_sense_page(req, page, p);
+        p += mode_sense_page(req, page, p, page_control);
         break;
     case 0x3f:
-        p += mode_sense_page(req, 0x08, p);
-        p += mode_sense_page(req, 0x2a, p);
+        p += mode_sense_page(req, 0x08, p, page_control);
+        p += mode_sense_page(req, 0x2a, p, page_control);
         break;
+    default:
+        return -1; /* ILLEGAL_REQUEST */
     }
 
     buflen = p - outbuf;
-    outbuf[0] = buflen - 4;
+    /*
+     * The mode data length field specifies the length in bytes of the
+     * following data that is available to be transferred. The mode data
+     * length does not include itself.
+     */
+    if (req->cmd.buf[0] == MODE_SENSE) {
+        outbuf[0] = buflen - 1;
+    } else { /* MODE_SENSE_10 */
+        outbuf[0] = ((buflen - 2) >> 8) & 0xff;
+        outbuf[1] = (buflen - 2) & 0xff;
+    }
     if (buflen > req->cmd.xfer)
         buflen = req->cmd.xfer;
     return buflen;
@@ -840,6 +892,12 @@ static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
         break;
     case VERIFY:
         break;
+    case REZERO_UNIT:
+        DPRINTF("Rezero Unit\n");
+        if (!bdrv_is_inserted(s->bs)) {
+            goto not_ready;
+        }
+        break;
     default:
         goto illegal_request;
     }
@@ -959,6 +1017,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case SERVICE_ACTION_IN:
     case REPORT_LUNS:
     case VERIFY:
+    case REZERO_UNIT:
         rc = scsi_disk_emulate_command(&r->req, outbuf);
         if (rc > 0) {
             r->iov.iov_len = rc;
@@ -982,12 +1041,39 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case WRITE_10:
     case WRITE_12:
     case WRITE_16:
-        DPRINTF("Write (sector %" PRId64 ", count %d)\n", lba, len);
+    case WRITE_VERIFY:
+    case WRITE_VERIFY_12:
+    case WRITE_VERIFY_16:
+        DPRINTF("Write %s(sector %" PRId64 ", count %d)\n",
+                (command & 0xe) == 0xe ? "And Verify " : "", lba, len);
         if (lba > s->max_lba)
             goto illegal_lba;
         r->sector = lba * s->cluster_size;
         r->sector_count = len * s->cluster_size;
         is_write = 1;
+        break;
+    case MODE_SELECT:
+        DPRINTF("Mode Select(6) (len %d)\n", len);
+        /* We don't support mode parameter changes.
+           Allow the mode parameter header + block descriptors only. */
+        if (len > 12) {
+            goto fail;
+        }
+        break;
+    case MODE_SELECT_10:
+        DPRINTF("Mode Select(10) (len %d)\n", len);
+        /* We don't support mode parameter changes.
+           Allow the mode parameter header + block descriptors only. */
+        if (len > 16) {
+            goto fail;
+        }
+        break;
+    case SEEK_6:
+    case SEEK_10:
+        DPRINTF("Seek(%d) (sector %" PRId64 ")\n", command == SEEK_6 ? 6 : 10, lba);
+        if (lba > s->max_lba) {
+            goto illegal_lba;
+        }
         break;
     default:
 	DPRINTF("Unknown SCSI command (%2.2x)\n", buf[0]);

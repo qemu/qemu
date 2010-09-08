@@ -129,6 +129,35 @@ int tap_probe_has_ufo(int fd)
     return 1;
 }
 
+/* Verify that we can assign given length */
+int tap_probe_vnet_hdr_len(int fd, int len)
+{
+    int orig;
+    if (ioctl(fd, TUNGETVNETHDRSZ, &orig) == -1) {
+        return 0;
+    }
+    if (ioctl(fd, TUNSETVNETHDRSZ, &len) == -1) {
+        return 0;
+    }
+    /* Restore original length: we can't handle failure. */
+    if (ioctl(fd, TUNSETVNETHDRSZ, &orig) == -1) {
+        fprintf(stderr, "TUNGETVNETHDRSZ ioctl() failed: %s. Exiting.\n",
+                strerror(errno));
+        assert(0);
+        return -errno;
+    }
+    return 1;
+}
+
+void tap_fd_set_vnet_hdr_len(int fd, int len)
+{
+    if (ioctl(fd, TUNSETVNETHDRSZ, &len) == -1) {
+        fprintf(stderr, "TUNSETVNETHDRSZ ioctl() failed: %s. Exiting.\n",
+                strerror(errno));
+        assert(0);
+    }
+}
+
 void tap_fd_set_offload(int fd, int csum, int tso4,
                         int tso6, int ecn, int ufo)
 {

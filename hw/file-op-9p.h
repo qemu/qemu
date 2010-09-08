@@ -24,8 +24,19 @@
 
 typedef enum
 {
-    SM_PASSTHROUGH = 1, /* uid/gid set on fileserver files */
-    SM_MAPPED,  /* uid/gid part of xattr */
+    /*
+     * Server will try to set uid/gid.
+     * On failure ignore the error.
+     */
+    SM_NONE = 0,
+    /*
+     * uid/gid set on fileserver files
+     */
+    SM_PASSTHROUGH = 1,
+    /*
+     * uid/gid part of xattr
+     */
+    SM_MAPPED,
 } SecModel;
 
 typedef struct FsCred
@@ -52,7 +63,7 @@ typedef struct FileOperations
     int (*chmod)(FsContext *, const char *, FsCred *);
     int (*chown)(FsContext *, const char *, FsCred *);
     int (*mknod)(FsContext *, const char *, FsCred *);
-    int (*utime)(FsContext *, const char *, const struct utimbuf *);
+    int (*utimensat)(FsContext *, const char *, const struct timespec *);
     int (*remove)(FsContext *, const char *);
     int (*symlink)(FsContext *, const char *, const char *, FsCred *);
     int (*link)(FsContext *, const char *, const char *);
@@ -74,6 +85,13 @@ typedef struct FileOperations
     int (*rename)(FsContext *, const char *, const char *);
     int (*truncate)(FsContext *, const char *, off_t);
     int (*fsync)(FsContext *, int);
+    int (*statfs)(FsContext *s, const char *path, struct statfs *stbuf);
+    ssize_t (*lgetxattr)(FsContext *, const char *,
+                         const char *, void *, size_t);
+    ssize_t (*llistxattr)(FsContext *, const char *, void *, size_t);
+    int (*lsetxattr)(FsContext *, const char *,
+                     const char *, void *, size_t, int);
+    int (*lremovexattr)(FsContext *, const char *, const char *);
     void *opaque;
 } FileOperations;
 #endif
