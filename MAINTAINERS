@@ -14,7 +14,7 @@ x86                Fabrice Bellard
 ARM                Paul Brook
 SPARC              Blue Swirl
 MIPS               ?
-PowerPC            ?
+PowerPC            Alexander Graf
 M68K               Paul Brook
 SH4                ?
 CRIS               Edgar E. Iglesias
@@ -48,9 +48,9 @@ MIPS
   mips_mipssim.c          ?
 PowerPC
   ppc_prep.c              ?
-  ppc_oldworld.c          Fabrice Bellard
-  ppc_chrp.c              Fabrice Bellard
-  ppc405_boards.c         ?
+  ppc_oldworld.c          Alexander Graf
+  ppc_newworld.c          Alexander Graf
+  ppc405_boards.c         Alexander Graf
 M86K
   mcf5208.c               Paul Brook
   an5206.c                Paul Brook

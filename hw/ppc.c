@@ -28,6 +28,8 @@
 #include "nvram.h"
 #include "qemu-log.h"
 #include "loader.h"
+#include "kvm.h"
+#include "kvm_ppc.h"
 
 //#define PPC_DEBUG_IRQ
 //#define PPC_DEBUG_TB
@@ -50,6 +52,8 @@ static void cpu_ppc_tb_start (CPUState *env);
 
 static void ppc_set_irq (CPUState *env, int n_IRQ, int level)
 {
+    unsigned int old_pending = env->pending_interrupts;
+
     if (level) {
         env->pending_interrupts |= 1 << n_IRQ;
         cpu_interrupt(env, CPU_INTERRUPT_HARD);
@@ -58,6 +62,13 @@ static void ppc_set_irq (CPUState *env, int n_IRQ, int level)
         if (env->pending_interrupts == 0)
             cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
     }
+
+    if (old_pending != env->pending_interrupts) {
+#ifdef CONFIG_KVM
+        kvmppc_set_interrupt(env, n_IRQ, level);
+#endif
+    }
+
     LOG_IRQ("%s: %p n_IRQ %d level %d => pending %08" PRIx32
                 "req %08x\n", __func__, env, n_IRQ, level,
                 env->pending_interrupts, env->interrupt_request);

@@ -37,6 +37,9 @@
     do { } while (0)
 #endif
 
+static int cap_interrupt_unset = false;
+static int cap_interrupt_level = false;
+
 /* XXX We have a race condition where we actually have a level triggered
  *     interrupt, but the infrastructure can't expose that yet, so the guest
  *     takes but ignores it, goes to sleep and never gets notified that there's
@@ -55,6 +58,18 @@ static void kvm_kick_env(void *env)
 
 int kvm_arch_init(KVMState *s, int smp_cpus)
 {
+#ifdef KVM_CAP_PPC_UNSET_IRQ
+    cap_interrupt_unset = kvm_check_extension(s, KVM_CAP_PPC_UNSET_IRQ);
+#endif
+#ifdef KVM_CAP_PPC_IRQ_LEVEL
+    cap_interrupt_level = kvm_check_extension(s, KVM_CAP_PPC_IRQ_LEVEL);
+#endif
+
+    if (!cap_interrupt_level) {
+        fprintf(stderr, "KVM: Couldn't find level irq capability. Expect the "
+                        "VM to stall at times!\n");
+    }
+
     return 0;
 }
 
@@ -178,6 +193,23 @@ int kvm_arch_get_registers(CPUState *env)
     return 0;
 }
 
+int kvmppc_set_interrupt(CPUState *env, int irq, int level)
+{
+    unsigned virq = level ? KVM_INTERRUPT_SET_LEVEL : KVM_INTERRUPT_UNSET;
+
+    if (irq != PPC_INTERRUPT_EXT) {
+        return 0;
+    }
+
+    if (!kvm_enabled() || !cap_interrupt_unset || !cap_interrupt_level) {
+        return 0;
+    }
+
+    kvm_vcpu_ioctl(env, KVM_INTERRUPT, &virq);
+
+    return 0;
+}
+
 #if defined(TARGET_PPCEMB)
 #define PPC_INPUT_INT PPC40x_INPUT_INT
 #elif defined(TARGET_PPC64)
@@ -193,7 +225,8 @@ int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
 
     /* PowerPC Qemu tracks the various core input pins (interrupt, critical
      * interrupt, reset, etc) in PPC-specific env->irq_input_state. */
-    if (run->ready_for_interrupt_injection &&
+    if (!cap_interrupt_level &&
+        run->ready_for_interrupt_injection &&
         (env->interrupt_request & CPU_INTERRUPT_HARD) &&
         (env->irq_input_state & (1<<PPC_INPUT_INT)))
     {
@@ -201,7 +234,7 @@ int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
          * future KVM could cache it in-kernel to avoid a heavyweight exit
          * when reading the UIC.
          */
-        irq = -1U;
+        irq = KVM_INTERRUPT_SET;
 
         dprintf("injected interrupt %d\n", irq);
         r = kvm_vcpu_ioctl(env, KVM_INTERRUPT, &irq);
