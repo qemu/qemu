@@ -185,7 +185,9 @@ void virtio_bind_device(VirtIODevice *vdev, const VirtIOBindings *binding,
 
 /* Base devices.  */
 VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf);
-VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf);
+struct virtio_net_conf;
+VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
+                              struct virtio_net_conf *net);
 VirtIODevice *virtio_serial_init(DeviceState *dev, uint32_t max_nr_ports);
 VirtIODevice *virtio_balloon_init(DeviceState *dev);
 #ifdef CONFIG_LINUX

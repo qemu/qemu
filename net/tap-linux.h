@@ -27,6 +27,8 @@
 #define TUNSETOFFLOAD  _IOW('T', 208, unsigned int)
 #define TUNGETIFF      _IOR('T', 210, unsigned int)
 #define TUNSETSNDBUF   _IOW('T', 212, int)
+#define TUNGETVNETHDRSZ _IOR('T', 215, int)
+#define TUNSETVNETHDRSZ _IOW('T', 216, int)
 
 #endif
 
@@ -50,6 +52,12 @@ struct virtio_net_hdr
     uint16_t gso_size;
     uint16_t csum_start;
     uint16_t csum_offset;
+};
+
+struct virtio_net_hdr_mrg_rxbuf
+{
+    struct virtio_net_hdr hdr;
+    uint16_t num_buffers;   /* Number of merged rx buffers */
 };
 
 #endif /* QEMU_TAP_H */

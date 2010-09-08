@@ -40,13 +40,17 @@ ssize_t tap_read_packet(int tapfd, uint8_t *buf, int maxlen);
 
 int tap_has_ufo(VLANClientState *vc);
 int tap_has_vnet_hdr(VLANClientState *vc);
+int tap_has_vnet_hdr_len(VLANClientState *vc, int len);
 void tap_using_vnet_hdr(VLANClientState *vc, int using_vnet_hdr);
 void tap_set_offload(VLANClientState *vc, int csum, int tso4, int tso6, int ecn, int ufo);
+void tap_set_vnet_hdr_len(VLANClientState *vc, int len);
 
 int tap_set_sndbuf(int fd, QemuOpts *opts);
 int tap_probe_vnet_hdr(int fd);
+int tap_probe_vnet_hdr_len(int fd, int len);
 int tap_probe_has_ufo(int fd);
 void tap_fd_set_offload(int fd, int csum, int tso4, int tso6, int ecn, int ufo);
+void tap_fd_set_vnet_hdr_len(int fd, int len);
 
 int tap_get_fd(VLANClientState *vc);
 
