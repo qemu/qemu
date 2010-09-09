@@ -457,7 +457,7 @@ static void dec_msr(DisasContext *dc)
                 tcg_gen_mov_tl(cpu_SR[SR_ESR], cpu_R[dc->ra]);
                 break;
             case 0x7:
-                /* Ignored at the moment.  */
+                tcg_gen_andi_tl(cpu_SR[SR_FSR], cpu_R[dc->ra], 31);
                 break;
             default:
                 cpu_abort(dc->env, "unknown mts reg %x\n", sr);
@@ -480,7 +480,7 @@ static void dec_msr(DisasContext *dc)
                 tcg_gen_mov_tl(cpu_R[dc->rd], cpu_SR[SR_ESR]);
                 break;
              case 0x7:
-                tcg_gen_movi_tl(cpu_R[dc->rd], 0);
+                tcg_gen_mov_tl(cpu_R[dc->rd], cpu_SR[SR_FSR]);
                 break;
             case 0xb:
                 tcg_gen_mov_tl(cpu_R[dc->rd], cpu_SR[SR_BTR]);
@@ -1134,18 +1134,115 @@ static void dec_rts(DisasContext *dc)
     tcg_gen_add_tl(env_btarget, cpu_R[dc->ra], *(dec_alu_op_b(dc)));
 }
 
+static int dec_check_fpuv2(DisasContext *dc)
+{
+    int r;
+
+    r = dc->env->pvr.regs[2] & PVR2_USE_FPU2_MASK;
+
+    if (!r && (dc->tb_flags & MSR_EE_FLAG)) {
+        tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_FPU);
+        t_gen_raise_exception(dc, EXCP_HW_EXCP);
+    }
+    return r;
+}
+
 static void dec_fpu(DisasContext *dc)
 {
+    unsigned int fpu_insn;
+
     if ((dc->tb_flags & MSR_EE_FLAG)
           && (dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
           && !((dc->env->pvr.regs[2] & PVR2_USE_FPU_MASK))) {
-        tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_FPU);
+        tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
         return;
     }
 
-    qemu_log ("unimplemented FPU insn pc=%x opc=%x\n", dc->pc, dc->opcode);
-    dc->abort_at_next_insn = 1;
+    fpu_insn = (dc->ir >> 7) & 7;
+
+    switch (fpu_insn) {
+        case 0:
+            gen_helper_fadd(cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
+            break;
+
+        case 1:
+            gen_helper_frsub(cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
+            break;
+
+        case 2:
+            gen_helper_fmul(cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
+            break;
+
+        case 3:
+            gen_helper_fdiv(cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
+            break;
+
+        case 4:
+            switch ((dc->ir >> 4) & 7) {
+                case 0:
+                    gen_helper_fcmp_un(cpu_R[dc->rd],
+                                       cpu_R[dc->ra], cpu_R[dc->rb]);
+                    break;
+                case 1:
+                    gen_helper_fcmp_lt(cpu_R[dc->rd],
+                                       cpu_R[dc->ra], cpu_R[dc->rb]);
+                    break;
+                case 2:
+                    gen_helper_fcmp_eq(cpu_R[dc->rd],
+                                       cpu_R[dc->ra], cpu_R[dc->rb]);
+                    break;
+                case 3:
+                    gen_helper_fcmp_le(cpu_R[dc->rd],
+                                       cpu_R[dc->ra], cpu_R[dc->rb]);
+                    break;
+                case 4:
+                    gen_helper_fcmp_gt(cpu_R[dc->rd],
+                                       cpu_R[dc->ra], cpu_R[dc->rb]);
+                    break;
+                case 5:
+                    gen_helper_fcmp_ne(cpu_R[dc->rd],
+                                       cpu_R[dc->ra], cpu_R[dc->rb]);
+                    break;
+                case 6:
+                    gen_helper_fcmp_ge(cpu_R[dc->rd],
+                                       cpu_R[dc->ra], cpu_R[dc->rb]);
+                    break;
+                default:
+                    qemu_log ("unimplemented fcmp fpu_insn=%x pc=%x opc=%x\n",
+                              fpu_insn, dc->pc, dc->opcode);
+                    dc->abort_at_next_insn = 1;
+                    break;
+            }
+            break;
+
+        case 5:
+            if (!dec_check_fpuv2(dc)) {
+                return;
+            }
+            gen_helper_flt(cpu_R[dc->rd], cpu_R[dc->ra]);
+            break;
+
+        case 6:
+            if (!dec_check_fpuv2(dc)) {
+                return;
+            }
+            gen_helper_fint(cpu_R[dc->rd], cpu_R[dc->ra]);
+            break;
+
+        case 7:
+            if (!dec_check_fpuv2(dc)) {
+                return;
+            }
+            gen_helper_fsqrt(cpu_R[dc->rd], cpu_R[dc->ra]);
+            break;
+
+        default:
+            qemu_log ("unimplemented FPU insn fpu_insn=%x pc=%x opc=%x\n",
+                      fpu_insn, dc->pc, dc->opcode);
+            dc->abort_at_next_insn = 1;
+            break;
+    }
 }
 
 static void dec_null(DisasContext *dc)
@@ -1448,9 +1545,9 @@ void cpu_dump_state (CPUState *env, FILE *f,
 
     cpu_fprintf(f, "IN: PC=%x %s\n",
                 env->sregs[SR_PC], lookup_symbol(env->sregs[SR_PC]));
-    cpu_fprintf(f, "rmsr=%x resr=%x rear=%x debug[%x] imm=%x iflags=%x\n",
+    cpu_fprintf(f, "rmsr=%x resr=%x rear=%x debug=%x imm=%x iflags=%x fsr=%x\n",
              env->sregs[SR_MSR], env->sregs[SR_ESR], env->sregs[SR_EAR],
-             env->debug, env->imm, env->iflags);
+             env->debug, env->imm, env->iflags, env->sregs[SR_FSR]);
     cpu_fprintf(f, "btaken=%d btarget=%x mode=%s(saved=%s) eip=%d ie=%d\n",
              env->btaken, env->btarget,
              (env->sregs[SR_MSR] & MSR_UM) ? "user" : "kernel",
@@ -1476,7 +1573,7 @@ CPUState *cpu_mb_init (const char *cpu_model)
 
     cpu_exec_init(env);
     cpu_reset(env);
-
+    set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
 
     if (tcg_initialized)
         return env;
@@ -1545,15 +1642,19 @@ void cpu_reset (CPUState *env)
                         | PVR2_USE_DIV_MASK \
                         | PVR2_USE_HW_MUL_MASK \
                         | PVR2_USE_MUL64_MASK \
+                        | PVR2_USE_FPU_MASK \
+                        | PVR2_USE_FPU2_MASK \
+                        | PVR2_FPU_EXC_MASK \
                         | 0;
     env->pvr.regs[10] = 0x0c000000; /* Default to spartan 3a dsp family.  */
     env->pvr.regs[11] = PVR11_USE_MMU | (16 << 17);
 
-    env->sregs[SR_MSR] = 0;
 #if defined(CONFIG_USER_ONLY)
     /* start in user mode with interrupts enabled.  */
+    env->sregs[SR_MSR] = MSR_EE | MSR_IE | MSR_VM | MSR_UM;
     env->pvr.regs[10] = 0x0c000000; /* Spartan 3a dsp.  */
 #else
+    env->sregs[SR_MSR] = 0;
     mmu_init(&env->mmu);
     env->mmu.c_mmu = 3;
     env->mmu.c_mmu_tlb_access = 3;

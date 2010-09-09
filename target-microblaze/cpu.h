@@ -24,6 +24,7 @@
 #define CPUState struct CPUMBState
 
 #include "cpu-defs.h"
+#include "softfloat.h"
 struct CPUMBState;
 #if !defined(CONFIG_USER_ONLY)
 #include "mmu.h"
@@ -215,6 +216,7 @@ typedef struct CPUMBState {
     uint32_t imm;
     uint32_t regs[33];
     uint32_t sregs[24];
+    float_status fp_status;
 
     /* Internal flags.  */
 #define IMM_FLAG	4

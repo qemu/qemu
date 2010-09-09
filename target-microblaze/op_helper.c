@@ -202,6 +202,236 @@ uint32_t helper_divu(uint32_t a, uint32_t b)
     return a / b;
 }
 
+/* raise FPU exception.  */
+static void raise_fpu_exception(void)
+{
+    env->sregs[SR_ESR] = ESR_EC_FPU;
+    helper_raise_exception(EXCP_HW_EXCP);
+}
+
+static void update_fpu_flags(int flags)
+{
+    int raise = 0;
+
+    if (flags & float_flag_invalid) {
+        env->sregs[SR_FSR] |= FSR_IO;
+        raise = 1;
+    }
+    if (flags & float_flag_divbyzero) {
+        env->sregs[SR_FSR] |= FSR_DZ;
+        raise = 1;
+    }
+    if (flags & float_flag_overflow) {
+        env->sregs[SR_FSR] |= FSR_OF;
+        raise = 1;
+    }
+    if (flags & float_flag_underflow) {
+        env->sregs[SR_FSR] |= FSR_UF;
+        raise = 1;
+    }
+    if (raise
+        && (env->pvr.regs[2] & PVR2_FPU_EXC_MASK)
+        && (env->sregs[SR_MSR] & MSR_EE)) {
+        raise_fpu_exception();
+    }
+}
+
+uint32_t helper_fadd(uint32_t a, uint32_t b)
+{
+    CPU_FloatU fd, fa, fb;
+    int flags;
+
+    set_float_exception_flags(0, &env->fp_status);
+    fa.l = a;
+    fb.l = b;
+    fd.f = float32_add(fa.f, fb.f, &env->fp_status);
+
+    flags = get_float_exception_flags(&env->fp_status);
+    update_fpu_flags(flags);
+    return fd.l;
+}
+
+uint32_t helper_frsub(uint32_t a, uint32_t b)
+{
+    CPU_FloatU fd, fa, fb;
+    int flags;
+
+    set_float_exception_flags(0, &env->fp_status);
+    fa.l = a;
+    fb.l = b;
+    fd.f = float32_sub(fb.f, fa.f, &env->fp_status);
+    flags = get_float_exception_flags(&env->fp_status);
+    update_fpu_flags(flags);
+    return fd.l;
+}
+
+uint32_t helper_fmul(uint32_t a, uint32_t b)
+{
+    CPU_FloatU fd, fa, fb;
+    int flags;
+
+    set_float_exception_flags(0, &env->fp_status);
+    fa.l = a;
+    fb.l = b;
+    fd.f = float32_mul(fa.f, fb.f, &env->fp_status);
+    flags = get_float_exception_flags(&env->fp_status);
+    update_fpu_flags(flags);
+
+    return fd.l;
+}
+
+uint32_t helper_fdiv(uint32_t a, uint32_t b)
+{
+    CPU_FloatU fd, fa, fb;
+    int flags;
+
+    set_float_exception_flags(0, &env->fp_status);
+    fa.l = a;
+    fb.l = b;
+    fd.f = float32_div(fb.f, fa.f, &env->fp_status);
+    flags = get_float_exception_flags(&env->fp_status);
+    update_fpu_flags(flags);
+
+    return fd.l;
+}
+
+uint32_t helper_fcmp_un(uint32_t a, uint32_t b)
+{
+    cpu_abort(env, "Unsupported fcmp.un\n");
+    return 0;
+}
+
+uint32_t helper_fcmp_lt(uint32_t a, uint32_t b)
+{
+    CPU_FloatU fa, fb;
+    int r;
+    int flags;
+
+    set_float_exception_flags(0, &env->fp_status);
+    fa.l = a;
+    fb.l = b;
+    r = float32_lt(fb.f, fa.f, &env->fp_status);
+    flags = get_float_exception_flags(&env->fp_status);
+    update_fpu_flags(flags & float_flag_invalid);
+
+    return r;
+}
+
+uint32_t helper_fcmp_eq(uint32_t a, uint32_t b)
+{
+    CPU_FloatU fa, fb;
+    int flags;
+    int r;
+
+    set_float_exception_flags(0, &env->fp_status);
+    fa.l = a;
+    fb.l = b;
+    r = float32_eq(fa.f, fb.f, &env->fp_status);
+    flags = get_float_exception_flags(&env->fp_status);
+    update_fpu_flags(flags & float_flag_invalid);
+
+    return r;
+}
+
+uint32_t helper_fcmp_le(uint32_t a, uint32_t b)
+{
+    CPU_FloatU fa, fb;
+    int flags;
+    int r;
+
+    fa.l = a;
+    fb.l = b;
+    set_float_exception_flags(0, &env->fp_status);
+    r = float32_le(fa.f, fb.f, &env->fp_status);
+    flags = get_float_exception_flags(&env->fp_status);
+    update_fpu_flags(flags & float_flag_invalid);
+
+
+    return r;
+}
+
+uint32_t helper_fcmp_gt(uint32_t a, uint32_t b)
+{
+    CPU_FloatU fa, fb;
+    int flags, r;
+
+    fa.l = a;
+    fb.l = b;
+    set_float_exception_flags(0, &env->fp_status);
+    r = float32_lt(fa.f, fb.f, &env->fp_status);
+    flags = get_float_exception_flags(&env->fp_status);
+    update_fpu_flags(flags & float_flag_invalid);
+    return r;
+}
+
+uint32_t helper_fcmp_ne(uint32_t a, uint32_t b)
+{
+    CPU_FloatU fa, fb;
+    int flags, r;
+
+    fa.l = a;
+    fb.l = b;
+    set_float_exception_flags(0, &env->fp_status);
+    r = !float32_eq(fa.f, fb.f, &env->fp_status);
+    flags = get_float_exception_flags(&env->fp_status);
+    update_fpu_flags(flags & float_flag_invalid);
+
+    return r;
+}
+
+uint32_t helper_fcmp_ge(uint32_t a, uint32_t b)
+{
+    CPU_FloatU fa, fb;
+    int flags, r;
+
+    fa.l = a;
+    fb.l = b;
+    set_float_exception_flags(0, &env->fp_status);
+    r = !float32_lt(fa.f, fb.f, &env->fp_status);
+    flags = get_float_exception_flags(&env->fp_status);
+    update_fpu_flags(flags & float_flag_invalid);
+
+    return r;
+}
+
+uint32_t helper_flt(uint32_t a)
+{
+    CPU_FloatU fd, fa;
+
+    fa.l = a;
+    fd.f = int32_to_float32(fa.l, &env->fp_status);
+    return fd.l;
+}
+
+uint32_t helper_fint(uint32_t a)
+{
+    CPU_FloatU fa;
+    uint32_t r;
+    int flags;
+
+    set_float_exception_flags(0, &env->fp_status);
+    fa.l = a;
+    r = float32_to_int32(fa.f, &env->fp_status);
+    flags = get_float_exception_flags(&env->fp_status);
+    update_fpu_flags(flags);
+
+    return r;
+}
+
+uint32_t helper_fsqrt(uint32_t a)
+{
+    CPU_FloatU fd, fa;
+    int flags;
+
+    set_float_exception_flags(0, &env->fp_status);
+    fa.l = a;
+    fd.l = float32_sqrt(fa.f, &env->fp_status);
+    flags = get_float_exception_flags(&env->fp_status);
+    update_fpu_flags(flags);
+
+    return fd.l;
+}
+
 uint32_t helper_pcmpbf(uint32_t a, uint32_t b)
 {
     unsigned int i;
