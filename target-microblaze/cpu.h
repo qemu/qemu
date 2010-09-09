@@ -24,6 +24,7 @@
 #define CPUState struct CPUMBState
 
 #include "cpu-defs.h"
+#include "softfloat.h"
 struct CPUMBState;
 #if !defined(CONFIG_USER_ONLY)
 #include "mmu.h"
@@ -90,6 +91,13 @@ struct CPUMBState;
 #define          ESR_EC_INSN_STORAGE    9
 #define          ESR_EC_DATA_TLB        10
 #define          ESR_EC_INSN_TLB        11
+
+/* Floating Point Status Register (FSR) Bits */
+#define FSR_IO          (1<<4) /* Invalid operation */
+#define FSR_DZ          (1<<3) /* Divide-by-zero */
+#define FSR_OF          (1<<2) /* Overflow */
+#define FSR_UF          (1<<1) /* Underflow */
+#define FSR_DO          (1<<0) /* Denormalized operand error */
 
 /* Version reg.  */
 /* Basic PVR mask */
@@ -208,6 +216,7 @@ typedef struct CPUMBState {
     uint32_t imm;
     uint32_t regs[33];
     uint32_t sregs[24];
+    float_status fp_status;
 
     /* Internal flags.  */
 #define IMM_FLAG	4
