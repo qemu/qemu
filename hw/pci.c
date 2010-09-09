@@ -763,7 +763,7 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
 {
     PCIIORegion *r;
     uint32_t addr;
-    pcibus_t wmask;
+    uint64_t wmask;
 
     if ((unsigned int)region_num >= PCI_NUM_REGIONS)
         return;
