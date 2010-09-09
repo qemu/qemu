@@ -180,7 +180,7 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
                                PCIConfigWriteFunc *config_write);
 
 void pci_register_bar(PCIDevice *pci_dev, int region_num,
-                            pcibus_t size, int type,
+                            pcibus_t size, uint8_t type,
                             PCIMapIORegionFunc *map_func);
 
 int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,

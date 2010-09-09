@@ -758,7 +758,7 @@ static int pci_unregister_device(DeviceState *dev)
 }
 
 void pci_register_bar(PCIDevice *pci_dev, int region_num,
-                            pcibus_t size, int type,
+                            pcibus_t size, uint8_t type,
                             PCIMapIORegionFunc *map_func)
 {
     PCIIORegion *r;
