@@ -91,6 +91,13 @@ struct CPUMBState;
 #define          ESR_EC_DATA_TLB        10
 #define          ESR_EC_INSN_TLB        11
 
+/* Floating Point Status Register (FSR) Bits */
+#define FSR_IO          (1<<4) /* Invalid operation */
+#define FSR_DZ          (1<<3) /* Divide-by-zero */
+#define FSR_OF          (1<<2) /* Overflow */
+#define FSR_UF          (1<<1) /* Underflow */
+#define FSR_DO          (1<<0) /* Denormalized operand error */
+
 /* Version reg.  */
 /* Basic PVR mask */
 #define PVR0_PVR_FULL_MASK              0x80000000
