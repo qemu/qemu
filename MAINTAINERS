@@ -1,88 +1,428 @@
 QEMU Maintainers
 ================
 
-Project leaders:
-----------------
+The intention of this file is not to establish who owns what portions of the
+code base, but to provide a set of names that developers can consult when they
+have a question about a particular subset and also to provide a set of names
+to be CC'd when submitting a patch to obtain appropriate review.
 
-Fabrice Bellard
-Paul Brook
+In general, if you have a question about inclusion of a patch, you should
+consult qemu-devel and not any specific individual privately.
 
-CPU cores:
-----------
+Descriptions of section entries:
 
-x86                Fabrice Bellard
-ARM                Paul Brook
-SPARC              Blue Swirl
-MIPS               ?
-PowerPC            Alexander Graf
-M68K               Paul Brook
-SH4                ?
-CRIS               Edgar E. Iglesias
-Alpha              ?
-MicroBlaze         Edgar E. Iglesias
-S390               ?
+	M: Mail patches to: FullName <address@domain>
+	L: Mailing list that is relevant to this area
+	W: Web-page with status/info
+	Q: Patchwork web based patch tracking system site
+	T: SCM tree type and location.  Type is one of: git, hg, quilt, stgit.
+	S: Status, one of the following:
+	   Supported:	Someone is actually paid to look after this.
+	   Maintained:	Someone actually looks after it.
+	   Odd Fixes:	It has a maintainer but they don't have time to do
+			much other than throw the odd patch in. See below..
+	   Orphan:	No current maintainer [but maybe you could take the
+			role as you write your new code].
+	   Obsolete:	Old code. Something tagged obsolete generally means
+			it has been replaced by a better system and you
+			should be using that.
+	F: Files and directories with wildcard patterns.
+	   A trailing slash includes all files and subdirectory files.
+	   F:	drivers/net/	all files in and below drivers/net
+	   F:	drivers/net/*	all files in drivers/net, but not below
+	   F:	*/net/*		all files in "any top level directory"/net
+	   One pattern per line.  Multiple F: lines acceptable.
+	X: Files and directories that are NOT maintained, same rules as F:
+	   Files exclusions are tested before file matches.
+	   Can be useful for excluding a specific subdirectory, for instance:
+	   F:	net/
+	   X:	net/ipv6/
+	   matches all files in and below net excluding net/ipv6/
+	K: Keyword perl extended regex pattern to match content in a
+	   patch or file.  For instance:
+	   K: of_get_profile
+	      matches patches or files that contain "of_get_profile"
+	   K: \b(printk|pr_(info|err))\b
+	      matches patches or files that contain one or more of the words
+	      printk, pr_info or pr_err
+	   One regex pattern per line.  Multiple K: lines acceptable.
 
-Machines (sorted by CPU):
--------------------------
 
-x86
-  pc.c                    Fabrice Bellard (new maintainer needed)
-ARM
-  integratorcp.c          Paul Brook
-  versatilepb.c           Paul Brook
-  Real View               Paul Brook
-  spitz.c                 Andrzej Zaborowski
-  palm.c                  Andrzej Zaborowski
-  nseries.c               Andrzej Zaborowski
-  stellaris.c             Paul Brook
-  gumstix.c               Thorsten Zitterell
-  mainstone.c             Armin Kuster
-  musicpal.c              Jan Kiszka
-SPARC
-  sun4u.c                 Blue Swirl
-  sun4m.c                 Blue Swirl
-MIPS
-  mips_r4k.c              Aurelien Jarno
-  mips_malta.c            Aurelien Jarno
-  mips_jazz.c             Hervé Poussineau
-  mips_mipssim.c          ?
-PowerPC
-  ppc_prep.c              ?
-  ppc_oldworld.c          Alexander Graf
-  ppc_newworld.c          Alexander Graf
-  ppc405_boards.c         Alexander Graf
-M86K
-  mcf5208.c               Paul Brook
-  an5206.c                Paul Brook
-  dummy_m68k.c            Paul Brook
-SH4
-  shix.c                  ?
-  r2d.c                   Magnus Damm
-CRIS
-  etraxfs.c               Edgar E. Iglesias
-  axis_dev88.c            Edgar E. Iglesias
+General Project Administration
+------------------------------
+M: Anthony Liguori <aliguori@us.ibm.com>
+M: Paul Brook <paul@codesourcery.com>
+
+Guest CPU cores (TCG):
+----------------------
 Alpha
+M: qemu-devel@nongnu.org
+S: Orphan
+F: target-alpha/
+
+ARM
+M: Paul Brook <paul@codesourcery.com>
+S: Maintained
+F: target-arm/
+
+CRIS
+M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
+S: Maintained
+F: target-cris/
+
+M68K
+M: Paul Brook <paul@codesourcery.com>
+S: Maintained
+F: target-m68k/
+
 MicroBlaze
-  petalogix_s3adsp1800.c  Edgar E. Iglesias
+M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
+S: Maintained
+F: target-microblaze/
+
+MIPS
+M: qemu-devel@nongnu.org
+S: Orphan
+F: target-mips/
+
+PowerPC
+M: Alexander Graf <agraf@suse.de>
+S: Maintained
+F: target-ppc/
+
 S390
-  s390-*.c                Alexander Graf
+M: Alexander Graf <agraf@suse.de>
+S: Maintained
+F: target-s390x/
 
-Generic Subsystems:
--------------------  
+SH4
+M: qemu-devel@nongnu.org
+S: Orphan
+F: target-sh4/
 
-Dynamic translator        Fabrice Bellard
-Main loop                 Fabrice Bellard (new maintainer needed)
-TCG                       Fabrice Bellard
-IDE device                ?
-SCSI device               Paul Brook
-PCI layer                 Michael S. Tsirkin
-USB layer                 ?
-Block layer               ?
-Graphic layer             ?
-Audio device layer        Vassili Karpov (malc)
-Character device layer    ?
-Network device layer      ?
-GDB stub                  ?
-Linux user                ?
-Darwin user               ?
-SLIRP                     ?
+SPARC
+M: Blue Swirl <blauwirbel@gmail.com>
+S: Maintained
+F: target-sparc/
+
+X86
+M: qemu-devel@nongnu.org
+S: Odd Fixes
+F: target-i386/
+
+Guest CPU Cores (KVM):
+----------------------
+
+Overall
+M: Avi Kivity <avi@redhat.com>
+M: Marcelo Tosatti <mtosatti@redhat.com>
+L: kvm@vger.kernel.org
+S: Supported
+F: kvm-*
+F: */kvm.*
+
+PPC
+M: Alexander Graf <agraf@suse.de>
+S: Maintained
+F: target-ppc/kvm.c
+
+S390
+M: Alexander Graf <agraf@suse.de>
+S: Maintained
+F: target-s390x/kvm.c
+
+X86
+M: Avi Kivity <avi@redhat.com>
+M: Marcelo Tosatti <mtosatti@redhat.com>
+L: kvm@vger.kernel.org
+S: Supported
+F: target-i386/kvm.c
+
+ARM Machines
+------------
+Gumstix
+M: qemu-devel@nongnu.org
+S: Orphan
+F: hw/gumstix.c
+
+Integrator CP
+M: Paul Brook <paul@codesourcery.com>
+S: Maintained
+F: hw/integratorcp.c
+
+Mainstone
+M: qemu-devel@nongnu.org
+S: Orphan
+F: hw/mainstone.c
+
+Musicpal
+M: Jan Kiszka <jan.kiszka@web.de>
+S: Maintained
+F: hw/musicpal.c
+
+nSeries
+M: Andrzej Zaborowski <balrogg@gmail.com>
+S: Maintained
+F: hw/nseries.c
+
+Palm
+M: Andrzej Zaborowski <balrogg@gmail.com>
+S: Maintained
+F: hw/palm.c
+
+Real View
+M: Paul Brook <paul@codesourcery.com>
+S: Maintained
+F: hw/realview*
+
+Spitz
+M: Andrzej Zaborowski <balrogg@gmail.com>
+S: Maintained
+F: hw/spitz.c
+
+Stellaris
+M: Paul Brook <paul@codesourcery.com>
+S: Maintained
+F: hw/stellaris.c
+
+Versatile PB
+M: Paul Brook <paul@codesourcery.com>
+S: Maintained
+F: hw/versatilepb.c
+
+CRIS Machines
+-------------
+Axis Dev88
+M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
+S: Maintained
+F: hw/axis_dev88.c
+
+etraxfs
+M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
+S: Maintained
+F: hw/etraxfs.c
+
+M86K Machines
+-------------
+an5206
+M: Paul Brook <paul@codesourcery.com>
+S: Maintained
+F: hw/an5206.c
+
+dummy_m68k
+M: Paul Brook <paul@codesourcery.com>
+S: Maintained
+F: hw/dummy_m68k.c
+
+mcf5208
+M: Paul Brook <paul@codesourcery.com>
+S: Maintained
+F: hw/mcf5208.c
+
+MicroBlaze Machines
+-------------------
+petalogix_s3adsp1800
+M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
+S: Maintained
+F: hw/petalogix_s3adsp1800.c
+
+MIPS Machines
+-------------
+Jazz
+M: Hervé Poussineau <hpoussin@reactos.org>
+S: Maintained
+F: hw/mips_jazz.c
+
+Malta
+M: Aurelien Jarno <aurelien@aurel32.net>
+S: Maintained
+F: hw/mips_malta.c
+
+Mipssim
+M: qemu-devel@nongnu.org
+S: Orphan
+F: hw/mips_mipssim.c
+
+R4000
+M: Aurelien Jarno <aurelien@aurel32.net>
+S: Maintained
+F: hw/mips_r4k.c
+
+PowerPC Machines
+----------------
+405
+M: Alexander Graf <agraf@suse.de>
+S: Maintained
+F: hw/ppc405_boards.c
+
+New World
+M: Alexander Graf <agraf@suse.de>
+S: Maintained
+F: hw/ppc_newworld.c
+
+Old World
+M: Alexander Graf <agraf@suse.de>
+S: Maintained
+F: hw/ppc_oldworld.c
+
+Prep
+M: qemu-devel@nongnu.org
+S: Orphan
+F: hw/ppc_prep.c
+
+SH4 Machines
+------------
+R2D
+M: Magnus Damm <magnus.damm@gmail.com>
+S: Maintained
+F: hw/r2d.c
+
+Shix
+M: Magnus Damm <magnus.damm@gmail.com>
+S: Oprhan
+F: hw/shix.c
+
+SPARC Machines
+--------------
+Sun4m
+M: Blue Swirl <blauwirbel@gmail.com>
+S: Maintained
+F: hw/sun4m.c
+
+Sun4u
+M: Blue Swirl <blauwirbel@gmail.com>
+S: Maintained
+F: hw/sun4u.c
+
+S390 Machines
+-------------
+S390 Virtio
+M: Alexander Graf <agraf@suse.de>
+S: Maintained
+F: hw/s390-*.c
+
+X86 Machines
+------------
+PC
+M: Anthony Liguori <aliguori@us.ibm.com>
+S: Supported
+F: hw/pc.[ch] hw/pc_piix.c
+
+Devices
+-------
+IDE
+M: Kevin Wolf <kwolf@redhat.com>
+S: Odd Fixes
+F: hw/ide/
+
+PCI
+M: Michael S. Tsirkin <mst@redhat.com>
+S: Supported
+F: hw/pci*
+F: hw/piix*
+
+SCSI
+M: Paul Brook <paul@codesourcery.com>
+M: Kevin Wolf <kwolf@redhat.com>
+S: Odd Fixes
+F: hw/lsi53c895a.c
+F: hw/scsi*
+
+USB
+M: qemu-devel@nongnu.org
+S: Odd Fixes
+F: hw/usb*
+
+vhost
+M: Michael S. Tsirkin <mst@redhat.com>
+S: Supported
+F: hw/vhost*
+
+virtio
+M: Anthony Liguori <aliguori@us.ibm.com>
+S: Supported
+F: hw/virtio*
+
+virtio-9p
+M: Venkateswararao Jujjuri (JV) <jvrao@linux.vnet.ibm.com>
+S: Supported
+F: hw/virtio-9p*
+
+virtio-blk
+M: Kevin Wolf <kwolf@redhat.com>
+S: Supported
+F: hw/virtio-blk*
+
+virtio-serial
+M: Amit Shah <amit.shah@redhat.com>
+S: Supported
+F: hw/virtio-serial*
+F: hw/virtio-console*
+
+Subsystems
+----------
+Audio
+M: Vassili Karpov (malc) <av1474@comtv.ru>
+S: Maintained
+F: audio/
+
+Block
+M: Kevin Wolf <kwolf@redhat.com>
+S: Supported
+F: block*
+F: block/
+
+Character Devices
+M: Anthony Liguori <aliguori@us.ibm.com>
+S: Maintained
+F: qemu-char.c
+
+GDB stub
+M: qemu-devel@nongnu.org
+S: Odd Fixes
+F: gdbstub*
+F: gdb-xml/
+
+Graphics
+M: Anthony Liguori <aliguori@us.ibm.com>
+S: Maintained
+F: ui/
+
+Main loop
+M: Anthony Liguori <aliguori@us.ibm.com>
+S: Supported
+F: vl.c
+
+Monitor (QMP/HMP)
+M: Luiz Capitulino <lcapitulino@redhat.com>
+M: Markus Armbruster <armbru@redhat.com>
+S: Supported
+F: monitor.c
+
+Network device layer
+M: Anthony Liguori <aliguori@us.ibm.com>
+M: Mark McLoughlin <markmc@redhat.com>
+S: Maintained
+F: net/
+
+SLIRP
+M: qemu-devel@nongnu.org
+S: Orphan
+F: slirp/
+
+Usermode Emulation
+------------------
+BSD user
+M: Blue Swirl <blauwirbel@gmail.com>
+S: Maintained
+F: bsd-user/
+
+Darwin user
+M: qemu-devel@nongnu.org
+S: Orphan
+F: darwin-user/
+
+Linux user
+M: Riku Voipio <riku.voipio@iki.fi>
+S: Maintained
+F: linux-user/
