@@ -1897,7 +1897,8 @@ void do_savevm(Monitor *mon, const QDict *qdict)
         ptm = localtime(&tb.time);
         strftime(sn->name, sizeof(sn->name), "vm-%Y%m%d%H%M%S", ptm);
 #else
-        localtime_r(&tv.tv_sec, &tm);
+        /* cast below needed for OpenBSD where tv_sec is still 'long' */
+        localtime_r((const time_t *)&tv.tv_sec, &tm);
         strftime(sn->name, sizeof(sn->name), "vm-%Y%m%d%H%M%S", &tm);
 #endif
     }
