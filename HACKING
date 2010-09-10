@@ -4,3 +4,71 @@ For variadic macros, stick with this C99-like syntax:
 
 #define DPRINTF(fmt, ...)                                       \
     do { printf("IRQ: " fmt, ## __VA_ARGS__); } while (0)
+
+2. C types
+
+It should be common sense to use the right type, but we have collected
+a few useful guidelines here.
+
+2.1. Scalars
+
+If you're using "int" or "long", odds are good that there's a better type.
+If a variable is counting something, it should be declared with an
+unsigned type.
+
+If it's host memory-size related, size_t should be a good choice (use
+ssize_t only if required). Guest RAM memory offsets must use ram_addr_t,
+but only for RAM, it may not cover whole guest address space.
+
+If it's file-size related, use off_t.
+If it's file-offset related (i.e., signed), use off_t.
+If it's just counting small numbers use "unsigned int";
+(on all but oddball embedded systems, you can assume that that
+type is at least four bytes wide).
+
+In the event that you require a specific width, use a standard type
+like int32_t, uint32_t, uint64_t, etc.  The specific types are
+mandatory for VMState fields.
+
+Don't use Linux kernel internal types like u32, __u32 or __le32.
+
+Use target_phys_addr_t for guest physical addresses except pcibus_t
+for PCI addresses.  In addition, ram_addr_t is a QEMU internal address
+space that maps guest RAM physical addresses into an intermediate
+address space that can map to host virtual address spaces.  Generally
+speaking, the size of guest memory can always fit into ram_addr_t but
+it would not be correct to store an actual guest physical address in a
+ram_addr_t.
+
+Use target_ulong (or abi_ulong) for CPU virtual addresses, however
+devices should not need to use target_ulong.
+
+Of course, take all of the above with a grain of salt.  If you're about
+to use some system interface that requires a type like size_t, pid_t or
+off_t, use matching types for any corresponding variables.
+
+Also, if you try to use e.g., "unsigned int" as a type, and that
+conflicts with the signedness of a related variable, sometimes
+it's best just to use the *wrong* type, if "pulling the thread"
+and fixing all related variables would be too invasive.
+
+Finally, while using descriptive types is important, be careful not to
+go overboard.  If whatever you're doing causes warnings, or requires
+casts, then reconsider or ask for help.
+
+2.2. Pointers
+
+Ensure that all of your pointers are "const-correct".
+Unless a pointer is used to modify the pointed-to storage,
+give it the "const" attribute.  That way, the reader knows
+up-front that this is a read-only pointer.  Perhaps more
+importantly, if we're diligent about this, when you see a non-const
+pointer, you're guaranteed that it is used to modify the storage
+it points to, or it is aliased to another pointer that is.
+
+2.3. Typedefs
+Typedefs are used to eliminate the redundant 'struct' keyword.
+
+2.4. Reserved namespaces in C and POSIX
+Underscore capital, double underscore, and underscore 't' suffixes should be
+avoided.

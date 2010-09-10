@@ -46,9 +46,6 @@ names are lower_case_with_underscores_ending_with_a_t, like the POSIX
 uint64_t and family.  Note that this last convention contradicts POSIX
 and is therefore likely to be changed.
 
-Typedefs are used to eliminate the redundant 'struct' keyword.  It is the
-QEMU coding style.
-
 When wrapping standard library functions, use the prefix qemu_ to alert
 readers that they are seeing a wrapped version; otherwise avoid this prefix.
 
