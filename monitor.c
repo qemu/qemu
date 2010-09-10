@@ -642,7 +642,6 @@ static int do_info(Monitor *mon, const QDict *qdict, QObject **ret_data)
     const char *item = qdict_get_try_str(qdict, "item");
 
     if (!item) {
-        assert(monitor_ctrl_mode(mon) == 0);
         goto help;
     }
 
@@ -652,24 +651,11 @@ static int do_info(Monitor *mon, const QDict *qdict, QObject **ret_data)
     }
 
     if (cmd->name == NULL) {
-        if (monitor_ctrl_mode(mon)) {
-            qerror_report(QERR_COMMAND_NOT_FOUND, item);
-            return -1;
-        }
         goto help;
     }
 
-    if (monitor_ctrl_mode(mon) && monitor_cmd_user_only(cmd)) {
-        qerror_report(QERR_COMMAND_NOT_FOUND, item);
-        return -1;
-    }
-
     if (monitor_handler_is_async(cmd)) {
-        if (monitor_ctrl_mode(mon)) {
-            qmp_async_info_handler(mon, cmd);
-        } else {
-            user_async_info_handler(mon, cmd);
-        }
+        user_async_info_handler(mon, cmd);
         /*
          * Indicate that this command is asynchronous and will not return any
          * data (not even empty).  Instead, the data will be returned via a
@@ -677,24 +663,15 @@ static int do_info(Monitor *mon, const QDict *qdict, QObject **ret_data)
          */
         *ret_data = qobject_from_jsonf("{ '__mon_async': 'return' }");
     } else if (monitor_handler_ported(cmd)) {
-        cmd->mhandler.info_new(mon, ret_data);
+        QObject *info_data = NULL;
 
-        if (!monitor_ctrl_mode(mon)) {
-            /*
-             * User Protocol function is called here, Monitor Protocol is
-             * handled by monitor_call_handler()
-             */
-            if (*ret_data)
-                cmd->user_print(mon, *ret_data);
+        cmd->mhandler.info_new(mon, &info_data);
+        if (info_data) {
+            cmd->user_print(mon, info_data);
+            qobject_decref(info_data);
         }
     } else {
-        if (monitor_ctrl_mode(mon)) {
-            /* handler not converted yet */
-            qerror_report(QERR_COMMAND_NOT_FOUND, item);
-            return -1;
-        } else {
-            cmd->mhandler.info(mon);
-        }
+        cmd->mhandler.info(mon);
     }
 
     return 0;
