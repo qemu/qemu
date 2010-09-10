@@ -35,7 +35,7 @@ disable qemu_free(void *ptr) "ptr %p"
 
 # osdep.c
 disable qemu_memalign(size_t alignment, size_t size, void *ptr) "alignment %zu size %zu ptr %p"
-disable qemu_valloc(size_t size, void *ptr) "size %zu ptr %p"
+disable qemu_vmalloc(size_t size, void *ptr) "size %zu ptr %p"
 disable qemu_vfree(void *ptr) "ptr %p"
 
 # hw/virtio.c
