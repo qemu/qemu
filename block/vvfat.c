@@ -2788,6 +2788,7 @@ static int enable_write_target(BDRVVVFATState *s)
 {
     BlockDriver *bdrv_qcow;
     QEMUOptionParameter *options;
+    int ret;
     int size = sector2cluster(s, s->sector_count);
     s->used_clusters = calloc(size, 1);
 
@@ -2803,11 +2804,16 @@ static int enable_write_target(BDRVVVFATState *s)
 
     if (bdrv_create(bdrv_qcow, s->qcow_filename, options) < 0)
 	return -1;
+
     s->qcow = bdrv_new("");
-    if (s->qcow == NULL ||
-        bdrv_open(s->qcow, s->qcow_filename, BDRV_O_RDWR, bdrv_qcow) < 0)
-    {
-	return -1;
+    if (s->qcow == NULL) {
+        return -1;
+    }
+
+    ret = bdrv_open(s->qcow, s->qcow_filename,
+            BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH, bdrv_qcow);
+    if (ret < 0) {
+	return ret;
     }
 
 #ifndef _WIN32
