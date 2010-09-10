@@ -2665,6 +2665,11 @@ static int vvfat_write(BlockDriverState *bs, int64_t sector_num,
 
 DLOG(checkpoint());
 
+    /* Check if we're operating in read-only mode */
+    if (s->qcow == NULL) {
+        return -EACCES;
+    }
+
     vvfat_close_current_file(s);
 
     /*
