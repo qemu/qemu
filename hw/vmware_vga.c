@@ -622,9 +622,9 @@ static void vmsvga_fifo_run(struct vmsvga_state_s *s)
             cursor.bpp = vmsvga_fifo_read(s);
 
             args = SVGA_BITMAP_SIZE(x, y) + SVGA_PIXMAP_SIZE(x, y, cursor.bpp);
-	    if (SVGA_BITMAP_SIZE(x, y) > sizeof cursor.mask ||
-		SVGA_PIXMAP_SIZE(x, y, cursor.bpp) > sizeof cursor.image)
-		    goto badcmd;
+            if (SVGA_BITMAP_SIZE(x, y) > sizeof cursor.mask ||
+                SVGA_PIXMAP_SIZE(x, y, cursor.bpp) > sizeof cursor.image)
+                    goto badcmd;
 
             len -= args;
             if (len < 0)
@@ -857,11 +857,11 @@ static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
         s->invalidated = 1;
         s->vga.invalidate(&s->vga);
         if (s->enable) {
-	  s->fb_size = ((s->depth + 7) >> 3) * s->new_width * s->new_height;
-	  vga_dirty_log_stop(&s->vga);
-	} else {
-	  vga_dirty_log_start(&s->vga);
-	}
+            s->fb_size = ((s->depth + 7) >> 3) * s->new_width * s->new_height;
+            vga_dirty_log_stop(&s->vga);
+        } else {
+            vga_dirty_log_start(&s->vga);
+        }
         break;
 
     case SVGA_REG_WIDTH:
@@ -1303,7 +1303,7 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
                     PCI_BASE_ADDRESS_MEM_PREFETCH, pci_vmsvga_map_mem);
 
     pci_register_bar(&s->card, 2, SVGA_FIFO_SIZE,
-		     PCI_BASE_ADDRESS_MEM_PREFETCH, pci_vmsvga_map_fifo);
+                    PCI_BASE_ADDRESS_MEM_PREFETCH, pci_vmsvga_map_fifo);
 
     vmsvga_init(&s->chip, VGA_RAM_SIZE);
 
