@@ -3390,6 +3390,11 @@ static const mon_cmd_t *monitor_find_command(const char *cmdname)
     return search_dispatch_table(mon_cmds, cmdname);
 }
 
+static const mon_cmd_t *qmp_find_query_cmd(const char *info_item)
+{
+    return search_dispatch_table(info_cmds, info_item);
+}
+
 static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                                               const char *cmdline,
                                               QDict *qdict)
@@ -4329,6 +4334,24 @@ static QDict *qmp_check_input_obj(QObject *input_obj)
     return input_dict;
 }
 
+static void qmp_call_query_cmd(Monitor *mon, const mon_cmd_t *cmd)
+{
+    QObject *ret_data = NULL;
+
+    if (monitor_handler_is_async(cmd)) {
+        qmp_async_info_handler(mon, cmd);
+        if (monitor_has_error(mon)) {
+            monitor_protocol_emitter(mon, NULL);
+        }
+    } else {
+        cmd->mhandler.info_new(mon, &ret_data);
+        if (ret_data) {
+            monitor_protocol_emitter(mon, ret_data);
+            qobject_decref(ret_data);
+        }
+    }
+}
+
 static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
 {
     int err;
@@ -4336,8 +4359,9 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     QDict *input, *args;
     const mon_cmd_t *cmd;
     Monitor *mon = cur_mon;
-    const char *cmd_name, *info_item;
+    const char *cmd_name, *query_cmd;
 
+    query_cmd = NULL;
     args = input = NULL;
 
     obj = json_parser_parse(tokens, NULL);
@@ -4363,16 +4387,13 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     }
 
     /*
-     * XXX: We need this special case until we get info handlers
-     * converted into 'query-' commands
+     * XXX: We need this special case until QMP has its own dispatch table
      */
     if (compare_cmd(cmd_name, "info")) {
         qerror_report(QERR_COMMAND_NOT_FOUND, cmd_name);
         goto err_out;
-    } else if (strstart(cmd_name, "query-", &info_item)) {
-        cmd = monitor_find_command("info");
-        qdict_put_obj(input, "arguments",
-                      qobject_from_jsonf("{ 'item': %s }", info_item));
+    } else if (strstart(cmd_name, "query-", &query_cmd)) {
+        cmd = qmp_find_query_cmd(query_cmd);
     } else {
         cmd = monitor_find_command(cmd_name);
     }
@@ -4395,7 +4416,9 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
         goto err_out;
     }
 
-    if (monitor_handler_is_async(cmd)) {
+    if (query_cmd) {
+        qmp_call_query_cmd(mon, cmd);
+    } else if (monitor_handler_is_async(cmd)) {
         err = qmp_async_cmd_handler(mon, cmd, args);
         if (err) {
             /* emit the error response */
