@@ -72,3 +72,17 @@ Typedefs are used to eliminate the redundant 'struct' keyword.
 2.4. Reserved namespaces in C and POSIX
 Underscore capital, double underscore, and underscore 't' suffixes should be
 avoided.
+
+3. Low level memory management
+
+Use of the malloc/free/realloc/calloc/valloc/memalign/posix_memalign
+APIs is not allowed in the QEMU codebase. Instead of these routines,
+use the replacement qemu_malloc/qemu_mallocz/qemu_realloc/qemu_free or
+qemu_vmalloc/qemu_memalign/qemu_vfree APIs.
+
+Please note that NULL check for the qemu_malloc result is redundant and
+that qemu_malloc() call with zero size is not allowed.
+
+Memory allocated by qemu_vmalloc or qemu_memalign must be freed with
+qemu_vfree, since breaking this will cause problems on Win32 and user
+emulators.
