@@ -1,0 +1,6 @@
+1. Preprocessor
+
+For variadic macros, stick with this C99-like syntax:
+
+#define DPRINTF(fmt, ...)                                       \
+    do { printf("IRQ: " fmt, ## __VA_ARGS__); } while (0)
