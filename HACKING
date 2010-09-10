@@ -110,3 +110,16 @@ so instead of e.g. isalnum you should use qemu_isalnum.
 
 Because of the memory management rules, you must use qemu_strdup/qemu_strndup
 instead of plain strdup/strndup.
+
+5. Printf-style functions
+
+Whenever you add a new printf-style function, i.e., one with a format
+string argument and following "..." in its prototype, be sure to use
+gcc's printf attribute directive in the prototype.
+
+This makes it so gcc's -Wformat and -Wformat-security options can do
+their jobs and cross-check format strings with the number and types
+of arguments.
+
+Currently many functions in QEMU are not following this rule but
+patches to add the attribute would be very much appreciated.
