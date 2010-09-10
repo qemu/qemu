@@ -79,6 +79,11 @@
 #define USB_CLASS_APP_SPEC		0xfe
 #define USB_CLASS_VENDOR_SPEC		0xff
 
+#define USB_SUBCLASS_UNDEFINED          0
+#define USB_SUBCLASS_AUDIO_CONTROL      1
+#define USB_SUBCLASS_AUDIO_STREAMING    2
+#define USB_SUBCLASS_AUDIO_MIDISTREAMING 3
+
 #define USB_DIR_OUT			0
 #define USB_DIR_IN			0x80
 
@@ -132,6 +137,8 @@
 #define USB_DT_OTHER_SPEED_CONFIG       0x07
 #define USB_DT_DEBUG                    0x0A
 #define USB_DT_INTERFACE_ASSOC          0x0B
+#define USB_DT_CS_INTERFACE             0x24
+#define USB_DT_CS_ENDPOINT              0x25
 
 #define USB_ENDPOINT_XFER_CONTROL	0
 #define USB_ENDPOINT_XFER_ISOC		1

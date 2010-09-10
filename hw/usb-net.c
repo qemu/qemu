@@ -71,9 +71,6 @@ enum usbstring_idx {
 #define USB_CDC_UNION_TYPE		0x06	/* union_desc */
 #define USB_CDC_ETHERNET_TYPE		0x0f	/* ether_desc */
 
-#define USB_DT_CS_INTERFACE		0x24
-#define USB_DT_CS_ENDPOINT		0x25
-
 #define USB_CDC_SEND_ENCAPSULATED_COMMAND	0x00
 #define USB_CDC_GET_ENCAPSULATED_RESPONSE	0x01
 #define USB_CDC_REQ_SET_LINE_CODING		0x20
