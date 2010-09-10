@@ -2768,12 +2768,12 @@ static int vvfat_is_allocated(BlockDriverState *bs,
 
 static int write_target_commit(BlockDriverState *bs, int64_t sector_num,
 	const uint8_t* buffer, int nb_sectors) {
-    BDRVVVFATState* s = bs->opaque;
+    BDRVVVFATState* s = *((BDRVVVFATState**) bs->opaque);
     return try_commit(s);
 }
 
 static void write_target_close(BlockDriverState *bs) {
-    BDRVVVFATState* s = bs->opaque;
+    BDRVVVFATState* s = *((BDRVVVFATState**) bs->opaque);
     bdrv_delete(s->qcow);
     free(s->qcow_filename);
 }
@@ -2816,7 +2816,8 @@ static int enable_write_target(BDRVVVFATState *s)
 
     s->bs->backing_hd = calloc(sizeof(BlockDriverState), 1);
     s->bs->backing_hd->drv = &vvfat_write_target;
-    s->bs->backing_hd->opaque = s;
+    s->bs->backing_hd->opaque = qemu_malloc(sizeof(void*));
+    *(void**)s->bs->backing_hd->opaque = s;
 
     return 0;
 }
