@@ -75,7 +75,7 @@ typedef uint64_t target_ulong;
 #if !defined(FPRINTF_FUNCTION_DEFINED)
 #define FPRINTF_FUNCTION_DEFINED
 typedef int (*fprintf_function)(FILE *f, const char *fmt, ...)
-            __attribute__ ((format(printf, 2, 3)));
+            __attribute__ ((format (gnu_printf, 2, 3)));
 #endif
 
 #if !defined(CONFIG_USER_ONLY)

@@ -240,7 +240,7 @@ typedef struct symbol_cache_entry
 #if !defined(FPRINTF_FUNCTION_DEFINED)
 #define FPRINTF_FUNCTION_DEFINED
 typedef int (*fprintf_function)(FILE *f, const char *fmt, ...)
-            __attribute__ ((format(printf, 2, 3)));
+            __attribute__ ((format (gnu_printf, 2, 3)));
 #endif
 
 enum dis_insn_type {

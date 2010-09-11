@@ -768,7 +768,7 @@ CPUState *qemu_get_cpu(int cpu);
 #if !defined(FPRINTF_FUNCTION_DEFINED)
 #define FPRINTF_FUNCTION_DEFINED
 typedef int (*fprintf_function)(FILE *f, const char *fmt, ...)
-            __attribute__ ((format(printf, 2, 3)));
+            __attribute__ ((format (gnu_printf, 2, 3)));
 #endif
 
 void cpu_dump_state(CPUState *env, FILE *f,
@@ -779,7 +779,7 @@ void cpu_dump_statistics (CPUState *env, FILE *f,
                           int flags);
 
 void QEMU_NORETURN cpu_abort(CPUState *env, const char *fmt, ...)
-    __attribute__ ((__format__ (__printf__, 2, 3)));
+    __attribute__ ((format (gnu_printf, 2, 3)));
 extern CPUState *first_cpu;
 extern CPUState *cpu_single_env;
 

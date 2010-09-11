@@ -237,8 +237,8 @@ static inline int audio_ring_dist (int dst, int src, int len)
 }
 
 #if defined __GNUC__
-#define GCC_ATTR __attribute__ ((__unused__, __format__ (__printf__, 1, 2)))
-#define GCC_FMT_ATTR(n, m) __attribute__ ((__format__ (__printf__, n, m)))
+#define GCC_ATTR __attribute__ ((__unused__, __format__ (gnu_printf, 1, 2)))
+#define GCC_FMT_ATTR(n, m) __attribute__ ((__format__ (gnu_printf, n, m)))
 #else
 #define GCC_ATTR /**/
 #define GCC_FMT_ATTR(n, m)

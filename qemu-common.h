@@ -85,10 +85,15 @@ static inline char *realpath(const char *path, char *resolved_path)
     return resolved_path;
 }
 
-#define PRId64 "I64d"
-#define PRIx64 "I64x"
-#define PRIu64 "I64u"
-#define PRIo64 "I64o"
+#undef PRId64
+#undef PRIx64
+#undef PRIu64
+#undef PRIo64
+
+#define PRId64 "lld"
+#define PRIx64 "llx"
+#define PRIu64 "llu"
+#define PRIo64 "llo"
 #endif
 
 /* FIXME: Remove NEED_CPU_H.  */
@@ -103,7 +108,7 @@ static inline char *realpath(const char *path, char *resolved_path)
 #if !defined(FPRINTF_FUNCTION_DEFINED)
 #define FPRINTF_FUNCTION_DEFINED
 typedef int (*fprintf_function)(FILE *f, const char *fmt, ...)
-            __attribute__ ((format(printf, 2, 3)));
+            __attribute__ ((format (gnu_printf, 2, 3)));
 #endif
 
 #include "cpu.h"
@@ -190,7 +195,7 @@ int qemu_pipe(int pipefd[2]);
 /* Error handling.  */
 
 void QEMU_NORETURN hw_error(const char *fmt, ...)
-    __attribute__ ((__format__ (__printf__, 1, 2)));
+    __attribute__ ((format (gnu_printf, 1, 2)));
 
 /* IO callbacks.  */
 typedef void IOReadHandler(void *opaque, const uint8_t *buf, int size);
