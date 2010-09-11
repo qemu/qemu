@@ -3596,7 +3596,6 @@ static void init_proc_440x4 (CPUPPCState *env)
                               POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
 #define check_pow_440x5      check_pow_nocheck
 
-__attribute__ (( unused ))
 static void init_proc_440x5 (CPUPPCState *env)
 {
     /* Time base */
@@ -3656,7 +3655,7 @@ static void init_proc_440x5 (CPUPPCState *env)
     init_excp_BookE(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
-    /* XXX: TODO: allocate internal IRQ controller */
+    ppc40x_irq_init(env);
 }
 
 /* PowerPC 460 (guessed)                                                     */
@@ -6536,6 +6535,7 @@ enum {
 #if 0
     CPU_POWERPC_440A4              = xxx,
 #endif
+    CPU_POWERPC_440_XILINX         = 0x7ff21910,
 #if 0
     CPU_POWERPC_440A5              = xxx,
 #endif
@@ -7464,6 +7464,8 @@ static const ppc_def_t ppc_defs[] = {
     /* PowerPC 440 A4                                                        */
     POWERPC_DEF("440A4",         CPU_POWERPC_440A4,                  440x4),
 #endif
+    /* PowerPC 440 Xilinx 5                                                  */
+    POWERPC_DEF("440-Xilinx",    CPU_POWERPC_440_XILINX,             440x5),
 #if defined (TODO)
     /* PowerPC 440 A5                                                        */
     POWERPC_DEF("440A5",         CPU_POWERPC_440A5,                  440x5),
