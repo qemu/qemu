@@ -684,6 +684,8 @@ static void write_bootloader (CPUState *env, uint8_t *base,
 }
 
 static void prom_set(uint32_t* prom_buf, int index, const char *string, ...)
+    __attribute__ ((format (gnu_printf, 3, 4)));
+static void prom_set(uint32_t* prom_buf, int index, const char *string, ...)
 {
     va_list ap;
     int32_t table_addr;
