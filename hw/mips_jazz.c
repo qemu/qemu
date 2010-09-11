@@ -137,7 +137,7 @@ void mips_jazz_init (ram_addr_t ram_size,
     NICInfo *nd;
     PITState *pit;
     DriveInfo *fds[MAX_FD];
-    qemu_irq esp_reset;
+    qemu_irq esp_reset, dma_enable;
     qemu_irq *cpu_exit_irq;
     ram_addr_t ram_offset;
     ram_addr_t bios_offset;
@@ -245,7 +245,7 @@ void mips_jazz_init (ram_addr_t ram_size,
     /* SCSI adapter */
     esp_init(0x80002000, 0,
              rc4030_dma_read, rc4030_dma_write, dmas[0],
-             rc4030[5], &esp_reset);
+             rc4030[5], &esp_reset, &dma_enable);
 
     /* Floppy */
     if (drive_get_max_bus(IF_FLOPPY) >= MAX_FD) {
