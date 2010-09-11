@@ -77,6 +77,8 @@ static struct _loaderparams {
 } loaderparams;
 
 static void prom_set(uint32_t* prom_buf, int index, const char *string, ...)
+    __attribute__ ((format (gnu_printf, 3, 4)));
+static void prom_set(uint32_t* prom_buf, int index, const char *string, ...)
 {
     va_list ap;
     int32_t table_addr;
@@ -143,7 +145,7 @@ static int64_t load_kernel (CPUState *env)
 
     prom_set(prom_buf, index++, loaderparams.kernel_filename);
     if (initrd_size > 0) {
-        prom_set(prom_buf, index++, "rd_start=0x" PRIx64 " rd_size=%li %s",
+        prom_set(prom_buf, index++, "rd_start=0x%" PRIx64 " rd_size=%li %s",
                  cpu_mips_phys_to_kseg0(NULL, initrd_offset), initrd_size,
                  loaderparams.kernel_cmdline);
     } else {
