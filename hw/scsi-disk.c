@@ -1178,6 +1178,7 @@ static int scsi_disk_initfn(SCSIDevice *dev)
         s->qdev.blocksize = s->qdev.conf.logical_block_size;
     }
     s->cluster_size = s->qdev.blocksize / 512;
+    s->bs->buffer_alignment = s->qdev.blocksize;
 
     s->qdev.type = TYPE_DISK;
     qemu_add_vm_change_state_handler(scsi_dma_restart_cb, s);
