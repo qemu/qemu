@@ -150,6 +150,17 @@ for flag in $gcc_flags; do
     fi
 done
 
+# Check gnu_printf (supported by gcc >= 4.4.x).
+cat > $TMPC << EOF
+static void test(const char *format, ...)
+    __attribute__ ((format (gnu_printf, 1, 2)));
+static void test(const char *format, ...) {}
+int main(void) { test("\n"); return 0; }
+EOF
+if ! compile_prog "-Werror" ""; then
+    QEMU_CFLAGS="-Dgnu_printf=printf $QEMU_CFLAGS"
+fi
+
 # check that the C compiler works.
 cat > $TMPC <<EOF
 int main(void) {}
