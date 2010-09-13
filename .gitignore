@@ -2,6 +2,8 @@ config-devices.*
 config-all-devices.*
 config-host.*
 config-target.*
+trace.h
+trace.c
 *-softmmu
 *-darwin-user
 *-linux-user
@@ -40,6 +42,7 @@ QMP/qmp-commands.txt
 *.log
 *.pdf
 *.pg
+*.pyc
 *.toc
 *.tp
 *.vr

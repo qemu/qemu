@@ -80,6 +80,8 @@ struct ESPState {
     ESPDMAMemoryReadWriteFunc dma_memory_read;
     ESPDMAMemoryReadWriteFunc dma_memory_write;
     void *dma_opaque;
+    int dma_enabled;
+    void (*dma_cb)(ESPState *s);
 };
 
 #define ESP_TCLO   0x0
@@ -167,6 +169,24 @@ static void esp_lower_irq(ESPState *s)
     }
 }
 
+static void esp_dma_enable(void *opaque, int irq, int level)
+{
+    DeviceState *d = opaque;
+    ESPState *s = container_of(d, ESPState, busdev.qdev);
+
+    if (level) {
+        s->dma_enabled = 1;
+        DPRINTF("Raise enable\n");
+        if (s->dma_cb) {
+            s->dma_cb(s);
+            s->dma_cb = NULL;
+        }
+    } else {
+        DPRINTF("Lower enable\n");
+        s->dma_enabled = 0;
+    }
+}
+
 static uint32_t get_cmd(ESPState *s, uint8_t *buf)
 {
     uint32_t dmalen;
@@ -243,6 +263,10 @@ static void handle_satn(ESPState *s)
     uint8_t buf[32];
     int len;
 
+    if (!s->dma_enabled) {
+        s->dma_cb = handle_satn;
+        return;
+    }
     len = get_cmd(s, buf);
     if (len)
         do_cmd(s, buf);
@@ -253,6 +277,10 @@ static void handle_s_without_atn(ESPState *s)
     uint8_t buf[32];
     int len;
 
+    if (!s->dma_enabled) {
+        s->dma_cb = handle_s_without_atn;
+        return;
+    }
     len = get_cmd(s, buf);
     if (len) {
         do_busid_cmd(s, buf, 0);
@@ -261,6 +289,10 @@ static void handle_s_without_atn(ESPState *s)
 
 static void handle_satn_stop(ESPState *s)
 {
+    if (!s->dma_enabled) {
+        s->dma_cb = handle_satn_stop;
+        return;
+    }
     s->cmdlen = get_cmd(s, s->cmdbuf);
     if (s->cmdlen) {
         DPRINTF("Set ATN & Stop: cmdlen %d\n", s->cmdlen);
@@ -431,6 +463,7 @@ static void esp_hard_reset(DeviceState *d)
     s->ti_wptr = 0;
     s->dma = 0;
     s->do_cmd = 0;
+    s->dma_cb = NULL;
 
     s->rregs[ESP_CFG1] = 7;
 }
@@ -447,6 +480,18 @@ static void parent_esp_reset(void *opaque, int irq, int level)
 {
     if (level) {
         esp_soft_reset(opaque);
+    }
+}
+
+static void esp_gpio_demux(void *opaque, int irq, int level)
+{
+    switch (irq) {
+    case 0:
+        parent_esp_reset(opaque, irq, level);
+        break;
+    case 1:
+        esp_dma_enable(opaque, irq, level);
+        break;
     }
 }
 
@@ -646,7 +691,8 @@ static const VMStateDescription vmstate_esp = {
 void esp_init(target_phys_addr_t espaddr, int it_shift,
               ESPDMAMemoryReadWriteFunc dma_memory_read,
               ESPDMAMemoryReadWriteFunc dma_memory_write,
-              void *dma_opaque, qemu_irq irq, qemu_irq *reset)
+              void *dma_opaque, qemu_irq irq, qemu_irq *reset,
+              qemu_irq *dma_enable)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -658,11 +704,14 @@ void esp_init(target_phys_addr_t espaddr, int it_shift,
     esp->dma_memory_write = dma_memory_write;
     esp->dma_opaque = dma_opaque;
     esp->it_shift = it_shift;
+    /* XXX for now until rc4030 has been changed to use DMA enable signal */
+    esp->dma_enabled = 1;
     qdev_init_nofail(dev);
     s = sysbus_from_qdev(dev);
     sysbus_connect_irq(s, 0, irq);
     sysbus_mmio_map(s, 0, espaddr);
     *reset = qdev_get_gpio_in(dev, 0);
+    *dma_enable = qdev_get_gpio_in(dev, 1);
 }
 
 static int esp_init1(SysBusDevice *dev)
@@ -676,7 +725,7 @@ static int esp_init1(SysBusDevice *dev)
     esp_io_memory = cpu_register_io_memory(esp_mem_read, esp_mem_write, s);
     sysbus_init_mmio(dev, ESP_REGS << s->it_shift, esp_io_memory);
 
-    qdev_init_gpio_in(&dev->qdev, parent_esp_reset, 1);
+    qdev_init_gpio_in(&dev->qdev, esp_gpio_demux, 2);
 
     scsi_bus_new(&s->bus, &dev->qdev, 0, ESP_MAX_DEVS, esp_command_complete);
     return scsi_bus_legacy_handle_cmdline(&s->bus);

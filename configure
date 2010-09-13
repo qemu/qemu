@@ -335,6 +335,8 @@ pkgversion=""
 check_utests="no"
 user_pie="no"
 zero_malloc=""
+trace_backend="nop"
+trace_file="trace"
 
 # OS specific
 if check_define __linux__ ; then
@@ -536,6 +538,10 @@ for opt do
   --cpu=*)
   ;;
   --target-list=*) target_list="$optarg"
+  ;;
+  --trace-backend=*) trace_backend="$optarg"
+  ;;
+  --trace-file=*) trace_file="$optarg"
   ;;
   --enable-gprof) gprof="yes"
   ;;
@@ -924,6 +930,9 @@ echo "  --enable-docs            enable documentation build"
 echo "  --disable-docs           disable documentation build"
 echo "  --disable-vhost-net      disable vhost-net acceleration support"
 echo "  --enable-vhost-net       enable vhost-net acceleration support"
+echo "  --trace-backend=B        Trace backend nop simple ust"
+echo "  --trace-file=NAME        Full PATH,NAME of file to store traces"
+echo "                           Default:trace-<pid>"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -2110,6 +2119,36 @@ if compile_prog "" "" ; then
     fdatasync=yes
 fi
 
+##########################################
+# check if trace backend exists
+
+sh "$source_path/tracetool" "--$trace_backend" --check-backend > /dev/null 2> /dev/null
+if test "$?" -ne 0 ; then
+  echo
+  echo "Error: invalid trace backend"
+  echo "Please choose a supported trace backend."
+  echo
+  exit 1
+fi
+
+##########################################
+# For 'ust' backend, test if ust headers are present
+if test "$trace_backend" = "ust"; then
+  cat > $TMPC << EOF
+#include <ust/tracepoint.h>
+#include <ust/marker.h>
+int main(void) { return 0; }
+EOF
+  if compile_prog "" "" ; then
+    LIBS="-lust $LIBS"
+  else
+    echo
+    echo "Error: Trace backend 'ust' missing libust header files"
+    echo
+    exit 1
+  fi
+fi
+##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
@@ -2242,6 +2281,8 @@ echo "preadv support    $preadv"
 echo "fdatasync         $fdatasync"
 echo "uuid support      $uuid"
 echo "vhost-net support $vhost_net"
+echo "Trace backend     $trace_backend"
+echo "Trace output file $trace_file-<pid>"
 
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -2523,14 +2564,16 @@ bsd)
 ;;
 esac
 
-tools="qemu-img\$(EXESUF) qemu-io\$(EXESUF)"
-if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
-  tools="qemu-nbd\$(EXESUF) $tools"
-  if [ "$check_utests" = "yes" ]; then
-    tools="check-qint check-qstring check-qdict check-qlist $tools"
-    tools="check-qfloat check-qjson $tools"
-  fi
+echo "TRACE_BACKEND=$trace_backend" >> $config_host_mak
+if test "$trace_backend" = "simple"; then
+  echo "CONFIG_SIMPLE_TRACE=y" >> $config_host_mak
 fi
+# Set the appropriate trace file.
+if test "$trace_backend" = "simple"; then
+  trace_file="\"$trace_file-%u\""
+fi
+echo "CONFIG_TRACE_FILE=$trace_file" >> $config_host_mak
+
 echo "TOOLS=$tools" >> $config_host_mak
 echo "ROMS=$roms" >> $config_host_mak
 echo "MAKE=$make" >> $config_host_mak

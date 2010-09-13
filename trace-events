@@ -1,0 +1,69 @@
+# Trace events for debugging and performance instrumentation
+#
+# This file is processed by the tracetool script during the build.
+#
+# To add a new trace event:
+#
+# 1. Choose a name for the trace event.  Declare its arguments and format
+#    string.
+#
+# 2. Call the trace event from code using trace_##name, e.g. multiwrite_cb() ->
+#    trace_multiwrite_cb().  The source file must #include "trace.h".
+#
+# Format of a trace event:
+#
+# [disable] <name>(<type1> <arg1>[, <type2> <arg2>] ...) "<format-string>"
+#
+# Example: qemu_malloc(size_t size) "size %zu"
+#
+# The "disable" keyword will build without the trace event.
+# In case of 'simple' trace backend, it will allow the trace event to be
+# compiled, but this would be turned off by default. It can be toggled on via
+# the monitor.
+#
+# The <name> must be a valid as a C function name.
+#
+# Types should be standard C types.  Use void * for pointers because the trace
+# system may not have the necessary headers included.
+#
+# The <format-string> should be a sprintf()-compatible format string.
+
+# qemu-malloc.c
+disable qemu_malloc(size_t size, void *ptr) "size %zu ptr %p"
+disable qemu_realloc(void *ptr, size_t size, void *newptr) "ptr %p size %zu newptr %p"
+disable qemu_free(void *ptr) "ptr %p"
+
+# osdep.c
+disable qemu_memalign(size_t alignment, size_t size, void *ptr) "alignment %zu size %zu ptr %p"
+disable qemu_vmalloc(size_t size, void *ptr) "size %zu ptr %p"
+disable qemu_vfree(void *ptr) "ptr %p"
+
+# hw/virtio.c
+disable virtqueue_fill(void *vq, const void *elem, unsigned int len, unsigned int idx) "vq %p elem %p len %u idx %u"
+disable virtqueue_flush(void *vq, unsigned int count) "vq %p count %u"
+disable virtqueue_pop(void *vq, void *elem, unsigned int in_num, unsigned int out_num) "vq %p elem %p in_num %u out_num %u"
+disable virtio_queue_notify(void *vdev, int n, void *vq) "vdev %p n %d vq %p"
+disable virtio_irq(void *vq) "vq %p"
+disable virtio_notify(void *vdev, void *vq) "vdev %p vq %p"
+
+# block.c
+disable multiwrite_cb(void *mcb, int ret) "mcb %p ret %d"
+disable bdrv_aio_multiwrite(void *mcb, int num_callbacks, int num_reqs) "mcb %p num_callbacks %d num_reqs %d"
+disable bdrv_aio_multiwrite_earlyfail(void *mcb) "mcb %p"
+disable bdrv_aio_multiwrite_latefail(void *mcb, int i) "mcb %p i %d"
+
+# hw/virtio-blk.c
+disable virtio_blk_req_complete(void *req, int status) "req %p status %d"
+disable virtio_blk_rw_complete(void *req, int ret) "req %p ret %d"
+disable virtio_blk_handle_write(void *req, unsigned long sector, unsigned long nsectors) "req %p sector %lu nsectors %lu"
+
+# posix-aio-compat.c
+disable paio_submit(void *acb, void *opaque, unsigned long sector_num, unsigned long nb_sectors, unsigned long type) "acb %p opaque %p sector_num %lu nb_sectors %lu type %lu"
+
+# ioport.c
+disable cpu_in(unsigned int addr, unsigned int val) "addr %#x value %u"
+disable cpu_out(unsigned int addr, unsigned int val) "addr %#x value %u"
+
+# balloon.c
+# Since requests are raised via monitor, not many tracepoints are needed.
+disable balloon_event(void *opaque, unsigned long addr) "opaque %p addr %lu"

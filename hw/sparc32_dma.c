@@ -58,6 +58,7 @@
 #define DMA_INTR 1
 #define DMA_INTREN 0x10
 #define DMA_WRITE_MEM 0x100
+#define DMA_EN 0x200
 #define DMA_LOADED 0x04000000
 #define DMA_DRAIN_FIFO 0x40
 #define DMA_RESET 0x80
@@ -72,7 +73,12 @@ struct DMAState {
     uint32_t dmaregs[DMA_REGS];
     qemu_irq irq;
     void *iommu;
-    qemu_irq dev_reset;
+    qemu_irq gpio[2];
+};
+
+enum {
+    GPIO_RESET = 0,
+    GPIO_DMA,
 };
 
 /* Note: on sparc, the lance 16 bit bus is swapped */
@@ -201,12 +207,21 @@ static void dma_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
             }
         }
         if (val & DMA_RESET) {
-            qemu_irq_raise(s->dev_reset);
-            qemu_irq_lower(s->dev_reset);
+            qemu_irq_raise(s->gpio[GPIO_RESET]);
+            qemu_irq_lower(s->gpio[GPIO_RESET]);
         } else if (val & DMA_DRAIN_FIFO) {
             val &= ~DMA_DRAIN_FIFO;
         } else if (val == 0)
             val = DMA_DRAIN_FIFO;
+
+        if (val & DMA_EN && !(s->dmaregs[0] & DMA_EN)) {
+            DPRINTF("Raise DMA enable\n");
+            qemu_irq_raise(s->gpio[GPIO_DMA]);
+        } else if (!(val & DMA_EN) && !!(s->dmaregs[0] & DMA_EN)) {
+            DPRINTF("Lower DMA enable\n");
+            qemu_irq_lower(s->gpio[GPIO_DMA]);
+        }
+
         val &= ~DMA_CSR_RO_MASK;
         val |= DMA_VER;
         s->dmaregs[0] = (s->dmaregs[0] & DMA_CSR_RO_MASK) | val;
@@ -262,7 +277,7 @@ static int sparc32_dma_init1(SysBusDevice *dev)
     sysbus_init_mmio(dev, DMA_SIZE, dma_io_memory);
 
     qdev_init_gpio_in(&dev->qdev, dma_set_irq, 1);
-    qdev_init_gpio_out(&dev->qdev, &s->dev_reset, 1);
+    qdev_init_gpio_out(&dev->qdev, s->gpio, 2);
 
     return 0;
 }

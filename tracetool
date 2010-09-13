@@ -1,0 +1,378 @@
+#!/bin/sh
+#
+# Code generator for trace events
+#
+# Copyright IBM, Corp. 2010
+#
+# This work is licensed under the terms of the GNU GPL, version 2.  See
+# the COPYING file in the top-level directory.
+
+# Disable pathname expansion, makes processing text with '*' characters simpler
+set -f
+
+usage()
+{
+    cat >&2 <<EOF
+usage: $0 [--nop | --simple | --ust] [-h | -c]
+Generate tracing code for a file on stdin.
+
+Backends:
+  --nop     Tracing disabled
+  --simple  Simple built-in backend
+  --ust     LTTng User Space Tracing backend
+
+Output formats:
+  -h    Generate .h file
+  -c    Generate .c file
+EOF
+    exit 1
+}
+
+# Get the name of a trace event
+get_name()
+{
+    echo ${1%%\(*}
+}
+
+# Get the argument list of a trace event, including types and names
+get_args()
+{
+    local args
+    args=${1#*\(}
+    args=${args%\)*}
+    echo "$args"
+}
+
+# Get the argument name list of a trace event
+get_argnames()
+{
+    local nfields field name
+    nfields=0
+    for field in $(get_args "$1"); do
+        nfields=$((nfields + 1))
+
+        # Drop pointer star
+        field=${field#\*}
+
+        # Only argument names have commas at the end
+        name=${field%,}
+        test "$field" = "$name" && continue
+
+        printf "%s" "$name, "
+    done
+
+    # Last argument name
+    if [ "$nfields" -gt 1 ]
+    then
+        printf "%s" "$name"
+    fi
+}
+
+# Get the number of arguments to a trace event
+get_argc()
+{
+    local name argc
+    argc=0
+    for name in $(get_argnames "$1"); do
+        argc=$((argc + 1))
+    done
+    echo $argc
+}
+
+# Get the format string for a trace event
+get_fmt()
+{
+    local fmt
+    fmt=${1#*\"}
+    fmt=${fmt%\"*}
+    echo "$fmt"
+}
+
+# Get the state of a trace event
+get_state()
+{
+    local str disable state
+    str=$(get_name "$1")
+    disable=${str##disable }
+    if [ "$disable" = "$str" ] ; then
+        state=1
+    else
+        state=0
+    fi
+    echo "$state"
+}
+
+linetoh_begin_nop()
+{
+    return
+}
+
+linetoh_nop()
+{
+    local name args
+    name=$(get_name "$1")
+    args=$(get_args "$1")
+
+    # Define an empty function for the trace event
+    cat <<EOF
+static inline void trace_$name($args)
+{
+}
+EOF
+}
+
+linetoh_end_nop()
+{
+    return
+}
+
+linetoc_begin_nop()
+{
+    return
+}
+
+linetoc_nop()
+{
+    # No need for function definitions in nop backend
+    return
+}
+
+linetoc_end_nop()
+{
+    return
+}
+
+linetoh_begin_simple()
+{
+    cat <<EOF
+#include "simpletrace.h"
+EOF
+
+    simple_event_num=0
+}
+
+cast_args_to_uint64_t()
+{
+    local arg
+    for arg in $(get_argnames "$1"); do
+        printf "%s" "(uint64_t)(uintptr_t)$arg"
+    done
+}
+
+linetoh_simple()
+{
+    local name args argc trace_args state
+    name=$(get_name "$1")
+    args=$(get_args "$1")
+    argc=$(get_argc "$1")
+    state=$(get_state "$1")
+    if [ "$state" = "0" ]; then
+        name=${name##disable }
+    fi
+
+    trace_args="$simple_event_num"
+    if [ "$argc" -gt 0 ]
+    then
+        trace_args="$trace_args, $(cast_args_to_uint64_t "$1")"
+    fi
+
+    cat <<EOF
+static inline void trace_$name($args)
+{
+    trace$argc($trace_args);
+}
+EOF
+
+    simple_event_num=$((simple_event_num + 1))
+}
+
+linetoh_end_simple()
+{
+    cat <<EOF
+#define NR_TRACE_EVENTS $simple_event_num
+extern TraceEvent trace_list[NR_TRACE_EVENTS];
+EOF
+}
+
+linetoc_begin_simple()
+{
+    cat <<EOF
+#include "trace.h"
+
+TraceEvent trace_list[] = {
+EOF
+    simple_event_num=0
+
+}
+
+linetoc_simple()
+{
+    local name state
+    name=$(get_name "$1")
+    state=$(get_state "$1")
+    if [ "$state" = "0" ] ; then
+        name=${name##disable }
+    fi
+    cat <<EOF
+{.tp_name = "$name", .state=$state},
+EOF
+    simple_event_num=$((simple_event_num + 1))
+}
+
+linetoc_end_simple()
+{
+    cat <<EOF
+};
+EOF
+}
+
+# Clean up after UST headers which pollute the namespace
+ust_clean_namespace() {
+    cat <<EOF
+#undef mutex_lock
+#undef mutex_unlock
+#undef inline
+#undef wmb
+EOF
+}
+
+linetoh_begin_ust()
+{
+    echo "#include <ust/tracepoint.h>"
+    ust_clean_namespace
+}
+
+linetoh_ust()
+{
+    local name args argnames
+    name=$(get_name "$1")
+    args=$(get_args "$1")
+    argnames=$(get_argnames "$1")
+
+    cat <<EOF
+DECLARE_TRACE(ust_$name, TPPROTO($args), TPARGS($argnames));
+#define trace_$name trace_ust_$name
+EOF
+}
+
+linetoh_end_ust()
+{
+    return
+}
+
+linetoc_begin_ust()
+{
+    cat <<EOF
+#include <ust/marker.h>
+$(ust_clean_namespace)
+#include "trace.h"
+EOF
+}
+
+linetoc_ust()
+{
+    local name args argnames fmt
+    name=$(get_name "$1")
+    args=$(get_args "$1")
+    argnames=$(get_argnames "$1")
+    fmt=$(get_fmt "$1")
+
+    cat <<EOF
+DEFINE_TRACE(ust_$name);
+
+static void ust_${name}_probe($args)
+{
+    trace_mark(ust, $name, "$fmt", $argnames);
+}
+EOF
+
+    # Collect names for later
+    names="$names $name"
+}
+
+linetoc_end_ust()
+{
+    cat <<EOF
+static void __attribute__((constructor)) trace_init(void)
+{
+EOF
+
+    for name in $names; do
+        cat <<EOF
+    register_trace_ust_$name(ust_${name}_probe);
+EOF
+    done
+
+    echo "}"
+}
+
+# Process stdin by calling begin, line, and end functions for the backend
+convert()
+{
+    local begin process_line end str disable
+    begin="lineto$1_begin_$backend"
+    process_line="lineto$1_$backend"
+    end="lineto$1_end_$backend"
+
+    "$begin"
+
+    while read -r str; do
+        # Skip comments and empty lines
+        str=${str%%#*}
+        test -z "$str" && continue
+
+        # Process the line.  The nop backend handles disabled lines.
+        disable=${str%%disable *}
+        echo
+        if test -z "$disable"; then
+            # Pass the disabled state as an arg to lineto$1_simple().
+            # For all other cases, call lineto$1_nop()
+            if [ $backend = "simple" ]; then
+                "$process_line" "$str"
+            else
+                "lineto$1_nop" "${str##disable }"
+            fi
+        else
+            "$process_line" "$str"
+        fi
+    done
+
+    echo
+    "$end"
+}
+
+tracetoh()
+{
+    cat <<EOF
+#ifndef TRACE_H
+#define TRACE_H
+
+/* This file is autogenerated by tracetool, do not edit. */
+
+#include "qemu-common.h"
+EOF
+    convert h
+    echo "#endif /* TRACE_H */"
+}
+
+tracetoc()
+{
+    echo "/* This file is autogenerated by tracetool, do not edit. */"
+    convert c
+}
+
+# Choose backend
+case "$1" in
+"--nop" | "--simple" | "--ust") backend="${1#--}" ;;
+*) usage ;;
+esac
+shift
+
+case "$1" in
+"-h") tracetoh ;;
+"-c") tracetoc ;;
+"--check-backend") exit 0 ;; # used by ./configure to test for backend
+*) usage ;;
+esac
+
+exit 0

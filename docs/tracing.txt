@@ -1,0 +1,177 @@
+= Tracing =
+
+== Introduction ==
+
+This document describes the tracing infrastructure in QEMU and how to use it
+for debugging, profiling, and observing execution.
+
+== Quickstart ==
+
+1. Build with the 'simple' trace backend:
+
+    ./configure --trace-backend=simple
+    make
+
+2. Enable trace events you are interested in:
+
+    $EDITOR trace-events  # remove "disable" from events you want
+
+3. Run the virtual machine to produce a trace file:
+
+    qemu ... # your normal QEMU invocation
+
+4. Pretty-print the binary trace file:
+
+    ./simpletrace.py trace-events trace-*
+
+== Trace events ==
+
+There is a set of static trace events declared in the trace-events source
+file.  Each trace event declaration names the event, its arguments, and the
+format string which can be used for pretty-printing:
+
+    qemu_malloc(size_t size, void *ptr) "size %zu ptr %p"
+    qemu_free(void *ptr) "ptr %p"
+
+The trace-events file is processed by the tracetool script during build to
+generate code for the trace events.  Trace events are invoked directly from
+source code like this:
+
+    #include "trace.h"  /* needed for trace event prototype */
+
+    void *qemu_malloc(size_t size)
+    {
+        void *ptr;
+        if (!size && !allow_zero_malloc()) {
+            abort();
+        }
+        ptr = oom_check(malloc(size ? size : 1));
+        trace_qemu_malloc(size, ptr);  /* <-- trace event */
+        return ptr;
+    }
+
+=== Declaring trace events ===
+
+The tracetool script produces the trace.h header file which is included by
+every source file that uses trace events.  Since many source files include
+trace.h, it uses a minimum of types and other header files included to keep
+the namespace clean and compile times and dependencies down.
+
+Trace events should use types as follows:
+
+ * Use stdint.h types for fixed-size types.  Most offsets and guest memory
+   addresses are best represented with uint32_t or uint64_t.  Use fixed-size
+   types over primitive types whose size may change depending on the host
+   (32-bit versus 64-bit) so trace events don't truncate values or break
+   the build.
+
+ * Use void * for pointers to structs or for arrays.  The trace.h header
+   cannot include all user-defined struct declarations and it is therefore
+   necessary to use void * for pointers to structs.
+
+ * For everything else, use primitive scalar types (char, int, long) with the
+   appropriate signedness.
+
+=== Hints for adding new trace events ===
+
+1. Trace state changes in the code.  Interesting points in the code usually
+   involve a state change like starting, stopping, allocating, freeing.  State
+   changes are good trace events because they can be used to understand the
+   execution of the system.
+
+2. Trace guest operations.  Guest I/O accesses like reading device registers
+   are good trace events because they can be used to understand guest
+   interactions.
+
+3. Use correlator fields so the context of an individual line of trace output
+   can be understood.  For example, trace the pointer returned by malloc and
+   used as an argument to free.  This way mallocs and frees can be matched up.
+   Trace events with no context are not very useful.
+
+4. Name trace events after their function.  If there are multiple trace events
+   in one function, append a unique distinguisher at the end of the name.
+
+5. Declare trace events with the "disable" keyword.  Some trace events can
+   produce a lot of output and users are typically only interested in a subset
+   of trace events.  Marking trace events disabled by default saves the user
+   from having to manually disable noisy trace events.
+
+== Trace backends ==
+
+The tracetool script automates tedious trace event code generation and also
+keeps the trace event declarations independent of the trace backend.  The trace
+events are not tightly coupled to a specific trace backend, such as LTTng or
+SystemTap.  Support for trace backends can be added by extending the tracetool
+script.
+
+The trace backend is chosen at configure time and only one trace backend can
+be built into the binary:
+
+    ./configure --trace-backend=simple
+
+For a list of supported trace backends, try ./configure --help or see below.
+
+The following subsections describe the supported trace backends.
+
+=== Nop ===
+
+The "nop" backend generates empty trace event functions so that the compiler
+can optimize out trace events completely.  This is the default and imposes no
+performance penalty.
+
+=== Simpletrace ===
+
+The "simple" backend supports common use cases and comes as part of the QEMU
+source tree.  It may not be as powerful as platform-specific or third-party
+trace backends but it is portable.  This is the recommended trace backend
+unless you have specific needs for more advanced backends.
+
+==== Monitor commands ====
+
+* info trace
+  Display the contents of trace buffer.  This command dumps the trace buffer
+  with simple formatting.  For full pretty-printing, use the simpletrace.py
+  script on a binary trace file.
+
+  The trace buffer is written into until full.  The full trace buffer is
+  flushed and emptied.  This means the 'info trace' will display few or no
+  entries if the buffer has just been flushed.
+
+* info trace-events
+  View available trace events and their state.  State 1 means enabled, state 0
+  means disabled.
+
+* trace-event NAME on|off
+  Enable/disable a given trace event.
+
+* trace-file on|off|flush|set <path>
+  Enable/disable/flush the trace file or set the trace file name.
+
+==== Enabling/disabling trace events programmatically ====
+
+The st_change_trace_event_state() function can be used to enable or disable trace
+events at runtime inside QEMU:
+
+    #include "trace.h"
+    
+    st_change_trace_event_state("virtio_irq", true); /* enable */
+    [...]
+    st_change_trace_event_state("virtio_irq", false); /* disable */
+
+==== Analyzing trace files ====
+
+The "simple" backend produces binary trace files that can be formatted with the
+simpletrace.py script.  The script takes the trace-events file and the binary
+trace:
+
+    ./simpletrace.py trace-events trace-12345
+
+You must ensure that the same trace-events file was used to build QEMU,
+otherwise trace event declarations may have changed and output will not be
+consistent.
+
+=== LTTng Userspace Tracer ===
+
+The "ust" backend uses the LTTng Userspace Tracer library.  There are no
+monitor commands built into QEMU, instead UST utilities should be used to list,
+enable/disable, and dump traces.

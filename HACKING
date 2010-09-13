@@ -1,0 +1,125 @@
+1. Preprocessor
+
+For variadic macros, stick with this C99-like syntax:
+
+#define DPRINTF(fmt, ...)                                       \
+    do { printf("IRQ: " fmt, ## __VA_ARGS__); } while (0)
+
+2. C types
+
+It should be common sense to use the right type, but we have collected
+a few useful guidelines here.
+
+2.1. Scalars
+
+If you're using "int" or "long", odds are good that there's a better type.
+If a variable is counting something, it should be declared with an
+unsigned type.
+
+If it's host memory-size related, size_t should be a good choice (use
+ssize_t only if required). Guest RAM memory offsets must use ram_addr_t,
+but only for RAM, it may not cover whole guest address space.
+
+If it's file-size related, use off_t.
+If it's file-offset related (i.e., signed), use off_t.
+If it's just counting small numbers use "unsigned int";
+(on all but oddball embedded systems, you can assume that that
+type is at least four bytes wide).
+
+In the event that you require a specific width, use a standard type
+like int32_t, uint32_t, uint64_t, etc.  The specific types are
+mandatory for VMState fields.
+
+Don't use Linux kernel internal types like u32, __u32 or __le32.
+
+Use target_phys_addr_t for guest physical addresses except pcibus_t
+for PCI addresses.  In addition, ram_addr_t is a QEMU internal address
+space that maps guest RAM physical addresses into an intermediate
+address space that can map to host virtual address spaces.  Generally
+speaking, the size of guest memory can always fit into ram_addr_t but
+it would not be correct to store an actual guest physical address in a
+ram_addr_t.
+
+Use target_ulong (or abi_ulong) for CPU virtual addresses, however
+devices should not need to use target_ulong.
+
+Of course, take all of the above with a grain of salt.  If you're about
+to use some system interface that requires a type like size_t, pid_t or
+off_t, use matching types for any corresponding variables.
+
+Also, if you try to use e.g., "unsigned int" as a type, and that
+conflicts with the signedness of a related variable, sometimes
+it's best just to use the *wrong* type, if "pulling the thread"
+and fixing all related variables would be too invasive.
+
+Finally, while using descriptive types is important, be careful not to
+go overboard.  If whatever you're doing causes warnings, or requires
+casts, then reconsider or ask for help.
+
+2.2. Pointers
+
+Ensure that all of your pointers are "const-correct".
+Unless a pointer is used to modify the pointed-to storage,
+give it the "const" attribute.  That way, the reader knows
+up-front that this is a read-only pointer.  Perhaps more
+importantly, if we're diligent about this, when you see a non-const
+pointer, you're guaranteed that it is used to modify the storage
+it points to, or it is aliased to another pointer that is.
+
+2.3. Typedefs
+Typedefs are used to eliminate the redundant 'struct' keyword.
+
+2.4. Reserved namespaces in C and POSIX
+Underscore capital, double underscore, and underscore 't' suffixes should be
+avoided.
+
+3. Low level memory management
+
+Use of the malloc/free/realloc/calloc/valloc/memalign/posix_memalign
+APIs is not allowed in the QEMU codebase. Instead of these routines,
+use the replacement qemu_malloc/qemu_mallocz/qemu_realloc/qemu_free or
+qemu_vmalloc/qemu_memalign/qemu_vfree APIs.
+
+Please note that NULL check for the qemu_malloc result is redundant and
+that qemu_malloc() call with zero size is not allowed.
+
+Memory allocated by qemu_vmalloc or qemu_memalign must be freed with
+qemu_vfree, since breaking this will cause problems on Win32 and user
+emulators.
+
+4. String manipulation
+
+Do not use the strncpy function.  According to the man page, it does
+*not* guarantee a NULL-terminated buffer, which makes it extremely dangerous
+to use.  Instead, use functionally equivalent function:
+void pstrcpy(char *buf, int buf_size, const char *str)
+
+Don't use strcat because it can't check for buffer overflows, but:
+char *pstrcat(char *buf, int buf_size, const char *s)
+
+The same limitation exists with sprintf and vsprintf, so use snprintf and
+vsnprintf.
+
+QEMU provides other useful string functions:
+int strstart(const char *str, const char *val, const char **ptr)
+int stristart(const char *str, const char *val, const char **ptr)
+int qemu_strnlen(const char *s, int max_len)
+
+There are also replacement character processing macros for isxyz and toxyz,
+so instead of e.g. isalnum you should use qemu_isalnum.
+
+Because of the memory management rules, you must use qemu_strdup/qemu_strndup
+instead of plain strdup/strndup.
+
+5. Printf-style functions
+
+Whenever you add a new printf-style function, i.e., one with a format
+string argument and following "..." in its prototype, be sure to use
+gcc's printf attribute directive in the prototype.
+
+This makes it so gcc's -Wformat and -Wformat-security options can do
+their jobs and cross-check format strings with the number and types
+of arguments.
+
+Currently many functions in QEMU are not following this rule but
+patches to add the attribute would be very much appreciated.

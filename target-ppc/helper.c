@@ -1050,7 +1050,6 @@ static inline int ppcemb_tlb_check(CPUState *env, ppcemb_tlb_t *tlb,
 
     /* Check valid flag */
     if (!(tlb->prot & PAGE_VALID)) {
-        qemu_log("%s: TLB %d not valid\n", __func__, i);
         return -1;
     }
     mask = ~(tlb->size - 1);
