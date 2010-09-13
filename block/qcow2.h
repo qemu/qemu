@@ -166,8 +166,8 @@ static inline int64_t align_offset(int64_t offset, int n)
 // FIXME Need qcow2_ prefix to global functions
 
 /* qcow2.c functions */
-int qcow2_backing_read1(BlockDriverState *bs,
-                  int64_t sector_num, uint8_t *buf, int nb_sectors);
+int qcow2_backing_read1(BlockDriverState *bs, QEMUIOVector *qiov,
+                  int64_t sector_num, int nb_sectors);
 
 /* qcow2-refcount.c functions */
 int qcow2_refcount_init(BlockDriverState *bs);

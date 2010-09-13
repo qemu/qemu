@@ -350,6 +350,8 @@ static int qcow_read(BlockDriverState *bs, int64_t sector_num,
     BDRVQcowState *s = bs->opaque;
     int ret, index_in_cluster, n, n1;
     uint64_t cluster_offset;
+    struct iovec iov;
+    QEMUIOVector qiov;
 
     while (nb_sectors > 0) {
         n = nb_sectors;
@@ -364,7 +366,11 @@ static int qcow_read(BlockDriverState *bs, int64_t sector_num,
         if (!cluster_offset) {
             if (bs->backing_hd) {
                 /* read from the base image */
-                n1 = qcow2_backing_read1(bs->backing_hd, sector_num, buf, n);
+                iov.iov_base = buf;
+                iov.iov_len = n * 512;
+                qemu_iovec_init_external(&qiov, &iov, 1);
+
+                n1 = qcow2_backing_read1(bs->backing_hd, &qiov, sector_num, n);
                 if (n1 > 0) {
                     BLKDBG_EVENT(bs->file, BLKDBG_READ_BACKING);
                     ret = bdrv_read(bs->backing_hd, sector_num, buf, n1);
