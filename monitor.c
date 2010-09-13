@@ -3371,17 +3371,23 @@ static int is_valid_option(const char *c, const char *typestr)
     return (typestr != NULL);
 }
 
-static const mon_cmd_t *monitor_find_command(const char *cmdname)
+static const mon_cmd_t *search_dispatch_table(const mon_cmd_t *disp_table,
+                                              const char *cmdname)
 {
     const mon_cmd_t *cmd;
 
-    for (cmd = mon_cmds; cmd->name != NULL; cmd++) {
+    for (cmd = disp_table; cmd->name != NULL; cmd++) {
         if (compare_cmd(cmdname, cmd->name)) {
             return cmd;
         }
     }
 
     return NULL;
+}
+
+static const mon_cmd_t *monitor_find_command(const char *cmdname)
+{
+    return search_dispatch_table(mon_cmds, cmdname);
 }
 
 static const mon_cmd_t *monitor_parse_command(Monitor *mon,
