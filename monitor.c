@@ -4472,19 +4472,13 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
         goto err_out;
     }
 
-    /*
-     * XXX: We need this special case until QMP has its own dispatch table
-     */
-    if (compare_cmd(cmd_name, "info")) {
-        qerror_report(QERR_COMMAND_NOT_FOUND, cmd_name);
-        goto err_out;
-    } else if (strstart(cmd_name, "query-", &query_cmd)) {
+    if (strstart(cmd_name, "query-", &query_cmd)) {
         cmd = qmp_find_query_cmd(query_cmd);
     } else {
         cmd = qmp_find_cmd(cmd_name);
     }
 
-    if (!cmd || !monitor_handler_ported(cmd) || monitor_cmd_user_only(cmd)) {
+    if (!cmd) {
         qerror_report(QERR_COMMAND_NOT_FOUND, cmd_name);
         goto err_out;
     }
