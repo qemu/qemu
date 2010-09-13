@@ -2352,14 +2352,6 @@ static const mon_cmd_t info_cmds[] = {
         .mhandler.info_new = do_info_version,
     },
     {
-        .name       = "commands",
-        .args_type  = "",
-        .params     = "",
-        .help       = "list QMP available commands",
-        .user_print = monitor_user_noop,
-        .mhandler.info_new = do_info_commands,
-    },
-    {
         .name       = "network",
         .args_type  = "",
         .params     = "",
