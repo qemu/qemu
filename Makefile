@@ -252,7 +252,7 @@ qemu-options.texi: $(SRC_PATH)/qemu-options.hx
 qemu-monitor.texi: $(SRC_PATH)/qemu-monitor.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -t < $< > $@,"  GEN   $@")
 
-QMP/qmp-commands.txt: $(SRC_PATH)/qemu-monitor.hx
+QMP/qmp-commands.txt: $(SRC_PATH)/qmp-commands.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -q < $< > $@,"  GEN   $@")
 
 qemu-img-cmds.texi: $(SRC_PATH)/qemu-img-cmds.hx
