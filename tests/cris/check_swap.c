@@ -41,7 +41,7 @@ do {                                                    \
         cris_tst_mov_cc(n, z);                          \
 	if (r != expected)                              \
 		err();                                  \
-} while(0);
+} while(0)
 
 void check_swap(void)
 {
