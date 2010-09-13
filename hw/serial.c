@@ -99,6 +99,14 @@
 #define RECV_FIFO           1
 #define MAX_XMIT_RETRY      4
 
+#ifdef DEBUG_SERIAL
+#define DPRINTF(fmt, ...) \
+do { fprintf(stderr, "serial: " fmt , ## __VA_ARGS__); } while (0);
+#else
+#define DPRINTF(fmt, ...) \
+do {} while(0);
+#endif
+
 typedef struct SerialFIFO {
     uint8_t data[UART_FIFO_LENGTH];
     uint8_t count;
@@ -267,10 +275,9 @@ static void serial_update_parameters(SerialState *s)
     ssp.stop_bits = stop_bits;
     s->char_transmit_time =  (get_ticks_per_sec() / speed) * frame_size;
     qemu_chr_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
-#if 0
-    printf("speed=%d parity=%c data=%d stop=%d\n",
+
+    DPRINTF("speed=%d parity=%c data=%d stop=%d\n",
            speed, parity, data_bits, stop_bits);
-#endif
 }
 
 static void serial_update_msl(SerialState *s)
@@ -360,9 +367,7 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     SerialState *s = opaque;
 
     addr &= 7;
-#ifdef DEBUG_SERIAL
-    printf("serial: write addr=0x%02x val=0x%02x\n", addr, val);
-#endif
+    DPRINTF("write addr=0x%02x val=0x%02x\n", addr, val);
     switch(addr) {
     default:
     case 0:
@@ -583,9 +588,7 @@ static uint32_t serial_ioport_read(void *opaque, uint32_t addr)
         ret = s->scr;
         break;
     }
-#ifdef DEBUG_SERIAL
-    printf("serial: read addr=0x%02x val=0x%02x\n", addr, ret);
-#endif
+    DPRINTF("read addr=0x%02x val=0x%02x\n", addr, ret);
     return ret;
 }
 
@@ -651,9 +654,7 @@ static void serial_receive1(void *opaque, const uint8_t *buf, int size)
 static void serial_event(void *opaque, int event)
 {
     SerialState *s = opaque;
-#ifdef DEBUG_SERIAL
-    printf("serial: event %x\n", event);
-#endif
+    DPRINTF("event %x\n", event);
     if (event == CHR_EVENT_BREAK)
         serial_receive_break(s);
 }
