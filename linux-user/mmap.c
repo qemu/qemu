@@ -697,7 +697,9 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
                                          old_size, new_size,
                                          flags | MREMAP_FIXED,
                                          g2h(mmap_start));
-            mmap_reserve(old_addr, old_size);
+            if ( RESERVED_VA ) {
+                mmap_reserve(old_addr, old_size);
+            }
         }
     } else {
         int prot = 0;
