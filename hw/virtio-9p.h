@@ -27,6 +27,8 @@ enum {
     P9_RMKNOD,
     P9_TRENAME = 20,
     P9_RRENAME,
+    P9_TREADLINK = 22,
+    P9_RREADLINK,
     P9_TGETATTR = 24,
     P9_RGETATTR,
     P9_TSETATTR = 26,
@@ -486,6 +488,12 @@ typedef struct V9fsGetlockState
     V9fsGetlock *glock;
 } V9fsGetlockState;
 
+typedef struct V9fsReadLinkState
+{
+    V9fsPDU *pdu;
+    size_t offset;
+    V9fsString target;
+} V9fsReadLinkState;
 
 extern size_t pdu_packunpack(void *addr, struct iovec *sg, int sg_count,
                             size_t offset, size_t size, int pack);

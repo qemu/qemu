@@ -3520,6 +3520,49 @@ out:
     qemu_free(vs);
 }
 
+static void v9fs_readlink_post_readlink(V9fsState *s, V9fsReadLinkState *vs,
+                                                    int err)
+{
+    if (err < 0) {
+        err = -errno;
+        goto out;
+    }
+    vs->offset += pdu_marshal(vs->pdu, vs->offset, "s", &vs->target);
+    err = vs->offset;
+out:
+    complete_pdu(s, vs->pdu, err);
+    v9fs_string_free(&vs->target);
+    qemu_free(vs);
+}
+
+static void v9fs_readlink(V9fsState *s, V9fsPDU *pdu)
+{
+    int32_t fid;
+    V9fsReadLinkState *vs;
+    int err = 0;
+    V9fsFidState *fidp;
+
+    vs = qemu_malloc(sizeof(*vs));
+    vs->pdu = pdu;
+    vs->offset = 7;
+
+    pdu_unmarshal(vs->pdu, vs->offset, "d", &fid);
+
+    fidp = lookup_fid(s, fid);
+    if (fidp == NULL) {
+        err = -ENOENT;
+        goto out;
+    }
+
+    v9fs_string_init(&vs->target);
+    err = v9fs_do_readlink(s, &fidp->path, &vs->target);
+    v9fs_readlink_post_readlink(s, vs, err);
+    return;
+out:
+    complete_pdu(s, vs->pdu, err);
+    qemu_free(vs);
+}
+
 typedef void (pdu_handler_t)(V9fsState *s, V9fsPDU *pdu);
 
 static pdu_handler_t *pdu_handlers[] = {
@@ -3533,6 +3576,7 @@ static pdu_handler_t *pdu_handlers[] = {
     [P9_TRENAME] = v9fs_rename,
     [P9_TLOCK] = v9fs_lock,
     [P9_TGETLOCK] = v9fs_getlock,
+    [P9_TREADLINK] = v9fs_readlink,
     [P9_TMKDIR] = v9fs_mkdir,
     [P9_TVERSION] = v9fs_version,
     [P9_TLOPEN] = v9fs_open,

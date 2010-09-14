@@ -502,6 +502,14 @@ void pprint_pdu(V9fsPDU *pdu)
         fprintf(llogfile, "RMKNOD: )");
         pprint_qid(pdu, 0, &offset, "qid");
         break;
+    case P9_TREADLINK:
+	fprintf(llogfile, "TREADLINK: (");
+        pprint_int32(pdu, 0, &offset, "fid");
+        break;
+    case P9_RREADLINK:
+	fprintf(llogfile, "RREADLINK: (");
+        pprint_str(pdu, 0, &offset, "target");
+        break;
     case P9_TREAD:
         fprintf(llogfile, "TREAD: (");
         pprint_int32(pdu, 0, &offset, "fid");
