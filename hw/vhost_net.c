@@ -151,7 +151,7 @@ int vhost_net_start(struct vhost_net *net,
     return 0;
 fail:
     file.fd = -1;
-    while (--file.index >= 0) {
+    while (file.index-- > 0) {
         int r = ioctl(net->dev.control, VHOST_NET_SET_BACKEND, &file);
         assert(r >= 0);
     }
