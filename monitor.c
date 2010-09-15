@@ -3365,6 +3365,11 @@ static const mon_cmd_t *qmp_find_query_cmd(const char *info_item)
     return search_dispatch_table(info_cmds, info_item);
 }
 
+static const mon_cmd_t *qmp_find_cmd(const char *cmdname)
+{
+    return search_dispatch_table(mon_cmds, cmdname);
+}
+
 static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                                               const char *cmdline,
                                               QDict *qdict)
@@ -4348,7 +4353,7 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     } else if (strstart(cmd_name, "query-", &query_cmd)) {
         cmd = qmp_find_query_cmd(query_cmd);
     } else {
-        cmd = monitor_find_command(cmd_name);
+        cmd = qmp_find_cmd(cmd_name);
     }
 
     if (!cmd || !monitor_handler_ported(cmd) || monitor_cmd_user_only(cmd)) {
