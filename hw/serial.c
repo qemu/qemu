@@ -674,6 +674,7 @@ static int serial_post_load(void *opaque, int version_id)
     }
     /* Initialize fcr via setter to perform essential side-effects */
     serial_ioport_write(s, 0x02, s->fcr_vmstate);
+    serial_update_parameters(s);
     return 0;
 }
 
