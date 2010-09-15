@@ -189,6 +189,8 @@ static QLIST_HEAD(mon_list, Monitor) mon_list;
 static const mon_cmd_t mon_cmds[];
 static const mon_cmd_t info_cmds[];
 
+static const mon_cmd_t qmp_cmds[];
+
 Monitor *cur_mon;
 Monitor *default_mon;
 
@@ -745,7 +747,7 @@ static void do_info_commands(Monitor *mon, QObject **ret_data)
 
     cmd_list = qlist_new();
 
-    for (cmd = mon_cmds; cmd->name != NULL; cmd++) {
+    for (cmd = qmp_cmds; cmd->name != NULL; cmd++) {
         if (monitor_handler_ported(cmd) && !monitor_cmd_user_only(cmd) &&
             !compare_cmd(cmd->name, "info")) {
             qlist_append_obj(cmd_list, get_cmd_dict(cmd->name));
@@ -2635,6 +2637,11 @@ static const mon_cmd_t info_cmds[] = {
     },
 };
 
+static const mon_cmd_t qmp_cmds[] = {
+#include "qmp-commands.h"
+    { /* NULL */ },
+};
+
 /*******************************************************************/
 
 static const char *pch;
@@ -3367,7 +3374,7 @@ static const mon_cmd_t *qmp_find_query_cmd(const char *info_item)
 
 static const mon_cmd_t *qmp_find_cmd(const char *cmdname)
 {
-    return search_dispatch_table(mon_cmds, cmdname);
+    return search_dispatch_table(qmp_cmds, cmdname);
 }
 
 static const mon_cmd_t *monitor_parse_command(Monitor *mon,
