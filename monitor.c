@@ -190,6 +190,7 @@ static const mon_cmd_t mon_cmds[];
 static const mon_cmd_t info_cmds[];
 
 static const mon_cmd_t qmp_cmds[];
+static const mon_cmd_t qmp_query_cmds[];
 
 Monitor *cur_mon;
 Monitor *default_mon;
@@ -754,7 +755,7 @@ static void do_info_commands(Monitor *mon, QObject **ret_data)
         }
     }
 
-    for (cmd = info_cmds; cmd->name != NULL; cmd++) {
+    for (cmd = qmp_query_cmds; cmd->name != NULL; cmd++) {
         if (monitor_handler_ported(cmd) && !monitor_cmd_user_only(cmd)) {
             char buf[128];
             snprintf(buf, sizeof(buf), "query-%s", cmd->name);
@@ -2642,6 +2643,131 @@ static const mon_cmd_t qmp_cmds[] = {
     { /* NULL */ },
 };
 
+static const mon_cmd_t qmp_query_cmds[] = {
+    {
+        .name       = "version",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show the version of QEMU",
+        .user_print = do_info_version_print,
+        .mhandler.info_new = do_info_version,
+    },
+    {
+        .name       = "commands",
+        .args_type  = "",
+        .params     = "",
+        .help       = "list QMP available commands",
+        .user_print = monitor_user_noop,
+        .mhandler.info_new = do_info_commands,
+    },
+    {
+        .name       = "chardev",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show the character devices",
+        .user_print = qemu_chr_info_print,
+        .mhandler.info_new = qemu_chr_info,
+    },
+    {
+        .name       = "block",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show the block devices",
+        .user_print = bdrv_info_print,
+        .mhandler.info_new = bdrv_info,
+    },
+    {
+        .name       = "blockstats",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show block device statistics",
+        .user_print = bdrv_stats_print,
+        .mhandler.info_new = bdrv_info_stats,
+    },
+    {
+        .name       = "cpus",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show infos for each CPU",
+        .user_print = monitor_print_cpus,
+        .mhandler.info_new = do_info_cpus,
+    },
+    {
+        .name       = "pci",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show PCI info",
+        .user_print = do_pci_info_print,
+        .mhandler.info_new = do_pci_info,
+    },
+    {
+        .name       = "kvm",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show KVM information",
+        .user_print = do_info_kvm_print,
+        .mhandler.info_new = do_info_kvm,
+    },
+    {
+        .name       = "status",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show the current VM status (running|paused)",
+        .user_print = do_info_status_print,
+        .mhandler.info_new = do_info_status,
+    },
+    {
+        .name       = "mice",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show which guest mouse is receiving events",
+        .user_print = do_info_mice_print,
+        .mhandler.info_new = do_info_mice,
+    },
+    {
+        .name       = "vnc",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show the vnc server status",
+        .user_print = do_info_vnc_print,
+        .mhandler.info_new = do_info_vnc,
+    },
+    {
+        .name       = "name",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show the current VM name",
+        .user_print = do_info_name_print,
+        .mhandler.info_new = do_info_name,
+    },
+    {
+        .name       = "uuid",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show the current VM UUID",
+        .user_print = do_info_uuid_print,
+        .mhandler.info_new = do_info_uuid,
+    },
+    {
+        .name       = "migrate",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show migration status",
+        .user_print = do_info_migrate_print,
+        .mhandler.info_new = do_info_migrate,
+    },
+    {
+        .name       = "balloon",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show balloon information",
+        .user_print = monitor_print_balloon,
+        .mhandler.info_async = do_info_balloon,
+        .flags      = MONITOR_CMD_ASYNC,
+    },
+    { /* NULL */ },
+};
+
 /*******************************************************************/
 
 static const char *pch;
@@ -3369,7 +3495,7 @@ static const mon_cmd_t *monitor_find_command(const char *cmdname)
 
 static const mon_cmd_t *qmp_find_query_cmd(const char *info_item)
 {
-    return search_dispatch_table(info_cmds, info_item);
+    return search_dispatch_table(qmp_query_cmds, info_item);
 }
 
 static const mon_cmd_t *qmp_find_cmd(const char *cmdname)
