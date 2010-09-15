@@ -678,13 +678,12 @@ static int serial_post_load(void *opaque, int version_id)
 {
     SerialState *s = opaque;
 
-    serial_update_parameters(s);
-
     if (version_id < 3) {
         s->fcr_vmstate = 0;
     }
     /* Initialize fcr via setter to perform essential side-effects */
     serial_ioport_write(s, s->base + (0x02 << s->it_shift), s->fcr_vmstate);
+    serial_update_parameters(s);
     return 0;
 }
 
