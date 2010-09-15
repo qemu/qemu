@@ -4375,11 +4375,11 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
                       qobject_from_jsonf("{ 'item': %s }", info_item));
     } else {
         cmd = monitor_find_command(cmd_name);
-        if (!cmd || !monitor_handler_ported(cmd)
-            || monitor_cmd_user_only(cmd)) {
-            qerror_report(QERR_COMMAND_NOT_FOUND, cmd_name);
-            goto err_out;
-        }
+    }
+
+    if (!cmd || !monitor_handler_ported(cmd) || monitor_cmd_user_only(cmd)) {
+        qerror_report(QERR_COMMAND_NOT_FOUND, cmd_name);
+        goto err_out;
     }
 
     obj = qdict_get(input, "arguments");
