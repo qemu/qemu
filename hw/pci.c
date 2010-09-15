@@ -627,6 +627,7 @@ static void pci_config_alloc(PCIDevice *pci_dev)
     pci_dev->config = qemu_mallocz(config_size);
     pci_dev->cmask = qemu_mallocz(config_size);
     pci_dev->wmask = qemu_mallocz(config_size);
+    pci_dev->w1cmask = qemu_mallocz(config_size);
     pci_dev->used = qemu_mallocz(config_size);
 }
 
@@ -635,6 +636,7 @@ static void pci_config_free(PCIDevice *pci_dev)
     qemu_free(pci_dev->config);
     qemu_free(pci_dev->cmask);
     qemu_free(pci_dev->wmask);
+    qemu_free(pci_dev->w1cmask);
     qemu_free(pci_dev->used);
 }
 
@@ -997,7 +999,10 @@ void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int l)
 
     for (i = 0; i < l && addr + i < config_size; val >>= 8, ++i) {
         uint8_t wmask = d->wmask[addr + i];
+        uint8_t w1cmask = d->w1cmask[addr + i];
+        assert(!(wmask & w1cmask));
         d->config[addr + i] = (d->config[addr + i] & ~wmask) | (val & wmask);
+        d->config[addr + i] &= ~(val & w1cmask); /* W1C: Write 1 to Clear */
     }
     if (ranges_overlap(addr, l, PCI_BASE_ADDRESS_0, 24) ||
         ranges_overlap(addr, l, PCI_ROM_ADDRESS, 4) ||

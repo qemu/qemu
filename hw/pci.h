@@ -129,6 +129,9 @@ struct PCIDevice {
     /* Used to implement R/W bytes */
     uint8_t *wmask;
 
+    /* Used to implement RW1C(Write 1 to Clear) bytes */
+    uint8_t *w1cmask;
+
     /* Used to allocate config space for capabilities. */
     uint8_t *used;
 
