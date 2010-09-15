@@ -599,7 +599,7 @@ static void arp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
 {
     struct ethhdr *eh = (struct ethhdr *)pkt;
     struct arphdr *ah = (struct arphdr *)(pkt + ETH_HLEN);
-    uint8_t arp_reply[ETH_HLEN + sizeof(struct arphdr)];
+    uint8_t arp_reply[max(ETH_HLEN + sizeof(struct arphdr), 64)];
     struct ethhdr *reh = (struct ethhdr *)arp_reply;
     struct arphdr *rah = (struct arphdr *)(arp_reply + ETH_HLEN);
     int ar_op;
@@ -619,6 +619,7 @@ static void arp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
             }
             return;
         arp_ok:
+            memset(arp_reply, 0, sizeof(arp_reply));
             /* XXX: make an ARP request to have the client address */
             memcpy(slirp->client_ethaddr, eh->h_source, ETH_ALEN);
 
