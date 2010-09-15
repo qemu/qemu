@@ -656,12 +656,6 @@ static int do_info(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
     if (monitor_handler_is_async(cmd)) {
         user_async_info_handler(mon, cmd);
-        /*
-         * Indicate that this command is asynchronous and will not return any
-         * data (not even empty).  Instead, the data will be returned via a
-         * completion callback.
-         */
-        *ret_data = qobject_from_jsonf("{ '__mon_async': 'return' }");
     } else if (monitor_handler_ported(cmd)) {
         QObject *info_data = NULL;
 
@@ -3720,15 +3714,6 @@ void monitor_set_error(Monitor *mon, QError *qerror)
     }
 }
 
-static int is_async_return(const QObject *data)
-{
-    if (data && qobject_type(data) == QTYPE_QDICT) {
-        return qdict_haskey(qobject_to_qdict(data), "__mon_async");
-    }
-
-    return 0;
-}
-
 static void handler_audit(Monitor *mon, const mon_cmd_t *cmd, int ret)
 {
     if (monitor_ctrl_mode(mon)) {
@@ -3787,15 +3772,7 @@ static void monitor_call_handler(Monitor *mon, const mon_cmd_t *cmd,
     ret = cmd->mhandler.cmd_new(mon, params, &data);
     handler_audit(mon, cmd, ret);
 
-    if (is_async_return(data)) {
-        /*
-         * Asynchronous commands have no initial return data but they can
-         * generate errors.  Data is returned via the async completion handler.
-         */
-        if (monitor_ctrl_mode(mon) && monitor_has_error(mon)) {
-            monitor_protocol_emitter(mon, NULL);
-        }
-    } else if (monitor_ctrl_mode(mon)) {
+    if (monitor_ctrl_mode(mon)) {
         /* Monitor Protocol */
         monitor_protocol_emitter(mon, data);
     } else {
