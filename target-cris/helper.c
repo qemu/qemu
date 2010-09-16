@@ -235,8 +235,14 @@ void do_interrupt(CPUState *env)
 	/* Apply the CRIS CCS shift. Clears U if set.  */
 	cris_shift_ccs(env);
 
-	/* Now that we are in kernel mode, load the handlers address.  */
+	/* Now that we are in kernel mode, load the handlers address.
+	   This load may not fault, real hw leaves that behaviour as
+	   undefined.  */
 	env->pc = ldl_code(env->pregs[PR_EBP] + ex_vec * 4);
+
+	/* Clear the excption_index to avoid spurios hw_aborts for recursive
+	   bus faults.  */
+	env->exception_index = -1;
 
 	D_LOG("%s isr=%x vec=%x ccs=%x pid=%d erp=%x\n",
 		   __func__, env->pc, ex_vec,
