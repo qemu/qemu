@@ -14,8 +14,16 @@
 
 #include "s3c24xx.h"
 
-#define logout(fmt, ...) \
+#if 0
+# define DEBUG_S3C24XX
+#endif
+
+#if defined(DEBUG_S3C24XX)
+# define logout(fmt, ...) \
     fprintf(stderr, "S3C24xx\t%-24s" fmt, __func__, ##__VA_ARGS__)
+#else
+# define logout(fmt, ...) (void)0
+#endif
 
 /* S3C24XX serial port registers */
 
