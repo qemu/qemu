@@ -3880,29 +3880,6 @@ static void handler_audit(Monitor *mon, const mon_cmd_t *cmd, int ret)
     }
 }
 
-static void monitor_call_handler(Monitor *mon, const mon_cmd_t *cmd,
-                                 const QDict *params)
-{
-    int ret;
-    QObject *data = NULL;
-
-    mon_print_count_init(mon);
-
-    ret = cmd->mhandler.cmd_new(mon, params, &data);
-    handler_audit(mon, cmd, ret);
-
-    if (monitor_ctrl_mode(mon)) {
-        /* Monitor Protocol */
-        monitor_protocol_emitter(mon, data);
-    } else {
-        /* User Protocol */
-         if (data)
-            cmd->user_print(mon, data);
-    }
-
-    qobject_decref(data);
-}
-
 static void handle_user_command(Monitor *mon, const char *cmdline)
 {
     QDict *qdict;
@@ -4433,6 +4410,20 @@ static void qmp_call_query_cmd(Monitor *mon, const mon_cmd_t *cmd)
     }
 }
 
+static void qmp_call_cmd(Monitor *mon, const mon_cmd_t *cmd,
+                         const QDict *params)
+{
+    int ret;
+    QObject *data = NULL;
+
+    mon_print_count_init(mon);
+
+    ret = cmd->mhandler.cmd_new(mon, params, &data);
+    handler_audit(mon, cmd, ret);
+    monitor_protocol_emitter(mon, data);
+    qobject_decref(data);
+}
+
 static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
 {
     int err;
@@ -4500,7 +4491,7 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
             goto err_out;
         }
     } else {
-        monitor_call_handler(mon, cmd, args);
+        qmp_call_cmd(mon, cmd, args);
     }
 
     goto out;
