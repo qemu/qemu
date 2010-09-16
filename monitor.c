@@ -335,7 +335,7 @@ static inline int handler_is_qobject(const mon_cmd_t *cmd)
     return cmd->user_print != NULL;
 }
 
-static inline bool monitor_handler_is_async(const mon_cmd_t *cmd)
+static inline bool handler_is_async(const mon_cmd_t *cmd)
 {
     return cmd->flags & MONITOR_CMD_ASYNC;
 }
@@ -652,7 +652,7 @@ static void do_info(Monitor *mon, const QDict *qdict)
         goto help;
     }
 
-    if (monitor_handler_is_async(cmd)) {
+    if (handler_is_async(cmd)) {
         user_async_info_handler(mon, cmd);
     } else if (handler_is_qobject(cmd)) {
         QObject *info_data = NULL;
@@ -3914,7 +3914,7 @@ static void handle_user_command(Monitor *mon, const char *cmdline)
     if (!cmd)
         goto out;
 
-    if (monitor_handler_is_async(cmd)) {
+    if (handler_is_async(cmd)) {
         user_async_cmd_handler(mon, cmd, qdict);
     } else if (handler_is_qobject(cmd)) {
         monitor_call_handler(mon, cmd, qdict);
@@ -4411,7 +4411,7 @@ static void qmp_call_query_cmd(Monitor *mon, const mon_cmd_t *cmd)
 {
     QObject *ret_data = NULL;
 
-    if (monitor_handler_is_async(cmd)) {
+    if (handler_is_async(cmd)) {
         qmp_async_info_handler(mon, cmd);
         if (monitor_has_error(mon)) {
             monitor_protocol_emitter(mon, NULL);
@@ -4485,7 +4485,7 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
 
     if (query_cmd) {
         qmp_call_query_cmd(mon, cmd);
-    } else if (monitor_handler_is_async(cmd)) {
+    } else if (handler_is_async(cmd)) {
         err = qmp_async_cmd_handler(mon, cmd, args);
         if (err) {
             /* emit the error response */
