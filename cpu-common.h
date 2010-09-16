@@ -67,6 +67,7 @@ void *qemu_get_ram_ptr(ram_addr_t addr);
 /* Same but slower, to use for migration, where the order of
  * RAMBlocks must not change. */
 void *qemu_safe_ram_ptr(ram_addr_t addr);
+void qemu_put_ram_ptr(void *addr);
 /* This should not be used by devices.  */
 int qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr);
 ram_addr_t qemu_ram_addr_from_host_nofail(void *ptr);

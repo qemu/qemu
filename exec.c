@@ -3110,6 +3110,27 @@ void *qemu_safe_ram_ptr(ram_addr_t addr)
     return NULL;
 }
 
+void qemu_put_ram_ptr(void *addr)
+{
+    trace_qemu_put_ram_ptr(addr);
+
+    if (xen_mapcache_enabled()) {
+        RAMBlock *block;
+
+        QLIST_FOREACH(block, &ram_list.blocks, next) {
+            if (addr == block->host) {
+                break;
+            }
+        }
+        if (block && block->host) {
+            xen_unmap_block(block->host, block->length);
+            block->host = NULL;
+        } else {
+            qemu_map_cache_unlock(addr);
+        }
+    }
+}
+
 int qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
 {
     RAMBlock *block;
@@ -3825,6 +3846,7 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
                     cpu_physical_memory_set_dirty_flags(
                         addr1, (0xff & ~CODE_DIRTY_FLAG));
                 }
+                qemu_put_ram_ptr(ptr);
             }
         } else {
             if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM &&
@@ -3852,9 +3874,9 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
                 }
             } else {
                 /* RAM case */
-                ptr = qemu_get_ram_ptr(pd & TARGET_PAGE_MASK) +
-                    (addr & ~TARGET_PAGE_MASK);
-                memcpy(buf, ptr, l);
+                ptr = qemu_get_ram_ptr(pd & TARGET_PAGE_MASK);
+                memcpy(buf, ptr + (addr & ~TARGET_PAGE_MASK), l);
+                qemu_put_ram_ptr(ptr);
             }
         }
         len -= l;
@@ -3895,6 +3917,7 @@ void cpu_physical_memory_write_rom(target_phys_addr_t addr,
             /* ROM/RAM case */
             ptr = qemu_get_ram_ptr(addr1);
             memcpy(ptr, buf, l);
+            qemu_put_ram_ptr(ptr);
         }
         len -= l;
         buf += l;
@@ -4034,6 +4057,15 @@ void cpu_physical_memory_unmap(void *buffer, target_phys_addr_t len,
                 }
                 addr1 += l;
                 access_len -= l;
+            }
+        }
+        if (xen_mapcache_enabled()) {
+            uint8_t *buffer1 = buffer;
+            uint8_t *end_buffer = buffer + len;
+
+            while (buffer1 < end_buffer) {
+                qemu_put_ram_ptr(buffer1);
+                buffer1 += TARGET_PAGE_SIZE;
             }
         }
         return;

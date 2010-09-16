@@ -371,3 +371,6 @@ disable qemu_remap_bucket(uint64_t index) "index %#"PRIx64""
 disable qemu_map_cache_return(void* ptr) "%p"
 disable xen_map_block(uint64_t phys_addr, uint64_t size) "%#"PRIx64", size %#"PRIx64""
 disable xen_unmap_block(void* addr, unsigned long size) "%p, size %#lx"
+
+# exec.c
+disable qemu_put_ram_ptr(void* addr) "%p"
