@@ -1443,6 +1443,44 @@ static const cmdinfo_t alloc_cmd = {
 };
 
 static int
+map_f(int argc, char **argv)
+{
+	int64_t offset;
+	int64_t nb_sectors;
+	char s1[64];
+	int num, num_checked;
+	int ret;
+	const char *retstr;
+
+	offset = 0;
+	nb_sectors = bs->total_sectors;
+
+	do {
+		num_checked = MIN(nb_sectors, INT_MAX);
+		ret = bdrv_is_allocated(bs, offset, num_checked, &num);
+		retstr = ret ? "    allocated" : "not allocated";
+		cvtstr(offset << 9ULL, s1, sizeof(s1));
+		printf("[% 24" PRId64 "] % 8d/% 8d sectors %s at offset %s (%d)\n",
+				offset << 9ULL, num, num_checked, retstr, s1, ret);
+
+		offset += num;
+		nb_sectors -= num;
+	} while(offset < bs->total_sectors);
+
+	return 0;
+}
+
+static const cmdinfo_t map_cmd = {
+       .name           = "map",
+       .argmin         = 0,
+       .argmax         = 0,
+       .cfunc          = map_f,
+       .args           = "",
+       .oneline        = "prints the allocated areas of a file",
+};
+
+
+static int
 close_f(int argc, char **argv)
 {
 	bdrv_close(bs);
@@ -1680,6 +1718,7 @@ int main(int argc, char **argv)
 	add_command(&length_cmd);
 	add_command(&info_cmd);
 	add_command(&alloc_cmd);
+	add_command(&map_cmd);
 
 	add_args_command(init_args_command);
 	add_check_command(init_check_command);
