@@ -6,6 +6,11 @@
  *
  * This file is under the terms of the GNU General Public
  * License Version 2.
+ *
+ * TODO:
+ * * Undefined r/w at address 0x118002f9 (serial i/o?).
+ * * Undefined r/w at address 0x118003f9 (serial i/o?).
+ * * Undefined r/w at address 0x29000000 ff.
  */
 
 #include "hw.h"
@@ -18,10 +23,14 @@
 #include "smbus.h"
 #include "devices.h"
 #include "boards.h"
+#include "dma.h"                /* QEMUSGList (in ide/internal.h) */
+#include "ide/internal.h"       /* ide_cmd_write, ... */
 
 #include "s3c2410x.h"
 
 #define BIOS_FILENAME "able.bin"
+
+#define S3C24XX_DBF(format, ...) (void)0
 
 static int bigendian = 0;
 
@@ -88,6 +97,125 @@ static void stcb_cpld_register(STCBState *stcb)
     stcb->cpld_ctrl2 = 0;
 }
 
+#define BAST_IDE_PRI_SLOW    (CPU_S3C2410X_CS3 | 0x02000000)
+#define BAST_IDE_SEC_SLOW    (CPU_S3C2410X_CS3 | 0x03000000)
+#define BAST_IDE_PRI_FAST    (CPU_S3C2410X_CS5 | 0x02000000)
+#define BAST_IDE_SEC_FAST    (CPU_S3C2410X_CS5 | 0x03000000)
+
+#define BAST_IDE_PRI_SLOW_BYTE    (CPU_S3C2410X_CS2 | 0x02000000)
+#define BAST_IDE_SEC_SLOW_BYTE    (CPU_S3C2410X_CS2 | 0x03000000)
+#define BAST_IDE_PRI_FAST_BYTE    (CPU_S3C2410X_CS4 | 0x02000000)
+#define BAST_IDE_SEC_FAST_BYTE    (CPU_S3C2410X_CS4 | 0x03000000)
+
+/* MMIO interface to IDE on Simtec's BAST
+ *
+ * Copyright Daniel Silverstone and Vincent Sanders
+ *
+ * This section of this file is under the terms of
+ * the GNU General Public License Version 2
+ */
+
+/* Each BAST IDE region is 0x01000000 bytes long,
+ * the second half is the "alternate" register set
+ */
+
+typedef struct {
+    IDEBus bus;
+    int shift;
+} MMIOState;
+
+static void stcb_ide_write_f(void *opaque,
+                             target_phys_addr_t addr, uint32_t val)
+{
+    MMIOState *s= opaque;
+    int reg = (addr & 0x3ff) >> 5; /* 0x200 long, 0x20 stride */
+    int alt = (addr & 0x800000) != 0;
+    S3C24XX_DBF("IDE write to addr %08x (reg %d) of value %04x\n", (unsigned int)addr, reg, val);
+    if (alt) {
+        ide_cmd_write(&s->bus, 0, val);
+    }
+    if (reg == 0) {
+        /* Data register */
+        ide_data_writew(&s->bus, 0, val);
+    } else {
+        /* Everything else */
+        ide_ioport_write(&s->bus, reg, val);
+    }
+}
+
+static uint32_t stcb_ide_read_f(void *opaque, target_phys_addr_t addr)
+{
+    MMIOState *s= opaque;
+    int reg = (addr & 0x3ff) >> 5; /* 0x200 long, 0x20 stride */
+    int alt = (addr & 0x800000) != 0;
+    S3C24XX_DBF("IDE read of addr %08x (reg %d)\n", (unsigned int)addr, reg);
+    if (alt) {
+        return ide_status_read(&s->bus, 0);
+    }
+    if (reg == 0) {
+        return ide_data_readw(&s->bus, 0);
+    } else {
+        return ide_ioport_read(&s->bus, reg);
+    }
+}
+
+
+static CPUWriteMemoryFunc * const stcb_ide_write[] = {
+    stcb_ide_write_f,
+    stcb_ide_write_f,
+    stcb_ide_write_f,
+};
+
+static CPUReadMemoryFunc * const stcb_ide_read[] = {
+    stcb_ide_read_f,
+    stcb_ide_read_f,
+    stcb_ide_read_f,
+};
+
+/* hd_table must contain 2 block drivers */
+/* BAST uses memory mapped registers, not I/O. Return the memory
+ * I/O tag to access the ide.
+ * The BAST description will register it into the map in the right place.
+ */
+static int stcb_ide_init(DriveInfo *dinfo0, DriveInfo *dinfo1, qemu_irq irq)
+{
+    MMIOState *s = qemu_mallocz(sizeof(MMIOState));
+    int stcb_ide_memory;
+    ide_init2_with_non_qdev_drives(&s->bus, dinfo0, dinfo1, irq);
+
+    stcb_ide_memory = cpu_register_io_memory(stcb_ide_read, stcb_ide_write, s);
+    return stcb_ide_memory;
+}
+
+static void stcb_register_ide(STCBState *stcb)
+{
+    int ide0_mem;
+    int ide1_mem;
+    DriveInfo *dinfo0;
+    DriveInfo *dinfo1;
+
+    if (drive_get_max_bus(IF_IDE) >= 2) {
+        fprintf(stderr, "qemu: too many IDE busses\n");
+        exit(1);
+    }
+
+    dinfo0 = drive_get(IF_IDE, 0, 0);
+    dinfo1 = drive_get(IF_IDE, 0, 1);
+    ide0_mem = stcb_ide_init(dinfo0, dinfo1, s3c24xx_get_eirq(stcb->soc->gpio, 16));
+    cpu_register_physical_memory(BAST_IDE_PRI_SLOW, 0x1000000, ide0_mem);
+    cpu_register_physical_memory(BAST_IDE_PRI_FAST, 0x1000000, ide0_mem);
+    cpu_register_physical_memory(BAST_IDE_PRI_SLOW_BYTE, 0x1000000, ide0_mem);
+    cpu_register_physical_memory(BAST_IDE_PRI_FAST_BYTE, 0x1000000, ide0_mem);
+
+    dinfo0 = drive_get(IF_IDE, 1, 0);
+    dinfo1 = drive_get(IF_IDE, 1, 1);
+    ide1_mem = stcb_ide_init(dinfo0, dinfo1, s3c24xx_get_eirq(stcb->soc->gpio, 17));
+    cpu_register_physical_memory(BAST_IDE_SEC_SLOW, 0x1000000, ide1_mem);
+    cpu_register_physical_memory(BAST_IDE_SEC_FAST, 0x1000000, ide1_mem);
+    cpu_register_physical_memory(BAST_IDE_SEC_SLOW_BYTE, 0x1000000, ide1_mem);
+    cpu_register_physical_memory(BAST_IDE_SEC_FAST_BYTE, 0x1000000, ide1_mem);
+}
+
 static struct arm_boot_info bast_binfo = {
     .board_id = BAST_BOARD_ID,
     .ram_size = 0x10000000, /* 256MB */
@@ -127,6 +255,8 @@ static void stcb_init(ram_addr_t _ram_size,
 
     /* Register the NOR flash ROM */
     flash_mem = qemu_ram_alloc(NULL, "bast.flash", BAST_NOR_SIZE);
+
+    stcb_register_ide(stcb);
 
     /* Read only ROM type mapping */
     cpu_register_physical_memory(BAST_NOR_RO_BASE,
