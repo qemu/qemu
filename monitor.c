@@ -340,11 +340,6 @@ static inline bool monitor_handler_is_async(const mon_cmd_t *cmd)
     return cmd->flags & MONITOR_CMD_ASYNC;
 }
 
-static inline bool monitor_cmd_user_only(const mon_cmd_t *cmd)
-{
-    return (cmd->flags & MONITOR_CMD_USER_ONLY);
-}
-
 static inline int monitor_has_error(const Monitor *mon)
 {
     return mon->error != NULL;
