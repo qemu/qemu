@@ -330,7 +330,7 @@ static int monitor_fprintf(FILE *stream, const char *fmt, ...)
 
 static void monitor_user_noop(Monitor *mon, const QObject *data) { }
 
-static inline int monitor_handler_ported(const mon_cmd_t *cmd)
+static inline int handler_is_qobject(const mon_cmd_t *cmd)
 {
     return cmd->user_print != NULL;
 }
@@ -654,7 +654,7 @@ static void do_info(Monitor *mon, const QDict *qdict)
 
     if (monitor_handler_is_async(cmd)) {
         user_async_info_handler(mon, cmd);
-    } else if (monitor_handler_ported(cmd)) {
+    } else if (handler_is_qobject(cmd)) {
         QObject *info_data = NULL;
 
         cmd->mhandler.info_new(mon, &info_data);
@@ -3916,7 +3916,7 @@ static void handle_user_command(Monitor *mon, const char *cmdline)
 
     if (monitor_handler_is_async(cmd)) {
         user_async_cmd_handler(mon, cmd, qdict);
-    } else if (monitor_handler_ported(cmd)) {
+    } else if (handler_is_qobject(cmd)) {
         monitor_call_handler(mon, cmd, qdict);
     } else {
         cmd->mhandler.cmd(mon, qdict);
