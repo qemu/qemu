@@ -33,7 +33,7 @@
 #ifdef DM9000_DEBUG
 # define DM9000_DBF(X...) do { fprintf(stderr, X); } while(0)
 #else
-# define DM9000_DBF(X...) do { if (0) fprintf(stderr, X); } while (0)
+# define DM9000_DBF(X...) do {} while (0)
 #endif
 
 #define DM9000_REG_NCR 0x00
@@ -117,16 +117,15 @@ typedef struct {
     SysBusDevice busdev;
     NICState *nic;
     NICConf conf;
-    target_phys_addr_t addr; /* address port */
-    target_phys_addr_t data; /* data port */
     qemu_irq irq;
     uint8_t multihash[8]; /* multicast hash table */
-    uint8_t address; /* The internal magial address */
+    uint8_t address; /* The internal magical address */
     uint8_t packet_buffer[16 * 1024];
     uint16_t dm9k_mrr, dm9k_mwr; /* Read and write address registers */
     uint16_t dm9k_txpl; /* TX packet length */
     uint16_t dm9k_trpa, dm9k_rwpa; /* TX Read ptr address, RX write ptr address */
-    uint8_t dm9k_imr, dm9k_isr; /* Interrupt mask register and status register*/
+    uint8_t dm9k_imr;   /* Interrupt mask register */
+    uint8_t dm9k_isr;   /* Interrupt status register */
     uint8_t dm9k_ncr, dm9k_nsr; /* Network control register, network status register */
     uint8_t dm9k_wcr; /* Wakeup control */
     uint8_t dm9k_tcr; /* Transmission control register */
@@ -166,8 +165,8 @@ static void dm9000_soft_reset(dm9000_state *state)
     state->dm9k_isr = 0; /* 16 bit mode, no interrupts asserted */
     state->dm9k_tcr = 0;
     state->packet_index = 0;
-    memset(state->packet_buffer, 0, 16*1024);
-    memset(state->packet_copy_buffer, 0, 3*1024);
+    memset(state->packet_buffer, 0, sizeof(state->packet_buffer));
+    memset(state->packet_copy_buffer, 0, sizeof(state->packet_copy_buffer));
     /* These registers have some bits "unaffected by software reset" */
     /* Clear the reset bits */
     state->dm9k_ncr &= 0xA0;
@@ -182,7 +181,8 @@ static void dm9000_soft_reset(dm9000_state *state)
     state->dm9k_epar = 0x40;
     /* reset the MII */
     dm9000_soft_reset_mii(state);
-    dm9000_raise_irq(state); /* Clear any potentially pending IRQ */
+    /* Clear any potentially pending IRQ */
+    qemu_irq_lower(state->irq);
 }
 
 static void dm9000_hard_reset(dm9000_state *state)
@@ -199,11 +199,17 @@ static void dm9000_do_transmit(dm9000_state *state)
     idx = state->dm9k_trpa;
     cnt = state->dm9k_txpl;
     tptr = 0;
-    if( cnt > 3*1024 ) cnt = 3*1024; /* HARD CAP AT 3KiB */
+    if (cnt > 3*1024 ) {
+        cnt = 3*1024; /* HARD CAP AT 3KiB */
+    }
     DM9000_DBF("TX_Packet: %d bytes from %04x\n", cnt, idx);
     while(cnt--) {
+        assert(idx < sizeof(state->packet_buffer));
+        assert(tptr < sizeof(state->packet_copy_buffer));
         state->packet_copy_buffer[tptr++] = state->packet_buffer[idx++];
-        if( idx == 0x0C00 ) idx = 0;
+        if (idx == 0x0C00) {
+            idx = 0;
+        }
     }
     /* DM9KNOTE: Assumes 16bit wiring */
     idx = (idx+1) & ~1; /* Round up to nearest 16bit boundary */
@@ -290,7 +296,7 @@ static void dm9000_write(void *opaque, target_phys_addr_t address,
     int suppress_debug = 0;
 #endif
 
-    if (address == state->addr) {
+    if (address == 0x00) {
         if( (value != DM9000_REG_MRCMD) &&
             (value != DM9000_REG_MWCMD) )
             DM9000_DBF("DM9000: Address set to 0x%02x\n", value);
@@ -298,7 +304,7 @@ static void dm9000_write(void *opaque, target_phys_addr_t address,
         return;
     }
 
-    if (address != state->data) {
+    if (address != 0x40) {
         DM9000_DBF("DM9000: Write to location which is neither data nor address port: " TARGET_FMT_plx "\n", address);
     }
 
@@ -363,13 +369,16 @@ static void dm9000_write(void *opaque, target_phys_addr_t address,
     case DM9000_REG_MWCMDX:
     case DM9000_REG_MWCMD:
         /* DM9KNOTE: This assumes a 16bit wide wiring */
+        assert(state->dm9k_mwr + 1 < sizeof(state->packet_buffer));
         state->packet_buffer[state->dm9k_mwr] = value & 0xFF;
         state->packet_buffer[state->dm9k_mwr+1] = (value >> 8) & 0xFF;
         if( state->address == DM9000_REG_MWCMD ) {
             state->dm9k_mwr += 2;
-            if( state->dm9k_imr & DM9000_IMR_AUTOWRAP )
-                if( state->dm9k_mwr >= 0x0C00 )
+            if( state->dm9k_imr & DM9000_IMR_AUTOWRAP ) {
+                if( state->dm9k_mwr >= 0x0C00 ) {
                     state->dm9k_mwr -= 0x0C00;
+                }
+            }
         }
 #ifdef DM9000_DEBUG
         suppress_debug = 1;
@@ -397,14 +406,17 @@ static void dm9000_write(void *opaque, target_phys_addr_t address,
         break;
     case DM9000_REG_IMR:
         if( !(state->dm9k_imr & DM9000_IMR_AUTOWRAP) &&
-            (value & DM9000_IMR_AUTOWRAP) )
+            (value & DM9000_IMR_AUTOWRAP) ) {
             state->dm9k_mrr = 0x0C00 | (state->dm9k_mrr & 0xFF);
+        }
         state->dm9k_imr = value & 0xFF;
         dm9000_raise_irq(state);
         break;
     }
 #ifdef DM9000_DEBUG
-    if(!suppress_debug) DM9000_DBF("DM9000: Write value %04x\n", value);
+    if(!suppress_debug) {
+        DM9000_DBF("DM9000: Write value %04x\n", value);
+    }
 #endif
 }
 
@@ -416,10 +428,11 @@ static uint32_t dm9000_read(void *opaque, target_phys_addr_t address)
     int suppress_debug = 0;
 #endif
 
-    if (address == state->addr)
+    if (address == 0x00) {
         return state->address;
+    }
 
-    if (address != state->data) {
+    if (address != 0x40) {
         DM9000_DBF("DM9000: Read from location which is neither data nor address port: " TARGET_FMT_plx "\n", address);
     }
 
@@ -500,18 +513,24 @@ static uint32_t dm9000_read(void *opaque, target_phys_addr_t address)
     case DM9000_REG_MRCMDX:
     case DM9000_REG_MRCMD:
         /* DM9KNOTE: This assumes a 16bit wide wiring */
+        assert(state->dm9k_mrr + 1 < sizeof(state->packet_buffer));
         ret = state->packet_buffer[state->dm9k_mrr];
         ret |= state->packet_buffer[state->dm9k_mrr+1] << 8;
         if( state->address == DM9000_REG_MRCMD ) {
             state->dm9k_mrr += 2;
-            if( state->dm9k_mrr >= (16*1024) ) state->dm9k_mrr -= (16*1024);
-            if( state->dm9k_imr & DM9000_IMR_AUTOWRAP )
-                if( state->dm9k_mrr < 0x0C00 )
+            if (state->dm9k_mrr >= (16*1024)) {
+                state->dm9k_mrr -= (16*1024);
+            }
+            if (state->dm9k_imr & DM9000_IMR_AUTOWRAP) {
+                if (state->dm9k_mrr < 0x0C00) {
                     state->dm9k_mrr += 0x0C00;
+                }
+            }
         }
 #ifdef DM9000_DEBUG
-        if (state->address==DM9000_REG_MRCMD)
+        if (state->address==DM9000_REG_MRCMD) {
             suppress_debug = 1;
+        }
 #endif
         break;
     case DM9000_REG_MRRL:
@@ -543,7 +562,9 @@ static uint32_t dm9000_read(void *opaque, target_phys_addr_t address)
     }
 
 #ifdef DM9000_DEBUG
-    if(!suppress_debug) DM9000_DBF("DM9000: Read gives: %04x\n", ret);
+    if (!suppress_debug) {
+        DM9000_DBF("DM9000: Read gives: %04x\n", ret);
+    }
 #endif
     return ret;
 }
@@ -560,7 +581,9 @@ static int dm9000_can_receive(VLANClientState *nc)
         rx_space = (13*1024) - (state->dm9k_rwpa - state->dm9k_mrr);
     DM9000_DBF("DM9000:RX_Packet: Asked about RX, rwpa=%d mrr=%d => space is %d bytes\n",
                state->dm9k_rwpa, state->dm9k_mrr, rx_space);
-    if (rx_space > 2048) return 1;
+    if (rx_space > 2048) {
+        return 1;
+    }
     return 0;
 }
 
@@ -577,20 +600,29 @@ static ssize_t dm9000_receive(VLANClientState *nc, const uint8_t *buf, size_t si
     if( size < 64 ) magic_padding += (64 - size);
     DM9000_DBF("DM9000:RX_Packet: Magical padding is %d bytes\n", magic_padding);
     size += magic_padding; /* The magical CRC word */
+    assert(state->dm9k_rwpa >= 4 && state->dm9k_rwpa - 1 < sizeof(state->packet_buffer));
     state->packet_buffer[state->dm9k_rwpa-4] = 0x01; /* Packet read */
     state->packet_buffer[state->dm9k_rwpa-3] = 0x00; /* Status OK */
     state->packet_buffer[state->dm9k_rwpa-2] = size & 0xFF; /* Size LOW */
     state->packet_buffer[state->dm9k_rwpa-1] = (size & 0xFF00)>>8; /* Size HIGH */
     size += 4; /* The magical next header (which we zero for fun) */
     while(size--) {
-        if( size > (magic_padding + 3) )
+        assert(rxptr < sizeof(state->packet_buffer));
+        if (size > (magic_padding + 3)) {
             state->packet_buffer[rxptr++] = *buf++;
-        else
+        } else {
             state->packet_buffer[rxptr++] = 0x00; /* Clear to the next header */
+        }
         /* DM9KNOTE: Assumes 16 bit wired config */
-        if (size == 4) rxptr = (rxptr+1) & ~1; /* At end of packet, realign */
-        if( rxptr >= (16*1024) ) rxptr -= (16*1024);
-        if( rxptr < 0x0C00 ) rxptr += 0x0C00;
+        if (size == 4) {
+            rxptr = (rxptr+1) & ~1; /* At end of packet, realign */
+        }
+        if (rxptr >= (16*1024)) {
+            rxptr -= (16*1024);
+        }
+        if (rxptr < 0x0C00) {
+            rxptr += 0x0C00;
+        }
     }
     state->dm9k_rwpa = rxptr;
     state->dm9k_isr |= 0x01; /* RX interrupt, yay */
@@ -632,7 +664,7 @@ static int dm9000_init(SysBusDevice *dev)
     s->nic = qemu_new_nic(&net_dm9000_info, &s->conf,
                           dev->qdev.info->name, dev->qdev.id, s);
     mmio_index = cpu_register_io_memory(dm9000_readfn,
-                                           dm9000_writefn, s);
+                                        dm9000_writefn, s);
     sysbus_init_mmio(dev, 0x1000, mmio_index);
     dm9000_hard_reset(s);
     qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
@@ -646,9 +678,10 @@ static const VMStateDescription dm9000_vmsd = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
+        // TODO.
         //~ VMSTATE_UINT32(smir, mv88w8618_eth_state),
-        //~ VMSTATE_UINT32(icr, mv88w8618_eth_state),
-        //~ VMSTATE_UINT32(imr, mv88w8618_eth_state),
+        VMSTATE_UINT8(dm9k_imr, dm9000_state),
+        VMSTATE_UINT8(dm9k_isr, dm9000_state),
         //~ VMSTATE_UINT32(vlan_header, mv88w8618_eth_state),
         //~ VMSTATE_UINT32_ARRAY(tx_queue, mv88w8618_eth_state, 2),
         //~ VMSTATE_UINT32_ARRAY(rx_queue, mv88w8618_eth_state, 4),
