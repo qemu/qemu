@@ -2045,7 +2045,7 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
     }
     if (!revision)
         revision = "pxa270";
-    
+
     s->env = cpu_init(revision);
     if (!s->env) {
         fprintf(stderr, "Unable to find CPU definition\n");
@@ -2080,15 +2080,9 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
 
     for (i = 0; pxa270_serial[i].io_base; i ++)
         if (serial_hds[i])
-#ifdef TARGET_WORDS_BIGENDIAN
             serial_mm_init(pxa270_serial[i].io_base, 2,
                            s->pic[pxa270_serial[i].irqn], 14857000/16,
-                           serial_hds[i], 1, 1);
-#else
-            serial_mm_init(pxa270_serial[i].io_base, 2,
-                           s->pic[pxa270_serial[i].irqn], 14857000/16,
-                           serial_hds[i], 1, 0);
-#endif
+                           serial_hds[i], 1, s->env->bigendian);
         else
             break;
     if (serial_hds[i])
@@ -2202,15 +2196,9 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
 
     for (i = 0; pxa255_serial[i].io_base; i ++)
         if (serial_hds[i]) {
-#ifdef TARGET_WORDS_BIGENDIAN
             serial_mm_init(pxa255_serial[i].io_base, 2,
                            s->pic[pxa255_serial[i].irqn], 14745600/16,
-                           serial_hds[i], 1, 1);
-#else
-            serial_mm_init(pxa255_serial[i].io_base, 2,
-                           s->pic[pxa255_serial[i].irqn], 14745600/16,
-                           serial_hds[i], 1, 0);
-#endif
+                           serial_hds[i], 1, s->env->bigendian);
         } else {
             break;
         }
