@@ -49,6 +49,7 @@
 
 /* This is all part of the "official" NBD API */
 
+#define NBD_REPLY_SIZE		(4 + 4 + 8)
 #define NBD_REQUEST_MAGIC       0x25609513
 #define NBD_REPLY_MAGIC         0x67446698
 
@@ -588,7 +589,7 @@ static int nbd_receive_request(int csock, struct nbd_request *request)
 
 int nbd_receive_reply(int csock, struct nbd_reply *reply)
 {
-	uint8_t buf[4 + 4 + 8];
+	uint8_t buf[NBD_REPLY_SIZE];
 	uint32_t magic;
 
 	memset(buf, 0xAA, sizeof(buf));
@@ -655,9 +656,9 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset,
 	if (nbd_receive_request(csock, &request) == -1)
 		return -1;
 
-	if (request.len > data_size) {
+	if (request.len + NBD_REPLY_SIZE > data_size) {
 		LOG("len (%u) is larger than max len (%u)",
-		    request.len, data_size);
+		    request.len + NBD_REPLY_SIZE, data_size);
 		errno = EINVAL;
 		return -1;
 	}
@@ -687,7 +688,8 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset,
 	case NBD_CMD_READ:
 		TRACE("Request type is READ");
 
-		if (bdrv_read(bs, (request.from + dev_offset) / 512, data,
+		if (bdrv_read(bs, (request.from + dev_offset) / 512,
+			      data + NBD_REPLY_SIZE,
 			      request.len / 512) == -1) {
 			LOG("reading from file failed");
 			errno = EINVAL;
@@ -697,12 +699,21 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset,
 
 		TRACE("Read %u byte(s)", request.len);
 
-		if (nbd_send_reply(csock, &reply) == -1)
-			return -1;
+		/* Reply
+		   [ 0 ..  3]    magic   (NBD_REPLY_MAGIC)
+		   [ 4 ..  7]    error   (0 == no error)
+		   [ 7 .. 15]    handle
+		 */
+
+		cpu_to_be32w((uint32_t*)data, NBD_REPLY_MAGIC);
+		cpu_to_be32w((uint32_t*)(data + 4), reply.error);
+		cpu_to_be64w((uint64_t*)(data + 8), reply.handle);
 
 		TRACE("Sending data to client");
 
-		if (write_sync(csock, data, request.len) != request.len) {
+		if (write_sync(csock, data,
+			       request.len + NBD_REPLY_SIZE) !=
+			       request.len + NBD_REPLY_SIZE) {
 			LOG("writing to socket failed");
 			errno = EINVAL;
 			return -1;
