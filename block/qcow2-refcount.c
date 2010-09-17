@@ -444,7 +444,7 @@ static int write_refcount_block_entries(BlockDriverState *bs,
     size = (last_index - first_index) << REFCOUNT_SHIFT;
 
     BLKDBG_EVENT(bs->file, BLKDBG_REFBLOCK_UPDATE_PART);
-    ret = bdrv_pwrite_sync(bs->file,
+    ret = bdrv_pwrite(bs->file,
         refcount_block_offset + (first_index << REFCOUNT_SHIFT),
         &s->refcount_block_cache[first_index], size);
     if (ret < 0) {
@@ -550,6 +550,8 @@ fail:
         int dummy;
         dummy = update_refcount(bs, offset, cluster_offset - offset, -addend);
     }
+
+    bdrv_flush(bs->file);
 
     return ret;
 }
