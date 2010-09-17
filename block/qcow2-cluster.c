@@ -60,6 +60,7 @@ int qcow2_grow_l1_table(BlockDriverState *bs, int min_size)
         qemu_free(new_l1_table);
         return new_l1_table_offset;
     }
+    bdrv_flush(bs->file);
 
     BLKDBG_EVENT(bs->file, BLKDBG_L1_GROW_WRITE_TABLE);
     for(i = 0; i < s->l1_size; i++)
@@ -243,6 +244,7 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
     if (l2_offset < 0) {
         return l2_offset;
     }
+    bdrv_flush(bs->file);
 
     /* allocate a new entry in the l2 cache */
 
@@ -863,6 +865,7 @@ int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
         QLIST_REMOVE(m, next_in_flight);
         return cluster_offset;
     }
+    bdrv_flush(bs->file);
 
     /* save info needed for meta data update */
     m->offset = offset;

@@ -629,8 +629,6 @@ int64_t qcow2_alloc_clusters(BlockDriverState *bs, int64_t size)
         return ret;
     }
 
-    bdrv_flush(bs->file);
-
     return offset;
 }
 
@@ -678,6 +676,8 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
             goto redo;
         }
     }
+
+    bdrv_flush(bs->file);
     return offset;
 }
 

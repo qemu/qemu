@@ -138,6 +138,7 @@ static int qcow_write_snapshots(BlockDriverState *bs)
     snapshots_size = offset;
 
     snapshots_offset = qcow2_alloc_clusters(bs, snapshots_size);
+    bdrv_flush(bs->file);
     offset = snapshots_offset;
     if (offset < 0) {
         return offset;
@@ -271,6 +272,7 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     if (l1_table_offset < 0) {
         goto fail;
     }
+    bdrv_flush(bs->file);
 
     sn->l1_table_offset = l1_table_offset;
     sn->l1_size = s->l1_size;
