@@ -415,7 +415,7 @@ static int copy_sectors(BlockDriverState *bs, uint64_t start_sect,
                         &s->aes_encrypt_key);
     }
     BLKDBG_EVENT(bs->file, BLKDBG_COW_WRITE);
-    ret = bdrv_write_sync(bs->file, (cluster_offset >> 9) + n_start,
+    ret = bdrv_write(bs->file, (cluster_offset >> 9) + n_start,
         s->cluster_data, n);
     if (ret < 0)
         return ret;
@@ -714,6 +714,13 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
                     (i << s->cluster_bits)) | QCOW_OFLAG_COPIED);
      }
 
+    /*
+     * Before we update the L2 table to actually point to the new cluster, we
+     * need to be sure that the refcounts have been increased and COW was
+     * handled.
+     */
+    bdrv_flush(bs->file);
+
     ret = write_l2_entries(bs, l2_table, l2_offset, l2_index, m->nb_clusters);
     if (ret < 0) {
         qcow2_l2_cache_reset(bs);
@@ -865,7 +872,6 @@ int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
         QLIST_REMOVE(m, next_in_flight);
         return cluster_offset;
     }
-    bdrv_flush(bs->file);
 
     /* save info needed for meta data update */
     m->offset = offset;
