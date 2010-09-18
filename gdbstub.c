@@ -1504,7 +1504,6 @@ static int memtox(char *buf, const char *mem, int len)
 
 static const char *get_feature_xml(const char *p, const char **newp)
 {
-    extern const char *const xml_builtin[][2];
     size_t len;
     int i;
     const char *name;
