@@ -1877,8 +1877,9 @@ static void pxa2xx_fir_write(void *opaque, target_phys_addr_t addr,
         s->control[0] = value;
         if (!(value & (1 << 4)))			/* RXE */
             s->rx_len = s->rx_start = 0;
-        if (!(value & (1 << 3)))			/* TXE */
-            /* Nop */;
+        if (!(value & (1 << 3))) {                      /* TXE */
+            /* Nop */
+        }
         s->enable = value & 1;				/* ITR */
         if (!s->enable)
             s->status[0] = 0;

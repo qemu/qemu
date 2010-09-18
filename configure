@@ -140,7 +140,7 @@ LDFLAGS="-g $LDFLAGS"
 
 gcc_flags="-Wold-style-declaration -Wold-style-definition -Wtype-limits"
 gcc_flags="-Wformat-security -Wformat-y2k -Winit-self -Wignored-qualifiers $gcc_flags"
-gcc_flags="-Wmissing-include-dirs $gcc_flags"
+gcc_flags="-Wmissing-include-dirs -Wempty-body $gcc_flags"
 gcc_flags="-fstack-protector-all $gcc_flags"
 cat > $TMPC << EOF
 int main(void) { return 0; }

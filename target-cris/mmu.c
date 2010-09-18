@@ -33,7 +33,7 @@
 #define D(x) x
 #define D_LOG(...) qemu_log(__VA_ARGS__)
 #else
-#define D(x)
+#define D(x) do { } while (0)
 #define D_LOG(...) do { } while (0)
 #endif
 

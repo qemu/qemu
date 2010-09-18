@@ -559,8 +559,9 @@ static void omap_mmc_cover_cb(void *opaque, int line, int level)
     if (!host->cdet_state && level) {
         host->status |= 0x0002;
         omap_mmc_interrupts_update(host);
-        if (host->cdet_wakeup)
-            /* TODO: Assert wake-up */;
+        if (host->cdet_wakeup) {
+            /* TODO: Assert wake-up */
+        }
     }
 
     if (host->cdet_state != level) {
