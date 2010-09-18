@@ -251,7 +251,7 @@ static int cris_mmu_translate_page(struct cris_mmu_result *res,
 			res->prot |= PAGE_READ;
 			if (tlb_w)
 				res->prot |= PAGE_WRITE;
-			if (tlb_x)
+			if (mmu == 0 && (cfg_x || tlb_x))
 				res->prot |= PAGE_EXEC;
 		}
 		else
