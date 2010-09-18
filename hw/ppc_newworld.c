@@ -135,7 +135,8 @@ static void ppc_core99_init (ram_addr_t ram_size,
     int unin_memory;
     int linux_boot, i;
     ram_addr_t ram_offset, bios_offset, vga_bios_offset;
-    uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
+    uint32_t kernel_base, initrd_base;
+    long kernel_size, initrd_size;
     PCIBus *pci_bus;
     MacIONVRAMState *nvr;
     int nvram_mem_index;

@@ -258,7 +258,7 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
 {
     char *filename;
     unsigned long ram_offset, bios_offset;
-    unsigned long bios_size;
+    long bios_size;
     int64_t kernel_entry;
     qemu_irq *i8259;
     qemu_irq *cpu_exit_irq;
