@@ -365,33 +365,4 @@ static inline uint32_t pci_config_size(const PCIDevice *d)
     return pci_is_express(d) ? PCIE_CONFIG_SPACE_SIZE : PCI_CONFIG_SPACE_SIZE;
 }
 
-/* These are not pci specific. Should move into a separate header.
- * Only pci.c uses them, so keep them here for now.
- */
-
-/* Get last byte of a range from offset + length.
- * Undefined for ranges that wrap around 0. */
-static inline uint64_t range_get_last(uint64_t offset, uint64_t len)
-{
-    return offset + len - 1;
-}
-
-/* Check whether a given range covers a given byte. */
-static inline int range_covers_byte(uint64_t offset, uint64_t len,
-                                    uint64_t byte)
-{
-    return offset <= byte && byte <= range_get_last(offset, len);
-}
-
-/* Check whether 2 given ranges overlap.
- * Undefined if ranges that wrap around 0. */
-static inline int ranges_overlap(uint64_t first1, uint64_t len1,
-                                 uint64_t first2, uint64_t len2)
-{
-    uint64_t last1 = range_get_last(first1, len1);
-    uint64_t last2 = range_get_last(first2, len2);
-
-    return !(last2 < first1 || last1 < first2);
-}
-
 #endif

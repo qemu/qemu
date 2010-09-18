@@ -13,8 +13,7 @@
 #include <sys/ioctl.h>
 #include "vhost.h"
 #include "hw/hw.h"
-/* For range_get_last */
-#include "pci.h"
+#include "range.h"
 #include <linux/vhost.h>
 
 static void vhost_dev_sync_region(struct vhost_dev *dev,
