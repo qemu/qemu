@@ -1600,8 +1600,10 @@ void helper_fork(target_ulong arg1, target_ulong arg2)
     // TODO: store to TC register
 }
 
-target_ulong helper_yield(target_ulong arg1)
+target_ulong helper_yield(target_ulong arg)
 {
+    target_long arg1 = arg;
+
     if (arg1 < 0) {
         /* No scheduling policy implemented. */
         if (arg1 != -2) {

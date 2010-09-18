@@ -63,7 +63,6 @@ for input; do
 done
 
 echo >> $output
-echo "extern const char *const xml_builtin[][2];" >> $output
 echo "const char *const xml_builtin[][2] = {" >> $output
 
 for input; do

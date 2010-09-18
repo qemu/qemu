@@ -105,10 +105,9 @@ static int get_eeprom_data(Atheros_WLANState *s, uint32_t addr, uint32_t *val)
 	// why?? but seems necessary...
 	addr--;
 
-	if ((addr < 0) || (addr > s->eeprom_size))
-	{
-		return 2;
-	}
+    if (addr > s->eeprom_size) {
+        return 2;
+    }
 
 	*val = s->eeprom_data[addr];
 	return 0;
@@ -481,13 +480,10 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 			val = FASTBINLOG(val);
 
 			DEBUG_PRINT(("queue %u enabled\n", val));
-			if ((val >= 0) && (val < 16))
-			{
+			if (val < 16) {
 				s->transmit_queue_enabled[val] = 1;
 				Atheros_WLAN_handleTxBuffer(s, val);
-			}
-			else
-			{
+			} else {
 				DEBUG_PRINT(("unknown queue 0x%x (%u)\n", val, val));
 			}
 			break;
@@ -499,12 +495,9 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 			val = FASTBINLOG(val);
 
 			DEBUG_PRINT(("queue %u disabled\n", val));
-			if ((val >= 0) && (val < 16))
-			{
+			if (val < 16) {
 				s->transmit_queue_enabled[val] = 0;
-			}
-			else
-			{
+			} else {
 				DEBUG_PRINT(("unknown queue 0x%x (%u)\n", val, val));
 			}
 			break;
@@ -625,8 +618,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 
 			addr -= AR5K_QCU_TXDP_BASE;
 			addr /= 4;
-			if (addr >= 0 && addr < 16)
-			{
+			if (addr < 16) {
 				/*
 				 * In case the given address specifies a
 				 * valid DMA address, let's use it and copy
@@ -635,9 +627,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 				 */
 				s->transmit_queue_processed[addr] = 0;
 				s->transmit_queue_address[addr] = (target_phys_addr_t)val;
-			}
-			else
-			{
+			} else {
 				DEBUG_PRINT(("unknown queue 0x%x (%u)\n", addr, addr));
 			}
 			break;

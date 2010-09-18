@@ -572,7 +572,8 @@ static void ppc_prep_init (ram_addr_t ram_size,
     int PPC_io_memory;
     int linux_boot, i, nb_nics1, bios_size;
     ram_addr_t ram_offset, bios_offset;
-    uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
+    uint32_t kernel_base, initrd_base;
+    long kernel_size, initrd_size;
     PCIBus *pci_bus;
     qemu_irq *i8259;
     qemu_irq *cpu_exit_irq;

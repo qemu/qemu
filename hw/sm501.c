@@ -29,6 +29,7 @@
 #include "devices.h"
 #include "sysbus.h"
 #include "qdev-addr.h"
+#include "range.h"
 
 /*
  * Status: 2010/05/07
@@ -814,7 +815,7 @@ static uint32_t sm501_palette_read(void *opaque, target_phys_addr_t addr)
     /* TODO : consider BYTE/WORD access */
     /* TODO : consider endian */
 
-    assert(0 <= addr && addr < 0x400 * 3);
+    assert(range_covers_byte(0, 0x400 * 3, addr));
     return *(uint32_t*)&s->dc_palette[addr];
 }
 
@@ -828,7 +829,7 @@ static void sm501_palette_write(void *opaque,
     /* TODO : consider BYTE/WORD access */
     /* TODO : consider endian */
 
-    assert(0 <= addr && addr < 0x400 * 3);
+    assert(range_covers_byte(0, 0x400 * 3, addr));
     *(uint32_t*)&s->dc_palette[addr] = value;
 }
 

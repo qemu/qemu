@@ -182,10 +182,12 @@ static void ref405ep_init (ram_addr_t ram_size,
     qemu_irq *pic;
     ram_addr_t sram_offset, bios_offset, bdloc;
     target_phys_addr_t ram_bases[2], ram_sizes[2];
-    target_ulong sram_size, bios_size;
+    target_ulong sram_size;
+    long bios_size;
     //int phy_addr = 0;
     //static int phy_addr = 1;
-    target_ulong kernel_base, kernel_size, initrd_base, initrd_size;
+    target_ulong kernel_base, initrd_base;
+    long kernel_size, initrd_size;
     int linux_boot;
     int fl_idx, fl_sectors, len;
     DriveInfo *dinfo;
@@ -221,8 +223,8 @@ static void ref405ep_init (ram_addr_t ram_size,
         bios_offset = qemu_ram_alloc(NULL, "ef405ep.bios", bios_size);
         fl_sectors = (bios_size + 65535) >> 16;
 #ifdef DEBUG_BOARD_INIT
-        printf("Register parallel flash %d size " TARGET_FMT_lx
-               " at offset %08lx addr " TARGET_FMT_lx " '%s' %d\n",
+        printf("Register parallel flash %d size %lx"
+               " at offset %08lx addr %lx '%s' %d\n",
                fl_idx, bios_size, bios_offset, -bios_size,
                bdrv_get_device_name(dinfo->bdrv), fl_sectors);
 #endif
@@ -308,7 +310,7 @@ static void ref405ep_init (ram_addr_t ram_size,
                     kernel_filename);
             exit(1);
         }
-        printf("Load kernel size " TARGET_FMT_ld " at " TARGET_FMT_lx,
+        printf("Load kernel size %ld at " TARGET_FMT_lx,
                kernel_size, kernel_base);
         /* load initrd */
         if (initrd_filename) {
@@ -503,8 +505,9 @@ static void taihu_405ep_init(ram_addr_t ram_size,
     qemu_irq *pic;
     ram_addr_t bios_offset;
     target_phys_addr_t ram_bases[2], ram_sizes[2];
-    target_ulong bios_size;
-    target_ulong kernel_base, kernel_size, initrd_base, initrd_size;
+    long bios_size;
+    target_ulong kernel_base, initrd_base;
+    long kernel_size, initrd_size;
     int linux_boot;
     int fl_idx, fl_sectors;
     DriveInfo *dinfo;
@@ -534,8 +537,8 @@ static void taihu_405ep_init(ram_addr_t ram_size,
         fl_sectors = (bios_size + 65535) >> 16;
         bios_offset = qemu_ram_alloc(NULL, "taihu_405ep.bios", bios_size);
 #ifdef DEBUG_BOARD_INIT
-        printf("Register parallel flash %d size " TARGET_FMT_lx
-               " at offset %08lx addr " TARGET_FMT_lx " '%s' %d\n",
+        printf("Register parallel flash %d size %lx"
+               " at offset %08lx addr %lx '%s' %d\n",
                fl_idx, bios_size, bios_offset, -bios_size,
                bdrv_get_device_name(dinfo->bdrv), fl_sectors);
 #endif
@@ -576,7 +579,7 @@ static void taihu_405ep_init(ram_addr_t ram_size,
         bios_size = 32 * 1024 * 1024;
         fl_sectors = (bios_size + 65535) >> 16;
 #ifdef DEBUG_BOARD_INIT
-        printf("Register parallel flash %d size " TARGET_FMT_lx
+        printf("Register parallel flash %d size %lx"
                " at offset %08lx  addr " TARGET_FMT_lx " '%s'\n",
                fl_idx, bios_size, bios_offset, (target_ulong)0xfc000000,
                bdrv_get_device_name(dinfo->bdrv));

@@ -1551,8 +1551,9 @@ static abi_long do_bind(int sockfd, abi_ulong target_addr,
     void *addr;
     abi_long ret;
 
-    if (addrlen < 0)
+    if ((int)addrlen < 0) {
         return -TARGET_EINVAL;
+    }
 
     addr = alloca(addrlen+1);
 
@@ -1570,8 +1571,9 @@ static abi_long do_connect(int sockfd, abi_ulong target_addr,
     void *addr;
     abi_long ret;
 
-    if (addrlen < 0)
+    if ((int)addrlen < 0) {
         return -TARGET_EINVAL;
+    }
 
     addr = alloca(addrlen);
 
@@ -1656,8 +1658,9 @@ static abi_long do_accept(int fd, abi_ulong target_addr,
     if (get_user_u32(addrlen, target_addrlen_addr))
         return -TARGET_EINVAL;
 
-    if (addrlen < 0)
+    if ((int)addrlen < 0) {
         return -TARGET_EINVAL;
+    }
 
     if (!access_ok(VERIFY_WRITE, target_addr, addrlen))
         return -TARGET_EINVAL;
@@ -1684,8 +1687,9 @@ static abi_long do_getpeername(int fd, abi_ulong target_addr,
     if (get_user_u32(addrlen, target_addrlen_addr))
         return -TARGET_EFAULT;
 
-    if (addrlen < 0)
+    if ((int)addrlen < 0) {
         return -TARGET_EINVAL;
+    }
 
     if (!access_ok(VERIFY_WRITE, target_addr, addrlen))
         return -TARGET_EFAULT;
@@ -1712,8 +1716,9 @@ static abi_long do_getsockname(int fd, abi_ulong target_addr,
     if (get_user_u32(addrlen, target_addrlen_addr))
         return -TARGET_EFAULT;
 
-    if (addrlen < 0)
+    if ((int)addrlen < 0) {
         return -TARGET_EINVAL;
+    }
 
     if (!access_ok(VERIFY_WRITE, target_addr, addrlen))
         return -TARGET_EFAULT;
@@ -1753,8 +1758,9 @@ static abi_long do_sendto(int fd, abi_ulong msg, size_t len, int flags,
     void *host_msg;
     abi_long ret;
 
-    if (addrlen < 0)
+    if ((int)addrlen < 0) {
         return -TARGET_EINVAL;
+    }
 
     host_msg = lock_user(VERIFY_READ, msg, len, 1);
     if (!host_msg)
@@ -1792,7 +1798,7 @@ static abi_long do_recvfrom(int fd, abi_ulong msg, size_t len, int flags,
             ret = -TARGET_EFAULT;
             goto fail;
         }
-        if (addrlen < 0) {
+        if ((int)addrlen < 0) {
             ret = -TARGET_EINVAL;
             goto fail;
         }

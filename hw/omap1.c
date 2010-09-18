@@ -26,6 +26,7 @@
 /* We use pc-style serial ports.  */
 #include "pc.h"
 #include "blockdev.h"
+#include "range.h"
 
 /* Should signal the TCMI/GPMC */
 uint32_t omap_badwidth_read8(void *opaque, target_phys_addr_t addr)
@@ -3669,37 +3670,38 @@ static const struct dma_irq_map omap1_dma_irq_map[] = {
 static int omap_validate_emiff_addr(struct omap_mpu_state_s *s,
                 target_phys_addr_t addr)
 {
-    return addr >= OMAP_EMIFF_BASE && addr < OMAP_EMIFF_BASE + s->sdram_size;
+    return range_covers_byte(OMAP_EMIFF_BASE, s->sdram_size, addr);
 }
 
 static int omap_validate_emifs_addr(struct omap_mpu_state_s *s,
                 target_phys_addr_t addr)
 {
-    return addr >= OMAP_EMIFS_BASE && addr < OMAP_EMIFF_BASE;
+    return range_covers_byte(OMAP_EMIFS_BASE, OMAP_EMIFF_BASE - OMAP_EMIFS_BASE,
+                             addr);
 }
 
 static int omap_validate_imif_addr(struct omap_mpu_state_s *s,
                 target_phys_addr_t addr)
 {
-    return addr >= OMAP_IMIF_BASE && addr < OMAP_IMIF_BASE + s->sram_size;
+    return range_covers_byte(OMAP_IMIF_BASE, s->sram_size, addr);
 }
 
 static int omap_validate_tipb_addr(struct omap_mpu_state_s *s,
                 target_phys_addr_t addr)
 {
-    return addr >= 0xfffb0000 && addr < 0xffff0000;
+    return range_covers_byte(0xfffb0000, 0xffff0000 - 0xfffb0000, addr);
 }
 
 static int omap_validate_local_addr(struct omap_mpu_state_s *s,
                 target_phys_addr_t addr)
 {
-    return addr >= OMAP_LOCALBUS_BASE && addr < OMAP_LOCALBUS_BASE + 0x1000000;
+    return range_covers_byte(OMAP_LOCALBUS_BASE, 0x1000000, addr);
 }
 
 static int omap_validate_tipb_mpui_addr(struct omap_mpu_state_s *s,
                 target_phys_addr_t addr)
 {
-    return addr >= 0xe1010000 && addr < 0xe1020004;
+    return range_covers_byte(0xe1010000, 0xe1020004 - 0xe1010000, addr);
 }
 
 struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,

@@ -439,9 +439,7 @@ static void blkdebug_debug_event(BlockDriverState *bs, BlkDebugEvent event)
     struct BlkdebugRule *rule;
     BlkdebugVars old_vars = s->vars;
 
-    if (event < 0 || event >= BLKDBG_EVENT_MAX) {
-        return;
-    }
+    assert((int)event >= 0 && event < BLKDBG_EVENT_MAX);
 
     QLIST_FOREACH(rule, &s->rules[event], next) {
         process_rule(bs, rule, &old_vars);

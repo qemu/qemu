@@ -14,6 +14,7 @@
 #include "hw.h"
 #include "msix.h"
 #include "pci.h"
+#include "range.h"
 
 /* MSI-X capability structure */
 #define MSIX_TABLE_OFFSET 4

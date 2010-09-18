@@ -383,7 +383,8 @@ static int load_flat_file(struct linux_binprm * bprm,
 		struct lib_info *libinfo, int id, abi_ulong *extra_stack)
 {
     struct flat_hdr * hdr;
-    abi_ulong textpos = 0, datapos = 0, result;
+    abi_ulong textpos = 0, datapos = 0;
+    abi_long result;
     abi_ulong realdatastart = 0;
     abi_ulong text_len, data_len, bss_len, stack_len, flags;
     abi_ulong memp = 0; /* for finding the brk area */

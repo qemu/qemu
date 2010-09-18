@@ -22,6 +22,7 @@
 #include "pci.h"
 #include "acpi.h"
 #include "sysemu.h"
+#include "range.h"
 
 //#define DEBUG
 

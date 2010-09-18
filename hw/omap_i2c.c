@@ -190,8 +190,9 @@ static uint32_t omap_i2c_read(void *opaque, target_phys_addr_t addr)
             if (s->rxlen > 2)
                 s->fifo >>= 16;
             s->rxlen -= 2;
-        } else
-            /* XXX: remote access (qualifier) error - what's that?  */;
+        } else {
+            /* XXX: remote access (qualifier) error - what's that?  */
+        }
         if (!s->rxlen) {
             s->stat &= ~(1 << 3);				/* RRDY */
             if (((s->control >> 10) & 1) &&			/* MST */

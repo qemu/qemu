@@ -125,7 +125,7 @@ static void pxa2xx_pm_write(void *opaque, target_phys_addr_t addr,
         break;
 
     default:	/* Read-write registers */
-        if (addr >= PMCR && addr <= PCMD31 && !(addr & 3)) {
+        if (!(addr & 3)) {
             s->pm_regs[addr >> 2] = value;
             break;
         }
@@ -636,6 +636,7 @@ static void pxa2xx_ssp_fifo_update(PXA2xxSSPState *s)
 {
     s->sssr &= ~(0xf << 12);	/* Clear RFL */
     s->sssr &= ~(0xf << 8);	/* Clear TFL */
+    s->sssr &= ~SSSR_TFS;
     s->sssr &= ~SSSR_TNF;
     if (s->enable) {
         s->sssr |= ((s->rx_level - 1) & 0xf) << 12;
@@ -643,14 +644,13 @@ static void pxa2xx_ssp_fifo_update(PXA2xxSSPState *s)
             s->sssr |= SSSR_RFS;
         else
             s->sssr &= ~SSSR_RFS;
-        if (0 <= SSCR1_TFT(s->sscr[1]))
-            s->sssr |= SSSR_TFS;
-        else
-            s->sssr &= ~SSSR_TFS;
         if (s->rx_level)
             s->sssr |= SSSR_RNE;
         else
             s->sssr &= ~SSSR_RNE;
+        /* TX FIFO is never filled, so it is always in underrun
+           condition if SSP is enabled */
+        s->sssr |= SSSR_TFS;
         s->sssr |= SSSR_TNF;
     }
 
@@ -1877,8 +1877,9 @@ static void pxa2xx_fir_write(void *opaque, target_phys_addr_t addr,
         s->control[0] = value;
         if (!(value & (1 << 4)))			/* RXE */
             s->rx_len = s->rx_start = 0;
-        if (!(value & (1 << 3)))			/* TXE */
-            /* Nop */;
+        if (!(value & (1 << 3))) {                      /* TXE */
+            /* Nop */
+        }
         s->enable = value & 1;				/* ITR */
         if (!s->enable)
             s->status[0] = 0;

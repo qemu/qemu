@@ -192,12 +192,13 @@ static void soc_dma_ch_freq_update(struct dma_s *s)
     if (s->enabled_count)
         /* We completely ignore channel priorities and stuff */
         s->channel_freq = s->soc.freq / s->enabled_count;
-    else
+    else {
         /* TODO: Signal that we want to disable the functional clock and let
          * the platform code decide what to do with it, i.e. check that
          * auto-idle is enabled in the clock controller and if we are stopping
          * the clock, do the same with any parent clocks that had only one
-         * user keeping them on and auto-idle enabled.  */;
+         * user keeping them on and auto-idle enabled.  */
+    }
 }
 
 void soc_dma_set_request(struct soc_dma_ch_s *ch, int level)
