@@ -342,7 +342,7 @@ abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size)
         munmap(ptr, size);
 
         /* ENOMEM if we checked the whole of the target address space.  */
-        if (addr == -1ul) {
+        if (addr == (abi_ulong)-1) {
             return (abi_ulong)-1;
         } else if (addr == 0) {
             if (wrapped) {
