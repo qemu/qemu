@@ -138,7 +138,10 @@ QEMU_CFLAGS="-D_FORTIFY_SOURCE=2 $QEMU_CFLAGS"
 QEMU_CFLAGS="-I. -I\$(SRC_PATH) $QEMU_CFLAGS"
 LDFLAGS="-g $LDFLAGS"
 
-gcc_flags="-Wold-style-declaration -Wold-style-definition -Wtype-limits -fstack-protector-all"
+gcc_flags="-Wold-style-declaration -Wold-style-definition -Wtype-limits"
+gcc_flags="-Wformat-security -Wformat-y2k -Winit-self -Wignored-qualifiers $gcc_flags"
+gcc_flags="-Wmissing-include-dirs $gcc_flags"
+gcc_flags="-fstack-protector-all $gcc_flags"
 cat > $TMPC << EOF
 int main(void) { return 0; }
 EOF
