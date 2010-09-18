@@ -55,6 +55,7 @@ static int debugflags = DBGBIT(TXERR) | DBGBIT(GENERAL);
 
 #define IOPORT_SIZE       0x40
 #define PNPMMIO_SIZE      0x20000
+#define MIN_BUF_SIZE      60 /* Min. octets in an ethernet frame sans FCS */
 
 /*
  * HW models:
@@ -635,9 +636,18 @@ e1000_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
     uint32_t rdh_start;
     uint16_t vlan_special = 0;
     uint8_t vlan_status = 0, vlan_offset = 0;
+    uint8_t min_buf[MIN_BUF_SIZE];
 
     if (!(s->mac_reg[RCTL] & E1000_RCTL_EN))
         return -1;
+
+    /* Pad to minimum Ethernet frame length */
+    if (size < sizeof(min_buf)) {
+        memcpy(min_buf, buf, size);
+        memset(&min_buf[size], 0, sizeof(min_buf) - size);
+        buf = min_buf;
+        size = sizeof(min_buf);
+    }
 
     if (size > s->rxbuf_size) {
         DBGOUT(RX, "packet too large for buffers (%lu > %d)\n",
