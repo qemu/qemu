@@ -247,8 +247,6 @@ s3c24xx_serial_init(S3CState *soc,
     int serial_io;
 
     s = qemu_mallocz(sizeof(s3c24xx_serial_dev));
-    if (!s)
-        return NULL;
 
     /* initialise serial port context */
     s->rx_irq = s3c24xx_get_irq(soc->irq, irqn);
