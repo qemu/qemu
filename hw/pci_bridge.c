@@ -31,6 +31,7 @@
 
 #include "pci_bridge.h"
 #include "pci_internals.h"
+#include "range.h"
 
 /* PCI bridge subsystem vendor ID helper functions */
 #define PCI_SSVID_SIZEOF        8

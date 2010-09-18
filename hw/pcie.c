@@ -25,6 +25,7 @@
 #include "msi.h"
 #include "pci_internals.h"
 #include "pcie_regs.h"
+#include "range.h"
 
 //#define DEBUG_PCIE
 #ifdef DEBUG_PCIE

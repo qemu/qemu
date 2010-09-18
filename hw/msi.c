@@ -19,6 +19,7 @@
  */
 
 #include "msi.h"
+#include "range.h"
 
 /* Eventually those constants should go to Linux pci_regs.h */
 #define PCI_MSI_PENDING_32      0x10
