@@ -125,7 +125,7 @@ static void pxa2xx_pm_write(void *opaque, target_phys_addr_t addr,
         break;
 
     default:	/* Read-write registers */
-        if (addr >= PMCR && addr <= PCMD31 && !(addr & 3)) {
+        if (!(addr & 3)) {
             s->pm_regs[addr >> 2] = value;
             break;
         }
