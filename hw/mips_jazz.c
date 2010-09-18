@@ -204,11 +204,7 @@ void mips_jazz_init (ram_addr_t ram_size,
     pcspk_init(pit);
 
     /* ISA IO space at 0x90000000 */
-#ifdef TARGET_WORDS_BIGENDIAN
-    isa_mmio_init(0x90000000, 0x01000000, 1);
-#else
-    isa_mmio_init(0x90000000, 0x01000000, 0);
-#endif
+    isa_mmio_init(0x90000000, 0x01000000, env->bigendian);
 
     isa_mem_base = 0x11000000;
 
@@ -267,18 +263,12 @@ void mips_jazz_init (ram_addr_t ram_size,
 
     /* Serial ports */
     if (serial_hds[0]) {
-#ifdef TARGET_WORDS_BIGENDIAN
-        serial_mm_init(0x80006000, 0, rc4030[8], 8000000/16, serial_hds[0], 1, 1);
-#else
-        serial_mm_init(0x80006000, 0, rc4030[8], 8000000/16, serial_hds[0], 1, 0);
-#endif
+        serial_mm_init(0x80006000, 0, rc4030[8], 8000000 / 16,
+                       serial_hds[0], 1, env->bigendian);
     }
     if (serial_hds[1]) {
-#ifdef TARGET_WORDS_BIGENDIAN
-        serial_mm_init(0x80007000, 0, rc4030[9], 8000000/16, serial_hds[1], 1, 1);
-#else
-        serial_mm_init(0x80007000, 0, rc4030[9], 8000000/16, serial_hds[1], 1, 0);
-#endif
+        serial_mm_init(0x80007000, 0, rc4030[9], 8000000 / 16,
+                       serial_hds[1], 1, env->bigendian);
     }
 
     /* Parallel port */
