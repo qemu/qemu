@@ -41,9 +41,6 @@ typedef struct S3CState_s {
     /* I2C */
     struct s3c24xx_i2c_state_s *iic;
 
-    /* LCD controller state */
-    struct s3c24xx_lcd_state_s *lcd;
-
     /* NAND controller */
     struct s3c24xx_nand_state_s *nand;
 } S3CState;
@@ -81,9 +78,6 @@ struct s3c24xx_i2c_state_s *s3c24xx_iic_init(qemu_irq irq, target_phys_addr_t ba
 
 /* aquire bus from controller state */
 i2c_bus *s3c24xx_i2c_bus(struct s3c24xx_i2c_state_s *s);
-
-/* Initialise LCD controller */
-struct s3c24xx_lcd_state_s *s3c24xx_lcd_init(target_phys_addr_t base, qemu_irq irq);
 
 /* Initialise nand controller */
 struct s3c24xx_nand_state_s *s3c24xx_nand_init(target_phys_addr_t base_addr);

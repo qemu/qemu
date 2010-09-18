@@ -10,12 +10,14 @@
 #include "hw.h"
 #include "console.h"
 #include "framebuffer.h"
+#include "sysbus.h"
 
 #include "s3c24xx.h"
 
-struct s3c24xx_lcd_state_s {
-    target_phys_addr_t base;
-    void *irq;
+typedef struct {
+    SysBusDevice busdev;
+    qemu_irq irq;
+    //~ target_phys_addr_t base;
     DisplayState *ds;
     drawfn *line_fn;
 
@@ -46,15 +48,15 @@ struct s3c24xx_lcd_state_s {
     int src_width;
     int dest_width;
     drawfn fn;
-};
+} S3C24xxLCD_State;
 
-static void s3c24xx_lcd_update(struct s3c24xx_lcd_state_s *s)
+static void s3c24xx_lcd_update(S3C24xxLCD_State *s)
 {
     s->intpnd |= s->srcpnd & ~s->intmsk;
     qemu_set_irq(s->irq, !!s->intpnd);
 }
 
-static void s3c24xx_lcd_reset(struct s3c24xx_lcd_state_s *s)
+static void s3c24xx_lcd_reset(S3C24xxLCD_State *s)
 {
     s->enable = 0;
     s->invalidate = 1;
@@ -105,7 +107,7 @@ static void s3c24xx_lcd_reset(struct s3c24xx_lcd_state_s *s)
 
 static uint32_t s3c24xx_lcd_read(void *opaque, target_phys_addr_t addr)
 {
-    struct s3c24xx_lcd_state_s *s = (struct s3c24xx_lcd_state_s *) opaque;
+    S3C24xxLCD_State *s = opaque;
 
     switch (addr) {
     case S3C24XX_LCDCON1:
@@ -155,7 +157,7 @@ static uint32_t s3c24xx_lcd_read(void *opaque, target_phys_addr_t addr)
 static void s3c24xx_lcd_write(void *opaque, target_phys_addr_t addr,
                               uint32_t value)
 {
-    struct s3c24xx_lcd_state_s *s = (struct s3c24xx_lcd_state_s *) opaque;
+    S3C24xxLCD_State *s = opaque;
 
     switch (addr) {
     case S3C24XX_LCDCON1:
@@ -255,7 +257,7 @@ static CPUWriteMemoryFunc * const s3c24xx_lcd_writefn[] = {
     s3c24xx_lcd_write
 };
 
-static inline void s3c24xx_lcd_resize(struct s3c24xx_lcd_state_s *s)
+static inline void s3c24xx_lcd_resize(S3C24xxLCD_State *s)
 {
     int new_width, new_height;
     new_height = ((s->con[1] >> 14) & 0x3ff) + 1;
@@ -298,7 +300,7 @@ uint32_t s3c24xx_rgb_to_pixel32(unsigned int r, unsigned int g, unsigned b)
     return (r << 16) | (g << 8) | b;
 }
 
-static inline uint32_t s3c24xx_rgb(struct s3c24xx_lcd_state_s *s,
+static inline uint32_t s3c24xx_rgb(S3C24xxLCD_State *s,
                                    unsigned int r, unsigned int g, unsigned b)
 {
     switch (ds_get_bits_per_pixel(s->ds)) {
@@ -318,7 +320,7 @@ static inline uint32_t s3c24xx_rgb(struct s3c24xx_lcd_state_s *s,
     }
 }
 
-static void s3c24xx_lcd_palette_load(struct s3c24xx_lcd_state_s *s)
+static void s3c24xx_lcd_palette_load(S3C24xxLCD_State *s)
 {
     int i, n;
     switch (s->bpp) {
@@ -393,7 +395,7 @@ static void s3c24xx_lcd_palette_load(struct s3c24xx_lcd_state_s *s)
 
 static void s3c24xx_update_display(void *opaque)
 {
-    struct s3c24xx_lcd_state_s *s = (struct s3c24xx_lcd_state_s *) opaque;
+    S3C24xxLCD_State *s = opaque;
     int src_width, dest_width, miny = 0, maxy = 0;
     target_phys_addr_t addr;
 
@@ -426,7 +428,7 @@ static void s3c24xx_update_display(void *opaque)
 
 static void s3c24xx_invalidate_display(void *opaque)
 {
-    struct s3c24xx_lcd_state_s *s = (struct s3c24xx_lcd_state_s *) opaque;
+    S3C24xxLCD_State *s = opaque;
     s->invalidate = 1;
 }
 
@@ -446,69 +448,19 @@ static void s3c24xx_screen_dump(void *opaque, const char *filename)
 #define BITS 32
 #include "s3c24xx_template.h"
 
-static void s3c24xx_lcd_save(QEMUFile *f, void *opaque)
+#define S3C24XX_LCD_SIZE 0x1000000
+
+static int s3c24xx_lcd_init(SysBusDevice *dev)
 {
-    struct s3c24xx_lcd_state_s *s = (struct s3c24xx_lcd_state_s *) opaque;
-    int i;
-    for (i = 0; i < 5; i ++)
-        qemu_put_be32s(f, &s->con[i]);
-    for (i = 0; i < 3; i ++)
-        qemu_put_be32s(f, &s->saddr[i]);
-    qemu_put_be32s(f, &s->r);
-    qemu_put_be32s(f, &s->g);
-    qemu_put_be16s(f, &s->b);
-    qemu_put_be32s(f, &s->dithmode);
-    qemu_put_be32s(f, &s->tpal);
-    qemu_put_8s(f, &s->intpnd);
-    qemu_put_8s(f, &s->srcpnd);
-    qemu_put_8s(f, &s->intmsk);
-    qemu_put_8s(f, &s->lpcsel);
-    for (i = 0; i < 0x100; i ++)
-        qemu_put_be16s(f, &s->raw_pal[i]);
-}
+    S3C24xxLCD_State *s = FROM_SYSBUS(S3C24xxLCD_State, dev);
 
-static int s3c24xx_lcd_load(QEMUFile *f, void *opaque, int version_id)
-{
-    struct s3c24xx_lcd_state_s *s = (struct s3c24xx_lcd_state_s *) opaque;
-    int i;
-    for (i = 0; i < 5; i ++)
-        qemu_get_be32s(f, &s->con[i]);
-    for (i = 0; i < 3; i ++)
-        qemu_get_be32s(f, &s->saddr[i]);
-    qemu_get_be32s(f, &s->r);
-    qemu_get_be32s(f, &s->g);
-    qemu_get_be16s(f, &s->b);
-    qemu_get_be32s(f, &s->dithmode);
-    qemu_get_be32s(f, &s->tpal);
-    qemu_get_8s(f, &s->intpnd);
-    qemu_get_8s(f, &s->srcpnd);
-    qemu_get_8s(f, &s->intmsk);
-    qemu_get_8s(f, &s->lpcsel);
+    //~ s->brightness = 7;
 
-    s->invalidate = 1;
-    s->invalidatep = 1;
-    s->width = -1;
-    s->height = -1;
-    s->bpp = (s->con[0] >> 1) & 0xf;
-    s->enable = s->con[0] & 1;
-    s->msb = (s->con[4] >> 12) & 1;
-    s->frm565 = (s->con[4] >> 11) & 1;
-    s->fb = ((s->saddr[0] << 1) & 0x7ffffffe);
+    int iomemtype = cpu_register_io_memory(s3c24xx_lcd_readfn,
+                                           s3c24xx_lcd_writefn, s);
+    sysbus_init_mmio(dev, S3C24XX_LCD_SIZE, iomemtype);
 
-    for (i = 0; i < 0x100; i ++)
-        qemu_get_be16s(f, &s->raw_pal[i]);
-
-    return 0;
-}
-
-struct s3c24xx_lcd_state_s *s3c24xx_lcd_init(target_phys_addr_t base, qemu_irq irq)
-{
-    int iomemtype;
-    struct s3c24xx_lcd_state_s *s = (struct s3c24xx_lcd_state_s *)
-                                    qemu_mallocz(sizeof(struct s3c24xx_lcd_state_s));
-
-    s->base = base;
-    s->irq = irq;
+    sysbus_init_irq(dev, &s->irq);
 
     s3c24xx_lcd_reset(s);
 
@@ -516,11 +468,7 @@ struct s3c24xx_lcd_state_s *s3c24xx_lcd_init(target_phys_addr_t base, qemu_irq i
                                  s3c24xx_invalidate_display,
                                  s3c24xx_screen_dump, NULL, s);
 
-    iomemtype = cpu_register_io_memory(s3c24xx_lcd_readfn,
-                                       s3c24xx_lcd_writefn, s);
-    cpu_register_physical_memory(s->base, 0xffffff, iomemtype);
-
-    register_savevm(NULL, "s3c24xx_lcd", 0, 0, s3c24xx_lcd_save, s3c24xx_lcd_load, s);
+    //~ qdev_init_gpio_in(&dev->qdev, s3c24xx_lcd_gpio_brigthness_in, 3);
 
     switch (ds_get_bits_per_pixel(s->ds)) {
     case 0:
@@ -556,5 +504,80 @@ struct s3c24xx_lcd_state_s *s3c24xx_lcd_init(target_phys_addr_t base, qemu_irq i
         fprintf(stderr, "%s: Bad color depth\n", __FUNCTION__);
         exit(1);
     }
-    return s;
+
+    return 0;
 }
+
+static const VMStateDescription s3c24xx_lcd_vmsd = {
+    .name = "s3c24xx_lcd",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        //~ VMSTATE_UINT32(brightness, S3C24xxLCD_State),
+        //~ VMSTATE_UINT32(mode, S3C24xxLCD_State),
+        //~ VMSTATE_UINT32(irqctrl, S3C24xxLCD_State),
+        //~ VMSTATE_UINT32(page, S3C24xxLCD_State),
+        //~ VMSTATE_UINT32(page_off, S3C24xxLCD_State),
+        //~ VMSTATE_BUFFER(video_ram, S3C24xxLCD_State),
+#if 0
+    for (i = 0; i < 5; i ++)
+        qemu_put_be32s(f, &s->con[i]);
+    for (i = 0; i < 3; i ++)
+        qemu_put_be32s(f, &s->saddr[i]);
+    qemu_put_be32s(f, &s->r);
+    qemu_put_be32s(f, &s->g);
+    qemu_put_be16s(f, &s->b);
+    qemu_put_be32s(f, &s->dithmode);
+    qemu_put_be32s(f, &s->tpal);
+    qemu_put_8s(f, &s->intpnd);
+    qemu_put_8s(f, &s->srcpnd);
+    qemu_put_8s(f, &s->intmsk);
+    qemu_put_8s(f, &s->lpcsel);
+    for (i = 0; i < 0x100; i ++)
+        qemu_put_be16s(f, &s->raw_pal[i]);
+#elif 0
+    for (i = 0; i < 5; i ++)
+        qemu_get_be32s(f, &s->con[i]);
+    for (i = 0; i < 3; i ++)
+        qemu_get_be32s(f, &s->saddr[i]);
+    qemu_get_be32s(f, &s->r);
+    qemu_get_be32s(f, &s->g);
+    qemu_get_be16s(f, &s->b);
+    qemu_get_be32s(f, &s->dithmode);
+    qemu_get_be32s(f, &s->tpal);
+    qemu_get_8s(f, &s->intpnd);
+    qemu_get_8s(f, &s->srcpnd);
+    qemu_get_8s(f, &s->intmsk);
+    qemu_get_8s(f, &s->lpcsel);
+
+    s->invalidate = 1;
+    s->invalidatep = 1;
+    s->width = -1;
+    s->height = -1;
+    s->bpp = (s->con[0] >> 1) & 0xf;
+    s->enable = s->con[0] & 1;
+    s->msb = (s->con[4] >> 12) & 1;
+    s->frm565 = (s->con[4] >> 11) & 1;
+    s->fb = ((s->saddr[0] << 1) & 0x7ffffffe);
+
+    for (i = 0; i < 0x100; i ++)
+        qemu_get_be16s(f, &s->raw_pal[i]);
+#endif
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static SysBusDeviceInfo s3c24xx_lcd_info = {
+    .init = s3c24xx_lcd_init,
+    .qdev.name = "s3c24xx_lcd",
+    .qdev.size = sizeof(S3C24xxLCD_State),
+    .qdev.vmsd = &s3c24xx_lcd_vmsd,
+};
+
+static void s3c24xx_lcd_register_devices(void)
+{
+    sysbus_register_withprop(&s3c24xx_lcd_info);
+}
+
+device_init(s3c24xx_lcd_register_devices)

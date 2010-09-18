@@ -396,8 +396,8 @@ s3c2440_init(int sdram_size)
                               CPU_S3C2440_IIC_BASE);
 
     /* LCD controller */
-    s->lcd = s3c24xx_lcd_init(CPU_S3C2440_LCD_BASE,
-                              s3c24xx_get_irq(s->irq, 16));
+    dev = sysbus_create_simple("s3c24xx_lcd", CPU_S3C2440_LCD_BASE,
+                               s3c24xx_get_irq(s->irq, 16));
 
     /* NAND controller */
     s->nand = s3c24xx_nand_init(CPU_S3C2440_NAND_BASE);
