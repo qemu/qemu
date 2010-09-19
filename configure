@@ -2141,6 +2141,15 @@ if test "$solaris" = "no" ; then
     fi
 fi
 
+# Use ASLR, no-SEH and DEP if available
+if test "$mingw32" = "yes" ; then
+    for flag in --dynamicbase --no-seh --nxcompat; do
+        if $ld --help 2>/dev/null | grep ".$flag" >/dev/null 2>/dev/null ; then
+            LDFLAGS="-Wl,$flag $LDFLAGS"
+        fi
+    done
+fi
+
 confdir=$sysconfdir$confsuffix
 
 tools=
