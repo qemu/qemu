@@ -31,7 +31,9 @@ endif
 
 PROGS=$(QEMU_PROG)
 
+ifndef CONFIG_HAIKU
 LIBS+=-lm
+endif
 
 kvm.o kvm-all.o vhost.o vhost_net.o: QEMU_CFLAGS+=$(KVM_CFLAGS)
 
