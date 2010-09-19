@@ -1710,13 +1710,17 @@ cat > $TMPC << EOF
 #include <pthread.h>
 int main(void) { pthread_create(0,0,0,0); return 0; }
 EOF
-for pthread_lib in $PTHREADLIBS_LIST; do
-  if compile_prog "" "$pthread_lib" ; then
-    pthread=yes
-    LIBS="$pthread_lib $LIBS"
-    break
-  fi
-done
+if compile_prog "" "" ; then
+  pthread=yes
+else
+  for pthread_lib in $PTHREADLIBS_LIST; do
+    if compile_prog "" "$pthread_lib" ; then
+      pthread=yes
+      LIBS="$pthread_lib $LIBS"
+      break
+    fi
+  done
+fi
 
 if test "$mingw32" != yes -a "$pthread" = no; then
   echo
