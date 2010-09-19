@@ -155,9 +155,10 @@ typedef struct CPUCRISState {
 		uint32_t lo;
 	} tlbsets[2][4][16];
 
-	void *load_info;
-
 	CPU_COMMON
+
+	/* Members after CPU_COMMON are preserved across resets.  */
+	void *load_info;
 } CPUCRISState;
 
 CPUCRISState *cpu_cris_init(const char *cpu_model);
