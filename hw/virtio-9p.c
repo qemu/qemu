@@ -1704,6 +1704,8 @@ static void v9fs_open_post_lstat(V9fsState *s, V9fsOpenState *vs, int err)
         if (s->proto_version == V9FS_PROTO_2000L) {
             flags = vs->mode;
             flags &= ~(O_NOCTTY | O_ASYNC | O_CREAT);
+            /* Ignore direct disk access hint until the server supports it. */
+            flags &= ~O_DIRECT;
         } else {
             flags = omode_to_uflags(vs->mode);
         }
@@ -1825,6 +1827,9 @@ static void v9fs_lcreate(V9fsState *s, V9fsPDU *pdu)
 
     v9fs_string_sprintf(&vs->fullname, "%s/%s", vs->fidp->path.data,
              vs->name.data);
+
+    /* Ignore direct disk access hint until the server supports it. */
+    flags &= ~O_DIRECT;
 
     vs->fidp->fs.fd = v9fs_do_open2(s, vs->fullname.data, vs->fidp->uid,
             gid, flags, mode);
