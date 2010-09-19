@@ -23,7 +23,7 @@
 #ifndef _WIN32
 #include <sys/ioctl.h>
 #endif
-#ifdef __sun__
+#if defined(__sun__) || defined(__HAIKU__)
 #include <sys/ioccom.h>
 #endif
 #include <ctype.h>
