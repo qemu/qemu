@@ -216,6 +216,20 @@ static void stcb_register_ide(STCBState *stcb)
     cpu_register_physical_memory(BAST_IDE_SEC_FAST_BYTE, 0x1000000, ide1_mem);
 }
 
+static void stcb_i2c_setup(STCBState *stcb)
+{
+    i2c_bus *bus = s3c24xx_i2c_bus(stcb->soc->iic);
+    uint8_t *eeprom_buf = qemu_mallocz(256);
+    DeviceState *eeprom;
+    eeprom = qdev_create((BusState *)bus, "smbus-eeprom");
+    qdev_prop_set_uint8(eeprom, "address", 0x50);
+    qdev_prop_set_ptr(eeprom, "data", eeprom_buf);
+    qdev_init_nofail(eeprom);
+
+    i2c_create_slave(bus, "ch7xxx", 0x75);
+    i2c_create_slave(bus, "stcpmu", 0x6B);
+}
+
 static struct arm_boot_info bast_binfo = {
     .board_id = BAST_BOARD_ID,
     .ram_size = 0x10000000, /* 256MB */
@@ -309,7 +323,7 @@ static void stcb_init(ram_addr_t _ram_size,
     stcb_cpld_register(stcb);
 
     /* attach i2c devices */
-    /*i2c_bus *bus =*/ s3c24xx_i2c_bus(stcb->soc->iic);
+    stcb_i2c_setup(stcb);
 
     /* Attach some NAND devices */
     stcb->nand[0] = NULL;
@@ -321,7 +335,6 @@ static void stcb_init(ram_addr_t _ram_size,
         stcb->nand[2] = nand_init(0xEC, 0x79); /* 128MiB small-page */
     }
 }
-
 
 static QEMUMachine bast_machine = {
     .name = "bast",
