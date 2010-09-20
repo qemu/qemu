@@ -728,13 +728,13 @@ static int64_t load_kernel (void)
     prom_size = ENVP_NB_ENTRIES * (sizeof(int32_t) + ENVP_ENTRY_SIZE);
     prom_buf = qemu_malloc(prom_size);
 
-    prom_set(prom_buf, prom_index++, loaderparams.kernel_filename);
+    prom_set(prom_buf, prom_index++, "%s", loaderparams.kernel_filename);
     if (initrd_size > 0) {
         prom_set(prom_buf, prom_index++, "rd_start=0x%" PRIx64 " rd_size=%li %s",
                  cpu_mips_phys_to_kseg0(NULL, initrd_offset), initrd_size,
                  loaderparams.kernel_cmdline);
     } else {
-        prom_set(prom_buf, prom_index++, loaderparams.kernel_cmdline);
+        prom_set(prom_buf, prom_index++, "%s", loaderparams.kernel_cmdline);
     }
 
     prom_set(prom_buf, prom_index++, "memsize");
