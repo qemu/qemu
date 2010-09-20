@@ -53,7 +53,7 @@ struct s3c24xx_memc_state_s *s3c24xx_memc_init(target_phys_addr_t base_addr);
 struct s3c24xx_irq_state_s *s3c24xx_irq_init(S3CState *soc, target_phys_addr_t base_addr);
 
 /* get the qemu interrupt from an irq number */
-qemu_irq s3c24xx_get_irq(struct s3c24xx_irq_state_s *s, int inum);
+qemu_irq s3c24xx_get_irq(struct s3c24xx_irq_state_s *s, unsigned inum);
 
 /* initialise clock controller */
 struct s3c24xx_clkcon_state_s *s3c24xx_clkcon_init(S3CState *soc, target_phys_addr_t base_addr, uint32_t ref_freq);
@@ -71,7 +71,7 @@ struct s3c24xx_rtc_state_s *s3c24xx_rtc_init(target_phys_addr_t base_addr);
 struct s3c24xx_gpio_state_s *s3c24xx_gpio_init(S3CState *soc, target_phys_addr_t base_addr, uint32_t cpu_id);
 
 /* get the qemu interrupt from an eirq number */
-qemu_irq s3c24xx_get_eirq(struct s3c24xx_gpio_state_s *s, int einum);
+qemu_irq s3c24xx_get_eirq(struct s3c24xx_gpio_state_s *s, unsigned einum);
 
 /* Initialise I2c controller */
 struct s3c24xx_i2c_state_s *s3c24xx_iic_init(qemu_irq irq, target_phys_addr_t base_addr);

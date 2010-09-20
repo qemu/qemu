@@ -244,7 +244,8 @@ s3c24xx_irq_init(S3CState *soc, target_phys_addr_t base_addr)
 
 /* get the qemu interrupt from an irq number */
 qemu_irq
-s3c24xx_get_irq(struct s3c24xx_irq_state_s *s, int inum)
+s3c24xx_get_irq(struct s3c24xx_irq_state_s *s, unsigned inum)
 {
+    assert(inum < 128);
     return s->irqs[inum];
 }

@@ -234,8 +234,9 @@ s3c24xx_gpio_init(S3CState *soc, target_phys_addr_t base_addr, uint32_t cpu_id)
 
 /* get the qemu interrupt from an eirq number */
 qemu_irq
-s3c24xx_get_eirq(struct s3c24xx_gpio_state_s *s, int einum)
+s3c24xx_get_eirq(struct s3c24xx_gpio_state_s *s, unsigned einum)
 {
+    assert(einum < 24);
     return s->eirqs[einum];
 }
 
