@@ -1760,8 +1760,10 @@ static void v9fs_post_lcreate(V9fsState *s, V9fsLcreateState *vs, int err)
         err = vs->offset;
     } else {
         vs->fidp->fid_type = P9_FID_NONE;
-        close(vs->fidp->fs.fd);
         err = -errno;
+        if (vs->fidp->fs.fd > 0) {
+            close(vs->fidp->fs.fd);
+        }
     }
 
     complete_pdu(s, vs->pdu, err);
