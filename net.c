@@ -281,27 +281,62 @@ NICState *qemu_new_nic(NetClientInfo *info,
     return nic;
 }
 
-void qemu_del_vlan_client(VLANClientState *vc)
+static void qemu_cleanup_vlan_client(VLANClientState *vc)
 {
     if (vc->vlan) {
         QTAILQ_REMOVE(&vc->vlan->clients, vc, next);
     } else {
-        if (vc->send_queue) {
-            qemu_del_net_queue(vc->send_queue);
-        }
         QTAILQ_REMOVE(&non_vlan_clients, vc, next);
-        if (vc->peer) {
-            vc->peer->peer = NULL;
-        }
     }
 
     if (vc->info->cleanup) {
         vc->info->cleanup(vc);
     }
+}
 
+static void qemu_free_vlan_client(VLANClientState *vc)
+{
+    if (!vc->vlan) {
+        if (vc->send_queue) {
+            qemu_del_net_queue(vc->send_queue);
+        }
+        if (vc->peer) {
+            vc->peer->peer = NULL;
+        }
+    }
     qemu_free(vc->name);
     qemu_free(vc->model);
     qemu_free(vc);
+}
+
+void qemu_del_vlan_client(VLANClientState *vc)
+{
+    /* If there is a peer NIC, delete and cleanup client, but do not free. */
+    if (!vc->vlan && vc->peer && vc->peer->info->type == NET_CLIENT_TYPE_NIC) {
+        NICState *nic = DO_UPCAST(NICState, nc, vc->peer);
+        if (nic->peer_deleted) {
+            return;
+        }
+        nic->peer_deleted = true;
+        /* Let NIC know peer is gone. */
+        vc->peer->link_down = true;
+        if (vc->peer->info->link_status_changed) {
+            vc->peer->info->link_status_changed(vc->peer);
+        }
+        qemu_cleanup_vlan_client(vc);
+        return;
+    }
+
+    /* If this is a peer NIC and peer has already been deleted, free it now. */
+    if (!vc->vlan && vc->peer && vc->info->type == NET_CLIENT_TYPE_NIC) {
+        NICState *nic = DO_UPCAST(NICState, nc, vc);
+        if (nic->peer_deleted) {
+            qemu_free_vlan_client(vc->peer);
+        }
+    }
+
+    qemu_cleanup_vlan_client(vc);
+    qemu_free_vlan_client(vc);
 }
 
 VLANClientState *
