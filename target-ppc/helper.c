@@ -1325,8 +1325,15 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
 #endif
     if ((access_type == ACCESS_CODE && msr_ir == 0) ||
         (access_type != ACCESS_CODE && msr_dr == 0)) {
-        /* No address translation */
-        ret = check_physical(env, ctx, eaddr, rw);
+        if (env->mmu_model == POWERPC_MMU_BOOKE) {
+            /* The BookE MMU always performs address translation. The
+               IS and DS bits only affect the address space.  */
+            ret = mmubooke_get_physical_address(env, ctx, eaddr,
+                                                rw, access_type);
+        } else {
+            /* No address translation.  */
+            ret = check_physical(env, ctx, eaddr, rw);
+        }
     } else {
         ret = -1;
         switch (env->mmu_model) {
@@ -1444,8 +1451,9 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                     env->error_code = 0x40000000;
                     break;
                 case POWERPC_MMU_BOOKE:
-                    /* XXX: TODO */
-                    cpu_abort(env, "BookE MMU model is not implemented\n");
+                    env->exception_index = POWERPC_EXCP_ITLB;
+                    env->error_code = 0;
+                    env->spr[SPR_BOOKE_DEAR] = address;
                     return -1;
                 case POWERPC_MMU_BOOKE_FSL:
                     /* XXX: TODO */
@@ -1471,6 +1479,9 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                 break;
             case -3:
                 /* No execute protection violation */
+                if (env->mmu_model == POWERPC_MMU_BOOKE) {
+                    env->spr[SPR_BOOKE_ESR] = 0x00000000;
+                }
                 env->exception_index = POWERPC_EXCP_ISI;
                 env->error_code = 0x10000000;
                 break;
@@ -1556,8 +1567,10 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                     cpu_abort(env, "MPC8xx MMU model is not implemented\n");
                     break;
                 case POWERPC_MMU_BOOKE:
-                    /* XXX: TODO */
-                    cpu_abort(env, "BookE MMU model is not implemented\n");
+                    env->exception_index = POWERPC_EXCP_DTLB;
+                    env->error_code = 0;
+                    env->spr[SPR_BOOKE_DEAR] = address;
+                    env->spr[SPR_BOOKE_ESR] = rw ? 1 << ESR_ST : 0;
                     return -1;
                 case POWERPC_MMU_BOOKE_FSL:
                     /* XXX: TODO */
@@ -1582,6 +1595,9 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                     if (rw) {
                         env->spr[SPR_40x_ESR] |= 0x00800000;
                     }
+                } else if (env->mmu_model == POWERPC_MMU_BOOKE) {
+                    env->spr[SPR_BOOKE_DEAR] = address;
+                    env->spr[SPR_BOOKE_ESR] = rw ? 1 << ESR_ST : 0;
                 } else {
                     env->spr[SPR_DAR] = address;
                     if (rw == 1) {
@@ -1848,8 +1864,7 @@ void ppc_tlb_invalidate_all (CPUPPCState *env)
         cpu_abort(env, "MPC8xx MMU model is not implemented\n");
         break;
     case POWERPC_MMU_BOOKE:
-        /* XXX: TODO */
-        cpu_abort(env, "BookE MMU model is not implemented\n");
+        tlb_flush(env, 1);
         break;
     case POWERPC_MMU_BOOKE_FSL:
         /* XXX: TODO */
@@ -2607,6 +2622,13 @@ static inline void powerpc_excp(CPUState *env, int excp_model, int excp)
     /* Reset exception state */
     env->exception_index = POWERPC_EXCP_NONE;
     env->error_code = 0;
+
+    if (env->mmu_model == POWERPC_MMU_BOOKE) {
+        /* XXX: The BookE changes address space when switching modes,
+                we should probably implement that as different MMU indexes,
+                but for the moment we do it the slow way and flush all.  */
+        tlb_flush(env, 1);
+    }
 }
 
 void do_interrupt (CPUState *env)
