@@ -1060,8 +1060,10 @@ void console_select(unsigned int index)
 
     if (index >= MAX_CONSOLES)
         return;
-    active_console->g_width = ds_get_width(active_console->ds);
-    active_console->g_height = ds_get_height(active_console->ds);
+    if (active_console) {
+        active_console->g_width = ds_get_width(active_console->ds);
+        active_console->g_height = ds_get_height(active_console->ds);
+    }
     s = consoles[index];
     if (s) {
         DisplayState *ds = s->ds;
