@@ -1,4 +1,4 @@
-/* Chrontel 7xxx (7006 in particular) stub implementation.
+/* Simtec PMU implementation.
  *
  * Copyright 2008 Daniel Silverstone <dsilvers@simtec.co.uk> and
  * Vincent Sanders <vince@simtec.co.uk>
@@ -7,27 +7,26 @@
 
 #include "qemu-common.h"
 #include "i2c.h"
-#include <stdio.h>
 #include "stcpmu.h"
 
 //#define DBF(X...) fprintf(stderr, "QEMU: stcpmu: " X)
 #define DBF(X...)
 
-unsigned char stcpmu_ident[] = "SBPM";
-unsigned char stcpmu_uniqueid[] = "\0\0QEMU";
+static const char stcpmu_ident[] = "SBPM";
+static const char stcpmu_uniqueid[] = "\0\0QEMU";
 
 
-typedef struct stcpmu_state_s {
-  i2c_slave i2c;
-  int reg;
-  int rdidx;
-  int wridx;
-} stcpmu_state_t;
+typedef struct {
+    i2c_slave i2c;
+    int reg;
+    int rdidx;
+    int wridx;
+} StcPMUState;
 
 static int
 stcpmu_rx(i2c_slave *i2c)
 {
-    stcpmu_state_t *s = (stcpmu_state_t *)i2c;
+    StcPMUState *s = FROM_I2C_SLAVE(StcPMUState, i2c);
     int ret = 0;
 
     DBF("Read from reg %d byte %d\n", s->reg, s->rdidx);
@@ -35,10 +34,11 @@ stcpmu_rx(i2c_slave *i2c)
     switch (s->reg) {
 
     case IICREG_IDENT:
-        if (s->rdidx >= 4)
+        if (s->rdidx >= 4) {
             ret = 0;
-        else
+        } else {
             ret = stcpmu_ident[s->rdidx];
+        }
         s->rdidx++;
         break;
 
@@ -51,15 +51,16 @@ stcpmu_rx(i2c_slave *i2c)
         break;
 
     case IICREG_UNQID:
-        if (s->rdidx >= 6)
+        if (s->rdidx >= 6) {
             ret = 0;
-        else
+        } else {
             ret = stcpmu_uniqueid[s->rdidx];
+        }
         s->rdidx++;
         break;
 
     case IICREG_GPIO_PRESENT:
-            ret = 0;
+        ret = 0;
         s->rdidx++;
     }
 
@@ -71,44 +72,69 @@ stcpmu_rx(i2c_slave *i2c)
 static int
 stcpmu_tx(i2c_slave *i2c, uint8_t data)
 {
-  DBF("Write : %d\n", data);
-  stcpmu_state_t *s = (stcpmu_state_t *)i2c;
-  if (s->wridx == 0) {
-    s->reg = data;
-    s->wridx++;
-    return 0;
-  }
+    StcPMUState *s = FROM_I2C_SLAVE(StcPMUState, i2c);
+    DBF("Write : %d\n", data);
+    if (s->wridx == 0) {
+        s->reg = data;
+        s->wridx++;
+    }
 
-  return 0;
+    return 0;
 }
 
 static void
 stcpmu_event(i2c_slave *i2c, enum i2c_event event)
 {
-  stcpmu_state_t *s = (stcpmu_state_t *)i2c;
-  DBF("EV? %d\n", event);
-  switch (event) {
-  case I2C_START_RECV:
-    s->rdidx = 0;
-    break;
-  case I2C_START_SEND:
-    s->wridx = 0;
-    break;
-  case I2C_FINISH:
-  case I2C_NACK:
-      break;
-  }
+    StcPMUState *s = FROM_I2C_SLAVE(StcPMUState, i2c);
+    DBF("EV? %d\n", event);
+    switch (event) {
+    case I2C_START_RECV:
+        s->rdidx = 0;
+        break;
+    case I2C_START_SEND:
+        s->wridx = 0;
+        break;
+    case I2C_FINISH:
+    case I2C_NACK:
+        break;
+    }
 }
 
-i2c_slave *
-stcpmu_init(i2c_bus *bus, int addr)
+static int stcpmu_init(i2c_slave *i2c)
 {
-  stcpmu_state_t *s = (stcpmu_state_t *)
-    i2c_slave_init(bus, addr, sizeof(stcpmu_state_t));
+    //~ StcPMUState *s = FROM_I2C_SLAVE(StcPMUState, i2c);
+  //~ StcPMUState *s = (StcPMUState *)
+    //~ i2c_slave_init(bus, addr, sizeof(StcPMUState));
 
-  s->i2c.event = stcpmu_event;
-  s->i2c.recv = stcpmu_rx;
-  s->i2c.send = stcpmu_tx;
-
-  return &s->i2c;
+  return 0;
 }
+
+static const VMStateDescription vmstate_stcpmu = {
+    .name = "stcpmu",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    //~ .pre_save = menelaus_pre_save,
+    //~ .post_load = menelaus_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_I2C_SLAVE(i2c, StcPMUState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static I2CSlaveInfo stcpmu_info = {
+    .qdev.name ="stcpmu",
+    .qdev.size = sizeof(StcPMUState),
+    .qdev.vmsd = &vmstate_stcpmu,
+    .init = stcpmu_init,
+    .event = stcpmu_event,
+    .recv = stcpmu_rx,
+    .send = stcpmu_tx
+};
+
+static void stcpmu_register_devices(void)
+{
+    i2c_register_slave(&stcpmu_info);
+}
+
+device_init(stcpmu_register_devices)
