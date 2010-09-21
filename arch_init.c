@@ -709,6 +709,11 @@ int audio_available(void)
 #endif
 }
 
+int tcg_available(void)
+{
+    return 1;
+}
+
 int kvm_available(void)
 {
 #ifdef CONFIG_KVM
