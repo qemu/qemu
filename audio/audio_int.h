@@ -236,14 +236,6 @@ static inline int audio_ring_dist (int dst, int src, int len)
     return (dst >= src) ? (dst - src) : (len - src + dst);
 }
 
-#if defined __GNUC__
-#define GCC_ATTR __attribute__ ((__unused__, __format__ (__printf__, 1, 2)))
-#define GCC_FMT_ATTR(n, m) __attribute__ ((__format__ (__printf__, n, m)))
-#else
-#define GCC_ATTR /**/
-#define GCC_FMT_ATTR(n, m)
-#endif
-
 static void GCC_ATTR dolog (const char *fmt, ...)
 {
     va_list ap;
