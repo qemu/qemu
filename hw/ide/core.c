@@ -2645,6 +2645,7 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs,
     if (bdrv_get_type_hint(bs) == BDRV_TYPE_CDROM) {
         s->drive_kind = IDE_CD;
         bdrv_set_change_cb(bs, cdrom_change_cb, s);
+        bs->buffer_alignment = 2048;
     } else {
         if (!bdrv_is_inserted(s->bs)) {
             error_report("Device needs media, but drive is empty");
@@ -2679,7 +2680,8 @@ static void ide_init1(IDEBus *bus, int unit)
     s->bus = bus;
     s->unit = unit;
     s->drive_serial = drive_serial++;
-    s->io_buffer = qemu_blockalign(s->bs, IDE_DMA_BUF_SECTORS*512 + 4);
+    /* we need at least 2k alignment for accessing CDROMs using O_DIRECT */
+    s->io_buffer = qemu_memalign(2048, IDE_DMA_BUF_SECTORS*512 + 4);
     s->io_buffer_total_len = IDE_DMA_BUF_SECTORS*512 + 4;
     s->smart_selftest_data = qemu_blockalign(s->bs, 512);
     s->sector_write_timer = qemu_new_timer(vm_clock,

@@ -70,14 +70,15 @@ struct SCSIDiskState
     char *serial;
 };
 
-static SCSIDiskReq *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun)
+static SCSIDiskReq *scsi_new_request(SCSIDiskState *s, uint32_t tag,
+        uint32_t lun)
 {
     SCSIRequest *req;
     SCSIDiskReq *r;
 
-    req = scsi_req_alloc(sizeof(SCSIDiskReq), d, tag, lun);
+    req = scsi_req_alloc(sizeof(SCSIDiskReq), &s->qdev, tag, lun);
     r = DO_UPCAST(SCSIDiskReq, req, req);
-    r->iov.iov_base = qemu_memalign(512, SCSI_DMA_BUF_SIZE);
+    r->iov.iov_base = qemu_blockalign(s->bs, SCSI_DMA_BUF_SIZE);
     return r;
 }
 
@@ -939,7 +940,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     }
     /* ??? Tags are not unique for different luns.  We only implement a
        single lun, so this should not matter.  */
-    r = scsi_new_request(d, tag, lun);
+    r = scsi_new_request(s, tag, lun);
     outbuf = (uint8_t *)r->iov.iov_base;
     is_write = 0;
     DPRINTF("Command: lun=%d tag=0x%x data=0x%02x", lun, tag, buf[0]);
@@ -1177,6 +1178,7 @@ static int scsi_disk_initfn(SCSIDevice *dev)
         s->qdev.blocksize = s->qdev.conf.logical_block_size;
     }
     s->cluster_size = s->qdev.blocksize / 512;
+    s->bs->buffer_alignment = s->qdev.blocksize;
 
     s->qdev.type = TYPE_DISK;
     qemu_add_vm_change_state_handler(scsi_dma_restart_cb, s);

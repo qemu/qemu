@@ -44,7 +44,7 @@ static void usage(const char *name)
 "Usage: %s [OPTIONS] FILE\n"
 "QEMU Disk Network Block Device Server\n"
 "\n"
-"  -p, --port=PORT      port to listen on (default `1024')\n"
+"  -p, --port=PORT      port to listen on (default `%d')\n"
 "  -o, --offset=OFFSET  offset into the image\n"
 "  -b, --bind=IFACE     interface to bind to (default `0.0.0.0')\n"
 "  -k, --socket=PATH    path to the unix socket\n"
@@ -62,7 +62,7 @@ static void usage(const char *name)
 "  -V, --version        output version information and exit\n"
 "\n"
 "Report bugs to <anthony@codemonkey.ws>\n"
-    , name, "DEVICE");
+    , name, NBD_DEFAULT_PORT, "DEVICE");
 }
 
 static void version(const char *name)
@@ -188,7 +188,7 @@ int main(int argc, char **argv)
     bool readonly = false;
     bool disconnect = false;
     const char *bindto = "0.0.0.0";
-    int port = 1024;
+    int port = NBD_DEFAULT_PORT;
     struct sockaddr_in addr;
     socklen_t addr_len = sizeof(addr);
     off_t fd_size;
@@ -446,7 +446,7 @@ int main(int argc, char **argv)
     max_fd = sharing_fds[0];
     nb_fds++;
 
-    data = qemu_memalign(512, NBD_BUFFER_SIZE);
+    data = qemu_blockalign(bs, NBD_BUFFER_SIZE);
     if (data == NULL)
         errx(EXIT_FAILURE, "Cannot allocate data buffer");
 

@@ -168,28 +168,48 @@ void qemu_iovec_add(QEMUIOVector *qiov, void *base, size_t len)
 }
 
 /*
- * Copies iovecs from src to the end dst until src is completely copied or the
- * total size of the copied iovec reaches size. The size of the last copied
- * iovec is changed in order to fit the specified total size if it isn't a
- * perfect fit already.
+ * Copies iovecs from src to the end of dst. It starts copying after skipping
+ * the given number of bytes in src and copies until src is completely copied
+ * or the total size of the copied iovec reaches size.The size of the last
+ * copied iovec is changed in order to fit the specified total size if it isn't
+ * a perfect fit already.
  */
-void qemu_iovec_concat(QEMUIOVector *dst, QEMUIOVector *src, size_t size)
+void qemu_iovec_copy(QEMUIOVector *dst, QEMUIOVector *src, uint64_t skip,
+    size_t size)
 {
     int i;
     size_t done;
+    void *iov_base;
+    uint64_t iov_len;
 
     assert(dst->nalloc != -1);
 
     done = 0;
     for (i = 0; (i < src->niov) && (done != size); i++) {
-        if (done + src->iov[i].iov_len > size) {
-            qemu_iovec_add(dst, src->iov[i].iov_base, size - done);
+        if (skip >= src->iov[i].iov_len) {
+            /* Skip the whole iov */
+            skip -= src->iov[i].iov_len;
+            continue;
+        } else {
+            /* Skip only part (or nothing) of the iov */
+            iov_base = (uint8_t*) src->iov[i].iov_base + skip;
+            iov_len = src->iov[i].iov_len - skip;
+            skip = 0;
+        }
+
+        if (done + iov_len > size) {
+            qemu_iovec_add(dst, iov_base, size - done);
             break;
         } else {
-            qemu_iovec_add(dst, src->iov[i].iov_base, src->iov[i].iov_len);
+            qemu_iovec_add(dst, iov_base, iov_len);
         }
-        done += src->iov[i].iov_len;
+        done += iov_len;
     }
+}
+
+void qemu_iovec_concat(QEMUIOVector *dst, QEMUIOVector *src, size_t size)
+{
+    qemu_iovec_copy(dst, src, 0, size);
 }
 
 void qemu_iovec_destroy(QEMUIOVector *qiov)
@@ -231,6 +251,18 @@ void qemu_iovec_from_buffer(QEMUIOVector *qiov, const void *buf, size_t count)
         memcpy(qiov->iov[i].iov_base, p, copy);
         p     += copy;
         count -= copy;
+    }
+}
+
+void qemu_iovec_memset(QEMUIOVector *qiov, int c, size_t count)
+{
+    size_t n;
+    int i;
+
+    for (i = 0; i < qiov->niov && count; ++i) {
+        n = MIN(count, qiov->iov[i].iov_len);
+        memset(qiov->iov[i].iov_base, c, n);
+        count -= n;
     }
 }
 

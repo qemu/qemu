@@ -61,7 +61,7 @@ static void *qemu_io_alloc(size_t len, int pattern)
 
 	if (misalign)
 		len += MISALIGN_OFFSET;
-	buf = qemu_memalign(512, len);
+	buf = qemu_blockalign(bs, len);
 	memset(buf, pattern, len);
 	if (misalign)
 		buf += MISALIGN_OFFSET;
