@@ -1286,6 +1286,7 @@ static BlockDriver bdrv_qcow2 = {
     .bdrv_snapshot_goto     = qcow2_snapshot_goto,
     .bdrv_snapshot_delete   = qcow2_snapshot_delete,
     .bdrv_snapshot_list     = qcow2_snapshot_list,
+    .bdrv_snapshot_load_tmp     = qcow2_snapshot_load_tmp,
     .bdrv_get_info	= qcow_get_info,
 
     .bdrv_save_vmstate    = qcow_save_vmstate,

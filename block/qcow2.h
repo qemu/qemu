@@ -211,6 +211,7 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info);
 int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id);
 int qcow2_snapshot_delete(BlockDriverState *bs, const char *snapshot_id);
 int qcow2_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab);
+int qcow2_snapshot_load_tmp(BlockDriverState *bs, const char *snapshot_name);
 
 void qcow2_free_snapshots(BlockDriverState *bs);
 int qcow2_read_snapshots(BlockDriverState *bs);

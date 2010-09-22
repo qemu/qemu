@@ -646,13 +646,14 @@ static int img_convert(int argc, char **argv)
     BlockDriverInfo bdi;
     QEMUOptionParameter *param = NULL, *create_options = NULL;
     char *options = NULL;
+    const char *snapshot_name = NULL;
 
     fmt = NULL;
     out_fmt = "raw";
     out_baseimg = NULL;
     flags = 0;
     for(;;) {
-        c = getopt(argc, argv, "f:O:B:hce6o:");
+        c = getopt(argc, argv, "f:O:B:s:hce6o:");
         if (c == -1)
             break;
         switch(c) {
@@ -679,6 +680,9 @@ static int img_convert(int argc, char **argv)
             break;
         case 'o':
             options = optarg;
+            break;
+        case 's':
+            snapshot_name = optarg;
             break;
         }
     }
@@ -709,6 +713,19 @@ static int img_convert(int argc, char **argv)
         }
         bdrv_get_geometry(bs[bs_i], &bs_sectors);
         total_sectors += bs_sectors;
+    }
+
+    if (snapshot_name != NULL) {
+        if (bs_n > 1) {
+            error("No support for concatenating multiple snapshot\n");
+            ret = -1;
+            goto out;
+        }
+        if (bdrv_snapshot_load_tmp(bs[0], snapshot_name) < 0) {
+            error("Failed to load snapshot\n");
+            ret = -1;
+            goto out;
+        }
     }
 
     /* Find driver and parse its options */
