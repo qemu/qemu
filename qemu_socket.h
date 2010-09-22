@@ -17,6 +17,7 @@ int inet_aton(const char *cp, struct in_addr *ia);
 
 #else
 
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
