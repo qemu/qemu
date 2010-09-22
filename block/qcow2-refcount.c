@@ -261,6 +261,8 @@ static int64_t alloc_refcount_block(BlockDriverState *bs, int64_t cluster_index)
             goto fail_block;
         }
 
+        bdrv_flush(bs->file);
+
         /* Initialize the new refcount block only after updating its refcount,
          * update_refcount uses the refcount cache itself */
         memset(s->refcount_block_cache, 0, s->cluster_size);
@@ -444,7 +446,7 @@ static int write_refcount_block_entries(BlockDriverState *bs,
     size = (last_index - first_index) << REFCOUNT_SHIFT;
 
     BLKDBG_EVENT(bs->file, BLKDBG_REFBLOCK_UPDATE_PART);
-    ret = bdrv_pwrite_sync(bs->file,
+    ret = bdrv_pwrite(bs->file,
         refcount_block_offset + (first_index << REFCOUNT_SHIFT),
         &s->refcount_block_cache[first_index], size);
     if (ret < 0) {
@@ -573,6 +575,8 @@ static int update_cluster_refcount(BlockDriverState *bs,
         return ret;
     }
 
+    bdrv_flush(bs->file);
+
     return get_refcount(bs, cluster_index);
 }
 
@@ -624,6 +628,7 @@ int64_t qcow2_alloc_clusters(BlockDriverState *bs, int64_t size)
     if (ret < 0) {
         return ret;
     }
+
     return offset;
 }
 
@@ -671,6 +676,8 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
             goto redo;
         }
     }
+
+    bdrv_flush(bs->file);
     return offset;
 }
 
@@ -801,6 +808,10 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                             if (ret < 0) {
                                 goto fail;
                             }
+
+                            /* TODO Flushing once for the whole function should
+                             * be enough */
+                            bdrv_flush(bs->file);
                         }
                         /* compressed clusters are never modified */
                         refcount = 2;

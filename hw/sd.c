@@ -31,6 +31,7 @@
 
 #include "hw.h"
 #include "block.h"
+#include "block_int.h"
 #include "sd.h"
 
 //#define DEBUG_SD 1
@@ -440,7 +441,7 @@ SDState *sd_init(BlockDriverState *bs, int is_spi)
     SDState *sd;
 
     sd = (SDState *) qemu_mallocz(sizeof(SDState));
-    sd->buf = qemu_memalign(512, 512);
+    sd->buf = qemu_blockalign(bs, 512);
     sd->spi = is_spi;
     sd->enable = 1;
     sd_reset(sd, bs);

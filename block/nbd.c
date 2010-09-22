@@ -95,8 +95,6 @@ static int nbd_open(BlockDriverState *bs, const char* filename, int flags)
             if (r == p) {
                 goto out;
             }
-        } else if (name == NULL) {
-            goto out;
         }
 
         sock = tcp_socket_outgoing(hostname, port);

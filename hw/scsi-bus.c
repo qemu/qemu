@@ -208,6 +208,8 @@ static int scsi_req_length(SCSIRequest *req, uint8_t *cmd)
     case SEEK_6:
     case WRITE_FILEMARKS:
     case SPACE:
+    case RESERVE:
+    case RELEASE:
     case ERASE:
     case ALLOW_MEDIUM_REMOVAL:
     case VERIFY:
@@ -319,7 +321,6 @@ static void scsi_req_xfer_mode(SCSIRequest *req)
     case WRITE_BUFFER:
     case FORMAT_UNIT:
     case REASSIGN_BLOCKS:
-    case RESERVE:
     case SEARCH_EQUAL:
     case SEARCH_HIGH:
     case SEARCH_LOW:

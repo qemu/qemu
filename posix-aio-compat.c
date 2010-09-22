@@ -270,7 +270,7 @@ static ssize_t handle_aiocb_rw(struct qemu_paiocb *aiocb)
      * Ok, we have to do it the hard way, copy all segments into
      * a single aligned buffer.
      */
-    buf = qemu_memalign(512, aiocb->aio_nbytes);
+    buf = qemu_blockalign(aiocb->common.bs, aiocb->aio_nbytes);
     if (aiocb->aio_type & QEMU_AIO_WRITE) {
         char *p = buf;
         int i;
