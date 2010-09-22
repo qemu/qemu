@@ -31,6 +31,7 @@
 
 #include "hw.h"
 #include "block.h"
+#include "block_int.h"
 #include "sd.h"
 
 //#define DEBUG_SD 1
