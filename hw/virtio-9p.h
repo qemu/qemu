@@ -37,6 +37,8 @@ enum {
     P9_RXATTRCREATE,
     P9_TREADDIR = 40,
     P9_RREADDIR,
+    P9_TFSYNC = 50,
+    P9_RFSYNC,
     P9_TLOCK = 52,
     P9_RLOCK,
     P9_TGETLOCK = 54,

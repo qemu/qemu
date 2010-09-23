@@ -1837,6 +1837,32 @@ out:
     qemu_free(vs);
 }
 
+static void v9fs_post_do_fsync(V9fsState *s, V9fsPDU *pdu, int err)
+{
+    if (err == -1) {
+        err = -errno;
+    }
+    complete_pdu(s, pdu, err);
+}
+
+static void v9fs_fsync(V9fsState *s, V9fsPDU *pdu)
+{
+    int32_t fid;
+    size_t offset = 7;
+    V9fsFidState *fidp;
+    int err;
+
+    pdu_unmarshal(pdu, offset, "d", &fid);
+    fidp = lookup_fid(s, fid);
+    if (fidp == NULL) {
+        err = -ENOENT;
+        v9fs_post_do_fsync(s, pdu, err);
+        return;
+    }
+    err = v9fs_do_fsync(s, fidp->fs.fd);
+    v9fs_post_do_fsync(s, pdu, err);
+}
+
 static void v9fs_clunk(V9fsState *s, V9fsPDU *pdu)
 {
     int32_t fid;
@@ -3514,6 +3540,7 @@ static pdu_handler_t *pdu_handlers[] = {
     [P9_TSTAT] = v9fs_stat,
     [P9_TWALK] = v9fs_walk,
     [P9_TCLUNK] = v9fs_clunk,
+    [P9_TFSYNC] = v9fs_fsync,
     [P9_TOPEN] = v9fs_open,
     [P9_TREAD] = v9fs_read,
 #if 0

@@ -535,6 +535,13 @@ void pprint_pdu(V9fsPDU *pdu)
     case P9_RCLUNK:
         fprintf(llogfile, "RCLUNK: (");
         break;
+    case P9_TFSYNC:
+        fprintf(llogfile, "TFSYNC: (");
+        pprint_int32(pdu, 0, &offset, "fid");
+        break;
+    case P9_RFSYNC:
+        fprintf(llogfile, "RFSYNC: (");
+        break;
     case P9_TLINK:
         fprintf(llogfile, "TLINK: (");
         pprint_int32(pdu, 0, &offset, "fid");
