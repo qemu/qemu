@@ -31,11 +31,10 @@ void loc_set_cmdline(char **argv, int idx, int cnt);
 void loc_set_file(const char *fname, int lno);
 
 void error_vprintf(const char *fmt, va_list ap);
-void error_printf(const char *fmt, ...) __attribute__ ((format(printf, 1, 2)));
-void error_printf_unless_qmp(const char *fmt, ...)
-    __attribute__ ((format(printf, 1, 2)));
+void error_printf(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
+void error_printf_unless_qmp(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 void error_print_loc(void);
 void error_set_progname(const char *argv0);
-void error_report(const char *fmt, ...) __attribute__ ((format(printf, 1, 2)));
+void error_report(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 
 #endif

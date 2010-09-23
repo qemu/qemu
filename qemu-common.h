@@ -196,8 +196,7 @@ int qemu_pipe(int pipefd[2]);
 
 /* Error handling.  */
 
-void QEMU_NORETURN hw_error(const char *fmt, ...)
-    __attribute__ ((__format__ (__printf__, 1, 2)));
+void QEMU_NORETURN hw_error(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 
 /* IO callbacks.  */
 typedef void IOReadHandler(void *opaque, const uint8_t *buf, int size);

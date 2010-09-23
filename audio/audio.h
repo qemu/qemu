@@ -87,11 +87,7 @@ typedef struct QEMUAudioTimeStamp {
 } QEMUAudioTimeStamp;
 
 void AUD_vlog (const char *cap, const char *fmt, va_list ap);
-void AUD_log (const char *cap, const char *fmt, ...)
-#ifdef __GNUC__
-    __attribute__ ((__format__ (__printf__, 2, 3)))
-#endif
-    ;
+void AUD_log (const char *cap, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 
 void AUD_help (void);
 void AUD_register_card (const char *name, QEMUSoundCard *card);

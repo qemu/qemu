@@ -38,8 +38,7 @@ QError *qerror_from_info(const char *file, int linenr, const char *func,
 QString *qerror_human(const QError *qerror);
 void qerror_print(QError *qerror);
 void qerror_report_internal(const char *file, int linenr, const char *func,
-                            const char *fmt, ...)
-    __attribute__ ((format(printf, 4, 5)));
+                            const char *fmt, ...) GCC_FMT_ATTR(4, 5);
 #define qerror_report(fmt, ...) \
     qerror_report_internal(__FILE__, __LINE__, __func__, fmt, ## __VA_ARGS__)
 QError *qobject_to_qerror(const QObject *obj);
