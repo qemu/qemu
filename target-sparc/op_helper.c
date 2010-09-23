@@ -1,3 +1,4 @@
+#include "qemu-common.h"
 #include "exec.h"
 #include "host-utils.h"
 #include "helper.h"

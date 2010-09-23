@@ -18,14 +18,10 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stddef.h>
-#include <stdio.h>
-#include <string.h>
-
+#include "qemu-common.h"
 #include "config.h"
 #include "cpu.h"
 #include "exec-all.h"
-#include "qemu-common.h"
 #include "gdbstub.h"
 
 #include "helpers.h"

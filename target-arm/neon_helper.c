@@ -6,9 +6,8 @@
  *
  * This code is licenced under the GNU GPL v2.
  */
-#include <stdlib.h>
-#include <stdio.h>
 
+#include "qemu-common.h"
 #include "cpu.h"
 #include "exec-all.h"
 #include "helpers.h"

@@ -20,19 +20,14 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <time.h>
 
+#include "qemu-common.h"
 #include "cpu.h"
 #ifdef CONFIG_USER_ONLY
 #include "qemu.h"
 
 #define ARM_ANGEL_HEAP_SIZE (128 * 1024 * 1024)
 #else
-#include "qemu-common.h"
 #include "sysemu.h"
 #include "gdbstub.h"
 #endif

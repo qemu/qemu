@@ -23,17 +23,10 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 #endif
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <string.h>
-#include <errno.h>
-#include <unistd.h>
-#include <inttypes.h>
 
+#include "qemu-common.h"
 #include "cpu.h"
 #include "exec-all.h"
-#include "qemu-common.h"
 #include "tcg.h"
 #include "hw/hw.h"
 #include "hw/qdev.h"

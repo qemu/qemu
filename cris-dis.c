@@ -24,8 +24,6 @@
 //#include "libiberty.h"
 
 
-void *qemu_malloc(size_t len); /* can't include qemu-common.h here */
-
 #define CONST_STRNEQ(STR1,STR2) (strncmp ((STR1), (STR2), sizeof (STR2) - 1) == 0)
 
 /* cris-opc.c -- Table of opcodes for the CRIS processor.

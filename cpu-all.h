@@ -35,6 +35,7 @@
  * TARGET_WORDS_BIGENDIAN : same for target cpu
  */
 
+#include "qemu-common.h"
 #include "softfloat.h"
 
 #if defined(HOST_WORDS_BIGENDIAN) != defined(TARGET_WORDS_BIGENDIAN)
@@ -765,12 +766,6 @@ int page_check_range(target_ulong start, target_ulong len, int flags);
 CPUState *cpu_copy(CPUState *env);
 CPUState *qemu_get_cpu(int cpu);
 
-#if !defined(FPRINTF_FUNCTION_DEFINED)
-#define FPRINTF_FUNCTION_DEFINED
-typedef int (*fprintf_function)(FILE *f, const char *fmt, ...)
-            __attribute__ ((format (gnu_printf, 2, 3)));
-#endif
-
 void cpu_dump_state(CPUState *env, FILE *f,
                     fprintf_function cpu_fprintf,
                     int flags);
@@ -779,7 +774,7 @@ void cpu_dump_statistics (CPUState *env, FILE *f,
                           int flags);
 
 void QEMU_NORETURN cpu_abort(CPUState *env, const char *fmt, ...)
-    __attribute__ ((format (gnu_printf, 2, 3)));
+    GCC_FMT_ATTR(2, 3);
 extern CPUState *first_cpu;
 extern CPUState *cpu_single_env;
 

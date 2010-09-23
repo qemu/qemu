@@ -1,5 +1,3 @@
-#include <stdio.h>
-#include <errno.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <sys/sem.h>
@@ -8,7 +6,7 @@
 #include <sys/types.h>
 #include <sys/mount.h>
 #include <sys/mman.h>
-#include <unistd.h>
+#include "qemu-common.h"
 #include "qemu.h"
 
 int do_strace=0;

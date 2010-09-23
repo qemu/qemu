@@ -16,17 +16,12 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#include <stdarg.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <inttypes.h>
+
 #include <signal.h>
 
+#include "qemu-common.h"
 #include "cpu.h"
 #include "exec-all.h"
-#include "qemu-common.h"
 #include "kvm.h"
 
 //#define DEBUG_MMU

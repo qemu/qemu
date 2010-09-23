@@ -40,15 +40,6 @@
 /* XXX: This may be wrong for 64-bit ILP32 hosts.  */
 typedef void * host_reg_t;
 
-#ifdef CONFIG_BSD
-typedef struct __sFILE FILE;
-#else
-typedef struct FILE FILE;
-#endif
-extern int fprintf(FILE *, const char *, ...);
-extern int fputs(const char *, FILE *);
-extern int printf(const char *, ...);
-
 #if defined(CONFIG_TCG_INTERPRETER)
 /* The TCG interpreter does not use special registers. */
 #elif defined(__i386__)

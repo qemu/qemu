@@ -9,11 +9,7 @@
 #ifndef DIS_ASM_H
 #define DIS_ASM_H
 
-#include <stdlib.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <string.h>
-#include <inttypes.h>
+#include "qemu-common.h"
 
 typedef void *PTR;
 typedef uint64_t bfd_vma;
@@ -236,12 +232,6 @@ typedef struct symbol_cache_entry
         bfd_vma i;
     } udata;
 } asymbol;
-
-#if !defined(FPRINTF_FUNCTION_DEFINED)
-#define FPRINTF_FUNCTION_DEFINED
-typedef int (*fprintf_function)(FILE *f, const char *fmt, ...)
-            __attribute__ ((format (gnu_printf, 2, 3)));
-#endif
 
 enum dis_insn_type {
   dis_noninsn,			/* Not a valid instruction */

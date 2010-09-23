@@ -2,17 +2,11 @@
 #include <sys/time.h>
 #include <sys/param.h>
 
-#include <stdio.h>
 #include <sys/types.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <unistd.h>
 #include <sys/mman.h>
 #include <sys/resource.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
 
+#include "qemu-common.h"
 #include "qemu.h"
 #include "disas.h"
 

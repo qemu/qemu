@@ -17,10 +17,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-
-#include "qemu.h"
 #include "qemu-common.h"
+#include "qemu.h"
 #include "ioport.h"
 
 void cpu_outb(pio_addr_t addr, uint8_t val)

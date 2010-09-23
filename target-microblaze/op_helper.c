@@ -17,7 +17,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <assert.h>
+#include "qemu-common.h"
 #include "exec.h"
 #include "helper.h"
 #include "host-utils.h"

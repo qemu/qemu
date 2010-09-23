@@ -89,6 +89,9 @@ struct iovec {
 #define GCC_FMT_ATTR(n, m)
 #endif
 
+typedef int (*fprintf_function)(FILE *f, const char *fmt, ...)
+            GCC_FMT_ATTR(2, 3);
+
 #ifdef _WIN32
 #define fsync _commit
 #define lseek _lseeki64
@@ -120,12 +123,6 @@ static inline char *realpath(const char *path, char *resolved_path)
 #include "bswap.h"
 
 #else
-
-#if !defined(FPRINTF_FUNCTION_DEFINED)
-#define FPRINTF_FUNCTION_DEFINED
-typedef int (*fprintf_function)(FILE *f, const char *fmt, ...)
-            __attribute__ ((format (gnu_printf, 2, 3)));
-#endif
 
 #include "cpu.h"
 
@@ -210,8 +207,7 @@ int qemu_pipe(int pipefd[2]);
 
 /* Error handling.  */
 
-void QEMU_NORETURN hw_error(const char *fmt, ...)
-    __attribute__ ((format (gnu_printf, 1, 2)));
+void QEMU_NORETURN hw_error(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 
 /* IO callbacks.  */
 typedef void IOReadHandler(void *opaque, const uint8_t *buf, int size);

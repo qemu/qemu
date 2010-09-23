@@ -86,11 +86,8 @@ typedef struct QEMUAudioTimeStamp {
     uint64_t old_ts;
 } QEMUAudioTimeStamp;
 
-void AUD_vlog (const char *cap, const char *fmt, va_list ap);
-void AUD_log (const char *cap, const char *fmt, ...)
-#ifdef __GNUC__
-    __attribute__ ((__format__ (gnu_printf, 2, 3)))
-#endif
+void AUD_vlog (const char *cap, const char *fmt, va_list ap) GCC_FMT_ATTR(2, 0);
+void AUD_log (const char *cap, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
     ;
 
 void AUD_help (void);
