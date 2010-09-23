@@ -654,7 +654,8 @@ static void write_bootloader (CPUState *env, uint8_t *base,
 
 }
 
-static void prom_set(uint32_t* prom_buf, int index, const char *string, ...)
+static void GCC_FMT_ATTR(3, 4) prom_set(uint32_t* prom_buf, int index,
+                                        const char *string, ...)
 {
     va_list ap;
     int32_t table_addr;

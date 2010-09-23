@@ -34,7 +34,7 @@ typedef struct QError {
 
 QError *qerror_new(void);
 QError *qerror_from_info(const char *file, int linenr, const char *func,
-                         const char *fmt, va_list *va);
+                         const char *fmt, va_list *va) GCC_FMT_ATTR(4, 0);
 QString *qerror_human(const QError *qerror);
 void qerror_print(QError *qerror);
 void qerror_report_internal(const char *file, int linenr, const char *func,

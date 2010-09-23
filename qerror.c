@@ -218,7 +218,8 @@ QError *qerror_new(void)
     return qerr;
 }
 
-static void qerror_abort(const QError *qerr, const char *fmt, ...)
+static void GCC_FMT_ATTR(2, 3) qerror_abort(const QError *qerr,
+                                            const char *fmt, ...)
 {
     va_list ap;
 
@@ -233,7 +234,8 @@ static void qerror_abort(const QError *qerr, const char *fmt, ...)
     abort();
 }
 
-static void qerror_set_data(QError *qerr, const char *fmt, va_list *va)
+static void GCC_FMT_ATTR(2, 0) qerror_set_data(QError *qerr,
+                                               const char *fmt, va_list *va)
 {
     QObject *obj;
 

@@ -91,7 +91,8 @@ static int token_is_escape(QObject *obj, const char *value)
 /**
  * Error handler
  */
-static void parse_error(JSONParserContext *ctxt, QObject *token, const char *msg, ...)
+static void GCC_FMT_ATTR(3, 4) parse_error(JSONParserContext *ctxt,
+                                           QObject *token, const char *msg, ...)
 {
     va_list ap;
     va_start(ap, msg);

@@ -76,7 +76,8 @@ static struct _loaderparams {
     const char *initrd_filename;
 } loaderparams;
 
-static void prom_set(uint32_t* prom_buf, int index, const char *string, ...)
+static void GCC_FMT_ATTR(3, 4) prom_set(uint32_t* prom_buf, int index,
+                                        const char *string, ...)
 {
     va_list ap;
     int32_t table_addr;

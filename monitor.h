@@ -49,7 +49,8 @@ int monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
 
 int monitor_get_fd(Monitor *mon, const char *fdname);
 
-void monitor_vprintf(Monitor *mon, const char *fmt, va_list ap);
+void monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
+    GCC_FMT_ATTR(2, 0);
 void monitor_printf(Monitor *mon, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 void monitor_print_filename(Monitor *mon, const char *filename);
 void monitor_flush(Monitor *mon);
