@@ -34,14 +34,13 @@ struct DriveInfo {
 #define MAX_IDE_DEVS	2
 #define MAX_SCSI_DEVS	7
 
-extern DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit);
-extern int drive_get_max_bus(BlockInterfaceType type);
-extern void drive_uninit(DriveInfo *dinfo);
-extern DriveInfo *drive_get_by_blockdev(BlockDriverState *bs);
+DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit);
+int drive_get_max_bus(BlockInterfaceType type);
+void drive_uninit(DriveInfo *dinfo);
+DriveInfo *drive_get_by_blockdev(BlockDriverState *bs);
 
-extern QemuOpts *drive_add(const char *file, const char *fmt, ...);
-extern DriveInfo *drive_init(QemuOpts *arg, int default_to_scsi,
-                             int *fatal_error);
+QemuOpts *drive_add(const char *file, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
+DriveInfo *drive_init(QemuOpts *arg, int default_to_scsi, int *fatal_error);
 
 /* device-hotplug */
 
