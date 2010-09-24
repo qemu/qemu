@@ -38,7 +38,7 @@
 #define SYS_ISATTY      29
 #define SYS_LSEEK       199
 
-struct m86k_sim_stat {
+struct m68k_sim_stat {
     uint16_t sim_st_dev;
     uint16_t sim_st_ino;
     uint32_t sim_st_mode;
@@ -138,10 +138,10 @@ void do_m68k_simcall(CPUM68KState *env, int nr)
         {
             struct stat s;
             int rc;
-            struct m86k_sim_stat *p;
+            struct m68k_sim_stat *p;
             rc = check_err(env, fstat(ARG(0), &s));
             if (rc == 0) {
-                p = (struct m86k_sim_stat *)(unsigned long)ARG(1);
+                p = (struct m68k_sim_stat *)(unsigned long)ARG(1);
                 p->sim_st_dev = tswap16(s.st_dev);
                 p->sim_st_ino = tswap16(s.st_ino);
                 p->sim_st_mode = tswap32(s.st_mode);
