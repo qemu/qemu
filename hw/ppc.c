@@ -769,6 +769,9 @@ struct ppcemb_timer_t {
     struct QEMUTimer *fit_timer;
     uint64_t wdt_next;    /* Tick for next WDT interrupt  */
     struct QEMUTimer *wdt_timer;
+
+    /* 405 have the PIT, 440 have a DECR.  */
+    unsigned int decr_excp;
 };
 
 /* Fixed interval timer */
@@ -851,7 +854,7 @@ static void cpu_4xx_pit_cb (void *opaque)
     ppcemb_timer = tb_env->opaque;
     env->spr[SPR_40x_TSR] |= 1 << 27;
     if ((env->spr[SPR_40x_TCR] >> 26) & 0x1)
-        ppc_set_irq(env, PPC_INTERRUPT_PIT, 1);
+        ppc_set_irq(env, ppcemb_timer->decr_excp, 1);
     start_stop_pit(env, tb_env, 1);
     LOG_TB("%s: ar %d ir %d TCR " TARGET_FMT_lx " TSR " TARGET_FMT_lx " "
            "%016" PRIx64 "\n", __func__,
@@ -948,10 +951,15 @@ target_ulong load_40x_pit (CPUState *env)
 
 void store_booke_tsr (CPUState *env, target_ulong val)
 {
+    ppc_tb_t *tb_env = env->tb_env;
+    ppcemb_timer_t *ppcemb_timer;
+
+    ppcemb_timer = tb_env->opaque;
+
     LOG_TB("%s: val " TARGET_FMT_lx "\n", __func__, val);
     env->spr[SPR_40x_TSR] &= ~(val & 0xFC000000);
     if (val & 0x80000000)
-        ppc_set_irq(env, PPC_INTERRUPT_PIT, 0);
+        ppc_set_irq(env, ppcemb_timer->decr_excp, 0);
 }
 
 void store_booke_tcr (CPUState *env, target_ulong val)
@@ -977,7 +985,8 @@ static void ppc_emb_set_tb_clk (void *opaque, uint32_t freq)
     /* XXX: we should also update all timers */
 }
 
-clk_setup_cb ppc_emb_timers_init (CPUState *env, uint32_t freq)
+clk_setup_cb ppc_emb_timers_init (CPUState *env, uint32_t freq,
+                                  unsigned int decr_excp)
 {
     ppc_tb_t *tb_env;
     ppcemb_timer_t *ppcemb_timer;
@@ -996,6 +1005,7 @@ clk_setup_cb ppc_emb_timers_init (CPUState *env, uint32_t freq)
             qemu_new_timer(vm_clock, &cpu_4xx_fit_cb, env);
         ppcemb_timer->wdt_timer =
             qemu_new_timer(vm_clock, &cpu_4xx_wdt_cb, env);
+        ppcemb_timer->decr_excp = decr_excp;
     }
 
     return &ppc_emb_set_tb_clk;

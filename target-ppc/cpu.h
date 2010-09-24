@@ -453,6 +453,9 @@ struct ppc_slb_t {
 #endif
 #endif
 
+/* Exception state register bits definition                                  */
+#define ESR_ST    23    /* Exception was caused by a store type access.      */
+
 enum {
     POWERPC_FLAG_NONE     = 0x00000000,
     /* Flag for MSR bit 25 signification (VRE/SPE)                           */

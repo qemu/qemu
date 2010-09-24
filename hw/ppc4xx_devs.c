@@ -56,7 +56,7 @@ CPUState *ppc4xx_init (const char *cpu_model,
     cpu_clk->cb = NULL; /* We don't care about CPU clock frequency changes */
     cpu_clk->opaque = env;
     /* Set time-base frequency to sysclk */
-    tb_clk->cb = ppc_emb_timers_init(env, sysclk);
+    tb_clk->cb = ppc_emb_timers_init(env, sysclk, PPC_INTERRUPT_PIT);
     tb_clk->opaque = env;
     ppc_dcr_init(env, NULL, NULL);
     /* Register qemu callbacks */
