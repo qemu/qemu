@@ -149,6 +149,8 @@ static void i6300esb_reset(DeviceState *dev)
 
     i6300esb_disable_timer(d);
 
+    /* NB: Don't change d->previous_reboot_flag in this function. */
+
     d->reboot_enabled = 1;
     d->clock_scale = CLOCK_SCALE_1KHZ;
     d->int_type = INT_TYPE_IRQ;
@@ -159,7 +161,6 @@ static void i6300esb_reset(DeviceState *dev)
     d->timer2_preload = 0xfffff;
     d->stage = 1;
     d->unlock_state = 0;
-    d->previous_reboot_flag = 0;
 }
 
 /* This function is called when the watchdog expires.  Note that
@@ -193,6 +194,7 @@ static void i6300esb_timer_expired(void *vp)
         if (d->reboot_enabled) {
             d->previous_reboot_flag = 1;
             watchdog_perform_action(); /* This reboots, exits, etc */
+            i6300esb_reset(&d->dev.qdev);
         }
 
         /* In "free running mode" we start stage 1 again. */
@@ -409,6 +411,7 @@ static int i6300esb_init(PCIDevice *dev)
     i6300esb_debug("I6300State = %p\n", d);
 
     d->timer = qemu_new_timer(vm_clock, i6300esb_timer_expired, d);
+    d->previous_reboot_flag = 0;
 
     pci_conf = d->dev.config;
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
