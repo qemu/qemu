@@ -442,8 +442,7 @@ typedef struct CPUSPARCState {
 /* helper.c */
 CPUSPARCState *cpu_sparc_init(const char *cpu_model);
 void cpu_sparc_set_id(CPUSPARCState *env, unsigned int cpu);
-void sparc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt,
-                                                 ...));
+void sparc_cpu_list (FILE *f, fprintf_function cpu_fprintf);
 void cpu_lock(void);
 void cpu_unlock(void);
 int cpu_sparc_handle_mmu_fault(CPUSPARCState *env1, target_ulong address, int rw,

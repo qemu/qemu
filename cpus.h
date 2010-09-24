@@ -16,7 +16,6 @@ void vm_state_notify(int running, int reason);
 bool cpu_exec_all(void);
 void set_numa_modes(void);
 void set_cpu_log(const char *optarg);
-void list_cpus(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
-               const char *optarg);
+void list_cpus(FILE *f, fprintf_function cpu_fprintf, const char *optarg);
 
 #endif

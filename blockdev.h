@@ -39,7 +39,7 @@ extern int drive_get_max_bus(BlockInterfaceType type);
 extern void drive_uninit(DriveInfo *dinfo);
 extern DriveInfo *drive_get_by_blockdev(BlockDriverState *bs);
 
-extern QemuOpts *drive_add(const char *file, const char *fmt, ...);
+extern QemuOpts *drive_add(const char *file, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 extern DriveInfo *drive_init(QemuOpts *arg, int default_to_scsi,
                              int *fatal_error);
 

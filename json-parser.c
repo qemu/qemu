@@ -1,5 +1,5 @@
 /*
- * JSON Parser 
+ * JSON Parser
  *
  * Copyright IBM, Corp. 2009
  *
@@ -91,7 +91,8 @@ static int token_is_escape(QObject *obj, const char *value)
 /**
  * Error handler
  */
-static void parse_error(JSONParserContext *ctxt, QObject *token, const char *msg, ...)
+static void GCC_FMT_ATTR(3, 4) parse_error(JSONParserContext *ctxt,
+                                           QObject *token, const char *msg, ...)
 {
     va_list ap;
     va_start(ap, msg);
@@ -163,7 +164,7 @@ static int hex2decimal(char ch)
  *      \n
  *      \r
  *      \t
- *      \u four-hex-digits 
+ *      \u four-hex-digits
  */
 static QString *qstring_from_escaped_str(JSONParserContext *ctxt, QObject *token)
 {
@@ -179,7 +180,7 @@ static QString *qstring_from_escaped_str(JSONParserContext *ctxt, QObject *token
     ptr++;
 
     str = qstring_new();
-    while (*ptr && 
+    while (*ptr &&
            ((double_quote && *ptr != '"') || (!double_quote && *ptr != '\''))) {
         if (*ptr == '\\') {
             ptr++;
@@ -457,7 +458,7 @@ static QObject *parse_keyword(JSONParserContext *ctxt, QList **tokens)
 
     return ret;
 
-out: 
+out:
     qobject_decref(token);
     QDECREF(working);
 
@@ -554,7 +555,7 @@ static QObject *parse_value(JSONParserContext *ctxt, QList **tokens, va_list *ap
     }
     if (obj == NULL) {
         obj = parse_keyword(ctxt, tokens);
-    } 
+    }
     if (obj == NULL) {
         obj = parse_literal(ctxt, tokens);
     }

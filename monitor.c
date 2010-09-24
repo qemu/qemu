@@ -316,7 +316,8 @@ void monitor_print_filename(Monitor *mon, const char *filename)
     }
 }
 
-static int monitor_fprintf(FILE *stream, const char *fmt, ...)
+static int GCC_FMT_ATTR(2, 3) monitor_fprintf(FILE *stream,
+                                              const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -576,7 +577,7 @@ static void do_trace_file(Monitor *mon, const QDict *qdict)
 
 static void user_monitor_complete(void *opaque, QObject *ret_data)
 {
-    MonitorCompletionData *data = (MonitorCompletionData *)opaque; 
+    MonitorCompletionData *data = (MonitorCompletionData *)opaque;
 
     if (ret_data) {
         data->user_print(data->mon, ret_data);
@@ -3359,11 +3360,11 @@ static int default_fmt_size = 4;
 static int is_valid_option(const char *c, const char *typestr)
 {
     char option[3];
-  
+
     option[0] = '-';
     option[1] = *c;
     option[2] = '\0';
-  
+
     typestr = strstr(typestr, option);
     return (typestr != NULL);
 }
@@ -3675,7 +3676,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                     p++;
                     if(c != *p) {
                         if(!is_valid_option(p, typestr)) {
-                  
+
                             monitor_printf(mon, "%s: unsupported option -%c\n",
                                            cmdname, *p);
                             goto fail;
@@ -4126,7 +4127,7 @@ static int check_client_args_type(const QDict *client_args,
             if (qobject_type(client_arg) != QTYPE_QINT) {
                 qerror_report(QERR_INVALID_PARAMETER_TYPE, client_arg_name,
                               "int");
-                return -1; 
+                return -1;
             }
             break;
         case 'f':
@@ -4135,7 +4136,7 @@ static int check_client_args_type(const QDict *client_args,
                 qobject_type(client_arg) != QTYPE_QFLOAT) {
                 qerror_report(QERR_INVALID_PARAMETER_TYPE, client_arg_name,
                               "number");
-               return -1; 
+               return -1;
             }
             break;
         case 'b':
@@ -4143,7 +4144,7 @@ static int check_client_args_type(const QDict *client_args,
             if (qobject_type(client_arg) != QTYPE_QBOOL) {
                 qerror_report(QERR_INVALID_PARAMETER_TYPE, client_arg_name,
                               "bool");
-               return -1; 
+               return -1;
             }
             break;
         case 'O':

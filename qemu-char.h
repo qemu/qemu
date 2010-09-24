@@ -76,7 +76,8 @@ CharDriverState *qemu_chr_open_opts(QemuOpts *opts,
                                     void (*init)(struct CharDriverState *s));
 CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*init)(struct CharDriverState *s));
 void qemu_chr_close(CharDriverState *chr);
-void qemu_chr_printf(CharDriverState *s, const char *fmt, ...);
+void qemu_chr_printf(CharDriverState *s, const char *fmt, ...)
+    GCC_FMT_ATTR(2, 3);
 int qemu_chr_write(CharDriverState *s, const uint8_t *buf, int len);
 void qemu_chr_send_event(CharDriverState *s, int event);
 void qemu_chr_add_handlers(CharDriverState *s,
