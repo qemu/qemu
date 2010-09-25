@@ -2072,6 +2072,31 @@ if compile_prog "" "" ; then
 fi
 
 ##########################################
+# check if we have madvise
+
+madvise=no
+cat > $TMPC << EOF
+#include <sys/types.h>
+#include <sys/mman.h>
+int main(void) { return madvise(NULL, 0, MADV_DONTNEED); }
+EOF
+if compile_prog "" "" ; then
+    madvise=yes
+fi
+
+##########################################
+# check if we have posix_madvise
+
+posix_madvise=no
+cat > $TMPC << EOF
+#include <sys/mman.h>
+int main(void) { return posix_madvise(NULL, 0, POSIX_MADV_DONTNEED); }
+EOF
+if compile_prog "" "" ; then
+    posix_madvise=yes
+fi
+
+##########################################
 # check if trace backend exists
 
 sh "$source_path/tracetool" "--$trace_backend" --check-backend > /dev/null 2> /dev/null
@@ -2238,6 +2263,8 @@ echo "KVM support       $kvm"
 echo "fdt support       $fdt"
 echo "preadv support    $preadv"
 echo "fdatasync         $fdatasync"
+echo "madvise           $madvise"
+echo "posix_madvise     $posix_madvise"
 echo "uuid support      $uuid"
 echo "vhost-net support $vhost_net"
 echo "Trace backend     $trace_backend"
@@ -2477,6 +2504,12 @@ if test "$gcc_attribute_warn_unused_result" = "yes" ; then
 fi
 if test "$fdatasync" = "yes" ; then
   echo "CONFIG_FDATASYNC=y" >> $config_host_mak
+fi
+if test "$madvise" = "yes" ; then
+  echo "CONFIG_MADVISE=y" >> $config_host_mak
+fi
+if test "$posix_madvise" = "yes" ; then
+  echo "CONFIG_POSIX_MADVISE=y" >> $config_host_mak
 fi
 
 # XXX: suppress that

@@ -396,7 +396,7 @@ int ram_load(QEMUFile *f, void *opaque, int version_id)
 #ifndef _WIN32
             if (ch == 0 &&
                 (!kvm_enabled() || kvm_has_sync_mmu())) {
-                madvise(host, TARGET_PAGE_SIZE, MADV_DONTNEED);
+                qemu_madvise(host, TARGET_PAGE_SIZE, QEMU_MADV_DONTNEED);
             }
 #endif
         } else if (flags & RAM_SAVE_FLAG_PAGE) {

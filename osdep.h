@@ -90,6 +90,41 @@ void *qemu_memalign(size_t alignment, size_t size);
 void *qemu_vmalloc(size_t size);
 void qemu_vfree(void *ptr);
 
+#define QEMU_MADV_INVALID -1
+
+#if defined(CONFIG_MADVISE)
+
+#define QEMU_MADV_WILLNEED  MADV_WILLNEED
+#define QEMU_MADV_DONTNEED  MADV_DONTNEED
+#ifdef MADV_DONTFORK
+#define QEMU_MADV_DONTFORK  MADV_DONTFORK
+#else
+#define QEMU_MADV_DONTFORK  QEMU_MADV_INVALID
+#endif
+#ifdef MADV_MERGEABLE
+#define QEMU_MADV_MERGEABLE MADV_MERGEABLE
+#else
+#define QEMU_MADV_MERGEABLE QEMU_MADV_INVALID
+#endif
+
+#elif defined(CONFIG_POSIX_MADVISE)
+
+#define QEMU_MADV_WILLNEED  POSIX_MADV_WILLNEED
+#define QEMU_MADV_DONTNEED  POSIX_MADV_DONTNEED
+#define QEMU_MADV_DONTFORK  QEMU_MADV_INVALID
+#define QEMU_MADV_MERGEABLE QEMU_MADV_INVALID
+
+#else /* no-op */
+
+#define QEMU_MADV_WILLNEED  QEMU_MADV_INVALID
+#define QEMU_MADV_DONTNEED  QEMU_MADV_INVALID
+#define QEMU_MADV_DONTFORK  QEMU_MADV_INVALID
+#define QEMU_MADV_MERGEABLE QEMU_MADV_INVALID
+
+#endif
+
+int qemu_madvise(void *addr, size_t len, int advice);
+
 int qemu_create_pidfile(const char *filename);
 
 #ifdef _WIN32

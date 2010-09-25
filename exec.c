@@ -2841,9 +2841,7 @@ ram_addr_t qemu_ram_alloc_from_ptr(DeviceState *dev, const char *name,
             new_block->host = file_ram_alloc(new_block, size, mem_path);
             if (!new_block->host) {
                 new_block->host = qemu_vmalloc(size);
-#ifdef MADV_MERGEABLE
-                madvise(new_block->host, size, MADV_MERGEABLE);
-#endif
+                qemu_madvise(new_block->host, size, QEMU_MADV_MERGEABLE);
             }
 #else
             fprintf(stderr, "-mem-path option unsupported\n");
@@ -2858,9 +2856,7 @@ ram_addr_t qemu_ram_alloc_from_ptr(DeviceState *dev, const char *name,
 #else
             new_block->host = qemu_vmalloc(size);
 #endif
-#ifdef MADV_MERGEABLE
-            madvise(new_block->host, size, MADV_MERGEABLE);
-#endif
+            qemu_madvise(new_block->host, size, QEMU_MADV_MERGEABLE);
         }
     }
 
