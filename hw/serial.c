@@ -761,7 +761,7 @@ void serial_set_frequency(SerialState *s, uint32_t frequency)
 }
 
 static const int isa_serial_io[MAX_SERIAL_PORTS] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
-static const int isa_serial_irq[MAX_SERIAL_PORTS] = { 4, 3, 4, 3 };
+static const int isa_serial_irq[MAX_SERIAL_PORTS] = { 4, 3, 5, 7 };
 
 static int serial_isa_initfn(ISADevice *dev)
 {
