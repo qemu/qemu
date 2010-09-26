@@ -1,0 +1,28 @@
+#include <winver.h>
+#include "config-host.h"
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION CONFIG_FILEVERSION
+PRODUCTVERSION CONFIG_PRODUCTVERSION
+FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+FILESUBTYPE VFT2_UNKNOWN
+{
+  BLOCK "StringFileInfo"
+  {
+    BLOCK "040904E4"
+    {
+      VALUE "CompanyName", "http://www.qemu.org"
+      VALUE "FileDescription", "QEMU machine emulators and tools"
+      VALUE "FileVersion", QEMU_VERSION
+      VALUE "LegalCopyright", "Copyright various authors. Released under the GNU General Public License."
+      VALUE "LegalTrademarks", "QEMU is a trademark of Fabrice Bellard."
+      VALUE "ProductName", "QEMU"
+    }
+  }
+  BLOCK "VarFileInfo"
+  {
+    VALUE "Translation", 0x0409, 1252
+  }
+}
