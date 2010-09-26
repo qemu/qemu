@@ -83,6 +83,7 @@ install="install"
 objcopy="objcopy"
 ld="ld"
 strip="strip"
+windres="windres"
 helper_cflags=""
 libs_softmmu=""
 libs_tools=""
@@ -129,6 +130,7 @@ ar="${cross_prefix}${ar}"
 objcopy="${cross_prefix}${objcopy}"
 ld="${cross_prefix}${ld}"
 strip="${cross_prefix}${strip}"
+windres="${cross_prefix}${windres}"
 
 # default flags for all hosts
 QEMU_CFLAGS="-fno-strict-aliasing $QEMU_CFLAGS"
@@ -2319,6 +2321,15 @@ fi
 echo "HOST_LONG_BITS=$hostlongbits" >> $config_host_mak
 if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=y" >> $config_host_mak
+  rc_version=`cat $source_path/VERSION`
+  version_major=${rc_version%%.*}
+  rc_version=${rc_version#*.}
+  version_minor=${rc_version%%.*}
+  rc_version=${rc_version#*.}
+  version_subminor=${rc_version%%.*}
+  version_micro=0
+  echo "CONFIG_FILEVERSION=$version_major,$version_minor,$version_subminor,$version_micro" >> $config_host_mak
+  echo "CONFIG_PRODUCTVERSION=$version_major,$version_minor,$version_subminor,$version_micro" >> $config_host_mak
 else
   echo "CONFIG_POSIX=y" >> $config_host_mak
 fi
@@ -2565,6 +2576,7 @@ fi
 echo "AR=$ar" >> $config_host_mak
 echo "OBJCOPY=$objcopy" >> $config_host_mak
 echo "LD=$ld" >> $config_host_mak
+echo "WINDRES=$windres" >> $config_host_mak
 echo "CFLAGS=$CFLAGS" >> $config_host_mak
 echo "QEMU_CFLAGS=$QEMU_CFLAGS" >> $config_host_mak
 echo "HELPER_CFLAGS=$helper_cflags" >> $config_host_mak
