@@ -333,7 +333,8 @@ static int number_to_string(void *arg, char type)
     return ret;
 }
 
-static int v9fs_string_alloc_printf(char **strp, const char *fmt, va_list ap)
+static int GCC_FMT_ATTR(2, 0)
+v9fs_string_alloc_printf(char **strp, const char *fmt, va_list ap)
 {
     va_list ap2;
     char *iter = (char *)fmt;
@@ -387,7 +388,8 @@ alloc_print:
     return vsprintf(*strp, fmt, ap);
 }
 
-static void v9fs_string_sprintf(V9fsString *str, const char *fmt, ...)
+static void GCC_FMT_ATTR(2, 3)
+v9fs_string_sprintf(V9fsString *str, const char *fmt, ...)
 {
     va_list ap;
     int err;
@@ -1034,8 +1036,8 @@ static int stat_to_v9stat(V9fsState *s, V9fsString *name,
                 S_ISCHR(stbuf->st_mode) ? 'c' : 'b',
                 major(stbuf->st_rdev), minor(stbuf->st_rdev));
     } else if (S_ISDIR(stbuf->st_mode) || S_ISREG(stbuf->st_mode)) {
-        v9fs_string_sprintf(&v9stat->extension, "%s %u",
-                "HARDLINKCOUNT", stbuf->st_nlink);
+        v9fs_string_sprintf(&v9stat->extension, "%s %lu",
+                "HARDLINKCOUNT", (unsigned long)stbuf->st_nlink);
     }
 
     str = strrchr(name->data, '/');
