@@ -405,6 +405,17 @@
 #define CPUID_EXT3_IBS     (1 << 10)
 #define CPUID_EXT3_SKINIT  (1 << 12)
 
+#define CPUID_SVM_NPT          (1 << 0)
+#define CPUID_SVM_LBRV         (1 << 1)
+#define CPUID_SVM_SVMLOCK      (1 << 2)
+#define CPUID_SVM_NRIPSAVE     (1 << 3)
+#define CPUID_SVM_TSCSCALE     (1 << 4)
+#define CPUID_SVM_VMCBCLEAN    (1 << 5)
+#define CPUID_SVM_FLUSHASID    (1 << 6)
+#define CPUID_SVM_DECODEASSIST (1 << 7)
+#define CPUID_SVM_PAUSEFILTER  (1 << 10)
+#define CPUID_SVM_PFTHRESHOLD  (1 << 12)
+
 #define CPUID_VENDOR_INTEL_1 0x756e6547 /* "Genu" */
 #define CPUID_VENDOR_INTEL_2 0x49656e69 /* "ineI" */
 #define CPUID_VENDOR_INTEL_3 0x6c65746e /* "ntel" */
@@ -702,6 +713,7 @@ typedef struct CPUX86State {
     uint8_t has_error_code;
     uint32_t sipi_vector;
     uint32_t cpuid_kvm_features;
+    uint32_t cpuid_svm_features;
     
     /* in order to simplify APIC support, we leave this pointer to the
        user */
