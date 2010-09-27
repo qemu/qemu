@@ -72,7 +72,6 @@
 #include "blockdev.h"           /* drive_get */
 #include "console.h"            /* console_select */
 #include "disas.h"              /* lookup_symbol */
-#include "exec-all.h"           /* logfile */
 #include "elf.h"                /* EM_MIPS (needed by loader.h) */
 #include "loader.h"             /* load_elf, load_image_targphys */
 #include "mips_cpudevs.h"       /* cpu_mips_kseg0_to_phys, ... */
