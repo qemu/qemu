@@ -31,7 +31,6 @@
 /***********************************************************/
 /* IO Port */
 
-#define DEBUG_UNUSED_IOPORT
 //#define DEBUG_UNUSED_IOPORT
 //#define DEBUG_IOPORT
 
