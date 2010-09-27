@@ -54,6 +54,7 @@ typedef struct VirtIONet
     uint8_t nouni;
     uint8_t nobcast;
     uint8_t vhost_started;
+    bool vm_running;
     VMChangeStateEntry *vmstate;
     struct {
         int in_use;
@@ -98,6 +99,38 @@ static void virtio_net_set_config(VirtIODevice *vdev, const uint8_t *config)
     }
 }
 
+static void virtio_net_set_status(struct VirtIODevice *vdev, uint8_t status)
+{
+    VirtIONet *n = to_virtio_net(vdev);
+    if (!n->nic->nc.peer) {
+        return;
+    }
+    if (n->nic->nc.peer->info->type != NET_CLIENT_TYPE_TAP) {
+        return;
+    }
+
+    if (!tap_get_vhost_net(n->nic->nc.peer)) {
+        return;
+    }
+    if (!!n->vhost_started == ((status & VIRTIO_CONFIG_S_DRIVER_OK) &&
+                               (n->status & VIRTIO_NET_S_LINK_UP) &&
+                               n->vm_running)) {
+        return;
+    }
+    if (!n->vhost_started) {
+        int r = vhost_net_start(tap_get_vhost_net(n->nic->nc.peer), &n->vdev);
+        if (r < 0) {
+            fprintf(stderr, "unable to start vhost net: %d: "
+                    "falling back on userspace virtio\n", -r);
+        } else {
+            n->vhost_started = 1;
+        }
+    } else {
+        vhost_net_stop(tap_get_vhost_net(n->nic->nc.peer), &n->vdev);
+        n->vhost_started = 0;
+    }
+}
+
 static void virtio_net_set_link_status(VLANClientState *nc)
 {
     VirtIONet *n = DO_UPCAST(NICState, nc, nc)->opaque;
@@ -110,6 +143,8 @@ static void virtio_net_set_link_status(VLANClientState *nc)
 
     if (n->status != old_status)
         virtio_notify_config(&n->vdev);
+
+    virtio_net_set_status(&n->vdev, n->vdev.status);
 }
 
 static void virtio_net_reset(VirtIODevice *vdev)
@@ -123,10 +158,6 @@ static void virtio_net_reset(VirtIODevice *vdev)
     n->nomulti = 0;
     n->nouni = 0;
     n->nobcast = 0;
-    if (n->vhost_started) {
-        vhost_net_stop(tap_get_vhost_net(n->nic->nc.peer), vdev);
-        n->vhost_started = 0;
-    }
 
     /* Flush any MAC and VLAN filter table state */
     n->mac_table.in_use = 0;
@@ -783,12 +814,9 @@ static void virtio_net_save(QEMUFile *f, void *opaque)
 {
     VirtIONet *n = opaque;
 
-    if (n->vhost_started) {
-        /* TODO: should we really stop the backend?
-         * If we don't, it might keep writing to memory. */
-        vhost_net_stop(tap_get_vhost_net(n->nic->nc.peer), &n->vdev);
-        n->vhost_started = 0;
-    }
+    /* At this point, backend must be stopped, otherwise
+     * it might keep writing to memory. */
+    assert(!n->vhost_started);
     virtio_save(&n->vdev, f);
 
     qemu_put_buffer(f, n->mac, ETH_ALEN);
@@ -924,44 +952,14 @@ static NetClientInfo net_virtio_info = {
     .link_status_changed = virtio_net_set_link_status,
 };
 
-static void virtio_net_set_status(struct VirtIODevice *vdev, uint8_t status)
-{
-    VirtIONet *n = to_virtio_net(vdev);
-    if (!n->nic->nc.peer) {
-        return;
-    }
-    if (n->nic->nc.peer->info->type != NET_CLIENT_TYPE_TAP) {
-        return;
-    }
-
-    if (!tap_get_vhost_net(n->nic->nc.peer)) {
-        return;
-    }
-    if (!!n->vhost_started == !!(status & VIRTIO_CONFIG_S_DRIVER_OK)) {
-        return;
-    }
-    if (status & VIRTIO_CONFIG_S_DRIVER_OK) {
-        int r = vhost_net_start(tap_get_vhost_net(n->nic->nc.peer), vdev);
-        if (r < 0) {
-            fprintf(stderr, "unable to start vhost net: %d: "
-                    "falling back on userspace virtio\n", -r);
-        } else {
-            n->vhost_started = 1;
-        }
-    } else {
-        vhost_net_stop(tap_get_vhost_net(n->nic->nc.peer), vdev);
-        n->vhost_started = 0;
-    }
-}
-
 static void virtio_net_vmstate_change(void *opaque, int running, int reason)
 {
     VirtIONet *n = opaque;
-    uint8_t status = running ? VIRTIO_CONFIG_S_DRIVER_OK : 0;
+    n->vm_running = running;
     /* This is called when vm is started/stopped,
-     * it will start/stop vhost backend if * appropriate
+     * it will start/stop vhost backend if appropriate
      * e.g. after migration. */
-    virtio_net_set_status(&n->vdev, n->vdev.status & status);
+    virtio_net_set_status(&n->vdev, n->vdev.status);
 }
 
 VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
@@ -1028,9 +1026,8 @@ void virtio_net_exit(VirtIODevice *vdev)
     VirtIONet *n = DO_UPCAST(VirtIONet, vdev, vdev);
     qemu_del_vm_change_state_handler(n->vmstate);
 
-    if (n->vhost_started) {
-        vhost_net_stop(tap_get_vhost_net(n->nic->nc.peer), vdev);
-    }
+    /* This will stop vhost backend if appropriate. */
+    virtio_net_set_status(vdev, 0);
 
     qemu_purge_queued_packets(&n->nic->nc);
 
