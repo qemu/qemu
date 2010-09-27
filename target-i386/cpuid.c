@@ -788,6 +788,8 @@ int cpu_x86_register (CPUX86State *env, const char *cpu_model)
 {
     x86_def_t def1, *def = &def1;
 
+    memset(def, 0, sizeof(*def));
+
     if (cpu_x86_find_by_name(def, cpu_model) < 0)
         return -1;
     if (def->vendor1) {
