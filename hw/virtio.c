@@ -458,6 +458,8 @@ void virtio_reset(void *opaque)
     VirtIODevice *vdev = opaque;
     int i;
 
+    virtio_set_status(vdev, 0);
+
     if (vdev->reset)
         vdev->reset(vdev);
 
