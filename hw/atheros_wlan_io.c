@@ -148,27 +148,29 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 static void Atheros_WLAN_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
 	DEBUG_PRINT(("!!! DEBUG INIMPLEMENTED !!!\n"));
-	DEBUG_PRINT(("mmio_writeb %x val %x\n", addr, val));
+	DEBUG_PRINT(("mmio_writeb " TARGET_FMT_plx " val %x\n", addr, val));
 	DEBUG_PRINT(("!!! DEBUG INIMPLEMENTED !!!\n"));
 }
 
 static void Atheros_WLAN_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
 	DEBUG_PRINT(("!!! DEBUG INIMPLEMENTED !!!\n"));
-	DEBUG_PRINT(("mmio_writew %x val %x\n", addr, val));
+	DEBUG_PRINT(("mmio_writew " TARGET_FMT_plx " val %x\n", addr, val));
 	DEBUG_PRINT(("!!! DEBUG INIMPLEMENTED !!!\n"));
 }
 
 static void Atheros_WLAN_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
-	mm_writel((Atheros_WLANState *)opaque, Atheros_WLAN_MEM_SANITIZE(addr), val);
-	DEBUG_PRINT(("  through call: mmio_writel 0x%x (%u) val 0x%x (%u)\n", Atheros_WLAN_MEM_SANITIZE(addr), Atheros_WLAN_MEM_SANITIZE(addr), val, val));
+    mm_writel((Atheros_WLANState *)opaque, Atheros_WLAN_MEM_SANITIZE(addr), val);
+    DEBUG_PRINT(("  through call: mmio_writel " TARGET_FMT_plx
+                 " val 0x%x (%u)\n",
+                 Atheros_WLAN_MEM_SANITIZE(addr), val, val));
 }
 
 static uint32_t Atheros_WLAN_mmio_readb(void *opaque, target_phys_addr_t addr)
 {
 	DEBUG_PRINT(("!!! DEBUG INIMPLEMENTED !!!\n"));
-	DEBUG_PRINT(("mmio_readb %u\n", addr));
+	DEBUG_PRINT(("mmio_readb " TARGET_FMT_plx "\n", addr));
 	DEBUG_PRINT(("!!! DEBUG INIMPLEMENTED !!!\n"));
 
 	return 0;
@@ -177,7 +179,7 @@ static uint32_t Atheros_WLAN_mmio_readb(void *opaque, target_phys_addr_t addr)
 static uint32_t Atheros_WLAN_mmio_readw(void *opaque, target_phys_addr_t addr)
 {
 	DEBUG_PRINT(("!!! DEBUG INIMPLEMENTED !!!\n"));
-	DEBUG_PRINT(("mmio_readw %u\n", addr));
+	DEBUG_PRINT(("mmio_readw " TARGET_FMT_plx "\n", addr));
 	DEBUG_PRINT(("!!! DEBUG INIMPLEMENTED !!!\n"));
 
 	return 0;
@@ -185,11 +187,12 @@ static uint32_t Atheros_WLAN_mmio_readw(void *opaque, target_phys_addr_t addr)
 
 static uint32_t Atheros_WLAN_mmio_readl(void *opaque, target_phys_addr_t addr)
 {
-	uint32_t val;
-	val = mm_readl((Atheros_WLANState *)opaque, Atheros_WLAN_MEM_SANITIZE(addr));
+    uint32_t val;
+    val = mm_readl((Atheros_WLANState *)opaque, Atheros_WLAN_MEM_SANITIZE(addr));
 
-	DEBUG_PRINT(("   mmio_readl 0x%x (%u) = 0x%x (%u)\n", Atheros_WLAN_MEM_SANITIZE(addr), Atheros_WLAN_MEM_SANITIZE(addr), val, val));
-	return val;
+    DEBUG_PRINT(("   mmio_readl " TARGET_FMT_plx " = 0x%x (%u)\n",
+                 Atheros_WLAN_MEM_SANITIZE(addr), val, val));
+    return val;
 }
 
 
@@ -200,8 +203,8 @@ static void Atheros_WLAN_mmio_map(PCIDevice *pci_dev, int region_num,
 	PCIAtheros_WLANState *d = (PCIAtheros_WLANState *)pci_dev;
 	Atheros_WLANState *s = &d->Atheros_WLAN;
 
-    DEBUG_PRINT(("cpu_register_physical_memory(0x%08" FMT_PCIBUS ", %u, %p)\n",
-                 addr, Atheros_WLAN_MEM_SIZE, (unsigned long*)s->Atheros_WLAN_mmio_io_addr));
+    DEBUG_PRINT(("cpu_register_physical_memory(0x%08" FMT_PCIBUS ", %u, %08x)\n",
+                 addr, Atheros_WLAN_MEM_SIZE, s->Atheros_WLAN_mmio_io_addr));
 
 	cpu_register_physical_memory(addr + 0, Atheros_WLAN_MEM_SIZE, s->Atheros_WLAN_mmio_io_addr);
 }
@@ -628,7 +631,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 				s->transmit_queue_processed[addr] = 0;
 				s->transmit_queue_address[addr] = (target_phys_addr_t)val;
 			} else {
-				DEBUG_PRINT(("unknown queue 0x%x (%u)\n", addr, addr));
+				DEBUG_PRINT(("unknown queue " TARGET_FMT_plx "\n", addr));
 			}
 			break;
 
@@ -1008,7 +1011,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 			 */
 
 			/* ath5k_hw.c: 1738 */
-			DEBUG_PRINT(("there will be an access to the EEPROM at %p\n", (unsigned long*)val));
+			DEBUG_PRINT(("there will be an access to the EEPROM at %08x\n", val));
 
 			/*
 			 * set the data that will be returned
@@ -1110,7 +1113,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 					}
 					else
 					{
-						DEBUG_PRINT(("EEPROM request at %p is unknown\n", (unsigned long*)val));
+						DEBUG_PRINT(("EEPROM request at %08x is unknown\n", val));
 						WRITE_EEPROM(s->mem, 0);
 					}
 					break;

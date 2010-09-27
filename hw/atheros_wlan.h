@@ -1,8 +1,8 @@
 /**
  * QEMU WLAN device emulation
- * 
+ *
  * Copyright (c) 2008 Clemens Kolbitsch
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -58,7 +58,13 @@
 #define PCI_FREQUENCY 33000000L
 
 #if defined (DEBUG_Atheros_WLAN)
-#  define DEBUG_PRINT(x) do { struct timeval __tt; gettimeofday(&__tt, NULL); printf("%u:%u  ", __tt.tv_sec, __tt.tv_usec); printf x ; } while (0)
+#  define DEBUG_PRINT(x) \
+    do { \
+        struct timeval __tt; \
+        gettimeofday(&__tt, NULL); \
+        printf("%u:%u  ", (unsigned)__tt.tv_sec, (unsigned)__tt.tv_usec); \
+        printf x ;\
+    } while (0)
 #else
 #  define DEBUG_PRINT(x)
 #endif
