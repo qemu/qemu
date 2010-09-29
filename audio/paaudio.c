@@ -110,8 +110,8 @@ static void *qpa_thread_out (void *arg)
             return NULL;
         }
 
+        pa->live = 0;
         pa->rpos = rpos;
-        pa->live -= decr;
         pa->decr += decr;
     }
 
