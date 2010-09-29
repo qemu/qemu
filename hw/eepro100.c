@@ -219,7 +219,8 @@ typedef enum {
 
 typedef struct {
     PCIDevice dev;
-    uint8_t mult[8];            /* multicast mask array */
+    /* Hash register (multicast mask array, multiple individual addresses). */
+    uint8_t mult[8];
     int mmio_index;
     NICState *nic;
     NICConf conf;
@@ -599,7 +600,7 @@ static void nic_reset(void *opaque)
 {
     EEPRO100State *s = opaque;
     TRACE(OTHER, logout("%p\n", s));
-    /* TODO: Clearing of multicast table for selective reset, too? */
+    /* TODO: Clearing of hash register for selective reset, too? */
     memset(&s->mult[0], 0, sizeof(s->mult));
     nic_selective_reset(s);
 }
@@ -851,7 +852,14 @@ static void action_command(EEPRO100State *s)
         case CmdConfigure:
             cpu_physical_memory_read(s->cb_address + 8, &s->configuration[0],
                                      sizeof(s->configuration));
-            TRACE(OTHER, logout("configuration: %s\n", nic_dump(&s->configuration[0], 16)));
+            TRACE(OTHER, logout("configuration: %s\n",
+                                nic_dump(&s->configuration[0], 16)));
+            TRACE(OTHER, logout("configuration: %s\n",
+                                nic_dump(&s->configuration[16],
+                                ARRAY_SIZE(s->configuration) - 16)));
+            if (s->configuration[20] & BIT(6)) {
+                TRACE(OTHER, logout("Multiple IA bit\n"));
+            }
             break;
         case CmdMulticastList:
             set_multicast_list(s);
@@ -1647,12 +1655,6 @@ static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size
     static const uint8_t broadcast_macaddr[6] =
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-    /* TODO: check multiple IA bit. */
-    if (s->configuration[20] & BIT(6)) {
-        missing("Multiple IA bit");
-        return -1;
-    }
-
     if (s->configuration[8] & 0x80) {
         /* CSMA is disabled. */
         logout("%p received while CSMA is disabled\n", s);
@@ -1702,6 +1704,16 @@ static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size
         /* Promiscuous: receive all. */
         TRACE(RXTX, logout("%p received frame in promiscuous mode, len=%zu\n", s, size));
         rfd_status |= 0x0004;
+    } else if (s->configuration[20] & BIT(6)) {
+        /* Multiple IA bit set. */
+        unsigned mcast_idx = compute_mcast_idx(buf);
+        assert(mcast_idx < 64);
+        if (s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7))) {
+            TRACE(RXTX, logout("%p accepted, multiple IA bit set\n", s));
+        } else {
+            TRACE(RXTX, logout("%p frame ignored, multiple IA bit set\n", s));
+            return -1;
+        }
     } else {
         TRACE(RXTX, logout("%p received frame, ignored, len=%zu,%s\n", s, size,
               nic_dump(buf, size)));
