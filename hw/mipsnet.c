@@ -81,7 +81,7 @@ static ssize_t mipsnet_receive(VLANClientState *nc, const uint8_t *buf, size_t s
     MIPSnetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
 #ifdef DEBUG_MIPSNET_RECEIVE
-    printf("mipsnet: receiving len=%d\n", size);
+    printf("mipsnet: receiving len=%zu\n", size);
 #endif
     if (!mipsnet_can_receive(nc))
         return -1;
