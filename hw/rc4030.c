@@ -749,7 +749,10 @@ static void rc4030_do_dma(void *opaque, int n, uint8_t *buf, int len, int is_wri
         printf("rc4030 dma: Copying %d bytes %s host %p\n",
             len, is_write ? "from" : "to", buf);
         for (i = 0; i < len; i += 16) {
-            int n = min(16, len - i);
+            int n = 16;
+            if (n > len - i) {
+                n = len - i;
+            }
             for (j = 0; j < n; j++)
                 printf("%02x ", buf[i + j]);
             while (j++ < 16)
