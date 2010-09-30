@@ -2282,7 +2282,6 @@ static void check1(BDRVVVFATState* s)
 	    fprintf(stderr, "deleted\n");
 	    continue;
 	}
-	assert(mapping->dir_index >= 0);
 	assert(mapping->dir_index < s->directory.next);
 	direntry_t* direntry = array_get(&(s->directory), mapping->dir_index);
 	assert(mapping->begin == begin_of_direntry(direntry) || mapping->first_mapping_index >= 0);
