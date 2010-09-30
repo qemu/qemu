@@ -45,7 +45,7 @@ static uint32_t nvram_readb (void *opaque, target_phys_addr_t addr)
     val = s->contents[addr];
 
 #ifdef DEBUG_NVRAM
-    printf("nvram: read 0x%x at " TARGET_FMT_lx "\n", val, addr);
+    printf("nvram: read 0x%x at %08x\n", val, (unsigned)addr);
 #endif
     return val;
 }
@@ -73,7 +73,7 @@ static void nvram_writeb (void *opaque, target_phys_addr_t addr, uint32_t val)
     ds1225y_t *s = opaque;
 
 #ifdef DEBUG_NVRAM
-    printf("nvram: write 0x%x at " TARGET_FMT_lx "\n", val, addr);
+    printf("nvram: write 0x%x at %08x\n", val, (unsigned)addr);
 #endif
 
     s->contents[addr] = val & 0xff;
@@ -104,7 +104,7 @@ static void nvram_writeb_protected (void *opaque, target_phys_addr_t addr, uint3
 
     if (s->protection != 7) {
 #ifdef DEBUG_NVRAM
-    printf("nvram: prevent write of 0x%x at " TARGET_FMT_lx "\n", val, addr);
+    printf("nvram: prevent write of 0x%x at %08x\n", val, (unsigned)addr);
 #endif
         return;
     }
