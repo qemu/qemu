@@ -2332,11 +2332,11 @@ int monitor_get_fd(Monitor *mon, const char *fdname)
 }
 
 static const mon_cmd_t mon_cmds[] = {
-#include "qemu-monitor.h"
+#include "hmp-commands.h"
     { NULL, NULL, },
 };
 
-/* Please update qemu-monitor.hx when adding or changing commands */
+/* Please update hmp-commands.hx when adding or changing commands */
 static const mon_cmd_t info_cmds[] = {
     {
         .name       = "version",

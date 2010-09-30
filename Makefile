@@ -249,7 +249,7 @@ TEXIFLAG=$(if $(V),,--quiet)
 qemu-options.texi: $(SRC_PATH)/qemu-options.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -t < $< > $@,"  GEN   $@")
 
-qemu-monitor.texi: $(SRC_PATH)/qemu-monitor.hx
+qemu-monitor.texi: $(SRC_PATH)/hmp-commands.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -t < $< > $@,"  GEN   $@")
 
 QMP/qmp-commands.txt: $(SRC_PATH)/qmp-commands.hx
