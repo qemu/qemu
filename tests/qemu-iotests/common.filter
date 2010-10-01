@@ -137,7 +137,7 @@ _filter_testdir()
 # sanitize qemu-io output
 _filter_qemu_io()
 {
-    sed -e "s/[0-9]* ops\; [0-9/:. sec]* ([0-9/.]* [GMKiBbytes]*\/sec and [0-9/.]* ops\/sec)/X ops\; XX:XX:XX.X (XXX YYY\/sec and XXX ops\/sec)/"
+    sed -e "s/[0-9]* ops\; [0-9/:. sec]* ([0-9/.inf]* [EPTGMKiBbytes]*\/sec and [0-9/.inf]* ops\/sec)/X ops\; XX:XX:XX.X (XXX YYY\/sec and XXX ops\/sec)/"
 }
 
 # make sure this script returns success
