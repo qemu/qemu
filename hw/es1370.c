@@ -408,7 +408,7 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
 
         if ((old_fmt != new_fmt) || (old_freq != new_freq)) {
             d->shift = (new_fmt & 1) + (new_fmt >> 1);
-            ldebug ("channel %d, freq = %d, nchannels %d, fmt %d, shift %d\n",
+            ldebug ("channel %zu, freq = %d, nchannels %d, fmt %d, shift %d\n",
                     i,
                     new_freq,
                     1 << (new_fmt & 1),
@@ -576,7 +576,7 @@ IO_WRITE_PROTO (es1370_writel)
         d++;
     case ES1370_REG_DAC1_SCOUNT:
         d->scount = (val & 0xffff) | (d->scount & ~0xffff);
-        ldebug ("chan %d CURR_SAMP_CT %d, SAMP_CT %d\n",
+        ldebug ("chan %zd CURR_SAMP_CT %d, SAMP_CT %d\n",
                 d - &s->chan[0], val >> 16, (val & 0xffff));
         break;
 
@@ -586,7 +586,7 @@ IO_WRITE_PROTO (es1370_writel)
         d++;
     case ES1370_REG_DAC1_FRAMEADR:
         d->frame_addr = val;
-        ldebug ("chan %d frame address %#x\n", d - &s->chan[0], val);
+        ldebug ("chan %zd frame address %#x\n", d - &s->chan[0], val);
         break;
 
     case ES1370_REG_PHANTOM_FRAMECNT:
@@ -603,7 +603,7 @@ IO_WRITE_PROTO (es1370_writel)
     case ES1370_REG_DAC1_FRAMECNT:
         d->frame_cnt = val;
         d->leftover = 0;
-        ldebug ("chan %d frame count %d, buffer size %d\n",
+        ldebug ("chan %zd frame count %d, buffer size %d\n",
                 d - &s->chan[0], val >> 16, val & 0xffff);
         break;
 
@@ -743,9 +743,10 @@ IO_READ_PROTO (es1370_readl)
         {
             uint32_t size = ((d->frame_cnt & 0xffff) + 1) << 2;
             uint32_t curr = ((d->frame_cnt >> 16) + 1) << 2;
-            if (curr > size)
+            if (curr > size) {
                 dolog ("read framecnt curr %d, size %d %d\n", curr, size,
                        curr > size);
+            }
         }
 #endif
         break;
