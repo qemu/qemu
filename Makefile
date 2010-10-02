@@ -43,9 +43,11 @@ config-all-devices.mak: $(SUBDIR_DEVICES_MAK)
 %/config-devices.mak: default-configs/%.mak
 	$(call quiet-command,cat $< > $@.tmp, "  GEN   $@")
 	@if test -f $@; then \
-	  if cmp -s $@.old $@ || cmp -s $@ $@.tmp; then \
-	    mv $@.tmp $@; \
-	    cp -p $@ $@.old; \
+	  if cmp -s $@.old $@; then \
+	    if ! cmp -s $@ $@.tmp; then \
+	      mv $@.tmp $@; \
+	      cp -p $@ $@.old; \
+	    fi; \
 	  else \
 	    if test -f $@.old; then \
 	      echo "WARNING: $@ (user modified) out of date.";\
