@@ -157,8 +157,9 @@ static int xilinx_load_device_tree(target_phys_addr_t addr,
             fdt = load_device_tree(path, &fdt_size);
             qemu_free(path);
         }
-        if (!fdt)
+        if (!fdt) {
             return 0;
+        }
     }
 
     r = qemu_devtree_setprop_string(fdt, "/chosen", "bootargs", kernel_cmdline);
