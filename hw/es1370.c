@@ -576,7 +576,7 @@ IO_WRITE_PROTO (es1370_writel)
         d++;
     case ES1370_REG_DAC1_SCOUNT:
         d->scount = (val & 0xffff) | (d->scount & ~0xffff);
-        ldebug ("chan %zd CURR_SAMP_CT %d, SAMP_CT %d\n",
+        ldebug ("chan %td CURR_SAMP_CT %d, SAMP_CT %d\n",
                 d - &s->chan[0], val >> 16, (val & 0xffff));
         break;
 
@@ -586,7 +586,7 @@ IO_WRITE_PROTO (es1370_writel)
         d++;
     case ES1370_REG_DAC1_FRAMEADR:
         d->frame_addr = val;
-        ldebug ("chan %zd frame address %#x\n", d - &s->chan[0], val);
+        ldebug ("chan %td frame address %#x\n", d - &s->chan[0], val);
         break;
 
     case ES1370_REG_PHANTOM_FRAMECNT:
@@ -603,7 +603,7 @@ IO_WRITE_PROTO (es1370_writel)
     case ES1370_REG_DAC1_FRAMECNT:
         d->frame_cnt = val;
         d->leftover = 0;
-        ldebug ("chan %zd frame count %d, buffer size %d\n",
+        ldebug ("chan %td frame count %d, buffer size %d\n",
                 d - &s->chan[0], val >> 16, val & 0xffff);
         break;
 
