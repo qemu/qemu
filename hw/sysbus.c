@@ -82,7 +82,8 @@ void sysbus_pass_irq(SysBusDevice *dev, SysBusDevice *target)
     }
 }
 
-void sysbus_init_mmio(SysBusDevice *dev, target_phys_addr_t size, int iofunc)
+void sysbus_init_mmio(SysBusDevice *dev, target_phys_addr_t size,
+                      ram_addr_t iofunc)
 {
     int n;
 
