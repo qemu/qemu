@@ -3409,7 +3409,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 	if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
 		log_target_disas(pc_start, dc->pc - pc_start,
                                  dc->env->pregs[PR_VR]);
-		qemu_log("\nisize=%d osize=%zd\n",
+		qemu_log("\nisize=%d osize=%td\n",
 			dc->pc - pc_start, gen_opc_ptr - gen_opc_buf);
 	}
 #endif
