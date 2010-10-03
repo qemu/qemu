@@ -24,7 +24,9 @@ typedef char *caddr_t;
 #else
 # define ioctlsocket ioctl
 # define closesocket(s) close(s)
-# define O_BINARY 0
+# if !defined(__HAIKU__)
+#  define O_BINARY 0
+# endif
 #endif
 
 #include <sys/types.h>

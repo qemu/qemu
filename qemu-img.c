@@ -39,7 +39,7 @@ typedef struct img_cmd_t {
 /* Default to cache=writeback as data integrity is not important for qemu-tcg. */
 #define BDRV_O_FLAGS BDRV_O_CACHE_WB
 
-static void error(const char *fmt, ...)
+static void GCC_FMT_ATTR(1, 2) error(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);

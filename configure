@@ -349,6 +349,7 @@ io_thread="no"
 mixemu="no"
 kerneldir=""
 aix="no"
+haiku="no"
 blobs="yes"
 pkgversion=""
 check_utests="no"
@@ -366,6 +367,8 @@ elif check_define __OpenBSD__ ; then
   targetos='OpenBSD'
 elif check_define __sun__ ; then
   targetos='SunOS'
+elif check_define __HAIKU__ ; then
+  targetos='Haiku'
 else
   targetos=`uname -s`
 fi
@@ -480,6 +483,11 @@ SunOS)
 AIX)
   aix="yes"
   make="gmake"
+;;
+Haiku)
+  haiku="yes"
+  QEMU_CFLAGS="-DB_USE_POSITIVE_POSIX_ERRORS $QEMU_CFLAGS"
+  LIBS="-lposix_error_mapper -lnetwork $LIBS"
 ;;
 *)
   audio_drv_list="oss"
@@ -1755,13 +1763,17 @@ cat > $TMPC << EOF
 #include <pthread.h>
 int main(void) { pthread_create(0,0,0,0); return 0; }
 EOF
-for pthread_lib in $PTHREADLIBS_LIST; do
-  if compile_prog "" "$pthread_lib" ; then
-    pthread=yes
-    LIBS="$pthread_lib $LIBS"
-    break
-  fi
-done
+if compile_prog "" "" ; then
+  pthread=yes
+else
+  for pthread_lib in $PTHREADLIBS_LIST; do
+    if compile_prog "" "$pthread_lib" ; then
+      pthread=yes
+      LIBS="$pthread_lib $LIBS"
+      break
+    fi
+  done
+fi
 
 if test "$tcg_interpreter" != "yes"; then
 if test "$mingw32" != yes -a "$pthread" = no; then
@@ -2093,7 +2105,7 @@ elif compile_prog "" "-lrt" ; then
 fi
 
 if test "$darwin" != "yes" -a "$mingw32" != "yes" -a "$solaris" != yes -a \
-        "$aix" != "yes" ; then
+        "$aix" != "yes" -a "$haiku" != "yes" ; then
     libs_softmmu="-lutil $libs_softmmu"
 fi
 
@@ -2431,6 +2443,9 @@ if test "$solaris" = "yes" ; then
   if test "$needs_libsunmath" = "yes" ; then
     echo "CONFIG_NEEDS_LIBSUNMATH=y" >> $config_host_mak
   fi
+fi
+if test "$haiku" = "yes" ; then
+  echo "CONFIG_HAIKU=y" >> $config_host_mak
 fi
 if test "$static" = "yes" ; then
   echo "CONFIG_STATIC=y" >> $config_host_mak
