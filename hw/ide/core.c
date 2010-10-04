@@ -146,8 +146,8 @@ static void ide_identify(IDEState *s)
     put_le16(p + 68, 120);
     put_le16(p + 80, 0xf0); /* ata3 -> ata6 supported */
     put_le16(p + 81, 0x16); /* conforms to ata5 */
-    /* 14=NOP supported, 0=SMART supported */
-    put_le16(p + 82, (1 << 14) | 1);
+    /* 14=NOP supported, 5=WCACHE supported, 0=SMART supported */
+    put_le16(p + 82, (1 << 14) | (1 << 5) | 1);
     /* 13=flush_cache_ext,12=flush_cache,10=lba48 */
     put_le16(p + 83, (1 << 14) | (1 << 13) | (1 <<12) | (1 << 10));
     /* 14=set to 1, 1=SMART self test, 0=SMART error logging */
