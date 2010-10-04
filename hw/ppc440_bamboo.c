@@ -156,8 +156,6 @@ static void bamboo_init(ram_addr_t ram_size,
             exit(1);
         }
 
-        cpu_synchronize_state(env);
-
         /* Set initial guest state. */
         env->gpr[1] = (16<<20) - 8;
         env->gpr[3] = FDT_ADDR;
