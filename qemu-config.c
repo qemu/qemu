@@ -283,6 +283,9 @@ static QemuOptsList qemu_mon_opts = {
         },{
             .name = "default",
             .type = QEMU_OPT_BOOL,
+        },{
+            .name = "pretty",
+            .type = QEMU_OPT_BOOL,
         },
         { /* end of list */ }
     },
@@ -348,6 +351,24 @@ static QemuOptsList qemu_cpudef_opts = {
             .type = QEMU_OPT_NUMBER,
         },
         { /* end of list */ }
+    },
+};
+
+QemuOptsList qemu_spice_opts = {
+    .name = "spice",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_spice_opts.head),
+    .desc = {
+        {
+            .name = "port",
+            .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "password",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "disable-ticketing",
+            .type = QEMU_OPT_BOOL,
+        },
+        { /* end if list */ }
     },
 };
 

@@ -3,6 +3,7 @@
 
 extern QemuOptsList qemu_fsdev_opts;
 extern QemuOptsList qemu_virtfs_opts;
+extern QemuOptsList qemu_spice_opts;
 
 QemuOptsList *qemu_find_opts(const char *group);
 void qemu_add_opts(QemuOptsList *list);

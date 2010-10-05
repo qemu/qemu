@@ -604,7 +604,7 @@ static int pci_init_multifunction(PCIBus *bus, PCIDevice *dev)
     }
 
     /*
-     * multifuction bit is interpreted in two ways as follows.
+     * multifunction bit is interpreted in two ways as follows.
      *   - all functions must set the bit to 1.
      *     Example: Intel X53
      *   - function 0 must set the bit, but the rest function (> 0)
