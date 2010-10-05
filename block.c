@@ -1983,6 +1983,8 @@ BlockDriverAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
     BlockDriver *drv = bs->drv;
     BlockDriverAIOCB *ret;
 
+    trace_bdrv_aio_readv(bs, sector_num, nb_sectors, opaque);
+
     if (!drv)
         return NULL;
     if (bdrv_check_request(bs, sector_num, nb_sectors))
@@ -2006,6 +2008,8 @@ BlockDriverAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
 {
     BlockDriver *drv = bs->drv;
     BlockDriverAIOCB *ret;
+
+    trace_bdrv_aio_writev(bs, sector_num, nb_sectors, opaque);
 
     if (!drv)
         return NULL;
