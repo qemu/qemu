@@ -9,6 +9,7 @@
 #include <sys/mman.h>
 
 #include "hw/pci.h"
+#include "hw/pc.h"
 #include "hw/xen_common.h"
 #include "hw/xen_backend.h"
 
@@ -96,6 +97,14 @@ void xen_piix_pci_write_config_client(uint32_t address, uint32_t val, int len)
         if (((address + i) >= 0x60) && ((address + i) <= 0x63)) {
             xc_hvm_set_pci_link_route(xen_xc, xen_domid, address + i - 0x60, v);
         }
+    }
+}
+
+void xen_cmos_set_s3_resume(void *opaque, int irq, int level)
+{
+    pc_cmos_set_s3_resume(opaque, irq, level);
+    if (level) {
+        xc_set_hvm_param(xen_xc, xen_domid, HVM_PARAM_ACPI_S_STATE, 3);
     }
 }
 
