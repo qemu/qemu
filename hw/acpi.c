@@ -161,7 +161,7 @@ int acpi_table_add(const char *t)
 
         /* off < length is necessary because file size can be changed
            under our foot */
-        while(s.st_size && off < length); {
+        while(s.st_size && off < length) {
             int r;
             r = read(fd, p + off, s.st_size);
             if (r > 0) {
