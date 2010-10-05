@@ -72,6 +72,10 @@ Trace events should use types as follows:
  * For everything else, use primitive scalar types (char, int, long) with the
    appropriate signedness.
 
+Format strings should reflect the types defined in the trace event.  Take
+special care to use PRId64 and PRIu64 for int64_t and uint64_t types,
+respectively.  This ensures portability between 32- and 64-bit platforms.
+
 === Hints for adding new trace events ===
 
 1. Trace state changes in the code.  Interesting points in the code usually
