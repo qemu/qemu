@@ -318,8 +318,7 @@ convert()
 
     while read -r str; do
         # Skip comments and empty lines
-        str=${str%%#*}
-        test -z "$str" && continue
+        test -z "${str%%#*}" && continue
 
         # Process the line.  The nop backend handles disabled lines.
         disable=${str%%disable *}
