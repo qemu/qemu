@@ -283,6 +283,9 @@ static QemuOptsList qemu_mon_opts = {
         },{
             .name = "default",
             .type = QEMU_OPT_BOOL,
+        },{
+            .name = "pretty",
+            .type = QEMU_OPT_BOOL,
         },
         { /* end of list */ }
     },

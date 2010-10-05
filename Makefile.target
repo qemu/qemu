@@ -309,7 +309,7 @@ obj-alpha-y = alpha_palcode.o
 
 main.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
-monitor.o: qemu-monitor.h
+monitor.o: hmp-commands.h qmp-commands.h
 
 $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y): $(GENERATED_HEADERS)
 
@@ -330,13 +330,16 @@ $(QEMU_PROG): $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y)
 gdbstub-xml.c: $(TARGET_XML_FILES) $(SRC_PATH)/feature_to_c.sh
 	$(call quiet-command,rm -f $@ && $(SHELL) $(SRC_PATH)/feature_to_c.sh $@ $(TARGET_XML_FILES),"  GEN   $(TARGET_DIR)$@")
 
-qemu-monitor.h: $(SRC_PATH)/qemu-monitor.hx
+hmp-commands.h: $(SRC_PATH)/hmp-commands.hx
+	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
+
+qmp-commands.h: $(SRC_PATH)/qmp-commands.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
 
 clean:
 	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o
 	rm -f *.d */*.d tcg/*.o ide/*.o
-	rm -f qemu-monitor.h gdbstub-xml.c
+	rm -f hmp-commands.h qmp-commands.h gdbstub-xml.c
 
 install: all
 ifneq ($(PROGS),)

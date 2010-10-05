@@ -82,10 +82,10 @@ doing any code change. This is so because:
   2. Review can improve your interface.  Letting that happen before
      you implement it can save you work.
 
-* The qmp-commands.txt file is generated from the qemu-monitor.hx one, which
+* The qmp-commands.txt file is generated from the qmp-commands.hx one, which
   is the file that should be edited.
 
 Homepage
 --------
 
-http://www.linux-kvm.org/page/MonitorProtocol
+http://wiki.qemu.org/QMP
