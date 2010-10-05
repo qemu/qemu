@@ -1172,9 +1172,7 @@ static int mmu40x_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
         case 0x1:
         check_perms:
             /* Check from TLB entry */
-            /* XXX: there is a problem here or in the TLB fill code... */
             ctx->prot = tlb->prot;
-            ctx->prot |= PAGE_EXEC;
             ret = check_prot(ctx->prot, rw, access_type);
             if (ret == -2)
                 env->spr[SPR_40x_ESR] = 0;

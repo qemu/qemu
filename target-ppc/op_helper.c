@@ -3929,37 +3929,56 @@ static inline int booke_page_size_to_tlb(target_ulong page_size)
 }
 
 /* Helpers for 4xx TLB management */
-target_ulong helper_4xx_tlbre_lo (target_ulong entry)
-{
-    ppcemb_tlb_t *tlb;
-    target_ulong ret;
-    int size;
+#define PPC4XX_TLB_ENTRY_MASK       0x0000003f  /* Mask for 64 TLB entries */
 
-    entry &= 0x3F;
-    tlb = &env->tlb[entry].tlbe;
-    ret = tlb->EPN;
-    if (tlb->prot & PAGE_VALID)
-        ret |= 0x400;
-    size = booke_page_size_to_tlb(tlb->size);
-    if (size < 0 || size > 0x7)
-        size = 1;
-    ret |= size << 7;
-    env->spr[SPR_40x_PID] = tlb->PID;
-    return ret;
-}
+#define PPC4XX_TLBHI_V              0x00000040
+#define PPC4XX_TLBHI_E              0x00000020
+#define PPC4XX_TLBHI_SIZE_MIN       0
+#define PPC4XX_TLBHI_SIZE_MAX       7
+#define PPC4XX_TLBHI_SIZE_DEFAULT   1
+#define PPC4XX_TLBHI_SIZE_SHIFT     7
+#define PPC4XX_TLBHI_SIZE_MASK      0x00000007
+
+#define PPC4XX_TLBLO_EX             0x00000200
+#define PPC4XX_TLBLO_WR             0x00000100
+#define PPC4XX_TLBLO_ATTR_MASK      0x000000FF
+#define PPC4XX_TLBLO_RPN_MASK       0xFFFFFC00
 
 target_ulong helper_4xx_tlbre_hi (target_ulong entry)
 {
     ppcemb_tlb_t *tlb;
     target_ulong ret;
+    int size;
 
-    entry &= 0x3F;
+    entry &= PPC4XX_TLB_ENTRY_MASK;
+    tlb = &env->tlb[entry].tlbe;
+    ret = tlb->EPN;
+    if (tlb->prot & PAGE_VALID) {
+        ret |= PPC4XX_TLBHI_V;
+    }
+    size = booke_page_size_to_tlb(tlb->size);
+    if (size < PPC4XX_TLBHI_SIZE_MIN || size > PPC4XX_TLBHI_SIZE_MAX) {
+        size = PPC4XX_TLBHI_SIZE_DEFAULT;
+    }
+    ret |= size << PPC4XX_TLBHI_SIZE_SHIFT;
+    env->spr[SPR_40x_PID] = tlb->PID;
+    return ret;
+}
+
+target_ulong helper_4xx_tlbre_lo (target_ulong entry)
+{
+    ppcemb_tlb_t *tlb;
+    target_ulong ret;
+
+    entry &= PPC4XX_TLB_ENTRY_MASK;
     tlb = &env->tlb[entry].tlbe;
     ret = tlb->RPN;
-    if (tlb->prot & PAGE_EXEC)
-        ret |= 0x200;
-    if (tlb->prot & PAGE_WRITE)
-        ret |= 0x100;
+    if (tlb->prot & PAGE_EXEC) {
+        ret |= PPC4XX_TLBLO_EX;
+    }
+    if (tlb->prot & PAGE_WRITE) {
+        ret |= PPC4XX_TLBLO_WR;
+    }
     return ret;
 }
 
@@ -3970,30 +3989,32 @@ void helper_4xx_tlbwe_hi (target_ulong entry, target_ulong val)
 
     LOG_SWTLB("%s entry %d val " TARGET_FMT_lx "\n", __func__, (int)entry,
               val);
-    entry &= 0x3F;
+    entry &= PPC4XX_TLB_ENTRY_MASK;
     tlb = &env->tlb[entry].tlbe;
     /* Invalidate previous TLB (if it's valid) */
     if (tlb->prot & PAGE_VALID) {
         end = tlb->EPN + tlb->size;
         LOG_SWTLB("%s: invalidate old TLB %d start " TARGET_FMT_lx " end "
                   TARGET_FMT_lx "\n", __func__, (int)entry, tlb->EPN, end);
-        for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
+        for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE) {
             tlb_flush_page(env, page);
+        }
     }
-    tlb->size = booke_tlb_to_page_size((val >> 7) & 0x7);
+    tlb->size = booke_tlb_to_page_size((val >> PPC4XX_TLBHI_SIZE_SHIFT)
+                                       & PPC4XX_TLBHI_SIZE_MASK);
     /* We cannot handle TLB size < TARGET_PAGE_SIZE.
      * If this ever occurs, one should use the ppcemb target instead
      * of the ppc or ppc64 one
      */
-    if ((val & 0x40) && tlb->size < TARGET_PAGE_SIZE) {
+    if ((val & PPC4XX_TLBHI_V) && tlb->size < TARGET_PAGE_SIZE) {
         cpu_abort(env, "TLB size " TARGET_FMT_lu " < %u "
                   "are not supported (%d)\n",
                   tlb->size, TARGET_PAGE_SIZE, (int)((val >> 7) & 0x7));
     }
     tlb->EPN = val & ~(tlb->size - 1);
-    if (val & 0x40) {
+    if (val & PPC4XX_TLBHI_V) {
         tlb->prot |= PAGE_VALID;
-        if (val & 0x20) {
+        if (val & PPC4XX_TLBHI_E) {
             /* XXX: TO BE FIXED */
             cpu_abort(env,
                       "Little-endian TLB entries are not supported by now\n");
@@ -4014,8 +4035,9 @@ void helper_4xx_tlbwe_hi (target_ulong entry, target_ulong val)
         end = tlb->EPN + tlb->size;
         LOG_SWTLB("%s: invalidate TLB %d start " TARGET_FMT_lx " end "
                   TARGET_FMT_lx "\n", __func__, (int)entry, tlb->EPN, end);
-        for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
+        for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE) {
             tlb_flush_page(env, page);
+        }
     }
 }
 
@@ -4025,15 +4047,17 @@ void helper_4xx_tlbwe_lo (target_ulong entry, target_ulong val)
 
     LOG_SWTLB("%s entry %i val " TARGET_FMT_lx "\n", __func__, (int)entry,
               val);
-    entry &= 0x3F;
+    entry &= PPC4XX_TLB_ENTRY_MASK;
     tlb = &env->tlb[entry].tlbe;
-    tlb->attr = val & 0xFF;
-    tlb->RPN = val & 0xFFFFFC00;
+    tlb->attr = val & PPC4XX_TLBLO_ATTR_MASK;
+    tlb->RPN = val & PPC4XX_TLBLO_RPN_MASK;
     tlb->prot = PAGE_READ;
-    if (val & 0x200)
+    if (val & PPC4XX_TLBLO_EX) {
         tlb->prot |= PAGE_EXEC;
-    if (val & 0x100)
+    }
+    if (val & PPC4XX_TLBLO_WR) {
         tlb->prot |= PAGE_WRITE;
+    }
     LOG_SWTLB("%s: set up TLB %d RPN " TARGET_FMT_plx " EPN " TARGET_FMT_lx
               " size " TARGET_FMT_lx " prot %c%c%c%c PID %d\n", __func__,
               (int)entry, tlb->RPN, tlb->EPN, tlb->size,
