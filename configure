@@ -174,7 +174,7 @@ fi
 
 # check that the C compiler works.
 cat > $TMPC <<EOF
-int main(void) {}
+int main(void) {return 0;}
 EOF
 
 if compile_object ; then
@@ -257,7 +257,7 @@ case "$cpu" in
   mips|mips64)
     cpu="$cpu"
     if check_define __MIPSEL__ ; then
-      cpu+="el"
+      cpu="${cpu}el"
     fi
   ;;
   parisc|parisc64)
@@ -1146,7 +1146,8 @@ if test "$nptl" != "no" ; then
   cat > $TMPC <<EOF
 #include <sched.h>
 #include <linux/futex.h>
-void foo()
+extern void foo(void);
+void foo(void)
 {
 #if !defined(CLONE_SETTLS) || !defined(FUTEX_WAIT)
 #error bork
@@ -1446,11 +1447,12 @@ fi
 if test "$vde" != "no" ; then
   vde_libs="-lvdeplug"
   cat > $TMPC << EOF
+#include <stddef.h>
 #include <libvdeplug.h>
 int main(void)
 {
     struct vde_open_args a = {0, 0, 0};
-    vde_open("", "", &a);
+    vde_open(NULL, NULL, &a);
     return 0;
 }
 EOF
@@ -1565,6 +1567,7 @@ done
 if test "$brlapi" != "no" ; then
   brlapi_libs="-lbrlapi"
   cat > $TMPC << EOF
+#include <stddef.h>
 #include <brlapi.h>
 int main( void ) { return brlapi__openConnection (NULL, NULL, NULL); }
 EOF
@@ -1590,7 +1593,9 @@ if test "$curses" != "no" ; then
 #ifdef __OpenBSD__
 #define resize_term resizeterm
 #endif
-int main(void) { resize_term(0, 0); return curses_version(); }
+int main(void) {
+  const char *s; resize_term(0, 0); s = curses_version(); (void)s; return 0;
+}
 EOF
   for curses_lib in $curses_list; do
     if compile_prog "" "$curses_lib" ; then
@@ -1621,7 +1626,7 @@ fi
 if test "$curl" != "no" ; then
   cat > $TMPC << EOF
 #include <curl/curl.h>
-int main(void) { return curl_easy_init(); }
+int main(void) { curl_easy_init(); return 0; }
 EOF
   curl_cflags=`$curlconfig --cflags 2>/dev/null`
   curl_libs=`$curlconfig --libs 2>/dev/null`
@@ -1771,7 +1776,8 @@ PTHREADLIBS_LIST="-lpthread -lpthreadGC2"
 pthread=no
 cat > $TMPC << EOF
 #include <pthread.h>
-int main(void) { pthread_create(0,0,0,0); return 0; }
+static void *f(void *p) { return NULL; }
+int main(void) { pthread_t thread; pthread_create(&thread,0,f,0); return 0; }
 EOF
 if compile_prog "" "" ; then
   pthread=yes
@@ -1800,6 +1806,7 @@ fi
 
 if test "$linux_aio" != "no" ; then
   cat > $TMPC <<EOF
+#include <stddef.h>
 #include <libaio.h>
 #include <sys/eventfd.h>
 int main(void) { io_setup(0, NULL); io_set_eventfd(NULL, 0); eventfd(0, 0); return 0; }
@@ -1843,7 +1850,7 @@ cat > $TMPC <<EOF
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
-int main(void) { struct iovec iov; return 0; }
+int main(void) { struct iovec iov; (void)iov; return 0; }
 EOF
 iovec=no
 if compile_prog "" "" ; then
@@ -1856,7 +1863,7 @@ cat > $TMPC <<EOF
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
-int main(void) { preadv; }
+int main(void) { void *p = preadv; (void)p; return 0; }
 EOF
 preadv=no
 if compile_prog "" "" ; then
@@ -1943,7 +1950,6 @@ fi
 utimens=no
 cat > $TMPC << EOF
 #define _ATFILE_SOURCE
-#define _GNU_SOURCE
 #include <stddef.h>
 #include <fcntl.h>
 
@@ -1961,7 +1967,6 @@ fi
 # check if pipe2 is there
 pipe2=no
 cat > $TMPC << EOF
-#define _GNU_SOURCE
 #include <unistd.h>
 #include <fcntl.h>
 
@@ -1979,7 +1984,6 @@ fi
 # check if accept4 is there
 accept4=no
 cat > $TMPC << EOF
-#define _GNU_SOURCE
 #include <sys/socket.h>
 #include <stddef.h>
 
@@ -1996,14 +2000,13 @@ fi
 # check if tee/splice is there. vmsplice was added same time.
 splice=no
 cat > $TMPC << EOF
-#define _GNU_SOURCE
 #include <unistd.h>
 #include <fcntl.h>
 #include <limits.h>
 
 int main(void)
 {
-    int len, fd;
+    int len, fd = 0;
     len = tee(STDIN_FILENO, STDOUT_FILENO, INT_MAX, SPLICE_F_NONBLOCK);
     splice(STDIN_FILENO, NULL, fd, NULL, len, SPLICE_F_MOVE);
     return 0;
@@ -2021,6 +2024,7 @@ cat > $TMPC << EOF
 int main(void)
 {
     int efd = eventfd(0, 0);
+    (void)efd;
     return 0;
 }
 EOF
@@ -2105,7 +2109,8 @@ fi
 cat > $TMPC <<EOF
 #include <signal.h>
 #include <time.h>
-int main(void) { clockid_t id; return clock_gettime(id, NULL); }
+static clockid_t id;
+int main(void) { return clock_gettime(id, NULL); }
 EOF
 
 if compile_prog "" "" ; then
@@ -2188,6 +2193,7 @@ fi
 
 madvise=no
 cat > $TMPC << EOF
+#include <stddef.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 int main(void) { return madvise(NULL, 0, MADV_DONTNEED); }
@@ -2201,6 +2207,7 @@ fi
 
 posix_madvise=no
 cat > $TMPC << EOF
+#include <stddef.h>
 #include <sys/mman.h>
 int main(void) { return posix_madvise(NULL, 0, POSIX_MADV_DONTNEED); }
 EOF
