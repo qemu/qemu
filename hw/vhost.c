@@ -515,12 +515,14 @@ static int vhost_virtqueue_init(struct vhost_dev *dev,
     file.fd = event_notifier_get_fd(virtio_queue_get_host_notifier(vvq));
     r = ioctl(dev->control, VHOST_SET_VRING_KICK, &file);
     if (r) {
+        r = -errno;
         goto fail_kick;
     }
 
     file.fd = event_notifier_get_fd(virtio_queue_get_guest_notifier(vvq));
     r = ioctl(dev->control, VHOST_SET_VRING_CALL, &file);
     if (r) {
+        r = -errno;
         goto fail_call;
     }
 
