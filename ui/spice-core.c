@@ -36,6 +36,8 @@
 
 static SpiceServer *spice_server;
 static const char *auth = "spice";
+static char *auth_passwd;
+static time_t auth_expires = TIME_MAX;
 int using_spice = 0;
 
 struct SpiceTimer {
@@ -597,6 +599,39 @@ int qemu_spice_add_interface(SpiceBaseInstance *sin)
         spice_server_init(spice_server, &core_interface);
     }
     return spice_server_add_interface(spice_server, sin);
+}
+
+static int qemu_spice_set_ticket(bool fail_if_conn, bool disconnect_if_conn)
+{
+    time_t lifetime, now = time(NULL);
+    char *passwd;
+
+    if (now < auth_expires) {
+        passwd = auth_passwd;
+        lifetime = (auth_expires - now);
+        if (lifetime > INT_MAX) {
+            lifetime = INT_MAX;
+        }
+    } else {
+        passwd = NULL;
+        lifetime = 1;
+    }
+    return spice_server_set_ticket(spice_server, passwd, lifetime,
+                                   fail_if_conn, disconnect_if_conn);
+}
+
+int qemu_spice_set_passwd(const char *passwd,
+                          bool fail_if_conn, bool disconnect_if_conn)
+{
+    free(auth_passwd);
+    auth_passwd = strdup(passwd);
+    return qemu_spice_set_ticket(fail_if_conn, disconnect_if_conn);
+}
+
+int qemu_spice_set_pw_expire(time_t expires)
+{
+    auth_expires = expires;
+    return qemu_spice_set_ticket(false, false);
 }
 
 static void spice_register_config(void)

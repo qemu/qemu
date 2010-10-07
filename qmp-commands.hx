@@ -738,6 +738,63 @@ Example:
 EQMP
 
     {
+        .name       = "set_password",
+        .args_type  = "protocol:s,password:s,connected:s?",
+        .params     = "protocol password action-if-connected",
+        .help       = "set spice/vnc password",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = set_password,
+    },
+
+SQMP
+set_password
+------------
+
+Set the password for vnc/spice protocols.
+
+Arguments:
+
+- "protocol": protocol name (json-string)
+- "password": password (json-string)
+- "connected": [ keep | disconnect | fail ] (josn-string, optional)
+
+Example:
+
+-> { "execute": "set_password", "arguments": { "protocol": "vnc",
+                                               "password": "secret" } }
+<- { "return": {} }
+
+EQMP
+
+    {
+        .name       = "expire_password",
+        .args_type  = "protocol:s,time:s",
+        .params     = "protocol time",
+        .help       = "set spice/vnc password expire-time",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = expire_password,
+    },
+
+SQMP
+expire_password
+---------------
+
+Set the password expire time for vnc/spice protocols.
+
+Arguments:
+
+- "protocol": protocol name (json-string)
+- "time": [ now | never | +secs | secs ] (json-string)
+
+Example:
+
+-> { "execute": "expire_password", "arguments": { "protocol": "vnc",
+                                                  "time": "+60" } }
+<- { "return": {} }
+
+EQMP
+
+    {
         .name       = "qmp_capabilities",
         .args_type  = "",
         .params     = "",
