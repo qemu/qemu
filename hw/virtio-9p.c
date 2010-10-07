@@ -321,6 +321,14 @@ static int number_to_string(void *arg, char type)
         } while (num);
         break;
     }
+    case 'U': {
+        unsigned long num = *(unsigned long *)arg;
+        do {
+            ret++;
+            num = num/10;
+        } while (num);
+        break;
+    }
     default:
         printf("Number_to_string: Unknown number format\n");
         return -1;
@@ -338,6 +346,7 @@ v9fs_string_alloc_printf(char **strp, const char *fmt, va_list ap)
     int nr_args = 0;
     char *arg_char_ptr;
     unsigned int arg_uint;
+    unsigned long arg_ulong;
 
     /* Find the number of %'s that denotes an argument */
     for (iter = strstr(iter, "%"); iter; iter = strstr(iter, "%")) {
@@ -362,6 +371,14 @@ v9fs_string_alloc_printf(char **strp, const char *fmt, va_list ap)
         case 'u':
             arg_uint = va_arg(ap2, unsigned int);
             len += number_to_string((void *)&arg_uint, 'u');
+            break;
+        case 'l':
+            if (*++iter == 'u') {
+                arg_ulong = va_arg(ap2, unsigned long);
+                len += number_to_string((void *)&arg_ulong, 'U');
+            } else {
+                return -1;
+            }
             break;
         case 's':
             arg_char_ptr = va_arg(ap2, char *);
