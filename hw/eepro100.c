@@ -1399,8 +1399,9 @@ static void eepro100_write_port(EEPRO100State * s, uint32_t val)
 
 static uint8_t eepro100_read1(EEPRO100State * s, uint32_t addr)
 {
-    uint8_t val;
-    if (addr <= sizeof(s->mem) - sizeof(val)) {
+    uint8_t val = 0;
+    assert(addr + sizeof(val) <= sizeof(s->mem));
+    if (addr + sizeof(val) <= sizeof(s->mem)) {
         memcpy(&val, &s->mem[addr], sizeof(val));
     }
 
@@ -1445,8 +1446,9 @@ static uint8_t eepro100_read1(EEPRO100State * s, uint32_t addr)
 
 static uint16_t eepro100_read2(EEPRO100State * s, uint32_t addr)
 {
-    uint16_t val;
-    if (addr <= sizeof(s->mem) - sizeof(val)) {
+    uint16_t val = 0;
+    assert(addr + sizeof(val) <= sizeof(s->mem));
+    if (addr + sizeof(val) <= sizeof(s->mem)) {
         memcpy(&val, &s->mem[addr], sizeof(val));
     }
     val = le16_to_cpu(val);
@@ -1471,7 +1473,8 @@ static uint16_t eepro100_read2(EEPRO100State * s, uint32_t addr)
 static uint32_t eepro100_read4(EEPRO100State * s, uint32_t addr)
 {
     uint32_t val = 0;
-    if (addr <= sizeof(s->mem) - sizeof(val)) {
+    assert(addr + sizeof(val) <= sizeof(s->mem));
+    if (addr + sizeof(val) <= sizeof(s->mem)) {
         memcpy(&val, &s->mem[addr], sizeof(val));
     }
     val = le32_to_cpu(val);
@@ -1506,8 +1509,9 @@ static uint32_t eepro100_read4(EEPRO100State * s, uint32_t addr)
 
 static void eepro100_write1(EEPRO100State * s, uint32_t addr, uint8_t val)
 {
+    assert(addr + sizeof(val) <= sizeof(s->mem));
     /* SCBStatus is readonly. */
-    if (addr > SCBStatus && addr <= sizeof(s->mem) - sizeof(val)) {
+    if (addr > SCBStatus && addr + sizeof(val) <= sizeof(s->mem)) {
         memcpy(&s->mem[addr], &val, sizeof(val));
     }
 
@@ -1549,8 +1553,9 @@ static void eepro100_write2(EEPRO100State * s, uint32_t addr, uint16_t val)
 #if defined(TARGET_WORDS_BIGENDIAN)
     bswap16s(&val);
 #endif
+    assert(addr + sizeof(val) <= sizeof(s->mem));
     /* SCBStatus is readonly. */
-    if (addr > SCBStatus && addr <= sizeof(s->mem) - sizeof(val)) {
+    if (addr > SCBStatus && addr + sizeof(val) <= sizeof(s->mem)) {
         memcpy(&s->mem[addr], &val, sizeof(val));
     }
 
@@ -1579,7 +1584,8 @@ static void eepro100_write4(EEPRO100State * s, uint32_t addr, uint32_t val)
 #if defined(TARGET_WORDS_BIGENDIAN)
     bswap32s(&val);
 #endif
-    if (addr <= sizeof(s->mem) - sizeof(val)) {
+    assert(addr + sizeof(val) <= sizeof(s->mem));
+    if (addr + sizeof(val) <= sizeof(s->mem)) {
         memcpy(&s->mem[addr], &val, sizeof(val));
     }
 
