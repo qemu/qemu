@@ -50,6 +50,9 @@ typedef struct DeviceState DeviceState;
 #if !defined(ENOTSUP)
 #define ENOTSUP 4096
 #endif
+#ifndef TIME_MAX
+#define TIME_MAX LONG_MAX
+#endif
 
 #ifndef CONFIG_IOVEC
 #define CONFIG_IOVEC

@@ -2082,9 +2082,14 @@ static int protocol_client_auth_vnc(VncState *vs, uint8_t *data, size_t len)
     unsigned char response[VNC_AUTH_CHALLENGE_SIZE];
     int i, j, pwlen;
     unsigned char key[8];
+    time_t now = time(NULL);
 
     if (!vs->vd->password || !vs->vd->password[0]) {
         VNC_DEBUG("No password configured on server");
+        goto reject;
+    }
+    if (vs->vd->expires < now) {
+        VNC_DEBUG("Password is expired");
         goto reject;
     }
 
@@ -2432,6 +2437,7 @@ void vnc_display_init(DisplayState *ds)
 
     vs->ds = ds;
     QTAILQ_INIT(&vs->clients);
+    vs->expires = TIME_MAX;
 
     if (keyboard_layout)
         vs->kbd_layout = init_keyboard_layout(name2keysym, keyboard_layout);
@@ -2500,6 +2506,14 @@ int vnc_display_password(DisplayState *ds, const char *password)
         vs->auth = VNC_AUTH_NONE;
     }
 
+    return 0;
+}
+
+int vnc_display_pw_expire(DisplayState *ds, time_t expires)
+{
+    VncDisplay *vs = ds ? (VncDisplay *)ds->opaque : vnc_display;
+
+    vs->expires = expires;
     return 0;
 }
 
