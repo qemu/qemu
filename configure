@@ -2092,7 +2092,7 @@ int main(void) { spice_server_new(); return 0; }
 EOF
   spice_cflags=$($pkgconfig --cflags spice-protocol spice-server 2>/dev/null)
   spice_libs=$($pkgconfig --libs spice-protocol spice-server 2>/dev/null)
-  if $pkgconfig --atleast-version=0.5.3 spice-server &&\
+  if $pkgconfig --atleast-version=0.5.3 spice-server >/dev/null 2>&1 && \
      compile_prog "$spice_cflags" "$spice_libs" ; then
     spice="yes"
     libs_softmmu="$libs_softmmu $spice_libs"
