@@ -164,7 +164,9 @@ void helper_movl_sreg_reg (uint32_t sreg, uint32_t reg)
 
 			D_LOG("tlb flush vaddr=%x v=%d pc=%x\n", 
 				  vaddr, tlb_v, env->pc);
-			tlb_flush_page(env, vaddr);
+			if (tlb_v) {
+				tlb_flush_page(env, vaddr);
+			}
 		}
 	}
 #endif
