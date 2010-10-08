@@ -240,6 +240,9 @@ static QEMUTimer *nographic_timer;
 
 uint8_t qemu_uuid[16];
 
+/* Trace unassigned memory or i/o accesses. */
+bool trace_unassigned;
+
 static QEMUBootSetHandler *boot_set_handler;
 static void *boot_set_opaque;
 
@@ -2656,6 +2659,9 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
 #endif
+            case QEMU_OPTION_trace_unassigned:
+                trace_unassigned = true;
+                break;
             case QEMU_OPTION_readconfig:
                 {
                     int ret = qemu_read_config_file(optarg);

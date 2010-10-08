@@ -59,6 +59,9 @@ typedef struct DeviceState DeviceState;
 #define KiB     1024
 #define MiB     (KiB * KiB)
 
+/* Trace unassigned memory or i/o accesses. */
+extern bool trace_unassigned;
+
 #ifndef CONFIG_IOVEC
 #define CONFIG_IOVEC
 struct iovec {

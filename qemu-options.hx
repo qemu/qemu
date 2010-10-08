@@ -2252,17 +2252,30 @@ Normally QEMU loads a configuration file from @var{sysconfdir}/qemu.conf and
 @var{sysconfdir}/target-@var{ARCH}.conf on startup.  The @code{-nodefconfig}
 option will prevent QEMU from loading these configuration files at startup.
 ETEXI
+
+DEF("trace-unassigned", 0, QEMU_OPTION_trace_unassigned,
+    "-trace-unassigned\n"
+    "                Trace unassigned memory or i/o accesses\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -trace-unassigned
+@findex -trace-unassigned
+Trace unassigned memory or i/o accesses to stderr.
+ETEXI
+
 #ifdef CONFIG_SIMPLE_TRACE
 DEF("trace", HAS_ARG, QEMU_OPTION_trace,
     "-trace\n"
     "                Specify a trace file to log traces to\n",
     QEMU_ARCH_ALL)
+#endif
 STEXI
 @item -trace
-@findex -trace
-Specify a trace file to log output traces to.
+@findex -trace @var{file}
+Specify a trace @var{file} to log output traces to.
+@option{-trace} is only available if qemu was configured
+with @code{--trace-backend=simple}.
 ETEXI
-#endif
 
 HXCOMM This is the last statement. Insert new options before this line!
 STEXI

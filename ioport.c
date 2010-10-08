@@ -31,14 +31,14 @@
 /***********************************************************/
 /* IO Port */
 
-//#define DEBUG_UNUSED_IOPORT
 //#define DEBUG_IOPORT
 
-#ifdef DEBUG_UNUSED_IOPORT
-#  define LOG_UNUSED_IOPORT(fmt, ...) fprintf(stderr, fmt, ## __VA_ARGS__)
-#else
-#  define LOG_UNUSED_IOPORT(fmt, ...) do{ } while (0)
-#endif
+#define LOG_UNUSED_IOPORT(fmt, ...) \
+    do { \
+        if (trace_unassigned) { \
+            fprintf(stderr, fmt, ## __VA_ARGS__); \
+        } \
+    } while (0)
 
 #ifdef DEBUG_IOPORT
 #  define LOG_IOPORT(...) qemu_log_mask(CPU_LOG_IOPORT, ## __VA_ARGS__)
