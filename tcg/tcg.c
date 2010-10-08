@@ -1027,7 +1027,7 @@ void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs)
         if (tdefs->op == (TCGOpcode)-1)
             break;
         op = tdefs->op;
-        assert(op >= 0 && op < NB_OPS);
+        assert((unsigned)op < NB_OPS);
         def = &tcg_op_defs[op];
 #if defined(CONFIG_DEBUG_TCG)
         /* Duplicate entry in op definitions? */
