@@ -80,9 +80,8 @@ typedef struct FileOperations
     off_t (*telldir)(FsContext *, DIR *);
     struct dirent *(*readdir)(FsContext *, DIR *);
     void (*seekdir)(FsContext *, DIR *, off_t);
-    ssize_t (*readv)(FsContext *, int, const struct iovec *, int);
-    ssize_t (*writev)(FsContext *, int, const struct iovec *, int);
-    off_t (*lseek)(FsContext *, int, off_t, int);
+    ssize_t (*preadv)(FsContext *, int, const struct iovec *, int, off_t);
+    ssize_t (*pwritev)(FsContext *, int, const struct iovec *, int, off_t);
     int (*mkdir)(FsContext *, const char *, FsCred *);
     int (*fstat)(FsContext *, int, struct stat *);
     int (*rename)(FsContext *, const char *, const char *);

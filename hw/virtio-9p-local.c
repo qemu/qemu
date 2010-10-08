@@ -168,21 +168,34 @@ static void local_seekdir(FsContext *ctx, DIR *dir, off_t off)
     return seekdir(dir, off);
 }
 
-static ssize_t local_readv(FsContext *ctx, int fd, const struct iovec *iov,
-                            int iovcnt)
+static ssize_t local_preadv(FsContext *ctx, int fd, const struct iovec *iov,
+                            int iovcnt, off_t offset)
 {
-    return readv(fd, iov, iovcnt);
+#ifdef CONFIG_PREADV
+    return preadv(fd, iov, iovcnt, offset);
+#else
+    int err = lseek(fd, offset, SEEK_SET);
+    if (err == -1) {
+        return err;
+    } else {
+        return readv(fd, iov, iovcnt);
+    }
+#endif
 }
 
-static off_t local_lseek(FsContext *ctx, int fd, off_t offset, int whence)
+static ssize_t local_pwritev(FsContext *ctx, int fd, const struct iovec *iov,
+                            int iovcnt, off_t offset)
 {
-    return lseek(fd, offset, whence);
-}
-
-static ssize_t local_writev(FsContext *ctx, int fd, const struct iovec *iov,
-                            int iovcnt)
-{
-    return writev(fd, iov, iovcnt);
+#ifdef CONFIG_PREADV
+    return pwritev(fd, iov, iovcnt, offset);
+#else
+    int err = lseek(fd, offset, SEEK_SET);
+    if (err == -1) {
+        return err;
+    } else {
+        return writev(fd, iov, iovcnt);
+    }
+#endif
 }
 
 static int local_chmod(FsContext *fs_ctx, const char *path, FsCred *credp)
@@ -523,9 +536,8 @@ FileOperations local_ops = {
     .telldir = local_telldir,
     .readdir = local_readdir,
     .seekdir = local_seekdir,
-    .readv = local_readv,
-    .lseek = local_lseek,
-    .writev = local_writev,
+    .preadv = local_preadv,
+    .pwritev = local_pwritev,
     .chmod = local_chmod,
     .mknod = local_mknod,
     .mkdir = local_mkdir,

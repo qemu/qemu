@@ -135,21 +135,16 @@ static void v9fs_do_seekdir(V9fsState *s, DIR *dir, off_t off)
     return s->ops->seekdir(&s->ctx, dir, off);
 }
 
-static int v9fs_do_readv(V9fsState *s, int fd, const struct iovec *iov,
-                            int iovcnt)
+static int v9fs_do_preadv(V9fsState *s, int fd, const struct iovec *iov,
+                            int iovcnt, int64_t offset)
 {
-    return s->ops->readv(&s->ctx, fd, iov, iovcnt);
+    return s->ops->preadv(&s->ctx, fd, iov, iovcnt, offset);
 }
 
-static off_t v9fs_do_lseek(V9fsState *s, int fd, off_t offset, int whence)
+static int v9fs_do_pwritev(V9fsState *s, int fd, const struct iovec *iov,
+                       int iovcnt, int64_t offset)
 {
-    return s->ops->lseek(&s->ctx, fd, offset, whence);
-}
-
-static int v9fs_do_writev(V9fsState *s, int fd, const struct iovec *iov,
-                       int iovcnt)
-{
-    return s->ops->writev(&s->ctx, fd, iov, iovcnt);
+    return s->ops->pwritev(&s->ctx, fd, iov, iovcnt, offset);
 }
 
 static int v9fs_do_chmod(V9fsState *s, V9fsString *path, mode_t mode)
@@ -1975,7 +1970,7 @@ static void v9fs_read_post_rewinddir(V9fsState *s, V9fsReadState *vs,
     return;
 }
 
-static void v9fs_read_post_readv(V9fsState *s, V9fsReadState *vs, ssize_t err)
+static void v9fs_read_post_preadv(V9fsState *s, V9fsReadState *vs, ssize_t err)
 {
     if (err  < 0) {
         /* IO error return the error */
@@ -1989,44 +1984,22 @@ static void v9fs_read_post_readv(V9fsState *s, V9fsReadState *vs, ssize_t err)
             if (0) {
                 print_sg(vs->sg, vs->cnt);
             }
-            vs->len = v9fs_do_readv(s, vs->fidp->fs.fd, vs->sg, vs->cnt);
+            vs->len = v9fs_do_preadv(s, vs->fidp->fs.fd, vs->sg, vs->cnt,
+                      vs->off);
+            if (vs->len > 0) {
+                vs->off += vs->len;
+            }
         } while (vs->len == -1 && errno == EINTR);
         if (vs->len == -1) {
             err  = -errno;
         }
-        v9fs_read_post_readv(s, vs, err);
+        v9fs_read_post_preadv(s, vs, err);
         return;
     }
     vs->offset += pdu_marshal(vs->pdu, vs->offset, "d", vs->total);
     vs->offset += vs->count;
     err = vs->offset;
 
-out:
-    complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
-}
-
-static void v9fs_read_post_lseek(V9fsState *s, V9fsReadState *vs, ssize_t err)
-{
-    if (err == -1) {
-        err = -errno;
-        goto out;
-    }
-    vs->sg = cap_sg(vs->sg, vs->count, &vs->cnt);
-
-    if (vs->total < vs->count) {
-        do {
-            if (0) {
-                print_sg(vs->sg, vs->cnt);
-            }
-            vs->len = v9fs_do_readv(s, vs->fidp->fs.fd, vs->sg, vs->cnt);
-        } while (vs->len == -1 && errno == EINTR);
-        if (vs->len == -1) {
-            err  = -errno;
-        }
-        v9fs_read_post_readv(s, vs, err);
-        return;
-    }
 out:
     complete_pdu(s, vs->pdu, err);
     qemu_free(vs);
@@ -2089,8 +2062,16 @@ static void v9fs_read(V9fsState *s, V9fsPDU *pdu)
     } else if (vs->fidp->fid_type == P9_FID_FILE) {
         vs->sg = vs->iov;
         pdu_marshal(vs->pdu, vs->offset + 4, "v", vs->sg, &vs->cnt);
-        err = v9fs_do_lseek(s, vs->fidp->fs.fd, vs->off, SEEK_SET);
-        v9fs_read_post_lseek(s, vs, err);
+        vs->sg = cap_sg(vs->sg, vs->count, &vs->cnt);
+        if (vs->total <= vs->count) {
+            vs->len = v9fs_do_preadv(s, vs->fidp->fs.fd, vs->sg, vs->cnt,
+                                    vs->off);
+            if (vs->len > 0) {
+                vs->off += vs->len;
+            }
+            err = vs->len;
+            v9fs_read_post_preadv(s, vs, err);
+        }
         return;
     } else if (vs->fidp->fid_type == P9_FID_XATTR) {
         v9fs_xattr_read(s, vs);
@@ -2224,7 +2205,7 @@ out:
     return;
 }
 
-static void v9fs_write_post_writev(V9fsState *s, V9fsWriteState *vs,
+static void v9fs_write_post_pwritev(V9fsState *s, V9fsWriteState *vs,
                                    ssize_t err)
 {
     if (err  < 0) {
@@ -2239,44 +2220,20 @@ static void v9fs_write_post_writev(V9fsState *s, V9fsWriteState *vs,
             if (0) {
                 print_sg(vs->sg, vs->cnt);
             }
-            vs->len =  v9fs_do_writev(s, vs->fidp->fs.fd, vs->sg, vs->cnt);
+            vs->len = v9fs_do_pwritev(s, vs->fidp->fs.fd, vs->sg, vs->cnt,
+                      vs->off);
+            if (vs->len > 0) {
+                vs->off += vs->len;
+            }
         } while (vs->len == -1 && errno == EINTR);
         if (vs->len == -1) {
             err  = -errno;
         }
-        v9fs_write_post_writev(s, vs, err);
+        v9fs_write_post_pwritev(s, vs, err);
         return;
     }
     vs->offset += pdu_marshal(vs->pdu, vs->offset, "d", vs->total);
-
     err = vs->offset;
-out:
-    complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
-}
-
-static void v9fs_write_post_lseek(V9fsState *s, V9fsWriteState *vs, ssize_t err)
-{
-    if (err == -1) {
-        err = -errno;
-        goto out;
-    }
-    vs->sg = cap_sg(vs->sg, vs->count, &vs->cnt);
-
-    if (vs->total < vs->count) {
-        do {
-            if (0) {
-                print_sg(vs->sg, vs->cnt);
-            }
-            vs->len = v9fs_do_writev(s, vs->fidp->fs.fd, vs->sg, vs->cnt);
-        } while (vs->len == -1 && errno == EINTR);
-        if (vs->len == -1) {
-            err  = -errno;
-        }
-        v9fs_write_post_writev(s, vs, err);
-        return;
-    }
-
 out:
     complete_pdu(s, vs->pdu, err);
     qemu_free(vs);
@@ -2362,11 +2319,16 @@ static void v9fs_write(V9fsState *s, V9fsPDU *pdu)
         err = -EINVAL;
         goto out;
     }
-    err = v9fs_do_lseek(s, vs->fidp->fs.fd, vs->off, SEEK_SET);
-
-    v9fs_write_post_lseek(s, vs, err);
+    vs->sg = cap_sg(vs->sg, vs->count, &vs->cnt);
+    if (vs->total <= vs->count) {
+        vs->len = v9fs_do_pwritev(s, vs->fidp->fs.fd, vs->sg, vs->cnt, vs->off);
+        if (vs->len > 0) {
+            vs->off += vs->len;
+        }
+        err = vs->len;
+        v9fs_write_post_pwritev(s, vs, err);
+    }
     return;
-
 out:
     complete_pdu(s, vs->pdu, err);
     qemu_free(vs);
