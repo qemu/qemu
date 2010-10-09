@@ -313,6 +313,7 @@ obj-arm-y += s3c24xx_memc.o s3c24xx_irq.o s3c24xx_clkcon.o s3c24xx_timers.o
 obj-arm-y += s3c24xx_serial.o s3c24xx_rtc.o s3c24xx_gpio.o s3c24xx_iic.o
 obj-arm-y += s3c24xx_lcd.o s3c24xx_nand.o
 obj-arm-y += s3c2410x.o s3c2440.o
+obj-arm-y += a9m2410.o
 obj-arm-y += bast.o
 obj-arm-y += smdk2410.o
 obj-arm-y += dm9000.o
