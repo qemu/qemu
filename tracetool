@@ -250,7 +250,7 @@ linetoh_ust()
     argnames=$(get_argnames "$1")
 
     cat <<EOF
-DECLARE_TRACE(ust_$name, TPPROTO($args), TPARGS($argnames));
+DECLARE_TRACE(ust_$name, TP_PROTO($args), TP_ARGS($argnames));
 #define trace_$name trace_ust_$name
 EOF
 }
@@ -318,8 +318,7 @@ convert()
 
     while read -r str; do
         # Skip comments and empty lines
-        str=${str%%#*}
-        test -z "$str" && continue
+        test -z "${str%%#*}" && continue
 
         # Process the line.  The nop backend handles disabled lines.
         disable=${str%%disable *}

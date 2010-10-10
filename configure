@@ -1383,6 +1383,7 @@ if test "$vnc_png" != "no" ; then
 cat > $TMPC <<EOF
 //#include <stdio.h>
 #include <png.h>
+#include <stddef.h>
 int main(void) {
     png_structp png_ptr;
     png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
@@ -1569,6 +1570,7 @@ if test "$brlapi" != "no" ; then
   cat > $TMPC << EOF
 #include <stddef.h>
 #include <brlapi.h>
+#include <stddef.h>
 int main( void ) { return brlapi__openConnection (NULL, NULL, NULL); }
 EOF
   if compile_prog "" "$brlapi_libs" ; then
@@ -1809,6 +1811,7 @@ if test "$linux_aio" != "no" ; then
 #include <stddef.h>
 #include <libaio.h>
 #include <sys/eventfd.h>
+#include <stddef.h>
 int main(void) { io_setup(0, NULL); io_set_eventfd(NULL, 0); eventfd(0, 0); return 0; }
 EOF
   if compile_prog "" "-laio" ; then
@@ -2161,7 +2164,7 @@ int main(void) { spice_server_new(); return 0; }
 EOF
   spice_cflags=$($pkgconfig --cflags spice-protocol spice-server 2>/dev/null)
   spice_libs=$($pkgconfig --libs spice-protocol spice-server 2>/dev/null)
-  if $pkgconfig --atleast-version=0.5.3 spice-server &&\
+  if $pkgconfig --atleast-version=0.5.3 spice-server >/dev/null 2>&1 && \
      compile_prog "$spice_cflags" "$spice_libs" ; then
     spice="yes"
     libs_softmmu="$libs_softmmu $spice_libs"
@@ -2196,6 +2199,7 @@ cat > $TMPC << EOF
 #include <stddef.h>
 #include <sys/types.h>
 #include <sys/mman.h>
+#include <stddef.h>
 int main(void) { return madvise(NULL, 0, MADV_DONTNEED); }
 EOF
 if compile_prog "" "" ; then
@@ -2209,6 +2213,7 @@ posix_madvise=no
 cat > $TMPC << EOF
 #include <stddef.h>
 #include <sys/mman.h>
+#include <stddef.h>
 int main(void) { return posix_madvise(NULL, 0, POSIX_MADV_DONTNEED); }
 EOF
 if compile_prog "" "" ; then

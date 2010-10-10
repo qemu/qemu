@@ -51,14 +51,16 @@ disable multiwrite_cb(void *mcb, int ret) "mcb %p ret %d"
 disable bdrv_aio_multiwrite(void *mcb, int num_callbacks, int num_reqs) "mcb %p num_callbacks %d num_reqs %d"
 disable bdrv_aio_multiwrite_earlyfail(void *mcb) "mcb %p"
 disable bdrv_aio_multiwrite_latefail(void *mcb, int i) "mcb %p i %d"
+disable bdrv_aio_readv(void *bs, int64_t sector_num, int nb_sectors, void *opaque) "bs %p sector_num %"PRId64" nb_sectors %d opaque %p"
+disable bdrv_aio_writev(void *bs, int64_t sector_num, int nb_sectors, void *opaque) "bs %p sector_num %"PRId64" nb_sectors %d opaque %p"
 
 # hw/virtio-blk.c
 disable virtio_blk_req_complete(void *req, int status) "req %p status %d"
 disable virtio_blk_rw_complete(void *req, int ret) "req %p ret %d"
-disable virtio_blk_handle_write(void *req, unsigned long sector, unsigned long nsectors) "req %p sector %lu nsectors %lu"
+disable virtio_blk_handle_write(void *req, uint64_t sector, size_t nsectors) "req %p sector %"PRIu64" nsectors %zu"
 
 # posix-aio-compat.c
-disable paio_submit(void *acb, void *opaque, unsigned long sector_num, unsigned long nb_sectors, unsigned long type) "acb %p opaque %p sector_num %lu nb_sectors %lu type %lu"
+disable paio_submit(void *acb, void *opaque, int64_t sector_num, int nb_sectors, int type) "acb %p opaque %p sector_num %"PRId64" nb_sectors %d type %d"
 
 # ioport.c
 disable cpu_in(unsigned int addr, unsigned int val) "addr %#x value %u"

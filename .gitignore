@@ -4,6 +4,7 @@ config-host.*
 config-target.*
 trace.h
 trace.c
+*-timestamp
 *-softmmu
 *-darwin-user
 *-linux-user

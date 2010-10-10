@@ -221,6 +221,12 @@ char *os_find_datadir(const char *argv0)
     return NULL;
 }
 
+void os_set_line_buffering(void)
+{
+    setbuf(stdout, NULL);
+    setbuf(stderr, NULL);
+}
+
 /*
  * Parse OS specific command line options.
  * return 0 if option handled, -1 otherwise
