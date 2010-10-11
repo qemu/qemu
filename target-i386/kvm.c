@@ -27,6 +27,7 @@
 #include "hw/pc.h"
 #include "hw/apic.h"
 #include "ioport.h"
+#include "kvm_x86.h"
 
 #ifdef CONFIG_KVM_PARA
 #include <linux/kvm_para.h>
@@ -167,6 +168,67 @@ static int get_para_features(CPUState *env)
 }
 #endif
 
+#ifdef KVM_CAP_MCE
+static int kvm_get_mce_cap_supported(KVMState *s, uint64_t *mce_cap,
+                                     int *max_banks)
+{
+    int r;
+
+    r = kvm_ioctl(s, KVM_CHECK_EXTENSION, KVM_CAP_MCE);
+    if (r > 0) {
+        *max_banks = r;
+        return kvm_ioctl(s, KVM_X86_GET_MCE_CAP_SUPPORTED, mce_cap);
+    }
+    return -ENOSYS;
+}
+
+static int kvm_setup_mce(CPUState *env, uint64_t *mcg_cap)
+{
+    return kvm_vcpu_ioctl(env, KVM_X86_SETUP_MCE, mcg_cap);
+}
+
+static int kvm_set_mce(CPUState *env, struct kvm_x86_mce *m)
+{
+    return kvm_vcpu_ioctl(env, KVM_X86_SET_MCE, m);
+}
+
+struct kvm_x86_mce_data
+{
+    CPUState *env;
+    struct kvm_x86_mce *mce;
+};
+
+static void kvm_do_inject_x86_mce(void *_data)
+{
+    struct kvm_x86_mce_data *data = _data;
+    int r;
+
+    r = kvm_set_mce(data->env, data->mce);
+    if (r < 0)
+        perror("kvm_set_mce FAILED");
+}
+#endif
+
+void kvm_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
+                        uint64_t mcg_status, uint64_t addr, uint64_t misc)
+{
+#ifdef KVM_CAP_MCE
+    struct kvm_x86_mce mce = {
+        .bank = bank,
+        .status = status,
+        .mcg_status = mcg_status,
+        .addr = addr,
+        .misc = misc,
+    };
+    struct kvm_x86_mce_data data = {
+            .env = cenv,
+            .mce = &mce,
+    };
+
+    run_on_cpu(cenv, kvm_do_inject_x86_mce, &data);
+#endif
+}
+
 int kvm_arch_init_vcpu(CPUState *env)
 {
     struct {
@@ -276,6 +338,28 @@ int kvm_arch_init_vcpu(CPUState *env)
     }
 
     cpuid_data.cpuid.nent = cpuid_i;
+
+#ifdef KVM_CAP_MCE
+    if (((env->cpuid_version >> 8)&0xF) >= 6
+        && (env->cpuid_features&(CPUID_MCE|CPUID_MCA)) == (CPUID_MCE|CPUID_MCA)
+        && kvm_check_extension(env->kvm_state, KVM_CAP_MCE) > 0) {
+        uint64_t mcg_cap;
+        int banks;
+
+        if (kvm_get_mce_cap_supported(env->kvm_state, &mcg_cap, &banks))
+            perror("kvm_get_mce_cap_supported FAILED");
+        else {
+            if (banks > MCE_BANKS_DEF)
+                banks = MCE_BANKS_DEF;
+            mcg_cap &= MCE_CAP_DEF;
+            mcg_cap |= banks;
+            if (kvm_setup_mce(env, &mcg_cap))
+                perror("kvm_setup_mce FAILED");
+            else
+                env->mcg_cap = mcg_cap;
+        }
+    }
+#endif
 
     return kvm_vcpu_ioctl(env, KVM_SET_CPUID2, &cpuid_data);
 }
