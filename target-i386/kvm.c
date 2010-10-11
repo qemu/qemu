@@ -777,7 +777,7 @@ static int kvm_put_msrs(CPUState *env, int level)
         struct kvm_msr_entry entries[100];
     } msr_data;
     struct kvm_msr_entry *msrs = msr_data.entries;
-    int n = 0;
+    int i, n = 0;
 
     kvm_msr_entry_set(&msrs[n++], MSR_IA32_SYSENTER_CS, env->sysenter_cs);
     kvm_msr_entry_set(&msrs[n++], MSR_IA32_SYSENTER_ESP, env->sysenter_esp);
@@ -797,6 +797,18 @@ static int kvm_put_msrs(CPUState *env, int level)
                           env->system_time_msr);
         kvm_msr_entry_set(&msrs[n++], MSR_KVM_WALL_CLOCK, env->wall_clock_msr);
     }
+#ifdef KVM_CAP_MCE
+    if (env->mcg_cap) {
+        if (level == KVM_PUT_RESET_STATE)
+            kvm_msr_entry_set(&msrs[n++], MSR_MCG_STATUS, env->mcg_status);
+        else if (level == KVM_PUT_FULL_STATE) {
+            kvm_msr_entry_set(&msrs[n++], MSR_MCG_STATUS, env->mcg_status);
+            kvm_msr_entry_set(&msrs[n++], MSR_MCG_CTL, env->mcg_ctl);
+            for (i = 0; i < (env->mcg_cap & 0xff) * 4; i++)
+                kvm_msr_entry_set(&msrs[n++], MSR_MC0_CTL + i, env->mce_banks[i]);
+        }
+    }
+#endif
 
     msr_data.info.nmsrs = n;
 
@@ -1004,6 +1016,15 @@ static int kvm_get_msrs(CPUState *env)
     msrs[n++].index = MSR_KVM_SYSTEM_TIME;
     msrs[n++].index = MSR_KVM_WALL_CLOCK;
 
+#ifdef KVM_CAP_MCE
+    if (env->mcg_cap) {
+        msrs[n++].index = MSR_MCG_STATUS;
+        msrs[n++].index = MSR_MCG_CTL;
+        for (i = 0; i < (env->mcg_cap & 0xff) * 4; i++)
+            msrs[n++].index = MSR_MC0_CTL + i;
+    }
+#endif
+
     msr_data.info.nmsrs = n;
     ret = kvm_vcpu_ioctl(env, KVM_GET_MSRS, &msr_data);
     if (ret < 0)
@@ -1046,6 +1067,22 @@ static int kvm_get_msrs(CPUState *env)
         case MSR_KVM_WALL_CLOCK:
             env->wall_clock_msr = msrs[i].data;
             break;
+#ifdef KVM_CAP_MCE
+        case MSR_MCG_STATUS:
+            env->mcg_status = msrs[i].data;
+            break;
+        case MSR_MCG_CTL:
+            env->mcg_ctl = msrs[i].data;
+            break;
+#endif
+        default:
+#ifdef KVM_CAP_MCE
+            if (msrs[i].index >= MSR_MC0_CTL &&
+                msrs[i].index < MSR_MC0_CTL + (env->mcg_cap & 0xff) * 4) {
+                env->mce_banks[msrs[i].index - MSR_MC0_CTL] = msrs[i].data;
+                break;
+            }
+#endif
         }
     }
 
