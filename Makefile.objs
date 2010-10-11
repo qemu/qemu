@@ -125,6 +125,7 @@ common-obj-y += $(addprefix ui/, $(ui-obj-y))
 
 common-obj-y += iov.o acl.o
 common-obj-$(CONFIG_THREAD) += qemu-thread.o
+common-obj-$(CONFIG_IOTHREAD) += compatfd.o
 common-obj-y += notify.o event_notifier.o
 common-obj-y += qemu-timer.o
 
