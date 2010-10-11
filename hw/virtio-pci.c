@@ -451,6 +451,33 @@ static int virtio_pci_set_guest_notifier(void *opaque, int n, bool assign)
     return 0;
 }
 
+static int virtio_pci_set_guest_notifiers(void *opaque, bool assign)
+{
+    VirtIOPCIProxy *proxy = opaque;
+    VirtIODevice *vdev = proxy->vdev;
+    int r, n;
+
+    for (n = 0; n < VIRTIO_PCI_QUEUE_MAX; n++) {
+        if (!virtio_queue_get_num(vdev, n)) {
+            break;
+        }
+
+        r = virtio_pci_set_guest_notifier(opaque, n, assign);
+        if (r < 0) {
+            goto assign_error;
+        }
+    }
+
+    return 0;
+
+assign_error:
+    /* We get here on assignment failure. Recover by undoing for VQs 0 .. n. */
+    while (--n >= 0) {
+        virtio_pci_set_guest_notifier(opaque, n, !assign);
+    }
+    return r;
+}
+
 static int virtio_pci_set_host_notifier(void *opaque, int n, bool assign)
 {
     VirtIOPCIProxy *proxy = opaque;
@@ -488,7 +515,7 @@ static const VirtIOBindings virtio_pci_bindings = {
     .load_queue = virtio_pci_load_queue,
     .get_features = virtio_pci_get_features,
     .set_host_notifier = virtio_pci_set_host_notifier,
-    .set_guest_notifier = virtio_pci_set_guest_notifier,
+    .set_guest_notifiers = virtio_pci_set_guest_notifiers,
 };
 
 static void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev,
