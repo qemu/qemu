@@ -33,6 +33,7 @@
 #include "exec-all.h"
 
 #include "cpus.h"
+#include "compatfd.h"
 
 #ifdef SIGRTMIN
 #define SIG_IPI (SIGRTMIN+4)
@@ -329,14 +330,75 @@ static QemuCond qemu_work_cond;
 
 static void tcg_init_ipi(void);
 static void kvm_init_ipi(CPUState *env);
-static void unblock_io_signals(void);
+static sigset_t block_io_signals(void);
+
+/* If we have signalfd, we mask out the signals we want to handle and then
+ * use signalfd to listen for them.  We rely on whatever the current signal
+ * handler is to dispatch the signals when we receive them.
+ */
+static void sigfd_handler(void *opaque)
+{
+    int fd = (unsigned long) opaque;
+    struct qemu_signalfd_siginfo info;
+    struct sigaction action;
+    ssize_t len;
+
+    while (1) {
+        do {
+            len = read(fd, &info, sizeof(info));
+        } while (len == -1 && errno == EINTR);
+
+        if (len == -1 && errno == EAGAIN) {
+            break;
+        }
+
+        if (len != sizeof(info)) {
+            printf("read from sigfd returned %zd: %m\n", len);
+            return;
+        }
+
+        sigaction(info.ssi_signo, NULL, &action);
+        if ((action.sa_flags & SA_SIGINFO) && action.sa_sigaction) {
+            action.sa_sigaction(info.ssi_signo,
+                                (siginfo_t *)&info, NULL);
+        } else if (action.sa_handler) {
+            action.sa_handler(info.ssi_signo);
+        }
+    }
+}
+
+static int qemu_signalfd_init(sigset_t mask)
+{
+    int sigfd;
+
+    sigfd = qemu_signalfd(&mask);
+    if (sigfd == -1) {
+        fprintf(stderr, "failed to create signalfd\n");
+        return -errno;
+    }
+
+    fcntl_setfl(sigfd, O_NONBLOCK);
+
+    qemu_set_fd_handler2(sigfd, NULL, sigfd_handler, NULL,
+                         (void *)(unsigned long) sigfd);
+
+    return 0;
+}
 
 int qemu_init_main_loop(void)
 {
     int ret;
+    sigset_t blocked_signals;
 
     cpu_set_debug_excp_handler(cpu_debug_handler);
 
+    blocked_signals = block_io_signals();
+
+    ret = qemu_signalfd_init(blocked_signals);
+    if (ret)
+        return ret;
+
+    /* Note eventfd must be drained before signalfd handlers run */
     ret = qemu_event_init();
     if (ret)
         return ret;
@@ -347,7 +409,6 @@ int qemu_init_main_loop(void)
     qemu_mutex_init(&qemu_global_mutex);
     qemu_mutex_lock(&qemu_global_mutex);
 
-    unblock_io_signals();
     qemu_thread_self(&io_thread);
 
     return 0;
@@ -586,19 +647,22 @@ static void kvm_init_ipi(CPUState *env)
     }
 }
 
-static void unblock_io_signals(void)
+static sigset_t block_io_signals(void)
 {
     sigset_t set;
 
+    /* SIGUSR2 used by posix-aio-compat.c */
     sigemptyset(&set);
     sigaddset(&set, SIGUSR2);
-    sigaddset(&set, SIGIO);
-    sigaddset(&set, SIGALRM);
     pthread_sigmask(SIG_UNBLOCK, &set, NULL);
 
     sigemptyset(&set);
+    sigaddset(&set, SIGIO);
+    sigaddset(&set, SIGALRM);
     sigaddset(&set, SIG_IPI);
     pthread_sigmask(SIG_BLOCK, &set, NULL);
+
+    return set;
 }
 
 void qemu_mutex_lock_iothread(void)
