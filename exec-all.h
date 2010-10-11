@@ -334,7 +334,7 @@ static inline tb_page_addr_t get_page_addr_code(CPUState *env1, target_ulong add
     }
     p = (void *)(unsigned long)addr
         + env1->tlb_table[mmu_idx][page_index].addend;
-    return qemu_ram_addr_from_host(p);
+    return qemu_ram_addr_from_host_nofail(p);
 }
 #endif
 

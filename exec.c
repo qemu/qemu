@@ -2085,7 +2085,7 @@ static inline void tlb_update_dirty(CPUTLBEntry *tlb_entry)
     if ((tlb_entry->addr_write & ~TARGET_PAGE_MASK) == IO_MEM_RAM) {
         p = (void *)(unsigned long)((tlb_entry->addr_write & TARGET_PAGE_MASK)
             + tlb_entry->addend);
-        ram_addr = qemu_ram_addr_from_host(p);
+        ram_addr = qemu_ram_addr_from_host_nofail(p);
         if (!cpu_physical_memory_is_dirty(ram_addr)) {
             tlb_entry->addr_write |= TLB_NOTDIRTY;
         }
@@ -2938,23 +2938,31 @@ void *qemu_get_ram_ptr(ram_addr_t addr)
     return NULL;
 }
 
-/* Some of the softmmu routines need to translate from a host pointer
-   (typically a TLB entry) back to a ram offset.  */
-ram_addr_t qemu_ram_addr_from_host(void *ptr)
+int qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
 {
     RAMBlock *block;
     uint8_t *host = ptr;
 
     QLIST_FOREACH(block, &ram_list.blocks, next) {
         if (host - block->host < block->length) {
-            return block->offset + (host - block->host);
+            *ram_addr = block->offset + (host - block->host);
+            return 0;
         }
     }
+    return -1;
+}
 
-    fprintf(stderr, "Bad ram pointer %p\n", ptr);
-    abort();
+/* Some of the softmmu routines need to translate from a host pointer
+   (typically a TLB entry) back to a ram offset.  */
+ram_addr_t qemu_ram_addr_from_host_nofail(void *ptr)
+{
+    ram_addr_t ram_addr;
 
-    return 0;
+    if (qemu_ram_addr_from_host(ptr, &ram_addr)) {
+        fprintf(stderr, "Bad ram pointer %p\n", ptr);
+        abort();
+    }
+    return ram_addr;
 }
 
 static uint32_t unassigned_mem_readb(void *opaque, target_phys_addr_t addr)
@@ -3703,7 +3711,7 @@ void cpu_physical_memory_unmap(void *buffer, target_phys_addr_t len,
 {
     if (buffer != bounce.buffer) {
         if (is_write) {
-            ram_addr_t addr1 = qemu_ram_addr_from_host(buffer);
+            ram_addr_t addr1 = qemu_ram_addr_from_host_nofail(buffer);
             while (access_len) {
                 unsigned l;
                 l = TARGET_PAGE_SIZE;
