@@ -110,6 +110,9 @@ int kvm_arch_init_vcpu(CPUState *env);
 
 void kvm_arch_reset_vcpu(CPUState *env);
 
+int kvm_on_sigbus_vcpu(CPUState *env, int code, void *addr);
+int kvm_on_sigbus(int code, void *addr);
+
 struct kvm_guest_debug;
 struct kvm_debug_exit_arch;
 

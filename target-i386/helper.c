@@ -1032,7 +1032,7 @@ void cpu_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
         return;
 
     if (kvm_enabled()) {
-        kvm_inject_x86_mce(cenv, bank, status, mcg_status, addr, misc);
+        kvm_inject_x86_mce(cenv, bank, status, mcg_status, addr, misc, 0);
         return;
     }
 

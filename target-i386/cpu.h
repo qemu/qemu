@@ -250,16 +250,32 @@
 #define PG_ERROR_RSVD_MASK 0x08
 #define PG_ERROR_I_D_MASK  0x10
 
-#define MCG_CTL_P	(1UL<<8)   /* MCG_CAP register available */
+#define MCG_CTL_P	(1ULL<<8)   /* MCG_CAP register available */
+#define MCG_SER_P	(1ULL<<24) /* MCA recovery/new status bits */
 
-#define MCE_CAP_DEF	MCG_CTL_P
+#define MCE_CAP_DEF	(MCG_CTL_P|MCG_SER_P)
 #define MCE_BANKS_DEF	10
 
+#define MCG_STATUS_RIPV	(1ULL<<0)   /* restart ip valid */
+#define MCG_STATUS_EIPV	(1ULL<<1)   /* ip points to correct instruction */
 #define MCG_STATUS_MCIP	(1ULL<<2)   /* machine check in progress */
 
 #define MCI_STATUS_VAL	(1ULL<<63)  /* valid error */
 #define MCI_STATUS_OVER	(1ULL<<62)  /* previous errors lost */
 #define MCI_STATUS_UC	(1ULL<<61)  /* uncorrected error */
+#define MCI_STATUS_EN	(1ULL<<60)  /* error enabled */
+#define MCI_STATUS_MISCV (1ULL<<59) /* misc error reg. valid */
+#define MCI_STATUS_ADDRV (1ULL<<58) /* addr reg. valid */
+#define MCI_STATUS_PCC	(1ULL<<57)  /* processor context corrupt */
+#define MCI_STATUS_S	(1ULL<<56)  /* Signaled machine check */
+#define MCI_STATUS_AR	(1ULL<<55)  /* Action required */
+
+/* MISC register defines */
+#define MCM_ADDR_SEGOFF	0	/* segment offset */
+#define MCM_ADDR_LINEAR	1	/* linear address */
+#define MCM_ADDR_PHYS	2	/* physical address */
+#define MCM_ADDR_MEM	3	/* memory address */
+#define MCM_ADDR_GENERIC 7	/* generic */
 
 #define MSR_IA32_TSC                    0x10
 #define MSR_IA32_APICBASE               0x1b
