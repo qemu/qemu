@@ -174,6 +174,12 @@ static inline void cpu_synchronize_post_init(CPUState *env)
     }
 }
 
+
+#if !defined(CONFIG_USER_ONLY)
+int kvm_physical_memory_addr_from_ram(KVMState *s, ram_addr_t ram_addr,
+                                      target_phys_addr_t *phys_addr);
+#endif
+
 #endif
 int kvm_set_ioeventfd_mmio_long(int fd, uint32_t adr, uint32_t val, bool assign);
 
