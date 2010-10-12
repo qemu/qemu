@@ -104,10 +104,11 @@ static int is_dup_page(uint8_t *page, uint8_t ch)
     return 1;
 }
 
+static RAMBlock *last_block;
+static ram_addr_t last_offset;
+
 static int ram_save_block(QEMUFile *f)
 {
-    static RAMBlock *last_block = NULL;
-    static ram_addr_t last_offset = 0;
     RAMBlock *block = last_block;
     ram_addr_t offset = last_offset;
     ram_addr_t current_addr;
@@ -231,6 +232,8 @@ int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
     if (stage == 1) {
         RAMBlock *block;
         bytes_transferred = 0;
+        last_block = NULL;
+        last_offset = 0;
 
         /* Make sure all dirty bits are set */
         QLIST_FOREACH(block, &ram_list.blocks, next) {

@@ -35,7 +35,29 @@ information on the Server command and response formats.
 
 NOTE: This document is temporary and will be replaced soon.
 
-1. Regular Commands
+1. Stability Considerations
+===========================
+
+The current QMP command set (described in this file) may be useful for a
+number of use cases, however it's limited and several commands have bad
+defined semantics, specially with regard to command completion.
+
+These problems are going to be solved incrementally in the next QEMU releases
+and we're going to establish a deprecation policy for badly defined commands.
+
+If you're planning to adopt QMP, please observe the following:
+
+    1. The deprecation policy will take efect and be documented soon, please
+       check the documentation of each used command as soon as a new release of
+       QEMU is available
+
+    2. DO NOT rely on anything which is not explicit documented
+
+    3. Errors, in special, are not documented. Applications should NOT check
+       for specific errors classes or data (it's strongly recommended to only
+       check for the "error" key)
+
+2. Regular Commands
 ===================
 
 Server's responses in the examples below are always a success response, please
@@ -1592,7 +1614,7 @@ HXCOMM This is required for the QMP documentation layout.
 
 SQMP
 
-2. Query Commands
+3. Query Commands
 =================
 
 EQMP
@@ -1623,13 +1645,25 @@ Show QEMU version.
 
 Return a json-object with the following information:
 
-- "qemu": QEMU's version (json-string)
+- "qemu": A json-object containing three integer values:
+    - "major": QEMU's major version (json-int)
+    - "minor": QEMU's minor version (json-int)
+    - "micro": QEMU's micro version (json-int)
 - "package": package's version (json-string)
 
 Example:
 
 -> { "execute": "query-version" }
-<- { "return": { "qemu": "0.11.50", "package": "" } }
+<- {
+      "return":{
+         "qemu":{
+            "major":0,
+            "minor":11,
+            "micro":5
+         },
+         "package":""
+      }
+   }
 
 EQMP
 
