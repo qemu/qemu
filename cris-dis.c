@@ -18,13 +18,11 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, see <http://www.gnu.org/licenses/>. */
 
+#include "qemu-common.h"
 #include "dis-asm.h"
 //#include "sysdep.h"
 #include "target-cris/opcode-cris.h"
 //#include "libiberty.h"
-
-
-void *qemu_malloc(size_t len); /* can't include qemu-common.h here */
 
 #define CONST_STRNEQ(STR1,STR2) (strncmp ((STR1), (STR2), sizeof (STR2) - 1) == 0)
 

@@ -18,11 +18,6 @@ typedef struct QEMUFile QEMUFile;
 typedef struct QEMUBH QEMUBH;
 typedef struct DeviceState DeviceState;
 
-/* Hack around the mess dyngen-exec.h causes: We need QEMU_NORETURN in files that
-   cannot include the following headers without conflicts. This condition has
-   to be removed once dyngen is gone. */
-#ifndef __DYNGEN_EXEC_H__
-
 /* we put basic includes here to avoid repeating them in device drivers */
 #include <stdlib.h>
 #include <stdio.h>
@@ -317,7 +312,5 @@ static inline uint8_t from_bcd(uint8_t val)
 }
 
 #include "module.h"
-
-#endif /* dyngen-exec.h hack */
 
 #endif

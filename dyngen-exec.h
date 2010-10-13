@@ -19,19 +19,7 @@
 #if !defined(__DYNGEN_EXEC_H__)
 #define __DYNGEN_EXEC_H__
 
-/* prevent Solaris from trying to typedef FILE in gcc's
-   include/floatingpoint.h which will conflict with the
-   definition down below */
-#ifdef __sun__
-#define _FILEDEFED
-#endif
-
-/* NOTE: standard headers should be used with special care at this
-   point because host CPU registers are used as global variables. Some
-   host headers do not allow that. */
-#include <stddef.h>
-#include <stdint.h>
-#include <stdbool.h>
+#include "qemu-common.h"
 
 #ifdef __OpenBSD__
 #include <sys/types.h>
@@ -39,15 +27,6 @@
 
 /* XXX: This may be wrong for 64-bit ILP32 hosts.  */
 typedef void * host_reg_t;
-
-#ifdef CONFIG_BSD
-typedef struct __sFILE FILE;
-#else
-typedef struct FILE FILE;
-#endif
-extern int fprintf(FILE *, const char *, ...);
-extern int fputs(const char *, FILE *);
-extern int printf(const char *, ...);
 
 #if defined(__i386__)
 #define AREG0 "ebp"
