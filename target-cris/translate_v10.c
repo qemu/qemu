@@ -108,16 +108,15 @@ static unsigned int crisv10_post_memaddr(DisasContext *dc, unsigned int size)
 static int dec10_prep_move_m(DisasContext *dc, int s_ext, int memsize,
                            TCGv dst)
 {
-    unsigned int rs, rd;
+    unsigned int rs;
     uint32_t imm;
     int is_imm;
     int insn_len = 0;
 
     rs = dc->src;
-    rd = dc->dst;
     is_imm = rs == 15 && !(dc->tb_flags & PFIX_FLAG);
     LOG_DIS("rs=%d rd=%d is_imm=%d mode=%d pfix=%d\n",
-             rs, rd, is_imm, dc->mode, dc->tb_flags & PFIX_FLAG);
+             rs, dc->dst, is_imm, dc->mode, dc->tb_flags & PFIX_FLAG);
 
     /* Load [$rs] onto T1.  */
     if (is_imm) {
