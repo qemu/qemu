@@ -38,12 +38,10 @@
 static void glue(tc6393xb_draw_graphic, BITS)(TC6393xbState *s)
 {
     int i;
-    int w_display;
     uint16_t *data_buffer;
     uint8_t *data_display;
 
     data_buffer = s->vram_ptr;
-    w_display = s->scr_width * BITS / 8;
     data_display = ds_get_data(s->ds);
     for(i = 0; i < s->scr_height; i++) {
 #if (BITS == 16)

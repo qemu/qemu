@@ -864,6 +864,7 @@ static void lsi_do_msgout(LSIState *s)
         case 0x01:
             len = lsi_get_msgbyte(s);
             msg = lsi_get_msgbyte(s);
+            (void)len; /* avoid a warning about unused variable*/
             DPRINTF("Extended message 0x%x (len %d)\n", msg, len);
             switch (msg) {
             case 1:

@@ -700,9 +700,6 @@ struct CPUPPCState {
     int power_mode;
     int (*check_pow)(CPUPPCState *env);
 
-    /* temporary hack to handle OSI calls (only used if non NULL) */
-    int (*osi_call)(struct CPUPPCState *env);
-
 #if !defined(CONFIG_USER_ONLY)
     void *load_info;    /* Holds boot loading state.  */
 #endif

@@ -1147,6 +1147,7 @@ static void gen_ld (CPUState *env, DisasContext *ctx, uint32_t opc,
         opn = "ll";
         break;
     }
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %d(%s)", opn, regnames[rt], offset, regnames[base]);
     tcg_temp_free(t0);
     tcg_temp_free(t1);
@@ -1206,6 +1207,7 @@ static void gen_st (DisasContext *ctx, uint32_t opc, int rt,
         opn = "swr";
         break;
     }
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %d(%s)", opn, regnames[rt], offset, regnames[base]);
     tcg_temp_free(t0);
     tcg_temp_free(t1);
@@ -1241,6 +1243,7 @@ static void gen_st_cond (DisasContext *ctx, uint32_t opc, int rt,
         opn = "sc";
         break;
     }
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %d(%s)", opn, regnames[rt], offset, regnames[base]);
     tcg_temp_free(t1);
     tcg_temp_free(t0);
@@ -1306,6 +1309,7 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
         generate_exception(ctx, EXCP_RI);
         goto out;
     }
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %d(%s)", opn, fregnames[ft], offset, regnames[base]);
  out:
     tcg_temp_free(t0);
@@ -1406,6 +1410,7 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
         break;
 #endif
     }
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %s, " TARGET_FMT_lx, opn, regnames[rt], regnames[rs], uimm);
 }
 
@@ -1448,6 +1453,7 @@ static void gen_logic_imm (CPUState *env, uint32_t opc, int rt, int rs, int16_t 
         opn = "lui";
         break;
     }
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %s, " TARGET_FMT_lx, opn, regnames[rt], regnames[rs], uimm);
 }
 
@@ -1475,6 +1481,7 @@ static void gen_slt_imm (CPUState *env, uint32_t opc, int rt, int rs, int16_t im
         opn = "sltiu";
         break;
     }
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %s, " TARGET_FMT_lx, opn, regnames[rt], regnames[rs], uimm);
     tcg_temp_free(t0);
 }
@@ -1566,6 +1573,7 @@ static void gen_shift_imm(CPUState *env, DisasContext *ctx, uint32_t opc,
         break;
 #endif
     }
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %s, " TARGET_FMT_lx, opn, regnames[rt], regnames[rs], uimm);
     tcg_temp_free(t0);
 }
@@ -1746,6 +1754,7 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
         opn = "mul";
         break;
     }
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %s, %s", opn, regnames[rd], regnames[rs], regnames[rt]);
 }
 
@@ -1783,6 +1792,7 @@ static void gen_cond_move (CPUState *env, uint32_t opc, int rd, int rs, int rt)
         tcg_gen_movi_tl(cpu_gpr[rd], 0);
     gen_set_label(l1);
 
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %s, %s", opn, regnames[rd], regnames[rs], regnames[rt]);
 }
 
@@ -1843,6 +1853,7 @@ static void gen_logic (CPUState *env, uint32_t opc, int rd, int rs, int rt)
         opn = "xor";
         break;
     }
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %s, %s", opn, regnames[rd], regnames[rs], regnames[rt]);
 }
 
@@ -1872,6 +1883,7 @@ static void gen_slt (CPUState *env, uint32_t opc, int rd, int rs, int rt)
         opn = "sltu";
         break;
     }
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %s, %s", opn, regnames[rd], regnames[rs], regnames[rt]);
     tcg_temp_free(t0);
     tcg_temp_free(t1);
@@ -1952,6 +1964,7 @@ static void gen_shift (CPUState *env, DisasContext *ctx, uint32_t opc,
         break;
 #endif
     }
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %s, %s", opn, regnames[rd], regnames[rs], regnames[rt]);
     tcg_temp_free(t0);
     tcg_temp_free(t1);
@@ -1991,6 +2004,7 @@ static void gen_HILO (DisasContext *ctx, uint32_t opc, int reg)
         opn = "mtlo";
         break;
     }
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s", opn, regnames[reg]);
 }
 
@@ -2223,6 +2237,7 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         generate_exception(ctx, EXCP_RI);
         goto out;
     }
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s %s", opn, regnames[rs], regnames[rt]);
  out:
     tcg_temp_free(t0);
@@ -2302,6 +2317,7 @@ static void gen_mul_vr54xx (DisasContext *ctx, uint32_t opc,
         goto out;
     }
     gen_store_gpr(t0, rd);
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %s, %s", opn, regnames[rd], regnames[rs], regnames[rt]);
 
  out:
@@ -2342,6 +2358,7 @@ static void gen_cl (DisasContext *ctx, uint32_t opc,
         break;
 #endif
     }
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %s", opn, regnames[rd], regnames[rs]);
     tcg_temp_free(t0);
 }
@@ -2555,6 +2572,7 @@ static void gen_loongson_integer (DisasContext *ctx, uint32_t opc,
 #endif
     }
 
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %s", opn, regnames[rd], regnames[rs]);
     tcg_temp_free(t0);
     tcg_temp_free(t1);
@@ -3724,6 +3742,7 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, TCGv arg, int reg, int s
     default:
        goto die;
     }
+    (void)rn; /* avoid a compiler warning */
     LOG_DISAS("mfc0 %s (reg %d sel %d)\n", rn, reg, sel);
     return;
 
@@ -4314,6 +4333,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, TCGv arg, int reg, int s
     default:
        goto die;
     }
+    (void)rn; /* avoid a compiler warning */
     LOG_DISAS("mtc0 %s (reg %d sel %d)\n", rn, reg, sel);
     /* For simplicity assume that all writes can cause interrupts.  */
     if (use_icount) {
@@ -4886,6 +4906,7 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, TCGv arg, int reg, int 
     default:
         goto die;
     }
+    (void)rn; /* avoid a compiler warning */
     LOG_DISAS("dmfc0 %s (reg %d sel %d)\n", rn, reg, sel);
     return;
 
@@ -5477,6 +5498,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, TCGv arg, int reg, int 
     default:
         goto die;
     }
+    (void)rn; /* avoid a compiler warning */
     LOG_DISAS("dmtc0 %s (reg %d sel %d)\n", rn, reg, sel);
     /* For simplicity assume that all writes can cause interrupts.  */
     if (use_icount) {
@@ -5937,6 +5959,7 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
         generate_exception(ctx, EXCP_RI);
         return;
     }
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s %d", opn, regnames[rt], rd);
 }
 #endif /* !CONFIG_USER_ONLY */
@@ -6046,6 +6069,7 @@ static void gen_compute_branch1 (CPUState *env, DisasContext *ctx, uint32_t op,
         generate_exception (ctx, EXCP_RI);
         goto out;
     }
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s: cond %02x target " TARGET_FMT_lx, opn,
                ctx->hflags, btarget);
     ctx->btarget = btarget;
@@ -6275,6 +6299,7 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
         generate_exception (ctx, EXCP_RI);
         goto out;
     }
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s %s", opn, regnames[rt], fregnames[fs]);
 
  out:
@@ -7602,6 +7627,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         generate_exception (ctx, EXCP_RI);
         return;
     }
+    (void)opn; /* avoid a compiler warning */
     switch (optype) {
     case BINOP:
         MIPS_DEBUG("%s %s, %s, %s", opn, fregnames[fd], fregnames[fs], fregnames[ft]);
@@ -7714,6 +7740,7 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
         break;
     }
     tcg_temp_free(t0);
+    (void)opn; (void)store; /* avoid compiler warnings */
     MIPS_DEBUG("%s %s, %s(%s)", opn, fregnames[store ? fs : fd],
                regnames[index], regnames[base]);
 }
@@ -7987,6 +8014,7 @@ static void gen_flt3_arith (DisasContext *ctx, uint32_t opc,
         generate_exception (ctx, EXCP_RI);
         return;
     }
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %s, %s, %s", opn, fregnames[fd], fregnames[fr],
                fregnames[fs], fregnames[ft]);
 }
@@ -9965,6 +9993,7 @@ static void gen_ldst_pair (DisasContext *ctx, uint32_t opc, int rd,
         break;
 #endif
     }
+    (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s, %s, %d(%s)", opn, regnames[rd], offset, regnames[base]);
     tcg_temp_free(t0);
     tcg_temp_free(t1);

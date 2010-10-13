@@ -7,10 +7,6 @@
 - The PowerPC Open Hack'Ware Open Firmware Compatible BIOS is
   available at http://perso.magic.fr/l_indien/OpenHackWare/index.htm.
 
-- video.x is a PowerMac NDRV compatible driver for a VGA frame
-  buffer. It comes from the Mac-on-Linux project
-  (http://www.maconlinux.org/).
-
 - OpenBIOS (http://www.openbios.org/) is a free (GPL v2) portable
   firmware implementation. The goal is to implement a 100% IEEE
   1275-1994 (referred to as Open Firmware) compliant firmware.

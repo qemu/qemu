@@ -1615,10 +1615,10 @@ static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
     while (qemu_peek_byte(f) == QEMU_VM_SUBSECTION) {
         char idstr[256];
         int ret;
-        uint8_t version_id, subsection, len;
+        uint8_t version_id, len;
         const VMStateDescription *sub_vmsd;
 
-        subsection = qemu_get_byte(f);
+        qemu_get_byte(f); /* subsection */
         len = qemu_get_byte(f);
         qemu_get_buffer(f, (uint8_t *)idstr, len);
         idstr[len] = 0;

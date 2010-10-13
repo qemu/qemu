@@ -1,3 +1,4 @@
+
 /*
  * QEMU OldWorld PowerMac (currently ~G3 Beige) hardware System Emulator
  *
@@ -44,78 +45,7 @@
 #include "blockdev.h"
 
 #define MAX_IDE_BUS 2
-#define VGA_BIOS_SIZE 65536
 #define CFG_ADDR 0xf0000510
-
-/* temporary frame buffer OSI calls for the video.x driver. The right
-   solution is to modify the driver to use VGA PCI I/Os */
-/* XXX: to be removed. This is no way related to emulation */
-static int vga_osi_call (CPUState *env)
-{
-    static int vga_vbl_enabled;
-    int linesize;
-
-#if 0
-    printf("osi_call R5=%016" PRIx64 "\n", ppc_dump_gpr(env, 5));
-#endif
-
-    /* same handler as PearPC, coming from the original MOL video
-       driver. */
-    switch(env->gpr[5]) {
-    case 4:
-        break;
-    case 28: /* set_vmode */
-        if (env->gpr[6] != 1 || env->gpr[7] != 0)
-            env->gpr[3] = 1;
-        else
-            env->gpr[3] = 0;
-        break;
-    case 29: /* get_vmode_info */
-        if (env->gpr[6] != 0) {
-            if (env->gpr[6] != 1 || env->gpr[7] != 0) {
-                env->gpr[3] = 1;
-                break;
-            }
-        }
-        env->gpr[3] = 0;
-        env->gpr[4] = (1 << 16) | 1; /* num_vmodes, cur_vmode */
-        env->gpr[5] = (1 << 16) | 0; /* num_depths, cur_depth_mode */
-        env->gpr[6] = (graphic_width << 16) | graphic_height; /* w, h */
-        env->gpr[7] = 85 << 16; /* refresh rate */
-        env->gpr[8] = (graphic_depth + 7) & ~7; /* depth (round to byte) */
-        linesize = ((graphic_depth + 7) >> 3) * graphic_width;
-        linesize = (linesize + 3) & ~3;
-        env->gpr[9] = (linesize << 16) | 0; /* row_bytes, offset */
-        break;
-    case 31: /* set_video power */
-        env->gpr[3] = 0;
-        break;
-    case 39: /* video_ctrl */
-        if (env->gpr[6] == 0 || env->gpr[6] == 1)
-            vga_vbl_enabled = env->gpr[6];
-        env->gpr[3] = 0;
-        break;
-    case 47:
-        break;
-    case 59: /* set_color */
-        /* R6 = index, R7 = RGB */
-        env->gpr[3] = 0;
-        break;
-    case 64: /* get color */
-        /* R6 = index */
-        env->gpr[3] = 0;
-        break;
-    case 116: /* set hwcursor */
-        /* R6 = x, R7 = y, R8 = visible, R9 = data */
-        break;
-    default:
-        fprintf(stderr, "unsupported OSI call R5=%016" PRIx64 "\n",
-                ppc_dump_gpr(env, 5));
-        break;
-    }
-
-    return 1; /* osi_call handled */
-}
 
 static int fw_cfg_boot_set(void *opaque, const char *boot_device)
 {
@@ -136,23 +66,22 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
                                const char *initrd_filename,
                                const char *cpu_model)
 {
-    CPUState *env = NULL, *envs[MAX_CPUS];
+    CPUState *env = NULL;
     char *filename;
     qemu_irq *pic, **heathrow_irqs;
     int linux_boot, i;
-    ram_addr_t ram_offset, bios_offset, vga_bios_offset;
+    ram_addr_t ram_offset, bios_offset;
     uint32_t kernel_base, initrd_base;
     int32_t kernel_size, initrd_size;
     PCIBus *pci_bus;
     MacIONVRAMState *nvr;
-    int vga_bios_size, bios_size;
+    int bios_size;
     int pic_mem_index, nvram_mem_index, dbdma_mem_index, cuda_mem_index;
     int escc_mem_index, ide_mem_index[2];
     uint16_t ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
     void *dbdma;
-    uint8_t *vga_bios_ptr;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -167,9 +96,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
         }
         /* Set time-base frequency to 16.6 Mhz */
         cpu_ppc_tb_init(env,  16600000UL);
-        env->osi_call = vga_osi_call;
         qemu_register_reset((QEMUResetHandler*)&cpu_reset, env);
-        envs[i] = env;
     }
 
     /* allocate RAM */
@@ -201,36 +128,6 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
     if (bios_size < 0 || bios_size > BIOS_SIZE) {
         hw_error("qemu: could not load PowerPC bios '%s'\n", bios_name);
         exit(1);
-    }
-
-    /* allocate and load VGA BIOS */
-    vga_bios_offset = qemu_ram_alloc(NULL, "ppc_heathrow.vbios", VGA_BIOS_SIZE);
-    vga_bios_ptr = qemu_get_ram_ptr(vga_bios_offset);
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, VGABIOS_FILENAME);
-    if (filename) {
-        vga_bios_size = load_image(filename, vga_bios_ptr + 8);
-        qemu_free(filename);
-    } else {
-        vga_bios_size = -1;
-    }
-    if (vga_bios_size < 0) {
-        /* if no bios is present, we can still work */
-        fprintf(stderr, "qemu: warning: could not load VGA bios '%s'\n",
-                VGABIOS_FILENAME);
-        vga_bios_size = 0;
-    } else {
-        /* set a specific header (XXX: find real Apple format for NDRV
-           drivers) */
-        vga_bios_ptr[0] = 'N';
-        vga_bios_ptr[1] = 'D';
-        vga_bios_ptr[2] = 'R';
-        vga_bios_ptr[3] = 'V';
-        cpu_to_be32w((uint32_t *)(vga_bios_ptr + 4), vga_bios_size);
-        vga_bios_size += 8;
-
-        /* Round to page boundary */
-        vga_bios_size = (vga_bios_size + TARGET_PAGE_SIZE - 1) &
-            TARGET_PAGE_MASK;
     }
 
     if (linux_boot) {
@@ -330,7 +227,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
     }
     pic = heathrow_pic_init(&pic_mem_index, 1, heathrow_irqs);
     pci_bus = pci_grackle_init(0xfec00000, pic);
-    pci_vga_init(pci_bus, vga_bios_offset, vga_bios_size);
+    pci_vga_init(pci_bus, 0, 0);
 
     escc_mem_index = escc_init(0x80013000, pic[0x0f], pic[0x10], serial_hds[0],
                                serial_hds[1], ESCC_CLOCK, 4);

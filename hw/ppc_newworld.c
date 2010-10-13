@@ -69,7 +69,6 @@
 #include "blockdev.h"
 
 #define MAX_IDE_BUS 2
-#define VGA_BIOS_SIZE 65536
 #define CFG_ADDR 0xf0000510
 
 /* debug UniNorth */
@@ -129,25 +128,24 @@ static void ppc_core99_init (ram_addr_t ram_size,
                              const char *initrd_filename,
                              const char *cpu_model)
 {
-    CPUState *env = NULL, *envs[MAX_CPUS];
+    CPUState *env = NULL;
     char *filename;
     qemu_irq *pic, **openpic_irqs;
     int unin_memory;
     int linux_boot, i;
-    ram_addr_t ram_offset, bios_offset, vga_bios_offset;
+    ram_addr_t ram_offset, bios_offset;
     uint32_t kernel_base, initrd_base;
     long kernel_size, initrd_size;
     PCIBus *pci_bus;
     MacIONVRAMState *nvr;
     int nvram_mem_index;
-    int vga_bios_size, bios_size;
+    int bios_size;
     int pic_mem_index, dbdma_mem_index, cuda_mem_index, escc_mem_index;
     int ide_mem_index[3];
     int ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
     void *dbdma;
-    uint8_t *vga_bios_ptr;
     int machine_arch;
 
     linux_boot = (kernel_filename != NULL);
@@ -167,11 +165,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
         }
         /* Set time-base frequency to 100 Mhz */
         cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
-#if 0
-        env->osi_call = vga_osi_call;
-#endif
         qemu_register_reset((QEMUResetHandler*)&cpu_reset, env);
-        envs[i] = env;
     }
 
     /* allocate RAM */
@@ -197,36 +191,6 @@ static void ppc_core99_init (ram_addr_t ram_size,
     if (bios_size < 0 || bios_size > BIOS_SIZE) {
         hw_error("qemu: could not load PowerPC bios '%s'\n", bios_name);
         exit(1);
-    }
-
-    /* allocate and load VGA BIOS */
-    vga_bios_offset = qemu_ram_alloc(NULL, "ppc_core99.vbios", VGA_BIOS_SIZE);
-    vga_bios_ptr = qemu_get_ram_ptr(vga_bios_offset);
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, VGABIOS_FILENAME);
-    if (filename) {
-        vga_bios_size = load_image(filename, vga_bios_ptr + 8);
-        qemu_free(filename);
-    } else {
-        vga_bios_size = -1;
-    }
-    if (vga_bios_size < 0) {
-        /* if no bios is present, we can still work */
-        fprintf(stderr, "qemu: warning: could not load VGA bios '%s'\n",
-                VGABIOS_FILENAME);
-        vga_bios_size = 0;
-    } else {
-        /* set a specific header (XXX: find real Apple format for NDRV
-           drivers) */
-        vga_bios_ptr[0] = 'N';
-        vga_bios_ptr[1] = 'D';
-        vga_bios_ptr[2] = 'R';
-        vga_bios_ptr[3] = 'V';
-        cpu_to_be32w((uint32_t *)(vga_bios_ptr + 4), vga_bios_size);
-        vga_bios_size += 8;
-
-        /* Round to page boundary */
-        vga_bios_size = (vga_bios_size + TARGET_PAGE_SIZE - 1) &
-            TARGET_PAGE_MASK;
     }
 
     if (linux_boot) {
@@ -352,7 +316,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
         machine_arch = ARCH_MAC99;
     }
     /* init basic PC hardware */
-    pci_vga_init(pci_bus, vga_bios_offset, vga_bios_size);
+    pci_vga_init(pci_bus, 0, 0);
 
     escc_mem_index = escc_init(0x80013000, pic[0x25], pic[0x24],
                                serial_hds[0], serial_hds[1], ESCC_CLOCK, 4);

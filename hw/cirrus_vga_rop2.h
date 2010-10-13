@@ -23,15 +23,15 @@
  */
 
 #if DEPTH == 8
-#define PUTPIXEL()    ROP_OP(d[0], col)
+#define PUTPIXEL()    ROP_OP(&d[0], col)
 #elif DEPTH == 16
-#define PUTPIXEL()    ROP_OP(((uint16_t *)d)[0], col);
+#define PUTPIXEL()    ROP_OP_16((uint16_t *)&d[0], col)
 #elif DEPTH == 24
-#define PUTPIXEL()    ROP_OP(d[0], col); \
-                      ROP_OP(d[1], (col >> 8)); \
-                      ROP_OP(d[2], (col >> 16))
+#define PUTPIXEL()    ROP_OP(&d[0], col);        \
+                      ROP_OP(&d[1], (col >> 8)); \
+                      ROP_OP(&d[2], (col >> 16))
 #elif DEPTH == 32
-#define PUTPIXEL()    ROP_OP(((uint32_t *)d)[0], col)
+#define PUTPIXEL()    ROP_OP_32(((uint32_t *)&d[0]), col)
 #else
 #error unsupported DEPTH
 #endif

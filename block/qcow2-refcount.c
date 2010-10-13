@@ -551,6 +551,7 @@ fail:
     if (ret < 0) {
         int dummy;
         dummy = update_refcount(bs, offset, cluster_offset - offset, -addend);
+        (void)dummy;
     }
 
     return ret;

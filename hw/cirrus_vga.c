@@ -280,63 +280,63 @@ static void cirrus_bitblt_fill_nop(CirrusVGAState *s,
 }
 
 #define ROP_NAME 0
-#define ROP_OP(d, s) d = 0
+#define ROP_FN(d, s) 0
 #include "cirrus_vga_rop.h"
 
 #define ROP_NAME src_and_dst
-#define ROP_OP(d, s) d = (s) & (d)
+#define ROP_FN(d, s) (s) & (d)
 #include "cirrus_vga_rop.h"
 
 #define ROP_NAME src_and_notdst
-#define ROP_OP(d, s) d = (s) & (~(d))
+#define ROP_FN(d, s) (s) & (~(d))
 #include "cirrus_vga_rop.h"
 
 #define ROP_NAME notdst
-#define ROP_OP(d, s) d = ~(d)
+#define ROP_FN(d, s) ~(d)
 #include "cirrus_vga_rop.h"
 
 #define ROP_NAME src
-#define ROP_OP(d, s) d = s
+#define ROP_FN(d, s) s
 #include "cirrus_vga_rop.h"
 
 #define ROP_NAME 1
-#define ROP_OP(d, s) d = ~0
+#define ROP_FN(d, s) ~0
 #include "cirrus_vga_rop.h"
 
 #define ROP_NAME notsrc_and_dst
-#define ROP_OP(d, s) d = (~(s)) & (d)
+#define ROP_FN(d, s) (~(s)) & (d)
 #include "cirrus_vga_rop.h"
 
 #define ROP_NAME src_xor_dst
-#define ROP_OP(d, s) d = (s) ^ (d)
+#define ROP_FN(d, s) (s) ^ (d)
 #include "cirrus_vga_rop.h"
 
 #define ROP_NAME src_or_dst
-#define ROP_OP(d, s) d = (s) | (d)
+#define ROP_FN(d, s) (s) | (d)
 #include "cirrus_vga_rop.h"
 
 #define ROP_NAME notsrc_or_notdst
-#define ROP_OP(d, s) d = (~(s)) | (~(d))
+#define ROP_FN(d, s) (~(s)) | (~(d))
 #include "cirrus_vga_rop.h"
 
 #define ROP_NAME src_notxor_dst
-#define ROP_OP(d, s) d = ~((s) ^ (d))
+#define ROP_FN(d, s) ~((s) ^ (d))
 #include "cirrus_vga_rop.h"
 
 #define ROP_NAME src_or_notdst
-#define ROP_OP(d, s) d = (s) | (~(d))
+#define ROP_FN(d, s) (s) | (~(d))
 #include "cirrus_vga_rop.h"
 
 #define ROP_NAME notsrc
-#define ROP_OP(d, s) d = (~(s))
+#define ROP_FN(d, s) (~(s))
 #include "cirrus_vga_rop.h"
 
 #define ROP_NAME notsrc_or_dst
-#define ROP_OP(d, s) d = (~(s)) | (d)
+#define ROP_FN(d, s) (~(s)) | (d)
 #include "cirrus_vga_rop.h"
 
 #define ROP_NAME notsrc_and_notdst
-#define ROP_OP(d, s) d = (~(s)) & (~(d))
+#define ROP_FN(d, s) (~(s)) & (~(d))
 #include "cirrus_vga_rop.h"
 
 static const cirrus_bitblt_rop_t cirrus_fwd_rop[16] = {
