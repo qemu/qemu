@@ -66,7 +66,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
                                const char *initrd_filename,
                                const char *cpu_model)
 {
-    CPUState *env = NULL, *envs[MAX_CPUS];
+    CPUState *env = NULL;
     char *filename;
     qemu_irq *pic, **heathrow_irqs;
     int linux_boot, i;
@@ -97,7 +97,6 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
         /* Set time-base frequency to 16.6 Mhz */
         cpu_ppc_tb_init(env,  16600000UL);
         qemu_register_reset((QEMUResetHandler*)&cpu_reset, env);
-        envs[i] = env;
     }
 
     /* allocate RAM */

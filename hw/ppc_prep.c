@@ -565,7 +565,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
                            const char *initrd_filename,
                            const char *cpu_model)
 {
-    CPUState *env = NULL, *envs[MAX_CPUS];
+    CPUState *env = NULL;
     char *filename;
     nvram_t nvram;
     M48t59State *m48t59;
@@ -602,7 +602,6 @@ static void ppc_prep_init (ram_addr_t ram_size,
             cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
         }
         qemu_register_reset((QEMUResetHandler*)&cpu_reset, env);
-        envs[i] = env;
     }
 
     /* allocate RAM */

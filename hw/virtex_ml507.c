@@ -85,7 +85,6 @@ static CPUState *ppc440_init_xilinx(ram_addr_t *ram_size,
                                     uint32_t sysclk)
 {
     CPUState *env;
-    qemu_irq *pic;
     qemu_irq *irqs;
 
     env = cpu_init(cpu_model);
@@ -106,7 +105,7 @@ static CPUState *ppc440_init_xilinx(ram_addr_t *ram_size,
     irqs = qemu_mallocz(sizeof(qemu_irq) * PPCUIC_OUTPUT_NB);
     irqs[PPCUIC_OUTPUT_INT] = ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_INT];
     irqs[PPCUIC_OUTPUT_CINT] = ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_CINT];
-    pic = ppcuic_init(env, irqs, 0x0C0, 0, 1);
+    ppcuic_init(env, irqs, 0x0C0, 0, 1);
     return env;
 }
 
@@ -236,13 +235,11 @@ static void virtex_init(ram_addr_t ram_size,
 
     if (kernel_filename) {
         uint64_t entry, low, high;
-        uint32_t base32;
         target_phys_addr_t boot_offset;
 
         /* Boots a kernel elf binary.  */
         kernel_size = load_elf(kernel_filename, NULL, NULL,
                                &entry, &low, &high, 1, ELF_MACHINE, 0);
-        base32 = entry;
         boot_info.bootstrap_pc = entry & 0x00ffffff;
 
         if (kernel_size < 0) {

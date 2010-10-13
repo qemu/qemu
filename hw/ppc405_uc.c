@@ -630,18 +630,11 @@ struct ppc405_dma_t {
 
 static uint32_t dcr_read_dma (void *opaque, int dcrn)
 {
-    ppc405_dma_t *dma;
-
-    dma = opaque;
-
     return 0;
 }
 
 static void dcr_write_dma (void *opaque, int dcrn, uint32_t val)
 {
-    ppc405_dma_t *dma;
-
-    dma = opaque;
 }
 
 static void ppc405_dma_reset (void *opaque)
@@ -739,9 +732,6 @@ struct ppc405_gpio_t {
 
 static uint32_t ppc405_gpio_readb (void *opaque, target_phys_addr_t addr)
 {
-    ppc405_gpio_t *gpio;
-
-    gpio = opaque;
 #ifdef DEBUG_GPIO
     printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
 #endif
@@ -752,9 +742,6 @@ static uint32_t ppc405_gpio_readb (void *opaque, target_phys_addr_t addr)
 static void ppc405_gpio_writeb (void *opaque,
                                 target_phys_addr_t addr, uint32_t value)
 {
-    ppc405_gpio_t *gpio;
-
-    gpio = opaque;
 #ifdef DEBUG_GPIO
     printf("%s: addr " TARGET_FMT_plx " val %08" PRIx32 "\n", __func__, addr,
            value);
@@ -763,9 +750,6 @@ static void ppc405_gpio_writeb (void *opaque,
 
 static uint32_t ppc405_gpio_readw (void *opaque, target_phys_addr_t addr)
 {
-    ppc405_gpio_t *gpio;
-
-    gpio = opaque;
 #ifdef DEBUG_GPIO
     printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
 #endif
@@ -776,9 +760,6 @@ static uint32_t ppc405_gpio_readw (void *opaque, target_phys_addr_t addr)
 static void ppc405_gpio_writew (void *opaque,
                                 target_phys_addr_t addr, uint32_t value)
 {
-    ppc405_gpio_t *gpio;
-
-    gpio = opaque;
 #ifdef DEBUG_GPIO
     printf("%s: addr " TARGET_FMT_plx " val %08" PRIx32 "\n", __func__, addr,
            value);
@@ -787,9 +768,6 @@ static void ppc405_gpio_writew (void *opaque,
 
 static uint32_t ppc405_gpio_readl (void *opaque, target_phys_addr_t addr)
 {
-    ppc405_gpio_t *gpio;
-
-    gpio = opaque;
 #ifdef DEBUG_GPIO
     printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
 #endif
@@ -800,9 +778,6 @@ static uint32_t ppc405_gpio_readl (void *opaque, target_phys_addr_t addr)
 static void ppc405_gpio_writel (void *opaque,
                                 target_phys_addr_t addr, uint32_t value)
 {
-    ppc405_gpio_t *gpio;
-
-    gpio = opaque;
 #ifdef DEBUG_GPIO
     printf("%s: addr " TARGET_FMT_plx " val %08" PRIx32 "\n", __func__, addr,
            value);
@@ -823,9 +798,6 @@ static CPUWriteMemoryFunc * const ppc405_gpio_write[] = {
 
 static void ppc405_gpio_reset (void *opaque)
 {
-    ppc405_gpio_t *gpio;
-
-    gpio = opaque;
 }
 
 static void ppc405_gpio_init(target_phys_addr_t base)

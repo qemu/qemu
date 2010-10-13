@@ -501,7 +501,6 @@ static void taihu_405ep_init(ram_addr_t ram_size,
                              const char *cpu_model)
 {
     char *filename;
-    CPUPPCState *env;
     qemu_irq *pic;
     ram_addr_t bios_offset;
     target_phys_addr_t ram_bases[2], ram_sizes[2];
@@ -521,8 +520,8 @@ static void taihu_405ep_init(ram_addr_t ram_size,
 #ifdef DEBUG_BOARD_INIT
     printf("%s: register cpu\n", __func__);
 #endif
-    env = ppc405ep_init(ram_bases, ram_sizes, 33333333, &pic,
-                        kernel_filename == NULL ? 0 : 1);
+    ppc405ep_init(ram_bases, ram_sizes, 33333333, &pic,
+                  kernel_filename == NULL ? 0 : 1);
     /* allocate and load BIOS */
 #ifdef DEBUG_BOARD_INIT
     printf("%s: register BIOS\n", __func__);

@@ -784,11 +784,7 @@ void mips_malta_init (ram_addr_t ram_size,
     target_long bios_size;
     int64_t kernel_entry;
     PCIBus *pci_bus;
-    ISADevice *isa_dev;
     CPUState *env;
-    ISADevice *rtc_state;
-    FDCtrl *floppy_controller;
-    MaltaFPGAState *malta_fpga;
     qemu_irq *i8259;
     qemu_irq *cpu_exit_irq;
     int piix4_devfn;
@@ -851,7 +847,7 @@ void mips_malta_init (ram_addr_t ram_size,
     be = 0;
 #endif
     /* FPGA */
-    malta_fpga = malta_fpga_init(0x1f000000LL, env->irq[2], serial_hds[2]);
+    malta_fpga_init(0x1f000000LL, env->irq[2], serial_hds[2]);
 
     /* Load firmware in flash / BIOS unless we boot directly into a kernel. */
     if (kernel_filename) {
@@ -957,9 +953,9 @@ void mips_malta_init (ram_addr_t ram_size,
     DMA_init(0, cpu_exit_irq);
 
     /* Super I/O */
-    isa_dev = isa_create_simple("i8042");
- 
-    rtc_state = rtc_init(2000, NULL);
+    isa_create_simple("i8042");
+
+    rtc_init(2000, NULL);
     serial_isa_init(0, serial_hds[0]);
     serial_isa_init(1, serial_hds[1]);
     if (parallel_hds[0])
@@ -967,7 +963,7 @@ void mips_malta_init (ram_addr_t ram_size,
     for(i = 0; i < MAX_FD; i++) {
         fd[i] = drive_get(IF_FLOPPY, 0, i);
     }
-    floppy_controller = fdctrl_init_isa(fd);
+    fdctrl_init_isa(fd);
 
     /* Sound card */
     audio_init(pci_bus);
