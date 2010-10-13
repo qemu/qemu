@@ -1290,7 +1290,7 @@ static void eepro100_write_port(EEPRO100State * s, uint32_t val)
 
 static uint8_t eepro100_read1(EEPRO100State * s, uint32_t addr)
 {
-    uint8_t val;
+    uint8_t val = 0;
     if (addr <= sizeof(s->mem) - sizeof(val)) {
         memcpy(&val, &s->mem[addr], sizeof(val));
     }
@@ -1333,7 +1333,7 @@ static uint8_t eepro100_read1(EEPRO100State * s, uint32_t addr)
 
 static uint16_t eepro100_read2(EEPRO100State * s, uint32_t addr)
 {
-    uint16_t val;
+    uint16_t val = 0;
     if (addr <= sizeof(s->mem) - sizeof(val)) {
         memcpy(&val, &s->mem[addr], sizeof(val));
     }
@@ -1356,7 +1356,7 @@ static uint16_t eepro100_read2(EEPRO100State * s, uint32_t addr)
 
 static uint32_t eepro100_read4(EEPRO100State * s, uint32_t addr)
 {
-    uint32_t val;
+    uint32_t val = 0;
     if (addr <= sizeof(s->mem) - sizeof(val)) {
         memcpy(&val, &s->mem[addr], sizeof(val));
     }
