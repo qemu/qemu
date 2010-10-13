@@ -348,15 +348,13 @@ void helper_dcbz_970(target_ulong addr)
 
 void helper_icbi(target_ulong addr)
 {
-    uint32_t tmp;
-
     addr &= ~(env->dcache_line_size - 1);
     /* Invalidate one cache line :
      * PowerPC specification says this is to be treated like a load
      * (not a fetch) by the MMU. To be sure it will be so,
      * do the load "by hand".
      */
-    tmp = ldl(addr);
+    ldl(addr);
     tb_invalidate_page_range(addr, addr + env->icache_line_size);
 }
 
@@ -3814,6 +3812,7 @@ static void do_6xx_tlb (target_ulong new_EPN, int is_code)
         EPN = env->spr[SPR_DMISS];
     }
     way = (env->spr[SPR_SRR1] >> 17) & 1;
+    (void)EPN; /* avoid a compiler warning */
     LOG_SWTLB("%s: EPN " TARGET_FMT_lx " " TARGET_FMT_lx " PTE0 " TARGET_FMT_lx
               " PTE1 " TARGET_FMT_lx " way %d\n", __func__, new_EPN, EPN, CMP,
               RPN, way);
@@ -3842,6 +3841,7 @@ static void do_74xx_tlb (target_ulong new_EPN, int is_code)
     CMP = env->spr[SPR_PTEHI];
     EPN = env->spr[SPR_TLBMISS] & ~0x3;
     way = env->spr[SPR_TLBMISS] & 0x3;
+    (void)EPN; /* avoid a compiler warning */
     LOG_SWTLB("%s: EPN " TARGET_FMT_lx " " TARGET_FMT_lx " PTE0 " TARGET_FMT_lx
               " PTE1 " TARGET_FMT_lx " way %d\n", __func__, new_EPN, EPN, CMP,
               RPN, way);
