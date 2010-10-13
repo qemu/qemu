@@ -2226,17 +2226,6 @@ static inline void powerpc_excp(CPUState *env, int excp_model, int excp)
             new_msr |= (target_ulong)MSR_HVB;
         goto store_current;
     case POWERPC_EXCP_SYSCALL:   /* System call exception                    */
-        /* NOTE: this is a temporary hack to support graphics OSI
-           calls from the MOL driver */
-        /* XXX: To be removed */
-        if (env->gpr[3] == 0x113724fa && env->gpr[4] == 0x77810f9b &&
-            env->osi_call) {
-            if (env->osi_call(env) != 0) {
-                env->exception_index = POWERPC_EXCP_NONE;
-                env->error_code = 0;
-                return;
-            }
-        }
         dump_syscall(env);
         lev = env->error_code;
         if (lev == 1 || (lpes0 == 0 && lpes1 == 0))

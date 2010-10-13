@@ -3084,7 +3084,7 @@ if test "$source_path_used" = "yes" ; then
     FILES="Makefile tests/Makefile"
     FILES="$FILES tests/cris/Makefile tests/cris/.gdbinit"
     FILES="$FILES tests/test-mmap.c"
-    FILES="$FILES pc-bios/optionrom/Makefile pc-bios/keymaps pc-bios/video.x"
+    FILES="$FILES pc-bios/optionrom/Makefile pc-bios/keymaps"
     FILES="$FILES roms/seabios/Makefile roms/vgabios/Makefile"
     for bios_file in $source_path/pc-bios/*.bin $source_path/pc-bios/*.dtb $source_path/pc-bios/openbios-*; do
         FILES="$FILES pc-bios/`basename $bios_file`"

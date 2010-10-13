@@ -176,7 +176,7 @@ common  de-ch  es     fo  fr-ca  hu     ja  mk  nl-be      pt  sl     tr
 
 ifdef INSTALL_BLOBS
 BLOBS=bios.bin vgabios.bin vgabios-cirrus.bin ppc_rom.bin \
-video.x openbios-sparc32 openbios-sparc64 openbios-ppc \
+openbios-sparc32 openbios-sparc64 openbios-ppc \
 gpxe-eepro100-80861209.rom \
 gpxe-eepro100-80861229.rom \
 pxe-e1000.bin \
@@ -323,7 +323,6 @@ tarbin:
 	$(datadir)/vgabios.bin \
 	$(datadir)/vgabios-cirrus.bin \
 	$(datadir)/ppc_rom.bin \
-	$(datadir)/video.x \
 	$(datadir)/openbios-sparc32 \
 	$(datadir)/openbios-sparc64 \
 	$(datadir)/openbios-ppc \

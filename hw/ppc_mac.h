@@ -30,7 +30,6 @@
 
 #define BIOS_SIZE     (1024 * 1024)
 #define BIOS_FILENAME "ppc_rom.bin"
-#define VGABIOS_FILENAME "video.x"
 #define NVRAM_SIZE        0x2000
 #define PROM_FILENAME    "openbios-ppc"
 #define PROM_ADDR         0xfff00000
