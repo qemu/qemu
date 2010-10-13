@@ -549,7 +549,11 @@ static void do_change_trace_event_state(Monitor *mon, const QDict *qdict)
 {
     const char *tp_name = qdict_get_str(qdict, "name");
     bool new_state = qdict_get_bool(qdict, "option");
-    st_change_trace_event_state(tp_name, new_state);
+    int ret = st_change_trace_event_state(tp_name, new_state);
+
+    if (!ret) {
+        monitor_printf(mon, "unknown event name \"%s\"\n", tp_name);
+    }
 }
 
 static void do_trace_file(Monitor *mon, const QDict *qdict)
