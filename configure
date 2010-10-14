@@ -154,7 +154,7 @@ int main(void) { return 0; }
 EOF
 for flag in $gcc_flags; do
     if compile_prog "-Werror $QEMU_CFLAGS" "-Werror $flag" ; then
-	QEMU_CFLAGS="$flag $QEMU_CFLAGS"
+	QEMU_CFLAGS="$QEMU_CFLAGS $flag"
     fi
 done
 
