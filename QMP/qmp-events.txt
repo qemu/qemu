@@ -89,7 +89,7 @@ Data: None.
 
 Example:
 
-{ "event": "SHUTDOWN",
+{ "event": "STOP",
     "timestamp": { "seconds": 1267041730, "microseconds": 281295 } }
 
 VNC_CONNECTED
