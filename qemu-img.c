@@ -645,6 +645,7 @@ static int img_convert(int argc, char **argv)
     const uint8_t *buf1;
     BlockDriverInfo bdi;
     QEMUOptionParameter *param = NULL, *create_options = NULL;
+    QEMUOptionParameter *out_baseimg_param;
     char *options = NULL;
     const char *snapshot_name = NULL;
 
@@ -767,6 +768,12 @@ static int img_convert(int argc, char **argv)
     ret = add_old_style_options(out_fmt, param, flags, out_baseimg, NULL);
     if (ret < 0) {
         goto out;
+    }
+
+    /* Get backing file name if -o backing_file was used */
+    out_baseimg_param = get_option_parameter(param, BLOCK_OPT_BACKING_FILE);
+    if (out_baseimg_param) {
+        out_baseimg = out_baseimg_param->value.s;
     }
 
     /* Check if compression is supported */
