@@ -40,7 +40,6 @@ typedef struct SimpleSpiceDisplay {
     uint32_t unique;
     QemuPfConv *conv;
 
-    pthread_mutex_t lock;
     QXLRect dirty;
     int notify;
     int running;
