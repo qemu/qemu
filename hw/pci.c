@@ -1819,6 +1819,57 @@ static void pci_map_option_rom(PCIDevice *pdev, int region_num, pcibus_t addr, p
     cpu_register_physical_memory(addr, size, pdev->rom_offset);
 }
 
+/* Patch the PCI device id in a PCI rom image if necessary.
+   This is needed for an option rom which is used for more than one device. */
+static void pci_patch_device_id(PCIDevice *pdev, uint8_t *ptr, int size)
+{
+    uint16_t vendor_id;
+    uint16_t device_id;
+    uint16_t rom_vendor_id;
+    uint16_t rom_device_id;
+    uint16_t rom_magic;
+    uint16_t pcir_offset;
+
+    /* Words in rom data are little endian (like in PCI configuration),
+       so they can be read / written with pci_get_word / pci_set_word. */
+
+    /* Only a valid rom will be patched. */
+    rom_magic = pci_get_word(ptr);
+    if (rom_magic != 0xaa55) {
+        PCI_DPRINTF("Bad ROM magic %04x\n", rom_magic);
+        return;
+    }
+    pcir_offset = pci_get_word(ptr + 0x18);
+    if (pcir_offset + 8 >= size || memcmp(ptr + pcir_offset, "PCIR", 4)) {
+        PCI_DPRINTF("Bad PCIR offset 0x%x or signature\n", pcir_offset);
+        return;
+    }
+
+    vendor_id = pci_get_word(pdev->config + PCI_VENDOR_ID);
+    device_id = pci_get_word(pdev->config + PCI_DEVICE_ID);
+    rom_vendor_id = pci_get_word(ptr + pcir_offset + 4);
+    rom_device_id = pci_get_word(ptr + pcir_offset + 6);
+
+    /* Don't patch a rom with wrong vendor id (might be changed if needed). */
+    if (vendor_id != rom_vendor_id) {
+        return;
+    }
+
+    PCI_DPRINTF("ROM id %04x%04x / PCI id %04x%04x\n",
+                vendor_id, device_id, rom_vendor_id, rom_device_id);
+
+    if (device_id != rom_device_id) {
+        /* Patch device id and checksum (at offset 6 for etherboot roms). */
+        uint8_t checksum;
+        checksum = ptr[6];
+        checksum += (uint8_t)rom_device_id + (uint8_t)(rom_device_id >> 8);
+        checksum -= (uint8_t)device_id + (uint8_t)(device_id >> 8);
+        PCI_DPRINTF("ROM checksum %02x / %02x\n", ptr[6], checksum);
+        ptr[6] = checksum;
+        pci_set_word(ptr + pcir_offset + 6, device_id);
+    }
+}
+
 /* Add an option rom for the device */
 static int pci_add_option_rom(PCIDevice *pdev)
 {
@@ -1870,6 +1921,8 @@ static int pci_add_option_rom(PCIDevice *pdev)
     ptr = qemu_get_ram_ptr(pdev->rom_offset);
     load_image(path, ptr);
     qemu_free(path);
+
+    pci_patch_device_id(pdev, ptr, size);
 
     pci_register_bar(pdev, PCI_ROM_SLOT, size,
                      0, pci_map_option_rom);
