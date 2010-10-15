@@ -181,7 +181,6 @@ ifdef INSTALL_BLOBS
 BLOBS=bios.bin vgabios.bin vgabios-cirrus.bin ppc_rom.bin \
 openbios-sparc32 openbios-sparc64 openbios-ppc \
 gpxe-eepro100-80861209.rom \
-gpxe-eepro100-80861229.rom \
 pxe-e1000.bin \
 pxe-ne2k_pci.bin pxe-pcnet.bin \
 pxe-rtl8139.bin pxe-virtio.bin \

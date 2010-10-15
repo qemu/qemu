@@ -2048,17 +2048,9 @@ static void eepro100_register_devices(void)
     size_t i;
     for (i = 0; i < ARRAY_SIZE(e100_devices); i++) {
         PCIDeviceInfo *pci_dev = &e100_devices[i].pci;
-        switch (e100_devices[i].device_id) {
-            case PCI_DEVICE_ID_INTEL_82551IT:
-                pci_dev->romfile = "gpxe-eepro100-80861209.rom";
-                break;
-            case PCI_DEVICE_ID_INTEL_82557:
-                pci_dev->romfile = "gpxe-eepro100-80861229.rom";
-                break;
-            case 0x2449:
-                pci_dev->romfile = "gpxe-eepro100-80862449.rom";
-                break;
-        }
+        /* We use the same rom file for all device ids.
+           QEMU fixes the device id during rom load. */
+        pci_dev->romfile = "gpxe-eepro100-80861209.rom";
         pci_dev->init = e100_nic_init;
         pci_dev->exit = pci_nic_uninit;
         pci_dev->qdev.props = e100_properties;
