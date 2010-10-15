@@ -316,7 +316,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
         machine_arch = ARCH_MAC99;
     }
     /* init basic PC hardware */
-    pci_vga_init(pci_bus, 0, 0);
+    pci_vga_init(pci_bus);
 
     escc_mem_index = escc_init(0x80013000, pic[0x25], pic[0x24],
                                serial_hds[0], serial_hds[1], ESCC_CLOCK, 4);
