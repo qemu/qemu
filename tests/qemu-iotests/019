@@ -57,10 +57,10 @@ echo
 
 for offset in $TEST_OFFSETS; do
     # Some clusters with alternating backing file/image file reads
-    io writev $(( offset )) 512 1024 64
+    io_pattern writev $(( offset )) 512 1024 64 42
 
     # Complete backing clusters
-    io writev $(( offset  + 1024 * 1024))  $CLUSTER_SIZE $CLUSTER_SIZE 1
+    io_pattern writev $(( offset  + 1024 * 1024))  $CLUSTER_SIZE $CLUSTER_SIZE 1 42
 done
 _check_test_img
 
@@ -75,39 +75,52 @@ echo
 
 for offset in $TEST_OFFSETS; do
     # Some clusters with alternating backing file/image file reads
-    io writev $(( offset + 512 )) 512 1024 64
+    io_pattern writev $(( offset + 512 )) 512 1024 64 43
 
     # Complete test image clusters
-    io writev $(( offset + 1024 * 1024 + $CLUSTER_SIZE))  $CLUSTER_SIZE $CLUSTER_SIZE 1
+    io_pattern writev $(( offset + 1024 * 1024 + $CLUSTER_SIZE))  $CLUSTER_SIZE $CLUSTER_SIZE 1 43
 done
 _check_test_img
 
 mv $TEST_IMG $TEST_IMG.orig
-$QEMU_IMG convert -O $IMGFMT -B $TEST_IMG.base $TEST_IMG.orig $TEST_IMG
 
-echo "Checking if backing clusters are allocated when they shouldn't"
-echo
-for offset in $TEST_OFFSETS; do
-    # Complete backing clusters
-    is_allocated $(( offset  + 1024 * 1024))  $CLUSTER_SIZE $CLUSTER_SIZE 1
+
+
+# Test the conversion twice: One test with the old-style -B option and another
+# one with -o backing_file
+
+for backing_option in "-B $TEST_IMG.base" "-o backing_file=$TEST_IMG.base"; do
+
+    echo
+    echo Testing conversion with $backing_option
+    echo
+    $QEMU_IMG convert -O $IMGFMT $backing_option $TEST_IMG.orig $TEST_IMG
+
+    echo "Checking if backing clusters are allocated when they shouldn't"
+    echo
+    for offset in $TEST_OFFSETS; do
+        # Complete backing clusters
+        is_allocated $(( offset  + 1024 * 1024))  $CLUSTER_SIZE $CLUSTER_SIZE 1
+    done
+
+    echo "Reading"
+    echo
+
+    for offset in $TEST_OFFSETS; do
+        # Some clusters with alternating backing file/image file reads
+        io_pattern readv $(( offset )) 512 1024 64 42
+        io_pattern readv $(( offset + 512 )) 512 1024 64 43
+
+        # Complete test image clusters
+        io_pattern readv $(( offset  + 1024 * 1024))  $CLUSTER_SIZE $CLUSTER_SIZE 1 42
+        io_pattern readv $(( offset + 1024 * 1024 + $CLUSTER_SIZE))  $CLUSTER_SIZE $CLUSTER_SIZE 1 43
+
+        # Empty sectors
+        io_zero readv $(( offset + 1024 * 1024 + $CLUSTER_SIZE * 4 )) $CLUSTER_SIZE $CLUSTER_SIZE 1
+    done
+    _check_test_img
+
 done
-
-echo "Reading"
-echo
-
-for offset in $TEST_OFFSETS; do
-    # Some clusters with alternating backing file/image file reads
-    io readv $(( offset )) 512 1024 64
-    io readv $(( offset + 512 )) 512 1024 64
-
-    # Complete test image clusters
-    io readv $(( offset  + 1024 * 1024))  $CLUSTER_SIZE $CLUSTER_SIZE 1
-    io readv $(( offset + 1024 * 1024 + $CLUSTER_SIZE))  $CLUSTER_SIZE $CLUSTER_SIZE 1
-
-    # Empty sectors
-    io_zero readv $(( offset + 1024 * 1024 + $CLUSTER_SIZE * 4 )) $CLUSTER_SIZE $CLUSTER_SIZE 1
-done
-_check_test_img
 
 # success, all done
 echo "*** done"
