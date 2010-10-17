@@ -889,6 +889,10 @@ static int alsa_ctl_out (HWVoiceOut *hw, int cmd, ...)
 
     case VOICE_DISABLE:
         ldebug ("disabling voice\n");
+        if (hw->poll_mode) {
+            hw->poll_mode = 0;
+            alsa_fini_poll (&alsa->pollhlp);
+        }
         return alsa_voice_ctl (alsa->handle, "playback", 1);
     }
 
