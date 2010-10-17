@@ -175,6 +175,7 @@ trace_backend="nop"
 trace_file="trace"
 spice=""
 rbd=""
+smartcard=""
 
 # parse CC options first
 for opt do
@@ -724,6 +725,10 @@ for opt do
   ;;
   --enable-rbd) rbd="yes"
   ;;
+  --disable-smartcard) smartcard="no"
+  ;;
+  --enable-smartcard) smartcard="yes"
+  ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
   esac
@@ -921,6 +926,8 @@ echo "                           Default:trace-<pid>"
 echo "  --disable-spice          disable spice"
 echo "  --enable-spice           enable spice"
 echo "  --enable-rbd             enable building the rados block device (rbd)"
+echo "  --disable-smartcard      disable smartcard support"
+echo "  --enable-smartcard       enable smartcard support"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -2822,6 +2829,10 @@ fi
 
 if test "$spice" = "yes" ; then
   echo "CONFIG_SPICE=y" >> $config_host_mak
+fi
+
+if test "$smartcard" = "yes" ; then
+  echo "CONFIG_SMARTCARD=y" >> $config_host_mak
 fi
 
 # XXX: suppress that
