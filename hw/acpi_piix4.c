@@ -38,6 +38,8 @@
 #define PCI_BASE 0xae00
 #define PCI_EJ_BASE 0xae08
 
+#define PIIX4_PCI_HOTPLUG_STATUS 2
+
 struct gpe_regs {
     uint16_t sts; /* status */
     uint16_t en;  /* enabled */
@@ -596,13 +598,13 @@ static void piix4_acpi_system_hot_add_init(PCIBus *bus, PIIX4PMState *s)
 
 static void enable_device(PIIX4PMState *s, int slot)
 {
-    s->gpe.sts |= 2;
+    s->gpe.sts |= PIIX4_PCI_HOTPLUG_STATUS;
     s->pci0_status.up |= (1 << slot);
 }
 
 static void disable_device(PIIX4PMState *s, int slot)
 {
-    s->gpe.sts |= 2;
+    s->gpe.sts |= PIIX4_PCI_HOTPLUG_STATUS;
     s->pci0_status.down |= (1 << slot);
 }
 
