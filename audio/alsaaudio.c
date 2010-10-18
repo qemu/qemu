@@ -843,11 +843,15 @@ static int alsa_init_out (HWVoiceOut *hw, struct audsettings *as)
     return 0;
 }
 
-static int alsa_voice_ctl (snd_pcm_t *handle, const char *typ, int pause)
+#define VOICE_CTL_PAUSE 0
+#define VOICE_CTL_PREPARE 1
+#define VOICE_CTL_START 2
+
+static int alsa_voice_ctl (snd_pcm_t *handle, const char *typ, int ctl)
 {
     int err;
 
-    if (pause) {
+    if (ctl == VOICE_CTL_PAUSE) {
         err = snd_pcm_drop (handle);
         if (err < 0) {
             alsa_logerr (err, "Could not stop %s\n", typ);
@@ -859,6 +863,13 @@ static int alsa_voice_ctl (snd_pcm_t *handle, const char *typ, int pause)
         if (err < 0) {
             alsa_logerr (err, "Could not prepare handle for %s\n", typ);
             return -1;
+        }
+        if (ctl == VOICE_CTL_START) {
+            err = snd_pcm_start(handle);
+            if (err < 0) {
+                alsa_logerr (err, "Could not start handle for %s\n", typ);
+                return -1;
+            }
         }
     }
 
@@ -884,12 +895,16 @@ static int alsa_ctl_out (HWVoiceOut *hw, int cmd, ...)
                 poll_mode = 0;
             }
             hw->poll_mode = poll_mode;
-            return alsa_voice_ctl (alsa->handle, "playback", 0);
+            return alsa_voice_ctl (alsa->handle, "playback", VOICE_CTL_PREPARE);
         }
 
     case VOICE_DISABLE:
         ldebug ("disabling voice\n");
-        return alsa_voice_ctl (alsa->handle, "playback", 1);
+        if (hw->poll_mode) {
+            hw->poll_mode = 0;
+            alsa_fini_poll (&alsa->pollhlp);
+        }
+        return alsa_voice_ctl (alsa->handle, "playback", VOICE_CTL_PAUSE);
     }
 
     return -1;
@@ -1102,7 +1117,7 @@ static int alsa_ctl_in (HWVoiceIn *hw, int cmd, ...)
             }
             hw->poll_mode = poll_mode;
 
-            return alsa_voice_ctl (alsa->handle, "capture", 0);
+            return alsa_voice_ctl (alsa->handle, "capture", VOICE_CTL_START);
         }
 
     case VOICE_DISABLE:
@@ -1111,7 +1126,7 @@ static int alsa_ctl_in (HWVoiceIn *hw, int cmd, ...)
             hw->poll_mode = 0;
             alsa_fini_poll (&alsa->pollhlp);
         }
-        return alsa_voice_ctl (alsa->handle, "capture", 1);
+        return alsa_voice_ctl (alsa->handle, "capture", VOICE_CTL_PAUSE);
     }
 
     return -1;
