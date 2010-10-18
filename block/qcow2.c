@@ -1154,7 +1154,7 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset)
     }
 
     new_l1_size = size_to_l1(s, offset);
-    ret = qcow2_grow_l1_table(bs, new_l1_size);
+    ret = qcow2_grow_l1_table(bs, new_l1_size, true);
     if (ret < 0) {
         return ret;
     }

@@ -327,7 +327,7 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
     if (qcow2_update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, -1) < 0)
         goto fail;
 
-    if (qcow2_grow_l1_table(bs, sn->l1_size) < 0)
+    if (qcow2_grow_l1_table(bs, sn->l1_size, true) < 0)
         goto fail;
 
     s->l1_size = sn->l1_size;
