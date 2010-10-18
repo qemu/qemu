@@ -47,11 +47,14 @@ typedef struct FsCred
     dev_t   fc_rdev;
 } FsCred;
 
+struct xattr_operations;
+
 typedef struct FsContext
 {
     char *fs_root;
     SecModel fs_sm;
     uid_t uid;
+    struct xattr_operations **xops;
 } FsContext;
 
 extern void cred_init(FsCred *);
@@ -94,4 +97,12 @@ typedef struct FileOperations
     int (*lremovexattr)(FsContext *, const char *, const char *);
     void *opaque;
 } FileOperations;
+
+static inline const char *rpath(FsContext *ctx, const char *path)
+{
+    /* FIXME: so wrong... */
+    static char buffer[4096];
+    snprintf(buffer, sizeof(buffer), "%s/%s", ctx->fs_root, path);
+    return buffer;
+}
 #endif

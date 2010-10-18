@@ -17,6 +17,7 @@
 #include "virtio-9p.h"
 #include "fsdev/qemu-fsdev.h"
 #include "virtio-9p-debug.h"
+#include "virtio-9p-xattr.h"
 
 int debug_9p_pdu;
 
@@ -3712,23 +3713,26 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
     if (!strcmp(fse->security_model, "passthrough")) {
         /* Files on the Fileserver set to client user credentials */
         s->ctx.fs_sm = SM_PASSTHROUGH;
+        s->ctx.xops = passthrough_xattr_ops;
     } else if (!strcmp(fse->security_model, "mapped")) {
         /* Files on the fileserver are set to QEMU credentials.
          * Client user credentials are saved in extended attributes.
          */
         s->ctx.fs_sm = SM_MAPPED;
+        s->ctx.xops = mapped_xattr_ops;
     } else if (!strcmp(fse->security_model, "none")) {
         /*
          * Files on the fileserver are set to QEMU credentials.
          */
         s->ctx.fs_sm = SM_NONE;
-
+        s->ctx.xops = none_xattr_ops;
     } else {
         fprintf(stderr, "Default to security_model=none. You may want"
                 " enable advanced security model using "
                 "security option:\n\t security_model=passthrough \n\t "
                 "security_model=mapped\n");
         s->ctx.fs_sm = SM_NONE;
+        s->ctx.xops = none_xattr_ops;
     }
 
     if (lstat(fse->path, &stat)) {
