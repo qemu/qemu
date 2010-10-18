@@ -65,6 +65,7 @@ static void ide_dma_start(IDEState *s, BlockDriverCompletionFunc *dma_cb);
 static void ide_dma_restart(IDEState *s, int is_read);
 static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret);
 static int ide_handle_rw_error(IDEState *s, int error, int op);
+static void ide_flush_cache(IDEState *s);
 
 static void padstr(char *str, const char *src, int len)
 {
@@ -688,6 +689,8 @@ static void ide_dma_restart_bh(void *opaque)
         } else {
             ide_sector_write(bmdma_active_if(bm));
         }
+    } else if (bm->status & BM_STATUS_RETRY_FLUSH) {
+        ide_flush_cache(bmdma_active_if(bm));
     }
 }
 
@@ -795,7 +798,12 @@ static void ide_flush_cb(void *opaque, int ret)
 {
     IDEState *s = opaque;
 
-    /* XXX: how do we signal I/O errors here? */
+    if (ret < 0) {
+        /* XXX: What sector number to set here? */
+        if (ide_handle_rw_error(s, -ret, BM_STATUS_RETRY_FLUSH)) {
+            return;
+        }
+    }
 
     s->status = READY_STAT | SEEK_STAT;
     ide_set_irq(s->bus);
