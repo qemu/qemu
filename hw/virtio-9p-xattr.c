@@ -137,16 +137,20 @@ int v9fs_remove_xattr(FsContext *ctx,
 
 XattrOperations *mapped_xattr_ops[] = {
     &mapped_user_xattr,
+    &mapped_pacl_xattr,
+    &mapped_dacl_xattr,
     NULL,
 };
 
 XattrOperations *passthrough_xattr_ops[] = {
     &passthrough_user_xattr,
+    &passthrough_acl_xattr,
     NULL,
 };
 
 /* for .user none model should be same as passthrough */
 XattrOperations *none_xattr_ops[] = {
     &passthrough_user_xattr,
+    &none_acl_xattr,
     NULL,
 };

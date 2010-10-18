@@ -32,6 +32,11 @@ typedef struct xattr_operations
 extern XattrOperations mapped_user_xattr;
 extern XattrOperations passthrough_user_xattr;
 
+extern XattrOperations mapped_pacl_xattr;
+extern XattrOperations mapped_dacl_xattr;
+extern XattrOperations passthrough_acl_xattr;
+extern XattrOperations none_acl_xattr;
+
 extern XattrOperations *mapped_xattr_ops[];
 extern XattrOperations *passthrough_xattr_ops[];
 extern XattrOperations *none_xattr_ops[];
@@ -64,6 +69,35 @@ static inline int pt_removexattr(FsContext *ctx,
                                  const char *path, const char *name)
 {
     return lremovexattr(rpath(ctx, path), name);
+}
+
+static inline ssize_t notsup_getxattr(FsContext *ctx, const char *path,
+                                      const char *name, void *value,
+                                      size_t size)
+{
+    errno = ENOTSUP;
+    return -1;
+}
+
+static inline int notsup_setxattr(FsContext *ctx, const char *path,
+                                  const char *name, void *value,
+                                  size_t size, int flags)
+{
+    errno = ENOTSUP;
+    return -1;
+}
+
+static inline ssize_t notsup_listxattr(FsContext *ctx, const char *path,
+                                       char *name, void *value, size_t size)
+{
+    return 0;
+}
+
+static inline int notsup_removexattr(FsContext *ctx,
+                                     const char *path, const char *name)
+{
+    errno = ENOTSUP;
+    return -1;
 }
 
 #endif

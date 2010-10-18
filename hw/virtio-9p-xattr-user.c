@@ -37,11 +37,19 @@ static ssize_t mp_user_listxattr(FsContext *ctx, const char *path,
 {
     int name_size = strlen(name) + 1;
     if (strncmp(name, "user.virtfs.", 12) == 0) {
-        /*
-         * Don't allow fetch of user.virtfs namesapce
-         * in case of mapped security
-         */
-        return 0;
+
+        /*  check if it is a mapped posix acl */
+        if (strncmp(name, "user.virtfs.system.posix_acl_", 29) == 0) {
+            /* adjust the name and size */
+            name += 12;
+            name_size -= 12;
+        } else {
+            /*
+             * Don't allow fetch of user.virtfs namesapce
+             * in case of mapped security
+             */
+            return 0;
+        }
     }
     if (!value) {
         return name_size;
