@@ -3697,8 +3697,8 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
 
     if (!fse) {
         /* We don't have a fsdev identified by fsdev_id */
-        fprintf(stderr, "Virtio-9p device couldn't find fsdev "
-                    "with the id %s\n", conf->fsdev_id);
+        fprintf(stderr, "Virtio-9p device couldn't find fsdev with the "
+                "id = %s\n", conf->fsdev_id ? conf->fsdev_id : "NULL");
         exit(1);
     }
 

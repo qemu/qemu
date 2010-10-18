@@ -29,35 +29,47 @@ int qemu_fsdev_add(QemuOpts *opts)
 {
     struct FsTypeListEntry *fsle;
     int i;
+    const char *fsdev_id = qemu_opts_id(opts);
+    const char *fstype = qemu_opt_get(opts, "fstype");
+    const char *path = qemu_opt_get(opts, "path");
+    const char *sec_model = qemu_opt_get(opts, "security_model");
 
-    if (qemu_opts_id(opts) == NULL) {
+    if (!fsdev_id) {
         fprintf(stderr, "fsdev: No id specified\n");
         return -1;
     }
 
-    for (i = 0; i < ARRAY_SIZE(FsTypes); i++) {
-        if (strcmp(FsTypes[i].name, qemu_opt_get(opts, "fstype")) == 0) {
-            break;
+    if (fstype) {
+        for (i = 0; i < ARRAY_SIZE(FsTypes); i++) {
+            if (strcmp(FsTypes[i].name, fstype) == 0) {
+                break;
+            }
         }
-    }
 
-    if (i == ARRAY_SIZE(FsTypes)) {
-        fprintf(stderr, "fsdev: fstype %s not found\n",
-                    qemu_opt_get(opts, "fstype"));
+        if (i == ARRAY_SIZE(FsTypes)) {
+            fprintf(stderr, "fsdev: fstype %s not found\n", fstype);
+            return -1;
+        }
+    } else {
+        fprintf(stderr, "fsdev: No fstype specified\n");
         return -1;
     }
 
-    if (qemu_opt_get(opts, "security_model") == NULL) {
+    if (!sec_model) {
         fprintf(stderr, "fsdev: No security_model specified.\n");
+        return -1;
+    }
+
+    if (!path) {
+        fprintf(stderr, "fsdev: No path specified.\n");
         return -1;
     }
 
     fsle = qemu_malloc(sizeof(*fsle));
 
-    fsle->fse.fsdev_id = qemu_strdup(qemu_opts_id(opts));
-    fsle->fse.path = qemu_strdup(qemu_opt_get(opts, "path"));
-    fsle->fse.security_model = qemu_strdup(qemu_opt_get(opts,
-                "security_model"));
+    fsle->fse.fsdev_id = qemu_strdup(fsdev_id);
+    fsle->fse.path = qemu_strdup(path);
+    fsle->fse.security_model = qemu_strdup(sec_model);
     fsle->fse.ops = FsTypes[i].ops;
 
     QTAILQ_INSERT_TAIL(&fstype_entries, fsle, next);
@@ -67,11 +79,13 @@ int qemu_fsdev_add(QemuOpts *opts)
 
 FsTypeEntry *get_fsdev_fsentry(char *id)
 {
-    struct FsTypeListEntry *fsle;
+    if (id) {
+        struct FsTypeListEntry *fsle;
 
-    QTAILQ_FOREACH(fsle, &fstype_entries, next) {
-        if (strcmp(fsle->fse.fsdev_id, id) == 0) {
-            return &fsle->fse;
+        QTAILQ_FOREACH(fsle, &fstype_entries, next) {
+            if (strcmp(fsle->fse.fsdev_id, id) == 0) {
+                return &fsle->fse;
+            }
         }
     }
     return NULL;
