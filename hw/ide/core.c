@@ -801,6 +801,15 @@ static void ide_flush_cb(void *opaque, int ret)
     ide_set_irq(s->bus);
 }
 
+static void ide_flush_cache(IDEState *s)
+{
+    if (s->bs) {
+        bdrv_aio_flush(s->bs, ide_flush_cb, s);
+    } else {
+        ide_flush_cb(s, 0);
+    }
+}
+
 static inline void cpu_to_ube16(uint8_t *buf, int val)
 {
     buf[0] = val >> 8;
@@ -2031,10 +2040,7 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             break;
         case WIN_FLUSH_CACHE:
         case WIN_FLUSH_CACHE_EXT:
-            if (s->bs)
-                bdrv_aio_flush(s->bs, ide_flush_cb, s);
-            else
-                ide_flush_cb(s, 0);
+            ide_flush_cache(s);
             break;
         case WIN_STANDBY:
         case WIN_STANDBY2:
