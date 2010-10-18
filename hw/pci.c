@@ -1745,6 +1745,7 @@ void pci_del_capability(PCIDevice *pdev, uint8_t cap_id, uint8_t size)
     pdev->config[prev] = pdev->config[offset + PCI_CAP_LIST_NEXT];
     /* Make capability writeable again */
     memset(pdev->wmask + offset, 0xff, size);
+    memset(pdev->w1cmask + offset, 0, size);
     /* Clear cmask as device-specific registers can't be checked */
     memset(pdev->cmask + offset, 0, size);
     memset(pdev->used + offset, 0, size);
