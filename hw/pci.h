@@ -9,6 +9,8 @@
 /* PCI includes legacy ISA access.  */
 #include "isa.h"
 
+#include "pcie.h"
+
 /* PCI bus */
 
 #define PCI_DEVFN(slot, func)   ((((slot) & 0x1f) << 3) | ((func) & 0x07))
@@ -174,6 +176,9 @@ struct PCIDevice {
 
     /* Offset of MSI capability in config space */
     uint8_t msi_cap;
+
+    /* PCI Express */
+    PCIExpressDevice exp;
 
     /* Location of option rom */
     char *romfile;
