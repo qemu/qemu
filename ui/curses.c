@@ -238,9 +238,12 @@ static void curses_refresh(DisplayState *ds)
                 keysym = curses2keysym[chr];
 
             if (keysym == -1) {
-                if (chr < ' ')
-                    keysym = (chr + '@' - 'A' + 'a') | KEYSYM_CNTRL;
-                else
+                if (chr < ' ') {
+                    keysym = chr + '@';
+                    if (keysym >= 'A' && keysym <= 'Z')
+                        keysym += 'a' - 'A';
+                    keysym |= KEYSYM_CNTRL;
+                } else
                     keysym = chr;
             }
 

@@ -55,6 +55,7 @@ static const int curses2keysym[CURSES_KEYS] = {
     [0x7f] = KEY_BACKSPACE,
     ['\r'] = KEY_ENTER,
     ['\n'] = KEY_ENTER,
+    [27] = 27,
     [KEY_BTAB] = '\t' | KEYSYM_SHIFT,
 };
 
