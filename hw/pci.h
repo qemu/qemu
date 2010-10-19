@@ -109,11 +109,12 @@ typedef struct PCIIORegion {
 
 /* Bits in cap_present field. */
 enum {
-    QEMU_PCI_CAP_MSIX = 0x1,
-    QEMU_PCI_CAP_EXPRESS = 0x2,
+    QEMU_PCI_CAP_MSI = 0x1,
+    QEMU_PCI_CAP_MSIX = 0x2,
+    QEMU_PCI_CAP_EXPRESS = 0x4,
 
     /* multifunction capable device */
-#define QEMU_PCI_CAP_MULTIFUNCTION_BITNR        2
+#define QEMU_PCI_CAP_MULTIFUNCTION_BITNR        3
     QEMU_PCI_CAP_MULTIFUNCTION = (1 << QEMU_PCI_CAP_MULTIFUNCTION_BITNR),
 };
 
@@ -170,6 +171,9 @@ struct PCIDevice {
     uint32_t msix_bar_size;
     /* Version id needed for VMState */
     int32_t version_id;
+
+    /* Offset of MSI capability in config space */
+    uint8_t msi_cap;
 
     /* Location of option rom */
     char *romfile;
