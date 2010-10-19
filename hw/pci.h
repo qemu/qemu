@@ -323,6 +323,76 @@ pci_config_set_interrupt_pin(uint8_t *pci_config, uint8_t val)
     pci_set_byte(&pci_config[PCI_INTERRUPT_PIN], val);
 }
 
+/*
+ * helper functions to do bit mask operation on configuration space.
+ * Just to set bit, use test-and-set and discard returned value.
+ * Just to clear bit, use test-and-clear and discard returned value.
+ * NOTE: They aren't atomic.
+ */
+static inline uint8_t
+pci_byte_test_and_clear_mask(uint8_t *config, uint8_t mask)
+{
+    uint8_t val = pci_get_byte(config);
+    pci_set_byte(config, val & ~mask);
+    return val & mask;
+}
+
+static inline uint8_t
+pci_byte_test_and_set_mask(uint8_t *config, uint8_t mask)
+{
+    uint8_t val = pci_get_byte(config);
+    pci_set_byte(config, val | mask);
+    return val & mask;
+}
+
+static inline uint16_t
+pci_word_test_and_clear_mask(uint8_t *config, uint16_t mask)
+{
+    uint16_t val = pci_get_word(config);
+    pci_set_word(config, val & ~mask);
+    return val & mask;
+}
+
+static inline uint16_t
+pci_word_test_and_set_mask(uint8_t *config, uint16_t mask)
+{
+    uint16_t val = pci_get_word(config);
+    pci_set_word(config, val | mask);
+    return val & mask;
+}
+
+static inline uint32_t
+pci_long_test_and_clear_mask(uint8_t *config, uint32_t mask)
+{
+    uint32_t val = pci_get_long(config);
+    pci_set_long(config, val & ~mask);
+    return val & mask;
+}
+
+static inline uint32_t
+pci_long_test_and_set_mask(uint8_t *config, uint32_t mask)
+{
+    uint32_t val = pci_get_long(config);
+    pci_set_long(config, val | mask);
+    return val & mask;
+}
+
+static inline uint64_t
+pci_quad_test_and_clear_mask(uint8_t *config, uint64_t mask)
+{
+    uint64_t val = pci_get_quad(config);
+    pci_set_quad(config, val & ~mask);
+    return val & mask;
+}
+
+static inline uint64_t
+pci_quad_test_and_set_mask(uint8_t *config, uint64_t mask)
+{
+    uint64_t val = pci_get_quad(config);
+    pci_set_quad(config, val | mask);
+    return val & mask;
+}
+
 typedef int (*pci_qdev_initfn)(PCIDevice *dev);
 typedef struct {
     DeviceInfo qdev;
