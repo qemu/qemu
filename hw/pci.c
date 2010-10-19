@@ -61,7 +61,7 @@ struct BusInfo pci_bus_info = {
 
 static void pci_update_mappings(PCIDevice *d);
 static void pci_set_irq(void *opaque, int irq_num, int level);
-static int pci_add_option_rom(PCIDevice *pdev);
+static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom);
 static void pci_del_option_rom(PCIDevice *pdev);
 
 static uint16_t pci_default_sub_vendor_id = PCI_SUBVENDOR_ID_REDHAT_QUMRANET;
@@ -1571,6 +1571,7 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
     PCIDeviceInfo *info = container_of(base, PCIDeviceInfo, qdev);
     PCIBus *bus;
     int devfn, rc;
+    bool is_default_rom;
 
     /* initialize cap_present for pci_is_express() and pci_config_size() */
     if (info->is_express) {
@@ -1591,9 +1592,12 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
     }
 
     /* rom loading */
-    if (pci_dev->romfile == NULL && info->romfile != NULL)
+    is_default_rom = false;
+    if (pci_dev->romfile == NULL && info->romfile != NULL) {
         pci_dev->romfile = qemu_strdup(info->romfile);
-    pci_add_option_rom(pci_dev);
+        is_default_rom = true;
+    }
+    pci_add_option_rom(pci_dev, is_default_rom);
 
     if (bus->hotplug) {
         /* Let buses differentiate between hotplug and when device is
@@ -1701,8 +1705,64 @@ static void pci_map_option_rom(PCIDevice *pdev, int region_num, pcibus_t addr, p
     cpu_register_physical_memory(addr, size, pdev->rom_offset);
 }
 
+/* Patch the PCI vendor and device ids in a PCI rom image if necessary.
+   This is needed for an option rom which is used for more than one device. */
+static void pci_patch_ids(PCIDevice *pdev, uint8_t *ptr, int size)
+{
+    uint16_t vendor_id;
+    uint16_t device_id;
+    uint16_t rom_vendor_id;
+    uint16_t rom_device_id;
+    uint16_t rom_magic;
+    uint16_t pcir_offset;
+    uint8_t checksum;
+
+    /* Words in rom data are little endian (like in PCI configuration),
+       so they can be read / written with pci_get_word / pci_set_word. */
+
+    /* Only a valid rom will be patched. */
+    rom_magic = pci_get_word(ptr);
+    if (rom_magic != 0xaa55) {
+        PCI_DPRINTF("Bad ROM magic %04x\n", rom_magic);
+        return;
+    }
+    pcir_offset = pci_get_word(ptr + 0x18);
+    if (pcir_offset + 8 >= size || memcmp(ptr + pcir_offset, "PCIR", 4)) {
+        PCI_DPRINTF("Bad PCIR offset 0x%x or signature\n", pcir_offset);
+        return;
+    }
+
+    vendor_id = pci_get_word(pdev->config + PCI_VENDOR_ID);
+    device_id = pci_get_word(pdev->config + PCI_DEVICE_ID);
+    rom_vendor_id = pci_get_word(ptr + pcir_offset + 4);
+    rom_device_id = pci_get_word(ptr + pcir_offset + 6);
+
+    PCI_DPRINTF("%s: ROM id %04x%04x / PCI id %04x%04x\n", pdev->romfile,
+                vendor_id, device_id, rom_vendor_id, rom_device_id);
+
+    checksum = ptr[6];
+
+    if (vendor_id != rom_vendor_id) {
+        /* Patch vendor id and checksum (at offset 6 for etherboot roms). */
+        checksum += (uint8_t)rom_vendor_id + (uint8_t)(rom_vendor_id >> 8);
+        checksum -= (uint8_t)vendor_id + (uint8_t)(vendor_id >> 8);
+        PCI_DPRINTF("ROM checksum %02x / %02x\n", ptr[6], checksum);
+        ptr[6] = checksum;
+        pci_set_word(ptr + pcir_offset + 4, vendor_id);
+    }
+
+    if (device_id != rom_device_id) {
+        /* Patch device id and checksum (at offset 6 for etherboot roms). */
+        checksum += (uint8_t)rom_device_id + (uint8_t)(rom_device_id >> 8);
+        checksum -= (uint8_t)device_id + (uint8_t)(device_id >> 8);
+        PCI_DPRINTF("ROM checksum %02x / %02x\n", ptr[6], checksum);
+        ptr[6] = checksum;
+        pci_set_word(ptr + pcir_offset + 6, device_id);
+    }
+}
+
 /* Add an option rom for the device */
-static int pci_add_option_rom(PCIDevice *pdev)
+static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
 {
     int size;
     char *path;
@@ -1752,6 +1812,11 @@ static int pci_add_option_rom(PCIDevice *pdev)
     ptr = qemu_get_ram_ptr(pdev->rom_offset);
     load_image(path, ptr);
     qemu_free(path);
+
+    if (is_default_rom) {
+        /* Only the default rom images will be patched (if needed). */
+        pci_patch_ids(pdev, ptr, size);
+    }
 
     pci_register_bar(pdev, PCI_ROM_SLOT, size,
                      0, pci_map_option_rom);
