@@ -660,7 +660,7 @@ static int kvm_put_fpu(CPUState *env)
 static int kvm_put_xsave(CPUState *env)
 {
 #ifdef KVM_CAP_XSAVE
-    int i;
+    int i, r;
     struct kvm_xsave* xsave;
     uint16_t cwd, swd, twd, fop;
 
@@ -685,7 +685,9 @@ static int kvm_put_xsave(CPUState *env)
     *(uint64_t *)&xsave->region[XSAVE_XSTATE_BV] = env->xstate_bv;
     memcpy(&xsave->region[XSAVE_YMMH_SPACE], env->ymmh_regs,
             sizeof env->ymmh_regs);
-    return kvm_vcpu_ioctl(env, KVM_SET_XSAVE, xsave);
+    r = kvm_vcpu_ioctl(env, KVM_SET_XSAVE, xsave);
+    qemu_free(xsave);
+    return r;
 #else
     return kvm_put_fpu(env);
 #endif
@@ -850,8 +852,10 @@ static int kvm_get_xsave(CPUState *env)
 
     xsave = qemu_memalign(4096, sizeof(struct kvm_xsave));
     ret = kvm_vcpu_ioctl(env, KVM_GET_XSAVE, xsave);
-    if (ret < 0)
+    if (ret < 0) {
+        qemu_free(xsave);
         return ret;
+    }
 
     cwd = (uint16_t)xsave->region[0];
     swd = (uint16_t)(xsave->region[0] >> 16);
@@ -870,6 +874,7 @@ static int kvm_get_xsave(CPUState *env)
     env->xstate_bv = *(uint64_t *)&xsave->region[XSAVE_XSTATE_BV];
     memcpy(env->ymmh_regs, &xsave->region[XSAVE_YMMH_SPACE],
             sizeof env->ymmh_regs);
+    qemu_free(xsave);
     return 0;
 #else
     return kvm_get_fpu(env);
