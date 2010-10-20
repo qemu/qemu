@@ -186,7 +186,7 @@ hw-obj-$(CONFIG_PIIX4) += piix4.o
 # PCI watchdog devices
 hw-obj-y += wdt_i6300esb.o
 
-hw-obj-y += pcie.o
+hw-obj-y += pcie.o pcie_port.o
 hw-obj-y += msix.o msi.o
 
 # PCI network cards

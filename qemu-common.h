@@ -221,6 +221,8 @@ typedef struct PCIBus PCIBus;
 typedef struct PCIDevice PCIDevice;
 typedef struct PCIExpressDevice PCIExpressDevice;
 typedef struct PCIBridge PCIBridge;
+typedef struct PCIEPort PCIEPort;
+typedef struct PCIESlot PCIESlot;
 typedef struct SerialState SerialState;
 typedef struct IRQState *qemu_irq;
 typedef struct PCMCIACardState PCMCIACardState;
