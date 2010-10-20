@@ -214,9 +214,11 @@ void st_print_trace(FILE *stream, int (*stream_printf)(FILE *stream, const char 
     unsigned int i;
 
     for (i = 0; i < trace_idx; i++) {
-        stream_printf(stream, "Event %lu : %lx %lx %lx %lx %lx\n",
+        stream_printf(stream, "Event %" PRIu64 " : %" PRIx64 " %" PRIx64
+                      " %" PRIx64 " %" PRIx64 " %" PRIx64 " %" PRIx64 "\n",
                       trace_buf[i].event, trace_buf[i].x1, trace_buf[i].x2,
-                      trace_buf[i].x3, trace_buf[i].x4, trace_buf[i].x5);
+                      trace_buf[i].x3, trace_buf[i].x4, trace_buf[i].x5,
+                      trace_buf[i].x6);
     }
 }
 
