@@ -106,7 +106,13 @@ static void virtio_blk_flush_complete(void *opaque, int ret)
 {
     VirtIOBlockReq *req = opaque;
 
-    virtio_blk_req_complete(req, ret ? VIRTIO_BLK_S_IOERR : VIRTIO_BLK_S_OK);
+    if (ret) {
+        if (virtio_blk_handle_rw_error(req, -ret, 0)) {
+            return;
+        }
+    }
+
+    virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
 }
 
 static VirtIOBlockReq *virtio_blk_alloc_request(VirtIOBlock *s)
