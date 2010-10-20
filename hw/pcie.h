@@ -65,7 +65,15 @@ struct PCIExpressDevice {
     /* TODO FLR */
 
     /* SLOT */
-    unsigned int hpev_intx;     /* INTx for hot plug event */
+    unsigned int hpev_intx;     /* INTx for hot plug event (0-3:INT[A-D]#)
+                                 * default is 0 = INTA#
+                                 * If the chip wants to use other interrupt
+                                 * line, initialize this member with the
+                                 * desired number.
+                                 * If the chip dynamically changes this member,
+                                 * also initialize it when loaded as
+                                 * appropreately.
+                                 */
 };
 
 /* PCI express capability helper functions */
