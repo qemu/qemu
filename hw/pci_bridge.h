@@ -39,6 +39,7 @@ pcibus_t pci_bridge_get_limit(const PCIDevice *bridge, uint8_t type);
 
 void pci_bridge_write_config(PCIDevice *d,
                              uint32_t address, uint32_t val, int len);
+void pci_bridge_disable_base_limit(PCIDevice *dev);
 void pci_bridge_reset_reg(PCIDevice *dev);
 void pci_bridge_reset(DeviceState *qdev);
 

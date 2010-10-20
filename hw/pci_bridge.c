@@ -151,6 +151,26 @@ void pci_bridge_write_config(PCIDevice *d,
     }
 }
 
+void pci_bridge_disable_base_limit(PCIDevice *dev)
+{
+    uint8_t *conf = dev->config;
+
+    pci_byte_test_and_set_mask(conf + PCI_IO_BASE,
+                               PCI_IO_RANGE_MASK & 0xff);
+    pci_byte_test_and_clear_mask(conf + PCI_IO_LIMIT,
+                                 PCI_IO_RANGE_MASK & 0xff);
+    pci_word_test_and_set_mask(conf + PCI_MEMORY_BASE,
+                               PCI_MEMORY_RANGE_MASK & 0xffff);
+    pci_word_test_and_clear_mask(conf + PCI_MEMORY_LIMIT,
+                                 PCI_MEMORY_RANGE_MASK & 0xffff);
+    pci_word_test_and_set_mask(conf + PCI_PREF_MEMORY_BASE,
+                               PCI_PREF_RANGE_MASK & 0xffff);
+    pci_word_test_and_clear_mask(conf + PCI_PREF_MEMORY_LIMIT,
+                                 PCI_PREF_RANGE_MASK & 0xffff);
+    pci_set_word(conf + PCI_PREF_BASE_UPPER32, 0);
+    pci_set_word(conf + PCI_PREF_LIMIT_UPPER32, 0);
+}
+
 /* reset bridge specific configuration registers */
 void pci_bridge_reset_reg(PCIDevice *dev)
 {
@@ -161,12 +181,28 @@ void pci_bridge_reset_reg(PCIDevice *dev)
     conf[PCI_SUBORDINATE_BUS] = 0;
     conf[PCI_SEC_LATENCY_TIMER] = 0;
 
-    conf[PCI_IO_BASE] = 0;
-    conf[PCI_IO_LIMIT] = 0;
-    pci_set_word(conf + PCI_MEMORY_BASE, 0);
-    pci_set_word(conf + PCI_MEMORY_LIMIT, 0);
-    pci_set_word(conf + PCI_PREF_MEMORY_BASE, 0);
-    pci_set_word(conf + PCI_PREF_MEMORY_LIMIT, 0);
+    /*
+     * the default values for base/limit registers aren't specified
+     * in the PCI-to-PCI-bridge spec. So we don't thouch them here.
+     * Each implementation can override it.
+     * typical implementation does
+     * zero base/limit registers or
+     * disable forwarding: pci_bridge_disable_base_limit()
+     * If disable forwarding is wanted, call pci_bridge_disable_base_limit()
+     * after this function.
+     */
+    pci_byte_test_and_clear_mask(conf + PCI_IO_BASE,
+                                 PCI_IO_RANGE_MASK & 0xff);
+    pci_byte_test_and_clear_mask(conf + PCI_IO_LIMIT,
+                                 PCI_IO_RANGE_MASK & 0xff);
+    pci_word_test_and_clear_mask(conf + PCI_MEMORY_BASE,
+                                 PCI_MEMORY_RANGE_MASK & 0xffff);
+    pci_word_test_and_clear_mask(conf + PCI_MEMORY_LIMIT,
+                                 PCI_MEMORY_RANGE_MASK & 0xffff);
+    pci_word_test_and_clear_mask(conf + PCI_PREF_MEMORY_BASE,
+                                 PCI_PREF_RANGE_MASK & 0xffff);
+    pci_word_test_and_clear_mask(conf + PCI_PREF_MEMORY_LIMIT,
+                                 PCI_PREF_RANGE_MASK & 0xffff);
     pci_set_word(conf + PCI_PREF_BASE_UPPER32, 0);
     pci_set_word(conf + PCI_PREF_LIMIT_UPPER32, 0);
 
