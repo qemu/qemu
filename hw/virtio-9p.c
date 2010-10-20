@@ -17,6 +17,7 @@
 #include "virtio-9p.h"
 #include "fsdev/qemu-fsdev.h"
 #include "virtio-9p-debug.h"
+#include "virtio-9p-xattr.h"
 
 int debug_9p_pdu;
 
@@ -134,21 +135,16 @@ static void v9fs_do_seekdir(V9fsState *s, DIR *dir, off_t off)
     return s->ops->seekdir(&s->ctx, dir, off);
 }
 
-static int v9fs_do_readv(V9fsState *s, int fd, const struct iovec *iov,
-                            int iovcnt)
+static int v9fs_do_preadv(V9fsState *s, int fd, const struct iovec *iov,
+                            int iovcnt, int64_t offset)
 {
-    return s->ops->readv(&s->ctx, fd, iov, iovcnt);
+    return s->ops->preadv(&s->ctx, fd, iov, iovcnt, offset);
 }
 
-static off_t v9fs_do_lseek(V9fsState *s, int fd, off_t offset, int whence)
+static int v9fs_do_pwritev(V9fsState *s, int fd, const struct iovec *iov,
+                       int iovcnt, int64_t offset)
 {
-    return s->ops->lseek(&s->ctx, fd, offset, whence);
-}
-
-static int v9fs_do_writev(V9fsState *s, int fd, const struct iovec *iov,
-                       int iovcnt)
-{
-    return s->ops->writev(&s->ctx, fd, iov, iovcnt);
+    return s->ops->pwritev(&s->ctx, fd, iov, iovcnt, offset);
 }
 
 static int v9fs_do_chmod(V9fsState *s, V9fsString *path, mode_t mode)
@@ -325,6 +321,14 @@ static int number_to_string(void *arg, char type)
         } while (num);
         break;
     }
+    case 'U': {
+        unsigned long num = *(unsigned long *)arg;
+        do {
+            ret++;
+            num = num/10;
+        } while (num);
+        break;
+    }
     default:
         printf("Number_to_string: Unknown number format\n");
         return -1;
@@ -342,6 +346,7 @@ v9fs_string_alloc_printf(char **strp, const char *fmt, va_list ap)
     int nr_args = 0;
     char *arg_char_ptr;
     unsigned int arg_uint;
+    unsigned long arg_ulong;
 
     /* Find the number of %'s that denotes an argument */
     for (iter = strstr(iter, "%"); iter; iter = strstr(iter, "%")) {
@@ -366,6 +371,14 @@ v9fs_string_alloc_printf(char **strp, const char *fmt, va_list ap)
         case 'u':
             arg_uint = va_arg(ap2, unsigned int);
             len += number_to_string((void *)&arg_uint, 'u');
+            break;
+        case 'l':
+            if (*++iter == 'u') {
+                arg_ulong = va_arg(ap2, unsigned long);
+                len += number_to_string((void *)&arg_ulong, 'U');
+            } else {
+                return -1;
+            }
             break;
         case 's':
             arg_char_ptr = va_arg(ap2, char *);
@@ -1704,6 +1717,8 @@ static void v9fs_open_post_lstat(V9fsState *s, V9fsOpenState *vs, int err)
         if (s->proto_version == V9FS_PROTO_2000L) {
             flags = vs->mode;
             flags &= ~(O_NOCTTY | O_ASYNC | O_CREAT);
+            /* Ignore direct disk access hint until the server supports it. */
+            flags &= ~O_DIRECT;
         } else {
             flags = omode_to_uflags(vs->mode);
         }
@@ -1760,8 +1775,10 @@ static void v9fs_post_lcreate(V9fsState *s, V9fsLcreateState *vs, int err)
         err = vs->offset;
     } else {
         vs->fidp->fid_type = P9_FID_NONE;
-        close(vs->fidp->fs.fd);
         err = -errno;
+        if (vs->fidp->fs.fd > 0) {
+            close(vs->fidp->fs.fd);
+        }
     }
 
     complete_pdu(s, vs->pdu, err);
@@ -1824,6 +1841,9 @@ static void v9fs_lcreate(V9fsState *s, V9fsPDU *pdu)
     v9fs_string_sprintf(&vs->fullname, "%s/%s", vs->fidp->path.data,
              vs->name.data);
 
+    /* Ignore direct disk access hint until the server supports it. */
+    flags &= ~O_DIRECT;
+
     vs->fidp->fs.fd = v9fs_do_open2(s, vs->fullname.data, vs->fidp->uid,
             gid, flags, mode);
     v9fs_lcreate_post_do_open2(s, vs, err);
@@ -1833,6 +1853,32 @@ out:
     complete_pdu(s, vs->pdu, err);
     v9fs_string_free(&vs->name);
     qemu_free(vs);
+}
+
+static void v9fs_post_do_fsync(V9fsState *s, V9fsPDU *pdu, int err)
+{
+    if (err == -1) {
+        err = -errno;
+    }
+    complete_pdu(s, pdu, err);
+}
+
+static void v9fs_fsync(V9fsState *s, V9fsPDU *pdu)
+{
+    int32_t fid;
+    size_t offset = 7;
+    V9fsFidState *fidp;
+    int err;
+
+    pdu_unmarshal(pdu, offset, "d", &fid);
+    fidp = lookup_fid(s, fid);
+    if (fidp == NULL) {
+        err = -ENOENT;
+        v9fs_post_do_fsync(s, pdu, err);
+        return;
+    }
+    err = v9fs_do_fsync(s, fidp->fs.fd);
+    v9fs_post_do_fsync(s, pdu, err);
 }
 
 static void v9fs_clunk(V9fsState *s, V9fsPDU *pdu)
@@ -1941,7 +1987,7 @@ static void v9fs_read_post_rewinddir(V9fsState *s, V9fsReadState *vs,
     return;
 }
 
-static void v9fs_read_post_readv(V9fsState *s, V9fsReadState *vs, ssize_t err)
+static void v9fs_read_post_preadv(V9fsState *s, V9fsReadState *vs, ssize_t err)
 {
     if (err  < 0) {
         /* IO error return the error */
@@ -1955,44 +2001,22 @@ static void v9fs_read_post_readv(V9fsState *s, V9fsReadState *vs, ssize_t err)
             if (0) {
                 print_sg(vs->sg, vs->cnt);
             }
-            vs->len = v9fs_do_readv(s, vs->fidp->fs.fd, vs->sg, vs->cnt);
+            vs->len = v9fs_do_preadv(s, vs->fidp->fs.fd, vs->sg, vs->cnt,
+                      vs->off);
+            if (vs->len > 0) {
+                vs->off += vs->len;
+            }
         } while (vs->len == -1 && errno == EINTR);
         if (vs->len == -1) {
             err  = -errno;
         }
-        v9fs_read_post_readv(s, vs, err);
+        v9fs_read_post_preadv(s, vs, err);
         return;
     }
     vs->offset += pdu_marshal(vs->pdu, vs->offset, "d", vs->total);
     vs->offset += vs->count;
     err = vs->offset;
 
-out:
-    complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
-}
-
-static void v9fs_read_post_lseek(V9fsState *s, V9fsReadState *vs, ssize_t err)
-{
-    if (err == -1) {
-        err = -errno;
-        goto out;
-    }
-    vs->sg = cap_sg(vs->sg, vs->count, &vs->cnt);
-
-    if (vs->total < vs->count) {
-        do {
-            if (0) {
-                print_sg(vs->sg, vs->cnt);
-            }
-            vs->len = v9fs_do_readv(s, vs->fidp->fs.fd, vs->sg, vs->cnt);
-        } while (vs->len == -1 && errno == EINTR);
-        if (vs->len == -1) {
-            err  = -errno;
-        }
-        v9fs_read_post_readv(s, vs, err);
-        return;
-    }
 out:
     complete_pdu(s, vs->pdu, err);
     qemu_free(vs);
@@ -2055,8 +2079,16 @@ static void v9fs_read(V9fsState *s, V9fsPDU *pdu)
     } else if (vs->fidp->fid_type == P9_FID_FILE) {
         vs->sg = vs->iov;
         pdu_marshal(vs->pdu, vs->offset + 4, "v", vs->sg, &vs->cnt);
-        err = v9fs_do_lseek(s, vs->fidp->fs.fd, vs->off, SEEK_SET);
-        v9fs_read_post_lseek(s, vs, err);
+        vs->sg = cap_sg(vs->sg, vs->count, &vs->cnt);
+        if (vs->total <= vs->count) {
+            vs->len = v9fs_do_preadv(s, vs->fidp->fs.fd, vs->sg, vs->cnt,
+                                    vs->off);
+            if (vs->len > 0) {
+                vs->off += vs->len;
+            }
+            err = vs->len;
+            v9fs_read_post_preadv(s, vs, err);
+        }
         return;
     } else if (vs->fidp->fid_type == P9_FID_XATTR) {
         v9fs_xattr_read(s, vs);
@@ -2190,7 +2222,7 @@ out:
     return;
 }
 
-static void v9fs_write_post_writev(V9fsState *s, V9fsWriteState *vs,
+static void v9fs_write_post_pwritev(V9fsState *s, V9fsWriteState *vs,
                                    ssize_t err)
 {
     if (err  < 0) {
@@ -2205,44 +2237,20 @@ static void v9fs_write_post_writev(V9fsState *s, V9fsWriteState *vs,
             if (0) {
                 print_sg(vs->sg, vs->cnt);
             }
-            vs->len =  v9fs_do_writev(s, vs->fidp->fs.fd, vs->sg, vs->cnt);
+            vs->len = v9fs_do_pwritev(s, vs->fidp->fs.fd, vs->sg, vs->cnt,
+                      vs->off);
+            if (vs->len > 0) {
+                vs->off += vs->len;
+            }
         } while (vs->len == -1 && errno == EINTR);
         if (vs->len == -1) {
             err  = -errno;
         }
-        v9fs_write_post_writev(s, vs, err);
+        v9fs_write_post_pwritev(s, vs, err);
         return;
     }
     vs->offset += pdu_marshal(vs->pdu, vs->offset, "d", vs->total);
-
     err = vs->offset;
-out:
-    complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
-}
-
-static void v9fs_write_post_lseek(V9fsState *s, V9fsWriteState *vs, ssize_t err)
-{
-    if (err == -1) {
-        err = -errno;
-        goto out;
-    }
-    vs->sg = cap_sg(vs->sg, vs->count, &vs->cnt);
-
-    if (vs->total < vs->count) {
-        do {
-            if (0) {
-                print_sg(vs->sg, vs->cnt);
-            }
-            vs->len = v9fs_do_writev(s, vs->fidp->fs.fd, vs->sg, vs->cnt);
-        } while (vs->len == -1 && errno == EINTR);
-        if (vs->len == -1) {
-            err  = -errno;
-        }
-        v9fs_write_post_writev(s, vs, err);
-        return;
-    }
-
 out:
     complete_pdu(s, vs->pdu, err);
     qemu_free(vs);
@@ -2328,11 +2336,16 @@ static void v9fs_write(V9fsState *s, V9fsPDU *pdu)
         err = -EINVAL;
         goto out;
     }
-    err = v9fs_do_lseek(s, vs->fidp->fs.fd, vs->off, SEEK_SET);
-
-    v9fs_write_post_lseek(s, vs, err);
+    vs->sg = cap_sg(vs->sg, vs->count, &vs->cnt);
+    if (vs->total <= vs->count) {
+        vs->len = v9fs_do_pwritev(s, vs->fidp->fs.fd, vs->sg, vs->cnt, vs->off);
+        if (vs->len > 0) {
+            vs->off += vs->len;
+        }
+        err = vs->len;
+        v9fs_write_post_pwritev(s, vs, err);
+    }
     return;
-
 out:
     complete_pdu(s, vs->pdu, err);
     qemu_free(vs);
@@ -3152,6 +3165,95 @@ out:
     qemu_free(vs);
 }
 
+/*
+ * Implement posix byte range locking code
+ * Server side handling of locking code is very simple, because 9p server in
+ * QEMU can handle only one client. And most of the lock handling
+ * (like conflict, merging) etc is done by the VFS layer itself, so no need to
+ * do any thing in * qemu 9p server side lock code path.
+ * So when a TLOCK request comes, always return success
+ */
+
+static void v9fs_lock(V9fsState *s, V9fsPDU *pdu)
+{
+    int32_t fid, err = 0;
+    V9fsLockState *vs;
+
+    vs = qemu_mallocz(sizeof(*vs));
+    vs->pdu = pdu;
+    vs->offset = 7;
+
+    vs->flock = qemu_malloc(sizeof(*vs->flock));
+    pdu_unmarshal(vs->pdu, vs->offset, "dbdqqds", &fid, &vs->flock->type,
+                &vs->flock->flags, &vs->flock->start, &vs->flock->length,
+                            &vs->flock->proc_id, &vs->flock->client_id);
+
+    vs->status = P9_LOCK_ERROR;
+
+    /* We support only block flag now (that too ignored currently) */
+    if (vs->flock->flags & ~P9_LOCK_FLAGS_BLOCK) {
+        err = -EINVAL;
+        goto out;
+    }
+    vs->fidp = lookup_fid(s, fid);
+    if (vs->fidp == NULL) {
+        err = -ENOENT;
+        goto out;
+    }
+
+    err = v9fs_do_fstat(s, vs->fidp->fs.fd, &vs->stbuf);
+    if (err < 0) {
+        err = -errno;
+        goto out;
+    }
+    vs->status = P9_LOCK_SUCCESS;
+out:
+    vs->offset += pdu_marshal(vs->pdu, vs->offset, "b", vs->status);
+    complete_pdu(s, vs->pdu, err);
+    qemu_free(vs->flock);
+    qemu_free(vs);
+}
+
+/*
+ * When a TGETLOCK request comes, always return success because all lock
+ * handling is done by client's VFS layer.
+ */
+
+static void v9fs_getlock(V9fsState *s, V9fsPDU *pdu)
+{
+    int32_t fid, err = 0;
+    V9fsGetlockState *vs;
+
+    vs = qemu_mallocz(sizeof(*vs));
+    vs->pdu = pdu;
+    vs->offset = 7;
+
+    vs->glock = qemu_malloc(sizeof(*vs->glock));
+    pdu_unmarshal(vs->pdu, vs->offset, "dbqqds", &fid, &vs->glock->type,
+                &vs->glock->start, &vs->glock->length, &vs->glock->proc_id,
+		&vs->glock->client_id);
+
+    vs->fidp = lookup_fid(s, fid);
+    if (vs->fidp == NULL) {
+        err = -ENOENT;
+        goto out;
+    }
+
+    err = v9fs_do_fstat(s, vs->fidp->fs.fd, &vs->stbuf);
+    if (err < 0) {
+        err = -errno;
+        goto out;
+    }
+    vs->glock->type = F_UNLCK;
+    vs->offset += pdu_marshal(vs->pdu, vs->offset, "bqqds", vs->glock->type,
+                vs->glock->start, vs->glock->length, vs->glock->proc_id,
+		&vs->glock->client_id);
+out:
+    complete_pdu(s, vs->pdu, err);
+    qemu_free(vs->glock);
+    qemu_free(vs);
+}
+
 static void v9fs_mkdir_post_lstat(V9fsState *s, V9fsMkState *vs, int err)
 {
     if (err == -1) {
@@ -3403,6 +3505,49 @@ out:
     qemu_free(vs);
 }
 
+static void v9fs_readlink_post_readlink(V9fsState *s, V9fsReadLinkState *vs,
+                                                    int err)
+{
+    if (err < 0) {
+        err = -errno;
+        goto out;
+    }
+    vs->offset += pdu_marshal(vs->pdu, vs->offset, "s", &vs->target);
+    err = vs->offset;
+out:
+    complete_pdu(s, vs->pdu, err);
+    v9fs_string_free(&vs->target);
+    qemu_free(vs);
+}
+
+static void v9fs_readlink(V9fsState *s, V9fsPDU *pdu)
+{
+    int32_t fid;
+    V9fsReadLinkState *vs;
+    int err = 0;
+    V9fsFidState *fidp;
+
+    vs = qemu_malloc(sizeof(*vs));
+    vs->pdu = pdu;
+    vs->offset = 7;
+
+    pdu_unmarshal(vs->pdu, vs->offset, "d", &fid);
+
+    fidp = lookup_fid(s, fid);
+    if (fidp == NULL) {
+        err = -ENOENT;
+        goto out;
+    }
+
+    v9fs_string_init(&vs->target);
+    err = v9fs_do_readlink(s, &fidp->path, &vs->target);
+    v9fs_readlink_post_readlink(s, vs, err);
+    return;
+out:
+    complete_pdu(s, vs->pdu, err);
+    qemu_free(vs);
+}
+
 typedef void (pdu_handler_t)(V9fsState *s, V9fsPDU *pdu);
 
 static pdu_handler_t *pdu_handlers[] = {
@@ -3414,6 +3559,9 @@ static pdu_handler_t *pdu_handlers[] = {
     [P9_TXATTRCREATE] = v9fs_xattrcreate,
     [P9_TMKNOD] = v9fs_mknod,
     [P9_TRENAME] = v9fs_rename,
+    [P9_TLOCK] = v9fs_lock,
+    [P9_TGETLOCK] = v9fs_getlock,
+    [P9_TREADLINK] = v9fs_readlink,
     [P9_TMKDIR] = v9fs_mkdir,
     [P9_TVERSION] = v9fs_version,
     [P9_TLOPEN] = v9fs_open,
@@ -3421,6 +3569,7 @@ static pdu_handler_t *pdu_handlers[] = {
     [P9_TSTAT] = v9fs_stat,
     [P9_TWALK] = v9fs_walk,
     [P9_TCLUNK] = v9fs_clunk,
+    [P9_TFSYNC] = v9fs_fsync,
     [P9_TOPEN] = v9fs_open,
     [P9_TREAD] = v9fs_read,
 #if 0
@@ -3527,8 +3676,8 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
 
     if (!fse) {
         /* We don't have a fsdev identified by fsdev_id */
-        fprintf(stderr, "Virtio-9p device couldn't find fsdev "
-                    "with the id %s\n", conf->fsdev_id);
+        fprintf(stderr, "Virtio-9p device couldn't find fsdev with the "
+                "id = %s\n", conf->fsdev_id ? conf->fsdev_id : "NULL");
         exit(1);
     }
 
@@ -3543,23 +3692,26 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
     if (!strcmp(fse->security_model, "passthrough")) {
         /* Files on the Fileserver set to client user credentials */
         s->ctx.fs_sm = SM_PASSTHROUGH;
+        s->ctx.xops = passthrough_xattr_ops;
     } else if (!strcmp(fse->security_model, "mapped")) {
         /* Files on the fileserver are set to QEMU credentials.
          * Client user credentials are saved in extended attributes.
          */
         s->ctx.fs_sm = SM_MAPPED;
+        s->ctx.xops = mapped_xattr_ops;
     } else if (!strcmp(fse->security_model, "none")) {
         /*
          * Files on the fileserver are set to QEMU credentials.
          */
         s->ctx.fs_sm = SM_NONE;
-
+        s->ctx.xops = none_xattr_ops;
     } else {
         fprintf(stderr, "Default to security_model=none. You may want"
                 " enable advanced security model using "
                 "security option:\n\t security_model=passthrough \n\t "
                 "security_model=mapped\n");
         s->ctx.fs_sm = SM_NONE;
+        s->ctx.xops = none_xattr_ops;
     }
 
     if (lstat(fse->path, &stat)) {

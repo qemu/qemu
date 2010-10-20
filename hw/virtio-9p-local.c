@@ -12,20 +12,13 @@
  */
 #include "virtio.h"
 #include "virtio-9p.h"
+#include "virtio-9p-xattr.h"
 #include <arpa/inet.h>
 #include <pwd.h>
 #include <grp.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <attr/xattr.h>
-
-static const char *rpath(FsContext *ctx, const char *path)
-{
-    /* FIXME: so wrong... */
-    static char buffer[4096];
-    snprintf(buffer, sizeof(buffer), "%s/%s", ctx->fs_root, path);
-    return buffer;
-}
 
 
 static int local_lstat(FsContext *fs_ctx, const char *path, struct stat *stbuf)
@@ -175,21 +168,34 @@ static void local_seekdir(FsContext *ctx, DIR *dir, off_t off)
     return seekdir(dir, off);
 }
 
-static ssize_t local_readv(FsContext *ctx, int fd, const struct iovec *iov,
-                            int iovcnt)
+static ssize_t local_preadv(FsContext *ctx, int fd, const struct iovec *iov,
+                            int iovcnt, off_t offset)
 {
-    return readv(fd, iov, iovcnt);
+#ifdef CONFIG_PREADV
+    return preadv(fd, iov, iovcnt, offset);
+#else
+    int err = lseek(fd, offset, SEEK_SET);
+    if (err == -1) {
+        return err;
+    } else {
+        return readv(fd, iov, iovcnt);
+    }
+#endif
 }
 
-static off_t local_lseek(FsContext *ctx, int fd, off_t offset, int whence)
+static ssize_t local_pwritev(FsContext *ctx, int fd, const struct iovec *iov,
+                            int iovcnt, off_t offset)
 {
-    return lseek(fd, offset, whence);
-}
-
-static ssize_t local_writev(FsContext *ctx, int fd, const struct iovec *iov,
-                            int iovcnt)
-{
-    return writev(fd, iov, iovcnt);
+#ifdef CONFIG_PREADV
+    return pwritev(fd, iov, iovcnt, offset);
+#else
+    int err = lseek(fd, offset, SEEK_SET);
+    if (err == -1) {
+        return err;
+    } else {
+        return writev(fd, iov, iovcnt);
+    }
+#endif
 }
 
 static int local_chmod(FsContext *fs_ctx, const char *path, FsCred *credp)
@@ -497,103 +503,25 @@ static int local_statfs(FsContext *s, const char *path, struct statfs *stbuf)
 static ssize_t local_lgetxattr(FsContext *ctx, const char *path,
                                const char *name, void *value, size_t size)
 {
-    if ((ctx->fs_sm == SM_MAPPED) &&
-        (strncmp(name, "user.virtfs.", 12) == 0)) {
-        /*
-         * Don't allow fetch of user.virtfs namesapce
-         * in case of mapped security
-         */
-        errno = ENOATTR;
-        return -1;
-    }
-
-    return lgetxattr(rpath(ctx, path), name, value, size);
+    return v9fs_get_xattr(ctx, path, name, value, size);
 }
 
 static ssize_t local_llistxattr(FsContext *ctx, const char *path,
                                 void *value, size_t size)
 {
-    ssize_t retval;
-    ssize_t actual_len = 0;
-    char *orig_value, *orig_value_start;
-    char *temp_value, *temp_value_start;
-    ssize_t xattr_len, parsed_len = 0, attr_len;
-
-    if (ctx->fs_sm != SM_MAPPED) {
-        return llistxattr(rpath(ctx, path), value, size);
-    }
-
-    /* Get the actual len */
-    xattr_len = llistxattr(rpath(ctx, path), value, 0);
-
-    /* Now fetch the xattr and find the actual size */
-    orig_value = qemu_malloc(xattr_len);
-    xattr_len = llistxattr(rpath(ctx, path), orig_value, xattr_len);
-
-    /*
-     * For mapped security model drop user.virtfs namespace
-     * from the list
-     */
-    temp_value = qemu_mallocz(xattr_len);
-    temp_value_start = temp_value;
-    orig_value_start = orig_value;
-    while (xattr_len > parsed_len) {
-        attr_len = strlen(orig_value) + 1;
-        if (strncmp(orig_value, "user.virtfs.", 12) != 0) {
-            /* Copy this entry */
-            strcat(temp_value, orig_value);
-            temp_value  += attr_len;
-            actual_len += attr_len;
-        }
-        parsed_len += attr_len;
-        orig_value += attr_len;
-    }
-    if (!size) {
-        retval = actual_len;
-        goto out;
-    } else if (size >= actual_len) {
-        /* now copy the parsed attribute list back */
-        memset(value, 0, size);
-        memcpy(value, temp_value_start, actual_len);
-        retval = actual_len;
-        goto out;
-    }
-    errno = ERANGE;
-    retval = -1;
-out:
-    qemu_free(orig_value_start);
-    qemu_free(temp_value_start);
-    return retval;
+    return v9fs_list_xattr(ctx, path, value, size);
 }
 
 static int local_lsetxattr(FsContext *ctx, const char *path, const char *name,
                            void *value, size_t size, int flags)
 {
-    if ((ctx->fs_sm == SM_MAPPED) &&
-        (strncmp(name, "user.virtfs.", 12) == 0)) {
-        /*
-         * Don't allow fetch of user.virtfs namesapce
-         * in case of mapped security
-         */
-        errno = EACCES;
-        return -1;
-    }
-    return lsetxattr(rpath(ctx, path), name, value, size, flags);
+    return v9fs_set_xattr(ctx, path, name, value, size, flags);
 }
 
 static int local_lremovexattr(FsContext *ctx,
                               const char *path, const char *name)
 {
-    if ((ctx->fs_sm == SM_MAPPED) &&
-        (strncmp(name, "user.virtfs.", 12) == 0)) {
-        /*
-         * Don't allow fetch of user.virtfs namesapce
-         * in case of mapped security
-         */
-        errno = EACCES;
-        return -1;
-    }
-    return lremovexattr(rpath(ctx, path), name);
+    return v9fs_remove_xattr(ctx, path, name);
 }
 
 
@@ -608,9 +536,8 @@ FileOperations local_ops = {
     .telldir = local_telldir,
     .readdir = local_readdir,
     .seekdir = local_seekdir,
-    .readv = local_readv,
-    .lseek = local_lseek,
-    .writev = local_writev,
+    .preadv = local_preadv,
+    .pwritev = local_pwritev,
     .chmod = local_chmod,
     .mknod = local_mknod,
     .mkdir = local_mkdir,

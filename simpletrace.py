@@ -19,7 +19,7 @@ header_version  = 0
 
 trace_fmt = '=QQQQQQQQ'
 trace_len = struct.calcsize(trace_fmt)
-event_re  = re.compile(r'(disable\s+)?([a-zA-Z0-9_]+)\(([^)]*)\)\s+"([^"]*)"')
+event_re  = re.compile(r'(disable\s+)?([a-zA-Z0-9_]+)\(([^)]*)\).*')
 
 def err(msg):
     sys.stderr.write(msg + '\n')
@@ -39,7 +39,7 @@ def parse_events(fobj):
         if m is None:
             continue
 
-        disable, name, args, fmt = m.groups()
+        disable, name, args = m.groups()
         events[event_num] = (name,) + get_argnames(args)
         event_num += 1
     return events

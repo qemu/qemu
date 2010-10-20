@@ -502,6 +502,14 @@ void pprint_pdu(V9fsPDU *pdu)
         fprintf(llogfile, "RMKNOD: )");
         pprint_qid(pdu, 0, &offset, "qid");
         break;
+    case P9_TREADLINK:
+	fprintf(llogfile, "TREADLINK: (");
+        pprint_int32(pdu, 0, &offset, "fid");
+        break;
+    case P9_RREADLINK:
+	fprintf(llogfile, "RREADLINK: (");
+        pprint_str(pdu, 0, &offset, "target");
+        break;
     case P9_TREAD:
         fprintf(llogfile, "TREAD: (");
         pprint_int32(pdu, 0, &offset, "fid");
@@ -534,6 +542,13 @@ void pprint_pdu(V9fsPDU *pdu)
         break;
     case P9_RCLUNK:
         fprintf(llogfile, "RCLUNK: (");
+        break;
+    case P9_TFSYNC:
+        fprintf(llogfile, "TFSYNC: (");
+        pprint_int32(pdu, 0, &offset, "fid");
+        break;
+    case P9_RFSYNC:
+        fprintf(llogfile, "RFSYNC: (");
         break;
     case P9_TLINK:
         fprintf(llogfile, "TLINK: (");
@@ -587,6 +602,37 @@ void pprint_pdu(V9fsPDU *pdu)
         break;
     case P9_RXATTRCREATE:
         fprintf(llogfile, "RXATTRCREATE: (");
+        break;
+    case P9_TLOCK:
+        fprintf(llogfile, "TLOCK: (");
+        pprint_int32(pdu, 0, &offset, "fid");
+        pprint_int8(pdu, 0, &offset, ", type");
+        pprint_int32(pdu, 0, &offset, ", flags");
+        pprint_int64(pdu, 0, &offset, ", start");
+        pprint_int64(pdu, 0, &offset, ", length");
+        pprint_int32(pdu, 0, &offset, ", proc_id");
+        pprint_str(pdu, 0, &offset, ", client_id");
+        break;
+    case P9_RLOCK:
+        fprintf(llogfile, "RLOCK: (");
+        pprint_int8(pdu, 0, &offset, "status");
+        break;
+    case P9_TGETLOCK:
+        fprintf(llogfile, "TGETLOCK: (");
+        pprint_int32(pdu, 0, &offset, "fid");
+        pprint_int8(pdu, 0, &offset, ", type");
+        pprint_int64(pdu, 0, &offset, ", start");
+        pprint_int64(pdu, 0, &offset, ", length");
+        pprint_int32(pdu, 0, &offset, ", proc_id");
+        pprint_str(pdu, 0, &offset, ", client_id");
+        break;
+    case P9_RGETLOCK:
+        fprintf(llogfile, "RGETLOCK: (");
+        pprint_int8(pdu, 0, &offset, "type");
+        pprint_int64(pdu, 0, &offset, ", start");
+        pprint_int64(pdu, 0, &offset, ", length");
+        pprint_int32(pdu, 0, &offset, ", proc_id");
+        pprint_str(pdu, 0, &offset, ", client_id");
         break;
     default:
         fprintf(llogfile, "unknown(%d): (", pdu->id);

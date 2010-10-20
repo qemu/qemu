@@ -47,11 +47,14 @@ typedef struct FsCred
     dev_t   fc_rdev;
 } FsCred;
 
+struct xattr_operations;
+
 typedef struct FsContext
 {
     char *fs_root;
     SecModel fs_sm;
     uid_t uid;
+    struct xattr_operations **xops;
 } FsContext;
 
 extern void cred_init(FsCred *);
@@ -77,9 +80,8 @@ typedef struct FileOperations
     off_t (*telldir)(FsContext *, DIR *);
     struct dirent *(*readdir)(FsContext *, DIR *);
     void (*seekdir)(FsContext *, DIR *, off_t);
-    ssize_t (*readv)(FsContext *, int, const struct iovec *, int);
-    ssize_t (*writev)(FsContext *, int, const struct iovec *, int);
-    off_t (*lseek)(FsContext *, int, off_t, int);
+    ssize_t (*preadv)(FsContext *, int, const struct iovec *, int, off_t);
+    ssize_t (*pwritev)(FsContext *, int, const struct iovec *, int, off_t);
     int (*mkdir)(FsContext *, const char *, FsCred *);
     int (*fstat)(FsContext *, int, struct stat *);
     int (*rename)(FsContext *, const char *, const char *);
@@ -94,4 +96,12 @@ typedef struct FileOperations
     int (*lremovexattr)(FsContext *, const char *, const char *);
     void *opaque;
 } FileOperations;
+
+static inline const char *rpath(FsContext *ctx, const char *path)
+{
+    /* FIXME: so wrong... */
+    static char buffer[4096];
+    snprintf(buffer, sizeof(buffer), "%s/%s", ctx->fs_root, path);
+    return buffer;
+}
 #endif

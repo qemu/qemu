@@ -100,16 +100,29 @@ static void vmmouse_mouse_event(void *opaque, int x, int y, int dz, int buttons_
     i8042_isa_mouse_fake_event(s->ps2_mouse);
 }
 
-static void vmmouse_update_handler(VMMouseState *s)
+static void vmmouse_remove_handler(VMMouseState *s)
 {
     if (s->entry) {
         qemu_remove_mouse_event_handler(s->entry);
         s->entry = NULL;
     }
-    if (s->status == 0)
+}
+
+static void vmmouse_update_handler(VMMouseState *s, int absolute)
+{
+    if (s->status != 0) {
+        return;
+    }
+    if (s->absolute != absolute) {
+        s->absolute = absolute;
+        vmmouse_remove_handler(s);
+    }
+    if (s->entry == NULL) {
         s->entry = qemu_add_mouse_event_handler(vmmouse_mouse_event,
                                                 s, s->absolute,
                                                 "vmmouse");
+        qemu_activate_mouse_event_handler(s->entry);
+    }
 }
 
 static void vmmouse_read_id(VMMouseState *s)
@@ -121,28 +134,25 @@ static void vmmouse_read_id(VMMouseState *s)
 
     s->queue[s->nb_queue++] = VMMOUSE_VERSION;
     s->status = 0;
-    vmmouse_update_handler(s);
 }
 
 static void vmmouse_request_relative(VMMouseState *s)
 {
     DPRINTF("vmmouse_request_relative()\n");
-    s->absolute = 0;
-    vmmouse_update_handler(s);
+    vmmouse_update_handler(s, 0);
 }
 
 static void vmmouse_request_absolute(VMMouseState *s)
 {
     DPRINTF("vmmouse_request_absolute()\n");
-    s->absolute = 1;
-    vmmouse_update_handler(s);
+    vmmouse_update_handler(s, 1);
 }
 
 static void vmmouse_disable(VMMouseState *s)
 {
     DPRINTF("vmmouse_disable()\n");
     s->status = 0xffff;
-    vmmouse_update_handler(s);
+    vmmouse_remove_handler(s);
 }
 
 static void vmmouse_data(VMMouseState *s, uint32_t *data, uint32_t size)
@@ -154,7 +164,7 @@ static void vmmouse_data(VMMouseState *s, uint32_t *data, uint32_t size)
     if (size == 0 || size > 6 || size > s->nb_queue) {
         printf("vmmouse: driver requested too much data %d\n", size);
         s->status = 0xffff;
-        vmmouse_update_handler(s);
+        vmmouse_remove_handler(s);
         return;
     }
 
@@ -239,7 +249,8 @@ static int vmmouse_post_load(void *opaque, int version_id)
 {
     VMMouseState *s = opaque;
 
-    vmmouse_update_handler(s);
+    vmmouse_remove_handler(s);
+    vmmouse_update_handler(s, s->absolute);
     return 0;
 }
 
