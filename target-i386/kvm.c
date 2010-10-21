@@ -790,6 +790,7 @@ static int kvm_put_msrs(CPUState *env, int level)
     kvm_msr_entry_set(&msrs[n++], MSR_IA32_SYSENTER_EIP, env->sysenter_eip);
     if (kvm_has_msr_star(env))
 	kvm_msr_entry_set(&msrs[n++], MSR_STAR, env->star);
+    kvm_msr_entry_set(&msrs[n++], MSR_VM_HSAVE_PA, env->vm_hsave);
 #ifdef TARGET_X86_64
     /* FIXME if lm capable */
     kvm_msr_entry_set(&msrs[n++], MSR_CSTAR, env->cstar);
@@ -1015,6 +1016,7 @@ static int kvm_get_msrs(CPUState *env)
     msrs[n++].index = MSR_IA32_SYSENTER_EIP;
     if (kvm_has_msr_star(env))
 	msrs[n++].index = MSR_STAR;
+    msrs[n++].index = MSR_VM_HSAVE_PA;
     msrs[n++].index = MSR_IA32_TSC;
 #ifdef TARGET_X86_64
     /* FIXME lm_capable_kernel */
@@ -1070,6 +1072,9 @@ static int kvm_get_msrs(CPUState *env)
 #endif
         case MSR_IA32_TSC:
             env->tsc = msrs[i].data;
+            break;
+        case MSR_VM_HSAVE_PA:
+            env->vm_hsave = msrs[i].data;
             break;
         case MSR_KVM_SYSTEM_TIME:
             env->system_time_msr = msrs[i].data;
