@@ -783,7 +783,7 @@ static int kvm_put_msrs(CPUState *env, int level)
         struct kvm_msr_entry entries[100];
     } msr_data;
     struct kvm_msr_entry *msrs = msr_data.entries;
-    int i, n = 0;
+    int n = 0;
 
     kvm_msr_entry_set(&msrs[n++], MSR_IA32_SYSENTER_CS, env->sysenter_cs);
     kvm_msr_entry_set(&msrs[n++], MSR_IA32_SYSENTER_ESP, env->sysenter_esp);
@@ -805,6 +805,7 @@ static int kvm_put_msrs(CPUState *env, int level)
     }
 #ifdef KVM_CAP_MCE
     if (env->mcg_cap) {
+        int i;
         if (level == KVM_PUT_RESET_STATE)
             kvm_msr_entry_set(&msrs[n++], MSR_MCG_STATUS, env->mcg_status);
         else if (level == KVM_PUT_FULL_STATE) {
@@ -1089,9 +1090,9 @@ static int kvm_get_msrs(CPUState *env)
             if (msrs[i].index >= MSR_MC0_CTL &&
                 msrs[i].index < MSR_MC0_CTL + (env->mcg_cap & 0xff) * 4) {
                 env->mce_banks[msrs[i].index - MSR_MC0_CTL] = msrs[i].data;
-                break;
             }
 #endif
+            break;
         }
     }
 
