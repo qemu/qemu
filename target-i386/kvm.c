@@ -817,7 +817,15 @@ static int kvm_put_msrs(CPUState *env, int level)
     kvm_msr_entry_set(&msrs[n++], MSR_LSTAR, env->lstar);
 #endif
     if (level == KVM_PUT_FULL_STATE) {
-        kvm_msr_entry_set(&msrs[n++], MSR_IA32_TSC, env->tsc);
+        /*
+         * KVM is yet unable to synchronize TSC values of multiple VCPUs on
+         * writeback. Until this is fixed, we only write the offset to SMP
+         * guests after migration, desynchronizing the VCPUs, but avoiding
+         * huge jump-backs that would occur without any writeback at all.
+         */
+        if (smp_cpus == 1 || env->tsc != 0) {
+            kvm_msr_entry_set(&msrs[n++], MSR_IA32_TSC, env->tsc);
+        }
         kvm_msr_entry_set(&msrs[n++], MSR_KVM_SYSTEM_TIME,
                           env->system_time_msr);
         kvm_msr_entry_set(&msrs[n++], MSR_KVM_WALL_CLOCK, env->wall_clock_msr);
