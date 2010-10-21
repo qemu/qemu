@@ -149,6 +149,7 @@ time_t mktimegm(struct tm *tm);
 int qemu_fls(int i);
 int qemu_fdatasync(int fd);
 int fcntl_setfl(int fd, int flag);
+ssize_t strtosz(const char *nptr, char **end);
 
 /* path.c */
 void init_paths(const char *prefix);
