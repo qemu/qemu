@@ -1,4 +1,5 @@
 -include ../config-host.mak
+-include $(SRC_PATH)/rules.mak
 
 $(call set-vpath, $(SRC_PATH)/tests)
 
