@@ -438,23 +438,26 @@ void kvm_arch_reset_vcpu(CPUState *env)
     }
 }
 
-static int kvm_has_msr_star(CPUState *env)
+int has_msr_star;
+int has_msr_hsave_pa;
+
+static void kvm_supported_msrs(CPUState *env)
 {
-    static int has_msr_star;
+    static int kvm_supported_msrs;
     int ret;
 
     /* first time */
-    if (has_msr_star == 0) {        
+    if (kvm_supported_msrs == 0) {
         struct kvm_msr_list msr_list, *kvm_msr_list;
 
-        has_msr_star = -1;
+        kvm_supported_msrs = -1;
 
         /* Obtain MSR list from KVM.  These are the MSRs that we must
          * save/restore */
         msr_list.nmsrs = 0;
         ret = kvm_ioctl(env->kvm_state, KVM_GET_MSR_INDEX_LIST, &msr_list);
         if (ret < 0 && ret != -E2BIG) {
-            return 0;
+            return;
         }
         /* Old kernel modules had a bug and could write beyond the provided
            memory. Allocate at least a safe amount of 1K. */
@@ -470,7 +473,11 @@ static int kvm_has_msr_star(CPUState *env)
             for (i = 0; i < kvm_msr_list->nmsrs; i++) {
                 if (kvm_msr_list->indices[i] == MSR_STAR) {
                     has_msr_star = 1;
-                    break;
+                    continue;
+                }
+                if (kvm_msr_list->indices[i] == MSR_VM_HSAVE_PA) {
+                    has_msr_hsave_pa = 1;
+                    continue;
                 }
             }
         }
@@ -478,9 +485,19 @@ static int kvm_has_msr_star(CPUState *env)
         free(kvm_msr_list);
     }
 
-    if (has_msr_star == 1)
-        return 1;
-    return 0;
+    return;
+}
+
+static int kvm_has_msr_hsave_pa(CPUState *env)
+{
+    kvm_supported_msrs(env);
+    return has_msr_hsave_pa;
+}
+
+static int kvm_has_msr_star(CPUState *env)
+{
+    kvm_supported_msrs(env);
+    return has_msr_star;
 }
 
 static int kvm_init_identity_map_page(KVMState *s)
@@ -790,7 +807,8 @@ static int kvm_put_msrs(CPUState *env, int level)
     kvm_msr_entry_set(&msrs[n++], MSR_IA32_SYSENTER_EIP, env->sysenter_eip);
     if (kvm_has_msr_star(env))
 	kvm_msr_entry_set(&msrs[n++], MSR_STAR, env->star);
-    kvm_msr_entry_set(&msrs[n++], MSR_VM_HSAVE_PA, env->vm_hsave);
+    if (kvm_has_msr_hsave_pa(env))
+        kvm_msr_entry_set(&msrs[n++], MSR_VM_HSAVE_PA, env->vm_hsave);
 #ifdef TARGET_X86_64
     /* FIXME if lm capable */
     kvm_msr_entry_set(&msrs[n++], MSR_CSTAR, env->cstar);
@@ -1016,7 +1034,8 @@ static int kvm_get_msrs(CPUState *env)
     msrs[n++].index = MSR_IA32_SYSENTER_EIP;
     if (kvm_has_msr_star(env))
 	msrs[n++].index = MSR_STAR;
-    msrs[n++].index = MSR_VM_HSAVE_PA;
+    if (kvm_has_msr_hsave_pa(env))
+        msrs[n++].index = MSR_VM_HSAVE_PA;
     msrs[n++].index = MSR_IA32_TSC;
 #ifdef TARGET_X86_64
     /* FIXME lm_capable_kernel */
