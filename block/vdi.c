@@ -900,10 +900,10 @@ static void vdi_close(BlockDriverState *bs)
 {
 }
 
-static void vdi_flush(BlockDriverState *bs)
+static int vdi_flush(BlockDriverState *bs)
 {
     logout("\n");
-    bdrv_flush(bs->file);
+    return bdrv_flush(bs->file);
 }
 
 

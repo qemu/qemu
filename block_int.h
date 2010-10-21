@@ -59,7 +59,7 @@ struct BlockDriver {
                       const uint8_t *buf, int nb_sectors);
     void (*bdrv_close)(BlockDriverState *bs);
     int (*bdrv_create)(const char *filename, QEMUOptionParameter *options);
-    void (*bdrv_flush)(BlockDriverState *bs);
+    int (*bdrv_flush)(BlockDriverState *bs);
     int (*bdrv_is_allocated)(BlockDriverState *bs, int64_t sector_num,
                              int nb_sectors, int *pnum);
     int (*bdrv_set_key)(BlockDriverState *bs, const char *key);

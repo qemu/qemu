@@ -823,9 +823,9 @@ static void vmdk_close(BlockDriverState *bs)
     qemu_free(s->l2_cache);
 }
 
-static void vmdk_flush(BlockDriverState *bs)
+static int vmdk_flush(BlockDriverState *bs)
 {
-    bdrv_flush(bs->file);
+    return bdrv_flush(bs->file);
 }
 
 

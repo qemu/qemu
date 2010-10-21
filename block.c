@@ -1453,14 +1453,27 @@ const char *bdrv_get_device_name(BlockDriverState *bs)
     return bs->device_name;
 }
 
-void bdrv_flush(BlockDriverState *bs)
+int bdrv_flush(BlockDriverState *bs)
 {
     if (bs->open_flags & BDRV_O_NO_FLUSH) {
-        return;
+        return 0;
     }
 
-    if (bs->drv && bs->drv->bdrv_flush)
-        bs->drv->bdrv_flush(bs);
+    if (bs->drv && bs->drv->bdrv_flush) {
+        return bs->drv->bdrv_flush(bs);
+    }
+
+    /*
+     * Some block drivers always operate in either writethrough or unsafe mode
+     * and don't support bdrv_flush therefore. Usually qemu doesn't know how
+     * the server works (because the behaviour is hardcoded or depends on
+     * server-side configuration), so we can't ensure that everything is safe
+     * on disk. Returning an error doesn't work because that would break guests
+     * even if the server operates in writethrough mode.
+     *
+     * Let's hope the user knows what he's doing.
+     */
+    return 0;
 }
 
 void bdrv_flush_all(void)

@@ -910,9 +910,9 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
     return 0;
 }
 
-static void qcow_flush(BlockDriverState *bs)
+static int qcow_flush(BlockDriverState *bs)
 {
-    bdrv_flush(bs->file);
+    return bdrv_flush(bs->file);
 }
 
 static BlockDriverAIOCB *qcow_aio_flush(BlockDriverState *bs,

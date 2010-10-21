@@ -116,12 +116,12 @@ static void blkverify_close(BlockDriverState *bs)
     s->test_file = NULL;
 }
 
-static void blkverify_flush(BlockDriverState *bs)
+static int blkverify_flush(BlockDriverState *bs)
 {
     BDRVBlkverifyState *s = bs->opaque;
 
     /* Only flush test file, the raw file is not important */
-    bdrv_flush(s->test_file);
+    return bdrv_flush(s->test_file);
 }
 
 static int64_t blkverify_getlength(BlockDriverState *bs)
