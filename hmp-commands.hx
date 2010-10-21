@@ -754,9 +754,10 @@ ETEXI
 
     {
         .name       = "migrate_set_speed",
-        .args_type  = "value:f",
+        .args_type  = "value:o",
         .params     = "value",
-        .help       = "set maximum speed (in bytes) for migrations",
+        .help       = "set maximum speed (in bytes) for migrations. "
+	"Defaults to MB if no size suffix is specified, ie. B/K/M/G/T",
         .user_print = monitor_user_noop,
         .mhandler.cmd_new = do_migrate_set_speed,
     },

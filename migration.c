@@ -132,10 +132,10 @@ int do_migrate_cancel(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
 int do_migrate_set_speed(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
-    double d;
+    int64_t d;
     FdMigrationState *s;
 
-    d = qdict_get_double(qdict, "value");
+    d = qdict_get_int(qdict, "value");
     d = MAX(0, MIN(UINT32_MAX, d));
     max_throttle = d;
 
