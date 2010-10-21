@@ -3298,6 +3298,7 @@ echo "TARGET_ABI_DIR=$TARGET_ABI_DIR" >> $config_target_mak
 case "$target_arch2" in
   i386|x86_64)
     if test "$xen" = "yes" -a "$target_softmmu" = "yes" ; then
+      target_phys_bits=64
       echo "CONFIG_XEN=y" >> $config_target_mak
       if test "$cpu" = "i386" -o "$cpu" = "x86_64"; then
           echo "CONFIG_XEN_MAPCACHE=y" >> $config_target_mak
