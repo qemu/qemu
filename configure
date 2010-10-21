@@ -2348,6 +2348,7 @@ printf "# Configured with:" >> $config_host_mak
 printf " '%s'" "$0" "$@" >> $config_host_mak
 echo >> $config_host_mak
 
+echo all: >> $config_host_mak
 echo "prefix=$prefix" >> $config_host_mak
 echo "bindir=$bindir" >> $config_host_mak
 echo "mandir=$mandir" >> $config_host_mak
