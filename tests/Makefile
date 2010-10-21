@@ -3,7 +3,7 @@
 
 $(call set-vpath, $(SRC_PATH)/tests)
 
-CFLAGS=-Wall -O2 -g -fno-strict-aliasing
+CFLAGS=-Wall -O2 -g -fno-strict-aliasing -I..
 #CFLAGS+=-msse2
 LDFLAGS=
 
