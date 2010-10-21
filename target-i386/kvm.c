@@ -1636,6 +1636,28 @@ static void hardware_memory_error(void)
     exit(1);
 }
 
+#ifdef KVM_CAP_MCE
+static void kvm_mce_broadcast_rest(CPUState *env)
+{
+    CPUState *cenv;
+    int family, model, cpuver = env->cpuid_version;
+
+    family = (cpuver >> 8) & 0xf;
+    model = ((cpuver >> 12) & 0xf0) + ((cpuver >> 4) & 0xf);
+
+    /* Broadcast MCA signal for processor version 06H_EH and above */
+    if ((family == 6 && model >= 14) || family > 6) {
+        for (cenv = first_cpu; cenv != NULL; cenv = cenv->next_cpu) {
+            if (cenv == env) {
+                continue;
+            }
+            kvm_inject_x86_mce(cenv, 1, MCI_STATUS_VAL | MCI_STATUS_UC,
+                               MCG_STATUS_MCIP | MCG_STATUS_RIPV, 0, 0, 1);
+        }
+    }
+}
+#endif
+
 int kvm_on_sigbus_vcpu(CPUState *env, int code, void *addr)
 {
 #if defined(KVM_CAP_MCE)
@@ -1693,6 +1715,7 @@ int kvm_on_sigbus_vcpu(CPUState *env, int code, void *addr)
             fprintf(stderr, "kvm_set_mce: %s\n", strerror(errno));
             abort();
         }
+        kvm_mce_broadcast_rest(env);
     } else
 #endif
     {
@@ -1715,7 +1738,6 @@ int kvm_on_sigbus(int code, void *addr)
         void *vaddr;
         ram_addr_t ram_addr;
         target_phys_addr_t paddr;
-        CPUState *cenv;
 
         /* Hope we are lucky for AO MCE */
         vaddr = addr;
@@ -1731,10 +1753,7 @@ int kvm_on_sigbus(int code, void *addr)
         kvm_inject_x86_mce(first_cpu, 9, status,
                            MCG_STATUS_MCIP | MCG_STATUS_RIPV, paddr,
                            (MCM_ADDR_PHYS << 6) | 0xc, 1);
-        for (cenv = first_cpu->next_cpu; cenv != NULL; cenv = cenv->next_cpu) {
-            kvm_inject_x86_mce(cenv, 1, MCI_STATUS_VAL | MCI_STATUS_UC,
-                               MCG_STATUS_MCIP | MCG_STATUS_RIPV, 0, 0, 1);
-        }
+        kvm_mce_broadcast_rest(first_cpu);
     } else
 #endif
     {
