@@ -92,6 +92,7 @@ libs_softmmu=""
 libs_tools=""
 audio_pt_int=""
 audio_win_int=""
+cc_i386=i386-pc-linux-gnu-gcc
 
 # parse CC options first
 for opt do
@@ -789,12 +790,14 @@ case "$cpu" in
     i386)
            QEMU_CFLAGS="-m32 $QEMU_CFLAGS"
            LDFLAGS="-m32 $LDFLAGS"
+           cc_i386='$(CC) -m32'
            helper_cflags="-fomit-frame-pointer"
            host_guest_base="yes"
            ;;
     x86_64)
            QEMU_CFLAGS="-m64 $QEMU_CFLAGS"
            LDFLAGS="-m64 $LDFLAGS"
+           cc_i386='$(CC) -m32'
            host_guest_base="yes"
            ;;
     arm*)
@@ -2640,6 +2643,7 @@ echo "INSTALL_DIR=$install -d -m0755 -p" >> $config_host_mak
 echo "INSTALL_DATA=$install -m0644 -p" >> $config_host_mak
 echo "INSTALL_PROG=$install -m0755 -p" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
+echo "CC_I386=$cc_i386" >> $config_host_mak
 echo "HOST_CC=$host_cc" >> $config_host_mak
 if test "$sparse" = "yes" ; then
   echo "CC      := REAL_CC=\"\$(CC)\" cgcc"       >> $config_host_mak
