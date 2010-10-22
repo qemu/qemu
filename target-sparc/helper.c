@@ -1323,8 +1323,7 @@ static const char * const feature_name[] = {
     "gl",
 };
 
-static void print_features(FILE *f,
-                           int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+static void print_features(FILE *f, fprintf_function cpu_fprintf,
                            uint32_t features, const char *prefix)
 {
     unsigned int i;
@@ -1452,7 +1451,7 @@ static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model)
     return -1;
 }
 
-void sparc_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
+void sparc_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 {
     unsigned int i;
 
@@ -1479,8 +1478,7 @@ void sparc_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
                    "fpu_version mmu_version nwindows\n");
 }
 
-static void cpu_print_cc(FILE *f,
-                         int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+static void cpu_print_cc(FILE *f, fprintf_function cpu_fprintf,
                          uint32_t cc)
 {
     cpu_fprintf(f, "%c%c%c%c", cc & PSR_NEG? 'N' : '-',
@@ -1494,8 +1492,7 @@ static void cpu_print_cc(FILE *f,
 #define REGS_PER_LINE 8
 #endif
 
-void cpu_dump_state(CPUState *env, FILE *f,
-                    int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
                     int flags)
 {
     int i, x;
