@@ -81,6 +81,9 @@ struct iovec {
 #define GCC_FMT_ATTR(n, m)
 #endif
 
+typedef int (*fprintf_function)(FILE *f, const char *fmt, ...)
+    GCC_FMT_ATTR(2, 3);
+
 #ifdef _WIN32
 #define fsync _commit
 #define lseek _lseeki64
