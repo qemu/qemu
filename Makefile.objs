@@ -127,7 +127,7 @@ common-obj-y += iov.o acl.o
 common-obj-$(CONFIG_THREAD) += qemu-thread.o
 common-obj-$(CONFIG_IOTHREAD) += compatfd.o
 common-obj-y += notify.o event_notifier.o
-common-obj-y += qemu-timer.o
+common-obj-y += qemu-timer.o qemu-timer-common.o
 
 slirp-obj-y = cksum.o if.o ip_icmp.o ip_input.o ip_output.o
 slirp-obj-y += slirp.o mbuf.o misc.o sbuf.o socket.o tcp_input.o tcp_output.o
@@ -278,6 +278,7 @@ libdis-$(CONFIG_SPARC_DIS) += sparc-dis.o
 trace-obj-y = trace.o
 ifeq ($(TRACE_BACKEND),simple)
 trace-obj-y += simpletrace.o
+user-obj-y += qemu-timer-common.o
 endif
 
 vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
