@@ -1,12 +1,21 @@
 /* Test path override code */
-#define _GNU_SOURCE
+#include "../config-host.h"
+#include "../qemu-malloc.c"
+#include "../cutils.c"
 #include "../path.c"
+#include "../trace.c"
+#ifdef CONFIG_SIMPLE_TRACE
+#include "../simpletrace.c"
+#endif
+
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 
+void qemu_log(const char *fmt, ...);
+
 /* Any log message kills the test. */
-void gemu_log(const char *fmt, ...)
+void qemu_log(const char *fmt, ...)
 {
     va_list ap;
 
