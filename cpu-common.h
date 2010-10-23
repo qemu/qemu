@@ -47,7 +47,8 @@ void qemu_ram_free(ram_addr_t addr);
 /* This should only be used for ram local to a device.  */
 void *qemu_get_ram_ptr(ram_addr_t addr);
 /* This should not be used by devices.  */
-ram_addr_t qemu_ram_addr_from_host(void *ptr);
+int qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr);
+ram_addr_t qemu_ram_addr_from_host_nofail(void *ptr);
 
 int cpu_register_io_memory(CPUReadMemoryFunc * const *mem_read,
                            CPUWriteMemoryFunc * const *mem_write,

@@ -18,11 +18,11 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, see <http://www.gnu.org/licenses/>. */
 
+#include "qemu-common.h"
 #include "dis-asm.h"
 //#include "sysdep.h"
 #include "target-cris/opcode-cris.h"
 //#include "libiberty.h"
-
 
 #define CONST_STRNEQ(STR1,STR2) (strncmp ((STR1), (STR2), sizeof (STR2) - 1) == 0)
 
@@ -2611,7 +2611,7 @@ print_insn_cris_generic (bfd_vma memaddr,
   nbytes = info->buffer_length;
   if (nbytes > MAX_BYTES_PER_CRIS_INSN)
 	  nbytes = MAX_BYTES_PER_CRIS_INSN;
-  status = (*info->read_memory_func) (memaddr, buffer, nbytes, info);  
+  status = (*info->read_memory_func) (memaddr, buffer, nbytes, info);
 
   /* If we did not get all we asked for, then clear the rest.
      Hopefully this makes a reproducible result in case of errors.  */

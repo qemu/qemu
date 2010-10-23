@@ -38,6 +38,8 @@
 #define PCI_BASE 0xae00
 #define PCI_EJ_BASE 0xae08
 
+#define PIIX4_PCI_HOTPLUG_STATUS 2
+
 struct gpe_regs {
     uint16_t sts; /* status */
     uint16_t en;  /* enabled */
@@ -105,7 +107,9 @@ static void pm_update_sci(PIIX4PMState *s)
                   (ACPI_BITMASK_RT_CLOCK_ENABLE |
                    ACPI_BITMASK_POWER_BUTTON_ENABLE |
                    ACPI_BITMASK_GLOBAL_LOCK_ENABLE |
-                   ACPI_BITMASK_TIMER_ENABLE)) != 0);
+                   ACPI_BITMASK_TIMER_ENABLE)) != 0) ||
+        (((s->gpe.sts & s->gpe.en) & PIIX4_PCI_HOTPLUG_STATUS) != 0);
+
     qemu_set_irq(s->irq, sci_level);
     /* schedule a timer interruption if needed */
     if ((s->pmen & ACPI_BITMASK_TIMER_ENABLE) &&
@@ -460,7 +464,9 @@ static uint32_t gpe_read_val(uint16_t val, uint32_t addr)
 static uint32_t gpe_readb(void *opaque, uint32_t addr)
 {
     uint32_t val = 0;
-    struct gpe_regs *g = opaque;
+    PIIX4PMState *s = opaque;
+    struct gpe_regs *g = &s->gpe;
+
     switch (addr) {
         case GPE_BASE:
         case GPE_BASE + 1:
@@ -500,7 +506,9 @@ static void gpe_reset_val(uint16_t *cur, int addr, uint32_t val)
 
 static void gpe_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
-    struct gpe_regs *g = opaque;
+    PIIX4PMState *s = opaque;
+    struct gpe_regs *g = &s->gpe;
+
     switch (addr) {
         case GPE_BASE:
         case GPE_BASE + 1:
@@ -512,7 +520,9 @@ static void gpe_writeb(void *opaque, uint32_t addr, uint32_t val)
             break;
         default:
             break;
-   }
+    }
+
+    pm_update_sci(s);
 
     PIIX4_DPRINTF("gpe write %x <== %d\n", addr, val);
 }
@@ -579,11 +589,10 @@ static int piix4_device_hotplug(DeviceState *qdev, PCIDevice *dev, int state);
 
 static void piix4_acpi_system_hot_add_init(PCIBus *bus, PIIX4PMState *s)
 {
-    struct gpe_regs *gpe = &s->gpe;
     struct pci_status *pci0_status = &s->pci0_status;
 
-    register_ioport_write(GPE_BASE, 4, 1, gpe_writeb, gpe);
-    register_ioport_read(GPE_BASE, 4, 1,  gpe_readb, gpe);
+    register_ioport_write(GPE_BASE, 4, 1, gpe_writeb, s);
+    register_ioport_read(GPE_BASE, 4, 1,  gpe_readb, s);
 
     register_ioport_write(PCI_BASE, 8, 4, pcihotplug_write, pci0_status);
     register_ioport_read(PCI_BASE, 8, 4,  pcihotplug_read, pci0_status);
@@ -596,13 +605,13 @@ static void piix4_acpi_system_hot_add_init(PCIBus *bus, PIIX4PMState *s)
 
 static void enable_device(PIIX4PMState *s, int slot)
 {
-    s->gpe.sts |= 2;
+    s->gpe.sts |= PIIX4_PCI_HOTPLUG_STATUS;
     s->pci0_status.up |= (1 << slot);
 }
 
 static void disable_device(PIIX4PMState *s, int slot)
 {
-    s->gpe.sts |= 2;
+    s->gpe.sts |= PIIX4_PCI_HOTPLUG_STATUS;
     s->pci0_status.down |= (1 << slot);
 }
 
@@ -619,9 +628,8 @@ static int piix4_device_hotplug(DeviceState *qdev, PCIDevice *dev, int state)
     } else {
         disable_device(s, slot);
     }
-    if (s->gpe.en & 2) {
-        qemu_set_irq(s->irq, 1);
-        qemu_set_irq(s->irq, 0);
-    }
+
+    pm_update_sci(s);
+
     return 0;
 }

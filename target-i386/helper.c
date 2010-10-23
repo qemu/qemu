@@ -23,6 +23,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "kvm.h"
+#include "kvm_x86.h"
 
 //#define DEBUG_MMU
 
@@ -1027,6 +1028,11 @@ void cpu_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
 
     if (bank >= bank_num || !(status & MCI_STATUS_VAL))
         return;
+
+    if (kvm_enabled()) {
+        kvm_inject_x86_mce(cenv, bank, status, mcg_status, addr, misc, 0);
+        return;
+    }
 
     /*
      * if MSR_MCG_CTL is not all 1s, the uncorrected error

@@ -295,7 +295,7 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
     ram_offset = qemu_ram_alloc(NULL, "fulong2e.ram", ram_size);
     bios_offset = qemu_ram_alloc(NULL, "fulong2e.bios", bios_size);
 
-    cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
+    cpu_register_physical_memory(0, ram_size, ram_offset);
     cpu_register_physical_memory(0x1fc00000LL,
 					   bios_size, bios_offset | IO_MEM_ROM);
 
