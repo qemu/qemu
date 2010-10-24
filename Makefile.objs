@@ -201,6 +201,7 @@ hw-obj-$(CONFIG_DMA) += dma.o
 hw-obj-$(CONFIG_HPET) += hpet.o
 hw-obj-$(CONFIG_APPLESMC) += applesmc.o
 hw-obj-$(CONFIG_SMARTCARD) += usb-ccid.o ccid-card-passthru.o
+hw-obj-$(CONFIG_SMARTCARD_NSS) += ccid-card-emulated.o
 
 # PPC devices
 hw-obj-$(CONFIG_OPENPIC) += openpic.o
