@@ -45,6 +45,7 @@ do { fprintf(stderr, "scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 #define SCSI_REQ_STATUS_RETRY_TYPE_MASK 0x06
 #define SCSI_REQ_STATUS_RETRY_READ      0x00
 #define SCSI_REQ_STATUS_RETRY_WRITE     0x02
+#define SCSI_REQ_STATUS_RETRY_FLUSH     0x04
 
 typedef struct SCSIDiskState SCSIDiskState;
 
@@ -74,6 +75,7 @@ struct SCSIDiskState
 };
 
 static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type);
+static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf);
 
 static SCSIDiskReq *scsi_new_request(SCSIDiskState *s, uint32_t tag,
         uint32_t lun)
@@ -316,6 +318,8 @@ static void scsi_dma_restart_bh(void *opaque)
         r = DO_UPCAST(SCSIDiskReq, req, req);
         if (r->status & SCSI_REQ_STATUS_RETRY) {
             int status = r->status;
+            int ret;
+
             r->status &=
                 ~(SCSI_REQ_STATUS_RETRY | SCSI_REQ_STATUS_RETRY_TYPE_MASK);
 
@@ -326,6 +330,11 @@ static void scsi_dma_restart_bh(void *opaque)
             case SCSI_REQ_STATUS_RETRY_WRITE:
                 scsi_write_request(r);
                 break;
+            case SCSI_REQ_STATUS_RETRY_FLUSH:
+                ret = scsi_disk_emulate_command(r, r->iov.iov_base);
+                if (ret == 0) {
+                    scsi_command_complete(r, GOOD, NO_SENSE);
+                }
             }
         }
     }
@@ -790,6 +799,7 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
     uint64_t nb_sectors;
     int buflen = 0;
+    int ret;
 
     switch (req->cmd.buf[0]) {
     case TEST_UNIT_READY:
@@ -880,7 +890,12 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
         buflen = 8;
 	break;
     case SYNCHRONIZE_CACHE:
-        bdrv_flush(s->bs);
+        ret = bdrv_flush(s->bs);
+        if (ret < 0) {
+            if (scsi_handle_rw_error(r, -ret, SCSI_REQ_STATUS_RETRY_FLUSH)) {
+                return -1;
+            }
+        }
         break;
     case GET_CONFIGURATION:
         memset(outbuf, 0, 8);
