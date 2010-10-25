@@ -19,6 +19,7 @@
  */
 
 #include "sysemu.h"
+#include "range.h"
 #include "pci_bridge.h"
 #include "pcie.h"
 #include "msix.h"
@@ -296,6 +297,10 @@ void pcie_cap_slot_write_config(PCIDevice *dev,
     uint16_t sltctl = pci_get_word(exp_cap + PCI_EXP_SLTCTL);
     uint16_t sltsta = pci_get_word(exp_cap + PCI_EXP_SLTSTA);
 
+    if (!ranges_overlap(addr, len, pos + PCI_EXP_SLTCTL, 2)) {
+        return;
+    }
+
     PCIE_DEV_PRINTF(dev,
                     "addr: 0x%"PRIx32" val: 0x%"PRIx32" len: %d\n"
                     "\tsltctl_prev: 0x%02"PRIx16" sltctl: 0x%02"PRIx16
@@ -303,59 +308,64 @@ void pcie_cap_slot_write_config(PCIDevice *dev,
                     addr, val, len, sltctl_prev, sltctl, sltsta);
 
     /* SLTCTL */
-    if (ranges_overlap(addr, len, pos + PCI_EXP_SLTCTL, 2)) {
-        PCIE_DEV_PRINTF(dev, "sltctl: 0x%02"PRIx16" -> 0x%02"PRIx16"\n",
-                        sltctl_prev, sltctl);
-        if (pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTCTL,
-                                         PCI_EXP_SLTCTL_EIC)) {
-            sltsta ^= PCI_EXP_SLTSTA_EIS; /* toggle PCI_EXP_SLTSTA_EIS bit */
-            pci_set_word(exp_cap + PCI_EXP_SLTSTA, sltsta);
-            PCIE_DEV_PRINTF(dev, "PCI_EXP_SLTCTL_EIC: "
-                            "sltsta -> 0x%02"PRIx16"\n",
-                            sltsta);
-        }
+    PCIE_DEV_PRINTF(dev, "sltctl: 0x%02"PRIx16" -> 0x%02"PRIx16"\n",
+                    sltctl_prev, sltctl);
 
-        /*
-         * The events control bits might be enabled or disabled,
-         * Check if the software notificastion condition is satisfied
-         * or disatisfied.
-         *
-         * 6.7.3.4 Software Notification of Hot-plug events
-         */
-        if (pci_msi_enabled(dev)) {
-            bool msi_trigger =
-                (sltctl & PCI_EXP_SLTCTL_HPIE) &&
-                ((sltctl_prev ^ sltctl) & sltctl & /* stlctl: 0 -> 1 */
-                 sltsta & PCI_EXP_HP_EV_SUPPORTED);
-            if (msi_trigger) {
-                pci_msi_notify(dev, pcie_cap_flags_get_vector(dev));
-            }
-        } else {
-            int int_level =
-                (sltctl & PCI_EXP_SLTCTL_HPIE) &&
-                (sltctl & sltsta & PCI_EXP_HP_EV_SUPPORTED);
-            qemu_set_irq(dev->irq[dev->exp.hpev_intx], int_level);
-        }
-
-        if (!((sltctl_prev ^ sltctl) & PCI_EXP_SLTCTL_SUPPORTED)) {
-            PCIE_DEV_PRINTF(dev,
-                            "sprious command completion slctl "
-                            "0x%"PRIx16" -> 0x%"PRIx16"\n",
-                            sltctl_prev, sltctl);
-        }
-
-        /* command completion.
-         * Real hardware might take a while to complete
-         * requested command because physical movement would be involved
-         * like locking the electromechanical lock.
-         * However in our case, command is completed instantaneously above,
-         * so send a command completion event right now.
-         *
-         * 6.7.3.2 Command Completed Events
-         */
-        /* set command completed bit */
-        pcie_cap_slot_event(dev, PCI_EXP_HP_EV_CCI);
+    if (pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTCTL,
+                                     PCI_EXP_SLTCTL_EIC)) {
+        sltsta ^= PCI_EXP_SLTSTA_EIS; /* toggle PCI_EXP_SLTSTA_EIS bit */
+        pci_set_word(exp_cap + PCI_EXP_SLTSTA, sltsta);
+        PCIE_DEV_PRINTF(dev, "PCI_EXP_SLTCTL_EIC: "
+                        "sltsta -> 0x%02"PRIx16"\n",
+                        sltsta);
     }
+
+    /*
+     * The events control bits might be enabled or disabled,
+     * Check if the software notificastion condition is satisfied
+     * or disatisfied.
+     *
+     * 6.7.3.4 Software Notification of Hot-plug events
+     */
+    if (pci_msi_enabled(dev)) {
+        bool msi_trigger =
+            (sltctl & PCI_EXP_SLTCTL_HPIE) &&
+            ((sltctl_prev ^ sltctl) & sltctl & /* stlctl: 0 -> 1 */
+             sltsta & PCI_EXP_HP_EV_SUPPORTED);
+        if (msi_trigger) {
+            pci_msi_notify(dev, pcie_cap_flags_get_vector(dev));
+        }
+    } else {
+        int int_level =
+            (sltctl & PCI_EXP_SLTCTL_HPIE) &&
+            (sltctl & sltsta & PCI_EXP_HP_EV_SUPPORTED);
+        qemu_set_irq(dev->irq[dev->exp.hpev_intx], int_level);
+    }
+
+    if (!((sltctl_prev ^ sltctl) & PCI_EXP_SLTCTL_SUPPORTED)) {
+        PCIE_DEV_PRINTF(dev,
+                        "sprious command completion slctl "
+                        "0x%"PRIx16" -> 0x%"PRIx16"\n",
+                        sltctl_prev, sltctl);
+    }
+
+    /* 
+     * 6.7.3.2 Command Completed Events
+     *
+     * Software issues a command to a hot-plug capable Downstream Port by
+     * issuing a write transaction that targets any portion of the Port’s Slot
+     * Control register. A single write to the Slot Control register is
+     * considered to be a single command, even if the write affects more than
+     * one field in the Slot Control register. In response to this transaction,
+     * the Port must carry out the requested actions and then set the
+     * associated status field for the command completed event. */
+
+    /* Real hardware might take a while to complete requested command because
+     * physical movement would be involved like locking the electromechanical
+     * lock.  However in our case, command is completed instantaneously above,
+     * so send a command completion event right now.
+     */
+    pcie_cap_slot_event(dev, PCI_EXP_HP_EV_CCI);
 }
 
 void pcie_cap_slot_push_attention_button(PCIDevice *dev)
