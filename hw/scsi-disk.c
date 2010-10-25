@@ -784,8 +784,9 @@ static int scsi_disk_emulate_read_toc(SCSIRequest *req, uint8_t *outbuf)
     return toclen;
 }
 
-static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
+static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
 {
+    SCSIRequest *req = &r->req;
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
     uint64_t nb_sectors;
     int buflen = 0;
@@ -943,12 +944,12 @@ static int scsi_disk_emulate_command(SCSIRequest *req, uint8_t *outbuf)
     return buflen;
 
 not_ready:
-    scsi_req_set_status(req, CHECK_CONDITION, NOT_READY);
-    return 0;
+    scsi_command_complete(r, CHECK_CONDITION, NOT_READY);
+    return -1;
 
 illegal_request:
-    scsi_req_set_status(req, CHECK_CONDITION, ILLEGAL_REQUEST);
-    return 0;
+    scsi_command_complete(r, CHECK_CONDITION, ILLEGAL_REQUEST);
+    return -1;
 }
 
 /* Execute a scsi command.  Returns the length of the data expected by the
@@ -1056,14 +1057,12 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case REPORT_LUNS:
     case VERIFY:
     case REZERO_UNIT:
-        rc = scsi_disk_emulate_command(&r->req, outbuf);
-        if (rc > 0) {
-            r->iov.iov_len = rc;
-        } else {
-            scsi_req_complete(&r->req);
-            scsi_remove_request(r);
+        rc = scsi_disk_emulate_command(r, outbuf);
+        if (rc < 0) {
             return 0;
         }
+
+        r->iov.iov_len = rc;
         break;
     case READ_6:
     case READ_10:
