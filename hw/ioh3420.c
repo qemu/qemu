@@ -39,12 +39,9 @@
 static void ioh3420_write_config(PCIDevice *d,
                                    uint32_t address, uint32_t val, int len)
 {
-    uint16_t sltctl =
-        pci_get_word(d->config + d->exp.exp_cap + PCI_EXP_SLTCTL);
-
     pci_bridge_write_config(d, address, val, len);
     msi_write_config(d, address, val, len);
-    pcie_cap_slot_write_config(d, address, val, len, sltctl);
+    pcie_cap_slot_write_config(d, address, val, len);
     /* TODO: AER */
 }
 
@@ -142,6 +139,7 @@ static const VMStateDescription vmstate_ioh3420 = {
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
+    .post_load = pcie_cap_slot_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_PCIE_DEVICE(port.br.dev, PCIESlot),
         /* TODO: AER */

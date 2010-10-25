@@ -74,6 +74,11 @@ struct PCIExpressDevice {
                                  * also initialize it when loaded as
                                  * appropreately.
                                  */
+    bool hpev_notified; /* Logical AND of conditions for hot plug event.
+                         Following 6.7.3.4:
+                         Software Notification of Hot-Plug Events, an interrupt
+                         is sent whenever the logical and of these conditions
+                         transitions from false to true. */
 };
 
 /* PCI express capability helper functions */
@@ -89,8 +94,8 @@ void pcie_cap_deverr_reset(PCIDevice *dev);
 void pcie_cap_slot_init(PCIDevice *dev, uint16_t slot);
 void pcie_cap_slot_reset(PCIDevice *dev);
 void pcie_cap_slot_write_config(PCIDevice *dev,
-                                uint32_t addr, uint32_t val, int len,
-                                uint16_t sltctl_prev);
+                                uint32_t addr, uint32_t val, int len);
+int pcie_cap_slot_post_load(void *opaque, int version_id);
 void pcie_cap_slot_push_attention_button(PCIDevice *dev);
 
 void pcie_cap_root_init(PCIDevice *dev);

@@ -140,6 +140,40 @@ void pcie_cap_deverr_reset(PCIDevice *dev)
                                  PCI_EXP_DEVCTL_FERE | PCI_EXP_DEVCTL_URRE);
 }
 
+static void hotplug_event_update_event_status(PCIDevice *dev)
+{
+    uint32_t pos = dev->exp.exp_cap;
+    uint8_t *exp_cap = dev->config + pos;
+    uint16_t sltctl = pci_get_word(exp_cap + PCI_EXP_SLTCTL);
+    uint16_t sltsta = pci_get_word(exp_cap + PCI_EXP_SLTSTA);
+
+    dev->exp.hpev_notified = (sltctl & PCI_EXP_SLTCTL_HPIE) &&
+        (sltsta & sltctl & PCI_EXP_HP_EV_SUPPORTED);
+}
+
+static void hotplug_event_notify(PCIDevice *dev)
+{
+    bool prev = dev->exp.hpev_notified;
+
+    hotplug_event_update_event_status(dev);
+
+    if (prev == dev->exp.hpev_notified) {
+        return;
+    }
+
+    /* Note: the logic above does not take into account whether interrupts
+     * are masked. The result is that interrupt will be sent when it is
+     * subsequently unmasked. This appears to be legal: Section 6.7.3.4:
+     * The Port may optionally send an MSI when there are hot-plug events that
+     * occur while interrupt generation is disabled, and interrupt generation is
+     * subsequently enabled. */
+    if (!pci_msi_enabled(dev)) {
+        qemu_set_irq(dev->irq[dev->exp.hpev_intx], dev->exp.hpev_notified);
+    } else if (dev->exp.hpev_notified) {
+        pci_msi_notify(dev, pcie_cap_flags_get_vector(dev));
+    }
+}
+
 /*
  * A PCI Express Hot-Plug Event has occured, so update slot status register
  * and notify OS of the event if necessary.
@@ -149,28 +183,12 @@ void pcie_cap_deverr_reset(PCIDevice *dev)
  */
 static void pcie_cap_slot_event(PCIDevice *dev, PCIExpressHotPlugEvent event)
 {
-    uint8_t *exp_cap = dev->config + dev->exp.exp_cap;
-    uint16_t sltctl = pci_get_word(exp_cap + PCI_EXP_SLTCTL);
-    uint16_t sltsta = pci_get_word(exp_cap + PCI_EXP_SLTSTA);
-
-    PCIE_DEV_PRINTF(dev,
-                    "sltctl: 0x%02"PRIx16" sltsta: 0x%02"PRIx16" event: %x\n",
-                    sltctl, sltsta, event);
-
-    if (pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA, event)) {
+    /* Minor optimization: if nothing changed - no event is needed. */
+    if (pci_word_test_and_set_mask(dev->config + dev->exp.exp_cap +
+                                   PCI_EXP_SLTSTA, event)) {
         return;
     }
-    sltsta = pci_get_word(exp_cap + PCI_EXP_SLTSTA);
-    PCIE_DEV_PRINTF(dev, "sltsta -> %02"PRIx16"\n", sltsta);
-
-    if ((sltctl & PCI_EXP_SLTCTL_HPIE) &&
-        (sltctl & event & PCI_EXP_HP_EV_SUPPORTED)) {
-        if (pci_msi_enabled(dev)) {
-            pci_msi_notify(dev, pcie_cap_flags_get_vector(dev));
-        } else {
-            qemu_set_irq(dev->irq[dev->exp.hpev_intx], 1);
-        }
-    }
+    hotplug_event_notify(dev);
 }
 
 static int pcie_cap_slot_hotplug(DeviceState *qdev,
@@ -258,6 +276,8 @@ void pcie_cap_slot_init(PCIDevice *dev, uint16_t slot)
     pci_word_test_and_set_mask(dev->w1cmask + pos + PCI_EXP_SLTSTA,
                                PCI_EXP_HP_EV_SUPPORTED);
 
+    dev->exp.hpev_notified = false;
+
     pci_bus_hotplug(pci_bridge_get_sec_bus(DO_UPCAST(PCIBridge, dev, dev)),
                     pcie_cap_slot_hotplug, &dev->qdev);
 }
@@ -286,30 +306,20 @@ void pcie_cap_slot_reset(PCIDevice *dev)
                                  PCI_EXP_SLTSTA_CC |
                                  PCI_EXP_SLTSTA_PDC |
                                  PCI_EXP_SLTSTA_ABP);
+
+    hotplug_event_notify(dev);
 }
 
 void pcie_cap_slot_write_config(PCIDevice *dev,
-                                uint32_t addr, uint32_t val, int len,
-                                uint16_t sltctl_prev)
+                                uint32_t addr, uint32_t val, int len)
 {
     uint32_t pos = dev->exp.exp_cap;
     uint8_t *exp_cap = dev->config + pos;
-    uint16_t sltctl = pci_get_word(exp_cap + PCI_EXP_SLTCTL);
     uint16_t sltsta = pci_get_word(exp_cap + PCI_EXP_SLTSTA);
 
     if (!ranges_overlap(addr, len, pos + PCI_EXP_SLTCTL, 2)) {
         return;
     }
-
-    PCIE_DEV_PRINTF(dev,
-                    "addr: 0x%"PRIx32" val: 0x%"PRIx32" len: %d\n"
-                    "\tsltctl_prev: 0x%02"PRIx16" sltctl: 0x%02"PRIx16
-                    " sltsta: 0x%02"PRIx16"\n",
-                    addr, val, len, sltctl_prev, sltctl, sltsta);
-
-    /* SLTCTL */
-    PCIE_DEV_PRINTF(dev, "sltctl: 0x%02"PRIx16" -> 0x%02"PRIx16"\n",
-                    sltctl_prev, sltctl);
 
     if (pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTCTL,
                                      PCI_EXP_SLTCTL_EIC)) {
@@ -320,34 +330,7 @@ void pcie_cap_slot_write_config(PCIDevice *dev,
                         sltsta);
     }
 
-    /*
-     * The events control bits might be enabled or disabled,
-     * Check if the software notificastion condition is satisfied
-     * or disatisfied.
-     *
-     * 6.7.3.4 Software Notification of Hot-plug events
-     */
-    if (pci_msi_enabled(dev)) {
-        bool msi_trigger =
-            (sltctl & PCI_EXP_SLTCTL_HPIE) &&
-            ((sltctl_prev ^ sltctl) & sltctl & /* stlctl: 0 -> 1 */
-             sltsta & PCI_EXP_HP_EV_SUPPORTED);
-        if (msi_trigger) {
-            pci_msi_notify(dev, pcie_cap_flags_get_vector(dev));
-        }
-    } else {
-        int int_level =
-            (sltctl & PCI_EXP_SLTCTL_HPIE) &&
-            (sltctl & sltsta & PCI_EXP_HP_EV_SUPPORTED);
-        qemu_set_irq(dev->irq[dev->exp.hpev_intx], int_level);
-    }
-
-    if (!((sltctl_prev ^ sltctl) & PCI_EXP_SLTCTL_SUPPORTED)) {
-        PCIE_DEV_PRINTF(dev,
-                        "sprious command completion slctl "
-                        "0x%"PRIx16" -> 0x%"PRIx16"\n",
-                        sltctl_prev, sltctl);
-    }
+    hotplug_event_notify(dev);
 
     /* 
      * 6.7.3.2 Command Completed Events
@@ -366,6 +349,13 @@ void pcie_cap_slot_write_config(PCIDevice *dev,
      * so send a command completion event right now.
      */
     pcie_cap_slot_event(dev, PCI_EXP_HP_EV_CCI);
+}
+
+int pcie_cap_slot_post_load(void *opaque, int version_id)
+{
+    PCIDevice *dev = opaque;
+    hotplug_event_update_event_status(dev);
+    return 0;
 }
 
 void pcie_cap_slot_push_attention_button(PCIDevice *dev)
