@@ -73,44 +73,6 @@ int qemu_madvise(void *addr, size_t len, int advice)
 #endif
 }
 
-int qemu_create_pidfile(const char *filename)
-{
-    char buffer[128];
-    int len;
-#ifndef _WIN32
-    int fd;
-
-    fd = qemu_open(filename, O_RDWR | O_CREAT, 0600);
-    if (fd == -1)
-        return -1;
-
-    if (lockf(fd, F_TLOCK, 0) == -1)
-        return -1;
-
-    len = snprintf(buffer, sizeof(buffer), "%ld\n", (long)getpid());
-    if (write(fd, buffer, len) != len)
-        return -1;
-#else
-    HANDLE file;
-    OVERLAPPED overlap;
-    BOOL ret;
-    memset(&overlap, 0, sizeof(overlap));
-
-    file = CreateFile(filename, GENERIC_WRITE, FILE_SHARE_READ, NULL,
-		      OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-
-    if (file == INVALID_HANDLE_VALUE)
-      return -1;
-
-    len = snprintf(buffer, sizeof(buffer), "%ld\n", (long)getpid());
-    ret = WriteFileEx(file, (LPCVOID)buffer, (DWORD)len,
-		      &overlap, NULL);
-    if (ret == 0)
-      return -1;
-#endif
-    return 0;
-}
-
 
 /*
  * Opens a file with FD_CLOEXEC set

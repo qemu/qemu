@@ -361,3 +361,24 @@ int qemu_eventfd(int fds[2])
 
     return qemu_pipe(fds);
 }
+
+int qemu_create_pidfile(const char *filename)
+{
+    char buffer[128];
+    int len;
+    int fd;
+
+    fd = qemu_open(filename, O_RDWR | O_CREAT, 0600);
+    if (fd == -1) {
+        return -1;
+    }
+    if (lockf(fd, F_TLOCK, 0) == -1) {
+        return -1;
+    }
+    len = snprintf(buffer, sizeof(buffer), "%ld\n", (long)getpid());
+    if (write(fd, buffer, len) != len) {
+        return -1;
+    }
+
+    return 0;
+}
