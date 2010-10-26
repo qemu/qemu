@@ -44,14 +44,6 @@
 extern int madvise(caddr_t, size_t, int);
 #endif
 
-#ifdef _WIN32
-#include <windows.h>
-#elif defined(CONFIG_BSD)
-#include <stdlib.h>
-#else
-#include <malloc.h>
-#endif
-
 #include "qemu-common.h"
 #include "trace.h"
 #include "sysemu.h"
