@@ -786,11 +786,11 @@ static void sdp_service_db_build(struct bt_l2cap_sdp_state_s *sdp,
         .type       = SDP_DTYPE_UUID | SDP_DSIZE_16,	\
         .value.uint = val,				\
     },
-#define TRUE	{				\
+#define SDP_TRUE	{				\
         .type       = SDP_DTYPE_BOOL | SDP_DSIZE_1,	\
         .value.uint = 1,				\
     },
-#define FALSE	{				\
+#define SDP_FALSE	{				\
         .type       = SDP_DTYPE_BOOL | SDP_DSIZE_1,	\
         .value.uint = 0,				\
     },
@@ -842,8 +842,8 @@ SERVICE(hid,
     /* TODO: extract from l2cap_device->device.class[0] */
     ATTRIBUTE(DEVICE_SUBCLASS,		UINT8(0x40))
     ATTRIBUTE(COUNTRY_CODE,		UINT8(0x15))
-    ATTRIBUTE(VIRTUAL_CABLE,		TRUE)
-    ATTRIBUTE(RECONNECT_INITIATE,	FALSE)
+    ATTRIBUTE(VIRTUAL_CABLE,		SDP_TRUE)
+    ATTRIBUTE(RECONNECT_INITIATE,	SDP_FALSE)
     /* TODO: extract from hid->usbdev->report_desc */
     ATTRIBUTE(DESCRIPTOR_LIST,		LIST(
         LIST(UINT8(0x22) ARRAY(
@@ -883,12 +883,12 @@ SERVICE(hid,
     ATTRIBUTE(LANG_ID_BASE_LIST,	LIST(
         LIST(UINT16(0x0409) UINT16(0x0100))
     ))
-    ATTRIBUTE(SDP_DISABLE,		FALSE)
-    ATTRIBUTE(BATTERY_POWER,		TRUE)
-    ATTRIBUTE(REMOTE_WAKEUP,		TRUE)
-    ATTRIBUTE(BOOT_DEVICE,		TRUE)	/* XXX: untested */
+    ATTRIBUTE(SDP_DISABLE,		SDP_FALSE)
+    ATTRIBUTE(BATTERY_POWER,		SDP_TRUE)
+    ATTRIBUTE(REMOTE_WAKEUP,		SDP_TRUE)
+    ATTRIBUTE(BOOT_DEVICE,		SDP_TRUE)	/* XXX: untested */
     ATTRIBUTE(SUPERVISION_TIMEOUT,	UINT16(0x0c80))
-    ATTRIBUTE(NORMALLY_CONNECTABLE,	TRUE)
+    ATTRIBUTE(NORMALLY_CONNECTABLE,	SDP_TRUE)
     ATTRIBUTE(PROFILE_VERSION,		UINT16(0x0100))
 )
 
@@ -936,7 +936,7 @@ SERVICE(pnp,
     /* Profile specific */
     ATTRIBUTE(SPECIFICATION_ID, UINT16(0x0100))
     ATTRIBUTE(VERSION,         UINT16(0x0100))
-    ATTRIBUTE(PRIMARY_RECORD,  TRUE)
+    ATTRIBUTE(PRIMARY_RECORD,  SDP_TRUE)
 )
 
 static int bt_l2cap_sdp_new_ch(struct bt_l2cap_device_s *dev,
