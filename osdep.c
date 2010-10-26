@@ -44,10 +44,6 @@
 extern int madvise(caddr_t, size_t, int);
 #endif
 
-#ifdef CONFIG_EVENTFD
-#include <sys/eventfd.h>
-#endif
-
 #ifdef _WIN32
 #include <windows.h>
 #elif defined(CONFIG_BSD)
@@ -206,36 +202,6 @@ ssize_t qemu_write_full(int fd, const void *buf, size_t count)
 
     return total;
 }
-
-#ifndef _WIN32
-/*
- * Creates an eventfd that looks like a pipe and has EFD_CLOEXEC set.
- */
-int qemu_eventfd(int fds[2])
-{
-#ifdef CONFIG_EVENTFD
-    int ret;
-
-    ret = eventfd(0, 0);
-    if (ret >= 0) {
-        fds[0] = ret;
-        qemu_set_cloexec(ret);
-        if ((fds[1] = dup(ret)) == -1) {
-            close(ret);
-            return -1;
-        }
-        qemu_set_cloexec(fds[1]);
-        return 0;
-    }
-
-    if (errno != ENOSYS) {
-        return -1;
-    }
-#endif
-
-    return qemu_pipe(fds);
-}
-#endif
 
 /*
  * Opens a socket with FD_CLOEXEC set
