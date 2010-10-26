@@ -175,6 +175,7 @@ const char *path(const char *pathname);
 int ffs(int i);
 #endif
 
+void *qemu_oom_check(void *ptr);
 void *qemu_malloc(size_t size);
 void *qemu_realloc(void *ptr, size_t size);
 void *qemu_mallocz(size_t size);

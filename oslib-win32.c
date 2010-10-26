@@ -31,7 +31,7 @@
 #include "trace.h"
 #include "qemu_socket.h"
 
-static void *oom_check(void *ptr)
+void *qemu_oom_check(void *ptr)
 {
     if (ptr == NULL) {
         fprintf(stderr, "Failed to allocate memory: %lu\n", GetLastError());
@@ -47,7 +47,7 @@ void *qemu_memalign(size_t alignment, size_t size)
     if (!size) {
         abort();
     }
-    ptr = oom_check(VirtualAlloc(NULL, size, MEM_COMMIT, PAGE_READWRITE));
+    ptr = qemu_oom_check(VirtualAlloc(NULL, size, MEM_COMMIT, PAGE_READWRITE));
     trace_qemu_memalign(alignment, size, ptr);
     return ptr;
 }
@@ -62,7 +62,7 @@ void *qemu_vmalloc(size_t size)
     if (!size) {
         abort();
     }
-    ptr = oom_check(VirtualAlloc(NULL, size, MEM_COMMIT, PAGE_READWRITE));
+    ptr = qemu_oom_check(VirtualAlloc(NULL, size, MEM_COMMIT, PAGE_READWRITE));
     trace_qemu_vmalloc(size, ptr);
     return ptr;
 }
