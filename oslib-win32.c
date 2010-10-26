@@ -29,6 +29,7 @@
 #include "config-host.h"
 #include "sysemu.h"
 #include "trace.h"
+#include "qemu_socket.h"
 
 static void *oom_check(void *ptr)
 {
@@ -70,4 +71,24 @@ void qemu_vfree(void *ptr)
 {
     trace_qemu_vfree(ptr);
     VirtualFree(ptr, 0, MEM_RELEASE);
+}
+
+void socket_set_nonblock(int fd)
+{
+    unsigned long opt = 1;
+    ioctlsocket(fd, FIONBIO, &opt);
+}
+
+int inet_aton(const char *cp, struct in_addr *ia)
+{
+    uint32_t addr = inet_addr(cp);
+    if (addr == 0xffffffff) {
+	return 0;
+    }
+    ia->s_addr = addr;
+    return 1;
+}
+
+void qemu_set_cloexec(int fd)
+{
 }

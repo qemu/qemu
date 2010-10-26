@@ -29,6 +29,7 @@
 #include "config-host.h"
 #include "sysemu.h"
 #include "trace.h"
+#include "qemu_socket.h"
 
 #if !defined(_POSIX_C_SOURCE) || defined(__sun__)
 static void *oom_check(void *ptr)
@@ -71,4 +72,18 @@ void qemu_vfree(void *ptr)
 {
     trace_qemu_vfree(ptr);
     free(ptr);
+}
+
+void socket_set_nonblock(int fd)
+{
+    int f;
+    f = fcntl(fd, F_GETFL);
+    fcntl(fd, F_SETFL, f | O_NONBLOCK);
+}
+
+void qemu_set_cloexec(int fd)
+{
+    int f;
+    f = fcntl(fd, F_GETFD);
+    fcntl(fd, F_SETFD, f | FD_CLOEXEC);
 }
