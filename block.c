@@ -1899,6 +1899,22 @@ int bdrv_snapshot_list(BlockDriverState *bs,
     return -ENOTSUP;
 }
 
+int bdrv_snapshot_load_tmp(BlockDriverState *bs,
+        const char *snapshot_name)
+{
+    BlockDriver *drv = bs->drv;
+    if (!drv) {
+        return -ENOMEDIUM;
+    }
+    if (!bs->read_only) {
+        return -EINVAL;
+    }
+    if (drv->bdrv_snapshot_load_tmp) {
+        return drv->bdrv_snapshot_load_tmp(bs, snapshot_name);
+    }
+    return -ENOTSUP;
+}
+
 #define NB_SUFFIXES 4
 
 char *get_human_readable_size(char *buf, int buf_size, int64_t size)

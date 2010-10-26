@@ -53,7 +53,8 @@ static AIOPool blkverify_aio_pool = {
     .cancel             = blkverify_aio_cancel,
 };
 
-static void blkverify_err(BlkverifyAIOCB *acb, const char *fmt, ...)
+static void GCC_FMT_ATTR(2, 3) blkverify_err(BlkverifyAIOCB *acb,
+                                             const char *fmt, ...)
 {
     va_list ap;
 
@@ -299,7 +300,7 @@ static void blkverify_verify_readv(BlkverifyAIOCB *acb)
 {
     ssize_t offset = blkverify_iovec_compare(acb->qiov, &acb->raw_qiov);
     if (offset != -1) {
-        blkverify_err(acb, "contents mismatch in sector %ld",
+        blkverify_err(acb, "contents mismatch in sector %lld",
                       acb->sector_num + (offset / BDRV_SECTOR_SIZE));
     }
 }
