@@ -24,6 +24,7 @@
 #include "qemu-common.h"
 #include "qemu-option.h"
 #include "osdep.h"
+#include "sysemu.h"
 #include "block_int.h"
 #include <stdio.h>
 

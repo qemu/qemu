@@ -33,10 +33,10 @@
 #define SEMIHOSTING_HEAP_SIZE (128 * 1024 * 1024)
 #else
 #include "qemu-common.h"
-#include "sysemu.h"
 #include "gdbstub.h"
 #include "softmmu-semi.h"
 #endif
+#include "sysemu.h"
 
 #define HOSTED_EXIT  0
 #define HOSTED_INIT_SIM 1
