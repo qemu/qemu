@@ -87,3 +87,25 @@ void qemu_set_cloexec(int fd)
     f = fcntl(fd, F_GETFD);
     fcntl(fd, F_SETFD, f | FD_CLOEXEC);
 }
+
+/*
+ * Creates a pipe with FD_CLOEXEC set on both file descriptors
+ */
+int qemu_pipe(int pipefd[2])
+{
+    int ret;
+
+#ifdef CONFIG_PIPE2
+    ret = pipe2(pipefd, O_CLOEXEC);
+    if (ret != -1 || errno != ENOSYS) {
+        return ret;
+    }
+#endif
+    ret = pipe(pipefd);
+    if (ret == 0) {
+        qemu_set_cloexec(pipefd[0]);
+        qemu_set_cloexec(pipefd[1]);
+    }
+
+    return ret;
+}
