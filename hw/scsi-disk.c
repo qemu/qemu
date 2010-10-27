@@ -178,8 +178,9 @@ static void scsi_read_request(SCSIDiskReq *r)
     qemu_iovec_init_external(&r->qiov, &r->iov, 1);
     r->req.aiocb = bdrv_aio_readv(s->bs, r->sector, &r->qiov, n,
                               scsi_read_complete, r);
-    if (r->req.aiocb == NULL)
-        scsi_command_complete(r, CHECK_CONDITION, HARDWARE_ERROR);
+    if (r->req.aiocb == NULL) {
+        scsi_read_complete(r, -EIO);
+    }
 }
 
 /* Read more data from scsi device into buffer.  */
@@ -273,9 +274,9 @@ static void scsi_write_request(SCSIDiskReq *r)
         qemu_iovec_init_external(&r->qiov, &r->iov, 1);
         r->req.aiocb = bdrv_aio_writev(s->bs, r->sector, &r->qiov, n,
                                    scsi_write_complete, r);
-        if (r->req.aiocb == NULL)
-            scsi_command_complete(r, CHECK_CONDITION,
-                                  HARDWARE_ERROR);
+        if (r->req.aiocb == NULL) {
+            scsi_write_complete(r, -EIO);
+        }
     } else {
         /* Invoke completion routine to fetch data from host.  */
         scsi_write_complete(r, 0);
