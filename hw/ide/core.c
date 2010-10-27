@@ -811,10 +811,16 @@ static void ide_flush_cb(void *opaque, int ret)
 
 static void ide_flush_cache(IDEState *s)
 {
-    if (s->bs) {
-        bdrv_aio_flush(s->bs, ide_flush_cb, s);
-    } else {
+    BlockDriverAIOCB *acb;
+
+    if (s->bs == NULL) {
         ide_flush_cb(s, 0);
+        return;
+    }
+
+    acb = bdrv_aio_flush(s->bs, ide_flush_cb, s);
+    if (acb == NULL) {
+        ide_flush_cb(s, -EIO);
     }
 }
 
