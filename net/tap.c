@@ -279,6 +279,7 @@ static void tap_cleanup(VLANClientState *nc)
 
     if (s->vhost_net) {
         vhost_net_cleanup(s->vhost_net);
+        s->vhost_net = NULL;
     }
 
     qemu_purge_queued_packets(nc);
