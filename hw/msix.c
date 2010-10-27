@@ -74,7 +74,8 @@ static int msix_add_config(struct PCIDevice *pdev, unsigned short nentries,
     }
 
     pdev->msix_bar_size = new_size;
-    config_offset = pci_add_capability(pdev, PCI_CAP_ID_MSIX, MSIX_CAP_LENGTH);
+    config_offset = pci_add_capability(pdev, PCI_CAP_ID_MSIX,
+                                       0, MSIX_CAP_LENGTH);
     if (config_offset < 0)
         return config_offset;
     config = pdev->config + config_offset;
@@ -158,6 +159,7 @@ void msix_write_config(PCIDevice *dev, uint32_t addr,
 {
     unsigned enable_pos = dev->msix_cap + MSIX_CONTROL_OFFSET;
     int vector;
+    int i;
 
     if (!range_covers_byte(addr, len, enable_pos)) {
         return;
@@ -167,7 +169,9 @@ void msix_write_config(PCIDevice *dev, uint32_t addr,
         return;
     }
 
-    qemu_set_irq(dev->irq[0], 0);
+    for (i = 0; i < PCI_NUM_PINS; ++i) {
+        qemu_set_irq(dev->irq[i], 0);
+    }
 
     if (msix_function_masked(dev)) {
         return;

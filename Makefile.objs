@@ -152,7 +152,8 @@ user-obj-y += cutils.o cache-utils.o
 hw-obj-y =
 hw-obj-y += vl.o loader.o
 hw-obj-y += virtio.o virtio-console.o
-hw-obj-y += fw_cfg.o pci.o pci_host.o pcie_host.o
+hw-obj-y += fw_cfg.o pci.o pci_host.o pcie_host.o pci_bridge.o
+hw-obj-y += ioh3420.o xio3130_upstream.o xio3130_downstream.o
 hw-obj-y += watchdog.o
 hw-obj-$(CONFIG_ISA_MMIO) += isa_mmio.o
 hw-obj-$(CONFIG_ECC) += ecc.o
@@ -199,7 +200,8 @@ hw-obj-$(CONFIG_PIIX4) += piix4.o
 # PCI watchdog devices
 hw-obj-y += wdt_i6300esb.o
 
-hw-obj-y += msix.o
+hw-obj-y += pcie.o pcie_port.o
+hw-obj-y += msix.o msi.o
 
 # PCI network cards
 hw-obj-y += ne2000.o

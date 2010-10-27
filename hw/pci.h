@@ -9,6 +9,8 @@
 /* PCI includes legacy ISA access.  */
 #include "isa.h"
 
+#include "pcie.h"
+
 /* PCI bus */
 
 #define PCI_DEVFN(slot, func)   ((((slot) & 0x1f) << 3) | ((func) & 0x07))
@@ -109,11 +111,12 @@ typedef struct PCIIORegion {
 
 /* Bits in cap_present field. */
 enum {
-    QEMU_PCI_CAP_MSIX = 0x1,
-    QEMU_PCI_CAP_EXPRESS = 0x2,
+    QEMU_PCI_CAP_MSI = 0x1,
+    QEMU_PCI_CAP_MSIX = 0x2,
+    QEMU_PCI_CAP_EXPRESS = 0x4,
 
     /* multifunction capable device */
-#define QEMU_PCI_CAP_MULTIFUNCTION_BITNR        2
+#define QEMU_PCI_CAP_MULTIFUNCTION_BITNR        3
     QEMU_PCI_CAP_MULTIFUNCTION = (1 << QEMU_PCI_CAP_MULTIFUNCTION_BITNR),
 };
 
@@ -128,6 +131,9 @@ struct PCIDevice {
 
     /* Used to implement R/W bytes */
     uint8_t *wmask;
+
+    /* Used to implement RW1C(Write 1 to Clear) bytes */
+    uint8_t *w1cmask;
 
     /* Used to allocate config space for capabilities. */
     uint8_t *used;
@@ -168,6 +174,12 @@ struct PCIDevice {
     /* Version id needed for VMState */
     int32_t version_id;
 
+    /* Offset of MSI capability in config space */
+    uint8_t msi_cap;
+
+    /* PCI Express */
+    PCIExpressDevice exp;
+
     /* Location of option rom */
     char *romfile;
     ram_addr_t rom_offset;
@@ -180,12 +192,11 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
                                PCIConfigWriteFunc *config_write);
 
 void pci_register_bar(PCIDevice *pci_dev, int region_num,
-                            pcibus_t size, int type,
+                            pcibus_t size, uint8_t type,
                             PCIMapIORegionFunc *map_func);
 
-int pci_add_capability(PCIDevice *pci_dev, uint8_t cap_id, uint8_t cap_size);
-int pci_add_capability_at_offset(PCIDevice *pci_dev, uint8_t cap_id,
-                                 uint8_t cap_offset, uint8_t cap_size);
+int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
+                       uint8_t offset, uint8_t size);
 
 void pci_del_capability(PCIDevice *pci_dev, uint8_t cap_id, uint8_t cap_size);
 
@@ -228,15 +239,17 @@ PCIBus *pci_find_bus(PCIBus *bus, int bus_num);
 PCIDevice *pci_find_device(PCIBus *bus, int bus_num, int slot, int function);
 PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr);
 
+int pci_parse_devaddr(const char *addr, int *domp, int *busp,
+                      unsigned int *slotp, unsigned int *funcp);
 int pci_read_devaddr(Monitor *mon, const char *addr, int *domp, int *busp,
                      unsigned *slotp);
 
 void do_pci_info_print(Monitor *mon, const QObject *data);
 void do_pci_info(Monitor *mon, QObject **ret_data);
-PCIBus *pci_bridge_init(PCIBus *bus, int devfn, bool multifunction,
-                        uint16_t vid, uint16_t did,
-                        pci_map_irq_fn map_irq, const char *name);
-PCIDevice *pci_bridge_get_device(PCIBus *bus);
+void pci_bridge_update_mappings(PCIBus *b);
+
+bool pci_msi_enabled(PCIDevice *dev);
+void pci_msi_notify(PCIDevice *dev, unsigned int vector);
 
 static inline void
 pci_set_byte(uint8_t *config, uint8_t val)
@@ -320,6 +333,76 @@ static inline void
 pci_config_set_interrupt_pin(uint8_t *pci_config, uint8_t val)
 {
     pci_set_byte(&pci_config[PCI_INTERRUPT_PIN], val);
+}
+
+/*
+ * helper functions to do bit mask operation on configuration space.
+ * Just to set bit, use test-and-set and discard returned value.
+ * Just to clear bit, use test-and-clear and discard returned value.
+ * NOTE: They aren't atomic.
+ */
+static inline uint8_t
+pci_byte_test_and_clear_mask(uint8_t *config, uint8_t mask)
+{
+    uint8_t val = pci_get_byte(config);
+    pci_set_byte(config, val & ~mask);
+    return val & mask;
+}
+
+static inline uint8_t
+pci_byte_test_and_set_mask(uint8_t *config, uint8_t mask)
+{
+    uint8_t val = pci_get_byte(config);
+    pci_set_byte(config, val | mask);
+    return val & mask;
+}
+
+static inline uint16_t
+pci_word_test_and_clear_mask(uint8_t *config, uint16_t mask)
+{
+    uint16_t val = pci_get_word(config);
+    pci_set_word(config, val & ~mask);
+    return val & mask;
+}
+
+static inline uint16_t
+pci_word_test_and_set_mask(uint8_t *config, uint16_t mask)
+{
+    uint16_t val = pci_get_word(config);
+    pci_set_word(config, val | mask);
+    return val & mask;
+}
+
+static inline uint32_t
+pci_long_test_and_clear_mask(uint8_t *config, uint32_t mask)
+{
+    uint32_t val = pci_get_long(config);
+    pci_set_long(config, val & ~mask);
+    return val & mask;
+}
+
+static inline uint32_t
+pci_long_test_and_set_mask(uint8_t *config, uint32_t mask)
+{
+    uint32_t val = pci_get_long(config);
+    pci_set_long(config, val | mask);
+    return val & mask;
+}
+
+static inline uint64_t
+pci_quad_test_and_clear_mask(uint8_t *config, uint64_t mask)
+{
+    uint64_t val = pci_get_quad(config);
+    pci_set_quad(config, val & ~mask);
+    return val & mask;
+}
+
+static inline uint64_t
+pci_quad_test_and_set_mask(uint8_t *config, uint64_t mask)
+{
+    uint64_t val = pci_get_quad(config);
+    pci_set_quad(config, val | mask);
+    return val & mask;
 }
 
 typedef int (*pci_qdev_initfn)(PCIDevice *dev);
