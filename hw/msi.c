@@ -155,9 +155,8 @@ int msi_init(struct PCIDevice *dev, uint8_t offset,
     pci_set_word(dev->wmask + msi_data_off(dev, msi64bit), 0xffff);
 
     if (msi_per_vector_mask) {
+        /* Make mask bits 0 to nr_vectors - 1 writeable. */
         pci_set_long(dev->wmask + msi_mask_off(dev, msi64bit),
-                     /* (1U << nr_vectors) - 1 is undefined
-                        when nr_vectors = 32 */
                      0xffffffff >> (PCI_MSI_VECTORS_MAX - nr_vectors));
     }
     return config_offset;
@@ -225,7 +224,7 @@ void msi_notify(PCIDevice *dev, unsigned int vector)
         return;
     }
 
-    if (msi64bit){
+    if (msi64bit) {
         address = pci_get_quad(dev->config + msi_address_lo_off(dev));
     } else {
         address = pci_get_long(dev->config + msi_address_lo_off(dev));
@@ -269,7 +268,7 @@ void msi_write_config(PCIDevice *dev, uint32_t addr, uint32_t val, int len)
                    flags,
                    pci_get_long(dev->config + msi_address_lo_off(dev)));
     if (msi64bit) {
-        fprintf(stderr, " addrss-hi: 0x%"PRIx32,
+        fprintf(stderr, " address-hi: 0x%"PRIx32,
                 pci_get_long(dev->config + msi_address_hi_off(dev)));
     }
     fprintf(stderr, " data: 0x%"PRIx16,
