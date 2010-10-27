@@ -140,7 +140,8 @@ static void pci_device_reset(PCIDevice *dev)
     pci_update_irq_status(dev);
     /* Clear all writeable bits */
     pci_word_test_and_clear_mask(dev->config + PCI_COMMAND,
-                                 pci_get_word(dev->wmask + PCI_COMMAND));
+                                 pci_get_word(dev->wmask + PCI_COMMAND) |
+                                 pci_get_word(dev->w1cmask + PCI_COMMAND));
     dev->config[PCI_CACHE_LINE_SIZE] = 0x0;
     dev->config[PCI_INTERRUPT_LINE] = 0x0;
     for (r = 0; r < PCI_NUM_REGIONS; ++r) {
@@ -292,7 +293,8 @@ static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
 
     qemu_get_buffer(f, config, size);
     for (i = 0; i < size; ++i) {
-        if ((config[i] ^ s->config[i]) & s->cmask[i] & ~s->wmask[i]) {
+        if ((config[i] ^ s->config[i]) &
+            s->cmask[i] & ~s->wmask[i] & ~s->w1cmask[i]) {
             qemu_free(config);
             return -EINVAL;
         }
