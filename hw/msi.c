@@ -258,34 +258,29 @@ void msi_write_config(PCIDevice *dev, uint32_t addr, uint32_t val, int len)
     uint32_t pending;
     int i;
 
-#ifdef MSI_DEBUG
-    if (ranges_overlap(addr, len, dev->msi_cap, msi_cap_sizeof(flags))) {
-        MSI_DEV_PRINTF(dev, "addr 0x%"PRIx32" val 0x%"PRIx32" len %d\n",
-                       addr, val, len);
-        MSI_DEV_PRINTF(dev, "ctrl: 0x%"PRIx16" address: 0x%"PRIx32,
-                       flags,
-                       pci_get_long(dev->config + msi_address_lo_off(dev)));
-        if (msi64bit) {
-            fprintf(stderr, " addrss-hi: 0x%"PRIx32,
-                    pci_get_long(dev->config + msi_address_hi_off(dev)));
-        }
-        fprintf(stderr, " data: 0x%"PRIx16,
-                pci_get_word(dev->config + msi_data_off(dev, msi64bit)));
-        if (flags & PCI_MSI_FLAGS_MASKBIT) {
-            fprintf(stderr, " mask 0x%"PRIx32" pending 0x%"PRIx32,
-                    pci_get_long(dev->config + msi_mask_off(dev, msi64bit)),
-                    pci_get_long(dev->config + msi_pending_off(dev, msi64bit)));
-        }
-        fprintf(stderr, "\n");
-    }
-#endif
-
-    /* Are we modified? */
-    if (!(ranges_overlap(addr, len, msi_flags_off(dev), 2) ||
-          (msi_per_vector_mask &&
-           ranges_overlap(addr, len, msi_mask_off(dev, msi64bit), 4)))) {
+    if (!ranges_overlap(addr, len, dev->msi_cap, msi_cap_sizeof(flags))) {
         return;
     }
+
+#ifdef MSI_DEBUG
+    MSI_DEV_PRINTF(dev, "addr 0x%"PRIx32" val 0x%"PRIx32" len %d\n",
+                   addr, val, len);
+    MSI_DEV_PRINTF(dev, "ctrl: 0x%"PRIx16" address: 0x%"PRIx32,
+                   flags,
+                   pci_get_long(dev->config + msi_address_lo_off(dev)));
+    if (msi64bit) {
+        fprintf(stderr, " addrss-hi: 0x%"PRIx32,
+                pci_get_long(dev->config + msi_address_hi_off(dev)));
+    }
+    fprintf(stderr, " data: 0x%"PRIx16,
+            pci_get_word(dev->config + msi_data_off(dev, msi64bit)));
+    if (flags & PCI_MSI_FLAGS_MASKBIT) {
+        fprintf(stderr, " mask 0x%"PRIx32" pending 0x%"PRIx32,
+                pci_get_long(dev->config + msi_mask_off(dev, msi64bit)),
+                pci_get_long(dev->config + msi_pending_off(dev, msi64bit)));
+    }
+    fprintf(stderr, "\n");
+#endif
 
     if (!(flags & PCI_MSI_FLAGS_ENABLE)) {
         return;
