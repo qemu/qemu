@@ -639,7 +639,9 @@ END_TEST
 
 START_TEST(empty_input)
 {
-    QObject *obj = qobject_from_json("");
+    const char *empty = "";
+
+    QObject *obj = qobject_from_json(empty);
     fail_unless(obj == NULL);
 }
 END_TEST

@@ -2,6 +2,13 @@
 #define QEMU_TIMER_H
 
 #include "qemu-common.h"
+#include <time.h>
+#include <sys/time.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <mmsystem.h>
+#endif
 
 /* timers */
 
@@ -52,6 +59,73 @@ static inline int64_t get_ticks_per_sec(void)
     return 1000000000LL;
 }
 
+/* compute with 96 bit intermediate result: (a*b)/c */
+static inline uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
+{
+    union {
+        uint64_t ll;
+        struct {
+#ifdef HOST_WORDS_BIGENDIAN
+            uint32_t high, low;
+#else
+            uint32_t low, high;
+#endif
+        } l;
+    } u, res;
+    uint64_t rl, rh;
+
+    u.ll = a;
+    rl = (uint64_t)u.l.low * (uint64_t)b;
+    rh = (uint64_t)u.l.high * (uint64_t)b;
+    rh += (rl >> 32);
+    res.l.high = rh / c;
+    res.l.low = (((rh % c) << 32) + (rl & 0xffffffff)) / c;
+    return res.ll;
+}
+
+/* real time host monotonic timer */
+static inline int64_t get_clock_realtime(void)
+{
+    struct timeval tv;
+
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec * 1000000000LL + (tv.tv_usec * 1000);
+}
+
+/* Warning: don't insert tracepoints into these functions, they are
+   also used by simpletrace backend and tracepoints would cause
+   an infinite recursion! */
+#ifdef _WIN32
+extern int64_t clock_freq;
+
+static inline int64_t get_clock(void)
+{
+    LARGE_INTEGER ti;
+    QueryPerformanceCounter(&ti);
+    return muldiv64(ti.QuadPart, get_ticks_per_sec(), clock_freq);
+}
+
+#else
+
+extern int use_rt_clock;
+
+static inline int64_t get_clock(void)
+{
+#if defined(__linux__) || (defined(__FreeBSD__) && __FreeBSD_version >= 500000) \
+    || defined(__DragonFly__) || defined(__FreeBSD_kernel__)
+    if (use_rt_clock) {
+        struct timespec ts;
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        return ts.tv_sec * 1000000000LL + ts.tv_nsec;
+    } else
+#endif
+    {
+        /* XXX: using gettimeofday leads to problems if the date
+           changes, so it should be avoided. */
+        return get_clock_realtime();
+    }
+}
+#endif
 
 void qemu_get_timer(QEMUFile *f, QEMUTimer *ts);
 void qemu_put_timer(QEMUFile *f, QEMUTimer *ts);

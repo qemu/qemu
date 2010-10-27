@@ -53,7 +53,8 @@ static AIOPool blkverify_aio_pool = {
     .cancel             = blkverify_aio_cancel,
 };
 
-static void GCC_FMT_ATTR(2, 3) blkverify_err(BlkverifyAIOCB *acb, const char *fmt, ...)
+static void GCC_FMT_ATTR(2, 3) blkverify_err(BlkverifyAIOCB *acb,
+                                             const char *fmt, ...)
 {
     va_list ap;
 
