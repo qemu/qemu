@@ -307,7 +307,7 @@ void pcie_cap_slot_reset(PCIDevice *dev)
                                  PCI_EXP_SLTSTA_PDC |
                                  PCI_EXP_SLTSTA_ABP);
 
-    hotplug_event_notify(dev);
+    hotplug_event_update_event_status(dev);
 }
 
 void pcie_cap_slot_write_config(PCIDevice *dev,
