@@ -145,6 +145,76 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         else:
             return self._execute_cmd(cmdline)
 
+class HMPShell(QMPShell):
+    def __init__(self, address):
+        QMPShell.__init__(self, address)
+        self.__cpu_index = 0
+
+    def __cmd_completion(self):
+        for cmd in self.__cmd_passthrough('help')['return'].split('\r\n'):
+            if cmd and cmd[0] != '[' and cmd[0] != '\t':
+                name = cmd.split()[0] # drop help text
+                if name == 'info':
+                    continue
+                if name.find('|') != -1:
+                    # Command in the form 'foobar|f' or 'f|foobar', take the
+                    # full name
+                    opt = name.split('|')
+                    if len(opt[0]) == 1:
+                        name = opt[1]
+                    else:
+                        name = opt[0]
+                self._completer.append(name)
+                self._completer.append('help ' + name) # help completion
+
+    def __info_completion(self):
+        for cmd in self.__cmd_passthrough('info')['return'].split('\r\n'):
+            if cmd:
+                self._completer.append('info ' + cmd.split()[1])
+
+    def __other_completion(self):
+        # special cases
+        self._completer.append('help info')
+
+    def _fill_completion(self):
+        self.__cmd_completion()
+        self.__info_completion()
+        self.__other_completion()
+
+    def __cmd_passthrough(self, cmdline, cpu_index = 0):
+        return self.cmd_obj({ 'execute': 'human-monitor-command', 'arguments':
+                              { 'command-line': cmdline,
+                                'cpu-index': cpu_index } })
+
+    def _execute_cmd(self, cmdline):
+        if cmdline.split()[0] == "cpu":
+            # trap the cpu command, it requires special setting
+            try:
+                idx = int(cmdline.split()[1])
+                if not 'return' in self.__cmd_passthrough('info version', idx):
+                    print 'bad CPU index'
+                    return True
+                self.__cpu_index = idx
+            except ValueError:
+                print 'cpu command takes an integer argument'
+                return True
+        resp = self.__cmd_passthrough(cmdline, self.__cpu_index)
+        if resp is None:
+            print 'Disconnected'
+            return False
+        assert 'return' in resp or 'error' in resp
+        if 'return' in resp:
+            # Success
+            if len(resp['return']) > 0:
+                print resp['return'],
+        else:
+            # Error
+            print '%s: %s' % (resp['error']['class'], resp['error']['desc'])
+        return True
+
+    def show_banner(self):
+        QMPShell.show_banner(self, msg='Welcome to the HMP shell!')
+
 def die(msg):
     sys.stderr.write('ERROR: %s\n' % msg)
     sys.exit(1)
@@ -156,9 +226,16 @@ def fail_cmdline(option=None):
     sys.exit(1)
 
 def main():
+    addr = ''
     try:
         if len(sys.argv) == 2:
             qemu = QMPShell(sys.argv[1])
+            addr = sys.argv[1]
+        elif len(sys.argv) == 3:
+            if sys.argv[1] != '-H':
+                fail_cmdline(sys.argv[1])
+            qemu = HMPShell(sys.argv[2])
+            addr = sys.argv[2]
         else:
                 fail_cmdline()
     except QMPShellBadPort:
@@ -171,7 +248,7 @@ def main():
     except qmp.QMPCapabilitiesError:
         die('Could not negotiate capabilities')
     except qemu.error:
-        die('Could not connect to %s' % sys.argv[1])
+        die('Could not connect to %s' % addr)
 
     qemu.show_banner()
     while qemu.read_exec_command('(QEMU) '):
