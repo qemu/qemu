@@ -1554,40 +1554,28 @@ void helper_mttdsp(target_ulong arg1)
 }
 
 /* MIPS MT functions */
-target_ulong helper_dmt(target_ulong arg1)
+target_ulong helper_dmt(void)
 {
     // TODO
-    arg1 = 0;
-    // rt = arg1
-
-    return arg1;
+     return 0;
 }
 
-target_ulong helper_emt(target_ulong arg1)
+target_ulong helper_emt(void)
 {
     // TODO
-    arg1 = 0;
-    // rt = arg1
-
-    return arg1;
+    return 0;
 }
 
-target_ulong helper_dvpe(target_ulong arg1)
+target_ulong helper_dvpe(void)
 {
     // TODO
-    arg1 = 0;
-    // rt = arg1
-
-    return arg1;
+    return 0;
 }
 
-target_ulong helper_evpe(target_ulong arg1)
+target_ulong helper_evpe(void)
 {
     // TODO
-    arg1 = 0;
-    // rt = arg1
-
-    return arg1;
+    return 0;
 }
 #endif /* !CONFIG_USER_ONLY */
 
