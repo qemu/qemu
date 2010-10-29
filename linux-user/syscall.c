@@ -3601,9 +3601,8 @@ static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
         new_thread_info info;
         pthread_attr_t attr;
 #endif
-        ts = qemu_mallocz(sizeof(TaskState) + NEW_STACK_SIZE);
+        ts = qemu_mallocz(sizeof(TaskState));
         init_task_state(ts);
-        new_stack = ts->stack;
         /* we create a new CPU instance. */
         new_env = cpu_copy(env);
 #if defined(TARGET_I386) || defined(TARGET_SPARC) || defined(TARGET_PPC)
@@ -3639,7 +3638,8 @@ static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
             info.parent_tidptr = parent_tidptr;
 
         ret = pthread_attr_init(&attr);
-        ret = pthread_attr_setstack(&attr, new_stack, NEW_STACK_SIZE);
+        ret = pthread_attr_setstacksize(&attr, NEW_STACK_SIZE);
+        ret = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
         /* It is not safe to deliver signals until the child has finished
            initializing, so temporarily block all signals.  */
         sigfillset(&sigmask);
@@ -3667,6 +3667,7 @@ static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
         if (flags & CLONE_NPTL_FLAGS2)
             return -EINVAL;
         /* This is probably going to die very quickly, but do it anyway.  */
+        new_stack = qemu_mallocz (NEW_STACK_SIZE);
 #ifdef __ia64__
         ret = __clone2(clone_func, new_stack, NEW_STACK_SIZE, flags, new_env);
 #else
@@ -4240,7 +4241,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
               sys_futex(g2h(ts->child_tidptr), FUTEX_WAKE, INT_MAX,
                         NULL, NULL, 0);
           }
-          /* TODO: Free CPU state.  */
+          thread_env = NULL;
+          qemu_free(cpu_env);
+          qemu_free(ts);
           pthread_exit(NULL);
       }
 #endif

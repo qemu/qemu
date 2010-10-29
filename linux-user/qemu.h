@@ -126,8 +126,6 @@ typedef struct TaskState {
     struct sigqueue sigqueue_table[MAX_SIGQUEUE_SIZE]; /* siginfo queue */
     struct sigqueue *first_free; /* first free siginfo queue entry */
     int signal_pending; /* non zero if a signal may be pending */
-
-    uint8_t stack[0];
 } __attribute__((aligned(16))) TaskState;
 
 extern char *exec_path;
