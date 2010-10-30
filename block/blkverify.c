@@ -300,8 +300,8 @@ static void blkverify_verify_readv(BlkverifyAIOCB *acb)
 {
     ssize_t offset = blkverify_iovec_compare(acb->qiov, &acb->raw_qiov);
     if (offset != -1) {
-        blkverify_err(acb, "contents mismatch in sector %lld",
-                      acb->sector_num + (offset / BDRV_SECTOR_SIZE));
+        blkverify_err(acb, "contents mismatch in sector %" PRId64,
+                      acb->sector_num + (int64_t)(offset / BDRV_SECTOR_SIZE));
     }
 }
 
