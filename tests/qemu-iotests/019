@@ -44,7 +44,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.pattern
 
 # Any format supporting backing files
-_supported_fmt qcow qcow2 vmdk
+_supported_fmt qcow qcow2 vmdk qed
 _supported_os Linux
 
 TEST_OFFSETS="0 4294967296"

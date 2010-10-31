@@ -119,6 +119,7 @@ check options
     -cow                test cow
     -qcow               test qcow
     -qcow2              test qcow2
+    -qed                test qed
     -vdi                test vdi
     -vpc                test vpc
     -vmdk               test vmdk
@@ -155,6 +156,11 @@ testlist options
 
 	-qcow2)
 	    IMGFMT=qcow2
+	    xpand=false
+	    ;;
+
+	-qed)
+	    IMGFMT=qed
 	    xpand=false
 	    ;;
 

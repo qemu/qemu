@@ -55,7 +55,7 @@ _make_test_img()
     # at least one argument (the image size) needs to be added
     local extra_img_options=$*
 
-    if [ "$IMGFMT" = "qcow2" -a -n "$CLUSTER_SIZE" ]; then
+    if [ \( "$IMGFMT" = "qcow2" -o "$IMGFMT" = "qed" \) -a -n "$CLUSTER_SIZE" ]; then
         extra_img_options="-o cluster_size=$CLUSTER_SIZE $extra_img_options"
     fi
 
@@ -65,6 +65,7 @@ _make_test_img()
     	sed -e "s#$IMGFMT#IMGFMT#g" | \
 	sed -e "s# encryption=off##g" | \
 	sed -e "s# cluster_size=0##g" | \
+	sed -e "s# table_size=0##g" | \
 	sed -e "s# compat6=off##g" | \
 	sed -e "s# static=off##g"
 }
