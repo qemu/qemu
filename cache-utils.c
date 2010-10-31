@@ -79,7 +79,7 @@ static void ppc_init_cacheline_sizes(void)
     qemu_cache_conf.dcache_bsize = cacheline;
     qemu_cache_conf.icache_bsize = cacheline;
 }
-#endif    
+#endif
 
 #ifdef __linux__
 void qemu_cache_utils_init(char **envp)
