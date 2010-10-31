@@ -25,15 +25,7 @@
 #include "sun4m.h"
 #include "qemu-timer.h"
 #include "sysbus.h"
-
-//#define DEBUG_TIMER
-
-#ifdef DEBUG_TIMER
-#define DPRINTF(fmt, ...)                                       \
-    do { printf("TIMER: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) do {} while (0)
-#endif
+#include "trace.h"
 
 /*
  * Registers of hardware timer in sun4m.
@@ -112,8 +104,7 @@ static void slavio_timer_get_out(CPUTimerState *t)
     }
     count = limit - PERIODS_TO_LIMIT(ptimer_get_count(t->timer));
 
-    DPRINTF("get_out: limit %" PRIx64 " count %x%08x\n", t->limit, t->counthigh,
-            t->count);
+    trace_slavio_timer_get_out(t->limit, t->counthigh, t->count);
     t->count = count & TIMER_COUNT_MASK32;
     t->counthigh = count >> 32;
 }
@@ -126,7 +117,7 @@ static void slavio_timer_irq(void *opaque)
     CPUTimerState *t = &s->cputimer[tc->timer_index];
 
     slavio_timer_get_out(t);
-    DPRINTF("callback: count %x%08x\n", t->counthigh, t->count);
+    trace_slavio_timer_irq(t->counthigh, t->count);
     /* if limit is 0 (free-run), there will be no match */
     if (t->limit != 0) {
         t->reached = TIMER_REACHED;
@@ -188,12 +179,11 @@ static uint32_t slavio_timer_mem_readl(void *opaque, target_phys_addr_t addr)
         ret = s->cputimer_mode;
         break;
     default:
-        DPRINTF("invalid read address " TARGET_FMT_plx "\n", addr);
+        trace_slavio_timer_mem_readl_invalid(addr);
         ret = 0;
         break;
     }
-    DPRINTF("read " TARGET_FMT_plx " = %08x\n", addr, ret);
-
+    trace_slavio_timer_mem_readl(addr, ret);
     return ret;
 }
 
@@ -206,7 +196,7 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
     unsigned int timer_index = tc->timer_index;
     CPUTimerState *t = &s->cputimer[timer_index];
 
-    DPRINTF("write " TARGET_FMT_plx " %08x\n", addr, val);
+    trace_slavio_timer_mem_writel(addr, val);
     saddr = addr >> 2;
     switch (saddr) {
     case TIMER_LIMIT:
@@ -218,8 +208,7 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
             t->counthigh = val & (TIMER_MAX_COUNT64 >> 32);
             t->reached = 0;
             count = ((uint64_t)t->counthigh << 32) | t->count;
-            DPRINTF("processor %d user timer set to %016" PRIx64 "\n",
-                    timer_index, count);
+            trace_slavio_timer_mem_writel_limit(timer_index, count);
             ptimer_set_count(t->timer, LIMIT_TO_PERIODS(t->limit - count));
         } else {
             // set limit, reset counter
@@ -244,11 +233,11 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
             t->count = val & TIMER_MAX_COUNT64;
             t->reached = 0;
             count = ((uint64_t)t->counthigh) << 32 | t->count;
-            DPRINTF("processor %d user timer set to %016" PRIx64 "\n",
-                    timer_index, count);
+            trace_slavio_timer_mem_writel_limit(timer_index, count);
             ptimer_set_count(t->timer, LIMIT_TO_PERIODS(t->limit - count));
-        } else
-            DPRINTF("not user timer\n");
+        } else {
+            trace_slavio_timer_mem_writel_counter_invalid();
+        }
         break;
     case TIMER_COUNTER_NORST:
         // set limit without resetting counter
@@ -263,13 +252,11 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
         if (slavio_timer_is_user(tc)) {
             // start/stop user counter
             if ((val & 1) && !t->running) {
-                DPRINTF("processor %d user timer started\n",
-                        timer_index);
+                trace_slavio_timer_mem_writel_status_start(timer_index);
                 ptimer_run(t->timer, 0);
                 t->running = 1;
             } else if (!(val & 1) && t->running) {
-                DPRINTF("processor %d user timer stopped\n",
-                        timer_index);
+                trace_slavio_timer_mem_writel_status_stop(timer_index);
                 ptimer_stop(t->timer);
                 t->running = 0;
             }
@@ -298,8 +285,7 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
                         // set this processors user timer bit in config
                         // register
                         s->cputimer_mode |= processor;
-                        DPRINTF("processor %d changed from counter to user "
-                                "timer\n", timer_index);
+                        trace_slavio_timer_mem_writel_mode_user(timer_index);
                     } else { // user timer -> counter
                         // stop the user timer if it is running
                         if (curr_timer->running) {
@@ -311,17 +297,16 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
                         // clear this processors user timer bit in config
                         // register
                         s->cputimer_mode &= ~processor;
-                        DPRINTF("processor %d changed from user timer to "
-                                "counter\n", timer_index);
+                        trace_slavio_timer_mem_writel_mode_counter(timer_index);
                     }
                 }
             }
         } else {
-            DPRINTF("not system timer\n");
+            trace_slavio_timer_mem_writel_mode_invalid();
         }
         break;
     default:
-        DPRINTF("invalid write address " TARGET_FMT_plx "\n", addr);
+        trace_slavio_timer_mem_writel_invalid(addr);
         break;
     }
 }

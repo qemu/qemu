@@ -29,9 +29,7 @@
 #include "sparc32_dma.h"
 #include "sun4m.h"
 #include "sysbus.h"
-
-/* debug DMA */
-//#define DEBUG_DMA
+#include "trace.h"
 
 /*
  * This is the DMA controller part of chip STP2000 (Master I/O), also
@@ -40,13 +38,6 @@
  * and
  * http://www.ibiblio.org/pub/historic-linux/early-ports/Sparc/NCR/DMA2.txt
  */
-
-#ifdef DEBUG_DMA
-#define DPRINTF(fmt, ...)                               \
-    do { printf("DMA: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...)
-#endif
 
 #define DMA_REGS 4
 #define DMA_SIZE (4 * sizeof(uint32_t))
@@ -88,9 +79,8 @@ void ledma_memory_read(void *opaque, target_phys_addr_t addr,
     DMAState *s = opaque;
     int i;
 
-    DPRINTF("DMA write, direction: %c, addr 0x%8.8x\n",
-            s->dmaregs[0] & DMA_WRITE_MEM ? 'w': 'r', s->dmaregs[1]);
     addr |= s->dmaregs[3];
+    trace_ledma_memory_read(addr);
     if (do_bswap) {
         sparc_iommu_memory_read(s->iommu, addr, buf, len);
     } else {
@@ -110,9 +100,8 @@ void ledma_memory_write(void *opaque, target_phys_addr_t addr,
     int l, i;
     uint16_t tmp_buf[32];
 
-    DPRINTF("DMA read, direction: %c, addr 0x%8.8x\n",
-            s->dmaregs[0] & DMA_WRITE_MEM ? 'w': 'r', s->dmaregs[1]);
     addr |= s->dmaregs[3];
+    trace_ledma_memory_write(addr);
     if (do_bswap) {
         sparc_iommu_memory_write(s->iommu, addr, buf, len);
     } else {
@@ -139,14 +128,14 @@ static void dma_set_irq(void *opaque, int irq, int level)
     if (level) {
         s->dmaregs[0] |= DMA_INTR;
         if (s->dmaregs[0] & DMA_INTREN) {
-            DPRINTF("Raise IRQ\n");
+            trace_sparc32_dma_set_irq_raise();
             qemu_irq_raise(s->irq);
         }
     } else {
         if (s->dmaregs[0] & DMA_INTR) {
             s->dmaregs[0] &= ~DMA_INTR;
             if (s->dmaregs[0] & DMA_INTREN) {
-                DPRINTF("Lower IRQ\n");
+                trace_sparc32_dma_set_irq_lower();
                 qemu_irq_lower(s->irq);
             }
         }
@@ -157,8 +146,7 @@ void espdma_memory_read(void *opaque, uint8_t *buf, int len)
 {
     DMAState *s = opaque;
 
-    DPRINTF("DMA read, direction: %c, addr 0x%8.8x\n",
-            s->dmaregs[0] & DMA_WRITE_MEM ? 'w': 'r', s->dmaregs[1]);
+    trace_espdma_memory_read(s->dmaregs[1]);
     sparc_iommu_memory_read(s->iommu, s->dmaregs[1], buf, len);
     s->dmaregs[1] += len;
 }
@@ -167,8 +155,7 @@ void espdma_memory_write(void *opaque, uint8_t *buf, int len)
 {
     DMAState *s = opaque;
 
-    DPRINTF("DMA write, direction: %c, addr 0x%8.8x\n",
-            s->dmaregs[0] & DMA_WRITE_MEM ? 'w': 'r', s->dmaregs[1]);
+    trace_espdma_memory_write(s->dmaregs[1]);
     sparc_iommu_memory_write(s->iommu, s->dmaregs[1], buf, len);
     s->dmaregs[1] += len;
 }
@@ -179,9 +166,7 @@ static uint32_t dma_mem_readl(void *opaque, target_phys_addr_t addr)
     uint32_t saddr;
 
     saddr = (addr & DMA_MASK) >> 2;
-    DPRINTF("read dmareg " TARGET_FMT_plx ": 0x%8.8x\n", addr,
-            s->dmaregs[saddr]);
-
+    trace_sparc32_dma_mem_readl(addr, s->dmaregs[saddr]);
     return s->dmaregs[saddr];
 }
 
@@ -191,18 +176,17 @@ static void dma_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     uint32_t saddr;
 
     saddr = (addr & DMA_MASK) >> 2;
-    DPRINTF("write dmareg " TARGET_FMT_plx ": 0x%8.8x -> 0x%8.8x\n", addr,
-            s->dmaregs[saddr], val);
+    trace_sparc32_dma_mem_writel(addr, s->dmaregs[saddr], val);
     switch (saddr) {
     case 0:
         if (val & DMA_INTREN) {
             if (s->dmaregs[0] & DMA_INTR) {
-                DPRINTF("Raise IRQ\n");
+                trace_sparc32_dma_set_irq_raise();
                 qemu_irq_raise(s->irq);
             }
         } else {
             if (s->dmaregs[0] & (DMA_INTR | DMA_INTREN)) {
-                DPRINTF("Lower IRQ\n");
+                trace_sparc32_dma_set_irq_lower();
                 qemu_irq_lower(s->irq);
             }
         }
@@ -215,10 +199,10 @@ static void dma_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
             val = DMA_DRAIN_FIFO;
 
         if (val & DMA_EN && !(s->dmaregs[0] & DMA_EN)) {
-            DPRINTF("Raise DMA enable\n");
+            trace_sparc32_dma_enable_raise();
             qemu_irq_raise(s->gpio[GPIO_DMA]);
         } else if (!(val & DMA_EN) && !!(s->dmaregs[0] & DMA_EN)) {
-            DPRINTF("Lower DMA enable\n");
+            trace_sparc32_dma_enable_lower();
             qemu_irq_lower(s->gpio[GPIO_DMA]);
         }
 

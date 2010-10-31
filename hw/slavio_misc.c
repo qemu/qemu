@@ -24,9 +24,7 @@
 
 #include "sysemu.h"
 #include "sysbus.h"
-
-/* debug misc */
-//#define DEBUG_MISC
+#include "trace.h"
 
 /*
  * This is the auxio port, chip control and system control part of
@@ -35,13 +33,6 @@
  *
  * This also includes the PMC CPU idle controller.
  */
-
-#ifdef DEBUG_MISC
-#define MISC_DPRINTF(fmt, ...)                                  \
-    do { printf("MISC: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define MISC_DPRINTF(fmt, ...)
-#endif
 
 typedef struct MiscState {
     SysBusDevice busdev;
@@ -79,10 +70,10 @@ static void slavio_misc_update_irq(void *opaque)
     MiscState *s = opaque;
 
     if ((s->aux2 & AUX2_PWRFAIL) && (s->config & CFG_PWRINTEN)) {
-        MISC_DPRINTF("Raise IRQ\n");
+        trace_slavio_misc_update_irq_raise();
         qemu_irq_raise(s->irq);
     } else {
-        MISC_DPRINTF("Lower IRQ\n");
+        trace_slavio_misc_update_irq_lower();
         qemu_irq_lower(s->irq);
     }
 }
@@ -99,7 +90,7 @@ static void slavio_set_power_fail(void *opaque, int irq, int power_failing)
 {
     MiscState *s = opaque;
 
-    MISC_DPRINTF("Power fail: %d, config: %d\n", power_failing, s->config);
+    trace_slavio_set_power_fail(power_failing, s->config);
     if (power_failing && (s->config & CFG_PWRINTEN)) {
         s->aux2 |= AUX2_PWRFAIL;
     } else {
@@ -113,7 +104,7 @@ static void slavio_cfg_mem_writeb(void *opaque, target_phys_addr_t addr,
 {
     MiscState *s = opaque;
 
-    MISC_DPRINTF("Write config %2.2x\n", val & 0xff);
+    trace_slavio_cfg_mem_writeb(val & 0xff);
     s->config = val & 0xff;
     slavio_misc_update_irq(s);
 }
@@ -124,7 +115,7 @@ static uint32_t slavio_cfg_mem_readb(void *opaque, target_phys_addr_t addr)
     uint32_t ret = 0;
 
     ret = s->config;
-    MISC_DPRINTF("Read config %2.2x\n", ret);
+    trace_slavio_cfg_mem_readb(ret);
     return ret;
 }
 
@@ -145,7 +136,7 @@ static void slavio_diag_mem_writeb(void *opaque, target_phys_addr_t addr,
 {
     MiscState *s = opaque;
 
-    MISC_DPRINTF("Write diag %2.2x\n", val & 0xff);
+    trace_slavio_diag_mem_writeb(val & 0xff);
     s->diag = val & 0xff;
 }
 
@@ -155,7 +146,7 @@ static uint32_t slavio_diag_mem_readb(void *opaque, target_phys_addr_t addr)
     uint32_t ret = 0;
 
     ret = s->diag;
-    MISC_DPRINTF("Read diag %2.2x\n", ret);
+    trace_slavio_diag_mem_readb(ret);
     return ret;
 }
 
@@ -176,7 +167,7 @@ static void slavio_mdm_mem_writeb(void *opaque, target_phys_addr_t addr,
 {
     MiscState *s = opaque;
 
-    MISC_DPRINTF("Write modem control %2.2x\n", val & 0xff);
+    trace_slavio_mdm_mem_writeb(val & 0xff);
     s->mctrl = val & 0xff;
 }
 
@@ -186,7 +177,7 @@ static uint32_t slavio_mdm_mem_readb(void *opaque, target_phys_addr_t addr)
     uint32_t ret = 0;
 
     ret = s->mctrl;
-    MISC_DPRINTF("Read modem control %2.2x\n", ret);
+    trace_slavio_mdm_mem_readb(ret);
     return ret;
 }
 
@@ -207,7 +198,7 @@ static void slavio_aux1_mem_writeb(void *opaque, target_phys_addr_t addr,
 {
     MiscState *s = opaque;
 
-    MISC_DPRINTF("Write aux1 %2.2x\n", val & 0xff);
+    trace_slavio_aux1_mem_writeb(val & 0xff);
     if (val & AUX1_TC) {
         // Send a pulse to floppy terminal count line
         if (s->fdc_tc) {
@@ -225,8 +216,7 @@ static uint32_t slavio_aux1_mem_readb(void *opaque, target_phys_addr_t addr)
     uint32_t ret = 0;
 
     ret = s->aux1;
-    MISC_DPRINTF("Read aux1 %2.2x\n", ret);
-
+    trace_slavio_aux1_mem_readb(ret);
     return ret;
 }
 
@@ -248,7 +238,7 @@ static void slavio_aux2_mem_writeb(void *opaque, target_phys_addr_t addr,
     MiscState *s = opaque;
 
     val &= AUX2_PWRINTCLR | AUX2_PWROFF;
-    MISC_DPRINTF("Write aux2 %2.2x\n", val);
+    trace_slavio_aux2_mem_writeb(val & 0xff);
     val |= s->aux2 & AUX2_PWRFAIL;
     if (val & AUX2_PWRINTCLR) // Clear Power Fail int
         val &= AUX2_PWROFF;
@@ -264,8 +254,7 @@ static uint32_t slavio_aux2_mem_readb(void *opaque, target_phys_addr_t addr)
     uint32_t ret = 0;
 
     ret = s->aux2;
-    MISC_DPRINTF("Read aux2 %2.2x\n", ret);
-
+    trace_slavio_aux2_mem_readb(ret);
     return ret;
 }
 
@@ -285,7 +274,7 @@ static void apc_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     APCState *s = opaque;
 
-    MISC_DPRINTF("Write power management %2.2x\n", val & 0xff);
+    trace_apc_mem_writeb(val & 0xff);
     qemu_irq_raise(s->cpu_halt);
 }
 
@@ -293,7 +282,7 @@ static uint32_t apc_mem_readb(void *opaque, target_phys_addr_t addr)
 {
     uint32_t ret = 0;
 
-    MISC_DPRINTF("Read power management %2.2x\n", ret);
+    trace_apc_mem_readb(ret);
     return ret;
 }
 
@@ -321,7 +310,7 @@ static uint32_t slavio_sysctrl_mem_readl(void *opaque, target_phys_addr_t addr)
     default:
         break;
     }
-    MISC_DPRINTF("Read system control %08x\n", ret);
+    trace_slavio_sysctrl_mem_readl(ret);
     return ret;
 }
 
@@ -330,7 +319,7 @@ static void slavio_sysctrl_mem_writel(void *opaque, target_phys_addr_t addr,
 {
     MiscState *s = opaque;
 
-    MISC_DPRINTF("Write system control %08x\n", val);
+    trace_slavio_sysctrl_mem_writel(val);
     switch (addr) {
     case 0:
         if (val & SYS_RESET) {
@@ -367,7 +356,7 @@ static uint32_t slavio_led_mem_readw(void *opaque, target_phys_addr_t addr)
     default:
         break;
     }
-    MISC_DPRINTF("Read diagnostic LED %04x\n", ret);
+    trace_slavio_led_mem_readw(ret);
     return ret;
 }
 
@@ -376,7 +365,7 @@ static void slavio_led_mem_writew(void *opaque, target_phys_addr_t addr,
 {
     MiscState *s = opaque;
 
-    MISC_DPRINTF("Write diagnostic LED %04x\n", val & 0xffff);
+    trace_slavio_led_mem_readw(val & 0xffff);
     switch (addr) {
     case 0:
         s->leds = val;

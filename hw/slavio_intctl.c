@@ -25,16 +25,9 @@
 #include "sun4m.h"
 #include "monitor.h"
 #include "sysbus.h"
+#include "trace.h"
 
 //#define DEBUG_IRQ_COUNT
-//#define DEBUG_IRQ
-
-#ifdef DEBUG_IRQ
-#define DPRINTF(fmt, ...)                                       \
-    do { printf("IRQ: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...)
-#endif
 
 /*
  * Registers of interrupt controller in sun4m.
@@ -97,7 +90,7 @@ static uint32_t slavio_intctl_mem_readl(void *opaque, target_phys_addr_t addr)
         ret = 0;
         break;
     }
-    DPRINTF("read cpu %d reg 0x" TARGET_FMT_plx " = %x\n", s->cpu, addr, ret);
+    trace_slavio_intctl_mem_readl(s->cpu, addr, ret);
 
     return ret;
 }
@@ -109,21 +102,19 @@ static void slavio_intctl_mem_writel(void *opaque, target_phys_addr_t addr,
     uint32_t saddr;
 
     saddr = addr >> 2;
-    DPRINTF("write cpu %d reg 0x" TARGET_FMT_plx " = %x\n", s->cpu, addr, val);
+    trace_slavio_intctl_mem_writel(s->cpu, addr, val);
     switch (saddr) {
     case 1: // clear pending softints
         val &= CPU_SOFTIRQ_MASK | CPU_IRQ_INT15_IN;
         s->intreg_pending &= ~val;
         slavio_check_interrupts(s->master, 1);
-        DPRINTF("Cleared cpu %d irq mask %x, curmask %x\n", s->cpu, val,
-                s->intreg_pending);
+        trace_slavio_intctl_mem_writel_clear(s->cpu, val, s->intreg_pending);
         break;
     case 2: // set softint
         val &= CPU_SOFTIRQ_MASK;
         s->intreg_pending |= val;
         slavio_check_interrupts(s->master, 1);
-        DPRINTF("Set cpu %d irq mask %x, curmask %x\n", s->cpu, val,
-                s->intreg_pending);
+        trace_slavio_intctl_mem_writel_set(s->cpu, val, s->intreg_pending);
         break;
     default:
         break;
@@ -163,7 +154,7 @@ static uint32_t slavio_intctlm_mem_readl(void *opaque, target_phys_addr_t addr)
         ret = 0;
         break;
     }
-    DPRINTF("read system reg 0x" TARGET_FMT_plx " = %x\n", addr, ret);
+    trace_slavio_intctlm_mem_readl(addr, ret);
 
     return ret;
 }
@@ -175,14 +166,13 @@ static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr,
     uint32_t saddr;
 
     saddr = addr >> 2;
-    DPRINTF("write system reg 0x" TARGET_FMT_plx " = %x\n", addr, val);
+    trace_slavio_intctlm_mem_writel(addr, val);
     switch (saddr) {
     case 2: // clear (enable)
         // Force clear unused bits
         val &= MASTER_IRQ_MASK;
         s->intregm_disabled &= ~val;
-        DPRINTF("Enabled master irq mask %x, curmask %x\n", val,
-                s->intregm_disabled);
+        trace_slavio_intctlm_mem_writel_enable(val, s->intregm_disabled);
         slavio_check_interrupts(s, 1);
         break;
     case 3: // set (disable; doesn't affect pending)
@@ -190,13 +180,12 @@ static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr,
         val &= MASTER_IRQ_MASK;
         s->intregm_disabled |= val;
         slavio_check_interrupts(s, 1);
-        DPRINTF("Disabled master irq mask %x, curmask %x\n", val,
-                s->intregm_disabled);
+        trace_slavio_intctlm_mem_writel_disable(val, s->intregm_disabled);
         break;
     case 4:
         s->target_cpu = val & (MAX_CPUS - 1);
         slavio_check_interrupts(s, 1);
-        DPRINTF("Set master irq cpu %d\n", s->target_cpu);
+        trace_slavio_intctlm_mem_writel_target(s->target_cpu);
         break;
     default:
         break;
@@ -264,7 +253,7 @@ static void slavio_check_interrupts(SLAVIO_INTCTLState *s, int set_irqs)
 
     pending &= ~s->intregm_disabled;
 
-    DPRINTF("pending %x disabled %x\n", pending, s->intregm_disabled);
+    trace_slavio_check_interrupts(pending, s->intregm_disabled);
     for (i = 0; i < MAX_CPUS; i++) {
         pil_pending = 0;
 
@@ -327,8 +316,7 @@ static void slavio_set_irq(void *opaque, int irq, int level)
     uint32_t pil = intbit_to_level[irq];
     unsigned int i;
 
-    DPRINTF("Set cpu %d irq %d -> pil %d level %d\n", s->target_cpu, irq, pil,
-            level);
+    trace_slavio_set_irq(s->target_cpu, irq, pil, level);
     if (pil > 0) {
         if (level) {
 #ifdef DEBUG_IRQ_COUNT
@@ -356,7 +344,7 @@ static void slavio_set_timer_irq_cpu(void *opaque, int cpu, int level)
 {
     SLAVIO_INTCTLState *s = opaque;
 
-    DPRINTF("Set cpu %d local timer level %d\n", cpu, level);
+    trace_slavio_set_timer_irq_cpu(cpu, level);
 
     if (level) {
         s->slaves[cpu].intreg_pending |= CPU_IRQ_TIMER_IN;

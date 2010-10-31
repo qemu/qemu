@@ -40,8 +40,8 @@
 #include "qemu-timer.h"
 #include "qemu_socket.h"
 #include "sun4m.h"
-
 #include "pcnet.h"
+#include "trace.h"
 
 typedef struct {
     SysBusDevice busdev;
@@ -59,10 +59,8 @@ static void lance_mem_writew(void *opaque, target_phys_addr_t addr,
                              uint32_t val)
 {
     SysBusPCNetState *d = opaque;
-#ifdef PCNET_DEBUG_IO
-    printf("lance_mem_writew addr=" TARGET_FMT_plx " val=0x%04x\n", addr,
-           val & 0xffff);
-#endif
+
+    trace_lance_mem_writew(addr, val & 0xffff);
     pcnet_ioport_writew(&d->state, addr, val & 0xffff);
 }
 
@@ -72,11 +70,7 @@ static uint32_t lance_mem_readw(void *opaque, target_phys_addr_t addr)
     uint32_t val;
 
     val = pcnet_ioport_readw(&d->state, addr);
-#ifdef PCNET_DEBUG_IO
-    printf("lance_mem_readw addr=" TARGET_FMT_plx " val = 0x%04x\n", addr,
-           val & 0xffff);
-#endif
-
+    trace_lance_mem_readw(addr, val & 0xffff);
     return val & 0xffff;
 }
 

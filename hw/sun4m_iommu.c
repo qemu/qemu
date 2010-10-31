@@ -24,16 +24,7 @@
 
 #include "sun4m.h"
 #include "sysbus.h"
-
-/* debug iommu */
-//#define DEBUG_IOMMU
-
-#ifdef DEBUG_IOMMU
-#define DPRINTF(fmt, ...)                                       \
-    do { printf("IOMMU: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...)
-#endif
+#include "trace.h"
 
 /*
  * I/O MMU used by Sun4m systems
@@ -160,7 +151,7 @@ static uint32_t iommu_mem_readl(void *opaque, target_phys_addr_t addr)
         qemu_irq_lower(s->irq);
         break;
     }
-    DPRINTF("read reg[%d] = %x\n", (int)saddr, ret);
+    trace_sun4m_iommu_mem_readl(saddr, ret);
     return ret;
 }
 
@@ -171,7 +162,7 @@ static void iommu_mem_writel(void *opaque, target_phys_addr_t addr,
     target_phys_addr_t saddr;
 
     saddr = addr >> 2;
-    DPRINTF("write reg[%d] = %x\n", (int)saddr, val);
+    trace_sun4m_iommu_mem_writel(saddr, val);
     switch (saddr) {
     case IOMMU_CTRL:
         switch (val & IOMMU_CTRL_RNGE) {
@@ -201,18 +192,18 @@ static void iommu_mem_writel(void *opaque, target_phys_addr_t addr,
             s->iostart = 0xffffffff80000000ULL;
             break;
         }
-        DPRINTF("iostart = " TARGET_FMT_plx "\n", s->iostart);
+        trace_sun4m_iommu_mem_writel_ctrl(s->iostart);
         s->regs[saddr] = ((val & IOMMU_CTRL_MASK) | s->version);
         break;
     case IOMMU_BASE:
         s->regs[saddr] = val & IOMMU_BASE_MASK;
         break;
     case IOMMU_TLBFLUSH:
-        DPRINTF("tlb flush %x\n", val);
+        trace_sun4m_iommu_mem_writel_tlbflush(val);
         s->regs[saddr] = val & IOMMU_TLBFLUSH_MASK;
         break;
     case IOMMU_PGFLUSH:
-        DPRINTF("page flush %x\n", val);
+        trace_sun4m_iommu_mem_writel_pgflush(val);
         s->regs[saddr] = val & IOMMU_PGFLUSH_MASK;
         break;
     case IOMMU_AFAR:
@@ -262,18 +253,14 @@ static uint32_t iommu_page_get_flags(IOMMUState *s, target_phys_addr_t addr)
 {
     uint32_t ret;
     target_phys_addr_t iopte;
-#ifdef DEBUG_IOMMU
     target_phys_addr_t pa = addr;
-#endif
 
     iopte = s->regs[IOMMU_BASE] << 4;
     addr &= ~s->iostart;
     iopte += (addr >> (IOMMU_PAGE_SHIFT - 2)) & ~3;
     cpu_physical_memory_read(iopte, (uint8_t *)&ret, 4);
     tswap32s(&ret);
-    DPRINTF("get flags addr " TARGET_FMT_plx " => pte " TARGET_FMT_plx
-            ", *pte = %x\n", pa, iopte, ret);
-
+    trace_sun4m_iommu_page_get_flags(pa, iopte, ret);
     return ret;
 }
 
@@ -283,16 +270,14 @@ static target_phys_addr_t iommu_translate_pa(target_phys_addr_t addr,
     target_phys_addr_t pa;
 
     pa = ((pte & IOPTE_PAGE) << 4) + (addr & ~IOMMU_PAGE_MASK);
-    DPRINTF("xlate dva " TARGET_FMT_plx " => pa " TARGET_FMT_plx
-            " (iopte = %x)\n", addr, pa, pte);
-
+    trace_sun4m_iommu_translate_pa(addr, pa, pte);
     return pa;
 }
 
 static void iommu_bad_addr(IOMMUState *s, target_phys_addr_t addr,
                            int is_write)
 {
-    DPRINTF("bad addr " TARGET_FMT_plx "\n", addr);
+    trace_sun4m_iommu_bad_addr(addr);
     s->regs[IOMMU_AFSR] = IOMMU_AFSR_ERR | IOMMU_AFSR_LE | IOMMU_AFSR_RESV |
         IOMMU_AFSR_FAV;
     if (!is_write)

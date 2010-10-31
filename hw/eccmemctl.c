@@ -23,15 +23,7 @@
  */
 
 #include "sysbus.h"
-
-//#define DEBUG_ECC
-
-#ifdef DEBUG_ECC
-#define DPRINTF(fmt, ...)                                       \
-    do { printf("ECC: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...)
-#endif
+#include "trace.h"
 
 /* There are 3 versions of this chip used in SMP sun4m systems:
  * MCC (version 0, implementation 0) SS-600MP
@@ -148,32 +140,32 @@ static void ecc_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
             s->regs[ECC_MER] = s->version | (val & ECC_MER_MASK_1);
         else if (s->version == ECC_SMC)
             s->regs[ECC_MER] = s->version | (val & ECC_MER_MASK_2);
-        DPRINTF("Write memory enable %08x\n", val);
+        trace_ecc_mem_writel_mer(val);
         break;
     case ECC_MDR:
         s->regs[ECC_MDR] =  val & ECC_MDR_MASK;
-        DPRINTF("Write memory delay %08x\n", val);
+        trace_ecc_mem_writel_mdr(val);
         break;
     case ECC_MFSR:
         s->regs[ECC_MFSR] =  val;
         qemu_irq_lower(s->irq);
-        DPRINTF("Write memory fault status %08x\n", val);
+        trace_ecc_mem_writel_mfsr(val);
         break;
     case ECC_VCR:
         s->regs[ECC_VCR] =  val;
-        DPRINTF("Write slot configuration %08x\n", val);
+        trace_ecc_mem_writel_vcr(val);
         break;
     case ECC_DR:
         s->regs[ECC_DR] =  val;
-        DPRINTF("Write diagnostic %08x\n", val);
+        trace_ecc_mem_writel_dr(val);
         break;
     case ECC_ECR0:
         s->regs[ECC_ECR0] =  val;
-        DPRINTF("Write event count 1 %08x\n", val);
+        trace_ecc_mem_writel_ecr0(val);
         break;
     case ECC_ECR1:
         s->regs[ECC_ECR0] =  val;
-        DPRINTF("Write event count 2 %08x\n", val);
+        trace_ecc_mem_writel_ecr1(val);
         break;
     }
 }
@@ -186,39 +178,39 @@ static uint32_t ecc_mem_readl(void *opaque, target_phys_addr_t addr)
     switch (addr >> 2) {
     case ECC_MER:
         ret = s->regs[ECC_MER];
-        DPRINTF("Read memory enable %08x\n", ret);
+        trace_ecc_mem_readl_mer(ret);
         break;
     case ECC_MDR:
         ret = s->regs[ECC_MDR];
-        DPRINTF("Read memory delay %08x\n", ret);
+        trace_ecc_mem_readl_mdr(ret);
         break;
     case ECC_MFSR:
         ret = s->regs[ECC_MFSR];
-        DPRINTF("Read memory fault status %08x\n", ret);
+        trace_ecc_mem_readl_mfsr(ret);
         break;
     case ECC_VCR:
         ret = s->regs[ECC_VCR];
-        DPRINTF("Read slot configuration %08x\n", ret);
+        trace_ecc_mem_readl_vcr(ret);
         break;
     case ECC_MFAR0:
         ret = s->regs[ECC_MFAR0];
-        DPRINTF("Read memory fault address 0 %08x\n", ret);
+        trace_ecc_mem_readl_mfar0(ret);
         break;
     case ECC_MFAR1:
         ret = s->regs[ECC_MFAR1];
-        DPRINTF("Read memory fault address 1 %08x\n", ret);
+        trace_ecc_mem_readl_mfar1(ret);
         break;
     case ECC_DR:
         ret = s->regs[ECC_DR];
-        DPRINTF("Read diagnostic %08x\n", ret);
+        trace_ecc_mem_readl_dr(ret);
         break;
     case ECC_ECR0:
         ret = s->regs[ECC_ECR0];
-        DPRINTF("Read event count 1 %08x\n", ret);
+        trace_ecc_mem_readl_ecr0(ret);
         break;
     case ECC_ECR1:
         ret = s->regs[ECC_ECR0];
-        DPRINTF("Read event count 2 %08x\n", ret);
+        trace_ecc_mem_readl_ecr1(ret);
         break;
     }
     return ret;
@@ -241,7 +233,7 @@ static void ecc_diag_mem_writeb(void *opaque, target_phys_addr_t addr,
 {
     ECCState *s = opaque;
 
-    DPRINTF("Write diagnostic[%d] = %02x\n", (int)addr, val);
+    trace_ecc_diag_mem_writeb(addr, val);
     s->diag[addr & ECC_DIAG_MASK] = val;
 }
 
@@ -250,7 +242,7 @@ static uint32_t ecc_diag_mem_readb(void *opaque, target_phys_addr_t addr)
     ECCState *s = opaque;
     uint32_t ret = s->diag[(int)addr];
 
-    DPRINTF("Read diagnostic[%d] = %02x\n", (int)addr, ret);
+    trace_ecc_diag_mem_readb(addr, ret);
     return ret;
 }
 
