@@ -499,6 +499,16 @@ struct soundhw soundhw[] = {
     },
 #endif
 
+#ifdef CONFIG_HDA
+    {
+        "hda",
+        "Intel HD Audio",
+        0,
+        0,
+        { .init_pci = intel_hda_and_codec_init }
+    },
+#endif
+
 #endif /* HAS_AUDIO_CHOICE */
 
     { NULL, NULL, 0, 0, { NULL } }
