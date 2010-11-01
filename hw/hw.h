@@ -333,6 +333,8 @@ struct VMStateDescription {
     const VMStateSubsection *subsections;
 };
 
+extern const VMStateInfo vmstate_info_bool;
+
 extern const VMStateInfo vmstate_info_int8;
 extern const VMStateInfo vmstate_info_int16;
 extern const VMStateInfo vmstate_info_int32;
@@ -602,6 +604,9 @@ extern const VMStateDescription vmstate_i2c_slave;
 #define VMSTATE_STRUCT_POINTER(_field, _state, _vmsd, _type)          \
     VMSTATE_STRUCT_POINTER_TEST(_field, _state, NULL, _vmsd, _type)
 
+#define VMSTATE_BOOL_V(_f, _s, _v)                                    \
+    VMSTATE_SINGLE(_f, _s, _v, vmstate_info_bool, bool)
+
 #define VMSTATE_INT8_V(_f, _s, _v)                                    \
     VMSTATE_SINGLE(_f, _s, _v, vmstate_info_int8, int8_t)
 #define VMSTATE_INT16_V(_f, _s, _v)                                   \
@@ -619,6 +624,9 @@ extern const VMStateDescription vmstate_i2c_slave;
     VMSTATE_SINGLE(_f, _s, _v, vmstate_info_uint32, uint32_t)
 #define VMSTATE_UINT64_V(_f, _s, _v)                                  \
     VMSTATE_SINGLE(_f, _s, _v, vmstate_info_uint64, uint64_t)
+
+#define VMSTATE_BOOL(_f, _s)                                          \
+    VMSTATE_BOOL_V(_f, _s, 0)
 
 #define VMSTATE_INT8(_f, _s)                                          \
     VMSTATE_INT8_V(_f, _s, 0)
@@ -673,6 +681,12 @@ extern const VMStateDescription vmstate_i2c_slave;
 
 #define VMSTATE_PTIMER(_f, _s)                                        \
     VMSTATE_PTIMER_V(_f, _s, 0)
+
+#define VMSTATE_BOOL_ARRAY_V(_f, _s, _n, _v)                         \
+    VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_bool, bool)
+
+#define VMSTATE_BOOL_ARRAY(_f, _s, _n)                               \
+    VMSTATE_BOOL_ARRAY_V(_f, _s, _n, 0)
 
 #define VMSTATE_UINT16_ARRAY_V(_f, _s, _n, _v)                         \
     VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_uint16, uint16_t)
