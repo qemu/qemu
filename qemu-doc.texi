@@ -200,6 +200,8 @@ ENSONIQ AudioPCI ES1370 sound card
 @item
 Intel 82801AA AC97 Audio compatible sound card
 @item
+Intel HD Audio Controller and HDA codec
+@item
 Adlib(OPL2) - Yamaha YM3812 compatible chip
 @item
 Gravis Ultrasound GF1 sound card
