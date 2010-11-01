@@ -15,3 +15,6 @@ int ac97_init(PCIBus *buf);
 
 /* cs4231a.c */
 int cs4231a_init(qemu_irq *pic);
+
+/* intel-hda.c + hda-audio.c */
+int intel_hda_and_codec_init(PCIBus *bus);

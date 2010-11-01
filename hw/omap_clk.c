@@ -20,7 +20,6 @@
  */
 #include "hw.h"
 #include "omap.h"
-#include "qemu-timer.h" /* for muldiv64() */
 
 struct clk {
     const char *name;

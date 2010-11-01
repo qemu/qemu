@@ -12444,8 +12444,7 @@ void gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
     gen_intermediate_code_internal(env, tb, 1);
 }
 
-static void fpu_dump_state(CPUState *env, FILE *f,
-                           fprintf_function fpu_fprintf,
+static void fpu_dump_state(CPUState *env, FILE *f, fprintf_function fpu_fprintf,
                            int flags)
 {
     int i;
@@ -12474,9 +12473,8 @@ static void fpu_dump_state(CPUState *env, FILE *f,
     } while(0)
 
 
-    fpu_fprintf(f, "CP1 FCR0 0x%08x  FCR31 0x%08x  SR.FR %d  fp_status 0x%08x(0x%02x)\n",
+    fpu_fprintf(f, "CP1 FCR0 0x%08x  FCR31 0x%08x  SR.FR %d  fp_status 0x%02x\n",
                 env->active_fpu.fcr0, env->active_fpu.fcr31, is_fpu64,
-                env->active_fpu.fp_status.float_rounding_mode,
                 get_float_exception_flags(&env->active_fpu.fp_status));
     for (i = 0; i < 32; (is_fpu64) ? i++ : (i += 2)) {
         fpu_fprintf(f, "%3s: ", fregnames[i]);
@@ -12520,8 +12518,7 @@ cpu_mips_check_sign_extensions (CPUState *env, FILE *f,
 }
 #endif
 
-void cpu_dump_state (CPUState *env, FILE *f,
-                     fprintf_function cpu_fprintf,
+void cpu_dump_state (CPUState *env, FILE *f, fprintf_function cpu_fprintf,
                      int flags)
 {
     int i;

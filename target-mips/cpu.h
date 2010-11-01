@@ -8,6 +8,7 @@
 #define CPUState struct CPUMIPSState
 
 #include "config.h"
+#include "qemu-common.h"
 #include "mips-defs.h"
 #include "cpu-defs.h"
 #include "softfloat.h"

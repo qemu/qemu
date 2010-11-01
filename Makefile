@@ -1,6 +1,6 @@
 # Makefile for QEMU.
 
-GENERATED_HEADERS = config-host.h trace.h
+GENERATED_HEADERS = config-host.h trace.h qemu-options.def
 
 ifneq ($(wildcard config-host.mak),)
 # Put the all: rule here so that config-host.mak can contain dependencies.
@@ -79,6 +79,8 @@ tools: $(TOOLS)
 
 config-host.h: config-host.h-timestamp
 config-host.h-timestamp: config-host.mak
+qemu-options.def: $(SRC_PATH)/qemu-options.hx
+	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $@")
 
 SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))
 
@@ -137,11 +139,11 @@ version-obj-$(CONFIG_WIN32) += version.o
 qemu-img.o: qemu-img-cmds.h
 qemu-img.o qemu-tool.o qemu-nbd.o qemu-io.o: $(GENERATED_HEADERS)
 
-qemu-img$(EXESUF): qemu-img.o qemu-tool.o qemu-error.o $(trace-obj-y) $(block-obj-y) $(qobject-obj-y) $(version-obj-y) qemu-timer-common.o
+qemu-img$(EXESUF): qemu-img.o qemu-tool.o qemu-error.o $(oslib-obj-y) $(trace-obj-y) $(block-obj-y) $(qobject-obj-y) $(version-obj-y) qemu-timer-common.o
 
-qemu-nbd$(EXESUF): qemu-nbd.o qemu-tool.o qemu-error.o $(trace-obj-y) $(block-obj-y) $(qobject-obj-y) $(version-obj-y) qemu-timer-common.o
+qemu-nbd$(EXESUF): qemu-nbd.o qemu-tool.o qemu-error.o $(oslib-obj-y) $(trace-obj-y) $(block-obj-y) $(qobject-obj-y) $(version-obj-y) qemu-timer-common.o
 
-qemu-io$(EXESUF): qemu-io.o cmd.o qemu-tool.o qemu-error.o $(trace-obj-y) $(block-obj-y) $(qobject-obj-y) $(version-obj-y) qemu-timer-common.o
+qemu-io$(EXESUF): qemu-io.o cmd.o qemu-tool.o qemu-error.o $(oslib-obj-y) $(trace-obj-y) $(block-obj-y) $(qobject-obj-y) $(version-obj-y) qemu-timer-common.o
 
 qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $@")
@@ -158,6 +160,7 @@ check-qjson: check-qjson.o qfloat.o qint.o qdict.o qstring.o qlist.o qbool.o qjs
 clean:
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
+	rm -f qemu-options.def
 	rm -f *.o *.d *.a $(TOOLS) TAGS cscope.* *.pod *~ */*~
 	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d net/*.o net/*.d fsdev/*.o fsdev/*.d ui/*.o ui/*.d
 	rm -f qemu-img-cmds.h
@@ -165,11 +168,11 @@ clean:
 	$(MAKE) -C tests clean
 	for d in $(ALL_SUBDIRS) libhw32 libhw64 libuser libdis libdis-user; do \
 	if test -d $$d; then $(MAKE) -C $$d $@ || exit 1; fi; \
+	rm -f $$d/qemu-options.def; \
         done
 
 distclean: clean
 	rm -f config-host.mak config-host.h* config-host.ld $(DOCS) qemu-options.texi qemu-img-cmds.texi qemu-monitor.texi
-	rm -f qemu-options.def
 	rm -f config-all-devices.mak
 	rm -f roms/seabios/config.mak roms/vgabios/config.mak
 	rm -f qemu-doc.info qemu-doc.aux qemu-doc.cp qemu-doc.dvi qemu-doc.fn qemu-doc.info qemu-doc.ky qemu-doc.log qemu-doc.pdf qemu-doc.pg qemu-doc.toc qemu-doc.tp qemu-doc.vr

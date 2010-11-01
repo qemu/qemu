@@ -8825,8 +8825,7 @@ GEN_SPEOP_LDST(evstwwo, 0x1E, 2),
 
 /*****************************************************************************/
 /* Misc PowerPC helpers */
-void cpu_dump_state (CPUState *env, FILE *f,
-                     fprintf_function cpu_fprintf,
+void cpu_dump_state (CPUState *env, FILE *f, fprintf_function cpu_fprintf,
                      int flags)
 {
 #define RGPL  4
@@ -8841,9 +8840,9 @@ void cpu_dump_state (CPUState *env, FILE *f,
                 TARGET_FMT_lx " idx %d\n", env->msr, env->spr[SPR_HID0],
                 env->hflags, env->mmu_idx);
 #if !defined(NO_TIMER_DUMP)
-    cpu_fprintf(f, "TB %08x %08" PRIx64
+    cpu_fprintf(f, "TB %08" PRIu32 " %08" PRIu64
 #if !defined(CONFIG_USER_ONLY)
-                " DECR %08x"
+                " DECR %08" PRIu32
 #endif
                 "\n",
                 cpu_ppc_load_tbu(env), cpu_ppc_load_tbl(env)
@@ -8893,8 +8892,7 @@ void cpu_dump_state (CPUState *env, FILE *f,
 #undef RFPL
 }
 
-void cpu_dump_statistics (CPUState *env, FILE*f,
-                          fprintf_function cpu_fprintf,
+void cpu_dump_statistics (CPUState *env, FILE*f, fprintf_function cpu_fprintf,
                           int flags)
 {
 #if defined(DO_PPC_STATISTICS)

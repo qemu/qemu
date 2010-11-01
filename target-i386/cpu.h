@@ -20,6 +20,7 @@
 #define CPU_I386_H
 
 #include "config.h"
+#include "qemu-common.h"
 
 #ifdef TARGET_X86_64
 #define TARGET_LONG_BITS 64

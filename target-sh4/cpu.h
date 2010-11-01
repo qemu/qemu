@@ -20,6 +20,7 @@
 #define _CPU_SH4_H
 
 #include "config.h"
+#include "qemu-common.h"
 
 #define TARGET_LONG_BITS 32
 #define TARGET_HAS_ICE 1

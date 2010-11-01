@@ -43,6 +43,10 @@
 #include <sys/prctl.h>
 #endif
 
+#ifdef CONFIG_EVENTFD
+#include <sys/eventfd.h>
+#endif
+
 static struct passwd *user_pwd;
 static const char *chroot_dir;
 static int daemonize;
@@ -328,4 +332,53 @@ void os_pidfile_error(void)
 void os_set_line_buffering(void)
 {
     setvbuf(stdout, NULL, _IOLBF, 0);
+}
+
+/*
+ * Creates an eventfd that looks like a pipe and has EFD_CLOEXEC set.
+ */
+int qemu_eventfd(int fds[2])
+{
+#ifdef CONFIG_EVENTFD
+    int ret;
+
+    ret = eventfd(0, 0);
+    if (ret >= 0) {
+        fds[0] = ret;
+        qemu_set_cloexec(ret);
+        if ((fds[1] = dup(ret)) == -1) {
+            close(ret);
+            return -1;
+        }
+        qemu_set_cloexec(fds[1]);
+        return 0;
+    }
+
+    if (errno != ENOSYS) {
+        return -1;
+    }
+#endif
+
+    return qemu_pipe(fds);
+}
+
+int qemu_create_pidfile(const char *filename)
+{
+    char buffer[128];
+    int len;
+    int fd;
+
+    fd = qemu_open(filename, O_RDWR | O_CREAT, 0600);
+    if (fd == -1) {
+        return -1;
+    }
+    if (lockf(fd, F_TLOCK, 0) == -1) {
+        return -1;
+    }
+    len = snprintf(buffer, sizeof(buffer), "%ld\n", (long)getpid());
+    if (write(fd, buffer, len) != len) {
+        return -1;
+    }
+
+    return 0;
 }

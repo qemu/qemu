@@ -774,19 +774,25 @@ int qemu_find_nic_model(NICInfo *nd, const char * const *models,
 
 int net_handle_fd_param(Monitor *mon, const char *param)
 {
-    if (!qemu_isdigit(param[0])) {
-        int fd;
+    int fd;
+
+    if (!qemu_isdigit(param[0]) && mon) {
 
         fd = monitor_get_fd(mon, param);
         if (fd == -1) {
             error_report("No file descriptor named %s found", param);
             return -1;
         }
-
-        return fd;
     } else {
-        return strtol(param, NULL, 0);
+        char *endptr = NULL;
+
+        fd = strtol(param, &endptr, 10);
+        if (*endptr || (fd == 0 && param == endptr)) {
+            return -1;
+        }
     }
+
+    return fd;
 }
 
 static int net_init_nic(QemuOpts *opts,

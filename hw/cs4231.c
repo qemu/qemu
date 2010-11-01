@@ -23,9 +23,7 @@
  */
 
 #include "sysbus.h"
-
-/* debug CS4231 */
-//#define DEBUG_CS
+#include "trace.h"
 
 /*
  * In addition to Crystal CS4231 there is a DMA controller on Sparc.
@@ -45,13 +43,6 @@ typedef struct CSState {
 #define CS_RAP(s) ((s)->regs[0] & CS_MAXDREG)
 #define CS_VER 0xa0
 #define CS_CDC_VER 0x8a
-
-#ifdef DEBUG_CS
-#define DPRINTF(fmt, ...)                                       \
-    do { printf("CS: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...)
-#endif
 
 static void cs_reset(DeviceState *d)
 {
@@ -79,11 +70,11 @@ static uint32_t cs_mem_readl(void *opaque, target_phys_addr_t addr)
             ret = s->dregs[CS_RAP(s)];
             break;
         }
-        DPRINTF("read dreg[%d]: 0x%8.8x\n", CS_RAP(s), ret);
+        trace_cs4231_mem_readl_dreg(CS_RAP(s), ret);
         break;
     default:
         ret = s->regs[saddr];
-        DPRINTF("read reg[%d]: 0x%8.8x\n", saddr, ret);
+        trace_cs4231_mem_readl_reg(saddr, ret);
         break;
     }
     return ret;
@@ -95,11 +86,10 @@ static void cs_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     uint32_t saddr;
 
     saddr = addr >> 2;
-    DPRINTF("write reg[%d]: 0x%8.8x -> 0x%8.8x\n", saddr, s->regs[saddr], val);
+    trace_cs4231_mem_writel_reg(saddr, s->regs[saddr], val);
     switch (saddr) {
     case 1:
-        DPRINTF("write dreg[%d]: 0x%2.2x -> 0x%2.2x\n", CS_RAP(s),
-                s->dregs[CS_RAP(s)], val);
+        trace_cs4231_mem_writel_dreg(CS_RAP(s), s->dregs[CS_RAP(s)], val);
         switch(CS_RAP(s)) {
         case 11:
         case 25: // Read only

@@ -675,6 +675,27 @@ uint64_t qemu_get_be64(QEMUFile *f)
     return v;
 }
 
+/* bool */
+
+static int get_bool(QEMUFile *f, void *pv, size_t size)
+{
+    bool *v = pv;
+    *v = qemu_get_byte(f);
+    return 0;
+}
+
+static void put_bool(QEMUFile *f, void *pv, size_t size)
+{
+    bool *v = pv;
+    qemu_put_byte(f, *v);
+}
+
+const VMStateInfo vmstate_info_bool = {
+    .name = "bool",
+    .get  = get_bool,
+    .put  = put_bool,
+};
+
 /* 8 bit int */
 
 static int get_int8(QEMUFile *f, void *pv, size_t size)

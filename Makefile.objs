@@ -5,10 +5,16 @@ qobject-obj-y += qjson.o json-lexer.o json-streamer.o json-parser.o
 qobject-obj-y += qerror.o
 
 #######################################################################
+# oslib-obj-y is code depending on the OS (win32 vs posix)
+oslib-obj-y = osdep.o
+oslib-obj-$(CONFIG_WIN32) += oslib-win32.o
+oslib-obj-$(CONFIG_POSIX) += oslib-posix.o
+
+#######################################################################
 # block-obj-y is code used by both qemu system emulation and qemu-img
 
 block-obj-y = cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o
-block-obj-y += nbd.o block.o aio.o aes.o osdep.o qemu-config.o
+block-obj-y += nbd.o block.o aio.o aes.o qemu-config.o
 block-obj-$(CONFIG_POSIX) += posix-aio-compat.o
 block-obj-$(CONFIG_LINUX_AIO) += linux-aio.o
 
@@ -50,6 +56,7 @@ common-obj-y += $(net-obj-y)
 common-obj-y += $(qobject-obj-y)
 common-obj-$(CONFIG_LINUX) += $(fsdev-obj-$(CONFIG_LINUX))
 common-obj-y += readline.o console.o cursor.o async.o qemu-error.o
+common-obj-y += $(oslib-obj-y)
 common-obj-$(CONFIG_WIN32) += os-win32.o
 common-obj-$(CONFIG_POSIX) += os-posix.o
 
@@ -153,7 +160,8 @@ user-obj-y += cutils.o cache-utils.o
 hw-obj-y =
 hw-obj-y += vl.o loader.o
 hw-obj-y += virtio.o virtio-console.o
-hw-obj-y += fw_cfg.o pci.o pci_host.o pcie_host.o
+hw-obj-y += fw_cfg.o pci.o pci_host.o pcie_host.o pci_bridge.o
+hw-obj-y += ioh3420.o xio3130_upstream.o xio3130_downstream.o
 hw-obj-y += watchdog.o
 hw-obj-$(CONFIG_ISA_MMIO) += isa_mmio.o
 hw-obj-$(CONFIG_ECC) += ecc.o
@@ -202,7 +210,8 @@ hw-obj-$(CONFIG_PIIX4) += piix4.o
 # PCI watchdog devices
 hw-obj-y += wdt_i6300esb.o
 
-hw-obj-y += msix.o
+hw-obj-y += pcie.o pcie_port.o
+hw-obj-y += msix.o msi.o
 
 # PCI network cards
 hw-obj-y += e100.o
@@ -258,6 +267,7 @@ sound-obj-$(CONFIG_AC97) += ac97.o
 sound-obj-$(CONFIG_ADLIB) += fmopl.o adlib.o
 sound-obj-$(CONFIG_GUS) += gus.o gusemu_hal.o gusemu_mixer.o
 sound-obj-$(CONFIG_CS4231A) += cs4231a.o
+sound-obj-$(CONFIG_HDA) += intel-hda.o hda-audio.o
 
 adlib.o fmopl.o: QEMU_CFLAGS += -DBUILD_Y8950=0
 hw-obj-$(CONFIG_SOUND) += $(sound-obj-y)
@@ -296,11 +306,4 @@ endif
 vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
 vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)
-
-vl.o: qemu-options.def
-os-posix.o: qemu-options.def
-os-win32.o: qemu-options.def
-
-qemu-options.def: $(SRC_PATH)/qemu-options.hx
-	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
 

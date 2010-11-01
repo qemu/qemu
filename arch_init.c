@@ -390,6 +390,9 @@ int ram_load(QEMUFile *f, void *opaque, int version_id)
                 host = qemu_get_ram_ptr(addr);
             else
                 host = host_from_stream_offset(f, addr, flags);
+            if (!host) {
+                return -EINVAL;
+            }
 
             ch = qemu_get_byte(f);
             memset(host, ch, TARGET_PAGE_SIZE);
@@ -496,6 +499,16 @@ struct soundhw soundhw[] = {
         0,
         0,
         { .init_pci = es1370_init }
+    },
+#endif
+
+#ifdef CONFIG_HDA
+    {
+        "hda",
+        "Intel HD Audio",
+        0,
+        0,
+        { .init_pci = intel_hda_and_codec_init }
     },
 #endif
 

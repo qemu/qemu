@@ -978,8 +978,7 @@ int64_t cpu_get_icount(void)
     return qemu_icount_bias + (icount << icount_time_shift);
 }
 
-void list_cpus(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
-               const char *optarg)
+void list_cpus(FILE *f, fprintf_function cpu_fprintf, const char *optarg)
 {
     /* XXX: implement xxx_cpu_list for targets that still miss it */
 #if defined(cpu_list_id)

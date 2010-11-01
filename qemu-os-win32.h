@@ -52,4 +52,12 @@ static inline void os_set_proc_name(const char *dummy) {}
 # define EPROTONOSUPPORT EINVAL
 #endif
 
+int setenv(const char *name, const char *value, int overwrite);
+
+typedef struct {
+    long tv_sec;
+    long tv_usec;
+} qemu_timeval;
+int qemu_gettimeofday(qemu_timeval *tp);
+
 #endif

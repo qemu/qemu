@@ -36,4 +36,7 @@ void os_setup_signal_handling(void);
 void os_daemonize(void);
 void os_setup_post(void);
 
+typedef struct timeval qemu_timeval;
+#define qemu_gettimeofday(tp) gettimeofday(tp, NULL)
+
 #endif

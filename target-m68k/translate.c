@@ -3095,8 +3095,7 @@ void gen_intermediate_code_pc(CPUState *env, TranslationBlock *tb)
     gen_intermediate_code_internal(env, tb, 1);
 }
 
-void cpu_dump_state(CPUState *env, FILE *f,
-                    fprintf_function cpu_fprintf,
+void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
                     int flags)
 {
     int i;

@@ -9266,8 +9266,7 @@ static const char *cpu_mode_names[16] = {
   "???", "???", "???", "und", "???", "???", "???", "sys"
 };
 
-void cpu_dump_state(CPUState *env, FILE *f,
-                    fprintf_function cpu_fprintf,
+void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
                     int flags)
 {
     int i;

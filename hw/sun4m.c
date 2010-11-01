@@ -41,8 +41,7 @@
 #include "loader.h"
 #include "elf.h"
 #include "blockdev.h"
-
-//#define DEBUG_IRQ
+#include "trace.h"
 
 /*
  * Sun4m architecture was used in the following machines:
@@ -71,13 +70,6 @@
  *
  * See for example: http://www.sunhelp.org/faq/sunref1.html
  */
-
-#ifdef DEBUG_IRQ
-#define DPRINTF(fmt, ...)                                       \
-    do { printf("CPUIRQ: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...)
-#endif
 
 #define KERNEL_LOAD_ADDR     0x00004000
 #define CMDLINE_ADDR         0x007ff000
@@ -248,14 +240,14 @@ void cpu_check_irqs(CPUState *env)
 
                 env->interrupt_index = TT_EXTINT | i;
                 if (old_interrupt != env->interrupt_index) {
-                    DPRINTF("Set CPU IRQ %d\n", i);
+                    trace_sun4m_cpu_interrupt(i);
                     cpu_interrupt(env, CPU_INTERRUPT_HARD);
                 }
                 break;
             }
         }
     } else if (!env->pil_in && (env->interrupt_index & ~15) == TT_EXTINT) {
-        DPRINTF("Reset CPU IRQ %d\n", env->interrupt_index & 15);
+        trace_sun4m_cpu_reset_interrupt(env->interrupt_index & 15);
         env->interrupt_index = 0;
         cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
     }
@@ -266,12 +258,12 @@ static void cpu_set_irq(void *opaque, int irq, int level)
     CPUState *env = opaque;
 
     if (level) {
-        DPRINTF("Raise CPU IRQ %d\n", irq);
+        trace_sun4m_cpu_set_irq_raise(irq);
         env->halted = 0;
         env->pil_in |= 1 << irq;
         cpu_check_irqs(env);
     } else {
-        DPRINTF("Lower CPU IRQ %d\n", irq);
+        trace_sun4m_cpu_set_irq_lower(irq);
         env->pil_in &= ~(1 << irq);
         cpu_check_irqs(env);
     }

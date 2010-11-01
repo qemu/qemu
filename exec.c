@@ -4194,16 +4194,15 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
     }
     /* XXX: avoid using doubles ? */
     cpu_fprintf(f, "Translation buffer state:\n");
-    cpu_fprintf(f, "gen code size       %d/%ld\n",
-                (int)(code_gen_ptr - code_gen_buffer),
-                code_gen_buffer_max_size);
-    cpu_fprintf(f, "TB count            %d/%d\n",
+    cpu_fprintf(f, "gen code size       %td/%ld\n",
+                code_gen_ptr - code_gen_buffer, code_gen_buffer_max_size);
+    cpu_fprintf(f, "TB count            %d/%d\n", 
                 nb_tbs, code_gen_max_blocks);
     cpu_fprintf(f, "TB avg target size  %d max=%d bytes\n",
                 nb_tbs ? target_code_size / nb_tbs : 0,
                 max_target_code_size);
-    cpu_fprintf(f, "TB avg host size    %d bytes (expansion ratio: %0.1f)\n",
-                (int)(nb_tbs ? (code_gen_ptr - code_gen_buffer) / nb_tbs : 0),
+    cpu_fprintf(f, "TB avg host size    %td bytes (expansion ratio: %0.1f)\n",
+                nb_tbs ? (code_gen_ptr - code_gen_buffer) / nb_tbs : 0,
                 target_code_size ? (double) (code_gen_ptr - code_gen_buffer) / target_code_size : 0);
     cpu_fprintf(f, "cross page TB count %d (%d%%)\n",
             cross_page,

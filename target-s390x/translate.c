@@ -23,8 +23,7 @@
 #include "tcg-op.h"
 #include "qemu-log.h"
 
-void cpu_dump_state(CPUState *env, FILE *f,
-                    fprintf_function cpu_fprintf,
+void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
                     int flags)
 {
     int i;
