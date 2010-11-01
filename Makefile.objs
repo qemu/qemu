@@ -159,7 +159,8 @@ user-obj-y += cutils.o cache-utils.o
 hw-obj-y =
 hw-obj-y += vl.o loader.o
 hw-obj-y += virtio.o virtio-console.o
-hw-obj-y += fw_cfg.o pci.o pci_host.o pcie_host.o
+hw-obj-y += fw_cfg.o pci.o pci_host.o pcie_host.o pci_bridge.o
+hw-obj-y += ioh3420.o xio3130_upstream.o xio3130_downstream.o
 hw-obj-y += watchdog.o
 hw-obj-$(CONFIG_ISA_MMIO) += isa_mmio.o
 hw-obj-$(CONFIG_ECC) += ecc.o
@@ -206,7 +207,8 @@ hw-obj-$(CONFIG_PIIX4) += piix4.o
 # PCI watchdog devices
 hw-obj-y += wdt_i6300esb.o
 
-hw-obj-y += msix.o
+hw-obj-y += pcie.o pcie_port.o
+hw-obj-y += msix.o msi.o
 
 # PCI network cards
 hw-obj-y += ne2000.o
@@ -292,11 +294,4 @@ endif
 vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
 vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)
-
-vl.o: qemu-options.def
-os-posix.o: qemu-options.def
-os-win32.o: qemu-options.def
-
-qemu-options.def: $(SRC_PATH)/qemu-options.hx
-	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
 

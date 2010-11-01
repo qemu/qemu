@@ -27,6 +27,8 @@
 #include "sysbus.h"
 #include "pci.h"
 #include "pci_host.h"
+#include "pci_bridge.h"
+#include "pci_internals.h"
 
 /* debug DEC */
 //#define DEBUG_DEC
@@ -48,18 +50,43 @@ static int dec_map_irq(PCIDevice *pci_dev, int irq_num)
     return irq_num;
 }
 
+static int dec_21154_initfn(PCIDevice *dev)
+{
+    int rc;
+
+    rc = pci_bridge_initfn(dev);
+    if (rc < 0) {
+        return rc;
+    }
+
+    pci_config_set_vendor_id(dev->config, PCI_VENDOR_ID_DEC);
+    pci_config_set_device_id(dev->config, PCI_DEVICE_ID_DEC_21154);
+    return 0;
+}
+
+static PCIDeviceInfo dec_21154_pci_bridge_info = {
+    .qdev.name = "dec-21154-p2p-bridge",
+    .qdev.desc = "DEC 21154 PCI-PCI bridge",
+    .qdev.size = sizeof(PCIBridge),
+    .qdev.vmsd = &vmstate_pci_device,
+    .qdev.reset = pci_bridge_reset,
+    .init = dec_21154_initfn,
+    .exit = pci_bridge_exitfn,
+    .config_write = pci_bridge_write_config,
+    .is_bridge = 1,
+};
+
 PCIBus *pci_dec_21154_init(PCIBus *parent_bus, int devfn)
 {
-    DeviceState *dev;
-    PCIBus *ret;
+    PCIDevice *dev;
+    PCIBridge *br;
 
-    dev = qdev_create(NULL, "dec-21154");
-    qdev_init_nofail(dev);
-    ret = pci_bridge_init(parent_bus, devfn, false,
-                          PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_21154,
-                          dec_map_irq, "DEC 21154 PCI-PCI bridge");
-
-    return ret;
+    dev = pci_create_multifunction(parent_bus, devfn, false,
+                                   "dec-21154-p2p-bridge");
+    br = DO_UPCAST(PCIBridge, dev, dev);
+    pci_bridge_map_irq(br, "DEC 21154 PCI-PCI bridge", dec_map_irq);
+    qdev_init_nofail(&dev->qdev);
+    return pci_bridge_get_sec_bus(br);
 }
 
 static int pci_dec_21154_init_device(SysBusDevice *dev)
@@ -98,6 +125,7 @@ static void dec_register_devices(void)
     sysbus_register_dev("dec-21154", sizeof(DECState),
                         pci_dec_21154_init_device);
     pci_qdev_register(&dec_21154_pci_host_info);
+    pci_qdev_register(&dec_21154_pci_bridge_info);
 }
 
 device_init(dec_register_devices)
