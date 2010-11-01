@@ -559,9 +559,9 @@ static void hda_audio_set_amp(HDAAudioStream *st)
     right = right * 255 / QEMU_HDA_AMP_STEPS;
 
     if (st->output) {
-	AUD_set_volume_out(st->voice.out, muted, left, right);
+        AUD_set_volume_out(st->voice.out, muted, left, right);
     } else {
-	AUD_set_volume_in(st->voice.in, muted, left, right);
+        AUD_set_volume_in(st->voice.in, muted, left, right);
     }
 }
 
