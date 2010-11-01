@@ -71,7 +71,7 @@ build-all: $(DOCS) $(TOOLS) recurse-all
 
 config-host.h: config-host.h-timestamp
 config-host.h-timestamp: config-host.mak
-qemu-options.def: qemu-options.hx
+qemu-options.def: $(SRC_PATH)/qemu-options.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $@")
 
 SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))
