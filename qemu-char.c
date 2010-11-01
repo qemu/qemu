@@ -508,9 +508,10 @@ int send_all(int fd, const void *buf, int len1)
 
 #else
 
-static int unix_write(int fd, const uint8_t *buf, int len1)
+int send_all(int fd, const void *_buf, int len1)
 {
     int ret, len;
+    const uint8_t *buf = _buf;
 
     len = len1;
     while (len > 0) {
@@ -526,11 +527,6 @@ static int unix_write(int fd, const uint8_t *buf, int len1)
         }
     }
     return len1 - len;
-}
-
-int send_all(int fd, const void *buf, int len1)
-{
-    return unix_write(fd, buf, len1);
 }
 #endif /* !_WIN32 */
 
