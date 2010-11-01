@@ -362,10 +362,67 @@ QemuOptsList qemu_spice_opts = {
             .name = "port",
             .type = QEMU_OPT_NUMBER,
         },{
+            .name = "tls-port",
+            .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "addr",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "ipv4",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "ipv6",
+            .type = QEMU_OPT_BOOL,
+        },{
             .name = "password",
             .type = QEMU_OPT_STRING,
         },{
             .name = "disable-ticketing",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "x509-dir",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "x509-key-file",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "x509-key-password",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "x509-cert-file",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "x509-cacert-file",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "x509-dh-key-file",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "tls-ciphers",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "tls-channel",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "plaintext-channel",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "image-compression",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "jpeg-wan-compression",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "zlib-glz-wan-compression",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "streaming-video",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "agent-mouse",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "playback-compression",
             .type = QEMU_OPT_BOOL,
         },
         { /* end if list */ }

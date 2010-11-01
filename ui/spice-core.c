@@ -22,6 +22,7 @@
 #include "qemu-spice.h"
 #include "qemu-timer.h"
 #include "qemu-queue.h"
+#include "qemu-x509.h"
 #include "monitor.h"
 
 /* core bits */
@@ -136,25 +137,181 @@ static SpiceCoreInterface core_interface = {
     .watch_remove       = watch_remove,
 };
 
+/* config string parsing */
+
+static int name2enum(const char *string, const char *table[], int entries)
+{
+    int i;
+
+    if (string) {
+        for (i = 0; i < entries; i++) {
+            if (!table[i]) {
+                continue;
+            }
+            if (strcmp(string, table[i]) != 0) {
+                continue;
+            }
+            return i;
+        }
+    }
+    return -1;
+}
+
+static int parse_name(const char *string, const char *optname,
+                      const char *table[], int entries)
+{
+    int value = name2enum(string, table, entries);
+
+    if (value != -1) {
+        return value;
+    }
+    fprintf(stderr, "spice: invalid %s: %s\n", optname, string);
+    exit(1);
+}
+
+#if SPICE_SERVER_VERSION >= 0x000600 /* 0.6.0 */
+
+static const char *stream_video_names[] = {
+    [ SPICE_STREAM_VIDEO_OFF ]    = "off",
+    [ SPICE_STREAM_VIDEO_ALL ]    = "all",
+    [ SPICE_STREAM_VIDEO_FILTER ] = "filter",
+};
+#define parse_stream_video(_name) \
+    name2enum(_name, stream_video_names, ARRAY_SIZE(stream_video_names))
+
+#endif /* >= 0.6.0 */
+
+static const char *compression_names[] = {
+    [ SPICE_IMAGE_COMPRESS_OFF ]      = "off",
+    [ SPICE_IMAGE_COMPRESS_AUTO_GLZ ] = "auto_glz",
+    [ SPICE_IMAGE_COMPRESS_AUTO_LZ ]  = "auto_lz",
+    [ SPICE_IMAGE_COMPRESS_QUIC ]     = "quic",
+    [ SPICE_IMAGE_COMPRESS_GLZ ]      = "glz",
+    [ SPICE_IMAGE_COMPRESS_LZ ]       = "lz",
+};
+#define parse_compression(_name)                                        \
+    parse_name(_name, "image compression",                              \
+               compression_names, ARRAY_SIZE(compression_names))
+
+static const char *wan_compression_names[] = {
+    [ SPICE_WAN_COMPRESSION_AUTO   ] = "auto",
+    [ SPICE_WAN_COMPRESSION_NEVER  ] = "never",
+    [ SPICE_WAN_COMPRESSION_ALWAYS ] = "always",
+};
+#define parse_wan_compression(_name)                                    \
+    parse_name(_name, "wan compression",                                \
+               wan_compression_names, ARRAY_SIZE(wan_compression_names))
+
 /* functions for the rest of qemu */
+
+static int add_channel(const char *name, const char *value, void *opaque)
+{
+    int security = 0;
+    int rc;
+
+    if (strcmp(name, "tls-channel") == 0) {
+        security = SPICE_CHANNEL_SECURITY_SSL;
+    }
+    if (strcmp(name, "plaintext-channel") == 0) {
+        security = SPICE_CHANNEL_SECURITY_NONE;
+    }
+    if (security == 0) {
+        return 0;
+    }
+    if (strcmp(value, "default") == 0) {
+        rc = spice_server_set_channel_security(spice_server, NULL, security);
+    } else {
+        rc = spice_server_set_channel_security(spice_server, value, security);
+    }
+    if (rc != 0) {
+        fprintf(stderr, "spice: failed to set channel security for %s\n", value);
+        exit(1);
+    }
+    return 0;
+}
 
 void qemu_spice_init(void)
 {
     QemuOpts *opts = QTAILQ_FIRST(&qemu_spice_opts.head);
-    const char *password;
-    int port;
+    const char *password, *str, *x509_dir, *addr,
+        *x509_key_password = NULL,
+        *x509_dh_file = NULL,
+        *tls_ciphers = NULL;
+    char *x509_key_file = NULL,
+        *x509_cert_file = NULL,
+        *x509_cacert_file = NULL;
+    int port, tls_port, len, addr_flags, streaming_video;
+    spice_image_compression_t compression;
+    spice_wan_compression_t wan_compr;
 
     if (!opts) {
         return;
     }
     port = qemu_opt_get_number(opts, "port", 0);
-    if (!port) {
+    tls_port = qemu_opt_get_number(opts, "tls-port", 0);
+    if (!port && !tls_port) {
         return;
     }
     password = qemu_opt_get(opts, "password");
 
+    if (tls_port) {
+        x509_dir = qemu_opt_get(opts, "x509-dir");
+        if (NULL == x509_dir) {
+            x509_dir = ".";
+        }
+        len = strlen(x509_dir) + 32;
+
+        str = qemu_opt_get(opts, "x509-key-file");
+        if (str) {
+            x509_key_file = qemu_strdup(str);
+        } else {
+            x509_key_file = qemu_malloc(len);
+            snprintf(x509_key_file, len, "%s/%s", x509_dir, X509_SERVER_KEY_FILE);
+        }
+
+        str = qemu_opt_get(opts, "x509-cert-file");
+        if (str) {
+            x509_cert_file = qemu_strdup(str);
+        } else {
+            x509_cert_file = qemu_malloc(len);
+            snprintf(x509_cert_file, len, "%s/%s", x509_dir, X509_SERVER_CERT_FILE);
+        }
+
+        str = qemu_opt_get(opts, "x509-cacert-file");
+        if (str) {
+            x509_cacert_file = qemu_strdup(str);
+        } else {
+            x509_cacert_file = qemu_malloc(len);
+            snprintf(x509_cacert_file, len, "%s/%s", x509_dir, X509_CA_CERT_FILE);
+        }
+
+        x509_key_password = qemu_opt_get(opts, "x509-key-password");
+        x509_dh_file = qemu_opt_get(opts, "x509-dh-file");
+        tls_ciphers = qemu_opt_get(opts, "tls-ciphers");
+    }
+
+    addr = qemu_opt_get(opts, "addr");
+    addr_flags = 0;
+    if (qemu_opt_get_bool(opts, "ipv4", 0)) {
+        addr_flags |= SPICE_ADDR_FLAG_IPV4_ONLY;
+    } else if (qemu_opt_get_bool(opts, "ipv6", 0)) {
+        addr_flags |= SPICE_ADDR_FLAG_IPV6_ONLY;
+    }
+
     spice_server = spice_server_new();
-    spice_server_set_port(spice_server, port);
+    spice_server_set_addr(spice_server, addr ? addr : "", addr_flags);
+    if (port) {
+        spice_server_set_port(spice_server, port);
+    }
+    if (tls_port) {
+        spice_server_set_tls(spice_server, tls_port,
+                             x509_cacert_file,
+                             x509_cert_file,
+                             x509_key_file,
+                             x509_key_password,
+                             x509_dh_file,
+                             tls_ciphers);
+    }
     if (password) {
         spice_server_set_ticket(spice_server, password, 0, 0, 0);
     }
@@ -162,13 +319,52 @@ void qemu_spice_init(void)
         spice_server_set_noauth(spice_server);
     }
 
-    /* TODO: make configurable via cmdline */
-    spice_server_set_image_compression(spice_server, SPICE_IMAGE_COMPRESS_AUTO_GLZ);
+    compression = SPICE_IMAGE_COMPRESS_AUTO_GLZ;
+    str = qemu_opt_get(opts, "image-compression");
+    if (str) {
+        compression = parse_compression(str);
+    }
+    spice_server_set_image_compression(spice_server, compression);
+
+    wan_compr = SPICE_WAN_COMPRESSION_AUTO;
+    str = qemu_opt_get(opts, "jpeg-wan-compression");
+    if (str) {
+        wan_compr = parse_wan_compression(str);
+    }
+    spice_server_set_jpeg_compression(spice_server, wan_compr);
+
+    wan_compr = SPICE_WAN_COMPRESSION_AUTO;
+    str = qemu_opt_get(opts, "zlib-glz-wan-compression");
+    if (str) {
+        wan_compr = parse_wan_compression(str);
+    }
+    spice_server_set_zlib_glz_compression(spice_server, wan_compr);
+
+#if SPICE_SERVER_VERSION >= 0x000600 /* 0.6.0 */
+
+    str = qemu_opt_get(opts, "streaming-video");
+    if (str) {
+        streaming_video = parse_stream_video(str);
+        spice_server_set_streaming_video(spice_server, streaming_video);
+    }
+
+    spice_server_set_agent_mouse
+        (spice_server, qemu_opt_get_bool(opts, "agent-mouse", 1));
+    spice_server_set_playback_compression
+        (spice_server, qemu_opt_get_bool(opts, "playback-compression", 1));
+
+#endif /* >= 0.6.0 */
+
+    qemu_opt_foreach(opts, add_channel, NULL, 0);
 
     spice_server_init(spice_server, &core_interface);
     using_spice = 1;
 
     qemu_spice_input_init();
+
+    qemu_free(x509_key_file);
+    qemu_free(x509_cert_file);
+    qemu_free(x509_cacert_file);
 }
 
 int qemu_spice_add_interface(SpiceBaseInstance *sin)

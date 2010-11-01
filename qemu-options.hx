@@ -680,13 +680,62 @@ Enable the spice remote desktop protocol. Valid options are
 @table @option
 
 @item port=<nr>
-Set the TCP port spice is listening on.
+Set the TCP port spice is listening on for plaintext channels.
+
+@item addr=<addr>
+Set the IP address spice is listening on.  Default is any address.
+
+@item ipv4
+@item ipv6
+Force using the specified IP version.
 
 @item password=<secret>
 Set the password you need to authenticate.
 
 @item disable-ticketing
 Allow client connects without authentication.
+
+@item tls-port=<nr>
+Set the TCP port spice is listening on for encrypted channels.
+
+@item x509-dir=<dir>
+Set the x509 file directory. Expects same filenames as -vnc $display,x509=$dir
+
+@item x509-key-file=<file>
+@item x509-key-password=<file>
+@item x509-cert-file=<file>
+@item x509-cacert-file=<file>
+@item x509-dh-key-file=<file>
+The x509 file names can also be configured individually.
+
+@item tls-ciphers=<list>
+Specify which ciphers to use.
+
+@item tls-channel=[main|display|inputs|record|playback|tunnel]
+@item plaintext-channel=[main|display|inputs|record|playback|tunnel]
+Force specific channel to be used with or without TLS encryption.  The
+options can be specified multiple times to configure multiple
+channels.  The special name "default" can be used to set the default
+mode.  For channels which are not explicitly forced into one mode the
+spice client is allowed to pick tls/plaintext as he pleases.
+
+@item image-compression=[auto_glz|auto_lz|quic|glz|lz|off]
+Configure image compression (lossless).
+Default is auto_glz.
+
+@item jpeg-wan-compression=[auto|never|always]
+@item zlib-glz-wan-compression=[auto|never|always]
+Configure wan image compression (lossy for slow links).
+Default is auto.
+
+@item streaming-video=[off|all|filter]
+Configure video stream detection.  Default is filter.
+
+@item agent-mouse=[on|off]
+Enable/disable passing mouse events via vdagent.  Default is on.
+
+@item playback-compression=[on|off]
+Enable/disable audio stream compression (using celt 0.5.1).  Default is on.
 
 @end table
 ETEXI
