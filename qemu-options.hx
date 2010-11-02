@@ -393,6 +393,7 @@ available sound hardware.
 qemu -soundhw sb16,adlib disk.img
 qemu -soundhw es1370 disk.img
 qemu -soundhw ac97 disk.img
+qemu -soundhw hda disk.img
 qemu -soundhw all disk.img
 qemu -soundhw ?
 @end example
