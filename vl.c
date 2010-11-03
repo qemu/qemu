@@ -1249,16 +1249,17 @@ void main_loop_wait(int nonblocking)
         IOHandlerRecord *pioh;
 
         QLIST_FOREACH_SAFE(ioh, &io_handlers, next, pioh) {
+            if (!ioh->deleted && ioh->fd_read && FD_ISSET(ioh->fd, &rfds)) {
+                ioh->fd_read(ioh->opaque);
+            }
+            if (!ioh->deleted && ioh->fd_write && FD_ISSET(ioh->fd, &wfds)) {
+                ioh->fd_write(ioh->opaque);
+            }
+
+            /* Do this last in case read/write handlers marked it for deletion */
             if (ioh->deleted) {
                 QLIST_REMOVE(ioh, next);
                 qemu_free(ioh);
-                continue;
-            }
-            if (ioh->fd_read && FD_ISSET(ioh->fd, &rfds)) {
-                ioh->fd_read(ioh->opaque);
-            }
-            if (ioh->fd_write && FD_ISSET(ioh->fd, &wfds)) {
-                ioh->fd_write(ioh->opaque);
             }
         }
     }
