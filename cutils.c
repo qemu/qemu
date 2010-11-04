@@ -23,6 +23,7 @@
  */
 #include "qemu-common.h"
 #include "host-utils.h"
+#include <math.h>
 
 void pstrcpy(char *buf, int buf_size, const char *str)
 {
@@ -283,3 +284,90 @@ int fcntl_setfl(int fd, int flag)
 }
 #endif
 
+/*
+ * Convert string to bytes, allowing either B/b for bytes, K/k for KB,
+ * M/m for MB, G/g for GB or T/t for TB. Default without any postfix
+ * is MB. End pointer will be returned in *end, if not NULL. A valid
+ * value must be terminated by whitespace, ',' or '\0'. Return -1 on
+ * error.
+ */
+ssize_t strtosz(const char *nptr, char **end)
+{
+    ssize_t retval = -1;
+    char *endptr, c;
+    int mul_required = 0;
+    double val, mul, integral, fraction;
+
+    errno = 0;
+    val = strtod(nptr, &endptr);
+    if (isnan(val) || endptr == nptr || errno != 0) {
+        goto fail;
+    }
+    integral = modf(val, &fraction);
+    if (integral != 0) {
+        mul_required = 1;
+    }
+    /*
+     * Any whitespace character is fine for terminating the number,
+     * in addition we accept ',' to handle strings where the size is
+     * part of a multi token argument.
+     */
+    c = *endptr;
+    if (isspace(c) || c == '\0' || c == ',') {
+        c = 0;
+    }
+    switch (c) {
+    case 'B':
+    case 'b':
+        mul = 1;
+        if (mul_required) {
+            goto fail;
+        }
+        break;
+    case 'K':
+    case 'k':
+        mul = 1 << 10;
+        break;
+    case 0:
+        if (mul_required) {
+            goto fail;
+        }
+    case 'M':
+    case 'm':
+        mul = 1ULL << 20;
+        break;
+    case 'G':
+    case 'g':
+        mul = 1ULL << 30;
+        break;
+    case 'T':
+    case 't':
+        mul = 1ULL << 40;
+        break;
+    default:
+        goto fail;
+    }
+    /*
+     * If not terminated by whitespace, ',', or \0, increment endptr
+     * to point to next character, then check that we are terminated
+     * by an appropriate separating character, ie. whitespace, ',', or
+     * \0. If not, we are seeing trailing garbage, thus fail.
+     */
+    if (c != 0) {
+        endptr++;
+        if (!isspace(*endptr) && *endptr != ',' && *endptr != 0) {
+            goto fail;
+        }
+    }
+    if ((val * mul >= ~(size_t)0) || val < 0) {
+        goto fail;
+    }
+    retval = val * mul;
+
+fail:
+    if (end) {
+        *end = endptr;
+    }
+
+    return retval;
+}

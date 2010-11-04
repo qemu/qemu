@@ -188,6 +188,7 @@ static int l2_load(BlockDriverState *bs, uint64_t l2_offset,
     ret = bdrv_pread(bs->file, l2_offset, *l2_table,
         s->l2_size * sizeof(uint64_t));
     if (ret < 0) {
+        qcow2_l2_cache_reset(bs);
         return ret;
     }
 

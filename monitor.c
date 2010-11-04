@@ -78,10 +78,11 @@
  * 'l'          target long (32 or 64 bit)
  * 'M'          just like 'l', except in user mode the value is
  *              multiplied by 2^20 (think Mebibyte)
- * 'f'          double
- *              user mode accepts an optional G, g, M, m, K, k suffix,
- *              which multiplies the value by 2^30 for suffixes G and
- *              g, 2^20 for M and m, 2^10 for K and k
+ * 'o'          octets (aka bytes)
+ *              user mode accepts an optional T, t, G, g, M, m, K, k
+ *              suffix, which multiplies the value by 2^40 for
+ *              suffixes T and t, 2^30 for suffixes G and g, 2^20 for
+ *              M and m, 2^10 for K and k
  * 'T'          double
  *              user mode accepts an optional ms, us, ns suffix,
  *              which divides the value by 1e3, 1e6, 1e9, respectively
@@ -3703,7 +3704,29 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                 qdict_put(qdict, key, qint_from_int(val));
             }
             break;
-        case 'f':
+        case 'o':
+            {
+                ssize_t val;
+                char *end;
+
+                while (qemu_isspace(*p)) {
+                    p++;
+                }
+                if (*typestr == '?') {
+                    typestr++;
+                    if (*p == '\0') {
+                        break;
+                    }
+                }
+                val = strtosz(p, &end);
+                if (val < 0) {
+                    monitor_printf(mon, "invalid size\n");
+                    goto fail;
+                }
+                qdict_put(qdict, key, qint_from_int(val));
+                p = end;
+            }
+            break;
         case 'T':
             {
                 double val;
@@ -3719,17 +3742,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                 if (get_double(mon, &val, &p) < 0) {
                     goto fail;
                 }
-                if (c == 'f' && *p) {
-                    switch (*p) {
-                    case 'K': case 'k':
-                        val *= 1 << 10; p++; break;
-                    case 'M': case 'm':
-                        val *= 1 << 20; p++; break;
-                    case 'G': case 'g':
-                        val *= 1 << 30; p++; break;
-                    }
-                }
-                if (c == 'T' && p[0] && p[1] == 's') {
+                if (p[0] && p[1] == 's') {
                     switch (*p) {
                     case 'm':
                         val /= 1e3; p += 2; break;
@@ -4205,13 +4218,13 @@ static int check_client_args_type(const QDict *client_args,
         case 'i':
         case 'l':
         case 'M':
+        case 'o':
             if (qobject_type(client_arg) != QTYPE_QINT) {
                 qerror_report(QERR_INVALID_PARAMETER_TYPE, client_arg_name,
                               "int");
                 return -1;
             }
             break;
-        case 'f':
         case 'T':
             if (qobject_type(client_arg) != QTYPE_QINT &&
                 qobject_type(client_arg) != QTYPE_QFLOAT) {

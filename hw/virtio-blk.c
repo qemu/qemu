@@ -273,7 +273,7 @@ static void virtio_blk_handle_flush(VirtIOBlockReq *req, MultiReqBuffer *mrb)
 
     acb = bdrv_aio_flush(req->dev->bs, virtio_blk_flush_complete, req);
     if (!acb) {
-        virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
+        virtio_blk_flush_complete(req, -EIO);
     }
 }
 
