@@ -384,9 +384,12 @@ xmit_seg(E1000State *s)
         } else	// UDP
             cpu_to_be16wu((uint16_t *)(tp->data+css+4), len);
         if (tp->sum_needed & E1000_TXD_POPTS_TXSM) {
+            unsigned int phsum;
             // add pseudo-header length before checksum calculation
             sp = (uint16_t *)(tp->data + tp->tucso);
-            cpu_to_be16wu(sp, be16_to_cpup(sp) + len);
+            phsum = be16_to_cpup(sp) + len;
+            phsum = (phsum >> 16) + (phsum & 0xffff);
+            cpu_to_be16wu(sp, phsum);
         }
         tp->tso_frames++;
     }
