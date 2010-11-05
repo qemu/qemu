@@ -75,12 +75,12 @@ struct e820_entry {
     uint64_t address;
     uint64_t length;
     uint32_t type;
-};
+} __attribute((__packed__, __aligned__(4)));
 
 struct e820_table {
     uint32_t count;
     struct e820_entry entry[E820_NR_ENTRIES];
-};
+} __attribute((__packed__, __aligned__(4)));
 
 static struct e820_table e820_table;
 
