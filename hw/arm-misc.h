@@ -32,6 +32,7 @@ struct arm_boot_info {
     int nb_cpus;
     int board_id;
     int (*atag_board)(struct arm_boot_info *info, void *p);
+    int32_t atag_revision;
     /* Used internally by arm_boot.c */
     int is_linux;
     target_phys_addr_t initrd_size;

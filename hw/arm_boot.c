@@ -73,10 +73,12 @@ static void set_kernel_args(struct arm_boot_info *info)
         WRITE_WORD(p, info->loader_start + INITRD_LOAD_ADDR);
         WRITE_WORD(p, info->initrd_size);
     }
-    /* ATAG REVISION. */
-    WRITE_WORD(p, 3);
-    WRITE_WORD(p, 0x54410007);
-    WRITE_WORD(p, 0x4000a);
+    if (info->atag_revision) {
+        /* ATAG REVISION. */
+        WRITE_WORD(p, 3);
+        WRITE_WORD(p, 0x54410007);
+        WRITE_WORD(p, info->atag_revision);
+    }
     if (info->kernel_cmdline && *info->kernel_cmdline) {
         /* ATAG_CMDLINE */
         int cmdline_size;
