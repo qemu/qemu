@@ -299,7 +299,7 @@ s3c2410x_init(int sdram_size)
     s->uart[1] = s3c24xx_serial_init(s, serial_hds[1], CPU_S3C2410X_SERIAL1_BASE, 35);
     s->uart[2] = s3c24xx_serial_init(s, serial_hds[2], CPU_S3C2410X_SERIAL2_BASE, 38);
 
-    /* Real time clcok */
+    /* Real time clock */
     s->rtc = s3c24xx_rtc_init(CPU_S3C2410X_RTC_BASE);
 
     /* GPIO */
