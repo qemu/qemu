@@ -1312,6 +1312,7 @@ static struct arm_boot_info tt_binfo = {
     .loader_start = TT_SRAM_BASE,
     /* GO 730 */
     .board_id = 0x25d,
+    .atag_revision = 0x0004000a,
 };
 
 static void tt_init(ram_addr_t ram_size,
@@ -1320,9 +1321,9 @@ static void tt_init(ram_addr_t ram_size,
                const char *initrd_filename, const char *cpu_model)
 {
     CPUState *env;
-    //~ qemu_irq *cpu_pic;
     TTState *s;
 #if 0
+    qemu_irq *cpu_pic;
     qemu_irq pic[32];
     DeviceState *dev;
     DeviceState *i2c_dev;
@@ -1331,12 +1332,12 @@ static void tt_init(ram_addr_t ram_size,
     DeviceState *wm8750_dev;
     SysBusDevice *s;
     i2c_bus *i2c;
-    int i;
     unsigned long flash_size;
     DriveInfo *dinfo;
+    ram_addr_t ram_off;
+    ram_addr_t sram_off;
 #endif
-    //~ ram_addr_t ram_off;
-    //~ ram_addr_t sram_off;
+    unsigned i;
 
     if (cpu_model && strcmp(cpu_model, "arm920t")) {
         fprintf(stderr, "only working with cpu arm920t\n");
@@ -1345,6 +1346,14 @@ static void tt_init(ram_addr_t ram_size,
 
     /* Allocate storage for board state. */
     s = qemu_mallocz(sizeof(TTState));
+
+    for (i = 0; i < 3; i++) {
+        if (serial_hds[i] == NULL) {
+            char name[32];
+            snprintf(name, sizeof(name), "serial%u", i);
+            serial_hds[i] = qemu_chr_open(name, "vc:80Cx24C", NULL);
+        }
+    }
 
     /* Initialise SOC. */
     s->soc = s3c2440_init(ram_size);
@@ -1458,6 +1467,9 @@ static void tt_init(ram_addr_t ram_size,
     tt_binfo.kernel_cmdline = kernel_cmdline;
     tt_binfo.initrd_filename = initrd_filename;
     if (kernel_filename != NULL) {
+        /* TODO: load ttsystem. */
+        //~ sect_size = 0x11b778, sect_addr = 0x31700000
+        //~ sect_size = 0x6a3f45, sect_addr = 0x31000000
         arm_load_kernel(env, &tt_binfo);
     }
 }
