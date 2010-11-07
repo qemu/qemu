@@ -17,15 +17,15 @@
 #define TARGET_NR_time                    13
 #define TARGET_NR_mknod                   14
 #define TARGET_NR_chmod                   15
-#define TARGET_NR_lchown32                16
+#define TARGET_NR_lchown                  16
 #define TARGET_NR_break                   17
 #define TARGET_NR_oldstat                 18
 #define TARGET_NR_lseek                   19
 #define TARGET_NR_getpid                  20
 #define TARGET_NR_mount                   21
 #define TARGET_NR_umount                  22
-#define TARGET_NR_setuid32                23
-#define TARGET_NR_getuid32                24
+#define TARGET_NR_setuid                  23
+#define TARGET_NR_getuid                  24
 #define TARGET_NR_stime                   25
 #define TARGET_NR_ptrace                  26
 #define TARGET_NR_alarm                   27
@@ -47,11 +47,11 @@
 #define TARGET_NR_times                   43
 #define TARGET_NR_prof                    44
 #define TARGET_NR_brk                     45
-#define TARGET_NR_setgid32                46
-#define TARGET_NR_getgid32                47
+#define TARGET_NR_setgid                  46
+#define TARGET_NR_getgid                  47
 #define TARGET_NR_signal                  48
-#define TARGET_NR_geteuid32               49
-#define TARGET_NR_getegid32               50
+#define TARGET_NR_geteuid                 49
+#define TARGET_NR_getegid                 50
 #define TARGET_NR_acct                    51
 #define TARGET_NR_umount2                 52
 #define TARGET_NR_lock                    53
@@ -71,8 +71,8 @@
 #define TARGET_NR_sigaction               67
 #define TARGET_NR_sgetmask                68
 #define TARGET_NR_ssetmask                69
-#define TARGET_NR_setreuid32              70
-#define TARGET_NR_setregid32              71
+#define TARGET_NR_setreuid                70
+#define TARGET_NR_setregid                71
 #define TARGET_NR_sigsuspend              72
 #define TARGET_NR_sigpending              73
 #define TARGET_NR_sethostname             74
@@ -81,8 +81,8 @@
 #define TARGET_NR_getrusage               77
 #define TARGET_NR_gettimeofday            78
 #define TARGET_NR_settimeofday            79
-#define TARGET_NR_getgroups32             80
-#define TARGET_NR_setgroups32             81
+#define TARGET_NR_getgroups               80
+#define TARGET_NR_setgroups               81
 #define TARGET_NR_select                  82
 #define TARGET_NR_symlink                 83
 #define TARGET_NR_oldlstat                84
@@ -96,7 +96,7 @@
 #define TARGET_NR_truncate                92
 #define TARGET_NR_ftruncate               93
 #define TARGET_NR_fchmod                  94
-#define TARGET_NR_fchown32                95
+#define TARGET_NR_fchown                  95
 #define TARGET_NR_getpriority             96
 #define TARGET_NR_setpriority             97
 #define TARGET_NR_profil                  98
@@ -139,8 +139,8 @@
 #define TARGET_NR_sysfs                  135
 #define TARGET_NR_personality            136
 #define TARGET_NR_afs_syscall            137 /* Syscall for Andrew File System */
-#define TARGET_NR_setfsuid32             138
-#define TARGET_NR_setfsgid32             139
+#define TARGET_NR_setfsuid               138
+#define TARGET_NR_setfsgid               139
 #define TARGET_NR__llseek                140
 #define TARGET_NR_getdents               141
 #define TARGET_NR__newselect             142
@@ -182,7 +182,7 @@
 #define TARGET_NR_rt_sigsuspend          178
 #define TARGET_NR_pread64                179
 #define TARGET_NR_pwrite64               180
-#define TARGET_NR_chown32                181
+#define TARGET_NR_chown                  181
 #define TARGET_NR_getcwd                 182
 #define TARGET_NR_capget                 183
 #define TARGET_NR_capset                 184
