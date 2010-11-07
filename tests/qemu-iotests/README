@@ -4,7 +4,7 @@
 * Intro
 
 This package contains a simple test suite for the I/O layer of qemu.
-It does not requite a guest, but only the qemu, qemu-img and qemu-io
+It does not require a guest, but only the qemu, qemu-img and qemu-io
 binaries.  This does limit it to exercise the low-level I/O path only
 but no actual block drivers like ide, scsi or virtio.
 
