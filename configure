@@ -2192,6 +2192,10 @@ EOF
     echo
     exit 1
   fi
+  trace_backend_stap="no"
+  if has 'stap' ; then
+    trace_backend_stap="yes"
+  fi
 fi
 
 ##########################################
@@ -2644,6 +2648,9 @@ fi
 # Set the appropriate trace file.
 if test "$trace_backend" = "simple"; then
   trace_file="\"$trace_file-%u\""
+fi
+if test "$trace_backend" = "dtrace" -a "$trace_backend_stap" = "yes" ; then
+  echo "CONFIG_SYSTEMTAP_TRACE=y" >> $config_host_mak
 fi
 echo "CONFIG_TRACE_FILE=$trace_file" >> $config_host_mak
 
