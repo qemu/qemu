@@ -930,14 +930,14 @@ static void set_dirty_bitmap(BlockDriverState *bs, int64_t sector_num,
         bit = start % (sizeof(unsigned long) * 8);
         val = bs->dirty_bitmap[idx];
         if (dirty) {
-            if (!(val & (1 << bit))) {
+            if (!(val & (1UL << bit))) {
                 bs->dirty_count++;
-                val |= 1 << bit;
+                val |= 1UL << bit;
             }
         } else {
-            if (val & (1 << bit)) {
+            if (val & (1UL << bit)) {
                 bs->dirty_count--;
-                val &= ~(1 << bit);
+                val &= ~(1UL << bit);
             }
         }
         bs->dirty_bitmap[idx] = val;
@@ -2685,8 +2685,8 @@ int bdrv_get_dirty(BlockDriverState *bs, int64_t sector)
 
     if (bs->dirty_bitmap &&
         (sector << BDRV_SECTOR_BITS) < bdrv_getlength(bs)) {
-        return bs->dirty_bitmap[chunk / (sizeof(unsigned long) * 8)] &
-            (1 << (chunk % (sizeof(unsigned long) * 8)));
+        return !!(bs->dirty_bitmap[chunk / (sizeof(unsigned long) * 8)] &
+            (1UL << (chunk % (sizeof(unsigned long) * 8))));
     } else {
         return 0;
     }
