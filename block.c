@@ -2031,12 +2031,49 @@ BlockDriverAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
     return ret;
 }
 
+typedef struct BlockCompleteData {
+    BlockDriverCompletionFunc *cb;
+    void *opaque;
+    BlockDriverState *bs;
+    int64_t sector_num;
+    int nb_sectors;
+} BlockCompleteData;
+
+static void block_complete_cb(void *opaque, int ret)
+{
+    BlockCompleteData *b = opaque;
+
+    if (b->bs->dirty_bitmap) {
+        set_dirty_bitmap(b->bs, b->sector_num, b->nb_sectors, 1);
+    }
+    b->cb(b->opaque, ret);
+    qemu_free(b);
+}
+
+static BlockCompleteData *blk_dirty_cb_alloc(BlockDriverState *bs,
+                                             int64_t sector_num,
+                                             int nb_sectors,
+                                             BlockDriverCompletionFunc *cb,
+                                             void *opaque)
+{
+    BlockCompleteData *blkdata = qemu_mallocz(sizeof(BlockCompleteData));
+
+    blkdata->bs = bs;
+    blkdata->cb = cb;
+    blkdata->opaque = opaque;
+    blkdata->sector_num = sector_num;
+    blkdata->nb_sectors = nb_sectors;
+
+    return blkdata;
+}
+
 BlockDriverAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
                                   QEMUIOVector *qiov, int nb_sectors,
                                   BlockDriverCompletionFunc *cb, void *opaque)
 {
     BlockDriver *drv = bs->drv;
     BlockDriverAIOCB *ret;
+    BlockCompleteData *blk_cb_data;
 
     trace_bdrv_aio_writev(bs, sector_num, nb_sectors, opaque);
 
@@ -2048,7 +2085,10 @@ BlockDriverAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
         return NULL;
 
     if (bs->dirty_bitmap) {
-        set_dirty_bitmap(bs, sector_num, nb_sectors, 1);
+        blk_cb_data = blk_dirty_cb_alloc(bs, sector_num, nb_sectors, cb,
+                                         opaque);
+        cb = &block_complete_cb;
+        opaque = blk_cb_data;
     }
 
     ret = drv->bdrv_aio_writev(bs, sector_num, qiov, nb_sectors,
