@@ -264,8 +264,7 @@ static inline int access_ok(int type, abi_ulong addr, abi_ulong size)
  */
 #define __put_user(x, hptr)\
 ({\
-    int size = sizeof(*hptr);\
-    switch(size) {\
+    switch(sizeof(*hptr)) {\
     case 1:\
         *(uint8_t *)(hptr) = (uint8_t)(typeof(*hptr))(x);\
         break;\
@@ -286,8 +285,7 @@ static inline int access_ok(int type, abi_ulong addr, abi_ulong size)
 
 #define __get_user(x, hptr) \
 ({\
-    int size = sizeof(*hptr);\
-    switch(size) {\
+    switch(sizeof(*hptr)) {\
     case 1:\
         x = (typeof(*hptr))*(uint8_t *)(hptr);\
         break;\
