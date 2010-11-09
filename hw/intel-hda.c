@@ -246,7 +246,7 @@ static void intel_hda_update_int_sts(IntelHDAState *d)
     if (d->rirb_sts & ICH6_RBSTS_OVERRUN) {
         sts |= (1 << 30);
     }
-    if (d->state_sts) {
+    if (d->state_sts & d->wake_en) {
         sts |= (1 << 30);
     }
 
@@ -628,6 +628,7 @@ static const struct IntelHDAReg regtab[] = {
     [ ICH6_REG_WAKEEN ] = {
         .name     = "WAKEEN",
         .size     = 2,
+        .wmask    = 0x3fff,
         .offset   = offsetof(IntelHDAState, wake_en),
     },
     [ ICH6_REG_STATESTS ] = {
