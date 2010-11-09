@@ -102,6 +102,7 @@ common-obj-$(CONFIG_SPICE) += ui/spice-core.o ui/spice-input.o ui/spice-display.
 audio-obj-y = audio.o noaudio.o wavaudio.o mixeng.o
 audio-obj-$(CONFIG_SDL) += sdlaudio.o
 audio-obj-$(CONFIG_OSS) += ossaudio.o
+audio-obj-$(CONFIG_SPICE) += spiceaudio.o
 audio-obj-$(CONFIG_COREAUDIO) += coreaudio.o
 audio-obj-$(CONFIG_ALSA) += alsaaudio.o
 audio-obj-$(CONFIG_DSOUND) += dsoundaudio.o

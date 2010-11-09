@@ -44,6 +44,9 @@
     that we generate the list.
 */
 static struct audio_driver *drvtab[] = {
+#ifdef CONFIG_SPICE
+    &spice_audio_driver,
+#endif
     CONFIG_AUDIO_DRIVERS
     &no_audio_driver,
     &wav_audio_driver

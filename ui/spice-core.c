@@ -361,6 +361,7 @@ void qemu_spice_init(void)
     using_spice = 1;
 
     qemu_spice_input_init();
+    qemu_spice_audio_init();
 
     qemu_free(x509_key_file);
     qemu_free(x509_cert_file);
