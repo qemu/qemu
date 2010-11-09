@@ -808,6 +808,28 @@ static int hda_audio_init(HDACodecDevice *hda, const struct desc_codec *desc)
     return 0;
 }
 
+static int hda_audio_exit(HDACodecDevice *hda)
+{
+    HDAAudioState *a = DO_UPCAST(HDAAudioState, hda, hda);
+    HDAAudioStream *st;
+    int i;
+
+    dprint(a, 1, "%s\n", __FUNCTION__);
+    for (i = 0; i < ARRAY_SIZE(a->st); i++) {
+        st = a->st + i;
+        if (st->node == NULL) {
+            continue;
+        }
+        if (st->output) {
+            AUD_close_out(&a->card, st->voice.out);
+        } else {
+            AUD_close_in(&a->card, st->voice.in);
+        }
+    }
+    AUD_remove_card(&a->card);
+    return 0;
+}
+
 static int hda_audio_post_load(void *opaque, int version)
 {
     HDAAudioState *a = opaque;
@@ -879,6 +901,7 @@ static HDACodecDeviceInfo hda_audio_info_output = {
     .qdev.vmsd    = &vmstate_hda_audio,
     .qdev.props   = hda_audio_properties,
     .init         = hda_audio_init_output,
+    .exit         = hda_audio_exit,
     .command      = hda_audio_command,
     .stream       = hda_audio_stream,
 };
@@ -890,6 +913,7 @@ static HDACodecDeviceInfo hda_audio_info_duplex = {
     .qdev.vmsd    = &vmstate_hda_audio,
     .qdev.props   = hda_audio_properties,
     .init         = hda_audio_init_duplex,
+    .exit         = hda_audio_exit,
     .command      = hda_audio_command,
     .stream       = hda_audio_stream,
 };
