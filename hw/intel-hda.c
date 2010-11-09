@@ -19,6 +19,7 @@
 
 #include "hw.h"
 #include "pci.h"
+#include "msi.h"
 #include "qemu-timer.h"
 #include "audiodev.h"
 #include "intel-hda.h"
@@ -188,6 +189,7 @@ struct IntelHDAState {
 
     /* properties */
     uint32_t debug;
+    uint32_t msi;
 };
 
 struct IntelHDAReg {
@@ -268,6 +270,7 @@ static void intel_hda_update_int_sts(IntelHDAState *d)
 
 static void intel_hda_update_irq(IntelHDAState *d)
 {
+    int msi = d->msi && msi_enabled(&d->pci);
     int level;
 
     intel_hda_update_int_sts(d);
@@ -276,8 +279,15 @@ static void intel_hda_update_irq(IntelHDAState *d)
     } else {
         level = 0;
     }
-    dprint(d, 2, "%s: level %d\n", __FUNCTION__, level);
-    qemu_set_irq(d->pci.irq[0], level);
+    dprint(d, 2, "%s: level %d [%s]\n", __FUNCTION__,
+           level, msi ? "msi" : "intx");
+    if (msi) {
+        if (level) {
+            msi_notify(&d->pci, 0);
+        }
+    } else {
+        qemu_set_irq(d->pci.irq[0], level);
+    }
 }
 
 static int intel_hda_send_command(IntelHDAState *d, uint32_t verb)
@@ -1148,6 +1158,9 @@ static int intel_hda_init(PCIDevice *pci)
                                           intel_hda_mmio_write, d);
     pci_register_bar(&d->pci, 0, 0x4000, PCI_BASE_ADDRESS_SPACE_MEMORY,
                      intel_hda_map);
+    if (d->msi) {
+        msi_init(&d->pci, 0x50, 1, true, false);
+    }
 
     hda_codec_bus_init(&d->pci.qdev, &d->codecs,
                        intel_hda_response, intel_hda_xfer);
@@ -1159,8 +1172,22 @@ static int intel_hda_exit(PCIDevice *pci)
 {
     IntelHDAState *d = DO_UPCAST(IntelHDAState, pci, pci);
 
+    if (d->msi) {
+        msi_uninit(&d->pci);
+    }
     cpu_unregister_io_memory(d->mmio_addr);
     return 0;
+}
+
+static void intel_hda_write_config(PCIDevice *pci, uint32_t addr,
+                                   uint32_t val, int len)
+{
+    IntelHDAState *d = DO_UPCAST(IntelHDAState, pci, pci);
+
+    pci_default_write_config(pci, addr, val, len);
+    if (d->msi) {
+        msi_write_config(pci, addr, val, len);
+    }
 }
 
 static int intel_hda_post_load(void *opaque, int version)
@@ -1246,8 +1273,10 @@ static PCIDeviceInfo intel_hda_info = {
     .qdev.reset   = intel_hda_reset,
     .init         = intel_hda_init,
     .exit         = intel_hda_exit,
+    .config_write = intel_hda_write_config,
     .qdev.props   = (Property[]) {
         DEFINE_PROP_UINT32("debug", IntelHDAState, debug, 0),
+        DEFINE_PROP_UINT32("msi", IntelHDAState, msi, 1),
         DEFINE_PROP_END_OF_LIST(),
     }
 };
