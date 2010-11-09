@@ -508,6 +508,11 @@ static void intel_hda_set_g_ctl(IntelHDAState *d, const IntelHDAReg *reg, uint32
     }
 }
 
+static void intel_hda_set_wake_en(IntelHDAState *d, const IntelHDAReg *reg, uint32_t old)
+{
+    intel_hda_update_irq(d);
+}
+
 static void intel_hda_set_state_sts(IntelHDAState *d, const IntelHDAReg *reg, uint32_t old)
 {
     intel_hda_update_irq(d);
@@ -630,6 +635,7 @@ static const struct IntelHDAReg regtab[] = {
         .size     = 2,
         .wmask    = 0x3fff,
         .offset   = offsetof(IntelHDAState, wake_en),
+        .whandler = intel_hda_set_wake_en,
     },
     [ ICH6_REG_STATESTS ] = {
         .name     = "STATESTS",
