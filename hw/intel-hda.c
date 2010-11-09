@@ -56,7 +56,7 @@ static int hda_codec_dev_init(DeviceState *qdev, DeviceInfo *base)
     if (dev->cad == -1) {
         dev->cad = bus->next_cad;
     }
-    if (dev->cad > 15)
+    if (dev->cad >= 15)
         return -1;
     bus->next_cad = dev->cad + 1;
     return info->init(dev);
@@ -643,15 +643,15 @@ static const struct IntelHDAReg regtab[] = {
     [ ICH6_REG_WAKEEN ] = {
         .name     = "WAKEEN",
         .size     = 2,
-        .wmask    = 0x3fff,
+        .wmask    = 0x7fff,
         .offset   = offsetof(IntelHDAState, wake_en),
         .whandler = intel_hda_set_wake_en,
     },
     [ ICH6_REG_STATESTS ] = {
         .name     = "STATESTS",
         .size     = 2,
-        .wmask    = 0x3fff,
-        .wclear   = 0x3fff,
+        .wmask    = 0x7fff,
+        .wclear   = 0x7fff,
         .offset   = offsetof(IntelHDAState, state_sts),
         .whandler = intel_hda_set_state_sts,
     },
