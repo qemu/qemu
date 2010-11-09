@@ -32,6 +32,7 @@ struct HDACodecDevice {
 struct HDACodecDeviceInfo {
     DeviceInfo qdev;
     int (*init)(HDACodecDevice *dev);
+    int (*exit)(HDACodecDevice *dev);
     void (*command)(HDACodecDevice *dev, uint32_t nid, uint32_t data);
     void (*stream)(HDACodecDevice *dev, uint32_t stnr, bool running);
 };
