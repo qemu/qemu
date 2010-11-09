@@ -61,9 +61,20 @@ static int hda_codec_dev_init(DeviceState *qdev, DeviceInfo *base)
     return info->init(dev);
 }
 
+static int hda_codec_dev_exit(DeviceState *qdev)
+{
+    HDACodecDevice *dev = DO_UPCAST(HDACodecDevice, qdev, qdev);
+
+    if (dev->info->exit) {
+        dev->info->exit(dev);
+    }
+    return 0;
+}
+
 void hda_codec_register(HDACodecDeviceInfo *info)
 {
     info->qdev.init = hda_codec_dev_init;
+    info->qdev.exit = hda_codec_dev_exit;
     info->qdev.bus_info = &hda_codec_bus_info;
     qdev_register(&info->qdev);
 }
@@ -1137,6 +1148,14 @@ static int intel_hda_init(PCIDevice *pci)
     return 0;
 }
 
+static int intel_hda_exit(PCIDevice *pci)
+{
+    IntelHDAState *d = DO_UPCAST(IntelHDAState, pci, pci);
+
+    cpu_unregister_io_memory(d->mmio_addr);
+    return 0;
+}
+
 static int intel_hda_post_load(void *opaque, int version)
 {
     IntelHDAState* d = opaque;
@@ -1219,6 +1238,7 @@ static PCIDeviceInfo intel_hda_info = {
     .qdev.vmsd    = &vmstate_intel_hda,
     .qdev.reset   = intel_hda_reset,
     .init         = intel_hda_init,
+    .exit         = intel_hda_exit,
     .qdev.props   = (Property[]) {
         DEFINE_PROP_UINT32("debug", IntelHDAState, debug, 0),
         DEFINE_PROP_END_OF_LIST(),
