@@ -152,6 +152,8 @@ static QTAILQ_HEAD(, USBHostDevice) hostdevs = QTAILQ_HEAD_INITIALIZER(hostdevs)
 static int usb_host_close(USBHostDevice *dev);
 static int parse_filter(const char *spec, struct USBAutoFilter *f);
 static void usb_host_auto_check(void *unused);
+static int usb_host_read_file(char *line, size_t line_size,
+                            const char *device_file, const char *device_name);
 
 static int is_isoc(USBHostDevice *s, int ep)
 {
@@ -781,6 +783,23 @@ static int usb_linux_get_configuration(USBHostDevice *s)
     struct usb_ctrltransfer ct;
     int ret;
 
+    if (usb_fs_type == USB_FS_SYS) {
+        char device_name[32], line[1024];
+        int configuration;
+
+        sprintf(device_name, "%d-%d", s->bus_num, s->devpath);
+
+        if (!usb_host_read_file(line, sizeof(line), "bConfigurationValue",
+                                device_name)) {
+            goto usbdevfs;
+        }
+        if (sscanf(line, "%d", &configuration) != 1) {
+            goto usbdevfs;
+        }
+        return configuration;
+    }
+
+usbdevfs:
     ct.bRequestType = USB_DIR_IN;
     ct.bRequest = USB_REQ_GET_CONFIGURATION;
     ct.wValue = 0;
