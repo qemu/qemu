@@ -775,13 +775,11 @@ static int usb_host_handle_packet(USBDevice *s, USBPacket *p)
     }
 }
 
-/* returns 1 on problem encountered or 0 for success */
-static int usb_linux_update_endp_table(USBHostDevice *s)
+static int usb_linux_get_configuration(USBHostDevice *s)
 {
-    uint8_t *descriptors;
-    uint8_t devep, type, configuration, alt_interface;
+    uint8_t configuration;
     struct usb_ctrltransfer ct;
-    int interface, ret, length, i;
+    int ret;
 
     ct.bRequestType = USB_DIR_IN;
     ct.bRequest = USB_REQ_GET_CONFIGURATION;
@@ -793,14 +791,30 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
 
     ret = ioctl(s->fd, USBDEVFS_CONTROL, &ct);
     if (ret < 0) {
-        perror("usb_linux_update_endp_table");
-        return 1;
+        perror("usb_linux_get_configuration");
+        return -1;
     }
 
     /* in address state */
     if (configuration == 0) {
-        return 1;
+        return -1;
     }
+
+    return configuration;
+}
+
+/* returns 1 on problem encountered or 0 for success */
+static int usb_linux_update_endp_table(USBHostDevice *s)
+{
+    uint8_t *descriptors;
+    uint8_t devep, type, configuration, alt_interface;
+    struct usb_ctrltransfer ct;
+    int interface, ret, length, i;
+
+    i = usb_linux_get_configuration(s);
+    if (i < 0)
+        return 1;
+    configuration = i;
 
     /* get the desired configuration, interface, and endpoint descriptors
      * from device description */
