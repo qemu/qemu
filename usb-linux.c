@@ -62,8 +62,8 @@ struct usb_ctrlrequest {
     uint16_t wLength;
 };
 
-typedef int USBScanFunc(void *opaque, int bus_num, int addr, int class_id,
-                        int vendor_id, int product_id,
+typedef int USBScanFunc(void *opaque, int bus_num, int addr, int devpath,
+                        int class_id, int vendor_id, int product_id,
                         const char *product_name, int speed);
 
 //#define DEBUG
@@ -141,6 +141,7 @@ typedef struct USBHostDevice {
     /* Host side address */
     int bus_num;
     int addr;
+    int devpath;
     struct USBAutoFilter match;
 
     QTAILQ_ENTRY(USBHostDevice) next;
@@ -885,7 +886,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
 }
 
 static int usb_host_open(USBHostDevice *dev, int bus_num,
-                         int addr, const char *prod_name)
+                         int addr, int devpath, const char *prod_name)
 {
     int fd = -1, ret;
     struct usbdevfs_connectinfo ci;
@@ -911,6 +912,7 @@ static int usb_host_open(USBHostDevice *dev, int bus_num,
 
     dev->bus_num = bus_num;
     dev->addr = addr;
+    dev->devpath = devpath;
     dev->fd = fd;
 
     /* read the device description */
@@ -1173,7 +1175,7 @@ static int usb_host_scan_dev(void *opaque, USBScanFunc *func)
         if (line[0] == 'T' && line[1] == ':') {
             if (device_count && (vendor_id || product_id)) {
                 /* New device.  Add the previously discovered device.  */
-                ret = func(opaque, bus_num, addr, class_id, vendor_id,
+                ret = func(opaque, bus_num, addr, 0, class_id, vendor_id,
                            product_id, product_name, speed);
                 if (ret) {
                     goto the_end;
@@ -1226,7 +1228,7 @@ static int usb_host_scan_dev(void *opaque, USBScanFunc *func)
     }
     if (device_count && (vendor_id || product_id)) {
         /* Add the last device.  */
-        ret = func(opaque, bus_num, addr, class_id, vendor_id,
+        ret = func(opaque, bus_num, addr, 0, class_id, vendor_id,
                    product_id, product_name, speed);
     }
  the_end:
@@ -1275,7 +1277,7 @@ static int usb_host_scan_sys(void *opaque, USBScanFunc *func)
 {
     DIR *dir = NULL;
     char line[1024];
-    int bus_num, addr, speed, class_id, product_id, vendor_id;
+    int bus_num, addr, devpath, speed, class_id, product_id, vendor_id;
     int ret = 0;
     char product_name[512];
     struct dirent *de;
@@ -1292,7 +1294,9 @@ static int usb_host_scan_sys(void *opaque, USBScanFunc *func)
             if (!strncmp(de->d_name, "usb", 3)) {
                 tmpstr += 3;
             }
-            bus_num = atoi(tmpstr);
+            if (sscanf(tmpstr, "%d-%d", &bus_num, &devpath) < 1) {
+                goto the_end;
+            }
 
             if (!usb_host_read_file(line, sizeof(line), "devnum", de->d_name)) {
                 goto the_end;
@@ -1343,7 +1347,7 @@ static int usb_host_scan_sys(void *opaque, USBScanFunc *func)
                 speed = USB_SPEED_FULL;
             }
 
-            ret = func(opaque, bus_num, addr, class_id, vendor_id,
+            ret = func(opaque, bus_num, addr, devpath, class_id, vendor_id,
                        product_id, product_name, speed);
             if (ret) {
                 goto the_end;
@@ -1434,7 +1438,7 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
 
 static QEMUTimer *usb_auto_timer;
 
-static int usb_host_auto_scan(void *opaque, int bus_num, int addr,
+static int usb_host_auto_scan(void *opaque, int bus_num, int addr, int devpath,
                               int class_id, int vendor_id, int product_id,
                               const char *product_name, int speed)
 {
@@ -1470,7 +1474,7 @@ static int usb_host_auto_scan(void *opaque, int bus_num, int addr,
         }
         DPRINTF("husb: auto open: bus_num %d addr %d\n", bus_num, addr);
 
-        usb_host_open(s, bus_num, addr, product_name);
+        usb_host_open(s, bus_num, addr, devpath, product_name);
     }
 
     return 0;
@@ -1630,7 +1634,7 @@ static void usb_info_device(Monitor *mon, int bus_num, int addr, int class_id,
 }
 
 static int usb_host_info_device(void *opaque, int bus_num, int addr,
-                                int class_id,
+                                int devpath, int class_id,
                                 int vendor_id, int product_id,
                                 const char *product_name,
                                 int speed)
