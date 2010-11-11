@@ -684,12 +684,14 @@ static int virtio_9p_init_pci(PCIDevice *pci_dev)
     VirtIODevice *vdev;
 
     vdev = virtio_9p_init(&pci_dev->qdev, &proxy->fsconf);
+    vdev->nvectors = proxy->nvectors;
     virtio_init_pci(proxy, vdev,
                     PCI_VENDOR_ID_REDHAT_QUMRANET,
                     0x1009,
                     0x2,
                     0x00);
-
+    /* make the actual value visible */
+    proxy->nvectors = vdev->nvectors;
     return 0;
 }
 #endif
@@ -758,6 +760,7 @@ static PCIDeviceInfo virtio_info[] = {
         .qdev.size = sizeof(VirtIOPCIProxy),
         .init      = virtio_9p_init_pci,
         .qdev.props = (Property[]) {
+            DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
             DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
             DEFINE_PROP_STRING("mount_tag", VirtIOPCIProxy, fsconf.tag),
             DEFINE_PROP_STRING("fsdev", VirtIOPCIProxy, fsconf.fsdev_id),
