@@ -447,9 +447,10 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
         // data descriptor
         tp->sum_needed = le32_to_cpu(dp->upper.data) >> 8;
         tp->cptse = ( txd_lower & E1000_TXD_CMD_TSE ) ? 1 : 0;
-    } else
+    } else {
         // legacy descriptor
         tp->cptse = 0;
+    }
 
     if (vlan_enabled(s) && is_vlan_txd(txd_lower) &&
         (tp->cptse || txd_lower & E1000_TXD_CMD_EOP)) {
@@ -685,8 +686,9 @@ e1000_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
                                       (void *)(buf + vlan_offset), size);
             desc.length = cpu_to_le16(size + fcs_len(s));
             desc.status |= E1000_RXD_STAT_EOP|E1000_RXD_STAT_IXSM;
-        } else // as per intel docs; skip descriptors with null buf addr
+        } else { // as per intel docs; skip descriptors with null buf addr
             DBGOUT(RX, "Null RX descriptor!!\n");
+        }
         cpu_physical_memory_write(base, (void *)&desc, sizeof(desc));
 
         if (++s->mac_reg[RDH] * sizeof(desc) >= s->mac_reg[RDLEN])
@@ -858,13 +860,14 @@ e1000_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
 #endif
-    if (index < NWRITEOPS && macreg_writeops[index])
+    if (index < NWRITEOPS && macreg_writeops[index]) {
         macreg_writeops[index](s, index, val);
-    else if (index < NREADOPS && macreg_readops[index])
+    } else if (index < NREADOPS && macreg_readops[index]) {
         DBGOUT(MMIO, "e1000_mmio_writel RO %x: 0x%04x\n", index<<2, val);
-    else
+    } else {
         DBGOUT(UNKNOWN, "MMIO unknown write addr=0x%08x,val=0x%08x\n",
                index<<2, val);
+    }
 }
 
 static void
