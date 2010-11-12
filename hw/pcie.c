@@ -192,14 +192,16 @@ static void pcie_cap_slot_event(PCIDevice *dev, PCIExpressHotPlugEvent event)
 }
 
 static int pcie_cap_slot_hotplug(DeviceState *qdev,
-                                 PCIDevice *pci_dev, int state)
+                                 PCIDevice *pci_dev, PCIHotplugState state)
 {
     PCIDevice *d = DO_UPCAST(PCIDevice, qdev, qdev);
     uint8_t *exp_cap = d->config + d->exp.exp_cap;
     uint16_t sltsta = pci_get_word(exp_cap + PCI_EXP_SLTSTA);
 
-    if (!pci_dev->qdev.hotplugged) {
-        assert(state); /* this case only happens at machine creation. */
+    /* Don't send event when device is enabled during qemu machine creation:
+     * it is present on boot, no hotplug event is necessary. We do send an
+     * event when the device is disabled later. */
+    if (state == PCI_COLDPLUG_ENABLED) {
         pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA,
                                    PCI_EXP_SLTSTA_PDS);
         return 0;
@@ -219,7 +221,7 @@ static int pcie_cap_slot_hotplug(DeviceState *qdev,
      */
     assert(PCI_FUNC(pci_dev->devfn) == 0);
 
-    if (state) {
+    if (state == PCI_HOTPLUG_ENABLED) {
         pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA,
                                    PCI_EXP_SLTSTA_PDS);
         pcie_cap_slot_event(d, PCI_EXP_HP_EV_PDC);
