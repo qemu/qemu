@@ -170,6 +170,9 @@ static void scsi_read_request(SCSIDiskReq *r)
         return;
     }
 
+    /* No data transfer may already be in progress */
+    assert(r->req.aiocb == NULL);
+
     n = r->sector_count;
     if (n > SCSI_DMA_BUF_SIZE / 512)
         n = SCSI_DMA_BUF_SIZE / 512;
@@ -196,9 +199,6 @@ static void scsi_read_data(SCSIDevice *d, uint32_t tag)
         scsi_command_complete(r, CHECK_CONDITION, HARDWARE_ERROR);
         return;
     }
-
-    /* No data transfer may already be in progress */
-    assert(r->req.aiocb == NULL);
 
     scsi_read_request(r);
 }
@@ -269,6 +269,9 @@ static void scsi_write_request(SCSIDiskReq *r)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
     uint32_t n;
 
+    /* No data transfer may already be in progress */
+    assert(r->req.aiocb == NULL);
+
     n = r->iov.iov_len / 512;
     if (n) {
         qemu_iovec_init_external(&r->qiov, &r->iov, 1);
@@ -297,9 +300,6 @@ static int scsi_write_data(SCSIDevice *d, uint32_t tag)
         scsi_command_complete(r, CHECK_CONDITION, HARDWARE_ERROR);
         return 1;
     }
-
-    /* No data transfer may already be in progress */
-    assert(r->req.aiocb == NULL);
 
     scsi_write_request(r);
 
