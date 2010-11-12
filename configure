@@ -929,7 +929,7 @@ echo "  --enable-docs            enable documentation build"
 echo "  --disable-docs           disable documentation build"
 echo "  --disable-vhost-net      disable vhost-net acceleration support"
 echo "  --enable-vhost-net       enable vhost-net acceleration support"
-echo "  --trace-backend=B        Trace backend nop simple ust"
+echo "  --trace-backend=B        Trace backend nop simple ust dtrace"
 echo "  --trace-file=NAME        Full PATH,NAME of file to store traces"
 echo "                           Default:trace-<pid>"
 echo "  --disable-spice          disable spice"
@@ -2193,6 +2193,18 @@ EOF
     exit 1
   fi
 fi
+
+##########################################
+# For 'dtrace' backend, test if 'dtrace' command is present
+if test "$trace_backend" = "dtrace"; then
+  if ! has 'dtrace' ; then
+    echo
+    echo "Error: dtrace command is not found in PATH $PATH"
+    echo
+    exit 1
+  fi
+fi
+
 ##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
