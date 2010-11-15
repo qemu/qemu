@@ -120,6 +120,3 @@ gcc's printf attribute directive in the prototype.
 This makes it so gcc's -Wformat and -Wformat-security options can do
 their jobs and cross-check format strings with the number and types
 of arguments.
-
-Currently many functions in QEMU are not following this rule but
-patches to add the attribute would be very much appreciated.
