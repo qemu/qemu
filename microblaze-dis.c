@@ -789,7 +789,7 @@ read_insn_microblaze (bfd_vma memaddr,
 int 
 print_insn_microblaze (bfd_vma memaddr, struct disassemble_info * info)
 {
-  fprintf_ftype       fprintf_func = info->fprintf_func;
+  fprintf_function    fprintf_func = info->fprintf_func;
   void *              stream = info->stream;
   unsigned long       inst, prev_inst;
   struct op_code_struct * op, *pop;
