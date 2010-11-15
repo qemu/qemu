@@ -254,8 +254,8 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         virtio_queue_set_vector(vdev, vdev->queue_sel, val);
         break;
     default:
-        fprintf(stderr, "%s: unexpected address 0x%x value 0x%x\n",
-                __func__, addr, val);
+        error_report("%s: unexpected address 0x%x value 0x%x",
+                     __func__, addr, val);
         break;
     }
 }
