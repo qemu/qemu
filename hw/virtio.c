@@ -14,6 +14,7 @@
 #include <inttypes.h>
 
 #include "trace.h"
+#include "qemu-error.h"
 #include "virtio.h"
 #include "sysemu.h"
 
@@ -253,8 +254,8 @@ static int virtqueue_num_heads(VirtQueue *vq, unsigned int idx)
 
     /* Check it isn't doing very strange things with descriptor numbers. */
     if (num_heads > vq->vring.num) {
-        fprintf(stderr, "Guest moved used index from %u to %u",
-                idx, vring_avail_idx(vq));
+        error_report("Guest moved used index from %u to %u",
+                     idx, vring_avail_idx(vq));
         exit(1);
     }
 
@@ -271,7 +272,7 @@ static unsigned int virtqueue_get_head(VirtQueue *vq, unsigned int idx)
 
     /* If their number is silly, that's a fatal mistake. */
     if (head >= vq->vring.num) {
-        fprintf(stderr, "Guest says index %u is available", head);
+        error_report("Guest says index %u is available", head);
         exit(1);
     }
 
@@ -293,7 +294,7 @@ static unsigned virtqueue_next_desc(target_phys_addr_t desc_pa,
     wmb();
 
     if (next >= max) {
-        fprintf(stderr, "Desc next is %u", next);
+        error_report("Desc next is %u", next);
         exit(1);
     }
 
@@ -320,13 +321,13 @@ int virtqueue_avail_bytes(VirtQueue *vq, int in_bytes, int out_bytes)
 
         if (vring_desc_flags(desc_pa, i) & VRING_DESC_F_INDIRECT) {
             if (vring_desc_len(desc_pa, i) % sizeof(VRingDesc)) {
-                fprintf(stderr, "Invalid size for indirect buffer table\n");
+                error_report("Invalid size for indirect buffer table");
                 exit(1);
             }
 
             /* If we've got too many, that implies a descriptor loop. */
             if (num_bufs >= max) {
-                fprintf(stderr, "Looped descriptor");
+                error_report("Looped descriptor");
                 exit(1);
             }
 
@@ -340,7 +341,7 @@ int virtqueue_avail_bytes(VirtQueue *vq, int in_bytes, int out_bytes)
         do {
             /* If we've got too many, that implies a descriptor loop. */
             if (++num_bufs > max) {
-                fprintf(stderr, "Looped descriptor");
+                error_report("Looped descriptor");
                 exit(1);
             }
 
@@ -374,7 +375,7 @@ void virtqueue_map_sg(struct iovec *sg, target_phys_addr_t *addr,
         len = sg[i].iov_len;
         sg[i].iov_base = cpu_physical_memory_map(addr[i], &len, is_write);
         if (sg[i].iov_base == NULL || len != sg[i].iov_len) {
-            fprintf(stderr, "virtio: trying to map MMIO memory\n");
+            error_report("virtio: trying to map MMIO memory");
             exit(1);
         }
     }
@@ -397,7 +398,7 @@ int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
 
     if (vring_desc_flags(desc_pa, i) & VRING_DESC_F_INDIRECT) {
         if (vring_desc_len(desc_pa, i) % sizeof(VRingDesc)) {
-            fprintf(stderr, "Invalid size for indirect buffer table\n");
+            error_report("Invalid size for indirect buffer table");
             exit(1);
         }
 
@@ -423,7 +424,7 @@ int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
 
         /* If we've got too many, that implies a descriptor loop. */
         if ((elem->in_num + elem->out_num) > max) {
-            fprintf(stderr, "Looped descriptor");
+            error_report("Looped descriptor");
             exit(1);
         }
     } while ((i = virtqueue_next_desc(desc_pa, i, max)) != max);
@@ -694,8 +695,8 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
     qemu_get_be16s(f, &vdev->queue_sel);
     qemu_get_be32s(f, &features);
     if (features & ~supported_features) {
-        fprintf(stderr, "Features 0x%x unsupported. Allowed features: 0x%x\n",
-                features, supported_features);
+        error_report("Features 0x%x unsupported. Allowed features: 0x%x",
+                     features, supported_features);
         return -1;
     }
     if (vdev->set_features)
@@ -717,11 +718,11 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
 	num_heads = vring_avail_idx(&vdev->vq[i]) - vdev->vq[i].last_avail_idx;
 	/* Check it isn't doing very strange things with descriptor numbers. */
 	if (num_heads > vdev->vq[i].vring.num) {
-		fprintf(stderr, "VQ %d size 0x%x Guest index 0x%x "
-                        "inconsistent with Host index 0x%x: delta 0x%x\n",
-			i, vdev->vq[i].vring.num,
-                        vring_avail_idx(&vdev->vq[i]),
-                        vdev->vq[i].last_avail_idx, num_heads);
+		error_report("VQ %d size 0x%x Guest index 0x%x "
+		             "inconsistent with Host index 0x%x: delta 0x%x",
+		             i, vdev->vq[i].vring.num,
+		             vring_avail_idx(&vdev->vq[i]),
+		             vdev->vq[i].last_avail_idx, num_heads);
 		return -1;
 	}
         if (vdev->binding->load_queue) {
