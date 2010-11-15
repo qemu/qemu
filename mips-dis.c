@@ -3117,8 +3117,6 @@ struct mips_arch_choice
 #define bfd_mach_mipsisa64             64
 #define bfd_mach_mipsisa64r2           65
 
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
-
 static const struct mips_arch_choice mips_arch_choices[] =
 {
   { "numeric",	0, 0, 0, 0,
