@@ -324,13 +324,13 @@ static void virtio_blk_handle_request(VirtIOBlockReq *req,
     MultiReqBuffer *mrb)
 {
     if (req->elem.out_num < 1 || req->elem.in_num < 1) {
-        fprintf(stderr, "virtio-blk missing headers\n");
+        error_report("virtio-blk missing headers");
         exit(1);
     }
 
     if (req->elem.out_sg[0].iov_len < sizeof(*req->out) ||
         req->elem.in_sg[req->elem.in_num - 1].iov_len < sizeof(*req->in)) {
-        fprintf(stderr, "virtio-blk header not in correct element\n");
+        error_report("virtio-blk header not in correct element");
         exit(1);
     }
 
