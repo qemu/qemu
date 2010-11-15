@@ -1163,12 +1163,6 @@ const sh_opcode_info sh_table[] =
 #define INCLUDE_SHMEDIA
 #endif
 
-static void print_movxy
-  (const sh_opcode_info *, int, int, fprintf_function, void *);
-static void print_insn_ddt (int, struct disassemble_info *);
-static void print_dsp_reg (int, fprintf_function, void *);
-static void print_insn_ppi (int, struct disassemble_info *);
-
 static void
 print_movxy (const sh_opcode_info *op, int rn, int rm,
              fprintf_function fprintf_fn, void *stream)

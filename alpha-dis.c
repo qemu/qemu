@@ -21,6 +21,7 @@ along with this file; see the file COPYING.  If not, see
 
 #include "dis-asm.h"
 
+/* MAX is redefined below, so remove any previous definition. */
 #undef MAX
 
 /* The opcode table is an array of struct alpha_opcode.  */

@@ -264,48 +264,6 @@ void lprint(const char *format, ...)
     va_end(args);
 }
 
-#ifdef BAD_SPRINTF
-
-#undef vsprintf
-#undef sprintf
-
-/*
- * Some BSD-derived systems have a sprintf which returns char *
- */
-
-int
-vsprintf_len(string, format, args)
-	char *string;
-	const char *format;
-	va_list args;
-{
-	vsprintf(string, format, args);
-	return strlen(string);
-}
-
-int
-#ifdef __STDC__
-sprintf_len(char *string, const char *format, ...)
-#else
-sprintf_len(va_alist) va_dcl
-#endif
-{
-	va_list args;
-#ifdef __STDC__
-	va_start(args, format);
-#else
-	char *string;
-	char *format;
-	va_start(args);
-	string = va_arg(args, char *);
-	format = va_arg(args, char *);
-#endif
-	vsprintf(string, format, args);
-	return strlen(string);
-}
-
-#endif
-
 void
 u_sleep(int usec)
 {
