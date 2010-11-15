@@ -100,7 +100,7 @@ int do_sigaction(int sig, const struct sigaction *act,
 int do_sigaltstack(const struct sigaltstack *ss, struct sigaltstack *oss);
 
 void gemu_log(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
-void qerror(const char *fmt, ...);
+void qerror(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 
 void write_dt(void *ptr, unsigned long addr, unsigned long limit, int flags);
 

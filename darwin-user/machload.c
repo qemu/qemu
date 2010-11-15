@@ -82,7 +82,7 @@ void *macho_text_sect = 0;
 int   macho_offset = 0;
 
 int load_object(const char *filename, struct target_pt_regs * regs, void ** mh);
-void qerror(const char *format, ...);
+
 #ifdef TARGET_I386
 typedef struct mach_i386_thread_state {
     unsigned int    eax;
