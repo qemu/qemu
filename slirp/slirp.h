@@ -237,20 +237,6 @@ void if_start(Slirp *);
 void if_start(struct ttys *);
 #endif
 
-#ifdef BAD_SPRINTF
-# define vsprintf vsprintf_len
-# define sprintf sprintf_len
- extern int vsprintf_len(char *, const char *, va_list);
- extern int sprintf_len(char *, const char *, ...);
-#endif
-
-#ifdef DECLARE_SPRINTF
-# ifndef BAD_SPRINTF
- extern int vsprintf(char *, const char *, va_list);
-# endif
- extern int vfprintf(FILE *, const char *, va_list);
-#endif
-
 #ifndef HAVE_STRERROR
  extern char *strerror(int error);
 #endif
