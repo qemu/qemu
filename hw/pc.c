@@ -993,7 +993,7 @@ void pc_vga_init(PCIBus *pci_bus)
             fprintf(stderr, "%s: vmware_vga: no PCI bus\n", __FUNCTION__);
     } else if (std_vga_enabled) {
         if (pci_bus) {
-            pci_vga_init(pci_bus, 0, 0);
+            pci_vga_init(pci_bus);
         } else {
             isa_vga_init();
         }

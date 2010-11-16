@@ -694,7 +694,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
     cpu_register_physical_memory(0x80000000, 0x00800000, PPC_io_memory);
 
     /* init basic PC hardware */
-    pci_vga_init(pci_bus, 0, 0);
+    pci_vga_init(pci_bus);
     //    openpic = openpic_init(0x00000000, 0xF0000000, 1);
     //    pit = pit_init(0x40, i8259[0]);
     rtc_init(2000, NULL);

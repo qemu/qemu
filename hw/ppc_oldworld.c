@@ -227,7 +227,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
     }
     pic = heathrow_pic_init(&pic_mem_index, 1, heathrow_irqs);
     pci_bus = pci_grackle_init(0xfec00000, pic);
-    pci_vga_init(pci_bus, 0, 0);
+    pci_vga_init(pci_bus);
 
     escc_mem_index = escc_init(0x80013000, pic[0x0f], pic[0x10], serial_hds[0],
                                serial_hds[1], ESCC_CLOCK, 4);

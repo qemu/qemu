@@ -214,7 +214,15 @@ int pci_device_load(PCIDevice *s, QEMUFile *f);
 
 typedef void (*pci_set_irq_fn)(void *opaque, int irq_num, int level);
 typedef int (*pci_map_irq_fn)(PCIDevice *pci_dev, int irq_num);
-typedef int (*pci_hotplug_fn)(DeviceState *qdev, PCIDevice *pci_dev, int state);
+
+typedef enum {
+    PCI_HOTPLUG_DISABLED,
+    PCI_HOTPLUG_ENABLED,
+    PCI_COLDPLUG_ENABLED,
+} PCIHotplugState;
+
+typedef int (*pci_hotplug_fn)(DeviceState *qdev, PCIDevice *pci_dev,
+                              PCIHotplugState state);
 void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
                          const char *name, int devfn_min);
 PCIBus *pci_bus_new(DeviceState *parent, const char *name, int devfn_min);

@@ -269,8 +269,11 @@ void tap_set_offload(VLANClientState *nc, int csum, int tso4,
                      int tso6, int ecn, int ufo)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
+    if (s->fd < 0) {
+        return;
+    }
 
-    return tap_fd_set_offload(s->fd, csum, tso4, tso6, ecn, ufo);
+    tap_fd_set_offload(s->fd, csum, tso4, tso6, ecn, ufo);
 }
 
 static void tap_cleanup(VLANClientState *nc)
@@ -279,6 +282,7 @@ static void tap_cleanup(VLANClientState *nc)
 
     if (s->vhost_net) {
         vhost_net_cleanup(s->vhost_net);
+        s->vhost_net = NULL;
     }
 
     qemu_purge_queued_packets(nc);
@@ -289,6 +293,7 @@ static void tap_cleanup(VLANClientState *nc)
     tap_read_poll(s, 0);
     tap_write_poll(s, 0);
     close(s->fd);
+    s->fd = -1;
 }
 
 static void tap_poll(VLANClientState *nc, bool enable)

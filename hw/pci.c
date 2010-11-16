@@ -1580,8 +1580,11 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
     pci_add_option_rom(pci_dev);
 
     if (bus->hotplug) {
-        /* lower layer must check qdev->hotplugged */
-        rc = bus->hotplug(bus->hotplug_qdev, pci_dev, 1);
+        /* Let buses differentiate between hotplug and when device is
+         * enabled during qemu machine creation. */
+        rc = bus->hotplug(bus->hotplug_qdev, pci_dev,
+                          qdev->hotplugged ? PCI_HOTPLUG_ENABLED:
+                          PCI_COLDPLUG_ENABLED);
         if (rc != 0) {
             int r = pci_unregister_device(&pci_dev->qdev);
             assert(!r);
@@ -1595,7 +1598,8 @@ static int pci_unplug_device(DeviceState *qdev)
 {
     PCIDevice *dev = DO_UPCAST(PCIDevice, qdev, qdev);
 
-    return dev->bus->hotplug(dev->bus->hotplug_qdev, dev, 0);
+    return dev->bus->hotplug(dev->bus->hotplug_qdev, dev,
+                             PCI_HOTPLUG_DISABLED);
 }
 
 void pci_qdev_register(PCIDeviceInfo *info)
@@ -1881,8 +1885,7 @@ static void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent)
 
     monitor_printf(mon, "%*sclass %s, addr %02x:%02x.%x, "
                    "pci id %04x:%04x (sub %04x:%04x)\n",
-                   indent, "", ctxt,
-                   d->config[PCI_SECONDARY_BUS],
+                   indent, "", ctxt, pci_bus_num(d->bus),
                    PCI_SLOT(d->devfn), PCI_FUNC(d->devfn),
                    pci_get_word(d->config + PCI_VENDOR_ID),
                    pci_get_word(d->config + PCI_DEVICE_ID),

@@ -95,7 +95,7 @@ static void watch_update_mask(SpiceWatch *watch, int event_mask)
         on_read = watch_read;
     }
     if (watch->event_mask & SPICE_WATCH_EVENT_WRITE) {
-        on_read = watch_write;
+        on_write = watch_write;
     }
     qemu_set_fd_handler(watch->fd, on_read, on_write, watch);
 }
@@ -240,7 +240,7 @@ void qemu_spice_init(void)
     char *x509_key_file = NULL,
         *x509_cert_file = NULL,
         *x509_cacert_file = NULL;
-    int port, tls_port, len, addr_flags, streaming_video;
+    int port, tls_port, len, addr_flags;
     spice_image_compression_t compression;
     spice_wan_compression_t wan_compr;
 
@@ -344,7 +344,7 @@ void qemu_spice_init(void)
 
     str = qemu_opt_get(opts, "streaming-video");
     if (str) {
-        streaming_video = parse_stream_video(str);
+        int streaming_video = parse_stream_video(str);
         spice_server_set_streaming_video(spice_server, streaming_video);
     }
 

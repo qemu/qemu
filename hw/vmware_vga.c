@@ -114,14 +114,12 @@ struct pci_vmsvga_state_s {
 # define SVGA_IO_BASE		SVGA_LEGACY_BASE_PORT
 # define SVGA_IO_MUL		1
 # define SVGA_FIFO_SIZE		0x10000
-# define SVGA_MEM_BASE		0xe0000000
 # define SVGA_PCI_DEVICE_ID	PCI_DEVICE_ID_VMWARE_SVGA2
 #else
 # define SVGA_ID		SVGA_ID_1
 # define SVGA_IO_BASE		SVGA_LEGACY_BASE_PORT
 # define SVGA_IO_MUL		4
 # define SVGA_FIFO_SIZE		0x10000
-# define SVGA_MEM_BASE		0xe0000000
 # define SVGA_PCI_DEVICE_ID	PCI_DEVICE_ID_VMWARE_SVGA
 #endif
 
@@ -1219,10 +1217,6 @@ static void vmsvga_init(struct vmsvga_state_s *s, int vga_ram_size)
     vga_init(&s->vga);
     vmstate_register(NULL, 0, &vmstate_vga_common, &s->vga);
 
-    vga_init_vbe(&s->vga);
-
-    rom_add_vga(VGABIOS_FILENAME);
-
     vmsvga_reset(s);
 }
 
@@ -1320,6 +1314,7 @@ static PCIDeviceInfo vmsvga_info = {
     .qdev.size    = sizeof(struct pci_vmsvga_state_s),
     .qdev.vmsd    = &vmstate_vmware_vga,
     .init         = pci_vmsvga_initfn,
+    .romfile      = "vgabios-vmware.bin",
 };
 
 static void vmsvga_register(void)

@@ -373,6 +373,24 @@ static int cpu_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static bool async_pf_msr_needed(void *opaque)
+{
+    CPUState *cpu = opaque;
+
+    return cpu->async_pf_en_msr != 0;
+}
+
+static const VMStateDescription vmstate_async_pf_msr = {
+    .name = "cpu/async_pf_msr",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(async_pf_en_msr, CPUState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_cpu = {
     .name = "cpu",
     .version_id = CPU_SAVE_VERSION,
@@ -475,6 +493,14 @@ static const VMStateDescription vmstate_cpu = {
         VMSTATE_YMMH_REGS_VARS(ymmh_regs, CPUState, CPU_NB_REGS, 12),
         VMSTATE_END_OF_LIST()
         /* The above list is not sorted /wrt version numbers, watch out! */
+    },
+    .subsections = (VMStateSubsection []) {
+        {
+            .vmsd = &vmstate_async_pf_msr,
+            .needed = async_pf_msr_needed,
+        } , {
+            /* empty */
+        }
     }
 };
 
