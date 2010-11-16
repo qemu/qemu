@@ -143,6 +143,9 @@ static void pci_device_reset(PCIDevice *dev)
     pci_word_test_and_clear_mask(dev->config + PCI_COMMAND,
                                  pci_get_word(dev->wmask + PCI_COMMAND) |
                                  pci_get_word(dev->w1cmask + PCI_COMMAND));
+    pci_word_test_and_clear_mask(dev->config + PCI_STATUS,
+                                 pci_get_word(dev->wmask + PCI_STATUS) |
+                                 pci_get_word(dev->w1cmask + PCI_STATUS));
     dev->config[PCI_CACHE_LINE_SIZE] = 0x0;
     dev->config[PCI_INTERRUPT_LINE] = 0x0;
     for (r = 0; r < PCI_NUM_REGIONS; ++r) {
@@ -552,6 +555,18 @@ static void pci_init_wmask(PCIDevice *dev)
            config_size - PCI_CONFIG_HEADER_SIZE);
 }
 
+static void pci_init_w1cmask(PCIDevice *dev)
+{
+    /*
+     * Note: It's okay to set w1mask even for readonly bits as
+     * long as their value is hardwired to 0.
+     */
+    pci_set_word(dev->w1cmask + PCI_STATUS,
+                 PCI_STATUS_PARITY | PCI_STATUS_SIG_TARGET_ABORT |
+                 PCI_STATUS_REC_TARGET_ABORT | PCI_STATUS_REC_MASTER_ABORT |
+                 PCI_STATUS_SIG_SYSTEM_ERROR | PCI_STATUS_DETECTED_PARITY);
+}
+
 static void pci_init_wmask_bridge(PCIDevice *d)
 {
     /* PCI_PRIMARY_BUS, PCI_SECONDARY_BUS, PCI_SUBORDINATE_BUS and
@@ -676,6 +691,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     }
     pci_init_cmask(pci_dev);
     pci_init_wmask(pci_dev);
+    pci_init_w1cmask(pci_dev);
     if (is_bridge) {
         pci_init_wmask_bridge(pci_dev);
     }
