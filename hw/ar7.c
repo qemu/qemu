@@ -3736,6 +3736,8 @@ static void kernel_init(CPUState *env)
                 address[i] = '\0';
             }
         }
+        /* Terminate data with a null byte. */
+        address[size] = '\0';
         /* Build argv and envp vectors (behind data). */
         argc = 0;
         i = ((i + 3) & ~3);
