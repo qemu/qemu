@@ -158,6 +158,7 @@ int main(int argc, char **argv)
 
 #include "slirp/libslirp.h"
 
+#include "trace.h"
 #include "qemu-queue.h"
 #include "cpus.h"
 #include "arch_init.h"
@@ -1073,6 +1074,8 @@ void qemu_del_vm_change_state_handler(VMChangeStateEntry *e)
 void vm_state_notify(int running, int reason)
 {
     VMChangeStateEntry *e;
+
+    trace_vm_state_notify(running, reason);
 
     for (e = vm_change_state_head.lh_first; e; e = e->entries.le_next) {
         e->cb(e->opaque, running, reason);
