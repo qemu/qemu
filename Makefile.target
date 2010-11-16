@@ -30,6 +30,7 @@ endif
 endif
 
 PROGS=$(QEMU_PROG)
+STPFILES=
 
 ifndef CONFIG_HAIKU
 LIBS+=-lm
@@ -41,19 +42,17 @@ config-target.h: config-target.h-timestamp
 config-target.h-timestamp: config-target.mak
 
 ifdef CONFIG_SYSTEMTAP_TRACE
-trace: $(QEMU_PROG).stp
+STPFILES+=$(QEMU_PROG).stp
 
 $(QEMU_PROG).stp:
 	$(call quiet-command,sh $(SRC_PATH)/tracetool \
 		--$(TRACE_BACKEND) \
 		--bindir $(bindir) \
 		--target $(TARGET_ARCH) \
-		-s < $(SRC_PATH)/trace-events > $(QEMU_PROG).stp,"  GEN   $(QEMU_PROG).stp")
-else
-trace:
+		-s < $(SRC_PATH)/trace-events > $@,"  GEN   $@")
 endif
 
-all: $(PROGS) trace
+all: $(PROGS) $(STPFILES)
 
 # Dummy command so that make thinks it has done something
 	@true
@@ -363,7 +362,7 @@ endif
 endif
 ifdef CONFIG_SYSTEMTAP_TRACE
 	$(INSTALL_DIR) "$(DESTDIR)$(datadir)/../systemtap/tapset"
-	$(INSTALL_DATA) $(QEMU_PROG).stp "$(DESTDIR)$(datadir)/../systemtap/tapset"
+	$(INSTALL_DATA) $(STPFILES) "$(DESTDIR)$(datadir)/../systemtap/tapset"
 endif
 
 # Include automatically generated dependency files
