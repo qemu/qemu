@@ -110,8 +110,6 @@ struct vhd_dyndisk_header {
 };
 
 typedef struct BDRVVPCState {
-    BlockDriverState *hd;
-
     uint8_t footer_buf[HEADER_SIZE];
     uint64_t free_data_block_offset;
     int max_table_entries;

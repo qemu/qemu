@@ -54,7 +54,6 @@ typedef struct QCowHeader {
 #define L2_CACHE_SIZE 16
 
 typedef struct BDRVQcowState {
-    BlockDriverState *hd;
     int cluster_bits;
     int cluster_size;
     int cluster_sectors;

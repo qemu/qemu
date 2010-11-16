@@ -186,7 +186,6 @@ typedef struct {
 } VdiHeader;
 
 typedef struct {
-    BlockDriverState *hd;
     /* The block map entries are little endian (even in memory). */
     uint32_t *bmap;
     /* Size of block (bytes). */
