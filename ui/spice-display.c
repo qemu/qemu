@@ -64,10 +64,10 @@ void qemu_spice_rect_union(QXLRect *dest, const QXLRect *r)
 
 /*
  * Called from spice server thread context (via interface_get_command).
- * We do *not* hold the global qemu mutex here, so extra care is needed
- * when calling qemu functions.  Qemu interfaces used:
- *    - pflib (is re-entrant).
- *    - qemu_malloc (underlying glibc malloc is re-entrant).
+ *
+ * We must aquire the global qemu mutex here to make sure the
+ * DisplayState (+DisplaySurface) we are accessing doesn't change
+ * underneath us.
  */
 SimpleSpiceUpdate *qemu_spice_create_update(SimpleSpiceDisplay *ssd)
 {
@@ -78,11 +78,12 @@ SimpleSpiceUpdate *qemu_spice_create_update(SimpleSpiceDisplay *ssd)
     uint8_t *src, *dst;
     int by, bw, bh;
 
+    qemu_mutex_lock_iothread();
     if (qemu_spice_rect_is_empty(&ssd->dirty)) {
+        qemu_mutex_unlock_iothread();
         return NULL;
     };
 
-    pthread_mutex_lock(&ssd->lock);
     dprint(2, "%s: lr %d -> %d,  tb -> %d -> %d\n", __FUNCTION__,
            ssd->dirty.left, ssd->dirty.right,
            ssd->dirty.top, ssd->dirty.bottom);
@@ -140,7 +141,7 @@ SimpleSpiceUpdate *qemu_spice_create_update(SimpleSpiceDisplay *ssd)
     cmd->data = (intptr_t)drawable;
 
     memset(&ssd->dirty, 0, sizeof(ssd->dirty));
-    pthread_mutex_unlock(&ssd->lock);
+    qemu_mutex_unlock_iothread();
     return update;
 }
 
@@ -184,14 +185,19 @@ void qemu_spice_create_host_primary(SimpleSpiceDisplay *ssd)
     surface.type       = 0;
     surface.mem        = (intptr_t)ssd->buf;
     surface.group_id   = MEMSLOT_GROUP_HOST;
+
+    qemu_mutex_unlock_iothread();
     ssd->worker->create_primary_surface(ssd->worker, 0, &surface);
+    qemu_mutex_lock_iothread();
 }
 
 void qemu_spice_destroy_host_primary(SimpleSpiceDisplay *ssd)
 {
     dprint(1, "%s:\n", __FUNCTION__);
 
+    qemu_mutex_unlock_iothread();
     ssd->worker->destroy_primary_surface(ssd->worker, 0);
+    qemu_mutex_lock_iothread();
 }
 
 void qemu_spice_vm_change_state_handler(void *opaque, int running, int reason)
@@ -201,7 +207,9 @@ void qemu_spice_vm_change_state_handler(void *opaque, int running, int reason)
     if (running) {
         ssd->worker->start(ssd->worker);
     } else {
+        qemu_mutex_unlock_iothread();
         ssd->worker->stop(ssd->worker);
+        qemu_mutex_lock_iothread();
     }
     ssd->running = running;
 }
@@ -219,31 +227,25 @@ void qemu_spice_display_update(SimpleSpiceDisplay *ssd,
     update_area.top = y;
     update_area.bottom = y + h;
 
-    pthread_mutex_lock(&ssd->lock);
     if (qemu_spice_rect_is_empty(&ssd->dirty)) {
         ssd->notify++;
     }
     qemu_spice_rect_union(&ssd->dirty, &update_area);
-    pthread_mutex_unlock(&ssd->lock);
 }
 
 void qemu_spice_display_resize(SimpleSpiceDisplay *ssd)
 {
     dprint(1, "%s:\n", __FUNCTION__);
 
-    pthread_mutex_lock(&ssd->lock);
     memset(&ssd->dirty, 0, sizeof(ssd->dirty));
     qemu_pf_conv_put(ssd->conv);
     ssd->conv = NULL;
-    pthread_mutex_unlock(&ssd->lock);
 
     qemu_spice_destroy_host_primary(ssd);
     qemu_spice_create_host_primary(ssd);
 
-    pthread_mutex_lock(&ssd->lock);
     memset(&ssd->dirty, 0, sizeof(ssd->dirty));
     ssd->notify++;
-    pthread_mutex_unlock(&ssd->lock);
 }
 
 void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd)
@@ -398,7 +400,6 @@ void qemu_spice_display_init(DisplayState *ds)
     sdpy.ds = ds;
     sdpy.bufsize = (16 * 1024 * 1024);
     sdpy.buf = qemu_malloc(sdpy.bufsize);
-    pthread_mutex_init(&sdpy.lock, NULL);
     register_displaychangelistener(ds, &display_listener);
 
     sdpy.qxl.base.sif = &dpy_interface.base;
