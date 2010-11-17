@@ -11,6 +11,7 @@
 #include "qemu-option.h"
 #include "qemu-config.h"
 #include "usb.h"
+#include "usb-desc.h"
 #include "scsi.h"
 #include "console.h"
 #include "monitor.h"
@@ -72,69 +73,62 @@ struct usb_msd_csw {
     uint8_t status;
 };
 
-static const uint8_t qemu_msd_dev_descriptor[] = {
-	0x12,       /*  u8 bLength; */
-	0x01,       /*  u8 bDescriptorType; Device */
-	0x00, 0x01, /*  u16 bcdUSB; v1.0 */
-
-	0x00,	    /*  u8  bDeviceClass; */
-	0x00,	    /*  u8  bDeviceSubClass; */
-	0x00,       /*  u8  bDeviceProtocol; [ low/full speeds only ] */
-	0x08,       /*  u8  bMaxPacketSize0; 8 Bytes */
-
-        /* Vendor and product id are arbitrary.  */
-	0x00, 0x00, /*  u16 idVendor; */
- 	0x00, 0x00, /*  u16 idProduct; */
-	0x00, 0x00, /*  u16 bcdDevice */
-
-	0x01,       /*  u8  iManufacturer; */
-	0x02,       /*  u8  iProduct; */
-	0x03,       /*  u8  iSerialNumber; */
-	0x01        /*  u8  bNumConfigurations; */
+enum {
+    STR_MANUFACTURER = 1,
+    STR_PRODUCT,
+    STR_SERIALNUMBER,
 };
 
-static const uint8_t qemu_msd_config_descriptor[] = {
+static const USBDescStrings desc_strings = {
+    [STR_MANUFACTURER] = "QEMU " QEMU_VERSION,
+    [STR_PRODUCT]      = "QEMU USB HARDDRIVE",
+    [STR_SERIALNUMBER] = "1",
+};
 
-	/* one configuration */
-	0x09,       /*  u8  bLength; */
-	0x02,       /*  u8  bDescriptorType; Configuration */
-	0x20, 0x00, /*  u16 wTotalLength; */
-	0x01,       /*  u8  bNumInterfaces; (1) */
-	0x01,       /*  u8  bConfigurationValue; */
-	0x00,       /*  u8  iConfiguration; */
-	0xc0,       /*  u8  bmAttributes;
-				 Bit 7: must be set,
-				     6: Self-powered,
-				     5: Remote wakeup,
-				     4..0: resvd */
-	0x00,       /*  u8  MaxPower; */
+static const USBDescIface desc_iface0 = {
+    .bInterfaceNumber              = 0,
+    .bNumEndpoints                 = 2,
+    .bInterfaceClass               = USB_CLASS_MASS_STORAGE,
+    .bInterfaceSubClass            = 0x06, /* SCSI */
+    .bInterfaceProtocol            = 0x50, /* Bulk */
+    .eps = (USBDescEndpoint[]) {
+        {
+            .bEndpointAddress      = USB_DIR_IN | 0x01,
+            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+            .wMaxPacketSize        = 64,
+        },{
+            .bEndpointAddress      = USB_DIR_OUT | 0x02,
+            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+            .wMaxPacketSize        = 64,
+        },
+    }
+};
 
-	/* one interface */
-	0x09,       /*  u8  if_bLength; */
-	0x04,       /*  u8  if_bDescriptorType; Interface */
-	0x00,       /*  u8  if_bInterfaceNumber; */
-	0x00,       /*  u8  if_bAlternateSetting; */
-	0x02,       /*  u8  if_bNumEndpoints; */
-	0x08,       /*  u8  if_bInterfaceClass; MASS STORAGE */
-	0x06,       /*  u8  if_bInterfaceSubClass; SCSI */
-	0x50,       /*  u8  if_bInterfaceProtocol; Bulk Only */
-	0x00,       /*  u8  if_iInterface; */
+static const USBDescDevice desc_device = {
+    .bcdUSB                        = 0x0100,
+    .bMaxPacketSize0               = 8,
+    .bNumConfigurations            = 1,
+    .confs = (USBDescConfig[]) {
+        {
+            .bNumInterfaces        = 1,
+            .bConfigurationValue   = 1,
+            .bmAttributes          = 0xc0,
+            .ifs = &desc_iface0,
+        },
+    },
+};
 
-	/* Bulk-In endpoint */
-	0x07,       /*  u8  ep_bLength; */
-	0x05,       /*  u8  ep_bDescriptorType; Endpoint */
-	0x81,       /*  u8  ep_bEndpointAddress; IN Endpoint 1 */
- 	0x02,       /*  u8  ep_bmAttributes; Bulk */
- 	0x40, 0x00, /*  u16 ep_wMaxPacketSize; */
-	0x00,       /*  u8  ep_bInterval; */
-
-	/* Bulk-Out endpoint */
-	0x07,       /*  u8  ep_bLength; */
-	0x05,       /*  u8  ep_bDescriptorType; Endpoint */
-	0x02,       /*  u8  ep_bEndpointAddress; OUT Endpoint 2 */
- 	0x02,       /*  u8  ep_bmAttributes; Bulk */
- 	0x40, 0x00, /*  u16 ep_wMaxPacketSize; */
-	0x00        /*  u8  ep_bInterval; */
+static const USBDesc desc = {
+    .id = {
+        .idVendor          = 0,
+        .idProduct         = 0,
+        .bcdDevice         = 0,
+        .iManufacturer     = STR_MANUFACTURER,
+        .iProduct          = STR_PRODUCT,
+        .iSerialNumber     = STR_SERIALNUMBER,
+    },
+    .full = &desc_device,
+    .str  = desc_strings,
 };
 
 static void usb_msd_copy_data(MSDState *s)
@@ -236,8 +230,14 @@ static int usb_msd_handle_control(USBDevice *dev, int request, int value,
                                   int index, int length, uint8_t *data)
 {
     MSDState *s = (MSDState *)dev;
-    int ret = 0;
+    int ret;
 
+    ret = usb_desc_handle_control(dev, request, value, index, length, data);
+    if (ret >= 0) {
+        return ret;
+    }
+
+    ret = 0;
     switch (request) {
     case DeviceRequest | USB_REQ_GET_STATUS:
         data[0] = (1 << USB_DEVICE_SELF_POWERED) |
@@ -264,48 +264,6 @@ static int usb_msd_handle_control(USBDevice *dev, int request, int value,
     case DeviceOutRequest | USB_REQ_SET_ADDRESS:
         dev->addr = value;
         ret = 0;
-        break;
-    case DeviceRequest | USB_REQ_GET_DESCRIPTOR:
-        switch(value >> 8) {
-        case USB_DT_DEVICE:
-            memcpy(data, qemu_msd_dev_descriptor,
-                   sizeof(qemu_msd_dev_descriptor));
-            ret = sizeof(qemu_msd_dev_descriptor);
-            break;
-        case USB_DT_CONFIG:
-            memcpy(data, qemu_msd_config_descriptor,
-                   sizeof(qemu_msd_config_descriptor));
-            ret = sizeof(qemu_msd_config_descriptor);
-            break;
-        case USB_DT_STRING:
-            switch(value & 0xff) {
-            case 0:
-                /* language ids */
-                data[0] = 4;
-                data[1] = 3;
-                data[2] = 0x09;
-                data[3] = 0x04;
-                ret = 4;
-                break;
-            case 1:
-                /* vendor description */
-                ret = set_usb_string(data, "QEMU " QEMU_VERSION);
-                break;
-            case 2:
-                /* product description */
-                ret = set_usb_string(data, "QEMU USB HARDDRIVE");
-                break;
-            case 3:
-                /* serial number */
-                ret = set_usb_string(data, "1");
-                break;
-            default:
-                goto fail;
-            }
-            break;
-        default:
-            goto fail;
-        }
         break;
     case DeviceRequest | USB_REQ_GET_CONFIGURATION:
         data[0] = 1;
@@ -625,6 +583,7 @@ static struct USBDeviceInfo msd_info = {
     .product_desc   = "QEMU USB MSD",
     .qdev.name      = "usb-storage",
     .qdev.size      = sizeof(MSDState),
+    .usb_desc       = &desc,
     .init           = usb_msd_initfn,
     .handle_packet  = usb_generic_handle_packet,
     .handle_reset   = usb_msd_handle_reset,
