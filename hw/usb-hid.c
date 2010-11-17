@@ -25,6 +25,7 @@
 #include "hw.h"
 #include "console.h"
 #include "usb.h"
+#include "usb-desc.h"
 #include "sysemu.h"
 
 /* HID interface requests */
@@ -73,190 +74,206 @@ typedef struct USBHIDState {
     void (*datain)(void *);
 } USBHIDState;
 
-/* mostly the same values as the Bochs USB Mouse device */
-static const uint8_t qemu_mouse_dev_descriptor[] = {
-	0x12,       /*  u8 bLength; */
-	0x01,       /*  u8 bDescriptorType; Device */
-	0x00, 0x01, /*  u16 bcdUSB; v1.0 */
-
-	0x00,	    /*  u8  bDeviceClass; */
-	0x00,	    /*  u8  bDeviceSubClass; */
-	0x00,       /*  u8  bDeviceProtocol; [ low/full speeds only ] */
-	0x08,       /*  u8  bMaxPacketSize0; 8 Bytes */
-
-	0x27, 0x06, /*  u16 idVendor; */
- 	0x01, 0x00, /*  u16 idProduct; */
-	0x00, 0x00, /*  u16 bcdDevice */
-
-	0x03,       /*  u8  iManufacturer; */
-	0x02,       /*  u8  iProduct; */
-	0x01,       /*  u8  iSerialNumber; */
-	0x01        /*  u8  bNumConfigurations; */
+enum {
+    STR_MANUFACTURER = 1,
+    STR_PRODUCT_MOUSE,
+    STR_PRODUCT_TABLET,
+    STR_PRODUCT_KEYBOARD,
+    STR_SERIALNUMBER,
+    STR_CONFIG_MOUSE,
+    STR_CONFIG_TABLET,
+    STR_CONFIG_KEYBOARD,
 };
 
-static const uint8_t qemu_mouse_config_descriptor[] = {
-	/* one configuration */
-	0x09,       /*  u8  bLength; */
-	0x02,       /*  u8  bDescriptorType; Configuration */
-	0x22, 0x00, /*  u16 wTotalLength; */
-	0x01,       /*  u8  bNumInterfaces; (1) */
-	0x01,       /*  u8  bConfigurationValue; */
-	0x04,       /*  u8  iConfiguration; */
-	0xe0,       /*  u8  bmAttributes;
-				 Bit 7: must be set,
-				     6: Self-powered,
-				     5: Remote wakeup,
-				     4..0: resvd */
-	50,         /*  u8  MaxPower; */
-
-	/* USB 1.1:
-	 * USB 2.0, single TT organization (mandatory):
-	 *	one interface, protocol 0
-	 *
-	 * USB 2.0, multiple TT organization (optional):
-	 *	two interfaces, protocols 1 (like single TT)
-	 *	and 2 (multiple TT mode) ... config is
-	 *	sometimes settable
-	 *	NOT IMPLEMENTED
-	 */
-
-	/* one interface */
-	0x09,       /*  u8  if_bLength; */
-	0x04,       /*  u8  if_bDescriptorType; Interface */
-	0x00,       /*  u8  if_bInterfaceNumber; */
-	0x00,       /*  u8  if_bAlternateSetting; */
-	0x01,       /*  u8  if_bNumEndpoints; */
-	0x03,       /*  u8  if_bInterfaceClass; */
-	0x01,       /*  u8  if_bInterfaceSubClass; */
-	0x02,       /*  u8  if_bInterfaceProtocol; [usb1.1 or single tt] */
-	0x07,       /*  u8  if_iInterface; */
-
-        /* HID descriptor */
-        0x09,        /*  u8  bLength; */
-        0x21,        /*  u8 bDescriptorType; */
-        0x01, 0x00,  /*  u16 HID_class */
-        0x00,        /*  u8 country_code */
-        0x01,        /*  u8 num_descriptors */
-        0x22,        /*  u8 type; Report */
-        52, 0,       /*  u16 len */
-
-	/* one endpoint (status change endpoint) */
-	0x07,       /*  u8  ep_bLength; */
-	0x05,       /*  u8  ep_bDescriptorType; Endpoint */
-	0x81,       /*  u8  ep_bEndpointAddress; IN Endpoint 1 */
- 	0x03,       /*  u8  ep_bmAttributes; Interrupt */
- 	0x04, 0x00, /*  u16 ep_wMaxPacketSize; */
-	0x0a,       /*  u8  ep_bInterval; (255ms -- usb 2.0 spec) */
+static const USBDescStrings desc_strings = {
+    [STR_MANUFACTURER]     = "QEMU " QEMU_VERSION,
+    [STR_PRODUCT_MOUSE]    = "QEMU USB Mouse",
+    [STR_PRODUCT_TABLET]   = "QEMU USB Tablet",
+    [STR_PRODUCT_KEYBOARD] = "QEMU USB Keyboard",
+    [STR_SERIALNUMBER]     = "1",
+    [STR_CONFIG_MOUSE]     = "HID Mouse",
+    [STR_CONFIG_TABLET]    = "HID Tablet",
+    [STR_CONFIG_KEYBOARD]  = "HID Keyboard",
 };
 
-static const uint8_t qemu_tablet_config_descriptor[] = {
-	/* one configuration */
-	0x09,       /*  u8  bLength; */
-	0x02,       /*  u8  bDescriptorType; Configuration */
-	0x22, 0x00, /*  u16 wTotalLength; */
-	0x01,       /*  u8  bNumInterfaces; (1) */
-	0x01,       /*  u8  bConfigurationValue; */
-	0x05,       /*  u8  iConfiguration; */
-	0xa0,       /*  u8  bmAttributes;
-				 Bit 7: must be set,
-				     6: Self-powered,
-				     5: Remote wakeup,
-				     4..0: resvd */
-	50,         /*  u8  MaxPower; */
-
-	/* USB 1.1:
-	 * USB 2.0, single TT organization (mandatory):
-	 *	one interface, protocol 0
-	 *
-	 * USB 2.0, multiple TT organization (optional):
-	 *	two interfaces, protocols 1 (like single TT)
-	 *	and 2 (multiple TT mode) ... config is
-	 *	sometimes settable
-	 *	NOT IMPLEMENTED
-	 */
-
-	/* one interface */
-	0x09,       /*  u8  if_bLength; */
-	0x04,       /*  u8  if_bDescriptorType; Interface */
-	0x00,       /*  u8  if_bInterfaceNumber; */
-	0x00,       /*  u8  if_bAlternateSetting; */
-	0x01,       /*  u8  if_bNumEndpoints; */
-	0x03,       /*  u8  if_bInterfaceClass; */
-	0x01,       /*  u8  if_bInterfaceSubClass; */
-	0x02,       /*  u8  if_bInterfaceProtocol; [usb1.1 or single tt] */
-	0x07,       /*  u8  if_iInterface; */
-
-        /* HID descriptor */
-        0x09,        /*  u8  bLength; */
-        0x21,        /*  u8 bDescriptorType; */
-        0x01, 0x00,  /*  u16 HID_class */
-        0x00,        /*  u8 country_code */
-        0x01,        /*  u8 num_descriptors */
-        0x22,        /*  u8 type; Report */
-        74, 0,       /*  u16 len */
-
-	/* one endpoint (status change endpoint) */
-	0x07,       /*  u8  ep_bLength; */
-	0x05,       /*  u8  ep_bDescriptorType; Endpoint */
-	0x81,       /*  u8  ep_bEndpointAddress; IN Endpoint 1 */
- 	0x03,       /*  u8  ep_bmAttributes; Interrupt */
- 	0x08, 0x00, /*  u16 ep_wMaxPacketSize; */
-	0x0a,       /*  u8  ep_bInterval; (255ms -- usb 2.0 spec) */
+static const USBDescIface desc_iface_mouse = {
+    .bInterfaceNumber              = 0,
+    .bNumEndpoints                 = 1,
+    .bInterfaceClass               = USB_CLASS_HID,
+    .bInterfaceSubClass            = 0x01, /* boot */
+    .bInterfaceProtocol            = 0x02,
+    .ndesc                         = 1,
+    .descs = (USBDescOther[]) {
+        {
+            /* HID descriptor */
+            .data = (uint8_t[]) {
+                0x09,          /*  u8  bLength */
+                USB_DT_HID,    /*  u8  bDescriptorType */
+                0x01, 0x00,    /*  u16 HID_class */
+                0x00,          /*  u8  country_code */
+                0x01,          /*  u8  num_descriptors */
+                USB_DT_REPORT, /*  u8  type: Report */
+                52, 0,         /*  u16 len */
+            },
+        },
+    },
+    .eps = (USBDescEndpoint[]) {
+        {
+            .bEndpointAddress      = USB_DIR_IN | 0x01,
+            .bmAttributes          = USB_ENDPOINT_XFER_INT,
+            .wMaxPacketSize        = 4,
+            .bInterval             = 0x0a,
+        },
+    },
 };
 
-static const uint8_t qemu_keyboard_config_descriptor[] = {
-    /* one configuration */
-    0x09,		/*  u8  bLength; */
-    USB_DT_CONFIG,	/*  u8  bDescriptorType; Configuration */
-    0x22, 0x00,		/*  u16 wTotalLength; */
-    0x01,		/*  u8  bNumInterfaces; (1) */
-    0x01,		/*  u8  bConfigurationValue; */
-    0x06,		/*  u8  iConfiguration; */
-    0xa0,		/*  u8  bmAttributes;
-				Bit 7: must be set,
-				    6: Self-powered,
-				    5: Remote wakeup,
-				    4..0: resvd */
-    0x32,		/*  u8  MaxPower; */
+static const USBDescIface desc_iface_tablet = {
+    .bInterfaceNumber              = 0,
+    .bNumEndpoints                 = 1,
+    .bInterfaceClass               = USB_CLASS_HID,
+    .bInterfaceSubClass            = 0x01, /* boot */
+    .bInterfaceProtocol            = 0x02,
+    .ndesc                         = 1,
+    .descs = (USBDescOther[]) {
+        {
+            /* HID descriptor */
+            .data = (uint8_t[]) {
+                0x09,          /*  u8  bLength */
+                USB_DT_HID,    /*  u8  bDescriptorType */
+                0x01, 0x00,    /*  u16 HID_class */
+                0x00,          /*  u8  country_code */
+                0x01,          /*  u8  num_descriptors */
+                USB_DT_REPORT, /*  u8  type: Report */
+                74, 0,         /*  u16 len */
+            },
+        },
+    },
+    .eps = (USBDescEndpoint[]) {
+        {
+            .bEndpointAddress      = USB_DIR_IN | 0x01,
+            .bmAttributes          = USB_ENDPOINT_XFER_INT,
+            .wMaxPacketSize        = 8,
+            .bInterval             = 0x0a,
+        },
+    },
+};
 
-    /* USB 1.1:
-     * USB 2.0, single TT organization (mandatory):
-     *	one interface, protocol 0
-     *
-     * USB 2.0, multiple TT organization (optional):
-     *	two interfaces, protocols 1 (like single TT)
-     *	and 2 (multiple TT mode) ... config is
-     *	sometimes settable
-     *	NOT IMPLEMENTED
-     */
+static const USBDescIface desc_iface_keyboard = {
+    .bInterfaceNumber              = 0,
+    .bNumEndpoints                 = 1,
+    .bInterfaceClass               = USB_CLASS_HID,
+    .bInterfaceSubClass            = 0x01, /* boot */
+    .bInterfaceProtocol            = 0x01, /* keyboard */
+    .ndesc                         = 1,
+    .descs = (USBDescOther[]) {
+        {
+            /* HID descriptor */
+            .data = (uint8_t[]) {
+                0x09,          /*  u8  bLength */
+                USB_DT_HID,    /*  u8  bDescriptorType */
+                0x11, 0x01,    /*  u16 HID_class */
+                0x00,          /*  u8  country_code */
+                0x01,          /*  u8  num_descriptors */
+                USB_DT_REPORT, /*  u8  type: Report */
+                0x3f, 0,       /*  u16 len */
+            },
+        },
+    },
+    .eps = (USBDescEndpoint[]) {
+        {
+            .bEndpointAddress      = USB_DIR_IN | 0x01,
+            .bmAttributes          = USB_ENDPOINT_XFER_INT,
+            .wMaxPacketSize        = 8,
+            .bInterval             = 0x0a,
+        },
+    },
+};
 
-    /* one interface */
-    0x09,		/*  u8  if_bLength; */
-    USB_DT_INTERFACE,	/*  u8  if_bDescriptorType; Interface */
-    0x00,		/*  u8  if_bInterfaceNumber; */
-    0x00,		/*  u8  if_bAlternateSetting; */
-    0x01,		/*  u8  if_bNumEndpoints; */
-    0x03,		/*  u8  if_bInterfaceClass; HID */
-    0x01,		/*  u8  if_bInterfaceSubClass; Boot */
-    0x01,		/*  u8  if_bInterfaceProtocol; Keyboard */
-    0x07,		/*  u8  if_iInterface; */
+static const USBDescDevice desc_device_mouse = {
+    .bcdUSB                        = 0x0100,
+    .bMaxPacketSize0               = 8,
+    .bNumConfigurations            = 1,
+    .confs = (USBDescConfig[]) {
+        {
+            .bNumInterfaces        = 1,
+            .bConfigurationValue   = 1,
+            .iConfiguration        = STR_CONFIG_MOUSE,
+            .bmAttributes          = 0xa0,
+            .bMaxPower             = 50,
+            .ifs = &desc_iface_mouse,
+        },
+    },
+};
 
-    /* HID descriptor */
-    0x09,		/*  u8  bLength; */
-    USB_DT_HID,		/*  u8  bDescriptorType; */
-    0x11, 0x01,		/*  u16 HID_class */
-    0x00,		/*  u8  country_code */
-    0x01,		/*  u8  num_descriptors */
-    USB_DT_REPORT,	/*  u8  type; Report */
-    0x3f, 0x00,		/*  u16 len */
+static const USBDescDevice desc_device_tablet = {
+    .bcdUSB                        = 0x0100,
+    .bMaxPacketSize0               = 8,
+    .bNumConfigurations            = 1,
+    .confs = (USBDescConfig[]) {
+        {
+            .bNumInterfaces        = 1,
+            .bConfigurationValue   = 1,
+            .iConfiguration        = STR_CONFIG_TABLET,
+            .bmAttributes          = 0xa0,
+            .bMaxPower             = 50,
+            .ifs = &desc_iface_tablet,
+        },
+    },
+};
 
-    /* one endpoint (status change endpoint) */
-    0x07,		/*  u8  ep_bLength; */
-    USB_DT_ENDPOINT,	/*  u8  ep_bDescriptorType; Endpoint */
-    USB_DIR_IN | 0x01,	/*  u8  ep_bEndpointAddress; IN Endpoint 1 */
-    0x03,		/*  u8  ep_bmAttributes; Interrupt */
-    0x08, 0x00,		/*  u16 ep_wMaxPacketSize; */
-    0x0a,		/*  u8  ep_bInterval; (255ms -- usb 2.0 spec) */
+static const USBDescDevice desc_device_keyboard = {
+    .bcdUSB                        = 0x0100,
+    .bMaxPacketSize0               = 8,
+    .bNumConfigurations            = 1,
+    .confs = (USBDescConfig[]) {
+        {
+            .bNumInterfaces        = 1,
+            .bConfigurationValue   = 1,
+            .iConfiguration        = STR_CONFIG_KEYBOARD,
+            .bmAttributes          = 0xa0,
+            .bMaxPower             = 50,
+            .ifs = &desc_iface_keyboard,
+        },
+    },
+};
+
+static const USBDesc desc_mouse = {
+    .id = {
+        .idVendor          = 0x0627,
+        .idProduct         = 0x0001,
+        .bcdDevice         = 0,
+        .iManufacturer     = STR_MANUFACTURER,
+        .iProduct          = STR_PRODUCT_MOUSE,
+        .iSerialNumber     = STR_SERIALNUMBER,
+    },
+    .full = &desc_device_mouse,
+    .str  = desc_strings,
+};
+
+static const USBDesc desc_tablet = {
+    .id = {
+        .idVendor          = 0x0627,
+        .idProduct         = 0x0001,
+        .bcdDevice         = 0,
+        .iManufacturer     = STR_MANUFACTURER,
+        .iProduct          = STR_PRODUCT_TABLET,
+        .iSerialNumber     = STR_SERIALNUMBER,
+    },
+    .full = &desc_device_tablet,
+    .str  = desc_strings,
+};
+
+static const USBDesc desc_keyboard = {
+    .id = {
+        .idVendor          = 0x0627,
+        .idProduct         = 0x0001,
+        .bcdDevice         = 0,
+        .iManufacturer     = STR_MANUFACTURER,
+        .iProduct          = STR_PRODUCT_KEYBOARD,
+        .iSerialNumber     = STR_SERIALNUMBER,
+    },
+    .full = &desc_device_keyboard,
+    .str  = desc_strings,
 };
 
 static const uint8_t qemu_mouse_hid_report_descriptor[] = {
@@ -647,8 +664,14 @@ static int usb_hid_handle_control(USBDevice *dev, int request, int value,
                                   int index, int length, uint8_t *data)
 {
     USBHIDState *s = (USBHIDState *)dev;
-    int ret = 0;
+    int ret;
 
+    ret = usb_desc_handle_control(dev, request, value, index, length, data);
+    if (ret >= 0) {
+        return ret;
+    }
+
+    ret = 0;
     switch(request) {
     case DeviceRequest | USB_REQ_GET_STATUS:
         data[0] = (1 << USB_DEVICE_SELF_POWERED) |
@@ -675,70 +698,6 @@ static int usb_hid_handle_control(USBDevice *dev, int request, int value,
     case DeviceOutRequest | USB_REQ_SET_ADDRESS:
         dev->addr = value;
         ret = 0;
-        break;
-    case DeviceRequest | USB_REQ_GET_DESCRIPTOR:
-        switch(value >> 8) {
-        case USB_DT_DEVICE:
-            memcpy(data, qemu_mouse_dev_descriptor,
-                   sizeof(qemu_mouse_dev_descriptor));
-            ret = sizeof(qemu_mouse_dev_descriptor);
-            break;
-        case USB_DT_CONFIG:
-	    if (s->kind == USB_MOUSE) {
-		memcpy(data, qemu_mouse_config_descriptor,
-		       sizeof(qemu_mouse_config_descriptor));
-		ret = sizeof(qemu_mouse_config_descriptor);
-	    } else if (s->kind == USB_TABLET) {
-		memcpy(data, qemu_tablet_config_descriptor,
-		       sizeof(qemu_tablet_config_descriptor));
-		ret = sizeof(qemu_tablet_config_descriptor);
-            } else if (s->kind == USB_KEYBOARD) {
-                memcpy(data, qemu_keyboard_config_descriptor,
-                       sizeof(qemu_keyboard_config_descriptor));
-                ret = sizeof(qemu_keyboard_config_descriptor);
-            }
-            break;
-        case USB_DT_STRING:
-            switch(value & 0xff) {
-            case 0:
-                /* language ids */
-                data[0] = 4;
-                data[1] = 3;
-                data[2] = 0x09;
-                data[3] = 0x04;
-                ret = 4;
-                break;
-            case 1:
-                /* serial number */
-                ret = set_usb_string(data, "1");
-                break;
-            case 2:
-                /* product description */
-                ret = set_usb_string(data, s->dev.product_desc);
-                break;
-            case 3:
-                /* vendor description */
-                ret = set_usb_string(data, "QEMU " QEMU_VERSION);
-                break;
-            case 4:
-                ret = set_usb_string(data, "HID Mouse");
-                break;
-            case 5:
-                ret = set_usb_string(data, "HID Tablet");
-                break;
-            case 6:
-                ret = set_usb_string(data, "HID Keyboard");
-                break;
-            case 7:
-                ret = set_usb_string(data, "Endpoint1 Interrupt Pipe");
-                break;
-            default:
-                goto fail;
-            }
-            break;
-        default:
-            goto fail;
-        }
         break;
     case DeviceRequest | USB_REQ_GET_CONFIGURATION:
         data[0] = 1;
@@ -912,6 +871,7 @@ static struct USBDeviceInfo hid_info[] = {
         .qdev.name      = "usb-tablet",
         .usbdevice_name = "tablet",
         .qdev.size      = sizeof(USBHIDState),
+        .usb_desc       = &desc_tablet,
         .init           = usb_tablet_initfn,
         .handle_packet  = usb_generic_handle_packet,
         .handle_reset   = usb_mouse_handle_reset,
@@ -923,6 +883,7 @@ static struct USBDeviceInfo hid_info[] = {
         .qdev.name      = "usb-mouse",
         .usbdevice_name = "mouse",
         .qdev.size      = sizeof(USBHIDState),
+        .usb_desc       = &desc_mouse,
         .init           = usb_mouse_initfn,
         .handle_packet  = usb_generic_handle_packet,
         .handle_reset   = usb_mouse_handle_reset,
@@ -934,6 +895,7 @@ static struct USBDeviceInfo hid_info[] = {
         .qdev.name      = "usb-kbd",
         .usbdevice_name = "keyboard",
         .qdev.size      = sizeof(USBHIDState),
+        .usb_desc       = &desc_keyboard,
         .init           = usb_keyboard_initfn,
         .handle_packet  = usb_generic_handle_packet,
         .handle_reset   = usb_keyboard_handle_reset,
