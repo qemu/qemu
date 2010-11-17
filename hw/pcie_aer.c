@@ -176,14 +176,8 @@ static void pcie_aer_update_uncor_status(PCIDevice *dev)
 }
 
 /*
- * pcie_aer_msg() is called recursively by
- * pcie_aer_msg_alldev(), pci_aer_msg_vbridge() and pcie_aer_msg_root_port()
- */
-static void pcie_aer_msg(PCIDevice *dev, const PCIEAERMsg *msg);
-
-/*
  * return value:
- * true: error message is sent up
+ * true: error message needs to be sent up
  * false: error message is masked
  *
  * 6.2.6 Error Message Control
@@ -193,8 +187,6 @@ static void pcie_aer_msg(PCIDevice *dev, const PCIEAERMsg *msg);
 static bool
 pcie_aer_msg_alldev(PCIDevice *dev, const PCIEAERMsg *msg)
 {
-    PCIDevice *parent_port;
-
     if (!(pcie_aer_msg_is_uncor(msg) &&
           (pci_get_word(dev->config + PCI_COMMAND) & PCI_COMMAND_SERR))) {
         return false;
@@ -220,13 +212,21 @@ pcie_aer_msg_alldev(PCIDevice *dev, const PCIEAERMsg *msg)
     }
 
     /* send up error message */
+    return true;
+}
+
+/* Get parent port to send up error message on.
+ * TODO: clean up and open-code this logic */
+static PCIDevice *pcie_aer_parent_port(PCIDevice *dev)
+{
+    PCIDevice *parent_port;
     if (pci_is_express(dev) &&
         pcie_cap_get_type(dev) == PCI_EXP_TYPE_ROOT_PORT) {
-        /* Root port notify system itself,
+        /* Root port can notify system itself,
            or send the error message to root complex event collector. */
         /*
-         * if root port is associated to event collector, set
-         * parent_port = root complex event collector
+         * if root port is associated with an event collector,
+         * return the root complex event collector here.
          * For now root complex event collector isn't supported.
          */
         parent_port = NULL;
@@ -236,11 +236,10 @@ pcie_aer_msg_alldev(PCIDevice *dev, const PCIEAERMsg *msg)
     if (parent_port) {
         if (!pci_is_express(parent_port)) {
             /* just ignore it */
-            return false;
+            return NULL;
         }
-        pcie_aer_msg(parent_port, msg);
     }
-    return true;
+    return parent_port;
 }
 
 /*
@@ -381,8 +380,12 @@ static bool pcie_aer_msg_root_port(PCIDevice *dev, const PCIEAERMsg *msg)
 
 /*
  * 6.2.6 Error Message Control Figure 6-3
+ *
+ * Returns true in case the error needs to
+ * be propagated up.
+ * TODO: open-code.
  */
-static void pcie_aer_msg(PCIDevice *dev, const PCIEAERMsg *msg)
+static bool pcie_send_aer_msg(PCIDevice *dev, const PCIEAERMsg *msg)
 {
     uint8_t type;
     bool msg_sent;
@@ -401,6 +404,18 @@ static void pcie_aer_msg(PCIDevice *dev, const PCIEAERMsg *msg)
     msg_sent = pcie_aer_msg_alldev(dev, msg);
     if (type == PCI_EXP_TYPE_ROOT_PORT && msg_sent) {
         pcie_aer_msg_root_port(dev, msg);
+    }
+    return msg_sent;
+}
+
+static void pcie_aer_msg(PCIDevice *dev, const PCIEAERMsg *msg)
+{
+    bool send_to_parent;
+    while (dev) {
+        if (!pcie_send_aer_msg(dev, msg)) {
+            return;
+        }
+        dev =  pcie_aer_parent_port(dev);
     }
 }
 
@@ -824,4 +839,3 @@ const VMStateDescription vmstate_pcie_aer_log = {
         VMSTATE_END_OF_LIST()
     }
 };
-
