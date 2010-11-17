@@ -230,6 +230,14 @@ static QEMUMachine pc_machine_v0_13 = {
             .driver   = "virtio-9p-pci",
             .property = "vectors",
             .value    = stringify(0),
+        },{
+            .driver   = "VGA",
+            .property = "rombar",
+            .value    = stringify(0),
+        },{
+            .driver   = "vmware-svga",
+            .property = "rombar",
+            .value    = stringify(0),
         },
         { /* end of list */ }
     },
@@ -248,6 +256,14 @@ static QEMUMachine pc_machine_v0_12 = {
         },{
             .driver   = "virtio-serial-pci",
             .property = "vectors",
+            .value    = stringify(0),
+        },{
+            .driver   = "VGA",
+            .property = "rombar",
+            .value    = stringify(0),
+        },{
+            .driver   = "vmware-svga",
+            .property = "rombar",
             .value    = stringify(0),
         },
         { /* end of list */ }

@@ -92,6 +92,11 @@ static int pci_vga_initfn(PCIDevice *dev)
      pci_register_bar(&d->dev, 0, VGA_RAM_SIZE,
                       PCI_BASE_ADDRESS_MEM_PREFETCH, vga_map);
 
+     if (!dev->rom_bar) {
+         /* compatibility with pc-0.13 and older */
+         vga_init_vbe(s);
+     }
+
      return 0;
 }
 

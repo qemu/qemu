@@ -1301,6 +1301,11 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
 
     vmsvga_init(&s->chip, VGA_RAM_SIZE);
 
+    if (!dev->rom_bar) {
+        /* compatibility with pc-0.13 and older */
+        vga_init_vbe(&s->chip.vga);
+    }
+
     return 0;
 }
 
