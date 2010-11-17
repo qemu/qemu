@@ -75,12 +75,12 @@ struct e820_entry {
     uint64_t address;
     uint64_t length;
     uint32_t type;
-};
+} __attribute((__packed__, __aligned__(4)));
 
 struct e820_table {
     uint32_t count;
     struct e820_entry entry[E820_NR_ENTRIES];
-};
+} __attribute((__packed__, __aligned__(4)));
 
 static struct e820_table e820_table;
 
@@ -467,19 +467,19 @@ static void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
 
 int e820_add_entry(uint64_t address, uint64_t length, uint32_t type)
 {
-    int index = e820_table.count;
+    int index = le32_to_cpu(e820_table.count);
     struct e820_entry *entry;
 
     if (index >= E820_NR_ENTRIES)
         return -EBUSY;
-    entry = &e820_table.entry[index];
+    entry = &e820_table.entry[index++];
 
-    entry->address = address;
-    entry->length = length;
-    entry->type = type;
+    entry->address = cpu_to_le64(address);
+    entry->length = cpu_to_le64(length);
+    entry->type = cpu_to_le32(type);
 
-    e820_table.count++;
-    return e820_table.count;
+    e820_table.count = cpu_to_le32(index);
+    return index;
 }
 
 static void *bochs_bios_init(void)
