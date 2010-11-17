@@ -128,6 +128,14 @@ typedef struct USBDevice USBDevice;
 typedef struct USBDeviceInfo USBDeviceInfo;
 typedef struct USBPacket USBPacket;
 
+typedef struct USBDesc USBDesc;
+typedef struct USBDescID USBDescID;
+typedef struct USBDescDevice USBDescDevice;
+typedef struct USBDescConfig USBDescConfig;
+typedef struct USBDescIface USBDescIface;
+typedef struct USBDescEndpoint USBDescEndpoint;
+typedef struct USBDescOther USBDescOther;
+
 /* definition of a USB device */
 struct USBDevice {
     DeviceState qdev;
@@ -190,6 +198,7 @@ struct USBDeviceInfo {
     int (*handle_data)(USBDevice *dev, USBPacket *p);
 
     const char *product_desc;
+    const USBDesc *usb_desc;
 
     /* handle legacy -usbdevice command line options */
     const char *usbdevice_name;

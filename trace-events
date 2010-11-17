@@ -190,6 +190,11 @@ disable sun4m_iommu_page_get_flags(uint64_t pa, uint64_t iopte, uint32_t ret) "g
 disable sun4m_iommu_translate_pa(uint64_t addr, uint64_t pa, uint32_t iopte) "xlate dva %"PRIx64" => pa %"PRIx64" iopte = %x"
 disable sun4m_iommu_bad_addr(uint64_t addr) "bad addr %"PRIx64""
 
+# hw/usb-desc.c
+disable usb_desc_device(int addr, int len, int ret) "dev %d query device, len %d, ret %d"
+disable usb_desc_config(int addr, int index, int len, int ret) "dev %d query config %d, len %d, ret %d"
+disable usb_desc_string(int addr, int index, int len, int ret) "dev %d query string %d, len %d, ret %d"
+
 # vl.c
 disable vm_state_notify(int running, int reason) "running %d reason %d"
 
