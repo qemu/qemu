@@ -558,7 +558,7 @@ static void pci_init_wmask(PCIDevice *dev)
 static void pci_init_w1cmask(PCIDevice *dev)
 {
     /*
-     * Note: It's okay to set w1mask even for readonly bits as
+     * Note: It's okay to set w1cmask even for readonly bits as
      * long as their value is hardwired to 0.
      */
     pci_set_word(dev->w1cmask + PCI_STATUS,
@@ -588,7 +588,29 @@ static void pci_init_wmask_bridge(PCIDevice *d)
     /* PCI_PREF_BASE_UPPER32 and PCI_PREF_LIMIT_UPPER32 */
     memset(d->wmask + PCI_PREF_BASE_UPPER32, 0xff, 8);
 
-    pci_set_word(d->wmask + PCI_BRIDGE_CONTROL, 0xffff);
+/* TODO: add this define to pci_regs.h in linux and then in qemu. */
+#define  PCI_BRIDGE_CTL_VGA_16BIT	0x10	/* VGA 16-bit decode */
+#define  PCI_BRIDGE_CTL_DISCARD		0x100	/* Primary discard timer */
+#define  PCI_BRIDGE_CTL_SEC_DISCARD	0x200	/* Secondary discard timer */
+#define  PCI_BRIDGE_CTL_DISCARD_STATUS	0x400	/* Discard timer status */
+#define  PCI_BRIDGE_CTL_DISCARD_SERR	0x800	/* Discard timer SERR# enable */
+    pci_set_word(d->wmask + PCI_BRIDGE_CONTROL,
+                 PCI_BRIDGE_CTL_PARITY |
+                 PCI_BRIDGE_CTL_SERR |
+                 PCI_BRIDGE_CTL_ISA |
+                 PCI_BRIDGE_CTL_VGA |
+                 PCI_BRIDGE_CTL_VGA_16BIT |
+                 PCI_BRIDGE_CTL_MASTER_ABORT |
+                 PCI_BRIDGE_CTL_BUS_RESET |
+                 PCI_BRIDGE_CTL_FAST_BACK |
+                 PCI_BRIDGE_CTL_DISCARD |
+                 PCI_BRIDGE_CTL_SEC_DISCARD |
+                 PCI_BRIDGE_CTL_DISCARD_STATUS |
+                 PCI_BRIDGE_CTL_DISCARD_SERR);
+    /* Below does not do anything as we never set this bit, put here for
+     * completeness. */
+    pci_set_word(d->w1cmask + PCI_BRIDGE_CONTROL,
+                 PCI_BRIDGE_CTL_DISCARD_STATUS);
 }
 
 static int pci_init_multifunction(PCIBus *bus, PCIDevice *dev)
