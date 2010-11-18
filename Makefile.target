@@ -41,18 +41,7 @@ kvm.o kvm-all.o vhost.o vhost_net.o: QEMU_CFLAGS+=$(KVM_CFLAGS)
 config-target.h: config-target.h-timestamp
 config-target.h-timestamp: config-target.mak
 
-ifdef CONFIG_SYSTEMTAP_TRACE
-STPFILES+=$(QEMU_PROG).stp
-
-$(QEMU_PROG).stp:
-	$(call quiet-command,sh $(SRC_PATH)/tracetool \
-		--$(TRACE_BACKEND) \
-		--bindir $(bindir) \
-		--target $(TARGET_ARCH) \
-		-s < $(SRC_PATH)/trace-events > $@,"  GEN   $@")
-endif
-
-all: $(PROGS) $(STPFILES)
+all: $(PROGS)
 
 # Dummy command so that make thinks it has done something
 	@true
@@ -359,10 +348,6 @@ ifneq ($(PROGS),)
 ifneq ($(STRIP),)
 	$(STRIP) $(patsubst %,"$(DESTDIR)$(bindir)/%",$(PROGS))
 endif
-endif
-ifdef CONFIG_SYSTEMTAP_TRACE
-	$(INSTALL_DIR) "$(DESTDIR)$(datadir)/../systemtap/tapset"
-	$(INSTALL_DATA) $(STPFILES) "$(DESTDIR)$(datadir)/../systemtap/tapset"
 endif
 
 # Include automatically generated dependency files
