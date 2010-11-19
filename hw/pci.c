@@ -43,12 +43,14 @@
 
 static void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent);
 static char *pcibus_get_dev_path(DeviceState *dev);
+static int pcibus_reset(BusState *qbus);
 
 struct BusInfo pci_bus_info = {
     .name       = "PCI",
     .size       = sizeof(PCIBus),
     .print_dev  = pcibus_dev_print,
     .get_dev_path = pcibus_get_dev_path,
+    .reset      = pcibus_reset,
     .props      = (Property[]) {
         DEFINE_PROP_PCI_DEVFN("addr", PCIDevice, devfn, -1),
         DEFINE_PROP_STRING("romfile", PCIDevice, romfile),
@@ -136,6 +138,11 @@ static void pci_update_irq_status(PCIDevice *dev)
 static void pci_device_reset(PCIDevice *dev)
 {
     int r;
+    /* TODO: call the below unconditionally once all pci devices
+     * are qdevified */
+    if (dev->qdev.info) {
+        qdev_reset_all(&dev->qdev);
+    }
 
     dev->irq_state = 0;
     pci_update_irq_status(dev);
@@ -164,9 +171,12 @@ static void pci_device_reset(PCIDevice *dev)
     pci_update_mappings(dev);
 }
 
-static void pci_bus_reset(void *opaque)
+/*
+ * Trigger pci bus reset under a given bus.
+ * To be called on RST# assert.
+ */
+void pci_bus_reset(PCIBus *bus)
 {
-    PCIBus *bus = opaque;
     int i;
 
     for (i = 0; i < bus->nirq; i++) {
@@ -177,6 +187,15 @@ static void pci_bus_reset(void *opaque)
             pci_device_reset(bus->devices[i]);
         }
     }
+}
+
+static int pcibus_reset(BusState *qbus)
+{
+    pci_bus_reset(DO_UPCAST(PCIBus, qbus, qbus));
+
+    /* topology traverse is done by pci_bus_reset().
+       Tell qbus/qdev walker not to traverse the tree */
+    return 1;
 }
 
 static void pci_host_bus_register(int domain, PCIBus *bus)
@@ -233,7 +252,6 @@ void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
     pci_host_bus_register(0, bus); /* for now only pci domain 0 is supported */
 
     vmstate_register(NULL, -1, &vmstate_pcibus, bus);
-    qemu_register_reset(pci_bus_reset, bus);
 }
 
 PCIBus *pci_bus_new(DeviceState *parent, const char *name, int devfn_min)
