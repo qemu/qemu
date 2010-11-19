@@ -153,7 +153,7 @@ static int vt82c686b_ide_initfn(PCIDevice *dev)
     pci_set_long(pci_conf + PCI_CAPABILITY_LIST, 0x000000c0);
 
     qemu_register_reset(via_reset, d);
-    pci_register_bar((PCIDevice *)d, 4, 0x10,
+    pci_register_bar(&d->dev, 4, 0x10,
                            PCI_BASE_ADDRESS_SPACE_IO, bmdma_map);
 
     vmstate_register(&dev->qdev, 0, &vmstate_ide_pci, d);
