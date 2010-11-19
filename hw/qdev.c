@@ -449,6 +449,52 @@ BusState *qdev_get_child_bus(DeviceState *dev, const char *name)
     return NULL;
 }
 
+int qbus_walk_children(BusState *bus, qdev_walkerfn *devfn,
+                       qbus_walkerfn *busfn, void *opaque)
+{
+    DeviceState *dev;
+    int err;
+
+    if (busfn) {
+        err = busfn(bus, opaque);
+        if (err) {
+            return err;
+        }
+    }
+
+    QLIST_FOREACH(dev, &bus->children, sibling) {
+        err = qdev_walk_children(dev, devfn, busfn, opaque);
+        if (err < 0) {
+            return err;
+        }
+    }
+
+    return 0;
+}
+
+int qdev_walk_children(DeviceState *dev, qdev_walkerfn *devfn,
+                       qbus_walkerfn *busfn, void *opaque)
+{
+    BusState *bus;
+    int err;
+
+    if (devfn) {
+        err = devfn(dev, opaque);
+        if (err) {
+            return err;
+        }
+    }
+
+    QLIST_FOREACH(bus, &dev->child_bus, sibling) {
+        err = qbus_walk_children(bus, devfn, busfn, opaque);
+        if (err < 0) {
+            return err;
+        }
+    }
+
+    return 0;
+}
+
 static BusState *qbus_find_recursive(BusState *bus, const char *name,
                                      const BusInfo *info)
 {
