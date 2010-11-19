@@ -203,7 +203,13 @@ void cpu_reset(CPUARMState *env)
         cpu_reset_model_id(env, id);
 #if defined (CONFIG_USER_ONLY)
     env->uncached_cpsr = ARM_CPU_MODE_USR;
+    /* For user mode we must enable access to coprocessors */
     env->vfp.xregs[ARM_VFP_FPEXC] = 1 << 30;
+    if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
+        env->cp15.c15_cpar = 3;
+    } else if (arm_feature(env, ARM_FEATURE_XSCALE)) {
+        env->cp15.c15_cpar = 1;
+    }
 #else
     /* SVC mode with interrupts disabled.  */
     env->uncached_cpsr = ARM_CPU_MODE_SVC | CPSR_A | CPSR_F | CPSR_I;
