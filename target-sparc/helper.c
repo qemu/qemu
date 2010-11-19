@@ -41,20 +41,6 @@ static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model);
 
 /* Sparc MMU emulation */
 
-/* thread support */
-
-static spinlock_t global_cpu_lock = SPIN_LOCK_UNLOCKED;
-
-void cpu_lock(void)
-{
-    spin_lock(&global_cpu_lock);
-}
-
-void cpu_unlock(void)
-{
-    spin_unlock(&global_cpu_lock);
-}
-
 #if defined(CONFIG_USER_ONLY)
 
 int cpu_sparc_handle_mmu_fault(CPUState *env1, target_ulong address, int rw,
