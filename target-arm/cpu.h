@@ -227,8 +227,6 @@ int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address, int rw,
                               int mmu_idx, int is_softmuu);
 #define cpu_handle_mmu_fault cpu_arm_handle_mmu_fault
 
-void cpu_lock(void);
-void cpu_unlock(void);
 static inline void cpu_set_tls(CPUARMState *env, target_ulong newtls)
 {
   env->cp15.c13_tls2 = newtls;
