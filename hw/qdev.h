@@ -187,9 +187,13 @@ int qbus_walk_children(BusState *bus, qdev_walkerfn *devfn,
                        qbus_walkerfn *busfn, void *opaque);
 int qdev_walk_children(DeviceState *dev, qdev_walkerfn *devfn,
                        qbus_walkerfn *busfn, void *opaque);
+void qbus_reset_all(BusState *bus);
 void qbus_free(BusState *bus);
 
 #define FROM_QBUS(type, dev) DO_UPCAST(type, qbus, dev)
+
+/* This should go away once we get rid of the NULL bus hack */
+BusState *sysbus_get_default(void);
 
 /*** monitor commands ***/
 

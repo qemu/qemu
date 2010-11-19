@@ -257,13 +257,6 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     return qdev;
 }
 
-static void qdev_reset(void *opaque)
-{
-    DeviceState *dev = opaque;
-    if (dev->info->reset)
-        dev->info->reset(dev);
-}
-
 /* Initialize a device.  Device properties should be set before calling
    this function.  IRQs and MMIO regions should be connected/mapped after
    calling this function.
@@ -279,7 +272,6 @@ int qdev_init(DeviceState *dev)
         qdev_free(dev);
         return rc;
     }
-    qemu_register_reset(qdev_reset, dev);
     if (dev->info->vmsd) {
         vmstate_register_with_alias_id(dev, -1, dev->info->vmsd, dev,
                                        dev->instance_id_alias,
@@ -306,6 +298,25 @@ int qdev_unplug(DeviceState *dev)
     assert(dev->info->unplug != NULL);
 
     return dev->info->unplug(dev);
+}
+
+static int qdev_reset_one(DeviceState *dev, void *opaque)
+{
+    if (dev->info->reset) {
+        dev->info->reset(dev);
+    }
+
+    return 0;
+}
+
+BusState *sysbus_get_default(void)
+{
+    return main_system_bus;
+}
+
+void qbus_reset_all(BusState *bus)
+{
+    qbus_walk_children(bus, qdev_reset_one, NULL, NULL);
 }
 
 /* can be used as ->unplug() callback for the simple cases */
@@ -351,7 +362,6 @@ void qdev_free(DeviceState *dev)
         if (dev->opts)
             qemu_opts_del(dev->opts);
     }
-    qemu_unregister_reset(qdev_reset, dev);
     QLIST_REMOVE(dev, sibling);
     for (prop = dev->info->props; prop && prop->name; prop++) {
         if (prop->info->free) {
