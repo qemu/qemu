@@ -254,8 +254,8 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         virtio_queue_set_vector(vdev, vdev->queue_sel, val);
         break;
     default:
-        fprintf(stderr, "%s: unexpected address 0x%x value 0x%x\n",
-                __func__, addr, val);
+        error_report("%s: unexpected address 0x%x value 0x%x",
+                     __func__, addr, val);
         break;
     }
 }
@@ -684,12 +684,14 @@ static int virtio_9p_init_pci(PCIDevice *pci_dev)
     VirtIODevice *vdev;
 
     vdev = virtio_9p_init(&pci_dev->qdev, &proxy->fsconf);
+    vdev->nvectors = proxy->nvectors;
     virtio_init_pci(proxy, vdev,
                     PCI_VENDOR_ID_REDHAT_QUMRANET,
                     0x1009,
                     0x2,
                     0x00);
-
+    /* make the actual value visible */
+    proxy->nvectors = vdev->nvectors;
     return 0;
 }
 #endif
@@ -758,6 +760,7 @@ static PCIDeviceInfo virtio_info[] = {
         .qdev.size = sizeof(VirtIOPCIProxy),
         .init      = virtio_9p_init_pci,
         .qdev.props = (Property[]) {
+            DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
             DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
             DEFINE_PROP_STRING("mount_tag", VirtIOPCIProxy, fsconf.tag),
             DEFINE_PROP_STRING("fsdev", VirtIOPCIProxy, fsconf.fsdev_id),

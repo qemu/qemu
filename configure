@@ -2255,10 +2255,6 @@ EOF
     echo
     exit 1
   fi
-  trace_backend_stap="no"
-  if has 'stap' ; then
-    trace_backend_stap="yes"
-  fi
 fi
 
 ##########################################
@@ -2269,6 +2265,10 @@ if test "$trace_backend" = "dtrace"; then
     echo "Error: dtrace command is not found in PATH $PATH"
     echo
     exit 1
+  fi
+  trace_backend_stap="no"
+  if has 'stap' ; then
+    trace_backend_stap="yes"
   fi
 fi
 

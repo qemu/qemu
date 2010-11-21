@@ -1048,9 +1048,10 @@ ssize_t pcnet_receive(VLANClientState *nc, const uint8_t *buf, size_t size_)
     int crc_err = 0;
     int size = size_;
 
-    if (CSR_DRX(s) || CSR_STOP(s) || CSR_SPND(s) || !size)
+    if (CSR_DRX(s) || CSR_STOP(s) || CSR_SPND(s) || !size ||
+        (CSR_LOOP(s) && !s->looptest)) {
         return -1;
-
+    }
 #ifdef PCNET_DEBUG
     printf("pcnet_receive size=%d\n", size);
 #endif

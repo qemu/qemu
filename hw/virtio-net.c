@@ -120,8 +120,8 @@ static void virtio_net_set_status(struct VirtIODevice *vdev, uint8_t status)
     if (!n->vhost_started) {
         int r = vhost_net_start(tap_get_vhost_net(n->nic->nc.peer), &n->vdev);
         if (r < 0) {
-            fprintf(stderr, "unable to start vhost net: %d: "
-                    "falling back on userspace virtio\n", -r);
+            error_report("unable to start vhost net: %d: "
+                         "falling back on userspace virtio", -r);
         } else {
             n->vhost_started = 1;
         }
@@ -271,7 +271,7 @@ static int virtio_net_handle_rx_mode(VirtIONet *n, uint8_t cmd,
     uint8_t on;
 
     if (elem->out_num != 2 || elem->out_sg[1].iov_len != sizeof(on)) {
-        fprintf(stderr, "virtio-net ctrl invalid rx mode command\n");
+        error_report("virtio-net ctrl invalid rx mode command");
         exit(1);
     }
 
@@ -353,7 +353,7 @@ static int virtio_net_handle_vlan_table(VirtIONet *n, uint8_t cmd,
     uint16_t vid;
 
     if (elem->out_num != 2 || elem->out_sg[1].iov_len != sizeof(vid)) {
-        fprintf(stderr, "virtio-net ctrl invalid vlan command\n");
+        error_report("virtio-net ctrl invalid vlan command");
         return VIRTIO_NET_ERR;
     }
 
@@ -381,13 +381,13 @@ static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 
     while (virtqueue_pop(vq, &elem)) {
         if ((elem.in_num < 1) || (elem.out_num < 1)) {
-            fprintf(stderr, "virtio-net ctrl missing headers\n");
+            error_report("virtio-net ctrl missing headers");
             exit(1);
         }
 
         if (elem.out_sg[0].iov_len < sizeof(ctrl) ||
             elem.in_sg[elem.in_num - 1].iov_len < sizeof(status)) {
-            fprintf(stderr, "virtio-net ctrl header not in correct element\n");
+            error_report("virtio-net ctrl header not in correct element");
             exit(1);
         }
 
@@ -591,21 +591,21 @@ static ssize_t virtio_net_receive(VLANClientState *nc, const uint8_t *buf, size_
         if (virtqueue_pop(n->rx_vq, &elem) == 0) {
             if (i == 0)
                 return -1;
-            fprintf(stderr, "virtio-net unexpected empty queue: "
+            error_report("virtio-net unexpected empty queue: "
                     "i %zd mergeable %d offset %zd, size %zd, "
-                    "guest hdr len %zd, host hdr len %zd guest features 0x%x\n",
+                    "guest hdr len %zd, host hdr len %zd guest features 0x%x",
                     i, n->mergeable_rx_bufs, offset, size,
                     guest_hdr_len, host_hdr_len, n->vdev.guest_features);
             exit(1);
         }
 
         if (elem.in_num < 1) {
-            fprintf(stderr, "virtio-net receive queue contains no in buffers\n");
+            error_report("virtio-net receive queue contains no in buffers");
             exit(1);
         }
 
         if (!n->mergeable_rx_bufs && elem.in_sg[0].iov_len != guest_hdr_len) {
-            fprintf(stderr, "virtio-net header not in first element\n");
+            error_report("virtio-net header not in first element");
             exit(1);
         }
 
@@ -630,12 +630,11 @@ static ssize_t virtio_net_receive(VLANClientState *nc, const uint8_t *buf, size_
          * Otherwise, drop it. */
         if (!n->mergeable_rx_bufs && offset < size) {
 #if 0
-            fprintf(stderr, "virtio-net truncated non-mergeable packet: "
-
-                    "i %zd mergeable %d offset %zd, size %zd, "
-                    "guest hdr len %zd, host hdr len %zd\n",
-                    i, n->mergeable_rx_bufs,
-                    offset, size, guest_hdr_len, host_hdr_len);
+            error_report("virtio-net truncated non-mergeable packet: "
+                         "i %zd mergeable %d offset %zd, size %zd, "
+                         "guest hdr len %zd, host hdr len %zd",
+                         i, n->mergeable_rx_bufs,
+                         offset, size, guest_hdr_len, host_hdr_len);
 #endif
             return size;
         }
@@ -695,7 +694,7 @@ static int32_t virtio_net_flush_tx(VirtIONet *n, VirtQueue *vq)
             sizeof(struct virtio_net_hdr);
 
         if (out_num < 1 || out_sg->iov_len != hdr_len) {
-            fprintf(stderr, "virtio-net header not in first element\n");
+            error_report("virtio-net header not in first element");
             exit(1);
         }
 
@@ -981,10 +980,10 @@ VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
     n->rx_vq = virtio_add_queue(&n->vdev, 256, virtio_net_handle_rx);
 
     if (net->tx && strcmp(net->tx, "timer") && strcmp(net->tx, "bh")) {
-        fprintf(stderr, "virtio-net: "
-                "Unknown option tx=%s, valid options: \"timer\" \"bh\"\n",
-                net->tx);
-        fprintf(stderr, "Defaulting to \"bh\"\n");
+        error_report("virtio-net: "
+                     "Unknown option tx=%s, valid options: \"timer\" \"bh\"",
+                     net->tx);
+        error_report("Defaulting to \"bh\"");
     }
 
     if (net->tx && !strcmp(net->tx, "timer")) {

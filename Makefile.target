@@ -53,17 +53,26 @@ config-target.h: config-target.h-timestamp
 config-target.h-timestamp: config-target.mak
 
 ifdef CONFIG_SYSTEMTAP_TRACE
-STPFILES+=$(QEMU_PROG).stp
+stap: $(QEMU_PROG).stp
+
+ifdef CONFIG_USER_ONLY
+TARGET_TYPE=user
+else
+TARGET_TYPE=system
+endif
 
 $(QEMU_PROG).stp:
 	$(call quiet-command,sh $(SRC_PATH)/tracetool \
 		--$(TRACE_BACKEND) \
-		--bindir $(bindir) \
-		--target $(TARGET_ARCH) \
-		-s < $(SRC_PATH)/trace-events > $@,"  GEN   $@")
+		--binary $(bindir)/$(QEMU_PROG) \
+		--target-arch $(TARGET_ARCH) \
+		--target-type $(TARGET_TYPE) \
+		--stap < $(SRC_PATH)/trace-events > $(QEMU_PROG).stp,"  GEN   $(QEMU_PROG).stp")
+else
+stap:
 endif
 
-all: $(PROGS) $(STPFILES)
+all: $(PROGS) stap
 
 # Dummy command so that make thinks it has done something
 	@true
@@ -384,6 +393,9 @@ clean:
 	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o
 	rm -f *.d */*.d tcg/*.o ide/*.o
 	rm -f hmp-commands.h qmp-commands.h gdbstub-xml.c
+ifdef CONFIG_SYSTEMTAP_TRACE
+	rm -f *.stp
+endif
 
 install: all
 ifneq ($(PROGS),)
@@ -394,7 +406,7 @@ endif
 endif
 ifdef CONFIG_SYSTEMTAP_TRACE
 	$(INSTALL_DIR) "$(DESTDIR)$(datadir)/../systemtap/tapset"
-	$(INSTALL_DATA) $(STPFILES) "$(DESTDIR)$(datadir)/../systemtap/tapset"
+	$(INSTALL_DATA) $(QEMU_PROG).stp "$(DESTDIR)$(datadir)/../systemtap/tapset"
 endif
 
 # Include automatically generated dependency files

@@ -430,8 +430,8 @@ static void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
         /* Bochs BIOS messages */
     case 0x400:
     case 0x401:
-        fprintf(stderr, "BIOS panic at rombios.c, line %d\n", val);
-        exit(1);
+        /* used to be panic, now unused */
+        break;
     case 0x402:
     case 0x403:
 #ifdef DEBUG_BIOS
