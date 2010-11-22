@@ -1818,7 +1818,7 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
         tcg_out_bundle(s, miI,
                        tcg_opc_m48(TCG_REG_P0, OPC_NOP_M48, 0),
                        tcg_opc_i29(TCG_REG_P0, OPC_ZXT4_I29,
-                                   TCG_REG_R3, addr_reg),
+                                   TCG_REG_R2, addr_reg),
                        tcg_opc_i18(TCG_REG_P0, OPC_NOP_I18, 0));
     }
 
