@@ -370,8 +370,6 @@ void migrate_fd_put_ready(void *opaque)
         DPRINTF("done iterating\n");
         vm_stop(0);
 
-        qemu_aio_flush();
-        bdrv_flush_all();
         if ((qemu_savevm_state_complete(s->mon, s->file)) < 0) {
             if (old_vm_running) {
                 vm_start();
