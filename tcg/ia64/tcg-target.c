@@ -45,6 +45,9 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 #else
 #define TCG_GUEST_BASE_REG TCG_REG_R0
 #endif
+#ifndef GUEST_BASE
+#define GUEST_BASE 0
+#endif
 
 /* Branch registers */
 enum {
