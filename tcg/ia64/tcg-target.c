@@ -1658,11 +1658,10 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
     static uint64_t const opc_sxt_i29[4] = {
         OPC_SXT1_I29, OPC_SXT2_I29, OPC_SXT4_I29, 0
     };
-    int addr_reg, data_reg, mem_index, s_bits, bswap;
+    int addr_reg, data_reg, s_bits, bswap;
 
     data_reg = *args++;
     addr_reg = *args++;
-    mem_index = *args;
     s_bits = opc & 3;
 
 #ifdef TARGET_WORDS_BIGENDIAN
