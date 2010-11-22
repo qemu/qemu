@@ -2030,10 +2030,10 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
 
     /* we modify the TLB cache so that the dirty bit will be set again
        when accessing the range */
-    start1 = (unsigned long)qemu_get_ram_ptr(start);
+    start1 = (unsigned long)qemu_safe_ram_ptr(start);
     /* Chek that we don't span multiple blocks - this breaks the
        address comparisons below.  */
-    if ((unsigned long)qemu_get_ram_ptr(end - 1) - start1
+    if ((unsigned long)qemu_safe_ram_ptr(end - 1) - start1
             != (end - 1) - start) {
         abort();
     }
@@ -2858,6 +2858,7 @@ ram_addr_t qemu_ram_alloc_from_ptr(DeviceState *dev, const char *name,
     new_block->length = size;
 
     QLIST_INSERT_HEAD(&ram_list.blocks, new_block, next);
+    fprintf(stderr, "alloc ram %s len 0x%x\n", new_block->idstr, (int)new_block->length);
 
     ram_list.phys_dirty = qemu_realloc(ram_list.phys_dirty,
                                        last_ram_offset() >> TARGET_PAGE_BITS);
@@ -2921,6 +2922,25 @@ void *qemu_get_ram_ptr(ram_addr_t addr)
         if (addr - block->offset < block->length) {
             QLIST_REMOVE(block, next);
             QLIST_INSERT_HEAD(&ram_list.blocks, block, next);
+            return block->host + (addr - block->offset);
+        }
+    }
+
+    fprintf(stderr, "Bad ram offset %" PRIx64 "\n", (uint64_t)addr);
+    abort();
+
+    return NULL;
+}
+
+/* Return a host pointer to ram allocated with qemu_ram_alloc.
+ * Same as qemu_get_ram_ptr but avoid reordering ramblocks.
+ */
+void *qemu_safe_ram_ptr(ram_addr_t addr)
+{
+    RAMBlock *block;
+
+    QLIST_FOREACH(block, &ram_list.blocks, next) {
+        if (addr - block->offset < block->length) {
             return block->host + (addr - block->offset);
         }
     }
