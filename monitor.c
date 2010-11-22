@@ -4464,10 +4464,8 @@ static void qmp_call_query_cmd(Monitor *mon, const mon_cmd_t *cmd)
         }
     } else {
         cmd->mhandler.info_new(mon, &ret_data);
-        if (ret_data) {
-            monitor_protocol_emitter(mon, ret_data);
-            qobject_decref(ret_data);
-        }
+        monitor_protocol_emitter(mon, ret_data);
+        qobject_decref(ret_data);
     }
 }
 
