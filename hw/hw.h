@@ -39,8 +39,8 @@ typedef int (QEMUFileRateLimit)(void *opaque);
  * the new actual bandwidth. It should be new_rate if everything goes ok, and
  * the old rate otherwise
  */
-typedef size_t (QEMUFileSetRateLimit)(void *opaque, size_t new_rate);
-typedef size_t (QEMUFileGetRateLimit)(void *opaque);
+typedef int64_t (QEMUFileSetRateLimit)(void *opaque, int64_t new_rate);
+typedef int64_t (QEMUFileGetRateLimit)(void *opaque);
 
 QEMUFile *qemu_fopen_ops(void *opaque, QEMUFilePutBufferFunc *put_buffer,
                          QEMUFileGetBufferFunc *get_buffer,
@@ -83,8 +83,8 @@ unsigned int qemu_get_be16(QEMUFile *f);
 unsigned int qemu_get_be32(QEMUFile *f);
 uint64_t qemu_get_be64(QEMUFile *f);
 int qemu_file_rate_limit(QEMUFile *f);
-size_t qemu_file_set_rate_limit(QEMUFile *f, size_t new_rate);
-size_t qemu_file_get_rate_limit(QEMUFile *f);
+int64_t qemu_file_set_rate_limit(QEMUFile *f, int64_t new_rate);
+int64_t qemu_file_get_rate_limit(QEMUFile *f);
 int qemu_file_has_error(QEMUFile *f);
 void qemu_file_set_error(QEMUFile *f);
 

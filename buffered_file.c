@@ -206,12 +206,15 @@ static int buffered_rate_limit(void *opaque)
     return 0;
 }
 
-static size_t buffered_set_rate_limit(void *opaque, size_t new_rate)
+static int64_t buffered_set_rate_limit(void *opaque, int64_t new_rate)
 {
     QEMUFileBuffered *s = opaque;
-
     if (s->has_error)
         goto out;
+
+    if (new_rate > SIZE_MAX) {
+        new_rate = SIZE_MAX;
+    }
 
     s->xfer_limit = new_rate / 10;
     
@@ -219,7 +222,7 @@ out:
     return s->xfer_limit;
 }
 
-static size_t buffered_get_rate_limit(void *opaque)
+static int64_t buffered_get_rate_limit(void *opaque)
 {
     QEMUFileBuffered *s = opaque;
   

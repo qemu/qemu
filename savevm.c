@@ -611,7 +611,7 @@ int qemu_file_rate_limit(QEMUFile *f)
     return 0;
 }
 
-size_t qemu_file_get_rate_limit(QEMUFile *f)
+int64_t qemu_file_get_rate_limit(QEMUFile *f)
 {
     if (f->get_rate_limit)
         return f->get_rate_limit(f->opaque);
@@ -619,7 +619,7 @@ size_t qemu_file_get_rate_limit(QEMUFile *f)
     return 0;
 }
 
-size_t qemu_file_set_rate_limit(QEMUFile *f, size_t new_rate)
+int64_t qemu_file_set_rate_limit(QEMUFile *f, int64_t new_rate)
 {
     /* any failed or completed migration keeps its state to allow probing of
      * migration data, but has no associated file anymore */
