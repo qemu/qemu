@@ -769,10 +769,16 @@ VirtIODevice *virtio_serial_init(DeviceState *dev, uint32_t max_nr_ports)
     /* Add a queue for guest to host transfers for port 0 (backward compat) */
     vser->ovqs[0] = virtio_add_queue(vdev, 128, handle_output);
 
+    /* TODO: host to guest notifications can get dropped
+     * if the queue fills up. Implement queueing in host,
+     * this might also make it possible to reduce the control
+     * queue size: as guest preposts buffers there,
+     * this will save 4Kbyte of guest memory per entry. */
+
     /* control queue: host to guest */
-    vser->c_ivq = virtio_add_queue(vdev, 16, control_in);
+    vser->c_ivq = virtio_add_queue(vdev, 32, control_in);
     /* control queue: guest to host */
-    vser->c_ovq = virtio_add_queue(vdev, 16, control_out);
+    vser->c_ovq = virtio_add_queue(vdev, 32, control_out);
 
     for (i = 1; i < vser->bus->max_nr_ports; i++) {
         /* Add a per-port queue for host to guest transfers */
