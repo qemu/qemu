@@ -830,6 +830,24 @@ static uint8_t usb_linux_get_alt_setting(USBHostDevice *s,
     struct usb_ctrltransfer ct;
     int ret;
 
+    if (usb_fs_type == USB_FS_SYS) {
+        char device_name[64], line[1024];
+        int alt_setting;
+
+        sprintf(device_name, "%d-%d:%d.%d", s->bus_num, s->devpath,
+                (int)configuration, (int)interface);
+
+        if (!usb_host_read_file(line, sizeof(line), "bAlternateSetting",
+                                device_name)) {
+            goto usbdevfs;
+        }
+        if (sscanf(line, "%d", &alt_setting) != 1) {
+            goto usbdevfs;
+        }
+        return alt_setting;
+    }
+
+usbdevfs:
     ct.bRequestType = USB_DIR_IN | USB_RECIP_INTERFACE;
     ct.bRequest = USB_REQ_GET_INTERFACE;
     ct.wValue = 0;
