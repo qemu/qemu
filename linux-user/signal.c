@@ -1535,16 +1535,56 @@ badframe:
 	return 0;
 }
 
+static abi_ulong *restore_sigframe_v2_vfp(CPUState *env, abi_ulong *regspace)
+{
+    int i;
+    abi_ulong magic, sz;
+    uint32_t fpscr, fpexc;
+    struct target_vfp_sigframe *vfpframe;
+    vfpframe = (struct target_vfp_sigframe *)regspace;
+
+    __get_user(magic, &vfpframe->magic);
+    __get_user(sz, &vfpframe->size);
+    if (magic != TARGET_VFP_MAGIC || sz != sizeof(*vfpframe)) {
+        return 0;
+    }
+    for (i = 0; i < 32; i++) {
+        __get_user(env->vfp.regs[i], &vfpframe->ufp.fpregs[i]);
+    }
+    __get_user(fpscr, &vfpframe->ufp.fpscr);
+    vfp_set_fpscr(env, fpscr);
+    __get_user(fpexc, &vfpframe->ufp_exc.fpexc);
+    /* Sanitise FPEXC: ensure VFP is enabled, FPINST2 is invalid
+     * and the exception flag is cleared
+     */
+    fpexc |= (1 << 30);
+    fpexc &= ~((1 << 31) | (1 << 28));
+    env->vfp.xregs[ARM_VFP_FPEXC] = fpexc;
+    __get_user(env->vfp.xregs[ARM_VFP_FPINST], &vfpframe->ufp_exc.fpinst);
+    __get_user(env->vfp.xregs[ARM_VFP_FPINST2], &vfpframe->ufp_exc.fpinst2);
+    return (abi_ulong*)(vfpframe + 1);
+}
+
 static int do_sigframe_return_v2(CPUState *env, target_ulong frame_addr,
                                  struct target_ucontext_v2 *uc)
 {
     sigset_t host_set;
+    abi_ulong *regspace;
 
     target_to_host_sigset(&host_set, &uc->tuc_sigmask);
     sigprocmask(SIG_SETMASK, &host_set, NULL);
 
     if (restore_sigcontext(env, &uc->tuc_mcontext))
         return 1;
+
+    /* Restore coprocessor signal frame */
+    regspace = uc->tuc_regspace;
+    if (arm_feature(env, ARM_FEATURE_VFP)) {
+        regspace = restore_sigframe_v2_vfp(env, regspace);
+        if (!regspace) {
+            return 1;
+        }
+    }
 
     if (do_sigaltstack(frame_addr + offsetof(struct target_ucontext_v2, tuc_stack), 0, get_sp_from_cpustate(env)) == -EFAULT)
         return 1;
