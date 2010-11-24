@@ -1540,6 +1540,16 @@ void pci_bridge_update_mappings(PCIBus *b)
     }
 }
 
+/* Whether a given bus number is in range of the secondary
+ * bus of the given bridge device. */
+static bool pci_secondary_bus_in_range(PCIDevice *dev, int bus_num)
+{
+    return !(pci_get_word(dev->config + PCI_BRIDGE_CONTROL) &
+             PCI_BRIDGE_CTL_BUS_RESET) /* Don't walk the bus if it's reset. */ &&
+        dev->config[PCI_SECONDARY_BUS] < bus_num &&
+        bus_num <= dev->config[PCI_SUBORDINATE_BUS];
+}
+
 PCIBus *pci_find_bus(PCIBus *bus, int bus_num)
 {
     PCIBus *sec;
@@ -1552,20 +1562,21 @@ PCIBus *pci_find_bus(PCIBus *bus, int bus_num)
         return bus;
     }
 
+    /* Consider all bus numbers in range for the host pci bridge. */
+    if (bus->parent_dev &&
+        !pci_secondary_bus_in_range(bus->parent_dev, bus_num)) {
+        return NULL;
+    }
+
     /* try child bus */
-    if (!bus->parent_dev /* host pci bridge */ ||
-        (bus->parent_dev->config[PCI_SECONDARY_BUS] < bus_num &&
-         bus_num <= bus->parent_dev->config[PCI_SUBORDINATE_BUS])) {
-        for (; bus; bus = sec) {
-            QLIST_FOREACH(sec, &bus->child, sibling) {
-                assert(sec->parent_dev);
-                if (sec->parent_dev->config[PCI_SECONDARY_BUS] == bus_num) {
-                    return sec;
-                }
-                if (sec->parent_dev->config[PCI_SECONDARY_BUS] < bus_num &&
-                    bus_num <= sec->parent_dev->config[PCI_SUBORDINATE_BUS]) {
-                    break;
-                }
+    for (; bus; bus = sec) {
+        QLIST_FOREACH(sec, &bus->child, sibling) {
+            assert(sec->parent_dev);
+            if (sec->parent_dev->config[PCI_SECONDARY_BUS] == bus_num) {
+                return sec;
+            }
+            if (pci_secondary_bus_in_range(sec->parent_dev, bus_num)) {
+                break;
             }
         }
     }
