@@ -1130,7 +1130,21 @@ struct target_vfp_sigframe {
     struct target_user_vfp_exc ufp_exc;
 } __attribute__((__aligned__(8)));
 
+struct target_iwmmxt_sigframe {
+    abi_ulong magic;
+    abi_ulong size;
+    uint64_t regs[16];
+    /* Note that not all the coprocessor control registers are stored here */
+    uint32_t wcssf;
+    uint32_t wcasf;
+    uint32_t wcgr0;
+    uint32_t wcgr1;
+    uint32_t wcgr2;
+    uint32_t wcgr3;
+} __attribute__((__aligned__(8)));
+
 #define TARGET_VFP_MAGIC 0x56465001
+#define TARGET_IWMMXT_MAGIC 0x12ef842a
 
 struct sigframe_v1
 {
@@ -1292,6 +1306,25 @@ static abi_ulong *setup_sigframe_v2_vfp(abi_ulong *regspace, CPUState *env)
     return (abi_ulong*)(vfpframe+1);
 }
 
+static abi_ulong *setup_sigframe_v2_iwmmxt(abi_ulong *regspace, CPUState *env)
+{
+    int i;
+    struct target_iwmmxt_sigframe *iwmmxtframe;
+    iwmmxtframe = (struct target_iwmmxt_sigframe *)regspace;
+    __put_user(TARGET_IWMMXT_MAGIC, &iwmmxtframe->magic);
+    __put_user(sizeof(*iwmmxtframe), &iwmmxtframe->size);
+    for (i = 0; i < 16; i++) {
+        __put_user(env->iwmmxt.regs[i], &iwmmxtframe->regs[i]);
+    }
+    __put_user(env->vfp.xregs[ARM_IWMMXT_wCSSF], &iwmmxtframe->wcssf);
+    __put_user(env->vfp.xregs[ARM_IWMMXT_wCASF], &iwmmxtframe->wcssf);
+    __put_user(env->vfp.xregs[ARM_IWMMXT_wCGR0], &iwmmxtframe->wcgr0);
+    __put_user(env->vfp.xregs[ARM_IWMMXT_wCGR1], &iwmmxtframe->wcgr1);
+    __put_user(env->vfp.xregs[ARM_IWMMXT_wCGR2], &iwmmxtframe->wcgr2);
+    __put_user(env->vfp.xregs[ARM_IWMMXT_wCGR3], &iwmmxtframe->wcgr3);
+    return (abi_ulong*)(iwmmxtframe+1);
+}
+
 static void setup_sigframe_v2(struct target_ucontext_v2 *uc,
                               target_sigset_t *set, CPUState *env)
 {
@@ -1314,6 +1347,10 @@ static void setup_sigframe_v2(struct target_ucontext_v2 *uc,
     if (arm_feature(env, ARM_FEATURE_VFP)) {
         regspace = setup_sigframe_v2_vfp(regspace, env);
     }
+    if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
+        regspace = setup_sigframe_v2_iwmmxt(regspace, env);
+    }
+
     /* Write terminating magic word */
     __put_user(0, regspace);
 
