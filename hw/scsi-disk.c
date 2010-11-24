@@ -398,15 +398,20 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
 
         switch (page_code) {
         case 0x00: /* Supported page codes, mandatory */
+        {
+            int pages;
             DPRINTF("Inquiry EVPD[Supported pages] "
                     "buffer size %zd\n", req->cmd.xfer);
-            outbuf[buflen++] = 4;    // number of pages
+            pages = buflen++;
             outbuf[buflen++] = 0x00; // list of supported pages (this page)
             outbuf[buflen++] = 0x80; // unit serial number
             outbuf[buflen++] = 0x83; // device identification
-            outbuf[buflen++] = 0xb0; // block device characteristics
+            if (bdrv_get_type_hint(s->bs) != BDRV_TYPE_CDROM) {
+                outbuf[buflen++] = 0xb0; // block device characteristics
+            }
+            outbuf[pages] = buflen - pages - 1; // number of pages
             break;
-
+        }
         case 0x80: /* Device serial number, optional */
         {
             int l = strlen(s->serial);
@@ -434,7 +439,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             DPRINTF("Inquiry EVPD[Device identification] "
                     "buffer size %zd\n", req->cmd.xfer);
 
-            outbuf[buflen++] = 3 + id_len;
+            outbuf[buflen++] = 4 + id_len;
             outbuf[buflen++] = 0x2; // ASCII
             outbuf[buflen++] = 0;   // not officially assigned
             outbuf[buflen++] = 0;   // reserved
@@ -451,6 +456,11 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             unsigned int opt_io_size =
                     s->qdev.conf.opt_io_size / s->qdev.blocksize;
 
+            if (bdrv_get_type_hint(s->bs) == BDRV_TYPE_CDROM) {
+                DPRINTF("Inquiry (EVPD[%02X] not supported for CDROM\n",
+                        page_code);
+                return -1;
+            }
             /* required VPD size with unmap support */
             outbuf[3] = buflen = 0x3c;
 
