@@ -102,12 +102,6 @@ static const char *offset2name(const OffsetNamePair *o2n, unsigned offset)
 #define MP_ETH_BASE             0x80008000
 #define MP_ETH_SIZE             0x00001000
 
-#define MP_WLAN_BASE            0x8000C000
-#define MP_WLAN_SIZE            0x00000800
-
-#define MP_UART1_BASE           0x8000C840
-#define MP_UART2_BASE           0x8000C940
-
 #define MP_GPIO_BASE            0x8000D000
 #define MP_GPIO_SIZE            0x00001000
 
@@ -137,8 +131,6 @@ static const char *offset2name(const OffsetNamePair *o2n, unsigned offset)
 #define MP_TIMER4_IRQ           7
 #define MP_EHCI_IRQ             8
 #define MP_ETH_IRQ              9
-#define MP_UART1_IRQ            11
-#define MP_UART2_IRQ            11
 #define MP_GPIO_IRQ             12
 #define MP_RTC_IRQ              28
 #define MP_AUDIO_IRQ            30
@@ -878,52 +870,6 @@ static void tt_ioport_init(void)
 }
 #endif
 
-/* WLAN register offsets */
-#define MP_WLAN_MAGIC1          0x11c
-#define MP_WLAN_MAGIC2          0x124
-
-static uint32_t mv88w8618_wlan_read(void *opaque, target_phys_addr_t offset)
-{
-    switch (offset) {
-    /* Workaround to allow loading the binary-only wlandrv.ko crap
-     * from the original Freecom firmware. */
-    case MP_WLAN_MAGIC1:
-        return ~3;
-    case MP_WLAN_MAGIC2:
-        return -1;
-
-    default:
-        return 0;
-    }
-}
-
-static void mv88w8618_wlan_write(void *opaque, target_phys_addr_t offset,
-                                 uint32_t value)
-{
-}
-
-static CPUReadMemoryFunc * const mv88w8618_wlan_readfn[] = {
-    mv88w8618_wlan_read,
-    mv88w8618_wlan_read,
-    mv88w8618_wlan_read,
-};
-
-static CPUWriteMemoryFunc * const mv88w8618_wlan_writefn[] = {
-    mv88w8618_wlan_write,
-    mv88w8618_wlan_write,
-    mv88w8618_wlan_write,
-};
-
-static int mv88w8618_wlan_init(SysBusDevice *dev)
-{
-    int iomemtype;
-
-    iomemtype = cpu_register_io_memory(mv88w8618_wlan_readfn,
-                                       mv88w8618_wlan_writefn, NULL);
-    sysbus_init_mmio(dev, MP_WLAN_SIZE, iomemtype);
-    return 0;
-}
-
 /* GPIO register offsets */
 #define MP_GPIO_OE_LO           0x008
 #define MP_GPIO_OUT_LO          0x00c
@@ -1380,15 +1326,6 @@ static void tt_init(ram_addr_t ram_size,
                           pic[MP_TIMER2_IRQ], pic[MP_TIMER3_IRQ],
                           pic[MP_TIMER4_IRQ], NULL);
 
-    if (serial_hds[0]) {
-        serial_mm_init(MP_UART1_BASE, 2, pic[MP_UART1_IRQ], 1825000,
-                       serial_hds[0], 1, bigendian);
-    }
-    if (serial_hds[1]) {
-        serial_mm_init(MP_UART2_BASE, 2, pic[MP_UART2_IRQ], 1825000,
-                       serial_hds[1], 1, bigendian);
-    }
-
     /* Register flash */
     dinfo = drive_get(IF_PFLASH, 0, 0);
     if (dinfo) {
@@ -1420,8 +1357,6 @@ static void tt_init(ram_addr_t ram_size,
     qdev_init_nofail(dev);
     sysbus_mmio_map(sysbus_from_qdev(dev), 0, MP_ETH_BASE);
     sysbus_connect_irq(sysbus_from_qdev(dev), 0, pic[MP_ETH_IRQ]);
-
-    sysbus_create_simple("mv88w8618_wlan", MP_WLAN_BASE, NULL);
 #endif
 
     //~ tt_syscon_init();
@@ -1540,8 +1475,6 @@ static void tt_register_devices(void)
     sysbus_register_withprop(&mv88w8618_pic_info);
     sysbus_register_withprop(&mv88w8618_pit_info);
     sysbus_register_withprop(&mv88w8618_flashcfg_info);
-    sysbus_register_dev("mv88w8618_wlan", sizeof(SysBusDevice),
-                        mv88w8618_wlan_init);
     sysbus_register_withprop(&tt_lcd_info);
     sysbus_register_withprop(&tt_gpio_info);
     sysbus_register_withprop(&tt_key_info);
