@@ -92,7 +92,7 @@ mv $TEST_IMG $TEST_IMG.orig
 for backing_option in "-B $TEST_IMG.base" "-o backing_file=$TEST_IMG.base"; do
 
     echo
-    echo Testing conversion with $backing_option | _filter_testdir
+    echo Testing conversion with $backing_option | _filter_testdir | _filter_imgfmt
     echo
     $QEMU_IMG convert -O $IMGFMT $backing_option $TEST_IMG.orig $TEST_IMG
 

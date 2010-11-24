@@ -538,7 +538,7 @@ qemu-io> wrote 65536/65536 bytes at offset 4296146944
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> No errors were found on the image.
 
-Testing conversion with -B TEST_DIR/t.qcow2.base
+Testing conversion with -B TEST_DIR/t.IMGFMT.base
 
 Checking if backing clusters are allocated when they shouldn't
 
@@ -1082,7 +1082,7 @@ qemu-io> read 65536/65536 bytes at offset 4296343552
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> No errors were found on the image.
 
-Testing conversion with -o backing_file=TEST_DIR/t.qcow2.base
+Testing conversion with -o backing_file=TEST_DIR/t.IMGFMT.base
 
 Checking if backing clusters are allocated when they shouldn't
 
