@@ -96,17 +96,17 @@ static void scsi_command_complete(void *opaque, int ret)
         s->senselen = r->io_header.sb_len_wr;
 
     if (ret != 0)
-        r->req.status = BUSY << 1;
+        r->req.status = BUSY;
     else {
         if (s->driver_status & SG_ERR_DRIVER_TIMEOUT) {
-            r->req.status = BUSY << 1;
+            r->req.status = BUSY;
             BADF("Driver Timeout\n");
         } else if (r->io_header.status)
             r->req.status = r->io_header.status;
         else if (s->driver_status & SG_ERR_DRIVER_SENSE)
-            r->req.status = CHECK_CONDITION << 1;
+            r->req.status = CHECK_CONDITION;
         else
-            r->req.status = GOOD << 1;
+            r->req.status = GOOD;
     }
     DPRINTF("Command complete 0x%p tag=0x%x status=%d\n",
             r, r->req.tag, r->req.status);
@@ -333,7 +333,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         s->senselen = 7;
         s->driver_status = SG_ERR_DRIVER_SENSE;
         bus = scsi_bus_from_device(d);
-        bus->complete(bus, SCSI_REASON_DONE, tag, CHECK_CONDITION << 1);
+        bus->complete(bus, SCSI_REASON_DONE, tag, CHECK_CONDITION);
         return 0;
     }
 
