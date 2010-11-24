@@ -1112,6 +1112,26 @@ struct target_ucontext_v2 {
     abi_ulong tuc_regspace[128] __attribute__((__aligned__(8)));
 };
 
+struct target_user_vfp {
+    uint64_t fpregs[32];
+    abi_ulong fpscr;
+};
+
+struct target_user_vfp_exc {
+    abi_ulong fpexc;
+    abi_ulong fpinst;
+    abi_ulong fpinst2;
+};
+
+struct target_vfp_sigframe {
+    abi_ulong magic;
+    abi_ulong size;
+    struct target_user_vfp ufp;
+    struct target_user_vfp_exc ufp_exc;
+} __attribute__((__aligned__(8)));
+
+#define TARGET_VFP_MAGIC 0x56465001
+
 struct sigframe_v1
 {
     struct target_sigcontext sc;
@@ -1255,11 +1275,29 @@ setup_return(CPUState *env, struct target_sigaction *ka,
 	return 0;
 }
 
+static abi_ulong *setup_sigframe_v2_vfp(abi_ulong *regspace, CPUState *env)
+{
+    int i;
+    struct target_vfp_sigframe *vfpframe;
+    vfpframe = (struct target_vfp_sigframe *)regspace;
+    __put_user(TARGET_VFP_MAGIC, &vfpframe->magic);
+    __put_user(sizeof(*vfpframe), &vfpframe->size);
+    for (i = 0; i < 32; i++) {
+        __put_user(env->vfp.regs[i], &vfpframe->ufp.fpregs[i]);
+    }
+    __put_user(vfp_get_fpscr(env), &vfpframe->ufp.fpscr);
+    __put_user(env->vfp.xregs[ARM_VFP_FPEXC], &vfpframe->ufp_exc.fpexc);
+    __put_user(env->vfp.xregs[ARM_VFP_FPINST], &vfpframe->ufp_exc.fpinst);
+    __put_user(env->vfp.xregs[ARM_VFP_FPINST2], &vfpframe->ufp_exc.fpinst2);
+    return (abi_ulong*)(vfpframe+1);
+}
+
 static void setup_sigframe_v2(struct target_ucontext_v2 *uc,
                               target_sigset_t *set, CPUState *env)
 {
     struct target_sigaltstack stack;
     int i;
+    abi_ulong *regspace;
 
     /* Clear all the bits of the ucontext we don't use.  */
     memset(uc, 0, offsetof(struct target_ucontext_v2, tuc_mcontext));
@@ -1271,7 +1309,14 @@ static void setup_sigframe_v2(struct target_ucontext_v2 *uc,
     memcpy(&uc->tuc_stack, &stack, sizeof(stack));
 
     setup_sigcontext(&uc->tuc_mcontext, env, set->sig[0]);
-    /* FIXME: Save coprocessor signal frame.  */
+    /* Save coprocessor signal frame.  */
+    regspace = uc->tuc_regspace;
+    if (arm_feature(env, ARM_FEATURE_VFP)) {
+        regspace = setup_sigframe_v2_vfp(regspace, env);
+    }
+    /* Write terminating magic word */
+    __put_user(0, regspace);
+
     for(i = 0; i < TARGET_NSIG_WORDS; i++) {
         __put_user(set->sig[i], &uc->tuc_sigmask.sig[i]);
     }
