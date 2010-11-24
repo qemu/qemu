@@ -3,6 +3,7 @@
 
 #include "qdev.h"
 #include "block.h"
+#include "blockdev.h"
 #include "block_int.h"
 
 #define SCSI_CMD_BUF_SIZE     16
@@ -86,7 +87,7 @@ struct SCSIBus {
     int tcq, ndev;
     scsi_completionfn complete;
 
-    SCSIDevice *devs[8];
+    SCSIDevice *devs[MAX_SCSI_DEVS];
 };
 
 void scsi_bus_new(SCSIBus *bus, DeviceState *host, int tcq, int ndev,
