@@ -480,9 +480,9 @@ static int local_chown(FsContext *fs_ctx, const char *path, FsCred *credp)
 }
 
 static int local_utimensat(FsContext *s, const char *path,
-		       const struct timespec *buf)
+                           const struct timespec *buf)
 {
-    return utimensat(AT_FDCWD, rpath(s, path), buf, AT_SYMLINK_NOFOLLOW);
+    return qemu_utimensat(AT_FDCWD, rpath(s, path), buf, AT_SYMLINK_NOFOLLOW);
 }
 
 static int local_remove(FsContext *ctx, const char *path)
