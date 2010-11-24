@@ -823,13 +823,35 @@ usbdevfs:
     return configuration;
 }
 
+static uint8_t usb_linux_get_alt_setting(USBHostDevice *s,
+    uint8_t configuration, uint8_t interface)
+{
+    uint8_t alt_setting;
+    struct usb_ctrltransfer ct;
+    int ret;
+
+    ct.bRequestType = USB_DIR_IN | USB_RECIP_INTERFACE;
+    ct.bRequest = USB_REQ_GET_INTERFACE;
+    ct.wValue = 0;
+    ct.wIndex = interface;
+    ct.wLength = 1;
+    ct.data = &alt_setting;
+    ct.timeout = 50;
+    ret = ioctl(s->fd, USBDEVFS_CONTROL, &ct);
+    if (ret < 0) {
+        /* Assume alt 0 on error */
+        return 0;
+    }
+
+    return alt_setting;
+}
+
 /* returns 1 on problem encountered or 0 for success */
 static int usb_linux_update_endp_table(USBHostDevice *s)
 {
     uint8_t *descriptors;
     uint8_t devep, type, configuration, alt_interface;
-    struct usb_ctrltransfer ct;
-    int interface, ret, length, i;
+    int interface, length, i;
 
     i = usb_linux_get_configuration(s);
     if (i < 0)
@@ -858,19 +880,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
         }
 
         interface = descriptors[i + 2];
-
-        ct.bRequestType = USB_DIR_IN | USB_RECIP_INTERFACE;
-        ct.bRequest = USB_REQ_GET_INTERFACE;
-        ct.wValue = 0;
-        ct.wIndex = interface;
-        ct.wLength = 1;
-        ct.data = &alt_interface;
-        ct.timeout = 50;
-
-        ret = ioctl(s->fd, USBDEVFS_CONTROL, &ct);
-        if (ret < 0) {
-            alt_interface = interface;
-        }
+        alt_interface = usb_linux_get_alt_setting(s, configuration, interface);
 
         /* the current interface descriptor is the active interface
          * and has endpoints */
