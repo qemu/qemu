@@ -300,6 +300,10 @@ static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
     }
 }
 
+/* Return the current FPSCR value.  */
+uint32_t vfp_get_fpscr(CPUARMState *env);
+void vfp_set_fpscr(CPUARMState *env, uint32_t val);
+
 enum arm_cpu_mode {
   ARM_CPU_MODE_USR = 0x10,
   ARM_CPU_MODE_FIQ = 0x11,
