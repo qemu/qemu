@@ -1602,6 +1602,30 @@ static abi_ulong *restore_sigframe_v2_vfp(CPUState *env, abi_ulong *regspace)
     return (abi_ulong*)(vfpframe + 1);
 }
 
+static abi_ulong *restore_sigframe_v2_iwmmxt(CPUState *env, abi_ulong *regspace)
+{
+    int i;
+    abi_ulong magic, sz;
+    struct target_iwmmxt_sigframe *iwmmxtframe;
+    iwmmxtframe = (struct target_iwmmxt_sigframe *)regspace;
+
+    __get_user(magic, &iwmmxtframe->magic);
+    __get_user(sz, &iwmmxtframe->size);
+    if (magic != TARGET_IWMMXT_MAGIC || sz != sizeof(*iwmmxtframe)) {
+        return 0;
+    }
+    for (i = 0; i < 16; i++) {
+        __get_user(env->iwmmxt.regs[i], &iwmmxtframe->regs[i]);
+    }
+    __get_user(env->vfp.xregs[ARM_IWMMXT_wCSSF], &iwmmxtframe->wcssf);
+    __get_user(env->vfp.xregs[ARM_IWMMXT_wCASF], &iwmmxtframe->wcssf);
+    __get_user(env->vfp.xregs[ARM_IWMMXT_wCGR0], &iwmmxtframe->wcgr0);
+    __get_user(env->vfp.xregs[ARM_IWMMXT_wCGR1], &iwmmxtframe->wcgr1);
+    __get_user(env->vfp.xregs[ARM_IWMMXT_wCGR2], &iwmmxtframe->wcgr2);
+    __get_user(env->vfp.xregs[ARM_IWMMXT_wCGR3], &iwmmxtframe->wcgr3);
+    return (abi_ulong*)(iwmmxtframe + 1);
+}
+
 static int do_sigframe_return_v2(CPUState *env, target_ulong frame_addr,
                                  struct target_ucontext_v2 *uc)
 {
@@ -1618,6 +1642,12 @@ static int do_sigframe_return_v2(CPUState *env, target_ulong frame_addr,
     regspace = uc->tuc_regspace;
     if (arm_feature(env, ARM_FEATURE_VFP)) {
         regspace = restore_sigframe_v2_vfp(env, regspace);
+        if (!regspace) {
+            return 1;
+        }
+    }
+    if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
+        regspace = restore_sigframe_v2_iwmmxt(env, regspace);
         if (!regspace) {
             return 1;
         }
