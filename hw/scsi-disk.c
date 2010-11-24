@@ -1004,9 +1004,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
                                  uint8_t *buf, int lun)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
-    uint64_t lba;
     uint32_t len;
-    int cmdlen;
     int is_write;
     uint8_t command;
     uint8_t *outbuf;
@@ -1025,54 +1023,20 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     outbuf = (uint8_t *)r->iov.iov_base;
     is_write = 0;
     DPRINTF("Command: lun=%d tag=0x%x data=0x%02x", lun, tag, buf[0]);
-    switch (command >> 5) {
-    case 0:
-        lba = (uint64_t) buf[3] | ((uint64_t) buf[2] << 8) |
-              (((uint64_t) buf[1] & 0x1f) << 16);
-        len = buf[4];
-        cmdlen = 6;
-        break;
-    case 1:
-    case 2:
-        lba = (uint64_t) buf[5] | ((uint64_t) buf[4] << 8) |
-              ((uint64_t) buf[3] << 16) | ((uint64_t) buf[2] << 24);
-        len = buf[8] | (buf[7] << 8);
-        cmdlen = 10;
-        break;
-    case 4:
-        lba = (uint64_t) buf[9] | ((uint64_t) buf[8] << 8) |
-              ((uint64_t) buf[7] << 16) | ((uint64_t) buf[6] << 24) |
-              ((uint64_t) buf[5] << 32) | ((uint64_t) buf[4] << 40) |
-              ((uint64_t) buf[3] << 48) | ((uint64_t) buf[2] << 56);
-        len = buf[13] | (buf[12] << 8) | (buf[11] << 16) | (buf[10] << 24);
-        cmdlen = 16;
-        break;
-    case 5:
-        lba = (uint64_t) buf[5] | ((uint64_t) buf[4] << 8) |
-              ((uint64_t) buf[3] << 16) | ((uint64_t) buf[2] << 24);
-        len = buf[9] | (buf[8] << 8) | (buf[7] << 16) | (buf[6] << 24);
-        cmdlen = 12;
-        break;
-    default:
+
+    if (scsi_req_parse(&r->req, buf) != 0) {
         BADF("Unsupported command length, command %x\n", command);
         goto fail;
     }
 #ifdef DEBUG_SCSI
     {
         int i;
-        for (i = 1; i < cmdlen; i++) {
+        for (i = 1; i < r->req.cmd.len; i++) {
             printf(" 0x%02x", buf[i]);
         }
         printf("\n");
     }
 #endif
-
-    if (scsi_req_parse(&r->req, buf) != 0) {
-        BADF("Unsupported command length, command %x\n", command);
-        goto fail;
-    }
-    assert(r->req.cmd.len == cmdlen);
-    assert(r->req.cmd.lba == lba);
 
     if (lun || buf[1] >> 5) {
         /* Only LUN 0 supported.  */
@@ -1111,10 +1075,11 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case READ_10:
     case READ_12:
     case READ_16:
-        DPRINTF("Read (sector %" PRId64 ", count %d)\n", lba, len);
-        if (lba > s->max_lba)
+        len = r->req.cmd.xfer / d->blocksize;
+        DPRINTF("Read (sector %" PRId64 ", count %d)\n", r->req.cmd.lba, len);
+        if (r->req.cmd.lba > s->max_lba)
             goto illegal_lba;
-        r->sector = lba * s->cluster_size;
+        r->sector = r->req.cmd.lba * s->cluster_size;
         r->sector_count = len * s->cluster_size;
         break;
     case WRITE_6:
@@ -1124,42 +1089,45 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case WRITE_VERIFY:
     case WRITE_VERIFY_12:
     case WRITE_VERIFY_16:
+        len = r->req.cmd.xfer / d->blocksize;
         DPRINTF("Write %s(sector %" PRId64 ", count %d)\n",
-                (command & 0xe) == 0xe ? "And Verify " : "", lba, len);
-        if (lba > s->max_lba)
+                (command & 0xe) == 0xe ? "And Verify " : "",
+                r->req.cmd.lba, len);
+        if (r->req.cmd.lba > s->max_lba)
             goto illegal_lba;
-        r->sector = lba * s->cluster_size;
+        r->sector = r->req.cmd.lba * s->cluster_size;
         r->sector_count = len * s->cluster_size;
         is_write = 1;
         break;
     case MODE_SELECT:
-        DPRINTF("Mode Select(6) (len %d)\n", len);
+        DPRINTF("Mode Select(6) (len %lu)\n", (long)r->req.cmd.xfer);
         /* We don't support mode parameter changes.
            Allow the mode parameter header + block descriptors only. */
-        if (len > 12) {
+        if (r->req.cmd.xfer > 12) {
             goto fail;
         }
         break;
     case MODE_SELECT_10:
-        DPRINTF("Mode Select(10) (len %d)\n", len);
+        DPRINTF("Mode Select(10) (len %lu)\n", (long)r->req.cmd.xfer);
         /* We don't support mode parameter changes.
            Allow the mode parameter header + block descriptors only. */
-        if (len > 16) {
+        if (r->req.cmd.xfer > 16) {
             goto fail;
         }
         break;
     case SEEK_6:
     case SEEK_10:
-        DPRINTF("Seek(%d) (sector %" PRId64 ")\n", command == SEEK_6 ? 6 : 10, lba);
-        if (lba > s->max_lba) {
+        DPRINTF("Seek(%d) (sector %" PRId64 ")\n", command == SEEK_6 ? 6 : 10,
+                r->req.cmd.lba);
+        if (r->req.cmd.lba > s->max_lba) {
             goto illegal_lba;
         }
         break;
     default:
-	DPRINTF("Unknown SCSI command (%2.2x)\n", buf[0]);
+        DPRINTF("Unknown SCSI command (%2.2x)\n", buf[0]);
     fail:
         scsi_command_complete(r, CHECK_CONDITION, ILLEGAL_REQUEST);
-	return 0;
+        return 0;
     illegal_lba:
         scsi_command_complete(r, CHECK_CONDITION, HARDWARE_ERROR);
         return 0;
