@@ -49,6 +49,10 @@ do { fprintf(stderr, "scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 
 typedef struct SCSIDiskState SCSIDiskState;
 
+typedef struct SCSISense {
+    uint8_t key;
+} SCSISense;
+
 typedef struct SCSIDiskReq {
     SCSIRequest req;
     /* ??? We should probably keep track of whether the data transfer is
@@ -72,6 +76,7 @@ struct SCSIDiskState
     QEMUBH *bh;
     char *version;
     char *serial;
+    SCSISense sense;
 };
 
 static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type);
@@ -100,10 +105,22 @@ static SCSIDiskReq *scsi_find_request(SCSIDiskState *s, uint32_t tag)
     return DO_UPCAST(SCSIDiskReq, req, scsi_req_find(&s->qdev, tag));
 }
 
-static void scsi_req_set_status(SCSIRequest *req, int status, int sense_code)
+static void scsi_disk_clear_sense(SCSIDiskState *s)
 {
-    req->status = status;
-    scsi_dev_set_sense(req->dev, sense_code);
+    memset(&s->sense, 0, sizeof(s->sense));
+}
+
+static void scsi_disk_set_sense(SCSIDiskState *s, uint8_t key)
+{
+    s->sense.key = key;
+}
+
+static void scsi_req_set_status(SCSIDiskReq *r, int status, int sense_code)
+{
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+
+    r->req.status = status;
+    scsi_disk_set_sense(s, sense_code);
 }
 
 /* Helper function for command completion.  */
@@ -111,7 +128,7 @@ static void scsi_command_complete(SCSIDiskReq *r, int status, int sense)
 {
     DPRINTF("Command complete tag=0x%x status=%d sense=%d\n",
             r->req.tag, status, sense);
-    scsi_req_set_status(&r->req, status, sense);
+    scsi_req_set_status(r, status, sense);
     scsi_req_complete(&r->req);
     scsi_remove_request(r);
 }
@@ -822,7 +839,7 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
             goto illegal_request;
         memset(outbuf, 0, 4);
         buflen = 4;
-        if (req->dev->sense.key == NOT_READY && req->cmd.xfer >= 18) {
+        if (s->sense.key == NOT_READY && req->cmd.xfer >= 18) {
             memset(outbuf, 0, 18);
             buflen = 18;
             outbuf[7] = 10;
@@ -832,8 +849,8 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
         }
         outbuf[0] = 0xf0;
         outbuf[1] = 0;
-        outbuf[2] = req->dev->sense.key;
-        scsi_dev_clear_sense(req->dev);
+        outbuf[2] = s->sense.key;
+        scsi_disk_clear_sense(s);
         break;
     case INQUIRY:
         buflen = scsi_disk_emulate_inquiry(req, outbuf);
@@ -966,7 +983,7 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
     default:
         goto illegal_request;
     }
-    scsi_req_set_status(req, GOOD, NO_SENSE);
+    scsi_req_set_status(r, GOOD, NO_SENSE);
     return buflen;
 
 not_ready:

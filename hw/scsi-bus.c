@@ -123,16 +123,6 @@ int scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
     return res;
 }
 
-void scsi_dev_clear_sense(SCSIDevice *dev)
-{
-    memset(&dev->sense, 0, sizeof(dev->sense));
-}
-
-void scsi_dev_set_sense(SCSIDevice *dev, uint8_t key)
-{
-    dev->sense.key = key;
-}
-
 SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag, uint32_t lun)
 {
     SCSIRequest *req;
