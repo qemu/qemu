@@ -132,7 +132,7 @@ int kvm_arch_get_registers(CPUState *env)
 {
     struct kvm_regs regs;
     struct kvm_sregs sregs;
-    uint32_t i, ret;
+    int i, ret;
 
     ret = kvm_vcpu_ioctl(env, KVM_GET_REGS, &regs);
     if (ret < 0)
