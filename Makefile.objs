@@ -161,8 +161,11 @@ hw-obj-y =
 hw-obj-y += vl.o loader.o
 hw-obj-y += virtio.o virtio-console.o
 hw-obj-y += fw_cfg.o
-hw-obj-$(CONFIG_PCI) += pci.o pci_host.o pcie_host.o pci_bridge.o
-hw-obj-y += ioh3420.o xio3130_upstream.o xio3130_downstream.o
+# FIXME: Core PCI code and its direct dependencies are required by the
+# QMP query-pci command.
+hw-obj-y += pci.o pci_bridge.o msix.o msi.o
+hw-obj-$(CONFIG_PCI) += pci_host.o pcie_host.o
+hw-obj-$(CONFIG_PCI) += ioh3420.o xio3130_upstream.o xio3130_downstream.o
 hw-obj-y += watchdog.o
 hw-obj-$(CONFIG_ISA_MMIO) += isa_mmio.o
 hw-obj-$(CONFIG_ECC) += ecc.o
@@ -207,15 +210,14 @@ hw-obj-$(CONFIG_PPCE500_PCI) += ppce500_pci.o
 hw-obj-$(CONFIG_PIIX4) += piix4.o
 
 # PCI watchdog devices
-hw-obj-y += wdt_i6300esb.o
+hw-obj-$(CONFIG_PCI) += wdt_i6300esb.o
 
-hw-obj-y += pcie.o pcie_port.o
-hw-obj-y += msix.o msi.o
+hw-obj-$(CONFIG_PCI) += pcie.o pcie_port.o
 
 # PCI network cards
-hw-obj-y += ne2000.o
-hw-obj-y += eepro100.o
-hw-obj-y += pcnet.o
+hw-obj-$(CONFIG_NE2000_PCI) += ne2000.o
+hw-obj-$(CONFIG_EEPRO100_PCI) += eepro100.o
+hw-obj-$(CONFIG_PCNET_PCI) += pcnet.o
 
 hw-obj-$(CONFIG_SMC91C111) += smc91c111.o
 hw-obj-$(CONFIG_LAN9118) += lan9118.o
@@ -232,7 +234,7 @@ hw-obj-$(CONFIG_IDE_MACIO) += ide/macio.o
 hw-obj-$(CONFIG_IDE_VIA) += ide/via.o
 
 # SCSI layer
-hw-obj-y += lsi53c895a.o
+hw-obj-$(CONFIG_LSI_SCSI_PCI) += lsi53c895a.o
 hw-obj-$(CONFIG_ESP) += esp.o
 
 hw-obj-y += dma-helpers.o sysbus.o isa-bus.o
