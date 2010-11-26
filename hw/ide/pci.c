@@ -39,38 +39,42 @@ void bmdma_cmd_writeb(void *opaque, uint32_t addr, uint32_t val)
 #ifdef DEBUG_IDE
     printf("%s: 0x%08x\n", __func__, val);
 #endif
-    if (!(val & BM_CMD_START)) {
-        /*
-         * We can't cancel Scatter Gather DMA in the middle of the
-         * operation or a partial (not full) DMA transfer would reach
-         * the storage so we wait for completion instead (we beahve
-         * like if the DMA was completed by the time the guest trying
-         * to cancel dma with bmdma_cmd_writeb with BM_CMD_START not
-         * set).
-         *
-         * In the future we'll be able to safely cancel the I/O if the
-         * whole DMA operation will be submitted to disk with a single
-         * aio operation with preadv/pwritev.
-         */
-        if (bm->aiocb) {
-            qemu_aio_flush();
+
+    /* Ignore writes to SSBM if it keeps the old value */
+    if ((val & BM_CMD_START) != (bm->cmd & BM_CMD_START)) {
+        if (!(val & BM_CMD_START)) {
+            /*
+             * We can't cancel Scatter Gather DMA in the middle of the
+             * operation or a partial (not full) DMA transfer would reach
+             * the storage so we wait for completion instead (we beahve
+             * like if the DMA was completed by the time the guest trying
+             * to cancel dma with bmdma_cmd_writeb with BM_CMD_START not
+             * set).
+             *
+             * In the future we'll be able to safely cancel the I/O if the
+             * whole DMA operation will be submitted to disk with a single
+             * aio operation with preadv/pwritev.
+             */
+            if (bm->aiocb) {
+                qemu_aio_flush();
 #ifdef DEBUG_IDE
-            if (bm->aiocb)
-                printf("ide_dma_cancel: aiocb still pending");
-            if (bm->status & BM_STATUS_DMAING)
-                printf("ide_dma_cancel: BM_STATUS_DMAING still pending");
+                if (bm->aiocb)
+                    printf("ide_dma_cancel: aiocb still pending");
+                if (bm->status & BM_STATUS_DMAING)
+                    printf("ide_dma_cancel: BM_STATUS_DMAING still pending");
 #endif
+            }
+        } else {
+            if (!(bm->status & BM_STATUS_DMAING)) {
+                bm->status |= BM_STATUS_DMAING;
+                /* start dma transfer if possible */
+                if (bm->dma_cb)
+                    bm->dma_cb(bm, 0);
+            }
         }
-        bm->cmd = val & 0x09;
-    } else {
-        if (!(bm->status & BM_STATUS_DMAING)) {
-            bm->status |= BM_STATUS_DMAING;
-            /* start dma transfer if possible */
-            if (bm->dma_cb)
-                bm->dma_cb(bm, 0);
-        }
-        bm->cmd = val & 0x09;
     }
+
+    bm->cmd = val & 0x09;
 }
 
 static void bmdma_addr_read(IORange *ioport, uint64_t addr,
