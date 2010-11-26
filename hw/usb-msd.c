@@ -482,6 +482,7 @@ static int usb_msd_initfn(USBDevice *dev)
 {
     MSDState *s = DO_UPCAST(MSDState, dev, dev);
     BlockDriverState *bs = s->conf.bs;
+    DriveInfo *dinfo;
 
     if (!bs) {
         error_report("usb-msd: drive property not set");
@@ -499,6 +500,11 @@ static int usb_msd_initfn(USBDevice *dev)
      */
     bdrv_detach(bs, &s->dev.qdev);
     s->conf.bs = NULL;
+
+    dinfo = drive_get_by_blockdev(bs);
+    if (dinfo && dinfo->serial) {
+        usb_desc_set_string(dev, STR_SERIALNUMBER, dinfo->serial);
+    }
 
     s->dev.speed = USB_SPEED_FULL;
     scsi_bus_new(&s->bus, &s->dev.qdev, 0, 1, usb_msd_command_complete);
