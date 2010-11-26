@@ -1374,15 +1374,66 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
 
     switch(level) {
     case TARGET_SOL_SOCKET:
-    	level = SOL_SOCKET;
-	switch (optname) {
-	case TARGET_SO_LINGER:
-	case TARGET_SO_RCVTIMEO:
-	case TARGET_SO_SNDTIMEO:
-	case TARGET_SO_PEERCRED:
-	case TARGET_SO_PEERNAME:
-	    /* These don't just return a single integer */
-	    goto unimplemented;
+        level = SOL_SOCKET;
+        switch (optname) {
+        /* These don't just return a single integer */
+        case TARGET_SO_LINGER:
+        case TARGET_SO_RCVTIMEO:
+        case TARGET_SO_SNDTIMEO:
+        case TARGET_SO_PEERCRED:
+        case TARGET_SO_PEERNAME:
+            goto unimplemented;
+        /* Options with 'int' argument.  */
+        case TARGET_SO_DEBUG:
+            optname = SO_DEBUG;
+            goto int_case;
+        case TARGET_SO_REUSEADDR:
+            optname = SO_REUSEADDR;
+            goto int_case;
+        case TARGET_SO_TYPE:
+            optname = SO_TYPE;
+            goto int_case;
+        case TARGET_SO_ERROR:
+            optname = SO_ERROR;
+            goto int_case;
+        case TARGET_SO_DONTROUTE:
+            optname = SO_DONTROUTE;
+            goto int_case;
+        case TARGET_SO_BROADCAST:
+            optname = SO_BROADCAST;
+            goto int_case;
+        case TARGET_SO_SNDBUF:
+            optname = SO_SNDBUF;
+            goto int_case;
+        case TARGET_SO_RCVBUF:
+            optname = SO_RCVBUF;
+            goto int_case;
+        case TARGET_SO_KEEPALIVE:
+            optname = SO_KEEPALIVE;
+            goto int_case;
+        case TARGET_SO_OOBINLINE:
+            optname = SO_OOBINLINE;
+            goto int_case;
+        case TARGET_SO_NO_CHECK:
+            optname = SO_NO_CHECK;
+            goto int_case;
+        case TARGET_SO_PRIORITY:
+            optname = SO_PRIORITY;
+            goto int_case;
+#ifdef SO_BSDCOMPAT
+        case TARGET_SO_BSDCOMPAT:
+            optname = SO_BSDCOMPAT;
+            goto int_case;
+#endif
+        case TARGET_SO_PASSCRED:
+            optname = SO_PASSCRED;
+            goto int_case;
+        case TARGET_SO_TIMESTAMP:
+            optname = SO_TIMESTAMP;
+            goto int_case;
+        case TARGET_SO_RCVLOWAT:
+            optname = SO_RCVLOWAT;
+            goto int_case;
         default:
             goto int_case;
         }
@@ -1406,7 +1457,7 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
         } else {
             if (put_user_u8(val, optval_addr))
                 return -TARGET_EFAULT;
-	}
+        }
         if (put_user_u32(len, optlen))
             return -TARGET_EFAULT;
         break;
