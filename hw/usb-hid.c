@@ -695,10 +695,6 @@ static int usb_hid_handle_control(USBDevice *dev, int request, int value,
         }
         ret = 0;
         break;
-    case DeviceOutRequest | USB_REQ_SET_ADDRESS:
-        dev->addr = value;
-        ret = 0;
-        break;
     case DeviceRequest | USB_REQ_GET_CONFIGURATION:
         data[0] = 1;
         ret = 1;

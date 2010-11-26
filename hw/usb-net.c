@@ -1076,11 +1076,6 @@ static int usb_net_handle_control(USBDevice *dev, int request, int value,
         ret = 0;
         break;
 
-    case DeviceOutRequest | USB_REQ_SET_ADDRESS:
-        dev->addr = value;
-        ret = 0;
-        break;
-
     case ClassInterfaceOutRequest | USB_CDC_SEND_ENCAPSULATED_COMMAND:
         if (!s->rndis || value || index != 0)
             goto fail;
