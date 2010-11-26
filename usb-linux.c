@@ -94,6 +94,7 @@ static int usb_fs_type;
 /* endpoint association data */
 #define ISO_FRAME_DESC_PER_URB 32
 #define ISO_URB_COUNT 3
+#define INVALID_EP_TYPE 255
 
 typedef struct AsyncURB AsyncURB;
 
@@ -166,6 +167,11 @@ static int usb_host_read_file(char *line, size_t line_size,
 static int is_isoc(USBHostDevice *s, int ep)
 {
     return s->endp_table[ep - 1].type == USBDEVFS_URB_TYPE_ISO;
+}
+
+static int is_valid(USBHostDevice *s, int ep)
+{
+    return s->endp_table[ep - 1].type != INVALID_EP_TYPE;
 }
 
 static int is_halted(USBHostDevice *s, int ep)
@@ -610,6 +616,10 @@ static int usb_host_handle_data(USBHostDevice *s, USBPacket *p)
     AsyncURB *aurb;
     int ret;
     uint8_t ep;
+
+    if (!is_valid(s, p->devep)) {
+        return USB_RET_NAK;
+    }
 
     if (p->pid == USB_TOKEN_IN) {
         ep = p->devep | 0x80;
@@ -1070,6 +1080,9 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
     uint8_t *descriptors;
     uint8_t devep, type, configuration, alt_interface;
     int interface, length, i;
+
+    for (i = 0; i < MAX_ENDPOINTS; i++)
+        s->endp_table[i].type = INVALID_EP_TYPE;
 
     i = usb_linux_get_configuration(s);
     if (i < 0)
