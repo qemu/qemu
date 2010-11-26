@@ -153,6 +153,16 @@ int usb_desc_other(const USBDescOther *desc, uint8_t *dest, size_t len)
 
 /* ------------------------------------------------------------------ */
 
+void usb_desc_init(USBDevice *dev)
+{
+    const USBDesc *desc = dev->info->usb_desc;
+
+    assert(desc != NULL);
+    dev->speed  = USB_SPEED_FULL;
+    dev->device = desc->full;
+    dev->config = dev->device->confs;
+}
+
 void usb_desc_set_string(USBDevice *dev, uint8_t index, const char *str)
 {
     USBDescString *s;
@@ -230,12 +240,12 @@ int usb_desc_get_descriptor(USBDevice *dev, int value, uint8_t *dest, size_t len
 
     switch(type) {
     case USB_DT_DEVICE:
-        ret = usb_desc_device(&desc->id, desc->full, buf, sizeof(buf));
+        ret = usb_desc_device(&desc->id, dev->device, buf, sizeof(buf));
         trace_usb_desc_device(dev->addr, len, ret);
         break;
     case USB_DT_CONFIG:
-        if (index < desc->full->bNumConfigurations) {
-            ret = usb_desc_config(desc->full->confs + index, buf, sizeof(buf));
+        if (index < dev->device->bNumConfigurations) {
+            ret = usb_desc_config(dev->device->confs + index, buf, sizeof(buf));
         }
         trace_usb_desc_config(dev->addr, index, len, ret);
         break;
@@ -262,7 +272,7 @@ int usb_desc_handle_control(USBDevice *dev, int request, int value,
                             int index, int length, uint8_t *data)
 {
     const USBDesc *desc = dev->info->usb_desc;
-    int ret = -1;
+    int i, ret = -1;
 
     assert(desc != NULL);
     switch(request) {
@@ -274,6 +284,20 @@ int usb_desc_handle_control(USBDevice *dev, int request, int value,
 
     case DeviceRequest | USB_REQ_GET_DESCRIPTOR:
         ret = usb_desc_get_descriptor(dev, value, data, length);
+        break;
+
+    case DeviceRequest | USB_REQ_GET_CONFIGURATION:
+        data[0] = dev->config->bConfigurationValue;
+        ret = 1;
+        break;
+    case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
+        for (i = 0; i < dev->device->bNumConfigurations; i++) {
+            if (dev->device->confs[i].bConfigurationValue == value) {
+                dev->config = dev->device->confs + i;
+                ret = 0;
+            }
+        }
+        trace_usb_set_config(dev->addr, value, ret);
         break;
     }
     return ret;

@@ -261,13 +261,6 @@ static int usb_msd_handle_control(USBDevice *dev, int request, int value,
         }
         ret = 0;
         break;
-    case DeviceRequest | USB_REQ_GET_CONFIGURATION:
-        data[0] = 1;
-        ret = 1;
-        break;
-    case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
-        ret = 0;
-        break;
     case DeviceRequest | USB_REQ_GET_INTERFACE:
         data[0] = 0;
         ret = 1;
@@ -502,7 +495,7 @@ static int usb_msd_initfn(USBDevice *dev)
         usb_desc_set_string(dev, STR_SERIALNUMBER, dinfo->serial);
     }
 
-    s->dev.speed = USB_SPEED_FULL;
+    usb_desc_init(dev);
     scsi_bus_new(&s->bus, &s->dev.qdev, 0, 1, usb_msd_command_complete);
     s->scsi_dev = scsi_bus_legacy_add_drive(&s->bus, bs, 0);
     if (!s->scsi_dev) {

@@ -695,13 +695,6 @@ static int usb_hid_handle_control(USBDevice *dev, int request, int value,
         }
         ret = 0;
         break;
-    case DeviceRequest | USB_REQ_GET_CONFIGURATION:
-        data[0] = 1;
-        ret = 1;
-        break;
-    case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
-        ret = 0;
-        break;
     case DeviceRequest | USB_REQ_GET_INTERFACE:
         data[0] = 0;
         ret = 1;
@@ -822,7 +815,8 @@ static void usb_hid_handle_destroy(USBDevice *dev)
 static int usb_hid_initfn(USBDevice *dev, int kind)
 {
     USBHIDState *s = DO_UPCAST(USBHIDState, dev, dev);
-    s->dev.speed = USB_SPEED_FULL;
+
+    usb_desc_init(dev);
     s->kind = kind;
 
     if (s->kind == USB_MOUSE) {

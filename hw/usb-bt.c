@@ -380,6 +380,17 @@ static int usb_bt_handle_control(USBDevice *dev, int request, int value,
 
     ret = usb_desc_handle_control(dev, request, value, index, length, data);
     if (ret >= 0) {
+        switch (request) {
+        case DeviceRequest | USB_REQ_GET_CONFIGURATION:
+            s->config = 0;
+            break;
+        case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
+            s->config = 1;
+            usb_bt_fifo_reset(&s->evt);
+            usb_bt_fifo_reset(&s->acl);
+            usb_bt_fifo_reset(&s->sco);
+            break;
+        }
         return ret;
     }
 
@@ -412,23 +423,6 @@ static int usb_bt_handle_control(USBDevice *dev, int request, int value,
             goto fail;
         }
         ret = 0;
-        break;
-    case DeviceRequest | USB_REQ_GET_CONFIGURATION:
-        data[0] = 1;
-        ret = 1;
-        s->config = 0;
-        break;
-    case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
-        ret = 0;
-        if (value != 1 && value != 0) {
-            printf("%s: Wrong SET_CONFIGURATION request (%i)\n",
-                            __FUNCTION__, value);
-            goto fail;
-        }
-        s->config = 1;
-        usb_bt_fifo_reset(&s->evt);
-        usb_bt_fifo_reset(&s->acl);
-        usb_bt_fifo_reset(&s->sco);
         break;
     case InterfaceRequest | USB_REQ_GET_INTERFACE:
         if (value != 0 || (index & ~1) || length != 1)
@@ -544,8 +538,7 @@ static void usb_bt_handle_destroy(USBDevice *dev)
 
 static int usb_bt_initfn(USBDevice *dev)
 {
-    struct USBBtState *s = DO_UPCAST(struct USBBtState, dev, dev);
-    s->dev.speed = USB_SPEED_HIGH;
+    usb_desc_init(dev);
     return 0;
 }
 

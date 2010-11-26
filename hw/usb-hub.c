@@ -297,13 +297,6 @@ static int usb_hub_handle_control(USBDevice *dev, int request, int value,
         }
         ret = 0;
         break;
-    case DeviceRequest | USB_REQ_GET_CONFIGURATION:
-        data[0] = 1;
-        ret = 1;
-        break;
-    case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
-        ret = 0;
-        break;
     case DeviceRequest | USB_REQ_GET_INTERFACE:
         data[0] = 0;
         ret = 1;
@@ -541,7 +534,7 @@ static int usb_hub_initfn(USBDevice *dev)
     USBHubPort *port;
     int i;
 
-    s->dev.speed = USB_SPEED_FULL;
+    usb_desc_init(dev);
     for (i = 0; i < NUM_PORTS; i++) {
         port = &s->ports[i];
         usb_register_port(usb_bus_from_device(dev),
