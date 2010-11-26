@@ -57,6 +57,8 @@ struct BusInfo pci_bus_info = {
         DEFINE_PROP_UINT32("rombar",  PCIDevice, rom_bar, 1),
         DEFINE_PROP_BIT("multifunction", PCIDevice, cap_present,
                         QEMU_PCI_CAP_MULTIFUNCTION_BITNR, false),
+        DEFINE_PROP_BIT("command_serr_enable", PCIDevice, cap_present,
+                        QEMU_PCI_CAP_SERR_BITNR, true),
         DEFINE_PROP_END_OF_LIST()
     }
 };
@@ -568,6 +570,9 @@ static void pci_init_wmask(PCIDevice *dev)
     pci_set_word(dev->wmask + PCI_COMMAND,
                  PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
                  PCI_COMMAND_INTX_DISABLE);
+    if (dev->cap_present & QEMU_PCI_CAP_SERR) {
+        pci_word_test_and_set_mask(dev->wmask + PCI_COMMAND, PCI_COMMAND_SERR);
+    }
 
     memset(dev->wmask + PCI_CONFIG_HEADER_SIZE, 0xff,
            config_size - PCI_CONFIG_HEADER_SIZE);

@@ -118,6 +118,10 @@ enum {
     /* multifunction capable device */
 #define QEMU_PCI_CAP_MULTIFUNCTION_BITNR        3
     QEMU_PCI_CAP_MULTIFUNCTION = (1 << QEMU_PCI_CAP_MULTIFUNCTION_BITNR),
+
+    /* command register SERR bit enabled */
+#define QEMU_PCI_CAP_SERR_BITNR 4
+    QEMU_PCI_CAP_SERR = (1 << QEMU_PCI_CAP_SERR_BITNR),
 };
 
 struct PCIDevice {
