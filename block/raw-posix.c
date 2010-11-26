@@ -463,7 +463,7 @@ static int raw_pwrite(BlockDriverState *bs, int64_t offset,
                 count -= ret;
                 sum += ret;
             }
-            /* here, count < 512 because (count & ~sector_mask) == 0 */
+            /* here, count < sector_size because (count & ~sector_mask) == 0 */
             if (count) {
                 ret = raw_pread_aligned(bs, offset, s->aligned_buf,
                                      bs->buffer_alignment);
