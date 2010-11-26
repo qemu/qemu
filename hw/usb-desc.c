@@ -151,9 +151,42 @@ int usb_desc_other(const USBDescOther *desc, uint8_t *dest, size_t len)
     return bLength;
 }
 
-int usb_desc_string(const char* const *str, int index, uint8_t *dest, size_t len)
+/* ------------------------------------------------------------------ */
+
+void usb_desc_set_string(USBDevice *dev, uint8_t index, const char *str)
+{
+    USBDescString *s;
+
+    QLIST_FOREACH(s, &dev->strings, next) {
+        if (s->index == index) {
+            break;
+        }
+    }
+    if (s == NULL) {
+        s = qemu_mallocz(sizeof(*s));
+        s->index = index;
+        QLIST_INSERT_HEAD(&dev->strings, s, next);
+    }
+    qemu_free(s->str);
+    s->str = qemu_strdup(str);
+}
+
+const char *usb_desc_get_string(USBDevice *dev, uint8_t index)
+{
+    USBDescString *s;
+
+    QLIST_FOREACH(s, &dev->strings, next) {
+        if (s->index == index) {
+            return s->str;
+        }
+    }
+    return NULL;
+}
+
+int usb_desc_string(USBDevice *dev, int index, uint8_t *dest, size_t len)
 {
     uint8_t bLength, pos, i;
+    const char *str;
 
     if (len < 4) {
         return -1;
@@ -168,21 +201,24 @@ int usb_desc_string(const char* const *str, int index, uint8_t *dest, size_t len
         return 4;
     }
 
-    if (str[index] == NULL) {
-        return 0;
+    str = usb_desc_get_string(dev, index);
+    if (str == NULL) {
+        str = dev->info->usb_desc->str[index];
+        if (str == NULL) {
+            return 0;
+        }
     }
-    bLength = strlen(str[index]) * 2 + 2;
+
+    bLength = strlen(str) * 2 + 2;
     dest[0] = bLength;
     dest[1] = USB_DT_STRING;
     i = 0; pos = 2;
     while (pos+1 < bLength && pos+1 < len) {
-        dest[pos++] = str[index][i++];
+        dest[pos++] = str[i++];
         dest[pos++] = 0;
     }
     return pos;
 }
-
-/* ------------------------------------------------------------------ */
 
 int usb_desc_get_descriptor(USBDevice *dev, int value, uint8_t *dest, size_t len)
 {
@@ -204,7 +240,7 @@ int usb_desc_get_descriptor(USBDevice *dev, int value, uint8_t *dest, size_t len
         trace_usb_desc_config(dev->addr, index, len, ret);
         break;
     case USB_DT_STRING:
-        ret = usb_desc_string(desc->str, index, buf, sizeof(buf));
+        ret = usb_desc_string(dev, index, buf, sizeof(buf));
         trace_usb_desc_string(dev->addr, index, len, ret);
         break;
     default:

@@ -135,6 +135,13 @@ typedef struct USBDescConfig USBDescConfig;
 typedef struct USBDescIface USBDescIface;
 typedef struct USBDescEndpoint USBDescEndpoint;
 typedef struct USBDescOther USBDescOther;
+typedef struct USBDescString USBDescString;
+
+struct USBDescString {
+    uint8_t index;
+    char *str;
+    QLIST_ENTRY(USBDescString) next;
+};
 
 /* definition of a USB device */
 struct USBDevice {
@@ -155,6 +162,8 @@ struct USBDevice {
     int setup_state;
     int setup_len;
     int setup_index;
+
+    QLIST_HEAD(, USBDescString) strings;
 };
 
 struct USBDeviceInfo {
