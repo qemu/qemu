@@ -3635,11 +3635,12 @@ static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
 {
     int ret;
     TaskState *ts;
-    uint8_t *new_stack;
     CPUState *new_env;
 #if defined(CONFIG_USE_NPTL)
     unsigned int nptl_flags;
     sigset_t sigmask;
+#else
+    uint8_t *new_stack;
 #endif
 
     /* Emulate vfork() with fork() */
