@@ -78,7 +78,7 @@ typedef int USBScanFunc(void *opaque, int bus_num, int addr, int devpath,
 
 #define USBPROCBUS_PATH "/proc/bus/usb"
 #define PRODUCT_NAME_SZ 32
-#define MAX_ENDPOINTS 16
+#define MAX_ENDPOINTS 15
 #define USBDEVBUS_PATH "/dev/bus/usb"
 #define USBSYSBUS_PATH "/sys/bus/usb"
 
@@ -725,7 +725,7 @@ static int usb_host_set_interface(USBHostDevice *s, int iface, int alt)
     struct usbdevfs_setinterface si;
     int i, ret;
 
-    for (i = 1; i < MAX_ENDPOINTS; i++) {
+    for (i = 1; i <= MAX_ENDPOINTS; i++) {
         if (is_isoc(s, i)) {
             usb_host_stop_n_free_iso(s, i);
         }
@@ -1276,7 +1276,7 @@ static int usb_host_close(USBHostDevice *dev)
 
     qemu_set_fd_handler(dev->fd, NULL, NULL, NULL);
     dev->closing = 1;
-    for (i = 1; i < MAX_ENDPOINTS; i++) {
+    for (i = 1; i <= MAX_ENDPOINTS; i++) {
         if (is_isoc(dev, i)) {
             usb_host_stop_n_free_iso(dev, i);
         }
