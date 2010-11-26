@@ -486,6 +486,8 @@ void ide_dma_error(IDEState *s)
     ide_transfer_stop(s);
     s->error = ABRT_ERR;
     s->status = READY_STAT | ERR_STAT;
+    ide_dma_set_inactive(s->bus->bmdma);
+    s->bus->bmdma->status |= BM_STATUS_INT;
     ide_set_irq(s->bus);
 }
 
