@@ -549,7 +549,11 @@ static int urb_status_to_usb_ret(int status)
 static int usb_host_handle_iso_data(USBHostDevice *s, USBPacket *p)
 {
     AsyncURB *aurb;
-    int i, j, ret, len = 0;
+    int i, j, ret, max_packet_size, len = 0;
+
+    max_packet_size = get_max_packet_size(s, p->devep);
+    if (max_packet_size == 0)
+        return USB_RET_NAK;
 
     aurb = get_iso_urb(s, p->devep);
     if (!aurb) {
