@@ -65,6 +65,7 @@ void bmdma_cmd_writeb(void *opaque, uint32_t addr, uint32_t val)
 #endif
             }
         } else {
+            bm->cur_addr = bm->addr;
             if (!(bm->status & BM_STATUS_DMAING)) {
                 bm->status |= BM_STATUS_DMAING;
                 /* start dma transfer if possible */
@@ -101,7 +102,6 @@ static void bmdma_addr_write(IORange *ioport, uint64_t addr,
 #endif
     bm->addr &= ~(mask << shift);
     bm->addr |= ((data & mask) << shift) & ~3;
-    bm->cur_addr = bm->addr;
 }
 
 const IORangeOps bmdma_addr_ioport_ops = {
