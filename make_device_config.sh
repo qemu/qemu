@@ -18,7 +18,8 @@ process_includes () {
 
 f=$src
 while [ -n "$f" ] ; do
-  f=`awk '/^include / {print "'$src_dir'/" $2}' $f`
+  f=`awk '/^include / {ORS=" " ; print "'$src_dir'/" $2}' $f`
+  [ $? = 0 ] || exit 1
   all_includes="$all_includes $f"
 done
 process_includes $src > $dest
