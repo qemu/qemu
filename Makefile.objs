@@ -222,7 +222,8 @@ hw-obj-$(CONFIG_PCI) += pcie.o pcie_port.o
 # PCI network cards
 hw-obj-$(CONFIG_NE2000_PCI) += ne2000.o
 hw-obj-$(CONFIG_EEPRO100_PCI) += eepro100.o
-hw-obj-$(CONFIG_PCNET_PCI) += pcnet.o
+hw-obj-$(CONFIG_PCNET_PCI) += pcnet-pci.o
+hw-obj-$(CONFIG_PCNET_COMMON) += pcnet.o
 
 hw-obj-$(CONFIG_SMC91C111) += smc91c111.o
 hw-obj-$(CONFIG_LAN9118) += lan9118.o
