@@ -1,6 +1,5 @@
 # Default configuration for sparc-softmmu
 
-include pci.mak
 CONFIG_ECC=y
 CONFIG_ESP=y
 CONFIG_ESCC=y
