@@ -1,1 +1,1 @@
-include virtio.mak
+CONFIG_VIRTIO=y
