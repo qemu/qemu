@@ -358,6 +358,12 @@ obj-y += $(addprefix $(HWDIR)/, $(hw-obj-y))
 
 endif # CONFIG_SOFTMMU
 
+ifndef CONFIG_LINUX_USER
+# libcacard needs qemu-thread support, and besides is only needed by devices
+# so not requires with linux-user targets
+obj-$(CONFIG_SMARTCARD_NSS) += $(addprefix ../libcacard/, $(libcacard-y))
+endif # CONFIG_LINUX_USER
+
 obj-y += $(addprefix ../, $(trace-obj-y))
 obj-$(CONFIG_GDBSTUB_XML) += gdbstub-xml.o
 

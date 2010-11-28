@@ -352,6 +352,11 @@ user-obj-y += qemu-timer-common.o
 endif
 endif
 
+######################################################################
+# smartcard
+
+libcacard-y = cac.o event.o vcard.o vreader.o vcard_emul_nss.o vcard_emul_type.o card_7816.o
+
 vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
 vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)
