@@ -196,6 +196,8 @@ disable usb_desc_config(int addr, int index, int len, int ret) "dev %d query con
 disable usb_desc_string(int addr, int index, int len, int ret) "dev %d query string %d, len %d, ret %d"
 disable usb_set_addr(int addr) "dev %d"
 disable usb_set_config(int addr, int config, int ret) "dev %d, config %d, ret %d"
+disable usb_clear_device_feature(int addr, int feature, int ret) "dev %d, feature %d, ret %d"
+disable usb_set_device_feature(int addr, int feature, int ret) "dev %d, feature %d, ret %d"
 
 # vl.c
 disable vm_state_notify(int running, int reason) "running %d reason %d"

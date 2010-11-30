@@ -269,30 +269,8 @@ static int usb_hub_handle_control(USBDevice *dev, int request, int value,
     }
 
     switch(request) {
-    case DeviceRequest | USB_REQ_GET_STATUS:
-        data[0] = (1 << USB_DEVICE_SELF_POWERED) |
-            (dev->remote_wakeup << USB_DEVICE_REMOTE_WAKEUP);
-        data[1] = 0x00;
-        ret = 2;
-        break;
-    case DeviceOutRequest | USB_REQ_CLEAR_FEATURE:
-        if (value == USB_DEVICE_REMOTE_WAKEUP) {
-            dev->remote_wakeup = 0;
-        } else {
-            goto fail;
-        }
-        ret = 0;
-        break;
     case EndpointOutRequest | USB_REQ_CLEAR_FEATURE:
         if (value == 0 && index != 0x81) { /* clear ep halt */
-            goto fail;
-        }
-        ret = 0;
-        break;
-    case DeviceOutRequest | USB_REQ_SET_FEATURE:
-        if (value == USB_DEVICE_REMOTE_WAKEUP) {
-            dev->remote_wakeup = 1;
-        } else {
             goto fail;
         }
         ret = 0;

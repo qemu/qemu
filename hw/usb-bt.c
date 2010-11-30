@@ -396,33 +396,18 @@ static int usb_bt_handle_control(USBDevice *dev, int request, int value,
 
     ret = 0;
     switch (request) {
-    case DeviceRequest | USB_REQ_GET_STATUS:
     case InterfaceRequest | USB_REQ_GET_STATUS:
     case EndpointRequest | USB_REQ_GET_STATUS:
-        data[0] = (1 << USB_DEVICE_SELF_POWERED) |
-            (dev->remote_wakeup << USB_DEVICE_REMOTE_WAKEUP);
+        data[0] = 0x00;
         data[1] = 0x00;
         ret = 2;
         break;
-    case DeviceOutRequest | USB_REQ_CLEAR_FEATURE:
     case InterfaceOutRequest | USB_REQ_CLEAR_FEATURE:
     case EndpointOutRequest | USB_REQ_CLEAR_FEATURE:
-        if (value == USB_DEVICE_REMOTE_WAKEUP) {
-            dev->remote_wakeup = 0;
-        } else {
-            goto fail;
-        }
-        ret = 0;
-        break;
-    case DeviceOutRequest | USB_REQ_SET_FEATURE:
+        goto fail;
     case InterfaceOutRequest | USB_REQ_SET_FEATURE:
     case EndpointOutRequest | USB_REQ_SET_FEATURE:
-        if (value == USB_DEVICE_REMOTE_WAKEUP) {
-            dev->remote_wakeup = 1;
-        } else {
-            goto fail;
-        }
-        ret = 0;
+        goto fail;
         break;
     case InterfaceRequest | USB_REQ_GET_INTERFACE:
         if (value != 0 || (index & ~1) || length != 1)
