@@ -131,6 +131,36 @@ static void watch_remove(SpiceWatch *watch)
 
 #if SPICE_INTERFACE_CORE_MINOR >= 3
 
+typedef struct ChannelList ChannelList;
+struct ChannelList {
+    SpiceChannelEventInfo *info;
+    QTAILQ_ENTRY(ChannelList) link;
+};
+static QTAILQ_HEAD(, ChannelList) channel_list = QTAILQ_HEAD_INITIALIZER(channel_list);
+
+static void channel_list_add(SpiceChannelEventInfo *info)
+{
+    ChannelList *item;
+
+    item = qemu_mallocz(sizeof(*item));
+    item->info = info;
+    QTAILQ_INSERT_TAIL(&channel_list, item, link);
+}
+
+static void channel_list_del(SpiceChannelEventInfo *info)
+{
+    ChannelList *item;
+
+    QTAILQ_FOREACH(item, &channel_list, link) {
+        if (item->info != info) {
+            continue;
+        }
+        QTAILQ_REMOVE(&channel_list, item, link);
+        qemu_free(item);
+        return;
+    }
+}
+
 static void add_addr_info(QDict *dict, struct sockaddr *addr, int len)
 {
     char host[NI_MAXHOST], port[NI_MAXSERV];
@@ -155,6 +185,22 @@ static void add_channel_info(QDict *dict, SpiceChannelEventInfo *info)
     qdict_put(dict, "tls", qbool_from_int(tls));
 }
 
+static QList *channel_list_get(void)
+{
+    ChannelList *item;
+    QList *list;
+    QDict *dict;
+
+    list = qlist_new();
+    QTAILQ_FOREACH(item, &channel_list, link) {
+        dict = qdict_new();
+        add_addr_info(dict, &item->info->paddr, item->info->plen);
+        add_channel_info(dict, item->info);
+        qlist_append(list, dict);
+    }
+    return list;
+}
+
 static void channel_event(int event, SpiceChannelEventInfo *info)
 {
     static const int qevent[] = {
@@ -174,6 +220,10 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
     if (event == SPICE_CHANNEL_EVENT_INITIALIZED) {
         qdict_put(server, "auth", qstring_from_str(auth));
         add_channel_info(client, info);
+        channel_list_add(info);
+    }
+    if (event == SPICE_CHANNEL_EVENT_DISCONNECTED) {
+        channel_list_del(info);
     }
 
     data = qobject_from_jsonf("{ 'client': %p, 'server': %p }",
@@ -277,6 +327,92 @@ static const char *wan_compression_names[] = {
                wan_compression_names, ARRAY_SIZE(wan_compression_names))
 
 /* functions for the rest of qemu */
+
+static void info_spice_iter(QObject *obj, void *opaque)
+{
+    QDict *client;
+    Monitor *mon = opaque;
+
+    client = qobject_to_qdict(obj);
+    monitor_printf(mon, "Channel:\n");
+    monitor_printf(mon, "     address: %s:%s%s\n",
+                   qdict_get_str(client, "host"),
+                   qdict_get_str(client, "port"),
+                   qdict_get_bool(client, "tls") ? " [tls]" : "");
+    monitor_printf(mon, "     session: %" PRId64 "\n",
+                   qdict_get_int(client, "connection-id"));
+    monitor_printf(mon, "     channel: %d:%d\n",
+                   (int)qdict_get_int(client, "channel-type"),
+                   (int)qdict_get_int(client, "channel-id"));
+}
+
+void do_info_spice_print(Monitor *mon, const QObject *data)
+{
+    QDict *server;
+    QList *channels;
+    const char *host;
+    int port;
+
+    server = qobject_to_qdict(data);
+    if (qdict_get_bool(server, "enabled") == 0) {
+        monitor_printf(mon, "Server: disabled\n");
+        return;
+    }
+
+    monitor_printf(mon, "Server:\n");
+    host = qdict_get_str(server, "host");
+    port = qdict_get_try_int(server, "port", -1);
+    if (port != -1) {
+        monitor_printf(mon, "     address: %s:%d\n", host, port);
+    }
+    port = qdict_get_try_int(server, "tls-port", -1);
+    if (port != -1) {
+        monitor_printf(mon, "     address: %s:%d [tls]\n", host, port);
+    }
+    monitor_printf(mon, "        auth: %s\n", qdict_get_str(server, "auth"));
+
+    channels = qdict_get_qlist(server, "channels");
+    if (qlist_empty(channels)) {
+        monitor_printf(mon, "Channels: none\n");
+    } else {
+        qlist_iter(channels, info_spice_iter, mon);
+    }
+}
+
+void do_info_spice(Monitor *mon, QObject **ret_data)
+{
+    QemuOpts *opts = QTAILQ_FIRST(&qemu_spice_opts.head);
+    QDict *server;
+    QList *clist;
+    const char *addr;
+    int port, tls_port;
+
+    if (!spice_server) {
+        *ret_data = qobject_from_jsonf("{ 'enabled': false }");
+        return;
+    }
+
+    addr = qemu_opt_get(opts, "addr");
+    port = qemu_opt_get_number(opts, "port", 0);
+    tls_port = qemu_opt_get_number(opts, "tls-port", 0);
+    clist = channel_list_get();
+
+    server = qdict_new();
+    qdict_put(server, "enabled", qbool_from_int(true));
+    qdict_put(server, "auth", qstring_from_str(auth));
+    qdict_put(server, "host", qstring_from_str(addr ? addr : "0.0.0.0"));
+    if (port) {
+        qdict_put(server, "port", qint_from_int(port));
+    }
+    if (tls_port) {
+        qdict_put(server, "tls-port", qint_from_int(tls_port));
+    }
+    if (clist) {
+        qdict_put(server, "channels", clist);
+    }
+
+    *ret_data = QOBJECT(server);
+}
 
 static int add_channel(const char *name, const char *value, void *opaque)
 {

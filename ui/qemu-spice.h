@@ -33,6 +33,9 @@ void qemu_spice_audio_init(void);
 void qemu_spice_display_init(DisplayState *ds);
 int qemu_spice_add_interface(SpiceBaseInstance *sin);
 
+void do_info_spice_print(Monitor *mon, const QObject *data);
+void do_info_spice(Monitor *mon, QObject **ret_data);
+
 #else  /* CONFIG_SPICE */
 
 #define using_spice 0
