@@ -6,6 +6,7 @@
 #include "qemu-option.h"
 #include "qemu-config.h"
 #include "qobject.h"
+#include "qstring.h"
 
 /* character device */
 
@@ -99,6 +100,12 @@ CharDriverState *qemu_chr_find(const char *name);
 CharDriverState *qemu_chr_open_eventfd(int eventfd);
 
 extern int term_escape_char;
+
+/* memory chardev */
+void qemu_chr_init_mem(CharDriverState *chr);
+void qemu_chr_close_mem(CharDriverState *chr);
+QString *qemu_chr_mem_to_qs(CharDriverState *chr);
+size_t qemu_chr_mem_osize(const CharDriverState *chr);
 
 /* async I/O support */
 
