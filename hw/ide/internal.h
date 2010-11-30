@@ -8,6 +8,7 @@
  */
 #include <hw/ide.h>
 #include "block_int.h"
+#include "iorange.h"
 
 /* debug IDE devices */
 //#define DEBUG_IDE
@@ -496,6 +497,7 @@ struct BMDMAState {
     QEMUIOVector qiov;
     int64_t sector_num;
     uint32_t nsector;
+    IORange addr_ioport;
     QEMUBH *bh;
 };
 

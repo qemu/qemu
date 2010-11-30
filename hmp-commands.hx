@@ -68,6 +68,24 @@ Eject a removable medium (use -f to force it).
 ETEXI
 
     {
+        .name       = "drive_del",
+        .args_type  = "id:s",
+        .params     = "device",
+        .help       = "remove host block device",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_drive_del,
+    },
+
+STEXI
+@item drive_del @var{device}
+@findex drive_del
+Remove host block device.  The result is that guest generated IO is no longer
+submitted against the host device underlying the disk.  Once a drive has
+been deleted, the QEMU Block layer returns -EIO which results in IO
+errors in the guest for applications that are reading/writing to the device.
+ETEXI
+
+    {
         .name       = "change",
         .args_type  = "device:B,target:F,arg:s?",
         .params     = "device filename [format]",
