@@ -147,6 +147,7 @@ struct USBDescString {
 struct USBDevice {
     DeviceState qdev;
     USBDeviceInfo *info;
+    USBPort *port;
     void *opaque;
 
     int speed;
@@ -217,7 +218,8 @@ struct USBDeviceInfo {
 };
 
 typedef struct USBPortOps {
-    void (*attach)(USBPort *port, USBDevice *dev);
+    void (*attach)(USBPort *port);
+    void (*detach)(USBPort *port);
 } USBPortOps;
 
 /* USB port on which a device can be connected */

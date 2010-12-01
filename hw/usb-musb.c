@@ -259,10 +259,12 @@
 #endif
 
 
-static void musb_attach(USBPort *port, USBDevice *dev);
+static void musb_attach(USBPort *port);
+static void musb_detach(USBPort *port);
 
 static USBPortOps musb_port_ops = {
     .attach = musb_attach,
+    .detach = musb_detach,
 };
 
 typedef struct {
@@ -464,34 +466,20 @@ static void musb_session_update(MUSBState *s, int prev_dev, int prev_sess)
 }
 
 /* Attach or detach a device on our only port.  */
-static void musb_attach(USBPort *port, USBDevice *dev)
+static void musb_attach(USBPort *port)
 {
     MUSBState *s = (MUSBState *) port->opaque;
-    USBDevice *curr;
 
-    port = &s->port;
-    curr = port->dev;
+    musb_intr_set(s, musb_irq_vbus_request, 1);
+    musb_session_update(s, 0, s->session);
+}
 
-    if (dev) {
-        if (curr) {
-            usb_attach(port, NULL);
-            /* TODO: signal some interrupts */
-        }
+static void musb_detach(USBPort *port)
+{
+    MUSBState *s = (MUSBState *) port->opaque;
 
-        musb_intr_set(s, musb_irq_vbus_request, 1);
-
-        /* Send the attach message to device */
-        usb_send_msg(dev, USB_MSG_ATTACH);
-    } else if (curr) {
-        /* Send the detach message */
-        usb_send_msg(curr, USB_MSG_DETACH);
-
-        musb_intr_set(s, musb_irq_disconnect, 1);
-    }
-
-    port->dev = dev;
-
-    musb_session_update(s, !!curr, s->session);
+    musb_intr_set(s, musb_irq_disconnect, 1);
+    musb_session_update(s, 1, s->session);
 }
 
 static inline void musb_cb_tick0(void *opaque)

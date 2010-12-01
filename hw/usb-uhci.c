@@ -307,8 +307,6 @@ static UHCIAsync *uhci_async_find_td(UHCIState *s, uint32_t addr, uint32_t token
     return match;
 }
 
-static void uhci_attach(USBPort *port1, USBDevice *dev);
-
 static void uhci_update_irq(UHCIState *s)
 {
     int level;
@@ -348,8 +346,9 @@ static void uhci_reset(void *opaque)
     for(i = 0; i < NB_PORTS; i++) {
         port = &s->ports[i];
         port->ctrl = 0x0080;
-        if (port->port.dev)
-            uhci_attach(&port->port, port->port.dev);
+        if (port->port.dev) {
+            usb_attach(&port->port, port->port.dev);
+        }
     }
 
     uhci_async_cancel_all(s);
@@ -593,50 +592,41 @@ static void uhci_resume (void *opaque)
     }
 }
 
-static void uhci_attach(USBPort *port1, USBDevice *dev)
+static void uhci_attach(USBPort *port1)
 {
     UHCIState *s = port1->opaque;
     UHCIPort *port = &s->ports[port1->index];
 
-    if (dev) {
-        if (port->port.dev) {
-            usb_attach(port1, NULL);
-        }
-        /* set connect status */
-        port->ctrl |= UHCI_PORT_CCS | UHCI_PORT_CSC;
+    /* set connect status */
+    port->ctrl |= UHCI_PORT_CCS | UHCI_PORT_CSC;
 
-        /* update speed */
-        if (dev->speed == USB_SPEED_LOW)
-            port->ctrl |= UHCI_PORT_LSDA;
-        else
-            port->ctrl &= ~UHCI_PORT_LSDA;
-
-        uhci_resume(s);
-
-        port->port.dev = dev;
-        /* send the attach message */
-        usb_send_msg(dev, USB_MSG_ATTACH);
+    /* update speed */
+    if (port->port.dev->speed == USB_SPEED_LOW) {
+        port->ctrl |= UHCI_PORT_LSDA;
     } else {
-        /* set connect status */
-        if (port->ctrl & UHCI_PORT_CCS) {
-            port->ctrl &= ~UHCI_PORT_CCS;
-            port->ctrl |= UHCI_PORT_CSC;
-        }
-        /* disable port */
-        if (port->ctrl & UHCI_PORT_EN) {
-            port->ctrl &= ~UHCI_PORT_EN;
-            port->ctrl |= UHCI_PORT_ENC;
-        }
-
-        uhci_resume(s);
-
-        dev = port->port.dev;
-        if (dev) {
-            /* send the detach message */
-            usb_send_msg(dev, USB_MSG_DETACH);
-        }
-        port->port.dev = NULL;
+        port->ctrl &= ~UHCI_PORT_LSDA;
     }
+
+    uhci_resume(s);
+}
+
+static void uhci_detach(USBPort *port1)
+{
+    UHCIState *s = port1->opaque;
+    UHCIPort *port = &s->ports[port1->index];
+
+    /* set connect status */
+    if (port->ctrl & UHCI_PORT_CCS) {
+        port->ctrl &= ~UHCI_PORT_CCS;
+        port->ctrl |= UHCI_PORT_CSC;
+    }
+    /* disable port */
+    if (port->ctrl & UHCI_PORT_EN) {
+        port->ctrl &= ~UHCI_PORT_EN;
+        port->ctrl |= UHCI_PORT_ENC;
+    }
+
+    uhci_resume(s);
 }
 
 static int uhci_broadcast_packet(UHCIState *s, USBPacket *p)
@@ -1103,6 +1093,7 @@ static void uhci_map(PCIDevice *pci_dev, int region_num,
 
 static USBPortOps uhci_port_ops = {
     .attach = uhci_attach,
+    .detach = uhci_detach,
 };
 
 static int usb_uhci_common_initfn(UHCIState *s)

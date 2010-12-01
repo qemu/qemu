@@ -218,37 +218,30 @@ static const uint8_t qemu_hub_hub_descriptor[] =
         /* DeviceRemovable and PortPwrCtrlMask patched in later */
 };
 
-static void usb_hub_attach(USBPort *port1, USBDevice *dev)
+static void usb_hub_attach(USBPort *port1)
 {
     USBHubState *s = port1->opaque;
     USBHubPort *port = &s->ports[port1->index];
 
-    if (dev) {
-        if (port->port.dev)
-            usb_attach(port1, NULL);
-
-        port->wPortStatus |= PORT_STAT_CONNECTION;
-        port->wPortChange |= PORT_STAT_C_CONNECTION;
-        if (dev->speed == USB_SPEED_LOW)
-            port->wPortStatus |= PORT_STAT_LOW_SPEED;
-        else
-            port->wPortStatus &= ~PORT_STAT_LOW_SPEED;
-        port->port.dev = dev;
-        /* send the attach message */
-        usb_send_msg(dev, USB_MSG_ATTACH);
+    port->wPortStatus |= PORT_STAT_CONNECTION;
+    port->wPortChange |= PORT_STAT_C_CONNECTION;
+    if (port->port.dev->speed == USB_SPEED_LOW) {
+        port->wPortStatus |= PORT_STAT_LOW_SPEED;
     } else {
-        dev = port->port.dev;
-        if (dev) {
-            port->wPortStatus &= ~PORT_STAT_CONNECTION;
-            port->wPortChange |= PORT_STAT_C_CONNECTION;
-            if (port->wPortStatus & PORT_STAT_ENABLE) {
-                port->wPortStatus &= ~PORT_STAT_ENABLE;
-                port->wPortChange |= PORT_STAT_C_ENABLE;
-            }
-            /* send the detach message */
-            usb_send_msg(dev, USB_MSG_DETACH);
-            port->port.dev = NULL;
-        }
+        port->wPortStatus &= ~PORT_STAT_LOW_SPEED;
+    }
+}
+
+static void usb_hub_detach(USBPort *port1)
+{
+    USBHubState *s = port1->opaque;
+    USBHubPort *port = &s->ports[port1->index];
+
+    port->wPortStatus &= ~PORT_STAT_CONNECTION;
+    port->wPortChange |= PORT_STAT_C_CONNECTION;
+    if (port->wPortStatus & PORT_STAT_ENABLE) {
+        port->wPortStatus &= ~PORT_STAT_ENABLE;
+        port->wPortChange |= PORT_STAT_C_ENABLE;
     }
 }
 
@@ -508,6 +501,7 @@ static void usb_hub_handle_destroy(USBDevice *dev)
 
 static USBPortOps usb_hub_port_ops = {
     .attach = usb_hub_attach,
+    .detach = usb_hub_detach,
 };
 
 static int usb_hub_initfn(USBDevice *dev)
