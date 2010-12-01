@@ -140,28 +140,19 @@ static void arm_timer_tick(void *opaque)
     arm_timer_update(s);
 }
 
-static void arm_timer_save(QEMUFile *f, void *opaque)
-{
-    arm_timer_state *s = (arm_timer_state *)opaque;
-    qemu_put_be32(f, s->control);
-    qemu_put_be32(f, s->limit);
-    qemu_put_be32(f, s->int_level);
-    qemu_put_ptimer(f, s->timer);
-}
-
-static int arm_timer_load(QEMUFile *f, void *opaque, int version_id)
-{
-    arm_timer_state *s = (arm_timer_state *)opaque;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    s->control = qemu_get_be32(f);
-    s->limit = qemu_get_be32(f);
-    s->int_level = qemu_get_be32(f);
-    qemu_get_ptimer(f, s->timer);
-    return 0;
-}
+static const VMStateDescription vmstate_arm_timer = {
+    .name = "arm_timer",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32(control, arm_timer_state),
+        VMSTATE_UINT32(limit, arm_timer_state),
+        VMSTATE_INT32(int_level, arm_timer_state),
+        VMSTATE_PTIMER(timer, arm_timer_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static arm_timer_state *arm_timer_init(uint32_t freq)
 {
@@ -174,7 +165,7 @@ static arm_timer_state *arm_timer_init(uint32_t freq)
 
     bh = qemu_bh_new(arm_timer_tick, s);
     s->timer = ptimer_init(bh);
-    register_savevm(NULL, "arm_timer", -1, 1, arm_timer_save, arm_timer_load, s);
+    vmstate_register(NULL, -1, &vmstate_arm_timer, s);
     return s;
 }
 
