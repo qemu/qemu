@@ -57,12 +57,17 @@
 #define TD_CTRL_NAK     (1 << 19)
 #define TD_CTRL_TIMEOUT (1 << 18)
 
+#define UHCI_PORT_SUSPEND (1 << 12)
 #define UHCI_PORT_RESET (1 << 9)
 #define UHCI_PORT_LSDA  (1 << 8)
+#define UHCI_PORT_RD    (1 << 6)
 #define UHCI_PORT_ENC   (1 << 3)
 #define UHCI_PORT_EN    (1 << 2)
 #define UHCI_PORT_CSC   (1 << 1)
 #define UHCI_PORT_CCS   (1 << 0)
+
+#define UHCI_PORT_READ_ONLY    (0x1bb)
+#define UHCI_PORT_WRITE_CLEAR  (UHCI_PORT_CSC | UHCI_PORT_ENC)
 
 #define FRAME_TIMER_FREQ 1000
 
@@ -497,9 +502,10 @@ static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
                     usb_send_msg(dev, USB_MSG_RESET);
                 }
             }
-            port->ctrl = (port->ctrl & 0x01fb) | (val & ~0x01fb);
+            port->ctrl &= UHCI_PORT_READ_ONLY;
+            port->ctrl |= (val & ~UHCI_PORT_READ_ONLY);
             /* some bits are reset when a '1' is written to them */
-            port->ctrl &= ~(val & 0x000a);
+            port->ctrl &= ~(val & UHCI_PORT_WRITE_CLEAR);
         }
         break;
     }
@@ -627,6 +633,18 @@ static void uhci_detach(USBPort *port1)
     }
 
     uhci_resume(s);
+}
+
+static void uhci_wakeup(USBDevice *dev)
+{
+    USBBus *bus = usb_bus_from_device(dev);
+    UHCIState *s = container_of(bus, UHCIState, bus);
+    UHCIPort *port = s->ports + dev->port->index;
+
+    if (port->ctrl & UHCI_PORT_SUSPEND && !(port->ctrl & UHCI_PORT_RD)) {
+        port->ctrl |= UHCI_PORT_RD;
+        uhci_resume(s);
+    }
 }
 
 static int uhci_broadcast_packet(UHCIState *s, USBPacket *p)
@@ -1094,6 +1112,7 @@ static void uhci_map(PCIDevice *pci_dev, int region_num,
 static USBPortOps uhci_port_ops = {
     .attach = uhci_attach,
     .detach = uhci_detach,
+    .wakeup = uhci_wakeup,
 };
 
 static int usb_uhci_common_initfn(UHCIState *s)
