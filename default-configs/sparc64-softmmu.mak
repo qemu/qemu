@@ -1,5 +1,6 @@
 # Default configuration for sparc64-softmmu
 
+include pci.mak
 CONFIG_ISA_MMIO=y
 CONFIG_M48T59=y
 CONFIG_PTIMER=y
@@ -13,4 +14,3 @@ CONFIG_IDE_QDEV=y
 CONFIG_IDE_PCI=y
 CONFIG_IDE_ISA=y
 CONFIG_IDE_CMD646=y
-CONFIG_VIRTIO_PCI=y

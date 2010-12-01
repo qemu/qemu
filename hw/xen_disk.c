@@ -181,6 +181,10 @@ static int ioreq_parse(struct ioreq *ioreq)
 	ioreq->prot = PROT_WRITE; /* to memory */
 	break;
     case BLKIF_OP_WRITE_BARRIER:
+        if (!ioreq->req.nr_segments) {
+            ioreq->presync = 1;
+            return 0;
+        }
 	if (!syncwrite)
 	    ioreq->presync = ioreq->postsync = 1;
 	/* fall through */
@@ -305,7 +309,7 @@ static int ioreq_runio_qemu_sync(struct ioreq *ioreq)
     int i, rc, len = 0;
     off_t pos;
 
-    if (ioreq_map(ioreq) == -1)
+    if (ioreq->req.nr_segments && ioreq_map(ioreq) == -1)
 	goto err;
     if (ioreq->presync)
 	bdrv_flush(blkdev->bs);
@@ -329,6 +333,8 @@ static int ioreq_runio_qemu_sync(struct ioreq *ioreq)
 	break;
     case BLKIF_OP_WRITE:
     case BLKIF_OP_WRITE_BARRIER:
+        if (!ioreq->req.nr_segments)
+            break;
 	pos = ioreq->start;
 	for (i = 0; i < ioreq->v.niov; i++) {
 	    rc = bdrv_write(blkdev->bs, pos / BLOCK_SIZE,
@@ -386,7 +392,7 @@ static int ioreq_runio_qemu_aio(struct ioreq *ioreq)
 {
     struct XenBlkDev *blkdev = ioreq->blkdev;
 
-    if (ioreq_map(ioreq) == -1)
+    if (ioreq->req.nr_segments && ioreq_map(ioreq) == -1)
 	goto err;
 
     ioreq->aio_inflight++;
@@ -403,6 +409,8 @@ static int ioreq_runio_qemu_aio(struct ioreq *ioreq)
     case BLKIF_OP_WRITE:
     case BLKIF_OP_WRITE_BARRIER:
         ioreq->aio_inflight++;
+        if (!ioreq->req.nr_segments)
+            break;
         bdrv_aio_writev(blkdev->bs, ioreq->start / BLOCK_SIZE,
                         &ioreq->v, ioreq->v.size / BLOCK_SIZE,
                         qemu_aio_complete, ioreq);

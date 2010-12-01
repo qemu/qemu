@@ -20,10 +20,19 @@ Backends:
   --nop     Tracing disabled
   --simple  Simple built-in backend
   --ust     LTTng User Space Tracing backend
+  --dtrace  DTrace/SystemTAP backend
 
 Output formats:
-  -h    Generate .h file
-  -c    Generate .c file
+  -h     Generate .h file
+  -c     Generate .c file
+  -d     Generate .d file (DTrace only)
+  --stap Generate .stp file (DTrace with SystemTAP only)
+
+Options:
+  --binary      [path]  Full path to QEMU binary
+  --target-arch [arch]  QEMU emulator target arch
+  --target-type [type]  QEMU emulator target type ('system' or 'user')
+
 EOF
     exit 1
 }
@@ -46,8 +55,9 @@ get_args()
 # Get the argument name list of a trace event
 get_argnames()
 {
-    local nfields field name
+    local nfields field name sep
     nfields=0
+    sep="$2"
     for field in $(get_args "$1"); do
         nfields=$((nfields + 1))
 
@@ -58,7 +68,7 @@ get_argnames()
         name=${field%,}
         test "$field" = "$name" && continue
 
-        printf "%s" "$name, "
+        printf "%s%s " $name $sep
     done
 
     # Last argument name
@@ -73,7 +83,7 @@ get_argc()
 {
     local name argc
     argc=0
-    for name in $(get_argnames "$1"); do
+    for name in $(get_argnames "$1", ","); do
         argc=$((argc + 1))
     done
     echo $argc
@@ -154,7 +164,7 @@ EOF
 cast_args_to_uint64_t()
 {
     local arg
-    for arg in $(get_argnames "$1"); do
+    for arg in $(get_argnames "$1", ","); do
         printf "%s" "(uint64_t)(uintptr_t)$arg"
     done
 }
@@ -247,7 +257,7 @@ linetoh_ust()
     local name args argnames
     name=$(get_name "$1")
     args=$(get_args "$1")
-    argnames=$(get_argnames "$1")
+    argnames=$(get_argnames "$1", ",")
 
     cat <<EOF
 DECLARE_TRACE(ust_$name, TP_PROTO($args), TP_ARGS($argnames));
@@ -274,7 +284,7 @@ linetoc_ust()
     local name args argnames fmt
     name=$(get_name "$1")
     args=$(get_args "$1")
-    argnames=$(get_argnames "$1")
+    argnames=$(get_argnames "$1", ",")
     fmt=$(get_fmt "$1")
 
     cat <<EOF
@@ -306,6 +316,138 @@ EOF
     echo "}"
 }
 
+linetoh_begin_dtrace()
+{
+    cat <<EOF
+#include "trace-dtrace.h"
+EOF
+}
+
+linetoh_dtrace()
+{
+    local name args argnames state nameupper
+    name=$(get_name "$1")
+    args=$(get_args "$1")
+    argnames=$(get_argnames "$1", ",")
+    state=$(get_state "$1")
+    if [ "$state" = "0" ] ; then
+        name=${name##disable }
+    fi
+
+    nameupper=`echo $name | tr '[:lower:]' '[:upper:]'`
+
+    # Define an empty function for the trace event
+    cat <<EOF
+static inline void trace_$name($args) {
+    if (QEMU_${nameupper}_ENABLED()) {
+        QEMU_${nameupper}($argnames);
+    }
+}
+EOF
+}
+
+linetoh_end_dtrace()
+{
+    return
+}
+
+linetoc_begin_dtrace()
+{
+    return
+}
+
+linetoc_dtrace()
+{
+    # No need for function definitions in dtrace backend
+    return
+}
+
+linetoc_end_dtrace()
+{
+    return
+}
+
+linetod_begin_dtrace()
+{
+    cat <<EOF
+provider qemu {
+EOF
+}
+
+linetod_dtrace()
+{
+    local name args state
+    name=$(get_name "$1")
+    args=$(get_args "$1")
+    state=$(get_state "$1")
+    if [ "$state" = "0" ] ; then
+        name=${name##disable }
+    fi
+
+    # DTrace provider syntax expects foo() for empty
+    # params, not foo(void)
+    if [ "$args" = "void" ]; then
+       args=""
+    fi
+
+    # Define prototype for probe arguments
+    cat <<EOF
+        probe $name($args);
+EOF
+}
+
+linetod_end_dtrace()
+{
+    cat <<EOF
+};
+EOF
+}
+
+linetostap_begin_dtrace()
+{
+    return
+}
+
+linetostap_dtrace()
+{
+    local i arg name args arglist state
+    name=$(get_name "$1")
+    args=$(get_args "$1")
+    arglist=$(get_argnames "$1", "")
+    state=$(get_state "$1")
+    if [ "$state" = "0" ] ; then
+        name=${name##disable }
+    fi
+
+    # Define prototype for probe arguments
+    cat <<EOF
+probe qemu.$targettype.$targetarch.$name = process("$binary").mark("$name")
+{
+EOF
+
+    i=1
+    for arg in $arglist
+    do
+        # 'limit' is a reserved keyword
+        if [ "$arg" = "limit" ]; then
+          arg="_limit"
+        fi
+        cat <<EOF
+  $arg = \$arg$i;
+EOF
+	i="$((i+1))"
+    done
+
+    cat <<EOF
+}
+EOF
+}
+
+linetostap_end_dtrace()
+{
+    return
+}
+
 # Process stdin by calling begin, line, and end functions for the backend
 convert()
 {
@@ -324,9 +466,10 @@ convert()
         disable=${str%%disable *}
         echo
         if test -z "$disable"; then
-            # Pass the disabled state as an arg to lineto$1_simple().
-            # For all other cases, call lineto$1_nop()
-            if [ $backend = "simple" ]; then
+            # Pass the disabled state as an arg for the simple
+            # or DTrace backends which handle it dynamically.
+            # For all other backends, call lineto$1_nop()
+            if [ $backend = "simple" -o "$backend" = "dtrace" ]; then
                 "$process_line" "$str"
             else
                 "lineto$1_nop" "${str##disable }"
@@ -360,18 +503,71 @@ tracetoc()
     convert c
 }
 
-# Choose backend
-case "$1" in
-"--nop" | "--simple" | "--ust") backend="${1#--}" ;;
-*) usage ;;
-esac
-shift
+tracetod()
+{
+    if [ $backend != "dtrace" ]; then
+       echo "DTrace probe generator not applicable to $backend backend"
+       exit 1
+    fi
+    echo "/* This file is autogenerated by tracetool, do not edit. */"
+    convert d
+}
 
-case "$1" in
-"-h") tracetoh ;;
-"-c") tracetoc ;;
-"--check-backend") exit 0 ;; # used by ./configure to test for backend
-*) usage ;;
-esac
+tracetostap()
+{
+    if [ $backend != "dtrace" ]; then
+       echo "SystemTAP tapset generator not applicable to $backend backend"
+       exit 1
+    fi
+    if [ -z "$binary" ]; then
+       echo "--binary is required for SystemTAP tapset generator"
+       exit 1
+    fi
+    if [ -z "$targettype" ]; then
+       echo "--target-type is required for SystemTAP tapset generator"
+       exit 1
+    fi
+    if [ -z "$targetarch" ]; then
+       echo "--target-arch is required for SystemTAP tapset generator"
+       exit 1
+    fi
+    echo "/* This file is autogenerated by tracetool, do not edit. */"
+    convert stap
+}
+
+
+backend=
+output=
+binary=
+targettype=
+targetarch=
+
+
+until [ -z "$1" ]
+do
+  case "$1" in
+    "--nop" | "--simple" | "--ust" | "--dtrace") backend="${1#--}" ;;
+
+    "--binary") shift ; binary="$1" ;;
+    "--target-arch") shift ; targetarch="$1" ;;
+    "--target-type") shift ; targettype="$1" ;;
+
+    "-h" | "-c" | "-d") output="${1#-}" ;;
+    "--stap") output="${1#--}" ;;
+
+    "--check-backend") exit 0 ;; # used by ./configure to test for backend
+
+    *)
+      usage;;
+  esac
+  shift
+done
+
+if [ "$backend" = "" -o "$output" = "" ]; then
+  usage
+fi
+
+gen="traceto$output"
+"$gen"
 
 exit 0

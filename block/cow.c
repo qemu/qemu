@@ -282,9 +282,9 @@ exit:
     return ret;
 }
 
-static void cow_flush(BlockDriverState *bs)
+static int cow_flush(BlockDriverState *bs)
 {
-    bdrv_flush(bs->file);
+    return bdrv_flush(bs->file);
 }
 
 static QEMUOptionParameter cow_create_options[] = {

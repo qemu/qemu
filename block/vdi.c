@@ -186,7 +186,6 @@ typedef struct {
 } VdiHeader;
 
 typedef struct {
-    BlockDriverState *hd;
     /* The block map entries are little endian (even in memory). */
     uint32_t *bmap;
     /* Size of block (bytes). */
@@ -900,10 +899,10 @@ static void vdi_close(BlockDriverState *bs)
 {
 }
 
-static void vdi_flush(BlockDriverState *bs)
+static int vdi_flush(BlockDriverState *bs)
 {
     logout("\n");
-    bdrv_flush(bs->file);
+    return bdrv_flush(bs->file);
 }
 
 

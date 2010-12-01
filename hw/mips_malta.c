@@ -977,7 +977,7 @@ void mips_malta_init (ram_addr_t ram_size,
     } else if (vmsvga_enabled) {
         pci_vmsvga_init(pci_bus);
     } else if (std_vga_enabled) {
-        pci_vga_init(pci_bus, 0, 0);
+        pci_vga_init(pci_bus);
     }
 }
 

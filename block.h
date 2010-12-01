@@ -142,7 +142,7 @@ BlockDriverAIOCB *bdrv_aio_ioctl(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque);
 
 /* Ensure contents are flushed to disk.  */
-void bdrv_flush(BlockDriverState *bs);
+int bdrv_flush(BlockDriverState *bs);
 void bdrv_flush_all(void);
 void bdrv_close_all(void);
 

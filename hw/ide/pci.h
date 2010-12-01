@@ -11,12 +11,7 @@ typedef struct PCIIDEState {
 } PCIIDEState;
 
 void bmdma_cmd_writeb(void *opaque, uint32_t addr, uint32_t val);
-uint32_t bmdma_addr_readb(void *opaque, uint32_t addr);
-void bmdma_addr_writeb(void *opaque, uint32_t addr, uint32_t val);
-uint32_t bmdma_addr_readw(void *opaque, uint32_t addr);
-void bmdma_addr_writew(void *opaque, uint32_t addr, uint32_t val);
-uint32_t bmdma_addr_readl(void *opaque, uint32_t addr);
-void bmdma_addr_writel(void *opaque, uint32_t addr, uint32_t val);
+extern const IORangeOps bmdma_addr_ioport_ops;
 void pci_ide_create_devs(PCIDevice *dev, DriveInfo **hd_table);
 
 extern const VMStateDescription vmstate_ide_pci;

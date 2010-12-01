@@ -1142,7 +1142,7 @@ static int usb_net_handle_control(USBDevice *dev, int request, int value,
                 break;
 
             default:
-                if (usb_net_stringtable[value & 0xff]) {
+                if (ARRAY_SIZE(usb_net_stringtable) > (value & 0xff)) {
                     ret = set_usb_string(data,
                                     usb_net_stringtable[value & 0xff]);
                     break;

@@ -44,6 +44,9 @@
     that we generate the list.
 */
 static struct audio_driver *drvtab[] = {
+#ifdef CONFIG_SPICE
+    &spice_audio_driver,
+#endif
     CONFIG_AUDIO_DRIVERS
     &no_audio_driver,
     &wav_audio_driver
@@ -1093,15 +1096,6 @@ static void audio_pcm_print_info (const char *cap, struct audio_pcm_info *info)
 /*
  * Timer
  */
-static void audio_timer (void *opaque)
-{
-    AudioState *s = opaque;
-
-    audio_run ("timer");
-    qemu_mod_timer (s->ts, qemu_get_clock (vm_clock) + conf.period.ticks);
-}
-
-
 static int audio_is_timer_needed (void)
 {
     HWVoiceIn *hwi = NULL;
@@ -1116,16 +1110,20 @@ static int audio_is_timer_needed (void)
     return 0;
 }
 
-static void audio_reset_timer (void)
+static void audio_reset_timer (AudioState *s)
 {
-    AudioState *s = &glob_audio_state;
-
     if (audio_is_timer_needed ()) {
         qemu_mod_timer (s->ts, qemu_get_clock (vm_clock) + 1);
     }
     else {
         qemu_del_timer (s->ts);
     }
+}
+
+static void audio_timer (void *opaque)
+{
+    audio_run ("timer");
+    audio_reset_timer (opaque);
 }
 
 /*
@@ -1192,7 +1190,7 @@ void AUD_set_active_out (SWVoiceOut *sw, int on)
                 hw->enabled = 1;
                 if (s->vm_running) {
                     hw->pcm_ops->ctl_out (hw, VOICE_ENABLE, conf.try_poll_out);
-                    audio_reset_timer ();
+                    audio_reset_timer (s);
                 }
             }
         }
@@ -1237,6 +1235,7 @@ void AUD_set_active_in (SWVoiceIn *sw, int on)
                 hw->enabled = 1;
                 if (s->vm_running) {
                     hw->pcm_ops->ctl_in (hw, VOICE_ENABLE, conf.try_poll_in);
+                    audio_reset_timer (s);
                 }
             }
             sw->total_hw_samples_acquired = hw->total_samples_captured;
@@ -1758,7 +1757,7 @@ static void audio_vm_change_state_handler (void *opaque, int running,
     while ((hwi = audio_pcm_hw_find_any_enabled_in (hwi))) {
         hwi->pcm_ops->ctl_in (hwi, op, conf.try_poll_in);
     }
-    audio_reset_timer ();
+    audio_reset_timer (s);
 }
 
 static void audio_atexit (void)

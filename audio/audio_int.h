@@ -209,6 +209,7 @@ extern struct audio_driver coreaudio_audio_driver;
 extern struct audio_driver dsound_audio_driver;
 extern struct audio_driver esd_audio_driver;
 extern struct audio_driver pa_audio_driver;
+extern struct audio_driver spice_audio_driver;
 extern struct audio_driver winwave_audio_driver;
 extern struct mixeng_volume nominal_volume;
 

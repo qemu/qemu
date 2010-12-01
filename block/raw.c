@@ -39,9 +39,9 @@ static void raw_close(BlockDriverState *bs)
 {
 }
 
-static void raw_flush(BlockDriverState *bs)
+static int raw_flush(BlockDriverState *bs)
 {
-    bdrv_flush(bs->file);
+    return bdrv_flush(bs->file);
 }
 
 static BlockDriverAIOCB *raw_aio_flush(BlockDriverState *bs,

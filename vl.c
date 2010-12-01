@@ -158,6 +158,7 @@ int main(int argc, char **argv)
 
 #include "slirp/libslirp.h"
 
+#include "trace.h"
 #include "qemu-queue.h"
 #include "cpus.h"
 #include "arch_init.h"
@@ -1074,6 +1075,8 @@ void vm_state_notify(int running, int reason)
 {
     VMChangeStateEntry *e;
 
+    trace_vm_state_notify(running, reason);
+
     for (e = vm_change_state_head.lh_first; e; e = e->entries.le_next) {
         e->cb(e->opaque, running, reason);
     }
@@ -1249,16 +1252,17 @@ void main_loop_wait(int nonblocking)
         IOHandlerRecord *pioh;
 
         QLIST_FOREACH_SAFE(ioh, &io_handlers, next, pioh) {
+            if (!ioh->deleted && ioh->fd_read && FD_ISSET(ioh->fd, &rfds)) {
+                ioh->fd_read(ioh->opaque);
+            }
+            if (!ioh->deleted && ioh->fd_write && FD_ISSET(ioh->fd, &wfds)) {
+                ioh->fd_write(ioh->opaque);
+            }
+
+            /* Do this last in case read/write handlers marked it for deletion */
             if (ioh->deleted) {
                 QLIST_REMOVE(ioh, next);
                 qemu_free(ioh);
-                continue;
-            }
-            if (ioh->fd_read && FD_ISSET(ioh->fd, &rfds)) {
-                ioh->fd_read(ioh->opaque);
-            }
-            if (ioh->fd_write && FD_ISSET(ioh->fd, &wfds)) {
-                ioh->fd_write(ioh->opaque);
             }
         }
     }

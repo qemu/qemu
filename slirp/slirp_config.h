@@ -85,9 +85,6 @@
 /* Define if the machine is big endian */
 //#undef HOST_WORDS_BIGENDIAN
 
-/* Define if your sprintf returns char * instead of int */
-#undef BAD_SPRINTF
-
 /* Define if you have readv */
 #undef HAVE_READV
 
@@ -96,9 +93,6 @@
 #ifdef _WIN32
 #define DECLARE_IOVEC
 #endif
-
-/* Define if a declaration of sprintf/fprintf is needed */
-#undef DECLARE_SPRINTF
 
 /* Define if you have a POSIX.1 sys/wait.h */
 #undef HAVE_SYS_WAIT_H

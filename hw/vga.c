@@ -1934,8 +1934,6 @@ void vga_common_reset(VGACommonState *s)
     s->map_addr = 0;
     s->map_end = 0;
     s->lfb_vram_mapped = 0;
-    s->bios_offset = 0;
-    s->bios_size = 0;
     s->sr_index = 0;
     memset(s->sr, '\0', sizeof(s->sr));
     s->gr_index = 0;

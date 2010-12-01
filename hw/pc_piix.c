@@ -212,12 +212,35 @@ static void pc_init_isa(ram_addr_t ram_size,
 }
 
 static QEMUMachine pc_machine = {
-    .name = "pc-0.13",
+    .name = "pc-0.14",
     .alias = "pc",
     .desc = "Standard PC",
     .init = pc_init_pci,
     .max_cpus = 255,
     .is_default = 1,
+};
+
+static QEMUMachine pc_machine_v0_13 = {
+    .name = "pc-0.13",
+    .desc = "Standard PC",
+    .init = pc_init_pci,
+    .max_cpus = 255,
+    .compat_props = (GlobalProperty[]) {
+        {
+            .driver   = "virtio-9p-pci",
+            .property = "vectors",
+            .value    = stringify(0),
+        },{
+            .driver   = "VGA",
+            .property = "rombar",
+            .value    = stringify(0),
+        },{
+            .driver   = "vmware-svga",
+            .property = "rombar",
+            .value    = stringify(0),
+        },
+        { /* end of list */ }
+    },
 };
 
 static QEMUMachine pc_machine_v0_12 = {
@@ -233,6 +256,14 @@ static QEMUMachine pc_machine_v0_12 = {
         },{
             .driver   = "virtio-serial-pci",
             .property = "vectors",
+            .value    = stringify(0),
+        },{
+            .driver   = "VGA",
+            .property = "rombar",
+            .value    = stringify(0),
+        },{
+            .driver   = "vmware-svga",
+            .property = "rombar",
             .value    = stringify(0),
         },
         { /* end of list */ }
@@ -331,6 +362,7 @@ static QEMUMachine isapc_machine = {
 static void pc_machine_init(void)
 {
     qemu_register_machine(&pc_machine);
+    qemu_register_machine(&pc_machine_v0_13);
     qemu_register_machine(&pc_machine_v0_12);
     qemu_register_machine(&pc_machine_v0_11);
     qemu_register_machine(&pc_machine_v0_10);

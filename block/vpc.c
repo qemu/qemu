@@ -110,8 +110,6 @@ struct vhd_dyndisk_header {
 };
 
 typedef struct BDRVVPCState {
-    BlockDriverState *hd;
-
     uint8_t footer_buf[HEADER_SIZE];
     uint64_t free_data_block_offset;
     int max_table_entries;
@@ -439,6 +437,10 @@ static int vpc_write(BlockDriverState *bs, int64_t sector_num,
     return 0;
 }
 
+static int vpc_flush(BlockDriverState *bs)
+{
+    return bdrv_flush(bs->file);
+}
 
 /*
  * Calculates the number of cylinders, heads and sectors per cylinder
@@ -618,14 +620,15 @@ static QEMUOptionParameter vpc_create_options[] = {
 };
 
 static BlockDriver bdrv_vpc = {
-    .format_name	= "vpc",
-    .instance_size	= sizeof(BDRVVPCState),
-    .bdrv_probe		= vpc_probe,
-    .bdrv_open		= vpc_open,
-    .bdrv_read		= vpc_read,
-    .bdrv_write		= vpc_write,
-    .bdrv_close		= vpc_close,
-    .bdrv_create	= vpc_create,
+    .format_name    = "vpc",
+    .instance_size  = sizeof(BDRVVPCState),
+    .bdrv_probe     = vpc_probe,
+    .bdrv_open      = vpc_open,
+    .bdrv_read      = vpc_read,
+    .bdrv_write     = vpc_write,
+    .bdrv_flush     = vpc_flush,
+    .bdrv_close     = vpc_close,
+    .bdrv_create    = vpc_create,
 
     .create_options = vpc_create_options,
 };

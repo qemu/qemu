@@ -930,14 +930,14 @@ static void set_dirty_bitmap(BlockDriverState *bs, int64_t sector_num,
         bit = start % (sizeof(unsigned long) * 8);
         val = bs->dirty_bitmap[idx];
         if (dirty) {
-            if (!(val & (1 << bit))) {
+            if (!(val & (1UL << bit))) {
                 bs->dirty_count++;
-                val |= 1 << bit;
+                val |= 1UL << bit;
             }
         } else {
-            if (val & (1 << bit)) {
+            if (val & (1UL << bit)) {
                 bs->dirty_count--;
-                val &= ~(1 << bit);
+                val &= ~(1UL << bit);
             }
         }
         bs->dirty_bitmap[idx] = val;
@@ -1453,14 +1453,27 @@ const char *bdrv_get_device_name(BlockDriverState *bs)
     return bs->device_name;
 }
 
-void bdrv_flush(BlockDriverState *bs)
+int bdrv_flush(BlockDriverState *bs)
 {
     if (bs->open_flags & BDRV_O_NO_FLUSH) {
-        return;
+        return 0;
     }
 
-    if (bs->drv && bs->drv->bdrv_flush)
-        bs->drv->bdrv_flush(bs);
+    if (bs->drv && bs->drv->bdrv_flush) {
+        return bs->drv->bdrv_flush(bs);
+    }
+
+    /*
+     * Some block drivers always operate in either writethrough or unsafe mode
+     * and don't support bdrv_flush therefore. Usually qemu doesn't know how
+     * the server works (because the behaviour is hardcoded or depends on
+     * server-side configuration), so we can't ensure that everything is safe
+     * on disk. Returning an error doesn't work because that would break guests
+     * even if the server operates in writethrough mode.
+     *
+     * Let's hope the user knows what he's doing.
+     */
+    return 0;
 }
 
 void bdrv_flush_all(void)
@@ -2018,12 +2031,49 @@ BlockDriverAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
     return ret;
 }
 
+typedef struct BlockCompleteData {
+    BlockDriverCompletionFunc *cb;
+    void *opaque;
+    BlockDriverState *bs;
+    int64_t sector_num;
+    int nb_sectors;
+} BlockCompleteData;
+
+static void block_complete_cb(void *opaque, int ret)
+{
+    BlockCompleteData *b = opaque;
+
+    if (b->bs->dirty_bitmap) {
+        set_dirty_bitmap(b->bs, b->sector_num, b->nb_sectors, 1);
+    }
+    b->cb(b->opaque, ret);
+    qemu_free(b);
+}
+
+static BlockCompleteData *blk_dirty_cb_alloc(BlockDriverState *bs,
+                                             int64_t sector_num,
+                                             int nb_sectors,
+                                             BlockDriverCompletionFunc *cb,
+                                             void *opaque)
+{
+    BlockCompleteData *blkdata = qemu_mallocz(sizeof(BlockCompleteData));
+
+    blkdata->bs = bs;
+    blkdata->cb = cb;
+    blkdata->opaque = opaque;
+    blkdata->sector_num = sector_num;
+    blkdata->nb_sectors = nb_sectors;
+
+    return blkdata;
+}
+
 BlockDriverAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
                                   QEMUIOVector *qiov, int nb_sectors,
                                   BlockDriverCompletionFunc *cb, void *opaque)
 {
     BlockDriver *drv = bs->drv;
     BlockDriverAIOCB *ret;
+    BlockCompleteData *blk_cb_data;
 
     trace_bdrv_aio_writev(bs, sector_num, nb_sectors, opaque);
 
@@ -2035,7 +2085,10 @@ BlockDriverAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
         return NULL;
 
     if (bs->dirty_bitmap) {
-        set_dirty_bitmap(bs, sector_num, nb_sectors, 1);
+        blk_cb_data = blk_dirty_cb_alloc(bs, sector_num, nb_sectors, cb,
+                                         opaque);
+        cb = &block_complete_cb;
+        opaque = blk_cb_data;
     }
 
     ret = drv->bdrv_aio_writev(bs, sector_num, qiov, nb_sectors,
@@ -2672,8 +2725,8 @@ int bdrv_get_dirty(BlockDriverState *bs, int64_t sector)
 
     if (bs->dirty_bitmap &&
         (sector << BDRV_SECTOR_BITS) < bdrv_getlength(bs)) {
-        return bs->dirty_bitmap[chunk / (sizeof(unsigned long) * 8)] &
-            (1 << (chunk % (sizeof(unsigned long) * 8)));
+        return !!(bs->dirty_bitmap[chunk / (sizeof(unsigned long) * 8)] &
+            (1UL << (chunk % (sizeof(unsigned long) * 8))));
     } else {
         return 0;
     }

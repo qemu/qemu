@@ -463,7 +463,7 @@ static int raw_pwrite(BlockDriverState *bs, int64_t offset,
                 count -= ret;
                 sum += ret;
             }
-            /* here, count < 512 because (count & ~sector_mask) == 0 */
+            /* here, count < sector_size because (count & ~sector_mask) == 0 */
             if (count) {
                 ret = raw_pread_aligned(bs, offset, s->aligned_buf,
                                      bs->buffer_alignment);
@@ -734,10 +734,10 @@ static int raw_create(const char *filename, QEMUOptionParameter *options)
     return result;
 }
 
-static void raw_flush(BlockDriverState *bs)
+static int raw_flush(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
-    qemu_fdatasync(s->fd);
+    return qemu_fdatasync(s->fd);
 }
 
 

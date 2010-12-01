@@ -30,6 +30,7 @@ endif
 endif
 
 PROGS=$(QEMU_PROG)
+STPFILES=
 
 ifndef CONFIG_HAIKU
 LIBS+=-lm
@@ -40,7 +41,27 @@ kvm.o kvm-all.o vhost.o vhost_net.o: QEMU_CFLAGS+=$(KVM_CFLAGS)
 config-target.h: config-target.h-timestamp
 config-target.h-timestamp: config-target.mak
 
-all: $(PROGS)
+ifdef CONFIG_SYSTEMTAP_TRACE
+stap: $(QEMU_PROG).stp
+
+ifdef CONFIG_USER_ONLY
+TARGET_TYPE=user
+else
+TARGET_TYPE=system
+endif
+
+$(QEMU_PROG).stp:
+	$(call quiet-command,sh $(SRC_PATH)/tracetool \
+		--$(TRACE_BACKEND) \
+		--binary $(bindir)/$(QEMU_PROG) \
+		--target-arch $(TARGET_ARCH) \
+		--target-type $(TARGET_TYPE) \
+		--stap < $(SRC_PATH)/trace-events > $(QEMU_PROG).stp,"  GEN   $(QEMU_PROG).stp")
+else
+stap:
+endif
+
+all: $(PROGS) stap
 
 # Dummy command so that make thinks it has done something
 	@true
@@ -167,11 +188,11 @@ ifdef CONFIG_SOFTMMU
 obj-y = arch_init.o cpus.o monitor.o machine.o gdbstub.o balloon.o
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
-obj-y += virtio-blk.o virtio-balloon.o virtio-net.o virtio-serial-bus.o
+obj-$(CONFIG_VIRTIO) += virtio-blk.o virtio-balloon.o virtio-net.o virtio-serial-bus.o
 obj-$(CONFIG_VIRTIO_PCI) += virtio-pci.o
 obj-y += vhost_net.o
 obj-$(CONFIG_VHOST_NET) += vhost.o
-obj-$(CONFIG_VIRTFS) += virtio-9p.o
+obj-$(CONFIG_REALLY_VIRTFS) += virtio-9p.o
 obj-y += rwhandler.o
 obj-$(CONFIG_KVM) += kvm.o kvm-all.o
 obj-$(CONFIG_NO_KVM) += kvm-stub.o
@@ -189,8 +210,8 @@ obj-$(CONFIG_XEN) += xen_machine_pv.o xen_domainbuild.o
 obj-$(CONFIG_USB_OHCI) += usb-ohci.o
 
 # PCI network cards
-obj-y += rtl8139.o
-obj-y += e1000.o
+obj-$(CONFIG_RTL8139_PCI) += rtl8139.o
+obj-$(CONFIG_E1000_PCI) += e1000.o
 
 # Inter-VM PCI shared memory
 obj-$(CONFIG_KVM) += ivshmem.o
@@ -340,6 +361,9 @@ clean:
 	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o
 	rm -f *.d */*.d tcg/*.o ide/*.o
 	rm -f hmp-commands.h qmp-commands.h gdbstub-xml.c
+ifdef CONFIG_SYSTEMTAP_TRACE
+	rm -f *.stp
+endif
 
 install: all
 ifneq ($(PROGS),)
@@ -347,6 +371,10 @@ ifneq ($(PROGS),)
 ifneq ($(STRIP),)
 	$(STRIP) $(patsubst %,"$(DESTDIR)$(bindir)/%",$(PROGS))
 endif
+endif
+ifdef CONFIG_SYSTEMTAP_TRACE
+	$(INSTALL_DIR) "$(DESTDIR)$(datadir)/../systemtap/tapset"
+	$(INSTALL_DATA) $(QEMU_PROG).stp "$(DESTDIR)$(datadir)/../systemtap/tapset"
 endif
 
 # Include automatically generated dependency files

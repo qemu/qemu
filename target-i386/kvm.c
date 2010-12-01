@@ -162,6 +162,9 @@ struct kvm_para_features {
 #ifdef KVM_CAP_PV_MMU
         { KVM_CAP_PV_MMU, KVM_FEATURE_MMU_OP },
 #endif
+#ifdef KVM_CAP_ASYNC_PF
+        { KVM_CAP_ASYNC_PF, KVM_FEATURE_ASYNC_PF },
+#endif
         { -1, -1 }
 };
 
@@ -838,6 +841,9 @@ static int kvm_put_msrs(CPUState *env, int level)
         kvm_msr_entry_set(&msrs[n++], MSR_KVM_SYSTEM_TIME,
                           env->system_time_msr);
         kvm_msr_entry_set(&msrs[n++], MSR_KVM_WALL_CLOCK, env->wall_clock_msr);
+#ifdef KVM_CAP_ASYNC_PF
+        kvm_msr_entry_set(&msrs[n++], MSR_KVM_ASYNC_PF_EN, env->async_pf_en_msr);
+#endif
     }
 #ifdef KVM_CAP_MCE
     if (env->mcg_cap) {
@@ -1064,6 +1070,9 @@ static int kvm_get_msrs(CPUState *env)
 #endif
     msrs[n++].index = MSR_KVM_SYSTEM_TIME;
     msrs[n++].index = MSR_KVM_WALL_CLOCK;
+#ifdef KVM_CAP_ASYNC_PF
+    msrs[n++].index = MSR_KVM_ASYNC_PF_EN;
+#endif
 
 #ifdef KVM_CAP_MCE
     if (env->mcg_cap) {
@@ -1135,6 +1144,11 @@ static int kvm_get_msrs(CPUState *env)
             }
 #endif
             break;
+#ifdef KVM_CAP_ASYNC_PF
+        case MSR_KVM_ASYNC_PF_EN:
+            env->async_pf_en_msr = msrs[i].data;
+            break;
+#endif
         }
     }
 

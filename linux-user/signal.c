@@ -3071,11 +3071,11 @@ struct target_stack_t {
 };
 
 struct target_ucontext {
-    abi_ulong uc_flags;
-    abi_ulong uc_link;
-    struct target_stack_t uc_stack;
-    struct target_sigcontext sc;
-    uint32_t extramask[TARGET_NSIG_WORDS - 1];
+    abi_ulong tuc_flags;
+    abi_ulong tuc_link;
+    struct target_stack_t tuc_stack;
+    struct target_sigcontext tuc_mcontext;
+    uint32_t tuc_extramask[TARGET_NSIG_WORDS - 1];
 };
 
 /* Signal frames. */
@@ -3189,7 +3189,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
         goto badframe;
 
     /* Save the mask.  */
-    err |= __put_user(set->sig[0], &frame->uc.sc.oldmask);
+    err |= __put_user(set->sig[0], &frame->uc.tuc_mcontext.oldmask);
     if (err)
         goto badframe;
 
@@ -3198,7 +3198,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
             goto badframe;
     }
 
-    setup_sigcontext(&frame->uc.sc, env);
+    setup_sigcontext(&frame->uc.tuc_mcontext, env);
 
     /* Set up to return from userspace. If provided, use a stub
        already in userspace. */
@@ -3261,7 +3261,7 @@ long do_sigreturn(CPUState *env)
         goto badframe;
 
     /* Restore blocked signals */
-    if (__get_user(target_set.sig[0], &frame->uc.sc.oldmask))
+    if (__get_user(target_set.sig[0], &frame->uc.tuc_mcontext.oldmask))
         goto badframe;
     for(i = 1; i < TARGET_NSIG_WORDS; i++) {
         if (__get_user(target_set.sig[i], &frame->extramask[i - 1]))
@@ -3270,7 +3270,7 @@ long do_sigreturn(CPUState *env)
     target_to_host_sigset_internal(&set, &target_set);
     sigprocmask(SIG_SETMASK, &set, NULL);
 
-    restore_sigcontext(&frame->uc.sc, env);
+    restore_sigcontext(&frame->uc.tuc_mcontext, env);
     /* We got here through a sigreturn syscall, our path back is via an
        rtb insn so setup r14 for that.  */
     env->regs[14] = env->sregs[SR_PC];

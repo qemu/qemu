@@ -174,6 +174,70 @@ int register_ioport_write(pio_addr_t start, int length, int size,
     return 0;
 }
 
+static uint32_t ioport_readb_thunk(void *opaque, uint32_t addr)
+{
+    IORange *ioport = opaque;
+    uint64_t data;
+
+    ioport->ops->read(ioport, addr - ioport->base, 1, &data);
+    return data;
+}
+
+static uint32_t ioport_readw_thunk(void *opaque, uint32_t addr)
+{
+    IORange *ioport = opaque;
+    uint64_t data;
+
+    ioport->ops->read(ioport, addr - ioport->base, 2, &data);
+    return data;
+}
+
+static uint32_t ioport_readl_thunk(void *opaque, uint32_t addr)
+{
+    IORange *ioport = opaque;
+    uint64_t data;
+
+    ioport->ops->read(ioport, addr - ioport->base, 4, &data);
+    return data;
+}
+
+static void ioport_writeb_thunk(void *opaque, uint32_t addr, uint32_t data)
+{
+    IORange *ioport = opaque;
+
+    ioport->ops->write(ioport, addr - ioport->base, 1, data);
+}
+
+static void ioport_writew_thunk(void *opaque, uint32_t addr, uint32_t data)
+{
+    IORange *ioport = opaque;
+
+    ioport->ops->write(ioport, addr - ioport->base, 2, data);
+}
+
+static void ioport_writel_thunk(void *opaque, uint32_t addr, uint32_t data)
+{
+    IORange *ioport = opaque;
+
+    ioport->ops->write(ioport, addr - ioport->base, 4, data);
+}
+
+void ioport_register(IORange *ioport)
+{
+    register_ioport_read(ioport->base, ioport->len, 1,
+                         ioport_readb_thunk, ioport);
+    register_ioport_read(ioport->base, ioport->len, 2,
+                         ioport_readw_thunk, ioport);
+    register_ioport_read(ioport->base, ioport->len, 4,
+                         ioport_readl_thunk, ioport);
+    register_ioport_write(ioport->base, ioport->len, 1,
+                          ioport_writeb_thunk, ioport);
+    register_ioport_write(ioport->base, ioport->len, 2,
+                          ioport_writew_thunk, ioport);
+    register_ioport_write(ioport->base, ioport->len, 4,
+                          ioport_writel_thunk, ioport);
+}
+
 void isa_unassign_ioport(pio_addr_t start, int length)
 {
     int i;

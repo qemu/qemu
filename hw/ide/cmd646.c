@@ -179,12 +179,8 @@ static void bmdma_map(PCIDevice *pci_dev, int region_num,
             register_ioport_read(addr, 4, 1, bmdma_readb_1, d);
         }
 
-        register_ioport_write(addr + 4, 4, 1, bmdma_addr_writeb, bm);
-        register_ioport_read(addr + 4, 4, 1, bmdma_addr_readb, bm);
-        register_ioport_write(addr + 4, 4, 2, bmdma_addr_writew, bm);
-        register_ioport_read(addr + 4, 4, 2, bmdma_addr_readw, bm);
-        register_ioport_write(addr + 4, 4, 4, bmdma_addr_writel, bm);
-        register_ioport_read(addr + 4, 4, 4, bmdma_addr_readl, bm);
+        iorange_init(&bm->addr_ioport, &bmdma_addr_ioport_ops, addr + 4, 4);
+        ioport_register(&bm->addr_ioport);
         addr += 8;
     }
 }

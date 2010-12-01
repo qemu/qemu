@@ -75,12 +75,12 @@ struct e820_entry {
     uint64_t address;
     uint64_t length;
     uint32_t type;
-};
+} __attribute((__packed__, __aligned__(4)));
 
 struct e820_table {
     uint32_t count;
     struct e820_entry entry[E820_NR_ENTRIES];
-};
+} __attribute((__packed__, __aligned__(4)));
 
 static struct e820_table e820_table;
 
@@ -430,8 +430,8 @@ static void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
         /* Bochs BIOS messages */
     case 0x400:
     case 0x401:
-        fprintf(stderr, "BIOS panic at rombios.c, line %d\n", val);
-        exit(1);
+        /* used to be panic, now unused */
+        break;
     case 0x402:
     case 0x403:
 #ifdef DEBUG_BIOS
@@ -467,19 +467,19 @@ static void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
 
 int e820_add_entry(uint64_t address, uint64_t length, uint32_t type)
 {
-    int index = e820_table.count;
+    int index = le32_to_cpu(e820_table.count);
     struct e820_entry *entry;
 
     if (index >= E820_NR_ENTRIES)
         return -EBUSY;
-    entry = &e820_table.entry[index];
+    entry = &e820_table.entry[index++];
 
-    entry->address = address;
-    entry->length = length;
-    entry->type = type;
+    entry->address = cpu_to_le64(address);
+    entry->length = cpu_to_le64(length);
+    entry->type = cpu_to_le32(type);
 
-    e820_table.count++;
-    return e820_table.count;
+    e820_table.count = cpu_to_le32(index);
+    return index;
 }
 
 static void *bochs_bios_init(void)
@@ -993,7 +993,7 @@ void pc_vga_init(PCIBus *pci_bus)
             fprintf(stderr, "%s: vmware_vga: no PCI bus\n", __FUNCTION__);
     } else if (std_vga_enabled) {
         if (pci_bus) {
-            pci_vga_init(pci_bus, 0, 0);
+            pci_vga_init(pci_bus);
         } else {
             isa_vga_init();
         }

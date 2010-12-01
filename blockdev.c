@@ -14,6 +14,8 @@
 #include "qemu-option.h"
 #include "qemu-config.h"
 #include "sysemu.h"
+#include "hw/qdev.h"
+#include "block_int.h"
 
 static QTAILQ_HEAD(drivelist, DriveInfo) drives = QTAILQ_HEAD_INITIALIZER(drives);
 
@@ -314,7 +316,7 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi, int *fatal_error)
     on_write_error = BLOCK_ERR_STOP_ENOSPC;
     if ((buf = qemu_opt_get(opts, "werror")) != NULL) {
         if (type != IF_IDE && type != IF_SCSI && type != IF_VIRTIO && type != IF_NONE) {
-            fprintf(stderr, "werror is no supported by this format\n");
+            fprintf(stderr, "werror is not supported by this format\n");
             return NULL;
         }
 
@@ -326,8 +328,8 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi, int *fatal_error)
 
     on_read_error = BLOCK_ERR_REPORT;
     if ((buf = qemu_opt_get(opts, "rerror")) != NULL) {
-        if (type != IF_IDE && type != IF_VIRTIO && type != IF_NONE) {
-            fprintf(stderr, "rerror is no supported by this format\n");
+        if (type != IF_IDE && type != IF_VIRTIO && type != IF_SCSI && type != IF_NONE) {
+            fprintf(stderr, "rerror is not supported by this format\n");
             return NULL;
         }
 
@@ -596,4 +598,41 @@ int do_change_block(Monitor *mon, const char *device,
         return -1;
     }
     return monitor_read_bdrv_key_start(mon, bs, NULL, NULL);
+}
+
+int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
+{
+    const char *id = qdict_get_str(qdict, "id");
+    BlockDriverState *bs;
+    BlockDriverState **ptr;
+    Property *prop;
+
+    bs = bdrv_find(id);
+    if (!bs) {
+        qerror_report(QERR_DEVICE_NOT_FOUND, id);
+        return -1;
+    }
+
+    /* quiesce block driver; prevent further io */
+    qemu_aio_flush();
+    bdrv_flush(bs);
+    bdrv_close(bs);
+
+    /* clean up guest state from pointing to host resource by
+     * finding and removing DeviceState "drive" property */
+    for (prop = bs->peer->info->props; prop && prop->name; prop++) {
+        if (prop->info->type == PROP_TYPE_DRIVE) {
+            ptr = qdev_get_prop_ptr(bs->peer, prop);
+            if ((*ptr) == bs) {
+                bdrv_detach(bs, bs->peer);
+                *ptr = NULL;
+                break;
+            }
+        }
+    }
+
+    /* clean up host side */
+    drive_uninit(drive_get_by_blockdev(bs));
+
+    return 0;
 }

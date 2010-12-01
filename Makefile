@@ -1,6 +1,9 @@
 # Makefile for QEMU.
 
 GENERATED_HEADERS = config-host.h trace.h qemu-options.def
+ifeq ($(TRACE_BACKEND),dtrace)
+GENERATED_HEADERS += trace-dtrace.h
+endif
 
 ifneq ($(wildcard config-host.mak),)
 # Put the all: rule here so that config-host.mak can contain dependencies.
@@ -36,18 +39,19 @@ endif
 
 SUBDIR_MAKEFLAGS=$(if $(V),,--no-print-directory)
 SUBDIR_DEVICES_MAK=$(patsubst %, %/config-devices.mak, $(TARGET_DIRS))
+SUBDIR_DEVICES_MAK_DEP=$(patsubst %, %/config-devices.mak.d, $(TARGET_DIRS))
 
 config-all-devices.mak: $(SUBDIR_DEVICES_MAK)
 	$(call quiet-command,cat $(SUBDIR_DEVICES_MAK) | grep =y | sort -u > $@,"  GEN   $@")
 
+-include $(SUBDIR_DEVICES_MAK_DEP)
+
 %/config-devices.mak: default-configs/%.mak
-	$(call quiet-command,cat $< > $@.tmp, "  GEN   $@")
+	$(call quiet-command,$(SHELL) $(SRC_PATH)/make_device_config.sh $@ $<, "  GEN   $@")
 	@if test -f $@; then \
 	  if cmp -s $@.old $@; then \
-	    if ! cmp -s $@ $@.tmp; then \
-	      mv $@.tmp $@; \
-	      cp -p $@ $@.old; \
-	    fi; \
+	    mv $@.tmp $@; \
+	    cp -p $@ $@.old; \
 	  else \
 	    if test -f $@.old; then \
 	      echo "WARNING: $@ (user modified) out of date.";\
@@ -108,7 +112,11 @@ ui/vnc.o: QEMU_CFLAGS += $(VNC_TLS_CFLAGS)
 
 bt-host.o: QEMU_CFLAGS += $(BLUEZ_CFLAGS)
 
+ifeq ($(TRACE_BACKEND),dtrace)
+trace.h: trace.h-timestamp trace-dtrace.h
+else
 trace.h: trace.h-timestamp
+endif
 trace.h-timestamp: $(SRC_PATH)/trace-events config-host.mak
 	$(call quiet-command,sh $(SRC_PATH)/tracetool --$(TRACE_BACKEND) -h < $< > $@,"  GEN   trace.h")
 	@cmp -s $@ trace.h || cp $@ trace.h
@@ -120,6 +128,20 @@ trace.c-timestamp: $(SRC_PATH)/trace-events config-host.mak
 
 trace.o: trace.c $(GENERATED_HEADERS)
 
+trace-dtrace.h: trace-dtrace.dtrace
+	$(call quiet-command,dtrace -o $@ -h -s $<, "  GEN   trace-dtrace.h")
+
+# Normal practice is to name DTrace probe file with a '.d' extension
+# but that gets picked up by QEMU's Makefile as an external dependancy
+# rule file. So we use '.dtrace' instead
+trace-dtrace.dtrace: trace-dtrace.dtrace-timestamp
+trace-dtrace.dtrace-timestamp: $(SRC_PATH)/trace-events config-host.mak
+	$(call quiet-command,sh $(SRC_PATH)/tracetool --$(TRACE_BACKEND) -d < $< > $@,"  GEN   trace-dtrace.dtrace")
+	@cmp -s $@ trace-dtrace.dtrace || cp $@ trace-dtrace.dtrace
+
+trace-dtrace.o: trace-dtrace.dtrace $(GENERATED_HEADERS)
+	$(call quiet-command,dtrace -o $@ -G -s $<, "  GEN trace-dtrace.o")
+
 simpletrace.o: simpletrace.c $(GENERATED_HEADERS)
 
 version.o: $(SRC_PATH)/version.rc config-host.mak
@@ -129,7 +151,7 @@ version-obj-$(CONFIG_WIN32) += version.o
 ######################################################################
 
 qemu-img.o: qemu-img-cmds.h
-qemu-img.o qemu-tool.o qemu-nbd.o qemu-io.o: $(GENERATED_HEADERS)
+qemu-img.o qemu-tool.o qemu-nbd.o qemu-io.o cmd.o: $(GENERATED_HEADERS)
 
 qemu-img$(EXESUF): qemu-img.o qemu-tool.o qemu-error.o $(oslib-obj-y) $(trace-obj-y) $(block-obj-y) $(qobject-obj-y) $(version-obj-y) qemu-timer-common.o
 
@@ -142,12 +164,14 @@ qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx
 
 check-qint.o check-qstring.o check-qdict.o check-qlist.o check-qfloat.o check-qjson.o: $(GENERATED_HEADERS)
 
-check-qint: check-qint.o qint.o qemu-malloc.o $(trace-obj-y)
-check-qstring: check-qstring.o qstring.o qemu-malloc.o $(trace-obj-y)
-check-qdict: check-qdict.o qdict.o qfloat.o qint.o qstring.o qbool.o qemu-malloc.o qlist.o $(trace-obj-y)
-check-qlist: check-qlist.o qlist.o qint.o qemu-malloc.o $(trace-obj-y)
-check-qfloat: check-qfloat.o qfloat.o qemu-malloc.o $(trace-obj-y)
-check-qjson: check-qjson.o qfloat.o qint.o qdict.o qstring.o qlist.o qbool.o qjson.o json-streamer.o json-lexer.o json-parser.o qemu-malloc.o $(trace-obj-y)
+CHECK_PROG_DEPS = qemu-malloc.o $(oslib-obj-y) $(trace-obj-y)
+
+check-qint: check-qint.o qint.o $(CHECK_PROG_DEPS)
+check-qstring: check-qstring.o qstring.o $(CHECK_PROG_DEPS)
+check-qdict: check-qdict.o qdict.o qfloat.o qint.o qstring.o qbool.o qlist.o $(CHECK_PROG_DEPS)
+check-qlist: check-qlist.o qlist.o qint.o $(CHECK_PROG_DEPS)
+check-qfloat: check-qfloat.o qfloat.o $(CHECK_PROG_DEPS)
+check-qjson: check-qjson.o qfloat.o qint.o qdict.o qstring.o qlist.o qbool.o qjson.o json-streamer.o json-lexer.o json-parser.o $(CHECK_PROG_DEPS)
 
 clean:
 # avoid old build problems by removing potentially incorrect old files
@@ -157,6 +181,8 @@ clean:
 	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d net/*.o net/*.d fsdev/*.o fsdev/*.d ui/*.o ui/*.d
 	rm -f qemu-img-cmds.h
 	rm -f trace.c trace.h trace.c-timestamp trace.h-timestamp
+	rm -f trace-dtrace.dtrace trace-dtrace.dtrace-timestamp
+	rm -f trace-dtrace.h trace-dtrace.h-timestamp
 	$(MAKE) -C tests clean
 	for d in $(ALL_SUBDIRS) libhw32 libhw64 libuser libdis libdis-user; do \
 	if test -d $$d; then $(MAKE) -C $$d $@ || exit 1; fi; \
@@ -178,8 +204,9 @@ ar      de     en-us  fi  fr-be  hr     it  lv  nl         pl  ru     th \
 common  de-ch  es     fo  fr-ca  hu     ja  mk  nl-be      pt  sl     tr
 
 ifdef INSTALL_BLOBS
-BLOBS=bios.bin vgabios.bin vgabios-cirrus.bin ppc_rom.bin \
-openbios-sparc32 openbios-sparc64 openbios-ppc \
+BLOBS=bios.bin vgabios.bin vgabios-cirrus.bin \
+vgabios-stdvga.bin vgabios-vmware.bin \
+ppc_rom.bin openbios-sparc32 openbios-sparc64 openbios-ppc \
 gpxe-eepro100-80861209.rom \
 pxe-e1000.bin \
 pxe-ne2k_pci.bin pxe-pcnet.bin \

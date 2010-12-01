@@ -147,10 +147,17 @@ static int raw_write(BlockDriverState *bs, int64_t sector_num,
     return ret_count;
 }
 
-static void raw_flush(BlockDriverState *bs)
+static int raw_flush(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
-    FlushFileBuffers(s->hfile);
+    int ret;
+
+    ret = FlushFileBuffers(s->hfile);
+    if (ret != 0) {
+        return -EIO;
+    }
+
+    return 0;
 }
 
 static void raw_close(BlockDriverState *bs)
