@@ -429,6 +429,8 @@ static void usb_hid_changed(USBHIDState *hs)
 
     if (hs->datain)
         hs->datain(hs->datain_opaque);
+
+    usb_wakeup(&hs->dev);
 }
 
 static void usb_mouse_event(void *opaque,
