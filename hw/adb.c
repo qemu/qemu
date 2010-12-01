@@ -427,32 +427,20 @@ static int adb_mouse_reset(ADBDevice *d)
     return 0;
 }
 
-static void adb_mouse_save(QEMUFile *f, void *opaque)
-{
-    MouseState *s = (MouseState *)opaque;
-
-    qemu_put_sbe32s(f, &s->buttons_state);
-    qemu_put_sbe32s(f, &s->last_buttons_state);
-    qemu_put_sbe32s(f, &s->dx);
-    qemu_put_sbe32s(f, &s->dy);
-    qemu_put_sbe32s(f, &s->dz);
-}
-
-static int adb_mouse_load(QEMUFile *f, void *opaque, int version_id)
-{
-    MouseState *s = (MouseState *)opaque;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    qemu_get_sbe32s(f, &s->buttons_state);
-    qemu_get_sbe32s(f, &s->last_buttons_state);
-    qemu_get_sbe32s(f, &s->dx);
-    qemu_get_sbe32s(f, &s->dy);
-    qemu_get_sbe32s(f, &s->dz);
-
-    return 0;
-}
+static const VMStateDescription vmstate_adb_mouse = {
+    .name = "adb_mouse",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_INT32(buttons_state, MouseState),
+        VMSTATE_INT32(last_buttons_state, MouseState),
+        VMSTATE_INT32(dx, MouseState),
+        VMSTATE_INT32(dy, MouseState),
+        VMSTATE_INT32(dz, MouseState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 void adb_mouse_init(ADBBusState *bus)
 {
@@ -463,6 +451,5 @@ void adb_mouse_init(ADBBusState *bus)
     d = adb_register_device(bus, ADB_MOUSE, adb_mouse_request,
                             adb_mouse_reset, s);
     qemu_add_mouse_event_handler(adb_mouse_event, d, 0, "QEMU ADB Mouse");
-    register_savevm(NULL, "adb_mouse", -1, 1, adb_mouse_save,
-                    adb_mouse_load, s);
+    vmstate_register(NULL, -1, &vmstate_adb_mouse, s);
 }
