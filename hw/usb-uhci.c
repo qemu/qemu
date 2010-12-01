@@ -1101,6 +1101,10 @@ static void uhci_map(PCIDevice *pci_dev, int region_num,
     register_ioport_read(addr, 32, 1, uhci_ioport_readb, s);
 }
 
+static USBPortOps uhci_port_ops = {
+    .attach = uhci_attach,
+};
+
 static int usb_uhci_common_initfn(UHCIState *s)
 {
     uint8_t *pci_conf = s->dev.config;
@@ -1115,7 +1119,7 @@ static int usb_uhci_common_initfn(UHCIState *s)
 
     usb_bus_new(&s->bus, &s->dev.qdev);
     for(i = 0; i < NB_PORTS; i++) {
-        usb_register_port(&s->bus, &s->ports[i].port, s, i, NULL, uhci_attach);
+        usb_register_port(&s->bus, &s->ports[i].port, s, i, NULL, &uhci_port_ops);
     }
     s->frame_timer = qemu_new_timer(vm_clock, uhci_frame_timer, s);
     s->expire_time = qemu_get_clock(vm_clock) +

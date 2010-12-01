@@ -261,6 +261,10 @@
 
 static void musb_attach(USBPort *port, USBDevice *dev);
 
+static USBPortOps musb_port_ops = {
+    .attach = musb_attach,
+};
+
 typedef struct {
     uint16_t faddr[2];
     uint8_t haddr[2];
@@ -343,7 +347,7 @@ struct MUSBState {
     }
 
     usb_bus_new(&s->bus, NULL /* FIXME */);
-    usb_register_port(&s->bus, &s->port, s, 0, NULL, musb_attach);
+    usb_register_port(&s->bus, &s->port, s, 0, NULL, &musb_port_ops);
 
     return s;
 }

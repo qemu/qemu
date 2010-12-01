@@ -28,7 +28,7 @@
 
 void usb_attach(USBPort *port, USBDevice *dev)
 {
-    port->attach(port, dev);
+    port->ops->attach(port, dev);
 }
 
 /**********************/

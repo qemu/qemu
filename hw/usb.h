@@ -216,12 +216,14 @@ struct USBDeviceInfo {
     USBDevice *(*usbdevice_init)(const char *params);
 };
 
-typedef void (*usb_attachfn)(USBPort *port, USBDevice *dev);
+typedef struct USBPortOps {
+    void (*attach)(USBPort *port, USBDevice *dev);
+} USBPortOps;
 
 /* USB port on which a device can be connected */
 struct USBPort {
     USBDevice *dev;
-    usb_attachfn attach;
+    USBPortOps *ops;
     void *opaque;
     USBDevice *pdev;
     int index; /* internal port index, may be used with the opaque */
@@ -333,7 +335,7 @@ USBDevice *usb_create(USBBus *bus, const char *name);
 USBDevice *usb_create_simple(USBBus *bus, const char *name);
 USBDevice *usbdevice_create(const char *cmdline);
 void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,
-                       USBDevice *pdev, usb_attachfn attach);
+                       USBDevice *pdev, USBPortOps *ops);
 void usb_unregister_port(USBBus *bus, USBPort *port);
 int usb_device_attach(USBDevice *dev);
 int usb_device_detach(USBDevice *dev);
