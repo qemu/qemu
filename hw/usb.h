@@ -220,6 +220,7 @@ struct USBDeviceInfo {
 typedef struct USBPortOps {
     void (*attach)(USBPort *port);
     void (*detach)(USBPort *port);
+    void (*wakeup)(USBDevice *dev);
 } USBPortOps;
 
 /* USB port on which a device can be connected */
@@ -275,6 +276,7 @@ static inline void usb_cancel_packet(USBPacket * p)
 }
 
 void usb_attach(USBPort *port, USBDevice *dev);
+void usb_wakeup(USBDevice *dev);
 int usb_generic_handle_packet(USBDevice *s, USBPacket *p);
 int set_usb_string(uint8_t *buf, const char *str);
 void usb_send_msg(USBDevice *dev, int msg);

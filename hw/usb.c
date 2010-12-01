@@ -49,6 +49,13 @@ void usb_attach(USBPort *port, USBDevice *dev)
     }
 }
 
+void usb_wakeup(USBDevice *dev)
+{
+    if (dev->remote_wakeup && dev->port && dev->port->ops->wakeup) {
+        dev->port->ops->wakeup(dev);
+    }
+}
+
 /**********************/
 
 /* generic USB device helpers (you are not forced to use them when
