@@ -144,8 +144,6 @@ uint64_t ptimer_get_count(ptimer_state *s);
 void ptimer_set_count(ptimer_state *s, uint64_t count);
 void ptimer_run(ptimer_state *s, int oneshot);
 void ptimer_stop(ptimer_state *s);
-void qemu_put_ptimer(QEMUFile *f, ptimer_state *s);
-void qemu_get_ptimer(QEMUFile *f, ptimer_state *s);
 
 /* icount */
 int64_t qemu_icount_round(int64_t count);

@@ -11,7 +11,7 @@
 
 struct ptimer_state
 {
-    int enabled; /* 0 = disabled, 1 = periodic, 2 = oneshot.  */
+    uint8_t enabled; /* 0 = disabled, 1 = periodic, 2 = oneshot.  */
     uint64_t limit;
     uint64_t delta;
     uint32_t period_frac;
@@ -188,49 +188,22 @@ void ptimer_set_limit(ptimer_state *s, uint64_t limit, int reload)
     }
 }
 
-void qemu_put_ptimer(QEMUFile *f, ptimer_state *s)
-{
-    qemu_put_byte(f, s->enabled);
-    qemu_put_be64s(f, &s->limit);
-    qemu_put_be64s(f, &s->delta);
-    qemu_put_be32s(f, &s->period_frac);
-    qemu_put_sbe64s(f, &s->period);
-    qemu_put_sbe64s(f, &s->last_event);
-    qemu_put_sbe64s(f, &s->next_event);
-    qemu_put_timer(f, s->timer);
-}
-
-void qemu_get_ptimer(QEMUFile *f, ptimer_state *s)
-{
-    s->enabled = qemu_get_byte(f);
-    qemu_get_be64s(f, &s->limit);
-    qemu_get_be64s(f, &s->delta);
-    qemu_get_be32s(f, &s->period_frac);
-    qemu_get_sbe64s(f, &s->period);
-    qemu_get_sbe64s(f, &s->last_event);
-    qemu_get_sbe64s(f, &s->next_event);
-    qemu_get_timer(f, s->timer);
-}
-
-static int get_ptimer(QEMUFile *f, void *pv, size_t size)
-{
-    ptimer_state *v = pv;
-
-    qemu_get_ptimer(f, v);
-    return 0;
-}
-
-static void put_ptimer(QEMUFile *f, void *pv, size_t size)
-{
-    ptimer_state *v = pv;
-
-    qemu_put_ptimer(f, v);
-}
-
-const VMStateInfo vmstate_info_ptimer = {
+const VMStateDescription vmstate_ptimer = {
     .name = "ptimer",
-    .get  = get_ptimer,
-    .put  = put_ptimer,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT8(enabled, ptimer_state),
+        VMSTATE_UINT64(limit, ptimer_state),
+        VMSTATE_UINT64(delta, ptimer_state),
+        VMSTATE_UINT32(period_frac, ptimer_state),
+        VMSTATE_INT64(period, ptimer_state),
+        VMSTATE_INT64(last_event, ptimer_state),
+        VMSTATE_INT64(next_event, ptimer_state),
+        VMSTATE_TIMER(timer, ptimer_state),
+        VMSTATE_END_OF_LIST()
+    }
 };
 
 ptimer_state *ptimer_init(QEMUBH *bh)
