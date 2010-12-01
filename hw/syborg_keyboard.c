@@ -51,11 +51,11 @@ enum {
 
 typedef struct {
     SysBusDevice busdev;
-    int int_enabled;
+    uint32_t int_enabled;
     int extension_bit;
     uint32_t fifo_size;
     uint32_t *key_fifo;
-    int read_pos, read_count;
+    uint32_t read_pos, read_count;
     qemu_irq irq;
 } SyborgKeyboardState;
 
@@ -165,43 +165,21 @@ static void syborg_keyboard_event(void *opaque, int keycode)
     syborg_keyboard_update(s);
 }
 
-static void syborg_keyboard_save(QEMUFile *f, void *opaque)
-{
-    SyborgKeyboardState *s = (SyborgKeyboardState *)opaque;
-    int i;
-
-    qemu_put_be32(f, s->fifo_size);
-    qemu_put_be32(f, s->int_enabled);
-    qemu_put_be32(f, s->extension_bit);
-    qemu_put_be32(f, s->read_pos);
-    qemu_put_be32(f, s->read_count);
-    for (i = 0; i < s->fifo_size; i++) {
-        qemu_put_be32(f, s->key_fifo[i]);
+static const VMStateDescription vmstate_syborg_keyboard = {
+    .name = "syborg_keyboard",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32_EQUAL(fifo_size, SyborgKeyboardState),
+        VMSTATE_UINT32(int_enabled, SyborgKeyboardState),
+        VMSTATE_UINT32(read_pos, SyborgKeyboardState),
+        VMSTATE_UINT32(read_count, SyborgKeyboardState),
+        VMSTATE_VARRAY_UINT32(key_fifo, SyborgKeyboardState, fifo_size, 1,
+                              vmstate_info_uint32, uint32),
+        VMSTATE_END_OF_LIST()
     }
-}
-
-static int syborg_keyboard_load(QEMUFile *f, void *opaque, int version_id)
-{
-    SyborgKeyboardState *s = (SyborgKeyboardState *)opaque;
-    uint32_t val;
-    int i;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    val = qemu_get_be32(f);
-    if (val != s->fifo_size)
-        return -EINVAL;
-
-    s->int_enabled = qemu_get_be32(f);
-    s->extension_bit = qemu_get_be32(f);
-    s->read_pos = qemu_get_be32(f);
-    s->read_count = qemu_get_be32(f);
-    for (i = 0; i < s->fifo_size; i++) {
-        s->key_fifo[i] = qemu_get_be32(f);
-    }
-    return 0;
-}
+};
 
 static int syborg_keyboard_init(SysBusDevice *dev)
 {
@@ -221,8 +199,7 @@ static int syborg_keyboard_init(SysBusDevice *dev)
 
     qemu_add_kbd_event_handler(syborg_keyboard_event, s);
 
-    register_savevm(&dev->qdev, "syborg_keyboard", -1, 1,
-                    syborg_keyboard_save, syborg_keyboard_load, s);
+    vmstate_register(&dev->qdev, -1, &vmstate_syborg_keyboard, s);
     return 0;
 }
 
