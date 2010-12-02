@@ -285,50 +285,48 @@ static void ppc4xx_pci_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(pci_irqs[irq_num], level);
 }
 
-static void ppc4xx_pci_save(QEMUFile *f, void *opaque)
-{
-    PPC4xxPCIState *controller = opaque;
-    int i;
-
-    pci_device_save(controller->pci_dev, f);
-
-    for (i = 0; i < PPC4xx_PCI_NR_PMMS; i++) {
-        qemu_put_be32s(f, &controller->pmm[i].la);
-        qemu_put_be32s(f, &controller->pmm[i].ma);
-        qemu_put_be32s(f, &controller->pmm[i].pcila);
-        qemu_put_be32s(f, &controller->pmm[i].pciha);
+static const VMStateDescription vmstate_pci_master_map = {
+    .name = "pci_master_map",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32(la, struct PCIMasterMap),
+        VMSTATE_UINT32(ma, struct PCIMasterMap),
+        VMSTATE_UINT32(pcila, struct PCIMasterMap),
+        VMSTATE_UINT32(pciha, struct PCIMasterMap),
+        VMSTATE_END_OF_LIST()
     }
+};
 
-    for (i = 0; i < PPC4xx_PCI_NR_PTMS; i++) {
-        qemu_put_be32s(f, &controller->ptm[i].ms);
-        qemu_put_be32s(f, &controller->ptm[i].la);
+static const VMStateDescription vmstate_pci_target_map = {
+    .name = "pci_target_map",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32(ms, struct PCITargetMap),
+        VMSTATE_UINT32(la, struct PCITargetMap),
+        VMSTATE_END_OF_LIST()
     }
-}
+};
 
-static int ppc4xx_pci_load(QEMUFile *f, void *opaque, int version_id)
-{
-    PPC4xxPCIState *controller = opaque;
-    int i;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    pci_device_load(controller->pci_dev, f);
-
-    for (i = 0; i < PPC4xx_PCI_NR_PMMS; i++) {
-        qemu_get_be32s(f, &controller->pmm[i].la);
-        qemu_get_be32s(f, &controller->pmm[i].ma);
-        qemu_get_be32s(f, &controller->pmm[i].pcila);
-        qemu_get_be32s(f, &controller->pmm[i].pciha);
+static const VMStateDescription vmstate_ppc4xx_pci = {
+    .name = "ppc4xx_pci",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_PCI_DEVICE_POINTER(pci_dev, PPC4xxPCIState),
+        VMSTATE_STRUCT_ARRAY(pmm, PPC4xxPCIState, PPC4xx_PCI_NR_PMMS, 1,
+                             vmstate_pci_master_map,
+                             struct PCIMasterMap),
+        VMSTATE_STRUCT_ARRAY(ptm, PPC4xxPCIState, PPC4xx_PCI_NR_PTMS, 1,
+                             vmstate_pci_target_map,
+                             struct PCITargetMap),
+        VMSTATE_END_OF_LIST()
     }
-
-    for (i = 0; i < PPC4xx_PCI_NR_PTMS; i++) {
-        qemu_get_be32s(f, &controller->ptm[i].ms);
-        qemu_get_be32s(f, &controller->ptm[i].la);
-    }
-
-    return 0;
-}
+};
 
 /* XXX Interrupt acknowledge cycles not supported. */
 PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
@@ -381,8 +379,8 @@ PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
     qemu_register_reset(ppc4xx_pci_reset, controller);
 
     /* XXX load/save code not tested. */
-    register_savevm(&controller->pci_dev->qdev, "ppc4xx_pci", ppc4xx_pci_id++,
-                    1, ppc4xx_pci_save, ppc4xx_pci_load, controller);
+    vmstate_register(&controller->pci_dev->qdev, ppc4xx_pci_id++,
+                     &vmstate_ppc4xx_pci, controller);
 
     return controller->pci_state.bus;
 
