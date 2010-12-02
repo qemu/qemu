@@ -37,6 +37,7 @@ static void vhost_dev_sync_region(struct vhost_dev *dev,
         /* We first check with non-atomic: much cheaper,
          * and we expect non-dirty to be the common case. */
         if (!*from) {
+            addr += VHOST_LOG_CHUNK;
             continue;
         }
         /* Data must be read atomically. We don't really

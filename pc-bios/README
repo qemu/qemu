@@ -16,7 +16,7 @@
 - The PXE roms come from Rom-o-Matic gPXE 0.9.9 with BANNER_TIMEOUT=0
 
   e1000 8086:100E
-  eepro100 8086:1209, 8086:1229
+  eepro100 8086:1209 (also used for 8086:1229 and 8086:2449)
   ns8390 1050:0940
   pcnet32 1022:2000
   rtl8139 10ec:8139

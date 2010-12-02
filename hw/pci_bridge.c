@@ -139,6 +139,10 @@ pcibus_t pci_bridge_get_limit(const PCIDevice *bridge, uint8_t type)
 void pci_bridge_write_config(PCIDevice *d,
                              uint32_t address, uint32_t val, int len)
 {
+    PCIBridge *s = container_of(d, PCIBridge, dev);
+    uint16_t oldctl = pci_get_word(d->config + PCI_BRIDGE_CONTROL);
+    uint16_t newctl;
+
     pci_default_write_config(d, address, val, len);
 
     if (/* io base/limit */
@@ -147,8 +151,13 @@ void pci_bridge_write_config(PCIDevice *d,
         /* memory base/limit, prefetchable base/limit and
            io base/limit upper 16 */
         ranges_overlap(address, len, PCI_MEMORY_BASE, 20)) {
-        PCIBridge *s = container_of(d, PCIBridge, dev);
         pci_bridge_update_mappings(&s->sec_bus);
+    }
+
+    newctl = pci_get_word(d->config + PCI_BRIDGE_CONTROL);
+    if (~oldctl & newctl & PCI_BRIDGE_CTL_BUS_RESET) {
+        /* Trigger hot reset on 0->1 transition. */
+        pci_bus_reset(&s->sec_bus);
     }
 }
 

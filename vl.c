@@ -2980,6 +2980,7 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
+    qemu_register_reset((void *)qbus_reset_all, sysbus_get_default());
     qemu_system_reset();
     if (loadvm) {
         if (load_vmstate(loadvm) < 0) {

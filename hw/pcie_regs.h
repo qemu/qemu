@@ -94,7 +94,9 @@
 #define PCI_ERR_CAP_MHRE                0x00000400
 #define PCI_ERR_CAP_TLP                 0x00000800
 
+#define PCI_ERR_HEADER_LOG_SIZE         16
 #define PCI_ERR_TLP_PREFIX_LOG          0x38
+#define PCI_ERR_TLP_PREFIX_LOG_SIZE     16
 
 #define PCI_SEC_STATUS_RCV_SYSTEM_ERROR         0x4000
 

@@ -1741,7 +1741,7 @@ static int usb_ohci_initfn_pci(struct PCIDevice *dev)
     ohci->state.irq = ohci->pci_dev.irq[0];
 
     /* TODO: avoid cast below by using dev */
-    pci_register_bar((struct PCIDevice *)ohci, 0, 256,
+    pci_register_bar(&ohci->pci_dev, 0, 256,
                            PCI_BASE_ADDRESS_SPACE_MEMORY, ohci_mapfunc);
     return 0;
 }

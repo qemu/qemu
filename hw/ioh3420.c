@@ -36,25 +36,59 @@
 #define IOH_EP_EXP_OFFSET               0x90
 #define IOH_EP_AER_OFFSET               0x100
 
+/*
+ * If two MSI vector are allocated, Advanced Error Interrupt Message Number
+ * is 1. otherwise 0.
+ * 17.12.5.10 RPERRSTS,  32:27 bit Advanced Error Interrupt Message Number.
+ */
+static uint8_t ioh3420_aer_vector(const PCIDevice *d)
+{
+    switch (msi_nr_vectors_allocated(d)) {
+    case 1:
+        return 0;
+    case 2:
+        return 1;
+    case 4:
+    case 8:
+    case 16:
+    case 32:
+    default:
+        break;
+    }
+    abort();
+    return 0;
+}
+
+static void ioh3420_aer_vector_update(PCIDevice *d)
+{
+    pcie_aer_root_set_vector(d, ioh3420_aer_vector(d));
+}
+
 static void ioh3420_write_config(PCIDevice *d,
                                    uint32_t address, uint32_t val, int len)
 {
+    uint32_t root_cmd =
+        pci_get_long(d->config + d->exp.aer_cap + PCI_ERR_ROOT_COMMAND);
+
     pci_bridge_write_config(d, address, val, len);
     msi_write_config(d, address, val, len);
+    ioh3420_aer_vector_update(d);
     pcie_cap_slot_write_config(d, address, val, len);
-    /* TODO: AER */
+    pcie_aer_write_config(d, address, val, len);
+    pcie_aer_root_write_config(d, address, val, len, root_cmd);
 }
 
 static void ioh3420_reset(DeviceState *qdev)
 {
     PCIDevice *d = DO_UPCAST(PCIDevice, qdev, qdev);
     msi_reset(d);
+    ioh3420_aer_vector_update(d);
     pcie_cap_root_reset(d);
     pcie_cap_deverr_reset(d);
     pcie_cap_slot_reset(d);
+    pcie_aer_root_reset(d);
     pci_bridge_reset(qdev);
     pci_bridge_disable_base_limit(d);
-    /* TODO: AER */
 }
 
 static int ioh3420_initfn(PCIDevice *d)
@@ -63,6 +97,7 @@ static int ioh3420_initfn(PCIDevice *d)
     PCIEPort *p = DO_UPCAST(PCIEPort, br, br);
     PCIESlot *s = DO_UPCAST(PCIESlot, port, p);
     int rc;
+    int tmp;
 
     rc = pci_bridge_initfn(d);
     if (rc < 0) {
@@ -78,35 +113,57 @@ static int ioh3420_initfn(PCIDevice *d)
     rc = pci_bridge_ssvid_init(d, IOH_EP_SSVID_OFFSET,
                                IOH_EP_SSVID_SVID, IOH_EP_SSVID_SSID);
     if (rc < 0) {
-        return rc;
+        goto err_bridge;
     }
     rc = msi_init(d, IOH_EP_MSI_OFFSET, IOH_EP_MSI_NR_VECTOR,
                   IOH_EP_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_64BIT,
                   IOH_EP_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_MASKBIT);
     if (rc < 0) {
-        return rc;
+        goto err_bridge;
     }
     rc = pcie_cap_init(d, IOH_EP_EXP_OFFSET, PCI_EXP_TYPE_ROOT_PORT, p->port);
     if (rc < 0) {
-        return rc;
+        goto err_msi;
     }
     pcie_cap_deverr_init(d);
     pcie_cap_slot_init(d, s->slot);
     pcie_chassis_create(s->chassis);
     rc = pcie_chassis_add_slot(s);
     if (rc < 0) {
+        goto err_pcie_cap;
         return rc;
     }
     pcie_cap_root_init(d);
-    /* TODO: AER */
+    rc = pcie_aer_init(d, IOH_EP_AER_OFFSET);
+    if (rc < 0) {
+        goto err;
+    }
+    pcie_aer_root_init(d);
+    ioh3420_aer_vector_update(d);
     return 0;
+
+err:
+    pcie_chassis_del_slot(s);
+err_pcie_cap:
+    pcie_cap_exit(d);
+err_msi:
+    msi_uninit(d);
+err_bridge:
+    tmp = pci_bridge_exitfn(d);
+    assert(!tmp);
+    return rc;
 }
 
 static int ioh3420_exitfn(PCIDevice *d)
 {
-    /* TODO: AER */
-    msi_uninit(d);
+    PCIBridge* br = DO_UPCAST(PCIBridge, dev, d);
+    PCIEPort *p = DO_UPCAST(PCIEPort, br, br);
+    PCIESlot *s = DO_UPCAST(PCIESlot, port, p);
+
+    pcie_aer_exit(d);
+    pcie_chassis_del_slot(s);
     pcie_cap_exit(d);
+    msi_uninit(d);
     return pci_bridge_exitfn(d);
 }
 
@@ -142,7 +199,8 @@ static const VMStateDescription vmstate_ioh3420 = {
     .post_load = pcie_cap_slot_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_PCIE_DEVICE(port.br.dev, PCIESlot),
-        /* TODO: AER */
+        VMSTATE_STRUCT(port.br.dev.exp.aer_log, PCIESlot, 0,
+                       vmstate_pcie_aer_log, PCIEAERLog),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -164,7 +222,9 @@ static PCIDeviceInfo ioh3420_info = {
         DEFINE_PROP_UINT8("port", PCIESlot, port.port, 0),
         DEFINE_PROP_UINT8("chassis", PCIESlot, chassis, 0),
         DEFINE_PROP_UINT16("slot", PCIESlot, slot, 0),
-        /* TODO: AER */
+        DEFINE_PROP_UINT16("aer_log_max", PCIESlot,
+                           port.br.dev.exp.aer_log.log_max,
+                           PCIE_AER_LOG_MAX_DEFAULT),
         DEFINE_PROP_END_OF_LIST(),
     }
 };

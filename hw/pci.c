@@ -43,12 +43,14 @@
 
 static void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent);
 static char *pcibus_get_dev_path(DeviceState *dev);
+static int pcibus_reset(BusState *qbus);
 
 struct BusInfo pci_bus_info = {
     .name       = "PCI",
     .size       = sizeof(PCIBus),
     .print_dev  = pcibus_dev_print,
     .get_dev_path = pcibus_get_dev_path,
+    .reset      = pcibus_reset,
     .props      = (Property[]) {
         DEFINE_PROP_PCI_DEVFN("addr", PCIDevice, devfn, -1),
         DEFINE_PROP_STRING("romfile", PCIDevice, romfile),
@@ -61,7 +63,7 @@ struct BusInfo pci_bus_info = {
 
 static void pci_update_mappings(PCIDevice *d);
 static void pci_set_irq(void *opaque, int irq_num, int level);
-static int pci_add_option_rom(PCIDevice *pdev);
+static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom);
 static void pci_del_option_rom(PCIDevice *pdev);
 
 static uint16_t pci_default_sub_vendor_id = PCI_SUBVENDOR_ID_REDHAT_QUMRANET;
@@ -136,6 +138,11 @@ static void pci_update_irq_status(PCIDevice *dev)
 static void pci_device_reset(PCIDevice *dev)
 {
     int r;
+    /* TODO: call the below unconditionally once all pci devices
+     * are qdevified */
+    if (dev->qdev.info) {
+        qdev_reset_all(&dev->qdev);
+    }
 
     dev->irq_state = 0;
     pci_update_irq_status(dev);
@@ -143,6 +150,9 @@ static void pci_device_reset(PCIDevice *dev)
     pci_word_test_and_clear_mask(dev->config + PCI_COMMAND,
                                  pci_get_word(dev->wmask + PCI_COMMAND) |
                                  pci_get_word(dev->w1cmask + PCI_COMMAND));
+    pci_word_test_and_clear_mask(dev->config + PCI_STATUS,
+                                 pci_get_word(dev->wmask + PCI_STATUS) |
+                                 pci_get_word(dev->w1cmask + PCI_STATUS));
     dev->config[PCI_CACHE_LINE_SIZE] = 0x0;
     dev->config[PCI_INTERRUPT_LINE] = 0x0;
     for (r = 0; r < PCI_NUM_REGIONS; ++r) {
@@ -161,9 +171,12 @@ static void pci_device_reset(PCIDevice *dev)
     pci_update_mappings(dev);
 }
 
-static void pci_bus_reset(void *opaque)
+/*
+ * Trigger pci bus reset under a given bus.
+ * To be called on RST# assert.
+ */
+void pci_bus_reset(PCIBus *bus)
 {
-    PCIBus *bus = opaque;
     int i;
 
     for (i = 0; i < bus->nirq; i++) {
@@ -174,6 +187,15 @@ static void pci_bus_reset(void *opaque)
             pci_device_reset(bus->devices[i]);
         }
     }
+}
+
+static int pcibus_reset(BusState *qbus)
+{
+    pci_bus_reset(DO_UPCAST(PCIBus, qbus, qbus));
+
+    /* topology traverse is done by pci_bus_reset().
+       Tell qbus/qdev walker not to traverse the tree */
+    return 1;
 }
 
 static void pci_host_bus_register(int domain, PCIBus *bus)
@@ -230,7 +252,6 @@ void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
     pci_host_bus_register(0, bus); /* for now only pci domain 0 is supported */
 
     vmstate_register(NULL, -1, &vmstate_pcibus, bus);
-    qemu_register_reset(pci_bus_reset, bus);
 }
 
 PCIBus *pci_bus_new(DeviceState *parent, const char *name, int devfn_min)
@@ -552,6 +573,18 @@ static void pci_init_wmask(PCIDevice *dev)
            config_size - PCI_CONFIG_HEADER_SIZE);
 }
 
+static void pci_init_w1cmask(PCIDevice *dev)
+{
+    /*
+     * Note: It's okay to set w1cmask even for readonly bits as
+     * long as their value is hardwired to 0.
+     */
+    pci_set_word(dev->w1cmask + PCI_STATUS,
+                 PCI_STATUS_PARITY | PCI_STATUS_SIG_TARGET_ABORT |
+                 PCI_STATUS_REC_TARGET_ABORT | PCI_STATUS_REC_MASTER_ABORT |
+                 PCI_STATUS_SIG_SYSTEM_ERROR | PCI_STATUS_DETECTED_PARITY);
+}
+
 static void pci_init_wmask_bridge(PCIDevice *d)
 {
     /* PCI_PRIMARY_BUS, PCI_SECONDARY_BUS, PCI_SUBORDINATE_BUS and
@@ -573,7 +606,29 @@ static void pci_init_wmask_bridge(PCIDevice *d)
     /* PCI_PREF_BASE_UPPER32 and PCI_PREF_LIMIT_UPPER32 */
     memset(d->wmask + PCI_PREF_BASE_UPPER32, 0xff, 8);
 
-    pci_set_word(d->wmask + PCI_BRIDGE_CONTROL, 0xffff);
+/* TODO: add this define to pci_regs.h in linux and then in qemu. */
+#define  PCI_BRIDGE_CTL_VGA_16BIT	0x10	/* VGA 16-bit decode */
+#define  PCI_BRIDGE_CTL_DISCARD		0x100	/* Primary discard timer */
+#define  PCI_BRIDGE_CTL_SEC_DISCARD	0x200	/* Secondary discard timer */
+#define  PCI_BRIDGE_CTL_DISCARD_STATUS	0x400	/* Discard timer status */
+#define  PCI_BRIDGE_CTL_DISCARD_SERR	0x800	/* Discard timer SERR# enable */
+    pci_set_word(d->wmask + PCI_BRIDGE_CONTROL,
+                 PCI_BRIDGE_CTL_PARITY |
+                 PCI_BRIDGE_CTL_SERR |
+                 PCI_BRIDGE_CTL_ISA |
+                 PCI_BRIDGE_CTL_VGA |
+                 PCI_BRIDGE_CTL_VGA_16BIT |
+                 PCI_BRIDGE_CTL_MASTER_ABORT |
+                 PCI_BRIDGE_CTL_BUS_RESET |
+                 PCI_BRIDGE_CTL_FAST_BACK |
+                 PCI_BRIDGE_CTL_DISCARD |
+                 PCI_BRIDGE_CTL_SEC_DISCARD |
+                 PCI_BRIDGE_CTL_DISCARD_STATUS |
+                 PCI_BRIDGE_CTL_DISCARD_SERR);
+    /* Below does not do anything as we never set this bit, put here for
+     * completeness. */
+    pci_set_word(d->w1cmask + PCI_BRIDGE_CONTROL,
+                 PCI_BRIDGE_CTL_DISCARD_STATUS);
 }
 
 static int pci_init_multifunction(PCIBus *bus, PCIDevice *dev)
@@ -676,6 +731,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     }
     pci_init_cmask(pci_dev);
     pci_init_wmask(pci_dev);
+    pci_init_w1cmask(pci_dev);
     if (is_bridge) {
         pci_init_wmask_bridge(pci_dev);
     }
@@ -1484,6 +1540,16 @@ void pci_bridge_update_mappings(PCIBus *b)
     }
 }
 
+/* Whether a given bus number is in range of the secondary
+ * bus of the given bridge device. */
+static bool pci_secondary_bus_in_range(PCIDevice *dev, int bus_num)
+{
+    return !(pci_get_word(dev->config + PCI_BRIDGE_CONTROL) &
+             PCI_BRIDGE_CTL_BUS_RESET) /* Don't walk the bus if it's reset. */ &&
+        dev->config[PCI_SECONDARY_BUS] < bus_num &&
+        bus_num <= dev->config[PCI_SUBORDINATE_BUS];
+}
+
 PCIBus *pci_find_bus(PCIBus *bus, int bus_num)
 {
     PCIBus *sec;
@@ -1496,20 +1562,21 @@ PCIBus *pci_find_bus(PCIBus *bus, int bus_num)
         return bus;
     }
 
+    /* Consider all bus numbers in range for the host pci bridge. */
+    if (bus->parent_dev &&
+        !pci_secondary_bus_in_range(bus->parent_dev, bus_num)) {
+        return NULL;
+    }
+
     /* try child bus */
-    if (!bus->parent_dev /* host pci bridge */ ||
-        (bus->parent_dev->config[PCI_SECONDARY_BUS] < bus_num &&
-         bus_num <= bus->parent_dev->config[PCI_SUBORDINATE_BUS])) {
-        for (; bus; bus = sec) {
-            QLIST_FOREACH(sec, &bus->child, sibling) {
-                assert(sec->parent_dev);
-                if (sec->parent_dev->config[PCI_SECONDARY_BUS] == bus_num) {
-                    return sec;
-                }
-                if (sec->parent_dev->config[PCI_SECONDARY_BUS] < bus_num &&
-                    bus_num <= sec->parent_dev->config[PCI_SUBORDINATE_BUS]) {
-                    break;
-                }
+    for (; bus; bus = sec) {
+        QLIST_FOREACH(sec, &bus->child, sibling) {
+            assert(sec->parent_dev);
+            if (sec->parent_dev->config[PCI_SECONDARY_BUS] == bus_num) {
+                return sec;
+            }
+            if (pci_secondary_bus_in_range(sec->parent_dev, bus_num)) {
+                break;
             }
         }
     }
@@ -1533,6 +1600,7 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
     PCIDeviceInfo *info = container_of(base, PCIDeviceInfo, qdev);
     PCIBus *bus;
     int devfn, rc;
+    bool is_default_rom;
 
     /* initialize cap_present for pci_is_express() and pci_config_size() */
     if (info->is_express) {
@@ -1553,9 +1621,12 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
     }
 
     /* rom loading */
-    if (pci_dev->romfile == NULL && info->romfile != NULL)
+    is_default_rom = false;
+    if (pci_dev->romfile == NULL && info->romfile != NULL) {
         pci_dev->romfile = qemu_strdup(info->romfile);
-    pci_add_option_rom(pci_dev);
+        is_default_rom = true;
+    }
+    pci_add_option_rom(pci_dev, is_default_rom);
 
     if (bus->hotplug) {
         /* Let buses differentiate between hotplug and when device is
@@ -1663,8 +1734,64 @@ static void pci_map_option_rom(PCIDevice *pdev, int region_num, pcibus_t addr, p
     cpu_register_physical_memory(addr, size, pdev->rom_offset);
 }
 
+/* Patch the PCI vendor and device ids in a PCI rom image if necessary.
+   This is needed for an option rom which is used for more than one device. */
+static void pci_patch_ids(PCIDevice *pdev, uint8_t *ptr, int size)
+{
+    uint16_t vendor_id;
+    uint16_t device_id;
+    uint16_t rom_vendor_id;
+    uint16_t rom_device_id;
+    uint16_t rom_magic;
+    uint16_t pcir_offset;
+    uint8_t checksum;
+
+    /* Words in rom data are little endian (like in PCI configuration),
+       so they can be read / written with pci_get_word / pci_set_word. */
+
+    /* Only a valid rom will be patched. */
+    rom_magic = pci_get_word(ptr);
+    if (rom_magic != 0xaa55) {
+        PCI_DPRINTF("Bad ROM magic %04x\n", rom_magic);
+        return;
+    }
+    pcir_offset = pci_get_word(ptr + 0x18);
+    if (pcir_offset + 8 >= size || memcmp(ptr + pcir_offset, "PCIR", 4)) {
+        PCI_DPRINTF("Bad PCIR offset 0x%x or signature\n", pcir_offset);
+        return;
+    }
+
+    vendor_id = pci_get_word(pdev->config + PCI_VENDOR_ID);
+    device_id = pci_get_word(pdev->config + PCI_DEVICE_ID);
+    rom_vendor_id = pci_get_word(ptr + pcir_offset + 4);
+    rom_device_id = pci_get_word(ptr + pcir_offset + 6);
+
+    PCI_DPRINTF("%s: ROM id %04x%04x / PCI id %04x%04x\n", pdev->romfile,
+                vendor_id, device_id, rom_vendor_id, rom_device_id);
+
+    checksum = ptr[6];
+
+    if (vendor_id != rom_vendor_id) {
+        /* Patch vendor id and checksum (at offset 6 for etherboot roms). */
+        checksum += (uint8_t)rom_vendor_id + (uint8_t)(rom_vendor_id >> 8);
+        checksum -= (uint8_t)vendor_id + (uint8_t)(vendor_id >> 8);
+        PCI_DPRINTF("ROM checksum %02x / %02x\n", ptr[6], checksum);
+        ptr[6] = checksum;
+        pci_set_word(ptr + pcir_offset + 4, vendor_id);
+    }
+
+    if (device_id != rom_device_id) {
+        /* Patch device id and checksum (at offset 6 for etherboot roms). */
+        checksum += (uint8_t)rom_device_id + (uint8_t)(rom_device_id >> 8);
+        checksum -= (uint8_t)device_id + (uint8_t)(device_id >> 8);
+        PCI_DPRINTF("ROM checksum %02x / %02x\n", ptr[6], checksum);
+        ptr[6] = checksum;
+        pci_set_word(ptr + pcir_offset + 6, device_id);
+    }
+}
+
 /* Add an option rom for the device */
-static int pci_add_option_rom(PCIDevice *pdev)
+static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
 {
     int size;
     char *path;
@@ -1714,6 +1841,11 @@ static int pci_add_option_rom(PCIDevice *pdev)
     ptr = qemu_get_ram_ptr(pdev->rom_offset);
     load_image(path, ptr);
     qemu_free(path);
+
+    if (is_default_rom) {
+        /* Only the default rom images will be patched (if needed). */
+        pci_patch_ids(pdev, ptr, size);
+    }
 
     pci_register_bar(pdev, PCI_ROM_SLOT, size,
                      0, pci_map_option_rom);
