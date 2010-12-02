@@ -167,6 +167,12 @@ static TranslationBlock *tb_find_slow(target_ulong pc,
     tb = tb_gen_code(env, pc, cs_base, flags, 0);
 
  found:
+    /* Move the last found TB to the head of the list */
+    if (likely(*ptb1)) {
+        *ptb1 = tb->phys_hash_next;
+        tb->phys_hash_next = tb_phys_hash[h];
+        tb_phys_hash[h] = tb;
+    }
     /* we add the TB in the virtual pc hash table */
     env->tb_jmp_cache[tb_jmp_cache_hash_func(pc)] = tb;
     return tb;
