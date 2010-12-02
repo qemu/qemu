@@ -727,7 +727,7 @@ static inline void tcg_gen_divu_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
     sizemask |= tcg_gen_sizemask(1, 0, 0);
     sizemask |= tcg_gen_sizemask(2, 0, 0);
 
-    tcg_gen_helper32(tcg_helper_divu_i32, ret, arg1, arg2, 0);
+    tcg_gen_helper32(tcg_helper_divu_i32, sizemask, ret, arg1, arg2);
 }
 
 static inline void tcg_gen_remu_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
@@ -738,7 +738,7 @@ static inline void tcg_gen_remu_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
     sizemask |= tcg_gen_sizemask(1, 0, 0);
     sizemask |= tcg_gen_sizemask(2, 0, 0);
 
-    tcg_gen_helper32(tcg_helper_remu_i32, ret, arg1, arg2, 0);
+    tcg_gen_helper32(tcg_helper_remu_i32, sizemask, ret, arg1, arg2);
 }
 #endif
 

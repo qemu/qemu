@@ -2275,6 +2275,70 @@ static CharDriverState *qemu_chr_open_socket(QemuOpts *opts)
     return NULL;
 }
 
+/***********************************************************/
+/* Memory chardev */
+typedef struct {
+    size_t outbuf_size;
+    size_t outbuf_capacity;
+    uint8_t *outbuf;
+} MemoryDriver;
+
+static int mem_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
+{
+    MemoryDriver *d = chr->opaque;
+
+    /* TODO: the QString implementation has the same code, we should
+     * introduce a generic way to do this in cutils.c */
+    if (d->outbuf_capacity < d->outbuf_size + len) {
+        /* grow outbuf */
+        d->outbuf_capacity += len;
+        d->outbuf_capacity *= 2;
+        d->outbuf = qemu_realloc(d->outbuf, d->outbuf_capacity);
+    }
+
+    memcpy(d->outbuf + d->outbuf_size, buf, len);
+    d->outbuf_size += len;
+
+    return len;
+}
+
+void qemu_chr_init_mem(CharDriverState *chr)
+{
+    MemoryDriver *d;
+
+    d = qemu_malloc(sizeof(*d));
+    d->outbuf_size = 0;
+    d->outbuf_capacity = 4096;
+    d->outbuf = qemu_mallocz(d->outbuf_capacity);
+
+    memset(chr, 0, sizeof(*chr));
+    chr->opaque = d;
+    chr->chr_write = mem_chr_write;
+}
+
+QString *qemu_chr_mem_to_qs(CharDriverState *chr)
+{
+    MemoryDriver *d = chr->opaque;
+    return qstring_from_substr((char *) d->outbuf, 0, d->outbuf_size - 1);
+}
+
+/* NOTE: this driver can not be closed with qemu_chr_close()! */
+void qemu_chr_close_mem(CharDriverState *chr)
+{
+    MemoryDriver *d = chr->opaque;
+
+    qemu_free(d->outbuf);
+    qemu_free(chr->opaque);
+    chr->opaque = NULL;
+    chr->chr_write = NULL;
+}
+
+size_t qemu_chr_mem_osize(const CharDriverState *chr)
+{
+    const MemoryDriver *d = chr->opaque;
+    return d->outbuf_size;
+}
+
 QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
 {
     char host[65], port[33], width[8], height[8];

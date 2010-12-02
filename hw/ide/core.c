@@ -473,11 +473,21 @@ static void dma_buf_commit(IDEState *s, int is_write)
     qemu_sglist_destroy(&s->sg);
 }
 
+static void ide_dma_set_inactive(BMDMAState *bm)
+{
+    bm->status &= ~BM_STATUS_DMAING;
+    bm->dma_cb = NULL;
+    bm->unit = -1;
+    bm->aiocb = NULL;
+}
+
 void ide_dma_error(IDEState *s)
 {
     ide_transfer_stop(s);
     s->error = ABRT_ERR;
     s->status = READY_STAT | ERR_STAT;
+    ide_dma_set_inactive(s->bus->bmdma);
+    s->bus->bmdma->status |= BM_STATUS_INT;
     ide_set_irq(s->bus);
 }
 
@@ -587,11 +597,8 @@ static void ide_read_dma_cb(void *opaque, int ret)
         s->status = READY_STAT | SEEK_STAT;
         ide_set_irq(s->bus);
     eot:
-        bm->status &= ~BM_STATUS_DMAING;
         bm->status |= BM_STATUS_INT;
-        bm->dma_cb = NULL;
-        bm->unit = -1;
-        bm->aiocb = NULL;
+        ide_dma_set_inactive(bm);
         return;
     }
 
@@ -733,11 +740,8 @@ static void ide_write_dma_cb(void *opaque, int ret)
         s->status = READY_STAT | SEEK_STAT;
         ide_set_irq(s->bus);
     eot:
-        bm->status &= ~BM_STATUS_DMAING;
         bm->status |= BM_STATUS_INT;
-        bm->dma_cb = NULL;
-        bm->unit = -1;
-        bm->aiocb = NULL;
+        ide_dma_set_inactive(bm);
         return;
     }
 
@@ -1061,11 +1065,8 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
         s->nsector = (s->nsector & ~7) | ATAPI_INT_REASON_IO | ATAPI_INT_REASON_CD;
         ide_set_irq(s->bus);
     eot:
-        bm->status &= ~BM_STATUS_DMAING;
         bm->status |= BM_STATUS_INT;
-        bm->dma_cb = NULL;
-        bm->unit = -1;
-        bm->aiocb = NULL;
+        ide_dma_set_inactive(bm);
         return;
     }
 
@@ -2954,12 +2955,10 @@ void ide_dma_cancel(BMDMAState *bm)
             printf("aio_cancel\n");
 #endif
             bdrv_aio_cancel(bm->aiocb);
-            bm->aiocb = NULL;
         }
-        bm->status &= ~BM_STATUS_DMAING;
+
         /* cancel DMA request */
-        bm->unit = -1;
-        bm->dma_cb = NULL;
+        ide_dma_set_inactive(bm);
     }
 }
 

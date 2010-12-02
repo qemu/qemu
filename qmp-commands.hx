@@ -761,6 +761,51 @@ Example:
 
 Note: This command must be issued before issuing any other command.
 
+EQMP
+
+    {
+        .name       = "human-monitor-command",
+        .args_type  = "command-line:s,cpu-index:i?",
+        .params     = "",
+        .help       = "",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_hmp_passthrough,
+    },
+
+SQMP
+human-monitor-command
+---------------------
+
+Execute a Human Monitor command.
+
+Arguments: 
+
+- command-line: the command name and its arguments, just like the
+                Human Monitor's shell (json-string)
+- cpu-index: select the CPU number to be used by commands which access CPU
+             data, like 'info registers'. The Monitor selects CPU 0 if this
+             argument is not provided (json-int, optional)
+
+Example:
+
+-> { "execute": "human-monitor-command", "arguments": { "command-line": "info kvm" } }
+<- { "return": "kvm support: enabled\r\n" }
+
+Notes:
+
+(1) The Human Monitor is NOT an stable interface, this means that command
+    names, arguments and responses can change or be removed at ANY time.
+    Applications that rely on long term stability guarantees should NOT
+    use this command
+
+(2) Limitations:
+
+    o This command is stateless, this means that commands that depend
+      on state information (such as getfd) might not work
+
+    o Commands that prompt the user for data (eg. 'cont' when the block
+      device is encrypted) don't currently work
+
 3. Query Commands
 =================
 

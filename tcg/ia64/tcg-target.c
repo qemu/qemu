@@ -45,6 +45,9 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 #else
 #define TCG_GUEST_BASE_REG TCG_REG_R0
 #endif
+#ifndef GUEST_BASE
+#define GUEST_BASE 0
+#endif
 
 /* Branch registers */
 enum {
@@ -1456,7 +1459,9 @@ static inline void tcg_out_qemu_tlb(TCGContext *s, TCGArg addr_reg,
                    tcg_opc_a1 (TCG_REG_P0, OPC_ADD_A1, TCG_REG_R2,
                                TCG_REG_R2, TCG_AREG0));
     tcg_out_bundle(s, mII,
-                   tcg_opc_m3 (TCG_REG_P0, OPC_LD8_M3, TCG_REG_R57,
+                   tcg_opc_m3 (TCG_REG_P0,
+                               (TARGET_LONG_BITS == 32
+                                ? OPC_LD4_M3 : OPC_LD8_M3), TCG_REG_R57,
                                TCG_REG_R2, offset_addend - offset_rw),
                    tcg_opc_a1 (TCG_REG_P0, OPC_AND_A1, TCG_REG_R3,
                                TCG_REG_R3, TCG_REG_R56),
@@ -1653,11 +1658,10 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
     static uint64_t const opc_sxt_i29[4] = {
         OPC_SXT1_I29, OPC_SXT2_I29, OPC_SXT4_I29, 0
     };
-    int addr_reg, data_reg, mem_index, s_bits, bswap;
+    int addr_reg, data_reg, s_bits, bswap;
 
     data_reg = *args++;
     addr_reg = *args++;
-    mem_index = *args;
     s_bits = opc & 3;
 
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -1813,7 +1817,7 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
         tcg_out_bundle(s, miI,
                        tcg_opc_m48(TCG_REG_P0, OPC_NOP_M48, 0),
                        tcg_opc_i29(TCG_REG_P0, OPC_ZXT4_I29,
-                                   TCG_REG_R3, addr_reg),
+                                   TCG_REG_R2, addr_reg),
                        tcg_opc_i18(TCG_REG_P0, OPC_NOP_I18, 0));
     }
 
@@ -2121,6 +2125,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_qemu_ld16s:
         tcg_out_qemu_ld(s, args, 1 | 4);
         break;
+    case INDEX_op_qemu_ld32:
     case INDEX_op_qemu_ld32u:
         tcg_out_qemu_ld(s, args, 2);
         break;
