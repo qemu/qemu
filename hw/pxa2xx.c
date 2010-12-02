@@ -146,25 +146,16 @@ static CPUWriteMemoryFunc * const pxa2xx_pm_writefn[] = {
     pxa2xx_pm_write,
 };
 
-static void pxa2xx_pm_save(QEMUFile *f, void *opaque)
-{
-    PXA2xxState *s = (PXA2xxState *) opaque;
-    int i;
-
-    for (i = 0; i < 0x40; i ++)
-        qemu_put_be32s(f, &s->pm_regs[i]);
-}
-
-static int pxa2xx_pm_load(QEMUFile *f, void *opaque, int version_id)
-{
-    PXA2xxState *s = (PXA2xxState *) opaque;
-    int i;
-
-    for (i = 0; i < 0x40; i ++)
-        qemu_get_be32s(f, &s->pm_regs[i]);
-
-    return 0;
-}
+static const VMStateDescription vmstate_pxa2xx_pm = {
+    .name = "pxa2xx_pm",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32_ARRAY(pm_regs, PXA2xxState, 0x40),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 #define CCCR	0x00	/* Core Clock Configuration register */
 #define CKEN	0x04	/* Clock Enable register */
@@ -2168,7 +2159,7 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
     iomemtype = cpu_register_io_memory(pxa2xx_pm_readfn,
                     pxa2xx_pm_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(s->pm_base, 0x100, iomemtype);
-    register_savevm(NULL, "pxa2xx_pm", 0, 0, pxa2xx_pm_save, pxa2xx_pm_load, s);
+    vmstate_register(NULL, 0, &vmstate_pxa2xx_pm, s);
 
     for (i = 0; pxa27x_ssp[i].io_base; i ++);
     s->ssp = (SSIBus **)qemu_mallocz(sizeof(SSIBus *) * i);
@@ -2304,7 +2295,7 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
     iomemtype = cpu_register_io_memory(pxa2xx_pm_readfn,
                     pxa2xx_pm_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(s->pm_base, 0x100, iomemtype);
-    register_savevm(NULL, "pxa2xx_pm", 0, 0, pxa2xx_pm_save, pxa2xx_pm_load, s);
+    vmstate_register(NULL, 0, &vmstate_pxa2xx_pm, s);
 
     for (i = 0; pxa255_ssp[i].io_base; i ++);
     s->ssp = (SSIBus **)qemu_mallocz(sizeof(SSIBus *) * i);
