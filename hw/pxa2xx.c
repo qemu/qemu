@@ -1748,39 +1748,23 @@ static CPUWriteMemoryFunc * const pxa2xx_i2s_writefn[] = {
     pxa2xx_i2s_write,
 };
 
-static void pxa2xx_i2s_save(QEMUFile *f, void *opaque)
-{
-    PXA2xxI2SState *s = (PXA2xxI2SState *) opaque;
-
-    qemu_put_be32s(f, &s->control[0]);
-    qemu_put_be32s(f, &s->control[1]);
-    qemu_put_be32s(f, &s->status);
-    qemu_put_be32s(f, &s->mask);
-    qemu_put_be32s(f, &s->clk);
-
-    qemu_put_be32(f, s->enable);
-    qemu_put_be32(f, s->rx_len);
-    qemu_put_be32(f, s->tx_len);
-    qemu_put_be32(f, s->fifo_len);
-}
-
-static int pxa2xx_i2s_load(QEMUFile *f, void *opaque, int version_id)
-{
-    PXA2xxI2SState *s = (PXA2xxI2SState *) opaque;
-
-    qemu_get_be32s(f, &s->control[0]);
-    qemu_get_be32s(f, &s->control[1]);
-    qemu_get_be32s(f, &s->status);
-    qemu_get_be32s(f, &s->mask);
-    qemu_get_be32s(f, &s->clk);
-
-    s->enable = qemu_get_be32(f);
-    s->rx_len = qemu_get_be32(f);
-    s->tx_len = qemu_get_be32(f);
-    s->fifo_len = qemu_get_be32(f);
-
-    return 0;
-}
+static const VMStateDescription vmstate_pxa2xx_i2s = {
+    .name = "pxa2xx_i2s",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32_ARRAY(control, PXA2xxI2SState, 2),
+        VMSTATE_UINT32(status, PXA2xxI2SState),
+        VMSTATE_UINT32(mask, PXA2xxI2SState),
+        VMSTATE_UINT32(clk, PXA2xxI2SState),
+        VMSTATE_INT32(enable, PXA2xxI2SState),
+        VMSTATE_INT32(rx_len, PXA2xxI2SState),
+        VMSTATE_INT32(tx_len, PXA2xxI2SState),
+        VMSTATE_INT32(fifo_len, PXA2xxI2SState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void pxa2xx_i2s_data_req(void *opaque, int tx, int rx)
 {
@@ -1822,8 +1806,7 @@ static PXA2xxI2SState *pxa2xx_i2s_init(target_phys_addr_t base,
                     pxa2xx_i2s_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x100000, iomemtype);
 
-    register_savevm(NULL, "pxa2xx_i2s", base, 0,
-                    pxa2xx_i2s_save, pxa2xx_i2s_load, s);
+    vmstate_register(NULL, base, &vmstate_pxa2xx_i2s, s);
 
     return s;
 }
