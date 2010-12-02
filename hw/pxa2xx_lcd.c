@@ -17,7 +17,7 @@
 
 struct DMAChannel {
     target_phys_addr_t branch;
-    int up;
+    uint8_t up;
     uint8_t palette[1024];
     uint8_t pbuffer[1024];
     void (*redraw)(PXA2xxLCDState *s, target_phys_addr_t addr,
