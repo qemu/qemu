@@ -41,7 +41,7 @@ static void xio3130_upstream_write_config(PCIDevice *d, uint32_t address,
     pci_bridge_write_config(d, address, val, len);
     pcie_cap_flr_write_config(d, address, val, len);
     msi_write_config(d, address, val, len);
-    /* TODO: AER */
+    pcie_aer_write_config(d, address, val, len);
 }
 
 static void xio3130_upstream_reset(DeviceState *qdev)
@@ -57,6 +57,7 @@ static int xio3130_upstream_initfn(PCIDevice *d)
     PCIBridge* br = DO_UPCAST(PCIBridge, dev, d);
     PCIEPort *p = DO_UPCAST(PCIEPort, br, br);
     int rc;
+    int tmp;
 
     rc = pci_bridge_initfn(d);
     if (rc < 0) {
@@ -72,33 +73,45 @@ static int xio3130_upstream_initfn(PCIDevice *d)
                   XIO3130_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_64BIT,
                   XIO3130_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_MASKBIT);
     if (rc < 0) {
-        return rc;
+        goto err_bridge;
     }
     rc = pci_bridge_ssvid_init(d, XIO3130_SSVID_OFFSET,
                                XIO3130_SSVID_SVID, XIO3130_SSVID_SSID);
     if (rc < 0) {
-        return rc;
+        goto err_bridge;
     }
     rc = pcie_cap_init(d, XIO3130_EXP_OFFSET, PCI_EXP_TYPE_UPSTREAM,
                        p->port);
     if (rc < 0) {
-        return rc;
+        goto err_msi;
     }
 
     /* TODO: implement FLR */
     pcie_cap_flr_init(d);
 
     pcie_cap_deverr_init(d);
-    /* TODO: AER */
+    rc = pcie_aer_init(d, XIO3130_AER_OFFSET);
+    if (rc < 0) {
+        goto err;
+    }
 
     return 0;
+
+err:
+    pcie_cap_exit(d);
+err_msi:
+    msi_uninit(d);
+err_bridge:
+    tmp =  pci_bridge_exitfn(d);
+    assert(!tmp);
+    return rc;
 }
 
 static int xio3130_upstream_exitfn(PCIDevice *d)
 {
-    /* TODO: AER */
-    msi_uninit(d);
+    pcie_aer_exit(d);
     pcie_cap_exit(d);
+    msi_uninit(d);
     return pci_bridge_exitfn(d);
 }
 
@@ -131,7 +144,8 @@ static const VMStateDescription vmstate_xio3130_upstream = {
     .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_PCIE_DEVICE(br.dev, PCIEPort),
-        /* TODO: AER */
+        VMSTATE_STRUCT(br.dev.exp.aer_log, PCIEPort, 0, vmstate_pcie_aer_log,
+                       PCIEAERLog),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -151,7 +165,8 @@ static PCIDeviceInfo xio3130_upstream_info = {
 
     .qdev.props = (Property[]) {
         DEFINE_PROP_UINT8("port", PCIEPort, port, 0),
-        /* TODO: AER */
+        DEFINE_PROP_UINT16("aer_log_max", PCIEPort, br.dev.exp.aer_log.log_max,
+                           PCIE_AER_LOG_MAX_DEFAULT),
         DEFINE_PROP_END_OF_LIST(),
     }
 };

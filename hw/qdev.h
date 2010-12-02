@@ -49,12 +49,14 @@ struct DeviceState {
 
 typedef void (*bus_dev_printfn)(Monitor *mon, DeviceState *dev, int indent);
 typedef char *(*bus_get_dev_path)(DeviceState *dev);
+typedef int (qbus_resetfn)(BusState *bus);
 
 struct BusInfo {
     const char *name;
     size_t size;
     bus_dev_printfn print_dev;
     bus_get_dev_path get_dev_path;
+    qbus_resetfn *reset;
     Property *props;
 };
 
@@ -173,12 +175,28 @@ BusState *qdev_get_parent_bus(DeviceState *dev);
 
 /*** BUS API. ***/
 
+/* Returns 0 to walk children, > 0 to skip walk, < 0 to terminate walk. */
+typedef int (qbus_walkerfn)(BusState *bus, void *opaque);
+typedef int (qdev_walkerfn)(DeviceState *dev, void *opaque);
+
 void qbus_create_inplace(BusState *bus, BusInfo *info,
                          DeviceState *parent, const char *name);
 BusState *qbus_create(BusInfo *info, DeviceState *parent, const char *name);
+/* Returns > 0 if either devfn or busfn skip walk somewhere in cursion,
+ *         < 0 if either devfn or busfn terminate walk somewhere in cursion,
+ *           0 otherwise. */
+int qbus_walk_children(BusState *bus, qdev_walkerfn *devfn,
+                       qbus_walkerfn *busfn, void *opaque);
+int qdev_walk_children(DeviceState *dev, qdev_walkerfn *devfn,
+                       qbus_walkerfn *busfn, void *opaque);
+void qdev_reset_all(DeviceState *dev);
+void qbus_reset_all(BusState *bus);
 void qbus_free(BusState *bus);
 
 #define FROM_QBUS(type, dev) DO_UPCAST(type, qbus, dev)
+
+/* This should go away once we get rid of the NULL bus hack */
+BusState *sysbus_get_default(void);
 
 /*** monitor commands ***/
 

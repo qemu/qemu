@@ -27,6 +27,14 @@ void pcie_port_init_reg(PCIDevice *d)
     pci_set_word(d->config + PCI_STATUS, 0);
     pci_set_word(d->config + PCI_SEC_STATUS, 0);
 
+    /* Unlike conventional pci bridge, some bits are hardwared to 0. */
+    pci_set_word(d->wmask + PCI_BRIDGE_CONTROL,
+                 PCI_BRIDGE_CTL_PARITY |
+                 PCI_BRIDGE_CTL_ISA |
+                 PCI_BRIDGE_CTL_VGA |
+                 PCI_BRIDGE_CTL_SERR |
+                 PCI_BRIDGE_CTL_BUS_RESET);
+
     /* 7.5.3.5 Prefetchable Memory Base Limit
      * The Prefetchable Memory Base and Prefetchable Memory Limit registers
      * must indicate that 64-bit addresses are supported, as defined in

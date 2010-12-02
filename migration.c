@@ -32,7 +32,7 @@
 #endif
 
 /* Migration speed throttling */
-static uint32_t max_throttle = (32 << 20);
+static int64_t max_throttle = (32 << 20);
 
 static MigrationState *current_migration;
 
@@ -136,7 +136,9 @@ int do_migrate_set_speed(Monitor *mon, const QDict *qdict, QObject **ret_data)
     FdMigrationState *s;
 
     d = qdict_get_int(qdict, "value");
-    d = MAX(0, MIN(UINT32_MAX, d));
+    if (d < 0) {
+        d = 0;
+    }
     max_throttle = d;
 
     s = migrate_to_fms(current_migration);

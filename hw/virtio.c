@@ -682,7 +682,6 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
     uint32_t features;
     uint32_t supported_features =
         vdev->binding->get_features(vdev->binding_opaque);
-    uint16_t num_heads;
 
     if (vdev->binding->load_config) {
         ret = vdev->binding->load_config(vdev->binding_opaque, f);
@@ -713,17 +712,23 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
         qemu_get_be16s(f, &vdev->vq[i].last_avail_idx);
 
         if (vdev->vq[i].pa) {
+            uint16_t nheads;
             virtqueue_init(&vdev->vq[i]);
-        }
-	num_heads = vring_avail_idx(&vdev->vq[i]) - vdev->vq[i].last_avail_idx;
-	/* Check it isn't doing very strange things with descriptor numbers. */
-	if (num_heads > vdev->vq[i].vring.num) {
-		error_report("VQ %d size 0x%x Guest index 0x%x "
-		             "inconsistent with Host index 0x%x: delta 0x%x",
-		             i, vdev->vq[i].vring.num,
-		             vring_avail_idx(&vdev->vq[i]),
-		             vdev->vq[i].last_avail_idx, num_heads);
-		return -1;
+            nheads = vring_avail_idx(&vdev->vq[i]) - vdev->vq[i].last_avail_idx;
+            /* Check it isn't doing very strange things with descriptor numbers. */
+            if (nheads > vdev->vq[i].vring.num) {
+                error_report("VQ %d size 0x%x Guest index 0x%x "
+                             "inconsistent with Host index 0x%x: delta 0x%x\n",
+                             i, vdev->vq[i].vring.num,
+                             vring_avail_idx(&vdev->vq[i]),
+                             vdev->vq[i].last_avail_idx, nheads);
+                return -1;
+            }
+        } else if (vdev->vq[i].last_avail_idx) {
+            error_report("VQ %d address 0x0 "
+                         "inconsistent with Host index 0x%x\n",
+                         i, vdev->vq[i].last_avail_idx);
+                return -1;
 	}
         if (vdev->binding->load_queue) {
             ret = vdev->binding->load_queue(vdev->binding_opaque, i, f);

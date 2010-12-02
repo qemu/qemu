@@ -24,6 +24,7 @@
 #include "hw.h"
 #include "pci_regs.h"
 #include "pcie_regs.h"
+#include "pcie_aer.h"
 
 typedef enum {
     /* for attention and power indicator */
@@ -79,6 +80,19 @@ struct PCIExpressDevice {
                          Software Notification of Hot-Plug Events, an interrupt
                          is sent whenever the logical and of these conditions
                          transitions from false to true. */
+
+    /* AER */
+    uint16_t aer_cap;
+    PCIEAERLog aer_log;
+    unsigned int aer_intx;      /* INTx for error reporting
+                                 * default is 0 = INTA#
+                                 * If the chip wants to use other interrupt
+                                 * line, initialize this member with the
+                                 * desired number.
+                                 * If the chip dynamically changes this member,
+                                 * also initialize it when loaded as
+                                 * appropreately.
+                                 */
 };
 
 /* PCI express capability helper functions */
