@@ -1218,24 +1218,16 @@ static uint32_t stellaris_ssi_bus_transfer(SSISlave *dev, uint32_t val)
     return ssi_transfer(s->bus[s->current_dev], val);
 }
 
-static void stellaris_ssi_bus_save(QEMUFile *f, void *opaque)
-{
-    stellaris_ssi_bus_state *s = (stellaris_ssi_bus_state *)opaque;
-
-    qemu_put_be32(f, s->current_dev);
-}
-
-static int stellaris_ssi_bus_load(QEMUFile *f, void *opaque, int version_id)
-{
-    stellaris_ssi_bus_state *s = (stellaris_ssi_bus_state *)opaque;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    s->current_dev = qemu_get_be32(f);
-
-    return 0;
-}
+static const VMStateDescription vmstate_stellaris_ssi_bus = {
+    .name = "stellaris_ssi_bus",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_INT32(current_dev, stellaris_ssi_bus_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static int stellaris_ssi_bus_init(SSISlave *dev)
 {
@@ -1245,8 +1237,7 @@ static int stellaris_ssi_bus_init(SSISlave *dev)
     s->bus[1] = ssi_create_bus(&dev->qdev, "ssi1");
     qdev_init_gpio_in(&dev->qdev, stellaris_ssi_bus_select, 1);
 
-    register_savevm(&dev->qdev, "stellaris_ssi_bus", -1, 1,
-                    stellaris_ssi_bus_save, stellaris_ssi_bus_load, s);
+    vmstate_register(&dev->qdev, -1, &vmstate_stellaris_ssi_bus, s);
     return 0;
 }
 
