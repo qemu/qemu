@@ -13,7 +13,7 @@
 typedef struct {
     qemu_irq irq;
     int keycode;
-    int pressed;
+    uint8_t pressed;
 } gamepad_button;
 
 typedef struct {
@@ -47,30 +47,29 @@ static void stellaris_gamepad_put_key(void * opaque, int keycode)
     s->extension = 0;
 }
 
-static void stellaris_gamepad_save(QEMUFile *f, void *opaque)
-{
-    gamepad_state *s = (gamepad_state *)opaque;
-    int i;
+static const VMStateDescription vmstate_stellaris_button = {
+    .name = "stellaris_button",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT8(pressed, gamepad_button),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
-    qemu_put_be32(f, s->extension);
-    for (i = 0; i < s->num_buttons; i++)
-        qemu_put_byte(f, s->buttons[i].pressed);
-}
-
-static int stellaris_gamepad_load(QEMUFile *f, void *opaque, int version_id)
-{
-    gamepad_state *s = (gamepad_state *)opaque;
-    int i;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    s->extension = qemu_get_be32(f);
-    for (i = 0; i < s->num_buttons; i++)
-        s->buttons[i].pressed = qemu_get_byte(f);
-
-    return 0;
-}
+static const VMStateDescription vmstate_stellaris_gamepad = {
+    .name = "stellaris_gamepad",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_INT32(extension, gamepad_state),
+        VMSTATE_STRUCT_VARRAY_INT32(buttons, gamepad_state, num_buttons, 0,
+                              vmstate_stellaris_button, gamepad_button),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 /* Returns an array 5 ouput slots.  */
 void stellaris_gamepad_init(int n, qemu_irq *irq, const int *keycode)
@@ -86,6 +85,5 @@ void stellaris_gamepad_init(int n, qemu_irq *irq, const int *keycode)
     }
     s->num_buttons = n;
     qemu_add_kbd_event_handler(stellaris_gamepad_put_key, s);
-    register_savevm(NULL, "stellaris_gamepad", -1, 1,
-                    stellaris_gamepad_save, stellaris_gamepad_load, s);
+    vmstate_register(NULL, -1, &vmstate_stellaris_gamepad, s);
 }
