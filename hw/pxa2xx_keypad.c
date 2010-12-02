@@ -289,40 +289,22 @@ static CPUWriteMemoryFunc * const pxa2xx_keypad_writefn[] = {
     pxa2xx_keypad_write
 };
 
-static void pxa2xx_keypad_save(QEMUFile *f, void *opaque)
-{
-    PXA2xxKeyPadState *s = (PXA2xxKeyPadState *) opaque;
-
-    qemu_put_be32s(f, &s->kpc);
-    qemu_put_be32s(f, &s->kpdk);
-    qemu_put_be32s(f, &s->kprec);
-    qemu_put_be32s(f, &s->kpmk);
-    qemu_put_be32s(f, &s->kpas);
-    qemu_put_be32s(f, &s->kpasmkp[0]);
-    qemu_put_be32s(f, &s->kpasmkp[1]);
-    qemu_put_be32s(f, &s->kpasmkp[2]);
-    qemu_put_be32s(f, &s->kpasmkp[3]);
-    qemu_put_be32s(f, &s->kpkdi);
-
-}
-
-static int pxa2xx_keypad_load(QEMUFile *f, void *opaque, int version_id)
-{
-    PXA2xxKeyPadState *s = (PXA2xxKeyPadState *) opaque;
-
-    qemu_get_be32s(f, &s->kpc);
-    qemu_get_be32s(f, &s->kpdk);
-    qemu_get_be32s(f, &s->kprec);
-    qemu_get_be32s(f, &s->kpmk);
-    qemu_get_be32s(f, &s->kpas);
-    qemu_get_be32s(f, &s->kpasmkp[0]);
-    qemu_get_be32s(f, &s->kpasmkp[1]);
-    qemu_get_be32s(f, &s->kpasmkp[2]);
-    qemu_get_be32s(f, &s->kpasmkp[3]);
-    qemu_get_be32s(f, &s->kpkdi);
-
-    return 0;
-}
+static const VMStateDescription vmstate_pxa2xx_keypad = {
+    .name = "pxa2xx_keypad",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32(kpc, PXA2xxKeyPadState),
+        VMSTATE_UINT32(kpdk, PXA2xxKeyPadState),
+        VMSTATE_UINT32(kprec, PXA2xxKeyPadState),
+        VMSTATE_UINT32(kpmk, PXA2xxKeyPadState),
+        VMSTATE_UINT32(kpas, PXA2xxKeyPadState),
+        VMSTATE_UINT32_ARRAY(kpasmkp, PXA2xxKeyPadState, 4),
+        VMSTATE_UINT32(kpkdi, PXA2xxKeyPadState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 PXA2xxKeyPadState *pxa27x_keypad_init(target_phys_addr_t base,
         qemu_irq irq)
@@ -337,8 +319,7 @@ PXA2xxKeyPadState *pxa27x_keypad_init(target_phys_addr_t base,
                     pxa2xx_keypad_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x00100000, iomemtype);
 
-    register_savevm(NULL, "pxa2xx_keypad", 0, 0,
-                    pxa2xx_keypad_save, pxa2xx_keypad_load, s);
+    vmstate_register(NULL, 0, &vmstate_pxa2xx_keypad, s);
 
     return s;
 }
