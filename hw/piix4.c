@@ -72,19 +72,16 @@ static void piix4_reset(void *opaque)
     pci_conf[0xae] = 0x00;
 }
 
-static void piix_save(QEMUFile* f, void *opaque)
-{
-    PIIX4State *d = opaque;
-    pci_device_save(&d->dev, f);
-}
-
-static int piix_load(QEMUFile* f, void *opaque, int version_id)
-{
-    PIIX4State *d = opaque;
-    if (version_id != 2)
-        return -EINVAL;
-    return pci_device_load(&d->dev, f);
-}
+static const VMStateDescription vmstate_piix4 = {
+    .name = "PIIX4",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
+    .fields      = (VMStateField[]) {
+        VMSTATE_PCI_DEVICE(dev, PIIX4State),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static int piix4_initfn(PCIDevice *dev)
 {
@@ -92,7 +89,6 @@ static int piix4_initfn(PCIDevice *dev)
     uint8_t *pci_conf;
 
     isa_bus_new(&d->dev.qdev);
-    register_savevm(&d->dev.qdev, "PIIX4", 0, 2, piix_save, piix_load, d);
 
     pci_conf = d->dev.config;
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
@@ -117,6 +113,7 @@ static PCIDeviceInfo piix4_info[] = {
         .qdev.name    = "PIIX4",
         .qdev.desc    = "ISA bridge",
         .qdev.size    = sizeof(PIIX4State),
+        .qdev.vmsd    = &vmstate_piix4,
         .qdev.no_user = 1,
         .no_hotplug   = 1,
         .init         = piix4_initfn,
