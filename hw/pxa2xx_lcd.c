@@ -15,6 +15,20 @@
 #include "sysemu.h"
 #include "framebuffer.h"
 
+struct DMAChannel {
+    target_phys_addr_t branch;
+    int up;
+    uint8_t palette[1024];
+    uint8_t pbuffer[1024];
+    void (*redraw)(PXA2xxLCDState *s, target_phys_addr_t addr,
+                   int *miny, int *maxy);
+
+    target_phys_addr_t descriptor;
+    target_phys_addr_t source;
+    uint32_t id;
+    uint32_t command;
+};
+
 struct PXA2xxLCDState {
     qemu_irq irq;
     int irqlevel;
@@ -50,19 +64,7 @@ struct PXA2xxLCDState {
     uint32_t liidr;
     uint8_t bscntr;
 
-    struct {
-        target_phys_addr_t branch;
-        int up;
-        uint8_t palette[1024];
-        uint8_t pbuffer[1024];
-        void (*redraw)(PXA2xxLCDState *s, target_phys_addr_t addr,
-                        int *miny, int *maxy);
-
-        target_phys_addr_t descriptor;
-        target_phys_addr_t source;
-        uint32_t id;
-        uint32_t command;
-    } dma_ch[7];
+    struct DMAChannel dma_ch[7];
 
     qemu_irq vsync_cb;
     int orientation;
