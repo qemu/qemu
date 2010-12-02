@@ -833,80 +833,57 @@ static void pxa2xx_lcdc_orientation(void *opaque, int angle)
     pxa2xx_lcdc_resize(s);
 }
 
-static void pxa2xx_lcdc_save(QEMUFile *f, void *opaque)
-{
-    PXA2xxLCDState *s = (PXA2xxLCDState *) opaque;
-    int i;
-
-    qemu_put_be32(f, s->irqlevel);
-    qemu_put_be32(f, s->transp);
-
-    for (i = 0; i < 6; i ++)
-        qemu_put_be32s(f, &s->control[i]);
-    for (i = 0; i < 2; i ++)
-        qemu_put_be32s(f, &s->status[i]);
-    for (i = 0; i < 2; i ++)
-        qemu_put_be32s(f, &s->ovl1c[i]);
-    for (i = 0; i < 2; i ++)
-        qemu_put_be32s(f, &s->ovl2c[i]);
-    qemu_put_be32s(f, &s->ccr);
-    qemu_put_be32s(f, &s->cmdcr);
-    qemu_put_be32s(f, &s->trgbr);
-    qemu_put_be32s(f, &s->tcr);
-    qemu_put_be32s(f, &s->liidr);
-    qemu_put_8s(f, &s->bscntr);
-
-    for (i = 0; i < 7; i ++) {
-        qemu_put_betl(f, s->dma_ch[i].branch);
-        qemu_put_byte(f, s->dma_ch[i].up);
-        qemu_put_buffer(f, s->dma_ch[i].pbuffer, sizeof(s->dma_ch[i].pbuffer));
-
-        qemu_put_betl(f, s->dma_ch[i].descriptor);
-        qemu_put_betl(f, s->dma_ch[i].source);
-        qemu_put_be32s(f, &s->dma_ch[i].id);
-        qemu_put_be32s(f, &s->dma_ch[i].command);
+static const VMStateDescription vmstate_dma_channel = {
+    .name = "dma_channel",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINTTL(branch, struct DMAChannel),
+        VMSTATE_UINT8(up, struct DMAChannel),
+        VMSTATE_BUFFER(pbuffer, struct DMAChannel),
+        VMSTATE_UINTTL(descriptor, struct DMAChannel),
+        VMSTATE_UINTTL(source, struct DMAChannel),
+        VMSTATE_UINT32(id, struct DMAChannel),
+        VMSTATE_UINT32(command, struct DMAChannel),
+        VMSTATE_END_OF_LIST()
     }
-}
+};
 
-static int pxa2xx_lcdc_load(QEMUFile *f, void *opaque, int version_id)
+static int pxa2xx_lcdc_post_load(void *opaque, int version_id)
 {
-    PXA2xxLCDState *s = (PXA2xxLCDState *) opaque;
-    int i;
-
-    s->irqlevel = qemu_get_be32(f);
-    s->transp = qemu_get_be32(f);
-
-    for (i = 0; i < 6; i ++)
-        qemu_get_be32s(f, &s->control[i]);
-    for (i = 0; i < 2; i ++)
-        qemu_get_be32s(f, &s->status[i]);
-    for (i = 0; i < 2; i ++)
-        qemu_get_be32s(f, &s->ovl1c[i]);
-    for (i = 0; i < 2; i ++)
-        qemu_get_be32s(f, &s->ovl2c[i]);
-    qemu_get_be32s(f, &s->ccr);
-    qemu_get_be32s(f, &s->cmdcr);
-    qemu_get_be32s(f, &s->trgbr);
-    qemu_get_be32s(f, &s->tcr);
-    qemu_get_be32s(f, &s->liidr);
-    qemu_get_8s(f, &s->bscntr);
-
-    for (i = 0; i < 7; i ++) {
-        s->dma_ch[i].branch = qemu_get_betl(f);
-        s->dma_ch[i].up = qemu_get_byte(f);
-        qemu_get_buffer(f, s->dma_ch[i].pbuffer, sizeof(s->dma_ch[i].pbuffer));
-
-        s->dma_ch[i].descriptor = qemu_get_betl(f);
-        s->dma_ch[i].source = qemu_get_betl(f);
-        qemu_get_be32s(f, &s->dma_ch[i].id);
-        qemu_get_be32s(f, &s->dma_ch[i].command);
-    }
+    PXA2xxLCDState *s = opaque;
 
     s->bpp = LCCR3_BPP(s->control[3]);
     s->xres = s->yres = s->pal_for = -1;
 
     return 0;
 }
+
+static const VMStateDescription vmstate_pxa2xx_lcdc = {
+    .name = "pxa2xx_lcdc",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .post_load = pxa2xx_lcdc_post_load,
+    .fields      = (VMStateField[]) {
+        VMSTATE_INT32(irqlevel, PXA2xxLCDState),
+        VMSTATE_INT32(transp, PXA2xxLCDState),
+        VMSTATE_UINT32_ARRAY(control, PXA2xxLCDState, 6),
+        VMSTATE_UINT32_ARRAY(status, PXA2xxLCDState, 2),
+        VMSTATE_UINT32_ARRAY(ovl1c, PXA2xxLCDState, 2),
+        VMSTATE_UINT32_ARRAY(ovl2c, PXA2xxLCDState, 2),
+        VMSTATE_UINT32(ccr, PXA2xxLCDState),
+        VMSTATE_UINT32(cmdcr, PXA2xxLCDState),
+        VMSTATE_UINT32(trgbr, PXA2xxLCDState),
+        VMSTATE_UINT32(tcr, PXA2xxLCDState),
+        VMSTATE_UINT32(liidr, PXA2xxLCDState),
+        VMSTATE_UINT8(bscntr, PXA2xxLCDState),
+        VMSTATE_STRUCT_ARRAY(dma_ch, PXA2xxLCDState, 7, 0,
+                             vmstate_dma_channel, struct DMAChannel),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 #define BITS 8
 #include "pxa2xx_template.h"
@@ -972,8 +949,7 @@ PXA2xxLCDState *pxa2xx_lcdc_init(target_phys_addr_t base, qemu_irq irq)
         exit(1);
     }
 
-    register_savevm(NULL, "pxa2xx_lcdc", 0, 0,
-                    pxa2xx_lcdc_save, pxa2xx_lcdc_load, s);
+    vmstate_register(NULL, 0, &vmstate_pxa2xx_lcdc, s);
 
     return s;
 }
