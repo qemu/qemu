@@ -604,57 +604,36 @@ static void ssys_reset(void *opaque)
     s->dcgc[0] = 1;
 }
 
-static void ssys_save(QEMUFile *f, void *opaque)
+static int stellaris_sys_post_load(void *opaque, int version_id)
 {
-    ssys_state *s = (ssys_state *)opaque;
+    ssys_state *s = opaque;
 
-    qemu_put_be32(f, s->pborctl);
-    qemu_put_be32(f, s->ldopctl);
-    qemu_put_be32(f, s->int_mask);
-    qemu_put_be32(f, s->int_status);
-    qemu_put_be32(f, s->resc);
-    qemu_put_be32(f, s->rcc);
-    qemu_put_be32(f, s->rcgc[0]);
-    qemu_put_be32(f, s->rcgc[1]);
-    qemu_put_be32(f, s->rcgc[2]);
-    qemu_put_be32(f, s->scgc[0]);
-    qemu_put_be32(f, s->scgc[1]);
-    qemu_put_be32(f, s->scgc[2]);
-    qemu_put_be32(f, s->dcgc[0]);
-    qemu_put_be32(f, s->dcgc[1]);
-    qemu_put_be32(f, s->dcgc[2]);
-    qemu_put_be32(f, s->clkvclr);
-    qemu_put_be32(f, s->ldoarst);
-}
-
-static int ssys_load(QEMUFile *f, void *opaque, int version_id)
-{
-    ssys_state *s = (ssys_state *)opaque;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    s->pborctl = qemu_get_be32(f);
-    s->ldopctl = qemu_get_be32(f);
-    s->int_mask = qemu_get_be32(f);
-    s->int_status = qemu_get_be32(f);
-    s->resc = qemu_get_be32(f);
-    s->rcc = qemu_get_be32(f);
-    s->rcgc[0] = qemu_get_be32(f);
-    s->rcgc[1] = qemu_get_be32(f);
-    s->rcgc[2] = qemu_get_be32(f);
-    s->scgc[0] = qemu_get_be32(f);
-    s->scgc[1] = qemu_get_be32(f);
-    s->scgc[2] = qemu_get_be32(f);
-    s->dcgc[0] = qemu_get_be32(f);
-    s->dcgc[1] = qemu_get_be32(f);
-    s->dcgc[2] = qemu_get_be32(f);
-    s->clkvclr = qemu_get_be32(f);
-    s->ldoarst = qemu_get_be32(f);
     ssys_calculate_system_clock(s);
 
     return 0;
 }
+
+static const VMStateDescription vmstate_stellaris_sys = {
+    .name = "stellaris_sys",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .post_load = stellaris_sys_post_load,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32(pborctl, ssys_state),
+        VMSTATE_UINT32(ldopctl, ssys_state),
+        VMSTATE_UINT32(int_mask, ssys_state),
+        VMSTATE_UINT32(int_status, ssys_state),
+        VMSTATE_UINT32(resc, ssys_state),
+        VMSTATE_UINT32(rcc, ssys_state),
+        VMSTATE_UINT32_ARRAY(rcgc, ssys_state, 3),
+        VMSTATE_UINT32_ARRAY(scgc, ssys_state, 3),
+        VMSTATE_UINT32_ARRAY(dcgc, ssys_state, 3),
+        VMSTATE_UINT32(clkvclr, ssys_state),
+        VMSTATE_UINT32(ldoarst, ssys_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static int stellaris_sys_init(uint32_t base, qemu_irq irq,
                               stellaris_board_info * board,
@@ -675,7 +654,7 @@ static int stellaris_sys_init(uint32_t base, qemu_irq irq,
                                        DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
     ssys_reset(s);
-    register_savevm(NULL, "stellaris_sys", -1, 1, ssys_save, ssys_load, s);
+    vmstate_register(NULL, -1, &vmstate_stellaris_sys, s);
     return 0;
 }
 
