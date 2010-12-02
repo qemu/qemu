@@ -227,29 +227,18 @@ static CPUWriteMemoryFunc * const pxa2xx_cm_writefn[] = {
     pxa2xx_cm_write,
 };
 
-static void pxa2xx_cm_save(QEMUFile *f, void *opaque)
-{
-    PXA2xxState *s = (PXA2xxState *) opaque;
-    int i;
-
-    for (i = 0; i < 4; i ++)
-        qemu_put_be32s(f, &s->cm_regs[i]);
-    qemu_put_be32s(f, &s->clkcfg);
-    qemu_put_be32s(f, &s->pmnc);
-}
-
-static int pxa2xx_cm_load(QEMUFile *f, void *opaque, int version_id)
-{
-    PXA2xxState *s = (PXA2xxState *) opaque;
-    int i;
-
-    for (i = 0; i < 4; i ++)
-        qemu_get_be32s(f, &s->cm_regs[i]);
-    qemu_get_be32s(f, &s->clkcfg);
-    qemu_get_be32s(f, &s->pmnc);
-
-    return 0;
-}
+static const VMStateDescription vmstate_pxa2xx_cm = {
+    .name = "pxa2xx_cm",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32_ARRAY(cm_regs, PXA2xxState, 4),
+        VMSTATE_UINT32(clkcfg, PXA2xxState),
+        VMSTATE_UINT32(pmnc, PXA2xxState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static uint32_t pxa2xx_clkpwr_read(void *opaque, int op2, int reg, int crm)
 {
@@ -2171,7 +2160,7 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
     iomemtype = cpu_register_io_memory(pxa2xx_cm_readfn,
                     pxa2xx_cm_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(s->cm_base, 0x1000, iomemtype);
-    register_savevm(NULL, "pxa2xx_cm", 0, 0, pxa2xx_cm_save, pxa2xx_cm_load, s);
+    vmstate_register(NULL, 0, &vmstate_pxa2xx_cm, s);
 
     cpu_arm_set_cp_io(s->env, 14, pxa2xx_cp14_read, pxa2xx_cp14_write, s);
 
@@ -2307,7 +2296,7 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
     iomemtype = cpu_register_io_memory(pxa2xx_cm_readfn,
                     pxa2xx_cm_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(s->cm_base, 0x1000, iomemtype);
-    register_savevm(NULL, "pxa2xx_cm", 0, 0, pxa2xx_cm_save, pxa2xx_cm_load, s);
+    vmstate_register(NULL, 0, &vmstate_pxa2xx_cm, s);
 
     cpu_arm_set_cp_io(s->env, 14, pxa2xx_cp14_read, pxa2xx_cp14_write, s);
 
