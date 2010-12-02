@@ -516,25 +516,16 @@ static CPUWriteMemoryFunc * const pxa2xx_mm_writefn[] = {
     pxa2xx_mm_write,
 };
 
-static void pxa2xx_mm_save(QEMUFile *f, void *opaque)
-{
-    PXA2xxState *s = (PXA2xxState *) opaque;
-    int i;
-
-    for (i = 0; i < 0x1a; i ++)
-        qemu_put_be32s(f, &s->mm_regs[i]);
-}
-
-static int pxa2xx_mm_load(QEMUFile *f, void *opaque, int version_id)
-{
-    PXA2xxState *s = (PXA2xxState *) opaque;
-    int i;
-
-    for (i = 0; i < 0x1a; i ++)
-        qemu_get_be32s(f, &s->mm_regs[i]);
-
-    return 0;
-}
+static const VMStateDescription vmstate_pxa2xx_mm = {
+    .name = "pxa2xx_mm",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32_ARRAY(mm_regs, PXA2xxState, 0x1a),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 /* Synchronous Serial Ports */
 typedef struct {
@@ -2171,7 +2162,7 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
     iomemtype = cpu_register_io_memory(pxa2xx_mm_readfn,
                     pxa2xx_mm_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(s->mm_base, 0x1000, iomemtype);
-    register_savevm(NULL, "pxa2xx_mm", 0, 0, pxa2xx_mm_save, pxa2xx_mm_load, s);
+    vmstate_register(NULL, 0, &vmstate_pxa2xx_mm, s);
 
     s->pm_base = 0x40f00000;
     iomemtype = cpu_register_io_memory(pxa2xx_pm_readfn,
@@ -2307,7 +2298,7 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
     iomemtype = cpu_register_io_memory(pxa2xx_mm_readfn,
                     pxa2xx_mm_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(s->mm_base, 0x1000, iomemtype);
-    register_savevm(NULL, "pxa2xx_mm", 0, 0, pxa2xx_mm_save, pxa2xx_mm_load, s);
+    vmstate_register(NULL, 0, &vmstate_pxa2xx_mm, s);
 
     s->pm_base = 0x40f00000;
     iomemtype = cpu_register_io_memory(pxa2xx_pm_readfn,
