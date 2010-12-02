@@ -152,52 +152,36 @@ static void syborg_pointer_event(void *opaque, int dx, int dy, int dz,
     syborg_pointer_update(s);
 }
 
-static void syborg_pointer_save(QEMUFile *f, void *opaque)
-{
-    SyborgPointerState *s = (SyborgPointerState *)opaque;
-    int i;
-
-    qemu_put_be32(f, s->fifo_size);
-    qemu_put_be32(f, s->absolute);
-    qemu_put_be32(f, s->int_enabled);
-    qemu_put_be32(f, s->read_pos);
-    qemu_put_be32(f, s->read_count);
-    for (i = 0; i < s->fifo_size; i++) {
-        qemu_put_be32(f, s->event_fifo[i].x);
-        qemu_put_be32(f, s->event_fifo[i].y);
-        qemu_put_be32(f, s->event_fifo[i].z);
-        qemu_put_be32(f, s->event_fifo[i].pointer_buttons);
+static const VMStateDescription vmstate_event_data = {
+    .name = "dbma_channel",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_INT32(x, event_data),
+        VMSTATE_INT32(y, event_data),
+        VMSTATE_INT32(z, event_data),
+        VMSTATE_INT32(pointer_buttons, event_data),
+        VMSTATE_END_OF_LIST()
     }
-}
+};
 
-static int syborg_pointer_load(QEMUFile *f, void *opaque, int version_id)
-{
-    SyborgPointerState *s = (SyborgPointerState *)opaque;
-    uint32_t val;
-    int i;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    val = qemu_get_be32(f);
-    if (val != s->fifo_size)
-        return -EINVAL;
-
-    val = qemu_get_be32(f);
-    if (val != s->absolute)
-        return -EINVAL;
-
-    s->int_enabled = qemu_get_be32(f);
-    s->read_pos = qemu_get_be32(f);
-    s->read_count = qemu_get_be32(f);
-    for (i = 0; i < s->fifo_size; i++) {
-        s->event_fifo[i].x = qemu_get_be32(f);
-        s->event_fifo[i].y = qemu_get_be32(f);
-        s->event_fifo[i].z = qemu_get_be32(f);
-        s->event_fifo[i].pointer_buttons = qemu_get_be32(f);
+static const VMStateDescription vmstate_syborg_pointer = {
+    .name = "syborg_pointer",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32_EQUAL(fifo_size, SyborgPointerState),
+        VMSTATE_UINT32_EQUAL(absolute, SyborgPointerState),
+        VMSTATE_INT32(int_enabled, SyborgPointerState),
+        VMSTATE_INT32(read_pos, SyborgPointerState),
+        VMSTATE_INT32(read_count, SyborgPointerState),
+        VMSTATE_STRUCT_VARRAY_UINT32(event_fifo, SyborgPointerState, fifo_size,
+                                     1, vmstate_event_data, event_data),
+        VMSTATE_END_OF_LIST()
     }
-    return 0;
-}
+};
 
 static int syborg_pointer_init(SysBusDevice *dev)
 {
@@ -219,8 +203,7 @@ static int syborg_pointer_init(SysBusDevice *dev)
     qemu_add_mouse_event_handler(syborg_pointer_event, s, s->absolute,
                                  "Syborg Pointer");
 
-    register_savevm(&dev->qdev, "syborg_pointer", -1, 1,
-                    syborg_pointer_save, syborg_pointer_load, s);
+    vmstate_register(&dev->qdev, -1, &vmstate_syborg_pointer, s);
     return 0;
 }
 
