@@ -279,64 +279,29 @@ static CPUWriteMemoryFunc * const gptm_writefn[] = {
    gptm_write
 };
 
-static void gptm_save(QEMUFile *f, void *opaque)
-{
-    gptm_state *s = (gptm_state *)opaque;
-
-    qemu_put_be32(f, s->config);
-    qemu_put_be32(f, s->mode[0]);
-    qemu_put_be32(f, s->mode[1]);
-    qemu_put_be32(f, s->control);
-    qemu_put_be32(f, s->state);
-    qemu_put_be32(f, s->mask);
-    qemu_put_be32(f, s->mode[0]);
-    qemu_put_be32(f, s->mode[0]);
-    qemu_put_be32(f, s->load[0]);
-    qemu_put_be32(f, s->load[1]);
-    qemu_put_be32(f, s->match[0]);
-    qemu_put_be32(f, s->match[1]);
-    qemu_put_be32(f, s->prescale[0]);
-    qemu_put_be32(f, s->prescale[1]);
-    qemu_put_be32(f, s->match_prescale[0]);
-    qemu_put_be32(f, s->match_prescale[1]);
-    qemu_put_be32(f, s->rtc);
-    qemu_put_be64(f, s->tick[0]);
-    qemu_put_be64(f, s->tick[1]);
-    qemu_put_timer(f, s->timer[0]);
-    qemu_put_timer(f, s->timer[1]);
-}
-
-static int gptm_load(QEMUFile *f, void *opaque, int version_id)
-{
-    gptm_state *s = (gptm_state *)opaque;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    s->config = qemu_get_be32(f);
-    s->mode[0] = qemu_get_be32(f);
-    s->mode[1] = qemu_get_be32(f);
-    s->control = qemu_get_be32(f);
-    s->state = qemu_get_be32(f);
-    s->mask = qemu_get_be32(f);
-    s->mode[0] = qemu_get_be32(f);
-    s->mode[0] = qemu_get_be32(f);
-    s->load[0] = qemu_get_be32(f);
-    s->load[1] = qemu_get_be32(f);
-    s->match[0] = qemu_get_be32(f);
-    s->match[1] = qemu_get_be32(f);
-    s->prescale[0] = qemu_get_be32(f);
-    s->prescale[1] = qemu_get_be32(f);
-    s->match_prescale[0] = qemu_get_be32(f);
-    s->match_prescale[1] = qemu_get_be32(f);
-    s->rtc = qemu_get_be32(f);
-    s->tick[0] = qemu_get_be64(f);
-    s->tick[1] = qemu_get_be64(f);
-    qemu_get_timer(f, s->timer[0]);
-    qemu_get_timer(f, s->timer[1]);
-
-    return 0;
-}
+static const VMStateDescription vmstate_stellaris_gptm = {
+    .name = "stellaris_gptm",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32(config, gptm_state),
+        VMSTATE_UINT32_ARRAY(mode, gptm_state, 2),
+        VMSTATE_UINT32(control, gptm_state),
+        VMSTATE_UINT32(state, gptm_state),
+        VMSTATE_UINT32(mask, gptm_state),
+        VMSTATE_UINT32(mode[0], gptm_state),
+        VMSTATE_UINT32(mode[0], gptm_state),
+        VMSTATE_UINT32_ARRAY(load, gptm_state, 2),
+        VMSTATE_UINT32_ARRAY(match, gptm_state, 2),
+        VMSTATE_UINT32_ARRAY(prescale, gptm_state, 2),
+        VMSTATE_UINT32_ARRAY(match_prescale, gptm_state, 2),
+        VMSTATE_UINT32(rtc, gptm_state),
+        VMSTATE_INT64_ARRAY(tick, gptm_state, 2),
+        VMSTATE_TIMER_ARRAY(timer, gptm_state, 2),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static int stellaris_gptm_init(SysBusDevice *dev)
 {
@@ -354,8 +319,7 @@ static int stellaris_gptm_init(SysBusDevice *dev)
     s->opaque[0] = s->opaque[1] = s;
     s->timer[0] = qemu_new_timer_ns(vm_clock, gptm_tick, &s->opaque[0]);
     s->timer[1] = qemu_new_timer_ns(vm_clock, gptm_tick, &s->opaque[1]);
-    register_savevm(&dev->qdev, "stellaris_gptm", -1, 1,
-                    gptm_save, gptm_load, s);
+    vmstate_register(&dev->qdev, -1, &vmstate_stellaris_gptm, s);
     return 0;
 }
 
