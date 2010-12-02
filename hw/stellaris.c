@@ -843,36 +843,22 @@ static CPUWriteMemoryFunc * const stellaris_i2c_writefn[] = {
    stellaris_i2c_write
 };
 
-static void stellaris_i2c_save(QEMUFile *f, void *opaque)
-{
-    stellaris_i2c_state *s = (stellaris_i2c_state *)opaque;
-
-    qemu_put_be32(f, s->msa);
-    qemu_put_be32(f, s->mcs);
-    qemu_put_be32(f, s->mdr);
-    qemu_put_be32(f, s->mtpr);
-    qemu_put_be32(f, s->mimr);
-    qemu_put_be32(f, s->mris);
-    qemu_put_be32(f, s->mcr);
-}
-
-static int stellaris_i2c_load(QEMUFile *f, void *opaque, int version_id)
-{
-    stellaris_i2c_state *s = (stellaris_i2c_state *)opaque;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    s->msa = qemu_get_be32(f);
-    s->mcs = qemu_get_be32(f);
-    s->mdr = qemu_get_be32(f);
-    s->mtpr = qemu_get_be32(f);
-    s->mimr = qemu_get_be32(f);
-    s->mris = qemu_get_be32(f);
-    s->mcr = qemu_get_be32(f);
-
-    return 0;
-}
+static const VMStateDescription vmstate_stellaris_i2c = {
+    .name = "stellaris_i2c",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32(msa, stellaris_i2c_state),
+        VMSTATE_UINT32(mcs, stellaris_i2c_state),
+        VMSTATE_UINT32(mdr, stellaris_i2c_state),
+        VMSTATE_UINT32(mtpr, stellaris_i2c_state),
+        VMSTATE_UINT32(mimr, stellaris_i2c_state),
+        VMSTATE_UINT32(mris, stellaris_i2c_state),
+        VMSTATE_UINT32(mcr, stellaris_i2c_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static int stellaris_i2c_init(SysBusDevice * dev)
 {
@@ -890,8 +876,7 @@ static int stellaris_i2c_init(SysBusDevice * dev)
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     /* ??? For now we only implement the master interface.  */
     stellaris_i2c_reset(s);
-    register_savevm(&dev->qdev, "stellaris_i2c", -1, 1,
-                    stellaris_i2c_save, stellaris_i2c_load, s);
+    vmstate_register(&dev->qdev, -1, &vmstate_stellaris_i2c, s);
     return 0;
 }
 
