@@ -810,30 +810,28 @@ static CPUReadMemoryFunc * const dbdma_read[] = {
     dbdma_readl,
 };
 
-static void dbdma_save(QEMUFile *f, void *opaque)
-{
-    DBDMAState *s = opaque;
-    unsigned int i, j;
+static const VMStateDescription vmstate_dbdma_channel = {
+    .name = "dbdma_channel",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32_ARRAY(regs, struct DBDMA_channel, DBDMA_REGS),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
-    for (i = 0; i < DBDMA_CHANNELS; i++)
-        for (j = 0; j < DBDMA_REGS; j++)
-            qemu_put_be32s(f, &s->channels[i].regs[j]);
-}
-
-static int dbdma_load(QEMUFile *f, void *opaque, int version_id)
-{
-    DBDMAState *s = opaque;
-    unsigned int i, j;
-
-    if (version_id != 2)
-        return -EINVAL;
-
-    for (i = 0; i < DBDMA_CHANNELS; i++)
-        for (j = 0; j < DBDMA_REGS; j++)
-            qemu_get_be32s(f, &s->channels[i].regs[j]);
-
-    return 0;
-}
+static const VMStateDescription vmstate_dbdma = {
+    .name = "dbdma",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
+    .fields      = (VMStateField[]) {
+        VMSTATE_STRUCT_ARRAY(channels, DBDMAState, DBDMA_CHANNELS, 1,
+                             vmstate_dbdma_channel, DBDMA_channel),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void dbdma_reset(void *opaque)
 {
@@ -852,7 +850,7 @@ void* DBDMA_init (int *dbdma_mem_index)
 
     *dbdma_mem_index = cpu_register_io_memory(dbdma_read, dbdma_write, s,
                                               DEVICE_LITTLE_ENDIAN);
-    register_savevm(NULL, "dbdma", -1, 1, dbdma_save, dbdma_load, s);
+    vmstate_register(NULL, -1, &vmstate_dbdma, s);
     qemu_register_reset(dbdma_reset, s);
 
     dbdma_bh = qemu_bh_new(DBDMA_run_bh, s);
