@@ -38,7 +38,7 @@
 #endif
 
 struct MacIONVRAMState {
-    target_phys_addr_t size;
+    uint32_t size;
     int mem_index;
     unsigned int it_shift;
     uint8_t *data;
