@@ -153,14 +153,44 @@ int usb_desc_other(const USBDescOther *desc, uint8_t *dest, size_t len)
 
 /* ------------------------------------------------------------------ */
 
-void usb_desc_init(USBDevice *dev)
+static void usb_desc_setdefaults(USBDevice *dev)
 {
     const USBDesc *desc = dev->info->usb_desc;
 
     assert(desc != NULL);
-    dev->speed  = USB_SPEED_FULL;
-    dev->device = desc->full;
+    switch (dev->speed) {
+    case USB_SPEED_LOW:
+    case USB_SPEED_FULL:
+        dev->device = desc->full;
+        break;
+    case USB_SPEED_HIGH:
+        dev->device = desc->high;
+        break;
+    }
     dev->config = dev->device->confs;
+}
+
+void usb_desc_init(USBDevice *dev)
+{
+    dev->speed = USB_SPEED_FULL;
+    usb_desc_setdefaults(dev);
+}
+
+void usb_desc_attach(USBDevice *dev)
+{
+    const USBDesc *desc = dev->info->usb_desc;
+
+    assert(desc != NULL);
+    if (desc->high && (dev->port->speedmask & USB_SPEED_MASK_HIGH)) {
+        dev->speed = USB_SPEED_HIGH;
+    } else if (desc->full && (dev->port->speedmask & USB_SPEED_MASK_FULL)) {
+        dev->speed = USB_SPEED_FULL;
+    } else {
+        fprintf(stderr, "usb: port/device speed mismatch for \"%s\"\n",
+                dev->info->product_desc);
+        return;
+    }
+    usb_desc_setdefaults(dev);
 }
 
 void usb_desc_set_string(USBDevice *dev, uint8_t index, const char *str)
