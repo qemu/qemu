@@ -94,36 +94,22 @@ static uint32_t max111x_transfer(SSISlave *dev, uint32_t value)
     return max111x_read(s);
 }
 
-static void max111x_save(QEMUFile *f, void *opaque)
-{
-    MAX111xState *s = (MAX111xState *) opaque;
-    int i;
-
-    qemu_put_8s(f, &s->tb1);
-    qemu_put_8s(f, &s->rb2);
-    qemu_put_8s(f, &s->rb3);
-    qemu_put_be32(f, s->inputs);
-    qemu_put_be32(f, s->com);
-    for (i = 0; i < s->inputs; i ++)
-        qemu_put_byte(f, s->input[i]);
-}
-
-static int max111x_load(QEMUFile *f, void *opaque, int version_id)
-{
-    MAX111xState *s = (MAX111xState *) opaque;
-    int i;
-
-    qemu_get_8s(f, &s->tb1);
-    qemu_get_8s(f, &s->rb2);
-    qemu_get_8s(f, &s->rb3);
-    if (s->inputs != qemu_get_be32(f))
-        return -EINVAL;
-    s->com = qemu_get_be32(f);
-    for (i = 0; i < s->inputs; i ++)
-        s->input[i] = qemu_get_byte(f);
-
-    return 0;
-}
+static const VMStateDescription vmstate_max111x = {
+    .name = "max111x",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT8(tb1, MAX111xState),
+        VMSTATE_UINT8(rb2, MAX111xState),
+        VMSTATE_UINT8(rb3, MAX111xState),
+        VMSTATE_INT32_EQUAL(inputs, MAX111xState),
+        VMSTATE_INT32(com, MAX111xState),
+        VMSTATE_ARRAY_INT32_UNSAFE(input, MAX111xState, inputs,
+                                   vmstate_info_uint8, uint8_t),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static int max111x_init(SSISlave *dev, int inputs)
 {
@@ -143,8 +129,7 @@ static int max111x_init(SSISlave *dev, int inputs)
     s->input[7] = 0x80;
     s->com = 0;
 
-    register_savevm(&dev->qdev, "max111x", -1, 0,
-                    max111x_save, max111x_load, s);
+    vmstate_register(&dev->qdev, -1, &vmstate_max111x, s);
     return 0;
 }
 
