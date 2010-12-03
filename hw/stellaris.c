@@ -1057,60 +1057,40 @@ static CPUWriteMemoryFunc * const stellaris_adc_writefn[] = {
    stellaris_adc_write
 };
 
-static void stellaris_adc_save(QEMUFile *f, void *opaque)
-{
-    stellaris_adc_state *s = (stellaris_adc_state *)opaque;
-    int i;
-    int j;
-
-    qemu_put_be32(f, s->actss);
-    qemu_put_be32(f, s->ris);
-    qemu_put_be32(f, s->im);
-    qemu_put_be32(f, s->emux);
-    qemu_put_be32(f, s->ostat);
-    qemu_put_be32(f, s->ustat);
-    qemu_put_be32(f, s->sspri);
-    qemu_put_be32(f, s->sac);
-    for (i = 0; i < 4; i++) {
-        qemu_put_be32(f, s->fifo[i].state);
-        for (j = 0; j < 16; j++) {
-            qemu_put_be32(f, s->fifo[i].data[j]);
-        }
-        qemu_put_be32(f, s->ssmux[i]);
-        qemu_put_be32(f, s->ssctl[i]);
+static const VMStateDescription vmstate_stellaris_adc = {
+    .name = "stellaris_adc",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32(actss, stellaris_adc_state),
+        VMSTATE_UINT32(ris, stellaris_adc_state),
+        VMSTATE_UINT32(im, stellaris_adc_state),
+        VMSTATE_UINT32(emux, stellaris_adc_state),
+        VMSTATE_UINT32(ostat, stellaris_adc_state),
+        VMSTATE_UINT32(ustat, stellaris_adc_state),
+        VMSTATE_UINT32(sspri, stellaris_adc_state),
+        VMSTATE_UINT32(sac, stellaris_adc_state),
+        VMSTATE_UINT32(fifo[0].state, stellaris_adc_state),
+        VMSTATE_UINT32_ARRAY(fifo[0].data, stellaris_adc_state, 16),
+        VMSTATE_UINT32(ssmux[0], stellaris_adc_state),
+        VMSTATE_UINT32(ssctl[0], stellaris_adc_state),
+        VMSTATE_UINT32(fifo[1].state, stellaris_adc_state),
+        VMSTATE_UINT32_ARRAY(fifo[1].data, stellaris_adc_state, 16),
+        VMSTATE_UINT32(ssmux[1], stellaris_adc_state),
+        VMSTATE_UINT32(ssctl[1], stellaris_adc_state),
+        VMSTATE_UINT32(fifo[2].state, stellaris_adc_state),
+        VMSTATE_UINT32_ARRAY(fifo[2].data, stellaris_adc_state, 16),
+        VMSTATE_UINT32(ssmux[2], stellaris_adc_state),
+        VMSTATE_UINT32(ssctl[2], stellaris_adc_state),
+        VMSTATE_UINT32(fifo[3].state, stellaris_adc_state),
+        VMSTATE_UINT32_ARRAY(fifo[3].data, stellaris_adc_state, 16),
+        VMSTATE_UINT32(ssmux[3], stellaris_adc_state),
+        VMSTATE_UINT32(ssctl[3], stellaris_adc_state),
+        VMSTATE_UINT32(noise, stellaris_adc_state),
+        VMSTATE_END_OF_LIST()
     }
-    qemu_put_be32(f, s->noise);
-}
-
-static int stellaris_adc_load(QEMUFile *f, void *opaque, int version_id)
-{
-    stellaris_adc_state *s = (stellaris_adc_state *)opaque;
-    int i;
-    int j;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    s->actss = qemu_get_be32(f);
-    s->ris = qemu_get_be32(f);
-    s->im = qemu_get_be32(f);
-    s->emux = qemu_get_be32(f);
-    s->ostat = qemu_get_be32(f);
-    s->ustat = qemu_get_be32(f);
-    s->sspri = qemu_get_be32(f);
-    s->sac = qemu_get_be32(f);
-    for (i = 0; i < 4; i++) {
-        s->fifo[i].state = qemu_get_be32(f);
-        for (j = 0; j < 16; j++) {
-            s->fifo[i].data[j] = qemu_get_be32(f);
-        }
-        s->ssmux[i] = qemu_get_be32(f);
-        s->ssctl[i] = qemu_get_be32(f);
-    }
-    s->noise = qemu_get_be32(f);
-
-    return 0;
-}
+};
 
 static int stellaris_adc_init(SysBusDevice *dev)
 {
@@ -1128,8 +1108,7 @@ static int stellaris_adc_init(SysBusDevice *dev)
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     stellaris_adc_reset(s);
     qdev_init_gpio_in(&dev->qdev, stellaris_adc_trigger, 1);
-    register_savevm(&dev->qdev, "stellaris_adc", -1, 1,
-                    stellaris_adc_save, stellaris_adc_load, s);
+    vmstate_register(&dev->qdev, -1, &vmstate_stellaris_adc, s);
     return 0;
 }
 
