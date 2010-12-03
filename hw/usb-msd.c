@@ -77,15 +77,19 @@ enum {
     STR_MANUFACTURER = 1,
     STR_PRODUCT,
     STR_SERIALNUMBER,
+    STR_CONFIG_FULL,
+    STR_CONFIG_HIGH,
 };
 
 static const USBDescStrings desc_strings = {
     [STR_MANUFACTURER] = "QEMU " QEMU_VERSION,
     [STR_PRODUCT]      = "QEMU USB HARDDRIVE",
     [STR_SERIALNUMBER] = "1",
+    [STR_CONFIG_FULL]  = "Full speed config (usb 1.1)",
+    [STR_CONFIG_HIGH]  = "High speed config (usb 2.0)",
 };
 
-static const USBDescIface desc_iface0 = {
+static const USBDescIface desc_iface_full = {
     .bInterfaceNumber              = 0,
     .bNumEndpoints                 = 2,
     .bInterfaceClass               = USB_CLASS_MASS_STORAGE,
@@ -104,16 +108,51 @@ static const USBDescIface desc_iface0 = {
     }
 };
 
-static const USBDescDevice desc_device = {
-    .bcdUSB                        = 0x0100,
+static const USBDescDevice desc_device_full = {
+    .bcdUSB                        = 0x0200,
     .bMaxPacketSize0               = 8,
     .bNumConfigurations            = 1,
     .confs = (USBDescConfig[]) {
         {
             .bNumInterfaces        = 1,
             .bConfigurationValue   = 1,
+            .iConfiguration        = STR_CONFIG_FULL,
             .bmAttributes          = 0xc0,
-            .ifs = &desc_iface0,
+            .ifs = &desc_iface_full,
+        },
+    },
+};
+
+static const USBDescIface desc_iface_high = {
+    .bInterfaceNumber              = 0,
+    .bNumEndpoints                 = 2,
+    .bInterfaceClass               = USB_CLASS_MASS_STORAGE,
+    .bInterfaceSubClass            = 0x06, /* SCSI */
+    .bInterfaceProtocol            = 0x50, /* Bulk */
+    .eps = (USBDescEndpoint[]) {
+        {
+            .bEndpointAddress      = USB_DIR_IN | 0x01,
+            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+            .wMaxPacketSize        = 512,
+        },{
+            .bEndpointAddress      = USB_DIR_OUT | 0x02,
+            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+            .wMaxPacketSize        = 512,
+        },
+    }
+};
+
+static const USBDescDevice desc_device_high = {
+    .bcdUSB                        = 0x0200,
+    .bMaxPacketSize0               = 64,
+    .bNumConfigurations            = 1,
+    .confs = (USBDescConfig[]) {
+        {
+            .bNumInterfaces        = 1,
+            .bConfigurationValue   = 1,
+            .iConfiguration        = STR_CONFIG_HIGH,
+            .bmAttributes          = 0xc0,
+            .ifs = &desc_iface_high,
         },
     },
 };
@@ -127,7 +166,8 @@ static const USBDesc desc = {
         .iProduct          = STR_PRODUCT,
         .iSerialNumber     = STR_SERIALNUMBER,
     },
-    .full = &desc_device,
+    .full = &desc_device_full,
+    .high = &desc_device_high,
     .str  = desc_strings,
 };
 
@@ -558,6 +598,7 @@ static struct USBDeviceInfo msd_info = {
     .usb_desc       = &desc,
     .init           = usb_msd_initfn,
     .handle_packet  = usb_generic_handle_packet,
+    .handle_attach  = usb_desc_attach,
     .handle_reset   = usb_msd_handle_reset,
     .handle_control = usb_msd_handle_control,
     .handle_data    = usb_msd_handle_data,
