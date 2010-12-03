@@ -52,7 +52,7 @@ struct NANDFlashState {
     BlockDriverState *bdrv;
     int mem_oob;
 
-    int cle, ale, ce, wp, gnd;
+    uint8_t cle, ale, ce, wp, gnd;
 
     uint8_t io[MAX_PAGE + MAX_OOB + 0x400];
     uint8_t *ioaddr;
@@ -329,8 +329,8 @@ static int nand_load(QEMUFile *f, void *opaque, int version_id)
  *
  * CE, WP and R/B are active low.
  */
-void nand_setpins(NANDFlashState *s,
-                int cle, int ale, int ce, int wp, int gnd)
+void nand_setpins(NANDFlashState *s, uint8_t cle, uint8_t ale,
+                  uint8_t ce, uint8_t wp, uint8_t gnd)
 {
     s->cle = cle;
     s->ale = ale;
