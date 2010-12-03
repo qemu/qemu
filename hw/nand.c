@@ -66,6 +66,8 @@ struct NANDFlashState {
     void (*blk_write)(NANDFlashState *s);
     void (*blk_erase)(NANDFlashState *s);
     void (*blk_load)(NANDFlashState *s, uint32_t addr, int offset);
+
+    uint32_t ioaddr_vmstate;
 };
 
 # define NAND_NO_AUTOINCR	0x00000001
@@ -281,47 +283,50 @@ static void nand_command(NANDFlashState *s)
     }
 }
 
-static void nand_save(QEMUFile *f, void *opaque)
+static void nand_pre_save(void *opaque)
 {
-    NANDFlashState *s = (NANDFlashState *) opaque;
-    qemu_put_byte(f, s->cle);
-    qemu_put_byte(f, s->ale);
-    qemu_put_byte(f, s->ce);
-    qemu_put_byte(f, s->wp);
-    qemu_put_byte(f, s->gnd);
-    qemu_put_buffer(f, s->io, sizeof(s->io));
-    qemu_put_be32(f, s->ioaddr - s->io);
-    qemu_put_be32(f, s->iolen);
+    NANDFlashState *s = opaque;
 
-    qemu_put_be32s(f, &s->cmd);
-    qemu_put_be32s(f, &s->addr);
-    qemu_put_be32(f, s->addrlen);
-    qemu_put_be32(f, s->status);
-    qemu_put_be32(f, s->offset);
-    /* XXX: do we want to save s->storage too? */
+    s->ioaddr_vmstate = s->ioaddr - s->io;
 }
 
-static int nand_load(QEMUFile *f, void *opaque, int version_id)
+static int nand_post_load(void *opaque, int version_id)
 {
-    NANDFlashState *s = (NANDFlashState *) opaque;
-    s->cle = qemu_get_byte(f);
-    s->ale = qemu_get_byte(f);
-    s->ce = qemu_get_byte(f);
-    s->wp = qemu_get_byte(f);
-    s->gnd = qemu_get_byte(f);
-    qemu_get_buffer(f, s->io, sizeof(s->io));
-    s->ioaddr = s->io + qemu_get_be32(f);
-    s->iolen = qemu_get_be32(f);
-    if (s->ioaddr >= s->io + sizeof(s->io) || s->ioaddr < s->io)
-        return -EINVAL;
+    NANDFlashState *s = opaque;
 
-    qemu_get_be32s(f, &s->cmd);
-    qemu_get_be32s(f, &s->addr);
-    s->addrlen = qemu_get_be32(f);
-    s->status = qemu_get_be32(f);
-    s->offset = qemu_get_be32(f);
+    if (s->ioaddr_vmstate > sizeof(s->io)) {
+        return -EINVAL;
+    }
+    s->ioaddr = s->io + s->ioaddr_vmstate;
+
     return 0;
 }
+
+static const VMStateDescription vmstate_nand = {
+    .name = "nand",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .pre_save = nand_pre_save,
+    .post_load = nand_post_load,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT8(cle, NANDFlashState),
+        VMSTATE_UINT8(ale, NANDFlashState),
+        VMSTATE_UINT8(ce, NANDFlashState),
+        VMSTATE_UINT8(wp, NANDFlashState),
+        VMSTATE_UINT8(gnd, NANDFlashState),
+        VMSTATE_BUFFER(io, NANDFlashState),
+        VMSTATE_UINT32(ioaddr_vmstate, NANDFlashState),
+        VMSTATE_INT32(iolen, NANDFlashState),
+        VMSTATE_UINT32(cmd, NANDFlashState),
+        VMSTATE_UINT32(addr, NANDFlashState),
+        VMSTATE_INT32(addrlen, NANDFlashState),
+        VMSTATE_INT32(status, NANDFlashState),
+        VMSTATE_INT32(offset, NANDFlashState),
+        /* XXX: do we want to save s->storage too? */
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 /*
  * Chip inputs are CLE, ALE, CE, WP, GND and eight I/O pins.  Chip
@@ -502,7 +507,7 @@ NANDFlashState *nand_init(int manf_id, int chip_id)
        is used.  */
     s->ioaddr = s->io;
 
-    register_savevm(NULL, "nand", -1, 0, nand_save, nand_load, s);
+    vmstate_register(NULL, -1, &vmstate_nand, s);
 
     return s;
 }
