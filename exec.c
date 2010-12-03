@@ -2858,7 +2858,6 @@ ram_addr_t qemu_ram_alloc_from_ptr(DeviceState *dev, const char *name,
     new_block->length = size;
 
     QLIST_INSERT_HEAD(&ram_list.blocks, new_block, next);
-    fprintf(stderr, "alloc ram %s len 0x%x\n", new_block->idstr, (int)new_block->length);
 
     ram_list.phys_dirty = qemu_realloc(ram_list.phys_dirty,
                                        last_ram_offset() >> TARGET_PAGE_BITS);
