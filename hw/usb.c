@@ -194,6 +194,9 @@ int usb_generic_handle_packet(USBDevice *s, USBPacket *p)
     switch(p->pid) {
     case USB_MSG_ATTACH:
         s->state = USB_STATE_ATTACHED;
+        if (s->info->handle_attach) {
+            s->info->handle_attach(s);
+        }
         return 0;
 
     case USB_MSG_DETACH:
@@ -204,7 +207,9 @@ int usb_generic_handle_packet(USBDevice *s, USBPacket *p)
         s->remote_wakeup = 0;
         s->addr = 0;
         s->state = USB_STATE_DEFAULT;
-        s->info->handle_reset(s);
+        if (s->info->handle_reset) {
+            s->info->handle_reset(s);
+        }
         return 0;
     }
 
