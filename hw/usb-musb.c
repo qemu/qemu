@@ -349,7 +349,8 @@ struct MUSBState {
     }
 
     usb_bus_new(&s->bus, NULL /* FIXME */);
-    usb_register_port(&s->bus, &s->port, s, 0, NULL, &musb_port_ops);
+    usb_register_port(&s->bus, &s->port, s, 0, NULL, &musb_port_ops,
+                      USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
 
     return s;
 }

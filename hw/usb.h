@@ -44,6 +44,12 @@
 #define USB_SPEED_LOW   0
 #define USB_SPEED_FULL  1
 #define USB_SPEED_HIGH  2
+#define USB_SPEED_SUPER 3
+
+#define USB_SPEED_MASK_LOW   (1 << USB_SPEED_LOW)
+#define USB_SPEED_MASK_FULL  (1 << USB_SPEED_FULL)
+#define USB_SPEED_MASK_HIGH  (1 << USB_SPEED_HIGH)
+#define USB_SPEED_MASK_SUPER (1 << USB_SPEED_SUPER)
 
 #define USB_STATE_NOTATTACHED 0
 #define USB_STATE_ATTACHED    1
@@ -226,6 +232,7 @@ typedef struct USBPortOps {
 /* USB port on which a device can be connected */
 struct USBPort {
     USBDevice *dev;
+    int speedmask;
     USBPortOps *ops;
     void *opaque;
     USBDevice *pdev;
@@ -339,7 +346,7 @@ USBDevice *usb_create(USBBus *bus, const char *name);
 USBDevice *usb_create_simple(USBBus *bus, const char *name);
 USBDevice *usbdevice_create(const char *cmdline);
 void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,
-                       USBDevice *pdev, USBPortOps *ops);
+                       USBDevice *pdev, USBPortOps *ops, int speedmask);
 void usb_unregister_port(USBBus *bus, USBPort *port);
 int usb_device_attach(USBDevice *dev);
 int usb_device_detach(USBDevice *dev);
