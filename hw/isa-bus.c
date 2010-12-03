@@ -68,12 +68,10 @@ void isa_bus_irqs(qemu_irq *irqs)
 qemu_irq isa_reserve_irq(int isairq)
 {
     if (isairq < 0 || isairq > 15) {
-        fprintf(stderr, "isa irq %d invalid\n", isairq);
-        exit(1);
+        hw_error("isa irq %d invalid", isairq);
     }
     if (isabus->assigned & (1 << isairq)) {
-        fprintf(stderr, "isa irq %d already assigned\n", isairq);
-        exit(1);
+        hw_error("isa irq %d already assigned", isairq);
     }
     isabus->assigned |= (1 << isairq);
     return isabus->irqs[isairq];
@@ -83,8 +81,7 @@ void isa_init_irq(ISADevice *dev, qemu_irq *p, int isairq)
 {
     assert(dev->nirqs < ARRAY_SIZE(dev->isairq));
     if (isabus->assigned & (1 << isairq)) {
-        fprintf(stderr, "isa irq %d already assigned\n", isairq);
-        exit(1);
+        hw_error("isa irq %d already assigned", isairq);
     }
     isabus->assigned |= (1 << isairq);
     dev->isairq[dev->nirqs] = isairq;
@@ -115,7 +112,7 @@ ISADevice *isa_create(const char *name)
     DeviceState *dev;
 
     if (!isabus) {
-        hw_error("Tried to create isa device %s with no isa bus present.\n",
+        hw_error("Tried to create isa device %s with no isa bus present.",
                  name);
     }
     dev = qdev_create(&isabus->qbus, name);
