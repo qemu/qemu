@@ -15,7 +15,7 @@ typedef struct {
     uint8_t tb1, rb2, rb3;
     int cycle;
 
-    int input[8];
+    uint8_t input[8];
     int inputs, com;
 } MAX111xState;
 
