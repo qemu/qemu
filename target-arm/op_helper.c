@@ -28,20 +28,6 @@ void raise_exception(int tt)
     cpu_loop_exit();
 }
 
-/* thread support */
-
-static spinlock_t global_cpu_lock = SPIN_LOCK_UNLOCKED;
-
-void cpu_lock(void)
-{
-    spin_lock(&global_cpu_lock);
-}
-
-void cpu_unlock(void)
-{
-    spin_unlock(&global_cpu_lock);
-}
-
 uint32_t HELPER(neon_tbl)(uint32_t ireg, uint32_t def,
                           uint32_t rn, uint32_t maxindex)
 {

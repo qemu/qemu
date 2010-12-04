@@ -1374,15 +1374,66 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
 
     switch(level) {
     case TARGET_SOL_SOCKET:
-    	level = SOL_SOCKET;
-	switch (optname) {
-	case TARGET_SO_LINGER:
-	case TARGET_SO_RCVTIMEO:
-	case TARGET_SO_SNDTIMEO:
-	case TARGET_SO_PEERCRED:
-	case TARGET_SO_PEERNAME:
-	    /* These don't just return a single integer */
-	    goto unimplemented;
+        level = SOL_SOCKET;
+        switch (optname) {
+        /* These don't just return a single integer */
+        case TARGET_SO_LINGER:
+        case TARGET_SO_RCVTIMEO:
+        case TARGET_SO_SNDTIMEO:
+        case TARGET_SO_PEERCRED:
+        case TARGET_SO_PEERNAME:
+            goto unimplemented;
+        /* Options with 'int' argument.  */
+        case TARGET_SO_DEBUG:
+            optname = SO_DEBUG;
+            goto int_case;
+        case TARGET_SO_REUSEADDR:
+            optname = SO_REUSEADDR;
+            goto int_case;
+        case TARGET_SO_TYPE:
+            optname = SO_TYPE;
+            goto int_case;
+        case TARGET_SO_ERROR:
+            optname = SO_ERROR;
+            goto int_case;
+        case TARGET_SO_DONTROUTE:
+            optname = SO_DONTROUTE;
+            goto int_case;
+        case TARGET_SO_BROADCAST:
+            optname = SO_BROADCAST;
+            goto int_case;
+        case TARGET_SO_SNDBUF:
+            optname = SO_SNDBUF;
+            goto int_case;
+        case TARGET_SO_RCVBUF:
+            optname = SO_RCVBUF;
+            goto int_case;
+        case TARGET_SO_KEEPALIVE:
+            optname = SO_KEEPALIVE;
+            goto int_case;
+        case TARGET_SO_OOBINLINE:
+            optname = SO_OOBINLINE;
+            goto int_case;
+        case TARGET_SO_NO_CHECK:
+            optname = SO_NO_CHECK;
+            goto int_case;
+        case TARGET_SO_PRIORITY:
+            optname = SO_PRIORITY;
+            goto int_case;
+#ifdef SO_BSDCOMPAT
+        case TARGET_SO_BSDCOMPAT:
+            optname = SO_BSDCOMPAT;
+            goto int_case;
+#endif
+        case TARGET_SO_PASSCRED:
+            optname = SO_PASSCRED;
+            goto int_case;
+        case TARGET_SO_TIMESTAMP:
+            optname = SO_TIMESTAMP;
+            goto int_case;
+        case TARGET_SO_RCVLOWAT:
+            optname = SO_RCVLOWAT;
+            goto int_case;
         default:
             goto int_case;
         }
@@ -1406,7 +1457,7 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
         } else {
             if (put_user_u8(val, optval_addr))
                 return -TARGET_EFAULT;
-	}
+        }
         if (put_user_u32(len, optlen))
             return -TARGET_EFAULT;
         break;
@@ -3584,11 +3635,12 @@ static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
 {
     int ret;
     TaskState *ts;
-    uint8_t *new_stack;
     CPUState *new_env;
 #if defined(CONFIG_USE_NPTL)
     unsigned int nptl_flags;
     sigset_t sigmask;
+#else
+    uint8_t *new_stack;
 #endif
 
     /* Emulate vfork() with fork() */
@@ -3601,9 +3653,8 @@ static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
         new_thread_info info;
         pthread_attr_t attr;
 #endif
-        ts = qemu_mallocz(sizeof(TaskState) + NEW_STACK_SIZE);
+        ts = qemu_mallocz(sizeof(TaskState));
         init_task_state(ts);
-        new_stack = ts->stack;
         /* we create a new CPU instance. */
         new_env = cpu_copy(env);
 #if defined(TARGET_I386) || defined(TARGET_SPARC) || defined(TARGET_PPC)
@@ -3639,7 +3690,8 @@ static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
             info.parent_tidptr = parent_tidptr;
 
         ret = pthread_attr_init(&attr);
-        ret = pthread_attr_setstack(&attr, new_stack, NEW_STACK_SIZE);
+        ret = pthread_attr_setstacksize(&attr, NEW_STACK_SIZE);
+        ret = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
         /* It is not safe to deliver signals until the child has finished
            initializing, so temporarily block all signals.  */
         sigfillset(&sigmask);
@@ -3667,6 +3719,7 @@ static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
         if (flags & CLONE_NPTL_FLAGS2)
             return -EINVAL;
         /* This is probably going to die very quickly, but do it anyway.  */
+        new_stack = qemu_mallocz (NEW_STACK_SIZE);
 #ifdef __ia64__
         ret = __clone2(clone_func, new_stack, NEW_STACK_SIZE, flags, new_env);
 #else
@@ -4240,7 +4293,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
               sys_futex(g2h(ts->child_tidptr), FUTEX_WAKE, INT_MAX,
                         NULL, NULL, 0);
           }
-          /* TODO: Free CPU state.  */
+          thread_env = NULL;
+          qemu_free(cpu_env);
+          qemu_free(ts);
           pthread_exit(NULL);
       }
 #endif

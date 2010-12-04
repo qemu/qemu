@@ -1108,9 +1108,43 @@ struct target_ucontext_v2 {
     target_stack_t tuc_stack;
     struct target_sigcontext tuc_mcontext;
     target_sigset_t  tuc_sigmask;	/* mask last for extensibility */
-    char __unused[128 - sizeof(sigset_t)];
+    char __unused[128 - sizeof(target_sigset_t)];
     abi_ulong tuc_regspace[128] __attribute__((__aligned__(8)));
 };
+
+struct target_user_vfp {
+    uint64_t fpregs[32];
+    abi_ulong fpscr;
+};
+
+struct target_user_vfp_exc {
+    abi_ulong fpexc;
+    abi_ulong fpinst;
+    abi_ulong fpinst2;
+};
+
+struct target_vfp_sigframe {
+    abi_ulong magic;
+    abi_ulong size;
+    struct target_user_vfp ufp;
+    struct target_user_vfp_exc ufp_exc;
+} __attribute__((__aligned__(8)));
+
+struct target_iwmmxt_sigframe {
+    abi_ulong magic;
+    abi_ulong size;
+    uint64_t regs[16];
+    /* Note that not all the coprocessor control registers are stored here */
+    uint32_t wcssf;
+    uint32_t wcasf;
+    uint32_t wcgr0;
+    uint32_t wcgr1;
+    uint32_t wcgr2;
+    uint32_t wcgr3;
+} __attribute__((__aligned__(8)));
+
+#define TARGET_VFP_MAGIC 0x56465001
+#define TARGET_IWMMXT_MAGIC 0x12ef842a
 
 struct sigframe_v1
 {
@@ -1255,11 +1289,48 @@ setup_return(CPUState *env, struct target_sigaction *ka,
 	return 0;
 }
 
+static abi_ulong *setup_sigframe_v2_vfp(abi_ulong *regspace, CPUState *env)
+{
+    int i;
+    struct target_vfp_sigframe *vfpframe;
+    vfpframe = (struct target_vfp_sigframe *)regspace;
+    __put_user(TARGET_VFP_MAGIC, &vfpframe->magic);
+    __put_user(sizeof(*vfpframe), &vfpframe->size);
+    for (i = 0; i < 32; i++) {
+        __put_user(env->vfp.regs[i], &vfpframe->ufp.fpregs[i]);
+    }
+    __put_user(vfp_get_fpscr(env), &vfpframe->ufp.fpscr);
+    __put_user(env->vfp.xregs[ARM_VFP_FPEXC], &vfpframe->ufp_exc.fpexc);
+    __put_user(env->vfp.xregs[ARM_VFP_FPINST], &vfpframe->ufp_exc.fpinst);
+    __put_user(env->vfp.xregs[ARM_VFP_FPINST2], &vfpframe->ufp_exc.fpinst2);
+    return (abi_ulong*)(vfpframe+1);
+}
+
+static abi_ulong *setup_sigframe_v2_iwmmxt(abi_ulong *regspace, CPUState *env)
+{
+    int i;
+    struct target_iwmmxt_sigframe *iwmmxtframe;
+    iwmmxtframe = (struct target_iwmmxt_sigframe *)regspace;
+    __put_user(TARGET_IWMMXT_MAGIC, &iwmmxtframe->magic);
+    __put_user(sizeof(*iwmmxtframe), &iwmmxtframe->size);
+    for (i = 0; i < 16; i++) {
+        __put_user(env->iwmmxt.regs[i], &iwmmxtframe->regs[i]);
+    }
+    __put_user(env->vfp.xregs[ARM_IWMMXT_wCSSF], &iwmmxtframe->wcssf);
+    __put_user(env->vfp.xregs[ARM_IWMMXT_wCASF], &iwmmxtframe->wcssf);
+    __put_user(env->vfp.xregs[ARM_IWMMXT_wCGR0], &iwmmxtframe->wcgr0);
+    __put_user(env->vfp.xregs[ARM_IWMMXT_wCGR1], &iwmmxtframe->wcgr1);
+    __put_user(env->vfp.xregs[ARM_IWMMXT_wCGR2], &iwmmxtframe->wcgr2);
+    __put_user(env->vfp.xregs[ARM_IWMMXT_wCGR3], &iwmmxtframe->wcgr3);
+    return (abi_ulong*)(iwmmxtframe+1);
+}
+
 static void setup_sigframe_v2(struct target_ucontext_v2 *uc,
                               target_sigset_t *set, CPUState *env)
 {
     struct target_sigaltstack stack;
     int i;
+    abi_ulong *regspace;
 
     /* Clear all the bits of the ucontext we don't use.  */
     memset(uc, 0, offsetof(struct target_ucontext_v2, tuc_mcontext));
@@ -1271,7 +1342,18 @@ static void setup_sigframe_v2(struct target_ucontext_v2 *uc,
     memcpy(&uc->tuc_stack, &stack, sizeof(stack));
 
     setup_sigcontext(&uc->tuc_mcontext, env, set->sig[0]);
-    /* FIXME: Save coprocessor signal frame.  */
+    /* Save coprocessor signal frame.  */
+    regspace = uc->tuc_regspace;
+    if (arm_feature(env, ARM_FEATURE_VFP)) {
+        regspace = setup_sigframe_v2_vfp(regspace, env);
+    }
+    if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
+        regspace = setup_sigframe_v2_iwmmxt(regspace, env);
+    }
+
+    /* Write terminating magic word */
+    __put_user(0, regspace);
+
     for(i = 0; i < TARGET_NSIG_WORDS; i++) {
         __put_user(set->sig[i], &uc->tuc_sigmask.sig[i]);
     }
@@ -1490,16 +1572,86 @@ badframe:
 	return 0;
 }
 
+static abi_ulong *restore_sigframe_v2_vfp(CPUState *env, abi_ulong *regspace)
+{
+    int i;
+    abi_ulong magic, sz;
+    uint32_t fpscr, fpexc;
+    struct target_vfp_sigframe *vfpframe;
+    vfpframe = (struct target_vfp_sigframe *)regspace;
+
+    __get_user(magic, &vfpframe->magic);
+    __get_user(sz, &vfpframe->size);
+    if (magic != TARGET_VFP_MAGIC || sz != sizeof(*vfpframe)) {
+        return 0;
+    }
+    for (i = 0; i < 32; i++) {
+        __get_user(env->vfp.regs[i], &vfpframe->ufp.fpregs[i]);
+    }
+    __get_user(fpscr, &vfpframe->ufp.fpscr);
+    vfp_set_fpscr(env, fpscr);
+    __get_user(fpexc, &vfpframe->ufp_exc.fpexc);
+    /* Sanitise FPEXC: ensure VFP is enabled, FPINST2 is invalid
+     * and the exception flag is cleared
+     */
+    fpexc |= (1 << 30);
+    fpexc &= ~((1 << 31) | (1 << 28));
+    env->vfp.xregs[ARM_VFP_FPEXC] = fpexc;
+    __get_user(env->vfp.xregs[ARM_VFP_FPINST], &vfpframe->ufp_exc.fpinst);
+    __get_user(env->vfp.xregs[ARM_VFP_FPINST2], &vfpframe->ufp_exc.fpinst2);
+    return (abi_ulong*)(vfpframe + 1);
+}
+
+static abi_ulong *restore_sigframe_v2_iwmmxt(CPUState *env, abi_ulong *regspace)
+{
+    int i;
+    abi_ulong magic, sz;
+    struct target_iwmmxt_sigframe *iwmmxtframe;
+    iwmmxtframe = (struct target_iwmmxt_sigframe *)regspace;
+
+    __get_user(magic, &iwmmxtframe->magic);
+    __get_user(sz, &iwmmxtframe->size);
+    if (magic != TARGET_IWMMXT_MAGIC || sz != sizeof(*iwmmxtframe)) {
+        return 0;
+    }
+    for (i = 0; i < 16; i++) {
+        __get_user(env->iwmmxt.regs[i], &iwmmxtframe->regs[i]);
+    }
+    __get_user(env->vfp.xregs[ARM_IWMMXT_wCSSF], &iwmmxtframe->wcssf);
+    __get_user(env->vfp.xregs[ARM_IWMMXT_wCASF], &iwmmxtframe->wcssf);
+    __get_user(env->vfp.xregs[ARM_IWMMXT_wCGR0], &iwmmxtframe->wcgr0);
+    __get_user(env->vfp.xregs[ARM_IWMMXT_wCGR1], &iwmmxtframe->wcgr1);
+    __get_user(env->vfp.xregs[ARM_IWMMXT_wCGR2], &iwmmxtframe->wcgr2);
+    __get_user(env->vfp.xregs[ARM_IWMMXT_wCGR3], &iwmmxtframe->wcgr3);
+    return (abi_ulong*)(iwmmxtframe + 1);
+}
+
 static int do_sigframe_return_v2(CPUState *env, target_ulong frame_addr,
                                  struct target_ucontext_v2 *uc)
 {
     sigset_t host_set;
+    abi_ulong *regspace;
 
     target_to_host_sigset(&host_set, &uc->tuc_sigmask);
     sigprocmask(SIG_SETMASK, &host_set, NULL);
 
     if (restore_sigcontext(env, &uc->tuc_mcontext))
         return 1;
+
+    /* Restore coprocessor signal frame */
+    regspace = uc->tuc_regspace;
+    if (arm_feature(env, ARM_FEATURE_VFP)) {
+        regspace = restore_sigframe_v2_vfp(env, regspace);
+        if (!regspace) {
+            return 1;
+        }
+    }
+    if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
+        regspace = restore_sigframe_v2_iwmmxt(env, regspace);
+        if (!regspace) {
+            return 1;
+        }
+    }
 
     if (do_sigaltstack(frame_addr + offsetof(struct target_ucontext_v2, tuc_stack), 0, get_sp_from_cpustate(env)) == -EFAULT)
         return 1;
