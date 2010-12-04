@@ -396,7 +396,7 @@ static void pcie_aer_msg(PCIDevice *dev, const PCIEAERMsg *msg)
 static void pcie_aer_update_log(PCIDevice *dev, const PCIEAERErr *err)
 {
     uint8_t *aer_cap = dev->config + dev->exp.aer_cap;
-    uint8_t first_bit = ffsl(err->status) - 1;
+    uint8_t first_bit = ffs(err->status) - 1;
     uint32_t errcap = pci_get_long(aer_cap + PCI_ERR_CAP);
     int i;
 
