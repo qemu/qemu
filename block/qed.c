@@ -99,6 +99,81 @@ static int qed_write_header_sync(BDRVQEDState *s)
     return 0;
 }
 
+typedef struct {
+    GenericCB gencb;
+    BDRVQEDState *s;
+    struct iovec iov;
+    QEMUIOVector qiov;
+    int nsectors;
+    uint8_t *buf;
+} QEDWriteHeaderCB;
+
+static void qed_write_header_cb(void *opaque, int ret)
+{
+    QEDWriteHeaderCB *write_header_cb = opaque;
+
+    qemu_vfree(write_header_cb->buf);
+    gencb_complete(write_header_cb, ret);
+}
+
+static void qed_write_header_read_cb(void *opaque, int ret)
+{
+    QEDWriteHeaderCB *write_header_cb = opaque;
+    BDRVQEDState *s = write_header_cb->s;
+    BlockDriverAIOCB *acb;
+
+    if (ret) {
+        qed_write_header_cb(write_header_cb, ret);
+        return;
+    }
+
+    /* Update header */
+    qed_header_cpu_to_le(&s->header, (QEDHeader *)write_header_cb->buf);
+
+    acb = bdrv_aio_writev(s->bs->file, 0, &write_header_cb->qiov,
+                          write_header_cb->nsectors, qed_write_header_cb,
+                          write_header_cb);
+    if (!acb) {
+        qed_write_header_cb(write_header_cb, -EIO);
+    }
+}
+
+/**
+ * Update header in-place (does not rewrite backing filename or other strings)
+ *
+ * This function only updates known header fields in-place and does not affect
+ * extra data after the QED header.
+ */
+static void qed_write_header(BDRVQEDState *s, BlockDriverCompletionFunc cb,
+                             void *opaque)
+{
+    /* We must write full sectors for O_DIRECT but cannot necessarily generate
+     * the data following the header if an unrecognized compat feature is
+     * active.  Therefore, first read the sectors containing the header, update
+     * them, and write back.
+     */
+
+    BlockDriverAIOCB *acb;
+    int nsectors = (sizeof(QEDHeader) + BDRV_SECTOR_SIZE - 1) /
+                   BDRV_SECTOR_SIZE;
+    size_t len = nsectors * BDRV_SECTOR_SIZE;
+    QEDWriteHeaderCB *write_header_cb = gencb_alloc(sizeof(*write_header_cb),
+                                                    cb, opaque);
+
+    write_header_cb->s = s;
+    write_header_cb->nsectors = nsectors;
+    write_header_cb->buf = qemu_blockalign(s->bs, len);
+    write_header_cb->iov.iov_base = write_header_cb->buf;
+    write_header_cb->iov.iov_len = len;
+    qemu_iovec_init_external(&write_header_cb->qiov, &write_header_cb->iov, 1);
+
+    acb = bdrv_aio_readv(s->bs->file, 0, &write_header_cb->qiov, nsectors,
+                         qed_write_header_read_cb, write_header_cb);
+    if (!acb) {
+        qed_write_header_cb(write_header_cb, -EIO);
+    }
+}
+
 static uint64_t qed_max_image_size(uint32_t cluster_size, uint32_t table_size)
 {
     uint64_t table_entries;
@@ -310,6 +385,32 @@ static int bdrv_qed_open(BlockDriverState *bs, int flags)
 
     ret = qed_read_l1_table_sync(s);
     if (ret) {
+        goto out;
+    }
+
+    /* If image was not closed cleanly, check consistency */
+    if (s->header.features & QED_F_NEED_CHECK) {
+        /* Read-only images cannot be fixed.  There is no risk of corruption
+         * since write operations are not possible.  Therefore, allow
+         * potentially inconsistent images to be opened read-only.  This can
+         * aid data recovery from an otherwise inconsistent image.
+         */
+        if (!bdrv_is_read_only(bs->file)) {
+            BdrvCheckResult result = {0};
+
+            ret = qed_check(s, &result, true);
+            if (!ret && !result.corruptions && !result.check_errors) {
+                /* Ensure fixes reach storage before clearing check bit */
+                bdrv_flush(s->bs);
+
+                s->header.features &= ~QED_F_NEED_CHECK;
+                qed_write_header_sync(s);
+            }
+        }
+    }
+
+out:
+    if (ret) {
         qed_free_l2_cache(&s->l2_cache);
         qemu_vfree(s->l1_table);
     }
@@ -319,6 +420,15 @@ static int bdrv_qed_open(BlockDriverState *bs, int flags)
 static void bdrv_qed_close(BlockDriverState *bs)
 {
     BDRVQEDState *s = bs->opaque;
+
+    /* Ensure writes reach stable storage */
+    bdrv_flush(bs->file);
+
+    /* Clean shutdown, no check required on next open */
+    if (s->header.features & QED_F_NEED_CHECK) {
+        s->header.features &= ~QED_F_NEED_CHECK;
+        qed_write_header_sync(s);
+    }
 
     qed_free_l2_cache(&s->l2_cache);
     qemu_vfree(s->l1_table);
@@ -885,8 +995,15 @@ static void qed_aio_write_alloc(QEDAIOCB *acb, size_t len)
     acb->cur_cluster = qed_alloc_clusters(s, acb->cur_nclusters);
     qemu_iovec_copy(&acb->cur_qiov, acb->qiov, acb->qiov_offset, len);
 
-    /* Write new cluster */
-    qed_aio_write_prefill(acb, 0);
+    /* Write new cluster if the image is already marked dirty */
+    if (s->header.features & QED_F_NEED_CHECK) {
+        qed_aio_write_prefill(acb, 0);
+        return;
+    }
+
+    /* Mark the image dirty before writing the new cluster */
+    s->header.features |= QED_F_NEED_CHECK;
+    qed_write_header(s, qed_aio_write_prefill, acb);
 }
 
 /**
@@ -1172,7 +1289,9 @@ static int bdrv_qed_change_backing_file(BlockDriverState *bs,
 
 static int bdrv_qed_check(BlockDriverState *bs, BdrvCheckResult *result)
 {
-    return -ENOTSUP;
+    BDRVQEDState *s = bs->opaque;
+
+    return qed_check(s, result, false);
 }
 
 static QEMUOptionParameter qed_create_options[] = {

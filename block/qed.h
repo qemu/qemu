@@ -50,11 +50,15 @@ enum {
     /* The image supports a backing file */
     QED_F_BACKING_FILE = 0x01,
 
+    /* The image needs a consistency check before use */
+    QED_F_NEED_CHECK = 0x02,
+
     /* The backing file format must not be probed, treat as raw image */
     QED_F_BACKING_FORMAT_NO_PROBE = 0x04,
 
     /* Feature bits must be used when the on-disk format changes */
     QED_FEATURE_MASK = QED_F_BACKING_FILE | /* supported feature bits */
+                       QED_F_NEED_CHECK |
                        QED_F_BACKING_FORMAT_NO_PROBE,
     QED_COMPAT_FEATURE_MASK = 0,            /* supported compat feature bits */
     QED_AUTOCLEAR_FEATURE_MASK = 0,         /* supported autoclear feature bits */
