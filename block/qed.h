@@ -116,6 +116,29 @@ typedef struct QEDRequest {
     CachedL2Table *l2_table;
 } QEDRequest;
 
+typedef struct QEDAIOCB {
+    BlockDriverAIOCB common;
+    QEMUBH *bh;
+    int bh_ret;                     /* final return status for completion bh */
+    QSIMPLEQ_ENTRY(QEDAIOCB) next;  /* next request */
+    bool is_write;                  /* false - read, true - write */
+    bool *finished;                 /* signal for cancel completion */
+    uint64_t end_pos;               /* request end on block device, in bytes */
+
+    /* User scatter-gather list */
+    QEMUIOVector *qiov;
+    size_t qiov_offset;             /* byte count already processed */
+
+    /* Current cluster scatter-gather list */
+    QEMUIOVector cur_qiov;
+    uint64_t cur_pos;               /* position on block device, in bytes */
+    uint64_t cur_cluster;           /* cluster offset in image file */
+    unsigned int cur_nclusters;     /* number of clusters being accessed */
+    int find_cluster_ret;           /* used for L1/L2 update */
+
+    QEDRequest request;
+} QEDAIOCB;
+
 typedef struct {
     BlockDriverState *bs;           /* device */
     uint64_t file_size;             /* length of image file, in bytes */
@@ -127,6 +150,9 @@ typedef struct {
     uint32_t l1_shift;
     uint32_t l2_shift;
     uint32_t l2_mask;
+
+    /* Allocating write request queue */
+    QSIMPLEQ_HEAD(, QEDAIOCB) allocating_write_reqs;
 } BDRVQEDState;
 
 enum {
