@@ -305,8 +305,9 @@ static int img_create(int argc, char **argv)
     flags = 0;
     for(;;) {
         c = getopt(argc, argv, "F:b:f:he6o:");
-        if (c == -1)
+        if (c == -1) {
             break;
+        }
         switch(c) {
         case 'h':
             help();
@@ -333,8 +334,9 @@ static int img_create(int argc, char **argv)
     }
 
     /* Get the filename */
-    if (optind >= argc)
+    if (optind >= argc) {
         help();
+    }
     filename = argv[optind++];
 
     if (options && !strcmp(options, "?")) {
@@ -471,8 +473,9 @@ static int img_check(int argc, char **argv)
     fmt = NULL;
     for(;;) {
         c = getopt(argc, argv, "f:h");
-        if (c == -1)
+        if (c == -1) {
             break;
+        }
         switch(c) {
         case 'h':
             help();
@@ -482,8 +485,9 @@ static int img_check(int argc, char **argv)
             break;
         }
     }
-    if (optind >= argc)
+    if (optind >= argc) {
         help();
+    }
     filename = argv[optind++];
 
     bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS);
@@ -547,8 +551,9 @@ static int img_commit(int argc, char **argv)
     fmt = NULL;
     for(;;) {
         c = getopt(argc, argv, "f:h");
-        if (c == -1)
+        if (c == -1) {
             break;
+        }
         switch(c) {
         case 'h':
             help();
@@ -558,8 +563,9 @@ static int img_commit(int argc, char **argv)
             break;
         }
     }
-    if (optind >= argc)
+    if (optind >= argc) {
         help();
+    }
     filename = argv[optind++];
 
     bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_RDWR);
@@ -683,8 +689,9 @@ static int img_convert(int argc, char **argv)
     flags = 0;
     for(;;) {
         c = getopt(argc, argv, "f:O:B:s:hce6o:");
-        if (c == -1)
+        if (c == -1) {
             break;
+        }
         switch(c) {
         case 'h':
             help();
@@ -717,7 +724,9 @@ static int img_convert(int argc, char **argv)
     }
 
     bs_n = argc - optind - 1;
-    if (bs_n < 1) help();
+    if (bs_n < 1) {
+        help();
+    }
 
     out_filename = argv[argc - 1];
 
@@ -905,8 +914,9 @@ static int img_convert(int argc, char **argv)
             }
             assert (remainder == 0);
 
-            if (n < cluster_sectors)
+            if (n < cluster_sectors) {
                 memset(buf + n * 512, 0, cluster_size - n * 512);
+            }
             if (is_not_zero(buf, cluster_size)) {
                 ret = bdrv_write_compressed(out_bs, sector_num, buf,
                                             cluster_sectors);
@@ -926,12 +936,14 @@ static int img_convert(int argc, char **argv)
         sector_num = 0; // total number of sectors converted so far
         for(;;) {
             nb_sectors = total_sectors - sector_num;
-            if (nb_sectors <= 0)
+            if (nb_sectors <= 0) {
                 break;
-            if (nb_sectors >= (IO_BUF_SIZE / 512))
+            }
+            if (nb_sectors >= (IO_BUF_SIZE / 512)) {
                 n = (IO_BUF_SIZE / 512);
-            else
+            } else {
                 n = nb_sectors;
+            }
 
             while (sector_num - bs_offset >= bs_sectors) {
                 bs_i ++;
@@ -943,8 +955,9 @@ static int img_convert(int argc, char **argv)
                    sector_num, bs_i, bs_offset, bs_sectors); */
             }
 
-            if (n > bs_offset + bs_sectors - sector_num)
+            if (n > bs_offset + bs_sectors - sector_num) {
                 n = bs_offset + bs_sectors - sector_num;
+            }
 
             if (has_zero_init) {
                 /* If the output image is being created as a copy on write image,
@@ -1080,8 +1093,9 @@ static int img_info(int argc, char **argv)
     fmt = NULL;
     for(;;) {
         c = getopt(argc, argv, "f:h");
-        if (c == -1)
+        if (c == -1) {
             break;
+        }
         switch(c) {
         case 'h':
             help();
@@ -1091,8 +1105,9 @@ static int img_info(int argc, char **argv)
             break;
         }
     }
-    if (optind >= argc)
+    if (optind >= argc) {
         help();
+    }
     filename = argv[optind++];
 
     bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_NO_BACKING);
@@ -1103,11 +1118,12 @@ static int img_info(int argc, char **argv)
     bdrv_get_geometry(bs, &total_sectors);
     get_human_readable_size(size_buf, sizeof(size_buf), total_sectors * 512);
     allocated_size = get_allocated_file_size(filename);
-    if (allocated_size < 0)
+    if (allocated_size < 0) {
         snprintf(dsize_buf, sizeof(dsize_buf), "unavailable");
-    else
+    } else {
         get_human_readable_size(dsize_buf, sizeof(dsize_buf),
                                 allocated_size);
+    }
     printf("image: %s\n"
            "file format: %s\n"
            "virtual size: %s (%" PRId64 " bytes)\n"
@@ -1115,11 +1131,13 @@ static int img_info(int argc, char **argv)
            filename, fmt_name, size_buf,
            (total_sectors * 512),
            dsize_buf);
-    if (bdrv_is_encrypted(bs))
+    if (bdrv_is_encrypted(bs)) {
         printf("encrypted: yes\n");
+    }
     if (bdrv_get_info(bs, &bdi) >= 0) {
-        if (bdi.cluster_size != 0)
+        if (bdi.cluster_size != 0) {
             printf("cluster_size: %d\n", bdi.cluster_size);
+        }
     }
     bdrv_get_backing_filename(bs, backing_filename, sizeof(backing_filename));
     if (backing_filename[0] != '\0') {
@@ -1152,8 +1170,9 @@ static int img_snapshot(int argc, char **argv)
     /* Parse commandline parameters */
     for(;;) {
         c = getopt(argc, argv, "la:c:d:h");
-        if (c == -1)
+        if (c == -1) {
             break;
+        }
         switch(c) {
         case 'h':
             help();
@@ -1193,8 +1212,9 @@ static int img_snapshot(int argc, char **argv)
         }
     }
 
-    if (optind >= argc)
+    if (optind >= argc) {
         help();
+    }
     filename = argv[optind++];
 
     /* Open the image */
@@ -1218,23 +1238,26 @@ static int img_snapshot(int argc, char **argv)
         sn.date_nsec = tv.tv_usec * 1000;
 
         ret = bdrv_snapshot_create(bs, &sn);
-        if (ret)
+        if (ret) {
             error("Could not create snapshot '%s': %d (%s)",
                 snapshot_name, ret, strerror(-ret));
+        }
         break;
 
     case SNAPSHOT_APPLY:
         ret = bdrv_snapshot_goto(bs, snapshot_name);
-        if (ret)
+        if (ret) {
             error("Could not apply snapshot '%s': %d (%s)",
                 snapshot_name, ret, strerror(-ret));
+        }
         break;
 
     case SNAPSHOT_DELETE:
         ret = bdrv_snapshot_delete(bs, snapshot_name);
-        if (ret)
+        if (ret) {
             error("Could not delete snapshot '%s': %d (%s)",
                 snapshot_name, ret, strerror(-ret));
+        }
         break;
     }
 
@@ -1262,8 +1285,9 @@ static int img_rebase(int argc, char **argv)
 
     for(;;) {
         c = getopt(argc, argv, "uhf:F:b:");
-        if (c == -1)
+        if (c == -1) {
             break;
+        }
         switch(c) {
         case 'h':
             help();
@@ -1283,8 +1307,9 @@ static int img_rebase(int argc, char **argv)
         }
     }
 
-    if ((optind >= argc) || !out_baseimg)
+    if ((optind >= argc) || !out_baseimg) {
         help();
+    }
     filename = argv[optind++];
 
     /*
