@@ -188,6 +188,33 @@ static int read_password(char *buf, int buf_size)
 }
 #endif
 
+static int print_block_option_help(const char *filename, const char *fmt)
+{
+    BlockDriver *drv, *proto_drv;
+    QEMUOptionParameter *create_options = NULL;
+
+    /* Find driver and parse its options */
+    drv = bdrv_find_format(fmt);
+    if (!drv) {
+        error("Unknown file format '%s'", fmt);
+        return 1;
+    }
+
+    proto_drv = bdrv_find_protocol(filename);
+    if (!proto_drv) {
+        error("Unknown protocol '%s'", filename);
+        return 1;
+    }
+
+    create_options = append_option_parameters(create_options,
+                                              drv->create_options);
+    create_options = append_option_parameters(create_options,
+                                              proto_drv->create_options);
+    print_option_help(create_options);
+    free_option_parameters(create_options);
+    return 0;
+}
+
 static BlockDriverState *bdrv_new_open(const char *filename,
                                        const char *fmt,
                                        int flags)
@@ -310,6 +337,11 @@ static int img_create(int argc, char **argv)
         help();
     filename = argv[optind++];
 
+    if (options && !strcmp(options, "?")) {
+        ret = print_block_option_help(filename, fmt);
+        goto out;
+    }
+
     /* Find driver and parse its options */
     drv = bdrv_find_format(fmt);
     if (!drv) {
@@ -327,11 +359,6 @@ static int img_create(int argc, char **argv)
                                               drv->create_options);
     create_options = append_option_parameters(create_options,
                                               proto_drv->create_options);
-
-    if (options && !strcmp(options, "?")) {
-        print_option_help(create_options);
-        goto out;
-    }
 
     /* Create parameter list with default values */
     param = parse_option_parameters("", create_options, param);
@@ -694,6 +721,11 @@ static int img_convert(int argc, char **argv)
 
     out_filename = argv[argc - 1];
 
+    if (options && !strcmp(options, "?")) {
+        ret = print_block_option_help(out_filename, out_fmt);
+        goto out;
+    }
+
     if (bs_n > 1 && out_baseimg) {
         error("-B makes no sense when concatenating multiple input images");
         ret = -1;
@@ -746,10 +778,6 @@ static int img_convert(int argc, char **argv)
                                               drv->create_options);
     create_options = append_option_parameters(create_options,
                                               proto_drv->create_options);
-    if (options && !strcmp(options, "?")) {
-        print_option_help(create_options);
-        goto out;
-    }
 
     if (options) {
         param = parse_option_parameters(options, create_options, param);
