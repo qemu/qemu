@@ -349,13 +349,15 @@ static int img_create(int argc, char **argv)
     drv = bdrv_find_format(fmt);
     if (!drv) {
         error("Unknown file format '%s'", fmt);
-        return 1;
+        ret = -1;
+        goto out;
     }
 
     proto_drv = bdrv_find_protocol(filename);
     if (!proto_drv) {
         error("Unknown protocol '%s'", filename);
-        return 1;
+        ret = -1;
+        goto out;
     }
 
     create_options = append_option_parameters(create_options,
@@ -1492,7 +1494,7 @@ static int img_resize(int argc, char **argv)
     int c, ret, relative;
     const char *filename, *fmt, *size;
     int64_t n, total_size;
-    BlockDriverState *bs;
+    BlockDriverState *bs = NULL;
     QEMUOptionParameter *param;
     QEMUOptionParameter resize_options[] = {
         {
@@ -1544,14 +1546,16 @@ static int img_resize(int argc, char **argv)
     param = parse_option_parameters("", resize_options, NULL);
     if (set_option_parameter(param, BLOCK_OPT_SIZE, size)) {
         /* Error message already printed when size parsing fails */
-        exit(1);
+        ret = -1;
+        goto out;
     }
     n = get_option_parameter(param, BLOCK_OPT_SIZE)->value.n;
     free_option_parameters(param);
 
     bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_RDWR);
     if (!bs) {
-        return 1;
+        ret = -1;
+        goto out;
     }
 
     if (relative) {
@@ -1581,7 +1585,9 @@ static int img_resize(int argc, char **argv)
         break;
     }
 out:
-    bdrv_delete(bs);
+    if (bs) {
+        bdrv_delete(bs);
+    }
     if (ret) {
         return 1;
     }
