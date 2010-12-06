@@ -699,11 +699,7 @@ static int img_convert(int argc, char **argv)
         return 1;
     }
         
-    bs = calloc(bs_n, sizeof(BlockDriverState *));
-    if (!bs) {
-        error("Out of memory");
-        return 1;
-    }
+    bs = qemu_mallocz(bs_n * sizeof(BlockDriverState *));
 
     total_sectors = 0;
     for (bs_i = 0; bs_i < bs_n; bs_i++) {
@@ -983,7 +979,7 @@ out:
             bdrv_delete(bs[bs_i]);
         }
     }
-    free(bs);
+    qemu_free(bs);
     if (ret) {
         return 1;
     }
