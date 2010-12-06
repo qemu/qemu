@@ -696,7 +696,8 @@ static int img_convert(int argc, char **argv)
 
     if (bs_n > 1 && out_baseimg) {
         error("-B makes no sense when concatenating multiple input images");
-        return 1;
+        ret = -1;
+        goto out;
     }
         
     bs = qemu_mallocz(bs_n * sizeof(BlockDriverState *));
@@ -974,12 +975,14 @@ out:
     if (out_bs) {
         bdrv_delete(out_bs);
     }
-    for (bs_i = 0; bs_i < bs_n; bs_i++) {
-        if (bs[bs_i]) {
-            bdrv_delete(bs[bs_i]);
+    if (bs) {
+        for (bs_i = 0; bs_i < bs_n; bs_i++) {
+            if (bs[bs_i]) {
+                bdrv_delete(bs[bs_i]);
+            }
         }
+        qemu_free(bs);
     }
-    qemu_free(bs);
     if (ret) {
         return 1;
     }
