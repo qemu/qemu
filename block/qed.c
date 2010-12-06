@@ -155,6 +155,13 @@ static int qed_read_string(BlockDriverState *file, uint64_t offset, size_t n,
     return 0;
 }
 
+QEDTable *qed_alloc_table(BDRVQEDState *s)
+{
+    /* Honor O_DIRECT memory alignment requirements */
+    return qemu_blockalign(s->bs,
+                           s->header.cluster_size * s->header.table_size);
+}
+
 static int bdrv_qed_open(BlockDriverState *bs, int flags)
 {
     BDRVQEDState *s = bs->opaque;
@@ -244,11 +251,23 @@ static int bdrv_qed_open(BlockDriverState *bs, int flags)
         bdrv_flush(bs->file);
     }
 
+    s->l1_table = qed_alloc_table(s);
+    qed_init_l2_cache(&s->l2_cache);
+
+    ret = qed_read_l1_table_sync(s);
+    if (ret) {
+        qed_free_l2_cache(&s->l2_cache);
+        qemu_vfree(s->l1_table);
+    }
     return ret;
 }
 
 static void bdrv_qed_close(BlockDriverState *bs)
 {
+    BDRVQEDState *s = bs->opaque;
+
+    qed_free_l2_cache(&s->l2_cache);
+    qemu_vfree(s->l1_table);
 }
 
 static int bdrv_qed_flush(BlockDriverState *bs)
@@ -368,10 +387,43 @@ static int bdrv_qed_create(const char *filename, QEMUOptionParameter *options)
                       backing_file, backing_fmt);
 }
 
+typedef struct {
+    int is_allocated;
+    int *pnum;
+} QEDIsAllocatedCB;
+
+static void qed_is_allocated_cb(void *opaque, int ret, uint64_t offset, size_t len)
+{
+    QEDIsAllocatedCB *cb = opaque;
+    *cb->pnum = len / BDRV_SECTOR_SIZE;
+    cb->is_allocated = ret == QED_CLUSTER_FOUND;
+}
+
 static int bdrv_qed_is_allocated(BlockDriverState *bs, int64_t sector_num,
                                   int nb_sectors, int *pnum)
 {
-    return -ENOTSUP;
+    BDRVQEDState *s = bs->opaque;
+    uint64_t pos = (uint64_t)sector_num * BDRV_SECTOR_SIZE;
+    size_t len = (size_t)nb_sectors * BDRV_SECTOR_SIZE;
+    QEDIsAllocatedCB cb = {
+        .is_allocated = -1,
+        .pnum = pnum,
+    };
+    QEDRequest request = { .l2_table = NULL };
+
+    async_context_push();
+
+    qed_find_cluster(s, &request, pos, len, qed_is_allocated_cb, &cb);
+
+    while (cb.is_allocated == -1) {
+        qemu_aio_wait();
+    }
+
+    async_context_pop();
+
+    qed_unref_l2_cache_entry(request.l2_table);
+
+    return cb.is_allocated;
 }
 
 static int bdrv_qed_make_empty(BlockDriverState *bs)

@@ -96,15 +96,117 @@ typedef struct {
 } QEDHeader;
 
 typedef struct {
+    uint64_t offsets[0];            /* in bytes */
+} QEDTable;
+
+/* The L2 cache is a simple write-through cache for L2 structures */
+typedef struct CachedL2Table {
+    QEDTable *table;
+    uint64_t offset;    /* offset=0 indicates an invalidate entry */
+    QTAILQ_ENTRY(CachedL2Table) node;
+    int ref;
+} CachedL2Table;
+
+typedef struct {
+    QTAILQ_HEAD(, CachedL2Table) entries;
+    unsigned int n_entries;
+} L2TableCache;
+
+typedef struct QEDRequest {
+    CachedL2Table *l2_table;
+} QEDRequest;
+
+typedef struct {
     BlockDriverState *bs;           /* device */
     uint64_t file_size;             /* length of image file, in bytes */
 
     QEDHeader header;               /* always cpu-endian */
+    QEDTable *l1_table;
+    L2TableCache l2_cache;          /* l2 table cache */
     uint32_t table_nelems;
     uint32_t l1_shift;
     uint32_t l2_shift;
     uint32_t l2_mask;
 } BDRVQEDState;
+
+enum {
+    QED_CLUSTER_FOUND,         /* cluster found */
+    QED_CLUSTER_L2,            /* cluster missing in L2 */
+    QED_CLUSTER_L1,            /* cluster missing in L1 */
+};
+
+/**
+ * qed_find_cluster() completion callback
+ *
+ * @opaque:     User data for completion callback
+ * @ret:        QED_CLUSTER_FOUND   Success
+ *              QED_CLUSTER_L2      Data cluster unallocated in L2
+ *              QED_CLUSTER_L1      L2 unallocated in L1
+ *              -errno              POSIX error occurred
+ * @offset:     Data cluster offset
+ * @len:        Contiguous bytes starting from cluster offset
+ *
+ * This function is invoked when qed_find_cluster() completes.
+ *
+ * On success ret is QED_CLUSTER_FOUND and offset/len are a contiguous range
+ * in the image file.
+ *
+ * On failure ret is QED_CLUSTER_L2 or QED_CLUSTER_L1 for missing L2 or L1
+ * table offset, respectively.  len is number of contiguous unallocated bytes.
+ */
+typedef void QEDFindClusterFunc(void *opaque, int ret, uint64_t offset, size_t len);
+
+/**
+ * Generic callback for chaining async callbacks
+ */
+typedef struct {
+    BlockDriverCompletionFunc *cb;
+    void *opaque;
+} GenericCB;
+
+void *gencb_alloc(size_t len, BlockDriverCompletionFunc *cb, void *opaque);
+void gencb_complete(void *opaque, int ret);
+
+/**
+ * L2 cache functions
+ */
+void qed_init_l2_cache(L2TableCache *l2_cache);
+void qed_free_l2_cache(L2TableCache *l2_cache);
+CachedL2Table *qed_alloc_l2_cache_entry(L2TableCache *l2_cache);
+void qed_unref_l2_cache_entry(CachedL2Table *entry);
+CachedL2Table *qed_find_l2_cache_entry(L2TableCache *l2_cache, uint64_t offset);
+void qed_commit_l2_cache_entry(L2TableCache *l2_cache, CachedL2Table *l2_table);
+
+/**
+ * Table I/O functions
+ */
+int qed_read_l1_table_sync(BDRVQEDState *s);
+void qed_write_l1_table(BDRVQEDState *s, unsigned int index, unsigned int n,
+                        BlockDriverCompletionFunc *cb, void *opaque);
+int qed_write_l1_table_sync(BDRVQEDState *s, unsigned int index,
+                            unsigned int n);
+int qed_read_l2_table_sync(BDRVQEDState *s, QEDRequest *request,
+                           uint64_t offset);
+void qed_read_l2_table(BDRVQEDState *s, QEDRequest *request, uint64_t offset,
+                       BlockDriverCompletionFunc *cb, void *opaque);
+void qed_write_l2_table(BDRVQEDState *s, QEDRequest *request,
+                        unsigned int index, unsigned int n, bool flush,
+                        BlockDriverCompletionFunc *cb, void *opaque);
+int qed_write_l2_table_sync(BDRVQEDState *s, QEDRequest *request,
+                            unsigned int index, unsigned int n, bool flush);
+
+/**
+ * Cluster functions
+ */
+void qed_find_cluster(BDRVQEDState *s, QEDRequest *request, uint64_t pos,
+                      size_t len, QEDFindClusterFunc *cb, void *opaque);
+
+/**
+ * Consistency check
+ */
+int qed_check(BDRVQEDState *s, BdrvCheckResult *result, bool fix);
+
+QEDTable *qed_alloc_table(BDRVQEDState *s);
 
 /**
  * Round down to the start of a cluster
@@ -112,6 +214,27 @@ typedef struct {
 static inline uint64_t qed_start_of_cluster(BDRVQEDState *s, uint64_t offset)
 {
     return offset & ~(uint64_t)(s->header.cluster_size - 1);
+}
+
+static inline uint64_t qed_offset_into_cluster(BDRVQEDState *s, uint64_t offset)
+{
+    return offset & (s->header.cluster_size - 1);
+}
+
+static inline unsigned int qed_bytes_to_clusters(BDRVQEDState *s, size_t bytes)
+{
+    return qed_start_of_cluster(s, bytes + (s->header.cluster_size - 1)) /
+           (s->header.cluster_size - 1);
+}
+
+static inline unsigned int qed_l1_index(BDRVQEDState *s, uint64_t pos)
+{
+    return pos >> s->l1_shift;
+}
+
+static inline unsigned int qed_l2_index(BDRVQEDState *s, uint64_t pos)
+{
+    return (pos >> s->l2_shift) & s->l2_mask;
 }
 
 /**
