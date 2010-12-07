@@ -314,6 +314,11 @@ INLINE int float32_is_zero(float32 a)
     return (float32_val(a) & 0x7fffffff) == 0;
 }
 
+INLINE int float32_is_any_nan(float32 a)
+{
+    return ((float32_val(a) & ~(1 << 31)) > 0x7f800000UL);
+}
+
 #define float32_zero make_float32(0)
 #define float32_one make_float32(0x3f800000)
 #define float32_ln2 make_float32(0x3f317218)
@@ -384,6 +389,11 @@ INLINE int float64_is_neg(float64 a)
 INLINE int float64_is_zero(float64 a)
 {
     return (float64_val(a) & 0x7fffffffffffffffLL) == 0;
+}
+
+INLINE int float64_is_any_nan(float64 a)
+{
+    return ((float64_val(a) & ~(1ULL << 63)) > 0x7ff0000000000000ULL);
 }
 
 #define float64_zero make_float64(0)
