@@ -428,8 +428,6 @@ static int img_create(int argc, char **argv)
     puts("");
 
     ret = bdrv_create(drv, filename, param);
-    free_option_parameters(create_options);
-    free_option_parameters(param);
 
     if (ret < 0) {
         if (ret == -ENOTSUP) {
@@ -441,6 +439,8 @@ static int img_create(int argc, char **argv)
         }
     }
 out:
+    free_option_parameters(create_options);
+    free_option_parameters(param);
     if (ret) {
         return 1;
     }
