@@ -560,8 +560,6 @@ uint64_t HELPER(neon_qshl_u64)(CPUState *env, uint64_t val, uint64_t shiftop)
         if (val) {
             val = ~(uint64_t)0;
             SET_QC();
-        } else {
-            val = 0;
         }
     } else if (shift <= -64) {
         val = 0;
