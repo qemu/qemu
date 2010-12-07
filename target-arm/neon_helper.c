@@ -610,7 +610,7 @@ uint64_t HELPER(neon_qshl_s64)(CPUState *env, uint64_t valop, uint64_t shiftop)
             SET_QC();
             val = (val >> 63) & ~SIGNBIT64;
         }
-    } else if (shift <= 64) {
+    } else if (shift <= -64) {
         val >>= 63;
     } else if (shift < 0) {
         val >>= -shift;
