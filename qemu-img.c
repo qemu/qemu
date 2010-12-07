@@ -288,6 +288,7 @@ static int img_create(int argc, char **argv)
     const char *base_filename = NULL;
     BlockDriver *drv, *proto_drv;
     QEMUOptionParameter *param = NULL, *create_options = NULL;
+    QEMUOptionParameter *backing_fmt = NULL;
     char *options = NULL;
 
     for(;;) {
@@ -379,14 +380,22 @@ static int img_create(int argc, char **argv)
         goto out;
     }
 
+    backing_fmt = get_option_parameter(param, BLOCK_OPT_BACKING_FMT);
+    if (backing_fmt && backing_fmt->value.s) {
+        if (!bdrv_find_format(backing_fmt->value.s)) {
+            error("Unknown backing file format '%s'",
+                  backing_fmt->value.s);
+            ret = -1;
+            goto out;
+        }
+    }
+
     // The size for the image must always be specified, with one exception:
     // If we are using a backing file, we can obtain the size from there
     if (get_option_parameter(param, BLOCK_OPT_SIZE)->value.n == -1) {
 
         QEMUOptionParameter *backing_file =
             get_option_parameter(param, BLOCK_OPT_BACKING_FILE);
-        QEMUOptionParameter *backing_fmt =
-            get_option_parameter(param, BLOCK_OPT_BACKING_FMT);
 
         if (backing_file && backing_file->value.s) {
             BlockDriverState *bs;
@@ -395,14 +404,7 @@ static int img_create(int argc, char **argv)
             char buf[32];
 
             if (backing_fmt && backing_fmt->value.s) {
-                 if (bdrv_find_format(backing_fmt->value.s)) {
-                     fmt = backing_fmt->value.s;
-                } else {
-                     error("Unknown backing file format '%s'",
-                        backing_fmt->value.s);
-                     ret = -1;
-                     goto out;
-                }
+                fmt = backing_fmt->value.s;
             }
 
             bs = bdrv_new_open(backing_file->value.s, fmt, BDRV_O_FLAGS);
