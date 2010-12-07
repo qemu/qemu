@@ -7713,9 +7713,9 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                 /* Saturating add/subtract.  */
                 tmp = load_reg(s, rn);
                 tmp2 = load_reg(s, rm);
-                if (op & 2)
-                    gen_helper_double_saturate(tmp, tmp);
                 if (op & 1)
+                    gen_helper_double_saturate(tmp, tmp);
+                if (op & 2)
                     gen_helper_sub_saturate(tmp, tmp2, tmp);
                 else
                     gen_helper_add_saturate(tmp, tmp, tmp2);
