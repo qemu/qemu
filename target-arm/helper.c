@@ -2560,7 +2560,7 @@ ftype VFP_HELPER(to##name, p)(ftype x, uint32_t shift, CPUState *env) \
         return ftype##_zero; \
     } \
     tmp = ftype##_scalbn(x, shift, &env->vfp.fp_status); \
-    return vfp_ito##p((itype)ftype##_to_##sign##int32_round_to_zero(tmp, \
+    return vfp_ito##p(ftype##_to_##itype##_round_to_zero(tmp, \
         &env->vfp.fp_status)); \
 }
 
