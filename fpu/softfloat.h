@@ -251,6 +251,8 @@ float32 float16_to_float32( bits16, flag STATUS_PARAM );
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE single-precision conversion routines.
 *----------------------------------------------------------------------------*/
+int float32_to_int16_round_to_zero( float32 STATUS_PARAM );
+unsigned int float32_to_uint16_round_to_zero( float32 STATUS_PARAM );
 int float32_to_int32( float32 STATUS_PARAM );
 int float32_to_int32_round_to_zero( float32 STATUS_PARAM );
 unsigned int float32_to_uint32( float32 STATUS_PARAM );
@@ -327,6 +329,8 @@ INLINE int float32_is_any_nan(float32 a)
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE double-precision conversion routines.
 *----------------------------------------------------------------------------*/
+int float64_to_int16_round_to_zero( float64 STATUS_PARAM );
+unsigned int float64_to_uint16_round_to_zero( float64 STATUS_PARAM );
 int float64_to_int32( float64 STATUS_PARAM );
 int float64_to_int32_round_to_zero( float64 STATUS_PARAM );
 unsigned int float64_to_uint32( float64 STATUS_PARAM );
