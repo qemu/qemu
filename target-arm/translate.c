@@ -2870,16 +2870,18 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     VFP_DREG_N(rn, insn);
                 }
 
-                if (op == 15 && (rn == 15 || rn > 17)) {
+                if (op == 15 && (rn == 15 || ((rn & 0x1c) == 0x18))) {
                     /* Integer or single precision destination.  */
                     rd = VFP_SREG_D(insn);
                 } else {
                     VFP_DREG_D(rd, insn);
                 }
-
-                if (op == 15 && (rn == 16 || rn == 17)) {
-                    /* Integer source.  */
-                    rm = ((insn << 1) & 0x1e) | ((insn >> 5) & 1);
+                if (op == 15 &&
+                    (((rn & 0x1c) == 0x10) || ((rn & 0x14) == 0x14))) {
+                    /* VCVT from int is always from S reg regardless of dp bit.
+                     * VCVT with immediate frac_bits has same format as SREG_M
+                     */
+                    rm = VFP_SREG_M(insn);
                 } else {
                     VFP_DREG_M(rm, insn);
                 }
@@ -2891,6 +2893,9 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 } else {
                     rd = VFP_SREG_D(insn);
                 }
+                /* NB that we implicitly rely on the encoding for the frac_bits
+                 * in VCVT of fixed to float being the same as that of an SREG_M
+                 */
                 rm = VFP_SREG_M(insn);
             }
 
@@ -3179,8 +3184,8 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 /* Write back the result.  */
                 if (op == 15 && (rn >= 8 && rn <= 11))
                     ; /* Comparison, do nothing.  */
-                else if (op == 15 && rn > 17)
-                    /* Integer result.  */
+                else if (op == 15 && dp && ((rn & 0x1c) == 0x18))
+                    /* VCVT double to int: always integer result. */
                     gen_mov_vreg_F0(0, rd);
                 else if (op == 15 && rn == 15)
                     /* conversion */
