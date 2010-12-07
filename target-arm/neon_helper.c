@@ -580,9 +580,15 @@ uint64_t HELPER(neon_qshl_u64)(CPUState *env, uint64_t val, uint64_t shiftop)
     int8_t tmp; \
     tmp = (int8_t)src2; \
     if (tmp >= (ssize_t)sizeof(src1) * 8) { \
-        if (src1) \
+        if (src1) { \
             SET_QC(); \
-        dest = src1 >> 31; \
+            dest = (uint32_t)(1 << (sizeof(src1) * 8 - 1)); \
+            if (src1 > 0) { \
+                dest--; \
+            } \
+        } else { \
+            dest = src1; \
+        } \
     } else if (tmp <= -(ssize_t)sizeof(src1) * 8) { \
         dest = src1 >> 31; \
     } else if (tmp < 0) { \
@@ -591,7 +597,10 @@ uint64_t HELPER(neon_qshl_u64)(CPUState *env, uint64_t val, uint64_t shiftop)
         dest = src1 << tmp; \
         if ((dest >> tmp) != src1) { \
             SET_QC(); \
-            dest = src2 >> 31; \
+            dest = (uint32_t)(1 << (sizeof(src1) * 8 - 1)); \
+            if (src1 > 0) { \
+                dest--; \
+            } \
         } \
     }} while (0)
 NEON_VOP_ENV(qshl_s8, neon_s8, 4)
