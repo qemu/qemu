@@ -4850,11 +4850,15 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     }
                     neon_store_reg64(cpu_V0, rd + pass);
                 }
-            } else if (op == 15 || op == 16) {
+            } else if (op >= 14) {
                 /* VCVT fixed-point.  */
+                /* We have already masked out the must-be-1 top bit of imm6,
+                 * hence this 32-shift where the ARM ARM has 64-imm6.
+                 */
+                shift = 32 - shift;
                 for (pass = 0; pass < (q ? 4 : 2); pass++) {
                     tcg_gen_ld_f32(cpu_F0s, cpu_env, neon_reg_offset(rm, pass));
-                    if (op & 1) {
+                    if (!(op & 1)) {
                         if (u)
                             gen_vfp_ulto(0, shift);
                         else
