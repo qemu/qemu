@@ -5926,8 +5926,10 @@ static void gen_load_exclusive(DisasContext *s, int rt, int rt2,
     tcg_gen_mov_i32(cpu_exclusive_val, tmp);
     store_reg(s, rt, tmp);
     if (size == 3) {
-        tcg_gen_addi_i32(addr, addr, 4);
-        tmp = gen_ld32(addr, IS_USER(s));
+        TCGv tmp2 = new_tmp();
+        tcg_gen_addi_i32(tmp2, addr, 4);
+        tmp = gen_ld32(tmp2, IS_USER(s));
+        dead_tmp(tmp2);
         tcg_gen_mov_i32(cpu_exclusive_high, tmp);
         store_reg(s, rt2, tmp);
     }
@@ -5987,7 +5989,7 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
     if (size == 3) {
         TCGv tmp2 = new_tmp();
         tcg_gen_addi_i32(tmp2, addr, 4);
-        tmp = gen_ld32(addr, IS_USER(s));
+        tmp = gen_ld32(tmp2, IS_USER(s));
         dead_tmp(tmp2);
         tcg_gen_brcond_i32(TCG_COND_NE, tmp, cpu_exclusive_high, fail_label);
         dead_tmp(tmp);
