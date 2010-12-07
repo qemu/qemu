@@ -2463,41 +2463,65 @@ float64 VFP_HELPER(sito, d)(float32 x, CPUState *env)
 /* Float to integer conversion.  */
 float32 VFP_HELPER(toui, s)(float32 x, CPUState *env)
 {
+    if (float32_is_any_nan(x)) {
+        return float32_zero;
+    }
     return vfp_itos(float32_to_uint32(x, &env->vfp.fp_status));
 }
 
 float32 VFP_HELPER(toui, d)(float64 x, CPUState *env)
 {
+    if (float64_is_any_nan(x)) {
+        return float32_zero;
+    }
     return vfp_itos(float64_to_uint32(x, &env->vfp.fp_status));
 }
 
 float32 VFP_HELPER(tosi, s)(float32 x, CPUState *env)
 {
+    if (float32_is_any_nan(x)) {
+        return float32_zero;
+    }
     return vfp_itos(float32_to_int32(x, &env->vfp.fp_status));
 }
 
 float32 VFP_HELPER(tosi, d)(float64 x, CPUState *env)
 {
+    if (float64_is_any_nan(x)) {
+        return float32_zero;
+    }
     return vfp_itos(float64_to_int32(x, &env->vfp.fp_status));
 }
 
 float32 VFP_HELPER(touiz, s)(float32 x, CPUState *env)
 {
+    if (float32_is_any_nan(x)) {
+        return float32_zero;
+    }
     return vfp_itos(float32_to_uint32_round_to_zero(x, &env->vfp.fp_status));
 }
 
 float32 VFP_HELPER(touiz, d)(float64 x, CPUState *env)
 {
+    if (float64_is_any_nan(x)) {
+        return float32_zero;
+    }
     return vfp_itos(float64_to_uint32_round_to_zero(x, &env->vfp.fp_status));
 }
 
 float32 VFP_HELPER(tosiz, s)(float32 x, CPUState *env)
 {
+    if (float32_is_any_nan(x)) {
+        return float32_zero;
+    }
     return vfp_itos(float32_to_int32_round_to_zero(x, &env->vfp.fp_status));
 }
 
 float32 VFP_HELPER(tosiz, d)(float64 x, CPUState *env)
 {
+    if (float64_is_any_nan(x)) {
+        return float32_zero;
+    }
     return vfp_itos(float64_to_int32_round_to_zero(x, &env->vfp.fp_status));
 }
 
@@ -2524,6 +2548,9 @@ ftype VFP_HELPER(name##to, p)(ftype x, uint32_t shift, CPUState *env) \
 ftype VFP_HELPER(to##name, p)(ftype x, uint32_t shift, CPUState *env) \
 { \
     ftype tmp; \
+    if (ftype##_is_any_nan(x)) { \
+        return ftype##_zero; \
+    } \
     tmp = ftype##_scalbn(x, shift, &env->vfp.fp_status); \
     return vfp_ito##p((itype)ftype##_to_##sign##int32_round_to_zero(tmp, \
         &env->vfp.fp_status)); \
