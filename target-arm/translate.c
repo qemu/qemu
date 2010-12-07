@@ -6346,7 +6346,14 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             dead_tmp(tmp2);
             store_reg(s, rd, tmp);
             break;
-        case 7: /* bkpt */
+        case 7:
+            /* SMC instruction (op1 == 3)
+               and undefined instructions (op1 == 0 || op1 == 2)
+               will trap */
+            if (op1 != 1) {
+                goto illegal_op;
+            }
+            /* bkpt */
             gen_set_condexec(s);
             gen_set_pc_im(s->pc - 4);
             gen_exception(EXCP_BKPT);
