@@ -261,21 +261,9 @@ fail:
 }
 
 static int add_old_style_options(const char *fmt, QEMUOptionParameter *list,
-    int flags, const char *base_filename, const char *base_fmt)
+                                 const char *base_filename,
+                                 const char *base_fmt)
 {
-    if (flags & BLOCK_FLAG_ENCRYPT) {
-        if (set_option_parameter(list, BLOCK_OPT_ENCRYPT, "on")) {
-            error("Encryption not supported for file format '%s'", fmt);
-            return -1;
-        }
-    }
-    if (flags & BLOCK_FLAG_COMPAT6) {
-        if (set_option_parameter(list, BLOCK_OPT_COMPAT6, "on")) {
-            error("VMDK version 6 not supported for file format '%s'", fmt);
-            return -1;
-        }
-    }
-
     if (base_filename) {
         if (set_option_parameter(list, BLOCK_OPT_BACKING_FILE, base_filename)) {
             error("Backing file not supported for file format '%s'", fmt);
@@ -293,7 +281,7 @@ static int add_old_style_options(const char *fmt, QEMUOptionParameter *list,
 
 static int img_create(int argc, char **argv)
 {
-    int c, ret = 0, flags;
+    int c, ret = 0;
     const char *fmt = "raw";
     const char *base_fmt = NULL;
     const char *filename;
@@ -302,7 +290,6 @@ static int img_create(int argc, char **argv)
     QEMUOptionParameter *param = NULL, *create_options = NULL;
     char *options = NULL;
 
-    flags = 0;
     for(;;) {
         c = getopt(argc, argv, "F:b:f:he6o:");
         if (c == -1) {
@@ -323,11 +310,13 @@ static int img_create(int argc, char **argv)
             fmt = optarg;
             break;
         case 'e':
-            flags |= BLOCK_FLAG_ENCRYPT;
-            break;
+            error("qemu-img: option -e is deprecated, please use \'-o "
+                  "encryption\' instead!");
+            return 1;
         case '6':
-            flags |= BLOCK_FLAG_COMPAT6;
-            break;
+            error("qemu-img: option -6 is deprecated, please use \'-o "
+                  "compat6\' instead!");
+            return 1;
         case 'o':
             options = optarg;
             break;
@@ -385,7 +374,7 @@ static int img_create(int argc, char **argv)
     }
 
     /* Add old-style options to parameters */
-    ret = add_old_style_options(fmt, param, flags, base_filename, base_fmt);
+    ret = add_old_style_options(fmt, param, base_filename, base_fmt);
     if (ret < 0) {
         goto out;
     }
@@ -674,7 +663,7 @@ static int compare_sectors(const uint8_t *buf1, const uint8_t *buf2, int n,
 
 static int img_convert(int argc, char **argv)
 {
-    int c, ret = 0, n, n1, bs_n, bs_i, flags, cluster_size, cluster_sectors;
+    int c, ret = 0, n, n1, bs_n, bs_i, compress, cluster_size, cluster_sectors;
     const char *fmt, *out_fmt, *out_baseimg, *out_filename;
     BlockDriver *drv, *proto_drv;
     BlockDriverState **bs = NULL, *out_bs = NULL;
@@ -691,7 +680,7 @@ static int img_convert(int argc, char **argv)
     fmt = NULL;
     out_fmt = "raw";
     out_baseimg = NULL;
-    flags = 0;
+    compress = 0;
     for(;;) {
         c = getopt(argc, argv, "f:O:B:s:hce6o:");
         if (c == -1) {
@@ -712,14 +701,16 @@ static int img_convert(int argc, char **argv)
             out_baseimg = optarg;
             break;
         case 'c':
-            flags |= BLOCK_FLAG_COMPRESS;
+            compress = 1;
             break;
         case 'e':
-            flags |= BLOCK_FLAG_ENCRYPT;
-            break;
+            error("qemu-img: option -e is deprecated, please use \'-o "
+                  "encryption\' instead!");
+            return 1;
         case '6':
-            flags |= BLOCK_FLAG_COMPAT6;
-            break;
+            error("qemu-img: option -6 is deprecated, please use \'-o "
+                  "compat6\' instead!");
+            return 1;
         case 'o':
             options = optarg;
             break;
@@ -806,7 +797,7 @@ static int img_convert(int argc, char **argv)
     }
 
     set_option_parameter_int(param, BLOCK_OPT_SIZE, total_sectors * 512);
-    ret = add_old_style_options(out_fmt, param, flags, out_baseimg, NULL);
+    ret = add_old_style_options(out_fmt, param, out_baseimg, NULL);
     if (ret < 0) {
         goto out;
     }
@@ -818,7 +809,7 @@ static int img_convert(int argc, char **argv)
     }
 
     /* Check if compression is supported */
-    if (flags & BLOCK_FLAG_COMPRESS) {
+    if (compress) {
         QEMUOptionParameter *encryption =
             get_option_parameter(param, BLOCK_OPT_ENCRYPT);
 
@@ -860,7 +851,7 @@ static int img_convert(int argc, char **argv)
     bdrv_get_geometry(bs[0], &bs_sectors);
     buf = qemu_malloc(IO_BUF_SIZE);
 
-    if (flags & BLOCK_FLAG_COMPRESS) {
+    if (compress) {
         ret = bdrv_get_info(out_bs, &bdi);
         if (ret < 0) {
             error("could not get block driver info");
