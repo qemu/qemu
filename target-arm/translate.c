@@ -5664,16 +5664,16 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             gen_helper_rsqrte_f32(cpu_F0s, cpu_F0s, cpu_env);
                             break;
                         case 60: /* VCVT.F32.S32 */
-                            gen_vfp_tosiz(0);
-                            break;
-                        case 61: /* VCVT.F32.U32 */
-                            gen_vfp_touiz(0);
-                            break;
-                        case 62: /* VCVT.S32.F32 */
                             gen_vfp_sito(0);
                             break;
-                        case 63: /* VCVT.U32.F32 */
+                        case 61: /* VCVT.F32.U32 */
                             gen_vfp_uito(0);
+                            break;
+                        case 62: /* VCVT.S32.F32 */
+                            gen_vfp_tosiz(0);
+                            break;
+                        case 63: /* VCVT.U32.F32 */
+                            gen_vfp_touiz(0);
                             break;
                         default:
                             /* Reserved: 21, 29, 39-56 */
