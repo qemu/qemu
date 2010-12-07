@@ -7601,27 +7601,54 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
             }
         }
         break;
-    case 5: /* Data processing register constant shift.  */
-        if (rn == 15) {
-            tmp = new_tmp();
-            tcg_gen_movi_i32(tmp, 0);
-        } else {
-            tmp = load_reg(s, rn);
-        }
-        tmp2 = load_reg(s, rm);
+    case 5:
+
         op = (insn >> 21) & 0xf;
-        shiftop = (insn >> 4) & 3;
-        shift = ((insn >> 6) & 3) | ((insn >> 10) & 0x1c);
-        conds = (insn & (1 << 20)) != 0;
-        logic_cc = (conds && thumb2_logic_op(op));
-        gen_arm_shift_im(tmp2, shiftop, shift, logic_cc);
-        if (gen_thumb2_data_op(s, op, conds, 0, tmp, tmp2))
-            goto illegal_op;
-        dead_tmp(tmp2);
-        if (rd != 15) {
+        if (op == 6) {
+            /* Halfword pack.  */
+            tmp = load_reg(s, rn);
+            tmp2 = load_reg(s, rm);
+            shift = ((insn >> 10) & 0x1c) | ((insn >> 6) & 0x3);
+            if (insn & (1 << 5)) {
+                /* pkhtb */
+                if (shift == 0)
+                    shift = 31;
+                tcg_gen_sari_i32(tmp2, tmp2, shift);
+                tcg_gen_andi_i32(tmp, tmp, 0xffff0000);
+                tcg_gen_ext16u_i32(tmp2, tmp2);
+            } else {
+                /* pkhbt */
+                if (shift)
+                    tcg_gen_shli_i32(tmp2, tmp2, shift);
+                tcg_gen_ext16u_i32(tmp, tmp);
+                tcg_gen_andi_i32(tmp2, tmp2, 0xffff0000);
+            }
+            tcg_gen_or_i32(tmp, tmp, tmp2);
+            dead_tmp(tmp2);
             store_reg(s, rd, tmp);
         } else {
-            dead_tmp(tmp);
+            /* Data processing register constant shift.  */
+            if (rn == 15) {
+                tmp = new_tmp();
+                tcg_gen_movi_i32(tmp, 0);
+            } else {
+                tmp = load_reg(s, rn);
+            }
+            tmp2 = load_reg(s, rm);
+
+            shiftop = (insn >> 4) & 3;
+            shift = ((insn >> 6) & 3) | ((insn >> 10) & 0x1c);
+            conds = (insn & (1 << 20)) != 0;
+            logic_cc = (conds && thumb2_logic_op(op));
+            gen_arm_shift_im(tmp2, shiftop, shift, logic_cc);
+            if (gen_thumb2_data_op(s, op, conds, 0, tmp, tmp2))
+                goto illegal_op;
+            dead_tmp(tmp2);
+            if (rd != 15) {
+                store_reg(s, rd, tmp);
+            } else {
+                dead_tmp(tmp);
+            }
         }
         break;
     case 13: /* Misc data processing.  */
