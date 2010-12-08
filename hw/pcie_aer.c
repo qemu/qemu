@@ -339,9 +339,13 @@ static bool pcie_aer_msg_root_port(PCIDevice *dev, const PCIEAERMsg *msg)
 
     if (root_cmd & msg->severity) {
         /* 6.2.4.1.2 Interrupt Generation */
-        if (pci_msi_enabled(dev)) {
+        if (msix_enabled(dev)) {
             if (msi_trigger) {
-                pci_msi_notify(dev, pcie_aer_root_get_vector(dev));
+                msix_notify(dev, pcie_aer_root_get_vector(dev));
+            }
+        } else if (msi_enabled(dev)) {
+            if (msi_trigger) {
+                msi_notify(dev, pcie_aer_root_get_vector(dev));
             }
         } else {
             qemu_set_irq(dev->irq[dev->exp.aer_intx], 1);
@@ -761,16 +765,20 @@ void pcie_aer_root_write_config(PCIDevice *dev,
         /* 6.2.4.1.2 Interrupt Generation */
 
         /* 0 -> 1 */
-        uint32_t root_cmd_set = (root_cmd_prev ^ root_cmd) & root_cmd;
+        uint32_t root_cmd_set = ~root_cmd_prev & root_cmd;
         uint32_t root_status = pci_get_long(aer_cap + PCI_ERR_ROOT_STATUS);
+        bool trigger = pcie_aer_root_does_trigger(root_cmd_set, root_status);
 
-        if (pci_msi_enabled(dev)) {
-            if (pcie_aer_root_does_trigger(root_cmd_set, root_status)) {
-                pci_msi_notify(dev, pcie_aer_root_get_vector(dev));
+        if (msix_enabled(dev)) {
+            if (trigger) {
+                msix_notify(dev, pcie_aer_root_get_vector(dev));
+            }
+        } else if (msi_enabled(dev)) {
+            if (trigger) {
+                msi_notify(dev, pcie_aer_root_get_vector(dev));
             }
         } else {
-            int int_level = pcie_aer_root_does_trigger(root_cmd, root_status);
-            qemu_set_irq(dev->irq[dev->exp.aer_intx], int_level);
+            qemu_set_irq(dev->irq[dev->exp.aer_intx], trigger);
         }
     }
 }

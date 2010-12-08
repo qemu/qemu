@@ -167,10 +167,12 @@ static void hotplug_event_notify(PCIDevice *dev)
      * The Port may optionally send an MSI when there are hot-plug events that
      * occur while interrupt generation is disabled, and interrupt generation is
      * subsequently enabled. */
-    if (!pci_msi_enabled(dev)) {
+    if (msix_enabled(dev)) {
+        msix_notify(dev, pcie_cap_flags_get_vector(dev));
+    } else if (msi_enabled(dev)) {
+        msi_notify(dev, pcie_cap_flags_get_vector(dev));
+    } else {
         qemu_set_irq(dev->irq[dev->exp.hpev_intx], dev->exp.hpev_notified);
-    } else if (dev->exp.hpev_notified) {
-        pci_msi_notify(dev, pcie_cap_flags_get_vector(dev));
     }
 }
 

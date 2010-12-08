@@ -25,8 +25,6 @@
 #include "pci.h"
 #include "pci_bridge.h"
 #include "pci_internals.h"
-#include "msix.h"
-#include "msi.h"
 #include "monitor.h"
 #include "net.h"
 #include "sysemu.h"
@@ -1097,23 +1095,6 @@ static void pci_set_irq(void *opaque, int irq_num, int level)
     if (pci_irq_disabled(pci_dev))
         return;
     pci_change_irq_level(pci_dev, irq_num, change);
-}
-
-bool pci_msi_enabled(PCIDevice *dev)
-{
-    return msix_enabled(dev) || msi_enabled(dev);
-}
-
-void pci_msi_notify(PCIDevice *dev, unsigned int vector)
-{
-    if (msix_enabled(dev)) {
-        msix_notify(dev, vector);
-    } else if (msi_enabled(dev)) {
-        msi_notify(dev, vector);
-    } else {
-        /* MSI/MSI-X must be enabled */
-        abort();
-    }
 }
 
 /***********************************************************/
