@@ -1129,7 +1129,8 @@ inline static int debug_register_io_memory(CPUReadMemoryFunc * const *mem_read,
     s->mem_write = mem_write;
     s->opaque = opaque;
     s->in = 0;
-    return cpu_register_io_memory(io_readfn, io_writefn, s);
+    return cpu_register_io_memory(io_readfn, io_writefn, s,
+                                  DEVICE_NATIVE_ENDIAN);
 }
 #  define cpu_register_io_memory	debug_register_io_memory
 # endif

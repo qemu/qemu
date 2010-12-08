@@ -224,7 +224,7 @@ static int xilinx_ethlite_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
     s->rxbuf = 0;
 
-    regs = cpu_register_io_memory(eth_read, eth_write, s);
+    regs = cpu_register_io_memory(eth_read, eth_write, s, DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, R_MAX * 4, regs);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);

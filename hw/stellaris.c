@@ -348,7 +348,8 @@ static int stellaris_gptm_init(SysBusDevice *dev)
     qdev_init_gpio_out(&dev->qdev, &s->trigger, 1);
 
     iomemtype = cpu_register_io_memory(gptm_readfn,
-                                       gptm_writefn, s);
+                                       gptm_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
 
     s->opaque[0] = s->opaque[1] = s;
@@ -671,7 +672,8 @@ static int stellaris_sys_init(uint32_t base, qemu_irq irq,
     s->user1 = macaddr[3] | (macaddr[4] << 8) | (macaddr[5] << 16);
 
     iomemtype = cpu_register_io_memory(ssys_readfn,
-                                       ssys_writefn, s);
+                                       ssys_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
     ssys_reset(s);
     register_savevm(NULL, "stellaris_sys", -1, 1, ssys_save, ssys_load, s);
@@ -884,7 +886,8 @@ static int stellaris_i2c_init(SysBusDevice * dev)
     s->bus = bus;
 
     iomemtype = cpu_register_io_memory(stellaris_i2c_readfn,
-                                       stellaris_i2c_writefn, s);
+                                       stellaris_i2c_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     /* ??? For now we only implement the master interface.  */
     stellaris_i2c_reset(s);
@@ -1193,7 +1196,8 @@ static int stellaris_adc_init(SysBusDevice *dev)
     }
 
     iomemtype = cpu_register_io_memory(stellaris_adc_readfn,
-                                       stellaris_adc_writefn, s);
+                                       stellaris_adc_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     stellaris_adc_reset(s);
     qdev_init_gpio_in(&dev->qdev, stellaris_adc_trigger, 1);

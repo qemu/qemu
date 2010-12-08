@@ -390,7 +390,8 @@ static int slavio_timer_init1(SysBusDevice *dev)
         ptimer_set_period(s->cputimer[i].timer, TIMER_PERIOD);
 
         io = cpu_register_io_memory(slavio_timer_mem_read,
-                                    slavio_timer_mem_write, tc);
+                                    slavio_timer_mem_write, tc,
+                                    DEVICE_NATIVE_ENDIAN);
         if (i == 0) {
             sysbus_init_mmio(dev, SYS_TIMER_SIZE, io);
         } else {

@@ -130,7 +130,8 @@ static int syborg_rtc_init(SysBusDevice *dev)
     int iomemtype;
 
     iomemtype = cpu_register_io_memory(syborg_rtc_readfn,
-                                       syborg_rtc_writefn, s);
+                                       syborg_rtc_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
 
     qemu_get_timedate(&tm, 0);

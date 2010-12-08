@@ -254,7 +254,8 @@ int msix_init(struct PCIDevice *dev, unsigned short nentries,
     msix_mask_all(dev, nentries);
 
     dev->msix_mmio_index = cpu_register_io_memory(msix_mmio_read,
-                                                  msix_mmio_write, dev);
+                                                  msix_mmio_write, dev,
+                                                  DEVICE_NATIVE_ENDIAN);
     if (dev->msix_mmio_index == -1) {
         ret = -EBUSY;
         goto err_index;

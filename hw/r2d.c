@@ -189,7 +189,8 @@ static qemu_irq *r2d_fpga_init(target_phys_addr_t base, qemu_irq irl)
     s->irl = irl;
 
     iomemtype = cpu_register_io_memory(r2d_fpga_readfn,
-				       r2d_fpga_writefn, s);
+				       r2d_fpga_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x40, iomemtype);
     return qemu_allocate_irqs(r2d_fpga_irq_set, s, NR_IRQS);
 }

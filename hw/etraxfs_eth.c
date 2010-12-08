@@ -598,7 +598,8 @@ void *etraxfs_eth_init(NICInfo *nd, target_phys_addr_t base, int phyaddr)
 	tdk_init(&eth->phy);
 	mdio_attach(&eth->mdio_bus, &eth->phy, eth->phyaddr);
 
-	eth->ethregs = cpu_register_io_memory(eth_read, eth_write, eth);
+	eth->ethregs = cpu_register_io_memory(eth_read, eth_write, eth,
+                                              DEVICE_NATIVE_ENDIAN);
 	cpu_register_physical_memory (base, 0x5c, eth->ethregs);
 
 	memcpy(eth->conf.macaddr.a, nd->macaddr, sizeof(nd->macaddr));

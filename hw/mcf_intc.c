@@ -149,7 +149,8 @@ qemu_irq *mcf_intc_init(target_phys_addr_t base, CPUState *env)
     mcf_intc_reset(s);
 
     iomemtype = cpu_register_io_memory(mcf_intc_readfn,
-                                       mcf_intc_writefn, s);
+                                       mcf_intc_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x100, iomemtype);
 
     return qemu_allocate_irqs(mcf_intc_set_irq, s, 64);

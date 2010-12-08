@@ -257,7 +257,8 @@ static int sparc32_dma_init1(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
 
-    dma_io_memory = cpu_register_io_memory(dma_mem_read, dma_mem_write, s);
+    dma_io_memory = cpu_register_io_memory(dma_mem_read, dma_mem_write, s,
+                                           DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, DMA_SIZE, dma_io_memory);
 
     qdev_init_gpio_in(&dev->qdev, dma_set_irq, 1);

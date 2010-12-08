@@ -269,7 +269,7 @@ static int sp804_init(SysBusDevice *dev)
     s->timer[0]->irq = qi[0];
     s->timer[1]->irq = qi[1];
     iomemtype = cpu_register_io_memory(sp804_readfn,
-                                       sp804_writefn, s);
+                                       sp804_writefn, s, DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     register_savevm(&dev->qdev, "sp804", -1, 1, sp804_save, sp804_load, s);
     return 0;
@@ -340,7 +340,8 @@ static int icp_pit_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->timer[2]->irq);
 
     iomemtype = cpu_register_io_memory(icp_pit_readfn,
-                                       icp_pit_writefn, s);
+                                       icp_pit_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     /* This device has no state to save/restore.  The component timers will
        save themselves.  */

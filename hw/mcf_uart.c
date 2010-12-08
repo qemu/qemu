@@ -304,6 +304,7 @@ void mcf_uart_mm_init(target_phys_addr_t base, qemu_irq irq,
 
     s = mcf_uart_init(irq, chr);
     iomemtype = cpu_register_io_memory(mcf_uart_readfn,
-                                       mcf_uart_writefn, s);
+                                       mcf_uart_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x40, iomemtype);
 }

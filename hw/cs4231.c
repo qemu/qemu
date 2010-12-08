@@ -148,7 +148,8 @@ static int cs4231_init1(SysBusDevice *dev)
     int io;
     CSState *s = FROM_SYSBUS(CSState, dev);
 
-    io = cpu_register_io_memory(cs_mem_read, cs_mem_write, s);
+    io = cpu_register_io_memory(cs_mem_read, cs_mem_write, s,
+                                DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, CS_SIZE, io);
     sysbus_init_irq(dev, &s->irq);
 

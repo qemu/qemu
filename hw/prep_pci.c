@@ -125,7 +125,8 @@ PCIBus *pci_prep_init(qemu_irq *pic)
     pci_host_data_register_ioport(0xcfc, s);
 
     PPC_io_memory = cpu_register_io_memory(PPC_PCIIO_read,
-                                           PPC_PCIIO_write, s);
+                                           PPC_PCIIO_write, s,
+                                           DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(0x80800000, 0x00400000, PPC_io_memory);
 
     /* PCI host bridge */

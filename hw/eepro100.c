@@ -1878,7 +1878,8 @@ static int e100_nic_init(PCIDevice *pci_dev)
 
     /* Handler for memory-mapped I/O */
     s->mmio_index =
-        cpu_register_io_memory(pci_mmio_read, pci_mmio_write, s);
+        cpu_register_io_memory(pci_mmio_read, pci_mmio_write, s,
+                               DEVICE_NATIVE_ENDIAN);
 
     pci_register_bar(&s->dev, 0, PCI_MEM_SIZE,
                            PCI_BASE_ADDRESS_SPACE_MEMORY |

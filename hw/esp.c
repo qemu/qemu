@@ -722,7 +722,8 @@ static int esp_init1(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
     assert(s->it_shift != -1);
 
-    esp_io_memory = cpu_register_io_memory(esp_mem_read, esp_mem_write, s);
+    esp_io_memory = cpu_register_io_memory(esp_mem_read, esp_mem_write, s,
+                                           DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, ESP_REGS << s->it_shift, esp_io_memory);
 
     qdev_init_gpio_in(&dev->qdev, esp_gpio_demux, 2);

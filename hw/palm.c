@@ -216,14 +216,18 @@ static void palmte_init(ram_addr_t ram_size,
                                  qemu_ram_alloc(NULL, "palmte.flash",
                                                 flash_size) | IO_MEM_ROM);
 
-    io = cpu_register_io_memory(static_readfn, static_writefn, &cs0val);
+    io = cpu_register_io_memory(static_readfn, static_writefn, &cs0val,
+                                DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(OMAP_CS0_BASE + flash_size,
                     OMAP_CS0_SIZE - flash_size, io);
-    io = cpu_register_io_memory(static_readfn, static_writefn, &cs1val);
+    io = cpu_register_io_memory(static_readfn, static_writefn, &cs1val,
+                                DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(OMAP_CS1_BASE, OMAP_CS1_SIZE, io);
-    io = cpu_register_io_memory(static_readfn, static_writefn, &cs2val);
+    io = cpu_register_io_memory(static_readfn, static_writefn, &cs2val,
+                                DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(OMAP_CS2_BASE, OMAP_CS2_SIZE, io);
-    io = cpu_register_io_memory(static_readfn, static_writefn, &cs3val);
+    io = cpu_register_io_memory(static_readfn, static_writefn, &cs3val,
+                                DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(OMAP_CS3_BASE, OMAP_CS3_SIZE, io);
 
     palmte_microwire_setup(cpu);

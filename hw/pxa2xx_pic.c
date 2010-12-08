@@ -300,7 +300,7 @@ qemu_irq *pxa2xx_pic_init(target_phys_addr_t base, CPUState *env)
 
     /* Enable IC memory-mapped registers access.  */
     iomemtype = cpu_register_io_memory(pxa2xx_pic_readfn,
-                    pxa2xx_pic_writefn, s);
+                    pxa2xx_pic_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x00100000, iomemtype);
 
     /* Enable IC coprocessor access.  */

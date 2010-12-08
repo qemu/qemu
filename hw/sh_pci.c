@@ -103,7 +103,8 @@ PCIBus *sh_pci_register_bus(pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
 
     p->dev = pci_register_device(p->bus, "SH PCIC", sizeof(PCIDevice),
                                  -1, NULL, NULL);
-    reg = cpu_register_io_memory(sh_pci_reg.r, sh_pci_reg.w, p);
+    reg = cpu_register_io_memory(sh_pci_reg.r, sh_pci_reg.w, p,
+                                 DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(0x1e200000, 0x224, reg);
     cpu_register_physical_memory(0xfe200000, 0x224, reg);
 

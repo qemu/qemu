@@ -388,7 +388,8 @@ static int mv88w8618_eth_init(SysBusDevice *dev)
     s->nic = qemu_new_nic(&net_mv88w8618_info, &s->conf,
                           dev->qdev.info->name, dev->qdev.id, s);
     s->mmio_index = cpu_register_io_memory(mv88w8618_eth_readfn,
-                                           mv88w8618_eth_writefn, s);
+                                           mv88w8618_eth_writefn, s,
+                                           DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, MP_ETH_SIZE, s->mmio_index);
     return 0;
 }
@@ -600,7 +601,8 @@ static int musicpal_lcd_init(SysBusDevice *dev)
     s->brightness = 7;
 
     iomemtype = cpu_register_io_memory(musicpal_lcd_readfn,
-                                       musicpal_lcd_writefn, s);
+                                       musicpal_lcd_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, MP_LCD_SIZE, iomemtype);
 
     s->ds = graphic_console_init(lcd_refresh, lcd_invalidate,
@@ -725,7 +727,8 @@ static int mv88w8618_pic_init(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, mv88w8618_pic_set_irq, 32);
     sysbus_init_irq(dev, &s->parent_irq);
     iomemtype = cpu_register_io_memory(mv88w8618_pic_readfn,
-                                       mv88w8618_pic_writefn, s);
+                                       mv88w8618_pic_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, MP_PIC_SIZE, iomemtype);
     return 0;
 }
@@ -886,7 +889,8 @@ static int mv88w8618_pit_init(SysBusDevice *dev)
     }
 
     iomemtype = cpu_register_io_memory(mv88w8618_pit_readfn,
-                                       mv88w8618_pit_writefn, s);
+                                       mv88w8618_pit_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, MP_PIT_SIZE, iomemtype);
     return 0;
 }
@@ -976,7 +980,8 @@ static int mv88w8618_flashcfg_init(SysBusDevice *dev)
 
     s->cfgr0 = 0xfffe4285; /* Default as set by U-Boot for 8 MB flash */
     iomemtype = cpu_register_io_memory(mv88w8618_flashcfg_readfn,
-                                       mv88w8618_flashcfg_writefn, s);
+                                       mv88w8618_flashcfg_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, MP_FLASHCFG_SIZE, iomemtype);
     return 0;
 }
@@ -1037,7 +1042,8 @@ static void musicpal_misc_init(void)
     int iomemtype;
 
     iomemtype = cpu_register_io_memory(musicpal_misc_readfn,
-                                       musicpal_misc_writefn, NULL);
+                                       musicpal_misc_writefn, NULL,
+                                       DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(MP_MISC_BASE, MP_MISC_SIZE, iomemtype);
 }
 
@@ -1082,7 +1088,8 @@ static int mv88w8618_wlan_init(SysBusDevice *dev)
     int iomemtype;
 
     iomemtype = cpu_register_io_memory(mv88w8618_wlan_readfn,
-                                       mv88w8618_wlan_writefn, NULL);
+                                       mv88w8618_wlan_writefn, NULL,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, MP_WLAN_SIZE, iomemtype);
     return 0;
 }
@@ -1293,7 +1300,8 @@ static int musicpal_gpio_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
 
     iomemtype = cpu_register_io_memory(musicpal_gpio_readfn,
-                                       musicpal_gpio_writefn, s);
+                                       musicpal_gpio_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, MP_GPIO_SIZE, iomemtype);
 
     qdev_init_gpio_out(&dev->qdev, s->out, ARRAY_SIZE(s->out));

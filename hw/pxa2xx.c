@@ -859,7 +859,8 @@ static int pxa2xx_ssp_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
 
     iomemtype = cpu_register_io_memory(pxa2xx_ssp_readfn,
-                                       pxa2xx_ssp_writefn, s);
+                                       pxa2xx_ssp_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     register_savevm(&dev->qdev, "pxa2xx_ssp", -1, 0,
                     pxa2xx_ssp_save, pxa2xx_ssp_load, s);
@@ -1512,7 +1513,7 @@ PXA2xxI2CState *pxa2xx_i2c_init(target_phys_addr_t base,
     s->offset = base - (base & (~region_size) & TARGET_PAGE_MASK);
 
     iomemtype = cpu_register_io_memory(pxa2xx_i2c_readfn,
-                    pxa2xx_i2c_writefn, s);
+                    pxa2xx_i2c_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base & ~region_size,
                     region_size + 1, iomemtype);
 
@@ -1749,7 +1750,7 @@ static PXA2xxI2SState *pxa2xx_i2s_init(target_phys_addr_t base,
     pxa2xx_i2s_reset(s);
 
     iomemtype = cpu_register_io_memory(pxa2xx_i2s_readfn,
-                    pxa2xx_i2s_writefn, s);
+                    pxa2xx_i2s_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x100000, iomemtype);
 
     register_savevm(NULL, "pxa2xx_i2s", base, 0,
@@ -2009,7 +2010,7 @@ static PXA2xxFIrState *pxa2xx_fir_init(target_phys_addr_t base,
     pxa2xx_fir_reset(s);
 
     iomemtype = cpu_register_io_memory(pxa2xx_fir_readfn,
-                    pxa2xx_fir_writefn, s);
+                    pxa2xx_fir_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x1000, iomemtype);
 
     if (chr)
@@ -2102,7 +2103,7 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
     s->cm_regs[CCCR >> 2] = 0x02000210;	/* 416.0 MHz */
     s->clkcfg = 0x00000009;		/* Turbo mode active */
     iomemtype = cpu_register_io_memory(pxa2xx_cm_readfn,
-                    pxa2xx_cm_writefn, s);
+                    pxa2xx_cm_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(s->cm_base, 0x1000, iomemtype);
     register_savevm(NULL, "pxa2xx_cm", 0, 0, pxa2xx_cm_save, pxa2xx_cm_load, s);
 
@@ -2113,13 +2114,13 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
     s->mm_regs[MDREFR >> 2] = 0x03ca4000;
     s->mm_regs[MECR >> 2] = 0x00000001;	/* Two PC Card sockets */
     iomemtype = cpu_register_io_memory(pxa2xx_mm_readfn,
-                    pxa2xx_mm_writefn, s);
+                    pxa2xx_mm_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(s->mm_base, 0x1000, iomemtype);
     register_savevm(NULL, "pxa2xx_mm", 0, 0, pxa2xx_mm_save, pxa2xx_mm_load, s);
 
     s->pm_base = 0x40f00000;
     iomemtype = cpu_register_io_memory(pxa2xx_pm_readfn,
-                    pxa2xx_pm_writefn, s);
+                    pxa2xx_pm_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(s->pm_base, 0x100, iomemtype);
     register_savevm(NULL, "pxa2xx_pm", 0, 0, pxa2xx_pm_save, pxa2xx_pm_load, s);
 
@@ -2142,7 +2143,7 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
 
     s->rtc_base = 0x40900000;
     iomemtype = cpu_register_io_memory(pxa2xx_rtc_readfn,
-                    pxa2xx_rtc_writefn, s);
+                    pxa2xx_rtc_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(s->rtc_base, 0x1000, iomemtype);
     pxa2xx_rtc_init(s);
     register_savevm(NULL, "pxa2xx_rtc", 0, 0, pxa2xx_rtc_save,
@@ -2225,7 +2226,7 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
     s->cm_regs[CCCR >> 2] = 0x02000210;	/* 416.0 MHz */
     s->clkcfg = 0x00000009;		/* Turbo mode active */
     iomemtype = cpu_register_io_memory(pxa2xx_cm_readfn,
-                    pxa2xx_cm_writefn, s);
+                    pxa2xx_cm_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(s->cm_base, 0x1000, iomemtype);
     register_savevm(NULL, "pxa2xx_cm", 0, 0, pxa2xx_cm_save, pxa2xx_cm_load, s);
 
@@ -2236,13 +2237,13 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
     s->mm_regs[MDREFR >> 2] = 0x03ca4000;
     s->mm_regs[MECR >> 2] = 0x00000001;	/* Two PC Card sockets */
     iomemtype = cpu_register_io_memory(pxa2xx_mm_readfn,
-                    pxa2xx_mm_writefn, s);
+                    pxa2xx_mm_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(s->mm_base, 0x1000, iomemtype);
     register_savevm(NULL, "pxa2xx_mm", 0, 0, pxa2xx_mm_save, pxa2xx_mm_load, s);
 
     s->pm_base = 0x40f00000;
     iomemtype = cpu_register_io_memory(pxa2xx_pm_readfn,
-                    pxa2xx_pm_writefn, s);
+                    pxa2xx_pm_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(s->pm_base, 0x100, iomemtype);
     register_savevm(NULL, "pxa2xx_pm", 0, 0, pxa2xx_pm_save, pxa2xx_pm_load, s);
 
@@ -2265,7 +2266,7 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
 
     s->rtc_base = 0x40900000;
     iomemtype = cpu_register_io_memory(pxa2xx_rtc_readfn,
-                    pxa2xx_rtc_writefn, s);
+                    pxa2xx_rtc_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(s->rtc_base, 0x1000, iomemtype);
     pxa2xx_rtc_init(s);
     register_savevm(NULL, "pxa2xx_rtc", 0, 0, pxa2xx_rtc_save,

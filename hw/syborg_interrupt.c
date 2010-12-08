@@ -210,7 +210,8 @@ static int syborg_int_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->parent_irq);
     qdev_init_gpio_in(&dev->qdev, syborg_int_set_irq, s->num_irqs);
     iomemtype = cpu_register_io_memory(syborg_int_readfn,
-                                       syborg_int_writefn, s);
+                                       syborg_int_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     s->flags = qemu_mallocz(s->num_irqs * sizeof(syborg_int_flags));
 

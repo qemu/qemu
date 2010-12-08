@@ -351,7 +351,8 @@ static int iommu_init1(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
 
-    io = cpu_register_io_memory(iommu_mem_read, iommu_mem_write, s);
+    io = cpu_register_io_memory(iommu_mem_read, iommu_mem_write, s,
+                                DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, IOMMU_NREGS * sizeof(uint32_t), io);
 
     return 0;

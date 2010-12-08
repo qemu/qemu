@@ -358,7 +358,8 @@ static int pl110_init(SysBusDevice *dev)
     int iomemtype;
 
     iomemtype = cpu_register_io_memory(pl110_readfn,
-                                       pl110_writefn, s);
+                                       pl110_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     sysbus_init_irq(dev, &s->irq);
     s->ds = graphic_console_init(pl110_update_display,

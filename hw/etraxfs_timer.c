@@ -323,7 +323,8 @@ static int etraxfs_timer_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &t->irq);
     sysbus_init_irq(dev, &t->nmi);
 
-    timer_regs = cpu_register_io_memory(timer_read, timer_write, t);
+    timer_regs = cpu_register_io_memory(timer_read, timer_write, t,
+                                        DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x5c, timer_regs);
 
     qemu_register_reset(etraxfs_timer_reset, t);

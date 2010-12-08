@@ -844,7 +844,8 @@ void* DBDMA_init (int *dbdma_mem_index)
 
     s = qemu_mallocz(sizeof(DBDMA_channel) * DBDMA_CHANNELS);
 
-    *dbdma_mem_index = cpu_register_io_memory(dbdma_read, dbdma_write, s);
+    *dbdma_mem_index = cpu_register_io_memory(dbdma_read, dbdma_write, s,
+                                              DEVICE_NATIVE_ENDIAN);
     register_savevm(NULL, "dbdma", -1, 1, dbdma_save, dbdma_load, s);
     qemu_register_reset(dbdma_reset, s);
 

@@ -437,7 +437,7 @@ struct omap_i2c_s *omap_i2c_init(target_phys_addr_t base,
     omap_i2c_reset(s);
 
     iomemtype = cpu_register_io_memory(omap_i2c_readfn,
-                    omap_i2c_writefn, s);
+                    omap_i2c_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x800, iomemtype);
 
     return s;

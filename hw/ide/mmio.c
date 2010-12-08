@@ -129,8 +129,10 @@ void mmio_ide_init (target_phys_addr_t membase, target_phys_addr_t membase2,
 
     s->shift = shift;
 
-    mem1 = cpu_register_io_memory(mmio_ide_reads, mmio_ide_writes, s);
-    mem2 = cpu_register_io_memory(mmio_ide_status, mmio_ide_cmd, s);
+    mem1 = cpu_register_io_memory(mmio_ide_reads, mmio_ide_writes, s,
+                                  DEVICE_NATIVE_ENDIAN);
+    mem2 = cpu_register_io_memory(mmio_ide_status, mmio_ide_cmd, s,
+                                  DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(membase, 16 << shift, mem1);
     cpu_register_physical_memory(membase2, 2 << shift, mem2);
     vmstate_register(NULL, 0, &vmstate_ide_mmio, s);

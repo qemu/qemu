@@ -467,7 +467,8 @@ void mcf_fec_init(NICInfo *nd, target_phys_addr_t base, qemu_irq *irq)
     s = (mcf_fec_state *)qemu_mallocz(sizeof(mcf_fec_state));
     s->irq = irq;
     s->mmio_index = cpu_register_io_memory(mcf_fec_readfn,
-                                           mcf_fec_writefn, s);
+                                           mcf_fec_writefn, s,
+                                           DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x400, s->mmio_index);
 
     memcpy(s->conf.macaddr.a, nd->macaddr, sizeof(nd->macaddr));

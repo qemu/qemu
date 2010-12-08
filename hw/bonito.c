@@ -698,7 +698,8 @@ static int bonito_initfn(PCIDevice *dev)
     pci_config_set_revision(dev->config, 0x01);
 
     /* set the north bridge register mapping */
-    s->bonito_reg_handle = cpu_register_io_memory(bonito_read, bonito_write, s);
+    s->bonito_reg_handle = cpu_register_io_memory(bonito_read, bonito_write, s,
+                                                  DEVICE_NATIVE_ENDIAN);
     s->bonito_reg_start = BONITO_INTERNAL_REG_BASE;
     s->bonito_reg_length = BONITO_INTERNAL_REG_SIZE;
     cpu_register_physical_memory(s->bonito_reg_start, s->bonito_reg_length,
@@ -706,7 +707,8 @@ static int bonito_initfn(PCIDevice *dev)
 
     /* set the north bridge pci configure  mapping */
     s->bonito_pciconf_handle = cpu_register_io_memory(bonito_pciconf_read,
-                                                      bonito_pciconf_write, s);
+                                                      bonito_pciconf_write, s,
+                                                      DEVICE_NATIVE_ENDIAN);
     s->bonito_pciconf_start = BONITO_PCICONFIG_BASE;
     s->bonito_pciconf_length = BONITO_PCICONFIG_SIZE;
     cpu_register_physical_memory(s->bonito_pciconf_start, s->bonito_pciconf_length,
@@ -714,21 +716,24 @@ static int bonito_initfn(PCIDevice *dev)
 
     /* set the south bridge pci configure  mapping */
     s->bonito_spciconf_handle = cpu_register_io_memory(bonito_spciconf_read,
-                                                       bonito_spciconf_write, s);
+                                                       bonito_spciconf_write, s,
+                                                       DEVICE_NATIVE_ENDIAN);
     s->bonito_spciconf_start = BONITO_SPCICONFIG_BASE;
     s->bonito_spciconf_length = BONITO_SPCICONFIG_SIZE;
     cpu_register_physical_memory(s->bonito_spciconf_start, s->bonito_spciconf_length,
                                  s->bonito_spciconf_handle);
 
     s->bonito_ldma_handle = cpu_register_io_memory(bonito_ldma_read,
-                                                   bonito_ldma_write, s);
+                                                   bonito_ldma_write, s,
+                                                   DEVICE_NATIVE_ENDIAN);
     s->bonito_ldma_start = 0xbfe00200;
     s->bonito_ldma_length = 0x100;
     cpu_register_physical_memory(s->bonito_ldma_start, s->bonito_ldma_length,
                                  s->bonito_ldma_handle);
 
     s->bonito_cop_handle = cpu_register_io_memory(bonito_cop_read,
-                                                  bonito_cop_write, s);
+                                                  bonito_cop_write, s,
+                                                  DEVICE_NATIVE_ENDIAN);
     s->bonito_cop_start = 0xbfe00300;
     s->bonito_cop_length = 0x100;
     cpu_register_physical_memory(s->bonito_cop_start, s->bonito_cop_length,

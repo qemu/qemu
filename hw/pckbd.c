@@ -436,7 +436,8 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
     s->mask = mask;
 
     vmstate_register(NULL, 0, &vmstate_kbd, s);
-    s_io_memory = cpu_register_io_memory(kbd_mm_read, kbd_mm_write, s);
+    s_io_memory = cpu_register_io_memory(kbd_mm_read, kbd_mm_write, s,
+                                         DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, size, s_io_memory);
 
     s->kbd = ps2_kbd_init(kbd_update_kbd_irq, s);

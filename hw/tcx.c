@@ -522,12 +522,13 @@ static int tcx_init1(SysBusDevice *dev)
     vram_base += size;
 
     /* DAC */
-    io_memory = cpu_register_io_memory(tcx_dac_read, tcx_dac_write, s);
+    io_memory = cpu_register_io_memory(tcx_dac_read, tcx_dac_write, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, TCX_DAC_NREGS, io_memory);
 
     /* TEC (dummy) */
     dummy_memory = cpu_register_io_memory(tcx_dummy_read, tcx_dummy_write,
-                                          s);
+                                          s, DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, TCX_TEC_NREGS, dummy_memory);
     /* THC: NetBSD writes here even with 8-bit display: dummy */
     sysbus_init_mmio(dev, TCX_THC_NREGS_24, dummy_memory);

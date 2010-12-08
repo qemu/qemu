@@ -118,7 +118,8 @@ static int lance_init(SysBusDevice *dev)
     PCNetState *s = &d->state;
 
     s->mmio_index =
-        cpu_register_io_memory(lance_mem_read, lance_mem_write, d);
+        cpu_register_io_memory(lance_mem_read, lance_mem_write, d,
+                               DEVICE_NATIVE_ENDIAN);
 
     qdev_init_gpio_in(&dev->qdev, parent_lance_reset, 1);
 

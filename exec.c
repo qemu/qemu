@@ -3331,7 +3331,8 @@ static subpage_t *subpage_init (target_phys_addr_t base, ram_addr_t *phys,
     mmio = qemu_mallocz(sizeof(subpage_t));
 
     mmio->base = base;
-    subpage_memory = cpu_register_io_memory(subpage_read, subpage_write, mmio);
+    subpage_memory = cpu_register_io_memory(subpage_read, subpage_write, mmio,
+                                            DEVICE_NATIVE_ENDIAN);
 #if defined(DEBUG_SUBPAGE)
     printf("%s: %p base " TARGET_FMT_plx " len %08x %d\n", __func__,
            mmio, base, TARGET_PAGE_SIZE, subpage_memory);
@@ -3468,7 +3469,6 @@ static int cpu_register_io_memory_fixed(int io_index,
                                         void *opaque, enum device_endian endian)
 {
     int i;
-    int endian = DEVICE_NATIVE_ENDIAN;
 
     if (io_index <= 0) {
         io_index = get_free_io_mem_idx();
@@ -3513,7 +3513,7 @@ int cpu_register_io_memory(CPUReadMemoryFunc * const *mem_read,
                            CPUWriteMemoryFunc * const *mem_write,
                            void *opaque, enum device_endian endian)
 {
-    return cpu_register_io_memory_fixed(0, mem_read, mem_write, opaque);
+    return cpu_register_io_memory_fixed(0, mem_read, mem_write, opaque, endian);
 }
 
 void cpu_unregister_io_memory(int io_table_address)
@@ -3535,14 +3535,21 @@ static void io_mem_init(void)
 {
     int i;
 
-    cpu_register_io_memory_fixed(IO_MEM_ROM, error_mem_read, unassigned_mem_write, NULL);
-    cpu_register_io_memory_fixed(IO_MEM_UNASSIGNED, unassigned_mem_read, unassigned_mem_write, NULL);
-    cpu_register_io_memory_fixed(IO_MEM_NOTDIRTY, error_mem_read, notdirty_mem_write, NULL);
+    cpu_register_io_memory_fixed(IO_MEM_ROM, error_mem_read,
+                                 unassigned_mem_write, NULL,
+                                 DEVICE_NATIVE_ENDIAN);
+    cpu_register_io_memory_fixed(IO_MEM_UNASSIGNED, unassigned_mem_read,
+                                 unassigned_mem_write, NULL,
+                                 DEVICE_NATIVE_ENDIAN);
+    cpu_register_io_memory_fixed(IO_MEM_NOTDIRTY, error_mem_read,
+                                 notdirty_mem_write, NULL,
+                                 DEVICE_NATIVE_ENDIAN);
     for (i=0; i<5; i++)
         io_mem_used[i] = 1;
 
     io_mem_watch = cpu_register_io_memory(watch_mem_read,
-                                          watch_mem_write, NULL);
+                                          watch_mem_write, NULL,
+                                          DEVICE_NATIVE_ENDIAN);
 }
 
 #endif /* !defined(CONFIG_USER_ONLY) */

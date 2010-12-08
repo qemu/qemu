@@ -1156,7 +1156,8 @@ static int intel_hda_init(PCIDevice *pci)
     conf[0x40] = 0x01;
 
     d->mmio_addr = cpu_register_io_memory(intel_hda_mmio_read,
-                                          intel_hda_mmio_write, d);
+                                          intel_hda_mmio_write, d,
+                                          DEVICE_NATIVE_ENDIAN);
     pci_register_bar(&d->pci, 0, 0x4000, PCI_BASE_ADDRESS_SPACE_MEMORY,
                      intel_hda_map);
     if (d->msi) {

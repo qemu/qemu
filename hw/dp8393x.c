@@ -908,6 +908,7 @@ void dp83932_init(NICInfo *nd, target_phys_addr_t base, int it_shift,
     qemu_register_reset(nic_reset, s);
     nic_reset(s);
 
-    s->mmio_index = cpu_register_io_memory(dp8393x_read, dp8393x_write, s);
+    s->mmio_index = cpu_register_io_memory(dp8393x_read, dp8393x_write, s,
+                                           DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x40 << it_shift, s->mmio_index);
 }

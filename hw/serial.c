@@ -955,10 +955,12 @@ SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
     if (ioregister) {
         if (be) {
             s_io_memory = cpu_register_io_memory(serial_mm_read_be,
-                                                 serial_mm_write_be, s);
+                                                 serial_mm_write_be, s,
+                                                 DEVICE_NATIVE_ENDIAN);
         } else {
             s_io_memory = cpu_register_io_memory(serial_mm_read_le,
-                                                 serial_mm_write_le, s);
+                                                 serial_mm_write_le, s,
+                                                 DEVICE_NATIVE_ENDIAN);
         }
         cpu_register_physical_memory(base, 8 << it_shift, s_io_memory);
     }

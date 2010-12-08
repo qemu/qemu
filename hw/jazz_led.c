@@ -316,7 +316,8 @@ void jazz_led_init(target_phys_addr_t base)
 
     s->state = REDRAW_SEGMENTS | REDRAW_BACKGROUND;
 
-    io = cpu_register_io_memory(led_read, led_write, s);
+    io = cpu_register_io_memory(led_read, led_write, s,
+                                DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 1, io);
 
     s->ds = graphic_console_init(jazz_led_update_display,

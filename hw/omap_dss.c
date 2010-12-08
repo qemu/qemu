@@ -1045,7 +1045,7 @@ struct omap_dss_s *omap_dss_init(struct omap_target_agent_s *ta,
     iomemtype[3] = l4_register_io_memory(omap_venc1_readfn,
                     omap_venc1_writefn, s);
     iomemtype[4] = cpu_register_io_memory(omap_im3_readfn,
-                    omap_im3_writefn, s);
+                    omap_im3_writefn, s, DEVICE_NATIVE_ENDIAN);
     omap_l4_attach(ta, 0, iomemtype[0]);
     omap_l4_attach(ta, 1, iomemtype[1]);
     omap_l4_attach(ta, 2, iomemtype[2]);

@@ -171,10 +171,12 @@ void *ds1225y_init(target_phys_addr_t mem_base, const char *filename)
     }
 
     /* Read/write memory */
-    mem_indexRW = cpu_register_io_memory(nvram_read, nvram_write, s);
+    mem_indexRW = cpu_register_io_memory(nvram_read, nvram_write, s,
+                                         DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(mem_base, s->chip_size, mem_indexRW);
     /* Read/write protected memory */
-    mem_indexRP = cpu_register_io_memory(nvram_read, nvram_write_protected, s);
+    mem_indexRP = cpu_register_io_memory(nvram_read, nvram_write_protected, s,
+                                         DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(mem_base + s->chip_size, s->chip_size, mem_indexRP);
     return s;
 }

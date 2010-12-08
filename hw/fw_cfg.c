@@ -360,11 +360,13 @@ static int fw_cfg_init1(SysBusDevice *dev)
     int io_ctl_memory, io_data_memory;
 
     io_ctl_memory = cpu_register_io_memory(fw_cfg_ctl_mem_read,
-                                           fw_cfg_ctl_mem_write, s);
+                                           fw_cfg_ctl_mem_write, s,
+                                           DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, FW_CFG_SIZE, io_ctl_memory);
 
     io_data_memory = cpu_register_io_memory(fw_cfg_data_mem_read,
-                                            fw_cfg_data_mem_write, s);
+                                            fw_cfg_data_mem_write, s,
+                                            DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, FW_CFG_SIZE, io_data_memory);
 
     if (s->ctl_iobase) {

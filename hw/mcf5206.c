@@ -525,7 +525,8 @@ qemu_irq *mcf5206_init(uint32_t base, CPUState *env)
 
     s = (m5206_mbar_state *)qemu_mallocz(sizeof(m5206_mbar_state));
     iomemtype = cpu_register_io_memory(m5206_mbar_readfn,
-                                       m5206_mbar_writefn, s);
+                                       m5206_mbar_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
 
     pic = qemu_allocate_irqs(m5206_mbar_set_irq, s, 14);

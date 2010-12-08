@@ -390,7 +390,7 @@ struct omap_gpmc_s *omap_gpmc_init(target_phys_addr_t base, qemu_irq irq)
     omap_gpmc_reset(s);
 
     iomemtype = cpu_register_io_memory(omap_gpmc_readfn,
-                    omap_gpmc_writefn, s);
+                    omap_gpmc_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x1000, iomemtype);
 
     return s;

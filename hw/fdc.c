@@ -1999,7 +1999,8 @@ static int sysbus_fdc_init1(SysBusDevice *dev)
     int io;
     int ret;
 
-    io = cpu_register_io_memory(fdctrl_mem_read, fdctrl_mem_write, fdctrl);
+    io = cpu_register_io_memory(fdctrl_mem_read, fdctrl_mem_write, fdctrl,
+                                DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x08, io);
     sysbus_init_irq(dev, &fdctrl->irq);
     qdev_init_gpio_in(&dev->qdev, fdctrl_handle_tc, 1);
@@ -2017,7 +2018,8 @@ static int sun4m_fdc_init1(SysBusDevice *dev)
     int io;
 
     io = cpu_register_io_memory(fdctrl_mem_read_strict,
-                                fdctrl_mem_write_strict, fdctrl);
+                                fdctrl_mem_write_strict, fdctrl,
+                                DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x08, io);
     sysbus_init_irq(dev, &fdctrl->irq);
     qdev_init_gpio_in(&dev->qdev, fdctrl_handle_tc, 1);

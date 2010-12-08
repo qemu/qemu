@@ -208,7 +208,8 @@ static int arm_sysctl_init1(SysBusDevice *dev)
     int iomemtype;
 
     iomemtype = cpu_register_io_memory(arm_sysctl_readfn,
-                                       arm_sysctl_writefn, s);
+                                       arm_sysctl_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     /* ??? Save/restore.  */
     return 0;

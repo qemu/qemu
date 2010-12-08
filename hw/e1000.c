@@ -1131,7 +1131,7 @@ static int pci_e1000_init(PCIDevice *pci_dev)
     pci_conf[PCI_INTERRUPT_PIN] = 1; // interrupt pin 0
 
     d->mmio_index = cpu_register_io_memory(e1000_mmio_read,
-            e1000_mmio_write, d);
+            e1000_mmio_write, d, DEVICE_NATIVE_ENDIAN);
 
     pci_register_bar(&d->dev, 0, PNPMMIO_SIZE,
                            PCI_BASE_ADDRESS_SPACE_MEMORY, e1000_mmio_map);

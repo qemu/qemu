@@ -294,7 +294,8 @@ static int pl022_init(SysBusDevice *dev)
     int iomemtype;
 
     iomemtype = cpu_register_io_memory(pl022_readfn,
-                                       pl022_writefn, s);
+                                       pl022_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     sysbus_init_irq(dev, &s->irq);
     s->ssi = ssi_create_bus(&dev->qdev, "ssi");

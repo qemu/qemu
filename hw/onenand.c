@@ -630,7 +630,7 @@ void *onenand_init(uint32_t id, int regshift, qemu_irq irq)
     s->blockwp = qemu_malloc(s->blocks);
     s->density_mask = (id & (1 << 11)) ? (1 << (6 + ((id >> 12) & 7))) : 0;
     s->iomemtype = cpu_register_io_memory(onenand_readfn,
-                    onenand_writefn, s);
+                    onenand_writefn, s, DEVICE_NATIVE_ENDIAN);
     if (!dinfo)
         s->image = memset(qemu_malloc(size + (size >> 5)),
                         0xff, size + (size >> 5));

@@ -716,7 +716,8 @@ static int m48t59_init1(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->IRQ);
 
-    mem_index = cpu_register_io_memory(nvram_read, nvram_write, s);
+    mem_index = cpu_register_io_memory(nvram_read, nvram_write, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, s->size, mem_index);
     m48t59_init_common(s);
 

@@ -412,7 +412,8 @@ static int apc_init1(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->cpu_halt);
 
     /* Power management (APC) XXX: not a Slavio device */
-    io = cpu_register_io_memory(apc_mem_read, apc_mem_write, s);
+    io = cpu_register_io_memory(apc_mem_read, apc_mem_write, s,
+                                DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, MISC_SIZE, io);
     return 0;
 }
@@ -428,39 +429,46 @@ static int slavio_misc_init1(SysBusDevice *dev)
     /* 8 bit registers */
     /* Slavio control */
     io = cpu_register_io_memory(slavio_cfg_mem_read,
-                                slavio_cfg_mem_write, s);
+                                slavio_cfg_mem_write, s,
+                                DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, MISC_SIZE, io);
 
     /* Diagnostics */
     io = cpu_register_io_memory(slavio_diag_mem_read,
-                                slavio_diag_mem_write, s);
+                                slavio_diag_mem_write, s,
+                                DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, MISC_SIZE, io);
 
     /* Modem control */
     io = cpu_register_io_memory(slavio_mdm_mem_read,
-                                slavio_mdm_mem_write, s);
+                                slavio_mdm_mem_write, s,
+                                DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, MISC_SIZE, io);
 
     /* 16 bit registers */
     /* ss600mp diag LEDs */
     io = cpu_register_io_memory(slavio_led_mem_read,
-                                slavio_led_mem_write, s);
+                                slavio_led_mem_write, s,
+                                DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, MISC_SIZE, io);
 
     /* 32 bit registers */
     /* System control */
     io = cpu_register_io_memory(slavio_sysctrl_mem_read,
-                                slavio_sysctrl_mem_write, s);
+                                slavio_sysctrl_mem_write, s,
+                                DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, SYSCTRL_SIZE, io);
 
     /* AUX 1 (Misc System Functions) */
     io = cpu_register_io_memory(slavio_aux1_mem_read,
-                                slavio_aux1_mem_write, s);
+                                slavio_aux1_mem_write, s,
+                                DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, MISC_SIZE, io);
 
     /* AUX 2 (Software Powerdown Control) */
     io = cpu_register_io_memory(slavio_aux2_mem_read,
-                                slavio_aux2_mem_write, s);
+                                slavio_aux2_mem_write, s,
+                                DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, MISC_SIZE, io);
 
     qdev_init_gpio_in(&dev->qdev, slavio_set_power_fail, 1);

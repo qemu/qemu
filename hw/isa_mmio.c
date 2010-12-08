@@ -131,11 +131,13 @@ void isa_mmio_init(target_phys_addr_t base, target_phys_addr_t size, int be)
         if (be) {
             isa_mmio_iomemtype = cpu_register_io_memory(isa_mmio_read_be,
                                                         isa_mmio_write_be,
-                                                        NULL);
+                                                        NULL,
+                                                        DEVICE_NATIVE_ENDIAN);
         } else {
             isa_mmio_iomemtype = cpu_register_io_memory(isa_mmio_read_le,
                                                         isa_mmio_write_le,
-                                                        NULL);
+                                                        NULL,
+                                                        DEVICE_NATIVE_ENDIAN);
         }
     }
     cpu_register_physical_memory(base, size, isa_mmio_iomemtype);

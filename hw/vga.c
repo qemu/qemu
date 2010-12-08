@@ -2320,7 +2320,8 @@ void vga_init(VGACommonState *s)
 #endif
 #endif /* CONFIG_BOCHS_VBE */
 
-    vga_io_memory = cpu_register_io_memory(vga_mem_read, vga_mem_write, s);
+    vga_io_memory = cpu_register_io_memory(vga_mem_read, vga_mem_write, s,
+                                           DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(isa_mem_base + 0x000a0000, 0x20000,
                                  vga_io_memory);
     qemu_register_coalesced_mmio(isa_mem_base + 0x000a0000, 0x20000);

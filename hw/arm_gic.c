@@ -742,7 +742,8 @@ static void gic_init(gic_state *s)
         sysbus_init_irq(&s->busdev, &s->parent_irq[i]);
     }
     s->iomemtype = cpu_register_io_memory(gic_dist_readfn,
-                                          gic_dist_writefn, s);
+                                          gic_dist_writefn, s,
+                                          DEVICE_NATIVE_ENDIAN);
     gic_reset(s);
     register_savevm(NULL, "arm_gic", -1, 1, gic_save, gic_load, s);
 }

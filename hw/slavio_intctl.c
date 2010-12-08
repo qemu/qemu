@@ -422,7 +422,8 @@ static int slavio_intctl_init1(SysBusDevice *dev)
 
     qdev_init_gpio_in(&dev->qdev, slavio_set_irq_all, 32 + MAX_CPUS);
     io_memory = cpu_register_io_memory(slavio_intctlm_mem_read,
-                                       slavio_intctlm_mem_write, s);
+                                       slavio_intctlm_mem_write, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, INTCTLM_SIZE, io_memory);
 
     for (i = 0; i < MAX_CPUS; i++) {
@@ -431,7 +432,8 @@ static int slavio_intctl_init1(SysBusDevice *dev)
         }
         io_memory = cpu_register_io_memory(slavio_intctl_mem_read,
                                            slavio_intctl_mem_write,
-                                           &s->slaves[i]);
+                                           &s->slaves[i],
+                                           DEVICE_NATIVE_ENDIAN);
         sysbus_init_mmio(dev, INTCTL_SIZE, io_memory);
         s->slaves[i].cpu = i;
         s->slaves[i].master = s;

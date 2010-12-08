@@ -719,7 +719,8 @@ static int smc91c111_init1(SysBusDevice *dev)
     smc91c111_state *s = FROM_SYSBUS(smc91c111_state, dev);
 
     s->mmio_index = cpu_register_io_memory(smc91c111_readfn,
-                                           smc91c111_writefn, s);
+                                           smc91c111_writefn, s,
+                                           DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 16, s->mmio_index);
     sysbus_init_irq(dev, &s->irq);
     qemu_macaddr_default_if_unset(&s->conf.macaddr);

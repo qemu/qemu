@@ -319,7 +319,8 @@ void tmu012_init(target_phys_addr_t base, int feat, uint32_t freq,
         s->timer[2] = sh_timer_init(freq, timer_feat | TIMER_FEAT_CAPT,
 				    ch2_irq0); /* ch2_irq1 not supported */
     iomemtype = cpu_register_io_memory(tmu012_readfn,
-                                       tmu012_writefn, s);
+                                       tmu012_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(P4ADDR(base), 0x00001000, iomemtype);
     cpu_register_physical_memory(A7ADDR(base), 0x00001000, iomemtype);
     /* ??? Save/restore.  */

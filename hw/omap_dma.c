@@ -1659,7 +1659,7 @@ struct soc_dma_s *omap_dma_init(target_phys_addr_t base, qemu_irq *irqs,
     omap_dma_clk_update(s, 0, 1);
 
     iomemtype = cpu_register_io_memory(omap_dma_readfn,
-                    omap_dma_writefn, s);
+                    omap_dma_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, memsize, iomemtype);
 
     mpu->drq = s->dma->drq;
@@ -2066,7 +2066,7 @@ struct soc_dma_s *omap_dma4_init(target_phys_addr_t base, qemu_irq *irqs,
     omap_dma_clk_update(s, 0, !!s->dma->freq);
 
     iomemtype = cpu_register_io_memory(omap_dma4_readfn,
-                    omap_dma4_writefn, s);
+                    omap_dma4_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x1000, iomemtype);
 
     mpu->drq = s->dma->drq;

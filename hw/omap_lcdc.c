@@ -450,7 +450,7 @@ struct omap_lcd_panel_s *omap_lcdc_init(target_phys_addr_t base, qemu_irq irq,
     omap_lcdc_reset(s);
 
     iomemtype = cpu_register_io_memory(omap_lcdc_readfn,
-                    omap_lcdc_writefn, s);
+                    omap_lcdc_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x100, iomemtype);
 
     s->state = graphic_console_init(omap_update_display,

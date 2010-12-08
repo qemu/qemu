@@ -713,7 +713,8 @@ SH7750State *sh7750_init(CPUSH4State * cpu)
     s->cpu = cpu;
     s->periph_freq = 60000000;	/* 60MHz */
     sh7750_io_memory = cpu_register_io_memory(sh7750_mem_read,
-					      sh7750_mem_write, s);
+					      sh7750_mem_write, s,
+                                              DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory_offset(0x1f000000, 0x1000,
                                         sh7750_io_memory, 0x1f000000);
     cpu_register_physical_memory_offset(0xff000000, 0x1000,
@@ -728,7 +729,8 @@ SH7750State *sh7750_init(CPUSH4State * cpu)
                                         sh7750_io_memory, 0x1fc00000);
 
     sh7750_mm_cache_and_tlb = cpu_register_io_memory(sh7750_mmct_read,
-						     sh7750_mmct_write, s);
+						     sh7750_mmct_write, s,
+                                                     DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(0xf0000000, 0x08000000,
 				 sh7750_mm_cache_and_tlb);
 

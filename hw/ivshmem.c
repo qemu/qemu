@@ -720,7 +720,7 @@ static int pci_ivshmem_init(PCIDevice *dev)
     s->shm_fd = 0;
 
     s->ivshmem_mmio_io_addr = cpu_register_io_memory(ivshmem_mmio_read,
-                                    ivshmem_mmio_write, s);
+                                    ivshmem_mmio_write, s, DEVICE_NATIVE_ENDIAN);
     /* region for registers*/
     pci_register_bar(&s->dev, 0, IVSHMEM_REG_BAR_SIZE,
                            PCI_BASE_ADDRESS_SPACE_MEMORY, ivshmem_mmio_map);

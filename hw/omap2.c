@@ -600,7 +600,7 @@ static struct omap_eac_s *omap_eac_init(struct omap_target_agent_s *ta,
     AUD_register_card("OMAP EAC", &s->codec.card);
 
     iomemtype = cpu_register_io_memory(omap_eac_readfn,
-                    omap_eac_writefn, s);
+                    omap_eac_writefn, s, DEVICE_NATIVE_ENDIAN);
     omap_l4_attach(ta, 0, iomemtype);
 
     return s;
@@ -788,7 +788,7 @@ static struct omap_sti_s *omap_sti_init(struct omap_target_agent_s *ta,
     omap_l4_attach(ta, 0, iomemtype);
 
     iomemtype = cpu_register_io_memory(omap_sti_fifo_readfn,
-                    omap_sti_fifo_writefn, s);
+                    omap_sti_fifo_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(channel_base, 0x10000, iomemtype);
 
     return s;

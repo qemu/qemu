@@ -42,7 +42,7 @@ int cpu_register_io_memory_simple(struct ReadWriteHandler *handler)
     }
     return cpu_register_io_memory(cpu_io_memory_simple_read,
                                   cpu_io_memory_simple_write,
-                                  handler);
+                                  handler, DEVICE_NATIVE_ENDIAN);
 }
 
 RWHANDLER_WRITE(ioport_simple_writeb, 1, uint32_t);

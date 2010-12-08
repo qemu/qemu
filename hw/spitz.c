@@ -176,7 +176,7 @@ static void sl_flash_register(PXA2xxState *cpu, int size)
         s->nand = nand_init(NAND_MFR_SAMSUNG, 0xf1);
 
     iomemtype = cpu_register_io_memory(sl_readfn,
-                    sl_writefn, s);
+                    sl_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(FLASH_BASE, 0x40, iomemtype);
 
     register_savevm(NULL, "sl_flash", 0, 0, sl_save, sl_load, s);

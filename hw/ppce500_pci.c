@@ -304,7 +304,8 @@ PCIBus *ppce500_pci_init(qemu_irq pci_irqs[4], target_phys_addr_t registers)
     cpu_register_physical_memory(registers + PCIE500_CFGDATA, 4, index);
 
     index = cpu_register_io_memory(e500_pci_reg_read,
-                                   e500_pci_reg_write, controller);
+                                   e500_pci_reg_write, controller,
+                                   DEVICE_NATIVE_ENDIAN);
     if (index < 0)
         goto free;
     cpu_register_physical_memory(registers + PCIE500_REG_BASE,

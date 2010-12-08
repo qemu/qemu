@@ -276,7 +276,8 @@ static int mpcore_priv_init(SysBusDevice *dev)
 
     gic_init(&s->gic, s->num_cpu);
     s->iomemtype = cpu_register_io_memory(mpcore_priv_readfn,
-                                          mpcore_priv_writefn, s);
+                                          mpcore_priv_writefn, s,
+                                          DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio_cb(dev, 0x2000, mpcore_priv_map);
     for (i = 0; i < s->num_cpu * 2; i++) {
         mpcore_timer_init(s, &s->timer[i], i);
