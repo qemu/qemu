@@ -31,11 +31,13 @@ static ISABus *isabus;
 target_phys_addr_t isa_mem_base = 0;
 
 static void isabus_dev_print(Monitor *mon, DeviceState *dev, int indent);
+static char *isabus_get_fw_dev_path(DeviceState *dev);
 
 static struct BusInfo isa_bus_info = {
     .name      = "ISA",
     .size      = sizeof(ISABus),
     .print_dev = isabus_dev_print,
+    .get_fw_dev_path = isabus_get_fw_dev_path,
 };
 
 ISABus *isa_bus_new(DeviceState *dev)
@@ -183,6 +185,20 @@ static SysBusDeviceInfo isabus_bridge_info = {
 static void isabus_register_devices(void)
 {
     sysbus_register_withprop(&isabus_bridge_info);
+}
+
+static char *isabus_get_fw_dev_path(DeviceState *dev)
+{
+    ISADevice *d = (ISADevice*)dev;
+    char path[40];
+    int off;
+
+    off = snprintf(path, sizeof(path), "%s", qdev_fw_name(dev));
+    if (d->nioports) {
+        snprintf(path + off, sizeof(path) - off, "@%04x", d->ioports[0]);
+    }
+
+    return strdup(path);
 }
 
 device_init(isabus_register_devices)
