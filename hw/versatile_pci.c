@@ -96,11 +96,7 @@ static void pci_vpb_map(SysBusDevice *dev, target_phys_addr_t base)
 
     if (s->realview) {
         /* IO memory area.  */
-#ifdef TARGET_WORDS_BIGENDIAN
-        isa_mmio_init(base + 0x03000000, 0x00100000, 1);
-#else
-        isa_mmio_init(base + 0x03000000, 0x00100000, 0);
-#endif
+        isa_mmio_init(base + 0x03000000, 0x00100000);
     }
 }
 

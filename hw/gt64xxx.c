@@ -297,11 +297,7 @@ static void gt64120_pci_mapping(GT64120State *s)
       s->PCI0IO_start = s->regs[GT_PCI0IOLD] << 21;
       s->PCI0IO_length = ((s->regs[GT_PCI0IOHD] + 1) - (s->regs[GT_PCI0IOLD] & 0x7f)) << 21;
       isa_mem_base = s->PCI0IO_start;
-#ifdef TARGET_WORDS_BIGENDIAN
-      isa_mmio_init(s->PCI0IO_start, s->PCI0IO_length, 1);
-#else
-      isa_mmio_init(s->PCI0IO_start, s->PCI0IO_length, 0);
-#endif
+      isa_mmio_init(s->PCI0IO_start, s->PCI0IO_length);
     }
 }
 

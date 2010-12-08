@@ -743,12 +743,12 @@ static int bonito_initfn(PCIDevice *dev)
     s->bonito_pciio_start = BONITO_PCIIO_BASE;
     s->bonito_pciio_length = BONITO_PCIIO_SIZE;
     isa_mem_base = s->bonito_pciio_start;
-    isa_mmio_init(s->bonito_pciio_start, s->bonito_pciio_length, 0);
+    isa_mmio_init(s->bonito_pciio_start, s->bonito_pciio_length);
 
     /* add pci local io mapping */
     s->bonito_localio_start = BONITO_DEV_BASE;
     s->bonito_localio_length = BONITO_DEV_SIZE;
-    isa_mmio_init(s->bonito_localio_start, s->bonito_localio_length, 0);
+    isa_mmio_init(s->bonito_localio_start, s->bonito_localio_length);
 
     /* set the default value of north bridge pci config */
     pci_set_word(dev->config + PCI_COMMAND, 0x0000);
