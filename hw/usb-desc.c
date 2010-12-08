@@ -48,6 +48,30 @@ int usb_desc_device(const USBDescID *id, const USBDescDevice *dev,
     return bLength;
 }
 
+int usb_desc_device_qualifier(const USBDescDevice *dev,
+                              uint8_t *dest, size_t len)
+{
+    uint8_t bLength = 0x0a;
+
+    if (len < bLength) {
+        return -1;
+    }
+
+    dest[0x00] = bLength;
+    dest[0x01] = USB_DT_DEVICE_QUALIFIER;
+
+    dest[0x02] = usb_lo(dev->bcdUSB);
+    dest[0x03] = usb_hi(dev->bcdUSB);
+    dest[0x04] = dev->bDeviceClass;
+    dest[0x05] = dev->bDeviceSubClass;
+    dest[0x06] = dev->bDeviceProtocol;
+    dest[0x07] = dev->bMaxPacketSize0;
+    dest[0x08] = dev->bNumConfigurations;
+    dest[0x09] = 0; /* reserved */
+
+    return bLength;
+}
+
 int usb_desc_config(const USBDescConfig *conf, uint8_t *dest, size_t len)
 {
     uint8_t  bLength = 0x09;
@@ -263,10 +287,17 @@ int usb_desc_string(USBDevice *dev, int index, uint8_t *dest, size_t len)
 int usb_desc_get_descriptor(USBDevice *dev, int value, uint8_t *dest, size_t len)
 {
     const USBDesc *desc = dev->info->usb_desc;
+    const USBDescDevice *other_dev;
     uint8_t buf[256];
     uint8_t type = value >> 8;
     uint8_t index = value & 0xff;
     int ret = -1;
+
+    if (dev->speed == USB_SPEED_HIGH) {
+        other_dev = dev->info->usb_desc->full;
+    } else {
+        other_dev = dev->info->usb_desc->high;
+    }
 
     switch(type) {
     case USB_DT_DEVICE:
@@ -283,6 +314,21 @@ int usb_desc_get_descriptor(USBDevice *dev, int value, uint8_t *dest, size_t len
         ret = usb_desc_string(dev, index, buf, sizeof(buf));
         trace_usb_desc_string(dev->addr, index, len, ret);
         break;
+
+    case USB_DT_DEVICE_QUALIFIER:
+        if (other_dev != NULL) {
+            ret = usb_desc_device_qualifier(other_dev, buf, sizeof(buf));
+        }
+        trace_usb_desc_device_qualifier(dev->addr, len, ret);
+        break;
+    case USB_DT_OTHER_SPEED_CONFIG:
+        if (other_dev != NULL && index < other_dev->bNumConfigurations) {
+            ret = usb_desc_config(other_dev->confs + index, buf, sizeof(buf));
+            buf[0x01] = USB_DT_OTHER_SPEED_CONFIG;
+        }
+        trace_usb_desc_other_speed_config(dev->addr, index, len, ret);
+        break;
+
     default:
         fprintf(stderr, "%s: %d unknown type %d (len %zd)\n", __FUNCTION__,
                 dev->addr, type, len);

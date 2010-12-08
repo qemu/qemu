@@ -72,6 +72,8 @@ struct USBDesc {
 /* generate usb packages from structs */
 int usb_desc_device(const USBDescID *id, const USBDescDevice *dev,
                     uint8_t *dest, size_t len);
+int usb_desc_device_qualifier(const USBDescDevice *dev,
+                              uint8_t *dest, size_t len);
 int usb_desc_config(const USBDescConfig *conf, uint8_t *dest, size_t len);
 int usb_desc_iface(const USBDescIface *iface, uint8_t *dest, size_t len);
 int usb_desc_endpoint(const USBDescEndpoint *ep, uint8_t *dest, size_t len);

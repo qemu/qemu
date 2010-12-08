@@ -192,7 +192,9 @@ disable sun4m_iommu_bad_addr(uint64_t addr) "bad addr %"PRIx64""
 
 # hw/usb-desc.c
 disable usb_desc_device(int addr, int len, int ret) "dev %d query device, len %d, ret %d"
+disable usb_desc_device_qualifier(int addr, int len, int ret) "dev %d query device qualifier, len %d, ret %d"
 disable usb_desc_config(int addr, int index, int len, int ret) "dev %d query config %d, len %d, ret %d"
+disable usb_desc_other_speed_config(int addr, int index, int len, int ret) "dev %d query config %d, len %d, ret %d"
 disable usb_desc_string(int addr, int index, int len, int ret) "dev %d query string %d, len %d, ret %d"
 disable usb_set_addr(int addr) "dev %d"
 disable usb_set_config(int addr, int config, int ret) "dev %d, config %d, ret %d"
