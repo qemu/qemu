@@ -857,9 +857,6 @@ e1000_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     E1000State *s = opaque;
     unsigned int index = (addr & 0x1ffff) >> 2;
 
-#ifdef TARGET_WORDS_BIGENDIAN
-    val = bswap32(val);
-#endif
     if (index < NWRITEOPS && macreg_writeops[index]) {
         macreg_writeops[index](s, index, val);
     } else if (index < NREADOPS && macreg_readops[index]) {
@@ -894,11 +891,7 @@ e1000_mmio_readl(void *opaque, target_phys_addr_t addr)
 
     if (index < NREADOPS && macreg_readops[index])
     {
-        uint32_t val = macreg_readops[index](s, index);
-#ifdef TARGET_WORDS_BIGENDIAN
-        val = bswap32(val);
-#endif
-        return val;
+        return macreg_readops[index](s, index);
     }
     DBGOUT(UNKNOWN, "MMIO unknown read addr=0x%08x\n", index<<2);
     return 0;
@@ -1131,7 +1124,7 @@ static int pci_e1000_init(PCIDevice *pci_dev)
     pci_conf[PCI_INTERRUPT_PIN] = 1; // interrupt pin 0
 
     d->mmio_index = cpu_register_io_memory(e1000_mmio_read,
-            e1000_mmio_write, d, DEVICE_NATIVE_ENDIAN);
+            e1000_mmio_write, d, DEVICE_LITTLE_ENDIAN);
 
     pci_register_bar(&d->dev, 0, PNPMMIO_SIZE,
                            PCI_BASE_ADDRESS_SPACE_MEMORY, e1000_mmio_map);

@@ -211,7 +211,6 @@ obj-$(CONFIG_USB_OHCI) += usb-ohci.o
 
 # PCI network cards
 obj-$(CONFIG_RTL8139_PCI) += rtl8139.o
-obj-$(CONFIG_E1000_PCI) += e1000.o
 
 # Inter-VM PCI shared memory
 obj-$(CONFIG_KVM) += ivshmem.o
