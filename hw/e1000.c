@@ -30,6 +30,7 @@
 #include "net.h"
 #include "net/checksum.h"
 #include "loader.h"
+#include "sysemu.h"
 
 #include "e1000_hw.h"
 
@@ -1147,6 +1148,9 @@ static int pci_e1000_init(PCIDevice *pci_dev)
                           d->dev.qdev.info->name, d->dev.qdev.id, d);
 
     qemu_format_nic_info_str(&d->nic->nc, macaddr);
+
+    add_boot_device_path(d->conf.bootindex, &pci_dev->qdev, "/ethernet-phy@0");
+
     return 0;
 }
 

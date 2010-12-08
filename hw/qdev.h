@@ -319,6 +319,7 @@ static inline const char *qdev_fw_name(DeviceState *dev)
     return dev->info->fw_name ? : dev->info->alias ? : dev->info->name;
 }
 
+char *qdev_get_fw_dev_path(DeviceState *dev);
 /* This is a nasty hack to allow passing a NULL bus to qdev_create.  */
 extern struct BusInfo system_bus_info;
 

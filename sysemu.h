@@ -188,4 +188,6 @@ void rtc_change_mon_event(struct tm *tm);
 
 void register_devices(void);
 
+void add_boot_device_path(int32_t bootindex, DeviceState *dev,
+                          const char *suffix);
 #endif

@@ -21,6 +21,7 @@
 #include "qemu-error.h"
 #include <hw/ide/internal.h>
 #include "blockdev.h"
+#include "sysemu.h"
 
 /* --------------------------------- */
 
@@ -143,6 +144,10 @@ static int ide_drive_initfn(IDEDevice *dev)
     if (!dev->serial) {
         dev->serial = qemu_strdup(s->drive_serial_str);
     }
+
+    add_boot_device_path(dev->conf.bootindex, &dev->qdev,
+                         dev->unit ? "/disk@1" : "/disk@0");
+
     return 0;
 }
 

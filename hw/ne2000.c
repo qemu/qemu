@@ -26,6 +26,7 @@
 #include "net.h"
 #include "ne2000.h"
 #include "loader.h"
+#include "sysemu.h"
 
 /* debug NE2000 card */
 //#define DEBUG_NE2000
@@ -745,6 +746,8 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
             loaded = 1;
         }
     }
+
+    add_boot_device_path(s->c.bootindex, &pci_dev->qdev, "/ethernet-phy@0");
 
     return 0;
 }

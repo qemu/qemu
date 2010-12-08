@@ -35,6 +35,7 @@
 #include "sysbus.h"
 #include "qdev-addr.h"
 #include "blockdev.h"
+#include "sysemu.h"
 
 /********************************************************/
 /* debug Floppy devices */
@@ -523,6 +524,8 @@ typedef struct FDCtrlSysBus {
 typedef struct FDCtrlISABus {
     ISADevice busdev;
     struct FDCtrl state;
+    int32_t bootindexA;
+    int32_t bootindexB;
 } FDCtrlISABus;
 
 static uint32_t fdctrl_read (void *opaque, uint32_t reg)
@@ -1992,6 +1995,9 @@ static int isabus_fdc_init1(ISADevice *dev)
     qdev_set_legacy_instance_id(&dev->qdev, iobase, 2);
     ret = fdctrl_init_common(fdctrl);
 
+    add_boot_device_path(isa->bootindexA, &dev->qdev, "/floppy@0");
+    add_boot_device_path(isa->bootindexB, &dev->qdev, "/floppy@1");
+
     return ret;
 }
 
@@ -2053,6 +2059,8 @@ static ISADeviceInfo isa_fdc_info = {
     .qdev.props = (Property[]) {
         DEFINE_PROP_DRIVE("driveA", FDCtrlISABus, state.drives[0].bs),
         DEFINE_PROP_DRIVE("driveB", FDCtrlISABus, state.drives[1].bs),
+        DEFINE_PROP_INT32("bootindexA", FDCtrlISABus, bootindexA, -1),
+        DEFINE_PROP_INT32("bootindexB", FDCtrlISABus, bootindexB, -1),
         DEFINE_PROP_END_OF_LIST(),
     },
 };

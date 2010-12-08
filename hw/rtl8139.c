@@ -52,6 +52,7 @@
 #include "qemu-timer.h"
 #include "net.h"
 #include "loader.h"
+#include "sysemu.h"
 
 /* debug RTL8139 card */
 //#define DEBUG_RTL8139 1
@@ -3376,6 +3377,9 @@ static int pci_rtl8139_init(PCIDevice *dev)
     s->TimerExpire = 0;
     s->timer = qemu_new_timer(vm_clock, rtl8139_timer, s);
     rtl8139_set_next_tctr_time(s, qemu_get_clock(vm_clock));
+
+    add_boot_device_path(s->conf.bootindex, &dev->qdev, "/ethernet-phy@0");
+
     return 0;
 }
 

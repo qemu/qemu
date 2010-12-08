@@ -27,6 +27,7 @@
 #include "usb.h"
 #include "net.h"
 #include "qemu-queue.h"
+#include "sysemu.h"
 
 /*#define TRAFFIC_DEBUG*/
 /* Thanks to NetChip Technologies for donating this product ID.
@@ -1463,6 +1464,7 @@ static int usb_net_initfn(USBDevice *dev)
              s->conf.macaddr.a[4],
              s->conf.macaddr.a[5]);
 
+    add_boot_device_path(s->conf.bootindex, &dev->qdev, "/ethernet@0");
     return 0;
 }
 
