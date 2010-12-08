@@ -140,6 +140,7 @@ void pci_host_conf_register_ioport(pio_addr_t ioport, PCIHostState *s)
 {
     pci_host_init(s);
     register_ioport_simple(&s->conf_handler, ioport, 4, 4);
+    sysbus_init_ioports(&s->busdev, ioport, 4);
 }
 
 int pci_host_data_register_mmio(PCIHostState *s, int endian)
@@ -154,4 +155,5 @@ void pci_host_data_register_ioport(pio_addr_t ioport, PCIHostState *s)
     register_ioport_simple(&s->data_handler, ioport, 4, 1);
     register_ioport_simple(&s->data_handler, ioport, 4, 2);
     register_ioport_simple(&s->data_handler, ioport, 4, 4);
+    sysbus_init_ioports(&s->busdev, ioport, 4);
 }

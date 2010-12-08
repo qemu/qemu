@@ -6,6 +6,7 @@
 #include "qdev.h"
 
 #define QDEV_MAX_MMIO 32
+#define QDEV_MAX_PIO 32
 #define QDEV_MAX_IRQ 256
 
 typedef struct SysBusDevice SysBusDevice;
@@ -23,6 +24,8 @@ struct SysBusDevice {
         mmio_mapfunc cb;
         ram_addr_t iofunc;
     } mmio[QDEV_MAX_MMIO];
+    int num_pio;
+    pio_addr_t pio[QDEV_MAX_PIO];
 };
 
 typedef int (*sysbus_initfn)(SysBusDevice *dev);
@@ -45,6 +48,7 @@ void sysbus_init_mmio_cb(SysBusDevice *dev, target_phys_addr_t size,
                             mmio_mapfunc cb);
 void sysbus_init_irq(SysBusDevice *dev, qemu_irq *p);
 void sysbus_pass_irq(SysBusDevice *dev, SysBusDevice *target);
+void sysbus_init_ioports(SysBusDevice *dev, pio_addr_t ioport, pio_addr_t size);
 
 
 void sysbus_connect_irq(SysBusDevice *dev, int n, qemu_irq irq);

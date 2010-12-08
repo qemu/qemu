@@ -22,11 +22,13 @@
 #include "monitor.h"
 
 static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent);
+static char *sysbus_get_fw_dev_path(DeviceState *dev);
 
 struct BusInfo system_bus_info = {
     .name       = "System",
     .size       = sizeof(BusState),
     .print_dev  = sysbus_dev_print,
+    .get_fw_dev_path = sysbus_get_fw_dev_path,
 };
 
 void sysbus_connect_irq(SysBusDevice *dev, int n, qemu_irq irq)
@@ -106,6 +108,16 @@ void sysbus_init_mmio_cb(SysBusDevice *dev, target_phys_addr_t size,
     dev->mmio[n].cb = cb;
 }
 
+void sysbus_init_ioports(SysBusDevice *dev, pio_addr_t ioport, pio_addr_t size)
+{
+    pio_addr_t i;
+
+    for (i = 0; i < size; i++) {
+        assert(dev->num_pio < QDEV_MAX_PIO);
+        dev->pio[dev->num_pio++] = ioport++;
+    }
+}
+
 static int sysbus_device_init(DeviceState *dev, DeviceInfo *base)
 {
     SysBusDeviceInfo *info = container_of(base, SysBusDeviceInfo, qdev);
@@ -170,4 +182,22 @@ static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent)
         monitor_printf(mon, "%*smmio " TARGET_FMT_plx "/" TARGET_FMT_plx "\n",
                        indent, "", s->mmio[i].addr, s->mmio[i].size);
     }
+}
+
+static char *sysbus_get_fw_dev_path(DeviceState *dev)
+{
+    SysBusDevice *s = sysbus_from_qdev(dev);
+    char path[40];
+    int off;
+
+    off = snprintf(path, sizeof(path), "%s", qdev_fw_name(dev));
+
+    if (s->num_mmio) {
+        snprintf(path + off, sizeof(path) - off, "@"TARGET_FMT_plx,
+                 s->mmio[0].addr);
+    } else if (s->num_pio) {
+        snprintf(path + off, sizeof(path) - off, "@i%04x", s->pio[0]);
+    }
+
+    return strdup(path);
 }
