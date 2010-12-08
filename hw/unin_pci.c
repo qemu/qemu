@@ -154,7 +154,8 @@ static int pci_unin_main_init_device(SysBusDevice *dev)
     pci_mem_config = pci_host_conf_register_mmio(&s->host_state, 1);
     s->data_handler.read = unin_data_read;
     s->data_handler.write = unin_data_write;
-    pci_mem_data = cpu_register_io_memory_simple(&s->data_handler);
+    pci_mem_data = cpu_register_io_memory_simple(&s->data_handler,
+                                                 DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, pci_mem_config);
     sysbus_init_mmio(dev, 0x1000, pci_mem_data);
 
@@ -175,7 +176,8 @@ static int pci_u3_agp_init_device(SysBusDevice *dev)
     pci_mem_config = pci_host_conf_register_mmio(&s->host_state, 1);
     s->data_handler.read = unin_data_read;
     s->data_handler.write = unin_data_write;
-    pci_mem_data = cpu_register_io_memory_simple(&s->data_handler);
+    pci_mem_data = cpu_register_io_memory_simple(&s->data_handler,
+                                                 DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, pci_mem_config);
     sysbus_init_mmio(dev, 0x1000, pci_mem_data);
 

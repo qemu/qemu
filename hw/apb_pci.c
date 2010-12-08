@@ -418,7 +418,8 @@ static int pci_pbm_init_device(SysBusDevice *dev)
     /* PCI configuration space */
     s->pci_config_handler.read = apb_pci_config_read;
     s->pci_config_handler.write = apb_pci_config_write;
-    pci_config = cpu_register_io_memory_simple(&s->pci_config_handler);
+    pci_config = cpu_register_io_memory_simple(&s->pci_config_handler,
+                                               DEVICE_NATIVE_ENDIAN);
     assert(pci_config >= 0);
     /* at region 1 */
     sysbus_init_mmio(dev, 0x1000000ULL, pci_config);

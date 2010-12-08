@@ -187,9 +187,11 @@ int pci_host_conf_register_mmio(PCIHostState *s, int swap)
 {
     pci_host_init(s);
     if (swap) {
-        return cpu_register_io_memory_simple(&s->conf_handler);
+        return cpu_register_io_memory_simple(&s->conf_handler,
+                                             DEVICE_NATIVE_ENDIAN);
     } else {
-        return cpu_register_io_memory_simple(&s->conf_noswap_handler);
+        return cpu_register_io_memory_simple(&s->conf_noswap_handler,
+                                             DEVICE_NATIVE_ENDIAN);
     }
 }
 
@@ -203,9 +205,11 @@ int pci_host_data_register_mmio(PCIHostState *s, int swap)
 {
     pci_host_init(s);
     if (swap) {
-        return cpu_register_io_memory_simple(&s->data_handler);
+        return cpu_register_io_memory_simple(&s->data_handler,
+                                             DEVICE_NATIVE_ENDIAN);
     } else {
-        return cpu_register_io_memory_simple(&s->data_noswap_handler);
+        return cpu_register_io_memory_simple(&s->data_noswap_handler,
+                                             DEVICE_NATIVE_ENDIAN);
     }
 }
 

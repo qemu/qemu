@@ -19,7 +19,7 @@ struct ReadWriteHandler {
 
 /* Helpers for when we want to use a single routine with length. */
 /* CPU memory handler: both read and write must be present. */
-int cpu_register_io_memory_simple(ReadWriteHandler *);
+int cpu_register_io_memory_simple(ReadWriteHandler *, int endian);
 /* io port handler: can supply only read or write handlers. */
 int register_ioport_simple(ReadWriteHandler *,
                            pio_addr_t start, int length, int size);
