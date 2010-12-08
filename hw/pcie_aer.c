@@ -762,43 +762,31 @@ void pcie_aer_root_reset(PCIDevice *dev)
      */
 }
 
-static bool pcie_aer_root_does_trigger(uint32_t cmd, uint32_t status)
-{
-    return
-        ((cmd & PCI_ERR_ROOT_CMD_COR_EN) && (status & PCI_ERR_ROOT_COR_RCV)) ||
-        ((cmd & PCI_ERR_ROOT_CMD_NONFATAL_EN) &&
-         (status & PCI_ERR_ROOT_NONFATAL_RCV)) ||
-        ((cmd & PCI_ERR_ROOT_CMD_FATAL_EN) &&
-         (status & PCI_ERR_ROOT_FATAL_RCV));
-}
-
 void pcie_aer_root_write_config(PCIDevice *dev,
                                 uint32_t addr, uint32_t val, int len,
                                 uint32_t root_cmd_prev)
 {
     uint8_t *aer_cap = dev->config + dev->exp.aer_cap;
-
-    /* root command register */
+    uint32_t root_status = pci_get_long(aer_cap + PCI_ERR_ROOT_STATUS);
+    uint32_t enabled_cmd = pcie_aer_status_to_cmd(root_status);
     uint32_t root_cmd = pci_get_long(aer_cap + PCI_ERR_ROOT_COMMAND);
-    if (root_cmd & PCI_ERR_ROOT_CMD_EN_MASK) {
-        /* 6.2.4.1.2 Interrupt Generation */
+    /* 6.2.4.1.2 Interrupt Generation */
+    if (!msix_enabled(dev) && !msi_enabled(dev)) {
+        qemu_set_irq(dev->irq[dev->exp.aer_intx], !!(root_cmd & enabled_cmd));
+        return;
+    }
 
-        /* 0 -> 1 */
-        uint32_t root_cmd_set = ~root_cmd_prev & root_cmd;
-        uint32_t root_status = pci_get_long(aer_cap + PCI_ERR_ROOT_STATUS);
-        bool trigger = pcie_aer_root_does_trigger(root_cmd_set, root_status);
+    if ((root_cmd_prev & enabled_cmd) || !(root_cmd & enabled_cmd)) {
+        /* Send MSI on transition from false to true. */
+        return;
+    }
 
-        if (msix_enabled(dev)) {
-            if (trigger) {
-                msix_notify(dev, pcie_aer_root_get_vector(dev));
-            }
-        } else if (msi_enabled(dev)) {
-            if (trigger) {
-                msi_notify(dev, pcie_aer_root_get_vector(dev));
-            }
-        } else {
-            qemu_set_irq(dev->irq[dev->exp.aer_intx], trigger);
-        }
+    if (msix_enabled(dev)) {
+        msix_notify(dev, pcie_aer_root_get_vector(dev));
+    } else if (msi_enabled(dev)) {
+        msi_notify(dev, pcie_aer_root_get_vector(dev));
+    } else {
+        abort();
     }
 }
 
