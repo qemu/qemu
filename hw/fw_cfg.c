@@ -277,10 +277,9 @@ int fw_cfg_add_callback(FWCfgState *s, uint16_t key, FWCfgCallback callback,
     return 1;
 }
 
-int fw_cfg_add_file(FWCfgState *s,  const char *dir, const char *filename,
-                    uint8_t *data, uint32_t len)
+int fw_cfg_add_file(FWCfgState *s,  const char *filename, uint8_t *data,
+                    uint32_t len)
 {
-    const char *basename;
     int i, index;
 
     if (!s->files) {
@@ -297,15 +296,8 @@ int fw_cfg_add_file(FWCfgState *s,  const char *dir, const char *filename,
 
     fw_cfg_add_bytes(s, FW_CFG_FILE_FIRST + index, data, len);
 
-    basename = strrchr(filename, '/');
-    if (basename) {
-        basename++;
-    } else {
-        basename = filename;
-    }
-
-    snprintf(s->files->f[index].name, sizeof(s->files->f[index].name),
-             "%s/%s", dir, basename);
+    pstrcpy(s->files->f[index].name, sizeof(s->files->f[index].name),
+            filename);
     for (i = 0; i < index; i++) {
         if (strcmp(s->files->f[index].name, s->files->f[i].name) == 0) {
             FW_CFG_DPRINTF("%s: skip duplicate: %s\n", __FUNCTION__,

@@ -592,8 +592,20 @@ int rom_add_file(const char *file, const char *fw_dir,
     }
     close(fd);
     rom_insert(rom);
-    if (rom->fw_file && fw_cfg)
-        fw_cfg_add_file(fw_cfg, rom->fw_dir, rom->fw_file, rom->data, rom->romsize);
+    if (rom->fw_file && fw_cfg) {
+        const char *basename;
+        char fw_file_name[56];
+
+        basename = strrchr(rom->fw_file, '/');
+        if (basename) {
+            basename++;
+        } else {
+            basename = rom->fw_file;
+        }
+        snprintf(fw_file_name, sizeof(fw_file_name), "%s/%s", rom->fw_dir,
+                 basename);
+        fw_cfg_add_file(fw_cfg, fw_file_name, rom->data, rom->romsize);
+    }
     return 0;
 
 err:
