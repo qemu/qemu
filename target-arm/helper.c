@@ -76,6 +76,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         memcpy(env->cp15.c0_c1, arm1136_cp15_c0_c1, 8 * sizeof(uint32_t));
         memcpy(env->cp15.c0_c2, arm1136_cp15_c0_c2, 8 * sizeof(uint32_t));
         env->cp15.c0_cachetype = 0x1dd20d2;
+        env->cp15.c1_sys = 0x00050078;
         break;
     case ARM_CPUID_ARM11MPCORE:
         set_feature(env, ARM_FEATURE_V6);
@@ -131,6 +132,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c0_clid = (1 << 27) | (1 << 24) | 3;
         env->cp15.c0_ccsid[0] = 0xe00fe015; /* 16k L1 dcache. */
         env->cp15.c0_ccsid[1] = 0x200fe015; /* 16k L1 icache. */
+        env->cp15.c1_sys = 0x00c50078;
         break;
     case ARM_CPUID_CORTEXM3:
         set_feature(env, ARM_FEATURE_V6);
