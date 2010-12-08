@@ -20,6 +20,12 @@
 
 #if !defined(CONFIG_USER_ONLY)
 
+enum device_endian {
+    DEVICE_NATIVE_ENDIAN,
+    DEVICE_BIG_ENDIAN,
+    DEVICE_LITTLE_ENDIAN,
+};
+
 /* address in the RAM (different from a physical address) */
 typedef unsigned long ram_addr_t;
 
@@ -55,7 +61,7 @@ ram_addr_t qemu_ram_addr_from_host_nofail(void *ptr);
 
 int cpu_register_io_memory(CPUReadMemoryFunc * const *mem_read,
                            CPUWriteMemoryFunc * const *mem_write,
-                           void *opaque);
+                           void *opaque, enum device_endian endian);
 void cpu_unregister_io_memory(int table_address);
 
 void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
