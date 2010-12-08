@@ -273,6 +273,17 @@ static uint32_t pcie_aer_status_to_cmd(uint32_t status)
     return cmd;
 }
 
+static void pcie_aer_root_notify(PCIDevice *dev)
+{
+    if (msix_enabled(dev)) {
+        msix_notify(dev, pcie_aer_root_get_vector(dev));
+    } else if (msi_enabled(dev)) {
+        msi_notify(dev, pcie_aer_root_get_vector(dev));
+    } else {
+        qemu_set_irq(dev->irq[dev->exp.aer_intx], 1);
+    }
+}
+
 /*
  * 6.2.6 Error Message Control
  * Figure 6-3
@@ -344,13 +355,7 @@ static void pcie_aer_msg_root_port(PCIDevice *dev, const PCIEAERMsg *msg)
         return;
     }
 
-    if (msix_enabled(dev)) {
-        msix_notify(dev, pcie_aer_root_get_vector(dev));
-    } else if (msi_enabled(dev)) {
-        msi_notify(dev, pcie_aer_root_get_vector(dev));
-    } else {
-        qemu_set_irq(dev->irq[dev->exp.aer_intx], 1);
-    }
+    pcie_aer_root_notify(dev);
 }
 
 /*
@@ -760,13 +765,7 @@ void pcie_aer_root_write_config(PCIDevice *dev,
         return;
     }
 
-    if (msix_enabled(dev)) {
-        msix_notify(dev, pcie_aer_root_get_vector(dev));
-    } else if (msi_enabled(dev)) {
-        msi_notify(dev, pcie_aer_root_get_vector(dev));
-    } else {
-        abort();
-    }
+    pcie_aer_root_notify(dev);
 }
 
 static const VMStateDescription vmstate_pcie_aer_err = {
