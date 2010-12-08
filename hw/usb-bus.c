@@ -110,11 +110,12 @@ USBDevice *usb_create_simple(USBBus *bus, const char *name)
 }
 
 void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,
-                       usb_attachfn attach)
+                       USBDevice *pdev, usb_attachfn attach)
 {
     port->opaque = opaque;
     port->index = index;
     port->attach = attach;
+    port->pdev = pdev;
     QTAILQ_INSERT_TAIL(&bus->free, port, next);
     bus->nfree++;
 }

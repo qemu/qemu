@@ -535,7 +535,7 @@ static int usb_hub_initfn(USBDevice *dev)
     for (i = 0; i < s->nb_ports; i++) {
         port = &s->ports[i];
         usb_register_port(usb_bus_from_device(dev),
-                          &port->port, s, i, usb_hub_attach);
+                          &port->port, s, i, &s->dev, usb_hub_attach);
         port->wPortStatus = PORT_STAT_POWER;
         port->wPortChange = 0;
     }

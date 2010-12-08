@@ -203,6 +203,7 @@ struct USBPort {
     USBDevice *dev;
     usb_attachfn attach;
     void *opaque;
+    USBDevice *pdev;
     int index; /* internal port index, may be used with the opaque */
     QTAILQ_ENTRY(USBPort) next;
 };
@@ -312,7 +313,7 @@ USBDevice *usb_create(USBBus *bus, const char *name);
 USBDevice *usb_create_simple(USBBus *bus, const char *name);
 USBDevice *usbdevice_create(const char *cmdline);
 void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,
-                       usb_attachfn attach);
+                       USBDevice *pdev, usb_attachfn attach);
 void usb_unregister_port(USBBus *bus, USBPort *port);
 int usb_device_attach(USBDevice *dev);
 int usb_device_detach(USBDevice *dev);

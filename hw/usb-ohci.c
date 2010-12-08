@@ -1699,7 +1699,7 @@ static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
     usb_bus_new(&ohci->bus, dev);
     ohci->num_ports = num_ports;
     for (i = 0; i < num_ports; i++) {
-        usb_register_port(&ohci->bus, &ohci->rhport[i].port, ohci, i, ohci_attach);
+        usb_register_port(&ohci->bus, &ohci->rhport[i].port, ohci, i, NULL, ohci_attach);
     }
 
     ohci->async_td = 0;
