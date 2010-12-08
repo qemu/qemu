@@ -1530,9 +1530,6 @@ static uint32_t ohci_mem_read(void *ptr, target_phys_addr_t addr)
         }
     }
 
-#ifdef TARGET_WORDS_BIGENDIAN
-    retval = bswap32(retval);
-#endif
     return retval;
 }
 
@@ -1541,10 +1538,6 @@ static void ohci_mem_write(void *ptr, target_phys_addr_t addr, uint32_t val)
     OHCIState *ohci = ptr;
 
     addr &= 0xff;
-
-#ifdef TARGET_WORDS_BIGENDIAN
-    val = bswap32(val);
-#endif
 
     /* Only aligned reads are allowed on OHCI */
     if (addr & 3) {
@@ -1698,7 +1691,7 @@ static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
     }
 
     ohci->mem = cpu_register_io_memory(ohci_readfn, ohci_writefn, ohci,
-                                       DEVICE_NATIVE_ENDIAN);
+                                       DEVICE_LITTLE_ENDIAN);
     ohci->localmem_base = localmem_base;
 
     ohci->name = dev->info->name;
