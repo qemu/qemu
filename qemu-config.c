@@ -429,6 +429,22 @@ QemuOptsList qemu_spice_opts = {
     },
 };
 
+QemuOptsList qemu_option_rom_opts = {
+    .name = "option-rom",
+    .implied_opt_name = "romfile",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_option_rom_opts.head),
+    .desc = {
+        {
+            .name = "bootindex",
+            .type = QEMU_OPT_NUMBER,
+        }, {
+            .name = "romfile",
+            .type = QEMU_OPT_STRING,
+        },
+        { /* end if list */ }
+    },
+};
+
 static QemuOptsList *vm_config_groups[32] = {
     &qemu_drive_opts,
     &qemu_chardev_opts,
@@ -442,6 +458,7 @@ static QemuOptsList *vm_config_groups[32] = {
 #ifdef CONFIG_SIMPLE_TRACE
     &qemu_trace_opts,
 #endif
+    &qemu_option_rom_opts,
     NULL,
 };
 

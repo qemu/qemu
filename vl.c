@@ -218,7 +218,7 @@ int cursor_hide = 1;
 int graphic_rotate = 0;
 uint8_t irq0override = 1;
 const char *watchdog;
-const char *option_rom[MAX_OPTION_ROMS];
+QEMUOptionRom option_rom[MAX_OPTION_ROMS];
 int nb_option_roms;
 int semihosting_enabled = 0;
 int old_param = 0;
@@ -2520,7 +2520,14 @@ int main(int argc, char **argv, char **envp)
 		    fprintf(stderr, "Too many option ROMs\n");
 		    exit(1);
 		}
-		option_rom[nb_option_roms] = optarg;
+                opts = qemu_opts_parse(qemu_find_opts("option-rom"), optarg, 1);
+                option_rom[nb_option_roms].name = qemu_opt_get(opts, "romfile");
+                option_rom[nb_option_roms].bootindex =
+                    qemu_opt_get_number(opts, "bootindex", -1);
+                if (!option_rom[nb_option_roms].name) {
+                    fprintf(stderr, "Option ROM file is not specified\n");
+                    exit(1);
+                }
 		nb_option_roms++;
 		break;
             case QEMU_OPTION_semihosting:

@@ -139,7 +139,11 @@ extern uint64_t node_mem[MAX_NODES];
 extern uint64_t node_cpumask[MAX_NODES];
 
 #define MAX_OPTION_ROMS 16
-extern const char *option_rom[MAX_OPTION_ROMS];
+typedef struct QEMUOptionRom {
+    const char *name;
+    int32_t bootindex;
+} QEMUOptionRom;
+extern QEMUOptionRom option_rom[MAX_OPTION_ROMS];
 extern int nb_option_roms;
 
 #define MAX_PROM_ENVS 128

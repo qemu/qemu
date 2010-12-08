@@ -733,7 +733,8 @@ static void load_linux(void *fw_cfg,
     fw_cfg_add_i32(fw_cfg, FW_CFG_SETUP_SIZE, setup_size);
     fw_cfg_add_bytes(fw_cfg, FW_CFG_SETUP_DATA, setup, setup_size);
 
-    option_rom[nb_option_roms] = "linuxboot.bin";
+    option_rom[nb_option_roms].name = "linuxboot.bin";
+    option_rom[nb_option_roms].bootindex = 0;
     nb_option_roms++;
 }
 
@@ -937,7 +938,7 @@ void pc_memory_init(ram_addr_t ram_size,
         goto bios_error;
     }
     bios_offset = qemu_ram_alloc(NULL, "pc.bios", bios_size);
-    ret = rom_add_file_fixed(bios_name, (uint32_t)(-bios_size));
+    ret = rom_add_file_fixed(bios_name, (uint32_t)(-bios_size), -1);
     if (ret != 0) {
     bios_error:
         fprintf(stderr, "qemu: could not load PC BIOS '%s'\n", bios_name);
@@ -969,7 +970,7 @@ void pc_memory_init(ram_addr_t ram_size,
     }
 
     for (i = 0; i < nb_option_roms; i++) {
-        rom_add_option(option_rom[i]);
+        rom_add_option(option_rom[i].name, option_rom[i].bootindex);
     }
 }
 

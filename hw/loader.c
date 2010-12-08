@@ -107,7 +107,7 @@ int load_image_targphys(const char *filename,
 
     size = get_image_size(filename);
     if (size > 0)
-        rom_add_file_fixed(filename, addr);
+        rom_add_file_fixed(filename, addr, -1);
     return size;
 }
 
@@ -557,10 +557,11 @@ static void rom_insert(Rom *rom)
 }
 
 int rom_add_file(const char *file, const char *fw_dir,
-                 target_phys_addr_t addr)
+                 target_phys_addr_t addr, int32_t bootindex)
 {
     Rom *rom;
     int rc, fd = -1;
+    char devpath[100];
 
     rom = qemu_mallocz(sizeof(*rom));
     rom->name = qemu_strdup(file);
@@ -605,7 +606,12 @@ int rom_add_file(const char *file, const char *fw_dir,
         snprintf(fw_file_name, sizeof(fw_file_name), "%s/%s", rom->fw_dir,
                  basename);
         fw_cfg_add_file(fw_cfg, fw_file_name, rom->data, rom->romsize);
+        snprintf(devpath, sizeof(devpath), "/rom@%s", fw_file_name);
+    } else {
+        snprintf(devpath, sizeof(devpath), "/rom@" TARGET_FMT_plx, addr);
     }
+
+    add_boot_device_path(bootindex, NULL, devpath);
     return 0;
 
 err:
@@ -635,12 +641,12 @@ int rom_add_blob(const char *name, const void *blob, size_t len,
 
 int rom_add_vga(const char *file)
 {
-    return rom_add_file(file, "vgaroms", 0);
+    return rom_add_file(file, "vgaroms", 0, -1);
 }
 
-int rom_add_option(const char *file)
+int rom_add_option(const char *file, int32_t bootindex)
 {
-    return rom_add_file(file, "genroms", 0);
+    return rom_add_file(file, "genroms", 0, bootindex);
 }
 
 static void rom_reset(void *unused)

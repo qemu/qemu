@@ -310,7 +310,7 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
     if (!pci_dev->qdev.hotplugged) {
         static int loaded = 0;
         if (!loaded) {
-            rom_add_option("pxe-pcnet.bin");
+            rom_add_option("pxe-pcnet.bin", -1);
             loaded = 1;
         }
     }

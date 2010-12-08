@@ -1832,7 +1832,7 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
         if (class == 0x0300) {
             rom_add_vga(pdev->romfile);
         } else {
-            rom_add_option(pdev->romfile);
+            rom_add_option(pdev->romfile, -1);
         }
         return 0;
     }
