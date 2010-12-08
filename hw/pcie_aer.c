@@ -257,6 +257,22 @@ static unsigned int pcie_aer_root_get_vector(PCIDevice *dev)
     return (root_status & PCI_ERR_ROOT_IRQ) >> PCI_ERR_ROOT_IRQ_SHIFT;
 }
 
+/* Given a status register, get corresponding bits in the command register */
+static uint32_t pcie_aer_status_to_cmd(uint32_t status)
+{
+    uint32_t cmd = 0;
+    if (status & PCI_ERR_ROOT_COR_RCV) {
+        cmd |= PCI_ERR_ROOT_CMD_COR_EN;
+    }
+    if (status & PCI_ERR_ROOT_NONFATAL_RCV) {
+        cmd |= PCI_ERR_ROOT_CMD_NONFATAL_EN;
+    }
+    if (status & PCI_ERR_ROOT_FATAL_RCV) {
+        cmd |= PCI_ERR_ROOT_CMD_FATAL_EN;
+    }
+    return cmd;
+}
+
 /*
  * return value:
  * true: error message is sent up
@@ -272,14 +288,14 @@ static bool pcie_aer_msg_root_port(PCIDevice *dev, const PCIEAERMsg *msg)
     uint16_t cmd;
     uint8_t *aer_cap;
     uint32_t root_cmd;
-    uint32_t root_status;
+    uint32_t root_status, prev_status;
     bool msi_trigger;
 
     msg_sent = false;
     cmd = pci_get_word(dev->config + PCI_COMMAND);
     aer_cap = dev->config + dev->exp.aer_cap;
     root_cmd = pci_get_long(aer_cap + PCI_ERR_ROOT_COMMAND);
-    root_status = pci_get_long(aer_cap + PCI_ERR_ROOT_STATUS);
+    prev_status = root_status = pci_get_long(aer_cap + PCI_ERR_ROOT_STATUS);
     msi_trigger = false;
 
     if (cmd & PCI_COMMAND_SERR) {
@@ -337,20 +353,23 @@ static bool pcie_aer_msg_root_port(PCIDevice *dev, const PCIEAERMsg *msg)
     }
     pci_set_long(aer_cap + PCI_ERR_ROOT_STATUS, root_status);
 
-    if (root_cmd & msg->severity) {
-        /* 6.2.4.1.2 Interrupt Generation */
-        if (msix_enabled(dev)) {
-            if (msi_trigger) {
-                msix_notify(dev, pcie_aer_root_get_vector(dev));
-            }
-        } else if (msi_enabled(dev)) {
-            if (msi_trigger) {
-                msi_notify(dev, pcie_aer_root_get_vector(dev));
-            }
-        } else {
-            qemu_set_irq(dev->irq[dev->exp.aer_intx], 1);
-        }
-        msg_sent = true;
+    /* 6.2.4.1.2 Interrupt Generation */
+    /* All the above did was set some bits in the status register.
+     * Specifically these that match message severity.
+     * The below code relies on this fact. */
+    if (!(root_cmd & msg->severity) ||
+        (pcie_aer_status_to_cmd(prev_status) & root_cmd)) {
+        /* Condition is not being set or was already true so nothing to do. */
+        return msg_sent;
+    }
+
+    msg_sent = true;
+    if (msix_enabled(dev)) {
+        msix_notify(dev, pcie_aer_root_get_vector(dev));
+    } else if (msi_enabled(dev)) {
+        msi_notify(dev, pcie_aer_root_get_vector(dev));
+    } else {
+        qemu_set_irq(dev->irq[dev->exp.aer_intx], 1);
     }
     return msg_sent;
 }
