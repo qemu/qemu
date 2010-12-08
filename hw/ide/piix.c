@@ -125,8 +125,8 @@ static int pci_piix_ide_initfn(PCIIDEState *d)
 
     vmstate_register(&d->dev.qdev, 0, &vmstate_ide_pci, d);
 
-    ide_bus_new(&d->bus[0], &d->dev.qdev);
-    ide_bus_new(&d->bus[1], &d->dev.qdev);
+    ide_bus_new(&d->bus[0], &d->dev.qdev, 0);
+    ide_bus_new(&d->bus[1], &d->dev.qdev, 1);
     ide_init_ioport(&d->bus[0], 0x1f0, 0x3f6);
     ide_init_ioport(&d->bus[1], 0x170, 0x376);
 

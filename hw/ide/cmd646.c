@@ -253,8 +253,8 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
     pci_conf[PCI_INTERRUPT_PIN] = 0x01; // interrupt on pin 1
 
     irq = qemu_allocate_irqs(cmd646_set_irq, d, 2);
-    ide_bus_new(&d->bus[0], &d->dev.qdev);
-    ide_bus_new(&d->bus[1], &d->dev.qdev);
+    ide_bus_new(&d->bus[0], &d->dev.qdev, 0);
+    ide_bus_new(&d->bus[1], &d->dev.qdev, 1);
     ide_init2(&d->bus[0], irq[0]);
     ide_init2(&d->bus[1], irq[1]);
 
