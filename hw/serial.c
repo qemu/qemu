@@ -778,6 +778,7 @@ static int serial_isa_initfn(ISADevice *dev)
 
     register_ioport_write(isa->iobase, 8, 1, serial_ioport_write, s);
     register_ioport_read(isa->iobase, 8, 1, serial_ioport_read, s);
+    isa_init_ioport_range(dev, isa->iobase, 8);
     return 0;
 }
 

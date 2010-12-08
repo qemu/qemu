@@ -1983,6 +1983,9 @@ static int isabus_fdc_init1(ISADevice *dev)
                           &fdctrl_write_port, fdctrl);
     register_ioport_write(iobase + 0x07, 1, 1,
                           &fdctrl_write_port, fdctrl);
+    isa_init_ioport_range(dev, iobase, 6);
+    isa_init_ioport(dev, iobase + 7);
+
     isa_init_irq(&isa->busdev, &fdctrl->irq, isairq);
     fdctrl->dma_chann = dma_chann;
 

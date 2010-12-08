@@ -89,6 +89,31 @@ void isa_init_irq(ISADevice *dev, qemu_irq *p, int isairq)
     dev->nirqs++;
 }
 
+static void isa_init_ioport_one(ISADevice *dev, uint16_t ioport)
+{
+    assert(dev->nioports < ARRAY_SIZE(dev->ioports));
+    dev->ioports[dev->nioports++] = ioport;
+}
+
+static int isa_cmp_ports(const void *p1, const void *p2)
+{
+    return *(uint16_t*)p1 - *(uint16_t*)p2;
+}
+
+void isa_init_ioport_range(ISADevice *dev, uint16_t start, uint16_t length)
+{
+    int i;
+    for (i = start; i < start + length; i++) {
+        isa_init_ioport_one(dev, i);
+    }
+    qsort(dev->ioports, dev->nioports, sizeof(dev->ioports[0]), isa_cmp_ports);
+}
+
+void isa_init_ioport(ISADevice *dev, uint16_t ioport)
+{
+    isa_init_ioport_range(dev, ioport, 1);
+}
+
 static int isa_qdev_init(DeviceState *qdev, DeviceInfo *base)
 {
     ISADevice *dev = DO_UPCAST(ISADevice, qdev, qdev);

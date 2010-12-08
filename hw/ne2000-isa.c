@@ -68,14 +68,17 @@ static int isa_ne2000_initfn(ISADevice *dev)
 
     register_ioport_write(isa->iobase, 16, 1, ne2000_ioport_write, s);
     register_ioport_read(isa->iobase, 16, 1, ne2000_ioport_read, s);
+    isa_init_ioport_range(dev, isa->iobase, 16);
 
     register_ioport_write(isa->iobase + 0x10, 1, 1, ne2000_asic_ioport_write, s);
     register_ioport_read(isa->iobase + 0x10, 1, 1, ne2000_asic_ioport_read, s);
     register_ioport_write(isa->iobase + 0x10, 2, 2, ne2000_asic_ioport_write, s);
     register_ioport_read(isa->iobase + 0x10, 2, 2, ne2000_asic_ioport_read, s);
+    isa_init_ioport_range(dev, isa->iobase + 0x10, 2);
 
     register_ioport_write(isa->iobase + 0x1f, 1, 1, ne2000_reset_ioport_write, s);
     register_ioport_read(isa->iobase + 0x1f, 1, 1, ne2000_reset_ioport_read, s);
+    isa_init_ioport(dev, isa->iobase + 0x1f);
 
     isa_init_irq(dev, &s->irq, isa->isairq);
 
