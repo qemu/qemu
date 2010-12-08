@@ -140,14 +140,26 @@ static void i6300esb_disable_timer(I6300State *d)
     qemu_del_timer(d->timer);
 }
 
-static void i6300esb_reset(I6300State *d)
+static void i6300esb_reset(DeviceState *dev)
 {
-    /* XXX We should probably reset other parts of the state here,
-     * but we should also reset our state on general machine reset
-     * too.  For now just disable the timer so it doesn't fire
-     * again after the reboot.
-     */
+    PCIDevice *pdev = DO_UPCAST(PCIDevice, qdev, dev);
+    I6300State *d = DO_UPCAST(I6300State, dev, pdev);
+
+    i6300esb_debug("I6300State = %p\n", d);
+
     i6300esb_disable_timer(d);
+
+    d->reboot_enabled = 1;
+    d->clock_scale = CLOCK_SCALE_1KHZ;
+    d->int_type = INT_TYPE_IRQ;
+    d->free_run = 0;
+    d->locked = 0;
+    d->enabled = 0;
+    d->timer1_preload = 0xfffff;
+    d->timer2_preload = 0xfffff;
+    d->stage = 1;
+    d->unlock_state = 0;
+    d->previous_reboot_flag = 0;
 }
 
 /* This function is called when the watchdog expires.  Note that
@@ -181,7 +193,6 @@ static void i6300esb_timer_expired(void *vp)
         if (d->reboot_enabled) {
             d->previous_reboot_flag = 1;
             watchdog_perform_action(); /* This reboots, exits, etc */
-            i6300esb_reset(d);
         }
 
         /* In "free running mode" we start stage 1 again. */
@@ -395,18 +406,9 @@ static int i6300esb_init(PCIDevice *dev)
     I6300State *d = DO_UPCAST(I6300State, dev, dev);
     uint8_t *pci_conf;
 
-    d->reboot_enabled = 1;
-    d->clock_scale = CLOCK_SCALE_1KHZ;
-    d->int_type = INT_TYPE_IRQ;
-    d->free_run = 0;
-    d->locked = 0;
-    d->enabled = 0;
+    i6300esb_debug("I6300State = %p\n", d);
+
     d->timer = qemu_new_timer(vm_clock, i6300esb_timer_expired, d);
-    d->timer1_preload = 0xfffff;
-    d->timer2_preload = 0xfffff;
-    d->stage = 1;
-    d->unlock_state = 0;
-    d->previous_reboot_flag = 0;
 
     pci_conf = d->dev.config;
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
@@ -428,6 +430,7 @@ static PCIDeviceInfo i6300esb_info = {
     .qdev.name    = "i6300esb",
     .qdev.size    = sizeof(I6300State),
     .qdev.vmsd    = &vmstate_i6300esb,
+    .qdev.reset   = i6300esb_reset,
     .config_read  = i6300esb_config_read,
     .config_write = i6300esb_config_write,
     .init         = i6300esb_init,
