@@ -98,6 +98,7 @@ ISADevice *isa_ide_init(int iobase, int iobase2, int isairq,
 
 static ISADeviceInfo isa_ide_info = {
     .qdev.name  = "isa-ide",
+    .qdev.fw_name  = "ide",
     .qdev.size  = sizeof(ISAIDEState),
     .init       = isa_ide_initfn,
     .qdev.reset = isa_ide_reset,

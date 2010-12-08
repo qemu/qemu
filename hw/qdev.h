@@ -141,6 +141,7 @@ typedef void (*qdev_resetfn)(DeviceState *dev);
 
 struct DeviceInfo {
     const char *name;
+    const char *fw_name;
     const char *alias;
     const char *desc;
     size_t size;
@@ -305,6 +306,11 @@ void qdev_prop_set_defaults(DeviceState *dev, Property *props);
 
 void qdev_prop_register_global_list(GlobalProperty *props);
 void qdev_prop_set_globals(DeviceState *dev);
+
+static inline const char *qdev_fw_name(DeviceState *dev)
+{
+    return dev->info->fw_name ? : dev->info->alias ? : dev->info->name;
+}
 
 /* This is a nasty hack to allow passing a NULL bus to qdev_create.  */
 extern struct BusInfo system_bus_info;

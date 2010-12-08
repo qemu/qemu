@@ -142,6 +142,7 @@ static void lance_reset(DeviceState *dev)
 static SysBusDeviceInfo lance_info = {
     .init       = lance_init,
     .qdev.name  = "lance",
+    .qdev.fw_name  = "ethernet",
     .qdev.size  = sizeof(SysBusPCNetState),
     .qdev.reset = lance_reset,
     .qdev.vmsd  = &vmstate_lance,

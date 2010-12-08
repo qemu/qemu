@@ -2042,6 +2042,7 @@ static const VMStateDescription vmstate_isa_fdc ={
 static ISADeviceInfo isa_fdc_info = {
     .init = isabus_fdc_init1,
     .qdev.name  = "isa-fdc",
+    .qdev.fw_name  = "fdc",
     .qdev.size  = sizeof(FDCtrlISABus),
     .qdev.no_user = 1,
     .qdev.vmsd  = &vmstate_isa_fdc,

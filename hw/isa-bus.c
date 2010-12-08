@@ -150,6 +150,7 @@ static int isabus_bridge_init(SysBusDevice *dev)
 static SysBusDeviceInfo isabus_bridge_info = {
     .init = isabus_bridge_init,
     .qdev.name  = "isabus-bridge",
+    .qdev.fw_name  = "isa",
     .qdev.size  = sizeof(SysBusDevice),
     .qdev.no_user = 1,
 };

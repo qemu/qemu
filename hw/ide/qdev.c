@@ -134,6 +134,7 @@ static int ide_drive_initfn(IDEDevice *dev)
 
 static IDEDeviceInfo ide_drive_info = {
     .qdev.name  = "ide-drive",
+    .qdev.fw_name  = "drive",
     .qdev.size  = sizeof(IDEDrive),
     .init       = ide_drive_initfn,
     .qdev.props = (Property[]) {
