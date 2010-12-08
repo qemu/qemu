@@ -121,7 +121,7 @@ static int no_read (SWVoiceIn *sw, void *buf, int size)
     int total = sw->hw->total_samples_captured - sw->total_hw_samples_acquired;
     int to_clear = audio_MIN (samples, total);
     audio_pcm_info_clear_buf (&sw->info, buf, to_clear);
-    return to_clear;
+    return to_clear << sw->info.shift;
 }
 
 static int no_ctl_in (HWVoiceIn *hw, int cmd, ...)
