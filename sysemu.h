@@ -60,6 +60,8 @@ void qemu_system_reset(void);
 void qemu_add_exit_notifier(Notifier *notify);
 void qemu_remove_exit_notifier(Notifier *notify);
 
+void qemu_add_machine_init_done_notifier(Notifier *notify);
+
 void do_savevm(Monitor *mon, const QDict *qdict);
 int load_vmstate(const char *name);
 void do_delvm(Monitor *mon, const QDict *qdict);

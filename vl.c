@@ -254,6 +254,9 @@ static void *boot_set_opaque;
 static NotifierList exit_notifiers =
     NOTIFIER_LIST_INITIALIZER(exit_notifiers);
 
+static NotifierList machine_init_done_notifiers =
+    NOTIFIER_LIST_INITIALIZER(machine_init_done_notifiers);
+
 int kvm_allowed = 0;
 uint32_t xen_domid;
 enum xen_mode xen_mode = XEN_EMULATE;
@@ -1782,6 +1785,16 @@ static void qemu_run_exit_notifiers(void)
     notifier_list_notify(&exit_notifiers);
 }
 
+void qemu_add_machine_init_done_notifier(Notifier *notify)
+{
+    notifier_list_add(&machine_init_done_notifiers, notify);
+}
+
+static void qemu_run_machine_init_done_notifiers(void)
+{
+    notifier_list_notify(&machine_init_done_notifiers);
+}
+
 static const QEMUOption *lookup_opt(int argc, char **argv,
                                     const char **poptarg, int *poptind)
 {
@@ -3028,6 +3041,8 @@ int main(int argc, char **argv, char **envp)
     }
 
     qemu_register_reset((void *)qbus_reset_all, sysbus_get_default());
+    qemu_run_machine_init_done_notifiers();
+
     qemu_system_reset();
     if (loadvm) {
         if (load_vmstate(loadvm) < 0) {
