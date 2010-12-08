@@ -1084,22 +1084,26 @@ static int get_phys_addr_v6(CPUState *env, uint32_t address, int access_type,
         }
         code = 15;
     }
-    if (xn && access_type == 2)
-        goto do_fault;
+    if (domain == 3) {
+        *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+    } else {
+        if (xn && access_type == 2)
+            goto do_fault;
 
-    /* The simplified model uses AP[0] as an access control bit.  */
-    if ((env->cp15.c1_sys & (1 << 29)) && (ap & 1) == 0) {
-        /* Access flag fault.  */
-        code = (code == 15) ? 6 : 3;
-        goto do_fault;
-    }
-    *prot = check_ap(env, ap, domain, access_type, is_user);
-    if (!*prot) {
-        /* Access permission fault.  */
-        goto do_fault;
-    }
-    if (!xn) {
-        *prot |= PAGE_EXEC;
+        /* The simplified model uses AP[0] as an access control bit.  */
+        if ((env->cp15.c1_sys & (1 << 29)) && (ap & 1) == 0) {
+            /* Access flag fault.  */
+            code = (code == 15) ? 6 : 3;
+            goto do_fault;
+        }
+        *prot = check_ap(env, ap, domain, access_type, is_user);
+        if (!*prot) {
+            /* Access permission fault.  */
+            goto do_fault;
+        }
+        if (!xn) {
+            *prot |= PAGE_EXEC;
+        }
     }
     *phys_ptr = phys_addr;
     return 0;
