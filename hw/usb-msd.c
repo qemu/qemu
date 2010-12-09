@@ -187,7 +187,7 @@ static void usb_msd_copy_data(MSDState *s)
     s->usb_buf += len;
     s->scsi_buf += len;
     s->data_len -= len;
-    if (s->scsi_len == 0) {
+    if (s->scsi_len == 0 || s->data_len == 0) {
         if (s->mode == USB_MSDM_DATAIN) {
             s->scsi_dev->info->read_data(s->scsi_dev, s->tag);
         } else if (s->mode == USB_MSDM_DATAOUT) {
@@ -434,7 +434,7 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
             break;
 
         case USB_MSDM_DATAIN:
-            DPRINTF("Data in %d/%d\n", len, s->data_len);
+            DPRINTF("Data in %d/%d, scsi_len %d\n", len, s->data_len, s->scsi_len);
             if (len > s->data_len)
                 len = s->data_len;
             s->usb_buf = data;
