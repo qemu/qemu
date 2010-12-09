@@ -282,6 +282,7 @@ static int add_old_style_options(const char *fmt, QEMUOptionParameter *list,
 static int img_create(int argc, char **argv)
 {
     int c, ret = 0;
+    uint64_t img_size = -1;
     const char *fmt = "raw";
     const char *base_fmt = NULL;
     const char *filename;
@@ -330,6 +331,20 @@ static int img_create(int argc, char **argv)
     }
     filename = argv[optind++];
 
+    /* Get image size, if specified */
+    if (optind < argc) {
+        ssize_t sval;
+        sval = strtosz_suffix(argv[optind++], NULL, STRTOSZ_DEFSUFFIX_B);
+        if (sval < 0) {
+            error("Invalid image size specified! You may use k, M, G or "
+                  "T suffixes for ");
+            error("kilobytes, megabytes, gigabytes and terabytes.");
+            ret = -1;
+            goto out;
+        }
+        img_size = (uint64_t)sval;
+    }
+
     if (options && !strcmp(options, "?")) {
         ret = print_block_option_help(filename, fmt);
         goto out;
@@ -357,7 +372,8 @@ static int img_create(int argc, char **argv)
 
     /* Create parameter list with default values */
     param = parse_option_parameters("", create_options, param);
-    set_option_parameter_int(param, BLOCK_OPT_SIZE, -1);
+
+    set_option_parameter_int(param, BLOCK_OPT_SIZE, img_size);
 
     /* Parse -o options */
     if (options) {
@@ -367,11 +383,6 @@ static int img_create(int argc, char **argv)
             ret = -1;
             goto out;
         }
-    }
-
-    /* Add size to parameters */
-    if (optind < argc) {
-        set_option_parameter(param, BLOCK_OPT_SIZE, argv[optind++]);
     }
 
     /* Add old-style options to parameters */
