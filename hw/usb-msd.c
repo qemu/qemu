@@ -196,15 +196,18 @@ static void usb_msd_copy_data(MSDState *s)
     }
 }
 
-static void usb_msd_send_status(MSDState *s)
+static void usb_msd_send_status(MSDState *s, USBPacket *p)
 {
     struct usb_msd_csw csw;
+    int len;
 
     csw.sig = cpu_to_le32(0x53425355);
     csw.tag = cpu_to_le32(s->tag);
     csw.residue = s->residue;
     csw.status = s->result;
-    memcpy(s->usb_buf, &csw, 13);
+
+    len = MIN(sizeof(csw), p->len);
+    memcpy(p->data, &csw, len);
 }
 
 static void usb_msd_command_complete(SCSIBus *bus, int reason, uint32_t tag,
@@ -224,7 +227,7 @@ static void usb_msd_command_complete(SCSIBus *bus, int reason, uint32_t tag,
             if (s->data_len == 0 && s->mode == USB_MSDM_DATAOUT) {
                 /* A deferred packet with no write data remaining must be
                    the status read packet.  */
-                usb_msd_send_status(s);
+                usb_msd_send_status(s, p);
                 s->mode = USB_MSDM_CBW;
             } else {
                 if (s->data_len) {
@@ -425,9 +428,7 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
             if (len < 13)
                 goto fail;
 
-            s->usb_len = len;
-            s->usb_buf = data;
-            usb_msd_send_status(s);
+            usb_msd_send_status(s, p);
             s->mode = USB_MSDM_CBW;
             ret = 13;
             break;
