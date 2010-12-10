@@ -132,16 +132,17 @@ static void do_flush_queued_data(VirtIOSerialPort *port, VirtQueue *vq,
     assert(virtio_queue_ready(vq));
 
     while (!port->throttled && virtqueue_pop(vq, &elem)) {
-        uint8_t *buf;
-        size_t ret, buf_size;
+        unsigned int i;
 
-        buf_size = iov_size(elem.out_sg, elem.out_num);
-        buf = qemu_malloc(buf_size);
-        ret = iov_to_buf(elem.out_sg, elem.out_num, buf, 0, buf_size);
+        for (i = 0; i < elem.out_num; i++) {
+            size_t buf_size;
 
-        port->info->have_data(port, buf, ret);
-        qemu_free(buf);
+            buf_size = elem.out_sg[i].iov_len;
 
+            port->info->have_data(port,
+                                  elem.out_sg[i].iov_base,
+                                  buf_size);
+        }
         virtqueue_push(vq, &elem, 0);
     }
     virtio_notify(vdev, vq);
