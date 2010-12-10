@@ -187,7 +187,7 @@ static int kvm_get_mce_cap_supported(KVMState *s, uint64_t *mce_cap,
 {
     int r;
 
-    r = kvm_ioctl(s, KVM_CHECK_EXTENSION, KVM_CAP_MCE);
+    r = kvm_check_extension(s, KVM_CAP_MCE);
     if (r > 0) {
         *max_banks = r;
         return kvm_ioctl(s, KVM_X86_GET_MCE_CAP_SUPPORTED, mce_cap);
@@ -540,7 +540,7 @@ int kvm_arch_init(KVMState *s, int smp_cpus)
      * versions of KVM just assumed that it would be at the end of physical
      * memory but that doesn't work with more than 4GB of memory.  We simply
      * refuse to work with those older versions of KVM. */
-    ret = kvm_ioctl(s, KVM_CHECK_EXTENSION, KVM_CAP_SET_TSS_ADDR);
+    ret = kvm_check_extension(s, KVM_CAP_SET_TSS_ADDR);
     if (ret <= 0) {
         fprintf(stderr, "kvm does not support KVM_CAP_SET_TSS_ADDR\n");
         return ret;

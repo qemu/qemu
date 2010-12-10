@@ -717,7 +717,7 @@ int kvm_init(int smp_cpus)
 
     s->broken_set_mem_region = 1;
 #ifdef KVM_CAP_JOIN_MEMORY_REGIONS_WORKS
-    ret = kvm_ioctl(s, KVM_CHECK_EXTENSION, KVM_CAP_JOIN_MEMORY_REGIONS_WORKS);
+    ret = kvm_check_extension(s, KVM_CAP_JOIN_MEMORY_REGIONS_WORKS);
     if (ret > 0) {
         s->broken_set_mem_region = 0;
     }
