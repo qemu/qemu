@@ -2743,7 +2743,7 @@ int main(int argc, char **argv, char **envp)
     struct target_pt_regs regs1, *regs = &regs1;
     struct image_info info1, *info = &info1;
     struct linux_binprm bprm;
-    TaskState ts1, *ts = &ts1;
+    TaskState *ts;
     CPUState *env;
     int optind;
     const char *r;
@@ -3072,7 +3072,7 @@ int main(int argc, char **argv, char **envp)
     }
     target_argv[target_argc] = NULL;
 
-    memset(ts, 0, sizeof(TaskState));
+    ts = qemu_mallocz (sizeof(TaskState));
     init_task_state(ts);
     /* build Task State */
     ts->info = info;

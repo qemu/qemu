@@ -49,7 +49,7 @@
 #define TARGET_IOC_TYPEBITS	8
 
 #if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC) \
-    || defined(TARGET_M68K) || defined(TARGET_SH4) || defined(TARGET_CRIS)
+    || defined(TARGET_M68K) || defined(TARGET_SH4) || defined(TARGET_CRIS) || defined(TARGET_PPC) || defined(TARGET_MIPS)
     /* 16 bit uid wrappers emulation */
 #define USE_UID16
 #endif
