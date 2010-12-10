@@ -1671,6 +1671,9 @@ if test "$kvm" != "no" ; then
 #if !defined(KVM_CAP_DESTROY_MEMORY_REGION_WORKS)
 #error Missing KVM capability KVM_CAP_DESTROY_MEMORY_REGION_WORKS
 #endif
+#if !defined(KVM_CAP_USER_NMI)
+#error Missing KVM capability KVM_CAP_USER_NMI
+#endif
 int main(void) { return 0; }
 EOF
   if test "$kerneldir" != "" ; then

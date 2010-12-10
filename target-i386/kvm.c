@@ -1417,6 +1417,13 @@ int kvm_arch_get_registers(CPUState *env)
 
 int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
 {
+    /* Inject NMI */
+    if (env->interrupt_request & CPU_INTERRUPT_NMI) {
+        env->interrupt_request &= ~CPU_INTERRUPT_NMI;
+        DPRINTF("injected NMI\n");
+        kvm_vcpu_ioctl(env, KVM_NMI);
+    }
+
     /* Try to inject an interrupt if the guest can accept it */
     if (run->ready_for_interrupt_injection &&
         (env->interrupt_request & CPU_INTERRUPT_HARD) &&
