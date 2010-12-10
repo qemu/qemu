@@ -1021,20 +1021,11 @@ static void breakpoint_handler(CPUState *env)
 /* This should come from sysemu.h - if we could include it here... */
 void qemu_system_reset_request(void);
 
-void cpu_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
+static void qemu_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
                         uint64_t mcg_status, uint64_t addr, uint64_t misc)
 {
     uint64_t mcg_cap = cenv->mcg_cap;
-    unsigned bank_num = mcg_cap & 0xff;
     uint64_t *banks = cenv->mce_banks;
-
-    if (bank >= bank_num || !(status & MCI_STATUS_VAL))
-        return;
-
-    if (kvm_enabled()) {
-        kvm_inject_x86_mce(cenv, bank, status, mcg_status, addr, misc, 0);
-        return;
-    }
 
     /*
      * if MSR_MCG_CTL is not all 1s, the uncorrected error
@@ -1075,6 +1066,22 @@ void cpu_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
         banks[1] = status;
     } else
         banks[1] |= MCI_STATUS_OVER;
+}
+
+void cpu_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
+                        uint64_t mcg_status, uint64_t addr, uint64_t misc)
+{
+    unsigned bank_num = cenv->mcg_cap & 0xff;
+
+    if (bank >= bank_num || !(status & MCI_STATUS_VAL)) {
+        return;
+    }
+
+    if (kvm_enabled()) {
+        kvm_inject_x86_mce(cenv, bank, status, mcg_status, addr, misc, 0);
+    } else {
+        qemu_inject_x86_mce(cenv, bank, status, mcg_status, addr, misc);
+    }
 }
 #endif /* !CONFIG_USER_ONLY */
 
