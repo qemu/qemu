@@ -587,6 +587,16 @@ extern const VMStateDescription vmstate_i2c_slave;
     .offset     = vmstate_offset_value(_state, _field, i2c_slave),   \
 }
 
+extern const VMStateDescription vmstate_usb_device;
+
+#define VMSTATE_USB_DEVICE(_field, _state) {                         \
+    .name       = (stringify(_field)),                               \
+    .size       = sizeof(USBDevice),                                 \
+    .vmsd       = &vmstate_usb_device,                               \
+    .flags      = VMS_STRUCT,                                        \
+    .offset     = vmstate_offset_value(_state, _field, USBDevice),   \
+}
+
 #define vmstate_offset_macaddr(_state, _field)                       \
     vmstate_offset_array(_state, _field.a, uint8_t,                \
                          sizeof(typeof_field(_state, _field)))

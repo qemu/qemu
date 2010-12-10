@@ -23,6 +23,22 @@ static struct BusInfo usb_bus_info = {
 static int next_usb_bus = 0;
 static QTAILQ_HEAD(, USBBus) busses = QTAILQ_HEAD_INITIALIZER(busses);
 
+const VMStateDescription vmstate_usb_device = {
+    .name = "USBDevice",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField []) {
+        VMSTATE_UINT8(addr, USBDevice),
+        VMSTATE_INT32(state, USBDevice),
+        VMSTATE_INT32(remote_wakeup, USBDevice),
+        VMSTATE_INT32(setup_state, USBDevice),
+        VMSTATE_INT32(setup_len, USBDevice),
+        VMSTATE_INT32(setup_index, USBDevice),
+        VMSTATE_UINT8_ARRAY(setup_buf, USBDevice, 8),
+        VMSTATE_END_OF_LIST(),
+    }
+};
+
 void usb_bus_new(USBBus *bus, DeviceState *host)
 {
     qbus_create_inplace(&bus->qbus, &usb_bus_info, host, NULL);
