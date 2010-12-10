@@ -240,6 +240,7 @@ typedef struct USBPortOps {
 struct USBPort {
     USBDevice *dev;
     int speedmask;
+    char path[16];
     USBPortOps *ops;
     void *opaque;
     USBDevice *pdev;
@@ -354,6 +355,7 @@ USBDevice *usb_create_simple(USBBus *bus, const char *name);
 USBDevice *usbdevice_create(const char *cmdline);
 void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,
                        USBDevice *pdev, USBPortOps *ops, int speedmask);
+void usb_port_location(USBPort *downstream, USBPort *upstream, int portnr);
 void usb_unregister_port(USBBus *bus, USBPort *port);
 int usb_device_attach(USBDevice *dev);
 int usb_device_detach(USBDevice *dev);

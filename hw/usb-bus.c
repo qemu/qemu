@@ -5,12 +5,15 @@
 #include "monitor.h"
 
 static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent);
+
+static char *usb_get_dev_path(DeviceState *dev);
 static char *usbbus_get_fw_dev_path(DeviceState *dev);
 
 static struct BusInfo usb_bus_info = {
     .name      = "USB",
     .size      = sizeof(USBBus),
     .print_dev = usb_bus_dev_print,
+    .get_dev_path = usb_get_dev_path,
     .get_fw_dev_path = usbbus_get_fw_dev_path,
 };
 static int next_usb_bus = 0;
@@ -126,6 +129,16 @@ void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,
     bus->nfree++;
 }
 
+void usb_port_location(USBPort *downstream, USBPort *upstream, int portnr)
+{
+    if (upstream) {
+        snprintf(downstream->path, sizeof(downstream->path), "%s.%d",
+                 upstream->path, portnr);
+    } else {
+        snprintf(downstream->path, sizeof(downstream->path), "%d", portnr);
+    }
+}
+
 void usb_unregister_port(USBBus *bus, USBPort *port)
 {
     if (port->dev)
@@ -235,10 +248,17 @@ static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
     USBDevice *dev = DO_UPCAST(USBDevice, qdev, qdev);
     USBBus *bus = usb_bus_from_device(dev);
 
-    monitor_printf(mon, "%*saddr %d.%d, speed %s, name %s%s\n",
+    monitor_printf(mon, "%*saddr %d.%d, port %s, speed %s, name %s%s\n",
                    indent, "", bus->busnr, dev->addr,
+                   dev->port ? dev->port->path : "-",
                    usb_speed(dev->speed), dev->product_desc,
                    dev->attached ? ", attached" : "");
+}
+
+static char *usb_get_dev_path(DeviceState *qdev)
+{
+    USBDevice *dev = DO_UPCAST(USBDevice, qdev, qdev);
+    return qemu_strdup(dev->port->path);
 }
 
 void usb_info(Monitor *mon)
@@ -257,8 +277,8 @@ void usb_info(Monitor *mon)
             dev = port->dev;
             if (!dev)
                 continue;
-            monitor_printf(mon, "  Device %d.%d, Speed %s Mb/s, Product %s\n",
-                           bus->busnr, dev->addr, usb_speed(dev->speed),
+            monitor_printf(mon, "  Device %d.%d, Port %s, Speed %s Mb/s, Product %s\n",
+                           bus->busnr, dev->addr, port->path, usb_speed(dev->speed),
                            dev->product_desc);
         }
     }

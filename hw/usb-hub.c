@@ -256,6 +256,16 @@ static void usb_hub_wakeup(USBDevice *dev)
     }
 }
 
+static void usb_hub_handle_attach(USBDevice *dev)
+{
+    USBHubState *s = DO_UPCAST(USBHubState, dev, dev);
+    int i;
+
+    for (i = 0; i < NUM_PORTS; i++) {
+        usb_port_location(&s->ports[i].port, dev->port, i+1);
+    }
+}
+
 static void usb_hub_handle_reset(USBDevice *dev)
 {
     /* XXX: do it */
@@ -542,6 +552,7 @@ static struct USBDeviceInfo hub_info = {
     .usb_desc       = &desc_hub,
     .init           = usb_hub_initfn,
     .handle_packet  = usb_hub_handle_packet,
+    .handle_attach  = usb_hub_handle_attach,
     .handle_reset   = usb_hub_handle_reset,
     .handle_control = usb_hub_handle_control,
     .handle_data    = usb_hub_handle_data,
