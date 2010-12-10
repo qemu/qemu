@@ -110,6 +110,32 @@ void cpu_x86_close(CPUX86State *env)
     qemu_free(env);
 }
 
+static void cpu_x86_version(CPUState *env, int *family, int *model)
+{
+    int cpuver = env->cpuid_version;
+
+    if (family == NULL || model == NULL) {
+        return;
+    }
+
+    *family = (cpuver >> 8) & 0x0f;
+    *model = ((cpuver >> 12) & 0xf0) + ((cpuver >> 4) & 0x0f);
+}
+
+/* Broadcast MCA signal for processor version 06H_EH and above */
+int cpu_x86_support_mca_broadcast(CPUState *env)
+{
+    int family = 0;
+    int model = 0;
+
+    cpu_x86_version(env, &family, &model);
+    if ((family == 6 && model >= 14) || family > 6) {
+        return 1;
+    }
+
+    return 0;
+}
+
 /***********************************************************/
 /* x86 debug */
 
@@ -1078,6 +1104,13 @@ void cpu_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
 
     if (bank >= bank_num || !(status & MCI_STATUS_VAL)) {
         return;
+    }
+
+    if (broadcast) {
+        if (!cpu_x86_support_mca_broadcast(cenv)) {
+            fprintf(stderr, "Current CPU does not support broadcast\n");
+            return;
+        }
     }
 
     if (kvm_enabled()) {

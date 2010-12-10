@@ -760,6 +760,7 @@ int cpu_x86_exec(CPUX86State *s);
 void cpu_x86_close(CPUX86State *s);
 void x86_cpu_list (FILE *f, fprintf_function cpu_fprintf, const char *optarg);
 void x86_cpudef_setup(void);
+int cpu_x86_support_mca_broadcast(CPUState *env);
 
 int cpu_get_pic_interrupt(CPUX86State *s);
 /* MSDOS compatibility mode FPU exception support */
