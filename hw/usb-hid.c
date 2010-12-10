@@ -65,7 +65,7 @@ typedef struct USBKeyboardState {
     uint16_t modifiers;
     uint8_t leds;
     uint8_t key[16];
-    int keys;
+    int32_t keys;
 } USBKeyboardState;
 
 typedef struct USBHIDState {
@@ -77,7 +77,7 @@ typedef struct USBHIDState {
     uint32_t head; /* index into circular queue */
     uint32_t n;
     int kind;
-    int protocol;
+    int32_t protocol;
     uint8_t idle;
     int64_t next_idle_clock;
     int changed;
@@ -895,12 +895,72 @@ void usb_hid_datain_cb(USBDevice *dev, void *opaque, void (*datain)(void *))
     s->datain = datain;
 }
 
+static int usb_hid_post_load(void *opaque, int version_id)
+{
+    USBHIDState *s = opaque;
+
+    if (s->idle) {
+        usb_hid_set_next_idle(s, qemu_get_clock(vm_clock));
+    }
+    return 0;
+}
+
+static const VMStateDescription vmstate_usb_ptr_queue = {
+    .name = "usb-ptr-queue",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField []) {
+        VMSTATE_INT32(xdx, USBPointerEvent),
+        VMSTATE_INT32(ydy, USBPointerEvent),
+        VMSTATE_INT32(dz, USBPointerEvent),
+        VMSTATE_INT32(buttons_state, USBPointerEvent),
+        VMSTATE_END_OF_LIST()
+    }
+};
+static const VMStateDescription vmstate_usb_ptr = {
+    .name = "usb-ptr",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load = usb_hid_post_load,
+    .fields = (VMStateField []) {
+        VMSTATE_USB_DEVICE(dev, USBHIDState),
+        VMSTATE_STRUCT_ARRAY(ptr.queue, USBHIDState, QUEUE_LENGTH, 0,
+                             vmstate_usb_ptr_queue, USBPointerEvent),
+        VMSTATE_UINT32(head, USBHIDState),
+        VMSTATE_UINT32(n, USBHIDState),
+        VMSTATE_INT32(protocol, USBHIDState),
+        VMSTATE_UINT8(idle, USBHIDState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_usb_kbd = {
+    .name = "usb-kbd",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load = usb_hid_post_load,
+    .fields = (VMStateField []) {
+        VMSTATE_USB_DEVICE(dev, USBHIDState),
+        VMSTATE_UINT32_ARRAY(kbd.keycodes, USBHIDState, QUEUE_LENGTH),
+        VMSTATE_UINT32(head, USBHIDState),
+        VMSTATE_UINT32(n, USBHIDState),
+        VMSTATE_UINT16(kbd.modifiers, USBHIDState),
+        VMSTATE_UINT8(kbd.leds, USBHIDState),
+        VMSTATE_UINT8_ARRAY(kbd.key, USBHIDState, 16),
+        VMSTATE_INT32(kbd.keys, USBHIDState),
+        VMSTATE_INT32(protocol, USBHIDState),
+        VMSTATE_UINT8(idle, USBHIDState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static struct USBDeviceInfo hid_info[] = {
     {
         .product_desc   = "QEMU USB Tablet",
         .qdev.name      = "usb-tablet",
         .usbdevice_name = "tablet",
         .qdev.size      = sizeof(USBHIDState),
+        .qdev.vmsd      = &vmstate_usb_ptr,
         .usb_desc       = &desc_tablet,
         .init           = usb_tablet_initfn,
         .handle_packet  = usb_generic_handle_packet,
@@ -913,6 +973,7 @@ static struct USBDeviceInfo hid_info[] = {
         .qdev.name      = "usb-mouse",
         .usbdevice_name = "mouse",
         .qdev.size      = sizeof(USBHIDState),
+        .qdev.vmsd      = &vmstate_usb_ptr,
         .usb_desc       = &desc_mouse,
         .init           = usb_mouse_initfn,
         .handle_packet  = usb_generic_handle_packet,
@@ -925,6 +986,7 @@ static struct USBDeviceInfo hid_info[] = {
         .qdev.name      = "usb-kbd",
         .usbdevice_name = "keyboard",
         .qdev.size      = sizeof(USBHIDState),
+        .qdev.vmsd      = &vmstate_usb_kbd,
         .usb_desc       = &desc_keyboard,
         .init           = usb_keyboard_initfn,
         .handle_packet  = usb_generic_handle_packet,
