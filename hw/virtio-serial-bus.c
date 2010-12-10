@@ -126,24 +126,49 @@ static void discard_vq_data(VirtQueue *vq, VirtIODevice *vdev)
 static void do_flush_queued_data(VirtIOSerialPort *port, VirtQueue *vq,
                                  VirtIODevice *vdev)
 {
-    VirtQueueElement elem;
-
     assert(port);
     assert(virtio_queue_ready(vq));
 
-    while (!port->throttled && virtqueue_pop(vq, &elem)) {
+    while (!port->throttled) {
         unsigned int i;
 
-        for (i = 0; i < elem.out_num; i++) {
-            size_t buf_size;
-
-            buf_size = elem.out_sg[i].iov_len;
-
-            port->info->have_data(port,
-                                  elem.out_sg[i].iov_base,
-                                  buf_size);
+        /* Pop an elem only if we haven't left off a previous one mid-way */
+        if (!port->elem.out_num) {
+            if (!virtqueue_pop(vq, &port->elem)) {
+                break;
+            }
+            port->iov_idx = 0;
+            port->iov_offset = 0;
         }
-        virtqueue_push(vq, &elem, 0);
+
+        for (i = port->iov_idx; i < port->elem.out_num; i++) {
+            size_t buf_size;
+            ssize_t ret;
+
+            buf_size = port->elem.out_sg[i].iov_len - port->iov_offset;
+            ret = port->info->have_data(port,
+                                        port->elem.out_sg[i].iov_base
+                                          + port->iov_offset,
+                                        buf_size);
+            if (ret < 0 && ret != -EAGAIN) {
+                /* We don't handle any other type of errors here */
+                abort();
+            }
+            if (ret == -EAGAIN || (ret >= 0 && ret < buf_size)) {
+                virtio_serial_throttle_port(port, true);
+                port->iov_idx = i;
+                if (ret > 0) {
+                    port->iov_offset += ret;
+                }
+                break;
+            }
+            port->iov_offset = 0;
+        }
+        if (port->throttled) {
+            break;
+        }
+        virtqueue_push(vq, &port->elem, 0);
+        port->elem.out_num = 0;
     }
     virtio_notify(vdev, vq);
 }
@@ -708,6 +733,8 @@ static int virtser_port_qdev_init(DeviceState *qdev, DeviceInfo *base)
          */
         port->guest_connected = true;
     }
+
+    port->elem.out_num = 0;
 
     QTAILQ_INSERT_TAIL(&port->vser->ports, port, next);
     port->ivq = port->vser->ivqs[port->id];

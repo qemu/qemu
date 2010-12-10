@@ -102,6 +102,23 @@ struct VirtIOSerialPort {
      */
     uint32_t id;
 
+    /*
+     * This is the elem that we pop from the virtqueue.  A slow
+     * backend that consumes guest data (e.g. the file backend for
+     * qemu chardevs) can cause the guest to block till all the output
+     * is flushed.  This isn't desired, so we keep a note of the last
+     * element popped and continue consuming it once the backend
+     * becomes writable again.
+     */
+    VirtQueueElement elem;
+
+    /*
+     * The index and the offset into the iov buffer that was popped in
+     * elem above.
+     */
+    uint32_t iov_idx;
+    uint64_t iov_offset;
+
     /* Identify if this is a port that binds with hvc in the guest */
     uint8_t is_console;
 
