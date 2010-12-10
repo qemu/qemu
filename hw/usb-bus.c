@@ -15,6 +15,10 @@ static struct BusInfo usb_bus_info = {
     .print_dev = usb_bus_dev_print,
     .get_dev_path = usb_get_dev_path,
     .get_fw_dev_path = usbbus_get_fw_dev_path,
+    .props      = (Property[]) {
+        DEFINE_PROP_STRING("port", USBDevice, port_path),
+        DEFINE_PROP_END_OF_LIST()
+    },
 };
 static int next_usb_bus = 0;
 static QTAILQ_HEAD(, USBBus) busses = QTAILQ_HEAD_INITIALIZER(busses);
@@ -157,9 +161,22 @@ static void do_attach(USBDevice *dev)
                 dev->product_desc);
         return;
     }
-    dev->attached++;
+    if (dev->port_path) {
+        QTAILQ_FOREACH(port, &bus->free, next) {
+            if (strcmp(port->path, dev->port_path) == 0) {
+                break;
+            }
+        }
+        if (port == NULL) {
+            fprintf(stderr, "Warning: usb port %s (bus %s) not found\n",
+                    dev->port_path, bus->qbus.name);
+            return;
+        }
+    } else {
+        port = QTAILQ_FIRST(&bus->free);
+    }
 
-    port = QTAILQ_FIRST(&bus->free);
+    dev->attached++;
     QTAILQ_REMOVE(&bus->free, port, next);
     bus->nfree--;
 
@@ -173,8 +190,9 @@ int usb_device_attach(USBDevice *dev)
 {
     USBBus *bus = usb_bus_from_device(dev);
 
-    if (bus->nfree == 1) {
-        /* Create a new hub and chain it on.  */
+    if (bus->nfree == 1 && dev->port_path == NULL) {
+        /* Create a new hub and chain it on
+           (unless a physical port location is specified). */
         usb_create_simple(bus, "usb-hub");
     }
     do_attach(dev);
