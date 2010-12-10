@@ -623,11 +623,23 @@ static USBDevice *usb_msd_init(const char *filename)
     return dev;
 }
 
+static const VMStateDescription vmstate_usb_msd = {
+    .name = "usb-storage",
+    .unmigratable = 1, /* FIXME: handle transactions which are in flight */
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField []) {
+        VMSTATE_USB_DEVICE(dev, MSDState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static struct USBDeviceInfo msd_info = {
     .product_desc   = "QEMU USB MSD",
     .qdev.name      = "usb-storage",
     .qdev.fw_name      = "storage",
     .qdev.size      = sizeof(MSDState),
+    .qdev.vmsd      = &vmstate_usb_msd,
     .usb_desc       = &desc,
     .init           = usb_msd_initfn,
     .handle_packet  = usb_generic_handle_packet,
