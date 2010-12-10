@@ -48,10 +48,9 @@ static void chr_event(void *opaque, int event)
     VirtConsole *vcon = opaque;
 
     switch (event) {
-    case CHR_EVENT_OPENED: {
+    case CHR_EVENT_OPENED:
         virtio_serial_open(&vcon->port);
         break;
-    }
     case CHR_EVENT_CLOSED:
         virtio_serial_close(&vcon->port);
         break;
