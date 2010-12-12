@@ -116,7 +116,8 @@ s3c24xx_rtc_init(target_phys_addr_t base_addr)
 
     s = qemu_mallocz(sizeof(struct s3c24xx_rtc_state_s));
 
-    tag = cpu_register_io_memory(s3c24xx_rtc_read, s3c24xx_rtc_write, s);
+    tag = cpu_register_io_memory(s3c24xx_rtc_read, s3c24xx_rtc_write,
+                                 s, DEVICE_NATIVE_ENDIAN);
 
     /* there are only 19 real registers but they start at offset 0x40 into the
      * range so we have 35 registers mapped

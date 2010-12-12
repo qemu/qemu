@@ -87,7 +87,8 @@ static CPUWriteMemoryFunc * const cpld_writefn[] = {
 
 static void stcb_cpld_register(STCBState *stcb)
 {
-    int tag = cpu_register_io_memory(cpld_readfn, cpld_writefn, stcb);
+    int tag = cpu_register_io_memory(cpld_readfn, cpld_writefn, stcb,
+                                     DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(A9M2410_CS1_CPLD_BASE, A9M2410_CPLD_SIZE, tag);
     cpu_register_physical_memory(A9M2410_CS5_CPLD_BASE, A9M2410_CPLD_SIZE, tag);
     stcb->cpld_ctrl2 = 0;
@@ -179,7 +180,8 @@ static int stcb_ide_init(DriveInfo *dinfo0, DriveInfo *dinfo1, qemu_irq irq)
     int stcb_ide_memory;
     ide_init2_with_non_qdev_drives(&s->bus, dinfo0, dinfo1, irq);
 
-    stcb_ide_memory = cpu_register_io_memory(stcb_ide_read, stcb_ide_write, s);
+    stcb_ide_memory = cpu_register_io_memory(stcb_ide_read, stcb_ide_write,
+                                             s, DEVICE_NATIVE_ENDIAN);
     return stcb_ide_memory;
 }
 
@@ -299,7 +301,8 @@ static int ax88796_init(SysBusDevice *dev)
 
     logout("\n");
 
-    iomemtype = cpu_register_io_memory(ax88796_readfn, ax88796_writefn, s);
+    iomemtype = cpu_register_io_memory(ax88796_readfn, ax88796_writefn,
+                                       s, DEVICE_NATIVE_ENDIAN);
     //~ sysbus_init_mmio(dev, AX88796_SIZE, iomemtype);
     sysbus_init_mmio(dev, ASIXNET_SIZE, iomemtype);
     //~ sysbus_init_irq(dev, &s->irq);

@@ -97,11 +97,22 @@ static int wdt_ib700_init(ISADevice *dev)
 {
     IB700State *s = DO_UPCAST(IB700State, dev, dev);
 
+    ib700_debug("watchdog init\n");
+
     s->timer = qemu_new_timer(vm_clock, ib700_timer_expired, s);
     register_ioport_write(0x441, 2, 1, ib700_write_disable_reg, s);
     register_ioport_write(0x443, 2, 1, ib700_write_enable_reg, s);
 
     return 0;
+}
+
+static void wdt_ib700_reset(DeviceState *dev)
+{
+    IB700State *s = DO_UPCAST(IB700State, dev.qdev, dev);
+
+    ib700_debug("watchdog reset\n");
+
+    qemu_del_timer(s->timer);
 }
 
 static WatchdogTimerModel model = {
@@ -110,10 +121,11 @@ static WatchdogTimerModel model = {
 };
 
 static ISADeviceInfo wdt_ib700_info = {
-    .qdev.name = "ib700",
-    .qdev.size = sizeof(IB700State),
-    .qdev.vmsd = &vmstate_ib700,
-    .init      = wdt_ib700_init,
+    .qdev.name  = "ib700",
+    .qdev.size  = sizeof(IB700State),
+    .qdev.vmsd  = &vmstate_ib700,
+    .qdev.reset = wdt_ib700_reset,
+    .init       = wdt_ib700_init,
 };
 
 static void wdt_ib700_register_devices(void)

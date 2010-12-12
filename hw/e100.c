@@ -2462,7 +2462,8 @@ static int e100_init(PCIDevice *pci_dev, uint32_t device)
 
     /* Handler for memory-mapped I/O */
     s->mmio_index =
-        cpu_register_io_memory(pci_mmio_read, pci_mmio_write, s);
+        cpu_register_io_memory(pci_mmio_read, pci_mmio_write, s,
+                               DEVICE_NATIVE_ENDIAN);
 
     //CSR Memory mapped base
     pci_register_bar(&s->dev, 0, PCI_MEM_SIZE,

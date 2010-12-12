@@ -504,7 +504,7 @@ static PXA2xxDMAState *pxa2xx_dma_init(target_phys_addr_t base,
     memset(s->req, 0, sizeof(uint8_t) * PXA2XX_DMA_NUM_REQUESTS);
 
     iomemtype = cpu_register_io_memory(pxa2xx_dma_readfn,
-                    pxa2xx_dma_writefn, s);
+                    pxa2xx_dma_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x00010000, iomemtype);
 
     register_savevm(NULL, "pxa2xx_dma", 0, 0, pxa2xx_dma_save, pxa2xx_dma_load, s);

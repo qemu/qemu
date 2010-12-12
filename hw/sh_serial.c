@@ -395,7 +395,8 @@ void sh_serial_init (target_phys_addr_t base, int feat,
     sh_serial_clear_fifo(s);
 
     s_io_memory = cpu_register_io_memory(sh_serial_readfn,
-					 sh_serial_writefn, s);
+					 sh_serial_writefn, s,
+                                         DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(P4ADDR(base), 0x28, s_io_memory);
     cpu_register_physical_memory(A7ADDR(base), 0x28, s_io_memory);
 

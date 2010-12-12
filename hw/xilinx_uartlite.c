@@ -201,7 +201,8 @@ static int xilinx_uartlite_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
 
     uart_update_status(s);
-    uart_regs = cpu_register_io_memory(uart_read, uart_write, s);
+    uart_regs = cpu_register_io_memory(uart_read, uart_write, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, R_MAX * 4, uart_regs);
 
     s->chr = qdev_init_chardev(&dev->qdev);

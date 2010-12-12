@@ -81,7 +81,8 @@ static int realview_i2c_init(SysBusDevice *dev)
     bus = i2c_init_bus(&dev->qdev, "i2c");
     s->bitbang = bitbang_i2c_init(bus);
     iomemtype = cpu_register_io_memory(realview_i2c_readfn,
-                                       realview_i2c_writefn, s);
+                                       realview_i2c_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     return 0;
 }

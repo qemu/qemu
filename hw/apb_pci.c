@@ -410,21 +410,24 @@ static int pci_pbm_init_device(SysBusDevice *dev)
 
     /* apb_config */
     apb_config = cpu_register_io_memory(apb_config_read,
-                                        apb_config_write, s);
+                                        apb_config_write, s,
+                                        DEVICE_NATIVE_ENDIAN);
     /* at region 0 */
     sysbus_init_mmio(dev, 0x10000ULL, apb_config);
 
     /* PCI configuration space */
     s->pci_config_handler.read = apb_pci_config_read;
     s->pci_config_handler.write = apb_pci_config_write;
-    pci_config = cpu_register_io_memory_simple(&s->pci_config_handler);
+    pci_config = cpu_register_io_memory_simple(&s->pci_config_handler,
+                                               DEVICE_NATIVE_ENDIAN);
     assert(pci_config >= 0);
     /* at region 1 */
     sysbus_init_mmio(dev, 0x1000000ULL, pci_config);
 
     /* pci_ioport */
     pci_ioport = cpu_register_io_memory(pci_apb_ioread,
-                                        pci_apb_iowrite, s);
+                                        pci_apb_iowrite, s,
+                                        DEVICE_NATIVE_ENDIAN);
     /* at region 2 */
     sysbus_init_mmio(dev, 0x10000ULL, pci_ioport);
 

@@ -60,6 +60,8 @@ void qemu_system_reset(void);
 void qemu_add_exit_notifier(Notifier *notify);
 void qemu_remove_exit_notifier(Notifier *notify);
 
+void qemu_add_machine_init_done_notifier(Notifier *notify);
+
 void do_savevm(Monitor *mon, const QDict *qdict);
 int load_vmstate(const char *name);
 void do_delvm(Monitor *mon, const QDict *qdict);
@@ -139,7 +141,11 @@ extern uint64_t node_mem[MAX_NODES];
 extern uint64_t node_cpumask[MAX_NODES];
 
 #define MAX_OPTION_ROMS 16
-extern const char *option_rom[MAX_OPTION_ROMS];
+typedef struct QEMUOptionRom {
+    const char *name;
+    int32_t bootindex;
+} QEMUOptionRom;
+extern QEMUOptionRom option_rom[MAX_OPTION_ROMS];
 extern int nb_option_roms;
 
 #define MAX_PROM_ENVS 128
@@ -188,4 +194,7 @@ void rtc_change_mon_event(struct tm *tm);
 
 void register_devices(void);
 
+void add_boot_device_path(int32_t bootindex, DeviceState *dev,
+                          const char *suffix);
+char *get_boot_devices_list(uint32_t *size);
 #endif

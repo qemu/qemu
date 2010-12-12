@@ -292,19 +292,22 @@ PCIBus *ppce500_pci_init(qemu_irq pci_irqs[4], target_phys_addr_t registers)
     controller->pci_dev = d;
 
     /* CFGADDR */
-    index = pci_host_conf_register_mmio(&controller->pci_state, 0);
+    index = pci_host_conf_register_mmio(&controller->pci_state,
+                                        DEVICE_BIG_ENDIAN);
     if (index < 0)
         goto free;
     cpu_register_physical_memory(registers + PCIE500_CFGADDR, 4, index);
 
     /* CFGDATA */
-    index = pci_host_data_register_mmio(&controller->pci_state, 0);
+    index = pci_host_data_register_mmio(&controller->pci_state,
+                                        DEVICE_BIG_ENDIAN);
     if (index < 0)
         goto free;
     cpu_register_physical_memory(registers + PCIE500_CFGDATA, 4, index);
 
     index = cpu_register_io_memory(e500_pci_reg_read,
-                                   e500_pci_reg_write, controller);
+                                   e500_pci_reg_write, controller,
+                                   DEVICE_NATIVE_ENDIAN);
     if (index < 0)
         goto free;
     cpu_register_physical_memory(registers + PCIE500_REG_BASE,

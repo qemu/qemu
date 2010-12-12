@@ -216,14 +216,18 @@ static void palmte_init(ram_addr_t ram_size,
                                  qemu_ram_alloc(NULL, "palmte.flash",
                                                 flash_size) | IO_MEM_ROM);
 
-    io = cpu_register_io_memory(static_readfn, static_writefn, &cs0val);
+    io = cpu_register_io_memory(static_readfn, static_writefn, &cs0val,
+                                DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(OMAP_CS0_BASE + flash_size,
                     OMAP_CS0_SIZE - flash_size, io);
-    io = cpu_register_io_memory(static_readfn, static_writefn, &cs1val);
+    io = cpu_register_io_memory(static_readfn, static_writefn, &cs1val,
+                                DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(OMAP_CS1_BASE, OMAP_CS1_SIZE, io);
-    io = cpu_register_io_memory(static_readfn, static_writefn, &cs2val);
+    io = cpu_register_io_memory(static_readfn, static_writefn, &cs2val,
+                                DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(OMAP_CS2_BASE, OMAP_CS2_SIZE, io);
-    io = cpu_register_io_memory(static_readfn, static_writefn, &cs3val);
+    io = cpu_register_io_memory(static_readfn, static_writefn, &cs3val,
+                                DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(OMAP_CS3_BASE, OMAP_CS3_SIZE, io);
 
     palmte_microwire_setup(cpu);
@@ -234,20 +238,20 @@ static void palmte_init(ram_addr_t ram_size,
 
     /* Setup initial (reset) machine state */
     if (nb_option_roms) {
-        rom_size = get_image_size(option_rom[0]);
+        rom_size = get_image_size(option_rom[0].name);
         if (rom_size > flash_size) {
             fprintf(stderr, "%s: ROM image too big (%x > %x)\n",
                             __FUNCTION__, rom_size, flash_size);
             rom_size = 0;
         }
         if (rom_size > 0) {
-            rom_size = load_image_targphys(option_rom[0], OMAP_CS0_BASE,
+            rom_size = load_image_targphys(option_rom[0].name, OMAP_CS0_BASE,
                                            flash_size);
             rom_loaded = 1;
         }
         if (rom_size < 0) {
             fprintf(stderr, "%s: error loading '%s'\n",
-                            __FUNCTION__, option_rom[0]);
+                            __FUNCTION__, option_rom[0].name);
         }
     }
 

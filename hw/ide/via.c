@@ -154,8 +154,8 @@ static int vt82c686b_ide_initfn(PCIDevice *dev)
 
     vmstate_register(&dev->qdev, 0, &vmstate_ide_pci, d);
 
-    ide_bus_new(&d->bus[0], &d->dev.qdev);
-    ide_bus_new(&d->bus[1], &d->dev.qdev);
+    ide_bus_new(&d->bus[0], &d->dev.qdev, 0);
+    ide_bus_new(&d->bus[1], &d->dev.qdev, 1);
     ide_init2(&d->bus[0], isa_reserve_irq(14));
     ide_init2(&d->bus[1], isa_reserve_irq(15));
     ide_init_ioport(&d->bus[0], 0x1f0, 0x3f6);

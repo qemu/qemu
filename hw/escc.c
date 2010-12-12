@@ -914,7 +914,8 @@ static int escc_init1(SysBusDevice *dev)
     s->chn[0].otherchn = &s->chn[1];
     s->chn[1].otherchn = &s->chn[0];
 
-    io = cpu_register_io_memory(escc_mem_read, escc_mem_write, s);
+    io = cpu_register_io_memory(escc_mem_read, escc_mem_write, s,
+                                DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, ESCC_SIZE << s->it_shift, io);
     s->mmio_index = io;
 

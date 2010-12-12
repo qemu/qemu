@@ -5,9 +5,12 @@
 #include "qdev.h"
 #include "blockdev.h"
 
+static char *scsibus_get_fw_dev_path(DeviceState *dev);
+
 static struct BusInfo scsi_bus_info = {
     .name  = "SCSI",
     .size  = sizeof(SCSIBus),
+    .get_fw_dev_path = scsibus_get_fw_dev_path,
     .props = (Property[]) {
         DEFINE_PROP_UINT32("scsi-id", SCSIDevice, id, -1),
         DEFINE_PROP_END_OF_LIST(),
@@ -517,4 +520,24 @@ void scsi_req_complete(SCSIRequest *req)
     req->bus->complete(req->bus, SCSI_REASON_DONE,
                        req->tag,
                        req->status);
+}
+
+static char *scsibus_get_fw_dev_path(DeviceState *dev)
+{
+    SCSIDevice *d = (SCSIDevice*)dev;
+    SCSIBus *bus = scsi_bus_from_device(d);
+    char path[100];
+    int i;
+
+    for (i = 0; i < bus->ndev; i++) {
+        if (bus->devs[i] == d) {
+            break;
+        }
+    }
+
+    assert(i != bus->ndev);
+
+    snprintf(path, sizeof(path), "%s@%x", qdev_fw_name(dev), i);
+
+    return strdup(path);
 }

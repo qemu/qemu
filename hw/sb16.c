@@ -1368,16 +1368,20 @@ static int sb16_initfn (ISADevice *dev)
 
     for (i = 0; i < ARRAY_SIZE (dsp_write_ports); i++) {
         register_ioport_write (s->port + dsp_write_ports[i], 1, 1, dsp_write, s);
+        isa_init_ioport(dev, s->port + dsp_write_ports[i]);
     }
 
     for (i = 0; i < ARRAY_SIZE (dsp_read_ports); i++) {
         register_ioport_read (s->port + dsp_read_ports[i], 1, 1, dsp_read, s);
+        isa_init_ioport(dev, s->port + dsp_read_ports[i]);
     }
 
     register_ioport_write (s->port + 0x4, 1, 1, mixer_write_indexb, s);
     register_ioport_write (s->port + 0x4, 1, 2, mixer_write_indexw, s);
+    isa_init_ioport(dev, s->port + 0x4);
     register_ioport_read (s->port + 0x5, 1, 1, mixer_read, s);
     register_ioport_write (s->port + 0x5, 1, 1, mixer_write_datab, s);
+    isa_init_ioport(dev, s->port + 0x5);
 
     DMA_register_channel (s->hdma, SB_read_DMA, s);
     DMA_register_channel (s->dma, SB_read_DMA, s);

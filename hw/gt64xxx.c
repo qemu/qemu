@@ -307,11 +307,7 @@ static void gt64120_pci_mapping(GT64120State *s)
       isa_mem_base = s->PCI0IO_start;
       fprintf(stderr, "start=" TARGET_FMT_plx ", length=" TARGET_FMT_plx "\n",
           s->PCI0IO_start, s->PCI0IO_length);
-#ifdef TARGET_WORDS_BIGENDIAN
-      isa_mmio_init(s->PCI0IO_start, s->PCI0IO_length, 1);
-#else
-      isa_mmio_init(s->PCI0IO_start, s->PCI0IO_length, 0);
-#endif
+      isa_mmio_init(s->PCI0IO_start, s->PCI0IO_length);
     }
 }
 
@@ -1140,7 +1136,8 @@ PCIBus *pci_gt64120_init(qemu_irq *pic)
     s->pci.bus = pci_register_bus(NULL, "pci",
                                   pci_gt64120_set_irq, pci_gt64120_map_irq,
                                   pic, PCI_DEVFN(18, 0), 4);
-    s->ISD_handle = cpu_register_io_memory(gt64120_read, gt64120_write, s);
+    s->ISD_handle = cpu_register_io_memory(gt64120_read, gt64120_write, s,
+                                           DEVICE_NATIVE_ENDIAN);
     d = pci_register_device(s->pci.bus, "GT64120 PCI Bus", sizeof(PCIDevice),
                             0, NULL, NULL);
 

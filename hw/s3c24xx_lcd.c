@@ -457,7 +457,8 @@ static int s3c24xx_lcd_init(SysBusDevice *dev)
     //~ s->brightness = 7;
 
     int iomemtype = cpu_register_io_memory(s3c24xx_lcd_readfn,
-                                           s3c24xx_lcd_writefn, s);
+                                           s3c24xx_lcd_writefn,
+                                           s, DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, S3C24XX_LCD_SIZE, iomemtype);
 
     sysbus_init_irq(dev, &s->irq);

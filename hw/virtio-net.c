@@ -1017,6 +1017,8 @@ VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
                     virtio_net_save, virtio_net_load, n);
     n->vmstate = qemu_add_vm_change_state_handler(virtio_net_vmstate_change, n);
 
+    add_boot_device_path(conf->bootindex, dev, "/ethernet-phy@0");
+
     return &n->vdev;
 }
 

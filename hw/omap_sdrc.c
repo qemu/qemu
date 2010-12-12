@@ -158,7 +158,7 @@ struct omap_sdrc_s *omap_sdrc_init(target_phys_addr_t base)
     omap_sdrc_reset(s);
 
     iomemtype = cpu_register_io_memory(omap_sdrc_readfn,
-                    omap_sdrc_writefn, s);
+                    omap_sdrc_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x1000, iomemtype);
 
     return s;

@@ -322,7 +322,8 @@ static int syborg_serial_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
     iomemtype = cpu_register_io_memory(syborg_serial_readfn,
-                                       syborg_serial_writefn, s);
+                                       syborg_serial_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     s->chr = qdev_init_chardev(&dev->qdev);
     if (s->chr) {

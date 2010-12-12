@@ -383,7 +383,8 @@ static void ppc4xx_opba_init(target_phys_addr_t base)
 #ifdef DEBUG_OPBA
     printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
 #endif
-    io = cpu_register_io_memory(opba_read, opba_write, opba);
+    io = cpu_register_io_memory(opba_read, opba_write, opba,
+                                DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x002, io);
     qemu_register_reset(ppc4xx_opba_reset, opba);
 }
@@ -809,7 +810,8 @@ static void ppc405_gpio_init(target_phys_addr_t base)
 #ifdef DEBUG_GPIO
     printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
 #endif
-    io = cpu_register_io_memory(ppc405_gpio_read, ppc405_gpio_write, gpio);
+    io = cpu_register_io_memory(ppc405_gpio_read, ppc405_gpio_write, gpio,
+                                DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x038, io);
     qemu_register_reset(&ppc405_gpio_reset, gpio);
 }
@@ -1218,7 +1220,8 @@ static void ppc405_i2c_init(target_phys_addr_t base, qemu_irq irq)
 #ifdef DEBUG_I2C
     printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
 #endif
-    io = cpu_register_io_memory(i2c_read, i2c_write, i2c);
+    io = cpu_register_io_memory(i2c_read, i2c_write, i2c,
+                                DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x011, io);
     qemu_register_reset(ppc4xx_i2c_reset, i2c);
 }
@@ -1501,7 +1504,7 @@ static void ppc4xx_gpt_init(target_phys_addr_t base, qemu_irq irqs[5])
 #ifdef DEBUG_GPT
     printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
 #endif
-    io = cpu_register_io_memory(gpt_read, gpt_write, gpt);
+    io = cpu_register_io_memory(gpt_read, gpt_write, gpt, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x0d4, io);
     qemu_register_reset(ppc4xx_gpt_reset, gpt);
 }

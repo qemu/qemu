@@ -52,6 +52,7 @@
 #include "qemu-timer.h"
 #include "net.h"
 #include "loader.h"
+#include "sysemu.h"
 
 /* debug RTL8139 card */
 //#define DEBUG_RTL8139 1
@@ -3125,17 +3126,11 @@ static void rtl8139_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t 
 
 static void rtl8139_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
-#ifdef TARGET_WORDS_BIGENDIAN
-    val = bswap16(val);
-#endif
     rtl8139_io_writew(opaque, addr & 0xFF, val);
 }
 
 static void rtl8139_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
-#ifdef TARGET_WORDS_BIGENDIAN
-    val = bswap32(val);
-#endif
     rtl8139_io_writel(opaque, addr & 0xFF, val);
 }
 
@@ -3147,18 +3142,12 @@ static uint32_t rtl8139_mmio_readb(void *opaque, target_phys_addr_t addr)
 static uint32_t rtl8139_mmio_readw(void *opaque, target_phys_addr_t addr)
 {
     uint32_t val = rtl8139_io_readw(opaque, addr & 0xFF);
-#ifdef TARGET_WORDS_BIGENDIAN
-    val = bswap16(val);
-#endif
     return val;
 }
 
 static uint32_t rtl8139_mmio_readl(void *opaque, target_phys_addr_t addr)
 {
     uint32_t val = rtl8139_io_readl(opaque, addr & 0xFF);
-#ifdef TARGET_WORDS_BIGENDIAN
-    val = bswap32(val);
-#endif
     return val;
 }
 
@@ -3366,7 +3355,8 @@ static int pci_rtl8139_init(PCIDevice *dev)
 
     /* I/O handler for memory-mapped I/O */
     s->rtl8139_mmio_io_addr =
-        cpu_register_io_memory(rtl8139_mmio_read, rtl8139_mmio_write, s);
+        cpu_register_io_memory(rtl8139_mmio_read, rtl8139_mmio_write, s,
+                               DEVICE_LITTLE_ENDIAN);
 
     pci_register_bar(&s->dev, 0, 0x100,
                            PCI_BASE_ADDRESS_SPACE_IO,  rtl8139_ioport_map);
@@ -3387,6 +3377,9 @@ static int pci_rtl8139_init(PCIDevice *dev)
     s->TimerExpire = 0;
     s->timer = qemu_new_timer(vm_clock, rtl8139_timer, s);
     rtl8139_set_next_tctr_time(s, qemu_get_clock(vm_clock));
+
+    add_boot_device_path(s->conf.bootindex, &dev->qdev, "/ethernet-phy@0");
+
     return 0;
 }
 

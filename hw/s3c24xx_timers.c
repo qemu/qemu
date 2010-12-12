@@ -187,7 +187,8 @@ s3c24xx_timers_init(S3CState *soc, target_phys_addr_t base_addr, uint32_t tclk0,
 
     s = qemu_mallocz(sizeof(struct s3c24xx_timers_state_s));
 
-    tag = cpu_register_io_memory(s3c24xx_timers_read, s3c24xx_timers_write, s);
+    tag = cpu_register_io_memory(s3c24xx_timers_read, s3c24xx_timers_write, s,
+                                 DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base_addr, 17 * 4, tag);
     register_savevm(NULL, "s3c24xx_timers", 0, 0, s3c24xx_timers_save, s3c24xx_timers_load, s);
 

@@ -619,11 +619,11 @@ pflash_t *pflash_cfi02_register(target_phys_addr_t base, ram_addr_t off,
     if (be) {
         pfl->fl_mem = cpu_register_io_memory(pflash_read_ops_be,
                                              pflash_write_ops_be,
-                                             pfl);
+                                             pfl, DEVICE_NATIVE_ENDIAN);
     } else {
         pfl->fl_mem = cpu_register_io_memory(pflash_read_ops_le,
                                              pflash_write_ops_le,
-                                             pfl);
+                                             pfl, DEVICE_NATIVE_ENDIAN);
     }
     pfl->off = off;
     pfl->base = base;

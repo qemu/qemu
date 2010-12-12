@@ -35,14 +35,14 @@ static CPUReadMemoryFunc * const cpu_io_memory_simple_read[] = {
     &cpu_io_memory_simple_readl,
 };
 
-int cpu_register_io_memory_simple(struct ReadWriteHandler *handler)
+int cpu_register_io_memory_simple(struct ReadWriteHandler *handler, int endian)
 {
     if (!handler->read || !handler->write) {
         return -1;
     }
     return cpu_register_io_memory(cpu_io_memory_simple_read,
                                   cpu_io_memory_simple_write,
-                                  handler);
+                                  handler, endian);
 }
 
 RWHANDLER_WRITE(ioport_simple_writeb, 1, uint32_t);

@@ -183,7 +183,7 @@ struct omap_gpio_s *omap_gpio_init(target_phys_addr_t base,
     omap_gpio_reset(s);
 
     iomemtype = cpu_register_io_memory(omap_gpio_readfn,
-                    omap_gpio_writefn, s);
+                    omap_gpio_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x1000, iomemtype);
 
     return s;

@@ -170,7 +170,7 @@ struct omap_uart_s *omap2_uart_init(struct omap_target_agent_s *ta,
     struct omap_uart_s *s = omap_uart_init(base, irq,
                     fclk, iclk, txdma, rxdma, label, chr);
     int iomemtype = cpu_register_io_memory(omap_uart_readfn,
-                    omap_uart_writefn, s);
+                    omap_uart_writefn, s, DEVICE_NATIVE_ENDIAN);
 
     s->ta = ta;
 

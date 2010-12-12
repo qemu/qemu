@@ -229,7 +229,8 @@ void Atheros_WLAN_setup_io(PCIAtheros_WLANState *d)
     /* I/O handler for memory-mapped I/O */
     s->Atheros_WLAN_mmio_io_addr =
         cpu_register_io_memory(Atheros_WLAN_mmio_read,
-                               Atheros_WLAN_mmio_write, s);
+                               Atheros_WLAN_mmio_write, s,
+                               DEVICE_NATIVE_ENDIAN);
     pci_register_bar(&d->dev, 0, Atheros_WLAN_MEM_SIZE,
                      PCI_BASE_ADDRESS_SPACE_MEMORY, Atheros_WLAN_mmio_map);
 }

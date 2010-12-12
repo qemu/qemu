@@ -88,7 +88,8 @@ s3c24xx_memc_init(target_phys_addr_t base_addr)
     struct s3c24xx_memc_state_s *s = qemu_mallocz(sizeof(struct s3c24xx_memc_state_s));
 
     int tag;
-    tag = cpu_register_io_memory(s3c24xx_memc_read, s3c24xx_memc_write, s);
+    tag = cpu_register_io_memory(s3c24xx_memc_read, s3c24xx_memc_write, s,
+                                 DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base_addr, 13 * 4, tag);
     register_savevm(NULL, "s3c24xx_memc", 0, 0, s3c24xx_memc_save, s3c24xx_memc_load, s);
 

@@ -548,6 +548,8 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf)
     bdrv_set_removable(s->bs, 0);
     s->bs->buffer_alignment = conf->logical_block_size;
 
+    add_boot_device_path(conf->bootindex, dev, "/disk@0,0");
+
     return &s->vdev;
 }
 

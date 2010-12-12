@@ -33,9 +33,7 @@
 
 struct PCIHostState {
     SysBusDevice busdev;
-    ReadWriteHandler conf_noswap_handler;
     ReadWriteHandler conf_handler;
-    ReadWriteHandler data_noswap_handler;
     ReadWriteHandler data_handler;
     uint32_t config_reg;
     PCIBus *bus;
@@ -45,8 +43,8 @@ void pci_data_write(PCIBus *s, uint32_t addr, uint32_t val, int len);
 uint32_t pci_data_read(PCIBus *s, uint32_t addr, int len);
 
 /* for mmio */
-int pci_host_conf_register_mmio(PCIHostState *s, int swap);
-int pci_host_data_register_mmio(PCIHostState *s, int swap);
+int pci_host_conf_register_mmio(PCIHostState *s, int endian);
+int pci_host_data_register_mmio(PCIHostState *s, int endian);
 
 /* for ioio */
 void pci_host_conf_register_ioport(pio_addr_t ioport, PCIHostState *s);

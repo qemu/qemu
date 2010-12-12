@@ -590,7 +590,7 @@ TC6393xbState *tc6393xb_init(uint32_t base, qemu_irq irq)
     s->flash = nand_init(NAND_MFR_TOSHIBA, 0x76);
 
     iomemtype = cpu_register_io_memory(tc6393xb_readfn,
-                    tc6393xb_writefn, s);
+                    tc6393xb_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x10000, iomemtype);
 
     s->vram_addr = qemu_ram_alloc(NULL, "tc6393xb.vram", 0x100000);

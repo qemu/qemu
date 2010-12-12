@@ -264,20 +264,24 @@ static int gus_initfn (ISADevice *dev)
 
     register_ioport_write (s->port, 1, 1, gus_writeb, s);
     register_ioport_write (s->port, 1, 2, gus_writew, s);
+    isa_init_ioport_range(dev, s->port, 2);
 
     register_ioport_read ((s->port + 0x100) & 0xf00, 1, 1, gus_readb, s);
     register_ioport_read ((s->port + 0x100) & 0xf00, 1, 2, gus_readw, s);
+    isa_init_ioport_range(dev, (s->port + 0x100) & 0xf00, 2);
 
     register_ioport_write (s->port + 6, 10, 1, gus_writeb, s);
     register_ioport_write (s->port + 6, 10, 2, gus_writew, s);
     register_ioport_read (s->port + 6, 10, 1, gus_readb, s);
     register_ioport_read (s->port + 6, 10, 2, gus_readw, s);
+    isa_init_ioport_range(dev, s->port + 6, 10);
 
 
     register_ioport_write (s->port + 0x100, 8, 1, gus_writeb, s);
     register_ioport_write (s->port + 0x100, 8, 2, gus_writew, s);
     register_ioport_read (s->port + 0x100, 8, 1, gus_readb, s);
     register_ioport_read (s->port + 0x100, 8, 2, gus_readw, s);
+    isa_init_ioport_range(dev, s->port + 0x100, 8);
 
     DMA_register_channel (s->emu.gusdma, GUS_read_DMA, s);
     s->emu.himemaddr = s->himem;

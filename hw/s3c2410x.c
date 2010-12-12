@@ -118,8 +118,8 @@ static int s3c24xx_wdg_init(SysBusDevice *dev)
     int iomemtype;
 
     logout("\n");
-    iomemtype = cpu_register_io_memory(s3c24xx_wdg_readfn,
-                                       s3c24xx_wdg_writefn, s);
+    iomemtype = cpu_register_io_memory(s3c24xx_wdg_readfn, s3c24xx_wdg_writefn,
+                                       s, DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 3 * 4, iomemtype);
 
     //~ qdev_init_gpio_in(&dev->qdev, mv88w8618_pic_set_irq, 32);
@@ -217,8 +217,8 @@ static int s3c24xx_adc_init(SysBusDevice *dev)
     int iomemtype;
 
     logout("\n");
-    iomemtype = cpu_register_io_memory(s3c24xx_adc_readfn,
-                                       s3c24xx_adc_writefn, s);
+    iomemtype = cpu_register_io_memory(s3c24xx_adc_readfn, s3c24xx_adc_writefn,
+                                       s, DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 7 * 4, iomemtype);
 
     //~ qdev_init_gpio_in(&dev->qdev, mv88w8618_pic_set_irq, 32);

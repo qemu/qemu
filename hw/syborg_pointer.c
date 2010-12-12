@@ -206,7 +206,8 @@ static int syborg_pointer_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
     iomemtype = cpu_register_io_memory(syborg_pointer_readfn,
-				       syborg_pointer_writefn, s);
+				       syborg_pointer_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
 
     if (s->fifo_size <= 0) {

@@ -645,6 +645,7 @@ static int cs4231a_initfn (ISADevice *dev)
     isa_init_irq (dev, &s->pic, s->irq);
 
     for (i = 0; i < 4; i++) {
+        isa_init_ioport(dev, i);
         register_ioport_write (s->port + i, 1, 1, cs_write, s);
         register_ioport_read (s->port + i, 1, 1, cs_read, s);
     }

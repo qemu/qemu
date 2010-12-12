@@ -371,7 +371,7 @@ struct omap_intr_handler_s *omap_inth_init(target_phys_addr_t base,
     omap_inth_reset(s);
 
     iomemtype = cpu_register_io_memory(omap_inth_readfn,
-                    omap_inth_writefn, s);
+                    omap_inth_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, size, iomemtype);
 
     return s;
@@ -591,7 +591,7 @@ struct omap_intr_handler_s *omap2_inth_init(target_phys_addr_t base,
     omap_inth_reset(s);
 
     iomemtype = cpu_register_io_memory(omap2_inth_readfn,
-                    omap2_inth_writefn, s);
+                    omap2_inth_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, size, iomemtype);
 
     return s;

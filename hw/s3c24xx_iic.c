@@ -242,7 +242,8 @@ s3c24xx_iic_init(qemu_irq irq, target_phys_addr_t base_addr)
 
     s3c24xx_i2c_reset(s);
 
-    tag = cpu_register_io_memory(s3c24xx_i2c_readfn, s3c24xx_i2c_writefn, s);
+    tag = cpu_register_io_memory(s3c24xx_i2c_readfn, s3c24xx_i2c_writefn,
+                                 s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base_addr, 0xffffff, tag);
     register_savevm(NULL, "s3c24xx_i2c", 0, 0, s3c24xx_i2c_save, s3c24xx_i2c_load, s);
 

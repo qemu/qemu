@@ -315,8 +315,8 @@ static int tt_lcd_init(SysBusDevice *dev)
 
     s->brightness = 7;
 
-    iomemtype = cpu_register_io_memory(tt_lcd_readfn,
-                                       tt_lcd_writefn, s);
+    iomemtype = cpu_register_io_memory(tt_lcd_readfn, tt_lcd_writefn,
+                                       s, DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, MP_LCD_SIZE, iomemtype);
 
     s->ds = graphic_console_init(lcd_refresh, lcd_invalidate,
@@ -441,7 +441,8 @@ static int mv88w8618_pic_init(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, mv88w8618_pic_set_irq, 32);
     sysbus_init_irq(dev, &s->parent_irq);
     iomemtype = cpu_register_io_memory(mv88w8618_pic_readfn,
-                                       mv88w8618_pic_writefn, s);
+                                       mv88w8618_pic_writefn,
+                                       s, DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, MP_PIC_SIZE, iomemtype);
     return 0;
 }
@@ -602,7 +603,8 @@ static int mv88w8618_pit_init(SysBusDevice *dev)
     }
 
     iomemtype = cpu_register_io_memory(mv88w8618_pit_readfn,
-                                       mv88w8618_pit_writefn, s);
+                                       mv88w8618_pit_writefn,
+                                       s, DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, MP_PIT_SIZE, iomemtype);
     return 0;
 }
@@ -692,7 +694,8 @@ static int mv88w8618_flashcfg_init(SysBusDevice *dev)
 
     s->cfgr0 = 0xfffe4285; /* Default as set by U-Boot for 8 MB flash */
     iomemtype = cpu_register_io_memory(mv88w8618_flashcfg_readfn,
-                                       mv88w8618_flashcfg_writefn, s);
+                                       mv88w8618_flashcfg_writefn,
+                                       s, DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, MP_FLASHCFG_SIZE, iomemtype);
     return 0;
 }
@@ -858,14 +861,16 @@ static CPUWriteMemoryFunc * const tt_ioport_writefn[] = {
 static void tt_syscon_init(void)
 {
     int iomemtype = cpu_register_io_memory(tt_syscon_readfn,
-                                           tt_syscon_writefn, NULL);
+                                           tt_syscon_writefn,
+                                           NULL, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(S3C2443X_SYSCON, 0x10000, iomemtype);
 }
 
 static void tt_ioport_init(void)
 {
     int iomemtype = cpu_register_io_memory(tt_ioport_readfn,
-                                           tt_ioport_writefn, NULL);
+                                           tt_ioport_writefn,
+                                           NULL, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(S3C2443X_IO_PORT, 0x10000, iomemtype);
 }
 #endif
@@ -1057,8 +1062,7 @@ static CPUWriteMemoryFunc * const tt_gpio_writefn[] = {
 
 static void tt_gpio_reset(DeviceState *d)
 {
-    tt_gpio_state *s = FROM_SYSBUS(tt_gpio_state,
-                                         sysbus_from_qdev(d));
+    tt_gpio_state *s = FROM_SYSBUS(tt_gpio_state, sysbus_from_qdev(d));
 
     s->lcd_brightness = 0;
     s->out_state = 0;
@@ -1075,8 +1079,8 @@ static int tt_gpio_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
 
-    iomemtype = cpu_register_io_memory(tt_gpio_readfn,
-                                       tt_gpio_writefn, s);
+    iomemtype = cpu_register_io_memory(tt_gpio_readfn, tt_gpio_writefn,
+                                       s, DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, MP_GPIO_SIZE, iomemtype);
 
     qdev_init_gpio_out(&dev->qdev, s->out, ARRAY_SIZE(s->out));

@@ -49,6 +49,12 @@ struct DeviceState {
 
 typedef void (*bus_dev_printfn)(Monitor *mon, DeviceState *dev, int indent);
 typedef char *(*bus_get_dev_path)(DeviceState *dev);
+/*
+ * This callback is used to create Open Firmware device path in accordance with
+ * OF spec http://forthworks.com/standards/of1275.pdf. Indicidual bus bindings
+ * can be found here http://playground.sun.com/1275/bindings/.
+ */
+typedef char *(*bus_get_fw_dev_path)(DeviceState *dev);
 typedef int (qbus_resetfn)(BusState *bus);
 
 struct BusInfo {
@@ -56,6 +62,7 @@ struct BusInfo {
     size_t size;
     bus_dev_printfn print_dev;
     bus_get_dev_path get_dev_path;
+    bus_get_fw_dev_path get_fw_dev_path;
     qbus_resetfn *reset;
     Property *props;
 };
@@ -141,6 +148,7 @@ typedef void (*qdev_resetfn)(DeviceState *dev);
 
 struct DeviceInfo {
     const char *name;
+    const char *fw_name;
     const char *alias;
     const char *desc;
     size_t size;
@@ -306,6 +314,12 @@ void qdev_prop_set_defaults(DeviceState *dev, Property *props);
 void qdev_prop_register_global_list(GlobalProperty *props);
 void qdev_prop_set_globals(DeviceState *dev);
 
+static inline const char *qdev_fw_name(DeviceState *dev)
+{
+    return dev->info->fw_name ? : dev->info->alias ? : dev->info->name;
+}
+
+char *qdev_get_fw_dev_path(DeviceState *dev);
 /* This is a nasty hack to allow passing a NULL bus to qdev_create.  */
 extern struct BusInfo system_bus_info;
 

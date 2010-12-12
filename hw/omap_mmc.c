@@ -587,7 +587,7 @@ struct omap_mmc_s *omap_mmc_init(target_phys_addr_t base,
     omap_mmc_reset(s);
 
     iomemtype = cpu_register_io_memory(omap_mmc_readfn,
-                    omap_mmc_writefn, s);
+                    omap_mmc_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x800, iomemtype);
 
     /* Instantiate the storage */

@@ -35,6 +35,7 @@
 #include "sysbus.h"
 #include "qdev-addr.h"
 #include "blockdev.h"
+#include "sysemu.h"
 
 /********************************************************/
 /* debug Floppy devices */
@@ -523,6 +524,8 @@ typedef struct FDCtrlSysBus {
 typedef struct FDCtrlISABus {
     ISADevice busdev;
     struct FDCtrl state;
+    int32_t bootindexA;
+    int32_t bootindexB;
 } FDCtrlISABus;
 
 static uint32_t fdctrl_read (void *opaque, uint32_t reg)
@@ -1983,11 +1986,17 @@ static int isabus_fdc_init1(ISADevice *dev)
                           &fdctrl_write_port, fdctrl);
     register_ioport_write(iobase + 0x07, 1, 1,
                           &fdctrl_write_port, fdctrl);
+    isa_init_ioport_range(dev, iobase, 6);
+    isa_init_ioport(dev, iobase + 7);
+
     isa_init_irq(&isa->busdev, &fdctrl->irq, isairq);
     fdctrl->dma_chann = dma_chann;
 
     qdev_set_legacy_instance_id(&dev->qdev, iobase, 2);
     ret = fdctrl_init_common(fdctrl);
+
+    add_boot_device_path(isa->bootindexA, &dev->qdev, "/floppy@0");
+    add_boot_device_path(isa->bootindexB, &dev->qdev, "/floppy@1");
 
     return ret;
 }
@@ -1999,7 +2008,8 @@ static int sysbus_fdc_init1(SysBusDevice *dev)
     int io;
     int ret;
 
-    io = cpu_register_io_memory(fdctrl_mem_read, fdctrl_mem_write, fdctrl);
+    io = cpu_register_io_memory(fdctrl_mem_read, fdctrl_mem_write, fdctrl,
+                                DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x08, io);
     sysbus_init_irq(dev, &fdctrl->irq);
     qdev_init_gpio_in(&dev->qdev, fdctrl_handle_tc, 1);
@@ -2017,7 +2027,8 @@ static int sun4m_fdc_init1(SysBusDevice *dev)
     int io;
 
     io = cpu_register_io_memory(fdctrl_mem_read_strict,
-                                fdctrl_mem_write_strict, fdctrl);
+                                fdctrl_mem_write_strict, fdctrl,
+                                DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x08, io);
     sysbus_init_irq(dev, &fdctrl->irq);
     qdev_init_gpio_in(&dev->qdev, fdctrl_handle_tc, 1);
@@ -2040,6 +2051,7 @@ static const VMStateDescription vmstate_isa_fdc ={
 static ISADeviceInfo isa_fdc_info = {
     .init = isabus_fdc_init1,
     .qdev.name  = "isa-fdc",
+    .qdev.fw_name  = "fdc",
     .qdev.size  = sizeof(FDCtrlISABus),
     .qdev.no_user = 1,
     .qdev.vmsd  = &vmstate_isa_fdc,
@@ -2047,6 +2059,8 @@ static ISADeviceInfo isa_fdc_info = {
     .qdev.props = (Property[]) {
         DEFINE_PROP_DRIVE("driveA", FDCtrlISABus, state.drives[0].bs),
         DEFINE_PROP_DRIVE("driveB", FDCtrlISABus, state.drives[1].bs),
+        DEFINE_PROP_INT32("bootindexA", FDCtrlISABus, bootindexA, -1),
+        DEFINE_PROP_INT32("bootindexB", FDCtrlISABus, bootindexB, -1),
         DEFINE_PROP_END_OF_LIST(),
     },
 };

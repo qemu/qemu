@@ -189,7 +189,8 @@ static int pl031_init(SysBusDevice *dev)
     pl031_state *s = FROM_SYSBUS(pl031_state, dev);
     struct tm tm;
 
-    iomemtype = cpu_register_io_memory(pl031_readfn, pl031_writefn, s);
+    iomemtype = cpu_register_io_memory(pl031_readfn, pl031_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     if (iomemtype == -1) {
         hw_error("pl031_init: Can't register I/O memory\n");
     }

@@ -54,7 +54,7 @@ static void sh_pci_reg_write (void *p, target_phys_addr_t addr, uint32_t val)
             cpu_register_physical_memory(pcic->iobr & 0xfffc0000, 0x40000,
                                          IO_MEM_UNASSIGNED);
             pcic->iobr = val & 0xfffc0001;
-            isa_mmio_init(pcic->iobr & 0xfffc0000, 0x40000, 0);
+            isa_mmio_init(pcic->iobr & 0xfffc0000, 0x40000);
         }
         break;
     case 0x220:
@@ -103,12 +103,13 @@ PCIBus *sh_pci_register_bus(pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
 
     p->dev = pci_register_device(p->bus, "SH PCIC", sizeof(PCIDevice),
                                  -1, NULL, NULL);
-    reg = cpu_register_io_memory(sh_pci_reg.r, sh_pci_reg.w, p);
+    reg = cpu_register_io_memory(sh_pci_reg.r, sh_pci_reg.w, p,
+                                 DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(0x1e200000, 0x224, reg);
     cpu_register_physical_memory(0xfe200000, 0x224, reg);
 
     p->iobr = 0xfe240000;
-    isa_mmio_init(p->iobr, 0x40000, 0);
+    isa_mmio_init(p->iobr, 0x40000);
 
     pci_config_set_vendor_id(p->dev->config, PCI_VENDOR_ID_HITACHI);
     pci_config_set_device_id(p->dev->config, PCI_DEVICE_ID_HITACHI_SH7751R);

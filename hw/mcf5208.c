@@ -179,7 +179,8 @@ static void mcf5208_sys_init(qemu_irq *pic)
     int i;
 
     iomemtype = cpu_register_io_memory(m5208_sys_readfn,
-                                       m5208_sys_writefn, NULL);
+                                       m5208_sys_writefn, NULL,
+                                       DEVICE_NATIVE_ENDIAN);
     /* SDRAMC.  */
     cpu_register_physical_memory(0xfc0a8000, 0x00004000, iomemtype);
     /* Timers.  */
@@ -188,7 +189,8 @@ static void mcf5208_sys_init(qemu_irq *pic)
         bh = qemu_bh_new(m5208_timer_trigger, s);
         s->timer = ptimer_init(bh);
         iomemtype = cpu_register_io_memory(m5208_timer_readfn,
-                                           m5208_timer_writefn, s);
+                                           m5208_timer_writefn, s,
+                                           DEVICE_NATIVE_ENDIAN);
         cpu_register_physical_memory(0xfc080000 + 0x4000 * i, 0x00004000,
                                      iomemtype);
         s->irq = pic[4 + i];

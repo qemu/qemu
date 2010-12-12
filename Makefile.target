@@ -220,14 +220,9 @@ QEMU_CFLAGS += $(VNC_PNG_CFLAGS)
 # xen backend driver support
 obj-$(CONFIG_XEN) += xen_machine_pv.o xen_domainbuild.o
 
-# USB layer
-obj-$(CONFIG_USB_OHCI) += usb-ohci.o
-
 # PCI network cards
 obj-$(CONFIG_DP8381X_PCI) += dp8381x.o
 obj-$(CONFIG_EEPRO100_PCI) += eepro100.o
-obj-$(CONFIG_RTL8139_PCI) += rtl8139.o
-obj-$(CONFIG_E1000_PCI) += e1000.o
 
 # Inter-VM PCI shared memory
 obj-$(CONFIG_KVM) += ivshmem.o

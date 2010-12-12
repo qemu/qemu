@@ -297,7 +297,8 @@ static int pl061_init(SysBusDevice *dev)
     pl061_state *s = FROM_SYSBUS(pl061_state, dev);
 
     iomemtype = cpu_register_io_memory(pl061_readfn,
-                                       pl061_writefn, s);
+                                       pl061_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     sysbus_init_irq(dev, &s->irq);
     qdev_init_gpio_in(&dev->qdev, pl061_set_irq, 8);

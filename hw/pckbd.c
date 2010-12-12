@@ -436,7 +436,8 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
     s->mask = mask;
 
     vmstate_register(NULL, 0, &vmstate_kbd, s);
-    s_io_memory = cpu_register_io_memory(kbd_mm_read, kbd_mm_write, s);
+    s_io_memory = cpu_register_io_memory(kbd_mm_read, kbd_mm_write, s,
+                                         DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, size, s_io_memory);
 
     s->kbd = ps2_kbd_init(kbd_update_kbd_irq, s);
@@ -484,10 +485,13 @@ static int i8042_initfn(ISADevice *dev)
 
     register_ioport_read(0x60, 1, 1, kbd_read_data, s);
     register_ioport_write(0x60, 1, 1, kbd_write_data, s);
+    isa_init_ioport(dev, 0x60);
     register_ioport_read(0x64, 1, 1, kbd_read_status, s);
     register_ioport_write(0x64, 1, 1, kbd_write_command, s);
+    isa_init_ioport(dev, 0x64);
     register_ioport_read(0x92, 1, 1, ioport92_read, s);
     register_ioport_write(0x92, 1, 1, ioport92_write, s);
+    isa_init_ioport(dev, 0x92);
 
     s->kbd = ps2_kbd_init(kbd_update_kbd_irq, s);
     s->mouse = ps2_mouse_init(kbd_update_aux_irq, s);

@@ -125,7 +125,8 @@ static int sbi_init1(SysBusDevice *dev)
         sysbus_init_irq(dev, &s->cpu_irqs[i]);
     }
 
-    sbi_io_memory = cpu_register_io_memory(sbi_mem_read, sbi_mem_write, s);
+    sbi_io_memory = cpu_register_io_memory(sbi_mem_read, sbi_mem_write, s,
+                                           DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, SBI_SIZE, sbi_io_memory);
 
     return 0;

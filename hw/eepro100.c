@@ -50,6 +50,7 @@
 #include "pci.h"
 #include "net.h"
 #include "eeprom93xx.h"
+#include "sysemu.h"
 
 #define KiB 1024
 
@@ -2021,7 +2022,8 @@ static int e100_nic_init(PCIDevice *pci_dev)
 
     /* Handler for memory-mapped I/O */
     s->mmio_index =
-        cpu_register_io_memory(pci_mmio_read, pci_mmio_write, s);
+        cpu_register_io_memory(pci_mmio_read, pci_mmio_write, s,
+                               DEVICE_NATIVE_ENDIAN);
 
     pci_register_bar(&s->dev, 0, PCI_MEM_SIZE,
                            PCI_BASE_ADDRESS_SPACE_MEMORY |
@@ -2049,6 +2051,8 @@ static int e100_nic_init(PCIDevice *pci_dev)
     memcpy(s->vmstate, &vmstate_eepro100, sizeof(vmstate_eepro100));
     s->vmstate->name = s->nic->nc.model;
     vmstate_register(&pci_dev->qdev, -1, s->vmstate, s);
+
+    add_boot_device_path(s->conf.bootindex, &pci_dev->qdev, "/ethernet-phy@0");
 
     return 0;
 }

@@ -699,6 +699,7 @@ static int virtio_9p_init_pci(PCIDevice *pci_dev)
 static PCIDeviceInfo virtio_info[] = {
     {
         .qdev.name = "virtio-blk-pci",
+        .qdev.alias = "virtio-blk",
         .qdev.size = sizeof(VirtIOPCIProxy),
         .init      = virtio_blk_init_pci,
         .exit      = virtio_blk_exit_pci,

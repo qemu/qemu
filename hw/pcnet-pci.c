@@ -294,7 +294,8 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
 
     /* Handler for memory-mapped I/O */
     s->mmio_index =
-      cpu_register_io_memory(pcnet_mmio_read, pcnet_mmio_write, &d->state);
+      cpu_register_io_memory(pcnet_mmio_read, pcnet_mmio_write, &d->state,
+                             DEVICE_NATIVE_ENDIAN);
 
     pci_register_bar(pci_dev, 0, PCNET_IOPORT_SIZE,
                            PCI_BASE_ADDRESS_SPACE_IO, pcnet_ioport_map);
@@ -309,7 +310,7 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
     if (!pci_dev->qdev.hotplugged) {
         static int loaded = 0;
         if (!loaded) {
-            rom_add_option("pxe-pcnet.bin");
+            rom_add_option("pxe-pcnet.bin", -1);
             loaded = 1;
         }
     }

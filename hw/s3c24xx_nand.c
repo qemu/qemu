@@ -129,7 +129,8 @@ s3c24xx_nand_init(target_phys_addr_t base_addr)
 
     s = qemu_mallocz(sizeof(struct s3c24xx_nand_state_s));
 
-    tag = cpu_register_io_memory(s3c24xx_nand_read, s3c24xx_nand_write, s);
+    tag = cpu_register_io_memory(s3c24xx_nand_read, s3c24xx_nand_write,
+                                 s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base_addr, 0x40, tag);
 
     return s;

@@ -720,7 +720,8 @@ static int hpet_init(SysBusDevice *dev)
 
     /* HPET Area */
     iomemtype = cpu_register_io_memory(hpet_ram_read,
-                                       hpet_ram_write, s);
+                                       hpet_ram_write, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x400, iomemtype);
     return 0;
 }

@@ -73,7 +73,8 @@ static int empty_slot_init1(SysBusDevice *dev)
     ram_addr_t empty_slot_offset;
 
     empty_slot_offset = cpu_register_io_memory(empty_slot_read,
-                                               empty_slot_write, s);
+                                               empty_slot_write, s,
+                                               DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, s->size, empty_slot_offset | IO_MEM_RAM);
     return 0;
 }

@@ -21,17 +21,32 @@
 #include "qemu-error.h"
 #include <hw/ide/internal.h>
 #include "blockdev.h"
+#include "sysemu.h"
 
 /* --------------------------------- */
+
+static char *idebus_get_fw_dev_path(DeviceState *dev);
 
 static struct BusInfo ide_bus_info = {
     .name  = "IDE",
     .size  = sizeof(IDEBus),
+    .get_fw_dev_path = idebus_get_fw_dev_path,
 };
 
-void ide_bus_new(IDEBus *idebus, DeviceState *dev)
+void ide_bus_new(IDEBus *idebus, DeviceState *dev, int bus_id)
 {
     qbus_create_inplace(&idebus->qbus, &ide_bus_info, dev, NULL);
+    idebus->bus_id = bus_id;
+}
+
+static char *idebus_get_fw_dev_path(DeviceState *dev)
+{
+    char path[30];
+
+    snprintf(path, sizeof(path), "%s@%d", qdev_fw_name(dev),
+             ((IDEBus*)dev->parent_bus)->bus_id);
+
+    return strdup(path);
 }
 
 static int ide_qdev_init(DeviceState *qdev, DeviceInfo *base)
@@ -129,11 +144,16 @@ static int ide_drive_initfn(IDEDevice *dev)
     if (!dev->serial) {
         dev->serial = qemu_strdup(s->drive_serial_str);
     }
+
+    add_boot_device_path(dev->conf.bootindex, &dev->qdev,
+                         dev->unit ? "/disk@1" : "/disk@0");
+
     return 0;
 }
 
 static IDEDeviceInfo ide_drive_info = {
     .qdev.name  = "ide-drive",
+    .qdev.fw_name  = "drive",
     .qdev.size  = sizeof(IDEDrive),
     .init       = ide_drive_initfn,
     .qdev.props = (Property[]) {

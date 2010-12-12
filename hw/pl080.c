@@ -325,7 +325,8 @@ static int pl08x_init(SysBusDevice *dev, int nchannels)
     pl080_state *s = FROM_SYSBUS(pl080_state, dev);
 
     iomemtype = cpu_register_io_memory(pl080_readfn,
-                                       pl080_writefn, s);
+                                       pl080_writefn, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     sysbus_init_irq(dev, &s->irq);
     s->nchannels = nchannels;

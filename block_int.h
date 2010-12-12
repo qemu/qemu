@@ -227,6 +227,7 @@ typedef struct BlockConf {
     uint16_t logical_block_size;
     uint16_t min_io_size;
     uint32_t opt_io_size;
+    int32_t bootindex;
 } BlockConf;
 
 static inline unsigned int get_physical_block_exp(BlockConf *conf)
@@ -249,6 +250,7 @@ static inline unsigned int get_physical_block_exp(BlockConf *conf)
     DEFINE_PROP_UINT16("physical_block_size", _state,                   \
                        _conf.physical_block_size, 512),                 \
     DEFINE_PROP_UINT16("min_io_size", _state, _conf.min_io_size, 0),  \
-    DEFINE_PROP_UINT32("opt_io_size", _state, _conf.opt_io_size, 0)
+    DEFINE_PROP_UINT32("opt_io_size", _state, _conf.opt_io_size, 0),    \
+    DEFINE_PROP_INT32("bootindex", _state, _conf.bootindex, -1)         \
 
 #endif /* BLOCK_INT_H */

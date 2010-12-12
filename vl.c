@@ -222,7 +222,7 @@ int cursor_hide = 1;
 int graphic_rotate = 0;
 uint8_t irq0override = 1;
 const char *watchdog;
-const char *option_rom[MAX_OPTION_ROMS];
+QEMUOptionRom option_rom[MAX_OPTION_ROMS];
 int nb_option_roms;
 int semihosting_enabled = 0;
 int old_param = 0;
@@ -232,6 +232,17 @@ int ctrl_grab = 0;
 unsigned int nb_prom_envs = 0;
 const char *prom_envs[MAX_PROM_ENVS];
 int boot_menu;
+
+typedef struct FWBootEntry FWBootEntry;
+
+struct FWBootEntry {
+    QTAILQ_ENTRY(FWBootEntry) link;
+    int32_t bootindex;
+    DeviceState *dev;
+    char *suffix;
+};
+
+QTAILQ_HEAD(, FWBootEntry) fw_boot_order = QTAILQ_HEAD_INITIALIZER(fw_boot_order);
 
 int nb_numa_nodes;
 uint64_t node_mem[MAX_NODES];
@@ -249,6 +260,9 @@ static void *boot_set_opaque;
 
 static NotifierList exit_notifiers =
     NOTIFIER_LIST_INITIALIZER(exit_notifiers);
+
+static NotifierList machine_init_done_notifiers =
+    NOTIFIER_LIST_INITIALIZER(machine_init_done_notifiers);
 
 int kvm_allowed = 0;
 uint32_t xen_domid;
@@ -698,6 +712,83 @@ static void restore_boot_devices(void *opaque)
 
     qemu_unregister_reset(restore_boot_devices, standard_boot_devices);
     qemu_free(standard_boot_devices);
+}
+
+void add_boot_device_path(int32_t bootindex, DeviceState *dev,
+                          const char *suffix)
+{
+    FWBootEntry *node, *i;
+
+    if (bootindex < 0) {
+        return;
+    }
+
+    assert(dev != NULL || suffix != NULL);
+
+    node = qemu_mallocz(sizeof(FWBootEntry));
+    node->bootindex = bootindex;
+    node->suffix = strdup(suffix);
+    node->dev = dev;
+
+    QTAILQ_FOREACH(i, &fw_boot_order, link) {
+        if (i->bootindex == bootindex) {
+            fprintf(stderr, "Two devices with same boot index %d\n", bootindex);
+            exit(1);
+        } else if (i->bootindex < bootindex) {
+            continue;
+        }
+        QTAILQ_INSERT_BEFORE(i, node, link);
+        return;
+    }
+    QTAILQ_INSERT_TAIL(&fw_boot_order, node, link);
+}
+
+/*
+ * This function returns null terminated string that consist of new line
+ * separated device pathes.
+ *
+ * memory pointed by "size" is assigned total length of the array in bytes
+ *
+ */
+char *get_boot_devices_list(uint32_t *size)
+{
+    FWBootEntry *i;
+    uint32_t total = 0;
+    char *list = NULL;
+
+    QTAILQ_FOREACH(i, &fw_boot_order, link) {
+        char *devpath = NULL, *bootpath;
+        int len;
+
+        if (i->dev) {
+            devpath = qdev_get_fw_dev_path(i->dev);
+            assert(devpath);
+        }
+
+        if (i->suffix && devpath) {
+            bootpath = qemu_malloc(strlen(devpath) + strlen(i->suffix) + 1);
+            sprintf(bootpath, "%s%s", devpath, i->suffix);
+            qemu_free(devpath);
+        } else if (devpath) {
+            bootpath = devpath;
+        } else {
+            bootpath = strdup(i->suffix);
+            assert(bootpath);
+        }
+
+        if (total) {
+            list[total-1] = '\n';
+        }
+        len = strlen(bootpath) + 1;
+        list = qemu_realloc(list, total + len);
+        memcpy(&list[total], bootpath, len);
+        total += len;
+        qemu_free(bootpath);
+    }
+
+    *size = total;
+
+    return list;
 }
 
 static void numa_add(const char *optarg)
@@ -1785,6 +1876,16 @@ static void qemu_run_exit_notifiers(void)
     notifier_list_notify(&exit_notifiers);
 }
 
+void qemu_add_machine_init_done_notifier(Notifier *notify)
+{
+    notifier_list_add(&machine_init_done_notifiers, notify);
+}
+
+static void qemu_run_machine_init_done_notifiers(void)
+{
+    notifier_list_notify(&machine_init_done_notifiers);
+}
+
 static const QEMUOption *lookup_opt(int argc, char **argv,
                                     const char **poptarg, int *poptind)
 {
@@ -2531,7 +2632,14 @@ int main(int argc, char **argv, char **envp)
 		    fprintf(stderr, "Too many option ROMs\n");
 		    exit(1);
 		}
-		option_rom[nb_option_roms] = optarg;
+                opts = qemu_opts_parse(qemu_find_opts("option-rom"), optarg, 1);
+                option_rom[nb_option_roms].name = qemu_opt_get(opts, "romfile");
+                option_rom[nb_option_roms].bootindex =
+                    qemu_opt_get_number(opts, "bootindex", -1);
+                if (!option_rom[nb_option_roms].name) {
+                    fprintf(stderr, "Option ROM file is not specified\n");
+                    exit(1);
+                }
 		nb_option_roms++;
 		break;
             case QEMU_OPTION_semihosting:
@@ -3035,6 +3143,8 @@ int main(int argc, char **argv, char **envp)
     }
 
     qemu_register_reset((void *)qbus_reset_all, sysbus_get_default());
+    qemu_run_machine_init_done_notifiers();
+
     qemu_system_reset();
     if (loadvm) {
         if (load_vmstate(loadvm) < 0) {

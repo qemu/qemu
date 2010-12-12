@@ -442,7 +442,8 @@ int sh_intc_init(struct intc_desc *desc,
     desc->irqs = qemu_allocate_irqs(sh_intc_set_irq, desc, nr_sources);
  
     desc->iomemtype = cpu_register_io_memory(sh_intc_readfn,
-					     sh_intc_writefn, desc);
+					     sh_intc_writefn, desc,
+                                             DEVICE_NATIVE_ENDIAN);
     if (desc->mask_regs) {
         for (i = 0; i < desc->nr_mask_regs; i++) {
 	    struct intc_mask_reg *mr = desc->mask_regs + i;

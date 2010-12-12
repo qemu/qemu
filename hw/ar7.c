@@ -3611,7 +3611,8 @@ static void ar7_init(CPUState * env)
 {
     //~ target_phys_addr_t addr = (0x08610000 & 0xffff);
     //~ unsigned offset;
-    int io_memory = cpu_register_io_memory(io_read, io_write, env);
+    int io_memory = cpu_register_io_memory(io_read, io_write,
+                                           env, DEVICE_NATIVE_ENDIAN);
     //~ cpu_register_physical_memory(0x08610000, 0x00002800, io_memory);
     //~ cpu_register_physical_memory(0x00001000, 0x0860f000, io_memory);
     cpu_register_physical_memory_offset(0x00001000, 0x0ffff000, io_memory, 0x00001000);

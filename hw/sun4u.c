@@ -525,10 +525,10 @@ static void ebus_mmio_mapfunc(PCIDevice *pci_dev, int region_num,
                  region_num, addr);
     switch (region_num) {
     case 0:
-        isa_mmio_init(addr, 0x1000000, 1);
+        isa_mmio_init(addr, 0x1000000);
         break;
     case 1:
-        isa_mmio_init(addr, 0x800000, 1);
+        isa_mmio_init(addr, 0x800000);
         break;
     }
 }

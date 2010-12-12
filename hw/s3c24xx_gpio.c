@@ -171,8 +171,8 @@ static int s3c24xx_gpio_init_(SysBusDevice *dev)
 
     //~ qdev_init_gpio_in(&dev->qdev, mv88w8618_pic_set_irq, 32);
     //~ sysbus_init_irq(dev, &s->parent_irq);
-    iomemtype = cpu_register_io_memory(s3c24xx_gpio_read,
-                                       s3c24xx_gpio_write, s);
+    iomemtype = cpu_register_io_memory(s3c24xx_gpio_read, s3c24xx_gpio_write,
+                                       s, DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, S3C_GPIO_MAX * 4, iomemtype);
 
     /* Set non zero default values. */
@@ -206,7 +206,8 @@ s3c24xx_gpio_init(S3CState *soc, target_phys_addr_t base_addr, uint32_t cpu_id)
         return NULL;
     }
 
-    tag = cpu_register_io_memory(s3c24xx_gpio_read, s3c24xx_gpio_write, s);
+    tag = cpu_register_io_memory(s3c24xx_gpio_read, s3c24xx_gpio_write,
+                                 s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base_addr, S3C_GPIO_MAX * 4, tag);
 
     /* Set non zero default values. */

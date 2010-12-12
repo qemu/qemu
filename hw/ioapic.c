@@ -242,7 +242,8 @@ static int ioapic_init1(SysBusDevice *dev)
     int io_memory;
 
     io_memory = cpu_register_io_memory(ioapic_mem_read,
-                                       ioapic_mem_write, s);
+                                       ioapic_mem_write, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, io_memory);
 
     qdev_init_gpio_in(&dev->qdev, ioapic_set_irq, IOAPIC_NUM_PINS);

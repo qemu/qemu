@@ -320,7 +320,8 @@ int pmac_ide_init (DriveInfo **hd_table, qemu_irq irq,
         DBDMA_register_channel(dbdma, channel, dma_irq, pmac_ide_transfer, pmac_ide_flush, d);
 
     pmac_ide_memory = cpu_register_io_memory(pmac_ide_read,
-                                             pmac_ide_write, d);
+                                             pmac_ide_write, d,
+                                             DEVICE_NATIVE_ENDIAN);
     vmstate_register(NULL, 0, &vmstate_pmac, d);
     qemu_register_reset(pmac_ide_reset, d);
 

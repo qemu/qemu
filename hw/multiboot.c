@@ -331,7 +331,8 @@ int load_multiboot(void *fw_cfg,
     fw_cfg_add_bytes(fw_cfg, FW_CFG_INITRD_DATA, mb_bootinfo_data,
                      sizeof(bootinfo));
 
-    option_rom[nb_option_roms] = "multiboot.bin";
+    option_rom[nb_option_roms].name = "multiboot.bin";
+    option_rom[nb_option_roms].bootindex = 0;
     nb_option_roms++;
 
     return 1; /* yes, we are multiboot */

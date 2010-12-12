@@ -137,7 +137,8 @@ int pcie_host_init(PCIExpressHost *e)
 {
     e->base_addr = PCIE_BASE_ADDR_UNMAPPED;
     e->mmio_index =
-        cpu_register_io_memory(pcie_mmcfg_read, pcie_mmcfg_write, e);
+        cpu_register_io_memory(pcie_mmcfg_read, pcie_mmcfg_write, e,
+                               DEVICE_NATIVE_ENDIAN);
     if (e->mmio_index < 0) {
         return -1;
     }

@@ -481,16 +481,21 @@ static int parallel_isa_initfn(ISADevice *dev)
     if (s->hw_driver) {
         register_ioport_write(base, 8, 1, parallel_ioport_write_hw, s);
         register_ioport_read(base, 8, 1, parallel_ioport_read_hw, s);
+        isa_init_ioport_range(dev, base, 8);
+
         register_ioport_write(base+4, 1, 2, parallel_ioport_eppdata_write_hw2, s);
         register_ioport_read(base+4, 1, 2, parallel_ioport_eppdata_read_hw2, s);
         register_ioport_write(base+4, 1, 4, parallel_ioport_eppdata_write_hw4, s);
         register_ioport_read(base+4, 1, 4, parallel_ioport_eppdata_read_hw4, s);
+        isa_init_ioport(dev, base+4);
         register_ioport_write(base+0x400, 8, 1, parallel_ioport_ecp_write, s);
         register_ioport_read(base+0x400, 8, 1, parallel_ioport_ecp_read, s);
+        isa_init_ioport_range(dev, base+0x400, 8);
     }
     else {
         register_ioport_write(base, 8, 1, parallel_ioport_write_sw, s);
         register_ioport_read(base, 8, 1, parallel_ioport_read_sw, s);
+        isa_init_ioport_range(dev, base, 8);
     }
     return 0;
 }
@@ -577,7 +582,8 @@ ParallelState *parallel_mm_init(target_phys_addr_t base, int it_shift, qemu_irq 
     s->it_shift = it_shift;
     qemu_register_reset(parallel_reset, s);
 
-    io_sw = cpu_register_io_memory(parallel_mm_read_sw, parallel_mm_write_sw, s);
+    io_sw = cpu_register_io_memory(parallel_mm_read_sw, parallel_mm_write_sw,
+                                   s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 8 << it_shift, io_sw);
     return s;
 }

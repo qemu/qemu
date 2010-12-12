@@ -217,7 +217,8 @@ s3c24xx_irq_init(S3CState *soc, target_phys_addr_t base_addr)
     s = qemu_mallocz(sizeof(struct s3c24xx_irq_state_s));
 
     /* Samsung S3C24XX IRQ registration. */
-    tag = cpu_register_io_memory(s3c24xx_irq_read, s3c24xx_irq_write, s);
+    tag = cpu_register_io_memory(s3c24xx_irq_read, s3c24xx_irq_write, s,
+                                 DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base_addr, 8 * 4, tag);
     register_savevm(NULL, "s3c24xx_irq", 0, 0, s3c24xx_irq_save, s3c24xx_irq_load, s);
 

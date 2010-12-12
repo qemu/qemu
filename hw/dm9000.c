@@ -663,8 +663,8 @@ static int dm9000_init(SysBusDevice *dev)
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_dm9000_info, &s->conf,
                           dev->qdev.info->name, dev->qdev.id, s);
-    mmio_index = cpu_register_io_memory(dm9000_readfn,
-                                        dm9000_writefn, s);
+    mmio_index = cpu_register_io_memory(dm9000_readfn, dm9000_writefn,
+                                        s, DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, mmio_index);
     dm9000_hard_reset(s);
     qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);

@@ -242,18 +242,9 @@ typedef struct openpic_t {
     int max_irq;
     int irq_ipi0;
     int irq_tim0;
-    int need_swap;
     void (*reset) (void *);
     void (*irq_raise) (struct openpic_t *, int, IRQ_src_t *);
 } openpic_t;
-
-static inline uint32_t openpic_swap32(openpic_t *opp, uint32_t val)
-{
-    if (opp->need_swap)
-        return bswap32(val);
-
-    return val;
-}
 
 static inline void IRQ_setbit (IRQ_queue_t *q, int n_IRQ)
 {
@@ -599,7 +590,6 @@ static void openpic_gbl_write (void *opaque, target_phys_addr_t addr, uint32_t v
     DPRINTF("%s: addr " TARGET_FMT_plx " <= %08x\n", __func__, addr, val);
     if (addr & 0xF)
         return;
-    val = openpic_swap32(opp, val);
     addr &= 0xFF;
     switch (addr) {
     case 0x00: /* FREP */
@@ -693,7 +683,6 @@ static uint32_t openpic_gbl_read (void *opaque, target_phys_addr_t addr)
         break;
     }
     DPRINTF("%s: => %08x\n", __func__, retval);
-    retval = openpic_swap32(opp, retval);
 
     return retval;
 }
@@ -706,7 +695,6 @@ static void openpic_timer_write (void *opaque, uint32_t addr, uint32_t val)
     DPRINTF("%s: addr %08x <= %08x\n", __func__, addr, val);
     if (addr & 0xF)
         return;
-    val = openpic_swap32(opp, val);
     addr -= 0x1100;
     addr &= 0xFFFF;
     idx = (addr & 0xFFF0) >> 6;
@@ -759,7 +747,6 @@ static uint32_t openpic_timer_read (void *opaque, uint32_t addr)
         break;
     }
     DPRINTF("%s: => %08x\n", __func__, retval);
-    retval = openpic_swap32(opp, retval);
 
     return retval;
 }
@@ -772,7 +759,6 @@ static void openpic_src_write (void *opaque, uint32_t addr, uint32_t val)
     DPRINTF("%s: addr %08x <= %08x\n", __func__, addr, val);
     if (addr & 0xF)
         return;
-    val = openpic_swap32(opp, val);
     addr = addr & 0xFFF0;
     idx = addr >> 5;
     if (addr & 0x10) {
@@ -804,7 +790,6 @@ static uint32_t openpic_src_read (void *opaque, uint32_t addr)
         retval = read_IRQreg(opp, idx, IRQ_IPVP);
     }
     DPRINTF("%s: => %08x\n", __func__, retval);
-    retval = openpic_swap32(opp, retval);
 
     return retval;
 }
@@ -819,7 +804,6 @@ static void openpic_cpu_write (void *opaque, target_phys_addr_t addr, uint32_t v
     DPRINTF("%s: addr " TARGET_FMT_plx " <= %08x\n", __func__, addr, val);
     if (addr & 0xF)
         return;
-    val = openpic_swap32(opp, val);
     addr &= 0x1FFF0;
     idx = addr / 0x1000;
     dst = &opp->dst[idx];
@@ -937,7 +921,6 @@ static uint32_t openpic_cpu_read (void *opaque, target_phys_addr_t addr)
         break;
     }
     DPRINTF("%s: => %08x\n", __func__, retval);
-    retval = openpic_swap32(opp, retval);
 
     return retval;
 }
@@ -1035,7 +1018,8 @@ static void openpic_map(PCIDevice *pci_dev, int region_num,
     cpu_register_physical_memory(addr, 0x40000, opp->mem_index);
 #if 0 // Don't implement ISU for now
     opp_io_memory = cpu_register_io_memory(openpic_src_read,
-                                           openpic_src_write);
+                                           openpic_src_write, NULL
+                                           DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(isu_base, 0x20 * (EXT_IRQ + 2),
                                  opp_io_memory);
 #endif
@@ -1202,8 +1186,8 @@ qemu_irq *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
     } else {
         opp = qemu_mallocz(sizeof(openpic_t));
     }
-    opp->mem_index = cpu_register_io_memory(openpic_read,
-                                            openpic_write, opp);
+    opp->mem_index = cpu_register_io_memory(openpic_read, openpic_write, opp,
+                                            DEVICE_LITTLE_ENDIAN);
 
     //    isu_base &= 0xFFFC0000;
     opp->nb_cpus = nb_cpus;
@@ -1231,7 +1215,6 @@ qemu_irq *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
     for (i = 0; i < nb_cpus; i++)
         opp->dst[i].irqs = irqs[i];
     opp->irq_out = irq_out;
-    opp->need_swap = 1;
 
     register_savevm(&opp->pci_dev.qdev, "openpic", 0, 2,
                     openpic_save, openpic_load, opp);
@@ -1671,7 +1654,8 @@ qemu_irq *mpic_init (target_phys_addr_t base, int nb_cpus,
     for (i = 0; i < sizeof(list)/sizeof(list[0]); i++) {
         int mem_index;
 
-        mem_index = cpu_register_io_memory(list[i].read, list[i].write, mpp);
+        mem_index = cpu_register_io_memory(list[i].read, list[i].write, mpp,
+                                           DEVICE_BIG_ENDIAN);
         if (mem_index < 0) {
             goto free;
         }
@@ -1687,7 +1671,6 @@ qemu_irq *mpic_init (target_phys_addr_t base, int nb_cpus,
     for (i = 0; i < nb_cpus; i++)
         mpp->dst[i].irqs = irqs[i];
     mpp->irq_out = irq_out;
-    mpp->need_swap = 0;    /* MPIC has the same endian as target */
 
     mpp->irq_raise = mpic_irq_raise;
     mpp->reset = mpic_reset;

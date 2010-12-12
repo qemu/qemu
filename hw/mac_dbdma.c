@@ -707,8 +707,6 @@ static void dbdma_writel (void *opaque,
     DBDMA_DPRINTF("channel 0x%x reg 0x%x\n",
                   (uint32_t)addr >> DBDMA_CHANNEL_SHIFT, reg);
 
-    value = bswap32(value);
-
     /* cmdptr cannot be modified if channel is RUN or ACTIVE */
 
     if (reg == DBDMA_CMDPTR_LO &&
@@ -788,7 +786,6 @@ static uint32_t dbdma_readl (void *opaque, target_phys_addr_t addr)
         break;
     }
 
-    value = bswap32(value);
     return value;
 }
 
@@ -844,7 +841,8 @@ void* DBDMA_init (int *dbdma_mem_index)
 
     s = qemu_mallocz(sizeof(DBDMA_channel) * DBDMA_CHANNELS);
 
-    *dbdma_mem_index = cpu_register_io_memory(dbdma_read, dbdma_write, s);
+    *dbdma_mem_index = cpu_register_io_memory(dbdma_read, dbdma_write, s,
+                                              DEVICE_LITTLE_ENDIAN);
     register_savevm(NULL, "dbdma", -1, 1, dbdma_save, dbdma_load, s);
     qemu_register_reset(dbdma_reset, s);
 

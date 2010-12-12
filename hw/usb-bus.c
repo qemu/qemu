@@ -5,11 +5,13 @@
 #include "monitor.h"
 
 static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent);
+static char *usbbus_get_fw_dev_path(DeviceState *dev);
 
 static struct BusInfo usb_bus_info = {
     .name      = "USB",
     .size      = sizeof(USBBus),
     .print_dev = usb_bus_dev_print,
+    .get_fw_dev_path = usbbus_get_fw_dev_path,
 };
 static int next_usb_bus = 0;
 static QTAILQ_HEAD(, USBBus) busses = QTAILQ_HEAD_INITIALIZER(busses);
@@ -110,11 +112,12 @@ USBDevice *usb_create_simple(USBBus *bus, const char *name)
 }
 
 void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,
-                       usb_attachfn attach)
+                       USBDevice *pdev, usb_attachfn attach)
 {
     port->opaque = opaque;
     port->index = index;
     port->attach = attach;
+    port->pdev = pdev;
     QTAILQ_INSERT_TAIL(&bus->free, port, next);
     bus->nfree++;
 }
@@ -305,4 +308,44 @@ USBDevice *usbdevice_create(const char *cmdline)
         return usb_create_simple(bus, usb->qdev.name);
     }
     return usb->usbdevice_init(params);
+}
+
+static int usbbus_get_fw_dev_path_helper(USBDevice *d, USBBus *bus, char *p,
+                                         int len)
+{
+    int l = 0;
+    USBPort *port;
+
+    QTAILQ_FOREACH(port, &bus->used, next) {
+        if (port->dev == d) {
+            if (port->pdev) {
+                l = usbbus_get_fw_dev_path_helper(port->pdev, bus, p, len);
+            }
+            l += snprintf(p + l, len - l, "%s@%x/", qdev_fw_name(&d->qdev),
+                          port->index);
+            break;
+        }
+    }
+
+    return l;
+}
+
+static char *usbbus_get_fw_dev_path(DeviceState *dev)
+{
+    USBDevice *d = (USBDevice*)dev;
+    USBBus *bus = usb_bus_from_device(d);
+    char path[100];
+    int l;
+
+    assert(d->attached != 0);
+
+    l = usbbus_get_fw_dev_path_helper(d, bus, path, sizeof(path));
+
+    if (l == 0) {
+        abort();
+    }
+
+    path[l-1] = '\0';
+
+    return strdup(path);
 }

@@ -600,10 +600,12 @@ pflash_t *pflash_cfi01_register(target_phys_addr_t base, ram_addr_t off,
     pfl->storage = qemu_get_ram_ptr(off);
     if (be) {
         pfl->fl_mem = cpu_register_io_memory(pflash_read_ops_be,
-                                             pflash_write_ops_be, pfl);
+                                             pflash_write_ops_be, pfl,
+                                             DEVICE_NATIVE_ENDIAN);
     } else {
         pfl->fl_mem = cpu_register_io_memory(pflash_read_ops_le,
-                                             pflash_write_ops_le, pfl);
+                                             pflash_write_ops_le, pfl,
+                                             DEVICE_NATIVE_ENDIAN);
     }
     pfl->off = off;
     cpu_register_physical_memory(base, total_len,

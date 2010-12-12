@@ -1505,7 +1505,8 @@ static int pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
 
     /* Handler for memory-mapped I/O */
     s->io_memory =
-        cpu_register_io_memory(dp8381x_mmio_read, dp8381x_mmio_write, s);
+        cpu_register_io_memory(dp8381x_mmio_read, dp8381x_mmio_write, s,
+                               DEVICE_NATIVE_ENDIAN);
 
     logout("io_memory = 0x%08x\n", s->io_memory);
 

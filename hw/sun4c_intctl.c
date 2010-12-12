@@ -196,7 +196,8 @@ static int sun4c_intctl_init1(SysBusDevice *dev)
     unsigned int i;
 
     io_memory = cpu_register_io_memory(sun4c_intctl_mem_read,
-                                       sun4c_intctl_mem_write, s);
+                                       sun4c_intctl_mem_write, s,
+                                       DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, INTCTL_SIZE, io_memory);
     qdev_init_gpio_in(&dev->qdev, sun4c_set_irq, 8);
 

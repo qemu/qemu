@@ -115,7 +115,8 @@ s3c24xx_clkcon_init(S3CState *soc, target_phys_addr_t base_addr, uint32_t ref_fr
 
     s = qemu_mallocz(sizeof(struct s3c24xx_clkcon_state_s));
 
-    tag = cpu_register_io_memory(s3c24xx_clkcon_read, s3c24xx_clkcon_write, s);
+    tag = cpu_register_io_memory(s3c24xx_clkcon_read, s3c24xx_clkcon_write, s,
+                                 DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base_addr, ARRAY_SIZE(s->clkcon_reg) * 4, tag);
     register_savevm(NULL, "s3c24xx_clkcon", 0, 0, s3c24xx_clkcon_save, s3c24xx_clkcon_load, s);
 

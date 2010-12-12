@@ -256,7 +256,9 @@ s3c24xx_serial_init(S3CState *soc,
     s->tx_level = s3c24xx_get_irq(soc->irq, irqn + 1 + 64);
 
     /* Prepare our MMIO tag */
-    serial_io = cpu_register_io_memory(s3c24xx_serial_read, s3c24xx_serial_write, s);
+    serial_io = cpu_register_io_memory(s3c24xx_serial_read,
+                                       s3c24xx_serial_write,
+                                       s, DEVICE_NATIVE_ENDIAN);
     /* Register the region with the tag */
     cpu_register_physical_memory(base_addr, 44, serial_io);
 

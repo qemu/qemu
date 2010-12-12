@@ -64,7 +64,8 @@ static int realview_gic_init(SysBusDevice *dev)
 
     gic_init(&s->gic);
     s->iomemtype = cpu_register_io_memory(realview_gic_cpu_readfn,
-                                          realview_gic_cpu_writefn, s);
+                                          realview_gic_cpu_writefn, s,
+                                          DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio_cb(dev, 0x2000, realview_gic_map);
     return 0;
 }

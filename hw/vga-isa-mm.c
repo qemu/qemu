@@ -97,8 +97,10 @@ static void vga_mm_init(ISAVGAMMState *s, target_phys_addr_t vram_base,
     int s_ioport_ctrl, vga_io_memory;
 
     s->it_shift = it_shift;
-    s_ioport_ctrl = cpu_register_io_memory(vga_mm_read_ctrl, vga_mm_write_ctrl, s);
-    vga_io_memory = cpu_register_io_memory(vga_mem_read, vga_mem_write, s);
+    s_ioport_ctrl = cpu_register_io_memory(vga_mm_read_ctrl, vga_mm_write_ctrl, s,
+                                           DEVICE_NATIVE_ENDIAN);
+    vga_io_memory = cpu_register_io_memory(vga_mem_read, vga_mem_write, s,
+                                           DEVICE_NATIVE_ENDIAN);
 
     vmstate_register(NULL, 0, &vmstate_vga_common, s);
 

@@ -297,12 +297,14 @@ static int ecc_init1(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
     s->regs[0] = s->version;
-    ecc_io_memory = cpu_register_io_memory(ecc_mem_read, ecc_mem_write, s);
+    ecc_io_memory = cpu_register_io_memory(ecc_mem_read, ecc_mem_write, s,
+                                           DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, ECC_SIZE, ecc_io_memory);
 
     if (s->version == ECC_MCC) { // SS-600MP only
         ecc_io_memory = cpu_register_io_memory(ecc_diag_mem_read,
-                                               ecc_diag_mem_write, s);
+                                               ecc_diag_mem_write, s,
+                                               DEVICE_NATIVE_ENDIAN);
         sysbus_init_mmio(dev, ECC_DIAG_SIZE, ecc_io_memory);
     }
 

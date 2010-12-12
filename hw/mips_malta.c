@@ -464,7 +464,8 @@ static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base,
     s = (MaltaFPGAState *)qemu_mallocz(sizeof(MaltaFPGAState));
 
     malta = cpu_register_io_memory(malta_fpga_read,
-                                   malta_fpga_write, s);
+                                   malta_fpga_write, s,
+                                   DEVICE_NATIVE_ENDIAN);
 
     cpu_register_physical_memory(base, 0x900, malta);
     /* 0xa00 is less than a page, so will still get the right offsets.  */
