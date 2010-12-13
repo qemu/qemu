@@ -137,10 +137,11 @@ struct VirtIOSerialPortInfo {
 
     /*
      * Guest wrote some data to the port. This data is handed over to
-     * the app via this callback.  The app is supposed to consume all
-     * the data that is presented to it.
+     * the app via this callback.  The app can return a size less than
+     * 'len'.  In this case, throttling will be enabled for this port.
      */
-    void (*have_data)(VirtIOSerialPort *port, const uint8_t *buf, size_t len);
+    ssize_t (*have_data)(VirtIOSerialPort *port, const uint8_t *buf,
+                         size_t len);
 };
 
 /* Interface to the virtio-serial bus */

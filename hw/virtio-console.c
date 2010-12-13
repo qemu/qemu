@@ -20,11 +20,11 @@ typedef struct VirtConsole {
 
 
 /* Callback function that's called when the guest sends us data */
-static void flush_buf(VirtIOSerialPort *port, const uint8_t *buf, size_t len)
+static ssize_t flush_buf(VirtIOSerialPort *port, const uint8_t *buf, size_t len)
 {
     VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
 
-    qemu_chr_write(vcon->chr, buf, len);
+    return qemu_chr_write(vcon->chr, buf, len);
 }
 
 /* Readiness of the guest to accept data on a port */
