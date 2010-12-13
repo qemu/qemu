@@ -1394,6 +1394,93 @@ static const cmdinfo_t info_cmd = {
 	.oneline	= "prints information about the current file",
 };
 
+static void
+discard_help(void)
+{
+	printf(
+"\n"
+" discards a range of bytes from the given offset\n"
+"\n"
+" Example:\n"
+" 'discard 512 1k' - discards 1 kilobyte from 512 bytes into the file\n"
+"\n"
+" Discards a segment of the currently open file.\n"
+" -C, -- report statistics in a machine parsable format\n"
+" -q, -- quite mode, do not show I/O statistics\n"
+"\n");
+}
+
+static int discard_f(int argc, char **argv);
+
+static const cmdinfo_t discard_cmd = {
+	.name		= "discard",
+	.altname	= "d",
+	.cfunc		= discard_f,
+	.argmin		= 2,
+	.argmax		= -1,
+	.args		= "[-Cq] off len",
+	.oneline	= "discards a number of bytes at a specified offset",
+	.help		= discard_help,
+};
+
+static int
+discard_f(int argc, char **argv)
+{
+	struct timeval t1, t2;
+	int Cflag = 0, qflag = 0;
+	int c, ret;
+	int64_t offset;
+	int count;
+
+	while ((c = getopt(argc, argv, "Cq")) != EOF) {
+		switch (c) {
+		case 'C':
+			Cflag = 1;
+			break;
+		case 'q':
+			qflag = 1;
+			break;
+		default:
+			return command_usage(&discard_cmd);
+		}
+	}
+
+	if (optind != argc - 2) {
+		return command_usage(&discard_cmd);
+	}
+
+	offset = cvtnum(argv[optind]);
+	if (offset < 0) {
+		printf("non-numeric length argument -- %s\n", argv[optind]);
+		return 0;
+	}
+
+	optind++;
+	count = cvtnum(argv[optind]);
+	if (count < 0) {
+		printf("non-numeric length argument -- %s\n", argv[optind]);
+		return 0;
+	}
+
+	gettimeofday(&t1, NULL);
+	ret = bdrv_discard(bs, offset, count);
+	gettimeofday(&t2, NULL);
+
+	if (ret < 0) {
+		printf("discard failed: %s\n", strerror(-ret));
+		goto out;
+	}
+
+	/* Finally, report back -- -C gives a parsable format */
+	if (!qflag) {
+		t2 = tsub(t2, t1);
+		print_report("discard", &t2, offset, count, count, 1, Cflag);
+	}
+
+out:
+	return 0;
+}
+
 static int
 alloc_f(int argc, char **argv)
 {
@@ -1715,6 +1802,7 @@ int main(int argc, char **argv)
 	add_command(&truncate_cmd);
 	add_command(&length_cmd);
 	add_command(&info_cmd);
+	add_command(&discard_cmd);
 	add_command(&alloc_cmd);
 	add_command(&map_cmd);
 
