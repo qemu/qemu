@@ -16,6 +16,7 @@
 
 #include "qdict.h"
 #include "qemu-common.h"
+#include "notify.h"
 
 #define MIG_STATE_ERROR		-1
 #define MIG_STATE_COMPLETED	0
@@ -133,5 +134,9 @@ static inline FdMigrationState *migrate_to_fms(MigrationState *mig_state)
 {
     return container_of(mig_state, FdMigrationState, mig_state);
 }
+
+void add_migration_state_change_notifier(Notifier *notify);
+void remove_migration_state_change_notifier(Notifier *notify);
+int get_migration_state(void);
 
 #endif
