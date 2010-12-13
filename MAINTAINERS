@@ -383,6 +383,14 @@ S: Odd Fixes
 F: gdbstub*
 F: gdb-xml/
 
+SPICE
+M: Gerd Hoffmann <kraxel@redhat.com>
+S: Supported
+F: ui/qemu-spice.h
+F: ui/spice-*.c
+F: audio/spiceaudio.c
+F: hw/qxl*
+
 Graphics
 M: Anthony Liguori <aliguori@us.ibm.com>
 S: Maintained
