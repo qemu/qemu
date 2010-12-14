@@ -140,6 +140,13 @@ static void ide_identify(IDEState *s)
     put_le16(p + 66, 120);
     put_le16(p + 67, 120);
     put_le16(p + 68, 120);
+
+    if (s->ncq_queues) {
+        put_le16(p + 75, s->ncq_queues - 1);
+        /* NCQ supported */
+        put_le16(p + 76, (1 << 8));
+    }
+
     put_le16(p + 80, 0xf0); /* ata3 -> ata6 supported */
     put_le16(p + 81, 0x16); /* conforms to ata5 */
     /* 14=NOP supported, 5=WCACHE supported, 0=SMART supported */

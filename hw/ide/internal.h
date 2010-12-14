@@ -447,6 +447,8 @@ struct IDEState {
     int smart_errors;
     uint8_t smart_selftest_count;
     uint8_t *smart_selftest_data;
+    /* AHCI */
+    int ncq_queues;
 };
 
 struct IDEDMAOps {
