@@ -34,8 +34,6 @@
 
 #include <hw/ide/internal.h>
 
-#define IDE_PAGE_SIZE 4096
-
 static const int smart_attributes[][5] = {
     /* id,  flags, val, wrst, thrsh */
     { 0x01, 0x03, 0x64, 0x64, 0x06}, /* raw read */
@@ -61,11 +59,8 @@ static inline int media_is_cd(IDEState *s)
     return (media_present(s) && s->nb_sectors <= CD_MAX_SECTORS);
 }
 
-static void ide_dma_start(IDEState *s, BlockDriverCompletionFunc *dma_cb);
-static void ide_dma_restart(IDEState *s, int is_read);
 static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret);
 static int ide_handle_rw_error(IDEState *s, int error, int op);
-static void ide_flush_cache(IDEState *s);
 
 static void padstr(char *str, const char *src, int len)
 {
@@ -314,11 +309,11 @@ static inline void ide_abort_command(IDEState *s)
 }
 
 static inline void ide_dma_submit_check(IDEState *s,
-          BlockDriverCompletionFunc *dma_cb, BMDMAState *bm)
+          BlockDriverCompletionFunc *dma_cb)
 {
-    if (bm->aiocb)
+    if (s->bus->dma->aiocb)
 	return;
-    dma_cb(bm, -1);
+    dma_cb(s, -1);
 }
 
 /* prepare data transfer and tell what to do after */
@@ -328,8 +323,10 @@ static void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
     s->end_transfer_func = end_transfer_func;
     s->data_ptr = buf;
     s->data_end = buf + size;
-    if (!(s->status & ERR_STAT))
+    if (!(s->status & ERR_STAT)) {
         s->status |= DRQ_STAT;
+    }
+    s->bus->dma->ops->start_transfer(s->bus->dma);
 }
 
 static void ide_transfer_stop(IDEState *s)
@@ -394,7 +391,7 @@ static void ide_rw_error(IDEState *s) {
     ide_set_irq(s->bus);
 }
 
-static void ide_sector_read(IDEState *s)
+void ide_sector_read(IDEState *s)
 {
     int64_t sector_num;
     int ret, n;
@@ -427,58 +424,15 @@ static void ide_sector_read(IDEState *s)
     }
 }
 
-
-/* return 0 if buffer completed */
-static int dma_buf_prepare(BMDMAState *bm, int is_write)
-{
-    IDEState *s = bmdma_active_if(bm);
-    struct {
-        uint32_t addr;
-        uint32_t size;
-    } prd;
-    int l, len;
-
-    qemu_sglist_init(&s->sg, s->nsector / (IDE_PAGE_SIZE / 512) + 1);
-    s->io_buffer_size = 0;
-    for(;;) {
-        if (bm->cur_prd_len == 0) {
-            /* end of table (with a fail safe of one page) */
-            if (bm->cur_prd_last ||
-                (bm->cur_addr - bm->addr) >= IDE_PAGE_SIZE)
-                return s->io_buffer_size != 0;
-            cpu_physical_memory_read(bm->cur_addr, (uint8_t *)&prd, 8);
-            bm->cur_addr += 8;
-            prd.addr = le32_to_cpu(prd.addr);
-            prd.size = le32_to_cpu(prd.size);
-            len = prd.size & 0xfffe;
-            if (len == 0)
-                len = 0x10000;
-            bm->cur_prd_len = len;
-            bm->cur_prd_addr = prd.addr;
-            bm->cur_prd_last = (prd.size & 0x80000000);
-        }
-        l = bm->cur_prd_len;
-        if (l > 0) {
-            qemu_sglist_add(&s->sg, bm->cur_prd_addr, l);
-            bm->cur_prd_addr += l;
-            bm->cur_prd_len -= l;
-            s->io_buffer_size += l;
-        }
-    }
-    return 1;
-}
-
 static void dma_buf_commit(IDEState *s, int is_write)
 {
     qemu_sglist_destroy(&s->sg);
 }
 
-static void ide_dma_set_inactive(BMDMAState *bm)
+static void ide_set_inactive(IDEState *s)
 {
-    bm->status &= ~BM_STATUS_DMAING;
-    bm->dma_cb = NULL;
-    bm->unit = -1;
-    bm->aiocb = NULL;
+    s->bus->dma->aiocb = NULL;
+    s->bus->dma->ops->set_inactive(s->bus->dma);
 }
 
 void ide_dma_error(IDEState *s)
@@ -486,8 +440,8 @@ void ide_dma_error(IDEState *s)
     ide_transfer_stop(s);
     s->error = ABRT_ERR;
     s->status = READY_STAT | ERR_STAT;
-    ide_dma_set_inactive(s->bus->bmdma);
-    s->bus->bmdma->status |= BM_STATUS_INT;
+    ide_set_inactive(s);
+    s->bus->dma->ops->add_status(s->bus->dma, BM_STATUS_INT);
     ide_set_irq(s->bus);
 }
 
@@ -503,8 +457,8 @@ static int ide_handle_rw_error(IDEState *s, int error, int op)
 
     if ((error == ENOSPC && action == BLOCK_ERR_STOP_ENOSPC)
             || action == BLOCK_ERR_STOP_ANY) {
-        s->bus->bmdma->unit = s->unit;
-        s->bus->bmdma->status |= op;
+        s->bus->dma->ops->set_unit(s->bus->dma, s->unit);
+        s->bus->dma->ops->add_status(s->bus->dma, op);
         bdrv_mon_event(s->bs, BDRV_ACTION_STOP, is_read);
         vm_stop(0);
     } else {
@@ -520,58 +474,9 @@ static int ide_handle_rw_error(IDEState *s, int error, int op)
     return 1;
 }
 
-/* return 0 if buffer completed */
-static int dma_buf_rw(BMDMAState *bm, int is_write)
+void ide_read_dma_cb(void *opaque, int ret)
 {
-    IDEState *s = bmdma_active_if(bm);
-    struct {
-        uint32_t addr;
-        uint32_t size;
-    } prd;
-    int l, len;
-
-    for(;;) {
-        l = s->io_buffer_size - s->io_buffer_index;
-        if (l <= 0)
-            break;
-        if (bm->cur_prd_len == 0) {
-            /* end of table (with a fail safe of one page) */
-            if (bm->cur_prd_last ||
-                (bm->cur_addr - bm->addr) >= IDE_PAGE_SIZE)
-                return 0;
-            cpu_physical_memory_read(bm->cur_addr, (uint8_t *)&prd, 8);
-            bm->cur_addr += 8;
-            prd.addr = le32_to_cpu(prd.addr);
-            prd.size = le32_to_cpu(prd.size);
-            len = prd.size & 0xfffe;
-            if (len == 0)
-                len = 0x10000;
-            bm->cur_prd_len = len;
-            bm->cur_prd_addr = prd.addr;
-            bm->cur_prd_last = (prd.size & 0x80000000);
-        }
-        if (l > bm->cur_prd_len)
-            l = bm->cur_prd_len;
-        if (l > 0) {
-            if (is_write) {
-                cpu_physical_memory_write(bm->cur_prd_addr,
-                                          s->io_buffer + s->io_buffer_index, l);
-            } else {
-                cpu_physical_memory_read(bm->cur_prd_addr,
-                                          s->io_buffer + s->io_buffer_index, l);
-            }
-            bm->cur_prd_addr += l;
-            bm->cur_prd_len -= l;
-            s->io_buffer_index += l;
-        }
-    }
-    return 1;
-}
-
-static void ide_read_dma_cb(void *opaque, int ret)
-{
-    BMDMAState *bm = opaque;
-    IDEState *s = bmdma_active_if(bm);
+    IDEState *s = opaque;
     int n;
     int64_t sector_num;
 
@@ -597,8 +502,8 @@ static void ide_read_dma_cb(void *opaque, int ret)
         s->status = READY_STAT | SEEK_STAT;
         ide_set_irq(s->bus);
     eot:
-        bm->status |= BM_STATUS_INT;
-        ide_dma_set_inactive(bm);
+        s->bus->dma->ops->add_status(s->bus->dma, BM_STATUS_INT);
+        ide_set_inactive(s);
         return;
     }
 
@@ -606,13 +511,13 @@ static void ide_read_dma_cb(void *opaque, int ret)
     n = s->nsector;
     s->io_buffer_index = 0;
     s->io_buffer_size = n * 512;
-    if (dma_buf_prepare(bm, 1) == 0)
+    if (s->bus->dma->ops->prepare_buf(s->bus->dma, 1) == 0)
         goto eot;
 #ifdef DEBUG_AIO
     printf("aio_read: sector_num=%" PRId64 " n=%d\n", sector_num, n);
 #endif
-    bm->aiocb = dma_bdrv_read(s->bs, &s->sg, sector_num, ide_read_dma_cb, bm);
-    ide_dma_submit_check(s, ide_read_dma_cb, bm);
+    s->bus->dma->aiocb = dma_bdrv_read(s->bs, &s->sg, sector_num, ide_read_dma_cb, s);
+    ide_dma_submit_check(s, ide_read_dma_cb);
 }
 
 static void ide_sector_read_dma(IDEState *s)
@@ -621,7 +526,7 @@ static void ide_sector_read_dma(IDEState *s)
     s->io_buffer_index = 0;
     s->io_buffer_size = 0;
     s->is_read = 1;
-    ide_dma_start(s, ide_read_dma_cb);
+    s->bus->dma->ops->start_dma(s->bus->dma, s, ide_read_dma_cb);
 }
 
 static void ide_sector_write_timer_cb(void *opaque)
@@ -630,7 +535,7 @@ static void ide_sector_write_timer_cb(void *opaque)
     ide_set_irq(s->bus);
 }
 
-static void ide_sector_write(IDEState *s)
+void ide_sector_write(IDEState *s)
 {
     int64_t sector_num;
     int ret, n, n1;
@@ -676,48 +581,9 @@ static void ide_sector_write(IDEState *s)
     }
 }
 
-static void ide_dma_restart_bh(void *opaque)
+void ide_write_dma_cb(void *opaque, int ret)
 {
-    BMDMAState *bm = opaque;
-    int is_read;
-
-    qemu_bh_delete(bm->bh);
-    bm->bh = NULL;
-
-    is_read = !!(bm->status & BM_STATUS_RETRY_READ);
-
-    if (bm->status & BM_STATUS_DMA_RETRY) {
-        bm->status &= ~(BM_STATUS_DMA_RETRY | BM_STATUS_RETRY_READ);
-        ide_dma_restart(bmdma_active_if(bm), is_read);
-    } else if (bm->status & BM_STATUS_PIO_RETRY) {
-        bm->status &= ~(BM_STATUS_PIO_RETRY | BM_STATUS_RETRY_READ);
-        if (is_read) {
-            ide_sector_read(bmdma_active_if(bm));
-        } else {
-            ide_sector_write(bmdma_active_if(bm));
-        }
-    } else if (bm->status & BM_STATUS_RETRY_FLUSH) {
-        ide_flush_cache(bmdma_active_if(bm));
-    }
-}
-
-void ide_dma_restart_cb(void *opaque, int running, int reason)
-{
-    BMDMAState *bm = opaque;
-
-    if (!running)
-        return;
-
-    if (!bm->bh) {
-        bm->bh = qemu_bh_new(ide_dma_restart_bh, bm);
-        qemu_bh_schedule(bm->bh);
-    }
-}
-
-static void ide_write_dma_cb(void *opaque, int ret)
-{
-    BMDMAState *bm = opaque;
-    IDEState *s = bmdma_active_if(bm);
+    IDEState *s = opaque;
     int n;
     int64_t sector_num;
 
@@ -740,21 +606,21 @@ static void ide_write_dma_cb(void *opaque, int ret)
         s->status = READY_STAT | SEEK_STAT;
         ide_set_irq(s->bus);
     eot:
-        bm->status |= BM_STATUS_INT;
-        ide_dma_set_inactive(bm);
+        s->bus->dma->ops->add_status(s->bus->dma, BM_STATUS_INT);
+        ide_set_inactive(s);
         return;
     }
 
     n = s->nsector;
     s->io_buffer_size = n * 512;
     /* launch next transfer */
-    if (dma_buf_prepare(bm, 0) == 0)
+    if (s->bus->dma->ops->prepare_buf(s->bus->dma, 0) == 0)
         goto eot;
 #ifdef DEBUG_AIO
     printf("aio_write: sector_num=%" PRId64 " n=%d\n", sector_num, n);
 #endif
-    bm->aiocb = dma_bdrv_write(s->bs, &s->sg, sector_num, ide_write_dma_cb, bm);
-    ide_dma_submit_check(s, ide_write_dma_cb, bm);
+    s->bus->dma->aiocb = dma_bdrv_write(s->bs, &s->sg, sector_num, ide_write_dma_cb, s);
+    ide_dma_submit_check(s, ide_write_dma_cb);
 }
 
 static void ide_sector_write_dma(IDEState *s)
@@ -763,7 +629,7 @@ static void ide_sector_write_dma(IDEState *s)
     s->io_buffer_index = 0;
     s->io_buffer_size = 0;
     s->is_read = 0;
-    ide_dma_start(s, ide_write_dma_cb);
+    s->bus->dma->ops->start_dma(s->bus->dma, s, ide_write_dma_cb);
 }
 
 void ide_atapi_cmd_ok(IDEState *s)
@@ -813,7 +679,7 @@ static void ide_flush_cb(void *opaque, int ret)
     ide_set_irq(s->bus);
 }
 
-static void ide_flush_cache(IDEState *s)
+void ide_flush_cache(IDEState *s)
 {
     BlockDriverAIOCB *acb;
 
@@ -1003,7 +869,8 @@ static void ide_atapi_cmd_reply(IDEState *s, int size, int max_size)
 
     if (s->atapi_dma) {
     	s->status = READY_STAT | SEEK_STAT | DRQ_STAT;
-	ide_dma_start(s, ide_atapi_cmd_read_dma_cb);
+        s->bus->dma->ops->start_dma(s->bus->dma, s,
+                                   ide_atapi_cmd_read_dma_cb);
     } else {
     	s->status = READY_STAT | SEEK_STAT;
     	ide_atapi_cmd_reply_end(s);
@@ -1029,8 +896,7 @@ static void ide_atapi_cmd_read_pio(IDEState *s, int lba, int nb_sectors,
 /* XXX: handle read errors */
 static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
 {
-    BMDMAState *bm = opaque;
-    IDEState *s = bmdma_active_if(bm);
+    IDEState *s = opaque;
     int data_offset, n;
 
     if (ret < 0) {
@@ -1056,7 +922,7 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
 	    s->lba += n;
 	}
         s->packet_transfer_size -= s->io_buffer_size;
-        if (dma_buf_rw(bm, 1) == 0)
+        if (s->bus->dma->ops->rw_buf(s->bus->dma, 1) == 0)
             goto eot;
     }
 
@@ -1065,8 +931,8 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
         s->nsector = (s->nsector & ~7) | ATAPI_INT_REASON_IO | ATAPI_INT_REASON_CD;
         ide_set_irq(s->bus);
     eot:
-        bm->status |= BM_STATUS_INT;
-        ide_dma_set_inactive(bm);
+        s->bus->dma->ops->add_status(s->bus->dma, BM_STATUS_INT);
+        ide_set_inactive(s);
         return;
     }
 
@@ -1085,12 +951,13 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
 #ifdef DEBUG_AIO
     printf("aio_read_cd: lba=%u n=%d\n", s->lba, n);
 #endif
-    bm->iov.iov_base = (void *)(s->io_buffer + data_offset);
-    bm->iov.iov_len = n * 4 * 512;
-    qemu_iovec_init_external(&bm->qiov, &bm->iov, 1);
-    bm->aiocb = bdrv_aio_readv(s->bs, (int64_t)s->lba << 2, &bm->qiov,
-                               n * 4, ide_atapi_cmd_read_dma_cb, bm);
-    if (!bm->aiocb) {
+    s->bus->dma->iov.iov_base = (void *)(s->io_buffer + data_offset);
+    s->bus->dma->iov.iov_len = n * 4 * 512;
+    qemu_iovec_init_external(&s->bus->dma->qiov, &s->bus->dma->iov, 1);
+    s->bus->dma->aiocb = bdrv_aio_readv(s->bs, (int64_t)s->lba << 2,
+                                       &s->bus->dma->qiov, n * 4,
+                                       ide_atapi_cmd_read_dma_cb, s);
+    if (!s->bus->dma->aiocb) {
         /* Note: media not present is the most likely case */
         ide_atapi_cmd_error(s, SENSE_NOT_READY,
                             ASC_MEDIUM_NOT_PRESENT);
@@ -1111,7 +978,8 @@ static void ide_atapi_cmd_read_dma(IDEState *s, int lba, int nb_sectors,
 
     /* XXX: check if BUSY_STAT should be set */
     s->status = READY_STAT | SEEK_STAT | DRQ_STAT | BUSY_STAT;
-    ide_dma_start(s, ide_atapi_cmd_read_dma_cb);
+    s->bus->dma->ops->start_dma(s->bus->dma, s,
+                               ide_atapi_cmd_read_dma_cb);
 }
 
 static void ide_atapi_cmd_read(IDEState *s, int lba, int nb_sectors,
@@ -2638,6 +2506,18 @@ void ide_bus_reset(IDEBus *bus)
     ide_reset(&bus->ifs[0]);
     ide_reset(&bus->ifs[1]);
     ide_clear_hob(bus);
+
+    /* pending async DMA */
+    if (bus->dma->aiocb) {
+#ifdef DEBUG_AIO
+        printf("aio_cancel\n");
+#endif
+        bdrv_aio_cancel(bus->dma->aiocb);
+        bus->dma->aiocb = NULL;
+    }
+
+    /* reset dma provider too */
+    bus->dma->ops->reset(bus->dma);
 }
 
 int ide_init_drive(IDEState *s, BlockDriverState *bs,
@@ -2696,6 +2576,7 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs,
     } else {
         pstrcpy(s->version, sizeof(s->version), QEMU_VERSION);
     }
+
     ide_reset(s);
     bdrv_set_removable(bs, s->drive_kind == IDE_CD);
     return 0;
@@ -2717,6 +2598,42 @@ static void ide_init1(IDEBus *bus, int unit)
                                            ide_sector_write_timer_cb, s);
 }
 
+static void ide_nop_start(IDEDMA *dma, IDEState *s,
+                          BlockDriverCompletionFunc *cb)
+{
+}
+
+static int ide_nop(IDEDMA *dma)
+{
+    return 0;
+}
+
+static int ide_nop_int(IDEDMA *dma, int x)
+{
+    return 0;
+}
+
+static void ide_nop_restart(void *opaque, int x, int y)
+{
+}
+
+static const IDEDMAOps ide_dma_nop_ops = {
+    .start_dma      = ide_nop_start,
+    .start_transfer = ide_nop,
+    .prepare_buf    = ide_nop_int,
+    .rw_buf         = ide_nop_int,
+    .set_unit       = ide_nop_int,
+    .add_status     = ide_nop_int,
+    .set_inactive   = ide_nop,
+    .restart_cb     = ide_nop_restart,
+    .reset          = ide_nop,
+};
+
+static IDEDMA ide_dma_nop = {
+    .ops = &ide_dma_nop_ops,
+    .aiocb = NULL,
+};
+
 void ide_init2(IDEBus *bus, qemu_irq irq)
 {
     int i;
@@ -2726,6 +2643,7 @@ void ide_init2(IDEBus *bus, qemu_irq irq)
         ide_reset(&bus->ifs[i]);
     }
     bus->irq = irq;
+    bus->dma = &ide_dma_nop;
 }
 
 /* TODO convert users to qdev and remove */
@@ -2749,6 +2667,7 @@ void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
         }
     }
     bus->irq = irq;
+    bus->dma = &ide_dma_nop;
 }
 
 void ide_init_ioport(IDEBus *bus, int iobase, int iobase2)
@@ -2916,73 +2835,3 @@ const VMStateDescription vmstate_ide_bus = {
         VMSTATE_END_OF_LIST()
     }
 };
-
-/***********************************************************/
-/* PCI IDE definitions */
-
-static void ide_dma_start(IDEState *s, BlockDriverCompletionFunc *dma_cb)
-{
-    BMDMAState *bm = s->bus->bmdma;
-    if(!bm)
-        return;
-    bm->unit = s->unit;
-    bm->dma_cb = dma_cb;
-    bm->cur_prd_last = 0;
-    bm->cur_prd_addr = 0;
-    bm->cur_prd_len = 0;
-    bm->sector_num = ide_get_sector(s);
-    bm->nsector = s->nsector;
-    if (bm->status & BM_STATUS_DMAING) {
-        bm->dma_cb(bm, 0);
-    }
-}
-
-static void ide_dma_restart(IDEState *s, int is_read)
-{
-    BMDMAState *bm = s->bus->bmdma;
-    ide_set_sector(s, bm->sector_num);
-    s->io_buffer_index = 0;
-    s->io_buffer_size = 0;
-    s->nsector = bm->nsector;
-    bm->cur_addr = bm->addr;
-
-    if (is_read) {
-        bm->dma_cb = ide_read_dma_cb;
-    } else {
-        bm->dma_cb = ide_write_dma_cb;
-    }
-
-    ide_dma_start(s, bm->dma_cb);
-}
-
-void ide_dma_cancel(BMDMAState *bm)
-{
-    if (bm->status & BM_STATUS_DMAING) {
-        if (bm->aiocb) {
-#ifdef DEBUG_AIO
-            printf("aio_cancel\n");
-#endif
-            bdrv_aio_cancel(bm->aiocb);
-        }
-
-        /* cancel DMA request */
-        ide_dma_set_inactive(bm);
-    }
-}
-
-void ide_dma_reset(BMDMAState *bm)
-{
-#ifdef DEBUG_IDE
-    printf("ide: dma_reset\n");
-#endif
-    ide_dma_cancel(bm);
-    bm->cmd = 0;
-    bm->status = 0;
-    bm->addr = 0;
-    bm->cur_addr = 0;
-    bm->cur_prd_last = 0;
-    bm->cur_prd_addr = 0;
-    bm->cur_prd_len = 0;
-    bm->sector_num = 0;
-    bm->nsector = 0;
-}

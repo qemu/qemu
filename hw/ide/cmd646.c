@@ -167,9 +167,10 @@ static void bmdma_map(PCIDevice *pci_dev, int region_num,
 
     for(i = 0;i < 2; i++) {
         BMDMAState *bm = &d->bmdma[i];
-        d->bus[i].bmdma = bm;
+        bmdma_init(&d->bus[i], bm);
         bm->bus = d->bus+i;
-        qemu_add_vm_change_state_handler(ide_dma_restart_cb, bm);
+        qemu_add_vm_change_state_handler(d->bus[i].dma->ops->restart_cb,
+                                         &bm->dma);
 
         if (i == 0) {
             register_ioport_write(addr, 4, 1, bmdma_writeb_0, d);
@@ -218,7 +219,6 @@ static void cmd646_reset(void *opaque)
 
     for (i = 0; i < 2; i++) {
         ide_bus_reset(&d->bus[i]);
-        ide_dma_reset(&d->bmdma[i]);
     }
 }
 
