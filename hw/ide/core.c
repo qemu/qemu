@@ -814,11 +814,11 @@ static void ide_atapi_cmd_reply_end(IDEState *s)
             size = s->cd_sector_size - s->io_buffer_index;
             if (size > s->elementary_transfer_size)
                 size = s->elementary_transfer_size;
-            ide_transfer_start(s, s->io_buffer + s->io_buffer_index,
-                               size, ide_atapi_cmd_reply_end);
             s->packet_transfer_size -= size;
             s->elementary_transfer_size -= size;
             s->io_buffer_index += size;
+            ide_transfer_start(s, s->io_buffer + s->io_buffer_index - size,
+                               size, ide_atapi_cmd_reply_end);
         } else {
             /* a new transfer is needed */
             s->nsector = (s->nsector & ~7) | ATAPI_INT_REASON_IO;
@@ -843,11 +843,11 @@ static void ide_atapi_cmd_reply_end(IDEState *s)
                 if (size > (s->cd_sector_size - s->io_buffer_index))
                     size = (s->cd_sector_size - s->io_buffer_index);
             }
-            ide_transfer_start(s, s->io_buffer + s->io_buffer_index,
-                               size, ide_atapi_cmd_reply_end);
             s->packet_transfer_size -= size;
             s->elementary_transfer_size -= size;
             s->io_buffer_index += size;
+            ide_transfer_start(s, s->io_buffer + s->io_buffer_index - size,
+                               size, ide_atapi_cmd_reply_end);
             ide_set_irq(s->bus);
 #ifdef DEBUG_IDE_ATAPI
             printf("status=0x%x\n", s->status);
