@@ -217,6 +217,12 @@ static void ide_atapi_identify(IDEState *s)
     put_le16(p + 71, 30); /* in ns */
     put_le16(p + 72, 30); /* in ns */
 
+    if (s->ncq_queues) {
+        put_le16(p + 75, s->ncq_queues - 1);
+        /* NCQ supported */
+        put_le16(p + 76, (1 << 8));
+    }
+
     put_le16(p + 80, 0x1e); /* support up to ATA/ATAPI-4 */
 #ifdef USE_DMA_CDROM
     put_le16(p + 88, 0x3f | (1 << 13)); /* udma5 set and supported */
