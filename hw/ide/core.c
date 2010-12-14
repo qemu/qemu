@@ -1791,9 +1791,6 @@ static void ide_clear_hob(IDEBus *bus)
 void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     IDEBus *bus = opaque;
-    IDEState *s;
-    int n;
-    int lba48 = 0;
 
 #ifdef DEBUG_IDE
     printf("IDE: write addr=0x%x val=0x%02x\n", addr, val);
@@ -1854,17 +1851,29 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     default:
     case 7:
         /* command */
+        ide_exec_cmd(bus, val);
+        break;
+    }
+}
+
+
+void ide_exec_cmd(IDEBus *bus, uint32_t val)
+{
+    IDEState *s;
+    int n;
+    int lba48 = 0;
+
 #if defined(DEBUG_IDE)
         printf("ide: CMD=%02x\n", val);
 #endif
         s = idebus_active_if(bus);
         /* ignore commands to non existant slave */
         if (s != bus->ifs && !s->bs)
-            break;
+            return;
 
         /* Only DEVICE RESET is allowed while BSY or/and DRQ are set */
         if ((s->status & (BUSY_STAT|DRQ_STAT)) && val != WIN_DEVICE_RESET)
-            break;
+            return;
 
         switch(val) {
         case WIN_IDENTIFY:
@@ -2355,7 +2364,6 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             ide_set_irq(s->bus);
             break;
         }
-    }
 }
 
 uint32_t ide_ioport_read(void *opaque, uint32_t addr1)

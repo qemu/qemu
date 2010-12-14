@@ -567,6 +567,8 @@ void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
                                     DriveInfo *hd1, qemu_irq irq);
 void ide_init_ioport(IDEBus *bus, int iobase, int iobase2);
 
+void ide_exec_cmd(IDEBus *bus, uint32_t val);
+
 /* hw/ide/qdev.c */
 void ide_bus_new(IDEBus *idebus, DeviceState *dev, int bus_id);
 IDEDevice *ide_create_drive(IDEBus *bus, int unit, DriveInfo *drive);
