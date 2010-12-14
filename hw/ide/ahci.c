@@ -1473,6 +1473,9 @@ static int pci_ahci_init(PCIDevice *dev)
     d->card.config[PCI_LATENCY_TIMER]   = 0x00;  /* Latency timer */
     pci_config_set_interrupt_pin(d->card.config, 1);
 
+    /* XXX Software should program this register */
+    d->card.config[0x90]   = 1 << 6; /* Address Map Register - AHCI mode */
+
     qemu_register_reset(ahci_reset, d);
 
     /* XXX BAR size should be 1k, but that breaks, so bump it to 4k for now */
