@@ -2014,7 +2014,10 @@ static char *pcibus_get_dev_path(DeviceState *dev)
     char path[16];
 
     snprintf(path, sizeof(path), "%04x:%02x:%02x.%x",
-             pci_find_domain(d->bus), d->config[PCI_SECONDARY_BUS],
+             pci_find_domain(d->bus),
+             0 /* TODO: need a persistent path for nested buses.
+                * Note: pci_bus_num(d->bus) is not right as it's guest
+                * assigned. */,
              PCI_SLOT(d->devfn), PCI_FUNC(d->devfn));
 
     return strdup(path);
