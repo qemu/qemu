@@ -243,6 +243,7 @@ hw-obj-$(CONFIG_IDE_PIIX) += ide/piix.o
 hw-obj-$(CONFIG_IDE_CMD646) += ide/cmd646.o
 hw-obj-$(CONFIG_IDE_MACIO) += ide/macio.o
 hw-obj-$(CONFIG_IDE_VIA) += ide/via.o
+hw-obj-$(CONFIG_AHCI) += ide/ahci.o
 
 # SCSI layer
 hw-obj-$(CONFIG_LSI_SCSI_PCI) += lsi53c895a.o
