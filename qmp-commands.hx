@@ -510,7 +510,7 @@ Set maximum speed for migrations.
 
 Arguments:
 
-- "value": maximum speed, in bytes per second (json-number)
+- "value": maximum speed, in bytes per second (json-int)
 
 Example:
 
