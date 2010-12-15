@@ -245,6 +245,17 @@ static void usb_hub_detach(USBPort *port1)
     }
 }
 
+static void usb_hub_wakeup(USBDevice *dev)
+{
+    USBHubState *s = dev->port->opaque;
+    USBHubPort *port = &s->ports[dev->port->index];
+
+    if (port->wPortStatus & PORT_STAT_SUSPEND) {
+        port->wPortChange |= PORT_STAT_C_SUSPEND;
+        usb_wakeup(&s->dev);
+    }
+}
+
 static void usb_hub_handle_reset(USBDevice *dev)
 {
     /* XXX: do it */
@@ -502,6 +513,7 @@ static void usb_hub_handle_destroy(USBDevice *dev)
 static USBPortOps usb_hub_port_ops = {
     .attach = usb_hub_attach,
     .detach = usb_hub_detach,
+    .wakeup = usb_hub_wakeup,
 };
 
 static int usb_hub_initfn(USBDevice *dev)
