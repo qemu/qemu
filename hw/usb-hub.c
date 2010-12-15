@@ -544,11 +544,35 @@ static int usb_hub_initfn(USBDevice *dev)
     return 0;
 }
 
+static const VMStateDescription vmstate_usb_hub_port = {
+    .name = "usb-hub-port",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField []) {
+        VMSTATE_UINT16(wPortStatus, USBHubPort),
+        VMSTATE_UINT16(wPortChange, USBHubPort),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_usb_hub = {
+    .name = "usb-hub",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField []) {
+        VMSTATE_USB_DEVICE(dev, USBHubState),
+        VMSTATE_STRUCT_ARRAY(ports, USBHubState, NUM_PORTS, 0,
+                             vmstate_usb_hub_port, USBHubPort),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static struct USBDeviceInfo hub_info = {
     .product_desc   = "QEMU USB Hub",
     .qdev.name      = "usb-hub",
     .qdev.fw_name    = "hub",
     .qdev.size      = sizeof(USBHubState),
+    .qdev.vmsd      = &vmstate_usb_hub,
     .usb_desc       = &desc_hub,
     .init           = usb_hub_initfn,
     .handle_packet  = usb_hub_handle_packet,
