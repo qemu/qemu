@@ -106,6 +106,8 @@ static void dump_data(const uint8_t *data, int len)
 static void dump_data(const uint8_t *data, int len) {}
 #endif
 
+typedef struct UHCIState UHCIState;
+
 /* 
  * Pending async transaction.
  * 'packet' must be the first field because completion
@@ -113,6 +115,7 @@ static void dump_data(const uint8_t *data, int len) {}
  */
 typedef struct UHCIAsync {
     USBPacket packet;
+    UHCIState *uhci;
     QTAILQ_ENTRY(UHCIAsync) next;
     uint32_t  td;
     uint32_t  token;
@@ -127,7 +130,7 @@ typedef struct UHCIPort {
     uint16_t ctrl;
 } UHCIPort;
 
-typedef struct UHCIState {
+struct UHCIState {
     PCIDevice dev;
     USBBus bus;
     uint16_t cmd; /* cmd register */
@@ -147,7 +150,7 @@ typedef struct UHCIState {
     /* Active packets */
     QTAILQ_HEAD(,UHCIAsync) async_pending;
     uint8_t num_ports_vmstate;
-} UHCIState;
+};
 
 typedef struct UHCI_TD {
     uint32_t link;
@@ -166,6 +169,7 @@ static UHCIAsync *uhci_async_alloc(UHCIState *s)
     UHCIAsync *async = qemu_malloc(sizeof(UHCIAsync));
 
     memset(&async->packet, 0, sizeof(async->packet));
+    async->uhci  = s;
     async->valid = 0;
     async->td    = 0;
     async->token = 0;
@@ -830,8 +834,8 @@ done:
 
 static void uhci_async_complete(USBPacket *packet, void *opaque)
 {
-    UHCIState *s = opaque;
-    UHCIAsync *async = (UHCIAsync *) packet;
+    UHCIAsync *async = container_of(packet, UHCIAsync, packet);
+    UHCIState *s = async->uhci;
 
     DPRINTF("uhci: async complete. td 0x%x token 0x%x\n", async->td, async->token);
 
