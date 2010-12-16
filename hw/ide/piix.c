@@ -76,10 +76,6 @@ static void bmdma_map(PCIDevice *pci_dev, int region_num,
 
     for(i = 0;i < 2; i++) {
         BMDMAState *bm = &d->bmdma[i];
-        bmdma_init(&d->bus[i], bm);
-        bm->bus = d->bus+i;
-        qemu_add_vm_change_state_handler(d->bus[i].dma->ops->restart_cb,
-                                         &bm->dma);
 
         register_ioport_write(addr, 1, 1, bmdma_cmd_writeb, bm);
 
@@ -112,6 +108,29 @@ static void piix3_reset(void *opaque)
     pci_conf[0x20] = 0x01; /* BMIBA: 20-23h */
 }
 
+static void pci_piix_init_ports(PCIIDEState *d) {
+    int i;
+    struct {
+        int iobase;
+        int iobase2;
+        int isairq;
+    } port_info[] = {
+        {0x1f0, 0x3f6, 14},
+        {0x170, 0x376, 15},
+    };
+
+    for (i = 0; i < 2; i++) {
+        ide_bus_new(&d->bus[i], &d->dev.qdev, i);
+        ide_init_ioport(&d->bus[i], port_info[i].iobase, port_info[i].iobase2);
+        ide_init2(&d->bus[i], isa_reserve_irq(port_info[i].isairq));
+
+        bmdma_init(&d->bus[i], &d->bmdma[i]);
+        d->bmdma[i].bus = &d->bus[i];
+        qemu_add_vm_change_state_handler(d->bus[i].dma->ops->restart_cb,
+                                         &d->bmdma[i].dma);
+    }
+}
+
 static int pci_piix_ide_initfn(PCIIDEState *d)
 {
     uint8_t *pci_conf = d->dev.config;
@@ -125,13 +144,8 @@ static int pci_piix_ide_initfn(PCIIDEState *d)
 
     vmstate_register(&d->dev.qdev, 0, &vmstate_ide_pci, d);
 
-    ide_bus_new(&d->bus[0], &d->dev.qdev, 0);
-    ide_bus_new(&d->bus[1], &d->dev.qdev, 1);
-    ide_init_ioport(&d->bus[0], 0x1f0, 0x3f6);
-    ide_init_ioport(&d->bus[1], 0x170, 0x376);
+    pci_piix_init_ports(d);
 
-    ide_init2(&d->bus[0], isa_reserve_irq(14));
-    ide_init2(&d->bus[1], isa_reserve_irq(15));
     return 0;
 }
 
