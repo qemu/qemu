@@ -153,6 +153,52 @@ static float32 commonNaNToFloat32( commonNaNT a )
 }
 
 /*----------------------------------------------------------------------------
+| Select which NaN to propagate for a two-input operation.
+| IEEE754 doesn't specify all the details of this, so the
+| algorithm is target-specific.
+| The routine is passed various bits of information about the
+| two NaNs and should return 0 to select NaN a and 1 for NaN b.
+| Note that signalling NaNs are always squashed to quiet NaNs
+| by the caller, by flipping the SNaN bit before returning them.
+|
+| aIsLargerSignificand is only valid if both a and b are NaNs
+| of some kind, and is true if a has the larger significand,
+| or if both a and b have the same significand but a is
+| positive but b is negative. It is only needed for the x87
+| tie-break rule.
+*----------------------------------------------------------------------------*/
+
+static int pickNaN(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
+                    flag aIsLargerSignificand)
+{
+    /* This implements x87 NaN propagation rules:
+     * SNaN + QNaN => return the QNaN
+     * two SNaNs => return the one with the larger significand, silenced
+     * two QNaNs => return the one with the larger significand
+     * SNaN and a non-NaN => return the SNaN, silenced
+     * QNaN and a non-NaN => return the QNaN
+     *
+     * If we get down to comparing significands and they are the same,
+     * return the NaN with the positive sign bit (if any).
+     */
+    if (aIsSNaN) {
+        if (bIsSNaN) {
+            return aIsLargerSignificand ? 0 : 1;
+        }
+        return bIsQNaN ? 1 : 0;
+    }
+    else if (aIsQNaN) {
+        if (bIsSNaN || !bIsQNaN)
+            return 0;
+        else {
+            return aIsLargerSignificand ? 0 : 1;
+        }
+    } else {
+        return 1;
+    }
+}
+
+/*----------------------------------------------------------------------------
 | Takes two single-precision floating-point values `a' and `b', one of which
 | is a NaN, and returns the appropriate NaN result.  If either `a' or `b' is a
 | signaling NaN, the invalid exception is raised.
@@ -160,7 +206,7 @@ static float32 commonNaNToFloat32( commonNaNT a )
 
 static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
 {
-    flag aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN;
+    flag aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN, aIsLargerSignificand;
     bits32 av, bv, res;
 
     if ( STATUS(default_nan_mode) )
@@ -180,26 +226,22 @@ static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
     bv |= 0x00400000;
 #endif
     if ( aIsSignalingNaN | bIsSignalingNaN ) float_raise( float_flag_invalid STATUS_VAR);
-    if ( aIsSignalingNaN ) {
-        if ( bIsSignalingNaN ) goto returnLargerSignificand;
-        res = bIsNaN ? bv : av;
+
+    if ((bits32)(av<<1) < (bits32)(bv<<1)) {
+        aIsLargerSignificand = 0;
+    } else if ((bits32)(bv<<1) < (bits32)(av<<1)) {
+        aIsLargerSignificand = 1;
+    } else {
+        aIsLargerSignificand = (av < bv) ? 1 : 0;
     }
-    else if ( aIsNaN ) {
-        if ( bIsSignalingNaN || ! bIsNaN )
-            res = av;
-        else {
- returnLargerSignificand:
-            if ( (bits32) ( av<<1 ) < (bits32) ( bv<<1 ) )
-                res = bv;
-            else if ( (bits32) ( bv<<1 ) < (bits32) ( av<<1 ) )
-                res = av;
-            else
-                res = ( av < bv ) ? av : bv;
-        }
-    }
-    else {
+
+    if (pickNaN(aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN,
+                aIsLargerSignificand)) {
         res = bv;
+    } else {
+        res = av;
     }
+
     return make_float32(res);
 }
 
@@ -314,7 +356,7 @@ static float64 commonNaNToFloat64( commonNaNT a )
 
 static float64 propagateFloat64NaN( float64 a, float64 b STATUS_PARAM)
 {
-    flag aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN;
+    flag aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN, aIsLargerSignificand;
     bits64 av, bv, res;
 
     if ( STATUS(default_nan_mode) )
@@ -334,26 +376,22 @@ static float64 propagateFloat64NaN( float64 a, float64 b STATUS_PARAM)
     bv |= LIT64( 0x0008000000000000 );
 #endif
     if ( aIsSignalingNaN | bIsSignalingNaN ) float_raise( float_flag_invalid STATUS_VAR);
-    if ( aIsSignalingNaN ) {
-        if ( bIsSignalingNaN ) goto returnLargerSignificand;
-        res = bIsNaN ? bv : av;
+
+    if ((bits64)(av<<1) < (bits64)(bv<<1)) {
+        aIsLargerSignificand = 0;
+    } else if ((bits64)(bv<<1) < (bits64)(av<<1)) {
+        aIsLargerSignificand = 1;
+    } else {
+        aIsLargerSignificand = (av < bv) ? 1 : 0;
     }
-    else if ( aIsNaN ) {
-        if ( bIsSignalingNaN || ! bIsNaN )
-            res = av;
-        else {
- returnLargerSignificand:
-            if ( (bits64) ( av<<1 ) < (bits64) ( bv<<1 ) )
-                res = bv;
-            else if ( (bits64) ( bv<<1 ) < (bits64) ( av<<1 ) )
-                res = av;
-            else
-                res = ( av < bv ) ? av : bv;
-        }
-    }
-    else {
+
+    if (pickNaN(aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN,
+                aIsLargerSignificand)) {
         res = bv;
+    } else {
+        res = av;
     }
+
     return make_float64(res);
 }
 
@@ -454,7 +492,7 @@ static floatx80 commonNaNToFloatx80( commonNaNT a )
 
 static floatx80 propagateFloatx80NaN( floatx80 a, floatx80 b STATUS_PARAM)
 {
-    flag aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN;
+    flag aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN, aIsLargerSignificand;
 
     if ( STATUS(default_nan_mode) ) {
         a.low = floatx80_default_nan_low;
@@ -474,19 +512,20 @@ static floatx80 propagateFloatx80NaN( floatx80 a, floatx80 b STATUS_PARAM)
     b.low |= LIT64( 0xC000000000000000 );
 #endif
     if ( aIsSignalingNaN | bIsSignalingNaN ) float_raise( float_flag_invalid STATUS_VAR);
-    if ( aIsSignalingNaN ) {
-        if ( bIsSignalingNaN ) goto returnLargerSignificand;
-        return bIsNaN ? b : a;
+
+    if (a.low < b.low) {
+        aIsLargerSignificand = 0;
+    } else if (b.low < a.low) {
+        aIsLargerSignificand = 1;
+    } else {
+        aIsLargerSignificand = (a.high < b.high) ? 1 : 0;
     }
-    else if ( aIsNaN ) {
-        if ( bIsSignalingNaN || ! bIsNaN ) return a;
- returnLargerSignificand:
-        if ( a.low < b.low ) return b;
-        if ( b.low < a.low ) return a;
-        return ( a.high < b.high ) ? a : b;
-    }
-    else {
+
+    if (pickNaN(aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN,
+                aIsLargerSignificand)) {
         return b;
+    } else {
+        return a;
     }
 }
 
@@ -580,7 +619,7 @@ static float128 commonNaNToFloat128( commonNaNT a )
 
 static float128 propagateFloat128NaN( float128 a, float128 b STATUS_PARAM)
 {
-    flag aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN;
+    flag aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN, aIsLargerSignificand;
 
     if ( STATUS(default_nan_mode) ) {
         a.low = float128_default_nan_low;
@@ -600,19 +639,20 @@ static float128 propagateFloat128NaN( float128 a, float128 b STATUS_PARAM)
     b.high |= LIT64( 0x0000800000000000 );
 #endif
     if ( aIsSignalingNaN | bIsSignalingNaN ) float_raise( float_flag_invalid STATUS_VAR);
-    if ( aIsSignalingNaN ) {
-        if ( bIsSignalingNaN ) goto returnLargerSignificand;
-        return bIsNaN ? b : a;
+
+    if (lt128(a.high<<1, a.low, b.high<<1, b.low)) {
+        aIsLargerSignificand = 0;
+    } else if (lt128(b.high<<1, b.low, a.high<<1, a.low)) {
+        aIsLargerSignificand = 1;
+    } else {
+        aIsLargerSignificand = (a.high < b.high) ? 1 : 0;
     }
-    else if ( aIsNaN ) {
-        if ( bIsSignalingNaN || ! bIsNaN ) return a;
- returnLargerSignificand:
-        if ( lt128( a.high<<1, a.low, b.high<<1, b.low ) ) return b;
-        if ( lt128( b.high<<1, b.low, a.high<<1, a.low ) ) return a;
-        return ( a.high < b.high ) ? a : b;
-    }
-    else {
+
+    if (pickNaN(aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN,
+                aIsLargerSignificand)) {
         return b;
+    } else {
+        return a;
     }
 }
 
