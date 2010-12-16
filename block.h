@@ -146,6 +146,7 @@ int bdrv_flush(BlockDriverState *bs);
 void bdrv_flush_all(void);
 void bdrv_close_all(void);
 
+int bdrv_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors);
 int bdrv_has_zero_init(BlockDriverState *bs);
 int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
 	int *pnum);

@@ -1515,6 +1515,17 @@ int bdrv_has_zero_init(BlockDriverState *bs)
     return 1;
 }
 
+int bdrv_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors)
+{
+    if (!bs->drv) {
+        return -ENOMEDIUM;
+    }
+    if (!bs->drv->bdrv_discard) {
+        return 0;
+    }
+    return bs->drv->bdrv_discard(bs, sector_num, nb_sectors);
+}
+
 /*
  * Returns true iff the specified sector is present in the disk image. Drivers
  * not implementing the functionality are assumed to not support backing files,
