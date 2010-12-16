@@ -267,7 +267,16 @@ static USBPortOps musb_port_ops = {
     .detach = musb_detach,
 };
 
-typedef struct {
+typedef struct MUSBPacket MUSBPacket;
+typedef struct MUSBEndPoint MUSBEndPoint;
+
+struct MUSBPacket {
+    USBPacket p;
+    MUSBEndPoint *ep;
+    int dir;
+};
+
+struct MUSBEndPoint {
     uint16_t faddr[2];
     uint8_t haddr[2];
     uint8_t hport[2];
@@ -284,7 +293,7 @@ typedef struct {
     int fifolen[2];
     int fifostart[2];
     int fifoaddr[2];
-    USBPacket packey[2];
+    MUSBPacket packey[2];
     int status[2];
     int ext_size[2];
 
@@ -294,7 +303,7 @@ typedef struct {
     MUSBState *musb;
     USBCallback *delayed_cb[2];
     QEMUTimer *intv_timer[2];
-} MUSBEndPoint;
+};
 
 struct MUSBState {
     qemu_irq *irqs;
@@ -321,7 +330,9 @@ struct MUSBState {
         /* Duplicating the world since 2008!...  probably we should have 32
          * logical, single endpoints instead.  */
     MUSBEndPoint ep[16];
-} *musb_init(qemu_irq *irqs)
+};
+
+struct MUSBState *musb_init(qemu_irq *irqs)
 {
     MUSBState *s = qemu_mallocz(sizeof(*s));
     int i;
@@ -488,14 +499,14 @@ static inline void musb_cb_tick0(void *opaque)
 {
     MUSBEndPoint *ep = (MUSBEndPoint *) opaque;
 
-    ep->delayed_cb[0](&ep->packey[0], opaque);
+    ep->delayed_cb[0](&ep->packey[0].p, opaque);
 }
 
 static inline void musb_cb_tick1(void *opaque)
 {
     MUSBEndPoint *ep = (MUSBEndPoint *) opaque;
 
-    ep->delayed_cb[1](&ep->packey[1], opaque);
+    ep->delayed_cb[1](&ep->packey[1].p, opaque);
 }
 
 #define musb_cb_tick	(dir ? musb_cb_tick1 : musb_cb_tick0)
@@ -587,17 +598,19 @@ static inline void musb_packet(MUSBState *s, MUSBEndPoint *ep,
     ep->delayed_cb[dir] = cb;
     cb = dir ? musb_schedule1_cb : musb_schedule0_cb;
 
-    ep->packey[dir].pid = pid;
+    ep->packey[dir].p.pid = pid;
     /* A wild guess on the FADDR semantics... */
-    ep->packey[dir].devaddr = ep->faddr[idx];
-    ep->packey[dir].devep = ep->type[idx] & 0xf;
-    ep->packey[dir].data = (void *) ep->buf[idx];
-    ep->packey[dir].len = len;
-    ep->packey[dir].complete_cb = cb;
-    ep->packey[dir].complete_opaque = ep;
+    ep->packey[dir].p.devaddr = ep->faddr[idx];
+    ep->packey[dir].p.devep = ep->type[idx] & 0xf;
+    ep->packey[dir].p.data = (void *) ep->buf[idx];
+    ep->packey[dir].p.len = len;
+    ep->packey[dir].p.complete_cb = cb;
+    ep->packey[dir].p.complete_opaque = ep;
+    ep->packey[dir].ep = ep;
+    ep->packey[dir].dir = dir;
 
     if (s->port.dev)
-        ret = s->port.dev->info->handle_packet(s->port.dev, &ep->packey[dir]);
+        ret = s->port.dev->info->handle_packet(s->port.dev, &ep->packey[dir].p);
     else
         ret = USB_RET_NODEV;
 
@@ -607,7 +620,7 @@ static inline void musb_packet(MUSBState *s, MUSBEndPoint *ep,
     }
 
     ep->status[dir] = ret;
-    usb_packet_complete(&ep->packey[dir]);
+    usb_packet_complete(&ep->packey[dir].p);
 }
 
 static void musb_tx_packet_complete(USBPacket *packey, void *opaque)
@@ -821,14 +834,14 @@ static void musb_rx_req(MUSBState *s, int epnum)
 
     /* If we already have a packet, which didn't fit into the
      * 64 bytes of the FIFO, only move the FIFO start and return. (Obsolete) */
-    if (ep->packey[1].pid == USB_TOKEN_IN && ep->status[1] >= 0 &&
+    if (ep->packey[1].p.pid == USB_TOKEN_IN && ep->status[1] >= 0 &&
                     (ep->fifostart[1]) + ep->rxcount <
-                    ep->packey[1].len) {
+                    ep->packey[1].p.len) {
         TRACE("0x%08x, %d",  ep->fifostart[1], ep->rxcount );
         ep->fifostart[1] += ep->rxcount;
         ep->fifolen[1] = 0;
 
-        ep->rxcount = MIN(ep->packey[0].len - (ep->fifostart[1]),
+        ep->rxcount = MIN(ep->packey[0].p.len - (ep->fifostart[1]),
                         ep->maxp[1]);
 
         ep->csr[1] &= ~MGC_M_RXCSR_H_REQPKT;
@@ -866,10 +879,11 @@ static void musb_rx_req(MUSBState *s, int epnum)
 #ifdef SETUPLEN_HACK
     /* Why should *we* do that instead of Linux?  */
     if (!epnum) {
-        if (ep->packey[0].devaddr == 2)
+        if (ep->packey[0].p.devaddr == 2) {
             total = MIN(s->setup_len, 8);
-        else
+        } else {
             total = MIN(s->setup_len, 64);
+        }
         s->setup_len -= total;
     }
 #endif
