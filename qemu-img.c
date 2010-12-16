@@ -288,9 +288,6 @@ static int img_create(int argc, char **argv)
     const char *base_fmt = NULL;
     const char *filename;
     const char *base_filename = NULL;
-    BlockDriver *drv, *proto_drv;
-    QEMUOptionParameter *param = NULL, *create_options = NULL;
-    QEMUOptionParameter *backing_fmt = NULL;
     char *options = NULL;
 
     for(;;) {
@@ -351,110 +348,9 @@ static int img_create(int argc, char **argv)
         goto out;
     }
 
-    /* Find driver and parse its options */
-    drv = bdrv_find_format(fmt);
-    if (!drv) {
-        error("Unknown file format '%s'", fmt);
-        ret = -1;
-        goto out;
-    }
-
-    proto_drv = bdrv_find_protocol(filename);
-    if (!proto_drv) {
-        error("Unknown protocol '%s'", filename);
-        ret = -1;
-        goto out;
-    }
-
-    create_options = append_option_parameters(create_options,
-                                              drv->create_options);
-    create_options = append_option_parameters(create_options,
-                                              proto_drv->create_options);
-
-    /* Create parameter list with default values */
-    param = parse_option_parameters("", create_options, param);
-
-    set_option_parameter_int(param, BLOCK_OPT_SIZE, img_size);
-
-    /* Parse -o options */
-    if (options) {
-        param = parse_option_parameters(options, create_options, param);
-        if (param == NULL) {
-            error("Invalid options for file format '%s'.", fmt);
-            ret = -1;
-            goto out;
-        }
-    }
-
-    /* Add old-style options to parameters */
-    ret = add_old_style_options(fmt, param, base_filename, base_fmt);
-    if (ret < 0) {
-        goto out;
-    }
-
-    backing_fmt = get_option_parameter(param, BLOCK_OPT_BACKING_FMT);
-    if (backing_fmt && backing_fmt->value.s) {
-        if (!bdrv_find_format(backing_fmt->value.s)) {
-            error("Unknown backing file format '%s'",
-                  backing_fmt->value.s);
-            ret = -1;
-            goto out;
-        }
-    }
-
-    // The size for the image must always be specified, with one exception:
-    // If we are using a backing file, we can obtain the size from there
-    if (get_option_parameter(param, BLOCK_OPT_SIZE)->value.n == -1) {
-
-        QEMUOptionParameter *backing_file =
-            get_option_parameter(param, BLOCK_OPT_BACKING_FILE);
-
-        if (backing_file && backing_file->value.s) {
-            BlockDriverState *bs;
-            uint64_t size;
-            const char *fmt = NULL;
-            char buf[32];
-
-            if (backing_fmt && backing_fmt->value.s) {
-                fmt = backing_fmt->value.s;
-            }
-
-            bs = bdrv_new_open(backing_file->value.s, fmt, BDRV_O_FLAGS);
-            if (!bs) {
-                ret = -1;
-                goto out;
-            }
-            bdrv_get_geometry(bs, &size);
-            size *= 512;
-            bdrv_delete(bs);
-
-            snprintf(buf, sizeof(buf), "%" PRId64, size);
-            set_option_parameter(param, BLOCK_OPT_SIZE, buf);
-        } else {
-            error("Image creation needs a size parameter");
-            ret = -1;
-            goto out;
-        }
-    }
-
-    printf("Formatting '%s', fmt=%s ", filename, fmt);
-    print_option_parameters(param);
-    puts("");
-
-    ret = bdrv_create(drv, filename, param);
-
-    if (ret < 0) {
-        if (ret == -ENOTSUP) {
-            error("Formatting or formatting option not supported for file format '%s'", fmt);
-        } else if (ret == -EFBIG) {
-            error("The image size is too large for file format '%s'", fmt);
-        } else {
-            error("%s: error while creating %s: %s", filename, fmt, strerror(-ret));
-        }
-    }
+    ret = bdrv_img_create(filename, fmt, base_filename, base_fmt,
+                          options, img_size, BDRV_O_FLAGS);
 out:
-    free_option_parameters(create_options);
-    free_option_parameters(param);
     if (ret) {
         return 1;
     }

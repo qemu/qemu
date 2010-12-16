@@ -227,6 +227,10 @@ int bdrv_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
 int bdrv_load_vmstate(BlockDriverState *bs, uint8_t *buf,
                       int64_t pos, int size);
 
+int bdrv_img_create(const char *filename, const char *fmt,
+                    const char *base_filename, const char *base_fmt,
+                    char *options, uint64_t img_size, int flags);
+
 #define BDRV_SECTORS_PER_DIRTY_CHUNK 2048
 
 void bdrv_set_dirty_tracking(BlockDriverState *bs, int enable);
