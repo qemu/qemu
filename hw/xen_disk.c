@@ -634,17 +634,12 @@ static int blk_init(struct XenDevice *xendev)
     if (!blkdev->dinfo) {
         /* setup via xenbus -> create new block driver instance */
         xen_be_printf(&blkdev->xendev, 2, "create new bdrv (xenbus setup)\n");
-	blkdev->bs = bdrv_new(blkdev->dev);
-	if (blkdev->bs) {
-	    if (bdrv_open(blkdev->bs, blkdev->filename, qflags,
-                           bdrv_find_whitelisted_format(blkdev->fileproto))
-                != 0) {
-		bdrv_delete(blkdev->bs);
-		blkdev->bs = NULL;
-	    }
-	}
-	if (!blkdev->bs)
-	    return -1;
+        blkdev->bs = bdrv_new(blkdev->dev);
+        if (bdrv_open(blkdev->bs, blkdev->filename, qflags,
+                      bdrv_find_whitelisted_format(blkdev->fileproto)) != 0) {
+            bdrv_delete(blkdev->bs);
+            return -1;
+        }
     } else {
         /* setup via qemu cmdline -> already setup for us */
         xen_be_printf(&blkdev->xendev, 2, "get configured bdrv (cmdline setup)\n");

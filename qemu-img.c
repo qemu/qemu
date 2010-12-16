@@ -215,10 +215,7 @@ static BlockDriverState *bdrv_new_open(const char *filename,
     char password[256];
 
     bs = bdrv_new("");
-    if (!bs) {
-        error_report("Not enough memory");
-        goto fail;
-    }
+
     if (fmt) {
         drv = bdrv_find_format(fmt);
         if (!drv) {
