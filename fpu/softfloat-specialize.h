@@ -168,6 +168,28 @@ static float32 commonNaNToFloat32( commonNaNT a )
 | tie-break rule.
 *----------------------------------------------------------------------------*/
 
+#if defined(TARGET_ARM)
+static int pickNaN(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
+                    flag aIsLargerSignificand)
+{
+    /* ARM mandated NaN propagation rules: take the first of:
+     *  1. A if it is signaling
+     *  2. B if it is signaling
+     *  3. A (quiet)
+     *  4. B (quiet)
+     * A signaling NaN is always quietened before returning it.
+     */
+    if (aIsSNaN) {
+        return 0;
+    } else if (bIsSNaN) {
+        return 1;
+    } else if (aIsQNaN) {
+        return 0;
+    } else {
+        return 1;
+    }
+}
+#else
 static int pickNaN(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
                     flag aIsLargerSignificand)
 {
@@ -197,6 +219,7 @@ static int pickNaN(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
         return 1;
     }
 }
+#endif
 
 /*----------------------------------------------------------------------------
 | Takes two single-precision floating-point values `a' and `b', one of which
