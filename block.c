@@ -2764,7 +2764,7 @@ int bdrv_img_create(const char *filename, const char *fmt,
                     char *options, uint64_t img_size, int flags)
 {
     QEMUOptionParameter *param = NULL, *create_options = NULL;
-    QEMUOptionParameter *backing_fmt;
+    QEMUOptionParameter *backing_fmt, *backing_file;
     BlockDriverState *bs = NULL;
     BlockDriver *drv, *proto_drv;
     int ret = 0;
@@ -2823,6 +2823,16 @@ int bdrv_img_create(const char *filename, const char *fmt,
         }
     }
 
+    backing_file = get_option_parameter(param, BLOCK_OPT_BACKING_FILE);
+    if (backing_file && backing_file->value.s) {
+        if (!strcmp(filename, backing_file->value.s)) {
+            error_report("Error: Trying to create an image with the "
+                         "same filename as the backing file");
+            ret = -1;
+            goto out;
+        }
+    }
+
     backing_fmt = get_option_parameter(param, BLOCK_OPT_BACKING_FMT);
     if (backing_fmt && backing_fmt->value.s) {
         if (!bdrv_find_format(backing_fmt->value.s)) {
@@ -2836,9 +2846,6 @@ int bdrv_img_create(const char *filename, const char *fmt,
     // The size for the image must always be specified, with one exception:
     // If we are using a backing file, we can obtain the size from there
     if (get_option_parameter(param, BLOCK_OPT_SIZE)->value.n == -1) {
-        QEMUOptionParameter *backing_file =
-            get_option_parameter(param, BLOCK_OPT_BACKING_FILE);
-
         if (backing_file && backing_file->value.s) {
             uint64_t size;
             const char *fmt = NULL;
