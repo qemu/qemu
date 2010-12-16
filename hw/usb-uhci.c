@@ -642,7 +642,7 @@ static int uhci_broadcast_packet(UHCIState *s, USBPacket *p)
     return ret;
 }
 
-static void uhci_async_complete(USBPacket * packet, void *opaque);
+static void uhci_async_complete(USBDevice *dev, USBPacket *packet);
 static void uhci_process_frame(UHCIState *s);
 
 /* return -1 if fatal error (frame must be stopped)
@@ -795,8 +795,6 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
     async->packet.devep   = (td->token >> 15) & 0xf;
     async->packet.data    = async->buffer;
     async->packet.len     = max_len;
-    async->packet.complete_cb     = uhci_async_complete;
-    async->packet.complete_opaque = s;
 
     switch(pid) {
     case USB_TOKEN_OUT:
@@ -832,7 +830,7 @@ done:
     return len;
 }
 
-static void uhci_async_complete(USBPacket *packet, void *opaque)
+static void uhci_async_complete(USBDevice *dev, USBPacket *packet)
 {
     UHCIAsync *async = container_of(packet, UHCIAsync, packet);
     UHCIState *s = async->uhci;
@@ -1083,6 +1081,7 @@ static USBPortOps uhci_port_ops = {
     .attach = uhci_attach,
     .detach = uhci_detach,
     .wakeup = uhci_wakeup,
+    .complete = uhci_async_complete,
 };
 
 static int usb_uhci_common_initfn(UHCIState *s)

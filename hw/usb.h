@@ -235,6 +235,7 @@ typedef struct USBPortOps {
     void (*attach)(USBPort *port);
     void (*detach)(USBPort *port);
     void (*wakeup)(USBDevice *dev);
+    void (*complete)(USBDevice *dev, USBPacket *p);
 } USBPortOps;
 
 /* USB port on which a device can be connected */
@@ -259,8 +260,6 @@ struct USBPacket {
     uint8_t *data;
     int len;
     /* Internal use by the USB layer.  */
-    USBCallback *complete_cb;
-    void *complete_opaque;
     USBCallback *cancel_cb;
     void *cancel_opaque;
 };
@@ -278,9 +277,9 @@ static inline void usb_defer_packet(USBPacket *p, USBCallback *cancel,
 /* Notify the controller that an async packet is complete.  This should only
    be called for packets previously deferred with usb_defer_packet, and
    should never be called from within handle_packet.  */
-static inline void usb_packet_complete(USBPacket *p)
+static inline void usb_packet_complete(USBDevice *dev, USBPacket *p)
 {
-    p->complete_cb(p, p->complete_opaque);
+    dev->port->ops->complete(dev, p);
 }
 
 /* Cancel an active packet.  The packed must have been deferred with
