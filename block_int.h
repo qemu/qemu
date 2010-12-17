@@ -29,7 +29,6 @@
 #include "qemu-queue.h"
 
 #define BLOCK_FLAG_ENCRYPT	1
-#define BLOCK_FLAG_COMPRESS	2
 #define BLOCK_FLAG_COMPAT6	4
 
 #define BLOCK_OPT_SIZE          "size"

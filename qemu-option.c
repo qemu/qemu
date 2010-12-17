@@ -394,8 +394,8 @@ QEMUOptionParameter *append_option_parameters(QEMUOptionParameter *dest,
 /*
  * Parses a parameter string (param) into an option list (dest).
  *
- * list is the templace is. If dest is NULL, a new copy of list is created for
- * it. If list is NULL, this function fails.
+ * list is the template option list. If dest is NULL, a new copy of list is
+ * created. If list is NULL, this function fails.
  *
  * A parameter string consists of one or more parameters, separated by commas.
  * Each parameter consists of its name and possibly of a value. In the latter
@@ -416,20 +416,13 @@ QEMUOptionParameter *parse_option_parameters(const char *param,
     char value[256];
     char *param_delim, *value_delim;
     char next_delim;
-    size_t num_options;
 
     if (list == NULL) {
         return NULL;
     }
 
     if (dest == NULL) {
-        // Count valid options
-        num_options = count_option_parameters(list);
-
-        // Create a copy of the option list to fill in values
-        dest = qemu_mallocz((num_options + 1) * sizeof(QEMUOptionParameter));
-        allocated = dest;
-        memcpy(dest, list, (num_options + 1) * sizeof(QEMUOptionParameter));
+        dest = allocated = append_option_parameters(NULL, list);
     }
 
     while (*param) {
