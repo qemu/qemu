@@ -140,12 +140,14 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
 static int qcow2_open(BlockDriverState *bs, int flags)
 {
     BDRVQcowState *s = bs->opaque;
-    int len, i;
+    int len, i, ret = 0;
     QCowHeader header;
     uint64_t ext_end;
 
-    if (bdrv_pread(bs->file, 0, &header, sizeof(header)) != sizeof(header))
+    ret = bdrv_pread(bs->file, 0, &header, sizeof(header));
+    if (ret < 0) {
         goto fail;
+    }
     be32_to_cpus(&header.magic);
     be32_to_cpus(&header.version);
     be64_to_cpus(&header.backing_file_offset);
@@ -160,16 +162,23 @@ static int qcow2_open(BlockDriverState *bs, int flags)
     be64_to_cpus(&header.snapshots_offset);
     be32_to_cpus(&header.nb_snapshots);
 
-    if (header.magic != QCOW_MAGIC || header.version != QCOW_VERSION)
+    if (header.magic != QCOW_MAGIC || header.version != QCOW_VERSION) {
+        ret = -EINVAL;
         goto fail;
+    }
     if (header.cluster_bits < MIN_CLUSTER_BITS ||
-        header.cluster_bits > MAX_CLUSTER_BITS)
+        header.cluster_bits > MAX_CLUSTER_BITS) {
+        ret = -EINVAL;
         goto fail;
-    if (header.crypt_method > QCOW_CRYPT_AES)
+    }
+    if (header.crypt_method > QCOW_CRYPT_AES) {
+        ret = -EINVAL;
         goto fail;
+    }
     s->crypt_method_header = header.crypt_method;
-    if (s->crypt_method_header)
+    if (s->crypt_method_header) {
         bs->encrypted = 1;
+    }
     s->cluster_bits = header.cluster_bits;
     s->cluster_size = 1 << s->cluster_bits;
     s->cluster_sectors = 1 << (s->cluster_bits - 9);
@@ -191,15 +200,19 @@ static int qcow2_open(BlockDriverState *bs, int flags)
     s->l1_vm_state_index = size_to_l1(s, header.size);
     /* the L1 table must contain at least enough entries to put
        header.size bytes */
-    if (s->l1_size < s->l1_vm_state_index)
+    if (s->l1_size < s->l1_vm_state_index) {
+        ret = -EINVAL;
         goto fail;
+    }
     s->l1_table_offset = header.l1_table_offset;
     if (s->l1_size > 0) {
         s->l1_table = qemu_mallocz(
             align_offset(s->l1_size * sizeof(uint64_t), 512));
-        if (bdrv_pread(bs->file, s->l1_table_offset, s->l1_table, s->l1_size * sizeof(uint64_t)) !=
-            s->l1_size * sizeof(uint64_t))
+        ret = bdrv_pread(bs->file, s->l1_table_offset, s->l1_table,
+                         s->l1_size * sizeof(uint64_t));
+        if (ret < 0) {
             goto fail;
+        }
         for(i = 0;i < s->l1_size; i++) {
             be64_to_cpus(&s->l1_table[i]);
         }
@@ -212,35 +225,46 @@ static int qcow2_open(BlockDriverState *bs, int flags)
                                   + 512);
     s->cluster_cache_offset = -1;
 
-    if (qcow2_refcount_init(bs) < 0)
+    ret = qcow2_refcount_init(bs);
+    if (ret != 0) {
         goto fail;
+    }
 
     QLIST_INIT(&s->cluster_allocs);
 
     /* read qcow2 extensions */
-    if (header.backing_file_offset)
+    if (header.backing_file_offset) {
         ext_end = header.backing_file_offset;
-    else
+    } else {
         ext_end = s->cluster_size;
-    if (qcow2_read_extensions(bs, sizeof(header), ext_end))
+    }
+    if (qcow2_read_extensions(bs, sizeof(header), ext_end)) {
+        ret = -EINVAL;
         goto fail;
+    }
 
     /* read the backing file name */
     if (header.backing_file_offset != 0) {
         len = header.backing_file_size;
-        if (len > 1023)
+        if (len > 1023) {
             len = 1023;
-        if (bdrv_pread(bs->file, header.backing_file_offset, bs->backing_file, len) != len)
+        }
+        ret = bdrv_pread(bs->file, header.backing_file_offset,
+                         bs->backing_file, len);
+        if (ret < 0) {
             goto fail;
+        }
         bs->backing_file[len] = '\0';
     }
-    if (qcow2_read_snapshots(bs) < 0)
+    if (qcow2_read_snapshots(bs) < 0) {
+        ret = -EINVAL;
         goto fail;
+    }
 
 #ifdef DEBUG_ALLOC
     qcow2_check_refcounts(bs);
 #endif
-    return 0;
+    return ret;
 
  fail:
     qcow2_free_snapshots(bs);
@@ -249,7 +273,7 @@ static int qcow2_open(BlockDriverState *bs, int flags)
     qemu_free(s->l2_cache);
     qemu_free(s->cluster_cache);
     qemu_free(s->cluster_data);
-    return -1;
+    return ret;
 }
 
 static int qcow2_set_key(BlockDriverState *bs, const char *key)
