@@ -257,30 +257,49 @@ static unsigned int pcie_aer_root_get_vector(PCIDevice *dev)
     return (root_status & PCI_ERR_ROOT_IRQ) >> PCI_ERR_ROOT_IRQ_SHIFT;
 }
 
+/* Given a status register, get corresponding bits in the command register */
+static uint32_t pcie_aer_status_to_cmd(uint32_t status)
+{
+    uint32_t cmd = 0;
+    if (status & PCI_ERR_ROOT_COR_RCV) {
+        cmd |= PCI_ERR_ROOT_CMD_COR_EN;
+    }
+    if (status & PCI_ERR_ROOT_NONFATAL_RCV) {
+        cmd |= PCI_ERR_ROOT_CMD_NONFATAL_EN;
+    }
+    if (status & PCI_ERR_ROOT_FATAL_RCV) {
+        cmd |= PCI_ERR_ROOT_CMD_FATAL_EN;
+    }
+    return cmd;
+}
+
+static void pcie_aer_root_notify(PCIDevice *dev)
+{
+    if (msix_enabled(dev)) {
+        msix_notify(dev, pcie_aer_root_get_vector(dev));
+    } else if (msi_enabled(dev)) {
+        msi_notify(dev, pcie_aer_root_get_vector(dev));
+    } else {
+        qemu_set_irq(dev->irq[dev->exp.aer_intx], 1);
+    }
+}
+
 /*
- * return value:
- * true: error message is sent up
- * false: error message is masked
- *
  * 6.2.6 Error Message Control
  * Figure 6-3
  * root port part
  */
-static bool pcie_aer_msg_root_port(PCIDevice *dev, const PCIEAERMsg *msg)
+static void pcie_aer_msg_root_port(PCIDevice *dev, const PCIEAERMsg *msg)
 {
-    bool msg_sent;
     uint16_t cmd;
     uint8_t *aer_cap;
     uint32_t root_cmd;
-    uint32_t root_status;
-    bool msi_trigger;
+    uint32_t root_status, prev_status;
 
-    msg_sent = false;
     cmd = pci_get_word(dev->config + PCI_COMMAND);
     aer_cap = dev->config + dev->exp.aer_cap;
     root_cmd = pci_get_long(aer_cap + PCI_ERR_ROOT_COMMAND);
-    root_status = pci_get_long(aer_cap + PCI_ERR_ROOT_STATUS);
-    msi_trigger = false;
+    prev_status = root_status = pci_get_long(aer_cap + PCI_ERR_ROOT_STATUS);
 
     if (cmd & PCI_COMMAND_SERR) {
         /* System Error.
@@ -299,25 +318,14 @@ static bool pcie_aer_msg_root_port(PCIDevice *dev, const PCIEAERMsg *msg)
         if (root_status & PCI_ERR_ROOT_COR_RCV) {
             root_status |= PCI_ERR_ROOT_MULTI_COR_RCV;
         } else {
-            if (root_cmd & PCI_ERR_ROOT_CMD_COR_EN) {
-                msi_trigger = true;
-            }
             pci_set_word(aer_cap + PCI_ERR_ROOT_COR_SRC, msg->source_id);
         }
         root_status |= PCI_ERR_ROOT_COR_RCV;
         break;
     case PCI_ERR_ROOT_CMD_NONFATAL_EN:
-        if (!(root_status & PCI_ERR_ROOT_NONFATAL_RCV) &&
-            root_cmd & PCI_ERR_ROOT_CMD_NONFATAL_EN) {
-            msi_trigger = true;
-        }
         root_status |= PCI_ERR_ROOT_NONFATAL_RCV;
         break;
     case PCI_ERR_ROOT_CMD_FATAL_EN:
-        if (!(root_status & PCI_ERR_ROOT_FATAL_RCV) &&
-            root_cmd & PCI_ERR_ROOT_CMD_FATAL_EN) {
-            msi_trigger = true;
-        }
         if (!(root_status & PCI_ERR_ROOT_UNCOR_RCV)) {
             root_status |= PCI_ERR_ROOT_FIRST_FATAL;
         }
@@ -337,18 +345,17 @@ static bool pcie_aer_msg_root_port(PCIDevice *dev, const PCIEAERMsg *msg)
     }
     pci_set_long(aer_cap + PCI_ERR_ROOT_STATUS, root_status);
 
-    if (root_cmd & msg->severity) {
-        /* 6.2.4.1.2 Interrupt Generation */
-        if (pci_msi_enabled(dev)) {
-            if (msi_trigger) {
-                pci_msi_notify(dev, pcie_aer_root_get_vector(dev));
-            }
-        } else {
-            qemu_set_irq(dev->irq[dev->exp.aer_intx], 1);
-        }
-        msg_sent = true;
+    /* 6.2.4.1.2 Interrupt Generation */
+    /* All the above did was set some bits in the status register.
+     * Specifically these that match message severity.
+     * The below code relies on this fact. */
+    if (!(root_cmd & msg->severity) ||
+        (pcie_aer_status_to_cmd(prev_status) & root_cmd)) {
+        /* Condition is not being set or was already true so nothing to do. */
+        return;
     }
-    return msg_sent;
+
+    pcie_aer_root_notify(dev);
 }
 
 /*
@@ -739,40 +746,26 @@ void pcie_aer_root_reset(PCIDevice *dev)
      */
 }
 
-static bool pcie_aer_root_does_trigger(uint32_t cmd, uint32_t status)
-{
-    return
-        ((cmd & PCI_ERR_ROOT_CMD_COR_EN) && (status & PCI_ERR_ROOT_COR_RCV)) ||
-        ((cmd & PCI_ERR_ROOT_CMD_NONFATAL_EN) &&
-         (status & PCI_ERR_ROOT_NONFATAL_RCV)) ||
-        ((cmd & PCI_ERR_ROOT_CMD_FATAL_EN) &&
-         (status & PCI_ERR_ROOT_FATAL_RCV));
-}
-
 void pcie_aer_root_write_config(PCIDevice *dev,
                                 uint32_t addr, uint32_t val, int len,
                                 uint32_t root_cmd_prev)
 {
     uint8_t *aer_cap = dev->config + dev->exp.aer_cap;
-
-    /* root command register */
+    uint32_t root_status = pci_get_long(aer_cap + PCI_ERR_ROOT_STATUS);
+    uint32_t enabled_cmd = pcie_aer_status_to_cmd(root_status);
     uint32_t root_cmd = pci_get_long(aer_cap + PCI_ERR_ROOT_COMMAND);
-    if (root_cmd & PCI_ERR_ROOT_CMD_EN_MASK) {
-        /* 6.2.4.1.2 Interrupt Generation */
-
-        /* 0 -> 1 */
-        uint32_t root_cmd_set = (root_cmd_prev ^ root_cmd) & root_cmd;
-        uint32_t root_status = pci_get_long(aer_cap + PCI_ERR_ROOT_STATUS);
-
-        if (pci_msi_enabled(dev)) {
-            if (pcie_aer_root_does_trigger(root_cmd_set, root_status)) {
-                pci_msi_notify(dev, pcie_aer_root_get_vector(dev));
-            }
-        } else {
-            int int_level = pcie_aer_root_does_trigger(root_cmd, root_status);
-            qemu_set_irq(dev->irq[dev->exp.aer_intx], int_level);
-        }
+    /* 6.2.4.1.2 Interrupt Generation */
+    if (!msix_enabled(dev) && !msi_enabled(dev)) {
+        qemu_set_irq(dev->irq[dev->exp.aer_intx], !!(root_cmd & enabled_cmd));
+        return;
     }
+
+    if ((root_cmd_prev & enabled_cmd) || !(root_cmd & enabled_cmd)) {
+        /* Send MSI on transition from false to true. */
+        return;
+    }
+
+    pcie_aer_root_notify(dev);
 }
 
 static const VMStateDescription vmstate_pcie_aer_err = {

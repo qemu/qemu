@@ -118,6 +118,10 @@ enum {
     /* multifunction capable device */
 #define QEMU_PCI_CAP_MULTIFUNCTION_BITNR        3
     QEMU_PCI_CAP_MULTIFUNCTION = (1 << QEMU_PCI_CAP_MULTIFUNCTION_BITNR),
+
+    /* command register SERR bit enabled */
+#define QEMU_PCI_CAP_SERR_BITNR 4
+    QEMU_PCI_CAP_SERR = (1 << QEMU_PCI_CAP_SERR_BITNR),
 };
 
 struct PCIDevice {
@@ -256,9 +260,6 @@ int pci_read_devaddr(Monitor *mon, const char *addr, int *domp, int *busp,
 void do_pci_info_print(Monitor *mon, const QObject *data);
 void do_pci_info(Monitor *mon, QObject **ret_data);
 void pci_bridge_update_mappings(PCIBus *b);
-
-bool pci_msi_enabled(PCIDevice *dev);
-void pci_msi_notify(PCIDevice *dev, unsigned int vector);
 
 static inline void
 pci_set_byte(uint8_t *config, uint8_t val)
