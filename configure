@@ -288,6 +288,7 @@ xen=""
 linux_aio=""
 attr=""
 vhost_net=""
+xfs=""
 
 gprof="no"
 debug_tcg="no"
@@ -1399,6 +1400,27 @@ EOF
 fi
 
 ##########################################
+# xfsctl() probe, used for raw-posix
+if test "$xfs" != "no" ; then
+  cat > $TMPC << EOF
+#include <xfs/xfs.h>
+int main(void)
+{
+    xfsctl(NULL, 0, 0, NULL);
+    return 0;
+}
+EOF
+  if compile_prog "" "" ; then
+    xfs="yes"
+  else
+    if test "$xfs" = "yes" ; then
+      feature_not_found "xfs"
+    fi
+    xfs=no
+  fi
+fi
+
+##########################################
 # vde libraries probe
 if test "$vde" != "no" ; then
   vde_libs="-lvdeplug"
@@ -2403,6 +2425,7 @@ echo "Trace backend     $trace_backend"
 echo "Trace output file $trace_file-<pid>"
 echo "spice support     $spice"
 echo "rbd support       $rbd"
+echo "xfsctl support    $xfs"
 
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -2547,6 +2570,9 @@ if test "$fnmatch" = "yes" ; then
 fi
 if test "$uuid" = "yes" ; then
   echo "CONFIG_UUID=y" >> $config_host_mak
+fi
+if test "$xfs" = "yes" ; then
+  echo "CONFIG_XFS=y" >> $config_host_mak
 fi
 qemu_version=`head $source_path/VERSION`
 echo "VERSION=$qemu_version" >>$config_host_mak
