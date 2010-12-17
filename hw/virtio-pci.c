@@ -80,9 +80,8 @@
  * 12 is historical, and due to x86 page size. */
 #define VIRTIO_PCI_QUEUE_ADDR_SHIFT    12
 
-/* We can catch some guest bugs inside here so we continue supporting older
-   guests. */
-#define VIRTIO_PCI_BUG_BUS_MASTER	(1 << 0)
+/* Flags track per-device state like workarounds for quirks in older guests. */
+#define VIRTIO_PCI_FLAG_BUS_MASTER_BUG  (1 << 0)
 
 /* QEMU doesn't strictly need write barriers since everything runs in
  * lock-step.  We'll leave the calls to wmb() in though to make it obvious for
@@ -95,7 +94,7 @@
 typedef struct {
     PCIDevice pci_dev;
     VirtIODevice *vdev;
-    uint32_t bugs;
+    uint32_t flags;
     uint32_t addr;
     uint32_t class_code;
     uint32_t nvectors;
@@ -159,7 +158,7 @@ static int virtio_pci_load_config(void * opaque, QEMUFile *f)
        in ready state. Then we have a buggy guest OS. */
     if ((proxy->vdev->status & VIRTIO_CONFIG_S_DRIVER_OK) &&
         !(proxy->pci_dev.config[PCI_COMMAND] & PCI_COMMAND_MASTER)) {
-        proxy->bugs |= VIRTIO_PCI_BUG_BUS_MASTER;
+        proxy->flags |= VIRTIO_PCI_FLAG_BUS_MASTER_BUG;
     }
     return 0;
 }
@@ -185,7 +184,7 @@ static void virtio_pci_reset(DeviceState *d)
     VirtIOPCIProxy *proxy = container_of(d, VirtIOPCIProxy, pci_dev.qdev);
     virtio_reset(proxy->vdev);
     msix_reset(&proxy->pci_dev);
-    proxy->bugs = 0;
+    proxy->flags = 0;
 }
 
 static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
@@ -235,7 +234,7 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
            some safety checks. */
         if ((val & VIRTIO_CONFIG_S_DRIVER_OK) &&
             !(proxy->pci_dev.config[PCI_COMMAND] & PCI_COMMAND_MASTER)) {
-            proxy->bugs |= VIRTIO_PCI_BUG_BUS_MASTER;
+            proxy->flags |= VIRTIO_PCI_FLAG_BUS_MASTER_BUG;
         }
         break;
     case VIRTIO_MSI_CONFIG_VECTOR:
@@ -403,7 +402,7 @@ static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
 
     if (PCI_COMMAND == address) {
         if (!(val & PCI_COMMAND_MASTER)) {
-            if (!(proxy->bugs & VIRTIO_PCI_BUG_BUS_MASTER)) {
+            if (!(proxy->flags & VIRTIO_PCI_FLAG_BUS_MASTER_BUG)) {
                 virtio_set_status(proxy->vdev,
                                   proxy->vdev->status & ~VIRTIO_CONFIG_S_DRIVER_OK);
             }
