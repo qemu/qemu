@@ -308,7 +308,7 @@ uint32_t helper_fcmp_un(uint32_t a, uint32_t b)
         r = 1;
     }
 
-    if (float32_is_nan(fa.f) || float32_is_nan(fb.f)) {
+    if (float32_is_quiet_nan(fa.f) || float32_is_quiet_nan(fb.f)) {
         r = 1;
     }
 

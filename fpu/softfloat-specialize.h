@@ -76,7 +76,7 @@ typedef struct {
 | NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
-int float32_is_nan( float32 a_ )
+int float32_is_quiet_nan( float32 a_ )
 {
     uint32_t a = float32_val(a_);
 #if SNAN_BIT_IS_ONE
@@ -166,9 +166,9 @@ static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
     if ( STATUS(default_nan_mode) )
         return float32_default_nan;
 
-    aIsNaN = float32_is_nan( a );
+    aIsNaN = float32_is_quiet_nan( a );
     aIsSignalingNaN = float32_is_signaling_nan( a );
-    bIsNaN = float32_is_nan( b );
+    bIsNaN = float32_is_quiet_nan( b );
     bIsSignalingNaN = float32_is_signaling_nan( b );
     av = float32_val(a);
     bv = float32_val(b);
@@ -223,7 +223,7 @@ static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
 | NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
-int float64_is_nan( float64 a_ )
+int float64_is_quiet_nan( float64 a_ )
 {
     bits64 a = float64_val(a_);
 #if SNAN_BIT_IS_ONE
@@ -320,9 +320,9 @@ static float64 propagateFloat64NaN( float64 a, float64 b STATUS_PARAM)
     if ( STATUS(default_nan_mode) )
         return float64_default_nan;
 
-    aIsNaN = float64_is_nan( a );
+    aIsNaN = float64_is_quiet_nan( a );
     aIsSignalingNaN = float64_is_signaling_nan( a );
-    bIsNaN = float64_is_nan( b );
+    bIsNaN = float64_is_quiet_nan( b );
     bIsSignalingNaN = float64_is_signaling_nan( b );
     av = float64_val(a);
     bv = float64_val(b);
@@ -377,7 +377,7 @@ static float64 propagateFloat64NaN( float64 a, float64 b STATUS_PARAM)
 | quiet NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
-int floatx80_is_nan( floatx80 a )
+int floatx80_is_quiet_nan( floatx80 a )
 {
 #if SNAN_BIT_IS_ONE
     bits64 aLow;
@@ -462,9 +462,9 @@ static floatx80 propagateFloatx80NaN( floatx80 a, floatx80 b STATUS_PARAM)
         return a;
     }
 
-    aIsNaN = floatx80_is_nan( a );
+    aIsNaN = floatx80_is_quiet_nan( a );
     aIsSignalingNaN = floatx80_is_signaling_nan( a );
-    bIsNaN = floatx80_is_nan( b );
+    bIsNaN = floatx80_is_quiet_nan( b );
     bIsSignalingNaN = floatx80_is_signaling_nan( b );
 #if SNAN_BIT_IS_ONE
     a.low &= ~LIT64( 0xC000000000000000 );
@@ -511,7 +511,7 @@ static floatx80 propagateFloatx80NaN( floatx80 a, floatx80 b STATUS_PARAM)
 | NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
-int float128_is_nan( float128 a )
+int float128_is_quiet_nan( float128 a )
 {
 #if SNAN_BIT_IS_ONE
     return
@@ -588,9 +588,9 @@ static float128 propagateFloat128NaN( float128 a, float128 b STATUS_PARAM)
         return a;
     }
 
-    aIsNaN = float128_is_nan( a );
+    aIsNaN = float128_is_quiet_nan( a );
     aIsSignalingNaN = float128_is_signaling_nan( a );
-    bIsNaN = float128_is_nan( b );
+    bIsNaN = float128_is_quiet_nan( b );
     bIsSignalingNaN = float128_is_signaling_nan( b );
 #if SNAN_BIT_IS_ONE
     a.high &= ~LIT64( 0x0000800000000000 );

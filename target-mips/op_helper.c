@@ -2877,10 +2877,10 @@ static int float64_is_unordered(int sig, float64 a, float64 b STATUS_PARAM)
 {
     if (float64_is_signaling_nan(a) ||
         float64_is_signaling_nan(b) ||
-        (sig && (float64_is_nan(a) || float64_is_nan(b)))) {
+        (sig && (float64_is_quiet_nan(a) || float64_is_quiet_nan(b)))) {
         float_raise(float_flag_invalid, status);
         return 1;
-    } else if (float64_is_nan(a) || float64_is_nan(b)) {
+    } else if (float64_is_quiet_nan(a) || float64_is_quiet_nan(b)) {
         return 1;
     } else {
         return 0;
@@ -2935,10 +2935,10 @@ static flag float32_is_unordered(int sig, float32 a, float32 b STATUS_PARAM)
 {
     if (float32_is_signaling_nan(a) ||
         float32_is_signaling_nan(b) ||
-        (sig && (float32_is_nan(a) || float32_is_nan(b)))) {
+        (sig && (float32_is_quiet_nan(a) || float32_is_quiet_nan(b)))) {
         float_raise(float_flag_invalid, status);
         return 1;
-    } else if (float32_is_nan(a) || float32_is_nan(b)) {
+    } else if (float32_is_quiet_nan(a) || float32_is_quiet_nan(b)) {
         return 1;
     } else {
         return 0;
