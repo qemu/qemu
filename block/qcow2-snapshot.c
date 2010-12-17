@@ -116,7 +116,7 @@ int qcow2_read_snapshots(BlockDriverState *bs)
 }
 
 /* add at the end of the file a new list of snapshots */
-static int qcow_write_snapshots(BlockDriverState *bs)
+static int qcow2_write_snapshots(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     QCowSnapshot *sn;
@@ -300,7 +300,7 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     s->snapshots = snapshots1;
     s->snapshots[s->nb_snapshots++] = *sn;
 
-    if (qcow_write_snapshots(bs) < 0)
+    if (qcow2_write_snapshots(bs) < 0)
         goto fail;
 #ifdef DEBUG_ALLOC
     qcow2_check_refcounts(bs);
@@ -378,7 +378,7 @@ int qcow2_snapshot_delete(BlockDriverState *bs, const char *snapshot_id)
     qemu_free(sn->name);
     memmove(sn, sn + 1, (s->nb_snapshots - snapshot_index - 1) * sizeof(*sn));
     s->nb_snapshots--;
-    ret = qcow_write_snapshots(bs);
+    ret = qcow2_write_snapshots(bs);
     if (ret < 0) {
         /* XXX: restore snapshot if error ? */
         return ret;

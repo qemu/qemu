@@ -146,6 +146,7 @@ int bdrv_flush(BlockDriverState *bs);
 void bdrv_flush_all(void);
 void bdrv_close_all(void);
 
+int bdrv_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors);
 int bdrv_has_zero_init(BlockDriverState *bs);
 int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
 	int *pnum);
@@ -226,6 +227,10 @@ int bdrv_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
 
 int bdrv_load_vmstate(BlockDriverState *bs, uint8_t *buf,
                       int64_t pos, int size);
+
+int bdrv_img_create(const char *filename, const char *fmt,
+                    const char *base_filename, const char *base_fmt,
+                    char *options, uint64_t img_size, int flags);
 
 #define BDRV_SECTORS_PER_DIRTY_CHUNK 2048
 

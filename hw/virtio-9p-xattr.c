@@ -73,6 +73,9 @@ ssize_t v9fs_list_xattr(FsContext *ctx, const char *path,
 
     /* Get the actual len */
     xattr_len = llistxattr(rpath(ctx, path), value, 0);
+    if (xattr_len <= 0) {
+        return xattr_len;
+    }
 
     /* Now fetch the xattr and find the actual size */
     orig_value = qemu_malloc(xattr_len);

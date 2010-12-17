@@ -552,8 +552,8 @@ void pprint_pdu(V9fsPDU *pdu)
         break;
     case P9_TLINK:
         fprintf(llogfile, "TLINK: (");
-        pprint_int32(pdu, 0, &offset, "fid");
-        pprint_str(pdu, 0, &offset, ", oldpath");
+        pprint_int32(pdu, 0, &offset, "dfid");
+        pprint_int32(pdu, 0, &offset, ", fid");
         pprint_str(pdu, 0, &offset, ", newpath");
         break;
     case P9_RLINK:

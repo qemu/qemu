@@ -192,3 +192,24 @@ disable sun4m_iommu_bad_addr(uint64_t addr) "bad addr %"PRIx64""
 
 # vl.c
 disable vm_state_notify(int running, int reason) "running %d reason %d"
+
+# block/qed-l2-cache.c
+disable qed_alloc_l2_cache_entry(void *l2_cache, void *entry) "l2_cache %p entry %p"
+disable qed_unref_l2_cache_entry(void *entry, int ref) "entry %p ref %d"
+disable qed_find_l2_cache_entry(void *l2_cache, void *entry, uint64_t offset, int ref) "l2_cache %p entry %p offset %"PRIu64" ref %d"
+
+# block/qed-table.c
+disable qed_read_table(void *s, uint64_t offset, void *table) "s %p offset %"PRIu64" table %p"
+disable qed_read_table_cb(void *s, void *table, int ret) "s %p table %p ret %d"
+disable qed_write_table(void *s, uint64_t offset, void *table, unsigned int index, unsigned int n) "s %p offset %"PRIu64" table %p index %u n %u"
+disable qed_write_table_cb(void *s, void *table, int flush, int ret) "s %p table %p flush %d ret %d"
+
+# block/qed.c
+disable qed_aio_complete(void *s, void *acb, int ret) "s %p acb %p ret %d"
+disable qed_aio_setup(void *s, void *acb, int64_t sector_num, int nb_sectors, void *opaque, int is_write) "s %p acb %p sector_num %"PRId64" nb_sectors %d opaque %p is_write %d"
+disable qed_aio_next_io(void *s, void *acb, int ret, uint64_t cur_pos) "s %p acb %p ret %d cur_pos %"PRIu64""
+disable qed_aio_read_data(void *s, void *acb, int ret, uint64_t offset, size_t len) "s %p acb %p ret %d offset %"PRIu64" len %zu"
+disable qed_aio_write_data(void *s, void *acb, int ret, uint64_t offset, size_t len) "s %p acb %p ret %d offset %"PRIu64" len %zu"
+disable qed_aio_write_prefill(void *s, void *acb, uint64_t start, size_t len, uint64_t offset) "s %p acb %p start %"PRIu64" len %zu offset %"PRIu64""
+disable qed_aio_write_postfill(void *s, void *acb, uint64_t start, size_t len, uint64_t offset) "s %p acb %p start %"PRIu64" len %zu offset %"PRIu64""
+disable qed_aio_write_main(void *s, void *acb, int ret, uint64_t offset, size_t len) "s %p acb %p ret %d offset %"PRIu64" len %zu"

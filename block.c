@@ -70,6 +70,39 @@ static BlockDriverState *bs_snapshots;
 /* If non-zero, use only whitelisted block drivers */
 static int use_bdrv_whitelist;
 
+#ifdef _WIN32
+static int is_windows_drive_prefix(const char *filename)
+{
+    return (((filename[0] >= 'a' && filename[0] <= 'z') ||
+             (filename[0] >= 'A' && filename[0] <= 'Z')) &&
+            filename[1] == ':');
+}
+
+int is_windows_drive(const char *filename)
+{
+    if (is_windows_drive_prefix(filename) &&
+        filename[2] == '\0')
+        return 1;
+    if (strstart(filename, "\\\\.\\", NULL) ||
+        strstart(filename, "//./", NULL))
+        return 1;
+    return 0;
+}
+#endif
+
+/* check if the path starts with "<protocol>:" */
+static int path_has_protocol(const char *path)
+{
+#ifdef _WIN32
+    if (is_windows_drive(path) ||
+        is_windows_drive_prefix(path)) {
+        return 0;
+    }
+#endif
+
+    return strchr(path, ':') != NULL;
+}
+
 int path_is_absolute(const char *path)
 {
     const char *p;
@@ -215,7 +248,7 @@ int bdrv_create_file(const char* filename, QEMUOptionParameter *options)
 
     drv = bdrv_find_protocol(filename);
     if (drv == NULL) {
-        drv = bdrv_find_format("file");
+        return -ENOENT;
     }
 
     return bdrv_create(drv, filename, options);
@@ -241,26 +274,6 @@ void get_tmp_filename(char *filename, int size)
     snprintf(filename, size, "%s/vl.XXXXXX", tmpdir);
     fd = mkstemp(filename);
     close(fd);
-}
-#endif
-
-#ifdef _WIN32
-static int is_windows_drive_prefix(const char *filename)
-{
-    return (((filename[0] >= 'a' && filename[0] <= 'z') ||
-             (filename[0] >= 'A' && filename[0] <= 'Z')) &&
-            filename[1] == ':');
-}
-
-int is_windows_drive(const char *filename)
-{
-    if (is_windows_drive_prefix(filename) &&
-        filename[2] == '\0')
-        return 1;
-    if (strstart(filename, "\\\\.\\", NULL) ||
-        strstart(filename, "//./", NULL))
-        return 1;
-    return 0;
 }
 #endif
 
@@ -307,16 +320,11 @@ BlockDriver *bdrv_find_protocol(const char *filename)
         return drv1;
     }
 
-#ifdef _WIN32
-     if (is_windows_drive(filename) ||
-         is_windows_drive_prefix(filename))
-         return bdrv_find_format("file");
-#endif
-
-    p = strchr(filename, ':');
-    if (!p) {
+    if (!path_has_protocol(filename)) {
         return bdrv_find_format("file");
     }
+    p = strchr(filename, ':');
+    assert(p != NULL);
     len = p - filename;
     if (len > sizeof(protocol) - 1)
         len = sizeof(protocol) - 1;
@@ -603,10 +611,18 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
         BlockDriver *back_drv = NULL;
 
         bs->backing_hd = bdrv_new("");
-        path_combine(backing_filename, sizeof(backing_filename),
-                     filename, bs->backing_file);
-        if (bs->backing_format[0] != '\0')
+
+        if (path_has_protocol(bs->backing_file)) {
+            pstrcpy(backing_filename, sizeof(backing_filename),
+                    bs->backing_file);
+        } else {
+            path_combine(backing_filename, sizeof(backing_filename),
+                         filename, bs->backing_file);
+        }
+
+        if (bs->backing_format[0] != '\0') {
             back_drv = bdrv_find_format(bs->backing_format);
+        }
 
         /* backing files always opened read-only */
         back_flags =
@@ -1497,6 +1513,17 @@ int bdrv_has_zero_init(BlockDriverState *bs)
     }
 
     return 1;
+}
+
+int bdrv_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors)
+{
+    if (!bs->drv) {
+        return -ENOMEDIUM;
+    }
+    if (!bs->drv->bdrv_discard) {
+        return 0;
+    }
+    return bs->drv->bdrv_discard(bs, sector_num, nb_sectors);
 }
 
 /*
@@ -2741,4 +2768,149 @@ void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
 int64_t bdrv_get_dirty_count(BlockDriverState *bs)
 {
     return bs->dirty_count;
+}
+
+int bdrv_img_create(const char *filename, const char *fmt,
+                    const char *base_filename, const char *base_fmt,
+                    char *options, uint64_t img_size, int flags)
+{
+    QEMUOptionParameter *param = NULL, *create_options = NULL;
+    QEMUOptionParameter *backing_fmt, *backing_file;
+    BlockDriverState *bs = NULL;
+    BlockDriver *drv, *proto_drv;
+    int ret = 0;
+
+    /* Find driver and parse its options */
+    drv = bdrv_find_format(fmt);
+    if (!drv) {
+        error_report("Unknown file format '%s'", fmt);
+        ret = -EINVAL;
+        goto out;
+    }
+
+    proto_drv = bdrv_find_protocol(filename);
+    if (!proto_drv) {
+        error_report("Unknown protocol '%s'", filename);
+        ret = -EINVAL;
+        goto out;
+    }
+
+    create_options = append_option_parameters(create_options,
+                                              drv->create_options);
+    create_options = append_option_parameters(create_options,
+                                              proto_drv->create_options);
+
+    /* Create parameter list with default values */
+    param = parse_option_parameters("", create_options, param);
+
+    set_option_parameter_int(param, BLOCK_OPT_SIZE, img_size);
+
+    /* Parse -o options */
+    if (options) {
+        param = parse_option_parameters(options, create_options, param);
+        if (param == NULL) {
+            error_report("Invalid options for file format '%s'.", fmt);
+            ret = -EINVAL;
+            goto out;
+        }
+    }
+
+    if (base_filename) {
+        if (set_option_parameter(param, BLOCK_OPT_BACKING_FILE,
+                                 base_filename)) {
+            error_report("Backing file not supported for file format '%s'",
+                         fmt);
+            ret = -EINVAL;
+            goto out;
+        }
+    }
+
+    if (base_fmt) {
+        if (set_option_parameter(param, BLOCK_OPT_BACKING_FMT, base_fmt)) {
+            error_report("Backing file format not supported for file "
+                         "format '%s'", fmt);
+            ret = -EINVAL;
+            goto out;
+        }
+    }
+
+    backing_file = get_option_parameter(param, BLOCK_OPT_BACKING_FILE);
+    if (backing_file && backing_file->value.s) {
+        if (!strcmp(filename, backing_file->value.s)) {
+            error_report("Error: Trying to create an image with the "
+                         "same filename as the backing file");
+            ret = -EINVAL;
+            goto out;
+        }
+    }
+
+    backing_fmt = get_option_parameter(param, BLOCK_OPT_BACKING_FMT);
+    if (backing_fmt && backing_fmt->value.s) {
+        if (!bdrv_find_format(backing_fmt->value.s)) {
+            error_report("Unknown backing file format '%s'",
+                         backing_fmt->value.s);
+            ret = -EINVAL;
+            goto out;
+        }
+    }
+
+    // The size for the image must always be specified, with one exception:
+    // If we are using a backing file, we can obtain the size from there
+    if (get_option_parameter(param, BLOCK_OPT_SIZE)->value.n == -1) {
+        if (backing_file && backing_file->value.s) {
+            uint64_t size;
+            const char *fmt = NULL;
+            char buf[32];
+
+            if (backing_fmt && backing_fmt->value.s) {
+                fmt = backing_fmt->value.s;
+            }
+
+            bs = bdrv_new("");
+
+            ret = bdrv_open(bs, backing_file->value.s, flags, drv);
+            if (ret < 0) {
+                error_report("Could not open '%s'", filename);
+                goto out;
+            }
+            bdrv_get_geometry(bs, &size);
+            size *= 512;
+
+            snprintf(buf, sizeof(buf), "%" PRId64, size);
+            set_option_parameter(param, BLOCK_OPT_SIZE, buf);
+        } else {
+            error_report("Image creation needs a size parameter");
+            ret = -EINVAL;
+            goto out;
+        }
+    }
+
+    printf("Formatting '%s', fmt=%s ", filename, fmt);
+    print_option_parameters(param);
+    puts("");
+
+    ret = bdrv_create(drv, filename, param);
+
+    if (ret < 0) {
+        if (ret == -ENOTSUP) {
+            error_report("Formatting or formatting option not supported for "
+                         "file format '%s'", fmt);
+        } else if (ret == -EFBIG) {
+            error_report("The image size is too large for file format '%s'",
+                         fmt);
+        } else {
+            error_report("%s: error while creating %s: %s", filename, fmt,
+                         strerror(-ret));
+        }
+    }
+
+out:
+    free_option_parameters(create_options);
+    free_option_parameters(param);
+
+    if (bs) {
+        bdrv_delete(bs);
+    }
+
+    return ret;
 }

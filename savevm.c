@@ -1575,8 +1575,6 @@ static int qemu_savevm_state(Monitor *mon, QEMUFile *f)
     saved_vm_running = vm_running;
     vm_stop(0);
 
-    bdrv_flush_all();
-
     ret = qemu_savevm_state_begin(mon, f, 0, 0);
     if (ret < 0)
         goto out;
@@ -1885,8 +1883,6 @@ void do_savevm(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "No block device can accept snapshots\n");
         return;
     }
-    /* ??? Should this occur after vm_stop?  */
-    qemu_aio_flush();
 
     saved_vm_running = vm_running;
     vm_stop(0);

@@ -69,6 +69,10 @@
 #include <sys/diskslice.h>
 #endif
 
+#ifdef CONFIG_XFS
+#include <xfs/xfs.h>
+#endif
+
 //#define DEBUG_FLOPPY
 
 //#define DEBUG_BLOCK
@@ -120,6 +124,9 @@ typedef struct BDRVRawState {
 #endif
     uint8_t *aligned_buf;
     unsigned aligned_buf_size;
+#ifdef CONFIG_XFS
+    bool is_xfs : 1;
+#endif
 } BDRVRawState;
 
 static int fd_open(BlockDriverState *bs);
@@ -195,6 +202,12 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
         s->use_aio = 0;
 #endif
     }
+
+#ifdef CONFIG_XFS
+    if (platform_test_xfs_fd(s->fd)) {
+        s->is_xfs = 1;
+    }
+#endif
 
     return 0;
 
@@ -740,6 +753,37 @@ static int raw_flush(BlockDriverState *bs)
     return qemu_fdatasync(s->fd);
 }
 
+#ifdef CONFIG_XFS
+static int xfs_discard(BDRVRawState *s, int64_t sector_num, int nb_sectors)
+{
+    struct xfs_flock64 fl;
+
+    memset(&fl, 0, sizeof(fl));
+    fl.l_whence = SEEK_SET;
+    fl.l_start = sector_num << 9;
+    fl.l_len = (int64_t)nb_sectors << 9;
+
+    if (xfsctl(NULL, s->fd, XFS_IOC_UNRESVSP64, &fl) < 0) {
+        DEBUG_BLOCK_PRINT("cannot punch hole (%s)\n", strerror(errno));
+        return -errno;
+    }
+
+    return 0;
+}
+#endif
+
+static int raw_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors)
+{
+#ifdef CONFIG_XFS
+    BDRVRawState *s = bs->opaque;
+
+    if (s->is_xfs) {
+        return xfs_discard(s, sector_num, nb_sectors);
+    }
+#endif
+
+    return 0;
+}
 
 static QEMUOptionParameter raw_create_options[] = {
     {
@@ -761,6 +805,7 @@ static BlockDriver bdrv_file = {
     .bdrv_close = raw_close,
     .bdrv_create = raw_create,
     .bdrv_flush = raw_flush,
+    .bdrv_discard = raw_discard,
 
     .bdrv_aio_readv = raw_aio_readv,
     .bdrv_aio_writev = raw_aio_writev,

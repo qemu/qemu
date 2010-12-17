@@ -149,7 +149,7 @@ static void net_socket_send_dgram(void *opaque)
     qemu_send_packet(&s->nc, s->buf, size);
 }
 
-static int net_socket_mcast_create(struct sockaddr_in *mcastaddr)
+static int net_socket_mcast_create(struct sockaddr_in *mcastaddr, struct in_addr *localaddr)
 {
     struct ip_mreq imr;
     int fd;
@@ -183,7 +183,11 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr)
 
     /* Add host to multicast group */
     imr.imr_multiaddr = mcastaddr->sin_addr;
-    imr.imr_interface.s_addr = htonl(INADDR_ANY);
+    if (localaddr) {
+        imr.imr_interface = *localaddr;
+    } else {
+        imr.imr_interface.s_addr = htonl(INADDR_ANY);
+    }
 
     ret = setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
                      (const char *)&imr, sizeof(struct ip_mreq));
@@ -199,6 +203,15 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr)
     if (ret < 0) {
 	perror("setsockopt(SOL_IP, IP_MULTICAST_LOOP)");
 	goto fail;
+    }
+
+    /* If a bind address is given, only send packets from that address */
+    if (localaddr != NULL) {
+        ret = setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF, localaddr, sizeof(*localaddr));
+        if (ret < 0) {
+            perror("setsockopt(IP_MULTICAST_IF)");
+            goto fail;
+        }
     }
 
     socket_set_nonblock(fd);
@@ -248,7 +261,7 @@ static NetSocketState *net_socket_fd_init_dgram(VLANState *vlan,
 		return NULL;
 	    }
 	    /* clone dgram socket */
-	    newfd = net_socket_mcast_create(&saddr);
+	    newfd = net_socket_mcast_create(&saddr, NULL);
 	    if (newfd < 0) {
 		/* error already reported by net_socket_mcast_create() */
 		close(fd);
@@ -468,17 +481,26 @@ static int net_socket_connect_init(VLANState *vlan,
 static int net_socket_mcast_init(VLANState *vlan,
                                  const char *model,
                                  const char *name,
-                                 const char *host_str)
+                                 const char *host_str,
+                                 const char *localaddr_str)
 {
     NetSocketState *s;
     int fd;
     struct sockaddr_in saddr;
+    struct in_addr localaddr, *param_localaddr;
 
     if (parse_host_port(&saddr, host_str) < 0)
         return -1;
 
+    if (localaddr_str != NULL) {
+        if (inet_aton(localaddr_str, &localaddr) == 0)
+            return -1;
+        param_localaddr = &localaddr;
+    } else {
+        param_localaddr = NULL;
+    }
 
-    fd = net_socket_mcast_create(&saddr);
+    fd = net_socket_mcast_create(&saddr, param_localaddr);
     if (fd < 0)
 	return -1;
 
@@ -505,8 +527,9 @@ int net_init_socket(QemuOpts *opts,
 
         if (qemu_opt_get(opts, "listen") ||
             qemu_opt_get(opts, "connect") ||
-            qemu_opt_get(opts, "mcast")) {
-            error_report("listen=, connect= and mcast= is invalid with fd=");
+            qemu_opt_get(opts, "mcast") ||
+            qemu_opt_get(opts, "localaddr")) {
+            error_report("listen=, connect=, mcast= and localaddr= is invalid with fd=\n");
             return -1;
         }
 
@@ -524,8 +547,9 @@ int net_init_socket(QemuOpts *opts,
 
         if (qemu_opt_get(opts, "fd") ||
             qemu_opt_get(opts, "connect") ||
-            qemu_opt_get(opts, "mcast")) {
-            error_report("fd=, connect= and mcast= is invalid with listen=");
+            qemu_opt_get(opts, "mcast") ||
+            qemu_opt_get(opts, "localaddr")) {
+            error_report("fd=, connect=, mcast= and localaddr= is invalid with listen=\n");
             return -1;
         }
 
@@ -539,8 +563,9 @@ int net_init_socket(QemuOpts *opts,
 
         if (qemu_opt_get(opts, "fd") ||
             qemu_opt_get(opts, "listen") ||
-            qemu_opt_get(opts, "mcast")) {
-            error_report("fd=, listen= and mcast= is invalid with connect=");
+            qemu_opt_get(opts, "mcast") ||
+            qemu_opt_get(opts, "localaddr")) {
+            error_report("fd=, listen=, mcast= and localaddr= is invalid with connect=\n");
             return -1;
         }
 
@@ -550,7 +575,7 @@ int net_init_socket(QemuOpts *opts,
             return -1;
         }
     } else if (qemu_opt_get(opts, "mcast")) {
-        const char *mcast;
+        const char *mcast, *localaddr;
 
         if (qemu_opt_get(opts, "fd") ||
             qemu_opt_get(opts, "connect") ||
@@ -560,8 +585,9 @@ int net_init_socket(QemuOpts *opts,
         }
 
         mcast = qemu_opt_get(opts, "mcast");
+        localaddr = qemu_opt_get(opts, "localaddr");
 
-        if (net_socket_mcast_init(vlan, "socket", name, mcast) == -1) {
+        if (net_socket_mcast_init(vlan, "socket", name, mcast, localaddr) == -1) {
             return -1;
         }
     } else {

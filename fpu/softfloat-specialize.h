@@ -102,6 +102,25 @@ int float32_is_signaling_nan( float32 a_ )
 }
 
 /*----------------------------------------------------------------------------
+| Returns a quiet NaN if the single-precision floating point value `a' is a
+| signaling NaN; otherwise returns `a'.
+*----------------------------------------------------------------------------*/
+
+float32 float32_maybe_silence_nan( float32 a_ )
+{
+    if (float32_is_signaling_nan(a_)) {
+        uint32_t a = float32_val(a_);
+#if SNAN_BIT_IS_ONE
+        a &= ~(1 << 22);
+#else
+        a |= (1 << 22);
+#endif
+        return make_float32(a);
+    }
+    return a_;
+}
+
+/*----------------------------------------------------------------------------
 | Returns the result of converting the single-precision floating-point NaN
 | `a' to the canonical NaN format.  If `a' is a signaling NaN, the invalid
 | exception is raised.
@@ -231,6 +250,25 @@ int float64_is_signaling_nan( float64 a_ )
            ( ( ( a>>51 ) & 0xFFF ) == 0xFFE )
         && ( a & LIT64( 0x0007FFFFFFFFFFFF ) );
 #endif
+}
+
+/*----------------------------------------------------------------------------
+| Returns a quiet NaN if the double-precision floating point value `a' is a
+| signaling NaN; otherwise returns `a'.
+*----------------------------------------------------------------------------*/
+
+float64 float64_maybe_silence_nan( float64 a_ )
+{
+    if (float64_is_signaling_nan(a_)) {
+        bits64 a = float64_val(a_);
+#if SNAN_BIT_IS_ONE
+        a &= ~LIT64( 0x0008000000000000 );
+#else
+        a |= LIT64( 0x0008000000000000 );
+#endif
+        return make_float64(a);
+    }
+    return a_;
 }
 
 /*----------------------------------------------------------------------------

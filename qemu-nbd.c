@@ -336,8 +336,6 @@ int main(int argc, char **argv)
     bdrv_init();
 
     bs = bdrv_new("hda");
-    if (bs == NULL)
-        return 1;
 
     if ((ret = bdrv_open(bs, argv[optind], flags, NULL)) < 0) {
         errno = -ret;

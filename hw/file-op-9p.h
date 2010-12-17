@@ -86,7 +86,7 @@ typedef struct FileOperations
     int (*fstat)(FsContext *, int, struct stat *);
     int (*rename)(FsContext *, const char *, const char *);
     int (*truncate)(FsContext *, const char *, off_t);
-    int (*fsync)(FsContext *, int);
+    int (*fsync)(FsContext *, int, int);
     int (*statfs)(FsContext *s, const char *path, struct statfs *stbuf);
     ssize_t (*lgetxattr)(FsContext *, const char *,
                          const char *, void *, size_t);

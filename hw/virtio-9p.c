@@ -248,9 +248,9 @@ static int v9fs_do_remove(V9fsState *s, V9fsString *path)
     return s->ops->remove(&s->ctx, path->data);
 }
 
-static int v9fs_do_fsync(V9fsState *s, int fd)
+static int v9fs_do_fsync(V9fsState *s, int fd, int datasync)
 {
-    return s->ops->fsync(&s->ctx, fd);
+    return s->ops->fsync(&s->ctx, fd, datasync);
 }
 
 static int v9fs_do_statfs(V9fsState *s, V9fsString *path, struct statfs *stbuf)
@@ -1868,16 +1868,17 @@ static void v9fs_fsync(V9fsState *s, V9fsPDU *pdu)
     int32_t fid;
     size_t offset = 7;
     V9fsFidState *fidp;
+    int datasync;
     int err;
 
-    pdu_unmarshal(pdu, offset, "d", &fid);
+    pdu_unmarshal(pdu, offset, "dd", &fid, &datasync);
     fidp = lookup_fid(s, fid);
     if (fidp == NULL) {
         err = -ENOENT;
         v9fs_post_do_fsync(s, pdu, err);
         return;
     }
-    err = v9fs_do_fsync(s, fidp->fs.fd);
+    err = v9fs_do_fsync(s, fidp->fs.fd, datasync);
     v9fs_post_do_fsync(s, pdu, err);
 }
 
@@ -3001,7 +3002,7 @@ static void v9fs_wstat(V9fsState *s, V9fsPDU *pdu)
 
     /* do we need to sync the file? */
     if (donttouch_stat(&vs->v9stat)) {
-        err = v9fs_do_fsync(s, vs->fidp->fs.fd);
+        err = v9fs_do_fsync(s, vs->fidp->fs.fd, 0);
         v9fs_wstat_post_fsync(s, vs, err);
         return;
     }

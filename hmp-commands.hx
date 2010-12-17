@@ -801,6 +801,25 @@ STEXI
 Set maximum tolerated downtime (in seconds) for migration.
 ETEXI
 
+    {
+        .name       = "snapshot_blkdev",
+        .args_type  = "device:s,snapshot_file:s?,format:s?",
+        .params     = "device [new-image-file] [format]",
+        .help       = "initiates a live snapshot\n\t\t\t"
+                      "of device. If a new image file is specified, the\n\t\t\t"
+                      "new image file will become the new root image.\n\t\t\t"
+                      "If format is specified, the snapshot file will\n\t\t\t"
+                      "be created in that format. Otherwise the\n\t\t\t"
+                      "snapshot will be internal! (currently unsupported)",
+        .mhandler.cmd_new = do_snapshot_blkdev,
+    },
+
+STEXI
+@item snapshot_blkdev
+@findex snapshot_blkdev
+Snapshot device, using snapshot file as target if provided
+ETEXI
+
 #if defined(TARGET_I386)
     {
         .name       = "drive_add",

@@ -20,10 +20,13 @@ block-obj-$(CONFIG_LINUX_AIO) += linux-aio.o
 
 block-nested-y += raw.o cow.o qcow.o vdi.o vmdk.o cloop.o dmg.o bochs.o vpc.o vvfat.o
 block-nested-y += qcow2.o qcow2-refcount.o qcow2-cluster.o qcow2-snapshot.o
+block-nested-y += qed.o qed-gencb.o qed-l2-cache.o qed-table.o qed-cluster.o
+block-nested-y += qed-check.o
 block-nested-y += parallels.o nbd.o blkdebug.o sheepdog.o blkverify.o
 block-nested-$(CONFIG_WIN32) += raw-win32.o
 block-nested-$(CONFIG_POSIX) += raw-posix.o
 block-nested-$(CONFIG_CURL) += curl.o
+block-nested-$(CONFIG_RBD) += rbd.o
 
 block-obj-y +=  $(addprefix block/, $(block-nested-y))
 
@@ -169,7 +172,8 @@ hw-obj-$(CONFIG_VIRTIO) += virtio.o virtio-console.o
 hw-obj-y += fw_cfg.o
 # FIXME: Core PCI code and its direct dependencies are required by the
 # QMP query-pci command.
-hw-obj-y += pci.o pci_bridge.o msix.o msi.o
+hw-obj-y += pci.o pci_bridge.o
+hw-obj-$(CONFIG_PCI) += msix.o msi.o
 hw-obj-$(CONFIG_PCI) += pci_host.o pcie_host.o
 hw-obj-$(CONFIG_PCI) += ioh3420.o xio3130_upstream.o xio3130_downstream.o
 hw-obj-y += watchdog.o
@@ -254,6 +258,7 @@ hw-obj-$(CONFIG_IDE_PIIX) += ide/piix.o
 hw-obj-$(CONFIG_IDE_CMD646) += ide/cmd646.o
 hw-obj-$(CONFIG_IDE_MACIO) += ide/macio.o
 hw-obj-$(CONFIG_IDE_VIA) += ide/via.o
+hw-obj-$(CONFIG_AHCI) += ide/ahci.o
 
 # SCSI layer
 hw-obj-$(CONFIG_LSI_SCSI_PCI) += lsi53c895a.o

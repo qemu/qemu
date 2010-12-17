@@ -1050,6 +1050,10 @@ static const struct {
                 .name = "mcast",
                 .type = QEMU_OPT_STRING,
                 .help = "UDP multicast address and port number",
+            }, {
+                .name = "localaddr",
+                .type = QEMU_OPT_STRING,
+                .help = "source address for multicast packets",
             },
             { /* end of list */ }
         },
