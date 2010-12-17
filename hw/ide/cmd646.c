@@ -255,9 +255,9 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
         ide_init2(&d->bus[i], irq[i]);
 
         bmdma_init(&d->bus[i], &d->bmdma[i]);
-        bm->bus = &d->bus[i];
+        d->bmdma[i].bus = &d->bus[i];
         qemu_add_vm_change_state_handler(d->bus[i].dma->ops->restart_cb,
-                                         &d->bmdma[i]->dma);
+                                         &d->bmdma[i].dma);
     }
 
     vmstate_register(&dev->qdev, 0, &vmstate_ide_pci, d);
