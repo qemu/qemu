@@ -97,9 +97,12 @@ The -device argument differs in detail for each kind of drive:
 
 * if=virtio
 
-  -device virtio-blk-pci,drive=DRIVE-ID,class=C,vectors=V
+  -device virtio-blk-pci,drive=DRIVE-ID,class=C,vectors=V,ioeventfd=IOEVENTFD
 
   This lets you control PCI device class and MSI-X vectors.
+
+  IOEVENTFD controls whether or not ioeventfd is used for virtqueue notify.  It
+  can be set to on (default) or off.
 
   As for all PCI devices, you can add bus=PCI-BUS,addr=DEVFN to
   control the PCI device address.
@@ -239,6 +242,9 @@ The old name=ID parameter becomes the usual id=ID with -device.
 For PCI devices, you can add bus=PCI-BUS,addr=DEVFN to control the PCI
 device address, as usual.  The old -net nic provides parameter addr
 for that, it is silently ignored when the NIC is not a PCI device.
+
+For virtio-net-pci, you can control whether or not ioeventfd is used for
+virtqueue notify by setting ioeventfd= to on or off (default).
 
 -net nic accepts vectors=V for all models, but it's silently ignored
 except for virtio-net-pci (model=virtio).  With -device, only devices
