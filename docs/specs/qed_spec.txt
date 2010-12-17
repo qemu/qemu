@@ -33,7 +33,7 @@ All fields are little-endian.
  }
 
 Field descriptions:
-* ''cluster_size'' must be a power of 2 in range [212, 226].
+* ''cluster_size'' must be a power of 2 in range [2^12, 2^26].
 * ''table_size'' must be a power of 2 in range [1, 16].
 * ''header_size'' is the number of clusters used by the header and any additional information stored before regular clusters.
 * ''features'', ''compat_features'', and ''autoclear_features'' are file format extension bitmaps.  They work as follows:
@@ -90,7 +90,7 @@ L1, L2, and data cluster offsets must be aligned to header.cluster_size.  The fo
 ===Data cluster offsets===
 * 0 - unallocated.  The data cluster is not yet allocated.
 
-Future format extensions may wish to store per-offset information.  The least significant 12 bits of an offset are reserved for this purpose and must be set to zero.  Image files with cluster_size > 212 will have more unused bits which should also be zeroed.
+Future format extensions may wish to store per-offset information.  The least significant 12 bits of an offset are reserved for this purpose and must be set to zero.  Image files with cluster_size > 2^12 will have more unused bits which should also be zeroed.
 
 ===Unallocated L2 tables and data clusters===
 Reads to an unallocated area of the image file access the backing file.  If there is no backing file, then zeroes are produced.  The backing file may be smaller than the image file and reads of unallocated areas beyond the end of the backing file produce zeroes.
