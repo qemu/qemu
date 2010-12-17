@@ -480,9 +480,9 @@ static int local_chown(FsContext *fs_ctx, const char *path, FsCred *credp)
 }
 
 static int local_utimensat(FsContext *s, const char *path,
-		       const struct timespec *buf)
+                           const struct timespec *buf)
 {
-    return utimensat(AT_FDCWD, rpath(s, path), buf, AT_SYMLINK_NOFOLLOW);
+    return qemu_utimensat(AT_FDCWD, rpath(s, path), buf, AT_SYMLINK_NOFOLLOW);
 }
 
 static int local_remove(FsContext *ctx, const char *path)
@@ -490,9 +490,13 @@ static int local_remove(FsContext *ctx, const char *path)
     return remove(rpath(ctx, path));
 }
 
-static int local_fsync(FsContext *ctx, int fd)
+static int local_fsync(FsContext *ctx, int fd, int datasync)
 {
-    return fsync(fd);
+    if (datasync) {
+        return qemu_fdatasync(fd);
+    } else {
+        return fsync(fd);
+    }
 }
 
 static int local_statfs(FsContext *s, const char *path, struct statfs *stbuf)
