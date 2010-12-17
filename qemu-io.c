@@ -326,7 +326,7 @@ read_help(void)
 " -l, -- length for pattern verification (only with -P)\n"
 " -p, -- use bdrv_pread to read the file\n"
 " -P, -- use a pattern to verify read data\n"
-" -q, -- quite mode, do not show I/O statistics\n"
+" -q, -- quiet mode, do not show I/O statistics\n"
 " -s, -- start offset for pattern verification (only with -P)\n"
 " -v, -- dump buffer to standard output\n"
 "\n");
@@ -509,7 +509,7 @@ readv_help(void)
 " -C, -- report statistics in a machine parsable format\n"
 " -P, -- use a pattern to verify read data\n"
 " -v, -- dump buffer to standard output\n"
-" -q, -- quite mode, do not show I/O statistics\n"
+" -q, -- quiet mode, do not show I/O statistics\n"
 "\n");
 }
 
@@ -633,7 +633,7 @@ write_help(void)
 " -p, -- use bdrv_pwrite to write the file\n"
 " -P, -- use different pattern to fill file\n"
 " -C, -- report statistics in a machine parsable format\n"
-" -q, -- quite mode, do not show I/O statistics\n"
+" -q, -- quiet mode, do not show I/O statistics\n"
 "\n");
 }
 
@@ -765,7 +765,7 @@ writev_help(void)
 " filled with a set pattern (0xcdcdcdcd).\n"
 " -P, -- use different pattern to fill file\n"
 " -C, -- report statistics in a machine parsable format\n"
-" -q, -- quite mode, do not show I/O statistics\n"
+" -q, -- quiet mode, do not show I/O statistics\n"
 "\n");
 }
 
@@ -1100,7 +1100,7 @@ aio_read_help(void)
 " -C, -- report statistics in a machine parsable format\n"
 " -P, -- use a pattern to verify read data\n"
 " -v, -- dump buffer to standard output\n"
-" -q, -- quite mode, do not show I/O statistics\n"
+" -q, -- quiet mode, do not show I/O statistics\n"
 "\n");
 }
 
@@ -1198,7 +1198,7 @@ aio_write_help(void)
 " used to ensure all outstanding aio requests have been completed\n"
 " -P, -- use different pattern to fill file\n"
 " -C, -- report statistics in a machine parsable format\n"
-" -q, -- quite mode, do not show I/O statistics\n"
+" -q, -- quiet mode, do not show I/O statistics\n"
 "\n");
 }
 
@@ -1406,7 +1406,7 @@ discard_help(void)
 "\n"
 " Discards a segment of the currently open file.\n"
 " -C, -- report statistics in a machine parsable format\n"
-" -q, -- quite mode, do not show I/O statistics\n"
+" -q, -- quiet mode, do not show I/O statistics\n"
 "\n");
 }
 
