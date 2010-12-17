@@ -150,7 +150,7 @@ static void vt82c686b_init_ports(PCIIDEState *d) {
         bmdma_init(&d->bus[i], &d->bmdma[i]);
         d->bmdma[i].bus = &d->bus[i];
         qemu_add_vm_change_state_handler(d->bus[i].dma->ops->restart_cb,
-                                         &d->bmdma[i]->dma);
+                                         &d->bmdma[i].dma);
     }
 }
 
