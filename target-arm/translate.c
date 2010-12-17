@@ -2870,16 +2870,18 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     VFP_DREG_N(rn, insn);
                 }
 
-                if (op == 15 && (rn == 15 || rn > 17)) {
+                if (op == 15 && (rn == 15 || ((rn & 0x1c) == 0x18))) {
                     /* Integer or single precision destination.  */
                     rd = VFP_SREG_D(insn);
                 } else {
                     VFP_DREG_D(rd, insn);
                 }
-
-                if (op == 15 && (rn == 16 || rn == 17)) {
-                    /* Integer source.  */
-                    rm = ((insn << 1) & 0x1e) | ((insn >> 5) & 1);
+                if (op == 15 &&
+                    (((rn & 0x1c) == 0x10) || ((rn & 0x14) == 0x14))) {
+                    /* VCVT from int is always from S reg regardless of dp bit.
+                     * VCVT with immediate frac_bits has same format as SREG_M
+                     */
+                    rm = VFP_SREG_M(insn);
                 } else {
                     VFP_DREG_M(rm, insn);
                 }
@@ -2891,6 +2893,9 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 } else {
                     rd = VFP_SREG_D(insn);
                 }
+                /* NB that we implicitly rely on the encoding for the frac_bits
+                 * in VCVT of fixed to float being the same as that of an SREG_M
+                 */
                 rm = VFP_SREG_M(insn);
             }
 
@@ -3179,8 +3184,8 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 /* Write back the result.  */
                 if (op == 15 && (rn >= 8 && rn <= 11))
                     ; /* Comparison, do nothing.  */
-                else if (op == 15 && rn > 17)
-                    /* Integer result.  */
+                else if (op == 15 && dp && ((rn & 0x1c) == 0x18))
+                    /* VCVT double to int: always integer result. */
                     gen_mov_vreg_F0(0, rd);
                 else if (op == 15 && rn == 15)
                     /* conversion */
@@ -4845,11 +4850,15 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     }
                     neon_store_reg64(cpu_V0, rd + pass);
                 }
-            } else if (op == 15 || op == 16) {
+            } else if (op >= 14) {
                 /* VCVT fixed-point.  */
+                /* We have already masked out the must-be-1 top bit of imm6,
+                 * hence this 32-shift where the ARM ARM has 64-imm6.
+                 */
+                shift = 32 - shift;
                 for (pass = 0; pass < (q ? 4 : 2); pass++) {
                     tcg_gen_ld_f32(cpu_F0s, cpu_env, neon_reg_offset(rm, pass));
-                    if (op & 1) {
+                    if (!(op & 1)) {
                         if (u)
                             gen_vfp_ulto(0, shift);
                         else
@@ -5655,16 +5664,16 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             gen_helper_rsqrte_f32(cpu_F0s, cpu_F0s, cpu_env);
                             break;
                         case 60: /* VCVT.F32.S32 */
-                            gen_vfp_tosiz(0);
-                            break;
-                        case 61: /* VCVT.F32.U32 */
-                            gen_vfp_touiz(0);
-                            break;
-                        case 62: /* VCVT.S32.F32 */
                             gen_vfp_sito(0);
                             break;
-                        case 63: /* VCVT.U32.F32 */
+                        case 61: /* VCVT.F32.U32 */
                             gen_vfp_uito(0);
+                            break;
+                        case 62: /* VCVT.S32.F32 */
+                            gen_vfp_tosiz(0);
+                            break;
+                        case 63: /* VCVT.U32.F32 */
+                            gen_vfp_touiz(0);
                             break;
                         default:
                             /* Reserved: 21, 29, 39-56 */
@@ -5926,8 +5935,10 @@ static void gen_load_exclusive(DisasContext *s, int rt, int rt2,
     tcg_gen_mov_i32(cpu_exclusive_val, tmp);
     store_reg(s, rt, tmp);
     if (size == 3) {
-        tcg_gen_addi_i32(addr, addr, 4);
-        tmp = gen_ld32(addr, IS_USER(s));
+        TCGv tmp2 = new_tmp();
+        tcg_gen_addi_i32(tmp2, addr, 4);
+        tmp = gen_ld32(tmp2, IS_USER(s));
+        dead_tmp(tmp2);
         tcg_gen_mov_i32(cpu_exclusive_high, tmp);
         store_reg(s, rt2, tmp);
     }
@@ -5987,7 +5998,7 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
     if (size == 3) {
         TCGv tmp2 = new_tmp();
         tcg_gen_addi_i32(tmp2, addr, 4);
-        tmp = gen_ld32(addr, IS_USER(s));
+        tmp = gen_ld32(tmp2, IS_USER(s));
         dead_tmp(tmp2);
         tcg_gen_brcond_i32(TCG_COND_NE, tmp, cpu_exclusive_high, fail_label);
         dead_tmp(tmp);
@@ -6346,7 +6357,14 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             dead_tmp(tmp2);
             store_reg(s, rd, tmp);
             break;
-        case 7: /* bkpt */
+        case 7:
+            /* SMC instruction (op1 == 3)
+               and undefined instructions (op1 == 0 || op1 == 2)
+               will trap */
+            if (op1 != 1) {
+                goto illegal_op;
+            }
+            /* bkpt */
             gen_set_condexec(s);
             gen_set_pc_im(s->pc - 4);
             gen_exception(EXCP_BKPT);
@@ -7601,27 +7619,54 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
             }
         }
         break;
-    case 5: /* Data processing register constant shift.  */
-        if (rn == 15) {
-            tmp = new_tmp();
-            tcg_gen_movi_i32(tmp, 0);
-        } else {
-            tmp = load_reg(s, rn);
-        }
-        tmp2 = load_reg(s, rm);
+    case 5:
+
         op = (insn >> 21) & 0xf;
-        shiftop = (insn >> 4) & 3;
-        shift = ((insn >> 6) & 3) | ((insn >> 10) & 0x1c);
-        conds = (insn & (1 << 20)) != 0;
-        logic_cc = (conds && thumb2_logic_op(op));
-        gen_arm_shift_im(tmp2, shiftop, shift, logic_cc);
-        if (gen_thumb2_data_op(s, op, conds, 0, tmp, tmp2))
-            goto illegal_op;
-        dead_tmp(tmp2);
-        if (rd != 15) {
+        if (op == 6) {
+            /* Halfword pack.  */
+            tmp = load_reg(s, rn);
+            tmp2 = load_reg(s, rm);
+            shift = ((insn >> 10) & 0x1c) | ((insn >> 6) & 0x3);
+            if (insn & (1 << 5)) {
+                /* pkhtb */
+                if (shift == 0)
+                    shift = 31;
+                tcg_gen_sari_i32(tmp2, tmp2, shift);
+                tcg_gen_andi_i32(tmp, tmp, 0xffff0000);
+                tcg_gen_ext16u_i32(tmp2, tmp2);
+            } else {
+                /* pkhbt */
+                if (shift)
+                    tcg_gen_shli_i32(tmp2, tmp2, shift);
+                tcg_gen_ext16u_i32(tmp, tmp);
+                tcg_gen_andi_i32(tmp2, tmp2, 0xffff0000);
+            }
+            tcg_gen_or_i32(tmp, tmp, tmp2);
+            dead_tmp(tmp2);
             store_reg(s, rd, tmp);
         } else {
-            dead_tmp(tmp);
+            /* Data processing register constant shift.  */
+            if (rn == 15) {
+                tmp = new_tmp();
+                tcg_gen_movi_i32(tmp, 0);
+            } else {
+                tmp = load_reg(s, rn);
+            }
+            tmp2 = load_reg(s, rm);
+
+            shiftop = (insn >> 4) & 3;
+            shift = ((insn >> 6) & 3) | ((insn >> 10) & 0x1c);
+            conds = (insn & (1 << 20)) != 0;
+            logic_cc = (conds && thumb2_logic_op(op));
+            gen_arm_shift_im(tmp2, shiftop, shift, logic_cc);
+            if (gen_thumb2_data_op(s, op, conds, 0, tmp, tmp2))
+                goto illegal_op;
+            dead_tmp(tmp2);
+            if (rd != 15) {
+                store_reg(s, rd, tmp);
+            } else {
+                dead_tmp(tmp);
+            }
         }
         break;
     case 13: /* Misc data processing.  */
@@ -7686,9 +7731,9 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                 /* Saturating add/subtract.  */
                 tmp = load_reg(s, rn);
                 tmp2 = load_reg(s, rm);
-                if (op & 2)
-                    gen_helper_double_saturate(tmp, tmp);
                 if (op & 1)
+                    gen_helper_double_saturate(tmp, tmp);
+                if (op & 2)
                     gen_helper_sub_saturate(tmp, tmp2, tmp);
                 else
                     gen_helper_add_saturate(tmp, tmp, tmp2);

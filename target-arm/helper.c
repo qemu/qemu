@@ -2463,53 +2463,85 @@ float64 VFP_HELPER(sito, d)(float32 x, CPUState *env)
 /* Float to integer conversion.  */
 float32 VFP_HELPER(toui, s)(float32 x, CPUState *env)
 {
+    if (float32_is_any_nan(x)) {
+        return float32_zero;
+    }
     return vfp_itos(float32_to_uint32(x, &env->vfp.fp_status));
 }
 
 float32 VFP_HELPER(toui, d)(float64 x, CPUState *env)
 {
+    if (float64_is_any_nan(x)) {
+        return float32_zero;
+    }
     return vfp_itos(float64_to_uint32(x, &env->vfp.fp_status));
 }
 
 float32 VFP_HELPER(tosi, s)(float32 x, CPUState *env)
 {
+    if (float32_is_any_nan(x)) {
+        return float32_zero;
+    }
     return vfp_itos(float32_to_int32(x, &env->vfp.fp_status));
 }
 
 float32 VFP_HELPER(tosi, d)(float64 x, CPUState *env)
 {
+    if (float64_is_any_nan(x)) {
+        return float32_zero;
+    }
     return vfp_itos(float64_to_int32(x, &env->vfp.fp_status));
 }
 
 float32 VFP_HELPER(touiz, s)(float32 x, CPUState *env)
 {
+    if (float32_is_any_nan(x)) {
+        return float32_zero;
+    }
     return vfp_itos(float32_to_uint32_round_to_zero(x, &env->vfp.fp_status));
 }
 
 float32 VFP_HELPER(touiz, d)(float64 x, CPUState *env)
 {
+    if (float64_is_any_nan(x)) {
+        return float32_zero;
+    }
     return vfp_itos(float64_to_uint32_round_to_zero(x, &env->vfp.fp_status));
 }
 
 float32 VFP_HELPER(tosiz, s)(float32 x, CPUState *env)
 {
+    if (float32_is_any_nan(x)) {
+        return float32_zero;
+    }
     return vfp_itos(float32_to_int32_round_to_zero(x, &env->vfp.fp_status));
 }
 
 float32 VFP_HELPER(tosiz, d)(float64 x, CPUState *env)
 {
+    if (float64_is_any_nan(x)) {
+        return float32_zero;
+    }
     return vfp_itos(float64_to_int32_round_to_zero(x, &env->vfp.fp_status));
 }
 
 /* floating point conversion */
 float64 VFP_HELPER(fcvtd, s)(float32 x, CPUState *env)
 {
-    return float32_to_float64(x, &env->vfp.fp_status);
+    float64 r = float32_to_float64(x, &env->vfp.fp_status);
+    /* ARM requires that S<->D conversion of any kind of NaN generates
+     * a quiet NaN by forcing the most significant frac bit to 1.
+     */
+    return float64_maybe_silence_nan(r);
 }
 
 float32 VFP_HELPER(fcvts, d)(float64 x, CPUState *env)
 {
-    return float64_to_float32(x, &env->vfp.fp_status);
+    float32 r =  float64_to_float32(x, &env->vfp.fp_status);
+    /* ARM requires that S<->D conversion of any kind of NaN generates
+     * a quiet NaN by forcing the most significant frac bit to 1.
+     */
+    return float32_maybe_silence_nan(r);
 }
 
 /* VFP3 fixed point conversion.  */
@@ -2517,15 +2549,18 @@ float32 VFP_HELPER(fcvts, d)(float64 x, CPUState *env)
 ftype VFP_HELPER(name##to, p)(ftype x, uint32_t shift, CPUState *env) \
 { \
     ftype tmp; \
-    tmp = sign##int32_to_##ftype ((itype)vfp_##p##toi(x), \
+    tmp = sign##int32_to_##ftype ((itype##_t)vfp_##p##toi(x), \
                                   &env->vfp.fp_status); \
     return ftype##_scalbn(tmp, -(int)shift, &env->vfp.fp_status); \
 } \
 ftype VFP_HELPER(to##name, p)(ftype x, uint32_t shift, CPUState *env) \
 { \
     ftype tmp; \
+    if (ftype##_is_any_nan(x)) { \
+        return ftype##_zero; \
+    } \
     tmp = ftype##_scalbn(x, shift, &env->vfp.fp_status); \
-    return vfp_ito##p((itype)ftype##_to_##sign##int32_round_to_zero(tmp, \
+    return vfp_ito##p(ftype##_to_##itype##_round_to_zero(tmp, \
         &env->vfp.fp_status)); \
 }
 

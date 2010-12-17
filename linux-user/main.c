@@ -589,7 +589,7 @@ static int do_strex(CPUARMState *env)
     }
     if (size == 3) {
         val = env->regs[(env->exclusive_info >> 12) & 0xf];
-        segv = put_user_u32(val, addr);
+        segv = put_user_u32(val, addr + 4);
         if (segv) {
             env->cp15.c6_data = addr + 4;
             goto done;

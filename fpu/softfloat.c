@@ -1355,6 +1355,55 @@ int32 float32_to_int32_round_to_zero( float32 a STATUS_PARAM )
 
 /*----------------------------------------------------------------------------
 | Returns the result of converting the single-precision floating-point value
+| `a' to the 16-bit two's complement integer format.  The conversion is
+| performed according to the IEC/IEEE Standard for Binary Floating-Point
+| Arithmetic, except that the conversion is always rounded toward zero.
+| If `a' is a NaN, the largest positive integer is returned.  Otherwise, if
+| the conversion overflows, the largest integer with the same sign as `a' is
+| returned.
+*----------------------------------------------------------------------------*/
+
+int16 float32_to_int16_round_to_zero( float32 a STATUS_PARAM )
+{
+    flag aSign;
+    int16 aExp, shiftCount;
+    bits32 aSig;
+    int32 z;
+
+    aSig = extractFloat32Frac( a );
+    aExp = extractFloat32Exp( a );
+    aSign = extractFloat32Sign( a );
+    shiftCount = aExp - 0x8E;
+    if ( 0 <= shiftCount ) {
+        if ( float32_val(a) != 0xC7000000 ) {
+            float_raise( float_flag_invalid STATUS_VAR);
+            if ( ! aSign || ( ( aExp == 0xFF ) && aSig ) ) {
+                return 0x7FFF;
+            }
+        }
+        return (sbits32) 0xffff8000;
+    }
+    else if ( aExp <= 0x7E ) {
+        if ( aExp | aSig ) {
+            STATUS(float_exception_flags) |= float_flag_inexact;
+        }
+        return 0;
+    }
+    shiftCount -= 0x10;
+    aSig = ( aSig | 0x00800000 )<<8;
+    z = aSig>>( - shiftCount );
+    if ( (bits32) ( aSig<<( shiftCount & 31 ) ) ) {
+        STATUS(float_exception_flags) |= float_flag_inexact;
+    }
+    if ( aSign ) {
+        z = - z;
+    }
+    return z;
+
+}
+
+/*----------------------------------------------------------------------------
+| Returns the result of converting the single-precision floating-point value
 | `a' to the 64-bit two's complement integer format.  The conversion is
 | performed according to the IEC/IEEE Standard for Binary Floating-Point
 | Arithmetic---which means in particular that the conversion is rounded
@@ -2408,6 +2457,57 @@ int32 float64_to_int32_round_to_zero( float64 a STATUS_PARAM )
     }
     return z;
 
+}
+
+/*----------------------------------------------------------------------------
+| Returns the result of converting the double-precision floating-point value
+| `a' to the 16-bit two's complement integer format.  The conversion is
+| performed according to the IEC/IEEE Standard for Binary Floating-Point
+| Arithmetic, except that the conversion is always rounded toward zero.
+| If `a' is a NaN, the largest positive integer is returned.  Otherwise, if
+| the conversion overflows, the largest integer with the same sign as `a' is
+| returned.
+*----------------------------------------------------------------------------*/
+
+int16 float64_to_int16_round_to_zero( float64 a STATUS_PARAM )
+{
+    flag aSign;
+    int16 aExp, shiftCount;
+    bits64 aSig, savedASig;
+    int32 z;
+
+    aSig = extractFloat64Frac( a );
+    aExp = extractFloat64Exp( a );
+    aSign = extractFloat64Sign( a );
+    if ( 0x40E < aExp ) {
+        if ( ( aExp == 0x7FF ) && aSig ) {
+            aSign = 0;
+        }
+        goto invalid;
+    }
+    else if ( aExp < 0x3FF ) {
+        if ( aExp || aSig ) {
+            STATUS(float_exception_flags) |= float_flag_inexact;
+        }
+        return 0;
+    }
+    aSig |= LIT64( 0x0010000000000000 );
+    shiftCount = 0x433 - aExp;
+    savedASig = aSig;
+    aSig >>= shiftCount;
+    z = aSig;
+    if ( aSign ) {
+        z = - z;
+    }
+    if ( ( (int16_t)z < 0 ) ^ aSign ) {
+ invalid:
+        float_raise( float_flag_invalid STATUS_VAR);
+        return aSign ? (sbits32) 0xffff8000 : 0x7FFF;
+    }
+    if ( ( aSig<<shiftCount ) != savedASig ) {
+        STATUS(float_exception_flags) |= float_flag_inexact;
+    }
+    return z;
 }
 
 /*----------------------------------------------------------------------------
@@ -5632,6 +5732,24 @@ unsigned int float32_to_uint32_round_to_zero( float32 a STATUS_PARAM )
     return res;
 }
 
+unsigned int float32_to_uint16_round_to_zero( float32 a STATUS_PARAM )
+{
+    int64_t v;
+    unsigned int res;
+
+    v = float32_to_int64_round_to_zero(a STATUS_VAR);
+    if (v < 0) {
+        res = 0;
+        float_raise( float_flag_invalid STATUS_VAR);
+    } else if (v > 0xffff) {
+        res = 0xffff;
+        float_raise( float_flag_invalid STATUS_VAR);
+    } else {
+        res = v;
+    }
+    return res;
+}
+
 unsigned int float64_to_uint32( float64 a STATUS_PARAM )
 {
     int64_t v;
@@ -5661,6 +5779,24 @@ unsigned int float64_to_uint32_round_to_zero( float64 a STATUS_PARAM )
         float_raise( float_flag_invalid STATUS_VAR);
     } else if (v > 0xffffffff) {
         res = 0xffffffff;
+        float_raise( float_flag_invalid STATUS_VAR);
+    } else {
+        res = v;
+    }
+    return res;
+}
+
+unsigned int float64_to_uint16_round_to_zero( float64 a STATUS_PARAM )
+{
+    int64_t v;
+    unsigned int res;
+
+    v = float64_to_int64_round_to_zero(a STATUS_VAR);
+    if (v < 0) {
+        res = 0;
+        float_raise( float_flag_invalid STATUS_VAR);
+    } else if (v > 0xffff) {
+        res = 0xffff;
         float_raise( float_flag_invalid STATUS_VAR);
     } else {
         res = v;
