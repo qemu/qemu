@@ -44,6 +44,9 @@
 /* We need the mask, because one instance of the device is not page
    aligned (ledma, start address 0x0010) */
 #define DMA_MASK (DMA_SIZE - 1)
+/* ledma has more than 4 registers, Solaris reads the 5th one */
+#define DMA_ETH_SIZE (8 * sizeof(uint32_t))
+#define DMA_MAX_REG_OFFSET (2 * DMA_SIZE - 1)
 
 #define DMA_VER 0xa0000000
 #define DMA_INTR 1
@@ -65,6 +68,7 @@ struct DMAState {
     qemu_irq irq;
     void *iommu;
     qemu_irq gpio[2];
+    uint32_t is_ledma;
 };
 
 enum {
@@ -165,6 +169,9 @@ static uint32_t dma_mem_readl(void *opaque, target_phys_addr_t addr)
     DMAState *s = opaque;
     uint32_t saddr;
 
+    if (s->is_ledma && (addr > DMA_MAX_REG_OFFSET)) {
+        return 0; /* extra mystery register(s) */
+    }
     saddr = (addr & DMA_MASK) >> 2;
     trace_sparc32_dma_mem_readl(addr, s->dmaregs[saddr]);
     return s->dmaregs[saddr];
@@ -175,6 +182,9 @@ static void dma_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     DMAState *s = opaque;
     uint32_t saddr;
 
+    if (s->is_ledma && (addr > DMA_MAX_REG_OFFSET)) {
+        return; /* extra mystery register(s) */
+    }
     saddr = (addr & DMA_MASK) >> 2;
     trace_sparc32_dma_mem_writel(addr, s->dmaregs[saddr], val);
     switch (saddr) {
@@ -254,12 +264,14 @@ static int sparc32_dma_init1(SysBusDevice *dev)
 {
     DMAState *s = FROM_SYSBUS(DMAState, dev);
     int dma_io_memory;
+    int reg_size;
 
     sysbus_init_irq(dev, &s->irq);
 
     dma_io_memory = cpu_register_io_memory(dma_mem_read, dma_mem_write, s,
                                            DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, DMA_SIZE, dma_io_memory);
+    reg_size = s->is_ledma ? DMA_ETH_SIZE : DMA_SIZE;
+    sysbus_init_mmio(dev, reg_size, dma_io_memory);
 
     qdev_init_gpio_in(&dev->qdev, dma_set_irq, 1);
     qdev_init_gpio_out(&dev->qdev, s->gpio, 2);
@@ -275,6 +287,7 @@ static SysBusDeviceInfo sparc32_dma_info = {
     .qdev.reset = dma_reset,
     .qdev.props = (Property[]) {
         DEFINE_PROP_PTR("iommu_opaque", DMAState, iommu),
+        DEFINE_PROP_UINT32("is_ledma", DMAState, is_ledma, 0),
         DEFINE_PROP_END_OF_LIST(),
     }
 };
