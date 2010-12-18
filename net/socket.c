@@ -207,7 +207,8 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr, struct in_addr
 
     /* If a bind address is given, only send packets from that address */
     if (localaddr != NULL) {
-        ret = setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF, localaddr, sizeof(*localaddr));
+        ret = setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF,
+                         (const char *)localaddr, sizeof(*localaddr));
         if (ret < 0) {
             perror("setsockopt(IP_MULTICAST_IF)");
             goto fail;
