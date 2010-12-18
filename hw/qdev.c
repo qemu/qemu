@@ -753,8 +753,11 @@ void qbus_create_inplace(BusState *bus, BusInfo *info,
     if (parent) {
         QLIST_INSERT_HEAD(&parent->child_bus, bus, sibling);
         parent->num_child_bus++;
+    } else if (bus != main_system_bus) {
+        /* TODO: once all device is qdevified,
+           reset handler for main_system_bus should also be registered here */
+        qemu_register_reset((void *)qbus_reset_all, bus);
     }
-
 }
 
 BusState *qbus_create(BusInfo *info, DeviceState *parent, const char *name)
