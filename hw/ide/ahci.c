@@ -807,7 +807,6 @@ static void ahci_reset_port(AHCIState *s, int port)
     AHCIPortRegs *pr = &d->port_regs;
     IDEState *ide_state = &d->port.ifs[0];
     uint8_t init_fis[0x20];
-    uint32_t tfd;
     int i;
 
     DPRINTF(port, "reset port\n");
@@ -848,7 +847,7 @@ static void ahci_reset_port(AHCIState *s, int port)
     s->dev[port].port_state = STATE_RUN;
     if (!ide_state->bs) {
         s->dev[port].port_regs.sig = 0;
-        tfd = (1 << 8) | SEEK_STAT | WRERR_STAT;
+        ide_state->status = SEEK_STAT | WRERR_STAT;
     } else if (ide_state->drive_kind == IDE_CD) {
         s->dev[port].port_regs.sig = SATA_SIGNATURE_CDROM;
         ide_state->lcyl = 0x14;
@@ -1100,7 +1099,6 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
 static int handle_cmd(AHCIState *s, int port, int slot)
 {
     IDEState *ide_state;
-    AHCIPortRegs *pr;
     uint32_t opts;
     uint64_t tbl_addr;
     AHCICmdHdr *cmd;
@@ -1113,7 +1111,6 @@ static int handle_cmd(AHCIState *s, int port, int slot)
         return -1;
     }
 
-    pr = &s->dev[port].port_regs;
     cmd = &((AHCICmdHdr *)s->dev[port].lst)[slot];
 
     if (!s->dev[port].lst) {
