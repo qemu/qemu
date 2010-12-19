@@ -448,7 +448,7 @@ int cpu_sparc_handle_mmu_fault(CPUSPARCState *env1, target_ulong address, int rw
                                int mmu_idx, int is_softmmu);
 #define cpu_handle_mmu_fault cpu_sparc_handle_mmu_fault
 target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev);
-void dump_mmu(CPUSPARCState *env);
+void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env);
 
 /* translate.c */
 void gen_intermediate_code_init(CPUSPARCState *env);

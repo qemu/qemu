@@ -320,47 +320,45 @@ target_ulong mmu_probe(CPUState *env, target_ulong address, int mmulev)
     return 0;
 }
 
-#ifdef DEBUG_MMU
-void dump_mmu(CPUState *env)
+void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env)
 {
     target_ulong va, va1, va2;
     unsigned int n, m, o;
     target_phys_addr_t pde_ptr, pa;
     uint32_t pde;
 
-    printf("MMU dump:\n");
     pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 2);
     pde = ldl_phys(pde_ptr);
-    printf("Root ptr: " TARGET_FMT_plx ", ctx: %d\n",
-           (target_phys_addr_t)env->mmuregs[1] << 4, env->mmuregs[2]);
+    (*cpu_fprintf)(f, "Root ptr: " TARGET_FMT_plx ", ctx: %d\n",
+                   (target_phys_addr_t)env->mmuregs[1] << 4, env->mmuregs[2]);
     for (n = 0, va = 0; n < 256; n++, va += 16 * 1024 * 1024) {
         pde = mmu_probe(env, va, 2);
         if (pde) {
             pa = cpu_get_phys_page_debug(env, va);
-            printf("VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_plx
-                   " PDE: " TARGET_FMT_lx "\n", va, pa, pde);
+            (*cpu_fprintf)(f, "VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_plx
+                           " PDE: " TARGET_FMT_lx "\n", va, pa, pde);
             for (m = 0, va1 = va; m < 64; m++, va1 += 256 * 1024) {
                 pde = mmu_probe(env, va1, 1);
                 if (pde) {
                     pa = cpu_get_phys_page_debug(env, va1);
-                    printf(" VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_plx
-                           " PDE: " TARGET_FMT_lx "\n", va1, pa, pde);
+                    (*cpu_fprintf)(f, " VA: " TARGET_FMT_lx ", PA: "
+                                   TARGET_FMT_plx " PDE: " TARGET_FMT_lx "\n",
+                                   va1, pa, pde);
                     for (o = 0, va2 = va1; o < 64; o++, va2 += 4 * 1024) {
                         pde = mmu_probe(env, va2, 0);
                         if (pde) {
                             pa = cpu_get_phys_page_debug(env, va2);
-                            printf("  VA: " TARGET_FMT_lx ", PA: "
-                                   TARGET_FMT_plx " PTE: " TARGET_FMT_lx "\n",
-                                   va2, pa, pde);
+                            (*cpu_fprintf)(f, "  VA: " TARGET_FMT_lx ", PA: "
+                                           TARGET_FMT_plx " PTE: "
+                                           TARGET_FMT_lx "\n",
+                                           va2, pa, pde);
                         }
                     }
                 }
             }
         }
     }
-    printf("MMU dump ends\n");
 }
-#endif /* DEBUG_MMU */
 
 #else /* !TARGET_SPARC64 */
 
@@ -622,18 +620,19 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     return 1;
 }
 
-#ifdef DEBUG_MMU
-void dump_mmu(CPUState *env)
+void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env)
 {
     unsigned int i;
     const char *mask;
 
-    printf("MMU contexts: Primary: %" PRId64 ", Secondary: %" PRId64 "\n",
-           env->dmmu.mmu_primary_context, env->dmmu.mmu_secondary_context);
+    (*cpu_fprintf)(f, "MMU contexts: Primary: %" PRId64 ", Secondary: %"
+                   PRId64 "\n",
+                   env->dmmu.mmu_primary_context,
+                   env->dmmu.mmu_secondary_context);
     if ((env->lsu & DMMU_E) == 0) {
-        printf("DMMU disabled\n");
+        (*cpu_fprintf)(f, "DMMU disabled\n");
     } else {
-        printf("DMMU dump:\n");
+        (*cpu_fprintf)(f, "DMMU dump\n");
         for (i = 0; i < 64; i++) {
             switch ((env->dtlb[i].tte >> 61) & 3) {
             default:
@@ -651,24 +650,25 @@ void dump_mmu(CPUState *env)
                 break;
             }
             if ((env->dtlb[i].tte & 0x8000000000000000ULL) != 0) {
-                printf("[%02u] VA: %" PRIx64 ", PA: %" PRIx64
-                       ", %s, %s, %s, %s, ctx %" PRId64 " %s\n",
-                       i,
-                       env->dtlb[i].tag & (uint64_t)~0x1fffULL,
-                       env->dtlb[i].tte & (uint64_t)0x1ffffffe000ULL,
-                       mask,
-                       env->dtlb[i].tte & 0x4? "priv": "user",
-                       env->dtlb[i].tte & 0x2? "RW": "RO",
-                       env->dtlb[i].tte & 0x40? "locked": "unlocked",
-                       env->dtlb[i].tag & (uint64_t)0x1fffULL,
-                       TTE_IS_GLOBAL(env->dtlb[i].tte)? "global" : "local");
+                (*cpu_fprintf)(f, "[%02u] VA: %" PRIx64 ", PA: %" PRIx64
+                               ", %s, %s, %s, %s, ctx %" PRId64 " %s\n",
+                               i,
+                               env->dtlb[i].tag & (uint64_t)~0x1fffULL,
+                               env->dtlb[i].tte & (uint64_t)0x1ffffffe000ULL,
+                               mask,
+                               env->dtlb[i].tte & 0x4? "priv": "user",
+                               env->dtlb[i].tte & 0x2? "RW": "RO",
+                               env->dtlb[i].tte & 0x40? "locked": "unlocked",
+                               env->dtlb[i].tag & (uint64_t)0x1fffULL,
+                               TTE_IS_GLOBAL(env->dtlb[i].tte)?
+                               "global" : "local");
             }
         }
     }
     if ((env->lsu & IMMU_E) == 0) {
-        printf("IMMU disabled\n");
+        (*cpu_fprintf)(f, "IMMU disabled\n");
     } else {
-        printf("IMMU dump:\n");
+        (*cpu_fprintf)(f, "IMMU dump\n");
         for (i = 0; i < 64; i++) {
             switch ((env->itlb[i].tte >> 61) & 3) {
             default:
@@ -686,21 +686,21 @@ void dump_mmu(CPUState *env)
                 break;
             }
             if ((env->itlb[i].tte & 0x8000000000000000ULL) != 0) {
-                printf("[%02u] VA: %" PRIx64 ", PA: %" PRIx64
-                       ", %s, %s, %s, ctx %" PRId64 " %s\n",
-                       i,
-                       env->itlb[i].tag & (uint64_t)~0x1fffULL,
-                       env->itlb[i].tte & (uint64_t)0x1ffffffe000ULL,
-                       mask,
-                       env->itlb[i].tte & 0x4? "priv": "user",
-                       env->itlb[i].tte & 0x40? "locked": "unlocked",
-                       env->itlb[i].tag & (uint64_t)0x1fffULL,
-                       TTE_IS_GLOBAL(env->itlb[i].tte)? "global" : "local");
+                (*cpu_fprintf)(f, "[%02u] VA: %" PRIx64 ", PA: %" PRIx64
+                               ", %s, %s, %s, ctx %" PRId64 " %s\n",
+                               i,
+                               env->itlb[i].tag & (uint64_t)~0x1fffULL,
+                               env->itlb[i].tte & (uint64_t)0x1ffffffe000ULL,
+                               mask,
+                               env->itlb[i].tte & 0x4? "priv": "user",
+                               env->itlb[i].tte & 0x40? "locked": "unlocked",
+                               env->itlb[i].tag & (uint64_t)0x1fffULL,
+                               TTE_IS_GLOBAL(env->itlb[i].tte)?
+                               "global" : "local");
             }
         }
     }
 }
-#endif /* DEBUG_MMU */
 
 #endif /* TARGET_SPARC64 */
 #endif /* !CONFIG_USER_ONLY */
