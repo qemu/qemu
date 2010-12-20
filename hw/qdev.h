@@ -199,6 +199,8 @@ int qdev_walk_children(DeviceState *dev, qdev_walkerfn *devfn,
                        qbus_walkerfn *busfn, void *opaque);
 void qdev_reset_all(DeviceState *dev);
 void qbus_reset_all(BusState *bus);
+void qbus_reset_all_fn(void *opaque);
+
 void qbus_free(BusState *bus);
 
 #define FROM_QBUS(type, dev) DO_UPCAST(type, qbus, dev)
