@@ -487,16 +487,18 @@ static int ide_handle_rw_error(IDEState *s, int error, int op)
     return 1;
 }
 
-void ide_read_dma_cb(void *opaque, int ret)
+void ide_dma_cb(void *opaque, int ret)
 {
     IDEState *s = opaque;
     int n;
     int64_t sector_num;
 
     if (ret < 0) {
-        if (ide_handle_rw_error(s, -ret,
-            BM_STATUS_DMA_RETRY | BM_STATUS_RETRY_READ))
-        {
+        int op = BM_STATUS_DMA_RETRY;
+
+        if (s->is_read)
+            op |= BM_STATUS_RETRY_READ;
+        if (ide_handle_rw_error(s, -ret, op)) {
             return;
         }
     }
@@ -504,7 +506,7 @@ void ide_read_dma_cb(void *opaque, int ret)
     n = s->io_buffer_size >> 9;
     sector_num = ide_get_sector(s);
     if (n > 0) {
-        dma_buf_commit(s, 1);
+        dma_buf_commit(s, s->is_read);
         sector_num += n;
         ide_set_sector(s, sector_num);
         s->nsector -= n;
@@ -514,32 +516,44 @@ void ide_read_dma_cb(void *opaque, int ret)
     if (s->nsector == 0) {
         s->status = READY_STAT | SEEK_STAT;
         ide_set_irq(s->bus);
-    eot:
-        s->bus->dma->ops->add_status(s->bus->dma, BM_STATUS_INT);
-        ide_set_inactive(s);
-        return;
+        goto eot;
     }
 
     /* launch next transfer */
     n = s->nsector;
-    s->io_buffer_index = 0;
+    if (s->is_read)
+        s->io_buffer_index = 0;
     s->io_buffer_size = n * 512;
-    if (s->bus->dma->ops->prepare_buf(s->bus->dma, 1) == 0)
+    if (s->bus->dma->ops->prepare_buf(s->bus->dma, s->is_read) == 0)
         goto eot;
+
 #ifdef DEBUG_AIO
-    printf("aio_read: sector_num=%" PRId64 " n=%d\n", sector_num, n);
+    printf("ide_dma_cb: sector_num=%" PRId64 " n=%d, is_read=%d\n",
+           sector_num, n, s->is_read);
 #endif
-    s->bus->dma->aiocb = dma_bdrv_read(s->bs, &s->sg, sector_num, ide_read_dma_cb, s);
-    ide_dma_submit_check(s, ide_read_dma_cb);
+
+    if (s->is_read) {
+        s->bus->dma->aiocb = dma_bdrv_read(s->bs, &s->sg, sector_num,
+                                           ide_dma_cb, s);
+    } else {
+        s->bus->dma->aiocb = dma_bdrv_write(s->bs, &s->sg, sector_num,
+                                            ide_dma_cb, s);
+    }
+    ide_dma_submit_check(s, ide_dma_cb);
+    return;
+
+eot:
+   s->bus->dma->ops->add_status(s->bus->dma, BM_STATUS_INT);
+   ide_set_inactive(s);
 }
 
-static void ide_sector_read_dma(IDEState *s)
+static void ide_sector_start_dma(IDEState *s, int is_read)
 {
     s->status = READY_STAT | SEEK_STAT | DRQ_STAT | BUSY_STAT;
     s->io_buffer_index = 0;
     s->io_buffer_size = 0;
-    s->is_read = 1;
-    s->bus->dma->ops->start_dma(s->bus->dma, s, ide_read_dma_cb);
+    s->is_read = is_read;
+    s->bus->dma->ops->start_dma(s->bus->dma, s, ide_dma_cb);
 }
 
 static void ide_sector_write_timer_cb(void *opaque)
@@ -592,57 +606,6 @@ void ide_sector_write(IDEState *s)
     } else {
         ide_set_irq(s->bus);
     }
-}
-
-void ide_write_dma_cb(void *opaque, int ret)
-{
-    IDEState *s = opaque;
-    int n;
-    int64_t sector_num;
-
-    if (ret < 0) {
-        if (ide_handle_rw_error(s, -ret,  BM_STATUS_DMA_RETRY))
-            return;
-    }
-
-    n = s->io_buffer_size >> 9;
-    sector_num = ide_get_sector(s);
-    if (n > 0) {
-        dma_buf_commit(s, 0);
-        sector_num += n;
-        ide_set_sector(s, sector_num);
-        s->nsector -= n;
-    }
-
-    /* end of transfer ? */
-    if (s->nsector == 0) {
-        s->status = READY_STAT | SEEK_STAT;
-        ide_set_irq(s->bus);
-    eot:
-        s->bus->dma->ops->add_status(s->bus->dma, BM_STATUS_INT);
-        ide_set_inactive(s);
-        return;
-    }
-
-    n = s->nsector;
-    s->io_buffer_size = n * 512;
-    /* launch next transfer */
-    if (s->bus->dma->ops->prepare_buf(s->bus->dma, 0) == 0)
-        goto eot;
-#ifdef DEBUG_AIO
-    printf("aio_write: sector_num=%" PRId64 " n=%d\n", sector_num, n);
-#endif
-    s->bus->dma->aiocb = dma_bdrv_write(s->bs, &s->sg, sector_num, ide_write_dma_cb, s);
-    ide_dma_submit_check(s, ide_write_dma_cb);
-}
-
-static void ide_sector_write_dma(IDEState *s)
-{
-    s->status = READY_STAT | SEEK_STAT | DRQ_STAT | BUSY_STAT;
-    s->io_buffer_index = 0;
-    s->io_buffer_size = 0;
-    s->is_read = 0;
-    s->bus->dma->ops->start_dma(s->bus->dma, s, ide_write_dma_cb);
 }
 
 void ide_atapi_cmd_ok(IDEState *s)
@@ -1858,7 +1821,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         if (!s->bs)
             goto abort_cmd;
 	ide_cmd_lba48_transform(s, lba48);
-        ide_sector_read_dma(s);
+        ide_sector_start_dma(s, 1);
         break;
 	case WIN_WRITEDMA_EXT:
 	lba48 = 1;
@@ -1867,7 +1830,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         if (!s->bs)
             goto abort_cmd;
 	ide_cmd_lba48_transform(s, lba48);
-        ide_sector_write_dma(s);
+        ide_sector_start_dma(s, 0);
         s->media_changed = 1;
         break;
     case WIN_READ_NATIVE_MAX_EXT:
