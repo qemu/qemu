@@ -321,14 +321,6 @@ static inline void ide_abort_command(IDEState *s)
     s->error = ABRT_ERR;
 }
 
-static inline void ide_dma_submit_check(IDEState *s,
-          BlockDriverCompletionFunc *dma_cb)
-{
-    if (s->bus->dma->aiocb)
-	return;
-    dma_cb(s, -1);
-}
-
 /* prepare data transfer and tell what to do after */
 static void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
                                EndTransferFunc *end_transfer_func)
@@ -493,6 +485,7 @@ void ide_dma_cb(void *opaque, int ret)
     int n;
     int64_t sector_num;
 
+handle_rw_error:
     if (ret < 0) {
         int op = BM_STATUS_DMA_RETRY;
 
@@ -538,7 +531,11 @@ void ide_dma_cb(void *opaque, int ret)
         s->bus->dma->aiocb = dma_bdrv_write(s->bs, &s->sg, sector_num,
                                             ide_dma_cb, s);
     }
-    ide_dma_submit_check(s, ide_dma_cb);
+
+    if (!s->bus->dma->aiocb) {
+        ret = -1;
+        goto handle_rw_error;
+    }
     return;
 
 eot:
