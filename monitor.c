@@ -2272,6 +2272,15 @@ static void tlb_info(Monitor *mon)
 
 #endif
 
+#if defined(TARGET_SPARC)
+static void tlb_info(Monitor *mon)
+{
+    CPUState *env1 = mon_get_cpu();
+
+    dump_mmu((FILE*)mon, (fprintf_function)monitor_printf, env1);
+}
+#endif
+
 static void do_info_kvm_print(Monitor *mon, const QObject *data)
 {
     QDict *qdict;
@@ -2744,7 +2753,7 @@ static const mon_cmd_t info_cmds[] = {
         .user_print = do_pci_info_print,
         .mhandler.info_new = do_pci_info,
     },
-#if defined(TARGET_I386) || defined(TARGET_SH4)
+#if defined(TARGET_I386) || defined(TARGET_SH4) || defined(TARGET_SPARC)
     {
         .name       = "tlb",
         .args_type  = "",
