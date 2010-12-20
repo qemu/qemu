@@ -521,8 +521,7 @@ void ide_dma_cb(void *opaque, int ret)
 
     /* launch next transfer */
     n = s->nsector;
-    if (s->is_read)
-        s->io_buffer_index = 0;
+    s->io_buffer_index = 0;
     s->io_buffer_size = n * 512;
     if (s->bus->dma->ops->prepare_buf(s->bus->dma, s->is_read) == 0)
         goto eot;
