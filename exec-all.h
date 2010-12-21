@@ -204,9 +204,7 @@ static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr
 #elif defined(__arm__)
 static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
 {
-#if QEMU_GNUC_PREREQ(4, 1)
-    void __clear_cache(char *beg, char *end);
-#else
+#if !QEMU_GNUC_PREREQ(4, 1)
     register unsigned long _beg __asm ("a1");
     register unsigned long _end __asm ("a2");
     register unsigned long _flg __asm ("a3");
@@ -218,7 +216,7 @@ static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr
         | (((addr - (jmp_addr + 8)) >> 2) & 0xffffff);
 
 #if QEMU_GNUC_PREREQ(4, 1)
-    __clear_cache((char *) jmp_addr, (char *) jmp_addr + 4);
+    __builtin___clear_cache((char *) jmp_addr, (char *) jmp_addr + 4);
 #else
     /* flush icache */
     _beg = jmp_addr;
