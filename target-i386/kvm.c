@@ -219,7 +219,7 @@ static int kvm_get_msr(CPUState *env, struct kvm_msr_entry *msrs, int n)
 }
 
 /* FIXME: kill this and kvm_get_msr, use env->mcg_status instead */
-static int kvm_mce_in_exception(CPUState *env)
+static int kvm_mce_in_progress(CPUState *env)
 {
     struct kvm_msr_entry msr_mcg_status = {
         .index = MSR_MCG_STATUS,
@@ -228,7 +228,8 @@ static int kvm_mce_in_exception(CPUState *env)
 
     r = kvm_get_msr(env, &msr_mcg_status, 1);
     if (r == -1 || r == 0) {
-        return -1;
+        fprintf(stderr, "Failed to get MCE status\n");
+        return 0;
     }
     return !!(msr_mcg_status.data & MCG_STATUS_MCIP);
 }
@@ -248,10 +249,7 @@ static void kvm_do_inject_x86_mce(void *_data)
     /* If there is an MCE exception being processed, ignore this SRAO MCE */
     if ((data->env->mcg_cap & MCG_SER_P) &&
         !(data->mce->status & MCI_STATUS_AR)) {
-        r = kvm_mce_in_exception(data->env);
-        if (r == -1) {
-            fprintf(stderr, "Failed to get MCE status\n");
-        } else if (r) {
+        if (kvm_mce_in_progress(data->env)) {
             return;
         }
     }
@@ -1752,10 +1750,7 @@ int kvm_on_sigbus_vcpu(CPUState *env, int code, void *addr)
              * If there is an MCE excpetion being processed, ignore
              * this SRAO MCE
              */
-            r = kvm_mce_in_exception(env);
-            if (r == -1) {
-                fprintf(stderr, "Failed to get MCE status\n");
-            } else if (r) {
+            if (kvm_mce_in_progress(env)) {
                 return 0;
             }
             /* Fake an Intel architectural Memory scrubbing UCR */
