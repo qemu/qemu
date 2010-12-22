@@ -53,7 +53,7 @@ static void ib700_write_enable_reg(void *vp, uint32_t addr, uint32_t data)
         30, 28, 26, 24, 22, 20, 18, 16,
         14, 12, 10,  8,  6,  4,  2,  0
     };
-    int64 timeout;
+    int64_t timeout;
 
     ib700_debug("addr = %x, data = %x\n", addr, data);
 

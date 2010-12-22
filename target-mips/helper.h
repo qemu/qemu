@@ -154,10 +154,10 @@ DEF_HELPER_2(mttlo, void, tl, i32)
 DEF_HELPER_2(mtthi, void, tl, i32)
 DEF_HELPER_2(mttacx, void, tl, i32)
 DEF_HELPER_1(mttdsp, void, tl)
-DEF_HELPER_1(dmt, tl, tl)
-DEF_HELPER_1(emt, tl, tl)
-DEF_HELPER_1(dvpe, tl, tl)
-DEF_HELPER_1(evpe, tl, tl)
+DEF_HELPER_0(dmt, tl)
+DEF_HELPER_0(emt, tl)
+DEF_HELPER_0(dvpe, tl)
+DEF_HELPER_0(evpe, tl)
 #endif /* !CONFIG_USER_ONLY */
 
 /* microMIPS functions */

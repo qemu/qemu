@@ -107,10 +107,7 @@ DeviceState *qdev_create(BusState *bus, const char *name)
     DeviceInfo *info;
 
     if (!bus) {
-        if (!main_system_bus) {
-            main_system_bus = qbus_create(&system_bus_info, NULL, "main-system-bus");
-        }
-        bus = main_system_bus;
+        bus = sysbus_get_default();
     }
 
     info = qdev_find_info(bus->info, name);
@@ -311,6 +308,10 @@ static int qdev_reset_one(DeviceState *dev, void *opaque)
 
 BusState *sysbus_get_default(void)
 {
+    if (!main_system_bus) {
+        main_system_bus = qbus_create(&system_bus_info, NULL,
+                                      "main-system-bus");
+    }
     return main_system_bus;
 }
 
