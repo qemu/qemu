@@ -169,9 +169,7 @@ hw-obj-y =
 hw-obj-y += vl.o loader.o
 hw-obj-$(CONFIG_VIRTIO) += virtio.o virtio-console.o
 hw-obj-y += fw_cfg.o
-# FIXME: Core PCI code and its direct dependencies are required by the
-# QMP query-pci command.
-hw-obj-y += pci.o pci_bridge.o
+hw-obj-$(CONFIG_PCI) += pci.o pci_bridge.o
 hw-obj-$(CONFIG_PCI) += msix.o msi.o
 hw-obj-$(CONFIG_PCI) += pci_host.o pcie_host.o
 hw-obj-$(CONFIG_PCI) += ioh3420.o xio3130_upstream.o xio3130_downstream.o
