@@ -137,7 +137,11 @@ static void pci_update_irq_status(PCIDevice *dev)
     }
 }
 
-static void pci_device_reset(PCIDevice *dev)
+/*
+ * This function is called on #RST and FLR.
+ * FLR if PCI_EXP_DEVCTL_BCR_FLR is set
+ */
+void pci_device_reset(PCIDevice *dev)
 {
     int r;
     /* TODO: call the below unconditionally once all pci devices

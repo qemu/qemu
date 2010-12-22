@@ -237,6 +237,7 @@ void pci_bus_hotplug(PCIBus *bus, pci_hotplug_fn hotplug, DeviceState *dev);
 PCIBus *pci_register_bus(DeviceState *parent, const char *name,
                          pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                          void *irq_opaque, int devfn_min, int nirq);
+void pci_device_reset(PCIDevice *dev);
 void pci_bus_reset(PCIBus *bus);
 
 void pci_bus_set_mem_base(PCIBus *bus, target_phys_addr_t base);
