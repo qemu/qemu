@@ -1722,44 +1722,75 @@ static void kvm_mce_broadcast_rest(CPUState *env)
         }
     }
 }
+
+static void kvm_mce_inj_srar_dataload(CPUState *env, target_phys_addr_t paddr)
+{
+    struct kvm_x86_mce mce = {
+        .bank = 9,
+        .status = MCI_STATUS_VAL | MCI_STATUS_UC | MCI_STATUS_EN
+                  | MCI_STATUS_MISCV | MCI_STATUS_ADDRV | MCI_STATUS_S
+                  | MCI_STATUS_AR | 0x134,
+        .mcg_status = MCG_STATUS_MCIP | MCG_STATUS_EIPV,
+        .addr = paddr,
+        .misc = (MCM_ADDR_PHYS << 6) | 0xc,
+    };
+    int r;
+
+    r = kvm_set_mce(env, &mce);
+    if (r < 0) {
+        fprintf(stderr, "kvm_set_mce: %s\n", strerror(errno));
+        abort();
+    }
+    kvm_mce_broadcast_rest(env);
+}
+
+static void kvm_mce_inj_srao_memscrub(CPUState *env, target_phys_addr_t paddr)
+{
+    struct kvm_x86_mce mce = {
+        .bank = 9,
+        .status = MCI_STATUS_VAL | MCI_STATUS_UC | MCI_STATUS_EN
+                  | MCI_STATUS_MISCV | MCI_STATUS_ADDRV | MCI_STATUS_S
+                  | 0xc0,
+        .mcg_status = MCG_STATUS_MCIP | MCG_STATUS_RIPV,
+        .addr = paddr,
+        .misc = (MCM_ADDR_PHYS << 6) | 0xc,
+    };
+    int r;
+
+    r = kvm_set_mce(env, &mce);
+    if (r < 0) {
+        fprintf(stderr, "kvm_set_mce: %s\n", strerror(errno));
+        abort();
+    }
+    kvm_mce_broadcast_rest(env);
+}
+
+static void kvm_mce_inj_srao_memscrub2(CPUState *env, target_phys_addr_t paddr)
+{
+    uint64_t status;
+
+    status = MCI_STATUS_VAL | MCI_STATUS_UC | MCI_STATUS_EN
+            | MCI_STATUS_MISCV | MCI_STATUS_ADDRV | MCI_STATUS_S
+            | 0xc0;
+    kvm_inject_x86_mce(env, 9, status,
+                       MCG_STATUS_MCIP | MCG_STATUS_RIPV, paddr,
+                       (MCM_ADDR_PHYS << 6) | 0xc, ABORT_ON_ERROR);
+
+    kvm_mce_broadcast_rest(env);
+}
+
 #endif
 
 int kvm_on_sigbus_vcpu(CPUState *env, int code, void *addr)
 {
 #if defined(KVM_CAP_MCE)
-    struct kvm_x86_mce mce = {
-            .bank = 9,
-    };
     void *vaddr;
     ram_addr_t ram_addr;
     target_phys_addr_t paddr;
-    int r;
 
     if ((env->mcg_cap & MCG_SER_P) && addr
         && (code == BUS_MCEERR_AR
             || code == BUS_MCEERR_AO)) {
-        if (code == BUS_MCEERR_AR) {
-            /* Fake an Intel architectural Data Load SRAR UCR */
-            mce.status = MCI_STATUS_VAL | MCI_STATUS_UC | MCI_STATUS_EN
-                | MCI_STATUS_MISCV | MCI_STATUS_ADDRV | MCI_STATUS_S
-                | MCI_STATUS_AR | 0x134;
-            mce.misc = (MCM_ADDR_PHYS << 6) | 0xc;
-            mce.mcg_status = MCG_STATUS_MCIP | MCG_STATUS_EIPV;
-        } else {
-            /*
-             * If there is an MCE excpetion being processed, ignore
-             * this SRAO MCE
-             */
-            if (kvm_mce_in_progress(env)) {
-                return 0;
-            }
-            /* Fake an Intel architectural Memory scrubbing UCR */
-            mce.status = MCI_STATUS_VAL | MCI_STATUS_UC | MCI_STATUS_EN
-                | MCI_STATUS_MISCV | MCI_STATUS_ADDRV | MCI_STATUS_S
-                | 0xc0;
-            mce.misc = (MCM_ADDR_PHYS << 6) | 0xc;
-            mce.mcg_status = MCG_STATUS_MCIP | MCG_STATUS_RIPV;
-        }
         vaddr = (void *)addr;
         if (qemu_ram_addr_from_host(vaddr, &ram_addr) ||
             !kvm_physical_memory_addr_from_ram(env->kvm_state, ram_addr, &paddr)) {
@@ -1772,13 +1803,20 @@ int kvm_on_sigbus_vcpu(CPUState *env, int code, void *addr)
                 hardware_memory_error();
             }
         }
-        mce.addr = paddr;
-        r = kvm_set_mce(env, &mce);
-        if (r < 0) {
-            fprintf(stderr, "kvm_set_mce: %s\n", strerror(errno));
-            abort();
+
+        if (code == BUS_MCEERR_AR) {
+            /* Fake an Intel architectural Data Load SRAR UCR */
+            kvm_mce_inj_srar_dataload(env, paddr);
+        } else {
+            /*
+             * If there is an MCE excpetion being processed, ignore
+             * this SRAO MCE
+             */
+            if (!kvm_mce_in_progress(env)) {
+                /* Fake an Intel architectural Memory scrubbing UCR */
+                kvm_mce_inj_srao_memscrub(env, paddr);
+            }
         }
-        kvm_mce_broadcast_rest(env);
     } else
 #endif
     {
@@ -1797,7 +1835,6 @@ int kvm_on_sigbus(int code, void *addr)
 {
 #if defined(KVM_CAP_MCE)
     if ((first_cpu->mcg_cap & MCG_SER_P) && addr && code == BUS_MCEERR_AO) {
-        uint64_t status;
         void *vaddr;
         ram_addr_t ram_addr;
         target_phys_addr_t paddr;
@@ -1810,13 +1847,7 @@ int kvm_on_sigbus(int code, void *addr)
                     "QEMU itself instead of guest system!: %p\n", addr);
             return 0;
         }
-        status = MCI_STATUS_VAL | MCI_STATUS_UC | MCI_STATUS_EN
-            | MCI_STATUS_MISCV | MCI_STATUS_ADDRV | MCI_STATUS_S
-            | 0xc0;
-        kvm_inject_x86_mce(first_cpu, 9, status,
-                           MCG_STATUS_MCIP | MCG_STATUS_RIPV, paddr,
-                           (MCM_ADDR_PHYS << 6) | 0xc, ABORT_ON_ERROR);
-        kvm_mce_broadcast_rest(first_cpu);
+        kvm_mce_inj_srao_memscrub2(first_cpu, paddr);
     } else
 #endif
     {
