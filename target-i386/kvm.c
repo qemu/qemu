@@ -263,6 +263,23 @@ static void kvm_do_inject_x86_mce(void *_data)
     }
 }
 
+static void kvm_inject_x86_mce_on(CPUState *env, struct kvm_x86_mce *mce,
+                                  int flag)
+{
+    struct kvm_x86_mce_data data = {
+        .env = env,
+        .mce = mce,
+        .abort_on_error = (flag & ABORT_ON_ERROR),
+    };
+
+    if (!env->mcg_cap) {
+        fprintf(stderr, "MCE support is not enabled!\n");
+        return;
+    }
+
+    run_on_cpu(env, kvm_do_inject_x86_mce, &data);
+}
+
 static void kvm_mce_broadcast_rest(CPUState *env);
 #endif
 
@@ -278,21 +295,12 @@ void kvm_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
         .addr = addr,
         .misc = misc,
     };
-    struct kvm_x86_mce_data data = {
-            .env = cenv,
-            .mce = &mce,
-    };
-
-    if (!cenv->mcg_cap) {
-        fprintf(stderr, "MCE support is not enabled!\n");
-        return;
-    }
 
     if (flag & MCE_BROADCAST) {
         kvm_mce_broadcast_rest(cenv);
     }
 
-    run_on_cpu(cenv, kvm_do_inject_x86_mce, &data);
+    kvm_inject_x86_mce_on(cenv, &mce, flag);
 #else
     if (flag & ABORT_ON_ERROR) {
         abort();
@@ -1708,6 +1716,13 @@ static void hardware_memory_error(void)
 #ifdef KVM_CAP_MCE
 static void kvm_mce_broadcast_rest(CPUState *env)
 {
+    struct kvm_x86_mce mce = {
+        .bank = 1,
+        .status = MCI_STATUS_VAL | MCI_STATUS_UC,
+        .mcg_status = MCG_STATUS_MCIP | MCG_STATUS_RIPV,
+        .addr = 0,
+        .misc = 0,
+    };
     CPUState *cenv;
 
     /* Broadcast MCA signal for processor version 06H_EH and above */
@@ -1716,9 +1731,7 @@ static void kvm_mce_broadcast_rest(CPUState *env)
             if (cenv == env) {
                 continue;
             }
-            kvm_inject_x86_mce(cenv, 1, MCI_STATUS_VAL | MCI_STATUS_UC,
-                               MCG_STATUS_MCIP | MCG_STATUS_RIPV, 0, 0,
-                               ABORT_ON_ERROR);
+            kvm_inject_x86_mce_on(cenv, &mce, ABORT_ON_ERROR);
         }
     }
 }
@@ -1767,15 +1780,17 @@ static void kvm_mce_inj_srao_memscrub(CPUState *env, target_phys_addr_t paddr)
 
 static void kvm_mce_inj_srao_memscrub2(CPUState *env, target_phys_addr_t paddr)
 {
-    uint64_t status;
+    struct kvm_x86_mce mce = {
+        .bank = 9,
+        .status = MCI_STATUS_VAL | MCI_STATUS_UC | MCI_STATUS_EN
+                  | MCI_STATUS_MISCV | MCI_STATUS_ADDRV | MCI_STATUS_S
+                  | 0xc0,
+        .mcg_status = MCG_STATUS_MCIP | MCG_STATUS_RIPV,
+        .addr = paddr,
+        .misc = (MCM_ADDR_PHYS << 6) | 0xc,
+    };
 
-    status = MCI_STATUS_VAL | MCI_STATUS_UC | MCI_STATUS_EN
-            | MCI_STATUS_MISCV | MCI_STATUS_ADDRV | MCI_STATUS_S
-            | 0xc0;
-    kvm_inject_x86_mce(env, 9, status,
-                       MCG_STATUS_MCIP | MCG_STATUS_RIPV, paddr,
-                       (MCM_ADDR_PHYS << 6) | 0xc, ABORT_ON_ERROR);
-
+    kvm_inject_x86_mce_on(env, &mce, ABORT_ON_ERROR);
     kvm_mce_broadcast_rest(env);
 }
 
