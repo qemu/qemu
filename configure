@@ -1589,7 +1589,6 @@ done
 if test "$brlapi" != "no" ; then
   brlapi_libs="-lbrlapi"
   cat > $TMPC << EOF
-#include <stddef.h>
 #include <brlapi.h>
 #include <stddef.h>
 int main( void ) { return brlapi__openConnection (NULL, NULL, NULL); }
@@ -1871,7 +1870,6 @@ fi
 
 if test "$linux_aio" != "no" ; then
   cat > $TMPC <<EOF
-#include <stddef.h>
 #include <libaio.h>
 #include <sys/eventfd.h>
 #include <stddef.h>
@@ -2274,7 +2272,6 @@ fi
 
 madvise=no
 cat > $TMPC << EOF
-#include <stddef.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <stddef.h>
@@ -2289,7 +2286,6 @@ fi
 
 posix_madvise=no
 cat > $TMPC << EOF
-#include <stddef.h>
 #include <sys/mman.h>
 #include <stddef.h>
 int main(void) { return posix_madvise(NULL, 0, POSIX_MADV_DONTNEED); }
