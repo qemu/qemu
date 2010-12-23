@@ -220,31 +220,6 @@ QEMU_CFLAGS="-D_FORTIFY_SOURCE=2 $QEMU_CFLAGS"
 QEMU_CFLAGS="-I. -I\$(SRC_PATH) $QEMU_CFLAGS"
 LDFLAGS="-g $LDFLAGS"
 
-gcc_flags="-Wold-style-declaration -Wold-style-definition -Wtype-limits"
-gcc_flags="-Wformat-security -Wformat-y2k -Winit-self -Wignored-qualifiers $gcc_flags"
-gcc_flags="-Wmissing-include-dirs -Wempty-body -Wnested-externs $gcc_flags"
-gcc_flags="-fstack-protector-all $gcc_flags"
-cat > $TMPC << EOF
-int main(void) { return 0; }
-EOF
-for flag in $gcc_flags; do
-    if compile_prog "-Werror $QEMU_CFLAGS" "-Werror $flag" ; then
-	QEMU_CFLAGS="$QEMU_CFLAGS $flag"
-    fi
-done
-
-# check that the C compiler works.
-cat > $TMPC <<EOF
-int main(void) {}
-EOF
-
-if compile_object ; then
-  : C compiler works ok
-else
-    echo "ERROR: \"$cc\" either does not exist or does not work"
-    exit 1
-fi
-
 check_define() {
 cat > $TMPC <<EOF
 #if !defined($1)
@@ -940,6 +915,31 @@ echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
 fi
+
+# check that the C compiler works.
+cat > $TMPC <<EOF
+int main(void) {}
+EOF
+
+if compile_object ; then
+  : C compiler works ok
+else
+    echo "ERROR: \"$cc\" either does not exist or does not work"
+    exit 1
+fi
+
+gcc_flags="-Wold-style-declaration -Wold-style-definition -Wtype-limits"
+gcc_flags="-Wformat-security -Wformat-y2k -Winit-self -Wignored-qualifiers $gcc_flags"
+gcc_flags="-Wmissing-include-dirs -Wempty-body -Wnested-externs $gcc_flags"
+gcc_flags="-fstack-protector-all $gcc_flags"
+cat > $TMPC << EOF
+int main(void) { return 0; }
+EOF
+for flag in $gcc_flags; do
+    if compile_prog "-Werror $QEMU_CFLAGS" "-Werror $flag" ; then
+	QEMU_CFLAGS="$QEMU_CFLAGS $flag"
+    fi
+done
 
 #
 # Solaris specific configure tool chain decisions
