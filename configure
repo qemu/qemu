@@ -3252,7 +3252,6 @@ for rom in seabios vgabios ; do
     echo "CPP=${cross_prefix}cpp" >> $config_mak
     echo "OBJCOPY=objcopy" >> $config_mak
     echo "IASL=iasl" >> $config_mak
-    echo "HOST_CC=$host_cc" >> $config_mak
     echo "LD=$ld" >> $config_mak
 done
 
