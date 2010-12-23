@@ -716,6 +716,7 @@ static void stdio_read(void *opaque)
 /* init terminal so that we can grab keys */
 static struct termios oldtty;
 static int old_fd0_flags;
+static bool stdio_allow_signal;
 
 static void term_exit(void)
 {
@@ -723,22 +724,24 @@ static void term_exit(void)
     fcntl(0, F_SETFL, old_fd0_flags);
 }
 
-static void term_init(QemuOpts *opts)
+static void qemu_chr_set_echo_stdio(CharDriverState *chr, bool echo)
 {
     struct termios tty;
 
     tty = oldtty;
-    tty.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP
+    if (!echo) {
+        tty.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP
                           |INLCR|IGNCR|ICRNL|IXON);
-    tty.c_oflag |= OPOST;
-    tty.c_lflag &= ~(ECHO|ECHONL|ICANON|IEXTEN);
+        tty.c_oflag |= OPOST;
+        tty.c_lflag &= ~(ECHO|ECHONL|ICANON|IEXTEN);
+        tty.c_cflag &= ~(CSIZE|PARENB);
+        tty.c_cflag |= CS8;
+        tty.c_cc[VMIN] = 1;
+        tty.c_cc[VTIME] = 0;
+    }
     /* if graphical mode, we allow Ctrl-C handling */
-    if (!qemu_opt_get_bool(opts, "signal", display_type != DT_NOGRAPHIC))
+    if (!stdio_allow_signal)
         tty.c_lflag &= ~ISIG;
-    tty.c_cflag &= ~(CSIZE|PARENB);
-    tty.c_cflag |= CS8;
-    tty.c_cc[VMIN] = 1;
-    tty.c_cc[VTIME] = 0;
 
     tcsetattr (0, TCSANOW, &tty);
 }
@@ -766,9 +769,12 @@ static CharDriverState *qemu_chr_open_stdio(QemuOpts *opts)
 
     chr = qemu_chr_open_fd(0, 1);
     chr->chr_close = qemu_chr_close_stdio;
+    chr->chr_set_echo = qemu_chr_set_echo_stdio;
     qemu_set_fd_handler2(0, stdio_read_poll, stdio_read, NULL, chr);
     stdio_nb_clients++;
-    term_init(opts);
+    stdio_allow_signal = qemu_opt_get_bool(opts, "signal",
+                                           display_type != DT_NOGRAPHIC);
+    qemu_chr_set_echo(chr, false);
 
     return chr;
 }
