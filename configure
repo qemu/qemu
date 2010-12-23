@@ -75,6 +75,7 @@ path_of() {
 }
 
 # default parameters
+source_path=`dirname "$0"`
 cpu=""
 interp_prefix="/usr/gnemul/qemu-%M"
 static="no"
@@ -182,6 +183,8 @@ for opt do
   ;;
   --cc=*) CC="$optarg"
   ;;
+  --source-path=*) source_path="$optarg"
+  ;;
   --cpu=*) cpu="$optarg"
   ;;
   --extra-cflags=*) QEMU_CFLAGS="$optarg $QEMU_CFLAGS"
@@ -227,6 +230,9 @@ QEMU_CFLAGS="-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE $QEMU_CFLA
 QEMU_CFLAGS="-D_FORTIFY_SOURCE=2 $QEMU_CFLAGS"
 QEMU_INCLUDES="-I. -I\$(SRC_PATH)"
 LDFLAGS="-g $LDFLAGS"
+
+# make source path absolute
+source_path=`cd "$source_path"; pwd`
 
 check_define() {
 cat > $TMPC <<EOF
@@ -478,10 +484,6 @@ if test "$mingw32" = "yes" ; then
   confsuffix=""
 fi
 
-# find source path
-source_path=`dirname "$0"`
-source_path=`cd "$source_path"; pwd`
-
 werror=""
 
 for opt do
@@ -493,7 +495,7 @@ for opt do
   ;;
   --interp-prefix=*) interp_prefix="$optarg"
   ;;
-  --source-path=*) source_path="$optarg"
+  --source-path=*)
   ;;
   --cross-prefix=*)
   ;;
