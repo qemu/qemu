@@ -1437,7 +1437,6 @@ void console_color_init(DisplayState *ds)
 
 static int n_text_consoles;
 static CharDriverState *text_consoles[128];
-static QemuOpts *text_console_opts[128];
 
 static void text_console_set_echo(CharDriverState *chr, bool echo)
 {
@@ -1446,7 +1445,7 @@ static void text_console_set_echo(CharDriverState *chr, bool echo)
     s->echo = echo;
 }
 
-static void text_console_do_init(CharDriverState *chr, DisplayState *ds, QemuOpts *opts)
+static void text_console_do_init(CharDriverState *chr, DisplayState *ds)
 {
     TextConsole *s;
     static int color_inited;
@@ -1520,7 +1519,6 @@ CharDriverState *text_console_init(QemuOpts *opts)
         exit(1);
     }
     text_consoles[n_text_consoles] = chr;
-    text_console_opts[n_text_consoles] = opts;
     n_text_consoles++;
 
     width = qemu_opt_get_number(opts, "width", 0);
@@ -1555,9 +1553,7 @@ void text_consoles_set_display(DisplayState *ds)
     int i;
 
     for (i = 0; i < n_text_consoles; i++) {
-        text_console_do_init(text_consoles[i], ds, text_console_opts[i]);
-        qemu_opts_del(text_console_opts[i]);
-        text_console_opts[i] = NULL;
+        text_console_do_init(text_consoles[i], ds);
     }
 
     n_text_consoles = 0;
