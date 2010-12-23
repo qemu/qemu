@@ -217,7 +217,7 @@ QEMU_CFLAGS="-Wall -Wundef -Wendif-labels -Wwrite-strings -Wmissing-prototypes $
 QEMU_CFLAGS="-Wstrict-prototypes -Wredundant-decls $QEMU_CFLAGS"
 QEMU_CFLAGS="-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE $QEMU_CFLAGS"
 QEMU_CFLAGS="-D_FORTIFY_SOURCE=2 $QEMU_CFLAGS"
-QEMU_CFLAGS="-I. -I\$(SRC_PATH) $QEMU_CFLAGS"
+QEMU_INCLUDES="-I. -I\$(SRC_PATH)"
 LDFLAGS="-g $LDFLAGS"
 
 check_define() {
@@ -2545,7 +2545,7 @@ if test $profiler = "yes" ; then
 fi
 if test "$slirp" = "yes" ; then
   echo "CONFIG_SLIRP=y" >> $config_host_mak
-  QEMU_CFLAGS="-I\$(SRC_PATH)/slirp $QEMU_CFLAGS"
+  QEMU_INCLUDES="-I\$(SRC_PATH)/slirp $QEMU_INCLUDES"
 fi
 if test "$vde" = "yes" ; then
   echo "CONFIG_VDE=y" >> $config_host_mak
@@ -2781,6 +2781,7 @@ echo "LD=$ld" >> $config_host_mak
 echo "WINDRES=$windres" >> $config_host_mak
 echo "CFLAGS=$CFLAGS" >> $config_host_mak
 echo "QEMU_CFLAGS=$QEMU_CFLAGS" >> $config_host_mak
+echo "QEMU_INCLUDES=$QEMU_INCLUDES" >> $config_host_mak
 if test "$sparse" = "yes" ; then
   echo "CC           := REAL_CC=\"\$(CC)\" cgcc"       >> $config_host_mak
   echo "HOST_CC      := REAL_CC=\"\$(HOST_CC)\" cgcc"  >> $config_host_mak
@@ -3089,19 +3090,20 @@ fi
 # generate QEMU_CFLAGS/LDFLAGS for targets
 
 cflags=""
+includes=""
 ldflags=""
 
 if test "$ARCH" = "sparc64" ; then
-  cflags="-I\$(SRC_PATH)/tcg/sparc $cflags"
+  includes="-I\$(SRC_PATH)/tcg/sparc $includes"
 elif test "$ARCH" = "s390x" ; then
-  cflags="-I\$(SRC_PATH)/tcg/s390 $cflags"
+  includes="-I\$(SRC_PATH)/tcg/s390 $includes"
 elif test "$ARCH" = "x86_64" ; then
-  cflags="-I\$(SRC_PATH)/tcg/i386 $cflags"
+  includes="-I\$(SRC_PATH)/tcg/i386 $includes"
 else
-  cflags="-I\$(SRC_PATH)/tcg/\$(ARCH) $cflags"
+  includes="-I\$(SRC_PATH)/tcg/\$(ARCH) $includes"
 fi
-cflags="-I\$(SRC_PATH)/tcg $cflags"
-cflags="-I\$(SRC_PATH)/fpu $cflags"
+includes="-I\$(SRC_PATH)/tcg $includes"
+includes="-I\$(SRC_PATH)/fpu $includes"
 
 if test "$target_user_only" = "yes" ; then
     libdis_config_mak=libdis-user/config.mak
@@ -3226,6 +3228,7 @@ fi
 
 echo "LDFLAGS+=$ldflags" >> $config_target_mak
 echo "QEMU_CFLAGS+=$cflags" >> $config_target_mak
+echo "QEMU_INCLUDES+=$includes" >> $config_target_mak
 
 done # for target in $targets
 
