@@ -212,8 +212,9 @@ static CPUWriteMemoryFunc * const pl190_writefn[] = {
    pl190_write
 };
 
-static void pl190_reset(pl190_state *s)
+static void pl190_reset(DeviceState *d)
 {
+  pl190_state *s = DO_UPCAST(pl190_state, busdev.qdev, d);
   int i;
 
   for (i = 0; i < 16; i++)
@@ -239,14 +240,41 @@ static int pl190_init(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, pl190_set_irq, 32);
     sysbus_init_irq(dev, &s->irq);
     sysbus_init_irq(dev, &s->fiq);
-    pl190_reset(s);
-    /* ??? Save/restore.  */
     return 0;
 }
 
+static const VMStateDescription vmstate_pl190 = {
+    .name = "pl190",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(level, pl190_state),
+        VMSTATE_UINT32(soft_level, pl190_state),
+        VMSTATE_UINT32(irq_enable, pl190_state),
+        VMSTATE_UINT32(fiq_select, pl190_state),
+        VMSTATE_UINT32(default_addr, pl190_state),
+        VMSTATE_UINT8_ARRAY(vect_control, pl190_state, 16),
+        VMSTATE_UINT32_ARRAY(vect_addr, pl190_state, PL190_NUM_PRIO),
+        VMSTATE_UINT32_ARRAY(prio_mask, pl190_state, PL190_NUM_PRIO+1),
+        VMSTATE_INT32(protected, pl190_state),
+        VMSTATE_INT32(priority, pl190_state),
+        VMSTATE_INT32_ARRAY(prev_prio, pl190_state, PL190_NUM_PRIO),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static SysBusDeviceInfo pl190_info = {
+    .init = pl190_init,
+    .qdev.name = "pl190",
+    .qdev.size = sizeof(pl190_state),
+    .qdev.vmsd = &vmstate_pl190,
+    .qdev.reset = pl190_reset,
+    .qdev.no_user = 1,
+};
+
 static void pl190_register_devices(void)
 {
-    sysbus_register_dev("pl190", sizeof(pl190_state), pl190_init);
+    sysbus_register_withprop(&pl190_info);
 }
 
 device_init(pl190_register_devices)
