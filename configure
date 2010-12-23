@@ -210,6 +210,7 @@ ld="${cross_prefix}${LD-ld}"
 strip="${cross_prefix}${STRIP-strip}"
 windres="${cross_prefix}${WINDRES-windres}"
 pkg_config="${cross_prefix}${PKG_CONFIG-pkg-config}"
+sdl_config="${cross_prefix}${SDL_CONFIG-sdl-config}"
 
 # default flags for all hosts
 QEMU_CFLAGS="-fno-strict-aliasing $QEMU_CFLAGS"
@@ -1183,27 +1184,26 @@ fi
 ##########################################
 # SDL probe
 
-# Look for sdl configuration program (pkg-config or sdl-config).
-# Prefer variant with cross prefix if cross compiling,
-# and favour pkg-config with sdl over sdl-config.
-if test -n "$cross_prefix" -a $pkg_config != pkg-config && \
-     $pkg_config sdl --modversion >/dev/null 2>&1; then
+# Look for sdl configuration program (pkg-config or sdl-config).  Try
+# sdl-config even without cross prefix, and favour pkg-config over sdl-config.
+if test "`basename $sdl_config`" != sdl-config && ! has ${sdl_config}; then
+  sdl_config=sdl-config
+fi
+
+if $pkg_config sdl --modversion >/dev/null 2>&1; then
   sdlconfig="$pkg_config sdl"
   _sdlversion=`$sdlconfig --modversion 2>/dev/null | sed 's/[^0-9]//g'`
-elif test -n "$cross_prefix" && has ${cross_prefix}sdl-config; then
-  sdlconfig="${cross_prefix}sdl-config"
-  _sdlversion=`$sdlconfig --version | sed 's/[^0-9]//g'`
-elif $pkg_config sdl --modversion >/dev/null 2>&1; then
-  sdlconfig="$pkg_config sdl"
-  _sdlversion=`$sdlconfig --modversion 2>/dev/null | sed 's/[^0-9]//g'`
-elif has sdl-config; then
-  sdlconfig='sdl-config'
+elif has ${sdl_config}; then
+  sdlconfig="$sdl_config"
   _sdlversion=`$sdlconfig --version | sed 's/[^0-9]//g'`
 else
   if test "$sdl" = "yes" ; then
     feature_not_found "sdl"
   fi
   sdl=no
+fi
+if test -n "$cross_prefix" && test "`basename $sdlconfig`" = sdl-config; then
+  echo warning: using "\"$sdlconfig\"" to detect cross-compiled sdl >&2
 fi
 
 sdl_too_old=no
