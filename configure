@@ -79,8 +79,6 @@ audio_card_list="ac97 es1370 sb16 hda"
 audio_possible_cards="ac97 es1370 sb16 cs4231a adlib gus hda"
 block_drv_whitelist=""
 host_cc="gcc"
-make="make"
-install="install"
 helper_cflags=""
 libs_softmmu=""
 libs_tools=""
@@ -363,7 +361,7 @@ GNU/kFreeBSD)
 ;;
 FreeBSD)
   bsd="yes"
-  make="gmake"
+  make="${MAKE-gmake}"
   audio_drv_list="oss"
   audio_possible_drivers="oss sdl esd pa"
   # needed for kinfo_getvmmap(3) in libutil.h
@@ -371,20 +369,20 @@ FreeBSD)
 ;;
 DragonFly)
   bsd="yes"
-  make="gmake"
+  make="${MAKE-gmake}"
   audio_drv_list="oss"
   audio_possible_drivers="oss sdl esd pa"
 ;;
 NetBSD)
   bsd="yes"
-  make="gmake"
+  make="${MAKE-gmake}"
   audio_drv_list="oss"
   audio_possible_drivers="oss sdl esd"
   oss_lib="-lossaudio"
 ;;
 OpenBSD)
   bsd="yes"
-  make="gmake"
+  make="${MAKE-gmake}"
   audio_drv_list="oss"
   audio_possible_drivers="oss sdl esd"
   oss_lib="-lossaudio"
@@ -413,8 +411,8 @@ Darwin)
 ;;
 SunOS)
   solaris="yes"
-  make="gmake"
-  install="ginstall"
+  make="${MAKE-gmake}"
+  install="${INSTALL-ginstall}"
   ld="gld"
   needs_libsunmath="no"
   solarisrev=`uname -r | cut -f2 -d.`
@@ -453,7 +451,7 @@ SunOS)
 ;;
 AIX)
   aix="yes"
-  make="gmake"
+  make="${MAKE-gmake}"
 ;;
 Haiku)
   haiku="yes"
@@ -478,6 +476,9 @@ if [ "$bsd" = "yes" ] ; then
   fi
   bsd_user="yes"
 fi
+
+: ${make=${MAKE-make}}
+: ${install=${INSTALL-install}}
 
 if test "$mingw32" = "yes" ; then
   EXESUF=".exe"
