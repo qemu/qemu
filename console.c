@@ -137,6 +137,7 @@ struct TextConsole {
     TextAttributes t_attrib; /* currently active text attributes */
     TextCell *cells;
     int text_x[2], text_y[2], cursor_invalidate;
+    int echo;
 
     int update_x0;
     int update_y0;
@@ -1177,8 +1178,14 @@ void kbd_put_keysym(int keysym)
             *q++ = '\033';
             *q++ = '[';
             *q++ = keysym & 0xff;
+        } else if (s->echo && (keysym == '\r' || keysym == '\n')) {
+            console_puts(s->chr, (const uint8_t *) "\r", 1);
+            *q++ = '\n';
         } else {
-                *q++ = keysym;
+            *q++ = keysym;
+        }
+        if (s->echo) {
+            console_puts(s->chr, buf, q - buf);
         }
         if (s->chr->chr_read) {
             qemu_fifo_write(&s->out_fifo, buf, q - buf);
@@ -1432,6 +1439,13 @@ static int n_text_consoles;
 static CharDriverState *text_consoles[128];
 static QemuOpts *text_console_opts[128];
 
+static void text_console_set_echo(CharDriverState *chr, bool echo)
+{
+    TextConsole *s = chr->opaque;
+
+    s->echo = echo;
+}
+
 static void text_console_do_init(CharDriverState *chr, DisplayState *ds, QemuOpts *opts)
 {
     TextConsole *s;
@@ -1532,6 +1546,7 @@ CharDriverState *text_console_init(QemuOpts *opts)
     s->g_width = width;
     s->g_height = height;
     chr->opaque = s;
+    chr->chr_set_echo = text_console_set_echo;
     return chr;
 }
 
