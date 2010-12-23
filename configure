@@ -1084,13 +1084,15 @@ esac
 
 fi
 
-# host long bits test
-hostlongbits="32"
-case "$cpu" in
-  x86_64|alpha|ia64|sparc64|ppc64|s390x)
-    hostlongbits=64
-  ;;
-esac
+# host long bits test, actually a pointer size test
+cat > $TMPC << EOF
+int sizeof_pointer_is_8[sizeof(void *) == 8 ? 1 : -1];
+EOF
+if compile_object; then
+hostlongbits=64
+else
+hostlongbits=32
+fi
 
 
 ##########################################
