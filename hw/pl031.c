@@ -44,6 +44,21 @@ typedef struct {
     uint32_t is;
 } pl031_state;
 
+static const VMStateDescription vmstate_pl031 = {
+    .name = "pl031",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(tick_offset, pl031_state),
+        VMSTATE_UINT32(mr, pl031_state),
+        VMSTATE_UINT32(lr, pl031_state),
+        VMSTATE_UINT32(cr, pl031_state),
+        VMSTATE_UINT32(im, pl031_state),
+        VMSTATE_UINT32(is, pl031_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const unsigned char pl031_id[] = {
     0x31, 0x10, 0x14, 0x00,         /* Device ID        */
     0x0d, 0xf0, 0x05, 0xb1          /* Cell ID      */
@@ -206,9 +221,17 @@ static int pl031_init(SysBusDevice *dev)
     return 0;
 }
 
+static SysBusDeviceInfo pl031_info = {
+    .init = pl031_init,
+    .qdev.name = "pl031",
+    .qdev.size = sizeof(pl031_state),
+    .qdev.vmsd = &vmstate_pl031,
+    .qdev.no_user = 1,
+};
+
 static void pl031_register_devices(void)
 {
-    sysbus_register_dev("pl031", sizeof(pl031_state), pl031_init);
+    sysbus_register_withprop(&pl031_info);
 }
 
 device_init(pl031_register_devices)
