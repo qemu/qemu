@@ -515,9 +515,9 @@ for opt do
   ;;
   --target-list=*) target_list="$optarg"
   ;;
-  --trace-backend=*) trace_backend="$optarg"
+  --enable-trace-backend=*) trace_backend="$optarg"
   ;;
-  --trace-file=*) trace_file="$optarg"
+  --with-trace-file=*) trace_file="$optarg"
   ;;
   --enable-gprof) gprof="yes"
   ;;
@@ -907,8 +907,8 @@ echo "  --enable-docs            enable documentation build"
 echo "  --disable-docs           disable documentation build"
 echo "  --disable-vhost-net      disable vhost-net acceleration support"
 echo "  --enable-vhost-net       enable vhost-net acceleration support"
-echo "  --trace-backend=B        Trace backend nop simple ust dtrace"
-echo "  --trace-file=NAME        Full PATH,NAME of file to store traces"
+echo "  --enable-trace-backend=B Trace backend nop simple ust dtrace"
+echo "  --with-trace-file=NAME   Full PATH,NAME of file to store traces"
 echo "                           Default:trace-<pid>"
 echo "  --disable-spice          disable spice"
 echo "  --enable-spice           enable spice"
