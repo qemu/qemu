@@ -2775,17 +2775,17 @@ echo "INSTALL_PROG=$install -m0755 -p" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
 echo "CC_I386=$cc_i386" >> $config_host_mak
 echo "HOST_CC=$host_cc" >> $config_host_mak
-if test "$sparse" = "yes" ; then
-  echo "CC      := REAL_CC=\"\$(CC)\" cgcc"       >> $config_host_mak
-  echo "HOST_CC := REAL_CC=\"\$(HOST_CC)\" cgcc"  >> $config_host_mak
-  echo "QEMU_CFLAGS  += -Wbitwise -Wno-transparent-union -Wno-old-initializer -Wno-non-pointer-null" >> $config_host_mak
-fi
 echo "AR=$ar" >> $config_host_mak
 echo "OBJCOPY=$objcopy" >> $config_host_mak
 echo "LD=$ld" >> $config_host_mak
 echo "WINDRES=$windres" >> $config_host_mak
 echo "CFLAGS=$CFLAGS" >> $config_host_mak
 echo "QEMU_CFLAGS=$QEMU_CFLAGS" >> $config_host_mak
+if test "$sparse" = "yes" ; then
+  echo "CC           := REAL_CC=\"\$(CC)\" cgcc"       >> $config_host_mak
+  echo "HOST_CC      := REAL_CC=\"\$(HOST_CC)\" cgcc"  >> $config_host_mak
+  echo "QEMU_CFLAGS  += -Wbitwise -Wno-transparent-union -Wno-old-initializer -Wno-non-pointer-null" >> $config_host_mak
+fi
 echo "HELPER_CFLAGS=$helper_cflags" >> $config_host_mak
 echo "LDFLAGS=$LDFLAGS" >> $config_host_mak
 echo "ARLIBS_BEGIN=$arlibs_begin" >> $config_host_mak
