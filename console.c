@@ -1435,35 +1435,13 @@ static QemuOpts *text_console_opts[128];
 static void text_console_do_init(CharDriverState *chr, DisplayState *ds, QemuOpts *opts)
 {
     TextConsole *s;
-    unsigned width;
-    unsigned height;
     static int color_inited;
 
-    width = qemu_opt_get_number(opts, "width", 0);
-    if (width == 0)
-        width = qemu_opt_get_number(opts, "cols", 0) * FONT_WIDTH;
+    s = chr->opaque;
 
-    height = qemu_opt_get_number(opts, "height", 0);
-    if (height == 0)
-        height = qemu_opt_get_number(opts, "rows", 0) * FONT_HEIGHT;
-
-    if (width == 0 || height == 0) {
-        s = new_console(ds, TEXT_CONSOLE);
-        width = ds_get_width(s->ds);
-        height = ds_get_height(s->ds);
-    } else {
-        s = new_console(ds, TEXT_CONSOLE_FIXED_SIZE);
-    }
-
-    if (!s) {
-        free(chr);
-        return;
-    }
-    chr->opaque = s;
     chr->chr_write = console_puts;
     chr->chr_send_event = console_send_event;
 
-    s->chr = chr;
     s->out_fifo.buf = s->out_fifo_buf;
     s->out_fifo.buf_size = sizeof(s->out_fifo_buf);
     s->kbd_timer = qemu_new_timer(rt_clock, kbd_send_chars, s);
@@ -1478,8 +1456,10 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds, QemuOpt
     s->total_height = DEFAULT_BACKSCROLL;
     s->x = 0;
     s->y = 0;
-    s->g_width = width;
-    s->g_height = height;
+    if (s->console_type == TEXT_CONSOLE) {
+        s->g_width = ds_get_width(s->ds);
+        s->g_height = ds_get_height(s->ds);
+    }
 
     s->hw_invalidate = text_console_invalidate;
     s->hw_text_update = text_console_update;
@@ -1515,6 +1495,9 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds, QemuOpt
 CharDriverState *text_console_init(QemuOpts *opts)
 {
     CharDriverState *chr;
+    TextConsole *s;
+    unsigned width;
+    unsigned height;
 
     chr = qemu_mallocz(sizeof(CharDriverState));
 
@@ -1526,6 +1509,29 @@ CharDriverState *text_console_init(QemuOpts *opts)
     text_console_opts[n_text_consoles] = opts;
     n_text_consoles++;
 
+    width = qemu_opt_get_number(opts, "width", 0);
+    if (width == 0)
+        width = qemu_opt_get_number(opts, "cols", 0) * FONT_WIDTH;
+
+    height = qemu_opt_get_number(opts, "height", 0);
+    if (height == 0)
+        height = qemu_opt_get_number(opts, "rows", 0) * FONT_HEIGHT;
+
+    if (width == 0 || height == 0) {
+        s = new_console(NULL, TEXT_CONSOLE);
+    } else {
+        s = new_console(NULL, TEXT_CONSOLE_FIXED_SIZE);
+    }
+
+    if (!s) {
+        free(chr);
+        return NULL;
+    }
+
+    s->chr = chr;
+    s->g_width = width;
+    s->g_height = height;
+    chr->opaque = s;
     return chr;
 }
 
