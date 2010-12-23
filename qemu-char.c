@@ -2559,6 +2559,7 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
     if (chr && qemu_opt_get_bool(opts, "mux", 0)) {
         monitor_init(chr, MONITOR_USE_READLINE);
     }
+    qemu_opts_del(opts);
     return chr;
 }
 
