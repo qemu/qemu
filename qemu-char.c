@@ -2558,6 +2558,13 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
     return chr;
 }
 
+void qemu_chr_set_echo(struct CharDriverState *chr, bool echo)
+{
+    if (chr->chr_set_echo) {
+        chr->chr_set_echo(chr, echo);
+    }
+}
+
 void qemu_chr_close(CharDriverState *chr)
 {
     QTAILQ_REMOVE(&chardevs, chr, next);
