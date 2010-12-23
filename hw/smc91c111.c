@@ -46,6 +46,35 @@ typedef struct {
     int mmio_index;
 } smc91c111_state;
 
+static const VMStateDescription vmstate_smc91c111 = {
+    .name = "smc91c111",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT16(tcr, smc91c111_state),
+        VMSTATE_UINT16(rcr, smc91c111_state),
+        VMSTATE_UINT16(cr, smc91c111_state),
+        VMSTATE_UINT16(ctr, smc91c111_state),
+        VMSTATE_UINT16(gpr, smc91c111_state),
+        VMSTATE_UINT16(ptr, smc91c111_state),
+        VMSTATE_UINT16(ercv, smc91c111_state),
+        VMSTATE_INT32(bank, smc91c111_state),
+        VMSTATE_INT32(packet_num, smc91c111_state),
+        VMSTATE_INT32(tx_alloc, smc91c111_state),
+        VMSTATE_INT32(allocated, smc91c111_state),
+        VMSTATE_INT32(tx_fifo_len, smc91c111_state),
+        VMSTATE_INT32_ARRAY(tx_fifo, smc91c111_state, NUM_PACKETS),
+        VMSTATE_INT32(rx_fifo_len, smc91c111_state),
+        VMSTATE_INT32_ARRAY(rx_fifo, smc91c111_state, NUM_PACKETS),
+        VMSTATE_INT32(tx_fifo_done_len, smc91c111_state),
+        VMSTATE_INT32_ARRAY(tx_fifo_done, smc91c111_state, NUM_PACKETS),
+        VMSTATE_BUFFER_UNSAFE(data, smc91c111_state, 0, NUM_PACKETS * 2048),
+        VMSTATE_UINT8(int_level, smc91c111_state),
+        VMSTATE_UINT8(int_mask, smc91c111_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 #define RCR_SOFT_RST  0x8000
 #define RCR_STRIP_CRC 0x0200
 #define RCR_RXEN      0x0100
@@ -738,6 +767,7 @@ static SysBusDeviceInfo smc91c111_info = {
     .init = smc91c111_init1,
     .qdev.name  = "smc91c111",
     .qdev.size  = sizeof(smc91c111_state),
+    .qdev.vmsd = &vmstate_smc91c111,
     .qdev.props = (Property[]) {
         DEFINE_NIC_PROPERTIES(smc91c111_state, conf),
         DEFINE_PROP_END_OF_LIST(),
