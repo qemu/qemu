@@ -30,6 +30,18 @@ typedef struct vpb_sic_state
   int irq;
 } vpb_sic_state;
 
+static const VMStateDescription vmstate_vpb_sic = {
+    .name = "versatilepb_sic",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(level, vpb_sic_state),
+        VMSTATE_UINT32(mask, vpb_sic_state),
+        VMSTATE_UINT32(pic_enable, vpb_sic_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void vpb_sic_update(vpb_sic_state *s)
 {
     uint32_t flags;
@@ -146,7 +158,6 @@ static int vpb_sic_init(SysBusDevice *dev)
                                        vpb_sic_writefn, s,
                                        DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
-    /* ??? Save/restore.  */
     return 0;
 }
 
@@ -335,10 +346,17 @@ static void versatile_machine_init(void)
 
 machine_init(versatile_machine_init);
 
+static SysBusDeviceInfo vpb_sic_info = {
+    .init = vpb_sic_init,
+    .qdev.name = "versatilepb_sic",
+    .qdev.size = sizeof(vpb_sic_state),
+    .qdev.vmsd = &vmstate_vpb_sic,
+    .qdev.no_user = 1,
+};
+
 static void versatilepb_register_devices(void)
 {
-    sysbus_register_dev("versatilepb_sic", sizeof(vpb_sic_state),
-                        vpb_sic_init);
+    sysbus_register_withprop(&vpb_sic_info);
 }
 
 device_init(versatilepb_register_devices)
