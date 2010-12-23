@@ -716,7 +716,6 @@ static void stdio_read(void *opaque)
 /* init terminal so that we can grab keys */
 static struct termios oldtty;
 static int old_fd0_flags;
-static int term_atexit_done;
 
 static void term_exit(void)
 {
@@ -728,10 +727,7 @@ static void term_init(QemuOpts *opts)
 {
     struct termios tty;
 
-    tcgetattr (0, &tty);
-    oldtty = tty;
-    old_fd0_flags = fcntl(0, F_GETFL);
-
+    tty = oldtty;
     tty.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP
                           |INLCR|IGNCR|ICRNL|IXON);
     tty.c_oflag |= OPOST;
@@ -745,11 +741,6 @@ static void term_init(QemuOpts *opts)
     tty.c_cc[VTIME] = 0;
 
     tcsetattr (0, TCSANOW, &tty);
-
-    if (!term_atexit_done++)
-        atexit(term_exit);
-
-    fcntl(0, F_SETFL, O_NONBLOCK);
 }
 
 static void qemu_chr_close_stdio(struct CharDriverState *chr)
@@ -766,6 +757,13 @@ static CharDriverState *qemu_chr_open_stdio(QemuOpts *opts)
 
     if (stdio_nb_clients >= STDIO_MAX_CLIENTS)
         return NULL;
+    if (stdio_nb_clients == 0) {
+        old_fd0_flags = fcntl(0, F_GETFL);
+        tcgetattr (0, &oldtty);
+        fcntl(0, F_SETFL, O_NONBLOCK);
+        atexit(term_exit);
+    }
+
     chr = qemu_chr_open_fd(0, 1);
     chr->chr_close = qemu_chr_close_stdio;
     qemu_set_fd_handler2(0, stdio_read_poll, stdio_read, NULL, chr);
