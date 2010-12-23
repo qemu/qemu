@@ -74,19 +74,13 @@ interp_prefix="/usr/gnemul/qemu-%M"
 static="no"
 sparc_cpu=""
 cross_prefix=""
-cc="gcc"
 audio_drv_list=""
 audio_card_list="ac97 es1370 sb16 hda"
 audio_possible_cards="ac97 es1370 sb16 cs4231a adlib gus hda"
 block_drv_whitelist=""
 host_cc="gcc"
-ar="ar"
 make="make"
 install="install"
-objcopy="objcopy"
-ld="ld"
-strip="strip"
-windres="windres"
 helper_cflags=""
 libs_softmmu=""
 libs_tools=""
@@ -100,7 +94,7 @@ for opt do
   case "$opt" in
   --cross-prefix=*) cross_prefix="$optarg"
   ;;
-  --cc=*) cc="$optarg"
+  --cc=*) CC="$optarg"
   ;;
   --cpu=*) cpu="$optarg"
   ;;
@@ -129,12 +123,12 @@ done
 # Using uname is really, really broken.  Once we have the right set of checks
 # we can eliminate it's usage altogether
 
-cc="${cross_prefix}${cc}"
-ar="${cross_prefix}${ar}"
-objcopy="${cross_prefix}${objcopy}"
-ld="${cross_prefix}${ld}"
-strip="${cross_prefix}${strip}"
-windres="${cross_prefix}${windres}"
+cc="${cross_prefix}${CC-gcc}"
+ar="${cross_prefix}${AR-ar}"
+objcopy="${cross_prefix}${OBJCOPY-objcopy}"
+ld="${cross_prefix}${LD-ld}"
+strip="${cross_prefix}${STRIP-strip}"
+windres="${cross_prefix}${WINDRES-windres}"
 
 # default flags for all hosts
 QEMU_CFLAGS="-fno-strict-aliasing $QEMU_CFLAGS"
