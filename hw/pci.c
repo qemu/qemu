@@ -2027,3 +2027,38 @@ static char *pcibus_get_dev_path(DeviceState *dev)
     return strdup(path);
 }
 
+static int pci_qdev_find_recursive(PCIBus *bus,
+                                   const char *id, PCIDevice **pdev)
+{
+    DeviceState *qdev = qdev_find_recursive(&bus->qbus, id);
+    if (!qdev) {
+        return -ENODEV;
+    }
+
+    /* roughly check if given qdev is pci device */
+    if (qdev->info->init == &pci_qdev_init &&
+        qdev->parent_bus->info == &pci_bus_info) {
+        *pdev = DO_UPCAST(PCIDevice, qdev, qdev);
+        return 0;
+    }
+    return -EINVAL;
+}
+
+int pci_qdev_find_device(const char *id, PCIDevice **pdev)
+{
+    struct PCIHostBus *host;
+    int rc = -ENODEV;
+
+    QLIST_FOREACH(host, &host_buses, next) {
+        int tmp = pci_qdev_find_recursive(host->bus, id, pdev);
+        if (!tmp) {
+            rc = 0;
+            break;
+        }
+        if (tmp != -ENODEV) {
+            rc = tmp;
+        }
+    }
+
+    return rc;
+}
