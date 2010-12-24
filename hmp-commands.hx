@@ -873,6 +873,31 @@ Hot remove PCI device.
 ETEXI
 
     {
+        .name       = "pcie_aer_inject_error",
+        .args_type  = "advisory_non_fatal:-a,correctable:-c,"
+	              "id:s,error_status:s,"
+	              "header0:i?,header1:i?,header2:i?,header3:i?,"
+	              "prefix0:i?,prefix1:i?,prefix2:i?,prefix3:i?",
+        .params     = "[-a] [-c] id "
+                      "<error_status> [<tlp header> [<tlp header prefix>]]",
+        .help       = "inject pcie aer error\n\t\t\t"
+	              " -a for advisory non fatal error\n\t\t\t"
+	              " -c for correctable error\n\t\t\t"
+                      "<id> = qdev device id\n\t\t\t"
+                      "<error_status> = error string or 32bit\n\t\t\t"
+                      "<tlb header> = 32bit x 4\n\t\t\t"
+                      "<tlb header prefix> = 32bit x 4",
+        .user_print  = pcie_aer_inject_error_print,
+        .mhandler.cmd_new = do_pcie_aer_inejct_error,
+    },
+
+STEXI
+@item pcie_aer_inject_error
+@findex pcie_aer_inject_error
+Inject PCIe AER error
+ETEXI
+
+    {
         .name       = "host_net_add",
         .args_type  = "device:s,opts:s?",
         .params     = "tap|user|socket|vde|dump [options]",

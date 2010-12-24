@@ -18,6 +18,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "sysemu.h"
 #include "monitor.h"
 #include "pci.h"
 
@@ -32,6 +33,18 @@ void do_pci_info(Monitor *mon, QObject **ret_data)
 }
 
 void do_pci_info_print(Monitor *mon, const QObject *data)
+{
+    pci_error_message(mon);
+}
+
+int do_pcie_aer_inejct_error(Monitor *mon,
+                             const QDict *qdict, QObject **ret_data)
+{
+    pci_error_message(mon);
+    return -ENOSYS;
+}
+
+void pcie_aer_inject_error_print(Monitor *mon, const QObject *data)
 {
     pci_error_message(mon);
 }
