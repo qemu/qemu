@@ -548,7 +548,7 @@ static BusState *qbus_find_recursive(BusState *bus, const char *name,
     return NULL;
 }
 
-static DeviceState *qdev_find_recursive(BusState *bus, const char *id)
+DeviceState *qdev_find_recursive(BusState *bus, const char *id)
 {
     DeviceState *dev, *ret;
     BusState *child;
