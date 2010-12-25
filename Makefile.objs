@@ -226,6 +226,7 @@ hw-obj-$(CONFIG_I8259) += i8259.o
 
 # PPC devices
 hw-obj-$(CONFIG_PREP_PCI) += prep_pci.o
+hw-obj-$(CONFIG_I82378) += i82378.o
 # Mac shared devices
 hw-obj-$(CONFIG_MACIO) += macio.o
 hw-obj-$(CONFIG_CUDA) += cuda.o
