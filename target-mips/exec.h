@@ -19,10 +19,22 @@ register struct CPUMIPSState *env asm(AREG0);
 
 static inline int cpu_has_work(CPUState *env)
 {
-    return (env->interrupt_request &
-            (CPU_INTERRUPT_HARD | CPU_INTERRUPT_TIMER));
-}
+    int has_work = 0;
 
+    /* It is implementation dependent if non-enabled interrupts
+       wake-up the CPU, however most of the implementations only
+       check for interrupts that can be taken. */
+    if ((env->interrupt_request & CPU_INTERRUPT_HARD) &&
+        cpu_mips_hw_interrupts_pending(env)) {
+        has_work = 1;
+    }
+
+    if (env->interrupt_request & CPU_INTERRUPT_TIMER) {
+        has_work = 1;
+    }
+
+    return has_work;
+}
 
 static inline int cpu_halted(CPUState *env)
 {
