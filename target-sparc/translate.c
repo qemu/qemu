@@ -3162,20 +3162,20 @@ static void disas_sparc_insn(DisasContext * dc)
 #endif
                     case 0xe: /* udiv */
                         CHECK_IU_FEATURE(dc, DIV);
-                        gen_helper_udiv(cpu_dst, cpu_src1, cpu_src2);
                         if (xop & 0x10) {
-                            tcg_gen_mov_tl(cpu_cc_dst, cpu_dst);
-                            tcg_gen_movi_i32(cpu_cc_op, CC_OP_DIV);
+                            gen_helper_udiv_cc(cpu_dst, cpu_src1, cpu_src2);
                             dc->cc_op = CC_OP_DIV;
+                        } else {
+                            gen_helper_udiv(cpu_dst, cpu_src1, cpu_src2);
                         }
                         break;
                     case 0xf: /* sdiv */
                         CHECK_IU_FEATURE(dc, DIV);
-                        gen_helper_sdiv(cpu_dst, cpu_src1, cpu_src2);
                         if (xop & 0x10) {
-                            tcg_gen_mov_tl(cpu_cc_dst, cpu_dst);
-                            tcg_gen_movi_i32(cpu_cc_op, CC_OP_DIV);
+                            gen_helper_sdiv_cc(cpu_dst, cpu_src1, cpu_src2);
                             dc->cc_op = CC_OP_DIV;
+                        } else {
+                            gen_helper_sdiv(cpu_dst, cpu_src1, cpu_src2);
                         }
                         break;
                     default:
