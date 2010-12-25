@@ -3300,8 +3300,9 @@ void helper_rett(void)
 }
 #endif
 
-target_ulong helper_udiv(target_ulong a, target_ulong b)
+static target_ulong helper_udiv_common(target_ulong a, target_ulong b, int cc)
 {
+    int overflow = 0;
     uint64_t x0;
     uint32_t x1;
 
@@ -3314,16 +3315,31 @@ target_ulong helper_udiv(target_ulong a, target_ulong b)
 
     x0 = x0 / x1;
     if (x0 > 0xffffffff) {
-        env->cc_src2 = 1;
-        return 0xffffffff;
-    } else {
-        env->cc_src2 = 0;
-        return x0;
+        x0 = 0xffffffff;
+        overflow = 1;
     }
+
+    if (cc) {
+        env->cc_dst = x0;
+        env->cc_src2 = overflow;
+        env->cc_op = CC_OP_DIV;
+    }
+    return x0;
 }
 
-target_ulong helper_sdiv(target_ulong a, target_ulong b)
+target_ulong helper_udiv(target_ulong a, target_ulong b)
 {
+    return helper_udiv_common(a, b, 0);
+}
+
+target_ulong helper_udiv_cc(target_ulong a, target_ulong b)
+{
+    return helper_udiv_common(a, b, 1);
+}
+
+static target_ulong helper_sdiv_common(target_ulong a, target_ulong b, int cc)
+{
+    int overflow = 0;
     int64_t x0;
     int32_t x1;
 
@@ -3336,12 +3352,26 @@ target_ulong helper_sdiv(target_ulong a, target_ulong b)
 
     x0 = x0 / x1;
     if ((int32_t) x0 != x0) {
-        env->cc_src2 = 1;
-        return x0 < 0? 0x80000000: 0x7fffffff;
-    } else {
-        env->cc_src2 = 0;
-        return x0;
+        x0 = x0 < 0 ? 0x80000000: 0x7fffffff;
+        overflow = 1;
     }
+
+    if (cc) {
+        env->cc_dst = x0;
+        env->cc_src2 = overflow;
+        env->cc_op = CC_OP_DIV;
+    }
+    return x0;
+}
+
+target_ulong helper_sdiv(target_ulong a, target_ulong b)
+{
+    return helper_sdiv_common(a, b, 0);
+}
+
+target_ulong helper_sdiv_cc(target_ulong a, target_ulong b)
+{
+    return helper_sdiv_common(a, b, 1);
 }
 
 void helper_stdf(target_ulong addr, int mem_idx)
