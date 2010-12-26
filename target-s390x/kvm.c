@@ -119,7 +119,7 @@ int kvm_arch_put_registers(CPUState *env, int level)
 
 int kvm_arch_get_registers(CPUState *env)
 {
-    uint32_t ret;
+    int ret;
     struct kvm_regs regs;
     int i;
 

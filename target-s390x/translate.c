@@ -36,7 +36,7 @@ void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
         }
     }
     for (i = 0; i < 16; i++) {
-        cpu_fprintf(f, "F%02d=%016lx", i, env->fregs[i]);
+        cpu_fprintf(f, "F%02d=%016lx", i, (long)env->fregs[i].i);
         if ((i % 4) == 3) {
             cpu_fprintf(f, "\n");
         } else {

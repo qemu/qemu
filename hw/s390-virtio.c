@@ -19,6 +19,7 @@
 
 #include "hw.h"
 #include "block.h"
+#include "blockdev.h"
 #include "sysemu.h"
 #include "net.h"
 #include "boards.h"
