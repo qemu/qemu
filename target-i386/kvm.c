@@ -1686,7 +1686,7 @@ void kvm_arch_update_guest_debug(CPUState *env, struct kvm_guest_debug *dbg)
             dbg->arch.debugreg[n] = hw_breakpoint[n].addr;
             dbg->arch.debugreg[7] |= (2 << (n * 2)) |
                 (type_code[hw_breakpoint[n].type] << (16 + n*4)) |
-                (len_code[hw_breakpoint[n].len] << (18 + n*4));
+                ((uint32_t)len_code[hw_breakpoint[n].len] << (18 + n*4));
         }
     }
     /* Legal xcr0 for loading */
