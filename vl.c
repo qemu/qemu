@@ -1504,6 +1504,8 @@ static void select_vgahw (const char *p)
         vga_interface_type = VGA_VMWARE;
     } else if (strstart(p, "xenfb", &opts)) {
         vga_interface_type = VGA_XENFB;
+    } else if (strstart(p, "qxl", &opts)) {
+        vga_interface_type = VGA_QXL;
     } else if (!strstart(p, "none", &opts)) {
     invalid_vga:
         fprintf(stderr, "Unknown vga type: %s\n", p);
@@ -3055,7 +3057,7 @@ int main(int argc, char **argv, char **envp)
         }
     }
 #ifdef CONFIG_SPICE
-    if (using_spice) {
+    if (using_spice && !qxl_enabled) {
         qemu_spice_display_init(ds);
     }
 #endif

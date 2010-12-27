@@ -32,10 +32,18 @@ void qemu_spice_input_init(void);
 void qemu_spice_audio_init(void);
 void qemu_spice_display_init(DisplayState *ds);
 int qemu_spice_add_interface(SpiceBaseInstance *sin);
+int qemu_spice_set_passwd(const char *passwd,
+                          bool fail_if_connected, bool disconnect_if_connected);
+int qemu_spice_set_pw_expire(time_t expires);
+
+void do_info_spice_print(Monitor *mon, const QObject *data);
+void do_info_spice(Monitor *mon, QObject **ret_data);
 
 #else  /* CONFIG_SPICE */
 
 #define using_spice 0
+#define qemu_spice_set_passwd(_p, _f1, _f2) (-1)
+#define qemu_spice_set_pw_expire(_e) (-1)
 
 #endif /* CONFIG_SPICE */
 
