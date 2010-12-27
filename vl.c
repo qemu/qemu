@@ -2603,7 +2603,7 @@ int main(int argc, char **argv, char **envp)
 		     if (p != NULL) {
 		        *p++ = 0;
 			if (strncmp(p, "process=", 8)) {
-			    fprintf(stderr, "Unknown subargument %s to -name", p);
+			    fprintf(stderr, "Unknown subargument %s to -name\n", p);
 			    exit(1);
 			}
 			p += 8;
