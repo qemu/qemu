@@ -177,7 +177,7 @@ static inline unsigned int tb_jmp_cache_hash_func(target_ulong pc)
 
 static inline unsigned int tb_phys_hash_func(tb_page_addr_t pc)
 {
-    return pc & (CODE_GEN_PHYS_HASH_SIZE - 1);
+    return (pc >> 2) & (CODE_GEN_PHYS_HASH_SIZE - 1);
 }
 
 TranslationBlock *tb_alloc(target_ulong pc);
