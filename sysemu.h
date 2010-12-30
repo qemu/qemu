@@ -104,7 +104,7 @@ extern int incoming_expected;
 extern int bios_size;
 
 typedef enum {
-    VGA_NONE, VGA_STD, VGA_CIRRUS, VGA_VMWARE, VGA_XENFB
+    VGA_NONE, VGA_STD, VGA_CIRRUS, VGA_VMWARE, VGA_XENFB, VGA_QXL,
 } VGAInterfaceType;
 
 extern int vga_interface_type;
@@ -112,6 +112,7 @@ extern int vga_interface_type;
 #define std_vga_enabled (vga_interface_type == VGA_STD)
 #define xenfb_enabled (vga_interface_type == VGA_XENFB)
 #define vmsvga_enabled (vga_interface_type == VGA_VMWARE)
+#define qxl_enabled (vga_interface_type == VGA_QXL)
 
 extern int graphic_width;
 extern int graphic_height;

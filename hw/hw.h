@@ -528,6 +528,17 @@ extern const VMStateInfo vmstate_info_unused_buffer;
     .start        = (_start),                                        \
 }
 
+#define VMSTATE_VBUFFER_UINT32(_field, _state, _version, _test, _start, _field_size) { \
+    .name         = (stringify(_field)),                             \
+    .version_id   = (_version),                                      \
+    .field_exists = (_test),                                         \
+    .size_offset  = vmstate_offset_value(_state, _field_size, uint32_t),\
+    .info         = &vmstate_info_buffer,                            \
+    .flags        = VMS_VBUFFER|VMS_POINTER,                         \
+    .offset       = offsetof(_state, _field),                        \
+    .start        = (_start),                                        \
+}
+
 #define VMSTATE_BUFFER_UNSAFE_INFO(_field, _state, _version, _info, _size) { \
     .name       = (stringify(_field)),                               \
     .version_id = (_version),                                        \
@@ -744,6 +755,9 @@ extern const VMStateDescription vmstate_i2c_slave;
 
 #define VMSTATE_PARTIAL_VBUFFER(_f, _s, _size)                        \
     VMSTATE_VBUFFER(_f, _s, 0, NULL, 0, _size)
+
+#define VMSTATE_PARTIAL_VBUFFER_UINT32(_f, _s, _size)                        \
+    VMSTATE_VBUFFER_UINT32(_f, _s, 0, NULL, 0, _size)
 
 #define VMSTATE_SUB_VBUFFER(_f, _s, _start, _size)                    \
     VMSTATE_VBUFFER(_f, _s, 0, NULL, _start, _size)

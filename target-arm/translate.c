@@ -247,13 +247,9 @@ static void gen_rev16(TCGv var)
 /* Byteswap low halfword and sign extend.  */
 static void gen_revsh(TCGv var)
 {
-    TCGv tmp = new_tmp();
-    tcg_gen_shri_i32(tmp, var, 8);
-    tcg_gen_andi_i32(tmp, tmp, 0x00ff);
-    tcg_gen_shli_i32(var, var, 8);
-    tcg_gen_ext8s_i32(var, var);
-    tcg_gen_or_i32(var, var, tmp);
-    dead_tmp(tmp);
+    tcg_gen_ext16u_i32(var, var);
+    tcg_gen_bswap16_i32(var, var);
+    tcg_gen_ext16s_i32(var, var);
 }
 
 /* Unsigned bitfield extract.  */
@@ -4237,9 +4233,9 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 case 9: /* VQSHL */
                     if (u) {
                         gen_helper_neon_qshl_u64(cpu_V0, cpu_env,
-                                                 cpu_V0, cpu_V0);
+                                                 cpu_V1, cpu_V0);
                     } else {
-                        gen_helper_neon_qshl_s64(cpu_V1, cpu_env,
+                        gen_helper_neon_qshl_s64(cpu_V0, cpu_env,
                                                  cpu_V1, cpu_V0);
                     }
                     break;

@@ -120,6 +120,7 @@ struct VncDisplay
 
     char *display;
     char *password;
+    time_t expires;
     int auth;
     bool lossy;
 #ifdef CONFIG_VNC_TLS

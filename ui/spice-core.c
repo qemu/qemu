@@ -18,16 +18,26 @@
 #include <spice.h>
 #include <spice-experimental.h>
 
+#include <netdb.h>
+
 #include "qemu-common.h"
 #include "qemu-spice.h"
 #include "qemu-timer.h"
 #include "qemu-queue.h"
 #include "qemu-x509.h"
+#include "qemu_socket.h"
+#include "qint.h"
+#include "qbool.h"
+#include "qstring.h"
+#include "qjson.h"
 #include "monitor.h"
 
 /* core bits */
 
 static SpiceServer *spice_server;
+static const char *auth = "spice";
+static char *auth_passwd;
+static time_t auth_expires = TIME_MAX;
 int using_spice = 0;
 
 struct SpiceTimer {
@@ -121,6 +131,118 @@ static void watch_remove(SpiceWatch *watch)
     qemu_free(watch);
 }
 
+#if SPICE_INTERFACE_CORE_MINOR >= 3
+
+typedef struct ChannelList ChannelList;
+struct ChannelList {
+    SpiceChannelEventInfo *info;
+    QTAILQ_ENTRY(ChannelList) link;
+};
+static QTAILQ_HEAD(, ChannelList) channel_list = QTAILQ_HEAD_INITIALIZER(channel_list);
+
+static void channel_list_add(SpiceChannelEventInfo *info)
+{
+    ChannelList *item;
+
+    item = qemu_mallocz(sizeof(*item));
+    item->info = info;
+    QTAILQ_INSERT_TAIL(&channel_list, item, link);
+}
+
+static void channel_list_del(SpiceChannelEventInfo *info)
+{
+    ChannelList *item;
+
+    QTAILQ_FOREACH(item, &channel_list, link) {
+        if (item->info != info) {
+            continue;
+        }
+        QTAILQ_REMOVE(&channel_list, item, link);
+        qemu_free(item);
+        return;
+    }
+}
+
+static void add_addr_info(QDict *dict, struct sockaddr *addr, int len)
+{
+    char host[NI_MAXHOST], port[NI_MAXSERV];
+    const char *family;
+
+    getnameinfo(addr, len, host, sizeof(host), port, sizeof(port),
+                NI_NUMERICHOST | NI_NUMERICSERV);
+    family = inet_strfamily(addr->sa_family);
+
+    qdict_put(dict, "host", qstring_from_str(host));
+    qdict_put(dict, "port", qstring_from_str(port));
+    qdict_put(dict, "family", qstring_from_str(family));
+}
+
+static void add_channel_info(QDict *dict, SpiceChannelEventInfo *info)
+{
+    int tls = info->flags & SPICE_CHANNEL_EVENT_FLAG_TLS;
+
+    qdict_put(dict, "connection-id", qint_from_int(info->connection_id));
+    qdict_put(dict, "channel-type", qint_from_int(info->type));
+    qdict_put(dict, "channel-id", qint_from_int(info->id));
+    qdict_put(dict, "tls", qbool_from_int(tls));
+}
+
+static QList *channel_list_get(void)
+{
+    ChannelList *item;
+    QList *list;
+    QDict *dict;
+
+    list = qlist_new();
+    QTAILQ_FOREACH(item, &channel_list, link) {
+        dict = qdict_new();
+        add_addr_info(dict, &item->info->paddr, item->info->plen);
+        add_channel_info(dict, item->info);
+        qlist_append(list, dict);
+    }
+    return list;
+}
+
+static void channel_event(int event, SpiceChannelEventInfo *info)
+{
+    static const int qevent[] = {
+        [ SPICE_CHANNEL_EVENT_CONNECTED    ] = QEVENT_SPICE_CONNECTED,
+        [ SPICE_CHANNEL_EVENT_INITIALIZED  ] = QEVENT_SPICE_INITIALIZED,
+        [ SPICE_CHANNEL_EVENT_DISCONNECTED ] = QEVENT_SPICE_DISCONNECTED,
+    };
+    QDict *server, *client;
+    QObject *data;
+
+    client = qdict_new();
+    add_addr_info(client, &info->paddr, info->plen);
+
+    server = qdict_new();
+    add_addr_info(server, &info->laddr, info->llen);
+
+    if (event == SPICE_CHANNEL_EVENT_INITIALIZED) {
+        qdict_put(server, "auth", qstring_from_str(auth));
+        add_channel_info(client, info);
+        channel_list_add(info);
+    }
+    if (event == SPICE_CHANNEL_EVENT_DISCONNECTED) {
+        channel_list_del(info);
+    }
+
+    data = qobject_from_jsonf("{ 'client': %p, 'server': %p }",
+                              QOBJECT(client), QOBJECT(server));
+    monitor_protocol_event(qevent[event], data);
+    qobject_decref(data);
+}
+
+#else /* SPICE_INTERFACE_CORE_MINOR >= 3 */
+
+static QList *channel_list_get(void)
+{
+    return NULL;
+}
+
+#endif /* SPICE_INTERFACE_CORE_MINOR >= 3 */
+
 static SpiceCoreInterface core_interface = {
     .base.type          = SPICE_INTERFACE_CORE,
     .base.description   = "qemu core services",
@@ -135,6 +257,10 @@ static SpiceCoreInterface core_interface = {
     .watch_add          = watch_add,
     .watch_update_mask  = watch_update_mask,
     .watch_remove       = watch_remove,
+
+#if SPICE_INTERFACE_CORE_MINOR >= 3
+    .channel_event      = channel_event,
+#endif
 };
 
 /* config string parsing */
@@ -203,6 +329,92 @@ static const char *wan_compression_names[] = {
                wan_compression_names, ARRAY_SIZE(wan_compression_names))
 
 /* functions for the rest of qemu */
+
+static void info_spice_iter(QObject *obj, void *opaque)
+{
+    QDict *client;
+    Monitor *mon = opaque;
+
+    client = qobject_to_qdict(obj);
+    monitor_printf(mon, "Channel:\n");
+    monitor_printf(mon, "     address: %s:%s%s\n",
+                   qdict_get_str(client, "host"),
+                   qdict_get_str(client, "port"),
+                   qdict_get_bool(client, "tls") ? " [tls]" : "");
+    monitor_printf(mon, "     session: %" PRId64 "\n",
+                   qdict_get_int(client, "connection-id"));
+    monitor_printf(mon, "     channel: %d:%d\n",
+                   (int)qdict_get_int(client, "channel-type"),
+                   (int)qdict_get_int(client, "channel-id"));
+}
+
+void do_info_spice_print(Monitor *mon, const QObject *data)
+{
+    QDict *server;
+    QList *channels;
+    const char *host;
+    int port;
+
+    server = qobject_to_qdict(data);
+    if (qdict_get_bool(server, "enabled") == 0) {
+        monitor_printf(mon, "Server: disabled\n");
+        return;
+    }
+
+    monitor_printf(mon, "Server:\n");
+    host = qdict_get_str(server, "host");
+    port = qdict_get_try_int(server, "port", -1);
+    if (port != -1) {
+        monitor_printf(mon, "     address: %s:%d\n", host, port);
+    }
+    port = qdict_get_try_int(server, "tls-port", -1);
+    if (port != -1) {
+        monitor_printf(mon, "     address: %s:%d [tls]\n", host, port);
+    }
+    monitor_printf(mon, "        auth: %s\n", qdict_get_str(server, "auth"));
+
+    channels = qdict_get_qlist(server, "channels");
+    if (qlist_empty(channels)) {
+        monitor_printf(mon, "Channels: none\n");
+    } else {
+        qlist_iter(channels, info_spice_iter, mon);
+    }
+}
+
+void do_info_spice(Monitor *mon, QObject **ret_data)
+{
+    QemuOpts *opts = QTAILQ_FIRST(&qemu_spice_opts.head);
+    QDict *server;
+    QList *clist;
+    const char *addr;
+    int port, tls_port;
+
+    if (!spice_server) {
+        *ret_data = qobject_from_jsonf("{ 'enabled': false }");
+        return;
+    }
+
+    addr = qemu_opt_get(opts, "addr");
+    port = qemu_opt_get_number(opts, "port", 0);
+    tls_port = qemu_opt_get_number(opts, "tls-port", 0);
+    clist = channel_list_get();
+
+    server = qdict_new();
+    qdict_put(server, "enabled", qbool_from_int(true));
+    qdict_put(server, "auth", qstring_from_str(auth));
+    qdict_put(server, "host", qstring_from_str(addr ? addr : "0.0.0.0"));
+    if (port) {
+        qdict_put(server, "port", qint_from_int(port));
+    }
+    if (tls_port) {
+        qdict_put(server, "tls-port", qint_from_int(tls_port));
+    }
+    if (clist) {
+        qdict_put(server, "channels", clist);
+    }
+
+    *ret_data = QOBJECT(server);
+}
 
 static int add_channel(const char *name, const char *value, void *opaque)
 {
@@ -316,6 +528,7 @@ void qemu_spice_init(void)
         spice_server_set_ticket(spice_server, password, 0, 0, 0);
     }
     if (qemu_opt_get_bool(opts, "disable-ticketing", 0)) {
+        auth = "none";
         spice_server_set_noauth(spice_server);
     }
 
@@ -370,7 +583,55 @@ void qemu_spice_init(void)
 
 int qemu_spice_add_interface(SpiceBaseInstance *sin)
 {
+    if (!spice_server) {
+        if (QTAILQ_FIRST(&qemu_spice_opts.head) != NULL) {
+            fprintf(stderr, "Oops: spice configured but not active\n");
+            exit(1);
+        }
+        /*
+         * Create a spice server instance.
+         * It does *not* listen on the network.
+         * It handles QXL local rendering only.
+         *
+         * With a command line like '-vnc :0 -vga qxl' you'll end up here.
+         */
+        spice_server = spice_server_new();
+        spice_server_init(spice_server, &core_interface);
+    }
     return spice_server_add_interface(spice_server, sin);
+}
+
+static int qemu_spice_set_ticket(bool fail_if_conn, bool disconnect_if_conn)
+{
+    time_t lifetime, now = time(NULL);
+    char *passwd;
+
+    if (now < auth_expires) {
+        passwd = auth_passwd;
+        lifetime = (auth_expires - now);
+        if (lifetime > INT_MAX) {
+            lifetime = INT_MAX;
+        }
+    } else {
+        passwd = NULL;
+        lifetime = 1;
+    }
+    return spice_server_set_ticket(spice_server, passwd, lifetime,
+                                   fail_if_conn, disconnect_if_conn);
+}
+
+int qemu_spice_set_passwd(const char *passwd,
+                          bool fail_if_conn, bool disconnect_if_conn)
+{
+    free(auth_passwd);
+    auth_passwd = strdup(passwd);
+    return qemu_spice_set_ticket(fail_if_conn, disconnect_if_conn);
+}
+
+int qemu_spice_set_pw_expire(time_t expires)
+{
+    auth_expires = expires;
+    return qemu_spice_set_ticket(false, false);
 }
 
 static void spice_register_config(void)
