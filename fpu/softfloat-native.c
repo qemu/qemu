@@ -254,7 +254,7 @@ int float32_is_signaling_nan( float32 a1)
     return ( ( ( a>>22 ) & 0x1FF ) == 0x1FE ) && ( a & 0x003FFFFF );
 }
 
-int float32_is_nan( float32 a1 )
+int float32_is_quiet_nan( float32 a1 )
 {
     float32u u;
     uint64_t a;
@@ -411,7 +411,7 @@ int float64_is_signaling_nan( float64 a1)
 
 }
 
-int float64_is_nan( float64 a1 )
+int float64_is_quiet_nan( float64 a1 )
 {
     float64u u;
     uint64_t a;
@@ -504,7 +504,7 @@ int floatx80_is_signaling_nan( floatx80 a1)
         && ( u.i.low == aLow );
 }
 
-int floatx80_is_nan( floatx80 a1 )
+int floatx80_is_quiet_nan( floatx80 a1 )
 {
     floatx80u u;
     u.f = a1;
