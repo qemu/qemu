@@ -306,7 +306,7 @@ int load_multiboot(void *fw_cfg,
                                 | MULTIBOOT_FLAGS_MODULES
                                 | MULTIBOOT_FLAGS_MMAP);
     stl_p(bootinfo + MBI_MEM_LOWER,   640);
-    stl_p(bootinfo + MBI_MEM_UPPER,   ram_size / 1024);
+    stl_p(bootinfo + MBI_MEM_UPPER,   (ram_size / 1024) - 1024);
     stl_p(bootinfo + MBI_BOOT_DEVICE, 0x8001ffff); /* XXX: use the -boot switch? */
     stl_p(bootinfo + MBI_MMAP_ADDR,   ADDR_E820_MAP);
 
