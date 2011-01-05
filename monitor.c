@@ -4162,7 +4162,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
             break;
         case 'o':
             {
-                ssize_t val;
+                int64_t val;
                 char *end;
 
                 while (qemu_isspace(*p)) {
