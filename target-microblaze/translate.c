@@ -752,9 +752,8 @@ static void dec_bit(DisasContext *dc)
 static inline void sync_jmpstate(DisasContext *dc)
 {
     if (dc->jmp == JMP_DIRECT) {
-            dc->jmp = JMP_INDIRECT;
-            tcg_gen_movi_tl(env_btaken, 1);
-            tcg_gen_movi_tl(env_btarget, dc->jmp_pc);
+        dc->jmp = JMP_INDIRECT;
+        tcg_gen_movi_tl(env_btarget, dc->jmp_pc);
     }
 }
 
@@ -976,11 +975,13 @@ static void dec_bcc(DisasContext *dc)
         int32_t offset = (int32_t)((int16_t)dc->imm); /* sign-extend.  */
 
         tcg_gen_movi_tl(env_btarget, dc->pc + offset);
+        dc->jmp = JMP_DIRECT;
+        dc->jmp_pc = dc->pc + offset;
     } else {
+        dc->jmp = JMP_INDIRECT;
         tcg_gen_movi_tl(env_btarget, dc->pc);
         tcg_gen_add_tl(env_btarget, env_btarget, *(dec_alu_op_b(dc)));
     }
-    dc->jmp = JMP_INDIRECT;
     eval_cc(dc, cc, env_btaken, cpu_R[dc->ra], tcg_const_tl(0));
 }
 
@@ -1028,6 +1029,7 @@ static void dec_br(DisasContext *dc)
         if (dec_alu_op_b_is_small_imm(dc)) {
             dc->jmp = JMP_DIRECT;
             dc->jmp_pc = dc->pc + (int32_t)((int16_t)dc->imm);
+            tcg_gen_movi_tl(env_btaken, 1);
         } else {
             tcg_gen_movi_tl(env_btaken, 1);
             tcg_gen_movi_tl(env_btarget, dc->pc);
@@ -1130,6 +1132,7 @@ static void dec_rts(DisasContext *dc)
     } else
         LOG_DIS("rts ir=%x\n", dc->ir);
 
+    dc->jmp = JMP_INDIRECT;
     tcg_gen_movi_tl(env_btaken, 1);
     tcg_gen_add_tl(env_btarget, cpu_R[dc->ra], *(dec_alu_op_b(dc)));
 }
@@ -1370,6 +1373,9 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
     dc->is_jmp = DISAS_NEXT;
     dc->jmp = 0;
     dc->delayed_branch = !!(dc->tb_flags & D_FLAG);
+    if (dc->delayed_branch) {
+        dc->jmp = JMP_INDIRECT;
+    }
     dc->pc = pc_start;
     dc->singlestep_enabled = env->singlestep_enabled;
     dc->cpustate_changed = 0;
@@ -1441,9 +1447,21 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
                 /* Clear the delay slot flag.  */
                 dc->tb_flags &= ~D_FLAG;
                 /* If it is a direct jump, try direct chaining.  */
-                if (dc->jmp != JMP_DIRECT) {
+                if (dc->jmp == JMP_INDIRECT) {
                     eval_cond_jmp(dc, env_btarget, tcg_const_tl(dc->pc));
                     dc->is_jmp = DISAS_JUMP;
+                } else if (dc->jmp == JMP_DIRECT) {
+                    int l1;
+
+                    t_sync_flags(dc);
+                    l1 = gen_new_label();
+                    /* Conditional jmp.  */
+                    tcg_gen_brcondi_tl(TCG_COND_NE, env_btaken, 0, l1);
+                    gen_goto_tb(dc, 1, dc->pc);
+                    gen_set_label(l1);
+                    gen_goto_tb(dc, 0, dc->jmp_pc);
+
+                    dc->is_jmp = DISAS_TB_JUMP;
                 }
                 break;
             }
