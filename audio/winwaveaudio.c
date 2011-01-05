@@ -581,8 +581,7 @@ static int winwave_run_in (HWVoiceIn *hw)
         int conv = audio_MIN (left, decr);
         hw->conv (hw->conv_buf + hw->wpos,
                   advance (wave->pcm_buf, wave->rpos << hw->info.shift),
-                  conv,
-                  &nominal_volume);
+                  conv);
 
         wave->rpos = (wave->rpos + conv) % hw->samples;
         hw->wpos = (hw->wpos + conv) % hw->samples;

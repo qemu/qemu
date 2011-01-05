@@ -104,7 +104,7 @@ static struct {
 
 static AudioState glob_audio_state;
 
-struct mixeng_volume nominal_volume = {
+const struct mixeng_volume nominal_volume = {
     .mute = 0,
 #ifdef FLOAT_MIXENG
     .r = 1.0,
@@ -702,13 +702,11 @@ void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len)
 /*
  * Capture
  */
-static void noop_conv (struct st_sample *dst, const void *src,
-                       int samples, struct mixeng_volume *vol)
+static void noop_conv (struct st_sample *dst, const void *src, int samples)
 {
     (void) src;
     (void) dst;
     (void) samples;
-    (void) vol;
 }
 
 static CaptureVoiceOut *audio_pcm_capture_find_specific (
@@ -956,6 +954,8 @@ int audio_pcm_sw_read (SWVoiceIn *sw, void *buf, int size)
         total += isamp;
     }
 
+    mixeng_volume (sw->buf, ret, &sw->vol);
+
     sw->clip (buf, sw->buf, ret);
     sw->total_hw_samples_acquired += total;
     return ret << sw->info.shift;
@@ -1037,7 +1037,8 @@ int audio_pcm_sw_write (SWVoiceOut *sw, void *buf, int size)
     swlim = ((int64_t) dead << 32) / sw->ratio;
     swlim = audio_MIN (swlim, samples);
     if (swlim) {
-        sw->conv (sw->buf, buf, swlim, &sw->vol);
+        sw->conv (sw->buf, buf, swlim);
+        mixeng_volume (sw->buf, swlim, &sw->vol);
     }
 
     while (swlim) {

@@ -211,7 +211,7 @@ extern struct audio_driver esd_audio_driver;
 extern struct audio_driver pa_audio_driver;
 extern struct audio_driver spice_audio_driver;
 extern struct audio_driver winwave_audio_driver;
-extern struct mixeng_volume nominal_volume;
+extern const struct mixeng_volume nominal_volume;
 
 void audio_pcm_init_info (struct audio_pcm_info *info, struct audsettings *as);
 void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len);

@@ -195,7 +195,7 @@ static void *qpa_thread_in (void *arg)
                 return NULL;
             }
 
-            hw->conv (hw->conv_buf + wpos, buf, chunk, &nominal_volume);
+            hw->conv (hw->conv_buf + wpos, buf, chunk);
             wpos = (wpos + chunk) % hw->samples;
             to_grab -= chunk;
         }
