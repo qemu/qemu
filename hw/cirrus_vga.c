@@ -3227,6 +3227,7 @@ static PCIDeviceInfo cirrus_vga_info = {
     .qdev.desc    = "Cirrus CLGD 54xx VGA",
     .qdev.size    = sizeof(PCICirrusVGAState),
     .qdev.vmsd    = &vmstate_pci_cirrus_vga,
+    .no_hotplug   = 1,
     .init         = pci_cirrus_vga_initfn,
     .romfile      = VGABIOS_CIRRUS_FILENAME,
     .config_write = pci_cirrus_write_config,
