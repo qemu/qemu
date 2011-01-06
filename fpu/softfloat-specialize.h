@@ -161,7 +161,8 @@ static float32 commonNaNToFloat32( commonNaNT a )
 | The routine is passed various bits of information about the
 | two NaNs and should return 0 to select NaN a and 1 for NaN b.
 | Note that signalling NaNs are always squashed to quiet NaNs
-| by the caller, by flipping the SNaN bit before returning them.
+| by the caller, by calling floatXX_maybe_silence_nan() before
+| returning them.
 |
 | aIsLargerSignificand is only valid if both a and b are NaNs
 | of some kind, and is true if a has the larger significand,
@@ -233,7 +234,7 @@ static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
 {
     flag aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN;
     flag aIsLargerSignificand;
-    bits32 av, bv, res;
+    bits32 av, bv;
 
     if ( STATUS(default_nan_mode) )
         return float32_default_nan;
@@ -244,13 +245,7 @@ static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
     bIsSignalingNaN = float32_is_signaling_nan( b );
     av = float32_val(a);
     bv = float32_val(b);
-#if SNAN_BIT_IS_ONE
-    av &= ~0x00400000;
-    bv &= ~0x00400000;
-#else
-    av |= 0x00400000;
-    bv |= 0x00400000;
-#endif
+
     if ( aIsSignalingNaN | bIsSignalingNaN ) float_raise( float_flag_invalid STATUS_VAR);
 
     if ((bits32)(av<<1) < (bits32)(bv<<1)) {
@@ -263,12 +258,10 @@ static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
 
     if (pickNaN(aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN,
                 aIsLargerSignificand)) {
-        res = bv;
+        return float32_maybe_silence_nan(b);
     } else {
-        res = av;
+        return float32_maybe_silence_nan(a);
     }
-
-    return make_float32(res);
 }
 
 /*----------------------------------------------------------------------------
@@ -386,7 +379,7 @@ static float64 propagateFloat64NaN( float64 a, float64 b STATUS_PARAM)
 {
     flag aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN;
     flag aIsLargerSignificand;
-    bits64 av, bv, res;
+    bits64 av, bv;
 
     if ( STATUS(default_nan_mode) )
         return float64_default_nan;
@@ -397,13 +390,7 @@ static float64 propagateFloat64NaN( float64 a, float64 b STATUS_PARAM)
     bIsSignalingNaN = float64_is_signaling_nan( b );
     av = float64_val(a);
     bv = float64_val(b);
-#if SNAN_BIT_IS_ONE
-    av &= ~LIT64( 0x0008000000000000 );
-    bv &= ~LIT64( 0x0008000000000000 );
-#else
-    av |= LIT64( 0x0008000000000000 );
-    bv |= LIT64( 0x0008000000000000 );
-#endif
+
     if ( aIsSignalingNaN | bIsSignalingNaN ) float_raise( float_flag_invalid STATUS_VAR);
 
     if ((bits64)(av<<1) < (bits64)(bv<<1)) {
@@ -416,12 +403,10 @@ static float64 propagateFloat64NaN( float64 a, float64 b STATUS_PARAM)
 
     if (pickNaN(aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN,
                 aIsLargerSignificand)) {
-        res = bv;
+        return float64_maybe_silence_nan(b);
     } else {
-        res = av;
+        return float64_maybe_silence_nan(a);
     }
-
-    return make_float64(res);
 }
 
 #ifdef FLOATX80
@@ -557,13 +542,7 @@ static floatx80 propagateFloatx80NaN( floatx80 a, floatx80 b STATUS_PARAM)
     aIsSignalingNaN = floatx80_is_signaling_nan( a );
     bIsQuietNaN = floatx80_is_quiet_nan( b );
     bIsSignalingNaN = floatx80_is_signaling_nan( b );
-#if SNAN_BIT_IS_ONE
-    a.low &= ~LIT64( 0xC000000000000000 );
-    b.low &= ~LIT64( 0xC000000000000000 );
-#else
-    a.low |= LIT64( 0xC000000000000000 );
-    b.low |= LIT64( 0xC000000000000000 );
-#endif
+
     if ( aIsSignalingNaN | bIsSignalingNaN ) float_raise( float_flag_invalid STATUS_VAR);
 
     if (a.low < b.low) {
@@ -576,9 +555,9 @@ static floatx80 propagateFloatx80NaN( floatx80 a, floatx80 b STATUS_PARAM)
 
     if (pickNaN(aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN,
                 aIsLargerSignificand)) {
-        return b;
+        return floatx80_maybe_silence_nan(b);
     } else {
-        return a;
+        return floatx80_maybe_silence_nan(a);
     }
 }
 
@@ -708,13 +687,7 @@ static float128 propagateFloat128NaN( float128 a, float128 b STATUS_PARAM)
     aIsSignalingNaN = float128_is_signaling_nan( a );
     bIsQuietNaN = float128_is_quiet_nan( b );
     bIsSignalingNaN = float128_is_signaling_nan( b );
-#if SNAN_BIT_IS_ONE
-    a.high &= ~LIT64( 0x0000800000000000 );
-    b.high &= ~LIT64( 0x0000800000000000 );
-#else
-    a.high |= LIT64( 0x0000800000000000 );
-    b.high |= LIT64( 0x0000800000000000 );
-#endif
+
     if ( aIsSignalingNaN | bIsSignalingNaN ) float_raise( float_flag_invalid STATUS_VAR);
 
     if (lt128(a.high<<1, a.low, b.high<<1, b.low)) {
@@ -727,9 +700,9 @@ static float128 propagateFloat128NaN( float128 a, float128 b STATUS_PARAM)
 
     if (pickNaN(aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN,
                 aIsLargerSignificand)) {
-        return b;
+        return float128_maybe_silence_nan(b);
     } else {
-        return a;
+        return float128_maybe_silence_nan(a);
     }
 }
 
