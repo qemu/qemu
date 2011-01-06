@@ -2315,7 +2315,7 @@ void HELPER(vfp_set_fpscr)(CPUState *env, uint32_t val)
     if (changed & (1 << 25))
         set_default_nan_mode((val & (1 << 25)) != 0, &env->vfp.fp_status);
 
-    i = vfp_exceptbits_to_host((val >> 8) & 0x1f);
+    i = vfp_exceptbits_to_host(val);
     set_float_exception_flags(i, &env->vfp.fp_status);
 }
 
