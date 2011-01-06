@@ -2859,12 +2859,7 @@ int bdrv_img_create(const char *filename, const char *fmt,
     if (get_option_parameter(param, BLOCK_OPT_SIZE)->value.n == -1) {
         if (backing_file && backing_file->value.s) {
             uint64_t size;
-            const char *fmt = NULL;
             char buf[32];
-
-            if (backing_fmt && backing_fmt->value.s) {
-                fmt = backing_fmt->value.s;
-            }
 
             bs = bdrv_new("");
 
