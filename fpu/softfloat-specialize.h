@@ -227,15 +227,16 @@ static int pickNaN(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
 
 static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
 {
-    flag aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN, aIsLargerSignificand;
+    flag aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN;
+    flag aIsLargerSignificand;
     bits32 av, bv, res;
 
     if ( STATUS(default_nan_mode) )
         return float32_default_nan;
 
-    aIsNaN = float32_is_quiet_nan( a );
+    aIsQuietNaN = float32_is_quiet_nan( a );
     aIsSignalingNaN = float32_is_signaling_nan( a );
-    bIsNaN = float32_is_quiet_nan( b );
+    bIsQuietNaN = float32_is_quiet_nan( b );
     bIsSignalingNaN = float32_is_signaling_nan( b );
     av = float32_val(a);
     bv = float32_val(b);
@@ -256,7 +257,7 @@ static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
         aIsLargerSignificand = (av < bv) ? 1 : 0;
     }
 
-    if (pickNaN(aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN,
+    if (pickNaN(aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN,
                 aIsLargerSignificand)) {
         res = bv;
     } else {
@@ -375,15 +376,16 @@ static float64 commonNaNToFloat64( commonNaNT a )
 
 static float64 propagateFloat64NaN( float64 a, float64 b STATUS_PARAM)
 {
-    flag aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN, aIsLargerSignificand;
+    flag aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN;
+    flag aIsLargerSignificand;
     bits64 av, bv, res;
 
     if ( STATUS(default_nan_mode) )
         return float64_default_nan;
 
-    aIsNaN = float64_is_quiet_nan( a );
+    aIsQuietNaN = float64_is_quiet_nan( a );
     aIsSignalingNaN = float64_is_signaling_nan( a );
-    bIsNaN = float64_is_quiet_nan( b );
+    bIsQuietNaN = float64_is_quiet_nan( b );
     bIsSignalingNaN = float64_is_signaling_nan( b );
     av = float64_val(a);
     bv = float64_val(b);
@@ -404,7 +406,7 @@ static float64 propagateFloat64NaN( float64 a, float64 b STATUS_PARAM)
         aIsLargerSignificand = (av < bv) ? 1 : 0;
     }
 
-    if (pickNaN(aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN,
+    if (pickNaN(aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN,
                 aIsLargerSignificand)) {
         res = bv;
     } else {
@@ -511,7 +513,8 @@ static floatx80 commonNaNToFloatx80( commonNaNT a )
 
 static floatx80 propagateFloatx80NaN( floatx80 a, floatx80 b STATUS_PARAM)
 {
-    flag aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN, aIsLargerSignificand;
+    flag aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN;
+    flag aIsLargerSignificand;
 
     if ( STATUS(default_nan_mode) ) {
         a.low = floatx80_default_nan_low;
@@ -519,9 +522,9 @@ static floatx80 propagateFloatx80NaN( floatx80 a, floatx80 b STATUS_PARAM)
         return a;
     }
 
-    aIsNaN = floatx80_is_quiet_nan( a );
+    aIsQuietNaN = floatx80_is_quiet_nan( a );
     aIsSignalingNaN = floatx80_is_signaling_nan( a );
-    bIsNaN = floatx80_is_quiet_nan( b );
+    bIsQuietNaN = floatx80_is_quiet_nan( b );
     bIsSignalingNaN = floatx80_is_signaling_nan( b );
 #if SNAN_BIT_IS_ONE
     a.low &= ~LIT64( 0xC000000000000000 );
@@ -540,7 +543,7 @@ static floatx80 propagateFloatx80NaN( floatx80 a, floatx80 b STATUS_PARAM)
         aIsLargerSignificand = (a.high < b.high) ? 1 : 0;
     }
 
-    if (pickNaN(aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN,
+    if (pickNaN(aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN,
                 aIsLargerSignificand)) {
         return b;
     } else {
@@ -638,7 +641,8 @@ static float128 commonNaNToFloat128( commonNaNT a )
 
 static float128 propagateFloat128NaN( float128 a, float128 b STATUS_PARAM)
 {
-    flag aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN, aIsLargerSignificand;
+    flag aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN;
+    flag aIsLargerSignificand;
 
     if ( STATUS(default_nan_mode) ) {
         a.low = float128_default_nan_low;
@@ -646,9 +650,9 @@ static float128 propagateFloat128NaN( float128 a, float128 b STATUS_PARAM)
         return a;
     }
 
-    aIsNaN = float128_is_quiet_nan( a );
+    aIsQuietNaN = float128_is_quiet_nan( a );
     aIsSignalingNaN = float128_is_signaling_nan( a );
-    bIsNaN = float128_is_quiet_nan( b );
+    bIsQuietNaN = float128_is_quiet_nan( b );
     bIsSignalingNaN = float128_is_signaling_nan( b );
 #if SNAN_BIT_IS_ONE
     a.high &= ~LIT64( 0x0000800000000000 );
@@ -667,7 +671,7 @@ static float128 propagateFloat128NaN( float128 a, float128 b STATUS_PARAM)
         aIsLargerSignificand = (a.high < b.high) ? 1 : 0;
     }
 
-    if (pickNaN(aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN,
+    if (pickNaN(aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN,
                 aIsLargerSignificand)) {
         return b;
     } else {
