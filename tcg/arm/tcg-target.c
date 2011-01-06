@@ -406,35 +406,38 @@ static inline void tcg_out_dat_imm(TCGContext *s,
 }
 
 static inline void tcg_out_movi32(TCGContext *s,
-                int cond, int rd, int32_t arg)
+                int cond, int rd, uint32_t arg)
 {
     /* TODO: This is very suboptimal, we can easily have a constant
      * pool somewhere after all the instructions.  */
-
-    if (arg < 0 && arg > -0x100)
-        return tcg_out_dat_imm(s, cond, ARITH_MVN, rd, 0, (~arg) & 0xff);
-
-    if (use_armv7_instructions) {
+    if ((int)arg < 0 && (int)arg >= -0x100) {
+        tcg_out_dat_imm(s, cond, ARITH_MVN, rd, 0, (~arg) & 0xff);
+    } else if (use_armv7_instructions) {
         /* use movw/movt */
         /* movw */
         tcg_out32(s, (cond << 28) | 0x03000000 | (rd << 12)
                   | ((arg << 4) & 0x000f0000) | (arg & 0xfff));
-        if (arg & 0xffff0000)
+        if (arg & 0xffff0000) {
             /* movt */
             tcg_out32(s, (cond << 28) | 0x03400000 | (rd << 12)
                       | ((arg >> 12) & 0x000f0000) | ((arg >> 16) & 0xfff));
-    } else {
-        tcg_out_dat_imm(s, cond, ARITH_MOV, rd, 0, arg & 0xff);
-        if (arg & 0x0000ff00)
-            tcg_out_dat_imm(s, cond, ARITH_ORR, rd, rd,
-                            ((arg >>  8) & 0xff) | 0xc00);
-        if (arg & 0x00ff0000)
-            tcg_out_dat_imm(s, cond, ARITH_ORR, rd, rd,
-                            ((arg >> 16) & 0xff) | 0x800);
-        if (arg & 0xff000000)
-            tcg_out_dat_imm(s, cond, ARITH_ORR, rd, rd,
-                            ((arg >> 24) & 0xff) | 0x400);
         }
+    } else {
+        int opc = ARITH_MOV;
+        int rn = 0;
+
+        do {
+            int i, rot;
+
+            i = ctz32(arg) & ~1;
+            rot = ((32 - i) << 7) & 0xf00;
+            tcg_out_dat_imm(s, cond, opc, rd, rn, ((arg >> i) & 0xff) | rot);
+            arg &= ~(0xff << i);
+
+            opc = ARITH_ORR;
+            rn = rd;
+        } while (arg);
+    }
 }
 
 static inline void tcg_out_mul32(TCGContext *s,
