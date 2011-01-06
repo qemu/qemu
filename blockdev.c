@@ -526,6 +526,12 @@ int do_snapshot_blkdev(Monitor *mon, const QDict *qdict, QObject **ret_data)
     int ret = 0;
     int flags;
 
+    if (!filename) {
+        qerror_report(QERR_MISSING_PARAMETER, "snapshot_file");
+        ret = -1;
+        goto out;
+    }
+
     bs = bdrv_find(device);
     if (!bs) {
         qerror_report(QERR_DEVICE_NOT_FOUND, device);
