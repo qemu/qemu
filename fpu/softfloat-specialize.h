@@ -107,13 +107,17 @@ int float32_is_signaling_nan( float32 a_ )
 float32 float32_maybe_silence_nan( float32 a_ )
 {
     if (float32_is_signaling_nan(a_)) {
-        uint32_t a = float32_val(a_);
 #if SNAN_BIT_IS_ONE
-        a &= ~(1 << 22);
+#  if defined(TARGET_MIPS)
+        return float32_default_nan;
+#  else
+#    error Rules for silencing a signaling NaN are target-specific
+#  endif
 #else
+        bits32 a = float32_val(a_);
         a |= (1 << 22);
-#endif
         return make_float32(a);
+#endif
     }
     return a_;
 }
@@ -322,13 +326,17 @@ int float64_is_signaling_nan( float64 a_ )
 float64 float64_maybe_silence_nan( float64 a_ )
 {
     if (float64_is_signaling_nan(a_)) {
-        bits64 a = float64_val(a_);
 #if SNAN_BIT_IS_ONE
-        a &= ~LIT64( 0x0008000000000000 );
+#  if defined(TARGET_MIPS)
+        return float64_default_nan;
+#  else
+#    error Rules for silencing a signaling NaN are target-specific
+#  endif
 #else
+        bits64 a = float64_val(a_);
         a |= LIT64( 0x0008000000000000 );
-#endif
         return make_float64(a);
+#endif
     }
     return a_;
 }
