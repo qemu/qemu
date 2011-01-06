@@ -439,6 +439,7 @@ int floatx80_le_quiet( floatx80, floatx80 STATUS_PARAM );
 int floatx80_lt_quiet( floatx80, floatx80 STATUS_PARAM );
 int floatx80_is_quiet_nan( floatx80 );
 int floatx80_is_signaling_nan( floatx80 );
+floatx80 floatx80_maybe_silence_nan( floatx80 );
 floatx80 floatx80_scalbn( floatx80, int STATUS_PARAM );
 
 INLINE floatx80 floatx80_abs(floatx80 a)
@@ -505,6 +506,7 @@ int float128_compare( float128, float128 STATUS_PARAM );
 int float128_compare_quiet( float128, float128 STATUS_PARAM );
 int float128_is_quiet_nan( float128 );
 int float128_is_signaling_nan( float128 );
+float128 float128_maybe_silence_nan( float128 );
 float128 float128_scalbn( float128, int STATUS_PARAM );
 
 INLINE float128 float128_abs(float128 a)

@@ -480,6 +480,29 @@ int floatx80_is_signaling_nan( floatx80 a )
 }
 
 /*----------------------------------------------------------------------------
+| Returns a quiet NaN if the extended double-precision floating point value
+| `a' is a signaling NaN; otherwise returns `a'.
+*----------------------------------------------------------------------------*/
+
+floatx80 floatx80_maybe_silence_nan( floatx80 a )
+{
+    if (floatx80_is_signaling_nan(a)) {
+#if SNAN_BIT_IS_ONE
+#  if defined(TARGET_MIPS)
+        a.low = floatx80_default_nan_low;
+        a.high = floatx80_default_nan_high;
+#  else
+#    error Rules for silencing a signaling NaN are target-specific
+#  endif
+#else
+        a.low |= LIT64( 0xC000000000000000 );
+        return a;
+#endif
+    }
+    return a;
+}
+
+/*----------------------------------------------------------------------------
 | Returns the result of converting the extended double-precision floating-
 | point NaN `a' to the canonical NaN format.  If `a' is a signaling NaN, the
 | invalid exception is raised.
@@ -609,6 +632,29 @@ int float128_is_signaling_nan( float128 a )
            ( ( ( a.high>>47 ) & 0xFFFF ) == 0xFFFE )
         && ( a.low || ( a.high & LIT64( 0x00007FFFFFFFFFFF ) ) );
 #endif
+}
+
+/*----------------------------------------------------------------------------
+| Returns a quiet NaN if the quadruple-precision floating point value `a' is
+| a signaling NaN; otherwise returns `a'.
+*----------------------------------------------------------------------------*/
+
+float128 float128_maybe_silence_nan( float128 a )
+{
+    if (float128_is_signaling_nan(a)) {
+#if SNAN_BIT_IS_ONE
+#  if defined(TARGET_MIPS)
+        a.low = float128_default_nan_low;
+        a.high = float128_default_nan_high;
+#  else
+#    error Rules for silencing a signaling NaN are target-specific
+#  endif
+#else
+        a.high |= LIT64( 0x0000800000000000 );
+        return a;
+#endif
+    }
+    return a;
 }
 
 /*----------------------------------------------------------------------------
