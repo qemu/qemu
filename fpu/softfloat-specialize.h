@@ -30,7 +30,7 @@ these four paragraphs for those parts of this code that are retained.
 
 =============================================================================*/
 
-#if defined(TARGET_MIPS) || defined(TARGET_HPPA)
+#if defined(TARGET_MIPS)
 #define SNAN_BIT_IS_ONE		1
 #else
 #define SNAN_BIT_IS_ONE		0
@@ -63,8 +63,6 @@ typedef struct {
 #define float32_default_nan make_float32(0x7FFFFFFF)
 #elif defined(TARGET_POWERPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA)
 #define float32_default_nan make_float32(0x7FC00000)
-#elif defined(TARGET_HPPA)
-#define float32_default_nan make_float32(0x7FA00000)
 #elif SNAN_BIT_IS_ONE
 #define float32_default_nan make_float32(0x7FBFFFFF)
 #else
@@ -275,8 +273,6 @@ static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
 #define float64_default_nan make_float64(LIT64( 0x7FFFFFFFFFFFFFFF ))
 #elif defined(TARGET_POWERPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA)
 #define float64_default_nan make_float64(LIT64( 0x7FF8000000000000 ))
-#elif defined(TARGET_HPPA)
-#define float64_default_nan make_float64(LIT64( 0x7FF4000000000000 ))
 #elif SNAN_BIT_IS_ONE
 #define float64_default_nan make_float64(LIT64( 0x7FF7FFFFFFFFFFFF ))
 #else
