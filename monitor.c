@@ -1136,9 +1136,9 @@ static int expire_password(Monitor *mon, const QDict *qdict, QObject **ret_data)
     time_t when;
     int rc;
 
-    if (strcmp(whenstr, "now")) {
+    if (strcmp(whenstr, "now") == 0) {
         when = 0;
-    } else if (strcmp(whenstr, "never")) {
+    } else if (strcmp(whenstr, "never") == 0) {
         when = TIME_MAX;
     } else if (whenstr[0] == '+') {
         when = time(NULL) + strtoull(whenstr+1, NULL, 10);
