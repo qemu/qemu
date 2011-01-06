@@ -2075,6 +2075,21 @@ if compile_prog "$ARCH_CFLAGS" "" ; then
   fallocate=yes
 fi
 
+# check for sync_file_range
+sync_file_range=no
+cat > $TMPC << EOF
+#include <fcntl.h>
+
+int main(void)
+{
+    sync_file_range(0, 0, 0, 0);
+    return 0;
+}
+EOF
+if compile_prog "$ARCH_CFLAGS" "" ; then
+  sync_file_range=yes
+fi
+
 # check for dup3
 dup3=no
 cat > $TMPC << EOF
@@ -2612,6 +2627,9 @@ if test "$eventfd" = "yes" ; then
 fi
 if test "$fallocate" = "yes" ; then
   echo "CONFIG_FALLOCATE=y" >> $config_host_mak
+fi
+if test "$sync_file_range" = "yes" ; then
+  echo "CONFIG_SYNC_FILE_RANGE=y" >> $config_host_mak
 fi
 if test "$dup3" = "yes" ; then
   echo "CONFIG_DUP3=y" >> $config_host_mak

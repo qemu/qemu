@@ -7365,6 +7365,29 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = get_errno(fallocate(arg1, arg2, arg3, arg4));
         break;
 #endif
+#if defined(CONFIG_SYNC_FILE_RANGE)
+#if defined(TARGET_NR_sync_file_range)
+    case TARGET_NR_sync_file_range:
+#if TARGET_ABI_BITS == 32
+        ret = get_errno(sync_file_range(arg1, target_offset64(arg2, arg3),
+                                        target_offset64(arg4, arg5), arg6));
+#else
+        ret = get_errno(sync_file_range(arg1, arg2, arg3, arg4));
+#endif
+        break;
+#endif
+#if defined(TARGET_NR_sync_file_range2)
+    case TARGET_NR_sync_file_range2:
+        /* This is like sync_file_range but the arguments are reordered */
+#if TARGET_ABI_BITS == 32
+        ret = get_errno(sync_file_range(arg1, target_offset64(arg3, arg4),
+                                        target_offset64(arg5, arg6), arg2));
+#else
+        ret = get_errno(sync_file_range(arg1, arg3, arg4, arg2));
+#endif
+        break;
+#endif
+#endif
     default:
     unimplemented:
         gemu_log("qemu: Unsupported syscall: %d\n", num);
