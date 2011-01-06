@@ -1,9 +1,9 @@
 /*
  * QEMU VLYNQ Serial Interface support.
  *
- * Copyright (C) 2009-2010 Stefan Weil
+ * Copyright (C) 2009-2011 Stefan Weil
  *
- * Portions of the code are copies from ssi.h.
+ * Portions of the code are copies from ssi.c.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,10 @@
  */
 
 #include "vlynq.h"
+
+struct _VLYNQBus {
+    BusState qbus;
+};
 
 static struct BusInfo vlynq_bus_info = {
     .name = "VLYNQ",

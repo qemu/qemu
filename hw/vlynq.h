@@ -1,7 +1,7 @@
 /*
  * QEMU VLYNQ Serial Interface support.
  *
- * Copyright (C) 2009-2010 Stefan Weil
+ * Copyright (C) 2009-2011 Stefan Weil
  *
  * Portions of the code are copies from ssi.h.
  *
@@ -20,23 +20,12 @@
  *
  */
 
-/* In principle VLYNQ is a point-point interface.  As such the qemu
-   implementation has a single slave device on a "bus".
-   However it is fairly common for boards to have multiple slaves
-   connected to a single master, and select devices with an external
-   chip select.  This is implemented in qemu by having an explicit mux device.
-   It is assumed that master and slave are both using the same transfer width.
-   */
-
 #ifndef QEMU_VLYNQ_H
 #define QEMU_VLYNQ_H
 
 #include "qdev.h"
 
-typedef struct {
-    BusState qbus;
-} VLYNQBus;
-
+typedef struct _VLYNQBus VLYNQBus;
 typedef struct _VLYNQSlave VLYNQSlave;
 typedef struct _VLYNQSlaveInfo VLYNQSlaveInfo;
 

@@ -3863,8 +3863,8 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     qdev_prop_set_uint8(dev, "vlynq tnetw1130", 0);
     qdev_init_nofail(dev);
 
-    vlynq_bus0 = vlynq_create_bus(dev, "vlynq");
-    vlynq_bus1 = vlynq_create_bus(dev, "vlynq");
+    vlynq_bus0 = vlynq_create_bus(dev, "vlynq0");
+    vlynq_bus1 = vlynq_create_bus(dev, "vlynq1");
     vlynq_create_slave(vlynq_bus0, "tnetw1130-vlynq");
 
     loaderparams.ram_size = machine_ram_size;
