@@ -2242,6 +2242,8 @@ static inline int vfp_exceptbits_from_host(int host_bits)
         target_bits |= 8;
     if (host_bits & float_flag_inexact)
         target_bits |= 0x10;
+    if (host_bits & float_flag_input_denormal)
+        target_bits |= 0x80;
     return target_bits;
 }
 
@@ -2278,6 +2280,8 @@ static inline int vfp_exceptbits_to_host(int target_bits)
         host_bits |= float_flag_underflow;
     if (target_bits & 0x10)
         host_bits |= float_flag_inexact;
+    if (target_bits & 0x80)
+        host_bits |= float_flag_input_denormal;
     return host_bits;
 }
 
@@ -2310,8 +2314,10 @@ void HELPER(vfp_set_fpscr)(CPUState *env, uint32_t val)
         }
         set_float_rounding_mode(i, &env->vfp.fp_status);
     }
-    if (changed & (1 << 24))
+    if (changed & (1 << 24)) {
         set_flush_to_zero((val & (1 << 24)) != 0, &env->vfp.fp_status);
+        set_flush_inputs_to_zero((val & (1 << 24)) != 0, &env->vfp.fp_status);
+    }
     if (changed & (1 << 25))
         set_default_nan_mode((val & (1 << 25)) != 0, &env->vfp.fp_status);
 
