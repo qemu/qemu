@@ -61,7 +61,7 @@ typedef struct {
 *----------------------------------------------------------------------------*/
 #if defined(TARGET_SPARC)
 #define float32_default_nan make_float32(0x7FFFFFFF)
-#elif defined(TARGET_POWERPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA)
+#elif defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA)
 #define float32_default_nan make_float32(0x7FC00000)
 #elif SNAN_BIT_IS_ONE
 #define float32_default_nan make_float32(0x7FBFFFFF)
@@ -219,6 +219,21 @@ static int pickNaN(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
         return 1;
     }
 }
+#elif defined(TARGET_PPC)
+static int pickNaN(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
+                   flag aIsLargerSignificand)
+{
+    /* PowerPC propagation rules:
+     *  1. A if it sNaN or qNaN
+     *  2. B if it sNaN or qNaN
+     * A signaling NaN is always silenced before returning it.
+     */
+    if (aIsSNaN || aIsQNaN) {
+        return 0;
+    } else {
+        return 1;
+    }
+}
 #else
 static int pickNaN(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
                     flag aIsLargerSignificand)
@@ -296,7 +311,7 @@ static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
 *----------------------------------------------------------------------------*/
 #if defined(TARGET_SPARC)
 #define float64_default_nan make_float64(LIT64( 0x7FFFFFFFFFFFFFFF ))
-#elif defined(TARGET_POWERPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA)
+#elif defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA)
 #define float64_default_nan make_float64(LIT64( 0x7FF8000000000000 ))
 #elif SNAN_BIT_IS_ONE
 #define float64_default_nan make_float64(LIT64( 0x7FF7FFFFFFFFFFFF ))
