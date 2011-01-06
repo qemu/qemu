@@ -2965,13 +2965,19 @@ enum {
 #undef STRUCT
 #undef STRUCT_SPECIAL
 
-typedef struct IOCTLEntry {
+typedef struct IOCTLEntry IOCTLEntry;
+
+typedef abi_long do_ioctl_fn(const IOCTLEntry *ie, uint8_t *buf_temp,
+                             int fd, abi_long cmd, abi_long arg);
+
+struct IOCTLEntry {
     unsigned int target_cmd;
     unsigned int host_cmd;
     const char *name;
     int access;
+    do_ioctl_fn *do_ioctl;
     const argtype arg_type[5];
-} IOCTLEntry;
+};
 
 #define IOC_R 0x0001
 #define IOC_W 0x0002
@@ -2981,7 +2987,9 @@ typedef struct IOCTLEntry {
 
 static IOCTLEntry ioctl_entries[] = {
 #define IOCTL(cmd, access, ...) \
-    { TARGET_ ## cmd, cmd, #cmd, access, {  __VA_ARGS__ } },
+    { TARGET_ ## cmd, cmd, #cmd, access, 0, {  __VA_ARGS__ } },
+#define IOCTL_SPECIAL(cmd, access, dofn, ...)                      \
+    { TARGET_ ## cmd, cmd, #cmd, access, dofn, {  __VA_ARGS__ } },
 #include "ioctls.h"
     { 0, 0, },
 };
@@ -3011,6 +3019,10 @@ static abi_long do_ioctl(int fd, abi_long cmd, abi_long arg)
 #if defined(DEBUG)
     gemu_log("ioctl: cmd=0x%04lx (%s)\n", (long)cmd, ie->name);
 #endif
+    if (ie->do_ioctl) {
+        return ie->do_ioctl(ie, buf_temp, fd, cmd, arg);
+    }
+
     switch(arg_type[0]) {
     case TYPE_NULL:
         /* no argument */
