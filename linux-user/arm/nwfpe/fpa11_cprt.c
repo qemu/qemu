@@ -199,21 +199,21 @@ static unsigned int PerformComparison(const unsigned int opcode)
    {
       case typeSingle:
         //printk("single.\n");
-	if (float32_is_quiet_nan(fpa11->fpreg[Fn].fSingle))
+	if (float32_is_any_nan(fpa11->fpreg[Fn].fSingle))
 	   goto unordered;
         rFn = float32_to_floatx80(fpa11->fpreg[Fn].fSingle, &fpa11->fp_status);
       break;
 
       case typeDouble:
         //printk("double.\n");
-	if (float64_is_quiet_nan(fpa11->fpreg[Fn].fDouble))
+	if (float64_is_any_nan(fpa11->fpreg[Fn].fDouble))
 	   goto unordered;
         rFn = float64_to_floatx80(fpa11->fpreg[Fn].fDouble, &fpa11->fp_status);
       break;
 
       case typeExtended:
         //printk("extended.\n");
-	if (floatx80_is_quiet_nan(fpa11->fpreg[Fn].fExtended))
+	if (floatx80_is_any_nan(fpa11->fpreg[Fn].fExtended))
 	   goto unordered;
         rFn = fpa11->fpreg[Fn].fExtended;
       break;
@@ -225,7 +225,7 @@ static unsigned int PerformComparison(const unsigned int opcode)
    {
      //printk("Fm is a constant: #%d.\n",Fm);
      rFm = getExtendedConstant(Fm);
-     if (floatx80_is_quiet_nan(rFm))
+     if (floatx80_is_any_nan(rFm))
         goto unordered;
    }
    else
@@ -235,21 +235,21 @@ static unsigned int PerformComparison(const unsigned int opcode)
       {
          case typeSingle:
            //printk("single.\n");
-	   if (float32_is_quiet_nan(fpa11->fpreg[Fm].fSingle))
+	   if (float32_is_any_nan(fpa11->fpreg[Fm].fSingle))
 	      goto unordered;
            rFm = float32_to_floatx80(fpa11->fpreg[Fm].fSingle, &fpa11->fp_status);
          break;
 
          case typeDouble:
            //printk("double.\n");
-	   if (float64_is_quiet_nan(fpa11->fpreg[Fm].fDouble))
+	   if (float64_is_any_nan(fpa11->fpreg[Fm].fDouble))
 	      goto unordered;
            rFm = float64_to_floatx80(fpa11->fpreg[Fm].fDouble, &fpa11->fp_status);
          break;
 
          case typeExtended:
            //printk("extended.\n");
-	   if (floatx80_is_quiet_nan(fpa11->fpreg[Fm].fExtended))
+	   if (floatx80_is_any_nan(fpa11->fpreg[Fm].fExtended))
 	      goto unordered;
            rFm = fpa11->fpreg[Fm].fExtended;
          break;
