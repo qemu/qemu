@@ -1546,6 +1546,7 @@ static PCIDeviceInfo qxl_info_primary = {
     .qdev.size    = sizeof(PCIQXLDevice),
     .qdev.reset   = qxl_reset_handler,
     .qdev.vmsd    = &qxl_vmstate,
+    .no_hotplug   = 1,
     .init         = qxl_init_primary,
     .config_write = qxl_write_config,
     .romfile      = "vgabios-qxl.bin",
