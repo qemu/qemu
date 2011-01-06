@@ -1902,7 +1902,7 @@ target_ulong helper_dlmzb (target_ulong high, target_ulong low, uint32_t update_
 /* If X is a NaN, store the corresponding QNaN into RESULT.  Otherwise,
  * execute the following block.  */
 #define DO_HANDLE_NAN(result, x)                \
-    if (float32_is_quiet_nan(x) || float32_is_signaling_nan(x)) {     \
+    if (float32_is_any_nan(x)) {                                \
         CPU_FloatU __f;                                         \
         __f.f = x;                                              \
         __f.l = __f.l | (1 << 22);  /* Set QNaN bit. */         \
@@ -2247,8 +2247,7 @@ void helper_vcmpbfp_dot (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
         float_status s = env->vec_status;                               \
         set_float_rounding_mode(float_round_to_zero, &s);               \
         for (i = 0; i < ARRAY_SIZE(r->f); i++) {                        \
-            if (float32_is_quiet_nan(b->f[i]) ||                              \
-                float32_is_signaling_nan(b->f[i])) {                    \
+            if (float32_is_any_nan(b->f[i])) {                          \
                 r->element[i] = 0;                                      \
             } else {                                                    \
                 float64 t = float32_to_float64(b->f[i], &s);            \
