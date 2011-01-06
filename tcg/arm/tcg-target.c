@@ -1248,7 +1248,7 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
             tcg_out_bswap32(s, COND_EQ, TCG_REG_R0, data_reg2);
             tcg_out_st32_rwb(s, COND_EQ, TCG_REG_R0, TCG_REG_R1, addr_reg);
             tcg_out_bswap32(s, COND_EQ, TCG_REG_R0, data_reg);
-            tcg_out_st32_12(s, COND_EQ, data_reg, TCG_REG_R1, 4);
+            tcg_out_st32_12(s, COND_EQ, TCG_REG_R0, TCG_REG_R1, 4);
         } else {
             tcg_out_st32_rwb(s, COND_EQ, data_reg, TCG_REG_R1, addr_reg);
             tcg_out_st32_12(s, COND_EQ, data_reg2, TCG_REG_R1, 4);
