@@ -643,7 +643,7 @@ static inline uint64_t fload_invalid_op_excp(int op)
         env->fpscr &= ~((1 << FPSCR_FR) | (1 << FPSCR_FI));
         if (ve == 0) {
             /* Set the result to quiet NaN */
-            ret = 0xFFF8000000000000ULL;
+            ret = 0x7FF8000000000000ULL;
             env->fpscr &= ~(0xF << FPSCR_FPCC);
             env->fpscr |= 0x11 << FPSCR_FPCC;
         }
@@ -654,7 +654,7 @@ static inline uint64_t fload_invalid_op_excp(int op)
         env->fpscr &= ~((1 << FPSCR_FR) | (1 << FPSCR_FI));
         if (ve == 0) {
             /* Set the result to quiet NaN */
-            ret = 0xFFF8000000000000ULL;
+            ret = 0x7FF8000000000000ULL;
             env->fpscr &= ~(0xF << FPSCR_FPCC);
             env->fpscr |= 0x11 << FPSCR_FPCC;
         }
