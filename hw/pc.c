@@ -411,11 +411,92 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
     qemu_register_reset(pc_cmos_init_late, &arg);
 }
 
+/* port 92 stuff: could be split off */
+typedef struct Port92State {
+    ISADevice dev;
+    uint8_t outport;
+    qemu_irq *a20_out;
+} Port92State;
+
+static void port92_write(void *opaque, uint32_t addr, uint32_t val)
+{
+    Port92State *s = opaque;
+
+    DPRINTF("port92: write 0x%02x\n", val);
+    s->outport = val;
+    qemu_set_irq(*s->a20_out, (val >> 1) & 1);
+    if (val & 1) {
+        qemu_system_reset_request();
+    }
+}
+
+static uint32_t port92_read(void *opaque, uint32_t addr)
+{
+    Port92State *s = opaque;
+    uint32_t ret;
+
+    ret = s->outport;
+    DPRINTF("port92: read 0x%02x\n", ret);
+    return ret;
+}
+
+static void port92_init(ISADevice *dev, qemu_irq *a20_out)
+{
+    Port92State *s = DO_UPCAST(Port92State, dev, dev);
+
+    s->a20_out = a20_out;
+}
+
+static const VMStateDescription vmstate_port92_isa = {
+    .name = "port92",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT8(outport, Port92State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static void port92_reset(DeviceState *d)
+{
+    Port92State *s = container_of(d, Port92State, dev.qdev);
+
+    s->outport &= ~1;
+}
+
+static int port92_initfn(ISADevice *dev)
+{
+    Port92State *s = DO_UPCAST(Port92State, dev, dev);
+
+    register_ioport_read(0x92, 1, 1, port92_read, s);
+    register_ioport_write(0x92, 1, 1, port92_write, s);
+    isa_init_ioport(dev, 0x92);
+    s->outport = 0;
+    return 0;
+}
+
+static ISADeviceInfo port92_info = {
+    .qdev.name     = "port92",
+    .qdev.size     = sizeof(Port92State),
+    .qdev.vmsd     = &vmstate_port92_isa,
+    .qdev.no_user  = 1,
+    .qdev.reset    = port92_reset,
+    .init          = port92_initfn,
+};
+
+static void port92_register(void)
+{
+    isa_qdev_register(&port92_info);
+}
+device_init(port92_register)
+
 static void handle_a20_line_change(void *opaque, int irq, int level)
 {
     CPUState *cpu = opaque;
 
     /* XXX: send to all CPUs ? */
+    /* XXX: add logic to handle multiple A20 line sources */
     cpu_x86_set_a20(cpu, level);
 }
 
@@ -1027,7 +1108,7 @@ void pc_basic_device_init(qemu_irq *isa_irq,
     PITState *pit;
     qemu_irq rtc_irq = NULL;
     qemu_irq *a20_line;
-    ISADevice *i8042;
+    ISADevice *i8042, *port92;
     qemu_irq *cpu_exit_irq;
 
     register_ioport_write(0x80, 1, 1, ioport80_write, NULL);
@@ -1061,10 +1142,12 @@ void pc_basic_device_init(qemu_irq *isa_irq,
         }
     }
 
-    a20_line = qemu_allocate_irqs(handle_a20_line_change, first_cpu, 1);
+    a20_line = qemu_allocate_irqs(handle_a20_line_change, first_cpu, 2);
     i8042 = isa_create_simple("i8042");
-    i8042_setup_a20_line(i8042, a20_line);
+    i8042_setup_a20_line(i8042, &a20_line[0]);
     vmmouse_init(i8042);
+    port92 = isa_create_simple("port92");
+    port92_init(port92, &a20_line[1]);
 
     cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
     DMA_init(0, cpu_exit_irq);
