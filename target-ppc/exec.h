@@ -26,9 +26,6 @@
 #include "cpu.h"
 #include "exec-all.h"
 
-/* Precise emulation is needed to correctly emulate exception flags */
-#define USE_PRECISE_EMULATION 1
-
 #if defined(CONFIG_TCG_INTERPRETER)
 extern struct CPUPPCState *env;
 #else
