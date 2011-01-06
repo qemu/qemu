@@ -673,9 +673,9 @@ static int cirrus_bitblt_videotovideo_patterncopy(CirrusVGAState * s)
 
 static void cirrus_do_copy(CirrusVGAState *s, int dst, int src, int w, int h)
 {
-    int sx, sy;
-    int dx, dy;
-    int depth;
+    int sx = 0, sy = 0;
+    int dx = 0, dy = 0;
+    int depth = 0;
     int notify = 0;
 
     /* make sure to only copy if it's a plain copy ROP */
