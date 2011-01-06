@@ -83,6 +83,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <linux/kd.h>
 #include <linux/mtio.h>
 #include <linux/fs.h>
+#include <linux/fiemap.h>
 #include <linux/fb.h>
 #include <linux/vt.h>
 #include "linux_loop.h"
@@ -2984,6 +2985,93 @@ struct IOCTLEntry {
 #define IOC_RW (IOC_R | IOC_W)
 
 #define MAX_STRUCT_SIZE 4096
+
+/* So fiemap access checks don't overflow on 32 bit systems.
+ * This is very slightly smaller than the limit imposed by
+ * the underlying kernel.
+ */
+#define FIEMAP_MAX_EXTENTS ((UINT_MAX - sizeof(struct fiemap))  \
+                            / sizeof(struct fiemap_extent))
+
+static abi_long do_ioctl_fs_ioc_fiemap(const IOCTLEntry *ie, uint8_t *buf_temp,
+                                       int fd, abi_long cmd, abi_long arg)
+{
+    /* The parameter for this ioctl is a struct fiemap followed
+     * by an array of struct fiemap_extent whose size is set
+     * in fiemap->fm_extent_count. The array is filled in by the
+     * ioctl.
+     */
+    int target_size_in, target_size_out;
+    struct fiemap *fm;
+    const argtype *arg_type = ie->arg_type;
+    const argtype extent_arg_type[] = { MK_STRUCT(STRUCT_fiemap_extent) };
+    void *argptr, *p;
+    abi_long ret;
+    int i, extent_size = thunk_type_size(extent_arg_type, 0);
+    uint32_t outbufsz;
+    int free_fm = 0;
+
+    assert(arg_type[0] == TYPE_PTR);
+    assert(ie->access == IOC_RW);
+    arg_type++;
+    target_size_in = thunk_type_size(arg_type, 0);
+    argptr = lock_user(VERIFY_READ, arg, target_size_in, 1);
+    if (!argptr) {
+        return -TARGET_EFAULT;
+    }
+    thunk_convert(buf_temp, argptr, arg_type, THUNK_HOST);
+    unlock_user(argptr, arg, 0);
+    fm = (struct fiemap *)buf_temp;
+    if (fm->fm_extent_count > FIEMAP_MAX_EXTENTS) {
+        return -TARGET_EINVAL;
+    }
+
+    outbufsz = sizeof (*fm) +
+        (sizeof(struct fiemap_extent) * fm->fm_extent_count);
+
+    if (outbufsz > MAX_STRUCT_SIZE) {
+        /* We can't fit all the extents into the fixed size buffer.
+         * Allocate one that is large enough and use it instead.
+         */
+        fm = malloc(outbufsz);
+        if (!fm) {
+            return -TARGET_ENOMEM;
+        }
+        memcpy(fm, buf_temp, sizeof(struct fiemap));
+        free_fm = 1;
+    }
+    ret = get_errno(ioctl(fd, ie->host_cmd, fm));
+    if (!is_error(ret)) {
+        target_size_out = target_size_in;
+        /* An extent_count of 0 means we were only counting the extents
+         * so there are no structs to copy
+         */
+        if (fm->fm_extent_count != 0) {
+            target_size_out += fm->fm_mapped_extents * extent_size;
+        }
+        argptr = lock_user(VERIFY_WRITE, arg, target_size_out, 0);
+        if (!argptr) {
+            ret = -TARGET_EFAULT;
+        } else {
+            /* Convert the struct fiemap */
+            thunk_convert(argptr, fm, arg_type, THUNK_TARGET);
+            if (fm->fm_extent_count != 0) {
+                p = argptr + target_size_in;
+                /* ...and then all the struct fiemap_extents */
+                for (i = 0; i < fm->fm_mapped_extents; i++) {
+                    thunk_convert(p, &fm->fm_extents[i], extent_arg_type,
+                                  THUNK_TARGET);
+                    p += extent_size;
+                }
+            }
+            unlock_user(argptr, arg, target_size_out);
+        }
+    }
+    if (free_fm) {
+        free(fm);
+    }
+    return ret;
+}
 
 static IOCTLEntry ioctl_entries[] = {
 #define IOCTL(cmd, access, ...) \

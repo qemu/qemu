@@ -76,6 +76,10 @@
 #ifdef FIGETBSZ
      IOCTL(FIGETBSZ, IOC_R, MK_PTR(TYPE_LONG))
 #endif
+#ifdef FS_IOC_FIEMAP
+     IOCTL_SPECIAL(FS_IOC_FIEMAP, IOC_W | IOC_R, do_ioctl_fs_ioc_fiemap,
+                   MK_PTR(MK_STRUCT(STRUCT_fiemap)))
+#endif
 
   IOCTL(SIOCATMARK, 0, TYPE_NULL)
   IOCTL(SIOCADDRT, IOC_W, MK_PTR(MK_STRUCT(STRUCT_rtentry)))
