@@ -2004,30 +2004,20 @@ static uint32_t cirrus_vga_mem_readb(void *opaque, target_phys_addr_t addr)
 static uint32_t cirrus_vga_mem_readw(void *opaque, target_phys_addr_t addr)
 {
     uint32_t v;
-#ifdef TARGET_WORDS_BIGENDIAN
-    v = cirrus_vga_mem_readb(opaque, addr) << 8;
-    v |= cirrus_vga_mem_readb(opaque, addr + 1);
-#else
+
     v = cirrus_vga_mem_readb(opaque, addr);
     v |= cirrus_vga_mem_readb(opaque, addr + 1) << 8;
-#endif
     return v;
 }
 
 static uint32_t cirrus_vga_mem_readl(void *opaque, target_phys_addr_t addr)
 {
     uint32_t v;
-#ifdef TARGET_WORDS_BIGENDIAN
-    v = cirrus_vga_mem_readb(opaque, addr) << 24;
-    v |= cirrus_vga_mem_readb(opaque, addr + 1) << 16;
-    v |= cirrus_vga_mem_readb(opaque, addr + 2) << 8;
-    v |= cirrus_vga_mem_readb(opaque, addr + 3);
-#else
+
     v = cirrus_vga_mem_readb(opaque, addr);
     v |= cirrus_vga_mem_readb(opaque, addr + 1) << 8;
     v |= cirrus_vga_mem_readb(opaque, addr + 2) << 16;
     v |= cirrus_vga_mem_readb(opaque, addr + 3) << 24;
-#endif
     return v;
 }
 
@@ -2098,28 +2088,16 @@ static void cirrus_vga_mem_writeb(void *opaque, target_phys_addr_t addr,
 
 static void cirrus_vga_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
-#ifdef TARGET_WORDS_BIGENDIAN
-    cirrus_vga_mem_writeb(opaque, addr, (val >> 8) & 0xff);
-    cirrus_vga_mem_writeb(opaque, addr + 1, val & 0xff);
-#else
     cirrus_vga_mem_writeb(opaque, addr, val & 0xff);
     cirrus_vga_mem_writeb(opaque, addr + 1, (val >> 8) & 0xff);
-#endif
 }
 
 static void cirrus_vga_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
-#ifdef TARGET_WORDS_BIGENDIAN
-    cirrus_vga_mem_writeb(opaque, addr, (val >> 24) & 0xff);
-    cirrus_vga_mem_writeb(opaque, addr + 1, (val >> 16) & 0xff);
-    cirrus_vga_mem_writeb(opaque, addr + 2, (val >> 8) & 0xff);
-    cirrus_vga_mem_writeb(opaque, addr + 3, val & 0xff);
-#else
     cirrus_vga_mem_writeb(opaque, addr, val & 0xff);
     cirrus_vga_mem_writeb(opaque, addr + 1, (val >> 8) & 0xff);
     cirrus_vga_mem_writeb(opaque, addr + 2, (val >> 16) & 0xff);
     cirrus_vga_mem_writeb(opaque, addr + 3, (val >> 24) & 0xff);
-#endif
 }
 
 static CPUReadMemoryFunc * const cirrus_vga_mem_read[3] = {
@@ -2341,30 +2319,20 @@ static uint32_t cirrus_linear_readb(void *opaque, target_phys_addr_t addr)
 static uint32_t cirrus_linear_readw(void *opaque, target_phys_addr_t addr)
 {
     uint32_t v;
-#ifdef TARGET_WORDS_BIGENDIAN
-    v = cirrus_linear_readb(opaque, addr) << 8;
-    v |= cirrus_linear_readb(opaque, addr + 1);
-#else
+
     v = cirrus_linear_readb(opaque, addr);
     v |= cirrus_linear_readb(opaque, addr + 1) << 8;
-#endif
     return v;
 }
 
 static uint32_t cirrus_linear_readl(void *opaque, target_phys_addr_t addr)
 {
     uint32_t v;
-#ifdef TARGET_WORDS_BIGENDIAN
-    v = cirrus_linear_readb(opaque, addr) << 24;
-    v |= cirrus_linear_readb(opaque, addr + 1) << 16;
-    v |= cirrus_linear_readb(opaque, addr + 2) << 8;
-    v |= cirrus_linear_readb(opaque, addr + 3);
-#else
+
     v = cirrus_linear_readb(opaque, addr);
     v |= cirrus_linear_readb(opaque, addr + 1) << 8;
     v |= cirrus_linear_readb(opaque, addr + 2) << 16;
     v |= cirrus_linear_readb(opaque, addr + 3) << 24;
-#endif
     return v;
 }
 
@@ -2412,29 +2380,17 @@ static void cirrus_linear_writeb(void *opaque, target_phys_addr_t addr,
 static void cirrus_linear_writew(void *opaque, target_phys_addr_t addr,
 				 uint32_t val)
 {
-#ifdef TARGET_WORDS_BIGENDIAN
-    cirrus_linear_writeb(opaque, addr, (val >> 8) & 0xff);
-    cirrus_linear_writeb(opaque, addr + 1, val & 0xff);
-#else
     cirrus_linear_writeb(opaque, addr, val & 0xff);
     cirrus_linear_writeb(opaque, addr + 1, (val >> 8) & 0xff);
-#endif
 }
 
 static void cirrus_linear_writel(void *opaque, target_phys_addr_t addr,
 				 uint32_t val)
 {
-#ifdef TARGET_WORDS_BIGENDIAN
-    cirrus_linear_writeb(opaque, addr, (val >> 24) & 0xff);
-    cirrus_linear_writeb(opaque, addr + 1, (val >> 16) & 0xff);
-    cirrus_linear_writeb(opaque, addr + 2, (val >> 8) & 0xff);
-    cirrus_linear_writeb(opaque, addr + 3, val & 0xff);
-#else
     cirrus_linear_writeb(opaque, addr, val & 0xff);
     cirrus_linear_writeb(opaque, addr + 1, (val >> 8) & 0xff);
     cirrus_linear_writeb(opaque, addr + 2, (val >> 16) & 0xff);
     cirrus_linear_writeb(opaque, addr + 3, (val >> 24) & 0xff);
-#endif
 }
 
 
@@ -2469,30 +2425,20 @@ static uint32_t cirrus_linear_bitblt_readb(void *opaque, target_phys_addr_t addr
 static uint32_t cirrus_linear_bitblt_readw(void *opaque, target_phys_addr_t addr)
 {
     uint32_t v;
-#ifdef TARGET_WORDS_BIGENDIAN
-    v = cirrus_linear_bitblt_readb(opaque, addr) << 8;
-    v |= cirrus_linear_bitblt_readb(opaque, addr + 1);
-#else
+
     v = cirrus_linear_bitblt_readb(opaque, addr);
     v |= cirrus_linear_bitblt_readb(opaque, addr + 1) << 8;
-#endif
     return v;
 }
 
 static uint32_t cirrus_linear_bitblt_readl(void *opaque, target_phys_addr_t addr)
 {
     uint32_t v;
-#ifdef TARGET_WORDS_BIGENDIAN
-    v = cirrus_linear_bitblt_readb(opaque, addr) << 24;
-    v |= cirrus_linear_bitblt_readb(opaque, addr + 1) << 16;
-    v |= cirrus_linear_bitblt_readb(opaque, addr + 2) << 8;
-    v |= cirrus_linear_bitblt_readb(opaque, addr + 3);
-#else
+
     v = cirrus_linear_bitblt_readb(opaque, addr);
     v |= cirrus_linear_bitblt_readb(opaque, addr + 1) << 8;
     v |= cirrus_linear_bitblt_readb(opaque, addr + 2) << 16;
     v |= cirrus_linear_bitblt_readb(opaque, addr + 3) << 24;
-#endif
     return v;
 }
 
@@ -2513,29 +2459,17 @@ static void cirrus_linear_bitblt_writeb(void *opaque, target_phys_addr_t addr,
 static void cirrus_linear_bitblt_writew(void *opaque, target_phys_addr_t addr,
 				 uint32_t val)
 {
-#ifdef TARGET_WORDS_BIGENDIAN
-    cirrus_linear_bitblt_writeb(opaque, addr, (val >> 8) & 0xff);
-    cirrus_linear_bitblt_writeb(opaque, addr + 1, val & 0xff);
-#else
     cirrus_linear_bitblt_writeb(opaque, addr, val & 0xff);
     cirrus_linear_bitblt_writeb(opaque, addr + 1, (val >> 8) & 0xff);
-#endif
 }
 
 static void cirrus_linear_bitblt_writel(void *opaque, target_phys_addr_t addr,
 				 uint32_t val)
 {
-#ifdef TARGET_WORDS_BIGENDIAN
-    cirrus_linear_bitblt_writeb(opaque, addr, (val >> 24) & 0xff);
-    cirrus_linear_bitblt_writeb(opaque, addr + 1, (val >> 16) & 0xff);
-    cirrus_linear_bitblt_writeb(opaque, addr + 2, (val >> 8) & 0xff);
-    cirrus_linear_bitblt_writeb(opaque, addr + 3, val & 0xff);
-#else
     cirrus_linear_bitblt_writeb(opaque, addr, val & 0xff);
     cirrus_linear_bitblt_writeb(opaque, addr + 1, (val >> 8) & 0xff);
     cirrus_linear_bitblt_writeb(opaque, addr + 2, (val >> 16) & 0xff);
     cirrus_linear_bitblt_writeb(opaque, addr + 3, (val >> 24) & 0xff);
-#endif
 }
 
 
@@ -2842,30 +2776,20 @@ static uint32_t cirrus_mmio_readb(void *opaque, target_phys_addr_t addr)
 static uint32_t cirrus_mmio_readw(void *opaque, target_phys_addr_t addr)
 {
     uint32_t v;
-#ifdef TARGET_WORDS_BIGENDIAN
-    v = cirrus_mmio_readb(opaque, addr) << 8;
-    v |= cirrus_mmio_readb(opaque, addr + 1);
-#else
+
     v = cirrus_mmio_readb(opaque, addr);
     v |= cirrus_mmio_readb(opaque, addr + 1) << 8;
-#endif
     return v;
 }
 
 static uint32_t cirrus_mmio_readl(void *opaque, target_phys_addr_t addr)
 {
     uint32_t v;
-#ifdef TARGET_WORDS_BIGENDIAN
-    v = cirrus_mmio_readb(opaque, addr) << 24;
-    v |= cirrus_mmio_readb(opaque, addr + 1) << 16;
-    v |= cirrus_mmio_readb(opaque, addr + 2) << 8;
-    v |= cirrus_mmio_readb(opaque, addr + 3);
-#else
+
     v = cirrus_mmio_readb(opaque, addr);
     v |= cirrus_mmio_readb(opaque, addr + 1) << 8;
     v |= cirrus_mmio_readb(opaque, addr + 2) << 16;
     v |= cirrus_mmio_readb(opaque, addr + 3) << 24;
-#endif
     return v;
 }
 
@@ -2886,29 +2810,17 @@ static void cirrus_mmio_writeb(void *opaque, target_phys_addr_t addr,
 static void cirrus_mmio_writew(void *opaque, target_phys_addr_t addr,
 			       uint32_t val)
 {
-#ifdef TARGET_WORDS_BIGENDIAN
-    cirrus_mmio_writeb(opaque, addr, (val >> 8) & 0xff);
-    cirrus_mmio_writeb(opaque, addr + 1, val & 0xff);
-#else
     cirrus_mmio_writeb(opaque, addr, val & 0xff);
     cirrus_mmio_writeb(opaque, addr + 1, (val >> 8) & 0xff);
-#endif
 }
 
 static void cirrus_mmio_writel(void *opaque, target_phys_addr_t addr,
 			       uint32_t val)
 {
-#ifdef TARGET_WORDS_BIGENDIAN
-    cirrus_mmio_writeb(opaque, addr, (val >> 24) & 0xff);
-    cirrus_mmio_writeb(opaque, addr + 1, (val >> 16) & 0xff);
-    cirrus_mmio_writeb(opaque, addr + 2, (val >> 8) & 0xff);
-    cirrus_mmio_writeb(opaque, addr + 3, val & 0xff);
-#else
     cirrus_mmio_writeb(opaque, addr, val & 0xff);
     cirrus_mmio_writeb(opaque, addr + 1, (val >> 8) & 0xff);
     cirrus_mmio_writeb(opaque, addr + 2, (val >> 16) & 0xff);
     cirrus_mmio_writeb(opaque, addr + 3, (val >> 24) & 0xff);
-#endif
 }
 
 
@@ -3078,7 +2990,7 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci)
 
     s->vga.vga_io_memory = cpu_register_io_memory(cirrus_vga_mem_read,
                                                   cirrus_vga_mem_write, s,
-                                                  DEVICE_NATIVE_ENDIAN);
+                                                  DEVICE_LITTLE_ENDIAN);
     cpu_register_physical_memory(isa_mem_base + 0x000a0000, 0x20000,
                                  s->vga.vga_io_memory);
     qemu_register_coalesced_mmio(isa_mem_base + 0x000a0000, 0x20000);
@@ -3086,18 +2998,18 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci)
     /* I/O handler for LFB */
     s->cirrus_linear_io_addr =
         cpu_register_io_memory(cirrus_linear_read, cirrus_linear_write, s,
-                               DEVICE_NATIVE_ENDIAN);
+                               DEVICE_LITTLE_ENDIAN);
 
     /* I/O handler for LFB */
     s->cirrus_linear_bitblt_io_addr =
         cpu_register_io_memory(cirrus_linear_bitblt_read,
                                cirrus_linear_bitblt_write, s,
-                               DEVICE_NATIVE_ENDIAN);
+                               DEVICE_LITTLE_ENDIAN);
 
     /* I/O handler for memory-mapped I/O */
     s->cirrus_mmio_io_addr =
         cpu_register_io_memory(cirrus_mmio_read, cirrus_mmio_write, s,
-                               DEVICE_NATIVE_ENDIAN);
+                               DEVICE_LITTLE_ENDIAN);
 
     s->real_vram_size =
         (s->device_id == CIRRUS_ID_CLGD5446) ? 4096 * 1024 : 2048 * 1024;
