@@ -162,6 +162,7 @@ TODO (no longer available)
 * pcsys_monitor::      QEMU Monitor
 * disk_images::        Disk Images
 * pcsys_network::      Network emulation
+* pcsys_other_devs::   Other Devices
 * direct_linux_boot::  Direct Linux Boot
 * pcsys_usb::          USB emulation
 * vnc_security::       VNC security
@@ -715,6 +716,7 @@ Using the @option{-net socket} option, it is possible to make VLANs
 that span several QEMU instances. See @ref{sec_invocation} to have a
 basic example.
 
+@node pcsys_other_devs
 @section Other Devices
 
 @subsection Inter-VM Shared Memory device
