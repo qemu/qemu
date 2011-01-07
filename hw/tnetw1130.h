@@ -84,7 +84,7 @@ typedef struct {
     //~ uint32_t silicon_revision;
 } tnetw1130_t;
 
-extern CPUReadMemoryFunc *tnetw1130_region0_read[];
-extern CPUReadMemoryFunc *tnetw1130_region1_read[];
-extern CPUWriteMemoryFunc *tnetw1130_region0_write[];
-extern CPUWriteMemoryFunc *tnetw1130_region1_write[];
+extern CPUReadMemoryFunc * const tnetw1130_region0_read[];
+extern CPUReadMemoryFunc * const tnetw1130_region1_read[];
+extern CPUWriteMemoryFunc * const tnetw1130_region0_write[];
+extern CPUWriteMemoryFunc * const tnetw1130_region1_write[];

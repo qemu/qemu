@@ -1,7 +1,7 @@
 /*
  * QEMU emulation for Texas Instruments TNETW1130 (ACX111) wireless.
  *
- * Copyright (C) 2007-2010 Stefan Weil
+ * Copyright (C) 2007-2011 Stefan Weil
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -73,12 +73,11 @@
 #endif
 
 //~ static int tnetw1130_instance = 0;
-static const int tnetw1130_version = 20070211;
 
 typedef struct {
     PCIDevice dev;
     tnetw1130_t tnetw1130;
-} pci_tnetw1130_t;
+} TNETW1130State;
 
 typedef enum {
     CMD_MAILBOX = 0x0001e108,   /* ECPU_CTRL? */
@@ -337,14 +336,13 @@ static void tnetw1130_cmd(tnetw1130_t *s)
     }
 }
 
-static void tnetw1130_reset(tnetw1130_t * s)
+static void tnetw1130_reset(tnetw1130_t *s)
 {
     MISSING();
 }
 
-static uint8_t tnetw1130_read0b(pci_tnetw1130_t * d, target_phys_addr_t addr)
+static uint8_t tnetw1130_read0b(tnetw1130_t *s, target_phys_addr_t addr)
 {
-    tnetw1130_t *s = &d->tnetw1130;
     uint8_t value = 0;
     if (addr < TNETW1130_MEM0_SIZE) {
         value = s->mem0[addr];
@@ -365,9 +363,8 @@ typedef enum {
     RADIO_RADIA_16 = 0x16,
 } radio_t;
 
-static uint16_t tnetw1130_read0w(pci_tnetw1130_t * d, target_phys_addr_t addr)
+static uint16_t tnetw1130_read0w(tnetw1130_t *s, target_phys_addr_t addr)
 {
-    tnetw1130_t *s = &d->tnetw1130;
     uint16_t value = 0;
     if (addr < TNETW1130_MEM0_SIZE) {
         value = reg_read16(s->mem0, addr);
@@ -388,9 +385,8 @@ static uint16_t tnetw1130_read0w(pci_tnetw1130_t * d, target_phys_addr_t addr)
     return value;
 }
 
-static uint32_t tnetw1130_read0l(pci_tnetw1130_t * d, target_phys_addr_t addr)
+static uint32_t tnetw1130_read0l(tnetw1130_t *s, target_phys_addr_t addr)
 {
-    tnetw1130_t *s = &d->tnetw1130;
     uint32_t value = 0;
     assert(addr < TNETW1130_MEM0_SIZE);
     value = reg_read32(s->mem0, addr);
@@ -406,10 +402,9 @@ static uint32_t tnetw1130_read0l(pci_tnetw1130_t * d, target_phys_addr_t addr)
     return value;
 }
 
-static void tnetw1130_write0b(pci_tnetw1130_t * d, target_phys_addr_t addr,
-                           uint8_t value)
+static void tnetw1130_write0b(tnetw1130_t *s, target_phys_addr_t addr,
+                              uint8_t value)
 {
-    tnetw1130_t *s = &d->tnetw1130;
     if (addr < TNETW1130_MEM0_SIZE) {
         s->mem0[addr] = value;
     } else {
@@ -418,10 +413,9 @@ static void tnetw1130_write0b(pci_tnetw1130_t * d, target_phys_addr_t addr,
     TRACE(TNETW, logout("addr %s = 0x%02x\n", tnetw1130_regname(addr), value));
 }
 
-static void tnetw1130_write0w(pci_tnetw1130_t * d, target_phys_addr_t addr,
-                           uint16_t value)
+static void tnetw1130_write0w(tnetw1130_t *s, target_phys_addr_t addr,
+                              uint16_t value)
 {
-    tnetw1130_t *s = &d->tnetw1130;
     if (addr < TNETW1130_MEM0_SIZE) {
         reg_write16(s->mem0, addr, value);
     } else {
@@ -458,10 +452,9 @@ static void tnetw1130_write0w(pci_tnetw1130_t * d, target_phys_addr_t addr,
     TRACE(TNETW, logout("addr %s = 0x%04x\n", tnetw1130_regname(addr), value));
 }
 
-static void tnetw1130_write0l(pci_tnetw1130_t * d, target_phys_addr_t addr,
-                           uint32_t value)
+static void tnetw1130_write0l(tnetw1130_t *s, target_phys_addr_t addr,
+                              uint32_t value)
 {
-    tnetw1130_t *s = &d->tnetw1130;
     if (addr < TNETW1130_MEM0_SIZE) {
         reg_write32(s->mem0, addr, value);
     }
@@ -486,9 +479,8 @@ static void tnetw1130_write0l(pci_tnetw1130_t * d, target_phys_addr_t addr,
     TRACE(TNETW, logout("addr %s = 0x%08x\n", tnetw1130_regname(addr), value));
 }
 
-static uint8_t tnetw1130_read1b(pci_tnetw1130_t * d, target_phys_addr_t addr)
+static uint8_t tnetw1130_read1b(tnetw1130_t *s, target_phys_addr_t addr)
 {
-    tnetw1130_t *s = &d->tnetw1130;
     uint8_t value = 0;
     assert(addr < TNETW1130_MEM1_SIZE);
     value = s->mem1[addr];
@@ -496,9 +488,8 @@ static uint8_t tnetw1130_read1b(pci_tnetw1130_t * d, target_phys_addr_t addr)
     return value;
 }
 
-static uint16_t tnetw1130_read1w(pci_tnetw1130_t * d, target_phys_addr_t addr)
+static uint16_t tnetw1130_read1w(tnetw1130_t *s, target_phys_addr_t addr)
 {
-    tnetw1130_t *s = &d->tnetw1130;
     uint16_t value = 0;
     assert(addr < TNETW1130_MEM1_SIZE);
     value = reg_read16(s->mem1, addr);
@@ -506,37 +497,33 @@ static uint16_t tnetw1130_read1w(pci_tnetw1130_t * d, target_phys_addr_t addr)
     return value;
 }
 
-static uint32_t tnetw1130_read1l(pci_tnetw1130_t * d, target_phys_addr_t addr)
+static uint32_t tnetw1130_read1l(tnetw1130_t *s, target_phys_addr_t addr)
 {
-    tnetw1130_t *s = &d->tnetw1130;
     assert(addr < TNETW1130_MEM1_SIZE);
     uint32_t value = reg_read32(s->mem1, addr);
     TRACE(TNETW, logout("addr %s = 0x%08x\n", tnetw1130_regname1(addr), value));
     return value;
 }
 
-static void tnetw1130_write1b(pci_tnetw1130_t * d, target_phys_addr_t addr,
-                           uint8_t value)
+static void tnetw1130_write1b(tnetw1130_t *s, target_phys_addr_t addr,
+                              uint8_t value)
 {
-    tnetw1130_t *s = &d->tnetw1130;
     assert(addr < TNETW1130_MEM1_SIZE);
     s->mem1[addr] = value;
     TRACE(TNETW, logout("addr %s = 0x%02x\n", tnetw1130_regname1(addr), value));
 }
 
-static void tnetw1130_write1w(pci_tnetw1130_t * d, target_phys_addr_t addr,
-                           uint16_t value)
+static void tnetw1130_write1w(tnetw1130_t *s, target_phys_addr_t addr,
+                              uint16_t value)
 {
-    tnetw1130_t *s = &d->tnetw1130;
     assert(addr < TNETW1130_MEM1_SIZE);
     reg_write16(s->mem1, addr, value);
     TRACE(TNETW, logout("addr %s = 0x%04x\n", tnetw1130_regname1(addr), value));
 }
 
-static void tnetw1130_write1l(pci_tnetw1130_t * d, target_phys_addr_t addr,
-                           uint32_t value)
+static void tnetw1130_write1l(tnetw1130_t *s, target_phys_addr_t addr,
+                              uint32_t value)
 {
-    tnetw1130_t *s = &d->tnetw1130;
     assert(addr < TNETW1130_MEM1_SIZE);
     reg_write32(s->mem1, addr, value);
     TRACE(TNETW, logout("addr %s = 0x%08x\n", tnetw1130_regname1(addr), value));
@@ -550,62 +537,62 @@ static void tnetw1130_write1l(pci_tnetw1130_t * d, target_phys_addr_t addr,
 
 static uint32_t tnetw1130_mem0_readb(void *opaque, target_phys_addr_t addr)
 {
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
+    TNETW1130State *d = (TNETW1130State *) opaque;
     tnetw1130_t *s = &d->tnetw1130;
     addr -= s->region[0];
-    return tnetw1130_read0b(d, addr);
+    return tnetw1130_read0b(s, addr);
 }
 
 static uint32_t tnetw1130_mem0_readw(void *opaque, target_phys_addr_t addr)
 {
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
+    TNETW1130State *d = (TNETW1130State *) opaque;
     tnetw1130_t *s = &d->tnetw1130;
     addr -= s->region[0];
-    return tnetw1130_read0w(d, addr);
+    return tnetw1130_read0w(s, addr);
 }
 
 static uint32_t tnetw1130_mem0_readl(void *opaque, target_phys_addr_t addr)
 {
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
+    TNETW1130State *d = (TNETW1130State *) opaque;
     tnetw1130_t *s = &d->tnetw1130;
     addr -= s->region[0];
-    return tnetw1130_read0l(d, addr);
+    return tnetw1130_read0l(s, addr);
 }
 
 static void tnetw1130_mem0_writeb(void *opaque, target_phys_addr_t addr,
                                 uint32_t val)
 {
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
+    TNETW1130State *d = (TNETW1130State *) opaque;
     tnetw1130_t *s = &d->tnetw1130;
     addr -= s->region[0];
-    tnetw1130_write0b(d, addr, val);
+    tnetw1130_write0b(s, addr, val);
 }
 
 static void tnetw1130_mem0_writew(void *opaque, target_phys_addr_t addr,
                                 uint32_t val)
 {
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
+    TNETW1130State *d = (TNETW1130State *) opaque;
     tnetw1130_t *s = &d->tnetw1130;
     addr -= s->region[0];
-    tnetw1130_write0w(d, addr, val);
+    tnetw1130_write0w(s, addr, val);
 }
 
 static void tnetw1130_mem0_writel(void *opaque, target_phys_addr_t addr,
                                 uint32_t val)
 {
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
+    TNETW1130State *d = (TNETW1130State *) opaque;
     tnetw1130_t *s = &d->tnetw1130;
     addr -= s->region[0];
-    tnetw1130_write0l(d, addr, val);
+    tnetw1130_write0l(s, addr, val);
 }
 
-CPUReadMemoryFunc *tnetw1130_region0_read[] = {
+CPUReadMemoryFunc * const tnetw1130_region0_read[] = {
     tnetw1130_mem0_readb,
     tnetw1130_mem0_readw,
     tnetw1130_mem0_readl
 };
 
-CPUWriteMemoryFunc *tnetw1130_region0_write[] = {
+CPUWriteMemoryFunc * const tnetw1130_region0_write[] = {
     tnetw1130_mem0_writeb,
     tnetw1130_mem0_writew,
     tnetw1130_mem0_writel
@@ -613,62 +600,62 @@ CPUWriteMemoryFunc *tnetw1130_region0_write[] = {
 
 static uint32_t tnetw1130_mem1_readb(void *opaque, target_phys_addr_t addr)
 {
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
+    TNETW1130State *d = (TNETW1130State *) opaque;
     tnetw1130_t *s = &d->tnetw1130;
     addr -= s->region[1];
-    return tnetw1130_read1b(d, addr);
+    return tnetw1130_read1b(s, addr);
 }
 
 static uint32_t tnetw1130_mem1_readw(void *opaque, target_phys_addr_t addr)
 {
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
+    TNETW1130State *d = (TNETW1130State *) opaque;
     tnetw1130_t *s = &d->tnetw1130;
     addr -= s->region[1];
-    return tnetw1130_read1w(d, addr);
+    return tnetw1130_read1w(s, addr);
 }
 
 static uint32_t tnetw1130_mem1_readl(void *opaque, target_phys_addr_t addr)
 {
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
+    TNETW1130State *d = (TNETW1130State *) opaque;
     tnetw1130_t *s = &d->tnetw1130;
     addr -= s->region[1];
-    return tnetw1130_read1l(d, addr);
+    return tnetw1130_read1l(s, addr);
 }
 
 static void tnetw1130_mem1_writeb(void *opaque, target_phys_addr_t addr,
                                 uint32_t val)
 {
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
+    TNETW1130State *d = (TNETW1130State *) opaque;
     tnetw1130_t *s = &d->tnetw1130;
     addr -= s->region[1];
-    tnetw1130_write1b(d, addr, val);
+    tnetw1130_write1b(s, addr, val);
 }
 
 static void tnetw1130_mem1_writew(void *opaque, target_phys_addr_t addr,
                                 uint32_t val)
 {
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
+    TNETW1130State *d = (TNETW1130State *) opaque;
     tnetw1130_t *s = &d->tnetw1130;
     addr -= s->region[1];
-    tnetw1130_write1w(d, addr, val);
+    tnetw1130_write1w(s, addr, val);
 }
 
 static void tnetw1130_mem1_writel(void *opaque, target_phys_addr_t addr,
                                 uint32_t val)
 {
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
+    TNETW1130State *d = (TNETW1130State *) opaque;
     tnetw1130_t *s = &d->tnetw1130;
     addr -= s->region[1];
-    tnetw1130_write1l(d, addr, val);
+    tnetw1130_write1l(s, addr, val);
 }
 
-CPUReadMemoryFunc *tnetw1130_region1_read[] = {
+CPUReadMemoryFunc * const tnetw1130_region1_read[] = {
     tnetw1130_mem1_readb,
     tnetw1130_mem1_readw,
     tnetw1130_mem1_readl
 };
 
-CPUWriteMemoryFunc *tnetw1130_region1_write[] = {
+CPUWriteMemoryFunc * const tnetw1130_region1_write[] = {
     tnetw1130_mem1_writeb,
     tnetw1130_mem1_writew,
     tnetw1130_mem1_writel
@@ -677,7 +664,7 @@ CPUWriteMemoryFunc *tnetw1130_region1_write[] = {
 static void tnetw1130_mem_map(PCIDevice * pci_dev, int region_num,
                               pcibus_t addr, pcibus_t size, int type)
 {
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) pci_dev;
+    TNETW1130State *d = (TNETW1130State *) pci_dev;
     tnetw1130_t *s = &d->tnetw1130;
 
     TRACE(TNETW, logout("region %d, addr 0x%08" FMT_PCIBUS
@@ -695,39 +682,9 @@ static void tnetw1130_mem_map(PCIDevice * pci_dev, int region_num,
  *
  ****************************************************************************/
 
-#if 0
-static int tnetw1130_load(QEMUFile * f, void *opaque, int version_id)
-{
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
-#if 0
-    tnetw1130_t *s = &d->tnetw1130;
-#endif
-    int result = 0;
-    TRACE(TNETW, logout("\n"));
-    if (version_id == tnetw1130_version) {
-        result = pci_device_load(&d->dev, f);
-    } else {
-        result = -EINVAL;
-    }
-    return result;
-}
-
-static void tnetw1130_save(QEMUFile * f, void *opaque)
-{
-    pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
-#if 0
-    tnetw1130_t *s = &d->tnetw1130;
-#endif
-    TRACE(TNETW, logout("\n"));
-    pci_device_save(&d->dev, f);
-    /* TODO: support different endianness */
-    qemu_put_buffer(f, (uint8_t *) d, sizeof(*d));
-}
-#endif
-
 static void nic_reset(void *opaque)
 {
-    //~ pci_tnetw1130_t *d = (pci_tnetw1130_t *) opaque;
+    //~ TNETW1130State *d = (TNETW1130State *) opaque;
     TRACE(TNETW, logout("%p\n", opaque));
 }
 
@@ -791,7 +748,7 @@ static NetClientInfo net_info = {
 
 static int tnetw1130_init(PCIDevice *pci_dev)
 {
-    pci_tnetw1130_t *d = DO_UPCAST(pci_tnetw1130_t, dev, pci_dev);
+    TNETW1130State *d = DO_UPCAST(TNETW1130State, dev, pci_dev);
     tnetw1130_t *s = &d->tnetw1130;
 
     /* TI TNETW1130 */
@@ -828,9 +785,6 @@ static int tnetw1130_init(PCIDevice *pci_dev)
 
     qemu_register_reset(nic_reset, d);
 
-    //~ register_savevm("tnetw1130", tnetw1130_instance, tnetw1130_version,
-                    //~ tnetw1130_save, tnetw1130_load, d);
-
     return 0;
 }
 
@@ -845,24 +799,101 @@ static int pci_tnetw1130_init(PCIDevice* pci_dev)
 
 static int pci_tnetw1130_uninit(PCIDevice *pci_dev)
 {
-    pci_tnetw1130_t *d = DO_UPCAST(pci_tnetw1130_t, dev, pci_dev);
+    TNETW1130State *d = DO_UPCAST(TNETW1130State, dev, pci_dev);
     tnetw1130_t *s = &d->tnetw1130;
 
     cpu_unregister_io_memory(s->io_memory[0]);
     cpu_unregister_io_memory(s->io_memory[1]);
-    //~ vmstate_unregister(s->vmstate, s);
     qemu_del_vlan_client(&s->nic->nc);
     return 0;
 }
 
+static const VMStateDescription vmstate_pci_tnetw1130 = {
+    .name = "tnetw1130",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_PCI_DEVICE(dev, TNETW1130State),
+        // TODO: entries for tnetw1130 are missing here.
+        //~ VMSTATE_UINT32(rxbuf_size, E1000State),
+        //~ VMSTATE_UINT32(rxbuf_min_shift, E1000State),
+        //~ VMSTATE_UINT32(eecd_state.val_in, E1000State),
+        //~ VMSTATE_UINT16(eecd_state.bitnum_in, E1000State),
+        //~ VMSTATE_UINT16(eecd_state.bitnum_out, E1000State),
+        //~ VMSTATE_UINT16(eecd_state.reading, E1000State),
+        //~ VMSTATE_UINT32(eecd_state.old_eecd, E1000State),
+        //~ VMSTATE_UINT8(tx.ipcss, E1000State),
+        //~ VMSTATE_UINT8(tx.ipcso, E1000State),
+        //~ VMSTATE_UINT16(tx.ipcse, E1000State),
+        //~ VMSTATE_UINT8(tx.tucss, E1000State),
+        //~ VMSTATE_UINT8(tx.tucso, E1000State),
+        //~ VMSTATE_UINT16(tx.tucse, E1000State),
+        //~ VMSTATE_UINT32(tx.paylen, E1000State),
+        //~ VMSTATE_UINT8(tx.hdr_len, E1000State),
+        //~ VMSTATE_UINT16(tx.mss, E1000State),
+        //~ VMSTATE_UINT16(tx.size, E1000State),
+        //~ VMSTATE_UINT16(tx.tso_frames, E1000State),
+        //~ VMSTATE_UINT8(tx.sum_needed, E1000State),
+        //~ VMSTATE_INT8(tx.ip, E1000State),
+        //~ VMSTATE_INT8(tx.tcp, E1000State),
+        //~ VMSTATE_BUFFER(tx.header, E1000State),
+        //~ VMSTATE_BUFFER(tx.data, E1000State),
+        //~ VMSTATE_UINT16_ARRAY(eeprom_data, E1000State, 64),
+        //~ VMSTATE_UINT16_ARRAY(phy_reg, E1000State, 0x20),
+        //~ VMSTATE_UINT32(mac_reg[CTRL], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[EECD], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[EERD], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[GPRC], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[GPTC], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[ICR], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[ICS], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[IMC], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[IMS], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[LEDCTL], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[MANC], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[MDIC], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[MPC], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[PBA], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[RCTL], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[RDBAH], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[RDBAL], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[RDH], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[RDLEN], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[RDT], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[STATUS], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[SWSM], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[TCTL], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[TDBAH], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[TDBAL], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[TDH], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[TDLEN], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[TDT], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[TORH], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[TORL], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[TOTH], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[TOTL], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[TPR], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[TPT], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[TXDCTL], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[WUFC], E1000State),
+        //~ VMSTATE_UINT32(mac_reg[VET], E1000State),
+        //~ VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, RA, 32),
+        //~ VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, MTA, 128),
+        //~ VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, VFTA, 128),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static PCIDeviceInfo pci_tnetw1130_info = {
     .qdev.name = "tnetw1130",
     .qdev.desc = "Texas Instruments TNETW1130",
-    .qdev.size = sizeof(pci_tnetw1130_t),
+    .qdev.size = sizeof(TNETW1130State),
+    .qdev.vmsd = &vmstate_pci_tnetw1130,
     .init      = pci_tnetw1130_init,
     .exit      = pci_tnetw1130_uninit,
     .qdev.props = (Property[]) {
-        DEFINE_NIC_PROPERTIES(pci_tnetw1130_t, tnetw1130.conf),
+        DEFINE_NIC_PROPERTIES(TNETW1130State, tnetw1130.conf),
         DEFINE_PROP_END_OF_LIST(),
     },
 };
@@ -921,7 +952,7 @@ device_init(tnetw1130_register_device)
         Flags: bus master, medium devsel, latency 64, IRQ 10
         Memory at feafc000 (32-bit, non-prefetchable) [size=8K]
         Memory at feac0000 (32-bit, non-prefetchable) [size=128K]
-        Capabilities: [40] Power Management version 2 
+        Capabilities: [40] Power Management version 2
 
 #define AVALANCHE_VLYNQ0_MEM1_BASE      0x04000000      VLYNQ 0 memory mapped
 #define AVALANCHE_VLYNQ0_MEM2_BASE      0x04022000      VLYNQ 0 memory mapped
@@ -957,7 +988,7 @@ ACX111 PCI control block
 0xa4041034 / 0x34: 0x00000040
 0xa4041038 / 0x38: 0x00000000
 0xa404103c / 0x3c: 0x00000100
-0xa4041040 / 0x40: 0x7e020001 
+0xa4041040 / 0x40: 0x7e020001
 
 //~ lspci -x: 00: 4c 10 66 90 07 01 10 02 00 00 80 02 04 40 00 00
 //~ lspci -x: 10: 00 c0 af fe 00 00 ac fe 00 00 00 00 00 00 00 00
