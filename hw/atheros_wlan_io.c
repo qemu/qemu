@@ -2,6 +2,7 @@
  * QEMU WLAN device emulation
  *
  * Copyright (c) 2008 Clemens Kolbitsch
+ * Copyright (c) 2009-2011 Stefan Weil
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -209,13 +210,13 @@ static void Atheros_WLAN_mmio_map(PCIDevice *pci_dev, int region_num,
 	cpu_register_physical_memory(addr + 0, Atheros_WLAN_MEM_SIZE, s->Atheros_WLAN_mmio_io_addr);
 }
 
-static CPUReadMemoryFunc *Atheros_WLAN_mmio_read[3] = {
+static CPUReadMemoryFunc * const Atheros_WLAN_mmio_read[3] = {
     Atheros_WLAN_mmio_readb,
     Atheros_WLAN_mmio_readw,
     Atheros_WLAN_mmio_readl,
 };
 
-static CPUWriteMemoryFunc *Atheros_WLAN_mmio_write[3] = {
+static CPUWriteMemoryFunc * const Atheros_WLAN_mmio_write[3] = {
     Atheros_WLAN_mmio_writeb,
     Atheros_WLAN_mmio_writew,
     Atheros_WLAN_mmio_writel,

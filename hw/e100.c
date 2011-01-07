@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
- * Copyright (c) 2006-2007 Stefan Weil
+ * Copyright (c) 2006-2011 Stefan Weil
  * Copyright (c) 2006-2007 Zhang Xin(xing.z.zhang@intel.com)
  *
  * Support OS:
@@ -1979,7 +1979,7 @@ static uint32_t pci_mmio_readl(void *opaque, target_phys_addr_t addr)
     return e100_read4(s, addr);
 }
 
-static CPUReadMemoryFunc *pci_mmio_read[] = {
+static CPUReadMemoryFunc * const pci_mmio_read[] = {
     pci_mmio_readb,
     pci_mmio_readw,
     pci_mmio_readl
@@ -2108,7 +2108,7 @@ static void pci_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     e100_execute(s, addr, val, OP_WRITE, WRITEL);
 }
 
-static CPUWriteMemoryFunc *pci_mmio_write[] = {
+static CPUWriteMemoryFunc * const pci_mmio_write[] = {
     pci_mmio_writeb,
     pci_mmio_writew,
     pci_mmio_writel

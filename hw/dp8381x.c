@@ -1,7 +1,7 @@
 /*
  * QEMU emulation for National Semiconductor DP83815 / DP83816.
  *
- * Copyright (C) 2006-2009 Stefan Weil
+ * Copyright (C) 2006-2011 Stefan Weil
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1342,13 +1342,13 @@ static void dp8381x_mem_map(PCIDevice * pci_dev, int region_num,
     cpu_register_physical_memory(addr, DP8381X_MEM_SIZE, s->io_memory);
 }
 
-static CPUReadMemoryFunc *dp8381x_mmio_read[] = {
+static CPUReadMemoryFunc * const dp8381x_mmio_read[] = {
     dp8381x_mmio_readb,
     dp8381x_mmio_readw,
     dp8381x_mmio_readl
 };
 
-static CPUWriteMemoryFunc *dp8381x_mmio_write[] = {
+static CPUWriteMemoryFunc * const dp8381x_mmio_write[] = {
     dp8381x_mmio_writeb,
     dp8381x_mmio_writew,
     dp8381x_mmio_writel
