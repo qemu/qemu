@@ -1129,7 +1129,7 @@ static void cris_store_direct_jmp(DisasContext *dc)
 	/* Store the direct jmp state into the cpu-state.  */
 	if (dc->jmp == JMP_DIRECT) {
 		tcg_gen_movi_tl(env_btarget, dc->jmp_pc);
-		tcg_gen_movi_tl(env_btaken, 1);
+		dc->jmp = JMP_INDIRECT;
 	}
 }
 
@@ -1139,17 +1139,11 @@ static void cris_prepare_cc_branch (DisasContext *dc,
 	/* This helps us re-schedule the micro-code to insns in delay-slots
 	   before the actual jump.  */
 	dc->delayed_branch = 2;
+	dc->jmp = JMP_DIRECT;
 	dc->jmp_pc = dc->pc + offset;
 
-	if (cond != CC_A)
-	{
-		dc->jmp = JMP_INDIRECT;
-		gen_tst_cc (dc, env_btaken, cond);
-		tcg_gen_movi_tl(env_btarget, dc->jmp_pc);
-	} else {
-		/* Allow chaining.  */
-		dc->jmp = JMP_DIRECT;
-	}
+	gen_tst_cc (dc, env_btaken, cond);
+	tcg_gen_movi_tl(env_btarget, dc->jmp_pc);
 }
 
 
@@ -1161,8 +1155,7 @@ static inline void cris_prepare_jmp (DisasContext *dc, unsigned int type)
 	   before the actual jump.  */
 	dc->delayed_branch = 2;
 	dc->jmp = type;
-	if (type == JMP_INDIRECT)
-		tcg_gen_movi_tl(env_btaken, 1);
+	tcg_gen_movi_tl(env_btaken, 1);
 }
 
 static void gen_load64(DisasContext *dc, TCGv_i64 dst, TCGv addr)
@@ -3315,8 +3308,24 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 				if (tb->flags & 7)
 					t_gen_mov_env_TN(dslot, 
 						tcg_const_tl(0));
+				if (dc->cpustate_changed || !dc->flagx_known
+				    || (dc->flags_x != (tb->flags & X_FLAG))) {
+					cris_store_direct_jmp(dc);
+				}
 				if (dc->jmp == JMP_DIRECT) {
-					dc->is_jmp = DISAS_NEXT;
+					int l1;
+
+					l1 = gen_new_label();
+					cris_evaluate_flags(dc);
+
+					/* Conditional jmp.  */
+					tcg_gen_brcondi_tl(TCG_COND_EQ,
+							   env_btaken, 0, l1);
+					gen_goto_tb(dc, 1, dc->jmp_pc);
+					gen_set_label(l1);
+					gen_goto_tb(dc, 0, dc->pc);
+					dc->is_jmp = DISAS_TB_JUMP;
+					dc->jmp = JMP_NOJMP;
 				} else {
 					t_gen_cc_jmp(env_btarget, 
 						     tcg_const_tl(dc->pc));
@@ -3336,16 +3345,10 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 		 && (dc->pc < next_page_start)
                  && num_insns < max_insns);
 
-	if (dc->tb_flags != orig_flags) {
-		dc->cpustate_changed = 1;
-	}
-
 	if (dc->clear_locked_irq)
 		t_gen_mov_env_TN(locked_irq, tcg_const_tl(0));
 
 	npc = dc->pc;
-	if (dc->jmp == JMP_DIRECT && !dc->delayed_branch)
-		npc = dc->jmp_pc;
 
         if (tb->cflags & CF_LAST_IO)
             gen_io_end();
