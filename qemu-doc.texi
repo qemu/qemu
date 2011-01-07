@@ -832,7 +832,7 @@ Standard USB keyboard.  Will override the PS/2 keyboard (if present).
 Serial converter. This emulates an FTDI FT232BM chip connected to host character
 device @var{dev}. The available character devices are the same as for the
 @code{-serial} option. The @code{vendorid} and @code{productid} options can be
-used to override the default 0403:6001. For instance, 
+used to override the default 0403:6001. For instance,
 @example
 usb_add serial:productid=FA00:tcp:192.168.0.2:4444
 @end example
@@ -2201,7 +2201,7 @@ the address region required by guest applications is reserved on the host.
 This option is currently only supported on some hosts.
 @item -R size
 Pre-allocate a guest virtual address space of the given size (in bytes).
-"G", "M", and "k" suffixes may be used when specifying the size.  
+"G", "M", and "k" suffixes may be used when specifying the size.
 @end table
 
 Debug options:
