@@ -203,7 +203,7 @@ Intel 82801AA AC97 Audio compatible sound card
 @item
 Intel HD Audio Controller and HDA codec
 @item
-Adlib(OPL2) - Yamaha YM3812 compatible chip
+Adlib (OPL2) - Yamaha YM3812 compatible chip
 @item
 Gravis Ultrasound GF1 sound card
 @item
@@ -223,7 +223,7 @@ VGA BIOS.
 
 QEMU uses YM3812 emulation by Tatsuyuki Satoh.
 
-QEMU uses GUS emulation(GUSEMU32 @url{http://www.deinmeister.de/gusemu/})
+QEMU uses GUS emulation (GUSEMU32 @url{http://www.deinmeister.de/gusemu/})
 by Tibor "TS" Schütz.
 
 Not that, by default, GUS shares IRQ(7) with parallel ports and so
