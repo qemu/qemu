@@ -186,7 +186,7 @@ static ssize_t eth_rx(VLANClientState *nc, const uint8_t *buf, size_t size)
     D(qemu_log("%s %d rxbase=%x\n", __func__, size, rxbase));
     memcpy(&s->regs[rxbase + R_RX_BUF0], buf, size);
 
-    /* Bring it into host endianess.  */
+    /* Bring it into host endianness.  */
     for (i = 0; i < ((size + 3) / 4); i++) {
        uint32_t d = s->regs[rxbase + R_RX_BUF0 + i];
        s->regs[rxbase + R_RX_BUF0 + i] = be32_to_cpu(d);

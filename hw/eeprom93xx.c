@@ -31,7 +31,7 @@
  * eeprom93xx_write - write data to the EEPROM
  * eeprom93xx_data  - get EEPROM data array for external manipulation
  *
- * Hint: This driver always uses host endianess!
+ * Hint: This driver always uses host endianness!
  *
  * Todo list:
  * - No emulation of EEPROM timings.

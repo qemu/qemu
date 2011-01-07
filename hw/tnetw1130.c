@@ -720,7 +720,7 @@ static void tnetw1130_save(QEMUFile * f, void *opaque)
 #endif
     TRACE(TNETW, logout("\n"));
     pci_device_save(&d->dev, f);
-    /* TODO: support different endianess */
+    /* TODO: support different endianness */
     qemu_put_buffer(f, (uint8_t *) d, sizeof(*d));
 }
 #endif

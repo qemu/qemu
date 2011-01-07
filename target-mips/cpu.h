@@ -63,7 +63,7 @@ union fpr_t {
     uint32_t w[2]; /* binary single fixed-point */
 };
 /* define FP_ENDIAN_IDX to access the same location
- * in the fpr_t union regardless of the host endianess
+ * in the fpr_t union regardless of the host endianness
  */
 #if defined(HOST_WORDS_BIGENDIAN)
 #  define FP_ENDIAN_IDX 1

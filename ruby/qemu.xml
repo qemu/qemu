@@ -23,7 +23,7 @@ users to select, run and control a QEMU configuration.
 
   <boards>
     <board name="sinus-se">
-      <device name="mips 4KEc" endianess="le">
+      <device name="mips 4KEc" endianness="le">
       <device name="ram" addr="0x14000000" size="16 MiB" />
       <device name="rom" addr="0x1fc00000" size="4 KiB">
         <file name="mips_bios.bin" />
