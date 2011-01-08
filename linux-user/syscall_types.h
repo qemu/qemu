@@ -165,3 +165,19 @@ STRUCT(vt_stat,
        TYPE_SHORT, /* v_active */
        TYPE_SHORT, /* v_signal */
        TYPE_SHORT) /* v_state */
+
+STRUCT(fiemap_extent,
+       TYPE_ULONGLONG, /* fe_logical */
+       TYPE_ULONGLONG, /* fe_physical */
+       TYPE_ULONGLONG, /* fe_length */
+       MK_ARRAY(TYPE_ULONGLONG, 2), /* fe_reserved64[2] */
+       TYPE_INT, /* fe_flags */
+       MK_ARRAY(TYPE_INT, 3)) /* fe_reserved[3] */
+
+STRUCT(fiemap,
+       TYPE_ULONGLONG, /* fm_start */
+       TYPE_ULONGLONG, /* fm_length */
+       TYPE_INT, /* fm_flags */
+       TYPE_INT, /* fm_mapped_extents */
+       TYPE_INT, /* fm_extent_count */
+       TYPE_INT) /* fm_reserved */
