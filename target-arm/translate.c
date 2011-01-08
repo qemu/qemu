@@ -4652,14 +4652,22 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         case 5: /* VSHL, VSLI */
                             gen_helper_neon_shl_u64(cpu_V0, cpu_V0, cpu_V1);
                             break;
-                        case 6: /* VQSHL */
-                            if (u)
-                                gen_helper_neon_qshl_u64(cpu_V0, cpu_env, cpu_V0, cpu_V1);
-                            else
-                                gen_helper_neon_qshl_s64(cpu_V0, cpu_env, cpu_V0, cpu_V1);
+                        case 6: /* VQSHLU */
+                            if (u) {
+                                gen_helper_neon_qshlu_s64(cpu_V0, cpu_env,
+                                                          cpu_V0, cpu_V1);
+                            } else {
+                                return 1;
+                            }
                             break;
-                        case 7: /* VQSHLU */
-                            gen_helper_neon_qshl_u64(cpu_V0, cpu_env, cpu_V0, cpu_V1);
+                        case 7: /* VQSHL */
+                            if (u) {
+                                gen_helper_neon_qshl_u64(cpu_V0, cpu_env,
+                                                         cpu_V0, cpu_V1);
+                            } else {
+                                gen_helper_neon_qshl_s64(cpu_V0, cpu_env,
+                                                         cpu_V0, cpu_V1);
+                            }
                             break;
                         }
                         if (op == 1 || op == 3) {
@@ -4698,16 +4706,29 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             default: return 1;
                             }
                             break;
-                        case 6: /* VQSHL */
-                            GEN_NEON_INTEGER_OP_ENV(qshl);
-                            break;
-                        case 7: /* VQSHLU */
-                            switch (size) {
-                            case 0: gen_helper_neon_qshl_u8(tmp, cpu_env, tmp, tmp2); break;
-                            case 1: gen_helper_neon_qshl_u16(tmp, cpu_env, tmp, tmp2); break;
-                            case 2: gen_helper_neon_qshl_u32(tmp, cpu_env, tmp, tmp2); break;
-                            default: return 1;
+                        case 6: /* VQSHLU */
+                            if (!u) {
+                                return 1;
                             }
+                            switch (size) {
+                            case 0:
+                                gen_helper_neon_qshlu_s8(tmp, cpu_env,
+                                                         tmp, tmp2);
+                                break;
+                            case 1:
+                                gen_helper_neon_qshlu_s16(tmp, cpu_env,
+                                                          tmp, tmp2);
+                                break;
+                            case 2:
+                                gen_helper_neon_qshlu_s32(tmp, cpu_env,
+                                                          tmp, tmp2);
+                                break;
+                            default:
+                                return 1;
+                            }
+                            break;
+                        case 7: /* VQSHL */
+                            GEN_NEON_INTEGER_OP_ENV(qshl);
                             break;
                         }
                         dead_tmp(tmp2);
