@@ -50,7 +50,6 @@ struct image_info {
     abi_ulong entry;
     abi_ulong code_offset;
     abi_ulong data_offset;
-    char      **host_argv;
     int       personality;
 };
 

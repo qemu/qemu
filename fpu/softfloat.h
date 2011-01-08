@@ -489,6 +489,11 @@ INLINE int floatx80_is_zero(floatx80 a)
     return (a.high & 0x7fff) == 0 && a.low == 0;
 }
 
+INLINE int floatx80_is_any_nan(floatx80 a)
+{
+    return ((a.high & 0x7fff) == 0x7fff) && (a.low<<1);
+}
+
 #endif
 
 #ifdef FLOAT128
@@ -554,6 +559,12 @@ INLINE int float128_is_neg(float128 a)
 INLINE int float128_is_zero(float128 a)
 {
     return (a.high & 0x7fffffffffffffffLL) == 0 && a.low == 0;
+}
+
+INLINE int float128_is_any_nan(float128 a)
+{
+    return ((a.high >> 48) & 0x7fff) == 0x7fff &&
+        ((a.low != 0) || ((a.high & 0xffffffffffffLL) != 0));
 }
 
 #endif

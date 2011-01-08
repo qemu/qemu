@@ -174,8 +174,6 @@ int loader_exec(const char * filename, char ** argv, char ** envp,
 
     retval = prepare_binprm(bprm);
 
-    infop->host_argv = argv;
-
     if(retval>=0) {
         if (bprm->buf[0] == 0x7f
                 && bprm->buf[1] == 'E'
