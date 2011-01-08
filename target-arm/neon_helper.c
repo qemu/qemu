@@ -632,6 +632,53 @@ uint64_t HELPER(neon_qshl_s64)(CPUState *env, uint64_t valop, uint64_t shiftop)
     return val;
 }
 
+#define NEON_FN(dest, src1, src2) do { \
+    if (src1 & (1 << (sizeof(src1) * 8 - 1))) { \
+        SET_QC(); \
+        dest = 0; \
+    } else { \
+        int8_t tmp; \
+        tmp = (int8_t)src2; \
+        if (tmp >= (ssize_t)sizeof(src1) * 8) { \
+            if (src1) { \
+                SET_QC(); \
+                dest = ~0; \
+            } else { \
+                dest = 0; \
+            } \
+        } else if (tmp <= -(ssize_t)sizeof(src1) * 8) { \
+            dest = 0; \
+        } else if (tmp < 0) { \
+            dest = src1 >> -tmp; \
+        } else { \
+            dest = src1 << tmp; \
+            if ((dest >> tmp) != src1) { \
+                SET_QC(); \
+                dest = ~0; \
+            } \
+        } \
+    }} while (0)
+NEON_VOP_ENV(qshlu_s8, neon_u8, 4)
+NEON_VOP_ENV(qshlu_s16, neon_u16, 2)
+#undef NEON_FN
+
+uint32_t HELPER(neon_qshlu_s32)(CPUState *env, uint32_t valop, uint32_t shiftop)
+{
+    if ((int32_t)valop < 0) {
+        SET_QC();
+        return 0;
+    }
+    return helper_neon_qshl_u32(env, valop, shiftop);
+}
+
+uint64_t HELPER(neon_qshlu_s64)(CPUState *env, uint64_t valop, uint64_t shiftop)
+{
+    if ((int64_t)valop < 0) {
+        SET_QC();
+        return 0;
+    }
+    return helper_neon_qshl_u64(env, valop, shiftop);
+}
 
 /* FIXME: This is wrong.  */
 #define NEON_FN(dest, src1, src2) do { \
