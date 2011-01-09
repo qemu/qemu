@@ -2,7 +2,7 @@
 
 ; This NSIS script creates an installer for QEMU on Windows.
 
-; Copyright (C) 2006-2009 Stefan Weil
+; Copyright (C) 2006-2011 Stefan Weil
 ;
 ; This program is free software: you can redistribute it and/or modify
 ; it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ OutFile "qemu-setup.exe"
 ; The default installation directory
 InstallDir $PROGRAMFILES\qemu
 
-; Registry key to check for directory (so if you install again, it will 
+; Registry key to check for directory (so if you install again, it will
 ; overwrite the old one automatically)
 InstallDirRegKey HKLM "Software\qemu" "Install_Dir"
 
@@ -52,50 +52,68 @@ UninstPage instfiles
 ; The stuff to install
 Section "${PRODUCT} (required)"
 
-  SectionIn RO
+    SectionIn RO
 
-  ; Set output path to the installation directory.
-  SetOutPath "$INSTDIR"
+    ; Set output path to the installation directory.
+    SetOutPath "$INSTDIR"
 
-  ;File "i386-softmmu\qemu.exe"
-  File ${EXE_FILES}
-  File "qemu-img.exe"
-  ;;;File "SDL.dll"
-  File "${SRC_PATH}\Changelog"
-  File "${SRC_PATH}\COPYING"
-  File "${SRC_PATH}\COPYING.LIB"
-  File "${SRC_PATH}\README"
-  File "${SRC_PATH}\VERSION"
+    File "${SRCDIR}\Changelog"
+    File "${SRCDIR}\COPYING"
+    File "${SRCDIR}\COPYING.LIB"
+    File "${SRCDIR}\README"
+    File "${SRCDIR}\VERSION"
 
-  File /r /x .svn "${SRC_PATH}\pc-bios\keymaps"
+    File "${BINDIR}\*.bin"
+    File "${BINDIR}\*.dll"
+    File "${BINDIR}\*.dtb"
+    File "${BINDIR}\*.rom"
+    File "${BINDIR}\openbios-*"
 
-  SetOutPath "$INSTDIR"
-  File "${SRC_PATH}\pc-bios\bios.bin"
-  File "${SRC_PATH}\pc-bios\vgabios.bin"
-  File "${SRC_PATH}\pc-bios\vgabios-cirrus.bin"
+    File /r "${BINDIR}\keymaps"
+    File /r "${BINDIR}\qemu"
 
-  ; Write the installation path into the registry
-  WriteRegStr HKLM SOFTWARE\${PRODUCT} "Install_Dir" "$INSTDIR"
+    ; Write the installation path into the registry
+    WriteRegStr HKLM SOFTWARE\${PRODUCT} "Install_Dir" "$INSTDIR"
 
-  ; Write the uninstall keys for Windows
-  WriteRegStr HKLM "${UNINST_KEY}" "DisplayName" "QEMU"
-  WriteRegStr HKLM "${UNINST_KEY}" "UninstallString" '"${UNINST_EXE}"'
-  WriteRegDWORD HKLM "${UNINST_KEY}" "NoModify" 1
-  WriteRegDWORD HKLM "${UNINST_KEY}" "NoRepair" 1
-  WriteUninstaller "qemu-uninstall.exe"
+    ; Write the uninstall keys for Windows
+    WriteRegStr HKLM "${UNINST_KEY}" "DisplayName" "QEMU"
+    WriteRegStr HKLM "${UNINST_KEY}" "UninstallString" '"${UNINST_EXE}"'
+    WriteRegDWORD HKLM "${UNINST_KEY}" "NoModify" 1
+    WriteRegDWORD HKLM "${UNINST_KEY}" "NoRepair" 1
+    WriteUninstaller "qemu-uninstall.exe"
 SectionEnd
 
-; Section "${PRODUCT} Documentation"
-;   SetOutPath "$INSTDIR"
-;   File qemu-doc.html
-;   File qemu-tech.html
-;   CreateShortCut "$SMPROGRAMS\${PRODUCT}\User Documentation.lnk" "$INSTDIR\qemu-doc.html" "" "$INSTDIR\qemu-doc.html" 0
-; SectionEnd
+Section "${PRODUCT} Tools"
+    SetOutPath "$INSTDIR"
+    File "${BINDIR}\qemu-img.exe"
+    File "${BINDIR}\qemu-io.exe"
+SectionEnd
+
+Section "${PRODUCT} PC (i386) System Emulation"
+    SetOutPath "$INSTDIR"
+    File "${BINDIR}\qemu.exe"
+SectionEnd
+
+Section "${PRODUCT} Other System Emulations"
+    SetOutPath "$INSTDIR"
+    File "${BINDIR}\qemu-system-*.exe"
+SectionEnd
+
+!ifdef CONFIG_DOCUMENTATION
+Section "${PRODUCT} Documentation"
+    SetOutPath "$INSTDIR"
+    File qemu-doc.html
+    File qemu-tech.html
+    CreateDirectory "$SMPROGRAMS\${PRODUCT}"
+    CreateShortCut "$SMPROGRAMS\${PRODUCT}\User Documentation.lnk" "$INSTDIR\qemu-doc.html" "" "$INSTDIR\qemu-doc.html" 0
+    CreateShortCut "$SMPROGRAMS\${PRODUCT}\Technical Documentation.lnk" "$INSTDIR\qemu-tech.html" "" "$INSTDIR\qemu-tech.html" 0
+SectionEnd
+!endif
 
 ; Optional section (can be disabled by the user)
 Section "Start Menu Shortcuts"
-  CreateDirectory "$SMPROGRAMS\${PRODUCT}"
-  CreateShortCut "$SMPROGRAMS\${PRODUCT}\Uninstall.lnk" "${UNINST_EXE}" "" "${UNINST_EXE}" 0
+    CreateDirectory "$SMPROGRAMS\${PRODUCT}"
+    CreateShortCut "$SMPROGRAMS\${PRODUCT}\Uninstall.lnk" "${UNINST_EXE}" "" "${UNINST_EXE}" 0
 SectionEnd
 
 ;--------------------------------
@@ -103,16 +121,23 @@ SectionEnd
 ; Uninstaller
 
 Section "Uninstall"
-  ; Remove registry keys
-  DeleteRegKey HKLM "${UNINST_KEY}"
-  DeleteRegKey HKLM SOFTWARE\${PRODUCT}
+    ; Remove registry keys
+    DeleteRegKey HKLM "${UNINST_KEY}"
+    DeleteRegKey HKLM SOFTWARE\${PRODUCT}
 
-  ; Remove files and uninstaller
-  Delete "${UNINST_EXE}"
+    ; Remove files and uninstaller
+    Delete "${UNINST_EXE}"
 
-  ; Remove shortcuts, if any
-  RMDir /r "$SMPROGRAMS\${PRODUCT}"
+    ; Remove shortcuts, if any
+    RMDir /r "$SMPROGRAMS\${PRODUCT}"
 
-  ; Remove directories used
-  RMDir /r "$INSTDIR"
+    ; Remove directories used
+    RMDir /r "$INSTDIR"
 SectionEnd
+
+;--------------------------------
+
+; Descriptions (mouse-over)
+; !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
+;   !insertmacro MUI_DESCRIPTION_TEXT ${Section1} "xxx"
+; !insertmacro MUI_FUNCTION_DESCRIPTION_END
