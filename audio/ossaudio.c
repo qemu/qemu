@@ -161,7 +161,7 @@ static int oss_write (SWVoiceOut *sw, void *buf, int len)
     return audio_pcm_sw_write (sw, buf, len);
 }
 
-static int aud_to_ossfmt (audfmt_e fmt)
+static int aud_to_ossfmt (audfmt_e fmt, int endianness)
 {
     switch (fmt) {
     case AUD_FMT_S8:
@@ -171,10 +171,20 @@ static int aud_to_ossfmt (audfmt_e fmt)
         return AFMT_U8;
 
     case AUD_FMT_S16:
-        return AFMT_S16_LE;
+        if (endianness) {
+            return AFMT_S16_BE;
+        }
+        else {
+            return AFMT_S16_LE;
+        }
 
     case AUD_FMT_U16:
-        return AFMT_U16_LE;
+        if (endianness) {
+            return AFMT_U16_BE;
+        }
+        else {
+            return AFMT_U16_LE;
+        }
 
     default:
         dolog ("Internal logic error: Bad audio format %d\n", fmt);
@@ -516,7 +526,7 @@ static int oss_init_out (HWVoiceOut *hw, struct audsettings *as)
 
     oss->fd = -1;
 
-    req.fmt = aud_to_ossfmt (as->fmt);
+    req.fmt = aud_to_ossfmt (as->fmt, as->endianness);
     req.freq = as->freq;
     req.nchannels = as->nchannels;
     req.fragsize = conf.fragsize;
@@ -682,7 +692,7 @@ static int oss_init_in (HWVoiceIn *hw, struct audsettings *as)
 
     oss->fd = -1;
 
-    req.fmt = aud_to_ossfmt (as->fmt);
+    req.fmt = aud_to_ossfmt (as->fmt, as->endianness);
     req.freq = as->freq;
     req.nchannels = as->nchannels;
     req.fragsize = conf.fragsize;

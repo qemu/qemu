@@ -306,14 +306,15 @@ USBDevice *usb_host_device_open(const char *devname)
 {
     struct usb_device_info bus_info, dev_info;
     USBDevice *d = NULL;
-    USBHostDevice *dev;
+    USBHostDevice *dev, *ret = NULL;
     char ctlpath[PATH_MAX + 1];
     char buspath[PATH_MAX + 1];
     int bfd, dfd, bus, address, i;
     int ugendebug = UGEN_DEBUG_LEVEL;
 
-    if (usb_host_find_device(&bus, &address, devname) < 0)
-        return NULL;
+    if (usb_host_find_device(&bus, &address, devname) < 0) {
+        goto fail;
+    }
 
     snprintf(buspath, PATH_MAX, "/dev/usb%d", bus);
 
@@ -323,7 +324,7 @@ USBDevice *usb_host_device_open(const char *devname)
         printf("usb_host_device_open: failed to open usb bus - %s\n",
                strerror(errno));
 #endif
-        return NULL;
+        goto fail;
     }
 
     bus_info.udi_addr = address;
@@ -332,7 +333,7 @@ USBDevice *usb_host_device_open(const char *devname)
         printf("usb_host_device_open: failed to grab bus information - %s\n",
                strerror(errno));
 #endif
-        return NULL;
+        goto fail_bfd;
     }
 
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
@@ -350,46 +351,52 @@ USBDevice *usb_host_device_open(const char *devname)
                    ctlpath, strerror(errno));
 #endif
         }
+        goto fail_dfd;
     }
 
-    if (dfd >= 0) {
-        if (ioctl(dfd, USB_GET_DEVICEINFO, &dev_info) < 0) {
+    if (ioctl(dfd, USB_GET_DEVICEINFO, &dev_info) < 0) {
 #ifdef DEBUG
-            printf("usb_host_device_open: failed to grab device info - %s\n",
-                   strerror(errno));
+        printf("usb_host_device_open: failed to grab device info - %s\n",
+               strerror(errno));
 #endif
-            goto fail;
-        }
-
-        d = usb_create(NULL /* FIXME */, "usb-host");
-        dev = DO_UPCAST(USBHostDevice, dev, d);
-
-        if (dev_info.udi_speed == 1)
-            dev->dev.speed = USB_SPEED_LOW - 1;
-        else
-            dev->dev.speed = USB_SPEED_FULL - 1;
-
-        if (strncmp(dev_info.udi_product, "product", 7) != 0)
-            pstrcpy(dev->dev.product_desc, sizeof(dev->dev.product_desc),
-                    dev_info.udi_product);
-        else
-            snprintf(dev->dev.product_desc, sizeof(dev->dev.product_desc),
-                     "host:%s", devname);
-
-        pstrcpy(dev->devpath, sizeof(dev->devpath), "/dev/");
-        pstrcat(dev->devpath, sizeof(dev->devpath), dev_info.udi_devnames[0]);
-
-        /* Mark the endpoints as not yet open */
-        for (i = 0; i < USB_MAX_ENDPOINTS; i++)
-           dev->ep_fd[i] = -1;
-
-        ioctl(dfd, USB_SETDEBUG, &ugendebug);
-
-        return (USBDevice *)dev;
+        goto fail_dfd;
     }
 
+    d = usb_create(NULL /* FIXME */, "usb-host");
+    dev = DO_UPCAST(USBHostDevice, dev, d);
+
+    if (dev_info.udi_speed == 1) {
+        dev->dev.speed = USB_SPEED_LOW - 1;
+    } else {
+        dev->dev.speed = USB_SPEED_FULL - 1;
+    }
+
+    if (strncmp(dev_info.udi_product, "product", 7) != 0) {
+        pstrcpy(dev->dev.product_desc, sizeof(dev->dev.product_desc),
+                dev_info.udi_product);
+    } else {
+        snprintf(dev->dev.product_desc, sizeof(dev->dev.product_desc),
+                 "host:%s", devname);
+    }
+
+    pstrcpy(dev->devpath, sizeof(dev->devpath), "/dev/");
+    pstrcat(dev->devpath, sizeof(dev->devpath), dev_info.udi_devnames[0]);
+
+    /* Mark the endpoints as not yet open */
+    for (i = 0; i < USB_MAX_ENDPOINTS; i++) {
+        dev->ep_fd[i] = -1;
+    }
+
+    ioctl(dfd, USB_SETDEBUG, &ugendebug);
+
+    ret = (USBDevice *)dev;
+
+fail_dfd:
+    close(dfd);
+fail_bfd:
+    close(bfd);
 fail:
-    return NULL;
+    return ret;
 }
 
 static struct USBDeviceInfo usb_host_dev_info = {
