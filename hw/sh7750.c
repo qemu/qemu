@@ -670,6 +670,8 @@ static void sh7750_mmct_writel(void *opaque, target_phys_addr_t addr,
         /* do nothing */
 	break;
     case MM_ITLB_ADDR:
+        cpu_sh4_write_mmaped_itlb_addr(s->cpu, addr, mem_value);
+        break;
     case MM_ITLB_DATA:
         /* XXXXX */
         abort();

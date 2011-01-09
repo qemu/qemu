@@ -544,6 +544,25 @@ void cpu_load_tlb(CPUSH4State * env)
     tlb_flush(s, 1);
 }
 
+void cpu_sh4_write_mmaped_itlb_addr(CPUSH4State *s, target_phys_addr_t addr,
+				    uint32_t mem_value)
+{
+    uint32_t vpn = (mem_value & 0xfffffc00) >> 10;
+    uint8_t v = (uint8_t)((mem_value & 0x00000100) >> 8);
+    uint8_t asid = (uint8_t)(mem_value & 0x000000ff);
+
+    int index = (addr & 0x00003f00) >> 8;
+    tlb_t * entry = &s->itlb[index];
+    if (entry->v) {
+        /* Overwriting valid entry in itlb. */
+        target_ulong address = entry->vpn << 10;
+        tlb_flush_page(s, address);
+    }
+    entry->asid = asid;
+    entry->vpn = vpn;
+    entry->v = v;
+}
+
 void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
 				    uint32_t mem_value)
 {
