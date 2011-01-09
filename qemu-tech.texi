@@ -516,7 +516,7 @@ timers, especially together with the use of bottom halves (BHs).
 @section Hardware interrupts
 
 In order to be faster, QEMU does not check at every basic block if an
-hardware interrupt is pending. Instead, the user must asynchrously
+hardware interrupt is pending. Instead, the user must asynchronously
 call a specific function to tell that an interrupt is pending. This
 function resets the chaining of the currently executing basic
 block. It ensures that the execution will return soon in the main loop
@@ -548,7 +548,7 @@ Linux kernel does. The @code{sigreturn()} system call is emulated to return
 from the virtual signal handler.
 
 Some signals (such as SIGALRM) directly come from the host. Other
-signals are synthetized from the virtual CPU exceptions such as SIGFPE
+signals are synthesized from the virtual CPU exceptions such as SIGFPE
 when a division by zero is done (see @code{main.c:cpu_loop()}).
 
 The blocked signal mask is still handled by the host Linux kernel so
