@@ -364,7 +364,7 @@ formed from two 32-bit arguments.  The result is a 32-bit value.
 
 ********* QEMU specific operations
 
-* tb_exit t0
+* exit_tb t0
 
 Exit the current TB and return the value t0 (word type).
 
