@@ -743,9 +743,29 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
 
 void virtio_cleanup(VirtIODevice *vdev)
 {
+    qemu_del_vm_change_state_handler(vdev->vmstate);
     if (vdev->config)
         qemu_free(vdev->config);
     qemu_free(vdev->vq);
+}
+
+static void virtio_vmstate_change(void *opaque, int running, int reason)
+{
+    VirtIODevice *vdev = opaque;
+    bool backend_run = running && (vdev->status & VIRTIO_CONFIG_S_DRIVER_OK);
+    vdev->vm_running = running;
+
+    if (backend_run) {
+        virtio_set_status(vdev, vdev->status);
+    }
+
+    if (vdev->binding->vmstate_change) {
+        vdev->binding->vmstate_change(vdev->binding_opaque, backend_run);
+    }
+
+    if (!backend_run) {
+        virtio_set_status(vdev, vdev->status);
+    }
 }
 
 VirtIODevice *virtio_common_init(const char *name, uint16_t device_id,
@@ -773,6 +793,8 @@ VirtIODevice *virtio_common_init(const char *name, uint16_t device_id,
         vdev->config = qemu_mallocz(config_size);
     else
         vdev->config = NULL;
+
+    vdev->vmstate = qemu_add_vm_change_state_handler(virtio_vmstate_change, vdev);
 
     return vdev;
 }

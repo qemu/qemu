@@ -54,8 +54,6 @@ typedef struct VirtIONet
     uint8_t nouni;
     uint8_t nobcast;
     uint8_t vhost_started;
-    bool vm_running;
-    VMChangeStateEntry *vmstate;
     struct {
         int in_use;
         int first_multi;
@@ -102,7 +100,7 @@ static void virtio_net_set_config(VirtIODevice *vdev, const uint8_t *config)
 static bool virtio_net_started(VirtIONet *n, uint8_t status)
 {
     return (status & VIRTIO_CONFIG_S_DRIVER_OK) &&
-        (n->status & VIRTIO_NET_S_LINK_UP) && n->vm_running;
+        (n->status & VIRTIO_NET_S_LINK_UP) && n->vdev.vm_running;
 }
 
 static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
@@ -453,7 +451,7 @@ static void virtio_net_handle_rx(VirtIODevice *vdev, VirtQueue *vq)
 static int virtio_net_can_receive(VLANClientState *nc)
 {
     VirtIONet *n = DO_UPCAST(NICState, nc, nc)->opaque;
-    if (!n->vm_running) {
+    if (!n->vdev.vm_running) {
         return 0;
     }
 
@@ -708,7 +706,7 @@ static int32_t virtio_net_flush_tx(VirtIONet *n, VirtQueue *vq)
         return num_packets;
     }
 
-    assert(n->vm_running);
+    assert(n->vdev.vm_running);
 
     if (n->async_tx.elem.out_num) {
         virtio_queue_set_notification(n->tx_vq, 0);
@@ -769,7 +767,7 @@ static void virtio_net_handle_tx_timer(VirtIODevice *vdev, VirtQueue *vq)
     VirtIONet *n = to_virtio_net(vdev);
 
     /* This happens when device was stopped but VCPU wasn't. */
-    if (!n->vm_running) {
+    if (!n->vdev.vm_running) {
         n->tx_waiting = 1;
         return;
     }
@@ -796,7 +794,7 @@ static void virtio_net_handle_tx_bh(VirtIODevice *vdev, VirtQueue *vq)
     }
     n->tx_waiting = 1;
     /* This happens when device was stopped but VCPU wasn't. */
-    if (!n->vm_running) {
+    if (!n->vdev.vm_running) {
         return;
     }
     virtio_queue_set_notification(vq, 0);
@@ -806,7 +804,7 @@ static void virtio_net_handle_tx_bh(VirtIODevice *vdev, VirtQueue *vq)
 static void virtio_net_tx_timer(void *opaque)
 {
     VirtIONet *n = opaque;
-    assert(n->vm_running);
+    assert(n->vdev.vm_running);
 
     n->tx_waiting = 0;
 
@@ -823,7 +821,7 @@ static void virtio_net_tx_bh(void *opaque)
     VirtIONet *n = opaque;
     int32_t ret;
 
-    assert(n->vm_running);
+    assert(n->vdev.vm_running);
 
     n->tx_waiting = 0;
 
@@ -988,16 +986,6 @@ static NetClientInfo net_virtio_info = {
     .link_status_changed = virtio_net_set_link_status,
 };
 
-static void virtio_net_vmstate_change(void *opaque, int running, int reason)
-{
-    VirtIONet *n = opaque;
-    n->vm_running = running;
-    /* This is called when vm is started/stopped,
-     * it will start/stop vhost backend if appropriate
-     * e.g. after migration. */
-    virtio_net_set_status(&n->vdev, n->vdev.status);
-}
-
 VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
                               virtio_net_conf *net)
 {
@@ -1052,7 +1040,6 @@ VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
     n->qdev = dev;
     register_savevm(dev, "virtio-net", -1, VIRTIO_NET_VM_VERSION,
                     virtio_net_save, virtio_net_load, n);
-    n->vmstate = qemu_add_vm_change_state_handler(virtio_net_vmstate_change, n);
 
     add_boot_device_path(conf->bootindex, dev, "/ethernet-phy@0");
 
@@ -1062,7 +1049,6 @@ VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
 void virtio_net_exit(VirtIODevice *vdev)
 {
     VirtIONet *n = DO_UPCAST(VirtIONet, vdev, vdev);
-    qemu_del_vm_change_state_handler(n->vmstate);
 
     /* This will stop vhost backend if appropriate. */
     virtio_net_set_status(vdev, 0);
