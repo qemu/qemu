@@ -1068,7 +1068,7 @@ static int img_snapshot(int argc, char **argv)
     int action = 0;
     qemu_timeval tv;
 
-    bdrv_oflags = BDRV_O_RDWR;
+    bdrv_oflags = BDRV_O_FLAGS | BDRV_O_RDWR;
     /* Parse commandline parameters */
     for(;;) {
         c = getopt(argc, argv, "la:c:d:h");
