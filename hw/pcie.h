@@ -63,8 +63,6 @@ struct PCIExpressDevice {
     /* Offset of express capability in config space */
     uint8_t exp_cap;
 
-    /* TODO FLR */
-
     /* SLOT */
     unsigned int hpev_intx;     /* INTx for hot plug event (0-3:INT[A-D]#)
                                  * default is 0 = INTA#

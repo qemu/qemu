@@ -89,7 +89,7 @@ static int xio3130_downstream_initfn(PCIDevice *d)
     if (rc < 0) {
         goto err_msi;
     }
-    pcie_cap_flr_init(d);       /* TODO: implement FLR */
+    pcie_cap_flr_init(d);
     pcie_cap_deverr_init(d);
     pcie_cap_slot_init(d, s->slot);
     pcie_chassis_create(s->chassis);

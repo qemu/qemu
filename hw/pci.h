@@ -237,6 +237,7 @@ void pci_bus_hotplug(PCIBus *bus, pci_hotplug_fn hotplug, DeviceState *dev);
 PCIBus *pci_register_bus(DeviceState *parent, const char *name,
                          pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                          void *irq_opaque, int devfn_min, int nirq);
+void pci_device_reset(PCIDevice *dev);
 void pci_bus_reset(PCIBus *bus);
 
 void pci_bus_set_mem_base(PCIBus *bus, target_phys_addr_t base);
@@ -251,6 +252,7 @@ PCIBus *pci_find_root_bus(int domain);
 int pci_find_domain(const PCIBus *bus);
 PCIBus *pci_find_bus(PCIBus *bus, int bus_num);
 PCIDevice *pci_find_device(PCIBus *bus, int bus_num, int slot, int function);
+int pci_qdev_find_device(const char *id, PCIDevice **pdev);
 PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr);
 
 int pci_parse_devaddr(const char *addr, int *domp, int *busp,

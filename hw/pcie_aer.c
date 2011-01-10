@@ -19,6 +19,8 @@
  */
 
 #include "sysemu.h"
+#include "qemu-objects.h"
+#include "monitor.h"
 #include "pci_bridge.h"
 #include "pcie.h"
 #include "msix.h"
@@ -806,3 +808,224 @@ const VMStateDescription vmstate_pcie_aer_log = {
         VMSTATE_END_OF_LIST()
     }
 };
+
+void pcie_aer_inject_error_print(Monitor *mon, const QObject *data)
+{
+    QDict *qdict;
+    int devfn;
+    assert(qobject_type(data) == QTYPE_QDICT);
+    qdict = qobject_to_qdict(data);
+
+    devfn = (int)qdict_get_int(qdict, "devfn");
+    monitor_printf(mon, "OK id: %s domain: %x, bus: %x devfn: %x.%x\n",
+                   qdict_get_str(qdict, "id"),
+                   (int) qdict_get_int(qdict, "domain"),
+                   (int) qdict_get_int(qdict, "bus"),
+                   PCI_SLOT(devfn), PCI_FUNC(devfn));
+}
+
+typedef struct PCIEAERErrorName {
+    const char *name;
+    uint32_t val;
+    bool correctable;
+} PCIEAERErrorName;
+
+/*
+ * AER error name -> value convertion table
+ * This naming scheme is same to linux aer-injection tool.
+ */
+static const struct PCIEAERErrorName pcie_aer_error_list[] = {
+    {
+        .name = "TRAIN",
+        .val = PCI_ERR_UNC_TRAIN,
+        .correctable = false,
+    }, {
+        .name = "DLP",
+        .val = PCI_ERR_UNC_DLP,
+        .correctable = false,
+    }, {
+        .name = "SDN",
+        .val = PCI_ERR_UNC_SDN,
+        .correctable = false,
+    }, {
+        .name = "POISON_TLP",
+        .val = PCI_ERR_UNC_POISON_TLP,
+        .correctable = false,
+    }, {
+        .name = "FCP",
+        .val = PCI_ERR_UNC_FCP,
+        .correctable = false,
+    }, {
+        .name = "COMP_TIME",
+        .val = PCI_ERR_UNC_COMP_TIME,
+        .correctable = false,
+    }, {
+        .name = "COMP_ABORT",
+        .val = PCI_ERR_UNC_COMP_ABORT,
+        .correctable = false,
+    }, {
+        .name = "UNX_COMP",
+        .val = PCI_ERR_UNC_UNX_COMP,
+        .correctable = false,
+    }, {
+        .name = "RX_OVER",
+        .val = PCI_ERR_UNC_RX_OVER,
+        .correctable = false,
+    }, {
+        .name = "MALF_TLP",
+        .val = PCI_ERR_UNC_MALF_TLP,
+        .correctable = false,
+    }, {
+        .name = "ECRC",
+        .val = PCI_ERR_UNC_ECRC,
+        .correctable = false,
+    }, {
+        .name = "UNSUP",
+        .val = PCI_ERR_UNC_UNSUP,
+        .correctable = false,
+    }, {
+        .name = "ACSV",
+        .val = PCI_ERR_UNC_ACSV,
+        .correctable = false,
+    }, {
+        .name = "INTN",
+        .val = PCI_ERR_UNC_INTN,
+        .correctable = false,
+    }, {
+        .name = "MCBTLP",
+        .val = PCI_ERR_UNC_MCBTLP,
+        .correctable = false,
+    }, {
+        .name = "ATOP_EBLOCKED",
+        .val = PCI_ERR_UNC_ATOP_EBLOCKED,
+        .correctable = false,
+    }, {
+        .name = "TLP_PRF_BLOCKED",
+        .val = PCI_ERR_UNC_TLP_PRF_BLOCKED,
+        .correctable = false,
+    }, {
+        .name = "RCVR",
+        .val = PCI_ERR_COR_RCVR,
+        .correctable = true,
+    }, {
+        .name = "BAD_TLP",
+        .val = PCI_ERR_COR_BAD_TLP,
+        .correctable = true,
+    }, {
+        .name = "BAD_DLLP",
+        .val = PCI_ERR_COR_BAD_DLLP,
+        .correctable = true,
+    }, {
+        .name = "REP_ROLL",
+        .val = PCI_ERR_COR_REP_ROLL,
+        .correctable = true,
+    }, {
+        .name = "REP_TIMER",
+        .val = PCI_ERR_COR_REP_TIMER,
+        .correctable = true,
+    }, {
+        .name = "ADV_NONFATAL",
+        .val = PCI_ERR_COR_ADV_NONFATAL,
+        .correctable = true,
+    }, {
+        .name = "INTERNAL",
+        .val = PCI_ERR_COR_INTERNAL,
+        .correctable = true,
+    }, {
+        .name = "HL_OVERFLOW",
+        .val = PCI_ERR_COR_HL_OVERFLOW,
+        .correctable = true,
+    },
+};
+
+static int pcie_aer_parse_error_string(const char *error_name,
+                                       uint32_t *status, bool *correctable)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(pcie_aer_error_list); i++) {
+        const  PCIEAERErrorName *e = &pcie_aer_error_list[i];
+        if (strcmp(error_name, e->name)) {
+            continue;
+        }
+
+        *status = e->val;
+        *correctable = e->correctable;
+        return 0;
+    }
+    return -EINVAL;
+}
+
+int do_pcie_aer_inejct_error(Monitor *mon,
+                             const QDict *qdict, QObject **ret_data)
+{
+    const char *id = qdict_get_str(qdict, "id");
+    const char *error_name;
+    uint32_t error_status;
+    bool correctable;
+    PCIDevice *dev;
+    PCIEAERErr err;
+    int ret;
+
+    ret = pci_qdev_find_device(id, &dev);
+    if (ret < 0) {
+        monitor_printf(mon,
+                       "id or pci device path is invalid or device not "
+                       "found. %s\n", id);
+        return ret;
+    }
+    if (!pci_is_express(dev)) {
+        monitor_printf(mon, "the device doesn't support pci express. %s\n",
+                       id);
+        return -ENOSYS;
+    }
+
+    error_name = qdict_get_str(qdict, "error_status");
+    if (pcie_aer_parse_error_string(error_name, &error_status, &correctable)) {
+        char *e = NULL;
+        error_status = strtoul(error_name, &e, 0);
+        correctable = !!qdict_get_int(qdict, "correctable");
+        if (!e || *e != '\0') {
+            monitor_printf(mon, "invalid error status value. \"%s\"",
+                           error_name);
+            return -EINVAL;
+        }
+    }
+    err.source_id = (pci_bus_num(dev->bus) << 8) | dev->devfn;
+
+    err.flags = 0;
+    if (correctable) {
+        err.flags |= PCIE_AER_ERR_IS_CORRECTABLE;
+    }
+    if (qdict_get_int(qdict, "advisory_non_fatal")) {
+        err.flags |= PCIE_AER_ERR_MAYBE_ADVISORY;
+    }
+    if (qdict_haskey(qdict, "header0")) {
+        err.flags |= PCIE_AER_ERR_HEADER_VALID;
+    }
+    if (qdict_haskey(qdict, "prefix0")) {
+        err.flags |= PCIE_AER_ERR_TLP_PREFIX_PRESENT;
+    }
+
+    err.header[0] = qdict_get_try_int(qdict, "header0", 0);
+    err.header[1] = qdict_get_try_int(qdict, "header1", 0);
+    err.header[2] = qdict_get_try_int(qdict, "header2", 0);
+    err.header[3] = qdict_get_try_int(qdict, "header3", 0);
+
+    err.prefix[0] = qdict_get_try_int(qdict, "prefix0", 0);
+    err.prefix[1] = qdict_get_try_int(qdict, "prefix1", 0);
+    err.prefix[2] = qdict_get_try_int(qdict, "prefix2", 0);
+    err.prefix[3] = qdict_get_try_int(qdict, "prefix3", 0);
+
+    ret = pcie_aer_inject_error(dev, &err);
+    *ret_data = qobject_from_jsonf("{'id': %s, "
+                                   "'domain': %d, 'bus': %d, 'devfn': %d, "
+                                   "'ret': %d}",
+                                   id,
+                                   pci_find_domain(dev->bus),
+                                   pci_bus_num(dev->bus), dev->devfn,
+                                   ret);
+    assert(*ret_data);
+
+    return 0;
+}

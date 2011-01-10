@@ -1329,7 +1329,7 @@ static inline void tcg_out_bswap32(TCGContext *s, TCGArg ret, TCGArg arg)
 
 static inline void tcg_out_bswap64(TCGContext *s, TCGArg ret, TCGArg arg)
 {
-    tcg_out_bundle(s, mII,
+    tcg_out_bundle(s, miI,
                    tcg_opc_m48(TCG_REG_P0, OPC_NOP_M48, 0),
                    tcg_opc_i18(TCG_REG_P0, OPC_NOP_I18, 0),
                    tcg_opc_i3 (TCG_REG_P0, OPC_MUX1_I3, ret, arg, 0xb));

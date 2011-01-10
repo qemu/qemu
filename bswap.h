@@ -144,6 +144,7 @@ CPU_CONVERT(le, 64, uint64_t)
 
 #define cpu_to_be16wu(p, v) cpu_to_be16w(p, v)
 #define cpu_to_be32wu(p, v) cpu_to_be32w(p, v)
+#define cpu_to_be64wu(p, v) cpu_to_be64w(p, v)
 
 #else
 
@@ -199,6 +200,20 @@ static inline void cpu_to_be32wu(uint32_t *p, uint32_t v)
     p1[1] = v >> 16;
     p1[2] = v >> 8;
     p1[3] = v & 0xff;
+}
+
+static inline void cpu_to_be64wu(uint64_t *p, uint64_t v)
+{
+    uint8_t *p1 = (uint8_t *)p;
+
+    p1[0] = v >> 56;
+    p1[1] = v >> 48;
+    p1[2] = v >> 40;
+    p1[3] = v >> 32;
+    p1[4] = v >> 24;
+    p1[5] = v >> 16;
+    p1[6] = v >> 8;
+    p1[7] = v & 0xff;
 }
 
 #endif

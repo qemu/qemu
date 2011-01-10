@@ -2767,7 +2767,6 @@ print_insn_cris_generic (bfd_vma memaddr,
 }
 
 /* Disassemble, prefixing register names with `$'.  CRIS v0..v10.  */
-#if 0
 static int
 print_insn_cris_with_register_prefix (bfd_vma vma,
 				      disassemble_info *info)
@@ -2777,7 +2776,6 @@ print_insn_cris_with_register_prefix (bfd_vma vma,
     return -1;
   return print_insn_cris_generic (vma, info, true);
 }
-#endif
 /* Disassemble, prefixing register names with `$'.  CRIS v32.  */
 
 static int
@@ -2841,6 +2839,13 @@ print_insn_crisv10_v32_without_register_prefix (bfd_vma vma,
   return print_insn_cris_generic (vma, info, false);
 }
 #endif
+
+int
+print_insn_crisv10 (bfd_vma vma,
+		    disassemble_info *info)
+{
+  return print_insn_cris_with_register_prefix(vma, info);
+}
 
 int
 print_insn_crisv32 (bfd_vma vma,
