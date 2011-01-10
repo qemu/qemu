@@ -120,9 +120,10 @@ typedef struct DisasContext {
 	unsigned int tb_flags; /* tb dependent flags.  */
 	int is_jmp;
 
-#define JMP_NOJMP    0
-#define JMP_DIRECT   1
-#define JMP_INDIRECT 2
+#define JMP_NOJMP     0
+#define JMP_DIRECT    1
+#define JMP_DIRECT_CC 2
+#define JMP_INDIRECT  3
 	int jmp; /* 0=nojmp, 1=direct, 2=indirect.  */ 
 	uint32_t jmp_pc;
 
@@ -1127,7 +1128,7 @@ static void gen_tst_cc (DisasContext *dc, TCGv cc, int cond)
 static void cris_store_direct_jmp(DisasContext *dc)
 {
 	/* Store the direct jmp state into the cpu-state.  */
-	if (dc->jmp == JMP_DIRECT) {
+	if (dc->jmp == JMP_DIRECT || dc->jmp == JMP_DIRECT_CC) {
 		tcg_gen_movi_tl(env_btarget, dc->jmp_pc);
 		dc->jmp = JMP_INDIRECT;
 	}
@@ -1139,7 +1140,7 @@ static void cris_prepare_cc_branch (DisasContext *dc,
 	/* This helps us re-schedule the micro-code to insns in delay-slots
 	   before the actual jump.  */
 	dc->delayed_branch = 2;
-	dc->jmp = JMP_DIRECT;
+	dc->jmp = JMP_DIRECT_CC;
 	dc->jmp_pc = dc->pc + offset;
 
 	gen_tst_cc (dc, env_btaken, cond);
@@ -1155,7 +1156,9 @@ static inline void cris_prepare_jmp (DisasContext *dc, unsigned int type)
 	   before the actual jump.  */
 	dc->delayed_branch = 2;
 	dc->jmp = type;
-	tcg_gen_movi_tl(env_btaken, 1);
+	if (type == JMP_INDIRECT) {
+		tcg_gen_movi_tl(env_btaken, 1);
+	}
 }
 
 static void gen_load64(DisasContext *dc, TCGv_i64 dst, TCGv addr)
@@ -3193,10 +3196,13 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 
 	qemu_log_try_set_file(stderr);
 
-	if (env->pregs[PR_VR] == 32)
+	if (env->pregs[PR_VR] == 32) {
 		dc->decoder = crisv32_decoder;
-	else
+		dc->clear_locked_irq = 0;
+	} else {
 		dc->decoder = crisv10_decoder;
+		dc->clear_locked_irq = 1;
+	}
 
 	/* Odd PC indicates that branch is rexecuting due to exception in the
 	 * delayslot, like in real hw.
@@ -3218,7 +3224,6 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 	dc->cc_mask = 0;
 	dc->update_cc = 0;
 	dc->clear_prefix = 0;
-	dc->clear_locked_irq = 1;
 
 	cris_update_cc_op(dc, CC_OP_FLAGS, 4);
 	dc->cc_size_uptodate = -1;
@@ -3312,7 +3317,14 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 				    || (dc->flags_x != (tb->flags & X_FLAG))) {
 					cris_store_direct_jmp(dc);
 				}
-				if (dc->jmp == JMP_DIRECT) {
+
+				if (dc->clear_locked_irq) {
+					dc->clear_locked_irq = 0;
+					t_gen_mov_env_TN(locked_irq,
+							 tcg_const_tl(0));
+				}
+
+				if (dc->jmp == JMP_DIRECT_CC) {
 					int l1;
 
 					l1 = gen_new_label();
@@ -3324,6 +3336,11 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 					gen_goto_tb(dc, 1, dc->jmp_pc);
 					gen_set_label(l1);
 					gen_goto_tb(dc, 0, dc->pc);
+					dc->is_jmp = DISAS_TB_JUMP;
+					dc->jmp = JMP_NOJMP;
+				} else if (dc->jmp == JMP_DIRECT) {
+					cris_evaluate_flags(dc);
+					gen_goto_tb(dc, 0, dc->jmp_pc);
 					dc->is_jmp = DISAS_TB_JUMP;
 					dc->jmp = JMP_NOJMP;
 				} else {
