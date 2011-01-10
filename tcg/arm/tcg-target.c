@@ -352,6 +352,9 @@ static inline void tcg_out_b(TCGContext *s, int cond, int32_t offset)
 
 static inline void tcg_out_b_noaddr(TCGContext *s, int cond)
 {
+    /* We pay attention here to not modify the branch target by skipping
+       the corresponding bytes. This ensure that caches and memory are
+       kept coherent during retranslation. */
 #ifdef HOST_WORDS_BIGENDIAN
     tcg_out8(s, (cond << 4) | 0x0a);
     s->code_ptr += 3;
