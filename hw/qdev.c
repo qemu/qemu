@@ -328,8 +328,9 @@ void qdev_reset_all(DeviceState *dev)
     qdev_walk_children(dev, qdev_reset_one, qbus_reset_one, NULL);
 }
 
-void qbus_reset_all(BusState *bus)
+void qbus_reset_all_fn(void *opaque)
 {
+    BusState *bus = opaque;
     qbus_walk_children(bus, qdev_reset_one, qbus_reset_one, NULL);
 }
 
@@ -547,7 +548,7 @@ static BusState *qbus_find_recursive(BusState *bus, const char *name,
     return NULL;
 }
 
-static DeviceState *qdev_find_recursive(BusState *bus, const char *id)
+DeviceState *qdev_find_recursive(BusState *bus, const char *id)
 {
     DeviceState *dev, *ret;
     BusState *child;
@@ -754,8 +755,11 @@ void qbus_create_inplace(BusState *bus, BusInfo *info,
     if (parent) {
         QLIST_INSERT_HEAD(&parent->child_bus, bus, sibling);
         parent->num_child_bus++;
+    } else if (bus != main_system_bus) {
+        /* TODO: once all bus devices are qdevified,
+           only reset handler for main_system_bus should be registered here. */
+        qemu_register_reset(qbus_reset_all_fn, bus);
     }
-
 }
 
 BusState *qbus_create(BusInfo *info, DeviceState *parent, const char *name)
@@ -778,6 +782,9 @@ void qbus_free(BusState *bus)
     if (bus->parent) {
         QLIST_REMOVE(bus, sibling);
         bus->parent->num_child_bus--;
+    } else {
+        assert(bus != main_system_bus); /* main_system_bus is never freed */
+        qemu_unregister_reset(qbus_reset_all_fn, bus);
     }
     qemu_free((void*)bus->name);
     if (bus->qdev_allocated) {

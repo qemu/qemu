@@ -380,10 +380,6 @@ void pcie_cap_root_reset(PCIDevice *dev)
     pci_set_word(dev->config + dev->exp.exp_cap + PCI_EXP_RTCTL, 0);
 }
 
-/*
- * TODO: implement FLR:
- * Right now sets the bit which indicates FLR is supported.
- */
 /* function level reset(FLR) */
 void pcie_cap_flr_init(PCIDevice *dev)
 {
@@ -403,8 +399,11 @@ void pcie_cap_flr_write_config(PCIDevice *dev,
                                uint32_t addr, uint32_t val, int len)
 {
     uint8_t *devctl = dev->config + dev->exp.exp_cap + PCI_EXP_DEVCTL;
-    if (pci_word_test_and_clear_mask(devctl, PCI_EXP_DEVCTL_BCR_FLR)) {
-        /* TODO: implement FLR */
+    if (pci_get_word(devctl) & PCI_EXP_DEVCTL_BCR_FLR) {
+        /* Clear PCI_EXP_DEVCTL_BCR_FLR after invoking the reset handler
+           so the handler can detect FLR by looking at this bit. */
+        pci_device_reset(dev);
+        pci_word_test_and_clear_mask(devctl, PCI_EXP_DEVCTL_BCR_FLR);
     }
 }
 

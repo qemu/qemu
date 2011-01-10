@@ -137,7 +137,11 @@ static void pci_update_irq_status(PCIDevice *dev)
     }
 }
 
-static void pci_device_reset(PCIDevice *dev)
+/*
+ * This function is called on #RST and FLR.
+ * FLR if PCI_EXP_DEVCTL_BCR_FLR is set
+ */
+void pci_device_reset(PCIDevice *dev)
 {
     int r;
     /* TODO: call the below unconditionally once all pci devices
@@ -2010,13 +2014,77 @@ static char *pcibus_get_fw_dev_path(DeviceState *dev)
 
 static char *pcibus_get_dev_path(DeviceState *dev)
 {
-    PCIDevice *d = (PCIDevice *)dev;
-    char path[16];
+    PCIDevice *d = container_of(dev, PCIDevice, qdev);
+    PCIDevice *t;
+    int slot_depth;
+    /* Path format: Domain:00:Slot.Function:Slot.Function....:Slot.Function.
+     * 00 is added here to make this format compatible with
+     * domain:Bus:Slot.Func for systems without nested PCI bridges.
+     * Slot.Function list specifies the slot and function numbers for all
+     * devices on the path from root to the specific device. */
+    int domain_len = strlen("DDDD:00");
+    int slot_len = strlen(":SS.F");
+    int path_len;
+    char *path, *p;
 
-    snprintf(path, sizeof(path), "%04x:%02x:%02x.%x",
-             pci_find_domain(d->bus), d->config[PCI_SECONDARY_BUS],
-             PCI_SLOT(d->devfn), PCI_FUNC(d->devfn));
+    /* Calculate # of slots on path between device and root. */;
+    slot_depth = 0;
+    for (t = d; t; t = t->bus->parent_dev) {
+        ++slot_depth;
+    }
 
-    return strdup(path);
+    path_len = domain_len + slot_len * slot_depth;
+
+    /* Allocate memory, fill in the terminating null byte. */
+    path = malloc(path_len + 1 /* For '\0' */);
+    path[path_len] = '\0';
+
+    /* First field is the domain. */
+    snprintf(path, domain_len, "%04x:00", pci_find_domain(d->bus));
+
+    /* Fill in slot numbers. We walk up from device to root, so need to print
+     * them in the reverse order, last to first. */
+    p = path + path_len;
+    for (t = d; t; t = t->bus->parent_dev) {
+        p -= slot_len;
+        snprintf(p, slot_len, ":%02x.%x", PCI_SLOT(t->devfn), PCI_FUNC(d->devfn));
+    }
+
+    return path;
 }
 
+static int pci_qdev_find_recursive(PCIBus *bus,
+                                   const char *id, PCIDevice **pdev)
+{
+    DeviceState *qdev = qdev_find_recursive(&bus->qbus, id);
+    if (!qdev) {
+        return -ENODEV;
+    }
+
+    /* roughly check if given qdev is pci device */
+    if (qdev->info->init == &pci_qdev_init &&
+        qdev->parent_bus->info == &pci_bus_info) {
+        *pdev = DO_UPCAST(PCIDevice, qdev, qdev);
+        return 0;
+    }
+    return -EINVAL;
+}
+
+int pci_qdev_find_device(const char *id, PCIDevice **pdev)
+{
+    struct PCIHostBus *host;
+    int rc = -ENODEV;
+
+    QLIST_FOREACH(host, &host_buses, next) {
+        int tmp = pci_qdev_find_recursive(host->bus, id, pdev);
+        if (!tmp) {
+            rc = 0;
+            break;
+        }
+        if (tmp != -ENODEV) {
+            rc = tmp;
+        }
+    }
+
+    return rc;
+}
