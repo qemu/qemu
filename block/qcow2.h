@@ -78,6 +78,9 @@ typedef struct QCowSnapshot {
     uint64_t vm_clock_nsec;
 } QCowSnapshot;
 
+struct Qcow2Cache;
+typedef struct Qcow2Cache Qcow2Cache;
+
 typedef struct BDRVQcowState {
     int cluster_bits;
     int cluster_size;
@@ -214,5 +217,21 @@ int qcow2_snapshot_load_tmp(BlockDriverState *bs, const char *snapshot_name);
 
 void qcow2_free_snapshots(BlockDriverState *bs);
 int qcow2_read_snapshots(BlockDriverState *bs);
+
+/* qcow2-cache.c functions */
+Qcow2Cache *qcow2_cache_create(BlockDriverState *bs, int num_tables,
+    bool writethrough);
+int qcow2_cache_destroy(BlockDriverState* bs, Qcow2Cache *c);
+
+void qcow2_cache_entry_mark_dirty(Qcow2Cache *c, void *table);
+int qcow2_cache_flush(BlockDriverState *bs, Qcow2Cache *c);
+int qcow2_cache_set_dependency(BlockDriverState *bs, Qcow2Cache *c,
+    Qcow2Cache *dependency);
+
+int qcow2_cache_get(BlockDriverState *bs, Qcow2Cache *c, uint64_t offset,
+    void **table);
+int qcow2_cache_get_empty(BlockDriverState *bs, Qcow2Cache *c, uint64_t offset,
+    void **table);
+int qcow2_cache_put(BlockDriverState *bs, Qcow2Cache *c, void **table);
 
 #endif
