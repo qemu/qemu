@@ -4101,6 +4101,30 @@ print_insn_arm (bfd_vma pc, struct disassemble_info *info)
        addresses, since the addend is not currently pc-relative.  */
     pc = 0;
 
+  /* We include the hexdump of the instruction. The format here
+     matches that used by objdump and the ARM ARM (in particular,
+     32 bit Thumb instructions are displayed as pairs of halfwords,
+     not as a single word.)  */
+  if (is_thumb)
+    {
+      if (size == 2)
+	{
+	  info->fprintf_func(info->stream, "%04lx       ",
+			     ((unsigned long)given) & 0xffff);
+	}
+      else
+	{
+	  info->fprintf_func(info->stream, "%04lx %04lx  ",
+			     (((unsigned long)given) >> 16) & 0xffff,
+			     ((unsigned long)given) & 0xffff);
+	}
+    }
+  else
+    {
+      info->fprintf_func(info->stream, "%08lx      ",
+			 ((unsigned long)given) & 0xffffffff);
+    }
+
   printer (pc, info, given);
 
   if (is_thumb)
