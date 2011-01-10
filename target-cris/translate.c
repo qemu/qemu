@@ -3185,7 +3185,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 {
 	uint16_t *gen_opc_end;
    	uint32_t pc_start;
-	unsigned int insn_len, orig_flags;
+	unsigned int insn_len;
 	int j, lj;
 	struct DisasContext ctx;
 	struct DisasContext *dc = &ctx;
@@ -3229,7 +3229,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 	dc->cc_size_uptodate = -1;
 
 	/* Decode TB flags.  */
-	orig_flags = dc->tb_flags = tb->flags & (S_FLAG | P_FLAG | U_FLAG \
+	dc->tb_flags = tb->flags & (S_FLAG | P_FLAG | U_FLAG \
 					| X_FLAG | PFIX_FLAG);
 	dc->delayed_branch = !!(tb->flags & 7);
 	if (dc->delayed_branch)
