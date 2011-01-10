@@ -2090,6 +2090,23 @@ if compile_prog "$ARCH_CFLAGS" "" ; then
   sync_file_range=yes
 fi
 
+# check for linux/fiemap.h and FS_IOC_FIEMAP
+fiemap=no
+cat > $TMPC << EOF
+#include <sys/ioctl.h>
+#include <linux/fs.h>
+#include <linux/fiemap.h>
+
+int main(void)
+{
+    ioctl(0, FS_IOC_FIEMAP, 0);
+    return 0;
+}
+EOF
+if compile_prog "$ARCH_CFLAGS" "" ; then
+  fiemap=yes
+fi
+
 # check for dup3
 dup3=no
 cat > $TMPC << EOF
@@ -2630,6 +2647,9 @@ if test "$fallocate" = "yes" ; then
 fi
 if test "$sync_file_range" = "yes" ; then
   echo "CONFIG_SYNC_FILE_RANGE=y" >> $config_host_mak
+fi
+if test "$fiemap" = "yes" ; then
+  echo "CONFIG_FIEMAP=y" >> $config_host_mak
 fi
 if test "$dup3" = "yes" ; then
   echo "CONFIG_DUP3=y" >> $config_host_mak

@@ -83,7 +83,9 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <linux/kd.h>
 #include <linux/mtio.h>
 #include <linux/fs.h>
+#if defined(CONFIG_FIEMAP)
 #include <linux/fiemap.h>
+#endif
 #include <linux/fb.h>
 #include <linux/vt.h>
 #include "linux_loop.h"
@@ -2986,6 +2988,7 @@ struct IOCTLEntry {
 
 #define MAX_STRUCT_SIZE 4096
 
+#ifdef CONFIG_FIEMAP
 /* So fiemap access checks don't overflow on 32 bit systems.
  * This is very slightly smaller than the limit imposed by
  * the underlying kernel.
@@ -3072,6 +3075,7 @@ static abi_long do_ioctl_fs_ioc_fiemap(const IOCTLEntry *ie, uint8_t *buf_temp,
     }
     return ret;
 }
+#endif
 
 static IOCTLEntry ioctl_entries[] = {
 #define IOCTL(cmd, access, ...) \
