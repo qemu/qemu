@@ -104,6 +104,12 @@ static int qcow2_cache_entry_flush(BlockDriverState *bs, Qcow2Cache *c, int i)
         }
     }
 
+    if (c == s->refcount_block_cache) {
+        BLKDBG_EVENT(bs->file, BLKDBG_REFBLOCK_UPDATE_PART);
+    } else if (c == s->l2_table_cache) {
+        BLKDBG_EVENT(bs->file, BLKDBG_L2_UPDATE);
+    }
+
     ret = bdrv_pwrite(bs->file, c->entries[i].offset, c->entries[i].table,
         s->cluster_size);
     if (ret < 0) {
@@ -218,6 +224,10 @@ static int qcow2_cache_do_get(BlockDriverState *bs, Qcow2Cache *c,
 
     c->entries[i].offset = 0;
     if (read_from_disk) {
+        if (c == s->l2_table_cache) {
+            BLKDBG_EVENT(bs->file, BLKDBG_L2_LOAD);
+        }
+
         ret = bdrv_pread(bs->file, offset, c->entries[i].table, s->cluster_size);
         if (ret < 0) {
             return ret;

@@ -51,6 +51,9 @@
 
 #define L2_CACHE_SIZE 16
 
+/* Must be at least 4 to cover all cases of refcount table growth */
+#define REFCOUNT_CACHE_SIZE 4
+
 typedef struct QCowHeader {
     uint32_t magic;
     uint32_t version;
@@ -94,9 +97,10 @@ typedef struct BDRVQcowState {
     uint64_t cluster_offset_mask;
     uint64_t l1_table_offset;
     uint64_t *l1_table;
-    uint64_t *l2_cache;
-    uint64_t l2_cache_offsets[L2_CACHE_SIZE];
-    uint32_t l2_cache_counts[L2_CACHE_SIZE];
+
+    Qcow2Cache* l2_table_cache;
+    Qcow2Cache* refcount_block_cache;
+
     uint8_t *cluster_cache;
     uint8_t *cluster_data;
     uint64_t cluster_cache_offset;
@@ -105,8 +109,6 @@ typedef struct BDRVQcowState {
     uint64_t *refcount_table;
     uint64_t refcount_table_offset;
     uint32_t refcount_table_size;
-    uint64_t refcount_block_cache_offset;
-    uint16_t *refcount_block_cache;
     int64_t free_cluster_index;
     int64_t free_byte_offset;
 
