@@ -560,8 +560,6 @@ uint64_t HELPER(neon_qshl_u64)(CPUState *env, uint64_t val, uint64_t shiftop)
         if (val) {
             val = ~(uint64_t)0;
             SET_QC();
-        } else {
-            val = 0;
         }
     } else if (shift <= -64) {
         val = 0;
@@ -582,9 +580,15 @@ uint64_t HELPER(neon_qshl_u64)(CPUState *env, uint64_t val, uint64_t shiftop)
     int8_t tmp; \
     tmp = (int8_t)src2; \
     if (tmp >= (ssize_t)sizeof(src1) * 8) { \
-        if (src1) \
+        if (src1) { \
             SET_QC(); \
-        dest = src1 >> 31; \
+            dest = (uint32_t)(1 << (sizeof(src1) * 8 - 1)); \
+            if (src1 > 0) { \
+                dest--; \
+            } \
+        } else { \
+            dest = src1; \
+        } \
     } else if (tmp <= -(ssize_t)sizeof(src1) * 8) { \
         dest = src1 >> 31; \
     } else if (tmp < 0) { \
@@ -593,7 +597,10 @@ uint64_t HELPER(neon_qshl_u64)(CPUState *env, uint64_t val, uint64_t shiftop)
         dest = src1 << tmp; \
         if ((dest >> tmp) != src1) { \
             SET_QC(); \
-            dest = src2 >> 31; \
+            dest = (uint32_t)(1 << (sizeof(src1) * 8 - 1)); \
+            if (src1 > 0) { \
+                dest--; \
+            } \
         } \
     }} while (0)
 NEON_VOP_ENV(qshl_s8, neon_s8, 4)
@@ -608,9 +615,9 @@ uint64_t HELPER(neon_qshl_s64)(CPUState *env, uint64_t valop, uint64_t shiftop)
     if (shift >= 64) {
         if (val) {
             SET_QC();
-            val = (val >> 63) & ~SIGNBIT64;
+            val = (val >> 63) ^ ~SIGNBIT64;
         }
-    } else if (shift <= 64) {
+    } else if (shift <= -64) {
         val >>= 63;
     } else if (shift < 0) {
         val >>= -shift;

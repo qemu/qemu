@@ -12033,22 +12033,22 @@ static void decode_opc (CPUState *env, DisasContext *ctx, int *is_branch)
                 switch (op2) {
                 case OPC_DMT:
                     check_insn(env, ctx, ASE_MT);
-                    gen_helper_dmt(t0, t0);
+                    gen_helper_dmt(t0);
                     gen_store_gpr(t0, rt);
                     break;
                 case OPC_EMT:
                     check_insn(env, ctx, ASE_MT);
-                    gen_helper_emt(t0, t0);
+                    gen_helper_emt(t0);
                     gen_store_gpr(t0, rt);
                     break;
                 case OPC_DVPE:
                     check_insn(env, ctx, ASE_MT);
-                    gen_helper_dvpe(t0, t0);
+                    gen_helper_dvpe(t0);
                     gen_store_gpr(t0, rt);
                     break;
                 case OPC_EVPE:
                     check_insn(env, ctx, ASE_MT);
-                    gen_helper_evpe(t0, t0);
+                    gen_helper_evpe(t0);
                     gen_store_gpr(t0, rt);
                     break;
                 case OPC_DI:

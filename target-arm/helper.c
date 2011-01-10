@@ -76,6 +76,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         memcpy(env->cp15.c0_c1, arm1136_cp15_c0_c1, 8 * sizeof(uint32_t));
         memcpy(env->cp15.c0_c2, arm1136_cp15_c0_c2, 8 * sizeof(uint32_t));
         env->cp15.c0_cachetype = 0x1dd20d2;
+        env->cp15.c1_sys = 0x00050078;
         break;
     case ARM_CPUID_ARM11MPCORE:
         set_feature(env, ARM_FEATURE_V6);
@@ -109,6 +110,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c0_ccsid[0] = 0xe007e01a; /* 16k L1 dcache. */
         env->cp15.c0_ccsid[1] = 0x2007e01a; /* 16k L1 icache. */
         env->cp15.c0_ccsid[2] = 0xf0000000; /* No L2 icache. */
+        env->cp15.c1_sys = 0x00c50078;
         break;
     case ARM_CPUID_CORTEXA9:
         set_feature(env, ARM_FEATURE_V6);
@@ -130,6 +132,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c0_clid = (1 << 27) | (1 << 24) | 3;
         env->cp15.c0_ccsid[0] = 0xe00fe015; /* 16k L1 dcache. */
         env->cp15.c0_ccsid[1] = 0x200fe015; /* 16k L1 icache. */
+        env->cp15.c1_sys = 0x00c50078;
         break;
     case ARM_CPUID_CORTEXM3:
         set_feature(env, ARM_FEATURE_V6);
@@ -1084,22 +1087,26 @@ static int get_phys_addr_v6(CPUState *env, uint32_t address, int access_type,
         }
         code = 15;
     }
-    if (xn && access_type == 2)
-        goto do_fault;
+    if (domain == 3) {
+        *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+    } else {
+        if (xn && access_type == 2)
+            goto do_fault;
 
-    /* The simplified model uses AP[0] as an access control bit.  */
-    if ((env->cp15.c1_sys & (1 << 29)) && (ap & 1) == 0) {
-        /* Access flag fault.  */
-        code = (code == 15) ? 6 : 3;
-        goto do_fault;
-    }
-    *prot = check_ap(env, ap, domain, access_type, is_user);
-    if (!*prot) {
-        /* Access permission fault.  */
-        goto do_fault;
-    }
-    if (!xn) {
-        *prot |= PAGE_EXEC;
+        /* The simplified model uses AP[0] as an access control bit.  */
+        if ((env->cp15.c1_sys & (1 << 29)) && (ap & 1) == 0) {
+            /* Access flag fault.  */
+            code = (code == 15) ? 6 : 3;
+            goto do_fault;
+        }
+        *prot = check_ap(env, ap, domain, access_type, is_user);
+        if (!*prot) {
+            /* Access permission fault.  */
+            goto do_fault;
+        }
+        if (!xn) {
+            *prot |= PAGE_EXEC;
+        }
     }
     *phys_ptr = phys_addr;
     return 0;
@@ -2235,6 +2242,8 @@ static inline int vfp_exceptbits_from_host(int host_bits)
         target_bits |= 8;
     if (host_bits & float_flag_inexact)
         target_bits |= 0x10;
+    if (host_bits & float_flag_input_denormal)
+        target_bits |= 0x80;
     return target_bits;
 }
 
@@ -2271,6 +2280,8 @@ static inline int vfp_exceptbits_to_host(int target_bits)
         host_bits |= float_flag_underflow;
     if (target_bits & 0x10)
         host_bits |= float_flag_inexact;
+    if (target_bits & 0x80)
+        host_bits |= float_flag_input_denormal;
     return host_bits;
 }
 
@@ -2303,12 +2314,14 @@ void HELPER(vfp_set_fpscr)(CPUState *env, uint32_t val)
         }
         set_float_rounding_mode(i, &env->vfp.fp_status);
     }
-    if (changed & (1 << 24))
+    if (changed & (1 << 24)) {
         set_flush_to_zero((val & (1 << 24)) != 0, &env->vfp.fp_status);
+        set_flush_inputs_to_zero((val & (1 << 24)) != 0, &env->vfp.fp_status);
+    }
     if (changed & (1 << 25))
         set_default_nan_mode((val & (1 << 25)) != 0, &env->vfp.fp_status);
 
-    i = vfp_exceptbits_to_host((val >> 8) & 0x1f);
+    i = vfp_exceptbits_to_host(val);
     set_float_exception_flags(i, &env->vfp.fp_status);
 }
 

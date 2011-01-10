@@ -737,10 +737,10 @@ typedef struct CPUX86State {
        user */
     struct DeviceState *apic_state;
 
-    uint64 mcg_cap;
-    uint64 mcg_status;
-    uint64 mcg_ctl;
-    uint64 mce_banks[MCE_BANKS_DEF*4];
+    uint64_t mcg_cap;
+    uint64_t mcg_status;
+    uint64_t mcg_ctl;
+    uint64_t mce_banks[MCE_BANKS_DEF*4];
 
     uint64_t tsc_aux;
 

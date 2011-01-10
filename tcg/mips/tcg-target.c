@@ -352,7 +352,7 @@ static inline void tcg_out_opc_imm(TCGContext *s, int opc, int rt, int rs, int i
 static inline void tcg_out_opc_br(TCGContext *s, int opc, int rt, int rs)
 {
     /* We need to keep the offset unchanged for retranslation */
-    uint16_t offset = (uint16_t)(*(uint32_t *) &s->code_ptr);
+    uint16_t offset = (uint16_t)(*(uint32_t *) s->code_ptr);
 
     tcg_out_opc_imm(s, opc, rt, rs, offset);
 }

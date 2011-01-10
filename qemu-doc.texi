@@ -162,6 +162,7 @@ TODO (no longer available)
 * pcsys_monitor::      QEMU Monitor
 * disk_images::        Disk Images
 * pcsys_network::      Network emulation
+* pcsys_other_devs::   Other Devices
 * direct_linux_boot::  Direct Linux Boot
 * pcsys_usb::          USB emulation
 * vnc_security::       VNC security
@@ -202,7 +203,7 @@ Intel 82801AA AC97 Audio compatible sound card
 @item
 Intel HD Audio Controller and HDA codec
 @item
-Adlib(OPL2) - Yamaha YM3812 compatible chip
+Adlib (OPL2) - Yamaha YM3812 compatible chip
 @item
 Gravis Ultrasound GF1 sound card
 @item
@@ -222,7 +223,7 @@ VGA BIOS.
 
 QEMU uses YM3812 emulation by Tatsuyuki Satoh.
 
-QEMU uses GUS emulation(GUSEMU32 @url{http://www.deinmeister.de/gusemu/})
+QEMU uses GUS emulation (GUSEMU32 @url{http://www.deinmeister.de/gusemu/})
 by Tibor "TS" Schütz.
 
 Not that, by default, GUS shares IRQ(7) with parallel ports and so
@@ -715,6 +716,7 @@ Using the @option{-net socket} option, it is possible to make VLANs
 that span several QEMU instances. See @ref{sec_invocation} to have a
 basic example.
 
+@node pcsys_other_devs
 @section Other Devices
 
 @subsection Inter-VM Shared Memory device
@@ -832,7 +834,7 @@ Standard USB keyboard.  Will override the PS/2 keyboard (if present).
 Serial converter. This emulates an FTDI FT232BM chip connected to host character
 device @var{dev}. The available character devices are the same as for the
 @code{-serial} option. The @code{vendorid} and @code{productid} options can be
-used to override the default 0403:6001. For instance, 
+used to override the default 0403:6001. For instance,
 @example
 usb_add serial:productid=FA00:tcp:192.168.0.2:4444
 @end example
@@ -1047,7 +1049,7 @@ qemu [...OPTIONS...] -vnc :1,tls,x509,sasl -monitor stdio
 
 The GNU TLS packages provides a command called @code{certtool} which can
 be used to generate certificates and keys in PEM format. At a minimum it
-is neccessary to setup a certificate authority, and issue certificates to
+is necessary to setup a certificate authority, and issue certificates to
 each server. If using certificates for authentication, then each client
 will also need to be issued a certificate. The recommendation is for the
 server to keep its certificates in either @code{/etc/pki/qemu} or for
@@ -1190,7 +1192,7 @@ keytab: /etc/qemu/krb5.tab
 For this to work the administrator of your KDC must generate a Kerberos
 principal for the server, with a name of  'qemu/somehost.example.com@@EXAMPLE.COM'
 replacing 'somehost.example.com' with the fully qualified host name of the
-machine running QEMU, and 'EXAMPLE.COM' with the Keberos Realm.
+machine running QEMU, and 'EXAMPLE.COM' with the Kerberos Realm.
 
 Other configurations will be left as an exercise for the reader. It should
 be noted that only Digest-MD5 and GSSAPI provides a SSF layer for data
@@ -1772,7 +1774,7 @@ enabled in the kernel, and expect 512M RAM.  Kernels for The PBX-A9 board
 should have CONFIG_SPARSEMEM enabled, CONFIG_REALVIEW_HIGH_PHYS_OFFSET
 disabled and expect 1024M RAM.
 
-The following devices are emuilated:
+The following devices are emulated:
 
 @itemize @minus
 @item
@@ -1872,7 +1874,7 @@ Secure Digital card connected to OMAP MMC/SD host
 @item
 Three OMAP on-chip UARTs and on-chip STI debugging console
 @item
-A Bluetooth(R) transciever and HCI connected to an UART
+A Bluetooth(R) transceiver and HCI connected to an UART
 @item
 Mentor Graphics "Inventra" dual-role USB controller embedded in a TI
 TUSB6010 chip - only USB host mode is supported
@@ -1934,7 +1936,7 @@ MV88W8618 audio controller, WM8750 CODEC and mixer
 @end itemize
 
 The Siemens SX1 models v1 and v2 (default) basic emulation.
-The emulaton includes the following elements:
+The emulation includes the following elements:
 
 @itemize @minus
 @item
@@ -2190,7 +2192,7 @@ Set the x86 stack size in bytes (default=524288)
 Select CPU model (-cpu ? for list and additional feature selection)
 @item -ignore-environment
 Start with an empty environment. Without this option,
-the inital environment is a copy of the caller's environment.
+the initial environment is a copy of the caller's environment.
 @item -E @var{var}=@var{value}
 Set environment @var{var} to @var{value}.
 @item -U @var{var}
@@ -2201,7 +2203,7 @@ the address region required by guest applications is reserved on the host.
 This option is currently only supported on some hosts.
 @item -R size
 Pre-allocate a guest virtual address space of the given size (in bytes).
-"G", "M", and "k" suffixes may be used when specifying the size.  
+"G", "M", and "k" suffixes may be used when specifying the size.
 @end table
 
 Debug options:
@@ -2420,7 +2422,7 @@ Set the library root path (default=/)
 Set the stack size in bytes (default=524288)
 @item -ignore-environment
 Start with an empty environment. Without this option,
-the inital environment is a copy of the caller's environment.
+the initial environment is a copy of the caller's environment.
 @item -E @var{var}=@var{value}
 Set environment @var{var} to @var{value}.
 @item -U @var{var}
@@ -2493,7 +2495,7 @@ correct SDL directory when invoked.
 
 @item Install the MinGW version of zlib and make sure
 @file{zlib.h} and @file{libz.dll.a} are in
-MingGW's default header and linker search paths.
+MinGW's default header and linker search paths.
 
 @item Extract the current version of QEMU.
 
@@ -2528,7 +2530,7 @@ the QEMU configuration script.
 
 @item Install the MinGW version of zlib and make sure
 @file{zlib.h} and @file{libz.dll.a} are in
-MingGW's default header and linker search paths.
+MinGW's default header and linker search paths.
 
 @item
 Configure QEMU for Windows cross compilation:
@@ -2537,7 +2539,7 @@ PATH=/usr/i686-pc-mingw32/sys-root/mingw/bin:$PATH ./configure --cross-prefix='i
 @end example
 The example assumes @file{sdl-config} is installed under @file{/usr/i686-pc-mingw32/sys-root/mingw/bin} and
 MinGW cross compilation tools have names like @file{i686-pc-mingw32-gcc} and @file{i686-pc-mingw32-strip}.
-We set the @code{PATH} environment variable to ensure the MingW version of @file{sdl-config} is used and
+We set the @code{PATH} environment variable to ensure the MinGW version of @file{sdl-config} is used and
 use --cross-prefix to specify the name of the cross compiler.
 You can also use --prefix to set the Win32 install path which defaults to @file{c:/Program Files/Qemu}.
 

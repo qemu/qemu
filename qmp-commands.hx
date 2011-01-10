@@ -510,7 +510,7 @@ Set maximum speed for migrations.
 
 Arguments:
 
-- "value": maximum speed, in bytes per second (json-number)
+- "value": maximum speed, in bytes per second (json-int)
 
 Example:
 
@@ -733,6 +733,63 @@ Example:
 
 -> { "execute": "block_passwd", "arguments": { "device": "ide0-hd0",
                                                "password": "12345" } }
+<- { "return": {} }
+
+EQMP
+
+    {
+        .name       = "set_password",
+        .args_type  = "protocol:s,password:s,connected:s?",
+        .params     = "protocol password action-if-connected",
+        .help       = "set spice/vnc password",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = set_password,
+    },
+
+SQMP
+set_password
+------------
+
+Set the password for vnc/spice protocols.
+
+Arguments:
+
+- "protocol": protocol name (json-string)
+- "password": password (json-string)
+- "connected": [ keep | disconnect | fail ] (josn-string, optional)
+
+Example:
+
+-> { "execute": "set_password", "arguments": { "protocol": "vnc",
+                                               "password": "secret" } }
+<- { "return": {} }
+
+EQMP
+
+    {
+        .name       = "expire_password",
+        .args_type  = "protocol:s,time:s",
+        .params     = "protocol time",
+        .help       = "set spice/vnc password expire-time",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = expire_password,
+    },
+
+SQMP
+expire_password
+---------------
+
+Set the password expire time for vnc/spice protocols.
+
+Arguments:
+
+- "protocol": protocol name (json-string)
+- "time": [ now | never | +secs | secs ] (json-string)
+
+Example:
+
+-> { "execute": "expire_password", "arguments": { "protocol": "vnc",
+                                                  "time": "+60" } }
 <- { "return": {} }
 
 EQMP
@@ -1432,6 +1489,76 @@ Example:
                "service":"50401",
                "family":"ipv4"
             }
+         ]
+      }
+   }
+
+EQMP
+
+SQMP
+query-spice
+-----------
+
+Show SPICE server information.
+
+Return a json-object with server information. Connected clients are returned
+as a json-array of json-objects.
+
+The main json-object contains the following:
+
+- "enabled": true or false (json-bool)
+- "host": server's IP address (json-string)
+- "port": server's port number (json-int, optional)
+- "tls-port": server's port number (json-int, optional)
+- "auth": authentication method (json-string)
+         - Possible values: "none", "spice"
+- "channels": a json-array of all active channels clients
+
+Channels are described by a json-object, each one contain the following:
+
+- "host": client's IP address (json-string)
+- "family": address family (json-string)
+         - Possible values: "ipv4", "ipv6", "unix", "unknown"
+- "port": client's port number (json-string)
+- "connection-id": spice connection id.  All channels with the same id
+                   belong to the same spice session (json-int)
+- "channel-type": channel type.  "1" is the main control channel, filter for
+                  this one if you want track spice sessions only (json-int)
+- "channel-id": channel id.  Usually "0", might be different needed when
+                multiple channels of the same type exist, such as multiple
+                display channels in a multihead setup (json-int)
+- "tls": whevener the channel is encrypted (json-bool)
+
+Example:
+
+-> { "execute": "query-spice" }
+<- {
+      "return": {
+         "enabled": true,
+         "auth": "spice",
+         "port": 5920,
+         "tls-port": 5921,
+         "host": "0.0.0.0",
+         "channels": [
+            {
+               "port": "54924",
+               "family": "ipv4",
+               "channel-type": 1,
+               "connection-id": 1804289383,
+               "host": "127.0.0.1",
+               "channel-id": 0,
+               "tls": true
+            },
+            {
+               "port": "36710",
+               "family": "ipv4",
+               "channel-type": 4,
+               "connection-id": 1804289383,
+               "host": "127.0.0.1",
+               "channel-id": 0,
+               "tls": false
+            },
+            [ ... more channels follow ... ]
          ]
       }
    }

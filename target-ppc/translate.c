@@ -7751,10 +7751,10 @@ static inline void gen_evfsabs(DisasContext *ctx)
         return;
     }
 #if defined(TARGET_PPC64)
-    tcg_gen_andi_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], ~0x8000000080000000LL);
+    tcg_gen_andi_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], ~0x8000000080000000LL);
 #else
-    tcg_gen_andi_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], ~0x80000000);
-    tcg_gen_andi_tl(cpu_gprh[rA(ctx->opcode)], cpu_gprh[rA(ctx->opcode)], ~0x80000000);
+    tcg_gen_andi_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], ~0x80000000);
+    tcg_gen_andi_tl(cpu_gprh[rD(ctx->opcode)], cpu_gprh[rA(ctx->opcode)], ~0x80000000);
 #endif
 }
 static inline void gen_evfsnabs(DisasContext *ctx)
@@ -7764,10 +7764,10 @@ static inline void gen_evfsnabs(DisasContext *ctx)
         return;
     }
 #if defined(TARGET_PPC64)
-    tcg_gen_ori_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0x8000000080000000LL);
+    tcg_gen_ori_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0x8000000080000000LL);
 #else
-    tcg_gen_ori_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0x80000000);
-    tcg_gen_ori_tl(cpu_gprh[rA(ctx->opcode)], cpu_gprh[rA(ctx->opcode)], 0x80000000);
+    tcg_gen_ori_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0x80000000);
+    tcg_gen_ori_tl(cpu_gprh[rD(ctx->opcode)], cpu_gprh[rA(ctx->opcode)], 0x80000000);
 #endif
 }
 static inline void gen_evfsneg(DisasContext *ctx)
@@ -7777,10 +7777,10 @@ static inline void gen_evfsneg(DisasContext *ctx)
         return;
     }
 #if defined(TARGET_PPC64)
-    tcg_gen_xori_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0x8000000080000000LL);
+    tcg_gen_xori_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0x8000000080000000LL);
 #else
-    tcg_gen_xori_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0x80000000);
-    tcg_gen_xori_tl(cpu_gprh[rA(ctx->opcode)], cpu_gprh[rA(ctx->opcode)], 0x80000000);
+    tcg_gen_xori_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0x80000000);
+    tcg_gen_xori_tl(cpu_gprh[rD(ctx->opcode)], cpu_gprh[rA(ctx->opcode)], 0x80000000);
 #endif
 }
 
@@ -7832,7 +7832,7 @@ static inline void gen_efsabs(DisasContext *ctx)
         gen_exception(ctx, POWERPC_EXCP_APU);
         return;
     }
-    tcg_gen_andi_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], (target_long)~0x80000000LL);
+    tcg_gen_andi_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], (target_long)~0x80000000LL);
 }
 static inline void gen_efsnabs(DisasContext *ctx)
 {
@@ -7840,7 +7840,7 @@ static inline void gen_efsnabs(DisasContext *ctx)
         gen_exception(ctx, POWERPC_EXCP_APU);
         return;
     }
-    tcg_gen_ori_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0x80000000);
+    tcg_gen_ori_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0x80000000);
 }
 static inline void gen_efsneg(DisasContext *ctx)
 {
@@ -7848,7 +7848,7 @@ static inline void gen_efsneg(DisasContext *ctx)
         gen_exception(ctx, POWERPC_EXCP_APU);
         return;
     }
-    tcg_gen_xori_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0x80000000);
+    tcg_gen_xori_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0x80000000);
 }
 
 /* Conversion */
@@ -7901,9 +7901,10 @@ static inline void gen_efdabs(DisasContext *ctx)
         return;
     }
 #if defined(TARGET_PPC64)
-    tcg_gen_andi_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], ~0x8000000000000000LL);
+    tcg_gen_andi_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], ~0x8000000000000000LL);
 #else
-    tcg_gen_andi_tl(cpu_gprh[rA(ctx->opcode)], cpu_gprh[rA(ctx->opcode)], ~0x80000000);
+    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
+    tcg_gen_andi_tl(cpu_gprh[rD(ctx->opcode)], cpu_gprh[rA(ctx->opcode)], ~0x80000000);
 #endif
 }
 static inline void gen_efdnabs(DisasContext *ctx)
@@ -7913,9 +7914,10 @@ static inline void gen_efdnabs(DisasContext *ctx)
         return;
     }
 #if defined(TARGET_PPC64)
-    tcg_gen_ori_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0x8000000000000000LL);
+    tcg_gen_ori_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0x8000000000000000LL);
 #else
-    tcg_gen_ori_tl(cpu_gprh[rA(ctx->opcode)], cpu_gprh[rA(ctx->opcode)], 0x80000000);
+    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
+    tcg_gen_ori_tl(cpu_gprh[rD(ctx->opcode)], cpu_gprh[rA(ctx->opcode)], 0x80000000);
 #endif
 }
 static inline void gen_efdneg(DisasContext *ctx)
@@ -7925,9 +7927,10 @@ static inline void gen_efdneg(DisasContext *ctx)
         return;
     }
 #if defined(TARGET_PPC64)
-    tcg_gen_xori_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0x8000000000000000LL);
+    tcg_gen_xori_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0x8000000000000000LL);
 #else
-    tcg_gen_xori_tl(cpu_gprh[rA(ctx->opcode)], cpu_gprh[rA(ctx->opcode)], 0x80000000);
+    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
+    tcg_gen_xori_tl(cpu_gprh[rD(ctx->opcode)], cpu_gprh[rA(ctx->opcode)], 0x80000000);
 #endif
 }
 

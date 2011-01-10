@@ -75,11 +75,11 @@ destroyed, but local temporaries and globals are preserved.
 * Helpers:
 
 Using the tcg_gen_helper_x_y it is possible to call any function
-taking i32, i64 or pointer types. By default, before calling an helper,
+taking i32, i64 or pointer types. By default, before calling a helper,
 all globals are stored at their canonical location and it is assumed
-that the function can modify them. This can be overriden by the
+that the function can modify them. This can be overridden by the
 TCG_CALL_CONST function modifier. By default, the helper is allowed to
-modify the CPU state or raise an exception. This can be overriden by
+modify the CPU state or raise an exception. This can be overridden by
 the TCG_CALL_PURE function modifier, in which case the call to the
 function is removed if the return value is not used.
 
@@ -364,7 +364,7 @@ formed from two 32-bit arguments.  The result is a 32-bit value.
 
 ********* QEMU specific operations
 
-* tb_exit t0
+* exit_tb t0
 
 Exit the current TB and return the value t0 (word type).
 
@@ -488,7 +488,7 @@ register.
   the speed of the translation.
 
 - Don't hesitate to use helpers for complicated or seldom used target
-  intructions. There is little performance advantage in using TCG to
+  instructions. There is little performance advantage in using TCG to
   implement target instructions taking more than about twenty TCG
   instructions.
 

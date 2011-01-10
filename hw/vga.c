@@ -2073,14 +2073,14 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
 
         if (full_update) {
             for (i = 0; i < size; src ++, dst ++, i ++)
-                console_write_ch(dst, VMEM2CHTYPE(*src));
+                console_write_ch(dst, VMEM2CHTYPE(le32_to_cpu(*src)));
 
             dpy_update(s->ds, 0, 0, width, height);
         } else {
             c_max = 0;
 
             for (i = 0; i < size; src ++, dst ++, i ++) {
-                console_write_ch(&val, VMEM2CHTYPE(*src));
+                console_write_ch(&val, VMEM2CHTYPE(le32_to_cpu(*src)));
                 if (*dst != val) {
                     *dst = val;
                     c_max = i;
@@ -2089,7 +2089,7 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
             }
             c_min = i;
             for (; i < size; src ++, dst ++, i ++) {
-                console_write_ch(&val, VMEM2CHTYPE(*src));
+                console_write_ch(&val, VMEM2CHTYPE(le32_to_cpu(*src)));
                 if (*dst != val) {
                     *dst = val;
                     c_max = i;

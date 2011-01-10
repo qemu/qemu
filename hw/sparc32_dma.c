@@ -44,7 +44,7 @@
 /* We need the mask, because one instance of the device is not page
    aligned (ledma, start address 0x0010) */
 #define DMA_MASK (DMA_SIZE - 1)
-/* ledma has more than 4 registers, Solaris reads the 5th one */
+/* OBP says 0x20 bytes for ledma, the extras are aliased to espdma */
 #define DMA_ETH_SIZE (8 * sizeof(uint32_t))
 #define DMA_MAX_REG_OFFSET (2 * DMA_SIZE - 1)
 
@@ -170,7 +170,10 @@ static uint32_t dma_mem_readl(void *opaque, target_phys_addr_t addr)
     uint32_t saddr;
 
     if (s->is_ledma && (addr > DMA_MAX_REG_OFFSET)) {
-        return 0; /* extra mystery register(s) */
+        /* aliased to espdma, but we can't get there from here */
+        /* buggy driver if using undocumented behavior, just return 0 */
+        trace_sparc32_dma_mem_readl(addr, 0);
+        return 0;
     }
     saddr = (addr & DMA_MASK) >> 2;
     trace_sparc32_dma_mem_readl(addr, s->dmaregs[saddr]);
@@ -183,7 +186,9 @@ static void dma_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     uint32_t saddr;
 
     if (s->is_ledma && (addr > DMA_MAX_REG_OFFSET)) {
-        return; /* extra mystery register(s) */
+        /* aliased to espdma, but we can't get there from here */
+        trace_sparc32_dma_mem_writel(addr, 0, val);
+        return;
     }
     saddr = (addr & DMA_MASK) >> 2;
     trace_sparc32_dma_mem_writel(addr, s->dmaregs[saddr], val);

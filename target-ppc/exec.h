@@ -26,9 +26,6 @@
 #include "cpu.h"
 #include "exec-all.h"
 
-/* Precise emulation is needed to correctly emulate exception flags */
-#define USE_PRECISE_EMULATION 1
-
 register struct CPUPPCState *env asm(AREG0);
 
 #if !defined(CONFIG_USER_ONLY)

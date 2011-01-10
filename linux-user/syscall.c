@@ -83,6 +83,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <linux/kd.h>
 #include <linux/mtio.h>
 #include <linux/fs.h>
+#include <linux/fiemap.h>
 #include <linux/fb.h>
 #include <linux/vt.h>
 #include "linux_loop.h"
@@ -2965,13 +2966,19 @@ enum {
 #undef STRUCT
 #undef STRUCT_SPECIAL
 
-typedef struct IOCTLEntry {
+typedef struct IOCTLEntry IOCTLEntry;
+
+typedef abi_long do_ioctl_fn(const IOCTLEntry *ie, uint8_t *buf_temp,
+                             int fd, abi_long cmd, abi_long arg);
+
+struct IOCTLEntry {
     unsigned int target_cmd;
     unsigned int host_cmd;
     const char *name;
     int access;
+    do_ioctl_fn *do_ioctl;
     const argtype arg_type[5];
-} IOCTLEntry;
+};
 
 #define IOC_R 0x0001
 #define IOC_W 0x0002
@@ -2979,9 +2986,98 @@ typedef struct IOCTLEntry {
 
 #define MAX_STRUCT_SIZE 4096
 
+/* So fiemap access checks don't overflow on 32 bit systems.
+ * This is very slightly smaller than the limit imposed by
+ * the underlying kernel.
+ */
+#define FIEMAP_MAX_EXTENTS ((UINT_MAX - sizeof(struct fiemap))  \
+                            / sizeof(struct fiemap_extent))
+
+static abi_long do_ioctl_fs_ioc_fiemap(const IOCTLEntry *ie, uint8_t *buf_temp,
+                                       int fd, abi_long cmd, abi_long arg)
+{
+    /* The parameter for this ioctl is a struct fiemap followed
+     * by an array of struct fiemap_extent whose size is set
+     * in fiemap->fm_extent_count. The array is filled in by the
+     * ioctl.
+     */
+    int target_size_in, target_size_out;
+    struct fiemap *fm;
+    const argtype *arg_type = ie->arg_type;
+    const argtype extent_arg_type[] = { MK_STRUCT(STRUCT_fiemap_extent) };
+    void *argptr, *p;
+    abi_long ret;
+    int i, extent_size = thunk_type_size(extent_arg_type, 0);
+    uint32_t outbufsz;
+    int free_fm = 0;
+
+    assert(arg_type[0] == TYPE_PTR);
+    assert(ie->access == IOC_RW);
+    arg_type++;
+    target_size_in = thunk_type_size(arg_type, 0);
+    argptr = lock_user(VERIFY_READ, arg, target_size_in, 1);
+    if (!argptr) {
+        return -TARGET_EFAULT;
+    }
+    thunk_convert(buf_temp, argptr, arg_type, THUNK_HOST);
+    unlock_user(argptr, arg, 0);
+    fm = (struct fiemap *)buf_temp;
+    if (fm->fm_extent_count > FIEMAP_MAX_EXTENTS) {
+        return -TARGET_EINVAL;
+    }
+
+    outbufsz = sizeof (*fm) +
+        (sizeof(struct fiemap_extent) * fm->fm_extent_count);
+
+    if (outbufsz > MAX_STRUCT_SIZE) {
+        /* We can't fit all the extents into the fixed size buffer.
+         * Allocate one that is large enough and use it instead.
+         */
+        fm = malloc(outbufsz);
+        if (!fm) {
+            return -TARGET_ENOMEM;
+        }
+        memcpy(fm, buf_temp, sizeof(struct fiemap));
+        free_fm = 1;
+    }
+    ret = get_errno(ioctl(fd, ie->host_cmd, fm));
+    if (!is_error(ret)) {
+        target_size_out = target_size_in;
+        /* An extent_count of 0 means we were only counting the extents
+         * so there are no structs to copy
+         */
+        if (fm->fm_extent_count != 0) {
+            target_size_out += fm->fm_mapped_extents * extent_size;
+        }
+        argptr = lock_user(VERIFY_WRITE, arg, target_size_out, 0);
+        if (!argptr) {
+            ret = -TARGET_EFAULT;
+        } else {
+            /* Convert the struct fiemap */
+            thunk_convert(argptr, fm, arg_type, THUNK_TARGET);
+            if (fm->fm_extent_count != 0) {
+                p = argptr + target_size_in;
+                /* ...and then all the struct fiemap_extents */
+                for (i = 0; i < fm->fm_mapped_extents; i++) {
+                    thunk_convert(p, &fm->fm_extents[i], extent_arg_type,
+                                  THUNK_TARGET);
+                    p += extent_size;
+                }
+            }
+            unlock_user(argptr, arg, target_size_out);
+        }
+    }
+    if (free_fm) {
+        free(fm);
+    }
+    return ret;
+}
+
 static IOCTLEntry ioctl_entries[] = {
 #define IOCTL(cmd, access, ...) \
-    { TARGET_ ## cmd, cmd, #cmd, access, {  __VA_ARGS__ } },
+    { TARGET_ ## cmd, cmd, #cmd, access, 0, {  __VA_ARGS__ } },
+#define IOCTL_SPECIAL(cmd, access, dofn, ...)                      \
+    { TARGET_ ## cmd, cmd, #cmd, access, dofn, {  __VA_ARGS__ } },
 #include "ioctls.h"
     { 0, 0, },
 };
@@ -3011,6 +3107,10 @@ static abi_long do_ioctl(int fd, abi_long cmd, abi_long arg)
 #if defined(DEBUG)
     gemu_log("ioctl: cmd=0x%04lx (%s)\n", (long)cmd, ie->name);
 #endif
+    if (ie->do_ioctl) {
+        return ie->do_ioctl(ie, buf_temp, fd, cmd, arg);
+    }
+
     switch(arg_type[0]) {
     case TYPE_NULL:
         /* no argument */
@@ -7364,6 +7464,29 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_fallocate:
         ret = get_errno(fallocate(arg1, arg2, arg3, arg4));
         break;
+#endif
+#if defined(CONFIG_SYNC_FILE_RANGE)
+#if defined(TARGET_NR_sync_file_range)
+    case TARGET_NR_sync_file_range:
+#if TARGET_ABI_BITS == 32
+        ret = get_errno(sync_file_range(arg1, target_offset64(arg2, arg3),
+                                        target_offset64(arg4, arg5), arg6));
+#else
+        ret = get_errno(sync_file_range(arg1, arg2, arg3, arg4));
+#endif
+        break;
+#endif
+#if defined(TARGET_NR_sync_file_range2)
+    case TARGET_NR_sync_file_range2:
+        /* This is like sync_file_range but the arguments are reordered */
+#if TARGET_ABI_BITS == 32
+        ret = get_errno(sync_file_range(arg1, target_offset64(arg3, arg4),
+                                        target_offset64(arg5, arg6), arg2));
+#else
+        ret = get_errno(sync_file_range(arg1, arg3, arg4, arg2));
+#endif
+        break;
+#endif
 #endif
     default:
     unimplemented:

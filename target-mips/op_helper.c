@@ -1554,40 +1554,28 @@ void helper_mttdsp(target_ulong arg1)
 }
 
 /* MIPS MT functions */
-target_ulong helper_dmt(target_ulong arg1)
+target_ulong helper_dmt(void)
 {
     // TODO
-    arg1 = 0;
-    // rt = arg1
-
-    return arg1;
+     return 0;
 }
 
-target_ulong helper_emt(target_ulong arg1)
+target_ulong helper_emt(void)
 {
     // TODO
-    arg1 = 0;
-    // rt = arg1
-
-    return arg1;
+    return 0;
 }
 
-target_ulong helper_dvpe(target_ulong arg1)
+target_ulong helper_dvpe(void)
 {
     // TODO
-    arg1 = 0;
-    // rt = arg1
-
-    return arg1;
+    return 0;
 }
 
-target_ulong helper_evpe(target_ulong arg1)
+target_ulong helper_evpe(void)
 {
     // TODO
-    arg1 = 0;
-    // rt = arg1
-
-    return arg1;
+    return 0;
 }
 #endif /* !CONFIG_USER_ONLY */
 
@@ -2889,10 +2877,10 @@ static int float64_is_unordered(int sig, float64 a, float64 b STATUS_PARAM)
 {
     if (float64_is_signaling_nan(a) ||
         float64_is_signaling_nan(b) ||
-        (sig && (float64_is_nan(a) || float64_is_nan(b)))) {
+        (sig && (float64_is_quiet_nan(a) || float64_is_quiet_nan(b)))) {
         float_raise(float_flag_invalid, status);
         return 1;
-    } else if (float64_is_nan(a) || float64_is_nan(b)) {
+    } else if (float64_is_quiet_nan(a) || float64_is_quiet_nan(b)) {
         return 1;
     } else {
         return 0;
@@ -2947,10 +2935,10 @@ static flag float32_is_unordered(int sig, float32 a, float32 b STATUS_PARAM)
 {
     if (float32_is_signaling_nan(a) ||
         float32_is_signaling_nan(b) ||
-        (sig && (float32_is_nan(a) || float32_is_nan(b)))) {
+        (sig && (float32_is_quiet_nan(a) || float32_is_quiet_nan(b)))) {
         float_raise(float_flag_invalid, status);
         return 1;
-    } else if (float32_is_nan(a) || float32_is_nan(b)) {
+    } else if (float32_is_quiet_nan(a) || float32_is_quiet_nan(b)) {
         return 1;
     } else {
         return 0;

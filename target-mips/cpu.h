@@ -532,6 +532,14 @@ static inline int cpu_mips_hw_interrupts_pending(CPUState *env)
     int32_t status;
     int r;
 
+    if (!(env->CP0_Status & (1 << CP0St_IE)) ||
+        (env->CP0_Status & (1 << CP0St_EXL)) ||
+        (env->CP0_Status & (1 << CP0St_ERL)) ||
+        (env->hflags & MIPS_HFLAG_DM)) {
+        /* Interrupts are disabled */
+        return 0;
+    }
+
     pending = env->CP0_Cause & CP0Ca_IP_mask;
     status = env->CP0_Status & CP0Ca_IP_mask;
 

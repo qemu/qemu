@@ -175,12 +175,12 @@ cpu_x86_dump_seg_cache(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
 #ifdef TARGET_X86_64
     if (env->hflags & HF_CS64_MASK) {
         cpu_fprintf(f, "%-3s=%04x %016" PRIx64 " %08x %08x", name,
-                    sc->selector, sc->base, sc->limit, sc->flags);
+                    sc->selector, sc->base, sc->limit, sc->flags & 0x00ffff00);
     } else
 #endif
     {
         cpu_fprintf(f, "%-3s=%04x %08x %08x %08x", name, sc->selector,
-                    (uint32_t)sc->base, sc->limit, sc->flags);
+                    (uint32_t)sc->base, sc->limit, sc->flags & 0x00ffff00);
     }
 
     if (!(env->hflags & HF_PE_MASK) || !(sc->flags & DESC_P_MASK))

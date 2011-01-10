@@ -211,10 +211,8 @@ static void kbd_queue(KBDState *s, int b, int aux)
         ps2_queue(s->kbd, b);
 }
 
-static void ioport92_write(void *opaque, uint32_t addr, uint32_t val)
+static void outport_write(KBDState *s, uint32_t val)
 {
-    KBDState *s = opaque;
-
     DPRINTF("kbd: write outport=0x%02x\n", val);
     s->outport = val;
     if (s->a20_out) {
@@ -223,16 +221,6 @@ static void ioport92_write(void *opaque, uint32_t addr, uint32_t val)
     if (!(val & 1)) {
         qemu_system_reset_request();
     }
-}
-
-static uint32_t ioport92_read(void *opaque, uint32_t addr)
-{
-    KBDState *s = opaque;
-    uint32_t ret;
-
-    ret = s->outport;
-    DPRINTF("kbd: read outport=0x%02x\n", ret);
-    return ret;
 }
 
 static void kbd_write_command(void *opaque, uint32_t addr, uint32_t val)
@@ -357,7 +345,7 @@ static void kbd_write_data(void *opaque, uint32_t addr, uint32_t val)
         kbd_queue(s, val, 1);
         break;
     case KBD_CCMD_WRITE_OUTPORT:
-        ioport92_write(s, 0, val);
+        outport_write(s, val);
         break;
     case KBD_CCMD_WRITE_MOUSE:
         ps2_write_mouse(s->mouse, val);
@@ -489,9 +477,6 @@ static int i8042_initfn(ISADevice *dev)
     register_ioport_read(0x64, 1, 1, kbd_read_status, s);
     register_ioport_write(0x64, 1, 1, kbd_write_command, s);
     isa_init_ioport(dev, 0x64);
-    register_ioport_read(0x92, 1, 1, ioport92_read, s);
-    register_ioport_write(0x92, 1, 1, ioport92_write, s);
-    isa_init_ioport(dev, 0x92);
 
     s->kbd = ps2_kbd_init(kbd_update_kbd_irq, s);
     s->mouse = ps2_mouse_init(kbd_update_aux_irq, s);

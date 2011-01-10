@@ -759,8 +759,10 @@ char *get_boot_devices_list(uint32_t *size)
         }
 
         if (i->suffix && devpath) {
-            bootpath = qemu_malloc(strlen(devpath) + strlen(i->suffix) + 1);
-            sprintf(bootpath, "%s%s", devpath, i->suffix);
+            size_t bootpathlen = strlen(devpath) + strlen(i->suffix) + 1;
+
+            bootpath = qemu_malloc(bootpathlen);
+            snprintf(bootpath, bootpathlen, "%s%s", devpath, i->suffix);
             qemu_free(devpath);
         } else if (devpath) {
             bootpath = devpath;
@@ -1502,6 +1504,8 @@ static void select_vgahw (const char *p)
         vga_interface_type = VGA_VMWARE;
     } else if (strstart(p, "xenfb", &opts)) {
         vga_interface_type = VGA_XENFB;
+    } else if (strstart(p, "qxl", &opts)) {
+        vga_interface_type = VGA_QXL;
     } else if (!strstart(p, "none", &opts)) {
     invalid_vga:
         fprintf(stderr, "Unknown vga type: %s\n", p);
@@ -2601,7 +2605,7 @@ int main(int argc, char **argv, char **envp)
 		     if (p != NULL) {
 		        *p++ = 0;
 			if (strncmp(p, "process=", 8)) {
-			    fprintf(stderr, "Unknown subargument %s to -name", p);
+			    fprintf(stderr, "Unknown subargument %s to -name\n", p);
 			    exit(1);
 			}
 			p += 8;
@@ -3053,7 +3057,7 @@ int main(int argc, char **argv, char **envp)
         }
     }
 #ifdef CONFIG_SPICE
-    if (using_spice) {
+    if (using_spice && !qxl_enabled) {
         qemu_spice_display_init(ds);
     }
 #endif

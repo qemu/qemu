@@ -373,45 +373,64 @@ uint32_t do_arm_semihosting(CPUState *env)
 #ifdef CONFIG_USER_ONLY
         /* Build a commandline from the original argv.  */
         {
-            char **arg = ts->info->host_argv;
-            int len = ARG(1);
-            /* lock the buffer on the ARM side */
-            char *cmdline_buffer = (char*)lock_user(VERIFY_WRITE, ARG(0), len, 0);
+            char *arm_cmdline_buffer;
+            const char *host_cmdline_buffer;
 
-            if (!cmdline_buffer)
-                /* FIXME - should this error code be -TARGET_EFAULT ? */
-                return (uint32_t)-1;
+            unsigned int i;
+            unsigned int arm_cmdline_len = ARG(1);
+            unsigned int host_cmdline_len =
+                ts->info->arg_end-ts->info->arg_start;
 
-            s = cmdline_buffer;
-            while (*arg && len > 2) {
-                int n = strlen(*arg);
-
-                if (s != cmdline_buffer) {
-                    *(s++) = ' ';
-                    len--;
-                }
-                if (n >= len)
-                    n = len - 1;
-                memcpy(s, *arg, n);
-                s += n;
-                len -= n;
-                arg++;
+            if (!arm_cmdline_len || host_cmdline_len > arm_cmdline_len) {
+                return -1; /* not enough space to store command line */
             }
-            /* Null terminate the string.  */
-            *s = 0;
-            len = s - cmdline_buffer;
 
-            /* Unlock the buffer on the ARM side.  */
-            unlock_user(cmdline_buffer, ARG(0), len);
+            if (!host_cmdline_len) {
+                /* We special-case the "empty command line" case (argc==0).
+                   Just provide the terminating 0. */
+                arm_cmdline_buffer = lock_user(VERIFY_WRITE, ARG(0), 1, 0);
+                arm_cmdline_buffer[0] = 0;
+                unlock_user(arm_cmdline_buffer, ARG(0), 1);
 
-            /* Adjust the commandline length argument.  */
-            SET_ARG(1, len);
+                /* Adjust the commandline length argument. */
+                SET_ARG(1, 0);
+                return 0;
+            }
 
-            /* Return success if commandline fit into buffer.  */
-            return *arg ? -1 : 0;
+            /* lock the buffers on the ARM side */
+            arm_cmdline_buffer =
+                lock_user(VERIFY_WRITE, ARG(0), host_cmdline_len, 0);
+            host_cmdline_buffer =
+                lock_user(VERIFY_READ, ts->info->arg_start,
+                                       host_cmdline_len, 1);
+
+            if (arm_cmdline_buffer && host_cmdline_buffer)
+            {
+                /* the last argument is zero-terminated;
+                   no need for additional termination */
+                memcpy(arm_cmdline_buffer, host_cmdline_buffer,
+                       host_cmdline_len);
+
+                /* separate arguments by white spaces */
+                for (i = 0; i < host_cmdline_len-1; i++) {
+                    if (arm_cmdline_buffer[i] == 0) {
+                        arm_cmdline_buffer[i] = ' ';
+                    }
+                }
+
+                /* Adjust the commandline length argument. */
+                SET_ARG(1, host_cmdline_len-1);
+            }
+
+            /* Unlock the buffers on the ARM side.  */
+            unlock_user(arm_cmdline_buffer, ARG(0), host_cmdline_len);
+            unlock_user((void*)host_cmdline_buffer, ts->info->arg_start, 0);
+
+            /* Return success if we could return a commandline.  */
+            return (arm_cmdline_buffer && host_cmdline_buffer) ? 0 : -1;
         }
 #else
-      return -1;
+        return -1;
 #endif
     case SYS_HEAPINFO:
         {

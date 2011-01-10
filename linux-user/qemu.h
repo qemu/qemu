@@ -50,7 +50,6 @@ struct image_info {
         abi_ulong       saved_auxv;
         abi_ulong       arg_start;
         abi_ulong       arg_end;
-        char            **host_argv;
 	int		personality;
 };
 

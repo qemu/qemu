@@ -454,11 +454,7 @@ int cpu_exec(CPUState *env1)
                     }
 #elif defined(TARGET_MIPS)
                     if ((interrupt_request & CPU_INTERRUPT_HARD) &&
-                        cpu_mips_hw_interrupts_pending(env) &&
-                        (env->CP0_Status & (1 << CP0St_IE)) &&
-                        !(env->CP0_Status & (1 << CP0St_EXL)) &&
-                        !(env->CP0_Status & (1 << CP0St_ERL)) &&
-                        !(env->hflags & MIPS_HFLAG_DM)) {
+                        cpu_mips_hw_interrupts_pending(env)) {
                         /* Raise it */
                         env->exception_index = EXCP_EXT_INTERRUPT;
                         env->error_code = 0;

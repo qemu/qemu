@@ -180,7 +180,7 @@ static void demap_tlb(SparcTLBEntry *tlb, target_ulong demap_addr,
             replace_tlb_entry(&tlb[i], 0, 0, env1);
 #ifdef DEBUG_MMU
             DPRINTF_MMU("%s demap invalidated entry [%02u]\n", strmmu, i);
-            dump_mmu(env1);
+            dump_mmu(stdout, fprintf, env1);
 #endif
         }
     }
@@ -198,7 +198,7 @@ static void replace_tlb_1bit_lru(SparcTLBEntry *tlb,
             replace_tlb_entry(&tlb[i], tlb_tag, tlb_tte, env1);
 #ifdef DEBUG_MMU
             DPRINTF_MMU("%s lru replaced invalid entry [%i]\n", strmmu, i);
-            dump_mmu(env1);
+            dump_mmu(stdout, fprintf, env1);
 #endif
             return;
         }
@@ -217,7 +217,7 @@ static void replace_tlb_1bit_lru(SparcTLBEntry *tlb,
 #ifdef DEBUG_MMU
                 DPRINTF_MMU("%s lru replaced unlocked %s entry [%i]\n",
                             strmmu, (replace_used?"used":"unused"), i);
-                dump_mmu(env1);
+                dump_mmu(stdout, fprintf, env1);
 #endif
                 return;
             }
@@ -1959,7 +1959,7 @@ void helper_st_asi(target_ulong addr, uint64_t val, int asi, int size)
                 break;
             }
 #ifdef DEBUG_MMU
-            dump_mmu(env);
+            dump_mmu(stdout, fprintf, env);
 #endif
         }
         break;
@@ -2011,7 +2011,7 @@ void helper_st_asi(target_ulong addr, uint64_t val, int asi, int size)
                             reg, oldreg, env->mmuregs[reg]);
             }
 #ifdef DEBUG_MMU
-            dump_mmu(env);
+            dump_mmu(stdout, fprintf, env);
 #endif
         }
         break;
@@ -2912,7 +2912,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
                 DPRINTF_MMU("LSU change: 0x%" PRIx64 " -> 0x%" PRIx64 "\n",
                             oldreg, env->lsu);
 #ifdef DEBUG_MMU
-                dump_mmu(env);
+                dump_mmu(stdout, fprintf, env1);
 #endif
                 tlb_flush(env, 1);
             }
@@ -2957,7 +2957,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
                             PRIx64 "\n", reg, oldreg, env->immuregs[reg]);
             }
 #ifdef DEBUG_MMU
-            dump_mmu(env);
+            dump_mmu(stdout, fprintf, env);
 #endif
             return;
         }
@@ -2974,7 +2974,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
 
 #ifdef DEBUG_MMU
             DPRINTF_MMU("immu data access replaced entry [%i]\n", i);
-            dump_mmu(env);
+            dump_mmu(stdout, fprintf, env);
 #endif
             return;
         }
@@ -3030,7 +3030,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
                             PRIx64 "\n", reg, oldreg, env->dmmuregs[reg]);
             }
 #ifdef DEBUG_MMU
-            dump_mmu(env);
+            dump_mmu(stdout, fprintf, env);
 #endif
             return;
         }
@@ -3045,7 +3045,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
 
 #ifdef DEBUG_MMU
             DPRINTF_MMU("dmmu data access replaced entry [%i]\n", i);
-            dump_mmu(env);
+            dump_mmu(stdout, fprintf, env);
 #endif
             return;
         }
@@ -3300,8 +3300,9 @@ void helper_rett(void)
 }
 #endif
 
-target_ulong helper_udiv(target_ulong a, target_ulong b)
+static target_ulong helper_udiv_common(target_ulong a, target_ulong b, int cc)
 {
+    int overflow = 0;
     uint64_t x0;
     uint32_t x1;
 
@@ -3314,16 +3315,31 @@ target_ulong helper_udiv(target_ulong a, target_ulong b)
 
     x0 = x0 / x1;
     if (x0 > 0xffffffff) {
-        env->cc_src2 = 1;
-        return 0xffffffff;
-    } else {
-        env->cc_src2 = 0;
-        return x0;
+        x0 = 0xffffffff;
+        overflow = 1;
     }
+
+    if (cc) {
+        env->cc_dst = x0;
+        env->cc_src2 = overflow;
+        env->cc_op = CC_OP_DIV;
+    }
+    return x0;
 }
 
-target_ulong helper_sdiv(target_ulong a, target_ulong b)
+target_ulong helper_udiv(target_ulong a, target_ulong b)
 {
+    return helper_udiv_common(a, b, 0);
+}
+
+target_ulong helper_udiv_cc(target_ulong a, target_ulong b)
+{
+    return helper_udiv_common(a, b, 1);
+}
+
+static target_ulong helper_sdiv_common(target_ulong a, target_ulong b, int cc)
+{
+    int overflow = 0;
     int64_t x0;
     int32_t x1;
 
@@ -3336,12 +3352,26 @@ target_ulong helper_sdiv(target_ulong a, target_ulong b)
 
     x0 = x0 / x1;
     if ((int32_t) x0 != x0) {
-        env->cc_src2 = 1;
-        return x0 < 0? 0x80000000: 0x7fffffff;
-    } else {
-        env->cc_src2 = 0;
-        return x0;
+        x0 = x0 < 0 ? 0x80000000: 0x7fffffff;
+        overflow = 1;
     }
+
+    if (cc) {
+        env->cc_dst = x0;
+        env->cc_src2 = overflow;
+        env->cc_op = CC_OP_DIV;
+    }
+    return x0;
+}
+
+target_ulong helper_sdiv(target_ulong a, target_ulong b)
+{
+    return helper_sdiv_common(a, b, 0);
+}
+
+target_ulong helper_sdiv_cc(target_ulong a, target_ulong b)
+{
+    return helper_sdiv_common(a, b, 1);
 }
 
 void helper_stdf(target_ulong addr, int mem_idx)
