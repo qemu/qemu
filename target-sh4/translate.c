@@ -469,27 +469,30 @@ static inline void gen_store_fpr64 (TCGv_i64 t, int reg)
 #define CHECK_NOT_DELAY_SLOT \
   if (ctx->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL))     \
   {                                                           \
-      tcg_gen_movi_i32(cpu_pc, ctx->pc-2);                    \
+      tcg_gen_movi_i32(cpu_pc, ctx->pc);                      \
       gen_helper_raise_slot_illegal_instruction();            \
       ctx->bstate = BS_EXCP;                                  \
       return;                                                 \
   }
 
-#define CHECK_PRIVILEGED                                      \
-  if (IS_USER(ctx)) {                                         \
-      tcg_gen_movi_i32(cpu_pc, ctx->pc);                      \
-      gen_helper_raise_illegal_instruction();                 \
-      ctx->bstate = BS_EXCP;                                  \
-      return;                                                 \
+#define CHECK_PRIVILEGED                                        \
+  if (IS_USER(ctx)) {                                           \
+      tcg_gen_movi_i32(cpu_pc, ctx->pc);                        \
+      if (ctx->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) { \
+         gen_helper_raise_slot_illegal_instruction();           \
+      } else {                                                  \
+         gen_helper_raise_illegal_instruction();                \
+      }                                                         \
+      ctx->bstate = BS_EXCP;                                    \
+      return;                                                   \
   }
 
 #define CHECK_FPU_ENABLED                                       \
   if (ctx->flags & SR_FD) {                                     \
+      tcg_gen_movi_i32(cpu_pc, ctx->pc);                        \
       if (ctx->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) { \
-          tcg_gen_movi_i32(cpu_pc, ctx->pc-2);                  \
           gen_helper_raise_slot_fpu_disable();                  \
       } else {                                                  \
-          tcg_gen_movi_i32(cpu_pc, ctx->pc);                    \
           gen_helper_raise_fpu_disable();                       \
       }                                                         \
       ctx->bstate = BS_EXCP;                                    \
@@ -1860,7 +1863,12 @@ static void _decode_opc(DisasContext * ctx)
 	    ctx->opcode, ctx->pc);
     fflush(stderr);
 #endif
-    gen_helper_raise_illegal_instruction();
+    tcg_gen_movi_i32(cpu_pc, ctx->pc);
+    if (ctx->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) {
+       gen_helper_raise_slot_illegal_instruction();
+    } else {
+       gen_helper_raise_illegal_instruction();
+    }
     ctx->bstate = BS_EXCP;
 }
 
