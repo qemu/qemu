@@ -1060,15 +1060,15 @@ static unsigned int dec10_ind(DisasContext *dc)
             break;
         case CRISV10_IND_JUMP_M:
             if (dc->src == 15) {
-                LOG_DIS("jump.%d %d r%d r%d\n", size,
+                LOG_DIS("jump.%d %d r%d r%d direct\n", size,
                          dc->opcode, dc->src, dc->dst);
                 imm = ldl_code(dc->pc + 2);
                 if (dc->mode == CRISV10_MODE_AUTOINC)
                     insn_len += size;
 
                 t_gen_mov_preg_TN(dc, dc->dst, tcg_const_tl(dc->pc + insn_len));
-                tcg_gen_movi_tl(env_btarget, imm);
-                cris_prepare_jmp(dc, JMP_INDIRECT);
+                dc->jmp_pc = imm;
+                cris_prepare_jmp(dc, JMP_DIRECT);
                 dc->delayed_branch--; /* v10 has no dslot here.  */
             } else {
                 if (dc->dst == 14) {
@@ -1184,7 +1184,9 @@ static unsigned int crisv10_decoder(DisasContext *dc)
     if (dc->clear_prefix && dc->tb_flags & PFIX_FLAG) {
         dc->tb_flags &= ~PFIX_FLAG;
         tcg_gen_andi_tl(cpu_PR[PR_CCS], cpu_PR[PR_CCS], ~PFIX_FLAG);
-        dc->cpustate_changed = 1;
+        if (dc->tb_flags != dc->tb->flags) {
+            dc->cpustate_changed = 1;
+        }
     }
 
     /* CRISv10 locks out interrupts on dslots.  */
