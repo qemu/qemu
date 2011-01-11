@@ -274,28 +274,16 @@ static inline void gen_op_andl_A0_ffff(void)
 
 static inline void gen_op_mov_reg_v(int ot, int reg, TCGv t0)
 {
-    TCGv tmp;
-
     switch(ot) {
     case OT_BYTE:
-        tmp = tcg_temp_new();
-        tcg_gen_ext8u_tl(tmp, t0);
         if (reg < 4 X86_64_DEF( || reg >= 8 || x86_64_hregs)) {
-            tcg_gen_andi_tl(cpu_regs[reg], cpu_regs[reg], ~0xff);
-            tcg_gen_or_tl(cpu_regs[reg], cpu_regs[reg], tmp);
+            tcg_gen_deposit_tl(cpu_regs[reg], cpu_regs[reg], t0, 0, 8);
         } else {
-            tcg_gen_shli_tl(tmp, tmp, 8);
-            tcg_gen_andi_tl(cpu_regs[reg - 4], cpu_regs[reg - 4], ~0xff00);
-            tcg_gen_or_tl(cpu_regs[reg - 4], cpu_regs[reg - 4], tmp);
+            tcg_gen_deposit_tl(cpu_regs[reg - 4], cpu_regs[reg - 4], t0, 8, 8);
         }
-        tcg_temp_free(tmp);
         break;
     case OT_WORD:
-        tmp = tcg_temp_new();
-        tcg_gen_ext16u_tl(tmp, t0);
-        tcg_gen_andi_tl(cpu_regs[reg], cpu_regs[reg], ~0xffff);
-        tcg_gen_or_tl(cpu_regs[reg], cpu_regs[reg], tmp);
-        tcg_temp_free(tmp);
+        tcg_gen_deposit_tl(cpu_regs[reg], cpu_regs[reg], t0, 0, 16);
         break;
     default: /* XXX this shouldn't be reached;  abort? */
     case OT_LONG:
@@ -323,15 +311,9 @@ static inline void gen_op_mov_reg_T1(int ot, int reg)
 
 static inline void gen_op_mov_reg_A0(int size, int reg)
 {
-    TCGv tmp;
-
     switch(size) {
     case 0:
-        tmp = tcg_temp_new();
-        tcg_gen_ext16u_tl(tmp, cpu_A0);
-        tcg_gen_andi_tl(cpu_regs[reg], cpu_regs[reg], ~0xffff);
-        tcg_gen_or_tl(cpu_regs[reg], cpu_regs[reg], tmp);
-        tcg_temp_free(tmp);
+        tcg_gen_deposit_tl(cpu_regs[reg], cpu_regs[reg], cpu_A0, 0, 16);
         break;
     default: /* XXX this shouldn't be reached;  abort? */
     case 1:
@@ -415,9 +397,7 @@ static inline void gen_op_add_reg_im(int size, int reg, int32_t val)
     switch(size) {
     case 0:
         tcg_gen_addi_tl(cpu_tmp0, cpu_regs[reg], val);
-        tcg_gen_ext16u_tl(cpu_tmp0, cpu_tmp0);
-        tcg_gen_andi_tl(cpu_regs[reg], cpu_regs[reg], ~0xffff);
-        tcg_gen_or_tl(cpu_regs[reg], cpu_regs[reg], cpu_tmp0);
+        tcg_gen_deposit_tl(cpu_regs[reg], cpu_regs[reg], cpu_tmp0, 0, 16);
         break;
     case 1:
         tcg_gen_addi_tl(cpu_tmp0, cpu_regs[reg], val);
@@ -439,9 +419,7 @@ static inline void gen_op_add_reg_T0(int size, int reg)
     switch(size) {
     case 0:
         tcg_gen_add_tl(cpu_tmp0, cpu_regs[reg], cpu_T[0]);
-        tcg_gen_ext16u_tl(cpu_tmp0, cpu_tmp0);
-        tcg_gen_andi_tl(cpu_regs[reg], cpu_regs[reg], ~0xffff);
-        tcg_gen_or_tl(cpu_regs[reg], cpu_regs[reg], cpu_tmp0);
+        tcg_gen_deposit_tl(cpu_regs[reg], cpu_regs[reg], cpu_tmp0, 0, 16);
         break;
     case 1:
         tcg_gen_add_tl(cpu_tmp0, cpu_regs[reg], cpu_T[0]);
