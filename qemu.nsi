@@ -20,36 +20,65 @@
 ; NSIS_WIN32_MAKENSIS
 
 !define PRODUCT "QEMU"
+!define URL     "http://www.qemu.org/"
+
 !define UNINST_EXE "$INSTDIR\qemu-uninstall.exe"
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT}"
 
-; The name of the installer
+!ifndef BINDIR
+!define BINDIR ../bin/win/nsis.tmp
+!endif
+!ifndef SRCDIR
+!define SRCDIR .
+!endif
+!ifndef OUTFILE
+!define OUTFILE "qemu-setup.exe"
+!endif
+
+; Optionally install documentation.
+!define CONFIG_DOCUMENTATION
+
+!include "MUI2.nsh"
+
+; The name of the installer.
 Name "QEMU"
 
 ; The file to write
-OutFile "qemu-setup.exe"
+OutFile "${OUTFILE}"
 
-; The default installation directory
+; The default installation directory.
 InstallDir $PROGRAMFILES\qemu
 
 ; Registry key to check for directory (so if you install again, it will
 ; overwrite the old one automatically)
 InstallDirRegKey HKLM "Software\qemu" "Install_Dir"
 
-;--------------------------------
-
-; Pages
-
-Page components
-Page directory
-Page instfiles
-
-UninstPage uninstConfirm
-UninstPage instfiles
+; Request administrator privileges for Windows Vista.
+RequestExecutionLevel admin
 
 ;--------------------------------
+; Pages.
 
-; The stuff to install
+  !insertmacro MUI_PAGE_WELCOME
+  !insertmacro MUI_PAGE_LICENSE "${SRCDIR}\COPYING"
+  !insertmacro MUI_PAGE_COMPONENTS
+  !insertmacro MUI_PAGE_DIRECTORY
+  !insertmacro MUI_PAGE_INSTFILES
+  !define MUI_FINISHPAGE_LINK "Visit the QEMU Wiki online!"
+  !define MUI_FINISHPAGE_LINK_LOCATION "${URL}"
+  !insertmacro MUI_PAGE_FINISH
+
+  !insertmacro MUI_UNPAGE_CONFIRM
+  !insertmacro MUI_UNPAGE_INSTFILES
+
+;--------------------------------
+; Languages.
+
+  !insertmacro MUI_LANGUAGE "English"
+
+;--------------------------------
+
+; The stuff to install.
 Section "${PRODUCT} (required)"
 
     SectionIn RO
@@ -83,27 +112,27 @@ Section "${PRODUCT} (required)"
     WriteUninstaller "qemu-uninstall.exe"
 SectionEnd
 
-Section "${PRODUCT} Tools"
+Section "Tools"
     SetOutPath "$INSTDIR"
     File "${BINDIR}\qemu-img.exe"
     File "${BINDIR}\qemu-io.exe"
 SectionEnd
 
-Section "${PRODUCT} PC (i386) System Emulation"
+Section "PC (i386) System Emulation"
     SetOutPath "$INSTDIR"
     File "${BINDIR}\qemu.exe"
 SectionEnd
 
-Section "${PRODUCT} Other System Emulations"
+Section "Other System Emulations"
     SetOutPath "$INSTDIR"
     File "${BINDIR}\qemu-system-*.exe"
 SectionEnd
 
 !ifdef CONFIG_DOCUMENTATION
-Section "${PRODUCT} Documentation"
+Section "Documentation"
     SetOutPath "$INSTDIR"
-    File qemu-doc.html
-    File qemu-tech.html
+    File "${BINDIR}\qemu-doc.html"
+    File "${BINDIR}\qemu-tech.html"
     CreateDirectory "$SMPROGRAMS\${PRODUCT}"
     CreateShortCut "$SMPROGRAMS\${PRODUCT}\User Documentation.lnk" "$INSTDIR\qemu-doc.html" "" "$INSTDIR\qemu-doc.html" 0
     CreateShortCut "$SMPROGRAMS\${PRODUCT}\Technical Documentation.lnk" "$INSTDIR\qemu-tech.html" "" "$INSTDIR\qemu-tech.html" 0
