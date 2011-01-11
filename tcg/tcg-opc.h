@@ -78,6 +78,9 @@ DEF(sar_i32, 1, 2, 0, 0)
 DEF(rotl_i32, 1, 2, 0, 0)
 DEF(rotr_i32, 1, 2, 0, 0)
 #endif
+#ifdef TCG_TARGET_HAS_deposit_i32
+DEF(deposit_i32, 1, 2, 2, 0)
+#endif
 
 DEF(brcond_i32, 0, 2, 2, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
 #if TCG_TARGET_REG_BITS == 32
@@ -167,6 +170,9 @@ DEF(sar_i64, 1, 2, 0, 0)
 #ifdef TCG_TARGET_HAS_rot_i64
 DEF(rotl_i64, 1, 2, 0, 0)
 DEF(rotr_i64, 1, 2, 0, 0)
+#endif
+#ifdef TCG_TARGET_HAS_deposit_i64
+DEF(deposit_i64, 1, 2, 2, 0)
 #endif
 
 DEF(brcond_i64, 0, 2, 2, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)

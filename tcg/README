@@ -285,6 +285,20 @@ the four high order bytes are set to zero.
 Indicate that the value of t0 won't be used later. It is useful to
 force dead code elimination.
 
+* deposit_i32/i64 dest, t1, t2, pos, loc
+
+Deposit T2 as a bitfield into T1, placing the result in DEST.
+The bitfield is described by POS/LOC, which are immediate values:
+
+  LEN - the length of the bitfield
+  POS - the position of the first bit, counting from the LSB
+
+For example, pos=8, len=4 indicates a 4-bit field at bit 8.
+This operation would be equivalent to
+
+  dest = (t1 & ~0x0f00) | ((t2 << 8) & 0x0f00)
+
+
 ********* Conditional moves
 
 * setcond_i32/i64 cond, dest, t1, t2
