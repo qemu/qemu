@@ -75,6 +75,7 @@ void qemu_announce_self(void);
 
 void main_loop_wait(int nonblocking);
 
+bool qemu_savevm_state_blocked(Monitor *mon);
 int qemu_savevm_state_begin(Monitor *mon, QEMUFile *f, int blk_enable,
                             int shared);
 int qemu_savevm_state_iterate(Monitor *mon, QEMUFile *f);
