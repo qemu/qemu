@@ -68,8 +68,9 @@ ram_addr_t ppc405_set_bootinfo (CPUState *env, ppc4xx_bd_info_t *bd,
     stl_phys(bdloc + 0x34, bd->bi_baudrate);
     for (i = 0; i < 4; i++)
         stb_phys(bdloc + 0x38 + i, bd->bi_s_version[i]);
-    for (i = 0; i < 32; i++)
-        stb_phys(bdloc + 0x3C + i, bd->bi_s_version[i]);
+    for (i = 0; i < 32; i++) {
+        stb_phys(bdloc + 0x3C + i, bd->bi_r_version[i]);
+    }
     stl_phys(bdloc + 0x5C, bd->bi_plb_busfreq);
     stl_phys(bdloc + 0x60, bd->bi_pci_busfreq);
     for (i = 0; i < 6; i++)
