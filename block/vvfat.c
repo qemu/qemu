@@ -756,6 +756,7 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
         if (st.st_size > 0x7fffffff) {
 	    fprintf(stderr, "File %s is larger than 2GB\n", buffer);
 	    free(buffer);
+            closedir(dir);
 	    return -2;
         }
 	direntry->size=cpu_to_le32(S_ISDIR(st.st_mode)?0:st.st_size);
