@@ -120,11 +120,10 @@ USBDevice *usb_create_simple(USBBus *bus, const char *name)
 }
 
 void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,
-                       USBDevice *pdev, USBPortOps *ops, int speedmask)
+                       USBPortOps *ops, int speedmask)
 {
     port->opaque = opaque;
     port->index = index;
-    port->pdev = pdev;
     port->opaque = opaque;
     port->index = index;
     port->ops = ops;

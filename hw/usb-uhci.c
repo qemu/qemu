@@ -1129,7 +1129,7 @@ static int usb_uhci_common_initfn(UHCIState *s)
 
     usb_bus_new(&s->bus, &s->dev.qdev);
     for(i = 0; i < NB_PORTS; i++) {
-        usb_register_port(&s->bus, &s->ports[i].port, s, i, NULL, &uhci_port_ops,
+        usb_register_port(&s->bus, &s->ports[i].port, s, i, &uhci_port_ops,
                           USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
         usb_port_location(&s->ports[i].port, NULL, i+1);
     }
