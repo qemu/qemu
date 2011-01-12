@@ -311,7 +311,7 @@ static void tftp_handle_rrq(Slirp *slirp, struct tftp_t *tp, int pktlen)
     return;
   }
 
-  if (memcmp(&tp->x.tp_buf[k], "octet\0", 6) != 0) {
+  if (strcasecmp((const char *)&tp->x.tp_buf[k], "octet") != 0) {
       tftp_send_error(spt, 4, "Unsupported transfer mode", tp);
       return;
   }
@@ -351,7 +351,7 @@ static void tftp_handle_rrq(Slirp *slirp, struct tftp_t *tp, int pktlen)
       value = (const char *)&tp->x.tp_buf[k];
       k += strlen(value) + 1;
 
-      if (strcmp(key, "tsize") == 0) {
+      if (strcasecmp(key, "tsize") == 0) {
 	  int tsize = atoi(value);
 	  struct stat stat_p;
 
