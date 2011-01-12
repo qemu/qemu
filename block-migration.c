@@ -350,7 +350,12 @@ static int blk_mig_save_bulked_block(Monitor *mon, QEMUFile *f)
         }
     }
 
-    progress = completed_sector_sum * 100 / block_mig_state.total_sector_sum;
+    if (block_mig_state.total_sector_sum != 0) {
+        progress = completed_sector_sum * 100 /
+                   block_mig_state.total_sector_sum;
+    } else {
+        progress = 100;
+    }
     if (progress != block_mig_state.prev_progress) {
         block_mig_state.prev_progress = progress;
         qemu_put_be64(f, (progress << BDRV_SECTOR_BITS)
