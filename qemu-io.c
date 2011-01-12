@@ -1131,8 +1131,10 @@ aio_read_f(int argc, char **argv)
 		case 'P':
 			ctx->Pflag = 1;
 			ctx->pattern = parse_pattern(optarg);
-			if (ctx->pattern < 0)
+			if (ctx->pattern < 0) {
+                                free(ctx);
 				return 0;
+                        }
 			break;
 		case 'q':
 			ctx->qflag = 1;
