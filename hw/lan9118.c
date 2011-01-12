@@ -187,7 +187,7 @@ typedef struct {
     uint32_t phy_int_mask;
 
     int eeprom_writable;
-    uint8_t eeprom[8];
+    uint8_t eeprom[128];
 
     int tx_fifo_size;
     LAN9118Packet *txp;
@@ -1003,7 +1003,7 @@ static void lan9118_writel(void *opaque, target_phys_addr_t offset,
         s->afc_cfg = val & 0x00ffffff;
         break;
     case CSR_E2P_CMD:
-        lan9118_eeprom_cmd(s, (val >> 28) & 7, val & 0xff);
+        lan9118_eeprom_cmd(s, (val >> 28) & 7, val & 0x7f);
         break;
     case CSR_E2P_DATA:
         s->e2p_data = val & 0xff;
