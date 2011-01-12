@@ -351,7 +351,9 @@ static inline void tcg_out_opc_imm(TCGContext *s, int opc, int rt, int rs, int i
  */
 static inline void tcg_out_opc_br(TCGContext *s, int opc, int rt, int rs)
 {
-    /* We need to keep the offset unchanged for retranslation */
+    /* We pay attention here to not modify the branch target by reading
+       the existing value and using it again. This ensure that caches and
+       memory are kept coherent during retranslation. */
     uint16_t offset = (uint16_t)(*(uint32_t *) s->code_ptr);
 
     tcg_out_opc_imm(s, opc, rt, rs, offset);

@@ -831,11 +831,11 @@ static int dsound_run_in (HWVoiceIn *hw)
     decr = len1 + len2;
 
     if (p1 && len1) {
-        hw->conv (hw->conv_buf + hw->wpos, p1, len1, &nominal_volume);
+        hw->conv (hw->conv_buf + hw->wpos, p1, len1);
     }
 
     if (p2 && len2) {
-        hw->conv (hw->conv_buf, p2, len2, &nominal_volume);
+        hw->conv (hw->conv_buf, p2, len2);
     }
 
     dsound_unlock_in (dscb, p1, p2, blen1, blen2);

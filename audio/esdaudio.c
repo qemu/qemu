@@ -346,8 +346,7 @@ static void *qesd_thread_in (void *arg)
                 break;
             }
 
-            hw->conv (hw->conv_buf + wpos, buf, nread >> hw->info.shift,
-                      &nominal_volume);
+            hw->conv (hw->conv_buf + wpos, buf, nread >> hw->info.shift);
             wpos = (wpos + chunk) % hw->samples;
             to_grab -= chunk;
         }
