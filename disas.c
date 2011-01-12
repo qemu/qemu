@@ -208,8 +208,13 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
     disasm_info.mach = bfd_mach_alpha;
     print_insn = print_insn_alpha;
 #elif defined(TARGET_CRIS)
-    disasm_info.mach = bfd_mach_cris_v32;
-    print_insn = print_insn_crisv32;
+    if (flags != 32) {
+        disasm_info.mach = bfd_mach_cris_v0_v10;
+        print_insn = print_insn_crisv10;
+    } else {
+        disasm_info.mach = bfd_mach_cris_v32;
+        print_insn = print_insn_crisv32;
+    }
 #elif defined(TARGET_MICROBLAZE)
     disasm_info.mach = bfd_arch_microblaze;
     print_insn = print_insn_microblaze;
