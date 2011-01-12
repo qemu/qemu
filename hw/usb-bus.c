@@ -7,14 +7,14 @@
 static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent);
 
 static char *usb_get_dev_path(DeviceState *dev);
-static char *usbbus_get_fw_dev_path(DeviceState *dev);
+static char *usb_get_fw_dev_path(DeviceState *qdev);
 
 static struct BusInfo usb_bus_info = {
     .name      = "USB",
     .size      = sizeof(USBBus),
     .print_dev = usb_bus_dev_print,
     .get_dev_path = usb_get_dev_path,
-    .get_fw_dev_path = usbbus_get_fw_dev_path,
+    .get_fw_dev_path = usb_get_fw_dev_path,
     .props      = (Property[]) {
         DEFINE_PROP_STRING("port", USBDevice, port_path),
         DEFINE_PROP_END_OF_LIST()
@@ -279,6 +279,30 @@ static char *usb_get_dev_path(DeviceState *qdev)
     return qemu_strdup(dev->port->path);
 }
 
+static char *usb_get_fw_dev_path(DeviceState *qdev)
+{
+    USBDevice *dev = DO_UPCAST(USBDevice, qdev, qdev);
+    char *fw_path, *in;
+    int pos = 0;
+    long nr;
+
+    fw_path = qemu_malloc(32 + strlen(dev->port->path) * 6);
+    in = dev->port->path;
+    while (true) {
+        nr = strtol(in, &in, 10);
+        if (in[0] == '.') {
+            /* some hub between root port and device */
+            pos += sprintf(fw_path + pos, "hub@%ld/", nr);
+            in++;
+        } else {
+            /* the device itself */
+            pos += sprintf(fw_path + pos, "%s@%ld", qdev_fw_name(qdev), nr);
+            break;
+        }
+    }
+    return fw_path;
+}
+
 void usb_info(Monitor *mon)
 {
     USBBus *bus;
@@ -350,44 +374,4 @@ USBDevice *usbdevice_create(const char *cmdline)
         return usb_create_simple(bus, usb->qdev.name);
     }
     return usb->usbdevice_init(params);
-}
-
-static int usbbus_get_fw_dev_path_helper(USBDevice *d, USBBus *bus, char *p,
-                                         int len)
-{
-    int l = 0;
-    USBPort *port;
-
-    QTAILQ_FOREACH(port, &bus->used, next) {
-        if (port->dev == d) {
-            if (port->pdev) {
-                l = usbbus_get_fw_dev_path_helper(port->pdev, bus, p, len);
-            }
-            l += snprintf(p + l, len - l, "%s@%x/", qdev_fw_name(&d->qdev),
-                          port->index);
-            break;
-        }
-    }
-
-    return l;
-}
-
-static char *usbbus_get_fw_dev_path(DeviceState *dev)
-{
-    USBDevice *d = (USBDevice*)dev;
-    USBBus *bus = usb_bus_from_device(d);
-    char path[100];
-    int l;
-
-    assert(d->attached != 0);
-
-    l = usbbus_get_fw_dev_path_helper(d, bus, path, sizeof(path));
-
-    if (l == 0) {
-        abort();
-    }
-
-    path[l-1] = '\0';
-
-    return strdup(path);
 }
