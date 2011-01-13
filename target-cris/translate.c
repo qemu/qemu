@@ -1129,6 +1129,9 @@ static void cris_store_direct_jmp(DisasContext *dc)
 {
 	/* Store the direct jmp state into the cpu-state.  */
 	if (dc->jmp == JMP_DIRECT || dc->jmp == JMP_DIRECT_CC) {
+		if (dc->jmp == JMP_DIRECT) {
+			tcg_gen_movi_tl(env_btaken, 1);
+		}
 		tcg_gen_movi_tl(env_btarget, dc->jmp_pc);
 		dc->jmp = JMP_INDIRECT;
 	}
