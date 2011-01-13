@@ -63,6 +63,9 @@ typedef struct USBMouseState {
 } USBMouseState;
 
 typedef struct USBKeyboardState {
+    uint32_t keycodes[QUEUE_LENGTH];
+    uint32_t head; /* index into circular queue */
+    uint32_t n;
     uint16_t modifiers;
     uint8_t leds;
     uint8_t key[16];
@@ -494,8 +497,27 @@ static void usb_keyboard_event(void *opaque, int keycode)
 {
     USBHIDState *hs = opaque;
     USBKeyboardState *s = &hs->kbd;
+    int slot;
+
+    if (s->n == QUEUE_LENGTH) {
+        fprintf(stderr, "usb-kbd: warning: key event queue full\n");
+        return;
+    }
+    slot = (s->head + s->n) & QUEUE_MASK; s->n++;
+    s->keycodes[slot] = keycode;
+    usb_hid_changed(hs);
+}
+
+static void usb_keyboard_process_keycode(USBKeyboardState *s)
+{
     uint8_t hid_code, key;
-    int i;
+    int i, keycode, slot;
+
+    if (s->n == 0) {
+        return;
+    }
+    slot = s->head & QUEUE_MASK; QUEUE_INCR(s->head); s->n--;
+    keycode = s->keycodes[slot];
 
     key = keycode & 0x7f;
     hid_code = usb_hid_usage_keys[key | ((s->modifiers >> 1) & (1 << 7))];
@@ -528,7 +550,6 @@ static void usb_keyboard_event(void *opaque, int keycode)
             if (s->key[i] == hid_code) {
                 s->key[i] = s->key[-- s->keys];
                 s->key[s->keys] = 0x00;
-                usb_hid_changed(hs);
                 break;
             }
         if (i < 0)
@@ -543,8 +564,6 @@ static void usb_keyboard_event(void *opaque, int keycode)
         } else
             return;
     }
-
-    usb_hid_changed(hs);
 }
 
 static inline int int_clamp(int val, int vmin, int vmax)
@@ -645,6 +664,8 @@ static int usb_keyboard_poll(USBHIDState *hs, uint8_t *buf, int len)
     if (len < 2)
         return 0;
 
+    usb_keyboard_process_keycode(s);
+
     buf[0] = s->modifiers & 0xff;
     buf[1] = 0;
     if (s->keys > 6)
@@ -680,7 +701,7 @@ static void usb_mouse_handle_reset(USBDevice *dev)
 {
     USBHIDState *s = (USBHIDState *)dev;
 
-    memset (s->ptr.queue, 0, sizeof (s->ptr.queue));
+    memset(s->ptr.queue, 0, sizeof (s->ptr.queue));
     s->ptr.head = 0;
     s->ptr.n = 0;
     s->protocol = 1;
@@ -691,6 +712,11 @@ static void usb_keyboard_handle_reset(USBDevice *dev)
     USBHIDState *s = (USBHIDState *)dev;
 
     qemu_add_kbd_event_handler(usb_keyboard_event, s);
+    memset(s->kbd.keycodes, 0, sizeof (s->kbd.keycodes));
+    s->kbd.head = 0;
+    s->kbd.n = 0;
+    memset(s->kbd.key, 0, sizeof (s->kbd.key));
+    s->kbd.keys = 0;
     s->protocol = 1;
 }
 
@@ -800,7 +826,7 @@ static int usb_hid_handle_data(USBDevice *dev, USBPacket *p)
             }
             else if (s->kind == USB_KEYBOARD) {
                 ret = usb_keyboard_poll(s, p->data, p->len);
-                s->changed = 0;
+                s->changed = s->kbd.n > 0;
             }
         } else {
             goto fail;
