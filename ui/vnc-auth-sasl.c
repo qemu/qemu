@@ -444,22 +444,19 @@ static int protocol_client_auth_sasl_mechname(VncState *vs, uint8_t *data, size_
         if (vs->sasl.mechlist[len] != '\0' &&
             vs->sasl.mechlist[len] != ',') {
             VNC_DEBUG("One %d", vs->sasl.mechlist[len]);
-            vnc_client_error(vs);
-            return -1;
+            goto fail;
         }
     } else {
         char *offset = strstr(vs->sasl.mechlist, mechname);
         VNC_DEBUG("Two %p\n", offset);
         if (!offset) {
-            vnc_client_error(vs);
-            return -1;
+            goto fail;
         }
         VNC_DEBUG("Two '%s'\n", offset);
         if (offset[-1] != ',' ||
             (offset[len] != '\0'&&
              offset[len] != ',')) {
-            vnc_client_error(vs);
-            return -1;
+            goto fail;
         }
     }
 
@@ -469,6 +466,11 @@ static int protocol_client_auth_sasl_mechname(VncState *vs, uint8_t *data, size_
     VNC_DEBUG("Validated mechname '%s'\n", mechname);
     vnc_read_when(vs, protocol_client_auth_sasl_start_len, 4);
     return 0;
+
+ fail:
+    vnc_client_error(vs);
+    free(mechname);
+    return -1;
 }
 
 static int protocol_client_auth_sasl_mechname_len(VncState *vs, uint8_t *data, size_t len)

@@ -502,6 +502,7 @@ static int vpc_create(const char *filename, QEMUOptionParameter *options)
     uint8_t secs_per_cyl = 0;
     size_t block_size, num_bat_entries;
     int64_t total_sectors = 0;
+    int ret = -EIO;
 
     // Read out options
     while (options && options->name) {
@@ -521,7 +522,8 @@ static int vpc_create(const char *filename, QEMUOptionParameter *options)
     for (i = 0; total_sectors > (int64_t)cyls * heads * secs_per_cyl; i++) {
         if (calculate_geometry(total_sectors + i,
                                &cyls, &heads, &secs_per_cyl)) {
-            return -EFBIG;
+            ret = -EFBIG;
+            goto fail;
         }
     }
     total_sectors = (int64_t) cyls * heads * secs_per_cyl;
@@ -560,22 +562,28 @@ static int vpc_create(const char *filename, QEMUOptionParameter *options)
     block_size = 0x200000;
     num_bat_entries = (total_sectors + block_size / 512) / (block_size / 512);
 
-    if (write(fd, buf, HEADER_SIZE) != HEADER_SIZE)
-        return -EIO;
+    if (write(fd, buf, HEADER_SIZE) != HEADER_SIZE) {
+        goto fail;
+    }
 
-    if (lseek(fd, 1536 + ((num_bat_entries * 4 + 511) & ~511), SEEK_SET) < 0)
-        return -EIO;
-    if (write(fd, buf, HEADER_SIZE) != HEADER_SIZE)
-        return -EIO;
+    if (lseek(fd, 1536 + ((num_bat_entries * 4 + 511) & ~511), SEEK_SET) < 0) {
+        goto fail;
+    }
+    if (write(fd, buf, HEADER_SIZE) != HEADER_SIZE) {
+        goto fail;
+    }
 
     // Write the initial BAT
-    if (lseek(fd, 3 * 512, SEEK_SET) < 0)
-        return -EIO;
+    if (lseek(fd, 3 * 512, SEEK_SET) < 0) {
+        goto fail;
+    }
 
     memset(buf, 0xFF, 512);
-    for (i = 0; i < (num_bat_entries * 4 + 511) / 512; i++)
-        if (write(fd, buf, 512) != 512)
-            return -EIO;
+    for (i = 0; i < (num_bat_entries * 4 + 511) / 512; i++) {
+        if (write(fd, buf, 512) != 512) {
+            goto fail;
+        }
+    }
 
 
     // Prepare the Dynamic Disk Header
@@ -592,13 +600,18 @@ static int vpc_create(const char *filename, QEMUOptionParameter *options)
     dyndisk_header->checksum = be32_to_cpu(vpc_checksum(buf, 1024));
 
     // Write the header
-    if (lseek(fd, 512, SEEK_SET) < 0)
-        return -EIO;
-    if (write(fd, buf, 1024) != 1024)
-        return -EIO;
+    if (lseek(fd, 512, SEEK_SET) < 0) {
+        goto fail;
+    }
 
+    if (write(fd, buf, 1024) != 1024) {
+        goto fail;
+    }
+    ret = 0;
+
+ fail:
     close(fd);
-    return 0;
+    return ret;
 }
 
 static void vpc_close(BlockDriverState *bs)
