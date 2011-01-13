@@ -379,21 +379,6 @@ void helper_macw(uint32_t arg0, uint32_t arg1)
     }
 }
 
-uint32_t helper_negc(uint32_t arg)
-{
-    uint32_t temp;
-
-    temp = -arg;
-    arg = temp - (env->sr & SR_T);
-    if (0 < temp)
-	env->sr |= SR_T;
-    else
-	env->sr &= ~SR_T;
-    if (temp < arg)
-	env->sr |= SR_T;
-    return arg;
-}
-
 uint32_t helper_subc(uint32_t arg0, uint32_t arg1)
 {
     uint32_t tmp0, tmp1;

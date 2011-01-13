@@ -952,7 +952,21 @@ static void _decode_opc(DisasContext * ctx)
 	tcg_gen_neg_i32(REG(B11_8), REG(B7_4));
 	return;
     case 0x600a:		/* negc Rm,Rn */
-	gen_helper_negc(REG(B11_8), REG(B7_4));
+        {
+	    TCGv t0, t1;
+            t0 = tcg_temp_new();
+            tcg_gen_neg_i32(t0, REG(B7_4));
+            t1 = tcg_temp_new();
+            tcg_gen_andi_i32(t1, cpu_sr, SR_T);
+            tcg_gen_sub_i32(REG(B11_8), t0, t1);
+            tcg_gen_andi_i32(cpu_sr, cpu_sr, ~SR_T);
+            tcg_gen_setcond_i32(TCG_COND_GE, t1, REG(B11_8), t0);
+            tcg_gen_or_i32(cpu_sr, cpu_sr, t1);
+            tcg_gen_setcondi_i32(TCG_COND_GE, t1, t0, 0);
+            tcg_gen_or_i32(cpu_sr, cpu_sr, t1);
+            tcg_temp_free(t0);
+            tcg_temp_free(t1);
+        }
 	return;
     case 0x6007:		/* not Rm,Rn */
 	tcg_gen_not_i32(REG(B11_8), REG(B7_4));
