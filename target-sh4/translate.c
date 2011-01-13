@@ -1690,14 +1690,12 @@ static void _decode_opc(DisasContext * ctx)
 	}
 	return;
     case 0x4004:		/* rotl Rn */
-	gen_copy_bit_i32(cpu_sr, 0, REG(B11_8), 31);
-	tcg_gen_shli_i32(REG(B11_8), REG(B11_8), 1);
-	gen_copy_bit_i32(REG(B11_8), 0, cpu_sr, 0);
+	tcg_gen_rotli_i32(REG(B11_8), REG(B11_8), 1);
+	gen_copy_bit_i32(cpu_sr, 0, REG(B11_8), 0);
 	return;
     case 0x4005:		/* rotr Rn */
 	gen_copy_bit_i32(cpu_sr, 0, REG(B11_8), 0);
-	tcg_gen_shri_i32(REG(B11_8), REG(B11_8), 1);
-	gen_copy_bit_i32(REG(B11_8), 31, cpu_sr, 0);
+	tcg_gen_rotri_i32(REG(B11_8), REG(B11_8), 1);
 	return;
     case 0x4000:		/* shll Rn */
     case 0x4020:		/* shal Rn */
