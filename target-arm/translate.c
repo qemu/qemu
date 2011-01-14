@@ -9016,7 +9016,6 @@ static void disas_thumb_insn(CPUState *env, DisasContext *s)
 
         if (cond == 0xf) {
             /* swi */
-            gen_set_condexec(s);
             gen_set_pc_im(s->pc);
             s->is_jmp = DISAS_SWI;
             break;
