@@ -1930,7 +1930,7 @@ static uint32_t lsi_ram_readw(void *opaque, target_phys_addr_t addr)
     val = s->script_ram[addr >> 2];
     if (addr & 2)
         val >>= 16;
-    return le16_to_cpu(val);
+    return val;
 }
 
 static uint32_t lsi_ram_readl(void *opaque, target_phys_addr_t addr)
@@ -1938,7 +1938,7 @@ static uint32_t lsi_ram_readl(void *opaque, target_phys_addr_t addr)
     LSIState *s = opaque;
 
     addr &= 0x1fff;
-    return le32_to_cpu(s->script_ram[addr >> 2]);
+    return s->script_ram[addr >> 2];
 }
 
 static CPUReadMemoryFunc * const lsi_ram_readfn[3] = {
