@@ -336,6 +336,11 @@ INLINE int float32_is_any_nan(float32 a)
     return ((float32_val(a) & ~(1 << 31)) > 0x7f800000UL);
 }
 
+INLINE int float32_is_zero_or_denormal(float32 a)
+{
+    return (float32_val(a) & 0x7f800000) == 0;
+}
+
 #define float32_zero make_float32(0)
 #define float32_one make_float32(0x3f800000)
 #define float32_ln2 make_float32(0x3f317218)

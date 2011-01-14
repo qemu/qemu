@@ -173,7 +173,20 @@ typedef struct CPUARMState {
         /* scratch space when Tn are not sufficient.  */
         uint32_t scratch[8];
 
+        /* fp_status is the "normal" fp status. standard_fp_status retains
+         * values corresponding to the ARM "Standard FPSCR Value", ie
+         * default-NaN, flush-to-zero, round-to-nearest and is used by
+         * any operations (generally Neon) which the architecture defines
+         * as controlled by the standard FPSCR value rather than the FPSCR.
+         *
+         * To avoid having to transfer exception bits around, we simply
+         * say that the FPSCR cumulative exception flags are the logical
+         * OR of the flags in the two fp statuses. This relies on the
+         * only thing which needs to read the exception flags being
+         * an explicit FPSCR read.
+         */
         float_status fp_status;
+        float_status standard_fp_status;
     } vfp;
     uint32_t exclusive_addr;
     uint32_t exclusive_val;
@@ -449,17 +462,56 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 
 #include "cpu-all.h"
 
+/* Bit usage in the TB flags field: */
+#define ARM_TBFLAG_THUMB_SHIFT      0
+#define ARM_TBFLAG_THUMB_MASK       (1 << ARM_TBFLAG_THUMB_SHIFT)
+#define ARM_TBFLAG_VECLEN_SHIFT     1
+#define ARM_TBFLAG_VECLEN_MASK      (0x7 << ARM_TBFLAG_VECLEN_SHIFT)
+#define ARM_TBFLAG_VECSTRIDE_SHIFT  4
+#define ARM_TBFLAG_VECSTRIDE_MASK   (0x3 << ARM_TBFLAG_VECSTRIDE_SHIFT)
+#define ARM_TBFLAG_PRIV_SHIFT       6
+#define ARM_TBFLAG_PRIV_MASK        (1 << ARM_TBFLAG_PRIV_SHIFT)
+#define ARM_TBFLAG_VFPEN_SHIFT      7
+#define ARM_TBFLAG_VFPEN_MASK       (1 << ARM_TBFLAG_VFPEN_SHIFT)
+#define ARM_TBFLAG_CONDEXEC_SHIFT   8
+#define ARM_TBFLAG_CONDEXEC_MASK    (0xff << ARM_TBFLAG_CONDEXEC_SHIFT)
+/* Bits 31..16 are currently unused. */
+
+/* some convenience accessor macros */
+#define ARM_TBFLAG_THUMB(F) \
+    (((F) & ARM_TBFLAG_THUMB_MASK) >> ARM_TBFLAG_THUMB_SHIFT)
+#define ARM_TBFLAG_VECLEN(F) \
+    (((F) & ARM_TBFLAG_VECLEN_MASK) >> ARM_TBFLAG_VECLEN_SHIFT)
+#define ARM_TBFLAG_VECSTRIDE(F) \
+    (((F) & ARM_TBFLAG_VECSTRIDE_MASK) >> ARM_TBFLAG_VECSTRIDE_SHIFT)
+#define ARM_TBFLAG_PRIV(F) \
+    (((F) & ARM_TBFLAG_PRIV_MASK) >> ARM_TBFLAG_PRIV_SHIFT)
+#define ARM_TBFLAG_VFPEN(F) \
+    (((F) & ARM_TBFLAG_VFPEN_MASK) >> ARM_TBFLAG_VFPEN_SHIFT)
+#define ARM_TBFLAG_CONDEXEC(F) \
+    (((F) & ARM_TBFLAG_CONDEXEC_MASK) >> ARM_TBFLAG_CONDEXEC_SHIFT)
+
 static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {
+    int privmode;
     *pc = env->regs[15];
     *cs_base = 0;
-    *flags = env->thumb | (env->vfp.vec_len << 1)
-            | (env->vfp.vec_stride << 4) | (env->condexec_bits << 8);
-    if ((env->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_USR)
-        *flags |= (1 << 6);
-    if (env->vfp.xregs[ARM_VFP_FPEXC] & (1 << 30))
-        *flags |= (1 << 7);
+    *flags = (env->thumb << ARM_TBFLAG_THUMB_SHIFT)
+        | (env->vfp.vec_len << ARM_TBFLAG_VECLEN_SHIFT)
+        | (env->vfp.vec_stride << ARM_TBFLAG_VECSTRIDE_SHIFT)
+        | (env->condexec_bits << ARM_TBFLAG_CONDEXEC_SHIFT);
+    if (arm_feature(env, ARM_FEATURE_M)) {
+        privmode = !((env->v7m.exception == 0) && (env->v7m.control & 1));
+    } else {
+        privmode = (env->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_USR;
+    }
+    if (privmode) {
+        *flags |= ARM_TBFLAG_PRIV_MASK;
+    }
+    if (env->vfp.xregs[ARM_VFP_FPEXC] & (1 << 30)) {
+        *flags |= ARM_TBFLAG_VFPEN_MASK;
+    }
 }
 
 #endif

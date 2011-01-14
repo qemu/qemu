@@ -208,6 +208,20 @@ static int r2d_pci_map_irq(PCIDevice *d, int irq_num)
     return intx[d->devfn >> 3];
 }
 
+typedef struct ResetData {
+    CPUState *env;
+    uint32_t vector;
+} ResetData;
+
+static void main_cpu_reset(void *opaque)
+{
+    ResetData *s = (ResetData *)opaque;
+    CPUState *env = s->env;
+
+    cpu_reset(env);
+    env->pc = s->vector;
+}
+
 static struct __attribute__((__packed__))
 {
     int mount_root_rdonly;
@@ -228,6 +242,7 @@ static void r2d_init(ram_addr_t ram_size,
 	      const char *initrd_filename, const char *cpu_model)
 {
     CPUState *env;
+    ResetData *reset_info;
     struct SH7750State *s;
     ram_addr_t sdram_addr;
     qemu_irq *irq;
@@ -242,6 +257,10 @@ static void r2d_init(ram_addr_t ram_size,
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
+    reset_info = qemu_mallocz(sizeof(ResetData));
+    reset_info->env = env;
+    reset_info->vector = env->pc;
+    qemu_register_reset(main_cpu_reset, reset_info);
 
     /* Allocate memory space */
     sdram_addr = qemu_ram_alloc(NULL, "r2d.sdram", SDRAM_SIZE);
@@ -290,7 +309,7 @@ static void r2d_init(ram_addr_t ram_size,
         /* initialization which should be done by firmware */
         stl_phys(SH7750_BCR1, 1<<3); /* cs3 SDRAM */
         stw_phys(SH7750_BCR2, 3<<(3*2)); /* cs3 32bit */
-        env->pc = (SDRAM_BASE + LINUX_LOAD_OFFSET) | 0xa0000000; /* Start from P2 area */
+        reset_info->vector = (SDRAM_BASE + LINUX_LOAD_OFFSET) | 0xa0000000; /* Start from P2 area */
     }
 
     if (initrd_filename) {

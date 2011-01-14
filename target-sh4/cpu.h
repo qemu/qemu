@@ -61,10 +61,37 @@
 #define SR_S  (1 << 1)
 #define SR_T  (1 << 0)
 
-#define FPSCR_FR (1 << 21)
-#define FPSCR_SZ (1 << 20)
-#define FPSCR_PR (1 << 19)
-#define FPSCR_DN (1 << 18)
+#define FPSCR_MASK             (0x003fffff)
+#define FPSCR_FR               (1 << 21)
+#define FPSCR_SZ               (1 << 20)
+#define FPSCR_PR               (1 << 19)
+#define FPSCR_DN               (1 << 18)
+#define FPSCR_CAUSE_MASK       (0x3f << 12)
+#define FPSCR_CAUSE_SHIFT      (12)
+#define FPSCR_CAUSE_E          (1 << 17)
+#define FPSCR_CAUSE_V          (1 << 16)
+#define FPSCR_CAUSE_Z          (1 << 15)
+#define FPSCR_CAUSE_O          (1 << 14)
+#define FPSCR_CAUSE_U          (1 << 13)
+#define FPSCR_CAUSE_I          (1 << 12)
+#define FPSCR_ENABLE_MASK      (0x1f << 7)
+#define FPSCR_ENABLE_SHIFT     (7)
+#define FPSCR_ENABLE_V         (1 << 11)
+#define FPSCR_ENABLE_Z         (1 << 10)
+#define FPSCR_ENABLE_O         (1 << 9)
+#define FPSCR_ENABLE_U         (1 << 8)
+#define FPSCR_ENABLE_I         (1 << 7)
+#define FPSCR_FLAG_MASK        (0x1f << 2)
+#define FPSCR_FLAG_SHIFT       (2)
+#define FPSCR_FLAG_V           (1 << 6)
+#define FPSCR_FLAG_Z           (1 << 5)
+#define FPSCR_FLAG_O           (1 << 4)
+#define FPSCR_FLAG_U           (1 << 3)
+#define FPSCR_FLAG_I           (1 << 2)
+#define FPSCR_RM_MASK          (0x03 << 0)
+#define FPSCR_RM_NEAREST       (0 << 0)
+#define FPSCR_RM_ZERO          (1 << 0)
+
 #define DELAY_SLOT             (1 << 0)
 #define DELAY_SLOT_CONDITIONAL (1 << 1)
 #define DELAY_SLOT_TRUE        (1 << 2)
@@ -109,8 +136,6 @@ typedef struct memory_content {
 } memory_content;
 
 typedef struct CPUSH4State {
-    int id;			/* CPU model */
-
     uint32_t flags;		/* general execution flags */
     uint32_t gregs[24];		/* general registers */
     float32 fregs[32];		/* floating point registers */
@@ -146,14 +171,18 @@ typedef struct CPUSH4State {
     uint32_t expevt;		/* exception event register */
     uint32_t intevt;		/* interrupt event register */
 
+    tlb_t itlb[ITLB_SIZE];	/* instruction translation table */
+    tlb_t utlb[UTLB_SIZE];	/* unified translation table */
+
+    uint32_t ldst;
+
+    CPU_COMMON
+
+    int id;			/* CPU model */
     uint32_t pvr;		/* Processor Version Register */
     uint32_t prr;		/* Processor Revision Register */
     uint32_t cvr;		/* Cache Version Register */
 
-    uint32_t ldst;
-
-     CPU_COMMON tlb_t utlb[UTLB_SIZE];	/* unified translation table */
-    tlb_t itlb[ITLB_SIZE];	/* instruction translation table */
     void *intc_handle;
     int intr_at_halt;		/* SR_BL ignored during sleep */
     memory_content *movcal_backup;
