@@ -202,7 +202,7 @@ M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
 F: hw/etraxfs.c
 
-M86K Machines
+M68K Machines
 -------------
 an5206
 M: Paul Brook <paul@codesourcery.com>
@@ -279,7 +279,7 @@ F: hw/r2d.c
 
 Shix
 M: Magnus Damm <magnus.damm@gmail.com>
-S: Oprhan
+S: Orphan
 F: hw/shix.c
 
 SPARC Machines
