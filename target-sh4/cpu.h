@@ -136,8 +136,6 @@ typedef struct memory_content {
 } memory_content;
 
 typedef struct CPUSH4State {
-    int id;			/* CPU model */
-
     uint32_t flags;		/* general execution flags */
     uint32_t gregs[24];		/* general registers */
     float32 fregs[32];		/* floating point registers */
@@ -173,14 +171,18 @@ typedef struct CPUSH4State {
     uint32_t expevt;		/* exception event register */
     uint32_t intevt;		/* interrupt event register */
 
+    tlb_t itlb[ITLB_SIZE];	/* instruction translation table */
+    tlb_t utlb[UTLB_SIZE];	/* unified translation table */
+
+    uint32_t ldst;
+
+    CPU_COMMON
+
+    int id;			/* CPU model */
     uint32_t pvr;		/* Processor Version Register */
     uint32_t prr;		/* Processor Revision Register */
     uint32_t cvr;		/* Cache Version Register */
 
-    uint32_t ldst;
-
-     CPU_COMMON tlb_t utlb[UTLB_SIZE];	/* unified translation table */
-    tlb_t itlb[ITLB_SIZE];	/* instruction translation table */
     void *intc_handle;
     int intr_at_halt;		/* SR_BL ignored during sleep */
     memory_content *movcal_backup;
