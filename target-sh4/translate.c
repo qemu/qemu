@@ -471,7 +471,6 @@ static inline void gen_store_fpr64 (TCGv_i64 t, int reg)
 #define CHECK_NOT_DELAY_SLOT \
   if (ctx->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL))     \
   {                                                           \
-      tcg_gen_movi_i32(cpu_pc, ctx->pc);                      \
       gen_helper_raise_slot_illegal_instruction();            \
       ctx->bstate = BS_EXCP;                                  \
       return;                                                 \
@@ -479,7 +478,6 @@ static inline void gen_store_fpr64 (TCGv_i64 t, int reg)
 
 #define CHECK_PRIVILEGED                                        \
   if (IS_USER(ctx)) {                                           \
-      tcg_gen_movi_i32(cpu_pc, ctx->pc);                        \
       if (ctx->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) { \
          gen_helper_raise_slot_illegal_instruction();           \
       } else {                                                  \
@@ -491,7 +489,6 @@ static inline void gen_store_fpr64 (TCGv_i64 t, int reg)
 
 #define CHECK_FPU_ENABLED                                       \
   if (ctx->flags & SR_FD) {                                     \
-      tcg_gen_movi_i32(cpu_pc, ctx->pc);                        \
       if (ctx->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) { \
           gen_helper_raise_slot_fpu_disable();                  \
       } else {                                                  \
@@ -1380,7 +1377,6 @@ static void _decode_opc(DisasContext * ctx)
 	{
 	    TCGv imm;
 	    CHECK_NOT_DELAY_SLOT
-	    tcg_gen_movi_i32(cpu_pc, ctx->pc);
 	    imm = tcg_const_i32(B7_0);
 	    gen_helper_trapa(imm);
 	    tcg_temp_free(imm);
@@ -1888,7 +1884,6 @@ static void _decode_opc(DisasContext * ctx)
 	    ctx->opcode, ctx->pc);
     fflush(stderr);
 #endif
-    tcg_gen_movi_i32(cpu_pc, ctx->pc);
     if (ctx->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) {
        gen_helper_raise_slot_illegal_instruction();
     } else {

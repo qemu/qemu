@@ -83,28 +83,31 @@ void helper_ldtlb(void)
 #endif
 }
 
+static inline void raise_exception(int index, void *retaddr)
+{
+    env->exception_index = index;
+    cpu_restore_state_from_retaddr(retaddr);
+    cpu_loop_exit();
+}
+
 void helper_raise_illegal_instruction(void)
 {
-    env->exception_index = 0x180;
-    cpu_loop_exit();
+    raise_exception(0x180, GETPC());
 }
 
 void helper_raise_slot_illegal_instruction(void)
 {
-    env->exception_index = 0x1a0;
-    cpu_loop_exit();
+    raise_exception(0x1a0, GETPC());
 }
 
 void helper_raise_fpu_disable(void)
 {
-  env->exception_index = 0x800;
-  cpu_loop_exit();
+    raise_exception(0x800, GETPC());
 }
 
 void helper_raise_slot_fpu_disable(void)
 {
-  env->exception_index = 0x820;
-  cpu_loop_exit();
+    raise_exception(0x820, GETPC());
 }
 
 void helper_debug(void)
@@ -124,8 +127,7 @@ void helper_sleep(uint32_t next_pc)
 void helper_trapa(uint32_t tra)
 {
     env->tra = tra << 2;
-    env->exception_index = 0x160;
-    cpu_loop_exit();
+    raise_exception(0x160, GETPC());
 }
 
 void helper_movcal(uint32_t address, uint32_t value)
