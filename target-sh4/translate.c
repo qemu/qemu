@@ -203,10 +203,10 @@ static void cpu_sh4_reset(CPUSH4State * env)
     env->fpscr = FPSCR_PR; /* value for userspace according to the kernel */
     set_float_rounding_mode(float_round_nearest_even, &env->fp_status); /* ?! */
 #else
-    env->fpscr = 0x00040001; /* CPU reset value according to SH4 manual */
+    env->fpscr = FPSCR_DN | FPSCR_RM_ZERO; /* CPU reset value according to SH4 manual */
     set_float_rounding_mode(float_round_to_zero, &env->fp_status);
 #endif
-    set_default_nan_mode(1, &env->vfp.fp_status);
+    set_default_nan_mode(1, &env->fp_status);
     env->mmucr = 0;
 }
 

@@ -443,11 +443,12 @@ static inline void clr_t(void)
 
 void helper_ld_fpscr(uint32_t val)
 {
-    env->fpscr = val & 0x003fffff;
-    if (val & 0x01)
+    env->fpscr = val & FPSCR_MASK;
+    if ((val & FPSCR_RM_MASK) == FPSCR_RM_ZERO) {
 	set_float_rounding_mode(float_round_to_zero, &env->fp_status);
-    else
+    } else {
 	set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+    }
 }
 
 uint32_t helper_fabs_FT(uint32_t t0)
