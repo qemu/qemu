@@ -802,3 +802,29 @@ void helper_fipr(uint32_t m, uint32_t n)
 
     env->fregs[bank + n + 3] = r;
 }
+
+void helper_ftrv(uint32_t n)
+{
+    int bank_matrix, bank_vector;
+    int i, j;
+    float32 r[4];
+    float32 p;
+
+    bank_matrix = (env->sr & FPSCR_FR) ? 0 : 16;
+    bank_vector = (env->sr & FPSCR_FR) ? 16 : 0;
+    set_float_exception_flags(0, &env->fp_status);
+    for (i = 0 ; i < 4 ; i++) {
+        r[i] = float32_zero;
+        for (j = 0 ; j < 4 ; j++) {
+            p = float32_mul(env->fregs[bank_matrix + 4 * j + i],
+                            env->fregs[bank_vector + j],
+                            &env->fp_status);
+            r[i] = float32_add(r[i], p, &env->fp_status);
+        }
+    }
+    update_fpscr(GETPC());
+
+    for (i = 0 ; i < 4 ; i++) {
+        env->fregs[bank_vector + i] = r[i];
+    }
+}

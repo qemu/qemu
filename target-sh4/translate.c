@@ -1871,6 +1871,17 @@ static void _decode_opc(DisasContext * ctx)
             return;
         }
         break;
+    case 0xf0fd: /* ftrv XMTRX,FVn */
+        CHECK_FPU_ENABLED
+        if ((ctx->opcode & 0x0300) == 0x0100 &&
+            (ctx->fpscr & FPSCR_PR) == 0) {
+            TCGv n;
+            n = tcg_const_i32((ctx->opcode >> 18) & 3);
+            gen_helper_ftrv(n);
+            tcg_temp_free(n);
+            return;
+        }
+        break;
     }
 #if 0
     fprintf(stderr, "unknown instruction 0x%04x at pc 0x%08x\n",
