@@ -6122,14 +6122,10 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 goto illegal_op;
             ARCH(6);
             op1 = (insn & 0x1f);
-            if (op1 == (env->uncached_cpsr & CPSR_M)) {
-                addr = load_reg(s, 13);
-            } else {
-                addr = new_tmp();
-                tmp = tcg_const_i32(op1);
-                gen_helper_get_r13_banked(addr, cpu_env, tmp);
-                tcg_temp_free_i32(tmp);
-            }
+            addr = new_tmp();
+            tmp = tcg_const_i32(op1);
+            gen_helper_get_r13_banked(addr, cpu_env, tmp);
+            tcg_temp_free_i32(tmp);
             i = (insn >> 23) & 3;
             switch (i) {
             case 0: offset = -4; break; /* DA */
@@ -6156,14 +6152,10 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 }
                 if (offset)
                     tcg_gen_addi_i32(addr, addr, offset);
-                if (op1 == (env->uncached_cpsr & CPSR_M)) {
-                    store_reg(s, 13, addr);
-                } else {
-                    tmp = tcg_const_i32(op1);
-                    gen_helper_set_r13_banked(cpu_env, tmp, addr);
-                    tcg_temp_free_i32(tmp);
-                    dead_tmp(addr);
-                }
+                tmp = tcg_const_i32(op1);
+                gen_helper_set_r13_banked(cpu_env, tmp, addr);
+                tcg_temp_free_i32(tmp);
+                dead_tmp(addr);
             } else {
                 dead_tmp(addr);
             }
@@ -7575,14 +7567,10 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                 } else {
                     /* srs */
                     op = (insn & 0x1f);
-                    if (op == (env->uncached_cpsr & CPSR_M)) {
-                        addr = load_reg(s, 13);
-                    } else {
-                        addr = new_tmp();
-                        tmp = tcg_const_i32(op);
-                        gen_helper_get_r13_banked(addr, cpu_env, tmp);
-                        tcg_temp_free_i32(tmp);
-                    }
+                    addr = new_tmp();
+                    tmp = tcg_const_i32(op);
+                    gen_helper_get_r13_banked(addr, cpu_env, tmp);
+                    tcg_temp_free_i32(tmp);
                     if ((insn & (1 << 24)) == 0) {
                         tcg_gen_addi_i32(addr, addr, -8);
                     }
@@ -7598,13 +7586,9 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                         } else {
                             tcg_gen_addi_i32(addr, addr, 4);
                         }
-                        if (op == (env->uncached_cpsr & CPSR_M)) {
-                            store_reg(s, 13, addr);
-                        } else {
-                            tmp = tcg_const_i32(op);
-                            gen_helper_set_r13_banked(cpu_env, tmp, addr);
-                            tcg_temp_free_i32(tmp);
-                        }
+                        tmp = tcg_const_i32(op);
+                        gen_helper_set_r13_banked(cpu_env, tmp, addr);
+                        tcg_temp_free_i32(tmp);
                     } else {
                         dead_tmp(addr);
                     }

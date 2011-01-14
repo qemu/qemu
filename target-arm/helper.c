@@ -1849,12 +1849,20 @@ bad_reg:
 
 void HELPER(set_r13_banked)(CPUState *env, uint32_t mode, uint32_t val)
 {
-    env->banked_r13[bank_number(mode)] = val;
+    if ((env->uncached_cpsr & CPSR_M) == mode) {
+        env->regs[13] = val;
+    } else {
+        env->banked_r13[bank_number(mode)] = val;
+    }
 }
 
 uint32_t HELPER(get_r13_banked)(CPUState *env, uint32_t mode)
 {
-    return env->banked_r13[bank_number(mode)];
+    if ((env->uncached_cpsr & CPSR_M) == mode) {
+        return env->regs[13];
+    } else {
+        return env->banked_r13[bank_number(mode)];
+    }
 }
 
 uint32_t HELPER(v7m_mrs)(CPUState *env, uint32_t reg)
