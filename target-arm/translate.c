@@ -3485,6 +3485,14 @@ gen_set_condexec (DisasContext *s)
     }
 }
 
+static void gen_exception_insn(DisasContext *s, int offset, int excp)
+{
+    gen_set_condexec(s);
+    gen_set_pc_im(s->pc - offset);
+    gen_exception(excp);
+    s->is_jmp = DISAS_JUMP;
+}
+
 static void gen_nop_hint(DisasContext *s, int val)
 {
     switch (val) {
@@ -5976,10 +5984,7 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
     tcg_gen_mov_i32(cpu_exclusive_test, addr);
     tcg_gen_movi_i32(cpu_exclusive_info,
                      size | (rd << 4) | (rt << 8) | (rt2 << 12));
-    gen_set_condexec(s);
-    gen_set_pc_im(s->pc - 4);
-    gen_exception(EXCP_STREX);
-    s->is_jmp = DISAS_JUMP;
+    gen_exception_insn(s, 4, EXCP_STREX);
 }
 #else
 static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
@@ -6376,10 +6381,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 goto illegal_op;
             }
             /* bkpt */
-            gen_set_condexec(s);
-            gen_set_pc_im(s->pc - 4);
-            gen_exception(EXCP_BKPT);
-            s->is_jmp = DISAS_JUMP;
+            gen_exception_insn(s, 4, EXCP_BKPT);
             break;
         case 0x8: /* signed multiply */
         case 0xa:
@@ -7278,10 +7280,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             break;
         default:
         illegal_op:
-            gen_set_condexec(s);
-            gen_set_pc_im(s->pc - 4);
-            gen_exception(EXCP_UDEF);
-            s->is_jmp = DISAS_JUMP;
+            gen_exception_insn(s, 4, EXCP_UDEF);
             break;
         }
     }
@@ -8927,10 +8926,7 @@ static void disas_thumb_insn(CPUState *env, DisasContext *s)
             break;
 
         case 0xe: /* bkpt */
-            gen_set_condexec(s);
-            gen_set_pc_im(s->pc - 2);
-            gen_exception(EXCP_BKPT);
-            s->is_jmp = DISAS_JUMP;
+            gen_exception_insn(s, 2, EXCP_BKPT);
             break;
 
         case 0xa: /* rev */
@@ -9052,17 +9048,11 @@ static void disas_thumb_insn(CPUState *env, DisasContext *s)
     }
     return;
 undef32:
-    gen_set_condexec(s);
-    gen_set_pc_im(s->pc - 4);
-    gen_exception(EXCP_UDEF);
-    s->is_jmp = DISAS_JUMP;
+    gen_exception_insn(s, 4, EXCP_UDEF);
     return;
 illegal_op:
 undef:
-    gen_set_condexec(s);
-    gen_set_pc_im(s->pc - 2);
-    gen_exception(EXCP_UDEF);
-    s->is_jmp = DISAS_JUMP;
+    gen_exception_insn(s, 2, EXCP_UDEF);
 }
 
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
@@ -9150,10 +9140,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
         if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
             QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
                 if (bp->pc == dc->pc) {
-                    gen_set_condexec(dc);
-                    gen_set_pc_im(dc->pc);
-                    gen_exception(EXCP_DEBUG);
-                    dc->is_jmp = DISAS_JUMP;
+                    gen_exception_insn(dc, 0, EXCP_DEBUG);
                     /* Advance PC so that clearing the breakpoint will
                        invalidate this TB.  */
                     dc->pc += 2;
