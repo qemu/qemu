@@ -81,8 +81,8 @@ S: Maintained
 F: target-microblaze/
 
 MIPS
-M: qemu-devel@nongnu.org
-S: Orphan
+M: Aurelien Jarno <aurelien@aurel32.net>
+S: Maintained
 F: target-mips/
 
 PowerPC
@@ -96,8 +96,8 @@ S: Maintained
 F: target-s390x/
 
 SH4
-M: qemu-devel@nongnu.org
-S: Orphan
+M: Aurelien Jarno <aurelien@aurel32.net>
+S: Maintained
 F: target-sh4/
 
 SPARC
