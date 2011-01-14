@@ -332,7 +332,7 @@ static inline void gen_branch_slot(uint32_t delayed_pc, int t)
     tcg_gen_movi_i32(cpu_delayed_pc, delayed_pc);
     sr = tcg_temp_new();
     tcg_gen_andi_i32(sr, cpu_sr, SR_T);
-    tcg_gen_brcondi_i32(TCG_COND_NE, sr, t ? SR_T : 0, label);
+    tcg_gen_brcondi_i32(t ? TCG_COND_EQ:TCG_COND_NE, sr, 0, label);
     tcg_gen_ori_i32(cpu_flags, cpu_flags, DELAY_SLOT_TRUE);
     gen_set_label(label);
 }
@@ -347,7 +347,7 @@ static void gen_conditional_jump(DisasContext * ctx,
     l1 = gen_new_label();
     sr = tcg_temp_new();
     tcg_gen_andi_i32(sr, cpu_sr, SR_T);
-    tcg_gen_brcondi_i32(TCG_COND_EQ, sr, SR_T, l1);
+    tcg_gen_brcondi_i32(TCG_COND_NE, sr, 0, l1);
     gen_goto_tb(ctx, 0, ifnott);
     gen_set_label(l1);
     gen_goto_tb(ctx, 1, ift);
@@ -362,7 +362,7 @@ static void gen_delayed_conditional_jump(DisasContext * ctx)
     l1 = gen_new_label();
     ds = tcg_temp_new();
     tcg_gen_andi_i32(ds, cpu_flags, DELAY_SLOT_TRUE);
-    tcg_gen_brcondi_i32(TCG_COND_EQ, ds, DELAY_SLOT_TRUE, l1);
+    tcg_gen_brcondi_i32(TCG_COND_NE, ds, 0, l1);
     gen_goto_tb(ctx, 1, ctx->pc + 2);
     gen_set_label(l1);
     tcg_gen_andi_i32(cpu_flags, cpu_flags, ~DELAY_SLOT_TRUE);
