@@ -60,6 +60,8 @@ typedef struct DisasContext {
     int user;
 #endif
     int vfp_enabled;
+    int vec_len;
+    int vec_stride;
 } DisasContext;
 
 #if defined(CONFIG_USER_ONLY)
@@ -2895,7 +2897,7 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 rm = VFP_SREG_M(insn);
             }
 
-            veclen = env->vfp.vec_len;
+            veclen = s->vec_len;
             if (op == 15 && rn > 3)
                 veclen = 0;
 
@@ -2916,9 +2918,9 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     veclen = 0;
                 } else {
                     if (dp)
-                        delta_d = (env->vfp.vec_stride >> 1) + 1;
+                        delta_d = (s->vec_stride >> 1) + 1;
                     else
-                        delta_d = env->vfp.vec_stride + 1;
+                        delta_d = s->vec_stride + 1;
 
                     if ((rm & bank_mask) == 0) {
                         /* mixed scalar/vector */
@@ -9104,6 +9106,8 @@ static inline void gen_intermediate_code_internal(CPUState *env,
     }
 #endif
     dc->vfp_enabled = ARM_TBFLAG_VFPEN(tb->flags);
+    dc->vec_len = ARM_TBFLAG_VECLEN(tb->flags);
+    dc->vec_stride = ARM_TBFLAG_VECSTRIDE(tb->flags);
     cpu_F0s = tcg_temp_new_i32();
     cpu_F1s = tcg_temp_new_i32();
     cpu_F0d = tcg_temp_new_i64();
