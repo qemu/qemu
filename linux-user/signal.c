@@ -1256,6 +1256,14 @@ setup_return(CPUState *env, struct target_sigaction *ka,
 	abi_ulong handler = ka->_sa_handler;
 	abi_ulong retcode;
 	int thumb = handler & 1;
+	uint32_t cpsr = cpsr_read(env);
+
+	cpsr &= ~CPSR_IT;
+	if (thumb) {
+		cpsr |= CPSR_T;
+	} else {
+		cpsr &= ~CPSR_T;
+	}
 
 	if (ka->sa_flags & TARGET_SA_RESTORER) {
 		retcode = ka->sa_restorer;
@@ -1278,13 +1286,7 @@ setup_return(CPUState *env, struct target_sigaction *ka,
 	env->regs[13] = frame_addr;
 	env->regs[14] = retcode;
 	env->regs[15] = handler & (thumb ? ~1 : ~3);
-	env->thumb = thumb;
-
-#if 0
-#ifdef TARGET_CONFIG_CPU_32
-	env->cpsr = cpsr;
-#endif
-#endif
+	cpsr_write(env, cpsr, 0xffffffff);
 
 	return 0;
 }
