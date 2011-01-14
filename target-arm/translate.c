@@ -59,6 +59,7 @@ typedef struct DisasContext {
 #if !defined(CONFIG_USER_ONLY)
     int user;
 #endif
+    int vfp_enabled;
 } DisasContext;
 
 #if defined(CONFIG_USER_ONLY)
@@ -2603,12 +2604,6 @@ static void gen_vfp_msr(TCGv tmp)
     dead_tmp(tmp);
 }
 
-static inline int
-vfp_enabled(CPUState * env)
-{
-    return ((env->vfp.xregs[ARM_VFP_FPEXC] & (1 << 30)) != 0);
-}
-
 static void gen_neon_dup_u8(TCGv var, int shift)
 {
     TCGv tmp = new_tmp();
@@ -2653,7 +2648,7 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
     if (!arm_feature(env, ARM_FEATURE_VFP))
         return 1;
 
-    if (!vfp_enabled(env)) {
+    if (!s->vfp_enabled) {
         /* VFP disabled.  Only allow fmxr/fmrx to/from some control regs.  */
         if ((insn & 0x0fe00fff) != 0x0ee00a10)
             return 1;
@@ -3804,7 +3799,7 @@ static int disas_neon_ls_insn(CPUState * env, DisasContext *s, uint32_t insn)
     TCGv tmp2;
     TCGv_i64 tmp64;
 
-    if (!vfp_enabled(env))
+    if (!s->vfp_enabled)
       return 1;
     VFP_DREG_D(rd, insn);
     rn = (insn >> 16) & 0xf;
@@ -4199,7 +4194,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
     TCGv tmp, tmp2, tmp3, tmp4, tmp5;
     TCGv_i64 tmp64;
 
-    if (!vfp_enabled(env))
+    if (!s->vfp_enabled)
       return 1;
     q = (insn & (1 << 6)) != 0;
     u = (insn >> 24) & 1;
@@ -9108,6 +9103,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
         dc->user = (env->uncached_cpsr & 0x1f) == ARM_CPU_MODE_USR;
     }
 #endif
+    dc->vfp_enabled = ARM_TBFLAG_VFPEN(tb->flags);
     cpu_F0s = tcg_temp_new_i32();
     cpu_F1s = tcg_temp_new_i32();
     cpu_F0d = tcg_temp_new_i64();
