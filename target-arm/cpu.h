@@ -485,13 +485,19 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {
+    int privmode;
     *pc = env->regs[15];
     *cs_base = 0;
     *flags = (env->thumb << ARM_TBFLAG_THUMB_SHIFT)
         | (env->vfp.vec_len << ARM_TBFLAG_VECLEN_SHIFT)
         | (env->vfp.vec_stride << ARM_TBFLAG_VECSTRIDE_SHIFT)
         | (env->condexec_bits << ARM_TBFLAG_CONDEXEC_SHIFT);
-    if ((env->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_USR) {
+    if (arm_feature(env, ARM_FEATURE_M)) {
+        privmode = !((env->v7m.exception == 0) && (env->v7m.control & 1));
+    } else {
+        privmode = (env->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_USR;
+    }
+    if (privmode) {
         *flags |= ARM_TBFLAG_PRIV_MASK;
     }
     if (env->vfp.xregs[ARM_VFP_FPEXC] & (1 << 30)) {
