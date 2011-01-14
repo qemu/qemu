@@ -1892,6 +1892,10 @@ static void decode_opc(DisasContext * ctx)
 {
     uint32_t old_flags = ctx->flags;
 
+    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP))) {
+        tcg_gen_debug_insn_start(ctx->pc);
+    }
+
     _decode_opc(ctx);
 
     if (old_flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) {
