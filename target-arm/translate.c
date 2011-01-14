@@ -9095,7 +9095,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
     dc->pc = pc_start;
     dc->singlestep_enabled = env->singlestep_enabled;
     dc->condjmp = 0;
-    dc->thumb = env->thumb;
+    dc->thumb = ARM_TBFLAG_THUMB(tb->flags);
     dc->condexec_mask = (env->condexec_bits & 0xf) << 1;
     dc->condexec_cond = env->condexec_bits >> 4;
 #if !defined(CONFIG_USER_ONLY)
@@ -9182,7 +9182,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
             gen_io_start();
 
-        if (env->thumb) {
+        if (dc->thumb) {
             disas_thumb_insn(env, dc);
             if (dc->condexec_mask) {
                 dc->condexec_cond = (dc->condexec_cond & 0xe)
@@ -9296,7 +9296,7 @@ done_generating:
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("----------------\n");
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(pc_start, dc->pc - pc_start, env->thumb);
+        log_target_disas(pc_start, dc->pc - pc_start, dc->thumb);
         qemu_log("\n");
     }
 #endif
