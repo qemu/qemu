@@ -38,6 +38,7 @@ struct Qcow2Cache {
     int                     size;
     Qcow2CachedTable*       entries;
     struct Qcow2Cache*      depends;
+    bool                    depends_on_flush;
     bool                    writethrough;
 };
 
@@ -85,13 +86,15 @@ static int qcow2_cache_flush_dependency(BlockDriverState *bs, Qcow2Cache *c)
     }
 
     c->depends = NULL;
+    c->depends_on_flush = false;
+
     return 0;
 }
 
 static int qcow2_cache_entry_flush(BlockDriverState *bs, Qcow2Cache *c, int i)
 {
     BDRVQcowState *s = bs->opaque;
-    int ret;
+    int ret = 0;
 
     if (!c->entries[i].dirty || !c->entries[i].offset) {
         return 0;
@@ -99,9 +102,15 @@ static int qcow2_cache_entry_flush(BlockDriverState *bs, Qcow2Cache *c, int i)
 
     if (c->depends) {
         ret = qcow2_cache_flush_dependency(bs, c);
-        if (ret < 0) {
-            return ret;
+    } else if (c->depends_on_flush) {
+        ret = bdrv_flush(bs->file);
+        if (ret >= 0) {
+            c->depends_on_flush = false;
         }
+    }
+
+    if (ret < 0) {
+        return ret;
     }
 
     if (c == s->refcount_block_cache) {
@@ -165,6 +174,11 @@ int qcow2_cache_set_dependency(BlockDriverState *bs, Qcow2Cache *c,
 
     c->depends = dependency;
     return 0;
+}
+
+void qcow2_cache_depends_on_flush(Qcow2Cache *c)
+{
+    c->depends_on_flush = true;
 }
 
 static int qcow2_cache_find_entry_to_replace(Qcow2Cache *c)

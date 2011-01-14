@@ -637,7 +637,7 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
      * handled.
      */
     if (cow) {
-        bdrv_flush(bs->file);
+        qcow2_cache_depends_on_flush(s->l2_table_cache);
     }
 
     qcow2_cache_set_dependency(bs, s->l2_table_cache, s->refcount_block_cache);
