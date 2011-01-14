@@ -206,6 +206,7 @@ static void cpu_sh4_reset(CPUSH4State * env)
     env->fpscr = 0x00040001; /* CPU reset value according to SH4 manual */
     set_float_rounding_mode(float_round_to_zero, &env->fp_status);
 #endif
+    set_default_nan_mode(1, &env->vfp.fp_status);
     env->mmucr = 0;
 }
 
