@@ -1504,7 +1504,7 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
         break;
     }
 
-    if (vs->vd->lock_key_sync &&
+    if (down && vs->vd->lock_key_sync &&
         keycode_is_keypad(vs->vd->kbd_layout, keycode)) {
         /* If the numlock state needs to change then simulate an additional
            keypress before sending this one.  This will happen if the user
@@ -1523,7 +1523,7 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
         }
     }
 
-    if (vs->vd->lock_key_sync &&
+    if (down && vs->vd->lock_key_sync &&
         ((sym >= 'A' && sym <= 'Z') || (sym >= 'a' && sym <= 'z'))) {
         /* If the capslock state needs to change then simulate an additional
            keypress before sending this one.  This will happen if the user
