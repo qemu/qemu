@@ -9099,11 +9099,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
     dc->condexec_mask = (ARM_TBFLAG_CONDEXEC(tb->flags) & 0xf) << 1;
     dc->condexec_cond = ARM_TBFLAG_CONDEXEC(tb->flags) >> 4;
 #if !defined(CONFIG_USER_ONLY)
-    if (IS_M(env)) {
-        dc->user = ((env->v7m.exception == 0) && (env->v7m.control & 1));
-    } else {
-        dc->user = (env->uncached_cpsr & 0x1f) == ARM_CPU_MODE_USR;
-    }
+    dc->user = (ARM_TBFLAG_PRIV(tb->flags) == 0);
 #endif
     dc->vfp_enabled = ARM_TBFLAG_VFPEN(tb->flags);
     dc->vec_len = ARM_TBFLAG_VECLEN(tb->flags);
