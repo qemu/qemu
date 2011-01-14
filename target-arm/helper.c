@@ -2612,8 +2612,16 @@ float32 HELPER(recps_f32)(float32 a, float32 b, CPUState *env)
 float32 HELPER(rsqrts_f32)(float32 a, float32 b, CPUState *env)
 {
     float_status *s = &env->vfp.fp_status;
+    float32 two = int32_to_float32(2, s);
     float32 three = int32_to_float32(3, s);
-    return float32_sub(three, float32_mul(a, b, s), s);
+    float32 product;
+    if ((float32_is_infinity(a) && float32_is_zero_or_denormal(b)) ||
+        (float32_is_infinity(b) && float32_is_zero_or_denormal(a))) {
+        product = float32_zero;
+    } else {
+        product = float32_mul(a, b, s);
+    }
+    return float32_div(float32_sub(three, product, s), two, s);
 }
 
 /* NEON helpers.  */
