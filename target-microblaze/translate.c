@@ -78,9 +78,10 @@ typedef struct DisasContext {
     unsigned int clear_imm;
     int is_jmp;
 
-#define JMP_NOJMP    0
-#define JMP_DIRECT   1
-#define JMP_INDIRECT 2
+#define JMP_NOJMP     0
+#define JMP_DIRECT    1
+#define JMP_DIRECT_CC 2
+#define JMP_INDIRECT  3
     unsigned int jmp;
     uint32_t jmp_pc;
 
@@ -751,7 +752,10 @@ static void dec_bit(DisasContext *dc)
 
 static inline void sync_jmpstate(DisasContext *dc)
 {
-    if (dc->jmp == JMP_DIRECT) {
+    if (dc->jmp == JMP_DIRECT || dc->jmp == JMP_DIRECT_CC) {
+        if (dc->jmp == JMP_DIRECT) {
+            tcg_gen_movi_tl(env_btaken, 1);
+        }
         dc->jmp = JMP_INDIRECT;
         tcg_gen_movi_tl(env_btarget, dc->jmp_pc);
     }
@@ -975,7 +979,7 @@ static void dec_bcc(DisasContext *dc)
         int32_t offset = (int32_t)((int16_t)dc->imm); /* sign-extend.  */
 
         tcg_gen_movi_tl(env_btarget, dc->pc + offset);
-        dc->jmp = JMP_DIRECT;
+        dc->jmp = JMP_DIRECT_CC;
         dc->jmp_pc = dc->pc + offset;
     } else {
         dc->jmp = JMP_INDIRECT;
@@ -1029,7 +1033,6 @@ static void dec_br(DisasContext *dc)
         if (dec_alu_op_b_is_small_imm(dc)) {
             dc->jmp = JMP_DIRECT;
             dc->jmp_pc = dc->pc + (int32_t)((int16_t)dc->imm);
-            tcg_gen_movi_tl(env_btaken, 1);
         } else {
             tcg_gen_movi_tl(env_btaken, 1);
             tcg_gen_movi_tl(env_btarget, dc->pc);
@@ -1451,6 +1454,10 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
                     eval_cond_jmp(dc, env_btarget, tcg_const_tl(dc->pc));
                     dc->is_jmp = DISAS_JUMP;
                 } else if (dc->jmp == JMP_DIRECT) {
+                    t_sync_flags(dc);
+                    gen_goto_tb(dc, 0, dc->jmp_pc);
+                    dc->is_jmp = DISAS_TB_JUMP;
+                } else if (dc->jmp == JMP_DIRECT_CC) {
                     int l1;
 
                     t_sync_flags(dc);
@@ -1475,7 +1482,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
                  && num_insns < max_insns);
 
     npc = dc->pc;
-    if (dc->jmp == JMP_DIRECT) {
+    if (dc->jmp == JMP_DIRECT || dc->jmp == JMP_DIRECT_CC) {
         if (dc->tb_flags & D_FLAG) {
             dc->is_jmp = DISAS_UPDATE;
             tcg_gen_movi_tl(cpu_SR[SR_PC], npc);
