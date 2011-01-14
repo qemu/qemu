@@ -237,6 +237,9 @@ void cpu_reset(CPUARMState *env)
     env->vfp.xregs[ARM_VFP_FPEXC] = 0;
     env->cp15.c2_base_mask = 0xffffc000u;
 #endif
+    set_flush_to_zero(1, &env->vfp.standard_fp_status);
+    set_flush_inputs_to_zero(1, &env->vfp.standard_fp_status);
+    set_default_nan_mode(1, &env->vfp.standard_fp_status);
     tlb_flush(env, 1);
 }
 
@@ -2256,6 +2259,7 @@ uint32_t HELPER(vfp_get_fpscr)(CPUState *env)
             | (env->vfp.vec_len << 16)
             | (env->vfp.vec_stride << 20);
     i = get_float_exception_flags(&env->vfp.fp_status);
+    i |= get_float_exception_flags(&env->vfp.standard_fp_status);
     fpscr |= vfp_exceptbits_from_host(i);
     return fpscr;
 }
@@ -2323,6 +2327,7 @@ void HELPER(vfp_set_fpscr)(CPUState *env, uint32_t val)
 
     i = vfp_exceptbits_to_host(val);
     set_float_exception_flags(i, &env->vfp.fp_status);
+    set_float_exception_flags(0, &env->vfp.standard_fp_status);
 }
 
 void vfp_set_fpscr(CPUState *env, uint32_t val)

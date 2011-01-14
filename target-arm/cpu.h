@@ -173,7 +173,20 @@ typedef struct CPUARMState {
         /* scratch space when Tn are not sufficient.  */
         uint32_t scratch[8];
 
+        /* fp_status is the "normal" fp status. standard_fp_status retains
+         * values corresponding to the ARM "Standard FPSCR Value", ie
+         * default-NaN, flush-to-zero, round-to-nearest and is used by
+         * any operations (generally Neon) which the architecture defines
+         * as controlled by the standard FPSCR value rather than the FPSCR.
+         *
+         * To avoid having to transfer exception bits around, we simply
+         * say that the FPSCR cumulative exception flags are the logical
+         * OR of the flags in the two fp statuses. This relies on the
+         * only thing which needs to read the exception flags being
+         * an explicit FPSCR read.
+         */
         float_status fp_status;
+        float_status standard_fp_status;
     } vfp;
     uint32_t exclusive_addr;
     uint32_t exclusive_val;
