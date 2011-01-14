@@ -381,26 +381,26 @@ static inline void gen_clr_t(void)
 
 static inline void gen_cmp(int cond, TCGv t0, TCGv t1)
 {
-    int label1 = gen_new_label();
-    int label2 = gen_new_label();
-    tcg_gen_brcond_i32(cond, t1, t0, label1);
-    gen_clr_t();
-    tcg_gen_br(label2);
-    gen_set_label(label1);
-    gen_set_t();
-    gen_set_label(label2);
+    TCGv t;
+
+    t = tcg_temp_new();
+    tcg_gen_setcond_i32(cond, t, t1, t0);
+    tcg_gen_andi_i32(cpu_sr, cpu_sr, ~SR_T);
+    tcg_gen_or_i32(cpu_sr, cpu_sr, t);
+
+    tcg_temp_free(t);
 }
 
 static inline void gen_cmp_imm(int cond, TCGv t0, int32_t imm)
 {
-    int label1 = gen_new_label();
-    int label2 = gen_new_label();
-    tcg_gen_brcondi_i32(cond, t0, imm, label1);
-    gen_clr_t();
-    tcg_gen_br(label2);
-    gen_set_label(label1);
-    gen_set_t();
-    gen_set_label(label2);
+    TCGv t;
+
+    t = tcg_temp_new();
+    tcg_gen_setcondi_i32(cond, t, t0, imm);
+    tcg_gen_andi_i32(cpu_sr, cpu_sr, ~SR_T);
+    tcg_gen_or_i32(cpu_sr, cpu_sr, t);
+
+    tcg_temp_free(t);
 }
 
 static inline void gen_store_flags(uint32_t flags)
@@ -816,24 +816,22 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0x200c:		/* cmp/str Rm,Rn */
 	{
-	    int label1 = gen_new_label();
-	    int label2 = gen_new_label();
-	    TCGv cmp1 = tcg_temp_local_new();
-	    TCGv cmp2 = tcg_temp_local_new();
+	    TCGv cmp1 = tcg_temp_new();
+	    TCGv cmp2 = tcg_temp_new();
+	    tcg_gen_andi_i32(cpu_sr, cpu_sr, ~SR_T);
 	    tcg_gen_xor_i32(cmp1, REG(B7_4), REG(B11_8));
 	    tcg_gen_andi_i32(cmp2, cmp1, 0xff000000);
-	    tcg_gen_brcondi_i32(TCG_COND_EQ, cmp2, 0, label1);
+	    tcg_gen_setcondi_i32(TCG_COND_EQ, cmp2, cmp2, 0);
+	    tcg_gen_or_i32(cpu_sr, cpu_sr, cmp2);
 	    tcg_gen_andi_i32(cmp2, cmp1, 0x00ff0000);
-	    tcg_gen_brcondi_i32(TCG_COND_EQ, cmp2, 0, label1);
+	    tcg_gen_setcondi_i32(TCG_COND_EQ, cmp2, cmp2, 0);
+	    tcg_gen_or_i32(cpu_sr, cpu_sr, cmp2);
 	    tcg_gen_andi_i32(cmp2, cmp1, 0x0000ff00);
-	    tcg_gen_brcondi_i32(TCG_COND_EQ, cmp2, 0, label1);
+	    tcg_gen_setcondi_i32(TCG_COND_EQ, cmp2, cmp2, 0);
+	    tcg_gen_or_i32(cpu_sr, cpu_sr, cmp2);
 	    tcg_gen_andi_i32(cmp2, cmp1, 0x000000ff);
-	    tcg_gen_brcondi_i32(TCG_COND_EQ, cmp2, 0, label1);
-	    tcg_gen_andi_i32(cpu_sr, cpu_sr, ~SR_T);
-	    tcg_gen_br(label2);
-	    gen_set_label(label1);
-	    tcg_gen_ori_i32(cpu_sr, cpu_sr, SR_T);
-	    gen_set_label(label2);
+	    tcg_gen_setcondi_i32(TCG_COND_EQ, cmp2, cmp2, 0);
+	    tcg_gen_or_i32(cpu_sr, cpu_sr, cmp2);
 	    tcg_temp_free(cmp2);
 	    tcg_temp_free(cmp1);
 	}
