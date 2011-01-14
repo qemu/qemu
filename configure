@@ -3241,7 +3241,7 @@ for bios_file in $source_path/pc-bios/*.bin $source_path/pc-bios/*.dtb $source_p
 done
 mkdir -p $DIRS
 for f in $FILES ; do
-    test -f $f || symlink $source_path/$f $f
+    test -e $f || symlink $source_path/$f $f
 done
 
 # temporary config to build submodules
