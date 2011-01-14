@@ -2616,7 +2616,7 @@ float32 HELPER(recps_f32)(float32 a, float32 b, CPUState *env)
 
 float32 HELPER(rsqrts_f32)(float32 a, float32 b, CPUState *env)
 {
-    float_status *s = &env->vfp.fp_status;
+    float_status *s = &env->vfp.standard_fp_status;
     float32 two = int32_to_float32(2, s);
     float32 three = int32_to_float32(3, s);
     float32 product;
