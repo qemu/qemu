@@ -426,3 +426,56 @@ Linux user
 M: Riku Voipio <riku.voipio@iki.fi>
 S: Maintained
 F: linux-user/
+
+Tiny Code Generator (TCG)
+-------------------------
+Common code
+M: qemu-devel@nongnu.org
+S: Maintained
+F: tcg/
+
+ARM target
+M: Andrzej Zaborowski <balrogg@gmail.com>
+S: Maintained
+F: tcg/arm/
+
+HPPA target
+M: Richard Henderson <rth@twiddle.net>
+S: Maintained
+F: tcg/hppa/
+
+i386 target
+M: qemu-devel@nongnu.org
+S: Maintained
+F: tcg/i386/
+
+IA64 target
+M: Aurelien Jarno <aurelien@aurel32.net>
+S: Maintained
+F: tcg/ia64/
+
+MIPS target
+M: Aurelien Jarno <aurelien@aurel32.ne>
+S: Maintained
+F: tcg/mips/
+
+PPC
+M: Vassili Karpov (malc) <av1474@comtv.ru>
+S: Maintained
+F: tcg/ppc/
+
+PPC64 target
+M: Vassili Karpov (malc) <av1474@comtv.ru>
+S: Maintained
+F: tcg/ppc64/
+
+S390 target
+M: Alexander Graf <agraf@suse.de>
+M: Richard Henderson <rth@twiddle.net>
+S: Maintained
+F: tcg/s390/
+
+SPARC target
+M: Blue Swirl <blauwirbel@gmail.com>
+S: Maintained
+F: tcg/sparc/
