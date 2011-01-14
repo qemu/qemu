@@ -9096,8 +9096,8 @@ static inline void gen_intermediate_code_internal(CPUState *env,
     dc->singlestep_enabled = env->singlestep_enabled;
     dc->condjmp = 0;
     dc->thumb = ARM_TBFLAG_THUMB(tb->flags);
-    dc->condexec_mask = (env->condexec_bits & 0xf) << 1;
-    dc->condexec_cond = env->condexec_bits >> 4;
+    dc->condexec_mask = (ARM_TBFLAG_CONDEXEC(tb->flags) & 0xf) << 1;
+    dc->condexec_cond = ARM_TBFLAG_CONDEXEC(tb->flags) >> 4;
 #if !defined(CONFIG_USER_ONLY)
     if (IS_M(env)) {
         dc->user = ((env->v7m.exception == 0) && (env->v7m.control & 1));
@@ -9126,7 +9126,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
     gen_icount_start();
     /* Reset the conditional execution bits immediately. This avoids
        complications trying to do it at the end of the block.  */
-    if (env->condexec_bits)
+    if (dc->condexec_mask || dc->condexec_cond)
       {
         TCGv tmp = new_tmp();
         tcg_gen_movi_i32(tmp, 0);
