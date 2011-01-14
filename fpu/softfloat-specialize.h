@@ -30,7 +30,7 @@ these four paragraphs for those parts of this code that are retained.
 
 =============================================================================*/
 
-#if defined(TARGET_MIPS)
+#if defined(TARGET_MIPS) || defined(TARGET_SH4)
 #define SNAN_BIT_IS_ONE		1
 #else
 #define SNAN_BIT_IS_ONE		0
@@ -108,7 +108,7 @@ float32 float32_maybe_silence_nan( float32 a_ )
 {
     if (float32_is_signaling_nan(a_)) {
 #if SNAN_BIT_IS_ONE
-#  if defined(TARGET_MIPS)
+#  if defined(TARGET_MIPS) || defined(TARGET_SH4)
         return float32_default_nan;
 #  else
 #    error Rules for silencing a signaling NaN are target-specific
@@ -362,7 +362,7 @@ float64 float64_maybe_silence_nan( float64 a_ )
 {
     if (float64_is_signaling_nan(a_)) {
 #if SNAN_BIT_IS_ONE
-#  if defined(TARGET_MIPS)
+#  if defined(TARGET_MIPS) || defined(TARGET_SH4)
         return float64_default_nan;
 #  else
 #    error Rules for silencing a signaling NaN are target-specific
@@ -515,7 +515,7 @@ floatx80 floatx80_maybe_silence_nan( floatx80 a )
 {
     if (floatx80_is_signaling_nan(a)) {
 #if SNAN_BIT_IS_ONE
-#  if defined(TARGET_MIPS)
+#  if defined(TARGET_MIPS) || defined(TARGET_SH4)
         a.low = floatx80_default_nan_low;
         a.high = floatx80_default_nan_high;
 #  else
@@ -664,7 +664,7 @@ float128 float128_maybe_silence_nan( float128 a )
 {
     if (float128_is_signaling_nan(a)) {
 #if SNAN_BIT_IS_ONE
-#  if defined(TARGET_MIPS)
+#  if defined(TARGET_MIPS) || defined(TARGET_SH4)
         a.low = float128_default_nan_low;
         a.high = float128_default_nan_high;
 #  else
