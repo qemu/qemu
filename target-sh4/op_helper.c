@@ -449,6 +449,7 @@ void helper_ld_fpscr(uint32_t val)
     } else {
 	set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
     }
+    set_flush_to_zero((val & FPSCR_DN) != 0, &env->fp_status);
 }
 
 uint32_t helper_fabs_FT(uint32_t t0)
