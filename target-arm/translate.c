@@ -64,6 +64,8 @@ typedef struct DisasContext {
     int vec_stride;
 } DisasContext;
 
+static uint32_t gen_opc_condexec_bits[OPC_BUF_SIZE];
+
 #if defined(CONFIG_USER_ONLY)
 #define IS_USER(s) 1
 #else
@@ -9109,6 +9111,38 @@ static inline void gen_intermediate_code_internal(CPUState *env,
         max_insns = CF_COUNT_MASK;
 
     gen_icount_start();
+
+    /* A note on handling of the condexec (IT) bits:
+     *
+     * We want to avoid the overhead of having to write the updated condexec
+     * bits back to the CPUState for every instruction in an IT block. So:
+     * (1) if the condexec bits are not already zero then we write
+     * zero back into the CPUState now. This avoids complications trying
+     * to do it at the end of the block. (For example if we don't do this
+     * it's hard to identify whether we can safely skip writing condexec
+     * at the end of the TB, which we definitely want to do for the case
+     * where a TB doesn't do anything with the IT state at all.)
+     * (2) if we are going to leave the TB then we call gen_set_condexec()
+     * which will write the correct value into CPUState if zero is wrong.
+     * This is done both for leaving the TB at the end, and for leaving
+     * it because of an exception we know will happen, which is done in
+     * gen_exception_insn(). The latter is necessary because we need to
+     * leave the TB with the PC/IT state just prior to execution of the
+     * instruction which caused the exception.
+     * (3) if we leave the TB unexpectedly (eg a data abort on a load)
+     * then the CPUState will be wrong and we need to reset it.
+     * This is handled in the same way as restoration of the
+     * PC in these situations: we will be called again with search_pc=1
+     * and generate a mapping of the condexec bits for each PC in
+     * gen_opc_condexec_bits[]. gen_pc_load[] then uses this to restore
+     * the condexec bits.
+     *
+     * Note that there are no instructions which can read the condexec
+     * bits, and none which can write non-static values to them, so
+     * we don't need to care about whether CPUState is correct in the
+     * middle of a TB.
+     */
+
     /* Reset the conditional execution bits immediately. This avoids
        complications trying to do it at the end of the block.  */
     if (dc->condexec_mask || dc->condexec_cond)
@@ -9157,6 +9191,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
                     gen_opc_instr_start[lj++] = 0;
             }
             gen_opc_pc[lj] = dc->pc;
+            gen_opc_condexec_bits[lj] = (dc->condexec_cond << 4) | (dc->condexec_mask >> 1);
             gen_opc_instr_start[lj] = 1;
             gen_opc_icount[lj] = num_insns;
         }
@@ -9364,4 +9399,5 @@ void gen_pc_load(CPUState *env, TranslationBlock *tb,
                 unsigned long searched_pc, int pc_pos, void *puc)
 {
     env->regs[15] = gen_opc_pc[pc_pos];
+    env->condexec_bits = gen_opc_condexec_bits[pc_pos];
 }
