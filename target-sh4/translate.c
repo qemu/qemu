@@ -1859,6 +1859,18 @@ static void _decode_opc(DisasContext * ctx)
 	    tcg_temp_free_i64(fp);
 	}
 	return;
+    case 0xf0ed: /* fipr FVm,FVn */
+        CHECK_FPU_ENABLED
+        if ((ctx->fpscr & FPSCR_PR) == 0) {
+            TCGv m, n;
+            m = tcg_const_i32((ctx->opcode >> 16) & 3);
+            n = tcg_const_i32((ctx->opcode >> 18) & 3);
+            gen_helper_fipr(m, n);
+            tcg_temp_free(m);
+            tcg_temp_free(n);
+            return;
+        }
+        break;
     }
 #if 0
     fprintf(stderr, "unknown instruction 0x%04x at pc 0x%08x\n",

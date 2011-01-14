@@ -49,5 +49,6 @@ DEF_HELPER_1(fsqrt_FT, i32, i32)
 DEF_HELPER_1(fsqrt_DT, i64, i64)
 DEF_HELPER_1(ftrc_FT, i32, i32)
 DEF_HELPER_1(ftrc_DT, i32, i64)
+DEF_HELPER_2(fipr, void, i32, i32)
 
 #include "def-helper.h"

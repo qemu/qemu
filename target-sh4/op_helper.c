@@ -782,3 +782,23 @@ uint32_t helper_ftrc_DT(uint64_t t0)
     update_fpscr(GETPC());
     return ret;
 }
+
+void helper_fipr(uint32_t m, uint32_t n)
+{
+    int bank, i;
+    float32 r, p;
+
+    bank = (env->sr & FPSCR_FR) ? 16 : 0;
+    r = float32_zero;
+    set_float_exception_flags(0, &env->fp_status);
+
+    for (i = 0 ; i < 4 ; i++) {
+        p = float32_mul(env->fregs[bank + m + i],
+                        env->fregs[bank + n + i],
+                        &env->fp_status);
+        r = float32_add(r, p, &env->fp_status);
+    }
+    update_fpscr(GETPC());
+
+    env->fregs[bank + n + 3] = r;
+}
