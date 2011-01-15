@@ -380,7 +380,7 @@ static int get_mmu_address(CPUState * env, target_ulong * physical,
                     MMU_DTLB_VIOLATION_READ;
             } else if ((rw == 1) && !(matching->pr & 1)) {
                 n = MMU_DTLB_VIOLATION_WRITE;
-            } else if ((rw == 1) & !matching->d) {
+            } else if ((rw == 1) && !matching->d) {
                 n = MMU_DTLB_INITIAL_WRITE;
             } else {
                 *prot = PAGE_READ;
@@ -430,7 +430,7 @@ static int get_physical_address(CPUState * env, target_ulong * physical,
     }
 
     /* If MMU is disabled, return the corresponding physical page */
-    if (!env->mmucr & MMUCR_AT) {
+    if (!(env->mmucr & MMUCR_AT)) {
 	*physical = address & 0x1FFFFFFF;
 	*prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
 	return MMU_OK;
