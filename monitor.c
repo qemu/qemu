@@ -2275,8 +2275,8 @@ static void mem_info_64(Monitor *mon, CPUState *env)
                 end = (l1 << 39) + (l2 << 30);
                 if (pdpe & PG_PRESENT_MASK) {
                     if (pdpe & PG_PSE_MASK) {
-                        prot = pde & (PG_USER_MASK | PG_RW_MASK |
-                                      PG_PRESENT_MASK);
+                        prot = pdpe & (PG_USER_MASK | PG_RW_MASK |
+                                       PG_PRESENT_MASK);
                         mem_print(mon, &start, &last_prot, end, prot);
                     } else {
                         pd_addr = pdpe & 0x3fffffffff000ULL;
