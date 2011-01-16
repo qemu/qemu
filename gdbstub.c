@@ -2391,6 +2391,12 @@ void gdb_exit(CPUState *env, int code)
 
   snprintf(buf, sizeof(buf), "W%02x", (uint8_t)code);
   put_packet(s, buf);
+
+#ifndef CONFIG_USER_ONLY
+  if (s->chr) {
+      qemu_chr_close(s->chr);
+  }
+#endif
 }
 
 #ifdef CONFIG_USER_ONLY
