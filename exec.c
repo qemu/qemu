@@ -531,6 +531,13 @@ static void code_gen_alloc(unsigned long tb_size)
         /* Cannot map more than that */
         if (code_gen_buffer_size > (800 * 1024 * 1024))
             code_gen_buffer_size = (800 * 1024 * 1024);
+#elif defined(__sparc_v9__)
+        // Map the buffer below 2G, so we can use direct calls and branches
+        flags |= MAP_FIXED;
+        addr = (void *) 0x60000000UL;
+        if (code_gen_buffer_size > (512 * 1024 * 1024)) {
+            code_gen_buffer_size = (512 * 1024 * 1024);
+        }
 #endif
         code_gen_buffer = mmap(addr, code_gen_buffer_size,
                                PROT_WRITE | PROT_READ | PROT_EXEC, 
