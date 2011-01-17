@@ -425,3 +425,8 @@ disable qemu_put_ram_ptr(void* addr) "%p"
 
 # hw/xen_platform.c
 disable xen_platform_log(char *s) "xen platform: %s"
+
+# qemu-coroutine.c
+disable qemu_coroutine_enter(void *from, void *to, void *opaque) "from %p to %p opaque %p"
+disable qemu_coroutine_yield(void *from, void *to) "from %p to %p"
+disable qemu_coroutine_terminate(void *co) "self %p"

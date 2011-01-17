@@ -11,6 +11,12 @@ oslib-obj-$(CONFIG_WIN32) += oslib-win32.o qemu-thread-win32.o
 oslib-obj-$(CONFIG_POSIX) += oslib-posix.o qemu-thread-posix.o
 
 #######################################################################
+# coroutines
+coroutine-obj-y = qemu-coroutine.o
+coroutine-obj-$(CONFIG_POSIX) += coroutine-ucontext.o
+coroutine-obj-$(CONFIG_WIN32) += coroutine-win32.o
+
+#######################################################################
 # block-obj-y is code used by both qemu system emulation and qemu-img
 
 block-obj-y = cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o async.o
@@ -69,6 +75,7 @@ common-obj-y += readline.o console.o cursor.o qemu-error.o
 common-obj-y += $(oslib-obj-y)
 common-obj-$(CONFIG_WIN32) += os-win32.o
 common-obj-$(CONFIG_POSIX) += os-posix.o
+common-obj-y += $(coroutine-obj-y)
 
 common-obj-y += tcg-runtime.o host-utils.o
 common-obj-y += irq.o ioport.o input.o
