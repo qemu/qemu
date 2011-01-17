@@ -1066,7 +1066,7 @@ static void gen_ld (CPUState *env, DisasContext *ctx, uint32_t opc,
         opn = "ld";
         break;
     case OPC_LLD:
-        save_cpu_state(ctx, 0);
+        save_cpu_state(ctx, 1);
         op_ld_lld(t0, t0, ctx);
         gen_store_gpr(t0, rt);
         opn = "lld";
@@ -1086,7 +1086,7 @@ static void gen_ld (CPUState *env, DisasContext *ctx, uint32_t opc,
         opn = "ldr";
         break;
     case OPC_LDPC:
-        save_cpu_state(ctx, 1);
+        save_cpu_state(ctx, 0);
         tcg_gen_movi_tl(t1, pc_relative_pc(ctx));
         gen_op_addr_add(ctx, t0, t0, t1);
         op_ld_ld(t0, t0, ctx);
@@ -1095,7 +1095,7 @@ static void gen_ld (CPUState *env, DisasContext *ctx, uint32_t opc,
         break;
 #endif
     case OPC_LWPC:
-        save_cpu_state(ctx, 1);
+        save_cpu_state(ctx, 0);
         tcg_gen_movi_tl(t1, pc_relative_pc(ctx));
         gen_op_addr_add(ctx, t0, t0, t1);
         op_ld_lw(t0, t0, ctx);
@@ -1238,7 +1238,7 @@ static void gen_st_cond (DisasContext *ctx, uint32_t opc, int rt,
     switch (opc) {
 #if defined(TARGET_MIPS64)
     case OPC_SCD:
-        save_cpu_state(ctx, 0);
+        save_cpu_state(ctx, 1);
         op_st_scd(t1, t0, rt, ctx);
         opn = "scd";
         break;
@@ -9971,7 +9971,7 @@ static void gen_ldst_pair (DisasContext *ctx, uint32_t opc, int rd,
         opn = "lwp";
         break;
     case SWP:
-        save_cpu_state(ctx, 1);
+        save_cpu_state(ctx, 0);
         gen_load_gpr(t1, rd);
         op_st_sw(t1, t0, ctx);
         tcg_gen_movi_tl(t1, 4);
@@ -9992,7 +9992,7 @@ static void gen_ldst_pair (DisasContext *ctx, uint32_t opc, int rd,
         opn = "ldp";
         break;
     case SDP:
-        save_cpu_state(ctx, 1);
+        save_cpu_state(ctx, 0);
         gen_load_gpr(t1, rd);
         op_st_sd(t1, t0, ctx);
         tcg_gen_movi_tl(t1, 8);
