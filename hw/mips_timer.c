@@ -69,9 +69,17 @@ uint32_t cpu_mips_get_count (CPUState *env)
     if (env->CP0_Cause & (1 << CP0Ca_DC)) {
         return env->CP0_Count;
     } else {
+        uint64_t now;
+
+        now = qemu_get_clock(vm_clock);
+        if (qemu_timer_pending(env->timer)
+            && qemu_timer_expired(env->timer, now)) {
+            /* The timer has already expired.  */
+            cpu_mips_timer_expire(env);
+        }
+
         return env->CP0_Count +
-            (uint32_t)muldiv64(qemu_get_clock(vm_clock),
-                               TIMER_FREQ, get_ticks_per_sec());
+            (uint32_t)muldiv64(now, TIMER_FREQ, get_ticks_per_sec());
     }
 }
 
