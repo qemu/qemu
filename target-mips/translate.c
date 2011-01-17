@@ -3410,8 +3410,10 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, TCGv arg, int reg, int s
             gen_helper_mfc0_count(arg);
             if (use_icount) {
                 gen_io_end();
-                ctx->bstate = BS_STOP;
             }
+            /* Break the TB to be able to take timer interrupts immediately
+               after reading count.  */
+            ctx->bstate = BS_STOP;
             rn = "Count";
             break;
         /* 6,7 are implementation dependent */
@@ -4581,8 +4583,10 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, TCGv arg, int reg, int 
             gen_helper_mfc0_count(arg);
             if (use_icount) {
                 gen_io_end();
-                ctx->bstate = BS_STOP;
             }
+            /* Break the TB to be able to take timer interrupts immediately
+               after reading count.  */
+            ctx->bstate = BS_STOP;
             rn = "Count";
             break;
         /* 6,7 are implementation dependent */
