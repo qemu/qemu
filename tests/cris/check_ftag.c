@@ -4,19 +4,23 @@
 #include "sys.h"
 #include "crisutils.h"
 
-extern inline void cris_ftag_i(unsigned int x) {
+static inline void cris_ftag_i(unsigned int x)
+{
 	register unsigned int v asm("$r10") = x;
 	asm ("ftagi\t[%0]\n" : : "r" (v) );
 }
-extern inline void cris_ftag_d(unsigned int x) {
+static inline void cris_ftag_d(unsigned int x)
+{
 	register unsigned int v asm("$r10") = x;
 	asm ("ftagd\t[%0]\n" : : "r" (v) );
 }
-extern inline void cris_fidx_i(unsigned int x) {
+static inline void cris_fidx_i(unsigned int x)
+{
 	register unsigned int v asm("$r10") = x;
 	asm ("fidxi\t[%0]\n" : : "r" (v) );
 }
-extern inline void cris_fidx_d(unsigned int x) {
+static inline void cris_fidx_d(unsigned int x)
+{
 	register unsigned int v asm("$r10") = x;
 	asm ("fidxd\t[%0]\n" : : "r" (v) );
 }
