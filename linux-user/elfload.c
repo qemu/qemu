@@ -1481,7 +1481,7 @@ static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
     struct elf_shdr *shdr;
     char *strings;
     struct syminfo *s;
-    struct elf_sym *syms;
+    struct elf_sym *syms, *new_syms;
 
     shnum = hdr->e_shnum;
     i = shnum * sizeof(struct elf_shdr);
@@ -1550,12 +1550,14 @@ static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
        that we threw away.  Whether or not this has any effect on the
        memory allocation depends on the malloc implementation and how
        many symbols we managed to discard.  */
-    syms = realloc(syms, nsyms * sizeof(*syms));
-    if (syms == NULL) {
+    new_syms = realloc(syms, nsyms * sizeof(*syms));
+    if (new_syms == NULL) {
         free(s);
+        free(syms);
         free(strings);
         return;
     }
+    syms = new_syms;
 
     qsort(syms, nsyms, sizeof(*syms), symcmp);
 
