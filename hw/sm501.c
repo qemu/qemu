@@ -511,6 +511,7 @@ typedef struct SM501State {
     uint32_t dc_crt_hwc_color_1_2;
     uint32_t dc_crt_hwc_color_3;
 
+    uint32_t twoD_source;
     uint32_t twoD_destination;
     uint32_t twoD_dimension;
     uint32_t twoD_control;
@@ -636,6 +637,9 @@ static void sm501_2d_operation(SM501State * s)
 {
     /* obtain operation parameters */
     int operation = (s->twoD_control >> 16) & 0x1f;
+    int rtl = s->twoD_control & 0x8000000;
+    int src_x = (s->twoD_source >> 16) & 0x01FFF;
+    int src_y = s->twoD_source & 0xFFFF;
     int dst_x = (s->twoD_destination >> 16) & 0x01FFF;
     int dst_y = s->twoD_destination & 0xFFFF;
     int operation_width = (s->twoD_dimension >> 16) & 0x1FFF;
@@ -645,10 +649,9 @@ static void sm501_2d_operation(SM501State * s)
     int addressing = (s->twoD_stretch >> 16) & 0xF;
 
     /* get frame buffer info */
-#if 0 /* for future use */
     uint8_t * src = s->local_mem + (s->twoD_source_base & 0x03FFFFFF);
-#endif
     uint8_t * dst = s->local_mem + (s->twoD_destination_base & 0x03FFFFFF);
+    int src_width = (s->dc_crt_h_total & 0x00000FFF) + 1;
     int dst_width = (s->dc_crt_h_total & 0x00000FFF) + 1;
 
     if (addressing != 0x0) {
@@ -663,8 +666,36 @@ static void sm501_2d_operation(SM501State * s)
     }
 
     switch (operation) {
-    case 0x01: /* fill rectangle */
+    case 0x00: /* copy area */
+#define COPY_AREA(_bpp, _pixel_type, rtl) {                                 \
+        int y, x, index_d, index_s;                                         \
+        for (y = 0; y < operation_height; y++) {                            \
+            for (x = 0; x < operation_width; x++) {                         \
+                if (rtl) {                                                  \
+                    index_s = ((src_y - y) * src_width + src_x - x) * _bpp; \
+                    index_d = ((dst_y - y) * dst_width + dst_x - x) * _bpp; \
+                } else {                                                    \
+                    index_s = ((src_y + y) * src_width + src_x + x) * _bpp; \
+                    index_d = ((dst_y + y) * dst_width + dst_x + x) * _bpp; \
+                }                                                           \
+                *(_pixel_type*)&dst[index_d] = *(_pixel_type*)&src[index_s];\
+            }                                                               \
+        }                                                                   \
+    }
+        switch (format_flags) {
+        case 0:
+            COPY_AREA(1, uint8_t, rtl);
+            break;
+        case 1:
+            COPY_AREA(2, uint16_t, rtl);
+            break;
+        case 2:
+            COPY_AREA(4, uint32_t, rtl);
+            break;
+        }
+        break;
 
+    case 0x01: /* fill rectangle */
 #define FILL_RECT(_bpp, _pixel_type) {                                      \
         int y, x;                                                           \
         for (y = 0; y < operation_height; y++) {                            \
@@ -1072,6 +1103,9 @@ static void sm501_2d_engine_write(void *opaque,
                   addr, value);
 
     switch(addr) {
+    case SM501_2D_SOURCE:
+        s->twoD_source = value;
+        break;
     case SM501_2D_DESTINATION:
         s->twoD_destination = value;
         break;
