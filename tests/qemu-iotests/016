@@ -40,6 +40,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 # currently raw is the only protocol we support
 _supported_fmt raw
+_supported_proto generic
 _supported_os Linux
 
 

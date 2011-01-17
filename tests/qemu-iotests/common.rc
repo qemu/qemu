@@ -47,7 +47,11 @@ fi
 # make sure we have a standard umask
 umask 022
 
-TEST_IMG=$TEST_DIR/t.$IMGFMT
+if [ "$IMGPROTO" = "file" ]; then
+    TEST_IMG=$TEST_DIR/t.$IMGFMT
+else
+    TEST_IMG=$IMGPROTO:$TEST_DIR/t.$IMGFMT
+fi
 
 _make_test_img()
 {
@@ -61,6 +65,7 @@ _make_test_img()
 
     # XXX(hch): have global image options?
     $QEMU_IMG create -f $IMGFMT $TEST_IMG $extra_img_options | \
+    	sed -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" | \
     	sed -e "s#$TEST_DIR#TEST_DIR#g" | \
     	sed -e "s#$IMGFMT#IMGFMT#g" | \
 	sed -e "s# encryption=off##g" | \
@@ -72,9 +77,23 @@ _make_test_img()
 
 _cleanup_test_img()
 {
-    rm -f $TEST_DIR/t.$IMGFMT
-    rm -f $TEST_DIR/t.$IMGFMT.orig
-    rm -f $TEST_DIR/t.$IMGFMT.base
+    case "$IMGPROTO" in
+
+        file)
+            rm -f $TEST_DIR/t.$IMGFMT
+            rm -f $TEST_DIR/t.$IMGFMT.orig
+            rm -f $TEST_DIR/t.$IMGFMT.base
+            ;;
+
+        rbd)
+            rbd rm $TEST_DIR/t.$IMGFMT > /dev/null
+            ;;
+
+        sheepdog)
+            collie vdi delete $TEST_DIR/t.$IMGFMT
+            ;;
+
+    esac
 }
 
 _check_test_img()
@@ -207,6 +226,19 @@ _supported_fmt()
     _notrun "not suitable for this image format: $IMGFMT"
 }
 
+# tests whether $IMGPROTO is one of the supported image protocols for a test
+#
+_supported_proto()
+{
+    for f; do
+	if [ "$f" = "$IMGPROTO" -o "$f" = "generic" ]; then
+	    return
+	fi
+    done
+
+    _notrun "not suitable for this image protocol: $IMGPROTO"
+}
+
 # tests whether the host OS is one of the supported OSes for a test
 #
 _supported_os()
@@ -232,6 +264,11 @@ _require_command()
 _full_imgfmt_details()
 {
     echo "$IMGFMT"
+}
+
+_full_imgproto_details()
+{
+    echo "$IMGPROTO"
 }
 
 _full_platform_details()

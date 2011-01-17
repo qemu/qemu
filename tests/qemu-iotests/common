@@ -43,6 +43,7 @@ randomize=false
 rm -f $tmp.list $tmp.tmp $tmp.sed
 
 export IMGFMT=raw
+export IMGPROTO=file
 export QEMU_IO_OPTIONS=""
 
 for r
@@ -123,6 +124,8 @@ check options
     -vdi                test vdi
     -vpc                test vpc
     -vmdk               test vmdk
+    -rbd                test rbd
+    -sheepdog           test sheepdog
     -xdiff		graphical mode diff
     -nocache		use O_DIRECT on backing file
     -misalign		misalign memory allocations
@@ -176,6 +179,16 @@ testlist options
 
 	-vpc)
 	    IMGFMT=vpc
+	    xpand=false
+	    ;;
+
+	-rbd)
+	    IMGPROTO=rbd
+	    xpand=false
+	    ;;
+
+	-sheepdog)
+	    IMGPROTO=sheepdog
 	    xpand=false
 	    ;;
 

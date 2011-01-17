@@ -152,12 +152,14 @@ rm -f check.full
 [ -f check.time ] || touch check.time
 
 FULL_IMGFMT_DETAILS=`_full_imgfmt_details`
+FULL_IMGPROTO_DETAILS=`_full_imgproto_details`
 FULL_HOST_DETAILS=`_full_platform_details`
 #FULL_MKFS_OPTIONS=`_scratch_mkfs_options`
 #FULL_MOUNT_OPTIONS=`_scratch_mount_options`
 
 cat <<EOF
 IMGFMT        -- $FULL_IMGFMT_DETAILS
+IMGPROTO      -- $FULL_IMGPROTO_DETAILS
 PLATFORM      -- $FULL_HOST_DETAILS
 
 EOF
