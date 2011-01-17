@@ -687,13 +687,15 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
     /* clean up guest state from pointing to host resource by
      * finding and removing DeviceState "drive" property */
-    for (prop = bs->peer->info->props; prop && prop->name; prop++) {
-        if (prop->info->type == PROP_TYPE_DRIVE) {
-            ptr = qdev_get_prop_ptr(bs->peer, prop);
-            if ((*ptr) == bs) {
-                bdrv_detach(bs, bs->peer);
-                *ptr = NULL;
-                break;
+    if (bs->peer) {
+        for (prop = bs->peer->info->props; prop && prop->name; prop++) {
+            if (prop->info->type == PROP_TYPE_DRIVE) {
+                ptr = qdev_get_prop_ptr(bs->peer, prop);
+                if (*ptr == bs) {
+                    bdrv_detach(bs, bs->peer);
+                    *ptr = NULL;
+                    break;
+                }
             }
         }
     }
