@@ -1318,6 +1318,7 @@ static PCIDeviceInfo vmsvga_info = {
     .qdev.name    = "vmware-svga",
     .qdev.size    = sizeof(struct pci_vmsvga_state_s),
     .qdev.vmsd    = &vmstate_vmware_vga,
+    .no_hotplug   = 1,
     .init         = pci_vmsvga_initfn,
     .romfile      = "vgabios-vmware.bin",
 };

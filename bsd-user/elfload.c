@@ -1044,7 +1044,7 @@ static void load_symbols(struct elfhdr *hdr, int fd)
     struct elf_shdr sechdr, symtab, strtab;
     char *strings;
     struct syminfo *s;
-    struct elf_sym *syms;
+    struct elf_sym *syms, *new_syms;
 
     lseek(fd, hdr->e_shoff, SEEK_SET);
     for (i = 0; i < hdr->e_shnum; i++) {
@@ -1072,15 +1072,24 @@ static void load_symbols(struct elfhdr *hdr, int fd)
     /* Now know where the strtab and symtab are.  Snarf them. */
     s = malloc(sizeof(*s));
     syms = malloc(symtab.sh_size);
-    if (!syms)
+    if (!syms) {
+        free(s);
         return;
+    }
     s->disas_strtab = strings = malloc(strtab.sh_size);
-    if (!s->disas_strtab)
+    if (!s->disas_strtab) {
+        free(s);
+        free(syms);
         return;
+    }
 
     lseek(fd, symtab.sh_offset, SEEK_SET);
-    if (read(fd, syms, symtab.sh_size) != symtab.sh_size)
+    if (read(fd, syms, symtab.sh_size) != symtab.sh_size) {
+        free(s);
+        free(syms);
+        free(strings);
         return;
+    }
 
     nsyms = symtab.sh_size / sizeof(struct elf_sym);
 
@@ -1105,13 +1114,29 @@ static void load_symbols(struct elfhdr *hdr, int fd)
 #endif
         i++;
     }
-    syms = realloc(syms, nsyms * sizeof(*syms));
+
+     /* Attempt to free the storage associated with the local symbols
+        that we threw away.  Whether or not this has any effect on the
+        memory allocation depends on the malloc implementation and how
+        many symbols we managed to discard. */
+    new_syms = realloc(syms, nsyms * sizeof(*syms));
+    if (new_syms == NULL) {
+        free(s);
+        free(syms);
+        free(strings);
+        return;
+    }
+    syms = new_syms;
 
     qsort(syms, nsyms, sizeof(*syms), symcmp);
 
     lseek(fd, strtab.sh_offset, SEEK_SET);
-    if (read(fd, strings, strtab.sh_size) != strtab.sh_size)
+    if (read(fd, strings, strtab.sh_size) != strtab.sh_size) {
+        free(s);
+        free(syms);
+        free(strings);
         return;
+    }
     s->disas_num_syms = nsyms;
 #if ELF_CLASS == ELFCLASS32
     s->disas_symtab.elf32 = syms;

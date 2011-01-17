@@ -42,6 +42,7 @@ int kvm_has_robust_singlestep(void);
 int kvm_has_debugregs(void);
 int kvm_has_xsave(void);
 int kvm_has_xcrs(void);
+int kvm_has_many_ioeventfds(void);
 
 #ifdef NEED_CPU_H
 int kvm_init_vcpu(CPUState *env);

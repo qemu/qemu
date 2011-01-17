@@ -9,7 +9,7 @@
 #define B 2
 #define R 1
 
-extern inline int cris_swap(const int mode, int x)
+static inline int cris_swap(const int mode, int x)
 {
 	switch (mode)
 	{

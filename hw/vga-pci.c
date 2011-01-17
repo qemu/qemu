@@ -110,6 +110,7 @@ static PCIDeviceInfo vga_info = {
     .qdev.name    = "VGA",
     .qdev.size    = sizeof(PCIVGAState),
     .qdev.vmsd    = &vmstate_vga_pci,
+    .no_hotplug   = 1,
     .init         = pci_vga_initfn,
     .config_write = pci_vga_write_config,
     .romfile      = "vgabios-stdvga.bin",

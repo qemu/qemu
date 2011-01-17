@@ -1,6 +1,6 @@
 #include <asm/unistd.h>
 
-extern inline volatile void exit(int status)
+static inline volatile void exit(int status)
 {
   int __res;
   __asm__ volatile ("movl %%ecx,%%ebx\n"\
@@ -8,7 +8,7 @@ extern inline volatile void exit(int status)
 		    :  "=a" (__res) : "0" (__NR_exit),"c" ((long)(status)));
 }
 
-extern inline int write(int fd, const char * buf, int len)
+static inline int write(int fd, const char * buf, int len)
 {
   int status;
   __asm__ volatile ("pushl %%ebx\n"\

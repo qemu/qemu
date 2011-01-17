@@ -4,19 +4,22 @@
 #include "sys.h"
 #include "crisutils.h"
 
-extern inline int cris_bound_b(int v, int b) {
+static inline int cris_bound_b(int v, int b)
+{
 	int r = v;
 	asm ("bound.b\t%1, %0\n" : "+r" (r) : "ri" (b));
 	return r;
 }
 
-extern inline int cris_bound_w(int v, int b) {
+static inline int cris_bound_w(int v, int b)
+{
 	int r = v;
 	asm ("bound.w\t%1, %0\n" : "+r" (r) : "ri" (b));
 	return r;
 }
 
-extern inline int cris_bound_d(int v, int b) {
+static inline int cris_bound_d(int v, int b)
+{
 	int r = v;
 	asm ("bound.d\t%1, %0\n" : "+r" (r) : "ri" (b));
 	return r;

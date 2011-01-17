@@ -575,11 +575,19 @@ int virtio_queue_get_num(VirtIODevice *vdev, int n)
     return vdev->vq[n].vring.num;
 }
 
+void virtio_queue_notify_vq(VirtQueue *vq)
+{
+    if (vq->vring.desc) {
+        VirtIODevice *vdev = vq->vdev;
+        trace_virtio_queue_notify(vdev, vq - vdev->vq, vq);
+        vq->handle_output(vdev, vq);
+    }
+}
+
 void virtio_queue_notify(VirtIODevice *vdev, int n)
 {
-    if (n < VIRTIO_PCI_QUEUE_MAX && vdev->vq[n].vring.desc) {
-        trace_virtio_queue_notify(vdev, n, &vdev->vq[n]);
-        vdev->vq[n].handle_output(vdev, &vdev->vq[n]);
+    if (n < VIRTIO_PCI_QUEUE_MAX) {
+        virtio_queue_notify_vq(&vdev->vq[n]);
     }
 }
 
@@ -743,9 +751,29 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
 
 void virtio_cleanup(VirtIODevice *vdev)
 {
+    qemu_del_vm_change_state_handler(vdev->vmstate);
     if (vdev->config)
         qemu_free(vdev->config);
     qemu_free(vdev->vq);
+}
+
+static void virtio_vmstate_change(void *opaque, int running, int reason)
+{
+    VirtIODevice *vdev = opaque;
+    bool backend_run = running && (vdev->status & VIRTIO_CONFIG_S_DRIVER_OK);
+    vdev->vm_running = running;
+
+    if (backend_run) {
+        virtio_set_status(vdev, vdev->status);
+    }
+
+    if (vdev->binding->vmstate_change) {
+        vdev->binding->vmstate_change(vdev->binding_opaque, backend_run);
+    }
+
+    if (!backend_run) {
+        virtio_set_status(vdev, vdev->status);
+    }
 }
 
 VirtIODevice *virtio_common_init(const char *name, uint16_t device_id,
@@ -773,6 +801,8 @@ VirtIODevice *virtio_common_init(const char *name, uint16_t device_id,
         vdev->config = qemu_mallocz(config_size);
     else
         vdev->config = NULL;
+
+    vdev->vmstate = qemu_add_vm_change_state_handler(virtio_vmstate_change, vdev);
 
     return vdev;
 }

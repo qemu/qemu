@@ -495,6 +495,8 @@ typedef struct RTL8139State {
     QEMUTimer *timer;
     int64_t TimerExpire;
 
+    /* Support migration to/from old versions */
+    int rtl8139_mmio_io_addr_dummy;
 } RTL8139State;
 
 static void rtl8139_set_next_tctr_time(RTL8139State *s, int64_t current_time);
@@ -3162,6 +3164,21 @@ static int rtl8139_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static bool rtl8139_hotplug_ready_needed(void *opaque)
+{
+    return qdev_machine_modified();
+}
+
+static const VMStateDescription vmstate_rtl8139_hotplug_ready ={
+    .name = "rtl8139/hotplug_ready",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void rtl8139_pre_save(void *opaque)
 {
     RTL8139State* s = opaque;
@@ -3171,6 +3188,7 @@ static void rtl8139_pre_save(void *opaque)
     rtl8139_set_next_tctr_time(s, current_time);
     s->TCTR = muldiv64(current_time - s->TCTR_base, PCI_FREQUENCY,
                        get_ticks_per_sec());
+    s->rtl8139_mmio_io_addr_dummy = s->rtl8139_mmio_io_addr;
 }
 
 static const VMStateDescription vmstate_rtl8139 = {
@@ -3223,7 +3241,7 @@ static const VMStateDescription vmstate_rtl8139 = {
 
         VMSTATE_UNUSED(4),
         VMSTATE_MACADDR(conf.macaddr, RTL8139State),
-        VMSTATE_INT32(rtl8139_mmio_io_addr, RTL8139State),
+        VMSTATE_INT32(rtl8139_mmio_io_addr_dummy, RTL8139State),
 
         VMSTATE_UINT32(currTxDesc, RTL8139State),
         VMSTATE_UINT32(currCPlusRxDesc, RTL8139State),
@@ -3252,6 +3270,14 @@ static const VMStateDescription vmstate_rtl8139 = {
 
         VMSTATE_UINT32_V(cplus_enabled, RTL8139State, 4),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (VMStateSubsection []) {
+        {
+            .vmsd = &vmstate_rtl8139_hotplug_ready,
+            .needed = rtl8139_hotplug_ready_needed,
+        }, {
+            /* empty */
+        }
     }
 };
 

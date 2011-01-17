@@ -101,6 +101,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Device '%(device)' has no child bus",
     },
     {
+        .error_fmt = QERR_DEVICE_NO_HOTPLUG,
+        .desc      = "Device '%(device)' does not support hotplugging",
+    },
+    {
         .error_fmt = QERR_DUPLICATE_ID,
         .desc      = "Duplicate ID '%(id)' for %(object)",
     },
