@@ -857,65 +857,77 @@ void helper_fsqrtq(void)
     QT0 = float128_sqrt(QT1, &env->fp_status);
 }
 
-#define GEN_FCMP(name, size, reg1, reg2, FS, TRAP)                      \
+#define GEN_FCMP(name, size, reg1, reg2, FS, E)                         \
     void glue(helper_, name) (void)                                     \
     {                                                                   \
-        target_ulong new_fsr;                                           \
-                                                                        \
-        env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);                     \
+        env->fsr &= FSR_FTT_NMASK;                                      \
+        if (E && (glue(size, _is_any_nan)(reg1) ||                      \
+                     glue(size, _is_any_nan)(reg2)) &&                  \
+            (env->fsr & FSR_NVM)) {                                     \
+            env->fsr |= FSR_NVC;                                        \
+            env->fsr |= FSR_FTT_IEEE_EXCP;                              \
+            raise_exception(TT_FP_EXCP);                                \
+        }                                                               \
         switch (glue(size, _compare) (reg1, reg2, &env->fp_status)) {   \
         case float_relation_unordered:                                  \
-            new_fsr = (FSR_FCC1 | FSR_FCC0) << FS;                      \
-            if ((env->fsr & FSR_NVM) || TRAP) {                         \
-                env->fsr |= new_fsr;                                    \
+            if ((env->fsr & FSR_NVM)) {                                 \
                 env->fsr |= FSR_NVC;                                    \
                 env->fsr |= FSR_FTT_IEEE_EXCP;                          \
                 raise_exception(TT_FP_EXCP);                            \
             } else {                                                    \
+                env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);             \
+                env->fsr |= (FSR_FCC1 | FSR_FCC0) << FS;                \
                 env->fsr |= FSR_NVA;                                    \
             }                                                           \
             break;                                                      \
         case float_relation_less:                                       \
-            new_fsr = FSR_FCC0 << FS;                                   \
+            env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);                 \
+            env->fsr |= FSR_FCC0 << FS;                                 \
             break;                                                      \
         case float_relation_greater:                                    \
-            new_fsr = FSR_FCC1 << FS;                                   \
+            env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);                 \
+            env->fsr |= FSR_FCC1 << FS;                                 \
             break;                                                      \
         default:                                                        \
-            new_fsr = 0;                                                \
+            env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);                 \
             break;                                                      \
         }                                                               \
-        env->fsr |= new_fsr;                                            \
     }
-#define GEN_FCMPS(name, size, FS, TRAP)                                 \
+#define GEN_FCMPS(name, size, FS, E)                                    \
     void glue(helper_, name)(float32 src1, float32 src2)                \
     {                                                                   \
-        target_ulong new_fsr;                                           \
-                                                                        \
-        env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);                     \
+        env->fsr &= FSR_FTT_NMASK;                                      \
+        if (E && (glue(size, _is_any_nan)(src1) ||                      \
+                     glue(size, _is_any_nan)(src2)) &&                  \
+            (env->fsr & FSR_NVM)) {                                     \
+            env->fsr |= FSR_NVC;                                        \
+            env->fsr |= FSR_FTT_IEEE_EXCP;                              \
+            raise_exception(TT_FP_EXCP);                                \
+        }                                                               \
         switch (glue(size, _compare) (src1, src2, &env->fp_status)) {   \
         case float_relation_unordered:                                  \
-            new_fsr = (FSR_FCC1 | FSR_FCC0) << FS;                      \
-            if ((env->fsr & FSR_NVM) || TRAP) {                         \
-                env->fsr |= new_fsr;                                    \
+            if ((env->fsr & FSR_NVM)) {                                 \
                 env->fsr |= FSR_NVC;                                    \
                 env->fsr |= FSR_FTT_IEEE_EXCP;                          \
                 raise_exception(TT_FP_EXCP);                            \
             } else {                                                    \
+                env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);             \
+                env->fsr |= (FSR_FCC1 | FSR_FCC0) << FS;                \
                 env->fsr |= FSR_NVA;                                    \
             }                                                           \
             break;                                                      \
         case float_relation_less:                                       \
-            new_fsr = FSR_FCC0 << FS;                                   \
+            env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);                 \
+            env->fsr |= FSR_FCC0 << FS;                                 \
             break;                                                      \
         case float_relation_greater:                                    \
-            new_fsr = FSR_FCC1 << FS;                                   \
+            env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);                 \
+            env->fsr |= FSR_FCC1 << FS;                                 \
             break;                                                      \
         default:                                                        \
-            new_fsr = 0;                                                \
+            env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);                 \
             break;                                                      \
         }                                                               \
-        env->fsr |= new_fsr;                                            \
     }
 
 GEN_FCMPS(fcmps, float32, 0, 0);
