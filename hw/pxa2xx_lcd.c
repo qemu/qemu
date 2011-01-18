@@ -796,9 +796,9 @@ static void pxa2xx_update_display(void *opaque)
 
     if (miny >= 0) {
         if (s->orientation)
-            dpy_update(s->ds, miny, 0, maxy, s->xres);
+            dpy_update(s->ds, miny, 0, maxy - miny, s->xres);
         else
-            dpy_update(s->ds, 0, miny, s->xres, maxy);
+            dpy_update(s->ds, 0, miny, s->xres, maxy - miny);
     }
     pxa2xx_lcdc_int_update(s);
 
