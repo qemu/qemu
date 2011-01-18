@@ -9199,6 +9199,10 @@ static inline void gen_intermediate_code_internal(CPUState *env,
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
             gen_io_start();
 
+        if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP))) {
+            tcg_gen_debug_insn_start(dc->pc);
+        }
+
         if (dc->thumb) {
             disas_thumb_insn(env, dc);
             if (dc->condexec_mask) {
