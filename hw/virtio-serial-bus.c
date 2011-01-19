@@ -527,9 +527,24 @@ static void virtio_serial_save(QEMUFile *f, void *opaque)
      * Items in struct VirtIOSerialPort.
      */
     QTAILQ_FOREACH(port, &s->ports, next) {
+        uint32_t elem_popped;
+
         qemu_put_be32s(f, &port->id);
         qemu_put_byte(f, port->guest_connected);
         qemu_put_byte(f, port->host_connected);
+
+	elem_popped = 0;
+        if (port->elem.out_num) {
+            elem_popped = 1;
+        }
+        qemu_put_be32s(f, &elem_popped);
+        if (elem_popped) {
+            qemu_put_be32s(f, &port->iov_idx);
+            qemu_put_be64s(f, &port->iov_offset);
+
+            qemu_put_buffer(f, (unsigned char *)&port->elem,
+                            sizeof(port->elem));
+        }
     }
 }
 
@@ -540,7 +555,7 @@ static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
     uint32_t max_nr_ports, nr_active_ports, ports_map;
     unsigned int i;
 
-    if (version_id > 2) {
+    if (version_id > 3) {
         return -EINVAL;
     }
 
@@ -592,6 +607,29 @@ static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
              */
             send_control_event(port, VIRTIO_CONSOLE_PORT_OPEN,
                                port->host_connected);
+        }
+
+        if (version_id > 2) {
+            uint32_t elem_popped;
+
+            qemu_get_be32s(f, &elem_popped);
+            if (elem_popped) {
+                qemu_get_be32s(f, &port->iov_idx);
+                qemu_get_be64s(f, &port->iov_offset);
+
+                qemu_get_buffer(f, (unsigned char *)&port->elem,
+                                sizeof(port->elem));
+                virtqueue_map_sg(port->elem.in_sg, port->elem.in_addr,
+                                 port->elem.in_num, 1);
+                virtqueue_map_sg(port->elem.out_sg, port->elem.out_addr,
+                                 port->elem.out_num, 1);
+
+                /*
+                 *  Port was throttled on source machine.  Let's
+                 *  unthrottle it here so data starts flowing again.
+                 */
+                virtio_serial_throttle_port(port, false);
+            }
         }
     }
     return 0;
@@ -841,7 +879,7 @@ VirtIODevice *virtio_serial_init(DeviceState *dev, uint32_t max_nr_ports)
      * Register for the savevm section with the virtio-console name
      * to preserve backward compat
      */
-    register_savevm(dev, "virtio-console", -1, 2, virtio_serial_save,
+    register_savevm(dev, "virtio-console", -1, 3, virtio_serial_save,
                     virtio_serial_load, vser);
 
     return vdev;
