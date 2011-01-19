@@ -921,7 +921,7 @@ void mips_malta_init (ram_addr_t ram_size,
     i8259 = i8259_init(env->irq[2]);
 
     /* Northbridge */
-    pci_bus = pci_gt64120_init(i8259);
+    pci_bus = gt64120_register(i8259);
 
     /* Southbridge */
 

@@ -3,7 +3,7 @@
 /* Definitions for mips board emulation.  */
 
 /* gt64xxx.c */
-PCIBus *pci_gt64120_init(qemu_irq *pic);
+PCIBus *gt64120_register(qemu_irq *pic);
 
 /* bonito.c */
 PCIBus *bonito_init(qemu_irq *pic);
