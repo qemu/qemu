@@ -74,7 +74,7 @@ static void sh_serial_clear_fifo(sh_serial_state * s)
     s->rx_tail = 0;
 }
 
-static void sh_serial_ioport_write(void *opaque, uint32_t offs, uint32_t val)
+static void sh_serial_write(void *opaque, uint32_t offs, uint32_t val)
 {
     sh_serial_state *s = opaque;
     unsigned char ch;
@@ -185,7 +185,7 @@ static void sh_serial_ioport_write(void *opaque, uint32_t offs, uint32_t val)
     abort();
 }
 
-static uint32_t sh_serial_ioport_read(void *opaque, uint32_t offs)
+static uint32_t sh_serial_read(void *opaque, uint32_t offs)
 {
     sh_serial_state *s = opaque;
     uint32_t ret = ~0;
@@ -336,19 +336,6 @@ static void sh_serial_event(void *opaque, int event)
     sh_serial_state *s = opaque;
     if (event == CHR_EVENT_BREAK)
         sh_serial_receive_break(s);
-}
-
-static uint32_t sh_serial_read (void *opaque, target_phys_addr_t addr)
-{
-    sh_serial_state *s = opaque;
-    return sh_serial_ioport_read(s, addr);
-}
-
-static void sh_serial_write (void *opaque,
-                             target_phys_addr_t addr, uint32_t value)
-{
-    sh_serial_state *s = opaque;
-    sh_serial_ioport_write(s, addr, value);
 }
 
 static CPUReadMemoryFunc * const sh_serial_readfn[] = {
