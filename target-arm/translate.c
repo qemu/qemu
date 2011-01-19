@@ -3608,14 +3608,14 @@ static inline TCGv neon_get_scalar(int size, int reg)
 {
     TCGv tmp;
     if (size == 1) {
-        tmp = neon_load_reg(reg >> 1, reg & 1);
-    } else {
-        tmp = neon_load_reg(reg >> 2, (reg >> 1) & 1);
-        if (reg & 1) {
-            gen_neon_dup_low16(tmp);
-        } else {
+        tmp = neon_load_reg(reg & 7, reg >> 4);
+        if (reg & 8) {
             gen_neon_dup_high16(tmp);
+        } else {
+            gen_neon_dup_low16(tmp);
         }
+    } else {
+        tmp = neon_load_reg(reg & 15, reg >> 4);
     }
     return tmp;
 }
