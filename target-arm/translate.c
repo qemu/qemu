@@ -6888,27 +6888,23 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                             tcg_gen_shli_i32(tmp, tmp, shift);
                         }
                         sh = (insn >> 16) & 0x1f;
-                        if (sh != 0) {
-                            tmp2 = tcg_const_i32(sh);
-                            if (insn & (1 << 22))
-                                gen_helper_usat(tmp, tmp, tmp2);
-                            else
-                                gen_helper_ssat(tmp, tmp, tmp2);
-                            tcg_temp_free_i32(tmp2);
-                        }
+                        tmp2 = tcg_const_i32(sh);
+                        if (insn & (1 << 22))
+                          gen_helper_usat(tmp, tmp, tmp2);
+                        else
+                          gen_helper_ssat(tmp, tmp, tmp2);
+                        tcg_temp_free_i32(tmp2);
                         store_reg(s, rd, tmp);
                     } else if ((insn & 0x00300fe0) == 0x00200f20) {
                         /* [us]sat16 */
                         tmp = load_reg(s, rm);
                         sh = (insn >> 16) & 0x1f;
-                        if (sh != 0) {
-                            tmp2 = tcg_const_i32(sh);
-                            if (insn & (1 << 22))
-                                gen_helper_usat16(tmp, tmp, tmp2);
-                            else
-                                gen_helper_ssat16(tmp, tmp, tmp2);
-                            tcg_temp_free_i32(tmp2);
-                        }
+                        tmp2 = tcg_const_i32(sh);
+                        if (insn & (1 << 22))
+                          gen_helper_usat16(tmp, tmp, tmp2);
+                        else
+                          gen_helper_ssat16(tmp, tmp, tmp2);
+                        tcg_temp_free_i32(tmp2);
                         store_reg(s, rd, tmp);
                     } else if ((insn & 0x00700fe0) == 0x00000fa0) {
                         /* Select bytes.  */
