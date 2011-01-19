@@ -1264,9 +1264,9 @@ static int tcg_target_get_call_iarg_regs_count(int flags)
 static void tcg_target_init(TCGContext *s)
 {
 #if defined(CONFIG_DEBUG_TCG_INTERPRETER)
-    const char *env = getenv("DEBUG_TCG");
-    if (env) {
-        loglevel = strtol(env, NULL, 0);
+    const char *envval = getenv("DEBUG_TCG");
+    if (envval) {
+        loglevel = strtol(envval, NULL, 0);
     }
 #endif
     TRACE();
