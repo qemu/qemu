@@ -18,11 +18,7 @@
  */
 #include "dyngen-exec.h"
 
-#if defined(CONFIG_TCG_INTERPRETER)
-extern struct CPUMBState *env;
-#else
-register struct CPUMBState *env asm(AREG0);
-#endif
+DECLARE_QEMU_ENV(CPUMBState);
 
 #include "cpu.h"
 #include "exec-all.h"

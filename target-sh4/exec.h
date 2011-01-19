@@ -22,11 +22,7 @@
 #include "config.h"
 #include "dyngen-exec.h"
 
-#if defined(CONFIG_TCG_INTERPRETER)
-extern struct CPUSH4State *env;
-#else
-register struct CPUSH4State *env asm(AREG0);
-#endif
+DECLARE_QEMU_ENV(CPUSH4State);
 
 #include "cpu.h"
 #include "exec-all.h"

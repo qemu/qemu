@@ -26,11 +26,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 
-#if defined(CONFIG_TCG_INTERPRETER)
-extern struct CPUPPCState *env;
-#else
-register struct CPUPPCState *env asm(AREG0);
-#endif
+DECLARE_QEMU_ENV(CPUPPCState);
 
 #if !defined(CONFIG_USER_ONLY)
 #include "softmmu_exec.h"

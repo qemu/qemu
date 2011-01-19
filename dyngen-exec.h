@@ -66,6 +66,12 @@ typedef void * host_reg_t;
 #error unsupported CPU
 #endif
 
+#if defined(AREG0)
+# define DECLARE_QEMU_ENV(s) register struct s *env asm(AREG0)
+#else
+# define DECLARE_QEMU_ENV(s) extern struct s *env
+#endif
+
 #define xglue(x, y) x ## y
 #define glue(x, y) xglue(x, y)
 #define stringify(s)	tostring(s)

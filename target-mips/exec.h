@@ -8,11 +8,7 @@
 #include "dyngen-exec.h"
 #include "cpu-defs.h"
 
-#if defined(CONFIG_TCG_INTERPRETER)
-extern struct CPUMIPSState *env;
-#else
-register struct CPUMIPSState *env asm(AREG0);
-#endif
+DECLARE_QEMU_ENV(CPUMIPSState);
 
 #include "cpu.h"
 #include "exec-all.h"

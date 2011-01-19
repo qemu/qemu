@@ -3,11 +3,7 @@
 #include "config.h"
 #include "dyngen-exec.h"
 
-#if defined(CONFIG_TCG_INTERPRETER)
-extern struct CPUSPARCState *env;
-#else
-register struct CPUSPARCState *env asm(AREG0);
-#endif
+DECLARE_QEMU_ENV(CPUSPARCState);
 
 #include "cpu.h"
 #include "exec-all.h"

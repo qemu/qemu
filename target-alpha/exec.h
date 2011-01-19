@@ -26,11 +26,7 @@
 
 #define TARGET_LONG_BITS 64
 
-#if defined(CONFIG_TCG_INTERPRETER)
-extern struct CPUAlphaState *env;
-#else
-register struct CPUAlphaState *env asm(AREG0);
-#endif
+DECLARE_QEMU_ENV(CPUAlphaState);
 
 #define FP_STATUS (env->fp_status)
 
