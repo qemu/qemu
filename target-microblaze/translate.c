@@ -788,7 +788,7 @@ static inline TCGv *compute_ldst_addr(DisasContext *dc, TCGv *t)
 {
     unsigned int extimm = dc->tb_flags & IMM_FLAG;
 
-    /* Treat the fast cases first.  */
+    /* Treat the common cases first.  */
     if (!dc->type_b) {
         /* If any of the regs is r0, return a ptr to the other.  */
         if (dc->ra == 0) {
