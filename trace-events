@@ -224,3 +224,9 @@ disable qed_aio_write_data(void *s, void *acb, int ret, uint64_t offset, size_t 
 disable qed_aio_write_prefill(void *s, void *acb, uint64_t start, size_t len, uint64_t offset) "s %p acb %p start %"PRIu64" len %zu offset %"PRIu64""
 disable qed_aio_write_postfill(void *s, void *acb, uint64_t start, size_t len, uint64_t offset) "s %p acb %p start %"PRIu64" len %zu offset %"PRIu64""
 disable qed_aio_write_main(void *s, void *acb, int ret, uint64_t offset, size_t len) "s %p acb %p ret %d offset %"PRIu64" len %zu"
+
+# spice-qemu-char.c
+disable spice_vmc_write(ssize_t out, int len) "spice wrottn %lu of requested %zd"
+disable spice_vmc_read(int bytes, int len) "spice read %lu of requested %zd"
+disable spice_vmc_register_interface(void *scd) "spice vmc registered interface %p"
+disable spice_vmc_unregister_interface(void *scd) "spice vmc unregistered interface %p"

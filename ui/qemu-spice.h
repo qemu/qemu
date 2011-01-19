@@ -24,6 +24,7 @@
 
 #include "qemu-option.h"
 #include "qemu-config.h"
+#include "qemu-char.h"
 
 extern int using_spice;
 
@@ -40,6 +41,8 @@ int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
 
 void do_info_spice_print(Monitor *mon, const QObject *data);
 void do_info_spice(Monitor *mon, QObject **ret_data);
+
+CharDriverState *qemu_chr_open_spice(QemuOpts *opts);
 
 #else  /* CONFIG_SPICE */
 
