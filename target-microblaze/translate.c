@@ -817,12 +817,35 @@ static inline TCGv *compute_ldst_addr(DisasContext *dc, TCGv *t)
     return t;
 }
 
+static inline void dec_byteswap(DisasContext *dc, TCGv dst, TCGv src, int size)
+{
+    if (size == 4) {
+        tcg_gen_bswap32_tl(dst, src);
+    } else if (size == 2) {
+        TCGv t = tcg_temp_new();
+
+        /* bswap16 assumes the high bits are zero.  */
+        tcg_gen_andi_tl(t, src, 0xffff);
+        tcg_gen_bswap16_tl(dst, t);
+        tcg_temp_free(t);
+    } else {
+        /* Ignore.
+        cpu_abort(dc->env, "Invalid ldst byteswap size %d\n", size);
+        */
+    }
+}
+
 static void dec_load(DisasContext *dc)
 {
     TCGv t, *addr;
-    unsigned int size;
+    unsigned int size, rev = 0;
 
     size = 1 << (dc->opcode & 3);
+
+    if (!dc->type_b) {
+        rev = (dc->ir >> 9) & 1;
+    }
+
     if (size > 4 && (dc->tb_flags & MSR_EE_FLAG)
           && (dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)) {
         tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
@@ -830,9 +853,62 @@ static void dec_load(DisasContext *dc)
         return;
     }
 
-    LOG_DIS("l %x %d\n", dc->opcode, size);
+    LOG_DIS("l%d%s%s\n", size, dc->type_b ? "i" : "", rev ? "r" : "");
+
     t_sync_flags(dc);
     addr = compute_ldst_addr(dc, &t);
+
+    /*
+     * When doing reverse accesses we need to do two things.
+     *
+     * 1. Reverse the address wrt endianess.
+     * 2. Byteswap the data lanes on the way back into the CPU core.
+     */
+    if (rev && size != 4) {
+        /* Endian reverse the address. t is addr.  */
+        switch (size) {
+            case 1:
+            {
+                /* 00 -> 11
+                   01 -> 10
+                   10 -> 10
+                   11 -> 00 */
+                TCGv low = tcg_temp_new();
+
+                /* Force addr into the temp.  */
+                if (addr != &t) {
+                    t = tcg_temp_new();
+                    tcg_gen_mov_tl(t, *addr);
+                    addr = &t;
+                }
+
+                tcg_gen_andi_tl(low, t, 3);
+                tcg_gen_sub_tl(low, tcg_const_tl(3), low);
+                tcg_gen_andi_tl(t, t, ~3);
+                tcg_gen_or_tl(t, t, low);
+                tcg_gen_mov_tl(env_debug, low);
+                tcg_gen_mov_tl(env_imm, t);
+                tcg_temp_free(low);
+                break;
+            }
+
+            case 2:
+                /* 00 -> 10
+                   10 -> 00.  */
+                /* Force addr into the temp.  */
+                if (addr != &t) {
+                    t = tcg_temp_new();
+                    tcg_gen_xori_tl(t, *addr, 2);
+                    addr = &t;
+                } else {
+                    tcg_gen_xori_tl(t, t, 2);
+                }
+                break;
+            default:
+                cpu_abort(dc->env, "Invalid reverse size\n");
+                break;
+        }
+    }
 
     /* If we get a fault on a dslot, the jmpstate better be in sync.  */
     sync_jmpstate(dc);
@@ -852,13 +928,22 @@ static void dec_load(DisasContext *dc)
         tcg_gen_movi_tl(cpu_SR[SR_PC], dc->pc);
         gen_helper_memalign(*addr, tcg_const_tl(dc->rd),
                             tcg_const_tl(0), tcg_const_tl(size - 1));
-        if (dc->rd)
-            tcg_gen_mov_tl(cpu_R[dc->rd], v);
+        if (dc->rd) {
+            if (rev) {
+                dec_byteswap(dc, cpu_R[dc->rd], v, size);
+            } else {
+                tcg_gen_mov_tl(cpu_R[dc->rd], v);
+            }
+        }
         tcg_temp_free(v);
     } else {
         if (dc->rd) {
             gen_load(dc, cpu_R[dc->rd], *addr, size);
+            if (rev) {
+                dec_byteswap(dc, cpu_R[dc->rd], cpu_R[dc->rd], size);
+            }
         } else {
+            /* We are loading into r0, no need to reverse.  */
             gen_load(dc, env_imm, *addr, size);
         }
     }
@@ -885,9 +970,12 @@ static void gen_store(DisasContext *dc, TCGv addr, TCGv val,
 static void dec_store(DisasContext *dc)
 {
     TCGv t, *addr;
-    unsigned int size;
+    unsigned int size, rev = 0;
 
     size = 1 << (dc->opcode & 3);
+    if (!dc->type_b) {
+        rev = (dc->ir >> 9) & 1;
+    }
 
     if (size > 4 && (dc->tb_flags & MSR_EE_FLAG)
           && (dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)) {
@@ -896,19 +984,84 @@ static void dec_store(DisasContext *dc)
         return;
     }
 
-    LOG_DIS("s%d%s\n", size, dc->type_b ? "i" : "");
+    LOG_DIS("s%d%s%s\n", size, dc->type_b ? "i" : "", rev ? "r" : "");
     t_sync_flags(dc);
     /* If we get a fault on a dslot, the jmpstate better be in sync.  */
     sync_jmpstate(dc);
     addr = compute_ldst_addr(dc, &t);
 
-    gen_store(dc, *addr, cpu_R[dc->rd], size);
+    if (rev && size != 4) {
+        /* Endian reverse the address. t is addr.  */
+        switch (size) {
+            case 1:
+            {
+                /* 00 -> 11
+                   01 -> 10
+                   10 -> 10
+                   11 -> 00 */
+                TCGv low = tcg_temp_new();
+
+                /* Force addr into the temp.  */
+                if (addr != &t) {
+                    t = tcg_temp_new();
+                    tcg_gen_mov_tl(t, *addr);
+                    addr = &t;
+                }
+
+                tcg_gen_andi_tl(low, t, 3);
+                tcg_gen_sub_tl(low, tcg_const_tl(3), low);
+                tcg_gen_andi_tl(t, t, ~3);
+                tcg_gen_or_tl(t, t, low);
+                tcg_gen_mov_tl(env_debug, low);
+                tcg_gen_mov_tl(env_imm, t);
+                tcg_temp_free(low);
+                break;
+            }
+
+            case 2:
+                /* 00 -> 10
+                   10 -> 00.  */
+                /* Force addr into the temp.  */
+                if (addr != &t) {
+                    t = tcg_temp_new();
+                    tcg_gen_xori_tl(t, *addr, 2);
+                    addr = &t;
+                } else {
+                    tcg_gen_xori_tl(t, t, 2);
+                }
+                break;
+            default:
+                cpu_abort(dc->env, "Invalid reverse size\n");
+                break;
+        }
+
+        if (size != 1) {
+            TCGv bs_data = tcg_temp_new();
+            dec_byteswap(dc, bs_data, cpu_R[dc->rd], size);
+            gen_store(dc, *addr, bs_data, size);
+            tcg_temp_free(bs_data);
+        } else {
+            gen_store(dc, *addr, cpu_R[dc->rd], size);
+        }
+    } else {
+        if (rev) {
+            TCGv bs_data = tcg_temp_new();
+            dec_byteswap(dc, bs_data, cpu_R[dc->rd], size);
+            gen_store(dc, *addr, bs_data, size);
+            tcg_temp_free(bs_data);
+        } else {
+            gen_store(dc, *addr, cpu_R[dc->rd], size);
+        }
+    }
 
     /* Verify alignment if needed.  */
     if ((dc->env->pvr.regs[2] & PVR2_UNALIGNED_EXC_MASK) && size > 1) {
         tcg_gen_movi_tl(cpu_SR[SR_PC], dc->pc);
         /* FIXME: if the alignment is wrong, we should restore the value
-         *        in memory.
+         *        in memory. One possible way to acheive this is to probe
+         *        the MMU prior to the memaccess, thay way we could put
+         *        the alignment checks in between the probe and the mem
+         *        access.
          */
         gen_helper_memalign(*addr, tcg_const_tl(dc->rd),
                             tcg_const_tl(1), tcg_const_tl(size - 1));
