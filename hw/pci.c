@@ -2032,10 +2032,13 @@ static char *pcibus_get_dev_path(DeviceState *dev)
      * domain:Bus:Slot.Func for systems without nested PCI bridges.
      * Slot.Function list specifies the slot and function numbers for all
      * devices on the path from root to the specific device. */
-    int domain_len = strlen("DDDD:00");
-    int slot_len = strlen(":SS.F");
+    char domain[] = "DDDD:00";
+    char slot[] = ":SS.F";
+    int domain_len = sizeof domain - 1 /* For '\0' */;
+    int slot_len = sizeof slot - 1 /* For '\0' */;
     int path_len;
     char *path, *p;
+    int s;
 
     /* Calculate # of slots on path between device and root. */;
     slot_depth = 0;
@@ -2050,14 +2053,19 @@ static char *pcibus_get_dev_path(DeviceState *dev)
     path[path_len] = '\0';
 
     /* First field is the domain. */
-    snprintf(path, domain_len, "%04x:00", pci_find_domain(d->bus));
+    s = snprintf(domain, sizeof domain, "%04x:00", pci_find_domain(d->bus));
+    assert(s == domain_len);
+    memcpy(path, domain, domain_len);
 
     /* Fill in slot numbers. We walk up from device to root, so need to print
      * them in the reverse order, last to first. */
     p = path + path_len;
     for (t = d; t; t = t->bus->parent_dev) {
         p -= slot_len;
-        snprintf(p, slot_len, ":%02x.%x", PCI_SLOT(t->devfn), PCI_FUNC(d->devfn));
+        s = snprintf(slot, sizeof slot, ":%02x.%x",
+                     PCI_SLOT(t->devfn), PCI_FUNC(d->devfn));
+        assert(s == slot_len);
+        memcpy(p, slot, slot_len);
     }
 
     return path;
