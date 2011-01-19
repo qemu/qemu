@@ -28,8 +28,8 @@
 #include "qemu-option.h"
 #include "qemu-queue.h"
 
-#define BLOCK_FLAG_ENCRYPT	1
-#define BLOCK_FLAG_COMPAT6	4
+#define BLOCK_FLAG_ENCRYPT        1
+#define BLOCK_FLAG_COMPAT6        4
 
 #define BLOCK_OPT_SIZE          "size"
 #define BLOCK_OPT_ENCRYPT       "encryption"
@@ -98,6 +98,7 @@ struct BlockDriver {
     int (*bdrv_snapshot_load_tmp)(BlockDriverState *bs,
                                   const char *snapshot_name);
     int (*bdrv_get_info)(BlockDriverState *bs, BlockDriverInfo *bdi);
+    int (*bdrv_update)(BlockDriverState *bs, int argc, char **argv);
 
     int (*bdrv_save_vmstate)(BlockDriverState *bs, const uint8_t *buf,
                              int64_t pos, int size);

@@ -58,7 +58,7 @@ static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num,
 static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
                          const uint8_t *buf, int nb_sectors);
 
-static QTAILQ_HEAD(, BlockDriverState) bdrv_states =
+QTAILQ_HEAD(, BlockDriverState) bdrv_states =
     QTAILQ_HEAD_INITIALIZER(bdrv_states);
 
 static QLIST_HEAD(, BlockDriver) bdrv_drivers =
@@ -768,7 +768,7 @@ int bdrv_commit(BlockDriverState *bs)
 
     if (!drv)
         return -ENOMEDIUM;
-    
+
     if (!bs->backing_hd) {
         return -ENOTSUP;
     }
@@ -1544,7 +1544,7 @@ int bdrv_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors)
  * 'nb_sectors' is the max value 'pnum' should be set to.
  */
 int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
-	int *pnum)
+        int *pnum)
 {
     int64_t n;
     if (!bs->drv->bdrv_is_allocated) {
@@ -2056,9 +2056,9 @@ BlockDriverAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
                               cb, opaque);
 
     if (ret) {
-	/* Update stats even though technically transfer has not happened. */
-	bs->rd_bytes += (unsigned) nb_sectors * BDRV_SECTOR_SIZE;
-	bs->rd_ops ++;
+        /* Update stats even though technically transfer has not happened. */
+        bs->rd_bytes += (unsigned) nb_sectors * BDRV_SECTOR_SIZE;
+        bs->rd_ops ++;
     }
 
     return ret;

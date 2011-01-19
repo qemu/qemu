@@ -1701,6 +1701,8 @@ init_check_command(
 	return 1;
 }
 
+#include "qemu-io-sim.c"
+
 static void usage(const char *name)
 {
 	printf(
@@ -1812,6 +1814,7 @@ int main(int argc, char **argv)
 	add_command(&discard_cmd);
 	add_command(&alloc_cmd);
 	add_command(&map_cmd);
+        add_command(&sim_cmd);
 
 	add_args_command(init_args_command);
 	add_check_command(init_check_command);

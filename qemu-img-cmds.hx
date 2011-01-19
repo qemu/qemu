@@ -39,6 +39,12 @@ STEXI
 @item info [-f @var{fmt}] @var{filename}
 ETEXI
 
+DEF("update", img_update,
+    "update [-f fmt] filename [attr1=val1 attr2=val2 ...]")
+STEXI
+@item update [-f @var{fmt}] @var{filename} [@var{attr1=val1 attr2=val2 ...}]")
+ETEXI
+
 DEF("snapshot", img_snapshot,
     "snapshot [-l | -a snapshot | -c snapshot | -d snapshot] filename")
 STEXI

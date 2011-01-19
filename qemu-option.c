@@ -289,6 +289,10 @@ int set_option_parameter(QEMUOptionParameter *list, const char *name,
             return -1;
         break;
 
+    case OPT_NUMBER:
+        list->value.n = atoi (value);
+        break;
+
     default:
         fprintf(stderr, "Bug: Option '%s' has an unknown type\n", name);
         return -1;

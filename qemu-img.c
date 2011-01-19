@@ -641,7 +641,7 @@ static int img_convert(int argc, char **argv)
         ret = -1;
         goto out;
     }
-        
+
     bs = qemu_mallocz(bs_n * sizeof(BlockDriverState *));
 
     total_sectors = 0;
@@ -869,7 +869,7 @@ static int img_convert(int argc, char **argv)
                    assume that sectors which are unallocated in the input image
                    are present in both the output's and input's base images (no
                    need to copy them). */
-                if (out_baseimg) {
+                if (out_baseimg || bs[bs_i]->backing_file[0]==0) {
                     if (!bdrv_is_allocated(bs[bs_i], sector_num - bs_offset,
                                            n, &n1)) {
                         sector_num += n1;
@@ -945,10 +945,10 @@ static int64_t get_allocated_file_size(const char *filename)
     /* WinNT support GetCompressedFileSize to determine allocate size */
     get_compressed = (get_compressed_t) GetProcAddress(GetModuleHandle("kernel32"), "GetCompressedFileSizeA");
     if (get_compressed) {
-    	DWORD high, low;
-    	low = get_compressed(filename, &high);
-    	if (low != 0xFFFFFFFFlu || GetLastError() == NO_ERROR)
-	    return (((int64_t) high) << 32) + low;
+            DWORD high, low;
+            low = get_compressed(filename, &high);
+            if (low != 0xFFFFFFFFlu || GetLastError() == NO_ERROR)
+            return (((int64_t) high) << 32) + low;
     }
 
     if (_stati64(filename, &st) < 0)
@@ -1040,11 +1040,6 @@ static int img_info(int argc, char **argv)
     if (bdrv_is_encrypted(bs)) {
         printf("encrypted: yes\n");
     }
-    if (bdrv_get_info(bs, &bdi) >= 0) {
-        if (bdi.cluster_size != 0) {
-            printf("cluster_size: %d\n", bdi.cluster_size);
-        }
-    }
     bdrv_get_backing_filename(bs, backing_filename, sizeof(backing_filename));
     if (backing_filename[0] != '\0') {
         path_combine(backing_filename2, sizeof(backing_filename2),
@@ -1053,7 +1048,52 @@ static int img_info(int argc, char **argv)
                backing_filename,
                backing_filename2);
     }
+    if (bdrv_get_info(bs, &bdi) >= 0) {
+        if (bdi.cluster_size != 0)
+            printf("cluster_size: %d\n", bdi.cluster_size);
+    }
     dump_snapshots(bs);
+    bdrv_delete(bs);
+    return 0;
+}
+
+static int img_update(int argc, char **argv)
+{
+    int c;
+    const char *filename, *fmt;
+    BlockDriverState *bs;
+
+    fmt = NULL;
+    for(;;) {
+        c = getopt(argc, argv, "f:h");
+        if (c == -1)
+            break;
+        switch(c) {
+        case 'h':
+            help();
+            break;
+        case 'f':
+            fmt = optarg;
+            break;
+        }
+    }
+    if (optind >= argc)
+        help();
+    filename = argv[optind++];
+
+    bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_NO_BACKING | BDRV_O_RDWR);
+    if (!bs) {
+        return 1;
+    }
+
+    if (bs->drv->bdrv_update==NULL) {
+        char fmt_name[128];
+        bdrv_get_format(bs, fmt_name, sizeof(fmt_name));
+        error_report ("the 'update' command is not supported for the '%s' image format.", fmt_name);
+    }
+
+    bs->drv->bdrv_update(bs, argc-optind, &argv[optind]);
+
     bdrv_delete(bs);
     return 0;
 }
