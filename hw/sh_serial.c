@@ -293,26 +293,6 @@ static int sh_serial_can_receive(sh_serial_state *s)
     return s->scr & (1 << 4);
 }
 
-static void sh_serial_receive_byte(sh_serial_state *s, int ch)
-{
-    if (s->feat & SH_SERIAL_FEAT_SCIF) {
-        if (s->rx_cnt < SH_RX_FIFO_LENGTH) {
-            s->rx_fifo[s->rx_head++] = ch;
-            if (s->rx_head == SH_RX_FIFO_LENGTH)
-                s->rx_head = 0;
-            s->rx_cnt++;
-            if (s->rx_cnt >= s->rtrg) {
-                s->flags |= SH_SERIAL_FLAG_RDF;
-                if (s->scr & (1 << 6) && s->rxi) {
-                    qemu_set_irq(s->rxi, 1);
-                }
-            }
-        }
-    } else {
-        s->rx_fifo[0] = ch;
-    }
-}
-
 static void sh_serial_receive_break(sh_serial_state *s)
 {
     if (s->feat & SH_SERIAL_FEAT_SCIF)
@@ -328,7 +308,27 @@ static int sh_serial_can_receive1(void *opaque)
 static void sh_serial_receive1(void *opaque, const uint8_t *buf, int size)
 {
     sh_serial_state *s = opaque;
-    sh_serial_receive_byte(s, buf[0]);
+
+    if (s->feat & SH_SERIAL_FEAT_SCIF) {
+        int i;
+        for (i = 0; i < size; i++) {
+            if (s->rx_cnt < SH_RX_FIFO_LENGTH) {
+                s->rx_fifo[s->rx_head++] = buf[i];
+                if (s->rx_head == SH_RX_FIFO_LENGTH) {
+                    s->rx_head = 0;
+                }
+                s->rx_cnt++;
+                if (s->rx_cnt >= s->rtrg) {
+                    s->flags |= SH_SERIAL_FLAG_RDF;
+                    if (s->scr & (1 << 6) && s->rxi) {
+                        qemu_set_irq(s->rxi, 1);
+                    }
+                }
+            }
+        }
+    } else {
+        s->rx_fifo[0] = buf[0];
+    }
 }
 
 static void sh_serial_event(void *opaque, int event)
