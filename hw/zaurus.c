@@ -18,15 +18,17 @@
 #include "hw.h"
 #include "pxa.h"
 #include "sharpsl.h"
+#include "sysbus.h"
 
 #undef REG_FMT
 #define REG_FMT			"0x%02lx"
 
 /* SCOOP devices */
 
+typedef struct ScoopInfo ScoopInfo;
 struct ScoopInfo {
+    SysBusDevice busdev;
     qemu_irq handler[16];
-    qemu_irq *in;
     uint16_t status;
     uint16_t power;
     uint32_t gpio_level;
@@ -153,7 +155,7 @@ static CPUWriteMemoryFunc * const scoop_writefn[] = {
     scoop_writeb,
 };
 
-void scoop_gpio_set(void *opaque, int line, int level)
+static void scoop_gpio_set(void *opaque, int line, int level)
 {
     ScoopInfo *s = (ScoopInfo *) opaque;
 
@@ -163,77 +165,66 @@ void scoop_gpio_set(void *opaque, int line, int level)
         s->gpio_level &= ~(1 << line);
 }
 
-qemu_irq *scoop_gpio_in_get(ScoopInfo *s)
+static int scoop_init(SysBusDevice *dev)
 {
-    return s->in;
-}
+    ScoopInfo *s = FROM_SYSBUS(ScoopInfo, dev);
+    int iomemtype;
 
-void scoop_gpio_out_set(ScoopInfo *s, int line,
-                qemu_irq handler) {
-    if (line >= 16) {
-        fprintf(stderr, "No GPIO pin %i\n", line);
-        exit(-1);
-    }
+    s->status = 0x02;
+    qdev_init_gpio_out(&s->busdev.qdev, s->handler, 16);
+    qdev_init_gpio_in(&s->busdev.qdev, scoop_gpio_set, 16);
+    iomemtype = cpu_register_io_memory(scoop_readfn,
+                    scoop_writefn, s, DEVICE_NATIVE_ENDIAN);
 
-    s->handler[line] = handler;
-}
-
-static void scoop_save(QEMUFile *f, void *opaque)
-{
-    ScoopInfo *s = (ScoopInfo *) opaque;
-    qemu_put_be16s(f, &s->status);
-    qemu_put_be16s(f, &s->power);
-    qemu_put_be32s(f, &s->gpio_level);
-    qemu_put_be32s(f, &s->gpio_dir);
-    qemu_put_be32s(f, &s->prev_level);
-    qemu_put_be16s(f, &s->mcr);
-    qemu_put_be16s(f, &s->cdr);
-    qemu_put_be16s(f, &s->ccr);
-    qemu_put_be16s(f, &s->irr);
-    qemu_put_be16s(f, &s->imr);
-    qemu_put_be16s(f, &s->isr);
-}
-
-static int scoop_load(QEMUFile *f, void *opaque, int version_id)
-{
-    uint16_t dummy;
-    ScoopInfo *s = (ScoopInfo *) opaque;
-    qemu_get_be16s(f, &s->status);
-    qemu_get_be16s(f, &s->power);
-    qemu_get_be32s(f, &s->gpio_level);
-    qemu_get_be32s(f, &s->gpio_dir);
-    qemu_get_be32s(f, &s->prev_level);
-    qemu_get_be16s(f, &s->mcr);
-    qemu_get_be16s(f, &s->cdr);
-    qemu_get_be16s(f, &s->ccr);
-    qemu_get_be16s(f, &s->irr);
-    qemu_get_be16s(f, &s->imr);
-    qemu_get_be16s(f, &s->isr);
-    if (version_id < 1)
-	    qemu_get_be16s(f, &dummy);
+    sysbus_init_mmio(dev, 0x1000, iomemtype);
 
     return 0;
 }
 
-ScoopInfo *scoop_init(PXA2xxState *cpu,
-		int instance,
-		target_phys_addr_t target_base) {
-    int iomemtype;
-    ScoopInfo *s;
-
-    s = (ScoopInfo *)
-            qemu_mallocz(sizeof(ScoopInfo));
-    memset(s, 0, sizeof(ScoopInfo));
-
-    s->status = 0x02;
-    s->in = qemu_allocate_irqs(scoop_gpio_set, s, 16);
-    iomemtype = cpu_register_io_memory(scoop_readfn,
-                    scoop_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(target_base, 0x1000, iomemtype);
-    register_savevm(NULL, "scoop", instance, 1, scoop_save, scoop_load, s);
-
-    return s;
+static bool is_version_0 (void *opaque, int version_id)
+{
+    return version_id == 0;
 }
+
+
+static const VMStateDescription vmstate_scoop_regs = {
+    .name = "scoop",
+    .version_id = 1,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields = (VMStateField []) {
+        VMSTATE_UINT16(status, ScoopInfo),
+        VMSTATE_UINT16(power, ScoopInfo),
+        VMSTATE_UINT32(gpio_level, ScoopInfo),
+        VMSTATE_UINT32(gpio_dir, ScoopInfo),
+        VMSTATE_UINT32(prev_level, ScoopInfo),
+        VMSTATE_UINT16(mcr, ScoopInfo),
+        VMSTATE_UINT16(cdr, ScoopInfo),
+        VMSTATE_UINT16(ccr, ScoopInfo),
+        VMSTATE_UINT16(irr, ScoopInfo),
+        VMSTATE_UINT16(imr, ScoopInfo),
+        VMSTATE_UINT16(isr, ScoopInfo),
+        VMSTATE_UNUSED_TEST(is_version_0, 2),
+        VMSTATE_END_OF_LIST(),
+    },
+};
+
+static SysBusDeviceInfo scoop_sysbus_info = {
+    .init           = scoop_init,
+    .qdev.name      = "scoop",
+    .qdev.desc      = "Scoop2 Sharp custom ASIC",
+    .qdev.size      = sizeof(ScoopInfo),
+    .qdev.vmsd      = &vmstate_scoop_regs,
+    .qdev.props     = (Property[]) {
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
+
+static void scoop_register(void)
+{
+    sysbus_register_withprop(&scoop_sysbus_info);
+}
+device_init(scoop_register);
 
 /* Write the bootloader parameters memory area.  */
 

@@ -23,6 +23,7 @@
 #include "audio/audio.h"
 #include "boards.h"
 #include "blockdev.h"
+#include "sysbus.h"
 
 #undef REG_FMT
 #define REG_FMT			"0x%02lx"
@@ -851,21 +852,21 @@ static void spitz_out_switch(void *opaque, int line, int level)
 #define SPITZ_SCP2_MIC_BIAS		9
 
 static void spitz_scoop_gpio_setup(PXA2xxState *cpu,
-                ScoopInfo *scp0, ScoopInfo *scp1)
+                DeviceState *scp0, DeviceState *scp1)
 {
     qemu_irq *outsignals = qemu_allocate_irqs(spitz_out_switch, cpu, 8);
 
-    scoop_gpio_out_set(scp0, SPITZ_SCP_CHRG_ON, outsignals[0]);
-    scoop_gpio_out_set(scp0, SPITZ_SCP_JK_B, outsignals[1]);
-    scoop_gpio_out_set(scp0, SPITZ_SCP_LED_GREEN, outsignals[2]);
-    scoop_gpio_out_set(scp0, SPITZ_SCP_LED_ORANGE, outsignals[3]);
+    qdev_connect_gpio_out(scp0, SPITZ_SCP_CHRG_ON, outsignals[0]);
+    qdev_connect_gpio_out(scp0, SPITZ_SCP_JK_B, outsignals[1]);
+    qdev_connect_gpio_out(scp0, SPITZ_SCP_LED_GREEN, outsignals[2]);
+    qdev_connect_gpio_out(scp0, SPITZ_SCP_LED_ORANGE, outsignals[3]);
 
     if (scp1) {
-        scoop_gpio_out_set(scp1, SPITZ_SCP2_BACKLIGHT_CONT, outsignals[4]);
-        scoop_gpio_out_set(scp1, SPITZ_SCP2_BACKLIGHT_ON, outsignals[5]);
+        qdev_connect_gpio_out(scp1, SPITZ_SCP2_BACKLIGHT_CONT, outsignals[4]);
+        qdev_connect_gpio_out(scp1, SPITZ_SCP2_BACKLIGHT_ON, outsignals[5]);
     }
 
-    scoop_gpio_out_set(scp0, SPITZ_SCP_ADC_TEMP_ON, outsignals[6]);
+    qdev_connect_gpio_out(scp0, SPITZ_SCP_ADC_TEMP_ON, outsignals[6]);
 }
 
 #define SPITZ_GPIO_HSYNC		22
@@ -952,7 +953,7 @@ static void spitz_common_init(ram_addr_t ram_size,
                 const char *cpu_model, enum spitz_model_e model, int arm_id)
 {
     PXA2xxState *cpu;
-    ScoopInfo *scp0, *scp1 = NULL;
+    DeviceState *scp0, *scp1 = NULL;
 
     if (!cpu_model)
         cpu_model = (model == terrier) ? "pxa270-c5" : "pxa270-c0";
@@ -970,9 +971,9 @@ static void spitz_common_init(ram_addr_t ram_size,
 
     spitz_ssp_attach(cpu);
 
-    scp0 = scoop_init(cpu, 0, 0x10800000);
+    scp0 = sysbus_create_simple("scoop", 0x10800000, NULL);
     if (model != akita) {
-	    scp1 = scoop_init(cpu, 1, 0x08800040);
+        scp1 = sysbus_create_simple("scoop", 0x08800040, NULL);
     }
 
     spitz_scoop_gpio_setup(cpu, scp0, scp1);

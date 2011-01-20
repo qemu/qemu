@@ -20,6 +20,7 @@
 #include "i2c.h"
 #include "ssi.h"
 #include "blockdev.h"
+#include "sysbus.h"
 
 #define TOSA_RAM    0x04000000
 #define TOSA_ROM	0x00800000
@@ -86,14 +87,14 @@ static void tosa_out_switch(void *opaque, int line, int level)
 
 
 static void tosa_gpio_setup(PXA2xxState *cpu,
-                ScoopInfo *scp0,
-                ScoopInfo *scp1,
+                DeviceState *scp0,
+                DeviceState *scp1,
                 TC6393xbState *tmio)
 {
     qemu_irq *outsignals = qemu_allocate_irqs(tosa_out_switch, cpu, 4);
     /* MMC/SD host */
     pxa2xx_mmci_handlers(cpu->mmc,
-                    scoop_gpio_in_get(scp0)[TOSA_GPIO_SD_WP],
+                    qdev_get_gpio_in(scp0, TOSA_GPIO_SD_WP),
                     qemu_irq_invert(pxa2xx_gpio_in_get(cpu->gpio)[TOSA_GPIO_nSD_DETECT]));
 
     /* Handle reset */
@@ -108,12 +109,12 @@ static void tosa_gpio_setup(PXA2xxState *cpu,
                         pxa2xx_gpio_in_get(cpu->gpio)[TOSA_GPIO_JC_CF_IRQ],
                         NULL);
 
-    scoop_gpio_out_set(scp1, TOSA_GPIO_BT_LED, outsignals[0]);
-    scoop_gpio_out_set(scp1, TOSA_GPIO_NOTE_LED, outsignals[1]);
-    scoop_gpio_out_set(scp1, TOSA_GPIO_CHRG_ERR_LED, outsignals[2]);
-    scoop_gpio_out_set(scp1, TOSA_GPIO_WLAN_LED, outsignals[3]);
+    qdev_connect_gpio_out(scp1, TOSA_GPIO_BT_LED, outsignals[0]);
+    qdev_connect_gpio_out(scp1, TOSA_GPIO_NOTE_LED, outsignals[1]);
+    qdev_connect_gpio_out(scp1, TOSA_GPIO_CHRG_ERR_LED, outsignals[2]);
+    qdev_connect_gpio_out(scp1, TOSA_GPIO_WLAN_LED, outsignals[3]);
 
-    scoop_gpio_out_set(scp1, TOSA_GPIO_TC6393XB_L3V_ON, tc6393xb_l3v_get(tmio));
+    qdev_connect_gpio_out(scp1, TOSA_GPIO_TC6393XB_L3V_ON, tc6393xb_l3v_get(tmio));
 }
 
 static uint32_t tosa_ssp_tansfer(SSISlave *dev, uint32_t value)
@@ -208,7 +209,7 @@ static void tosa_init(ram_addr_t ram_size,
 {
     PXA2xxState *cpu;
     TC6393xbState *tmio;
-    ScoopInfo *scp0, *scp1;
+    DeviceState *scp0, *scp1;
 
     if (!cpu_model)
         cpu_model = "pxa255";
@@ -221,8 +222,8 @@ static void tosa_init(ram_addr_t ram_size,
     tmio = tc6393xb_init(0x10000000,
             pxa2xx_gpio_in_get(cpu->gpio)[TOSA_GPIO_TC6393XB_INT]);
 
-    scp0 = scoop_init(cpu, 0, 0x08800000);
-    scp1 = scoop_init(cpu, 1, 0x14800040);
+    scp0 = sysbus_create_simple("scoop", 0x08800000, NULL);
+    scp1 = sysbus_create_simple("scoop", 0x14800040, NULL);
 
     tosa_gpio_setup(cpu, scp0, scp1, tmio);
 
