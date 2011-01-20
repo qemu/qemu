@@ -2266,7 +2266,7 @@ fi
 ##########################################
 # check if trace backend exists
 
-sh "$source_path/tracetool" "--$trace_backend" --check-backend > /dev/null 2> /dev/null
+sh "$source_path/scripts/tracetool" "--$trace_backend" --check-backend > /dev/null 2> /dev/null
 if test "$?" -ne 0 ; then
   echo
   echo "Error: invalid trace backend"

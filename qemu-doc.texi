@@ -2132,7 +2132,7 @@ Then you can launch the precompiled @file{ls} x86 executable:
 @example
 qemu-i386 tests/i386/ls
 @end example
-You can look at @file{qemu-binfmt-conf.sh} so that
+You can look at @file{scripts/qemu-binfmt-conf.sh} so that
 QEMU is automatically launched by the Linux kernel when you try to
 launch x86 executables. It requires the @code{binfmt_misc} module in the
 Linux kernel.

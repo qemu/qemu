@@ -57,7 +57,7 @@ find-in-path = $(if $(find-string /, $1), \
 	@test -f $@ || cp $< $@
 
 %.h-timestamp: %.mak
-	$(call quiet-command, sh $(SRC_PATH)/create_config < $< > $@, "  GEN   $*.h")
+	$(call quiet-command, sh $(SRC_PATH)/scripts/create_config < $< > $@, "  GEN   $*.h")
 	@cmp $@ $*.h >/dev/null 2>&1 || cp $@ $*.h
 
 # will delete the target of a rule if commands exit with a nonzero exit status
