@@ -88,6 +88,10 @@ int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
         return -1;
     }
 
+    if (qemu_savevm_state_blocked(mon)) {
+        return -1;
+    }
+
     if (strstart(uri, "tcp:", &p)) {
         s = tcp_start_outgoing_migration(mon, p, max_throttle, detach,
                                          blk, inc);

@@ -255,7 +255,6 @@ void msi_write_config(PCIDevice *dev, uint32_t addr, uint32_t val, int len)
     uint8_t log_max_vecs;
     unsigned int vector;
     uint32_t pending;
-    int i;
 
     if (!ranges_overlap(addr, len, dev->msi_cap, msi_cap_sizeof(flags))) {
         return;
@@ -296,9 +295,7 @@ void msi_write_config(PCIDevice *dev, uint32_t addr, uint32_t val, int len)
      *   from using its INTx# pin (if implemented) to request
      *   service (MSI, MSI-X, and INTx# are mutually exclusive).
      */
-    for (i = 0; i < PCI_NUM_PINS; ++i) {
-        qemu_set_irq(dev->irq[i], 0);
-    }
+    pci_device_deassert_intx(dev);
 
     /*
      * nr_vectors might be set bigger than capable. So clamp it.

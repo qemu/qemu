@@ -159,7 +159,6 @@ void msix_write_config(PCIDevice *dev, uint32_t addr,
 {
     unsigned enable_pos = dev->msix_cap + MSIX_CONTROL_OFFSET;
     int vector;
-    int i;
 
     if (!range_covers_byte(addr, len, enable_pos)) {
         return;
@@ -169,9 +168,7 @@ void msix_write_config(PCIDevice *dev, uint32_t addr,
         return;
     }
 
-    for (i = 0; i < PCI_NUM_PINS; ++i) {
-        qemu_set_irq(dev->irq[i], 0);
-    }
+    pci_device_deassert_intx(dev);
 
     if (msix_function_masked(dev)) {
         return;

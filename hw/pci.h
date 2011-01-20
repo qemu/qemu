@@ -264,6 +264,8 @@ void do_pci_info_print(Monitor *mon, const QObject *data);
 void do_pci_info(Monitor *mon, QObject **ret_data);
 void pci_bridge_update_mappings(PCIBus *b);
 
+void pci_device_deassert_intx(PCIDevice *dev);
+
 static inline void
 pci_set_byte(uint8_t *config, uint8_t val)
 {
