@@ -70,7 +70,7 @@ static uint32_t scoop_readb(void *opaque, target_phys_addr_t addr)
 {
     ScoopInfo *s = (ScoopInfo *) opaque;
 
-    switch (addr) {
+    switch (addr & 0x3f) {
     case SCOOP_MCR:
         return s->mcr;
     case SCOOP_CDR:
@@ -104,7 +104,7 @@ static void scoop_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
     ScoopInfo *s = (ScoopInfo *) opaque;
     value &= 0xffff;
 
-    switch (addr) {
+    switch (addr & 0x3f) {
     case SCOOP_MCR:
         s->mcr = value;
         break;

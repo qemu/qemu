@@ -52,6 +52,43 @@ typedef struct {
     qemu_irq irq;
 } pl080_state;
 
+static const VMStateDescription vmstate_pl080_channel = {
+    .name = "pl080_channel",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(src, pl080_channel),
+        VMSTATE_UINT32(dest, pl080_channel),
+        VMSTATE_UINT32(lli, pl080_channel),
+        VMSTATE_UINT32(ctrl, pl080_channel),
+        VMSTATE_UINT32(conf, pl080_channel),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_pl080 = {
+    .name = "pl080",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(tc_int, pl080_state),
+        VMSTATE_UINT8(tc_mask, pl080_state),
+        VMSTATE_UINT8(err_int, pl080_state),
+        VMSTATE_UINT8(err_mask, pl080_state),
+        VMSTATE_UINT32(conf, pl080_state),
+        VMSTATE_UINT32(sync, pl080_state),
+        VMSTATE_UINT32(req_single, pl080_state),
+        VMSTATE_UINT32(req_burst, pl080_state),
+        VMSTATE_UINT8(tc_int, pl080_state),
+        VMSTATE_UINT8(tc_int, pl080_state),
+        VMSTATE_UINT8(tc_int, pl080_state),
+        VMSTATE_STRUCT_ARRAY(chan, pl080_state, PL080_MAX_CHANNELS,
+                             1, vmstate_pl080_channel, pl080_channel),
+        VMSTATE_INT32(running, pl080_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const unsigned char pl080_id[] =
 { 0x80, 0x10, 0x04, 0x0a, 0x0d, 0xf0, 0x05, 0xb1 };
 
@@ -330,7 +367,6 @@ static int pl08x_init(SysBusDevice *dev, int nchannels)
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     sysbus_init_irq(dev, &s->irq);
     s->nchannels = nchannels;
-    /* ??? Save/restore.  */
     return 0;
 }
 
@@ -344,12 +380,28 @@ static int pl081_init(SysBusDevice *dev)
     return pl08x_init(dev, 2);
 }
 
+static SysBusDeviceInfo pl080_info = {
+    .init = pl080_init,
+    .qdev.name = "pl080",
+    .qdev.size = sizeof(pl080_state),
+    .qdev.vmsd = &vmstate_pl080,
+    .qdev.no_user = 1,
+};
+
+static SysBusDeviceInfo pl081_info = {
+    .init = pl081_init,
+    .qdev.name = "pl081",
+    .qdev.size = sizeof(pl080_state),
+    .qdev.vmsd = &vmstate_pl080,
+    .qdev.no_user = 1,
+};
+
 /* The PL080 and PL081 are the same except for the number of channels
    they implement (8 and 2 respectively).  */
 static void pl080_register_devices(void)
 {
-    sysbus_register_dev("pl080", sizeof(pl080_state), pl080_init);
-    sysbus_register_dev("pl081", sizeof(pl080_state), pl081_init);
+    sysbus_register_withprop(&pl080_info);
+    sysbus_register_withprop(&pl081_info);
 }
 
 device_init(pl080_register_devices)

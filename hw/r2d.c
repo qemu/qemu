@@ -23,13 +23,13 @@
  * THE SOFTWARE.
  */
 
+#include "sysbus.h"
 #include "hw.h"
 #include "sh.h"
 #include "devices.h"
 #include "sysemu.h"
 #include "boards.h"
 #include "pci.h"
-#include "sh_pci.h"
 #include "net.h"
 #include "sh7750_regs.h"
 #include "ide.h"
@@ -195,19 +195,6 @@ static qemu_irq *r2d_fpga_init(target_phys_addr_t base, qemu_irq irl)
     return qemu_allocate_irqs(r2d_fpga_irq_set, s, NR_IRQS);
 }
 
-static void r2d_pci_set_irq(void *opaque, int n, int l)
-{
-    qemu_irq *p = opaque;
-
-    qemu_set_irq(p[n], l);
-}
-
-static int r2d_pci_map_irq(PCIDevice *d, int irq_num)
-{
-    const int intx[] = { PCI_INTA, PCI_INTB, PCI_INTC, PCI_INTD };
-    return intx[d->devfn >> 3];
-}
-
 typedef struct ResetData {
     CPUState *env;
     uint32_t vector;
@@ -268,7 +255,8 @@ static void r2d_init(ram_addr_t ram_size,
     /* Register peripherals */
     s = sh7750_init(env);
     irq = r2d_fpga_init(0x04000000, sh7750_irl(s));
-    sh_pci_register_bus(r2d_pci_set_irq, r2d_pci_map_irq, irq, 0, 4);
+    sysbus_create_varargs("sh_pci", 0x1e200000, irq[PCI_INTA], irq[PCI_INTB],
+                          irq[PCI_INTC], irq[PCI_INTD], NULL);
 
     sm501_init(0x10000000, SM501_VRAM_SIZE, irq[SM501], serial_hds[2]);
 

@@ -468,7 +468,8 @@ static float64 propagateFloat64NaN( float64 a, float64 b STATUS_PARAM)
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the extended double-precision floating-point value `a' is a
-| quiet NaN; otherwise returns 0.
+| quiet NaN; otherwise returns 0. This slightly differs from the same
+| function for other types as floatx80 has an explicit bit.
 *----------------------------------------------------------------------------*/
 
 int floatx80_is_quiet_nan( floatx80 a )
@@ -482,19 +483,22 @@ int floatx80_is_quiet_nan( floatx80 a )
         && (bits64) ( aLow<<1 )
         && ( a.low == aLow );
 #else
-    return ( ( a.high & 0x7FFF ) == 0x7FFF ) && (bits64) ( a.low<<1 );
+    return ( ( a.high & 0x7FFF ) == 0x7FFF )
+        && (LIT64( 0x8000000000000000 ) <= ((bits64) ( a.low<<1 )));
 #endif
 }
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the extended double-precision floating-point value `a' is a
-| signaling NaN; otherwise returns 0.
+| signaling NaN; otherwise returns 0. This slightly differs from the same
+| function for other types as floatx80 has an explicit bit.
 *----------------------------------------------------------------------------*/
 
 int floatx80_is_signaling_nan( floatx80 a )
 {
 #if SNAN_BIT_IS_ONE
-    return ( ( a.high & 0x7FFF ) == 0x7FFF ) && (bits64) ( a.low<<1 );
+    return ( ( a.high & 0x7FFF ) == 0x7FFF )
+        && (LIT64( 0x8000000000000000 ) <= ((bits64) ( a.low<<1 )));
 #else
     bits64 aLow;
 

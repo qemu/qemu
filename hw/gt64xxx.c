@@ -239,7 +239,7 @@
     int regname ##_handle
 
 typedef struct GT64120State {
-    //~ SysBusDevice busdev;
+    SysBusDevice busdev;
     PCIHostState pci;
     uint32_t regs[GT_REGS];
     PCI_MAPPING_ENTRY(PCI0IO);
@@ -876,7 +876,7 @@ static CPUReadMemoryFunc * const gt64120_read[] = {
     &gt64120_readl,
 };
 
-static int pci_gt64120_map_irq(PCIDevice *pci_dev, int irq_num)
+static int gt64120_pci_map_irq(PCIDevice *pci_dev, int irq_num)
 {
     int slot;
 
@@ -903,7 +903,7 @@ static int pci_gt64120_map_irq(PCIDevice *pci_dev, int irq_num)
 
 static int pci_irq_levels[4];
 
-static void pci_gt64120_set_irq(void *opaque, int irq_num, int level)
+static void gt64120_pci_set_irq(void *opaque, int irq_num, int level)
 {
     int i, pic_irq, pic_level;
     qemu_irq *pic = opaque;
@@ -1111,107 +1111,76 @@ static int gt64120_load(QEMUFile* f, void *opaque, int version_id)
     return 0;
 }
 
-static void gt64120_io_map(PCIDevice * pci_dev, int region_num,
-                           pcibus_t addr, pcibus_t size, int type)
+PCIBus *gt64120_register(qemu_irq *pic)
 {
-    logout("region %d, addr 0x%08" FMT_PCIBUS ", size 0x%08" FMT_PCIBUS "\n",
-           region_num, addr, size);
+    SysBusDevice *s;
+    GT64120State *d;
+    DeviceState *dev;
+
+    dev = qdev_create(NULL, "gt64120");
+    qdev_init_nofail(dev);
+    s = sysbus_from_qdev(dev);
+    d = FROM_SYSBUS(GT64120State, s);
+    d->pci.bus = pci_register_bus(&d->busdev.qdev, "pci",
+                                  gt64120_pci_set_irq, gt64120_pci_map_irq,
+                                  pic, PCI_DEVFN(18, 0), 4);
+    d->ISD_handle = cpu_register_io_memory(gt64120_read, gt64120_write, d,
+                                           DEVICE_NATIVE_ENDIAN);
+
+    pci_create_simple(d->pci.bus, PCI_DEVFN(0, 0), "gt64120_pci");
+    return d->pci.bus;
 }
 
-static void gt64120_mem_map(PCIDevice * pci_dev, int region_num,
-                            pcibus_t addr, pcibus_t size, int type)
-{
-    //~ dp8381x_t *s = DO_UPCAST(dp8381x_t, dev, pci_dev);
-    logout("region %d, addr 0x%08" FMT_PCIBUS ", size 0x%08" FMT_PCIBUS "\n",
-           region_num, addr, size);
-}
-
-PCIBus *pci_gt64120_init(qemu_irq *pic)
+static int gt64120_init(SysBusDevice *dev)
 {
     GT64120State *s;
-    PCIDevice *d;
 
-    s = qemu_mallocz(sizeof(GT64120State));
+    s = FROM_SYSBUS(GT64120State, dev);
 
-    s->pci.bus = pci_register_bus(NULL, "pci",
-                                  pci_gt64120_set_irq, pci_gt64120_map_irq,
-                                  pic, PCI_DEVFN(18, 0), 4);
-    s->ISD_handle = cpu_register_io_memory(gt64120_read, gt64120_write, s,
-                                           DEVICE_NATIVE_ENDIAN);
-    d = pci_register_device(s->pci.bus, "GT64120 PCI Bus", sizeof(PCIDevice),
-                            0, NULL, NULL);
+    qemu_register_reset(gt64120_reset, s);
+    register_savevm(&dev->qdev, "GT64120 PCI Bus", 0, 1,
+                    gt64120_save, gt64120_load, &s->pci);
+    return 0;
+}
 
-    pci_register_bar(d, 0, (8 + 8) * MiB,
-                     PCI_BASE_ADDRESS_SPACE_MEMORY |
-                     PCI_BASE_ADDRESS_MEM_PREFETCH, gt64120_mem_map);
-    pci_register_bar(d, 1, (8 + 8) * MiB,
-                     PCI_BASE_ADDRESS_SPACE_MEMORY |
-                     PCI_BASE_ADDRESS_MEM_PREFETCH, gt64120_mem_map);
-    pci_register_bar(d, 2, (8 + 8 + 16) * MiB,
-                     PCI_BASE_ADDRESS_SPACE_MEMORY, gt64120_mem_map);
-    pci_register_bar(d, 3, (12 + 4) * MiB,
-                     PCI_BASE_ADDRESS_SPACE_MEMORY, gt64120_mem_map);
-    pci_register_bar(d, 4, 32 * MiB,
-                     PCI_BASE_ADDRESS_SPACE_MEMORY, gt64120_mem_map);
-    pci_register_bar(d, 5, 32 * MiB, PCI_BASE_ADDRESS_SPACE_IO,
-                     gt64120_io_map);
-
+static int gt64120_pci_init(PCIDevice *d)
+{
     /* FIXME: Malta specific hw assumptions ahead */
-
     pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_MARVELL);
     pci_config_set_device_id(d->config, PCI_DEVICE_ID_MARVELL_GT6412X);
-
-    //~ pci_set_word(d->config + PCI_COMMAND, 0x00);
+    //~ pci_set_word(d->config + PCI_COMMAND, 0);
     pci_set_word(d->config + PCI_STATUS,
-                 PCI_STATUS_DEVSEL_MEDIUM | PCI_STATUS_FAST_BACK);
-
+                 PCI_STATUS_FAST_BACK | PCI_STATUS_DEVSEL_MEDIUM);
     pci_config_set_revision(d->config, 0x10);
+    pci_config_set_prog_interface(d->config, 0);
     pci_config_set_class(d->config, PCI_CLASS_BRIDGE_HOST);
-
-#if 0
-    /* SCS [1:0] bar */
-    pci_set_long(d->config + PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_MEM_PREFETCH + 0x00000000);
-    /* SCS [3:2] bar */
-    pci_set_long(d->config + PCI_BASE_ADDRESS_1, PCI_BASE_ADDRESS_MEM_PREFETCH + 0x01000000);
-    /* CS [2:0] bar */
+    pci_set_long(d->config + PCI_BASE_ADDRESS_0, 0x00000008);
+    pci_set_long(d->config + PCI_BASE_ADDRESS_1, 0x01000008);
     pci_set_long(d->config + PCI_BASE_ADDRESS_2, 0x1c000000);
-    /* CS [3] and BootCS bar */
     pci_set_long(d->config + PCI_BASE_ADDRESS_3, 0x1f000000);
-    /* Memory mapped internal bar */
     pci_set_long(d->config + PCI_BASE_ADDRESS_4, 0x14000000);
-    /* I/O mapped internal bar */
-    pci_set_long(d->config + PCI_BASE_ADDRESS_5, PCI_BASE_ADDRESS_SPACE_IO + 0x14000000);
-#endif
+    pci_set_long(d->config + PCI_BASE_ADDRESS_5, 0x14000001);
+    pci_set_byte(d->config + 0x3d, 0x01);
 
-    pci_set_byte(d->config + PCI_INTERRUPT_PIN, 0x01);
+    //~ pci_set_byte(d->config + PCI_INTERRUPT_PIN, 0x01);
 
-    gt64120_reset(s);
-
-    register_savevm(&d->qdev, "GT64120 PCI Bus", 0, 1,
-                    gt64120_save, gt64120_load, d);
-
-    return s->pci.bus;
+    //~ gt64120_reset(s);
+    return 0;
 }
 
-#if 0
-int gt64120_init(PCIBus *bus, int devfn)
-{
-    PCIDevice *d = pci_create_simple(bus, devfn, "GT64120");
-    return d->devfn;
-}
-#endif
-
-static PCIDeviceInfo gt64120_info = {
-    .qdev.name    = "GT64120",
-    .qdev.desc    = "System controller",
-    .qdev.size    = sizeof(GT64120State),
+static PCIDeviceInfo gt64120_pci_info = {
+    .qdev.name = "gt64120_pci",
+    .qdev.desc = "System controller",
+    .qdev.size = sizeof(PCIDevice),
     .qdev.no_user = 1,
-    //~ .init         = gt64120_initfn,
+    .init      = gt64120_pci_init,
 };
 
-static void gt64120_register(void)
+static void gt64120_pci_register_devices(void)
 {
-    pci_qdev_register(&gt64120_info);
+    sysbus_register_dev("gt64120", sizeof(GT64120State),
+                        gt64120_init);
+    pci_qdev_register(&gt64120_pci_info);
 }
 
-device_init(gt64120_register);
+device_init(gt64120_pci_register_devices)

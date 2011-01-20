@@ -460,15 +460,18 @@ static void usb_keyboard_event(void *opaque, int keycode)
     case 0xe0:
         if (s->modifiers & (1 << 9)) {
             s->modifiers ^= 3 << 8;
+            usb_hid_changed(hs);
             return;
         }
     case 0xe1 ... 0xe7:
         if (keycode & (1 << 7)) {
             s->modifiers &= ~(1 << (hid_code & 0x0f));
+            usb_hid_changed(hs);
             return;
         }
     case 0xe8 ... 0xef:
         s->modifiers |= 1 << (hid_code & 0x0f);
+        usb_hid_changed(hs);
         return;
     }
 

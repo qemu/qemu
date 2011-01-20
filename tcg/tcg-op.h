@@ -254,6 +254,30 @@ static inline void tcg_gen_op5i_i64(TCGOpcode opc, TCGv_i64 arg1, TCGv_i64 arg2,
     *gen_opparam_ptr++ = arg5;
 }
 
+static inline void tcg_gen_op5ii_i32(TCGOpcode opc, TCGv_i32 arg1,
+                                     TCGv_i32 arg2, TCGv_i32 arg3,
+                                     TCGArg arg4, TCGArg arg5)
+{
+    *gen_opc_ptr++ = opc;
+    *gen_opparam_ptr++ = GET_TCGV_I32(arg1);
+    *gen_opparam_ptr++ = GET_TCGV_I32(arg2);
+    *gen_opparam_ptr++ = GET_TCGV_I32(arg3);
+    *gen_opparam_ptr++ = arg4;
+    *gen_opparam_ptr++ = arg5;
+}
+
+static inline void tcg_gen_op5ii_i64(TCGOpcode opc, TCGv_i64 arg1,
+                                     TCGv_i64 arg2, TCGv_i64 arg3,
+                                     TCGArg arg4, TCGArg arg5)
+{
+    *gen_opc_ptr++ = opc;
+    *gen_opparam_ptr++ = GET_TCGV_I64(arg1);
+    *gen_opparam_ptr++ = GET_TCGV_I64(arg2);
+    *gen_opparam_ptr++ = GET_TCGV_I64(arg3);
+    *gen_opparam_ptr++ = arg4;
+    *gen_opparam_ptr++ = arg5;
+}
+
 static inline void tcg_gen_op6_i32(TCGOpcode opc, TCGv_i32 arg1, TCGv_i32 arg2,
                                    TCGv_i32 arg3, TCGv_i32 arg4, TCGv_i32 arg5,
                                    TCGv_i32 arg6)
@@ -2071,6 +2095,44 @@ static inline void tcg_gen_rotri_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
     }
 }
 
+static inline void tcg_gen_deposit_i32(TCGv_i32 ret, TCGv_i32 arg1,
+				       TCGv_i32 arg2, unsigned int ofs,
+				       unsigned int len)
+{
+#ifdef TCG_TARGET_HAS_deposit_i32
+  tcg_gen_op5ii_i32(INDEX_op_deposit_i32, ret, arg1, arg2, ofs, len);
+#else
+  uint32_t mask = (1u << len) - 1;
+  TCGv_i32 t1 = tcg_temp_new_i32 ();
+
+  tcg_gen_andi_i32(t1, arg2, mask);
+  tcg_gen_shli_i32(t1, t1, ofs);
+  tcg_gen_andi_i32(ret, arg1, ~(mask << ofs));
+  tcg_gen_or_i32(ret, ret, t1);
+
+  tcg_temp_free_i32(t1);
+#endif
+}
+
+static inline void tcg_gen_deposit_i64(TCGv_i64 ret, TCGv_i64 arg1,
+				       TCGv_i64 arg2, unsigned int ofs,
+				       unsigned int len)
+{
+#ifdef TCG_TARGET_HAS_deposit_i64
+  tcg_gen_op5ii_i64(INDEX_op_deposit_i64, ret, arg1, arg2, ofs, len);
+#else
+  uint64_t mask = (1ull << len) - 1;
+  TCGv_i64 t1 = tcg_temp_new_i64 ();
+
+  tcg_gen_andi_i64(t1, arg2, mask);
+  tcg_gen_shli_i64(t1, t1, ofs);
+  tcg_gen_andi_i64(ret, arg1, ~(mask << ofs));
+  tcg_gen_or_i64(ret, ret, t1);
+
+  tcg_temp_free_i64(t1);
+#endif
+}
+
 /***************************************/
 /* QEMU specific operations. Their type depend on the QEMU CPU
    type. */
@@ -2384,6 +2446,7 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #define tcg_gen_rotli_tl tcg_gen_rotli_i64
 #define tcg_gen_rotr_tl tcg_gen_rotr_i64
 #define tcg_gen_rotri_tl tcg_gen_rotri_i64
+#define tcg_gen_deposit_tl tcg_gen_deposit_i64
 #define tcg_const_tl tcg_const_i64
 #define tcg_const_local_tl tcg_const_local_i64
 #else
@@ -2454,6 +2517,7 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #define tcg_gen_rotli_tl tcg_gen_rotli_i32
 #define tcg_gen_rotr_tl tcg_gen_rotr_i32
 #define tcg_gen_rotri_tl tcg_gen_rotri_i32
+#define tcg_gen_deposit_tl tcg_gen_deposit_i32
 #define tcg_const_tl tcg_const_i32
 #define tcg_const_local_tl tcg_const_local_i32
 #endif
