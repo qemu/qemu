@@ -2058,7 +2058,7 @@ static char *pcibus_get_dev_path(DeviceState *dev)
     path_len = domain_len + slot_len * slot_depth;
 
     /* Allocate memory, fill in the terminating null byte. */
-    path = malloc(path_len + 1 /* For '\0' */);
+    path = qemu_malloc(path_len + 1 /* For '\0' */);
     path[path_len] = '\0';
 
     /* First field is the domain. */
