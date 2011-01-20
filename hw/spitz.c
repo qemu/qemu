@@ -527,8 +527,8 @@ static void spitz_keyboard_register(PXA2xxState *cpu)
 
 typedef struct {
     SSISlave ssidev;
-    int bl_intensity;
-    int bl_power;
+    uint32_t bl_intensity;
+    uint32_t bl_power;
 } SpitzLCDTG;
 
 static void spitz_bl_update(SpitzLCDTG *s)
@@ -592,21 +592,6 @@ static uint32_t spitz_lcdtg_transfer(SSISlave *dev, uint32_t value)
     return 0;
 }
 
-static void spitz_lcdtg_save(QEMUFile *f, void *opaque)
-{
-    SpitzLCDTG *s = (SpitzLCDTG *)opaque;
-    qemu_put_be32(f, s->bl_intensity);
-    qemu_put_be32(f, s->bl_power);
-}
-
-static int spitz_lcdtg_load(QEMUFile *f, void *opaque, int version_id)
-{
-    SpitzLCDTG *s = (SpitzLCDTG *)opaque;
-    s->bl_intensity = qemu_get_be32(f);
-    s->bl_power = qemu_get_be32(f);
-    return 0;
-}
-
 static int spitz_lcdtg_init(SSISlave *dev)
 {
     SpitzLCDTG *s = FROM_SSI_SLAVE(SpitzLCDTG, dev);
@@ -615,8 +600,6 @@ static int spitz_lcdtg_init(SSISlave *dev)
     s->bl_power = 0;
     s->bl_intensity = 0x20;
 
-    register_savevm(&dev->qdev, "spitz-lcdtg", -1, 1,
-                    spitz_lcdtg_save, spitz_lcdtg_load, s);
     return 0;
 }
 
@@ -635,7 +618,7 @@ static DeviceState *max1111;
 typedef struct {
     SSISlave ssidev;
     SSIBus *bus[3];
-    int enable[3];
+    uint32_t enable[3];
 } CorgiSSPState;
 
 static uint32_t corgi_ssp_transfer(SSISlave *dev, uint32_t value)
@@ -677,30 +660,6 @@ static void spitz_adc_temp_on(void *opaque, int line, int level)
         max111x_set_input(max1111, MAX1111_BATT_TEMP, 0);
 }
 
-static void spitz_ssp_save(QEMUFile *f, void *opaque)
-{
-    CorgiSSPState *s = (CorgiSSPState *)opaque;
-    int i;
-
-    for (i = 0; i < 3; i++) {
-        qemu_put_be32(f, s->enable[i]);
-    }
-}
-
-static int spitz_ssp_load(QEMUFile *f, void *opaque, int version_id)
-{
-    CorgiSSPState *s = (CorgiSSPState *)opaque;
-    int i;
-
-    if (version_id != 1) {
-        return -EINVAL;
-    }
-    for (i = 0; i < 3; i++) {
-        s->enable[i] = qemu_get_be32(f);
-    }
-    return 0;
-}
-
 static int corgi_ssp_init(SSISlave *dev)
 {
     CorgiSSPState *s = FROM_SSI_SLAVE(CorgiSSPState, dev);
@@ -710,8 +669,6 @@ static int corgi_ssp_init(SSISlave *dev)
     s->bus[1] = ssi_create_bus(&dev->qdev, "ssi1");
     s->bus[2] = ssi_create_bus(&dev->qdev, "ssi2");
 
-    register_savevm(&dev->qdev, "spitz_ssp", -1, 1,
-                    spitz_ssp_save, spitz_ssp_load, s);
     return 0;
 }
 
@@ -1070,16 +1027,41 @@ static void spitz_machine_init(void)
 
 machine_init(spitz_machine_init);
 
+static const VMStateDescription vmstate_corgi_ssp_regs = {
+    .name = "corgi-ssp",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField []) {
+        VMSTATE_UINT32_ARRAY(enable, CorgiSSPState, 3),
+        VMSTATE_END_OF_LIST(),
+    }
+};
+
 static SSISlaveInfo corgi_ssp_info = {
     .qdev.name = "corgi-ssp",
     .qdev.size = sizeof(CorgiSSPState),
+    .qdev.vmsd = &vmstate_corgi_ssp_regs,
     .init = corgi_ssp_init,
     .transfer = corgi_ssp_transfer
+};
+
+static const VMStateDescription vmstate_spitz_lcdtg_regs = {
+    .name = "spitz-lcdtg",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField []) {
+        VMSTATE_UINT32(bl_intensity, SpitzLCDTG),
+        VMSTATE_UINT32(bl_power, SpitzLCDTG),
+        VMSTATE_END_OF_LIST(),
+    }
 };
 
 static SSISlaveInfo spitz_lcdtg_info = {
     .qdev.name = "spitz-lcdtg",
     .qdev.size = sizeof(SpitzLCDTG),
+    .qdev.vmsd = &vmstate_spitz_lcdtg_regs,
     .init = spitz_lcdtg_init,
     .transfer = spitz_lcdtg_transfer
 };
