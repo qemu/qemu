@@ -1125,6 +1125,11 @@ static int gt64120_init(SysBusDevice *dev)
 
     s = FROM_SYSBUS(GT64120State, dev);
 
+    /* FIXME: This value is computed from registers during reset, but some
+       devices (e.g. VGA card) need to know it when they are registered.
+       This also mean that changing the register to change the mapping
+       does not fully work. */
+    isa_mem_base = 0x10000000;
     qemu_register_reset(gt64120_reset, s);
     register_savevm(&dev->qdev, "GT64120 PCI Bus", 0, 1,
                     gt64120_save, gt64120_load, &s->pci);
