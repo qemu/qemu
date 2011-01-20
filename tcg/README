@@ -285,10 +285,10 @@ the four high order bytes are set to zero.
 Indicate that the value of t0 won't be used later. It is useful to
 force dead code elimination.
 
-* deposit_i32/i64 dest, t1, t2, pos, loc
+* deposit_i32/i64 dest, t1, t2, pos, len
 
 Deposit T2 as a bitfield into T1, placing the result in DEST.
-The bitfield is described by POS/LOC, which are immediate values:
+The bitfield is described by POS/LEN, which are immediate values:
 
   LEN - the length of the bitfield
   POS - the position of the first bit, counting from the LSB
