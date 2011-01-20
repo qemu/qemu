@@ -21,7 +21,6 @@ typedef struct {
     uint32_t soft_level;
     uint32_t irq_enable;
     uint32_t fiq_select;
-    uint32_t default_addr;
     uint8_t vect_control[16];
     uint32_t vect_addr[PL190_NUM_PRIO];
     /* Mask containing interrupts with higher priority than this one.  */
@@ -186,7 +185,7 @@ static void pl190_write(void *opaque, target_phys_addr_t offset, uint32_t val)
             s->priority = s->prev_prio[s->priority];
         break;
     case 13: /* DEFVECTADDR */
-        s->default_addr = val;
+        s->vect_addr[16] = val;
         break;
     case 0xc0: /* ITCR */
         if (val) {
@@ -252,7 +251,6 @@ static const VMStateDescription vmstate_pl190 = {
         VMSTATE_UINT32(soft_level, pl190_state),
         VMSTATE_UINT32(irq_enable, pl190_state),
         VMSTATE_UINT32(fiq_select, pl190_state),
-        VMSTATE_UINT32(default_addr, pl190_state),
         VMSTATE_UINT8_ARRAY(vect_control, pl190_state, 16),
         VMSTATE_UINT32_ARRAY(vect_addr, pl190_state, PL190_NUM_PRIO),
         VMSTATE_UINT32_ARRAY(prio_mask, pl190_state, PL190_NUM_PRIO+1),
