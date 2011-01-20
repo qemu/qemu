@@ -137,6 +137,14 @@ static void pci_update_irq_status(PCIDevice *dev)
     }
 }
 
+void pci_device_deassert_intx(PCIDevice *dev)
+{
+    int i;
+    for (i = 0; i < PCI_NUM_PINS; ++i) {
+        qemu_set_irq(dev->irq[i], 0);
+    }
+}
+
 /*
  * This function is called on #RST and FLR.
  * FLR if PCI_EXP_DEVCTL_BCR_FLR is set
@@ -152,6 +160,7 @@ void pci_device_reset(PCIDevice *dev)
 
     dev->irq_state = 0;
     pci_update_irq_status(dev);
+    pci_device_deassert_intx(dev);
     /* Clear all writeable bits */
     pci_word_test_and_clear_mask(dev->config + PCI_COMMAND,
                                  pci_get_word(dev->wmask + PCI_COMMAND) |
