@@ -1274,8 +1274,8 @@ static void sm501_draw_crt(SM501State * s)
     draw_hwc_line_func * draw_hwc_line = NULL;
     int full_update = 0;
     int y_start = -1;
-    int page_min = 0x7fffffff;
-    int page_max = -1;
+    ram_addr_t page_min = ~0l;
+    ram_addr_t page_max = 0l;
     ram_addr_t offset = s->local_mem_offset;
 
     /* choose draw_line function */
@@ -1371,9 +1371,10 @@ static void sm501_draw_crt(SM501State * s)
 	dpy_update(s->ds, 0, y_start, width, y - y_start);
 
     /* clear dirty flags */
-    if (page_max != -1)
+    if (page_min != ~0l) {
 	cpu_physical_memory_reset_dirty(page_min, page_max + TARGET_PAGE_SIZE,
 					VGA_DIRTY_FLAG);
+    }
 }
 
 static void sm501_update_display(void *opaque)
