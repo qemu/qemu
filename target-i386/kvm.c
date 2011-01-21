@@ -321,8 +321,6 @@ int kvm_arch_init_vcpu(CPUState *env)
     uint32_t signature[3];
 #endif
 
-    env->mp_state = KVM_MP_STATE_RUNNABLE;
-
     env->cpuid_features &= kvm_arch_get_supported_cpuid(env, 1, 0, R_EDX);
 
     i = env->cpuid_ext_features & CPUID_EXT_HYPERVISOR;
