@@ -261,10 +261,10 @@ QEMUFile *qemu_popen(FILE *stdio_file, const char *mode)
     s->stdio_file = stdio_file;
 
     if(mode[0] == 'r') {
-        s->file = qemu_fopen_ops(s, NULL, stdio_get_buffer, stdio_pclose, 
+        s->file = qemu_fopen_ops(s, NULL, stdio_get_buffer, stdio_pclose,
 				 NULL, NULL, NULL);
     } else {
-        s->file = qemu_fopen_ops(s, stdio_put_buffer, NULL, stdio_pclose, 
+        s->file = qemu_fopen_ops(s, stdio_put_buffer, NULL, stdio_pclose,
 				 NULL, NULL, NULL);
     }
     return s->file;
@@ -310,10 +310,10 @@ QEMUFile *qemu_fdopen(int fd, const char *mode)
         goto fail;
 
     if(mode[0] == 'r') {
-        s->file = qemu_fopen_ops(s, NULL, stdio_get_buffer, stdio_fclose, 
+        s->file = qemu_fopen_ops(s, NULL, stdio_get_buffer, stdio_fclose,
 				 NULL, NULL, NULL);
     } else {
-        s->file = qemu_fopen_ops(s, stdio_put_buffer, NULL, stdio_fclose, 
+        s->file = qemu_fopen_ops(s, stdio_put_buffer, NULL, stdio_fclose,
 				 NULL, NULL, NULL);
     }
     return s->file;
@@ -328,7 +328,7 @@ QEMUFile *qemu_fopen_socket(int fd)
     QEMUFileSocket *s = qemu_mallocz(sizeof(QEMUFileSocket));
 
     s->fd = fd;
-    s->file = qemu_fopen_ops(s, NULL, socket_get_buffer, socket_close, 
+    s->file = qemu_fopen_ops(s, NULL, socket_get_buffer, socket_close,
 			     NULL, NULL, NULL);
     return s->file;
 }
@@ -364,12 +364,12 @@ QEMUFile *qemu_fopen(const char *filename, const char *mode)
     s->stdio_file = fopen(filename, mode);
     if (!s->stdio_file)
         goto fail;
-    
+
     if(mode[0] == 'w') {
-        s->file = qemu_fopen_ops(s, file_put_buffer, NULL, stdio_fclose, 
+        s->file = qemu_fopen_ops(s, file_put_buffer, NULL, stdio_fclose,
 				 NULL, NULL, NULL);
     } else {
-        s->file = qemu_fopen_ops(s, NULL, file_get_buffer, stdio_fclose, 
+        s->file = qemu_fopen_ops(s, NULL, file_get_buffer, stdio_fclose,
 			       NULL, NULL, NULL);
     }
     return s->file;
@@ -398,7 +398,7 @@ static int bdrv_fclose(void *opaque)
 static QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int is_writable)
 {
     if (is_writable)
-        return qemu_fopen_ops(bs, block_put_buffer, NULL, bdrv_fclose, 
+        return qemu_fopen_ops(bs, block_put_buffer, NULL, bdrv_fclose,
 			      NULL, NULL, NULL);
     return qemu_fopen_ops(bs, NULL, block_get_buffer, bdrv_fclose, NULL, NULL, NULL);
 }
@@ -1446,7 +1446,7 @@ int qemu_savevm_state_begin(Monitor *mon, QEMUFile *f, int blk_enable,
 	}
 	se->set_params(blk_enable, shared, se->opaque);
     }
-    
+
     qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
     qemu_put_be32(f, QEMU_VM_FILE_VERSION);
 
@@ -1923,6 +1923,7 @@ void do_savevm(Monitor *mon, const QDict *qdict)
         }
     } else {
 #ifdef _WIN32
+        /* TODO: needs fix for win64. */
         ptm = localtime(&tb.time);
         strftime(sn->name, sizeof(sn->name), "vm-%Y%m%d%H%M%S", ptm);
 #else
