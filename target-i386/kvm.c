@@ -1198,6 +1198,9 @@ static int kvm_get_mp_state(CPUState *env)
         return ret;
     }
     env->mp_state = mp_state.mp_state;
+    if (kvm_irqchip_in_kernel()) {
+        env->halted = (mp_state.mp_state == KVM_MP_STATE_HALTED);
+    }
     return 0;
 }
 
