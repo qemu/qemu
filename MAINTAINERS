@@ -329,8 +329,8 @@ F: hw/lsi53c895a.c
 F: hw/scsi*
 
 USB
-M: qemu-devel@nongnu.org
-S: Odd Fixes
+M: Gerd Hoffmann <kraxel@redhat.com>
+S: Maintained
 F: hw/usb*
 
 vhost

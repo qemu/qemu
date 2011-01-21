@@ -44,6 +44,12 @@
 #define USB_SPEED_LOW   0
 #define USB_SPEED_FULL  1
 #define USB_SPEED_HIGH  2
+#define USB_SPEED_SUPER 3
+
+#define USB_SPEED_MASK_LOW   (1 << USB_SPEED_LOW)
+#define USB_SPEED_MASK_FULL  (1 << USB_SPEED_FULL)
+#define USB_SPEED_MASK_HIGH  (1 << USB_SPEED_HIGH)
+#define USB_SPEED_MASK_SUPER (1 << USB_SPEED_SUPER)
 
 #define USB_STATE_NOTATTACHED 0
 #define USB_STATE_ATTACHED    1
@@ -116,6 +122,8 @@
 #define USB_DT_STRING			0x03
 #define USB_DT_INTERFACE		0x04
 #define USB_DT_ENDPOINT			0x05
+#define USB_DT_DEVICE_QUALIFIER         0x06
+#define USB_DT_OTHER_SPEED_CONFIG       0x07
 
 #define USB_ENDPOINT_XFER_CONTROL	0
 #define USB_ENDPOINT_XFER_ISOC		1
@@ -128,10 +136,27 @@ typedef struct USBDevice USBDevice;
 typedef struct USBDeviceInfo USBDeviceInfo;
 typedef struct USBPacket USBPacket;
 
+typedef struct USBDesc USBDesc;
+typedef struct USBDescID USBDescID;
+typedef struct USBDescDevice USBDescDevice;
+typedef struct USBDescConfig USBDescConfig;
+typedef struct USBDescIface USBDescIface;
+typedef struct USBDescEndpoint USBDescEndpoint;
+typedef struct USBDescOther USBDescOther;
+typedef struct USBDescString USBDescString;
+
+struct USBDescString {
+    uint8_t index;
+    char *str;
+    QLIST_ENTRY(USBDescString) next;
+};
+
 /* definition of a USB device */
 struct USBDevice {
     DeviceState qdev;
     USBDeviceInfo *info;
+    USBPort *port;
+    char *port_path;
     void *opaque;
 
     int speed;
@@ -147,6 +172,10 @@ struct USBDevice {
     int setup_state;
     int setup_len;
     int setup_index;
+
+    QLIST_HEAD(, USBDescString) strings;
+    const USBDescDevice *device;
+    const USBDescConfig *config;
 };
 
 struct USBDeviceInfo {
@@ -166,6 +195,11 @@ struct USBDeviceInfo {
      * Called when device is destroyed.
      */
     void (*handle_destroy)(USBDevice *dev);
+
+    /*
+     * Attach the device
+     */
+    void (*handle_attach)(USBDevice *dev);
 
     /*
      * Reset the device
@@ -190,20 +224,26 @@ struct USBDeviceInfo {
     int (*handle_data)(USBDevice *dev, USBPacket *p);
 
     const char *product_desc;
+    const USBDesc *usb_desc;
 
     /* handle legacy -usbdevice command line options */
     const char *usbdevice_name;
     USBDevice *(*usbdevice_init)(const char *params);
 };
 
-typedef void (*usb_attachfn)(USBPort *port, USBDevice *dev);
+typedef struct USBPortOps {
+    void (*attach)(USBPort *port);
+    void (*detach)(USBPort *port);
+    void (*wakeup)(USBDevice *dev);
+} USBPortOps;
 
 /* USB port on which a device can be connected */
 struct USBPort {
     USBDevice *dev;
-    usb_attachfn attach;
+    int speedmask;
+    char path[16];
+    USBPortOps *ops;
     void *opaque;
-    USBDevice *pdev;
     int index; /* internal port index, may be used with the opaque */
     QTAILQ_ENTRY(USBPort) next;
 };
@@ -251,6 +291,7 @@ static inline void usb_cancel_packet(USBPacket * p)
 }
 
 void usb_attach(USBPort *port, USBDevice *dev);
+void usb_wakeup(USBDevice *dev);
 int usb_generic_handle_packet(USBDevice *s, USBPacket *p);
 int set_usb_string(uint8_t *buf, const char *str);
 void usb_send_msg(USBDevice *dev, int msg);
@@ -313,7 +354,8 @@ USBDevice *usb_create(USBBus *bus, const char *name);
 USBDevice *usb_create_simple(USBBus *bus, const char *name);
 USBDevice *usbdevice_create(const char *cmdline);
 void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,
-                       USBDevice *pdev, usb_attachfn attach);
+                       USBPortOps *ops, int speedmask);
+void usb_port_location(USBPort *downstream, USBPort *upstream, int portnr);
 void usb_unregister_port(USBBus *bus, USBPort *port);
 int usb_device_attach(USBDevice *dev);
 int usb_device_detach(USBDevice *dev);

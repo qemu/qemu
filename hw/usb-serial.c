@@ -11,6 +11,7 @@
 #include "qemu-common.h"
 #include "qemu-error.h"
 #include "usb.h"
+#include "usb-desc.h"
 #include "qemu-char.h"
 
 //#define DEBUG_Serial
@@ -91,8 +92,6 @@ do { printf("usb-serial: " fmt , ## __VA_ARGS__); } while (0)
 
 typedef struct {
     USBDevice dev;
-    uint32_t vendorid;
-    uint32_t productid;
     uint8_t recv_buf[RECV_BUF];
     uint16_t recv_ptr;
     uint16_t recv_used;
@@ -104,69 +103,78 @@ typedef struct {
     CharDriverState *cs;
 } USBSerialState;
 
-static const uint8_t qemu_serial_dev_descriptor[] = {
-        0x12,       /*  u8 bLength; */
-        0x01,       /*  u8 bDescriptorType; Device */
-        0x00, 0x02, /*  u16 bcdUSB; v2.0 */
-
-        0x00,       /*  u8  bDeviceClass; */
-        0x00,       /*  u8  bDeviceSubClass; */
-        0x00,       /*  u8  bDeviceProtocol; [ low/full speeds only ] */
-        0x08,       /*  u8  bMaxPacketSize0; 8 Bytes */
-
-        /* Vendor and product id are arbitrary.  */
-        0x03, 0x04, /*  u16 idVendor; */
-        0x00, 0xFF, /*  u16 idProduct; */
-        0x00, 0x04, /*  u16 bcdDevice */
-
-        0x01,       /*  u8  iManufacturer; */
-        0x02,       /*  u8  iProduct; */
-        0x03,       /*  u8  iSerialNumber; */
-        0x01        /*  u8  bNumConfigurations; */
+enum {
+    STR_MANUFACTURER = 1,
+    STR_PRODUCT_SERIAL,
+    STR_PRODUCT_BRAILLE,
+    STR_SERIALNUMBER,
 };
 
-static const uint8_t qemu_serial_config_descriptor[] = {
+static const USBDescStrings desc_strings = {
+    [STR_MANUFACTURER]    = "QEMU " QEMU_VERSION,
+    [STR_PRODUCT_SERIAL]  = "QEMU USB SERIAL",
+    [STR_PRODUCT_BRAILLE] = "QEMU USB BRAILLE",
+    [STR_SERIALNUMBER]    = "1",
+};
 
-        /* one configuration */
-        0x09,       /*  u8  bLength; */
-        0x02,       /*  u8  bDescriptorType; Configuration */
-        0x20, 0x00, /*  u16 wTotalLength; */
-        0x01,       /*  u8  bNumInterfaces; (1) */
-        0x01,       /*  u8  bConfigurationValue; */
-        0x00,       /*  u8  iConfiguration; */
-        0x80,       /*  u8  bmAttributes;
-                                 Bit 7: must be set,
-                                     6: Self-powered,
-                                     5: Remote wakeup,
-                                     4..0: resvd */
-        100/2,       /*  u8  MaxPower; */
+static const USBDescIface desc_iface0 = {
+    .bInterfaceNumber              = 0,
+    .bNumEndpoints                 = 2,
+    .bInterfaceClass               = 0xff,
+    .bInterfaceSubClass            = 0xff,
+    .bInterfaceProtocol            = 0xff,
+    .eps = (USBDescEndpoint[]) {
+        {
+            .bEndpointAddress      = USB_DIR_IN | 0x01,
+            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+            .wMaxPacketSize        = 64,
+        },{
+            .bEndpointAddress      = USB_DIR_OUT | 0x02,
+            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+            .wMaxPacketSize        = 64,
+        },
+    }
+};
 
-        /* one interface */
-        0x09,       /*  u8  if_bLength; */
-        0x04,       /*  u8  if_bDescriptorType; Interface */
-        0x00,       /*  u8  if_bInterfaceNumber; */
-        0x00,       /*  u8  if_bAlternateSetting; */
-        0x02,       /*  u8  if_bNumEndpoints; */
-        0xff,       /*  u8  if_bInterfaceClass; Vendor Specific */
-        0xff,       /*  u8  if_bInterfaceSubClass; Vendor Specific */
-        0xff,       /*  u8  if_bInterfaceProtocol; Vendor Specific */
-        0x02,       /*  u8  if_iInterface; */
+static const USBDescDevice desc_device = {
+    .bcdUSB                        = 0x0200,
+    .bMaxPacketSize0               = 8,
+    .bNumConfigurations            = 1,
+    .confs = (USBDescConfig[]) {
+        {
+            .bNumInterfaces        = 1,
+            .bConfigurationValue   = 1,
+            .bmAttributes          = 0x80,
+            .bMaxPower             = 50,
+            .ifs = &desc_iface0,
+        },
+    },
+};
 
-        /* Bulk-In endpoint */
-        0x07,       /*  u8  ep_bLength; */
-        0x05,       /*  u8  ep_bDescriptorType; Endpoint */
-        0x81,       /*  u8  ep_bEndpointAddress; IN Endpoint 1 */
-        0x02,       /*  u8  ep_bmAttributes; Bulk */
-        0x40, 0x00, /*  u16 ep_wMaxPacketSize; */
-        0x00,       /*  u8  ep_bInterval; */
+static const USBDesc desc_serial = {
+    .id = {
+        .idVendor          = 0x0403,
+        .idProduct         = 0x6001,
+        .bcdDevice         = 0x0400,
+        .iManufacturer     = STR_MANUFACTURER,
+        .iProduct          = STR_PRODUCT_SERIAL,
+        .iSerialNumber     = STR_SERIALNUMBER,
+    },
+    .full = &desc_device,
+    .str  = desc_strings,
+};
 
-        /* Bulk-Out endpoint */
-        0x07,       /*  u8  ep_bLength; */
-        0x05,       /*  u8  ep_bDescriptorType; Endpoint */
-        0x02,       /*  u8  ep_bEndpointAddress; OUT Endpoint 2 */
-        0x02,       /*  u8  ep_bmAttributes; Bulk */
-        0x40, 0x00, /*  u16 ep_wMaxPacketSize; */
-        0x00        /*  u8  ep_bInterval; */
+static const USBDesc desc_braille = {
+    .id = {
+        .idVendor          = 0x0403,
+        .idProduct         = 0xfe72,
+        .bcdDevice         = 0x0400,
+        .iManufacturer     = STR_MANUFACTURER,
+        .iProduct          = STR_PRODUCT_BRAILLE,
+        .iSerialNumber     = STR_SERIALNUMBER,
+    },
+    .full = &desc_device,
+    .str  = desc_strings,
 };
 
 static void usb_serial_reset(USBSerialState *s)
@@ -214,89 +222,16 @@ static int usb_serial_handle_control(USBDevice *dev, int request, int value,
                                   int index, int length, uint8_t *data)
 {
     USBSerialState *s = (USBSerialState *)dev;
-    int ret = 0;
+    int ret;
 
-    //DPRINTF("got control %x, value %x\n",request, value);
+    DPRINTF("got control %x, value %x\n",request, value);
+    ret = usb_desc_handle_control(dev, request, value, index, length, data);
+    if (ret >= 0) {
+        return ret;
+    }
+
+    ret = 0;
     switch (request) {
-    case DeviceRequest | USB_REQ_GET_STATUS:
-        data[0] = (0 << USB_DEVICE_SELF_POWERED) |
-            (dev->remote_wakeup << USB_DEVICE_REMOTE_WAKEUP);
-        data[1] = 0x00;
-        ret = 2;
-        break;
-    case DeviceOutRequest | USB_REQ_CLEAR_FEATURE:
-        if (value == USB_DEVICE_REMOTE_WAKEUP) {
-            dev->remote_wakeup = 0;
-        } else {
-            goto fail;
-        }
-        ret = 0;
-        break;
-    case DeviceOutRequest | USB_REQ_SET_FEATURE:
-        if (value == USB_DEVICE_REMOTE_WAKEUP) {
-            dev->remote_wakeup = 1;
-        } else {
-            goto fail;
-        }
-        ret = 0;
-        break;
-    case DeviceOutRequest | USB_REQ_SET_ADDRESS:
-        dev->addr = value;
-        ret = 0;
-        break;
-    case DeviceRequest | USB_REQ_GET_DESCRIPTOR:
-        switch(value >> 8) {
-        case USB_DT_DEVICE:
-            memcpy(data, qemu_serial_dev_descriptor,
-                   sizeof(qemu_serial_dev_descriptor));
-            data[8] = s->vendorid & 0xff;
-            data[9] = ((s->vendorid) >> 8) & 0xff;
-            data[10] = s->productid & 0xff;
-            data[11] = ((s->productid) >> 8) & 0xff;
-            ret = sizeof(qemu_serial_dev_descriptor);
-            break;
-        case USB_DT_CONFIG:
-            memcpy(data, qemu_serial_config_descriptor,
-                   sizeof(qemu_serial_config_descriptor));
-            ret = sizeof(qemu_serial_config_descriptor);
-            break;
-        case USB_DT_STRING:
-            switch(value & 0xff) {
-            case 0:
-                /* language ids */
-                data[0] = 4;
-                data[1] = 3;
-                data[2] = 0x09;
-                data[3] = 0x04;
-                ret = 4;
-                break;
-            case 1:
-                /* vendor description */
-                ret = set_usb_string(data, "QEMU " QEMU_VERSION);
-                break;
-            case 2:
-                /* product description */
-                ret = set_usb_string(data, "QEMU USB SERIAL");
-                break;
-            case 3:
-                /* serial number */
-                ret = set_usb_string(data, "1");
-                break;
-            default:
-                goto fail;
-            }
-            break;
-        default:
-            goto fail;
-        }
-        break;
-    case DeviceRequest | USB_REQ_GET_CONFIGURATION:
-        data[0] = 1;
-        ret = 1;
-        break;
-    case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
-        ret = 0;
-        break;
     case DeviceRequest | USB_REQ_GET_INTERFACE:
         data[0] = 0;
         ret = 1;
@@ -543,7 +478,8 @@ static void usb_serial_event(void *opaque, int event)
 static int usb_serial_initfn(USBDevice *dev)
 {
     USBSerialState *s = DO_UPCAST(USBSerialState, dev, dev);
-    s->dev.speed = USB_SPEED_FULL;
+
+    usb_desc_init(dev);
 
     if (!s->cs) {
         error_report("Property chardev is required");
@@ -633,6 +569,7 @@ static struct USBDeviceInfo serial_info = {
     .product_desc   = "QEMU USB Serial",
     .qdev.name      = "usb-serial",
     .qdev.size      = sizeof(USBSerialState),
+    .usb_desc       = &desc_serial,
     .init           = usb_serial_initfn,
     .handle_packet  = usb_generic_handle_packet,
     .handle_reset   = usb_serial_handle_reset,
@@ -642,9 +579,7 @@ static struct USBDeviceInfo serial_info = {
     .usbdevice_name = "serial",
     .usbdevice_init = usb_serial_init,
     .qdev.props     = (Property[]) {
-        DEFINE_PROP_CHR("chardev",     USBSerialState, cs),
-        DEFINE_PROP_HEX32("vendorid",  USBSerialState, vendorid,  0x0403),
-        DEFINE_PROP_HEX32("productid", USBSerialState, productid, 0x6001),
+        DEFINE_PROP_CHR("chardev", USBSerialState, cs),
         DEFINE_PROP_END_OF_LIST(),
     },
 };
@@ -653,6 +588,7 @@ static struct USBDeviceInfo braille_info = {
     .product_desc   = "QEMU USB Braille",
     .qdev.name      = "usb-braille",
     .qdev.size      = sizeof(USBSerialState),
+    .usb_desc       = &desc_braille,
     .init           = usb_serial_initfn,
     .handle_packet  = usb_generic_handle_packet,
     .handle_reset   = usb_serial_handle_reset,
@@ -662,9 +598,7 @@ static struct USBDeviceInfo braille_info = {
     .usbdevice_name = "braille",
     .usbdevice_init = usb_braille_init,
     .qdev.props     = (Property[]) {
-        DEFINE_PROP_CHR("chardev",     USBSerialState, cs),
-        DEFINE_PROP_HEX32("vendorid",  USBSerialState, vendorid,  0x0403),
-        DEFINE_PROP_HEX32("productid", USBSerialState, productid, 0xfe72),
+        DEFINE_PROP_CHR("chardev", USBSerialState, cs),
         DEFINE_PROP_END_OF_LIST(),
     },
 };
