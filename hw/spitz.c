@@ -219,11 +219,10 @@ static const int spitz_gpiomap[5] = {
     SPITZ_GPIO_AK_INT, SPITZ_GPIO_SYNC, SPITZ_GPIO_ON_KEY,
     SPITZ_GPIO_SWA, SPITZ_GPIO_SWB,
 };
-static int spitz_gpio_invert[5] = { 0, 0, 0, 0, 0, };
 
 typedef struct {
+    SysBusDevice busdev;
     qemu_irq sense[SPITZ_KEY_SENSE_NUM];
-    qemu_irq *strobe;
     qemu_irq gpiomap[5];
     int keymap[0x80];
     uint16_t keyrow[SPITZ_KEY_SENSE_NUM];
@@ -274,8 +273,7 @@ static void spitz_keyboard_keydown(SpitzKeyboardState *s, int keycode)
 
     /* Handle the additional keys */
     if ((spitz_keycode >> 4) == SPITZ_KEY_SENSE_NUM) {
-        qemu_set_irq(s->gpiomap[spitz_keycode & 0xf], (keycode < 0x80) ^
-                        spitz_gpio_invert[spitz_keycode & 0xf]);
+        qemu_set_irq(s->gpiomap[spitz_keycode & 0xf], (keycode < 0x80));
         return;
     }
 
@@ -293,8 +291,9 @@ static void spitz_keyboard_keydown(SpitzKeyboardState *s, int keycode)
 
 #define QUEUE_KEY(c)	s->fifo[(s->fifopos + s->fifolen ++) & 0xf] = c
 
-static void spitz_keyboard_handler(SpitzKeyboardState *s, int keycode)
+static void spitz_keyboard_handler(void *opaque, int keycode)
 {
+    SpitzKeyboardState *s = opaque;
     uint16_t code;
     int mapcode;
     switch (keycode) {
@@ -440,34 +439,15 @@ static void spitz_keyboard_pre_map(SpitzKeyboardState *s)
     s->imodifiers = 0;
     s->fifopos = 0;
     s->fifolen = 0;
-    s->kbdtimer = qemu_new_timer(vm_clock, spitz_keyboard_tick, s);
-    spitz_keyboard_tick(s);
 }
 
 #undef SHIFT
 #undef CTRL
 #undef FN
 
-static void spitz_keyboard_save(QEMUFile *f, void *opaque)
+static int spitz_keyboard_post_load(void *opaque, int version_id)
 {
     SpitzKeyboardState *s = (SpitzKeyboardState *) opaque;
-    int i;
-
-    qemu_put_be16s(f, &s->sense_state);
-    qemu_put_be16s(f, &s->strobe_state);
-    for (i = 0; i < 5; i ++)
-        qemu_put_byte(f, spitz_gpio_invert[i]);
-}
-
-static int spitz_keyboard_load(QEMUFile *f, void *opaque, int version_id)
-{
-    SpitzKeyboardState *s = (SpitzKeyboardState *) opaque;
-    int i;
-
-    qemu_get_be16s(f, &s->sense_state);
-    qemu_get_be16s(f, &s->strobe_state);
-    for (i = 0; i < 5; i ++)
-        spitz_gpio_invert[i] = qemu_get_byte(f);
 
     /* Release all pressed keys */
     memset(s->keyrow, 0, sizeof(s->keyrow));
@@ -482,12 +462,40 @@ static int spitz_keyboard_load(QEMUFile *f, void *opaque, int version_id)
 
 static void spitz_keyboard_register(PXA2xxState *cpu)
 {
-    int i, j;
+    int i;
+    DeviceState *dev;
     SpitzKeyboardState *s;
 
-    s = (SpitzKeyboardState *)
-            qemu_mallocz(sizeof(SpitzKeyboardState));
-    memset(s, 0, sizeof(SpitzKeyboardState));
+    dev = sysbus_create_simple("spitz-keyboard", -1, NULL);
+    s = FROM_SYSBUS(SpitzKeyboardState, sysbus_from_qdev(dev));
+
+    for (i = 0; i < SPITZ_KEY_SENSE_NUM; i ++)
+        qdev_connect_gpio_out(dev, i, pxa2xx_gpio_in_get(cpu->gpio)[spitz_gpio_key_sense[i]]);
+
+    for (i = 0; i < 5; i ++)
+        s->gpiomap[i] = pxa2xx_gpio_in_get(cpu->gpio)[spitz_gpiomap[i]];
+
+    if (!graphic_rotate)
+        s->gpiomap[4] = qemu_irq_invert(s->gpiomap[4]);
+
+    for (i = 0; i < 5; i++)
+        qemu_set_irq(s->gpiomap[i], 0);
+
+    for (i = 0; i < SPITZ_KEY_STROBE_NUM; i ++)
+        pxa2xx_gpio_out_set(cpu->gpio, spitz_gpio_key_strobe[i],
+                qdev_get_gpio_in(dev, i));
+
+    qemu_mod_timer(s->kbdtimer, qemu_get_clock(vm_clock));
+
+    qemu_add_kbd_event_handler(spitz_keyboard_handler, s);
+}
+
+static int spitz_keyboard_init(SysBusDevice *dev)
+{
+    SpitzKeyboardState *s;
+    int i, j;
+
+    s = FROM_SYSBUS(SpitzKeyboardState, dev);
 
     for (i = 0; i < 0x80; i ++)
         s->keymap[i] = -1;
@@ -496,22 +504,13 @@ static void spitz_keyboard_register(PXA2xxState *cpu)
             if (spitz_keymap[i][j] != -1)
                 s->keymap[spitz_keymap[i][j]] = (i << 4) | j;
 
-    for (i = 0; i < SPITZ_KEY_SENSE_NUM; i ++)
-        s->sense[i] = pxa2xx_gpio_in_get(cpu->gpio)[spitz_gpio_key_sense[i]];
-
-    for (i = 0; i < 5; i ++)
-        s->gpiomap[i] = pxa2xx_gpio_in_get(cpu->gpio)[spitz_gpiomap[i]];
-
-    s->strobe = qemu_allocate_irqs(spitz_keyboard_strobe, s,
-                    SPITZ_KEY_STROBE_NUM);
-    for (i = 0; i < SPITZ_KEY_STROBE_NUM; i ++)
-        pxa2xx_gpio_out_set(cpu->gpio, spitz_gpio_key_strobe[i], s->strobe[i]);
-
     spitz_keyboard_pre_map(s);
-    qemu_add_kbd_event_handler((QEMUPutKBDEvent *) spitz_keyboard_handler, s);
 
-    register_savevm(NULL, "spitz_keyboard", 0, 0,
-                    spitz_keyboard_save, spitz_keyboard_load, s);
+    s->kbdtimer = qemu_new_timer(vm_clock, spitz_keyboard_tick, s);
+    qdev_init_gpio_in(&dev->qdev, spitz_keyboard_strobe, SPITZ_KEY_STROBE_NUM);
+    qdev_init_gpio_out(&dev->qdev, s->sense, SPITZ_KEY_SENSE_NUM);
+
+    return 0;
 }
 
 /* LCD backlight controller */
@@ -879,18 +878,6 @@ static void spitz_gpio_setup(PXA2xxState *cpu, int slots)
         pxa2xx_pcmcia_set_irq_cb(cpu->pcmcia[1],
                         pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_CF2_IRQ],
                         pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_CF2_CD]);
-
-    /* Initialise the screen rotation related signals */
-    spitz_gpio_invert[3] = 0;	/* Always open */
-    if (graphic_rotate) {	/* Tablet mode */
-        spitz_gpio_invert[4] = 0;
-    } else {			/* Portrait mode */
-        spitz_gpio_invert[4] = 1;
-    }
-    qemu_set_irq(pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_SWA],
-                    spitz_gpio_invert[3]);
-    qemu_set_irq(pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_SWB],
-                    spitz_gpio_invert[4]);
 }
 
 /* Board init.  */
@@ -1027,6 +1014,11 @@ static void spitz_machine_init(void)
 
 machine_init(spitz_machine_init);
 
+static bool is_version_0(void *opaque, int version_id)
+{
+    return version_id == 0;
+}
+
 static VMStateDescription vmstate_sl_nand_info = {
     .name = "sl-nand",
     .version_id = 0,
@@ -1047,6 +1039,30 @@ static SysBusDeviceInfo sl_nand_info = {
     .qdev.props = (Property []) {
         DEFINE_PROP_UINT8("manf_id", SLNANDState, manf_id, NAND_MFR_SAMSUNG),
         DEFINE_PROP_UINT8("chip_id", SLNANDState, chip_id, 0xf1),
+        DEFINE_PROP_END_OF_LIST(),
+    },
+};
+
+static VMStateDescription vmstate_spitz_kbd = {
+    .name = "spitz-keyboard",
+    .version_id = 1,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .post_load = spitz_keyboard_post_load,
+    .fields = (VMStateField []) {
+        VMSTATE_UINT16(sense_state, SpitzKeyboardState),
+        VMSTATE_UINT16(strobe_state, SpitzKeyboardState),
+        VMSTATE_UNUSED_TEST(is_version_0, 5),
+        VMSTATE_END_OF_LIST(),
+    },
+};
+
+static SysBusDeviceInfo spitz_keyboard_info = {
+    .init = spitz_keyboard_init,
+    .qdev.name = "spitz-keyboard",
+    .qdev.size = sizeof(SpitzKeyboardState),
+    .qdev.vmsd = &vmstate_spitz_kbd,
+    .qdev.props = (Property []) {
         DEFINE_PROP_END_OF_LIST(),
     },
 };
@@ -1094,6 +1110,7 @@ static void spitz_register_devices(void)
 {
     ssi_register_slave(&corgi_ssp_info);
     ssi_register_slave(&spitz_lcdtg_info);
+    sysbus_register_withprop(&spitz_keyboard_info);
     sysbus_register_withprop(&sl_nand_info);
 }
 
