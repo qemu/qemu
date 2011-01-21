@@ -918,6 +918,8 @@ int kvm_cpu_exec(CPUState *env)
         cpu_single_env = env;
         kvm_arch_post_run(env, run);
 
+        kvm_flush_coalesced_mmio_buffer();
+
         if (ret == -EINTR || ret == -EAGAIN) {
             cpu_exit(env);
             DPRINTF("io window exit\n");
@@ -929,8 +931,6 @@ int kvm_cpu_exec(CPUState *env)
             DPRINTF("kvm run failed %s\n", strerror(-ret));
             abort();
         }
-
-        kvm_flush_coalesced_mmio_buffer();
 
         ret = 0; /* exit loop */
         switch (run->exit_reason) {
