@@ -307,6 +307,10 @@ int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
         dprintf("handle halt\n");
         ret = kvmppc_handle_halt(env);
         break;
+    default:
+        fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
+        ret = -1;
+        break;
     }
 
     return ret;

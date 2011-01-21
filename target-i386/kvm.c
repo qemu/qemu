@@ -1537,6 +1537,10 @@ int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
     case KVM_EXIT_SET_TPR:
         ret = 1;
         break;
+    default:
+        fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
+        ret = -1;
+        break;
     }
 
     return ret;

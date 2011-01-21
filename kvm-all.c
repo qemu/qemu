@@ -815,7 +815,7 @@ static int kvm_handle_io(uint16_t port, void *data, int direction, int size,
 }
 
 #ifdef KVM_CAP_INTERNAL_ERROR_DATA
-static void kvm_handle_internal_error(CPUState *env, struct kvm_run *run)
+static int kvm_handle_internal_error(CPUState *env, struct kvm_run *run)
 {
 
     if (kvm_check_extension(kvm_state, KVM_CAP_INTERNAL_ERROR_DATA)) {
@@ -833,13 +833,13 @@ static void kvm_handle_internal_error(CPUState *env, struct kvm_run *run)
     if (run->internal.suberror == KVM_INTERNAL_ERROR_EMULATION) {
         fprintf(stderr, "emulation failure\n");
         if (!kvm_arch_stop_on_emulation_error(env)) {
-            return;
+            return 0;
         }
     }
     /* FIXME: Should trigger a qmp message to let management know
      * something went wrong.
      */
-    vm_stop(0);
+    return -1;
 }
 #endif
 
@@ -967,16 +967,19 @@ int kvm_cpu_exec(CPUState *env)
             break;
         case KVM_EXIT_UNKNOWN:
             DPRINTF("kvm_exit_unknown\n");
+            ret = -1;
             break;
         case KVM_EXIT_FAIL_ENTRY:
             DPRINTF("kvm_exit_fail_entry\n");
+            ret = -1;
             break;
         case KVM_EXIT_EXCEPTION:
             DPRINTF("kvm_exit_exception\n");
+            ret = -1;
             break;
 #ifdef KVM_CAP_INTERNAL_ERROR_DATA
         case KVM_EXIT_INTERNAL_ERROR:
-            kvm_handle_internal_error(env, run);
+            ret = kvm_handle_internal_error(env, run);
             break;
 #endif
         case KVM_EXIT_DEBUG:
@@ -997,6 +1000,10 @@ int kvm_cpu_exec(CPUState *env)
         }
     } while (ret > 0);
 
+    if (ret < 0) {
+        vm_stop(0);
+        env->exit_request = 1;
+    }
     if (env->exit_request) {
         env->exit_request = 0;
         env->exception_index = EXCP_INTERRUPT;
