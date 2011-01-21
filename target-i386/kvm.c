@@ -63,6 +63,9 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
 
 static bool has_msr_star;
 static bool has_msr_hsave_pa;
+#if defined(CONFIG_KVM_PARA) && defined(KVM_CAP_ASYNC_PF)
+static bool has_msr_async_pf_en;
+#endif
 static int lm_capable_kernel;
 
 static struct kvm_cpuid2 *try_get_cpuid(KVMState *s, int max)
@@ -164,6 +167,7 @@ static int get_para_features(CPUState *env)
             features |= (1 << para_features[i].feature);
         }
     }
+    has_msr_async_pf_en = features & (1 << KVM_FEATURE_ASYNC_PF);
     return features;
 }
 #endif
@@ -828,7 +832,10 @@ static int kvm_put_msrs(CPUState *env, int level)
                           env->system_time_msr);
         kvm_msr_entry_set(&msrs[n++], MSR_KVM_WALL_CLOCK, env->wall_clock_msr);
 #if defined(CONFIG_KVM_PARA) && defined(KVM_CAP_ASYNC_PF)
-        kvm_msr_entry_set(&msrs[n++], MSR_KVM_ASYNC_PF_EN, env->async_pf_en_msr);
+        if (has_msr_async_pf_en) {
+            kvm_msr_entry_set(&msrs[n++], MSR_KVM_ASYNC_PF_EN,
+                              env->async_pf_en_msr);
+        }
 #endif
     }
 #ifdef KVM_CAP_MCE
@@ -1064,7 +1071,9 @@ static int kvm_get_msrs(CPUState *env)
     msrs[n++].index = MSR_KVM_SYSTEM_TIME;
     msrs[n++].index = MSR_KVM_WALL_CLOCK;
 #if defined(CONFIG_KVM_PARA) && defined(KVM_CAP_ASYNC_PF)
-    msrs[n++].index = MSR_KVM_ASYNC_PF_EN;
+    if (has_msr_async_pf_en) {
+        msrs[n++].index = MSR_KVM_ASYNC_PF_EN;
+    }
 #endif
 
 #ifdef KVM_CAP_MCE
