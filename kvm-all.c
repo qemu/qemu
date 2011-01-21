@@ -636,7 +636,7 @@ static CPUPhysMemoryClient kvm_cpu_phys_memory_client = {
     .migration_log = kvm_client_migration_log,
 };
 
-int kvm_init(int smp_cpus)
+int kvm_init(void)
 {
     static const char upgrade_note[] =
         "Please upgrade to at least kernel 2.6.29 or recent kvm-kmod\n"
@@ -749,7 +749,7 @@ int kvm_init(int smp_cpus)
     s->xcrs = kvm_check_extension(s, KVM_CAP_XCRS);
 #endif
 
-    ret = kvm_arch_init(s, smp_cpus);
+    ret = kvm_arch_init(s);
     if (ret < 0) {
         goto err;
     }

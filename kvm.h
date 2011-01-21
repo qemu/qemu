@@ -34,7 +34,7 @@ struct kvm_run;
 
 /* external API */
 
-int kvm_init(int smp_cpus);
+int kvm_init(void);
 
 int kvm_has_sync_mmu(void);
 int kvm_has_vcpu_events(void);
@@ -105,7 +105,7 @@ int kvm_arch_get_registers(CPUState *env);
 
 int kvm_arch_put_registers(CPUState *env, int level);
 
-int kvm_arch_init(KVMState *s, int smp_cpus);
+int kvm_arch_init(KVMState *s);
 
 int kvm_arch_init_vcpu(CPUState *env);
 

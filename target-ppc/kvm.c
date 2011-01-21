@@ -56,7 +56,7 @@ static void kvm_kick_env(void *env)
     qemu_cpu_kick(env);
 }
 
-int kvm_arch_init(KVMState *s, int smp_cpus)
+int kvm_arch_init(KVMState *s)
 {
 #ifdef KVM_CAP_PPC_UNSET_IRQ
     cap_interrupt_unset = kvm_check_extension(s, KVM_CAP_PPC_UNSET_IRQ);

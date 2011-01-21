@@ -527,7 +527,7 @@ static int kvm_init_identity_map_page(KVMState *s)
     return 0;
 }
 
-int kvm_arch_init(KVMState *s, int smp_cpus)
+int kvm_arch_init(KVMState *s)
 {
     int ret;
     struct utsname utsname;
