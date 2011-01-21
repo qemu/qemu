@@ -29,7 +29,7 @@
 #include "isa.h"
 #include "fdc.h"
 #include "sysemu.h"
-#include "audio/audio.h"
+#include "arch_init.h"
 #include "boards.h"
 #include "net.h"
 #include "esp.h"
@@ -89,26 +89,6 @@ static CPUWriteMemoryFunc * const dma_dummy_write[3] = {
     dma_dummy_writeb,
     dma_dummy_writeb,
 };
-
-static void audio_init(qemu_irq *pic)
-{
-    struct soundhw *c;
-    int audio_enabled = 0;
-
-    for (c = soundhw; !audio_enabled && c->name; ++c) {
-        audio_enabled = c->enabled;
-    }
-
-    if (audio_enabled) {
-        for (c = soundhw; c->name; ++c) {
-            if (c->enabled) {
-                if (c->isa) {
-                    c->init.init_isa(pic);
-                }
-            }
-        }
-    }
-}
 
 #define MAGNUM_BIOS_SIZE_MAX 0x7e000
 #define MAGNUM_BIOS_SIZE (BIOS_SIZE < MAGNUM_BIOS_SIZE_MAX ? BIOS_SIZE : MAGNUM_BIOS_SIZE_MAX)
@@ -284,7 +264,7 @@ void mips_jazz_init (ram_addr_t ram_size,
 
     /* Sound card */
     /* FIXME: missing Jazz sound at 0x8000c000, rc4030[2] */
-    audio_init(i8259);
+    audio_init(i8259, NULL);
 
     /* NVRAM: Unprotected at 0x9000, Protected at 0xa000, Read only at 0xb000 */
     ds1225y_init(0x80009000, "nvram");

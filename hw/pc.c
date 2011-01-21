@@ -829,23 +829,6 @@ static const int ne2000_irq[NE2000_NB_MAX] = { 9, 10, 11, 3, 4, 5 };
 static const int parallel_io[MAX_PARALLEL_PORTS] = { 0x378, 0x278, 0x3bc };
 static const int parallel_irq[MAX_PARALLEL_PORTS] = { 7, 7, 7 };
 
-void pc_audio_init (PCIBus *pci_bus, qemu_irq *pic)
-{
-    struct soundhw *c;
-
-    for (c = soundhw; c->name; ++c) {
-        if (c->enabled) {
-            if (c->isa) {
-                c->init.init_isa(pic);
-            } else {
-                if (pci_bus) {
-                    c->init.init_pci(pci_bus);
-                }
-            }
-        }
-    }
-}
-
 void pc_init_ne2k_isa(NICInfo *nd)
 {
     static int nb_ne2k = 0;
