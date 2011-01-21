@@ -1534,6 +1534,9 @@ int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
         DPRINTF("handle_hlt\n");
         ret = kvm_handle_halt(env);
         break;
+    case KVM_EXIT_SET_TPR:
+        ret = 1;
+        break;
     }
 
     return ret;
