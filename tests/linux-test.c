@@ -426,7 +426,9 @@ void test_clone(void)
                            CLONE_VM | CLONE_FS | CLONE_FILES | SIGCHLD, "hello2"));
 
     while (waitpid(pid1, &status1, 0) != pid1);
+    free(stack1);
     while (waitpid(pid2, &status2, 0) != pid2);
+    free(stack2);
     if (thread1_res != 5 ||
         thread2_res != 6)
         error("clone");
