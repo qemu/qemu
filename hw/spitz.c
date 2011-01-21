@@ -47,8 +47,11 @@
 #define FLASHCTL_NCE		(FLASHCTL_CE0 | FLASHCTL_CE1)
 
 typedef struct {
+    SysBusDevice busdev;
     NANDFlashState *nand;
     uint8_t ctl;
+    uint8_t manf_id;
+    uint8_t chip_id;
     ECCState ecc;
 } SLNANDState;
 
@@ -131,56 +134,53 @@ static void sl_writeb(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void sl_save(QEMUFile *f, void *opaque)
-{
-    SLNANDState *s = (SLNANDState *) opaque;
-
-    qemu_put_8s(f, &s->ctl);
-    ecc_put(f, &s->ecc);
-}
-
-static int sl_load(QEMUFile *f, void *opaque, int version_id)
-{
-    SLNANDState *s = (SLNANDState *) opaque;
-
-    qemu_get_8s(f, &s->ctl);
-    ecc_get(f, &s->ecc);
-
-    return 0;
-}
-
 enum {
     FLASH_128M,
     FLASH_1024M,
 };
 
+static CPUReadMemoryFunc * const sl_readfn[] = {
+    sl_readb,
+    sl_readb,
+    sl_readl,
+};
+static CPUWriteMemoryFunc * const sl_writefn[] = {
+    sl_writeb,
+    sl_writeb,
+    sl_writeb,
+};
+
 static void sl_flash_register(PXA2xxState *cpu, int size)
 {
+    DeviceState *dev;
+
+    dev = qdev_create(NULL, "sl-nand");
+
+    qdev_prop_set_uint8(dev, "manf_id", NAND_MFR_SAMSUNG);
+    if (size == FLASH_128M)
+        qdev_prop_set_uint8(dev, "chip_id", 0x73);
+    else if (size == FLASH_1024M)
+        qdev_prop_set_uint8(dev, "chip_id", 0xf1);
+
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(sysbus_from_qdev(dev), 0, FLASH_BASE);
+}
+
+static int sl_nand_init(SysBusDevice *dev) {
     int iomemtype;
     SLNANDState *s;
-    CPUReadMemoryFunc * const sl_readfn[] = {
-        sl_readb,
-        sl_readb,
-        sl_readl,
-    };
-    CPUWriteMemoryFunc * const sl_writefn[] = {
-        sl_writeb,
-        sl_writeb,
-        sl_writeb,
-    };
 
-    s = (SLNANDState *) qemu_mallocz(sizeof(SLNANDState));
+    s = FROM_SYSBUS(SLNANDState, dev);
+
     s->ctl = 0;
-    if (size == FLASH_128M)
-        s->nand = nand_init(NAND_MFR_SAMSUNG, 0x73);
-    else if (size == FLASH_1024M)
-        s->nand = nand_init(NAND_MFR_SAMSUNG, 0xf1);
+    s->nand = nand_init(s->manf_id, s->chip_id);
 
     iomemtype = cpu_register_io_memory(sl_readfn,
                     sl_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(FLASH_BASE, 0x40, iomemtype);
 
-    register_savevm(NULL, "sl_flash", 0, 0, sl_save, sl_load, s);
+    sysbus_init_mmio(dev, 0x40, iomemtype);
+
+    return 0;
 }
 
 /* Spitz Keyboard */
@@ -1027,6 +1027,30 @@ static void spitz_machine_init(void)
 
 machine_init(spitz_machine_init);
 
+static VMStateDescription vmstate_sl_nand_info = {
+    .name = "sl-nand",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields = (VMStateField []) {
+        VMSTATE_UINT8(ctl, SLNANDState),
+        VMSTATE_STRUCT(ecc, SLNANDState, 0, vmstate_ecc_state, ECCState),
+        VMSTATE_END_OF_LIST(),
+    },
+};
+
+static SysBusDeviceInfo sl_nand_info = {
+    .init = sl_nand_init,
+    .qdev.name = "sl-nand",
+    .qdev.size = sizeof(SLNANDState),
+    .qdev.vmsd = &vmstate_sl_nand_info,
+    .qdev.props = (Property []) {
+        DEFINE_PROP_UINT8("manf_id", SLNANDState, manf_id, NAND_MFR_SAMSUNG),
+        DEFINE_PROP_UINT8("chip_id", SLNANDState, chip_id, 0xf1),
+        DEFINE_PROP_END_OF_LIST(),
+    },
+};
+
 static const VMStateDescription vmstate_corgi_ssp_regs = {
     .name = "corgi-ssp",
     .version_id = 1,
@@ -1070,6 +1094,7 @@ static void spitz_register_devices(void)
 {
     ssi_register_slave(&corgi_ssp_info);
     ssi_register_slave(&spitz_lcdtg_info);
+    sysbus_register_withprop(&sl_nand_info);
 }
 
 device_init(spitz_register_devices)

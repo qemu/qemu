@@ -51,5 +51,4 @@ typedef struct {
 
 uint8_t ecc_digest(ECCState *s, uint8_t sample);
 void ecc_reset(ECCState *s);
-void ecc_put(QEMUFile *f, ECCState *s);
-void ecc_get(QEMUFile *f, ECCState *s);
+extern VMStateDescription vmstate_ecc_state;
