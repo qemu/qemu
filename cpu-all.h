@@ -765,6 +765,8 @@ int page_check_range(target_ulong start, target_ulong len, int flags);
 CPUState *cpu_copy(CPUState *env);
 CPUState *qemu_get_cpu(int cpu);
 
+#define CPU_DUMP_CODE 0x00010000
+
 void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
                     int flags);
 void cpu_dump_statistics(CPUState *env, FILE *f, fprintf_function cpu_fprintf,

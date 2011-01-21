@@ -249,6 +249,9 @@ done:
     cpu_fprintf(f, "\n");
 }
 
+#define DUMP_CODE_BYTES_TOTAL    50
+#define DUMP_CODE_BYTES_BACKWARD 20
+
 void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
                     int flags)
 {
@@ -433,6 +436,24 @@ void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
             else
                 cpu_fprintf(f, " ");
         }
+    }
+    if (flags & CPU_DUMP_CODE) {
+        target_ulong base = env->segs[R_CS].base + env->eip;
+        target_ulong offs = MIN(env->eip, DUMP_CODE_BYTES_BACKWARD);
+        uint8_t code;
+        char codestr[3];
+
+        cpu_fprintf(f, "Code=");
+        for (i = 0; i < DUMP_CODE_BYTES_TOTAL; i++) {
+            if (cpu_memory_rw_debug(env, base - offs + i, &code, 1, 0) == 0) {
+                snprintf(codestr, sizeof(codestr), "%02x", code);
+            } else {
+                snprintf(codestr, sizeof(codestr), "??");
+            }
+            cpu_fprintf(f, "%s%s%s%s", i > 0 ? " " : "",
+                        i == offs ? "<" : "", codestr, i == offs ? ">" : "");
+        }
+        cpu_fprintf(f, "\n");
     }
 }
 

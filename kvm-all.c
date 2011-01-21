@@ -832,7 +832,7 @@ static int kvm_handle_internal_error(CPUState *env, struct kvm_run *run)
     if (run->internal.suberror == KVM_INTERNAL_ERROR_EMULATION) {
         fprintf(stderr, "emulation failure\n");
         if (!kvm_arch_stop_on_emulation_error(env)) {
-            cpu_dump_state(env, stderr, fprintf, 0);
+            cpu_dump_state(env, stderr, fprintf, CPU_DUMP_CODE);
             return 0;
         }
     }
@@ -994,7 +994,7 @@ int kvm_cpu_exec(CPUState *env)
     } while (ret > 0);
 
     if (ret < 0) {
-        cpu_dump_state(env, stderr, fprintf, 0);
+        cpu_dump_state(env, stderr, fprintf, CPU_DUMP_CODE);
         vm_stop(0);
         env->exit_request = 1;
     }
