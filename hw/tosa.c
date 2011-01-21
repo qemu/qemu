@@ -95,18 +95,18 @@ static void tosa_gpio_setup(PXA2xxState *cpu,
     /* MMC/SD host */
     pxa2xx_mmci_handlers(cpu->mmc,
                     qdev_get_gpio_in(scp0, TOSA_GPIO_SD_WP),
-                    qemu_irq_invert(pxa2xx_gpio_in_get(cpu->gpio)[TOSA_GPIO_nSD_DETECT]));
+                    qemu_irq_invert(qdev_get_gpio_in(cpu->gpio, TOSA_GPIO_nSD_DETECT)));
 
     /* Handle reset */
-    pxa2xx_gpio_out_set(cpu->gpio, TOSA_GPIO_ON_RESET, cpu->reset);
+    qdev_connect_gpio_out(cpu->gpio, TOSA_GPIO_ON_RESET, cpu->reset);
 
     /* PCMCIA signals: card's IRQ and Card-Detect */
     pxa2xx_pcmcia_set_irq_cb(cpu->pcmcia[0],
-                        pxa2xx_gpio_in_get(cpu->gpio)[TOSA_GPIO_CF_IRQ],
-                        pxa2xx_gpio_in_get(cpu->gpio)[TOSA_GPIO_CF_CD]);
+                        qdev_get_gpio_in(cpu->gpio, TOSA_GPIO_CF_IRQ),
+                        qdev_get_gpio_in(cpu->gpio, TOSA_GPIO_CF_CD));
 
     pxa2xx_pcmcia_set_irq_cb(cpu->pcmcia[1],
-                        pxa2xx_gpio_in_get(cpu->gpio)[TOSA_GPIO_JC_CF_IRQ],
+                        qdev_get_gpio_in(cpu->gpio, TOSA_GPIO_JC_CF_IRQ),
                         NULL);
 
     qdev_connect_gpio_out(scp1, TOSA_GPIO_BT_LED, outsignals[0]);
@@ -220,7 +220,7 @@ static void tosa_init(ram_addr_t ram_size,
                     qemu_ram_alloc(NULL, "tosa.rom", TOSA_ROM) | IO_MEM_ROM);
 
     tmio = tc6393xb_init(0x10000000,
-            pxa2xx_gpio_in_get(cpu->gpio)[TOSA_GPIO_TC6393XB_INT]);
+            qdev_get_gpio_in(cpu->gpio, TOSA_GPIO_TC6393XB_INT));
 
     scp0 = sysbus_create_simple("scoop", 0x08800000, NULL);
     scp1 = sysbus_create_simple("scoop", 0x14800040, NULL);

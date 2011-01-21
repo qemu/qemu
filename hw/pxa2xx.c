@@ -2158,7 +2158,7 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
 
     /* GPIO1 resets the processor */
     /* The handler can be overridden by board-specific code */
-    pxa2xx_gpio_out_set(s->gpio, 1, s->reset);
+    qdev_connect_gpio_out(s->gpio, 1, s->reset);
     return s;
 }
 
@@ -2279,7 +2279,7 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
 
     /* GPIO1 resets the processor */
     /* The handler can be overridden by board-specific code */
-    pxa2xx_gpio_out_set(s->gpio, 1, s->reset);
+    qdev_connect_gpio_out(s->gpio, 1, s->reset);
     return s;
 }
 

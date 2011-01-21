@@ -470,10 +470,10 @@ static void spitz_keyboard_register(PXA2xxState *cpu)
     s = FROM_SYSBUS(SpitzKeyboardState, sysbus_from_qdev(dev));
 
     for (i = 0; i < SPITZ_KEY_SENSE_NUM; i ++)
-        qdev_connect_gpio_out(dev, i, pxa2xx_gpio_in_get(cpu->gpio)[spitz_gpio_key_sense[i]]);
+        qdev_connect_gpio_out(dev, i, qdev_get_gpio_in(cpu->gpio, spitz_gpio_key_sense[i]));
 
     for (i = 0; i < 5; i ++)
-        s->gpiomap[i] = pxa2xx_gpio_in_get(cpu->gpio)[spitz_gpiomap[i]];
+        s->gpiomap[i] = qdev_get_gpio_in(cpu->gpio, spitz_gpiomap[i]);
 
     if (!graphic_rotate)
         s->gpiomap[4] = qemu_irq_invert(s->gpiomap[4]);
@@ -482,7 +482,7 @@ static void spitz_keyboard_register(PXA2xxState *cpu)
         qemu_set_irq(s->gpiomap[i], 0);
 
     for (i = 0; i < SPITZ_KEY_STROBE_NUM; i ++)
-        pxa2xx_gpio_out_set(cpu->gpio, spitz_gpio_key_strobe[i],
+        qdev_connect_gpio_out(cpu->gpio, spitz_gpio_key_strobe[i],
                 qdev_get_gpio_in(dev, i));
 
     qemu_mod_timer(s->kbdtimer, qemu_get_clock(vm_clock));
@@ -685,7 +685,7 @@ static void spitz_ssp_attach(PXA2xxState *cpu)
     bus = qdev_get_child_bus(mux, "ssi1");
     dev = ssi_create_slave(bus, "ads7846");
     qdev_connect_gpio_out(dev, 0,
-                          pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_TP_INT]);
+                          qdev_get_gpio_in(cpu->gpio, SPITZ_GPIO_TP_INT));
 
     bus = qdev_get_child_bus(mux, "ssi2");
     max1111 = ssi_create_slave(bus, "max1111");
@@ -693,11 +693,11 @@ static void spitz_ssp_attach(PXA2xxState *cpu)
     max111x_set_input(max1111, MAX1111_BATT_TEMP, 0);
     max111x_set_input(max1111, MAX1111_ACIN_VOLT, SPITZ_CHARGEON_ACIN);
 
-    pxa2xx_gpio_out_set(cpu->gpio, SPITZ_GPIO_LCDCON_CS,
+    qdev_connect_gpio_out(cpu->gpio, SPITZ_GPIO_LCDCON_CS,
                         qdev_get_gpio_in(mux, 0));
-    pxa2xx_gpio_out_set(cpu->gpio, SPITZ_GPIO_ADS7846_CS,
+    qdev_connect_gpio_out(cpu->gpio, SPITZ_GPIO_ADS7846_CS,
                         qdev_get_gpio_in(mux, 1));
-    pxa2xx_gpio_out_set(cpu->gpio, SPITZ_GPIO_MAX1111_CS,
+    qdev_connect_gpio_out(cpu->gpio, SPITZ_GPIO_MAX1111_CS,
                         qdev_get_gpio_in(mux, 2));
 }
 
@@ -747,7 +747,7 @@ static void spitz_i2c_setup(PXA2xxState *cpu)
     wm = i2c_create_slave(bus, "wm8750", 0);
 
     spitz_wm8750_addr(wm, 0, 0);
-    pxa2xx_gpio_out_set(cpu->gpio, SPITZ_GPIO_WM,
+    qdev_connect_gpio_out(cpu->gpio, SPITZ_GPIO_WM,
                     qemu_allocate_irqs(spitz_wm8750_addr, wm, 1)[0]);
     /* .. and to the sound interface.  */
     cpu->i2s->opaque = wm;
@@ -840,7 +840,7 @@ static int spitz_hsync;
 static void spitz_lcd_hsync_handler(void *opaque, int line, int level)
 {
     PXA2xxState *cpu = (PXA2xxState *) opaque;
-    qemu_set_irq(pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_HSYNC], spitz_hsync);
+    qemu_set_irq(qdev_get_gpio_in(cpu->gpio, SPITZ_GPIO_HSYNC), spitz_hsync);
     spitz_hsync ^= 1;
 }
 
@@ -860,24 +860,24 @@ static void spitz_gpio_setup(PXA2xxState *cpu, int slots)
 
     /* MMC/SD host */
     pxa2xx_mmci_handlers(cpu->mmc,
-                    pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_SD_WP],
-                    pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_SD_DETECT]);
+                    qdev_get_gpio_in(cpu->gpio, SPITZ_GPIO_SD_WP),
+                    qdev_get_gpio_in(cpu->gpio, SPITZ_GPIO_SD_DETECT));
 
     /* Battery lock always closed */
-    qemu_irq_raise(pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_BAT_COVER]);
+    qemu_irq_raise(qdev_get_gpio_in(cpu->gpio, SPITZ_GPIO_BAT_COVER));
 
     /* Handle reset */
-    pxa2xx_gpio_out_set(cpu->gpio, SPITZ_GPIO_ON_RESET, cpu->reset);
+    qdev_connect_gpio_out(cpu->gpio, SPITZ_GPIO_ON_RESET, cpu->reset);
 
     /* PCMCIA signals: card's IRQ and Card-Detect */
     if (slots >= 1)
         pxa2xx_pcmcia_set_irq_cb(cpu->pcmcia[0],
-                        pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_CF1_IRQ],
-                        pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_CF1_CD]);
+                        qdev_get_gpio_in(cpu->gpio, SPITZ_GPIO_CF1_IRQ),
+                        qdev_get_gpio_in(cpu->gpio, SPITZ_GPIO_CF1_CD));
     if (slots >= 2)
         pxa2xx_pcmcia_set_irq_cb(cpu->pcmcia[1],
-                        pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_CF2_IRQ],
-                        pxa2xx_gpio_in_get(cpu->gpio)[SPITZ_GPIO_CF2_CD]);
+                        qdev_get_gpio_in(cpu->gpio, SPITZ_GPIO_CF2_IRQ),
+                        qdev_get_gpio_in(cpu->gpio, SPITZ_GPIO_CF2_CD));
 }
 
 /* Board init.  */
