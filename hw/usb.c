@@ -28,7 +28,32 @@
 
 void usb_attach(USBPort *port, USBDevice *dev)
 {
-    port->attach(port, dev);
+    if (dev != NULL) {
+        /* attach */
+        if (port->dev) {
+            usb_attach(port, NULL);
+        }
+        dev->port = port;
+        port->dev = dev;
+        port->ops->attach(port);
+        usb_send_msg(dev, USB_MSG_ATTACH);
+    } else {
+        /* detach */
+        dev = port->dev;
+        port->ops->detach(port);
+        if (dev) {
+            usb_send_msg(dev, USB_MSG_DETACH);
+            dev->port = NULL;
+            port->dev = NULL;
+        }
+    }
+}
+
+void usb_wakeup(USBDevice *dev)
+{
+    if (dev->remote_wakeup && dev->port && dev->port->ops->wakeup) {
+        dev->port->ops->wakeup(dev);
+    }
 }
 
 /**********************/
@@ -169,6 +194,9 @@ int usb_generic_handle_packet(USBDevice *s, USBPacket *p)
     switch(p->pid) {
     case USB_MSG_ATTACH:
         s->state = USB_STATE_ATTACHED;
+        if (s->info->handle_attach) {
+            s->info->handle_attach(s);
+        }
         return 0;
 
     case USB_MSG_DETACH:
@@ -179,7 +207,9 @@ int usb_generic_handle_packet(USBDevice *s, USBPacket *p)
         s->remote_wakeup = 0;
         s->addr = 0;
         s->state = USB_STATE_DEFAULT;
-        s->info->handle_reset(s);
+        if (s->info->handle_reset) {
+            s->info->handle_reset(s);
+        }
         return 0;
     }
 

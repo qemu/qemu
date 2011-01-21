@@ -5,13 +5,20 @@
 #include "monitor.h"
 
 static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent);
-static char *usbbus_get_fw_dev_path(DeviceState *dev);
+
+static char *usb_get_dev_path(DeviceState *dev);
+static char *usb_get_fw_dev_path(DeviceState *qdev);
 
 static struct BusInfo usb_bus_info = {
     .name      = "USB",
     .size      = sizeof(USBBus),
     .print_dev = usb_bus_dev_print,
-    .get_fw_dev_path = usbbus_get_fw_dev_path,
+    .get_dev_path = usb_get_dev_path,
+    .get_fw_dev_path = usb_get_fw_dev_path,
+    .props      = (Property[]) {
+        DEFINE_PROP_STRING("port", USBDevice, port_path),
+        DEFINE_PROP_END_OF_LIST()
+    },
 };
 static int next_usb_bus = 0;
 static QTAILQ_HEAD(, USBBus) busses = QTAILQ_HEAD_INITIALIZER(busses);
@@ -48,6 +55,7 @@ static int usb_qdev_init(DeviceState *qdev, DeviceInfo *base)
     pstrcpy(dev->product_desc, sizeof(dev->product_desc), info->product_desc);
     dev->info = info;
     dev->auto_attach = 1;
+    QLIST_INIT(&dev->strings);
     rc = dev->info->init(dev);
     if (rc == 0 && dev->auto_attach)
         usb_device_attach(dev);
@@ -112,14 +120,26 @@ USBDevice *usb_create_simple(USBBus *bus, const char *name)
 }
 
 void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,
-                       USBDevice *pdev, usb_attachfn attach)
+                       USBPortOps *ops, int speedmask)
 {
     port->opaque = opaque;
     port->index = index;
-    port->attach = attach;
-    port->pdev = pdev;
+    port->opaque = opaque;
+    port->index = index;
+    port->ops = ops;
+    port->speedmask = speedmask;
     QTAILQ_INSERT_TAIL(&bus->free, port, next);
     bus->nfree++;
+}
+
+void usb_port_location(USBPort *downstream, USBPort *upstream, int portnr)
+{
+    if (upstream) {
+        snprintf(downstream->path, sizeof(downstream->path), "%s.%d",
+                 upstream->path, portnr);
+    } else {
+        snprintf(downstream->path, sizeof(downstream->path), "%d", portnr);
+    }
 }
 
 void usb_unregister_port(USBBus *bus, USBPort *port)
@@ -140,9 +160,22 @@ static void do_attach(USBDevice *dev)
                 dev->product_desc);
         return;
     }
-    dev->attached++;
+    if (dev->port_path) {
+        QTAILQ_FOREACH(port, &bus->free, next) {
+            if (strcmp(port->path, dev->port_path) == 0) {
+                break;
+            }
+        }
+        if (port == NULL) {
+            fprintf(stderr, "Warning: usb port %s (bus %s) not found\n",
+                    dev->port_path, bus->qbus.name);
+            return;
+        }
+    } else {
+        port = QTAILQ_FIRST(&bus->free);
+    }
 
-    port = QTAILQ_FIRST(&bus->free);
+    dev->attached++;
     QTAILQ_REMOVE(&bus->free, port, next);
     bus->nfree--;
 
@@ -156,8 +189,9 @@ int usb_device_attach(USBDevice *dev)
 {
     USBBus *bus = usb_bus_from_device(dev);
 
-    if (bus->nfree == 1) {
-        /* Create a new hub and chain it on.  */
+    if (bus->nfree == 1 && dev->port_path == NULL) {
+        /* Create a new hub and chain it on
+           (unless a physical port location is specified). */
         usb_create_simple(bus, "usb-hub");
     }
     do_attach(dev);
@@ -231,10 +265,41 @@ static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
     USBDevice *dev = DO_UPCAST(USBDevice, qdev, qdev);
     USBBus *bus = usb_bus_from_device(dev);
 
-    monitor_printf(mon, "%*saddr %d.%d, speed %s, name %s%s\n",
+    monitor_printf(mon, "%*saddr %d.%d, port %s, speed %s, name %s%s\n",
                    indent, "", bus->busnr, dev->addr,
+                   dev->port ? dev->port->path : "-",
                    usb_speed(dev->speed), dev->product_desc,
                    dev->attached ? ", attached" : "");
+}
+
+static char *usb_get_dev_path(DeviceState *qdev)
+{
+    USBDevice *dev = DO_UPCAST(USBDevice, qdev, qdev);
+    return qemu_strdup(dev->port->path);
+}
+
+static char *usb_get_fw_dev_path(DeviceState *qdev)
+{
+    USBDevice *dev = DO_UPCAST(USBDevice, qdev, qdev);
+    char *fw_path, *in;
+    int pos = 0;
+    long nr;
+
+    fw_path = qemu_malloc(32 + strlen(dev->port->path) * 6);
+    in = dev->port->path;
+    while (true) {
+        nr = strtol(in, &in, 10);
+        if (in[0] == '.') {
+            /* some hub between root port and device */
+            pos += sprintf(fw_path + pos, "hub@%ld/", nr);
+            in++;
+        } else {
+            /* the device itself */
+            pos += sprintf(fw_path + pos, "%s@%ld", qdev_fw_name(qdev), nr);
+            break;
+        }
+    }
+    return fw_path;
 }
 
 void usb_info(Monitor *mon)
@@ -253,8 +318,8 @@ void usb_info(Monitor *mon)
             dev = port->dev;
             if (!dev)
                 continue;
-            monitor_printf(mon, "  Device %d.%d, Speed %s Mb/s, Product %s\n",
-                           bus->busnr, dev->addr, usb_speed(dev->speed),
+            monitor_printf(mon, "  Device %d.%d, Port %s, Speed %s Mb/s, Product %s\n",
+                           bus->busnr, dev->addr, port->path, usb_speed(dev->speed),
                            dev->product_desc);
         }
     }
@@ -308,44 +373,4 @@ USBDevice *usbdevice_create(const char *cmdline)
         return usb_create_simple(bus, usb->qdev.name);
     }
     return usb->usbdevice_init(params);
-}
-
-static int usbbus_get_fw_dev_path_helper(USBDevice *d, USBBus *bus, char *p,
-                                         int len)
-{
-    int l = 0;
-    USBPort *port;
-
-    QTAILQ_FOREACH(port, &bus->used, next) {
-        if (port->dev == d) {
-            if (port->pdev) {
-                l = usbbus_get_fw_dev_path_helper(port->pdev, bus, p, len);
-            }
-            l += snprintf(p + l, len - l, "%s@%x/", qdev_fw_name(&d->qdev),
-                          port->index);
-            break;
-        }
-    }
-
-    return l;
-}
-
-static char *usbbus_get_fw_dev_path(DeviceState *dev)
-{
-    USBDevice *d = (USBDevice*)dev;
-    USBBus *bus = usb_bus_from_device(d);
-    char path[100];
-    int l;
-
-    assert(d->attached != 0);
-
-    l = usbbus_get_fw_dev_path_helper(d, bus, path, sizeof(path));
-
-    if (l == 0) {
-        abort();
-    }
-
-    path[l-1] = '\0';
-
-    return strdup(path);
 }

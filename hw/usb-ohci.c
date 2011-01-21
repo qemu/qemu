@@ -322,52 +322,46 @@ static inline void ohci_set_interrupt(OHCIState *ohci, uint32_t intr)
 }
 
 /* Attach or detach a device on a root hub port.  */
-static void ohci_attach(USBPort *port1, USBDevice *dev)
+static void ohci_attach(USBPort *port1)
+{
+    OHCIState *s = port1->opaque;
+    OHCIPort *port = &s->rhport[port1->index];
+
+    /* set connect status */
+    port->ctrl |= OHCI_PORT_CCS | OHCI_PORT_CSC;
+
+    /* update speed */
+    if (port->port.dev->speed == USB_SPEED_LOW) {
+        port->ctrl |= OHCI_PORT_LSDA;
+    } else {
+        port->ctrl &= ~OHCI_PORT_LSDA;
+    }
+
+    /* notify of remote-wakeup */
+    if ((s->ctl & OHCI_CTL_HCFS) == OHCI_USB_SUSPEND) {
+        ohci_set_interrupt(s, OHCI_INTR_RD);
+    }
+
+    DPRINTF("usb-ohci: Attached port %d\n", port1->index);
+}
+
+static void ohci_detach(USBPort *port1)
 {
     OHCIState *s = port1->opaque;
     OHCIPort *port = &s->rhport[port1->index];
     uint32_t old_state = port->ctrl;
 
-    if (dev) {
-        if (port->port.dev) {
-            usb_attach(port1, NULL);
-        }
-        /* set connect status */
-        port->ctrl |= OHCI_PORT_CCS | OHCI_PORT_CSC;
-
-        /* update speed */
-        if (dev->speed == USB_SPEED_LOW)
-            port->ctrl |= OHCI_PORT_LSDA;
-        else
-            port->ctrl &= ~OHCI_PORT_LSDA;
-        port->port.dev = dev;
-
-        /* notify of remote-wakeup */
-        if ((s->ctl & OHCI_CTL_HCFS) == OHCI_USB_SUSPEND)
-            ohci_set_interrupt(s, OHCI_INTR_RD);
-
-        /* send the attach message */
-        usb_send_msg(dev, USB_MSG_ATTACH);
-        DPRINTF("usb-ohci: Attached port %d\n", port1->index);
-    } else {
-        /* set connect status */
-        if (port->ctrl & OHCI_PORT_CCS) {
-            port->ctrl &= ~OHCI_PORT_CCS;
-            port->ctrl |= OHCI_PORT_CSC;
-        }
-        /* disable port */
-        if (port->ctrl & OHCI_PORT_PES) {
-            port->ctrl &= ~OHCI_PORT_PES;
-            port->ctrl |= OHCI_PORT_PESC;
-        }
-        dev = port->port.dev;
-        if (dev) {
-            /* send the detach message */
-            usb_send_msg(dev, USB_MSG_DETACH);
-        }
-        port->port.dev = NULL;
-        DPRINTF("usb-ohci: Detached port %d\n", port1->index);
+    /* set connect status */
+    if (port->ctrl & OHCI_PORT_CCS) {
+        port->ctrl &= ~OHCI_PORT_CCS;
+        port->ctrl |= OHCI_PORT_CSC;
     }
+    /* disable port */
+    if (port->ctrl & OHCI_PORT_PES) {
+        port->ctrl &= ~OHCI_PORT_PES;
+        port->ctrl |= OHCI_PORT_PESC;
+    }
+    DPRINTF("usb-ohci: Detached port %d\n", port1->index);
 
     if (old_state != port->ctrl)
         ohci_set_interrupt(s, OHCI_INTR_RHSC);
@@ -413,8 +407,9 @@ static void ohci_reset(void *opaque)
       {
         port = &ohci->rhport[i];
         port->ctrl = 0;
-        if (port->port.dev)
-            ohci_attach(&port->port, port->port.dev);
+        if (port->port.dev) {
+            usb_attach(&port->port, port->port.dev);
+        }
       }
     if (ohci->async_td) {
         usb_cancel_packet(&ohci->usb_packet);
@@ -1669,6 +1664,11 @@ static CPUWriteMemoryFunc * const ohci_writefn[3]={
     ohci_mem_write
 };
 
+static USBPortOps ohci_port_ops = {
+    .attach = ohci_attach,
+    .detach = ohci_detach,
+};
+
 static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
                           int num_ports, uint32_t localmem_base)
 {
@@ -1699,7 +1699,9 @@ static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
     usb_bus_new(&ohci->bus, dev);
     ohci->num_ports = num_ports;
     for (i = 0; i < num_ports; i++) {
-        usb_register_port(&ohci->bus, &ohci->rhport[i].port, ohci, i, NULL, ohci_attach);
+        usb_register_port(&ohci->bus, &ohci->rhport[i].port, ohci, i, &ohci_port_ops,
+                          USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
+        usb_port_location(&ohci->rhport[i].port, NULL, i+1);
     }
 
     ohci->async_td = 0;

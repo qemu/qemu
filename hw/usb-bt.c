@@ -20,6 +20,7 @@
 
 #include "qemu-common.h"
 #include "usb.h"
+#include "usb-desc.h"
 #include "net.h"
 #include "bt.h"
 
@@ -51,251 +52,202 @@ struct USBBtState {
 #define USB_ACL_EP	2
 #define USB_SCO_EP	3
 
-static const uint8_t qemu_bt_dev_descriptor[] = {
-    0x12,		/*  u8 bLength; */
-    USB_DT_DEVICE,	/*  u8 bDescriptorType; Device */
-    0x10, 0x01,		/*  u16 bcdUSB; v1.10 */
-
-    0xe0,	/*  u8  bDeviceClass; Wireless */
-    0x01,	/*  u8  bDeviceSubClass; Radio Frequency */
-    0x01,	/*  u8  bDeviceProtocol; Bluetooth */
-    0x40,	/*  u8  bMaxPacketSize0; 64 Bytes */
-
-    0x12, 0x0a,	/*  u16 idVendor; */
-    0x01, 0x00,	/*  u16 idProduct; Bluetooth Dongle (HCI mode) */
-    0x58, 0x19,	/*  u16 bcdDevice; (some devices have 0x48, 0x02) */
-
-    0x00,	/*  u8  iManufacturer; */
-    0x00,	/*  u8  iProduct; */
-    0x00,	/*  u8  iSerialNumber; */
-    0x01,	/*  u8  bNumConfigurations; */
+enum {
+    STR_MANUFACTURER = 1,
+    STR_SERIALNUMBER,
 };
 
-static const uint8_t qemu_bt_config_descriptor[] = {
-    /* one configuration */
-    0x09,		/*  u8  bLength; */
-    USB_DT_CONFIG,	/*  u8  bDescriptorType; */
-    0xb1, 0x00,		/*  u16 wTotalLength; */
-    0x02,		/*  u8  bNumInterfaces; (2) */
-    0x01,		/*  u8  bConfigurationValue; */
-    0x00,		/*  u8  iConfiguration; */
-    0xc0,		/*  u8  bmAttributes;
-				     Bit 7: must be set,
-					 6: Self-powered,
-					 5: Remote wakeup,
-					 4..0: resvd */
-    0x00,		/*  u8  MaxPower; */
+static const USBDescStrings desc_strings = {
+    [STR_MANUFACTURER]     = "QEMU " QEMU_VERSION,
+    [STR_SERIALNUMBER]     = "1",
+};
 
-    /* USB 1.1:
-     * USB 2.0, single TT organization (mandatory):
-     *	one interface, protocol 0
-     *
-     * USB 2.0, multiple TT organization (optional):
-     *	two interfaces, protocols 1 (like single TT)
-     *	and 2 (multiple TT mode) ... config is
-     *	sometimes settable
-     *	NOT IMPLEMENTED
-     */
+static const USBDescIface desc_iface_bluetooth[] = {
+    {
+        .bInterfaceNumber              = 0,
+        .bNumEndpoints                 = 3,
+        .bInterfaceClass               = 0xe0, /* Wireless */
+        .bInterfaceSubClass            = 0x01, /* Radio Frequency */
+        .bInterfaceProtocol            = 0x01, /* Bluetooth */
+        .eps = (USBDescEndpoint[]) {
+            {
+                .bEndpointAddress      = USB_DIR_IN | USB_EVT_EP,
+                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .wMaxPacketSize        = 0x10,
+                .bInterval             = 0x02,
+            },
+            {
+                .bEndpointAddress      = USB_DIR_OUT | USB_ACL_EP,
+                .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+                .wMaxPacketSize        = 0x40,
+                .bInterval             = 0x0a,
+            },
+            {
+                .bEndpointAddress      = USB_DIR_IN | USB_ACL_EP,
+                .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+                .wMaxPacketSize        = 0x40,
+                .bInterval             = 0x0a,
+            },
+        },
+    },{
+        .bInterfaceNumber              = 1,
+        .bAlternateSetting             = 0,
+        .bNumEndpoints                 = 2,
+        .bInterfaceClass               = 0xe0, /* Wireless */
+        .bInterfaceSubClass            = 0x01, /* Radio Frequency */
+        .bInterfaceProtocol            = 0x01, /* Bluetooth */
+        .eps = (USBDescEndpoint[]) {
+            {
+                .bEndpointAddress      = USB_DIR_OUT | USB_SCO_EP,
+                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .wMaxPacketSize        = 0,
+                .bInterval             = 0x01,
+            },
+            {
+                .bEndpointAddress      = USB_DIR_IN | USB_SCO_EP,
+                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .wMaxPacketSize        = 0,
+                .bInterval             = 0x01,
+            },
+        },
+    },{
+        .bInterfaceNumber              = 1,
+        .bAlternateSetting             = 1,
+        .bNumEndpoints                 = 2,
+        .bInterfaceClass               = 0xe0, /* Wireless */
+        .bInterfaceSubClass            = 0x01, /* Radio Frequency */
+        .bInterfaceProtocol            = 0x01, /* Bluetooth */
+        .eps = (USBDescEndpoint[]) {
+            {
+                .bEndpointAddress      = USB_DIR_OUT | USB_SCO_EP,
+                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .wMaxPacketSize        = 0x09,
+                .bInterval             = 0x01,
+            },
+            {
+                .bEndpointAddress      = USB_DIR_IN | USB_SCO_EP,
+                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .wMaxPacketSize        = 0x09,
+                .bInterval             = 0x01,
+            },
+        },
+    },{
+        .bInterfaceNumber              = 1,
+        .bAlternateSetting             = 2,
+        .bNumEndpoints                 = 2,
+        .bInterfaceClass               = 0xe0, /* Wireless */
+        .bInterfaceSubClass            = 0x01, /* Radio Frequency */
+        .bInterfaceProtocol            = 0x01, /* Bluetooth */
+        .eps = (USBDescEndpoint[]) {
+            {
+                .bEndpointAddress      = USB_DIR_OUT | USB_SCO_EP,
+                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .wMaxPacketSize        = 0x11,
+                .bInterval             = 0x01,
+            },
+            {
+                .bEndpointAddress      = USB_DIR_IN | USB_SCO_EP,
+                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .wMaxPacketSize        = 0x11,
+                .bInterval             = 0x01,
+            },
+        },
+    },{
+        .bInterfaceNumber              = 1,
+        .bAlternateSetting             = 3,
+        .bNumEndpoints                 = 2,
+        .bInterfaceClass               = 0xe0, /* Wireless */
+        .bInterfaceSubClass            = 0x01, /* Radio Frequency */
+        .bInterfaceProtocol            = 0x01, /* Bluetooth */
+        .eps = (USBDescEndpoint[]) {
+            {
+                .bEndpointAddress      = USB_DIR_OUT | USB_SCO_EP,
+                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .wMaxPacketSize        = 0x19,
+                .bInterval             = 0x01,
+            },
+            {
+                .bEndpointAddress      = USB_DIR_IN | USB_SCO_EP,
+                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .wMaxPacketSize        = 0x19,
+                .bInterval             = 0x01,
+            },
+        },
+    },{
+        .bInterfaceNumber              = 1,
+        .bAlternateSetting             = 4,
+        .bNumEndpoints                 = 2,
+        .bInterfaceClass               = 0xe0, /* Wireless */
+        .bInterfaceSubClass            = 0x01, /* Radio Frequency */
+        .bInterfaceProtocol            = 0x01, /* Bluetooth */
+        .eps = (USBDescEndpoint[]) {
+            {
+                .bEndpointAddress      = USB_DIR_OUT | USB_SCO_EP,
+                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .wMaxPacketSize        = 0x21,
+                .bInterval             = 0x01,
+            },
+            {
+                .bEndpointAddress      = USB_DIR_IN | USB_SCO_EP,
+                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .wMaxPacketSize        = 0x21,
+                .bInterval             = 0x01,
+            },
+        },
+    },{
+        .bInterfaceNumber              = 1,
+        .bAlternateSetting             = 5,
+        .bNumEndpoints                 = 2,
+        .bInterfaceClass               = 0xe0, /* Wireless */
+        .bInterfaceSubClass            = 0x01, /* Radio Frequency */
+        .bInterfaceProtocol            = 0x01, /* Bluetooth */
+        .eps = (USBDescEndpoint[]) {
+            {
+                .bEndpointAddress      = USB_DIR_OUT | USB_SCO_EP,
+                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .wMaxPacketSize        = 0x31,
+                .bInterval             = 0x01,
+            },
+            {
+                .bEndpointAddress      = USB_DIR_IN | USB_SCO_EP,
+                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .wMaxPacketSize        = 0x31,
+                .bInterval             = 0x01,
+            },
+        },
+    }
+};
 
-    /* interface one */
-    0x09,		/*  u8  if_bLength; */
-    USB_DT_INTERFACE,	/*  u8  if_bDescriptorType; */
-    0x00,		/*  u8  if_bInterfaceNumber; */
-    0x00,		/*  u8  if_bAlternateSetting; */
-    0x03,		/*  u8  if_bNumEndpoints; */
-    0xe0,		/*  u8  if_bInterfaceClass; Wireless */
-    0x01,		/*  u8  if_bInterfaceSubClass; Radio Frequency */
-    0x01,		/*  u8  if_bInterfaceProtocol; Bluetooth */
-    0x00,		/*  u8  if_iInterface; */
+static const USBDescDevice desc_device_bluetooth = {
+    .bcdUSB                        = 0x0110,
+    .bDeviceClass                  = 0xe0, /* Wireless */
+    .bDeviceSubClass               = 0x01, /* Radio Frequency */
+    .bDeviceProtocol               = 0x01, /* Bluetooth */
+    .bMaxPacketSize0               = 64,
+    .bNumConfigurations            = 1,
+    .confs = (USBDescConfig[]) {
+        {
+            .bNumInterfaces        = 2,
+            .bConfigurationValue   = 1,
+            .bmAttributes          = 0xc0,
+            .bMaxPower             = 0,
+            .nif = ARRAY_SIZE(desc_iface_bluetooth),
+            .ifs = desc_iface_bluetooth,
+        },
+    },
+};
 
-    /* endpoint one */
-    0x07,		/*  u8  ep_bLength; */
-    USB_DT_ENDPOINT,	/*  u8  ep_bDescriptorType; */
-    USB_DIR_IN | USB_EVT_EP,	/*  u8  ep_bEndpointAddress; */
-    0x03,		/*  u8  ep_bmAttributes; Interrupt */
-    0x10, 0x00,		/*  u16 ep_wMaxPacketSize; */
-    0x02,		/*  u8  ep_bInterval; */
-
-    /* endpoint two */
-    0x07,		/*  u8  ep_bLength; */
-    USB_DT_ENDPOINT,	/*  u8  ep_bDescriptorType; */
-    USB_DIR_OUT | USB_ACL_EP,	/*  u8  ep_bEndpointAddress; */
-    0x02,		/*  u8  ep_bmAttributes; Bulk */
-    0x40, 0x00,		/*  u16 ep_wMaxPacketSize; */
-    0x0a,		/*  u8  ep_bInterval; (255ms -- usb 2.0 spec) */
-
-    /* endpoint three */
-    0x07,		/*  u8  ep_bLength; */
-    USB_DT_ENDPOINT,	/*  u8  ep_bDescriptorType; */
-    USB_DIR_IN | USB_ACL_EP,	/*  u8  ep_bEndpointAddress; */
-    0x02,		/*  u8  ep_bmAttributes; Bulk */
-    0x40, 0x00,		/*  u16 ep_wMaxPacketSize; */
-    0x0a,		/*  u8  ep_bInterval; (255ms -- usb 2.0 spec) */
-
-    /* interface two setting one */
-    0x09,		/*  u8  if_bLength; */
-    USB_DT_INTERFACE,	/*  u8  if_bDescriptorType; */
-    0x01,		/*  u8  if_bInterfaceNumber; */
-    0x00,		/*  u8  if_bAlternateSetting; */
-    0x02,		/*  u8  if_bNumEndpoints; */
-    0xe0,		/*  u8  if_bInterfaceClass; Wireless */
-    0x01,		/*  u8  if_bInterfaceSubClass; Radio Frequency */
-    0x01,		/*  u8  if_bInterfaceProtocol; Bluetooth */
-    0x00,		/*  u8  if_iInterface; */
-
-    /* endpoint one */
-    0x07,		/*  u8  ep_bLength; */
-    USB_DT_ENDPOINT,	/*  u8  ep_bDescriptorType; */
-    USB_DIR_OUT | USB_SCO_EP,	/*  u8  ep_bEndpointAddress; */
-    0x01,		/*  u8  ep_bmAttributes; Isochronous */
-    0x00, 0x00,		/*  u16 ep_wMaxPacketSize; */
-    0x01,		/*  u8  ep_bInterval; (255ms -- usb 2.0 spec) */
-
-    /* endpoint two */
-    0x07,		/*  u8  ep_bLength; */
-    USB_DT_ENDPOINT,	/*  u8  ep_bDescriptorType; */
-    USB_DIR_IN | USB_SCO_EP,	/*  u8  ep_bEndpointAddress; */
-    0x01,		/*  u8  ep_bmAttributes; Isochronous */
-    0x00, 0x00,		/*  u16 ep_wMaxPacketSize; */
-    0x01,		/*  u8  ep_bInterval; (255ms -- usb 2.0 spec) */
-
-    /* interface two setting two */
-    0x09,		/*  u8  if_bLength; */
-    USB_DT_INTERFACE,	/*  u8  if_bDescriptorType; */
-    0x01,		/*  u8  if_bInterfaceNumber; */
-    0x01,		/*  u8  if_bAlternateSetting; */
-    0x02,		/*  u8  if_bNumEndpoints; */
-    0xe0,		/*  u8  if_bInterfaceClass; Wireless */
-    0x01,		/*  u8  if_bInterfaceSubClass; Radio Frequency */
-    0x01,		/*  u8  if_bInterfaceProtocol; Bluetooth */
-    0x00,		/*  u8  if_iInterface; */
-
-    /* endpoint one */
-    0x07,		/*  u8  ep_bLength; */
-    USB_DT_ENDPOINT,	/*  u8  ep_bDescriptorType; */
-    USB_DIR_OUT | USB_SCO_EP,	/*  u8  ep_bEndpointAddress; */
-    0x01,		/*  u8  ep_bmAttributes; Isochronous */
-    0x09, 0x00,		/*  u16 ep_wMaxPacketSize; */
-    0x01,		/*  u8  ep_bInterval; (255ms -- usb 2.0 spec) */
-
-    /* endpoint two */
-    0x07,		/*  u8  ep_bLength; */
-    USB_DT_ENDPOINT,	/*  u8  ep_bDescriptorType; */
-    USB_DIR_IN | USB_SCO_EP,	/*  u8  ep_bEndpointAddress; */
-    0x01,		/*  u8  ep_bmAttributes; Isochronous */
-    0x09, 0x00,		/*  u16 ep_wMaxPacketSize; */
-    0x01,		/*  u8  ep_bInterval; (255ms -- usb 2.0 spec) */
-
-    /* interface two setting three */
-    0x09,		/*  u8  if_bLength; */
-    USB_DT_INTERFACE,	/*  u8  if_bDescriptorType; */
-    0x01,		/*  u8  if_bInterfaceNumber; */
-    0x02,		/*  u8  if_bAlternateSetting; */
-    0x02,		/*  u8  if_bNumEndpoints; */
-    0xe0,		/*  u8  if_bInterfaceClass; Wireless */
-    0x01,		/*  u8  if_bInterfaceSubClass; Radio Frequency */
-    0x01,		/*  u8  if_bInterfaceProtocol; Bluetooth */
-    0x00,		/*  u8  if_iInterface; */
-
-    /* endpoint one */
-    0x07,		/*  u8  ep_bLength; */
-    USB_DT_ENDPOINT,	/*  u8  ep_bDescriptorType; */
-    USB_DIR_OUT | USB_SCO_EP,	/*  u8  ep_bEndpointAddress; */
-    0x01,		/*  u8  ep_bmAttributes; Isochronous */
-    0x11, 0x00,		/*  u16 ep_wMaxPacketSize; */
-    0x01,		/*  u8  ep_bInterval; (255ms -- usb 2.0 spec) */
-
-    /* endpoint two */
-    0x07,		/*  u8  ep_bLength; */
-    USB_DT_ENDPOINT,	/*  u8  ep_bDescriptorType; */
-    USB_DIR_IN | USB_SCO_EP,	/*  u8  ep_bEndpointAddress; */
-    0x01,		/*  u8  ep_bmAttributes; Isochronous */
-    0x11, 0x00,		/*  u16 ep_wMaxPacketSize; */
-    0x01,		/*  u8  ep_bInterval; (255ms -- usb 2.0 spec) */
-
-    /* interface two setting four */
-    0x09,		/*  u8  if_bLength; */
-    USB_DT_INTERFACE,	/*  u8  if_bDescriptorType; */
-    0x01,		/*  u8  if_bInterfaceNumber; */
-    0x03,		/*  u8  if_bAlternateSetting; */
-    0x02,		/*  u8  if_bNumEndpoints; */
-    0xe0,		/*  u8  if_bInterfaceClass; Wireless */
-    0x01,		/*  u8  if_bInterfaceSubClass; Radio Frequency */
-    0x01,		/*  u8  if_bInterfaceProtocol; Bluetooth */
-    0x00,		/*  u8  if_iInterface; */
-
-    /* endpoint one */
-    0x07,		/*  u8  ep_bLength; */
-    USB_DT_ENDPOINT,	/*  u8  ep_bDescriptorType; */
-    USB_DIR_OUT | USB_SCO_EP,	/*  u8  ep_bEndpointAddress; */
-    0x01,		/*  u8  ep_bmAttributes; Isochronous */
-    0x19, 0x00,		/*  u16 ep_wMaxPacketSize; */
-    0x01,		/*  u8  ep_bInterval; (255ms -- usb 2.0 spec) */
-
-    /* endpoint two */
-    0x07,		/*  u8  ep_bLength; */
-    USB_DT_ENDPOINT,	/*  u8  ep_bDescriptorType; */
-    USB_DIR_IN | USB_SCO_EP,	/*  u8  ep_bEndpointAddress; */
-    0x01,		/*  u8  ep_bmAttributes; Isochronous */
-    0x19, 0x00,		/*  u16 ep_wMaxPacketSize; */
-    0x01,		/*  u8  ep_bInterval; (255ms -- usb 2.0 spec) */
-
-    /* interface two setting five */
-    0x09,		/*  u8  if_bLength; */
-    USB_DT_INTERFACE,	/*  u8  if_bDescriptorType; */
-    0x01,		/*  u8  if_bInterfaceNumber; */
-    0x04,		/*  u8  if_bAlternateSetting; */
-    0x02,		/*  u8  if_bNumEndpoints; */
-    0xe0,		/*  u8  if_bInterfaceClass; Wireless */
-    0x01,		/*  u8  if_bInterfaceSubClass; Radio Frequency */
-    0x01,		/*  u8  if_bInterfaceProtocol; Bluetooth */
-    0x00,		/*  u8  if_iInterface; */
-
-    /* endpoint one */
-    0x07,		/*  u8  ep_bLength; */
-    USB_DT_ENDPOINT,	/*  u8  ep_bDescriptorType; */
-    USB_DIR_OUT | USB_SCO_EP,	/*  u8  ep_bEndpointAddress; */
-    0x01,		/*  u8  ep_bmAttributes; Isochronous */
-    0x21, 0x00,		/*  u16 ep_wMaxPacketSize; */
-    0x01,		/*  u8  ep_bInterval; (255ms -- usb 2.0 spec) */
-
-    /* endpoint two */
-    0x07,		/*  u8  ep_bLength; */
-    USB_DT_ENDPOINT,	/*  u8  ep_bDescriptorType; */
-    USB_DIR_IN | USB_SCO_EP,	/*  u8  ep_bEndpointAddress; */
-    0x01,		/*  u8  ep_bmAttributes; Isochronous */
-    0x21, 0x00,		/*  u16 ep_wMaxPacketSize; */
-    0x01,		/*  u8  ep_bInterval; (255ms -- usb 2.0 spec) */
-
-    /* interface two setting six */
-    0x09,		/*  u8  if_bLength; */
-    USB_DT_INTERFACE,	/*  u8  if_bDescriptorType; */
-    0x01,		/*  u8  if_bInterfaceNumber; */
-    0x05,		/*  u8  if_bAlternateSetting; */
-    0x02,		/*  u8  if_bNumEndpoints; */
-    0xe0,		/*  u8  if_bInterfaceClass; Wireless */
-    0x01,		/*  u8  if_bInterfaceSubClass; Radio Frequency */
-    0x01,		/*  u8  if_bInterfaceProtocol; Bluetooth */
-    0x00,		/*  u8  if_iInterface; */
-
-    /* endpoint one */
-    0x07,		/*  u8  ep_bLength; */
-    USB_DT_ENDPOINT,	/*  u8  ep_bDescriptorType; */
-    USB_DIR_OUT | USB_SCO_EP,	/*  u8  ep_bEndpointAddress; */
-    0x01,		/*  u8  ep_bmAttributes; Isochronous */
-    0x31, 0x00,		/*  u16 ep_wMaxPacketSize; */
-    0x01,		/*  u8  ep_bInterval; (255ms -- usb 2.0 spec) */
-
-    /* endpoint two */
-    0x07,		/*  u8  ep_bLength; */
-    USB_DT_ENDPOINT,	/*  u8  ep_bDescriptorType; */
-    USB_DIR_IN | USB_SCO_EP,	/*  u8  ep_bEndpointAddress; */
-    0x01,		/*  u8  ep_bmAttributes; Isochronous */
-    0x31, 0x00,		/*  u16 ep_wMaxPacketSize; */
-    0x01,		/*  u8  ep_bInterval; (255ms -- usb 2.0 spec) */
-
-    /* If implemented, the DFU interface descriptor goes here with no
-     * endpoints or alternative settings.  */
+static const USBDesc desc_bluetooth = {
+    .id = {
+        .idVendor          = 0x0a12,
+        .idProduct         = 0x0001,
+        .bcdDevice         = 0x1958,
+        .iManufacturer     = STR_MANUFACTURER,
+        .iProduct          = 0,
+        .iSerialNumber     = STR_SERIALNUMBER,
+    },
+    .full = &desc_device_bluetooth,
+    .str  = desc_strings,
 };
 
 static void usb_bt_fifo_reset(struct usb_hci_in_fifo_s *fifo)
@@ -424,85 +376,38 @@ static int usb_bt_handle_control(USBDevice *dev, int request, int value,
                 int index, int length, uint8_t *data)
 {
     struct USBBtState *s = (struct USBBtState *) dev->opaque;
-    int ret = 0;
+    int ret;
 
+    ret = usb_desc_handle_control(dev, request, value, index, length, data);
+    if (ret >= 0) {
+        switch (request) {
+        case DeviceRequest | USB_REQ_GET_CONFIGURATION:
+            s->config = 0;
+            break;
+        case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
+            s->config = 1;
+            usb_bt_fifo_reset(&s->evt);
+            usb_bt_fifo_reset(&s->acl);
+            usb_bt_fifo_reset(&s->sco);
+            break;
+        }
+        return ret;
+    }
+
+    ret = 0;
     switch (request) {
-    case DeviceRequest | USB_REQ_GET_STATUS:
     case InterfaceRequest | USB_REQ_GET_STATUS:
     case EndpointRequest | USB_REQ_GET_STATUS:
-        data[0] = (1 << USB_DEVICE_SELF_POWERED) |
-            (dev->remote_wakeup << USB_DEVICE_REMOTE_WAKEUP);
+        data[0] = 0x00;
         data[1] = 0x00;
         ret = 2;
         break;
-    case DeviceOutRequest | USB_REQ_CLEAR_FEATURE:
     case InterfaceOutRequest | USB_REQ_CLEAR_FEATURE:
     case EndpointOutRequest | USB_REQ_CLEAR_FEATURE:
-        if (value == USB_DEVICE_REMOTE_WAKEUP) {
-            dev->remote_wakeup = 0;
-        } else {
-            goto fail;
-        }
-        ret = 0;
-        break;
-    case DeviceOutRequest | USB_REQ_SET_FEATURE:
+        goto fail;
     case InterfaceOutRequest | USB_REQ_SET_FEATURE:
     case EndpointOutRequest | USB_REQ_SET_FEATURE:
-        if (value == USB_DEVICE_REMOTE_WAKEUP) {
-            dev->remote_wakeup = 1;
-        } else {
-            goto fail;
-        }
-        ret = 0;
-        break;
-    case DeviceOutRequest | USB_REQ_SET_ADDRESS:
-        dev->addr = value;
-        ret = 0;
-        break;
-    case DeviceRequest | USB_REQ_GET_DESCRIPTOR:
-        switch (value >> 8) {
-        case USB_DT_DEVICE:
-            ret = sizeof(qemu_bt_dev_descriptor);
-            memcpy(data, qemu_bt_dev_descriptor, ret);
-            break;
-        case USB_DT_CONFIG:
-            ret = sizeof(qemu_bt_config_descriptor);
-            memcpy(data, qemu_bt_config_descriptor, ret);
-            break;
-        case USB_DT_STRING:
-            switch(value & 0xff) {
-            case 0:
-                /* language ids */
-                data[0] = 4;
-                data[1] = 3;
-                data[2] = 0x09;
-                data[3] = 0x04;
-                ret = 4;
-                break;
-            default:
-                goto fail;
-            }
-            break;
-        default:
-            goto fail;
-        }
-        break;
-    case DeviceRequest | USB_REQ_GET_CONFIGURATION:
-        data[0] = qemu_bt_config_descriptor[0x5];
-        ret = 1;
-        s->config = 0;
-        break;
-    case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
-        ret = 0;
-        if (value != qemu_bt_config_descriptor[0x5] && value != 0) {
-            printf("%s: Wrong SET_CONFIGURATION request (%i)\n",
-                            __FUNCTION__, value);
-            goto fail;
-        }
-        s->config = 1;
-        usb_bt_fifo_reset(&s->evt);
-        usb_bt_fifo_reset(&s->acl);
-        usb_bt_fifo_reset(&s->sco);
+        goto fail;
         break;
     case InterfaceRequest | USB_REQ_GET_INTERFACE:
         if (value != 0 || (index & ~1) || length != 1)
@@ -618,8 +523,7 @@ static void usb_bt_handle_destroy(USBDevice *dev)
 
 static int usb_bt_initfn(USBDevice *dev)
 {
-    struct USBBtState *s = DO_UPCAST(struct USBBtState, dev, dev);
-    s->dev.speed = USB_SPEED_HIGH;
+    usb_desc_init(dev);
     return 0;
 }
 
@@ -648,6 +552,7 @@ static struct USBDeviceInfo bt_info = {
     .product_desc   = "QEMU BT dongle",
     .qdev.name      = "usb-bt-dongle",
     .qdev.size      = sizeof(struct USBBtState),
+    .usb_desc       = &desc_bluetooth,
     .init           = usb_bt_initfn,
     .handle_packet  = usb_generic_handle_packet,
     .handle_reset   = usb_bt_handle_reset,

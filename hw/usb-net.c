@@ -25,6 +25,7 @@
 
 #include "qemu-common.h"
 #include "usb.h"
+#include "usb-desc.h"
 #include "net.h"
 #include "qemu-queue.h"
 #include "sysemu.h"
@@ -89,182 +90,209 @@ enum usbstring_idx {
 
 #define ETH_FRAME_LEN			1514 /* Max. octets in frame sans FCS */
 
-/*
- * mostly the same descriptor as the linux gadget rndis driver
- */
-static const uint8_t qemu_net_dev_descriptor[] = {
-    0x12,			/*  u8 bLength; */
-    USB_DT_DEVICE,		/*  u8 bDescriptorType; Device */
-    0x00, 0x02,			/*  u16 bcdUSB; v2.0 */
-    USB_CLASS_COMM,		/*  u8  bDeviceClass; */
-    0x00,			/*  u8  bDeviceSubClass; */
-    0x00,			/*  u8  bDeviceProtocol; [ low/full only ] */
-    0x40,			/*  u8  bMaxPacketSize0 */
-    RNDIS_VENDOR_NUM & 0xff, RNDIS_VENDOR_NUM >> 8,	/*  u16 idVendor; */
-    RNDIS_PRODUCT_NUM & 0xff, RNDIS_PRODUCT_NUM >> 8,	/*  u16 idProduct; */
-    0x00, 0x00,			/*  u16 bcdDevice */
-    STRING_MANUFACTURER,	/*  u8  iManufacturer; */
-    STRING_PRODUCT,		/*  u8  iProduct; */
-    STRING_SERIALNUMBER,	/*  u8  iSerialNumber; */
-    0x02,			/*  u8  bNumConfigurations; */
+static const USBDescStrings usb_net_stringtable = {
+    [STRING_MANUFACTURER]       = "QEMU",
+    [STRING_PRODUCT]            = "RNDIS/QEMU USB Network Device",
+    [STRING_ETHADDR]            = "400102030405",
+    [STRING_DATA]               = "QEMU USB Net Data Interface",
+    [STRING_CONTROL]            = "QEMU USB Net Control Interface",
+    [STRING_RNDIS_CONTROL]      = "QEMU USB Net RNDIS Control Interface",
+    [STRING_CDC]                = "QEMU USB Net CDC",
+    [STRING_SUBSET]             = "QEMU USB Net Subset",
+    [STRING_RNDIS]              = "QEMU USB Net RNDIS",
+    [STRING_SERIALNUMBER]       = "1",
 };
 
-static const uint8_t qemu_net_rndis_config_descriptor[] = {
-    /* Configuration Descriptor */
-    0x09,			/*  u8  bLength */
-    USB_DT_CONFIG,		/*  u8  bDescriptorType */
-    0x43, 0x00,			/*  le16 wTotalLength */
-    0x02,			/*  u8  bNumInterfaces */
-    DEV_RNDIS_CONFIG_VALUE,	/*  u8  bConfigurationValue */
-    STRING_RNDIS,		/*  u8  iConfiguration */
-    0xc0,			/*  u8  bmAttributes */
-    0x32,			/*  u8  bMaxPower */
-    /* RNDIS Control Interface */
-    0x09,			/*  u8  bLength */
-    USB_DT_INTERFACE,		/*  u8  bDescriptorType */
-    0x00,			/*  u8  bInterfaceNumber */
-    0x00,			/*  u8  bAlternateSetting */
-    0x01,			/*  u8  bNumEndpoints */
-    USB_CLASS_COMM,		/*  u8  bInterfaceClass */
-    USB_CDC_SUBCLASS_ACM,	/*  u8  bInterfaceSubClass */
-    USB_CDC_ACM_PROTO_VENDOR,	/*  u8  bInterfaceProtocol */
-    STRING_RNDIS_CONTROL,	/*  u8  iInterface */
-    /* Header Descriptor */
-    0x05,			/*  u8    bLength */
-    USB_DT_CS_INTERFACE,	/*  u8    bDescriptorType */
-    USB_CDC_HEADER_TYPE,	/*  u8    bDescriptorSubType */
-    0x10, 0x01,			/*  le16  bcdCDC */
-    /* Call Management Descriptor */
-    0x05,			/*  u8    bLength */
-    USB_DT_CS_INTERFACE,	/*  u8    bDescriptorType */
-    USB_CDC_CALL_MANAGEMENT_TYPE,	/*  u8    bDescriptorSubType */
-    0x00,			/*  u8    bmCapabilities */
-    0x01,			/*  u8    bDataInterface */
-    /* ACM Descriptor */
-    0x04,			/*  u8    bLength */
-    USB_DT_CS_INTERFACE,	/*  u8    bDescriptorType */
-    USB_CDC_ACM_TYPE,		/*  u8    bDescriptorSubType */
-    0x00,			/*  u8    bmCapabilities */
-    /* Union Descriptor */
-    0x05,			/*  u8    bLength */
-    USB_DT_CS_INTERFACE,	/*  u8    bDescriptorType */
-    USB_CDC_UNION_TYPE,		/*  u8    bDescriptorSubType */
-    0x00,			/*  u8    bMasterInterface0 */
-    0x01,			/*  u8    bSlaveInterface0 */
-    /* Status Descriptor */
-    0x07,			/*  u8  bLength */
-    USB_DT_ENDPOINT,		/*  u8  bDescriptorType */
-    USB_DIR_IN | 1,		/*  u8  bEndpointAddress */
-    USB_ENDPOINT_XFER_INT,	/*  u8  bmAttributes */
-    STATUS_BYTECOUNT & 0xff, STATUS_BYTECOUNT >> 8, /*  le16 wMaxPacketSize */
-    1 << LOG2_STATUS_INTERVAL_MSEC,	/*  u8  bInterval */
-    /* RNDIS Data Interface */
-    0x09,			/*  u8  bLength */
-    USB_DT_INTERFACE,		/*  u8  bDescriptorType */
-    0x01,			/*  u8  bInterfaceNumber */
-    0x00,			/*  u8  bAlternateSetting */
-    0x02,			/*  u8  bNumEndpoints */
-    USB_CLASS_CDC_DATA,		/*  u8  bInterfaceClass */
-    0x00,			/*  u8  bInterfaceSubClass */
-    0x00,			/*  u8  bInterfaceProtocol */
-    STRING_DATA,		/*  u8  iInterface */
-    /* Source Endpoint */
-    0x07,			/*  u8  bLength */
-    USB_DT_ENDPOINT,		/*  u8  bDescriptorType */
-    USB_DIR_IN | 2,		/*  u8  bEndpointAddress */
-    USB_ENDPOINT_XFER_BULK,	/*  u8  bmAttributes */
-    0x40, 0x00,			/*  le16 wMaxPacketSize */
-    0x00,			/*  u8  bInterval */
-    /* Sink Endpoint */
-    0x07,			/*  u8  bLength */
-    USB_DT_ENDPOINT,		/*  u8  bDescriptorType */
-    USB_DIR_OUT | 2,		/*  u8  bEndpointAddress */
-    USB_ENDPOINT_XFER_BULK,	/*  u8  bmAttributes */
-    0x40, 0x00,			/*  le16 wMaxPacketSize */
-    0x00			/*  u8  bInterval */
+static const USBDescIface desc_iface_rndis[] = {
+    {
+        /* RNDIS Control Interface */
+        .bInterfaceNumber              = 0,
+        .bNumEndpoints                 = 1,
+        .bInterfaceClass               = USB_CLASS_COMM,
+        .bInterfaceSubClass            = USB_CDC_SUBCLASS_ACM,
+        .bInterfaceProtocol            = USB_CDC_ACM_PROTO_VENDOR,
+        .iInterface                    = STRING_RNDIS_CONTROL,
+        .ndesc                         = 4,
+        .descs = (USBDescOther[]) {
+            {
+                /* Header Descriptor */
+                .data = (uint8_t[]) {
+                    0x05,                       /*  u8    bLength */
+                    USB_DT_CS_INTERFACE,        /*  u8    bDescriptorType */
+                    USB_CDC_HEADER_TYPE,        /*  u8    bDescriptorSubType */
+                    0x10, 0x01,                 /*  le16  bcdCDC */
+                },
+            },{
+                /* Call Management Descriptor */
+                .data = (uint8_t[]) {
+                    0x05,                       /*  u8    bLength */
+                    USB_DT_CS_INTERFACE,        /*  u8    bDescriptorType */
+                    USB_CDC_CALL_MANAGEMENT_TYPE, /*  u8    bDescriptorSubType */
+                    0x00,                       /*  u8    bmCapabilities */
+                    0x01,                       /*  u8    bDataInterface */
+                },
+            },{
+                /* ACM Descriptor */
+                .data = (uint8_t[]) {
+                    0x04,                       /*  u8    bLength */
+                    USB_DT_CS_INTERFACE,        /*  u8    bDescriptorType */
+                    USB_CDC_ACM_TYPE,           /*  u8    bDescriptorSubType */
+                    0x00,                       /*  u8    bmCapabilities */
+                },
+            },{
+                /* Union Descriptor */
+                .data = (uint8_t[]) {
+                    0x05,                       /*  u8    bLength */
+                    USB_DT_CS_INTERFACE,        /*  u8    bDescriptorType */
+                    USB_CDC_UNION_TYPE,         /*  u8    bDescriptorSubType */
+                    0x00,                       /*  u8    bMasterInterface0 */
+                    0x01,                       /*  u8    bSlaveInterface0 */
+                },
+            },
+        },
+        .eps = (USBDescEndpoint[]) {
+            {
+                .bEndpointAddress      = USB_DIR_IN | 0x01,
+                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .wMaxPacketSize        = STATUS_BYTECOUNT,
+                .bInterval             = 1 << LOG2_STATUS_INTERVAL_MSEC,
+            },
+        }
+    },{
+        /* RNDIS Data Interface */
+        .bInterfaceNumber              = 1,
+        .bNumEndpoints                 = 2,
+        .bInterfaceClass               = USB_CLASS_CDC_DATA,
+        .iInterface                    = STRING_DATA,
+        .eps = (USBDescEndpoint[]) {
+            {
+                .bEndpointAddress      = USB_DIR_IN | 0x02,
+                .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+                .wMaxPacketSize        = 0x40,
+            },{
+                .bEndpointAddress      = USB_DIR_OUT | 0x02,
+                .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+                .wMaxPacketSize        = 0x40,
+            }
+        }
+    }
 };
 
-static const uint8_t qemu_net_cdc_config_descriptor[] = {
-    /* Configuration Descriptor */
-    0x09,			/*  u8  bLength */
-    USB_DT_CONFIG,		/*  u8  bDescriptorType */
-    0x50, 0x00,			/*  le16 wTotalLength */
-    0x02,			/*  u8  bNumInterfaces */
-    DEV_CONFIG_VALUE,		/*  u8  bConfigurationValue */
-    STRING_CDC,			/*  u8  iConfiguration */
-    0xc0,			/*  u8  bmAttributes */
-    0x32,			/*  u8  bMaxPower */
-    /* CDC Control Interface */
-    0x09,			/*  u8  bLength */
-    USB_DT_INTERFACE,		/*  u8  bDescriptorType */
-    0x00,			/*  u8  bInterfaceNumber */
-    0x00,			/*  u8  bAlternateSetting */
-    0x01,			/*  u8  bNumEndpoints */
-    USB_CLASS_COMM,		/*  u8  bInterfaceClass */
-    USB_CDC_SUBCLASS_ETHERNET,	/*  u8  bInterfaceSubClass */
-    USB_CDC_PROTO_NONE,		/*  u8  bInterfaceProtocol */
-    STRING_CONTROL,		/*  u8  iInterface */
-    /* Header Descriptor */
-    0x05,			/*  u8    bLength */
-    USB_DT_CS_INTERFACE,	/*  u8    bDescriptorType */
-    USB_CDC_HEADER_TYPE,	/*  u8    bDescriptorSubType */
-    0x10, 0x01,			/*  le16  bcdCDC */
-    /* Union Descriptor */
-    0x05,			/*  u8    bLength */
-    USB_DT_CS_INTERFACE,	/*  u8    bDescriptorType */
-    USB_CDC_UNION_TYPE,		/*  u8    bDescriptorSubType */
-    0x00,			/*  u8    bMasterInterface0 */
-    0x01,			/*  u8    bSlaveInterface0 */
-    /* Ethernet Descriptor */
-    0x0d,			/*  u8    bLength */
-    USB_DT_CS_INTERFACE,	/*  u8    bDescriptorType */
-    USB_CDC_ETHERNET_TYPE,	/*  u8    bDescriptorSubType */
-    STRING_ETHADDR,		/*  u8    iMACAddress */
-    0x00, 0x00, 0x00, 0x00,	/*  le32  bmEthernetStatistics */
-    ETH_FRAME_LEN & 0xff, ETH_FRAME_LEN >> 8,	/*  le16  wMaxSegmentSize */
-    0x00, 0x00,			/*  le16  wNumberMCFilters */
-    0x00,			/*  u8    bNumberPowerFilters */
-    /* Status Descriptor */
-    0x07,			/*  u8  bLength */
-    USB_DT_ENDPOINT,		/*  u8  bDescriptorType */
-    USB_DIR_IN | 1,		/*  u8  bEndpointAddress */
-    USB_ENDPOINT_XFER_INT,	/*  u8  bmAttributes */
-    STATUS_BYTECOUNT & 0xff, STATUS_BYTECOUNT >> 8, /*  le16 wMaxPacketSize */
-    1 << LOG2_STATUS_INTERVAL_MSEC,	/*  u8  bInterval */
-    /* CDC Data (nop) Interface */
-    0x09,			/*  u8  bLength */
-    USB_DT_INTERFACE,		/*  u8  bDescriptorType */
-    0x01,			/*  u8  bInterfaceNumber */
-    0x00,			/*  u8  bAlternateSetting */
-    0x00,			/*  u8  bNumEndpoints */
-    USB_CLASS_CDC_DATA,		/*  u8  bInterfaceClass */
-    0x00,			/*  u8  bInterfaceSubClass */
-    0x00,			/*  u8  bInterfaceProtocol */
-    0x00,			/*  u8  iInterface */
-    /* CDC Data Interface */
-    0x09,			/*  u8  bLength */
-    USB_DT_INTERFACE,		/*  u8  bDescriptorType */
-    0x01,			/*  u8  bInterfaceNumber */
-    0x01,			/*  u8  bAlternateSetting */
-    0x02,			/*  u8  bNumEndpoints */
-    USB_CLASS_CDC_DATA,		/*  u8  bInterfaceClass */
-    0x00,			/*  u8  bInterfaceSubClass */
-    0x00,			/*  u8  bInterfaceProtocol */
-    STRING_DATA,		/*  u8  iInterface */
-    /* Source Endpoint */
-    0x07,			/*  u8  bLength */
-    USB_DT_ENDPOINT,		/*  u8  bDescriptorType */
-    USB_DIR_IN | 2,		/*  u8  bEndpointAddress */
-    USB_ENDPOINT_XFER_BULK,	/*  u8  bmAttributes */
-    0x40, 0x00,			/*  le16 wMaxPacketSize */
-    0x00,			/*  u8  bInterval */
-    /* Sink Endpoint */
-    0x07,			/*  u8  bLength */
-    USB_DT_ENDPOINT,		/*  u8  bDescriptorType */
-    USB_DIR_OUT | 2,		/*  u8  bEndpointAddress */
-    USB_ENDPOINT_XFER_BULK,	/*  u8  bmAttributes */
-    0x40, 0x00,			/*  le16 wMaxPacketSize */
-    0x00			/*  u8  bInterval */
+static const USBDescIface desc_iface_cdc[] = {
+    {
+        /* CDC Control Interface */
+        .bInterfaceNumber              = 0,
+        .bNumEndpoints                 = 1,
+        .bInterfaceClass               = USB_CLASS_COMM,
+        .bInterfaceSubClass            = USB_CDC_SUBCLASS_ETHERNET,
+        .bInterfaceProtocol            = USB_CDC_PROTO_NONE,
+        .iInterface                    = STRING_CONTROL,
+        .ndesc                         = 3,
+        .descs = (USBDescOther[]) {
+            {
+                /* Header Descriptor */
+                .data = (uint8_t[]) {
+                    0x05,                       /*  u8    bLength */
+                    USB_DT_CS_INTERFACE,        /*  u8    bDescriptorType */
+                    USB_CDC_HEADER_TYPE,        /*  u8    bDescriptorSubType */
+                    0x10, 0x01,                 /*  le16  bcdCDC */
+                },
+            },{
+                /* Union Descriptor */
+                .data = (uint8_t[]) {
+                    0x05,                       /*  u8    bLength */
+                    USB_DT_CS_INTERFACE,        /*  u8    bDescriptorType */
+                    USB_CDC_UNION_TYPE,         /*  u8    bDescriptorSubType */
+                    0x00,                       /*  u8    bMasterInterface0 */
+                    0x01,                       /*  u8    bSlaveInterface0 */
+                },
+            },{
+                /* Ethernet Descriptor */
+                .data = (uint8_t[]) {
+                    0x0d,                       /*  u8    bLength */
+                    USB_DT_CS_INTERFACE,        /*  u8    bDescriptorType */
+                    USB_CDC_ETHERNET_TYPE,      /*  u8    bDescriptorSubType */
+                    STRING_ETHADDR,             /*  u8    iMACAddress */
+                    0x00, 0x00, 0x00, 0x00,     /*  le32  bmEthernetStatistics */
+                    ETH_FRAME_LEN & 0xff,
+                    ETH_FRAME_LEN >> 8,         /*  le16  wMaxSegmentSize */
+                    0x00, 0x00,                 /*  le16  wNumberMCFilters */
+                    0x00,                       /*  u8    bNumberPowerFilters */
+                },
+            },
+        },
+        .eps = (USBDescEndpoint[]) {
+            {
+                .bEndpointAddress      = USB_DIR_IN | 0x01,
+                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .wMaxPacketSize        = STATUS_BYTECOUNT,
+                .bInterval             = 1 << LOG2_STATUS_INTERVAL_MSEC,
+            },
+        }
+    },{
+        /* CDC Data Interface (off) */
+        .bInterfaceNumber              = 1,
+        .bAlternateSetting             = 0,
+        .bNumEndpoints                 = 0,
+        .bInterfaceClass               = USB_CLASS_CDC_DATA,
+    },{
+        /* CDC Data Interface */
+        .bInterfaceNumber              = 1,
+        .bAlternateSetting             = 1,
+        .bNumEndpoints                 = 2,
+        .bInterfaceClass               = USB_CLASS_CDC_DATA,
+        .iInterface                    = STRING_DATA,
+        .eps = (USBDescEndpoint[]) {
+            {
+                .bEndpointAddress      = USB_DIR_IN | 0x02,
+                .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+                .wMaxPacketSize        = 0x40,
+            },{
+                .bEndpointAddress      = USB_DIR_OUT | 0x02,
+                .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+                .wMaxPacketSize        = 0x40,
+            }
+        }
+    }
+};
+
+static const USBDescDevice desc_device_net = {
+    .bcdUSB                        = 0x0200,
+    .bDeviceClass                  = USB_CLASS_COMM,
+    .bMaxPacketSize0               = 0x40,
+    .bNumConfigurations            = 2,
+    .confs = (USBDescConfig[]) {
+        {
+            .bNumInterfaces        = 2,
+            .bConfigurationValue   = DEV_RNDIS_CONFIG_VALUE,
+            .iConfiguration        = STRING_RNDIS,
+            .bmAttributes          = 0xc0,
+            .bMaxPower             = 0x32,
+            .nif = ARRAY_SIZE(desc_iface_rndis),
+            .ifs = desc_iface_rndis,
+        },{
+            .bNumInterfaces        = 2,
+            .bConfigurationValue   = DEV_CONFIG_VALUE,
+            .iConfiguration        = STRING_CDC,
+            .bmAttributes          = 0xc0,
+            .bMaxPower             = 0x32,
+            .nif = ARRAY_SIZE(desc_iface_cdc),
+            .ifs = desc_iface_cdc,
+        }
+    },
+};
+
+static const USBDesc desc_net = {
+    .id = {
+        .idVendor          = RNDIS_VENDOR_NUM,
+        .idProduct         = RNDIS_PRODUCT_NUM,
+        .bcdDevice         = 0,
+        .iManufacturer     = STRING_MANUFACTURER,
+        .iProduct          = STRING_PRODUCT,
+        .iSerialNumber     = STRING_SERIALNUMBER,
+    },
+    .full = &desc_device_net,
+    .str  = usb_net_stringtable,
 };
 
 /*
@@ -599,7 +627,6 @@ struct rndis_response {
 typedef struct USBNetState {
     USBDevice dev;
 
-    unsigned int rndis;
     enum rndis_state rndis_state;
     uint32_t medium;
     uint32_t speed;
@@ -619,6 +646,11 @@ typedef struct USBNetState {
     NICConf conf;
     QTAILQ_HEAD(rndis_resp_head, rndis_response) rndis_resp;
 } USBNetState;
+
+static int is_rndis(USBNetState *s)
+{
+    return s->dev.config->bConfigurationValue == DEV_RNDIS_CONFIG_VALUE;
+}
 
 static int ndis_query(USBNetState *s, uint32_t oid,
                       uint8_t *inbuf, unsigned int inlen, uint8_t *outbuf,
@@ -1010,59 +1042,23 @@ static void usb_net_handle_reset(USBDevice *dev)
 {
 }
 
-static const char * const usb_net_stringtable[] = {
-    [STRING_MANUFACTURER]	= "QEMU",
-    [STRING_PRODUCT]		= "RNDIS/QEMU USB Network Device",
-    [STRING_ETHADDR]		= "400102030405",
-    [STRING_DATA]		= "QEMU USB Net Data Interface",
-    [STRING_CONTROL]		= "QEMU USB Net Control Interface",
-    [STRING_RNDIS_CONTROL]	= "QEMU USB Net RNDIS Control Interface",
-    [STRING_CDC]		= "QEMU USB Net CDC",
-    [STRING_SUBSET]		= "QEMU USB Net Subset",
-    [STRING_RNDIS]		= "QEMU USB Net RNDIS",
-    [STRING_SERIALNUMBER]	= "1",
-};
-
 static int usb_net_handle_control(USBDevice *dev, int request, int value,
                 int index, int length, uint8_t *data)
 {
     USBNetState *s = (USBNetState *) dev;
-    int ret = 0;
+    int ret;
 
+    ret = usb_desc_handle_control(dev, request, value, index, length, data);
+    if (ret >= 0) {
+        return ret;
+    }
+
+    ret = 0;
     switch(request) {
-    case DeviceRequest | USB_REQ_GET_STATUS:
-        data[0] = (1 << USB_DEVICE_SELF_POWERED) |
-                (dev->remote_wakeup << USB_DEVICE_REMOTE_WAKEUP);
-        data[1] = 0x00;
-        ret = 2;
-        break;
-
-    case DeviceOutRequest | USB_REQ_CLEAR_FEATURE:
-        if (value == USB_DEVICE_REMOTE_WAKEUP) {
-            dev->remote_wakeup = 0;
-        } else {
-            goto fail;
-        }
-        ret = 0;
-        break;
-
-    case DeviceOutRequest | USB_REQ_SET_FEATURE:
-        if (value == USB_DEVICE_REMOTE_WAKEUP) {
-            dev->remote_wakeup = 1;
-        } else {
-            goto fail;
-        }
-        ret = 0;
-        break;
-
-    case DeviceOutRequest | USB_REQ_SET_ADDRESS:
-        dev->addr = value;
-        ret = 0;
-        break;
-
     case ClassInterfaceOutRequest | USB_CDC_SEND_ENCAPSULATED_COMMAND:
-        if (!s->rndis || value || index != 0)
+        if (!is_rndis(s) || value || index != 0) {
             goto fail;
+        }
 #ifdef TRAFFIC_DEBUG
         {
             unsigned int i;
@@ -1079,8 +1075,9 @@ static int usb_net_handle_control(USBDevice *dev, int request, int value,
         break;
 
     case ClassInterfaceRequest | USB_CDC_GET_ENCAPSULATED_RESPONSE:
-        if (!s->rndis || value || index != 0)
+        if (!is_rndis(s) || value || index != 0) {
             goto fail;
+        }
         ret = rndis_get_response(s, data);
         if (!ret) {
             data[0] = 0;
@@ -1098,85 +1095,6 @@ static int usb_net_handle_control(USBDevice *dev, int request, int value,
             fprintf(stderr, "\n\n");
         }
 #endif
-        break;
-
-    case DeviceRequest | USB_REQ_GET_DESCRIPTOR:
-        switch(value >> 8) {
-        case USB_DT_DEVICE:
-            ret = sizeof(qemu_net_dev_descriptor);
-            memcpy(data, qemu_net_dev_descriptor, ret);
-            break;
-
-        case USB_DT_CONFIG:
-            switch (value & 0xff) {
-            case 0:
-                ret = sizeof(qemu_net_rndis_config_descriptor);
-                memcpy(data, qemu_net_rndis_config_descriptor, ret);
-                break;
-
-            case 1:
-                ret = sizeof(qemu_net_cdc_config_descriptor);
-                memcpy(data, qemu_net_cdc_config_descriptor, ret);
-                break;
-
-            default:
-                goto fail;
-            }
-
-            data[2] = ret & 0xff;
-            data[3] = ret >> 8;
-            break;
-
-        case USB_DT_STRING:
-            switch (value & 0xff) {
-            case 0:
-                /* language ids */
-                data[0] = 4;
-                data[1] = 3;
-                data[2] = 0x09;
-                data[3] = 0x04;
-                ret = 4;
-                break;
-
-            case STRING_ETHADDR:
-                ret = set_usb_string(data, s->usbstring_mac);
-                break;
-
-            default:
-                if (ARRAY_SIZE(usb_net_stringtable) > (value & 0xff)) {
-                    ret = set_usb_string(data,
-                                    usb_net_stringtable[value & 0xff]);
-                    break;
-                }
-
-                goto fail;
-            }
-            break;
-
-        default:
-            goto fail;
-        }
-        break;
-
-    case DeviceRequest | USB_REQ_GET_CONFIGURATION:
-        data[0] = s->rndis ? DEV_RNDIS_CONFIG_VALUE : DEV_CONFIG_VALUE;
-        ret = 1;
-        break;
-
-    case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
-        switch (value & 0xff) {
-        case DEV_CONFIG_VALUE:
-            s->rndis = 0;
-            break;
-
-        case DEV_RNDIS_CONFIG_VALUE:
-            s->rndis = 1;
-            break;
-
-        default:
-            goto fail;
-        }
-        ret = 0;
         break;
 
     case DeviceRequest | USB_REQ_GET_INTERFACE:
@@ -1249,7 +1167,7 @@ static int usb_net_handle_datain(USBNetState *s, USBPacket *p)
     memcpy(p->data, &s->in_buf[s->in_ptr], ret);
     s->in_ptr += ret;
     if (s->in_ptr >= s->in_len &&
-                    (s->rndis || (s->in_len & (64 - 1)) || !ret)) {
+                    (is_rndis(s) || (s->in_len & (64 - 1)) || !ret)) {
         /* no short packet necessary */
         s->in_ptr = s->in_len = 0;
     }
@@ -1298,7 +1216,7 @@ static int usb_net_handle_dataout(USBNetState *s, USBPacket *p)
     memcpy(&s->out_buf[s->out_ptr], p->data, sz);
     s->out_ptr += sz;
 
-    if (!s->rndis) {
+    if (!is_rndis(s)) {
         if (ret < 64) {
             qemu_send_packet(&s->nic->nc, s->out_buf, s->out_ptr);
             s->out_ptr = 0;
@@ -1369,7 +1287,7 @@ static ssize_t usbnet_receive(VLANClientState *nc, const uint8_t *buf, size_t si
     USBNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
     struct rndis_packet_msg_type *msg;
 
-    if (s->rndis) {
+    if (is_rndis(s)) {
         msg = (struct rndis_packet_msg_type *) s->in_buf;
         if (!s->rndis_state == RNDIS_DATA_INITIALIZED)
             return -1;
@@ -1405,8 +1323,9 @@ static int usbnet_can_receive(VLANClientState *nc)
 {
     USBNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
-    if (s->rndis && !s->rndis_state == RNDIS_DATA_INITIALIZED)
+    if (is_rndis(s) && !s->rndis_state == RNDIS_DATA_INITIALIZED) {
         return 1;
+    }
 
     return !s->in_len;
 }
@@ -1439,9 +1358,8 @@ static int usb_net_initfn(USBDevice *dev)
 {
     USBNetState *s = DO_UPCAST(USBNetState, dev, dev);
 
-    s->dev.speed  = USB_SPEED_FULL;
+    usb_desc_init(dev);
 
-    s->rndis = 1;
     s->rndis_state = RNDIS_UNINITIALIZED;
     QTAILQ_INIT(&s->rndis_resp);
 
@@ -1463,6 +1381,7 @@ static int usb_net_initfn(USBDevice *dev)
              s->conf.macaddr.a[3],
              s->conf.macaddr.a[4],
              s->conf.macaddr.a[5]);
+    usb_desc_set_string(dev, STRING_ETHADDR, s->usbstring_mac);
 
     add_boot_device_path(s->conf.bootindex, &dev->qdev, "/ethernet@0");
     return 0;
@@ -1500,6 +1419,7 @@ static struct USBDeviceInfo net_info = {
     .qdev.name      = "usb-net",
     .qdev.fw_name    = "network",
     .qdev.size      = sizeof(USBNetState),
+    .usb_desc       = &desc_net,
     .init           = usb_net_initfn,
     .handle_packet  = usb_generic_handle_packet,
     .handle_reset   = usb_net_handle_reset,
