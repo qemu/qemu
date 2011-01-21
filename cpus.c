@@ -33,7 +33,9 @@
 #include "exec-all.h"
 
 #include "cpus.h"
+#ifdef CONFIG_IOTHREAD
 #include "compatfd.h"
+#endif
 #ifdef CONFIG_LINUX
 #include <sys/prctl.h>
 #endif
