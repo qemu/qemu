@@ -1662,18 +1662,31 @@ if test "$kvm" != "no" ; then
 #if !defined(KVM_API_VERSION) || KVM_API_VERSION < 12 || KVM_API_VERSION > 12
 #error Invalid KVM version
 #endif
-#if !defined(KVM_CAP_USER_MEMORY)
-#error Missing KVM capability KVM_CAP_USER_MEMORY
+EOF
+    must_have_caps="KVM_CAP_USER_MEMORY \
+                    KVM_CAP_DESTROY_MEMORY_REGION_WORKS \
+                    KVM_CAP_COALESCED_MMIO \
+                    KVM_CAP_SYNC_MMU \
+                   "
+    if test \( "$cpu" = "i386" -o "$cpu" = "x86_64" \) ; then
+      must_have_caps="$caps \
+                      KVM_CAP_SET_TSS_ADDR \
+                      KVM_CAP_EXT_CPUID \
+                      KVM_CAP_CLOCKSOURCE \
+                      KVM_CAP_NOP_IO_DELAY \
+                      KVM_CAP_PV_MMU \
+                      KVM_CAP_MP_STATE \
+                      KVM_CAP_USER_NMI \
+                     "
+    fi
+    for c in $must_have_caps ; do
+      cat >> $TMPC <<EOF
+#if !defined($c)
+#error Missing KVM capability $c
 #endif
-#if !defined(KVM_CAP_SET_TSS_ADDR)
-#error Missing KVM capability KVM_CAP_SET_TSS_ADDR
-#endif
-#if !defined(KVM_CAP_DESTROY_MEMORY_REGION_WORKS)
-#error Missing KVM capability KVM_CAP_DESTROY_MEMORY_REGION_WORKS
-#endif
-#if !defined(KVM_CAP_USER_NMI)
-#error Missing KVM capability KVM_CAP_USER_NMI
-#endif
+EOF
+    done
+    cat >> $TMPC <<EOF
 int main(void) { return 0; }
 EOF
   if test "$kerneldir" != "" ; then
@@ -1708,8 +1721,8 @@ EOF
 	| awk -F "error: " '{if (NR>1) printf(", "); printf("%s",$2);}'`
         if test "$kvmerr" != "" ; then
           echo -e "${kvmerr}\n\
-      NOTE: To enable KVM support, update your kernel to 2.6.29+ or install \
-  recent kvm-kmod from http://sourceforge.net/projects/kvm."
+NOTE: To enable KVM support, update your kernel to 2.6.29+ or install \
+recent kvm-kmod from http://sourceforge.net/projects/kvm."
         fi
       fi
       feature_not_found "kvm"

@@ -54,11 +54,16 @@
 #define BUS_MCEERR_AO 5
 #endif
 
+const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
+    KVM_CAP_INFO(SET_TSS_ADDR),
+    KVM_CAP_INFO(EXT_CPUID),
+    KVM_CAP_INFO(MP_STATE),
+    KVM_CAP_LAST_INFO
+};
+
 static bool has_msr_star;
 static bool has_msr_hsave_pa;
 static int lm_capable_kernel;
-
-#ifdef KVM_CAP_EXT_CPUID
 
 static struct kvm_cpuid2 *try_get_cpuid(KVMState *s, int max)
 {
@@ -92,10 +97,6 @@ uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function,
     int i, max;
     uint32_t ret = 0;
     uint32_t cpuid_1_edx;
-
-    if (!kvm_check_extension(env->kvm_state, KVM_CAP_EXT_CPUID)) {
-        return -1U;
-    }
 
     max = 1;
     while ((cpuid = try_get_cpuid(env->kvm_state, max)) == NULL) {
@@ -140,30 +141,14 @@ uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function,
     return ret;
 }
 
-#else
-
-uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function,
-                                      uint32_t index, int reg)
-{
-    return -1U;
-}
-
-#endif
-
 #ifdef CONFIG_KVM_PARA
 struct kvm_para_features {
     int cap;
     int feature;
 } para_features[] = {
-#ifdef KVM_CAP_CLOCKSOURCE
     { KVM_CAP_CLOCKSOURCE, KVM_FEATURE_CLOCKSOURCE },
-#endif
-#ifdef KVM_CAP_NOP_IO_DELAY
     { KVM_CAP_NOP_IO_DELAY, KVM_FEATURE_NOP_IO_DELAY },
-#endif
-#ifdef KVM_CAP_PV_MMU
     { KVM_CAP_PV_MMU, KVM_FEATURE_MMU_OP },
-#endif
 #ifdef KVM_CAP_ASYNC_PF
     { KVM_CAP_ASYNC_PF, KVM_FEATURE_ASYNC_PF },
 #endif
@@ -542,15 +527,7 @@ int kvm_arch_init(KVMState *s)
 
     /* create vm86 tss.  KVM uses vm86 mode to emulate 16-bit code
      * directly.  In order to use vm86 mode, a TSS is needed.  Since this
-     * must be part of guest physical memory, we need to allocate it.  Older
-     * versions of KVM just assumed that it would be at the end of physical
-     * memory but that doesn't work with more than 4GB of memory.  We simply
-     * refuse to work with those older versions of KVM. */
-    ret = kvm_check_extension(s, KVM_CAP_SET_TSS_ADDR);
-    if (ret <= 0) {
-        fprintf(stderr, "kvm does not support KVM_CAP_SET_TSS_ADDR\n");
-        return ret;
-    }
+     * must be part of guest physical memory, we need to allocate it. */
 
     /* this address is 3 pages before the bios, and the bios should present
      * as unavaible memory.  FIXME, need to ensure the e820 map deals with

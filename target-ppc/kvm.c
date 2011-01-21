@@ -37,6 +37,10 @@
     do { } while (0)
 #endif
 
+const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
+    KVM_CAP_LAST_INFO
+};
+
 static int cap_interrupt_unset = false;
 static int cap_interrupt_level = false;
 
