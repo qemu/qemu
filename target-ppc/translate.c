@@ -5874,7 +5874,7 @@ static void gen_tlbre_440(DisasContext *ctx)
     case 2:
         {
             TCGv_i32 t0 = tcg_const_i32(rB(ctx->opcode));
-            gen_helper_440_tlbwe(t0, cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
+            gen_helper_440_tlbre(cpu_gpr[rD(ctx->opcode)], t0, cpu_gpr[rA(ctx->opcode)]);
             tcg_temp_free_i32(t0);
         }
         break;
