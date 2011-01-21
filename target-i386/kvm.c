@@ -845,6 +845,13 @@ static int kvm_put_msrs(CPUState *env, int level)
         if (smp_cpus == 1 || env->tsc != 0) {
             kvm_msr_entry_set(&msrs[n++], MSR_IA32_TSC, env->tsc);
         }
+    }
+    /*
+     * The following paravirtual MSRs have side effects on the guest or are
+     * too heavy for normal writeback. Limit them to reset or full state
+     * updates.
+     */
+    if (level >= KVM_PUT_RESET_STATE) {
         kvm_msr_entry_set(&msrs[n++], MSR_KVM_SYSTEM_TIME,
                           env->system_time_msr);
         kvm_msr_entry_set(&msrs[n++], MSR_KVM_WALL_CLOCK, env->wall_clock_msr);
