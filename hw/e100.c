@@ -1105,7 +1105,7 @@ static void do_eeprom_op(E100State *s, eeprom_t *e, int cs, int sk, int di, int 
         if ( e->val_type == DATA && e->opcode == EEPROM_WRITE )
         {
             e->data = e->val;
-            memcpy((void *)((unsigned long)e->contents + e->address),
+            memcpy((char *)e->contents + e->address,
                     &e->data, sizeof(e->data));
             logout("EEPROM write complete(data=%#x)\n", e->data);
         }
