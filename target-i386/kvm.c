@@ -493,27 +493,9 @@ static int kvm_get_supported_msrs(KVMState *s)
     return ret;
 }
 
-static int kvm_init_identity_map_page(KVMState *s)
-{
-#ifdef KVM_CAP_SET_IDENTITY_MAP_ADDR
-    int ret;
-    uint64_t addr = 0xfffbc000;
-
-    if (!kvm_check_extension(s, KVM_CAP_SET_IDENTITY_MAP_ADDR)) {
-        return 0;
-    }
-
-    ret = kvm_vm_ioctl(s, KVM_SET_IDENTITY_MAP_ADDR, &addr);
-    if (ret < 0) {
-        fprintf(stderr, "kvm_set_identity_map_addr: %s\n", strerror(ret));
-        return ret;
-    }
-#endif
-    return 0;
-}
-
 int kvm_arch_init(KVMState *s)
 {
+    uint64_t identity_base = 0xfffbc000;
     int ret;
     struct utsname utsname;
 
@@ -525,27 +507,42 @@ int kvm_arch_init(KVMState *s)
     uname(&utsname);
     lm_capable_kernel = strcmp(utsname.machine, "x86_64") == 0;
 
-    /* create vm86 tss.  KVM uses vm86 mode to emulate 16-bit code
-     * directly.  In order to use vm86 mode, a TSS is needed.  Since this
-     * must be part of guest physical memory, we need to allocate it. */
-
-    /* this address is 3 pages before the bios, and the bios should present
-     * as unavaible memory.  FIXME, need to ensure the e820 map deals with
-     * this?
-     */
     /*
-     * Tell fw_cfg to notify the BIOS to reserve the range.
+     * On older Intel CPUs, KVM uses vm86 mode to emulate 16-bit code directly.
+     * In order to use vm86 mode, an EPT identity map and a TSS  are needed.
+     * Since these must be part of guest physical memory, we need to allocate
+     * them, both by setting their start addresses in the kernel and by
+     * creating a corresponding e820 entry. We need 4 pages before the BIOS.
+     *
+     * Older KVM versions may not support setting the identity map base. In
+     * that case we need to stick with the default, i.e. a 256K maximum BIOS
+     * size.
      */
-    if (e820_add_entry(0xfffbc000, 0x4000, E820_RESERVED) < 0) {
-        perror("e820_add_entry() table is full");
-        exit(1);
+#ifdef KVM_CAP_SET_IDENTITY_MAP_ADDR
+    if (kvm_check_extension(s, KVM_CAP_SET_IDENTITY_MAP_ADDR)) {
+        /* Allows up to 16M BIOSes. */
+        identity_base = 0xfeffc000;
+
+        ret = kvm_vm_ioctl(s, KVM_SET_IDENTITY_MAP_ADDR, &identity_base);
+        if (ret < 0) {
+            return ret;
+        }
     }
-    ret = kvm_vm_ioctl(s, KVM_SET_TSS_ADDR, 0xfffbd000);
+#endif
+    /* Set TSS base one page after EPT identity map. */
+    ret = kvm_vm_ioctl(s, KVM_SET_TSS_ADDR, identity_base + 0x1000);
     if (ret < 0) {
         return ret;
     }
 
-    return kvm_init_identity_map_page(s);
+    /* Tell fw_cfg to notify the BIOS to reserve the range. */
+    ret = e820_add_entry(identity_base, 0x4000, E820_RESERVED);
+    if (ret < 0) {
+        fprintf(stderr, "e820_add_entry() table is full\n");
+        return ret;
+    }
+
+    return 0;
 }
 
 static void set_v8086_seg(struct kvm_segment *lhs, const SegmentCache *rhs)
