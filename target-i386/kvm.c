@@ -319,7 +319,7 @@ int kvm_arch_init_vcpu(CPUState *env)
     uint32_t limit, i, j, cpuid_i;
     uint32_t unused;
     struct kvm_cpuid_entry2 *c;
-#ifdef KVM_CPUID_SIGNATURE
+#ifdef CONFIG_KVM_PARA
     uint32_t signature[3];
 #endif
 
@@ -855,7 +855,7 @@ static int kvm_put_msrs(CPUState *env, int level)
         kvm_msr_entry_set(&msrs[n++], MSR_KVM_SYSTEM_TIME,
                           env->system_time_msr);
         kvm_msr_entry_set(&msrs[n++], MSR_KVM_WALL_CLOCK, env->wall_clock_msr);
-#ifdef KVM_CAP_ASYNC_PF
+#if defined(CONFIG_KVM_PARA) && defined(KVM_CAP_ASYNC_PF)
         kvm_msr_entry_set(&msrs[n++], MSR_KVM_ASYNC_PF_EN, env->async_pf_en_msr);
 #endif
     }
@@ -1091,7 +1091,7 @@ static int kvm_get_msrs(CPUState *env)
 #endif
     msrs[n++].index = MSR_KVM_SYSTEM_TIME;
     msrs[n++].index = MSR_KVM_WALL_CLOCK;
-#ifdef KVM_CAP_ASYNC_PF
+#if defined(CONFIG_KVM_PARA) && defined(KVM_CAP_ASYNC_PF)
     msrs[n++].index = MSR_KVM_ASYNC_PF_EN;
 #endif
 
@@ -1167,7 +1167,7 @@ static int kvm_get_msrs(CPUState *env)
             }
 #endif
             break;
-#ifdef KVM_CAP_ASYNC_PF
+#if defined(CONFIG_KVM_PARA) && defined(KVM_CAP_ASYNC_PF)
         case MSR_KVM_ASYNC_PF_EN:
             env->async_pf_en_msr = msrs[i].data;
             break;
