@@ -36,8 +36,6 @@
 
 //#define DEBUG_BOCHS_VBE
 
-#define printf(fmt, ...) fprintf(stderr, fmt, ##__VA_ARGS__)
-
 /* force some bits to zero */
 const uint8_t sr_mask[8] = {
     0x03,
@@ -221,7 +219,7 @@ static void vga_precise_update_retrace_info(VGACommonState *s)
 #if 0
     div2 = (s->cr[0x17] >> 2) & 1;
     sldiv2 = (s->cr[0x17] >> 3) & 1;
-    printf (
+    fprintf(stderr,
         "hz=%f\n"
         "htotal = %d\n"
         "hretr_start = %d\n"
@@ -331,7 +329,7 @@ uint32_t vga_ioport_read(void *opaque, uint32_t addr)
         case 0x3c5:
             val = s->sr[s->sr_index];
 #ifdef DEBUG_VGA_REG
-            printf("vga: read SR%x = 0x%02x\n", s->sr_index, val);
+            fprintf(stderr, "vga: read SR%x = 0x%02x\n", s->sr_index, val);
 #endif
             break;
         case 0x3c7:
@@ -359,7 +357,7 @@ uint32_t vga_ioport_read(void *opaque, uint32_t addr)
         case 0x3cf:
             val = s->gr[s->gr_index];
 #ifdef DEBUG_VGA_REG
-            printf("vga: read GR%x = 0x%02x\n", s->gr_index, val);
+            fprintf(stderr, "vga: read GR%x = 0x%02x\n", s->gr_index, val);
 #endif
             break;
         case 0x3b4:
@@ -370,7 +368,7 @@ uint32_t vga_ioport_read(void *opaque, uint32_t addr)
         case 0x3d5:
             val = s->cr[s->cr_index];
 #ifdef DEBUG_VGA_REG
-            printf("vga: read CR%x = 0x%02x\n", s->cr_index, val);
+            fprintf(stderr, "vga: read CR%x = 0x%02x\n", s->cr_index, val);
 #endif
             break;
         case 0x3ba:
@@ -385,7 +383,7 @@ uint32_t vga_ioport_read(void *opaque, uint32_t addr)
         }
     }
 #if defined(DEBUG_VGA)
-    printf("VGA: read addr=0x%04x data=0x%02x\n", addr, val);
+    fprintf(stderr, "VGA: read addr=0x%04x data=0x%02x\n", addr, val);
 #endif
     return val;
 }
@@ -400,7 +398,7 @@ void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         return;
     }
 #ifdef DEBUG_VGA
-    printf("VGA: write addr=0x%04x data=0x%02x\n", addr, val);
+    fprintf(stderr, "VGA: write addr=0x%04x data=0x%02x\n", addr, val);
 #endif
 
     switch(addr) {
@@ -444,7 +442,7 @@ void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         break;
     case 0x3c5:
 #ifdef DEBUG_VGA_REG
-        printf("vga: write SR%x = 0x%02x\n", s->sr_index, val);
+        fprintf(stderr, "vga: write SR%x = 0x%02x\n", s->sr_index, val);
 #endif
         s->sr[s->sr_index] = val & sr_mask[s->sr_index];
         if (s->sr_index == 1) s->update_retrace_info(s);
@@ -472,7 +470,7 @@ void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         break;
     case 0x3cf:
 #ifdef DEBUG_VGA_REG
-        printf("vga: write GR%x = 0x%02x\n", s->gr_index, val);
+        fprintf(stderr, "vga: write GR%x = 0x%02x\n", s->gr_index, val);
 #endif
         s->gr[s->gr_index] = val & gr_mask[s->gr_index];
         break;
@@ -483,7 +481,7 @@ void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     case 0x3b5:
     case 0x3d5:
 #ifdef DEBUG_VGA_REG
-        printf("vga: write CR%x = 0x%02x\n", s->cr_index, val);
+        fprintf(stderr, "vga: write CR%x = 0x%02x\n", s->cr_index, val);
 #endif
         /* handle CR0-7 protection */
         if ((s->cr[0x11] & 0x80) && s->cr_index <= 7) {
@@ -553,7 +551,7 @@ static uint32_t vbe_ioport_read_data(void *opaque, uint32_t addr)
         val = 0;
     }
 #ifdef DEBUG_BOCHS_VBE
-    printf("VBE: read index=0x%x val=0x%x\n", s->vbe_index, val);
+    fprintf(stderr, "VBE: read index=0x%x val=0x%x\n", s->vbe_index, val);
 #endif
     return val;
 }
@@ -570,7 +568,7 @@ static void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
 
     if (s->vbe_index <= VBE_DISPI_INDEX_NB) {
 #ifdef DEBUG_BOCHS_VBE
-        printf("VBE: write index=0x%x val=0x%x\n", s->vbe_index, val);
+        fprintf(stderr, "VBE: write index=0x%x val=0x%x\n", s->vbe_index, val);
 #endif
         switch(s->vbe_index) {
         case VBE_DISPI_INDEX_ID:
@@ -792,7 +790,7 @@ void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     uint32_t write_mask, bit_mask, set_mask;
 
 #ifdef DEBUG_VGA_MEM
-    printf("vga: [0x" TARGET_FMT_plx "] = 0x%02x\n", addr, val);
+    fprintf(stderr, "vga: [0x" TARGET_FMT_plx "] = 0x%02x\n", addr, val);
 #endif
     /* convert to VGA memory offset */
     memory_map_mode = (s->gr[6] >> 2) & 3;
@@ -825,7 +823,7 @@ void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
         if (s->sr[2] & mask) {
             s->vram_ptr[addr] = val;
 #ifdef DEBUG_VGA_MEM
-            printf("vga: chain4: [0x" TARGET_FMT_plx "]\n", addr);
+            fprintf(stderr, "vga: chain4: [0x" TARGET_FMT_plx "]\n", addr);
 #endif
             s->plane_updated |= mask; /* only used to detect font change */
             cpu_physical_memory_set_dirty(s->vram_offset + addr);
@@ -838,7 +836,7 @@ void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
             addr = ((addr & ~1) << 1) | plane;
             s->vram_ptr[addr] = val;
 #ifdef DEBUG_VGA_MEM
-            printf("vga: odd/even: [0x" TARGET_FMT_plx "]\n", addr);
+            fprintf(stderr, "vga: odd/even: [0x" TARGET_FMT_plx "]\n", addr);
 #endif
             s->plane_updated |= mask; /* only used to detect font change */
             cpu_physical_memory_set_dirty(s->vram_offset + addr);
@@ -912,8 +910,9 @@ void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
             (((uint32_t *)s->vram_ptr)[addr] & ~write_mask) |
             (val & write_mask);
 #ifdef DEBUG_VGA_MEM
-        printf("vga: latch: [0x" TARGET_FMT_plx "] mask=0x%08x val=0x%08x\n",
-               addr * 4, write_mask, val);
+        fprintf(stderr,
+                "vga: latch: [0x" TARGET_FMT_plx "] mask=0x%08x val=0x%08x\n",
+                addr * 4, write_mask, val);
 #endif
         cpu_physical_memory_set_dirty(s->vram_offset + (addr << 2));
     }
@@ -1752,8 +1751,11 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 
     line_offset = s->line_offset;
 #if 0
-    printf("w=%d h=%d v=%d line_offset=%d cr[0x09]=0x%02x cr[0x17]=0x%02x linecmp=%d sr[0x01]=0x%02x\n",
-           width, height, v, line_offset, s->cr[9], s->cr[0x17], s->line_compare, s->sr[0x01]);
+    fprintf(stderr,
+            "w=%d h=%d v=%d line_offset=%d cr[0x09]=0x%02x cr[0x17]=0x%02x "
+            "linecmp=%d sr[0x01]=0x%02x\n",
+            width, height, v, line_offset, s->cr[9], s->cr[0x17],
+            s->line_compare, s->sr[0x01]);
 #endif
     addr1 = (s->start_addr * 4);
     bwidth = (width * bits + 7) / 8;
@@ -2023,8 +2025,8 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
             /* ugly hack for CGA 160x100x16 - explain me the logic */
             height = 100;
         } else {
-            height = s->cr[0x12] | 
-                ((s->cr[0x07] & 0x02) << 7) | 
+            height = s->cr[0x12] |
+                ((s->cr[0x07] & 0x02) << 7) |
                 ((s->cr[0x07] & 0x40) << 3);
             height = (height + 1) / cheight;
         }
@@ -2312,7 +2314,7 @@ void vga_init_vbe(VGACommonState *s)
     cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS,
                                  VGA_RAM_SIZE, s->vram_offset);
     s->vbe_mapped = 1;
-#endif 
+#endif
 }
 /********************************************************/
 /* vga screen dump */
