@@ -435,8 +435,6 @@ void kvm_arch_reset_vcpu(CPUState *env)
 {
     env->exception_injected = -1;
     env->interrupt_injected = -1;
-    env->nmi_injected = 0;
-    env->nmi_pending = 0;
     env->xcr0 = 1;
     if (kvm_irqchip_in_kernel()) {
         env->mp_state = cpu_is_bsp(env) ? KVM_MP_STATE_RUNNABLE :

@@ -699,6 +699,10 @@ typedef struct CPUX86State {
     uint32_t smbase;
     int old_exception;  /* exception in flight */
 
+    /* KVM states, automatically cleared on reset */
+    uint8_t nmi_injected;
+    uint8_t nmi_pending;
+
     CPU_COMMON
 
     /* processor features (e.g. for CPUID insn) */
@@ -726,8 +730,6 @@ typedef struct CPUX86State {
     int32_t exception_injected;
     int32_t interrupt_injected;
     uint8_t soft_interrupt;
-    uint8_t nmi_injected;
-    uint8_t nmi_pending;
     uint8_t has_error_code;
     uint32_t sipi_vector;
     uint32_t cpuid_kvm_features;
