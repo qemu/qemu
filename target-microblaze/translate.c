@@ -153,6 +153,23 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
     }
 }
 
+static void read_carry(DisasContext *dc, TCGv d)
+{
+    tcg_gen_shri_tl(d, cpu_SR[SR_MSR], 31);
+}
+
+static void write_carry(DisasContext *dc, TCGv v)
+{
+    TCGv t0 = tcg_temp_new();
+    tcg_gen_shli_tl(t0, v, 31);
+    tcg_gen_sari_tl(t0, t0, 31);
+    tcg_gen_andi_tl(t0, t0, (MSR_C | MSR_CC));
+    tcg_gen_andi_tl(cpu_SR[SR_MSR], cpu_SR[SR_MSR],
+                    ~(MSR_C | MSR_CC));
+    tcg_gen_or_tl(cpu_SR[SR_MSR], cpu_SR[SR_MSR], t0);
+    tcg_temp_free(t0);
+}
+
 /* True if ALU operand b is a small immediate that may deserve
    faster treatment.  */
 static inline int dec_alu_op_b_is_small_imm(DisasContext *dc)
@@ -336,25 +353,6 @@ static void dec_xor(DisasContext *dc)
     if (dc->rd)
         tcg_gen_xor_tl(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
 }
-
-static void read_carry(DisasContext *dc, TCGv d)
-{
-    tcg_gen_shri_tl(d, cpu_SR[SR_MSR], 31);
-}
-
-static void write_carry(DisasContext *dc, TCGv v)
-{
-    TCGv t0 = tcg_temp_new();
-    tcg_gen_shli_tl(t0, v, 31);
-    tcg_gen_sari_tl(t0, t0, 31);
-    tcg_gen_mov_tl(env_debug, t0);
-    tcg_gen_andi_tl(t0, t0, (MSR_C | MSR_CC));
-    tcg_gen_andi_tl(cpu_SR[SR_MSR], cpu_SR[SR_MSR],
-                    ~(MSR_C | MSR_CC));
-    tcg_gen_or_tl(cpu_SR[SR_MSR], cpu_SR[SR_MSR], t0);
-    tcg_temp_free(t0);
-}
-
 
 static inline void msr_read(DisasContext *dc, TCGv d)
 {
