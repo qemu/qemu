@@ -2506,6 +2506,11 @@ CharDriverState *qemu_chr_open_opts(QemuOpts *opts,
         return NULL;
     }
 
+    if (qemu_opt_get(opts, "backend") == NULL) {
+        fprintf(stderr, "chardev: \"%s\" missing backend\n",
+                qemu_opts_id(opts));
+        return NULL;
+    }
     for (i = 0; i < ARRAY_SIZE(backend_table); i++) {
         if (strcmp(backend_table[i].name, qemu_opt_get(opts, "backend")) == 0)
             break;
