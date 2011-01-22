@@ -560,6 +560,7 @@ static void taihu_405ep_init(ram_addr_t ram_size,
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         if (filename) {
             bios_size = load_image(filename, qemu_get_ram_ptr(bios_offset));
+            qemu_free(filename);
         } else {
             bios_size = -1;
         }
