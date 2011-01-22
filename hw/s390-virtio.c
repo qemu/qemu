@@ -204,6 +204,7 @@ static void s390_init(ram_addr_t ram_size,
 
         bios_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         bios_size = load_image(bios_filename, qemu_get_ram_ptr(ZIPL_LOAD_ADDR));
+        qemu_free(bios_filename);
 
         if ((long)bios_size < 0) {
             hw_error("could not load bootloader '%s'\n", bios_name);
