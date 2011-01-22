@@ -247,6 +247,7 @@ static void dec_add(DisasContext *dc)
 static void dec_sub(DisasContext *dc)
 {
     unsigned int u, cmp, k, c;
+    TCGv cf, na;
 
     u = dc->imm & 2;
     k = dc->opcode & 4;
@@ -261,24 +262,57 @@ static void dec_sub(DisasContext *dc)
             else
                 gen_helper_cmp(cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
         }
-    } else {
-        LOG_DIS("sub%s%s r%d, r%d r%d\n",
-                 k ? "k" : "",  c ? "c" : "", dc->rd, dc->ra, dc->rb);
-
-        if (!k || c) {
-            TCGv t;
-            t = tcg_temp_new();
-            if (dc->rd)
-                gen_helper_subkc(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)),
-                                 tcg_const_tl(k), tcg_const_tl(c));
-            else
-                gen_helper_subkc(t, cpu_R[dc->ra], *(dec_alu_op_b(dc)),
-                                 tcg_const_tl(k), tcg_const_tl(c));
-            tcg_temp_free(t);
-        }
-        else if (dc->rd)
-            tcg_gen_sub_tl(cpu_R[dc->rd], *(dec_alu_op_b(dc)), cpu_R[dc->ra]);
+        return;
     }
+
+    LOG_DIS("sub%s%s r%d, r%d r%d\n",
+             k ? "k" : "",  c ? "c" : "", dc->rd, dc->ra, dc->rb);
+
+    /* Take care of the easy cases first.  */
+    if (k) {
+        /* k - keep carry, no need to update MSR.  */
+        /* If rd == r0, it's a nop.  */
+        if (dc->rd) {
+            tcg_gen_sub_tl(cpu_R[dc->rd], *(dec_alu_op_b(dc)), cpu_R[dc->ra]);
+
+            if (c) {
+                /* c - Add carry into the result.  */
+                cf = tcg_temp_new();
+
+                read_carry(dc, cf);
+                tcg_gen_add_tl(cpu_R[dc->rd], cpu_R[dc->rd], cf);
+                tcg_temp_free(cf);
+            }
+        }
+        return;
+    }
+
+    /* From now on, we can assume k is zero.  So we need to update MSR.  */
+    /* Extract carry. And complement a into na.  */
+    cf = tcg_temp_new();
+    na = tcg_temp_new();
+    if (c) {
+        read_carry(dc, cf);
+    } else {
+        tcg_gen_movi_tl(cf, 1);
+    }
+
+    /* d = b + ~a + c. carry defaults to 1.  */
+    tcg_gen_not_tl(na, cpu_R[dc->ra]);
+
+    if (dc->rd) {
+        TCGv ncf = tcg_temp_new();
+        gen_helper_addkc(ncf, na, *(dec_alu_op_b(dc)), cf);
+        tcg_gen_add_tl(cpu_R[dc->rd], na, *(dec_alu_op_b(dc)));
+        tcg_gen_add_tl(cpu_R[dc->rd], cpu_R[dc->rd], cf);
+        write_carry(dc, ncf);
+        tcg_temp_free(ncf);
+    } else {
+        gen_helper_addkc(cf, na, *(dec_alu_op_b(dc)), cf);
+        write_carry(dc, cf);
+    }
+    tcg_temp_free(cf);
+    tcg_temp_free(na);
 }
 
 static void dec_pattern(DisasContext *dc)
