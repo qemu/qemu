@@ -836,6 +836,7 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     uint8_t data = 0;
     DisplayAllocator *da;
     const SDL_VideoInfo *vi;
+    char *filename;
 
 #if defined(__APPLE__)
     /* always use generic keymaps */
@@ -863,6 +864,12 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     }
     vi = SDL_GetVideoInfo();
     host_format = *(vi->vfmt);
+
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "qemu-icon.bmp");
+    if (filename) {
+        SDL_WM_SetIcon(SDL_LoadBMP(filename), NULL);
+        qemu_free(filename);
+    }
 
     dcl = qemu_mallocz(sizeof(DisplayChangeListener));
     dcl->dpy_update = sdl_update;
