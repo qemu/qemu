@@ -1875,6 +1875,7 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
     if (size < 0) {
         error_report("%s: failed to find romfile \"%s\"",
                      __FUNCTION__, pdev->romfile);
+        qemu_free(path);
         return -1;
     }
     if (size & (size - 1)) {
