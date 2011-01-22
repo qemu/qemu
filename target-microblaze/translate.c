@@ -238,8 +238,7 @@ static void dec_add(DisasContext *dc)
         write_carry(dc, ncf);
         tcg_temp_free(ncf);
     } else {
-        gen_helper_addkc(cf, cpu_R[dc->ra], *(dec_alu_op_b(dc)),
-                         tcg_const_tl(cf));
+        gen_helper_addkc(cf, cpu_R[dc->ra], *(dec_alu_op_b(dc)), cf);
         write_carry(dc, cf);
     }
     tcg_temp_free(cf);
