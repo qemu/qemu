@@ -193,6 +193,7 @@ static inline TCGv *dec_alu_op_b(DisasContext *dc)
 static void dec_add(DisasContext *dc)
 {
     unsigned int k, c;
+    TCGv cf;
 
     k = dc->opcode & 4;
     c = dc->opcode & 2;
@@ -201,17 +202,47 @@ static void dec_add(DisasContext *dc)
             dc->type_b ? "i" : "", k ? "k" : "", c ? "c" : "",
             dc->rd, dc->ra, dc->rb);
 
-    if (k && !c && dc->rd)
-        tcg_gen_add_tl(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
-    else if (dc->rd)
-        gen_helper_addkc(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)),
-                         tcg_const_tl(k), tcg_const_tl(c));
-    else {
-        TCGv d = tcg_temp_new();
-        gen_helper_addkc(d, cpu_R[dc->ra], *(dec_alu_op_b(dc)),
-                         tcg_const_tl(k), tcg_const_tl(c));
-        tcg_temp_free(d);
+    /* Take care of the easy cases first.  */
+    if (k) {
+        /* k - keep carry, no need to update MSR.  */
+        /* If rd == r0, it's a nop.  */
+        if (dc->rd) {
+            tcg_gen_add_tl(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
+
+            if (c) {
+                /* c - Add carry into the result.  */
+                cf = tcg_temp_new();
+
+                read_carry(dc, cf);
+                tcg_gen_add_tl(cpu_R[dc->rd], cpu_R[dc->rd], cf);
+                tcg_temp_free(cf);
+            }
+        }
+        return;
     }
+
+    /* From now on, we can assume k is zero.  So we need to update MSR.  */
+    /* Extract carry.  */
+    cf = tcg_temp_new();
+    if (c) {
+        read_carry(dc, cf);
+    } else {
+        tcg_gen_movi_tl(cf, 0);
+    }
+
+    if (dc->rd) {
+        TCGv ncf = tcg_temp_new();
+        gen_helper_addkc(ncf, cpu_R[dc->ra], *(dec_alu_op_b(dc)), cf);
+        tcg_gen_add_tl(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
+        tcg_gen_add_tl(cpu_R[dc->rd], cpu_R[dc->rd], cf);
+        write_carry(dc, ncf);
+        tcg_temp_free(ncf);
+    } else {
+        gen_helper_addkc(cf, cpu_R[dc->ra], *(dec_alu_op_b(dc)),
+                         tcg_const_tl(cf));
+        write_carry(dc, cf);
+    }
+    tcg_temp_free(cf);
 }
 
 static void dec_sub(DisasContext *dc)
