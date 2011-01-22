@@ -153,6 +153,23 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
     }
 }
 
+static void read_carry(DisasContext *dc, TCGv d)
+{
+    tcg_gen_shri_tl(d, cpu_SR[SR_MSR], 31);
+}
+
+static void write_carry(DisasContext *dc, TCGv v)
+{
+    TCGv t0 = tcg_temp_new();
+    tcg_gen_shli_tl(t0, v, 31);
+    tcg_gen_sari_tl(t0, t0, 31);
+    tcg_gen_andi_tl(t0, t0, (MSR_C | MSR_CC));
+    tcg_gen_andi_tl(cpu_SR[SR_MSR], cpu_SR[SR_MSR],
+                    ~(MSR_C | MSR_CC));
+    tcg_gen_or_tl(cpu_SR[SR_MSR], cpu_SR[SR_MSR], t0);
+    tcg_temp_free(t0);
+}
+
 /* True if ALU operand b is a small immediate that may deserve
    faster treatment.  */
 static inline int dec_alu_op_b_is_small_imm(DisasContext *dc)
@@ -176,6 +193,7 @@ static inline TCGv *dec_alu_op_b(DisasContext *dc)
 static void dec_add(DisasContext *dc)
 {
     unsigned int k, c;
+    TCGv cf;
 
     k = dc->opcode & 4;
     c = dc->opcode & 2;
@@ -184,22 +202,52 @@ static void dec_add(DisasContext *dc)
             dc->type_b ? "i" : "", k ? "k" : "", c ? "c" : "",
             dc->rd, dc->ra, dc->rb);
 
-    if (k && !c && dc->rd)
-        tcg_gen_add_tl(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
-    else if (dc->rd)
-        gen_helper_addkc(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)),
-                         tcg_const_tl(k), tcg_const_tl(c));
-    else {
-        TCGv d = tcg_temp_new();
-        gen_helper_addkc(d, cpu_R[dc->ra], *(dec_alu_op_b(dc)),
-                         tcg_const_tl(k), tcg_const_tl(c));
-        tcg_temp_free(d);
+    /* Take care of the easy cases first.  */
+    if (k) {
+        /* k - keep carry, no need to update MSR.  */
+        /* If rd == r0, it's a nop.  */
+        if (dc->rd) {
+            tcg_gen_add_tl(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
+
+            if (c) {
+                /* c - Add carry into the result.  */
+                cf = tcg_temp_new();
+
+                read_carry(dc, cf);
+                tcg_gen_add_tl(cpu_R[dc->rd], cpu_R[dc->rd], cf);
+                tcg_temp_free(cf);
+            }
+        }
+        return;
     }
+
+    /* From now on, we can assume k is zero.  So we need to update MSR.  */
+    /* Extract carry.  */
+    cf = tcg_temp_new();
+    if (c) {
+        read_carry(dc, cf);
+    } else {
+        tcg_gen_movi_tl(cf, 0);
+    }
+
+    if (dc->rd) {
+        TCGv ncf = tcg_temp_new();
+        gen_helper_addkc(ncf, cpu_R[dc->ra], *(dec_alu_op_b(dc)), cf);
+        tcg_gen_add_tl(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
+        tcg_gen_add_tl(cpu_R[dc->rd], cpu_R[dc->rd], cf);
+        write_carry(dc, ncf);
+        tcg_temp_free(ncf);
+    } else {
+        gen_helper_addkc(cf, cpu_R[dc->ra], *(dec_alu_op_b(dc)), cf);
+        write_carry(dc, cf);
+    }
+    tcg_temp_free(cf);
 }
 
 static void dec_sub(DisasContext *dc)
 {
     unsigned int u, cmp, k, c;
+    TCGv cf, na;
 
     u = dc->imm & 2;
     k = dc->opcode & 4;
@@ -214,24 +262,57 @@ static void dec_sub(DisasContext *dc)
             else
                 gen_helper_cmp(cpu_R[dc->rd], cpu_R[dc->ra], cpu_R[dc->rb]);
         }
-    } else {
-        LOG_DIS("sub%s%s r%d, r%d r%d\n",
-                 k ? "k" : "",  c ? "c" : "", dc->rd, dc->ra, dc->rb);
-
-        if (!k || c) {
-            TCGv t;
-            t = tcg_temp_new();
-            if (dc->rd)
-                gen_helper_subkc(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)),
-                                 tcg_const_tl(k), tcg_const_tl(c));
-            else
-                gen_helper_subkc(t, cpu_R[dc->ra], *(dec_alu_op_b(dc)),
-                                 tcg_const_tl(k), tcg_const_tl(c));
-            tcg_temp_free(t);
-        }
-        else if (dc->rd)
-            tcg_gen_sub_tl(cpu_R[dc->rd], *(dec_alu_op_b(dc)), cpu_R[dc->ra]);
+        return;
     }
+
+    LOG_DIS("sub%s%s r%d, r%d r%d\n",
+             k ? "k" : "",  c ? "c" : "", dc->rd, dc->ra, dc->rb);
+
+    /* Take care of the easy cases first.  */
+    if (k) {
+        /* k - keep carry, no need to update MSR.  */
+        /* If rd == r0, it's a nop.  */
+        if (dc->rd) {
+            tcg_gen_sub_tl(cpu_R[dc->rd], *(dec_alu_op_b(dc)), cpu_R[dc->ra]);
+
+            if (c) {
+                /* c - Add carry into the result.  */
+                cf = tcg_temp_new();
+
+                read_carry(dc, cf);
+                tcg_gen_add_tl(cpu_R[dc->rd], cpu_R[dc->rd], cf);
+                tcg_temp_free(cf);
+            }
+        }
+        return;
+    }
+
+    /* From now on, we can assume k is zero.  So we need to update MSR.  */
+    /* Extract carry. And complement a into na.  */
+    cf = tcg_temp_new();
+    na = tcg_temp_new();
+    if (c) {
+        read_carry(dc, cf);
+    } else {
+        tcg_gen_movi_tl(cf, 1);
+    }
+
+    /* d = b + ~a + c. carry defaults to 1.  */
+    tcg_gen_not_tl(na, cpu_R[dc->ra]);
+
+    if (dc->rd) {
+        TCGv ncf = tcg_temp_new();
+        gen_helper_addkc(ncf, na, *(dec_alu_op_b(dc)), cf);
+        tcg_gen_add_tl(cpu_R[dc->rd], na, *(dec_alu_op_b(dc)));
+        tcg_gen_add_tl(cpu_R[dc->rd], cpu_R[dc->rd], cf);
+        write_carry(dc, ncf);
+        tcg_temp_free(ncf);
+    } else {
+        gen_helper_addkc(cf, na, *(dec_alu_op_b(dc)), cf);
+        write_carry(dc, cf);
+    }
+    tcg_temp_free(cf);
+    tcg_temp_free(na);
 }
 
 static void dec_pattern(DisasContext *dc)
@@ -336,25 +417,6 @@ static void dec_xor(DisasContext *dc)
     if (dc->rd)
         tcg_gen_xor_tl(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
 }
-
-static void read_carry(DisasContext *dc, TCGv d)
-{
-    tcg_gen_shri_tl(d, cpu_SR[SR_MSR], 31);
-}
-
-static void write_carry(DisasContext *dc, TCGv v)
-{
-    TCGv t0 = tcg_temp_new();
-    tcg_gen_shli_tl(t0, v, 31);
-    tcg_gen_sari_tl(t0, t0, 31);
-    tcg_gen_mov_tl(env_debug, t0);
-    tcg_gen_andi_tl(t0, t0, (MSR_C | MSR_CC));
-    tcg_gen_andi_tl(cpu_SR[SR_MSR], cpu_SR[SR_MSR],
-                    ~(MSR_C | MSR_CC));
-    tcg_gen_or_tl(cpu_SR[SR_MSR], cpu_SR[SR_MSR], t0);
-    tcg_temp_free(t0);
-}
-
 
 static inline void msr_read(DisasContext *dc, TCGv d)
 {
@@ -886,7 +948,6 @@ static void dec_load(DisasContext *dc)
                 tcg_gen_sub_tl(low, tcg_const_tl(3), low);
                 tcg_gen_andi_tl(t, t, ~3);
                 tcg_gen_or_tl(t, t, low);
-                tcg_gen_mov_tl(env_debug, low);
                 tcg_gen_mov_tl(env_imm, t);
                 tcg_temp_free(low);
                 break;
@@ -1012,7 +1073,6 @@ static void dec_store(DisasContext *dc)
                 tcg_gen_sub_tl(low, tcg_const_tl(3), low);
                 tcg_gen_andi_tl(t, t, ~3);
                 tcg_gen_or_tl(t, t, low);
-                tcg_gen_mov_tl(env_debug, low);
                 tcg_gen_mov_tl(env_imm, t);
                 tcg_temp_free(low);
                 break;
