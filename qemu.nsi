@@ -36,7 +36,9 @@
 !endif
 
 ; Optionally install documentation.
+!ifndef CONFIG_DOCUMENTATION
 !define CONFIG_DOCUMENTATION
+!endif
 
 !include "MUI2.nsh"
 
@@ -55,6 +57,11 @@ InstallDirRegKey HKLM "Software\qemu" "Install_Dir"
 
 ; Request administrator privileges for Windows Vista.
 RequestExecutionLevel admin
+
+;--------------------------------
+; Interface Settings.
+!define MUI_ICON "${SRCDIR}\pc-bios\qemu-icon.ico"
+!define MUI_UNICON "${SRCDIR}\pc-bios\qemu-icon.ico"
 
 ;--------------------------------
 ; Pages.
@@ -92,6 +99,7 @@ Section "${PRODUCT} (required)"
     File "${SRCDIR}\README"
     File "${SRCDIR}\VERSION"
 
+    File "${BINDIR}\*.bmp"
     File "${BINDIR}\*.bin"
     File "${BINDIR}\*.dll"
     File "${BINDIR}\*.dtb"
@@ -154,14 +162,35 @@ Section "Uninstall"
     DeleteRegKey HKLM "${UNINST_KEY}"
     DeleteRegKey HKLM SOFTWARE\${PRODUCT}
 
-    ; Remove files and uninstaller
-    Delete "${UNINST_EXE}"
-
     ; Remove shortcuts, if any
-    RMDir /r "$SMPROGRAMS\${PRODUCT}"
+    Delete "$SMPROGRAMS\${PRODUCT}\User Documentation.lnk"
+    Delete "$SMPROGRAMS\${PRODUCT}\Technical Documentation.lnk"
+    Delete "$SMPROGRAMS\${PRODUCT}\Uninstall.lnk"
+    RMDir "$SMPROGRAMS\${PRODUCT}"
 
-    ; Remove directories used
-    RMDir /r "$INSTDIR"
+    ; Remove files and directories used
+    Delete "$INSTDIR\Changelog"
+    Delete "$INSTDIR\COPYING"
+    Delete "$INSTDIR\COPYING.LIB"
+    Delete "$INSTDIR\README"
+    Delete "$INSTDIR\VERSION"
+    Delete "$INSTDIR\*.bmp"
+    Delete "$INSTDIR\*.bin"
+    Delete "$INSTDIR\*.dll"
+    Delete "$INSTDIR\*.dtb"
+    Delete "$INSTDIR\*.rom"
+    Delete "$INSTDIR\openbios-*"
+    Delete "$INSTDIR\qemu-img.exe"
+    Delete "$INSTDIR\qemu-io.exe"
+    Delete "$INSTDIR\qemu.exe"
+    Delete "$INSTDIR\qemu-system-*.exe"
+    Delete "$INSTDIR\qemu-doc.html"
+    Delete "$INSTDIR\qemu-tech.html"
+    RMDir /r "$INSTDIR\keymaps"
+    RMDir /r "$INSTDIR\qemu"
+    ; Remove uninstaller
+    Delete "${UNINST_EXE}"
+    RMDir "$INSTDIR"
 SectionEnd
 
 ;--------------------------------
