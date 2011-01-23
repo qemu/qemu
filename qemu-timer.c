@@ -110,7 +110,6 @@ static int64_t cpu_get_clock(void)
     }
 }
 
-#ifndef CONFIG_IOTHREAD
 static int64_t qemu_icount_delta(void)
 {
     if (!use_icount) {
@@ -124,7 +123,6 @@ static int64_t qemu_icount_delta(void)
         return cpu_get_icount() - cpu_get_clock();
     }
 }
-#endif
 
 /* enable cpu_get_ticks() */
 void cpu_enable_ticks(void)
@@ -1077,8 +1075,16 @@ void quit_timers(void)
 
 int qemu_calculate_timeout(void)
 {
-#ifndef CONFIG_IOTHREAD
     int timeout;
+
+#ifdef CONFIG_IOTHREAD
+    /* When using icount, making forward progress with qemu_icount when the
+       guest CPU is idle is critical. We only use the static io-thread timeout
+       for non icount runs.  */
+    if (!use_icount) {
+        return 1000;
+    }
+#endif
 
     if (!vm_running)
         timeout = 5000;
@@ -1110,8 +1116,5 @@ int qemu_calculate_timeout(void)
     }
 
     return timeout;
-#else /* CONFIG_IOTHREAD */
-    return 1000;
-#endif
 }
 
