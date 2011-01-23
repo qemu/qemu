@@ -35,9 +35,9 @@ struct WatchdogTimerModel {
 typedef struct WatchdogTimerModel WatchdogTimerModel;
 
 /* in hw/watchdog.c */
-extern int select_watchdog(const char *p);
-extern int select_watchdog_action(const char *action);
-extern void watchdog_add_model(WatchdogTimerModel *model);
-extern void watchdog_perform_action(void);
+int select_watchdog(const char *p);
+int select_watchdog_action(const char *action);
+void watchdog_add_model(WatchdogTimerModel *model);
+void watchdog_perform_action(void);
 
 #endif /* QEMU_WATCHDOG_H */

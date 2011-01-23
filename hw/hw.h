@@ -799,17 +799,16 @@ extern const VMStateDescription vmstate_i2c_slave;
 #define VMSTATE_END_OF_LIST()                                         \
     {}
 
-extern int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
-                              void *opaque, int version_id);
-extern void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
-                               void *opaque);
-extern int vmstate_register(DeviceState *dev, int instance_id,
-                            const VMStateDescription *vmsd, void *base);
-extern int vmstate_register_with_alias_id(DeviceState *dev,
-                                          int instance_id,
-                                          const VMStateDescription *vmsd,
-                                          void *base, int alias_id,
-                                          int required_for_version);
+int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
+                       void *opaque, int version_id);
+void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
+                        void *opaque);
+int vmstate_register(DeviceState *dev, int instance_id,
+                     const VMStateDescription *vmsd, void *base);
+int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
+                                   const VMStateDescription *vmsd,
+                                   void *base, int alias_id,
+                                   int required_for_version);
 void vmstate_unregister(DeviceState *dev, const VMStateDescription *vmsd,
                         void *opaque);
 #endif

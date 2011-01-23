@@ -38,33 +38,33 @@ typedef struct cmdinfo {
 extern cmdinfo_t	*cmdtab;
 extern int		ncmds;
 
-extern void		help_init(void);
-extern void		quit_init(void);
+void help_init(void);
+void quit_init(void);
 
 typedef int (*argsfunc_t)(int index);
 typedef int (*checkfunc_t)(const cmdinfo_t *ci);
 
-extern void		add_command(const cmdinfo_t *ci);
-extern void		add_user_command(char *optarg);
-extern void		add_args_command(argsfunc_t af);
-extern void		add_check_command(checkfunc_t cf);
+void add_command(const cmdinfo_t *ci);
+void add_user_command(char *optarg);
+void add_args_command(argsfunc_t af);
+void add_check_command(checkfunc_t cf);
 
-extern const cmdinfo_t	*find_command(const char *cmd);
+const cmdinfo_t *find_command(const char *cmd);
 
-extern void		command_loop(void);
-extern int		command_usage(const cmdinfo_t *ci);
-extern int		command(const cmdinfo_t *ci, int argc, char **argv);
+void command_loop(void);
+int command_usage(const cmdinfo_t *ci);
+int command(const cmdinfo_t *ci, int argc, char **argv);
 
 /* from input.h */
-extern char	**breakline(char *input, int *count);
-extern void	doneline(char *input, char **vec);
-extern char	*fetchline(void);
+char **breakline(char *input, int *count);
+void doneline(char *input, char **vec);
+char *fetchline(void);
 
-extern long long cvtnum(char *s);
-extern void	cvtstr(double value, char *str, size_t sz);
+long long cvtnum(char *s);
+void cvtstr(double value, char *str, size_t sz);
 
-extern struct timeval tsub(struct timeval t1, struct timeval t2);
-extern double	tdiv(double value, struct timeval tv);
+struct timeval tsub(struct timeval t1, struct timeval t2);
+double tdiv(double value, struct timeval tv);
 
 enum {
 	DEFAULT_TIME		= 0x0,
@@ -72,7 +72,7 @@ enum {
 	VERBOSE_FIXED_TIME	= 0x2
 };
 
-extern void	timestr(struct timeval *tv, char *str, size_t sz, int flags);
+void timestr(struct timeval *tv, char *str, size_t sz, int flags);
 
 extern char *progname;
 

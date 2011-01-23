@@ -57,7 +57,7 @@ typedef struct FsContext
     struct xattr_operations **xops;
 } FsContext;
 
-extern void cred_init(FsCred *);
+void cred_init(FsCred *);
 
 typedef struct FileOperations
 {

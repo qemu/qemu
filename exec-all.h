@@ -201,7 +201,7 @@ static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr
     /* no need to flush icache explicitly */
 }
 #elif defined(_ARCH_PPC)
-extern void ppc_tb_set_jmp_target(unsigned long jmp_addr, unsigned long addr);
+void ppc_tb_set_jmp_target(unsigned long jmp_addr, unsigned long addr);
 #define tb_set_jmp_target1 ppc_tb_set_jmp_target
 #elif defined(__i386__) || defined(__x86_64__)
 static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)

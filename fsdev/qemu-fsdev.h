@@ -49,7 +49,7 @@ typedef struct FsTypeListEntry {
     QTAILQ_ENTRY(FsTypeListEntry) next;
 } FsTypeListEntry;
 
-extern int qemu_fsdev_add(QemuOpts *opts);
-extern FsTypeEntry *get_fsdev_fsentry(char *id);
+int qemu_fsdev_add(QemuOpts *opts);
+FsTypeEntry *get_fsdev_fsentry(char *id);
 extern FileOperations local_ops;
 #endif

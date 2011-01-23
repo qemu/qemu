@@ -25,8 +25,8 @@
 #ifndef QEMU_X_KEYMAP_H
 #define QEMU_X_KEYMAP_H
 
-extern uint8_t translate_xfree86_keycode(const int key);
+uint8_t translate_xfree86_keycode(const int key);
 
-extern uint8_t translate_evdev_keycode(const int key);
+uint8_t translate_evdev_keycode(const int key);
 
 #endif
