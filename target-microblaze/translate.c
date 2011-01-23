@@ -232,13 +232,13 @@ static void dec_add(DisasContext *dc)
 
     if (dc->rd) {
         TCGv ncf = tcg_temp_new();
-        gen_helper_addkc(ncf, cpu_R[dc->ra], *(dec_alu_op_b(dc)), cf);
+        gen_helper_carry(ncf, cpu_R[dc->ra], *(dec_alu_op_b(dc)), cf);
         tcg_gen_add_tl(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
         tcg_gen_add_tl(cpu_R[dc->rd], cpu_R[dc->rd], cf);
         write_carry(dc, ncf);
         tcg_temp_free(ncf);
     } else {
-        gen_helper_addkc(cf, cpu_R[dc->ra], *(dec_alu_op_b(dc)), cf);
+        gen_helper_carry(cf, cpu_R[dc->ra], *(dec_alu_op_b(dc)), cf);
         write_carry(dc, cf);
     }
     tcg_temp_free(cf);
@@ -302,13 +302,13 @@ static void dec_sub(DisasContext *dc)
 
     if (dc->rd) {
         TCGv ncf = tcg_temp_new();
-        gen_helper_addkc(ncf, na, *(dec_alu_op_b(dc)), cf);
+        gen_helper_carry(ncf, na, *(dec_alu_op_b(dc)), cf);
         tcg_gen_add_tl(cpu_R[dc->rd], na, *(dec_alu_op_b(dc)));
         tcg_gen_add_tl(cpu_R[dc->rd], cpu_R[dc->rd], cf);
         write_carry(dc, ncf);
         tcg_temp_free(ncf);
     } else {
-        gen_helper_addkc(cf, na, *(dec_alu_op_b(dc)), cf);
+        gen_helper_carry(cf, na, *(dec_alu_op_b(dc)), cf);
         write_carry(dc, cf);
     }
     tcg_temp_free(cf);
