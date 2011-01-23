@@ -128,12 +128,9 @@ uint32_t helper_cmpu(uint32_t a, uint32_t b)
     return t;
 }
 
-uint32_t helper_addkc(uint32_t a, uint32_t b, uint32_t cf)
+uint32_t helper_carry(uint32_t a, uint32_t b, uint32_t cf)
 {
-    uint32_t d, ncf;
-
-    d = a + b + cf;
-
+    uint32_t ncf;
     ncf = compute_carry(a, b, cf);
     return ncf;
 }
