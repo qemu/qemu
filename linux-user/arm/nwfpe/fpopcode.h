@@ -384,7 +384,7 @@ static inline float32 getSingleConstant(const unsigned int nIndex)
    return float32Constant[nIndex];
 }
 
-extern unsigned int getRegisterCount(const unsigned int opcode);
-extern unsigned int getDestinationSize(const unsigned int opcode);
+unsigned int getRegisterCount(const unsigned int opcode);
+unsigned int getDestinationSize(const unsigned int opcode);
 
 #endif

@@ -89,9 +89,9 @@ typedef struct tagFPA11 {
 
 extern FPA11* qemufpa;
 
-extern void resetFPA11(void);
-extern void SetRoundingMode(const unsigned int);
-extern void SetRoundingPrecision(const unsigned int);
+void resetFPA11(void);
+void SetRoundingMode(const unsigned int);
+void SetRoundingPrecision(const unsigned int);
 
 static inline unsigned int readRegister(unsigned int reg)
 {

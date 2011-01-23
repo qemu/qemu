@@ -852,9 +852,9 @@ typedef struct CPSProcessSerNum
         UInt32                hi;
 } CPSProcessSerNum;
 
-extern OSErr    CPSGetCurrentProcess( CPSProcessSerNum *psn);
-extern OSErr    CPSEnableForegroundOperation( CPSProcessSerNum *psn, UInt32 _arg2, UInt32 _arg3, UInt32 _arg4, UInt32 _arg5);
-extern OSErr    CPSSetFrontProcess( CPSProcessSerNum *psn);
+OSErr CPSGetCurrentProcess( CPSProcessSerNum *psn);
+OSErr CPSEnableForegroundOperation( CPSProcessSerNum *psn, UInt32 _arg2, UInt32 _arg3, UInt32 _arg4, UInt32 _arg5);
+OSErr CPSSetFrontProcess( CPSProcessSerNum *psn);
 
 int main (int argc, const char * argv[]) {
 

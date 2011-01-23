@@ -495,8 +495,8 @@ typedef struct V9fsReadLinkState
     V9fsString target;
 } V9fsReadLinkState;
 
-extern size_t pdu_packunpack(void *addr, struct iovec *sg, int sg_count,
-                            size_t offset, size_t size, int pack);
+size_t pdu_packunpack(void *addr, struct iovec *sg, int sg_count,
+                      size_t offset, size_t size, int pack);
 
 static inline size_t do_pdu_unpack(void *dst, struct iovec *sg, int sg_count,
                         size_t offset, size_t size)

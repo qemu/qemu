@@ -58,14 +58,12 @@ typedef struct VirtIOS390Bus {
 } VirtIOS390Bus;
 
 
-extern void s390_virtio_device_update_status(VirtIOS390Device *dev);
+void s390_virtio_device_update_status(VirtIOS390Device *dev);
 
-extern VirtIOS390Device *s390_virtio_bus_console(VirtIOS390Bus *bus);
-extern VirtIOS390Bus *s390_virtio_bus_init(ram_addr_t *ram_size);
+VirtIOS390Device *s390_virtio_bus_console(VirtIOS390Bus *bus);
+VirtIOS390Bus *s390_virtio_bus_init(ram_addr_t *ram_size);
 
-extern VirtIOS390Device *s390_virtio_bus_find_vring(VirtIOS390Bus *bus,
-                                                    ram_addr_t mem,
-                                                    int *vq_num);
-extern VirtIOS390Device *s390_virtio_bus_find_mem(VirtIOS390Bus *bus,
-                                                  ram_addr_t mem);
-extern void s390_virtio_device_sync(VirtIOS390Device *dev);
+VirtIOS390Device *s390_virtio_bus_find_vring(VirtIOS390Bus *bus,
+                                             ram_addr_t mem, int *vq_num);
+VirtIOS390Device *s390_virtio_bus_find_mem(VirtIOS390Bus *bus, ram_addr_t mem);
+void s390_virtio_device_sync(VirtIOS390Device *dev);

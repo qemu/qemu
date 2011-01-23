@@ -41,16 +41,15 @@ extern XattrOperations *mapped_xattr_ops[];
 extern XattrOperations *passthrough_xattr_ops[];
 extern XattrOperations *none_xattr_ops[];
 
-extern ssize_t v9fs_get_xattr(FsContext *ctx, const char *path,
-                              const char *name, void *value, size_t size);
-extern ssize_t v9fs_list_xattr(FsContext *ctx, const char *path,
-                               void *value, size_t vsize);
-extern int v9fs_set_xattr(FsContext *ctx, const char *path, const char *name,
+ssize_t v9fs_get_xattr(FsContext *ctx, const char *path, const char *name,
+                       void *value, size_t size);
+ssize_t v9fs_list_xattr(FsContext *ctx, const char *path, void *value,
+                        size_t vsize);
+int v9fs_set_xattr(FsContext *ctx, const char *path, const char *name,
                           void *value, size_t size, int flags);
-extern int v9fs_remove_xattr(FsContext *ctx,
-                             const char *path, const char *name);
-extern ssize_t pt_listxattr(FsContext *ctx, const char *path,
-                            char *name, void *value, size_t size);
+int v9fs_remove_xattr(FsContext *ctx, const char *path, const char *name);
+ssize_t pt_listxattr(FsContext *ctx, const char *path, char *name, void *value,
+                     size_t size);
 
 static inline ssize_t pt_getxattr(FsContext *ctx, const char *path,
                                   const char *name, void *value, size_t size)

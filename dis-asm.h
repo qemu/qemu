@@ -362,48 +362,48 @@ typedef struct disassemble_info {
    target address.  Return number of bytes processed.  */
 typedef int (*disassembler_ftype) (bfd_vma, disassemble_info *);
 
-extern int print_insn_big_mips		(bfd_vma, disassemble_info*);
-extern int print_insn_little_mips	(bfd_vma, disassemble_info*);
-extern int print_insn_i386		(bfd_vma, disassemble_info*);
-extern int print_insn_m68k		(bfd_vma, disassemble_info*);
-extern int print_insn_z8001		(bfd_vma, disassemble_info*);
-extern int print_insn_z8002		(bfd_vma, disassemble_info*);
-extern int print_insn_h8300		(bfd_vma, disassemble_info*);
-extern int print_insn_h8300h		(bfd_vma, disassemble_info*);
-extern int print_insn_h8300s		(bfd_vma, disassemble_info*);
-extern int print_insn_h8500		(bfd_vma, disassemble_info*);
-extern int print_insn_alpha		(bfd_vma, disassemble_info*);
-extern disassembler_ftype arc_get_disassembler (int, int);
-extern int print_insn_arm		(bfd_vma, disassemble_info*);
-extern int print_insn_sparc		(bfd_vma, disassemble_info*);
-extern int print_insn_big_a29k		(bfd_vma, disassemble_info*);
-extern int print_insn_little_a29k	(bfd_vma, disassemble_info*);
-extern int print_insn_i960		(bfd_vma, disassemble_info*);
-extern int print_insn_sh		(bfd_vma, disassemble_info*);
-extern int print_insn_shl		(bfd_vma, disassemble_info*);
-extern int print_insn_hppa		(bfd_vma, disassemble_info*);
-extern int print_insn_m32r		(bfd_vma, disassemble_info*);
-extern int print_insn_m88k		(bfd_vma, disassemble_info*);
-extern int print_insn_mn10200		(bfd_vma, disassemble_info*);
-extern int print_insn_mn10300		(bfd_vma, disassemble_info*);
-extern int print_insn_ns32k		(bfd_vma, disassemble_info*);
-extern int print_insn_big_powerpc	(bfd_vma, disassemble_info*);
-extern int print_insn_little_powerpc	(bfd_vma, disassemble_info*);
-extern int print_insn_rs6000		(bfd_vma, disassemble_info*);
-extern int print_insn_w65		(bfd_vma, disassemble_info*);
-extern int print_insn_d10v		(bfd_vma, disassemble_info*);
-extern int print_insn_v850		(bfd_vma, disassemble_info*);
-extern int print_insn_tic30		(bfd_vma, disassemble_info*);
-extern int print_insn_ppc		(bfd_vma, disassemble_info*);
-extern int print_insn_s390		(bfd_vma, disassemble_info*);
-extern int print_insn_crisv32           (bfd_vma, disassemble_info*);
-extern int print_insn_crisv10           (bfd_vma, disassemble_info*);
-extern int print_insn_microblaze        (bfd_vma, disassemble_info*);
-extern int print_insn_ia64              (bfd_vma, disassemble_info*);
+int print_insn_big_mips         (bfd_vma, disassemble_info*);
+int print_insn_little_mips      (bfd_vma, disassemble_info*);
+int print_insn_i386             (bfd_vma, disassemble_info*);
+int print_insn_m68k             (bfd_vma, disassemble_info*);
+int print_insn_z8001            (bfd_vma, disassemble_info*);
+int print_insn_z8002            (bfd_vma, disassemble_info*);
+int print_insn_h8300            (bfd_vma, disassemble_info*);
+int print_insn_h8300h           (bfd_vma, disassemble_info*);
+int print_insn_h8300s           (bfd_vma, disassemble_info*);
+int print_insn_h8500            (bfd_vma, disassemble_info*);
+int print_insn_alpha            (bfd_vma, disassemble_info*);
+disassembler_ftype arc_get_disassembler (int, int);
+int print_insn_arm              (bfd_vma, disassemble_info*);
+int print_insn_sparc            (bfd_vma, disassemble_info*);
+int print_insn_big_a29k         (bfd_vma, disassemble_info*);
+int print_insn_little_a29k      (bfd_vma, disassemble_info*);
+int print_insn_i960             (bfd_vma, disassemble_info*);
+int print_insn_sh               (bfd_vma, disassemble_info*);
+int print_insn_shl              (bfd_vma, disassemble_info*);
+int print_insn_hppa             (bfd_vma, disassemble_info*);
+int print_insn_m32r             (bfd_vma, disassemble_info*);
+int print_insn_m88k             (bfd_vma, disassemble_info*);
+int print_insn_mn10200          (bfd_vma, disassemble_info*);
+int print_insn_mn10300          (bfd_vma, disassemble_info*);
+int print_insn_ns32k            (bfd_vma, disassemble_info*);
+int print_insn_big_powerpc      (bfd_vma, disassemble_info*);
+int print_insn_little_powerpc   (bfd_vma, disassemble_info*);
+int print_insn_rs6000           (bfd_vma, disassemble_info*);
+int print_insn_w65              (bfd_vma, disassemble_info*);
+int print_insn_d10v             (bfd_vma, disassemble_info*);
+int print_insn_v850             (bfd_vma, disassemble_info*);
+int print_insn_tic30            (bfd_vma, disassemble_info*);
+int print_insn_ppc              (bfd_vma, disassemble_info*);
+int print_insn_s390             (bfd_vma, disassemble_info*);
+int print_insn_crisv32          (bfd_vma, disassemble_info*);
+int print_insn_crisv10          (bfd_vma, disassemble_info*);
+int print_insn_microblaze       (bfd_vma, disassemble_info*);
+int print_insn_ia64             (bfd_vma, disassemble_info*);
 
 #if 0
 /* Fetch the disassembler for a given BFD, if that support is available.  */
-extern disassembler_ftype disassembler	(bfd *);
+disassembler_ftype disassembler(bfd *);
 #endif
 
 
@@ -412,21 +412,20 @@ extern disassembler_ftype disassembler	(bfd *);
 
 /* Here is a function which callers may wish to use for read_memory_func.
    It gets bytes from a buffer.  */
-extern int buffer_read_memory
-  (bfd_vma, bfd_byte *, int, struct disassemble_info *);
+int buffer_read_memory(bfd_vma, bfd_byte *, int, struct disassemble_info *);
 
 /* This function goes with buffer_read_memory.
    It prints a message using info->fprintf_func and info->stream.  */
-extern void perror_memory (int, bfd_vma, struct disassemble_info *);
+void perror_memory(int, bfd_vma, struct disassemble_info *);
 
 
 /* Just print the address in hex.  This is included for completeness even
    though both GDB and objdump provide their own (to print symbolic
    addresses).  */
-extern void generic_print_address (bfd_vma, struct disassemble_info *);
+void generic_print_address(bfd_vma, struct disassemble_info *);
 
 /* Always true.  */
-extern int generic_symbol_at_address (bfd_vma, struct disassemble_info *);
+int generic_symbol_at_address(bfd_vma, struct disassemble_info *);
 
 /* Macro to initialize a disassemble_info struct.  This should be called
    by all applications creating such a struct.  */

@@ -105,9 +105,9 @@ int cpu_s390x_handle_mmu_fault (CPUS390XState *env, target_ulong address, int rw
 #define TARGET_VIRT_ADDR_SPACE_BITS 32
 
 #ifndef CONFIG_USER_ONLY
-extern int s390_virtio_hypercall(CPUState *env);
-extern void kvm_s390_virtio_irq(CPUState *env, int config_change, uint64_t token);
-extern CPUState *s390_cpu_addr2state(uint16_t cpu_addr);
+int s390_virtio_hypercall(CPUState *env);
+void kvm_s390_virtio_irq(CPUState *env, int config_change, uint64_t token);
+CPUState *s390_cpu_addr2state(uint16_t cpu_addr);
 #endif
 
 

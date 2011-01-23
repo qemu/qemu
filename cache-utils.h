@@ -9,7 +9,7 @@ struct qemu_cache_conf {
 
 extern struct qemu_cache_conf qemu_cache_conf;
 
-extern void qemu_cache_utils_init(char **envp);
+void qemu_cache_utils_init(char **envp);
 
 /* mildly adjusted code from tcg-dyngen.c */
 static inline void flush_icache_range(unsigned long start, unsigned long stop)

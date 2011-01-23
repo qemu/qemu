@@ -12,5 +12,5 @@
 
 #define mb() asm volatile ("" : : : "memory")
 
-extern void pass(void);
-extern void _fail(char *reason);
+void pass(void);
+void _fail(char *reason);

@@ -21,7 +21,7 @@ int g364fb_mm_init(target_phys_addr_t vram_base,
 void mipsnet_init(int base, qemu_irq irq, NICInfo *nd);
 
 /* jazz_led.c */
-extern void jazz_led_init(target_phys_addr_t base);
+void jazz_led_init(target_phys_addr_t base);
 
 /* rc4030.c */
 typedef struct rc4030DMAState *rc4030_dma;
