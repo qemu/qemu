@@ -60,28 +60,37 @@ RequestExecutionLevel admin
 
 ;--------------------------------
 ; Interface Settings.
+; !define MUI_HEADERIMAGE "qemu-install.bmp"
+; !define MUI_SPECIALBITMAP "qemu.bmp"
 !define MUI_ICON "${SRCDIR}\pc-bios\qemu-icon.ico"
 !define MUI_UNICON "${SRCDIR}\pc-bios\qemu-icon.ico"
+; !define MUI_WELCOMEFINISHPAGE_BITMAP "qemu.bmp"
+; !define MUI_HEADERIMAGE_BITMAP "qemu-install.bmp"
+; !define MUI_HEADERIMAGE_UNBITMAP "qemu-uninstall.bmp"
+; !define MUI_COMPONENTSPAGE_SMALLDESC
+; !define MUI_WELCOMEPAGE_TEXT "Insert text here.$\r$\n$\r$\n$\r$\n$_CLICK"
 
 ;--------------------------------
 ; Pages.
 
-  !insertmacro MUI_PAGE_WELCOME
-  !insertmacro MUI_PAGE_LICENSE "${SRCDIR}\COPYING"
-  !insertmacro MUI_PAGE_COMPONENTS
-  !insertmacro MUI_PAGE_DIRECTORY
-  !insertmacro MUI_PAGE_INSTFILES
-  !define MUI_FINISHPAGE_LINK "Visit the QEMU Wiki online!"
-  !define MUI_FINISHPAGE_LINK_LOCATION "${URL}"
-  !insertmacro MUI_PAGE_FINISH
+!insertmacro MUI_PAGE_WELCOME
+!insertmacro MUI_PAGE_LICENSE "${SRCDIR}\COPYING"
+!insertmacro MUI_PAGE_COMPONENTS
+!insertmacro MUI_PAGE_DIRECTORY
+!insertmacro MUI_PAGE_INSTFILES
+!define MUI_FINISHPAGE_LINK "Visit the QEMU Wiki online!"
+!define MUI_FINISHPAGE_LINK_LOCATION "${URL}"
+!insertmacro MUI_PAGE_FINISH
 
-  !insertmacro MUI_UNPAGE_CONFIRM
-  !insertmacro MUI_UNPAGE_INSTFILES
+!insertmacro MUI_UNPAGE_CONFIRM
+!insertmacro MUI_UNPAGE_INSTFILES
 
 ;--------------------------------
 ; Languages.
 
-  !insertmacro MUI_LANGUAGE "English"
+!insertmacro MUI_LANGUAGE "English"
+!insertmacro MUI_LANGUAGE "French"
+!insertmacro MUI_LANGUAGE "German"
 
 ;--------------------------------
 
@@ -120,24 +129,24 @@ Section "${PRODUCT} (required)"
     WriteUninstaller "qemu-uninstall.exe"
 SectionEnd
 
-Section "Tools"
+Section "Tools" SectionTools
     SetOutPath "$INSTDIR"
     File "${BINDIR}\qemu-img.exe"
     File "${BINDIR}\qemu-io.exe"
 SectionEnd
 
-Section "PC (i386) System Emulation"
+Section "PC (i386) System Emulation" SectionQemu
     SetOutPath "$INSTDIR"
     File "${BINDIR}\qemu.exe"
 SectionEnd
 
-Section "Other System Emulations"
+Section "Other System Emulations" SectionOther
     SetOutPath "$INSTDIR"
     File "${BINDIR}\qemu-system-*.exe"
 SectionEnd
 
 !ifdef CONFIG_DOCUMENTATION
-Section "Documentation"
+Section "Documentation" SectionDoc
     SetOutPath "$INSTDIR"
     File "${BINDIR}\qemu-doc.html"
     File "${BINDIR}\qemu-tech.html"
@@ -148,7 +157,7 @@ SectionEnd
 !endif
 
 ; Optional section (can be disabled by the user)
-Section "Start Menu Shortcuts"
+Section "Start Menu Shortcuts" SectionMenu
     CreateDirectory "$SMPROGRAMS\${PRODUCT}"
     CreateShortCut "$SMPROGRAMS\${PRODUCT}\Uninstall.lnk" "${UNINST_EXE}" "" "${UNINST_EXE}" 0
 SectionEnd
@@ -195,7 +204,19 @@ SectionEnd
 
 ;--------------------------------
 
-; Descriptions (mouse-over)
-; !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
-;   !insertmacro MUI_DESCRIPTION_TEXT ${Section1} "xxx"
-; !insertmacro MUI_FUNCTION_DESCRIPTION_END
+; Descriptions (mouse-over).
+!insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
+    !insertmacro MUI_DESCRIPTION_TEXT ${SectionQemu}  "PC system emulation (i386)."
+    !insertmacro MUI_DESCRIPTION_TEXT ${SectionOther} "Additional system emulations."
+    !insertmacro MUI_DESCRIPTION_TEXT ${SectionTools} "Tools."
+    !insertmacro MUI_DESCRIPTION_TEXT ${SectionDoc}   "Documentation."
+    !insertmacro MUI_DESCRIPTION_TEXT ${SectionMenu}  "Menu entries."
+!insertmacro MUI_FUNCTION_DESCRIPTION_END
+
+;--------------------------------
+; Functions.
+
+Function .onInit
+    !insertmacro MUI_LANGDLL_DISPLAY
+FunctionEnd
+
