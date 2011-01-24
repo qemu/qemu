@@ -289,12 +289,22 @@ static int qpa_init_out (HWVoiceOut *hw, struct audsettings *as)
 {
     int error;
     static pa_sample_spec ss;
+    static pa_buffer_attr ba;
     struct audsettings obt_as = *as;
     PAVoiceOut *pa = (PAVoiceOut *) hw;
 
     ss.format = audfmt_to_pa (as->fmt, as->endianness);
     ss.channels = as->nchannels;
     ss.rate = as->freq;
+
+    /*
+     * qemu audio tick runs at 250 Hz (by default), so processing
+     * data chunks worth 4 ms of sound should be a good fit.
+     */
+    ba.tlength = pa_usec_to_bytes (4 * 1000, &ss);
+    ba.minreq = pa_usec_to_bytes (2 * 1000, &ss);
+    ba.maxlength = -1;
+    ba.prebuf = -1;
 
     obt_as.fmt = pa_to_audfmt (ss.format, &obt_as.endianness);
 
@@ -306,7 +316,7 @@ static int qpa_init_out (HWVoiceOut *hw, struct audsettings *as)
         "pcm.playback",
         &ss,
         NULL,                   /* channel map */
-        NULL,                   /* buffering attributes */
+        &ba,                    /* buffering attributes */
         &error
         );
     if (!pa->s) {
