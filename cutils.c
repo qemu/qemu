@@ -324,26 +324,26 @@ int64_t strtosz_suffix(const char *nptr, char **end, const char default_suffix)
         }
     }
     switch (qemu_toupper(d)) {
-    case 'B':
+    case STRTOSZ_DEFSUFFIX_B:
         mul = 1;
         if (mul_required) {
             goto fail;
         }
         break;
-    case 'K':
+    case STRTOSZ_DEFSUFFIX_KB:
         mul = 1 << 10;
         break;
     case 0:
         if (mul_required) {
             goto fail;
         }
-    case 'M':
+    case STRTOSZ_DEFSUFFIX_MB:
         mul = 1ULL << 20;
         break;
-    case 'G':
+    case STRTOSZ_DEFSUFFIX_GB:
         mul = 1ULL << 30;
         break;
-    case 'T':
+    case STRTOSZ_DEFSUFFIX_TB:
         mul = 1ULL << 40;
         break;
     default:
