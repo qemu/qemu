@@ -32,6 +32,44 @@
  * http://www.gaisler.com/products/grlib/grip.pdf
  */
 
+/* IRQMP */
+
+typedef void (*set_pil_in_fn) (void *opaque, uint32_t pil_in);
+
+void grlib_irqmp_set_irq(void *opaque, int irq, int level);
+
+void grlib_irqmp_ack(DeviceState *dev, int intno);
+
+static inline
+DeviceState *grlib_irqmp_create(target_phys_addr_t   base,
+                                CPUState            *env,
+                                qemu_irq           **cpu_irqs,
+                                uint32_t             nr_irqs,
+                                set_pil_in_fn        set_pil_in)
+{
+    DeviceState *dev;
+
+    assert(cpu_irqs != NULL);
+
+    dev = qdev_create(NULL, "grlib,irqmp");
+    qdev_prop_set_ptr(dev, "set_pil_in", set_pil_in);
+    qdev_prop_set_ptr(dev, "set_pil_in_opaque", env);
+
+    if (qdev_init(dev)) {
+        return NULL;
+    }
+
+    env->irq_manager = dev;
+
+    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
+
+    *cpu_irqs = qemu_allocate_irqs(grlib_irqmp_set_irq,
+                                   dev,
+                                   nr_irqs);
+
+    return dev;
+}
+
 /* GPTimer */
 
 static inline
