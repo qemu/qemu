@@ -57,9 +57,6 @@ static void *qpa_thread_out (void *arg)
 {
     PAVoiceOut *pa = arg;
     HWVoiceOut *hw = &pa->hw;
-    int threshold;
-
-    threshold = conf.divisor ? hw->samples / conf.divisor : 0;
 
     if (audio_pt_lock (&pa->pt, AUDIO_FUNC)) {
         return NULL;
@@ -73,7 +70,7 @@ static void *qpa_thread_out (void *arg)
                 goto exit;
             }
 
-            if (pa->live > threshold) {
+            if (pa->live > 0) {
                 break;
             }
 
@@ -82,8 +79,8 @@ static void *qpa_thread_out (void *arg)
             }
         }
 
-        decr = to_mix = pa->live;
-        rpos = hw->rpos;
+        decr = to_mix = audio_MIN (pa->live, conf.samples >> 2);
+        rpos = pa->rpos;
 
         if (audio_pt_unlock (&pa->pt, AUDIO_FUNC)) {
             return NULL;
@@ -110,8 +107,8 @@ static void *qpa_thread_out (void *arg)
             return NULL;
         }
 
-        pa->live = 0;
         pa->rpos = rpos;
+        pa->live -= decr;
         pa->decr += decr;
     }
 
@@ -152,9 +149,6 @@ static void *qpa_thread_in (void *arg)
 {
     PAVoiceIn *pa = arg;
     HWVoiceIn *hw = &pa->hw;
-    int threshold;
-
-    threshold = conf.divisor ? hw->samples / conf.divisor : 0;
 
     if (audio_pt_lock (&pa->pt, AUDIO_FUNC)) {
         return NULL;
@@ -168,7 +162,7 @@ static void *qpa_thread_in (void *arg)
                 goto exit;
             }
 
-            if (pa->dead > threshold) {
+            if (pa->dead > 0) {
                 break;
             }
 
@@ -177,8 +171,8 @@ static void *qpa_thread_in (void *arg)
             }
         }
 
-        incr = to_grab = pa->dead;
-        wpos = hw->wpos;
+        incr = to_grab = audio_MIN (pa->dead, conf.samples >> 2);
+        wpos = pa->wpos;
 
         if (audio_pt_unlock (&pa->pt, AUDIO_FUNC)) {
             return NULL;
@@ -323,6 +317,7 @@ static int qpa_init_out (HWVoiceOut *hw, struct audsettings *as)
     audio_pcm_init_info (&hw->info, &obt_as);
     hw->samples = conf.samples;
     pa->pcm_buf = audio_calloc (AUDIO_FUNC, hw->samples, 1 << hw->info.shift);
+    pa->rpos = hw->rpos;
     if (!pa->pcm_buf) {
         dolog ("Could not allocate buffer (%d bytes)\n",
                hw->samples << hw->info.shift);
@@ -377,6 +372,7 @@ static int qpa_init_in (HWVoiceIn *hw, struct audsettings *as)
     audio_pcm_init_info (&hw->info, &obt_as);
     hw->samples = conf.samples;
     pa->pcm_buf = audio_calloc (AUDIO_FUNC, hw->samples, 1 << hw->info.shift);
+    pa->wpos = hw->wpos;
     if (!pa->pcm_buf) {
         dolog ("Could not allocate buffer (%d bytes)\n",
                hw->samples << hw->info.shift);
