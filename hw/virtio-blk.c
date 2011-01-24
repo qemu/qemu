@@ -514,6 +514,15 @@ static int virtio_blk_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
+static void virtio_blk_change_cb(void *opaque, int reason)
+{
+    VirtIOBlock *s = opaque;
+
+    if (reason & CHANGE_SIZE) {
+        virtio_notify_config(&s->vdev);
+    }
+}
+
 VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf)
 {
     VirtIOBlock *s;
@@ -556,6 +565,7 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf)
     register_savevm(dev, "virtio-blk", virtio_blk_id++, 2,
                     virtio_blk_save, virtio_blk_load, s);
     bdrv_set_removable(s->bs, 0);
+    bdrv_set_change_cb(s->bs, virtio_blk_change_cb, s);
     s->bs->buffer_alignment = conf->logical_block_size;
 
     add_boot_device_path(conf->bootindex, dev, "/disk@0,0");
