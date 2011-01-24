@@ -240,3 +240,7 @@ disable grlib_irqmp_check_irqs(uint32_t pend, uint32_t force, uint32_t mask, uin
 disable grlib_irqmp_ack(int intno) "interrupt:%d"
 disable grlib_irqmp_set_irq(int irq) "Raise CPU IRQ %d"
 disable grlib_irqmp_unknown_register(const char *op, uint64_t val) "%s unknown register 0x%"PRIx64""
+
+# hw/grlib_apbuart.c
+disable grlib_apbuart_event(int event) "event:%d"
+disable grlib_apbuart_unknown_register(const char *op, uint64_t val) "%s unknown register 0x%"PRIx64""

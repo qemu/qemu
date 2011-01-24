@@ -100,4 +100,27 @@ DeviceState *grlib_gptimer_create(target_phys_addr_t  base,
     return dev;
 }
 
+/* APB UART */
+
+static inline
+DeviceState *grlib_apbuart_create(target_phys_addr_t  base,
+                                  CharDriverState    *serial,
+                                  qemu_irq            irq)
+{
+    DeviceState *dev;
+
+    dev = qdev_create(NULL, "grlib,apbuart");
+    qdev_prop_set_chr(dev, "chrdev", serial);
+
+    if (qdev_init(dev)) {
+        return NULL;
+    }
+
+    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
+
+    sysbus_connect_irq(sysbus_from_qdev(dev), 0, irq);
+
+    return dev;
+}
+
 #endif /* ! _GRLIB_H_ */
