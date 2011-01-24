@@ -705,3 +705,33 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
     return 0;
 }
+
+/*
+ * XXX: replace the QERR_UNDEFINED_ERROR errors with real values once the
+ * existing QERR_ macro mess is cleaned up.  A good example for better
+ * error reports can be found in the qemu-img resize code.
+ */
+int do_block_resize(Monitor *mon, const QDict *qdict, QObject **ret_data)
+{
+    const char *device = qdict_get_str(qdict, "device");
+    int64_t size = qdict_get_int(qdict, "size");
+    BlockDriverState *bs;
+
+    bs = bdrv_find(device);
+    if (!bs) {
+        qerror_report(QERR_DEVICE_NOT_FOUND, device);
+        return -1;
+    }
+
+    if (size < 0) {
+        qerror_report(QERR_UNDEFINED_ERROR);
+        return -1;
+    }
+
+    if (bdrv_truncate(bs, size)) {
+        qerror_report(QERR_UNDEFINED_ERROR);
+        return -1;
+    }
+
+    return 0;
+}

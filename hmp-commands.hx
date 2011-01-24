@@ -53,6 +53,25 @@ Quit the emulator.
 ETEXI
 
     {
+        .name       = "block_resize",
+        .args_type  = "device:B,size:o",
+        .params     = "device size",
+        .help       = "resize a block image",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_block_resize,
+    },
+
+STEXI
+@item block_resize
+@findex block_resize
+Resize a block image while a guest is running.  Usually requires guest
+action to see the updated size.  Resize to a lower size is supported,
+but should be used with extreme caution.  Note that this command only
+resizes image files, it can not resize block devices like LVM volumes.
+ETEXI
+
+
+    {
         .name       = "eject",
         .args_type  = "force:-f,device:B",
         .params     = "[-f] device",
