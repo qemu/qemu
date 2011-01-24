@@ -515,7 +515,7 @@ static int usb_msd_initfn(USBDevice *dev)
 
     usb_desc_init(dev);
     scsi_bus_new(&s->bus, &s->dev.qdev, 0, 1, usb_msd_command_complete);
-    s->scsi_dev = scsi_bus_legacy_add_drive(&s->bus, bs, 0);
+    s->scsi_dev = scsi_bus_legacy_add_drive(&s->bus, bs, 0, false);
     if (!s->scsi_dev) {
         return -1;
     }
