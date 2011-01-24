@@ -153,7 +153,7 @@ struct BlockDriverState {
     int valid_key; /* if true, a valid encryption key has been set */
     int sg;        /* if true, the device is a /dev/sg* */
     /* event callback when inserting/removing */
-    void (*change_cb)(void *opaque);
+    void (*change_cb)(void *opaque, int reason);
     void *change_opaque;
 
     BlockDriver *drv; /* NULL means no media */
@@ -202,6 +202,9 @@ struct BlockDriverState {
     QTAILQ_ENTRY(BlockDriverState) list;
     void *private;
 };
+
+#define CHANGE_MEDIA	0x01
+#define CHANGE_SIZE	0x02
 
 struct BlockDriverAIOCB {
     AIOPool *pool;

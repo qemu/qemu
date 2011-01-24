@@ -422,9 +422,14 @@ static void sd_reset(SDState *sd, BlockDriverState *bdrv)
     sd->pwd_len = 0;
 }
 
-static void sd_cardchange(void *opaque)
+static void sd_cardchange(void *opaque, int reason)
 {
     SDState *sd = opaque;
+
+    if (!(reason & CHANGE_MEDIA)) {
+        return;
+    }
+
     qemu_set_irq(sd->inserted_cb, bdrv_is_inserted(sd->bdrv));
     if (bdrv_is_inserted(sd->bdrv)) {
         sd_reset(sd, sd->bdrv);
