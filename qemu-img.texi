@@ -59,6 +59,13 @@ lists all snapshots in the given image
 Command description:
 
 @table @option
+@item check [-f @var{fmt}] @var{filename}
+
+Perform a consistency check on the disk image @var{filename}.
+
+Only the formats @code{qcow2}, @code{qed} and @code{vdi} support
+consistency checks.
+
 @item create [-f @var{fmt}] [-o @var{options}] @var{filename} [@var{size}]
 
 Create the new disk image @var{filename} of size @var{size} and format
@@ -106,6 +113,40 @@ they are displayed too.
 @item snapshot [-l | -a @var{snapshot} | -c @var{snapshot} | -d @var{snapshot} ] @var{filename}
 
 List, apply, create or delete snapshots in image @var{filename}.
+
+@item rebase [-f @var{fmt}] [-u] -b @var{backing_file} [-F @var{backing_fmt}] @var{filename}
+
+Changes the backing file of an image. Only the formats @code{qcow2} and
+@code{qed} support changing the backing file.
+
+The backing file is changed to @var{backing_file} and (if the image format of
+@var{filename} supports this) the backing file format is changed to
+@var{backing_fmt}.
+
+There are two different modes in which @code{rebase} can operate:
+@table @option
+@item Safe mode
+This is the default mode and performs a real rebase operation. The new backing
+file may differ from the old one and qemu-img rebase will take care of keeping
+the guest-visible content of @var{filename} unchanged.
+
+In order to achieve this, any clusters that differ between @var{backing_file}
+and the old backing file of @var{filename} are merged into @var{filename}
+before actually changing the backing file.
+
+Note that the safe mode is an expensive operation, comparable to converting
+an image. It only works if the old backing file still exists.
+
+@item Unsafe mode
+qemu-img uses the unsafe mode if @code{-u} is specified. In this mode, only the
+backing file name and format of @var{filename} is changed without any checks
+on the file contents. The user must take care of specifying the correct new
+backing file, or the guest-visible content of the image will be corrupted.
+
+This mode is useful for renaming or moving the backing file to somewhere else.
+It can be used without an accessible old backing file, i.e. you can use it to
+fix an image whose backing file has already been moved/renamed.
+@end table
 
 @item resize @var{filename} [+ | -]@var{size}
 

@@ -804,7 +804,7 @@ static void numa_add(const char *optarg)
         if (get_param_value(option, 128, "mem", optarg) == 0) {
             node_mem[nodenr] = 0;
         } else {
-            ssize_t sval;
+            int64_t sval;
             sval = strtosz(option, NULL);
             if (sval < 0) {
                 fprintf(stderr, "qemu: invalid numa mem size: %s\n", optarg);
@@ -2245,7 +2245,7 @@ int main(int argc, char **argv, char **envp)
                 exit(0);
                 break;
             case QEMU_OPTION_m: {
-                ssize_t value;
+                int64_t value;
 
                 value = strtosz(optarg, NULL);
                 if (value < 0) {

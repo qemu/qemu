@@ -350,7 +350,12 @@ static int blk_mig_save_bulked_block(Monitor *mon, QEMUFile *f)
         }
     }
 
-    progress = completed_sector_sum * 100 / block_mig_state.total_sector_sum;
+    if (block_mig_state.total_sector_sum != 0) {
+        progress = completed_sector_sum * 100 /
+                   block_mig_state.total_sector_sum;
+    } else {
+        progress = 100;
+    }
     if (progress != block_mig_state.prev_progress) {
         block_mig_state.prev_progress = progress;
         qemu_put_be64(f, (progress << BDRV_SECTOR_BITS)
@@ -633,8 +638,10 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
     int len, flags;
     char device_name[256];
     int64_t addr;
-    BlockDriverState *bs;
+    BlockDriverState *bs, *bs_prev = NULL;
     uint8_t *buf;
+    int64_t total_sectors = 0;
+    int nr_sectors;
 
     do {
         addr = qemu_get_be64(f);
@@ -656,10 +663,26 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
                 return -EINVAL;
             }
 
+            if (bs != bs_prev) {
+                bs_prev = bs;
+                total_sectors = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
+                if (total_sectors <= 0) {
+                    error_report("Error getting length of block device %s\n",
+                                 device_name);
+                    return -EINVAL;
+                }
+            }
+
+            if (total_sectors - addr < BDRV_SECTORS_PER_DIRTY_CHUNK) {
+                nr_sectors = total_sectors - addr;
+            } else {
+                nr_sectors = BDRV_SECTORS_PER_DIRTY_CHUNK;
+            }
+
             buf = qemu_malloc(BLOCK_SIZE);
 
             qemu_get_buffer(f, buf, BLOCK_SIZE);
-            ret = bdrv_write(bs, addr, buf, BDRV_SECTORS_PER_DIRTY_CHUNK);
+            ret = bdrv_write(bs, addr, buf, nr_sectors);
 
             qemu_free(buf);
             if (ret < 0) {

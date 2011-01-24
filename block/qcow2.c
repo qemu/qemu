@@ -143,6 +143,7 @@ static int qcow2_open(BlockDriverState *bs, int flags)
     int len, i, ret = 0;
     QCowHeader header;
     uint64_t ext_end;
+    bool writethrough;
 
     ret = bdrv_pread(bs->file, 0, &header, sizeof(header));
     if (ret < 0) {
@@ -217,8 +218,13 @@ static int qcow2_open(BlockDriverState *bs, int flags)
             be64_to_cpus(&s->l1_table[i]);
         }
     }
-    /* alloc L2 cache */
-    s->l2_cache = qemu_malloc(s->l2_size * L2_CACHE_SIZE * sizeof(uint64_t));
+
+    /* alloc L2 table/refcount block cache */
+    writethrough = ((flags & BDRV_O_CACHE_MASK) == 0);
+    s->l2_table_cache = qcow2_cache_create(bs, L2_CACHE_SIZE, writethrough);
+    s->refcount_block_cache = qcow2_cache_create(bs, REFCOUNT_CACHE_SIZE,
+        writethrough);
+
     s->cluster_cache = qemu_malloc(s->cluster_size);
     /* one more sector for decompressed data alignment */
     s->cluster_data = qemu_malloc(QCOW_MAX_CRYPT_CLUSTERS * s->cluster_size
@@ -270,7 +276,9 @@ static int qcow2_open(BlockDriverState *bs, int flags)
     qcow2_free_snapshots(bs);
     qcow2_refcount_close(bs);
     qemu_free(s->l1_table);
-    qemu_free(s->l2_cache);
+    if (s->l2_table_cache) {
+        qcow2_cache_destroy(bs, s->l2_table_cache);
+    }
     qemu_free(s->cluster_cache);
     qemu_free(s->cluster_data);
     return ret;
@@ -719,7 +727,13 @@ static void qcow2_close(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     qemu_free(s->l1_table);
-    qemu_free(s->l2_cache);
+
+    qcow2_cache_flush(bs, s->l2_table_cache);
+    qcow2_cache_flush(bs, s->refcount_block_cache);
+
+    qcow2_cache_destroy(bs, s->l2_table_cache);
+    qcow2_cache_destroy(bs, s->refcount_block_cache);
+
     qemu_free(s->cluster_cache);
     qemu_free(s->cluster_data);
     qcow2_refcount_close(bs);
@@ -1179,6 +1193,19 @@ static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
 
 static int qcow2_flush(BlockDriverState *bs)
 {
+    BDRVQcowState *s = bs->opaque;
+    int ret;
+
+    ret = qcow2_cache_flush(bs, s->l2_table_cache);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = qcow2_cache_flush(bs, s->refcount_block_cache);
+    if (ret < 0) {
+        return ret;
+    }
+
     return bdrv_flush(bs->file);
 }
 
@@ -1186,6 +1213,19 @@ static BlockDriverAIOCB *qcow2_aio_flush(BlockDriverState *bs,
                                          BlockDriverCompletionFunc *cb,
                                          void *opaque)
 {
+    BDRVQcowState *s = bs->opaque;
+    int ret;
+
+    ret = qcow2_cache_flush(bs, s->l2_table_cache);
+    if (ret < 0) {
+        return NULL;
+    }
+
+    ret = qcow2_cache_flush(bs, s->refcount_block_cache);
+    if (ret < 0) {
+        return NULL;
+    }
+
     return bdrv_aio_flush(bs->file, cb, opaque);
 }
 

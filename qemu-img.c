@@ -320,7 +320,7 @@ static int img_create(int argc, char **argv)
 
     /* Get image size, if specified */
     if (optind < argc) {
-        ssize_t sval;
+        int64_t sval;
         sval = strtosz_suffix(argv[optind++], NULL, STRTOSZ_DEFSUFFIX_B);
         if (sval < 0) {
             error_report("Invalid image size specified! You may use k, M, G or "
@@ -1068,7 +1068,7 @@ static int img_snapshot(int argc, char **argv)
     int action = 0;
     qemu_timeval tv;
 
-    bdrv_oflags = BDRV_O_RDWR;
+    bdrv_oflags = BDRV_O_FLAGS | BDRV_O_RDWR;
     /* Parse commandline parameters */
     for(;;) {
         c = getopt(argc, argv, "la:c:d:h");

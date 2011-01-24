@@ -94,7 +94,8 @@ static inline SCSIBus *scsi_bus_from_device(SCSIDevice *d)
     return DO_UPCAST(SCSIBus, qbus, d->qdev.parent_bus);
 }
 
-SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockDriverState *bdrv, int unit);
+SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockDriverState *bdrv,
+                                      int unit, bool removable);
 int scsi_bus_legacy_handle_cmdline(SCSIBus *bus);
 
 SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag, uint32_t lun);

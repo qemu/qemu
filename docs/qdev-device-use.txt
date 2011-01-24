@@ -80,7 +80,11 @@ The -device argument differs in detail for each kind of drive:
   This SCSI controller a single SCSI bus, named ID.0.  Put a disk on
   it:
 
-  -device scsi-disk,drive=DRIVE-ID,bus=ID.0,scsi-id=SCSI-ID
+  -device scsi-disk,drive=DRIVE-ID,bus=ID.0,scsi-id=SCSI-ID,removable=RMB
+
+  The (optional) removable parameter lets you override the SCSI INQUIRY
+  removable (RMB) bit for non CD-ROM devices.  It is ignored for CD-ROM devices
+  which are always removable.  RMB is "on" or "off".
 
 * if=floppy
 
@@ -116,7 +120,12 @@ For USB devices, the old way is actually different:
 Provides much less control than -drive's HOST-OPTS...  The new way
 fixes that:
 
-    -device usb-storage,drive=DRIVE-ID
+    -device usb-storage,drive=DRIVE-ID,removable=RMB
+
+The removable parameter gives control over the SCSI INQUIRY removable (RMB)
+bit.  USB thumbdrives usually set removable=on, while USB hard disks set
+removable=off.  See the if=scsi description above for details on the removable
+parameter, which applies only to scsi-disk devices and not to scsi-generic.
 
 === Character Devices ===
 

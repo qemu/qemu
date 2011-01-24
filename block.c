@@ -2778,6 +2778,7 @@ int bdrv_img_create(const char *filename, const char *fmt,
     QEMUOptionParameter *backing_fmt, *backing_file;
     BlockDriverState *bs = NULL;
     BlockDriver *drv, *proto_drv;
+    BlockDriver *backing_drv = NULL;
     int ret = 0;
 
     /* Find driver and parse its options */
@@ -2846,7 +2847,8 @@ int bdrv_img_create(const char *filename, const char *fmt,
 
     backing_fmt = get_option_parameter(param, BLOCK_OPT_BACKING_FMT);
     if (backing_fmt && backing_fmt->value.s) {
-        if (!bdrv_find_format(backing_fmt->value.s)) {
+        backing_drv = bdrv_find_format(backing_fmt->value.s);
+        if (!backing_drv) {
             error_report("Unknown backing file format '%s'",
                          backing_fmt->value.s);
             ret = -EINVAL;
@@ -2863,9 +2865,9 @@ int bdrv_img_create(const char *filename, const char *fmt,
 
             bs = bdrv_new("");
 
-            ret = bdrv_open(bs, backing_file->value.s, flags, drv);
+            ret = bdrv_open(bs, backing_file->value.s, flags, backing_drv);
             if (ret < 0) {
-                error_report("Could not open '%s'", filename);
+                error_report("Could not open '%s'", backing_file->value.s);
                 goto out;
             }
             bdrv_get_geometry(bs, &size);

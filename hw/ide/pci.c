@@ -178,14 +178,9 @@ static void bmdma_restart_dma(BMDMAState *bm, int is_read)
     s->io_buffer_index = 0;
     s->io_buffer_size = 0;
     s->nsector = bm->nsector;
+    s->is_read = is_read;
     bm->cur_addr = bm->addr;
-
-    if (is_read) {
-        bm->dma_cb = ide_read_dma_cb;
-    } else {
-        bm->dma_cb = ide_write_dma_cb;
-    }
-
+    bm->dma_cb = ide_dma_cb;
     bmdma_start_dma(&bm->dma, s, bm->dma_cb);
 }
 
@@ -272,9 +267,7 @@ static void bmdma_irq(void *opaque, int n, int level)
         return;
     }
 
-    if (bm) {
-        bm->status |= BM_STATUS_INT;
-    }
+    bm->status |= BM_STATUS_INT;
 
     /* trigger the real irq */
     qemu_set_irq(bm->irq, level);

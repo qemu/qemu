@@ -469,6 +469,12 @@ static int qed_create(const char *filename, uint32_t cluster_size,
         return ret;
     }
 
+    /* File must start empty and grow, check truncate is supported */
+    ret = bdrv_truncate(bs, 0);
+    if (ret < 0) {
+        goto out;
+    }
+
     if (backing_file) {
         header.features |= QED_F_BACKING_FILE;
         header.backing_filename_offset = sizeof(le_header);
