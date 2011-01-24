@@ -2067,6 +2067,17 @@ static void disas_sparc_insn(DisasContext * dc)
                 case 0x10 ... 0x1f: /* implementation-dependent in the
                                        SPARCv8 manual, rdy on the
                                        microSPARC II */
+                    /* Read Asr17 */
+                    if (rs1 == 0x11 && dc->def->features & CPU_FEATURE_ASR17) {
+                        TCGv r_const;
+
+                        /* Read Asr17 for a Leon3 monoprocessor */
+                        r_const = tcg_const_tl((1 << 8)
+                                               | (dc->def->nwindows - 1));
+                        gen_movl_TN_reg(rd, r_const);
+                        tcg_temp_free(r_const);
+                        break;
+                    }
 #endif
                     gen_movl_TN_reg(rd, cpu_y);
                     break;

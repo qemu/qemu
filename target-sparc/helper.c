@@ -1288,7 +1288,8 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
         .nwindows = 8,
-        .features = CPU_DEFAULT_FEATURES | CPU_FEATURE_TA0_SHUTDOWN,
+        .features = CPU_DEFAULT_FEATURES | CPU_FEATURE_TA0_SHUTDOWN |
+        CPU_FEATURE_ASR17,
     },
 #endif
 };
