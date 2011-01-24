@@ -197,7 +197,7 @@ typedef struct CPUWatchpoint {
     int nr_cores;  /* number of cores within this CPU package */        \
     int nr_threads;/* number of threads within this CPU */              \
     int running; /* Nonzero if cpu is currently running(usermode).  */  \
-    int bigendian; /* Endiness, 0 = little endian, 1 = big endian. */   \
+    int bigendian; /* Endianness, 0 = little endian, 1 = big endian. */   \
     /* user data */                                                     \
     void *opaque;                                                       \
                                                                         \
