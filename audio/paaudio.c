@@ -33,13 +33,11 @@ typedef struct {
 
 static struct {
     int samples;
-    int divisor;
     char *server;
     char *sink;
     char *source;
 } conf = {
-    .samples = 1024,
-    .divisor = 2,
+    .samples = 4096,
 };
 
 static void GCC_FMT_ATTR (2, 3) qpa_logerr (int err, const char *fmt, ...)
@@ -476,12 +474,6 @@ struct audio_option qpa_options[] = {
         .tag   = AUD_OPT_INT,
         .valp  = &conf.samples,
         .descr = "buffer size in samples"
-    },
-    {
-        .name  = "DIVISOR",
-        .tag   = AUD_OPT_INT,
-        .valp  = &conf.divisor,
-        .descr = "threshold divisor"
     },
     {
         .name  = "SERVER",
