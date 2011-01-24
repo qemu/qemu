@@ -304,8 +304,8 @@ int64_t strtosz_suffix(const char *nptr, char **end, const char default_suffix)
     if (isnan(val) || endptr == nptr || errno != 0) {
         goto fail;
     }
-    integral = modf(val, &fraction);
-    if (integral != 0) {
+    fraction = modf(val, &integral);
+    if (fraction != 0) {
         mul_required = 1;
     }
     /*
