@@ -833,6 +833,7 @@ static int pci_unregister_device(DeviceState *dev)
 
     pci_unregister_io_regions(pci_dev);
     pci_del_option_rom(pci_dev);
+    qemu_free(pci_dev->romfile);
     do_pci_unregister_device(pci_dev);
     return 0;
 }
