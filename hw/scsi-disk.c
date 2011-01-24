@@ -72,6 +72,7 @@ struct SCSIDiskState
     /* The qemu block layer uses a fixed 512 byte sector size.
        This is the number of 512 byte blocks in a single scsi sector.  */
     int cluster_size;
+    uint32_t removable;
     uint64_t max_lba;
     QEMUBH *bh;
     char *version;
@@ -552,6 +553,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
         memcpy(&outbuf[16], "QEMU CD-ROM     ", 16);
     } else {
         outbuf[0] = 0;
+        outbuf[1] = s->removable ? 0x80 : 0;
         memcpy(&outbuf[16], "QEMU HARDDISK   ", 16);
     }
     memcpy(&outbuf[8], "QEMU    ", 8);
@@ -1295,6 +1297,7 @@ static SCSIDeviceInfo scsi_disk_info = {
         DEFINE_BLOCK_PROPERTIES(SCSIDiskState, qdev.conf),
         DEFINE_PROP_STRING("ver",  SCSIDiskState, version),
         DEFINE_PROP_STRING("serial",  SCSIDiskState, serial),
+        DEFINE_PROP_BIT("removable", SCSIDiskState, removable, 0, false),
         DEFINE_PROP_END_OF_LIST(),
     },
 };
