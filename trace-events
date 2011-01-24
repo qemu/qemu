@@ -244,3 +244,7 @@ disable grlib_irqmp_unknown_register(const char *op, uint64_t val) "%s unknown r
 # hw/grlib_apbuart.c
 disable grlib_apbuart_event(int event) "event:%d"
 disable grlib_apbuart_unknown_register(const char *op, uint64_t val) "%s unknown register 0x%"PRIx64""
+
+# hw/leon3.c
+disable leon3_set_irq(int intno) "Set CPU IRQ %d"
+disable leon3_reset_irq(int intno) "Reset CPU IRQ %d"

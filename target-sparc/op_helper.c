@@ -1,6 +1,7 @@
 #include "exec.h"
 #include "host-utils.h"
 #include "helper.h"
+#include "sysemu.h"
 
 //#define DEBUG_MMU
 //#define DEBUG_MXCC
@@ -9,6 +10,7 @@
 //#define DEBUG_ASI
 //#define DEBUG_PCALL
 //#define DEBUG_PSTATE
+//#define DEBUG_CACHE_CONTROL
 
 #ifdef DEBUG_MMU
 #define DPRINTF_MMU(fmt, ...)                                   \
@@ -36,6 +38,13 @@
 #define DPRINTF_PSTATE(fmt, ...) do {} while (0)
 #endif
 
+#ifdef DEBUG_CACHE_CONTROL
+#define DPRINTF_CACHE_CONTROL(fmt, ...)                                   \
+    do { printf("CACHE_CONTROL: " fmt , ## __VA_ARGS__); } while (0)
+#else
+#define DPRINTF_CACHE_CONTROL(fmt, ...) do {} while (0)
+#endif
+
 #ifdef TARGET_SPARC64
 #ifndef TARGET_ABI32
 #define AM_CHECK(env1) ((env1)->pstate & PS_AM)
@@ -48,6 +57,27 @@
 #define DT1 (env->dt1)
 #define QT0 (env->qt0)
 #define QT1 (env->qt1)
+
+/* Leon3 cache control */
+
+/* Cache control: emulate the behavior of cache control registers but without
+   any effect on the emulated */
+
+#define CACHE_STATE_MASK 0x3
+#define CACHE_DISABLED   0x0
+#define CACHE_FROZEN     0x1
+#define CACHE_ENABLED    0x3
+
+/* Cache Control register fields */
+
+#define CACHE_CTRL_IF (1 <<  4)  /* Instruction Cache Freeze on Interrupt */
+#define CACHE_CTRL_DF (1 <<  5)  /* Data Cache Freeze on Interrupt */
+#define CACHE_CTRL_DP (1 << 14)  /* Data cache flush pending */
+#define CACHE_CTRL_IP (1 << 15)  /* Instruction cache flush pending */
+#define CACHE_CTRL_IB (1 << 16)  /* Instruction burst fetch */
+#define CACHE_CTRL_FI (1 << 21)  /* Flush Instruction cache (Write only) */
+#define CACHE_CTRL_FD (1 << 22)  /* Flush Data cache (Write only) */
+#define CACHE_CTRL_DS (1 << 23)  /* Data cache snoop enable */
 
 #if defined(CONFIG_USER_ONLY) && defined(TARGET_SPARC64)
 static void do_unassigned_access(target_ulong addr, int is_write, int is_exec,
@@ -292,6 +322,13 @@ static void raise_exception(int tt)
 void HELPER(raise_exception)(int tt)
 {
     raise_exception(tt);
+}
+
+void helper_shutdown(void)
+{
+#if !defined(CONFIG_USER_ONLY)
+    qemu_system_shutdown_request();
+#endif
 }
 
 void helper_check_align(target_ulong addr, uint32_t align)
@@ -1612,6 +1649,103 @@ static void dump_asi(const char *txt, target_ulong addr, int asi, int size,
 
 #ifndef TARGET_SPARC64
 #ifndef CONFIG_USER_ONLY
+
+
+/* Leon3 cache control */
+
+void leon3_cache_control_int(void)
+{
+    uint32_t state = 0;
+
+    if (env->cache_control & CACHE_CTRL_IF) {
+        /* Instruction cache state */
+        state = env->cache_control & CACHE_STATE_MASK;
+        if (state == CACHE_ENABLED) {
+            state = CACHE_FROZEN;
+            DPRINTF_CACHE_CONTROL("Instruction cache: freeze\n");
+        }
+
+        env->cache_control &= ~CACHE_STATE_MASK;
+        env->cache_control |= state;
+    }
+
+    if (env->cache_control & CACHE_CTRL_DF) {
+        /* Data cache state */
+        state = (env->cache_control >> 2) & CACHE_STATE_MASK;
+        if (state == CACHE_ENABLED) {
+            state = CACHE_FROZEN;
+            DPRINTF_CACHE_CONTROL("Data cache: freeze\n");
+        }
+
+        env->cache_control &= ~(CACHE_STATE_MASK << 2);
+        env->cache_control |= (state << 2);
+    }
+}
+
+static void leon3_cache_control_st(target_ulong addr, uint64_t val, int size)
+{
+    DPRINTF_CACHE_CONTROL("st addr:%08x, val:%" PRIx64 ", size:%d\n",
+                          addr, val, size);
+
+    if (size != 4) {
+        DPRINTF_CACHE_CONTROL("32bits only\n");
+        return;
+    }
+
+    switch (addr) {
+    case 0x00:              /* Cache control */
+
+        /* These values must always be read as zeros */
+        val &= ~CACHE_CTRL_FD;
+        val &= ~CACHE_CTRL_FI;
+        val &= ~CACHE_CTRL_IB;
+        val &= ~CACHE_CTRL_IP;
+        val &= ~CACHE_CTRL_DP;
+
+        env->cache_control = val;
+        break;
+    case 0x04:              /* Instruction cache configuration */
+    case 0x08:              /* Data cache configuration */
+        /* Read Only */
+        break;
+    default:
+        DPRINTF_CACHE_CONTROL("write unknown register %08x\n", addr);
+        break;
+    };
+}
+
+static uint64_t leon3_cache_control_ld(target_ulong addr, int size)
+{
+    uint64_t ret = 0;
+
+    if (size != 4) {
+        DPRINTF_CACHE_CONTROL("32bits only\n");
+        return 0;
+    }
+
+    switch (addr) {
+    case 0x00:              /* Cache control */
+        ret = env->cache_control;
+        break;
+
+        /* Configuration registers are read and only always keep those
+           predefined values */
+
+    case 0x04:              /* Instruction cache configuration */
+        ret = 0x10220000;
+        break;
+    case 0x08:              /* Data cache configuration */
+        ret = 0x18220000;
+        break;
+    default:
+        DPRINTF_CACHE_CONTROL("read unknown register %08x\n", addr);
+        break;
+    };
+    DPRINTF_CACHE_CONTROL("st addr:%08x, ret:%" PRIx64 ", size:%d\n",
+                          addr, ret, size);
+    return ret;
+}
+
 uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
 {
     uint64_t ret = 0;
@@ -1621,8 +1755,13 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
 
     helper_check_align(addr, size - 1);
     switch (asi) {
-    case 2: /* SuperSparc MXCC registers */
+    case 2: /* SuperSparc MXCC registers and Leon3 cache control */
         switch (addr) {
+        case 0x00:          /* Leon3 Cache Control */
+        case 0x08:          /* Leon3 Instruction Cache config */
+        case 0x0C:          /* Leon3 Date Cache config */
+            ret = leon3_cache_control_ld(addr, size);
+            break;
         case 0x01c00a00: /* MXCC control register */
             if (size == 8)
                 ret = env->mxccregs[3];
@@ -1850,8 +1989,14 @@ void helper_st_asi(target_ulong addr, uint64_t val, int asi, int size)
 {
     helper_check_align(addr, size - 1);
     switch(asi) {
-    case 2: /* SuperSparc MXCC registers */
+    case 2: /* SuperSparc MXCC registers and Leon3 cache control */
         switch (addr) {
+        case 0x00:          /* Leon3 Cache Control */
+        case 0x08:          /* Leon3 Instruction Cache config */
+        case 0x0C:          /* Leon3 Date Cache config */
+            leon3_cache_control_st(addr, val, size);
+            break;
+
         case 0x01c00000: /* MXCC stream data register 0 */
             if (size == 8)
                 env->mxccdata[0] = val;
@@ -4177,6 +4322,13 @@ void do_interrupt(CPUState *env)
     env->pc = env->tbr;
     env->npc = env->pc + 4;
     env->exception_index = -1;
+
+#if !defined(CONFIG_USER_ONLY)
+    /* IRQ acknowledgment */
+    if ((intno & ~15) == TT_EXTINT && env->qemu_irq_ack != NULL) {
+        env->qemu_irq_ack(env->irq_manager, intno);
+    }
+#endif
 }
 #endif
 

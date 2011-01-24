@@ -1997,8 +1997,9 @@ static void disas_sparc_insn(DisasContext * dc)
                     } else
                         tcg_gen_mov_tl(cpu_dst, cpu_src1);
                 }
+
                 cond = GET_FIELD(insn, 3, 6);
-                if (cond == 0x8) {
+                if (cond == 0x8) { /* Trap Always */
                     save_state(dc, cpu_cond);
                     if ((dc->def->features & CPU_FEATURE_HYPV) &&
                         supervisor(dc))
@@ -2007,7 +2008,15 @@ static void disas_sparc_insn(DisasContext * dc)
                         tcg_gen_andi_tl(cpu_dst, cpu_dst, V8_TRAP_MASK);
                     tcg_gen_addi_tl(cpu_dst, cpu_dst, TT_TRAP);
                     tcg_gen_trunc_tl_i32(cpu_tmp32, cpu_dst);
-                    gen_helper_raise_exception(cpu_tmp32);
+
+                    if (rs2 == 0 &&
+                        dc->def->features & CPU_FEATURE_TA0_SHUTDOWN) {
+
+                        gen_helper_shutdown();
+
+                    } else {
+                        gen_helper_raise_exception(cpu_tmp32);
+                    }
                 } else if (cond != 0) {
                     TCGv r_cond = tcg_temp_new();
                     int l1;

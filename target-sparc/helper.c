@@ -770,6 +770,7 @@ void cpu_reset(CPUSPARCState *env)
     env->pc = 0;
     env->npc = env->pc + 4;
 #endif
+    env->cache_control = 0;
 }
 
 static int cpu_sparc_register(CPUSPARCState *env, const char *cpu_model)
@@ -1274,20 +1275,20 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
         .nwindows = 8,
-        .features = CPU_DEFAULT_FEATURES,
+        .features = CPU_DEFAULT_FEATURES | CPU_FEATURE_TA0_SHUTDOWN,
     },
     {
         .name = "LEON3",
         .iu_version = 0xf3000000,
         .fpu_version = 4 << 17, /* FPU version 4 (Meiko) */
         .mmu_version = 0xf3000000,
-        .mmu_bm = 0x00004000,
+        .mmu_bm = 0x00000000,
         .mmu_ctpr_mask = 0x007ffff0,
         .mmu_cxr_mask = 0x0000003f,
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
         .nwindows = 8,
-        .features = CPU_DEFAULT_FEATURES,
+        .features = CPU_DEFAULT_FEATURES | CPU_FEATURE_TA0_SHUTDOWN,
     },
 #endif
 };
