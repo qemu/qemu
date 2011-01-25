@@ -365,7 +365,7 @@ int64_t strtosz_suffix(const char *nptr, char **end, const char default_suffix)
             goto fail;
         }
     }
-    if ((val * mul >= ~(uint64_t)0) || val < 0) {
+    if ((val * mul >= INT64_MAX) || val < 0) {
         goto fail;
     }
     retval = val * mul;

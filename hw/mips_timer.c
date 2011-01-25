@@ -33,8 +33,10 @@
 
 static void mips_timer_cb(void *opaque);
 
+#if 0
 /* Workaround to satisfy Linux c0_compare_int_usable. */
 static int cpu_mips_timer_triggered;
+#endif
 
 /* XXX: do not use a global */
 uint32_t cpu_mips_get_random (CPUState *env)
@@ -124,7 +126,9 @@ void cpu_mips_store_count (CPUState *env, uint32_t count)
                                        TIMER_FREQ, get_ticks_per_sec());
         /* Update timer timer */
         cpu_mips_timer_update(env);
+#if 0
         cpu_mips_timer_triggered = 1;
+#endif
     }
 }
 
@@ -137,7 +141,9 @@ void cpu_mips_store_compare (CPUState *env, uint32_t value)
     if (env->insn_flags & ISA_MIPS32R2)
         env->CP0_Cause &= ~(1 << CP0Ca_TI);
     qemu_irq_lower(env->irq[(env->CP0_IntCtl >> CP0IntCtl_IPTI) & 0x7]);
+#if 0
     cpu_mips_timer_triggered = 0;
+#endif
 }
 
 void cpu_mips_start_count(CPUState *env)

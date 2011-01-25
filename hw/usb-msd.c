@@ -51,6 +51,7 @@ typedef struct {
     SCSIBus bus;
     BlockConf conf;
     SCSIDevice *scsi_dev;
+    uint32_t removable;
     int result;
     /* For async completion.  */
     USBPacket *packet;
@@ -515,7 +516,7 @@ static int usb_msd_initfn(USBDevice *dev)
 
     usb_desc_init(dev);
     scsi_bus_new(&s->bus, &s->dev.qdev, 0, 1, usb_msd_command_complete);
-    s->scsi_dev = scsi_bus_legacy_add_drive(&s->bus, bs, 0);
+    s->scsi_dev = scsi_bus_legacy_add_drive(&s->bus, bs, 0, !!s->removable);
     if (!s->scsi_dev) {
         return -1;
     }
@@ -607,6 +608,7 @@ static struct USBDeviceInfo msd_info = {
     .usbdevice_init = usb_msd_init,
     .qdev.props     = (Property[]) {
         DEFINE_BLOCK_PROPERTIES(MSDState, conf),
+        DEFINE_PROP_BIT("removable", MSDState, removable, 0, false),
         DEFINE_PROP_END_OF_LIST(),
     },
 };

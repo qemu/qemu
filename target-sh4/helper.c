@@ -474,7 +474,7 @@ int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
 	    break;
 	case MMU_IADDR_ERROR:
 	case MMU_DADDR_ERROR_READ:
-	    env->exception_index = 0x0c0;
+	    env->exception_index = 0x0e0;
 	    break;
 	case MMU_DADDR_ERROR_WRITE:
 	    env->exception_index = 0x100;
@@ -554,8 +554,8 @@ void cpu_load_tlb(CPUSH4State * env)
         entry->v = 0;
     }
     /* ITLB */
-    for (i = 0; i < UTLB_SIZE; i++) {
-        tlb_t * entry = &s->utlb[i];
+    for (i = 0; i < ITLB_SIZE; i++) {
+        tlb_t * entry = &s->itlb[i];
         entry->v = 0;
     }
 

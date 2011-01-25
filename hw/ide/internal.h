@@ -439,7 +439,6 @@ struct IDEState {
     uint32_t mdata_size;
     uint8_t *mdata_storage;
     int media_changed;
-    /* for pmac */
     int is_read;
     /* SMART */
     uint8_t smart_enabled;
@@ -560,8 +559,7 @@ void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
 void ide_init_ioport(IDEBus *bus, int iobase, int iobase2);
 
 void ide_exec_cmd(IDEBus *bus, uint32_t val);
-void ide_read_dma_cb(void *opaque, int ret);
-void ide_write_dma_cb(void *opaque, int ret);
+void ide_dma_cb(void *opaque, int ret);
 void ide_sector_write(IDEState *s);
 void ide_sector_read(IDEState *s);
 void ide_flush_cache(IDEState *s);

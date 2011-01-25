@@ -218,13 +218,11 @@ uint8_t eeprom_spd[0x80] = {
 };
 
 /* Audio support */
-#ifdef HAS_AUDIO
 static void audio_init (PCIBus *pci_bus)
 {
     vt82c686b_ac97_init(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 5));
     vt82c686b_mc97_init(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 6));
 }
-#endif
 
 /* Network support */
 static void network_init (void)
@@ -391,9 +389,7 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
     }
 
     /* Sound card */
-#ifdef HAS_AUDIO
     audio_init(pci_bus);
-#endif
     /* Network card */
     network_init();
 }

@@ -178,21 +178,6 @@ extern CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 
 #define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
 
-#ifdef HAS_AUDIO
-struct soundhw {
-    const char *name;
-    const char *descr;
-    int enabled;
-    int isa;
-    union {
-        int (*init_isa) (qemu_irq *pic);
-        int (*init_pci) (PCIBus *bus);
-    } init;
-};
-
-extern struct soundhw soundhw[];
-#endif
-
 void do_usb_add(Monitor *mon, const QDict *qdict);
 void do_usb_del(Monitor *mon, const QDict *qdict);
 void usb_info(Monitor *mon);

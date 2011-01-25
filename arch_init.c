@@ -461,7 +461,18 @@ void qemu_service_io(void)
 }
 
 #ifdef HAS_AUDIO
-struct soundhw soundhw[] = {
+struct soundhw {
+    const char *name;
+    const char *descr;
+    int enabled;
+    int isa;
+    union {
+        int (*init_isa) (qemu_irq *pic);
+        int (*init_pci) (PCIBus *bus);
+    } init;
+};
+
+static struct soundhw soundhw[] = {
 #ifdef HAS_AUDIO_CHOICE
 #if defined(TARGET_I386) || defined(TARGET_MIPS)
     {
@@ -610,8 +621,30 @@ void select_soundhw(const char *optarg)
         }
     }
 }
+
+void audio_init(qemu_irq *isa_pic, PCIBus *pci_bus)
+{
+    struct soundhw *c;
+
+    for (c = soundhw; c->name; ++c) {
+        if (c->enabled) {
+            if (c->isa) {
+                if (isa_pic) {
+                    c->init.init_isa(isa_pic);
+                }
+            } else {
+                if (pci_bus) {
+                    c->init.init_pci(pci_bus);
+                }
+            }
+        }
+    }
+}
 #else
 void select_soundhw(const char *optarg)
+{
+}
+void audio_init(qemu_irq *isa_pic, PCIBus *pci_bus)
 {
 }
 #endif
