@@ -947,15 +947,8 @@ static void gen_tst_cc (DisasContext *dc, TCGv cc, int cond)
 		case CC_EQ:
 			if ((arith_opt || move_opt)
 			    && dc->cc_x_uptodate != (2 | X_FLAG)) {
-				/* If cc_result is zero, T0 should be 
-				   non-zero otherwise T0 should be zero.  */
-				int l1;
-				l1 = gen_new_label();
-				tcg_gen_movi_tl(cc, 0);
-				tcg_gen_brcondi_tl(TCG_COND_NE, cc_result, 
-						   0, l1);
-				tcg_gen_movi_tl(cc, 1);
-				gen_set_label(l1);
+				tcg_gen_setcond_tl(TCG_COND_EQ, cc,
+						   cc_result, tcg_const_tl(0));
 			}
 			else {
 				cris_evaluate_flags(dc);
