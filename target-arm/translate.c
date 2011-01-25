@@ -4686,7 +4686,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         }
                         if (op == 1 || op == 3) {
                             /* Accumulate.  */
-                            neon_load_reg64(cpu_V0, rd + pass);
+                            neon_load_reg64(cpu_V1, rd + pass);
                             tcg_gen_add_i64(cpu_V0, cpu_V0, cpu_V1);
                         } else if (op == 4 || (op == 5 && u)) {
                             /* Insert */
@@ -4750,7 +4750,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         if (op == 1 || op == 3) {
                             /* Accumulate.  */
                             tmp2 = neon_load_reg(rd, pass);
-                            gen_neon_add(size, tmp2, tmp);
+                            gen_neon_add(size, tmp, tmp2);
                             dead_tmp(tmp2);
                         } else if (op == 4 || (op == 5 && u)) {
                             /* Insert */
