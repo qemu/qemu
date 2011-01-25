@@ -479,7 +479,7 @@ int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
 	    break;
 	case MMU_IADDR_ERROR:
 	case MMU_DADDR_ERROR_READ:
-	    env->exception_index = 0x0c0;
+	    env->exception_index = 0x0e0;
 	    break;
 	case MMU_DADDR_ERROR_WRITE:
 	    env->exception_index = 0x100;
