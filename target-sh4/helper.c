@@ -559,8 +559,8 @@ void cpu_load_tlb(CPUSH4State * env)
         entry->v = 0;
     }
     /* ITLB */
-    for (i = 0; i < UTLB_SIZE; i++) {
-        tlb_t * entry = &s->utlb[i];
+    for (i = 0; i < ITLB_SIZE; i++) {
+        tlb_t * entry = &s->itlb[i];
         entry->v = 0;
     }
 
