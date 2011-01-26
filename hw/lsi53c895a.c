@@ -842,6 +842,13 @@ static uint8_t lsi_get_msgbyte(LSIState *s)
     return data;
 }
 
+/* Skip the next n bytes during a MSGOUT phase. */
+static void lsi_skip_msgbytes(LSIState *s, unsigned int n)
+{
+    s->dnad += n;
+    s->dbc  -= n;
+}
+
 static void lsi_do_msgout(LSIState *s)
 {
     uint8_t msg;
@@ -869,11 +876,11 @@ static void lsi_do_msgout(LSIState *s)
             switch (msg) {
             case 1:
                 DPRINTF("SDTR (ignored)\n");
-                s->dbc -= 2;
+                lsi_skip_msgbytes(s, 2);
                 break;
             case 3:
                 DPRINTF("WDTR (ignored)\n");
-                s->dbc -= 1;
+                lsi_skip_msgbytes(s, 1);
                 break;
             default:
                 goto bad;
