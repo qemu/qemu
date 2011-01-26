@@ -36,13 +36,15 @@ struct DriveInfo {
     QemuOpts *opts;
     char serial[BLOCK_SERIAL_STRLEN + 1];
     QTAILQ_ENTRY(DriveInfo) next;
+    int refcount;
 };
 
 DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit);
 DriveInfo *drive_get_by_index(BlockInterfaceType type, int index);
 int drive_get_max_bus(BlockInterfaceType type);
 DriveInfo *drive_get_next(BlockInterfaceType type);
-void drive_uninit(DriveInfo *dinfo);
+void drive_get_ref(DriveInfo *dinfo);
+void drive_put_ref(DriveInfo *dinfo);
 DriveInfo *drive_get_by_blockdev(BlockDriverState *bs);
 
 QemuOpts *drive_def(const char *optstr);
