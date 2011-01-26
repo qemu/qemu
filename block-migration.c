@@ -301,6 +301,7 @@ static void init_blk_migration_it(void *opaque, BlockDriverState *bs)
         bmds->shared_base = block_mig_state.shared_base;
         alloc_aio_bitmap(bmds);
         drive_get_ref(drive_get_by_blockdev(bs));
+        bdrv_set_in_use(bs, 1);
 
         block_mig_state.total_sector_sum += sectors;
 
@@ -539,6 +540,7 @@ static void blk_mig_cleanup(Monitor *mon)
 
     while ((bmds = QSIMPLEQ_FIRST(&block_mig_state.bmds_list)) != NULL) {
         QSIMPLEQ_REMOVE_HEAD(&block_mig_state.bmds_list, entry);
+        bdrv_set_in_use(bmds->bs, 0);
         drive_put_ref(drive_get_by_blockdev(bmds->bs));
         qemu_free(bmds->aio_bitmap);
         qemu_free(bmds);
