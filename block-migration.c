@@ -533,6 +533,8 @@ static void blk_mig_cleanup(Monitor *mon)
     BlkMigDevState *bmds;
     BlkMigBlock *blk;
 
+    set_dirty_tracking(0);
+
     while ((bmds = QSIMPLEQ_FIRST(&block_mig_state.bmds_list)) != NULL) {
         QSIMPLEQ_REMOVE_HEAD(&block_mig_state.bmds_list, entry);
         qemu_free(bmds->aio_bitmap);
@@ -544,8 +546,6 @@ static void blk_mig_cleanup(Monitor *mon)
         qemu_free(blk->buf);
         qemu_free(blk);
     }
-
-    set_dirty_tracking(0);
 
     monitor_printf(mon, "\n");
 }
