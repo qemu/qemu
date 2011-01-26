@@ -567,6 +567,17 @@ void cpu_load_tlb(CPUSH4State * env)
     tlb_flush(s, 1);
 }
 
+uint32_t cpu_sh4_read_mmaped_itlb_addr(CPUSH4State *s,
+                                       target_phys_addr_t addr)
+{
+    int index = (addr & 0x00000300) >> 8;
+    tlb_t * entry = &s->itlb[index];
+
+    return (entry->vpn  << 10) |
+           (entry->v    <<  8) |
+           (entry->asid);
+}
+
 void cpu_sh4_write_mmaped_itlb_addr(CPUSH4State *s, target_phys_addr_t addr,
 				    uint32_t mem_value)
 {
@@ -584,6 +595,29 @@ void cpu_sh4_write_mmaped_itlb_addr(CPUSH4State *s, target_phys_addr_t addr,
     entry->asid = asid;
     entry->vpn = vpn;
     entry->v = v;
+}
+
+uint32_t cpu_sh4_read_mmaped_itlb_data(CPUSH4State *s,
+                                       target_phys_addr_t addr)
+{
+    int array = (addr & 0x00800000) >> 23;
+    int index = (addr & 0x00000300) >> 8;
+    tlb_t * entry = &s->itlb[index];
+
+    if (array == 0) {
+        /* ITLB Data Array 1 */
+        return (entry->ppn << 10) |
+               (entry->v   <<  8) |
+               (entry->pr  <<  5) |
+               ((entry->sz & 1) <<  6) |
+               ((entry->sz & 2) <<  4) |
+               (entry->c   <<  3) |
+               (entry->sh  <<  1);
+    } else {
+        /* ITLB Data Array 2 */
+        return (entry->tc << 1) |
+               (entry->sa);
+    }
 }
 
 void cpu_sh4_write_mmaped_itlb_data(CPUSH4State *s, target_phys_addr_t addr,
@@ -612,6 +646,19 @@ void cpu_sh4_write_mmaped_itlb_data(CPUSH4State *s, target_phys_addr_t addr,
         entry->tc  = (mem_value & 0x00000008) >> 3;
         entry->sa  = (mem_value & 0x00000007);
     }
+}
+
+uint32_t cpu_sh4_read_mmaped_utlb_addr(CPUSH4State *s,
+                                       target_phys_addr_t addr)
+{
+    int index = (addr & 0x00003f00) >> 8;
+    tlb_t * entry = &s->utlb[index];
+
+    increment_urc(s); /* per utlb access */
+
+    return (entry->vpn  << 10) |
+           (entry->v    <<  8) |
+           (entry->asid);
 }
 
 void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
@@ -683,6 +730,33 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
 	entry->d = d;
 	entry->v = v;
 	increment_urc(s);
+    }
+}
+
+uint32_t cpu_sh4_read_mmaped_utlb_data(CPUSH4State *s,
+                                       target_phys_addr_t addr)
+{
+    int array = (addr & 0x00800000) >> 23;
+    int index = (addr & 0x00003f00) >> 8;
+    tlb_t * entry = &s->utlb[index];
+
+    increment_urc(s); /* per utlb access */
+
+    if (array == 0) {
+        /* ITLB Data Array 1 */
+        return (entry->ppn << 10) |
+               (entry->v   <<  8) |
+               (entry->pr  <<  5) |
+               ((entry->sz & 1) <<  6) |
+               ((entry->sz & 2) <<  4) |
+               (entry->c   <<  3) |
+               (entry->d   <<  2) |
+               (entry->sh  <<  1) |
+               (entry->wt);
+    } else {
+        /* ITLB Data Array 2 */
+        return (entry->tc << 1) |
+               (entry->sa);
     }
 }
 

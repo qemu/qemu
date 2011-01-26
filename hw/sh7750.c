@@ -625,6 +625,7 @@ static uint32_t invalid_read(void *opaque, target_phys_addr_t addr)
 
 static uint32_t sh7750_mmct_readl(void *opaque, target_phys_addr_t addr)
 {
+    SH7750State *s = opaque;
     uint32_t ret = 0;
 
     switch (MM_REGION_TYPE(addr)) {
@@ -633,19 +634,21 @@ static uint32_t sh7750_mmct_readl(void *opaque, target_phys_addr_t addr)
         /* do nothing */
 	break;
     case MM_ITLB_ADDR:
+        ret = cpu_sh4_read_mmaped_itlb_addr(s->cpu, addr);
+        break;
     case MM_ITLB_DATA:
-        /* XXXXX */
-        abort();
-	break;
+        ret = cpu_sh4_read_mmaped_itlb_data(s->cpu, addr);
+        break;
     case MM_OCACHE_ADDR:
     case MM_OCACHE_DATA:
         /* do nothing */
 	break;
     case MM_UTLB_ADDR:
+        ret = cpu_sh4_read_mmaped_utlb_addr(s->cpu, addr);
+        break;
     case MM_UTLB_DATA:
-        /* XXXXX */
-        abort();
-	break;
+        ret = cpu_sh4_read_mmaped_utlb_data(s->cpu, addr);
+        break;
     default:
         abort();
     }
