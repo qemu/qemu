@@ -726,6 +726,10 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
         qerror_report(QERR_DEVICE_NOT_FOUND, id);
         return -1;
     }
+    if (bdrv_in_use(bs)) {
+        qerror_report(QERR_DEVICE_IN_USE, id);
+        return -1;
+    }
 
     /* quiesce block driver; prevent further io */
     qemu_aio_flush();
