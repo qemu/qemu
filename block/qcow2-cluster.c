@@ -888,3 +888,85 @@ int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
     }
     return 0;
 }
+
+/*
+ * This discards as many clusters of nb_clusters as possible at once (i.e.
+ * all clusters in the same L2 table) and returns the number of discarded
+ * clusters.
+ */
+static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
+    unsigned int nb_clusters)
+{
+    BDRVQcowState *s = bs->opaque;
+    uint64_t l2_offset, *l2_table;
+    int l2_index;
+    int ret;
+    int i;
+
+    ret = get_cluster_table(bs, offset, &l2_table, &l2_offset, &l2_index);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* Limit nb_clusters to one L2 table */
+    nb_clusters = MIN(nb_clusters, s->l2_size - l2_index);
+
+    for (i = 0; i < nb_clusters; i++) {
+        uint64_t old_offset;
+
+        old_offset = be64_to_cpu(l2_table[l2_index + i]);
+        old_offset &= ~QCOW_OFLAG_COPIED;
+
+        if (old_offset == 0) {
+            continue;
+        }
+
+        /* First remove L2 entries */
+        qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
+        l2_table[l2_index + i] = cpu_to_be64(0);
+
+        /* Then decrease the refcount */
+        qcow2_free_any_clusters(bs, old_offset, 1);
+    }
+
+    ret = qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return nb_clusters;
+}
+
+int qcow2_discard_clusters(BlockDriverState *bs, uint64_t offset,
+    int nb_sectors)
+{
+    BDRVQcowState *s = bs->opaque;
+    uint64_t end_offset;
+    unsigned int nb_clusters;
+    int ret;
+
+    end_offset = offset + (nb_sectors << BDRV_SECTOR_BITS);
+
+    /* Round start up and end down */
+    offset = align_offset(offset, s->cluster_size);
+    end_offset &= ~(s->cluster_size - 1);
+
+    if (offset > end_offset) {
+        return 0;
+    }
+
+    nb_clusters = size_to_clusters(s, end_offset - offset);
+
+    /* Each L2 table is handled by its own loop iteration */
+    while (nb_clusters > 0) {
+        ret = discard_single_l2(bs, offset, nb_clusters);
+        if (ret < 0) {
+            return ret;
+        }
+
+        nb_clusters -= ret;
+        offset += (ret * s->cluster_size);
+    }
+
+    return 0;
+}
