@@ -453,6 +453,10 @@ int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
 
     if (ret != MMU_OK) {
 	env->tea = address;
+	if (ret != MMU_DTLB_MULTIPLE && ret != MMU_ITLB_MULTIPLE) {
+	    env->pteh = (env->pteh & PTEH_ASID_MASK) |
+		    (address & PTEH_VPN_MASK);
+	}
 	switch (ret) {
 	case MMU_ITLB_MISS:
 	case MMU_DTLB_MISS_READ:
