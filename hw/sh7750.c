@@ -673,7 +673,7 @@ static void sh7750_mmct_writel(void *opaque, target_phys_addr_t addr,
         cpu_sh4_write_mmaped_itlb_addr(s->cpu, addr, mem_value);
         break;
     case MM_ITLB_DATA:
-        /* XXXXX */
+        cpu_sh4_write_mmaped_itlb_data(s->cpu, addr, mem_value);
         abort();
 	break;
     case MM_OCACHE_ADDR:
@@ -684,8 +684,7 @@ static void sh7750_mmct_writel(void *opaque, target_phys_addr_t addr,
         cpu_sh4_write_mmaped_utlb_addr(s->cpu, addr, mem_value);
 	break;
     case MM_UTLB_DATA:
-        /* XXXXX */
-        abort();
+        cpu_sh4_write_mmaped_utlb_data(s->cpu, addr, mem_value);
 	break;
     default:
         abort();

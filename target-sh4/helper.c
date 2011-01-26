@@ -574,7 +574,7 @@ void cpu_sh4_write_mmaped_itlb_addr(CPUSH4State *s, target_phys_addr_t addr,
     uint8_t v = (uint8_t)((mem_value & 0x00000100) >> 8);
     uint8_t asid = (uint8_t)(mem_value & 0x000000ff);
 
-    int index = (addr & 0x00003f00) >> 8;
+    int index = (addr & 0x00000300) >> 8;
     tlb_t * entry = &s->itlb[index];
     if (entry->v) {
         /* Overwriting valid entry in itlb. */
@@ -584,6 +584,34 @@ void cpu_sh4_write_mmaped_itlb_addr(CPUSH4State *s, target_phys_addr_t addr,
     entry->asid = asid;
     entry->vpn = vpn;
     entry->v = v;
+}
+
+void cpu_sh4_write_mmaped_itlb_data(CPUSH4State *s, target_phys_addr_t addr,
+                                    uint32_t mem_value)
+{
+    int array = (addr & 0x00800000) >> 23;
+    int index = (addr & 0x00000300) >> 8;
+    tlb_t * entry = &s->itlb[index];
+
+    if (array == 0) {
+        /* ITLB Data Array 1 */
+        if (entry->v) {
+            /* Overwriting valid entry in utlb. */
+            target_ulong address = entry->vpn << 10;
+            tlb_flush_page(s, address);
+        }
+        entry->ppn = (mem_value & 0x1ffffc00) >> 10;
+        entry->v   = (mem_value & 0x00000100) >> 8;
+        entry->sz  = (mem_value & 0x00000080) >> 6 |
+                     (mem_value & 0x00000010) >> 4;
+        entry->pr  = (mem_value & 0x00000040) >> 5;
+        entry->c   = (mem_value & 0x00000008) >> 3;
+        entry->sh  = (mem_value & 0x00000002) >> 1;
+    } else {
+        /* ITLB Data Array 2 */
+        entry->tc  = (mem_value & 0x00000008) >> 3;
+        entry->sa  = (mem_value & 0x00000007);
+    }
 }
 
 void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
@@ -655,6 +683,38 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
 	entry->d = d;
 	entry->v = v;
 	increment_urc(s);
+    }
+}
+
+void cpu_sh4_write_mmaped_utlb_data(CPUSH4State *s, target_phys_addr_t addr,
+                                    uint32_t mem_value)
+{
+    int array = (addr & 0x00800000) >> 23;
+    int index = (addr & 0x00003f00) >> 8;
+    tlb_t * entry = &s->utlb[index];
+
+    increment_urc(s); /* per utlb access */
+
+    if (array == 0) {
+        /* UTLB Data Array 1 */
+        if (entry->v) {
+            /* Overwriting valid entry in utlb. */
+            target_ulong address = entry->vpn << 10;
+            tlb_flush_page(s, address);
+        }
+        entry->ppn = (mem_value & 0x1ffffc00) >> 10;
+        entry->v   = (mem_value & 0x00000100) >> 8;
+        entry->sz  = (mem_value & 0x00000080) >> 6 |
+                     (mem_value & 0x00000010) >> 4;
+        entry->pr  = (mem_value & 0x00000060) >> 5;
+        entry->c   = (mem_value & 0x00000008) >> 3;
+        entry->d   = (mem_value & 0x00000004) >> 2;
+        entry->sh  = (mem_value & 0x00000002) >> 1;
+        entry->wt  = (mem_value & 0x00000001);
+    } else {
+        /* UTLB Data Array 2 */
+        entry->tc = (mem_value & 0x00000008) >> 3;
+        entry->sa = (mem_value & 0x00000007);
     }
 }
 
