@@ -513,12 +513,12 @@ static void map_page(uint8_t **ptr, uint64_t addr, uint32_t wanted)
     target_phys_addr_t len = wanted;
 
     if (*ptr) {
-        cpu_physical_memory_unmap(*ptr, 1, len, len);
+        cpu_physical_memory_unmap(*ptr, len, 1, len);
     }
 
     *ptr = cpu_physical_memory_map(addr, &len, 1);
     if (len < wanted) {
-        cpu_physical_memory_unmap(*ptr, 1, len, len);
+        cpu_physical_memory_unmap(*ptr, len, 1, len);
         *ptr = NULL;
     }
 }
@@ -956,7 +956,7 @@ static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis)
     ahci_trigger_irq(ad->hba, ad, PORT_IRQ_D2H_REG_FIS);
 
     if (cmd_mapped) {
-        cpu_physical_memory_unmap(cmd_fis, 0, cmd_len, cmd_len);
+        cpu_physical_memory_unmap(cmd_fis, cmd_len, 0, cmd_len);
     }
 }
 
@@ -1002,7 +1002,7 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist)
     }
 
 out:
-    cpu_physical_memory_unmap(prdt, 0, prdt_len, prdt_len);
+    cpu_physical_memory_unmap(prdt, prdt_len, 0, prdt_len);
     return r;
 }
 
@@ -1228,7 +1228,7 @@ static int handle_cmd(AHCIState *s, int port, int slot)
     }
 
 out:
-    cpu_physical_memory_unmap(cmd_fis, 1, cmd_len, cmd_len);
+    cpu_physical_memory_unmap(cmd_fis, cmd_len, 1, cmd_len);
 
     if (s->dev[port].port.ifs[0].status & (BUSY_STAT|DRQ_STAT)) {
         /* async command, complete later */
