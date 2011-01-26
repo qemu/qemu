@@ -153,6 +153,13 @@ int qemu_fls(int i);
 int qemu_fdatasync(int fd);
 int fcntl_setfl(int fd, int flag);
 
+/*
+ * strtosz() suffixes used to specify the default treatment of an
+ * argument passed to strtosz() without an explicit suffix.
+ * These should be defined using upper case characters in the range
+ * A-Z, as strtosz() will use qemu_toupper() on the given argument
+ * prior to comparison.
+ */
 #define STRTOSZ_DEFSUFFIX_TB	'T'
 #define STRTOSZ_DEFSUFFIX_GB	'G'
 #define STRTOSZ_DEFSUFFIX_MB	'M'
