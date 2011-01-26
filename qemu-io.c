@@ -1465,7 +1465,7 @@ discard_f(int argc, char **argv)
 	}
 
 	gettimeofday(&t1, NULL);
-	ret = bdrv_discard(bs, offset, count);
+	ret = bdrv_discard(bs, offset >> BDRV_SECTOR_BITS, count >> BDRV_SECTOR_BITS);
 	gettimeofday(&t2, NULL);
 
 	if (ret < 0) {
