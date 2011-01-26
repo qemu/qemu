@@ -641,7 +641,6 @@ static void pci_init_wmask_bridge(PCIDevice *d)
                  PCI_BRIDGE_CTL_FAST_BACK |
                  PCI_BRIDGE_CTL_DISCARD |
                  PCI_BRIDGE_CTL_SEC_DISCARD |
-                 PCI_BRIDGE_CTL_DISCARD_STATUS |
                  PCI_BRIDGE_CTL_DISCARD_SERR);
     /* Below does not do anything as we never set this bit, put here for
      * completeness. */
