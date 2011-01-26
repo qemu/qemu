@@ -2774,6 +2774,17 @@ int64_t bdrv_get_dirty_count(BlockDriverState *bs)
     return bs->dirty_count;
 }
 
+void bdrv_set_in_use(BlockDriverState *bs, int in_use)
+{
+    assert(bs->in_use != in_use);
+    bs->in_use = in_use;
+}
+
+int bdrv_in_use(BlockDriverState *bs)
+{
+    return bs->in_use;
+}
+
 int bdrv_img_create(const char *filename, const char *fmt,
                     const char *base_filename, const char *base_fmt,
                     char *options, uint64_t img_size, int flags)
