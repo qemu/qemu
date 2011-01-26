@@ -71,7 +71,7 @@ void blockdev_auto_del(BlockDriverState *bs)
     DriveInfo *dinfo = drive_get_by_blockdev(bs);
 
     if (dinfo && dinfo->auto_del) {
-        drive_uninit(dinfo);
+        drive_put_ref(dinfo);
     }
 }
 
@@ -178,12 +178,25 @@ static void bdrv_format_print(void *opaque, const char *name)
     error_printf(" %s", name);
 }
 
-void drive_uninit(DriveInfo *dinfo)
+static void drive_uninit(DriveInfo *dinfo)
 {
     qemu_opts_del(dinfo->opts);
     bdrv_delete(dinfo->bdrv);
     QTAILQ_REMOVE(&drives, dinfo, next);
     qemu_free(dinfo);
+}
+
+void drive_put_ref(DriveInfo *dinfo)
+{
+    assert(dinfo->refcount);
+    if (--dinfo->refcount == 0) {
+        drive_uninit(dinfo);
+    }
+}
+
+void drive_get_ref(DriveInfo *dinfo)
+{
+    dinfo->refcount++;
 }
 
 static int parse_block_error_action(const char *buf, int is_read)
@@ -453,6 +466,7 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
     dinfo->bus = bus_id;
     dinfo->unit = unit_id;
     dinfo->opts = opts;
+    dinfo->refcount = 1;
     if (serial)
         strncpy(dinfo->serial, serial, sizeof(dinfo->serial) - 1);
     QTAILQ_INSERT_TAIL(&drives, dinfo, next);

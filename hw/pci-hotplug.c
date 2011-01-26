@@ -147,7 +147,7 @@ void drive_hot_add(Monitor *mon, const QDict *qdict)
 
 err:
     if (dinfo)
-        drive_uninit(dinfo);
+        drive_put_ref(dinfo);
     return;
 }
 
