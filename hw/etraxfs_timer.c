@@ -100,7 +100,6 @@ static uint32_t timer_readl (void *opaque, target_phys_addr_t addr)
     return r;
 }
 
-#define TIMER_SLOWDOWN 1
 static void update_ctrl(struct etrax_timer *t, int tnum)
 {
     unsigned int op;
@@ -142,9 +141,6 @@ static void update_ctrl(struct etrax_timer *t, int tnum)
     }
 
     D(printf ("freq_hz=%d div=%d\n", freq_hz, div));
-    div = div * TIMER_SLOWDOWN;
-    div /= 1000;
-    freq_hz /= 1000;
     ptimer_set_freq(timer, freq_hz);
     ptimer_set_limit(timer, div, 0);
 
