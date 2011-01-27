@@ -256,7 +256,7 @@ int pci_find_domain(const PCIBus *bus)
 }
 
 void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
-                         const char *name, int devfn_min)
+                         const char *name, uint8_t devfn_min)
 {
     qbus_create_inplace(&bus->qbus, &pci_bus_info, parent, name);
     assert(PCI_FUNC(devfn_min) == 0);
@@ -269,7 +269,7 @@ void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
     vmstate_register(NULL, -1, &vmstate_pcibus, bus);
 }
 
-PCIBus *pci_bus_new(DeviceState *parent, const char *name, int devfn_min)
+PCIBus *pci_bus_new(DeviceState *parent, const char *name, uint8_t devfn_min)
 {
     PCIBus *bus;
 
@@ -303,7 +303,7 @@ void pci_bus_set_mem_base(PCIBus *bus, target_phys_addr_t base)
 
 PCIBus *pci_register_bus(DeviceState *parent, const char *name,
                          pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
-                         void *irq_opaque, int devfn_min, int nirq)
+                         void *irq_opaque, uint8_t devfn_min, int nirq)
 {
     PCIBus *bus;
 

@@ -16,7 +16,7 @@ extern struct BusInfo pci_bus_info;
 
 struct PCIBus {
     BusState qbus;
-    int devfn_min;
+    uint8_t devfn_min;
     pci_set_irq_fn set_irq;
     pci_map_irq_fn map_irq;
     pci_hotplug_fn hotplug;
