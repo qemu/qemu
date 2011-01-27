@@ -1603,14 +1603,14 @@ PCIBus *pci_find_bus(PCIBus *bus, int bus_num)
     return NULL;
 }
 
-PCIDevice *pci_find_device(PCIBus *bus, int bus_num, int slot, int function)
+PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn)
 {
     bus = pci_find_bus(bus, bus_num);
 
     if (!bus)
         return NULL;
 
-    return bus->devices[PCI_DEVFN(slot, function)];
+    return bus->devices[devfn];
 }
 
 static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)

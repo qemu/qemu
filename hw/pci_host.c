@@ -44,7 +44,7 @@ static inline PCIDevice *pci_dev_find_by_addr(PCIBus *bus, uint32_t addr)
     uint8_t bus_num = addr >> 16;
     uint8_t devfn = addr >> 8;
 
-    return pci_find_device(bus, bus_num, PCI_SLOT(devfn), PCI_FUNC(devfn));
+    return pci_find_device(bus, bus_num, devfn);
 }
 
 void pci_data_write(PCIBus *s, uint32_t addr, uint32_t val, int len)
