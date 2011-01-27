@@ -22,7 +22,7 @@ struct PCIBus {
     pci_hotplug_fn hotplug;
     DeviceState *hotplug_qdev;
     void *irq_opaque;
-    PCIDevice *devices[256];
+    PCIDevice *devices[PCI_SLOT_MAX * PCI_FUNC_MAX];
     PCIDevice *parent_dev;
     target_phys_addr_t mem_base;
 
