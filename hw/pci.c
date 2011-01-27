@@ -558,7 +558,7 @@ PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr)
         return NULL;
     }
 
-    *devfnp = slot << 3;
+    *devfnp = PCI_DEVFN(slot, 0);
     return pci_find_bus(pci_find_root_bus(dom), bus);
 }
 
