@@ -2072,7 +2072,7 @@ static char *pcibus_get_dev_path(DeviceState *dev)
     for (t = d; t; t = t->bus->parent_dev) {
         p -= slot_len;
         s = snprintf(slot, sizeof slot, ":%02x.%x",
-                     PCI_SLOT(t->devfn), PCI_FUNC(d->devfn));
+                     PCI_SLOT(t->devfn), PCI_FUNC(t->devfn));
         assert(s == slot_len);
         memcpy(p, slot, slot_len);
     }
