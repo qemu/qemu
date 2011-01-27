@@ -880,8 +880,9 @@ uint32_t HELPER(neon_cnt_u8)(uint32_t x)
     if ((tmp ^ (tmp << 1)) & SIGNBIT) { \
         SET_QC(); \
         tmp = (tmp >> 31) ^ ~SIGNBIT; \
+    } else { \
+        tmp <<= 1; \
     } \
-    tmp <<= 1; \
     if (round) { \
         int32_t old = tmp; \
         tmp += 1 << 15; \
