@@ -153,7 +153,7 @@ static int raw_flush(BlockDriverState *bs)
     int ret;
 
     ret = FlushFileBuffers(s->hfile);
-    if (ret != 0) {
+    if (ret == 0) {
         return -EIO;
     }
 
