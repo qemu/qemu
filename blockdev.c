@@ -75,6 +75,18 @@ void blockdev_auto_del(BlockDriverState *bs)
     }
 }
 
+static int drive_index_to_bus_id(BlockInterfaceType type, int index)
+{
+    int max_devs = if_max_devs[type];
+    return max_devs ? index / max_devs : 0;
+}
+
+static int drive_index_to_unit_id(BlockInterfaceType type, int index)
+{
+    int max_devs = if_max_devs[type];
+    return max_devs ? index % max_devs : index;
+}
+
 QemuOpts *drive_def(const char *optstr)
 {
     return qemu_opts_parse(qemu_find_opts("drive"), optstr, 0);
@@ -382,14 +394,8 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi, int *fatal_error)
             error_report("index cannot be used with bus and unit");
             return NULL;
         }
-        if (max_devs == 0)
-        {
-            unit_id = index;
-            bus_id = 0;
-        } else {
-            unit_id = index % max_devs;
-            bus_id = index / max_devs;
-        }
+        bus_id = drive_index_to_bus_id(type, index);
+        unit_id = drive_index_to_unit_id(type, index);
     }
 
     /* if user doesn't specify a unit_id,
