@@ -136,6 +136,13 @@ DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit)
     return NULL;
 }
 
+DriveInfo *drive_get_by_index(BlockInterfaceType type, int index)
+{
+    return drive_get(type,
+                     drive_index_to_bus_id(type, index),
+                     drive_index_to_unit_id(type, index));
+}
+
 int drive_get_max_bus(BlockInterfaceType type)
 {
     int max_bus;
