@@ -19,6 +19,23 @@
 
 static QTAILQ_HEAD(drivelist, DriveInfo) drives = QTAILQ_HEAD_INITIALIZER(drives);
 
+static const char *const if_name[IF_COUNT] = {
+    [IF_NONE] = "none",
+    [IF_IDE] = "ide",
+    [IF_SCSI] = "scsi",
+    [IF_FLOPPY] = "floppy",
+    [IF_PFLASH] = "pflash",
+    [IF_MTD] = "mtd",
+    [IF_SD] = "sd",
+    [IF_VIRTIO] = "virtio",
+    [IF_XEN] = "xen",
+};
+
+static const int if_max_devs[IF_COUNT] = {
+    [IF_IDE] = MAX_IDE_DEVS,
+    [IF_SCSI] = MAX_SCSI_DEVS,
+};
+
 /*
  * We automatically delete the drive when a device using it gets
  * unplugged.  Questionable feature, but we can't just drop it.
@@ -173,11 +190,9 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi, int *fatal_error)
 
     if (default_to_scsi) {
         type = IF_SCSI;
-        max_devs = MAX_SCSI_DEVS;
         pstrcpy(devname, sizeof(devname), "scsi");
     } else {
         type = IF_IDE;
-        max_devs = MAX_IDE_DEVS;
         pstrcpy(devname, sizeof(devname), "ide");
     }
     media = MEDIA_DISK;
@@ -199,38 +214,14 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi, int *fatal_error)
 
     if ((buf = qemu_opt_get(opts, "if")) != NULL) {
         pstrcpy(devname, sizeof(devname), buf);
-        if (!strcmp(buf, "ide")) {
-	    type = IF_IDE;
-            max_devs = MAX_IDE_DEVS;
-        } else if (!strcmp(buf, "scsi")) {
-	    type = IF_SCSI;
-            max_devs = MAX_SCSI_DEVS;
-        } else if (!strcmp(buf, "floppy")) {
-	    type = IF_FLOPPY;
-            max_devs = 0;
-        } else if (!strcmp(buf, "pflash")) {
-	    type = IF_PFLASH;
-            max_devs = 0;
-	} else if (!strcmp(buf, "mtd")) {
-	    type = IF_MTD;
-            max_devs = 0;
-	} else if (!strcmp(buf, "sd")) {
-	    type = IF_SD;
-            max_devs = 0;
-        } else if (!strcmp(buf, "virtio")) {
-            type = IF_VIRTIO;
-            max_devs = 0;
-	} else if (!strcmp(buf, "xen")) {
-	    type = IF_XEN;
-            max_devs = 0;
-	} else if (!strcmp(buf, "none")) {
-	    type = IF_NONE;
-            max_devs = 0;
-	} else {
+        for (type = 0; type < IF_COUNT && strcmp(buf, if_name[type]); type++)
+            ;
+        if (type == IF_COUNT) {
             error_report("unsupported bus type '%s'", buf);
             return NULL;
 	}
     }
+    max_devs = if_max_devs[type];
 
     if (cyls || heads || secs) {
         if (cyls < 1 || (type == IF_IDE && cyls > 16383)) {
