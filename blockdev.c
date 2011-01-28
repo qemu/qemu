@@ -32,8 +32,22 @@ static const char *const if_name[IF_COUNT] = {
 };
 
 static const int if_max_devs[IF_COUNT] = {
-    [IF_IDE] = MAX_IDE_DEVS,
-    [IF_SCSI] = MAX_SCSI_DEVS,
+    /*
+     * Do not change these numbers!  They govern how drive option
+     * index maps to unit and bus.  That mapping is ABI.
+     *
+     * All controllers used to imlement if=T drives need to support
+     * if_max_devs[T] units, for any T with if_max_devs[T] != 0.
+     * Otherwise, some index values map to "impossible" bus, unit
+     * values.
+     *
+     * For instance, if you change [IF_SCSI] to 255, -drive
+     * if=scsi,index=12 no longer means bus=1,unit=5, but
+     * bus=0,unit=12.  With an lsi53c895a controller (7 units max),
+     * the drive can't be set up.  Regression.
+     */
+    [IF_IDE] = 2,
+    [IF_SCSI] = 7,
 };
 
 /*

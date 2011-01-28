@@ -3,8 +3,9 @@
 
 #include "qdev.h"
 #include "block.h"
-#include "blockdev.h"
 #include "block_int.h"
+
+#define MAX_SCSI_DEVS	255
 
 #define SCSI_CMD_BUF_SIZE     16
 

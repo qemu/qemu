@@ -78,7 +78,6 @@
 #include "sysemu.h"
 #include "qemu-timer.h"
 #include "qemu-char.h"
-#include "blockdev.h"
 #include "audio/audio.h"
 #include "migration.h"
 #include "qemu_socket.h"

@@ -70,7 +70,6 @@
 #include "monitor.h"
 #include "dma.h"
 #include "cpu-common.h"
-#include "blockdev.h"
 #include "internal.h"
 #include <hw/ide/pci.h>
 

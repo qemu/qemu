@@ -37,9 +37,6 @@ struct DriveInfo {
     QTAILQ_ENTRY(DriveInfo) next;
 };
 
-#define MAX_IDE_DEVS	2
-#define MAX_SCSI_DEVS	255
-
 DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit);
 int drive_get_max_bus(BlockInterfaceType type);
 DriveInfo *drive_get_next(BlockInterfaceType type);
