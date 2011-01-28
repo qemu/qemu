@@ -649,6 +649,29 @@ static int drive_enable_snapshot(QemuOpts *opts, void *opaque)
     return 0;
 }
 
+static void default_drive(int enable, int snapshot, int use_scsi,
+                          BlockInterfaceType type, int index,
+                          const char *optstr)
+{
+    QemuOpts *opts;
+
+    if (type == IF_DEFAULT) {
+        type = use_scsi ? IF_SCSI : IF_IDE;
+    }
+
+    if (!enable || drive_get_by_index(type, index)) {
+        return;
+    }
+
+    opts = drive_add(type, index, NULL, optstr);
+    if (snapshot) {
+        drive_enable_snapshot(opts, NULL);
+    }
+    if (drive_init_func(opts, &use_scsi)) {
+        exit(1);
+    }
+}
+
 void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque)
 {
     boot_set_handler = func;
@@ -2893,26 +2916,18 @@ int main(int argc, char **argv, char **envp)
 
     blk_mig_init();
 
-    if (default_cdrom) {
-        /* we always create the cdrom drive, even if no disk is there */
-        drive_add(IF_DEFAULT, 2, NULL, CDROM_OPTS);
-    }
-
-    if (default_floppy) {
-        /* we always create at least one floppy */
-        drive_add(IF_FLOPPY, 0, NULL, FD_OPTS);
-    }
-
-    if (default_sdcard) {
-        /* we always create one sd slot, even if no card is in it */
-        drive_add(IF_SD, 0, NULL, SD_OPTS);
-    }
-
     /* open the virtual block devices */
     if (snapshot)
         qemu_opts_foreach(qemu_find_opts("drive"), drive_enable_snapshot, NULL, 0);
     if (qemu_opts_foreach(qemu_find_opts("drive"), drive_init_func, &machine->use_scsi, 1) != 0)
         exit(1);
+
+    default_drive(default_cdrom, snapshot, machine->use_scsi,
+                  IF_DEFAULT, 2, CDROM_OPTS);
+    default_drive(default_floppy, snapshot, machine->use_scsi,
+                  IF_FLOPPY, 0, FD_OPTS);
+    default_drive(default_sdcard, snapshot, machine->use_scsi,
+                  IF_SD, 0, SD_OPTS);
 
     register_savevm_live(NULL, "ram", 0, 4, NULL, ram_save_live, NULL,
                          ram_load, NULL);

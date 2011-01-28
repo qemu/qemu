@@ -429,11 +429,12 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi, int *fatal_error)
     }
 
     /*
-     * ignore multiple definitions
+     * catch multiple definitions
      */
 
     if (drive_get(type, bus_id, unit_id) != NULL) {
-        *fatal_error = 0;
+        error_report("drive with bus=%d, unit=%d (index=%d) exists",
+                     bus_id, unit_id, index);
         return NULL;
     }
 
