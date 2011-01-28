@@ -75,19 +75,33 @@ void blockdev_auto_del(BlockDriverState *bs)
     }
 }
 
-QemuOpts *drive_add(const char *file, const char *fmt, ...)
+QemuOpts *drive_def(const char *optstr)
+{
+    return qemu_opts_parse(qemu_find_opts("drive"), optstr, 0);
+}
+
+QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
+                    const char *fmt, ...)
 {
     va_list ap;
     char optstr[1024];
     QemuOpts *opts;
+    char buf[32];
 
     va_start(ap, fmt);
     vsnprintf(optstr, sizeof(optstr), fmt, ap);
     va_end(ap);
 
-    opts = qemu_opts_parse(qemu_find_opts("drive"), optstr, 0);
+    opts = drive_def(optstr);
     if (!opts) {
         return NULL;
+    }
+    if (type != IF_DEFAULT) {
+        qemu_opt_set(opts, "if", if_name[type]);
+    }
+    if (index >= 0) {
+        snprintf(buf, sizeof(buf), "%d", index);
+        qemu_opt_set(opts, "index", buf);
     }
     if (file)
         qemu_opt_set(opts, "file", file);
@@ -473,7 +487,7 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi, int *fatal_error)
         if (devaddr)
             qemu_opt_set(opts, "addr", devaddr);
         break;
-    case IF_COUNT:
+    default:
         abort();
     }
     if (!file || !*file) {

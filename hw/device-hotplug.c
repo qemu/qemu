@@ -33,7 +33,7 @@ DriveInfo *add_init_drive(const char *optstr)
     DriveInfo *dinfo;
     QemuOpts *opts;
 
-    opts = drive_add(NULL, "%s", optstr);
+    opts = drive_def(optstr);
     if (!opts)
         return NULL;
 
