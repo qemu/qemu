@@ -18,6 +18,12 @@ void blockdev_auto_del(BlockDriverState *bs);
 
 #define BLOCK_SERIAL_STRLEN 20
 
+typedef enum {
+    IF_NONE,
+    IF_IDE, IF_SCSI, IF_FLOPPY, IF_PFLASH, IF_MTD, IF_SD, IF_VIRTIO, IF_XEN,
+    IF_COUNT
+} BlockInterfaceType;
+
 struct DriveInfo {
     BlockDriverState *bdrv;
     char *id;
