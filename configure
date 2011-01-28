@@ -3062,6 +3062,7 @@ mkdir -p $target_dir
 mkdir -p $target_dir/fpu
 mkdir -p $target_dir/tcg
 mkdir -p $target_dir/ide
+mkdir -p $target_dir/9pfs
 if test "$target" = "arm-linux-user" -o "$target" = "armeb-linux-user" -o "$target" = "arm-bsd-user" -o "$target" = "armeb-bsd-user" ; then
   mkdir -p $target_dir/nwfpe
 fi
@@ -3488,6 +3489,7 @@ for hwlib in 32 64; do
   mkdir -p $d
   mkdir -p $d/ide
   symlink $source_path/Makefile.hw $d/Makefile
+  mkdir -p $d/9pfs
   echo "QEMU_CFLAGS+=-DTARGET_PHYS_ADDR_BITS=$hwlib" > $d/config.mak
 done
 

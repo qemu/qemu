@@ -15,7 +15,7 @@
 #include <attr/xattr.h>
 #include "virtio.h"
 #include "virtio-9p.h"
-#include "file-op-9p.h"
+#include "fsdev/file-op-9p.h"
 #include "virtio-9p-xattr.h"
 
 #define MAP_ACL_ACCESS "user.virtfs.system.posix_acl_access"

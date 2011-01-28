@@ -6,7 +6,7 @@
 #include <sys/time.h>
 #include <utime.h>
 
-#include "file-op-9p.h"
+#include "fsdev/file-op-9p.h"
 
 /* The feature bitmap for virtio 9P */
 /* The mount point is specified in a config variable */

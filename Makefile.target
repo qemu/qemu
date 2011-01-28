@@ -194,7 +194,7 @@ obj-$(CONFIG_VIRTIO) += virtio-blk.o virtio-balloon.o virtio-net.o virtio-serial
 obj-$(CONFIG_VIRTIO_PCI) += virtio-pci.o
 obj-y += vhost_net.o
 obj-$(CONFIG_VHOST_NET) += vhost.o
-obj-$(CONFIG_REALLY_VIRTFS) += virtio-9p.o
+obj-$(CONFIG_REALLY_VIRTFS) += 9pfs/virtio-9p.o
 obj-y += rwhandler.o
 obj-$(CONFIG_KVM) += kvm.o kvm-all.o
 obj-$(CONFIG_NO_KVM) += kvm-stub.o
@@ -401,9 +401,11 @@ hmp-commands.h: $(SRC_PATH)/hmp-commands.hx
 qmp-commands.h: $(SRC_PATH)/qmp-commands.hx
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
 
+9pfs/virtio-9p.o: CFLAGS +=  -I$(SRC_PATH)/hw/
+
 clean:
 	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o
-	rm -f *.d */*.d tcg/*.o ide/*.o
+	rm -f *.d */*.d tcg/*.o ide/*.o 9pfs/*.o
 	rm -f hmp-commands.h qmp-commands.h gdbstub-xml.c
 ifdef CONFIG_SYSTEMTAP_TRACE
 	rm -f *.stp
