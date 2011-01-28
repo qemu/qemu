@@ -458,20 +458,6 @@ void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd)
     }
 }
 
-static int next_block_unit[IF_COUNT];
-
-/* Get a block device.  This should only be used for single-drive devices
-   (e.g. SD/Floppy/MTD).  Multi-disk devices (scsi/ide) should use the
-   appropriate bus.  */
-BlockDriverState *qdev_init_bdrv(DeviceState *dev, BlockInterfaceType type)
-{
-    int unit = next_block_unit[type]++;
-    DriveInfo *dinfo;
-
-    dinfo = drive_get(type, 0, unit);
-    return dinfo ? dinfo->bdrv : NULL;
-}
-
 BusState *qdev_get_child_bus(DeviceState *dev, const char *name)
 {
     BusState *bus;

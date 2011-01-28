@@ -36,6 +36,7 @@ struct DriveInfo {
 
 DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit);
 int drive_get_max_bus(BlockInterfaceType type);
+DriveInfo *drive_get_next(BlockInterfaceType type);
 void drive_uninit(DriveInfo *dinfo);
 DriveInfo *drive_get_by_blockdev(BlockDriverState *bs);
 
