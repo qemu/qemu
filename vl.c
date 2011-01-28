@@ -631,13 +631,8 @@ static int bt_parse(const char *opt)
 static int drive_init_func(QemuOpts *opts, void *opaque)
 {
     int *use_scsi = opaque;
-    int fatal_error = 0;
 
-    if (drive_init(opts, *use_scsi, &fatal_error) == NULL) {
-        if (fatal_error)
-            return 1;
-    }
-    return 0;
+    return drive_init(opts, *use_scsi) == NULL;
 }
 
 static int drive_enable_snapshot(QemuOpts *opts, void *opaque)
@@ -666,7 +661,7 @@ static void default_drive(int enable, int snapshot, int use_scsi,
     if (snapshot) {
         drive_enable_snapshot(opts, NULL);
     }
-    if (drive_init_func(opts, &use_scsi)) {
+    if (!drive_init(opts, use_scsi)) {
         exit(1);
     }
 }

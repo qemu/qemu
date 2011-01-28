@@ -48,7 +48,7 @@ DriveInfo *drive_get_by_blockdev(BlockDriverState *bs);
 QemuOpts *drive_def(const char *optstr);
 QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
                     const char *optstr);
-DriveInfo *drive_init(QemuOpts *arg, int default_to_scsi, int *fatal_error);
+DriveInfo *drive_init(QemuOpts *arg, int default_to_scsi);
 
 /* device-hotplug */
 
