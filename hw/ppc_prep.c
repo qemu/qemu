@@ -600,9 +600,6 @@ static void ppc_prep_init (ram_addr_t ram_size,
     if (filename) {
         qemu_free(filename);
     }
-    if (env->nip < 0xFFF80000 && bios_size < 0x00100000) {
-        hw_error("PowerPC 601 / 620 / 970 need a 1MB BIOS\n");
-    }
 
     if (linux_boot) {
         kernel_base = KERNEL_LOAD_ADDR;
@@ -693,7 +690,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
         hd[i] = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
     }
 
-    for(i = 0; i < MAX_IDE_BUS; i++) {
+    for(i = 0; i < 1/*MAX_IDE_BUS*/; i++) {
         isa_ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
                      hd[2 * i],
 		     hd[2 * i + 1]);

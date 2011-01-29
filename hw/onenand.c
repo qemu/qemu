@@ -19,6 +19,7 @@
  */
 
 #include "qemu-common.h"
+#include "hw.h"
 #include "flash.h"
 #include "irq.h"
 #include "blockdev.h"

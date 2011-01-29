@@ -72,6 +72,7 @@
 #define REG_B_UIE  0x10
 #define REG_B_SQWE 0x08
 #define REG_B_DM   0x04
+#define REG_B_24H  0x02
 
 #define REG_C_UF   0x10
 #define REG_C_IRQF 0x80
@@ -246,7 +247,15 @@ static void cmos_ioport_write(void *opaque, uint32_t addr, uint32_t data)
                     rtc_set_time(s);
                 }
             }
-            s->cmos_data[RTC_REG_B] = data;
+            if (((s->cmos_data[RTC_REG_B] ^ data) & (REG_B_DM | REG_B_24H)) &&
+                !(data & REG_B_SET)) {
+                /* If the time format has changed and not in set mode,
+                   update the registers immediately. */
+                s->cmos_data[RTC_REG_B] = data;
+                rtc_copy_date(s);
+            } else {
+                s->cmos_data[RTC_REG_B] = data;
+            }
             rtc_timer_update(s, qemu_get_clock(rtc_clock));
             break;
         case RTC_REG_C:
@@ -285,7 +294,7 @@ static void rtc_set_time(RTCState *s)
     tm->tm_sec = rtc_from_bcd(s, s->cmos_data[RTC_SECONDS]);
     tm->tm_min = rtc_from_bcd(s, s->cmos_data[RTC_MINUTES]);
     tm->tm_hour = rtc_from_bcd(s, s->cmos_data[RTC_HOURS] & 0x7f);
-    if (!(s->cmos_data[RTC_REG_B] & 0x02) &&
+    if (!(s->cmos_data[RTC_REG_B] & REG_B_24H) &&
         (s->cmos_data[RTC_HOURS] & 0x80)) {
         tm->tm_hour += 12;
     }
@@ -304,7 +313,7 @@ static void rtc_copy_date(RTCState *s)
 
     s->cmos_data[RTC_SECONDS] = rtc_to_bcd(s, tm->tm_sec);
     s->cmos_data[RTC_MINUTES] = rtc_to_bcd(s, tm->tm_min);
-    if (s->cmos_data[RTC_REG_B] & 0x02) {
+    if (s->cmos_data[RTC_REG_B] & REG_B_24H) {
         /* 24 hour format */
         s->cmos_data[RTC_HOURS] = rtc_to_bcd(s, tm->tm_hour);
     } else {
