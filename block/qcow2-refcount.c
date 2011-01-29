@@ -705,7 +705,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
     BDRVQcowState *s = bs->opaque;
     uint64_t *l1_table, *l2_table, l2_offset, offset, l1_size2, l1_allocated;
     int64_t old_offset, old_l2_offset;
-    int l2_size, i, j, l1_modified, l2_modified, nb_csectors, refcount;
+    int i, j, l1_modified, nb_csectors, refcount;
     int ret;
 
     l2_table = NULL;
@@ -729,14 +729,12 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
         l1_allocated = 0;
     }
 
-    l2_size = s->l2_size * sizeof(uint64_t);
     l1_modified = 0;
     for(i = 0; i < l1_size; i++) {
         l2_offset = l1_table[i];
         if (l2_offset) {
             old_l2_offset = l2_offset;
             l2_offset &= ~QCOW_OFLAG_COPIED;
-            l2_modified = 0;
 
             ret = qcow2_cache_get(bs, s->l2_table_cache, l2_offset,
                 (void**) &l2_table);
@@ -788,7 +786,6 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                                 s->refcount_block_cache);
                         }
                         l2_table[j] = cpu_to_be64(offset);
-                        l2_modified = 1;
                         qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
                     }
                 }
