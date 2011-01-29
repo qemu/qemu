@@ -87,12 +87,6 @@ static void sdl_update(DisplayState *ds, int x, int y, int w, int h)
 
 static void sdl_setdata(DisplayState *ds)
 {
-    SDL_Rect rec;
-    rec.x = 0;
-    rec.y = 0;
-    rec.w = real_screen->w;
-    rec.h = real_screen->h;
-
     if (guest_screen != NULL) SDL_FreeSurface(guest_screen);
 
     guest_screen = SDL_CreateRGBSurfaceFrom(ds_get_data(ds), ds_get_width(ds), ds_get_height(ds),
