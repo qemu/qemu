@@ -601,6 +601,34 @@ Example:
 -> { "execute": "netdev_del", "arguments": { "id": "netdev1" } }
 <- { "return": {} }
 
+
+EQMP
+
+    {
+        .name       = "block_resize",
+        .args_type  = "device:B,size:o",
+        .params     = "device size",
+        .help       = "resize a block image",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_block_resize,
+    },
+
+SQMP
+block_resize
+------------
+
+Resize a block image while a guest is running.
+
+Arguments:
+
+- "device": the device's ID, must be unique (json-string)
+- "size": new size
+
+Example:
+
+-> { "execute": "block_resize", "arguments": { "device": "scratch", "size": 1073741824 } }
+<- { "return": {} }
+
 EQMP
 
     {

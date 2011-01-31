@@ -35,9 +35,9 @@ typedef struct Qcow2CachedTable {
 } Qcow2CachedTable;
 
 struct Qcow2Cache {
-    int                     size;
     Qcow2CachedTable*       entries;
     struct Qcow2Cache*      depends;
+    int                     size;
     bool                    depends_on_flush;
     bool                    writethrough;
 };

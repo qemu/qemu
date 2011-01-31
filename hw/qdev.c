@@ -29,7 +29,6 @@
 #include "qdev.h"
 #include "sysemu.h"
 #include "monitor.h"
-#include "blockdev.h"
 
 static int qdev_hotplug = 0;
 static bool qdev_hot_added = false;
@@ -456,20 +455,6 @@ void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd)
         qdev_prop_exists(dev, "vectors")) {
         qdev_prop_set_uint32(dev, "vectors", nd->nvectors);
     }
-}
-
-static int next_block_unit[IF_COUNT];
-
-/* Get a block device.  This should only be used for single-drive devices
-   (e.g. SD/Floppy/MTD).  Multi-disk devices (scsi/ide) should use the
-   appropriate bus.  */
-BlockDriverState *qdev_init_bdrv(DeviceState *dev, BlockInterfaceType type)
-{
-    int unit = next_block_unit[type]++;
-    DriveInfo *dinfo;
-
-    dinfo = drive_get(type, 0, unit);
-    return dinfo ? dinfo->bdrv : NULL;
 }
 
 BusState *qdev_get_child_bus(DeviceState *dev, const char *name)

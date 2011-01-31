@@ -29,15 +29,14 @@
 
 DriveInfo *add_init_drive(const char *optstr)
 {
-    int fatal_error;
     DriveInfo *dinfo;
     QemuOpts *opts;
 
-    opts = drive_add(NULL, "%s", optstr);
+    opts = drive_def(optstr);
     if (!opts)
         return NULL;
 
-    dinfo = drive_init(opts, current_machine->use_scsi, &fatal_error);
+    dinfo = drive_init(opts, current_machine->use_scsi);
     if (!dinfo) {
         qemu_opts_del(opts);
         return NULL;

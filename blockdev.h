@@ -18,6 +18,13 @@ void blockdev_auto_del(BlockDriverState *bs);
 
 #define BLOCK_SERIAL_STRLEN 20
 
+typedef enum {
+    IF_DEFAULT = -1,            /* for use with drive_add() only */
+    IF_NONE,
+    IF_IDE, IF_SCSI, IF_FLOPPY, IF_PFLASH, IF_MTD, IF_SD, IF_VIRTIO, IF_XEN,
+    IF_COUNT
+} BlockInterfaceType;
+
 struct DriveInfo {
     BlockDriverState *bdrv;
     char *id;
@@ -31,16 +38,17 @@ struct DriveInfo {
     QTAILQ_ENTRY(DriveInfo) next;
 };
 
-#define MAX_IDE_DEVS	2
-#define MAX_SCSI_DEVS	255
-
 DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit);
+DriveInfo *drive_get_by_index(BlockInterfaceType type, int index);
 int drive_get_max_bus(BlockInterfaceType type);
+DriveInfo *drive_get_next(BlockInterfaceType type);
 void drive_uninit(DriveInfo *dinfo);
 DriveInfo *drive_get_by_blockdev(BlockDriverState *bs);
 
-QemuOpts *drive_add(const char *file, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
-DriveInfo *drive_init(QemuOpts *arg, int default_to_scsi, int *fatal_error);
+QemuOpts *drive_def(const char *optstr);
+QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
+                    const char *optstr);
+DriveInfo *drive_init(QemuOpts *arg, int default_to_scsi);
 
 /* device-hotplug */
 
@@ -53,5 +61,6 @@ int do_change_block(Monitor *mon, const char *device,
                     const char *filename, const char *fmt);
 int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data);
 int do_snapshot_blkdev(Monitor *mon, const QDict *qdict, QObject **ret_data);
+int do_block_resize(Monitor *mon, const QDict *qdict, QObject **ret_data);
 
 #endif

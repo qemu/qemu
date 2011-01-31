@@ -133,6 +133,11 @@ source tree.  It may not be as powerful as platform-specific or third-party
 trace backends but it is portable.  This is the recommended trace backend
 unless you have specific needs for more advanced backends.
 
+=== Stderr ===
+
+The "stderr" backend sends trace events directly to standard error output
+during emulation.
+
 ==== Monitor commands ====
 
 * info trace

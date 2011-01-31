@@ -7,6 +7,7 @@
  * This code is licenced under the GPL.
  */
 
+#include "blockdev.h"
 #include "sysbus.h"
 #include "sd.h"
 
@@ -449,15 +450,15 @@ static int pl181_init(SysBusDevice *dev)
 {
     int iomemtype;
     pl181_state *s = FROM_SYSBUS(pl181_state, dev);
-    BlockDriverState *bd;
+    DriveInfo *dinfo;
 
     iomemtype = cpu_register_io_memory(pl181_readfn, pl181_writefn, s,
                                        DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     sysbus_init_irq(dev, &s->irq[0]);
     sysbus_init_irq(dev, &s->irq[1]);
-    bd = qdev_init_bdrv(&dev->qdev, IF_SD);
-    s->card = sd_init(bd, 0);
+    dinfo = drive_get_next(IF_SD);
+    s->card = sd_init(dinfo ? dinfo->bdrv : NULL, 0);
     qemu_register_reset(pl181_reset, s);
     pl181_reset(s);
     /* ??? Save/restore.  */

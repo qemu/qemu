@@ -13,12 +13,13 @@ set -f
 usage()
 {
     cat >&2 <<EOF
-usage: $0 [--nop | --simple | --ust] [-h | -c]
+usage: $0 [--nop | --simple | --stderr | --ust | --dtrace] [-h | -c]
 Generate tracing code for a file on stdin.
 
 Backends:
   --nop     Tracing disabled
   --simple  Simple built-in backend
+  --stderr  Stderr built-in backend
   --ust     LTTng User Space Tracing backend
   --dtrace  DTrace/SystemTAP backend
 
@@ -235,6 +236,56 @@ linetoc_end_simple()
 };
 EOF
 }
+
+#STDERR
+linetoh_begin_stderr()
+{
+    cat <<EOF
+#include <stdio.h>
+EOF
+}
+
+linetoh_stderr()
+{
+    local name args argnames argc fmt
+    name=$(get_name "$1")
+    args=$(get_args "$1")
+    argnames=$(get_argnames "$1" ",")
+    argc=$(get_argc "$1")
+    fmt=$(get_fmt "$1")
+
+    if [ "$argc" -gt 0 ]; then
+        argnames=", $argnames"
+    fi
+
+    cat <<EOF
+static inline void trace_$name($args)
+{
+    fprintf(stderr, "$name $fmt\n" $argnames);
+}
+EOF
+}
+
+linetoh_end_stderr()
+{
+return
+}
+
+linetoc_begin_stderr()
+{
+return
+}
+
+linetoc_stderr()
+{
+return
+}
+
+linetoc_end_stderr()
+{
+return
+}
+#END OF STDERR
 
 # Clean up after UST headers which pollute the namespace
 ust_clean_namespace() {
@@ -546,7 +597,7 @@ targetarch=
 until [ -z "$1" ]
 do
   case "$1" in
-    "--nop" | "--simple" | "--ust" | "--dtrace") backend="${1#--}" ;;
+    "--nop" | "--simple" | "--stderr" | "--ust" | "--dtrace") backend="${1#--}" ;;
 
     "--binary") shift ; binary="$1" ;;
     "--target-arch") shift ; targetarch="$1" ;;
@@ -556,6 +607,11 @@ do
     "--stap") output="${1#--}" ;;
 
     "--check-backend") exit 0 ;; # used by ./configure to test for backend
+
+    "--list-backends") # used by ./configure to list available backends
+          echo "nop simple stderr ust dtrace"
+          exit 0
+          ;;
 
     *)
       usage;;

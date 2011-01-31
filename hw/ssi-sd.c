@@ -7,6 +7,7 @@
  * This code is licenced under the GNU GPL v2.
  */
 
+#include "blockdev.h"
 #include "ssi.h"
 #include "sd.h"
 
@@ -231,11 +232,11 @@ static int ssi_sd_load(QEMUFile *f, void *opaque, int version_id)
 static int ssi_sd_init(SSISlave *dev)
 {
     ssi_sd_state *s = FROM_SSI_SLAVE(ssi_sd_state, dev);
-    BlockDriverState *bs;
+    DriveInfo *dinfo;
 
     s->mode = SSI_SD_CMD;
-    bs = qdev_init_bdrv(&dev->qdev, IF_SD);
-    s->sd = sd_init(bs, 1);
+    dinfo = drive_get_next(IF_SD);
+    s->sd = sd_init(dinfo ? dinfo->bdrv : NULL, 1);
     register_savevm(&dev->qdev, "ssi_sd", -1, 1, ssi_sd_save, ssi_sd_load, s);
     return 0;
 }

@@ -90,6 +90,7 @@ static int scsi_hot_add(Monitor *mon, DeviceState *adapter,
      * specified).
      */
     dinfo->unit = qemu_opt_get_number(dinfo->opts, "unit", -1);
+    dinfo->bus = scsibus->busnr;
     scsidev = scsi_bus_legacy_add_drive(scsibus, dinfo->bdrv, dinfo->unit, false);
     if (!scsidev) {
         return -1;

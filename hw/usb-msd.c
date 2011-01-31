@@ -542,7 +542,6 @@ static USBDevice *usb_msd_init(const char *filename)
     QemuOpts *opts;
     DriveInfo *dinfo;
     USBDevice *dev;
-    int fatal_error;
     const char *p1;
     char fmt[32];
 
@@ -572,7 +571,7 @@ static USBDevice *usb_msd_init(const char *filename)
     qemu_opt_set(opts, "if", "none");
 
     /* create host drive */
-    dinfo = drive_init(opts, 0, &fatal_error);
+    dinfo = drive_init(opts, 0);
     if (!dinfo) {
         qemu_opts_del(opts);
         return NULL;

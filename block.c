@@ -645,7 +645,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
         /* call the change callback */
         bs->media_changed = 1;
         if (bs->change_cb)
-            bs->change_cb(bs->change_opaque);
+            bs->change_cb(bs->change_opaque, CHANGE_MEDIA);
     }
 
     return 0;
@@ -684,7 +684,7 @@ void bdrv_close(BlockDriverState *bs)
         /* call the change callback */
         bs->media_changed = 1;
         if (bs->change_cb)
-            bs->change_cb(bs->change_opaque);
+            bs->change_cb(bs->change_opaque, CHANGE_MEDIA);
     }
 }
 
@@ -1135,6 +1135,9 @@ int bdrv_truncate(BlockDriverState *bs, int64_t offset)
     ret = drv->bdrv_truncate(bs, offset);
     if (ret == 0) {
         ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
+        if (bs->change_cb) {
+            bs->change_cb(bs->change_opaque, CHANGE_SIZE);
+        }
     }
     return ret;
 }
@@ -1366,7 +1369,8 @@ int bdrv_enable_write_cache(BlockDriverState *bs)
 
 /* XXX: no longer used */
 void bdrv_set_change_cb(BlockDriverState *bs,
-                        void (*change_cb)(void *opaque), void *opaque)
+                        void (*change_cb)(void *opaque, int reason),
+                        void *opaque)
 {
     bs->change_cb = change_cb;
     bs->change_opaque = opaque;
@@ -1411,7 +1415,7 @@ int bdrv_set_key(BlockDriverState *bs, const char *key)
         /* call the change callback now, we skipped it on open */
         bs->media_changed = 1;
         if (bs->change_cb)
-            bs->change_cb(bs->change_opaque);
+            bs->change_cb(bs->change_opaque, CHANGE_MEDIA);
     }
     return ret;
 }

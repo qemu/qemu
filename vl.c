@@ -628,23 +628,18 @@ static int bt_parse(const char *opt)
 /***********************************************************/
 /* QEMU Block devices */
 
-#define HD_ALIAS "index=%d,media=disk"
-#define CDROM_ALIAS "index=2,media=cdrom"
-#define FD_ALIAS "index=%d,if=floppy"
-#define PFLASH_ALIAS "if=pflash"
-#define MTD_ALIAS "if=mtd"
-#define SD_ALIAS "index=0,if=sd"
+#define HD_OPTS "media=disk"
+#define CDROM_OPTS "media=cdrom"
+#define FD_OPTS ""
+#define PFLASH_OPTS ""
+#define MTD_OPTS ""
+#define SD_OPTS ""
 
 static int drive_init_func(QemuOpts *opts, void *opaque)
 {
     int *use_scsi = opaque;
-    int fatal_error = 0;
 
-    if (drive_init(opts, *use_scsi, &fatal_error) == NULL) {
-        if (fatal_error)
-            return 1;
-    }
-    return 0;
+    return drive_init(opts, *use_scsi) == NULL;
 }
 
 static int drive_enable_snapshot(QemuOpts *opts, void *opaque)
@@ -653,6 +648,29 @@ static int drive_enable_snapshot(QemuOpts *opts, void *opaque)
         qemu_opt_set(opts, "snapshot", "on");
     }
     return 0;
+}
+
+static void default_drive(int enable, int snapshot, int use_scsi,
+                          BlockInterfaceType type, int index,
+                          const char *optstr)
+{
+    QemuOpts *opts;
+
+    if (type == IF_DEFAULT) {
+        type = use_scsi ? IF_SCSI : IF_IDE;
+    }
+
+    if (!enable || drive_get_by_index(type, index)) {
+        return;
+    }
+
+    opts = drive_add(type, index, NULL, optstr);
+    if (snapshot) {
+        drive_enable_snapshot(opts, NULL);
+    }
+    if (!drive_init(opts, use_scsi)) {
+        exit(1);
+    }
 }
 
 void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque)
@@ -2038,7 +2056,7 @@ int main(int argc, char **argv, char **envp)
         if (optind >= argc)
             break;
         if (argv[optind][0] != '-') {
-	    hda_opts = drive_add(argv[optind++], HD_ALIAS, 0);
+	    hda_opts = drive_add(IF_DEFAULT, 0, argv[optind++], HD_OPTS);
         } else {
             const QEMUOption *popt;
 
@@ -2077,24 +2095,29 @@ int main(int argc, char **argv, char **envp)
                 initrd_filename = optarg;
                 break;
             case QEMU_OPTION_hda:
-                if (cyls == 0)
-                    hda_opts = drive_add(optarg, HD_ALIAS, 0);
-                else
-                    hda_opts = drive_add(optarg, HD_ALIAS
-			     ",cyls=%d,heads=%d,secs=%d%s",
-                             0, cyls, heads, secs,
-                             translation == BIOS_ATA_TRANSLATION_LBA ?
+                {
+                    char buf[256];
+                    if (cyls == 0)
+                        snprintf(buf, sizeof(buf), "%s", HD_OPTS);
+                    else
+                        snprintf(buf, sizeof(buf),
+                                 "%s,cyls=%d,heads=%d,secs=%d%s",
+                                 HD_OPTS , cyls, heads, secs,
+                                 translation == BIOS_ATA_TRANSLATION_LBA ?
                                  ",trans=lba" :
-                             translation == BIOS_ATA_TRANSLATION_NONE ?
+                                 translation == BIOS_ATA_TRANSLATION_NONE ?
                                  ",trans=none" : "");
-                 break;
+                    drive_add(IF_DEFAULT, 0, optarg, buf);
+                    break;
+                }
             case QEMU_OPTION_hdb:
             case QEMU_OPTION_hdc:
             case QEMU_OPTION_hdd:
-                drive_add(optarg, HD_ALIAS, popt->index - QEMU_OPTION_hda);
+                drive_add(IF_DEFAULT, popt->index - QEMU_OPTION_hda, optarg,
+                          HD_OPTS);
                 break;
             case QEMU_OPTION_drive:
-                drive_add(NULL, "%s", optarg);
+                drive_def(optarg);
 	        break;
             case QEMU_OPTION_set:
                 if (qemu_set_option(optarg) != 0)
@@ -2105,13 +2128,13 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
 	        break;
             case QEMU_OPTION_mtdblock:
-                drive_add(optarg, MTD_ALIAS);
+                drive_add(IF_MTD, -1, optarg, MTD_OPTS);
                 break;
             case QEMU_OPTION_sd:
-                drive_add(optarg, SD_ALIAS);
+                drive_add(IF_SD, 0, optarg, SD_OPTS);
                 break;
             case QEMU_OPTION_pflash:
-                drive_add(optarg, PFLASH_ALIAS);
+                drive_add(IF_PFLASH, -1, optarg, PFLASH_OPTS);
                 break;
             case QEMU_OPTION_snapshot:
                 snapshot = 1;
@@ -2190,7 +2213,7 @@ int main(int argc, char **argv, char **envp)
                 kernel_cmdline = optarg;
                 break;
             case QEMU_OPTION_cdrom:
-                drive_add(optarg, CDROM_ALIAS);
+                drive_add(IF_DEFAULT, 2, optarg, CDROM_OPTS);
                 break;
             case QEMU_OPTION_boot:
                 {
@@ -2243,7 +2266,8 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_fda:
             case QEMU_OPTION_fdb:
-                drive_add(optarg, FD_ALIAS, popt->index - QEMU_OPTION_fda);
+                drive_add(IF_FLOPPY, popt->index - QEMU_OPTION_fda,
+                          optarg, FD_OPTS);
                 break;
             case QEMU_OPTION_no_fd_bootchk:
                 fd_bootchk = 0;
@@ -2944,26 +2968,18 @@ int main(int argc, char **argv, char **envp)
 
     blk_mig_init();
 
-    if (default_cdrom) {
-        /* we always create the cdrom drive, even if no disk is there */
-        drive_add(NULL, CDROM_ALIAS);
-    }
-
-    if (default_floppy) {
-        /* we always create at least one floppy */
-        drive_add(NULL, FD_ALIAS, 0);
-    }
-
-    if (default_sdcard) {
-        /* we always create one sd slot, even if no card is in it */
-        drive_add(NULL, SD_ALIAS);
-    }
-
     /* open the virtual block devices */
     if (snapshot)
         qemu_opts_foreach(qemu_find_opts("drive"), drive_enable_snapshot, NULL, 0);
     if (qemu_opts_foreach(qemu_find_opts("drive"), drive_init_func, &machine->use_scsi, 1) != 0)
         exit(1);
+
+    default_drive(default_cdrom, snapshot, machine->use_scsi,
+                  IF_DEFAULT, 2, CDROM_OPTS);
+    default_drive(default_floppy, snapshot, machine->use_scsi,
+                  IF_FLOPPY, 0, FD_OPTS);
+    default_drive(default_sdcard, snapshot, machine->use_scsi,
+                  IF_SD, 0, SD_OPTS);
 
     register_savevm_live(NULL, "ram", 0, 4, NULL, ram_save_live, NULL,
                          ram_load, NULL);

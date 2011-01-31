@@ -1294,11 +1294,22 @@ static int do_sd_create(char *filename, int64_t vdi_size,
 static int sd_create(const char *filename, QEMUOptionParameter *options)
 {
     int ret;
-    uint32_t vid = 0;
+    uint32_t vid = 0, base_vid = 0;
     int64_t vdi_size = 0;
     char *backing_file = NULL;
+    BDRVSheepdogState s;
+    char vdi[SD_MAX_VDI_LEN], tag[SD_MAX_VDI_TAG_LEN];
+    uint32_t snapid;
 
     strstart(filename, "sheepdog:", (const char **)&filename);
+
+    memset(&s, 0, sizeof(s));
+    memset(vdi, 0, sizeof(vdi));
+    memset(tag, 0, sizeof(tag));
+    if (parse_vdiname(&s, filename, vdi, &snapid, tag) < 0) {
+        error_report("invalid filename\n");
+        return -EINVAL;
+    }
 
     while (options && options->name) {
         if (!strcmp(options->name, BLOCK_OPT_SIZE)) {
@@ -1338,11 +1349,11 @@ static int sd_create(const char *filename, QEMUOptionParameter *options)
             return -EINVAL;
         }
 
-        vid = s->inode.vdi_id;
+        base_vid = s->inode.vdi_id;
         bdrv_delete(bs);
     }
 
-    return do_sd_create((char *)filename, vdi_size, vid, NULL, 0, NULL, NULL);
+    return do_sd_create((char *)vdi, vdi_size, base_vid, &vid, 0, s.addr, s.port);
 }
 
 static void sd_close(BlockDriverState *bs)

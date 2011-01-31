@@ -19,6 +19,37 @@
 
 static QTAILQ_HEAD(drivelist, DriveInfo) drives = QTAILQ_HEAD_INITIALIZER(drives);
 
+static const char *const if_name[IF_COUNT] = {
+    [IF_NONE] = "none",
+    [IF_IDE] = "ide",
+    [IF_SCSI] = "scsi",
+    [IF_FLOPPY] = "floppy",
+    [IF_PFLASH] = "pflash",
+    [IF_MTD] = "mtd",
+    [IF_SD] = "sd",
+    [IF_VIRTIO] = "virtio",
+    [IF_XEN] = "xen",
+};
+
+static const int if_max_devs[IF_COUNT] = {
+    /*
+     * Do not change these numbers!  They govern how drive option
+     * index maps to unit and bus.  That mapping is ABI.
+     *
+     * All controllers used to imlement if=T drives need to support
+     * if_max_devs[T] units, for any T with if_max_devs[T] != 0.
+     * Otherwise, some index values map to "impossible" bus, unit
+     * values.
+     *
+     * For instance, if you change [IF_SCSI] to 255, -drive
+     * if=scsi,index=12 no longer means bus=1,unit=5, but
+     * bus=0,unit=12.  With an lsi53c895a controller (7 units max),
+     * the drive can't be set up.  Regression.
+     */
+    [IF_IDE] = 2,
+    [IF_SCSI] = 7,
+};
+
 /*
  * We automatically delete the drive when a device using it gets
  * unplugged.  Questionable feature, but we can't just drop it.
@@ -44,19 +75,39 @@ void blockdev_auto_del(BlockDriverState *bs)
     }
 }
 
-QemuOpts *drive_add(const char *file, const char *fmt, ...)
+static int drive_index_to_bus_id(BlockInterfaceType type, int index)
 {
-    va_list ap;
-    char optstr[1024];
+    int max_devs = if_max_devs[type];
+    return max_devs ? index / max_devs : 0;
+}
+
+static int drive_index_to_unit_id(BlockInterfaceType type, int index)
+{
+    int max_devs = if_max_devs[type];
+    return max_devs ? index % max_devs : index;
+}
+
+QemuOpts *drive_def(const char *optstr)
+{
+    return qemu_opts_parse(qemu_find_opts("drive"), optstr, 0);
+}
+
+QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
+                    const char *optstr)
+{
     QemuOpts *opts;
+    char buf[32];
 
-    va_start(ap, fmt);
-    vsnprintf(optstr, sizeof(optstr), fmt, ap);
-    va_end(ap);
-
-    opts = qemu_opts_parse(qemu_find_opts("drive"), optstr, 0);
+    opts = drive_def(optstr);
     if (!opts) {
         return NULL;
+    }
+    if (type != IF_DEFAULT) {
+        qemu_opt_set(opts, "if", if_name[type]);
+    }
+    if (index >= 0) {
+        snprintf(buf, sizeof(buf), "%d", index);
+        qemu_opt_set(opts, "index", buf);
     }
     if (file)
         qemu_opt_set(opts, "file", file);
@@ -79,6 +130,13 @@ DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit)
     return NULL;
 }
 
+DriveInfo *drive_get_by_index(BlockInterfaceType type, int index)
+{
+    return drive_get(type,
+                     drive_index_to_bus_id(type, index),
+                     drive_index_to_unit_id(type, index));
+}
+
 int drive_get_max_bus(BlockInterfaceType type)
 {
     int max_bus;
@@ -91,6 +149,16 @@ int drive_get_max_bus(BlockInterfaceType type)
             max_bus = dinfo->bus;
     }
     return max_bus;
+}
+
+/* Get a block device.  This should only be used for single-drive devices
+   (e.g. SD/Floppy/MTD).  Multi-disk devices (scsi/ide) should use the
+   appropriate bus.  */
+DriveInfo *drive_get_next(BlockInterfaceType type)
+{
+    static int next_block_unit[IF_COUNT];
+
+    return drive_get(type, 0, next_block_unit[type]++);
 }
 
 DriveInfo *drive_get_by_blockdev(BlockDriverState *bs)
@@ -135,7 +203,7 @@ static int parse_block_error_action(const char *buf, int is_read)
     }
 }
 
-DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi, int *fatal_error)
+DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
 {
     const char *buf;
     const char *file = NULL;
@@ -157,17 +225,13 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi, int *fatal_error)
     int snapshot = 0;
     int ret;
 
-    *fatal_error = 1;
-
     translation = BIOS_ATA_TRANSLATION_AUTO;
 
     if (default_to_scsi) {
         type = IF_SCSI;
-        max_devs = MAX_SCSI_DEVS;
         pstrcpy(devname, sizeof(devname), "scsi");
     } else {
         type = IF_IDE;
-        max_devs = MAX_IDE_DEVS;
         pstrcpy(devname, sizeof(devname), "ide");
     }
     media = MEDIA_DISK;
@@ -189,38 +253,14 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi, int *fatal_error)
 
     if ((buf = qemu_opt_get(opts, "if")) != NULL) {
         pstrcpy(devname, sizeof(devname), buf);
-        if (!strcmp(buf, "ide")) {
-	    type = IF_IDE;
-            max_devs = MAX_IDE_DEVS;
-        } else if (!strcmp(buf, "scsi")) {
-	    type = IF_SCSI;
-            max_devs = MAX_SCSI_DEVS;
-        } else if (!strcmp(buf, "floppy")) {
-	    type = IF_FLOPPY;
-            max_devs = 0;
-        } else if (!strcmp(buf, "pflash")) {
-	    type = IF_PFLASH;
-            max_devs = 0;
-	} else if (!strcmp(buf, "mtd")) {
-	    type = IF_MTD;
-            max_devs = 0;
-	} else if (!strcmp(buf, "sd")) {
-	    type = IF_SD;
-            max_devs = 0;
-        } else if (!strcmp(buf, "virtio")) {
-            type = IF_VIRTIO;
-            max_devs = 0;
-	} else if (!strcmp(buf, "xen")) {
-	    type = IF_XEN;
-            max_devs = 0;
-	} else if (!strcmp(buf, "none")) {
-	    type = IF_NONE;
-            max_devs = 0;
-	} else {
+        for (type = 0; type < IF_COUNT && strcmp(buf, if_name[type]); type++)
+            ;
+        if (type == IF_COUNT) {
             error_report("unsupported bus type '%s'", buf);
             return NULL;
 	}
     }
+    max_devs = if_max_devs[type];
 
     if (cyls || heads || secs) {
         if (cyls < 1 || (type == IF_IDE && cyls > 16383)) {
@@ -353,14 +393,8 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi, int *fatal_error)
             error_report("index cannot be used with bus and unit");
             return NULL;
         }
-        if (max_devs == 0)
-        {
-            unit_id = index;
-            bus_id = 0;
-        } else {
-            unit_id = index % max_devs;
-            bus_id = index / max_devs;
-        }
+        bus_id = drive_index_to_bus_id(type, index);
+        unit_id = drive_index_to_unit_id(type, index);
     }
 
     /* if user doesn't specify a unit_id,
@@ -387,11 +421,12 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi, int *fatal_error)
     }
 
     /*
-     * ignore multiple definitions
+     * catch multiple definitions
      */
 
     if (drive_get(type, bus_id, unit_id) != NULL) {
-        *fatal_error = 0;
+        error_report("drive with bus=%d, unit=%d (index=%d) exists",
+                     bus_id, unit_id, index);
         return NULL;
     }
 
@@ -458,12 +493,11 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi, int *fatal_error)
         if (devaddr)
             qemu_opt_set(opts, "addr", devaddr);
         break;
-    case IF_COUNT:
+    default:
         abort();
     }
     if (!file || !*file) {
-        *fatal_error = 0;
-        return NULL;
+        return dinfo;
     }
     if (snapshot) {
         /* always use cache=unsafe with snapshot */
@@ -492,7 +526,6 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi, int *fatal_error)
 
     if (bdrv_key_required(dinfo->bdrv))
         autostart = 0;
-    *fatal_error = 0;
     return dinfo;
 }
 
@@ -702,6 +735,36 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
     /* clean up host side */
     drive_uninit(drive_get_by_blockdev(bs));
+
+    return 0;
+}
+
+/*
+ * XXX: replace the QERR_UNDEFINED_ERROR errors with real values once the
+ * existing QERR_ macro mess is cleaned up.  A good example for better
+ * error reports can be found in the qemu-img resize code.
+ */
+int do_block_resize(Monitor *mon, const QDict *qdict, QObject **ret_data)
+{
+    const char *device = qdict_get_str(qdict, "device");
+    int64_t size = qdict_get_int(qdict, "size");
+    BlockDriverState *bs;
+
+    bs = bdrv_find(device);
+    if (!bs) {
+        qerror_report(QERR_DEVICE_NOT_FOUND, device);
+        return -1;
+    }
+
+    if (size < 0) {
+        qerror_report(QERR_UNDEFINED_ERROR);
+        return -1;
+    }
+
+    if (bdrv_truncate(bs, size)) {
+        qerror_report(QERR_UNDEFINED_ERROR);
+        return -1;
+    }
 
     return 0;
 }
