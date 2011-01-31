@@ -381,7 +381,7 @@ static void tc6393xb_nand_writeb(TC6393xbState *s, target_phys_addr_t addr, uint
         case NAND_DATA + 2:
         case NAND_DATA + 3:
             nand_setio(s->flash, value);
-            s->nand.isr &= 1;
+            s->nand.isr |= 1;
             tc6393xb_nand_irq(s);
             return;
         case NAND_MODE:
