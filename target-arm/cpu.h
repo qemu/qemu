@@ -157,10 +157,6 @@ typedef struct CPUARMState {
     /* Internal CPU feature flags.  */
     uint32_t features;
 
-    /* Callback for vectored interrupt controller.  */
-    int (*get_irq_vector)(struct CPUARMState *);
-    void *irq_opaque;
-
     /* VFP coprocessor state.  */
     struct {
         float64 regs[32];
