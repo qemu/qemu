@@ -1018,6 +1018,14 @@ static int do_quit(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
 static int change_vnc_password(const char *password)
 {
+    if (!password || !password[0]) {
+        if (vnc_display_disable_login(NULL)) {
+            qerror_report(QERR_SET_PASSWD_FAILED);
+            return -1;
+        }
+        return 0;
+    }
+
     if (vnc_display_password(NULL, password) < 0) {
         qerror_report(QERR_SET_PASSWD_FAILED);
         return -1;
@@ -1117,6 +1125,8 @@ static int set_password(Monitor *mon, const QDict *qdict, QObject **ret_data)
             qerror_report(QERR_INVALID_PARAMETER, "connected");
             return -1;
         }
+        /* Note that setting an empty password will not disable login through
+         * this interface. */
         rc = vnc_display_password(NULL, password);
         if (rc != 0) {
             qerror_report(QERR_SET_PASSWD_FAILED);
