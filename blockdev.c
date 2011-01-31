@@ -93,16 +93,10 @@ QemuOpts *drive_def(const char *optstr)
 }
 
 QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
-                    const char *fmt, ...)
+                    const char *optstr)
 {
-    va_list ap;
-    char optstr[1024];
     QemuOpts *opts;
     char buf[32];
-
-    va_start(ap, fmt);
-    vsnprintf(optstr, sizeof(optstr), fmt, ap);
-    va_end(ap);
 
     opts = drive_def(optstr);
     if (!opts) {

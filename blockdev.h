@@ -47,10 +47,7 @@ DriveInfo *drive_get_by_blockdev(BlockDriverState *bs);
 
 QemuOpts *drive_def(const char *optstr);
 QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
-                    const char *fmt, ...) /*GCC_FMT_ATTR(4, 5)*/;
-    /* GCC_FMT_ATTR() commented out to avoid the (pretty useless)
-     * "zero-length gnu_printf format string" warning we insist to
-     * enable */
+                    const char *optstr);
 DriveInfo *drive_init(QemuOpts *arg, int default_to_scsi, int *fatal_error);
 
 /* device-hotplug */

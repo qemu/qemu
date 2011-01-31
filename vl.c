@@ -621,7 +621,6 @@ static int bt_parse(const char *opt)
 /***********************************************************/
 /* QEMU Block devices */
 
-/* Any % in the following strings must be escaped as %% */
 #define HD_OPTS "media=disk"
 #define CDROM_OPTS "media=cdrom"
 #define FD_OPTS ""
@@ -2050,17 +2049,21 @@ int main(int argc, char **argv, char **envp)
                 initrd_filename = optarg;
                 break;
             case QEMU_OPTION_hda:
-                if (cyls == 0)
-                    hda_opts = drive_add(IF_DEFAULT, 0, optarg, HD_OPTS);
-                else
-                    hda_opts = drive_add(IF_DEFAULT, 0, optarg, HD_OPTS
-			     ",cyls=%d,heads=%d,secs=%d%s",
-                             cyls, heads, secs,
-                             translation == BIOS_ATA_TRANSLATION_LBA ?
+                {
+                    char buf[256];
+                    if (cyls == 0)
+                        snprintf(buf, sizeof(buf), "%s", HD_OPTS);
+                    else
+                        snprintf(buf, sizeof(buf),
+                                 "%s,cyls=%d,heads=%d,secs=%d%s",
+                                 HD_OPTS , cyls, heads, secs,
+                                 translation == BIOS_ATA_TRANSLATION_LBA ?
                                  ",trans=lba" :
-                             translation == BIOS_ATA_TRANSLATION_NONE ?
+                                 translation == BIOS_ATA_TRANSLATION_NONE ?
                                  ",trans=none" : "");
-                 break;
+                    drive_add(IF_DEFAULT, 0, optarg, buf);
+                    break;
+                }
             case QEMU_OPTION_hdb:
             case QEMU_OPTION_hdc:
             case QEMU_OPTION_hdd:
