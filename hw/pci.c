@@ -641,7 +641,6 @@ static void pci_init_wmask_bridge(PCIDevice *d)
                  PCI_BRIDGE_CTL_FAST_BACK |
                  PCI_BRIDGE_CTL_DISCARD |
                  PCI_BRIDGE_CTL_SEC_DISCARD |
-                 PCI_BRIDGE_CTL_DISCARD_STATUS |
                  PCI_BRIDGE_CTL_DISCARD_SERR);
     /* Below does not do anything as we never set this bit, put here for
      * completeness. */
@@ -833,6 +832,7 @@ static int pci_unregister_device(DeviceState *dev)
 
     pci_unregister_io_regions(pci_dev);
     pci_del_option_rom(pci_dev);
+    qemu_free(pci_dev->romfile);
     do_pci_unregister_device(pci_dev);
     return 0;
 }
@@ -2072,7 +2072,7 @@ static char *pcibus_get_dev_path(DeviceState *dev)
     for (t = d; t; t = t->bus->parent_dev) {
         p -= slot_len;
         s = snprintf(slot, sizeof slot, ":%02x.%x",
-                     PCI_SLOT(t->devfn), PCI_FUNC(d->devfn));
+                     PCI_SLOT(t->devfn), PCI_FUNC(t->devfn));
         assert(s == slot_len);
         memcpy(p, slot, slot_len);
     }
