@@ -1653,7 +1653,7 @@ static void dump_asi(const char *txt, target_ulong addr, int asi, int size,
 
 /* Leon3 cache control */
 
-void leon3_cache_control_int(void)
+static void leon3_cache_control_int(void)
 {
     uint32_t state = 0;
 
@@ -1741,9 +1741,15 @@ static uint64_t leon3_cache_control_ld(target_ulong addr, int size)
         DPRINTF_CACHE_CONTROL("read unknown register %08x\n", addr);
         break;
     };
-    DPRINTF_CACHE_CONTROL("st addr:%08x, ret:%" PRIx64 ", size:%d\n",
+    DPRINTF_CACHE_CONTROL("ld addr:%08x, ret:0x%" PRIx64 ", size:%d\n",
                           addr, ret, size);
     return ret;
+}
+
+void leon3_irq_manager(void *irq_manager, int intno)
+{
+    leon3_irq_ack(irq_manager, intno);
+    leon3_cache_control_int();
 }
 
 uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
@@ -1760,7 +1766,9 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         case 0x00:          /* Leon3 Cache Control */
         case 0x08:          /* Leon3 Instruction Cache config */
         case 0x0C:          /* Leon3 Date Cache config */
-            ret = leon3_cache_control_ld(addr, size);
+            if (env->def->features & CPU_FEATURE_CACHE_CTRL) {
+                ret = leon3_cache_control_ld(addr, size);
+            }
             break;
         case 0x01c00a00: /* MXCC control register */
             if (size == 8)
@@ -1994,7 +2002,9 @@ void helper_st_asi(target_ulong addr, uint64_t val, int asi, int size)
         case 0x00:          /* Leon3 Cache Control */
         case 0x08:          /* Leon3 Instruction Cache config */
         case 0x0C:          /* Leon3 Date Cache config */
-            leon3_cache_control_st(addr, val, size);
+            if (env->def->features & CPU_FEATURE_CACHE_CTRL) {
+                leon3_cache_control_st(addr, val, size);
+            }
             break;
 
         case 0x01c00000: /* MXCC stream data register 0 */
