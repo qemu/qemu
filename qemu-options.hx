@@ -1057,7 +1057,7 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "                use '[down]script=no' to disable script execution\n"
     "                use 'fd=h' to connect to an already opened TAP interface\n"
     "                use 'sndbuf=nbytes' to limit the size of the send buffer (the\n"
-    "                default of 'sndbuf=1048576' can be disabled using 'sndbuf=0')\n"
+    "                default is disabled 'sndbuf=0' to enable flow control set 'sndbuf=1048576')\n"
     "                use vnet_hdr=off to avoid enabling the IFF_VNET_HDR tap flag\n"
     "                use vnet_hdr=on to make the lack of IFF_VNET_HDR support an error condition\n"
     "                use vhost=on to enable experimental in kernel accelerator\n"
