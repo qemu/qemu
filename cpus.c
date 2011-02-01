@@ -34,9 +34,6 @@
 
 #include "cpus.h"
 #include "compatfd.h"
-#ifdef CONFIG_LINUX
-#include <sys/prctl.h>
-#endif
 
 #ifdef SIGRTMIN
 #define SIG_IPI (SIGRTMIN+4)
@@ -44,9 +41,23 @@
 #define SIG_IPI SIGUSR1
 #endif
 
+#ifdef CONFIG_LINUX
+
+#include <sys/prctl.h>
+
 #ifndef PR_MCE_KILL
 #define PR_MCE_KILL 33
 #endif
+
+#ifndef PR_MCE_KILL_SET
+#define PR_MCE_KILL_SET 1
+#endif
+
+#ifndef PR_MCE_KILL_EARLY
+#define PR_MCE_KILL_EARLY 1
+#endif
+
+#endif /* CONFIG_LINUX */
 
 static CPUState *next_cpu;
 
@@ -157,6 +168,52 @@ static void cpu_debug_handler(CPUState *env)
     debug_requested = EXCP_DEBUG;
     vm_stop(EXCP_DEBUG);
 }
+
+#ifdef CONFIG_LINUX
+static void sigbus_reraise(void)
+{
+    sigset_t set;
+    struct sigaction action;
+
+    memset(&action, 0, sizeof(action));
+    action.sa_handler = SIG_DFL;
+    if (!sigaction(SIGBUS, &action, NULL)) {
+        raise(SIGBUS);
+        sigemptyset(&set);
+        sigaddset(&set, SIGBUS);
+        sigprocmask(SIG_UNBLOCK, &set, NULL);
+    }
+    perror("Failed to re-raise SIGBUS!\n");
+    abort();
+}
+
+static void sigbus_handler(int n, struct qemu_signalfd_siginfo *siginfo,
+                           void *ctx)
+{
+    if (kvm_on_sigbus(siginfo->ssi_code,
+                      (void *)(intptr_t)siginfo->ssi_addr)) {
+        sigbus_reraise();
+    }
+}
+
+static void qemu_init_sigbus(void)
+{
+    struct sigaction action;
+
+    memset(&action, 0, sizeof(action));
+    action.sa_flags = SA_SIGINFO;
+    action.sa_sigaction = (void (*)(int, siginfo_t*, void*))sigbus_handler;
+    sigaction(SIGBUS, &action, NULL);
+
+    prctl(PR_MCE_KILL, PR_MCE_KILL_SET, PR_MCE_KILL_EARLY, 0, 0);
+}
+
+#else /* !CONFIG_LINUX */
+
+static void qemu_init_sigbus(void)
+{
+}
+#endif /* !CONFIG_LINUX */
 
 #ifndef _WIN32
 static int io_thread_fd = -1;
@@ -280,8 +337,6 @@ static int qemu_signalfd_init(sigset_t mask)
     return 0;
 }
 
-static void sigbus_reraise(void);
-
 static void qemu_kvm_eat_signals(CPUState *env)
 {
     struct timespec ts = { 0, 0 };
@@ -302,13 +357,11 @@ static void qemu_kvm_eat_signals(CPUState *env)
         }
 
         switch (r) {
-#ifdef CONFIG_IOTHREAD
         case SIGBUS:
             if (kvm_on_sigbus_vcpu(env, siginfo.si_code, siginfo.si_addr)) {
                 sigbus_reraise();
             }
             break;
-#endif
         default:
             break;
         }
@@ -397,6 +450,7 @@ static sigset_t block_synchronous_signals(void)
     sigset_t set;
 
     sigemptyset(&set);
+    sigaddset(&set, SIGBUS);
     if (kvm_enabled()) {
         /*
          * We need to process timer signals synchronously to avoid a race
@@ -424,6 +478,8 @@ int qemu_init_main_loop(void)
     }
 #endif
     cpu_set_debug_excp_handler(cpu_debug_handler);
+
+    qemu_init_sigbus();
 
     return qemu_event_init();
 }
@@ -561,13 +617,9 @@ static void qemu_tcg_init_cpu_signals(void)
     pthread_sigmask(SIG_UNBLOCK, &set, NULL);
 }
 
-static void sigbus_handler(int n, struct qemu_signalfd_siginfo *siginfo,
-                           void *ctx);
-
 static sigset_t block_io_signals(void)
 {
     sigset_t set;
-    struct sigaction action;
 
     /* SIGUSR2 used by posix-aio-compat.c */
     sigemptyset(&set);
@@ -581,12 +633,6 @@ static sigset_t block_io_signals(void)
     sigaddset(&set, SIGBUS);
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 
-    memset(&action, 0, sizeof(action));
-    action.sa_flags = SA_SIGINFO;
-    action.sa_sigaction = (void (*)(int, siginfo_t*, void*))sigbus_handler;
-    sigaction(SIGBUS, &action, NULL);
-    prctl(PR_MCE_KILL, 1, 1, 0, 0);
-
     return set;
 }
 
@@ -596,6 +642,8 @@ int qemu_init_main_loop(void)
     sigset_t blocked_signals;
 
     cpu_set_debug_excp_handler(cpu_debug_handler);
+
+    qemu_init_sigbus();
 
     blocked_signals = block_io_signals();
 
@@ -701,31 +749,6 @@ static void qemu_tcg_wait_io_event(void)
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
         qemu_wait_io_event_common(env);
-    }
-}
-
-static void sigbus_reraise(void)
-{
-    sigset_t set;
-    struct sigaction action;
-
-    memset(&action, 0, sizeof(action));
-    action.sa_handler = SIG_DFL;
-    if (!sigaction(SIGBUS, &action, NULL)) {
-        raise(SIGBUS);
-        sigemptyset(&set);
-        sigaddset(&set, SIGBUS);
-        sigprocmask(SIG_UNBLOCK, &set, NULL);
-    }
-    perror("Failed to re-raise SIGBUS!\n");
-    abort();
-}
-
-static void sigbus_handler(int n, struct qemu_signalfd_siginfo *siginfo,
-                           void *ctx)
-{
-    if (kvm_on_sigbus(siginfo->ssi_code, (void *)(intptr_t)siginfo->ssi_addr)) {
-        sigbus_reraise();
     }
 }
 
