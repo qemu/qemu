@@ -23,6 +23,22 @@ static struct BusInfo usb_bus_info = {
 static int next_usb_bus = 0;
 static QTAILQ_HEAD(, USBBus) busses = QTAILQ_HEAD_INITIALIZER(busses);
 
+const VMStateDescription vmstate_usb_device = {
+    .name = "USBDevice",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField []) {
+        VMSTATE_UINT8(addr, USBDevice),
+        VMSTATE_INT32(state, USBDevice),
+        VMSTATE_INT32(remote_wakeup, USBDevice),
+        VMSTATE_INT32(setup_state, USBDevice),
+        VMSTATE_INT32(setup_len, USBDevice),
+        VMSTATE_INT32(setup_index, USBDevice),
+        VMSTATE_UINT8_ARRAY(setup_buf, USBDevice, 8),
+        VMSTATE_END_OF_LIST(),
+    }
+};
+
 void usb_bus_new(USBBus *bus, DeviceState *host)
 {
     qbus_create_inplace(&bus->qbus, &usb_bus_info, host, NULL);
@@ -282,20 +298,22 @@ static char *usb_get_fw_dev_path(DeviceState *qdev)
 {
     USBDevice *dev = DO_UPCAST(USBDevice, qdev, qdev);
     char *fw_path, *in;
-    int pos = 0;
+    ssize_t pos = 0, fw_len;
     long nr;
 
-    fw_path = qemu_malloc(32 + strlen(dev->port->path) * 6);
+    fw_len = 32 + strlen(dev->port->path) * 6;
+    fw_path = qemu_malloc(fw_len);
     in = dev->port->path;
-    while (true) {
+    while (fw_len - pos > 0) {
         nr = strtol(in, &in, 10);
         if (in[0] == '.') {
             /* some hub between root port and device */
-            pos += sprintf(fw_path + pos, "hub@%ld/", nr);
+            pos += snprintf(fw_path + pos, fw_len - pos, "hub@%ld/", nr);
             in++;
         } else {
             /* the device itself */
-            pos += sprintf(fw_path + pos, "%s@%ld", qdev_fw_name(qdev), nr);
+            pos += snprintf(fw_path + pos, fw_len - pos, "%s@%ld",
+                            qdev_fw_name(qdev), nr);
             break;
         }
     }

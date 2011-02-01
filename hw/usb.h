@@ -165,13 +165,13 @@ struct USBDevice {
     int auto_attach;
     int attached;
 
-    int state;
+    int32_t state;
     uint8_t setup_buf[8];
     uint8_t data_buf[1024];
-    int remote_wakeup;
-    int setup_state;
-    int setup_len;
-    int setup_index;
+    int32_t remote_wakeup;
+    int32_t setup_state;
+    int32_t setup_len;
+    int32_t setup_index;
 
     QLIST_HEAD(, USBDescString) strings;
     const USBDescDevice *device;
