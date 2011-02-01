@@ -47,6 +47,7 @@ static void check_cmd(AHCIState *s, int port);
 static int handle_cmd(AHCIState *s,int port,int slot);
 static void ahci_reset_port(AHCIState *s, int port);
 static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis);
+static void ahci_init_d2h(AHCIDevice *ad);
 
 static uint32_t  ahci_port_read(AHCIState *s, int port, int offset)
 {
@@ -228,6 +229,16 @@ static void  ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
 
             if (pr->cmd & PORT_CMD_FIS_RX) {
                 pr->cmd |= PORT_CMD_FIS_ON;
+            }
+
+            /* XXX usually the FIS would be pending on the bus here and
+                   issuing deferred until the OS enables FIS receival.
+                   Instead, we only submit it once - which works in most
+                   cases, but is a hack. */
+            if ((pr->cmd & PORT_CMD_FIS_ON) &&
+                !s->dev[port].init_d2h_sent) {
+                ahci_init_d2h(&s->dev[port]);
+                s->dev[port].init_d2h_sent = 1;
             }
 
             check_cmd(s, port);
@@ -462,12 +473,29 @@ static void ahci_check_cmd_bh(void *opaque)
     check_cmd(ad->hba, ad->port_no);
 }
 
+static void ahci_init_d2h(AHCIDevice *ad)
+{
+    uint8_t init_fis[0x20];
+    IDEState *ide_state = &ad->port.ifs[0];
+
+    memset(init_fis, 0, sizeof(init_fis));
+
+    init_fis[4] = 1;
+    init_fis[12] = 1;
+
+    if (ide_state->drive_kind == IDE_CD) {
+        init_fis[5] = ide_state->lcyl;
+        init_fis[6] = ide_state->hcyl;
+    }
+
+    ahci_write_fis_d2h(ad, init_fis);
+}
+
 static void ahci_reset_port(AHCIState *s, int port)
 {
     AHCIDevice *d = &s->dev[port];
     AHCIPortRegs *pr = &d->port_regs;
     IDEState *ide_state = &d->port.ifs[0];
-    uint8_t init_fis[0x20];
     int i;
 
     DPRINTF(port, "reset port\n");
@@ -482,6 +510,7 @@ static void ahci_reset_port(AHCIState *s, int port)
     pr->scr_err = 0;
     pr->scr_act = 0;
     d->busy_slot = -1;
+    d->init_d2h_sent = 0;
 
     ide_state = &s->dev[port].port.ifs[0];
     if (!ide_state->bs) {
@@ -504,7 +533,6 @@ static void ahci_reset_port(AHCIState *s, int port)
         ncq_tfs->used = 0;
     }
 
-    memset(init_fis, 0, sizeof(init_fis));
     s->dev[port].port_state = STATE_RUN;
     if (!ide_state->bs) {
         s->dev[port].port_regs.sig = 0;
@@ -514,8 +542,6 @@ static void ahci_reset_port(AHCIState *s, int port)
         ide_state->lcyl = 0x14;
         ide_state->hcyl = 0xeb;
         DPRINTF(port, "set lcyl = %d\n", ide_state->lcyl);
-        init_fis[5] = ide_state->lcyl;
-        init_fis[6] = ide_state->hcyl;
         ide_state->status = SEEK_STAT | WRERR_STAT | READY_STAT;
     } else {
         s->dev[port].port_regs.sig = SATA_SIGNATURE_DISK;
@@ -523,9 +549,7 @@ static void ahci_reset_port(AHCIState *s, int port)
     }
 
     ide_state->error = 1;
-    init_fis[4] = 1;
-    init_fis[12] = 1;
-    ahci_write_fis_d2h(d, init_fis);
+    ahci_init_d2h(d);
 }
 
 static void debug_print_fis(uint8_t *fis, int cmd_len)
