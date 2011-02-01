@@ -603,8 +603,8 @@ static void *kvm_cpu_thread_fn(void *arg)
 
     qemu_mutex_lock(&qemu_global_mutex);
     qemu_thread_self(env->thread);
-    if (kvm_enabled())
-        kvm_init_vcpu(env);
+
+    kvm_init_vcpu(env);
 
     kvm_init_ipi(env);
 
