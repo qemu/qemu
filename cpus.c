@@ -307,6 +307,7 @@ void qemu_notify_event(void)
     if (next_cpu && env != next_cpu) {
         cpu_exit(next_cpu);
     }
+    exit_request = 1;
 }
 
 void qemu_mutex_lock_iothread(void) {}
