@@ -103,9 +103,8 @@ typedef struct model_features_t {
 int check_cpuid = 0;
 int enforce_cpuid = 0;
 
-static void host_cpuid(uint32_t function, uint32_t count,
-                       uint32_t *eax, uint32_t *ebx,
-                       uint32_t *ecx, uint32_t *edx)
+void host_cpuid(uint32_t function, uint32_t count,
+                uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx)
 {
 #if defined(CONFIG_KVM)
     uint32_t vec[4];

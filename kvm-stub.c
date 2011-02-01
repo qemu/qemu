@@ -58,7 +58,7 @@ int kvm_check_extension(KVMState *s, unsigned int extension)
     return 0;
 }
 
-int kvm_init(int smp_cpus)
+int kvm_init(void)
 {
     return -ENOSYS;
 }

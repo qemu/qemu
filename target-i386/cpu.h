@@ -699,6 +699,10 @@ typedef struct CPUX86State {
     uint32_t smbase;
     int old_exception;  /* exception in flight */
 
+    /* KVM states, automatically cleared on reset */
+    uint8_t nmi_injected;
+    uint8_t nmi_pending;
+
     CPU_COMMON
 
     /* processor features (e.g. for CPUID insn) */
@@ -726,8 +730,6 @@ typedef struct CPUX86State {
     int32_t exception_injected;
     int32_t interrupt_injected;
     uint8_t soft_interrupt;
-    uint8_t nmi_injected;
-    uint8_t nmi_pending;
     uint8_t has_error_code;
     uint32_t sipi_vector;
     uint32_t cpuid_kvm_features;
@@ -760,6 +762,7 @@ int cpu_x86_exec(CPUX86State *s);
 void cpu_x86_close(CPUX86State *s);
 void x86_cpu_list (FILE *f, fprintf_function cpu_fprintf, const char *optarg);
 void x86_cpudef_setup(void);
+int cpu_x86_support_mca_broadcast(CPUState *env);
 
 int cpu_get_pic_interrupt(CPUX86State *s);
 /* MSDOS compatibility mode FPU exception support */
@@ -873,6 +876,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                    uint32_t *ecx, uint32_t *edx);
 int cpu_x86_register (CPUX86State *env, const char *cpu_model);
 void cpu_clear_apic_feature(CPUX86State *env);
+void host_cpuid(uint32_t function, uint32_t count,
+                uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx);
 
 /* helper.c */
 int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,

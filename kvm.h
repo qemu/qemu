@@ -32,9 +32,17 @@ extern int kvm_allowed;
 
 struct kvm_run;
 
+typedef struct KVMCapabilityInfo {
+    const char *name;
+    int value;
+} KVMCapabilityInfo;
+
+#define KVM_CAP_INFO(CAP) { "KVM_CAP_" stringify(CAP), KVM_CAP_##CAP }
+#define KVM_CAP_LAST_INFO { NULL, 0 }
+
 /* external API */
 
-int kvm_init(int smp_cpus);
+int kvm_init(void);
 
 int kvm_has_sync_mmu(void);
 int kvm_has_vcpu_events(void);
@@ -86,6 +94,8 @@ int kvm_vcpu_ioctl(CPUState *env, int type, ...);
 
 /* Arch specific hooks */
 
+extern const KVMCapabilityInfo kvm_arch_required_capabilities[];
+
 int kvm_arch_post_run(CPUState *env, struct kvm_run *run);
 
 int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run);
@@ -105,7 +115,7 @@ int kvm_arch_get_registers(CPUState *env);
 
 int kvm_arch_put_registers(CPUState *env, int level);
 
-int kvm_arch_init(KVMState *s, int smp_cpus);
+int kvm_arch_init(KVMState *s);
 
 int kvm_arch_init_vcpu(CPUState *env);
 

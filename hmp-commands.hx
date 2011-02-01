@@ -1152,9 +1152,9 @@ ETEXI
 
     {
         .name       = "mce",
-        .args_type  = "cpu_index:i,bank:i,status:l,mcg_status:l,addr:l,misc:l",
-        .params     = "cpu bank status mcgstatus addr misc",
-        .help       = "inject a MCE on the given CPU",
+        .args_type  = "broadcast:-b,cpu_index:i,bank:i,status:l,mcg_status:l,addr:l,misc:l",
+        .params     = "[-b] cpu bank status mcgstatus addr misc",
+        .help       = "inject a MCE on the given CPU [and broadcast to other CPUs with -b option]",
         .mhandler.cmd = do_inject_mce,
     },
 

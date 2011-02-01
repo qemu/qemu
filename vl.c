@@ -2860,7 +2860,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (kvm_allowed) {
-        int ret = kvm_init(smp_cpus);
+        int ret = kvm_init();
         if (ret < 0) {
             if (!kvm_available()) {
                 printf("KVM not supported for this target\n");
