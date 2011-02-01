@@ -199,7 +199,6 @@ int kvm_pit_in_kernel(void)
     return kvm_state->pit_in_kernel;
 }
 
-
 int kvm_init_vcpu(CPUState *env)
 {
     KVMState *s = kvm_state;
@@ -896,29 +895,33 @@ int kvm_cpu_exec(CPUState *env)
 
     DPRINTF("kvm_cpu_exec()\n");
 
+    if (kvm_arch_process_irqchip_events(env)) {
+        env->exit_request = 0;
+        env->exception_index = EXCP_HLT;
+        return 0;
+    }
+
     do {
-#ifndef CONFIG_IOTHREAD
-        if (env->exit_request) {
-            DPRINTF("interrupt exit requested\n");
-            ret = 0;
-            break;
-        }
-#endif
-
-        if (kvm_arch_process_irqchip_events(env)) {
-            ret = 0;
-            break;
-        }
-
         if (env->kvm_vcpu_dirty) {
             kvm_arch_put_registers(env, KVM_PUT_RUNTIME_STATE);
             env->kvm_vcpu_dirty = 0;
         }
 
         kvm_arch_pre_run(env, run);
+        if (env->exit_request) {
+            DPRINTF("interrupt exit requested\n");
+            /*
+             * KVM requires us to reenter the kernel after IO exits to complete
+             * instruction emulation. This self-signal will ensure that we
+             * leave ASAP again.
+             */
+            qemu_cpu_kick_self();
+        }
         cpu_single_env = NULL;
         qemu_mutex_unlock_iothread();
+
         ret = kvm_vcpu_ioctl(env, KVM_RUN, 0);
+
         qemu_mutex_lock_iothread();
         cpu_single_env = env;
         kvm_arch_post_run(env, run);

@@ -1426,6 +1426,11 @@ int kvm_arch_get_registers(CPUState *env)
 
 int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
 {
+    /* Force the VCPU out of its inner loop to process the INIT request */
+    if (env->interrupt_request & CPU_INTERRUPT_INIT) {
+        env->exit_request = 1;
+    }
+
     /* Inject NMI */
     if (env->interrupt_request & CPU_INTERRUPT_NMI) {
         env->interrupt_request &= ~CPU_INTERRUPT_NMI;
