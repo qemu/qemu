@@ -100,7 +100,7 @@ static int pci_ich9_ahci_init(PCIDevice *dev)
 
     msi_init(dev, 0x50, 1, true, false);
 
-    ahci_init(&d->ahci, &dev->qdev);
+    ahci_init(&d->ahci, &dev->qdev, 6);
     d->ahci.irq = d->card.irq[0];
 
     return 0;
@@ -116,6 +116,7 @@ static int pci_ich9_uninit(PCIDevice *dev)
     }
 
     qemu_unregister_reset(ahci_reset, d);
+    ahci_uninit(&d->ahci);
 
     return 0;
 }

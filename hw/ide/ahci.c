@@ -145,7 +145,7 @@ static void ahci_check_irq(AHCIState *s)
 
     DPRINTF(-1, "check irq %#x\n", s->control_regs.irqstatus);
 
-    for (i = 0; i < SATA_PORTS; i++) {
+    for (i = 0; i < s->ports; i++) {
         AHCIPortRegs *pr = &s->dev[i].port_regs;
         if (pr->irq_stat & pr->irq_mask) {
             s->control_regs.irqstatus |= (1 << i);
@@ -303,7 +303,8 @@ static uint32_t ahci_mem_readl(void *ptr, target_phys_addr_t addr)
 
         DPRINTF(-1, "(addr 0x%08X), val 0x%08X\n", (unsigned) addr, val);
     } else if ((addr >= AHCI_PORT_REGS_START_ADDR) &&
-               (addr < AHCI_PORT_REGS_END_ADDR)) {
+               (addr < (AHCI_PORT_REGS_START_ADDR +
+                (s->ports * AHCI_PORT_ADDR_OFFSET_LEN)))) {
         val = ahci_port_read(s, (addr - AHCI_PORT_REGS_START_ADDR) >> 7,
                              addr & AHCI_PORT_ADDR_OFFSET_MASK);
     }
@@ -355,7 +356,8 @@ static void ahci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
                 DPRINTF(-1, "write to unknown register 0x%x\n", (unsigned)addr);
         }
     } else if ((addr >= AHCI_PORT_REGS_START_ADDR) &&
-               (addr < AHCI_PORT_REGS_END_ADDR)) {
+               (addr < (AHCI_PORT_REGS_START_ADDR +
+                (s->ports * AHCI_PORT_ADDR_OFFSET_LEN)))) {
         ahci_port_write(s, (addr - AHCI_PORT_REGS_START_ADDR) >> 7,
                         addr & AHCI_PORT_ADDR_OFFSET_MASK, val);
     }
@@ -378,16 +380,16 @@ static void ahci_reg_init(AHCIState *s)
 {
     int i;
 
-    s->control_regs.cap = (SATA_PORTS - 1) |
+    s->control_regs.cap = (s->ports - 1) |
                           (AHCI_NUM_COMMAND_SLOTS << 8) |
                           (AHCI_SUPPORTED_SPEED_GEN1 << AHCI_SUPPORTED_SPEED) |
                           HOST_CAP_NCQ | HOST_CAP_AHCI;
 
-    s->control_regs.impl = (1 << SATA_PORTS) - 1;
+    s->control_regs.impl = (1 << s->ports) - 1;
 
     s->control_regs.version = AHCI_VERSION_1_0;
 
-    for (i = 0; i < SATA_PORTS; i++) {
+    for (i = 0; i < s->ports; i++) {
         s->dev[i].port_state = STATE_RUN;
     }
 }
@@ -1096,17 +1098,19 @@ static const IDEDMAOps ahci_dma_ops = {
     .reset = ahci_dma_reset,
 };
 
-void ahci_init(AHCIState *s, DeviceState *qdev)
+void ahci_init(AHCIState *s, DeviceState *qdev, int ports)
 {
     qemu_irq *irqs;
     int i;
 
+    s->ports = ports;
+    s->dev = qemu_mallocz(sizeof(AHCIDevice) * ports);
     ahci_reg_init(s);
     s->mem = cpu_register_io_memory(ahci_readfn, ahci_writefn, s,
                                     DEVICE_LITTLE_ENDIAN);
-    irqs = qemu_allocate_irqs(ahci_irq_set, s, SATA_PORTS);
+    irqs = qemu_allocate_irqs(ahci_irq_set, s, s->ports);
 
-    for (i = 0; i < SATA_PORTS; i++) {
+    for (i = 0; i < s->ports; i++) {
         AHCIDevice *ad = &s->dev[i];
 
         ide_bus_new(&ad->port, qdev, i);
@@ -1118,6 +1122,11 @@ void ahci_init(AHCIState *s, DeviceState *qdev)
         ad->port.dma->ops = &ahci_dma_ops;
         ad->port_regs.cmd = PORT_CMD_SPIN_UP | PORT_CMD_POWER_ON;
     }
+}
+
+void ahci_uninit(AHCIState *s)
+{
+    qemu_free(s->dev);
 }
 
 void ahci_pci_map(PCIDevice *pci_dev, int region_num,
@@ -1137,7 +1146,7 @@ void ahci_reset(void *opaque)
     d->ahci.control_regs.irqstatus = 0;
     d->ahci.control_regs.ghc = 0;
 
-    for (i = 0; i < SATA_PORTS; i++) {
+    for (i = 0; i < d->ahci.ports; i++) {
         ahci_reset_port(&d->ahci, i);
     }
 }
