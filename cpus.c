@@ -319,6 +319,12 @@ static void qemu_kvm_eat_signals(CPUState *env)
             exit(1);
         }
     } while (sigismember(&chkset, SIG_IPI) || sigismember(&chkset, SIGBUS));
+
+#ifndef CONFIG_IOTHREAD
+    if (sigismember(&chkset, SIGIO) || sigismember(&chkset, SIGALRM)) {
+        qemu_notify_event();
+    }
+#endif
 }
 
 #else /* _WIN32 */
@@ -368,11 +374,15 @@ static void qemu_kvm_init_cpu_signals(CPUState *env)
 
     sigemptyset(&set);
     sigaddset(&set, SIG_IPI);
+    sigaddset(&set, SIGIO);
+    sigaddset(&set, SIGALRM);
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 
     pthread_sigmask(SIG_BLOCK, NULL, &set);
     sigdelset(&set, SIG_IPI);
     sigdelset(&set, SIGBUS);
+    sigdelset(&set, SIGIO);
+    sigdelset(&set, SIGALRM);
     r = kvm_set_signal_mask(env, &set);
     if (r) {
         fprintf(stderr, "kvm_set_signal_mask: %s\n", strerror(-r));
@@ -381,13 +391,32 @@ static void qemu_kvm_init_cpu_signals(CPUState *env)
 #endif
 }
 
+#ifndef _WIN32
+static sigset_t block_synchronous_signals(void)
+{
+    sigset_t set;
+
+    sigemptyset(&set);
+    if (kvm_enabled()) {
+        /*
+         * We need to process timer signals synchronously to avoid a race
+         * between exit_request check and KVM vcpu entry.
+         */
+        sigaddset(&set, SIGIO);
+        sigaddset(&set, SIGALRM);
+    }
+
+    return set;
+}
+#endif
+
 int qemu_init_main_loop(void)
 {
 #ifndef _WIN32
     sigset_t blocked_signals;
     int ret;
 
-    sigemptyset(&blocked_signals);
+    blocked_signals = block_synchronous_signals();
 
     ret = qemu_signalfd_init(blocked_signals);
     if (ret) {
