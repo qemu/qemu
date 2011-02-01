@@ -529,6 +529,17 @@ void qemu_cpu_kick(void *env)
     return;
 }
 
+void qemu_cpu_kick_self(void)
+{
+#ifndef _WIN32
+    assert(cpu_single_env);
+
+    raise(SIG_IPI);
+#else
+    abort();
+#endif
+}
+
 void qemu_notify_event(void)
 {
     CPUState *env = cpu_single_env;
@@ -828,6 +839,16 @@ void qemu_cpu_kick(void *_env)
     if (!env->thread_kicked) {
         qemu_thread_signal(env->thread, SIG_IPI);
         env->thread_kicked = true;
+    }
+}
+
+void qemu_cpu_kick_self(void)
+{
+    assert(cpu_single_env);
+
+    if (!cpu_single_env->thread_kicked) {
+        qemu_thread_signal(cpu_single_env->thread, SIG_IPI);
+        cpu_single_env->thread_kicked = true;
     }
 }
 
