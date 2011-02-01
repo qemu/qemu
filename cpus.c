@@ -227,6 +227,59 @@ static void dummy_signal(int sig)
 {
 }
 
+/* If we have signalfd, we mask out the signals we want to handle and then
+ * use signalfd to listen for them.  We rely on whatever the current signal
+ * handler is to dispatch the signals when we receive them.
+ */
+static void sigfd_handler(void *opaque)
+{
+    int fd = (unsigned long) opaque;
+    struct qemu_signalfd_siginfo info;
+    struct sigaction action;
+    ssize_t len;
+
+    while (1) {
+        do {
+            len = read(fd, &info, sizeof(info));
+        } while (len == -1 && errno == EINTR);
+
+        if (len == -1 && errno == EAGAIN) {
+            break;
+        }
+
+        if (len != sizeof(info)) {
+            printf("read from sigfd returned %zd: %m\n", len);
+            return;
+        }
+
+        sigaction(info.ssi_signo, NULL, &action);
+        if ((action.sa_flags & SA_SIGINFO) && action.sa_sigaction) {
+            action.sa_sigaction(info.ssi_signo,
+                                (siginfo_t *)&info, NULL);
+        } else if (action.sa_handler) {
+            action.sa_handler(info.ssi_signo);
+        }
+    }
+}
+
+static int qemu_signalfd_init(sigset_t mask)
+{
+    int sigfd;
+
+    sigfd = qemu_signalfd(&mask);
+    if (sigfd == -1) {
+        fprintf(stderr, "failed to create signalfd\n");
+        return -errno;
+    }
+
+    fcntl_setfl(sigfd, O_NONBLOCK);
+
+    qemu_set_fd_handler2(sigfd, NULL, sigfd_handler, NULL,
+                         (void *)(unsigned long) sigfd);
+
+    return 0;
+}
+
 static void sigbus_reraise(void);
 
 static void qemu_kvm_eat_signals(CPUState *env)
@@ -330,6 +383,17 @@ static void qemu_kvm_init_cpu_signals(CPUState *env)
 
 int qemu_init_main_loop(void)
 {
+#ifndef _WIN32
+    sigset_t blocked_signals;
+    int ret;
+
+    sigemptyset(&blocked_signals);
+
+    ret = qemu_signalfd_init(blocked_signals);
+    if (ret) {
+        return ret;
+    }
+#endif
     cpu_set_debug_excp_handler(cpu_debug_handler);
 
     return qemu_event_init();
@@ -426,41 +490,6 @@ static QemuCond qemu_system_cond;
 static QemuCond qemu_pause_cond;
 static QemuCond qemu_work_cond;
 
-/* If we have signalfd, we mask out the signals we want to handle and then
- * use signalfd to listen for them.  We rely on whatever the current signal
- * handler is to dispatch the signals when we receive them.
- */
-static void sigfd_handler(void *opaque)
-{
-    int fd = (unsigned long) opaque;
-    struct qemu_signalfd_siginfo info;
-    struct sigaction action;
-    ssize_t len;
-
-    while (1) {
-        do {
-            len = read(fd, &info, sizeof(info));
-        } while (len == -1 && errno == EINTR);
-
-        if (len == -1 && errno == EAGAIN) {
-            break;
-        }
-
-        if (len != sizeof(info)) {
-            printf("read from sigfd returned %zd: %m\n", len);
-            return;
-        }
-
-        sigaction(info.ssi_signo, NULL, &action);
-        if ((action.sa_flags & SA_SIGINFO) && action.sa_sigaction) {
-            action.sa_sigaction(info.ssi_signo,
-                                (siginfo_t *)&info, NULL);
-        } else if (action.sa_handler) {
-            action.sa_handler(info.ssi_signo);
-        }
-    }
-}
-
 static void cpu_signal(int sig)
 {
     if (cpu_single_env) {
@@ -530,24 +559,6 @@ static sigset_t block_io_signals(void)
     prctl(PR_MCE_KILL, 1, 1, 0, 0);
 
     return set;
-}
-
-static int qemu_signalfd_init(sigset_t mask)
-{
-    int sigfd;
-
-    sigfd = qemu_signalfd(&mask);
-    if (sigfd == -1) {
-        fprintf(stderr, "failed to create signalfd\n");
-        return -errno;
-    }
-
-    fcntl_setfl(sigfd, O_NONBLOCK);
-
-    qemu_set_fd_handler2(sigfd, NULL, sigfd_handler, NULL,
-                         (void *)(unsigned long) sigfd);
-
-    return 0;
 }
 
 int qemu_init_main_loop(void)
