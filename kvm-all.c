@@ -1366,3 +1366,13 @@ int kvm_set_ioeventfd_pio_word(int fd, uint16_t addr, uint16_t val, bool assign)
     return -ENOSYS;
 #endif
 }
+
+int kvm_on_sigbus_vcpu(CPUState *env, int code, void *addr)
+{
+    return kvm_arch_on_sigbus_vcpu(env, code, addr);
+}
+
+int kvm_on_sigbus(int code, void *addr)
+{
+    return kvm_arch_on_sigbus(code, addr);
+}

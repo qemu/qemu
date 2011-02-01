@@ -404,3 +404,13 @@ bool kvm_arch_stop_on_emulation_error(CPUState *env)
 {
     return true;
 }
+
+int kvm_arch_on_sigbus_vcpu(CPUState *env, int code, void *addr)
+{
+    return 1;
+}
+
+int kvm_arch_on_sigbus(int code, void *addr)
+{
+    return 1;
+}

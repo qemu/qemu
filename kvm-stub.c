@@ -147,6 +147,11 @@ int kvm_set_ioeventfd_mmio_long(int fd, uint32_t adr, uint32_t val, bool assign)
     return -ENOSYS;
 }
 
+int kvm_on_sigbus_vcpu(CPUState *env, int code, void *addr)
+{
+    return 1;
+}
+
 int kvm_on_sigbus(int code, void *addr)
 {
     return 1;

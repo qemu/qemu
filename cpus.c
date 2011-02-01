@@ -539,10 +539,9 @@ static void sigbus_reraise(void)
 static void sigbus_handler(int n, struct qemu_signalfd_siginfo *siginfo,
                            void *ctx)
 {
-#if defined(TARGET_I386)
-    if (kvm_on_sigbus(siginfo->ssi_code, (void *)(intptr_t)siginfo->ssi_addr))
-#endif
+    if (kvm_on_sigbus(siginfo->ssi_code, (void *)(intptr_t)siginfo->ssi_addr)) {
         sigbus_reraise();
+    }
 }
 
 static void qemu_kvm_eat_signal(CPUState *env, int timeout)
@@ -575,10 +574,9 @@ static void qemu_kvm_eat_signal(CPUState *env, int timeout)
 
         switch (r) {
         case SIGBUS:
-#ifdef TARGET_I386
-            if (kvm_on_sigbus_vcpu(env, siginfo.si_code, siginfo.si_addr))
-#endif
+            if (kvm_on_sigbus_vcpu(env, siginfo.si_code, siginfo.si_addr)) {
                 sigbus_reraise();
+            }
             break;
         default:
             break;

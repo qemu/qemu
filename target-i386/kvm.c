@@ -1839,7 +1839,7 @@ static void kvm_mce_inj_srao_memscrub2(CPUState *env, target_phys_addr_t paddr)
 
 #endif
 
-int kvm_on_sigbus_vcpu(CPUState *env, int code, void *addr)
+int kvm_arch_on_sigbus_vcpu(CPUState *env, int code, void *addr)
 {
 #if defined(KVM_CAP_MCE)
     void *vaddr;
@@ -1889,7 +1889,7 @@ int kvm_on_sigbus_vcpu(CPUState *env, int code, void *addr)
     return 0;
 }
 
-int kvm_on_sigbus(int code, void *addr)
+int kvm_arch_on_sigbus(int code, void *addr)
 {
 #if defined(KVM_CAP_MCE)
     if ((first_cpu->mcg_cap & MCG_SER_P) && addr && code == BUS_MCEERR_AO) {
