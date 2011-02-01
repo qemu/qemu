@@ -312,6 +312,10 @@ void qemu_notify_event(void)
 void qemu_mutex_lock_iothread(void) {}
 void qemu_mutex_unlock_iothread(void) {}
 
+void cpu_stop_current(void)
+{
+}
+
 void vm_stop(int reason)
 {
     do_vm_stop(reason);
@@ -852,6 +856,14 @@ static void qemu_system_vmstop_request(int reason)
     qemu_notify_event();
 }
 
+void cpu_stop_current(void)
+{
+    if (cpu_single_env) {
+        cpu_single_env->stopped = 1;
+        cpu_exit(cpu_single_env);
+    }
+}
+
 void vm_stop(int reason)
 {
     QemuThread me;
@@ -863,10 +875,7 @@ void vm_stop(int reason)
          * FIXME: should not return to device code in case
          * vm_stop() has been requested.
          */
-        if (cpu_single_env) {
-            cpu_exit(cpu_single_env);
-            cpu_single_env->stop = 1;
-        }
+        cpu_stop_current();
         return;
     }
     do_vm_stop(reason);

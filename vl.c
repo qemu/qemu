@@ -1296,6 +1296,7 @@ void qemu_system_reset_request(void)
     } else {
         reset_requested = 1;
     }
+    cpu_stop_current();
     qemu_notify_event();
 }
 
