@@ -1817,9 +1817,10 @@ struct target_sigcontext {
 /* A Sparc stack frame */
 struct sparc_stackf {
         abi_ulong locals[8];
-        abi_ulong ins[6];
-        struct sparc_stackf *fp;
-        abi_ulong callers_pc;
+        abi_ulong ins[8];
+        /* It's simpler to treat fp and callers_pc as elements of ins[]
+         * since we never need to access them ourselves.
+         */
         char *structptr;
         abi_ulong xargs[6];
         abi_ulong xxargs[1];
