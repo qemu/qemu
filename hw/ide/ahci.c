@@ -335,7 +335,7 @@ static void ahci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
             case HOST_CTL: /* R/W */
                 if (val & HOST_CTL_RESET) {
                     DPRINTF(-1, "HBA Reset\n");
-                    /* FIXME reset? */
+                    ahci_reset(container_of(s, AHCIPCIState, ahci));
                 } else {
                     s->control_regs.ghc = (val & 0x3) | HOST_CTL_AHCI_EN;
                     ahci_check_irq(s);
@@ -1133,6 +1133,9 @@ void ahci_reset(void *opaque)
 {
     struct AHCIPCIState *d = opaque;
     int i;
+
+    d->ahci.control_regs.irqstatus = 0;
+    d->ahci.control_regs.ghc = 0;
 
     for (i = 0; i < SATA_PORTS; i++) {
         ahci_reset_port(&d->ahci, i);
