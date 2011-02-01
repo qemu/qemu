@@ -481,6 +481,7 @@ static void qemu_wait_io_event_common(CPUState *env)
         qemu_cond_signal(&qemu_pause_cond);
     }
     flush_queued_work(env);
+    env->thread_kicked = false;
 }
 
 static void qemu_tcg_wait_io_event(void)
@@ -648,7 +649,10 @@ void qemu_cpu_kick(void *_env)
 {
     CPUState *env = _env;
     qemu_cond_broadcast(env->halt_cond);
-    qemu_thread_signal(env->thread, SIG_IPI);
+    if (!env->thread_kicked) {
+        qemu_thread_signal(env->thread, SIG_IPI);
+        env->thread_kicked = true;
+    }
 }
 
 int qemu_cpu_self(void *_env)
