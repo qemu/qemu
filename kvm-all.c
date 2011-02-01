@@ -963,7 +963,6 @@ int kvm_cpu_exec(CPUState *env)
         case KVM_EXIT_SHUTDOWN:
             DPRINTF("shutdown\n");
             qemu_system_reset_request();
-            ret = 1;
             break;
         case KVM_EXIT_UNKNOWN:
             fprintf(stderr, "KVM: unknown exit, hardware reason %" PRIx64 "\n",
