@@ -644,31 +644,22 @@ static void sigbus_handler(int n, struct qemu_signalfd_siginfo *siginfo,
     }
 }
 
-static void qemu_kvm_eat_signal(CPUState *env, int timeout)
+static void qemu_kvm_eat_signals(CPUState *env)
 {
-    struct timespec ts;
-    int r, e;
+    struct timespec ts = { 0, 0 };
     siginfo_t siginfo;
     sigset_t waitset;
     sigset_t chkset;
-
-    ts.tv_sec = timeout / 1000;
-    ts.tv_nsec = (timeout % 1000) * 1000000;
+    int r;
 
     sigemptyset(&waitset);
     sigaddset(&waitset, SIG_IPI);
     sigaddset(&waitset, SIGBUS);
 
     do {
-        qemu_mutex_unlock(&qemu_global_mutex);
-
         r = sigtimedwait(&waitset, &siginfo, &ts);
-        e = errno;
-
-        qemu_mutex_lock(&qemu_global_mutex);
-
-        if (r == -1 && !(e == EAGAIN || e == EINTR)) {
-            fprintf(stderr, "sigtimedwait: %s\n", strerror(e));
+        if (r == -1 && !(errno == EAGAIN || errno == EINTR)) {
+            perror("sigtimedwait");
             exit(1);
         }
 
@@ -684,7 +675,7 @@ static void qemu_kvm_eat_signal(CPUState *env, int timeout)
 
         r = sigpending(&chkset);
         if (r == -1) {
-            fprintf(stderr, "sigpending: %s\n", strerror(e));
+            perror("sigpending");
             exit(1);
         }
     } while (sigismember(&chkset, SIG_IPI) || sigismember(&chkset, SIGBUS));
@@ -695,7 +686,7 @@ static void qemu_kvm_wait_io_event(CPUState *env)
     while (!cpu_has_work(env))
         qemu_cond_timedwait(env->halt_cond, &qemu_global_mutex, 1000);
 
-    qemu_kvm_eat_signal(env, 0);
+    qemu_kvm_eat_signals(env);
     qemu_wait_io_event_common(env);
 }
 
