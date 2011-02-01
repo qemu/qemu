@@ -223,11 +223,9 @@ fail:
     return err;
 }
 
-#ifdef CONFIG_IOTHREAD
 static void dummy_signal(int sig)
 {
 }
-#endif
 
 #else /* _WIN32 */
 
@@ -259,6 +257,32 @@ static void qemu_event_increment(void)
 #endif /* _WIN32 */
 
 #ifndef CONFIG_IOTHREAD
+static void qemu_kvm_init_cpu_signals(CPUState *env)
+{
+#ifndef _WIN32
+    int r;
+    sigset_t set;
+    struct sigaction sigact;
+
+    memset(&sigact, 0, sizeof(sigact));
+    sigact.sa_handler = dummy_signal;
+    sigaction(SIG_IPI, &sigact, NULL);
+
+    sigemptyset(&set);
+    sigaddset(&set, SIG_IPI);
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
+
+    pthread_sigmask(SIG_BLOCK, NULL, &set);
+    sigdelset(&set, SIG_IPI);
+    sigdelset(&set, SIGBUS);
+    r = kvm_set_signal_mask(env, &set);
+    if (r) {
+        fprintf(stderr, "kvm_set_signal_mask: %s\n", strerror(-r));
+        exit(1);
+    }
+#endif
+}
+
 int qemu_init_main_loop(void)
 {
     cpu_set_debug_excp_handler(cpu_debug_handler);
@@ -284,6 +308,7 @@ void qemu_init_vcpu(void *_env)
             fprintf(stderr, "kvm_init_vcpu failed: %s\n", strerror(-r));
             exit(1);
         }
+        qemu_kvm_init_cpu_signals(env);
     }
 }
 
