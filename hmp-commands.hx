@@ -834,6 +834,23 @@ ETEXI
     },
 
 STEXI
+@item client_migrate_info @var{protocol} @var{hostname} @var{port} @var{tls-port} @var{cert-subject}
+@findex client_migrate_info
+Set the spice/vnc connection info for the migration target.  The spice/vnc
+server will ask the spice/vnc client to automatically reconnect using the
+new parameters (if specified) once the vm migration finished successfully.
+ETEXI
+
+    {
+        .name       = "client_migrate_info",
+        .args_type  = "protocol:s,hostname:s,port:i?,tls-port:i?,cert-subject:s?",
+        .params     = "protocol hostname port tls-port cert-subject",
+        .help       = "send migration info to spice/vnc client",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = client_migrate_info,
+    },
+
+STEXI
 @item snapshot_blkdev
 @findex snapshot_blkdev
 Snapshot device, using snapshot file as target if provided

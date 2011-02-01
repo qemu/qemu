@@ -866,7 +866,9 @@ static void qxl_destroy_primary(PCIQXLDevice *d)
     dprint(d, 1, "%s\n", __FUNCTION__);
 
     d->mode = QXL_MODE_UNDEFINED;
+    qemu_mutex_unlock_iothread();
     d->ssd.worker->destroy_primary_surface(d->ssd.worker, 0);
+    qemu_mutex_lock_iothread();
 }
 
 static void qxl_set_mode(PCIQXLDevice *d, int modenr, int loadvm)
@@ -1418,43 +1420,10 @@ static int qxl_post_load(void *opaque, int version)
     }
     dprint(d, 1, "%s: done\n", __FUNCTION__);
 
-    /* spice 0.4 compatibility -- accept but ignore */
-    qemu_free(d->worker_data);
-    d->worker_data = NULL;
-    d->worker_data_size = 0;
-
     return 0;
 }
 
-#define QXL_SAVE_VERSION 20
-
-static bool qxl_test_worker_data(void *opaque, int version_id)
-{
-    PCIQXLDevice* d = opaque;
-
-    if (d->revision != 1) {
-        return false;
-    }
-    if (!d->worker_data_size) {
-        return false;
-    }
-    if (!d->worker_data) {
-        d->worker_data = qemu_malloc(d->worker_data_size);
-    }
-    return true;
-}
-
-static bool qxl_test_spice04(void *opaque, int version_id)
-{
-    PCIQXLDevice* d = opaque;
-    return d->revision == 1;
-}
-
-static bool qxl_test_spice06(void *opaque)
-{
-    PCIQXLDevice* d = opaque;
-    return d->revision > 1;
-}
+#define QXL_SAVE_VERSION 21
 
 static VMStateDescription qxl_memslot = {
     .name               = "qxl-memslot",
@@ -1486,24 +1455,6 @@ static VMStateDescription qxl_surface = {
     }
 };
 
-static VMStateDescription qxl_vmstate_spice06 = {
-    .name               = "qxl/spice06",
-    .version_id         = QXL_SAVE_VERSION,
-    .minimum_version_id = QXL_SAVE_VERSION,
-    .fields = (VMStateField []) {
-        VMSTATE_INT32_EQUAL(num_memslots, PCIQXLDevice),
-        VMSTATE_STRUCT_ARRAY(guest_slots, PCIQXLDevice, NUM_MEMSLOTS, 0,
-                             qxl_memslot, struct guest_slots),
-        VMSTATE_STRUCT(guest_primary.surface, PCIQXLDevice, 0,
-                       qxl_surface, QXLSurfaceCreate),
-        VMSTATE_INT32_EQUAL(num_surfaces, PCIQXLDevice),
-        VMSTATE_ARRAY(guest_surfaces.cmds, PCIQXLDevice, NUM_SURFACES, 0,
-                      vmstate_info_uint64, uint64_t),
-        VMSTATE_UINT64(guest_cursor, PCIQXLDevice),
-        VMSTATE_END_OF_LIST()
-    },
-};
-
 static VMStateDescription qxl_vmstate = {
     .name               = "qxl",
     .version_id         = QXL_SAVE_VERSION,
@@ -1519,24 +1470,16 @@ static VMStateDescription qxl_vmstate = {
         VMSTATE_UINT32(last_release_offset, PCIQXLDevice),
         VMSTATE_UINT32(mode, PCIQXLDevice),
         VMSTATE_UINT32(ssd.unique, PCIQXLDevice),
-
-        /* spice 0.4 sends/expects them */
-        VMSTATE_VBUFFER_UINT32(vga.vram_ptr, PCIQXLDevice, 0, qxl_test_spice04, 0,
-                               vga.vram_size),
-        VMSTATE_UINT32_TEST(worker_data_size, PCIQXLDevice, qxl_test_spice04),
-        VMSTATE_VBUFFER_UINT32(worker_data, PCIQXLDevice, 0, qxl_test_worker_data, 0,
-                               worker_data_size),
-
+        VMSTATE_INT32_EQUAL(num_memslots, PCIQXLDevice),
+        VMSTATE_STRUCT_ARRAY(guest_slots, PCIQXLDevice, NUM_MEMSLOTS, 0,
+                             qxl_memslot, struct guest_slots),
+        VMSTATE_STRUCT(guest_primary.surface, PCIQXLDevice, 0,
+                       qxl_surface, QXLSurfaceCreate),
+        VMSTATE_INT32_EQUAL(num_surfaces, PCIQXLDevice),
+        VMSTATE_ARRAY(guest_surfaces.cmds, PCIQXLDevice, NUM_SURFACES, 0,
+                      vmstate_info_uint64, uint64_t),
+        VMSTATE_UINT64(guest_cursor, PCIQXLDevice),
         VMSTATE_END_OF_LIST()
-    },
-    .subsections = (VMStateSubsection[]) {
-        {
-            /* additional spice 0.6 state */
-            .vmsd   = &qxl_vmstate_spice06,
-            .needed = qxl_test_spice06,
-        },{
-            /* end of list */
-        },
     },
 };
 
