@@ -188,11 +188,9 @@
 #define AHCI_GENERIC_HOST_CONTROL_REGS_MAX_ADDR 0x20
                                             /* Shouldn't this be 0x2c? */
 
-#define SATA_PORTS                         4
-
 #define AHCI_PORT_REGS_START_ADDR          0x100
-#define AHCI_PORT_REGS_END_ADDR (AHCI_PORT_REGS_START_ADDR + SATA_PORTS * 0x80)
 #define AHCI_PORT_ADDR_OFFSET_MASK         0x7f
+#define AHCI_PORT_ADDR_OFFSET_LEN          0x80
 
 #define AHCI_NUM_COMMAND_SLOTS             31
 #define AHCI_SUPPORTED_SPEED               20
@@ -289,9 +287,10 @@ struct AHCIDevice {
 };
 
 typedef struct AHCIState {
-    AHCIDevice dev[SATA_PORTS];
+    AHCIDevice *dev;
     AHCIControlRegs control_regs;
     int mem;
+    int ports;
     qemu_irq irq;
 } AHCIState;
 
@@ -323,7 +322,8 @@ typedef struct NCQFrame {
     uint8_t reserved10;
 } __attribute__ ((packed)) NCQFrame;
 
-void ahci_init(AHCIState *s, DeviceState *qdev);
+void ahci_init(AHCIState *s, DeviceState *qdev, int ports);
+void ahci_uninit(AHCIState *s);
 
 void ahci_pci_map(PCIDevice *pci_dev, int region_num,
         pcibus_t addr, pcibus_t size, int type);
