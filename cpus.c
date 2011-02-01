@@ -265,12 +265,18 @@ void qemu_main_loop_start(void)
 void qemu_init_vcpu(void *_env)
 {
     CPUState *env = _env;
+    int r;
 
     env->nr_cores = smp_cores;
     env->nr_threads = smp_threads;
-    if (kvm_enabled())
-        kvm_init_vcpu(env);
-    return;
+
+    if (kvm_enabled()) {
+        r = kvm_init_vcpu(env);
+        if (r < 0) {
+            fprintf(stderr, "kvm_init_vcpu failed: %s\n", strerror(-r));
+            exit(1);
+        }
+    }
 }
 
 int qemu_cpu_self(void *env)
@@ -600,11 +606,16 @@ static int qemu_cpu_exec(CPUState *env);
 static void *kvm_cpu_thread_fn(void *arg)
 {
     CPUState *env = arg;
+    int r;
 
     qemu_mutex_lock(&qemu_global_mutex);
     qemu_thread_self(env->thread);
 
-    kvm_init_vcpu(env);
+    r = kvm_init_vcpu(env);
+    if (r < 0) {
+        fprintf(stderr, "kvm_init_vcpu failed: %s\n", strerror(-r));
+        exit(1);
+    }
 
     kvm_init_ipi(env);
 
