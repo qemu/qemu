@@ -1389,14 +1389,16 @@ void main_loop_wait(int nonblocking)
 
 }
 
-static int vm_can_run(void)
+#ifndef CONFIG_IOTHREAD
+static int vm_request_pending(void)
 {
-    return !(powerdown_requested ||
-             reset_requested ||
-             shutdown_requested ||
-             debug_requested ||
-             vmstop_requested);
+    return powerdown_requested ||
+           reset_requested ||
+           shutdown_requested ||
+           debug_requested ||
+           vmstop_requested;
 }
+#endif
 
 qemu_irq qemu_system_powerdown;
 
@@ -1411,21 +1413,19 @@ static void main_loop(void)
     qemu_main_loop_start();
 
     for (;;) {
-        do {
 #ifndef CONFIG_IOTHREAD
-            nonblocking = cpu_exec_all();
-            if (!vm_can_run()) {
-                nonblocking = true;
-            }
+        nonblocking = cpu_exec_all();
+        if (vm_request_pending()) {
+            nonblocking = true;
+        }
 #endif
 #ifdef CONFIG_PROFILER
-            ti = profile_getclock();
+        ti = profile_getclock();
 #endif
-            main_loop_wait(nonblocking);
+        main_loop_wait(nonblocking);
 #ifdef CONFIG_PROFILER
-            dev_time += profile_getclock() - ti;
+        dev_time += profile_getclock() - ti;
 #endif
-        } while (vm_can_run());
 
         if ((r = qemu_debug_requested())) {
             vm_stop(r);
