@@ -222,7 +222,15 @@ fail:
     close(fds[1]);
     return err;
 }
-#else
+
+#ifdef CONFIG_IOTHREAD
+static void dummy_signal(int sig)
+{
+}
+#endif
+
+#else /* _WIN32 */
+
 HANDLE qemu_event_handle;
 
 static void dummy_event_handler(void *opaque)
@@ -248,7 +256,7 @@ static void qemu_event_increment(void)
         exit (1);
     }
 }
-#endif
+#endif /* _WIN32 */
 
 #ifndef CONFIG_IOTHREAD
 int qemu_init_main_loop(void)
@@ -348,10 +356,6 @@ static QemuCond qemu_system_cond;
 static QemuCond qemu_pause_cond;
 static QemuCond qemu_work_cond;
 
-static void tcg_init_ipi(void);
-static void kvm_init_ipi(CPUState *env);
-static sigset_t block_io_signals(void);
-
 /* If we have signalfd, we mask out the signals we want to handle and then
  * use signalfd to listen for them.  We rely on whatever the current signal
  * handler is to dispatch the signals when we receive them.
@@ -385,6 +389,77 @@ static void sigfd_handler(void *opaque)
             action.sa_handler(info.ssi_signo);
         }
     }
+}
+
+static void cpu_signal(int sig)
+{
+    if (cpu_single_env) {
+        cpu_exit(cpu_single_env);
+    }
+    exit_request = 1;
+}
+
+static void qemu_kvm_init_cpu_signals(CPUState *env)
+{
+    int r;
+    sigset_t set;
+    struct sigaction sigact;
+
+    memset(&sigact, 0, sizeof(sigact));
+    sigact.sa_handler = dummy_signal;
+    sigaction(SIG_IPI, &sigact, NULL);
+
+    pthread_sigmask(SIG_BLOCK, NULL, &set);
+    sigdelset(&set, SIG_IPI);
+    sigdelset(&set, SIGBUS);
+    r = kvm_set_signal_mask(env, &set);
+    if (r) {
+        fprintf(stderr, "kvm_set_signal_mask: %s\n", strerror(-r));
+        exit(1);
+    }
+}
+
+static void qemu_tcg_init_cpu_signals(void)
+{
+    sigset_t set;
+    struct sigaction sigact;
+
+    memset(&sigact, 0, sizeof(sigact));
+    sigact.sa_handler = cpu_signal;
+    sigaction(SIG_IPI, &sigact, NULL);
+
+    sigemptyset(&set);
+    sigaddset(&set, SIG_IPI);
+    pthread_sigmask(SIG_UNBLOCK, &set, NULL);
+}
+
+static void sigbus_handler(int n, struct qemu_signalfd_siginfo *siginfo,
+                           void *ctx);
+
+static sigset_t block_io_signals(void)
+{
+    sigset_t set;
+    struct sigaction action;
+
+    /* SIGUSR2 used by posix-aio-compat.c */
+    sigemptyset(&set);
+    sigaddset(&set, SIGUSR2);
+    pthread_sigmask(SIG_UNBLOCK, &set, NULL);
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGIO);
+    sigaddset(&set, SIGALRM);
+    sigaddset(&set, SIG_IPI);
+    sigaddset(&set, SIGBUS);
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
+
+    memset(&action, 0, sizeof(action));
+    action.sa_flags = SA_SIGINFO;
+    action.sa_sigaction = (void (*)(int, siginfo_t*, void*))sigbus_handler;
+    sigaction(SIGBUS, &action, NULL);
+    prctl(PR_MCE_KILL, 1, 1, 0, 0);
+
+    return set;
 }
 
 static int qemu_signalfd_init(sigset_t mask)
@@ -615,7 +690,7 @@ static void *kvm_cpu_thread_fn(void *arg)
         exit(1);
     }
 
-    kvm_init_ipi(env);
+    qemu_kvm_init_cpu_signals(env);
 
     /* signal CPU creation */
     env->created = 1;
@@ -638,7 +713,7 @@ static void *tcg_cpu_thread_fn(void *arg)
 {
     CPUState *env = arg;
 
-    tcg_init_ipi();
+    qemu_tcg_init_cpu_signals();
     qemu_thread_self(env->thread);
 
     /* signal CPU creation */
@@ -677,77 +752,6 @@ int qemu_cpu_self(void *_env)
     qemu_thread_self(&this);
 
     return qemu_thread_equal(&this, env->thread);
-}
-
-static void cpu_signal(int sig)
-{
-    if (cpu_single_env)
-        cpu_exit(cpu_single_env);
-    exit_request = 1;
-}
-
-static void tcg_init_ipi(void)
-{
-    sigset_t set;
-    struct sigaction sigact;
-
-    memset(&sigact, 0, sizeof(sigact));
-    sigact.sa_handler = cpu_signal;
-    sigaction(SIG_IPI, &sigact, NULL);
-
-    sigemptyset(&set);
-    sigaddset(&set, SIG_IPI);
-    pthread_sigmask(SIG_UNBLOCK, &set, NULL);
-}
-
-static void dummy_signal(int sig)
-{
-}
-
-static void kvm_init_ipi(CPUState *env)
-{
-    int r;
-    sigset_t set;
-    struct sigaction sigact;
-
-    memset(&sigact, 0, sizeof(sigact));
-    sigact.sa_handler = dummy_signal;
-    sigaction(SIG_IPI, &sigact, NULL);
-
-    pthread_sigmask(SIG_BLOCK, NULL, &set);
-    sigdelset(&set, SIG_IPI);
-    sigdelset(&set, SIGBUS);
-    r = kvm_set_signal_mask(env, &set);
-    if (r) {
-        fprintf(stderr, "kvm_set_signal_mask: %s\n", strerror(r));
-        exit(1);
-    }
-}
-
-static sigset_t block_io_signals(void)
-{
-    sigset_t set;
-    struct sigaction action;
-
-    /* SIGUSR2 used by posix-aio-compat.c */
-    sigemptyset(&set);
-    sigaddset(&set, SIGUSR2);
-    pthread_sigmask(SIG_UNBLOCK, &set, NULL);
-
-    sigemptyset(&set);
-    sigaddset(&set, SIGIO);
-    sigaddset(&set, SIGALRM);
-    sigaddset(&set, SIG_IPI);
-    sigaddset(&set, SIGBUS);
-    pthread_sigmask(SIG_BLOCK, &set, NULL);
-
-    memset(&action, 0, sizeof(action));
-    action.sa_flags = SA_SIGINFO;
-    action.sa_sigaction = (void (*)(int, siginfo_t*, void*))sigbus_handler;
-    sigaction(SIGBUS, &action, NULL);
-    prctl(PR_MCE_KILL, 1, 1, 0, 0);
-
-    return set;
 }
 
 void qemu_mutex_lock_iothread(void)
