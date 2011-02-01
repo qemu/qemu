@@ -93,6 +93,7 @@ typedef struct {
     int (*load_config)(void * opaque, QEMUFile *f);
     int (*load_queue)(void * opaque, int n, QEMUFile *f);
     unsigned (*get_features)(void * opaque);
+    bool (*query_guest_notifiers)(void * opaque);
     int (*set_guest_notifiers)(void * opaque, bool assigned);
     int (*set_host_notifier)(void * opaque, int n, bool assigned);
     void (*vmstate_change)(void * opaque, bool running);

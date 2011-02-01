@@ -81,7 +81,8 @@ static int vhost_net_get_fd(VLANClientState *backend)
     }
 }
 
-struct vhost_net *vhost_net_init(VLANClientState *backend, int devfd)
+struct vhost_net *vhost_net_init(VLANClientState *backend, int devfd,
+                                 bool force)
 {
     int r;
     struct vhost_net *net = qemu_malloc(sizeof *net);
@@ -98,7 +99,7 @@ struct vhost_net *vhost_net_init(VLANClientState *backend, int devfd)
         (1 << VHOST_NET_F_VIRTIO_NET_HDR);
     net->backend = r;
 
-    r = vhost_dev_init(&net->dev, devfd);
+    r = vhost_dev_init(&net->dev, devfd, force);
     if (r < 0) {
         goto fail;
     }
@@ -119,6 +120,11 @@ struct vhost_net *vhost_net_init(VLANClientState *backend, int devfd)
 fail:
     qemu_free(net);
     return NULL;
+}
+
+bool vhost_net_query(VHostNetState *net, VirtIODevice *dev)
+{
+    return vhost_dev_query(&net->dev, dev);
 }
 
 int vhost_net_start(struct vhost_net *net,
@@ -188,15 +194,21 @@ void vhost_net_cleanup(struct vhost_net *net)
     qemu_free(net);
 }
 #else
-struct vhost_net *vhost_net_init(VLANClientState *backend, int devfd)
+struct vhost_net *vhost_net_init(VLANClientState *backend, int devfd,
+                                 bool force)
 {
-	return NULL;
+    return NULL;
+}
+
+bool vhost_net_query(VHostNetState *net, VirtIODevice *dev)
+{
+    return false;
 }
 
 int vhost_net_start(struct vhost_net *net,
 		    VirtIODevice *dev)
 {
-	return -ENOSYS;
+    return -ENOSYS;
 }
 void vhost_net_stop(struct vhost_net *net,
 		    VirtIODevice *dev)
@@ -209,7 +221,7 @@ void vhost_net_cleanup(struct vhost_net *net)
 
 unsigned vhost_net_get_features(struct vhost_net *net, unsigned features)
 {
-	return features;
+    return features;
 }
 void vhost_net_ack_features(struct vhost_net *net, unsigned features)
 {

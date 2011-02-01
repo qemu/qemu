@@ -595,6 +595,12 @@ static int virtio_pci_set_guest_notifier(void *opaque, int n, bool assign)
     return 0;
 }
 
+static bool virtio_pci_query_guest_notifiers(void *opaque)
+{
+    VirtIOPCIProxy *proxy = opaque;
+    return msix_enabled(&proxy->pci_dev);
+}
+
 static int virtio_pci_set_guest_notifiers(void *opaque, bool assign)
 {
     VirtIOPCIProxy *proxy = opaque;
@@ -658,6 +664,7 @@ static const VirtIOBindings virtio_pci_bindings = {
     .save_queue = virtio_pci_save_queue,
     .load_queue = virtio_pci_load_queue,
     .get_features = virtio_pci_get_features,
+    .query_guest_notifiers = virtio_pci_query_guest_notifiers,
     .set_host_notifier = virtio_pci_set_host_notifier,
     .set_guest_notifiers = virtio_pci_set_guest_notifiers,
     .vmstate_change = virtio_pci_vmstate_change,
