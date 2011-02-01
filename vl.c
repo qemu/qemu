@@ -1402,18 +1402,21 @@ qemu_irq qemu_system_powerdown;
 
 static void main_loop(void)
 {
+    bool nonblocking = false;
+#ifdef CONFIG_PROFILER
+    int64_t ti;
+#endif
     int r;
 
     qemu_main_loop_start();
 
     for (;;) {
         do {
-            bool nonblocking = false;
-#ifdef CONFIG_PROFILER
-            int64_t ti;
-#endif
 #ifndef CONFIG_IOTHREAD
             nonblocking = cpu_exec_all();
+            if (!vm_can_run()) {
+                nonblocking = true;
+            }
 #endif
 #ifdef CONFIG_PROFILER
             ti = profile_getclock();
