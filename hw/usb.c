@@ -63,9 +63,10 @@ void usb_wakeup(USBDevice *dev)
    protocol)
 */
 
-#define SETUP_STATE_IDLE 0
-#define SETUP_STATE_DATA 1
-#define SETUP_STATE_ACK  2
+#define SETUP_STATE_IDLE  0
+#define SETUP_STATE_SETUP 1
+#define SETUP_STATE_DATA  2
+#define SETUP_STATE_ACK   3
 
 static int do_token_setup(USBDevice *s, USBPacket *p)
 {
@@ -86,6 +87,10 @@ static int do_token_setup(USBDevice *s, USBPacket *p)
     if (s->setup_buf[0] & USB_DIR_IN) {
         ret = s->info->handle_control(s, p, request, value, index,
                                       s->setup_len, s->data_buf);
+        if (ret == USB_RET_ASYNC) {
+             s->setup_state = SETUP_STATE_SETUP;
+             return USB_RET_ASYNC;
+        }
         if (ret < 0)
             return ret;
 
@@ -239,6 +244,36 @@ int usb_generic_handle_packet(USBDevice *s, USBPacket *p)
     default:
         return USB_RET_STALL;
     }
+}
+
+/* ctrl complete function for devices which use usb_generic_handle_packet and
+   may return USB_RET_ASYNC from their handle_control callback. Device code
+   which does this *must* call this function instead of the normal
+   usb_packet_complete to complete their async control packets. */
+void usb_generic_async_ctrl_complete(USBDevice *s, USBPacket *p)
+{
+    if (p->len < 0) {
+        s->setup_state = SETUP_STATE_IDLE;
+    }
+
+    switch (s->setup_state) {
+    case SETUP_STATE_SETUP:
+        if (p->len < s->setup_len) {
+            s->setup_len = p->len;
+        }
+        s->setup_state = SETUP_STATE_DATA;
+        p->len = 8;
+        break;
+
+    case SETUP_STATE_ACK:
+        s->setup_state = SETUP_STATE_IDLE;
+        p->len = 0;
+        break;
+
+    default:
+        break;
+    }
+    usb_packet_complete(s, p);
 }
 
 /* XXX: fix overflow */
