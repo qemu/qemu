@@ -250,13 +250,13 @@ static void usb_wacom_handle_reset(USBDevice *dev)
     s->mode = WACOM_MODE_HID;
 }
 
-static int usb_wacom_handle_control(USBDevice *dev, int request, int value,
-                                    int index, int length, uint8_t *data)
+static int usb_wacom_handle_control(USBDevice *dev, USBPacket *p,
+               int request, int value, int index, int length, uint8_t *data)
 {
     USBWacomState *s = (USBWacomState *) dev;
     int ret;
 
-    ret = usb_desc_handle_control(dev, request, value, index, length, data);
+    ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
     if (ret >= 0) {
         return ret;
     }

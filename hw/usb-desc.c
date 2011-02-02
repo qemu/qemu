@@ -390,8 +390,8 @@ int usb_desc_get_descriptor(USBDevice *dev, int value, uint8_t *dest, size_t len
     return ret;
 }
 
-int usb_desc_handle_control(USBDevice *dev, int request, int value,
-                            int index, int length, uint8_t *data)
+int usb_desc_handle_control(USBDevice *dev, USBPacket *p,
+        int request, int value, int index, int length, uint8_t *data)
 {
     const USBDesc *desc = dev->info->usb_desc;
     int i, ret = -1;

@@ -372,13 +372,13 @@ static void usb_bt_handle_reset(USBDevice *dev)
     s->altsetting = 0;
 }
 
-static int usb_bt_handle_control(USBDevice *dev, int request, int value,
-                int index, int length, uint8_t *data)
+static int usb_bt_handle_control(USBDevice *dev, USBPacket *p,
+               int request, int value, int index, int length, uint8_t *data)
 {
     struct USBBtState *s = (struct USBBtState *) dev->opaque;
     int ret;
 
-    ret = usb_desc_handle_control(dev, request, value, index, length, data);
+    ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
     if (ret >= 0) {
         switch (request) {
         case DeviceRequest | USB_REQ_GET_CONFIGURATION:

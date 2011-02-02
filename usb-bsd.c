@@ -126,6 +126,7 @@ static void usb_host_handle_reset(USBDevice *dev)
  *  and return appropriate response
  */
 static int usb_host_handle_control(USBDevice *dev,
+                                   USBPacket *p,
                                    int request,
                                    int value,
                                    int index,

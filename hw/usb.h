@@ -214,7 +214,7 @@ struct USBDeviceInfo {
      *
      * Returns length or one of the USB_RET_ codes.
      */
-    int (*handle_control)(USBDevice *dev, int request, int value,
+    int (*handle_control)(USBDevice *dev, USBPacket *p, int request, int value,
                           int index, int length, uint8_t *data);
 
     /*
