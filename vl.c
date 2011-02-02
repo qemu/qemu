@@ -738,7 +738,7 @@ void add_boot_device_path(int32_t bootindex, DeviceState *dev,
 
     node = qemu_mallocz(sizeof(FWBootEntry));
     node->bootindex = bootindex;
-    node->suffix = strdup(suffix);
+    node->suffix = suffix ? qemu_strdup(suffix) : NULL;
     node->dev = dev;
 
     QTAILQ_FOREACH(i, &fw_boot_order, link) {
@@ -785,7 +785,7 @@ char *get_boot_devices_list(uint32_t *size)
         } else if (devpath) {
             bootpath = devpath;
         } else {
-            bootpath = strdup(i->suffix);
+            bootpath = qemu_strdup(i->suffix);
             assert(bootpath);
         }
 
