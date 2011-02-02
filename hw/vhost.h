@@ -38,10 +38,12 @@ struct vhost_dev {
     bool log_enabled;
     vhost_log_chunk_t *log;
     unsigned long long log_size;
+    bool force;
 };
 
-int vhost_dev_init(struct vhost_dev *hdev, int devfd);
+int vhost_dev_init(struct vhost_dev *hdev, int devfd, bool force);
 void vhost_dev_cleanup(struct vhost_dev *hdev);
+bool vhost_dev_query(struct vhost_dev *hdev, VirtIODevice *vdev);
 int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev);
 void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev);
 

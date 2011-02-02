@@ -491,8 +491,10 @@ int net_init_tap(QemuOpts *opts, Monitor *mon, const char *name, VLANState *vlan
         }
     }
 
-    if (qemu_opt_get_bool(opts, "vhost", !!qemu_opt_get(opts, "vhostfd"))) {
+    if (qemu_opt_get_bool(opts, "vhost", !!qemu_opt_get(opts, "vhostfd") ||
+                          qemu_opt_get_bool(opts, "vhostforce", false))) {
         int vhostfd, r;
+        bool force = qemu_opt_get_bool(opts, "vhostforce", false);
         if (qemu_opt_get(opts, "vhostfd")) {
             r = net_handle_fd_param(mon, qemu_opt_get(opts, "vhostfd"));
             if (r == -1) {
@@ -502,7 +504,7 @@ int net_init_tap(QemuOpts *opts, Monitor *mon, const char *name, VLANState *vlan
         } else {
             vhostfd = -1;
         }
-        s->vhost_net = vhost_net_init(&s->nc, vhostfd);
+        s->vhost_net = vhost_net_init(&s->nc, vhostfd, force);
         if (!s->vhost_net) {
             error_report("vhost-net requested but could not be initialized");
             return -1;

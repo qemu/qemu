@@ -119,7 +119,11 @@ static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
         return;
     }
     if (!n->vhost_started) {
-        int r = vhost_net_start(tap_get_vhost_net(n->nic->nc.peer), &n->vdev);
+        int r;
+        if (!vhost_net_query(tap_get_vhost_net(n->nic->nc.peer), &n->vdev)) {
+            return;
+        }
+        r = vhost_net_start(tap_get_vhost_net(n->nic->nc.peer), &n->vdev);
         if (r < 0) {
             error_report("unable to start vhost net: %d: "
                          "falling back on userspace virtio", -r);

@@ -1018,6 +1018,14 @@ static int do_quit(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
 static int change_vnc_password(const char *password)
 {
+    if (!password || !password[0]) {
+        if (vnc_display_disable_login(NULL)) {
+            qerror_report(QERR_SET_PASSWD_FAILED);
+            return -1;
+        }
+        return 0;
+    }
+
     if (vnc_display_password(NULL, password) < 0) {
         qerror_report(QERR_SET_PASSWD_FAILED);
         return -1;
@@ -1117,6 +1125,8 @@ static int set_password(Monitor *mon, const QDict *qdict, QObject **ret_data)
             qerror_report(QERR_INVALID_PARAMETER, "connected");
             return -1;
         }
+        /* Note that setting an empty password will not disable login through
+         * this interface. */
         rc = vnc_display_password(NULL, password);
         if (rc != 0) {
             qerror_report(QERR_SET_PASSWD_FAILED);
@@ -1136,9 +1146,9 @@ static int expire_password(Monitor *mon, const QDict *qdict, QObject **ret_data)
     time_t when;
     int rc;
 
-    if (strcmp(whenstr, "now")) {
+    if (strcmp(whenstr, "now") == 0) {
         when = 0;
-    } else if (strcmp(whenstr, "never")) {
+    } else if (strcmp(whenstr, "never") == 0) {
         when = TIME_MAX;
     } else if (whenstr[0] == '+') {
         when = time(NULL) + strtoull(whenstr+1, NULL, 10);
@@ -1164,6 +1174,33 @@ static int expire_password(Monitor *mon, const QDict *qdict, QObject **ret_data)
         rc = vnc_display_pw_expire(NULL, when);
         if (rc != 0) {
             qerror_report(QERR_SET_PASSWD_FAILED);
+            return -1;
+        }
+        return 0;
+    }
+
+    qerror_report(QERR_INVALID_PARAMETER, "protocol");
+    return -1;
+}
+
+static int client_migrate_info(Monitor *mon, const QDict *qdict, QObject **ret_data)
+{
+    const char *protocol = qdict_get_str(qdict, "protocol");
+    const char *hostname = qdict_get_str(qdict, "hostname");
+    const char *subject  = qdict_get_try_str(qdict, "cert-subject");
+    int port             = qdict_get_try_int(qdict, "port", -1);
+    int tls_port         = qdict_get_try_int(qdict, "tls-port", -1);
+    int ret;
+
+    if (strcmp(protocol, "spice") == 0) {
+        if (!using_spice) {
+            qerror_report(QERR_DEVICE_NOT_ACTIVE, "spice");
+            return -1;
+        }
+
+        ret = qemu_spice_migrate_info(hostname, port, tls_port, subject);
+        if (ret != 0) {
+            qerror_report(QERR_UNDEFINED_ERROR);
             return -1;
         }
         return 0;
@@ -2672,12 +2709,15 @@ static void do_inject_mce(Monitor *mon, const QDict *qdict)
     uint64_t mcg_status = qdict_get_int(qdict, "mcg_status");
     uint64_t addr = qdict_get_int(qdict, "addr");
     uint64_t misc = qdict_get_int(qdict, "misc");
+    int broadcast = qdict_get_try_bool(qdict, "broadcast", 0);
 
-    for (cenv = first_cpu; cenv != NULL; cenv = cenv->next_cpu)
+    for (cenv = first_cpu; cenv != NULL; cenv = cenv->next_cpu) {
         if (cenv->cpu_index == cpu_index && cenv->mcg_cap) {
-            cpu_inject_x86_mce(cenv, bank, status, mcg_status, addr, misc);
+            cpu_inject_x86_mce(cenv, bank, status, mcg_status, addr, misc,
+                               broadcast);
             break;
         }
+    }
 }
 #endif
 
@@ -5135,6 +5175,7 @@ void monitor_init(CharDriverState *chr, int flags)
         /* Control mode requires special handlers */
         qemu_chr_add_handlers(chr, monitor_can_read, monitor_control_read,
                               monitor_control_event, mon);
+        qemu_chr_set_echo(chr, true);
     } else {
         qemu_chr_add_handlers(chr, monitor_can_read, monitor_read,
                               monitor_event, mon);

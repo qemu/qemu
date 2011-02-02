@@ -82,12 +82,17 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required
     return fd;
 }
 
-/* sndbuf should be set to a value lower than the tx queue
- * capacity of any destination network interface.
+/* sndbuf implements a kind of flow control for tap.
+ * Unfortunately when it's enabled, and packets are sent
+ * to other guests on the same host, the receiver
+ * can lock up the transmitter indefinitely.
+ *
+ * To avoid packet loss, sndbuf should be set to a value lower than the tx
+ * queue capacity of any destination network interface.
  * Ethernet NICs generally have txqueuelen=1000, so 1Mb is
- * a good default, given a 1500 byte MTU.
+ * a good value, given a 1500 byte MTU.
  */
-#define TAP_DEFAULT_SNDBUF 1024*1024
+#define TAP_DEFAULT_SNDBUF 0
 
 int tap_set_sndbuf(int fd, QemuOpts *opts)
 {

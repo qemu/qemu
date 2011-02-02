@@ -1504,7 +1504,7 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
         break;
     }
 
-    if (vs->vd->lock_key_sync &&
+    if (down && vs->vd->lock_key_sync &&
         keycode_is_keypad(vs->vd->kbd_layout, keycode)) {
         /* If the numlock state needs to change then simulate an additional
            keypress before sending this one.  This will happen if the user
@@ -1523,7 +1523,7 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
         }
     }
 
-    if (vs->vd->lock_key_sync &&
+    if (down && vs->vd->lock_key_sync &&
         ((sym >= 'A' && sym <= 'Z') || (sym >= 'a' && sym <= 'z'))) {
         /* If the capslock state needs to change then simulate an additional
            keypress before sending this one.  This will happen if the user
@@ -2084,7 +2084,7 @@ static int protocol_client_auth_vnc(VncState *vs, uint8_t *data, size_t len)
     unsigned char key[8];
     time_t now = time(NULL);
 
-    if (!vs->vd->password || !vs->vd->password[0]) {
+    if (!vs->vd->password) {
         VNC_DEBUG("No password configured on server");
         goto reject;
     }
@@ -2484,7 +2484,7 @@ void vnc_display_close(DisplayState *ds)
 #endif
 }
 
-int vnc_display_password(DisplayState *ds, const char *password)
+int vnc_display_disable_login(DisplayState *ds)
 {
     VncDisplay *vs = ds ? (VncDisplay *)ds->opaque : vnc_display;
 
@@ -2494,17 +2494,34 @@ int vnc_display_password(DisplayState *ds, const char *password)
 
     if (vs->password) {
         qemu_free(vs->password);
+    }
+
+    vs->password = NULL;
+    vs->auth = VNC_AUTH_VNC;
+
+    return 0;
+}
+
+int vnc_display_password(DisplayState *ds, const char *password)
+{
+    VncDisplay *vs = ds ? (VncDisplay *)ds->opaque : vnc_display;
+
+    if (!vs) {
+        return -1;
+    }
+
+    if (!password) {
+        /* This is not the intention of this interface but err on the side
+           of being safe */
+        return vnc_display_disable_login(ds);
+    }
+
+    if (vs->password) {
+        qemu_free(vs->password);
         vs->password = NULL;
     }
-    if (password && password[0]) {
-        if (!(vs->password = qemu_strdup(password)))
-            return -1;
-        if (vs->auth == VNC_AUTH_NONE) {
-            vs->auth = VNC_AUTH_VNC;
-        }
-    } else {
-        vs->auth = VNC_AUTH_NONE;
-    }
+    vs->password = qemu_strdup(password);
+    vs->auth = VNC_AUTH_VNC;
 
     return 0;
 }

@@ -268,6 +268,8 @@ typedef struct sparc_def_t {
 #define CPU_FEATURE_GL           (1 << 13)
 #define CPU_FEATURE_TA0_SHUTDOWN (1 << 14) /* Shutdown on "ta 0x0" */
 #define CPU_FEATURE_ASR17        (1 << 15)
+#define CPU_FEATURE_CACHE_CTRL   (1 << 16)
+
 #ifndef TARGET_SPARC64
 #define CPU_DEFAULT_FEATURES (CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP |  \
                               CPU_FEATURE_MUL | CPU_FEATURE_DIV |     \
@@ -476,11 +478,13 @@ void cpu_put_cwp64(CPUState *env1, int cwp);
 int cpu_cwp_inc(CPUState *env1, int cwp);
 int cpu_cwp_dec(CPUState *env1, int cwp);
 void cpu_set_cwp(CPUState *env1, int new_cwp);
-
-void leon3_cache_control_int(void);
+void leon3_irq_manager(void *irq_manager, int intno);
 
 /* sun4m.c, sun4u.c */
 void cpu_check_irqs(CPUSPARCState *env);
+
+/* leon3.c */
+void leon3_irq_ack(void *irq_manager, int intno);
 
 #if defined (TARGET_SPARC64)
 

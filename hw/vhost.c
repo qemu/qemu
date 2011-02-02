@@ -581,7 +581,7 @@ static void vhost_virtqueue_cleanup(struct vhost_dev *dev,
                               0, virtio_queue_get_desc_size(vdev, idx));
 }
 
-int vhost_dev_init(struct vhost_dev *hdev, int devfd)
+int vhost_dev_init(struct vhost_dev *hdev, int devfd, bool force)
 {
     uint64_t features;
     int r;
@@ -613,6 +613,7 @@ int vhost_dev_init(struct vhost_dev *hdev, int devfd)
     hdev->log_enabled = false;
     hdev->started = false;
     cpu_register_phys_memory_client(&hdev->client);
+    hdev->force = force;
     return 0;
 fail:
     r = -errno;
@@ -625,6 +626,13 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
     cpu_unregister_phys_memory_client(&hdev->client);
     qemu_free(hdev->mem);
     close(hdev->control);
+}
+
+bool vhost_dev_query(struct vhost_dev *hdev, VirtIODevice *vdev)
+{
+    return !vdev->binding->query_guest_notifiers ||
+        vdev->binding->query_guest_notifiers(vdev->binding_opaque) ||
+        hdev->force;
 }
 
 int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)

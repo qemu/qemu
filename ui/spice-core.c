@@ -30,11 +30,15 @@
 #include "qbool.h"
 #include "qstring.h"
 #include "qjson.h"
+#include "notify.h"
+#include "migration.h"
 #include "monitor.h"
+#include "hw/hw.h"
 
 /* core bits */
 
 static SpiceServer *spice_server;
+static Notifier migration_state;
 static const char *auth = "spice";
 static char *auth_passwd;
 static time_t auth_expires = TIME_MAX;
@@ -416,6 +420,24 @@ void do_info_spice(Monitor *mon, QObject **ret_data)
     *ret_data = QOBJECT(server);
 }
 
+static void migration_state_notifier(Notifier *notifier)
+{
+    int state = get_migration_state();
+
+    if (state == MIG_STATE_COMPLETED) {
+#if SPICE_SERVER_VERSION >= 0x000701 /* 0.7.1 */
+        spice_server_migrate_switch(spice_server);
+#endif
+    }
+}
+
+int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
+                            const char *subject)
+{
+    return spice_server_migrate_info(spice_server, hostname,
+                                     port, tls_port, subject);
+}
+
 static int add_channel(const char *name, const char *value, void *opaque)
 {
     int security = 0;
@@ -572,6 +594,9 @@ void qemu_spice_init(void)
 
     spice_server_init(spice_server, &core_interface);
     using_spice = 1;
+
+    migration_state.notify = migration_state_notifier;
+    add_migration_state_change_notifier(&migration_state);
 
     qemu_spice_input_init();
     qemu_spice_audio_init();

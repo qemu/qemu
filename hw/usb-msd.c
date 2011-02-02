@@ -532,6 +532,7 @@ static int usb_msd_initfn(USBDevice *dev)
         }
     }
 
+    add_boot_device_path(s->conf.bootindex, &dev->qdev, "/disk@0,0");
     return 0;
 }
 
@@ -595,6 +596,7 @@ static USBDevice *usb_msd_init(const char *filename)
 static struct USBDeviceInfo msd_info = {
     .product_desc   = "QEMU USB MSD",
     .qdev.name      = "usb-storage",
+    .qdev.fw_name      = "storage",
     .qdev.size      = sizeof(MSDState),
     .usb_desc       = &desc,
     .init           = usb_msd_initfn,

@@ -56,10 +56,9 @@ static void main_cpu_reset(void *opaque)
     env->npc    = s->entry + 4;
 }
 
-static void leon3_irq_ack(void *irq_manager, int intno)
+void leon3_irq_ack(void *irq_manager, int intno)
 {
     grlib_irqmp_ack((DeviceState *)irq_manager, intno);
-    leon3_cache_control_int();
 }
 
 static void leon3_set_pil_in(void *opaque, uint32_t pil_in)
@@ -130,7 +129,7 @@ static void leon3_generic_hw_init(ram_addr_t  ram_size,
     /* Allocate IRQ manager */
     grlib_irqmp_create(0x80000200, env, &cpu_irqs, MAX_PILS, &leon3_set_pil_in);
 
-    env->qemu_irq_ack = leon3_irq_ack;
+    env->qemu_irq_ack = leon3_irq_manager;
 
     /* Allocate RAM */
     if ((uint64_t)ram_size > (1UL << 30)) {

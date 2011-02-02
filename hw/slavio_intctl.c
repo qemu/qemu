@@ -289,7 +289,12 @@ static void slavio_check_interrupts(SLAVIO_INTCTLState *s, int set_irqs)
         pil_pending |= (s->slaves[i].intreg_pending & CPU_SOFTIRQ_MASK) >> 16;
 
         if (set_irqs) {
-            for (j = MAX_PILS; j > 0; j--) {
+            /* Since there is not really an interrupt 0 (and pil_pending
+             * and irl_out bit zero are thus always zero) there is no need
+             * to do anything with cpu_irqs[i][0] and it is OK not to do
+             * the j=0 iteration of this loop.
+             */
+            for (j = MAX_PILS-1; j > 0; j--) {
                 if (pil_pending & (1 << j)) {
                     if (!(s->slaves[i].irl_out & (1 << j))) {
                         qemu_irq_raise(s->cpu_irqs[i][j]);

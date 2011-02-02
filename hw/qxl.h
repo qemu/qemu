@@ -80,10 +80,6 @@ typedef struct PCIQXLDevice {
 
     /* io bar */
     uint32_t           io_base;
-
-    /* spice 0.4 loadvm compatibility */
-    void               *worker_data;
-    uint32_t           worker_data_size;
 } PCIQXLDevice;
 
 #define PANIC_ON(x) if ((x)) {                         \
