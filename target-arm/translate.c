@@ -6100,9 +6100,31 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 goto illegal_op;
             return;
         }
-        if ((insn & 0x0d70f000) == 0x0550f000)
-            return; /* PLD */
-        else if ((insn & 0x0ffffdff) == 0x01010000) {
+        if (((insn & 0x0f30f000) == 0x0510f000) ||
+            ((insn & 0x0f30f010) == 0x0710f000)) {
+            if ((insn & (1 << 22)) == 0) {
+                /* PLDW; v7MP */
+                if (!arm_feature(env, ARM_FEATURE_V7MP)) {
+                    goto illegal_op;
+                }
+            }
+            /* Otherwise PLD; v5TE+ */
+            return;
+        }
+        if (((insn & 0x0f70f000) == 0x0450f000) ||
+            ((insn & 0x0f70f010) == 0x0650f000)) {
+            ARCH(7);
+            return; /* PLI; V7 */
+        }
+        if (((insn & 0x0f700000) == 0x04100000) ||
+            ((insn & 0x0f700010) == 0x06100000)) {
+            if (!arm_feature(env, ARM_FEATURE_V7MP)) {
+                goto illegal_op;
+            }
+            return; /* v7MP: Unallocated memory hint: must NOP */
+        }
+
+        if ((insn & 0x0ffffdff) == 0x01010000) {
             ARCH(6);
             /* setend */
             if (insn & (1 << 9)) {
