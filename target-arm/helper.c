@@ -1608,12 +1608,28 @@ uint32_t HELPER(get_cp15)(CPUState *env, uint32_t insn)
                     return 0;
                 case 3: /* TLB type register.  */
                     return 0; /* No lockable TLB entries.  */
-                case 5: /* CPU ID */
-                    if (ARM_CPUID(env) == ARM_CPUID_CORTEXA9) {
-                        return env->cpu_index | 0x80000900;
-                    } else {
-                        return env->cpu_index;
+                case 5: /* MPIDR */
+                    /* The MPIDR was standardised in v7; prior to
+                     * this it was implemented only in the 11MPCore.
+                     * For all other pre-v7 cores it does not exist.
+                     */
+                    if (arm_feature(env, ARM_FEATURE_V7) ||
+                        ARM_CPUID(env) == ARM_CPUID_ARM11MPCORE) {
+                        int mpidr = env->cpu_index;
+                        /* We don't support setting cluster ID ([8..11])
+                         * so these bits always RAZ.
+                         */
+                        if (arm_feature(env, ARM_FEATURE_V7MP)) {
+                            mpidr |= (1 << 31);
+                            /* Cores which are uniprocessor (non-coherent)
+                             * but still implement the MP extensions set
+                             * bit 30. (For instance, A9UP.) However we do
+                             * not currently model any of those cores.
+                             */
+                        }
+                        return mpidr;
                     }
+                    /* otherwise fall through to the unimplemented-reg case */
                 default:
                     goto bad_reg;
                 }
