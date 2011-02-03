@@ -724,11 +724,18 @@ static uint64_t qemu_next_deadline_dyntick(void)
     int64_t delta;
     int64_t rtdelta;
 
-    if (use_icount)
+    if (!use_icount && active_timers[QEMU_CLOCK_VIRTUAL]) {
+        delta = active_timers[QEMU_CLOCK_VIRTUAL]->expire_time -
+                     qemu_get_clock(vm_clock);
+    } else {
         delta = INT32_MAX;
-    else
-        delta = qemu_next_deadline();
-
+    }
+    if (active_timers[QEMU_CLOCK_HOST]) {
+        int64_t hdelta = active_timers[QEMU_CLOCK_HOST]->expire_time -
+                 qemu_get_clock_ns(host_clock);
+        if (hdelta < delta)
+            delta = hdelta;
+    }
     if (active_timers[QEMU_CLOCK_REALTIME]) {
         rtdelta = (active_timers[QEMU_CLOCK_REALTIME]->expire_time * 1000000 -
                  qemu_get_clock_ns(rt_clock));
