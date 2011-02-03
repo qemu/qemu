@@ -231,14 +231,27 @@ static void ioapic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t va
     }
 }
 
+static int ioapic_post_load(void *opaque, int version_id)
+{
+    IOAPICState *s = opaque;
+
+    if (version_id == 1) {
+        /* set sane value */
+        s->irr = 0;
+    }
+    return 0;
+}
+
 static const VMStateDescription vmstate_ioapic = {
     .name = "ioapic",
-    .version_id = 1,
+    .version_id = 2,
+    .post_load = ioapic_post_load,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
         VMSTATE_UINT8(id, IOAPICState),
         VMSTATE_UINT8(ioregsel, IOAPICState),
+        VMSTATE_UINT32_V(irr, IOAPICState, 2),
         VMSTATE_UINT64_ARRAY(ioredtbl, IOAPICState, IOAPIC_NUM_PINS),
         VMSTATE_END_OF_LIST()
     }
