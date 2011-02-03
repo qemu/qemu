@@ -322,6 +322,8 @@ void qemu_iovec_reset(QEMUIOVector *qiov);
 void qemu_iovec_to_buffer(QEMUIOVector *qiov, void *buf);
 void qemu_iovec_from_buffer(QEMUIOVector *qiov, const void *buf, size_t count);
 void qemu_iovec_memset(QEMUIOVector *qiov, int c, size_t count);
+void qemu_iovec_memset_skip(QEMUIOVector *qiov, int c, size_t count,
+                            size_t skip);
 
 struct Monitor;
 typedef struct Monitor Monitor;

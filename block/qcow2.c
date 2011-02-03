@@ -355,7 +355,7 @@ int qcow2_backing_read1(BlockDriverState *bs, QEMUIOVector *qiov,
     else
         n1 = bs->total_sectors - sector_num;
 
-    qemu_iovec_memset(qiov, 0, 512 * (nb_sectors - n1));
+    qemu_iovec_memset_skip(qiov, 0, 512 * (nb_sectors - n1), 512 * n1);
 
     return n1;
 }
@@ -478,8 +478,7 @@ static void qcow2_aio_read_cb(void *opaque, int ret)
             if (n1 > 0) {
                 BLKDBG_EVENT(bs->file, BLKDBG_READ_BACKING_AIO);
                 acb->hd_aiocb = bdrv_aio_readv(bs->backing_hd, acb->sector_num,
-                                    &acb->hd_qiov, acb->cur_nr_sectors,
-				    qcow2_aio_read_cb, acb);
+                                    &acb->hd_qiov, n1, qcow2_aio_read_cb, acb);
                 if (acb->hd_aiocb == NULL)
                     goto done;
             } else {
