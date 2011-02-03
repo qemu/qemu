@@ -11,6 +11,7 @@
  */
 
 #include "qemu-char.h"
+#include "qemu-error.h"
 #include "virtio-serial.h"
 
 typedef struct VirtConsole {
@@ -113,6 +114,14 @@ static int virtserialport_initfn(VirtIOSerialPort *port)
 {
     VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
 
+    if (port->id == 0) {
+        /*
+         * Disallow a generic port at id 0, that's reserved for
+         * console ports.
+         */
+        error_report("Port number 0 on virtio-serial devices reserved for virtconsole devices for backward compatibility.");
+        return -1;
+    }
     return generic_port_init(vcon, port);
 }
 
