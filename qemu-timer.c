@@ -635,6 +635,8 @@ void qemu_run_all_timers(void)
     qemu_run_timers(host_clock);
 }
 
+static int64_t qemu_next_alarm_deadline(void);
+
 #ifdef _WIN32
 static void CALLBACK host_alarm_handler(UINT uTimerID, UINT uMsg,
                                         DWORD_PTR dwUser, DWORD_PTR dw1,
@@ -677,14 +679,7 @@ static void host_alarm_handler(int host_signum)
     }
 #endif
     if (alarm_has_dynticks(t) ||
-        (!use_icount &&
-            qemu_timer_expired(active_timers[QEMU_CLOCK_VIRTUAL],
-                               qemu_get_clock(vm_clock))) ||
-        qemu_timer_expired(active_timers[QEMU_CLOCK_REALTIME],
-                           qemu_get_clock(rt_clock)) ||
-        qemu_timer_expired(active_timers[QEMU_CLOCK_HOST],
-                           qemu_get_clock(host_clock))) {
-
+        qemu_next_alarm_deadline () <= 0) {
         t->expired = alarm_has_dynticks(t);
         t->pending = 1;
         qemu_notify_event();
@@ -715,11 +710,7 @@ int64_t qemu_next_deadline(void)
 
 #ifndef _WIN32
 
-#if defined(__linux__)
-
-#define RTC_FREQ 1024
-
-static uint64_t qemu_next_deadline_dyntick(void)
+static int64_t qemu_next_alarm_deadline(void)
 {
     int64_t delta;
     int64_t rtdelta;
@@ -743,11 +734,12 @@ static uint64_t qemu_next_deadline_dyntick(void)
             delta = rtdelta;
     }
 
-    if (delta < MIN_TIMER_REARM_NS)
-        delta = MIN_TIMER_REARM_NS;
-
     return delta;
 }
+
+#if defined(__linux__)
+
+#define RTC_FREQ 1024
 
 static void enable_sigio_timer(int fd)
 {
@@ -903,7 +895,9 @@ static void dynticks_rearm_timer(struct qemu_alarm_timer *t)
         !active_timers[QEMU_CLOCK_HOST])
         return;
 
-    nearest_delta_ns = qemu_next_deadline_dyntick();
+    nearest_delta_ns = qemu_next_alarm_deadline();
+    if (nearest_delta_ns < MIN_TIMER_REARM_NS)
+        nearest_delta_ns = MIN_TIMER_REARM_NS;
 
     /* check whether a timer is already running */
     if (timer_gettime(host_timer, &timeout)) {
