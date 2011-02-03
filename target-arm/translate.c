@@ -8306,6 +8306,42 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                 goto illegal_op;
             break;
         }
+        op = ((insn >> 21) & 3) | ((insn >> 22) & 4);
+        if (rs == 15) {
+            if (!(insn & (1 << 20))) {
+                goto illegal_op;
+            }
+            if (op != 2) {
+                /* Byte or halfword load space with dest == r15 : memory hints.
+                 * Catch them early so we don't emit pointless addressing code.
+                 * This space is a mix of:
+                 *  PLD/PLDW/PLI,  which we implement as NOPs (note that unlike
+                 *     the ARM encodings, PLDW space doesn't UNDEF for non-v7MP
+                 *     cores)
+                 *  unallocated hints, which must be treated as NOPs
+                 *  UNPREDICTABLE space, which we NOP or UNDEF depending on
+                 *     which is easiest for the decoding logic
+                 *  Some space which must UNDEF
+                 */
+                int op1 = (insn >> 23) & 3;
+                int op2 = (insn >> 6) & 0x3f;
+                if (op & 2) {
+                    goto illegal_op;
+                }
+                if (rn == 15) {
+                    /* UNPREDICTABLE or unallocated hint */
+                    return 0;
+                }
+                if (op1 & 1) {
+                    return 0; /* PLD* or unallocated hint */
+                }
+                if ((op2 == 0) || ((op2 & 0x3c) == 0x30)) {
+                    return 0; /* PLD* or unallocated hint */
+                }
+                /* UNDEF space, or an UNPREDICTABLE */
+                return 1;
+            }
+        }
         user = IS_USER(s);
         if (rn == 15) {
             addr = new_tmp();
@@ -8324,9 +8360,8 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                 imm = insn & 0xfff;
                 tcg_gen_addi_i32(addr, addr, imm);
             } else {
-                op = (insn >> 8) & 7;
                 imm = insn & 0xff;
-                switch (op) {
+                switch ((insn >> 8) & 7) {
                 case 0: case 8: /* Shifted Register.  */
                     shift = (insn >> 4) & 0xf;
                     if (shift > 3)
@@ -8363,32 +8398,23 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                 }
             }
         }
-        op = ((insn >> 21) & 3) | ((insn >> 22) & 4);
         if (insn & (1 << 20)) {
             /* Load.  */
-            if (rs == 15 && op != 2) {
-                if (op & 2)
-                    goto illegal_op;
-                /* Memory hint.  Implemented as NOP.  */
+            switch (op) {
+            case 0: tmp = gen_ld8u(addr, user); break;
+            case 4: tmp = gen_ld8s(addr, user); break;
+            case 1: tmp = gen_ld16u(addr, user); break;
+            case 5: tmp = gen_ld16s(addr, user); break;
+            case 2: tmp = gen_ld32(addr, user); break;
+            default: goto illegal_op;
+            }
+            if (rs == 15) {
+                gen_bx(s, tmp);
             } else {
-                switch (op) {
-                case 0: tmp = gen_ld8u(addr, user); break;
-                case 4: tmp = gen_ld8s(addr, user); break;
-                case 1: tmp = gen_ld16u(addr, user); break;
-                case 5: tmp = gen_ld16s(addr, user); break;
-                case 2: tmp = gen_ld32(addr, user); break;
-                default: goto illegal_op;
-                }
-                if (rs == 15) {
-                    gen_bx(s, tmp);
-                } else {
-                    store_reg(s, rs, tmp);
-                }
+                store_reg(s, rs, tmp);
             }
         } else {
             /* Store.  */
-            if (rs == 15)
-                goto illegal_op;
             tmp = load_reg(s, rs);
             switch (op) {
             case 0: gen_st8(tmp, addr, user); break;
