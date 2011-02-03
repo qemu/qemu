@@ -362,7 +362,8 @@ enum arm_features {
     ARM_FEATURE_DIV,
     ARM_FEATURE_M, /* Microcontroller profile.  */
     ARM_FEATURE_OMAPCP, /* OMAP specific CP15 ops handling.  */
-    ARM_FEATURE_THUMB2EE
+    ARM_FEATURE_THUMB2EE,
+    ARM_FEATURE_V7MP    /* v7 Multiprocessing Extensions */
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)
