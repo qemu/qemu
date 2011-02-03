@@ -301,6 +301,15 @@ void kvm_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
 #endif
 }
 
+static void cpu_update_state(void *opaque, int running, int reason)
+{
+    CPUState *env = opaque;
+
+    if (running) {
+        env->tsc_valid = false;
+    }
+}
+
 int kvm_arch_init_vcpu(CPUState *env)
 {
     struct {
@@ -433,6 +442,8 @@ int kvm_arch_init_vcpu(CPUState *env)
         }
     }
 #endif
+
+    qemu_add_vm_change_state_handler(cpu_update_state, env);
 
     return kvm_vcpu_ioctl(env, KVM_SET_CPUID2, &cpuid_data);
 }
@@ -1061,7 +1072,12 @@ static int kvm_get_msrs(CPUState *env)
     if (has_msr_hsave_pa) {
         msrs[n++].index = MSR_VM_HSAVE_PA;
     }
-    msrs[n++].index = MSR_IA32_TSC;
+
+    if (!env->tsc_valid) {
+        msrs[n++].index = MSR_IA32_TSC;
+        env->tsc_valid = !vm_running;
+    }
+
 #ifdef TARGET_X86_64
     if (lm_capable_kernel) {
         msrs[n++].index = MSR_CSTAR;
