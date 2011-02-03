@@ -23,6 +23,7 @@
 #include "hw.h"
 #include "pc.h"
 #include "apic.h"
+#include "ioapic.h"
 #include "qemu-timer.h"
 #include "host-utils.h"
 #include "sysbus.h"
@@ -36,7 +37,10 @@
 #define DPRINTF(fmt, ...)
 #endif
 
-#define IOAPIC_LVT_MASKED 		(1<<16)
+#define MAX_IOAPICS                     1
+
+#define IOAPIC_LVT_MASKED               (1 << 16)
+#define IOAPIC_LVT_REMOTE_IRR           (1 << 14)
 
 #define IOAPIC_TRIGGER_EDGE		0
 #define IOAPIC_TRIGGER_LEVEL		1
@@ -61,6 +65,8 @@ struct IOAPICState {
     uint64_t ioredtbl[IOAPIC_NUM_PINS];
 };
 
+static IOAPICState *ioapics[MAX_IOAPICS];
+
 static void ioapic_service(IOAPICState *s)
 {
     uint8_t i;
@@ -83,8 +89,11 @@ static void ioapic_service(IOAPICState *s)
                 dest_mode = (entry >> 11) & 1;
                 delivery_mode = (entry >> 8) & 7;
                 polarity = (entry >> 13) & 1;
-                if (trig_mode == IOAPIC_TRIGGER_EDGE)
+                if (trig_mode == IOAPIC_TRIGGER_EDGE) {
                     s->irr &= ~mask;
+                } else {
+                    s->ioredtbl[i] |= IOAPIC_LVT_REMOTE_IRR;
+                }
                 if (delivery_mode == IOAPIC_DM_EXTINT)
                     vector = pic_read_irq(isa_pic);
                 else
@@ -126,6 +135,29 @@ static void ioapic_set_irq(void *opaque, int vector, int level)
             if (level) {
                 s->irr |= mask;
                 ioapic_service(s);
+            }
+        }
+    }
+}
+
+void ioapic_eoi_broadcast(int vector)
+{
+    IOAPICState *s;
+    uint64_t entry;
+    int i, n;
+
+    for (i = 0; i < MAX_IOAPICS; i++) {
+        s = ioapics[i];
+        if (!s) {
+            continue;
+        }
+        for (n = 0; n < IOAPIC_NUM_PINS; n++) {
+            entry = s->ioredtbl[n];
+            if ((entry & IOAPIC_LVT_REMOTE_IRR) && (entry & 0xff) == vector) {
+                s->ioredtbl[n] = entry & ~IOAPIC_LVT_REMOTE_IRR;
+                if (!(entry & IOAPIC_LVT_MASKED) && (s->irr & (1 << n))) {
+                    ioapic_service(s);
+                }
             }
         }
     }
@@ -240,6 +272,11 @@ static int ioapic_init1(SysBusDevice *dev)
 {
     IOAPICState *s = FROM_SYSBUS(IOAPICState, dev);
     int io_memory;
+    static int ioapic_no;
+
+    if (ioapic_no >= MAX_IOAPICS) {
+        return -1;
+    }
 
     io_memory = cpu_register_io_memory(ioapic_mem_read,
                                        ioapic_mem_write, s,
@@ -247,6 +284,8 @@ static int ioapic_init1(SysBusDevice *dev)
     sysbus_init_mmio(dev, 0x1000, io_memory);
 
     qdev_init_gpio_in(&dev->qdev, ioapic_set_irq, IOAPIC_NUM_PINS);
+
+    ioapics[ioapic_no++] = s;
 
     return 0;
 }
