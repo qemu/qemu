@@ -244,13 +244,14 @@ static int ioapic_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_ioapic = {
     .name = "ioapic",
-    .version_id = 2,
+    .version_id = 3,
     .post_load = ioapic_post_load,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
         VMSTATE_UINT8(id, IOAPICState),
         VMSTATE_UINT8(ioregsel, IOAPICState),
+        VMSTATE_UNUSED_V(2, 8), /* to account for qemu-kvm's v2 format */
         VMSTATE_UINT32_V(irr, IOAPICState, 2),
         VMSTATE_UINT64_ARRAY(ioredtbl, IOAPICState, IOAPIC_NUM_PINS),
         VMSTATE_END_OF_LIST()
