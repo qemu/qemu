@@ -388,12 +388,16 @@ static void sdl_process_key(SDL_KeyboardEvent *ev)
         else
             modifiers_state[keycode] = 1;
         break;
+#define QEMU_SDL_VERSION ((SDL_MAJOR_VERSION << 8) + SDL_MINOR_VERSION)
+#if QEMU_SDL_VERSION < 0x102 || QEMU_SDL_VERSION == 0x102 && SDL_PATCHLEVEL < 14
+        /* SDL versions before 1.2.14 don't support key up for caps/num lock. */
     case 0x45: /* num lock */
     case 0x3a: /* caps lock */
         /* SDL does not send the key up event, so we generate it */
         kbd_put_keycode(keycode);
         kbd_put_keycode(keycode | SCANCODE_UP);
         return;
+#endif
     }
 
     /* now send the key code */
@@ -830,6 +834,10 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     if (!full_screen) {
         setenv("SDL_VIDEO_ALLOW_SCREENSAVER", "1", 0);
     }
+
+    /* Enable normal up/down events for Caps-Lock and Num-Lock keys.
+     * This requires SDL >= 1.2.14. */
+    setenv("SDL_DISABLE_LOCK_KEYS", "1", 1);
 
     flags = SDL_INIT_VIDEO | SDL_INIT_NOPARACHUTE;
     if (SDL_Init (flags)) {
