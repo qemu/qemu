@@ -80,6 +80,10 @@ typedef void VncSendHextileTile(VncState *vs,
 #define VNC_MAX_HEIGHT 2048
 #define VNC_DIRTY_WORDS (VNC_MAX_WIDTH / (16 * 32))
 
+#define VNC_STAT_RECT  64
+#define VNC_STAT_COLS (VNC_MAX_WIDTH / VNC_STAT_RECT)
+#define VNC_STAT_ROWS (VNC_MAX_HEIGHT / VNC_STAT_RECT)
+
 #define VNC_AUTH_CHALLENGE_SIZE 16
 
 typedef struct VncDisplay VncDisplay;
@@ -92,9 +96,23 @@ typedef struct VncDisplay VncDisplay;
 #include "vnc-auth-sasl.h"
 #endif
 
+struct VncRectStat
+{
+    /* time of last 10 updates, to find update frequency */
+    struct timeval times[10];
+    int idx;
+
+    double freq;        /* Update frequency (in Hz) */
+    bool updated;       /* Already updated during this refresh */
+};
+
+typedef struct VncRectStat VncRectStat;
+
 struct VncSurface
 {
+    struct timeval last_freq_check;
     uint32_t dirty[VNC_MAX_HEIGHT][VNC_DIRTY_WORDS];
+    VncRectStat stats[VNC_STAT_ROWS][VNC_STAT_COLS];
     DisplaySurface *ds;
 };
 
@@ -479,6 +497,7 @@ void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
                             int32_t encoding);
 
 void vnc_convert_pixel(VncState *vs, uint8_t *buf, uint32_t v);
+double vnc_update_freq(VncState *vs, int x, int y, int w, int h);
 
 /* Encodings */
 int vnc_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);

@@ -35,6 +35,8 @@
 #define VNC_REFRESH_INTERVAL_BASE 30
 #define VNC_REFRESH_INTERVAL_INC  50
 #define VNC_REFRESH_INTERVAL_MAX  2000
+static const struct timeval VNC_REFRESH_STATS = { 0, 500000 };
+static const struct timeval VNC_REFRESH_LOSSY = { 2, 0 };
 
 #include "vnc_keysym.h"
 #include "d3des.h"
@@ -2258,6 +2260,99 @@ static int protocol_version(VncState *vs, uint8_t *version, size_t len)
     return 0;
 }
 
+static VncRectStat *vnc_stat_rect(VncDisplay *vd, int x, int y)
+{
+    struct VncSurface *vs = &vd->guest;
+
+    return &vs->stats[y / VNC_STAT_RECT][x / VNC_STAT_RECT];
+}
+
+static void vnc_update_stats(VncDisplay *vd,  struct timeval * tv)
+{
+    int x, y;
+    struct timeval res;
+
+    for (y = 0; y < vd->guest.ds->height; y += VNC_STAT_RECT) {
+        for (x = 0; x < vd->guest.ds->width; x += VNC_STAT_RECT) {
+            VncRectStat *rect = vnc_stat_rect(vd, x, y);
+
+            rect->updated = false;
+        }
+    }
+
+    timersub(tv, &VNC_REFRESH_STATS, &res);
+
+    if (timercmp(&vd->guest.last_freq_check, &res, >)) {
+        return ;
+    }
+    vd->guest.last_freq_check = *tv;
+
+    for (y = 0; y < vd->guest.ds->height; y += VNC_STAT_RECT) {
+        for (x = 0; x < vd->guest.ds->width; x += VNC_STAT_RECT) {
+            VncRectStat *rect= vnc_stat_rect(vd, x, y);
+            int count = ARRAY_SIZE(rect->times);
+            struct timeval min, max;
+
+            if (!timerisset(&rect->times[count - 1])) {
+                continue ;
+            }
+
+            max = rect->times[(rect->idx + count - 1) % count];
+            timersub(tv, &max, &res);
+
+            if (timercmp(&res, &VNC_REFRESH_LOSSY, >)) {
+                rect->freq = 0;
+                memset(rect->times, 0, sizeof (rect->times));
+                continue ;
+            }
+
+            min = rect->times[rect->idx];
+            max = rect->times[(rect->idx + count - 1) % count];
+            timersub(&max, &min, &res);
+
+            rect->freq = res.tv_sec + res.tv_usec / 1000000.;
+            rect->freq /= count;
+            rect->freq = 1. / rect->freq;
+        }
+    }
+}
+
+double vnc_update_freq(VncState *vs, int x, int y, int w, int h)
+{
+    int i, j;
+    double total = 0;
+    int num = 0;
+
+    x =  (x / VNC_STAT_RECT) * VNC_STAT_RECT;
+    y =  (y / VNC_STAT_RECT) * VNC_STAT_RECT;
+
+    for (j = y; j <= y + h; j += VNC_STAT_RECT) {
+        for (i = x; i <= x + w; i += VNC_STAT_RECT) {
+            total += vnc_stat_rect(vs->vd, i, j)->freq;
+            num++;
+        }
+    }
+
+    if (num) {
+        return total / num;
+    } else {
+        return 0;
+    }
+}
+
+static void vnc_rect_updated(VncDisplay *vd, int x, int y, struct timeval * tv)
+{
+    VncRectStat *rect;
+
+    rect = vnc_stat_rect(vd, x, y);
+    if (rect->updated) {
+        return ;
+    }
+    rect->times[rect->idx] = *tv;
+    rect->idx = (rect->idx + 1) % ARRAY_SIZE(rect->times);
+    rect->updated = true;
+}
+
 static int vnc_refresh_server_surface(VncDisplay *vd)
 {
     int y;
@@ -2267,6 +2362,11 @@ static int vnc_refresh_server_surface(VncDisplay *vd)
     uint32_t width_mask[VNC_DIRTY_WORDS];
     VncState *vs;
     int has_dirty = 0;
+
+    struct timeval tv;
+
+    gettimeofday(&tv, NULL);
+    vnc_update_stats(vd, &tv);
 
     /*
      * Walk through the guest dirty map.
@@ -2294,6 +2394,7 @@ static int vnc_refresh_server_surface(VncDisplay *vd)
                 if (memcmp(server_ptr, guest_ptr, cmp_bytes) == 0)
                     continue;
                 memcpy(server_ptr, guest_ptr, cmp_bytes);
+                vnc_rect_updated(vd, x, y, &tv);
                 QTAILQ_FOREACH(vs, &vd->clients, next) {
                     vnc_set_bit(vs->dirty[y], (x / 16));
                 }
