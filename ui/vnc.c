@@ -1780,7 +1780,9 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             vs->tight.compression = (enc & 0x0F);
             break;
         case VNC_ENCODING_QUALITYLEVEL0 ... VNC_ENCODING_QUALITYLEVEL0 + 9:
-            vs->tight.quality = (enc & 0x0F);
+            if (vs->vd->lossy) {
+                vs->tight.quality = (enc & 0x0F);
+            }
             break;
         default:
             VNC_DEBUG("Unknown encoding: %d (0x%.8x): %d\n", i, enc, enc);
