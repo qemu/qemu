@@ -795,12 +795,11 @@ static void vnc_dpy_cursor_define(QEMUCursor *c)
 }
 
 static int find_and_clear_dirty_height(struct VncState *vs,
-                                       int y, int last_x, int x)
+                                       int y, int last_x, int x, int height)
 {
     int h;
-    VncDisplay *vd = vs->vd;
 
-    for (h = 1; h < (vd->server->height - y); h++) {
+    for (h = 1; h < (height - y); h++) {
         int tmp_x;
         if (!test_bit(last_x, vs->dirty[y + h])) {
             break;
@@ -865,7 +864,8 @@ static int vnc_update_client(VncState *vs, int has_dirty)
                     }
                 } else {
                     if (last_x != -1) {
-                        int h = find_and_clear_dirty_height(vs, y, last_x, x);
+                        int h = find_and_clear_dirty_height(vs, y, last_x, x,
+                                                            height);
 
                         n += vnc_job_add_rect(job, last_x * 16, y,
                                               (x - last_x) * 16, h);
@@ -874,7 +874,7 @@ static int vnc_update_client(VncState *vs, int has_dirty)
                 }
             }
             if (last_x != -1) {
-                int h = find_and_clear_dirty_height(vs, y, last_x, x);
+                int h = find_and_clear_dirty_height(vs, y, last_x, x, height);
                 n += vnc_job_add_rect(job, last_x * 16, y,
                                       (x - last_x) * 16, h);
             }
