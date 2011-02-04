@@ -708,8 +708,6 @@ int64_t qemu_next_deadline(void)
     return delta;
 }
 
-#ifndef _WIN32
-
 static int64_t qemu_next_alarm_deadline(void)
 {
     int64_t delta;
@@ -921,6 +919,8 @@ static void dynticks_rearm_timer(struct qemu_alarm_timer *t)
 }
 
 #endif /* defined(__linux__) */
+
+#if !defined(_WIN32)
 
 static int unix_start_timer(struct qemu_alarm_timer *t)
 {
