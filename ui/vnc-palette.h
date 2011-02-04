@@ -51,6 +51,7 @@ typedef struct VncPalette {
 } VncPalette;
 
 VncPalette *palette_new(size_t max, int bpp);
+void palette_init(VncPalette *palette, size_t max, int bpp);
 void palette_destroy(VncPalette *palette);
 
 int palette_put(VncPalette *palette, uint32_t color);

@@ -56,9 +56,15 @@ VncPalette *palette_new(size_t max, int bpp)
     VncPalette *palette;
 
     palette = qemu_mallocz(sizeof(*palette));
+    palette_init(palette, max, bpp);
+    return palette;
+}
+
+void palette_init(VncPalette *palette, size_t max, int bpp)
+{
+    memset(palette, 0, sizeof (*palette));
     palette->max = max;
     palette->bpp = bpp;
-    return palette;
 }
 
 void palette_destroy(VncPalette *palette)
