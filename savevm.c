@@ -1638,6 +1638,12 @@ static const VMStateDescription *vmstate_get_subsection(const VMStateSubsection 
 static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
                                    void *opaque)
 {
+    const VMStateSubsection *sub = vmsd->subsections;
+
+    if (!sub || !sub->needed) {
+        return 0;
+    }
+
     while (qemu_peek_byte(f) == QEMU_VM_SUBSECTION) {
         char idstr[256];
         int ret;
@@ -1650,10 +1656,11 @@ static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
         idstr[len] = 0;
         version_id = qemu_get_be32(f);
 
-        sub_vmsd = vmstate_get_subsection(vmsd->subsections, idstr);
+        sub_vmsd = vmstate_get_subsection(sub, idstr);
         if (sub_vmsd == NULL) {
             return -ENOENT;
         }
+        assert(!sub_vmsd->subsections);
         ret = vmstate_load_state(f, sub_vmsd, opaque, version_id);
         if (ret) {
             return ret;
@@ -1677,6 +1684,7 @@ static void vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
             qemu_put_byte(f, len);
             qemu_put_buffer(f, (uint8_t *)vmsd->name, len);
             qemu_put_be32(f, vmsd->version_id);
+            assert(!vmsd->subsections);
             vmstate_save_state(f, vmsd, opaque);
         }
         sub++;

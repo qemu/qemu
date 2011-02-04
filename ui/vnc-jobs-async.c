@@ -227,6 +227,10 @@ static int vnc_worker_thread_loop(VncJobQueue *queue)
 
         if (job->vs->csock == -1) {
             vnc_unlock_display(job->vs->vd);
+            /* output mutex must be locked before going to
+             * disconnected:
+             */
+            vnc_lock_output(job->vs);
             goto disconnected;
         }
 

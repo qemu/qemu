@@ -18,6 +18,7 @@
  */
 #include "hw.h"
 #include "apic.h"
+#include "ioapic.h"
 #include "qemu-timer.h"
 #include "host-utils.h"
 #include "sysbus.h"
@@ -57,7 +58,8 @@
 
 #define ESR_ILLEGAL_ADDRESS (1 << 7)
 
-#define APIC_SV_ENABLE (1 << 8)
+#define APIC_SV_DIRECTED_IO             (1<<12)
+#define APIC_SV_ENABLE                  (1<<8)
 
 #define MAX_APICS 255
 #define MAX_APIC_WORDS 8
@@ -420,8 +422,9 @@ static void apic_eoi(APICState *s)
     if (isrv < 0)
         return;
     reset_bit(s->isr, isrv);
-    /* XXX: send the EOI packet to the APIC bus to allow the I/O APIC to
-            set the remote IRR bit for level triggered interrupts. */
+    if (!(s->spurious_vec & APIC_SV_DIRECTED_IO) && get_bit(s->tmr, isrv)) {
+        ioapic_eoi_broadcast(isrv);
+    }
     apic_update_irq(s);
 }
 

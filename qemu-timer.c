@@ -197,8 +197,8 @@ static void qemu_rearm_alarm_timer(struct qemu_alarm_timer *t)
     t->rearm(t);
 }
 
-/* TODO: MIN_TIMER_REARM_US should be optimized */
-#define MIN_TIMER_REARM_US 250
+/* TODO: MIN_TIMER_REARM_NS should be optimized */
+#define MIN_TIMER_REARM_NS 250000
 
 #ifdef _WIN32
 
@@ -633,6 +633,8 @@ void qemu_run_all_timers(void)
     qemu_run_timers(host_clock);
 }
 
+static int64_t qemu_next_alarm_deadline(void);
+
 #ifdef _WIN32
 static void CALLBACK host_alarm_handler(UINT uTimerID, UINT uMsg,
                                         DWORD_PTR dwUser, DWORD_PTR dw1,
@@ -675,14 +677,7 @@ static void host_alarm_handler(int host_signum)
     }
 #endif
     if (alarm_has_dynticks(t) ||
-        (!use_icount &&
-            qemu_timer_expired(active_timers[QEMU_CLOCK_VIRTUAL],
-                               qemu_get_clock(vm_clock))) ||
-        qemu_timer_expired(active_timers[QEMU_CLOCK_REALTIME],
-                           qemu_get_clock(rt_clock)) ||
-        qemu_timer_expired(active_timers[QEMU_CLOCK_HOST],
-                           qemu_get_clock(host_clock))) {
-
+        qemu_next_alarm_deadline () <= 0) {
         t->expired = alarm_has_dynticks(t);
         t->pending = 1;
         qemu_notify_event();
@@ -696,11 +691,11 @@ int64_t qemu_next_deadline(void)
 
     if (active_timers[QEMU_CLOCK_VIRTUAL]) {
         delta = active_timers[QEMU_CLOCK_VIRTUAL]->expire_time -
-                     qemu_get_clock(vm_clock);
+                     qemu_get_clock_ns(vm_clock);
     }
     if (active_timers[QEMU_CLOCK_HOST]) {
         int64_t hdelta = active_timers[QEMU_CLOCK_HOST]->expire_time -
-                 qemu_get_clock(host_clock);
+                 qemu_get_clock_ns(host_clock);
         if (hdelta < delta)
             delta = hdelta;
     }
@@ -713,32 +708,36 @@ int64_t qemu_next_deadline(void)
 
 #ifndef _WIN32
 
-#if defined(__linux__)
-
-#define RTC_FREQ 1024
-
-static uint64_t qemu_next_deadline_dyntick(void)
+static int64_t qemu_next_alarm_deadline(void)
 {
     int64_t delta;
     int64_t rtdelta;
 
-    if (use_icount)
+    if (!use_icount && active_timers[QEMU_CLOCK_VIRTUAL]) {
+        delta = active_timers[QEMU_CLOCK_VIRTUAL]->expire_time -
+                     qemu_get_clock(vm_clock);
+    } else {
         delta = INT32_MAX;
-    else
-        delta = (qemu_next_deadline() + 999) / 1000;
-
+    }
+    if (active_timers[QEMU_CLOCK_HOST]) {
+        int64_t hdelta = active_timers[QEMU_CLOCK_HOST]->expire_time -
+                 qemu_get_clock_ns(host_clock);
+        if (hdelta < delta)
+            delta = hdelta;
+    }
     if (active_timers[QEMU_CLOCK_REALTIME]) {
-        rtdelta = (active_timers[QEMU_CLOCK_REALTIME]->expire_time -
-                 qemu_get_clock(rt_clock))*1000;
+        rtdelta = (active_timers[QEMU_CLOCK_REALTIME]->expire_time * 1000000 -
+                 qemu_get_clock_ns(rt_clock));
         if (rtdelta < delta)
             delta = rtdelta;
     }
 
-    if (delta < MIN_TIMER_REARM_US)
-        delta = MIN_TIMER_REARM_US;
-
     return delta;
 }
+
+#if defined(__linux__)
+
+#define RTC_FREQ 1024
 
 static void enable_sigio_timer(int fd)
 {
@@ -885,8 +884,8 @@ static void dynticks_rearm_timer(struct qemu_alarm_timer *t)
 {
     timer_t host_timer = (timer_t)(long)t->priv;
     struct itimerspec timeout;
-    int64_t nearest_delta_us = INT64_MAX;
-    int64_t current_us;
+    int64_t nearest_delta_ns = INT64_MAX;
+    int64_t current_ns;
 
     assert(alarm_has_dynticks(t));
     if (!active_timers[QEMU_CLOCK_REALTIME] &&
@@ -894,7 +893,9 @@ static void dynticks_rearm_timer(struct qemu_alarm_timer *t)
         !active_timers[QEMU_CLOCK_HOST])
         return;
 
-    nearest_delta_us = qemu_next_deadline_dyntick();
+    nearest_delta_ns = qemu_next_alarm_deadline();
+    if (nearest_delta_ns < MIN_TIMER_REARM_NS)
+        nearest_delta_ns = MIN_TIMER_REARM_NS;
 
     /* check whether a timer is already running */
     if (timer_gettime(host_timer, &timeout)) {
@@ -902,14 +903,14 @@ static void dynticks_rearm_timer(struct qemu_alarm_timer *t)
         fprintf(stderr, "Internal timer error: aborting\n");
         exit(1);
     }
-    current_us = timeout.it_value.tv_sec * 1000000 + timeout.it_value.tv_nsec/1000;
-    if (current_us && current_us <= nearest_delta_us)
+    current_ns = timeout.it_value.tv_sec * 1000000000LL + timeout.it_value.tv_nsec;
+    if (current_ns && current_ns <= nearest_delta_ns)
         return;
 
     timeout.it_interval.tv_sec = 0;
     timeout.it_interval.tv_nsec = 0; /* 0 for one-shot timer */
-    timeout.it_value.tv_sec =  nearest_delta_us / 1000000;
-    timeout.it_value.tv_nsec = (nearest_delta_us % 1000000) * 1000;
+    timeout.it_value.tv_sec =  nearest_delta_ns / 1000000000;
+    timeout.it_value.tv_nsec = nearest_delta_ns % 1000000000;
     if (timer_settime(host_timer, 0 /* RELATIVE */, &timeout, NULL)) {
         perror("settime");
         fprintf(stderr, "Internal timer error: aborting\n");
