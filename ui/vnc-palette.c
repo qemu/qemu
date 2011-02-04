@@ -63,23 +63,9 @@ VncPalette *palette_new(size_t max, int bpp)
 
 void palette_destroy(VncPalette *palette)
 {
-    int i;
-
     if (palette == NULL) {
-        return ;
+        qemu_free(palette);
     }
-
-    for (i = 0; i < VNC_PALETTE_HASH_SIZE; i++) {
-        VncPaletteEntry *entry = QLIST_FIRST(&palette->table[i]);
-        while (entry) {
-            VncPaletteEntry *tmp = QLIST_NEXT(entry, next);
-            QLIST_REMOVE(entry, next);
-            qemu_free(entry);
-            entry = tmp;
-        }
-    }
-
-    qemu_free(palette);
 }
 
 int palette_put(VncPalette *palette, uint32_t color)
@@ -97,7 +83,7 @@ int palette_put(VncPalette *palette, uint32_t color)
     if (!entry) {
         VncPaletteEntry *entry;
 
-        entry = qemu_mallocz(sizeof(*entry));
+        entry = &palette->pool[palette->size];
         entry->color = color;
         entry->idx = idx;
         QLIST_INSERT_HEAD(&palette->table[hash], entry, next);

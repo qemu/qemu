@@ -34,6 +34,7 @@
 #include <stdint.h>
 
 #define VNC_PALETTE_HASH_SIZE 256
+#define VNC_PALETTE_MAX_SIZE  256
 
 typedef struct VncPaletteEntry {
     int idx;
@@ -42,7 +43,7 @@ typedef struct VncPaletteEntry {
 } VncPaletteEntry;
 
 typedef struct VncPalette {
-    QObject_HEAD;
+    VncPaletteEntry pool[VNC_PALETTE_MAX_SIZE];
     size_t size;
     size_t max;
     int bpp;
