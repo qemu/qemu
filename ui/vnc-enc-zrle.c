@@ -260,7 +260,8 @@ static int zrle_send_framebuffer_update(VncState *vs, int x, int y,
     int zywrle_level;
 
     if (vs->zrle.type == VNC_ENCODING_ZYWRLE) {
-        if (!vs->vd->lossy || vs->tight.quality < 0 || vs->tight.quality == 9) {
+        if (!vs->vd->lossy || vs->tight.quality == (uint8_t)-1
+            || vs->tight.quality == 9) {
             zywrle_level = 0;
             vs->zrle.type = VNC_ENCODING_ZRLE;
         } else if (vs->tight.quality < 3) {
