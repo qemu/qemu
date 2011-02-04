@@ -172,6 +172,7 @@ static void vnc_async_encoding_start(VncState *orig, VncState *local)
     local->tight = orig->tight;
     local->zlib = orig->zlib;
     local->hextile = orig->hextile;
+    local->zrle = orig->zrle;
     local->output =  queue->buffer;
     local->csock = -1; /* Don't do any network work on this thread */
 
@@ -183,6 +184,7 @@ static void vnc_async_encoding_end(VncState *orig, VncState *local)
     orig->tight = local->tight;
     orig->zlib = local->zlib;
     orig->hextile = local->hextile;
+    orig->zrle = local->zrle;
     orig->lossy_rect = local->lossy_rect;
 }
 

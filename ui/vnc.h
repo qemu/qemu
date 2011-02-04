@@ -39,6 +39,8 @@
 #include <stdbool.h>
 
 #include "keymaps.h"
+#include "vnc-palette.h"
+#include "vnc-enc-zrle.h"
 
 // #define _VNC_DEBUG 1
 
@@ -180,6 +182,20 @@ typedef struct VncZlib {
     int level;
 } VncZlib;
 
+typedef struct VncZrle {
+    int type;
+    Buffer fb;
+    Buffer zrle;
+    Buffer tmp;
+    Buffer zlib;
+    z_stream stream;
+    VncPalette palette;
+} VncZrle;
+
+typedef struct VncZywrle {
+    int buf[VNC_ZRLE_TILE_WIDTH * VNC_ZRLE_TILE_HEIGHT];
+} VncZywrle;
+
 #ifdef CONFIG_VNC_THREAD
 struct VncRect
 {
@@ -273,7 +289,8 @@ struct VncState
     VncTight tight;
     VncZlib zlib;
     VncHextile hextile;
-
+    VncZrle zrle;
+    VncZywrle zywrle;
 
     Notifier mouse_mode_notifier;
 
@@ -377,6 +394,8 @@ enum {
 #define VNC_FEATURE_COPYRECT                 6
 #define VNC_FEATURE_RICH_CURSOR              7
 #define VNC_FEATURE_TIGHT_PNG                8
+#define VNC_FEATURE_ZRLE                     9
+#define VNC_FEATURE_ZYWRLE                  10
 
 #define VNC_FEATURE_RESIZE_MASK              (1 << VNC_FEATURE_RESIZE)
 #define VNC_FEATURE_HEXTILE_MASK             (1 << VNC_FEATURE_HEXTILE)
@@ -387,6 +406,8 @@ enum {
 #define VNC_FEATURE_COPYRECT_MASK            (1 << VNC_FEATURE_COPYRECT)
 #define VNC_FEATURE_RICH_CURSOR_MASK         (1 << VNC_FEATURE_RICH_CURSOR)
 #define VNC_FEATURE_TIGHT_PNG_MASK           (1 << VNC_FEATURE_TIGHT_PNG)
+#define VNC_FEATURE_ZRLE_MASK                (1 << VNC_FEATURE_ZRLE)
+#define VNC_FEATURE_ZYWRLE_MASK              (1 << VNC_FEATURE_ZYWRLE)
 
 
 /* Client -> Server message IDs */
@@ -520,5 +541,9 @@ int vnc_tight_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
 int vnc_tight_png_send_framebuffer_update(VncState *vs, int x, int y,
                                           int w, int h);
 void vnc_tight_clear(VncState *vs);
+
+int vnc_zrle_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
+int vnc_zywrle_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
+void vnc_zrle_clear(VncState *vs);
 
 #endif /* __QEMU_VNC_H */

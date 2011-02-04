@@ -129,6 +129,7 @@ ui-obj-$(CONFIG_CURSES) += curses.o
 ui-obj-y += vnc.o d3des.o
 ui-obj-y += vnc-enc-zlib.o vnc-enc-hextile.o
 ui-obj-y += vnc-enc-tight.o vnc-palette.o
+ui-obj-y += vnc-enc-zrle.o
 ui-obj-$(CONFIG_VNC_TLS) += vnc-tls.o vnc-auth-vencrypt.o
 ui-obj-$(CONFIG_VNC_SASL) += vnc-auth-sasl.o
 ui-obj-$(CONFIG_COCOA) += cocoa.o
