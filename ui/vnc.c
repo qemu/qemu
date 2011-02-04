@@ -1014,6 +1014,8 @@ static void vnc_disconnect_start(VncState *vs)
 
 static void vnc_disconnect_finish(VncState *vs)
 {
+    int i;
+
     vnc_jobs_join(vs); /* Wait encoding jobs */
 
     vnc_lock_output(vs);
@@ -1050,6 +1052,10 @@ static void vnc_disconnect_finish(VncState *vs)
 #ifdef CONFIG_VNC_THREAD
     qemu_mutex_destroy(&vs->output_mutex);
 #endif
+    for (i = 0; i < VNC_STAT_ROWS; ++i) {
+        qemu_free(vs->lossy_rect[i]);
+    }
+    qemu_free(vs->lossy_rect);
     qemu_free(vs);
 }
 
@@ -2267,10 +2273,57 @@ static VncRectStat *vnc_stat_rect(VncDisplay *vd, int x, int y)
     return &vs->stats[y / VNC_STAT_RECT][x / VNC_STAT_RECT];
 }
 
-static void vnc_update_stats(VncDisplay *vd,  struct timeval * tv)
+void vnc_sent_lossy_rect(VncState *vs, int x, int y, int w, int h)
+{
+    int i, j;
+
+    w = (x + w) / VNC_STAT_RECT;
+    h = (y + h) / VNC_STAT_RECT;
+    x /= VNC_STAT_RECT;
+    y /= VNC_STAT_RECT;
+
+    for (j = y; j <= y + h; j++) {
+        for (i = x; i <= x + w; i++) {
+            vs->lossy_rect[j][i] = 1;
+        }
+    }
+}
+
+static int vnc_refresh_lossy_rect(VncDisplay *vd, int x, int y)
+{
+    VncState *vs;
+    int sty = y / VNC_STAT_RECT;
+    int stx = x / VNC_STAT_RECT;
+    int has_dirty = 0;
+
+    y = y / VNC_STAT_RECT * VNC_STAT_RECT;
+    x = x / VNC_STAT_RECT * VNC_STAT_RECT;
+
+    QTAILQ_FOREACH(vs, &vd->clients, next) {
+        int j;
+
+        /* kernel send buffers are full -> refresh later */
+        if (vs->output.offset) {
+            continue;
+        }
+
+        if (!vs->lossy_rect[sty][stx]) {
+            continue;
+        }
+        vs->lossy_rect[sty][stx] = 0;
+        for (j = 0; j < VNC_STAT_RECT; ++j) {
+            vnc_set_bits(vs->dirty[y + j], x / 16, VNC_STAT_RECT / 16);
+        }
+        has_dirty++;
+    }
+    return has_dirty;
+}
+
+static int vnc_update_stats(VncDisplay *vd,  struct timeval * tv)
 {
     int x, y;
     struct timeval res;
+    int has_dirty = 0;
 
     for (y = 0; y < vd->guest.ds->height; y += VNC_STAT_RECT) {
         for (x = 0; x < vd->guest.ds->width; x += VNC_STAT_RECT) {
@@ -2283,7 +2336,7 @@ static void vnc_update_stats(VncDisplay *vd,  struct timeval * tv)
     timersub(tv, &VNC_REFRESH_STATS, &res);
 
     if (timercmp(&vd->guest.last_freq_check, &res, >)) {
-        return ;
+        return has_dirty;
     }
     vd->guest.last_freq_check = *tv;
 
@@ -2302,6 +2355,7 @@ static void vnc_update_stats(VncDisplay *vd,  struct timeval * tv)
 
             if (timercmp(&res, &VNC_REFRESH_LOSSY, >)) {
                 rect->freq = 0;
+                has_dirty += vnc_refresh_lossy_rect(vd, x, y);
                 memset(rect->times, 0, sizeof (rect->times));
                 continue ;
             }
@@ -2315,6 +2369,7 @@ static void vnc_update_stats(VncDisplay *vd,  struct timeval * tv)
             rect->freq = 1. / rect->freq;
         }
     }
+    return has_dirty;
 }
 
 double vnc_update_freq(VncState *vs, int x, int y, int w, int h)
@@ -2366,7 +2421,7 @@ static int vnc_refresh_server_surface(VncDisplay *vd)
     struct timeval tv;
 
     gettimeofday(&tv, NULL);
-    vnc_update_stats(vd, &tv);
+    has_dirty = vnc_update_stats(vd, &tv);
 
     /*
      * Walk through the guest dirty map.
@@ -2468,7 +2523,13 @@ static void vnc_remove_timer(VncDisplay *vd)
 static void vnc_connect(VncDisplay *vd, int csock)
 {
     VncState *vs = qemu_mallocz(sizeof(VncState));
+    int i;
+
     vs->csock = csock;
+    vs->lossy_rect = qemu_mallocz(VNC_STAT_ROWS * sizeof (*vs->lossy_rect));
+    for (i = 0; i < VNC_STAT_ROWS; ++i) {
+        vs->lossy_rect[i] = qemu_mallocz(VNC_STAT_COLS * sizeof (uint8_t));
+    }
 
     VNC_DEBUG("New client on socket %d\n", csock);
     dcl->idle = 0;

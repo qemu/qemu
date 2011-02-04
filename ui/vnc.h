@@ -217,6 +217,8 @@ struct VncState
 
     DisplayState *ds;
     uint32_t dirty[VNC_MAX_HEIGHT][VNC_DIRTY_WORDS];
+    uint8_t **lossy_rect; /* Not an Array to avoid costly memcpy in
+                           * vnc-jobs-async.c */
 
     VncDisplay *vd;
     int need_update;
@@ -498,6 +500,7 @@ void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
 
 void vnc_convert_pixel(VncState *vs, uint8_t *buf, uint32_t v);
 double vnc_update_freq(VncState *vs, int x, int y, int w, int h);
+void vnc_sent_lossy_rect(VncState *vs, int x, int y, int w, int h);
 
 /* Encodings */
 int vnc_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
