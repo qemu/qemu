@@ -134,6 +134,11 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         set_feature(env, ARM_FEATURE_VFP_FP16);
         set_feature(env, ARM_FEATURE_NEON);
         set_feature(env, ARM_FEATURE_THUMB2EE);
+        /* Note that A9 supports the MP extensions even for
+         * A9UP and single-core A9MP (which are both different
+         * and valid configurations; we don't model A9UP).
+         */
+        set_feature(env, ARM_FEATURE_V7MP);
         env->vfp.xregs[ARM_VFP_FPSID] = 0x41034000; /* Guess */
         env->vfp.xregs[ARM_VFP_MVFR0] = 0x11110222;
         env->vfp.xregs[ARM_VFP_MVFR1] = 0x01111111;
@@ -165,6 +170,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         set_feature(env, ARM_FEATURE_NEON);
         set_feature(env, ARM_FEATURE_THUMB2EE);
         set_feature(env, ARM_FEATURE_DIV);
+        set_feature(env, ARM_FEATURE_V7MP);
         break;
     case ARM_CPUID_TI915T:
     case ARM_CPUID_TI925T:
@@ -1618,12 +1624,28 @@ uint32_t HELPER(get_cp15)(CPUState *env, uint32_t insn)
                     return 0;
                 case 3: /* TLB type register.  */
                     return 0; /* No lockable TLB entries.  */
-                case 5: /* CPU ID */
-                    if (ARM_CPUID(env) == ARM_CPUID_CORTEXA9) {
-                        return env->cpu_index | 0x80000900;
-                    } else {
-                        return env->cpu_index;
+                case 5: /* MPIDR */
+                    /* The MPIDR was standardised in v7; prior to
+                     * this it was implemented only in the 11MPCore.
+                     * For all other pre-v7 cores it does not exist.
+                     */
+                    if (arm_feature(env, ARM_FEATURE_V7) ||
+                        ARM_CPUID(env) == ARM_CPUID_ARM11MPCORE) {
+                        int mpidr = env->cpu_index;
+                        /* We don't support setting cluster ID ([8..11])
+                         * so these bits always RAZ.
+                         */
+                        if (arm_feature(env, ARM_FEATURE_V7MP)) {
+                            mpidr |= (1 << 31);
+                            /* Cores which are uniprocessor (non-coherent)
+                             * but still implement the MP extensions set
+                             * bit 30. (For instance, A9UP.) However we do
+                             * not currently model any of those cores.
+                             */
+                        }
+                        return mpidr;
                     }
+                    /* otherwise fall through to the unimplemented-reg case */
                 default:
                     goto bad_reg;
                 }

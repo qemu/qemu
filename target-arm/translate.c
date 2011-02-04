@@ -3536,12 +3536,6 @@ static inline void gen_neon_rsb(int size, TCGv t0, TCGv t1)
 #define gen_helper_neon_pmin_s32  gen_helper_neon_min_s32
 #define gen_helper_neon_pmin_u32  gen_helper_neon_min_u32
 
-/* FIXME: This is wrong.  They set the wrong overflow bit.  */
-#define gen_helper_neon_qadd_s32(a, e, b, c) gen_helper_add_saturate(a, b, c)
-#define gen_helper_neon_qadd_u32(a, e, b, c) gen_helper_add_usaturate(a, b, c)
-#define gen_helper_neon_qsub_s32(a, e, b, c) gen_helper_sub_saturate(a, b, c)
-#define gen_helper_neon_qsub_u32(a, e, b, c) gen_helper_sub_usaturate(a, b, c)
-
 #define GEN_NEON_INTEGER_OP_ENV(name) do { \
     switch ((size << 1) | u) { \
     case 0: \
@@ -4230,16 +4224,20 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 switch (op) {
                 case 1: /* VQADD */
                     if (u) {
-                        gen_helper_neon_add_saturate_u64(CPU_V001);
+                        gen_helper_neon_qadd_u64(cpu_V0, cpu_env,
+                                                 cpu_V0, cpu_V1);
                     } else {
-                        gen_helper_neon_add_saturate_s64(CPU_V001);
+                        gen_helper_neon_qadd_s64(cpu_V0, cpu_env,
+                                                 cpu_V0, cpu_V1);
                     }
                     break;
                 case 5: /* VQSUB */
                     if (u) {
-                        gen_helper_neon_sub_saturate_u64(CPU_V001);
+                        gen_helper_neon_qsub_u64(cpu_V0, cpu_env,
+                                                 cpu_V0, cpu_V1);
                     } else {
-                        gen_helper_neon_sub_saturate_s64(CPU_V001);
+                        gen_helper_neon_qsub_s64(cpu_V0, cpu_env,
+                                                 cpu_V0, cpu_V1);
                     }
                     break;
                 case 8: /* VSHL */
@@ -4683,7 +4681,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         }
                         if (op == 1 || op == 3) {
                             /* Accumulate.  */
-                            neon_load_reg64(cpu_V0, rd + pass);
+                            neon_load_reg64(cpu_V1, rd + pass);
                             tcg_gen_add_i64(cpu_V0, cpu_V0, cpu_V1);
                         } else if (op == 4 || (op == 5 && u)) {
                             /* Insert */
@@ -4747,7 +4745,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         if (op == 1 || op == 3) {
                             /* Accumulate.  */
                             tmp2 = neon_load_reg(rd, pass);
-                            gen_neon_add(size, tmp2, tmp);
+                            gen_neon_add(size, tmp, tmp2);
                             dead_tmp(tmp2);
                         } else if (op == 4 || (op == 5 && u)) {
                             /* Insert */
@@ -6099,9 +6097,31 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 goto illegal_op;
             return;
         }
-        if ((insn & 0x0d70f000) == 0x0550f000)
-            return; /* PLD */
-        else if ((insn & 0x0ffffdff) == 0x01010000) {
+        if (((insn & 0x0f30f000) == 0x0510f000) ||
+            ((insn & 0x0f30f010) == 0x0710f000)) {
+            if ((insn & (1 << 22)) == 0) {
+                /* PLDW; v7MP */
+                if (!arm_feature(env, ARM_FEATURE_V7MP)) {
+                    goto illegal_op;
+                }
+            }
+            /* Otherwise PLD; v5TE+ */
+            return;
+        }
+        if (((insn & 0x0f70f000) == 0x0450f000) ||
+            ((insn & 0x0f70f010) == 0x0650f000)) {
+            ARCH(7);
+            return; /* PLI; V7 */
+        }
+        if (((insn & 0x0f700000) == 0x04100000) ||
+            ((insn & 0x0f700010) == 0x06100000)) {
+            if (!arm_feature(env, ARM_FEATURE_V7MP)) {
+                goto illegal_op;
+            }
+            return; /* v7MP: Unallocated memory hint: must NOP */
+        }
+
+        if ((insn & 0x0ffffdff) == 0x01010000) {
             ARCH(6);
             /* setend */
             if (insn & (1 << 9)) {
@@ -8289,6 +8309,42 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                 goto illegal_op;
             break;
         }
+        op = ((insn >> 21) & 3) | ((insn >> 22) & 4);
+        if (rs == 15) {
+            if (!(insn & (1 << 20))) {
+                goto illegal_op;
+            }
+            if (op != 2) {
+                /* Byte or halfword load space with dest == r15 : memory hints.
+                 * Catch them early so we don't emit pointless addressing code.
+                 * This space is a mix of:
+                 *  PLD/PLDW/PLI,  which we implement as NOPs (note that unlike
+                 *     the ARM encodings, PLDW space doesn't UNDEF for non-v7MP
+                 *     cores)
+                 *  unallocated hints, which must be treated as NOPs
+                 *  UNPREDICTABLE space, which we NOP or UNDEF depending on
+                 *     which is easiest for the decoding logic
+                 *  Some space which must UNDEF
+                 */
+                int op1 = (insn >> 23) & 3;
+                int op2 = (insn >> 6) & 0x3f;
+                if (op & 2) {
+                    goto illegal_op;
+                }
+                if (rn == 15) {
+                    /* UNPREDICTABLE or unallocated hint */
+                    return 0;
+                }
+                if (op1 & 1) {
+                    return 0; /* PLD* or unallocated hint */
+                }
+                if ((op2 == 0) || ((op2 & 0x3c) == 0x30)) {
+                    return 0; /* PLD* or unallocated hint */
+                }
+                /* UNDEF space, or an UNPREDICTABLE */
+                return 1;
+            }
+        }
         user = IS_USER(s);
         if (rn == 15) {
             addr = new_tmp();
@@ -8307,9 +8363,8 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                 imm = insn & 0xfff;
                 tcg_gen_addi_i32(addr, addr, imm);
             } else {
-                op = (insn >> 8) & 7;
                 imm = insn & 0xff;
-                switch (op) {
+                switch ((insn >> 8) & 7) {
                 case 0: case 8: /* Shifted Register.  */
                     shift = (insn >> 4) & 0xf;
                     if (shift > 3)
@@ -8346,32 +8401,23 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                 }
             }
         }
-        op = ((insn >> 21) & 3) | ((insn >> 22) & 4);
         if (insn & (1 << 20)) {
             /* Load.  */
-            if (rs == 15 && op != 2) {
-                if (op & 2)
-                    goto illegal_op;
-                /* Memory hint.  Implemented as NOP.  */
+            switch (op) {
+            case 0: tmp = gen_ld8u(addr, user); break;
+            case 4: tmp = gen_ld8s(addr, user); break;
+            case 1: tmp = gen_ld16u(addr, user); break;
+            case 5: tmp = gen_ld16s(addr, user); break;
+            case 2: tmp = gen_ld32(addr, user); break;
+            default: goto illegal_op;
+            }
+            if (rs == 15) {
+                gen_bx(s, tmp);
             } else {
-                switch (op) {
-                case 0: tmp = gen_ld8u(addr, user); break;
-                case 4: tmp = gen_ld8s(addr, user); break;
-                case 1: tmp = gen_ld16u(addr, user); break;
-                case 5: tmp = gen_ld16s(addr, user); break;
-                case 2: tmp = gen_ld32(addr, user); break;
-                default: goto illegal_op;
-                }
-                if (rs == 15) {
-                    gen_bx(s, tmp);
-                } else {
-                    store_reg(s, rs, tmp);
-                }
+                store_reg(s, rs, tmp);
             }
         } else {
             /* Store.  */
-            if (rs == 15)
-                goto illegal_op;
             tmp = load_reg(s, rs);
             switch (op) {
             case 0: gen_st8(tmp, addr, user); break;
