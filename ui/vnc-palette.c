@@ -126,3 +126,35 @@ void palette_iter(const VncPalette *palette,
         }
     }
 }
+
+uint32_t palette_color(const VncPalette *palette, int idx, bool *found)
+{
+    int i;
+    VncPaletteEntry *entry;
+
+    for (i = 0; i < VNC_PALETTE_HASH_SIZE; i++) {
+        QLIST_FOREACH(entry, &palette->table[i], next) {
+            if (entry->idx == idx) {
+                *found = true;
+                return entry->color;
+            }
+        }
+    }
+
+    *found = false;
+    return -1;
+}
+
+static void palette_fill_cb(int idx, uint32_t color, void *opaque)
+{
+    uint32_t *colors = opaque;
+
+    colors[idx] = color;
+}
+
+size_t palette_fill(const VncPalette *palette,
+                    uint32_t colors[VNC_PALETTE_MAX_SIZE])
+{
+    palette_iter(palette, palette_fill_cb, colors);
+    return palette_size(palette);
+}
