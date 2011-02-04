@@ -2297,8 +2297,8 @@ void vnc_sent_lossy_rect(VncState *vs, int x, int y, int w, int h)
     x /= VNC_STAT_RECT;
     y /= VNC_STAT_RECT;
 
-    for (j = y; j <= y + h; j++) {
-        for (i = x; i <= x + w; i++) {
+    for (j = y; j <= h; j++) {
+        for (i = x; i <= w; i++) {
             vs->lossy_rect[j][i] = 1;
         }
     }
@@ -2315,7 +2315,7 @@ static int vnc_refresh_lossy_rect(VncDisplay *vd, int x, int y)
     x = x / VNC_STAT_RECT * VNC_STAT_RECT;
 
     QTAILQ_FOREACH(vs, &vd->clients, next) {
-        int j;
+        int j, i;
 
         /* kernel send buffers are full -> refresh later */
         if (vs->output.offset) {
@@ -2325,12 +2325,16 @@ static int vnc_refresh_lossy_rect(VncDisplay *vd, int x, int y)
         if (!vs->lossy_rect[sty][stx]) {
             continue;
         }
+
         vs->lossy_rect[sty][stx] = 0;
         for (j = 0; j < VNC_STAT_RECT; ++j) {
-            vnc_set_bits(vs->dirty[y + j], x / 16, VNC_STAT_RECT / 16);
+            for (i = x / 16; i < VNC_STAT_RECT / 16 + x / 16; ++i) {
+                vnc_set_bit(vs->dirty[y + j], i);
+            }
         }
         has_dirty++;
     }
+
     return has_dirty;
 }
 
