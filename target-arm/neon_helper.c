@@ -198,6 +198,28 @@ NEON_VOP_ENV(qadd_u16, neon_u16, 2)
 #undef NEON_FN
 #undef NEON_USAT
 
+uint32_t HELPER(neon_qadd_u32)(CPUState *env, uint32_t a, uint32_t b)
+{
+    uint32_t res = a + b;
+    if (res < a) {
+        SET_QC();
+        res = ~0;
+    }
+    return res;
+}
+
+uint64_t HELPER(neon_qadd_u64)(CPUState *env, uint64_t src1, uint64_t src2)
+{
+    uint64_t res;
+
+    res = src1 + src2;
+    if (res < src1) {
+        SET_QC();
+        res = ~(uint64_t)0;
+    }
+    return res;
+}
+
 #define NEON_SSAT(dest, src1, src2, type) do { \
     int32_t tmp = (uint32_t)src1 + (uint32_t)src2; \
     if (tmp != (type)tmp) { \
@@ -218,6 +240,28 @@ NEON_VOP_ENV(qadd_s16, neon_s16, 2)
 #undef NEON_FN
 #undef NEON_SSAT
 
+uint32_t HELPER(neon_qadd_s32)(CPUState *env, uint32_t a, uint32_t b)
+{
+    uint32_t res = a + b;
+    if (((res ^ a) & SIGNBIT) && !((a ^ b) & SIGNBIT)) {
+        SET_QC();
+        res = ~(((int32_t)a >> 31) ^ SIGNBIT);
+    }
+    return res;
+}
+
+uint64_t HELPER(neon_qadd_s64)(CPUState *env, uint64_t src1, uint64_t src2)
+{
+    uint64_t res;
+
+    res = src1 + src2;
+    if (((res ^ src1) & SIGNBIT64) && !((src1 ^ src2) & SIGNBIT64)) {
+        SET_QC();
+        res = ((int64_t)src1 >> 63) ^ ~SIGNBIT64;
+    }
+    return res;
+}
+
 #define NEON_USAT(dest, src1, src2, type) do { \
     uint32_t tmp = (uint32_t)src1 - (uint32_t)src2; \
     if (tmp != (type)tmp) { \
@@ -233,6 +277,29 @@ NEON_VOP_ENV(qsub_u8, neon_u8, 4)
 NEON_VOP_ENV(qsub_u16, neon_u16, 2)
 #undef NEON_FN
 #undef NEON_USAT
+
+uint32_t HELPER(neon_qsub_u32)(CPUState *env, uint32_t a, uint32_t b)
+{
+    uint32_t res = a - b;
+    if (res > a) {
+        SET_QC();
+        res = 0;
+    }
+    return res;
+}
+
+uint64_t HELPER(neon_qsub_u64)(CPUState *env, uint64_t src1, uint64_t src2)
+{
+    uint64_t res;
+
+    if (src1 < src2) {
+        SET_QC();
+        res = 0;
+    } else {
+        res = src1 - src2;
+    }
+    return res;
+}
 
 #define NEON_SSAT(dest, src1, src2, type) do { \
     int32_t tmp = (uint32_t)src1 - (uint32_t)src2; \
@@ -253,6 +320,28 @@ NEON_VOP_ENV(qsub_s8, neon_s8, 4)
 NEON_VOP_ENV(qsub_s16, neon_s16, 2)
 #undef NEON_FN
 #undef NEON_SSAT
+
+uint32_t HELPER(neon_qsub_s32)(CPUState *env, uint32_t a, uint32_t b)
+{
+    uint32_t res = a - b;
+    if (((res ^ a) & SIGNBIT) && ((a ^ b) & SIGNBIT)) {
+        SET_QC();
+        res = ~(((int32_t)a >> 31) ^ SIGNBIT);
+    }
+    return res;
+}
+
+uint64_t HELPER(neon_qsub_s64)(CPUState *env, uint64_t src1, uint64_t src2)
+{
+    uint64_t res;
+
+    res = src1 - src2;
+    if (((res ^ src1) & SIGNBIT64) && ((src1 ^ src2) & SIGNBIT64)) {
+        SET_QC();
+        res = ((int64_t)src1 >> 63) ^ ~SIGNBIT64;
+    }
+    return res;
+}
 
 #define NEON_FN(dest, src1, src2) dest = (src1 + src2) >> 1
 NEON_VOP(hadd_s8, neon_s8, 4)
