@@ -35,6 +35,7 @@
 #include "console.h"
 #include "monitor.h"
 #include "audio/audio.h"
+#include "bitmap.h"
 #include <zlib.h>
 #include <stdbool.h>
 
@@ -80,7 +81,7 @@ typedef void VncSendHextileTile(VncState *vs,
 
 #define VNC_MAX_WIDTH 2560
 #define VNC_MAX_HEIGHT 2048
-#define VNC_DIRTY_WORDS (VNC_MAX_WIDTH / (16 * 32))
+#define VNC_DIRTY_WORDS (VNC_MAX_WIDTH / (16 * BITS_PER_LONG))
 
 #define VNC_STAT_RECT  64
 #define VNC_STAT_COLS (VNC_MAX_WIDTH / VNC_STAT_RECT)
@@ -113,7 +114,7 @@ typedef struct VncRectStat VncRectStat;
 struct VncSurface
 {
     struct timeval last_freq_check;
-    uint32_t dirty[VNC_MAX_HEIGHT][VNC_DIRTY_WORDS];
+    unsigned long dirty[VNC_MAX_HEIGHT][VNC_DIRTY_WORDS];
     VncRectStat stats[VNC_STAT_ROWS][VNC_STAT_COLS];
     DisplaySurface *ds;
 };
@@ -232,7 +233,7 @@ struct VncState
     int csock;
 
     DisplayState *ds;
-    uint32_t dirty[VNC_MAX_HEIGHT][VNC_DIRTY_WORDS];
+    unsigned long dirty[VNC_MAX_HEIGHT][VNC_DIRTY_WORDS];
     uint8_t **lossy_rect; /* Not an Array to avoid costly memcpy in
                            * vnc-jobs-async.c */
 
