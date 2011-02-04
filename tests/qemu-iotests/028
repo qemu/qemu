@@ -64,7 +64,7 @@ echo "Filling base image"
 echo
 
 # Fill end of base image with a pattern, skipping every other sector
-io writev $offset 512 1024 31
+io writev $offset 512 1024 32
 
 _check_test_img
 
@@ -78,7 +78,7 @@ echo "Filling test image"
 echo
 
 # Write every other sector around where the base image ends
-io writev $(( offset + 512 )) 512 1024 63
+io writev $(( offset + 512 )) 512 1024 64
 
 _check_test_img
 
@@ -86,13 +86,13 @@ echo "Reading"
 echo
 
 # Base image sectors
-io readv $(( offset )) 512 1024 31
+io readv $(( offset )) 512 1024 32
 
 # Image sectors
-io readv $(( offset + 512 )) 512 1024 63
+io readv $(( offset + 512 )) 512 1024 64
 
 # Zero sectors beyond end of base image
-io_zero readv $(( offset + 32 * 1024 )) 512 1024 31
+io_zero readv $(( offset + 32 * 1024 )) 512 1024 32
 
 _check_test_img
 

@@ -3,6 +3,8 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=3221227008
 Filling base image
 
 === IO: pattern 195
+qemu-io> wrote 512/512 bytes at offset 3221194240
+512.000000 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 512/512 bytes at offset 3221195264
 512.000000 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 512/512 bytes at offset 3221196288
@@ -72,6 +74,8 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4294968832 backing_file='TEST_DI
 Filling test image
 
 === IO: pattern 196
+qemu-io> wrote 512/512 bytes at offset 3221194752
+512.000000 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 512/512 bytes at offset 3221195776
 512.000000 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 512/512 bytes at offset 3221196800
@@ -202,6 +206,8 @@ qemu-io> No errors were found on the image.
 Reading
 
 === IO: pattern 195
+qemu-io> read 512/512 bytes at offset 3221194240
+512.000000 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 512/512 bytes at offset 3221195264
 512.000000 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 512/512 bytes at offset 3221196288
@@ -265,6 +271,8 @@ qemu-io> read 512/512 bytes at offset 3221224960
 qemu-io> read 512/512 bytes at offset 3221225984
 512.000000 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 196
+qemu-io> read 512/512 bytes at offset 3221194752
+512.000000 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 512/512 bytes at offset 3221195776
 512.000000 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 512/512 bytes at offset 3221196800
@@ -392,6 +400,8 @@ qemu-io> read 512/512 bytes at offset 3221258240
 qemu-io> read 512/512 bytes at offset 3221259264
 512.000000 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 0
+qemu-io> read 512/512 bytes at offset 3221227008
+512.000000 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 512/512 bytes at offset 3221228032
 512.000000 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 512/512 bytes at offset 3221229056

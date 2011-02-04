@@ -4,6 +4,8 @@ Testing empty image
 
 At offset 10485760:
 === IO: pattern 0
+qemu-io> wrote 4096/4096 bytes at offset 10485760
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 4096/4096 bytes at offset 10489856
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 4096/4096 bytes at offset 10493952
@@ -514,9 +516,9 @@ qemu-io> wrote 4096/4096 bytes at offset 11526144
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 4096/4096 bytes at offset 11530240
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 4096/4096 bytes at offset 11534336
-4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 4
+qemu-io> wrote 2048/2048 bytes at offset 11536384
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 2048/2048 bytes at offset 11540480
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 2048/2048 bytes at offset 11544576
@@ -1027,9 +1029,9 @@ qemu-io> wrote 2048/2048 bytes at offset 12576768
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 2048/2048 bytes at offset 12580864
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 2048/2048 bytes at offset 12584960
-2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 0
+qemu-io> wrote 2048/2048 bytes at offset 12582912
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 2048/2048 bytes at offset 12587008
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 2048/2048 bytes at offset 12591104
@@ -1540,9 +1542,9 @@ qemu-io> wrote 2048/2048 bytes at offset 13623296
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 2048/2048 bytes at offset 13627392
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 2048/2048 bytes at offset 13631488
-2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 2
+qemu-io> wrote 2048/2048 bytes at offset 13632512
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 2048/2048 bytes at offset 13636608
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 2048/2048 bytes at offset 13640704
@@ -2053,9 +2055,9 @@ qemu-io> wrote 2048/2048 bytes at offset 14672896
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 2048/2048 bytes at offset 14676992
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 2048/2048 bytes at offset 14681088
-2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 4
+qemu-io> wrote 8192/8192 bytes at offset 14682112
+8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 8192/8192 bytes at offset 14694400
 8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 8192/8192 bytes at offset 14706688
@@ -2182,9 +2184,9 @@ qemu-io> wrote 8192/8192 bytes at offset 15443968
 8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 8192/8192 bytes at offset 15456256
 8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 8192/8192 bytes at offset 15468544
-8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 244
+qemu-io> wrote 12288/12288 bytes at offset 16771072
+12 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 12288/12288 bytes at offset 18870272
 12 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 12288/12288 bytes at offset 20969472
@@ -2199,9 +2201,9 @@ qemu-io> wrote 12288/12288 bytes at offset 29366272
 12 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 12288/12288 bytes at offset 31465472
 12 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 12288/12288 bytes at offset 33564672
-12 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 0
+qemu-io> read 4096/4096 bytes at offset 10485760
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 4096/4096 bytes at offset 10489856
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 4096/4096 bytes at offset 10493952
@@ -2712,9 +2714,9 @@ qemu-io> read 4096/4096 bytes at offset 11526144
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 4096/4096 bytes at offset 11530240
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 4096/4096 bytes at offset 11534336
-4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 4
+qemu-io> read 2048/2048 bytes at offset 11536384
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 2048/2048 bytes at offset 11540480
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 2048/2048 bytes at offset 11544576
@@ -3225,9 +3227,9 @@ qemu-io> read 2048/2048 bytes at offset 12576768
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 2048/2048 bytes at offset 12580864
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 2048/2048 bytes at offset 12584960
-2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 0
+qemu-io> read 2048/2048 bytes at offset 12582912
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 2048/2048 bytes at offset 12587008
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 2048/2048 bytes at offset 12591104
@@ -3738,9 +3740,9 @@ qemu-io> read 2048/2048 bytes at offset 13623296
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 2048/2048 bytes at offset 13627392
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 2048/2048 bytes at offset 13631488
-2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 2
+qemu-io> read 2048/2048 bytes at offset 13632512
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 2048/2048 bytes at offset 13636608
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 2048/2048 bytes at offset 13640704
@@ -4251,9 +4253,9 @@ qemu-io> read 2048/2048 bytes at offset 14672896
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 2048/2048 bytes at offset 14676992
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 2048/2048 bytes at offset 14681088
-2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 4
+qemu-io> read 8192/8192 bytes at offset 14682112
+8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 8192/8192 bytes at offset 14694400
 8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 8192/8192 bytes at offset 14706688
@@ -4380,9 +4382,9 @@ qemu-io> read 8192/8192 bytes at offset 15443968
 8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 8192/8192 bytes at offset 15456256
 8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 8192/8192 bytes at offset 15468544
-8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 244
+qemu-io> read 12288/12288 bytes at offset 16771072
+12 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 12288/12288 bytes at offset 18870272
 12 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 12288/12288 bytes at offset 20969472
@@ -4397,11 +4399,11 @@ qemu-io> read 12288/12288 bytes at offset 29366272
 12 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 12288/12288 bytes at offset 31465472
 12 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 12288/12288 bytes at offset 33564672
-12 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> No errors were found on the image.
 At offset 4294967296:
 === IO: pattern 0
+qemu-io> wrote 4096/4096 bytes at offset 4294967296
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 4096/4096 bytes at offset 4294971392
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 4096/4096 bytes at offset 4294975488
@@ -4912,9 +4914,9 @@ qemu-io> wrote 4096/4096 bytes at offset 4296007680
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 4096/4096 bytes at offset 4296011776
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 4096/4096 bytes at offset 4296015872
-4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 4
+qemu-io> wrote 2048/2048 bytes at offset 4296017920
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 2048/2048 bytes at offset 4296022016
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 2048/2048 bytes at offset 4296026112
@@ -5425,9 +5427,9 @@ qemu-io> wrote 2048/2048 bytes at offset 4297058304
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 2048/2048 bytes at offset 4297062400
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 2048/2048 bytes at offset 4297066496
-2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 0
+qemu-io> wrote 2048/2048 bytes at offset 4297064448
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 2048/2048 bytes at offset 4297068544
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 2048/2048 bytes at offset 4297072640
@@ -5938,9 +5940,9 @@ qemu-io> wrote 2048/2048 bytes at offset 4298104832
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 2048/2048 bytes at offset 4298108928
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 2048/2048 bytes at offset 4298113024
-2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 2
+qemu-io> wrote 2048/2048 bytes at offset 4298114048
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 2048/2048 bytes at offset 4298118144
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 2048/2048 bytes at offset 4298122240
@@ -6451,9 +6453,9 @@ qemu-io> wrote 2048/2048 bytes at offset 4299154432
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 2048/2048 bytes at offset 4299158528
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 2048/2048 bytes at offset 4299162624
-2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 4
+qemu-io> wrote 8192/8192 bytes at offset 4299163648
+8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 8192/8192 bytes at offset 4299175936
 8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 8192/8192 bytes at offset 4299188224
@@ -6580,9 +6582,9 @@ qemu-io> wrote 8192/8192 bytes at offset 4299925504
 8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 8192/8192 bytes at offset 4299937792
 8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 8192/8192 bytes at offset 4299950080
-8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 244
+qemu-io> wrote 12288/12288 bytes at offset 4301252608
+12 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 12288/12288 bytes at offset 4303351808
 12 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 12288/12288 bytes at offset 4305451008
@@ -6597,9 +6599,9 @@ qemu-io> wrote 12288/12288 bytes at offset 4313847808
 12 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> wrote 12288/12288 bytes at offset 4315947008
 12 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> wrote 12288/12288 bytes at offset 4318046208
-12 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 0
+qemu-io> read 4096/4096 bytes at offset 4294967296
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 4096/4096 bytes at offset 4294971392
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 4096/4096 bytes at offset 4294975488
@@ -7110,9 +7112,9 @@ qemu-io> read 4096/4096 bytes at offset 4296007680
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 4096/4096 bytes at offset 4296011776
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 4096/4096 bytes at offset 4296015872
-4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 4
+qemu-io> read 2048/2048 bytes at offset 4296017920
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 2048/2048 bytes at offset 4296022016
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 2048/2048 bytes at offset 4296026112
@@ -7623,9 +7625,9 @@ qemu-io> read 2048/2048 bytes at offset 4297058304
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 2048/2048 bytes at offset 4297062400
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 2048/2048 bytes at offset 4297066496
-2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 0
+qemu-io> read 2048/2048 bytes at offset 4297064448
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 2048/2048 bytes at offset 4297068544
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 2048/2048 bytes at offset 4297072640
@@ -8136,9 +8138,9 @@ qemu-io> read 2048/2048 bytes at offset 4298104832
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 2048/2048 bytes at offset 4298108928
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 2048/2048 bytes at offset 4298113024
-2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 2
+qemu-io> read 2048/2048 bytes at offset 4298114048
+2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 2048/2048 bytes at offset 4298118144
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 2048/2048 bytes at offset 4298122240
@@ -8649,9 +8651,9 @@ qemu-io> read 2048/2048 bytes at offset 4299154432
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 2048/2048 bytes at offset 4299158528
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 2048/2048 bytes at offset 4299162624
-2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 4
+qemu-io> read 8192/8192 bytes at offset 4299163648
+8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 8192/8192 bytes at offset 4299175936
 8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 8192/8192 bytes at offset 4299188224
@@ -8778,9 +8780,9 @@ qemu-io> read 8192/8192 bytes at offset 4299925504
 8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 8192/8192 bytes at offset 4299937792
 8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 8192/8192 bytes at offset 4299950080
-8 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> === IO: pattern 244
+qemu-io> read 12288/12288 bytes at offset 4301252608
+12 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 12288/12288 bytes at offset 4303351808
 12 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 12288/12288 bytes at offset 4305451008
@@ -8794,8 +8796,6 @@ qemu-io> read 12288/12288 bytes at offset 4311748608
 qemu-io> read 12288/12288 bytes at offset 4313847808
 12 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> read 12288/12288 bytes at offset 4315947008
-12 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-io> read 12288/12288 bytes at offset 4318046208
 12 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> No errors were found on the image.
 *** done
