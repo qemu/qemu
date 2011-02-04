@@ -119,13 +119,13 @@ void uuid_unparse(const uuid_t uu, char *out);
 #if !defined(CONFIG_UUID)
 void uuid_generate(uuid_t out)
 {
-    memset(out, 0, sizeof(out));
+    memset(out, 0, sizeof(uuid_t));
 }
 
 int uuid_is_null(const uuid_t uu)
 {
     uuid_t null_uuid = { 0 };
-    return memcmp(uu, null_uuid, sizeof(uu)) == 0;
+    return memcmp(uu, null_uuid, sizeof(uuid_t)) == 0;
 }
 
 void uuid_unparse(const uuid_t uu, char *out)
