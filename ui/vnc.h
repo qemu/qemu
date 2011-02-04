@@ -144,6 +144,7 @@ struct VncDisplay
     time_t expires;
     int auth;
     bool lossy;
+    bool non_adaptive;
 #ifdef CONFIG_VNC_TLS
     int subauth; /* Used by VeNCrypt */
     VncDisplayTLS tls;

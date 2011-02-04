@@ -2387,10 +2387,12 @@ static int vnc_refresh_server_surface(VncDisplay *vd)
     VncState *vs;
     int has_dirty = 0;
 
-    struct timeval tv;
+    struct timeval tv = { 0, 0 };
 
-    gettimeofday(&tv, NULL);
-    has_dirty = vnc_update_stats(vd, &tv);
+    if (!vd->non_adaptive) {
+        gettimeofday(&tv, NULL);
+        has_dirty = vnc_update_stats(vd, &tv);
+    }
 
     /*
      * Walk through the guest dirty map.
@@ -2419,7 +2421,8 @@ static int vnc_refresh_server_surface(VncDisplay *vd)
                 if (memcmp(server_ptr, guest_ptr, cmp_bytes) == 0)
                     continue;
                 memcpy(server_ptr, guest_ptr, cmp_bytes);
-                vnc_rect_updated(vd, x, y, &tv);
+                if (!vd->non_adaptive)
+                    vnc_rect_updated(vd, x, y, &tv);
                 QTAILQ_FOREACH(vs, &vd->clients, next) {
                     set_bit((x / 16), vs->dirty[y]);
                 }
@@ -2754,6 +2757,8 @@ int vnc_display_open(DisplayState *ds, const char *display)
 #endif
         } else if (strncmp(options, "lossy", 5) == 0) {
             vs->lossy = true;
+        } else if (strncmp(options, "non-adapative", 13) == 0) {
+            vs->non_adaptive = true;
         }
     }
 

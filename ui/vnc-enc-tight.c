@@ -1546,7 +1546,7 @@ static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
     vnc_tight_stop(vs);
 
 #ifdef CONFIG_VNC_JPEG
-    if (vs->tight.quality != (uint8_t)-1) {
+    if (!vs->vd->non_adaptive && vs->tight.quality != (uint8_t)-1) {
         double freq = vnc_update_freq(vs, x, y, w, h);
 
         if (freq < tight_jpeg_conf[vs->tight.quality].jpeg_freq_min) {

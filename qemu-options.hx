@@ -913,6 +913,15 @@ option is set, VNC client may receive lossy framebuffer updates
 depending on its encoding settings. Enabling this option can save
 a lot of bandwidth at the expense of quality.
 
+@item non-adaptive
+
+Disable adaptive encodings. Adaptive encodings are enabled by default.
+An adaptive encoding will try to detect frequently updated screen regions,
+and send updates in these regions using a lossy encoding (like JPEG).
+This can be really helpfull to save bandwidth when playing videos. Disabling
+adaptive encodings allow to restore the original static behavior of encodings
+like Tight.
+
 @end table
 ETEXI
 
