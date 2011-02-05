@@ -1053,10 +1053,15 @@ void pc_vga_init(PCIBus *pci_bus)
             isa_cirrus_vga_init();
         }
     } else if (vmsvga_enabled) {
-        if (pci_bus)
-            pci_vmsvga_init(pci_bus);
-        else
+        if (pci_bus) {
+            if (!pci_vmsvga_init(pci_bus)) {
+                fprintf(stderr, "Warning: vmware_vga not available,"
+                        " using standard VGA instead\n");
+                pci_vga_init(pci_bus);
+            }
+        } else {
             fprintf(stderr, "%s: vmware_vga: no PCI bus\n", __FUNCTION__);
+        }
 #ifdef CONFIG_SPICE
     } else if (qxl_enabled) {
         if (pci_bus)
