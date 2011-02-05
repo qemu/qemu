@@ -84,6 +84,7 @@ struct e820_table {
 } __attribute((__packed__, __aligned__(4)));
 
 static struct e820_table e820_table;
+struct hpet_fw_config hpet_cfg = {.count = UINT8_MAX};
 
 void isa_irq_handler(void *opaque, int n, int level)
 {
@@ -1104,12 +1105,14 @@ void pc_basic_device_init(qemu_irq *isa_irq,
     register_ioport_write(0xf0, 1, 1, ioportF0_write, NULL);
 
     if (!no_hpet) {
-        DeviceState *hpet = sysbus_create_simple("hpet", HPET_BASE, NULL);
+        DeviceState *hpet = sysbus_try_create_simple("hpet", HPET_BASE, NULL);
 
-        for (i = 0; i < 24; i++) {
-            sysbus_connect_irq(sysbus_from_qdev(hpet), i, isa_irq[i]);
+        if (hpet) {
+            for (i = 0; i < 24; i++) {
+                sysbus_connect_irq(sysbus_from_qdev(hpet), i, isa_irq[i]);
+            }
+            rtc_irq = qdev_get_gpio_in(hpet, 0);
         }
-        rtc_irq = qdev_get_gpio_in(hpet, 0);
     }
     *rtc_state = rtc_init(2000, rtc_irq);
 

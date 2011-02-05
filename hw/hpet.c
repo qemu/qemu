@@ -74,8 +74,6 @@ typedef struct HPETState {
     uint8_t  hpet_id;           /* instance id */
 } HPETState;
 
-struct hpet_fw_config hpet_cfg = {.count = UINT8_MAX};
-
 static uint32_t hpet_in_legacy_mode(HPETState *s)
 {
     return s->config & HPET_CFG_LEGACY;
