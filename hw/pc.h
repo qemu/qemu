@@ -129,13 +129,12 @@ void pc_memory_init(ram_addr_t ram_size,
 qemu_irq *pc_allocate_cpu_irq(void);
 void pc_vga_init(PCIBus *pci_bus);
 void pc_basic_device_init(qemu_irq *isa_irq,
-                          FDCtrl **floppy_controller,
                           ISADevice **rtc_state);
 void pc_init_ne2k_isa(NICInfo *nd);
 void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
                   const char *boot_device,
                   BusState *ide0, BusState *ide1,
-                  FDCtrl *floppy_controller, ISADevice *s);
+                  ISADevice *s);
 void pc_pci_device_init(PCIBus *pci_bus);
 
 typedef void (*cpu_set_smm_t)(int smm, void *arg);

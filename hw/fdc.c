@@ -201,6 +201,8 @@ static void fd_revalidate(FDrive *drv)
 /********************************************************/
 /* Intel 82078 floppy disk controller emulation          */
 
+typedef struct FDCtrl FDCtrl;
+
 static void fdctrl_reset(FDCtrl *fdctrl, int do_irq);
 static void fdctrl_reset_fifo(FDCtrl *fdctrl);
 static int fdctrl_transfer_handler (void *opaque, int nchan,
@@ -624,12 +626,6 @@ static void fdctrl_handle_tc(void *opaque, int irq, int level)
         // XXX
         FLOPPY_DPRINTF("TC pulsed\n");
     }
-}
-
-/* XXX: may change if moved to bdrv */
-FDriveType fdctrl_get_drive_type(FDCtrl *fdctrl, int drive_num)
-{
-    return fdctrl->drives[drive_num].drive;
 }
 
 /* Change IRQ state */
@@ -1775,23 +1771,8 @@ static int fdctrl_connect_drives(FDCtrl *fdctrl)
     return 0;
 }
 
-FDCtrl *fdctrl_init_isa(DriveInfo **fds)
-{
-    ISADevice *dev;
-
-    dev = isa_create("isa-fdc");
-    if (fds[0]) {
-        qdev_prop_set_drive_nofail(&dev->qdev, "driveA", fds[0]->bdrv);
-    }
-    if (fds[1]) {
-        qdev_prop_set_drive_nofail(&dev->qdev, "driveB", fds[1]->bdrv);
-    }
-    qdev_init_nofail(&dev->qdev);
-    return &(DO_UPCAST(FDCtrlISABus, busdev, dev)->state);
-}
-
-FDCtrl *fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
-                           target_phys_addr_t mmio_base, DriveInfo **fds)
+void fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
+                        target_phys_addr_t mmio_base, DriveInfo **fds)
 {
     FDCtrl *fdctrl;
     DeviceState *dev;
@@ -1810,16 +1791,13 @@ FDCtrl *fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
     qdev_init_nofail(dev);
     sysbus_connect_irq(&sys->busdev, 0, irq);
     sysbus_mmio_map(&sys->busdev, 0, mmio_base);
-
-    return fdctrl;
 }
 
-FDCtrl *sun4m_fdctrl_init(qemu_irq irq, target_phys_addr_t io_base,
-                          DriveInfo **fds, qemu_irq *fdc_tc)
+void sun4m_fdctrl_init(qemu_irq irq, target_phys_addr_t io_base,
+                       DriveInfo **fds, qemu_irq *fdc_tc)
 {
     DeviceState *dev;
     FDCtrlSysBus *sys;
-    FDCtrl *fdctrl;
 
     dev = qdev_create(NULL, "SUNW,fdtwo");
     if (fds[0]) {
@@ -1827,12 +1805,9 @@ FDCtrl *sun4m_fdctrl_init(qemu_irq irq, target_phys_addr_t io_base,
     }
     qdev_init_nofail(dev);
     sys = DO_UPCAST(FDCtrlSysBus, busdev.qdev, dev);
-    fdctrl = &sys->state;
     sysbus_connect_irq(&sys->busdev, 0, irq);
     sysbus_mmio_map(&sys->busdev, 0, io_base);
     *fdc_tc = qdev_get_gpio_in(dev, 0);
-
-    return fdctrl;
 }
 
 static int fdctrl_init_common(FDCtrl *fdctrl)
