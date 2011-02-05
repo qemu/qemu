@@ -782,18 +782,6 @@ static int serial_isa_initfn(ISADevice *dev)
     return 0;
 }
 
-SerialState *serial_isa_init(int index, CharDriverState *chr)
-{
-    ISADevice *dev;
-
-    dev = isa_create("isa-serial");
-    qdev_prop_set_uint32(&dev->qdev, "index", index);
-    qdev_prop_set_chr(&dev->qdev, "chardev", chr);
-    if (qdev_init(&dev->qdev) < 0)
-        return NULL;
-    return &DO_UPCAST(ISASerialState, dev, dev)->state;
-}
-
 static const VMStateDescription vmstate_isa_serial = {
     .name = "serial",
     .version_id = 3,

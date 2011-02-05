@@ -17,7 +17,19 @@ SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
                              qemu_irq irq, int baudbase,
                              CharDriverState *chr, int ioregister,
                              int be);
-SerialState *serial_isa_init(int index, CharDriverState *chr);
+static inline bool serial_isa_init(int index, CharDriverState *chr)
+{
+    ISADevice *dev;
+
+    dev = isa_create("isa-serial");
+    qdev_prop_set_uint32(&dev->qdev, "index", index);
+    qdev_prop_set_chr(&dev->qdev, "chardev", chr);
+    if (qdev_init(&dev->qdev) < 0) {
+        return false;
+    }
+    return true;
+}
+
 void serial_set_frequency(SerialState *s, uint32_t frequency);
 
 /* parallel.c */
