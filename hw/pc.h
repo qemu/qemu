@@ -24,7 +24,10 @@ static inline bool parallel_init(int index, CharDriverState *chr)
 {
     ISADevice *dev;
 
-    dev = isa_create("isa-parallel");
+    dev = isa_try_create("isa-parallel");
+    if (!dev) {
+        return false;
+    }
     qdev_prop_set_uint32(&dev->qdev, "index", index);
     qdev_prop_set_chr(&dev->qdev, "chardev", chr);
     if (qdev_init(&dev->qdev) < 0) {
