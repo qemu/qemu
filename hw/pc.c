@@ -1133,6 +1133,7 @@ void pc_basic_device_init(qemu_irq *isa_irq,
     a20_line = qemu_allocate_irqs(handle_a20_line_change, first_cpu, 2);
     i8042 = isa_create_simple("i8042");
     i8042_setup_a20_line(i8042, &a20_line[0]);
+    vmport_init();
     vmmouse_init(i8042);
     port92 = isa_create_simple("port92");
     port92_init(port92, &a20_line[1]);

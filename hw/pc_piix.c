@@ -86,8 +86,6 @@ static void pc_init1(ram_addr_t ram_size,
 
     pc_cpus_init(cpu_model);
 
-    vmport_init();
-
     /* allocate ram and load rom/bios */
     pc_memory_init(ram_size, kernel_filename, kernel_cmdline, initrd_filename,
                    &below_4g_mem_size, &above_4g_mem_size);

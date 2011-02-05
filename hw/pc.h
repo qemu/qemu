@@ -65,7 +65,10 @@ void hpet_pit_disable(void);
 void hpet_pit_enable(void);
 
 /* vmport.c */
-void vmport_init(void);
+static inline void vmport_init(void)
+{
+    isa_create_simple("vmport");
+}
 void vmport_register(unsigned char command, IOPortReadFunc *func, void *opaque);
 
 /* vmmouse.c */
