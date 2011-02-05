@@ -4,6 +4,9 @@
 #include "qemu-common.h"
 
 /* vmware_vga.c */
-void pci_vmsvga_init(PCIBus *bus);
+static inline void pci_vmsvga_init(PCIBus *bus)
+{
+    pci_create_simple(bus, -1, "vmware-svga");
+}
 
 #endif
