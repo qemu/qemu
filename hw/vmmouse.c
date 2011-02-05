@@ -25,6 +25,7 @@
 #include "console.h"
 #include "ps2.h"
 #include "pc.h"
+#include "qdev.h"
 
 /* debug only vmmouse */
 //#define DEBUG_VMMOUSE
@@ -52,6 +53,7 @@
 
 typedef struct _VMMouseState
 {
+    ISADevice dev;
     uint32_t queue[VMMOUSE_QUEUE_SIZE];
     int32_t queue_size;
     uint16_t nb_queue;
@@ -270,22 +272,41 @@ static const VMStateDescription vmstate_vmmouse = {
     }
 };
 
-void *vmmouse_init(void *m)
+static void vmmouse_reset(DeviceState *d)
 {
-    VMMouseState *s = NULL;
-
-    DPRINTF("vmmouse_init\n");
-
-    s = qemu_mallocz(sizeof(VMMouseState));
+    VMMouseState *s = container_of(d, VMMouseState, dev.qdev);
 
     s->status = 0xffff;
-    s->ps2_mouse = m;
-    s->queue_size = VMMOUSE_QUEUE_SIZE;
+}
+
+static int vmmouse_initfn(ISADevice *dev)
+{
+    VMMouseState *s = DO_UPCAST(VMMouseState, dev, dev);
+
+    DPRINTF("vmmouse_init\n");
 
     vmport_register(VMMOUSE_STATUS, vmmouse_ioport_read, s);
     vmport_register(VMMOUSE_COMMAND, vmmouse_ioport_read, s);
     vmport_register(VMMOUSE_DATA, vmmouse_ioport_read, s);
     vmstate_register(NULL, 0, &vmstate_vmmouse, s);
 
-    return s;
+    return 0;
 }
+
+static ISADeviceInfo vmmouse_info = {
+    .init          = vmmouse_initfn,
+    .qdev.name     = "vmmouse",
+    .qdev.size     = sizeof(VMMouseState),
+    .qdev.no_user  = 1,
+    .qdev.reset    = vmmouse_reset,
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_PTR("ps2_mouse", VMMouseState, ps2_mouse),
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
+
+static void vmmouse_dev_register(void)
+{
+    isa_qdev_register(&vmmouse_info);
+}
+device_init(vmmouse_dev_register)

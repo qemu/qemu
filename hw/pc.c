@@ -1096,7 +1096,7 @@ void pc_basic_device_init(qemu_irq *isa_irq,
     PITState *pit;
     qemu_irq rtc_irq = NULL;
     qemu_irq *a20_line;
-    ISADevice *i8042, *port92;
+    ISADevice *i8042, *port92, *vmmouse;
     qemu_irq *cpu_exit_irq;
 
     register_ioport_write(0x80, 1, 1, ioport80_write, NULL);
@@ -1134,7 +1134,8 @@ void pc_basic_device_init(qemu_irq *isa_irq,
     i8042 = isa_create_simple("i8042");
     i8042_setup_a20_line(i8042, &a20_line[0]);
     vmport_init();
-    vmmouse_init(i8042);
+    vmmouse = isa_create("vmmouse");
+    qdev_prop_set_ptr(&vmmouse->qdev, "ps2_mouse", i8042);
     port92 = isa_create_simple("port92");
     port92_init(port92, &a20_line[1]);
 

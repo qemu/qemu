@@ -71,9 +71,6 @@ static inline void vmport_init(void)
 }
 void vmport_register(unsigned char command, IOPortReadFunc *func, void *opaque);
 
-/* vmmouse.c */
-void *vmmouse_init(void *m);
-
 /* pckbd.c */
 
 void i8042_init(qemu_irq kbd_irq, qemu_irq mouse_irq, uint32_t io_base);
