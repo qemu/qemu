@@ -64,7 +64,7 @@
 
 #define PARA_CTR_SIGNAL (PARA_CTR_SELECT|PARA_CTR_INIT|PARA_CTR_AUTOLF|PARA_CTR_STROBE)
 
-struct ParallelState {
+typedef struct ParallelState {
     uint8_t dataw;
     uint8_t datar;
     uint8_t status;
@@ -77,7 +77,7 @@ struct ParallelState {
     uint32_t last_read_offset; /* For debugging */
     /* Memory-mapped interface */
     int it_shift;
-};
+} ParallelState;
 
 typedef struct ISAParallelState {
     ISADevice dev;
@@ -500,18 +500,6 @@ static int parallel_isa_initfn(ISADevice *dev)
     return 0;
 }
 
-ParallelState *parallel_init(int index, CharDriverState *chr)
-{
-    ISADevice *dev;
-
-    dev = isa_create("isa-parallel");
-    qdev_prop_set_uint32(&dev->qdev, "index", index);
-    qdev_prop_set_chr(&dev->qdev, "chardev", chr);
-    if (qdev_init(&dev->qdev) < 0)
-        return NULL;
-    return &DO_UPCAST(ISAParallelState, dev, dev)->state;
-}
-
 /* Memory mapped interface */
 static uint32_t parallel_mm_readb (void *opaque, target_phys_addr_t addr)
 {
@@ -571,7 +559,8 @@ static CPUWriteMemoryFunc * const parallel_mm_write_sw[] = {
 };
 
 /* If fd is zero, it means that the parallel device uses the console */
-ParallelState *parallel_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq, CharDriverState *chr)
+bool parallel_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq,
+                      CharDriverState *chr)
 {
     ParallelState *s;
     int io_sw;
@@ -585,7 +574,7 @@ ParallelState *parallel_mm_init(target_phys_addr_t base, int it_shift, qemu_irq 
     io_sw = cpu_register_io_memory(parallel_mm_read_sw, parallel_mm_write_sw,
                                    s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 8 << it_shift, io_sw);
-    return s;
+    return true;
 }
 
 static ISADeviceInfo parallel_isa_info = {
