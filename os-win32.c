@@ -180,7 +180,7 @@ void os_setup_early_signal_handling(void)
     /* Note: cpu_interrupt() is currently not SMP safe, so we force
        QEMU to run on a single CPU */
     HANDLE h;
-    DWORD mask, smask;
+    DWORD_PTR mask, smask;
     int i;
 
     SetConsoleCtrlHandler(qemu_ctrl_handler, TRUE);
