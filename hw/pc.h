@@ -21,7 +21,10 @@ static inline bool serial_isa_init(int index, CharDriverState *chr)
 {
     ISADevice *dev;
 
-    dev = isa_create("isa-serial");
+    dev = isa_try_create("isa-serial");
+    if (!dev) {
+        return false;
+    }
     qdev_prop_set_uint32(&dev->qdev, "index", index);
     qdev_prop_set_chr(&dev->qdev, "chardev", chr);
     if (qdev_init(&dev->qdev) < 0) {
