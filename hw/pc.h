@@ -176,8 +176,18 @@ void pci_cirrus_vga_init(PCIBus *bus);
 void isa_cirrus_vga_init(void);
 
 /* ne2000.c */
+static inline void isa_ne2000_init(int base, int irq, NICInfo *nd)
+{
+    ISADevice *dev;
 
-void isa_ne2000_init(int base, int irq, NICInfo *nd);
+    qemu_check_nic_model(nd, "ne2k_isa");
+
+    dev = isa_create("ne2k_isa");
+    qdev_prop_set_uint32(&dev->qdev, "iobase", base);
+    qdev_prop_set_uint32(&dev->qdev, "irq",    irq);
+    qdev_set_nic_properties(&dev->qdev, nd);
+    qdev_init_nofail(&dev->qdev);
+}
 
 /* e820 types */
 #define E820_RAM        1
