@@ -70,6 +70,8 @@ static inline void vmport_init(void)
     isa_create_simple("vmport");
 }
 void vmport_register(unsigned char command, IOPortReadFunc *func, void *opaque);
+void vmmouse_get_data(uint32_t *data);
+void vmmouse_set_data(const uint32_t *data);
 
 /* pckbd.c */
 

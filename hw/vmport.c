@@ -102,6 +102,25 @@ static uint32_t vmport_cmd_ram_size(void *opaque, uint32_t addr)
     return ram_size;
 }
 
+/* vmmouse helpers */
+void vmmouse_get_data(uint32_t *data)
+{
+    CPUState *env = cpu_single_env;
+
+    data[0] = env->regs[R_EAX]; data[1] = env->regs[R_EBX];
+    data[2] = env->regs[R_ECX]; data[3] = env->regs[R_EDX];
+    data[4] = env->regs[R_ESI]; data[5] = env->regs[R_EDI];
+}
+
+void vmmouse_set_data(const uint32_t *data)
+{
+    CPUState *env = cpu_single_env;
+
+    env->regs[R_EAX] = data[0]; env->regs[R_EBX] = data[1];
+    env->regs[R_ECX] = data[2]; env->regs[R_EDX] = data[3];
+    env->regs[R_ESI] = data[4]; env->regs[R_EDI] = data[5];
+}
+
 static int vmport_initfn(ISADevice *dev)
 {
     VMPortState *s = DO_UPCAST(VMPortState, dev, dev);

@@ -1134,8 +1134,10 @@ void pc_basic_device_init(qemu_irq *isa_irq,
     i8042 = isa_create_simple("i8042");
     i8042_setup_a20_line(i8042, &a20_line[0]);
     vmport_init();
-    vmmouse = isa_create("vmmouse");
-    qdev_prop_set_ptr(&vmmouse->qdev, "ps2_mouse", i8042);
+    vmmouse = isa_try_create("vmmouse");
+    if (vmmouse) {
+        qdev_prop_set_ptr(&vmmouse->qdev, "ps2_mouse", i8042);
+    }
     port92 = isa_create_simple("port92");
     port92_init(port92, &a20_line[1]);
 
