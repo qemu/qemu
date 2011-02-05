@@ -106,6 +106,18 @@ static DeviceState *qdev_create_from_info(BusState *bus, DeviceInfo *info)
    initialize the actual device emulation.  */
 DeviceState *qdev_create(BusState *bus, const char *name)
 {
+    DeviceState *dev;
+
+    dev = qdev_try_create(bus, name);
+    if (!dev) {
+        hw_error("Unknown device '%s' for bus '%s'\n", name, bus->info->name);
+    }
+
+    return dev;
+}
+
+DeviceState *qdev_try_create(BusState *bus, const char *name)
+{
     DeviceInfo *info;
 
     if (!bus) {
@@ -114,7 +126,7 @@ DeviceState *qdev_create(BusState *bus, const char *name)
 
     info = qdev_find_info(bus->info, name);
     if (!info) {
-        hw_error("Unknown device '%s' for bus '%s'\n", name, bus->info->name);
+        return NULL;
     }
 
     return qdev_create_from_info(bus, info);
