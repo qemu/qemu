@@ -26,7 +26,7 @@ struct tftp_t {
       uint16_t tp_error_code;
       uint8_t tp_msg[512];
     } tp_error;
-    uint8_t tp_buf[512 + 2];
+    char tp_buf[512 + 2];
   } x;
 };
 
