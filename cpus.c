@@ -800,8 +800,6 @@ static void qemu_kvm_wait_io_event(CPUState *env)
     qemu_wait_io_event_common(env);
 }
 
-static int qemu_cpu_exec(CPUState *env);
-
 static void *qemu_kvm_cpu_thread_fn(void *arg)
 {
     CPUState *env = arg;
@@ -829,7 +827,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
 
     while (1) {
         if (cpu_can_run(env)) {
-            r = qemu_cpu_exec(env);
+            r = kvm_cpu_exec(env);
             if (r == EXCP_DEBUG) {
                 cpu_handle_debug_exception(env);
             }
@@ -1040,7 +1038,7 @@ void vm_stop(int reason)
 
 #endif
 
-static int qemu_cpu_exec(CPUState *env)
+static int tcg_cpu_exec(CPUState *env)
 {
     int ret;
 #ifdef CONFIG_PROFILER
@@ -1095,9 +1093,11 @@ bool cpu_exec_all(void)
             break;
         }
         if (cpu_can_run(env)) {
-            r = qemu_cpu_exec(env);
             if (kvm_enabled()) {
+                r = kvm_cpu_exec(env);
                 qemu_kvm_eat_signals(env);
+            } else {
+                r = tcg_cpu_exec(env);
             }
             if (r == EXCP_DEBUG) {
                 cpu_handle_debug_exception(env);

@@ -1502,12 +1502,13 @@ int kvm_arch_post_run(CPUState *env, struct kvm_run *run)
 
 int kvm_arch_process_irqchip_events(CPUState *env)
 {
+    if (env->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI)) {
+        env->halted = 0;
+    }
     if (env->interrupt_request & CPU_INTERRUPT_INIT) {
         kvm_cpu_synchronize_state(env);
         do_cpu_init(env);
-        env->exception_index = EXCP_HALTED;
     }
-
     if (env->interrupt_request & CPU_INTERRUPT_SIPI) {
         kvm_cpu_synchronize_state(env);
         do_cpu_sipi(env);
@@ -1522,7 +1523,6 @@ static int kvm_handle_halt(CPUState *env)
           (env->eflags & IF_MASK)) &&
         !(env->interrupt_request & CPU_INTERRUPT_NMI)) {
         env->halted = 1;
-        env->exception_index = EXCP_HLT;
         return 0;
     }
 

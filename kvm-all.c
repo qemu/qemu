@@ -895,9 +895,10 @@ int kvm_cpu_exec(CPUState *env)
 
     if (kvm_arch_process_irqchip_events(env)) {
         env->exit_request = 0;
-        env->exception_index = EXCP_HLT;
-        return 0;
+        return EXCP_HLT;
     }
+
+    cpu_single_env = env;
 
     do {
         if (env->kvm_vcpu_dirty) {
@@ -927,7 +928,6 @@ int kvm_cpu_exec(CPUState *env)
         kvm_flush_coalesced_mmio_buffer();
 
         if (ret == -EINTR || ret == -EAGAIN) {
-            cpu_exit(env);
             DPRINTF("io window exit\n");
             ret = 0;
             break;
@@ -978,8 +978,8 @@ int kvm_cpu_exec(CPUState *env)
             DPRINTF("kvm_exit_debug\n");
 #ifdef KVM_CAP_SET_GUEST_DEBUG
             if (kvm_arch_debug(&run->debug.arch)) {
-                env->exception_index = EXCP_DEBUG;
-                return 0;
+                ret = EXCP_DEBUG;
+                goto out;
             }
             /* re-enter, this exception was guest-internal */
             ret = 1;
@@ -995,13 +995,12 @@ int kvm_cpu_exec(CPUState *env)
     if (ret < 0) {
         cpu_dump_state(env, stderr, fprintf, CPU_DUMP_CODE);
         vm_stop(VMSTOP_PANIC);
-        env->exit_request = 1;
     }
-    if (env->exit_request) {
-        env->exit_request = 0;
-        env->exception_index = EXCP_INTERRUPT;
-    }
+    ret = EXCP_INTERRUPT;
 
+out:
+    env->exit_request = 0;
+    cpu_single_env = NULL;
     return ret;
 }
 
