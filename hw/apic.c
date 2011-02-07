@@ -372,19 +372,36 @@ static int apic_get_arb_pri(APICState *s)
     return 0;
 }
 
+
+/*
+ * <0 - low prio interrupt,
+ * 0  - no interrupt,
+ * >0 - interrupt number
+ */
+static int apic_irq_pending(APICState *s)
+{
+    int irrv, ppr;
+    irrv = get_highest_priority_int(s->irr);
+    if (irrv < 0) {
+        return 0;
+    }
+    ppr = apic_get_ppr(s);
+    if (ppr && (irrv & 0xf0) <= (ppr & 0xf0)) {
+        return -1;
+    }
+
+    return irrv;
+}
+
 /* signal the CPU if an irq is pending */
 static void apic_update_irq(APICState *s)
 {
-    int irrv, ppr;
-    if (!(s->spurious_vec & APIC_SV_ENABLE))
+    if (!(s->spurious_vec & APIC_SV_ENABLE)) {
         return;
-    irrv = get_highest_priority_int(s->irr);
-    if (irrv < 0)
-        return;
-    ppr = apic_get_ppr(s);
-    if (ppr && (irrv & 0xf0) <= (ppr & 0xf0))
-        return;
-    cpu_interrupt(s->cpu_env, CPU_INTERRUPT_HARD);
+    }
+    if (apic_irq_pending(s) > 0) {
+        cpu_interrupt(s->cpu_env, CPU_INTERRUPT_HARD);
+    }
 }
 
 void apic_reset_irq_delivered(void)
@@ -590,12 +607,13 @@ int apic_get_interrupt(DeviceState *d)
     if (!(s->spurious_vec & APIC_SV_ENABLE))
         return -1;
 
-    /* XXX: spurious IRQ handling */
-    intno = get_highest_priority_int(s->irr);
-    if (intno < 0)
+    intno = apic_irq_pending(s);
+
+    if (intno == 0) {
         return -1;
-    if (s->tpr && intno <= s->tpr)
+    } else if (intno < 0) {
         return s->spurious_vec & 0xff;
+    }
     reset_bit(s->irr, intno);
     set_bit(s->isr, intno);
     apic_update_irq(s);
