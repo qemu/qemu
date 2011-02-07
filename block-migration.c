@@ -19,6 +19,7 @@
 #include "monitor.h"
 #include "block-migration.h"
 #include "migration.h"
+#include "blockdev.h"
 #include <assert.h>
 
 #define BLOCK_SIZE (BDRV_SECTORS_PER_DIRTY_CHUNK << BDRV_SECTOR_BITS)
@@ -299,6 +300,8 @@ static void init_blk_migration_it(void *opaque, BlockDriverState *bs)
         bmds->completed_sectors = 0;
         bmds->shared_base = block_mig_state.shared_base;
         alloc_aio_bitmap(bmds);
+        drive_get_ref(drive_get_by_blockdev(bs));
+        bdrv_set_in_use(bs, 1);
 
         block_mig_state.total_sector_sum += sectors;
 
@@ -533,8 +536,12 @@ static void blk_mig_cleanup(Monitor *mon)
     BlkMigDevState *bmds;
     BlkMigBlock *blk;
 
+    set_dirty_tracking(0);
+
     while ((bmds = QSIMPLEQ_FIRST(&block_mig_state.bmds_list)) != NULL) {
         QSIMPLEQ_REMOVE_HEAD(&block_mig_state.bmds_list, entry);
+        bdrv_set_in_use(bmds->bs, 0);
+        drive_put_ref(drive_get_by_blockdev(bmds->bs));
         qemu_free(bmds->aio_bitmap);
         qemu_free(bmds);
     }
@@ -544,8 +551,6 @@ static void blk_mig_cleanup(Monitor *mon)
         qemu_free(blk->buf);
         qemu_free(blk);
     }
-
-    set_dirty_tracking(0);
 
     monitor_printf(mon, "\n");
 }

@@ -1132,6 +1132,8 @@ int bdrv_truncate(BlockDriverState *bs, int64_t offset)
         return -ENOTSUP;
     if (bs->read_only)
         return -EACCES;
+    if (bdrv_in_use(bs))
+        return -EBUSY;
     ret = drv->bdrv_truncate(bs, offset);
     if (ret == 0) {
         ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
@@ -2772,6 +2774,17 @@ void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
 int64_t bdrv_get_dirty_count(BlockDriverState *bs)
 {
     return bs->dirty_count;
+}
+
+void bdrv_set_in_use(BlockDriverState *bs, int in_use)
+{
+    assert(bs->in_use != in_use);
+    bs->in_use = in_use;
+}
+
+int bdrv_in_use(BlockDriverState *bs)
+{
+    return bs->in_use;
 }
 
 int bdrv_img_create(const char *filename, const char *fmt,
