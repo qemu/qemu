@@ -529,6 +529,15 @@ static int sys_inotify_init1(int flags)
 #undef TARGET_NR_inotify_rm_watch
 #endif /* CONFIG_INOTIFY  */
 
+#if defined(TARGET_NR_ppoll)
+#ifndef __NR_ppoll
+# define __NR_ppoll -1
+#endif
+#define __NR_sys_ppoll __NR_ppoll
+_syscall5(int, sys_ppoll, struct pollfd *, fds, nfds_t, nfds,
+          struct timespec *, timeout, const __sigset_t *, sigmask,
+          size_t, sigsetsize)
+#endif
 
 extern int personality(int);
 extern int flock(int, int);
@@ -6230,8 +6239,13 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = do_select(arg1, arg2, arg3, arg4, arg5);
         break;
 #endif
-#ifdef TARGET_NR_poll
+#if defined(TARGET_NR_poll) || defined(TARGET_NR_ppoll)
+# ifdef TARGET_NR_poll
     case TARGET_NR_poll:
+# endif
+# ifdef TARGET_NR_ppoll
+    case TARGET_NR_ppoll:
+# endif
         {
             struct target_pollfd *target_pfd;
             unsigned int nfds = arg2;
@@ -6242,12 +6256,51 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             target_pfd = lock_user(VERIFY_WRITE, arg1, sizeof(struct target_pollfd) * nfds, 1);
             if (!target_pfd)
                 goto efault;
+
             pfd = alloca(sizeof(struct pollfd) * nfds);
             for(i = 0; i < nfds; i++) {
                 pfd[i].fd = tswap32(target_pfd[i].fd);
                 pfd[i].events = tswap16(target_pfd[i].events);
             }
-            ret = get_errno(poll(pfd, nfds, timeout));
+
+# ifdef TARGET_NR_ppoll
+            if (num == TARGET_NR_ppoll) {
+                struct timespec _timeout_ts, *timeout_ts = &_timeout_ts;
+                target_sigset_t *target_set;
+                sigset_t _set, *set = &_set;
+
+                if (arg3) {
+                    if (target_to_host_timespec(timeout_ts, arg3)) {
+                        unlock_user(target_pfd, arg1, 0);
+                        goto efault;
+                    }
+                } else {
+                    timeout_ts = NULL;
+                }
+
+                if (arg4) {
+                    target_set = lock_user(VERIFY_READ, arg4, sizeof(target_sigset_t), 1);
+                    if (!target_set) {
+                        unlock_user(target_pfd, arg1, 0);
+                        goto efault;
+                    }
+                    target_to_host_sigset(set, target_set);
+                } else {
+                    set = NULL;
+                }
+
+                ret = get_errno(sys_ppoll(pfd, nfds, timeout_ts, set, _NSIG/8));
+
+                if (!is_error(ret) && arg3) {
+                    host_to_target_timespec(arg3, timeout_ts);
+                }
+                if (arg4) {
+                    unlock_user(target_set, arg4, 0);
+                }
+            } else
+# endif
+                ret = get_errno(poll(pfd, nfds, timeout));
+
             if (!is_error(ret)) {
                 for(i = 0; i < nfds; i++) {
                     target_pfd[i].revents = tswap16(pfd[i].revents);
