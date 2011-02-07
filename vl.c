@@ -1315,7 +1315,7 @@ void qemu_system_powerdown_request(void)
 void qemu_system_debug_request(void)
 {
     debug_requested = 1;
-    vm_stop(VMSTOP_DEBUG);
+    qemu_notify_event();
 }
 
 void qemu_system_vmstop_request(int reason)

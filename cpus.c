@@ -165,10 +165,34 @@ static bool all_cpu_threads_idle(void)
     return true;
 }
 
-static void cpu_debug_handler(CPUState *env)
+static CPUDebugExcpHandler *debug_excp_handler;
+
+CPUDebugExcpHandler *cpu_set_debug_excp_handler(CPUDebugExcpHandler *handler)
 {
+    CPUDebugExcpHandler *old_handler = debug_excp_handler;
+
+    debug_excp_handler = handler;
+    return old_handler;
+}
+
+static void cpu_handle_debug_exception(CPUState *env)
+{
+    CPUWatchpoint *wp;
+
+    if (!env->watchpoint_hit) {
+        QTAILQ_FOREACH(wp, &env->watchpoints, entry) {
+            wp->flags &= ~BP_WATCHPOINT_HIT;
+        }
+    }
+    if (debug_excp_handler) {
+        debug_excp_handler(env);
+    }
+
     gdb_set_stop_cpu(env);
     qemu_system_debug_request();
+#ifdef CONFIG_IOTHREAD
+    env->stopped = 1;
+#endif
 }
 
 #ifdef CONFIG_LINUX
@@ -479,7 +503,6 @@ int qemu_init_main_loop(void)
         return ret;
     }
 #endif
-    cpu_set_debug_excp_handler(cpu_debug_handler);
 
     qemu_init_sigbus();
 
@@ -653,8 +676,6 @@ int qemu_init_main_loop(void)
     int ret;
     sigset_t blocked_signals;
 
-    cpu_set_debug_excp_handler(cpu_debug_handler);
-
     qemu_init_sigbus();
 
     blocked_signals = block_io_signals();
@@ -808,7 +829,10 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
 
     while (1) {
         if (cpu_can_run(env)) {
-            qemu_cpu_exec(env);
+            r = qemu_cpu_exec(env);
+            if (r == EXCP_DEBUG) {
+                cpu_handle_debug_exception(env);
+            }
         }
         qemu_kvm_wait_io_event(env);
     }
@@ -1076,6 +1100,7 @@ bool cpu_exec_all(void)
                 qemu_kvm_eat_signals(env);
             }
             if (r == EXCP_DEBUG) {
+                cpu_handle_debug_exception(env);
                 break;
             }
         } else if (env->stop) {
