@@ -407,6 +407,7 @@ snapshots.
 * host_drives::               Using host drives
 * disk_images_fat_images::    Virtual FAT disk images
 * disk_images_nbd::           NBD access
+* disk_images_sheepdog::      Sheepdog disk images
 @end menu
 
 @node disk_images_quickstart
@@ -628,6 +629,57 @@ If the nbd-server uses named exports (since NBD 2.9.18), you must use the
 @example
 qemu -cdrom nbd:localhost:exportname=debian-500-ppc-netinst
 qemu -cdrom nbd:localhost:exportname=openSUSE-11.1-ppc-netinst
+@end example
+
+@node disk_images_sheepdog
+@subsection Sheepdog disk images
+
+Sheepdog is a distributed storage system for QEMU.  It provides highly
+available block level storage volumes that can be attached to
+QEMU-based virtual machines.
+
+You can create a Sheepdog disk image with the command:
+@example
+qemu-img create sheepdog:@var{image} @var{size}
+@end example
+where @var{image} is the Sheepdog image name and @var{size} is its
+size.
+
+To import the existing @var{filename} to Sheepdog, you can use a
+convert command.
+@example
+qemu-img convert @var{filename} sheepdog:@var{image}
+@end example
+
+You can boot from the Sheepdog disk image with the command:
+@example
+qemu sheepdog:@var{image}
+@end example
+
+You can also create a snapshot of the Sheepdog image like qcow2.
+@example
+qemu-img snapshot -c @var{tag} sheepdog:@var{image}
+@end example
+where @var{tag} is a tag name of the newly created snapshot.
+
+To boot from the Sheepdog snapshot, specify the tag name of the
+snapshot.
+@example
+qemu sheepdog:@var{image}:@var{tag}
+@end example
+
+You can create a cloned image from the existing snapshot.
+@example
+qemu-img create -b sheepdog:@var{base}:@var{tag} sheepdog:@var{image}
+@end example
+where @var{base} is a image name of the source snapshot and @var{tag}
+is its tag name.
+
+If the Sheepdog daemon doesn't run on the local host, you need to
+specify one of the Sheepdog servers to connect to.
+@example
+qemu-img create sheepdog:@var{hostname}:@var{port}:@var{image} @var{size}
+qemu sheepdog:@var{hostname}:@var{port}:@var{image}
 @end example
 
 @node pcsys_network
