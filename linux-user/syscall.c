@@ -1448,7 +1448,7 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
             return -TARGET_EFAULT;
         if (len < 0)
             return -TARGET_EINVAL;
-        lv = sizeof(int);
+        lv = sizeof(lv);
         ret = get_errno(getsockopt(sockfd, level, optname, &val, &lv));
         if (ret < 0)
             return ret;
@@ -1485,7 +1485,7 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
                 return -TARGET_EFAULT;
             if (len < 0)
                 return -TARGET_EINVAL;
-            lv = sizeof(int);
+            lv = sizeof(lv);
             ret = get_errno(getsockopt(sockfd, level, optname, &val, &lv));
             if (ret < 0)
                 return ret;
