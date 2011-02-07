@@ -398,6 +398,7 @@ UNUSED static struct flags mmap_flags[] = {
     FLAG_TARGET(MAP_DENYWRITE),
     FLAG_TARGET(MAP_FIXED),
     FLAG_TARGET(MAP_GROWSDOWN),
+    FLAG_TARGET(MAP_EXECUTABLE),
 #ifdef MAP_LOCKED
     FLAG_TARGET(MAP_LOCKED),
 #endif
@@ -407,6 +408,9 @@ UNUSED static struct flags mmap_flags[] = {
     FLAG_TARGET(MAP_NORESERVE),
 #ifdef MAP_POPULATE
     FLAG_TARGET(MAP_POPULATE),
+#endif
+#ifdef TARGET_MAP_UNINITIALIZED
+    FLAG_TARGET(MAP_UNINITIALIZED),
 #endif
     FLAG_END,
 };
