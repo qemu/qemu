@@ -85,6 +85,7 @@ int kvm_on_sigbus(int code, void *addr);
 
 struct KVMState;
 typedef struct KVMState KVMState;
+extern KVMState *kvm_state;
 
 int kvm_ioctl(KVMState *s, int type, ...);
 
