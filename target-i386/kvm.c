@@ -1442,11 +1442,6 @@ int kvm_arch_get_registers(CPUState *env)
 
 int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
 {
-    /* Force the VCPU out of its inner loop to process the INIT request */
-    if (env->interrupt_request & CPU_INTERRUPT_INIT) {
-        env->exit_request = 1;
-    }
-
     /* Inject NMI */
     if (env->interrupt_request & CPU_INTERRUPT_NMI) {
         env->interrupt_request &= ~CPU_INTERRUPT_NMI;
@@ -1454,35 +1449,43 @@ int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
         kvm_vcpu_ioctl(env, KVM_NMI);
     }
 
-    /* Try to inject an interrupt if the guest can accept it */
-    if (run->ready_for_interrupt_injection &&
-        (env->interrupt_request & CPU_INTERRUPT_HARD) &&
-        (env->eflags & IF_MASK)) {
-        int irq;
-
-        env->interrupt_request &= ~CPU_INTERRUPT_HARD;
-        irq = cpu_get_pic_interrupt(env);
-        if (irq >= 0) {
-            struct kvm_interrupt intr;
-            intr.irq = irq;
-            /* FIXME: errors */
-            DPRINTF("injected interrupt %d\n", irq);
-            kvm_vcpu_ioctl(env, KVM_INTERRUPT, &intr);
+    if (!kvm_irqchip_in_kernel()) {
+        /* Force the VCPU out of its inner loop to process the INIT request */
+        if (env->interrupt_request & CPU_INTERRUPT_INIT) {
+            env->exit_request = 1;
         }
-    }
 
-    /* If we have an interrupt but the guest is not ready to receive an
-     * interrupt, request an interrupt window exit.  This will
-     * cause a return to userspace as soon as the guest is ready to
-     * receive interrupts. */
-    if ((env->interrupt_request & CPU_INTERRUPT_HARD)) {
-        run->request_interrupt_window = 1;
-    } else {
-        run->request_interrupt_window = 0;
-    }
+        /* Try to inject an interrupt if the guest can accept it */
+        if (run->ready_for_interrupt_injection &&
+            (env->interrupt_request & CPU_INTERRUPT_HARD) &&
+            (env->eflags & IF_MASK)) {
+            int irq;
 
-    DPRINTF("setting tpr\n");
-    run->cr8 = cpu_get_apic_tpr(env->apic_state);
+            env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+            irq = cpu_get_pic_interrupt(env);
+            if (irq >= 0) {
+                struct kvm_interrupt intr;
+
+                intr.irq = irq;
+                /* FIXME: errors */
+                DPRINTF("injected interrupt %d\n", irq);
+                kvm_vcpu_ioctl(env, KVM_INTERRUPT, &intr);
+            }
+        }
+
+        /* If we have an interrupt but the guest is not ready to receive an
+         * interrupt, request an interrupt window exit.  This will
+         * cause a return to userspace as soon as the guest is ready to
+         * receive interrupts. */
+        if ((env->interrupt_request & CPU_INTERRUPT_HARD)) {
+            run->request_interrupt_window = 1;
+        } else {
+            run->request_interrupt_window = 0;
+        }
+
+        DPRINTF("setting tpr\n");
+        run->cr8 = cpu_get_apic_tpr(env->apic_state);
+    }
 
     return 0;
 }
@@ -1502,6 +1505,10 @@ int kvm_arch_post_run(CPUState *env, struct kvm_run *run)
 
 int kvm_arch_process_irqchip_events(CPUState *env)
 {
+    if (kvm_irqchip_in_kernel()) {
+        return 0;
+    }
+
     if (env->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI)) {
         env->halted = 0;
     }
