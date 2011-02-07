@@ -235,6 +235,12 @@ _syscall6(int,sys_futex,int *,uaddr,int,op,int,val,
           const struct timespec *,timeout,int *,uaddr2,int,val3)
 #endif
 #endif
+#define __NR_sys_sched_getaffinity __NR_sched_getaffinity
+_syscall3(int, sys_sched_getaffinity, pid_t, pid, unsigned int, len,
+          unsigned long *, user_mask_ptr);
+#define __NR_sys_sched_setaffinity __NR_sched_setaffinity
+_syscall3(int, sys_sched_setaffinity, pid_t, pid, unsigned int, len,
+          unsigned long *, user_mask_ptr);
 
 static bitmask_transtbl fcntl_flags_tbl[] = {
   { TARGET_O_ACCMODE,   TARGET_O_WRONLY,    O_ACCMODE,   O_WRONLY,    },
@@ -6353,6 +6359,67 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         /* We don't implement this, but ENOTDIR is always a safe
            return value. */
         ret = -TARGET_ENOTDIR;
+        break;
+    case TARGET_NR_sched_getaffinity:
+        {
+            unsigned int mask_size;
+            unsigned long *mask;
+
+            /*
+             * sched_getaffinity needs multiples of ulong, so need to take
+             * care of mismatches between target ulong and host ulong sizes.
+             */
+            if (arg2 & (sizeof(abi_ulong) - 1)) {
+                ret = -TARGET_EINVAL;
+                break;
+            }
+            mask_size = (arg2 + (sizeof(*mask) - 1)) & ~(sizeof(*mask) - 1);
+
+            mask = alloca(mask_size);
+            ret = get_errno(sys_sched_getaffinity(arg1, mask_size, mask));
+
+            if (!is_error(ret)) {
+                if (arg2 > ret) {
+                    /* Zero out any extra space kernel didn't fill */
+                    unsigned long zero = arg2 - ret;
+                    p = alloca(zero);
+                    memset(p, 0, zero);
+                    if (copy_to_user(arg3 + zero, p, zero)) {
+                        goto efault;
+                    }
+                    arg2 = ret;
+                }
+                if (copy_to_user(arg3, mask, arg2)) {
+                    goto efault;
+                }
+                ret = arg2;
+            }
+        }
+        break;
+    case TARGET_NR_sched_setaffinity:
+        {
+            unsigned int mask_size;
+            unsigned long *mask;
+
+            /*
+             * sched_setaffinity needs multiples of ulong, so need to take
+             * care of mismatches between target ulong and host ulong sizes.
+             */
+            if (arg2 & (sizeof(abi_ulong) - 1)) {
+                ret = -TARGET_EINVAL;
+                break;
+            }
+            mask_size = (arg2 + (sizeof(*mask) - 1)) & ~(sizeof(*mask) - 1);
+
+            mask = alloca(mask_size);
+            if (!lock_user_struct(VERIFY_READ, p, arg3, 1)) {
+                goto efault;
+            }
+            memcpy(mask, p, arg2);
+            unlock_user_struct(p, arg2, 0);
+
+            ret = get_errno(sys_sched_setaffinity(arg1, mask_size, mask));
+        }
         break;
     case TARGET_NR_sched_setparam:
         {
