@@ -274,13 +274,15 @@ static int kvm_dirty_pages_log_change(target_phys_addr_t phys_addr,
     return kvm_set_user_memory_region(s, mem);
 }
 
-int kvm_log_start(target_phys_addr_t phys_addr, ram_addr_t size)
+static int kvm_log_start(CPUPhysMemoryClient *client,
+                         target_phys_addr_t phys_addr, ram_addr_t size)
 {
     return kvm_dirty_pages_log_change(phys_addr, size, KVM_MEM_LOG_DIRTY_PAGES,
                                       KVM_MEM_LOG_DIRTY_PAGES);
 }
 
-int kvm_log_stop(target_phys_addr_t phys_addr, ram_addr_t size)
+static int kvm_log_stop(CPUPhysMemoryClient *client,
+                        target_phys_addr_t phys_addr, ram_addr_t size)
 {
     return kvm_dirty_pages_log_change(phys_addr, size, 0,
                                       KVM_MEM_LOG_DIRTY_PAGES);
@@ -644,6 +646,8 @@ static CPUPhysMemoryClient kvm_cpu_phys_memory_client = {
     .set_memory = kvm_client_set_memory,
     .sync_dirty_bitmap = kvm_client_sync_dirty_bitmap,
     .migration_log = kvm_client_migration_log,
+    .log_start = kvm_log_start,
+    .log_stop = kvm_log_stop,
 };
 
 int kvm_init(void)

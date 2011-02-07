@@ -33,16 +33,6 @@ int kvm_init_vcpu(CPUState *env)
     return -ENOSYS;
 }
 
-int kvm_log_start(target_phys_addr_t phys_addr, ram_addr_t size)
-{
-    return -ENOSYS;
-}
-
-int kvm_log_stop(target_phys_addr_t phys_addr, ram_addr_t size)
-{
-    return -ENOSYS;
-}
-
 int kvm_coalesce_mmio_region(target_phys_addr_t start, ram_addr_t size)
 {
     return -ENOSYS;
