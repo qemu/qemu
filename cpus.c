@@ -774,7 +774,7 @@ static void qemu_kvm_wait_io_event(CPUState *env)
 
 static int qemu_cpu_exec(CPUState *env);
 
-static void *kvm_cpu_thread_fn(void *arg)
+static void *qemu_kvm_cpu_thread_fn(void *arg)
 {
     CPUState *env = arg;
     int r;
@@ -807,7 +807,7 @@ static void *kvm_cpu_thread_fn(void *arg)
     return NULL;
 }
 
-static void *tcg_cpu_thread_fn(void *arg)
+static void *qemu_tcg_cpu_thread_fn(void *arg)
 {
     CPUState *env = arg;
 
@@ -926,7 +926,7 @@ void resume_all_vcpus(void)
     }
 }
 
-static void tcg_init_vcpu(void *_env)
+static void qemu_tcg_init_vcpu(void *_env)
 {
     CPUState *env = _env;
     /* share a single thread for all cpus with TCG */
@@ -934,7 +934,7 @@ static void tcg_init_vcpu(void *_env)
         env->thread = qemu_mallocz(sizeof(QemuThread));
         env->halt_cond = qemu_mallocz(sizeof(QemuCond));
         qemu_cond_init(env->halt_cond);
-        qemu_thread_create(env->thread, tcg_cpu_thread_fn, env);
+        qemu_thread_create(env->thread, qemu_tcg_cpu_thread_fn, env);
         while (env->created == 0)
             qemu_cond_timedwait(&qemu_cpu_cond, &qemu_global_mutex, 100);
         tcg_cpu_thread = env->thread;
@@ -945,12 +945,12 @@ static void tcg_init_vcpu(void *_env)
     }
 }
 
-static void kvm_start_vcpu(CPUState *env)
+static void qemu_kvm_start_vcpu(CPUState *env)
 {
     env->thread = qemu_mallocz(sizeof(QemuThread));
     env->halt_cond = qemu_mallocz(sizeof(QemuCond));
     qemu_cond_init(env->halt_cond);
-    qemu_thread_create(env->thread, kvm_cpu_thread_fn, env);
+    qemu_thread_create(env->thread, qemu_kvm_cpu_thread_fn, env);
     while (env->created == 0)
         qemu_cond_timedwait(&qemu_cpu_cond, &qemu_global_mutex, 100);
 }
@@ -962,9 +962,9 @@ void qemu_init_vcpu(void *_env)
     env->nr_cores = smp_cores;
     env->nr_threads = smp_threads;
     if (kvm_enabled())
-        kvm_start_vcpu(env);
+        qemu_kvm_start_vcpu(env);
     else
-        tcg_init_vcpu(env);
+        qemu_tcg_init_vcpu(env);
 }
 
 void qemu_notify_event(void)
