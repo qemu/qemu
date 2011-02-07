@@ -1442,11 +1442,17 @@ int kvm_arch_get_registers(CPUState *env)
 
 void kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
 {
+    int ret;
+
     /* Inject NMI */
     if (env->interrupt_request & CPU_INTERRUPT_NMI) {
         env->interrupt_request &= ~CPU_INTERRUPT_NMI;
         DPRINTF("injected NMI\n");
-        kvm_vcpu_ioctl(env, KVM_NMI);
+        ret = kvm_vcpu_ioctl(env, KVM_NMI);
+        if (ret < 0) {
+            fprintf(stderr, "KVM: injection failed, NMI lost (%s)\n",
+                    strerror(-ret));
+        }
     }
 
     if (!kvm_irqchip_in_kernel()) {
@@ -1467,9 +1473,13 @@ void kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
                 struct kvm_interrupt intr;
 
                 intr.irq = irq;
-                /* FIXME: errors */
                 DPRINTF("injected interrupt %d\n", irq);
-                kvm_vcpu_ioctl(env, KVM_INTERRUPT, &intr);
+                ret = kvm_vcpu_ioctl(env, KVM_INTERRUPT, &intr);
+                if (ret < 0) {
+                    fprintf(stderr,
+                            "KVM: injection failed, interrupt lost (%s)\n",
+                            strerror(-ret));
+                }
             }
         }
 
