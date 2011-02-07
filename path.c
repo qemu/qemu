@@ -38,7 +38,8 @@ static int strneq(const char *s1, unsigned int n, const char *s2)
     return s2[i] == 0;
 }
 
-static struct pathelem *add_entry(struct pathelem *root, const char *name);
+static struct pathelem *add_entry(struct pathelem *root, const char *name,
+                                  unsigned char type);
 
 static struct pathelem *new_entry(const char *root,
                                   struct pathelem *parent,
@@ -56,6 +57,15 @@ static struct pathelem *new_entry(const char *root,
 
 #define streq(a,b) (strcmp((a), (b)) == 0)
 
+/* Not all systems provide this feature */
+#if defined(DT_DIR) && defined(DT_UNKNOWN)
+# define dirent_type(dirent) ((dirent)->d_type)
+# define is_dir_maybe(type)  ((type) == DT_DIR || (type) == DT_UNKNOWN)
+#else
+# define dirent_type(dirent) (1)
+# define is_dir_maybe(type)  (type)
+#endif
+
 static struct pathelem *add_dir_maybe(struct pathelem *path)
 {
     DIR *dir;
@@ -65,7 +75,7 @@ static struct pathelem *add_dir_maybe(struct pathelem *path)
 
         while ((dirent = readdir(dir)) != NULL) {
             if (!streq(dirent->d_name,".") && !streq(dirent->d_name,"..")){
-                path = add_entry(path, dirent->d_name);
+                path = add_entry(path, dirent->d_name, dirent_type(dirent));
             }
         }
         closedir(dir);
@@ -73,16 +83,22 @@ static struct pathelem *add_dir_maybe(struct pathelem *path)
     return path;
 }
 
-static struct pathelem *add_entry(struct pathelem *root, const char *name)
+static struct pathelem *add_entry(struct pathelem *root, const char *name,
+                                  unsigned char type)
 {
+    struct pathelem **e;
+
     root->num_entries++;
 
     root = realloc(root, sizeof(*root)
                    + sizeof(root->entries[0])*root->num_entries);
+    e = &root->entries[root->num_entries-1];
 
-    root->entries[root->num_entries-1] = new_entry(root->pathname, root, name);
-    root->entries[root->num_entries-1]
-        = add_dir_maybe(root->entries[root->num_entries-1]);
+    *e = new_entry(root->pathname, root, name);
+    if (is_dir_maybe(type)) {
+        *e = add_dir_maybe(*e);
+    }
+
     return root;
 }
 
