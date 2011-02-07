@@ -169,14 +169,12 @@ int kvm_arch_remove_sw_breakpoint(CPUState *env, struct kvm_sw_breakpoint *bp)
     return 0;
 }
 
-int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
+void kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
 {
-    return 0;
 }
 
-int kvm_arch_post_run(CPUState *env, struct kvm_run *run)
+void kvm_arch_post_run(CPUState *env, struct kvm_run *run)
 {
-    return 0;
 }
 
 int kvm_arch_process_irqchip_events(CPUState *env)

@@ -1440,7 +1440,7 @@ int kvm_arch_get_registers(CPUState *env)
     return 0;
 }
 
-int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
+void kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
 {
     /* Inject NMI */
     if (env->interrupt_request & CPU_INTERRUPT_NMI) {
@@ -1486,11 +1486,9 @@ int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
         DPRINTF("setting tpr\n");
         run->cr8 = cpu_get_apic_tpr(env->apic_state);
     }
-
-    return 0;
 }
 
-int kvm_arch_post_run(CPUState *env, struct kvm_run *run)
+void kvm_arch_post_run(CPUState *env, struct kvm_run *run)
 {
     if (run->if_flag) {
         env->eflags |= IF_MASK;
@@ -1499,8 +1497,6 @@ int kvm_arch_post_run(CPUState *env, struct kvm_run *run)
     }
     cpu_set_apic_tpr(env->apic_state, run->cr8);
     cpu_set_apic_base(env->apic_state, run->apic_base);
-
-    return 0;
 }
 
 int kvm_arch_process_irqchip_events(CPUState *env)

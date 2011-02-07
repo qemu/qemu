@@ -256,14 +256,12 @@ int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
     return 0;
 }
 
-int kvm_arch_post_run(CPUState *env, struct kvm_run *run)
+void kvm_arch_post_run(CPUState *env, struct kvm_run *run)
 {
-    return 0;
 }
 
-int kvm_arch_process_irqchip_events(CPUState *env)
+void kvm_arch_process_irqchip_events(CPUState *env)
 {
-    return 0;
 }
 
 static int kvmppc_handle_halt(CPUState *env)
