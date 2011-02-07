@@ -1203,7 +1203,7 @@ print_utimensat(const struct syscallname *name,
 }
 #endif
 
-#ifdef TARGET_NR_mmap
+#if defined(TARGET_NR_mmap) || defined(TARGET_NR_mmap2)
 static void
 print_mmap(const struct syscallname *name,
     abi_long arg0, abi_long arg1, abi_long arg2,
