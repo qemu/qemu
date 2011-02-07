@@ -11,8 +11,6 @@ void cpu_stop_current(void);
 /* vl.c */
 extern int smp_cores;
 extern int smp_threads;
-extern int debug_requested;
-extern int vmstop_requested;
 void vm_state_notify(int running, int reason);
 bool cpu_exec_all(void);
 void set_numa_modes(void);

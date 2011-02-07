@@ -168,8 +168,7 @@ static bool all_cpu_threads_idle(void)
 static void cpu_debug_handler(CPUState *env)
 {
     gdb_set_stop_cpu(env);
-    debug_requested = VMSTOP_DEBUG;
-    vm_stop(VMSTOP_DEBUG);
+    qemu_system_debug_request();
 }
 
 #ifdef CONFIG_LINUX
@@ -988,12 +987,6 @@ void qemu_init_vcpu(void *_env)
 void qemu_notify_event(void)
 {
     qemu_event_increment();
-}
-
-static void qemu_system_vmstop_request(int reason)
-{
-    vmstop_requested = reason;
-    qemu_notify_event();
 }
 
 void cpu_stop_current(void)

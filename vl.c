@@ -1217,8 +1217,8 @@ static QTAILQ_HEAD(reset_handlers, QEMUResetEntry) reset_handlers =
 static int reset_requested;
 static int shutdown_requested;
 static int powerdown_requested;
-int debug_requested;
-int vmstop_requested;
+static int debug_requested;
+static int vmstop_requested;
 
 int qemu_shutdown_requested(void)
 {
@@ -1309,6 +1309,18 @@ void qemu_system_shutdown_request(void)
 void qemu_system_powerdown_request(void)
 {
     powerdown_requested = 1;
+    qemu_notify_event();
+}
+
+void qemu_system_debug_request(void)
+{
+    debug_requested = 1;
+    vm_stop(VMSTOP_DEBUG);
+}
+
+void qemu_system_vmstop_request(int reason)
+{
+    vmstop_requested = reason;
     qemu_notify_event();
 }
 
@@ -1427,8 +1439,8 @@ static void main_loop(void)
         dev_time += profile_getclock() - ti;
 #endif
 
-        if ((r = qemu_debug_requested())) {
-            vm_stop(r);
+        if (qemu_debug_requested()) {
+            vm_stop(VMSTOP_DEBUG);
         }
         if (qemu_shutdown_requested()) {
             monitor_protocol_event(QEVENT_SHUTDOWN, NULL);
