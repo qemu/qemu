@@ -733,8 +733,15 @@ int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
      * pedantic and include space for the argv/envp array as it may have
      * a lot of entries.
      */
-#define TOP_OF_ARGS (TARGET_PAGE_SIZE * MAX_ARG_PAGES - sizeof(void *))
-    stack_len = TOP_OF_ARGS - bprm->p;             /* the strings */
+    stack_len = 0;
+    for (i = 0; i < bprm->argc; ++i) {
+        /* the argv strings */
+        stack_len += strlen(bprm->argv[i]);
+    }
+    for (i = 0; i < bprm->envc; ++i) {
+        /* the envp strings */
+        stack_len += strlen(bprm->envp[i]);
+    }
     stack_len += (bprm->argc + 1) * 4; /* the argv array */
     stack_len += (bprm->envc + 1) * 4; /* the envp array */
 
