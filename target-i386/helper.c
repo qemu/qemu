@@ -1147,8 +1147,8 @@ void cpu_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
                 if (cenv == env) {
                     continue;
                 }
-
-                qemu_inject_x86_mce(env, 1, 0xa000000000000000, 0, 0, 0);
+                qemu_inject_x86_mce(env, 1, MCI_STATUS_VAL | MCI_STATUS_UC,
+                                    MCG_STATUS_MCIP | MCG_STATUS_RIPV, 0, 0);
             }
         }
     }
