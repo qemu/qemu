@@ -479,8 +479,10 @@ static void qcow2_aio_read_cb(void *opaque, int ret)
                 BLKDBG_EVENT(bs->file, BLKDBG_READ_BACKING_AIO);
                 acb->hd_aiocb = bdrv_aio_readv(bs->backing_hd, acb->sector_num,
                                     &acb->hd_qiov, n1, qcow2_aio_read_cb, acb);
-                if (acb->hd_aiocb == NULL)
+                if (acb->hd_aiocb == NULL) {
+                    ret = -EIO;
                     goto done;
+                }
             } else {
                 ret = qcow2_schedule_bh(qcow2_aio_read_bh, acb);
                 if (ret < 0)
