@@ -37,9 +37,7 @@ static inline int cpu_halted(CPUState *env) {
 	if (!env->halted)
 		return 0;
 
-	/* IRQ, NMI and GURU execeptions wakes us up.  */
-	if (env->interrupt_request
-	    & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI)) {
+	if (cpu_has_work(env)) {
 		env->halted = 0;
 		return 0;
 	}
