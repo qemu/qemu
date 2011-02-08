@@ -4698,7 +4698,19 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             tcg_gen_add_i64(cpu_V0, cpu_V0, cpu_V1);
                         } else if (op == 4 || (op == 5 && u)) {
                             /* Insert */
-                            cpu_abort(env, "VS[LR]I.64 not implemented");
+                            neon_load_reg64(cpu_V1, rd + pass);
+                            uint64_t mask;
+                            if (shift < -63 || shift > 63) {
+                                mask = 0;
+                            } else {
+                                if (op == 4) {
+                                    mask = 0xffffffffffffffffull >> -shift;
+                                } else {
+                                    mask = 0xffffffffffffffffull << shift;
+                                }
+                            }
+                            tcg_gen_andi_i64(cpu_V1, cpu_V1, ~mask);
+                            tcg_gen_or_i64(cpu_V0, cpu_V0, cpu_V1);
                         }
                         neon_store_reg64(cpu_V0, rd + pass);
                     } else { /* size < 3 */
