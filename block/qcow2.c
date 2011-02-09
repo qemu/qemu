@@ -497,8 +497,10 @@ static void qcow2_aio_read_cb(void *opaque, int ret)
         }
     } else if (acb->cluster_offset & QCOW_OFLAG_COMPRESSED) {
         /* add AIO support for compressed blocks ? */
-        if (qcow2_decompress_cluster(bs, acb->cluster_offset) < 0)
+        ret = qcow2_decompress_cluster(bs, acb->cluster_offset);
+        if (ret < 0) {
             goto done;
+        }
 
         qemu_iovec_from_buffer(&acb->hd_qiov,
             s->cluster_cache + index_in_cluster * 512,

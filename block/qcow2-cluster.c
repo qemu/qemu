@@ -878,11 +878,11 @@ int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
         BLKDBG_EVENT(bs->file, BLKDBG_READ_COMPRESSED);
         ret = bdrv_read(bs->file, coffset >> 9, s->cluster_data, nb_csectors);
         if (ret < 0) {
-            return -1;
+            return ret;
         }
         if (decompress_buffer(s->cluster_cache, s->cluster_size,
                               s->cluster_data + sector_offset, csize) < 0) {
-            return -1;
+            return -EIO;
         }
         s->cluster_cache_offset = coffset;
     }
