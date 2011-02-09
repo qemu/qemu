@@ -14,6 +14,7 @@
 
 #include "trace.h"
 #include "qed.h"
+#include "qerror.h"
 
 static void qed_aio_cancel(BlockDriverAIOCB *blockacb)
 {
@@ -311,7 +312,13 @@ static int bdrv_qed_open(BlockDriverState *bs, int flags)
         return -EINVAL;
     }
     if (s->header.features & ~QED_FEATURE_MASK) {
-        return -ENOTSUP; /* image uses unsupported feature bits */
+        /* image uses unsupported feature bits */
+        char buf[64];
+        snprintf(buf, sizeof(buf), "%" PRIx64,
+            s->header.features & ~QED_FEATURE_MASK);
+        qerror_report(QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
+            bs->device_name, "QED", buf);
+        return -ENOTSUP;
     }
     if (!qed_is_cluster_size_valid(s->header.cluster_size)) {
         return -EINVAL;
