@@ -4062,6 +4062,16 @@ static inline void gen_neon_narrow_satu(int size, TCGv dest, TCGv_i64 src)
     }
 }
 
+static inline void gen_neon_unarrow_sats(int size, TCGv dest, TCGv_i64 src)
+{
+    switch (size) {
+    case 0: gen_helper_neon_unarrow_sat8(dest, cpu_env, src); break;
+    case 1: gen_helper_neon_unarrow_sat16(dest, cpu_env, src); break;
+    case 2: gen_helper_neon_unarrow_sat32(dest, cpu_env, src); break;
+    default: abort();
+    }
+}
+
 static inline void gen_neon_shift_narrow(int size, TCGv var, TCGv shift,
                                          int q, int u)
 {
@@ -4685,7 +4695,19 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             tcg_gen_add_i64(cpu_V0, cpu_V0, cpu_V1);
                         } else if (op == 4 || (op == 5 && u)) {
                             /* Insert */
-                            cpu_abort(env, "VS[LR]I.64 not implemented");
+                            neon_load_reg64(cpu_V1, rd + pass);
+                            uint64_t mask;
+                            if (shift < -63 || shift > 63) {
+                                mask = 0;
+                            } else {
+                                if (op == 4) {
+                                    mask = 0xffffffffffffffffull >> -shift;
+                                } else {
+                                    mask = 0xffffffffffffffffull << shift;
+                                }
+                            }
+                            tcg_gen_andi_i64(cpu_V1, cpu_V1, ~mask);
+                            tcg_gen_or_i64(cpu_V0, cpu_V0, cpu_V1);
                         }
                         neon_store_reg64(cpu_V0, rd + pass);
                     } else { /* size < 3 */
@@ -4867,16 +4889,28 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         /* The shift is less than the width of the source
                            type, so we can just shift the whole register.  */
                         tcg_gen_shli_i64(cpu_V0, cpu_V0, shift);
+                        /* Widen the result of shift: we need to clear
+                         * the potential overflow bits resulting from
+                         * left bits of the narrow input appearing as
+                         * right bits of left the neighbour narrow
+                         * input.  */
                         if (size < 2 || !u) {
                             uint64_t imm64;
                             if (size == 0) {
                                 imm = (0xffu >> (8 - shift));
                                 imm |= imm << 16;
-                            } else {
+                            } else if (size == 1) {
                                 imm = 0xffff >> (16 - shift);
+                            } else {
+                                /* size == 2 */
+                                imm = 0xffffffff >> (32 - shift);
                             }
-                            imm64 = imm | (((uint64_t)imm) << 32);
-                            tcg_gen_andi_i64(cpu_V0, cpu_V0, imm64);
+                            if (size < 2) {
+                                imm64 = imm | (((uint64_t)imm) << 32);
+                            } else {
+                                imm64 = imm;
+                            }
+                            tcg_gen_andi_i64(cpu_V0, cpu_V0, ~imm64);
                         }
                     }
                     neon_store_reg64(cpu_V0, rd + pass);
@@ -5458,12 +5492,18 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     for (pass = 0; pass < 2; pass++) {
                         neon_load_reg64(cpu_V0, rm + pass);
                         tmp = new_tmp();
-                        if (op == 36 && q == 0) {
-                            gen_neon_narrow(size, tmp, cpu_V0);
-                        } else if (q) {
-                            gen_neon_narrow_satu(size, tmp, cpu_V0);
-                        } else {
-                            gen_neon_narrow_sats(size, tmp, cpu_V0);
+                        if (op == 36) {
+                            if (q) { /* VQMOVUN */
+                                gen_neon_unarrow_sats(size, tmp, cpu_V0);
+                            } else { /* VMOVN */
+                                gen_neon_narrow(size, tmp, cpu_V0);
+                            }
+                        } else { /* VQMOVN */
+                            if (q) {
+                                gen_neon_narrow_satu(size, tmp, cpu_V0);
+                            } else {
+                                gen_neon_narrow_sats(size, tmp, cpu_V0);
+                            }
                         }
                         if (pass == 0) {
                             tmp2 = tmp;

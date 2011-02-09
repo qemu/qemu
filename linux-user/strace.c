@@ -396,6 +396,7 @@ UNUSED static struct flags mmap_flags[] = {
     FLAG_TARGET(MAP_DENYWRITE),
     FLAG_TARGET(MAP_FIXED),
     FLAG_TARGET(MAP_GROWSDOWN),
+    FLAG_TARGET(MAP_EXECUTABLE),
 #ifdef MAP_LOCKED
     FLAG_TARGET(MAP_LOCKED),
 #endif
@@ -405,6 +406,9 @@ UNUSED static struct flags mmap_flags[] = {
     FLAG_TARGET(MAP_NORESERVE),
 #ifdef MAP_POPULATE
     FLAG_TARGET(MAP_POPULATE),
+#endif
+#ifdef TARGET_MAP_UNINITIALIZED
+    FLAG_TARGET(MAP_UNINITIALIZED),
 #endif
     FLAG_END,
 };
@@ -1197,7 +1201,7 @@ print_utimensat(const struct syscallname *name,
 }
 #endif
 
-#ifdef TARGET_NR_mmap
+#if defined(TARGET_NR_mmap) || defined(TARGET_NR_mmap2)
 static void
 print_mmap(const struct syscallname *name,
     abi_long arg0, abi_long arg1, abi_long arg2,
