@@ -2624,14 +2624,21 @@ void cpu_loop (CPUState *env)
 }
 #endif /* TARGET_ALPHA */
 
+static void version(void)
+{
+    printf("qemu-" TARGET_ARCH " version " QEMU_VERSION QEMU_PKGVERSION
+           ", Copyright (c) 2003-2008 Fabrice Bellard\n");
+}
+
 static void usage(void)
 {
-    printf("qemu-" TARGET_ARCH " version " QEMU_VERSION QEMU_PKGVERSION ", Copyright (c) 2003-2008 Fabrice Bellard\n"
-           "usage: qemu-" TARGET_ARCH " [options] program [arguments...]\n"
+    version();
+    printf("usage: qemu-" TARGET_ARCH " [options] program [arguments...]\n"
            "Linux CPU emulator (compiled for %s emulation)\n"
            "\n"
            "Standard options:\n"
            "-h                print this help\n"
+           "-version          display version information and exit\n"
            "-g port           wait gdb connection to port\n"
            "-L path           set the elf interpreter prefix (default=%s)\n"
            "-s size           set the stack size in bytes (default=%ld)\n"
@@ -2886,8 +2893,10 @@ int main(int argc, char **argv, char **envp)
             singlestep = 1;
         } else if (!strcmp(r, "strace")) {
             do_strace = 1;
-        } else
-        {
+        } else if (!strcmp(r, "version")) {
+            version();
+            exit(0);
+        } else {
             usage();
         }
     }

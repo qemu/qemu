@@ -999,6 +999,7 @@ struct target_winsize {
 #define TARGET_MAP_NORESERVE	0x4000		/* don't check for reservations */
 #define TARGET_MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
 #define TARGET_MAP_NONBLOCK	0x10000		/* do not block on IO */
+#define TARGET_MAP_UNINITIALIZED 0x4000000	/* for anonymous mmap, memory could be uninitialized */
 #endif
 
 #if (defined(TARGET_I386) && defined(TARGET_ABI32)) || defined(TARGET_ARM) || defined(TARGET_CRIS)

@@ -1075,6 +1075,33 @@ static void zero_bss(abi_ulong elf_bss, abi_ulong last_bss, int prot)
     }
 }
 
+#ifdef CONFIG_USE_FDPIC
+static abi_ulong loader_build_fdpic_loadmap(struct image_info *info, abi_ulong sp)
+{
+    uint16_t n;
+    struct elf32_fdpic_loadseg *loadsegs = info->loadsegs;
+
+    /* elf32_fdpic_loadseg */
+    n = info->nsegs;
+    while (n--) {
+        sp -= 12;
+        put_user_u32(loadsegs[n].addr, sp+0);
+        put_user_u32(loadsegs[n].p_vaddr, sp+4);
+        put_user_u32(loadsegs[n].p_memsz, sp+8);
+    }
+
+    /* elf32_fdpic_loadmap */
+    sp -= 4;
+    put_user_u16(0, sp+0); /* version */
+    put_user_u16(info->nsegs, sp+2); /* nsegs */
+
+    info->personality = PER_LINUX_FDPIC;
+    info->loadmap_addr = sp;
+
+    return sp;
+}
+#endif
+
 static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
                                    struct elfhdr *exec,
                                    struct image_info *info,
@@ -1087,6 +1114,21 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     const int n = sizeof(elf_addr_t);
 
     sp = p;
+
+#ifdef CONFIG_USE_FDPIC
+    /* Needs to be before we load the env/argc/... */
+    if (elf_is_fdpic(exec)) {
+        /* Need 4 byte alignment for these structs */
+        sp &= ~3;
+        sp = loader_build_fdpic_loadmap(info, sp);
+        info->other_info = interp_info;
+        if (interp_info) {
+            interp_info->other_info = info;
+            sp = loader_build_fdpic_loadmap(interp_info, sp);
+        }
+    }
+#endif
+
     u_platform = 0;
     k_platform = ELF_PLATFORM;
     if (k_platform) {
@@ -1197,6 +1239,11 @@ static void load_elf_image(const char *image_name, int image_fd,
     }
     bswap_phdr(phdr, ehdr->e_phnum);
 
+#ifdef CONFIG_USE_FDPIC
+    info->nsegs = 0;
+    info->pt_dynamic_addr = 0;
+#endif
+
     /* Find the maximum size of the image and allocate an appropriate
        amount of memory to handle that.  */
     loaddr = -1, hiaddr = 0;
@@ -1210,6 +1257,9 @@ static void load_elf_image(const char *image_name, int image_fd,
             if (a > hiaddr) {
                 hiaddr = a;
             }
+#ifdef CONFIG_USE_FDPIC
+            ++info->nsegs;
+#endif
         }
     }
 
@@ -1289,6 +1339,27 @@ static void load_elf_image(const char *image_name, int image_fd,
 #endif
     }
     load_bias = load_addr - loaddr;
+
+#ifdef CONFIG_USE_FDPIC
+    {
+        struct elf32_fdpic_loadseg *loadsegs = info->loadsegs =
+            qemu_malloc(sizeof(*loadsegs) * info->nsegs);
+
+        for (i = 0; i < ehdr->e_phnum; ++i) {
+            switch (phdr[i].p_type) {
+            case PT_DYNAMIC:
+                info->pt_dynamic_addr = phdr[i].p_vaddr + load_bias;
+                break;
+            case PT_LOAD:
+                loadsegs->addr = phdr[i].p_vaddr + load_bias;
+                loadsegs->p_vaddr = phdr[i].p_vaddr;
+                loadsegs->p_memsz = phdr[i].p_memsz;
+                ++loadsegs;
+                break;
+            }
+        }
+    }
+#endif
 
     info->load_bias = load_bias;
     info->load_addr = load_addr;
@@ -1481,7 +1552,7 @@ static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
     struct elf_shdr *shdr;
     char *strings;
     struct syminfo *s;
-    struct elf_sym *syms;
+    struct elf_sym *syms, *new_syms;
 
     shnum = hdr->e_shnum;
     i = shnum * sizeof(struct elf_shdr);
@@ -1550,12 +1621,14 @@ static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
        that we threw away.  Whether or not this has any effect on the
        memory allocation depends on the malloc implementation and how
        many symbols we managed to discard.  */
-    syms = realloc(syms, nsyms * sizeof(*syms));
-    if (syms == NULL) {
+    new_syms = realloc(syms, nsyms * sizeof(*syms));
+    if (new_syms == NULL) {
         free(s);
+        free(syms);
         free(strings);
         return;
     }
+    syms = new_syms;
 
     qsort(syms, nsyms, sizeof(*syms), symcmp);
 

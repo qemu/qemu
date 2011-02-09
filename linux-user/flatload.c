@@ -41,6 +41,8 @@
 
 #include "qemu.h"
 #include "flat.h"
+#define ntohl(x) be32_to_cpu(x)
+#include <target_flat.h>
 
 //#define DEBUG
 
@@ -48,14 +50,6 @@
 #define	DBG_FLT(...)	printf(__VA_ARGS__)
 #else
 #define	DBG_FLT(...)
-#endif
-
-#define flat_reloc_valid(reloc, size)             ((reloc) <= (size))
-#define flat_old_ram_flag(flag)                   (flag)
-#ifdef TARGET_WORDS_BIGENDIAN
-#define flat_get_relocate_addr(relval)            (relval)
-#else
-#define flat_get_relocate_addr(relval)            bswap32(relval)
 #endif
 
 #define RELOC_FAILED 0xff00ff01		/* Relocation incorrect somewhere */
@@ -77,8 +71,6 @@ static int load_flat_shared_library(int id, struct lib_info *p);
 #endif
 
 struct linux_binprm;
-
-#define ntohl(x) be32_to_cpu(x)
 
 /****************************************************************************/
 /*
@@ -625,6 +617,7 @@ static int load_flat_file(struct linux_binprm * bprm,
      * __start to address 4 so that is okay).
      */
     if (rev > OLD_FLAT_VERSION) {
+        abi_ulong persistent = 0;
         for (i = 0; i < relocs; i++) {
             abi_ulong addr, relval;
 
@@ -633,6 +626,9 @@ static int load_flat_file(struct linux_binprm * bprm,
                relocated first).  */
             if (get_user_ual(relval, reloc + i * sizeof(abi_ulong)))
                 return -EFAULT;
+            relval = ntohl(relval);
+            if (flat_set_persistent(relval, &persistent))
+                continue;
             addr = flat_get_relocate_addr(relval);
             rp = calc_reloc(addr, libinfo, id, 1);
             if (rp == RELOC_FAILED)
@@ -641,22 +637,20 @@ static int load_flat_file(struct linux_binprm * bprm,
             /* Get the pointer's value.  */
             if (get_user_ual(addr, rp))
                 return -EFAULT;
+            addr = flat_get_addr_from_rp(rp, relval, flags, &persistent);
             if (addr != 0) {
                 /*
                  * Do the relocation.  PIC relocs in the data section are
                  * already in target order
                  */
-
-#ifndef TARGET_WORDS_BIGENDIAN
                 if ((flags & FLAT_FLAG_GOTPIC) == 0)
-                    addr = bswap32(addr);
-#endif
+                    addr = ntohl(addr);
                 addr = calc_reloc(addr, libinfo, id, 0);
                 if (addr == RELOC_FAILED)
                     return -ENOEXEC;
 
                 /* Write back the relocated pointer.  */
-                if (put_user_ual(addr, rp))
+                if (flat_put_addr_at_rp(rp, addr, relval))
                     return -EFAULT;
             }
         }
@@ -733,8 +727,15 @@ int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
      * pedantic and include space for the argv/envp array as it may have
      * a lot of entries.
      */
-#define TOP_OF_ARGS (TARGET_PAGE_SIZE * MAX_ARG_PAGES - sizeof(void *))
-    stack_len = TOP_OF_ARGS - bprm->p;             /* the strings */
+    stack_len = 0;
+    for (i = 0; i < bprm->argc; ++i) {
+        /* the argv strings */
+        stack_len += strlen(bprm->argv[i]);
+    }
+    for (i = 0; i < bprm->envc; ++i) {
+        /* the envp strings */
+        stack_len += strlen(bprm->envp[i]);
+    }
     stack_len += (bprm->argc + 1) * 4; /* the argv array */
     stack_len += (bprm->envc + 1) * 4; /* the envp array */
 
@@ -775,7 +776,8 @@ int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     stack_len *= sizeof(abi_ulong);
     if ((sp + stack_len) & 15)
         sp -= 16 - ((sp + stack_len) & 15);
-    sp = loader_build_argptr(bprm->envc, bprm->argc, sp, p, 1);
+    sp = loader_build_argptr(bprm->envc, bprm->argc, sp, p,
+                             flat_argvp_envp_on_stack());
 
     /* Fake some return addresses to ensure the call chain will
      * initialise library in order for us.  We are required to call
