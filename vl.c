@@ -1433,7 +1433,7 @@ static void main_loop(void)
         if (qemu_shutdown_requested()) {
             monitor_protocol_event(QEVENT_SHUTDOWN, NULL);
             if (no_shutdown) {
-                vm_stop(0);
+                vm_stop(VMSTOP_SHUTDOWN);
                 no_shutdown = 0;
             } else
                 break;

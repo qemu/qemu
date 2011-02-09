@@ -994,7 +994,7 @@ int kvm_cpu_exec(CPUState *env)
 
     if (ret < 0) {
         cpu_dump_state(env, stderr, fprintf, CPU_DUMP_CODE);
-        vm_stop(0);
+        vm_stop(VMSTOP_PANIC);
         env->exit_request = 1;
     }
     if (env->exit_request) {

@@ -239,7 +239,7 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type)
         r->status |= SCSI_REQ_STATUS_RETRY | type;
 
         bdrv_mon_event(s->bs, BDRV_ACTION_STOP, is_read);
-        vm_stop(0);
+        vm_stop(VMSTOP_DISKFULL);
     } else {
         if (type == SCSI_REQ_STATUS_RETRY_READ) {
             r->req.bus->complete(r->req.bus, SCSI_REASON_DATA, r->req.tag, 0);

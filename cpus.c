@@ -168,8 +168,8 @@ static bool all_cpu_threads_idle(void)
 static void cpu_debug_handler(CPUState *env)
 {
     gdb_set_stop_cpu(env);
-    debug_requested = EXCP_DEBUG;
-    vm_stop(EXCP_DEBUG);
+    debug_requested = VMSTOP_DEBUG;
+    vm_stop(VMSTOP_DEBUG);
 }
 
 #ifdef CONFIG_LINUX

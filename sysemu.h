@@ -37,6 +37,16 @@ VMChangeStateEntry *qemu_add_vm_change_state_handler(VMChangeStateHandler *cb,
                                                      void *opaque);
 void qemu_del_vm_change_state_handler(VMChangeStateEntry *e);
 
+#define VMSTOP_USER      0
+#define VMSTOP_DEBUG     1
+#define VMSTOP_SHUTDOWN  2
+#define VMSTOP_DISKFULL  3
+#define VMSTOP_WATCHDOG  4
+#define VMSTOP_PANIC     5
+#define VMSTOP_SAVEVM    6
+#define VMSTOP_LOADVM    7
+#define VMSTOP_MIGRATE   8
+
 void vm_start(void);
 void vm_stop(int reason);
 
