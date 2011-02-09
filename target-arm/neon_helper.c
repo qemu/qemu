@@ -1053,6 +1053,33 @@ uint32_t HELPER(neon_narrow_round_high_u16)(uint64_t x)
     return ((x >> 16) & 0xffff) | ((x >> 32) & 0xffff0000);
 }
 
+uint32_t HELPER(neon_unarrow_sat8)(CPUState *env, uint64_t x)
+{
+    uint16_t s;
+    uint8_t d;
+    uint32_t res = 0;
+#define SAT8(n) \
+    s = x >> n; \
+    if (s & 0x8000) { \
+        SET_QC(); \
+    } else { \
+        if (s > 0xff) { \
+            d = 0xff; \
+            SET_QC(); \
+        } else  { \
+            d = s; \
+        } \
+        res |= (uint32_t)d << (n / 2); \
+    }
+
+    SAT8(0);
+    SAT8(16);
+    SAT8(32);
+    SAT8(48);
+#undef SAT8
+    return res;
+}
+
 uint32_t HELPER(neon_narrow_sat_u8)(CPUState *env, uint64_t x)
 {
     uint16_t s;
@@ -1099,6 +1126,29 @@ uint32_t HELPER(neon_narrow_sat_s8)(CPUState *env, uint64_t x)
     return res;
 }
 
+uint32_t HELPER(neon_unarrow_sat16)(CPUState *env, uint64_t x)
+{
+    uint32_t high;
+    uint32_t low;
+    low = x;
+    if (low & 0x80000000) {
+        low = 0;
+        SET_QC();
+    } else if (low > 0xffff) {
+        low = 0xffff;
+        SET_QC();
+    }
+    high = x >> 32;
+    if (high & 0x80000000) {
+        high = 0;
+        SET_QC();
+    } else if (high > 0xffff) {
+        high = 0xffff;
+        SET_QC();
+    }
+    return low | (high << 16);
+}
+
 uint32_t HELPER(neon_narrow_sat_u16)(CPUState *env, uint64_t x)
 {
     uint32_t high;
@@ -1131,6 +1181,19 @@ uint32_t HELPER(neon_narrow_sat_s16)(CPUState *env, uint64_t x)
         SET_QC();
     }
     return (uint16_t)low | (high << 16);
+}
+
+uint32_t HELPER(neon_unarrow_sat32)(CPUState *env, uint64_t x)
+{
+    if (x & 0x8000000000000000ull) {
+        SET_QC();
+        return 0;
+    }
+    if (x > 0xffffffffu) {
+        SET_QC();
+        return 0xffffffffu;
+    }
+    return x;
 }
 
 uint32_t HELPER(neon_narrow_sat_u32)(CPUState *env, uint64_t x)

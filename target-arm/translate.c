@@ -4065,6 +4065,16 @@ static inline void gen_neon_narrow_satu(int size, TCGv dest, TCGv_i64 src)
     }
 }
 
+static inline void gen_neon_unarrow_sats(int size, TCGv dest, TCGv_i64 src)
+{
+    switch (size) {
+    case 0: gen_helper_neon_unarrow_sat8(dest, cpu_env, src); break;
+    case 1: gen_helper_neon_unarrow_sat16(dest, cpu_env, src); break;
+    case 2: gen_helper_neon_unarrow_sat32(dest, cpu_env, src); break;
+    default: abort();
+    }
+}
+
 static inline void gen_neon_shift_narrow(int size, TCGv var, TCGv shift,
                                          int q, int u)
 {
@@ -5461,12 +5471,18 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     for (pass = 0; pass < 2; pass++) {
                         neon_load_reg64(cpu_V0, rm + pass);
                         tmp = new_tmp();
-                        if (op == 36 && q == 0) {
-                            gen_neon_narrow(size, tmp, cpu_V0);
-                        } else if (q) {
-                            gen_neon_narrow_satu(size, tmp, cpu_V0);
-                        } else {
-                            gen_neon_narrow_sats(size, tmp, cpu_V0);
+                        if (op == 36) {
+                            if (q) { /* VQMOVUN */
+                                gen_neon_unarrow_sats(size, tmp, cpu_V0);
+                            } else { /* VMOVN */
+                                gen_neon_narrow(size, tmp, cpu_V0);
+                            }
+                        } else { /* VQMOVN */
+                            if (q) {
+                                gen_neon_narrow_satu(size, tmp, cpu_V0);
+                            } else {
+                                gen_neon_narrow_sats(size, tmp, cpu_V0);
+                            }
                         }
                         if (pass == 0) {
                             tmp2 = tmp;
