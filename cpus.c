@@ -137,29 +137,30 @@ static int cpu_can_run(CPUState *env)
     return 1;
 }
 
-static int cpu_has_work(CPUState *env)
+static bool cpu_thread_is_idle(CPUState *env)
 {
-    if (env->stop)
-        return 1;
-    if (env->queued_work_first)
-        return 1;
-    if (env->stopped || !vm_running)
-        return 0;
-    if (!env->halted)
-        return 1;
-    if (qemu_cpu_has_work(env))
-        return 1;
-    return 0;
+    if (env->stop || env->queued_work_first) {
+        return false;
+    }
+    if (env->stopped || !vm_running) {
+        return true;
+    }
+    if (!env->halted || qemu_cpu_has_work(env)) {
+        return false;
+    }
+    return true;
 }
 
-static int any_cpu_has_work(void)
+static bool all_cpu_threads_idle(void)
 {
     CPUState *env;
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu)
-        if (cpu_has_work(env))
-            return 1;
-    return 0;
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        if (!cpu_thread_is_idle(env)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 static void cpu_debug_handler(CPUState *env)
@@ -743,8 +744,9 @@ static void qemu_tcg_wait_io_event(void)
 {
     CPUState *env;
 
-    while (!any_cpu_has_work())
+    while (all_cpu_threads_idle()) {
         qemu_cond_timedwait(tcg_halt_cond, &qemu_global_mutex, 1000);
+    }
 
     qemu_mutex_unlock(&qemu_global_mutex);
 
@@ -765,8 +767,9 @@ static void qemu_tcg_wait_io_event(void)
 
 static void qemu_kvm_wait_io_event(CPUState *env)
 {
-    while (!cpu_has_work(env))
+    while (cpu_thread_is_idle(env)) {
         qemu_cond_timedwait(env->halt_cond, &qemu_global_mutex, 1000);
+    }
 
     qemu_kvm_eat_signals(env);
     qemu_wait_io_event_common(env);
@@ -1070,7 +1073,7 @@ bool cpu_exec_all(void)
         }
     }
     exit_request = 0;
-    return any_cpu_has_work();
+    return !all_cpu_threads_idle();
 }
 
 void set_numa_modes(void)
