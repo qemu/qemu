@@ -980,11 +980,6 @@ void pc_memory_init(ram_addr_t ram_size,
     *above_4g_mem_size_p = above_4g_mem_size;
     *below_4g_mem_size_p = below_4g_mem_size;
 
-#if TARGET_PHYS_ADDR_BITS == 32
-    if (above_4g_mem_size > 0) {
-        hw_error("To much RAM for 32-bit physical address");
-    }
-#endif
     linux_boot = (kernel_filename != NULL);
 
     /* allocate RAM */
@@ -994,12 +989,10 @@ void pc_memory_init(ram_addr_t ram_size,
     cpu_register_physical_memory(0x100000,
                  below_4g_mem_size - 0x100000,
                  ram_addr + 0x100000);
-#if TARGET_PHYS_ADDR_BITS > 32
     if (above_4g_mem_size > 0) {
         cpu_register_physical_memory(0x100000000ULL, above_4g_mem_size,
                                      ram_addr + below_4g_mem_size);
     }
-#endif
 
     /* BIOS load */
     if (bios_name == NULL)
