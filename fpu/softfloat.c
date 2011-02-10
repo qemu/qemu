@@ -2796,24 +2796,30 @@ float16 float32_to_float16(float32 a, flag ieee STATUS_PARAM)
     aSign = extractFloat32Sign( a );
     if ( aExp == 0xFF ) {
         if (aSig) {
-            /* Make sure correct exceptions are raised.  */
-            float32ToCommonNaN(a STATUS_VAR);
-            aSig |= 0x00400000;
+            /* Input is a NaN */
+            float16 r = commonNaNToFloat16( float32ToCommonNaN( a STATUS_VAR ) STATUS_VAR );
+            if (!ieee) {
+                return packFloat16(aSign, 0, 0);
+            }
+            return r;
         }
-        return packFloat16(aSign, 0x1f, aSig >> 13);
+        /* Infinity */
+        if (!ieee) {
+            float_raise(float_flag_invalid STATUS_VAR);
+            return packFloat16(aSign, 0x1f, 0x3ff);
+        }
+        return packFloat16(aSign, 0x1f, 0);
     }
-    if (aExp == 0 && aSign == 0) {
+    if (aExp == 0 && aSig == 0) {
         return packFloat16(aSign, 0, 0);
     }
     /* Decimal point between bits 22 and 23.  */
     aSig |= 0x00800000;
     aExp -= 0x7f;
     if (aExp < -14) {
-        mask = 0x007fffff;
-        if (aExp < -24) {
-            aExp = -25;
-        } else {
-            mask >>= 24 + aExp;
+        mask = 0x00ffffff;
+        if (aExp >= -24) {
+            mask >>= 25 + aExp;
         }
     } else {
         mask = 0x00001fff;
@@ -2855,7 +2861,7 @@ float16 float32_to_float16(float32 a, flag ieee STATUS_PARAM)
         }
     } else {
         if (aExp > 16) {
-            float_raise( float_flag_overflow | float_flag_inexact STATUS_VAR);
+            float_raise(float_flag_invalid | float_flag_inexact STATUS_VAR);
             return packFloat16(aSign, 0x1f, 0x3ff);
         }
     }

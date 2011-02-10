@@ -120,6 +120,27 @@ float16 float16_maybe_silence_nan(float16 a_)
 }
 
 /*----------------------------------------------------------------------------
+| Returns the result of converting the canonical NaN `a' to the half-
+| precision floating-point format.
+*----------------------------------------------------------------------------*/
+
+static float16 commonNaNToFloat16(commonNaNT a STATUS_PARAM)
+{
+    uint16_t mantissa = a.high>>54;
+
+    if (STATUS(default_nan_mode)) {
+        return float16_default_nan;
+    }
+
+    if (mantissa) {
+        return make_float16(((((uint16_t) a.sign) << 15)
+                             | (0x1F << 10) | mantissa));
+    } else {
+        return float16_default_nan;
+    }
+}
+
+/*----------------------------------------------------------------------------
 | The pattern for a default generated single-precision NaN.
 *----------------------------------------------------------------------------*/
 #if defined(TARGET_SPARC)
