@@ -37,25 +37,25 @@ const floatx80 floatx80Constant[] = {
 };
 
 const float64 float64Constant[] = {
-  0x0000000000000000ULL,		/* double 0.0 */
-  0x3ff0000000000000ULL,		/* double 1.0 */
-  0x4000000000000000ULL,		/* double 2.0 */
-  0x4008000000000000ULL,		/* double 3.0 */
-  0x4010000000000000ULL,		/* double 4.0 */
-  0x4014000000000000ULL,		/* double 5.0 */
-  0x3fe0000000000000ULL,		/* double 0.5 */
-  0x4024000000000000ULL			/* double 10.0 */
+  const_float64(0x0000000000000000ULL),		/* double 0.0 */
+  const_float64(0x3ff0000000000000ULL),		/* double 1.0 */
+  const_float64(0x4000000000000000ULL),		/* double 2.0 */
+  const_float64(0x4008000000000000ULL),		/* double 3.0 */
+  const_float64(0x4010000000000000ULL),		/* double 4.0 */
+  const_float64(0x4014000000000000ULL),		/* double 5.0 */
+  const_float64(0x3fe0000000000000ULL),		/* double 0.5 */
+  const_float64(0x4024000000000000ULL)			/* double 10.0 */
 };
 
 const float32 float32Constant[] = {
-  0x00000000,				/* single 0.0 */
-  0x3f800000,				/* single 1.0 */
-  0x40000000,				/* single 2.0 */
-  0x40400000,				/* single 3.0 */
-  0x40800000,				/* single 4.0 */
-  0x40a00000,				/* single 5.0 */
-  0x3f000000,				/* single 0.5 */
-  0x41200000				/* single 10.0 */
+  const_float32(0x00000000),				/* single 0.0 */
+  const_float32(0x3f800000),				/* single 1.0 */
+  const_float32(0x40000000),				/* single 2.0 */
+  const_float32(0x40400000),				/* single 3.0 */
+  const_float32(0x40800000),				/* single 4.0 */
+  const_float32(0x40a00000),				/* single 5.0 */
+  const_float32(0x3f000000),				/* single 0.5 */
+  const_float32(0x41200000)				/* single 10.0 */
 };
 
 unsigned int getRegisterCount(const unsigned int opcode)

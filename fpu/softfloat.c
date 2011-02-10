@@ -67,6 +67,33 @@ void set_floatx80_rounding_precision(int val STATUS_PARAM)
 #endif
 
 /*----------------------------------------------------------------------------
+| Returns the fraction bits of the half-precision floating-point value `a'.
+*----------------------------------------------------------------------------*/
+
+INLINE uint32_t extractFloat16Frac(float16 a)
+{
+    return float16_val(a) & 0x3ff;
+}
+
+/*----------------------------------------------------------------------------
+| Returns the exponent bits of the half-precision floating-point value `a'.
+*----------------------------------------------------------------------------*/
+
+INLINE int16 extractFloat16Exp(float16 a)
+{
+    return (float16_val(a) >> 10) & 0x1f;
+}
+
+/*----------------------------------------------------------------------------
+| Returns the sign bit of the single-precision floating-point value `a'.
+*----------------------------------------------------------------------------*/
+
+INLINE flag extractFloat16Sign(float16 a)
+{
+    return float16_val(a)>>15;
+}
+
+/*----------------------------------------------------------------------------
 | Takes a 64-bit fixed-point value `absZ' with binary point between bits 6
 | and 7, and returns the properly rounded 32-bit integer corresponding to the
 | input.  If `zSign' is 1, the input is negated before being converted to an
@@ -1534,7 +1561,7 @@ float64 float32_to_float64( float32 a STATUS_PARAM )
     aExp = extractFloat32Exp( a );
     aSign = extractFloat32Sign( a );
     if ( aExp == 0xFF ) {
-        if ( aSig ) return commonNaNToFloat64( float32ToCommonNaN( a STATUS_VAR ));
+        if ( aSig ) return commonNaNToFloat64( float32ToCommonNaN( a STATUS_VAR ) STATUS_VAR );
         return packFloat64( aSign, 0x7FF, 0 );
     }
     if ( aExp == 0 ) {
@@ -1566,7 +1593,7 @@ floatx80 float32_to_floatx80( float32 a STATUS_PARAM )
     aExp = extractFloat32Exp( a );
     aSign = extractFloat32Sign( a );
     if ( aExp == 0xFF ) {
-        if ( aSig ) return commonNaNToFloatx80( float32ToCommonNaN( a STATUS_VAR ) );
+        if ( aSig ) return commonNaNToFloatx80( float32ToCommonNaN( a STATUS_VAR ) STATUS_VAR );
         return packFloatx80( aSign, 0x7FFF, LIT64( 0x8000000000000000 ) );
     }
     if ( aExp == 0 ) {
@@ -1600,7 +1627,7 @@ float128 float32_to_float128( float32 a STATUS_PARAM )
     aExp = extractFloat32Exp( a );
     aSign = extractFloat32Sign( a );
     if ( aExp == 0xFF ) {
-        if ( aSig ) return commonNaNToFloat128( float32ToCommonNaN( a STATUS_VAR ) );
+        if ( aSig ) return commonNaNToFloat128( float32ToCommonNaN( a STATUS_VAR ) STATUS_VAR );
         return packFloat128( aSign, 0x7FFF, 0, 0 );
     }
     if ( aExp == 0 ) {
@@ -2172,21 +2199,21 @@ float32 float32_sqrt( float32 a STATUS_PARAM )
 
 static const float64 float32_exp2_coefficients[15] =
 {
-    make_float64( 0x3ff0000000000000ll ), /*  1 */
-    make_float64( 0x3fe0000000000000ll ), /*  2 */
-    make_float64( 0x3fc5555555555555ll ), /*  3 */
-    make_float64( 0x3fa5555555555555ll ), /*  4 */
-    make_float64( 0x3f81111111111111ll ), /*  5 */
-    make_float64( 0x3f56c16c16c16c17ll ), /*  6 */
-    make_float64( 0x3f2a01a01a01a01all ), /*  7 */
-    make_float64( 0x3efa01a01a01a01all ), /*  8 */
-    make_float64( 0x3ec71de3a556c734ll ), /*  9 */
-    make_float64( 0x3e927e4fb7789f5cll ), /* 10 */
-    make_float64( 0x3e5ae64567f544e4ll ), /* 11 */
-    make_float64( 0x3e21eed8eff8d898ll ), /* 12 */
-    make_float64( 0x3de6124613a86d09ll ), /* 13 */
-    make_float64( 0x3da93974a8c07c9dll ), /* 14 */
-    make_float64( 0x3d6ae7f3e733b81fll ), /* 15 */
+    const_float64( 0x3ff0000000000000ll ), /*  1 */
+    const_float64( 0x3fe0000000000000ll ), /*  2 */
+    const_float64( 0x3fc5555555555555ll ), /*  3 */
+    const_float64( 0x3fa5555555555555ll ), /*  4 */
+    const_float64( 0x3f81111111111111ll ), /*  5 */
+    const_float64( 0x3f56c16c16c16c17ll ), /*  6 */
+    const_float64( 0x3f2a01a01a01a01all ), /*  7 */
+    const_float64( 0x3efa01a01a01a01all ), /*  8 */
+    const_float64( 0x3ec71de3a556c734ll ), /*  9 */
+    const_float64( 0x3e927e4fb7789f5cll ), /* 10 */
+    const_float64( 0x3e5ae64567f544e4ll ), /* 11 */
+    const_float64( 0x3e21eed8eff8d898ll ), /* 12 */
+    const_float64( 0x3de6124613a86d09ll ), /* 13 */
+    const_float64( 0x3da93974a8c07c9dll ), /* 14 */
+    const_float64( 0x3d6ae7f3e733b81fll ), /* 15 */
 };
 
 float32 float32_exp2( float32 a STATUS_PARAM )
@@ -2689,7 +2716,7 @@ float32 float64_to_float32( float64 a STATUS_PARAM )
     aExp = extractFloat64Exp( a );
     aSign = extractFloat64Sign( a );
     if ( aExp == 0x7FF ) {
-        if ( aSig ) return commonNaNToFloat32( float64ToCommonNaN( a STATUS_VAR ) );
+        if ( aSig ) return commonNaNToFloat32( float64ToCommonNaN( a STATUS_VAR ) STATUS_VAR );
         return packFloat32( aSign, 0xFF, 0 );
     }
     shift64RightJamming( aSig, 22, &aSig );
@@ -2713,29 +2740,28 @@ float32 float64_to_float32( float64 a STATUS_PARAM )
 | than the desired result exponent whenever `zSig' is a complete, normalized
 | significand.
 *----------------------------------------------------------------------------*/
-static bits16 packFloat16(flag zSign, int16 zExp, bits16 zSig)
+static float16 packFloat16(flag zSign, int16 zExp, bits16 zSig)
 {
-    return (((bits32)zSign) << 15) + (((bits32)zExp) << 10) + zSig;
+    return make_float16(
+        (((bits32)zSign) << 15) + (((bits32)zExp) << 10) + zSig);
 }
 
 /* Half precision floats come in two formats: standard IEEE and "ARM" format.
    The latter gains extra exponent range by omitting the NaN/Inf encodings.  */
-  
-float32 float16_to_float32( bits16 a, flag ieee STATUS_PARAM )
+
+float32 float16_to_float32(float16 a, flag ieee STATUS_PARAM)
 {
     flag aSign;
     int16 aExp;
     bits32 aSig;
 
-    aSign = a >> 15;
-    aExp = (a >> 10) & 0x1f;
-    aSig = a & 0x3ff;
+    aSign = extractFloat16Sign(a);
+    aExp = extractFloat16Exp(a);
+    aSig = extractFloat16Frac(a);
 
     if (aExp == 0x1f && ieee) {
         if (aSig) {
-            /* Make sure correct exceptions are raised.  */
-            float32ToCommonNaN(a STATUS_VAR);
-            aSig |= 0x200;
+            return commonNaNToFloat32(float16ToCommonNaN(a STATUS_VAR) STATUS_VAR);
         }
         return packFloat32(aSign, 0xff, aSig << 13);
     }
@@ -2753,7 +2779,7 @@ float32 float16_to_float32( bits16 a, flag ieee STATUS_PARAM )
     return packFloat32( aSign, aExp + 0x70, aSig << 13);
 }
 
-bits16 float32_to_float16( float32 a, flag ieee STATUS_PARAM)
+float16 float32_to_float16(float32 a, flag ieee STATUS_PARAM)
 {
     flag aSign;
     int16 aExp;
@@ -2768,24 +2794,30 @@ bits16 float32_to_float16( float32 a, flag ieee STATUS_PARAM)
     aSign = extractFloat32Sign( a );
     if ( aExp == 0xFF ) {
         if (aSig) {
-            /* Make sure correct exceptions are raised.  */
-            float32ToCommonNaN(a STATUS_VAR);
-            aSig |= 0x00400000;
+            /* Input is a NaN */
+            float16 r = commonNaNToFloat16( float32ToCommonNaN( a STATUS_VAR ) STATUS_VAR );
+            if (!ieee) {
+                return packFloat16(aSign, 0, 0);
+            }
+            return r;
         }
-        return packFloat16(aSign, 0x1f, aSig >> 13);
+        /* Infinity */
+        if (!ieee) {
+            float_raise(float_flag_invalid STATUS_VAR);
+            return packFloat16(aSign, 0x1f, 0x3ff);
+        }
+        return packFloat16(aSign, 0x1f, 0);
     }
-    if (aExp == 0 && aSign == 0) {
+    if (aExp == 0 && aSig == 0) {
         return packFloat16(aSign, 0, 0);
     }
     /* Decimal point between bits 22 and 23.  */
     aSig |= 0x00800000;
     aExp -= 0x7f;
     if (aExp < -14) {
-        mask = 0x007fffff;
-        if (aExp < -24) {
-            aExp = -25;
-        } else {
-            mask >>= 24 + aExp;
+        mask = 0x00ffffff;
+        if (aExp >= -24) {
+            mask >>= 25 + aExp;
         }
     } else {
         mask = 0x00001fff;
@@ -2827,7 +2859,7 @@ bits16 float32_to_float16( float32 a, flag ieee STATUS_PARAM)
         }
     } else {
         if (aExp > 16) {
-            float_raise( float_flag_overflow | float_flag_inexact STATUS_VAR);
+            float_raise(float_flag_invalid | float_flag_inexact STATUS_VAR);
             return packFloat16(aSign, 0x1f, 0x3ff);
         }
     }
@@ -2861,7 +2893,7 @@ floatx80 float64_to_floatx80( float64 a STATUS_PARAM )
     aExp = extractFloat64Exp( a );
     aSign = extractFloat64Sign( a );
     if ( aExp == 0x7FF ) {
-        if ( aSig ) return commonNaNToFloatx80( float64ToCommonNaN( a STATUS_VAR ) );
+        if ( aSig ) return commonNaNToFloatx80( float64ToCommonNaN( a STATUS_VAR ) STATUS_VAR );
         return packFloatx80( aSign, 0x7FFF, LIT64( 0x8000000000000000 ) );
     }
     if ( aExp == 0 ) {
@@ -2896,7 +2928,7 @@ float128 float64_to_float128( float64 a STATUS_PARAM )
     aExp = extractFloat64Exp( a );
     aSign = extractFloat64Sign( a );
     if ( aExp == 0x7FF ) {
-        if ( aSig ) return commonNaNToFloat128( float64ToCommonNaN( a STATUS_VAR ) );
+        if ( aSig ) return commonNaNToFloat128( float64ToCommonNaN( a STATUS_VAR ) STATUS_VAR );
         return packFloat128( aSign, 0x7FFF, 0, 0 );
     }
     if ( aExp == 0 ) {
@@ -3843,7 +3875,7 @@ float32 floatx80_to_float32( floatx80 a STATUS_PARAM )
     aSign = extractFloatx80Sign( a );
     if ( aExp == 0x7FFF ) {
         if ( (bits64) ( aSig<<1 ) ) {
-            return commonNaNToFloat32( floatx80ToCommonNaN( a STATUS_VAR ) );
+            return commonNaNToFloat32( floatx80ToCommonNaN( a STATUS_VAR ) STATUS_VAR );
         }
         return packFloat32( aSign, 0xFF, 0 );
     }
@@ -3871,7 +3903,7 @@ float64 floatx80_to_float64( floatx80 a STATUS_PARAM )
     aSign = extractFloatx80Sign( a );
     if ( aExp == 0x7FFF ) {
         if ( (bits64) ( aSig<<1 ) ) {
-            return commonNaNToFloat64( floatx80ToCommonNaN( a STATUS_VAR ) );
+            return commonNaNToFloat64( floatx80ToCommonNaN( a STATUS_VAR ) STATUS_VAR );
         }
         return packFloat64( aSign, 0x7FF, 0 );
     }
@@ -3900,7 +3932,7 @@ float128 floatx80_to_float128( floatx80 a STATUS_PARAM )
     aExp = extractFloatx80Exp( a );
     aSign = extractFloatx80Sign( a );
     if ( ( aExp == 0x7FFF ) && (bits64) ( aSig<<1 ) ) {
-        return commonNaNToFloat128( floatx80ToCommonNaN( a STATUS_VAR ) );
+        return commonNaNToFloat128( floatx80ToCommonNaN( a STATUS_VAR ) STATUS_VAR );
     }
     shift128Right( aSig<<1, 0, 16, &zSig0, &zSig1 );
     return packFloat128( aSign, aExp, zSig0, zSig1 );
@@ -4863,7 +4895,7 @@ float32 float128_to_float32( float128 a STATUS_PARAM )
     aSign = extractFloat128Sign( a );
     if ( aExp == 0x7FFF ) {
         if ( aSig0 | aSig1 ) {
-            return commonNaNToFloat32( float128ToCommonNaN( a STATUS_VAR ) );
+            return commonNaNToFloat32( float128ToCommonNaN( a STATUS_VAR ) STATUS_VAR );
         }
         return packFloat32( aSign, 0xFF, 0 );
     }
@@ -4897,7 +4929,7 @@ float64 float128_to_float64( float128 a STATUS_PARAM )
     aSign = extractFloat128Sign( a );
     if ( aExp == 0x7FFF ) {
         if ( aSig0 | aSig1 ) {
-            return commonNaNToFloat64( float128ToCommonNaN( a STATUS_VAR ) );
+            return commonNaNToFloat64( float128ToCommonNaN( a STATUS_VAR ) STATUS_VAR );
         }
         return packFloat64( aSign, 0x7FF, 0 );
     }
@@ -4932,7 +4964,7 @@ floatx80 float128_to_floatx80( float128 a STATUS_PARAM )
     aSign = extractFloat128Sign( a );
     if ( aExp == 0x7FFF ) {
         if ( aSig0 | aSig1 ) {
-            return commonNaNToFloatx80( float128ToCommonNaN( a STATUS_VAR ) );
+            return commonNaNToFloatx80( float128ToCommonNaN( a STATUS_VAR ) STATUS_VAR );
         }
         return packFloatx80( aSign, 0x7FFF, LIT64( 0x8000000000000000 ) );
     }

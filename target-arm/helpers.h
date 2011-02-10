@@ -129,6 +129,8 @@ DEF_HELPER_3(vfp_ultod, f64, f64, i32, env)
 
 DEF_HELPER_2(vfp_fcvt_f16_to_f32, f32, i32, env)
 DEF_HELPER_2(vfp_fcvt_f32_to_f16, i32, f32, env)
+DEF_HELPER_2(neon_fcvt_f16_to_f32, f32, i32, env)
+DEF_HELPER_2(neon_fcvt_f32_to_f16, i32, f32, env)
 
 DEF_HELPER_3(recps_f32, f32, f32, f32, env)
 DEF_HELPER_3(rsqrts_f32, f32, f32, f32, env)
