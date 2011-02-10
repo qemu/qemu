@@ -67,6 +67,33 @@ void set_floatx80_rounding_precision(int val STATUS_PARAM)
 #endif
 
 /*----------------------------------------------------------------------------
+| Returns the fraction bits of the half-precision floating-point value `a'.
+*----------------------------------------------------------------------------*/
+
+INLINE uint32_t extractFloat16Frac(float16 a)
+{
+    return float16_val(a) & 0x3ff;
+}
+
+/*----------------------------------------------------------------------------
+| Returns the exponent bits of the half-precision floating-point value `a'.
+*----------------------------------------------------------------------------*/
+
+INLINE int16 extractFloat16Exp(float16 a)
+{
+    return (float16_val(a) >> 10) & 0x1f;
+}
+
+/*----------------------------------------------------------------------------
+| Returns the sign bit of the single-precision floating-point value `a'.
+*----------------------------------------------------------------------------*/
+
+INLINE flag extractFloat16Sign(float16 a)
+{
+    return float16_val(a)>>15;
+}
+
+/*----------------------------------------------------------------------------
 | Takes a 64-bit fixed-point value `absZ' with binary point between bits 6
 | and 7, and returns the properly rounded 32-bit integer corresponding to the
 | input.  If `zSign' is 1, the input is negated before being converted to an
@@ -2713,23 +2740,24 @@ float32 float64_to_float32( float64 a STATUS_PARAM )
 | than the desired result exponent whenever `zSig' is a complete, normalized
 | significand.
 *----------------------------------------------------------------------------*/
-static bits16 packFloat16(flag zSign, int16 zExp, bits16 zSig)
+static float16 packFloat16(flag zSign, int16 zExp, bits16 zSig)
 {
-    return (((bits32)zSign) << 15) + (((bits32)zExp) << 10) + zSig;
+    return make_float16(
+        (((bits32)zSign) << 15) + (((bits32)zExp) << 10) + zSig);
 }
 
 /* Half precision floats come in two formats: standard IEEE and "ARM" format.
    The latter gains extra exponent range by omitting the NaN/Inf encodings.  */
-  
-float32 float16_to_float32( bits16 a, flag ieee STATUS_PARAM )
+
+float32 float16_to_float32(float16 a, flag ieee STATUS_PARAM)
 {
     flag aSign;
     int16 aExp;
     bits32 aSig;
 
-    aSign = a >> 15;
-    aExp = (a >> 10) & 0x1f;
-    aSig = a & 0x3ff;
+    aSign = extractFloat16Sign(a);
+    aExp = extractFloat16Exp(a);
+    aSig = extractFloat16Frac(a);
 
     if (aExp == 0x1f && ieee) {
         if (aSig) {
@@ -2753,7 +2781,7 @@ float32 float16_to_float32( bits16 a, flag ieee STATUS_PARAM )
     return packFloat32( aSign, aExp + 0x70, aSig << 13);
 }
 
-bits16 float32_to_float16( float32 a, flag ieee STATUS_PARAM)
+float16 float32_to_float16(float32 a, flag ieee STATUS_PARAM)
 {
     flag aSign;
     int16 aExp;

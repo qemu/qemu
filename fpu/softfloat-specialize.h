@@ -57,6 +57,69 @@ typedef struct {
 } commonNaNT;
 
 /*----------------------------------------------------------------------------
+| The pattern for a default generated half-precision NaN.
+*----------------------------------------------------------------------------*/
+#if defined(TARGET_ARM)
+#define float16_default_nan make_float16(0x7E00)
+#elif SNAN_BIT_IS_ONE
+#define float16_default_nan make_float16(0x7DFF)
+#else
+#define float16_default_nan make_float16(0xFE00)
+#endif
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the half-precision floating-point value `a' is a quiet
+| NaN; otherwise returns 0.
+*----------------------------------------------------------------------------*/
+
+int float16_is_quiet_nan(float16 a_)
+{
+    uint16_t a = float16_val(a_);
+#if SNAN_BIT_IS_ONE
+    return (((a >> 9) & 0x3F) == 0x3E) && (a & 0x1FF);
+#else
+    return ((a & ~0x8000) >= 0x7c80);
+#endif
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the half-precision floating-point value `a' is a signaling
+| NaN; otherwise returns 0.
+*----------------------------------------------------------------------------*/
+
+int float16_is_signaling_nan(float16 a_)
+{
+    uint16_t a = float16_val(a_);
+#if SNAN_BIT_IS_ONE
+    return ((a & ~0x8000) >= 0x7c80);
+#else
+    return (((a >> 9) & 0x3F) == 0x3E) && (a & 0x1FF);
+#endif
+}
+
+/*----------------------------------------------------------------------------
+| Returns a quiet NaN if the half-precision floating point value `a' is a
+| signaling NaN; otherwise returns `a'.
+*----------------------------------------------------------------------------*/
+float16 float16_maybe_silence_nan(float16 a_)
+{
+    if (float16_is_signaling_nan(a_)) {
+#if SNAN_BIT_IS_ONE
+#  if defined(TARGET_MIPS) || defined(TARGET_SH4)
+        return float16_default_nan;
+#  else
+#    error Rules for silencing a signaling NaN are target-specific
+#  endif
+#else
+        uint16_t a = float16_val(a_);
+        a |= (1 << 9);
+        return make_float16(a);
+#endif
+    }
+    return a_;
+}
+
+/*----------------------------------------------------------------------------
 | The pattern for a default generated single-precision NaN.
 *----------------------------------------------------------------------------*/
 #if defined(TARGET_SPARC)

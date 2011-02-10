@@ -120,6 +120,11 @@ enum {
 //#define USE_SOFTFLOAT_STRUCT_TYPES
 #ifdef USE_SOFTFLOAT_STRUCT_TYPES
 typedef struct {
+    uint16_t v;
+} float16;
+#define float16_val(x) (((float16)(x)).v)
+#define make_float16(x) __extension__ ({ float16 f16_val = {x}; f16_val; })
+typedef struct {
     uint32_t v;
 } float32;
 /* The cast ensures an error if the wrong type is passed.  */
@@ -131,10 +136,13 @@ typedef struct {
 #define float64_val(x) (((float64)(x)).v)
 #define make_float64(x) __extension__ ({ float64 f64_val = {x}; f64_val; })
 #else
+typedef uint16_t float16;
 typedef uint32_t float32;
 typedef uint64_t float64;
+#define float16_val(x) (x)
 #define float32_val(x) (x)
 #define float64_val(x) (x)
+#define make_float16(x) (x)
 #define make_float32(x) (x)
 #define make_float64(x) (x)
 #endif
@@ -253,8 +261,15 @@ float128 int64_to_float128( int64_t STATUS_PARAM );
 /*----------------------------------------------------------------------------
 | Software half-precision conversion routines.
 *----------------------------------------------------------------------------*/
-bits16 float32_to_float16( float32, flag STATUS_PARAM );
-float32 float16_to_float32( bits16, flag STATUS_PARAM );
+float16 float32_to_float16( float32, flag STATUS_PARAM );
+float32 float16_to_float32( float16, flag STATUS_PARAM );
+
+/*----------------------------------------------------------------------------
+| Software half-precision operations.
+*----------------------------------------------------------------------------*/
+int float16_is_quiet_nan( float16 );
+int float16_is_signaling_nan( float16 );
+float16 float16_maybe_silence_nan( float16 );
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE single-precision conversion routines.
