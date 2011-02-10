@@ -1484,7 +1484,6 @@ uint64_t HELPER(neon_negl_u16)(uint64_t x)
     return result;
 }
 
-#include <stdio.h>
 uint64_t HELPER(neon_negl_u32)(uint64_t x)
 {
     uint32_t low = -x;
