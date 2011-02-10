@@ -120,6 +120,23 @@ float16 float16_maybe_silence_nan(float16 a_)
 }
 
 /*----------------------------------------------------------------------------
+| Returns the result of converting the half-precision floating-point NaN
+| `a' to the canonical NaN format.  If `a' is a signaling NaN, the invalid
+| exception is raised.
+*----------------------------------------------------------------------------*/
+
+static commonNaNT float16ToCommonNaN( float16 a STATUS_PARAM )
+{
+    commonNaNT z;
+
+    if ( float16_is_signaling_nan( a ) ) float_raise( float_flag_invalid STATUS_VAR );
+    z.sign = float16_val(a) >> 15;
+    z.low = 0;
+    z.high = ((bits64) float16_val(a))<<54;
+    return z;
+}
+
+/*----------------------------------------------------------------------------
 | Returns the result of converting the canonical NaN `a' to the half-
 | precision floating-point format.
 *----------------------------------------------------------------------------*/

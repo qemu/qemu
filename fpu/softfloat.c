@@ -2761,9 +2761,7 @@ float32 float16_to_float32(float16 a, flag ieee STATUS_PARAM)
 
     if (aExp == 0x1f && ieee) {
         if (aSig) {
-            /* Make sure correct exceptions are raised.  */
-            float32ToCommonNaN(a STATUS_VAR);
-            aSig |= 0x200;
+            return commonNaNToFloat32(float16ToCommonNaN(a STATUS_VAR) STATUS_VAR);
         }
         return packFloat32(aSign, 0xff, aSig << 13);
     }
