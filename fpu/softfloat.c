@@ -2199,21 +2199,21 @@ float32 float32_sqrt( float32 a STATUS_PARAM )
 
 static const float64 float32_exp2_coefficients[15] =
 {
-    make_float64( 0x3ff0000000000000ll ), /*  1 */
-    make_float64( 0x3fe0000000000000ll ), /*  2 */
-    make_float64( 0x3fc5555555555555ll ), /*  3 */
-    make_float64( 0x3fa5555555555555ll ), /*  4 */
-    make_float64( 0x3f81111111111111ll ), /*  5 */
-    make_float64( 0x3f56c16c16c16c17ll ), /*  6 */
-    make_float64( 0x3f2a01a01a01a01all ), /*  7 */
-    make_float64( 0x3efa01a01a01a01all ), /*  8 */
-    make_float64( 0x3ec71de3a556c734ll ), /*  9 */
-    make_float64( 0x3e927e4fb7789f5cll ), /* 10 */
-    make_float64( 0x3e5ae64567f544e4ll ), /* 11 */
-    make_float64( 0x3e21eed8eff8d898ll ), /* 12 */
-    make_float64( 0x3de6124613a86d09ll ), /* 13 */
-    make_float64( 0x3da93974a8c07c9dll ), /* 14 */
-    make_float64( 0x3d6ae7f3e733b81fll ), /* 15 */
+    const_float64( 0x3ff0000000000000ll ), /*  1 */
+    const_float64( 0x3fe0000000000000ll ), /*  2 */
+    const_float64( 0x3fc5555555555555ll ), /*  3 */
+    const_float64( 0x3fa5555555555555ll ), /*  4 */
+    const_float64( 0x3f81111111111111ll ), /*  5 */
+    const_float64( 0x3f56c16c16c16c17ll ), /*  6 */
+    const_float64( 0x3f2a01a01a01a01all ), /*  7 */
+    const_float64( 0x3efa01a01a01a01all ), /*  8 */
+    const_float64( 0x3ec71de3a556c734ll ), /*  9 */
+    const_float64( 0x3e927e4fb7789f5cll ), /* 10 */
+    const_float64( 0x3e5ae64567f544e4ll ), /* 11 */
+    const_float64( 0x3e21eed8eff8d898ll ), /* 12 */
+    const_float64( 0x3de6124613a86d09ll ), /* 13 */
+    const_float64( 0x3da93974a8c07c9dll ), /* 14 */
+    const_float64( 0x3d6ae7f3e733b81fll ), /* 15 */
 };
 
 float32 float32_exp2( float32 a STATUS_PARAM )

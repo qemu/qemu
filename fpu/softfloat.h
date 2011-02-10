@@ -124,17 +124,20 @@ typedef struct {
 } float16;
 #define float16_val(x) (((float16)(x)).v)
 #define make_float16(x) __extension__ ({ float16 f16_val = {x}; f16_val; })
+#define const_float16(x) { x }
 typedef struct {
     uint32_t v;
 } float32;
 /* The cast ensures an error if the wrong type is passed.  */
 #define float32_val(x) (((float32)(x)).v)
 #define make_float32(x) __extension__ ({ float32 f32_val = {x}; f32_val; })
+#define const_float32(x) { x }
 typedef struct {
     uint64_t v;
 } float64;
 #define float64_val(x) (((float64)(x)).v)
 #define make_float64(x) __extension__ ({ float64 f64_val = {x}; f64_val; })
+#define const_float64(x) { x }
 #else
 typedef uint16_t float16;
 typedef uint32_t float32;
@@ -145,6 +148,9 @@ typedef uint64_t float64;
 #define make_float16(x) (x)
 #define make_float32(x) (x)
 #define make_float64(x) (x)
+#define const_float16(x) (x)
+#define const_float32(x) (x)
+#define const_float64(x) (x)
 #endif
 #ifdef FLOATX80
 typedef struct {
