@@ -207,9 +207,14 @@ static commonNaNT float32ToCommonNaN( float32 a STATUS_PARAM )
 | precision floating-point format.
 *----------------------------------------------------------------------------*/
 
-static float32 commonNaNToFloat32( commonNaNT a )
+static float32 commonNaNToFloat32( commonNaNT a STATUS_PARAM)
 {
     bits32 mantissa = a.high>>41;
+
+    if ( STATUS(default_nan_mode) ) {
+        return float32_default_nan;
+    }
+
     if ( mantissa )
         return make_float32(
             ( ( (bits32) a.sign )<<31 ) | 0x7F800000 | ( a.high>>41 ) );
@@ -461,9 +466,13 @@ static commonNaNT float64ToCommonNaN( float64 a STATUS_PARAM)
 | precision floating-point format.
 *----------------------------------------------------------------------------*/
 
-static float64 commonNaNToFloat64( commonNaNT a )
+static float64 commonNaNToFloat64( commonNaNT a STATUS_PARAM)
 {
     bits64 mantissa = a.high>>12;
+
+    if ( STATUS(default_nan_mode) ) {
+        return float64_default_nan;
+    }
 
     if ( mantissa )
         return make_float64(
@@ -618,9 +627,15 @@ static commonNaNT floatx80ToCommonNaN( floatx80 a STATUS_PARAM)
 | double-precision floating-point format.
 *----------------------------------------------------------------------------*/
 
-static floatx80 commonNaNToFloatx80( commonNaNT a )
+static floatx80 commonNaNToFloatx80( commonNaNT a STATUS_PARAM)
 {
     floatx80 z;
+
+    if ( STATUS(default_nan_mode) ) {
+        z.low = floatx80_default_nan_low;
+        z.high = floatx80_default_nan_high;
+        return z;
+    }
 
     if (a.high)
         z.low = a.high;
@@ -766,9 +781,15 @@ static commonNaNT float128ToCommonNaN( float128 a STATUS_PARAM)
 | precision floating-point format.
 *----------------------------------------------------------------------------*/
 
-static float128 commonNaNToFloat128( commonNaNT a )
+static float128 commonNaNToFloat128( commonNaNT a STATUS_PARAM)
 {
     float128 z;
+
+    if ( STATUS(default_nan_mode) ) {
+        z.low = float128_default_nan_low;
+        z.high = float128_default_nan_high;
+        return z;
+    }
 
     shift128Right( a.high, a.low, 16, &z.high, &z.low );
     z.high |= ( ( (bits64) a.sign )<<63 ) | LIT64( 0x7FFF000000000000 );
