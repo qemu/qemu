@@ -2627,14 +2627,22 @@ float32 HELPER(vfp_fcvt_f16_to_f32)(uint32_t a, CPUState *env)
 {
     float_status *s = &env->vfp.fp_status;
     int ieee = (env->vfp.xregs[ARM_VFP_FPSCR] & (1 << 26)) == 0;
-    return float16_to_float32(make_float16(a), ieee, s);
+    float32 r = float16_to_float32(make_float16(a), ieee, s);
+    if (ieee) {
+        return float32_maybe_silence_nan(r);
+    }
+    return r;
 }
 
 uint32_t HELPER(vfp_fcvt_f32_to_f16)(float32 a, CPUState *env)
 {
     float_status *s = &env->vfp.fp_status;
     int ieee = (env->vfp.xregs[ARM_VFP_FPSCR] & (1 << 26)) == 0;
-    return float16_val(float32_to_float16(a, ieee, s));
+    float16 r = float32_to_float16(a, ieee, s);
+    if (ieee) {
+        r = float16_maybe_silence_nan(r);
+    }
+    return float16_val(r);
 }
 
 float32 HELPER(recps_f32)(float32 a, float32 b, CPUState *env)
