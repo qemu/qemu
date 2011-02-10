@@ -2623,9 +2623,8 @@ VFP_CONV_FIX(ul, s, float32, uint32, u)
 #undef VFP_CONV_FIX
 
 /* Half precision conversions.  */
-float32 HELPER(vfp_fcvt_f16_to_f32)(uint32_t a, CPUState *env)
+static float32 do_fcvt_f16_to_f32(uint32_t a, CPUState *env, float_status *s)
 {
-    float_status *s = &env->vfp.fp_status;
     int ieee = (env->vfp.xregs[ARM_VFP_FPSCR] & (1 << 26)) == 0;
     float32 r = float16_to_float32(make_float16(a), ieee, s);
     if (ieee) {
@@ -2634,15 +2633,34 @@ float32 HELPER(vfp_fcvt_f16_to_f32)(uint32_t a, CPUState *env)
     return r;
 }
 
-uint32_t HELPER(vfp_fcvt_f32_to_f16)(float32 a, CPUState *env)
+static uint32_t do_fcvt_f32_to_f16(float32 a, CPUState *env, float_status *s)
 {
-    float_status *s = &env->vfp.fp_status;
     int ieee = (env->vfp.xregs[ARM_VFP_FPSCR] & (1 << 26)) == 0;
     float16 r = float32_to_float16(a, ieee, s);
     if (ieee) {
         r = float16_maybe_silence_nan(r);
     }
     return float16_val(r);
+}
+
+float32 HELPER(neon_fcvt_f16_to_f32)(uint32_t a, CPUState *env)
+{
+    return do_fcvt_f16_to_f32(a, env, &env->vfp.standard_fp_status);
+}
+
+uint32_t HELPER(neon_fcvt_f32_to_f16)(float32 a, CPUState *env)
+{
+    return do_fcvt_f32_to_f16(a, env, &env->vfp.standard_fp_status);
+}
+
+float32 HELPER(vfp_fcvt_f16_to_f32)(uint32_t a, CPUState *env)
+{
+    return do_fcvt_f16_to_f32(a, env, &env->vfp.fp_status);
+}
+
+uint32_t HELPER(vfp_fcvt_f32_to_f16)(float32 a, CPUState *env)
+{
+    return do_fcvt_f32_to_f16(a, env, &env->vfp.fp_status);
 }
 
 float32 HELPER(recps_f32)(float32 a, float32 b, CPUState *env)
