@@ -1299,7 +1299,7 @@ static abi_ulong *setup_sigframe_v2_vfp(abi_ulong *regspace, CPUState *env)
     __put_user(TARGET_VFP_MAGIC, &vfpframe->magic);
     __put_user(sizeof(*vfpframe), &vfpframe->size);
     for (i = 0; i < 32; i++) {
-        __put_user(env->vfp.regs[i], &vfpframe->ufp.fpregs[i]);
+        __put_user(float64_val(env->vfp.regs[i]), &vfpframe->ufp.fpregs[i]);
     }
     __put_user(vfp_get_fpscr(env), &vfpframe->ufp.fpscr);
     __put_user(env->vfp.xregs[ARM_VFP_FPEXC], &vfpframe->ufp_exc.fpexc);
@@ -1588,7 +1588,7 @@ static abi_ulong *restore_sigframe_v2_vfp(CPUState *env, abi_ulong *regspace)
         return 0;
     }
     for (i = 0; i < 32; i++) {
-        __get_user(env->vfp.regs[i], &vfpframe->ufp.fpregs[i]);
+        __get_user(float64_val(env->vfp.regs[i]), &vfpframe->ufp.fpregs[i]);
     }
     __get_user(fpscr, &vfpframe->ufp.fpscr);
     vfp_set_fpscr(env, fpscr);

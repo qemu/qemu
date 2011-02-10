@@ -33,7 +33,7 @@ void loadSingle(const unsigned int Fn, target_ulong addr)
    FPA11 *fpa11 = GET_FPA11();
    fpa11->fType[Fn] = typeSingle;
    /* FIXME - handle failure of get_user() */
-   get_user_u32(fpa11->fpreg[Fn].fSingle, addr);
+   get_user_u32(float32_val(fpa11->fpreg[Fn].fSingle), addr);
 }
 
 static inline
