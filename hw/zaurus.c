@@ -16,7 +16,6 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "hw.h"
-#include "pxa.h"
 #include "sharpsl.h"
 #include "sysbus.h"
 
