@@ -1262,10 +1262,12 @@ typedef struct {
 } PXA2xxI2CSlaveState;
 
 struct PXA2xxI2CState {
+    SysBusDevice busdev;
     PXA2xxI2CSlaveState *slave;
     i2c_bus *bus;
     qemu_irq irq;
-    target_phys_addr_t offset;
+    uint32_t offset;
+    uint32_t region_size;
 
     uint16_t control;
     uint16_t status;
@@ -1499,33 +1501,61 @@ static I2CSlaveInfo pxa2xx_i2c_slave_info = {
 PXA2xxI2CState *pxa2xx_i2c_init(target_phys_addr_t base,
                 qemu_irq irq, uint32_t region_size)
 {
-    int iomemtype;
     DeviceState *dev;
-    PXA2xxI2CState *s = qemu_mallocz(sizeof(PXA2xxI2CState));
+    SysBusDevice *i2c_dev;
+    PXA2xxI2CState *s;
 
+    i2c_dev = sysbus_from_qdev(qdev_create(NULL, "pxa2xx_i2c"));
+    qdev_prop_set_uint32(&i2c_dev->qdev, "size", region_size + 1);
+    qdev_prop_set_uint32(&i2c_dev->qdev, "offset",
+            base - (base & (~region_size) & TARGET_PAGE_MASK));
+
+    qdev_init_nofail(&i2c_dev->qdev);
+
+    sysbus_mmio_map(i2c_dev, 0, base & ~region_size);
+    sysbus_connect_irq(i2c_dev, 0, irq);
+
+    s = FROM_SYSBUS(PXA2xxI2CState, i2c_dev);
     /* FIXME: Should the slave device really be on a separate bus?  */
     dev = i2c_create_slave(i2c_init_bus(NULL, "dummy"), "pxa2xx-i2c-slave", 0);
     s->slave = FROM_I2C_SLAVE(PXA2xxI2CSlaveState, I2C_SLAVE_FROM_QDEV(dev));
     s->slave->host = s;
 
-    s->irq = irq;
-    s->bus = i2c_init_bus(NULL, "i2c");
-    s->offset = base - (base & (~region_size) & TARGET_PAGE_MASK);
+    return s;
+}
+
+static int pxa2xx_i2c_initfn(SysBusDevice *dev)
+{
+    PXA2xxI2CState *s = FROM_SYSBUS(PXA2xxI2CState, dev);
+    int iomemtype;
+
+    s->bus = i2c_init_bus(&dev->qdev, "i2c");
 
     iomemtype = cpu_register_io_memory(pxa2xx_i2c_readfn,
                     pxa2xx_i2c_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base & ~region_size,
-                    region_size + 1, iomemtype);
+    sysbus_init_mmio(dev, s->region_size, iomemtype);
+    sysbus_init_irq(dev, &s->irq);
 
-    vmstate_register(NULL, base, &vmstate_pxa2xx_i2c, s);
-
-    return s;
+    return 0;
 }
 
 i2c_bus *pxa2xx_i2c_bus(PXA2xxI2CState *s)
 {
     return s->bus;
 }
+
+static SysBusDeviceInfo pxa2xx_i2c_info = {
+    .init       = pxa2xx_i2c_initfn,
+    .qdev.name  = "pxa2xx_i2c",
+    .qdev.desc  = "PXA2xx I2C Bus Controller",
+    .qdev.size  = sizeof(PXA2xxI2CState),
+    .qdev.vmsd  = &vmstate_pxa2xx_i2c,
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_UINT32("size", PXA2xxI2CState, region_size, 0x10000),
+        DEFINE_PROP_UINT32("offset", PXA2xxI2CState, offset, 0),
+        DEFINE_PROP_END_OF_LIST(),
+    },
+};
 
 /* PXA Inter-IC Sound Controller */
 static void pxa2xx_i2s_reset(PXA2xxI2SState *i2s)
@@ -2287,6 +2317,7 @@ static void pxa2xx_register_devices(void)
 {
     i2c_register_slave(&pxa2xx_i2c_slave_info);
     sysbus_register_dev("pxa2xx-ssp", sizeof(PXA2xxSSPState), pxa2xx_ssp_init);
+    sysbus_register_withprop(&pxa2xx_i2c_info);
 }
 
 device_init(pxa2xx_register_devices)
