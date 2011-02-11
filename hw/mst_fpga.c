@@ -8,7 +8,6 @@
  * This code is licensed under the GNU GPL v2.
  */
 #include "hw.h"
-#include "pxa.h"
 #include "mainstone.h"
 
 /* Mainstone FPGA for extern irqs */
