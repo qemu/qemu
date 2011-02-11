@@ -28,7 +28,7 @@
 #define MST_PCMCIA1		0xe4
 
 typedef struct mst_irq_state{
-	qemu_irq *parent;
+	qemu_irq parent;
 	qemu_irq *pins;
 
 	uint32_t prev_level;
@@ -72,7 +72,7 @@ mst_fpga_set_irq(void *opaque, int irq, int level)
 
 	if(s->intmskena & (1u << irq)) {
 		s->intsetclr = 1u << irq;
-		qemu_set_irq(s->parent[0], level);
+		qemu_set_irq(s->parent, level);
 	}
 }
 
@@ -109,7 +109,7 @@ mst_fpga_readb(void *opaque, target_phys_addr_t addr)
 		return s->pcmcia1;
 	default:
 		printf("Mainstone - mst_fpga_readb: Bad register offset "
-			REG_FMT " \n", addr);
+			"0x" TARGET_FMT_plx " \n", addr);
 	}
 	return 0;
 }
@@ -160,7 +160,7 @@ mst_fpga_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
 		break;
 	default:
 		printf("Mainstone - mst_fpga_writeb: Bad register offset "
-			REG_FMT " \n", addr);
+			"0x" TARGET_FMT_plx " \n", addr);
 	}
 }
 
@@ -216,7 +216,7 @@ mst_fpga_load(QEMUFile *f, void *opaque, int version_id)
 	return 0;
 }
 
-qemu_irq *mst_irq_init(PXA2xxState *cpu, uint32_t base, int irq)
+qemu_irq *mst_irq_init(uint32_t base, qemu_irq irq)
 {
 	mst_irq_state *s;
 	int iomemtype;
@@ -225,7 +225,7 @@ qemu_irq *mst_irq_init(PXA2xxState *cpu, uint32_t base, int irq)
 	s = (mst_irq_state  *)
 		qemu_mallocz(sizeof(mst_irq_state));
 
-	s->parent = &cpu->pic[irq];
+	s->parent = irq;
 
 	/* alloc the external 16 irqs */
 	qi  = qemu_allocate_irqs(mst_fpga_set_irq, s, MST_NUM_IRQS);
