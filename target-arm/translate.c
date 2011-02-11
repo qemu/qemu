@@ -5137,16 +5137,19 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         neon_store_reg64(cpu_V0, rd + pass);
                     } else if (op == 5 || (op >= 8 && op <= 11)) {
                         /* Accumulate.  */
-                        if (op == 10 || op == 11) {
-                            gen_neon_negl(cpu_V0, size);
-                        }
                         neon_load_reg64(cpu_V1, rd + pass);
                         switch (op) {
-                        case 5: case 8: case 10: /* VABAL, VMLAL, VMLSL */
+                        case 10: /* VMLSL */
+                            gen_neon_negl(cpu_V0, size);
+                            /* Fall through */
+                        case 5: case 8: /* VABAL, VMLAL */
                             gen_neon_addl(size);
                             break;
                         case 9: case 11: /* VQDMLAL, VQDMLSL */
                             gen_neon_addl_saturate(cpu_V0, cpu_V0, size);
+                            if (op == 11) {
+                                gen_neon_negl(cpu_V0, size);
+                            }
                             gen_neon_addl_saturate(cpu_V0, cpu_V1, size);
                             break;
                         default:
@@ -5284,18 +5287,21 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             tmp2 = tmp4;
                         }
                         gen_neon_mull(cpu_V0, tmp, tmp2, size, u);
-                        if (op == 6 || op == 7) {
-                            gen_neon_negl(cpu_V0, size);
-                        }
                         if (op != 11) {
                             neon_load_reg64(cpu_V1, rd + pass);
                         }
                         switch (op) {
-                        case 2: case 6:
+                        case 6:
+                            gen_neon_negl(cpu_V0, size);
+                            /* Fall through */
+                        case 2:
                             gen_neon_addl(size);
                             break;
                         case 3: case 7:
                             gen_neon_addl_saturate(cpu_V0, cpu_V0, size);
+                            if (op == 7) {
+                                gen_neon_negl(cpu_V0, size);
+                            }
                             gen_neon_addl_saturate(cpu_V0, cpu_V1, size);
                             break;
                         case 10:
