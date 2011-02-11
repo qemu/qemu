@@ -5131,16 +5131,16 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     default: /* 15 is RESERVED.  */
                         return 1;
                     }
-                    if (op == 5 || op == 13 || (op >= 8 && op <= 11)) {
+                    if (op == 13) {
+                        /* VQDMULL */
+                        gen_neon_addl_saturate(cpu_V0, cpu_V0, size);
+                        neon_store_reg64(cpu_V0, rd + pass);
+                    } else if (op == 5 || (op >= 8 && op <= 11)) {
                         /* Accumulate.  */
                         if (op == 10 || op == 11) {
                             gen_neon_negl(cpu_V0, size);
                         }
-
-                        if (op != 13) {
-                            neon_load_reg64(cpu_V1, rd + pass);
-                        }
-
+                        neon_load_reg64(cpu_V1, rd + pass);
                         switch (op) {
                         case 5: case 8: case 10: /* VABAL, VMLAL, VMLSL */
                             gen_neon_addl(size);
@@ -5148,10 +5148,6 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         case 9: case 11: /* VQDMLAL, VQDMLSL */
                             gen_neon_addl_saturate(cpu_V0, cpu_V0, size);
                             gen_neon_addl_saturate(cpu_V0, cpu_V1, size);
-                            break;
-                            /* Fall through.  */
-                        case 13: /* VQDMULL */
-                            gen_neon_addl_saturate(cpu_V0, cpu_V0, size);
                             break;
                         default:
                             abort();
