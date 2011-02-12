@@ -627,7 +627,7 @@ static void fdctrl_handle_tc(void *opaque, int irq, int level)
 }
 
 /* XXX: may change if moved to bdrv */
-int fdctrl_get_drive_type(FDCtrl *fdctrl, int drive_num)
+FDriveType fdctrl_get_drive_type(FDCtrl *fdctrl, int drive_num)
 {
     return fdctrl->drives[drive_num].drive;
 }

@@ -192,23 +192,24 @@ static void pic_irq_request(void *opaque, int irq, int level)
 
 #define REG_EQUIPMENT_BYTE          0x14
 
-static int cmos_get_fd_drive_type(int fd0)
+static int cmos_get_fd_drive_type(FDriveType fd0)
 {
     int val;
 
     switch (fd0) {
-    case 0:
+    case FDRIVE_DRV_144:
         /* 1.44 Mb 3"5 drive */
         val = 4;
         break;
-    case 1:
+    case FDRIVE_DRV_288:
         /* 2.88 Mb 3"5 drive */
         val = 5;
         break;
-    case 2:
+    case FDRIVE_DRV_120:
         /* 1.2 Mb 5"5 drive */
         val = 2;
         break;
+    case FDRIVE_DRV_NONE:
     default:
         val = 0;
         break;
@@ -335,8 +336,8 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
                   BusState *idebus0, BusState *idebus1,
                   FDCtrl *floppy_controller, ISADevice *s)
 {
-    int val;
-    int fd0, fd1, nb;
+    int val, nb;
+    FDriveType fd0, fd1;
     static pc_cmos_init_late_arg arg;
 
     /* various important CMOS locations needed by PC/Bochs bios */
@@ -387,10 +388,12 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
 
     val = 0;
     nb = 0;
-    if (fd0 < 3)
+    if (fd0 < FDRIVE_DRV_NONE) {
         nb++;
-    if (fd1 < 3)
+    }
+    if (fd1 < FDRIVE_DRV_NONE) {
         nb++;
+    }
     switch (nb) {
     case 0:
         break;
