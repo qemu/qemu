@@ -18,6 +18,7 @@
 #include "sysemu.h"
 #include "flash.h"
 #include "blockdev.h"
+#include "sysbus.h"
 
 static struct keymap map[0xE0] = {
     [0 ... 0xDF] = { -1, -1 },
@@ -77,7 +78,7 @@ static void mainstone_common_init(ram_addr_t ram_size,
     uint32_t sector_len = 256 * 1024;
     target_phys_addr_t mainstone_flash_base[] = { MST_FLASH_0, MST_FLASH_1 };
     PXA2xxState *cpu;
-    qemu_irq *mst_irq;
+    DeviceState *mst_irq;
     DriveInfo *dinfo;
     int i;
     int be;
@@ -117,16 +118,18 @@ static void mainstone_common_init(ram_addr_t ram_size,
         }
     }
 
-    mst_irq = mst_irq_init(MST_FPGA_PHYS, cpu->pic[PXA2XX_PIC_GPIO_0]);
+    mst_irq = sysbus_create_simple("mainstone-fpga", MST_FPGA_PHYS,
+                    cpu->pic[PXA2XX_PIC_GPIO_0]);
 
     /* setup keypad */
     printf("map addr %p\n", &map);
     pxa27x_register_keypad(cpu->kp, map, 0xe0);
 
     /* MMC/SD host */
-    pxa2xx_mmci_handlers(cpu->mmc, NULL, mst_irq[MMC_IRQ]);
+    pxa2xx_mmci_handlers(cpu->mmc, NULL, qdev_get_gpio_in(mst_irq, MMC_IRQ));
 
-    smc91c111_init(&nd_table[0], MST_ETH_PHYS, mst_irq[ETHERNET_IRQ]);
+    smc91c111_init(&nd_table[0], MST_ETH_PHYS,
+                    qdev_get_gpio_in(mst_irq, ETHERNET_IRQ));
 
     mainstone_binfo.kernel_filename = kernel_filename;
     mainstone_binfo.kernel_cmdline = kernel_cmdline;

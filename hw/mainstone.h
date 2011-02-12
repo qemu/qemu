@@ -32,7 +32,4 @@
 #define S1_STSCHG_IRQ 14
 #define S1_IRQ        15
 
-extern qemu_irq
-*mst_irq_init(uint32_t base, qemu_irq irq);
-
 #endif /* __MAINSTONE_H__ */
