@@ -46,33 +46,21 @@ typedef struct mst_irq_state{
 }mst_irq_state;
 
 static void
-mst_fpga_update_gpio(mst_irq_state *s)
-{
-	uint32_t level, diff;
-	int bit;
-	level = s->prev_level ^ s->intsetclr;
-
-	for (diff = s->prev_level ^ level; diff; diff ^= 1 << bit) {
-		bit = ffs(diff) - 1;
-		qemu_set_irq(s->pins[bit], (level >> bit) & 1 );
-	}
-	s->prev_level = level;
-}
-
-static void
 mst_fpga_set_irq(void *opaque, int irq, int level)
 {
 	mst_irq_state *s = (mst_irq_state *)opaque;
+	uint32_t oldint = s->intsetclr;
 
 	if (level)
 		s->prev_level |= 1u << irq;
 	else
 		s->prev_level &= ~(1u << irq);
 
-	if(s->intmskena & (1u << irq)) {
-		s->intsetclr = 1u << irq;
-		qemu_set_irq(s->parent, level);
-	}
+	if ((s->intmskena & (1u << irq)) && level)
+		s->intsetclr |= 1u << irq;
+
+	if (oldint != (s->intsetclr & s->intmskena))
+		qemu_set_irq(s->parent, s->intsetclr & s->intmskena);
 }
 
 
@@ -146,10 +134,11 @@ mst_fpga_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
 		break;
 	case MST_INTMSKENA:	/* Mask interupt */
 		s->intmskena = (value & 0xFEEFF);
-		mst_fpga_update_gpio(s);
+		qemu_set_irq(s->parent, s->intsetclr & s->intmskena);
 		break;
 	case MST_INTSETCLR:	/* clear or set interrupt */
 		s->intsetclr = (value & 0xFEEFF);
+		qemu_set_irq(s->parent, s->intsetclr);
 		break;
 	case MST_PCMCIA0:
 		s->pcmcia0 = value;
@@ -212,6 +201,8 @@ mst_fpga_load(QEMUFile *f, void *opaque, int version_id)
 	qemu_get_be32s(f, &s->intsetclr);
 	qemu_get_be32s(f, &s->pcmcia0);
 	qemu_get_be32s(f, &s->pcmcia1);
+
+	qemu_set_irq(s->parent, s->intsetclr & s->intmskena);
 	return 0;
 }
 
