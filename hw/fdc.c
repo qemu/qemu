@@ -63,21 +63,6 @@
 #define FD_RESET_SENSEI_COUNT  4   /* Number of sense interrupts on RESET */
 
 /* Floppy disk drive emulation */
-typedef enum FDiskType {
-    FDRIVE_DISK_288   = 0x01, /* 2.88 MB disk           */
-    FDRIVE_DISK_144   = 0x02, /* 1.44 MB disk           */
-    FDRIVE_DISK_720   = 0x03, /* 720 kB disk            */
-    FDRIVE_DISK_USER  = 0x04, /* User defined geometry  */
-    FDRIVE_DISK_NONE  = 0x05, /* No disk                */
-} FDiskType;
-
-typedef enum FDriveType {
-    FDRIVE_DRV_144  = 0x00,   /* 1.44 MB 3"5 drive      */
-    FDRIVE_DRV_288  = 0x01,   /* 2.88 MB 3"5 drive      */
-    FDRIVE_DRV_120  = 0x02,   /* 1.2  MB 5"25 drive     */
-    FDRIVE_DRV_NONE = 0x03,   /* No drive connected     */
-} FDriveType;
-
 typedef enum FDiskFlags {
     FDISK_DBL_SIDES  = 0x01,
 } FDiskFlags;
@@ -178,111 +163,23 @@ static void fd_recalibrate(FDrive *drv)
     drv->sect = 1;
 }
 
-/* Recognize floppy formats */
-typedef struct FDFormat {
-    FDriveType drive;
-    FDiskType  disk;
-    uint8_t last_sect;
-    uint8_t max_track;
-    uint8_t max_head;
-    const char *str;
-} FDFormat;
-
-static const FDFormat fd_formats[] = {
-    /* First entry is default format */
-    /* 1.44 MB 3"1/2 floppy disks */
-    { FDRIVE_DRV_144, FDRIVE_DISK_144, 18, 80, 1, "1.44 MB 3\"1/2", },
-    { FDRIVE_DRV_144, FDRIVE_DISK_144, 20, 80, 1,  "1.6 MB 3\"1/2", },
-    { FDRIVE_DRV_144, FDRIVE_DISK_144, 21, 80, 1, "1.68 MB 3\"1/2", },
-    { FDRIVE_DRV_144, FDRIVE_DISK_144, 21, 82, 1, "1.72 MB 3\"1/2", },
-    { FDRIVE_DRV_144, FDRIVE_DISK_144, 21, 83, 1, "1.74 MB 3\"1/2", },
-    { FDRIVE_DRV_144, FDRIVE_DISK_144, 22, 80, 1, "1.76 MB 3\"1/2", },
-    { FDRIVE_DRV_144, FDRIVE_DISK_144, 23, 80, 1, "1.84 MB 3\"1/2", },
-    { FDRIVE_DRV_144, FDRIVE_DISK_144, 24, 80, 1, "1.92 MB 3\"1/2", },
-    /* 2.88 MB 3"1/2 floppy disks */
-    { FDRIVE_DRV_288, FDRIVE_DISK_288, 36, 80, 1, "2.88 MB 3\"1/2", },
-    { FDRIVE_DRV_288, FDRIVE_DISK_288, 39, 80, 1, "3.12 MB 3\"1/2", },
-    { FDRIVE_DRV_288, FDRIVE_DISK_288, 40, 80, 1,  "3.2 MB 3\"1/2", },
-    { FDRIVE_DRV_288, FDRIVE_DISK_288, 44, 80, 1, "3.52 MB 3\"1/2", },
-    { FDRIVE_DRV_288, FDRIVE_DISK_288, 48, 80, 1, "3.84 MB 3\"1/2", },
-    /* 720 kB 3"1/2 floppy disks */
-    { FDRIVE_DRV_144, FDRIVE_DISK_720,  9, 80, 1,  "720 kB 3\"1/2", },
-    { FDRIVE_DRV_144, FDRIVE_DISK_720, 10, 80, 1,  "800 kB 3\"1/2", },
-    { FDRIVE_DRV_144, FDRIVE_DISK_720, 10, 82, 1,  "820 kB 3\"1/2", },
-    { FDRIVE_DRV_144, FDRIVE_DISK_720, 10, 83, 1,  "830 kB 3\"1/2", },
-    { FDRIVE_DRV_144, FDRIVE_DISK_720, 13, 80, 1, "1.04 MB 3\"1/2", },
-    { FDRIVE_DRV_144, FDRIVE_DISK_720, 14, 80, 1, "1.12 MB 3\"1/2", },
-    /* 1.2 MB 5"1/4 floppy disks */
-    { FDRIVE_DRV_120, FDRIVE_DISK_288, 15, 80, 1,  "1.2 kB 5\"1/4", },
-    { FDRIVE_DRV_120, FDRIVE_DISK_288, 18, 80, 1, "1.44 MB 5\"1/4", },
-    { FDRIVE_DRV_120, FDRIVE_DISK_288, 18, 82, 1, "1.48 MB 5\"1/4", },
-    { FDRIVE_DRV_120, FDRIVE_DISK_288, 18, 83, 1, "1.49 MB 5\"1/4", },
-    { FDRIVE_DRV_120, FDRIVE_DISK_288, 20, 80, 1,  "1.6 MB 5\"1/4", },
-    /* 720 kB 5"1/4 floppy disks */
-    { FDRIVE_DRV_120, FDRIVE_DISK_288,  9, 80, 1,  "720 kB 5\"1/4", },
-    { FDRIVE_DRV_120, FDRIVE_DISK_288, 11, 80, 1,  "880 kB 5\"1/4", },
-    /* 360 kB 5"1/4 floppy disks */
-    { FDRIVE_DRV_120, FDRIVE_DISK_288,  9, 40, 1,  "360 kB 5\"1/4", },
-    { FDRIVE_DRV_120, FDRIVE_DISK_288,  9, 40, 0,  "180 kB 5\"1/4", },
-    { FDRIVE_DRV_120, FDRIVE_DISK_288, 10, 41, 1,  "410 kB 5\"1/4", },
-    { FDRIVE_DRV_120, FDRIVE_DISK_288, 10, 42, 1,  "420 kB 5\"1/4", },
-    /* 320 kB 5"1/4 floppy disks */
-    { FDRIVE_DRV_120, FDRIVE_DISK_288,  8, 40, 1,  "320 kB 5\"1/4", },
-    { FDRIVE_DRV_120, FDRIVE_DISK_288,  8, 40, 0,  "160 kB 5\"1/4", },
-    /* 360 kB must match 5"1/4 better than 3"1/2... */
-    { FDRIVE_DRV_144, FDRIVE_DISK_720,  9, 80, 0,  "360 kB 3\"1/2", },
-    /* end */
-    { FDRIVE_DRV_NONE, FDRIVE_DISK_NONE, -1, -1, 0, NULL, },
-};
-
 /* Revalidate a disk drive after a disk change */
 static void fd_revalidate(FDrive *drv)
 {
-    const FDFormat *parse;
-    uint64_t nb_sectors, size;
-    int i, first_match, match;
     int nb_heads, max_track, last_sect, ro;
+    FDriveType drive;
 
     FLOPPY_DPRINTF("revalidate\n");
     if (drv->bs != NULL && bdrv_is_inserted(drv->bs)) {
         ro = bdrv_is_read_only(drv->bs);
-        bdrv_get_geometry_hint(drv->bs, &nb_heads, &max_track, &last_sect);
+        bdrv_get_floppy_geometry_hint(drv->bs, &nb_heads, &max_track,
+                                      &last_sect, drv->drive, &drive);
         if (nb_heads != 0 && max_track != 0 && last_sect != 0) {
             FLOPPY_DPRINTF("User defined disk (%d %d %d)",
                            nb_heads - 1, max_track, last_sect);
         } else {
-            bdrv_get_geometry(drv->bs, &nb_sectors);
-            match = -1;
-            first_match = -1;
-            for (i = 0;; i++) {
-                parse = &fd_formats[i];
-                if (parse->drive == FDRIVE_DRV_NONE)
-                    break;
-                if (drv->drive == parse->drive ||
-                    drv->drive == FDRIVE_DRV_NONE) {
-                    size = (parse->max_head + 1) * parse->max_track *
-                        parse->last_sect;
-                    if (nb_sectors == size) {
-                        match = i;
-                        break;
-                    }
-                    if (first_match == -1)
-                        first_match = i;
-                }
-            }
-            if (match == -1) {
-                if (first_match == -1)
-                    match = 1;
-                else
-                    match = first_match;
-                parse = &fd_formats[match];
-            }
-            nb_heads = parse->max_head + 1;
-            max_track = parse->max_track;
-            last_sect = parse->last_sect;
-            drv->drive = parse->drive;
-            FLOPPY_DPRINTF("%s floppy disk (%d h %d t %d s) %s\n", parse->str,
-                           nb_heads, max_track, last_sect, ro ? "ro" : "rw");
+            FLOPPY_DPRINTF("Floppy disk (%d h %d t %d s) %s\n", nb_heads,
+                           max_track, last_sect, ro ? "ro" : "rw");
         }
         if (nb_heads == 1) {
             drv->flags &= ~FDISK_DBL_SIDES;
@@ -292,6 +189,7 @@ static void fd_revalidate(FDrive *drv)
         drv->max_track = max_track;
         drv->last_sect = last_sect;
         drv->ro = ro;
+        drv->drive = drive;
     } else {
         FLOPPY_DPRINTF("No disk in drive\n");
         drv->last_sect = 0;
