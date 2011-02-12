@@ -14,11 +14,32 @@
 #include "net.h"
 #include "devices.h"
 #include "boards.h"
-#include "mainstone.h"
 #include "sysemu.h"
 #include "flash.h"
 #include "blockdev.h"
 #include "sysbus.h"
+
+/* Device addresses */
+#define MST_FPGA_PHYS	0x08000000
+#define MST_ETH_PHYS	0x10000300
+#define MST_FLASH_0		0x00000000
+#define MST_FLASH_1		0x04000000
+
+/* IRQ definitions */
+#define MMC_IRQ       0
+#define USIM_IRQ      1
+#define USBC_IRQ      2
+#define ETHERNET_IRQ  3
+#define AC97_IRQ      4
+#define PEN_IRQ       5
+#define MSINS_IRQ     6
+#define EXBRD_IRQ     7
+#define S0_CD_IRQ     9
+#define S0_STSCHG_IRQ 10
+#define S0_IRQ        11
+#define S1_CD_IRQ     13
+#define S1_STSCHG_IRQ 14
+#define S1_IRQ        15
 
 static struct keymap map[0xE0] = {
     [0 ... 0xDF] = { -1, -1 },
