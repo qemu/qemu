@@ -181,7 +181,13 @@ enum vga_retrace_method {
 
 extern enum vga_retrace_method vga_retrace_method;
 
-int isa_vga_init(void);
+static inline int isa_vga_init(void)
+{
+    isa_create_simple("isa-vga");
+
+    return 0;
+}
+
 int pci_vga_init(PCIBus *bus);
 int isa_vga_mm_init(target_phys_addr_t vram_base,
                     target_phys_addr_t ctrl_base, int it_shift);

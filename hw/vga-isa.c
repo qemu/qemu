@@ -29,16 +29,40 @@
 #include "qemu-timer.h"
 #include "loader.h"
 
-int isa_vga_init(void)
-{
-    VGACommonState *s;
+typedef struct ISAVGAState {
+    ISADevice dev;
+    struct VGACommonState state;
+} ISAVGAState;
 
-    s = qemu_mallocz(sizeof(*s));
+static void vga_reset_isa(DeviceState *dev)
+{
+    ISAVGAState *d = container_of(dev, ISAVGAState, dev.qdev);
+    VGACommonState *s = &d->state;
+
+    vga_common_reset(s);
+}
+
+static int vga_initfn(ISADevice *dev)
+{
+    ISAVGAState *d = DO_UPCAST(ISAVGAState, dev, dev);
+    VGACommonState *s = &d->state;
+    int vga_io_memory;
 
     vga_common_init(s, VGA_RAM_SIZE);
-    vga_init(s);
-    vmstate_register(NULL, 0, &vmstate_vga_common, s);
-
+    vga_io_memory = vga_init_io(s);
+    cpu_register_physical_memory(isa_mem_base + 0x000a0000, 0x20000,
+                                 vga_io_memory);
+    qemu_register_coalesced_mmio(isa_mem_base + 0x000a0000, 0x20000);
+    isa_init_ioport(dev, 0x3c0);
+    isa_init_ioport(dev, 0x3b4);
+    isa_init_ioport(dev, 0x3ba);
+    isa_init_ioport(dev, 0x3da);
+    isa_init_ioport(dev, 0x3c0);
+#ifdef CONFIG_BOCHS_VBE
+    isa_init_ioport(dev, 0x1ce);
+    isa_init_ioport(dev, 0x1cf);
+    isa_init_ioport(dev, 0x1d0);
+#endif /* CONFIG_BOCHS_VBE */
     s->ds = graphic_console_init(s->update, s->invalidate,
                                  s->screen_dump, s->text_update, s);
 
@@ -47,3 +71,18 @@ int isa_vga_init(void)
     rom_add_vga(VGABIOS_FILENAME);
     return 0;
 }
+
+static ISADeviceInfo vga_info = {
+    .qdev.name     = "isa-vga",
+    .qdev.size     = sizeof(ISAVGAState),
+    .qdev.vmsd     = &vmstate_vga_common,
+    .qdev.reset     = vga_reset_isa,
+    .qdev.no_user  = 1,
+    .init          = vga_initfn,
+};
+
+static void vga_register(void)
+{
+    isa_qdev_register(&vga_info);
+}
+device_init(vga_register)
