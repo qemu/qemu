@@ -183,9 +183,15 @@ extern enum vga_retrace_method vga_retrace_method;
 
 static inline int isa_vga_init(void)
 {
-    isa_create_simple("isa-vga");
+    ISADevice *dev;
 
-    return 0;
+    dev = isa_try_create("isa-vga");
+    if (!dev) {
+        fprintf(stderr, "Warning: isa-vga not available\n");
+        return 0;
+    }
+    qdev_init_nofail(&dev->qdev);
+    return 1;
 }
 
 int pci_vga_init(PCIBus *bus);
