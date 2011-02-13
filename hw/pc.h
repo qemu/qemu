@@ -82,14 +82,23 @@ void isa_irq_handler(void *opaque, int n, int level);
 
 #define PIT_FREQ 1193182
 
-typedef struct PITState PITState;
+static inline ISADevice *pit_init(int base, int irq)
+{
+    ISADevice *dev;
 
-PITState *pit_init(int base, qemu_irq irq);
-void pit_set_gate(PITState *pit, int channel, int val);
-int pit_get_gate(PITState *pit, int channel);
-int pit_get_initial_count(PITState *pit, int channel);
-int pit_get_mode(PITState *pit, int channel);
-int pit_get_out(PITState *pit, int channel, int64_t current_time);
+    dev = isa_create("isa-pit");
+    qdev_prop_set_uint32(&dev->qdev, "iobase", base);
+    qdev_prop_set_uint32(&dev->qdev, "irq", irq);
+    qdev_init_nofail(&dev->qdev);
+
+    return dev;
+}
+
+void pit_set_gate(ISADevice *dev, int channel, int val);
+int pit_get_gate(ISADevice *dev, int channel);
+int pit_get_initial_count(ISADevice *dev, int channel);
+int pit_get_mode(ISADevice *dev, int channel);
+int pit_get_out(ISADevice *dev, int channel, int64_t current_time);
 
 void hpet_pit_disable(void);
 void hpet_pit_enable(void);
@@ -159,7 +168,7 @@ void piix4_smbus_register_device(SMBusDevice *dev, uint8_t addr);
 extern int no_hpet;
 
 /* pcspk.c */
-void pcspk_init(PITState *);
+void pcspk_init(ISADevice *pit);
 int pcspk_audio_init(qemu_irq *pic);
 
 /* piix_pci.c */

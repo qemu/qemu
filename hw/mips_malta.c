@@ -68,7 +68,7 @@ typedef struct {
     SerialState *uart;
 } MaltaFPGAState;
 
-static PITState *pit;
+static ISADevice *pit;
 
 static struct _loaderparams {
     int ram_size;
@@ -930,7 +930,7 @@ void mips_malta_init (ram_addr_t ram_size,
         qdev_prop_set_ptr(eeprom, "data", eeprom_buf + (i * 256));
         qdev_init_nofail(eeprom);
     }
-    pit = pit_init(0x40, isa_reserve_irq(0));
+    pit = pit_init(0x40, 0);
     cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
     DMA_init(0, cpu_exit_irq);
 

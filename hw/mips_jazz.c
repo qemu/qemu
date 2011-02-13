@@ -115,7 +115,7 @@ void mips_jazz_init (ram_addr_t ram_size,
     void* rc4030_opaque;
     int s_rtc, s_dma_dummy;
     NICInfo *nd;
-    PITState *pit;
+    ISADevice *pit;
     DriveInfo *fds[MAX_FD];
     qemu_irq esp_reset, dma_enable;
     qemu_irq *cpu_exit_irq;
@@ -181,7 +181,7 @@ void mips_jazz_init (ram_addr_t ram_size,
     isa_bus_irqs(i8259);
     cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
     DMA_init(0, cpu_exit_irq);
-    pit = pit_init(0x40, i8259[0]);
+    pit = pit_init(0x40, 0);
     pcspk_init(pit);
 
     /* ISA IO space at 0x90000000 */

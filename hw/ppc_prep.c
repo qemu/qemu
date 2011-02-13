@@ -82,7 +82,7 @@ static const int ide_irq[2] = { 13, 13 };
 static uint32_t ne2000_io[NE2000_NB_MAX] = { 0x300, 0x320, 0x340, 0x360, 0x280, 0x380 };
 static int ne2000_irq[NE2000_NB_MAX] = { 9, 10, 11, 3, 4, 5 };
 
-//static PITState *pit;
+//static ISADevice *pit;
 
 /* ISA IO ports bridge */
 #define PPC_IO_BASE 0x80000000
@@ -662,7 +662,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
     /* init basic PC hardware */
     pci_vga_init(pci_bus);
     //    openpic = openpic_init(0x00000000, 0xF0000000, 1);
-    //    pit = pit_init(0x40, i8259[0]);
+    //    pit = pit_init(0x40, 0);
     rtc_init(2000, NULL);
 
     if (serial_hds[0])

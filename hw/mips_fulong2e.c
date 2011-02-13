@@ -67,7 +67,7 @@
 #define FULONG2E_ATI_SLOT        6
 #define FULONG2E_RTL8139_SLOT    7
 
-static PITState *pit;
+static ISADevice *pit;
 
 static struct _loaderparams {
     int ram_size;
@@ -369,7 +369,7 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
     qdev_init_nofail(eeprom);
 
     /* init other devices */
-    pit = pit_init(0x40, isa_reserve_irq(0));
+    pit = pit_init(0x40, 0);
     cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
     DMA_init(0, cpu_exit_irq);
 
