@@ -196,6 +196,7 @@ hw-obj-$(CONFIG_ACPI) += acpi.o acpi_piix4.o
 hw-obj-$(CONFIG_APM) += pm_smbus.o apm.o
 hw-obj-$(CONFIG_DMA) += dma.o
 hw-obj-$(CONFIG_HPET) += hpet.o
+hw-obj-$(CONFIG_APPLESMC) += applesmc.o
 
 # PPC devices
 hw-obj-$(CONFIG_OPENPIC) += openpic.o
