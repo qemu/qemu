@@ -173,11 +173,43 @@ DeviceState *sysbus_create_varargs(const char *name,
     return dev;
 }
 
+DeviceState *sysbus_try_create_varargs(const char *name,
+                                       target_phys_addr_t addr, ...)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+    va_list va;
+    qemu_irq irq;
+    int n;
+
+    dev = qdev_try_create(NULL, name);
+    if (!dev) {
+        return NULL;
+    }
+    s = sysbus_from_qdev(dev);
+    qdev_init_nofail(dev);
+    if (addr != (target_phys_addr_t)-1) {
+        sysbus_mmio_map(s, 0, addr);
+    }
+    va_start(va, addr);
+    n = 0;
+    while (1) {
+        irq = va_arg(va, qemu_irq);
+        if (!irq) {
+            break;
+        }
+        sysbus_connect_irq(s, n, irq);
+        n++;
+    }
+    return dev;
+}
+
 static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent)
 {
     SysBusDevice *s = sysbus_from_qdev(dev);
     int i;
 
+    monitor_printf(mon, "%*sirq %d\n", indent, "", s->num_irq);
     for (i = 0; i < s->num_mmio; i++) {
         monitor_printf(mon, "%*smmio " TARGET_FMT_plx "/" TARGET_FMT_plx "\n",
                        indent, "", s->mmio[i].addr, s->mmio[i].size);

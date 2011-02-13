@@ -16,7 +16,6 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "hw.h"
-#include "pxa.h"
 #include "sharpsl.h"
 #include "sysbus.h"
 
@@ -181,17 +180,34 @@ static int scoop_init(SysBusDevice *dev)
     return 0;
 }
 
+static int scoop_post_load(void *opaque, int version_id)
+{
+    ScoopInfo *s = (ScoopInfo *) opaque;
+    int i;
+    uint32_t level;
+
+    level = s->gpio_level & s->gpio_dir;
+
+    for (i = 0; i < 16; i++) {
+        qemu_set_irq(s->handler[i], (level >> i) & 1);
+    }
+
+    s->prev_level = level;
+
+    return 0;
+}
+
 static bool is_version_0 (void *opaque, int version_id)
 {
     return version_id == 0;
 }
-
 
 static const VMStateDescription vmstate_scoop_regs = {
     .name = "scoop",
     .version_id = 1,
     .minimum_version_id = 0,
     .minimum_version_id_old = 0,
+    .post_load = scoop_post_load,
     .fields = (VMStateField []) {
         VMSTATE_UINT16(status, ScoopInfo),
         VMSTATE_UINT16(power, ScoopInfo),

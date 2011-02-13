@@ -59,11 +59,6 @@ void i2c_register_slave(I2CSlaveInfo *type);
 
 DeviceState *i2c_create_slave(i2c_bus *bus, const char *name, uint8_t addr);
 
-/* max7310.c */
-void max7310_reset(i2c_slave *i2c);
-qemu_irq *max7310_gpio_in_get(i2c_slave *i2c);
-void max7310_gpio_out_set(i2c_slave *i2c, int line, qemu_irq handler);
-
 /* wm8750.c */
 void wm8750_data_req_set(DeviceState *dev,
                 void (*data_req)(void *, int, int), void *opaque);

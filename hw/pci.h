@@ -453,8 +453,12 @@ PCIDevice *pci_create_multifunction(PCIBus *bus, int devfn, bool multifunction,
 PCIDevice *pci_create_simple_multifunction(PCIBus *bus, int devfn,
                                            bool multifunction,
                                            const char *name);
+PCIDevice *pci_try_create_multifunction(PCIBus *bus, int devfn,
+                                        bool multifunction,
+                                        const char *name);
 PCIDevice *pci_create(PCIBus *bus, int devfn, const char *name);
 PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name);
+PCIDevice *pci_try_create(PCIBus *bus, int devfn, const char *name);
 
 static inline int pci_is_express(const PCIDevice *d)
 {

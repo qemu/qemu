@@ -84,6 +84,7 @@ struct e820_table {
 } __attribute((__packed__, __aligned__(4)));
 
 static struct e820_table e820_table;
+struct hpet_fw_config hpet_cfg = {.count = UINT8_MAX};
 
 void isa_irq_handler(void *opaque, int n, int level)
 {
@@ -1053,10 +1054,15 @@ void pc_vga_init(PCIBus *pci_bus)
             isa_cirrus_vga_init();
         }
     } else if (vmsvga_enabled) {
-        if (pci_bus)
-            pci_vmsvga_init(pci_bus);
-        else
+        if (pci_bus) {
+            if (!pci_vmsvga_init(pci_bus)) {
+                fprintf(stderr, "Warning: vmware_vga not available,"
+                        " using standard VGA instead\n");
+                pci_vga_init(pci_bus);
+            }
+        } else {
             fprintf(stderr, "%s: vmware_vga: no PCI bus\n", __FUNCTION__);
+        }
 #ifdef CONFIG_SPICE
     } else if (qxl_enabled) {
         if (pci_bus)
@@ -1091,7 +1097,7 @@ void pc_basic_device_init(qemu_irq *isa_irq,
     PITState *pit;
     qemu_irq rtc_irq = NULL;
     qemu_irq *a20_line;
-    ISADevice *i8042, *port92;
+    ISADevice *i8042, *port92, *vmmouse;
     qemu_irq *cpu_exit_irq;
 
     register_ioport_write(0x80, 1, 1, ioport80_write, NULL);
@@ -1099,12 +1105,14 @@ void pc_basic_device_init(qemu_irq *isa_irq,
     register_ioport_write(0xf0, 1, 1, ioportF0_write, NULL);
 
     if (!no_hpet) {
-        DeviceState *hpet = sysbus_create_simple("hpet", HPET_BASE, NULL);
+        DeviceState *hpet = sysbus_try_create_simple("hpet", HPET_BASE, NULL);
 
-        for (i = 0; i < 24; i++) {
-            sysbus_connect_irq(sysbus_from_qdev(hpet), i, isa_irq[i]);
+        if (hpet) {
+            for (i = 0; i < 24; i++) {
+                sysbus_connect_irq(sysbus_from_qdev(hpet), i, isa_irq[i]);
+            }
+            rtc_irq = qdev_get_gpio_in(hpet, 0);
         }
-        rtc_irq = qdev_get_gpio_in(hpet, 0);
     }
     *rtc_state = rtc_init(2000, rtc_irq);
 
@@ -1128,7 +1136,11 @@ void pc_basic_device_init(qemu_irq *isa_irq,
     a20_line = qemu_allocate_irqs(handle_a20_line_change, first_cpu, 2);
     i8042 = isa_create_simple("i8042");
     i8042_setup_a20_line(i8042, &a20_line[0]);
-    vmmouse_init(i8042);
+    vmport_init();
+    vmmouse = isa_try_create("vmmouse");
+    if (vmmouse) {
+        qdev_prop_set_ptr(&vmmouse->qdev, "ps2_mouse", i8042);
+    }
     port92 = isa_create_simple("port92");
     port92_init(port92, &a20_line[1]);
 

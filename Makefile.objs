@@ -198,6 +198,7 @@ hw-obj-$(CONFIG_FDC) += fdc.o
 hw-obj-$(CONFIG_ACPI) += acpi.o acpi_piix4.o
 hw-obj-$(CONFIG_APM) += pm_smbus.o apm.o
 hw-obj-$(CONFIG_DMA) += dma.o
+hw-obj-$(CONFIG_HPET) += hpet.o
 
 # PPC devices
 hw-obj-$(CONFIG_OPENPIC) += openpic.o
@@ -271,6 +272,7 @@ hw-obj-$(CONFIG_VGA_PCI) += vga-pci.o
 hw-obj-$(CONFIG_VGA_ISA) += vga-isa.o
 hw-obj-$(CONFIG_VGA_ISA_MM) += vga-isa-mm.o
 hw-obj-$(CONFIG_VMWARE_VGA) += vmware_vga.o
+hw-obj-$(CONFIG_VMMOUSE) += vmmouse.o
 
 hw-obj-$(CONFIG_RC4030) += rc4030.o
 hw-obj-$(CONFIG_DP8393X) += dp8393x.o

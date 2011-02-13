@@ -57,11 +57,20 @@ void sysbus_mmio_map(SysBusDevice *dev, int n, target_phys_addr_t addr);
 /* Legacy helper function for creating devices.  */
 DeviceState *sysbus_create_varargs(const char *name,
                                  target_phys_addr_t addr, ...);
+DeviceState *sysbus_try_create_varargs(const char *name,
+                                       target_phys_addr_t addr, ...);
 static inline DeviceState *sysbus_create_simple(const char *name,
                                               target_phys_addr_t addr,
                                               qemu_irq irq)
 {
     return sysbus_create_varargs(name, addr, irq, NULL);
+}
+
+static inline DeviceState *sysbus_try_create_simple(const char *name,
+                                                    target_phys_addr_t addr,
+                                                    qemu_irq irq)
+{
+    return sysbus_try_create_varargs(name, addr, irq, NULL);
 }
 
 #endif /* !HW_SYSBUS_H */

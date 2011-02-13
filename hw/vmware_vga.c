@@ -1309,11 +1309,6 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
     return 0;
 }
 
-void pci_vmsvga_init(PCIBus *bus)
-{
-    pci_create_simple(bus, -1, "vmware-svga");
-}
-
 static PCIDeviceInfo vmsvga_info = {
     .qdev.name    = "vmware-svga",
     .qdev.size    = sizeof(struct pci_vmsvga_state_s),

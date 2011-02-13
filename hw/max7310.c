@@ -23,9 +23,9 @@ typedef struct {
     qemu_irq *gpio_in;
 } MAX7310State;
 
-void max7310_reset(i2c_slave *i2c)
+static void max7310_reset(DeviceState *dev)
 {
-    MAX7310State *s = (MAX7310State *) i2c;
+    MAX7310State *s = FROM_I2C_SLAVE(MAX7310State, I2C_SLAVE_FROM_QDEV(dev));
     s->level &= s->direction;
     s->direction = 0xff;
     s->polarity = 0xf0;
@@ -179,33 +179,17 @@ static int max7310_init(i2c_slave *i2c)
 {
     MAX7310State *s = FROM_I2C_SLAVE(MAX7310State, i2c);
 
-    s->gpio_in = qemu_allocate_irqs(max7310_gpio_set, s,
-                    ARRAY_SIZE(s->handler));
-
-    max7310_reset(&s->i2c);
+    qdev_init_gpio_in(&i2c->qdev, max7310_gpio_set, 8);
+    qdev_init_gpio_out(&i2c->qdev, s->handler, 8);
 
     return 0;
-}
-
-qemu_irq *max7310_gpio_in_get(i2c_slave *i2c)
-{
-    MAX7310State *s = (MAX7310State *) i2c;
-    return s->gpio_in;
-}
-
-void max7310_gpio_out_set(i2c_slave *i2c, int line, qemu_irq handler)
-{
-    MAX7310State *s = (MAX7310State *) i2c;
-    if (line >= ARRAY_SIZE(s->handler) || line  < 0)
-        hw_error("bad GPIO line");
-
-    s->handler[line] = handler;
 }
 
 static I2CSlaveInfo max7310_info = {
     .qdev.name = "max7310",
     .qdev.size = sizeof(MAX7310State),
     .qdev.vmsd = &vmstate_max7310,
+    .qdev.reset = max7310_reset,
     .init = max7310_init,
     .event = max7310_event,
     .recv = max7310_rx,

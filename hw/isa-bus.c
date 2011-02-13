@@ -146,6 +146,18 @@ ISADevice *isa_create(const char *name)
     return DO_UPCAST(ISADevice, qdev, dev);
 }
 
+ISADevice *isa_try_create(const char *name)
+{
+    DeviceState *dev;
+
+    if (!isabus) {
+        hw_error("Tried to create isa device %s with no isa bus present.",
+                 name);
+    }
+    dev = qdev_try_create(&isabus->qbus, name);
+    return DO_UPCAST(ISADevice, qdev, dev);
+}
+
 ISADevice *isa_create_simple(const char *name)
 {
     ISADevice *dev;

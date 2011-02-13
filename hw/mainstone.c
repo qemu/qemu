@@ -117,7 +117,7 @@ static void mainstone_common_init(ram_addr_t ram_size,
         }
     }
 
-    mst_irq = mst_irq_init(cpu, MST_FPGA_PHYS, PXA2XX_PIC_GPIO_0);
+    mst_irq = mst_irq_init(MST_FPGA_PHYS, cpu->pic[PXA2XX_PIC_GPIO_0]);
 
     /* setup keypad */
     printf("map addr %p\n", &map);
