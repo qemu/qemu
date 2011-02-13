@@ -135,14 +135,152 @@ typedef struct {
     uint32_t cdb_size;
 } VirtIOSCSI;
 
+typedef struct VirtIOSCSIReq {
+    VirtIOSCSI *dev;
+    VirtQueue *vq;
+    VirtQueueElement elem;
+    QEMUSGList qsgl;
+    SCSIRequest *sreq;
+    union {
+        char                  *buf;
+        VirtIOSCSICmdReq      *cmd;
+        VirtIOSCSICtrlTMFReq  *tmf;
+        VirtIOSCSICtrlANReq   *an;
+    } req;
+    union {
+        char                  *buf;
+        VirtIOSCSICmdResp     *cmd;
+        VirtIOSCSICtrlTMFResp *tmf;
+        VirtIOSCSICtrlANResp  *an;
+        VirtIOSCSIEvent       *event;
+    } resp;
+} VirtIOSCSIReq;
+
+static void virtio_scsi_complete_req(VirtIOSCSIReq *req)
+{
+    VirtIOSCSI *s = req->dev;
+    VirtQueue *vq = req->vq;
+    virtqueue_push(vq, &req->elem, req->qsgl.size + req->elem.in_sg[0].iov_len);
+    qemu_sglist_destroy(&req->qsgl);
+    if (req->sreq) {
+        req->sreq->hba_private = NULL;
+        scsi_req_unref(req->sreq);
+    }
+    g_free(req);
+    virtio_notify(&s->vdev, vq);
+}
+
+static void virtio_scsi_bad_req(void)
+{
+    error_report("wrong size for virtio-scsi headers");
+    exit(1);
+}
+
+static void qemu_sgl_init_external(QEMUSGList *qsgl, struct iovec *sg,
+                                   target_phys_addr_t *addr, int num)
+{
+    memset(qsgl, 0, sizeof(*qsgl));
+    while (num--) {
+        qemu_sglist_add(qsgl, *(addr++), (sg++)->iov_len);
+    }
+}
+
+static void virtio_scsi_parse_req(VirtIOSCSI *s, VirtQueue *vq,
+                                  VirtIOSCSIReq *req)
+{
+    assert(req->elem.out_num && req->elem.in_num);
+    req->vq = vq;
+    req->dev = s;
+    req->sreq = NULL;
+    req->req.buf = req->elem.out_sg[0].iov_base;
+    req->resp.buf = req->elem.in_sg[0].iov_base;
+
+    if (req->elem.out_num > 1) {
+        qemu_sgl_init_external(&req->qsgl, &req->elem.out_sg[1],
+                               &req->elem.out_addr[1],
+                               req->elem.out_num - 1);
+    } else {
+        qemu_sgl_init_external(&req->qsgl, &req->elem.in_sg[1],
+                               &req->elem.in_addr[1],
+                               req->elem.in_num - 1);
+    }
+}
+
+static VirtIOSCSIReq *virtio_scsi_pop_req(VirtIOSCSI *s, VirtQueue *vq)
+{
+    VirtIOSCSIReq *req;
+    req = g_malloc(sizeof(*req));
+    if (!virtqueue_pop(vq, &req->elem)) {
+        g_free(req);
+        return NULL;
+    }
+
+    virtio_scsi_parse_req(s, vq, req);
+    return req;
+}
+
+static void virtio_scsi_fail_ctrl_req(VirtIOSCSIReq *req)
+{
+    if (req->req.tmf->type == VIRTIO_SCSI_T_TMF) {
+        req->resp.tmf->response = VIRTIO_SCSI_S_FAILURE;
+    } else {
+        req->resp.an->response = VIRTIO_SCSI_S_FAILURE;
+    }
+
+    virtio_scsi_complete_req(req);
+}
+
 static void virtio_scsi_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 {
-    /* TODO */
+    VirtIOSCSI *s = (VirtIOSCSI *)vdev;
+    VirtIOSCSIReq *req;
+
+    while ((req = virtio_scsi_pop_req(s, vq))) {
+        virtio_scsi_fail_ctrl_req(req);
+    }
+}
+
+static void virtio_scsi_fail_cmd_req(VirtIOSCSI *s, VirtIOSCSIReq *req)
+{
+    req->resp.cmd->response = VIRTIO_SCSI_S_FAILURE;
+    virtio_scsi_complete_req(req);
 }
 
 static void virtio_scsi_handle_cmd(VirtIODevice *vdev, VirtQueue *vq)
 {
-    /* TODO */
+    VirtIOSCSI *s = (VirtIOSCSI *)vdev;
+    VirtIOSCSIReq *req;
+
+    while ((req = virtio_scsi_pop_req(s, vq))) {
+        int out_size, in_size;
+        if (req->elem.out_num < 1 || req->elem.in_num < 1) {
+            virtio_scsi_bad_req();
+        }
+
+        out_size = req->elem.out_sg[0].iov_len;
+        in_size = req->elem.in_sg[0].iov_len;
+        if (out_size < sizeof(VirtIOSCSICmdReq) + s->cdb_size ||
+            in_size < sizeof(VirtIOSCSICmdResp) + s->sense_size) {
+            virtio_scsi_bad_req();
+        }
+
+        if (req->elem.out_num > 1 && req->elem.in_num > 1) {
+            virtio_scsi_fail_cmd_req(s, req);
+            continue;
+        }
+
+        req->resp.cmd->resid = 0;
+        req->resp.cmd->status_qualifier = 0;
+        req->resp.cmd->status = CHECK_CONDITION;
+        req->resp.cmd->sense_len = 4;
+        req->resp.cmd->sense[0] = 0xf0; /* Fixed format current sense */
+        req->resp.cmd->sense[1] = ILLEGAL_REQUEST;
+        req->resp.cmd->sense[2] = 0x20;
+        req->resp.cmd->sense[3] = 0x00;
+        req->resp.cmd->response = VIRTIO_SCSI_S_OK;
+
+        virtio_scsi_complete_req(req);
+    }
 }
 
 static void virtio_scsi_get_config(VirtIODevice *vdev,
