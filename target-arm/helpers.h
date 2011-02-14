@@ -466,5 +466,10 @@ DEF_HELPER_3(neon_unzip16, void, env, i32, i32)
 DEF_HELPER_3(neon_qunzip8, void, env, i32, i32)
 DEF_HELPER_3(neon_qunzip16, void, env, i32, i32)
 DEF_HELPER_3(neon_qunzip32, void, env, i32, i32)
+DEF_HELPER_3(neon_zip8, void, env, i32, i32)
+DEF_HELPER_3(neon_zip16, void, env, i32, i32)
+DEF_HELPER_3(neon_qzip8, void, env, i32, i32)
+DEF_HELPER_3(neon_qzip16, void, env, i32, i32)
+DEF_HELPER_3(neon_qzip32, void, env, i32, i32)
 
 #include "def-helper.h"
