@@ -65,7 +65,7 @@ m_get(Slirp *slirp)
 	m->m_flags = (flags | M_USEDLIST);
 
 	/* Initialise it */
-	m->m_size = SLIRP_MSIZE - offsetof(struct m_hdr, m_dat);
+	m->m_size = SLIRP_MSIZE - offsetof(struct mbuf, m_dat);
 	m->m_data = m->m_dat;
 	m->m_len = 0;
         m->m_nextpkt = NULL;
