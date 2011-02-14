@@ -3614,40 +3614,43 @@ static inline TCGv neon_get_scalar(int size, int reg)
     return tmp;
 }
 
-static void gen_neon_unzip_u8(TCGv t0, TCGv t1)
+static int gen_neon_unzip(int rd, int rm, int size, int q)
 {
-    TCGv rd, rm, tmp;
-
-    rd = new_tmp();
-    rm = new_tmp();
-    tmp = new_tmp();
-
-    tcg_gen_andi_i32(rd, t0, 0xff);
-    tcg_gen_shri_i32(tmp, t0, 8);
-    tcg_gen_andi_i32(tmp, tmp, 0xff00);
-    tcg_gen_or_i32(rd, rd, tmp);
-    tcg_gen_shli_i32(tmp, t1, 16);
-    tcg_gen_andi_i32(tmp, tmp, 0xff0000);
-    tcg_gen_or_i32(rd, rd, tmp);
-    tcg_gen_shli_i32(tmp, t1, 8);
-    tcg_gen_andi_i32(tmp, tmp, 0xff000000);
-    tcg_gen_or_i32(rd, rd, tmp);
-
-    tcg_gen_shri_i32(rm, t0, 8);
-    tcg_gen_andi_i32(rm, rm, 0xff);
-    tcg_gen_shri_i32(tmp, t0, 16);
-    tcg_gen_andi_i32(tmp, tmp, 0xff00);
-    tcg_gen_or_i32(rm, rm, tmp);
-    tcg_gen_shli_i32(tmp, t1, 8);
-    tcg_gen_andi_i32(tmp, tmp, 0xff0000);
-    tcg_gen_or_i32(rm, rm, tmp);
-    tcg_gen_andi_i32(tmp, t1, 0xff000000);
-    tcg_gen_or_i32(t1, rm, tmp);
-    tcg_gen_mov_i32(t0, rd);
-
-    dead_tmp(tmp);
-    dead_tmp(rm);
-    dead_tmp(rd);
+    TCGv tmp, tmp2;
+    if (size == 3 || (!q && size == 2)) {
+        return 1;
+    }
+    tmp = tcg_const_i32(rd);
+    tmp2 = tcg_const_i32(rm);
+    if (q) {
+        switch (size) {
+        case 0:
+            gen_helper_neon_qunzip8(cpu_env, tmp, tmp2);
+            break;
+        case 1:
+            gen_helper_neon_qunzip16(cpu_env, tmp, tmp2);
+            break;
+        case 2:
+            gen_helper_neon_qunzip32(cpu_env, tmp, tmp2);
+            break;
+        default:
+            abort();
+        }
+    } else {
+        switch (size) {
+        case 0:
+            gen_helper_neon_unzip8(cpu_env, tmp, tmp2);
+            break;
+        case 1:
+            gen_helper_neon_unzip16(cpu_env, tmp, tmp2);
+            break;
+        default:
+            abort();
+        }
+    }
+    tcg_temp_free_i32(tmp);
+    tcg_temp_free_i32(tmp2);
+    return 0;
 }
 
 static void gen_neon_zip_u8(TCGv t0, TCGv t1)
@@ -3703,25 +3706,6 @@ static void gen_neon_zip_u16(TCGv t0, TCGv t1)
 
     dead_tmp(tmp2);
     dead_tmp(tmp);
-}
-
-static void gen_neon_unzip(int reg, int q, int tmp, int size)
-{
-    int n;
-    TCGv t0, t1;
-
-    for (n = 0; n < q + 1; n += 2) {
-        t0 = neon_load_reg(reg, n);
-        t1 = neon_load_reg(reg, n + 1);
-        switch (size) {
-        case 0: gen_neon_unzip_u8(t0, t1); break;
-        case 1: gen_neon_zip_u16(t0, t1); break; /* zip and unzip are the same.  */
-        case 2: /* no-op */; break;
-        default: abort();
-        }
-        neon_store_scratch(tmp + n, t0);
-        neon_store_scratch(tmp + n + 1, t1);
-    }
 }
 
 static void gen_neon_trn_u8(TCGv t0, TCGv t1)
@@ -5440,30 +5424,8 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     }
                     break;
                 case 34: /* VUZP */
-                    /* Reg  Before       After
-                       Rd   A3 A2 A1 A0  B2 B0 A2 A0
-                       Rm   B3 B2 B1 B0  B3 B1 A3 A1
-                     */
-                    if (size == 3)
+                    if (gen_neon_unzip(rd, rm, size, q)) {
                         return 1;
-                    gen_neon_unzip(rd, q, 0, size);
-                    gen_neon_unzip(rm, q, 4, size);
-                    if (q) {
-                        static int unzip_order_q[8] =
-                            {0, 2, 4, 6, 1, 3, 5, 7};
-                        for (n = 0; n < 8; n++) {
-                            int reg = (n < 4) ? rd : rm;
-                            tmp = neon_load_scratch(unzip_order_q[n]);
-                            neon_store_reg(reg, n % 4, tmp);
-                        }
-                    } else {
-                        static int unzip_order[4] =
-                            {0, 4, 1, 5};
-                        for (n = 0; n < 4; n++) {
-                            int reg = (n < 2) ? rd : rm;
-                            tmp = neon_load_scratch(unzip_order[n]);
-                            neon_store_reg(reg, n % 2, tmp);
-                        }
                     }
                     break;
                 case 35: /* VZIP */
