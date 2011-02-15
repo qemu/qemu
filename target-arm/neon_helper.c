@@ -880,7 +880,19 @@ uint64_t HELPER(neon_qrshl_u64)(CPUState *env, uint64_t val, uint64_t shiftop)
 #define NEON_FN(dest, src1, src2) do { \
     int8_t tmp; \
     tmp = (int8_t)src2; \
-    if (tmp < 0) { \
+    if (tmp >= (ssize_t)sizeof(src1) * 8) { \
+        if (src1) { \
+            SET_QC(); \
+            dest = (1 << (sizeof(src1) * 8 - 1)); \
+            if (src1 > 0) { \
+                dest--; \
+            } \
+        } else { \
+            dest = 0; \
+        } \
+    } else if (tmp <= -(ssize_t)sizeof(src1) * 8) { \
+        dest = 0; \
+    } else if (tmp < 0) { \
         dest = (src1 + (1 << (-1 - tmp))) >> -tmp; \
     } else { \
         dest = src1 << tmp; \
@@ -903,7 +915,16 @@ uint32_t HELPER(neon_qrshl_s32)(CPUState *env, uint32_t valop, uint32_t shiftop)
     int32_t dest;
     int32_t val = (int32_t)valop;
     int8_t shift = (int8_t)shiftop;
-    if (shift < 0) {
+    if (shift >= 32) {
+        if (val) {
+            SET_QC();
+            dest = (val >> 31) ^ ~SIGNBIT;
+        } else {
+            dest = 0;
+        }
+    } else if (shift <= -32) {
+        dest = 0;
+    } else if (shift < 0) {
         int64_t big_dest = ((int64_t)val + (1 << (-1 - shift)));
         dest = big_dest >> -shift;
     } else {
@@ -923,7 +944,14 @@ uint64_t HELPER(neon_qrshl_s64)(CPUState *env, uint64_t valop, uint64_t shiftop)
     int8_t shift = (uint8_t)shiftop;
     int64_t val = valop;
 
-    if (shift < 0) {
+    if (shift >= 64) {
+        if (val) {
+            SET_QC();
+            val = (val >> 63) ^ ~SIGNBIT64;
+        }
+    } else if (shift <= -64) {
+        val = 0;
+    } else if (shift < 0) {
         val >>= (-shift - 1);
         if (val == INT64_MAX) {
             /* In this case, it means that the rounding constant is 1,
