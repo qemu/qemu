@@ -83,6 +83,7 @@ struct PXA2xxKeyPadState {
     qemu_irq    irq;
     struct  keymap *map;
     int         pressed_cnt;
+    int         alt_code;
 
     uint32_t    kpc;
     uint32_t    kpdk;
@@ -116,6 +117,11 @@ static void pxa27x_keyboard_event (PXA2xxKeyPadState *kp, int keycode)
     int row, col, rel, assert_irq = 0;
     uint32_t val;
 
+    if (keycode == 0xe0) {
+        kp->alt_code = 1;
+        return;
+    }
+
     if(!(kp->kpc & KPC_ME)) /* skip if not enabled */
         return;
 
@@ -125,6 +131,10 @@ static void pxa27x_keyboard_event (PXA2xxKeyPadState *kp, int keycode)
 
         rel = (keycode & 0x80) ? 1 : 0; /* key release from qemu */
         keycode &= ~(0x80); /* strip qemu key release bit */
+        if (kp->alt_code) {
+            keycode |= 0x80;
+            kp->alt_code = 0;
+        }
 
         row = kp->map[keycode].row;
         col = kp->map[keycode].column;
