@@ -4063,8 +4063,8 @@ static inline void gen_neon_shift_narrow(int size, TCGv var, TCGv shift,
     } else {
         if (u) {
             switch (size) {
-            case 1: gen_helper_neon_rshl_u16(var, var, shift); break;
-            case 2: gen_helper_neon_rshl_u32(var, var, shift); break;
+            case 1: gen_helper_neon_shl_u16(var, var, shift); break;
+            case 2: gen_helper_neon_shl_u32(var, var, shift); break;
             default: abort();
             }
         } else {
