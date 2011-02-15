@@ -698,11 +698,13 @@ e1000_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
                                           copy_size);
             }
             desc_offset += desc_size;
+            desc.length = cpu_to_le16(desc_size);
             if (desc_offset >= total_size) {
-                desc.length = cpu_to_le16(desc_size);
                 desc.status |= E1000_RXD_STAT_EOP | E1000_RXD_STAT_IXSM;
             } else {
-                desc.length = cpu_to_le16(desc_size);
+                /* Guest zeroing out status is not a hardware requirement.
+                   Clear EOP in case guest didn't do it. */
+                desc.status &= ~E1000_RXD_STAT_EOP;
             }
         } else { // as per intel docs; skip descriptors with null buf addr
             DBGOUT(RX, "Null RX descriptor!!\n");
