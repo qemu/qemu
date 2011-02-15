@@ -543,14 +543,9 @@ uint64_t HELPER(neon_shl_s64)(uint64_t valop, uint64_t shiftop)
 #define NEON_FN(dest, src1, src2) do { \
     int8_t tmp; \
     tmp = (int8_t)src2; \
-    if (tmp >= (ssize_t)sizeof(src1) * 8) { \
+    if ((tmp >= (ssize_t)sizeof(src1) * 8) \
+        || (tmp <= -(ssize_t)sizeof(src1) * 8)) { \
         dest = 0; \
-    } else if (tmp < -(ssize_t)sizeof(src1) * 8) { \
-        dest = src1 >> (sizeof(src1) * 8 - 1); \
-    } else if (tmp == -(ssize_t)sizeof(src1) * 8) { \
-        dest = src1 >> (tmp - 1); \
-        dest++; \
-        dest >>= 1; \
     } else if (tmp < 0) { \
         dest = (src1 + (1 << (-1 - tmp))) >> -tmp; \
     } else { \
@@ -584,14 +579,8 @@ uint64_t HELPER(neon_rshl_s64)(uint64_t valop, uint64_t shiftop)
 {
     int8_t shift = (int8_t)shiftop;
     int64_t val = valop;
-    if (shift >= 64) {
+    if ((shift >= 64) || (shift <= -64)) {
         val = 0;
-    } else if (shift < -64) {
-        val >>= 63;
-    } else if (shift == -63) {
-        val >>= 63;
-        val++;
-        val >>= 1;
     } else if (shift < 0) {
         val >>= (-shift - 1);
         if (val == INT64_MAX) {
