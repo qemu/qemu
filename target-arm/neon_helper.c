@@ -605,7 +605,7 @@ uint64_t HELPER(neon_rshl_s64)(uint64_t valop, uint64_t shiftop)
         tmp < -(ssize_t)sizeof(src1) * 8) { \
         dest = 0; \
     } else if (tmp == -(ssize_t)sizeof(src1) * 8) { \
-        dest = src1 >> (tmp - 1); \
+        dest = src1 >> (-tmp - 1); \
     } else if (tmp < 0) { \
         dest = (src1 + (1 << (-1 - tmp))) >> -tmp; \
     } else { \
