@@ -631,6 +631,24 @@ e1000_can_receive(VLANClientState *nc)
     return (s->mac_reg[RCTL] & E1000_RCTL_EN);
 }
 
+static bool e1000_has_rxbufs(E1000State *s, size_t total_size)
+{
+    int bufs;
+    /* Fast-path short packets */
+    if (total_size <= s->rxbuf_size) {
+        return s->mac_reg[RDH] != s->mac_reg[RDT] || !s->check_rxov;
+    }
+    if (s->mac_reg[RDH] < s->mac_reg[RDT]) {
+        bufs = s->mac_reg[RDT] - s->mac_reg[RDH];
+    } else if (s->mac_reg[RDH] > s->mac_reg[RDT] || !s->check_rxov) {
+        bufs = s->mac_reg[RDLEN] /  sizeof(struct e1000_rx_desc) +
+            s->mac_reg[RDT] - s->mac_reg[RDH];
+    } else {
+        return false;
+    }
+    return total_size <= bufs * s->rxbuf_size;
+}
+
 static ssize_t
 e1000_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
 {
@@ -671,16 +689,14 @@ e1000_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
     rdh_start = s->mac_reg[RDH];
     desc_offset = 0;
     total_size = size + fcs_len(s);
+    if (!e1000_has_rxbufs(s, total_size)) {
+            set_ics(s, 0, E1000_ICS_RXO);
+            return -1;
+    }
     do {
         desc_size = total_size - desc_offset;
         if (desc_size > s->rxbuf_size) {
             desc_size = s->rxbuf_size;
-        }
-        if (s->mac_reg[RDH] == s->mac_reg[RDT] && s->check_rxov) {
-            /* Discard all data written so far */
-            s->mac_reg[RDH] = rdh_start;
-            set_ics(s, 0, E1000_ICS_RXO);
-            return -1;
         }
         base = ((uint64_t)s->mac_reg[RDBAH] << 32) + s->mac_reg[RDBAL] +
                sizeof(desc) * s->mac_reg[RDH];
