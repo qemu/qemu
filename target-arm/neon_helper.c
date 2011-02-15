@@ -558,9 +558,28 @@ uint64_t HELPER(neon_shl_s64)(uint64_t valop, uint64_t shiftop)
     }} while (0)
 NEON_VOP(rshl_s8, neon_s8, 4)
 NEON_VOP(rshl_s16, neon_s16, 2)
-NEON_VOP(rshl_s32, neon_s32, 1)
 #undef NEON_FN
 
+/* The addition of the rounding constant may overflow, so we use an
+ * intermediate 64 bits accumulator.  */
+uint32_t HELPER(neon_rshl_s32)(uint32_t valop, uint32_t shiftop)
+{
+    int32_t dest;
+    int32_t val = (int32_t)valop;
+    int8_t shift = (int8_t)shiftop;
+    if ((shift >= 32) || (shift <= -32)) {
+        dest = 0;
+    } else if (shift < 0) {
+        int64_t big_dest = ((int64_t)val + (1 << (-1 - shift)));
+        dest = big_dest >> -shift;
+    } else {
+        dest = val << shift;
+    }
+    return dest;
+}
+
+/* Handling addition overflow with 64 bits inputs values is more
+ * tricky than with 32 bits values.  */
 uint64_t HELPER(neon_rshl_s64)(uint64_t valop, uint64_t shiftop)
 {
     int8_t shift = (int8_t)shiftop;
@@ -574,7 +593,16 @@ uint64_t HELPER(neon_rshl_s64)(uint64_t valop, uint64_t shiftop)
         val++;
         val >>= 1;
     } else if (shift < 0) {
-        val = (val + ((int64_t)1 << (-1 - shift))) >> -shift;
+        val >>= (-shift - 1);
+        if (val == INT64_MAX) {
+            /* In this case, it means that the rounding constant is 1,
+             * and the addition would overflow. Return the actual
+             * result directly.  */
+            val = 0x4000000000000000LL;
+        } else {
+            val++;
+            val >>= 1;
+        }
     } else {
         val <<= shift;
     }
@@ -596,9 +624,29 @@ uint64_t HELPER(neon_rshl_s64)(uint64_t valop, uint64_t shiftop)
     }} while (0)
 NEON_VOP(rshl_u8, neon_u8, 4)
 NEON_VOP(rshl_u16, neon_u16, 2)
-NEON_VOP(rshl_u32, neon_u32, 1)
 #undef NEON_FN
 
+/* The addition of the rounding constant may overflow, so we use an
+ * intermediate 64 bits accumulator.  */
+uint32_t HELPER(neon_rshl_u32)(uint32_t val, uint32_t shiftop)
+{
+    uint32_t dest;
+    int8_t shift = (int8_t)shiftop;
+    if (shift >= 32 || shift < -32) {
+        dest = 0;
+    } else if (shift == -32) {
+        dest = val >> 31;
+    } else if (shift < 0) {
+        uint64_t big_dest = ((uint64_t)val + (1 << (-1 - shift)));
+        dest = big_dest >> -shift;
+    } else {
+        dest = val << shift;
+    }
+    return dest;
+}
+
+/* Handling addition overflow with 64 bits inputs values is more
+ * tricky than with 32 bits values.  */
 uint64_t HELPER(neon_rshl_u64)(uint64_t val, uint64_t shiftop)
 {
     int8_t shift = (uint8_t)shiftop;
@@ -607,9 +655,17 @@ uint64_t HELPER(neon_rshl_u64)(uint64_t val, uint64_t shiftop)
     } else if (shift == -64) {
         /* Rounding a 1-bit result just preserves that bit.  */
         val >>= 63;
-    } if (shift < 0) {
-        val = (val + ((uint64_t)1 << (-1 - shift))) >> -shift;
-        val >>= -shift;
+    } else if (shift < 0) {
+        val >>= (-shift - 1);
+        if (val == UINT64_MAX) {
+            /* In this case, it means that the rounding constant is 1,
+             * and the addition would overflow. Return the actual
+             * result directly.  */
+            val = 0x8000000000000000ULL;
+        } else {
+            val++;
+            val >>= 1;
+        }
     } else {
         val <<= shift;
     }
@@ -784,14 +840,43 @@ uint64_t HELPER(neon_qshlu_s64)(CPUState *env, uint64_t valop, uint64_t shiftop)
     }} while (0)
 NEON_VOP_ENV(qrshl_u8, neon_u8, 4)
 NEON_VOP_ENV(qrshl_u16, neon_u16, 2)
-NEON_VOP_ENV(qrshl_u32, neon_u32, 1)
 #undef NEON_FN
 
+/* The addition of the rounding constant may overflow, so we use an
+ * intermediate 64 bits accumulator.  */
+uint32_t HELPER(neon_qrshl_u32)(CPUState *env, uint32_t val, uint32_t shiftop)
+{
+    uint32_t dest;
+    int8_t shift = (int8_t)shiftop;
+    if (shift < 0) {
+        uint64_t big_dest = ((uint64_t)val + (1 << (-1 - shift)));
+        dest = big_dest >> -shift;
+    } else {
+        dest = val << shift;
+        if ((dest >> shift) != val) {
+            SET_QC();
+            dest = ~0;
+        }
+    }
+    return dest;
+}
+
+/* Handling addition overflow with 64 bits inputs values is more
+ * tricky than with 32 bits values.  */
 uint64_t HELPER(neon_qrshl_u64)(CPUState *env, uint64_t val, uint64_t shiftop)
 {
     int8_t shift = (int8_t)shiftop;
     if (shift < 0) {
-        val = (val + (1 << (-1 - shift))) >> -shift;
+        val >>= (-shift - 1);
+        if (val == UINT64_MAX) {
+            /* In this case, it means that the rounding constant is 1,
+             * and the addition would overflow. Return the actual
+             * result directly.  */
+            val = 0x8000000000000000ULL;
+        } else {
+            val++;
+            val >>= 1;
+        }
     } else { \
         uint64_t tmp = val;
         val <<= shift;
@@ -817,22 +902,52 @@ uint64_t HELPER(neon_qrshl_u64)(CPUState *env, uint64_t val, uint64_t shiftop)
     }} while (0)
 NEON_VOP_ENV(qrshl_s8, neon_s8, 4)
 NEON_VOP_ENV(qrshl_s16, neon_s16, 2)
-NEON_VOP_ENV(qrshl_s32, neon_s32, 1)
 #undef NEON_FN
 
+/* The addition of the rounding constant may overflow, so we use an
+ * intermediate 64 bits accumulator.  */
+uint32_t HELPER(neon_qrshl_s32)(CPUState *env, uint32_t valop, uint32_t shiftop)
+{
+    int32_t dest;
+    int32_t val = (int32_t)valop;
+    int8_t shift = (int8_t)shiftop;
+    if (shift < 0) {
+        int64_t big_dest = ((int64_t)val + (1 << (-1 - shift)));
+        dest = big_dest >> -shift;
+    } else {
+        dest = val << shift;
+        if ((dest >> shift) != val) {
+            SET_QC();
+            dest = (val >> 31) ^ ~SIGNBIT;
+        }
+    }
+    return dest;
+}
+
+/* Handling addition overflow with 64 bits inputs values is more
+ * tricky than with 32 bits values.  */
 uint64_t HELPER(neon_qrshl_s64)(CPUState *env, uint64_t valop, uint64_t shiftop)
 {
     int8_t shift = (uint8_t)shiftop;
     int64_t val = valop;
 
     if (shift < 0) {
-        val = (val + (1 << (-1 - shift))) >> -shift;
+        val >>= (-shift - 1);
+        if (val == INT64_MAX) {
+            /* In this case, it means that the rounding constant is 1,
+             * and the addition would overflow. Return the actual
+             * result directly.  */
+            val = 0x4000000000000000ULL;
+        } else {
+            val++;
+            val >>= 1;
+        }
     } else {
-        int64_t tmp = val;;
+        int64_t tmp = val;
         val <<= shift;
         if ((val >> shift) != tmp) {
             SET_QC();
-            val = tmp >> 31;
+            val = (tmp >> 63) ^ ~SIGNBIT64;
         }
     }
     return val;
