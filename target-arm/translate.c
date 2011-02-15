@@ -4783,6 +4783,8 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
             } else if (op < 10) {
                 /* Shift by immediate and narrow:
                    VSHRN, VRSHRN, VQSHRN, VQRSHRN.  */
+                int input_unsigned = (op == 8) ? !u : u;
+
                 shift = shift - (1 << (size + 3));
                 size++;
                 switch (size) {
@@ -4809,33 +4811,46 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     if (size == 3) {
                         neon_load_reg64(cpu_V0, rm + pass);
                         if (q) {
-                          if (u)
-                            gen_helper_neon_rshl_u64(cpu_V0, cpu_V0, tmp64);
-                          else
-                            gen_helper_neon_rshl_s64(cpu_V0, cpu_V0, tmp64);
+                            if (input_unsigned) {
+                                gen_helper_neon_rshl_u64(cpu_V0, cpu_V0,
+                                                         tmp64);
+                            } else {
+                                gen_helper_neon_rshl_s64(cpu_V0, cpu_V0,
+                                                         tmp64);
+                            }
                         } else {
-                          if (u)
-                            gen_helper_neon_shl_u64(cpu_V0, cpu_V0, tmp64);
-                          else
-                            gen_helper_neon_shl_s64(cpu_V0, cpu_V0, tmp64);
+                            if (input_unsigned) {
+                                gen_helper_neon_shl_u64(cpu_V0, cpu_V0,
+                                                        tmp64);
+                            } else {
+                                gen_helper_neon_shl_s64(cpu_V0, cpu_V0,
+                                                        tmp64);
+                            }
                         }
                     } else {
                         tmp = neon_load_reg(rm + pass, 0);
-                        gen_neon_shift_narrow(size, tmp, tmp2, q, u);
+                        gen_neon_shift_narrow(size, tmp, tmp2, q,
+                                              input_unsigned);
                         tmp3 = neon_load_reg(rm + pass, 1);
-                        gen_neon_shift_narrow(size, tmp3, tmp2, q, u);
+                        gen_neon_shift_narrow(size, tmp3, tmp2, q,
+                                              input_unsigned);
                         tcg_gen_concat_i32_i64(cpu_V0, tmp, tmp3);
                         dead_tmp(tmp);
                         dead_tmp(tmp3);
                     }
                     tmp = new_tmp();
-                    if (op == 8 && !u) {
-                        gen_neon_narrow(size - 1, tmp, cpu_V0);
+                    if (op == 8) {
+                        if (u) { /* VQSHRUN / VQRSHRUN */
+                            gen_neon_unarrow_sats(size - 1, tmp, cpu_V0);
+                        } else { /* VSHRN / VRSHRN */
+                            gen_neon_narrow(size - 1, tmp, cpu_V0);
+                        }
                     } else {
-                        if (op == 8)
-                            gen_neon_narrow_sats(size - 1, tmp, cpu_V0);
-                        else
+                        if (u) { /* VQSHRN / VQRSHRN */
                             gen_neon_narrow_satu(size - 1, tmp, cpu_V0);
+                        } else { /* VQSHRN / VQRSHRN */
+                            gen_neon_narrow_sats(size - 1, tmp, cpu_V0);
+                        }
                     }
                     neon_store_reg(rd, pass, tmp);
                 } /* for pass */
