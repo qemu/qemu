@@ -515,12 +515,15 @@ static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
             return ret;
         }
     } else {
-        /* FIXME Order */
-        if (l2_offset)
-            qcow2_free_clusters(bs, l2_offset, s->l2_size * sizeof(uint64_t));
+        /* First allocate a new L2 table (and do COW if needed) */
         ret = l2_allocate(bs, l1_index, &l2_table);
         if (ret < 0) {
             return ret;
+        }
+
+        /* Then decrease the refcount of the old table */
+        if (l2_offset) {
+            qcow2_free_clusters(bs, l2_offset, s->l2_size * sizeof(uint64_t));
         }
         l2_offset = s->l1_table[l1_index] & ~QCOW_OFLAG_COPIED;
     }
@@ -878,11 +881,11 @@ int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
         BLKDBG_EVENT(bs->file, BLKDBG_READ_COMPRESSED);
         ret = bdrv_read(bs->file, coffset >> 9, s->cluster_data, nb_csectors);
         if (ret < 0) {
-            return -1;
+            return ret;
         }
         if (decompress_buffer(s->cluster_cache, s->cluster_size,
                               s->cluster_data + sector_offset, csize) < 0) {
-            return -1;
+            return -EIO;
         }
         s->cluster_cache_offset = coffset;
     }

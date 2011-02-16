@@ -28,6 +28,7 @@
 #include "aes.h"
 #include "block/qcow2.h"
 #include "qemu-error.h"
+#include "qerror.h"
 
 /*
   Differences with QCOW:
@@ -59,7 +60,7 @@ static int qcow2_probe(const uint8_t *buf, int buf_size, const char *filename)
 
     if (buf_size >= sizeof(QCowHeader) &&
         be32_to_cpu(cow_header->magic) == QCOW_MAGIC &&
-        be32_to_cpu(cow_header->version) == QCOW_VERSION)
+        be32_to_cpu(cow_header->version) >= QCOW_VERSION)
         return 100;
     else
         return 0;
@@ -163,8 +164,16 @@ static int qcow2_open(BlockDriverState *bs, int flags)
     be64_to_cpus(&header.snapshots_offset);
     be32_to_cpus(&header.nb_snapshots);
 
-    if (header.magic != QCOW_MAGIC || header.version != QCOW_VERSION) {
+    if (header.magic != QCOW_MAGIC) {
         ret = -EINVAL;
+        goto fail;
+    }
+    if (header.version != QCOW_VERSION) {
+        char version[64];
+        snprintf(version, sizeof(version), "QCOW version %d", header.version);
+        qerror_report(QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
+            bs->device_name, "qcow2", version);
+        ret = -ENOTSUP;
         goto fail;
     }
     if (header.cluster_bits < MIN_CLUSTER_BITS ||
@@ -355,7 +364,7 @@ int qcow2_backing_read1(BlockDriverState *bs, QEMUIOVector *qiov,
     else
         n1 = bs->total_sectors - sector_num;
 
-    qemu_iovec_memset(qiov, 0, 512 * (nb_sectors - n1));
+    qemu_iovec_memset_skip(qiov, 0, 512 * (nb_sectors - n1), 512 * n1);
 
     return n1;
 }
@@ -478,10 +487,11 @@ static void qcow2_aio_read_cb(void *opaque, int ret)
             if (n1 > 0) {
                 BLKDBG_EVENT(bs->file, BLKDBG_READ_BACKING_AIO);
                 acb->hd_aiocb = bdrv_aio_readv(bs->backing_hd, acb->sector_num,
-                                    &acb->hd_qiov, acb->cur_nr_sectors,
-				    qcow2_aio_read_cb, acb);
-                if (acb->hd_aiocb == NULL)
+                                    &acb->hd_qiov, n1, qcow2_aio_read_cb, acb);
+                if (acb->hd_aiocb == NULL) {
+                    ret = -EIO;
                     goto done;
+                }
             } else {
                 ret = qcow2_schedule_bh(qcow2_aio_read_bh, acb);
                 if (ret < 0)
@@ -496,8 +506,10 @@ static void qcow2_aio_read_cb(void *opaque, int ret)
         }
     } else if (acb->cluster_offset & QCOW_OFLAG_COMPRESSED) {
         /* add AIO support for compressed blocks ? */
-        if (qcow2_decompress_cluster(bs, acb->cluster_offset) < 0)
+        ret = qcow2_decompress_cluster(bs, acb->cluster_offset);
+        if (ret < 0) {
             goto done;
+        }
 
         qemu_iovec_from_buffer(&acb->hd_qiov,
             s->cluster_cache + index_in_cluster * 512,
