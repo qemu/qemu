@@ -301,6 +301,15 @@ void kvm_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
 #endif
 }
 
+static void cpu_update_state(void *opaque, int running, int reason)
+{
+    CPUState *env = opaque;
+
+    if (running) {
+        env->tsc_valid = false;
+    }
+}
+
 int kvm_arch_init_vcpu(CPUState *env)
 {
     struct {
@@ -433,6 +442,8 @@ int kvm_arch_init_vcpu(CPUState *env)
         }
     }
 #endif
+
+    qemu_add_vm_change_state_handler(cpu_update_state, env);
 
     return kvm_vcpu_ioctl(env, KVM_SET_CPUID2, &cpuid_data);
 }
@@ -1061,7 +1072,12 @@ static int kvm_get_msrs(CPUState *env)
     if (has_msr_hsave_pa) {
         msrs[n++].index = MSR_VM_HSAVE_PA;
     }
-    msrs[n++].index = MSR_IA32_TSC;
+
+    if (!env->tsc_valid) {
+        msrs[n++].index = MSR_IA32_TSC;
+        env->tsc_valid = !vm_running;
+    }
+
 #ifdef TARGET_X86_64
     if (lm_capable_kernel) {
         msrs[n++].index = MSR_CSTAR;
@@ -1424,49 +1440,65 @@ int kvm_arch_get_registers(CPUState *env)
     return 0;
 }
 
-int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
+void kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
 {
+    int ret;
+
     /* Inject NMI */
     if (env->interrupt_request & CPU_INTERRUPT_NMI) {
         env->interrupt_request &= ~CPU_INTERRUPT_NMI;
         DPRINTF("injected NMI\n");
-        kvm_vcpu_ioctl(env, KVM_NMI);
-    }
-
-    /* Try to inject an interrupt if the guest can accept it */
-    if (run->ready_for_interrupt_injection &&
-        (env->interrupt_request & CPU_INTERRUPT_HARD) &&
-        (env->eflags & IF_MASK)) {
-        int irq;
-
-        env->interrupt_request &= ~CPU_INTERRUPT_HARD;
-        irq = cpu_get_pic_interrupt(env);
-        if (irq >= 0) {
-            struct kvm_interrupt intr;
-            intr.irq = irq;
-            /* FIXME: errors */
-            DPRINTF("injected interrupt %d\n", irq);
-            kvm_vcpu_ioctl(env, KVM_INTERRUPT, &intr);
+        ret = kvm_vcpu_ioctl(env, KVM_NMI);
+        if (ret < 0) {
+            fprintf(stderr, "KVM: injection failed, NMI lost (%s)\n",
+                    strerror(-ret));
         }
     }
 
-    /* If we have an interrupt but the guest is not ready to receive an
-     * interrupt, request an interrupt window exit.  This will
-     * cause a return to userspace as soon as the guest is ready to
-     * receive interrupts. */
-    if ((env->interrupt_request & CPU_INTERRUPT_HARD)) {
-        run->request_interrupt_window = 1;
-    } else {
-        run->request_interrupt_window = 0;
+    if (!kvm_irqchip_in_kernel()) {
+        /* Force the VCPU out of its inner loop to process the INIT request */
+        if (env->interrupt_request & CPU_INTERRUPT_INIT) {
+            env->exit_request = 1;
+        }
+
+        /* Try to inject an interrupt if the guest can accept it */
+        if (run->ready_for_interrupt_injection &&
+            (env->interrupt_request & CPU_INTERRUPT_HARD) &&
+            (env->eflags & IF_MASK)) {
+            int irq;
+
+            env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+            irq = cpu_get_pic_interrupt(env);
+            if (irq >= 0) {
+                struct kvm_interrupt intr;
+
+                intr.irq = irq;
+                DPRINTF("injected interrupt %d\n", irq);
+                ret = kvm_vcpu_ioctl(env, KVM_INTERRUPT, &intr);
+                if (ret < 0) {
+                    fprintf(stderr,
+                            "KVM: injection failed, interrupt lost (%s)\n",
+                            strerror(-ret));
+                }
+            }
+        }
+
+        /* If we have an interrupt but the guest is not ready to receive an
+         * interrupt, request an interrupt window exit.  This will
+         * cause a return to userspace as soon as the guest is ready to
+         * receive interrupts. */
+        if ((env->interrupt_request & CPU_INTERRUPT_HARD)) {
+            run->request_interrupt_window = 1;
+        } else {
+            run->request_interrupt_window = 0;
+        }
+
+        DPRINTF("setting tpr\n");
+        run->cr8 = cpu_get_apic_tpr(env->apic_state);
     }
-
-    DPRINTF("setting tpr\n");
-    run->cr8 = cpu_get_apic_tpr(env->apic_state);
-
-    return 0;
 }
 
-int kvm_arch_post_run(CPUState *env, struct kvm_run *run)
+void kvm_arch_post_run(CPUState *env, struct kvm_run *run)
 {
     if (run->if_flag) {
         env->eflags |= IF_MASK;
@@ -1475,18 +1507,21 @@ int kvm_arch_post_run(CPUState *env, struct kvm_run *run)
     }
     cpu_set_apic_tpr(env->apic_state, run->cr8);
     cpu_set_apic_base(env->apic_state, run->apic_base);
-
-    return 0;
 }
 
 int kvm_arch_process_irqchip_events(CPUState *env)
 {
+    if (kvm_irqchip_in_kernel()) {
+        return 0;
+    }
+
+    if (env->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI)) {
+        env->halted = 0;
+    }
     if (env->interrupt_request & CPU_INTERRUPT_INIT) {
         kvm_cpu_synchronize_state(env);
         do_cpu_init(env);
-        env->exception_index = EXCP_HALTED;
     }
-
     if (env->interrupt_request & CPU_INTERRUPT_SIPI) {
         kvm_cpu_synchronize_state(env);
         do_cpu_sipi(env);
@@ -1501,7 +1536,6 @@ static int kvm_handle_halt(CPUState *env)
           (env->eflags & IF_MASK)) &&
         !(env->interrupt_request & CPU_INTERRUPT_NMI)) {
         env->halted = 1;
-        env->exception_index = EXCP_HLT;
         return 0;
     }
 
@@ -1839,7 +1873,7 @@ static void kvm_mce_inj_srao_memscrub2(CPUState *env, target_phys_addr_t paddr)
 
 #endif
 
-int kvm_on_sigbus_vcpu(CPUState *env, int code, void *addr)
+int kvm_arch_on_sigbus_vcpu(CPUState *env, int code, void *addr)
 {
 #if defined(KVM_CAP_MCE)
     void *vaddr;
@@ -1889,7 +1923,7 @@ int kvm_on_sigbus_vcpu(CPUState *env, int code, void *addr)
     return 0;
 }
 
-int kvm_on_sigbus(int code, void *addr)
+int kvm_arch_on_sigbus(int code, void *addr)
 {
 #if defined(KVM_CAP_MCE)
     if ((first_cpu->mcg_cap & MCG_SER_P) && addr && code == BUS_MCEERR_AO) {

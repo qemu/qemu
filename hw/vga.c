@@ -28,7 +28,6 @@
 #include "vga_int.h"
 #include "pixel_ops.h"
 #include "qemu-timer.h"
-#include "kvm.h"
 
 //#define DEBUG_VGA
 //#define DEBUG_VGA_MEM
@@ -1573,34 +1572,36 @@ static void vga_sync_dirty_bitmap(VGACommonState *s)
 
 void vga_dirty_log_start(VGACommonState *s)
 {
-    if (kvm_enabled() && s->map_addr)
-        kvm_log_start(s->map_addr, s->map_end - s->map_addr);
+    if (s->map_addr) {
+        cpu_physical_log_start(s->map_addr, s->map_end - s->map_addr);
+    }
 
-    if (kvm_enabled() && s->lfb_vram_mapped) {
-        kvm_log_start(isa_mem_base + 0xa0000, 0x8000);
-        kvm_log_start(isa_mem_base + 0xa8000, 0x8000);
+    if (s->lfb_vram_mapped) {
+        cpu_physical_log_start(isa_mem_base + 0xa0000, 0x8000);
+        cpu_physical_log_start(isa_mem_base + 0xa8000, 0x8000);
     }
 
 #ifdef CONFIG_BOCHS_VBE
-    if (kvm_enabled() && s->vbe_mapped) {
-        kvm_log_start(VBE_DISPI_LFB_PHYSICAL_ADDRESS, s->vram_size);
+    if (s->vbe_mapped) {
+        cpu_physical_log_start(VBE_DISPI_LFB_PHYSICAL_ADDRESS, s->vram_size);
     }
 #endif
 }
 
 void vga_dirty_log_stop(VGACommonState *s)
 {
-    if (kvm_enabled() && s->map_addr)
-	kvm_log_stop(s->map_addr, s->map_end - s->map_addr);
+    if (s->map_addr) {
+        cpu_physical_log_stop(s->map_addr, s->map_end - s->map_addr);
+    }
 
-    if (kvm_enabled() && s->lfb_vram_mapped) {
-	kvm_log_stop(isa_mem_base + 0xa0000, 0x8000);
-	kvm_log_stop(isa_mem_base + 0xa8000, 0x8000);
+    if (s->lfb_vram_mapped) {
+        cpu_physical_log_stop(isa_mem_base + 0xa0000, 0x8000);
+        cpu_physical_log_stop(isa_mem_base + 0xa8000, 0x8000);
     }
 
 #ifdef CONFIG_BOCHS_VBE
-    if (kvm_enabled() && s->vbe_mapped) {
-	kvm_log_stop(VBE_DISPI_LFB_PHYSICAL_ADDRESS, s->vram_size);
+    if (s->vbe_mapped) {
+        cpu_physical_log_stop(VBE_DISPI_LFB_PHYSICAL_ADDRESS, s->vram_size);
     }
 #endif
 }

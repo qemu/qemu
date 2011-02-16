@@ -196,28 +196,6 @@ static inline TranslationBlock *tb_find_fast(void)
     return tb;
 }
 
-static CPUDebugExcpHandler *debug_excp_handler;
-
-CPUDebugExcpHandler *cpu_set_debug_excp_handler(CPUDebugExcpHandler *handler)
-{
-    CPUDebugExcpHandler *old_handler = debug_excp_handler;
-
-    debug_excp_handler = handler;
-    return old_handler;
-}
-
-static void cpu_handle_debug_exception(CPUState *env)
-{
-    CPUWatchpoint *wp;
-
-    if (!env->watchpoint_hit)
-        QTAILQ_FOREACH(wp, &env->watchpoints, entry)
-            wp->flags &= ~BP_WATCHPOINT_HIT;
-
-    if (debug_excp_handler)
-        debug_excp_handler(env);
-}
-
 /* main execution loop */
 
 volatile sig_atomic_t exit_request;
@@ -248,13 +226,11 @@ int cpu_exec(CPUState *env1)
     }
 
 #if defined(TARGET_I386)
-    if (!kvm_enabled()) {
-        /* put eflags in CPU temporary format */
-        CC_SRC = env->eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
-        DF = 1 - (2 * ((env->eflags >> 10) & 1));
-        CC_OP = CC_OP_EFLAGS;
-        env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
-    }
+    /* put eflags in CPU temporary format */
+    CC_SRC = env->eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
+    DF = 1 - (2 * ((env->eflags >> 10) & 1));
+    CC_OP = CC_OP_EFLAGS;
+    env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
 #elif defined(TARGET_SPARC)
 #elif defined(TARGET_M68K)
     env->cc_op = CC_OP_FLAGS;
@@ -279,7 +255,7 @@ int cpu_exec(CPUState *env1)
         if (setjmp(env->jmp_env) == 0) {
 #if defined(__sparc__) && !defined(CONFIG_SOLARIS)
 #undef env
-                    env = cpu_single_env;
+            env = cpu_single_env;
 #define env cpu_single_env
 #endif
             /* if an exception is pending, we execute it here */
@@ -287,8 +263,6 @@ int cpu_exec(CPUState *env1)
                 if (env->exception_index >= EXCP_INTERRUPT) {
                     /* exit request from the cpu execution loop */
                     ret = env->exception_index;
-                    if (ret == EXCP_DEBUG)
-                        cpu_handle_debug_exception(env);
                     break;
                 } else {
 #if defined(CONFIG_USER_ONLY)
@@ -338,11 +312,6 @@ int cpu_exec(CPUState *env1)
                     env->exception_index = -1;
 #endif
                 }
-            }
-
-            if (kvm_enabled()) {
-                kvm_cpu_exec(env);
-                longjmp(env->jmp_env, 1);
             }
 
             next_tb = 0; /* force lookup of first TB */

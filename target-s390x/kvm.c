@@ -169,14 +169,12 @@ int kvm_arch_remove_sw_breakpoint(CPUState *env, struct kvm_sw_breakpoint *bp)
     return 0;
 }
 
-int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
+void kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
 {
-    return 0;
 }
 
-int kvm_arch_post_run(CPUState *env, struct kvm_run *run)
+void kvm_arch_post_run(CPUState *env, struct kvm_run *run)
 {
-    return 0;
 }
 
 int kvm_arch_process_irqchip_events(CPUState *env)
@@ -504,4 +502,14 @@ int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
 bool kvm_arch_stop_on_emulation_error(CPUState *env)
 {
     return true;
+}
+
+int kvm_arch_on_sigbus_vcpu(CPUState *env, int code, void *addr)
+{
+    return 1;
+}
+
+int kvm_arch_on_sigbus(int code, void *addr)
+{
+    return 1;
 }

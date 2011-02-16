@@ -2078,6 +2078,36 @@ int cpu_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
     return ret;
 }
 
+int cpu_physical_log_start(target_phys_addr_t start_addr,
+                           ram_addr_t size)
+{
+    CPUPhysMemoryClient *client;
+    QLIST_FOREACH(client, &memory_client_list, list) {
+        if (client->log_start) {
+            int r = client->log_start(client, start_addr, size);
+            if (r < 0) {
+                return r;
+            }
+        }
+    }
+    return 0;
+}
+
+int cpu_physical_log_stop(target_phys_addr_t start_addr,
+                          ram_addr_t size)
+{
+    CPUPhysMemoryClient *client;
+    QLIST_FOREACH(client, &memory_client_list, list) {
+        if (client->log_stop) {
+            int r = client->log_stop(client, start_addr, size);
+            if (r < 0) {
+                return r;
+            }
+        }
+    }
+    return 0;
+}
+
 static inline void tlb_update_dirty(CPUTLBEntry *tlb_entry)
 {
     ram_addr_t ram_addr;

@@ -959,6 +959,12 @@ int cpu_physical_memory_get_dirty_tracking(void);
 int cpu_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
                                    target_phys_addr_t end_addr);
 
+int cpu_physical_log_start(target_phys_addr_t start_addr,
+                           ram_addr_t size);
+
+int cpu_physical_log_stop(target_phys_addr_t start_addr,
+                          ram_addr_t size);
+
 void dump_exec_info(FILE *f, fprintf_function cpu_fprintf);
 #endif /* !CONFIG_USER_ONLY */
 

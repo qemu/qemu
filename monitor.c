@@ -1255,7 +1255,7 @@ static void do_singlestep(Monitor *mon, const QDict *qdict)
  */
 static int do_stop(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
-    vm_stop(EXCP_INTERRUPT);
+    vm_stop(VMSTOP_USER);
     return 0;
 }
 
@@ -2783,7 +2783,7 @@ static void do_loadvm(Monitor *mon, const QDict *qdict)
     int saved_vm_running  = vm_running;
     const char *name = qdict_get_str(qdict, "name");
 
-    vm_stop(0);
+    vm_stop(VMSTOP_LOADVM);
 
     if (load_vmstate(name) == 0 && saved_vm_running) {
         vm_start();

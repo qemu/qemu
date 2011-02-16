@@ -78,7 +78,7 @@ struct KVMState
     int many_ioeventfds;
 };
 
-static KVMState *kvm_state;
+KVMState *kvm_state;
 
 static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_INFO(USER_MEMORY),
@@ -91,10 +91,6 @@ static KVMSlot *kvm_alloc_slot(KVMState *s)
     int i;
 
     for (i = 0; i < ARRAY_SIZE(s->slots); i++) {
-        /* KVM private memory slots */
-        if (i >= 8 && i < 12) {
-            continue;
-        }
         if (s->slots[i].memory_size == 0) {
             return &s->slots[i];
         }
@@ -199,7 +195,6 @@ int kvm_pit_in_kernel(void)
     return kvm_state->pit_in_kernel;
 }
 
-
 int kvm_init_vcpu(CPUState *env)
 {
     KVMState *s = kvm_state;
@@ -219,6 +214,7 @@ int kvm_init_vcpu(CPUState *env)
 
     mmap_size = kvm_ioctl(s, KVM_GET_VCPU_MMAP_SIZE, 0);
     if (mmap_size < 0) {
+        ret = mmap_size;
         DPRINTF("KVM_GET_VCPU_MMAP_SIZE failed\n");
         goto err;
     }
@@ -278,13 +274,15 @@ static int kvm_dirty_pages_log_change(target_phys_addr_t phys_addr,
     return kvm_set_user_memory_region(s, mem);
 }
 
-int kvm_log_start(target_phys_addr_t phys_addr, ram_addr_t size)
+static int kvm_log_start(CPUPhysMemoryClient *client,
+                         target_phys_addr_t phys_addr, ram_addr_t size)
 {
     return kvm_dirty_pages_log_change(phys_addr, size, KVM_MEM_LOG_DIRTY_PAGES,
                                       KVM_MEM_LOG_DIRTY_PAGES);
 }
 
-int kvm_log_stop(target_phys_addr_t phys_addr, ram_addr_t size)
+static int kvm_log_stop(CPUPhysMemoryClient *client,
+                        target_phys_addr_t phys_addr, ram_addr_t size)
 {
     return kvm_dirty_pages_log_change(phys_addr, size, 0,
                                       KVM_MEM_LOG_DIRTY_PAGES);
@@ -648,6 +646,8 @@ static CPUPhysMemoryClient kvm_cpu_phys_memory_client = {
     .set_memory = kvm_client_set_memory,
     .sync_dirty_bitmap = kvm_client_sync_dirty_bitmap,
     .migration_log = kvm_client_migration_log,
+    .log_start = kvm_log_start,
+    .log_stop = kvm_log_stop,
 };
 
 int kvm_init(void)
@@ -774,8 +774,8 @@ err:
     return ret;
 }
 
-static int kvm_handle_io(uint16_t port, void *data, int direction, int size,
-                         uint32_t count)
+static void kvm_handle_io(uint16_t port, void *data, int direction, int size,
+                          uint32_t count)
 {
     int i;
     uint8_t *ptr = data;
@@ -809,8 +809,6 @@ static int kvm_handle_io(uint16_t port, void *data, int direction, int size,
 
         ptr += size;
     }
-
-    return 1;
 }
 
 #ifdef KVM_CAP_INTERNAL_ERROR_DATA
@@ -895,29 +893,34 @@ int kvm_cpu_exec(CPUState *env)
 
     DPRINTF("kvm_cpu_exec()\n");
 
+    if (kvm_arch_process_irqchip_events(env)) {
+        env->exit_request = 0;
+        return EXCP_HLT;
+    }
+
+    cpu_single_env = env;
+
     do {
-#ifndef CONFIG_IOTHREAD
-        if (env->exit_request) {
-            DPRINTF("interrupt exit requested\n");
-            ret = 0;
-            break;
-        }
-#endif
-
-        if (kvm_arch_process_irqchip_events(env)) {
-            ret = 0;
-            break;
-        }
-
         if (env->kvm_vcpu_dirty) {
             kvm_arch_put_registers(env, KVM_PUT_RUNTIME_STATE);
             env->kvm_vcpu_dirty = 0;
         }
 
         kvm_arch_pre_run(env, run);
+        if (env->exit_request) {
+            DPRINTF("interrupt exit requested\n");
+            /*
+             * KVM requires us to reenter the kernel after IO exits to complete
+             * instruction emulation. This self-signal will ensure that we
+             * leave ASAP again.
+             */
+            qemu_cpu_kick_self();
+        }
         cpu_single_env = NULL;
         qemu_mutex_unlock_iothread();
+
         ret = kvm_vcpu_ioctl(env, KVM_RUN, 0);
+
         qemu_mutex_lock_iothread();
         cpu_single_env = env;
         kvm_arch_post_run(env, run);
@@ -925,7 +928,6 @@ int kvm_cpu_exec(CPUState *env)
         kvm_flush_coalesced_mmio_buffer();
 
         if (ret == -EINTR || ret == -EAGAIN) {
-            cpu_exit(env);
             DPRINTF("io window exit\n");
             ret = 0;
             break;
@@ -940,11 +942,12 @@ int kvm_cpu_exec(CPUState *env)
         switch (run->exit_reason) {
         case KVM_EXIT_IO:
             DPRINTF("handle_io\n");
-            ret = kvm_handle_io(run->io.port,
-                                (uint8_t *)run + run->io.data_offset,
-                                run->io.direction,
-                                run->io.size,
-                                run->io.count);
+            kvm_handle_io(run->io.port,
+                          (uint8_t *)run + run->io.data_offset,
+                          run->io.direction,
+                          run->io.size,
+                          run->io.count);
+            ret = 1;
             break;
         case KVM_EXIT_MMIO:
             DPRINTF("handle_mmio\n");
@@ -960,7 +963,6 @@ int kvm_cpu_exec(CPUState *env)
         case KVM_EXIT_SHUTDOWN:
             DPRINTF("shutdown\n");
             qemu_system_reset_request();
-            ret = 1;
             break;
         case KVM_EXIT_UNKNOWN:
             fprintf(stderr, "KVM: unknown exit, hardware reason %" PRIx64 "\n",
@@ -976,8 +978,8 @@ int kvm_cpu_exec(CPUState *env)
             DPRINTF("kvm_exit_debug\n");
 #ifdef KVM_CAP_SET_GUEST_DEBUG
             if (kvm_arch_debug(&run->debug.arch)) {
-                env->exception_index = EXCP_DEBUG;
-                return 0;
+                ret = EXCP_DEBUG;
+                goto out;
             }
             /* re-enter, this exception was guest-internal */
             ret = 1;
@@ -992,14 +994,13 @@ int kvm_cpu_exec(CPUState *env)
 
     if (ret < 0) {
         cpu_dump_state(env, stderr, fprintf, CPU_DUMP_CODE);
-        vm_stop(0);
-        env->exit_request = 1;
+        vm_stop(VMSTOP_PANIC);
     }
-    if (env->exit_request) {
-        env->exit_request = 0;
-        env->exception_index = EXCP_INTERRUPT;
-    }
+    ret = EXCP_INTERRUPT;
 
+out:
+    env->exit_request = 0;
+    cpu_single_env = NULL;
     return ret;
 }
 
@@ -1364,4 +1365,14 @@ int kvm_set_ioeventfd_pio_word(int fd, uint16_t addr, uint16_t val, bool assign)
 #else
     return -ENOSYS;
 #endif
+}
+
+int kvm_on_sigbus_vcpu(CPUState *env, int code, void *addr)
+{
+    return kvm_arch_on_sigbus_vcpu(env, code, addr);
+}
+
+int kvm_on_sigbus(int code, void *addr)
+{
+    return kvm_arch_on_sigbus(code, addr);
 }

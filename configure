@@ -2057,6 +2057,12 @@ EOF
 
 if compile_prog "" "" ; then
   signalfd=yes
+elif test "$kvm" = "yes" -a "$io_thread" != "yes"; then
+  echo
+  echo "ERROR: Host kernel lacks signalfd() support,"
+  echo "but KVM depends on it when the IO thread is disabled."
+  echo
+  exit 1
 fi
 
 # check if eventfd is supported
