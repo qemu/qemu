@@ -50,7 +50,7 @@ static void
 mst_fpga_set_irq(void *opaque, int irq, int level)
 {
 	mst_irq_state *s = (mst_irq_state *)opaque;
-	uint32_t oldint = s->intsetclr;
+	uint32_t oldint = s->intsetclr & s->intmskena;
 
 	if (level)
 		s->prev_level |= 1u << irq;
@@ -139,7 +139,7 @@ mst_fpga_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
 		break;
 	case MST_INTSETCLR:	/* clear or set interrupt */
 		s->intsetclr = (value & 0xFEEFF);
-		qemu_set_irq(s->parent, s->intsetclr);
+		qemu_set_irq(s->parent, s->intsetclr & s->intmskena);
 		break;
 	case MST_PCMCIA0:
 		s->pcmcia0 = value;
