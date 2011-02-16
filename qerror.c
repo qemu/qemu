@@ -201,6 +201,11 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "An undefined error has ocurred",
     },
     {
+        .error_fmt = QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
+        .desc      = "'%(device)' uses a %(format) feature which is not "
+                     "supported by this qemu version: %(feature)",
+    },
+    {
         .error_fmt = QERR_VNC_SERVER_FAILED,
         .desc      = "Could not start VNC server on %(target)",
     },

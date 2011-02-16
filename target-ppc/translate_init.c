@@ -154,12 +154,26 @@ static void spr_read_ureg (void *opaque, int gprn, int sprn)
 #if !defined(CONFIG_USER_ONLY)
 static void spr_read_decr (void *opaque, int gprn, int sprn)
 {
+    if (use_icount) {
+        gen_io_start();
+    }
     gen_helper_load_decr(cpu_gpr[gprn]);
+    if (use_icount) {
+        gen_io_end();
+        gen_stop_exception(opaque);
+    }
 }
 
 static void spr_write_decr (void *opaque, int sprn, int gprn)
 {
+    if (use_icount) {
+        gen_io_start();
+    }
     gen_helper_store_decr(cpu_gpr[gprn]);
+    if (use_icount) {
+        gen_io_end();
+        gen_stop_exception(opaque);
+    }
 }
 #endif
 
@@ -167,12 +181,26 @@ static void spr_write_decr (void *opaque, int sprn, int gprn)
 /* Time base */
 static void spr_read_tbl (void *opaque, int gprn, int sprn)
 {
+    if (use_icount) {
+        gen_io_start();
+    }
     gen_helper_load_tbl(cpu_gpr[gprn]);
+    if (use_icount) {
+        gen_io_end();
+        gen_stop_exception(opaque);
+    }
 }
 
 static void spr_read_tbu (void *opaque, int gprn, int sprn)
 {
+    if (use_icount) {
+        gen_io_start();
+    }
     gen_helper_load_tbu(cpu_gpr[gprn]);
+    if (use_icount) {
+        gen_io_end();
+        gen_stop_exception(opaque);
+    }
 }
 
 __attribute__ (( unused ))
@@ -190,12 +218,26 @@ static void spr_read_atbu (void *opaque, int gprn, int sprn)
 #if !defined(CONFIG_USER_ONLY)
 static void spr_write_tbl (void *opaque, int sprn, int gprn)
 {
+    if (use_icount) {
+        gen_io_start();
+    }
     gen_helper_store_tbl(cpu_gpr[gprn]);
+    if (use_icount) {
+        gen_io_end();
+        gen_stop_exception(opaque);
+    }
 }
 
 static void spr_write_tbu (void *opaque, int sprn, int gprn)
 {
+    if (use_icount) {
+        gen_io_start();
+    }
     gen_helper_store_tbu(cpu_gpr[gprn]);
+    if (use_icount) {
+        gen_io_end();
+        gen_stop_exception(opaque);
+    }
 }
 
 __attribute__ (( unused ))

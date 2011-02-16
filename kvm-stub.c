@@ -33,16 +33,6 @@ int kvm_init_vcpu(CPUState *env)
     return -ENOSYS;
 }
 
-int kvm_log_start(target_phys_addr_t phys_addr, ram_addr_t size)
-{
-    return -ENOSYS;
-}
-
-int kvm_log_stop(target_phys_addr_t phys_addr, ram_addr_t size)
-{
-    return -ENOSYS;
-}
-
 int kvm_coalesce_mmio_region(target_phys_addr_t start, ram_addr_t size)
 {
     return -ENOSYS;
@@ -145,6 +135,11 @@ int kvm_set_ioeventfd_pio_word(int fd, uint16_t addr, uint16_t val, bool assign)
 int kvm_set_ioeventfd_mmio_long(int fd, uint32_t adr, uint32_t val, bool assign)
 {
     return -ENOSYS;
+}
+
+int kvm_on_sigbus_vcpu(CPUState *env, int code, void *addr)
+{
+    return 1;
 }
 
 int kvm_on_sigbus(int code, void *addr)

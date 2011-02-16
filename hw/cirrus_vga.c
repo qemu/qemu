@@ -31,7 +31,6 @@
 #include "pci.h"
 #include "console.h"
 #include "vga_int.h"
-#include "kvm.h"
 #include "loader.h"
 
 /*

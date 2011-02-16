@@ -213,8 +213,9 @@ static BlockDriverState *bdrv_new_open(const char *filename,
     BlockDriverState *bs;
     BlockDriver *drv;
     char password[256];
+    int ret;
 
-    bs = bdrv_new("");
+    bs = bdrv_new("image");
 
     if (fmt) {
         drv = bdrv_find_format(fmt);
@@ -225,10 +226,13 @@ static BlockDriverState *bdrv_new_open(const char *filename,
     } else {
         drv = NULL;
     }
-    if (bdrv_open(bs, filename, flags, drv) < 0) {
-        error_report("Could not open '%s'", filename);
+
+    ret = bdrv_open(bs, filename, flags, drv);
+    if (ret < 0) {
+        error_report("Could not open '%s': %s", filename, strerror(-ret));
         goto fail;
     }
+
     if (bdrv_is_encrypted(bs)) {
         printf("Disk image '%s' is encrypted.\n", filename);
         if (read_password(password, sizeof(password)) < 0) {

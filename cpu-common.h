@@ -96,6 +96,10 @@ struct CPUPhysMemoryClient {
                              target_phys_addr_t end_addr);
     int (*migration_log)(struct CPUPhysMemoryClient *client,
                          int enable);
+    int (*log_start)(struct CPUPhysMemoryClient *client,
+                     target_phys_addr_t phys_addr, ram_addr_t size);
+    int (*log_stop)(struct CPUPhysMemoryClient *client,
+                    target_phys_addr_t phys_addr, ram_addr_t size);
     QLIST_ENTRY(CPUPhysMemoryClient) list;
 };
 
