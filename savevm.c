@@ -1930,8 +1930,8 @@ void do_savevm(Monitor *mon, const QDict *qdict)
         }
     } else {
 #ifdef _WIN32
-        /* TODO: needs fix for win64. */
-        ptm = localtime(&tb.time);
+        time_t t = tb.time;
+        ptm = localtime(&t);
         strftime(sn->name, sizeof(sn->name), "vm-%Y%m%d%H%M%S", ptm);
 #else
         /* cast below needed for OpenBSD where tv_sec is still 'long' */
