@@ -1,0 +1,3 @@
+* disassembler (lm32-dis.c)
+* linux-user emulation
+* native bp/wp emulation (?)
