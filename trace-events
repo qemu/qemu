@@ -263,3 +263,9 @@ disable lm32_pic_set_im(uint32_t im) "im 0x%08x"
 disable lm32_pic_set_ip(uint32_t ip) "ip 0x%08x"
 disable lm32_pic_get_im(uint32_t im) "im 0x%08x"
 disable lm32_pic_get_ip(uint32_t ip) "ip 0x%08x"
+
+# hw/lm32_juart.c
+disable lm32_juart_get_jtx(uint32_t value) "jtx 0x%08x"
+disable lm32_juart_set_jtx(uint32_t value) "jtx 0x%08x"
+disable lm32_juart_get_jrx(uint32_t value) "jrx 0x%08x"
+disable lm32_juart_set_jrx(uint32_t value) "jrx 0x%08x"
