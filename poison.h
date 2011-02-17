@@ -10,6 +10,7 @@
 #pragma GCC poison TARGET_ALPHA
 #pragma GCC poison TARGET_ARM
 #pragma GCC poison TARGET_CRIS
+#pragma GCC poison TARGET_LM32
 #pragma GCC poison TARGET_M68K
 #pragma GCC poison TARGET_MIPS
 #pragma GCC poison TARGET_MIPS64

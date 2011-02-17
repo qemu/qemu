@@ -239,6 +239,7 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_ALPHA)
 #elif defined(TARGET_ARM)
 #elif defined(TARGET_PPC)
+#elif defined(TARGET_LM32)
 #elif defined(TARGET_MICROBLAZE)
 #elif defined(TARGET_MIPS)
 #elif defined(TARGET_SH4)
@@ -292,6 +293,8 @@ int cpu_exec(CPUState *env1)
                     env->old_exception = -1;
 #elif defined(TARGET_PPC)
                     do_interrupt(env);
+#elif defined(TARGET_LM32)
+                    do_interrupt(env);
 #elif defined(TARGET_MICROBLAZE)
                     do_interrupt(env);
 #elif defined(TARGET_MIPS)
@@ -332,7 +335,7 @@ int cpu_exec(CPUState *env1)
                     }
 #if defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_MIPS) || \
     defined(TARGET_PPC) || defined(TARGET_ALPHA) || defined(TARGET_CRIS) || \
-    defined(TARGET_MICROBLAZE)
+    defined(TARGET_MICROBLAZE) || defined(TARGET_LM32)
                     if (interrupt_request & CPU_INTERRUPT_HALT) {
                         env->interrupt_request &= ~CPU_INTERRUPT_HALT;
                         env->halted = 1;
@@ -410,6 +413,13 @@ int cpu_exec(CPUState *env1)
                         ppc_hw_interrupt(env);
                         if (env->pending_interrupts == 0)
                             env->interrupt_request &= ~CPU_INTERRUPT_HARD;
+                        next_tb = 0;
+                    }
+#elif defined(TARGET_LM32)
+                    if ((interrupt_request & CPU_INTERRUPT_HARD)
+                        && (env->ie & IE_IE)) {
+                        env->exception_index = EXCP_IRQ;
+                        do_interrupt(env);
                         next_tb = 0;
                     }
 #elif defined(TARGET_MICROBLAZE)
@@ -624,6 +634,7 @@ int cpu_exec(CPUState *env1)
     /* XXX: Save/restore host fpu exception state?.  */
 #elif defined(TARGET_SPARC)
 #elif defined(TARGET_PPC)
+#elif defined(TARGET_LM32)
 #elif defined(TARGET_M68K)
     cpu_m68k_flush_flags(env, env->cc_op);
     env->cc_op = CC_OP_FLAGS;
