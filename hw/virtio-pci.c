@@ -789,6 +789,7 @@ static int virtio_serial_exit_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
 
+    virtio_pci_stop_ioeventfd(proxy);
     virtio_serial_exit(proxy->vdev);
     return virtio_exit_pci(pci_dev);
 }
@@ -898,6 +899,8 @@ static PCIDeviceInfo virtio_info[] = {
         .init      = virtio_serial_init_pci,
         .exit      = virtio_serial_exit_pci,
         .qdev.props = (Property[]) {
+            DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags,
+                            VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
             DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors,
                                DEV_NVECTORS_UNSPECIFIED),
             DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
