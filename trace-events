@@ -269,3 +269,9 @@ disable lm32_juart_get_jtx(uint32_t value) "jtx 0x%08x"
 disable lm32_juart_set_jtx(uint32_t value) "jtx 0x%08x"
 disable lm32_juart_get_jrx(uint32_t value) "jrx 0x%08x"
 disable lm32_juart_set_jrx(uint32_t value) "jrx 0x%08x"
+
+# hw/lm32_timer.c
+disable lm32_timer_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
+disable lm32_timer_memory_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
+disable lm32_timer_hit(void) "timer hit"
+disable lm32_timer_irq_state(int level) "irq state %d"
