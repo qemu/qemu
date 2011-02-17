@@ -70,6 +70,11 @@ M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
 F: target-cris/
 
+LM32
+M: Michael Walle <michael@walle.cc>
+S: Maintained
+F: target-lm32/
+
 M68K
 M: Paul Brook <paul@codesourcery.com>
 S: Maintained
@@ -201,6 +206,13 @@ etraxfs
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
 F: hw/etraxfs.c
+
+LM32 Machines
+-------------
+EVR32 and uclinux BSP
+M: Michael Walle <michael@walle.cc>
+S: Maintained
+F: hw/lm32_boards.c
 
 M68K Machines
 -------------
