@@ -280,3 +280,6 @@ disable lm32_timer_irq_state(int level) "irq state %d"
 disable lm32_uart_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
 disable lm32_uart_memory_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
 disable lm32_uart_irq_state(int level) "irq state %d"
+
+# hw/lm32_sys.c
+disable lm32_sys_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
