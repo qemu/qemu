@@ -110,7 +110,7 @@ static void pc_init1(ram_addr_t ram_size,
     }
     isa_bus_irqs(isa_irq);
 
-    pc_register_ferr_irq(isa_reserve_irq(13));
+    pc_register_ferr_irq(isa_get_irq(13));
 
     pc_vga_init(pci_enabled? pci_bus: NULL);
 
@@ -166,7 +166,7 @@ static void pc_init1(ram_addr_t ram_size,
         smi_irq = qemu_allocate_irqs(pc_acpi_smi_interrupt, first_cpu, 1);
         /* TODO: Populate SPD eeprom data.  */
         smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
-                              isa_reserve_irq(9), *cmos_s3, *smi_irq,
+                              isa_get_irq(9), *cmos_s3, *smi_irq,
                               kvm_enabled());
         for (i = 0; i < 8; i++) {
             DeviceState *eeprom;

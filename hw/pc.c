@@ -1110,7 +1110,7 @@ void pc_basic_device_init(qemu_irq *isa_irq,
 
     qemu_register_boot_set(pc_boot_set, *rtc_state);
 
-    pit = pit_init(0x40, isa_reserve_irq(0));
+    pit = pit_init(0x40, isa_get_irq(0));
     pcspk_init(pit);
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {

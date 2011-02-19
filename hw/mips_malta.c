@@ -919,7 +919,7 @@ void mips_malta_init (ram_addr_t ram_size,
     isa_bus_irqs(i8259);
     pci_piix4_ide_init(pci_bus, hd, piix4_devfn + 1);
     usb_uhci_piix4_init(pci_bus, piix4_devfn + 2);
-    smbus = piix4_pm_init(pci_bus, piix4_devfn + 3, 0x1100, isa_reserve_irq(9),
+    smbus = piix4_pm_init(pci_bus, piix4_devfn + 3, 0x1100, isa_get_irq(9),
                           NULL, NULL, 0);
     eeprom_buf = qemu_mallocz(8 * 256); /* XXX: make this persistent */
     for (i = 0; i < 8; i++) {
@@ -930,7 +930,7 @@ void mips_malta_init (ram_addr_t ram_size,
         qdev_prop_set_ptr(eeprom, "data", eeprom_buf + (i * 256));
         qdev_init_nofail(eeprom);
     }
-    pit = pit_init(0x40, isa_reserve_irq(0));
+    pit = pit_init(0x40, isa_get_irq(0));
     cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
     DMA_init(0, cpu_exit_irq);
 
