@@ -435,8 +435,8 @@ static void sim_task_by_acb (SimAIOCB * acb)
                 if (sim_read
                     (bs, acb->sector_num, acb->qiov->iov->iov_base,
                      acb->nb_sectors) != 0) {
-                    fprintf (stderr, "Error in reading %s sector_num=%lld "
-                             "nb_sectors=%d\n", acb->common.bs->filename,
+                    fprintf (stderr, "Error in reading %s sector_num=%" PRId64
+                             " nb_sectors=%d\n", acb->common.bs->filename,
                              acb->sector_num, acb->nb_sectors);
                     exit (1);
                 }
@@ -444,8 +444,8 @@ static void sim_task_by_acb (SimAIOCB * acb)
                 uint8_t *buf =
                     qemu_blockalign (acb->common.bs, acb->qiov->size);
                 if (sim_read (bs, acb->sector_num, buf, acb->nb_sectors) != 0) {
-                    fprintf (stderr, "Error in reading %s sector_num=%lld "
-                             "nb_sectors=%d\n", acb->common.bs->filename,
+                    fprintf (stderr, "Error in reading %s sector_num=%" PRId64
+                             " nb_sectors=%d\n", acb->common.bs->filename,
                              acb->sector_num, acb->nb_sectors);
                     exit (1);
                 }
@@ -465,8 +465,8 @@ static void sim_task_by_acb (SimAIOCB * acb)
                 if (sim_write
                     (bs, acb->sector_num, acb->qiov->iov->iov_base,
                      acb->nb_sectors) != 0) {
-                    fprintf (stderr, "Error in writing %s sector_num=%lld "
-                             "nb_sectors=%d\n", acb->common.bs->filename,
+                    fprintf (stderr, "Error in writing %s sector_num=%" PRId64
+                             " nb_sectors=%d\n", acb->common.bs->filename,
                              acb->sector_num, acb->nb_sectors);
                     exit (1);
                 }
@@ -475,8 +475,8 @@ static void sim_task_by_acb (SimAIOCB * acb)
                                                 acb->qiov->size);
                 qemu_iovec_to_buffer (acb->qiov, buf);
                 if (sim_write (bs, acb->sector_num, buf, acb->nb_sectors)!= 0) {
-                    fprintf (stderr, "Error in writing %s sector_num=%lld "
-                             "nb_sectors=%d\n", acb->common.bs->filename,
+                    fprintf (stderr, "Error in writing %s sector_num=%" PRId64
+                             " nb_sectors=%d\n", acb->common.bs->filename,
                              acb->sector_num, acb->nb_sectors);
                     exit (1);
                 }

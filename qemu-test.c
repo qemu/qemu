@@ -187,8 +187,8 @@ static int verify (uint8_t * truth_buf, uint8_t * test_buf,
         int64_t offset = i * 512;
         if (memcmp (&truth_buf[offset], &test_buf[offset], 512) != 0) {
             int j;
-            printf ("Sector %lld differs\n", sector_num + i);
-            QDEBUG ("Sector %lld differs\n", sector_num + i);
+            printf ("Sector %" PRId64 " differs\n", sector_num + i);
+            QDEBUG ("Sector %" PRId64 " differs\n", sector_num + i);
             for (j = 0; j < 512; j++) {
                 if (truth_buf[offset + j] == test_buf[offset + j]) {
                     QDEBUG ("%02d: %02X  %02X\n", j, truth_buf[offset + j],
@@ -595,8 +595,8 @@ static void perform_test(const char *truth_file, const char *test_file,
     int64_t l0 = lseek (fd, 0, SEEK_END);
     int64_t l1 = bdrv_getlength (bs);
     if (l0 < 0 || l1 < 0 || l0 < l1) {
-        die ("Mismatch: truth image %s length %lld, test image %s "
-             "length %lld\n", truth_file, l0, test_file, l1);
+        die ("Mismatch: truth image %s length %" PRId64 ", test image %s "
+             "length %" PRId64 "\n", truth_file, l0, test_file, l1);
     }
 
     total_sectors = l1 / 512;
