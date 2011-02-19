@@ -43,15 +43,15 @@ typedef struct _VMPortState
     void *opaque[VMPORT_ENTRIES];
 } VMPortState;
 
-static VMPortState port_state;
+static VMPortState *port_state;
 
 void vmport_register(unsigned char command, IOPortReadFunc *func, void *opaque)
 {
     if (command >= VMPORT_ENTRIES)
         return;
 
-    port_state.func[command] = func;
-    port_state.opaque[command] = opaque;
+    port_state->func[command] = func;
+    port_state->opaque[command] = opaque;
 }
 
 static uint32_t vmport_ioport_read(void *opaque, uint32_t addr)
@@ -125,9 +125,10 @@ static int vmport_initfn(ISADevice *dev)
 {
     VMPortState *s = DO_UPCAST(VMPortState, dev, dev);
 
-    register_ioport_read(0x5658, 1, 4, vmport_ioport_read, &s);
-    register_ioport_write(0x5658, 1, 4, vmport_ioport_write, &s);
+    register_ioport_read(0x5658, 1, 4, vmport_ioport_read, s);
+    register_ioport_write(0x5658, 1, 4, vmport_ioport_write, s);
     isa_init_ioport(dev, 0x5658);
+    port_state = s;
     /* Register some generic port commands */
     vmport_register(VMPORT_CMD_GETVERSION, vmport_cmd_get_version, NULL);
     vmport_register(VMPORT_CMD_GETRAMSIZE, vmport_cmd_ram_size, NULL);
