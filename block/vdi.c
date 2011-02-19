@@ -610,6 +610,7 @@ static void vdi_aio_read_cb(void *opaque, int ret)
         acb->hd_aiocb = bdrv_aio_readv(bs->file, offset, &acb->hd_qiov,
                                        n_sectors, vdi_aio_read_cb, acb);
         if (acb->hd_aiocb == NULL) {
+            ret = -EIO;
             goto done;
         }
     }
@@ -673,6 +674,7 @@ static void vdi_aio_write_cb(void *opaque, int ret)
             acb->hd_aiocb = bdrv_aio_writev(bs->file, 0, &acb->hd_qiov, 1,
                                             vdi_aio_write_cb, acb);
             if (acb->hd_aiocb == NULL) {
+                ret = -EIO;
                 goto done;
             }
             return;
@@ -702,6 +704,7 @@ static void vdi_aio_write_cb(void *opaque, int ret)
             acb->hd_aiocb = bdrv_aio_writev(bs->file, offset, &acb->hd_qiov,
                                             n_sectors, vdi_aio_write_cb, acb);
             if (acb->hd_aiocb == NULL) {
+                ret = -EIO;
                 goto done;
             }
             return;
@@ -752,6 +755,7 @@ static void vdi_aio_write_cb(void *opaque, int ret)
                                         &acb->hd_qiov, s->block_sectors,
                                         vdi_aio_write_cb, acb);
         if (acb->hd_aiocb == NULL) {
+            ret = -EIO;
             goto done;
         }
     } else {
@@ -764,6 +768,7 @@ static void vdi_aio_write_cb(void *opaque, int ret)
         acb->hd_aiocb = bdrv_aio_writev(bs->file, offset, &acb->hd_qiov,
                                         n_sectors, vdi_aio_write_cb, acb);
         if (acb->hd_aiocb == NULL) {
+            ret = -EIO;
             goto done;
         }
     }
