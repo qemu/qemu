@@ -589,8 +589,10 @@ static void qcow_aio_read_cb(void *opaque, int ret)
             qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
             acb->hd_aiocb = bdrv_aio_readv(bs->backing_hd, acb->sector_num,
                 &acb->hd_qiov, acb->n, qcow_aio_read_cb, acb);
-            if (acb->hd_aiocb == NULL)
+            if (acb->hd_aiocb == NULL) {
+                ret = -EIO;
                 goto done;
+            }
         } else {
             /* Note: in this case, no need to wait */
             memset(acb->buf, 0, 512 * acb->n);
@@ -598,8 +600,10 @@ static void qcow_aio_read_cb(void *opaque, int ret)
         }
     } else if (acb->cluster_offset & QCOW_OFLAG_COMPRESSED) {
         /* add AIO support for compressed blocks ? */
-        if (decompress_cluster(bs, acb->cluster_offset) < 0)
+        if (decompress_cluster(bs, acb->cluster_offset) < 0) {
+            ret = -EIO;
             goto done;
+        }
         memcpy(acb->buf,
                s->cluster_cache + index_in_cluster * 512, 512 * acb->n);
         goto redo;
@@ -614,8 +618,10 @@ static void qcow_aio_read_cb(void *opaque, int ret)
         acb->hd_aiocb = bdrv_aio_readv(bs->file,
                             (acb->cluster_offset >> 9) + index_in_cluster,
                             &acb->hd_qiov, acb->n, qcow_aio_read_cb, acb);
-        if (acb->hd_aiocb == NULL)
+        if (acb->hd_aiocb == NULL) {
+            ret = -EIO;
             goto done;
+        }
     }
 
     return;
@@ -700,8 +706,10 @@ static void qcow_aio_write_cb(void *opaque, int ret)
                                     (cluster_offset >> 9) + index_in_cluster,
                                     &acb->hd_qiov, acb->n,
                                     qcow_aio_write_cb, acb);
-    if (acb->hd_aiocb == NULL)
+    if (acb->hd_aiocb == NULL) {
+        ret = -EIO;
         goto done;
+    }
     return;
 
 done:
