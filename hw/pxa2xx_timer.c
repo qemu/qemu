@@ -89,11 +89,11 @@ typedef struct {
     uint32_t irq_enabled;
     uint32_t reset3;
     uint32_t snapshot;
-} pxa2xx_timer_info;
+} PXA2xxTimerInfo;
 
 static void pxa2xx_timer_update(void *opaque, uint64_t now_qemu)
 {
-    pxa2xx_timer_info *s = (pxa2xx_timer_info *) opaque;
+    PXA2xxTimerInfo *s = (PXA2xxTimerInfo *) opaque;
     int i;
     uint32_t now_vm;
     uint64_t new_qemu;
@@ -110,7 +110,7 @@ static void pxa2xx_timer_update(void *opaque, uint64_t now_qemu)
 
 static void pxa2xx_timer_update4(void *opaque, uint64_t now_qemu, int n)
 {
-    pxa2xx_timer_info *s = (pxa2xx_timer_info *) opaque;
+    PXA2xxTimerInfo *s = (PXA2xxTimerInfo *) opaque;
     uint32_t now_vm;
     uint64_t new_qemu;
     static const int counters[8] = { 0, 0, 0, 0, 4, 4, 6, 6 };
@@ -137,7 +137,7 @@ static void pxa2xx_timer_update4(void *opaque, uint64_t now_qemu, int n)
 
 static uint32_t pxa2xx_timer_read(void *opaque, target_phys_addr_t offset)
 {
-    pxa2xx_timer_info *s = (pxa2xx_timer_info *) opaque;
+    PXA2xxTimerInfo *s = (PXA2xxTimerInfo *) opaque;
     int tm = 0;
 
     switch (offset) {
@@ -216,7 +216,7 @@ static void pxa2xx_timer_write(void *opaque, target_phys_addr_t offset,
                 uint32_t value)
 {
     int i, tm = 0;
-    pxa2xx_timer_info *s = (pxa2xx_timer_info *) opaque;
+    PXA2xxTimerInfo *s = (PXA2xxTimerInfo *) opaque;
 
     switch (offset) {
     case OSMR3:  tm ++;
@@ -334,7 +334,7 @@ static CPUWriteMemoryFunc * const pxa2xx_timer_writefn[] = {
 static void pxa2xx_timer_tick(void *opaque)
 {
     PXA2xxTimer0 *t = (PXA2xxTimer0 *) opaque;
-    pxa2xx_timer_info *i = (pxa2xx_timer_info *) t->info;
+    PXA2xxTimerInfo *i = (PXA2xxTimerInfo *) t->info;
 
     if (i->irq_enabled & (1 << t->num)) {
         t->level = 1;
@@ -352,7 +352,7 @@ static void pxa2xx_timer_tick(void *opaque)
 static void pxa2xx_timer_tick4(void *opaque)
 {
     PXA2xxTimer4 *t = (PXA2xxTimer4 *) opaque;
-    pxa2xx_timer_info *i = (pxa2xx_timer_info *) t->tm.info;
+    PXA2xxTimerInfo *i = (PXA2xxTimerInfo *) t->tm.info;
 
     pxa2xx_timer_tick(&t->tm);
     if (t->control & (1 << 3))
@@ -363,7 +363,7 @@ static void pxa2xx_timer_tick4(void *opaque)
 
 static void pxa2xx_timer_save(QEMUFile *f, void *opaque)
 {
-    pxa2xx_timer_info *s = (pxa2xx_timer_info *) opaque;
+    PXA2xxTimerInfo *s = (PXA2xxTimerInfo *) opaque;
     int i;
 
     qemu_put_be32s(f, (uint32_t *) &s->clock);
@@ -393,7 +393,7 @@ static void pxa2xx_timer_save(QEMUFile *f, void *opaque)
 
 static int pxa2xx_timer_load(QEMUFile *f, void *opaque, int version_id)
 {
-    pxa2xx_timer_info *s = (pxa2xx_timer_info *) opaque;
+    PXA2xxTimerInfo *s = (PXA2xxTimerInfo *) opaque;
     int64_t now;
     int i;
 
@@ -428,14 +428,14 @@ static int pxa2xx_timer_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static pxa2xx_timer_info *pxa2xx_timer_init(target_phys_addr_t base,
+static PXA2xxTimerInfo *pxa2xx_timer_init(target_phys_addr_t base,
                 DeviceState *pic)
 {
     int i;
     int iomemtype;
-    pxa2xx_timer_info *s;
+    PXA2xxTimerInfo *s;
 
-    s = (pxa2xx_timer_info *) qemu_mallocz(sizeof(pxa2xx_timer_info));
+    s = (PXA2xxTimerInfo *) qemu_mallocz(sizeof(PXA2xxTimerInfo));
     s->irq_enabled = 0;
     s->oldclock = 0;
     s->clock = 0;
@@ -464,14 +464,14 @@ static pxa2xx_timer_info *pxa2xx_timer_init(target_phys_addr_t base,
 
 void pxa25x_timer_init(target_phys_addr_t base, DeviceState *pic)
 {
-    pxa2xx_timer_info *s = pxa2xx_timer_init(base, pic);
+    PXA2xxTimerInfo *s = pxa2xx_timer_init(base, pic);
     s->freq = PXA25X_FREQ;
     s->tm4 = NULL;
 }
 
 void pxa27x_timer_init(target_phys_addr_t base, DeviceState *pic)
 {
-    pxa2xx_timer_info *s = pxa2xx_timer_init(base, pic);
+    PXA2xxTimerInfo *s = pxa2xx_timer_init(base, pic);
     int i;
     s->freq = PXA27X_FREQ;
     s->tm4 = (PXA2xxTimer4 *) qemu_mallocz(8 *
