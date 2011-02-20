@@ -2142,6 +2142,51 @@ if compile_prog "" "" ; then
   dup3=yes
 fi
 
+# check for epoll support
+epoll=no
+cat > $TMPC << EOF
+#include <sys/epoll.h>
+
+int main(void)
+{
+    epoll_create(0);
+    return 0;
+}
+EOF
+if compile_prog "$ARCH_CFLAGS" "" ; then
+  epoll=yes
+fi
+
+# epoll_create1 and epoll_pwait are later additions
+# so we must check separately for their presence
+epoll_create1=no
+cat > $TMPC << EOF
+#include <sys/epoll.h>
+
+int main(void)
+{
+    epoll_create1(0);
+    return 0;
+}
+EOF
+if compile_prog "$ARCH_CFLAGS" "" ; then
+  epoll_create1=yes
+fi
+
+epoll_pwait=no
+cat > $TMPC << EOF
+#include <sys/epoll.h>
+
+int main(void)
+{
+    epoll_pwait(0, 0, 0, 0, 0);
+    return 0;
+}
+EOF
+if compile_prog "$ARCH_CFLAGS" "" ; then
+  epoll_pwait=yes
+fi
+
 # Check if tools are available to build documentation.
 if test "$docs" != "no" ; then
   if has makeinfo && has pod2man; then
@@ -2674,6 +2719,15 @@ fi
 if test "$dup3" = "yes" ; then
   echo "CONFIG_DUP3=y" >> $config_host_mak
 fi
+if test "$epoll" = "yes" ; then
+  echo "CONFIG_EPOLL=y" >> $config_host_mak
+fi
+if test "$epoll_create1" = "yes" ; then
+  echo "CONFIG_EPOLL_CREATE1=y" >> $config_host_mak
+fi
+if test "$epoll_pwait" = "yes" ; then
+  echo "CONFIG_EPOLL_PWAIT=y" >> $config_host_mak
+fi
 if test "$inotify" = "yes" ; then
   echo "CONFIG_INOTIFY=y" >> $config_host_mak
 fi
@@ -2908,6 +2962,10 @@ target_nptl="no"
 interp_prefix1=`echo "$interp_prefix" | sed "s/%M/$target_arch2/g"`
 echo "CONFIG_QEMU_INTERP_PREFIX=\"$interp_prefix1\"" >> $config_target_mak
 gdb_xml_files=""
+target_short_alignment=2
+target_int_alignment=4
+target_long_alignment=4
+target_llong_alignment=8
 
 TARGET_ARCH="$target_arch2"
 TARGET_BASE_ARCH=""
@@ -2920,9 +2978,11 @@ case "$target_arch2" in
   x86_64)
     TARGET_BASE_ARCH=i386
     target_phys_bits=64
+    target_long_alignment=8
   ;;
   alpha)
     target_phys_bits=64
+    target_long_alignment=8
     target_nptl="yes"
   ;;
   arm|armeb)
@@ -2931,6 +2991,7 @@ case "$target_arch2" in
     target_nptl="yes"
     gdb_xml_files="arm-core.xml arm-vfp.xml arm-vfp3.xml arm-neon.xml"
     target_phys_bits=32
+    target_llong_alignment=4
   ;;
   cris)
     target_nptl="yes"
@@ -2940,6 +3001,9 @@ case "$target_arch2" in
     bflt="yes"
     gdb_xml_files="cf-core.xml cf-fp.xml"
     target_phys_bits=32
+    target_int_alignment=2
+    target_long_alignment=2
+    target_llong_alignment=2
   ;;
   microblaze)
     bflt="yes"
@@ -2963,6 +3027,7 @@ case "$target_arch2" in
     TARGET_BASE_ARCH=mips
     echo "TARGET_ABI_MIPSN64=y" >> $config_target_mak
     target_phys_bits=64
+    target_long_alignment=8
   ;;
   ppc)
     gdb_xml_files="power-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
@@ -2981,6 +3046,7 @@ case "$target_arch2" in
     TARGET_ABI_DIR=ppc
     gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
     target_phys_bits=64
+    target_long_alignment=8
   ;;
   ppc64abi32)
     TARGET_ARCH=ppc64
@@ -3002,6 +3068,7 @@ case "$target_arch2" in
   sparc64)
     TARGET_BASE_ARCH=sparc
     target_phys_bits=64
+    target_long_alignment=8
   ;;
   sparc32plus)
     TARGET_ARCH=sparc64
@@ -3018,6 +3085,10 @@ case "$target_arch2" in
     exit 1
   ;;
 esac
+echo "TARGET_SHORT_ALIGNMENT=$target_short_alignment" >> $config_target_mak
+echo "TARGET_INT_ALIGNMENT=$target_int_alignment" >> $config_target_mak
+echo "TARGET_LONG_ALIGNMENT=$target_long_alignment" >> $config_target_mak
+echo "TARGET_LLONG_ALIGNMENT=$target_llong_alignment" >> $config_target_mak
 echo "TARGET_ARCH=$TARGET_ARCH" >> $config_target_mak
 target_arch_name="`echo $TARGET_ARCH | tr '[:lower:]' '[:upper:]'`"
 echo "TARGET_$target_arch_name=y" >> $config_target_mak

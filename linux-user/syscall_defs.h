@@ -2206,3 +2206,16 @@ struct target_mq_attr {
 #define FUTEX_CLOCK_REALTIME    256
 #define FUTEX_CMD_MASK          ~(FUTEX_PRIVATE_FLAG | FUTEX_CLOCK_REALTIME)
 
+#ifdef CONFIG_EPOLL
+typedef union target_epoll_data {
+    abi_ulong ptr;
+    abi_ulong fd;
+    uint32_t u32;
+    uint64_t u64;
+} target_epoll_data_t;
+
+struct target_epoll_event {
+    uint32_t events;
+    target_epoll_data_t data;
+};
+#endif

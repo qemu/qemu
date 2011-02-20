@@ -103,13 +103,13 @@ enum {
 
 typedef target_ulong    target_elf_greg_t;
 #ifdef USE_UID16
-typedef uint16_t        target_uid_t;
-typedef uint16_t        target_gid_t;
+typedef target_ushort   target_uid_t;
+typedef target_ushort   target_gid_t;
 #else
-typedef uint32_t        target_uid_t;
-typedef uint32_t        target_gid_t;
+typedef target_uint     target_uid_t;
+typedef target_uint     target_gid_t;
 #endif
-typedef int32_t         target_pid_t;
+typedef target_int      target_pid_t;
 
 #ifdef TARGET_I386
 
@@ -1761,19 +1761,20 @@ struct memelfnote {
     size_t     namesz_rounded;
     int        type;
     size_t     datasz;
+    size_t     datasz_rounded;
     void       *data;
     size_t     notesz;
 };
 
 struct target_elf_siginfo {
-    int  si_signo; /* signal number */
-    int  si_code;  /* extra code */
-    int  si_errno; /* errno */
+    target_int  si_signo; /* signal number */
+    target_int  si_code;  /* extra code */
+    target_int  si_errno; /* errno */
 };
 
 struct target_elf_prstatus {
     struct target_elf_siginfo pr_info;      /* Info associated with signal */
-    short              pr_cursig;    /* Current signal */
+    target_short       pr_cursig;    /* Current signal */
     target_ulong       pr_sigpend;   /* XXX */
     target_ulong       pr_sighold;   /* XXX */
     target_pid_t       pr_pid;
@@ -1785,7 +1786,7 @@ struct target_elf_prstatus {
     struct target_timeval pr_cutime; /* XXX Cumulative user time */
     struct target_timeval pr_cstime; /* XXX Cumulative system time */
     target_elf_gregset_t      pr_reg;       /* GP registers */
-    int                pr_fpvalid;   /* XXX */
+    target_int         pr_fpvalid;   /* XXX */
 };
 
 #define ELF_PRARGSZ     (80) /* Number of chars for args */
@@ -2036,7 +2037,9 @@ static void fill_note(struct memelfnote *note, const char *name, int type,
     note->namesz = namesz;
     note->namesz_rounded = roundup(namesz, sizeof (int32_t));
     note->type = type;
-    note->datasz = roundup(sz, sizeof (int32_t));;
+    note->datasz = sz;
+    note->datasz_rounded = roundup(sz, sizeof (int32_t));
+
     note->data = data;
 
     /*
@@ -2044,7 +2047,7 @@ static void fill_note(struct memelfnote *note, const char *name, int type,
      * ELF document.
      */
     note->notesz = sizeof (struct elf_note) +
-        note->namesz_rounded + note->datasz;
+        note->namesz_rounded + note->datasz_rounded;
 }
 
 static void fill_elf_header(struct elfhdr *elf, int segs, uint16_t machine,
@@ -2264,7 +2267,7 @@ static int write_note(struct memelfnote *men, int fd)
         return (-1);
     if (dump_write(fd, men->name, men->namesz_rounded) != 0)
         return (-1);
-    if (dump_write(fd, men->data, men->datasz) != 0)
+    if (dump_write(fd, men->data, men->datasz_rounded) != 0)
         return (-1);
 
     return (0);
@@ -2480,7 +2483,7 @@ static int elf_core_dump(int signr, const CPUState *env)
      * ELF specification wants data to start at page boundary so
      * we align it here.
      */
-    offset = roundup(offset, ELF_EXEC_PAGESIZE);
+    data_offset = offset = roundup(offset, ELF_EXEC_PAGESIZE);
 
     /*
      * Write program headers for memory regions mapped in
@@ -2503,6 +2506,7 @@ static int elf_core_dump(int signr, const CPUState *env)
             phdr.p_flags |= PF_X;
         phdr.p_align = ELF_EXEC_PAGESIZE;
 
+        bswap_phdr(&phdr, 1);
         dump_write(fd, &phdr, sizeof (phdr));
     }
 
@@ -2514,8 +2518,6 @@ static int elf_core_dump(int signr, const CPUState *env)
         goto out;
 
     /* align data to page boundary */
-    data_offset = lseek(fd, 0, SEEK_CUR);
-    data_offset = TARGET_PAGE_ALIGN(data_offset);
     if (lseek(fd, data_offset, SEEK_SET) != data_offset)
         goto out;
 

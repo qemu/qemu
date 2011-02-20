@@ -66,6 +66,9 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #ifdef CONFIG_EVENTFD
 #include <sys/eventfd.h>
 #endif
+#ifdef CONFIG_EPOLL
+#include <sys/epoll.h>
+#endif
 
 #define termios host_termios
 #define winsize host_winsize
@@ -7610,6 +7613,110 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = get_errno(sync_file_range(arg1, arg3, arg4, arg2));
 #endif
         break;
+#endif
+#endif
+#if defined(CONFIG_EPOLL)
+#if defined(TARGET_NR_epoll_create)
+    case TARGET_NR_epoll_create:
+        ret = get_errno(epoll_create(arg1));
+        break;
+#endif
+#if defined(TARGET_NR_epoll_create1) && defined(CONFIG_EPOLL_CREATE1)
+    case TARGET_NR_epoll_create1:
+        ret = get_errno(epoll_create1(arg1));
+        break;
+#endif
+#if defined(TARGET_NR_epoll_ctl)
+    case TARGET_NR_epoll_ctl:
+    {
+        struct epoll_event ep;
+        struct epoll_event *epp = 0;
+        if (arg4) {
+            struct target_epoll_event *target_ep;
+            if (!lock_user_struct(VERIFY_READ, target_ep, arg4, 1)) {
+                goto efault;
+            }
+            ep.events = tswap32(target_ep->events);
+            /* The epoll_data_t union is just opaque data to the kernel,
+             * so we transfer all 64 bits across and need not worry what
+             * actual data type it is.
+             */
+            ep.data.u64 = tswap64(target_ep->data.u64);
+            unlock_user_struct(target_ep, arg4, 0);
+            epp = &ep;
+        }
+        ret = get_errno(epoll_ctl(arg1, arg2, arg3, epp));
+        break;
+    }
+#endif
+
+#if defined(TARGET_NR_epoll_pwait) && defined(CONFIG_EPOLL_PWAIT)
+#define IMPLEMENT_EPOLL_PWAIT
+#endif
+#if defined(TARGET_NR_epoll_wait) || defined(IMPLEMENT_EPOLL_PWAIT)
+#if defined(TARGET_NR_epoll_wait)
+    case TARGET_NR_epoll_wait:
+#endif
+#if defined(IMPLEMENT_EPOLL_PWAIT)
+    case TARGET_NR_epoll_pwait:
+#endif
+    {
+        struct target_epoll_event *target_ep;
+        struct epoll_event *ep;
+        int epfd = arg1;
+        int maxevents = arg3;
+        int timeout = arg4;
+
+        target_ep = lock_user(VERIFY_WRITE, arg2,
+                              maxevents * sizeof(struct target_epoll_event), 1);
+        if (!target_ep) {
+            goto efault;
+        }
+
+        ep = alloca(maxevents * sizeof(struct epoll_event));
+
+        switch (num) {
+#if defined(IMPLEMENT_EPOLL_PWAIT)
+        case TARGET_NR_epoll_pwait:
+        {
+            target_sigset_t *target_set;
+            sigset_t _set, *set = &_set;
+
+            if (arg5) {
+                target_set = lock_user(VERIFY_READ, arg5,
+                                       sizeof(target_sigset_t), 1);
+                if (!target_set) {
+                    unlock_user(target_ep, arg2, 0);
+                    goto efault;
+                }
+                target_to_host_sigset(set, target_set);
+                unlock_user(target_set, arg5, 0);
+            } else {
+                set = NULL;
+            }
+
+            ret = get_errno(epoll_pwait(epfd, ep, maxevents, timeout, set));
+            break;
+        }
+#endif
+#if defined(TARGET_NR_epoll_wait)
+        case TARGET_NR_epoll_wait:
+            ret = get_errno(epoll_wait(epfd, ep, maxevents, timeout));
+            break;
+#endif
+        default:
+            ret = -TARGET_ENOSYS;
+        }
+        if (!is_error(ret)) {
+            int i;
+            for (i = 0; i < ret; i++) {
+                target_ep[i].events = tswap32(ep[i].events);
+                target_ep[i].data.u64 = tswap64(ep[i].data.u64);
+            }
+        }
+        unlock_user(target_ep, arg2, ret * sizeof(struct target_epoll_event));
+        break;
+    }
 #endif
 #endif
     default:
