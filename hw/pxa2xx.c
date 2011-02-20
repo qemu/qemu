@@ -1661,7 +1661,7 @@ static void pxa2xx_i2s_write(void *opaque, target_phys_addr_t addr,
         }
         if (value & (1 << 4))				/* EFWR */
             printf("%s: Attempt to use special function\n", __FUNCTION__);
-        s->enable = ((value ^ 4) & 5) == 5;		/* ENB && !RST*/
+        s->enable = (value & 9) == 1;			/* ENB && !RST*/
         pxa2xx_i2s_update(s);
         break;
     case SACR1:
