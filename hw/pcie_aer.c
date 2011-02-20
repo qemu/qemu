@@ -785,16 +785,6 @@ static const VMStateDescription vmstate_pcie_aer_err = {
     }
 };
 
-#define VMSTATE_PCIE_AER_ERRS(_field, _state, _field_num, _vmsd, _type) { \
-    .name       = (stringify(_field)),                                    \
-    .version_id = 0,                                                      \
-    .num_offset = vmstate_offset_value(_state, _field_num, uint16_t),     \
-    .size       = sizeof(_type),                                          \
-    .vmsd       = &(_vmsd),                                               \
-    .flags      = VMS_POINTER | VMS_VARRAY_UINT16 | VMS_STRUCT,           \
-    .offset     = vmstate_offset_pointer(_state, _field, _type),          \
-}
-
 const VMStateDescription vmstate_pcie_aer_log = {
     .name = "PCIE_AER_ERROR_LOG",
     .version_id = 1,
@@ -803,7 +793,7 @@ const VMStateDescription vmstate_pcie_aer_log = {
     .fields     = (VMStateField[]) {
         VMSTATE_UINT16(log_num, PCIEAERLog),
         VMSTATE_UINT16(log_max, PCIEAERLog),
-        VMSTATE_PCIE_AER_ERRS(log, PCIEAERLog, log_num,
+        VMSTATE_STRUCT_VARRAY_POINTER_UINT16(log, PCIEAERLog, log_num,
                               vmstate_pcie_aer_err, PCIEAERErr),
         VMSTATE_END_OF_LIST()
     }
