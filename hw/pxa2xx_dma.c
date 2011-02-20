@@ -20,11 +20,7 @@ typedef struct {
     int request;
 } PXA2xxDMAChannel;
 
-/* Allow the DMA to be used as a PIC.  */
-typedef void (*pxa2xx_dma_handler_t)(void *opaque, int irq, int level);
-
 struct PXA2xxDMAState {
-    pxa2xx_dma_handler_t handler;
     qemu_irq irq;
 
     uint32_t stopintr;
@@ -494,7 +490,6 @@ static PXA2xxDMAState *pxa2xx_dma_init(target_phys_addr_t base,
     s->channels = channels;
     s->chan = qemu_mallocz(sizeof(PXA2xxDMAChannel) * s->channels);
     s->irq = irq;
-    s->handler = (pxa2xx_dma_handler_t) pxa2xx_dma_request;
     s->req = qemu_mallocz(sizeof(uint8_t) * PXA2XX_DMA_NUM_REQUESTS);
 
     memset(s->chan, 0, sizeof(PXA2xxDMAChannel) * s->channels);
