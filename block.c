@@ -1319,6 +1319,109 @@ void bdrv_get_geometry_hint(BlockDriverState *bs,
     *psecs = bs->secs;
 }
 
+/* Recognize floppy formats */
+typedef struct FDFormat {
+    FDriveType drive;
+    uint8_t last_sect;
+    uint8_t max_track;
+    uint8_t max_head;
+} FDFormat;
+
+static const FDFormat fd_formats[] = {
+    /* First entry is default format */
+    /* 1.44 MB 3"1/2 floppy disks */
+    { FDRIVE_DRV_144, 18, 80, 1, },
+    { FDRIVE_DRV_144, 20, 80, 1, },
+    { FDRIVE_DRV_144, 21, 80, 1, },
+    { FDRIVE_DRV_144, 21, 82, 1, },
+    { FDRIVE_DRV_144, 21, 83, 1, },
+    { FDRIVE_DRV_144, 22, 80, 1, },
+    { FDRIVE_DRV_144, 23, 80, 1, },
+    { FDRIVE_DRV_144, 24, 80, 1, },
+    /* 2.88 MB 3"1/2 floppy disks */
+    { FDRIVE_DRV_288, 36, 80, 1, },
+    { FDRIVE_DRV_288, 39, 80, 1, },
+    { FDRIVE_DRV_288, 40, 80, 1, },
+    { FDRIVE_DRV_288, 44, 80, 1, },
+    { FDRIVE_DRV_288, 48, 80, 1, },
+    /* 720 kB 3"1/2 floppy disks */
+    { FDRIVE_DRV_144,  9, 80, 1, },
+    { FDRIVE_DRV_144, 10, 80, 1, },
+    { FDRIVE_DRV_144, 10, 82, 1, },
+    { FDRIVE_DRV_144, 10, 83, 1, },
+    { FDRIVE_DRV_144, 13, 80, 1, },
+    { FDRIVE_DRV_144, 14, 80, 1, },
+    /* 1.2 MB 5"1/4 floppy disks */
+    { FDRIVE_DRV_120, 15, 80, 1, },
+    { FDRIVE_DRV_120, 18, 80, 1, },
+    { FDRIVE_DRV_120, 18, 82, 1, },
+    { FDRIVE_DRV_120, 18, 83, 1, },
+    { FDRIVE_DRV_120, 20, 80, 1, },
+    /* 720 kB 5"1/4 floppy disks */
+    { FDRIVE_DRV_120,  9, 80, 1, },
+    { FDRIVE_DRV_120, 11, 80, 1, },
+    /* 360 kB 5"1/4 floppy disks */
+    { FDRIVE_DRV_120,  9, 40, 1, },
+    { FDRIVE_DRV_120,  9, 40, 0, },
+    { FDRIVE_DRV_120, 10, 41, 1, },
+    { FDRIVE_DRV_120, 10, 42, 1, },
+    /* 320 kB 5"1/4 floppy disks */
+    { FDRIVE_DRV_120,  8, 40, 1, },
+    { FDRIVE_DRV_120,  8, 40, 0, },
+    /* 360 kB must match 5"1/4 better than 3"1/2... */
+    { FDRIVE_DRV_144,  9, 80, 0, },
+    /* end */
+    { FDRIVE_DRV_NONE, -1, -1, 0, },
+};
+
+void bdrv_get_floppy_geometry_hint(BlockDriverState *bs, int *nb_heads,
+                                   int *max_track, int *last_sect,
+                                   FDriveType drive_in, FDriveType *drive)
+{
+    const FDFormat *parse;
+    uint64_t nb_sectors, size;
+    int i, first_match, match;
+
+    bdrv_get_geometry_hint(bs, nb_heads, max_track, last_sect);
+    if (*nb_heads != 0 && *max_track != 0 && *last_sect != 0) {
+        /* User defined disk */
+    } else {
+        bdrv_get_geometry(bs, &nb_sectors);
+        match = -1;
+        first_match = -1;
+        for (i = 0; ; i++) {
+            parse = &fd_formats[i];
+            if (parse->drive == FDRIVE_DRV_NONE) {
+                break;
+            }
+            if (drive_in == parse->drive ||
+                drive_in == FDRIVE_DRV_NONE) {
+                size = (parse->max_head + 1) * parse->max_track *
+                    parse->last_sect;
+                if (nb_sectors == size) {
+                    match = i;
+                    break;
+                }
+                if (first_match == -1) {
+                    first_match = i;
+                }
+            }
+        }
+        if (match == -1) {
+            if (first_match == -1) {
+                match = 1;
+            } else {
+                match = first_match;
+            }
+            parse = &fd_formats[match];
+        }
+        *nb_heads = parse->max_head + 1;
+        *max_track = parse->max_track;
+        *last_sect = parse->last_sect;
+        *drive = parse->drive;
+    }
+}
+
 int bdrv_get_type_hint(BlockDriverState *bs)
 {
     return bs->type;

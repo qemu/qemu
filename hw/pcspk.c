@@ -37,7 +37,7 @@ typedef struct {
     uint8_t sample_buf[PCSPK_BUF_LEN];
     QEMUSoundCard card;
     SWVoiceOut *voice;
-    PITState *pit;
+    ISADevice *pit;
     unsigned int pit_count;
     unsigned int samples;
     unsigned int play_pos;
@@ -137,7 +137,7 @@ static void pcspk_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-void pcspk_init(PITState *pit)
+void pcspk_init(ISADevice *pit)
 {
     PCSpkState *s = &pcspk_state;
 

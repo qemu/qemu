@@ -32,7 +32,7 @@ static const int ide_iobase[2] = { 0x1f0, 0x170 };
 static const int ide_iobase2[2] = { 0x3f6, 0x376 };
 static const int ide_irq[2] = { 14, 15 };
 
-static PITState *pit; /* PIT i8254 */
+static ISADevice *pit; /* PIT i8254 */
 
 static int bigendian;
 
@@ -284,7 +284,7 @@ static void mips_init(ram_addr_t ram_size,
     isa_mmio_init(0x14000000, 0x00010000);
     isa_mem_base = 0x10000000;
 
-    pit = pit_init(0x40, i8259[0]);
+    pit = pit_init(0x40, 0);
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {

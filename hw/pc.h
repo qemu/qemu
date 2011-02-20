@@ -5,6 +5,7 @@
 #include "ioport.h"
 #include "isa.h"
 #include "fdc.h"
+#include "net.h"
 
 /* PC-style peripherals (also used by other machines).  */
 
@@ -19,14 +20,44 @@ SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
                              int be);
 uint32_t serial_mm_readb (void *opaque, target_phys_addr_t addr);
 void serial_mm_writeb (void *opaque, target_phys_addr_t addr, uint32_t value);
-SerialState *serial_isa_init(int index, CharDriverState *chr);
+
+static inline bool serial_isa_init(int index, CharDriverState *chr)
+{
+    ISADevice *dev;
+
+    dev = isa_try_create("isa-serial");
+    if (!dev) {
+        return false;
+    }
+    qdev_prop_set_uint32(&dev->qdev, "index", index);
+    qdev_prop_set_chr(&dev->qdev, "chardev", chr);
+    if (qdev_init(&dev->qdev) < 0) {
+        return false;
+    }
+    return true;
+}
+
 void serial_set_frequency(SerialState *s, uint32_t frequency);
 
 /* parallel.c */
+static inline bool parallel_init(int index, CharDriverState *chr)
+{
+    ISADevice *dev;
 
-typedef struct ParallelState ParallelState;
-ParallelState *parallel_init(int index, CharDriverState *chr);
-ParallelState *parallel_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq, CharDriverState *chr);
+    dev = isa_try_create("isa-parallel");
+    if (!dev) {
+        return false;
+    }
+    qdev_prop_set_uint32(&dev->qdev, "index", index);
+    qdev_prop_set_chr(&dev->qdev, "chardev", chr);
+    if (qdev_init(&dev->qdev) < 0) {
+        return false;
+    }
+    return true;
+}
+
+bool parallel_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq,
+                      CharDriverState *chr);
 
 /* i8259.c */
 
@@ -55,14 +86,23 @@ void isa_irq_handler(void *opaque, int n, int level);
 
 #define PIT_FREQ 1193182
 
-typedef struct PITState PITState;
+static inline ISADevice *pit_init(int base, int irq)
+{
+    ISADevice *dev;
 
-PITState *pit_init(int base, qemu_irq irq);
-void pit_set_gate(PITState *pit, int channel, int val);
-int pit_get_gate(PITState *pit, int channel);
-int pit_get_initial_count(PITState *pit, int channel);
-int pit_get_mode(PITState *pit, int channel);
-int pit_get_out(PITState *pit, int channel, int64_t current_time);
+    dev = isa_create("isa-pit");
+    qdev_prop_set_uint32(&dev->qdev, "iobase", base);
+    qdev_prop_set_uint32(&dev->qdev, "irq", irq);
+    qdev_init_nofail(&dev->qdev);
+
+    return dev;
+}
+
+void pit_set_gate(ISADevice *dev, int channel, int val);
+int pit_get_gate(ISADevice *dev, int channel);
+int pit_get_initial_count(ISADevice *dev, int channel);
+int pit_get_mode(ISADevice *dev, int channel);
+int pit_get_out(ISADevice *dev, int channel, int64_t current_time);
 
 void hpet_pit_disable(void);
 void hpet_pit_enable(void);
@@ -102,13 +142,12 @@ void pc_memory_init(ram_addr_t ram_size,
 qemu_irq *pc_allocate_cpu_irq(void);
 void pc_vga_init(PCIBus *pci_bus);
 void pc_basic_device_init(qemu_irq *isa_irq,
-                          FDCtrl **floppy_controller,
                           ISADevice **rtc_state);
 void pc_init_ne2k_isa(NICInfo *nd);
 void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
                   const char *boot_device,
                   BusState *ide0, BusState *ide1,
-                  FDCtrl *floppy_controller, ISADevice *s);
+                  ISADevice *s);
 void pc_pci_device_init(PCIBus *pci_bus);
 
 typedef void (*cpu_set_smm_t)(int smm, void *arg);
@@ -133,7 +172,7 @@ void piix4_smbus_register_device(SMBusDevice *dev, uint8_t addr);
 extern int no_hpet;
 
 /* pcspk.c */
-void pcspk_init(PITState *);
+void pcspk_init(ISADevice *pit);
 int pcspk_audio_init(qemu_irq *pic);
 
 /* piix_pci.c */
@@ -155,7 +194,19 @@ enum vga_retrace_method {
 
 extern enum vga_retrace_method vga_retrace_method;
 
-int isa_vga_init(void);
+static inline int isa_vga_init(void)
+{
+    ISADevice *dev;
+
+    dev = isa_try_create("isa-vga");
+    if (!dev) {
+        fprintf(stderr, "Warning: isa-vga not available\n");
+        return 0;
+    }
+    qdev_init_nofail(&dev->qdev);
+    return 1;
+}
+
 int pci_vga_init(PCIBus *bus);
 int isa_vga_mm_init(target_phys_addr_t vram_base,
                     target_phys_addr_t ctrl_base, int it_shift);
@@ -165,8 +216,22 @@ void pci_cirrus_vga_init(PCIBus *bus);
 void isa_cirrus_vga_init(void);
 
 /* ne2000.c */
+static inline bool isa_ne2000_init(int base, int irq, NICInfo *nd)
+{
+    ISADevice *dev;
 
-void isa_ne2000_init(int base, int irq, NICInfo *nd);
+    qemu_check_nic_model(nd, "ne2k_isa");
+
+    dev = isa_try_create("ne2k_isa");
+    if (!dev) {
+        return false;
+    }
+    qdev_prop_set_uint32(&dev->qdev, "iobase", base);
+    qdev_prop_set_uint32(&dev->qdev, "irq",    irq);
+    qdev_set_nic_properties(&dev->qdev, nd);
+    qdev_init_nofail(&dev->qdev);
+    return true;
+}
 
 /* e820 types */
 #define E820_RAM        1

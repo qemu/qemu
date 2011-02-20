@@ -192,23 +192,24 @@ static void pic_irq_request(void *opaque, int irq, int level)
 
 #define REG_EQUIPMENT_BYTE          0x14
 
-static int cmos_get_fd_drive_type(int fd0)
+static int cmos_get_fd_drive_type(FDriveType fd0)
 {
     int val;
 
     switch (fd0) {
-    case 0:
+    case FDRIVE_DRV_144:
         /* 1.44 Mb 3"5 drive */
         val = 4;
         break;
-    case 1:
+    case FDRIVE_DRV_288:
         /* 2.88 Mb 3"5 drive */
         val = 5;
         break;
-    case 2:
+    case FDRIVE_DRV_120:
         /* 1.2 Mb 5"5 drive */
         val = 2;
         break;
+    case FDRIVE_DRV_NONE:
     default:
         val = 0;
         break;
@@ -333,10 +334,11 @@ static void pc_cmos_init_late(void *opaque)
 void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
                   const char *boot_device,
                   BusState *idebus0, BusState *idebus1,
-                  FDCtrl *floppy_controller, ISADevice *s)
+                  ISADevice *s)
 {
-    int val;
-    int fd0, fd1, nb;
+    int val, nb, nb_heads, max_track, last_sect, i;
+    FDriveType fd_type[2];
+    DriveInfo *fd[2];
     static pc_cmos_init_late_arg arg;
 
     /* various important CMOS locations needed by PC/Bochs bios */
@@ -378,19 +380,28 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
     }
 
     /* floppy type */
-
-    fd0 = fdctrl_get_drive_type(floppy_controller, 0);
-    fd1 = fdctrl_get_drive_type(floppy_controller, 1);
-
-    val = (cmos_get_fd_drive_type(fd0) << 4) | cmos_get_fd_drive_type(fd1);
+    for (i = 0; i < 2; i++) {
+        fd[i] = drive_get(IF_FLOPPY, 0, i);
+        if (fd[i]) {
+            bdrv_get_floppy_geometry_hint(fd[i]->bdrv, &nb_heads, &max_track,
+                                          &last_sect, FDRIVE_DRV_NONE,
+                                          &fd_type[i]);
+        } else {
+            fd_type[i] = FDRIVE_DRV_NONE;
+        }
+    }
+    val = (cmos_get_fd_drive_type(fd_type[0]) << 4) |
+        cmos_get_fd_drive_type(fd_type[1]);
     rtc_set_memory(s, 0x10, val);
 
     val = 0;
     nb = 0;
-    if (fd0 < 3)
+    if (fd_type[0] < FDRIVE_DRV_NONE) {
         nb++;
-    if (fd1 < 3)
+    }
+    if (fd_type[1] < FDRIVE_DRV_NONE) {
         nb++;
+    }
     switch (nb) {
     case 0:
         break;
@@ -969,11 +980,6 @@ void pc_memory_init(ram_addr_t ram_size,
     *above_4g_mem_size_p = above_4g_mem_size;
     *below_4g_mem_size_p = below_4g_mem_size;
 
-#if TARGET_PHYS_ADDR_BITS == 32
-    if (above_4g_mem_size > 0) {
-        hw_error("To much RAM for 32-bit physical address");
-    }
-#endif
     linux_boot = (kernel_filename != NULL);
 
     /* allocate RAM */
@@ -983,12 +989,10 @@ void pc_memory_init(ram_addr_t ram_size,
     cpu_register_physical_memory(0x100000,
                  below_4g_mem_size - 0x100000,
                  ram_addr + 0x100000);
-#if TARGET_PHYS_ADDR_BITS > 32
     if (above_4g_mem_size > 0) {
         cpu_register_physical_memory(0x100000000ULL, above_4g_mem_size,
                                      ram_addr + below_4g_mem_size);
     }
-#endif
 
     /* BIOS load */
     if (bios_name == NULL)
@@ -1089,15 +1093,13 @@ static void cpu_request_exit(void *opaque, int irq, int level)
 }
 
 void pc_basic_device_init(qemu_irq *isa_irq,
-                          FDCtrl **floppy_controller,
                           ISADevice **rtc_state)
 {
     int i;
     DriveInfo *fd[MAX_FD];
-    PITState *pit;
     qemu_irq rtc_irq = NULL;
     qemu_irq *a20_line;
-    ISADevice *i8042, *port92, *vmmouse;
+    ISADevice *i8042, *port92, *vmmouse, *pit;
     qemu_irq *cpu_exit_irq;
 
     register_ioport_write(0x80, 1, 1, ioport80_write, NULL);
@@ -1118,7 +1120,7 @@ void pc_basic_device_init(qemu_irq *isa_irq,
 
     qemu_register_boot_set(pc_boot_set, *rtc_state);
 
-    pit = pit_init(0x40, isa_reserve_irq(0));
+    pit = pit_init(0x40, 0);
     pcspk_init(pit);
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
@@ -1150,7 +1152,7 @@ void pc_basic_device_init(qemu_irq *isa_irq,
     for(i = 0; i < MAX_FD; i++) {
         fd[i] = drive_get(IF_FLOPPY, 0, i);
     }
-    *floppy_controller = fdctrl_init_isa(fd);
+    fdctrl_init_isa(fd);
 }
 
 void pc_pci_device_init(PCIBus *pci_bus)

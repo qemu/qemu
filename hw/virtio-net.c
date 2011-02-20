@@ -115,7 +115,8 @@ static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
     if (!tap_get_vhost_net(n->nic->nc.peer)) {
         return;
     }
-    if (!!n->vhost_started == virtio_net_started(n, status)) {
+    if (!!n->vhost_started == virtio_net_started(n, status) &&
+                              !n->nic->nc.peer->link_down) {
         return;
     }
     if (!n->vhost_started) {

@@ -166,6 +166,16 @@ void bdrv_set_type_hint(BlockDriverState *bs, int type);
 void bdrv_set_translation_hint(BlockDriverState *bs, int translation);
 void bdrv_get_geometry_hint(BlockDriverState *bs,
                             int *pcyls, int *pheads, int *psecs);
+typedef enum FDriveType {
+    FDRIVE_DRV_144  = 0x00,   /* 1.44 MB 3"5 drive      */
+    FDRIVE_DRV_288  = 0x01,   /* 2.88 MB 3"5 drive      */
+    FDRIVE_DRV_120  = 0x02,   /* 1.2  MB 5"25 drive     */
+    FDRIVE_DRV_NONE = 0x03,   /* No drive connected     */
+} FDriveType;
+
+void bdrv_get_floppy_geometry_hint(BlockDriverState *bs, int *nb_heads,
+                                   int *max_track, int *last_sect,
+                                   FDriveType drive_in, FDriveType *drive);
 int bdrv_get_type_hint(BlockDriverState *bs);
 int bdrv_get_translation_hint(BlockDriverState *bs);
 void bdrv_set_on_error(BlockDriverState *bs, BlockErrorAction on_read_error,

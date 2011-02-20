@@ -277,6 +277,7 @@ DEF_HELPER_2(neon_sub_u16, i32, i32, i32)
 DEF_HELPER_2(neon_mul_u8, i32, i32, i32)
 DEF_HELPER_2(neon_mul_u16, i32, i32, i32)
 DEF_HELPER_2(neon_mul_p8, i32, i32, i32)
+DEF_HELPER_2(neon_mull_p8, i64, i32, i32)
 
 DEF_HELPER_2(neon_tst_u8, i32, i32, i32)
 DEF_HELPER_2(neon_tst_u16, i32, i32, i32)
@@ -459,5 +460,16 @@ DEF_HELPER_3(iwmmxt_muladdsw, i64, i64, i32, i32)
 DEF_HELPER_3(iwmmxt_muladdswl, i64, i64, i32, i32)
 
 DEF_HELPER_2(set_teecr, void, env, i32)
+
+DEF_HELPER_3(neon_unzip8, void, env, i32, i32)
+DEF_HELPER_3(neon_unzip16, void, env, i32, i32)
+DEF_HELPER_3(neon_qunzip8, void, env, i32, i32)
+DEF_HELPER_3(neon_qunzip16, void, env, i32, i32)
+DEF_HELPER_3(neon_qunzip32, void, env, i32, i32)
+DEF_HELPER_3(neon_zip8, void, env, i32, i32)
+DEF_HELPER_3(neon_zip16, void, env, i32, i32)
+DEF_HELPER_3(neon_qzip8, void, env, i32, i32)
+DEF_HELPER_3(neon_qzip16, void, env, i32, i32)
+DEF_HELPER_3(neon_qzip32, void, env, i32, i32)
 
 #include "def-helper.h"

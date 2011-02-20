@@ -92,19 +92,6 @@ static int isa_ne2000_initfn(ISADevice *dev)
     return 0;
 }
 
-void isa_ne2000_init(int base, int irq, NICInfo *nd)
-{
-    ISADevice *dev;
-
-    qemu_check_nic_model(nd, "ne2k_isa");
-
-    dev = isa_create("ne2k_isa");
-    qdev_prop_set_uint32(&dev->qdev, "iobase", base);
-    qdev_prop_set_uint32(&dev->qdev, "irq",    irq);
-    qdev_set_nic_properties(&dev->qdev, nd);
-    qdev_init_nofail(&dev->qdev);
-}
-
 static ISADeviceInfo ne2000_isa_info = {
     .qdev.name  = "ne2k_isa",
     .qdev.size  = sizeof(ISANE2000State),
