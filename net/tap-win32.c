@@ -480,7 +480,7 @@ static int tap_win32_write(tap_win32_overlapped_t *overlapped,
         }
     }
 
-    return 0;
+    return write_size;
 }
 
 static DWORD WINAPI tap_win32_thread_entry(LPVOID param)
