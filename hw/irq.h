@@ -3,9 +3,7 @@
 
 /* Generic IRQ/GPIO pin infrastructure.  */
 
-/* FIXME: Rmove one of these.  */
 typedef void (*qemu_irq_handler)(void *opaque, int n, int level);
-typedef void SetIRQFunc(void *opaque, int irq_num, int level);
 
 void qemu_set_irq(qemu_irq irq, int level);
 
