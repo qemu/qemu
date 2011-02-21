@@ -2755,11 +2755,104 @@ float32 HELPER(recpe_f32)(float32 a, CPUState *env)
     return make_float32(val32);
 }
 
+/* The algorithm that must be used to calculate the estimate
+ * is specified by the ARM ARM.
+ */
+static float64 recip_sqrt_estimate(float64 a, CPUState *env)
+{
+    float_status *s = &env->vfp.standard_fp_status;
+    float64 q;
+    int64_t q_int;
+
+    if (float64_lt(a, float64_half, s)) {
+        /* range 0.25 <= a < 0.5 */
+
+        /* a in units of 1/512 rounded down */
+        /* q0 = (int)(a * 512.0);  */
+        q = float64_mul(float64_512, a, s);
+        q_int = float64_to_int64_round_to_zero(q, s);
+
+        /* reciprocal root r */
+        /* r = 1.0 / sqrt(((double)q0 + 0.5) / 512.0);  */
+        q = int64_to_float64(q_int, s);
+        q = float64_add(q, float64_half, s);
+        q = float64_div(q, float64_512, s);
+        q = float64_sqrt(q, s);
+        q = float64_div(float64_one, q, s);
+    } else {
+        /* range 0.5 <= a < 1.0 */
+
+        /* a in units of 1/256 rounded down */
+        /* q1 = (int)(a * 256.0); */
+        q = float64_mul(float64_256, a, s);
+        int64_t q_int = float64_to_int64_round_to_zero(q, s);
+
+        /* reciprocal root r */
+        /* r = 1.0 /sqrt(((double)q1 + 0.5) / 256); */
+        q = int64_to_float64(q_int, s);
+        q = float64_add(q, float64_half, s);
+        q = float64_div(q, float64_256, s);
+        q = float64_sqrt(q, s);
+        q = float64_div(float64_one, q, s);
+    }
+    /* r in units of 1/256 rounded to nearest */
+    /* s = (int)(256.0 * r + 0.5); */
+
+    q = float64_mul(q, float64_256,s );
+    q = float64_add(q, float64_half, s);
+    q_int = float64_to_int64_round_to_zero(q, s);
+
+    /* return (double)s / 256.0;*/
+    return float64_div(int64_to_float64(q_int, s), float64_256, s);
+}
+
 float32 HELPER(rsqrte_f32)(float32 a, CPUState *env)
 {
-    float_status *s = &env->vfp.fp_status;
-    float32 one = int32_to_float32(1, s);
-    return float32_div(one, float32_sqrt(a, s), s);
+    float_status *s = &env->vfp.standard_fp_status;
+    int result_exp;
+    float64 f64;
+    uint32_t val;
+    uint64_t val64;
+
+    val = float32_val(a);
+
+    if (float32_is_any_nan(a)) {
+        if (float32_is_signaling_nan(a)) {
+            float_raise(float_flag_invalid, s);
+        }
+        return float32_default_nan;
+    } else if (float32_is_zero_or_denormal(a)) {
+        float_raise(float_flag_divbyzero, s);
+        return float32_set_sign(float32_infinity, float32_is_neg(a));
+    } else if (float32_is_neg(a)) {
+        float_raise(float_flag_invalid, s);
+        return float32_default_nan;
+    } else if (float32_is_infinity(a)) {
+        return float32_zero;
+    }
+
+    /* Normalize to a double-precision value between 0.25 and 1.0,
+     * preserving the parity of the exponent.  */
+    if ((val & 0x800000) == 0) {
+        f64 = make_float64(((uint64_t)(val & 0x80000000) << 32)
+                           | (0x3feULL << 52)
+                           | ((uint64_t)(val & 0x7fffff) << 29));
+    } else {
+        f64 = make_float64(((uint64_t)(val & 0x80000000) << 32)
+                           | (0x3fdULL << 52)
+                           | ((uint64_t)(val & 0x7fffff) << 29));
+    }
+
+    result_exp = (380 - ((val & 0x7f800000) >> 23)) / 2;
+
+    f64 = recip_sqrt_estimate(f64, env);
+
+    val64 = float64_val(f64);
+
+    val = ((val64 >> 63)  & 0x80000000)
+        | ((result_exp & 0xff) << 23)
+        | ((val64 >> 29)  & 0x7fffff);
+    return make_float32(val);
 }
 
 uint32_t HELPER(recpe_u32)(uint32_t a, CPUState *env)
@@ -2780,13 +2873,23 @@ uint32_t HELPER(recpe_u32)(uint32_t a, CPUState *env)
 
 uint32_t HELPER(rsqrte_u32)(uint32_t a, CPUState *env)
 {
-    float_status *s = &env->vfp.fp_status;
-    float32 tmp;
-    tmp = int32_to_float32(a, s);
-    tmp = float32_scalbn(tmp, -32, s);
-    tmp = helper_rsqrte_f32(tmp, env);
-    tmp = float32_scalbn(tmp, 31, s);
-    return float32_to_int32(tmp, s);
+    float64 f64;
+
+    if ((a & 0xc0000000) == 0) {
+        return 0xffffffff;
+    }
+
+    if (a & 0x80000000) {
+        f64 = make_float64((0x3feULL << 52)
+                           | ((uint64_t)(a & 0x7fffffff) << 21));
+    } else { /* bits 31-30 == '01' */
+        f64 = make_float64((0x3fdULL << 52)
+                           | ((uint64_t)(a & 0x3fffffff) << 22));
+    }
+
+    f64 = recip_sqrt_estimate(f64, env);
+
+    return 0x80000000 | ((float64_val(f64) >> 21) & 0x7fffffff);
 }
 
 void HELPER(set_teecr)(CPUState *env, uint32_t val)
