@@ -30,4 +30,7 @@ void qemu_free_irqs(qemu_irq *s);
 /* Returns a new IRQ with opposite polarity.  */
 qemu_irq qemu_irq_invert(qemu_irq irq);
 
+/* Returns a new IRQ which feeds into both the passed IRQs */
+qemu_irq qemu_irq_split(qemu_irq irq1, qemu_irq irq2);
+
 #endif
