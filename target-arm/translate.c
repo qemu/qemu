@@ -4164,6 +4164,23 @@ static inline void gen_neon_mull(TCGv_i64 dest, TCGv a, TCGv b, int size, int u)
     }
 }
 
+static void gen_neon_narrow_op(int op, int u, int size, TCGv dest, TCGv_i64 src)
+{
+    if (op) {
+        if (u) {
+            gen_neon_unarrow_sats(size, dest, src);
+        } else {
+            gen_neon_narrow(size, dest, src);
+        }
+    } else {
+        if (u) {
+            gen_neon_narrow_satu(size, dest, src);
+        } else {
+            gen_neon_narrow_sats(size, dest, src);
+        }
+    }
+}
+
 /* Translate a NEON data processing instruction.  Return nonzero if the
    instruction is invalid.
    We process data in a mixture of 32-bit and 64-bit chunks.
@@ -4839,19 +4856,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         dead_tmp(tmp3);
                     }
                     tmp = new_tmp();
-                    if (op == 8) {
-                        if (u) { /* VQSHRUN / VQRSHRUN */
-                            gen_neon_unarrow_sats(size - 1, tmp, cpu_V0);
-                        } else { /* VSHRN / VRSHRN */
-                            gen_neon_narrow(size - 1, tmp, cpu_V0);
-                        }
-                    } else {
-                        if (u) { /* VQSHRN / VQRSHRN */
-                            gen_neon_narrow_satu(size - 1, tmp, cpu_V0);
-                        } else { /* VQSHRN / VQRSHRN */
-                            gen_neon_narrow_sats(size - 1, tmp, cpu_V0);
-                        }
-                    }
+                    gen_neon_narrow_op(op == 8, u, size - 1, tmp, cpu_V0);
                     neon_store_reg(rd, pass, tmp);
                 } /* for pass */
                 if (size == 3) {
@@ -5439,19 +5444,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     for (pass = 0; pass < 2; pass++) {
                         neon_load_reg64(cpu_V0, rm + pass);
                         tmp = new_tmp();
-                        if (op == 36) {
-                            if (q) { /* VQMOVUN */
-                                gen_neon_unarrow_sats(size, tmp, cpu_V0);
-                            } else { /* VMOVN */
-                                gen_neon_narrow(size, tmp, cpu_V0);
-                            }
-                        } else { /* VQMOVN */
-                            if (q) {
-                                gen_neon_narrow_satu(size, tmp, cpu_V0);
-                            } else {
-                                gen_neon_narrow_sats(size, tmp, cpu_V0);
-                            }
-                        }
+                        gen_neon_narrow_op(op == 36, q, size, tmp, cpu_V0);
                         if (pass == 0) {
                             tmp2 = tmp;
                         } else {
