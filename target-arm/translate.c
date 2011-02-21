@@ -4804,64 +4804,68 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
 
                 shift = shift - (1 << (size + 3));
                 size++;
-                switch (size) {
-                case 1:
-                    imm = (uint16_t)shift;
-                    imm |= imm << 16;
-                    tmp2 = tcg_const_i32(imm);
-                    TCGV_UNUSED_I64(tmp64);
-                    break;
-                case 2:
-                    imm = (uint32_t)shift;
-                    tmp2 = tcg_const_i32(imm);
-                    TCGV_UNUSED_I64(tmp64);
-                    break;
-                case 3:
+                if (size == 3) {
                     tmp64 = tcg_const_i64(shift);
-                    TCGV_UNUSED(tmp2);
-                    break;
-                default:
-                    abort();
-                }
-
-                for (pass = 0; pass < 2; pass++) {
-                    if (size == 3) {
-                        neon_load_reg64(cpu_V0, rm + pass);
+                    neon_load_reg64(cpu_V0, rm);
+                    neon_load_reg64(cpu_V1, rm + 1);
+                    for (pass = 0; pass < 2; pass++) {
+                        TCGv_i64 in;
+                        if (pass == 0) {
+                            in = cpu_V0;
+                        } else {
+                            in = cpu_V1;
+                        }
                         if (q) {
                             if (input_unsigned) {
-                                gen_helper_neon_rshl_u64(cpu_V0, cpu_V0,
-                                                         tmp64);
+                                gen_helper_neon_rshl_u64(cpu_V0, in, tmp64);
                             } else {
-                                gen_helper_neon_rshl_s64(cpu_V0, cpu_V0,
-                                                         tmp64);
+                                gen_helper_neon_rshl_s64(cpu_V0, in, tmp64);
                             }
                         } else {
                             if (input_unsigned) {
-                                gen_helper_neon_shl_u64(cpu_V0, cpu_V0,
-                                                        tmp64);
+                                gen_helper_neon_shl_u64(cpu_V0, in, tmp64);
                             } else {
-                                gen_helper_neon_shl_s64(cpu_V0, cpu_V0,
-                                                        tmp64);
+                                gen_helper_neon_shl_s64(cpu_V0, in, tmp64);
                             }
                         }
+                        tmp = new_tmp();
+                        gen_neon_narrow_op(op == 8, u, size - 1, tmp, cpu_V0);
+                        neon_store_reg(rd, pass, tmp);
+                    } /* for pass */
+                    tcg_temp_free_i64(tmp64);
+                } else {
+                    if (size == 1) {
+                        imm = (uint16_t)shift;
+                        imm |= imm << 16;
                     } else {
-                        tmp = neon_load_reg(rm + pass, 0);
+                        /* size == 2 */
+                        imm = (uint32_t)shift;
+                    }
+                    tmp2 = tcg_const_i32(imm);
+                    tmp4 = neon_load_reg(rm + 1, 0);
+                    tmp5 = neon_load_reg(rm + 1, 1);
+                    for (pass = 0; pass < 2; pass++) {
+                        if (pass == 0) {
+                            tmp = neon_load_reg(rm, 0);
+                        } else {
+                            tmp = tmp4;
+                        }
                         gen_neon_shift_narrow(size, tmp, tmp2, q,
                                               input_unsigned);
-                        tmp3 = neon_load_reg(rm + pass, 1);
+                        if (pass == 0) {
+                            tmp3 = neon_load_reg(rm, 1);
+                        } else {
+                            tmp3 = tmp5;
+                        }
                         gen_neon_shift_narrow(size, tmp3, tmp2, q,
                                               input_unsigned);
                         tcg_gen_concat_i32_i64(cpu_V0, tmp, tmp3);
                         dead_tmp(tmp);
                         dead_tmp(tmp3);
-                    }
-                    tmp = new_tmp();
-                    gen_neon_narrow_op(op == 8, u, size - 1, tmp, cpu_V0);
-                    neon_store_reg(rd, pass, tmp);
-                } /* for pass */
-                if (size == 3) {
-                    tcg_temp_free_i64(tmp64);
-                } else {
+                        tmp = new_tmp();
+                        gen_neon_narrow_op(op == 8, u, size - 1, tmp, cpu_V0);
+                        neon_store_reg(rd, pass, tmp);
+                    } /* for pass */
                     tcg_temp_free_i32(tmp2);
                 }
             } else if (op == 10) {
