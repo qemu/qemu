@@ -2687,6 +2687,11 @@ float32 HELPER(rsqrts_f32)(float32 a, float32 b, CPUState *env)
 
 /* NEON helpers.  */
 
+/* Constants 256 and 512 are used in some helpers; we avoid relying on
+ * int->float conversions at run-time.  */
+#define float64_256 make_float64(0x4070000000000000LL)
+#define float64_512 make_float64(0x4080000000000000LL)
+
 /* TODO: The architecture specifies the value that the estimate functions
    should return.  We return the exact reciprocal/root instead.  */
 float32 HELPER(recpe_f32)(float32 a, CPUState *env)
