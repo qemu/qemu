@@ -2692,13 +2692,67 @@ float32 HELPER(rsqrts_f32)(float32 a, float32 b, CPUState *env)
 #define float64_256 make_float64(0x4070000000000000LL)
 #define float64_512 make_float64(0x4080000000000000LL)
 
-/* TODO: The architecture specifies the value that the estimate functions
-   should return.  We return the exact reciprocal/root instead.  */
+/* The algorithm that must be used to calculate the estimate
+ * is specified by the ARM ARM.
+ */
+static float64 recip_estimate(float64 a, CPUState *env)
+{
+    float_status *s = &env->vfp.standard_fp_status;
+    /* q = (int)(a * 512.0) */
+    float64 q = float64_mul(float64_512, a, s);
+    int64_t q_int = float64_to_int64_round_to_zero(q, s);
+
+    /* r = 1.0 / (((double)q + 0.5) / 512.0) */
+    q = int64_to_float64(q_int, s);
+    q = float64_add(q, float64_half, s);
+    q = float64_div(q, float64_512, s);
+    q = float64_div(float64_one, q, s);
+
+    /* s = (int)(256.0 * r + 0.5) */
+    q = float64_mul(q, float64_256, s);
+    q = float64_add(q, float64_half, s);
+    q_int = float64_to_int64_round_to_zero(q, s);
+
+    /* return (double)s / 256.0 */
+    return float64_div(int64_to_float64(q_int, s), float64_256, s);
+}
+
 float32 HELPER(recpe_f32)(float32 a, CPUState *env)
 {
-    float_status *s = &env->vfp.fp_status;
-    float32 one = int32_to_float32(1, s);
-    return float32_div(one, a, s);
+    float_status *s = &env->vfp.standard_fp_status;
+    float64 f64;
+    uint32_t val32 = float32_val(a);
+
+    int result_exp;
+    int a_exp = (val32  & 0x7f800000) >> 23;
+    int sign = val32 & 0x80000000;
+
+    if (float32_is_any_nan(a)) {
+        if (float32_is_signaling_nan(a)) {
+            float_raise(float_flag_invalid, s);
+        }
+        return float32_default_nan;
+    } else if (float32_is_infinity(a)) {
+        return float32_set_sign(float32_zero, float32_is_neg(a));
+    } else if (float32_is_zero_or_denormal(a)) {
+        float_raise(float_flag_divbyzero, s);
+        return float32_set_sign(float32_infinity, float32_is_neg(a));
+    } else if (a_exp >= 253) {
+        float_raise(float_flag_underflow, s);
+        return float32_set_sign(float32_zero, float32_is_neg(a));
+    }
+
+    f64 = make_float64((0x3feULL << 52)
+                       | ((int64_t)(val32 & 0x7fffff) << 29));
+
+    result_exp = 253 - a_exp;
+
+    f64 = recip_estimate(f64, env);
+
+    val32 = sign
+        | ((result_exp & 0xff) << 23)
+        | ((float64_val(f64) >> 29) & 0x7fffff);
+    return make_float32(val32);
 }
 
 float32 HELPER(rsqrte_f32)(float32 a, CPUState *env)
@@ -2710,13 +2764,18 @@ float32 HELPER(rsqrte_f32)(float32 a, CPUState *env)
 
 uint32_t HELPER(recpe_u32)(uint32_t a, CPUState *env)
 {
-    float_status *s = &env->vfp.fp_status;
-    float32 tmp;
-    tmp = int32_to_float32(a, s);
-    tmp = float32_scalbn(tmp, -32, s);
-    tmp = helper_recpe_f32(tmp, env);
-    tmp = float32_scalbn(tmp, 31, s);
-    return float32_to_int32(tmp, s);
+    float64 f64;
+
+    if ((a & 0x80000000) == 0) {
+        return 0xffffffff;
+    }
+
+    f64 = make_float64((0x3feULL << 52)
+                       | ((int64_t)(a & 0x7fffffff) << 21));
+
+    f64 = recip_estimate (f64, env);
+
+    return 0x80000000 | ((float64_val(f64) >> 21) & 0x7fffffff);
 }
 
 uint32_t HELPER(rsqrte_u32)(uint32_t a, CPUState *env)
