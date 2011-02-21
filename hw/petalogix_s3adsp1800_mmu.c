@@ -167,16 +167,21 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
     if (kernel_filename) {
         uint64_t entry, low, high;
         uint32_t base32;
+        int big_endian = 0;
+
+#ifdef TARGET_WORDS_BIGENDIAN
+        big_endian = 1;
+#endif
 
         /* Boots a kernel elf binary.  */
         kernel_size = load_elf(kernel_filename, NULL, NULL,
                                &entry, &low, &high,
-                               1, ELF_MACHINE, 0);
+                               big_endian, ELF_MACHINE, 0);
         base32 = entry;
         if (base32 == 0xc0000000) {
             kernel_size = load_elf(kernel_filename, translate_kernel_address,
                                    NULL, &entry, NULL, NULL,
-                                   1, ELF_MACHINE, 0);
+                                   big_endian, ELF_MACHINE, 0);
         }
         /* Always boot into physical ram.  */
         boot_info.bootstrap_pc = ddr_base + (entry & 0x0fffffff);
