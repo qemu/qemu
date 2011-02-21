@@ -457,7 +457,7 @@ static int net_socket_connect_init(VLANState *vlan,
             } else if (err == EINPROGRESS) {
                 break;
 #ifdef _WIN32
-            } else if (err == WSAEALREADY) {
+            } else if (err == WSAEALREADY || err == WSAEINVAL) {
                 break;
 #endif
             } else {
