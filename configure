@@ -984,6 +984,7 @@ arm-softmmu \
 cris-softmmu \
 m68k-softmmu \
 microblaze-softmmu \
+microblazeel-softmmu \
 mips-softmmu \
 mipsel-softmmu \
 mips64-softmmu \
@@ -1008,6 +1009,7 @@ armeb-linux-user \
 cris-linux-user \
 m68k-linux-user \
 microblaze-linux-user \
+microblazeel-linux-user \
 mips-linux-user \
 mipsel-linux-user \
 ppc-linux-user \
@@ -3005,7 +3007,8 @@ case "$target_arch2" in
     target_long_alignment=2
     target_llong_alignment=2
   ;;
-  microblaze)
+  microblaze|microblazeel)
+    TARGET_ARCH=microblaze
     bflt="yes"
     target_nptl="yes"
     target_phys_bits=32
@@ -3231,7 +3234,7 @@ for i in $ARCH $TARGET_BASE_ARCH ; do
     echo "CONFIG_M68K_DIS=y"  >> $config_target_mak
     echo "CONFIG_M68K_DIS=y"  >> $libdis_config_mak
   ;;
-  microblaze)
+  microblaze*)
     echo "CONFIG_MICROBLAZE_DIS=y"  >> $config_target_mak
     echo "CONFIG_MICROBLAZE_DIS=y"  >> $libdis_config_mak
   ;;
