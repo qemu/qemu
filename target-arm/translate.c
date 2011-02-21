@@ -4161,6 +4161,23 @@ static inline void gen_neon_mull(TCGv_i64 dest, TCGv a, TCGv b, int size, int u)
     }
 }
 
+static void gen_neon_narrow_op(int op, int u, int size, TCGv dest, TCGv_i64 src)
+{
+    if (op) {
+        if (u) {
+            gen_neon_unarrow_sats(size, dest, src);
+        } else {
+            gen_neon_narrow(size, dest, src);
+        }
+    } else {
+        if (u) {
+            gen_neon_narrow_satu(size, dest, src);
+        } else {
+            gen_neon_narrow_sats(size, dest, src);
+        }
+    }
+}
+
 /* Translate a NEON data processing instruction.  Return nonzero if the
    instruction is invalid.
    We process data in a mixture of 32-bit and 64-bit chunks.
@@ -4784,76 +4801,68 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
 
                 shift = shift - (1 << (size + 3));
                 size++;
-                switch (size) {
-                case 1:
-                    imm = (uint16_t)shift;
-                    imm |= imm << 16;
-                    tmp2 = tcg_const_i32(imm);
-                    TCGV_UNUSED_I64(tmp64);
-                    break;
-                case 2:
-                    imm = (uint32_t)shift;
-                    tmp2 = tcg_const_i32(imm);
-                    TCGV_UNUSED_I64(tmp64);
-                    break;
-                case 3:
+                if (size == 3) {
                     tmp64 = tcg_const_i64(shift);
-                    TCGV_UNUSED(tmp2);
-                    break;
-                default:
-                    abort();
-                }
-
-                for (pass = 0; pass < 2; pass++) {
-                    if (size == 3) {
-                        neon_load_reg64(cpu_V0, rm + pass);
+                    neon_load_reg64(cpu_V0, rm);
+                    neon_load_reg64(cpu_V1, rm + 1);
+                    for (pass = 0; pass < 2; pass++) {
+                        TCGv_i64 in;
+                        if (pass == 0) {
+                            in = cpu_V0;
+                        } else {
+                            in = cpu_V1;
+                        }
                         if (q) {
                             if (input_unsigned) {
-                                gen_helper_neon_rshl_u64(cpu_V0, cpu_V0,
-                                                         tmp64);
+                                gen_helper_neon_rshl_u64(cpu_V0, in, tmp64);
                             } else {
-                                gen_helper_neon_rshl_s64(cpu_V0, cpu_V0,
-                                                         tmp64);
+                                gen_helper_neon_rshl_s64(cpu_V0, in, tmp64);
                             }
                         } else {
                             if (input_unsigned) {
-                                gen_helper_neon_shl_u64(cpu_V0, cpu_V0,
-                                                        tmp64);
+                                gen_helper_neon_shl_u64(cpu_V0, in, tmp64);
                             } else {
-                                gen_helper_neon_shl_s64(cpu_V0, cpu_V0,
-                                                        tmp64);
+                                gen_helper_neon_shl_s64(cpu_V0, in, tmp64);
                             }
                         }
+                        tmp = new_tmp();
+                        gen_neon_narrow_op(op == 8, u, size - 1, tmp, cpu_V0);
+                        neon_store_reg(rd, pass, tmp);
+                    } /* for pass */
+                    tcg_temp_free_i64(tmp64);
+                } else {
+                    if (size == 1) {
+                        imm = (uint16_t)shift;
+                        imm |= imm << 16;
                     } else {
-                        tmp = neon_load_reg(rm + pass, 0);
+                        /* size == 2 */
+                        imm = (uint32_t)shift;
+                    }
+                    tmp2 = tcg_const_i32(imm);
+                    tmp4 = neon_load_reg(rm + 1, 0);
+                    tmp5 = neon_load_reg(rm + 1, 1);
+                    for (pass = 0; pass < 2; pass++) {
+                        if (pass == 0) {
+                            tmp = neon_load_reg(rm, 0);
+                        } else {
+                            tmp = tmp4;
+                        }
                         gen_neon_shift_narrow(size, tmp, tmp2, q,
                                               input_unsigned);
-                        tmp3 = neon_load_reg(rm + pass, 1);
+                        if (pass == 0) {
+                            tmp3 = neon_load_reg(rm, 1);
+                        } else {
+                            tmp3 = tmp5;
+                        }
                         gen_neon_shift_narrow(size, tmp3, tmp2, q,
                                               input_unsigned);
                         tcg_gen_concat_i32_i64(cpu_V0, tmp, tmp3);
                         dead_tmp(tmp);
                         dead_tmp(tmp3);
-                    }
-                    tmp = new_tmp();
-                    if (op == 8) {
-                        if (u) { /* VQSHRUN / VQRSHRUN */
-                            gen_neon_unarrow_sats(size - 1, tmp, cpu_V0);
-                        } else { /* VSHRN / VRSHRN */
-                            gen_neon_narrow(size - 1, tmp, cpu_V0);
-                        }
-                    } else {
-                        if (u) { /* VQSHRN / VQRSHRN */
-                            gen_neon_narrow_satu(size - 1, tmp, cpu_V0);
-                        } else { /* VQSHRN / VQRSHRN */
-                            gen_neon_narrow_sats(size - 1, tmp, cpu_V0);
-                        }
-                    }
-                    neon_store_reg(rd, pass, tmp);
-                } /* for pass */
-                if (size == 3) {
-                    tcg_temp_free_i64(tmp64);
-                } else {
+                        tmp = new_tmp();
+                        gen_neon_narrow_op(op == 8, u, size - 1, tmp, cpu_V0);
+                        neon_store_reg(rd, pass, tmp);
+                    } /* for pass */
                     tcg_temp_free_i32(tmp2);
                 }
             } else if (op == 10) {
@@ -5436,19 +5445,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     for (pass = 0; pass < 2; pass++) {
                         neon_load_reg64(cpu_V0, rm + pass);
                         tmp = new_tmp();
-                        if (op == 36) {
-                            if (q) { /* VQMOVUN */
-                                gen_neon_unarrow_sats(size, tmp, cpu_V0);
-                            } else { /* VMOVN */
-                                gen_neon_narrow(size, tmp, cpu_V0);
-                            }
-                        } else { /* VQMOVN */
-                            if (q) {
-                                gen_neon_narrow_satu(size, tmp, cpu_V0);
-                            } else {
-                                gen_neon_narrow_sats(size, tmp, cpu_V0);
-                            }
-                        }
+                        gen_neon_narrow_op(op == 36, q, size, tmp, cpu_V0);
                         if (pass == 0) {
                             tmp2 = tmp;
                         } else {

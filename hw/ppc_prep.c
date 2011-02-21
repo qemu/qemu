@@ -690,7 +690,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
         hd[i] = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
     }
 
-    for(i = 0; i < 1/*MAX_IDE_BUS*/; i++) {
+    for(i = 0; i < MAX_IDE_BUS; i++) {
         isa_ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
                      hd[2 * i],
 		     hd[2 * i + 1]);
