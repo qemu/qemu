@@ -379,9 +379,16 @@ INLINE int float32_is_zero_or_denormal(float32 a)
     return (float32_val(a) & 0x7f800000) == 0;
 }
 
+INLINE float32 float32_set_sign(float32 a, int sign)
+{
+    return make_float32((float32_val(a) & 0x7fffffff) | (sign << 31));
+}
+
 #define float32_zero make_float32(0)
 #define float32_one make_float32(0x3f800000)
 #define float32_ln2 make_float32(0x3f317218)
+#define float32_half make_float32(0x3f000000)
+#define float32_infinity make_float32(0x7f800000)
 
 
 /*----------------------------------------------------------------------------
@@ -479,9 +486,17 @@ INLINE int float64_is_any_nan(float64 a)
     return ((float64_val(a) & ~(1ULL << 63)) > 0x7ff0000000000000ULL);
 }
 
+INLINE float64 float64_set_sign(float64 a, int sign)
+{
+    return make_float64((float64_val(a) & 0x7fffffffffffffffULL)
+                        | ((int64_t)sign << 63));
+}
+
 #define float64_zero make_float64(0)
 #define float64_one make_float64(0x3ff0000000000000LL)
 #define float64_ln2 make_float64(0x3fe62e42fefa39efLL)
+#define float64_half make_float64(0x3fe0000000000000LL)
+#define float64_infinity make_float64(0x7ff0000000000000LL)
 
 /*----------------------------------------------------------------------------
 | The pattern for a default generated double-precision NaN.
