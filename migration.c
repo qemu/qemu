@@ -317,6 +317,18 @@ void migrate_fd_error(MigrationState *s)
     migrate_fd_cleanup(s);
 }
 
+static void migrate_fd_completed(MigrationState *s)
+{
+    DPRINTF("setting completed state\n");
+    if (migrate_fd_cleanup(s) < 0) {
+        s->state = MIG_STATE_ERROR;
+    } else {
+        s->state = MIG_STATE_COMPLETED;
+        runstate_set(RUN_STATE_POSTMIGRATE);
+    }
+    notifier_list_notify(&migration_state_notifiers, NULL);
+}
+
 static void migrate_fd_put_notify(void *opaque)
 {
     MigrationState *s = opaque;
@@ -375,13 +387,7 @@ static void migrate_fd_put_ready(void *opaque)
         if (qemu_savevm_state_complete(s->mon, s->file) < 0) {
             migrate_fd_error(s);
         } else {
-            if (migrate_fd_cleanup(s) < 0) {
-                migrate_fd_error(s);
-            } else {
-                s->state = MIG_STATE_COMPLETED;
-                runstate_set(RUN_STATE_POSTMIGRATE);
-                notifier_list_notify(&migration_state_notifiers, NULL);
-            }
+            migrate_fd_completed(s);
         }
         if (s->get_status(s) != MIG_STATE_COMPLETED) {
             if (old_vm_running) {
