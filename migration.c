@@ -364,9 +364,9 @@ void remove_migration_state_change_notifier(Notifier *notify)
     notifier_list_remove(&migration_state_notifiers, notify);
 }
 
-int get_migration_state(void)
+bool migration_has_finished(MigrationState *s)
 {
-    return migrate_get_current()->state;
+    return s->state == MIG_STATE_COMPLETED;
 }
 
 void migrate_fd_connect(MigrationState *s)

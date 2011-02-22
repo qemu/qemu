@@ -84,7 +84,7 @@ void migrate_fd_connect(MigrationState *s);
 
 void add_migration_state_change_notifier(Notifier *notify);
 void remove_migration_state_change_notifier(Notifier *notify);
-int get_migration_state(void);
+bool migration_has_finished(MigrationState *);
 
 uint64_t ram_bytes_remaining(void);
 uint64_t ram_bytes_transferred(void);

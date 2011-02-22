@@ -447,9 +447,9 @@ void do_info_spice(Monitor *mon, QObject **ret_data)
 
 static void migration_state_notifier(Notifier *notifier, void *data)
 {
-    int state = get_migration_state();
+    MigrationState *s = data;
 
-    if (state == MIG_STATE_COMPLETED) {
+    if (migration_has_finished(s)) {
 #if SPICE_SERVER_VERSION >= 0x000701 /* 0.7.1 */
         spice_server_migrate_switch(spice_server);
 #endif
