@@ -313,6 +313,9 @@ void migrate_fd_put_notify(void *opaque)
 
     qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
     qemu_file_put_notify(s->file);
+    if (qemu_file_has_error(s->file)) {
+        migrate_fd_error(s);
+    }
 }
 
 ssize_t migrate_fd_put_buffer(void *opaque, const void *data, size_t size)
@@ -329,9 +332,6 @@ ssize_t migrate_fd_put_buffer(void *opaque, const void *data, size_t size)
 
     if (ret == -EAGAIN) {
         qemu_set_fd_handler2(s->fd, NULL, NULL, migrate_fd_put_notify, s);
-    } else if (ret < 0) {
-        s->state = MIG_STATE_ERROR;
-        notifier_list_notify(&migration_state_notifiers, NULL);
     }
 
     return ret;
