@@ -6127,16 +6127,20 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #ifdef TARGET_NR__llseek /* Not on alpha */
     case TARGET_NR__llseek:
         {
-#if !defined(__NR_llseek)
-            ret = get_errno(lseek(arg1, ((uint64_t )arg2 << 32) | arg3, arg5));
-            if (put_user_s64(ret, arg4))
-                goto efault;
-#else
             int64_t res;
+#if !defined(__NR_llseek)
+            res = lseek(arg1, ((uint64_t)arg2 << 32) | arg3, arg5);
+            if (res == -1) {
+                ret = get_errno(res);
+            } else {
+                ret = 0;
+            }
+#else
             ret = get_errno(_llseek(arg1, arg2, arg3, &res, arg5));
-            if (put_user_s64(res, arg4))
-                goto efault;
 #endif
+            if ((ret == 0) && put_user_s64(res, arg4)) {
+                goto efault;
+            }
         }
         break;
 #endif
