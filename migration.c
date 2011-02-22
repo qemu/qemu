@@ -372,23 +372,22 @@ static void migrate_fd_put_ready(void *opaque)
         DPRINTF("done iterating\n");
         vm_stop(RUN_STATE_FINISH_MIGRATE);
 
-        if ((qemu_savevm_state_complete(s->mon, s->file)) < 0) {
+        if (qemu_savevm_state_complete(s->mon, s->file) < 0) {
+            migrate_fd_error(s);
+        } else {
+            if (migrate_fd_cleanup(s) < 0) {
+                migrate_fd_error(s);
+            } else {
+                s->state = MIG_STATE_COMPLETED;
+                runstate_set(RUN_STATE_POSTMIGRATE);
+                notifier_list_notify(&migration_state_notifiers, NULL);
+            }
+        }
+        if (s->get_status(s) != MIG_STATE_COMPLETED) {
             if (old_vm_running) {
                 vm_start();
             }
-            s->state = MIG_STATE_ERROR;
         }
-        if (migrate_fd_cleanup(s) < 0) {
-            if (old_vm_running) {
-                vm_start();
-            }
-            s->state = MIG_STATE_ERROR;
-        }
-        if (s->state == MIG_STATE_ACTIVE) {
-            s->state = MIG_STATE_COMPLETED;
-            runstate_set(RUN_STATE_POSTMIGRATE);
-        }
-        notifier_list_notify(&migration_state_notifiers, NULL);
     }
 }
 
