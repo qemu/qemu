@@ -18,14 +18,6 @@
 #include "qemu-common.h"
 #include "notify.h"
 
-enum {
-    MIG_STATE_ERROR,
-    MIG_STATE_SETUP,
-    MIG_STATE_CANCELLED,
-    MIG_STATE_ACTIVE,
-    MIG_STATE_COMPLETED,
-};
-
 typedef struct MigrationState MigrationState;
 
 struct MigrationState
