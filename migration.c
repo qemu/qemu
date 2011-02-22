@@ -31,8 +31,7 @@
     do { } while (0)
 #endif
 
-/* Migration speed throttling */
-static int64_t max_throttle = (32 << 20);
+#define MAX_THROTTLE  (32 << 20)      /* Migration speed throttling */
 
 static NotifierList migration_state_notifiers =
     NOTIFIER_LIST_INITIALIZER(migration_state_notifiers);
@@ -45,6 +44,7 @@ static MigrationState *migrate_get_current(void)
 {
     static MigrationState current_migration = {
         .state = MIG_STATE_SETUP,
+        .bandwidth_limit = MAX_THROTTLE,
     };
 
     return &current_migration;
@@ -391,12 +391,13 @@ void migrate_fd_connect(MigrationState *s)
     migrate_fd_put_ready(s);
 }
 
-static MigrationState *migrate_init(Monitor *mon, int64_t bandwidth_limit,
-                                    int detach, int blk, int inc)
+static MigrationState *migrate_init(Monitor *mon, int detach, int blk, int inc)
 {
     MigrationState *s = migrate_get_current();
+    int64_t bandwidth_limit = s->bandwidth_limit;
 
     memset(s, 0, sizeof(*s));
+    s->bandwidth_limit = bandwidth_limit;
     s->blk = blk;
     s->shared = inc;
     s->mon = NULL;
@@ -429,7 +430,7 @@ int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
         return -1;
     }
 
-    s = migrate_init(mon, max_throttle, detach, blk, inc);
+    s = migrate_init(mon, detach, blk, inc);
 
     if (strstart(uri, "tcp:", &p)) {
         ret = tcp_start_outgoing_migration(s, p);
@@ -470,10 +471,10 @@ int do_migrate_set_speed(Monitor *mon, const QDict *qdict, QObject **ret_data)
     if (d < 0) {
         d = 0;
     }
-    max_throttle = d;
 
     s = migrate_get_current();
-    qemu_file_set_rate_limit(s->file, max_throttle);
+    s->bandwidth_limit = d;
+    qemu_file_set_rate_limit(s->file, s->bandwidth_limit);
 
     return 0;
 }
