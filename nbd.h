@@ -22,19 +22,22 @@
 #include <sys/types.h>
 
 #include <qemu-common.h>
+
 #include "block_int.h"
 
 struct nbd_request {
+    uint32_t magic;
     uint32_t type;
     uint64_t handle;
     uint64_t from;
     uint32_t len;
-};
+} __attribute__ ((__packed__));
 
 struct nbd_reply {
+    uint32_t magic;
     uint32_t error;
     uint64_t handle;
-};
+} __attribute__ ((__packed__));
 
 enum {
     NBD_CMD_READ = 0,
@@ -47,6 +50,8 @@ enum {
 size_t nbd_wr_sync(int fd, void *buffer, size_t size, bool do_read);
 int tcp_socket_outgoing(const char *address, uint16_t port);
 int tcp_socket_incoming(const char *address, uint16_t port);
+int tcp_socket_outgoing_spec(const char *address_and_port);
+int tcp_socket_incoming_spec(const char *address_and_port);
 int unix_socket_outgoing(const char *path);
 int unix_socket_incoming(const char *path);
 

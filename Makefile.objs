@@ -14,7 +14,7 @@ oslib-obj-$(CONFIG_POSIX) += oslib-posix.o
 # block-obj-y is code used by both qemu system emulation and qemu-img
 
 block-obj-y = cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o async.o
-block-obj-y += nbd.o block.o aio.o aes.o qemu-config.o qemu-progress.o
+block-obj-y += nbd.o block.o aio.o aes.o qemu-config.o qemu-progress.o qemu-sockets.o
 block-obj-$(CONFIG_POSIX) += posix-aio-compat.o
 block-obj-$(CONFIG_LINUX_AIO) += linux-aio.o
 
@@ -94,7 +94,7 @@ common-obj-$(CONFIG_SSI_SD) += ssi-sd.o
 common-obj-$(CONFIG_SD) += sd.o
 common-obj-y += bt.o bt-host.o bt-vhci.o bt-l2cap.o bt-sdp.o bt-hci.o bt-hid.o usb-bt.o
 common-obj-y += bt-hci-csr.o
-common-obj-y += buffered_file.o migration.o migration-tcp.o qemu-sockets.o
+common-obj-y += buffered_file.o migration.o migration-tcp.o
 common-obj-y += qemu-char.o savevm.o #aio.o
 common-obj-y += msmouse.o ps2.o
 common-obj-y += qdev.o qdev-properties.o

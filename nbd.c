@@ -107,155 +107,55 @@ size_t nbd_wr_sync(int fd, void *buffer, size_t size, bool do_read)
     return offset;
 }
 
+static void combine_addr(char *buf, size_t len, const char* address,
+                         uint16_t port)
+{
+    /* If the address-part contains a colon, it's an IPv6 IP so needs [] */
+    if (strstr(address, ":")) {
+        snprintf(buf, len, "[%s]:%u", address, port);
+    } else {
+        snprintf(buf, len, "%s:%u", address, port);
+    }
+}
+
 int tcp_socket_outgoing(const char *address, uint16_t port)
 {
-    int s;
-    struct in_addr in;
-    struct sockaddr_in addr;
+    char address_and_port[128];
+    combine_addr(address_and_port, 128, address, port);
+    return tcp_socket_outgoing_spec(address_and_port);
+}
 
-    s = socket(PF_INET, SOCK_STREAM, 0);
-    if (s == -1) {
-        return -1;
-    }
-
-    if (inet_aton(address, &in) == 0) {
-        struct hostent *ent;
-
-        ent = gethostbyname(address);
-        if (ent == NULL) {
-            goto error;
-        }
-
-        memcpy(&in, ent->h_addr, sizeof(in));
-    }
-
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    memcpy(&addr.sin_addr.s_addr, &in, sizeof(in));
-
-    if (connect(s, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
-        goto error;
-    }
-
-    return s;
-error:
-    closesocket(s);
-    return -1;
+int tcp_socket_outgoing_spec(const char *address_and_port)
+{
+    return inet_connect(address_and_port, SOCK_STREAM);
 }
 
 int tcp_socket_incoming(const char *address, uint16_t port)
 {
-    int s;
-    struct in_addr in;
-    struct sockaddr_in addr;
-    int opt;
-
-    s = socket(PF_INET, SOCK_STREAM, 0);
-    if (s == -1) {
-        return -1;
-    }
-
-    if (inet_aton(address, &in) == 0) {
-        struct hostent *ent;
-
-        ent = gethostbyname(address);
-        if (ent == NULL) {
-            goto error;
-        }
-
-        memcpy(&in, ent->h_addr, sizeof(in));
-    }
-
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    memcpy(&addr.sin_addr.s_addr, &in, sizeof(in));
-
-    opt = 1;
-    if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR,
-                   (const void *) &opt, sizeof(opt)) == -1) {
-        goto error;
-    }
-
-    if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
-        goto error;
-    }
-
-    if (listen(s, 128) == -1) {
-        goto error;
-    }
-
-    return s;
-error:
-    closesocket(s);
-    return -1;
+    char address_and_port[128];
+    combine_addr(address_and_port, 128, address, port);
+    return tcp_socket_incoming_spec(address_and_port);
 }
 
-#ifndef _WIN32
+int tcp_socket_incoming_spec(const char *address_and_port)
+{
+    char *ostr  = NULL;
+    int olen = 0;
+    return inet_listen(address_and_port, ostr, olen, SOCK_STREAM, 0);
+}
+
 int unix_socket_incoming(const char *path)
 {
-    int s;
-    struct sockaddr_un addr;
+    char *ostr = NULL;
+    int olen = 0;
 
-    s = socket(PF_UNIX, SOCK_STREAM, 0);
-    if (s == -1) {
-        return -1;
-    }
-
-    memset(&addr, 0, sizeof(addr));
-    addr.sun_family = AF_UNIX;
-    pstrcpy(addr.sun_path, sizeof(addr.sun_path), path);
-
-    if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
-        goto error;
-    }
-
-    if (listen(s, 128) == -1) {
-        goto error;
-    }
-
-    return s;
-error:
-    closesocket(s);
-    return -1;
+    return unix_listen(path, ostr, olen);
 }
 
 int unix_socket_outgoing(const char *path)
 {
-    int s;
-    struct sockaddr_un addr;
-
-    s = socket(PF_UNIX, SOCK_STREAM, 0);
-    if (s == -1) {
-        return -1;
-    }
-
-    memset(&addr, 0, sizeof(addr));
-    addr.sun_family = AF_UNIX;
-    pstrcpy(addr.sun_path, sizeof(addr.sun_path), path);
-
-    if (connect(s, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
-        goto error;
-    }
-
-    return s;
-error:
-    closesocket(s);
-    return -1;
+    return unix_connect(path);
 }
-#else
-int unix_socket_incoming(const char *path)
-{
-    errno = ENOTSUP;
-    return -1;
-}
-
-int unix_socket_outgoing(const char *path)
-{
-    errno = ENOTSUP;
-    return -1;
-}
-#endif
-
 
 /* Basic flow
 
