@@ -77,90 +77,6 @@ void process_incoming_migration(QEMUFile *f)
     }
 }
 
-static MigrationState *migrate_new(Monitor *mon, int64_t bandwidth_limit,
-                                   int detach, int blk, int inc);
-
-int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
-{
-    MigrationState *s = NULL;
-    const char *p;
-    int detach = qdict_get_try_bool(qdict, "detach", 0);
-    int blk = qdict_get_try_bool(qdict, "blk", 0);
-    int inc = qdict_get_try_bool(qdict, "inc", 0);
-    const char *uri = qdict_get_str(qdict, "uri");
-    int ret;
-
-    if (current_migration &&
-        current_migration->state == MIG_STATE_ACTIVE) {
-        monitor_printf(mon, "migration already in progress\n");
-        return -1;
-    }
-
-    if (qemu_savevm_state_blocked(mon)) {
-        return -1;
-    }
-
-    s = migrate_new(mon, max_throttle, detach, blk, inc);
-
-    if (strstart(uri, "tcp:", &p)) {
-        ret = tcp_start_outgoing_migration(s, p);
-#if !defined(WIN32)
-    } else if (strstart(uri, "exec:", &p)) {
-        ret = exec_start_outgoing_migration(s, p);
-    } else if (strstart(uri, "unix:", &p)) {
-        ret = unix_start_outgoing_migration(s, p);
-    } else if (strstart(uri, "fd:", &p)) {
-        ret = fd_start_outgoing_migration(s, p);
-#endif
-    } else {
-        monitor_printf(mon, "unknown migration protocol: %s\n", uri);
-        ret  = -EINVAL;
-        goto free_migrate_state;
-    }
-
-    if (ret < 0) {
-        monitor_printf(mon, "migration failed\n");
-        goto free_migrate_state;
-    }
-
-    g_free(current_migration);
-    current_migration = s;
-    notifier_list_notify(&migration_state_notifiers, NULL);
-    return 0;
-free_migrate_state:
-    g_free(s);
-    return -1;
-}
-
-static void migrate_fd_cancel(MigrationState *s);
-
-int do_migrate_cancel(Monitor *mon, const QDict *qdict, QObject **ret_data)
-{
-    if (current_migration) {
-        migrate_fd_cancel(current_migration);
-    }
-    return 0;
-}
-
-int do_migrate_set_speed(Monitor *mon, const QDict *qdict, QObject **ret_data)
-{
-    int64_t d;
-    MigrationState *s;
-
-    d = qdict_get_int(qdict, "value");
-    if (d < 0) {
-        d = 0;
-    }
-    max_throttle = d;
-
-    s = current_migration;
-    if (s && s->file) {
-        qemu_file_set_rate_limit(s->file, max_throttle);
-    }
-
-    return 0;
-}
-
 /* amount of nanoseconds we are willing to wait for migration to be down.
  * the choice of nanoseconds is because it is the maximum resolution that
  * get_clock() can achieve. It is an internal measure. All user-visible
@@ -170,18 +86,6 @@ static uint64_t max_downtime = 30000000;
 uint64_t migrate_max_downtime(void)
 {
     return max_downtime;
-}
-
-int do_migrate_set_downtime(Monitor *mon, const QDict *qdict,
-                            QObject **ret_data)
-{
-    double d;
-
-    d = qdict_get_double(qdict, "value") * 1e9;
-    d = MAX(0, MIN(UINT64_MAX, d));
-    max_downtime = (uint64_t)d;
-
-    return 0;
 }
 
 static void migrate_print_status(Monitor *mon, const char *name,
@@ -499,4 +403,95 @@ static MigrationState *migrate_new(Monitor *mon, int64_t bandwidth_limit,
     }
 
     return s;
+}
+
+int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
+{
+    MigrationState *s = NULL;
+    const char *p;
+    int detach = qdict_get_try_bool(qdict, "detach", 0);
+    int blk = qdict_get_try_bool(qdict, "blk", 0);
+    int inc = qdict_get_try_bool(qdict, "inc", 0);
+    const char *uri = qdict_get_str(qdict, "uri");
+    int ret;
+
+    if (current_migration &&
+        current_migration->state == MIG_STATE_ACTIVE) {
+        monitor_printf(mon, "migration already in progress\n");
+        return -1;
+    }
+
+    if (qemu_savevm_state_blocked(mon)) {
+        return -1;
+    }
+
+    s = migrate_new(mon, max_throttle, detach, blk, inc);
+
+    if (strstart(uri, "tcp:", &p)) {
+        ret = tcp_start_outgoing_migration(s, p);
+#if !defined(WIN32)
+    } else if (strstart(uri, "exec:", &p)) {
+        ret = exec_start_outgoing_migration(s, p);
+    } else if (strstart(uri, "unix:", &p)) {
+        ret = unix_start_outgoing_migration(s, p);
+    } else if (strstart(uri, "fd:", &p)) {
+        ret = fd_start_outgoing_migration(s, p);
+#endif
+    } else {
+        monitor_printf(mon, "unknown migration protocol: %s\n", uri);
+        ret  = -EINVAL;
+        goto free_migrate_state;
+    }
+
+    if (ret < 0) {
+        monitor_printf(mon, "migration failed\n");
+        goto free_migrate_state;
+    }
+
+    g_free(current_migration);
+    current_migration = s;
+    notifier_list_notify(&migration_state_notifiers, NULL);
+    return 0;
+free_migrate_state:
+    g_free(s);
+    return -1;
+}
+
+int do_migrate_cancel(Monitor *mon, const QDict *qdict, QObject **ret_data)
+{
+    if (current_migration) {
+        migrate_fd_cancel(current_migration);
+    }
+    return 0;
+}
+
+int do_migrate_set_speed(Monitor *mon, const QDict *qdict, QObject **ret_data)
+{
+    int64_t d;
+    MigrationState *s;
+
+    d = qdict_get_int(qdict, "value");
+    if (d < 0) {
+        d = 0;
+    }
+    max_throttle = d;
+
+    s = current_migration;
+    if (s && s->file) {
+        qemu_file_set_rate_limit(s->file, max_throttle);
+    }
+
+    return 0;
+}
+
+int do_migrate_set_downtime(Monitor *mon, const QDict *qdict,
+                            QObject **ret_data)
+{
+    double d;
+
+    d = qdict_get_double(qdict, "value") * 1e9;
+    d = MAX(0, MIN(UINT64_MAX, d));
+    max_downtime = (uint64_t)d;
+
+    return 0;
 }
