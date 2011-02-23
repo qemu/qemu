@@ -189,13 +189,19 @@ static int buffered_close(void *opaque)
     return ret;
 }
 
+/*
+ * The meaning of the return values is:
+ *   0: We can continue sending
+ *   1: Time to stop
+ *  -1: There has been an error
+ */
 static int buffered_rate_limit(void *opaque)
 {
     QEMUFileBuffered *s = opaque;
 
-    if (s->has_error)
-        return 0;
-
+    if (s->has_error) {
+        return -1;
+    }
     if (s->freeze_output)
         return 1;
 
