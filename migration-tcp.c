@@ -139,7 +139,7 @@ static void tcp_accept_incoming_migration(void *opaque)
 {
     struct sockaddr_in addr;
     socklen_t addrlen = sizeof(addr);
-    int s = (unsigned long)opaque;
+    int s = (intptr_t)opaque;
     QEMUFile *f;
     int c;
 
@@ -194,7 +194,7 @@ int tcp_start_incoming_migration(const char *host_port)
         goto err;
 
     qemu_set_fd_handler2(s, NULL, tcp_accept_incoming_migration, NULL,
-                         (void *)(unsigned long)s);
+                         (void *)(intptr_t)s);
 
     return 0;
 
