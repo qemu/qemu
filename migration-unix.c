@@ -88,35 +88,29 @@ int unix_start_outgoing_migration(MigrationState *s, const char *path)
     s->fd = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
     if (s->fd < 0) {
         DPRINTF("Unable to open socket");
-        goto err_after_socket;
+        return -errno;
     }
 
     socket_set_nonblock(s->fd);
 
     do {
         ret = connect(s->fd, (struct sockaddr *)&addr, sizeof(addr));
-        if (ret == -1)
+        if (ret == -1) {
             ret = -errno;
-
-        if (ret == -EINPROGRESS || ret == -EWOULDBLOCK)
+        }
+        if (ret == -EINPROGRESS || ret == -EWOULDBLOCK) {
 	    qemu_set_fd_handler2(s->fd, NULL, NULL, unix_wait_for_connect, s);
+            return 0;
+        }
     } while (ret == -EINTR);
 
-    if (ret < 0 && ret != -EINPROGRESS && ret != -EWOULDBLOCK) {
+    if (ret < 0) {
         DPRINTF("connect failed\n");
-        goto err_after_open;
+        migrate_fd_error(s);
+        return ret;
     }
-
-    if (ret >= 0)
-        migrate_fd_connect(s);
-
+    migrate_fd_connect(s);
     return 0;
-
-err_after_open:
-    close(s->fd);
-
-err_after_socket:
-    return -1;
 }
 
 static void unix_accept_incoming_migration(void *opaque)

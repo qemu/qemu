@@ -90,26 +90,28 @@ int tcp_start_outgoing_migration(MigrationState *s, const char *host_port)
 
     s->fd = qemu_socket(PF_INET, SOCK_STREAM, 0);
     if (s->fd == -1) {
-        return -1;
+        return -socket_error();
     }
 
     socket_set_nonblock(s->fd);
 
     do {
         ret = connect(s->fd, (struct sockaddr *)&addr, sizeof(addr));
-        if (ret == -1)
-            ret = -(socket_error());
-
-        if (ret == -EINPROGRESS || ret == -EWOULDBLOCK)
+        if (ret == -1) {
+            ret = -socket_error();
+        }
+        if (ret == -EINPROGRESS || ret == -EWOULDBLOCK) {
             qemu_set_fd_handler2(s->fd, NULL, NULL, tcp_wait_for_connect, s);
+            return 0;
+        }
     } while (ret == -EINTR);
 
-    if (ret < 0 && ret != -EINPROGRESS && ret != -EWOULDBLOCK) {
+    if (ret < 0) {
         DPRINTF("connect failed\n");
         migrate_fd_error(s);
-    } else if (ret >= 0)
-        migrate_fd_connect(s);
-
+        return ret;
+    }
+    migrate_fd_connect(s);
     return 0;
 }
 
