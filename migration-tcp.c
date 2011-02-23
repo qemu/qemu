@@ -58,7 +58,7 @@ static void tcp_wait_for_connect(void *opaque)
     DPRINTF("connect completed\n");
     do {
         ret = getsockopt(s->fd, SOL_SOCKET, SO_ERROR, (void *) &val, &valsize);
-    } while (ret == -1 && (s->get_error(s)) == EINTR);
+    } while (ret == -1 && (socket_error()) == EINTR);
 
     if (ret < 0) {
         migrate_fd_error(s);
@@ -98,7 +98,7 @@ int tcp_start_outgoing_migration(MigrationState *s, const char *host_port)
     do {
         ret = connect(s->fd, (struct sockaddr *)&addr, sizeof(addr));
         if (ret == -1)
-            ret = -(s->get_error(s));
+            ret = -(socket_error());
 
         if (ret == -EINPROGRESS || ret == -EWOULDBLOCK)
             qemu_set_fd_handler2(s->fd, NULL, NULL, tcp_wait_for_connect, s);

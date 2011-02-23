@@ -57,7 +57,7 @@ static void unix_wait_for_connect(void *opaque)
     DPRINTF("connect completed\n");
     do {
         ret = getsockopt(s->fd, SOL_SOCKET, SO_ERROR, (void *) &val, &valsize);
-    } while (ret == -1 && (s->get_error(s)) == EINTR);
+    } while (ret == -1 && errno == EINTR);
 
     if (ret < 0) {
         migrate_fd_error(s);
@@ -96,7 +96,7 @@ int unix_start_outgoing_migration(MigrationState *s, const char *path)
     do {
         ret = connect(s->fd, (struct sockaddr *)&addr, sizeof(addr));
         if (ret == -1)
-	    ret = -(s->get_error(s));
+            ret = -errno;
 
         if (ret == -EINPROGRESS || ret == -EWOULDBLOCK)
 	    qemu_set_fd_handler2(s->fd, NULL, NULL, unix_wait_for_connect, s);
@@ -129,7 +129,7 @@ static void unix_accept_incoming_migration(void *opaque)
 
     do {
         c = qemu_accept(s, (struct sockaddr *)&addr, &addrlen);
-    } while (c == -1 && socket_error() == EINTR);
+    } while (c == -1 && errno == EINTR);
 
     DPRINTF("accepted migration\n");
 
