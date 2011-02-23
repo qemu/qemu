@@ -48,7 +48,6 @@ static int tcp_close(MigrationState *s)
     return 0;
 }
 
-
 static void tcp_wait_for_connect(void *opaque)
 {
     MigrationState *s = opaque;
@@ -84,12 +83,14 @@ int tcp_start_outgoing_migration(MigrationState *s, const char *host_port)
     if (ret < 0) {
         return ret;
     }
+
     s->get_error = socket_errno;
     s->write = socket_write;
     s->close = tcp_close;
 
     s->fd = qemu_socket(PF_INET, SOCK_STREAM, 0);
     if (s->fd == -1) {
+        DPRINTF("Unable to open socket");
         return -socket_error();
     }
 
@@ -155,23 +156,27 @@ int tcp_start_incoming_migration(const char *host_port)
     int val;
     int s;
 
+    DPRINTF("Attempting to start an incoming migration\n");
+
     if (parse_host_port(&addr, host_port) < 0) {
         fprintf(stderr, "invalid host/port combination: %s\n", host_port);
         return -EINVAL;
     }
 
     s = qemu_socket(PF_INET, SOCK_STREAM, 0);
-    if (s == -1)
+    if (s == -1) {
         return -socket_error();
+    }
 
     val = 1;
     setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (const char *)&val, sizeof(val));
 
-    if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) == -1)
+    if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
         goto err;
-
-    if (listen(s, 1) == -1)
+    }
+    if (listen(s, 1) == -1) {
         goto err;
+    }
 
     qemu_set_fd_handler2(s, NULL, tcp_accept_incoming_migration, NULL,
                          (void *)(intptr_t)s);

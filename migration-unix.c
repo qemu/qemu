@@ -86,7 +86,7 @@ int unix_start_outgoing_migration(MigrationState *s, const char *path)
     s->close = unix_close;
 
     s->fd = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
-    if (s->fd < 0) {
+    if (s->fd == -1) {
         DPRINTF("Unable to open socket");
         return -errno;
     }
@@ -129,7 +129,7 @@ static void unix_accept_incoming_migration(void *opaque)
 
     if (c == -1) {
         fprintf(stderr, "could not accept migration connection\n");
-        return;
+        goto out2;
     }
 
     f = qemu_fopen_socket(c);
@@ -141,45 +141,49 @@ static void unix_accept_incoming_migration(void *opaque)
     process_incoming_migration(f);
     qemu_fclose(f);
 out:
+    close(c);
+out2:
     qemu_set_fd_handler2(s, NULL, NULL, NULL, NULL);
     close(s);
-    close(c);
 }
 
 int unix_start_incoming_migration(const char *path)
 {
-    struct sockaddr_un un;
-    int sock;
+    struct sockaddr_un addr;
+    int s;
+    int ret;
 
     DPRINTF("Attempting to start an incoming migration\n");
 
-    sock = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
-    if (sock < 0) {
+    s = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
+    if (s == -1) {
         fprintf(stderr, "Could not open unix socket: %s\n", strerror(errno));
-        return -EINVAL;
+        return -errno;
     }
 
-    memset(&un, 0, sizeof(un));
-    un.sun_family = AF_UNIX;
-    snprintf(un.sun_path, sizeof(un.sun_path), "%s", path);
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", path);
 
-    unlink(un.sun_path);
-    if (bind(sock, (struct sockaddr*) &un, sizeof(un)) < 0) {
-        fprintf(stderr, "bind(unix:%s): %s\n", un.sun_path, strerror(errno));
+    unlink(addr.sun_path);
+    if (bind(s, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+        ret = -errno;
+        fprintf(stderr, "bind(unix:%s): %s\n", addr.sun_path, strerror(errno));
         goto err;
     }
-    if (listen(sock, 1) < 0) {
-        fprintf(stderr, "listen(unix:%s): %s\n", un.sun_path, strerror(errno));
+    if (listen(s, 1) == -1) {
+        fprintf(stderr, "listen(unix:%s): %s\n", addr.sun_path,
+                strerror(errno));
+        ret = -errno;
         goto err;
     }
 
-    qemu_set_fd_handler2(sock, NULL, unix_accept_incoming_migration, NULL,
-			 (void *)(intptr_t)sock);
+    qemu_set_fd_handler2(s, NULL, unix_accept_incoming_migration, NULL,
+                         (void *)(intptr_t)s);
 
     return 0;
 
 err:
-    close(sock);
-
-    return -EINVAL;
+    close(s);
+    return ret;
 }
