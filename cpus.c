@@ -267,7 +267,7 @@ static void qemu_event_increment(void)
 
 static void qemu_event_read(void *opaque)
 {
-    int fd = (unsigned long)opaque;
+    int fd = (intptr_t)opaque;
     ssize_t len;
     char buffer[512];
 
@@ -295,7 +295,7 @@ static int qemu_event_init(void)
         goto fail;
     }
     qemu_set_fd_handler2(fds[0], NULL, qemu_event_read, NULL,
-                         (void *)(unsigned long)fds[0]);
+                         (void *)(intptr_t)fds[0]);
 
     io_thread_fd = fds[1];
     return 0;
@@ -316,7 +316,7 @@ static void dummy_signal(int sig)
  */
 static void sigfd_handler(void *opaque)
 {
-    int fd = (unsigned long) opaque;
+    int fd = (intptr_t)opaque;
     struct qemu_signalfd_siginfo info;
     struct sigaction action;
     ssize_t len;
@@ -358,7 +358,7 @@ static int qemu_signalfd_init(sigset_t mask)
     fcntl_setfl(sigfd, O_NONBLOCK);
 
     qemu_set_fd_handler2(sigfd, NULL, sigfd_handler, NULL,
-                         (void *)(unsigned long) sigfd);
+                         (void *)(intptr_t)sigfd);
 
     return 0;
 }

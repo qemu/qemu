@@ -147,7 +147,7 @@ static void unix_accept_incoming_migration(void *opaque)
 {
     struct sockaddr_un addr;
     socklen_t addrlen = sizeof(addr);
-    int s = (unsigned long)opaque;
+    int s = (intptr_t)opaque;
     QEMUFile *f;
     int c;
 
@@ -204,7 +204,7 @@ int unix_start_incoming_migration(const char *path)
     }
 
     qemu_set_fd_handler2(sock, NULL, unix_accept_incoming_migration, NULL,
-			 (void *)(unsigned long)sock);
+			 (void *)(intptr_t)sock);
 
     return 0;
 
