@@ -37,7 +37,6 @@ static inline int cpu_halted(CPUState *env) {
         return 0;
     if (cpu_has_work(env)) {
         env->halted = 0;
-        env->intr_at_halt = 1;
         return 0;
     }
     return EXCP_HALTED;

@@ -90,11 +90,11 @@ void do_interrupt(CPUState * env)
         if (do_exp && env->exception_index != 0x1e0) {
             env->exception_index = 0x000; /* masked exception -> reset */
         }
-        if (do_irq && !env->intr_at_halt) {
+        if (do_irq && !env->in_sleep) {
             return; /* masked */
         }
-        env->intr_at_halt = 0;
     }
+    env->in_sleep = 0;
 
     if (do_irq) {
         irq_vector = sh_intc_get_pending_vector(env->intc_handle,
