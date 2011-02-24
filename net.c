@@ -36,6 +36,7 @@
 #include "qemu-common.h"
 #include "qemu_socket.h"
 #include "hw/qdev.h"
+#include "iov.h"
 
 static QTAILQ_HEAD(, VLANState) vlans;
 static QTAILQ_HEAD(, VLANClientState) non_vlan_clients;
@@ -572,28 +573,11 @@ static ssize_t vc_sendv_compat(VLANClientState *vc, const struct iovec *iov,
                                int iovcnt)
 {
     uint8_t buffer[4096];
-    size_t offset = 0;
-    int i;
+    size_t offset;
 
-    for (i = 0; i < iovcnt; i++) {
-        size_t len;
-
-        len = MIN(sizeof(buffer) - offset, iov[i].iov_len);
-        memcpy(buffer + offset, iov[i].iov_base, len);
-        offset += len;
-    }
+    offset = iov_to_buf(iov, iovcnt, buffer, 0, sizeof(buffer));
 
     return vc->info->receive(vc, buffer, offset);
-}
-
-static ssize_t calc_iov_length(const struct iovec *iov, int iovcnt)
-{
-    size_t offset = 0;
-    int i;
-
-    for (i = 0; i < iovcnt; i++)
-        offset += iov[i].iov_len;
-    return offset;
 }
 
 static ssize_t qemu_deliver_packet_iov(VLANClientState *sender,
@@ -605,7 +589,7 @@ static ssize_t qemu_deliver_packet_iov(VLANClientState *sender,
     VLANClientState *vc = opaque;
 
     if (vc->link_down) {
-        return calc_iov_length(iov, iovcnt);
+        return iov_size(iov, iovcnt);
     }
 
     if (vc->info->receive_iov) {
@@ -633,7 +617,7 @@ static ssize_t qemu_vlan_deliver_packet_iov(VLANClientState *sender,
         }
 
         if (vc->link_down) {
-            ret = calc_iov_length(iov, iovcnt);
+            ret = iov_size(iov, iovcnt);
             continue;
         }
 
@@ -658,7 +642,7 @@ ssize_t qemu_sendv_packet_async(VLANClientState *sender,
     NetQueue *queue;
 
     if (sender->link_down || (!sender->peer && !sender->vlan)) {
-        return calc_iov_length(iov, iovcnt);
+        return iov_size(iov, iovcnt);
     }
 
     if (sender->peer) {
