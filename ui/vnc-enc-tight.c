@@ -1536,8 +1536,10 @@ static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
     uint32_t bg = 0, fg = 0;
     int colors;
     int ret = 0;
+#ifdef CONFIG_VNC_JPEG
     bool force_jpeg = false;
     bool allow_jpeg = true;
+#endif
 
     vnc_framebuffer_update(vs, x, y, w, h, vs->tight.type);
 
@@ -1711,6 +1713,7 @@ static int tight_send_framebuffer_update(VncState *vs, int x, int y,
         vs->tight.pixel24 = false;
     }
 
+#ifdef CONFIG_VNC_JPEG
     if (vs->tight.quality != (uint8_t)-1) {
         double freq = vnc_update_freq(vs, x, y, w, h);
 
@@ -1718,6 +1721,7 @@ static int tight_send_framebuffer_update(VncState *vs, int x, int y,
             return send_rect_simple(vs, x, y, w, h, false);
         }
     }
+#endif
 
     if (w * h < VNC_TIGHT_MIN_SPLIT_RECT_SIZE) {
         return send_rect_simple(vs, x, y, w, h, true);
