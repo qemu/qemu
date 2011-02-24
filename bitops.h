@@ -187,7 +187,7 @@ static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
 	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
-	unsigned long old;
+	unsigned long old = *p;
 
 	*p = old ^ mask;
 	return (old & mask) != 0;
