@@ -54,9 +54,6 @@ int unix_connect(const char *path);
 
 /* Old, ipv4 only bits.  Don't use for new code. */
 int parse_host_port(struct sockaddr_in *saddr, const char *str);
-int parse_host_src_port(struct sockaddr_in *haddr,
-                        struct sockaddr_in *saddr,
-                        const char *str);
 int socket_init(void);
 
 #endif /* QEMU_SOCKET_H */
