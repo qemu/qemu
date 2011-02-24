@@ -166,11 +166,13 @@ static void vnc_async_encoding_start(VncState *orig, VncState *local)
     local->features = orig->features;
     local->ds = orig->ds;
     local->vd = orig->vd;
+    local->lossy_rect = orig->lossy_rect;
     local->write_pixels = orig->write_pixels;
     local->clientds = orig->clientds;
     local->tight = orig->tight;
     local->zlib = orig->zlib;
     local->hextile = orig->hextile;
+    local->zrle = orig->zrle;
     local->output =  queue->buffer;
     local->csock = -1; /* Don't do any network work on this thread */
 
@@ -182,6 +184,8 @@ static void vnc_async_encoding_end(VncState *orig, VncState *local)
     orig->tight = local->tight;
     orig->zlib = local->zlib;
     orig->hextile = local->hextile;
+    orig->zrle = local->zrle;
+    orig->lossy_rect = local->lossy_rect;
 }
 
 static int vnc_worker_thread_loop(VncJobQueue *queue)

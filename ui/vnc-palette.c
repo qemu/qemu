@@ -56,30 +56,22 @@ VncPalette *palette_new(size_t max, int bpp)
     VncPalette *palette;
 
     palette = qemu_mallocz(sizeof(*palette));
+    palette_init(palette, max, bpp);
+    return palette;
+}
+
+void palette_init(VncPalette *palette, size_t max, int bpp)
+{
+    memset(palette, 0, sizeof (*palette));
     palette->max = max;
     palette->bpp = bpp;
-    return palette;
 }
 
 void palette_destroy(VncPalette *palette)
 {
-    int i;
-
     if (palette == NULL) {
-        return ;
+        qemu_free(palette);
     }
-
-    for (i = 0; i < VNC_PALETTE_HASH_SIZE; i++) {
-        VncPaletteEntry *entry = QLIST_FIRST(&palette->table[i]);
-        while (entry) {
-            VncPaletteEntry *tmp = QLIST_NEXT(entry, next);
-            QLIST_REMOVE(entry, next);
-            qemu_free(entry);
-            entry = tmp;
-        }
-    }
-
-    qemu_free(palette);
 }
 
 int palette_put(VncPalette *palette, uint32_t color)
@@ -97,7 +89,7 @@ int palette_put(VncPalette *palette, uint32_t color)
     if (!entry) {
         VncPaletteEntry *entry;
 
-        entry = qemu_mallocz(sizeof(*entry));
+        entry = &palette->pool[palette->size];
         entry->color = color;
         entry->idx = idx;
         QLIST_INSERT_HEAD(&palette->table[hash], entry, next);
@@ -133,4 +125,36 @@ void palette_iter(const VncPalette *palette,
             iter(entry->idx, entry->color, opaque);
         }
     }
+}
+
+uint32_t palette_color(const VncPalette *palette, int idx, bool *found)
+{
+    int i;
+    VncPaletteEntry *entry;
+
+    for (i = 0; i < VNC_PALETTE_HASH_SIZE; i++) {
+        QLIST_FOREACH(entry, &palette->table[i], next) {
+            if (entry->idx == idx) {
+                *found = true;
+                return entry->color;
+            }
+        }
+    }
+
+    *found = false;
+    return -1;
+}
+
+static void palette_fill_cb(int idx, uint32_t color, void *opaque)
+{
+    uint32_t *colors = opaque;
+
+    colors[idx] = color;
+}
+
+size_t palette_fill(const VncPalette *palette,
+                    uint32_t colors[VNC_PALETTE_MAX_SIZE])
+{
+    palette_iter(palette, palette_fill_cb, colors);
+    return palette_size(palette);
 }

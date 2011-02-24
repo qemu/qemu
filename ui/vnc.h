@@ -35,10 +35,13 @@
 #include "console.h"
 #include "monitor.h"
 #include "audio/audio.h"
+#include "bitmap.h"
 #include <zlib.h>
 #include <stdbool.h>
 
 #include "keymaps.h"
+#include "vnc-palette.h"
+#include "vnc-enc-zrle.h"
 
 // #define _VNC_DEBUG 1
 
@@ -78,7 +81,11 @@ typedef void VncSendHextileTile(VncState *vs,
 
 #define VNC_MAX_WIDTH 2560
 #define VNC_MAX_HEIGHT 2048
-#define VNC_DIRTY_WORDS (VNC_MAX_WIDTH / (16 * 32))
+#define VNC_DIRTY_WORDS (VNC_MAX_WIDTH / (16 * BITS_PER_LONG))
+
+#define VNC_STAT_RECT  64
+#define VNC_STAT_COLS (VNC_MAX_WIDTH / VNC_STAT_RECT)
+#define VNC_STAT_ROWS (VNC_MAX_HEIGHT / VNC_STAT_RECT)
 
 #define VNC_AUTH_CHALLENGE_SIZE 16
 
@@ -92,9 +99,23 @@ typedef struct VncDisplay VncDisplay;
 #include "vnc-auth-sasl.h"
 #endif
 
+struct VncRectStat
+{
+    /* time of last 10 updates, to find update frequency */
+    struct timeval times[10];
+    int idx;
+
+    double freq;        /* Update frequency (in Hz) */
+    bool updated;       /* Already updated during this refresh */
+};
+
+typedef struct VncRectStat VncRectStat;
+
 struct VncSurface
 {
-    uint32_t dirty[VNC_MAX_HEIGHT][VNC_DIRTY_WORDS];
+    struct timeval last_freq_check;
+    unsigned long dirty[VNC_MAX_HEIGHT][VNC_DIRTY_WORDS];
+    VncRectStat stats[VNC_STAT_ROWS][VNC_STAT_COLS];
     DisplaySurface *ds;
 };
 
@@ -123,6 +144,7 @@ struct VncDisplay
     time_t expires;
     int auth;
     bool lossy;
+    bool non_adaptive;
 #ifdef CONFIG_VNC_TLS
     int subauth; /* Used by VeNCrypt */
     VncDisplayTLS tls;
@@ -162,6 +184,20 @@ typedef struct VncZlib {
     int level;
 } VncZlib;
 
+typedef struct VncZrle {
+    int type;
+    Buffer fb;
+    Buffer zrle;
+    Buffer tmp;
+    Buffer zlib;
+    z_stream stream;
+    VncPalette palette;
+} VncZrle;
+
+typedef struct VncZywrle {
+    int buf[VNC_ZRLE_TILE_WIDTH * VNC_ZRLE_TILE_HEIGHT];
+} VncZywrle;
+
 #ifdef CONFIG_VNC_THREAD
 struct VncRect
 {
@@ -198,7 +234,9 @@ struct VncState
     int csock;
 
     DisplayState *ds;
-    uint32_t dirty[VNC_MAX_HEIGHT][VNC_DIRTY_WORDS];
+    unsigned long dirty[VNC_MAX_HEIGHT][VNC_DIRTY_WORDS];
+    uint8_t **lossy_rect; /* Not an Array to avoid costly memcpy in
+                           * vnc-jobs-async.c */
 
     VncDisplay *vd;
     int need_update;
@@ -253,7 +291,8 @@ struct VncState
     VncTight tight;
     VncZlib zlib;
     VncHextile hextile;
-
+    VncZrle zrle;
+    VncZywrle zywrle;
 
     Notifier mouse_mode_notifier;
 
@@ -357,6 +396,8 @@ enum {
 #define VNC_FEATURE_COPYRECT                 6
 #define VNC_FEATURE_RICH_CURSOR              7
 #define VNC_FEATURE_TIGHT_PNG                8
+#define VNC_FEATURE_ZRLE                     9
+#define VNC_FEATURE_ZYWRLE                  10
 
 #define VNC_FEATURE_RESIZE_MASK              (1 << VNC_FEATURE_RESIZE)
 #define VNC_FEATURE_HEXTILE_MASK             (1 << VNC_FEATURE_HEXTILE)
@@ -367,6 +408,8 @@ enum {
 #define VNC_FEATURE_COPYRECT_MASK            (1 << VNC_FEATURE_COPYRECT)
 #define VNC_FEATURE_RICH_CURSOR_MASK         (1 << VNC_FEATURE_RICH_CURSOR)
 #define VNC_FEATURE_TIGHT_PNG_MASK           (1 << VNC_FEATURE_TIGHT_PNG)
+#define VNC_FEATURE_ZRLE_MASK                (1 << VNC_FEATURE_ZRLE)
+#define VNC_FEATURE_ZYWRLE_MASK              (1 << VNC_FEATURE_ZYWRLE)
 
 
 /* Client -> Server message IDs */
@@ -479,6 +522,8 @@ void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
                             int32_t encoding);
 
 void vnc_convert_pixel(VncState *vs, uint8_t *buf, uint32_t v);
+double vnc_update_freq(VncState *vs, int x, int y, int w, int h);
+void vnc_sent_lossy_rect(VncState *vs, int x, int y, int w, int h);
 
 /* Encodings */
 int vnc_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
@@ -498,5 +543,9 @@ int vnc_tight_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
 int vnc_tight_png_send_framebuffer_update(VncState *vs, int x, int y,
                                           int w, int h);
 void vnc_tight_clear(VncState *vs);
+
+int vnc_zrle_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
+int vnc_zywrle_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
+void vnc_zrle_clear(VncState *vs);
 
 #endif /* __QEMU_VNC_H */

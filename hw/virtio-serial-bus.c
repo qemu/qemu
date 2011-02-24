@@ -658,8 +658,7 @@ static VirtIOSerialBus *virtser_bus_new(DeviceState *dev)
 
 static void virtser_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
 {
-    VirtIOSerialDevice *dev = DO_UPCAST(VirtIOSerialDevice, qdev, qdev);
-    VirtIOSerialPort *port = DO_UPCAST(VirtIOSerialPort, dev, &dev->qdev);
+    VirtIOSerialPort *port = DO_UPCAST(VirtIOSerialPort, dev, qdev);
 
     monitor_printf(mon, "%*s dev-prop-int: id: %u\n",
                    indent, "", port->id);
@@ -721,9 +720,8 @@ static void remove_port(VirtIOSerial *vser, uint32_t port_id)
 
 static int virtser_port_qdev_init(DeviceState *qdev, DeviceInfo *base)
 {
-    VirtIOSerialDevice *dev = DO_UPCAST(VirtIOSerialDevice, qdev, qdev);
+    VirtIOSerialPort *port = DO_UPCAST(VirtIOSerialPort, dev, qdev);
     VirtIOSerialPortInfo *info = DO_UPCAST(VirtIOSerialPortInfo, qdev, base);
-    VirtIOSerialPort *port = DO_UPCAST(VirtIOSerialPort, dev, &dev->qdev);
     VirtIOSerialBus *bus = DO_UPCAST(VirtIOSerialBus, qbus, qdev->parent_bus);
     int ret;
     bool plugging_port0;
@@ -761,8 +759,8 @@ static int virtser_port_qdev_init(DeviceState *qdev, DeviceInfo *base)
         return -1;
     }
 
-    dev->info = info;
-    ret = info->init(dev);
+    port->info = info;
+    ret = info->init(port);
     if (ret) {
         return ret;
     }
@@ -791,8 +789,7 @@ static int virtser_port_qdev_init(DeviceState *qdev, DeviceInfo *base)
 
 static int virtser_port_qdev_exit(DeviceState *qdev)
 {
-    VirtIOSerialDevice *dev = DO_UPCAST(VirtIOSerialDevice, qdev, qdev);
-    VirtIOSerialPort *port = DO_UPCAST(VirtIOSerialPort, dev, &dev->qdev);
+    VirtIOSerialPort *port = DO_UPCAST(VirtIOSerialPort, dev, qdev);
     VirtIOSerial *vser = port->vser;
 
     remove_port(port->vser, port->id);
@@ -800,7 +797,7 @@ static int virtser_port_qdev_exit(DeviceState *qdev)
     QTAILQ_REMOVE(&vser->ports, port, next);
 
     if (port->info->exit)
-        port->info->exit(dev);
+        port->info->exit(port);
 
     return 0;
 }

@@ -30,12 +30,6 @@ these four paragraphs for those parts of this code that are retained.
 
 =============================================================================*/
 
-#if defined(TARGET_MIPS) || defined(TARGET_SH4)
-#define SNAN_BIT_IS_ONE		1
-#else
-#define SNAN_BIT_IS_ONE		0
-#endif
-
 /*----------------------------------------------------------------------------
 | Raises the exceptions specified by `flags'.  Floating-point traps can be
 | defined here if desired.  It is currently not possible for such a trap
@@ -55,17 +49,6 @@ typedef struct {
     flag sign;
     bits64 high, low;
 } commonNaNT;
-
-/*----------------------------------------------------------------------------
-| The pattern for a default generated half-precision NaN.
-*----------------------------------------------------------------------------*/
-#if defined(TARGET_ARM)
-#define float16_default_nan make_float16(0x7E00)
-#elif SNAN_BIT_IS_ONE
-#define float16_default_nan make_float16(0x7DFF)
-#else
-#define float16_default_nan make_float16(0xFE00)
-#endif
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the half-precision floating-point value `a' is a quiet
@@ -156,19 +139,6 @@ static float16 commonNaNToFloat16(commonNaNT a STATUS_PARAM)
         return float16_default_nan;
     }
 }
-
-/*----------------------------------------------------------------------------
-| The pattern for a default generated single-precision NaN.
-*----------------------------------------------------------------------------*/
-#if defined(TARGET_SPARC)
-#define float32_default_nan make_float32(0x7FFFFFFF)
-#elif defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA)
-#define float32_default_nan make_float32(0x7FC00000)
-#elif SNAN_BIT_IS_ONE
-#define float32_default_nan make_float32(0x7FBFFFFF)
-#else
-#define float32_default_nan make_float32(0xFFC00000)
-#endif
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the single-precision floating-point value `a' is a quiet
@@ -413,19 +383,6 @@ static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
 }
 
 /*----------------------------------------------------------------------------
-| The pattern for a default generated double-precision NaN.
-*----------------------------------------------------------------------------*/
-#if defined(TARGET_SPARC)
-#define float64_default_nan make_float64(LIT64( 0x7FFFFFFFFFFFFFFF ))
-#elif defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA)
-#define float64_default_nan make_float64(LIT64( 0x7FF8000000000000 ))
-#elif SNAN_BIT_IS_ONE
-#define float64_default_nan make_float64(LIT64( 0x7FF7FFFFFFFFFFFF ))
-#else
-#define float64_default_nan make_float64(LIT64( 0xFFF8000000000000 ))
-#endif
-
-/*----------------------------------------------------------------------------
 | Returns 1 if the double-precision floating-point value `a' is a quiet
 | NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
@@ -562,19 +519,6 @@ static float64 propagateFloat64NaN( float64 a, float64 b STATUS_PARAM)
 }
 
 #ifdef FLOATX80
-
-/*----------------------------------------------------------------------------
-| The pattern for a default generated extended double-precision NaN.  The
-| `high' and `low' values hold the most- and least-significant bits,
-| respectively.
-*----------------------------------------------------------------------------*/
-#if SNAN_BIT_IS_ONE
-#define floatx80_default_nan_high 0x7FFF
-#define floatx80_default_nan_low  LIT64( 0xBFFFFFFFFFFFFFFF )
-#else
-#define floatx80_default_nan_high 0xFFFF
-#define floatx80_default_nan_low  LIT64( 0xC000000000000000 )
-#endif
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the extended double-precision floating-point value `a' is a
@@ -726,18 +670,6 @@ static floatx80 propagateFloatx80NaN( floatx80 a, floatx80 b STATUS_PARAM)
 #endif
 
 #ifdef FLOAT128
-
-/*----------------------------------------------------------------------------
-| The pattern for a default generated quadruple-precision NaN.  The `high' and
-| `low' values hold the most- and least-significant bits, respectively.
-*----------------------------------------------------------------------------*/
-#if SNAN_BIT_IS_ONE
-#define float128_default_nan_high LIT64( 0x7FFF7FFFFFFFFFFF )
-#define float128_default_nan_low  LIT64( 0xFFFFFFFFFFFFFFFF )
-#else
-#define float128_default_nan_high LIT64( 0xFFFF800000000000 )
-#define float128_default_nan_low  LIT64( 0x0000000000000000 )
-#endif
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the quadruple-precision floating-point value `a' is a quiet

@@ -62,11 +62,6 @@ typedef struct VirtIOSerialBus VirtIOSerialBus;
 typedef struct VirtIOSerialPort VirtIOSerialPort;
 typedef struct VirtIOSerialPortInfo VirtIOSerialPortInfo;
 
-typedef struct VirtIOSerialDevice {
-    DeviceState qdev;
-    VirtIOSerialPortInfo *info;
-} VirtIOSerialDevice;
-
 /*
  * This is the state that's shared between all the ports.  Some of the
  * state is configurable via command-line options. Some of it can be
@@ -136,12 +131,12 @@ struct VirtIOSerialPortInfo {
      * The per-port (or per-app) init function that's called when a
      * new device is found on the bus.
      */
-    int (*init)(VirtIOSerialDevice *dev);
+    int (*init)(VirtIOSerialPort *port);
     /*
      * Per-port exit function that's called when a port gets
      * hot-unplugged or removed.
      */
-    int (*exit)(VirtIOSerialDevice *dev);
+    int (*exit)(VirtIOSerialPort *port);
 
     /* Callbacks for guest events */
         /* Guest opened device. */
