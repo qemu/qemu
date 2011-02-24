@@ -1080,25 +1080,6 @@ static void gt64120_reset(void *opaque)
     gt64120_pci_mapping(s);
 }
 
-static void gt64120_save(QEMUFile* f, void *opaque)
-{
-    PCIDevice *d = opaque;
-    pci_device_save(d, f);
-}
-
-static int gt64120_load(QEMUFile* f, void *opaque, int version_id)
-{
-    PCIDevice *d = opaque;
-    int ret;
-
-    if (version_id != 1)
-        return -EINVAL;
-    ret = pci_device_load(d, f);
-    if (ret < 0)
-        return ret;
-    return 0;
-}
-
 PCIBus *gt64120_register(qemu_irq *pic)
 {
     SysBusDevice *s;
@@ -1131,8 +1112,6 @@ static int gt64120_init(SysBusDevice *dev)
        does not fully work. */
     isa_mem_base = 0x10000000;
     qemu_register_reset(gt64120_reset, s);
-    register_savevm(&dev->qdev, "GT64120 PCI Bus", 0, 1,
-                    gt64120_save, gt64120_load, &s->pci);
     return 0;
 }
 
