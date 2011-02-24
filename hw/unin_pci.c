@@ -63,23 +63,6 @@ static void pci_unin_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(pic[unin_irq_line[irq_num]], level);
 }
 
-static void pci_unin_save(QEMUFile* f, void *opaque)
-{
-    PCIDevice *d = opaque;
-
-    pci_device_save(d, f);
-}
-
-static int pci_unin_load(QEMUFile* f, void *opaque, int version_id)
-{
-    PCIDevice *d = opaque;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    return pci_device_load(d, f);
-}
-
 static void pci_unin_reset(void *opaque)
 {
 }
@@ -158,8 +141,6 @@ static int pci_unin_main_init_device(SysBusDevice *dev)
     sysbus_init_mmio(dev, 0x1000, pci_mem_config);
     sysbus_init_mmio(dev, 0x1000, pci_mem_data);
 
-    register_savevm(&dev->qdev, "uninorth", 0, 1,
-                    pci_unin_save, pci_unin_load, &s->host_state);
     qemu_register_reset(pci_unin_reset, &s->host_state);
     return 0;
 }
@@ -181,8 +162,6 @@ static int pci_u3_agp_init_device(SysBusDevice *dev)
     sysbus_init_mmio(dev, 0x1000, pci_mem_config);
     sysbus_init_mmio(dev, 0x1000, pci_mem_data);
 
-    register_savevm(&dev->qdev, "uninorth", 0, 1,
-                    pci_unin_save, pci_unin_load, &s->host_state);
     qemu_register_reset(pci_unin_reset, &s->host_state);
 
     return 0;
