@@ -127,6 +127,7 @@ vnc_jpeg=""
 vnc_png=""
 vnc_thread="no"
 xen=""
+xen_ctrl_version=""
 linux_aio=""
 attr=""
 vhost_net=""
@@ -1180,19 +1181,80 @@ fi
 
 if test "$xen" != "no" ; then
   xen_libs="-lxenstore -lxenctrl -lxenguest"
+
+  # Xen unstable
   cat > $TMPC <<EOF
 #include <xenctrl.h>
 #include <xs.h>
-int main(void) { xs_daemon_open(); xc_interface_open(); return 0; }
+#include <stdint.h>
+#include <xen/hvm/hvm_info_table.h>
+#if !defined(HVM_MAX_VCPUS)
+# error HVM_MAX_VCPUS not defined
+#endif
+int main(void) {
+  xc_interface *xc;
+  xs_daemon_open();
+  xc = xc_interface_open(0, 0, 0);
+  xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
+  xc_gnttab_open(NULL, 0);
+  return 0;
+}
 EOF
   if compile_prog "" "$xen_libs" ; then
+    xen_ctrl_version=410
     xen=yes
-    libs_softmmu="$xen_libs $libs_softmmu"
+
+  # Xen 4.0.0
+  elif (
+      cat > $TMPC <<EOF
+#include <xenctrl.h>
+#include <xs.h>
+#include <stdint.h>
+#include <xen/hvm/hvm_info_table.h>
+#if !defined(HVM_MAX_VCPUS)
+# error HVM_MAX_VCPUS not defined
+#endif
+int main(void) {
+  xs_daemon_open();
+  xc_interface_open();
+  xc_gnttab_open();
+  xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
+  return 0;
+}
+EOF
+      compile_prog "" "$xen_libs"
+    ) ; then
+    xen_ctrl_version=400
+    xen=yes
+
+  # Xen 3.3.0, 3.4.0
+  elif (
+      cat > $TMPC <<EOF
+#include <xenctrl.h>
+#include <xs.h>
+int main(void) {
+  xs_daemon_open();
+  xc_interface_open();
+  xc_gnttab_open();
+  xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
+  return 0;
+}
+EOF
+      compile_prog "" "$xen_libs"
+    ) ; then
+    xen_ctrl_version=330
+    xen=yes
+
+  # Xen not found or unsupported
   else
     if test "$xen" = "yes" ; then
       feature_not_found "xen"
     fi
     xen=no
+  fi
+
+  if test "$xen" = yes; then
+    libs_softmmu="$xen_libs $libs_softmmu"
   fi
 fi
 
@@ -2855,6 +2917,7 @@ if test "$bluez" = "yes" ; then
 fi
 if test "$xen" = "yes" ; then
   echo "CONFIG_XEN=y" >> $config_host_mak
+  echo "CONFIG_XEN_CTRL_INTERFACE_VERSION=$xen_ctrl_version" >> $config_host_mak
 fi
 if test "$io_thread" = "yes" ; then
   echo "CONFIG_IOTHREAD=y" >> $config_host_mak

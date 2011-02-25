@@ -43,7 +43,8 @@
 /* ------------------------------------------------------------- */
 
 /* public */
-int xen_xc;
+XenXC xen_xc = XC_HANDLER_INITIAL_VALUE;
+XenGnttab xen_xcg = XC_HANDLER_INITIAL_VALUE;
 struct xs_handle *xenstore = NULL;
 const char *xen_protocol;
 
@@ -214,8 +215,8 @@ static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
     xendev->debug      = debug;
     xendev->local_port = -1;
 
-    xendev->evtchndev = xc_evtchn_open();
-    if (xendev->evtchndev < 0) {
+    xendev->evtchndev = xen_xc_evtchn_open(NULL, 0);
+    if (xendev->evtchndev == XC_HANDLER_INITIAL_VALUE) {
         xen_be_printf(NULL, 0, "can't open evtchn device\n");
         qemu_free(xendev);
         return NULL;
@@ -223,15 +224,15 @@ static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
     fcntl(xc_evtchn_fd(xendev->evtchndev), F_SETFD, FD_CLOEXEC);
 
     if (ops->flags & DEVOPS_FLAG_NEED_GNTDEV) {
-        xendev->gnttabdev = xc_gnttab_open();
-        if (xendev->gnttabdev < 0) {
+        xendev->gnttabdev = xen_xc_gnttab_open(NULL, 0);
+        if (xendev->gnttabdev == XC_HANDLER_INITIAL_VALUE) {
             xen_be_printf(NULL, 0, "can't open gnttab device\n");
             xc_evtchn_close(xendev->evtchndev);
             qemu_free(xendev);
             return NULL;
         }
     } else {
-        xendev->gnttabdev = -1;
+        xendev->gnttabdev = XC_HANDLER_INITIAL_VALUE;
     }
 
     QTAILQ_INSERT_TAIL(&xendevs, xendev, next);
@@ -277,10 +278,10 @@ static struct XenDevice *xen_be_del_xendev(int dom, int dev)
             qemu_free(xendev->fe);
         }
 
-        if (xendev->evtchndev >= 0) {
+        if (xendev->evtchndev != XC_HANDLER_INITIAL_VALUE) {
             xc_evtchn_close(xendev->evtchndev);
         }
-        if (xendev->gnttabdev >= 0) {
+        if (xendev->gnttabdev != XC_HANDLER_INITIAL_VALUE) {
             xc_gnttab_close(xendev->gnttabdev);
         }
 
@@ -664,8 +665,8 @@ int xen_be_init(void)
         goto err;
     }
 
-    xen_xc = xc_interface_open();
-    if (xen_xc == -1) {
+    xen_xc = xen_xc_interface_open(0, 0, 0);
+    if (xen_xc == XC_HANDLER_INITIAL_VALUE) {
         xen_be_printf(NULL, 0, "can't open xen interface\n");
         goto err;
     }

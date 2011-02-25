@@ -242,7 +242,7 @@ err:
 
 static void ioreq_unmap(struct ioreq *ioreq)
 {
-    int gnt = ioreq->blkdev->xendev.gnttabdev;
+    XenGnttab gnt = ioreq->blkdev->xendev.gnttabdev;
     int i;
 
     if (ioreq->v.niov == 0) {
@@ -275,7 +275,7 @@ static void ioreq_unmap(struct ioreq *ioreq)
 
 static int ioreq_map(struct ioreq *ioreq)
 {
-    int gnt = ioreq->blkdev->xendev.gnttabdev;
+    XenGnttab gnt = ioreq->blkdev->xendev.gnttabdev;
     int i;
 
     if (ioreq->v.niov == 0) {
