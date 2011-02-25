@@ -38,6 +38,7 @@
 #include "bitmap.h"
 #include <zlib.h>
 #include <stdbool.h>
+#include <sys/time.h>
 
 #include "keymaps.h"
 #include "vnc-palette.h"

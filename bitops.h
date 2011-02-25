@@ -66,6 +66,8 @@ static unsigned long bitops_ffsl(unsigned long word)
  *
  * Undefined if no set bit exists, so code should check against 0 first.
  */
+#define __always_inline
+#define inline
 static __always_inline unsigned long bitops_flsl(unsigned long word)
 {
 	int num = BITS_PER_LONG - 1;
