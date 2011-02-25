@@ -6318,10 +6318,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 for(i = 0; i < nfds; i++) {
                     target_pfd[i].revents = tswap16(pfd[i].revents);
                 }
-                ret += nfds * (sizeof(struct target_pollfd)
-                               - sizeof(struct pollfd));
             }
-            unlock_user(target_pfd, arg1, ret);
+            unlock_user(target_pfd, arg1, sizeof(struct target_pollfd) * nfds);
         }
         break;
 #endif
