@@ -1025,7 +1025,11 @@ static const struct {
                 .name = "vhostfd",
                 .type = QEMU_OPT_STRING,
                 .help = "file descriptor of an already opened vhost net device",
-            },
+            }, {
+                .name = "vhostforce",
+                .type = QEMU_OPT_BOOL,
+                .help = "force vhost on for non-MSIX virtio guests",
+        },
 #endif /* _WIN32 */
             { /* end of list */ }
         },
