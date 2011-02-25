@@ -10,6 +10,7 @@
 #include "hw.h"
 #include "qemu-timer.h"
 #include "sysemu.h"
+#include "qdev.h"
 #include "pxa.h"
 
 #define OSMR0	0x00
@@ -428,7 +429,7 @@ static int pxa2xx_timer_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 static pxa2xx_timer_info *pxa2xx_timer_init(target_phys_addr_t base,
-                qemu_irq *irqs)
+                DeviceState *pic)
 {
     int i;
     int iomemtype;
@@ -443,7 +444,7 @@ static pxa2xx_timer_info *pxa2xx_timer_init(target_phys_addr_t base,
 
     for (i = 0; i < 4; i ++) {
         s->timer[i].value = 0;
-        s->timer[i].irq = irqs[i];
+        s->timer[i].irq = qdev_get_gpio_in(pic, PXA2XX_PIC_OST_0 + i);
         s->timer[i].info = s;
         s->timer[i].num = i;
         s->timer[i].level = 0;
@@ -461,24 +462,23 @@ static pxa2xx_timer_info *pxa2xx_timer_init(target_phys_addr_t base,
     return s;
 }
 
-void pxa25x_timer_init(target_phys_addr_t base, qemu_irq *irqs)
+void pxa25x_timer_init(target_phys_addr_t base, DeviceState *pic)
 {
-    pxa2xx_timer_info *s = pxa2xx_timer_init(base, irqs);
+    pxa2xx_timer_info *s = pxa2xx_timer_init(base, pic);
     s->freq = PXA25X_FREQ;
     s->tm4 = NULL;
 }
 
-void pxa27x_timer_init(target_phys_addr_t base,
-                qemu_irq *irqs, qemu_irq irq4)
+void pxa27x_timer_init(target_phys_addr_t base, DeviceState *pic)
 {
-    pxa2xx_timer_info *s = pxa2xx_timer_init(base, irqs);
+    pxa2xx_timer_info *s = pxa2xx_timer_init(base, pic);
     int i;
     s->freq = PXA27X_FREQ;
     s->tm4 = (PXA2xxTimer4 *) qemu_mallocz(8 *
                     sizeof(PXA2xxTimer4));
     for (i = 0; i < 8; i ++) {
         s->tm4[i].tm.value = 0;
-        s->tm4[i].tm.irq = irq4;
+        s->tm4[i].tm.irq = qdev_get_gpio_in(pic, PXA27X_PIC_OST_4_11);
         s->tm4[i].tm.info = s;
         s->tm4[i].tm.num = i + 4;
         s->tm4[i].tm.level = 0;

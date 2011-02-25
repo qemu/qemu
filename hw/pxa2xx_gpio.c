@@ -253,7 +253,7 @@ static CPUWriteMemoryFunc * const pxa2xx_gpio_writefn[] = {
 };
 
 DeviceState *pxa2xx_gpio_init(target_phys_addr_t base,
-                CPUState *env, qemu_irq *pic, int lines)
+                CPUState *env, DeviceState *pic, int lines)
 {
     DeviceState *dev;
 
@@ -263,9 +263,12 @@ DeviceState *pxa2xx_gpio_init(target_phys_addr_t base,
     qdev_init_nofail(dev);
 
     sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, pic[PXA2XX_PIC_GPIO_0]);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 1, pic[PXA2XX_PIC_GPIO_1]);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 2, pic[PXA2XX_PIC_GPIO_X]);
+    sysbus_connect_irq(sysbus_from_qdev(dev), 0,
+                    qdev_get_gpio_in(pic, PXA2XX_PIC_GPIO_0));
+    sysbus_connect_irq(sysbus_from_qdev(dev), 1,
+                    qdev_get_gpio_in(pic, PXA2XX_PIC_GPIO_1));
+    sysbus_connect_irq(sysbus_from_qdev(dev), 2,
+                    qdev_get_gpio_in(pic, PXA2XX_PIC_GPIO_X));
 
     return dev;
 }
