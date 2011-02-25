@@ -186,6 +186,8 @@ static void vnc_async_encoding_end(VncState *orig, VncState *local)
     orig->hextile = local->hextile;
     orig->zrle = local->zrle;
     orig->lossy_rect = local->lossy_rect;
+
+    queue->buffer = local->output;
 }
 
 static int vnc_worker_thread_loop(VncJobQueue *queue)
