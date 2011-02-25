@@ -2538,13 +2538,38 @@ static int disas_cp15_insn(CPUState *env, DisasContext *s, uint32_t insn)
     if (IS_USER(s) && !cp15_user_ok(insn)) {
         return 1;
     }
-    if ((insn & 0x0fff0fff) == 0x0e070f90
-        || (insn & 0x0fff0fff) == 0x0e070f58) {
-        /* Wait for interrupt.  */
-        gen_set_pc_im(s->pc);
-        s->is_jmp = DISAS_WFI;
+
+    /* Pre-v7 versions of the architecture implemented WFI via coprocessor
+     * instructions rather than a separate instruction.
+     */
+    if ((insn & 0x0fff0fff) == 0x0e070f90) {
+        /* 0,c7,c0,4: Standard v6 WFI (also used in some pre-v6 cores).
+         * In v7, this must NOP.
+         */
+        if (!arm_feature(env, ARM_FEATURE_V7)) {
+            /* Wait for interrupt.  */
+            gen_set_pc_im(s->pc);
+            s->is_jmp = DISAS_WFI;
+        }
         return 0;
     }
+
+    if ((insn & 0x0fff0fff) == 0x0e070f58) {
+        /* 0,c7,c8,2: Not all pre-v6 cores implemented this WFI,
+         * so this is slightly over-broad.
+         */
+        if (!arm_feature(env, ARM_FEATURE_V6)) {
+            /* Wait for interrupt.  */
+            gen_set_pc_im(s->pc);
+            s->is_jmp = DISAS_WFI;
+            return 0;
+        }
+        /* Otherwise fall through to handle via helper function.
+         * In particular, on v7 and some v6 cores this is one of
+         * the VA-PA registers.
+         */
+    }
+
     rd = (insn >> 12) & 0xf;
 
     if (cp15_tls_load_store(env, s, insn, rd))
