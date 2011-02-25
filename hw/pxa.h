@@ -63,15 +63,15 @@
 # define PXA2XX_INTERNAL_SIZE	0x40000
 
 /* pxa2xx_pic.c */
-qemu_irq *pxa2xx_pic_init(target_phys_addr_t base, CPUState *env);
+DeviceState *pxa2xx_pic_init(target_phys_addr_t base, CPUState *env);
 
 /* pxa2xx_timer.c */
-void pxa25x_timer_init(target_phys_addr_t base, qemu_irq *irqs);
-void pxa27x_timer_init(target_phys_addr_t base, qemu_irq *irqs, qemu_irq irq4);
+void pxa25x_timer_init(target_phys_addr_t base, DeviceState *pic);
+void pxa27x_timer_init(target_phys_addr_t base, DeviceState *pic);
 
 /* pxa2xx_gpio.c */
 DeviceState *pxa2xx_gpio_init(target_phys_addr_t base,
-                CPUState *env, qemu_irq *pic, int lines);
+                CPUState *env, DeviceState *pic, int lines);
 void pxa2xx_gpio_read_notifier(DeviceState *dev, qemu_irq handler);
 
 /* pxa2xx_dma.c */
@@ -125,7 +125,7 @@ typedef struct PXA2xxFIrState PXA2xxFIrState;
 
 typedef struct {
     CPUState *env;
-    qemu_irq *pic;
+    DeviceState *pic;
     qemu_irq reset;
     PXA2xxDMAState *dma;
     DeviceState *gpio;
@@ -180,6 +180,7 @@ typedef struct {
     QEMUTimer *rtc_swal1;
     QEMUTimer *rtc_swal2;
     QEMUTimer *rtc_pi;
+    qemu_irq rtc_irq;
 } PXA2xxState;
 
 struct PXA2xxI2SState {

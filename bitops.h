@@ -66,9 +66,7 @@ static unsigned long bitops_ffsl(unsigned long word)
  *
  * Undefined if no set bit exists, so code should check against 0 first.
  */
-#define __always_inline
-#define inline
-static __always_inline unsigned long bitops_flsl(unsigned long word)
+static inline unsigned long bitops_flsl(unsigned long word)
 {
 	int num = BITS_PER_LONG - 1;
 
@@ -189,7 +187,7 @@ static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
 	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
-	unsigned long old;
+	unsigned long old = *p;
 
 	*p = old ^ mask;
 	return (old & mask) != 0;
