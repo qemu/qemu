@@ -141,11 +141,6 @@ source tree.  It may not be as powerful as platform-specific or third-party
 trace backends but it is portable.  This is the recommended trace backend
 unless you have specific needs for more advanced backends.
 
-Warning: the "simple" backend is not thread-safe so only enable trace events
-that are executed while the global mutex is held.  Much of QEMU meets this
-requirement but some utility functions like qemu_malloc() or thread-related
-code cannot be safely traced using the "simple" backend.
-
 ==== Monitor commands ====
 
 * info trace
