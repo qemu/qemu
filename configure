@@ -1561,7 +1561,11 @@ fi
 
 ##########################################
 # curses probe
-curses_list="-lncurses -lcurses"
+if test "$mingw32" = "yes" ; then
+    curses_list="-lpdcurses"
+else
+    curses_list="-lncurses -lcurses"
+fi
 
 if test "$curses" != "no" ; then
   curses_found=no
