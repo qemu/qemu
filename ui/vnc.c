@@ -2401,7 +2401,7 @@ static int vnc_refresh_server_surface(VncDisplay *vd)
      */
     bitmap_set(width_mask, 0, (ds_get_width(vd->ds) / 16));
     bitmap_clear(width_mask, (ds_get_width(vd->ds) / 16),
-                 VNC_DIRTY_WORDS * BITS_PER_LONG);
+                 (VNC_MAX_WIDTH - ds_get_width(vd->ds)) / 16);
     cmp_bytes = 16 * ds_get_bytes_per_pixel(vd->ds);
     guest_row  = vd->guest.ds->data;
     server_row = vd->server->data;
