@@ -34,13 +34,26 @@
 
 #include <hw/ide/internal.h>
 
-static const int smart_attributes[][5] = {
-    /* id,  flags, val, wrst, thrsh */
-    { 0x01, 0x03, 0x64, 0x64, 0x06}, /* raw read */
-    { 0x03, 0x03, 0x64, 0x64, 0x46}, /* spin up */
-    { 0x04, 0x02, 0x64, 0x64, 0x14}, /* start stop count */
-    { 0x05, 0x03, 0x64, 0x64, 0x36}, /* remapped sectors */
-    { 0x00, 0x00, 0x00, 0x00, 0x00}
+/* These values were based on a Seagate ST3500418AS but have been modified
+   to make more sense in QEMU */
+static const int smart_attributes[][12] = {
+    /* id,  flags, hflags, val, wrst, raw (6 bytes), threshold */
+    /* raw read error rate*/
+    { 0x01, 0x03, 0x00, 0x64, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06},
+    /* spin up */
+    { 0x03, 0x03, 0x00, 0x64, 0x64, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+    /* start stop count */
+    { 0x04, 0x02, 0x00, 0x64, 0x64, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14},
+    /* remapped sectors */
+    { 0x05, 0x03, 0x00, 0x64, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x24},
+    /* power on hours */
+    { 0x09, 0x03, 0x00, 0x64, 0x64, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+    /* power cycle count */
+    { 0x0c, 0x03, 0x00, 0x64, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+    /* airflow-temperature-celsius */
+    { 190,  0x03, 0x00, 0x45, 0x45, 0x1f, 0x00, 0x1f, 0x1f, 0x00, 0x00, 0x32},
+    /* end of list */
+    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
 };
 
 /* XXX: DVDs that could fit on a CD will be reported as a CD */
@@ -1843,6 +1856,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         break;
     case WIN_CHECKPOWERMODE1:
     case WIN_CHECKPOWERMODE2:
+        s->error = 0;
         s->nsector = 0xff; /* device active or idle */
         s->status = READY_STAT | SEEK_STAT;
         ide_set_irq(s->bus);
@@ -2097,7 +2111,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
 		if (smart_attributes[n][0] == 0)
 			break;
 		s->io_buffer[2+0+(n*12)] = smart_attributes[n][0];
-		s->io_buffer[2+1+(n*12)] = smart_attributes[n][4];
+		s->io_buffer[2+1+(n*12)] = smart_attributes[n][11];
 		}
 		for (n=0; n<511; n++) /* checksum */
 		s->io_buffer[511] += s->io_buffer[n];
@@ -2110,12 +2124,13 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
 		memset(s->io_buffer, 0, 0x200);
 		s->io_buffer[0] = 0x01; /* smart struct version */
 		for (n=0; n<30; n++) {
-		if (smart_attributes[n][0] == 0)
+		    if (smart_attributes[n][0] == 0) {
 			break;
-		s->io_buffer[2+0+(n*12)] = smart_attributes[n][0];
-		s->io_buffer[2+1+(n*12)] = smart_attributes[n][1];
-		s->io_buffer[2+3+(n*12)] = smart_attributes[n][2];
-		s->io_buffer[2+4+(n*12)] = smart_attributes[n][3];
+		    }
+		    int i;
+		    for(i = 0; i < 11; i++) {
+			s->io_buffer[2+i+(n*12)] = smart_attributes[n][i];
+		    }
 		}
 		s->io_buffer[362] = 0x02 | (s->smart_autosave?0x80:0x00);
 		if (s->smart_selftest_count == 0) {
