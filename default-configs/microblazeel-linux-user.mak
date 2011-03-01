@@ -1,1 +1,1 @@
-# Default configuration for microblaze-linux-user
+# Default configuration for microblazeel-linux-user
