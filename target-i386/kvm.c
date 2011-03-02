@@ -467,6 +467,38 @@ void kvm_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
 #endif /* !KVM_CAP_MCE*/
 }
 
+static int kvm_inject_mce_oldstyle(CPUState *env)
+{
+#ifdef KVM_CAP_MCE
+    if (!kvm_has_vcpu_events() && env->exception_injected == EXCP12_MCHK) {
+        unsigned int bank, bank_num = env->mcg_cap & 0xff;
+        struct kvm_x86_mce mce;
+
+        env->exception_injected = -1;
+
+        /*
+         * There must be at least one bank in use if an MCE is pending.
+         * Find it and use its values for the event injection.
+         */
+        for (bank = 0; bank < bank_num; bank++) {
+            if (env->mce_banks[bank * 4 + 1] & MCI_STATUS_VAL) {
+                break;
+            }
+        }
+        assert(bank < bank_num);
+
+        mce.bank = bank;
+        mce.status = env->mce_banks[bank * 4 + 1];
+        mce.mcg_status = env->mcg_status;
+        mce.addr = env->mce_banks[bank * 4 + 2];
+        mce.misc = env->mce_banks[bank * 4 + 3];
+
+        return kvm_vcpu_ioctl(env, KVM_X86_SET_MCE, &mce);
+    }
+#endif /* KVM_CAP_MCE */
+    return 0;
+}
+
 static void cpu_update_state(void *opaque, int running, int reason)
 {
     CPUState *env = opaque;
@@ -1539,6 +1571,11 @@ int kvm_arch_put_registers(CPUState *env, int level)
     if (ret < 0) {
         return ret;
     }
+    /* must be before kvm_put_msrs */
+    ret = kvm_inject_mce_oldstyle(env);
+    if (ret < 0) {
+        return ret;
+    }
     ret = kvm_put_msrs(env, level);
     if (ret < 0) {
         return ret;
@@ -1677,6 +1714,29 @@ void kvm_arch_post_run(CPUState *env, struct kvm_run *run)
 
 int kvm_arch_process_async_events(CPUState *env)
 {
+    if (env->interrupt_request & CPU_INTERRUPT_MCE) {
+        /* We must not raise CPU_INTERRUPT_MCE if it's not supported. */
+        assert(env->mcg_cap);
+
+        env->interrupt_request &= ~CPU_INTERRUPT_MCE;
+
+        kvm_cpu_synchronize_state(env);
+
+        if (env->exception_injected == EXCP08_DBLE) {
+            /* this means triple fault */
+            qemu_system_reset_request();
+            env->exit_request = 1;
+            return 0;
+        }
+        env->exception_injected = EXCP12_MCHK;
+        env->has_error_code = 0;
+
+        env->halted = 0;
+        if (kvm_irqchip_in_kernel() && env->mp_state == KVM_MP_STATE_HALTED) {
+            env->mp_state = KVM_MP_STATE_RUNNABLE;
+        }
+    }
+
     if (kvm_irqchip_in_kernel()) {
         return 0;
     }
