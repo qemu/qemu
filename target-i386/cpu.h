@@ -987,8 +987,11 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
 void do_cpu_init(CPUState *env);
 void do_cpu_sipi(CPUState *env);
 
+#define MCE_INJECT_BROADCAST    1
+#define MCE_INJECT_UNCOND_AO    2
+
 void cpu_x86_inject_mce(Monitor *mon, CPUState *cenv, int bank,
                         uint64_t status, uint64_t mcg_status, uint64_t addr,
-                        uint64_t misc, int broadcast);
+                        uint64_t misc, int flags);
 
 #endif /* CPU_I386_H */
