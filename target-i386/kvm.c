@@ -437,20 +437,24 @@ int kvm_arch_init_vcpu(CPUState *env)
         int banks;
         int ret;
 
-        if (kvm_get_mce_cap_supported(env->kvm_state, &mcg_cap, &banks)) {
-            perror("kvm_get_mce_cap_supported FAILED");
-        } else {
-            if (banks > MCE_BANKS_DEF)
-                banks = MCE_BANKS_DEF;
-            mcg_cap &= MCE_CAP_DEF;
-            mcg_cap |= banks;
-            ret = kvm_vcpu_ioctl(env, KVM_X86_SETUP_MCE, &mcg_cap);
-            if (ret < 0) {
-                fprintf(stderr, "KVM_X86_SETUP_MCE: %s", strerror(-ret));
-            } else {
-                env->mcg_cap = mcg_cap;
-            }
+        ret = kvm_get_mce_cap_supported(env->kvm_state, &mcg_cap, &banks);
+        if (ret < 0) {
+            fprintf(stderr, "kvm_get_mce_cap_supported: %s", strerror(-ret));
+            return ret;
         }
+
+        if (banks > MCE_BANKS_DEF) {
+            banks = MCE_BANKS_DEF;
+        }
+        mcg_cap &= MCE_CAP_DEF;
+        mcg_cap |= banks;
+        ret = kvm_vcpu_ioctl(env, KVM_X86_SETUP_MCE, &mcg_cap);
+        if (ret < 0) {
+            fprintf(stderr, "KVM_X86_SETUP_MCE: %s", strerror(-ret));
+            return ret;
+        }
+
+        env->mcg_cap = mcg_cap;
     }
 #endif
 
