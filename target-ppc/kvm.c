@@ -222,7 +222,7 @@ int kvmppc_set_interrupt(CPUState *env, int irq, int level)
 #define PPC_INPUT_INT PPC6xx_INPUT_INT
 #endif
 
-int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
+void kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
 {
     int r;
     unsigned irq;
@@ -253,15 +253,15 @@ int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
     /* We don't know if there are more interrupts pending after this. However,
      * the guest will return to userspace in the course of handling this one
      * anyways, so we will get a chance to deliver the rest. */
-    return 0;
 }
 
 void kvm_arch_post_run(CPUState *env, struct kvm_run *run)
 {
 }
 
-void kvm_arch_process_irqchip_events(CPUState *env)
+int kvm_arch_process_irqchip_events(CPUState *env)
 {
+    return 0;
 }
 
 static int kvmppc_handle_halt(CPUState *env)
