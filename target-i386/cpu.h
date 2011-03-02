@@ -687,6 +687,8 @@ typedef struct CPUX86State {
 
     uint64_t pat;
 
+    uint64_t mcg_status;
+
     /* exception/interrupt handling */
     int error_code;
     int exception_is_int;
@@ -741,7 +743,6 @@ typedef struct CPUX86State {
     struct DeviceState *apic_state;
 
     uint64_t mcg_cap;
-    uint64_t mcg_status;
     uint64_t mcg_ctl;
     uint64_t mce_banks[MCE_BANKS_DEF*4];
 
