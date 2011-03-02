@@ -18,6 +18,9 @@ typedef struct QEMUFile QEMUFile;
 typedef struct QEMUBH QEMUBH;
 typedef struct DeviceState DeviceState;
 
+struct Monitor;
+typedef struct Monitor Monitor;
+
 /* we put basic includes here to avoid repeating them in device drivers */
 #include <stdlib.h>
 #include <stdio.h>
@@ -326,9 +329,6 @@ void qemu_iovec_from_buffer(QEMUIOVector *qiov, const void *buf, size_t count);
 void qemu_iovec_memset(QEMUIOVector *qiov, int c, size_t count);
 void qemu_iovec_memset_skip(QEMUIOVector *qiov, int c, size_t count,
                             size_t skip);
-
-struct Monitor;
-typedef struct Monitor Monitor;
 
 /* Convert a byte between binary and BCD.  */
 static inline uint8_t to_bcd(uint8_t val)

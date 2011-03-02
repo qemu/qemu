@@ -2712,8 +2712,8 @@ static void do_inject_mce(Monitor *mon, const QDict *qdict)
     int broadcast = qdict_get_try_bool(qdict, "broadcast", 0);
 
     for (cenv = first_cpu; cenv != NULL; cenv = cenv->next_cpu) {
-        if (cenv->cpu_index == cpu_index && cenv->mcg_cap) {
-            cpu_x86_inject_mce(cenv, bank, status, mcg_status, addr, misc,
+        if (cenv->cpu_index == cpu_index) {
+            cpu_x86_inject_mce(mon, cenv, bank, status, mcg_status, addr, misc,
                                broadcast);
             break;
         }
