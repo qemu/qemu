@@ -998,7 +998,9 @@ int kvm_cpu_exec(CPUState *env)
     }
     ret = EXCP_INTERRUPT;
 
+#ifdef KVM_CAP_SET_GUEST_DEBUG
 out:
+#endif
     env->exit_request = 0;
     cpu_single_env = NULL;
     return ret;
