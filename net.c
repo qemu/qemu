@@ -411,11 +411,11 @@ int qemu_can_send_packet(VLANClientState *sender)
         }
 
         /* no can_receive() handler, they can always receive */
-        if (!vc->info->can_receive || vc->info->can_receive(vc)) {
-            return 1;
+        if (vc->info->can_receive && !vc->info->can_receive(vc)) {
+            return 0;
         }
     }
-    return 0;
+    return 1;
 }
 
 static ssize_t qemu_deliver_packet(VLANClientState *sender,
