@@ -1067,29 +1067,42 @@ static void breakpoint_handler(CPUState *env)
         prev_debug_excp_handler(env);
 }
 
-static void
-qemu_inject_x86_mce(Monitor *mon, CPUState *cenv, int bank, uint64_t status,
-                    uint64_t mcg_status, uint64_t addr, uint64_t misc,
-                    int flags)
+typedef struct MCEInjectionParams {
+    Monitor *mon;
+    CPUState *env;
+    int bank;
+    uint64_t status;
+    uint64_t mcg_status;
+    uint64_t addr;
+    uint64_t misc;
+    int flags;
+} MCEInjectionParams;
+
+static void do_inject_x86_mce(void *data)
 {
-    uint64_t mcg_cap = cenv->mcg_cap;
-    uint64_t *banks = cenv->mce_banks + 4 * bank;
+    MCEInjectionParams *params = data;
+    CPUState *cenv = params->env;
+    uint64_t *banks = cenv->mce_banks + 4 * params->bank;
+
+    cpu_synchronize_state(cenv);
 
     /*
      * If there is an MCE exception being processed, ignore this SRAO MCE
      * unless unconditional injection was requested.
      */
-    if (!(flags & MCE_INJECT_UNCOND_AO) && !(status & MCI_STATUS_AR)
+    if (!(params->flags & MCE_INJECT_UNCOND_AO)
+        && !(params->status & MCI_STATUS_AR)
         && (cenv->mcg_status & MCG_STATUS_MCIP)) {
         return;
     }
-    if (status & MCI_STATUS_UC) {
+
+    if (params->status & MCI_STATUS_UC) {
         /*
          * if MSR_MCG_CTL is not all 1s, the uncorrected error
          * reporting is disabled
          */
-        if ((mcg_cap & MCG_CTL_P) && cenv->mcg_ctl != ~(uint64_t)0) {
-            monitor_printf(mon,
+        if ((cenv->mcg_cap & MCG_CTL_P) && cenv->mcg_ctl != ~(uint64_t)0) {
+            monitor_printf(params->mon,
                            "CPU %d: Uncorrected error reporting disabled\n",
                            cenv->cpu_index);
             return;
@@ -1100,35 +1113,39 @@ qemu_inject_x86_mce(Monitor *mon, CPUState *cenv, int bank, uint64_t status,
          * reporting is disabled for the bank
          */
         if (banks[0] != ~(uint64_t)0) {
-            monitor_printf(mon, "CPU %d: Uncorrected error reporting disabled "
-                           "for bank %d\n", cenv->cpu_index, bank);
+            monitor_printf(params->mon,
+                           "CPU %d: Uncorrected error reporting disabled for"
+                           " bank %d\n",
+                           cenv->cpu_index, params->bank);
             return;
         }
 
         if ((cenv->mcg_status & MCG_STATUS_MCIP) ||
             !(cenv->cr[4] & CR4_MCE_MASK)) {
-            monitor_printf(mon, "CPU %d: Previous MCE still in progress, "
-                                "raising triple fault\n", cenv->cpu_index);
+            monitor_printf(params->mon,
+                           "CPU %d: Previous MCE still in progress, raising"
+                           " triple fault\n",
+                           cenv->cpu_index);
             qemu_log_mask(CPU_LOG_RESET, "Triple fault\n");
             qemu_system_reset_request();
             return;
         }
         if (banks[1] & MCI_STATUS_VAL) {
-            status |= MCI_STATUS_OVER;
+            params->status |= MCI_STATUS_OVER;
         }
-        banks[2] = addr;
-        banks[3] = misc;
-        cenv->mcg_status = mcg_status;
-        banks[1] = status;
+        banks[2] = params->addr;
+        banks[3] = params->misc;
+        cenv->mcg_status = params->mcg_status;
+        banks[1] = params->status;
         cpu_interrupt(cenv, CPU_INTERRUPT_MCE);
     } else if (!(banks[1] & MCI_STATUS_VAL)
                || !(banks[1] & MCI_STATUS_UC)) {
         if (banks[1] & MCI_STATUS_VAL) {
-            status |= MCI_STATUS_OVER;
+            params->status |= MCI_STATUS_OVER;
         }
-        banks[2] = addr;
-        banks[3] = misc;
-        banks[1] = status;
+        banks[2] = params->addr;
+        banks[3] = params->misc;
+        banks[1] = params->status;
     } else {
         banks[1] |= MCI_STATUS_OVER;
     }
@@ -1138,6 +1155,16 @@ void cpu_x86_inject_mce(Monitor *mon, CPUState *cenv, int bank,
                         uint64_t status, uint64_t mcg_status, uint64_t addr,
                         uint64_t misc, int flags)
 {
+    MCEInjectionParams params = {
+        .mon = mon,
+        .env = cenv,
+        .bank = bank,
+        .status = status,
+        .mcg_status = mcg_status,
+        .addr = addr,
+        .misc = misc,
+        .flags = flags,
+    };
     unsigned bank_num = cenv->mcg_cap & 0xff;
     CPUState *env;
     int flag = 0;
@@ -1167,17 +1194,19 @@ void cpu_x86_inject_mce(Monitor *mon, CPUState *cenv, int bank,
 
         kvm_inject_x86_mce(cenv, bank, status, mcg_status, addr, misc, flag);
     } else {
-        qemu_inject_x86_mce(mon, cenv, bank, status, mcg_status, addr, misc,
-                            flags);
+        run_on_cpu(cenv, do_inject_x86_mce, &params);
         if (flags & MCE_INJECT_BROADCAST) {
+            params.bank = 1;
+            params.status = MCI_STATUS_VAL | MCI_STATUS_UC;
+            params.mcg_status = MCG_STATUS_MCIP | MCG_STATUS_RIPV;
+            params.addr = 0;
+            params.misc = 0;
             for (env = first_cpu; env != NULL; env = env->next_cpu) {
                 if (cenv == env) {
                     continue;
                 }
-                qemu_inject_x86_mce(mon, env, 1,
-                                    MCI_STATUS_VAL | MCI_STATUS_UC,
-                                    MCG_STATUS_MCIP | MCG_STATUS_RIPV, 0, 0,
-                                    flags);
+                params.env = env;
+                run_on_cpu(cenv, do_inject_x86_mce, &params);
             }
         }
     }
