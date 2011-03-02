@@ -893,7 +893,7 @@ int kvm_cpu_exec(CPUState *env)
 
     DPRINTF("kvm_cpu_exec()\n");
 
-    if (kvm_arch_process_irqchip_events(env)) {
+    if (kvm_arch_process_async_events(env)) {
         env->exit_request = 0;
         return EXCP_HLT;
     }

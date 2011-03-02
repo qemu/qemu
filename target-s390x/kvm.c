@@ -177,7 +177,7 @@ void kvm_arch_post_run(CPUState *env, struct kvm_run *run)
 {
 }
 
-int kvm_arch_process_irqchip_events(CPUState *env)
+int kvm_arch_process_async_events(CPUState *env)
 {
     return 0;
 }

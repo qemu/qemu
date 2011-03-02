@@ -1675,7 +1675,7 @@ void kvm_arch_post_run(CPUState *env, struct kvm_run *run)
     cpu_set_apic_base(env->apic_state, run->apic_base);
 }
 
-int kvm_arch_process_irqchip_events(CPUState *env)
+int kvm_arch_process_async_events(CPUState *env)
 {
     if (kvm_irqchip_in_kernel()) {
         return 0;
