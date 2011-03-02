@@ -27,7 +27,6 @@
 #include "exec-all.h"
 #include "qemu-common.h"
 #include "kvm.h"
-#include "kvm_x86.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu.h"
 #include "monitor.h"
@@ -1167,7 +1166,6 @@ void cpu_x86_inject_mce(Monitor *mon, CPUState *cenv, int bank,
     };
     unsigned bank_num = cenv->mcg_cap & 0xff;
     CPUState *env;
-    int flag = 0;
 
     if (!cenv->mcg_cap) {
         monitor_printf(mon, "MCE injection not supported\n");
@@ -1187,27 +1185,19 @@ void cpu_x86_inject_mce(Monitor *mon, CPUState *cenv, int bank,
         return;
     }
 
-    if (kvm_enabled()) {
-        if (flags & MCE_INJECT_BROADCAST) {
-            flag |= MCE_BROADCAST;
-        }
-
-        kvm_inject_x86_mce(cenv, bank, status, mcg_status, addr, misc, flag);
-    } else {
-        run_on_cpu(cenv, do_inject_x86_mce, &params);
-        if (flags & MCE_INJECT_BROADCAST) {
-            params.bank = 1;
-            params.status = MCI_STATUS_VAL | MCI_STATUS_UC;
-            params.mcg_status = MCG_STATUS_MCIP | MCG_STATUS_RIPV;
-            params.addr = 0;
-            params.misc = 0;
-            for (env = first_cpu; env != NULL; env = env->next_cpu) {
-                if (cenv == env) {
-                    continue;
-                }
-                params.env = env;
-                run_on_cpu(cenv, do_inject_x86_mce, &params);
+    run_on_cpu(cenv, do_inject_x86_mce, &params);
+    if (flags & MCE_INJECT_BROADCAST) {
+        params.bank = 1;
+        params.status = MCI_STATUS_VAL | MCI_STATUS_UC;
+        params.mcg_status = MCG_STATUS_MCIP | MCG_STATUS_RIPV;
+        params.addr = 0;
+        params.misc = 0;
+        for (env = first_cpu; env != NULL; env = env->next_cpu) {
+            if (cenv == env) {
+                continue;
             }
+            params.env = env;
+            run_on_cpu(cenv, do_inject_x86_mce, &params);
         }
     }
 }
