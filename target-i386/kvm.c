@@ -187,11 +187,6 @@ static int kvm_get_mce_cap_supported(KVMState *s, uint64_t *mce_cap,
     return -ENOSYS;
 }
 
-static int kvm_setup_mce(CPUState *env, uint64_t *mcg_cap)
-{
-    return kvm_vcpu_ioctl(env, KVM_X86_SETUP_MCE, mcg_cap);
-}
-
 static void kvm_mce_inject(CPUState *env, target_phys_addr_t paddr, int code)
 {
     uint64_t status = MCI_STATUS_VAL | MCI_STATUS_UC | MCI_STATUS_EN |
@@ -440,6 +435,7 @@ int kvm_arch_init_vcpu(CPUState *env)
         && kvm_check_extension(env->kvm_state, KVM_CAP_MCE) > 0) {
         uint64_t mcg_cap;
         int banks;
+        int ret;
 
         if (kvm_get_mce_cap_supported(env->kvm_state, &mcg_cap, &banks)) {
             perror("kvm_get_mce_cap_supported FAILED");
@@ -448,8 +444,9 @@ int kvm_arch_init_vcpu(CPUState *env)
                 banks = MCE_BANKS_DEF;
             mcg_cap &= MCE_CAP_DEF;
             mcg_cap |= banks;
-            if (kvm_setup_mce(env, &mcg_cap)) {
-                perror("kvm_setup_mce FAILED");
+            ret = kvm_vcpu_ioctl(env, KVM_X86_SETUP_MCE, &mcg_cap);
+            if (ret < 0) {
+                fprintf(stderr, "KVM_X86_SETUP_MCE: %s", strerror(-ret));
             } else {
                 env->mcg_cap = mcg_cap;
             }
