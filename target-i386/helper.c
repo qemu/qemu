@@ -28,6 +28,9 @@
 #include "qemu-common.h"
 #include "kvm.h"
 #include "kvm_x86.h"
+#ifndef CONFIG_USER_ONLY
+#include "sysemu.h"
+#endif
 
 //#define DEBUG_MMU
 
@@ -1063,11 +1066,9 @@ static void breakpoint_handler(CPUState *env)
         prev_debug_excp_handler(env);
 }
 
-/* This should come from sysemu.h - if we could include it here... */
-void qemu_system_reset_request(void);
-
-static void qemu_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
-                        uint64_t mcg_status, uint64_t addr, uint64_t misc)
+static void
+qemu_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
+                    uint64_t mcg_status, uint64_t addr, uint64_t misc)
 {
     uint64_t mcg_cap = cenv->mcg_cap;
     uint64_t *banks = cenv->mce_banks;
@@ -1077,15 +1078,17 @@ static void qemu_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
      * reporting is disabled
      */
     if ((status & MCI_STATUS_UC) && (mcg_cap & MCG_CTL_P) &&
-        cenv->mcg_ctl != ~(uint64_t)0)
+        cenv->mcg_ctl != ~(uint64_t)0) {
         return;
+    }
     banks += 4 * bank;
     /*
      * if MSR_MCi_CTL is not all 1s, the uncorrected error
      * reporting is disabled for the bank
      */
-    if ((status & MCI_STATUS_UC) && banks[0] != ~(uint64_t)0)
+    if ((status & MCI_STATUS_UC) && banks[0] != ~(uint64_t)0) {
         return;
+    }
     if (status & MCI_STATUS_UC) {
         if ((cenv->mcg_status & MCG_STATUS_MCIP) ||
             !(cenv->cr[4] & CR4_MCE_MASK)) {
@@ -1095,8 +1098,9 @@ static void qemu_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
             qemu_system_reset_request();
             return;
         }
-        if (banks[1] & MCI_STATUS_VAL)
+        if (banks[1] & MCI_STATUS_VAL) {
             status |= MCI_STATUS_OVER;
+        }
         banks[2] = addr;
         banks[3] = misc;
         cenv->mcg_status = mcg_status;
@@ -1104,16 +1108,18 @@ static void qemu_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
         cpu_interrupt(cenv, CPU_INTERRUPT_MCE);
     } else if (!(banks[1] & MCI_STATUS_VAL)
                || !(banks[1] & MCI_STATUS_UC)) {
-        if (banks[1] & MCI_STATUS_VAL)
+        if (banks[1] & MCI_STATUS_VAL) {
             status |= MCI_STATUS_OVER;
+        }
         banks[2] = addr;
         banks[3] = misc;
         banks[1] = status;
-    } else
+    } else {
         banks[1] |= MCI_STATUS_OVER;
+    }
 }
 
-void cpu_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
+void cpu_x86_inject_mce(CPUState *cenv, int bank, uint64_t status,
                         uint64_t mcg_status, uint64_t addr, uint64_t misc,
                         int broadcast)
 {
@@ -1155,15 +1161,16 @@ void cpu_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
 
 static void mce_init(CPUX86State *cenv)
 {
-    unsigned int bank, bank_num;
+    unsigned int bank;
 
-    if (((cenv->cpuid_version >> 8)&0xf) >= 6
-        && (cenv->cpuid_features&(CPUID_MCE|CPUID_MCA)) == (CPUID_MCE|CPUID_MCA)) {
+    if (((cenv->cpuid_version >> 8) & 0xf) >= 6
+        && (cenv->cpuid_features & (CPUID_MCE | CPUID_MCA)) ==
+            (CPUID_MCE | CPUID_MCA)) {
         cenv->mcg_cap = MCE_CAP_DEF | MCE_BANKS_DEF;
         cenv->mcg_ctl = ~(uint64_t)0;
-        bank_num = MCE_BANKS_DEF;
-        for (bank = 0; bank < bank_num; bank++)
-            cenv->mce_banks[bank*4] = ~(uint64_t)0;
+        for (bank = 0; bank < MCE_BANKS_DEF; bank++) {
+            cenv->mce_banks[bank * 4] = ~(uint64_t)0;
+        }
     }
 }
 

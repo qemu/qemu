@@ -2713,7 +2713,7 @@ static void do_inject_mce(Monitor *mon, const QDict *qdict)
 
     for (cenv = first_cpu; cenv != NULL; cenv = cenv->next_cpu) {
         if (cenv->cpu_index == cpu_index && cenv->mcg_cap) {
-            cpu_inject_x86_mce(cenv, bank, status, mcg_status, addr, misc,
+            cpu_x86_inject_mce(cenv, bank, status, mcg_status, addr, misc,
                                broadcast);
             break;
         }
