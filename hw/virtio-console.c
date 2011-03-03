@@ -82,7 +82,6 @@ static int virtconsole_exitfn(VirtIOSerialPort *port)
     VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
 
     if (vcon->chr) {
-        port->info->have_data = NULL;
         qemu_chr_close(vcon->chr);
     }
 
