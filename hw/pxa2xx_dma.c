@@ -426,7 +426,30 @@ static CPUWriteMemoryFunc * const pxa2xx_dma_writefn[] = {
     pxa2xx_dma_write
 };
 
-static void pxa2xx_dma_request(void *opaque, int req_num, int on);
+static void pxa2xx_dma_request(void *opaque, int req_num, int on)
+{
+    PXA2xxDMAState *s = opaque;
+    int ch;
+    if (req_num < 0 || req_num >= PXA2XX_DMA_NUM_REQUESTS)
+        hw_error("%s: Bad DMA request %i\n", __FUNCTION__, req_num);
+
+    if (!(s->req[req_num] & DRCMR_MAPVLD))
+        return;
+    ch = s->req[req_num] & DRCMR_CHLNUM;
+
+    if (!s->chan[ch].request && on)
+        s->chan[ch].state |= DCSR_RASINTR;
+    else
+        s->chan[ch].state &= ~DCSR_RASINTR;
+    if (s->chan[ch].request && !on)
+        s->chan[ch].state |= DCSR_EORINT;
+
+    s->chan[ch].request = on;
+    if (on) {
+        pxa2xx_dma_run(s);
+        pxa2xx_dma_update(s, ch);
+    }
+}
 
 static int pxa2xx_dma_init(SysBusDevice *dev)
 {
@@ -482,31 +505,6 @@ DeviceState *pxa255_dma_init(target_phys_addr_t base, qemu_irq irq)
     sysbus_connect_irq(sysbus_from_qdev(dev), 0, irq);
 
     return dev;
-}
-
-static void pxa2xx_dma_request(void *opaque, int req_num, int on)
-{
-    PXA2xxDMAState *s = opaque;
-    int ch;
-    if (req_num < 0 || req_num >= PXA2XX_DMA_NUM_REQUESTS)
-        hw_error("%s: Bad DMA request %i\n", __FUNCTION__, req_num);
-
-    if (!(s->req[req_num] & DRCMR_MAPVLD))
-        return;
-    ch = s->req[req_num] & DRCMR_CHLNUM;
-
-    if (!s->chan[ch].request && on)
-        s->chan[ch].state |= DCSR_RASINTR;
-    else
-        s->chan[ch].state &= ~DCSR_RASINTR;
-    if (s->chan[ch].request && !on)
-        s->chan[ch].state |= DCSR_EORINT;
-
-    s->chan[ch].request = on;
-    if (on) {
-        pxa2xx_dma_run(s);
-        pxa2xx_dma_update(s, ch);
-    }
 }
 
 static bool is_version_0(void *opaque, int version_id)
