@@ -475,14 +475,15 @@ extern const VMStateInfo vmstate_info_unused_buffer;
     .offset     = vmstate_offset_array(_state, _field, _type, _num), \
 }
 
-#define VMSTATE_STRUCT_ARRAY(_field, _state, _num, _version, _vmsd, _type) { \
-    .name       = (stringify(_field)),                               \
-    .num        = (_num),                                            \
-    .version_id = (_version),                                        \
-    .vmsd       = &(_vmsd),                                          \
-    .size       = sizeof(_type),                                     \
-    .flags      = VMS_STRUCT|VMS_ARRAY,                              \
-    .offset     = vmstate_offset_array(_state, _field, _type, _num), \
+#define VMSTATE_STRUCT_ARRAY_TEST(_field, _state, _num, _test, _version, _vmsd, _type) { \
+    .name         = (stringify(_field)),                             \
+    .num          = (_num),                                          \
+    .field_exists = (_test),                                         \
+    .version_id   = (_version),                                      \
+    .vmsd         = &(_vmsd),                                        \
+    .size         = sizeof(_type),                                   \
+    .flags        = VMS_STRUCT|VMS_ARRAY,                            \
+    .offset       = vmstate_offset_array(_state, _field, _type, _num),\
 }
 
 #define VMSTATE_STRUCT_VARRAY_UINT8(_field, _state, _field_num, _version, _vmsd, _type) { \
@@ -624,6 +625,10 @@ extern const VMStateDescription vmstate_usb_device;
 
 #define VMSTATE_STRUCT_POINTER(_field, _state, _vmsd, _type)          \
     VMSTATE_STRUCT_POINTER_TEST(_field, _state, NULL, _vmsd, _type)
+
+#define VMSTATE_STRUCT_ARRAY(_field, _state, _num, _version, _vmsd, _type) \
+    VMSTATE_STRUCT_ARRAY_TEST(_field, _state, _num, NULL, _version,   \
+            _vmsd, _type)
 
 #define VMSTATE_BOOL_V(_f, _s, _v)                                    \
     VMSTATE_SINGLE(_f, _s, _v, vmstate_info_bool, bool)
