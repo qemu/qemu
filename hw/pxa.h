@@ -65,10 +65,6 @@
 /* pxa2xx_pic.c */
 DeviceState *pxa2xx_pic_init(target_phys_addr_t base, CPUState *env);
 
-/* pxa2xx_timer.c */
-void pxa25x_timer_init(target_phys_addr_t base, DeviceState *pic);
-void pxa27x_timer_init(target_phys_addr_t base, DeviceState *pic);
-
 /* pxa2xx_gpio.c */
 DeviceState *pxa2xx_gpio_init(target_phys_addr_t base,
                 CPUState *env, DeviceState *pic, int lines);
