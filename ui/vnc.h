@@ -79,9 +79,12 @@ typedef void VncSendHextileTile(VncState *vs,
                                 void *last_fg,
                                 int *has_bg, int *has_fg);
 
+/* VNC_MAX_WIDTH must be a multiple of 16. */
 #define VNC_MAX_WIDTH 2560
 #define VNC_MAX_HEIGHT 2048
-#define VNC_DIRTY_WORDS (VNC_MAX_WIDTH / (16 * BITS_PER_LONG))
+
+/* VNC_DIRTY_BITS is the number of bits in the dirty bitmap. */
+#define VNC_DIRTY_BITS (VNC_MAX_WIDTH / 16)
 
 #define VNC_STAT_RECT  64
 #define VNC_STAT_COLS (VNC_MAX_WIDTH / VNC_STAT_RECT)
@@ -114,7 +117,7 @@ typedef struct VncRectStat VncRectStat;
 struct VncSurface
 {
     struct timeval last_freq_check;
-    unsigned long dirty[VNC_MAX_HEIGHT][VNC_DIRTY_WORDS];
+    DECLARE_BITMAP(dirty[VNC_MAX_HEIGHT], VNC_MAX_WIDTH / 16);
     VncRectStat stats[VNC_STAT_ROWS][VNC_STAT_COLS];
     DisplaySurface *ds;
 };
@@ -234,7 +237,7 @@ struct VncState
     int csock;
 
     DisplayState *ds;
-    unsigned long dirty[VNC_MAX_HEIGHT][VNC_DIRTY_WORDS];
+    DECLARE_BITMAP(dirty[VNC_MAX_HEIGHT], VNC_DIRTY_BITS);
     uint8_t **lossy_rect; /* Not an Array to avoid costly memcpy in
                            * vnc-jobs-async.c */
 

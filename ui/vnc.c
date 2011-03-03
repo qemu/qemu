@@ -2383,7 +2383,6 @@ static int vnc_refresh_server_surface(VncDisplay *vd)
     uint8_t *guest_row;
     uint8_t *server_row;
     int cmp_bytes;
-    unsigned long width_mask[VNC_DIRTY_WORDS];
     VncState *vs;
     int has_dirty = 0;
 
@@ -2399,14 +2398,11 @@ static int vnc_refresh_server_surface(VncDisplay *vd)
      * Check and copy modified bits from guest to server surface.
      * Update server dirty map.
      */
-    bitmap_set(width_mask, 0, (ds_get_width(vd->ds) / 16));
-    bitmap_clear(width_mask, (ds_get_width(vd->ds) / 16),
-                 VNC_DIRTY_WORDS * BITS_PER_LONG);
     cmp_bytes = 16 * ds_get_bytes_per_pixel(vd->ds);
     guest_row  = vd->guest.ds->data;
     server_row = vd->server->data;
     for (y = 0; y < vd->guest.ds->height; y++) {
-        if (bitmap_intersects(vd->guest.dirty[y], width_mask, VNC_DIRTY_WORDS)) {
+        if (!bitmap_empty(vd->guest.dirty[y], VNC_DIRTY_BITS)) {
             int x;
             uint8_t *guest_ptr;
             uint8_t *server_ptr;
