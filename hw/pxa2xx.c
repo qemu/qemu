@@ -1585,8 +1585,8 @@ static inline void pxa2xx_i2s_update(PXA2xxI2SState *i2s)
     tfs = (i2s->tx_len || i2s->fifo_len < SACR_TFTH(i2s->control[0])) &&
             i2s->enable && !SACR_DPRL(i2s->control[1]);
 
-    pxa2xx_dma_request(i2s->dma, PXA2XX_RX_RQ_I2S, rfs);
-    pxa2xx_dma_request(i2s->dma, PXA2XX_TX_RQ_I2S, tfs);
+    qemu_set_irq(i2s->rx_dma, rfs);
+    qemu_set_irq(i2s->tx_dma, tfs);
 
     i2s->status &= 0xe0;
     if (i2s->fifo_len < 16 || !i2s->enable)
@@ -1769,14 +1769,15 @@ static void pxa2xx_i2s_data_req(void *opaque, int tx, int rx)
 }
 
 static PXA2xxI2SState *pxa2xx_i2s_init(target_phys_addr_t base,
-                qemu_irq irq, PXA2xxDMAState *dma)
+                qemu_irq irq, qemu_irq rx_dma, qemu_irq tx_dma)
 {
     int iomemtype;
     PXA2xxI2SState *s = (PXA2xxI2SState *)
             qemu_mallocz(sizeof(PXA2xxI2SState));
 
     s->irq = irq;
-    s->dma = dma;
+    s->rx_dma = rx_dma;
+    s->tx_dma = tx_dma;
     s->data_req = pxa2xx_i2s_data_req;
 
     pxa2xx_i2s_reset(s);
@@ -1794,7 +1795,8 @@ static PXA2xxI2SState *pxa2xx_i2s_init(target_phys_addr_t base,
 /* PXA Fast Infra-red Communications Port */
 struct PXA2xxFIrState {
     qemu_irq irq;
-    PXA2xxDMAState *dma;
+    qemu_irq rx_dma;
+    qemu_irq tx_dma;
     int enable;
     CharDriverState *chr;
 
@@ -1848,8 +1850,8 @@ static inline void pxa2xx_fir_update(PXA2xxFIrState *s)
             (s->status[0] & (1 << 1));			/* TUR */
     intr |= s->status[0] & 0x25;			/* FRE, RAB, EIF */
 
-    pxa2xx_dma_request(s->dma, PXA2XX_RX_RQ_ICP, (s->status[0] >> 4) & 1);
-    pxa2xx_dma_request(s->dma, PXA2XX_TX_RQ_ICP, (s->status[0] >> 3) & 1);
+    qemu_set_irq(s->rx_dma, (s->status[0] >> 4) & 1);
+    qemu_set_irq(s->tx_dma, (s->status[0] >> 3) & 1);
 
     qemu_set_irq(s->irq, intr && s->enable);
 }
@@ -2028,7 +2030,7 @@ static int pxa2xx_fir_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 static PXA2xxFIrState *pxa2xx_fir_init(target_phys_addr_t base,
-                qemu_irq irq, PXA2xxDMAState *dma,
+                qemu_irq irq, qemu_irq rx_dma, qemu_irq tx_dma,
                 CharDriverState *chr)
 {
     int iomemtype;
@@ -2036,7 +2038,8 @@ static PXA2xxFIrState *pxa2xx_fir_init(target_phys_addr_t base,
             qemu_mallocz(sizeof(PXA2xxFIrState));
 
     s->irq = irq;
-    s->dma = dma;
+    s->rx_dma = rx_dma;
+    s->tx_dma = tx_dma;
     s->chr = chr;
 
     pxa2xx_fir_reset(s);
@@ -2116,7 +2119,9 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
         exit(1);
     }
     s->mmc = pxa2xx_mmci_init(0x41100000, dinfo->bdrv,
-                    qdev_get_gpio_in(s->pic, PXA2XX_PIC_MMC), s->dma);
+                    qdev_get_gpio_in(s->pic, PXA2XX_PIC_MMC),
+                    qdev_get_gpio_in(s->dma, PXA2XX_RX_RQ_MMCI),
+                    qdev_get_gpio_in(s->dma, PXA2XX_TX_RQ_MMCI));
 
     for (i = 0; pxa270_serial[i].io_base; i ++)
         if (serial_hds[i])
@@ -2134,7 +2139,9 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
     if (serial_hds[i])
         s->fir = pxa2xx_fir_init(0x40800000,
                         qdev_get_gpio_in(s->pic, PXA2XX_PIC_ICP),
-                        s->dma, serial_hds[i]);
+                        qdev_get_gpio_in(s->dma, PXA2XX_RX_RQ_ICP),
+                        qdev_get_gpio_in(s->dma, PXA2XX_TX_RQ_ICP),
+                        serial_hds[i]);
 
     s->lcd = pxa2xx_lcdc_init(0x44000000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_LCD));
@@ -2195,7 +2202,9 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_PWRI2C), 0xff);
 
     s->i2s = pxa2xx_i2s_init(0x40400000,
-                    qdev_get_gpio_in(s->pic, PXA2XX_PIC_I2S), s->dma);
+                    qdev_get_gpio_in(s->pic, PXA2XX_PIC_I2S),
+                    qdev_get_gpio_in(s->dma, PXA2XX_RX_RQ_I2S),
+                    qdev_get_gpio_in(s->dma, PXA2XX_TX_RQ_I2S));
 
     s->kp = pxa27x_keypad_init(0x41500000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_KEYPAD));
@@ -2250,7 +2259,9 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
         exit(1);
     }
     s->mmc = pxa2xx_mmci_init(0x41100000, dinfo->bdrv,
-                    qdev_get_gpio_in(s->pic, PXA2XX_PIC_MMC), s->dma);
+                    qdev_get_gpio_in(s->pic, PXA2XX_PIC_MMC),
+                    qdev_get_gpio_in(s->dma, PXA2XX_RX_RQ_MMCI),
+                    qdev_get_gpio_in(s->dma, PXA2XX_TX_RQ_MMCI));
 
     for (i = 0; pxa255_serial[i].io_base; i ++)
         if (serial_hds[i]) {
@@ -2269,7 +2280,9 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
     if (serial_hds[i])
         s->fir = pxa2xx_fir_init(0x40800000,
                         qdev_get_gpio_in(s->pic, PXA2XX_PIC_ICP),
-                        s->dma, serial_hds[i]);
+                        qdev_get_gpio_in(s->dma, PXA2XX_RX_RQ_ICP),
+                        qdev_get_gpio_in(s->dma, PXA2XX_TX_RQ_ICP),
+                        serial_hds[i]);
 
     s->lcd = pxa2xx_lcdc_init(0x44000000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_LCD));
@@ -2330,7 +2343,9 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_PWRI2C), 0xff);
 
     s->i2s = pxa2xx_i2s_init(0x40400000,
-                    qdev_get_gpio_in(s->pic, PXA2XX_PIC_I2S), s->dma);
+                    qdev_get_gpio_in(s->pic, PXA2XX_PIC_I2S),
+                    qdev_get_gpio_in(s->dma, PXA2XX_RX_RQ_I2S),
+                    qdev_get_gpio_in(s->dma, PXA2XX_TX_RQ_I2S));
 
     /* GPIO1 resets the processor */
     /* The handler can be overridden by board-specific code */
