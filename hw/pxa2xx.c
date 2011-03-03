@@ -13,7 +13,6 @@
 #include "pc.h"
 #include "i2c.h"
 #include "ssi.h"
-#include "qemu-timer.h"
 #include "qemu-char.h"
 #include "blockdev.h"
 
@@ -886,12 +885,41 @@ static int pxa2xx_ssp_init(SysBusDevice *dev)
 #define RTCPICR		0x34	/* RTC Periodic Interrupt Counter register */
 #define PIAR		0x38	/* RTC Periodic Interrupt Alarm register */
 
-static inline void pxa2xx_rtc_int_update(PXA2xxState *s)
+typedef struct {
+    SysBusDevice busdev;
+    uint32_t rttr;
+    uint32_t rtsr;
+    uint32_t rtar;
+    uint32_t rdar1;
+    uint32_t rdar2;
+    uint32_t ryar1;
+    uint32_t ryar2;
+    uint32_t swar1;
+    uint32_t swar2;
+    uint32_t piar;
+    uint32_t last_rcnr;
+    uint32_t last_rdcr;
+    uint32_t last_rycr;
+    uint32_t last_swcr;
+    uint32_t last_rtcpicr;
+    int64_t last_hz;
+    int64_t last_sw;
+    int64_t last_pi;
+    QEMUTimer *rtc_hz;
+    QEMUTimer *rtc_rdal1;
+    QEMUTimer *rtc_rdal2;
+    QEMUTimer *rtc_swal1;
+    QEMUTimer *rtc_swal2;
+    QEMUTimer *rtc_pi;
+    qemu_irq rtc_irq;
+} PXA2xxRTCState;
+
+static inline void pxa2xx_rtc_int_update(PXA2xxRTCState *s)
 {
     qemu_set_irq(s->rtc_irq, !!(s->rtsr & 0x2553));
 }
 
-static void pxa2xx_rtc_hzupdate(PXA2xxState *s)
+static void pxa2xx_rtc_hzupdate(PXA2xxRTCState *s)
 {
     int64_t rt = qemu_get_clock(rt_clock);
     s->last_rcnr += ((rt - s->last_hz) << 15) /
@@ -901,7 +929,7 @@ static void pxa2xx_rtc_hzupdate(PXA2xxState *s)
     s->last_hz = rt;
 }
 
-static void pxa2xx_rtc_swupdate(PXA2xxState *s)
+static void pxa2xx_rtc_swupdate(PXA2xxRTCState *s)
 {
     int64_t rt = qemu_get_clock(rt_clock);
     if (s->rtsr & (1 << 12))
@@ -909,7 +937,7 @@ static void pxa2xx_rtc_swupdate(PXA2xxState *s)
     s->last_sw = rt;
 }
 
-static void pxa2xx_rtc_piupdate(PXA2xxState *s)
+static void pxa2xx_rtc_piupdate(PXA2xxRTCState *s)
 {
     int64_t rt = qemu_get_clock(rt_clock);
     if (s->rtsr & (1 << 15))
@@ -917,7 +945,7 @@ static void pxa2xx_rtc_piupdate(PXA2xxState *s)
     s->last_pi = rt;
 }
 
-static inline void pxa2xx_rtc_alarm_update(PXA2xxState *s,
+static inline void pxa2xx_rtc_alarm_update(PXA2xxRTCState *s,
                 uint32_t rtsr)
 {
     if ((rtsr & (1 << 2)) && !(rtsr & (1 << 0)))
@@ -962,7 +990,7 @@ static inline void pxa2xx_rtc_alarm_update(PXA2xxState *s,
 
 static inline void pxa2xx_rtc_hz_tick(void *opaque)
 {
-    PXA2xxState *s = (PXA2xxState *) opaque;
+    PXA2xxRTCState *s = (PXA2xxRTCState *) opaque;
     s->rtsr |= (1 << 0);
     pxa2xx_rtc_alarm_update(s, s->rtsr);
     pxa2xx_rtc_int_update(s);
@@ -970,7 +998,7 @@ static inline void pxa2xx_rtc_hz_tick(void *opaque)
 
 static inline void pxa2xx_rtc_rdal1_tick(void *opaque)
 {
-    PXA2xxState *s = (PXA2xxState *) opaque;
+    PXA2xxRTCState *s = (PXA2xxRTCState *) opaque;
     s->rtsr |= (1 << 4);
     pxa2xx_rtc_alarm_update(s, s->rtsr);
     pxa2xx_rtc_int_update(s);
@@ -978,7 +1006,7 @@ static inline void pxa2xx_rtc_rdal1_tick(void *opaque)
 
 static inline void pxa2xx_rtc_rdal2_tick(void *opaque)
 {
-    PXA2xxState *s = (PXA2xxState *) opaque;
+    PXA2xxRTCState *s = (PXA2xxRTCState *) opaque;
     s->rtsr |= (1 << 6);
     pxa2xx_rtc_alarm_update(s, s->rtsr);
     pxa2xx_rtc_int_update(s);
@@ -986,7 +1014,7 @@ static inline void pxa2xx_rtc_rdal2_tick(void *opaque)
 
 static inline void pxa2xx_rtc_swal1_tick(void *opaque)
 {
-    PXA2xxState *s = (PXA2xxState *) opaque;
+    PXA2xxRTCState *s = (PXA2xxRTCState *) opaque;
     s->rtsr |= (1 << 8);
     pxa2xx_rtc_alarm_update(s, s->rtsr);
     pxa2xx_rtc_int_update(s);
@@ -994,7 +1022,7 @@ static inline void pxa2xx_rtc_swal1_tick(void *opaque)
 
 static inline void pxa2xx_rtc_swal2_tick(void *opaque)
 {
-    PXA2xxState *s = (PXA2xxState *) opaque;
+    PXA2xxRTCState *s = (PXA2xxRTCState *) opaque;
     s->rtsr |= (1 << 10);
     pxa2xx_rtc_alarm_update(s, s->rtsr);
     pxa2xx_rtc_int_update(s);
@@ -1002,7 +1030,7 @@ static inline void pxa2xx_rtc_swal2_tick(void *opaque)
 
 static inline void pxa2xx_rtc_pi_tick(void *opaque)
 {
-    PXA2xxState *s = (PXA2xxState *) opaque;
+    PXA2xxRTCState *s = (PXA2xxRTCState *) opaque;
     s->rtsr |= (1 << 13);
     pxa2xx_rtc_piupdate(s);
     s->last_rtcpicr = 0;
@@ -1012,7 +1040,7 @@ static inline void pxa2xx_rtc_pi_tick(void *opaque)
 
 static uint32_t pxa2xx_rtc_read(void *opaque, target_phys_addr_t addr)
 {
-    PXA2xxState *s = (PXA2xxState *) opaque;
+    PXA2xxRTCState *s = (PXA2xxRTCState *) opaque;
 
     switch (addr) {
     case RTTR:
@@ -1058,7 +1086,7 @@ static uint32_t pxa2xx_rtc_read(void *opaque, target_phys_addr_t addr)
 static void pxa2xx_rtc_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
-    PXA2xxState *s = (PXA2xxState *) opaque;
+    PXA2xxRTCState *s = (PXA2xxRTCState *) opaque;
 
     switch (addr) {
     case RTTR:
@@ -1170,10 +1198,12 @@ static CPUWriteMemoryFunc * const pxa2xx_rtc_writefn[] = {
     pxa2xx_rtc_write,
 };
 
-static void pxa2xx_rtc_init(PXA2xxState *s)
+static int pxa2xx_rtc_init(SysBusDevice *dev)
 {
+    PXA2xxRTCState *s = FROM_SYSBUS(PXA2xxRTCState, dev);
     struct tm tm;
     int wom;
+    int iomemtype;
 
     s->rttr = 0x7fff;
     s->rtsr = 0;
@@ -1198,64 +1228,70 @@ static void pxa2xx_rtc_init(PXA2xxState *s)
     s->rtc_swal2 = qemu_new_timer(rt_clock, pxa2xx_rtc_swal2_tick, s);
     s->rtc_pi    = qemu_new_timer(rt_clock, pxa2xx_rtc_pi_tick,    s);
 
-    s->rtc_irq = qdev_get_gpio_in(s->pic, PXA2XX_PIC_RTCALARM);
+    sysbus_init_irq(dev, &s->rtc_irq);
+
+    iomemtype = cpu_register_io_memory(pxa2xx_rtc_readfn,
+                    pxa2xx_rtc_writefn, s, DEVICE_NATIVE_ENDIAN);
+    sysbus_init_mmio(dev, 0x10000, iomemtype);
+
+    return 0;
 }
 
-static void pxa2xx_rtc_save(QEMUFile *f, void *opaque)
+static void pxa2xx_rtc_pre_save(void *opaque)
 {
-    PXA2xxState *s = (PXA2xxState *) opaque;
+    PXA2xxRTCState *s = (PXA2xxRTCState *) opaque;
 
     pxa2xx_rtc_hzupdate(s);
     pxa2xx_rtc_piupdate(s);
     pxa2xx_rtc_swupdate(s);
-
-    qemu_put_be32s(f, &s->rttr);
-    qemu_put_be32s(f, &s->rtsr);
-    qemu_put_be32s(f, &s->rtar);
-    qemu_put_be32s(f, &s->rdar1);
-    qemu_put_be32s(f, &s->rdar2);
-    qemu_put_be32s(f, &s->ryar1);
-    qemu_put_be32s(f, &s->ryar2);
-    qemu_put_be32s(f, &s->swar1);
-    qemu_put_be32s(f, &s->swar2);
-    qemu_put_be32s(f, &s->piar);
-    qemu_put_be32s(f, &s->last_rcnr);
-    qemu_put_be32s(f, &s->last_rdcr);
-    qemu_put_be32s(f, &s->last_rycr);
-    qemu_put_be32s(f, &s->last_swcr);
-    qemu_put_be32s(f, &s->last_rtcpicr);
-    qemu_put_sbe64s(f, &s->last_hz);
-    qemu_put_sbe64s(f, &s->last_sw);
-    qemu_put_sbe64s(f, &s->last_pi);
 }
 
-static int pxa2xx_rtc_load(QEMUFile *f, void *opaque, int version_id)
+static int pxa2xx_rtc_post_load(void *opaque, int version_id)
 {
-    PXA2xxState *s = (PXA2xxState *) opaque;
-
-    qemu_get_be32s(f, &s->rttr);
-    qemu_get_be32s(f, &s->rtsr);
-    qemu_get_be32s(f, &s->rtar);
-    qemu_get_be32s(f, &s->rdar1);
-    qemu_get_be32s(f, &s->rdar2);
-    qemu_get_be32s(f, &s->ryar1);
-    qemu_get_be32s(f, &s->ryar2);
-    qemu_get_be32s(f, &s->swar1);
-    qemu_get_be32s(f, &s->swar2);
-    qemu_get_be32s(f, &s->piar);
-    qemu_get_be32s(f, &s->last_rcnr);
-    qemu_get_be32s(f, &s->last_rdcr);
-    qemu_get_be32s(f, &s->last_rycr);
-    qemu_get_be32s(f, &s->last_swcr);
-    qemu_get_be32s(f, &s->last_rtcpicr);
-    qemu_get_sbe64s(f, &s->last_hz);
-    qemu_get_sbe64s(f, &s->last_sw);
-    qemu_get_sbe64s(f, &s->last_pi);
+    PXA2xxRTCState *s = (PXA2xxRTCState *) opaque;
 
     pxa2xx_rtc_alarm_update(s, s->rtsr);
 
     return 0;
 }
+
+static const VMStateDescription vmstate_pxa2xx_rtc_regs = {
+    .name = "pxa2xx_rtc",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .pre_save = pxa2xx_rtc_pre_save,
+    .post_load = pxa2xx_rtc_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(rttr, PXA2xxRTCState),
+        VMSTATE_UINT32(rtsr, PXA2xxRTCState),
+        VMSTATE_UINT32(rtar, PXA2xxRTCState),
+        VMSTATE_UINT32(rdar1, PXA2xxRTCState),
+        VMSTATE_UINT32(rdar2, PXA2xxRTCState),
+        VMSTATE_UINT32(ryar1, PXA2xxRTCState),
+        VMSTATE_UINT32(ryar2, PXA2xxRTCState),
+        VMSTATE_UINT32(swar1, PXA2xxRTCState),
+        VMSTATE_UINT32(swar2, PXA2xxRTCState),
+        VMSTATE_UINT32(piar, PXA2xxRTCState),
+        VMSTATE_UINT32(last_rcnr, PXA2xxRTCState),
+        VMSTATE_UINT32(last_rdcr, PXA2xxRTCState),
+        VMSTATE_UINT32(last_rycr, PXA2xxRTCState),
+        VMSTATE_UINT32(last_swcr, PXA2xxRTCState),
+        VMSTATE_UINT32(last_rtcpicr, PXA2xxRTCState),
+        VMSTATE_INT64(last_hz, PXA2xxRTCState),
+        VMSTATE_INT64(last_sw, PXA2xxRTCState),
+        VMSTATE_INT64(last_pi, PXA2xxRTCState),
+        VMSTATE_END_OF_LIST(),
+    },
+};
+
+static SysBusDeviceInfo pxa2xx_rtc_sysbus_info = {
+    .init       = pxa2xx_rtc_init,
+    .qdev.name  = "pxa2xx_rtc",
+    .qdev.desc  = "PXA2xx RTC Controller",
+    .qdev.size  = sizeof(PXA2xxRTCState),
+    .qdev.vmsd  = &vmstate_pxa2xx_rtc_regs,
+};
 
 /* I2C Interface */
 typedef struct {
@@ -2188,13 +2224,8 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
     s->pcmcia[0] = pxa2xx_pcmcia_init(0x20000000);
     s->pcmcia[1] = pxa2xx_pcmcia_init(0x30000000);
 
-    s->rtc_base = 0x40900000;
-    iomemtype = cpu_register_io_memory(pxa2xx_rtc_readfn,
-                    pxa2xx_rtc_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(s->rtc_base, 0x1000, iomemtype);
-    pxa2xx_rtc_init(s);
-    register_savevm(NULL, "pxa2xx_rtc", 0, 0, pxa2xx_rtc_save,
-                    pxa2xx_rtc_load, s);
+    sysbus_create_simple("pxa2xx_rtc", 0x40900000,
+                    qdev_get_gpio_in(s->pic, PXA2XX_PIC_RTCALARM));
 
     s->i2c[0] = pxa2xx_i2c_init(0x40301600,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_I2C), 0xffff);
@@ -2329,13 +2360,8 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
     s->pcmcia[0] = pxa2xx_pcmcia_init(0x20000000);
     s->pcmcia[1] = pxa2xx_pcmcia_init(0x30000000);
 
-    s->rtc_base = 0x40900000;
-    iomemtype = cpu_register_io_memory(pxa2xx_rtc_readfn,
-                    pxa2xx_rtc_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(s->rtc_base, 0x1000, iomemtype);
-    pxa2xx_rtc_init(s);
-    register_savevm(NULL, "pxa2xx_rtc", 0, 0, pxa2xx_rtc_save,
-                    pxa2xx_rtc_load, s);
+    sysbus_create_simple("pxa2xx_rtc", 0x40900000,
+                    qdev_get_gpio_in(s->pic, PXA2XX_PIC_RTCALARM));
 
     s->i2c[0] = pxa2xx_i2c_init(0x40301600,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_I2C), 0xffff);
@@ -2358,6 +2384,7 @@ static void pxa2xx_register_devices(void)
     i2c_register_slave(&pxa2xx_i2c_slave_info);
     sysbus_register_dev("pxa2xx-ssp", sizeof(PXA2xxSSPState), pxa2xx_ssp_init);
     sysbus_register_withprop(&pxa2xx_i2c_info);
+    sysbus_register_withprop(&pxa2xx_rtc_sysbus_info);
 }
 
 device_init(pxa2xx_register_devices)

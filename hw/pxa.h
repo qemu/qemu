@@ -146,34 +146,6 @@ typedef struct {
 
     /* Performance monitoring */
     uint32_t pmnc;
-
-    /* Real-Time clock */
-    target_phys_addr_t rtc_base;
-    uint32_t rttr;
-    uint32_t rtsr;
-    uint32_t rtar;
-    uint32_t rdar1;
-    uint32_t rdar2;
-    uint32_t ryar1;
-    uint32_t ryar2;
-    uint32_t swar1;
-    uint32_t swar2;
-    uint32_t piar;
-    uint32_t last_rcnr;
-    uint32_t last_rdcr;
-    uint32_t last_rycr;
-    uint32_t last_swcr;
-    uint32_t last_rtcpicr;
-    int64_t last_hz;
-    int64_t last_sw;
-    int64_t last_pi;
-    QEMUTimer *rtc_hz;
-    QEMUTimer *rtc_rdal1;
-    QEMUTimer *rtc_rdal2;
-    QEMUTimer *rtc_swal1;
-    QEMUTimer *rtc_swal2;
-    QEMUTimer *rtc_pi;
-    qemu_irq rtc_irq;
 } PXA2xxState;
 
 struct PXA2xxI2SState {
