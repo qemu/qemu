@@ -442,25 +442,19 @@ static void handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOSerial *vser;
     VirtIOSerialPort *port;
-    bool discard;
 
     vser = DO_UPCAST(VirtIOSerial, vdev, vdev);
     port = find_port_by_vq(vser, vq);
 
-    discard = false;
     if (!port || !port->host_connected || !port->info->have_data) {
-        discard = true;
-    }
-
-    if (discard) {
         discard_vq_data(vq, vdev);
         return;
     }
-    if (port->throttled) {
+
+    if (!port->throttled) {
+        do_flush_queued_data(port, vq, vdev);
         return;
     }
-
-    do_flush_queued_data(port, vq, vdev);
 }
 
 static void handle_input(VirtIODevice *vdev, VirtQueue *vq)
