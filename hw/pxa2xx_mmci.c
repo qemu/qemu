@@ -10,10 +10,12 @@
 #include "hw.h"
 #include "pxa.h"
 #include "sd.h"
+#include "qdev.h"
 
 struct PXA2xxMMCIState {
     qemu_irq irq;
-    void *dma;
+    qemu_irq rx_dma;
+    qemu_irq tx_dma;
 
     SDState *card;
 
@@ -102,10 +104,8 @@ static void pxa2xx_mmci_int_update(PXA2xxMMCIState *s)
     if (s->cmdat & CMDAT_DMA_EN) {
         mask |= INT_RXFIFO_REQ | INT_TXFIFO_REQ;
 
-        pxa2xx_dma_request(s->dma,
-                        PXA2XX_RX_RQ_MMCI, !!(s->intreq & INT_RXFIFO_REQ));
-        pxa2xx_dma_request(s->dma,
-                        PXA2XX_TX_RQ_MMCI, !!(s->intreq & INT_TXFIFO_REQ));
+        qemu_set_irq(s->rx_dma, !!(s->intreq & INT_RXFIFO_REQ));
+        qemu_set_irq(s->tx_dma, !!(s->intreq & INT_TXFIFO_REQ));
     }
 
     qemu_set_irq(s->irq, !!(s->intreq & ~mask));
@@ -518,14 +518,16 @@ static int pxa2xx_mmci_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 PXA2xxMMCIState *pxa2xx_mmci_init(target_phys_addr_t base,
-                BlockDriverState *bd, qemu_irq irq, void *dma)
+                BlockDriverState *bd, qemu_irq irq,
+                qemu_irq rx_dma, qemu_irq tx_dma)
 {
     int iomemtype;
     PXA2xxMMCIState *s;
 
     s = (PXA2xxMMCIState *) qemu_mallocz(sizeof(PXA2xxMMCIState));
     s->irq = irq;
-    s->dma = dma;
+    s->rx_dma = rx_dma;
+    s->tx_dma = tx_dma;
 
     iomemtype = cpu_register_io_memory(pxa2xx_mmci_readfn,
                     pxa2xx_mmci_writefn, s, DEVICE_NATIVE_ENDIAN);
