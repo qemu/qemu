@@ -26,6 +26,12 @@
 #define MST_PCMCIA0		0xe0
 #define MST_PCMCIA1		0xe4
 
+#define MST_PCMCIAx_READY	(1 << 10)
+#define MST_PCMCIAx_nCD		(1 << 5)
+
+#define MST_PCMCIA_CD0_IRQ	9
+#define MST_PCMCIA_CD1_IRQ	13
+
 typedef struct mst_irq_state{
 	SysBusDevice busdev;
 
@@ -56,6 +62,21 @@ mst_fpga_set_irq(void *opaque, int irq, int level)
 		s->prev_level |= 1u << irq;
 	else
 		s->prev_level &= ~(1u << irq);
+
+	switch(irq) {
+	case MST_PCMCIA_CD0_IRQ:
+		if (level)
+			s->pcmcia0 &= ~MST_PCMCIAx_nCD;
+		else
+			s->pcmcia0 |=  MST_PCMCIAx_nCD;
+		break;
+	case MST_PCMCIA_CD1_IRQ:
+		if (level)
+			s->pcmcia1 &= ~MST_PCMCIAx_nCD;
+		else
+			s->pcmcia1 |=  MST_PCMCIAx_nCD;
+		break;
+	}
 
 	if ((s->intmskena & (1u << irq)) && level)
 		s->intsetclr |= 1u << irq;
@@ -141,11 +162,12 @@ mst_fpga_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
 		s->intsetclr = (value & 0xFEEFF);
 		qemu_set_irq(s->parent, s->intsetclr & s->intmskena);
 		break;
+		/* For PCMCIAx allow the to change only power and reset */
 	case MST_PCMCIA0:
-		s->pcmcia0 = value;
+		s->pcmcia0 = (value & 0x1f) | (s->pcmcia0 & ~0x1f);
 		break;
 	case MST_PCMCIA1:
-		s->pcmcia1 = value;
+		s->pcmcia1 = (value & 0x1f) | (s->pcmcia1 & ~0x1f);
 		break;
 	default:
 		printf("Mainstone - mst_fpga_writeb: Bad register offset "
@@ -179,6 +201,9 @@ static int mst_fpga_init(SysBusDevice *dev)
 	int iomemtype;
 
 	s = FROM_SYSBUS(mst_irq_state, dev);
+
+	s->pcmcia0 = MST_PCMCIAx_READY | MST_PCMCIAx_nCD;
+	s->pcmcia1 = MST_PCMCIAx_READY | MST_PCMCIAx_nCD;
 
 	sysbus_init_irq(dev, &s->parent);
 
