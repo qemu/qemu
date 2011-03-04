@@ -184,7 +184,7 @@ typedef struct CPUSH4State {
     uint32_t cvr;		/* Cache Version Register */
 
     void *intc_handle;
-    int intr_at_halt;		/* SR_BL ignored during sleep */
+    int in_sleep;		/* SR_BL ignored during sleep */
     memory_content *movcal_backup;
     memory_content **movcal_backup_tail;
 } CPUSH4State;

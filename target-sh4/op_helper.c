@@ -123,6 +123,7 @@ void QEMU_NORETURN helper_debug(void)
 void QEMU_NORETURN helper_sleep(uint32_t next_pc)
 {
     env->halted = 1;
+    env->in_sleep = 1;
     env->exception_index = EXCP_HLT;
     env->pc = next_pc;
     cpu_loop_exit();
