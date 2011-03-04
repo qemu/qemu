@@ -94,6 +94,7 @@ struct PXA2xxTimerInfo {
     uint32_t reset3;
     uint32_t snapshot;
 
+    qemu_irq irq4;
     PXA2xxTimer4 tm4[8];
 };
 
@@ -289,7 +290,7 @@ static void pxa2xx_timer_write(void *opaque, target_phys_addr_t offset,
                 if (s->tm4[i].tm.level && (value & 1))
                     s->tm4[i].tm.level = 0;
             if (!(s->events & 0xff0))
-                qemu_irq_lower(s->tm4->tm.irq);
+                qemu_irq_lower(s->irq4);
         }
         break;
     case OWER:	/* XXX: Reset on OSMR3 match? */
@@ -372,6 +373,8 @@ static void pxa2xx_timer_tick4(void *opaque)
         t->clock = 0;
     if (t->control & (1 << 6))
         pxa2xx_timer_update4(i, qemu_get_clock(vm_clock), t->tm.num - 4);
+    if (i->events & 0xff0)
+        qemu_irq_raise(i->irq4);
 }
 
 static int pxa25x_timer_post_load(void *opaque, int version_id)
@@ -395,7 +398,6 @@ static int pxa2xx_timer_init(SysBusDevice *dev)
     int i;
     int iomemtype;
     PXA2xxTimerInfo *s;
-    qemu_irq irq4;
 
     s = FROM_SYSBUS(PXA2xxTimerInfo, dev);
     s->irq_enabled = 0;
@@ -414,7 +416,7 @@ static int pxa2xx_timer_init(SysBusDevice *dev)
                         pxa2xx_timer_tick, &s->timer[i]);
     }
     if (s->flags & (1 << PXA2XX_TIMER_HAVE_TM4)) {
-        sysbus_init_irq(dev, &irq4);
+        sysbus_init_irq(dev, &s->irq4);
 
         for (i = 0; i < 8; i ++) {
             s->tm4[i].tm.value = 0;
@@ -425,7 +427,6 @@ static int pxa2xx_timer_init(SysBusDevice *dev)
             s->tm4[i].control = 0x0;
             s->tm4[i].tm.qtimer = qemu_new_timer(vm_clock,
                         pxa2xx_timer_tick4, &s->tm4[i]);
-            s->tm4[i].tm.irq = irq4;
         }
     }
 
