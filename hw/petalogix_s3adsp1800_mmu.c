@@ -217,7 +217,7 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
 
 static QEMUMachine petalogix_s3adsp1800_machine = {
     .name = "petalogix-s3adsp1800",
-    .desc = "Petalogix linux refdesign for xilinx Spartan 3ADSP1800",
+    .desc = "PetaLogix linux refdesign for xilinx Spartan 3ADSP1800",
     .init = petalogix_s3adsp1800_init,
     .is_default = 1
 };
