@@ -110,6 +110,9 @@ struct CPUMBState;
 #define PVR0_USE_ICACHE_MASK            0x02000000
 #define PVR0_USE_DCACHE_MASK            0x01000000
 #define PVR0_USE_MMU                    0x00800000      /* new */
+#define PVR0_USE_BTC			0x00400000
+#define PVR0_ENDI			0x00200000
+#define PVR0_FAULT			0x00100000
 #define PVR0_VERSION_MASK               0x0000FF00
 #define PVR0_USER1_MASK                 0x000000FF
 
@@ -169,6 +172,7 @@ struct CPUMBState;
 #define PVR5_DCACHE_ALLOW_WR_MASK       0x01000000
 #define PVR5_DCACHE_LINE_LEN_MASK       0x00E00000
 #define PVR5_DCACHE_BYTE_SIZE_MASK      0x001F0000
+#define PVR5_DCACHE_WRITEBACK_MASK      0x00004000
 
 /* ICache base address PVR mask */
 #define PVR6_ICACHE_BASEADDR_MASK       0xFFFFFFFF
