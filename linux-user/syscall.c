@@ -3690,9 +3690,9 @@ static abi_long do_arch_prctl(CPUX86State *env, int code, abi_ulong addr)
 
 #endif /* defined(TARGET_I386) */
 
-#if defined(CONFIG_USE_NPTL)
+#define NEW_STACK_SIZE 0x40000
 
-#define NEW_STACK_SIZE PTHREAD_STACK_MIN
+#if defined(CONFIG_USE_NPTL)
 
 static pthread_mutex_t clone_lock = PTHREAD_MUTEX_INITIALIZER;
 typedef struct {
@@ -3736,9 +3736,6 @@ static void *clone_func(void *arg)
     return NULL;
 }
 #else
-/* this stack is the equivalent of the kernel stack associated with a
-   thread/process */
-#define NEW_STACK_SIZE 8192
 
 static int clone_func(void *arg)
 {
