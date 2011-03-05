@@ -1456,8 +1456,49 @@ void HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
     case 7: /* Cache control.  */
         env->cp15.c15_i_max = 0x000;
         env->cp15.c15_i_min = 0xff0;
-        /* No cache, so nothing to do.  */
-        /* ??? MPCore has VA to PA translation functions.  */
+        if (op1 != 0) {
+            goto bad_reg;
+        }
+        /* No cache, so nothing to do except VA->PA translations. */
+        if (arm_feature(env, ARM_FEATURE_V6K)) {
+            switch (crm) {
+            case 4:
+                if (arm_feature(env, ARM_FEATURE_V7)) {
+                    env->cp15.c7_par = val & 0xfffff6ff;
+                } else {
+                    env->cp15.c7_par = val & 0xfffff1ff;
+                }
+                break;
+            case 8: {
+                uint32_t phys_addr;
+                target_ulong page_size;
+                int prot;
+                int ret, is_user = op2 & 2;
+                int access_type = op2 & 1;
+
+                if (op2 & 4) {
+                    /* Other states are only available with TrustZone */
+                    goto bad_reg;
+                }
+                ret = get_phys_addr(env, val, access_type, is_user,
+                                    &phys_addr, &prot, &page_size);
+                if (ret == 0) {
+                    /* We do not set any attribute bits in the PAR */
+                    if (page_size == (1 << 24)
+                        && arm_feature(env, ARM_FEATURE_V7)) {
+                        env->cp15.c7_par = (phys_addr & 0xff000000) | 1 << 1;
+                    } else {
+                        env->cp15.c7_par = phys_addr & 0xfffff000;
+                    }
+                } else {
+                    env->cp15.c7_par = ((ret & (10 << 1)) >> 5) |
+                                       ((ret & (12 << 1)) >> 6) |
+                                       ((ret & 0xf) << 1) | 1;
+                }
+                break;
+            }
+            }
+        }
         break;
     case 8: /* MMU TLB control.  */
         switch (op2) {
@@ -1789,6 +1830,9 @@ uint32_t HELPER(get_cp15)(CPUState *env, uint32_t insn)
 	    }
         }
     case 7: /* Cache control.  */
+        if (crm == 4 && op1 == 0 && op2 == 0) {
+            return env->cp15.c7_par;
+        }
         /* FIXME: Should only clear Z flag if destination is r15.  */
         env->ZF = 0;
         return 0;

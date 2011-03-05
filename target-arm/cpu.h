@@ -126,6 +126,7 @@ typedef struct CPUARMState {
         uint32_t c6_region[8]; /* MPU base/size registers.  */
         uint32_t c6_insn; /* Fault address registers.  */
         uint32_t c6_data;
+        uint32_t c7_par;  /* Translation result. */
         uint32_t c9_insn; /* Cache lockdown registers.  */
         uint32_t c9_data;
         uint32_t c13_fcse; /* FCSE PID.  */
@@ -428,7 +429,7 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
 #define cpu_signal_handler cpu_arm_signal_handler
 #define cpu_list arm_cpu_list
 
-#define CPU_SAVE_VERSION 2
+#define CPU_SAVE_VERSION 3
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel
