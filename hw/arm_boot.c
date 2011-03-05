@@ -175,7 +175,7 @@ static void set_kernel_args_old(struct arm_boot_info *info,
     }
 }
 
-static void main_cpu_reset(void *opaque)
+static void do_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
     struct arm_boot_info *info = env->boot_info;
@@ -187,16 +187,20 @@ static void main_cpu_reset(void *opaque)
             env->regs[15] = info->entry & 0xfffffffe;
             env->thumb = info->entry & 1;
         } else {
-            env->regs[15] = info->loader_start;
-            if (old_param) {
-                set_kernel_args_old(info, info->initrd_size,
+            if (env == first_cpu) {
+                env->regs[15] = info->loader_start;
+                if (old_param) {
+                    set_kernel_args_old(info, info->initrd_size,
+                                        info->loader_start);
+                } else {
+                    set_kernel_args(info, info->initrd_size,
                                     info->loader_start);
+                }
             } else {
-                set_kernel_args(info, info->initrd_size, info->loader_start);
+                env->regs[15] = info->smp_loader_start;
             }
         }
     }
-    /* TODO:  Reset secondary CPUs.  */
 }
 
 void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
@@ -217,7 +221,6 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
 
     if (info->nb_cpus == 0)
         info->nb_cpus = 1;
-    env->boot_info = info;
 
 #ifdef TARGET_WORDS_BIGENDIAN
     big_endian = 1;
@@ -279,5 +282,9 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
         info->initrd_size = initrd_size;
     }
     info->is_linux = is_linux;
-    qemu_register_reset(main_cpu_reset, env);
+
+    for (; env; env = env->next_cpu) {
+        env->boot_info = info;
+        qemu_register_reset(do_cpu_reset, env);
+    }
 }
