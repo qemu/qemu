@@ -1338,7 +1338,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
 
     for (i = 0; i < 7; i++) {
         if (board->dc4 & (1 << i)) {
-            gpio_dev[i] = sysbus_create_simple("pl061", gpio_addr[i],
+            gpio_dev[i] = sysbus_create_simple("pl061_luminary", gpio_addr[i],
                                                pic[gpio_irq[i]]);
             for (j = 0; j < 8; j++) {
                 gpio_in[i][j] = qdev_get_gpio_in(gpio_dev[i], j);

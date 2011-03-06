@@ -36,6 +36,7 @@
 #include "qemu-common.h"
 #include "qemu_socket.h"
 #include "hw/qdev.h"
+#include "iov.h"
 
 static QTAILQ_HEAD(, VLANState) vlans;
 static QTAILQ_HEAD(, VLANClientState) non_vlan_clients;
@@ -91,47 +92,6 @@ static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
     }
     *pp = p1;
     return 0;
-}
-
-int parse_host_src_port(struct sockaddr_in *haddr,
-                        struct sockaddr_in *saddr,
-                        const char *input_str)
-{
-    char *str = qemu_strdup(input_str);
-    char *host_str = str;
-    char *src_str;
-    const char *src_str2;
-    char *ptr;
-
-    /*
-     * Chop off any extra arguments at the end of the string which
-     * would start with a comma, then fill in the src port information
-     * if it was provided else use the "any address" and "any port".
-     */
-    if ((ptr = strchr(str,',')))
-        *ptr = '\0';
-
-    if ((src_str = strchr(input_str,'@'))) {
-        *src_str = '\0';
-        src_str++;
-    }
-
-    if (parse_host_port(haddr, host_str) < 0)
-        goto fail;
-
-    src_str2 = src_str;
-    if (!src_str || *src_str == '\0')
-        src_str2 = ":0";
-
-    if (parse_host_port(saddr, src_str2) < 0)
-        goto fail;
-
-    free(str);
-    return(0);
-
-fail:
-    free(str);
-    return -1;
 }
 
 int parse_host_port(struct sockaddr_in *saddr, const char *str)
@@ -411,11 +371,11 @@ int qemu_can_send_packet(VLANClientState *sender)
         }
 
         /* no can_receive() handler, they can always receive */
-        if (!vc->info->can_receive || vc->info->can_receive(vc)) {
-            return 1;
+        if (vc->info->can_receive && !vc->info->can_receive(vc)) {
+            return 0;
         }
     }
-    return 0;
+    return 1;
 }
 
 static ssize_t qemu_deliver_packet(VLANClientState *sender,
@@ -572,28 +532,11 @@ static ssize_t vc_sendv_compat(VLANClientState *vc, const struct iovec *iov,
                                int iovcnt)
 {
     uint8_t buffer[4096];
-    size_t offset = 0;
-    int i;
+    size_t offset;
 
-    for (i = 0; i < iovcnt; i++) {
-        size_t len;
-
-        len = MIN(sizeof(buffer) - offset, iov[i].iov_len);
-        memcpy(buffer + offset, iov[i].iov_base, len);
-        offset += len;
-    }
+    offset = iov_to_buf(iov, iovcnt, buffer, 0, sizeof(buffer));
 
     return vc->info->receive(vc, buffer, offset);
-}
-
-static ssize_t calc_iov_length(const struct iovec *iov, int iovcnt)
-{
-    size_t offset = 0;
-    int i;
-
-    for (i = 0; i < iovcnt; i++)
-        offset += iov[i].iov_len;
-    return offset;
 }
 
 static ssize_t qemu_deliver_packet_iov(VLANClientState *sender,
@@ -605,7 +548,7 @@ static ssize_t qemu_deliver_packet_iov(VLANClientState *sender,
     VLANClientState *vc = opaque;
 
     if (vc->link_down) {
-        return calc_iov_length(iov, iovcnt);
+        return iov_size(iov, iovcnt);
     }
 
     if (vc->info->receive_iov) {
@@ -633,7 +576,7 @@ static ssize_t qemu_vlan_deliver_packet_iov(VLANClientState *sender,
         }
 
         if (vc->link_down) {
-            ret = calc_iov_length(iov, iovcnt);
+            ret = iov_size(iov, iovcnt);
             continue;
         }
 
@@ -658,7 +601,7 @@ ssize_t qemu_sendv_packet_async(VLANClientState *sender,
     NetQueue *queue;
 
     if (sender->link_down || (!sender->peer && !sender->vlan)) {
-        return calc_iov_length(iov, iovcnt);
+        return iov_size(iov, iovcnt);
     }
 
     if (sender->peer) {
@@ -1025,7 +968,11 @@ static const struct {
                 .name = "vhostfd",
                 .type = QEMU_OPT_STRING,
                 .help = "file descriptor of an already opened vhost net device",
-            },
+            }, {
+                .name = "vhostforce",
+                .type = QEMU_OPT_BOOL,
+                .help = "force vhost on for non-MSIX virtio guests",
+        },
 #endif /* _WIN32 */
             { /* end of list */ }
         },

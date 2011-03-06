@@ -24,6 +24,8 @@ do { fprintf(stderr, "pl061: error: " fmt , ## __VA_ARGS__);} while (0)
 #endif
 
 static const uint8_t pl061_id[12] =
+  { 0x00, 0x00, 0x00, 0x00, 0x61, 0x10, 0x04, 0x00, 0x0d, 0xf0, 0x05, 0xb1 };
+static const uint8_t pl061_id_luminary[12] =
   { 0x00, 0x00, 0x00, 0x00, 0x61, 0x00, 0x18, 0x01, 0x0d, 0xf0, 0x05, 0xb1 };
 
 typedef struct {
@@ -50,6 +52,7 @@ typedef struct {
     uint8_t float_high;
     qemu_irq irq;
     qemu_irq out[8];
+    const unsigned char *id;
 } pl061_state;
 
 static void pl061_update(pl061_state *s)
@@ -83,7 +86,7 @@ static uint32_t pl061_read(void *opaque, target_phys_addr_t offset)
     pl061_state *s = (pl061_state *)opaque;
 
     if (offset >= 0xfd0 && offset < 0x1000) {
-        return pl061_id[(offset - 0xfd0) >> 2];
+        return s->id[(offset - 0xfd0) >> 2];
     }
     if (offset < 0x400) {
         return s->data & (offset >> 2);
@@ -291,11 +294,11 @@ static int pl061_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static int pl061_init(SysBusDevice *dev)
+static int pl061_init(SysBusDevice *dev, const unsigned char *id)
 {
     int iomemtype;
     pl061_state *s = FROM_SYSBUS(pl061_state, dev);
-
+    s->id = id;
     iomemtype = cpu_register_io_memory(pl061_readfn,
                                        pl061_writefn, s,
                                        DEVICE_NATIVE_ENDIAN);
@@ -308,10 +311,22 @@ static int pl061_init(SysBusDevice *dev)
     return 0;
 }
 
+static int pl061_init_luminary(SysBusDevice *dev)
+{
+    return pl061_init(dev, pl061_id_luminary);
+}
+
+static int pl061_init_arm(SysBusDevice *dev)
+{
+    return pl061_init(dev, pl061_id);
+}
+
 static void pl061_register_devices(void)
 {
     sysbus_register_dev("pl061", sizeof(pl061_state),
-                        pl061_init);
+                        pl061_init_arm);
+    sysbus_register_dev("pl061_luminary", sizeof(pl061_state),
+                        pl061_init_luminary);
 }
 
 device_init(pl061_register_devices)

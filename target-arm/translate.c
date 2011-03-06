@@ -2535,13 +2535,38 @@ static int disas_cp15_insn(CPUState *env, DisasContext *s, uint32_t insn)
     if (IS_USER(s) && !cp15_user_ok(insn)) {
         return 1;
     }
-    if ((insn & 0x0fff0fff) == 0x0e070f90
-        || (insn & 0x0fff0fff) == 0x0e070f58) {
-        /* Wait for interrupt.  */
-        gen_set_pc_im(s->pc);
-        s->is_jmp = DISAS_WFI;
+
+    /* Pre-v7 versions of the architecture implemented WFI via coprocessor
+     * instructions rather than a separate instruction.
+     */
+    if ((insn & 0x0fff0fff) == 0x0e070f90) {
+        /* 0,c7,c0,4: Standard v6 WFI (also used in some pre-v6 cores).
+         * In v7, this must NOP.
+         */
+        if (!arm_feature(env, ARM_FEATURE_V7)) {
+            /* Wait for interrupt.  */
+            gen_set_pc_im(s->pc);
+            s->is_jmp = DISAS_WFI;
+        }
         return 0;
     }
+
+    if ((insn & 0x0fff0fff) == 0x0e070f58) {
+        /* 0,c7,c8,2: Not all pre-v6 cores implemented this WFI,
+         * so this is slightly over-broad.
+         */
+        if (!arm_feature(env, ARM_FEATURE_V6)) {
+            /* Wait for interrupt.  */
+            gen_set_pc_im(s->pc);
+            s->is_jmp = DISAS_WFI;
+            return 0;
+        }
+        /* Otherwise fall through to handle via helper function.
+         * In particular, on v7 and some v6 cores this is one of
+         * the VA-PA registers.
+         */
+    }
+
     rd = (insn >> 12) & 0xf;
 
     if (cp15_tls_load_store(env, s, insn, rd))
@@ -3229,7 +3254,7 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
         break;
     case 0xc:
     case 0xd:
-        if (dp && (insn & 0x03e00000) == 0x00400000) {
+        if ((insn & 0x03e00000) == 0x00400000) {
             /* two-register transfer */
             rn = (insn >> 16) & 0xf;
             rd = (insn >> 12) & 0xf;
@@ -3251,10 +3276,10 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 } else {
                     gen_mov_F0_vreg(0, rm);
                     tmp = gen_vfp_mrs();
-                    store_reg(s, rn, tmp);
+                    store_reg(s, rd, tmp);
                     gen_mov_F0_vreg(0, rm + 1);
                     tmp = gen_vfp_mrs();
-                    store_reg(s, rd, tmp);
+                    store_reg(s, rn, tmp);
                 }
             } else {
                 /* arm->vfp */
@@ -3266,10 +3291,10 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     gen_vfp_msr(tmp);
                     gen_mov_vreg_F0(0, rm * 2 + 1);
                 } else {
-                    tmp = load_reg(s, rn);
+                    tmp = load_reg(s, rd);
                     gen_vfp_msr(tmp);
                     gen_mov_vreg_F0(0, rm);
-                    tmp = load_reg(s, rd);
+                    tmp = load_reg(s, rn);
                     gen_vfp_msr(tmp);
                     gen_mov_vreg_F0(0, rm + 1);
                 }

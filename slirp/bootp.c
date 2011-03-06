@@ -284,7 +284,7 @@ static void bootp_reply(Slirp *slirp, const struct bootp_t *bp)
     } else {
         static const char nak_msg[] = "requested address not available";
 
-        DPRINTF("nak'ed addr=%08x\n", ntohl(preq_addr->s_addr));
+        DPRINTF("nak'ed addr=%08x\n", ntohl(preq_addr.s_addr));
 
         *q++ = RFC2132_MSG_TYPE;
         *q++ = 1;

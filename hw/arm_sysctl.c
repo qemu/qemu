@@ -26,6 +26,7 @@ typedef struct {
     uint32_t nvflags;
     uint32_t resetlevel;
     uint32_t proc_id;
+    uint32_t sys_mci;
 } arm_sysctl_state;
 
 static const VMStateDescription vmstate_arm_sysctl = {
@@ -43,6 +44,21 @@ static const VMStateDescription vmstate_arm_sysctl = {
         VMSTATE_END_OF_LIST()
     }
 };
+
+/* The PB926 actually uses a different format for
+ * its SYS_ID register. Fortunately the bits which are
+ * board type on later boards are distinct.
+ */
+#define BOARD_ID_PB926 0x100
+#define BOARD_ID_EB 0x140
+#define BOARD_ID_PBA8 0x178
+#define BOARD_ID_PBX 0x182
+
+static int board_id(arm_sysctl_state *s)
+{
+    /* Extract the board ID field from the SYS_ID register value */
+    return (s->sys_id >> 16) & 0xfff;
+}
 
 static void arm_sysctl_reset(DeviceState *d)
 {
@@ -92,7 +108,7 @@ static uint32_t arm_sysctl_read(void *opaque, target_phys_addr_t offset)
     case 0x44: /* PCICTL */
         return 1;
     case 0x48: /* MCI */
-        return 0;
+        return s->sys_mci;
     case 0x4c: /* FLASH */
         return 0;
     case 0x50: /* CLCD */
@@ -218,6 +234,34 @@ static CPUWriteMemoryFunc * const arm_sysctl_writefn[] = {
    arm_sysctl_write
 };
 
+static void arm_sysctl_gpio_set(void *opaque, int line, int level)
+{
+    arm_sysctl_state *s = (arm_sysctl_state *)opaque;
+    switch (line) {
+    case ARM_SYSCTL_GPIO_MMC_WPROT:
+    {
+        /* For PB926 and EB write-protect is bit 2 of SYS_MCI;
+         * for all later boards it is bit 1.
+         */
+        int bit = 2;
+        if ((board_id(s) == BOARD_ID_PB926) || (board_id(s) == BOARD_ID_EB)) {
+            bit = 4;
+        }
+        s->sys_mci &= ~bit;
+        if (level) {
+            s->sys_mci |= bit;
+        }
+        break;
+    }
+    case ARM_SYSCTL_GPIO_MMC_CARDIN:
+        s->sys_mci &= ~1;
+        if (level) {
+            s->sys_mci |= 1;
+        }
+        break;
+    }
+}
+
 static int arm_sysctl_init1(SysBusDevice *dev)
 {
     arm_sysctl_state *s = FROM_SYSBUS(arm_sysctl_state, dev);
@@ -227,6 +271,7 @@ static int arm_sysctl_init1(SysBusDevice *dev)
                                        arm_sysctl_writefn, s,
                                        DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
+    qdev_init_gpio_in(&s->busdev.qdev, arm_sysctl_gpio_set, 2);
     /* ??? Save/restore.  */
     return 0;
 }

@@ -11,4 +11,8 @@ void *pl080_init(uint32_t base, qemu_irq irq, int nchannels);
 /* arm_sysctl.c */
 void arm_sysctl_init(uint32_t base, uint32_t sys_id, uint32_t proc_id);
 
+/* arm_sysctl GPIO lines */
+#define ARM_SYSCTL_GPIO_MMC_WPROT 0
+#define ARM_SYSCTL_GPIO_MMC_CARDIN 1
+
 #endif

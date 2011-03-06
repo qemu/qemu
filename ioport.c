@@ -149,7 +149,8 @@ int register_ioport_read(pio_addr_t start, int length, int size,
     for(i = start; i < start + length; i += size) {
         ioport_read_table[bsize][i] = func;
         if (ioport_opaque[i] != NULL && ioport_opaque[i] != opaque)
-            hw_error("register_ioport_read: invalid opaque");
+            hw_error("register_ioport_read: invalid opaque for address 0x%x",
+                     i);
         ioport_opaque[i] = opaque;
     }
     return 0;
@@ -168,7 +169,8 @@ int register_ioport_write(pio_addr_t start, int length, int size,
     for(i = start; i < start + length; i += size) {
         ioport_write_table[bsize][i] = func;
         if (ioport_opaque[i] != NULL && ioport_opaque[i] != opaque)
-            hw_error("register_ioport_write: invalid opaque");
+            hw_error("register_ioport_write: invalid opaque for address 0x%x",
+                     i);
         ioport_opaque[i] = opaque;
     }
     return 0;
