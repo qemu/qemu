@@ -450,6 +450,10 @@ static inline int tcg_temp_new_internal(TCGType type, int temp_local)
             s->nb_temps++;
         }
     }
+
+#if defined(CONFIG_DEBUG_TCG)
+    s->temps_in_use++;
+#endif
     return idx;
 }
 
@@ -474,6 +478,13 @@ static inline void tcg_temp_free_internal(int idx)
     TCGContext *s = &tcg_ctx;
     TCGTemp *ts;
     int k;
+
+#if defined(CONFIG_DEBUG_TCG)
+    s->temps_in_use--;
+    if (s->temps_in_use < 0) {
+        fprintf(stderr, "More temporaries freed than allocated!\n");
+    }
+#endif
 
     assert(idx >= s->nb_globals && idx < s->nb_temps);
     ts = &s->temps[idx];
@@ -527,6 +538,27 @@ TCGv_i64 tcg_const_local_i64(int64_t val)
     tcg_gen_movi_i64(t0, val);
     return t0;
 }
+
+#if defined(CONFIG_DEBUG_TCG)
+void tcg_clear_temp_count(void)
+{
+    TCGContext *s = &tcg_ctx;
+    s->temps_in_use = 0;
+}
+
+int tcg_check_temp_count(void)
+{
+    TCGContext *s = &tcg_ctx;
+    if (s->temps_in_use) {
+        /* Clear the count so that we don't give another
+         * warning immediately next time around.
+         */
+        s->temps_in_use = 0;
+        return 1;
+    }
+    return 0;
+}
+#endif
 
 void tcg_register_helper(void *func, const char *name)
 {
