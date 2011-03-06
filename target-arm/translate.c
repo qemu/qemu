@@ -9149,6 +9149,8 @@ static inline void gen_intermediate_code_internal(CPUState *env,
 
     gen_icount_start();
 
+    tcg_clear_temp_count();
+
     /* A note on handling of the condexec (IT) bits:
      *
      * We want to avoid the overhead of having to write the updated condexec
@@ -9258,6 +9260,11 @@ static inline void gen_intermediate_code_internal(CPUState *env,
             gen_set_label(dc->condlabel);
             dc->condjmp = 0;
         }
+
+        if (tcg_check_temp_count()) {
+            fprintf(stderr, "TCG temporary leak before %08x\n", dc->pc);
+        }
+
         /* Translation stops when a conditional branch is encountered.
          * Otherwise the subsequent code could get translated several times.
          * Also stop translation when a page boundary is reached.  This
