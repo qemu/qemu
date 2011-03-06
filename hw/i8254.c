@@ -520,6 +520,8 @@ static int pit_initfn(ISADevice *dev)
     register_ioport_read(pit->iobase, 3, 1, pit_ioport_read, pit);
     isa_init_ioport(dev, pit->iobase);
 
+    qdev_set_legacy_instance_id(&dev->qdev, pit->iobase, 2);
+
     return 0;
 }
 
