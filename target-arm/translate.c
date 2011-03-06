@@ -7351,8 +7351,7 @@ gen_thumb2_data_op(DisasContext *s, int op, int conds, uint32_t shifter_out, TCG
         logic_cc = conds;
         break;
     case 3: /* orn */
-        tcg_gen_not_i32(t1, t1);
-        tcg_gen_or_i32(t0, t0, t1);
+        tcg_gen_orc_i32(t0, t0, t1);
         logic_cc = conds;
         break;
     case 4: /* eor */
