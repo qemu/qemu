@@ -1557,35 +1557,6 @@ uint32_t pcnet_bcr_readw(PCNetState *s, uint32_t rap)
 void pcnet_h_reset(void *opaque)
 {
     PCNetState *s = opaque;
-    int i;
-    uint16_t checksum;
-
-    /* Initialize the PROM */
-
-    /*
-      Datasheet: http://pdfdata.datasheetsite.com/web/24528/AM79C970A.pdf
-      page 95
-    */
-    memcpy(s->prom, s->conf.macaddr.a, 6);
-    /* Reserved Location: must be 00h */
-    s->prom[6] = s->prom[7] = 0x00;
-    /* Reserved Location: must be 00h */
-    s->prom[8] = 0x00;
-    /* Hardware ID: must be 11h if compatibility to AMD drivers is desired */
-    s->prom[9] = 0x11;
-    /* User programmable space, init with 0 */
-    s->prom[10] = s->prom[11] = 0x00;
-    /* LSByte of two-byte checksum, which is the sum of bytes 00h-0Bh
-       and bytes 0Eh and 0Fh, must therefore be initialized with 0! */
-    s->prom[12] = s->prom[13] = 0x00;
-    /* Must be ASCII W (57h) if compatibility to AMD
-       driver software is desired */
-    s->prom[14] = s->prom[15] = 0x57;
-
-    for (i = 0,checksum = 0; i < 16; i++)
-        checksum += s->prom[i];
-    *(uint16_t *)&s->prom[12] = cpu_to_le16(checksum);
-
 
     s->bcr[BCR_MSRDA] = 0x0005;
     s->bcr[BCR_MSWRA] = 0x0005;
@@ -1752,6 +1723,9 @@ void pcnet_common_cleanup(PCNetState *d)
 
 int pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info)
 {
+    int i;
+    uint16_t checksum;
+
     s->poll_timer = qemu_new_timer(vm_clock, pcnet_poll_timer, s);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
@@ -1759,6 +1733,33 @@ int pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info)
     qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
 
     add_boot_device_path(s->conf.bootindex, dev, "/ethernet-phy@0");
+
+    /* Initialize the PROM */
+
+    /*
+      Datasheet: http://pdfdata.datasheetsite.com/web/24528/AM79C970A.pdf
+      page 95
+    */
+    memcpy(s->prom, s->conf.macaddr.a, 6);
+    /* Reserved Location: must be 00h */
+    s->prom[6] = s->prom[7] = 0x00;
+    /* Reserved Location: must be 00h */
+    s->prom[8] = 0x00;
+    /* Hardware ID: must be 11h if compatibility to AMD drivers is desired */
+    s->prom[9] = 0x11;
+    /* User programmable space, init with 0 */
+    s->prom[10] = s->prom[11] = 0x00;
+    /* LSByte of two-byte checksum, which is the sum of bytes 00h-0Bh
+       and bytes 0Eh and 0Fh, must therefore be initialized with 0! */
+    s->prom[12] = s->prom[13] = 0x00;
+    /* Must be ASCII W (57h) if compatibility to AMD
+       driver software is desired */
+    s->prom[14] = s->prom[15] = 0x57;
+
+    for (i = 0, checksum = 0; i < 16; i++) {
+        checksum += s->prom[i];
+    }
+    *(uint16_t *)&s->prom[12] = cpu_to_le16(checksum);
 
     return 0;
 }
