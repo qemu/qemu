@@ -430,6 +430,33 @@ Example:
 EQMP
 
     {
+        .name       = "inject-nmi",
+        .args_type  = "",
+        .params     = "",
+        .help       = "",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_inject_nmi_all,
+    },
+
+SQMP
+inject-nmi
+----------
+
+Inject an NMI on guest's CPUs.
+
+Arguments: None.
+
+Example:
+
+-> { "execute": "inject-nmi" }
+<- { "return": {} }
+
+Note: inject-nmi is only supported for x86 guest currently, it will
+      returns "Unsupported" error for non-x86 guest.
+
+EQMP
+
+    {
         .name       = "migrate",
         .args_type  = "detach:-d,blk:-b,inc:-i,uri:s",
         .params     = "[-d] [-b] [-i] uri",

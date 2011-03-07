@@ -2555,6 +2555,23 @@ static void do_inject_nmi(Monitor *mon, const QDict *qdict)
             break;
         }
 }
+
+static int do_inject_nmi_all(Monitor *mon, const QDict *qdict, QObject **ret_data)
+{
+    CPUState *env;
+
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        cpu_interrupt(env, CPU_INTERRUPT_NMI);
+    }
+
+    return 0;
+}
+#else
+static int do_inject_nmi_all(Monitor *mon, const QDict *qdict, QObject **ret_data)
+{
+    qerror_report(QERR_UNSUPPORTED);
+    return -1;
+}
 #endif
 
 static void do_info_status_print(Monitor *mon, const QObject *data)
