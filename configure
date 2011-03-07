@@ -1795,7 +1795,7 @@ if test "$rbd" != "no" ; then
 #include <rados/librados.h>
 int main(void) { rados_initialize(0, NULL); return 0; }
 EOF
-  rbd_libs="-lrados -lcrypto"
+  rbd_libs="-lrados"
   if compile_prog "" "$rbd_libs" ; then
     librados_too_old=no
     cat > $TMPC <<EOF
