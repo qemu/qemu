@@ -214,6 +214,11 @@ M: Michael Walle <michael@walle.cc>
 S: Maintained
 F: hw/lm32_boards.c
 
+milkymist
+M: Michael Walle <michael@walle.cc>
+S: Maintained
+F: hw/milkymist.c
+
 M68K Machines
 -------------
 an5206
