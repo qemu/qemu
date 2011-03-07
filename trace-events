@@ -318,3 +318,9 @@ disable milkymist_minimac_drop_rx_frame(const void *buf) "buf %p"
 disable milkymist_minimac_rx_transfer(const void *buf, uint32_t length) "buf %p length %d"
 disable milkymist_minimac_pulse_irq_rx(void) "Pulse IRQ RX"
 disable milkymist_minimac_pulse_irq_tx(void) "Pulse IRQ TX"
+
+# hw/milkymist-pfpu.c
+disable milkymist_pfpu_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_pfpu_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_pfpu_vectout(uint32_t a, uint32_t b, uint32_t dma_ptr) "a %08x b %08x dma_ptr %08x"
+disable milkymist_pfpu_pulse_irq(void) "Pulse IRQ"
