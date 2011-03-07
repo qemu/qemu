@@ -260,6 +260,7 @@ obj-ppc-y += xilinx_ethlite.o
 
 # LM32 boards
 obj-lm32-y += lm32_boards.o
+obj-lm32-y += milkymist.o
 
 # LM32 peripherals
 obj-lm32-y += lm32_pic.o
