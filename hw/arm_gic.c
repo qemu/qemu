@@ -549,10 +549,10 @@ static void gic_dist_writel(void *opaque, target_phys_addr_t offset,
             mask = (value >> 16) & ALL_CPU_MASK;
             break;
         case 1:
-            mask = 1 << cpu;
+            mask = ALL_CPU_MASK ^ (1 << cpu);
             break;
         case 2:
-            mask = ALL_CPU_MASK ^ (1 << cpu);
+            mask = 1 << cpu;
             break;
         default:
             DPRINTF("Bad Soft Int target filter\n");

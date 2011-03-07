@@ -265,6 +265,16 @@ obj-ppc-y += xilinx_timer.o
 obj-ppc-y += xilinx_uartlite.o
 obj-ppc-y += xilinx_ethlite.o
 
+# LM32 boards
+obj-lm32-y += lm32_boards.o
+
+# LM32 peripherals
+obj-lm32-y += lm32_pic.o
+obj-lm32-y += lm32_juart.o
+obj-lm32-y += lm32_timer.o
+obj-lm32-y += lm32_uart.o
+obj-lm32-y += lm32_sys.o
+
 obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 obj-mips-y += mips_addr.o mips_timer.o mips_int.o
 obj-mips-y += vga.o i8259.o

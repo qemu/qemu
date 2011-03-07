@@ -104,6 +104,7 @@ typedef int64_t  Elf64_Sxword;
 
 #define EM_H8_300H      47      /* Hitachi H8/300H */
 #define EM_H8S          48      /* Hitachi H8S     */
+#define EM_LATTICEMICO32 138    /* LatticeMico32 */
 
 /*
  * This is an interim value that we will use until the committee comes

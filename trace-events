@@ -254,3 +254,32 @@ disable spice_vmc_write(ssize_t out, int len) "spice wrottn %lu of requested %zd
 disable spice_vmc_read(int bytes, int len) "spice read %lu of requested %zd"
 disable spice_vmc_register_interface(void *scd) "spice vmc registered interface %p"
 disable spice_vmc_unregister_interface(void *scd) "spice vmc unregistered interface %p"
+
+# hw/lm32_pic.c
+disable lm32_pic_raise_irq(void) "Raise CPU interrupt"
+disable lm32_pic_lower_irq(void) "Lower CPU interrupt"
+disable lm32_pic_interrupt(int irq, int level) "Set IRQ%d %d"
+disable lm32_pic_set_im(uint32_t im) "im 0x%08x"
+disable lm32_pic_set_ip(uint32_t ip) "ip 0x%08x"
+disable lm32_pic_get_im(uint32_t im) "im 0x%08x"
+disable lm32_pic_get_ip(uint32_t ip) "ip 0x%08x"
+
+# hw/lm32_juart.c
+disable lm32_juart_get_jtx(uint32_t value) "jtx 0x%08x"
+disable lm32_juart_set_jtx(uint32_t value) "jtx 0x%08x"
+disable lm32_juart_get_jrx(uint32_t value) "jrx 0x%08x"
+disable lm32_juart_set_jrx(uint32_t value) "jrx 0x%08x"
+
+# hw/lm32_timer.c
+disable lm32_timer_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
+disable lm32_timer_memory_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
+disable lm32_timer_hit(void) "timer hit"
+disable lm32_timer_irq_state(int level) "irq state %d"
+
+# hw/lm32_uart.c
+disable lm32_uart_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
+disable lm32_uart_memory_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
+disable lm32_uart_irq_state(int level) "irq state %d"
+
+# hw/lm32_sys.c
+disable lm32_sys_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"

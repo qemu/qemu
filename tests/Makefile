@@ -142,6 +142,10 @@ hello-mipsel: hello-mips.c
 test-cris:
 	$(MAKE) -C cris check
 
+# testsuite for the LM32 port.
+test-lm32:
+	$(MAKE) -C lm32 check
+
 clean:
 	rm -f *~ *.o test-i386.out test-i386.ref \
            test-x86_64.log test-x86_64.ref qruncom $(TESTS)

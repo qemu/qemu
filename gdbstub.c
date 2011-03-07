@@ -1462,6 +1462,80 @@ static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
 
     return r;
 }
+#elif defined (TARGET_LM32)
+
+#include "hw/lm32_pic.h"
+#define NUM_CORE_REGS (32 + 7)
+
+static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
+{
+    if (n < 32) {
+        GET_REG32(env->regs[n]);
+    } else {
+        switch (n) {
+        case 32:
+            GET_REG32(env->pc);
+            break;
+        /* FIXME: put in right exception ID */
+        case 33:
+            GET_REG32(0);
+            break;
+        case 34:
+            GET_REG32(env->eba);
+            break;
+        case 35:
+            GET_REG32(env->deba);
+            break;
+        case 36:
+            GET_REG32(env->ie);
+            break;
+        case 37:
+            GET_REG32(lm32_pic_get_im(env->pic_state));
+            break;
+        case 38:
+            GET_REG32(lm32_pic_get_ip(env->pic_state));
+            break;
+        }
+    }
+    return 0;
+}
+
+static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
+{
+    uint32_t tmp;
+
+    if (n > NUM_CORE_REGS) {
+        return 0;
+    }
+
+    tmp = ldl_p(mem_buf);
+
+    if (n < 32) {
+        env->regs[n] = tmp;
+    } else {
+        switch (n) {
+        case 32:
+            env->pc = tmp;
+            break;
+        case 34:
+            env->eba = tmp;
+            break;
+        case 35:
+            env->deba = tmp;
+            break;
+        case 36:
+            env->ie = tmp;
+            break;
+        case 37:
+            lm32_pic_set_im(env->pic_state, tmp);
+            break;
+        case 38:
+            lm32_pic_set_ip(env->pic_state, tmp);
+            break;
+        }
+    }
+    return 4;
+}
 #else
 
 #define NUM_CORE_REGS 0
@@ -1737,6 +1811,8 @@ static void gdb_set_cpu_pc(GDBState *s, target_ulong pc)
 #elif defined (TARGET_S390X)
     cpu_synchronize_state(s->c_cpu);
     s->c_cpu->psw.addr = pc;
+#elif defined (TARGET_LM32)
+    s->c_cpu->pc = pc;
 #endif
 }
 
