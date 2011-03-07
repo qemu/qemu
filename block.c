@@ -2398,6 +2398,14 @@ int bdrv_aio_multiwrite(BlockDriverState *bs, BlockRequest *reqs, int num_reqs)
     MultiwriteCB *mcb;
     int i;
 
+    /* don't submit writes if we don't have a medium */
+    if (bs->drv == NULL) {
+        for (i = 0; i < num_reqs; i++) {
+            reqs[i].error = -ENOMEDIUM;
+        }
+        return -1;
+    }
+
     if (num_reqs == 0) {
         return 0;
     }
