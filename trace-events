@@ -343,3 +343,9 @@ disable milkymist_sysctl_start_timer1(void) "Start timer1"
 disable milkymist_sysctl_stop_timer1(void) "Stop timer1"
 disable milkymist_sysctl_pulse_irq_timer0(void) "Pulse IRQ Timer0"
 disable milkymist_sysctl_pulse_irq_timer1(void) "Pulse IRQ Timer1"
+
+# hw/milkymist-tmu2.c
+disable milkymist_tmu2_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_tmu2_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_tmu2_start(void) "Start TMU"
+disable milkymist_tmu2_pulse_irq(void) "Pulse IRQ"
