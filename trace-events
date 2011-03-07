@@ -306,3 +306,15 @@ disable milkymist_hpdmc_memory_write(uint32_t addr, uint32_t value) "addr=%08x v
 # hw/milkymist-memcard.c
 disable milkymist_memcard_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
 disable milkymist_memcard_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+
+# hw/milkymist-minimac.c
+disable milkymist_minimac_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_minimac_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_minimac_mdio_write(uint8_t phy_addr, uint8_t addr, uint16_t value) "phy_addr %02x addr %02x value %04x"
+disable milkymist_minimac_mdio_read(uint8_t phy_addr, uint8_t addr, uint16_t value) "phy_addr %02x addr %02x value %04x"
+disable milkymist_minimac_tx_frame(uint32_t length) "length %u"
+disable milkymist_minimac_rx_frame(const void *buf, uint32_t length) "buf %p length %u"
+disable milkymist_minimac_drop_rx_frame(const void *buf) "buf %p"
+disable milkymist_minimac_rx_transfer(const void *buf, uint32_t length) "buf %p length %d"
+disable milkymist_minimac_pulse_irq_rx(void) "Pulse IRQ RX"
+disable milkymist_minimac_pulse_irq_tx(void) "Pulse IRQ TX"

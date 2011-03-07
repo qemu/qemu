@@ -270,6 +270,7 @@ obj-lm32-y += lm32_sys.o
 obj-lm32-y += milkymist-ac97.o
 obj-lm32-y += milkymist-hpdmc.o
 obj-lm32-y += milkymist-memcard.o
+obj-lm32-y += milkymist-minimac.o
 
 obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 obj-mips-y += mips_addr.o mips_timer.o mips_int.o
