@@ -583,7 +583,7 @@ static void dec_orhi(DisasContext *dc)
     tcg_gen_ori_tl(cpu_R[dc->r1], cpu_R[dc->r0], (dc->imm16 << 16));
 }
 
-static void dec_raise(DisasContext *dc)
+static void dec_scall(DisasContext *dc)
 {
     TCGv t0;
     int l1;
@@ -1002,7 +1002,7 @@ static const DecoderInfo decinfo[] = {
     {DEC_NOR, dec_nor},
     {DEC_OR, dec_or},
     {DEC_ORHI, dec_orhi},
-    {DEC_RAISE, dec_raise},
+    {DEC_SCALL, dec_scall},
     {DEC_RCSR, dec_rcsr},
     {DEC_SB, dec_sb},
     {DEC_SEXTB, dec_sextb},
