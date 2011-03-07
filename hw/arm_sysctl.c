@@ -27,11 +27,14 @@ typedef struct {
     uint32_t resetlevel;
     uint32_t proc_id;
     uint32_t sys_mci;
+    uint32_t sys_cfgdata;
+    uint32_t sys_cfgctrl;
+    uint32_t sys_cfgstat;
 } arm_sysctl_state;
 
 static const VMStateDescription vmstate_arm_sysctl = {
     .name = "realview_sysctl",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(leds, arm_sysctl_state),
@@ -41,6 +44,10 @@ static const VMStateDescription vmstate_arm_sysctl = {
         VMSTATE_UINT32(flags, arm_sysctl_state),
         VMSTATE_UINT32(nvflags, arm_sysctl_state),
         VMSTATE_UINT32(resetlevel, arm_sysctl_state),
+        VMSTATE_UINT32_V(sys_mci, arm_sysctl_state, 2),
+        VMSTATE_UINT32_V(sys_cfgdata, arm_sysctl_state, 2),
+        VMSTATE_UINT32_V(sys_cfgctrl, arm_sysctl_state, 2),
+        VMSTATE_UINT32_V(sys_cfgstat, arm_sysctl_state, 2),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -53,6 +60,7 @@ static const VMStateDescription vmstate_arm_sysctl = {
 #define BOARD_ID_EB 0x140
 #define BOARD_ID_PBA8 0x178
 #define BOARD_ID_PBX 0x182
+#define BOARD_ID_VEXPRESS 0x190
 
 static int board_id(arm_sysctl_state *s)
 {
@@ -104,6 +112,10 @@ static uint32_t arm_sysctl_read(void *opaque, target_phys_addr_t offset)
     case 0x38: /* NVFLAGS */
         return s->nvflags;
     case 0x40: /* RESETCTL */
+        if (board_id(s) == BOARD_ID_VEXPRESS) {
+            /* reserved: RAZ/WI */
+            return 0;
+        }
         return s->resetlevel;
     case 0x44: /* PCICTL */
         return 1;
@@ -142,7 +154,23 @@ static uint32_t arm_sysctl_read(void *opaque, target_phys_addr_t offset)
     case 0xcc: /* SYS_TEST_OSC3 */
     case 0xd0: /* SYS_TEST_OSC4 */
         return 0;
+    case 0xa0: /* SYS_CFGDATA */
+        if (board_id(s) != BOARD_ID_VEXPRESS) {
+            goto bad_reg;
+        }
+        return s->sys_cfgdata;
+    case 0xa4: /* SYS_CFGCTRL */
+        if (board_id(s) != BOARD_ID_VEXPRESS) {
+            goto bad_reg;
+        }
+        return s->sys_cfgctrl;
+    case 0xa8: /* SYS_CFGSTAT */
+        if (board_id(s) != BOARD_ID_VEXPRESS) {
+            goto bad_reg;
+        }
+        return s->sys_cfgstat;
     default:
+    bad_reg:
         printf ("arm_sysctl_read: Bad register offset 0x%x\n", (int)offset);
         return 0;
     }
@@ -190,6 +218,10 @@ static void arm_sysctl_write(void *opaque, target_phys_addr_t offset,
         s->nvflags &= ~val;
         break;
     case 0x40: /* RESETCTL */
+        if (board_id(s) == BOARD_ID_VEXPRESS) {
+            /* reserved: RAZ/WI */
+            break;
+        }
         if (s->lockval == LOCK_VALUE) {
             s->resetlevel = val;
             if (val & 0x100)
@@ -216,7 +248,37 @@ static void arm_sysctl_write(void *opaque, target_phys_addr_t offset,
     case 0x98: /* OSCRESET3 */
     case 0x9c: /* OSCRESET4 */
         break;
+    case 0xa0: /* SYS_CFGDATA */
+        if (board_id(s) != BOARD_ID_VEXPRESS) {
+            goto bad_reg;
+        }
+        s->sys_cfgdata = val;
+        return;
+    case 0xa4: /* SYS_CFGCTRL */
+        if (board_id(s) != BOARD_ID_VEXPRESS) {
+            goto bad_reg;
+        }
+        s->sys_cfgctrl = val & ~(3 << 18);
+        s->sys_cfgstat = 1;            /* complete */
+        switch (s->sys_cfgctrl) {
+        case 0xc0800000:            /* SYS_CFG_SHUTDOWN to motherboard */
+            qemu_system_shutdown_request();
+            break;
+        case 0xc0900000:            /* SYS_CFG_REBOOT to motherboard */
+            qemu_system_reset_request();
+            break;
+        default:
+            s->sys_cfgstat |= 2;        /* error */
+        }
+        return;
+    case 0xa8: /* SYS_CFGSTAT */
+        if (board_id(s) != BOARD_ID_VEXPRESS) {
+            goto bad_reg;
+        }
+        s->sys_cfgstat = val & 3;
+        return;
     default:
+    bad_reg:
         printf ("arm_sysctl_write: Bad register offset 0x%x\n", (int)offset);
         return;
     }
