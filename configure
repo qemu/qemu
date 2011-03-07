@@ -3350,6 +3350,9 @@ if test "$target_softmmu" = "yes" ; then
   arm)
     cflags="-DHAS_AUDIO $cflags"
   ;;
+  lm32)
+    cflags="-DHAS_AUDIO $cflags"
+  ;;
   i386|mips|ppc)
     cflags="-DHAS_AUDIO -DHAS_AUDIO_CHOICE $cflags"
   ;;

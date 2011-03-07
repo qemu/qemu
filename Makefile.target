@@ -267,6 +267,7 @@ obj-lm32-y += lm32_juart.o
 obj-lm32-y += lm32_timer.o
 obj-lm32-y += lm32_uart.o
 obj-lm32-y += lm32_sys.o
+obj-lm32-y += milkymist-ac97.o
 
 obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 obj-mips-y += mips_addr.o mips_timer.o mips_int.o

@@ -286,3 +286,15 @@ disable lm32_uart_irq_state(int level) "irq state %d"
 
 # hw/lm32_sys.c
 disable lm32_sys_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
+
+# hw/milkymist-ac97.c
+disable milkymist_ac97_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_ac97_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_ac97_pulse_irq_crrequest(void) "Pulse IRQ CR request"
+disable milkymist_ac97_pulse_irq_crreply(void) "Pulse IRQ CR reply"
+disable milkymist_ac97_pulse_irq_dmaw(void) "Pulse IRQ DMA write"
+disable milkymist_ac97_pulse_irq_dmar(void) "Pulse IRQ DMA read"
+disable milkymist_ac97_in_cb(int avail, uint32_t remaining) "avail %d remaining %u"
+disable milkymist_ac97_in_cb_transferred(int transferred) "transferred %d"
+disable milkymist_ac97_out_cb(int free, uint32_t remaining) "free %d remaining %u"
+disable milkymist_ac97_out_cb_transferred(int transferred) "transferred %d"
