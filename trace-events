@@ -355,3 +355,7 @@ disable milkymist_uart_memory_read(uint32_t addr, uint32_t value) "addr %08x val
 disable milkymist_uart_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
 disable milkymist_uart_pulse_irq_rx(void) "Pulse IRQ RX"
 disable milkymist_uart_pulse_irq_tx(void) "Pulse IRQ TX"
+
+# hw/milkymist-vgafb.c
+disable milkymist_vgafb_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_vgafb_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
