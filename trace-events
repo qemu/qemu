@@ -300,5 +300,9 @@ disable milkymist_ac97_out_cb(int free, uint32_t remaining) "free %d remaining %
 disable milkymist_ac97_out_cb_transferred(int transferred) "transferred %d"
 
 # hw/milkymist-hpdmc.c
-disable milkymist_hpdmc_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
-disable milkymist_hpdmc_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_hpdmc_memory_read(uint32_t addr, uint32_t value) "addr=%08x value=%08x"
+disable milkymist_hpdmc_memory_write(uint32_t addr, uint32_t value) "addr=%08x value=%08x"
+
+# hw/milkymist-memcard.c
+disable milkymist_memcard_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_memcard_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
