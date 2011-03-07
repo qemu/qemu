@@ -62,6 +62,8 @@ disable virtio_blk_handle_write(void *req, uint64_t sector, size_t nsectors) "re
 
 # posix-aio-compat.c
 disable paio_submit(void *acb, void *opaque, int64_t sector_num, int nb_sectors, int type) "acb %p opaque %p sector_num %"PRId64" nb_sectors %d type %d"
+disable paio_complete(void *acb, void *opaque, int ret) "acb %p opaque %p ret %d"
+disable paio_cancel(void *acb, void *opaque) "acb %p opaque %p"
 
 # ioport.c
 disable cpu_in(unsigned int addr, unsigned int val) "addr %#x value %u"
