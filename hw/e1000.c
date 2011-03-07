@@ -446,7 +446,9 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
         return;
     } else if (dtype == (E1000_TXD_CMD_DEXT | E1000_TXD_DTYP_D)) {
         // data descriptor
-        tp->sum_needed = le32_to_cpu(dp->upper.data) >> 8;
+        if (tp->size == 0) {
+            tp->sum_needed = le32_to_cpu(dp->upper.data) >> 8;
+        }
         tp->cptse = ( txd_lower & E1000_TXD_CMD_TSE ) ? 1 : 0;
     } else {
         // legacy descriptor
