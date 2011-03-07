@@ -255,25 +255,25 @@ void float_raise( int8 flags STATUS_PARAM);
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE integer-to-floating-point conversion routines.
 *----------------------------------------------------------------------------*/
-float32 int32_to_float32( int STATUS_PARAM );
-float64 int32_to_float64( int STATUS_PARAM );
+float32 int32_to_float32( int32 STATUS_PARAM );
+float64 int32_to_float64( int32 STATUS_PARAM );
 float32 uint32_to_float32( unsigned int STATUS_PARAM );
 float64 uint32_to_float64( unsigned int STATUS_PARAM );
 #ifdef FLOATX80
-floatx80 int32_to_floatx80( int STATUS_PARAM );
+floatx80 int32_to_floatx80( int32 STATUS_PARAM );
 #endif
 #ifdef FLOAT128
-float128 int32_to_float128( int STATUS_PARAM );
+float128 int32_to_float128( int32 STATUS_PARAM );
 #endif
-float32 int64_to_float32( int64_t STATUS_PARAM );
-float32 uint64_to_float32( uint64_t STATUS_PARAM );
-float64 int64_to_float64( int64_t STATUS_PARAM );
-float64 uint64_to_float64( uint64_t STATUS_PARAM );
+float32 int64_to_float32( int64 STATUS_PARAM );
+float32 uint64_to_float32( uint64 STATUS_PARAM );
+float64 int64_to_float64( int64 STATUS_PARAM );
+float64 uint64_to_float64( uint64 STATUS_PARAM );
 #ifdef FLOATX80
-floatx80 int64_to_floatx80( int64_t STATUS_PARAM );
+floatx80 int64_to_floatx80( int64 STATUS_PARAM );
 #endif
 #ifdef FLOAT128
-float128 int64_to_float128( int64_t STATUS_PARAM );
+float128 int64_to_float128( int64 STATUS_PARAM );
 #endif
 
 /*----------------------------------------------------------------------------
@@ -303,14 +303,14 @@ float16 float16_maybe_silence_nan( float16 );
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE single-precision conversion routines.
 *----------------------------------------------------------------------------*/
-int float32_to_int16_round_to_zero( float32 STATUS_PARAM );
+int16 float32_to_int16_round_to_zero( float32 STATUS_PARAM );
 unsigned int float32_to_uint16_round_to_zero( float32 STATUS_PARAM );
-int float32_to_int32( float32 STATUS_PARAM );
-int float32_to_int32_round_to_zero( float32 STATUS_PARAM );
-unsigned int float32_to_uint32( float32 STATUS_PARAM );
-unsigned int float32_to_uint32_round_to_zero( float32 STATUS_PARAM );
-int64_t float32_to_int64( float32 STATUS_PARAM );
-int64_t float32_to_int64_round_to_zero( float32 STATUS_PARAM );
+int32 float32_to_int32( float32 STATUS_PARAM );
+int32 float32_to_int32_round_to_zero( float32 STATUS_PARAM );
+uint32 float32_to_uint32( float32 STATUS_PARAM );
+uint32 float32_to_uint32_round_to_zero( float32 STATUS_PARAM );
+int64 float32_to_int64( float32 STATUS_PARAM );
+int64 float32_to_int64_round_to_zero( float32 STATUS_PARAM );
 float64 float32_to_float64( float32 STATUS_PARAM );
 #ifdef FLOATX80
 floatx80 float32_to_floatx80( float32 STATUS_PARAM );
@@ -413,16 +413,16 @@ INLINE float32 float32_set_sign(float32 a, int sign)
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE double-precision conversion routines.
 *----------------------------------------------------------------------------*/
-int float64_to_int16_round_to_zero( float64 STATUS_PARAM );
+int16 float64_to_int16_round_to_zero( float64 STATUS_PARAM );
 unsigned int float64_to_uint16_round_to_zero( float64 STATUS_PARAM );
-int float64_to_int32( float64 STATUS_PARAM );
-int float64_to_int32_round_to_zero( float64 STATUS_PARAM );
-unsigned int float64_to_uint32( float64 STATUS_PARAM );
-unsigned int float64_to_uint32_round_to_zero( float64 STATUS_PARAM );
-int64_t float64_to_int64( float64 STATUS_PARAM );
-int64_t float64_to_int64_round_to_zero( float64 STATUS_PARAM );
-uint64_t float64_to_uint64 (float64 a STATUS_PARAM);
-uint64_t float64_to_uint64_round_to_zero (float64 a STATUS_PARAM);
+int32 float64_to_int32( float64 STATUS_PARAM );
+int32 float64_to_int32_round_to_zero( float64 STATUS_PARAM );
+uint32 float64_to_uint32( float64 STATUS_PARAM );
+uint32 float64_to_uint32_round_to_zero( float64 STATUS_PARAM );
+int64 float64_to_int64( float64 STATUS_PARAM );
+int64 float64_to_int64_round_to_zero( float64 STATUS_PARAM );
+uint64 float64_to_uint64 (float64 a STATUS_PARAM);
+uint64 float64_to_uint64_round_to_zero (float64 a STATUS_PARAM);
 float32 float64_to_float32( float64 STATUS_PARAM );
 #ifdef FLOATX80
 floatx80 float64_to_floatx80( float64 STATUS_PARAM );
@@ -522,10 +522,10 @@ INLINE float64 float64_set_sign(float64 a, int sign)
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE extended double-precision conversion routines.
 *----------------------------------------------------------------------------*/
-int floatx80_to_int32( floatx80 STATUS_PARAM );
-int floatx80_to_int32_round_to_zero( floatx80 STATUS_PARAM );
-int64_t floatx80_to_int64( floatx80 STATUS_PARAM );
-int64_t floatx80_to_int64_round_to_zero( floatx80 STATUS_PARAM );
+int32 floatx80_to_int32( floatx80 STATUS_PARAM );
+int32 floatx80_to_int32_round_to_zero( floatx80 STATUS_PARAM );
+int64 floatx80_to_int64( floatx80 STATUS_PARAM );
+int64 floatx80_to_int64_round_to_zero( floatx80 STATUS_PARAM );
 float32 floatx80_to_float32( floatx80 STATUS_PARAM );
 float64 floatx80_to_float64( floatx80 STATUS_PARAM );
 #ifdef FLOAT128
@@ -605,10 +605,10 @@ INLINE int floatx80_is_any_nan(floatx80 a)
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE quadruple-precision conversion routines.
 *----------------------------------------------------------------------------*/
-int float128_to_int32( float128 STATUS_PARAM );
-int float128_to_int32_round_to_zero( float128 STATUS_PARAM );
-int64_t float128_to_int64( float128 STATUS_PARAM );
-int64_t float128_to_int64_round_to_zero( float128 STATUS_PARAM );
+int32 float128_to_int32( float128 STATUS_PARAM );
+int32 float128_to_int32_round_to_zero( float128 STATUS_PARAM );
+int64 float128_to_int64( float128 STATUS_PARAM );
+int64 float128_to_int64_round_to_zero( float128 STATUS_PARAM );
 float32 float128_to_float32( float128 STATUS_PARAM );
 float64 float128_to_float64( float128 STATUS_PARAM );
 #ifdef FLOATX80
