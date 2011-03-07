@@ -165,6 +165,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_UNDEFINED_ERROR \
     "{ 'class': 'UndefinedError', 'data': {} }"
 
+#define QERR_UNSUPPORTED \
+    "{ 'class': 'Unsupported', 'data': {} }"
+
 #define QERR_UNKNOWN_BLOCK_FORMAT_FEATURE \
     "{ 'class': 'UnknownBlockFormatFeature', 'data': { 'device': %s, 'format': %s, 'feature': %s } }"
 

@@ -201,6 +201,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "An undefined error has ocurred",
     },
     {
+        .error_fmt = QERR_UNSUPPORTED,
+        .desc      = "this feature or command is not currently supported",
+    },
+    {
         .error_fmt = QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
         .desc      = "'%(device)' uses a %(format) feature which is not "
                      "supported by this qemu version: %(feature)",
