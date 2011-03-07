@@ -273,6 +273,7 @@ obj-lm32-y += milkymist-memcard.o
 obj-lm32-y += milkymist-minimac.o
 obj-lm32-y += milkymist-pfpu.o
 obj-lm32-y += milkymist-softusb.o
+obj-lm32-y += milkymist-sysctl.o
 
 obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 obj-mips-y += mips_addr.o mips_timer.o mips_int.o
