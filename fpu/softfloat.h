@@ -1,3 +1,9 @@
+/*
+ * QEMU float support
+ *
+ * Derived from SoftFloat.
+ */
+
 /*============================================================================
 
 This C header file is part of the SoftFloat IEC/IEEE Floating-point Arithmetic
