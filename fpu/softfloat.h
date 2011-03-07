@@ -65,21 +65,6 @@ typedef signed int int32;
 typedef uint64_t uint64;
 typedef int64_t int64;
 
-/*----------------------------------------------------------------------------
-| Each of the following `typedef's defines a type that holds integers
-| of _exactly_ the number of bits specified.  For instance, for most
-| implementation of C, `bits16' and `sbits16' should be `typedef'ed to
-| `unsigned short int' and `signed short int' (or `short int'), respectively.
-*----------------------------------------------------------------------------*/
-typedef uint8_t bits8;
-typedef int8_t sbits8;
-typedef uint16_t bits16;
-typedef int16_t sbits16;
-typedef uint32_t bits32;
-typedef int32_t sbits32;
-typedef uint64_t bits64;
-typedef int64_t sbits64;
-
 #define LIT64( a ) a##LL
 #define INLINE static inline
 
