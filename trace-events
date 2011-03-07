@@ -324,3 +324,11 @@ disable milkymist_pfpu_memory_read(uint32_t addr, uint32_t value) "addr %08x val
 disable milkymist_pfpu_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
 disable milkymist_pfpu_vectout(uint32_t a, uint32_t b, uint32_t dma_ptr) "a %08x b %08x dma_ptr %08x"
 disable milkymist_pfpu_pulse_irq(void) "Pulse IRQ"
+
+# hw/milkymist-softusb.c
+disable milkymist_softusb_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_softusb_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_softusb_mevt(uint8_t m) "m %d"
+disable milkymist_softusb_kevt(uint8_t m) "m %d"
+disable milkymist_softusb_mouse_event(int dx, int dy, int dz, int bs) "dx %d dy %d dz %d bs %02x"
+disable milkymist_softusb_pulse_irq(void) "Pulse IRQ"
