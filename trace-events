@@ -349,3 +349,9 @@ disable milkymist_tmu2_memory_read(uint32_t addr, uint32_t value) "addr %08x val
 disable milkymist_tmu2_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
 disable milkymist_tmu2_start(void) "Start TMU"
 disable milkymist_tmu2_pulse_irq(void) "Pulse IRQ"
+
+# hw/milkymist-uart.c
+disable milkymist_uart_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_uart_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_uart_pulse_irq_rx(void) "Pulse IRQ RX"
+disable milkymist_uart_pulse_irq_tx(void) "Pulse IRQ TX"

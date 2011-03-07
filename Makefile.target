@@ -275,6 +275,7 @@ obj-lm32-y += milkymist-pfpu.o
 obj-lm32-y += milkymist-softusb.o
 obj-lm32-y += milkymist-sysctl.o
 obj-lm32-$(CONFIG_OPENGL) += milkymist-tmu2.o
+obj-lm32-y += milkymist-uart.o
 
 obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 obj-mips-y += mips_addr.o mips_timer.o mips_int.o
