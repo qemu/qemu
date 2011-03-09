@@ -27,6 +27,10 @@
 #include "qemu-char.h"
 #include "qemu-queue.h"
 
+#ifndef _WIN32
+#include <sys/wait.h>
+#endif
+
 typedef struct IOHandlerRecord {
     int fd;
     IOCanReadHandler *fd_read_poll;
@@ -127,3 +131,63 @@ void qemu_iohandler_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds, int re
         }
     }
 }
+
+/* reaping of zombies.  right now we're not passing the status to
+   anyone, but it would be possible to add a callback.  */
+#ifndef _WIN32
+typedef struct ChildProcessRecord {
+    int pid;
+    QLIST_ENTRY(ChildProcessRecord) next;
+} ChildProcessRecord;
+
+static QLIST_HEAD(, ChildProcessRecord) child_watches =
+    QLIST_HEAD_INITIALIZER(child_watches);
+
+static QEMUBH *sigchld_bh;
+
+static void sigchld_handler(int signal)
+{
+    qemu_bh_schedule(sigchld_bh);
+}
+
+static void sigchld_bh_handler(void *opaque)
+{
+    ChildProcessRecord *rec, *next;
+
+    QLIST_FOREACH_SAFE(rec, &child_watches, next, next) {
+        if (waitpid(rec->pid, NULL, WNOHANG) == rec->pid) {
+            QLIST_REMOVE(rec, next);
+            qemu_free(rec);
+        }
+    }
+}
+
+static void qemu_init_child_watch(void)
+{
+    struct sigaction act;
+    sigchld_bh = qemu_bh_new(sigchld_bh_handler, NULL);
+
+    act.sa_handler = sigchld_handler;
+    act.sa_flags = SA_NOCLDSTOP;
+    sigaction(SIGCHLD, &act, NULL);
+}
+
+int qemu_add_child_watch(pid_t pid)
+{
+    ChildProcessRecord *rec;
+
+    if (!sigchld_bh) {
+        qemu_init_child_watch();
+    }
+
+    QLIST_FOREACH(rec, &child_watches, next) {
+        if (rec->pid == pid) {
+            return 1;
+        }
+    }
+    rec = qemu_mallocz(sizeof(ChildProcessRecord));
+    rec->pid = pid;
+    QLIST_INSERT_HEAD(&child_watches, rec, next);
+    return 0;
+}
+#endif
