@@ -227,6 +227,9 @@ typedef void IOReadHandler(void *opaque, const uint8_t *buf, int size);
 typedef int IOCanReadHandler(void *opaque);
 typedef void IOHandler(void *opaque);
 
+void qemu_iohandler_fill(int *pnfds, fd_set *readfds, fd_set *writefds, fd_set *xfds);
+void qemu_iohandler_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds, int rc);
+
 struct ParallelIOArg {
     void *buffer;
     int count;
