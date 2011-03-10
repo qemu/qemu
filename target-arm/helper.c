@@ -2171,7 +2171,7 @@ static inline uint8_t sub8_usat(uint8_t a, uint8_t b)
 /* Signed modulo arithmetic.  */
 #define SARITH16(a, b, n, op) do { \
     int32_t sum; \
-    sum = (int16_t)((uint16_t)(a) op (uint16_t)(b)); \
+    sum = (int32_t)(int16_t)(a) op (int32_t)(int16_t)(b); \
     RESULT(sum, n, 16); \
     if (sum >= 0) \
         ge |= 3 << (n * 2); \
@@ -2179,7 +2179,7 @@ static inline uint8_t sub8_usat(uint8_t a, uint8_t b)
 
 #define SARITH8(a, b, n, op) do { \
     int32_t sum; \
-    sum = (int8_t)((uint8_t)(a) op (uint8_t)(b)); \
+    sum = (int32_t)(int8_t)(a) op (int32_t)(int8_t)(b); \
     RESULT(sum, n, 8); \
     if (sum >= 0) \
         ge |= 1 << n; \
