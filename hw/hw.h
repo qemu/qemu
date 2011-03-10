@@ -802,6 +802,12 @@ extern const VMStateDescription vmstate_usb_device;
 #define VMSTATE_UINT32_ARRAY(_f, _s, _n)                              \
     VMSTATE_UINT32_ARRAY_V(_f, _s, _n, 0)
 
+#define VMSTATE_INT64_ARRAY_V(_f, _s, _n, _v)                         \
+    VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_int64, int64_t)
+
+#define VMSTATE_INT64_ARRAY(_f, _s, _n)                               \
+    VMSTATE_INT64_ARRAY_V(_f, _s, _n, 0)
+
 #define VMSTATE_BUFFER_V(_f, _s, _v)                                  \
     VMSTATE_STATIC_BUFFER(_f, _s, _v, NULL, 0, sizeof(typeof_field(_s, _f)))
 
