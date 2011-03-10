@@ -399,6 +399,15 @@ extern const VMStateInfo vmstate_info_unused_buffer;
     .offset     = vmstate_offset_value(_state, _field, _type),       \
 }
 
+#define VMSTATE_POINTER_TEST(_field, _state, _test, _info, _type) {  \
+    .name       = (stringify(_field)),                               \
+    .info       = &(_info),                                          \
+    .field_exists = (_test),                                         \
+    .size       = sizeof(_type),                                     \
+    .flags      = VMS_SINGLE|VMS_POINTER,                            \
+    .offset     = vmstate_offset_value(_state, _field, _type),       \
+}
+
 #define VMSTATE_ARRAY(_field, _state, _num, _version, _info, _type) {\
     .name       = (stringify(_field)),                               \
     .version_id = (_version),                                        \
@@ -766,11 +775,11 @@ extern const VMStateDescription vmstate_usb_device;
 #define VMSTATE_UINT32_TEST(_f, _s, _t)                                  \
     VMSTATE_SINGLE_TEST(_f, _s, _t, 0, vmstate_info_uint32, uint32_t)
 
-#define VMSTATE_TIMER_V(_f, _s, _v)                                   \
-    VMSTATE_POINTER(_f, _s, _v, vmstate_info_timer, QEMUTimer *)
+#define VMSTATE_TIMER_TEST(_f, _s, _test)                             \
+    VMSTATE_POINTER_TEST(_f, _s, _test, vmstate_info_timer, QEMUTimer *)
 
 #define VMSTATE_TIMER(_f, _s)                                         \
-    VMSTATE_TIMER_V(_f, _s, 0)
+    VMSTATE_TIMER_TEST(_f, _s, NULL)
 
 #define VMSTATE_TIMER_ARRAY(_f, _s, _n)                              \
     VMSTATE_ARRAY_OF_POINTER(_f, _s, _n, 0, vmstate_info_timer, QEMUTimer *)
