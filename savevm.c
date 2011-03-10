@@ -1329,6 +1329,8 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                 n_elems = field->num;
             } else if (field->flags & VMS_VARRAY_INT32) {
                 n_elems = *(int32_t *)(opaque+field->num_offset);
+            } else if (field->flags & VMS_VARRAY_UINT32) {
+                n_elems = *(uint32_t *)(opaque+field->num_offset);
             } else if (field->flags & VMS_VARRAY_UINT16) {
                 n_elems = *(uint16_t *)(opaque+field->num_offset);
             } else if (field->flags & VMS_VARRAY_UINT8) {
