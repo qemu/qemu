@@ -882,6 +882,27 @@ const VMStateInfo vmstate_info_uint32 = {
     .put  = put_uint32,
 };
 
+/* 32 bit uint. See that the received value is the same than the one
+   in the field */
+
+static int get_uint32_equal(QEMUFile *f, void *pv, size_t size)
+{
+    uint32_t *v = pv;
+    uint32_t v2;
+    qemu_get_be32s(f, &v2);
+
+    if (*v == v2) {
+        return 0;
+    }
+    return -EINVAL;
+}
+
+const VMStateInfo vmstate_info_uint32_equal = {
+    .name = "uint32 equal",
+    .get  = get_uint32_equal,
+    .put  = put_uint32,
+};
+
 /* 64 bit unsigned int */
 
 static int get_uint64(QEMUFile *f, void *pv, size_t size)

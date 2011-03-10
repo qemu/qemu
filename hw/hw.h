@@ -343,6 +343,7 @@ extern const VMStateInfo vmstate_info_int64;
 extern const VMStateInfo vmstate_info_uint8_equal;
 extern const VMStateInfo vmstate_info_uint16_equal;
 extern const VMStateInfo vmstate_info_int32_equal;
+extern const VMStateInfo vmstate_info_uint32_equal;
 extern const VMStateInfo vmstate_info_int32_le;
 
 extern const VMStateInfo vmstate_info_uint8;
@@ -703,6 +704,9 @@ extern const VMStateDescription vmstate_usb_device;
 
 #define VMSTATE_INT32_EQUAL(_f, _s)                                   \
     VMSTATE_SINGLE(_f, _s, 0, vmstate_info_int32_equal, int32_t)
+
+#define VMSTATE_UINT32_EQUAL(_f, _s)                                   \
+    VMSTATE_SINGLE(_f, _s, 0, vmstate_info_uint32_equal, uint32_t)
 
 #define VMSTATE_INT32_LE(_f, _s)                                   \
     VMSTATE_SINGLE(_f, _s, 0, vmstate_info_int32_le, int32_t)
