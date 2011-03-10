@@ -64,7 +64,6 @@ typedef struct PXA2xxTimerInfo PXA2xxTimerInfo;
 
 typedef struct {
     uint32_t value;
-    int level;
     qemu_irq irq;
     QEMUTimer *qtimer;
     int num;
@@ -278,20 +277,13 @@ static void pxa2xx_timer_write(void *opaque, target_phys_addr_t offset,
         s->irq_enabled = value & 0xfff;
         break;
     case OSSR:	/* Status register */
+        value &= s->events;
         s->events &= ~value;
-        for (i = 0; i < 4; i ++, value >>= 1) {
-            if (s->timer[i].level && (value & 1)) {
-                s->timer[i].level = 0;
+        for (i = 0; i < 4; i ++, value >>= 1)
+            if (value & 1)
                 qemu_irq_lower(s->timer[i].irq);
-            }
-        }
-        if (pxa2xx_timer_has_tm4(s)) {
-            for (i = 0; i < 8; i ++, value >>= 1)
-                if (s->tm4[i].tm.level && (value & 1))
-                    s->tm4[i].tm.level = 0;
-            if (!(s->events & 0xff0))
-                qemu_irq_lower(s->irq4);
-        }
+        if (pxa2xx_timer_has_tm4(s) && !(s->events & 0xff0) && value)
+            qemu_irq_lower(s->irq4);
         break;
     case OWER:	/* XXX: Reset on OSMR3 match? */
         s->reset3 = value;
@@ -351,7 +343,6 @@ static void pxa2xx_timer_tick(void *opaque)
     PXA2xxTimerInfo *i = t->info;
 
     if (i->irq_enabled & (1 << t->num)) {
-        t->level = 1;
         i->events |= 1 << t->num;
         qemu_irq_raise(t->irq);
     }
@@ -411,7 +402,6 @@ static int pxa2xx_timer_init(SysBusDevice *dev)
         sysbus_init_irq(dev, &s->timer[i].irq);
         s->timer[i].info = s;
         s->timer[i].num = i;
-        s->timer[i].level = 0;
         s->timer[i].qtimer = qemu_new_timer(vm_clock,
                         pxa2xx_timer_tick, &s->timer[i]);
     }
@@ -422,7 +412,6 @@ static int pxa2xx_timer_init(SysBusDevice *dev)
             s->tm4[i].tm.value = 0;
             s->tm4[i].tm.info = s;
             s->tm4[i].tm.num = i + 4;
-            s->tm4[i].tm.level = 0;
             s->tm4[i].freq = 0;
             s->tm4[i].control = 0x0;
             s->tm4[i].tm.qtimer = qemu_new_timer(vm_clock,
@@ -439,12 +428,11 @@ static int pxa2xx_timer_init(SysBusDevice *dev)
 
 static const VMStateDescription vmstate_pxa2xx_timer0_regs = {
     .name = "pxa2xx_timer0",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(value, PXA2xxTimer0),
-        VMSTATE_INT32(level, PXA2xxTimer0),
         VMSTATE_END_OF_LIST(),
     },
 };
