@@ -298,6 +298,7 @@ enum VMStateFlags {
     VMS_VARRAY_UINT16    = 0x080,  /* Array with size in uint16_t field */
     VMS_VBUFFER          = 0x100,  /* Buffer with size in int32_t field */
     VMS_MULTIPLY         = 0x200,  /* multiply "size" field by field_size */
+    VMS_VARRAY_UINT8     = 0x400,  /* Array with size in uint8_t field*/
 };
 
 typedef struct {
@@ -489,11 +490,11 @@ extern const VMStateInfo vmstate_info_unused_buffer;
 
 #define VMSTATE_STRUCT_VARRAY_UINT8(_field, _state, _field_num, _version, _vmsd, _type) { \
     .name       = (stringify(_field)),                               \
-    .num_offset = vmstate_offset_value(_state, _field_num, uint8_t),  \
+    .num_offset = vmstate_offset_value(_state, _field_num, uint8_t), \
     .version_id = (_version),                                        \
     .vmsd       = &(_vmsd),                                          \
     .size       = sizeof(_type),                                     \
-    .flags      = VMS_STRUCT|VMS_VARRAY_INT32,                       \
+    .flags      = VMS_STRUCT|VMS_VARRAY_UINT8,                       \
     .offset     = offsetof(_state, _field),                          \
 }
 
