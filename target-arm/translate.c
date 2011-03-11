@@ -4157,10 +4157,12 @@ static inline void gen_neon_mull(TCGv_i64 dest, TCGv a, TCGv b, int size, int u)
     case 4:
         tmp = gen_muls_i64_i32(a, b);
         tcg_gen_mov_i64(dest, tmp);
+        tcg_temp_free_i64(tmp);
         break;
     case 5:
         tmp = gen_mulu_i64_i32(a, b);
         tcg_gen_mov_i64(dest, tmp);
+        tcg_temp_free_i64(tmp);
         break;
     default: abort();
     }
