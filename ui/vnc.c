@@ -1645,17 +1645,21 @@ static void framebuffer_update_request(VncState *vs, int incremental,
                                        int x_position, int y_position,
                                        int w, int h)
 {
+    int i;
+    const size_t width = ds_get_width(vs->ds) / 16;
+
     if (y_position > ds_get_height(vs->ds))
         y_position = ds_get_height(vs->ds);
     if (y_position + h >= ds_get_height(vs->ds))
         h = ds_get_height(vs->ds) - y_position;
 
-    int i;
     vs->need_update = 1;
     if (!incremental) {
         vs->force_update = 1;
         for (i = 0; i < h; i++) {
-            bitmap_set(vs->dirty[y_position + i], x_position / 16, w / 16);
+            bitmap_set(vs->dirty[y_position + i], 0, width);
+            bitmap_clear(vs->dirty[y_position + i], width,
+                         VNC_DIRTY_WORDS * BITS_PER_LONG - width);
         }
     }
 }
