@@ -1135,7 +1135,7 @@ static void kbd_send_chars(void *opaque)
     /* characters are pending: we send them a bit later (XXX:
        horrible, should change char device API) */
     if (s->out_fifo.count > 0) {
-        qemu_mod_timer(s->kbd_timer, qemu_get_clock(rt_clock) + 1);
+        qemu_mod_timer(s->kbd_timer, qemu_get_clock_ms(rt_clock) + 1);
     }
 }
 
@@ -1457,7 +1457,7 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds)
 
     s->out_fifo.buf = s->out_fifo_buf;
     s->out_fifo.buf_size = sizeof(s->out_fifo_buf);
-    s->kbd_timer = qemu_new_timer(rt_clock, kbd_send_chars, s);
+    s->kbd_timer = qemu_new_timer_ms(rt_clock, kbd_send_chars, s);
     s->ds = ds;
 
     if (!color_inited) {

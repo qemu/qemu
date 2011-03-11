@@ -264,7 +264,7 @@ static void icount_adjust(void)
 static void icount_adjust_rt(void * opaque)
 {
     qemu_mod_timer(icount_rt_timer,
-                   qemu_get_clock(rt_clock) + 1000);
+                   qemu_get_clock_ms(rt_clock) + 1000);
     icount_adjust();
 }
 
@@ -601,9 +601,9 @@ void configure_icount(const char *option)
        the virtual time trigger catches emulated time passing too fast.
        Realtime triggers occur even when idle, so use them less frequently
        than VM triggers.  */
-    icount_rt_timer = qemu_new_timer(rt_clock, icount_adjust_rt, NULL);
+    icount_rt_timer = qemu_new_timer_ms(rt_clock, icount_adjust_rt, NULL);
     qemu_mod_timer(icount_rt_timer,
-                   qemu_get_clock(rt_clock) + 1000);
+                   qemu_get_clock_ms(rt_clock) + 1000);
     icount_vm_timer = qemu_new_timer(vm_clock, icount_adjust_vm, NULL);
     qemu_mod_timer(icount_vm_timer,
                    qemu_get_clock(vm_clock) + get_ticks_per_sec() / 10);

@@ -74,14 +74,14 @@ static inline void menelaus_update(MenelausState *s)
 
 static inline void menelaus_rtc_start(MenelausState *s)
 {
-    s->rtc.next += qemu_get_clock(rt_clock);
+    s->rtc.next += qemu_get_clock_ms(rt_clock);
     qemu_mod_timer(s->rtc.hz_tm, s->rtc.next);
 }
 
 static inline void menelaus_rtc_stop(MenelausState *s)
 {
     qemu_del_timer(s->rtc.hz_tm);
-    s->rtc.next -= qemu_get_clock(rt_clock);
+    s->rtc.next -= qemu_get_clock_ms(rt_clock);
     if (s->rtc.next < 1)
         s->rtc.next = 1;
 }
@@ -786,7 +786,7 @@ static void menelaus_pre_save(void *opaque)
 {
     MenelausState *s = opaque;
     /* Should be <= 1000 */
-    s->rtc_next_vmstate =  s->rtc.next - qemu_get_clock(rt_clock);
+    s->rtc_next_vmstate =  s->rtc.next - qemu_get_clock_ms(rt_clock);
 }
 
 static int menelaus_post_load(void *opaque, int version_id)
@@ -847,7 +847,7 @@ static int twl92230_init(i2c_slave *i2c)
 {
     MenelausState *s = FROM_I2C_SLAVE(MenelausState, i2c);
 
-    s->rtc.hz_tm = qemu_new_timer(rt_clock, menelaus_rtc_hz, s);
+    s->rtc.hz_tm = qemu_new_timer_ms(rt_clock, menelaus_rtc_hz, s);
     /* Three output pins plus one interrupt pin.  */
     qdev_init_gpio_out(&i2c->qdev, s->out, 4);
     qdev_init_gpio_in(&i2c->qdev, menelaus_gpio_set, 3);

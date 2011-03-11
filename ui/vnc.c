@@ -1875,8 +1875,8 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
 
     if (data[0] > 3) {
         vd->timer_interval = VNC_REFRESH_INTERVAL_BASE;
-        if (!qemu_timer_expired(vd->timer, qemu_get_clock(rt_clock) + vd->timer_interval))
-            qemu_mod_timer(vd->timer, qemu_get_clock(rt_clock) + vd->timer_interval);
+        if (!qemu_timer_expired(vd->timer, qemu_get_clock_ms(rt_clock) + vd->timer_interval))
+            qemu_mod_timer(vd->timer, qemu_get_clock_ms(rt_clock) + vd->timer_interval);
     }
 
     switch (data[0]) {
@@ -2441,7 +2441,7 @@ static void vnc_refresh(void *opaque)
 
     if (vnc_trylock_display(vd)) {
         vd->timer_interval = VNC_REFRESH_INTERVAL_BASE;
-        qemu_mod_timer(vd->timer, qemu_get_clock(rt_clock) +
+        qemu_mod_timer(vd->timer, qemu_get_clock_ms(rt_clock) +
                        vd->timer_interval);
         return;
     }
@@ -2468,14 +2468,14 @@ static void vnc_refresh(void *opaque)
         if (vd->timer_interval > VNC_REFRESH_INTERVAL_MAX)
             vd->timer_interval = VNC_REFRESH_INTERVAL_MAX;
     }
-    qemu_mod_timer(vd->timer, qemu_get_clock(rt_clock) + vd->timer_interval);
+    qemu_mod_timer(vd->timer, qemu_get_clock_ms(rt_clock) + vd->timer_interval);
 }
 
 static void vnc_init_timer(VncDisplay *vd)
 {
     vd->timer_interval = VNC_REFRESH_INTERVAL_BASE;
     if (vd->timer == NULL && !QTAILQ_EMPTY(&vd->clients)) {
-        vd->timer = qemu_new_timer(rt_clock, vnc_refresh, vd);
+        vd->timer = qemu_new_timer_ms(rt_clock, vnc_refresh, vd);
         vnc_dpy_resize(vd->ds);
         vnc_refresh(vd);
     }
