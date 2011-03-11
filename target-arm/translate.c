@@ -5677,23 +5677,29 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             gen_neon_rsb(size, tmp, tmp2);
                             tcg_temp_free(tmp2);
                             break;
-                        case 24: case 27: /* Float VCGT #0, Float VCLE #0 */
+                        case 24: /* Float VCGT #0 */
                             tmp2 = tcg_const_i32(0);
                             gen_helper_neon_cgt_f32(tmp, tmp, tmp2);
                             tcg_temp_free(tmp2);
-                            if (op == 27)
-                                tcg_gen_not_i32(tmp, tmp);
                             break;
-                        case 25: case 28: /* Float VCGE #0, Float VCLT #0 */
+                        case 25: /* Float VCGE #0 */
                             tmp2 = tcg_const_i32(0);
                             gen_helper_neon_cge_f32(tmp, tmp, tmp2);
                             tcg_temp_free(tmp2);
-                            if (op == 28)
-                                tcg_gen_not_i32(tmp, tmp);
                             break;
                         case 26: /* Float VCEQ #0 */
                             tmp2 = tcg_const_i32(0);
                             gen_helper_neon_ceq_f32(tmp, tmp, tmp2);
+                            tcg_temp_free(tmp2);
+                            break;
+                        case 27: /* Float VCLE #0 */
+                            tmp2 = tcg_const_i32(0);
+                            gen_helper_neon_cge_f32(tmp, tmp2, tmp);
+                            tcg_temp_free(tmp2);
+                            break;
+                        case 28: /* Float VCLT #0 */
+                            tmp2 = tcg_const_i32(0);
+                            gen_helper_neon_cgt_f32(tmp, tmp2, tmp);
                             tcg_temp_free(tmp2);
                             break;
                         case 30: /* Float VABS */
