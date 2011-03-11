@@ -37,7 +37,6 @@ extern QEMUClock *vm_clock;
    the virtual clock. */
 extern QEMUClock *host_clock;
 
-int64_t qemu_get_clock(QEMUClock *clock);
 int64_t qemu_get_clock_ns(QEMUClock *clock);
 void qemu_clock_enable(QEMUClock *clock, int enabled);
 

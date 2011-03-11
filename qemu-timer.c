@@ -506,23 +506,6 @@ static void qemu_run_timers(QEMUClock *clock)
     }
 }
 
-int64_t qemu_get_clock(QEMUClock *clock)
-{
-    switch(clock->type) {
-    case QEMU_CLOCK_REALTIME:
-        return get_clock() / 1000000;
-    default:
-    case QEMU_CLOCK_VIRTUAL:
-        if (use_icount) {
-            return cpu_get_icount();
-        } else {
-            return cpu_get_clock();
-        }
-    case QEMU_CLOCK_HOST:
-        return get_clock_realtime();
-    }
-}
-
 int64_t qemu_get_clock_ns(QEMUClock *clock)
 {
     switch(clock->type) {
