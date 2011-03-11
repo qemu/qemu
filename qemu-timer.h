@@ -12,6 +12,10 @@
 
 /* timers */
 
+#define SCALE_MS 1000000
+#define SCALE_US 1000
+#define SCALE_NS 1
+
 typedef struct QEMUClock QEMUClock;
 typedef void QEMUTimerCB(void *opaque);
 
@@ -53,6 +57,25 @@ int qemu_calculate_timeout(void);
 void init_clocks(void);
 int init_timer_alarm(void);
 void quit_timers(void);
+
+static inline QEMUTimer *qemu_new_timer_ns(QEMUClock *clock, QEMUTimerCB *cb,
+                                           void *opaque)
+{
+    assert(clock != rt_clock);
+    return qemu_new_timer(clock, cb, opaque);
+}
+
+static inline QEMUTimer *qemu_new_timer_ms(QEMUClock *clock, QEMUTimerCB *cb,
+                                           void *opaque)
+{
+    assert(clock == rt_clock);
+    return qemu_new_timer(clock, cb, opaque);
+}
+
+static inline int64_t qemu_get_clock_ms(QEMUClock *clock)
+{
+    return qemu_get_clock_ns(clock) / SCALE_MS;
+}
 
 static inline int64_t get_ticks_per_sec(void)
 {
