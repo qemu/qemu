@@ -1810,32 +1810,40 @@ uint32_t HELPER(neon_mul_f32)(uint32_t a, uint32_t b)
 }
 
 /* Floating point comparisons produce an integer result.  */
-#define NEON_VOP_FCMP(name, cmp) \
+#define NEON_VOP_FCMP(name, ok) \
 uint32_t HELPER(neon_##name)(uint32_t a, uint32_t b) \
 { \
-    if (float32_compare_quiet(make_float32(a), make_float32(b), NFS) cmp 0) { \
-        return ~0; \
-    } else { \
-        return 0; \
+    switch (float32_compare_quiet(make_float32(a), make_float32(b), NFS)) { \
+    ok return ~0; \
+    default: return 0; \
     } \
 }
 
-NEON_VOP_FCMP(ceq_f32, ==)
-NEON_VOP_FCMP(cge_f32, >=)
-NEON_VOP_FCMP(cgt_f32, >)
+NEON_VOP_FCMP(ceq_f32, case float_relation_equal:)
+NEON_VOP_FCMP(cge_f32, case float_relation_equal: case float_relation_greater:)
+NEON_VOP_FCMP(cgt_f32, case float_relation_greater:)
 
 uint32_t HELPER(neon_acge_f32)(uint32_t a, uint32_t b)
 {
     float32 f0 = float32_abs(make_float32(a));
     float32 f1 = float32_abs(make_float32(b));
-    return (float32_compare_quiet(f0, f1,NFS) >= 0) ? ~0 : 0;
+    switch (float32_compare_quiet(f0, f1, NFS)) {
+    case float_relation_equal:
+    case float_relation_greater:
+        return ~0;
+    default:
+        return 0;
+    }
 }
 
 uint32_t HELPER(neon_acgt_f32)(uint32_t a, uint32_t b)
 {
     float32 f0 = float32_abs(make_float32(a));
     float32 f1 = float32_abs(make_float32(b));
-    return (float32_compare_quiet(f0, f1, NFS) > 0) ? ~0 : 0;
+    if (float32_compare_quiet(f0, f1, NFS) == float_relation_greater) {
+        return ~0;
+    }
+    return 0;
 }
 
 #define ELEM(V, N, SIZE) (((V) >> ((N) * (SIZE))) & ((1ull << (SIZE)) - 1))
