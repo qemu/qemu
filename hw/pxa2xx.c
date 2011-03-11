@@ -372,7 +372,7 @@ static uint32_t pxa2xx_perf_read(void *opaque, int op2, int reg, int crm)
         return s->pmnc;
     case CPCCNT:
         if (s->pmnc & 1)
-            return qemu_get_clock(vm_clock);
+            return qemu_get_clock_ns(vm_clock);
         else
             return 0;
     case CPINTEN:

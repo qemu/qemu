@@ -85,7 +85,7 @@ static void piix4_acpi_system_hot_add_init(PCIBus *bus, PIIX4PMState *s);
 static uint32_t get_pmtmr(PIIX4PMState *s)
 {
     uint32_t d;
-    d = muldiv64(qemu_get_clock(vm_clock), PM_TIMER_FREQUENCY, get_ticks_per_sec());
+    d = muldiv64(qemu_get_clock_ns(vm_clock), PM_TIMER_FREQUENCY, get_ticks_per_sec());
     return d & 0xffffff;
 }
 
@@ -93,7 +93,7 @@ static int get_pmsts(PIIX4PMState *s)
 {
     int64_t d;
 
-    d = muldiv64(qemu_get_clock(vm_clock), PM_TIMER_FREQUENCY,
+    d = muldiv64(qemu_get_clock_ns(vm_clock), PM_TIMER_FREQUENCY,
                  get_ticks_per_sec());
     if (d >= s->tmr_overflow_time)
         s->pmsts |= ACPI_BITMASK_TIMER_STATUS;
@@ -149,7 +149,7 @@ static void pm_ioport_write(IORange *ioport, uint64_t addr, unsigned width,
             pmsts = get_pmsts(s);
             if (pmsts & val & ACPI_BITMASK_TIMER_STATUS) {
                 /* if TMRSTS is reset, then compute the new overflow time */
-                d = muldiv64(qemu_get_clock(vm_clock), PM_TIMER_FREQUENCY,
+                d = muldiv64(qemu_get_clock_ns(vm_clock), PM_TIMER_FREQUENCY,
                              get_ticks_per_sec());
                 s->tmr_overflow_time = (d + 0x800000LL) & ~0x7fffffLL;
             }
@@ -413,7 +413,7 @@ static int piix4_pm_initfn(PCIDevice *dev)
     register_ioport_write(s->smb_io_base, 64, 1, smb_ioport_writeb, &s->smb);
     register_ioport_read(s->smb_io_base, 64, 1, smb_ioport_readb, &s->smb);
 
-    s->tmr_timer = qemu_new_timer(vm_clock, pm_tmr_timer, s);
+    s->tmr_timer = qemu_new_timer_ns(vm_clock, pm_tmr_timer, s);
 
     qemu_system_powerdown = *qemu_allocate_irqs(piix4_powerdown, s, 1);
 

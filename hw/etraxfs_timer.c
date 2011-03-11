@@ -85,7 +85,7 @@ static uint32_t timer_readl (void *opaque, target_phys_addr_t addr)
         r = ptimer_get_count(t->ptimer_t1);
         break;
     case R_TIME:
-        r = qemu_get_clock(vm_clock) / 10;
+        r = qemu_get_clock_ns(vm_clock) / 10;
         break;
     case RW_INTR_MASK:
         r = t->rw_intr_mask;

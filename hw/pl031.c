@@ -80,9 +80,9 @@ static void pl031_interrupt(void * opaque)
 
 static uint32_t pl031_get_count(pl031_state *s)
 {
-    /* This assumes qemu_get_clock returns the time since the machine was
+    /* This assumes qemu_get_clock_ns returns the time since the machine was
        created.  */
-    return s->tick_offset + qemu_get_clock(vm_clock) / get_ticks_per_sec();
+    return s->tick_offset + qemu_get_clock_ns(vm_clock) / get_ticks_per_sec();
 }
 
 static void pl031_set_alarm(pl031_state *s)
@@ -90,7 +90,7 @@ static void pl031_set_alarm(pl031_state *s)
     int64_t now;
     uint32_t ticks;
 
-    now = qemu_get_clock(vm_clock);
+    now = qemu_get_clock_ns(vm_clock);
     ticks = s->tick_offset + now / get_ticks_per_sec();
 
     /* The timer wraps around.  This subtraction also wraps in the same way,
@@ -217,7 +217,7 @@ static int pl031_init(SysBusDevice *dev)
     qemu_get_timedate(&tm, 0);
     s->tick_offset = mktimegm(&tm);
 
-    s->timer = qemu_new_timer(vm_clock, pl031_interrupt, s);
+    s->timer = qemu_new_timer_ns(vm_clock, pl031_interrupt, s);
     return 0;
 }
 

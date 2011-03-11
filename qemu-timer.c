@@ -242,7 +242,7 @@ static void icount_adjust(void)
         return;
 
     cur_time = cpu_get_clock();
-    cur_icount = qemu_get_clock(vm_clock);
+    cur_icount = qemu_get_clock_ns(vm_clock);
     delta = cur_icount - cur_time;
     /* FIXME: This is a very crude algorithm, somewhat prone to oscillation.  */
     if (delta > 0
@@ -271,7 +271,7 @@ static void icount_adjust_rt(void * opaque)
 static void icount_adjust_vm(void * opaque)
 {
     qemu_mod_timer(icount_vm_timer,
-                   qemu_get_clock(vm_clock) + get_ticks_per_sec() / 10);
+                   qemu_get_clock_ns(vm_clock) + get_ticks_per_sec() / 10);
     icount_adjust();
 }
 
@@ -604,9 +604,9 @@ void configure_icount(const char *option)
     icount_rt_timer = qemu_new_timer_ms(rt_clock, icount_adjust_rt, NULL);
     qemu_mod_timer(icount_rt_timer,
                    qemu_get_clock_ms(rt_clock) + 1000);
-    icount_vm_timer = qemu_new_timer(vm_clock, icount_adjust_vm, NULL);
+    icount_vm_timer = qemu_new_timer_ns(vm_clock, icount_adjust_vm, NULL);
     qemu_mod_timer(icount_vm_timer,
-                   qemu_get_clock(vm_clock) + get_ticks_per_sec() / 10);
+                   qemu_get_clock_ns(vm_clock) + get_ticks_per_sec() / 10);
 }
 
 void qemu_run_all_timers(void)
@@ -646,7 +646,7 @@ static void host_alarm_handler(int host_signum)
         static int64_t delta_min = INT64_MAX;
         static int64_t delta_max, delta_cum, last_clock, delta, ti;
         static int count;
-        ti = qemu_get_clock(vm_clock);
+        ti = qemu_get_clock_ns(vm_clock);
         if (last_clock != 0) {
             delta = ti - last_clock;
             if (delta < delta_min)
@@ -706,7 +706,7 @@ static int64_t qemu_next_alarm_deadline(void)
 
     if (!use_icount && active_timers[QEMU_CLOCK_VIRTUAL]) {
         delta = active_timers[QEMU_CLOCK_VIRTUAL]->expire_time -
-                     qemu_get_clock(vm_clock);
+                     qemu_get_clock_ns(vm_clock);
     } else {
         delta = INT32_MAX;
     }

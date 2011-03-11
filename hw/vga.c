@@ -260,7 +260,7 @@ static uint8_t vga_precise_retrace(VGACommonState *s)
         int cur_line, cur_line_char, cur_char;
         int64_t cur_tick;
 
-        cur_tick = qemu_get_clock(vm_clock);
+        cur_tick = qemu_get_clock_ns(vm_clock);
 
         cur_char = (cur_tick / r->ticks_per_char) % r->total_chars;
         cur_line = cur_char / r->htotal;

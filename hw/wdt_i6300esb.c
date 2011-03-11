@@ -129,7 +129,7 @@ static void i6300esb_restart_timer(I6300State *d, int stage)
 
     i6300esb_debug("stage %d, timeout %" PRIi64 "\n", d->stage, timeout);
 
-    qemu_mod_timer(d->timer, qemu_get_clock(vm_clock) + timeout);
+    qemu_mod_timer(d->timer, qemu_get_clock_ns(vm_clock) + timeout);
 }
 
 /* This is called when the guest disables the watchdog. */
@@ -410,7 +410,7 @@ static int i6300esb_init(PCIDevice *dev)
 
     i6300esb_debug("I6300State = %p\n", d);
 
-    d->timer = qemu_new_timer(vm_clock, i6300esb_timer_expired, d);
+    d->timer = qemu_new_timer_ns(vm_clock, i6300esb_timer_expired, d);
     d->previous_reboot_flag = 0;
 
     pci_conf = d->dev.config;

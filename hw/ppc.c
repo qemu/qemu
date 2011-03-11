@@ -419,7 +419,7 @@ uint64_t cpu_ppc_load_tbl (CPUState *env)
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
 
-    tb = cpu_ppc_get_tb(tb_env, qemu_get_clock(vm_clock), tb_env->tb_offset);
+    tb = cpu_ppc_get_tb(tb_env, qemu_get_clock_ns(vm_clock), tb_env->tb_offset);
     LOG_TB("%s: tb %016" PRIx64 "\n", __func__, tb);
 
     return tb;
@@ -430,7 +430,7 @@ static inline uint32_t _cpu_ppc_load_tbu(CPUState *env)
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
 
-    tb = cpu_ppc_get_tb(tb_env, qemu_get_clock(vm_clock), tb_env->tb_offset);
+    tb = cpu_ppc_get_tb(tb_env, qemu_get_clock_ns(vm_clock), tb_env->tb_offset);
     LOG_TB("%s: tb %016" PRIx64 "\n", __func__, tb);
 
     return tb >> 32;
@@ -454,9 +454,9 @@ void cpu_ppc_store_tbl (CPUState *env, uint32_t value)
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
 
-    tb = cpu_ppc_get_tb(tb_env, qemu_get_clock(vm_clock), tb_env->tb_offset);
+    tb = cpu_ppc_get_tb(tb_env, qemu_get_clock_ns(vm_clock), tb_env->tb_offset);
     tb &= 0xFFFFFFFF00000000ULL;
-    cpu_ppc_store_tb(tb_env, qemu_get_clock(vm_clock),
+    cpu_ppc_store_tb(tb_env, qemu_get_clock_ns(vm_clock),
                      &tb_env->tb_offset, tb | (uint64_t)value);
 }
 
@@ -465,9 +465,9 @@ static inline void _cpu_ppc_store_tbu(CPUState *env, uint32_t value)
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
 
-    tb = cpu_ppc_get_tb(tb_env, qemu_get_clock(vm_clock), tb_env->tb_offset);
+    tb = cpu_ppc_get_tb(tb_env, qemu_get_clock_ns(vm_clock), tb_env->tb_offset);
     tb &= 0x00000000FFFFFFFFULL;
-    cpu_ppc_store_tb(tb_env, qemu_get_clock(vm_clock),
+    cpu_ppc_store_tb(tb_env, qemu_get_clock_ns(vm_clock),
                      &tb_env->tb_offset, ((uint64_t)value << 32) | tb);
 }
 
@@ -481,7 +481,7 @@ uint64_t cpu_ppc_load_atbl (CPUState *env)
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
 
-    tb = cpu_ppc_get_tb(tb_env, qemu_get_clock(vm_clock), tb_env->atb_offset);
+    tb = cpu_ppc_get_tb(tb_env, qemu_get_clock_ns(vm_clock), tb_env->atb_offset);
     LOG_TB("%s: tb %016" PRIx64 "\n", __func__, tb);
 
     return tb;
@@ -492,7 +492,7 @@ uint32_t cpu_ppc_load_atbu (CPUState *env)
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
 
-    tb = cpu_ppc_get_tb(tb_env, qemu_get_clock(vm_clock), tb_env->atb_offset);
+    tb = cpu_ppc_get_tb(tb_env, qemu_get_clock_ns(vm_clock), tb_env->atb_offset);
     LOG_TB("%s: tb %016" PRIx64 "\n", __func__, tb);
 
     return tb >> 32;
@@ -503,9 +503,9 @@ void cpu_ppc_store_atbl (CPUState *env, uint32_t value)
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
 
-    tb = cpu_ppc_get_tb(tb_env, qemu_get_clock(vm_clock), tb_env->atb_offset);
+    tb = cpu_ppc_get_tb(tb_env, qemu_get_clock_ns(vm_clock), tb_env->atb_offset);
     tb &= 0xFFFFFFFF00000000ULL;
-    cpu_ppc_store_tb(tb_env, qemu_get_clock(vm_clock),
+    cpu_ppc_store_tb(tb_env, qemu_get_clock_ns(vm_clock),
                      &tb_env->atb_offset, tb | (uint64_t)value);
 }
 
@@ -514,9 +514,9 @@ void cpu_ppc_store_atbu (CPUState *env, uint32_t value)
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
 
-    tb = cpu_ppc_get_tb(tb_env, qemu_get_clock(vm_clock), tb_env->atb_offset);
+    tb = cpu_ppc_get_tb(tb_env, qemu_get_clock_ns(vm_clock), tb_env->atb_offset);
     tb &= 0x00000000FFFFFFFFULL;
-    cpu_ppc_store_tb(tb_env, qemu_get_clock(vm_clock),
+    cpu_ppc_store_tb(tb_env, qemu_get_clock_ns(vm_clock),
                      &tb_env->atb_offset, ((uint64_t)value << 32) | tb);
 }
 
@@ -527,7 +527,7 @@ static void cpu_ppc_tb_stop (CPUState *env)
 
     /* If the time base is already frozen, do nothing */
     if (tb_env->tb_freq != 0) {
-        vmclk = qemu_get_clock(vm_clock);
+        vmclk = qemu_get_clock_ns(vm_clock);
         /* Get the time base */
         tb = cpu_ppc_get_tb(tb_env, vmclk, tb_env->tb_offset);
         /* Get the alternate time base */
@@ -549,7 +549,7 @@ static void cpu_ppc_tb_start (CPUState *env)
 
     /* If the time base is not frozen, do nothing */
     if (tb_env->tb_freq == 0) {
-        vmclk = qemu_get_clock(vm_clock);
+        vmclk = qemu_get_clock_ns(vm_clock);
         /* Get the time base from tb_offset */
         tb = tb_env->tb_offset;
         /* Get the alternate time base from atb_offset */
@@ -569,7 +569,7 @@ static inline uint32_t _cpu_ppc_load_decr(CPUState *env, uint64_t next)
     uint32_t decr;
     int64_t diff;
 
-    diff = next - qemu_get_clock(vm_clock);
+    diff = next - qemu_get_clock_ns(vm_clock);
     if (diff >= 0)
         decr = muldiv64(diff, tb_env->decr_freq, get_ticks_per_sec());
     else
@@ -598,7 +598,7 @@ uint64_t cpu_ppc_load_purr (CPUState *env)
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t diff;
 
-    diff = qemu_get_clock(vm_clock) - tb_env->purr_start;
+    diff = qemu_get_clock_ns(vm_clock) - tb_env->purr_start;
 
     return tb_env->purr_load + muldiv64(diff, tb_env->tb_freq, get_ticks_per_sec());
 }
@@ -631,7 +631,7 @@ static void __cpu_ppc_store_decr (CPUState *env, uint64_t *nextp,
 
     LOG_TB("%s: %08" PRIx32 " => %08" PRIx32 "\n", __func__,
                 decr, value);
-    now = qemu_get_clock(vm_clock);
+    now = qemu_get_clock_ns(vm_clock);
     next = now + muldiv64(value, get_ticks_per_sec(), tb_env->decr_freq);
     if (is_excp)
         next += *nextp - now;
@@ -692,7 +692,7 @@ void cpu_ppc_store_purr (CPUState *env, uint64_t value)
     ppc_tb_t *tb_env = env->tb_env;
 
     tb_env->purr_load = value;
-    tb_env->purr_start = qemu_get_clock(vm_clock);
+    tb_env->purr_start = qemu_get_clock_ns(vm_clock);
 }
 
 static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
@@ -719,11 +719,11 @@ clk_setup_cb cpu_ppc_tb_init (CPUState *env, uint32_t freq)
     tb_env = qemu_mallocz(sizeof(ppc_tb_t));
     env->tb_env = tb_env;
     /* Create new timer */
-    tb_env->decr_timer = qemu_new_timer(vm_clock, &cpu_ppc_decr_cb, env);
+    tb_env->decr_timer = qemu_new_timer_ns(vm_clock, &cpu_ppc_decr_cb, env);
     if (0) {
         /* XXX: find a suitable condition to enable the hypervisor decrementer
          */
-        tb_env->hdecr_timer = qemu_new_timer(vm_clock, &cpu_ppc_hdecr_cb, env);
+        tb_env->hdecr_timer = qemu_new_timer_ns(vm_clock, &cpu_ppc_hdecr_cb, env);
     } else {
         tb_env->hdecr_timer = NULL;
     }
@@ -787,7 +787,7 @@ static void cpu_4xx_fit_cb (void *opaque)
     env = opaque;
     tb_env = env->tb_env;
     ppcemb_timer = tb_env->opaque;
-    now = qemu_get_clock(vm_clock);
+    now = qemu_get_clock_ns(vm_clock);
     switch ((env->spr[SPR_40x_TCR] >> 24) & 0x3) {
     case 0:
         next = 1 << 9;
@@ -833,7 +833,7 @@ static void start_stop_pit (CPUState *env, ppc_tb_t *tb_env, int is_excp)
     } else {
         LOG_TB("%s: start PIT %016" PRIx64 "\n",
                     __func__, ppcemb_timer->pit_reload);
-        now = qemu_get_clock(vm_clock);
+        now = qemu_get_clock_ns(vm_clock);
         next = now + muldiv64(ppcemb_timer->pit_reload,
                               get_ticks_per_sec(), tb_env->decr_freq);
         if (is_excp)
@@ -877,7 +877,7 @@ static void cpu_4xx_wdt_cb (void *opaque)
     env = opaque;
     tb_env = env->tb_env;
     ppcemb_timer = tb_env->opaque;
-    now = qemu_get_clock(vm_clock);
+    now = qemu_get_clock_ns(vm_clock);
     switch ((env->spr[SPR_40x_TCR] >> 30) & 0x3) {
     case 0:
         next = 1 << 17;
@@ -1002,11 +1002,11 @@ clk_setup_cb ppc_emb_timers_init (CPUState *env, uint32_t freq,
     LOG_TB("%s freq %" PRIu32 "\n", __func__, freq);
     if (ppcemb_timer != NULL) {
         /* We use decr timer for PIT */
-        tb_env->decr_timer = qemu_new_timer(vm_clock, &cpu_4xx_pit_cb, env);
+        tb_env->decr_timer = qemu_new_timer_ns(vm_clock, &cpu_4xx_pit_cb, env);
         ppcemb_timer->fit_timer =
-            qemu_new_timer(vm_clock, &cpu_4xx_fit_cb, env);
+            qemu_new_timer_ns(vm_clock, &cpu_4xx_fit_cb, env);
         ppcemb_timer->wdt_timer =
-            qemu_new_timer(vm_clock, &cpu_4xx_wdt_cb, env);
+            qemu_new_timer_ns(vm_clock, &cpu_4xx_wdt_cb, env);
         ppcemb_timer->decr_excp = decr_excp;
     }
 

@@ -58,7 +58,7 @@ static void ib700_write_enable_reg(void *vp, uint32_t addr, uint32_t data)
     ib700_debug("addr = %x, data = %x\n", addr, data);
 
     timeout = (int64_t) time_map[data & 0xF] * get_ticks_per_sec();
-    qemu_mod_timer(s->timer, qemu_get_clock (vm_clock) + timeout);
+    qemu_mod_timer(s->timer, qemu_get_clock_ns (vm_clock) + timeout);
 }
 
 /* A write (of any value) to this register disables the timer. */
@@ -99,7 +99,7 @@ static int wdt_ib700_init(ISADevice *dev)
 
     ib700_debug("watchdog init\n");
 
-    s->timer = qemu_new_timer(vm_clock, ib700_timer_expired, s);
+    s->timer = qemu_new_timer_ns(vm_clock, ib700_timer_expired, s);
     register_ioport_write(0x441, 2, 1, ib700_write_disable_reg, s);
     register_ioport_write(0x443, 2, 1, ib700_write_enable_reg, s);
 

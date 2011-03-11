@@ -166,7 +166,7 @@ static void timer_handler (int c, double interval_Sec)
     s->ticking[n] = 1;
 #ifdef DEBUG
     interval = get_ticks_per_sec() * interval_Sec;
-    exp = qemu_get_clock (vm_clock) + interval;
+    exp = qemu_get_clock_ns (vm_clock) + interval;
     s->exp[n] = exp;
 #endif
 

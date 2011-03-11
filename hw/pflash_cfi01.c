@@ -628,7 +628,7 @@ pflash_t *pflash_cfi01_register(target_phys_addr_t base, ram_addr_t off,
 #else
     pfl->ro = 0;
 #endif
-    pfl->timer = qemu_new_timer(vm_clock, pflash_timer, pfl);
+    pfl->timer = qemu_new_timer_ns(vm_clock, pflash_timer, pfl);
     pfl->base = base;
     pfl->sector_len = sector_len;
     pfl->total_len = total_len;

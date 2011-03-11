@@ -118,7 +118,7 @@ static uint32_t arm_sysctl_read(void *opaque, target_phys_addr_t offset)
     case 0x58: /* BOOTCS */
         return 0;
     case 0x5c: /* 24MHz */
-        return muldiv64(qemu_get_clock(vm_clock), 24000000, get_ticks_per_sec());
+        return muldiv64(qemu_get_clock_ns(vm_clock), 24000000, get_ticks_per_sec());
     case 0x60: /* MISC */
         return 0;
     case 0x84: /* PROCID0 */

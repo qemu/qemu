@@ -68,7 +68,7 @@ uint64_t ptimer_get_count(ptimer_state *s)
     uint64_t counter;
 
     if (s->enabled) {
-        now = qemu_get_clock(vm_clock);
+        now = qemu_get_clock_ns(vm_clock);
         /* Figure out the current counter value.  */
         if (now - s->next_event > 0
             || s->period == 0) {
@@ -122,7 +122,7 @@ void ptimer_set_count(ptimer_state *s, uint64_t count)
 {
     s->delta = count;
     if (s->enabled) {
-        s->next_event = qemu_get_clock(vm_clock);
+        s->next_event = qemu_get_clock_ns(vm_clock);
         ptimer_reload(s);
     }
 }
@@ -137,7 +137,7 @@ void ptimer_run(ptimer_state *s, int oneshot)
         return;
     }
     s->enabled = oneshot ? 2 : 1;
-    s->next_event = qemu_get_clock(vm_clock);
+    s->next_event = qemu_get_clock_ns(vm_clock);
     ptimer_reload(s);
 }
 
@@ -159,7 +159,7 @@ void ptimer_set_period(ptimer_state *s, int64_t period)
     s->period = period;
     s->period_frac = 0;
     if (s->enabled) {
-        s->next_event = qemu_get_clock(vm_clock);
+        s->next_event = qemu_get_clock_ns(vm_clock);
         ptimer_reload(s);
     }
 }
@@ -170,7 +170,7 @@ void ptimer_set_freq(ptimer_state *s, uint32_t freq)
     s->period = 1000000000ll / freq;
     s->period_frac = (1000000000ll << 32) / freq;
     if (s->enabled) {
-        s->next_event = qemu_get_clock(vm_clock);
+        s->next_event = qemu_get_clock_ns(vm_clock);
         ptimer_reload(s);
     }
 }
@@ -183,7 +183,7 @@ void ptimer_set_limit(ptimer_state *s, uint64_t limit, int reload)
     if (reload)
         s->delta = limit;
     if (s->enabled && reload) {
-        s->next_event = qemu_get_clock(vm_clock);
+        s->next_event = qemu_get_clock_ns(vm_clock);
         ptimer_reload(s);
     }
 }
@@ -239,6 +239,6 @@ ptimer_state *ptimer_init(QEMUBH *bh)
 
     s = (ptimer_state *)qemu_mallocz(sizeof(ptimer_state));
     s->bh = bh;
-    s->timer = qemu_new_timer(vm_clock, ptimer_tick, s);
+    s->timer = qemu_new_timer_ns(vm_clock, ptimer_tick, s);
     return s;
 }

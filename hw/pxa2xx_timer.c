@@ -171,7 +171,7 @@ static uint32_t pxa2xx_timer_read(void *opaque, target_phys_addr_t offset)
             goto badreg;
         return s->tm4[tm].tm.value;
     case OSCR:
-        return s->clock + muldiv64(qemu_get_clock(vm_clock) -
+        return s->clock + muldiv64(qemu_get_clock_ns(vm_clock) -
                         s->lastload, s->freq, get_ticks_per_sec());
     case OSCR11: tm ++;
     case OSCR10: tm ++;
@@ -187,7 +187,7 @@ static uint32_t pxa2xx_timer_read(void *opaque, target_phys_addr_t offset)
         if ((tm == 9 - 4 || tm == 11 - 4) && (s->tm4[tm].control & (1 << 9))) {
             if (s->tm4[tm - 1].freq)
                 s->snapshot = s->tm4[tm - 1].clock + muldiv64(
-                                qemu_get_clock(vm_clock) -
+                                qemu_get_clock_ns(vm_clock) -
                                 s->tm4[tm - 1].lastload,
                                 s->tm4[tm - 1].freq, get_ticks_per_sec());
             else
@@ -196,7 +196,7 @@ static uint32_t pxa2xx_timer_read(void *opaque, target_phys_addr_t offset)
 
         if (!s->tm4[tm].freq)
             return s->tm4[tm].clock;
-        return s->tm4[tm].clock + muldiv64(qemu_get_clock(vm_clock) -
+        return s->tm4[tm].clock + muldiv64(qemu_get_clock_ns(vm_clock) -
                         s->tm4[tm].lastload, s->tm4[tm].freq, get_ticks_per_sec());
     case OIER:
         return s->irq_enabled;
@@ -237,7 +237,7 @@ static void pxa2xx_timer_write(void *opaque, target_phys_addr_t offset,
     case OSMR1:  tm ++;
     case OSMR0:
         s->timer[tm].value = value;
-        pxa2xx_timer_update(s, qemu_get_clock(vm_clock));
+        pxa2xx_timer_update(s, qemu_get_clock_ns(vm_clock));
         break;
     case OSMR11: tm ++;
     case OSMR10: tm ++;
@@ -250,11 +250,11 @@ static void pxa2xx_timer_write(void *opaque, target_phys_addr_t offset,
         if (!pxa2xx_timer_has_tm4(s))
             goto badreg;
         s->tm4[tm].tm.value = value;
-        pxa2xx_timer_update4(s, qemu_get_clock(vm_clock), tm);
+        pxa2xx_timer_update4(s, qemu_get_clock_ns(vm_clock), tm);
         break;
     case OSCR:
         s->oldclock = s->clock;
-        s->lastload = qemu_get_clock(vm_clock);
+        s->lastload = qemu_get_clock_ns(vm_clock);
         s->clock = value;
         pxa2xx_timer_update(s, s->lastload);
         break;
@@ -269,7 +269,7 @@ static void pxa2xx_timer_write(void *opaque, target_phys_addr_t offset,
         if (!pxa2xx_timer_has_tm4(s))
             goto badreg;
         s->tm4[tm].oldclock = s->tm4[tm].clock;
-        s->tm4[tm].lastload = qemu_get_clock(vm_clock);
+        s->tm4[tm].lastload = qemu_get_clock_ns(vm_clock);
         s->tm4[tm].clock = value;
         pxa2xx_timer_update4(s, s->tm4[tm].lastload, tm);
         break;
@@ -300,7 +300,7 @@ static void pxa2xx_timer_write(void *opaque, target_phys_addr_t offset,
             s->tm4[tm].freq = pxa2xx_timer4_freq[value & 7];
         else {
             s->tm4[tm].freq = 0;
-            pxa2xx_timer_update4(s, qemu_get_clock(vm_clock), tm);
+            pxa2xx_timer_update4(s, qemu_get_clock_ns(vm_clock), tm);
         }
         break;
     case OMCR11: tm ++;
@@ -316,7 +316,7 @@ static void pxa2xx_timer_write(void *opaque, target_phys_addr_t offset,
                     pxa2xx_timer4_freq[(value & (1 << 8)) ?  0 : (value & 7)];
         else {
             s->tm4[tm].freq = 0;
-            pxa2xx_timer_update4(s, qemu_get_clock(vm_clock), tm);
+            pxa2xx_timer_update4(s, qemu_get_clock_ns(vm_clock), tm);
         }
         break;
     default:
@@ -363,7 +363,7 @@ static void pxa2xx_timer_tick4(void *opaque)
     if (t->control & (1 << 3))
         t->clock = 0;
     if (t->control & (1 << 6))
-        pxa2xx_timer_update4(i, qemu_get_clock(vm_clock), t->tm.num - 4);
+        pxa2xx_timer_update4(i, qemu_get_clock_ns(vm_clock), t->tm.num - 4);
     if (i->events & 0xff0)
         qemu_irq_raise(i->irq4);
 }
@@ -374,7 +374,7 @@ static int pxa25x_timer_post_load(void *opaque, int version_id)
     int64_t now;
     int i;
 
-    now = qemu_get_clock(vm_clock);
+    now = qemu_get_clock_ns(vm_clock);
     pxa2xx_timer_update(s, now);
 
     if (pxa2xx_timer_has_tm4(s))
@@ -394,7 +394,7 @@ static int pxa2xx_timer_init(SysBusDevice *dev)
     s->irq_enabled = 0;
     s->oldclock = 0;
     s->clock = 0;
-    s->lastload = qemu_get_clock(vm_clock);
+    s->lastload = qemu_get_clock_ns(vm_clock);
     s->reset3 = 0;
 
     for (i = 0; i < 4; i ++) {
@@ -402,7 +402,7 @@ static int pxa2xx_timer_init(SysBusDevice *dev)
         sysbus_init_irq(dev, &s->timer[i].irq);
         s->timer[i].info = s;
         s->timer[i].num = i;
-        s->timer[i].qtimer = qemu_new_timer(vm_clock,
+        s->timer[i].qtimer = qemu_new_timer_ns(vm_clock,
                         pxa2xx_timer_tick, &s->timer[i]);
     }
     if (s->flags & (1 << PXA2XX_TIMER_HAVE_TM4)) {
@@ -414,7 +414,7 @@ static int pxa2xx_timer_init(SysBusDevice *dev)
             s->tm4[i].tm.num = i + 4;
             s->tm4[i].freq = 0;
             s->tm4[i].control = 0x0;
-            s->tm4[i].tm.qtimer = qemu_new_timer(vm_clock,
+            s->tm4[i].tm.qtimer = qemu_new_timer_ns(vm_clock,
                         pxa2xx_timer_tick4, &s->tm4[i]);
         }
     }

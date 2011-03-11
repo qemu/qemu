@@ -1943,7 +1943,7 @@ void do_savevm(Monitor *mon, const QDict *qdict)
     sn->date_sec = tv.tv_sec;
     sn->date_nsec = tv.tv_usec * 1000;
 #endif
-    sn->vm_clock_nsec = qemu_get_clock(vm_clock);
+    sn->vm_clock_nsec = qemu_get_clock_ns(vm_clock);
 
     if (name) {
         ret = bdrv_snapshot_find(bs, old_sn, name);
