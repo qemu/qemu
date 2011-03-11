@@ -12,6 +12,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <time.h>
+#include <signal.h>
+#include <pthread.h>
+#include "qerror.h"
 #include "qemu-timer.h"
 #include "trace.h"
 
@@ -23,6 +26,12 @@
 
 /** Trace file version number, bump if format changes */
 #define HEADER_VERSION 0
+
+/** Records were dropped event ID */
+#define DROPPED_EVENT_ID (~(uint64_t)0 - 1)
+
+/** Trace record is valid */
+#define TRACE_RECORD_VALID ((uint64_t)1 << 63)
 
 /** Trace buffer entry */
 typedef struct {
@@ -37,126 +46,135 @@ typedef struct {
 } TraceRecord;
 
 enum {
-    TRACE_BUF_LEN = 64 * 1024 / sizeof(TraceRecord),
+    TRACE_BUF_LEN = 4096,
+    TRACE_BUF_FLUSH_THRESHOLD = TRACE_BUF_LEN / 4,
 };
+
+/*
+ * Trace records are written out by a dedicated thread.  The thread waits for
+ * records to become available, writes them out, and then waits again.
+ */
+static pthread_mutex_t trace_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t trace_available_cond = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t trace_empty_cond = PTHREAD_COND_INITIALIZER;
+static bool trace_available;
+static bool trace_writeout_enabled;
 
 static TraceRecord trace_buf[TRACE_BUF_LEN];
 static unsigned int trace_idx;
 static FILE *trace_fp;
 static char *trace_file_name = NULL;
-static bool trace_file_enabled = false;
-
-void st_print_trace_file_status(FILE *stream, int (*stream_printf)(FILE *stream, const char *fmt, ...))
-{
-    stream_printf(stream, "Trace file \"%s\" %s.\n",
-                  trace_file_name, trace_file_enabled ? "on" : "off");
-}
-
-static bool write_header(FILE *fp)
-{
-    static const TraceRecord header = {
-        .event = HEADER_EVENT_ID,
-        .timestamp_ns = HEADER_MAGIC,
-        .x1 = HEADER_VERSION,
-    };
-
-    return fwrite(&header, sizeof header, 1, fp) == 1;
-}
 
 /**
- * set_trace_file : To set the name of a trace file.
- * @file : pointer to the name to be set.
- *         If NULL, set to the default name-<pid> set at config time.
+ * Read a trace record from the trace buffer
+ *
+ * @idx         Trace buffer index
+ * @record      Trace record to fill
+ *
+ * Returns false if the record is not valid.
  */
-bool st_set_trace_file(const char *file)
+static bool get_trace_record(unsigned int idx, TraceRecord *record)
 {
-    st_set_trace_file_enabled(false);
-
-    free(trace_file_name);
-
-    if (!file) {
-        if (asprintf(&trace_file_name, CONFIG_TRACE_FILE, getpid()) < 0) {
-            trace_file_name = NULL;
-            return false;
-        }
-    } else {
-        if (asprintf(&trace_file_name, "%s", file) < 0) {
-            trace_file_name = NULL;
-            return false;
-        }
+    if (!(trace_buf[idx].event & TRACE_RECORD_VALID)) {
+        return false;
     }
 
-    st_set_trace_file_enabled(true);
+    __sync_synchronize(); /* read memory barrier before accessing record */
+
+    *record = trace_buf[idx];
+    record->event &= ~TRACE_RECORD_VALID;
     return true;
 }
 
-static void flush_trace_file(void)
+/**
+ * Kick writeout thread
+ *
+ * @wait        Whether to wait for writeout thread to complete
+ */
+static void flush_trace_file(bool wait)
 {
-    /* If the trace file is not open yet, open it now */
-    if (!trace_fp) {
-        trace_fp = fopen(trace_file_name, "w");
-        if (!trace_fp) {
-            /* Avoid repeatedly trying to open file on failure */
-            trace_file_enabled = false;
-            return;
+    pthread_mutex_lock(&trace_lock);
+    trace_available = true;
+    pthread_cond_signal(&trace_available_cond);
+
+    if (wait) {
+        pthread_cond_wait(&trace_empty_cond, &trace_lock);
+    }
+
+    pthread_mutex_unlock(&trace_lock);
+}
+
+static void wait_for_trace_records_available(void)
+{
+    pthread_mutex_lock(&trace_lock);
+    while (!(trace_available && trace_writeout_enabled)) {
+        pthread_cond_signal(&trace_empty_cond);
+        pthread_cond_wait(&trace_available_cond, &trace_lock);
+    }
+    trace_available = false;
+    pthread_mutex_unlock(&trace_lock);
+}
+
+static void *writeout_thread(void *opaque)
+{
+    TraceRecord record;
+    unsigned int writeout_idx = 0;
+    unsigned int num_available, idx;
+    size_t unused;
+
+    for (;;) {
+        wait_for_trace_records_available();
+
+        num_available = trace_idx - writeout_idx;
+        if (num_available > TRACE_BUF_LEN) {
+            record = (TraceRecord){
+                .event = DROPPED_EVENT_ID,
+                .x1 = num_available,
+            };
+            unused = fwrite(&record, sizeof(record), 1, trace_fp);
+            writeout_idx += num_available;
         }
-        write_header(trace_fp);
+
+        idx = writeout_idx % TRACE_BUF_LEN;
+        while (get_trace_record(idx, &record)) {
+            trace_buf[idx].event = 0; /* clear valid bit */
+            unused = fwrite(&record, sizeof(record), 1, trace_fp);
+            idx = ++writeout_idx % TRACE_BUF_LEN;
+        }
+
+        fflush(trace_fp);
     }
-
-    if (trace_fp) {
-        size_t unused; /* for when fwrite(3) is declared warn_unused_result */
-        unused = fwrite(trace_buf, trace_idx * sizeof(trace_buf[0]), 1, trace_fp);
-    }
-}
-
-void st_flush_trace_buffer(void)
-{
-    if (trace_file_enabled) {
-        flush_trace_file();
-    }
-
-    /* Discard written trace records */
-    trace_idx = 0;
-}
-
-void st_set_trace_file_enabled(bool enable)
-{
-    if (enable == trace_file_enabled) {
-        return; /* no change */
-    }
-
-    /* Flush/discard trace buffer */
-    st_flush_trace_buffer();
-
-    /* To disable, close trace file */
-    if (!enable) {
-        fclose(trace_fp);
-        trace_fp = NULL;
-    }
-
-    trace_file_enabled = enable;
+    return NULL;
 }
 
 static void trace(TraceEventID event, uint64_t x1, uint64_t x2, uint64_t x3,
                   uint64_t x4, uint64_t x5, uint64_t x6)
 {
-    TraceRecord *rec = &trace_buf[trace_idx];
+    unsigned int idx;
+    uint64_t timestamp;
 
     if (!trace_list[event].state) {
         return;
     }
 
-    rec->event = event;
-    rec->timestamp_ns = get_clock();
-    rec->x1 = x1;
-    rec->x2 = x2;
-    rec->x3 = x3;
-    rec->x4 = x4;
-    rec->x5 = x5;
-    rec->x6 = x6;
+    timestamp = get_clock();
 
-    if (++trace_idx == TRACE_BUF_LEN) {
-        st_flush_trace_buffer();
+    idx = __sync_fetch_and_add(&trace_idx, 1) % TRACE_BUF_LEN;
+    trace_buf[idx] = (TraceRecord){
+        .event = event,
+        .timestamp_ns = timestamp,
+        .x1 = x1,
+        .x2 = x2,
+        .x3 = x3,
+        .x4 = x4,
+        .x5 = x5,
+        .x6 = x6,
+    };
+    __sync_synchronize(); /* write barrier before marking as valid */
+    trace_buf[idx].event |= TRACE_RECORD_VALID;
+
+    if ((idx + 1) % TRACE_BUF_FLUSH_THRESHOLD == 0) {
+        flush_trace_file(false);
     }
 }
 
@@ -195,24 +213,93 @@ void trace6(TraceEventID event, uint64_t x1, uint64_t x2, uint64_t x3, uint64_t 
     trace(event, x1, x2, x3, x4, x5, x6);
 }
 
-/**
- * Flush the trace buffer on exit
- */
-static void __attribute__((constructor)) st_init(void)
+void st_set_trace_file_enabled(bool enable)
 {
-    atexit(st_flush_trace_buffer);
+    if (enable == !!trace_fp) {
+        return; /* no change */
+    }
+
+    /* Halt trace writeout */
+    flush_trace_file(true);
+    trace_writeout_enabled = false;
+    flush_trace_file(true);
+
+    if (enable) {
+        static const TraceRecord header = {
+            .event = HEADER_EVENT_ID,
+            .timestamp_ns = HEADER_MAGIC,
+            .x1 = HEADER_VERSION,
+        };
+
+        trace_fp = fopen(trace_file_name, "w");
+        if (!trace_fp) {
+            return;
+        }
+
+        if (fwrite(&header, sizeof header, 1, trace_fp) != 1) {
+            fclose(trace_fp);
+            trace_fp = NULL;
+            return;
+        }
+
+        /* Resume trace writeout */
+        trace_writeout_enabled = true;
+        flush_trace_file(false);
+    } else {
+        fclose(trace_fp);
+        trace_fp = NULL;
+    }
+}
+
+/**
+ * Set the name of a trace file
+ *
+ * @file        The trace file name or NULL for the default name-<pid> set at
+ *              config time
+ */
+bool st_set_trace_file(const char *file)
+{
+    st_set_trace_file_enabled(false);
+
+    free(trace_file_name);
+
+    if (!file) {
+        if (asprintf(&trace_file_name, CONFIG_TRACE_FILE, getpid()) < 0) {
+            trace_file_name = NULL;
+            return false;
+        }
+    } else {
+        if (asprintf(&trace_file_name, "%s", file) < 0) {
+            trace_file_name = NULL;
+            return false;
+        }
+    }
+
+    st_set_trace_file_enabled(true);
+    return true;
+}
+
+void st_print_trace_file_status(FILE *stream, int (*stream_printf)(FILE *stream, const char *fmt, ...))
+{
+    stream_printf(stream, "Trace file \"%s\" %s.\n",
+                  trace_file_name, trace_fp ? "on" : "off");
 }
 
 void st_print_trace(FILE *stream, int (*stream_printf)(FILE *stream, const char *fmt, ...))
 {
     unsigned int i;
 
-    for (i = 0; i < trace_idx; i++) {
+    for (i = 0; i < TRACE_BUF_LEN; i++) {
+        TraceRecord record;
+
+        if (!get_trace_record(i, &record)) {
+            continue;
+        }
         stream_printf(stream, "Event %" PRIu64 " : %" PRIx64 " %" PRIx64
                       " %" PRIx64 " %" PRIx64 " %" PRIx64 " %" PRIx64 "\n",
-                      trace_buf[i].event, trace_buf[i].x1, trace_buf[i].x2,
-                      trace_buf[i].x3, trace_buf[i].x4, trace_buf[i].x5,
-                      trace_buf[i].x6);
+                      record.event, record.x1, record.x2,
+                      record.x3, record.x4, record.x5,
+                      record.x6);
     }
 }
 
@@ -226,30 +313,44 @@ void st_print_trace_events(FILE *stream, int (*stream_printf)(FILE *stream, cons
     }
 }
 
-static TraceEvent* find_trace_event_by_name(const char *tname)
+bool st_change_trace_event_state(const char *name, bool enabled)
 {
     unsigned int i;
 
-    if (!tname) {
-        return NULL;
-    }
-
     for (i = 0; i < NR_TRACE_EVENTS; i++) {
-        if (!strcmp(trace_list[i].tp_name, tname)) {
-            return &trace_list[i];
+        if (!strcmp(trace_list[i].tp_name, name)) {
+            trace_list[i].state = enabled;
+            return true;
         }
     }
-    return NULL; /* indicates end of list reached without a match */
+    return false;
 }
 
-bool st_change_trace_event_state(const char *tname, bool tstate)
+void st_flush_trace_buffer(void)
 {
-    TraceEvent *tp;
+    flush_trace_file(true);
+}
 
-    tp = find_trace_event_by_name(tname);
-    if (tp) {
-        tp->state = tstate;
-        return true;
+void st_init(const char *file)
+{
+    pthread_t thread;
+    pthread_attr_t attr;
+    sigset_t set, oldset;
+    int ret;
+
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+    sigfillset(&set);
+    pthread_sigmask(SIG_SETMASK, &set, &oldset);
+    ret = pthread_create(&thread, &attr, writeout_thread, NULL);
+    pthread_sigmask(SIG_SETMASK, &oldset, NULL);
+
+    if (ret != 0) {
+        error_report("warning: unable to create trace file thread\n");
+        return;
     }
-    return false;
+
+    atexit(st_flush_trace_buffer);
+    st_set_trace_file(file);
 }

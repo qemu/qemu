@@ -47,9 +47,6 @@
 #include <dirent.h>
 #include <netdb.h>
 #include <sys/select.h>
-#ifdef CONFIG_SIMPLE_TRACE
-#include "trace.h"
-#endif
 
 #ifdef CONFIG_BSD
 #include <sys/stat.h>
@@ -159,6 +156,7 @@ int main(int argc, char **argv)
 #include "slirp/libslirp.h"
 
 #include "trace.h"
+#include "simpletrace.h"
 #include "qemu-queue.h"
 #include "cpus.h"
 #include "arch_init.h"
@@ -1941,10 +1939,8 @@ int main(int argc, char **argv, char **envp)
     const char *incoming = NULL;
     int show_vnc_port = 0;
     int defconfig = 1;
-
-#ifdef CONFIG_SIMPLE_TRACE
     const char *trace_file = NULL;
-#endif
+
     atexit(qemu_run_exit_notifiers);
     error_set_progname(argv[0]);
 
@@ -2770,6 +2766,8 @@ int main(int argc, char **argv, char **envp)
     }
     loc_set_none();
 
+    st_init(trace_file);
+
     /* If no data_dir is specified then try to find it relative to the
        executable path.  */
     if (!data_dir) {
@@ -2780,12 +2778,6 @@ int main(int argc, char **argv, char **envp)
         data_dir = CONFIG_QEMU_DATADIR;
     }
 
-#ifdef CONFIG_SIMPLE_TRACE
-    /*
-     * Set the trace file name, if specified.
-     */
-    st_set_trace_file(trace_file);
-#endif
     /*
      * Default to max_cpus = smp_cpus, in case the user doesn't
      * specify a max_cpus value.

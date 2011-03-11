@@ -2477,6 +2477,8 @@ BlockDriverAIOCB *bdrv_aio_flush(BlockDriverState *bs,
 {
     BlockDriver *drv = bs->drv;
 
+    trace_bdrv_aio_flush(bs, opaque);
+
     if (bs->open_flags & BDRV_O_NO_FLUSH) {
         return bdrv_aio_noop_em(bs, cb, opaque);
     }

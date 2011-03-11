@@ -455,6 +455,9 @@ static int posix_aio_process_queue(void *opaque)
                 } else {
                     ret = -ret;
                 }
+
+                trace_paio_complete(acb, acb->common.opaque, ret);
+
                 /* remove the request */
                 *pacb = acb->next;
                 /* call the callback */
@@ -536,6 +539,8 @@ static void paio_cancel(BlockDriverAIOCB *blockacb)
 {
     struct qemu_paiocb *acb = (struct qemu_paiocb *)blockacb;
     int active = 0;
+
+    trace_paio_cancel(acb, acb->common.opaque);
 
     mutex_lock(&lock);
     if (!acb->active) {
