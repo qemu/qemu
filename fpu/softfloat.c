@@ -6057,6 +6057,55 @@ int float128_compare_quiet( float128 a, float128 b STATUS_PARAM )
     return float128_compare_internal(a, b, 1 STATUS_VAR);
 }
 
+/* min() and max() functions. These can't be implemented as
+ * 'compare and pick one input' because that would mishandle
+ * NaNs and +0 vs -0.
+ */
+#define MINMAX(s, nan_exp)                                              \
+INLINE float ## s float ## s ## _minmax(float ## s a, float ## s b,     \
+                                        int ismin STATUS_PARAM )        \
+{                                                                       \
+    flag aSign, bSign;                                                  \
+    uint ## s ## _t av, bv;                                             \
+    a = float ## s ## _squash_input_denormal(a STATUS_VAR);             \
+    b = float ## s ## _squash_input_denormal(b STATUS_VAR);             \
+    if (float ## s ## _is_any_nan(a) ||                                 \
+        float ## s ## _is_any_nan(b)) {                                 \
+        return propagateFloat ## s ## NaN(a, b STATUS_VAR);             \
+    }                                                                   \
+    aSign = extractFloat ## s ## Sign(a);                               \
+    bSign = extractFloat ## s ## Sign(b);                               \
+    av = float ## s ## _val(a);                                         \
+    bv = float ## s ## _val(b);                                         \
+    if (aSign != bSign) {                                               \
+        if (ismin) {                                                    \
+            return aSign ? a : b;                                       \
+        } else {                                                        \
+            return aSign ? b : a;                                       \
+        }                                                               \
+    } else {                                                            \
+        if (ismin) {                                                    \
+            return (aSign ^ (av < bv)) ? a : b;                         \
+        } else {                                                        \
+            return (aSign ^ (av < bv)) ? b : a;                         \
+        }                                                               \
+    }                                                                   \
+}                                                                       \
+                                                                        \
+float ## s float ## s ## _min(float ## s a, float ## s b STATUS_PARAM)  \
+{                                                                       \
+    return float ## s ## _minmax(a, b, 1 STATUS_VAR);                   \
+}                                                                       \
+                                                                        \
+float ## s float ## s ## _max(float ## s a, float ## s b STATUS_PARAM)  \
+{                                                                       \
+    return float ## s ## _minmax(a, b, 0 STATUS_VAR);                   \
+}
+
+MINMAX(32, 0xff)
+MINMAX(64, 0x7ff)
+
+
 /* Multiply A by 2 raised to the power N.  */
 float32 float32_scalbn( float32 a, int n STATUS_PARAM )
 {
