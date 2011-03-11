@@ -41,7 +41,8 @@ int64_t qemu_get_clock(QEMUClock *clock);
 int64_t qemu_get_clock_ns(QEMUClock *clock);
 void qemu_clock_enable(QEMUClock *clock, int enabled);
 
-QEMUTimer *qemu_new_timer(QEMUClock *clock, QEMUTimerCB *cb, void *opaque);
+QEMUTimer *qemu_new_timer(QEMUClock *clock, int scale,
+                          QEMUTimerCB *cb, void *opaque);
 void qemu_free_timer(QEMUTimer *ts);
 void qemu_del_timer(QEMUTimer *ts);
 void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time);
@@ -61,15 +62,13 @@ void quit_timers(void);
 static inline QEMUTimer *qemu_new_timer_ns(QEMUClock *clock, QEMUTimerCB *cb,
                                            void *opaque)
 {
-    assert(clock != rt_clock);
-    return qemu_new_timer(clock, cb, opaque);
+    return qemu_new_timer(clock, SCALE_NS, cb, opaque);
 }
 
 static inline QEMUTimer *qemu_new_timer_ms(QEMUClock *clock, QEMUTimerCB *cb,
                                            void *opaque)
 {
-    assert(clock == rt_clock);
-    return qemu_new_timer(clock, cb, opaque);
+    return qemu_new_timer(clock, SCALE_MS, cb, opaque);
 }
 
 static inline int64_t qemu_get_clock_ms(QEMUClock *clock)

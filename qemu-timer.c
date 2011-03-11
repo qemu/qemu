@@ -153,12 +153,12 @@ void cpu_disable_ticks(void)
 struct QEMUClock {
     int type;
     int enabled;
-    /* XXX: add frequency */
 };
 
 struct QEMUTimer {
     QEMUClock *clock;
-    int64_t expire_time;
+    int64_t expire_time;	/* in nanoseconds */
+    int scale;
     QEMUTimerCB *cb;
     void *opaque;
     struct QEMUTimer *next;
@@ -386,7 +386,8 @@ void qemu_clock_enable(QEMUClock *clock, int enabled)
     clock->enabled = enabled;
 }
 
-QEMUTimer *qemu_new_timer(QEMUClock *clock, QEMUTimerCB *cb, void *opaque)
+QEMUTimer *qemu_new_timer(QEMUClock *clock, int scale,
+                          QEMUTimerCB *cb, void *opaque)
 {
     QEMUTimer *ts;
 
@@ -394,6 +395,7 @@ QEMUTimer *qemu_new_timer(QEMUClock *clock, QEMUTimerCB *cb, void *opaque)
     ts->clock = clock;
     ts->cb = cb;
     ts->opaque = opaque;
+    ts->scale = scale;
     return ts;
 }
 
@@ -424,7 +426,7 @@ void qemu_del_timer(QEMUTimer *ts)
 
 /* modify the current timer so that it will be fired when current_time
    >= expire_time. The corresponding callback will be called. */
-void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
+static void qemu_mod_timer_ns(QEMUTimer *ts, int64_t expire_time)
 {
     QEMUTimer **pt, *t;
 
@@ -457,6 +459,13 @@ void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
     }
 }
 
+/* modify the current timer so that it will be fired when current_time
+   >= expire_time. The corresponding callback will be called. */
+void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
+{
+    qemu_mod_timer_ns(ts, expire_time * ts->scale);
+}
+
 int qemu_timer_pending(QEMUTimer *ts)
 {
     QEMUTimer *t;
@@ -471,7 +480,7 @@ int qemu_timer_expired(QEMUTimer *timer_head, int64_t current_time)
 {
     if (!timer_head)
         return 0;
-    return (timer_head->expire_time <= current_time);
+    return (timer_head->expire_time <= current_time * timer_head->scale);
 }
 
 static void qemu_run_timers(QEMUClock *clock)
@@ -482,7 +491,7 @@ static void qemu_run_timers(QEMUClock *clock)
     if (!clock->enabled)
         return;
 
-    current_time = qemu_get_clock (clock);
+    current_time = qemu_get_clock_ns(clock);
     ptimer_head = &active_timers[clock->type];
     for(;;) {
         ts = *ptimer_head;
@@ -559,7 +568,7 @@ void qemu_get_timer(QEMUFile *f, QEMUTimer *ts)
 
     expire_time = qemu_get_be64(f);
     if (expire_time != -1) {
-        qemu_mod_timer(ts, expire_time);
+        qemu_mod_timer_ns(ts, expire_time);
     } else {
         qemu_del_timer(ts);
     }
@@ -717,7 +726,7 @@ static int64_t qemu_next_alarm_deadline(void)
             delta = hdelta;
     }
     if (active_timers[QEMU_CLOCK_REALTIME]) {
-        rtdelta = (active_timers[QEMU_CLOCK_REALTIME]->expire_time * 1000000 -
+        rtdelta = (active_timers[QEMU_CLOCK_REALTIME]->expire_time -
                  qemu_get_clock_ns(rt_clock));
         if (rtdelta < delta)
             delta = rtdelta;
