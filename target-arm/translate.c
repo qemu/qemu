@@ -7038,11 +7038,15 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         if (insn & (1 << 5))
                             gen_swap_half(tmp2);
                         gen_smul_dual(tmp, tmp2);
-                        /* This addition cannot overflow.  */
                         if (insn & (1 << 6)) {
+                            /* This subtraction cannot overflow. */
                             tcg_gen_sub_i32(tmp, tmp, tmp2);
                         } else {
-                            tcg_gen_add_i32(tmp, tmp, tmp2);
+                            /* This addition cannot overflow 32 bits;
+                             * however it may overflow considered as a signed
+                             * operation, in which case we must set the Q flag.
+                             */
+                            gen_helper_add_setq(tmp, tmp, tmp2);
                         }
                         tcg_temp_free_i32(tmp2);
                         if (insn & (1 << 22)) {
@@ -7860,11 +7864,15 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                 if (op)
                     gen_swap_half(tmp2);
                 gen_smul_dual(tmp, tmp2);
-                /* This addition cannot overflow.  */
                 if (insn & (1 << 22)) {
+                    /* This subtraction cannot overflow. */
                     tcg_gen_sub_i32(tmp, tmp, tmp2);
                 } else {
-                    tcg_gen_add_i32(tmp, tmp, tmp2);
+                    /* This addition cannot overflow 32 bits;
+                     * however it may overflow considered as a signed
+                     * operation, in which case we must set the Q flag.
+                     */
+                    gen_helper_add_setq(tmp, tmp, tmp2);
                 }
                 tcg_temp_free_i32(tmp2);
                 if (rs != 15)
