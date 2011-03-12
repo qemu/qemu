@@ -346,11 +346,37 @@ static void sigfd_handler(void *opaque)
     }
 }
 
-static int qemu_signalfd_init(sigset_t mask)
+static int qemu_signal_init(void)
 {
     int sigfd;
+    sigset_t set;
 
-    sigfd = qemu_signalfd(&mask);
+#ifdef CONFIG_IOTHREAD
+    /* SIGUSR2 used by posix-aio-compat.c */
+    sigemptyset(&set);
+    sigaddset(&set, SIGUSR2);
+    pthread_sigmask(SIG_UNBLOCK, &set, NULL);
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGIO);
+    sigaddset(&set, SIGALRM);
+    sigaddset(&set, SIG_IPI);
+    sigaddset(&set, SIGBUS);
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
+#else
+    sigemptyset(&set);
+    sigaddset(&set, SIGBUS);
+    if (kvm_enabled()) {
+        /*
+         * We need to process timer signals synchronously to avoid a race
+         * between exit_request check and KVM vcpu entry.
+         */
+        sigaddset(&set, SIGIO);
+        sigaddset(&set, SIGALRM);
+    }
+#endif
+
+    sigfd = qemu_signalfd(&set);
     if (sigfd == -1) {
         fprintf(stderr, "failed to create signalfd\n");
         return -errno;
@@ -438,6 +464,12 @@ static void qemu_event_increment(void)
 static void qemu_kvm_eat_signals(CPUState *env)
 {
 }
+
+static int qemu_signal_init(void)
+{
+    return 0;
+}
+
 #endif /* _WIN32 */
 
 #ifndef CONFIG_IOTHREAD
@@ -471,39 +503,14 @@ static void qemu_kvm_init_cpu_signals(CPUState *env)
 #endif
 }
 
-#ifndef _WIN32
-static sigset_t block_synchronous_signals(void)
-{
-    sigset_t set;
-
-    sigemptyset(&set);
-    sigaddset(&set, SIGBUS);
-    if (kvm_enabled()) {
-        /*
-         * We need to process timer signals synchronously to avoid a race
-         * between exit_request check and KVM vcpu entry.
-         */
-        sigaddset(&set, SIGIO);
-        sigaddset(&set, SIGALRM);
-    }
-
-    return set;
-}
-#endif
-
 int qemu_init_main_loop(void)
 {
-#ifndef _WIN32
-    sigset_t blocked_signals;
     int ret;
 
-    blocked_signals = block_synchronous_signals();
-
-    ret = qemu_signalfd_init(blocked_signals);
+    ret = qemu_signal_init();
     if (ret) {
         return ret;
     }
-#endif
 
     qemu_init_sigbus();
 
@@ -651,35 +658,13 @@ static void qemu_tcg_init_cpu_signals(void)
     pthread_sigmask(SIG_UNBLOCK, &set, NULL);
 }
 
-static sigset_t block_io_signals(void)
-{
-    sigset_t set;
-
-    /* SIGUSR2 used by posix-aio-compat.c */
-    sigemptyset(&set);
-    sigaddset(&set, SIGUSR2);
-    pthread_sigmask(SIG_UNBLOCK, &set, NULL);
-
-    sigemptyset(&set);
-    sigaddset(&set, SIGIO);
-    sigaddset(&set, SIGALRM);
-    sigaddset(&set, SIG_IPI);
-    sigaddset(&set, SIGBUS);
-    pthread_sigmask(SIG_BLOCK, &set, NULL);
-
-    return set;
-}
-
 int qemu_init_main_loop(void)
 {
     int ret;
-    sigset_t blocked_signals;
 
     qemu_init_sigbus();
 
-    blocked_signals = block_io_signals();
-
-    ret = qemu_signalfd_init(blocked_signals);
+    ret = qemu_signal_init();
     if (ret) {
         return ret;
     }
