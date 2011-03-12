@@ -200,11 +200,6 @@ static void qemu_rearm_alarm_timer(struct qemu_alarm_timer *t)
 
 #ifdef _WIN32
 
-struct qemu_alarm_win32 {
-    MMRESULT timerId;
-    unsigned int period;
-} alarm_win32_data = {0, 0};
-
 static int win32_start_timer(struct qemu_alarm_timer *t);
 static void win32_stop_timer(struct qemu_alarm_timer *t);
 static void win32_rearm_timer(struct qemu_alarm_timer *t);
@@ -298,9 +293,9 @@ static struct qemu_alarm_timer alarm_timers[] = {
     {"unix", unix_start_timer, unix_stop_timer, NULL, NULL},
 #else
     {"dynticks", win32_start_timer,
-     win32_stop_timer, win32_rearm_timer, &alarm_win32_data},
+     win32_stop_timer, win32_rearm_timer, NULL},
     {"win32", win32_start_timer,
-     win32_stop_timer, NULL, &alarm_win32_data},
+     win32_stop_timer, NULL, NULL},
 #endif
     {NULL, }
 };
@@ -636,9 +631,7 @@ void qemu_run_all_timers(void)
 static int64_t qemu_next_alarm_deadline(void);
 
 #ifdef _WIN32
-static void CALLBACK host_alarm_handler(UINT uTimerID, UINT uMsg,
-                                        DWORD_PTR dwUser, DWORD_PTR dw1,
-                                        DWORD_PTR dw2)
+static void CALLBACK host_alarm_handler(PVOID lpParam, BOOLEAN unused)
 #else
 static void host_alarm_handler(int host_signum)
 #endif
@@ -961,50 +954,45 @@ static void unix_stop_timer(struct qemu_alarm_timer *t)
 
 static int win32_start_timer(struct qemu_alarm_timer *t)
 {
-    TIMECAPS tc;
-    struct qemu_alarm_win32 *data = t->priv;
-    UINT flags;
+    HANDLE hTimer;
+    BOOLEAN success;
 
-    memset(&tc, 0, sizeof(tc));
-    timeGetDevCaps(&tc, sizeof(tc));
+    /* If you call ChangeTimerQueueTimer on a one-shot timer (its period
+       is zero) that has already expired, the timer is not updated.  Since
+       creating a new timer is relatively expensive, set a bogus one-hour
+       interval in the dynticks case.  */
+    success = CreateTimerQueueTimer(&hTimer,
+                          NULL,
+                          host_alarm_handler,
+                          t,
+                          1,
+                          alarm_has_dynticks(t) ? 3600000 : 1,
+                          WT_EXECUTEINTIMERTHREAD);
 
-    data->period = tc.wPeriodMin;
-    timeBeginPeriod(data->period);
-
-    flags = TIME_CALLBACK_FUNCTION;
-    if (alarm_has_dynticks(t))
-        flags |= TIME_ONESHOT;
-    else
-        flags |= TIME_PERIODIC;
-
-    data->timerId = timeSetEvent(1,         // interval (ms)
-                        data->period,       // resolution
-                        host_alarm_handler, // function
-                        (DWORD)t,           // parameter
-                        flags);
-
-    if (!data->timerId) {
+    if (!success) {
         fprintf(stderr, "Failed to initialize win32 alarm timer: %ld\n",
                 GetLastError());
-        timeEndPeriod(data->period);
         return -1;
     }
 
+    t->priv = (PVOID) hTimer;
     return 0;
 }
 
 static void win32_stop_timer(struct qemu_alarm_timer *t)
 {
-    struct qemu_alarm_win32 *data = t->priv;
+    HANDLE hTimer = t->priv;
 
-    timeKillEvent(data->timerId);
-    timeEndPeriod(data->period);
+    if (hTimer) {
+        DeleteTimerQueueTimer(NULL, hTimer, NULL);
+    }
 }
 
 static void win32_rearm_timer(struct qemu_alarm_timer *t)
 {
-    struct qemu_alarm_win32 *data = t->priv;
+    HANDLE hTimer = t->priv;
     int nearest_delta_ms;
+    BOOLEAN success;
 
     assert(alarm_has_dynticks(t));
     if (!active_timers[QEMU_CLOCK_REALTIME] &&
@@ -1012,25 +1000,21 @@ static void win32_rearm_timer(struct qemu_alarm_timer *t)
         !active_timers[QEMU_CLOCK_HOST])
         return;
 
-    timeKillEvent(data->timerId);
-
     nearest_delta_ms = (qemu_next_alarm_deadline() + 999999) / 1000000;
     if (nearest_delta_ms < 1) {
         nearest_delta_ms = 1;
     }
-    data->timerId = timeSetEvent(nearest_delta_ms,
-                        data->period,
-                        host_alarm_handler,
-                        (DWORD)t,
-                        TIME_ONESHOT | TIME_CALLBACK_FUNCTION);
+    success = ChangeTimerQueueTimer(NULL,
+                                    hTimer,
+                                    nearest_delta_ms,
+                                    3600000);
 
-    if (!data->timerId) {
-        fprintf(stderr, "Failed to re-arm win32 alarm timer %ld\n",
+    if (!success) {
+        fprintf(stderr, "Failed to rearm win32 alarm timer: %ld\n",
                 GetLastError());
-
-        timeEndPeriod(data->period);
-        exit(1);
+        exit(-1);
     }
+
 }
 
 #endif /* _WIN32 */
