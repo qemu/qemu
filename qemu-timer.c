@@ -1004,6 +1004,7 @@ static void win32_stop_timer(struct qemu_alarm_timer *t)
 static void win32_rearm_timer(struct qemu_alarm_timer *t)
 {
     struct qemu_alarm_win32 *data = t->priv;
+    int nearest_delta_ms;
 
     assert(alarm_has_dynticks(t));
     if (!active_timers[QEMU_CLOCK_REALTIME] &&
@@ -1013,7 +1014,11 @@ static void win32_rearm_timer(struct qemu_alarm_timer *t)
 
     timeKillEvent(data->timerId);
 
-    data->timerId = timeSetEvent(1,
+    nearest_delta_ms = (qemu_next_alarm_deadline() + 999999) / 1000000;
+    if (nearest_delta_ms < 1) {
+        nearest_delta_ms = 1;
+    }
+    data->timerId = timeSetEvent(nearest_delta_ms,
                         data->period,
                         host_alarm_handler,
                         (DWORD)t,
