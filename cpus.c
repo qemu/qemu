@@ -970,7 +970,7 @@ static void qemu_tcg_init_vcpu(void *_env)
         qemu_cond_init(env->halt_cond);
         qemu_thread_create(env->thread, qemu_tcg_cpu_thread_fn, env);
         while (env->created == 0) {
-            qemu_cond_timedwait(&qemu_cpu_cond, &qemu_global_mutex, 100);
+            qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
         }
         tcg_cpu_thread = env->thread;
         tcg_halt_cond = env->halt_cond;
@@ -987,7 +987,7 @@ static void qemu_kvm_start_vcpu(CPUState *env)
     qemu_cond_init(env->halt_cond);
     qemu_thread_create(env->thread, qemu_kvm_cpu_thread_fn, env);
     while (env->created == 0) {
-        qemu_cond_timedwait(&qemu_cpu_cond, &qemu_global_mutex, 100);
+        qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
     }
 }
 
