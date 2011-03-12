@@ -196,6 +196,16 @@ static void cpu_handle_debug_exception(CPUState *env)
 #endif
 }
 
+#ifdef CONFIG_IOTHREAD
+static void cpu_signal(int sig)
+{
+    if (cpu_single_env) {
+        cpu_exit(cpu_single_env);
+    }
+    exit_request = 1;
+}
+#endif
+
 #ifdef CONFIG_LINUX
 static void sigbus_reraise(void)
 {
@@ -390,6 +400,61 @@ static int qemu_signal_init(void)
     return 0;
 }
 
+static void qemu_kvm_init_cpu_signals(CPUState *env)
+{
+    int r;
+    sigset_t set;
+    struct sigaction sigact;
+
+    memset(&sigact, 0, sizeof(sigact));
+    sigact.sa_handler = dummy_signal;
+    sigaction(SIG_IPI, &sigact, NULL);
+
+#ifdef CONFIG_IOTHREAD
+    pthread_sigmask(SIG_BLOCK, NULL, &set);
+    sigdelset(&set, SIG_IPI);
+    sigdelset(&set, SIGBUS);
+    r = kvm_set_signal_mask(env, &set);
+    if (r) {
+        fprintf(stderr, "kvm_set_signal_mask: %s\n", strerror(-r));
+        exit(1);
+    }
+#else
+    sigemptyset(&set);
+    sigaddset(&set, SIG_IPI);
+    sigaddset(&set, SIGIO);
+    sigaddset(&set, SIGALRM);
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
+
+    pthread_sigmask(SIG_BLOCK, NULL, &set);
+    sigdelset(&set, SIGIO);
+    sigdelset(&set, SIGALRM);
+#endif
+    sigdelset(&set, SIG_IPI);
+    sigdelset(&set, SIGBUS);
+    r = kvm_set_signal_mask(env, &set);
+    if (r) {
+        fprintf(stderr, "kvm_set_signal_mask: %s\n", strerror(-r));
+        exit(1);
+    }
+}
+
+static void qemu_tcg_init_cpu_signals(void)
+{
+#ifdef CONFIG_IOTHREAD
+    sigset_t set;
+    struct sigaction sigact;
+
+    memset(&sigact, 0, sizeof(sigact));
+    sigact.sa_handler = cpu_signal;
+    sigaction(SIG_IPI, &sigact, NULL);
+
+    sigemptyset(&set);
+    sigaddset(&set, SIG_IPI);
+    pthread_sigmask(SIG_UNBLOCK, &set, NULL);
+#endif
+}
+
 static void qemu_kvm_eat_signals(CPUState *env)
 {
     struct timespec ts = { 0, 0 };
@@ -470,39 +535,17 @@ static int qemu_signal_init(void)
     return 0;
 }
 
+static void qemu_kvm_init_cpu_signals(CPUState *env)
+{
+    abort();
+}
+
+static void qemu_tcg_init_cpu_signals(void)
+{
+}
 #endif /* _WIN32 */
 
 #ifndef CONFIG_IOTHREAD
-static void qemu_kvm_init_cpu_signals(CPUState *env)
-{
-#ifndef _WIN32
-    int r;
-    sigset_t set;
-    struct sigaction sigact;
-
-    memset(&sigact, 0, sizeof(sigact));
-    sigact.sa_handler = dummy_signal;
-    sigaction(SIG_IPI, &sigact, NULL);
-
-    sigemptyset(&set);
-    sigaddset(&set, SIG_IPI);
-    sigaddset(&set, SIGIO);
-    sigaddset(&set, SIGALRM);
-    pthread_sigmask(SIG_BLOCK, &set, NULL);
-
-    pthread_sigmask(SIG_BLOCK, NULL, &set);
-    sigdelset(&set, SIG_IPI);
-    sigdelset(&set, SIGBUS);
-    sigdelset(&set, SIGIO);
-    sigdelset(&set, SIGALRM);
-    r = kvm_set_signal_mask(env, &set);
-    if (r) {
-        fprintf(stderr, "kvm_set_signal_mask: %s\n", strerror(-r));
-        exit(1);
-    }
-#endif
-}
-
 int qemu_init_main_loop(void)
 {
     int ret;
@@ -536,6 +579,8 @@ void qemu_init_vcpu(void *_env)
             exit(1);
         }
         qemu_kvm_init_cpu_signals(env);
+    } else {
+        qemu_tcg_init_cpu_signals();
     }
 }
 
@@ -615,48 +660,6 @@ static QemuCond qemu_cpu_cond;
 static QemuCond qemu_system_cond;
 static QemuCond qemu_pause_cond;
 static QemuCond qemu_work_cond;
-
-static void cpu_signal(int sig)
-{
-    if (cpu_single_env) {
-        cpu_exit(cpu_single_env);
-    }
-    exit_request = 1;
-}
-
-static void qemu_kvm_init_cpu_signals(CPUState *env)
-{
-    int r;
-    sigset_t set;
-    struct sigaction sigact;
-
-    memset(&sigact, 0, sizeof(sigact));
-    sigact.sa_handler = dummy_signal;
-    sigaction(SIG_IPI, &sigact, NULL);
-
-    pthread_sigmask(SIG_BLOCK, NULL, &set);
-    sigdelset(&set, SIG_IPI);
-    sigdelset(&set, SIGBUS);
-    r = kvm_set_signal_mask(env, &set);
-    if (r) {
-        fprintf(stderr, "kvm_set_signal_mask: %s\n", strerror(-r));
-        exit(1);
-    }
-}
-
-static void qemu_tcg_init_cpu_signals(void)
-{
-    sigset_t set;
-    struct sigaction sigact;
-
-    memset(&sigact, 0, sizeof(sigact));
-    sigact.sa_handler = cpu_signal;
-    sigaction(SIG_IPI, &sigact, NULL);
-
-    sigemptyset(&set);
-    sigaddset(&set, SIG_IPI);
-    pthread_sigmask(SIG_UNBLOCK, &set, NULL);
-}
 
 int qemu_init_main_loop(void)
 {
