@@ -1012,8 +1012,10 @@ void qemu_notify_event(void)
 void cpu_stop_current(void)
 {
     if (cpu_single_env) {
+        cpu_single_env->stop = 0;
         cpu_single_env->stopped = 1;
         cpu_exit(cpu_single_env);
+        qemu_cond_signal(&qemu_pause_cond);
     }
 }
 
