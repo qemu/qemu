@@ -16,6 +16,7 @@ import inspect
 header_event_id = 0xffffffffffffffff
 header_magic    = 0xf2b177cb0aa429b4
 header_version  = 0
+dropped_event_id = 0xfffffffffffffffe
 
 trace_fmt = '=QQQQQQQQ'
 trace_len = struct.calcsize(trace_fmt)
@@ -28,7 +29,7 @@ def parse_events(fobj):
         """Extract argument names from a parameter list."""
         return tuple(arg.split()[-1].lstrip('*') for arg in args.split(','))
 
-    events = {}
+    events = {dropped_event_id: ('dropped', 'count')}
     event_num = 0
     for line in fobj:
         m = event_re.match(line.strip())

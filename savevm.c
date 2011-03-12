@@ -882,6 +882,27 @@ const VMStateInfo vmstate_info_uint32 = {
     .put  = put_uint32,
 };
 
+/* 32 bit uint. See that the received value is the same than the one
+   in the field */
+
+static int get_uint32_equal(QEMUFile *f, void *pv, size_t size)
+{
+    uint32_t *v = pv;
+    uint32_t v2;
+    qemu_get_be32s(f, &v2);
+
+    if (*v == v2) {
+        return 0;
+    }
+    return -EINVAL;
+}
+
+const VMStateInfo vmstate_info_uint32_equal = {
+    .name = "uint32 equal",
+    .get  = get_uint32_equal,
+    .put  = put_uint32,
+};
+
 /* 64 bit unsigned int */
 
 static int get_uint64(QEMUFile *f, void *pv, size_t size)
@@ -1308,8 +1329,12 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                 n_elems = field->num;
             } else if (field->flags & VMS_VARRAY_INT32) {
                 n_elems = *(int32_t *)(opaque+field->num_offset);
+            } else if (field->flags & VMS_VARRAY_UINT32) {
+                n_elems = *(uint32_t *)(opaque+field->num_offset);
             } else if (field->flags & VMS_VARRAY_UINT16) {
                 n_elems = *(uint16_t *)(opaque+field->num_offset);
+            } else if (field->flags & VMS_VARRAY_UINT8) {
+                n_elems = *(uint8_t *)(opaque+field->num_offset);
             }
             if (field->flags & VMS_POINTER) {
                 base_addr = *(void **)base_addr + field->start;

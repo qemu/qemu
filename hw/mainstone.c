@@ -140,7 +140,7 @@ static void mainstone_common_init(ram_addr_t ram_size,
     }
 
     mst_irq = sysbus_create_simple("mainstone-fpga", MST_FPGA_PHYS,
-                    qdev_get_gpio_in(cpu->pic, PXA2XX_PIC_GPIO_0));
+                    qdev_get_gpio_in(cpu->gpio, 0));
 
     /* setup keypad */
     printf("map addr %p\n", &map);
@@ -148,6 +148,13 @@ static void mainstone_common_init(ram_addr_t ram_size,
 
     /* MMC/SD host */
     pxa2xx_mmci_handlers(cpu->mmc, NULL, qdev_get_gpio_in(mst_irq, MMC_IRQ));
+
+    pxa2xx_pcmcia_set_irq_cb(cpu->pcmcia[0],
+            qdev_get_gpio_in(mst_irq, S0_IRQ),
+            qdev_get_gpio_in(mst_irq, S0_CD_IRQ));
+    pxa2xx_pcmcia_set_irq_cb(cpu->pcmcia[1],
+            qdev_get_gpio_in(mst_irq, S1_IRQ),
+            qdev_get_gpio_in(mst_irq, S1_CD_IRQ));
 
     smc91c111_init(&nd_table[0], MST_ETH_PHYS,
                     qdev_get_gpio_in(mst_irq, ETHERNET_IRQ));

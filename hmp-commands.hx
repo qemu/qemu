@@ -821,16 +821,12 @@ Set maximum tolerated downtime (in seconds) for migration.
 ETEXI
 
     {
-        .name       = "snapshot_blkdev",
-        .args_type  = "device:B,snapshot_file:s?,format:s?",
-        .params     = "device [new-image-file] [format]",
-        .help       = "initiates a live snapshot\n\t\t\t"
-                      "of device. If a new image file is specified, the\n\t\t\t"
-                      "new image file will become the new root image.\n\t\t\t"
-                      "If format is specified, the snapshot file will\n\t\t\t"
-                      "be created in that format. Otherwise the\n\t\t\t"
-                      "snapshot will be internal! (currently unsupported)",
-        .mhandler.cmd_new = do_snapshot_blkdev,
+        .name       = "client_migrate_info",
+        .args_type  = "protocol:s,hostname:s,port:i?,tls-port:i?,cert-subject:s?",
+        .params     = "protocol hostname port tls-port cert-subject",
+        .help       = "send migration info to spice/vnc client",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = client_migrate_info,
     },
 
 STEXI
@@ -842,12 +838,16 @@ new parameters (if specified) once the vm migration finished successfully.
 ETEXI
 
     {
-        .name       = "client_migrate_info",
-        .args_type  = "protocol:s,hostname:s,port:i?,tls-port:i?,cert-subject:s?",
-        .params     = "protocol hostname port tls-port cert-subject",
-        .help       = "send migration info to spice/vnc client",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = client_migrate_info,
+        .name       = "snapshot_blkdev",
+        .args_type  = "device:B,snapshot_file:s?,format:s?",
+        .params     = "device [new-image-file] [format]",
+        .help       = "initiates a live snapshot\n\t\t\t"
+                      "of device. If a new image file is specified, the\n\t\t\t"
+                      "new image file will become the new root image.\n\t\t\t"
+                      "If format is specified, the snapshot file will\n\t\t\t"
+                      "be created in that format. Otherwise the\n\t\t\t"
+                      "snapshot will be internal! (currently unsupported)",
+        .mhandler.cmd_new = do_snapshot_blkdev,
     },
 
 STEXI
