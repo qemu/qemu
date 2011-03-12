@@ -1098,7 +1098,7 @@ bool cpu_exec_all(void)
                 cpu_handle_debug_exception(env);
                 break;
             }
-        } else if (env->stop) {
+        } else if (env->stop || env->stopped) {
             break;
         }
     }
