@@ -208,6 +208,7 @@ static void ppc970_set_irq (void *opaque, int pin, int level)
             } else {
                 LOG_IRQ("%s: restart the CPU\n", __func__);
                 env->halted = 0;
+                qemu_cpu_kick(env);
             }
             break;
         case PPC970_INPUT_HRESET:
@@ -300,6 +301,7 @@ static void ppc40x_set_irq (void *opaque, int pin, int level)
             } else {
                 LOG_IRQ("%s: restart the CPU\n", __func__);
                 env->halted = 0;
+                qemu_cpu_kick(env);
             }
             break;
         case PPC40x_INPUT_DEBUG:

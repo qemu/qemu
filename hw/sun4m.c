@@ -253,15 +253,21 @@ void cpu_check_irqs(CPUState *env)
     }
 }
 
+static void cpu_kick_irq(CPUState *env)
+{
+    env->halted = 0;
+    cpu_check_irqs(env);
+    qemu_cpu_kick(env);
+}
+
 static void cpu_set_irq(void *opaque, int irq, int level)
 {
     CPUState *env = opaque;
 
     if (level) {
         trace_sun4m_cpu_set_irq_raise(irq);
-        env->halted = 0;
         env->pil_in |= 1 << irq;
-        cpu_check_irqs(env);
+        cpu_kick_irq(env);
     } else {
         trace_sun4m_cpu_set_irq_lower(irq);
         env->pil_in &= ~(1 << irq);
