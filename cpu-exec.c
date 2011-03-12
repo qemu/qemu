@@ -208,8 +208,13 @@ int cpu_exec(CPUState *env1)
     uint8_t *tc_ptr;
     unsigned long next_tb;
 
-    if (cpu_halted(env1) == EXCP_HALTED)
-        return EXCP_HALTED;
+    if (env1->halted) {
+        if (!cpu_has_work(env1)) {
+            return EXCP_HALTED;
+        }
+
+        env1->halted = 0;
+    }
 
     cpu_single_env = env1;
 
