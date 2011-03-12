@@ -938,7 +938,7 @@ void pause_all_vcpus(void)
     }
 
     while (!all_vcpus_paused()) {
-        qemu_cond_timedwait(&qemu_pause_cond, &qemu_global_mutex, 100);
+        qemu_cond_wait(&qemu_pause_cond, &qemu_global_mutex);
         penv = first_cpu;
         while (penv) {
             qemu_cpu_kick(penv);
