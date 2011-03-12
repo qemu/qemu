@@ -867,12 +867,16 @@ void qemu_cpu_kick(void *_env)
 
 void qemu_cpu_kick_self(void)
 {
+#ifndef _WIN32
     assert(cpu_single_env);
 
     if (!cpu_single_env->thread_kicked) {
         qemu_thread_signal(cpu_single_env->thread, SIG_IPI);
         cpu_single_env->thread_kicked = true;
     }
+#else
+    abort();
+#endif
 }
 
 int qemu_cpu_is_self(void *_env)
