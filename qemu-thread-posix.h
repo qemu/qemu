@@ -14,5 +14,4 @@ struct QemuThread {
     pthread_t thread;
 };
 
-void qemu_thread_signal(QemuThread *thread, int sig);
 #endif

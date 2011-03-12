@@ -171,15 +171,6 @@ void qemu_thread_create(QemuThread *thread,
     pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 }
 
-void qemu_thread_signal(QemuThread *thread, int sig)
-{
-    int err;
-
-    err = pthread_kill(thread->thread, sig);
-    if (err)
-        error_exit(err, __func__);
-}
-
 void qemu_thread_get_self(QemuThread *thread)
 {
     thread->thread = pthread_self();
