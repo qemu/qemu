@@ -32,6 +32,7 @@
 #include "kvm.h"
 #include "exec-all.h"
 
+#include "qemu-thread.h"
 #include "cpus.h"
 #include "compatfd.h"
 
@@ -591,8 +592,6 @@ void vm_stop(int reason)
 }
 
 #else /* CONFIG_IOTHREAD */
-
-#include "qemu-thread.h"
 
 QemuMutex qemu_global_mutex;
 static QemuMutex qemu_fair_mutex;
