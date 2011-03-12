@@ -1355,7 +1355,7 @@ int kvm_arch_put_registers(CPUState *env, int level)
 {
     int ret;
 
-    assert(cpu_is_stopped(env) || qemu_cpu_self(env));
+    assert(cpu_is_stopped(env) || qemu_cpu_is_self(env));
 
     ret = kvm_getput_regs(env, 1);
     if (ret < 0) {
@@ -1403,7 +1403,7 @@ int kvm_arch_get_registers(CPUState *env)
 {
     int ret;
 
-    assert(cpu_is_stopped(env) || qemu_cpu_self(env));
+    assert(cpu_is_stopped(env) || qemu_cpu_is_self(env));
 
     ret = kvm_getput_regs(env, 0);
     if (ret < 0) {

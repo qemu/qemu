@@ -176,14 +176,14 @@ void qemu_thread_signal(QemuThread *thread, int sig)
         error_exit(err, __func__);
 }
 
-void qemu_thread_self(QemuThread *thread)
+void qemu_thread_get_self(QemuThread *thread)
 {
     thread->thread = pthread_self();
 }
 
-int qemu_thread_equal(QemuThread *thread1, QemuThread *thread2)
+int qemu_thread_is_self(QemuThread *thread)
 {
-   return pthread_equal(thread1->thread, thread2->thread);
+   return pthread_equal(pthread_self(), thread->thread);
 }
 
 void qemu_thread_exit(void *retval)

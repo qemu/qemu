@@ -1640,7 +1640,7 @@ void cpu_interrupt(CPUState *env, int mask)
      * If called from iothread context, wake the target cpu in
      * case its halted.
      */
-    if (!qemu_cpu_self(env)) {
+    if (!qemu_cpu_is_self(env)) {
         qemu_cpu_kick(env);
         return;
     }

@@ -531,7 +531,7 @@ void qemu_init_vcpu(void *_env)
     }
 }
 
-int qemu_cpu_self(void *env)
+int qemu_cpu_is_self(void *env)
 {
     return 1;
 }
@@ -699,7 +699,7 @@ int qemu_init_main_loop(void)
     qemu_mutex_init(&qemu_global_mutex);
     qemu_mutex_lock(&qemu_global_mutex);
 
-    qemu_thread_self(&io_thread);
+    qemu_thread_get_self(&io_thread);
 
     return 0;
 }
@@ -714,7 +714,7 @@ void run_on_cpu(CPUState *env, void (*func)(void *data), void *data)
 {
     struct qemu_work_item wi;
 
-    if (qemu_cpu_self(env)) {
+    if (qemu_cpu_is_self(env)) {
         func(data);
         return;
     }
@@ -808,7 +808,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
     int r;
 
     qemu_mutex_lock(&qemu_global_mutex);
-    qemu_thread_self(env->thread);
+    qemu_thread_get_self(env->thread);
 
     r = kvm_init_vcpu(env);
     if (r < 0) {
@@ -845,7 +845,7 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
     CPUState *env = arg;
 
     qemu_tcg_init_cpu_signals();
-    qemu_thread_self(env->thread);
+    qemu_thread_get_self(env->thread);
 
     /* signal CPU creation */
     qemu_mutex_lock(&qemu_global_mutex);
@@ -888,14 +888,11 @@ void qemu_cpu_kick_self(void)
     }
 }
 
-int qemu_cpu_self(void *_env)
+int qemu_cpu_is_self(void *_env)
 {
     CPUState *env = _env;
-    QemuThread this;
 
-    qemu_thread_self(&this);
-
-    return qemu_thread_equal(&this, env->thread);
+    return qemu_thread_is_self(env->thread);
 }
 
 void qemu_mutex_lock_iothread(void)
@@ -1023,10 +1020,7 @@ void cpu_stop_current(void)
 
 void vm_stop(int reason)
 {
-    QemuThread me;
-    qemu_thread_self(&me);
-
-    if (!qemu_thread_equal(&me, &io_thread)) {
+    if (!qemu_thread_is_self(&io_thread)) {
         qemu_system_vmstop_request(reason);
         /*
          * FIXME: should not return to device code in case
