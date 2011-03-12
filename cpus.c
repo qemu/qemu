@@ -771,7 +771,7 @@ static void qemu_tcg_wait_io_event(void)
     CPUState *env;
 
     while (all_cpu_threads_idle()) {
-        qemu_cond_timedwait(tcg_halt_cond, &qemu_global_mutex, 1000);
+        qemu_cond_wait(tcg_halt_cond, &qemu_global_mutex);
     }
 
     qemu_mutex_unlock(&qemu_global_mutex);
@@ -794,7 +794,7 @@ static void qemu_tcg_wait_io_event(void)
 static void qemu_kvm_wait_io_event(CPUState *env)
 {
     while (cpu_thread_is_idle(env)) {
-        qemu_cond_timedwait(env->halt_cond, &qemu_global_mutex, 1000);
+        qemu_cond_wait(env->halt_cond, &qemu_global_mutex);
     }
 
     qemu_kvm_eat_signals(env);
