@@ -382,7 +382,7 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
     /* floppy type */
     for (i = 0; i < 2; i++) {
         fd[i] = drive_get(IF_FLOPPY, 0, i);
-        if (fd[i]) {
+        if (fd[i] && bdrv_is_inserted(fd[i]->bdrv)) {
             bdrv_get_floppy_geometry_hint(fd[i]->bdrv, &nb_heads, &max_track,
                                           &last_sect, FDRIVE_DRV_NONE,
                                           &fd_type[i]);
