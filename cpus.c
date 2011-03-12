@@ -1086,9 +1086,11 @@ bool cpu_exec_all(void)
         qemu_clock_enable(vm_clock,
                           (env->singlestep_enabled & SSTEP_NOTIMER) == 0);
 
+#ifndef CONFIG_IOTHREAD
         if (qemu_alarm_pending()) {
             break;
         }
+#endif
         if (cpu_can_run(env)) {
             if (kvm_enabled()) {
                 r = kvm_cpu_exec(env);
