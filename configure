@@ -2667,7 +2667,6 @@ if test "$vnc_png" != "no" ; then
 fi
 if test "$vnc_thread" != "no" ; then
   echo "CONFIG_VNC_THREAD=y" >> $config_host_mak
-  echo "CONFIG_THREAD=y" >> $config_host_mak
 fi
 if test "$fnmatch" = "yes" ; then
   echo "CONFIG_FNMATCH=y" >> $config_host_mak
@@ -2763,7 +2762,6 @@ if test "$xen" = "yes" ; then
 fi
 if test "$io_thread" = "yes" ; then
   echo "CONFIG_IOTHREAD=y" >> $config_host_mak
-  echo "CONFIG_THREAD=y" >> $config_host_mak
 fi
 if test "$linux_aio" = "yes" ; then
   echo "CONFIG_LINUX_AIO=y" >> $config_host_mak
