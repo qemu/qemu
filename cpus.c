@@ -823,7 +823,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
 
     /* and wait for machine initialization */
     while (!qemu_system_ready) {
-        qemu_cond_timedwait(&qemu_system_cond, &qemu_global_mutex, 100);
+        qemu_cond_wait(&qemu_system_cond, &qemu_global_mutex);
     }
 
     while (1) {
@@ -855,7 +855,7 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
 
     /* and wait for machine initialization */
     while (!qemu_system_ready) {
-        qemu_cond_timedwait(&qemu_system_cond, &qemu_global_mutex, 100);
+        qemu_cond_wait(&qemu_system_cond, &qemu_global_mutex);
     }
 
     while (1) {
