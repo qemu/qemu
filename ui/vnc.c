@@ -2302,7 +2302,7 @@ static int vnc_update_stats(VncDisplay *vd,  struct timeval * tv)
         }
     }
 
-    timersub(tv, &VNC_REFRESH_STATS, &res);
+    qemu_timersub(tv, &VNC_REFRESH_STATS, &res);
 
     if (timercmp(&vd->guest.last_freq_check, &res, >)) {
         return has_dirty;
@@ -2320,7 +2320,7 @@ static int vnc_update_stats(VncDisplay *vd,  struct timeval * tv)
             }
 
             max = rect->times[(rect->idx + count - 1) % count];
-            timersub(tv, &max, &res);
+            qemu_timersub(tv, &max, &res);
 
             if (timercmp(&res, &VNC_REFRESH_LOSSY, >)) {
                 rect->freq = 0;
@@ -2331,7 +2331,7 @@ static int vnc_update_stats(VncDisplay *vd,  struct timeval * tv)
 
             min = rect->times[rect->idx];
             max = rect->times[(rect->idx + count - 1) % count];
-            timersub(&max, &min, &res);
+            qemu_timersub(&max, &min, &res);
 
             rect->freq = res.tv_sec + res.tv_usec / 1000000.;
             rect->freq /= count;
