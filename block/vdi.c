@@ -113,7 +113,7 @@ void uuid_unparse(const uuid_t uu, char *out);
  */
 #define VDI_TEXT "<<< QEMU VM Virtual Disk Image >>>\n"
 
-/* Unallocated blocks use this index (no need to convert endianess). */
+/* Unallocated blocks use this index (no need to convert endianness). */
 #define VDI_UNALLOCATED UINT32_MAX
 
 #if !defined(CONFIG_UUID)
@@ -194,7 +194,7 @@ typedef struct {
     uint32_t block_sectors;
     /* First sector of block map. */
     uint32_t bmap_sector;
-    /* VDI header (converted to host endianess). */
+    /* VDI header (converted to host endianness). */
     VdiHeader header;
 } BDRVVdiState;
 

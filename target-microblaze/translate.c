@@ -923,7 +923,7 @@ static void dec_load(DisasContext *dc)
     /*
      * When doing reverse accesses we need to do two things.
      *
-     * 1. Reverse the address wrt endianess.
+     * 1. Reverse the address wrt endianness.
      * 2. Byteswap the data lanes on the way back into the CPU core.
      */
     if (rev && size != 4) {
