@@ -2766,7 +2766,9 @@ int main(int argc, char **argv, char **envp)
     }
     loc_set_none();
 
-    st_init(trace_file);
+    if (!st_init(trace_file)) {
+        fprintf(stderr, "warning: unable to initialize simple trace backend\n");
+    }
 
     /* If no data_dir is specified then try to find it relative to the
        executable path.  */

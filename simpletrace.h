@@ -37,11 +37,11 @@ void st_print_trace_file_status(FILE *stream, fprintf_function stream_printf);
 void st_set_trace_file_enabled(bool enable);
 bool st_set_trace_file(const char *file);
 void st_flush_trace_buffer(void);
-void st_init(const char *file);
+bool st_init(const char *file);
 #else
-static inline void st_init(const char *file)
+static inline bool st_init(const char *file)
 {
-    /* Do nothing */
+    return true;
 }
 #endif /* !CONFIG_SIMPLE_TRACE */
 
