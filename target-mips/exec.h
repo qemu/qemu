@@ -36,17 +36,6 @@ static inline int cpu_has_work(CPUState *env)
     return has_work;
 }
 
-static inline int cpu_halted(CPUState *env)
-{
-    if (!env->halted)
-        return 0;
-    if (cpu_has_work(env)) {
-        env->halted = 0;
-        return 0;
-    }
-    return EXCP_HALTED;
-}
-
 static inline void compute_hflags(CPUState *env)
 {
     env->hflags &= ~(MIPS_HFLAG_COP1X | MIPS_HFLAG_64 | MIPS_HFLAG_CP0 |

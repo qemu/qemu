@@ -304,18 +304,6 @@ static inline int cpu_has_work(CPUState *env)
     return work;
 }
 
-static inline int cpu_halted(CPUState *env) {
-    /* handle exit of HALTED state */
-    if (!env->halted)
-        return 0;
-    /* disable halt condition */
-    if (cpu_has_work(env)) {
-        env->halted = 0;
-        return 0;
-    }
-    return EXCP_HALTED;
-}
-
 /* load efer and update the corresponding hflags. XXX: do consistency
    checks with cpuid bits ? */
 static inline void cpu_load_efer(CPUState *env, uint64_t val)

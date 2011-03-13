@@ -28,8 +28,12 @@ static void error_exit(int err, const char *msg)
 void qemu_mutex_init(QemuMutex *mutex)
 {
     int err;
+    pthread_mutexattr_t mutexattr;
 
-    err = pthread_mutex_init(&mutex->lock, NULL);
+    pthread_mutexattr_init(&mutexattr);
+    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_ERRORCHECK);
+    err = pthread_mutex_init(&mutex->lock, &mutexattr);
+    pthread_mutexattr_destroy(&mutexattr);
     if (err)
         error_exit(err, __func__);
 }
@@ -167,23 +171,14 @@ void qemu_thread_create(QemuThread *thread,
     pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 }
 
-void qemu_thread_signal(QemuThread *thread, int sig)
-{
-    int err;
-
-    err = pthread_kill(thread->thread, sig);
-    if (err)
-        error_exit(err, __func__);
-}
-
-void qemu_thread_self(QemuThread *thread)
+void qemu_thread_get_self(QemuThread *thread)
 {
     thread->thread = pthread_self();
 }
 
-int qemu_thread_equal(QemuThread *thread1, QemuThread *thread2)
+int qemu_thread_is_self(QemuThread *thread)
 {
-   return pthread_equal(thread1->thread, thread2->thread);
+   return pthread_equal(pthread_self(), thread->thread);
 }
 
 void qemu_thread_exit(void *retval)

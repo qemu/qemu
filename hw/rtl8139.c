@@ -1189,18 +1189,6 @@ static void rtl8139_reset(DeviceState *d)
 
     rtl8139_update_irq(s);
 
-    /* prepare eeprom */
-    s->eeprom.contents[0] = 0x8129;
-#if 1
-    // PCI vendor and device ID should be mirrored here
-    s->eeprom.contents[1] = PCI_VENDOR_ID_REALTEK;
-    s->eeprom.contents[2] = PCI_DEVICE_ID_REALTEK_8139;
-#endif
-
-    s->eeprom.contents[7] = s->conf.macaddr.a[0] | s->conf.macaddr.a[1] << 8;
-    s->eeprom.contents[8] = s->conf.macaddr.a[2] | s->conf.macaddr.a[3] << 8;
-    s->eeprom.contents[9] = s->conf.macaddr.a[4] | s->conf.macaddr.a[5] << 8;
-
     /* mark all status registers as owned by host */
     for (i = 0; i < 4; ++i)
     {
@@ -3391,6 +3379,17 @@ static int pci_rtl8139_init(PCIDevice *dev)
                            PCI_BASE_ADDRESS_SPACE_MEMORY, rtl8139_mmio_map);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
+
+    /* prepare eeprom */
+    s->eeprom.contents[0] = 0x8129;
+#if 1
+    /* PCI vendor and device ID should be mirrored here */
+    s->eeprom.contents[1] = PCI_VENDOR_ID_REALTEK;
+    s->eeprom.contents[2] = PCI_DEVICE_ID_REALTEK_8139;
+#endif
+    s->eeprom.contents[7] = s->conf.macaddr.a[0] | s->conf.macaddr.a[1] << 8;
+    s->eeprom.contents[8] = s->conf.macaddr.a[2] | s->conf.macaddr.a[3] << 8;
+    s->eeprom.contents[9] = s->conf.macaddr.a[4] | s->conf.macaddr.a[5] << 8;
 
     s->nic = qemu_new_nic(&net_rtl8139_info, &s->conf,
                           dev->qdev.info->name, dev->qdev.id, s);

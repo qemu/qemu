@@ -298,6 +298,7 @@ static void cpu_kick_irq(CPUState *env)
 {
     env->halted = 0;
     cpu_check_irqs(env);
+    qemu_cpu_kick(env);
 }
 
 static void cpu_set_irq(void *opaque, int irq, int level)
@@ -306,9 +307,8 @@ static void cpu_set_irq(void *opaque, int irq, int level)
 
     if (level) {
         CPUIRQ_DPRINTF("Raise CPU IRQ %d\n", irq);
-        env->halted = 0;
         env->pil_in |= 1 << irq;
-        cpu_check_irqs(env);
+        cpu_kick_irq(env);
     } else {
         CPUIRQ_DPRINTF("Lower CPU IRQ %d\n", irq);
         env->pil_in &= ~(1 << irq);

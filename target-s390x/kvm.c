@@ -194,6 +194,7 @@ static void kvm_s390_interrupt_internal(CPUState *env, int type, uint32_t parm,
 
     env->halted = 0;
     env->exception_index = -1;
+    qemu_cpu_kick(env);
 
     kvmint.type = type;
     kvmint.parm = parm;
