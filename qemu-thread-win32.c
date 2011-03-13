@@ -33,6 +33,12 @@ void qemu_mutex_init(QemuMutex *mutex)
     InitializeCriticalSection(&mutex->lock);
 }
 
+void qemu_mutex_destroy(QemuMutex *mutex)
+{
+    assert(mutex->owner == 0);
+    DeleteCriticalSection(&mutex->lock);
+}
+
 void qemu_mutex_lock(QemuMutex *mutex)
 {
     EnterCriticalSection(&mutex->lock);
@@ -78,6 +84,21 @@ void qemu_cond_init(QemuCond *cond)
     if (!cond->continue_event) {
         error_exit(GetLastError(), __func__);
     }
+}
+
+void qemu_cond_destroy(QemuCond *cond)
+{
+    BOOL result;
+    result = CloseHandle(cond->continue_event);
+    if (!result) {
+        error_exit(GetLastError(), __func__);
+    }
+    cond->continue_event = 0;
+    result = CloseHandle(cond->sema);
+    if (!result) {
+        error_exit(GetLastError(), __func__);
+    }
+    cond->sema = 0;
 }
 
 void qemu_cond_signal(QemuCond *cond)
