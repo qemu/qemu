@@ -1,6 +1,8 @@
 #ifndef __QEMU_THREAD_H
 #define __QEMU_THREAD_H 1
 
+#include <inttypes.h>
+
 typedef struct QemuMutex QemuMutex;
 typedef struct QemuCond QemuCond;
 typedef struct QemuThread QemuThread;
