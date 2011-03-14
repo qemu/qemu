@@ -153,7 +153,7 @@ struct qemu_alarm_timer {
     char const *name;
     int (*start)(struct qemu_alarm_timer *t);
     void (*stop)(struct qemu_alarm_timer *t);
-    void (*rearm)(struct qemu_alarm_timer *t);
+    void (*rearm)(struct qemu_alarm_timer *t, int64_t nearest_delta_ns);
 #if defined(__linux__)
     int fd;
     timer_t timer;
@@ -181,12 +181,46 @@ static inline int alarm_has_dynticks(struct qemu_alarm_timer *t)
     return !!t->rearm;
 }
 
+static int64_t qemu_next_alarm_deadline(void)
+{
+    int64_t delta;
+    int64_t rtdelta;
+
+    if (!use_icount && vm_clock->active_timers) {
+        delta = vm_clock->active_timers->expire_time -
+                     qemu_get_clock_ns(vm_clock);
+    } else {
+        delta = INT32_MAX;
+    }
+    if (host_clock->active_timers) {
+        int64_t hdelta = host_clock->active_timers->expire_time -
+                 qemu_get_clock_ns(host_clock);
+        if (hdelta < delta) {
+            delta = hdelta;
+        }
+    }
+    if (rt_clock->active_timers) {
+        rtdelta = (rt_clock->active_timers->expire_time -
+                 qemu_get_clock_ns(rt_clock));
+        if (rtdelta < delta) {
+            delta = rtdelta;
+        }
+    }
+
+    return delta;
+}
+
 static void qemu_rearm_alarm_timer(struct qemu_alarm_timer *t)
 {
-    if (!alarm_has_dynticks(t))
+    int64_t nearest_delta_ns;
+    assert(alarm_has_dynticks(t));
+    if (!rt_clock->active_timers &&
+        !vm_clock->active_timers &&
+        !host_clock->active_timers) {
         return;
-
-    t->rearm(t);
+    }
+    nearest_delta_ns = qemu_next_alarm_deadline();
+    t->rearm(t, nearest_delta_ns);
 }
 
 /* TODO: MIN_TIMER_REARM_NS should be optimized */
@@ -196,23 +230,23 @@ static void qemu_rearm_alarm_timer(struct qemu_alarm_timer *t)
 
 static int mm_start_timer(struct qemu_alarm_timer *t);
 static void mm_stop_timer(struct qemu_alarm_timer *t);
-static void mm_rearm_timer(struct qemu_alarm_timer *t);
+static void mm_rearm_timer(struct qemu_alarm_timer *t, int64_t delta);
 
 static int win32_start_timer(struct qemu_alarm_timer *t);
 static void win32_stop_timer(struct qemu_alarm_timer *t);
-static void win32_rearm_timer(struct qemu_alarm_timer *t);
+static void win32_rearm_timer(struct qemu_alarm_timer *t, int64_t delta);
 
 #else
 
 static int unix_start_timer(struct qemu_alarm_timer *t);
 static void unix_stop_timer(struct qemu_alarm_timer *t);
-static void unix_rearm_timer(struct qemu_alarm_timer *t);
+static void unix_rearm_timer(struct qemu_alarm_timer *t, int64_t delta);
 
 #ifdef __linux__
 
 static int dynticks_start_timer(struct qemu_alarm_timer *t);
 static void dynticks_stop_timer(struct qemu_alarm_timer *t);
-static void dynticks_rearm_timer(struct qemu_alarm_timer *t);
+static void dynticks_rearm_timer(struct qemu_alarm_timer *t, int64_t delta);
 
 #endif /* __linux__ */
 
@@ -715,8 +749,6 @@ void qemu_run_all_timers(void)
     qemu_run_timers(host_clock);
 }
 
-static int64_t qemu_next_alarm_deadline(void);
-
 #ifdef _WIN32
 static void CALLBACK host_alarm_handler(PVOID lpParam, BOOLEAN unused)
 #else
@@ -781,33 +813,6 @@ int64_t qemu_next_icount_deadline(void)
     return delta;
 }
 
-static int64_t qemu_next_alarm_deadline(void)
-{
-    int64_t delta;
-    int64_t rtdelta;
-
-    if (!use_icount && vm_clock->active_timers) {
-        delta = vm_clock->active_timers->expire_time -
-                     qemu_get_clock_ns(vm_clock);
-    } else {
-        delta = INT32_MAX;
-    }
-    if (host_clock->active_timers) {
-        int64_t hdelta = host_clock->active_timers->expire_time -
-                 qemu_get_clock_ns(host_clock);
-        if (hdelta < delta)
-            delta = hdelta;
-    }
-    if (rt_clock->active_timers) {
-        rtdelta = (rt_clock->active_timers->expire_time -
-                 qemu_get_clock_ns(rt_clock));
-        if (rtdelta < delta)
-            delta = rtdelta;
-    }
-
-    return delta;
-}
-
 #if defined(__linux__)
 
 #include "compatfd.h"
@@ -860,20 +865,13 @@ static void dynticks_stop_timer(struct qemu_alarm_timer *t)
     timer_delete(host_timer);
 }
 
-static void dynticks_rearm_timer(struct qemu_alarm_timer *t)
+static void dynticks_rearm_timer(struct qemu_alarm_timer *t,
+                                 int64_t nearest_delta_ns)
 {
     timer_t host_timer = t->timer;
     struct itimerspec timeout;
-    int64_t nearest_delta_ns = INT64_MAX;
     int64_t current_ns;
 
-    assert(alarm_has_dynticks(t));
-    if (!rt_clock->active_timers &&
-        !vm_clock->active_timers &&
-        !host_clock->active_timers)
-        return;
-
-    nearest_delta_ns = qemu_next_alarm_deadline();
     if (nearest_delta_ns < MIN_TIMER_REARM_NS)
         nearest_delta_ns = MIN_TIMER_REARM_NS;
 
@@ -915,19 +913,12 @@ static int unix_start_timer(struct qemu_alarm_timer *t)
     return 0;
 }
 
-static void unix_rearm_timer(struct qemu_alarm_timer *t)
+static void unix_rearm_timer(struct qemu_alarm_timer *t,
+                             int64_t nearest_delta_ns)
 {
     struct itimerval itv;
-    int64_t nearest_delta_ns = INT64_MAX;
     int err;
 
-    assert(alarm_has_dynticks(t));
-    if (!rt_clock->active_timers &&
-        !vm_clock->active_timers &&
-        !host_clock->active_timers)
-        return;
-
-    nearest_delta_ns = qemu_next_alarm_deadline();
     if (nearest_delta_ns < MIN_TIMER_REARM_NS)
         nearest_delta_ns = MIN_TIMER_REARM_NS;
 
@@ -1014,23 +1005,14 @@ static void mm_stop_timer(struct qemu_alarm_timer *t)
     timeEndPeriod(mm_period);
 }
 
-static void mm_rearm_timer(struct qemu_alarm_timer *t)
+static void mm_rearm_timer(struct qemu_alarm_timer *t, int64_t delta)
 {
-    int nearest_delta_ms;
-
-    assert(alarm_has_dynticks(t));
-    if (!rt_clock->active_timers &&
-        !vm_clock->active_timers &&
-        !host_clock->active_timers) {
-        return;
-    }
-
-    timeKillEvent(mm_timer);
-
-    nearest_delta_ms = (qemu_next_alarm_deadline() + 999999) / 1000000;
+    int nearest_delta_ms = (delta + 999999) / 1000000;
     if (nearest_delta_ms < 1) {
         nearest_delta_ms = 1;
     }
+
+    timeKillEvent(mm_timer);
     mm_timer = timeSetEvent(nearest_delta_ms,
                             mm_period,
                             mm_alarm_handler,
@@ -1082,19 +1064,14 @@ static void win32_stop_timer(struct qemu_alarm_timer *t)
     }
 }
 
-static void win32_rearm_timer(struct qemu_alarm_timer *t)
+static void win32_rearm_timer(struct qemu_alarm_timer *t,
+                              int64_t nearest_delta_ns)
 {
     HANDLE hTimer = t->timer;
     int nearest_delta_ms;
     BOOLEAN success;
 
-    assert(alarm_has_dynticks(t));
-    if (!rt_clock->active_timers &&
-        !vm_clock->active_timers &&
-        !host_clock->active_timers)
-        return;
-
-    nearest_delta_ms = (qemu_next_alarm_deadline() + 999999) / 1000000;
+    nearest_delta_ms = (nearest_delta_ns + 999999) / 1000000;
     if (nearest_delta_ms < 1) {
         nearest_delta_ms = 1;
     }
