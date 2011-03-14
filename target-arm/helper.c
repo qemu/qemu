@@ -2708,6 +2708,8 @@ uint32_t HELPER(vfp_fcvt_f32_to_f16)(float32 a, CPUState *env)
 }
 
 #define float32_two make_float32(0x40000000)
+#define float32_three make_float32(0x40400000)
+#define float32_one_point_five make_float32(0x3fc00000)
 
 float32 HELPER(recps_f32)(float32 a, float32 b, CPUState *env)
 {
@@ -2722,16 +2724,13 @@ float32 HELPER(recps_f32)(float32 a, float32 b, CPUState *env)
 float32 HELPER(rsqrts_f32)(float32 a, float32 b, CPUState *env)
 {
     float_status *s = &env->vfp.standard_fp_status;
-    float32 two = int32_to_float32(2, s);
-    float32 three = int32_to_float32(3, s);
     float32 product;
     if ((float32_is_infinity(a) && float32_is_zero_or_denormal(b)) ||
         (float32_is_infinity(b) && float32_is_zero_or_denormal(a))) {
-        product = float32_zero;
-    } else {
-        product = float32_mul(a, b, s);
+        return float32_one_point_five;
     }
-    return float32_div(float32_sub(three, product, s), two, s);
+    product = float32_mul(a, b, s);
+    return float32_div(float32_sub(float32_three, product, s), float32_two, s);
 }
 
 /* NEON helpers.  */
