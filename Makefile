@@ -211,7 +211,7 @@ gpxe-eepro100-80861209.rom \
 pxe-e1000.bin \
 pxe-ne2k_pci.bin pxe-pcnet.bin \
 pxe-rtl8139.bin pxe-virtio.bin \
-bamboo.dtb petalogix-s3adsp1800.dtb \
+bamboo.dtb petalogix-s3adsp1800.dtb petalogix-ml605.dtb \
 multiboot.bin linuxboot.bin \
 s390-zipl.rom
 else

@@ -266,6 +266,7 @@ obj-mips-y += cirrus_vga.o
 obj-mips-$(CONFIG_FULONG) += bonito.o vt82c686.o mips_fulong2e.o
 
 obj-microblaze-y = petalogix_s3adsp1800_mmu.o
+obj-microblaze-y += petalogix_ml605_mmu.o
 
 obj-microblaze-y += microblaze_pic_cpu.o
 obj-microblaze-y += xilinx_intc.o
