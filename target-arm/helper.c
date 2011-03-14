@@ -2486,135 +2486,90 @@ DO_VFP_cmp(s, float32)
 DO_VFP_cmp(d, float64)
 #undef DO_VFP_cmp
 
-/* Helper routines to perform bitwise copies between float and int.  */
-static inline float32 vfp_itos(uint32_t i)
-{
-    union {
-        uint32_t i;
-        float32 s;
-    } v;
-
-    v.i = i;
-    return v.s;
-}
-
-static inline uint32_t vfp_stoi(float32 s)
-{
-    union {
-        uint32_t i;
-        float32 s;
-    } v;
-
-    v.s = s;
-    return v.i;
-}
-
-static inline float64 vfp_itod(uint64_t i)
-{
-    union {
-        uint64_t i;
-        float64 d;
-    } v;
-
-    v.i = i;
-    return v.d;
-}
-
-static inline uint64_t vfp_dtoi(float64 d)
-{
-    union {
-        uint64_t i;
-        float64 d;
-    } v;
-
-    v.d = d;
-    return v.i;
-}
-
 /* Integer to float conversion.  */
-float32 VFP_HELPER(uito, s)(float32 x, CPUState *env)
+float32 VFP_HELPER(uito, s)(uint32_t x, CPUState *env)
 {
-    return uint32_to_float32(vfp_stoi(x), &env->vfp.fp_status);
+    return uint32_to_float32(x, &env->vfp.fp_status);
 }
 
-float64 VFP_HELPER(uito, d)(float32 x, CPUState *env)
+float64 VFP_HELPER(uito, d)(uint32_t x, CPUState *env)
 {
-    return uint32_to_float64(vfp_stoi(x), &env->vfp.fp_status);
+    return uint32_to_float64(x, &env->vfp.fp_status);
 }
 
-float32 VFP_HELPER(sito, s)(float32 x, CPUState *env)
+float32 VFP_HELPER(sito, s)(uint32_t x, CPUState *env)
 {
-    return int32_to_float32(vfp_stoi(x), &env->vfp.fp_status);
+    return int32_to_float32(x, &env->vfp.fp_status);
 }
 
-float64 VFP_HELPER(sito, d)(float32 x, CPUState *env)
+float64 VFP_HELPER(sito, d)(uint32_t x, CPUState *env)
 {
-    return int32_to_float64(vfp_stoi(x), &env->vfp.fp_status);
+    return int32_to_float64(x, &env->vfp.fp_status);
 }
 
 /* Float to integer conversion.  */
-float32 VFP_HELPER(toui, s)(float32 x, CPUState *env)
+uint32_t VFP_HELPER(toui, s)(float32 x, CPUState *env)
 {
     if (float32_is_any_nan(x)) {
-        return float32_zero;
+        return 0;
     }
-    return vfp_itos(float32_to_uint32(x, &env->vfp.fp_status));
+    return float32_to_uint32(x, &env->vfp.fp_status);
 }
 
-float32 VFP_HELPER(toui, d)(float64 x, CPUState *env)
+uint32_t VFP_HELPER(toui, d)(float64 x, CPUState *env)
 {
     if (float64_is_any_nan(x)) {
-        return float32_zero;
+        return 0;
     }
-    return vfp_itos(float64_to_uint32(x, &env->vfp.fp_status));
+    return float64_to_uint32(x, &env->vfp.fp_status);
 }
 
-float32 VFP_HELPER(tosi, s)(float32 x, CPUState *env)
+uint32_t VFP_HELPER(tosi, s)(float32 x, CPUState *env)
 {
     if (float32_is_any_nan(x)) {
-        return float32_zero;
+        return 0;
     }
-    return vfp_itos(float32_to_int32(x, &env->vfp.fp_status));
+    return float32_to_int32(x, &env->vfp.fp_status);
 }
 
-float32 VFP_HELPER(tosi, d)(float64 x, CPUState *env)
+uint32_t VFP_HELPER(tosi, d)(float64 x, CPUState *env)
 {
     if (float64_is_any_nan(x)) {
-        return float32_zero;
+        return 0;
     }
-    return vfp_itos(float64_to_int32(x, &env->vfp.fp_status));
+    return float64_to_int32(x, &env->vfp.fp_status);
 }
 
-float32 VFP_HELPER(touiz, s)(float32 x, CPUState *env)
+uint32_t VFP_HELPER(touiz, s)(float32 x, CPUState *env)
 {
     if (float32_is_any_nan(x)) {
-        return float32_zero;
+        return 0;
     }
-    return vfp_itos(float32_to_uint32_round_to_zero(x, &env->vfp.fp_status));
+    return float32_to_uint32_round_to_zero(x, &env->vfp.fp_status);
 }
 
-float32 VFP_HELPER(touiz, d)(float64 x, CPUState *env)
+uint32_t VFP_HELPER(touiz, d)(float64 x, CPUState *env)
 {
     if (float64_is_any_nan(x)) {
-        return float32_zero;
+        return 0;
     }
-    return vfp_itos(float64_to_uint32_round_to_zero(x, &env->vfp.fp_status));
+    return float64_to_uint32_round_to_zero(x, &env->vfp.fp_status);
 }
 
-float32 VFP_HELPER(tosiz, s)(float32 x, CPUState *env)
+uint32_t VFP_HELPER(tosiz, s)(float32 x, CPUState *env)
 {
     if (float32_is_any_nan(x)) {
-        return float32_zero;
+        return 0;
     }
-    return vfp_itos(float32_to_int32_round_to_zero(x, &env->vfp.fp_status));
+    return float32_to_int32_round_to_zero(x, &env->vfp.fp_status);
 }
 
-float32 VFP_HELPER(tosiz, d)(float64 x, CPUState *env)
+uint32_t VFP_HELPER(tosiz, d)(float64 x, CPUState *env)
 {
     if (float64_is_any_nan(x)) {
-        return float32_zero;
+        return 0;
     }
-    return vfp_itos(float64_to_int32_round_to_zero(x, &env->vfp.fp_status));
+    return float64_to_int32_round_to_zero(x, &env->vfp.fp_status);
 }
 
 /* floating point conversion */
@@ -2637,33 +2592,33 @@ float32 VFP_HELPER(fcvts, d)(float64 x, CPUState *env)
 }
 
 /* VFP3 fixed point conversion.  */
-#define VFP_CONV_FIX(name, p, ftype, itype, sign) \
-ftype VFP_HELPER(name##to, p)(ftype x, uint32_t shift, CPUState *env) \
+#define VFP_CONV_FIX(name, p, fsz, itype, sign) \
+float##fsz VFP_HELPER(name##to, p)(uint##fsz##_t  x, uint32_t shift, \
+                                   CPUState *env) \
 { \
-    ftype tmp; \
-    tmp = sign##int32_to_##ftype ((itype##_t)vfp_##p##toi(x), \
-                                  &env->vfp.fp_status); \
-    return ftype##_scalbn(tmp, -(int)shift, &env->vfp.fp_status); \
+    float##fsz tmp; \
+    tmp = sign##int32_to_##float##fsz ((itype##_t)x, &env->vfp.fp_status); \
+    return float##fsz##_scalbn(tmp, -(int)shift, &env->vfp.fp_status); \
 } \
-ftype VFP_HELPER(to##name, p)(ftype x, uint32_t shift, CPUState *env) \
+uint##fsz##_t VFP_HELPER(to##name, p)(float##fsz x, uint32_t shift, \
+                                      CPUState *env) \
 { \
-    ftype tmp; \
-    if (ftype##_is_any_nan(x)) { \
-        return ftype##_zero; \
+    float##fsz tmp; \
+    if (float##fsz##_is_any_nan(x)) { \
+        return 0; \
     } \
-    tmp = ftype##_scalbn(x, shift, &env->vfp.fp_status); \
-    return vfp_ito##p(ftype##_to_##itype##_round_to_zero(tmp, \
-        &env->vfp.fp_status)); \
+    tmp = float##fsz##_scalbn(x, shift, &env->vfp.fp_status); \
+    return float##fsz##_to_##itype##_round_to_zero(tmp, &env->vfp.fp_status); \
 }
 
-VFP_CONV_FIX(sh, d, float64, int16, )
-VFP_CONV_FIX(sl, d, float64, int32, )
-VFP_CONV_FIX(uh, d, float64, uint16, u)
-VFP_CONV_FIX(ul, d, float64, uint32, u)
-VFP_CONV_FIX(sh, s, float32, int16, )
-VFP_CONV_FIX(sl, s, float32, int32, )
-VFP_CONV_FIX(uh, s, float32, uint16, u)
-VFP_CONV_FIX(ul, s, float32, uint32, u)
+VFP_CONV_FIX(sh, d, 64, int16, )
+VFP_CONV_FIX(sl, d, 64, int32, )
+VFP_CONV_FIX(uh, d, 64, uint16, u)
+VFP_CONV_FIX(ul, d, 64, uint32, u)
+VFP_CONV_FIX(sh, s, 32, int16, )
+VFP_CONV_FIX(sl, s, 32, int32, )
+VFP_CONV_FIX(uh, s, 32, uint16, u)
+VFP_CONV_FIX(ul, s, 32, uint32, u)
 #undef VFP_CONV_FIX
 
 /* Half precision conversions.  */
