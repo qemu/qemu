@@ -2707,11 +2707,16 @@ uint32_t HELPER(vfp_fcvt_f32_to_f16)(float32 a, CPUState *env)
     return do_fcvt_f32_to_f16(a, env, &env->vfp.fp_status);
 }
 
+#define float32_two make_float32(0x40000000)
+
 float32 HELPER(recps_f32)(float32 a, float32 b, CPUState *env)
 {
-    float_status *s = &env->vfp.fp_status;
-    float32 two = int32_to_float32(2, s);
-    return float32_sub(two, float32_mul(a, b, s), s);
+    float_status *s = &env->vfp.standard_fp_status;
+    if ((float32_is_infinity(a) && float32_is_zero_or_denormal(b)) ||
+        (float32_is_infinity(b) && float32_is_zero_or_denormal(a))) {
+        return float32_two;
+    }
+    return float32_sub(float32_two, float32_mul(a, b, s), s);
 }
 
 float32 HELPER(rsqrts_f32)(float32 a, float32 b, CPUState *env)
