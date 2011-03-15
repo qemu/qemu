@@ -2931,6 +2931,8 @@ void qemu_ram_free(ram_addr_t addr)
                 } else {
                     qemu_vfree(block->host);
                 }
+#else
+                abort();
 #endif
             } else {
 #if defined(TARGET_S390X) && defined(CONFIG_KVM)
@@ -2979,6 +2981,8 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
                         area = mmap(vaddr, length, PROT_READ | PROT_WRITE,
                                     flags, -1, 0);
                     }
+#else
+                    abort();
 #endif
                 } else {
 #if defined(TARGET_S390X) && defined(CONFIG_KVM)
