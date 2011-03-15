@@ -685,8 +685,6 @@ typedef struct CPUX86State {
 
     uint64_t tsc;
 
-    uint64_t pat;
-
     uint64_t mcg_status;
 
     /* exception/interrupt handling */
@@ -706,6 +704,8 @@ typedef struct CPUX86State {
     uint8_t nmi_pending;
 
     CPU_COMMON
+
+    uint64_t pat;
 
     /* processor features (e.g. for CPUID insn) */
     uint32_t cpuid_level;

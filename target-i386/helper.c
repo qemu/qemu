@@ -99,6 +99,8 @@ void cpu_reset(CPUX86State *env)
 
     env->mxcsr = 0x1f80;
 
+    env->pat = 0x0007040600070406ULL;
+
     memset(env->dr, 0, sizeof(env->dr));
     env->dr[6] = DR6_FIXED_1;
     env->dr[7] = DR7_FIXED_1;
@@ -1280,8 +1282,11 @@ CPUX86State *cpu_x86_init(const char *cpu_model)
 void do_cpu_init(CPUState *env)
 {
     int sipi = env->interrupt_request & CPU_INTERRUPT_SIPI;
+    uint64_t pat = env->pat;
+
     cpu_reset(env);
     env->interrupt_request = sipi;
+    env->pat = pat;
     apic_init_reset(env->apic_state);
     env->halted = !cpu_is_bsp(env);
 }
