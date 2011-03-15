@@ -1305,9 +1305,10 @@ void net_check_clients(void)
 {
     VLANState *vlan;
     VLANClientState *vc;
-    int has_nic = 0, has_host_dev = 0;
 
     QTAILQ_FOREACH(vlan, &vlans, next) {
+        int has_nic = 0, has_host_dev = 0;
+
         QTAILQ_FOREACH(vc, &vlan->clients, next) {
             switch (vc->info->type) {
             case NET_CLIENT_TYPE_NIC:
