@@ -975,17 +975,17 @@ int kvm_cpu_exec(CPUState *env)
             ret = kvm_handle_internal_error(env, run);
             break;
 #endif
+#ifdef KVM_CAP_SET_GUEST_DEBUG
         case KVM_EXIT_DEBUG:
             DPRINTF("kvm_exit_debug\n");
-#ifdef KVM_CAP_SET_GUEST_DEBUG
             if (kvm_arch_debug(&run->debug.arch)) {
                 ret = EXCP_DEBUG;
                 goto out;
             }
             /* re-enter, this exception was guest-internal */
             ret = 1;
-#endif /* KVM_CAP_SET_GUEST_DEBUG */
             break;
+#endif /* KVM_CAP_SET_GUEST_DEBUG */
         default:
             DPRINTF("kvm_arch_handle_exit\n");
             ret = kvm_arch_handle_exit(env, run);
