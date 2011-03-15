@@ -148,7 +148,8 @@ static bool cpu_thread_is_idle(CPUState *env)
     if (env->stopped || !vm_running) {
         return true;
     }
-    if (!env->halted || qemu_cpu_has_work(env)) {
+    if (!env->halted || qemu_cpu_has_work(env) ||
+        (kvm_enabled() && kvm_irqchip_in_kernel())) {
         return false;
     }
     return true;
