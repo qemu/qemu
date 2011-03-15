@@ -271,7 +271,7 @@ static int kvmppc_handle_halt(CPUState *env)
         env->exception_index = EXCP_HLT;
     }
 
-    return 1;
+    return 0;
 }
 
 /* map dcr access to existing qemu dcr emulation */
@@ -280,7 +280,7 @@ static int kvmppc_handle_dcr_read(CPUState *env, uint32_t dcrn, uint32_t *data)
     if (ppc_dcr_read(env->dcr_env, dcrn, data) < 0)
         fprintf(stderr, "Read to unhandled DCR (0x%x)\n", dcrn);
 
-    return 1;
+    return 0;
 }
 
 static int kvmppc_handle_dcr_write(CPUState *env, uint32_t dcrn, uint32_t data)
@@ -288,12 +288,12 @@ static int kvmppc_handle_dcr_write(CPUState *env, uint32_t dcrn, uint32_t data)
     if (ppc_dcr_write(env->dcr_env, dcrn, data) < 0)
         fprintf(stderr, "Write to unhandled DCR (0x%x)\n", dcrn);
 
-    return 1;
+    return 0;
 }
 
 int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
 {
-    int ret = 0;
+    int ret;
 
     switch (run->exit_reason) {
     case KVM_EXIT_DCR:

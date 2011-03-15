@@ -1618,10 +1618,10 @@ static int kvm_handle_halt(CPUState *env)
           (env->eflags & IF_MASK)) &&
         !(env->interrupt_request & CPU_INTERRUPT_NMI)) {
         env->halted = 1;
-        return 0;
+        return EXCP_HLT;
     }
 
-    return 1;
+    return 0;
 }
 
 static bool host_supports_vmx(void)
@@ -1637,7 +1637,7 @@ static bool host_supports_vmx(void)
 int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
 {
     uint64_t code;
-    int ret = 0;
+    int ret;
 
     switch (run->exit_reason) {
     case KVM_EXIT_HLT:
@@ -1645,7 +1645,7 @@ int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
         ret = kvm_handle_halt(env);
         break;
     case KVM_EXIT_SET_TPR:
-        ret = 1;
+        ret = 0;
         break;
     case KVM_EXIT_FAIL_ENTRY:
         code = run->fail_entry.hardware_entry_failure_reason;

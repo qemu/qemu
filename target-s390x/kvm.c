@@ -497,6 +497,11 @@ int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
             break;
     }
 
+    if (ret == 0) {
+        ret = EXCP_INTERRUPT;
+    } else if (ret > 0) {
+        ret = 0;
+    }
     return ret;
 }
 

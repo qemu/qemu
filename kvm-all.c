@@ -989,11 +989,6 @@ int kvm_cpu_exec(CPUState *env)
         default:
             DPRINTF("kvm_arch_handle_exit\n");
             ret = kvm_arch_handle_exit(env, run);
-            if (ret == 0) {
-                ret = EXCP_INTERRUPT;
-            } else if (ret > 0) {
-                ret = 0;
-            }
             break;
         }
     } while (ret == 0);
