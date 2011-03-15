@@ -1215,7 +1215,8 @@ typedef struct QEMUResetEntry {
 static QTAILQ_HEAD(reset_handlers, QEMUResetEntry) reset_handlers =
     QTAILQ_HEAD_INITIALIZER(reset_handlers);
 static int reset_requested;
-static int shutdown_requested;
+static int shutdown_requested, shutdown_signal = -1;
+static pid_t shutdown_pid;
 static int powerdown_requested;
 static int debug_requested;
 static int vmstop_requested;
@@ -1225,6 +1226,15 @@ int qemu_shutdown_requested(void)
     int r = shutdown_requested;
     shutdown_requested = 0;
     return r;
+}
+
+void qemu_kill_report(void)
+{
+    if (shutdown_signal != -1) {
+        fprintf(stderr, "Got signal %d from pid %d\n",
+                         shutdown_signal, shutdown_pid);
+        shutdown_signal = -1;
+    }
 }
 
 int qemu_reset_requested(void)
@@ -1298,6 +1308,13 @@ void qemu_system_reset_request(void)
     }
     cpu_stop_current();
     qemu_notify_event();
+}
+
+void qemu_system_killed(int signal, pid_t pid)
+{
+    shutdown_signal = signal;
+    shutdown_pid = pid;
+    qemu_system_shutdown_request();
 }
 
 void qemu_system_shutdown_request(void)
@@ -1443,6 +1460,7 @@ static void main_loop(void)
             vm_stop(VMSTOP_DEBUG);
         }
         if (qemu_shutdown_requested()) {
+            qemu_kill_report();
             monitor_protocol_event(QEVENT_SHUTDOWN, NULL);
             if (no_shutdown) {
                 vm_stop(VMSTOP_SHUTDOWN);
