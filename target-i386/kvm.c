@@ -1731,31 +1731,31 @@ void kvm_arch_remove_all_hw_breakpoints(void)
 
 static CPUWatchpoint hw_watchpoint;
 
-int kvm_arch_debug(struct kvm_debug_exit_arch *arch_info)
+static int kvm_handle_debug(struct kvm_debug_exit_arch *arch_info)
 {
-    int handle = 0;
+    int ret = 0;
     int n;
 
     if (arch_info->exception == 1) {
         if (arch_info->dr6 & (1 << 14)) {
             if (cpu_single_env->singlestep_enabled) {
-                handle = 1;
+                ret = EXCP_DEBUG;
             }
         } else {
             for (n = 0; n < 4; n++) {
                 if (arch_info->dr6 & (1 << n)) {
                     switch ((arch_info->dr7 >> (16 + n*4)) & 0x3) {
                     case 0x0:
-                        handle = 1;
+                        ret = EXCP_DEBUG;
                         break;
                     case 0x1:
-                        handle = 1;
+                        ret = EXCP_DEBUG;
                         cpu_single_env->watchpoint_hit = &hw_watchpoint;
                         hw_watchpoint.vaddr = hw_breakpoint[n].addr;
                         hw_watchpoint.flags = BP_MEM_WRITE;
                         break;
                     case 0x3:
-                        handle = 1;
+                        ret = EXCP_DEBUG;
                         cpu_single_env->watchpoint_hit = &hw_watchpoint;
                         hw_watchpoint.vaddr = hw_breakpoint[n].addr;
                         hw_watchpoint.flags = BP_MEM_ACCESS;
@@ -1765,17 +1765,18 @@ int kvm_arch_debug(struct kvm_debug_exit_arch *arch_info)
             }
         }
     } else if (kvm_find_sw_breakpoint(cpu_single_env, arch_info->pc)) {
-        handle = 1;
+        ret = EXCP_DEBUG;
     }
-    if (!handle) {
+    if (ret == 0) {
         cpu_synchronize_state(cpu_single_env);
         assert(cpu_single_env->exception_injected == -1);
 
+        /* pass to guest */
         cpu_single_env->exception_injected = arch_info->exception;
         cpu_single_env->has_error_code = 0;
     }
 
-    return handle;
+    return ret;
 }
 
 void kvm_arch_update_guest_debug(CPUState *env, struct kvm_guest_debug *dbg)
@@ -1851,6 +1852,12 @@ int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
                 run->ex.exception, run->ex.error_code);
         ret = -1;
         break;
+#ifdef KVM_CAP_SET_GUEST_DEBUG
+    case KVM_EXIT_DEBUG:
+        DPRINTF("kvm_exit_debug\n");
+        ret = kvm_handle_debug(&run->debug.arch);
+        break;
+#endif /* KVM_CAP_SET_GUEST_DEBUG */
     default:
         fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
         ret = -1;
