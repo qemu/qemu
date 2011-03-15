@@ -928,13 +928,12 @@ int kvm_cpu_exec(CPUState *env)
 
         kvm_flush_coalesced_mmio_buffer();
 
-        if (run_ret == -EINTR || run_ret == -EAGAIN) {
-            DPRINTF("io window exit\n");
-            ret = 0;
-            break;
-        }
-
         if (run_ret < 0) {
+            if (run_ret == -EINTR || run_ret == -EAGAIN) {
+                DPRINTF("io window exit\n");
+                ret = 0;
+                break;
+            }
             DPRINTF("kvm run failed %s\n", strerror(-run_ret));
             abort();
         }
