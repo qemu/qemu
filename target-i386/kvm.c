@@ -861,6 +861,7 @@ static int kvm_put_msrs(CPUState *env, int level)
     kvm_msr_entry_set(&msrs[n++], MSR_IA32_SYSENTER_CS, env->sysenter_cs);
     kvm_msr_entry_set(&msrs[n++], MSR_IA32_SYSENTER_ESP, env->sysenter_esp);
     kvm_msr_entry_set(&msrs[n++], MSR_IA32_SYSENTER_EIP, env->sysenter_eip);
+    kvm_msr_entry_set(&msrs[n++], MSR_PAT, env->pat);
     if (has_msr_star) {
         kvm_msr_entry_set(&msrs[n++], MSR_STAR, env->star);
     }
@@ -1113,6 +1114,7 @@ static int kvm_get_msrs(CPUState *env)
     msrs[n++].index = MSR_IA32_SYSENTER_CS;
     msrs[n++].index = MSR_IA32_SYSENTER_ESP;
     msrs[n++].index = MSR_IA32_SYSENTER_EIP;
+    msrs[n++].index = MSR_PAT;
     if (has_msr_star) {
         msrs[n++].index = MSR_STAR;
     }
@@ -1167,6 +1169,9 @@ static int kvm_get_msrs(CPUState *env)
             break;
         case MSR_IA32_SYSENTER_EIP:
             env->sysenter_eip = msrs[i].data;
+            break;
+        case MSR_PAT:
+            env->pat = msrs[i].data;
             break;
         case MSR_STAR:
             env->star = msrs[i].data;
