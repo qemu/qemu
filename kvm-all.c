@@ -831,7 +831,7 @@ static int kvm_handle_internal_error(CPUState *env, struct kvm_run *run)
         fprintf(stderr, "emulation failure\n");
         if (!kvm_arch_stop_on_emulation_error(env)) {
             cpu_dump_state(env, stderr, fprintf, CPU_DUMP_CODE);
-            return 0;
+            return EXCP_INTERRUPT;
         }
     }
     /* FIXME: Should trigger a qmp message to let management know
@@ -931,14 +931,13 @@ int kvm_cpu_exec(CPUState *env)
         if (run_ret < 0) {
             if (run_ret == -EINTR || run_ret == -EAGAIN) {
                 DPRINTF("io window exit\n");
-                ret = 0;
+                ret = EXCP_INTERRUPT;
                 break;
             }
             DPRINTF("kvm run failed %s\n", strerror(-run_ret));
             abort();
         }
 
-        ret = 0; /* exit loop */
         switch (run->exit_reason) {
         case KVM_EXIT_IO:
             DPRINTF("handle_io\n");
@@ -947,7 +946,7 @@ int kvm_cpu_exec(CPUState *env)
                           run->io.direction,
                           run->io.size,
                           run->io.count);
-            ret = 1;
+            ret = 0;
             break;
         case KVM_EXIT_MMIO:
             DPRINTF("handle_mmio\n");
@@ -955,14 +954,16 @@ int kvm_cpu_exec(CPUState *env)
                                    run->mmio.data,
                                    run->mmio.len,
                                    run->mmio.is_write);
-            ret = 1;
+            ret = 0;
             break;
         case KVM_EXIT_IRQ_WINDOW_OPEN:
             DPRINTF("irq_window_open\n");
+            ret = EXCP_INTERRUPT;
             break;
         case KVM_EXIT_SHUTDOWN:
             DPRINTF("shutdown\n");
             qemu_system_reset_request();
+            ret = EXCP_INTERRUPT;
             break;
         case KVM_EXIT_UNKNOWN:
             fprintf(stderr, "KVM: unknown exit, hardware reason %" PRIx64 "\n",
@@ -979,28 +980,29 @@ int kvm_cpu_exec(CPUState *env)
             DPRINTF("kvm_exit_debug\n");
             if (kvm_arch_debug(&run->debug.arch)) {
                 ret = EXCP_DEBUG;
-                goto out;
+                break;
             }
             /* re-enter, this exception was guest-internal */
-            ret = 1;
+            ret = 0;
             break;
 #endif /* KVM_CAP_SET_GUEST_DEBUG */
         default:
             DPRINTF("kvm_arch_handle_exit\n");
             ret = kvm_arch_handle_exit(env, run);
+            if (ret == 0) {
+                ret = EXCP_INTERRUPT;
+            } else if (ret > 0) {
+                ret = 0;
+            }
             break;
         }
-    } while (ret > 0);
+    } while (ret == 0);
 
     if (ret < 0) {
         cpu_dump_state(env, stderr, fprintf, CPU_DUMP_CODE);
         vm_stop(VMSTOP_PANIC);
     }
-    ret = EXCP_INTERRUPT;
 
-#ifdef KVM_CAP_SET_GUEST_DEBUG
-out:
-#endif
     env->exit_request = 0;
     cpu_single_env = NULL;
     return ret;
