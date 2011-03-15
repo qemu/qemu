@@ -82,7 +82,11 @@ static int virtconsole_exitfn(VirtIOSerialPort *port)
     VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
 
     if (vcon->chr) {
-        qemu_chr_close(vcon->chr);
+	/*
+	 * Instead of closing the chardev, free it so it can be used
+	 * for other purposes.
+	 */
+	qemu_chr_add_handlers(vcon->chr, NULL, NULL, NULL, NULL);
     }
 
     return 0;
