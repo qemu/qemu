@@ -890,7 +890,7 @@ void kvm_cpu_synchronize_post_init(CPUState *env)
 int kvm_cpu_exec(CPUState *env)
 {
     struct kvm_run *run = env->kvm_run;
-    int ret;
+    int ret, run_ret;
 
     DPRINTF("kvm_cpu_exec()\n");
 
@@ -920,7 +920,7 @@ int kvm_cpu_exec(CPUState *env)
         cpu_single_env = NULL;
         qemu_mutex_unlock_iothread();
 
-        ret = kvm_vcpu_ioctl(env, KVM_RUN, 0);
+        run_ret = kvm_vcpu_ioctl(env, KVM_RUN, 0);
 
         qemu_mutex_lock_iothread();
         cpu_single_env = env;
@@ -928,14 +928,14 @@ int kvm_cpu_exec(CPUState *env)
 
         kvm_flush_coalesced_mmio_buffer();
 
-        if (ret == -EINTR || ret == -EAGAIN) {
+        if (run_ret == -EINTR || run_ret == -EAGAIN) {
             DPRINTF("io window exit\n");
             ret = 0;
             break;
         }
 
-        if (ret < 0) {
-            DPRINTF("kvm run failed %s\n", strerror(-ret));
+        if (run_ret < 0) {
+            DPRINTF("kvm run failed %s\n", strerror(-run_ret));
             abort();
         }
 
