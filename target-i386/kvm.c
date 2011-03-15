@@ -1590,7 +1590,9 @@ int kvm_arch_process_async_events(CPUState *env)
         return 0;
     }
 
-    if (env->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI)) {
+    if (((env->interrupt_request & CPU_INTERRUPT_HARD) &&
+         (env->eflags & IF_MASK)) ||
+        (env->interrupt_request & CPU_INTERRUPT_NMI)) {
         env->halted = 0;
     }
     if (env->interrupt_request & CPU_INTERRUPT_INIT) {
