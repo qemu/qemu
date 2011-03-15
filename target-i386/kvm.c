@@ -1624,60 +1624,6 @@ static int kvm_handle_halt(CPUState *env)
     return 0;
 }
 
-static bool host_supports_vmx(void)
-{
-    uint32_t ecx, unused;
-
-    host_cpuid(1, 0, &unused, &unused, &ecx, &unused);
-    return ecx & CPUID_EXT_VMX;
-}
-
-#define VMX_INVALID_GUEST_STATE 0x80000021
-
-int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
-{
-    uint64_t code;
-    int ret;
-
-    switch (run->exit_reason) {
-    case KVM_EXIT_HLT:
-        DPRINTF("handle_hlt\n");
-        ret = kvm_handle_halt(env);
-        break;
-    case KVM_EXIT_SET_TPR:
-        ret = 0;
-        break;
-    case KVM_EXIT_FAIL_ENTRY:
-        code = run->fail_entry.hardware_entry_failure_reason;
-        fprintf(stderr, "KVM: entry failed, hardware error 0x%" PRIx64 "\n",
-                code);
-        if (host_supports_vmx() && code == VMX_INVALID_GUEST_STATE) {
-            fprintf(stderr,
-                    "\nIf you're runnning a guest on an Intel machine without "
-                        "unrestricted mode\n"
-                    "support, the failure can be most likely due to the guest "
-                        "entering an invalid\n"
-                    "state for Intel VT. For example, the guest maybe running "
-                        "in big real mode\n"
-                    "which is not supported on less recent Intel processors."
-                        "\n\n");
-        }
-        ret = -1;
-        break;
-    case KVM_EXIT_EXCEPTION:
-        fprintf(stderr, "KVM: exception %d exit (error code 0x%x)\n",
-                run->ex.exception, run->ex.error_code);
-        ret = -1;
-        break;
-    default:
-        fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
-        ret = -1;
-        break;
-    }
-
-    return ret;
-}
-
 #ifdef KVM_CAP_SET_GUEST_DEBUG
 int kvm_arch_insert_sw_breakpoint(CPUState *env, struct kvm_sw_breakpoint *bp)
 {
@@ -1859,6 +1805,60 @@ void kvm_arch_update_guest_debug(CPUState *env, struct kvm_guest_debug *dbg)
     }
 }
 #endif /* KVM_CAP_SET_GUEST_DEBUG */
+
+static bool host_supports_vmx(void)
+{
+    uint32_t ecx, unused;
+
+    host_cpuid(1, 0, &unused, &unused, &ecx, &unused);
+    return ecx & CPUID_EXT_VMX;
+}
+
+#define VMX_INVALID_GUEST_STATE 0x80000021
+
+int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
+{
+    uint64_t code;
+    int ret;
+
+    switch (run->exit_reason) {
+    case KVM_EXIT_HLT:
+        DPRINTF("handle_hlt\n");
+        ret = kvm_handle_halt(env);
+        break;
+    case KVM_EXIT_SET_TPR:
+        ret = 0;
+        break;
+    case KVM_EXIT_FAIL_ENTRY:
+        code = run->fail_entry.hardware_entry_failure_reason;
+        fprintf(stderr, "KVM: entry failed, hardware error 0x%" PRIx64 "\n",
+                code);
+        if (host_supports_vmx() && code == VMX_INVALID_GUEST_STATE) {
+            fprintf(stderr,
+                    "\nIf you're runnning a guest on an Intel machine without "
+                        "unrestricted mode\n"
+                    "support, the failure can be most likely due to the guest "
+                        "entering an invalid\n"
+                    "state for Intel VT. For example, the guest maybe running "
+                        "in big real mode\n"
+                    "which is not supported on less recent Intel processors."
+                        "\n\n");
+        }
+        ret = -1;
+        break;
+    case KVM_EXIT_EXCEPTION:
+        fprintf(stderr, "KVM: exception %d exit (error code 0x%x)\n",
+                run->ex.exception, run->ex.error_code);
+        ret = -1;
+        break;
+    default:
+        fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
+        ret = -1;
+        break;
+    }
+
+    return ret;
+}
 
 bool kvm_arch_stop_on_emulation_error(CPUState *env)
 {
