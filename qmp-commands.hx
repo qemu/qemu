@@ -1194,6 +1194,7 @@ Return a json-array. Each CPU is represented by a json-object, which contains:
      "nip": PPC (json-int)
      "pc" and "npc": sparc (json-int)
      "PC": mips (json-int)
+- "thread_id": ID of the underlying host thread (json-int)
 
 Example:
 
@@ -1205,12 +1206,14 @@ Example:
             "current":true,
             "halted":false,
             "pc":3227107138
+            "thread_id":3134
          },
          {
             "CPU":1,
             "current":false,
             "halted":true,
             "pc":7108165
+            "thread_id":3135
          }
       ]
    }

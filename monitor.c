@@ -897,6 +897,9 @@ static void print_cpu_iter(QObject *obj, void *opaque)
         monitor_printf(mon, " (halted)");
     }
 
+    monitor_printf(mon, " thread_id=%" PRId64 " ",
+                   qdict_get_int(cpu, "thread_id"));
+
     monitor_printf(mon, "\n");
 }
 
@@ -941,6 +944,7 @@ static void do_info_cpus(Monitor *mon, QObject **ret_data)
 #elif defined(TARGET_MIPS)
         qdict_put(cpu, "PC", qint_from_int(env->active_tc.PC));
 #endif
+        qdict_put(cpu, "thread_id", qint_from_int(env->thread_id));
 
         qlist_append(cpu_list, cpu);
     }

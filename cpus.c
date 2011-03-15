@@ -776,6 +776,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
 
     qemu_mutex_lock(&qemu_global_mutex);
     qemu_thread_get_self(env->thread);
+    env->thread_id = qemu_get_thread_id();
 
     r = kvm_init_vcpu(env);
     if (r < 0) {
@@ -817,6 +818,7 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
     /* signal CPU creation */
     qemu_mutex_lock(&qemu_global_mutex);
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        env->thread_id = qemu_get_thread_id();
         env->created = 1;
     }
     qemu_cond_signal(&qemu_cpu_cond);

@@ -638,6 +638,9 @@ void cpu_exec_init(CPUState *env)
     env->numa_node = 0;
     QTAILQ_INIT(&env->breakpoints);
     QTAILQ_INIT(&env->watchpoints);
+#ifndef CONFIG_USER_ONLY
+    env->thread_id = qemu_get_thread_id();
+#endif
     *penv = env;
 #if defined(CONFIG_USER_ONLY)
     cpu_list_unlock();
