@@ -211,6 +211,7 @@ int kvm_init_vcpu(CPUState *env)
 
     env->kvm_fd = ret;
     env->kvm_state = s;
+    env->kvm_vcpu_dirty = 1;
 
     mmap_size = kvm_ioctl(s, KVM_GET_VCPU_MMAP_SIZE, 0);
     if (mmap_size < 0) {
