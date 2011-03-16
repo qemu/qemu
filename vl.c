@@ -2625,6 +2625,14 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_sdl:
                 display_type = DT_SDL;
                 break;
+#else
+            case QEMU_OPTION_no_frame:
+            case QEMU_OPTION_alt_grab:
+            case QEMU_OPTION_ctrl_grab:
+            case QEMU_OPTION_no_quit:
+            case QEMU_OPTION_sdl:
+                fprintf(stderr, "SDL support is disabled\n");
+                exit(1);
 #endif
             case QEMU_OPTION_pidfile:
                 pid_file = optarg;

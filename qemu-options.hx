@@ -647,11 +647,9 @@ QEMU can display the VGA output when in text mode using a
 curses/ncurses interface.  Nothing is displayed in graphical mode.
 ETEXI
 
-#ifdef CONFIG_SDL
 DEF("no-frame", 0, QEMU_OPTION_no_frame,
     "-no-frame       open SDL window without a frame and window decorations\n",
     QEMU_ARCH_ALL)
-#endif
 STEXI
 @item -no-frame
 @findex -no-frame
@@ -660,42 +658,34 @@ available screen space. This makes the using QEMU in a dedicated desktop
 workspace more convenient.
 ETEXI
 
-#ifdef CONFIG_SDL
 DEF("alt-grab", 0, QEMU_OPTION_alt_grab,
     "-alt-grab       use Ctrl-Alt-Shift to grab mouse (instead of Ctrl-Alt)\n",
     QEMU_ARCH_ALL)
-#endif
 STEXI
 @item -alt-grab
 @findex -alt-grab
 Use Ctrl-Alt-Shift to grab mouse (instead of Ctrl-Alt).
 ETEXI
 
-#ifdef CONFIG_SDL
 DEF("ctrl-grab", 0, QEMU_OPTION_ctrl_grab,
     "-ctrl-grab      use Right-Ctrl to grab mouse (instead of Ctrl-Alt)\n",
     QEMU_ARCH_ALL)
-#endif
 STEXI
 @item -ctrl-grab
 @findex -ctrl-grab
 Use Right-Ctrl to grab mouse (instead of Ctrl-Alt).
 ETEXI
 
-#ifdef CONFIG_SDL
 DEF("no-quit", 0, QEMU_OPTION_no_quit,
     "-no-quit        disable SDL window close capability\n", QEMU_ARCH_ALL)
-#endif
 STEXI
 @item -no-quit
 @findex -no-quit
 Disable SDL window close capability.
 ETEXI
 
-#ifdef CONFIG_SDL
 DEF("sdl", 0, QEMU_OPTION_sdl,
     "-sdl            enable SDL\n", QEMU_ARCH_ALL)
-#endif
 STEXI
 @item -sdl
 @findex -sdl
