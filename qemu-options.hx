@@ -590,6 +590,28 @@ STEXI
 @table @option
 ETEXI
 
+DEF("display", HAS_ARG, QEMU_OPTION_display,
+    "-display sdl[,frame=on|off][,alt_grab=on|off][,ctrl_grab=on|off]\n"
+    "            [,window_close=on|off]|curses\n"
+    "                select display type\n", QEMU_ARCH_ALL)
+STEXI
+@item -display @var{type}
+@findex -display
+Select type of display to use. This option is a replacement for the
+old style -sdl/-curses/... options. Valid values for @var{type} are
+@table @option
+@item sdl
+Display video output via SDL (usually in a separate graphics
+window; see the SDL documentation for other possibilities).
+@item curses
+Display video output via curses. For graphics device models which
+support a text mode, QEMU can display this output using a
+curses/ncurses interface. Nothing is displayed when the graphics
+device is in graphical mode or if the graphics device does not support
+a text mode. Generally only the VGA device models support text mode.
+@end table
+ETEXI
+
 DEF("nographic", 0, QEMU_OPTION_nographic,
     "-nographic      disable graphical output and redirect serial I/Os to console\n",
     QEMU_ARCH_ALL)
