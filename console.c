@@ -1278,38 +1278,40 @@ static DisplaySurface* defaultallocator_create_displaysurface(int width, int hei
 {
     DisplaySurface *surface = (DisplaySurface*) qemu_mallocz(sizeof(DisplaySurface));
 
-    surface->width = width;
-    surface->height = height;
-    surface->linesize = width * 4;
-    surface->pf = qemu_default_pixelformat(32);
-#ifdef HOST_WORDS_BIGENDIAN
-    surface->flags = QEMU_ALLOCATED_FLAG | QEMU_BIG_ENDIAN_FLAG;
-#else
-    surface->flags = QEMU_ALLOCATED_FLAG;
-#endif
-    surface->data = (uint8_t*) qemu_mallocz(surface->linesize * surface->height);
-
+    int linesize = width * 4;
+    qemu_alloc_display(surface, width, height, linesize,
+                       qemu_default_pixelformat(32), 0);
     return surface;
 }
 
 static DisplaySurface* defaultallocator_resize_displaysurface(DisplaySurface *surface,
                                           int width, int height)
 {
+    int linesize = width * 4;
+    qemu_alloc_display(surface, width, height, linesize,
+                       qemu_default_pixelformat(32), 0);
+    return surface;
+}
+
+void qemu_alloc_display(DisplaySurface *surface, int width, int height,
+                        int linesize, PixelFormat pf, int newflags)
+{
+    void *data;
     surface->width = width;
     surface->height = height;
-    surface->linesize = width * 4;
-    surface->pf = qemu_default_pixelformat(32);
-    if (surface->flags & QEMU_ALLOCATED_FLAG)
-        surface->data = (uint8_t*) qemu_realloc(surface->data, surface->linesize * surface->height);
-    else
-        surface->data = (uint8_t*) qemu_malloc(surface->linesize * surface->height);
+    surface->linesize = linesize;
+    surface->pf = pf;
+    if (surface->flags & QEMU_ALLOCATED_FLAG) {
+        data = qemu_realloc(surface->data,
+                            surface->linesize * surface->height);
+    } else {
+        data = qemu_malloc(surface->linesize * surface->height);
+    }
+    surface->data = (uint8_t *)data;
+    surface->flags = newflags | QEMU_ALLOCATED_FLAG;
 #ifdef HOST_WORDS_BIGENDIAN
-    surface->flags = QEMU_ALLOCATED_FLAG | QEMU_BIG_ENDIAN_FLAG;
-#else
-    surface->flags = QEMU_ALLOCATED_FLAG;
+    surface->flags |= QEMU_BIG_ENDIAN_FLAG;
 #endif
-
-    return surface;
 }
 
 DisplaySurface* qemu_create_displaysurface_from(int width, int height, int bpp,
