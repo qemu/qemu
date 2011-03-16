@@ -1611,6 +1611,20 @@ static DisplayType select_display(const char *p)
         fprintf(stderr, "SDL support is disabled\n");
         exit(1);
 #endif
+    } else if (strstart(p, "vnc", &opts)) {
+        display_remote++;
+
+        if (*opts) {
+            const char *nextopt;
+
+            if (strstart(opts, "=", &nextopt)) {
+                vnc_display = nextopt;
+            }
+        }
+        if (!vnc_display) {
+            fprintf(stderr, "VNC requires a display argument vnc=<display>\n");
+            exit(1);
+        }
     } else if (strstart(p, "curses", &opts)) {
 #ifdef CONFIG_CURSES
         display = DT_CURSES;
