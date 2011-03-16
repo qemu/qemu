@@ -117,6 +117,7 @@ kvm=""
 kvm_para=""
 nptl=""
 sdl=""
+vnc="yes"
 sparse="no"
 uuid=""
 vde=""
@@ -539,6 +540,10 @@ for opt do
   ;;
   --enable-sdl) sdl="yes"
   ;;
+  --disable-vnc) vnc="no"
+  ;;
+  --enable-vnc) vnc="yes"
+  ;;
   --fmod-lib=*) fmod_lib="$optarg"
   ;;
   --fmod-inc=*) fmod_inc="$optarg"
@@ -836,6 +841,8 @@ echo "  --disable-strip          disable stripping binaries"
 echo "  --disable-werror         disable compilation abort on warning"
 echo "  --disable-sdl            disable SDL"
 echo "  --enable-sdl             enable SDL"
+echo "  --disable-vnc            disable VNC"
+echo "  --enable-vnc             enable VNC"
 echo "  --enable-cocoa           enable COCOA (Mac OS X only)"
 echo "  --audio-drv-list=LIST    set audio drivers list:"
 echo "                           Available drivers: $audio_possible_drivers"
@@ -1273,7 +1280,7 @@ fi
 
 ##########################################
 # VNC TLS detection
-if test "$vnc_tls" != "no" ; then
+if test "$vnc" = "yes" -a "$vnc_tls" != "no" ; then
   cat > $TMPC <<EOF
 #include <gnutls/gnutls.h>
 int main(void) { gnutls_session_t s; gnutls_init(&s, GNUTLS_SERVER); return 0; }
@@ -1293,7 +1300,7 @@ fi
 
 ##########################################
 # VNC SASL detection
-if test "$vnc_sasl" != "no" ; then
+if test "$vnc" = "yes" -a "$vnc_sasl" != "no" ; then
   cat > $TMPC <<EOF
 #include <sasl/sasl.h>
 #include <stdio.h>
@@ -1315,7 +1322,7 @@ fi
 
 ##########################################
 # VNC JPEG detection
-if test "$vnc_jpeg" != "no" ; then
+if test "$vnc" = "yes" -a "$vnc_jpeg" != "no" ; then
 cat > $TMPC <<EOF
 #include <stdio.h>
 #include <jpeglib.h>
@@ -1336,7 +1343,7 @@ fi
 
 ##########################################
 # VNC PNG detection
-if test "$vnc_png" != "no" ; then
+if test "$vnc" = "yes" -a "$vnc_png" != "no" ; then
 cat > $TMPC <<EOF
 //#include <stdio.h>
 #include <png.h>
@@ -2495,11 +2502,14 @@ echo "Audio drivers     $audio_drv_list"
 echo "Extra audio cards $audio_card_list"
 echo "Block whitelist   $block_drv_whitelist"
 echo "Mixer emulation   $mixemu"
-echo "VNC TLS support   $vnc_tls"
-echo "VNC SASL support  $vnc_sasl"
-echo "VNC JPEG support  $vnc_jpeg"
-echo "VNC PNG support   $vnc_png"
-echo "VNC thread        $vnc_thread"
+echo "VNC support       $vnc"
+if test "$vnc" = "yes" ; then
+    echo "VNC TLS support   $vnc_tls"
+    echo "VNC SASL support  $vnc_sasl"
+    echo "VNC JPEG support  $vnc_jpeg"
+    echo "VNC PNG support   $vnc_png"
+    echo "VNC thread        $vnc_thread"
+fi
 if test -n "$sparc_cpu"; then
     echo "Target Sparc Arch $sparc_cpu"
 fi
@@ -2649,6 +2659,9 @@ echo "CONFIG_BDRV_WHITELIST=$block_drv_whitelist" >> $config_host_mak
 if test "$mixemu" = "yes" ; then
   echo "CONFIG_MIXEMU=y" >> $config_host_mak
 fi
+if test "$vnc" = "yes" ; then
+  echo "CONFIG_VNC=y" >> $config_host_mak
+fi
 if test "$vnc_tls" = "yes" ; then
   echo "CONFIG_VNC_TLS=y" >> $config_host_mak
   echo "VNC_TLS_CFLAGS=$vnc_tls_cflags" >> $config_host_mak
@@ -2657,15 +2670,15 @@ if test "$vnc_sasl" = "yes" ; then
   echo "CONFIG_VNC_SASL=y" >> $config_host_mak
   echo "VNC_SASL_CFLAGS=$vnc_sasl_cflags" >> $config_host_mak
 fi
-if test "$vnc_jpeg" != "no" ; then
+if test "$vnc_jpeg" = "yes" ; then
   echo "CONFIG_VNC_JPEG=y" >> $config_host_mak
   echo "VNC_JPEG_CFLAGS=$vnc_jpeg_cflags" >> $config_host_mak
 fi
-if test "$vnc_png" != "no" ; then
+if test "$vnc_png" = "yes" ; then
   echo "CONFIG_VNC_PNG=y" >> $config_host_mak
   echo "VNC_PNG_CFLAGS=$vnc_png_cflags" >> $config_host_mak
 fi
-if test "$vnc_thread" != "no" ; then
+if test "$vnc_thread" = "yes" ; then
   echo "CONFIG_VNC_THREAD=y" >> $config_host_mak
 fi
 if test "$fnmatch" = "yes" ; then

@@ -1020,6 +1020,7 @@ static int do_quit(Monitor *mon, const QDict *qdict, QObject **ret_data)
     return 0;
 }
 
+#ifdef CONFIG_VNC
 static int change_vnc_password(const char *password)
 {
     if (!password || !password[0]) {
@@ -1066,6 +1067,13 @@ static int do_change_vnc(Monitor *mon, const char *target, const char *arg)
 
     return 0;
 }
+#else
+static int do_change_vnc(Monitor *mon, const char *target, const char *arg)
+{
+    qerror_report(QERR_FEATURE_DISABLED, "vnc");
+    return -ENODEV;
+}
+#endif
 
 /**
  * do_change(): Change a removable medium, or VNC configuration
@@ -1131,12 +1139,7 @@ static int set_password(Monitor *mon, const QDict *qdict, QObject **ret_data)
         }
         /* Note that setting an empty password will not disable login through
          * this interface. */
-        rc = vnc_display_password(NULL, password);
-        if (rc != 0) {
-            qerror_report(QERR_SET_PASSWD_FAILED);
-            return -1;
-        }
-        return 0;
+        return vnc_display_password(NULL, password);
     }
 
     qerror_report(QERR_INVALID_PARAMETER, "protocol");
@@ -1175,12 +1178,7 @@ static int expire_password(Monitor *mon, const QDict *qdict, QObject **ret_data)
     }
 
     if (strcmp(protocol, "vnc") == 0) {
-        rc = vnc_display_pw_expire(NULL, when);
-        if (rc != 0) {
-            qerror_report(QERR_SET_PASSWD_FAILED);
-            return -1;
-        }
-        return 0;
+        return vnc_display_pw_expire(NULL, when);
     }
 
     qerror_report(QERR_INVALID_PARAMETER, "protocol");

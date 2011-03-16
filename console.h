@@ -4,6 +4,8 @@
 #include "qemu-char.h"
 #include "qdict.h"
 #include "notify.h"
+#include "qerror.h"
+#include "monitor.h"
 
 /* keyboard/mouse support */
 
@@ -370,12 +372,32 @@ void cocoa_display_init(DisplayState *ds, int full_screen);
 void vnc_display_init(DisplayState *ds);
 void vnc_display_close(DisplayState *ds);
 int vnc_display_open(DisplayState *ds, const char *display);
-int vnc_display_password(DisplayState *ds, const char *password);
 int vnc_display_disable_login(DisplayState *ds);
+char *vnc_display_local_addr(DisplayState *ds);
+#ifdef CONFIG_VNC
+int vnc_display_password(DisplayState *ds, const char *password);
 int vnc_display_pw_expire(DisplayState *ds, time_t expires);
 void do_info_vnc_print(Monitor *mon, const QObject *data);
 void do_info_vnc(Monitor *mon, QObject **ret_data);
-char *vnc_display_local_addr(DisplayState *ds);
+#else
+static inline int vnc_display_password(DisplayState *ds, const char *password)
+{
+    qerror_report(QERR_FEATURE_DISABLED, "vnc");
+    return -ENODEV;
+}
+static inline int vnc_display_pw_expire(DisplayState *ds, time_t expires)
+{
+    qerror_report(QERR_FEATURE_DISABLED, "vnc");
+    return -ENODEV;
+};
+static inline void do_info_vnc(Monitor *mon, QObject **ret_data)
+{
+};
+static inline void do_info_vnc_print(Monitor *mon, const QObject *data)
+{
+    monitor_printf(mon, "VNC support disabled\n");
+};
+#endif
 
 /* curses.c */
 void curses_display_init(DisplayState *ds, int full_screen);

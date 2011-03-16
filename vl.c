@@ -206,7 +206,9 @@ int smp_cpus = 1;
 int max_cpus = 0;
 int smp_cores = 1;
 int smp_threads = 1;
+#ifdef CONFIG_VNC
 const char *vnc_display;
+#endif
 int acpi_enabled = 1;
 int no_hpet = 0;
 int fd_bootchk = 1;
@@ -1612,6 +1614,7 @@ static DisplayType select_display(const char *p)
         exit(1);
 #endif
     } else if (strstart(p, "vnc", &opts)) {
+#ifdef CONFIG_VNC
         display_remote++;
 
         if (*opts) {
@@ -1625,6 +1628,10 @@ static DisplayType select_display(const char *p)
             fprintf(stderr, "VNC requires a display argument vnc=<display>\n");
             exit(1);
         }
+#else
+        fprintf(stderr, "VNC support is disabled\n");
+        exit(1);
+#endif
     } else if (strstart(p, "curses", &opts)) {
 #ifdef CONFIG_CURSES
         display = DT_CURSES;
@@ -2026,7 +2033,9 @@ int main(int argc, char **argv, char **envp)
     int tb_size;
     const char *pid_file = NULL;
     const char *incoming = NULL;
+#ifdef CONFIG_VNC
     int show_vnc_port = 0;
+#endif
     int defconfig = 1;
     const char *trace_file = NULL;
 
@@ -2684,9 +2693,14 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
 	    case QEMU_OPTION_vnc:
+#ifdef CONFIG_VNC
                 display_remote++;
-		vnc_display = optarg;
-		break;
+                vnc_display = optarg;
+#else
+                fprintf(stderr, "VNC support is disabled\n");
+                exit(1);
+#endif
+                break;
             case QEMU_OPTION_no_acpi:
                 acpi_enabled = 0;
                 break;
@@ -3142,12 +3156,14 @@ int main(int argc, char **argv, char **envp)
     if (display_type == DT_DEFAULT && !display_remote) {
 #if defined(CONFIG_SDL) || defined(CONFIG_COCOA)
         display_type = DT_SDL;
-#else
+#elif defined(CONFIG_VNC)
         vnc_display = "localhost:0,to=99";
         show_vnc_port = 1;
+#else
+        display_type = DT_NONE;
 #endif
     }
-        
+
 
     /* init local displays */
     switch (display_type) {
@@ -3171,6 +3187,7 @@ int main(int argc, char **argv, char **envp)
         break;
     }
 
+#ifdef CONFIG_VNC
     /* init remote displays */
     if (vnc_display) {
         vnc_display_init(ds);
@@ -3181,6 +3198,7 @@ int main(int argc, char **argv, char **envp)
             printf("VNC server running on `%s'\n", vnc_display_local_addr(ds));
         }
     }
+#endif
 #ifdef CONFIG_SPICE
     if (using_spice && !qxl_enabled) {
         qemu_spice_display_init(ds);

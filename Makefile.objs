@@ -127,19 +127,20 @@ common-obj-y += $(addprefix audio/, $(audio-obj-y))
 ui-obj-y += keymaps.o
 ui-obj-$(CONFIG_SDL) += sdl.o sdl_zoom.o x_keymap.o
 ui-obj-$(CONFIG_CURSES) += curses.o
-ui-obj-y += vnc.o d3des.o
-ui-obj-y += vnc-enc-zlib.o vnc-enc-hextile.o
-ui-obj-y += vnc-enc-tight.o vnc-palette.o
-ui-obj-y += vnc-enc-zrle.o
-ui-obj-$(CONFIG_VNC_TLS) += vnc-tls.o vnc-auth-vencrypt.o
-ui-obj-$(CONFIG_VNC_SASL) += vnc-auth-sasl.o
-ui-obj-$(CONFIG_COCOA) += cocoa.o
+vnc-obj-y += vnc.o d3des.o
+vnc-obj-y += vnc-enc-zlib.o vnc-enc-hextile.o
+vnc-obj-y += vnc-enc-tight.o vnc-palette.o
+vnc-obj-y += vnc-enc-zrle.o
+vnc-obj-$(CONFIG_VNC_TLS) += vnc-tls.o vnc-auth-vencrypt.o
+vnc-obj-$(CONFIG_VNC_SASL) += vnc-auth-sasl.o
+vnc-obj-$(CONFIG_COCOA) += cocoa.o
 ifdef CONFIG_VNC_THREAD
-ui-obj-y += vnc-jobs-async.o
+vnc-obj-y += vnc-jobs-async.o
 else
-ui-obj-y += vnc-jobs-sync.o
+vnc-obj-y += vnc-jobs-sync.o
 endif
 common-obj-y += $(addprefix ui/, $(ui-obj-y))
+common-obj-$(CONFIG_VNC) += $(addprefix ui/, $(vnc-obj-y))
 
 common-obj-y += iov.o acl.o
 common-obj-$(CONFIG_POSIX) += qemu-thread-posix.o compatfd.o
