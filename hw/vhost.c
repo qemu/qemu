@@ -47,8 +47,10 @@ static void vhost_dev_sync_region(struct vhost_dev *dev,
         log = __sync_fetch_and_and(from, 0);
         while ((bit = sizeof(log) > sizeof(int) ?
                 ffsll(log) : ffs(log))) {
+            ram_addr_t ram_addr;
             bit -= 1;
-            cpu_physical_memory_set_dirty(addr + bit * VHOST_LOG_PAGE);
+            ram_addr = cpu_get_physical_page_desc(addr + bit * VHOST_LOG_PAGE);
+            cpu_physical_memory_set_dirty(ram_addr);
             log &= ~(0x1ull << bit);
         }
         addr += VHOST_LOG_CHUNK;
