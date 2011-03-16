@@ -634,11 +634,9 @@ the console. Therefore, you can still use QEMU to debug a Linux kernel
 with a serial console.
 ETEXI
 
-#ifdef CONFIG_CURSES
 DEF("curses", 0, QEMU_OPTION_curses,
     "-curses         use a curses/ncurses interface instead of SDL\n",
     QEMU_ARCH_ALL)
-#endif
 STEXI
 @item -curses
 @findex curses
