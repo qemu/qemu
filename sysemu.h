@@ -110,6 +110,7 @@ typedef enum DisplayType
     DT_CURSES,
     DT_SDL,
     DT_NOGRAPHIC,
+    DT_NONE,
 } DisplayType;
 
 extern int autostart;

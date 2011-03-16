@@ -1618,6 +1618,8 @@ static DisplayType select_display(const char *p)
         fprintf(stderr, "Curses support is disabled\n");
         exit(1);
 #endif
+    } else if (strstart(p, "none", &opts)) {
+        display = DT_NONE;
     } else {
     invalid_display:
         fprintf(stderr, "Unknown display type: %s\n", p);

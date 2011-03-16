@@ -592,7 +592,7 @@ ETEXI
 
 DEF("display", HAS_ARG, QEMU_OPTION_display,
     "-display sdl[,frame=on|off][,alt_grab=on|off][,ctrl_grab=on|off]\n"
-    "            [,window_close=on|off]|curses\n"
+    "            [,window_close=on|off]|curses|none\n"
     "                select display type\n", QEMU_ARCH_ALL)
 STEXI
 @item -display @var{type}
@@ -609,6 +609,12 @@ support a text mode, QEMU can display this output using a
 curses/ncurses interface. Nothing is displayed when the graphics
 device is in graphical mode or if the graphics device does not support
 a text mode. Generally only the VGA device models support text mode.
+@item none
+Do not display video output. The guest will still see an emulated
+graphics card, but its output will not be displayed to the QEMU
+user. This option differs from the -nographic option in that it
+only affects what is done with video output; -nographic also changes
+the destination of the serial and parallel port data.
 @end table
 ETEXI
 
