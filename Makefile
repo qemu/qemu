@@ -112,38 +112,6 @@ ui/vnc.o: QEMU_CFLAGS += $(VNC_TLS_CFLAGS)
 
 bt-host.o: QEMU_CFLAGS += $(BLUEZ_CFLAGS)
 
-ifeq ($(TRACE_BACKEND),dtrace)
-trace.h: trace.h-timestamp trace-dtrace.h
-else
-trace.h: trace.h-timestamp
-endif
-trace.h-timestamp: $(SRC_PATH)/trace-events config-host.mak
-	$(call quiet-command,sh $(SRC_PATH)/scripts/tracetool --$(TRACE_BACKEND) -h < $< > $@,"  GEN   trace.h")
-	@cmp -s $@ trace.h || cp $@ trace.h
-
-trace.c: trace.c-timestamp
-trace.c-timestamp: $(SRC_PATH)/trace-events config-host.mak
-	$(call quiet-command,sh $(SRC_PATH)/scripts/tracetool --$(TRACE_BACKEND) -c < $< > $@,"  GEN   trace.c")
-	@cmp -s $@ trace.c || cp $@ trace.c
-
-trace.o: trace.c $(GENERATED_HEADERS)
-
-trace-dtrace.h: trace-dtrace.dtrace
-	$(call quiet-command,dtrace -o $@ -h -s $<, "  GEN   trace-dtrace.h")
-
-# Normal practice is to name DTrace probe file with a '.d' extension
-# but that gets picked up by QEMU's Makefile as an external dependancy
-# rule file. So we use '.dtrace' instead
-trace-dtrace.dtrace: trace-dtrace.dtrace-timestamp
-trace-dtrace.dtrace-timestamp: $(SRC_PATH)/trace-events config-host.mak
-	$(call quiet-command,sh $(SRC_PATH)/scripts/tracetool --$(TRACE_BACKEND) -d < $< > $@,"  GEN   trace-dtrace.dtrace")
-	@cmp -s $@ trace-dtrace.dtrace || cp $@ trace-dtrace.dtrace
-
-trace-dtrace.o: trace-dtrace.dtrace $(GENERATED_HEADERS)
-	$(call quiet-command,dtrace -o $@ -G -s $<, "  GEN trace-dtrace.o")
-
-simpletrace.o: simpletrace.c $(GENERATED_HEADERS)
-
 version.o: $(SRC_PATH)/version.rc config-host.mak
 	$(call quiet-command,$(WINDRES) -I. -o $@ $<,"  RC    $(TARGET_DIR)$@")
 
