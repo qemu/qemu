@@ -15,6 +15,11 @@ QEMU_OBJS=$(addprefix ../, $(QEMU_THREAD) $(oslib-obj-y) $(trace-obj-y) qemu-mal
 
 QEMU_CFLAGS+=-I../
 
+vscclient: $(libcacard-y) $(QEMU_OBJS) vscclient.o
+	$(call quiet-command,$(CC) $(libcacard_libs) -lrt -o $@ $^,"  LINK  $(TARGET_DIR)$@")
+
+all: vscclient
+
 clean:
-	rm -f *.o */*.o *.d */*.d *.a */*.a *~ */*~
+	rm -f *.o */*.o *.d */*.d *.a */*.a *~ */*~ vscclient
 
