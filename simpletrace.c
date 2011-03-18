@@ -14,7 +14,6 @@
 #include <time.h>
 #include <signal.h>
 #include <pthread.h>
-#include "qerror.h"
 #include "qemu-timer.h"
 #include "trace.h"
 
@@ -331,7 +330,7 @@ void st_flush_trace_buffer(void)
     flush_trace_file(true);
 }
 
-void st_init(const char *file)
+bool st_init(const char *file)
 {
     pthread_t thread;
     pthread_attr_t attr;
@@ -347,10 +346,10 @@ void st_init(const char *file)
     pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 
     if (ret != 0) {
-        error_report("warning: unable to create trace file thread\n");
-        return;
+        return false;
     }
 
     atexit(st_flush_trace_buffer);
     st_set_trace_file(file);
+    return true;
 }

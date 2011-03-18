@@ -285,12 +285,15 @@ obj-mips-$(CONFIG_AR7) += ar7.o
 obj-mips-$(CONFIG_FULONG) += bonito.o vt82c686.o mips_fulong2e.o
 
 obj-microblaze-y = petalogix_s3adsp1800_mmu.o
+obj-microblaze-y += petalogix_ml605_mmu.o
 
 obj-microblaze-y += microblaze_pic_cpu.o
 obj-microblaze-y += xilinx_intc.o
 obj-microblaze-y += xilinx_timer.o
 obj-microblaze-y += xilinx_uartlite.o
 obj-microblaze-y += xilinx_ethlite.o
+obj-microblaze-y += xilinx_axidma.o
+obj-microblaze-y += xilinx_axienet.o
 
 obj-microblaze-$(CONFIG_FDT) += device_tree.o
 
