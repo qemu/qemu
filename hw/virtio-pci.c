@@ -160,13 +160,6 @@ static int virtio_pci_load_config(void * opaque, QEMUFile *f)
     if (proxy->vdev->config_vector != VIRTIO_NO_VECTOR) {
         return msix_vector_use(&proxy->pci_dev, proxy->vdev->config_vector);
     }
-
-    /* Try to find out if the guest has bus master disabled, but is
-       in ready state. Then we have a buggy guest OS. */
-    if ((proxy->vdev->status & VIRTIO_CONFIG_S_DRIVER_OK) &&
-        !(proxy->pci_dev.config[PCI_COMMAND] & PCI_COMMAND_MASTER)) {
-        proxy->flags |= VIRTIO_PCI_FLAG_BUS_MASTER_BUG;
-    }
     return 0;
 }
 
@@ -651,6 +644,12 @@ static void virtio_pci_vmstate_change(void *opaque, bool running)
     VirtIOPCIProxy *proxy = opaque;
 
     if (running) {
+        /* Try to find out if the guest has bus master disabled, but is
+           in ready state. Then we have a buggy guest OS. */
+        if ((proxy->vdev->status & VIRTIO_CONFIG_S_DRIVER_OK) &&
+            !(proxy->pci_dev.config[PCI_COMMAND] & PCI_COMMAND_MASTER)) {
+            proxy->flags |= VIRTIO_PCI_FLAG_BUS_MASTER_BUG;
+        }
         virtio_pci_start_ioeventfd(proxy);
     } else {
         virtio_pci_stop_ioeventfd(proxy);
