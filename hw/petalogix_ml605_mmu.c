@@ -150,7 +150,6 @@ petalogix_ml605_init(ram_addr_t ram_size,
     ram_addr_t phys_ram;
     ram_addr_t phys_flash;
     qemu_irq irq[32], *cpu_irq;
-    void *serial = NULL;
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -185,8 +184,8 @@ petalogix_ml605_init(ram_addr_t ram_size,
         irq[i] = qdev_get_gpio_in(dev, i);
     }
 
-    serial = serial_mm_init(UART16550_BASEADDR + 0x1000, 2, irq[5],
-                        115200, serial_hds[0], 1, 0);
+    serial_mm_init(UART16550_BASEADDR + 0x1000, 2, irq[5], 115200,
+                   serial_hds[0], 1, 0);
 
     /* 2 timers at irq 2 @ 100 Mhz.  */
     xilinx_timer_create(TIMER_BASEADDR, irq[2], 2, 100 * 1000000);
