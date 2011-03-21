@@ -103,8 +103,8 @@ static int vnc_zlib_stop(VncState *vs)
     zstream->avail_in = vs->zlib.zlib.offset;
     zstream->next_out = vs->output.buffer + vs->output.offset;
     zstream->avail_out = vs->output.capacity - vs->output.offset;
+    previous_out = zstream->avail_out;
     zstream->data_type = Z_BINARY;
-    previous_out = zstream->total_out;
 
     // start encoding
     if (deflate(zstream, Z_SYNC_FLUSH) != Z_OK) {
@@ -113,7 +113,7 @@ static int vnc_zlib_stop(VncState *vs)
     }
 
     vs->output.offset = vs->output.capacity - zstream->avail_out;
-    return zstream->total_out - previous_out;
+    return previous_out - zstream->avail_out;
 }
 
 int vnc_zlib_send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
