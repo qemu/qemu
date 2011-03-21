@@ -408,9 +408,9 @@ static int ioreq_runio_qemu_aio(struct ioreq *ioreq)
 	break;
     case BLKIF_OP_WRITE:
     case BLKIF_OP_WRITE_BARRIER:
-        ioreq->aio_inflight++;
         if (!ioreq->req.nr_segments)
             break;
+        ioreq->aio_inflight++;
         bdrv_aio_writev(blkdev->bs, ioreq->start / BLOCK_SIZE,
                         &ioreq->v, ioreq->v.size / BLOCK_SIZE,
                         qemu_aio_complete, ioreq);
