@@ -265,7 +265,6 @@ static int vmmouse_initfn(ISADevice *dev)
     vmport_register(VMMOUSE_STATUS, vmmouse_ioport_read, s);
     vmport_register(VMMOUSE_COMMAND, vmmouse_ioport_read, s);
     vmport_register(VMMOUSE_DATA, vmmouse_ioport_read, s);
-    vmstate_register(NULL, 0, &vmstate_vmmouse, s);
 
     return 0;
 }
@@ -274,6 +273,7 @@ static ISADeviceInfo vmmouse_info = {
     .init          = vmmouse_initfn,
     .qdev.name     = "vmmouse",
     .qdev.size     = sizeof(VMMouseState),
+    .qdev.vmsd     = &vmstate_vmmouse,
     .qdev.no_user  = 1,
     .qdev.reset    = vmmouse_reset,
     .qdev.props = (Property[]) {
