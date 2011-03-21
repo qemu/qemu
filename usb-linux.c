@@ -1535,12 +1535,12 @@ static void usb_host_auto_check(void *unused)
     }
 
     if (!usb_auto_timer) {
-        usb_auto_timer = qemu_new_timer(rt_clock, usb_host_auto_check, NULL);
+        usb_auto_timer = qemu_new_timer_ms(rt_clock, usb_host_auto_check, NULL);
         if (!usb_auto_timer) {
             return;
         }
     }
-    qemu_mod_timer(usb_auto_timer, qemu_get_clock(rt_clock) + 2000);
+    qemu_mod_timer(usb_auto_timer, qemu_get_clock_ms(rt_clock) + 2000);
 }
 
 /*

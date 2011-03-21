@@ -85,7 +85,7 @@ int kvm_arch_init_vcpu(CPUState *cenv)
     sregs.pvr = cenv->spr[SPR_PVR];
     ret = kvm_vcpu_ioctl(cenv, KVM_SET_SREGS, &sregs);
 
-    idle_timer = qemu_new_timer(vm_clock, kvm_kick_env, cenv);
+    idle_timer = qemu_new_timer_ns(vm_clock, kvm_kick_env, cenv);
 
     return ret;
 }
@@ -246,7 +246,7 @@ int kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
             printf("cpu %d fail inject %x\n", env->cpu_index, irq);
 
         /* Always wake up soon in case the interrupt was level based */
-        qemu_mod_timer(idle_timer, qemu_get_clock(vm_clock) +
+        qemu_mod_timer(idle_timer, qemu_get_clock_ns(vm_clock) +
                        (get_ticks_per_sec() / 50));
     }
 

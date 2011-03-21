@@ -2299,7 +2299,7 @@ static void timer_cb(void *opaque)
     TRACE(TIMER, logout("timer%d expired\n", timer == &ar7.timer[1]));
     qemu_irq_raise(timer->interrupt);
     if (timer->cyclic) {
-        int64_t t = qemu_get_clock(vm_clock);
+        int64_t t = qemu_get_clock_ns(vm_clock);
         qemu_mod_timer(timer->qemu_timer, t + timer->prescale * timer->time);
     }
 }
@@ -2327,7 +2327,7 @@ static void ar7_timer_write(unsigned timer_index, uint32_t addr, uint32_t val)
             timer->prescale = 1;
         }
         if (val & TIMER_CONTROL_GO) {
-            int64_t t = qemu_get_clock(vm_clock);
+            int64_t t = qemu_get_clock_ns(vm_clock);
             qemu_mod_timer(timer->qemu_timer, t + timer->prescale * timer->time);
         } else {
             qemu_del_timer(timer->qemu_timer);
@@ -2803,7 +2803,7 @@ static void watchdog_trigger(void)
         TRACE(WDOG, logout("trigger value = %u ms\n",
               (unsigned)(t * 1000 / get_ticks_per_sec())));
         //~ logout("trigger value = %u\n", (unsigned)(get_ticks_per_sec() / 1000000));
-        qemu_mod_timer(ar7.wd_timer, qemu_get_clock(vm_clock) + t);
+        qemu_mod_timer(ar7.wd_timer, qemu_get_clock_ns(vm_clock) + t);
     }
 }
 
@@ -3948,11 +3948,11 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     ar7.primary_irq = qemu_allocate_irqs(ar7_primary_irq, env, NUM_PRIMARY_IRQS);
     ar7.secondary_irq = qemu_allocate_irqs(ar7_secondary_irq, env, NUM_SECONDARY_IRQS);
 
-    ar7.wd_timer = qemu_new_timer(vm_clock, &watchdog_cb, env);
-    ar7.timer[0].qemu_timer = qemu_new_timer(vm_clock, &timer_cb, &ar7.timer[0]);
+    ar7.wd_timer = qemu_new_timer_ns(vm_clock, &watchdog_cb, env);
+    ar7.timer[0].qemu_timer = qemu_new_timer_ns(vm_clock, &timer_cb, &ar7.timer[0]);
     ar7.timer[0].base = av.timer0;
     ar7.timer[0].interrupt = AR7_PRIMARY_IRQ(INTERRUPT_TIMER0);
-    ar7.timer[1].qemu_timer = qemu_new_timer(vm_clock, &timer_cb, &ar7.timer[1]);
+    ar7.timer[1].qemu_timer = qemu_new_timer_ns(vm_clock, &timer_cb, &ar7.timer[1]);
     ar7.timer[1].base = av.timer1;
     ar7.timer[1].interrupt = AR7_PRIMARY_IRQ(INTERRUPT_TIMER1);
 

@@ -176,7 +176,7 @@ static void recycle_journal (BDRVFvdState * s)
     static int64_t recycle_count = 0;
     QDEBUG ("JOURNAL: start journal recycle %" PRId64 ".\n", recycle_count);
     recycle_count++;
-    int64_t begin_time = qemu_get_clock (rt_clock);
+    int64_t begin_time = qemu_get_clock_ns (rt_clock);
 #endif
 
     /* Write fresh_bitmap to disk. */
@@ -213,7 +213,7 @@ static void recycle_journal (BDRVFvdState * s)
     s->next_journal_sector = 0;
 
 #ifdef FVD_DEBUG
-    int64_t end_time = qemu_get_clock (rt_clock);
+    int64_t end_time = qemu_get_clock_ns (rt_clock);
     QDEBUG ("JOURNAL: journal recycle took %" PRId64 " ms.\n",
             (end_time - begin_time));
 #endif

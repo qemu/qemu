@@ -52,7 +52,7 @@ static int wav_run_out (HWVoiceOut *hw, int live)
     int rpos, decr, samples;
     uint8_t *dst;
     struct st_sample *src;
-    int64_t now = qemu_get_clock (vm_clock);
+    int64_t now = qemu_get_clock_ns (vm_clock);
     int64_t ticks = now - wav->old_ticks;
     int64_t bytes =
         muldiv64 (ticks, hw->info.bytes_per_second, get_ticks_per_sec ());

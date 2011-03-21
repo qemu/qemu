@@ -1,0 +1,260 @@
+== General ==
+
+A qcow2 image file is organized in units of constant size, which are called
+(host) clusters. A cluster is the unit in which all allocations are done,
+both for actual guest data and for image metadata.
+
+Likewise, the virtual disk as seen by the guest is divided into (guest)
+clusters of the same size.
+
+All numbers in qcow2 are stored in Big Endian byte order.
+
+
+== Header ==
+
+The first cluster of a qcow2 image contains the file header:
+
+    Byte  0 -  3:   magic
+                    QCOW magic string ("QFI\xfb")
+
+          4 -  7:   version
+                    Version number (only valid value is 2)
+
+          8 - 15:   backing_file_offset
+                    Offset into the image file at which the backing file name
+                    is stored (NB: The string is not null terminated). 0 if the
+                    image doesn't have a backing file.
+
+         16 - 19:   backing_file_size
+                    Length of the backing file name in bytes. Must not be
+                    longer than 1023 bytes. Undefined if the image doesn't have
+                    a backing file.
+
+         20 - 23:   cluster_bits
+                    Number of bits that are used for addressing an offset
+                    within a cluster (1 << cluster_bits is the cluster size).
+                    Must not be less than 9 (i.e. 512 byte clusters).
+
+                    Note: qemu as of today has an implementation limit of 2 MB
+                    as the maximum cluster size and won't be able to open images
+                    with larger cluster sizes.
+
+         24 - 31:   size
+                    Virtual disk size in bytes
+
+         32 - 35:   crypt_method
+                    0 for no encryption
+                    1 for AES encryption
+
+         36 - 39:   l1_size
+                    Number of entries in the active L1 table
+
+         40 - 47:   l1_table_offset
+                    Offset into the image file at which the active L1 table
+                    starts. Must be aligned to a cluster boundary.
+
+         48 - 55:   refcount_table_offset
+                    Offset into the image file at which the refcount table
+                    starts. Must be aligned to a cluster boundary.
+
+         56 - 59:   refcount_table_clusters
+                    Number of clusters that the refcount table occupies
+
+         60 - 63:   nb_snapshots
+                    Number of snapshots contained in the image
+
+         64 - 71:   snapshots_offset
+                    Offset into the image file at which the snapshot table
+                    starts. Must be aligned to a cluster boundary.
+
+Directly after the image header, optional sections called header extensions can
+be stored. Each extension has a structure like the following:
+
+    Byte  0 -  3:   Header extension type:
+                        0x00000000 - End of the header extension area
+                        0xE2792ACA - Backing file format name
+                        other      - Unknown header extension, can be safely
+                                     ignored
+
+          4 -  7:   Length of the header extension data
+
+          8 -  n:   Header extension data
+
+          n -  m:   Padding to round up the header extension size to the next
+                    multiple of 8.
+
+The remaining space between the end of the header extension area and the end of
+the first cluster can be used for other data. Usually, the backing file name is
+stored there.
+
+
+== Host cluster management ==
+
+qcow2 manages the allocation of host clusters by maintaining a reference count
+for each host cluster. A refcount of 0 means that the cluster is free, 1 means
+that it is used, and >= 2 means that it is used and any write access must
+perform a COW (copy on write) operation.
+
+The refcounts are managed in a two-level table. The first level is called
+refcount table and has a variable size (which is stored in the header). The
+refcount table can cover multiple clusters, however it needs to be contiguous
+in the image file.
+
+It contains pointers to the second level structures which are called refcount
+blocks and are exactly one cluster in size.
+
+Given a offset into the image file, the refcount of its cluster can be obtained
+as follows:
+
+    refcount_block_entries = (cluster_size / sizeof(uint16_t))
+
+    refcount_block_index = (offset / cluster_size) % refcount_table_entries
+    refcount_table_index = (offset / cluster_size) / refcount_table_entries
+
+    refcount_block = load_cluster(refcount_table[refcount_table_index]);
+    return refcount_block[refcount_block_index];
+
+Refcount table entry:
+
+    Bit  0 -  8:    Reserved (set to 0)
+
+         9 - 63:    Bits 9-63 of the offset into the image file at which the
+                    refcount block starts. Must be aligned to a cluster
+                    boundary.
+
+                    If this is 0, the corresponding refcount block has not yet
+                    been allocated. All refcounts managed by this refcount block
+                    are 0.
+
+Refcount block entry:
+
+    Bit  0 - 15:    Reference count of the cluster
+
+
+== Cluster mapping ==
+
+Just as for refcounts, qcow2 uses a two-level structure for the mapping of
+guest clusters to host clusters. They are called L1 and L2 table.
+
+The L1 table has a variable size (stored in the header) and may use multiple
+clusters, however it must be contiguous in the image file. L2 tables are
+exactly one cluster in size.
+
+Given a offset into the virtual disk, the offset into the image file can be
+obtained as follows:
+
+    l2_entries = (cluster_size / sizeof(uint64_t))
+
+    l2_index = (offset / cluster_size) % l2_entries
+    l1_index = (offset / cluster_size) / l2_entries
+
+    l2_table = load_cluster(l1_table[l1_index]);
+    cluster_offset = l2_table[l2_index];
+
+    return cluster_offset + (offset % cluster_size)
+
+L1 table entry:
+
+    Bit  0 -  8:    Reserved (set to 0)
+
+         9 - 55:    Bits 9-55 of the offset into the image file at which the L2
+                    table starts. Must be aligned to a cluster boundary. If the
+                    offset is 0, the L2 table and all clusters described by this
+                    L2 table are unallocated.
+
+        56 - 62:    Reserved (set to 0)
+
+             63:    0 for an L2 table that is unused or requires COW, 1 if its
+                    refcount is exactly one. This information is only accurate
+                    in the active L1 table.
+
+L2 table entry (for normal clusters):
+
+    Bit  0 -  8:    Reserved (set to 0)
+
+         9 - 55:    Bits 9-55 of host cluster offset. Must be aligned to a
+                    cluster boundary. If the offset is 0, the cluster is
+                    unallocated.
+
+        56 - 61:    Reserved (set to 0)
+
+             62:    0 (this cluster is not compressed)
+
+             63:    0 for a cluster that is unused or requires COW, 1 if its
+                    refcount is exactly one. This information is only accurate
+                    in L2 tables that are reachable from the the active L1
+                    table.
+
+L2 table entry (for compressed clusters; x = 62 - (cluster_size - 8)):
+
+    Bit  0 -  x:    Host cluster offset. This is usually _not_ aligned to a
+                    cluster boundary!
+
+       x+1 - 61:    Compressed size of the images in sectors of 512 bytes
+
+             62:    1 (this cluster is compressed using zlib)
+
+             63:    0 for a cluster that is unused or requires COW, 1 if its
+                    refcount is exactly one. This information is only accurate
+                    in L2 tables that are reachable from the the active L1
+                    table.
+
+If a cluster is unallocated, read requests shall read the data from the backing
+file. If there is no backing file or the backing file is smaller than the image,
+they shall read zeros for all parts that are not covered by the backing file.
+
+
+== Snapshots ==
+
+qcow2 supports internal snapshots. Their basic principle of operation is to
+switch the active L1 table, so that a different set of host clusters are
+exposed to the guest.
+
+When creating a snapshot, the L1 table should be copied and the refcount of all
+L2 tables and clusters reachable form this L1 table must be increased, so that
+a write causes a COW and isn't visible in other snapshots.
+
+When loading a snapshot, bit 63 of all entries in the new active L1 table and
+all L2 tables referenced by it must be reconstructed from the refcount table
+as it doesn't need to be accurate in inactive L1 tables.
+
+A directory of all snapshots is stored in the snapshot table, a contiguous area
+in the image file, whose starting offset and length are given by the header
+fields snapshots_offset and nb_snapshots. The entries of the snapshot table
+have variable length, depending on the length of ID, name and extra data.
+
+Snapshot table entry:
+
+    Byte 0 -  7:    Offset into the image file at which the L1 table for the
+                    snapshot starts. Must be aligned to a cluster boundary.
+
+         8 - 11:    Number of entries in the L1 table of the snapshots
+
+        12 - 13:    Length of the unique ID string describing the snapshot
+
+        14 - 15:    Length of the name of the snapshot
+
+        16 - 19:    Time at which the snapshot was taken in seconds since the
+                    Epoch
+
+        20 - 23:    Subsecond part of the time at which the snapshot was taken
+                    in nanoseconds
+
+        24 - 31:    Time that the guest was running until the snapshot was
+                    taken in nanoseconds
+
+        32 - 35:    Size of the VM state in bytes. 0 if no VM state is saved.
+                    If there is VM state, it starts at the first cluster
+                    described by first L1 table entry that doesn't describe a
+                    regular guest cluster (i.e. VM state is stored like guest
+                    disk content, except that it is stored at offsets that are
+                    larger than the virtual disk presented to the guest)
+
+        36 - 39:    Size of extra data in the table entry (used for future
+                    extensions of the format)
+
+        variable:   Extra data for future extensions. Must be ignored.
+
+        variable:   Unique ID string for the snapshot (not null terminated)
+
+        variable:   Name of the snapshot (not null terminated)

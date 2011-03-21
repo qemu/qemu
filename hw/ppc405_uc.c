@@ -1347,7 +1347,7 @@ static uint32_t ppc4xx_gpt_readl (void *opaque, target_phys_addr_t addr)
     switch (addr) {
     case 0x00:
         /* Time base counter */
-        ret = muldiv64(qemu_get_clock(vm_clock) + gpt->tb_offset,
+        ret = muldiv64(qemu_get_clock_ns(vm_clock) + gpt->tb_offset,
                        gpt->tb_freq, get_ticks_per_sec());
         break;
     case 0x10:
@@ -1404,7 +1404,7 @@ static void ppc4xx_gpt_writel (void *opaque,
     case 0x00:
         /* Time base counter */
         gpt->tb_offset = muldiv64(value, get_ticks_per_sec(), gpt->tb_freq)
-            - qemu_get_clock(vm_clock);
+            - qemu_get_clock_ns(vm_clock);
         ppc4xx_gpt_compute_timer(gpt);
         break;
     case 0x10:
@@ -1501,7 +1501,7 @@ static void ppc4xx_gpt_init(target_phys_addr_t base, qemu_irq irqs[5])
     for (i = 0; i < 5; i++) {
         gpt->irqs[i] = irqs[i];
     }
-    gpt->timer = qemu_new_timer(vm_clock, &ppc4xx_gpt_cb, gpt);
+    gpt->timer = qemu_new_timer_ns(vm_clock, &ppc4xx_gpt_cb, gpt);
 #ifdef DEBUG_GPT
     printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
 #endif

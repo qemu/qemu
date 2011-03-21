@@ -290,7 +290,7 @@ static void set_next_tick(dp8393xState *s)
     }
 
     ticks = s->regs[SONIC_WT1] << 16 | s->regs[SONIC_WT0];
-    s->wt_last_update = qemu_get_clock(vm_clock);
+    s->wt_last_update = qemu_get_clock_ns(vm_clock);
     delay = get_ticks_per_sec() * ticks / 5000000;
     qemu_mod_timer(s->watchdog, s->wt_last_update + delay);
 }
@@ -305,7 +305,7 @@ static void update_wt_regs(dp8393xState *s)
         return;
     }
 
-    elapsed = s->wt_last_update - qemu_get_clock(vm_clock);
+    elapsed = s->wt_last_update - qemu_get_clock_ns(vm_clock);
     val = s->regs[SONIC_WT1] << 16 | s->regs[SONIC_WT0];
     val -= elapsed / 5000000;
     s->regs[SONIC_WT1] = (val >> 16) & 0xffff;
@@ -895,7 +895,7 @@ void dp83932_init(NICInfo *nd, target_phys_addr_t base, int it_shift,
     s->memory_rw = memory_rw;
     s->it_shift = it_shift;
     s->irq = irq;
-    s->watchdog = qemu_new_timer(vm_clock, dp8393x_watchdog, s);
+    s->watchdog = qemu_new_timer_ns(vm_clock, dp8393x_watchdog, s);
     s->regs[SONIC_SR] = 0x0004; /* only revision recognized by Linux */
 
     memcpy(s->conf.macaddr.a, nd->macaddr, sizeof(s->conf.macaddr));

@@ -88,7 +88,7 @@ static inline void csrhci_fifo_wake(struct csrhci_s *s)
     }
 
     if (s->out_len)
-        qemu_mod_timer(s->out_tm, qemu_get_clock(vm_clock) + s->baud_delay);
+        qemu_mod_timer(s->out_tm, qemu_get_clock_ns(vm_clock) + s->baud_delay);
 }
 
 #define csrhci_out_packetz(s, len) memset(csrhci_out_packet(s, len), 0, len)
@@ -446,7 +446,7 @@ CharDriverState *uart_hci_init(qemu_irq wakeup)
     s->hci->evt_recv = csrhci_out_hci_packet_event;
     s->hci->acl_recv = csrhci_out_hci_packet_acl;
 
-    s->out_tm = qemu_new_timer(vm_clock, csrhci_out_tick, s);
+    s->out_tm = qemu_new_timer_ns(vm_clock, csrhci_out_tick, s);
     s->pins = qemu_allocate_irqs(csrhci_pins, s, __csrhci_pins);
     csrhci_reset(s);
 

@@ -1336,7 +1336,7 @@ static void pcnet_poll_timer(void *opaque)
     pcnet_update_irq(s);
 
     if (!CSR_STOP(s) && !CSR_SPND(s) && !CSR_DPOLL(s)) {
-        uint64_t now = qemu_get_clock(vm_clock) * 33;
+        uint64_t now = qemu_get_clock_ns(vm_clock) * 33;
         if (!s->timer || !now)
             s->timer = now;
         else {
@@ -1348,7 +1348,7 @@ static void pcnet_poll_timer(void *opaque)
                 CSR_POLL(s) = t;
         }
         qemu_mod_timer(s->poll_timer,
-            pcnet_get_next_poll_time(s,qemu_get_clock(vm_clock)));
+            pcnet_get_next_poll_time(s,qemu_get_clock_ns(vm_clock)));
     }
 }
 
@@ -1726,7 +1726,7 @@ int pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info)
     int i;
     uint16_t checksum;
 
-    s->poll_timer = qemu_new_timer(vm_clock, pcnet_poll_timer, s);
+    s->poll_timer = qemu_new_timer_ns(vm_clock, pcnet_poll_timer, s);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(info, &s->conf, dev->info->name, dev->id, s);

@@ -1114,7 +1114,7 @@ static int audio_is_timer_needed (void)
 static void audio_reset_timer (AudioState *s)
 {
     if (audio_is_timer_needed ()) {
-        qemu_mod_timer (s->ts, qemu_get_clock (vm_clock) + 1);
+        qemu_mod_timer (s->ts, qemu_get_clock_ns (vm_clock) + 1);
     }
     else {
         qemu_del_timer (s->ts);
@@ -1820,7 +1820,7 @@ static void audio_init (void)
     QLIST_INIT (&s->cap_head);
     atexit (audio_atexit);
 
-    s->ts = qemu_new_timer (vm_clock, audio_timer, s);
+    s->ts = qemu_new_timer_ns (vm_clock, audio_timer, s);
     if (!s->ts) {
         hw_error("Could not create audio timer\n");
     }

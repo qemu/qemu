@@ -418,7 +418,7 @@ int float64_is_quiet_nan( float64 a1 )
     u.f = a1;
     a = u.i;
 
-    return ( LIT64( 0xFFF0000000000000 ) < (bits64) ( a<<1 ) );
+    return ( LIT64( 0xFFF0000000000000 ) < (uint64_t) ( a<<1 ) );
 
 }
 
@@ -500,7 +500,7 @@ int floatx80_is_signaling_nan( floatx80 a1)
     aLow = u.i.low & ~ LIT64( 0x4000000000000000 );
     return
            ( ( u.i.high & 0x7FFF ) == 0x7FFF )
-        && (bits64) ( aLow<<1 )
+        && (uint64_t) ( aLow<<1 )
         && ( u.i.low == aLow );
 }
 
@@ -508,7 +508,7 @@ int floatx80_is_quiet_nan( floatx80 a1 )
 {
     floatx80u u;
     u.f = a1;
-    return ( ( u.i.high & 0x7FFF ) == 0x7FFF ) && (bits64) ( u.i.low<<1 );
+    return ( ( u.i.high & 0x7FFF ) == 0x7FFF ) && (uint64_t) ( u.i.low<<1 );
 }
 
 #endif

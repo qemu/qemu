@@ -63,7 +63,7 @@ static void mpcore_timer_reload(mpcore_timer_state *s, int restart)
     if (s->count == 0)
         return;
     if (restart)
-        s->tick = qemu_get_clock(vm_clock);
+        s->tick = qemu_get_clock_ns(vm_clock);
     s->tick += (int64_t)s->count * mpcore_timer_scale(s);
     qemu_mod_timer(s->timer, s->tick);
 }
@@ -92,7 +92,7 @@ static uint32_t mpcore_timer_read(mpcore_timer_state *s, int offset)
         if (((s->control & 1) == 0) || (s->count == 0))
             return 0;
         /* Slow and ugly, but hopefully won't happen too often.  */
-        val = s->tick - qemu_get_clock(vm_clock);
+        val = s->tick - qemu_get_clock_ns(vm_clock);
         val /= mpcore_timer_scale(s);
         if (val < 0)
             val = 0;
@@ -145,7 +145,7 @@ static void mpcore_timer_init(mpcore_priv_state *mpcore,
 {
     s->id = id;
     s->mpcore = mpcore;
-    s->timer = qemu_new_timer(vm_clock, mpcore_timer_tick, s);
+    s->timer = qemu_new_timer_ns(vm_clock, mpcore_timer_tick, s);
 }
 
 

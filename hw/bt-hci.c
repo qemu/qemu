@@ -576,7 +576,7 @@ static void bt_hci_inquiry_result(struct bt_hci_s *hci,
 
 static void bt_hci_mod_timer_1280ms(QEMUTimer *timer, int period)
 {
-    qemu_mod_timer(timer, qemu_get_clock(vm_clock) +
+    qemu_mod_timer(timer, qemu_get_clock_ns(vm_clock) +
                    muldiv64(period << 7, get_ticks_per_sec(), 100));
 }
 
@@ -657,7 +657,7 @@ static void bt_hci_lmp_link_establish(struct bt_hci_s *hci,
     if (master) {
         link->acl_mode = acl_active;
         hci->lm.handle[hci->lm.last_handle].acl_mode_timer =
-                qemu_new_timer(vm_clock, bt_hci_mode_tick, link);
+                qemu_new_timer_ns(vm_clock, bt_hci_mode_tick, link);
     }
 }
 
@@ -1084,7 +1084,7 @@ static int bt_hci_mode_change(struct bt_hci_s *hci, uint16_t handle,
 
     bt_hci_event_status(hci, HCI_SUCCESS);
 
-    qemu_mod_timer(link->acl_mode_timer, qemu_get_clock(vm_clock) +
+    qemu_mod_timer(link->acl_mode_timer, qemu_get_clock_ns(vm_clock) +
                    muldiv64(interval * 625, get_ticks_per_sec(), 1000000));
     bt_hci_lmp_mode_change_master(hci, link->link, mode, interval);
 
@@ -2145,10 +2145,10 @@ struct HCIInfo *bt_new_hci(struct bt_scatternet_s *net)
 {
     struct bt_hci_s *s = qemu_mallocz(sizeof(struct bt_hci_s));
 
-    s->lm.inquiry_done = qemu_new_timer(vm_clock, bt_hci_inquiry_done, s);
-    s->lm.inquiry_next = qemu_new_timer(vm_clock, bt_hci_inquiry_next, s);
+    s->lm.inquiry_done = qemu_new_timer_ns(vm_clock, bt_hci_inquiry_done, s);
+    s->lm.inquiry_next = qemu_new_timer_ns(vm_clock, bt_hci_inquiry_next, s);
     s->conn_accept_timer =
-            qemu_new_timer(vm_clock, bt_hci_conn_accept_timeout, s);
+            qemu_new_timer_ns(vm_clock, bt_hci_conn_accept_timeout, s);
 
     s->evt_packet = bt_hci_evt_packet;
     s->evt_submit = bt_hci_evt_submit;

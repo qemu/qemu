@@ -1873,7 +1873,7 @@ static void do_sendkey(Monitor *mon, const QDict *qdict)
         kbd_put_keycode(keycode & 0x7f);
     }
     /* delayed key up events */
-    qemu_mod_timer(key_timer, qemu_get_clock(vm_clock) +
+    qemu_mod_timer(key_timer, qemu_get_clock_ns(vm_clock) +
                    muldiv64(get_ticks_per_sec(), hold_time, 1000));
 }
 
@@ -5157,7 +5157,7 @@ void monitor_init(CharDriverState *chr, int flags)
     Monitor *mon;
 
     if (is_first_init) {
-        key_timer = qemu_new_timer(vm_clock, release_keys, NULL);
+        key_timer = qemu_new_timer_ns(vm_clock, release_keys, NULL);
         is_first_init = 0;
     }
 

@@ -55,14 +55,14 @@ static SpiceTimer *timer_add(SpiceTimerFunc func, void *opaque)
     SpiceTimer *timer;
 
     timer = qemu_mallocz(sizeof(*timer));
-    timer->timer = qemu_new_timer(rt_clock, func, opaque);
+    timer->timer = qemu_new_timer_ms(rt_clock, func, opaque);
     QTAILQ_INSERT_TAIL(&timers, timer, next);
     return timer;
 }
 
 static void timer_start(SpiceTimer *timer, uint32_t ms)
 {
-    qemu_mod_timer(timer->timer, qemu_get_clock(rt_clock) + ms);
+    qemu_mod_timer(timer->timer, qemu_get_clock_ms(rt_clock) + ms);
 }
 
 static void timer_cancel(SpiceTimer *timer)

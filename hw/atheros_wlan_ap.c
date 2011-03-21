@@ -147,7 +147,7 @@ void Atheros_WLAN_insert_frame(Atheros_WLANState *s, struct mac80211_frame *fram
 		// running currently, let's schedule
 		// one run...
 		s->inject_timer_running = 1;
-		qemu_mod_timer(s->inject_timer, qemu_get_clock(rt_clock) + 5);
+		qemu_mod_timer(s->inject_timer, qemu_get_clock_ns(rt_clock) + 5);
 	}
 
 	signal_semaphore(s->access_semaphore, 0);
@@ -165,7 +165,7 @@ static void Atheros_WLAN_beacon_timer(void *opaque)
 		Atheros_WLAN_insert_frame(s, frame);
 	}
 
-	qemu_mod_timer(s->beacon_timer, qemu_get_clock(rt_clock) + 500);
+	qemu_mod_timer(s->beacon_timer, qemu_get_clock_ns(rt_clock) + 500);
 }
 
 static void Atheros_WLAN_inject_timer(void *opaque)
@@ -207,7 +207,7 @@ timer_done:
 	{
 		// there are more packets... schedule
 		// the timer for sending them as well
-		qemu_mod_timer(s->inject_timer, qemu_get_clock(rt_clock) + 25);
+		qemu_mod_timer(s->inject_timer, qemu_get_clock_ns(rt_clock) + 25);
 	}
 	else
 	{
@@ -314,12 +314,12 @@ void Atheros_WLAN_setup_ap(NICInfo *nd, PCIAtheros_WLANState *d)
 	s->access_semaphore = semget(ATHEROS_WLAN_ACCESS_SEM_KEY, 1, 0666 | IPC_CREAT);
 	semctl(s->access_semaphore, 0, SETVAL, 1);
 
-	s->beacon_timer = qemu_new_timer(rt_clock, Atheros_WLAN_beacon_timer, s);
-	qemu_mod_timer(s->beacon_timer, qemu_get_clock(rt_clock));
+	s->beacon_timer = qemu_new_timer_ns(rt_clock, Atheros_WLAN_beacon_timer, s);
+	qemu_mod_timer(s->beacon_timer, qemu_get_clock_ns(rt_clock));
 
 	// setup the timer but only schedule
 	// it when necessary...
-	s->inject_timer = qemu_new_timer(rt_clock, Atheros_WLAN_inject_timer, s);
+	s->inject_timer = qemu_new_timer_ns(rt_clock, Atheros_WLAN_inject_timer, s);
 
     s->nic = qemu_new_nic(&net_info, &s->conf, nd->model, nd->name, s);
 

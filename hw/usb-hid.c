@@ -796,7 +796,7 @@ static int usb_hid_handle_control(USBDevice *dev, int request, int value,
         break;
     case SET_IDLE:
         s->idle = (uint8_t) (value >> 8);
-        usb_hid_set_next_idle(s, qemu_get_clock(vm_clock));
+        usb_hid_set_next_idle(s, qemu_get_clock_ns(vm_clock));
         ret = 0;
         break;
     default:
@@ -815,7 +815,7 @@ static int usb_hid_handle_data(USBDevice *dev, USBPacket *p)
     switch(p->pid) {
     case USB_TOKEN_IN:
         if (p->devep == 1) {
-            int64_t curtime = qemu_get_clock(vm_clock);
+            int64_t curtime = qemu_get_clock_ns(vm_clock);
             if (!s->changed && (!s->idle || s->next_idle_clock - curtime > 0))
                 return USB_RET_NAK;
             usb_hid_set_next_idle(s, curtime);
@@ -900,7 +900,7 @@ static int usb_hid_post_load(void *opaque, int version_id)
     USBHIDState *s = opaque;
 
     if (s->idle) {
-        usb_hid_set_next_idle(s, qemu_get_clock(vm_clock));
+        usb_hid_set_next_idle(s, qemu_get_clock_ns(vm_clock));
     }
     return 0;
 }

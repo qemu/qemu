@@ -440,7 +440,7 @@ static void init_prefetch_timer (BlockDriverState * bs, BDRVFvdState * s)
     }
 
     /* Start prefetching after a delay. Times 1000 to convert sec to ms. */
-    int64_t expire = qemu_get_clock (rt_clock) + s->prefetch_start_delay * 1000;
-    s->prefetch_timer = qemu_new_timer (rt_clock, fvd_init_prefetch, bs);
+    int64_t expire = qemu_get_clock_ns (rt_clock) + s->prefetch_start_delay * 1000;
+    s->prefetch_timer = qemu_new_timer_ns (rt_clock, fvd_init_prefetch, bs);
     qemu_mod_timer (s->prefetch_timer, expire);
 }

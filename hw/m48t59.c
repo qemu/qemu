@@ -123,7 +123,7 @@ static void alarm_cb (void *opaque)
         /* Repeat once a second */
         next_time = 1;
     }
-    qemu_mod_timer(NVRAM->alrm_timer, qemu_get_clock(vm_clock) +
+    qemu_mod_timer(NVRAM->alrm_timer, qemu_get_clock_ns(vm_clock) +
                     next_time * 1000);
     qemu_set_irq(NVRAM->IRQ, 0);
 }
@@ -691,8 +691,8 @@ static void m48t59_init_common(M48t59State *s)
 {
     s->buffer = qemu_mallocz(s->size);
     if (s->type == 59) {
-        s->alrm_timer = qemu_new_timer(vm_clock, &alarm_cb, s);
-        s->wd_timer = qemu_new_timer(vm_clock, &watchdog_cb, s);
+        s->alrm_timer = qemu_new_timer_ns(vm_clock, &alarm_cb, s);
+        s->wd_timer = qemu_new_timer_ns(vm_clock, &watchdog_cb, s);
     }
     qemu_get_timedate(&s->alarm, 0);
 
