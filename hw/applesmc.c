@@ -188,7 +188,7 @@ static void qdev_applesmc_isa_reset(DeviceState *dev)
         QLIST_REMOVE(d, node);
     }
 
-    applesmc_add_key(s, "REV ", 6, "\0x01\0x13\0x0f\0x00\0x00\0x03");
+    applesmc_add_key(s, "REV ", 6, "\x01\x13\x0f\x00\x00\x03");
     applesmc_add_key(s, "OSK0", 32, s->osk);
     applesmc_add_key(s, "OSK1", 32, s->osk + 32);
     applesmc_add_key(s, "NATJ", 1, "\0");
