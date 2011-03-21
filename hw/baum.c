@@ -335,7 +335,7 @@ static int baum_eat_packet(BaumDriverState *baum, const uint8_t *buf, int len)
         int i;
 
         /* Allow 100ms to complete the DisplayData packet */
-        qemu_mod_timer(baum->cellCount_timer, qemu_get_clock(vm_clock) +
+        qemu_mod_timer(baum->cellCount_timer, qemu_get_clock_ns(vm_clock) +
                        get_ticks_per_sec() / 10);
         for (i = 0; i < baum->x * baum->y ; i++) {
             EAT(c);
@@ -604,7 +604,7 @@ CharDriverState *chr_baum_init(QemuOpts *opts)
         goto fail_handle;
     }
 
-    baum->cellCount_timer = qemu_new_timer(vm_clock, baum_cellCount_timer_cb, baum);
+    baum->cellCount_timer = qemu_new_timer_ns(vm_clock, baum_cellCount_timer_cb, baum);
 
     if (brlapi__getDisplaySize(handle, &baum->x, &baum->y) == -1) {
         brlapi_perror("baum_init: brlapi_getDisplaySize");

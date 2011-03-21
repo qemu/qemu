@@ -766,7 +766,7 @@ static void complete (SB16State *s)
                     if (s->aux_ts) {
                         qemu_mod_timer (
                             s->aux_ts,
-                            qemu_get_clock (vm_clock) + ticks
+                            qemu_get_clock_ns (vm_clock) + ticks
                             );
                     }
                 }
@@ -1361,7 +1361,7 @@ static int sb16_initfn (ISADevice *dev)
     s->csp_regs[9] = 0xf8;
 
     reset_mixer (s);
-    s->aux_ts = qemu_new_timer (vm_clock, aux_timer, s);
+    s->aux_ts = qemu_new_timer_ns (vm_clock, aux_timer, s);
     if (!s->aux_ts) {
         dolog ("warning: Could not create auxiliary timer\n");
     }

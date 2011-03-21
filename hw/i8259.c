@@ -202,7 +202,7 @@ static void i8259_set_irq(void *opaque, int irq, int level)
 #endif
 #ifdef DEBUG_IRQ_LATENCY
     if (level) {
-        irq_time[irq] = qemu_get_clock(vm_clock);
+        irq_time[irq] = qemu_get_clock_ns(vm_clock);
     }
 #endif
     pic_set_irq1(&s->pics[irq >> 3], irq & 7, level);
@@ -255,7 +255,7 @@ int pic_read_irq(PicState2 *s)
 #ifdef DEBUG_IRQ_LATENCY
     printf("IRQ%d latency=%0.3fus\n",
            irq,
-           (double)(qemu_get_clock(vm_clock) -
+           (double)(qemu_get_clock_ns(vm_clock) -
                     irq_time[irq]) * 1000000.0 / get_ticks_per_sec());
 #endif
     DPRINTF("pic_interrupt: irq=%d\n", irq);

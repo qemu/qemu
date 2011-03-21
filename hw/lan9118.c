@@ -327,7 +327,7 @@ static void lan9118_reset(DeviceState *d)
     s->afc_cfg = 0;
     s->e2p_cmd = 0;
     s->e2p_data = 0;
-    s->free_timer_start = qemu_get_clock(vm_clock) / 40;
+    s->free_timer_start = qemu_get_clock_ns(vm_clock) / 40;
 
     ptimer_stop(s->timer);
     ptimer_set_count(s->timer, 0xffff);
@@ -1070,7 +1070,7 @@ static uint32_t lan9118_readl(void *opaque, target_phys_addr_t offset)
     case CSR_WORD_SWAP:
         return s->word_swap;
     case CSR_FREE_RUN:
-        return (qemu_get_clock(vm_clock) / 40) - s->free_timer_start;
+        return (qemu_get_clock_ns(vm_clock) / 40) - s->free_timer_start;
     case CSR_RX_DROP:
         /* TODO: Implement dropped frames counter.  */
         return 0;

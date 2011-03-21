@@ -186,7 +186,7 @@ typedef struct VT686MC97State {
 static uint32_t get_pmtmr(VT686PMState *s)
 {
     uint32_t d;
-    d = muldiv64(qemu_get_clock(vm_clock), PM_TIMER_FREQUENCY, get_ticks_per_sec());
+    d = muldiv64(qemu_get_clock_ns(vm_clock), PM_TIMER_FREQUENCY, get_ticks_per_sec());
     return d & 0xffffff;
 }
 
@@ -195,7 +195,7 @@ static int get_pmsts(VT686PMState *s)
     int64_t d;
     int pmsts;
     pmsts = s->pmsts;
-    d = muldiv64(qemu_get_clock(vm_clock), PM_TIMER_FREQUENCY, get_ticks_per_sec());
+    d = muldiv64(qemu_get_clock_ns(vm_clock), PM_TIMER_FREQUENCY, get_ticks_per_sec());
     if (d >= s->tmr_overflow_time)
         s->pmsts |= TMROF_EN;
     return pmsts;
@@ -238,7 +238,7 @@ static void pm_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
             pmsts = get_pmsts(s);
             if (pmsts & val & TMROF_EN) {
                 /* if TMRSTS is reset, then compute the new overflow time */
-                d = muldiv64(qemu_get_clock(vm_clock), PM_TIMER_FREQUENCY, get_ticks_per_sec());
+                d = muldiv64(qemu_get_clock_ns(vm_clock), PM_TIMER_FREQUENCY, get_ticks_per_sec());
                 s->tmr_overflow_time = (d + 0x800000LL) & ~0x7fffffLL;
             }
             s->pmsts &= ~val;
@@ -486,7 +486,7 @@ static int vt82c686b_pm_initfn(PCIDevice *dev)
 
     apm_init(&s->apm, NULL, s);
 
-    s->tmr_timer = qemu_new_timer(vm_clock, pm_tmr_timer, s);
+    s->tmr_timer = qemu_new_timer_ns(vm_clock, pm_tmr_timer, s);
 
     pm_smbus_init(&s->dev.qdev, &s->smb);
 

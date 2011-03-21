@@ -1126,7 +1126,7 @@ static void intel_hda_reset(DeviceState *dev)
     HDACodecDevice *cdev;
 
     intel_hda_regs_reset(d);
-    d->wall_base_ns = qemu_get_clock(vm_clock);
+    d->wall_base_ns = qemu_get_clock_ns(vm_clock);
 
     /* reset codecs */
     QLIST_FOREACH(qdev, &d->codecs.qbus.children, sibling) {

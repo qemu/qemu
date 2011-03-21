@@ -153,12 +153,12 @@ void cpu_disable_ticks(void)
 struct QEMUClock {
     int type;
     int enabled;
-    /* XXX: add frequency */
 };
 
 struct QEMUTimer {
     QEMUClock *clock;
-    int64_t expire_time;
+    int64_t expire_time;	/* in nanoseconds */
+    int scale;
     QEMUTimerCB *cb;
     void *opaque;
     struct QEMUTimer *next;
@@ -242,7 +242,7 @@ static void icount_adjust(void)
         return;
 
     cur_time = cpu_get_clock();
-    cur_icount = qemu_get_clock(vm_clock);
+    cur_icount = qemu_get_clock_ns(vm_clock);
     delta = cur_icount - cur_time;
     /* FIXME: This is a very crude algorithm, somewhat prone to oscillation.  */
     if (delta > 0
@@ -264,14 +264,14 @@ static void icount_adjust(void)
 static void icount_adjust_rt(void * opaque)
 {
     qemu_mod_timer(icount_rt_timer,
-                   qemu_get_clock(rt_clock) + 1000);
+                   qemu_get_clock_ms(rt_clock) + 1000);
     icount_adjust();
 }
 
 static void icount_adjust_vm(void * opaque)
 {
     qemu_mod_timer(icount_vm_timer,
-                   qemu_get_clock(vm_clock) + get_ticks_per_sec() / 10);
+                   qemu_get_clock_ns(vm_clock) + get_ticks_per_sec() / 10);
     icount_adjust();
 }
 
@@ -386,7 +386,8 @@ void qemu_clock_enable(QEMUClock *clock, int enabled)
     clock->enabled = enabled;
 }
 
-QEMUTimer *qemu_new_timer(QEMUClock *clock, QEMUTimerCB *cb, void *opaque)
+QEMUTimer *qemu_new_timer(QEMUClock *clock, int scale,
+                          QEMUTimerCB *cb, void *opaque)
 {
     QEMUTimer *ts;
 
@@ -394,6 +395,7 @@ QEMUTimer *qemu_new_timer(QEMUClock *clock, QEMUTimerCB *cb, void *opaque)
     ts->clock = clock;
     ts->cb = cb;
     ts->opaque = opaque;
+    ts->scale = scale;
     return ts;
 }
 
@@ -424,7 +426,7 @@ void qemu_del_timer(QEMUTimer *ts)
 
 /* modify the current timer so that it will be fired when current_time
    >= expire_time. The corresponding callback will be called. */
-void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
+static void qemu_mod_timer_ns(QEMUTimer *ts, int64_t expire_time)
 {
     QEMUTimer **pt, *t;
 
@@ -457,6 +459,13 @@ void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
     }
 }
 
+/* modify the current timer so that it will be fired when current_time
+   >= expire_time. The corresponding callback will be called. */
+void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
+{
+    qemu_mod_timer_ns(ts, expire_time * ts->scale);
+}
+
 int qemu_timer_pending(QEMUTimer *ts)
 {
     QEMUTimer *t;
@@ -471,7 +480,7 @@ int qemu_timer_expired(QEMUTimer *timer_head, int64_t current_time)
 {
     if (!timer_head)
         return 0;
-    return (timer_head->expire_time <= current_time);
+    return (timer_head->expire_time <= current_time * timer_head->scale);
 }
 
 static void qemu_run_timers(QEMUClock *clock)
@@ -482,7 +491,7 @@ static void qemu_run_timers(QEMUClock *clock)
     if (!clock->enabled)
         return;
 
-    current_time = qemu_get_clock (clock);
+    current_time = qemu_get_clock_ns(clock);
     ptimer_head = &active_timers[clock->type];
     for(;;) {
         ts = *ptimer_head;
@@ -494,23 +503,6 @@ static void qemu_run_timers(QEMUClock *clock)
 
         /* run the callback (the timer list can be modified) */
         ts->cb(ts->opaque);
-    }
-}
-
-int64_t qemu_get_clock(QEMUClock *clock)
-{
-    switch(clock->type) {
-    case QEMU_CLOCK_REALTIME:
-        return get_clock() / 1000000;
-    default:
-    case QEMU_CLOCK_VIRTUAL:
-        if (use_icount) {
-            return cpu_get_icount();
-        } else {
-            return cpu_get_clock();
-        }
-    case QEMU_CLOCK_HOST:
-        return get_clock_realtime();
     }
 }
 
@@ -559,7 +551,7 @@ void qemu_get_timer(QEMUFile *f, QEMUTimer *ts)
 
     expire_time = qemu_get_be64(f);
     if (expire_time != -1) {
-        qemu_mod_timer(ts, expire_time);
+        qemu_mod_timer_ns(ts, expire_time);
     } else {
         qemu_del_timer(ts);
     }
@@ -601,12 +593,12 @@ void configure_icount(const char *option)
        the virtual time trigger catches emulated time passing too fast.
        Realtime triggers occur even when idle, so use them less frequently
        than VM triggers.  */
-    icount_rt_timer = qemu_new_timer(rt_clock, icount_adjust_rt, NULL);
+    icount_rt_timer = qemu_new_timer_ms(rt_clock, icount_adjust_rt, NULL);
     qemu_mod_timer(icount_rt_timer,
-                   qemu_get_clock(rt_clock) + 1000);
-    icount_vm_timer = qemu_new_timer(vm_clock, icount_adjust_vm, NULL);
+                   qemu_get_clock_ms(rt_clock) + 1000);
+    icount_vm_timer = qemu_new_timer_ns(vm_clock, icount_adjust_vm, NULL);
     qemu_mod_timer(icount_vm_timer,
-                   qemu_get_clock(vm_clock) + get_ticks_per_sec() / 10);
+                   qemu_get_clock_ns(vm_clock) + get_ticks_per_sec() / 10);
 }
 
 void qemu_run_all_timers(void)
@@ -646,7 +638,7 @@ static void host_alarm_handler(int host_signum)
         static int64_t delta_min = INT64_MAX;
         static int64_t delta_max, delta_cum, last_clock, delta, ti;
         static int count;
-        ti = qemu_get_clock(vm_clock);
+        ti = qemu_get_clock_ns(vm_clock);
         if (last_clock != 0) {
             delta = ti - last_clock;
             if (delta < delta_min)
@@ -706,7 +698,7 @@ static int64_t qemu_next_alarm_deadline(void)
 
     if (!use_icount && active_timers[QEMU_CLOCK_VIRTUAL]) {
         delta = active_timers[QEMU_CLOCK_VIRTUAL]->expire_time -
-                     qemu_get_clock(vm_clock);
+                     qemu_get_clock_ns(vm_clock);
     } else {
         delta = INT32_MAX;
     }
@@ -717,7 +709,7 @@ static int64_t qemu_next_alarm_deadline(void)
             delta = hdelta;
     }
     if (active_timers[QEMU_CLOCK_REALTIME]) {
-        rtdelta = (active_timers[QEMU_CLOCK_REALTIME]->expire_time * 1000000 -
+        rtdelta = (active_timers[QEMU_CLOCK_REALTIME]->expire_time -
                  qemu_get_clock_ns(rt_clock));
         if (rtdelta < delta)
             delta = rtdelta;

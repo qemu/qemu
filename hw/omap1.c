@@ -101,7 +101,7 @@ struct omap_mpu_timer_s {
 
 static inline uint32_t omap_timer_read(struct omap_mpu_timer_s *timer)
 {
-    uint64_t distance = qemu_get_clock(vm_clock) - timer->time;
+    uint64_t distance = qemu_get_clock_ns(vm_clock) - timer->time;
 
     if (timer->st && timer->enable && timer->rate)
         return timer->val - muldiv64(distance >> (timer->ptv + 1),
@@ -113,7 +113,7 @@ static inline uint32_t omap_timer_read(struct omap_mpu_timer_s *timer)
 static inline void omap_timer_sync(struct omap_mpu_timer_s *timer)
 {
     timer->val = omap_timer_read(timer);
-    timer->time = qemu_get_clock(vm_clock);
+    timer->time = qemu_get_clock_ns(vm_clock);
 }
 
 static inline void omap_timer_update(struct omap_mpu_timer_s *timer)
@@ -258,7 +258,7 @@ static struct omap_mpu_timer_s *omap_mpu_timer_init(target_phys_addr_t base,
 
     s->irq = irq;
     s->clk = clk;
-    s->timer = qemu_new_timer(vm_clock, omap_timer_tick, s);
+    s->timer = qemu_new_timer_ns(vm_clock, omap_timer_tick, s);
     s->tick = qemu_bh_new(omap_timer_fire, s);
     omap_mpu_timer_reset(s);
     omap_timer_clk_setup(s);
@@ -382,7 +382,7 @@ static struct omap_watchdog_timer_s *omap_wd_timer_init(target_phys_addr_t base,
 
     s->timer.irq = irq;
     s->timer.clk = clk;
-    s->timer.timer = qemu_new_timer(vm_clock, omap_timer_tick, &s->timer);
+    s->timer.timer = qemu_new_timer_ns(vm_clock, omap_timer_tick, &s->timer);
     omap_wd_timer_reset(s);
     omap_timer_clk_setup(&s->timer);
 
@@ -484,7 +484,7 @@ static struct omap_32khz_timer_s *omap_os_timer_init(target_phys_addr_t base,
 
     s->timer.irq = irq;
     s->timer.clk = clk;
-    s->timer.timer = qemu_new_timer(vm_clock, omap_timer_tick, &s->timer);
+    s->timer.timer = qemu_new_timer_ns(vm_clock, omap_timer_tick, &s->timer);
     omap_os_timer_reset(s);
     omap_timer_clk_setup(&s->timer);
 
@@ -580,7 +580,7 @@ static void omap_ulpd_pm_write(void *opaque, target_phys_addr_t addr,
     case 0x10:	/* GAUGING_CTRL */
         /* Bits 0 and 1 seem to be confused in the OMAP 310 TRM */
         if ((s->ulpd_pm_regs[addr >> 2] ^ value) & 1) {
-            now = qemu_get_clock(vm_clock);
+            now = qemu_get_clock_ns(vm_clock);
 
             if (value & 1)
                 s->ulpd_gauge_start = now;
@@ -2802,7 +2802,7 @@ static void omap_rtc_reset(struct omap_rtc_s *s)
     s->pm_am = 0;
     s->auto_comp = 0;
     s->round = 0;
-    s->tick = qemu_get_clock(rt_clock);
+    s->tick = qemu_get_clock_ms(rt_clock);
     memset(&s->alarm_tm, 0, sizeof(s->alarm_tm));
     s->alarm_tm.tm_mday = 0x01;
     s->status = 1 << 7;
@@ -2822,7 +2822,7 @@ static struct omap_rtc_s *omap_rtc_init(target_phys_addr_t base,
 
     s->irq = irq[0];
     s->alarm = irq[1];
-    s->clk = qemu_new_timer(rt_clock, omap_rtc_tick, s);
+    s->clk = qemu_new_timer_ms(rt_clock, omap_rtc_tick, s);
 
     omap_rtc_reset(s);
 
@@ -2915,7 +2915,7 @@ static void omap_mcbsp_source_tick(void *opaque)
     s->rx_req = s->rx_rate << bps[(s->rcr[0] >> 5) & 7];
 
     omap_mcbsp_rx_newdata(s);
-    qemu_mod_timer(s->source_timer, qemu_get_clock(vm_clock) +
+    qemu_mod_timer(s->source_timer, qemu_get_clock_ns(vm_clock) +
                    get_ticks_per_sec());
 }
 
@@ -2961,7 +2961,7 @@ static void omap_mcbsp_sink_tick(void *opaque)
     s->tx_req = s->tx_rate << bps[(s->xcr[0] >> 5) & 7];
 
     omap_mcbsp_tx_newdata(s);
-    qemu_mod_timer(s->sink_timer, qemu_get_clock(vm_clock) +
+    qemu_mod_timer(s->sink_timer, qemu_get_clock_ns(vm_clock) +
                    get_ticks_per_sec());
 }
 
@@ -3344,8 +3344,8 @@ struct omap_mcbsp_s *omap_mcbsp_init(target_phys_addr_t base,
     s->rxirq = irq[1];
     s->txdrq = dma[0];
     s->rxdrq = dma[1];
-    s->sink_timer = qemu_new_timer(vm_clock, omap_mcbsp_sink_tick, s);
-    s->source_timer = qemu_new_timer(vm_clock, omap_mcbsp_source_tick, s);
+    s->sink_timer = qemu_new_timer_ns(vm_clock, omap_mcbsp_sink_tick, s);
+    s->source_timer = qemu_new_timer_ns(vm_clock, omap_mcbsp_source_tick, s);
     omap_mcbsp_reset(s);
 
     iomemtype = cpu_register_io_memory(omap_mcbsp_readfn,
@@ -3399,9 +3399,9 @@ static void omap_lpg_tick(void *opaque)
     struct omap_lpg_s *s = opaque;
 
     if (s->cycle)
-        qemu_mod_timer(s->tm, qemu_get_clock(rt_clock) + s->period - s->on);
+        qemu_mod_timer(s->tm, qemu_get_clock_ms(rt_clock) + s->period - s->on);
     else
-        qemu_mod_timer(s->tm, qemu_get_clock(rt_clock) + s->on);
+        qemu_mod_timer(s->tm, qemu_get_clock_ms(rt_clock) + s->on);
 
     s->cycle = !s->cycle;
     printf("%s: LED is %s\n", __FUNCTION__, s->cycle ? "on" : "off");
@@ -3516,7 +3516,7 @@ static struct omap_lpg_s *omap_lpg_init(target_phys_addr_t base, omap_clk clk)
     struct omap_lpg_s *s = (struct omap_lpg_s *)
             qemu_mallocz(sizeof(struct omap_lpg_s));
 
-    s->tm = qemu_new_timer(rt_clock, omap_lpg_tick, s);
+    s->tm = qemu_new_timer_ms(rt_clock, omap_lpg_tick, s);
 
     omap_lpg_reset(s);
 

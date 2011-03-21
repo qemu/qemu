@@ -137,7 +137,7 @@ static void qemu_announce_self_once(void *opaque)
 
     if (--count) {
         /* delay 50ms, 150ms, 250ms, ... */
-        qemu_mod_timer(timer, qemu_get_clock(rt_clock) +
+        qemu_mod_timer(timer, qemu_get_clock_ms(rt_clock) +
                        50 + (SELF_ANNOUNCE_ROUNDS - count - 1) * 100);
     } else {
 	    qemu_del_timer(timer);
@@ -148,7 +148,7 @@ static void qemu_announce_self_once(void *opaque)
 void qemu_announce_self(void)
 {
 	static QEMUTimer *timer;
-	timer = qemu_new_timer(rt_clock, qemu_announce_self_once, &timer);
+	timer = qemu_new_timer_ms(rt_clock, qemu_announce_self_once, &timer);
 	qemu_announce_self_once(&timer);
 }
 
@@ -1943,7 +1943,7 @@ void do_savevm(Monitor *mon, const QDict *qdict)
     sn->date_sec = tv.tv_sec;
     sn->date_nsec = tv.tv_usec * 1000;
 #endif
-    sn->vm_clock_nsec = qemu_get_clock(vm_clock);
+    sn->vm_clock_nsec = qemu_get_clock_ns(vm_clock);
 
     if (name) {
         ret = bdrv_snapshot_find(bs, old_sn, name);

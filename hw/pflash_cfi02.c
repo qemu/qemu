@@ -390,7 +390,7 @@ static void pflash_write (pflash_t *pfl, target_phys_addr_t offset,
             pflash_update(pfl, 0, pfl->chip_len);
             /* Let's wait 5 seconds before chip erase is done */
             qemu_mod_timer(pfl->timer,
-                           qemu_get_clock(vm_clock) + (get_ticks_per_sec() * 5));
+                           qemu_get_clock_ns(vm_clock) + (get_ticks_per_sec() * 5));
             break;
         case 0x30:
             /* Sector erase */
@@ -403,7 +403,7 @@ static void pflash_write (pflash_t *pfl, target_phys_addr_t offset,
             pfl->status = 0x00;
             /* Let's wait 1/2 second before sector erase is done */
             qemu_mod_timer(pfl->timer,
-                           qemu_get_clock(vm_clock) + (get_ticks_per_sec() / 2));
+                           qemu_get_clock_ns(vm_clock) + (get_ticks_per_sec() / 2));
             break;
         default:
             DPRINTF("%s: invalid command %02x (wc 5)\n", __func__, cmd);
@@ -647,7 +647,7 @@ pflash_t *pflash_cfi02_register(target_phys_addr_t base, ram_addr_t off,
 #else
     pfl->ro = 0;
 #endif
-    pfl->timer = qemu_new_timer(vm_clock, pflash_timer, pfl);
+    pfl->timer = qemu_new_timer_ns(vm_clock, pflash_timer, pfl);
     pfl->sector_len = sector_len;
     pfl->width = width;
     pfl->wcycle = 0;

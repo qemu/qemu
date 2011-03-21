@@ -64,7 +64,7 @@ static inline int64_t systick_scale(nvic_state *s)
 static void systick_reload(nvic_state *s, int reset)
 {
     if (reset)
-        s->systick.tick = qemu_get_clock(vm_clock);
+        s->systick.tick = qemu_get_clock_ns(vm_clock);
     s->systick.tick += (s->systick.reload + 1) * systick_scale(s);
     qemu_mod_timer(s->systick.timer, s->systick.tick);
 }
@@ -136,7 +136,7 @@ static uint32_t nvic_readl(void *opaque, uint32_t offset)
             int64_t t;
             if ((s->systick.control & SYSTICK_ENABLE) == 0)
                 return 0;
-            t = qemu_get_clock(vm_clock);
+            t = qemu_get_clock_ns(vm_clock);
             if (t >= s->systick.tick)
                 return 0;
             val = ((s->systick.tick - (t + 1)) / systick_scale(s)) + 1;
@@ -273,7 +273,7 @@ static void nvic_writel(void *opaque, uint32_t offset, uint32_t value)
         s->systick.control &= 0xfffffff8;
         s->systick.control |= value & 7;
         if ((oldval ^ value) & SYSTICK_ENABLE) {
-            int64_t now = qemu_get_clock(vm_clock);
+            int64_t now = qemu_get_clock_ns(vm_clock);
             if (value & SYSTICK_ENABLE) {
                 if (s->systick.tick) {
                     s->systick.tick += now;
@@ -396,7 +396,7 @@ static int armv7m_nvic_init(SysBusDevice *dev)
 
     gic_init(&s->gic);
     cpu_register_physical_memory(0xe000e000, 0x1000, s->gic.iomemtype);
-    s->systick.timer = qemu_new_timer(vm_clock, systick_timer_tick, s);
+    s->systick.timer = qemu_new_timer_ns(vm_clock, systick_timer_tick, s);
     register_savevm(&dev->qdev, "armv7m_nvic", -1, 1, nvic_save, nvic_load, s);
     return 0;
 }

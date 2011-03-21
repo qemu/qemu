@@ -393,7 +393,7 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds,
     global_writefds = writefds;
     global_xfds = xfds;
 
-    curtime = qemu_get_clock(rt_clock);
+    curtime = qemu_get_clock_ms(rt_clock);
 
     QTAILQ_FOREACH(slirp, &slirp_instances, entry) {
 	/*

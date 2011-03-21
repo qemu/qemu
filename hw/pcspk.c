@@ -118,7 +118,7 @@ static uint32_t pcspk_ioport_read(void *opaque, uint32_t addr)
     int out;
 
     s->dummy_refresh_clock ^= (1 << 4);
-    out = pit_get_out(s->pit, 2, qemu_get_clock(vm_clock)) << 5;
+    out = pit_get_out(s->pit, 2, qemu_get_clock_ns(vm_clock)) << 5;
 
     return pit_get_gate(s->pit, 2) | (s->data_on << 1) | s->dummy_refresh_clock | out;
 }

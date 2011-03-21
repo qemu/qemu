@@ -81,7 +81,7 @@ static void spice_audio_fini (void *opaque)
 static void rate_start (SpiceRateCtl *rate)
 {
     memset (rate, 0, sizeof (*rate));
-    rate->start_ticks = qemu_get_clock (vm_clock);
+    rate->start_ticks = qemu_get_clock_ns (vm_clock);
 }
 
 static int rate_get_samples (struct audio_pcm_info *info, SpiceRateCtl *rate)
@@ -91,7 +91,7 @@ static int rate_get_samples (struct audio_pcm_info *info, SpiceRateCtl *rate)
     int64_t bytes;
     int64_t samples;
 
-    now = qemu_get_clock (vm_clock);
+    now = qemu_get_clock_ns (vm_clock);
     ticks = now - rate->start_ticks;
     bytes = muldiv64 (ticks, info->bytes_per_second, get_ticks_per_sec ());
     samples = (bytes - rate->bytes_sent) >> info->shift;
