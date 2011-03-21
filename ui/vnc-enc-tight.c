@@ -868,8 +868,8 @@ static int tight_compress_data(VncState *vs, int stream_id, size_t bytes,
     zstream->avail_in = vs->tight.tight.offset;
     zstream->next_out = vs->tight.zlib.buffer + vs->tight.zlib.offset;
     zstream->avail_out = vs->tight.zlib.capacity - vs->tight.zlib.offset;
+    previous_out = zstream->avail_out;
     zstream->data_type = Z_BINARY;
-    previous_out = zstream->total_out;
 
     /* start encoding */
     if (deflate(zstream, Z_SYNC_FLUSH) != Z_OK) {
@@ -878,7 +878,8 @@ static int tight_compress_data(VncState *vs, int stream_id, size_t bytes,
     }
 
     vs->tight.zlib.offset = vs->tight.zlib.capacity - zstream->avail_out;
-    bytes = zstream->total_out - previous_out;
+    /* ...how much data has actually been produced by deflate() */
+    bytes = previous_out - zstream->avail_out;
 
     tight_send_compact_size(vs, bytes);
     vnc_write(vs, vs->tight.zlib.buffer, bytes);
