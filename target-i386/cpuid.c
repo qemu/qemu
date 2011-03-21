@@ -847,7 +847,6 @@ int cpu_x86_register (CPUX86State *env, const char *cpu_model)
     env->cpuid_version |= ((def->model & 0xf) << 4) | ((def->model >> 4) << 16);
     env->cpuid_version |= def->stepping;
     env->cpuid_features = def->features;
-    env->pat = 0x0007040600070406ULL;
     env->cpuid_ext_features = def->ext_features;
     env->cpuid_ext2_features = def->ext2_features;
     env->cpuid_ext3_features = def->ext3_features;

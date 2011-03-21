@@ -897,6 +897,9 @@ static void print_cpu_iter(QObject *obj, void *opaque)
         monitor_printf(mon, " (halted)");
     }
 
+    monitor_printf(mon, " thread_id=%" PRId64 " ",
+                   qdict_get_int(cpu, "thread_id"));
+
     monitor_printf(mon, "\n");
 }
 
@@ -941,6 +944,7 @@ static void do_info_cpus(Monitor *mon, QObject **ret_data)
 #elif defined(TARGET_MIPS)
         qdict_put(cpu, "PC", qint_from_int(env->active_tc.PC));
 #endif
+        qdict_put(cpu, "thread_id", qint_from_int(env->thread_id));
 
         qlist_append(cpu_list, cpu);
     }
@@ -2709,12 +2713,15 @@ static void do_inject_mce(Monitor *mon, const QDict *qdict)
     uint64_t mcg_status = qdict_get_int(qdict, "mcg_status");
     uint64_t addr = qdict_get_int(qdict, "addr");
     uint64_t misc = qdict_get_int(qdict, "misc");
-    int broadcast = qdict_get_try_bool(qdict, "broadcast", 0);
+    int flags = MCE_INJECT_UNCOND_AO;
 
+    if (qdict_get_try_bool(qdict, "broadcast", 0)) {
+        flags |= MCE_INJECT_BROADCAST;
+    }
     for (cenv = first_cpu; cenv != NULL; cenv = cenv->next_cpu) {
-        if (cenv->cpu_index == cpu_index && cenv->mcg_cap) {
-            cpu_inject_x86_mce(cenv, bank, status, mcg_status, addr, misc,
-                               broadcast);
+        if (cenv->cpu_index == cpu_index) {
+            cpu_x86_inject_mce(mon, cenv, bank, status, mcg_status, addr, misc,
+                               flags);
             break;
         }
     }

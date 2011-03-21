@@ -1450,6 +1450,7 @@ static void main_loop(void)
         }
         if (qemu_reset_requested()) {
             pause_all_vcpus();
+            cpu_synchronize_all_states();
             qemu_system_reset();
             resume_all_vcpus();
         }

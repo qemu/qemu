@@ -148,7 +148,8 @@ static bool cpu_thread_is_idle(CPUState *env)
     if (env->stopped || !vm_running) {
         return true;
     }
-    if (!env->halted || qemu_cpu_has_work(env)) {
+    if (!env->halted || qemu_cpu_has_work(env) ||
+        (kvm_enabled() && kvm_irqchip_in_kernel())) {
         return false;
     }
     return true;
@@ -166,29 +167,8 @@ static bool all_cpu_threads_idle(void)
     return true;
 }
 
-static CPUDebugExcpHandler *debug_excp_handler;
-
-CPUDebugExcpHandler *cpu_set_debug_excp_handler(CPUDebugExcpHandler *handler)
+static void cpu_handle_guest_debug(CPUState *env)
 {
-    CPUDebugExcpHandler *old_handler = debug_excp_handler;
-
-    debug_excp_handler = handler;
-    return old_handler;
-}
-
-static void cpu_handle_debug_exception(CPUState *env)
-{
-    CPUWatchpoint *wp;
-
-    if (!env->watchpoint_hit) {
-        QTAILQ_FOREACH(wp, &env->watchpoints, entry) {
-            wp->flags &= ~BP_WATCHPOINT_HIT;
-        }
-    }
-    if (debug_excp_handler) {
-        debug_excp_handler(env);
-    }
-
     gdb_set_stop_cpu(env);
     qemu_system_debug_request();
 #ifdef CONFIG_IOTHREAD
@@ -245,9 +225,56 @@ static void qemu_init_sigbus(void)
     prctl(PR_MCE_KILL, PR_MCE_KILL_SET, PR_MCE_KILL_EARLY, 0, 0);
 }
 
+static void qemu_kvm_eat_signals(CPUState *env)
+{
+    struct timespec ts = { 0, 0 };
+    siginfo_t siginfo;
+    sigset_t waitset;
+    sigset_t chkset;
+    int r;
+
+    sigemptyset(&waitset);
+    sigaddset(&waitset, SIG_IPI);
+    sigaddset(&waitset, SIGBUS);
+
+    do {
+        r = sigtimedwait(&waitset, &siginfo, &ts);
+        if (r == -1 && !(errno == EAGAIN || errno == EINTR)) {
+            perror("sigtimedwait");
+            exit(1);
+        }
+
+        switch (r) {
+        case SIGBUS:
+            if (kvm_on_sigbus_vcpu(env, siginfo.si_code, siginfo.si_addr)) {
+                sigbus_reraise();
+            }
+            break;
+        default:
+            break;
+        }
+
+        r = sigpending(&chkset);
+        if (r == -1) {
+            perror("sigpending");
+            exit(1);
+        }
+    } while (sigismember(&chkset, SIG_IPI) || sigismember(&chkset, SIGBUS));
+
+#ifndef CONFIG_IOTHREAD
+    if (sigismember(&chkset, SIGIO) || sigismember(&chkset, SIGALRM)) {
+        qemu_notify_event();
+    }
+#endif
+}
+
 #else /* !CONFIG_LINUX */
 
 static void qemu_init_sigbus(void)
+{
+}
+
+static void qemu_kvm_eat_signals(CPUState *env)
 {
 }
 #endif /* !CONFIG_LINUX */
@@ -455,49 +482,6 @@ static void qemu_tcg_init_cpu_signals(void)
 #endif
 }
 
-static void qemu_kvm_eat_signals(CPUState *env)
-{
-    struct timespec ts = { 0, 0 };
-    siginfo_t siginfo;
-    sigset_t waitset;
-    sigset_t chkset;
-    int r;
-
-    sigemptyset(&waitset);
-    sigaddset(&waitset, SIG_IPI);
-    sigaddset(&waitset, SIGBUS);
-
-    do {
-        r = sigtimedwait(&waitset, &siginfo, &ts);
-        if (r == -1 && !(errno == EAGAIN || errno == EINTR)) {
-            perror("sigtimedwait");
-            exit(1);
-        }
-
-        switch (r) {
-        case SIGBUS:
-            if (kvm_on_sigbus_vcpu(env, siginfo.si_code, siginfo.si_addr)) {
-                sigbus_reraise();
-            }
-            break;
-        default:
-            break;
-        }
-
-        r = sigpending(&chkset);
-        if (r == -1) {
-            perror("sigpending");
-            exit(1);
-        }
-    } while (sigismember(&chkset, SIG_IPI) || sigismember(&chkset, SIGBUS));
-
-#ifndef CONFIG_IOTHREAD
-    if (sigismember(&chkset, SIGIO) || sigismember(&chkset, SIGALRM)) {
-        qemu_notify_event();
-    }
-#endif
-}
-
 #else /* _WIN32 */
 
 HANDLE qemu_event_handle;
@@ -524,10 +508,6 @@ static void qemu_event_increment(void)
                 GetLastError());
         exit (1);
     }
-}
-
-static void qemu_kvm_eat_signals(CPUState *env)
-{
 }
 
 static int qemu_signal_init(void)
@@ -796,6 +776,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
 
     qemu_mutex_lock(&qemu_global_mutex);
     qemu_thread_get_self(env->thread);
+    env->thread_id = qemu_get_thread_id();
 
     r = kvm_init_vcpu(env);
     if (r < 0) {
@@ -818,7 +799,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
         if (cpu_can_run(env)) {
             r = kvm_cpu_exec(env);
             if (r == EXCP_DEBUG) {
-                cpu_handle_debug_exception(env);
+                cpu_handle_guest_debug(env);
             }
         }
         qemu_kvm_wait_io_event(env);
@@ -837,6 +818,7 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
     /* signal CPU creation */
     qemu_mutex_lock(&qemu_global_mutex);
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        env->thread_id = qemu_get_thread_id();
         env->created = 1;
     }
     qemu_cond_signal(&qemu_cpu_cond);
@@ -1110,7 +1092,7 @@ bool cpu_exec_all(void)
                 r = tcg_cpu_exec(env);
             }
             if (r == EXCP_DEBUG) {
-                cpu_handle_debug_exception(env);
+                cpu_handle_guest_debug(env);
                 break;
             }
         } else if (env->stop || env->stopped) {

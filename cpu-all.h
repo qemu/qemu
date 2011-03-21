@@ -863,10 +863,14 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr);
 extern int phys_ram_fd;
 extern ram_addr_t ram_size;
 
+/* RAM is pre-allocated and passed into qemu_ram_alloc_from_ptr */
+#define RAM_PREALLOC_MASK   (1 << 0)
+
 typedef struct RAMBlock {
     uint8_t *host;
     ram_addr_t offset;
     ram_addr_t length;
+    uint32_t flags;
     char idstr[256];
     QLIST_ENTRY(RAMBlock) next;
 #if defined(__linux__) && !defined(TARGET_S390X)
@@ -970,9 +974,5 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf);
 
 int cpu_memory_rw_debug(CPUState *env, target_ulong addr,
                         uint8_t *buf, int len, int is_write);
-
-void cpu_inject_x86_mce(CPUState *cenv, int bank, uint64_t status,
-                        uint64_t mcg_status, uint64_t addr, uint64_t misc,
-                        int broadcast);
 
 #endif /* CPU_ALL_H */
