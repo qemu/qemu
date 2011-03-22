@@ -2472,11 +2472,27 @@ static int disas_cp_insn(CPUState *env, DisasContext *s, uint32_t insn)
     return 0;
 }
 
-static int cp15_user_ok(uint32_t insn)
+static int cp15_user_ok(CPUState *env, uint32_t insn)
 {
     int cpn = (insn >> 16) & 0xf;
     int cpm = insn & 0xf;
     int op = ((insn >> 5) & 7) | ((insn >> 18) & 0x38);
+
+    if (arm_feature(env, ARM_FEATURE_V7) && cpn == 9) {
+        /* Performance monitor registers fall into three categories:
+         *  (a) always UNDEF in usermode
+         *  (b) UNDEF only if PMUSERENR.EN is 0
+         *  (c) always read OK and UNDEF on write (PMUSERENR only)
+         */
+        if ((cpm == 12 && (op < 6)) ||
+            (cpm == 13 && (op < 3))) {
+            return env->cp15.c9_pmuserenr;
+        } else if (cpm == 14 && op == 0 && (insn & ARM_CP_RW_BIT)) {
+            /* PMUSERENR, read only */
+            return 1;
+        }
+        return 0;
+    }
 
     if (cpn == 13 && cpm == 0) {
         /* TLS register.  */
@@ -2564,7 +2580,7 @@ static int disas_cp15_insn(CPUState *env, DisasContext *s, uint32_t insn)
         /* cdp */
         return 1;
     }
-    if (IS_USER(s) && !cp15_user_ok(insn)) {
+    if (IS_USER(s) && !cp15_user_ok(env, insn)) {
         return 1;
     }
 
