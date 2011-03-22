@@ -1659,7 +1659,7 @@ static void framebuffer_update_request(VncState *vs, int incremental,
         for (i = 0; i < h; i++) {
             bitmap_set(vs->dirty[y_position + i], 0, width);
             bitmap_clear(vs->dirty[y_position + i], width,
-                         VNC_DIRTY_WORDS * BITS_PER_LONG - width);
+                         VNC_DIRTY_BITS - width);
         }
     }
 }
