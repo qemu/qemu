@@ -1922,6 +1922,8 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
         pci_patch_ids(pdev, ptr, size);
     }
 
+    qemu_put_ram_ptr(ptr);
+
     pci_register_bar(pdev, PCI_ROM_SLOT, size,
                      0, pci_map_option_rom);
 
