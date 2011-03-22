@@ -2187,7 +2187,7 @@ static inline uint8_t sub8_usat(uint8_t a, uint8_t b)
 /* Signed modulo arithmetic.  */
 #define SARITH16(a, b, n, op) do { \
     int32_t sum; \
-    sum = (int16_t)((uint16_t)(a) op (uint16_t)(b)); \
+    sum = (int32_t)(int16_t)(a) op (int32_t)(int16_t)(b); \
     RESULT(sum, n, 16); \
     if (sum >= 0) \
         ge |= 3 << (n * 2); \
@@ -2195,7 +2195,7 @@ static inline uint8_t sub8_usat(uint8_t a, uint8_t b)
 
 #define SARITH8(a, b, n, op) do { \
     int32_t sum; \
-    sum = (int8_t)((uint8_t)(a) op (uint8_t)(b)); \
+    sum = (int32_t)(int8_t)(a) op (int32_t)(int8_t)(b); \
     RESULT(sum, n, 8); \
     if (sum >= 0) \
         ge |= 1 << n; \
@@ -2723,26 +2723,30 @@ uint32_t HELPER(vfp_fcvt_f32_to_f16)(float32 a, CPUState *env)
     return do_fcvt_f32_to_f16(a, env, &env->vfp.fp_status);
 }
 
+#define float32_two make_float32(0x40000000)
+#define float32_three make_float32(0x40400000)
+#define float32_one_point_five make_float32(0x3fc00000)
+
 float32 HELPER(recps_f32)(float32 a, float32 b, CPUState *env)
 {
-    float_status *s = &env->vfp.fp_status;
-    float32 two = int32_to_float32(2, s);
-    return float32_sub(two, float32_mul(a, b, s), s);
+    float_status *s = &env->vfp.standard_fp_status;
+    if ((float32_is_infinity(a) && float32_is_zero_or_denormal(b)) ||
+        (float32_is_infinity(b) && float32_is_zero_or_denormal(a))) {
+        return float32_two;
+    }
+    return float32_sub(float32_two, float32_mul(a, b, s), s);
 }
 
 float32 HELPER(rsqrts_f32)(float32 a, float32 b, CPUState *env)
 {
     float_status *s = &env->vfp.standard_fp_status;
-    float32 two = int32_to_float32(2, s);
-    float32 three = int32_to_float32(3, s);
     float32 product;
     if ((float32_is_infinity(a) && float32_is_zero_or_denormal(b)) ||
         (float32_is_infinity(b) && float32_is_zero_or_denormal(a))) {
-        product = float32_zero;
-    } else {
-        product = float32_mul(a, b, s);
+        return float32_one_point_five;
     }
-    return float32_div(float32_sub(three, product, s), two, s);
+    product = float32_mul(a, b, s);
+    return float32_div(float32_sub(float32_three, product, s), float32_two, s);
 }
 
 /* NEON helpers.  */

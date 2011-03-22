@@ -1645,17 +1645,21 @@ static void framebuffer_update_request(VncState *vs, int incremental,
                                        int x_position, int y_position,
                                        int w, int h)
 {
+    int i;
+    const size_t width = ds_get_width(vs->ds) / 16;
+
     if (y_position > ds_get_height(vs->ds))
         y_position = ds_get_height(vs->ds);
     if (y_position + h >= ds_get_height(vs->ds))
         h = ds_get_height(vs->ds) - y_position;
 
-    int i;
     vs->need_update = 1;
     if (!incremental) {
         vs->force_update = 1;
         for (i = 0; i < h; i++) {
-            bitmap_set(vs->dirty[y_position + i], x_position / 16, w / 16);
+            bitmap_set(vs->dirty[y_position + i], 0, width);
+            bitmap_clear(vs->dirty[y_position + i], width,
+                         VNC_DIRTY_BITS - width);
         }
     }
 }
@@ -2638,16 +2642,19 @@ int vnc_display_disable_login(DisplayState *ds)
 
 int vnc_display_password(DisplayState *ds, const char *password)
 {
+    int ret = 0;
     VncDisplay *vs = ds ? (VncDisplay *)ds->opaque : vnc_display;
 
     if (!vs) {
-        return -1;
+        ret = -EINVAL;
+        goto out;
     }
 
     if (!password) {
         /* This is not the intention of this interface but err on the side
            of being safe */
-        return vnc_display_disable_login(ds);
+        ret = vnc_display_disable_login(ds);
+        goto out;
     }
 
     if (vs->password) {
@@ -2656,8 +2663,11 @@ int vnc_display_password(DisplayState *ds, const char *password)
     }
     vs->password = qemu_strdup(password);
     vs->auth = VNC_AUTH_VNC;
-
-    return 0;
+out:
+    if (ret != 0) {
+        qerror_report(QERR_SET_PASSWD_FAILED);
+    }
+    return ret;
 }
 
 int vnc_display_pw_expire(DisplayState *ds, time_t expires)

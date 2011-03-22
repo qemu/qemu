@@ -177,7 +177,7 @@ void kvm_arch_post_run(CPUState *env, struct kvm_run *run)
 {
 }
 
-int kvm_arch_process_irqchip_events(CPUState *env)
+int kvm_arch_process_async_events(CPUState *env)
 {
     return 0;
 }
@@ -497,6 +497,11 @@ int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
             break;
     }
 
+    if (ret == 0) {
+        ret = EXCP_INTERRUPT;
+    } else if (ret > 0) {
+        ret = 0;
+    }
     return ret;
 }
 

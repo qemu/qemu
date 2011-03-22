@@ -20,6 +20,8 @@
 
 #include "optionrom.h"
 
+#define BOOT_ROM_PRODUCT "multiboot loader"
+
 #define MULTIBOOT_MAGIC		0x2badb002
 
 #define GS_PROT_JUMP		0

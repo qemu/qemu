@@ -171,4 +171,7 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_VNC_SERVER_FAILED \
     "{ 'class': 'VNCServerFailed', 'data': { 'target': %s } }"
 
+#define QERR_FEATURE_DISABLED \
+    "{ 'class': 'FeatureDisabled', 'data': { 'name': %s } }"
+
 #endif /* QERROR_H */

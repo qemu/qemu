@@ -102,7 +102,7 @@ void kvm_arch_post_run(CPUState *env, struct kvm_run *run);
 
 int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run);
 
-int kvm_arch_process_irqchip_events(CPUState *env);
+int kvm_arch_process_async_events(CPUState *env);
 
 int kvm_arch_get_registers(CPUState *env);
 
@@ -135,8 +135,6 @@ struct kvm_sw_breakpoint {
 };
 
 QTAILQ_HEAD(kvm_sw_breakpoint_head, kvm_sw_breakpoint);
-
-int kvm_arch_debug(struct kvm_debug_exit_arch *arch_info);
 
 struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUState *env,
                                                  target_ulong pc);

@@ -4154,10 +4154,12 @@ static inline void gen_neon_mull(TCGv_i64 dest, TCGv a, TCGv b, int size, int u)
     case 4:
         tmp = gen_muls_i64_i32(a, b);
         tcg_gen_mov_i64(dest, tmp);
+        tcg_temp_free_i64(tmp);
         break;
     case 5:
         tmp = gen_mulu_i64_i32(a, b);
         tcg_gen_mov_i64(dest, tmp);
+        tcg_temp_free_i64(tmp);
         break;
     default: abort();
     }
@@ -7037,11 +7039,15 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         if (insn & (1 << 5))
                             gen_swap_half(tmp2);
                         gen_smul_dual(tmp, tmp2);
-                        /* This addition cannot overflow.  */
                         if (insn & (1 << 6)) {
+                            /* This subtraction cannot overflow. */
                             tcg_gen_sub_i32(tmp, tmp, tmp2);
                         } else {
-                            tcg_gen_add_i32(tmp, tmp, tmp2);
+                            /* This addition cannot overflow 32 bits;
+                             * however it may overflow considered as a signed
+                             * operation, in which case we must set the Q flag.
+                             */
+                            gen_helper_add_setq(tmp, tmp, tmp2);
                         }
                         tcg_temp_free_i32(tmp2);
                         if (insn & (1 << 22)) {
@@ -7863,11 +7869,15 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                 if (op)
                     gen_swap_half(tmp2);
                 gen_smul_dual(tmp, tmp2);
-                /* This addition cannot overflow.  */
                 if (insn & (1 << 22)) {
+                    /* This subtraction cannot overflow. */
                     tcg_gen_sub_i32(tmp, tmp, tmp2);
                 } else {
-                    tcg_gen_add_i32(tmp, tmp, tmp2);
+                    /* This addition cannot overflow 32 bits;
+                     * however it may overflow considered as a signed
+                     * operation, in which case we must set the Q flag.
+                     */
+                    gen_helper_add_setq(tmp, tmp, tmp2);
                 }
                 tcg_temp_free_i32(tmp2);
                 if (rs != 15)
@@ -8381,39 +8391,42 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                 tcg_gen_addi_i32(addr, addr, imm);
             } else {
                 imm = insn & 0xff;
-                switch ((insn >> 8) & 7) {
-                case 0: case 8: /* Shifted Register.  */
+                switch ((insn >> 8) & 0xf) {
+                case 0x0: /* Shifted Register.  */
                     shift = (insn >> 4) & 0xf;
-                    if (shift > 3)
+                    if (shift > 3) {
+                        tcg_temp_free_i32(addr);
                         goto illegal_op;
+                    }
                     tmp = load_reg(s, rm);
                     if (shift)
                         tcg_gen_shli_i32(tmp, tmp, shift);
                     tcg_gen_add_i32(addr, addr, tmp);
                     tcg_temp_free_i32(tmp);
                     break;
-                case 4: /* Negative offset.  */
+                case 0xc: /* Negative offset.  */
                     tcg_gen_addi_i32(addr, addr, -imm);
                     break;
-                case 6: /* User privilege.  */
+                case 0xe: /* User privilege.  */
                     tcg_gen_addi_i32(addr, addr, imm);
                     user = 1;
                     break;
-                case 1: /* Post-decrement.  */
+                case 0x9: /* Post-decrement.  */
                     imm = -imm;
                     /* Fall through.  */
-                case 3: /* Post-increment.  */
+                case 0xb: /* Post-increment.  */
                     postinc = 1;
                     writeback = 1;
                     break;
-                case 5: /* Pre-decrement.  */
+                case 0xd: /* Pre-decrement.  */
                     imm = -imm;
                     /* Fall through.  */
-                case 7: /* Pre-increment.  */
+                case 0xf: /* Pre-increment.  */
                     tcg_gen_addi_i32(addr, addr, imm);
                     writeback = 1;
                     break;
                 default:
+                    tcg_temp_free_i32(addr);
                     goto illegal_op;
                 }
             }
@@ -8426,7 +8439,9 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
             case 1: tmp = gen_ld16u(addr, user); break;
             case 5: tmp = gen_ld16s(addr, user); break;
             case 2: tmp = gen_ld32(addr, user); break;
-            default: goto illegal_op;
+            default:
+                tcg_temp_free_i32(addr);
+                goto illegal_op;
             }
             if (rs == 15) {
                 gen_bx(s, tmp);
@@ -8440,7 +8455,9 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
             case 0: gen_st8(tmp, addr, user); break;
             case 1: gen_st16(tmp, addr, user); break;
             case 2: gen_st32(tmp, addr, user); break;
-            default: goto illegal_op;
+            default:
+                tcg_temp_free_i32(addr);
+                goto illegal_op;
             }
         }
         if (postinc)

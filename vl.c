@@ -210,7 +210,9 @@ int smp_cpus = 1;
 int max_cpus = 0;
 int smp_cores = 1;
 int smp_threads = 1;
+#ifdef CONFIG_VNC
 const char *vnc_display;
+#endif
 int acpi_enabled = 1;
 int no_hpet = 0;
 int fd_bootchk = 1;
@@ -1457,6 +1459,7 @@ static void main_loop(void)
         }
         if (qemu_reset_requested()) {
             pause_all_vcpus();
+            cpu_synchronize_all_states();
             qemu_system_reset();
             resume_all_vcpus();
         }
@@ -1559,6 +1562,99 @@ static void select_vgahw (const char *p)
         } else goto invalid_vga;
         opts = nextopt;
     }
+}
+
+static DisplayType select_display(const char *p)
+{
+    const char *opts;
+    DisplayType display = DT_DEFAULT;
+
+    if (strstart(p, "sdl", &opts)) {
+#ifdef CONFIG_SDL
+        display = DT_SDL;
+        while (*opts) {
+            const char *nextopt;
+
+            if (strstart(opts, ",frame=", &nextopt)) {
+                opts = nextopt;
+                if (strstart(opts, "on", &nextopt)) {
+                    no_frame = 0;
+                } else if (strstart(opts, "off", &nextopt)) {
+                    no_frame = 1;
+                } else {
+                    goto invalid_display;
+                }
+            } else if (strstart(opts, ",alt_grab=", &nextopt)) {
+                opts = nextopt;
+                if (strstart(opts, "on", &nextopt)) {
+                    alt_grab = 1;
+                } else if (strstart(opts, "off", &nextopt)) {
+                    alt_grab = 0;
+                } else {
+                    goto invalid_display;
+                }
+            } else if (strstart(opts, ",ctrl_grab=", &nextopt)) {
+                opts = nextopt;
+                if (strstart(opts, "on", &nextopt)) {
+                    ctrl_grab = 1;
+                } else if (strstart(opts, "off", &nextopt)) {
+                    ctrl_grab = 0;
+                } else {
+                    goto invalid_display;
+                }
+            } else if (strstart(opts, ",window_close=", &nextopt)) {
+                opts = nextopt;
+                if (strstart(opts, "on", &nextopt)) {
+                    no_quit = 0;
+                } else if (strstart(opts, "off", &nextopt)) {
+                    no_quit = 1;
+                } else {
+                    goto invalid_display;
+                }
+            } else {
+                goto invalid_display;
+            }
+            opts = nextopt;
+        }
+#else
+        fprintf(stderr, "SDL support is disabled\n");
+        exit(1);
+#endif
+    } else if (strstart(p, "vnc", &opts)) {
+#ifdef CONFIG_VNC
+        display_remote++;
+
+        if (*opts) {
+            const char *nextopt;
+
+            if (strstart(opts, "=", &nextopt)) {
+                vnc_display = nextopt;
+            }
+        }
+        if (!vnc_display) {
+            fprintf(stderr, "VNC requires a display argument vnc=<display>\n");
+            exit(1);
+        }
+#else
+        fprintf(stderr, "VNC support is disabled\n");
+        exit(1);
+#endif
+    } else if (strstart(p, "curses", &opts)) {
+#ifdef CONFIG_CURSES
+        display = DT_CURSES;
+#else
+        fprintf(stderr, "Curses support is disabled\n");
+        exit(1);
+#endif
+    } else if (strstart(p, "none", &opts)) {
+        display = DT_NONE;
+    } else {
+    invalid_display:
+        fprintf(stderr, "Unknown display type: %s\n", p);
+        exit(1);
+    }
+
+    return display;
 }
 
 static int balloon_parse(const char *arg)
@@ -1980,7 +2076,9 @@ int main(int argc, char **argv, char **envp)
     int tb_size;
     const char *pid_file = NULL;
     const char *incoming = NULL;
+#ifdef CONFIG_VNC
     int show_vnc_port = 0;
+#endif
     int defconfig = 1;
     const char *trace_file = NULL;
 
@@ -2203,14 +2301,20 @@ int main(int argc, char **argv, char **envp)
                 }
                 numa_add(optarg);
                 break;
+            case QEMU_OPTION_display:
+                display_type = select_display(optarg);
+                break;
             case QEMU_OPTION_nographic:
                 display_type = DT_NOGRAPHIC;
                 break;
-#ifdef CONFIG_CURSES
             case QEMU_OPTION_curses:
+#ifdef CONFIG_CURSES
                 display_type = DT_CURSES;
-                break;
+#else
+                fprintf(stderr, "Curses support is disabled\n");
+                exit(1);
 #endif
+                break;
             case QEMU_OPTION_portrait:
                 graphic_rotate = 1;
                 break;
@@ -2584,6 +2688,14 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_sdl:
                 display_type = DT_SDL;
                 break;
+#else
+            case QEMU_OPTION_no_frame:
+            case QEMU_OPTION_alt_grab:
+            case QEMU_OPTION_ctrl_grab:
+            case QEMU_OPTION_no_quit:
+            case QEMU_OPTION_sdl:
+                fprintf(stderr, "SDL support is disabled\n");
+                exit(1);
 #endif
             case QEMU_OPTION_pidfile:
                 pid_file = optarg;
@@ -2632,9 +2744,14 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
 	    case QEMU_OPTION_vnc:
+#ifdef CONFIG_VNC
                 display_remote++;
-		vnc_display = optarg;
-		break;
+                vnc_display = optarg;
+#else
+                fprintf(stderr, "VNC support is disabled\n");
+                exit(1);
+#endif
+                break;
             case QEMU_OPTION_no_acpi:
                 acpi_enabled = 0;
                 break;
@@ -3093,12 +3210,14 @@ int main(int argc, char **argv, char **envp)
     if (display_type == DT_DEFAULT && !display_remote) {
 #if defined(CONFIG_SDL) || defined(CONFIG_COCOA)
         display_type = DT_SDL;
-#else
+#elif defined(CONFIG_VNC)
         vnc_display = "localhost:0,to=99";
         show_vnc_port = 1;
+#else
+        display_type = DT_NONE;
 #endif
     }
-        
+
 
     /* init local displays */
     switch (display_type) {
@@ -3122,6 +3241,7 @@ int main(int argc, char **argv, char **envp)
         break;
     }
 
+#ifdef CONFIG_VNC
     /* init remote displays */
     if (vnc_display) {
         vnc_display_init(ds);
@@ -3132,6 +3252,7 @@ int main(int argc, char **argv, char **envp)
             printf("VNC server running on `%s'\n", vnc_display_local_addr(ds));
         }
     }
+#endif
 #ifdef CONFIG_SPICE
     if (using_spice && !qxl_enabled) {
         qemu_spice_display_init(ds);

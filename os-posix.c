@@ -41,6 +41,7 @@
 
 #ifdef CONFIG_LINUX
 #include <sys/prctl.h>
+#include <sys/syscall.h>
 #endif
 
 #ifdef CONFIG_EVENTFD
@@ -381,4 +382,13 @@ int qemu_create_pidfile(const char *filename)
     }
 
     return 0;
+}
+
+int qemu_get_thread_id(void)
+{
+#if defined (__linux__)
+    return syscall(SYS_gettid);
+#else
+    return getpid();
+#endif
 }

@@ -1395,6 +1395,8 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
                 n_elems = *(int32_t *)(opaque+field->num_offset);
             } else if (field->flags & VMS_VARRAY_UINT16) {
                 n_elems = *(uint16_t *)(opaque+field->num_offset);
+            } else if (field->flags & VMS_VARRAY_UINT8) {
+                n_elems = *(uint8_t *)(opaque+field->num_offset);
             }
             if (field->flags & VMS_POINTER) {
                 base_addr = *(void **)base_addr + field->start;
