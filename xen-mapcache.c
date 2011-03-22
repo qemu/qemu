@@ -12,6 +12,7 @@
 
 #include "hw/xen_backend.h"
 #include "blockdev.h"
+#include "bitmap.h"
 
 #include <xen/hvm/params.h>
 #include <sys/mman.h>
@@ -32,14 +33,12 @@
 
 #if defined(__i386__)
 #  define MCACHE_BUCKET_SHIFT 16
+#  define MCACHE_MAX_SIZE     (1UL<<31) /* 2GB Cap */
 #elif defined(__x86_64__)
 #  define MCACHE_BUCKET_SHIFT 20
+#  define MCACHE_MAX_SIZE     (1UL<<35) /* 32GB Cap */
 #endif
 #define MCACHE_BUCKET_SIZE (1UL << MCACHE_BUCKET_SHIFT)
-
-#define BITS_PER_LONG (sizeof(long) * 8)
-#define BITS_TO_LONGS(bits) (((bits) + BITS_PER_LONG - 1) / BITS_PER_LONG)
-#define DECLARE_BITMAP(name, bits) unsigned long name[BITS_TO_LONGS(bits)]
 
 typedef struct MapCacheEntry {
     target_phys_addr_t paddr_index;
@@ -69,11 +68,6 @@ typedef struct MapCache {
 
 static MapCache *mapcache;
 
-static inline int test_bit(unsigned int bit, const unsigned long *map)
-{
-    return !!((map)[(bit) / BITS_PER_LONG] & (1UL << ((bit) % BITS_PER_LONG)));
-}
-
 void qemu_map_cache_init(void)
 {
     unsigned long size;
@@ -85,9 +79,14 @@ void qemu_map_cache_init(void)
     mapcache->last_address_index = -1;
 
     getrlimit(RLIMIT_AS, &rlimit_as);
-    rlimit_as.rlim_cur = rlimit_as.rlim_max;
+    if (rlimit_as.rlim_max < MCACHE_MAX_SIZE) {
+        rlimit_as.rlim_cur = rlimit_as.rlim_max;
+    } else {
+        rlimit_as.rlim_cur = MCACHE_MAX_SIZE;
+    }
+
     setrlimit(RLIMIT_AS, &rlimit_as);
-    mapcache->max_mcache_size = rlimit_as.rlim_max;
+    mapcache->max_mcache_size = rlimit_as.rlim_cur;
 
     mapcache->nr_buckets =
         (((mapcache->max_mcache_size >> XC_PAGE_SHIFT) +
@@ -107,7 +106,7 @@ static void qemu_remap_bucket(MapCacheEntry *entry,
     uint8_t *vaddr_base;
     xen_pfn_t *pfns;
     int *err;
-    unsigned int i, j;
+    unsigned int i;
     target_phys_addr_t nb_pfn = size >> XC_PAGE_SHIFT;
 
     trace_qemu_remap_bucket(address_index);
@@ -136,17 +135,11 @@ static void qemu_remap_bucket(MapCacheEntry *entry,
     entry->vaddr_base = vaddr_base;
     entry->paddr_index = address_index;
 
-    for (i = 0; i < nb_pfn; i += BITS_PER_LONG) {
-        unsigned long word = 0;
-        if ((i + BITS_PER_LONG) > nb_pfn) {
-            j = nb_pfn % BITS_PER_LONG;
-        } else {
-            j = BITS_PER_LONG;
+    bitmap_zero(entry->valid_mapping, nb_pfn);
+    for (i = 0; i < nb_pfn; i++) {
+        if (!err[i]) {
+            bitmap_set(entry->valid_mapping, i, 1);
         }
-        while (j > 0) {
-            word = (word << 1) | !err[i + --j];
-        }
-        entry->valid_mapping[i / BITS_PER_LONG] = word;
     }
 
     qemu_free(pfns);
