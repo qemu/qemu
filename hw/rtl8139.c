@@ -72,6 +72,16 @@
 #define MOD2(input, size) \
     ( ( input ) & ( size - 1 )  )
 
+#define ETHER_ADDR_LEN 6
+#define ETHER_TYPE_LEN 2
+#define ETH_HLEN (ETHER_ADDR_LEN * 2 + ETHER_TYPE_LEN)
+#define ETH_P_IP    0x0800      /* Internet Protocol packet */
+#define ETH_P_8021Q 0x8100      /* 802.1Q VLAN Extended Header  */
+#define ETH_MTU     1500
+
+#define VLAN_TCI_LEN 2
+#define VLAN_HLEN (ETHER_TYPE_LEN + VLAN_TCI_LEN)
+
 #if defined (DEBUG_RTL8139)
 #  define DEBUG_PRINT(x) do { printf x ; } while (0)
 #else
@@ -812,11 +822,13 @@ static int rtl8139_can_receive(VLANClientState *nc)
 static ssize_t rtl8139_do_receive(VLANClientState *nc, const uint8_t *buf, size_t size_, int do_interrupt)
 {
     RTL8139State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    /* size is the length of the buffer passed to the driver */
     int size = size_;
+    const uint8_t *dot1q_buf = NULL;
 
     uint32_t packet_header = 0;
 
-    uint8_t buf1[60];
+    uint8_t buf1[MIN_BUF_SIZE + VLAN_HLEN];
     static const uint8_t broadcast_macaddr[6] =
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
@@ -928,12 +940,15 @@ static ssize_t rtl8139_do_receive(VLANClientState *nc, const uint8_t *buf, size_
         }
     }
 
-    /* if too small buffer, then expand it */
-    if (size < MIN_BUF_SIZE) {
+    /* if too small buffer, then expand it
+     * Include some tailroom in case a vlan tag is later removed. */
+    if (size < MIN_BUF_SIZE + VLAN_HLEN) {
         memcpy(buf1, buf, size);
-        memset(buf1 + size, 0, MIN_BUF_SIZE - size);
+        memset(buf1 + size, 0, MIN_BUF_SIZE + VLAN_HLEN - size);
         buf = buf1;
-        size = MIN_BUF_SIZE;
+        if (size < MIN_BUF_SIZE) {
+            size = MIN_BUF_SIZE;
+        }
     }
 
     if (rtl8139_cp_receiver_enabled(s))
@@ -996,6 +1011,29 @@ static ssize_t rtl8139_do_receive(VLANClientState *nc, const uint8_t *buf, size_
 
         uint32_t rx_space = rxdw0 & CP_RX_BUFFER_SIZE_MASK;
 
+        /* write VLAN info to descriptor variables. */
+        if (s->CpCmd & CPlusRxVLAN && be16_to_cpup((uint16_t *)
+                &buf[ETHER_ADDR_LEN * 2]) == ETH_P_8021Q) {
+            dot1q_buf = &buf[ETHER_ADDR_LEN * 2];
+            size -= VLAN_HLEN;
+            /* if too small buffer, use the tailroom added duing expansion */
+            if (size < MIN_BUF_SIZE) {
+                size = MIN_BUF_SIZE;
+            }
+
+            rxdw1 &= ~CP_RX_VLAN_TAG_MASK;
+            /* BE + ~le_to_cpu()~ + cpu_to_le() = BE */
+            rxdw1 |= CP_RX_TAVA | le16_to_cpup((uint16_t *)
+                &dot1q_buf[ETHER_TYPE_LEN]);
+
+            DEBUG_PRINT(("RTL8139: C+ Rx mode : extracted vlan tag with tci: "
+                    "%u\n", be16_to_cpup((uint16_t *)
+                        &dot1q_buf[ETHER_TYPE_LEN])));
+        } else {
+            /* reset VLAN tag flag */
+            rxdw1 &= ~CP_RX_TAVA;
+        }
+
         /* TODO: scatter the packet over available receive ring descriptors space */
 
         if (size+4 > rx_space)
@@ -1017,7 +1055,14 @@ static ssize_t rtl8139_do_receive(VLANClientState *nc, const uint8_t *buf, size_
         target_phys_addr_t rx_addr = rtl8139_addr64(rxbufLO, rxbufHI);
 
         /* receive/copy to target memory */
-        cpu_physical_memory_write( rx_addr, buf, size );
+        if (dot1q_buf) {
+            cpu_physical_memory_write(rx_addr, buf, 2 * ETHER_ADDR_LEN);
+            cpu_physical_memory_write(rx_addr + 2 * ETHER_ADDR_LEN,
+                buf + 2 * ETHER_ADDR_LEN + VLAN_HLEN,
+                size - 2 * ETHER_ADDR_LEN);
+        } else {
+            cpu_physical_memory_write(rx_addr, buf, size);
+        }
 
         if (s->CpCmd & CPlusRxChkSum)
         {
@@ -1025,7 +1070,7 @@ static ssize_t rtl8139_do_receive(VLANClientState *nc, const uint8_t *buf, size_
         }
 
         /* write checksum */
-        val = cpu_to_le32(crc32(0, buf, size));
+        val = cpu_to_le32(crc32(0, buf, size_));
         cpu_physical_memory_write( rx_addr+size, (uint8_t *)&val, 4);
 
 /* first segment of received packet flag */
@@ -1069,9 +1114,6 @@ static ssize_t rtl8139_do_receive(VLANClientState *nc, const uint8_t *buf, size_
         /* set received size */
         rxdw0 &= ~CP_RX_BUFFER_SIZE_MASK;
         rxdw0 |= (size+4);
-
-        /* reset VLAN tag flag */
-        rxdw1 &= ~CP_RX_TAVA;
 
         /* update ring data */
         val = cpu_to_le32(rxdw0);
@@ -2053,10 +2095,6 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
         if (txdw0 & (CP_TX_IPCS | CP_TX_UDPCS | CP_TX_TCPCS | CP_TX_LGSEN))
         {
             DEBUG_PRINT(("RTL8139: +++ C+ mode offloaded task checksum\n"));
-
-            #define ETH_P_IP	0x0800		/* Internet Protocol packet	*/
-            #define ETH_HLEN    14
-            #define ETH_MTU     1500
 
             /* ip packet header */
             ip_header *ip = NULL;
