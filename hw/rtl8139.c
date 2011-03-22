@@ -47,6 +47,9 @@
  *                                  Darwin)
  */
 
+/* For crc32 */
+#include <zlib.h>
+
 #include "hw.h"
 #include "pci.h"
 #include "qemu-timer.h"
@@ -61,14 +64,6 @@
 
 /* debug RTL8139 card C+ mode only */
 //#define DEBUG_RTL8139CP 1
-
-/* Calculate CRCs properly on Rx packets */
-#define RTL8139_CALCULATE_RXCRC 1
-
-#if defined(RTL8139_CALCULATE_RXCRC)
-/* For crc32 */
-#include <zlib.h>
-#endif
 
 #define SET_MASKED(input, mask, curr) \
     ( ( (input) & ~(mask) ) | ( (curr) & (mask) ) )
@@ -1030,11 +1025,7 @@ static ssize_t rtl8139_do_receive(VLANClientState *nc, const uint8_t *buf, size_
         }
 
         /* write checksum */
-#if defined (RTL8139_CALCULATE_RXCRC)
         val = cpu_to_le32(crc32(0, buf, size));
-#else
-        val = 0;
-#endif
         cpu_physical_memory_write( rx_addr+size, (uint8_t *)&val, 4);
 
 /* first segment of received packet flag */
@@ -1136,12 +1127,7 @@ static ssize_t rtl8139_do_receive(VLANClientState *nc, const uint8_t *buf, size_
         rtl8139_write_buffer(s, buf, size);
 
         /* write checksum */
-#if defined (RTL8139_CALCULATE_RXCRC)
         val = cpu_to_le32(crc32(0, buf, size));
-#else
-        val = 0;
-#endif
-
         rtl8139_write_buffer(s, (uint8_t *)&val, 4);
 
         /* correct buffer write pointer */
