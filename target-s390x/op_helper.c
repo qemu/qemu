@@ -71,3 +71,9 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 }
 
 #endif
+
+uint32_t calc_cc(CPUState *env, uint32_t cc_op, uint64_t src, uint64_t dst,
+                 uint64_t vr)
+{
+    return 0;
+}

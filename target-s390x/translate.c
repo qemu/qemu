@@ -46,6 +46,10 @@ void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
     cpu_fprintf(f, "PSW=mask %016lx addr %016lx cc %02x\n", env->psw.mask, env->psw.addr, env->cc);
 }
 
+void s390x_translate_init(void)
+{
+}
+
 void gen_intermediate_code (CPUState *env, struct TranslationBlock *tb)
 {
 }
