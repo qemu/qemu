@@ -1575,7 +1575,7 @@ static DisplayType select_display(const char *p)
                 } else if (strstart(opts, "off", &nextopt)) {
                     no_frame = 1;
                 } else {
-                    goto invalid_display;
+                    goto invalid_sdl_args;
                 }
             } else if (strstart(opts, ",alt_grab=", &nextopt)) {
                 opts = nextopt;
@@ -1584,7 +1584,7 @@ static DisplayType select_display(const char *p)
                 } else if (strstart(opts, "off", &nextopt)) {
                     alt_grab = 0;
                 } else {
-                    goto invalid_display;
+                    goto invalid_sdl_args;
                 }
             } else if (strstart(opts, ",ctrl_grab=", &nextopt)) {
                 opts = nextopt;
@@ -1593,7 +1593,7 @@ static DisplayType select_display(const char *p)
                 } else if (strstart(opts, "off", &nextopt)) {
                     ctrl_grab = 0;
                 } else {
-                    goto invalid_display;
+                    goto invalid_sdl_args;
                 }
             } else if (strstart(opts, ",window_close=", &nextopt)) {
                 opts = nextopt;
@@ -1602,10 +1602,12 @@ static DisplayType select_display(const char *p)
                 } else if (strstart(opts, "off", &nextopt)) {
                     no_quit = 1;
                 } else {
-                    goto invalid_display;
+                    goto invalid_sdl_args;
                 }
             } else {
-                goto invalid_display;
+            invalid_sdl_args:
+                fprintf(stderr, "Invalid SDL option string: %s\n", p);
+                exit(1);
             }
             opts = nextopt;
         }
@@ -1642,7 +1644,6 @@ static DisplayType select_display(const char *p)
     } else if (strstart(p, "none", &opts)) {
         display = DT_NONE;
     } else {
-    invalid_display:
         fprintf(stderr, "Unknown display type: %s\n", p);
         exit(1);
     }
