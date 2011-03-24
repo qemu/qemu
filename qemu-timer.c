@@ -438,7 +438,9 @@ static void qemu_mod_timer_ns(QEMUTimer *ts, int64_t expire_time)
     pt = &active_timers[ts->clock->type];
     for(;;) {
         t = *pt;
-        if (!qemu_timer_expired(t, expire_time)) {
+        if (!t)
+            break;
+        if (t->expire_time > expire_time) {
             break;
         }
         pt = &t->next;
@@ -494,7 +496,7 @@ static void qemu_run_timers(QEMUClock *clock)
     ptimer_head = &active_timers[clock->type];
     for(;;) {
         ts = *ptimer_head;
-        if (!qemu_timer_expired(ts, current_time)) {
+        if (!ts || ts->expire_time > current_time) {
             break;
         }
         /* remove timer from the list before calling the callback */
