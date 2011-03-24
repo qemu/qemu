@@ -183,6 +183,11 @@ struct qemu_alarm_timer {
 
 static struct qemu_alarm_timer *alarm_timer;
 
+static bool qemu_timer_expired_ns(QEMUTimer *timer_head, int64_t current_time)
+{
+    return timer_head && (timer_head->expire_time <= current_time);
+}
+
 int qemu_alarm_pending(void)
 {
     return alarm_timer->pending;
@@ -528,10 +533,9 @@ static void qemu_mod_timer_ns(QEMUTimer *ts, int64_t expire_time)
     pt = &active_timers[ts->clock->type];
     for(;;) {
         t = *pt;
-        if (!t)
+        if (!qemu_timer_expired_ns(t, expire_time)) {
             break;
-        if (t->expire_time > expire_time)
-            break;
+        }
         pt = &t->next;
     }
     ts->expire_time = expire_time;
@@ -570,9 +574,7 @@ int qemu_timer_pending(QEMUTimer *ts)
 
 int qemu_timer_expired(QEMUTimer *timer_head, int64_t current_time)
 {
-    if (!timer_head)
-        return 0;
-    return (timer_head->expire_time <= current_time * timer_head->scale);
+    return qemu_timer_expired_ns(timer_head, current_time * timer_head->scale);
 }
 
 static void qemu_run_timers(QEMUClock *clock)
@@ -587,8 +589,9 @@ static void qemu_run_timers(QEMUClock *clock)
     ptimer_head = &active_timers[clock->type];
     for(;;) {
         ts = *ptimer_head;
-        if (!ts || ts->expire_time > current_time)
+        if (!qemu_timer_expired_ns(ts, current_time)) {
             break;
+        }
         /* remove timer from the list before calling the callback */
         *ptimer_head = ts->next;
         ts->next = NULL;
