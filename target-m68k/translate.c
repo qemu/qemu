@@ -171,9 +171,6 @@ typedef void (*disas_proc)(DisasContext *, uint16_t);
   static void disas_##name (DisasContext *s, uint16_t insn)
 #endif
 
-/* FIXME: Remove this.  */
-#define gen_im32(val) tcg_const_i32(val)
-
 /* Generate a load from the specified address.  Narrow values are
    sign extended to full register width.  */
 static inline TCGv gen_load(DisasContext * s, int opsize, TCGv addr, int sign)
@@ -339,7 +336,7 @@ static TCGv gen_lea_indexed(DisasContext *s, int opsize, TCGv base)
         if ((ext & 0x80) == 0) {
             /* base not suppressed */
             if (IS_NULL_QREG(base)) {
-                base = gen_im32(offset + bd);
+                base = tcg_const_i32(offset + bd);
                 bd = 0;
             }
             if (!IS_NULL_QREG(add)) {
@@ -355,7 +352,7 @@ static TCGv gen_lea_indexed(DisasContext *s, int opsize, TCGv base)
                 add = tmp;
             }
         } else {
-            add = gen_im32(bd);
+            add = tcg_const_i32(bd);
         }
         if ((ext & 3) != 0) {
             /* memory indirect */
@@ -536,15 +533,15 @@ static TCGv gen_lea(DisasContext *s, uint16_t insn, int opsize)
         case 0: /* Absolute short.  */
             offset = ldsw_code(s->pc);
             s->pc += 2;
-            return gen_im32(offset);
+            return tcg_const_i32(offset);
         case 1: /* Absolute long.  */
             offset = read_im32(s);
-            return gen_im32(offset);
+            return tcg_const_i32(offset);
         case 2: /* pc displacement  */
             offset = s->pc;
             offset += ldsw_code(s->pc);
             s->pc += 2;
-            return gen_im32(offset);
+            return tcg_const_i32(offset);
         case 3: /* pc index+displacement.  */
             return gen_lea_indexed(s, opsize, NULL_QREG);
         case 4: /* Immediate.  */
@@ -1209,16 +1206,16 @@ DISAS_INSN(arith_im)
         break;
     case 2: /* subi */
         tcg_gen_mov_i32(dest, src1);
-        gen_helper_xflag_lt(QREG_CC_X, dest, gen_im32(im));
+        gen_helper_xflag_lt(QREG_CC_X, dest, tcg_const_i32(im));
         tcg_gen_subi_i32(dest, dest, im);
-        gen_update_cc_add(dest, gen_im32(im));
+        gen_update_cc_add(dest, tcg_const_i32(im));
         s->cc_op = CC_OP_SUB;
         break;
     case 3: /* addi */
         tcg_gen_mov_i32(dest, src1);
         tcg_gen_addi_i32(dest, dest, im);
-        gen_update_cc_add(dest, gen_im32(im));
-        gen_helper_xflag_lt(QREG_CC_X, dest, gen_im32(im));
+        gen_update_cc_add(dest, tcg_const_i32(im));
+        gen_helper_xflag_lt(QREG_CC_X, dest, tcg_const_i32(im));
         s->cc_op = CC_OP_ADD;
         break;
     case 5: /* eori */
@@ -1228,7 +1225,7 @@ DISAS_INSN(arith_im)
     case 6: /* cmpi */
         tcg_gen_mov_i32(dest, src1);
         tcg_gen_subi_i32(dest, dest, im);
-        gen_update_cc_add(dest, gen_im32(im));
+        gen_update_cc_add(dest, tcg_const_i32(im));
         s->cc_op = CC_OP_SUB;
         break;
     default:
@@ -1324,8 +1321,8 @@ DISAS_INSN(clr)
     default:
         abort();
     }
-    DEST_EA(insn, opsize, gen_im32(0), NULL);
-    gen_logic_cc(s, gen_im32(0));
+    DEST_EA(insn, opsize, tcg_const_i32(0), NULL);
+    gen_logic_cc(s, tcg_const_i32(0));
 }
 
 static TCGv gen_get_ccr(DisasContext *s)
@@ -1589,7 +1586,7 @@ DISAS_INSN(jump)
     }
     if ((insn & 0x40) == 0) {
         /* jsr */
-        gen_push(s, gen_im32(s->pc));
+        gen_push(s, tcg_const_i32(s->pc));
     }
     gen_jmp(s, tmp);
 }
@@ -1617,7 +1614,7 @@ DISAS_INSN(addsubq)
             tcg_gen_addi_i32(dest, dest, val);
         }
     } else {
-        src2 = gen_im32(val);
+        src2 = tcg_const_i32(val);
         if (insn & 0x0100) {
             gen_helper_xflag_lt(QREG_CC_X, dest, src2);
             tcg_gen_subi_i32(dest, dest, val);
@@ -1666,7 +1663,7 @@ DISAS_INSN(branch)
     }
     if (op == 1) {
         /* bsr */
-        gen_push(s, gen_im32(s->pc));
+        gen_push(s, tcg_const_i32(s->pc));
     }
     gen_flush_cc_op(s);
     if (op > 1) {
@@ -1757,7 +1754,7 @@ DISAS_INSN(mov3q)
     val = (insn >> 9) & 7;
     if (val == 0)
         val = -1;
-    src = gen_im32(val);
+    src = tcg_const_i32(val);
     gen_logic_cc(s, src);
     DEST_EA(insn, OS_LONG, src, NULL);
 }
@@ -1883,7 +1880,7 @@ DISAS_INSN(shift_im)
     tmp = (insn >> 9) & 7;
     if (tmp == 0)
         tmp = 8;
-    shift = gen_im32(tmp);
+    shift = tcg_const_i32(tmp);
     /* No need to flush flags becuse we know we will set C flag.  */
     if (insn & 0x100) {
         gen_helper_shl_cc(reg, cpu_env, reg, shift);
@@ -2191,7 +2188,7 @@ DISAS_INSN(fpu)
         switch ((ext >> 10) & 7) {
         case 4: /* FPCR */
             /* Not implemented.  Always return zero.  */
-            tmp32 = gen_im32(0);
+            tmp32 = tcg_const_i32(0);
             break;
         case 1: /* FPIAR */
         case 2: /* FPSR */
@@ -2592,7 +2589,7 @@ DISAS_INSN(mac)
         /* Skip the accumulate if the value is already saturated.  */
         l1 = gen_new_label();
         tmp = tcg_temp_new();
-        gen_op_and32(tmp, QREG_MACSR, gen_im32(MACSR_PAV0 << acc));
+        gen_op_and32(tmp, QREG_MACSR, tcg_const_i32(MACSR_PAV0 << acc));
         gen_op_jmp_nz32(tmp, l1);
     }
 #endif
@@ -2626,7 +2623,7 @@ DISAS_INSN(mac)
             /* Skip the accumulate if the value is already saturated.  */
             l1 = gen_new_label();
             tmp = tcg_temp_new();
-            gen_op_and32(tmp, QREG_MACSR, gen_im32(MACSR_PAV0 << acc));
+            gen_op_and32(tmp, QREG_MACSR, tcg_const_i32(MACSR_PAV0 << acc));
             gen_op_jmp_nz32(tmp, l1);
         }
 #endif
