@@ -328,3 +328,69 @@ void acpi_pm1_cnt_reset(ACPIPM1CNT *pm1_cnt)
         qemu_irq_lower(pm1_cnt->cmos_s3);
     }
 }
+
+/* ACPI GPE */
+void acpi_gpe_init(ACPIGPE *gpe, uint8_t len)
+{
+    gpe->len = len;
+    gpe->sts = qemu_mallocz(len / 2);
+    gpe->en = qemu_mallocz(len / 2);
+}
+
+void acpi_gpe_blk(ACPIGPE *gpe, uint32_t blk)
+{
+    gpe->blk = blk;
+}
+
+void acpi_gpe_reset(ACPIGPE *gpe)
+{
+    memset(gpe->sts, 0, gpe->len / 2);
+    memset(gpe->en, 0, gpe->len / 2);
+}
+
+static uint8_t *acpi_gpe_ioport_get_ptr(ACPIGPE *gpe, uint32_t addr)
+{
+    uint8_t *cur = NULL;
+
+    if (addr < gpe->len / 2) {
+        cur = gpe->sts + addr;
+    } else if (addr < gpe->len) {
+        cur = gpe->en + addr;
+    } else {
+        abort();
+    }
+
+    return cur;
+}
+
+void acpi_gpe_ioport_writeb(ACPIGPE *gpe, uint32_t addr, uint32_t val)
+{
+    uint8_t *cur;
+
+    addr -= gpe->blk;
+    cur = acpi_gpe_ioport_get_ptr(gpe, addr);
+    if (addr < gpe->len / 2) {
+        /* GPE_STS */
+        *cur = (*cur) & ~val;
+    } else if (addr < gpe->len) {
+        /* GPE_EN */
+        *cur = val;
+    } else {
+        abort();
+    }
+}
+
+uint32_t acpi_gpe_ioport_readb(ACPIGPE *gpe, uint32_t addr)
+{
+    uint8_t *cur;
+    uint32_t val;
+
+    addr -= gpe->blk;
+    cur = acpi_gpe_ioport_get_ptr(gpe, addr);
+    val = 0;
+    if (cur != NULL) {
+        val = *cur;
+    }
+
+    return val;
+}

@@ -126,4 +126,21 @@ void acpi_pm1_cnt_update(ACPIPM1CNT *pm1_cnt,
                          bool sci_enable, bool sci_disable);
 void acpi_pm1_cnt_reset(ACPIPM1CNT *pm1_cnt);
 
+/* GPE0 */
+struct ACPIGPE {
+    uint32_t blk;
+    uint8_t len;
+
+    uint8_t *sts;
+    uint8_t *en;
+};
+typedef struct ACPIGPE ACPIGPE;
+
+void acpi_gpe_init(ACPIGPE *gpe, uint8_t len);
+void acpi_gpe_blk(ACPIGPE *gpe, uint32_t blk);
+void acpi_gpe_reset(ACPIGPE *gpe);
+
+void acpi_gpe_ioport_writeb(ACPIGPE *gpe, uint32_t addr, uint32_t val);
+uint32_t acpi_gpe_ioport_readb(ACPIGPE *gpe, uint32_t addr);
+
 #endif /* !QEMU_HW_ACPI_H */

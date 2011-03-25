@@ -35,16 +35,12 @@
 #define ACPI_DBG_IO_ADDR  0xb044
 
 #define GPE_BASE 0xafe0
+#define GPE_LEN 4
 #define PCI_BASE 0xae00
 #define PCI_EJ_BASE 0xae08
 #define PCI_RMV_BASE 0xae0c
 
 #define PIIX4_PCI_HOTPLUG_STATUS 2
-
-struct gpe_regs {
-    uint16_t sts; /* status */
-    uint16_t en;  /* enabled */
-};
 
 struct pci_status {
     uint32_t up;
@@ -69,7 +65,7 @@ typedef struct PIIX4PMState {
     int kvm_enabled;
 
     /* for pci hotplug */
-    struct gpe_regs gpe;
+    ACPIGPE gpe;
     struct pci_status pci0_status;
     uint32_t pci0_hotplug_enable;
 } PIIX4PMState;
@@ -89,7 +85,7 @@ static void pm_update_sci(PIIX4PMState *s)
                    ACPI_BITMASK_POWER_BUTTON_ENABLE |
                    ACPI_BITMASK_GLOBAL_LOCK_ENABLE |
                    ACPI_BITMASK_TIMER_ENABLE)) != 0) ||
-        (((s->gpe.sts & s->gpe.en) & PIIX4_PCI_HOTPLUG_STATUS) != 0);
+        (((s->gpe.sts[0] & s->gpe.en[0]) & PIIX4_PCI_HOTPLUG_STATUS) != 0);
 
     qemu_set_irq(s->irq, sci_level);
     /* schedule a timer interruption if needed */
@@ -214,14 +210,25 @@ static int vmstate_acpi_post_load(void *opaque, int version_id)
     return 0;
 }
 
+#define VMSTATE_GPE_ARRAY(_field, _state)                            \
+ {                                                                   \
+     .name       = (stringify(_field)),                              \
+     .version_id = 0,                                                \
+     .num        = GPE_LEN,                                          \
+     .info       = &vmstate_info_uint16,                             \
+     .size       = sizeof(uint16_t),                                 \
+     .flags      = VMS_ARRAY | VMS_POINTER,                          \
+     .offset     = vmstate_offset_pointer(_state, _field, uint8_t),  \
+ }
+
 static const VMStateDescription vmstate_gpe = {
     .name = "gpe",
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
-        VMSTATE_UINT16(sts, struct gpe_regs),
-        VMSTATE_UINT16(en, struct gpe_regs),
+        VMSTATE_GPE_ARRAY(sts, ACPIGPE),
+        VMSTATE_GPE_ARRAY(en, ACPIGPE),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -252,7 +259,7 @@ static const VMStateDescription vmstate_acpi = {
         VMSTATE_STRUCT(apm, PIIX4PMState, 0, vmstate_apm, APMState),
         VMSTATE_TIMER(tmr.timer, PIIX4PMState),
         VMSTATE_INT64(tmr.overflow_time, PIIX4PMState),
-        VMSTATE_STRUCT(gpe, PIIX4PMState, 2, vmstate_gpe, struct gpe_regs),
+        VMSTATE_STRUCT(gpe, PIIX4PMState, 2, vmstate_gpe, ACPIGPE),
         VMSTATE_STRUCT(pci0_status, PIIX4PMState, 2, vmstate_pci_status,
                        struct pci_status),
         VMSTATE_END_OF_LIST()
@@ -346,6 +353,7 @@ static int piix4_pm_initfn(PCIDevice *dev)
     register_ioport_read(s->smb_io_base, 64, 1, smb_ioport_readb, &s->smb);
 
     acpi_pm_tmr_init(&s->tmr, pm_tmr_timer);
+    acpi_gpe_init(&s->gpe, GPE_LEN);
 
     qemu_system_powerdown = *qemu_allocate_irqs(piix4_powerdown, s, 1);
 
@@ -399,74 +407,20 @@ static void piix4_pm_register(void)
 
 device_init(piix4_pm_register);
 
-static uint32_t gpe_read_val(uint16_t val, uint32_t addr)
-{
-    if (addr & 1)
-        return (val >> 8) & 0xff;
-    return val & 0xff;
-}
-
 static uint32_t gpe_readb(void *opaque, uint32_t addr)
 {
-    uint32_t val = 0;
     PIIX4PMState *s = opaque;
-    struct gpe_regs *g = &s->gpe;
-
-    switch (addr) {
-        case GPE_BASE:
-        case GPE_BASE + 1:
-            val = gpe_read_val(g->sts, addr);
-            break;
-        case GPE_BASE + 2:
-        case GPE_BASE + 3:
-            val = gpe_read_val(g->en, addr);
-            break;
-        default:
-            break;
-    }
+    uint32_t val = acpi_gpe_ioport_readb(&s->gpe, addr);
 
     PIIX4_DPRINTF("gpe read %x == %x\n", addr, val);
     return val;
 }
 
-static void gpe_write_val(uint16_t *cur, int addr, uint32_t val)
-{
-    if (addr & 1)
-        *cur = (*cur & 0xff) | (val << 8);
-    else
-        *cur = (*cur & 0xff00) | (val & 0xff);
-}
-
-static void gpe_reset_val(uint16_t *cur, int addr, uint32_t val)
-{
-    uint16_t x1, x0 = val & 0xff;
-    int shift = (addr & 1) ? 8 : 0;
-
-    x1 = (*cur >> shift) & 0xff;
-
-    x1 = x1 & ~x0;
-
-    *cur = (*cur & (0xff << (8 - shift))) | (x1 << shift);
-}
-
 static void gpe_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
     PIIX4PMState *s = opaque;
-    struct gpe_regs *g = &s->gpe;
 
-    switch (addr) {
-        case GPE_BASE:
-        case GPE_BASE + 1:
-            gpe_reset_val(&g->sts, addr, val);
-            break;
-        case GPE_BASE + 2:
-        case GPE_BASE + 3:
-            gpe_write_val(&g->en, addr, val);
-            break;
-        default:
-            break;
-    }
-
+    acpi_gpe_ioport_writeb(&s->gpe, addr, val);
     pm_update_sci(s);
 
     PIIX4_DPRINTF("gpe write %x <== %d\n", addr, val);
@@ -549,8 +503,9 @@ static void piix4_acpi_system_hot_add_init(PCIBus *bus, PIIX4PMState *s)
 {
     struct pci_status *pci0_status = &s->pci0_status;
 
-    register_ioport_write(GPE_BASE, 4, 1, gpe_writeb, s);
-    register_ioport_read(GPE_BASE, 4, 1,  gpe_readb, s);
+    register_ioport_write(GPE_BASE, GPE_LEN, 1, gpe_writeb, s);
+    register_ioport_read(GPE_BASE, GPE_LEN, 1,  gpe_readb, s);
+    acpi_gpe_blk(&s->gpe, GPE_BASE);
 
     register_ioport_write(PCI_BASE, 8, 4, pcihotplug_write, pci0_status);
     register_ioport_read(PCI_BASE, 8, 4,  pcihotplug_read, pci0_status);
@@ -566,13 +521,13 @@ static void piix4_acpi_system_hot_add_init(PCIBus *bus, PIIX4PMState *s)
 
 static void enable_device(PIIX4PMState *s, int slot)
 {
-    s->gpe.sts |= PIIX4_PCI_HOTPLUG_STATUS;
+    s->gpe.sts[0] |= PIIX4_PCI_HOTPLUG_STATUS;
     s->pci0_status.up |= (1 << slot);
 }
 
 static void disable_device(PIIX4PMState *s, int slot)
 {
-    s->gpe.sts |= PIIX4_PCI_HOTPLUG_STATUS;
+    s->gpe.sts[0] |= PIIX4_PCI_HOTPLUG_STATUS;
     s->pci0_status.down |= (1 << slot);
 }
 
