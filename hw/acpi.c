@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>
  */
+#include "sysemu.h"
 #include "hw.h"
 #include "pc.h"
 #include "acpi.h"
@@ -196,6 +197,42 @@ out:
         acpi_tables = NULL;
     }
     return -1;
+}
+
+/* ACPI PM1a EVT */
+uint16_t acpi_pm1_evt_get_sts(ACPIPM1EVT *pm1, int64_t overflow_time)
+{
+    int64_t d = acpi_pm_tmr_get_clock();
+    if (d >= overflow_time) {
+        pm1->sts |= ACPI_BITMASK_TIMER_STATUS;
+    }
+    return pm1->sts;
+}
+
+void acpi_pm1_evt_write_sts(ACPIPM1EVT *pm1, ACPIPMTimer *tmr, uint16_t val)
+{
+    uint16_t pm1_sts = acpi_pm1_evt_get_sts(pm1, tmr->overflow_time);
+    if (pm1_sts & val & ACPI_BITMASK_TIMER_STATUS) {
+        /* if TMRSTS is reset, then compute the new overflow time */
+        acpi_pm_tmr_calc_overflow_time(tmr);
+    }
+    pm1->sts &= ~val;
+}
+
+void acpi_pm1_evt_power_down(ACPIPM1EVT *pm1, ACPIPMTimer *tmr)
+{
+    if (!pm1) {
+        qemu_system_shutdown_request();
+    } else if (pm1->en & ACPI_BITMASK_POWER_BUTTON_ENABLE) {
+        pm1->sts |= ACPI_BITMASK_POWER_BUTTON_STATUS;
+        tmr->update_sci(tmr);
+    }
+}
+
+void acpi_pm1_evt_reset(ACPIPM1EVT *pm1)
+{
+    pm1->sts = 0;
+    pm1->en = 0;
 }
 
 /* ACPI PM_TMR */

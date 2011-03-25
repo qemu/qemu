@@ -156,8 +156,7 @@ static void vt82c686b_write_config(PCIDevice * d, uint32_t address,
 
 typedef struct VT686PMState {
     PCIDevice dev;
-    uint16_t pmsts;
-    uint16_t pmen;
+    ACPIPM1EVT pm1a;
     uint16_t pmcntrl;
     APMState apm;
     ACPIPMTimer tmr;
@@ -173,34 +172,19 @@ typedef struct VT686MC97State {
     PCIDevice dev;
 } VT686MC97State;
 
-#define RTC_EN    (1 << 10)
-#define PWRBTN_EN (1 << 8)
-#define GBL_EN    (1 << 5)
-#define TMROF_EN  (1 << 0)
-#define SUS_EN    (1 << 13)
-
-#define ACPI_ENABLE  0xf1
-#define ACPI_DISABLE 0xf0
-
-static int get_pmsts(VT686PMState *s)
-{
-    int64_t d = acpi_pm_tmr_get_clock();
-    if (d >= s->tmr.overflow_time) {
-        s->pmsts |= ACPI_BITMASK_TIMER_STATUS;
-    }
-    return s->pmsts;
-}
-
 static void pm_update_sci(VT686PMState *s)
 {
     int sci_level, pmsts;
 
-    pmsts = get_pmsts(s);
-    sci_level = (((pmsts & s->pmen) &
-                  (RTC_EN | PWRBTN_EN | GBL_EN | TMROF_EN)) != 0);
+    pmsts = acpi_pm1_evt_get_sts(&s->pm1a, s->tmr.overflow_time);
+    sci_level = (((pmsts & s->pm1a.en) &
+                  (ACPI_BITMASK_RT_CLOCK_ENABLE |
+                   ACPI_BITMASK_POWER_BUTTON_ENABLE |
+                   ACPI_BITMASK_GLOBAL_LOCK_ENABLE |
+                   ACPI_BITMASK_TIMER_ENABLE)) != 0);
     qemu_set_irq(s->dev.irq[0], sci_level);
     /* schedule a timer interruption if needed */
-    acpi_pm_tmr_update(&s->tmr, (s->pmen & ACPI_BITMASK_TIMER_ENABLE) &&
+    acpi_pm_tmr_update(&s->tmr, (s->pm1a.en & ACPI_BITMASK_TIMER_ENABLE) &&
                        !(pmsts & ACPI_BITMASK_TIMER_STATUS));
 }
 
@@ -217,19 +201,11 @@ static void pm_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
     addr &= 0x0f;
     switch (addr) {
     case 0x00:
-        {
-            int pmsts;
-            pmsts = get_pmsts(s);
-            if (pmsts & val & TMROF_EN) {
-                /* if TMRSTS is reset, then compute the new overflow time */
-                acpi_pm_tmr_calc_overflow_time(&s->tmr);
-            }
-            s->pmsts &= ~val;
-            pm_update_sci(s);
-        }
+        acpi_pm1_evt_write_sts(&s->pm1a, &s->tmr, val);
+        pm_update_sci(s);
         break;
     case 0x02:
-        s->pmen = val;
+        s->pm1a.en = val;
         pm_update_sci(s);
         break;
     case 0x04:
@@ -263,10 +239,10 @@ static uint32_t pm_ioport_readw(void *opaque, uint32_t addr)
     addr &= 0x0f;
     switch (addr) {
     case 0x00:
-        val = get_pmsts(s);
+        val = acpi_pm1_evt_get_sts(&s->pm1a, s->tmr.overflow_time);
         break;
     case 0x02:
-        val = s->pmen;
+        val = s->pm1a.en;
         break;
     case 0x04:
         val = s->pmcntrl;
@@ -344,8 +320,8 @@ static const VMStateDescription vmstate_acpi = {
     .post_load = vmstate_acpi_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_PCI_DEVICE(dev, VT686PMState),
-        VMSTATE_UINT16(pmsts, VT686PMState),
-        VMSTATE_UINT16(pmen, VT686PMState),
+        VMSTATE_UINT16(pm1a.sts, VT686PMState),
+        VMSTATE_UINT16(pm1a.en, VT686PMState),
         VMSTATE_UINT16(pmcntrl, VT686PMState),
         VMSTATE_STRUCT(apm, VT686PMState, 0, vmstate_apm, APMState),
         VMSTATE_TIMER(tmr.timer, VT686PMState),

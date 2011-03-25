@@ -54,8 +54,7 @@ struct pci_status {
 typedef struct PIIX4PMState {
     PCIDevice dev;
     IORange ioport;
-    uint16_t pmsts;
-    uint16_t pmen;
+    ACPIPM1EVT pm1a;
     uint16_t pmcntrl;
 
     APMState apm;
@@ -81,20 +80,12 @@ static void piix4_acpi_system_hot_add_init(PCIBus *bus, PIIX4PMState *s);
 #define ACPI_ENABLE 0xf1
 #define ACPI_DISABLE 0xf0
 
-static int get_pmsts(PIIX4PMState *s)
-{
-    int64_t d = acpi_pm_tmr_get_clock();
-    if (d >= s->tmr.overflow_time)
-        s->pmsts |= ACPI_BITMASK_TIMER_STATUS;
-    return s->pmsts;
-}
-
 static void pm_update_sci(PIIX4PMState *s)
 {
     int sci_level, pmsts;
 
-    pmsts = get_pmsts(s);
-    sci_level = (((pmsts & s->pmen) &
+    pmsts = acpi_pm1_evt_get_sts(&s->pm1a, s->tmr.overflow_time);
+    sci_level = (((pmsts & s->pm1a.en) &
                   (ACPI_BITMASK_RT_CLOCK_ENABLE |
                    ACPI_BITMASK_POWER_BUTTON_ENABLE |
                    ACPI_BITMASK_GLOBAL_LOCK_ENABLE |
@@ -103,7 +94,7 @@ static void pm_update_sci(PIIX4PMState *s)
 
     qemu_set_irq(s->irq, sci_level);
     /* schedule a timer interruption if needed */
-    acpi_pm_tmr_update(&s->tmr, (s->pmen & ACPI_BITMASK_TIMER_ENABLE) &&
+    acpi_pm_tmr_update(&s->tmr, (s->pm1a.en & ACPI_BITMASK_TIMER_ENABLE) &&
                        !(pmsts & ACPI_BITMASK_TIMER_STATUS));
 }
 
@@ -125,19 +116,11 @@ static void pm_ioport_write(IORange *ioport, uint64_t addr, unsigned width,
 
     switch(addr) {
     case 0x00:
-        {
-            int pmsts;
-            pmsts = get_pmsts(s);
-            if (pmsts & val & ACPI_BITMASK_TIMER_STATUS) {
-                /* if TMRSTS is reset, then compute the new overflow time */
-                acpi_pm_tmr_calc_overflow_time(&s->tmr);
-            }
-            s->pmsts &= ~val;
-            pm_update_sci(s);
-        }
+        acpi_pm1_evt_write_sts(&s->pm1a, &s->tmr, val);
+        pm_update_sci(s);
         break;
     case 0x02:
-        s->pmen = val;
+        s->pm1a.en = val;
         pm_update_sci(s);
         break;
     case 0x04:
@@ -154,8 +137,8 @@ static void pm_ioport_write(IORange *ioport, uint64_t addr, unsigned width,
                 case 1:
                     /* ACPI_BITMASK_WAKE_STATUS should be set on resume.
                        Pretend that resume was caused by power button */
-                    s->pmsts |= (ACPI_BITMASK_WAKE_STATUS |
-                                 ACPI_BITMASK_POWER_BUTTON_STATUS);
+                    s->pm1a.sts |= (ACPI_BITMASK_WAKE_STATUS |
+                                    ACPI_BITMASK_POWER_BUTTON_STATUS);
                     qemu_system_reset_request();
                     if (s->cmos_s3) {
                         qemu_irq_raise(s->cmos_s3);
@@ -181,10 +164,10 @@ static void pm_ioport_read(IORange *ioport, uint64_t addr, unsigned width,
 
     switch(addr) {
     case 0x00:
-        val = get_pmsts(s);
+        val = acpi_pm1_evt_get_sts(&s->pm1a, s->tmr.overflow_time);
         break;
     case 0x02:
-        val = s->pmen;
+        val = s->pm1a.en;
         break;
     case 0x04:
         val = s->pmcntrl;
@@ -291,8 +274,8 @@ static const VMStateDescription vmstate_acpi = {
     .post_load = vmstate_acpi_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_PCI_DEVICE(dev, PIIX4PMState),
-        VMSTATE_UINT16(pmsts, PIIX4PMState),
-        VMSTATE_UINT16(pmen, PIIX4PMState),
+        VMSTATE_UINT16(pm1a.sts, PIIX4PMState),
+        VMSTATE_UINT16(pm1a.en, PIIX4PMState),
         VMSTATE_UINT16(pmcntrl, PIIX4PMState),
         VMSTATE_STRUCT(apm, PIIX4PMState, 0, vmstate_apm, APMState),
         VMSTATE_TIMER(tmr.timer, PIIX4PMState),
@@ -343,13 +326,10 @@ static void piix4_reset(void *opaque)
 static void piix4_powerdown(void *opaque, int irq, int power_failing)
 {
     PIIX4PMState *s = opaque;
+    ACPIPM1EVT *pm1a = s? &s->pm1a: NULL;
+    ACPIPMTimer *tmr = s? &s->tmr: NULL;
 
-    if (!s) {
-        qemu_system_shutdown_request();
-    } else if (s->pmen & ACPI_BITMASK_POWER_BUTTON_ENABLE) {
-        s->pmsts |= ACPI_BITMASK_POWER_BUTTON_STATUS;
-        pm_update_sci(s);
-    }
+    acpi_pm1_evt_power_down(pm1a, tmr);
 }
 
 static int piix4_pm_initfn(PCIDevice *dev)

@@ -99,4 +99,17 @@ static inline int64_t acpi_pm_tmr_get_clock(void)
                     get_ticks_per_sec());
 }
 
+/* PM1a_EVT: piix and ich9 don't implement PM1b. */
+struct ACPIPM1EVT
+{
+    uint16_t sts;
+    uint16_t en;
+};
+typedef struct ACPIPM1EVT ACPIPM1EVT;
+
+uint16_t acpi_pm1_evt_get_sts(ACPIPM1EVT *pm1, int64_t overflow_time);
+void acpi_pm1_evt_write_sts(ACPIPM1EVT *pm1, ACPIPMTimer *tmr, uint16_t val);
+void acpi_pm1_evt_power_down(ACPIPM1EVT *pm1, ACPIPMTimer *tmr);
+void acpi_pm1_evt_reset(ACPIPM1EVT *pm1);
+
 #endif /* !QEMU_HW_ACPI_H */
