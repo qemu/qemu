@@ -69,9 +69,7 @@ void palette_init(VncPalette *palette, size_t max, int bpp)
 
 void palette_destroy(VncPalette *palette)
 {
-    if (palette == NULL) {
-        qemu_free(palette);
-    }
+    qemu_free(palette);
 }
 
 int palette_put(VncPalette *palette, uint32_t color)
