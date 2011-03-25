@@ -157,7 +157,7 @@ static void vt82c686b_write_config(PCIDevice * d, uint32_t address,
 typedef struct VT686PMState {
     PCIDevice dev;
     ACPIPM1EVT pm1a;
-    uint16_t pmcntrl;
+    ACPIPM1CNT pm1_cnt;
     APMState apm;
     ACPIPMTimer tmr;
     PMSMBus smb;
@@ -209,21 +209,7 @@ static void pm_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
         pm_update_sci(s);
         break;
     case 0x04:
-        {
-            int sus_typ;
-            s->pmcntrl = val & ~(SUS_EN);
-            if (val & SUS_EN) {
-                /* change suspend type */
-                sus_typ = (val >> 10) & 3;
-                switch (sus_typ) {
-                case 0: /* soft power off */
-                    qemu_system_shutdown_request();
-                    break;
-                default:
-                    break;
-                }
-            }
-        }
+        acpi_pm1_cnt_write(&s->pm1a, &s->pm1_cnt, val);
         break;
     default:
         break;
@@ -245,7 +231,7 @@ static uint32_t pm_ioport_readw(void *opaque, uint32_t addr)
         val = s->pm1a.en;
         break;
     case 0x04:
-        val = s->pmcntrl;
+        val = s->pm1_cnt.cnt;
         break;
     default:
         val = 0;
@@ -322,7 +308,7 @@ static const VMStateDescription vmstate_acpi = {
         VMSTATE_PCI_DEVICE(dev, VT686PMState),
         VMSTATE_UINT16(pm1a.sts, VT686PMState),
         VMSTATE_UINT16(pm1a.en, VT686PMState),
-        VMSTATE_UINT16(pmcntrl, VT686PMState),
+        VMSTATE_UINT16(pm1_cnt.cnt, VT686PMState),
         VMSTATE_STRUCT(apm, VT686PMState, 0, vmstate_apm, APMState),
         VMSTATE_TIMER(tmr.timer, VT686PMState),
         VMSTATE_INT64(tmr.overflow_time, VT686PMState),
@@ -446,6 +432,7 @@ static int vt82c686b_pm_initfn(PCIDevice *dev)
     apm_init(&s->apm, NULL, s);
 
     acpi_pm_tmr_init(&s->tmr, pm_tmr_timer);
+    acpi_pm1_cnt_init(&s->pm1_cnt, NULL);
 
     pm_smbus_init(&s->dev.qdev, &s->smb);
 

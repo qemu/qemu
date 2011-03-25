@@ -279,3 +279,52 @@ void acpi_pm_tmr_reset(ACPIPMTimer *tmr)
     tmr->overflow_time = 0;
     qemu_del_timer(tmr->timer);
 }
+
+/* ACPI PM1aCNT */
+void acpi_pm1_cnt_init(ACPIPM1CNT *pm1_cnt, qemu_irq cmos_s3)
+{
+    pm1_cnt->cmos_s3 = cmos_s3;
+}
+
+void acpi_pm1_cnt_write(ACPIPM1EVT *pm1a, ACPIPM1CNT *pm1_cnt, uint16_t val)
+{
+    pm1_cnt->cnt = val & ~(ACPI_BITMASK_SLEEP_ENABLE);
+
+    if (val & ACPI_BITMASK_SLEEP_ENABLE) {
+        /* change suspend type */
+        uint16_t sus_typ = (val >> 10) & 7;
+        switch(sus_typ) {
+        case 0: /* soft power off */
+            qemu_system_shutdown_request();
+            break;
+        case 1:
+            /* ACPI_BITMASK_WAKE_STATUS should be set on resume.
+               Pretend that resume was caused by power button */
+            pm1a->sts |=
+                (ACPI_BITMASK_WAKE_STATUS | ACPI_BITMASK_POWER_BUTTON_STATUS);
+            qemu_system_reset_request();
+            qemu_irq_raise(pm1_cnt->cmos_s3);
+        default:
+            break;
+        }
+    }
+}
+
+void acpi_pm1_cnt_update(ACPIPM1CNT *pm1_cnt,
+                         bool sci_enable, bool sci_disable)
+{
+    /* ACPI specs 3.0, 4.7.2.5 */
+    if (sci_enable) {
+        pm1_cnt->cnt |= ACPI_BITMASK_SCI_ENABLE;
+    } else if (sci_disable) {
+        pm1_cnt->cnt &= ~ACPI_BITMASK_SCI_ENABLE;
+    }
+}
+
+void acpi_pm1_cnt_reset(ACPIPM1CNT *pm1_cnt)
+{
+    pm1_cnt->cnt = 0;
+    if (pm1_cnt->cmos_s3) {
+        qemu_irq_lower(pm1_cnt->cmos_s3);
+    }
+}

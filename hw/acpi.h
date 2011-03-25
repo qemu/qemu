@@ -112,4 +112,18 @@ void acpi_pm1_evt_write_sts(ACPIPM1EVT *pm1, ACPIPMTimer *tmr, uint16_t val);
 void acpi_pm1_evt_power_down(ACPIPM1EVT *pm1, ACPIPMTimer *tmr);
 void acpi_pm1_evt_reset(ACPIPM1EVT *pm1);
 
+/* PM1a_CNT: piix and ich9 don't implement PM1b CNT. */
+struct ACPIPM1CNT {
+    uint16_t cnt;
+
+    qemu_irq cmos_s3;
+};
+typedef struct ACPIPM1CNT ACPIPM1CNT;
+
+void acpi_pm1_cnt_init(ACPIPM1CNT *pm1_cnt, qemu_irq cmos_s3);
+void acpi_pm1_cnt_write(ACPIPM1EVT *pm1a, ACPIPM1CNT *pm1_cnt, uint16_t val);
+void acpi_pm1_cnt_update(ACPIPM1CNT *pm1_cnt,
+                         bool sci_enable, bool sci_disable);
+void acpi_pm1_cnt_reset(ACPIPM1CNT *pm1_cnt);
+
 #endif /* !QEMU_HW_ACPI_H */

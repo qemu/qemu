@@ -55,7 +55,7 @@ typedef struct PIIX4PMState {
     PCIDevice dev;
     IORange ioport;
     ACPIPM1EVT pm1a;
-    uint16_t pmcntrl;
+    ACPIPM1CNT pm1_cnt;
 
     APMState apm;
 
@@ -65,7 +65,6 @@ typedef struct PIIX4PMState {
     uint32_t smb_io_base;
 
     qemu_irq irq;
-    qemu_irq cmos_s3;
     qemu_irq smi_irq;
     int kvm_enabled;
 
@@ -124,30 +123,7 @@ static void pm_ioport_write(IORange *ioport, uint64_t addr, unsigned width,
         pm_update_sci(s);
         break;
     case 0x04:
-        {
-            int sus_typ;
-            s->pmcntrl = val & ~(ACPI_BITMASK_SLEEP_ENABLE);
-            if (val & ACPI_BITMASK_SLEEP_ENABLE) {
-                /* change suspend type */
-                sus_typ = (val >> 10) & 7;
-                switch(sus_typ) {
-                case 0: /* soft power off */
-                    qemu_system_shutdown_request();
-                    break;
-                case 1:
-                    /* ACPI_BITMASK_WAKE_STATUS should be set on resume.
-                       Pretend that resume was caused by power button */
-                    s->pm1a.sts |= (ACPI_BITMASK_WAKE_STATUS |
-                                    ACPI_BITMASK_POWER_BUTTON_STATUS);
-                    qemu_system_reset_request();
-                    if (s->cmos_s3) {
-                        qemu_irq_raise(s->cmos_s3);
-                    }
-                default:
-                    break;
-                }
-            }
-        }
+        acpi_pm1_cnt_write(&s->pm1a, &s->pm1_cnt, val);
         break;
     default:
         break;
@@ -170,7 +146,7 @@ static void pm_ioport_read(IORange *ioport, uint64_t addr, unsigned width,
         val = s->pm1a.en;
         break;
     case 0x04:
-        val = s->pmcntrl;
+        val = s->pm1_cnt.cnt;
         break;
     case 0x08:
         val = acpi_pm_tmr_get(&s->tmr);
@@ -193,11 +169,7 @@ static void apm_ctrl_changed(uint32_t val, void *arg)
     PIIX4PMState *s = arg;
 
     /* ACPI specs 3.0, 4.7.2.5 */
-    if (val == ACPI_ENABLE) {
-        s->pmcntrl |= ACPI_BITMASK_SCI_ENABLE;
-    } else if (val == ACPI_DISABLE) {
-        s->pmcntrl &= ~ACPI_BITMASK_SCI_ENABLE;
-    }
+    acpi_pm1_cnt_update(&s->pm1_cnt, val == ACPI_ENABLE, val == ACPI_DISABLE);
 
     if (s->dev.config[0x5b] & (1 << 1)) {
         if (s->smi_irq) {
@@ -276,7 +248,7 @@ static const VMStateDescription vmstate_acpi = {
         VMSTATE_PCI_DEVICE(dev, PIIX4PMState),
         VMSTATE_UINT16(pm1a.sts, PIIX4PMState),
         VMSTATE_UINT16(pm1a.en, PIIX4PMState),
-        VMSTATE_UINT16(pmcntrl, PIIX4PMState),
+        VMSTATE_UINT16(pm1_cnt.cnt, PIIX4PMState),
         VMSTATE_STRUCT(apm, PIIX4PMState, 0, vmstate_apm, APMState),
         VMSTATE_TIMER(tmr.timer, PIIX4PMState),
         VMSTATE_INT64(tmr.overflow_time, PIIX4PMState),
@@ -396,7 +368,7 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
 
     s = DO_UPCAST(PIIX4PMState, dev, dev);
     s->irq = sci_irq;
-    s->cmos_s3 = cmos_s3;
+    acpi_pm1_cnt_init(&s->pm1_cnt, cmos_s3);
     s->smi_irq = smi_irq;
     s->kvm_enabled = kvm_enabled;
 
