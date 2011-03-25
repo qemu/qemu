@@ -60,8 +60,7 @@ typedef struct PIIX4PMState {
 
     APMState apm;
 
-    QEMUTimer *tmr_timer;
-    int64_t tmr_overflow_time;
+    ACPIPMTimer tmr;
 
     PMSMBus smb;
     uint32_t smb_io_base;
@@ -82,20 +81,10 @@ static void piix4_acpi_system_hot_add_init(PCIBus *bus, PIIX4PMState *s);
 #define ACPI_ENABLE 0xf1
 #define ACPI_DISABLE 0xf0
 
-static uint32_t get_pmtmr(PIIX4PMState *s)
-{
-    uint32_t d;
-    d = muldiv64(qemu_get_clock_ns(vm_clock), PM_TIMER_FREQUENCY, get_ticks_per_sec());
-    return d & 0xffffff;
-}
-
 static int get_pmsts(PIIX4PMState *s)
 {
-    int64_t d;
-
-    d = muldiv64(qemu_get_clock_ns(vm_clock), PM_TIMER_FREQUENCY,
-                 get_ticks_per_sec());
-    if (d >= s->tmr_overflow_time)
+    int64_t d = acpi_pm_tmr_get_clock();
+    if (d >= s->tmr.overflow_time)
         s->pmsts |= ACPI_BITMASK_TIMER_STATUS;
     return s->pmsts;
 }
@@ -103,7 +92,6 @@ static int get_pmsts(PIIX4PMState *s)
 static void pm_update_sci(PIIX4PMState *s)
 {
     int sci_level, pmsts;
-    int64_t expire_time;
 
     pmsts = get_pmsts(s);
     sci_level = (((pmsts & s->pmen) &
@@ -115,19 +103,13 @@ static void pm_update_sci(PIIX4PMState *s)
 
     qemu_set_irq(s->irq, sci_level);
     /* schedule a timer interruption if needed */
-    if ((s->pmen & ACPI_BITMASK_TIMER_ENABLE) &&
-        !(pmsts & ACPI_BITMASK_TIMER_STATUS)) {
-        expire_time = muldiv64(s->tmr_overflow_time, get_ticks_per_sec(),
-                               PM_TIMER_FREQUENCY);
-        qemu_mod_timer(s->tmr_timer, expire_time);
-    } else {
-        qemu_del_timer(s->tmr_timer);
-    }
+    acpi_pm_tmr_update(&s->tmr, (s->pmen & ACPI_BITMASK_TIMER_ENABLE) &&
+                       !(pmsts & ACPI_BITMASK_TIMER_STATUS));
 }
 
-static void pm_tmr_timer(void *opaque)
+static void pm_tmr_timer(ACPIPMTimer *tmr)
 {
-    PIIX4PMState *s = opaque;
+    PIIX4PMState *s = container_of(tmr, PIIX4PMState, tmr);
     pm_update_sci(s);
 }
 
@@ -144,14 +126,11 @@ static void pm_ioport_write(IORange *ioport, uint64_t addr, unsigned width,
     switch(addr) {
     case 0x00:
         {
-            int64_t d;
             int pmsts;
             pmsts = get_pmsts(s);
             if (pmsts & val & ACPI_BITMASK_TIMER_STATUS) {
                 /* if TMRSTS is reset, then compute the new overflow time */
-                d = muldiv64(qemu_get_clock_ns(vm_clock), PM_TIMER_FREQUENCY,
-                             get_ticks_per_sec());
-                s->tmr_overflow_time = (d + 0x800000LL) & ~0x7fffffLL;
+                acpi_pm_tmr_calc_overflow_time(&s->tmr);
             }
             s->pmsts &= ~val;
             pm_update_sci(s);
@@ -211,7 +190,7 @@ static void pm_ioport_read(IORange *ioport, uint64_t addr, unsigned width,
         val = s->pmcntrl;
         break;
     case 0x08:
-        val = get_pmtmr(s);
+        val = acpi_pm_tmr_get(&s->tmr);
         break;
     default:
         val = 0;
@@ -316,8 +295,8 @@ static const VMStateDescription vmstate_acpi = {
         VMSTATE_UINT16(pmen, PIIX4PMState),
         VMSTATE_UINT16(pmcntrl, PIIX4PMState),
         VMSTATE_STRUCT(apm, PIIX4PMState, 0, vmstate_apm, APMState),
-        VMSTATE_TIMER(tmr_timer, PIIX4PMState),
-        VMSTATE_INT64(tmr_overflow_time, PIIX4PMState),
+        VMSTATE_TIMER(tmr.timer, PIIX4PMState),
+        VMSTATE_INT64(tmr.overflow_time, PIIX4PMState),
         VMSTATE_STRUCT(gpe, PIIX4PMState, 2, vmstate_gpe, struct gpe_regs),
         VMSTATE_STRUCT(pci0_status, PIIX4PMState, 2, vmstate_pci_status,
                        struct pci_status),
@@ -414,7 +393,7 @@ static int piix4_pm_initfn(PCIDevice *dev)
     register_ioport_write(s->smb_io_base, 64, 1, smb_ioport_writeb, &s->smb);
     register_ioport_read(s->smb_io_base, 64, 1, smb_ioport_readb, &s->smb);
 
-    s->tmr_timer = qemu_new_timer_ns(vm_clock, pm_tmr_timer, s);
+    acpi_pm_tmr_init(&s->tmr, pm_tmr_timer);
 
     qemu_system_powerdown = *qemu_allocate_irqs(piix4_powerdown, s, 1);
 

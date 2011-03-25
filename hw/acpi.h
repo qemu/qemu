@@ -74,5 +74,29 @@
 #define ACPI_BITMASK_ARB_DISABLE                0x0001
 
 /* PM_TMR */
+struct ACPIPMTimer;
+typedef struct ACPIPMTimer ACPIPMTimer;
+
+typedef void (*acpi_update_sci_fn)(ACPIPMTimer *tmr);
+
+struct ACPIPMTimer {
+    QEMUTimer *timer;
+    int64_t overflow_time;
+
+    acpi_update_sci_fn update_sci;
+};
+
+void acpi_pm_tmr_update(ACPIPMTimer *tmr, bool enable);
+void acpi_pm_tmr_calc_overflow_time(ACPIPMTimer *tmr);
+uint32_t acpi_pm_tmr_get(ACPIPMTimer *tmr);
+void acpi_pm_tmr_init(ACPIPMTimer *tmr, acpi_update_sci_fn update_sci);
+void acpi_pm_tmr_reset(ACPIPMTimer *tmr);
+
+#include "qemu-timer.h"
+static inline int64_t acpi_pm_tmr_get_clock(void)
+{
+    return muldiv64(qemu_get_clock_ns(vm_clock), PM_TIMER_FREQUENCY,
+                    get_ticks_per_sec());
+}
 
 #endif /* !QEMU_HW_ACPI_H */

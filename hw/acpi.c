@@ -197,3 +197,48 @@ out:
     }
     return -1;
 }
+
+/* ACPI PM_TMR */
+void acpi_pm_tmr_update(ACPIPMTimer *tmr, bool enable)
+{
+    int64_t expire_time;
+
+    /* schedule a timer interruption if needed */
+    if (enable) {
+        expire_time = muldiv64(tmr->overflow_time, get_ticks_per_sec(),
+                               PM_TIMER_FREQUENCY);
+        qemu_mod_timer(tmr->timer, expire_time);
+    } else {
+        qemu_del_timer(tmr->timer);
+    }
+}
+
+void acpi_pm_tmr_calc_overflow_time(ACPIPMTimer *tmr)
+{
+    int64_t d = acpi_pm_tmr_get_clock();
+    tmr->overflow_time = (d + 0x800000LL) & ~0x7fffffLL;
+}
+
+uint32_t acpi_pm_tmr_get(ACPIPMTimer *tmr)
+{
+    uint32_t d = acpi_pm_tmr_get_clock();;
+    return d & 0xffffff;
+}
+
+static void acpi_pm_tmr_timer(void *opaque)
+{
+    ACPIPMTimer *tmr = opaque;
+    tmr->update_sci(tmr);
+}
+
+void acpi_pm_tmr_init(ACPIPMTimer *tmr, acpi_update_sci_fn update_sci)
+{
+    tmr->update_sci = update_sci;
+    tmr->timer = qemu_new_timer_ns(vm_clock, acpi_pm_tmr_timer, tmr);
+}
+
+void acpi_pm_tmr_reset(ACPIPMTimer *tmr)
+{
+    tmr->overflow_time = 0;
+    qemu_del_timer(tmr->timer);
+}
