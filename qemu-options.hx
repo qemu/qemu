@@ -717,6 +717,9 @@ Set the password you need to authenticate.
 @item disable-ticketing
 Allow client connects without authentication.
 
+@item disable-copy-paste
+Disable copy paste between the client and the guest.
+
 @item tls-port=<nr>
 Set the TCP port spice is listening on for encrypted channels.
 

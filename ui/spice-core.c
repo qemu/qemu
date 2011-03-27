@@ -554,6 +554,12 @@ void qemu_spice_init(void)
         spice_server_set_noauth(spice_server);
     }
 
+#if SPICE_SERVER_VERSION >= 0x000801
+    if (qemu_opt_get_bool(opts, "disable-copy-paste", 0)) {
+        spice_server_set_agent_copypaste(spice_server, false);
+    }
+#endif
+
     compression = SPICE_IMAGE_COMPRESS_AUTO_GLZ;
     str = qemu_opt_get(opts, "image-compression");
     if (str) {

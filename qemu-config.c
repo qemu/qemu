@@ -385,6 +385,9 @@ QemuOptsList qemu_spice_opts = {
             .name = "disable-ticketing",
             .type = QEMU_OPT_BOOL,
         },{
+            .name = "disable-copy-paste",
+            .type = QEMU_OPT_BOOL,
+        },{
             .name = "x509-dir",
             .type = QEMU_OPT_STRING,
         },{
