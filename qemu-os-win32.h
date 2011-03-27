@@ -26,6 +26,9 @@
 #ifndef QEMU_OS_WIN32_H
 #define QEMU_OS_WIN32_H
 
+#include <windows.h>
+#include <winsock2.h>
+
 /* Polling handling */
 
 /* return TRUE if no sleep should be done afterwards */

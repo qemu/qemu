@@ -8,21 +8,8 @@
 #include "qemu-timer.h"
 #include "notify.h"
 
-#ifdef _WIN32
-#include <windows.h>
-#include "qemu-os-win32.h"
-#endif
-
-#ifdef CONFIG_POSIX
-#include "qemu-os-posix.h"
-#endif
-
 /* vl.c */
 extern const char *bios_name;
-
-#define QEMU_FILE_TYPE_BIOS   0
-#define QEMU_FILE_TYPE_KEYMAP 1
-char *qemu_find_file(int type, const char *name);
 
 extern int vm_running;
 extern const char *qemu_name;
@@ -99,12 +86,6 @@ int qemu_loadvm_state(QEMUFile *f);
 
 /* SLIRP */
 void do_info_slirp(Monitor *mon);
-
-/* OS specific functions */
-void os_setup_early_signal_handling(void);
-char *os_find_datadir(const char *argv0);
-void os_parse_cmd_args(int index, const char *optarg);
-void os_pidfile_error(void);
 
 typedef enum DisplayType
 {
@@ -190,8 +171,6 @@ extern CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 #define MAX_PARALLEL_PORTS 3
 
 extern CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
-
-#define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
 
 void do_usb_add(Monitor *mon, const QDict *qdict);
 void do_usb_del(Monitor *mon, const QDict *qdict);
