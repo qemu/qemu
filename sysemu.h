@@ -64,10 +64,6 @@ int load_vmstate(const char *name);
 void do_delvm(Monitor *mon, const QDict *qdict);
 void do_info_snapshots(Monitor *mon);
 
-void cpu_synchronize_all_states(void);
-void cpu_synchronize_all_post_reset(void);
-void cpu_synchronize_all_post_init(void);
-
 void qemu_announce_self(void);
 
 void main_loop_wait(int nonblocking);

@@ -82,6 +82,7 @@
 #include "migration.h"
 #include "qemu_socket.h"
 #include "qemu-queue.h"
+#include "cpus.h"
 
 #define SELF_ANNOUNCE_ROUNDS 5
 

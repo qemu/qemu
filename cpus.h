@@ -8,6 +8,10 @@ void resume_all_vcpus(void);
 void pause_all_vcpus(void);
 void cpu_stop_current(void);
 
+void cpu_synchronize_all_states(void);
+void cpu_synchronize_all_post_reset(void);
+void cpu_synchronize_all_post_init(void);
+
 /* vl.c */
 extern int smp_cores;
 extern int smp_threads;
