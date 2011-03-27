@@ -18,8 +18,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "sysemu.h"
-#include "range.h"
+#include "qemu-common.h"
 #include "pci_bridge.h"
 #include "pcie.h"
 #include "msix.h"
