@@ -59,6 +59,10 @@ void init_clocks(void);
 int init_timer_alarm(void);
 void quit_timers(void);
 
+int64_t cpu_get_ticks(void);
+void cpu_enable_ticks(void);
+void cpu_disable_ticks(void);
+
 static inline QEMUTimer *qemu_new_timer_ns(QEMUClock *clock, QEMUTimerCB *cb,
                                            void *opaque)
 {
