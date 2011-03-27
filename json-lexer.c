@@ -28,7 +28,7 @@
  */
 
 enum json_lexer_state {
-    ERROR = 0,
+    IN_ERROR = 0,
     IN_DQ_UCODE3,
     IN_DQ_UCODE2,
     IN_DQ_UCODE1,
@@ -150,7 +150,7 @@ static const uint8_t json_lexer[][256] =  {
     /* Zero */
     [IN_ZERO] = {
         TERMINAL(JSON_INTEGER),
-        ['0' ... '9'] = ERROR,
+        ['0' ... '9'] = IN_ERROR,
         ['.'] = IN_MANTISSA,
     },
 
@@ -302,7 +302,7 @@ static int json_lexer_feed_char(JSONLexer *lexer, char ch)
             lexer->token = qstring_new();
             new_state = IN_START;
             break;
-        case ERROR:
+        case IN_ERROR:
             return -EINVAL;
         default:
             break;
