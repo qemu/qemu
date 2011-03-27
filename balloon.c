@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 
-#include "sysemu.h"
 #include "monitor.h"
 #include "qjson.h"
 #include "qint.h"

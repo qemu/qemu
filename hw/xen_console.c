@@ -33,7 +33,6 @@
 #include <xenctrl.h>
 
 #include "hw.h"
-#include "sysemu.h"
 #include "qemu-char.h"
 #include "xen_backend.h"
 

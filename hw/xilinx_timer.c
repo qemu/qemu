@@ -23,7 +23,6 @@
  */
 
 #include "sysbus.h"
-#include "sysemu.h"
 #include "qemu-timer.h"
 
 #define D(x)

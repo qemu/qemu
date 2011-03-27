@@ -24,7 +24,6 @@
 
 #include "hw.h"
 #include "pc.h"
-#include "sysemu.h"
 #include "boards.h"
 #include "xen_backend.h"
 #include "xen_domainbuild.h"

@@ -12,7 +12,6 @@
 
 #include <stdio.h>
 #include "monitor.h"
-#include "sysemu.h"
 
 /*
  * Print to current monitor if we have one, else to stderr.

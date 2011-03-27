@@ -24,7 +24,6 @@
 
 #include "sysbus.h"
 #include "boards.h"
-#include "sysemu.h"
 #include "net.h"
 #include "flash.h"
 #include "etraxfs.h"

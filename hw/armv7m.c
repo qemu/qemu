@@ -9,7 +9,6 @@
 
 #include "sysbus.h"
 #include "arm-misc.h"
-#include "sysemu.h"
 #include "loader.h"
 #include "elf.h"
 

@@ -24,7 +24,6 @@
 
 
 #include "qemu-common.h"
-#include "sysemu.h"
 #include "acl.h"
 
 #ifdef CONFIG_FNMATCH

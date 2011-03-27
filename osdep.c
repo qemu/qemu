@@ -46,7 +46,6 @@ extern int madvise(caddr_t, size_t, int);
 
 #include "qemu-common.h"
 #include "trace.h"
-#include "sysemu.h"
 #include "qemu_socket.h"
 
 int qemu_madvise(void *addr, size_t len, int advice)
