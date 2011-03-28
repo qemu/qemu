@@ -16,13 +16,13 @@ extern struct BusInfo pci_bus_info;
 
 struct PCIBus {
     BusState qbus;
-    int devfn_min;
+    uint8_t devfn_min;
     pci_set_irq_fn set_irq;
     pci_map_irq_fn map_irq;
     pci_hotplug_fn hotplug;
     DeviceState *hotplug_qdev;
     void *irq_opaque;
-    PCIDevice *devices[256];
+    PCIDevice *devices[PCI_SLOT_MAX * PCI_FUNC_MAX];
     PCIDevice *parent_dev;
     target_phys_addr_t mem_base;
 

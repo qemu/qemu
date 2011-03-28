@@ -16,6 +16,7 @@
 #define PCI_DEVFN(slot, func)   ((((slot) & 0x1f) << 3) | ((func) & 0x07))
 #define PCI_SLOT(devfn)         (((devfn) >> 3) & 0x1f)
 #define PCI_FUNC(devfn)         ((devfn) & 0x07)
+#define PCI_SLOT_MAX            32
 #define PCI_FUNC_MAX            8
 
 /* Class, Vendor and Device IDs from Linux's pci_ids.h */
@@ -229,14 +230,14 @@ typedef enum {
 typedef int (*pci_hotplug_fn)(DeviceState *qdev, PCIDevice *pci_dev,
                               PCIHotplugState state);
 void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
-                         const char *name, int devfn_min);
-PCIBus *pci_bus_new(DeviceState *parent, const char *name, int devfn_min);
+                         const char *name, uint8_t devfn_min);
+PCIBus *pci_bus_new(DeviceState *parent, const char *name, uint8_t devfn_min);
 void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                   void *irq_opaque, int nirq);
 void pci_bus_hotplug(PCIBus *bus, pci_hotplug_fn hotplug, DeviceState *dev);
 PCIBus *pci_register_bus(DeviceState *parent, const char *name,
                          pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
-                         void *irq_opaque, int devfn_min, int nirq);
+                         void *irq_opaque, uint8_t devfn_min, int nirq);
 void pci_device_reset(PCIDevice *dev);
 void pci_bus_reset(PCIBus *bus);
 
@@ -251,7 +252,7 @@ void pci_for_each_device(PCIBus *bus, int bus_num, void (*fn)(PCIBus *bus, PCIDe
 PCIBus *pci_find_root_bus(int domain);
 int pci_find_domain(const PCIBus *bus);
 PCIBus *pci_find_bus(PCIBus *bus, int bus_num);
-PCIDevice *pci_find_device(PCIBus *bus, int bus_num, int slot, int function);
+PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn);
 int pci_qdev_find_device(const char *id, PCIDevice **pdev);
 PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr);
 

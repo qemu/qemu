@@ -625,14 +625,6 @@ e1000_set_link_status(VLANClientState *nc)
         set_ics(s, 0, E1000_ICR_LSC);
 }
 
-static int
-e1000_can_receive(VLANClientState *nc)
-{
-    E1000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
-
-    return (s->mac_reg[RCTL] & E1000_RCTL_EN);
-}
-
 static bool e1000_has_rxbufs(E1000State *s, size_t total_size)
 {
     int bufs;
@@ -649,6 +641,14 @@ static bool e1000_has_rxbufs(E1000State *s, size_t total_size)
         return false;
     }
     return total_size <= bufs * s->rxbuf_size;
+}
+
+static int
+e1000_can_receive(VLANClientState *nc)
+{
+    E1000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+
+    return (s->mac_reg[RCTL] & E1000_RCTL_EN) && e1000_has_rxbufs(s, 1);
 }
 
 static ssize_t

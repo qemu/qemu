@@ -127,7 +127,8 @@ void drive_hot_add(Monitor *mon, const QDict *qdict)
         if (pci_read_devaddr(mon, pci_addr, &dom, &pci_bus, &slot)) {
             goto err;
         }
-        dev = pci_find_device(pci_find_root_bus(dom), pci_bus, slot, 0);
+        dev = pci_find_device(pci_find_root_bus(dom), pci_bus,
+                              PCI_DEVFN(slot, 0));
         if (!dev) {
             monitor_printf(mon, "no pci device with address %s\n", pci_addr);
             goto err;
@@ -277,7 +278,7 @@ static int pci_device_hot_remove(Monitor *mon, const char *pci_addr)
         return -1;
     }
 
-    d = pci_find_device(pci_find_root_bus(dom), bus, slot, 0);
+    d = pci_find_device(pci_find_root_bus(dom), bus, PCI_DEVFN(slot, 0));
     if (!d) {
         monitor_printf(mon, "slot %d empty\n", slot);
         return -1;
