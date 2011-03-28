@@ -224,7 +224,6 @@ obj-$(CONFIG_XEN) += xen_machine_pv.o xen_domainbuild.o
 
 # PCI network cards
 obj-$(CONFIG_DP8381X_PCI) += dp8381x.o
-obj-$(CONFIG_EEPRO100_PCI) += eepro100.o
 
 # Inter-VM PCI shared memory
 obj-$(CONFIG_KVM) += ivshmem.o
