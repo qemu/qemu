@@ -765,6 +765,9 @@ struct target_pollfd {
 #define TARGET_SIOCADDDLCI     0x8980          /* Create new DLCI device       */
 #define TARGET_SIOCDELDLCI     0x8981          /* Delete DLCI device           */
 
+/* From <linux/wireless.h> */
+
+#define TARGET_SIOCGIWNAME     0x8B01          /* get name == wireless protocol */
 
 /* From <linux/fs.h> */
 

@@ -59,7 +59,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 //#include <sys/user.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
-#include <net/if.h>
+#include <linux/wireless.h>
 #include <qemu-common.h>
 #ifdef TARGET_GPROF
 #include <sys/gmon.h>
