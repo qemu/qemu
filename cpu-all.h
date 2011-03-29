@@ -138,7 +138,7 @@ typedef union {
     uint64_t ll;
 } CPU_DoubleU;
 
-#ifdef TARGET_SPARC
+#if defined(TARGET_SPARC) || defined(TARGET_S390X)
 typedef union {
     float128 q;
 #if defined(HOST_WORDS_BIGENDIAN) \
