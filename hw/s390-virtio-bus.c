@@ -139,7 +139,7 @@ static int s390_virtio_serial_init(VirtIOS390Device *dev)
 
     bus = DO_UPCAST(VirtIOS390Bus, bus, dev->qdev.parent_bus);
 
-    vdev = virtio_serial_init((DeviceState *)dev, dev->max_virtserial_ports);
+    vdev = virtio_serial_init((DeviceState *)dev, &dev->serial);
     if (!vdev) {
         return -1;
     }
@@ -355,8 +355,8 @@ static VirtIOS390DeviceInfo s390_virtio_serial = {
     .qdev.alias = "virtio-serial",
     .qdev.size = sizeof(VirtIOS390Device),
     .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("max_ports", VirtIOS390Device, max_virtserial_ports,
-                           31),
+        DEFINE_PROP_UINT32("max_ports", VirtIOS390Device,
+                           serial.max_virtserial_ports, 31),
         DEFINE_PROP_END_OF_LIST(),
     },
 };
