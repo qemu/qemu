@@ -1161,14 +1161,12 @@ int64_t bdrv_getlength(BlockDriverState *bs)
     if (!drv)
         return -ENOMEDIUM;
 
-    /* Fixed size devices use the total_sectors value for speed instead of
-       issuing a length query (like lseek) on each call.  Also, legacy block
-       drivers don't provide a bdrv_getlength function and must use
-       total_sectors. */
-    if (!bs->growable || !drv->bdrv_getlength) {
-        return bs->total_sectors * BDRV_SECTOR_SIZE;
+    if (bs->growable || bs->removable) {
+        if (drv->bdrv_getlength) {
+            return drv->bdrv_getlength(bs);
+        }
     }
-    return drv->bdrv_getlength(bs);
+    return bs->total_sectors * BDRV_SECTOR_SIZE;
 }
 
 /* return 0 as number of sectors if no device present or error */
