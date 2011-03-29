@@ -325,6 +325,7 @@ static const VirtIOBindings virtio_s390_bindings = {
 static VirtIOS390DeviceInfo s390_virtio_net = {
     .init = s390_virtio_net_init,
     .qdev.name = "virtio-net-s390",
+    .qdev.alias = "virtio-net",
     .qdev.size = sizeof(VirtIOS390Device),
     .qdev.props = (Property[]) {
         DEFINE_NIC_PROPERTIES(VirtIOS390Device, nic),
@@ -340,6 +341,7 @@ static VirtIOS390DeviceInfo s390_virtio_net = {
 static VirtIOS390DeviceInfo s390_virtio_blk = {
     .init = s390_virtio_blk_init,
     .qdev.name = "virtio-blk-s390",
+    .qdev.alias = "virtio-blk",
     .qdev.size = sizeof(VirtIOS390Device),
     .qdev.props = (Property[]) {
         DEFINE_BLOCK_PROPERTIES(VirtIOS390Device, block),
