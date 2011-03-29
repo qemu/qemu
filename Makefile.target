@@ -209,7 +209,13 @@ QEMU_CFLAGS += $(VNC_PNG_CFLAGS)
 obj-$(CONFIG_XEN) += xen_machine_pv.o xen_domainbuild.o
 
 # Inter-VM PCI shared memory
-obj-$(CONFIG_KVM) += ivshmem.o
+CONFIG_IVSHMEM =
+ifeq ($(CONFIG_KVM), y)
+  ifeq ($(CONFIG_PCI), y)
+    CONFIG_IVSHMEM = y
+  endif
+endif
+obj-$(CONFIG_IVSHMEM) += ivshmem.o
 
 # Hardware support
 obj-i386-y += vga.o
