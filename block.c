@@ -2817,6 +2817,8 @@ void bdrv_set_locked(BlockDriverState *bs, int locked)
 {
     BlockDriver *drv = bs->drv;
 
+    trace_bdrv_set_locked(bs, locked);
+
     bs->locked = locked;
     if (drv && drv->bdrv_set_locked) {
         drv->bdrv_set_locked(bs, locked);
