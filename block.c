@@ -697,14 +697,22 @@ void bdrv_close_all(void)
     }
 }
 
+/* make a BlockDriverState anonymous by removing from bdrv_state list.
+   Also, NULL terminate the device_name to prevent double remove */
+void bdrv_make_anon(BlockDriverState *bs)
+{
+    if (bs->device_name[0] != '\0') {
+        QTAILQ_REMOVE(&bdrv_states, bs, list);
+    }
+    bs->device_name[0] = '\0';
+}
+
 void bdrv_delete(BlockDriverState *bs)
 {
     assert(!bs->peer);
 
     /* remove from list, if necessary */
-    if (bs->device_name[0] != '\0') {
-        QTAILQ_REMOVE(&bdrv_states, bs, list);
-    }
+    bdrv_make_anon(bs);
 
     bdrv_close(bs);
     if (bs->file != NULL) {
