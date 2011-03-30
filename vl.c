@@ -2102,7 +2102,9 @@ int main(int argc, char **argv, char **envp)
                           HD_OPTS);
                 break;
             case QEMU_OPTION_drive:
-                drive_def(optarg);
+                if (drive_def(optarg) == NULL) {
+                    exit(1);
+                }
 	        break;
             case QEMU_OPTION_set:
                 if (qemu_set_option(optarg) != 0)
