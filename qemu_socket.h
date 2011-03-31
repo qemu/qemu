@@ -32,6 +32,10 @@ int inet_aton(const char *cp, struct in_addr *ia);
 
 #include "qemu-option.h"
 
+/* Functions from iohandler.c. */
+void qemu_iohandler_fill(int *pnfds, fd_set *readfds, fd_set *writefds, fd_set *xfds);
+void qemu_iohandler_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds, int rc);
+
 /* misc helpers */
 int qemu_socket(int domain, int type, int protocol);
 int qemu_accept(int s, struct sockaddr *addr, socklen_t *addrlen);
