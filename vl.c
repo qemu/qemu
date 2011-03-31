@@ -3059,9 +3059,6 @@ int main(int argc, char **argv, char **envp)
 
     cpu_synchronize_all_post_init();
 
-    /* must be after terminal init, SDL library changes signal handlers */
-    os_setup_signal_handling();
-
     set_numa_modes();
 
     current_machine = machine;
@@ -3116,6 +3113,9 @@ int main(int argc, char **argv, char **envp)
     default:
         break;
     }
+
+    /* must be after terminal init, SDL library changes signal handlers */
+    os_setup_signal_handling();
 
 #ifdef CONFIG_VNC
     /* init remote displays */
