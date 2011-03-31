@@ -297,6 +297,45 @@ static int vhost_verify_ring_mappings(struct vhost_dev *dev,
     return 0;
 }
 
+static struct vhost_memory_region *vhost_dev_find_reg(struct vhost_dev *dev,
+						      uint64_t start_addr,
+						      uint64_t size)
+{
+    int i, n = dev->mem->nregions;
+    for (i = 0; i < n; ++i) {
+        struct vhost_memory_region *reg = dev->mem->regions + i;
+        if (ranges_overlap(reg->guest_phys_addr, reg->memory_size,
+                           start_addr, size)) {
+            return reg;
+        }
+    }
+    return NULL;
+}
+
+static bool vhost_dev_cmp_memory(struct vhost_dev *dev,
+                                 uint64_t start_addr,
+                                 uint64_t size,
+                                 uint64_t uaddr)
+{
+    struct vhost_memory_region *reg = vhost_dev_find_reg(dev, start_addr, size);
+    uint64_t reglast;
+    uint64_t memlast;
+
+    if (!reg) {
+        return true;
+    }
+
+    reglast = range_get_last(reg->guest_phys_addr, reg->memory_size);
+    memlast = range_get_last(start_addr, size);
+
+    /* Need to extend region? */
+    if (start_addr < reg->guest_phys_addr || memlast > reglast) {
+        return true;
+    }
+    /* userspace_addr changed? */
+    return uaddr != reg->userspace_addr + start_addr - reg->guest_phys_addr;
+}
+
 static void vhost_client_set_memory(CPUPhysMemoryClient *client,
                                     target_phys_addr_t start_addr,
                                     ram_addr_t size,
@@ -309,6 +348,7 @@ static void vhost_client_set_memory(CPUPhysMemoryClient *client,
         (dev->mem->nregions + 1) * sizeof dev->mem->regions[0];
     uint64_t log_size;
     int r;
+
     dev->mem = qemu_realloc(dev->mem, s);
 
     if (log_dirty) {
@@ -316,6 +356,20 @@ static void vhost_client_set_memory(CPUPhysMemoryClient *client,
     }
 
     assert(size);
+
+    /* Optimize no-change case. At least cirrus_vga does this a lot at this time. */
+    if (flags == IO_MEM_RAM) {
+        if (!vhost_dev_cmp_memory(dev, start_addr, size,
+                                  (uintptr_t)qemu_get_ram_ptr(phys_offset))) {
+            /* Region exists with same address. Nothing to do. */
+            return;
+        }
+    } else {
+        if (!vhost_dev_find_reg(dev, start_addr, size)) {
+            /* Removing region that we don't access. Nothing to do. */
+            return;
+        }
+    }
 
     vhost_dev_unassign_memory(dev, start_addr, size);
     if (flags == IO_MEM_RAM) {
