@@ -248,6 +248,13 @@ static target_ulong h_protect(CPUState *env, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
+static target_ulong h_set_dabr(CPUState *env, sPAPREnvironment *spapr,
+                               target_ulong opcode, target_ulong *args)
+{
+    /* FIXME: actually implement this */
+    return H_HARDWARE;
+}
+
 static target_ulong h_rtas(CPUState *env, sPAPREnvironment *spapr,
                            target_ulong opcode, target_ulong *args)
 {
@@ -316,6 +323,9 @@ static void hypercall_init(void)
     spapr_register_hypercall(H_ENTER, h_enter);
     spapr_register_hypercall(H_REMOVE, h_remove);
     spapr_register_hypercall(H_PROTECT, h_protect);
+
+    /* hcall-dabr */
+    spapr_register_hypercall(H_SET_DABR, h_set_dabr);
 
     /* qemu/KVM-PPC specific hcalls */
     spapr_register_hypercall(KVMPPC_H_RTAS, h_rtas);

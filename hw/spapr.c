@@ -63,7 +63,7 @@ static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
     uint32_t start_prop = cpu_to_be32(initrd_base);
     uint32_t end_prop = cpu_to_be32(initrd_base + initrd_size);
     uint32_t pft_size_prop[] = {0, cpu_to_be32(hash_shift)};
-    char hypertas_prop[] = "hcall-pft\0hcall-term";
+    char hypertas_prop[] = "hcall-pft\0hcall-term\0hcall-dabr";
     int i;
     char *modelname;
     int ret;
