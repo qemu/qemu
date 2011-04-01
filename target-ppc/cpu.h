@@ -359,6 +359,14 @@ union ppc_tlb_t {
 };
 #endif
 
+#define SDR_32_HTABORG         0xFFFF0000UL
+#define SDR_32_HTABMASK        0x000001FFUL
+
+#if defined(TARGET_PPC64)
+#define SDR_64_HTABORG         0xFFFFFFFFFFFC0000ULL
+#define SDR_64_HTABSIZE        0x000000000000001FULL
+#endif /* defined(TARGET_PPC64 */
+
 typedef struct ppc_slb_t ppc_slb_t;
 struct ppc_slb_t {
     uint64_t esid;
@@ -642,7 +650,8 @@ struct CPUPPCState {
     int slb_nr;
 #endif
     /* segment registers */
-    target_ulong sdr1;
+    target_phys_addr_t htab_base;
+    target_phys_addr_t htab_mask;
     target_ulong sr[32];
     /* BATs */
     int nb_BATs;

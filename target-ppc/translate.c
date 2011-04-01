@@ -9126,7 +9126,7 @@ void cpu_dump_state (CPUState *env, FILE *f, fprintf_function cpu_fprintf,
 #if !defined(CONFIG_USER_ONLY)
     cpu_fprintf(f, "SRR0 " TARGET_FMT_lx " SRR1 " TARGET_FMT_lx " SDR1 "
                 TARGET_FMT_lx "\n", env->spr[SPR_SRR0], env->spr[SPR_SRR1],
-                env->sdr1);
+                env->spr[SPR_SDR1]);
 #endif
 
 #undef RGPL

@@ -788,20 +788,19 @@ int ppc_load_slb_vsid (CPUPPCState *env, target_ulong rb, target_ulong *rt)
 #endif /* defined(TARGET_PPC64) */
 
 /* Perform segment based translation */
-static inline target_phys_addr_t get_pgaddr(target_phys_addr_t sdr1,
-                                            int sdr_sh,
-                                            target_phys_addr_t hash,
-                                            target_phys_addr_t mask)
+static inline target_phys_addr_t get_pgaddr(target_phys_addr_t htab_base,
+                                            target_phys_addr_t htab_mask,
+                                            target_phys_addr_t hash)
 {
-    return (sdr1 & ((target_phys_addr_t)(-1ULL) << sdr_sh)) | (hash & mask);
+    return htab_base | (hash & htab_mask);
 }
 
 static inline int get_segment(CPUState *env, mmu_ctx_t *ctx,
                               target_ulong eaddr, int rw, int type)
 {
-    target_phys_addr_t sdr, hash, mask, sdr_mask, htab_mask;
+    target_phys_addr_t hash;
     target_ulong sr, vsid, vsid_mask, pgidx, page_mask;
-    int ds, vsid_sh, sdr_sh, pr, target_page_bits;
+    int ds, vsid_sh, pr, target_page_bits;
     int ret, ret2;
 
     pr = msr_pr;
@@ -826,8 +825,6 @@ static inline int get_segment(CPUState *env, mmu_ctx_t *ctx,
         ctx->eaddr = eaddr;
         vsid_mask = 0x00003FFFFFFFFF80ULL;
         vsid_sh = 7;
-        sdr_sh = 18;
-        sdr_mask = 0x3FF80;
     } else
 #endif /* defined(TARGET_PPC64) */
     {
@@ -840,8 +837,6 @@ static inline int get_segment(CPUState *env, mmu_ctx_t *ctx,
         vsid = sr & 0x00FFFFFF;
         vsid_mask = 0x01FFFFC0;
         vsid_sh = 6;
-        sdr_sh = 16;
-        sdr_mask = 0xFFC0;
         target_page_bits = TARGET_PAGE_BITS;
         LOG_MMU("Check segment v=" TARGET_FMT_lx " %d " TARGET_FMT_lx " nip="
                 TARGET_FMT_lx " lr=" TARGET_FMT_lx
@@ -857,29 +852,26 @@ static inline int get_segment(CPUState *env, mmu_ctx_t *ctx,
         if (type != ACCESS_CODE || ctx->nx == 0) {
             /* Page address translation */
             /* Primary table address */
-            sdr = env->sdr1;
             pgidx = (eaddr & page_mask) >> target_page_bits;
 #if defined(TARGET_PPC64)
             if (env->mmu_model & POWERPC_MMU_64) {
-                htab_mask = 0x0FFFFFFF >> (28 - (sdr & 0x1F));
                 /* XXX: this is false for 1 TB segments */
                 hash = ((vsid ^ pgidx) << vsid_sh) & vsid_mask;
             } else
 #endif
             {
-                htab_mask = sdr & 0x000001FF;
                 hash = ((vsid ^ pgidx) << vsid_sh) & vsid_mask;
             }
-            mask = (htab_mask << sdr_sh) | sdr_mask;
-            LOG_MMU("sdr " TARGET_FMT_plx " sh %d hash " TARGET_FMT_plx
-                    " mask " TARGET_FMT_plx " " TARGET_FMT_lx "\n",
-                    sdr, sdr_sh, hash, mask, page_mask);
-            ctx->pg_addr[0] = get_pgaddr(sdr, sdr_sh, hash, mask);
+            LOG_MMU("htab_base " TARGET_FMT_plx " htab_mask " TARGET_FMT_plx
+                    " hash " TARGET_FMT_plx "\n",
+                    env->htab_base, env->htab_mask, hash);
+            ctx->pg_addr[0] = get_pgaddr(env->htab_base, env->htab_mask, hash);
             /* Secondary table address */
             hash = (~hash) & vsid_mask;
-            LOG_MMU("sdr " TARGET_FMT_plx " sh %d hash " TARGET_FMT_plx
-                    " mask " TARGET_FMT_plx "\n", sdr, sdr_sh, hash, mask);
-            ctx->pg_addr[1] = get_pgaddr(sdr, sdr_sh, hash, mask);
+            LOG_MMU("htab_base " TARGET_FMT_plx " htab_mask " TARGET_FMT_plx
+                    " hash " TARGET_FMT_plx "\n",
+                    env->htab_base, env->htab_mask, hash);
+            ctx->pg_addr[1] = get_pgaddr(env->htab_base, env->htab_mask, hash);
 #if defined(TARGET_PPC64)
             if (env->mmu_model & POWERPC_MMU_64) {
                 /* Only 5 bits of the page index are used in the AVPN */
@@ -901,19 +893,22 @@ static inline int get_segment(CPUState *env, mmu_ctx_t *ctx,
                 /* Software TLB search */
                 ret = ppc6xx_tlb_check(env, ctx, eaddr, rw, type);
             } else {
-                LOG_MMU("0 sdr1=" TARGET_FMT_plx " vsid=" TARGET_FMT_lx " "
-                        "api=" TARGET_FMT_lx " hash=" TARGET_FMT_plx
-                        " pg_addr=" TARGET_FMT_plx "\n",
-                        sdr, vsid, pgidx, hash, ctx->pg_addr[0]);
+                LOG_MMU("0 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
+                        " vsid=" TARGET_FMT_lx " api=" TARGET_FMT_lx
+                        " hash=" TARGET_FMT_plx " pg_addr=" TARGET_FMT_plx "\n",
+                        env->htab_base, env->htab_mask, vsid, pgidx, hash,
+                        ctx->pg_addr[0]);
                 /* Primary table lookup */
                 ret = find_pte(env, ctx, 0, rw, type, target_page_bits);
                 if (ret < 0) {
                     /* Secondary table lookup */
                     if (eaddr != 0xEFFFFFFF)
-                        LOG_MMU("1 sdr1=" TARGET_FMT_plx " vsid=" TARGET_FMT_lx " "
-                                "api=" TARGET_FMT_lx " hash=" TARGET_FMT_plx
-                                " pg_addr=" TARGET_FMT_plx "\n", sdr, vsid,
-                                pgidx, hash, ctx->pg_addr[1]);
+                        LOG_MMU("1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
+                                " vsid=" TARGET_FMT_lx " api=" TARGET_FMT_lx
+                                " hash=" TARGET_FMT_plx " pg_addr="
+                                TARGET_FMT_plx "\n", env->htab_base,
+                                env->htab_mask, vsid, pgidx, hash,
+                                ctx->pg_addr[1]);
                     ret2 = find_pte(env, ctx, 1, rw, type,
                                     target_page_bits);
                     if (ret2 != -1)
@@ -1919,11 +1914,26 @@ void ppc_store_asr (CPUPPCState *env, target_ulong value)
 void ppc_store_sdr1 (CPUPPCState *env, target_ulong value)
 {
     LOG_MMU("%s: " TARGET_FMT_lx "\n", __func__, value);
-    if (env->sdr1 != value) {
-        /* XXX: for PowerPC 64, should check that the HTABSIZE value
-         *      is <= 28
-         */
-        env->sdr1 = value;
+    if (env->spr[SPR_SDR1] != value) {
+        env->spr[SPR_SDR1] = value;
+#if defined(TARGET_PPC64)
+        if (env->mmu_model & POWERPC_MMU_64) {
+            target_ulong htabsize = value & SDR_64_HTABSIZE;
+
+            if (htabsize > 28) {
+                fprintf(stderr, "Invalid HTABSIZE 0x" TARGET_FMT_lx
+                        " stored in SDR1\n", htabsize);
+                htabsize = 28;
+            }
+            env->htab_mask = (1ULL << (htabsize + 18)) - 1;
+            env->htab_base = value & SDR_64_HTABORG;
+        } else
+#endif /* defined(TARGET_PPC64) */
+        {
+            /* FIXME: Should check for valid HTABMASK values */
+            env->htab_mask = ((value & SDR_32_HTABMASK) << 16) | 0xFFFF;
+            env->htab_base = value & SDR_32_HTABORG;
+        }
         tlb_flush(env, 1);
     }
 }

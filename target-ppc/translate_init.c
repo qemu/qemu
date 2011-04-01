@@ -343,11 +343,6 @@ static void spr_write_dbatl_h (void *opaque, int sprn, int gprn)
 }
 
 /* SDR1 */
-static void spr_read_sdr1 (void *opaque, int gprn, int sprn)
-{
-    tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUState, sdr1));
-}
-
 static void spr_write_sdr1 (void *opaque, int sprn, int gprn)
 {
     gen_helper_store_sdr1(cpu_gpr[gprn]);
@@ -671,7 +666,7 @@ static void gen_spr_ne_601 (CPUPPCState *env)
     /* Memory management */
     spr_register(env, SPR_SDR1, "SDR1",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_sdr1, &spr_write_sdr1,
+                 &spr_read_generic, &spr_write_sdr1,
                  0x00000000);
 }
 
