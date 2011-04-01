@@ -40,6 +40,7 @@
 #define KERNEL_LOAD_ADDR        0x00000000
 #define INITRD_LOAD_ADDR        0x02800000
 #define FDT_MAX_SIZE            0x10000
+#define RTAS_MAX_SIZE           0x10000
 
 #define TIMEBASE_FREQ           512000000ULL
 
@@ -53,6 +54,8 @@ static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
                               target_phys_addr_t initrd_base,
                               target_phys_addr_t initrd_size,
                               const char *kernel_cmdline,
+                              target_phys_addr_t rtas_addr,
+                              target_phys_addr_t rtas_size,
                               long hash_shift)
 {
     void *fdt;
@@ -195,6 +198,12 @@ static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
         exit(1);
     }
 
+    /* RTAS */
+    ret = spapr_rtas_device_tree_setup(fdt, rtas_addr, rtas_size);
+    if (ret < 0) {
+        fprintf(stderr, "Couldn't set up RTAS device tree properties\n");
+    }
+
     _FDT((fdt_pack(fdt)));
 
     *fdt_size = fdt_totalsize(fdt);
@@ -224,11 +233,12 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     void *fdt, *htab;
     int i;
     ram_addr_t ram_offset;
-    target_phys_addr_t fdt_addr;
+    target_phys_addr_t fdt_addr, rtas_addr;
     uint32_t kernel_base, initrd_base;
-    long kernel_size, initrd_size, htab_size;
+    long kernel_size, initrd_size, htab_size, rtas_size;
     long pteg_shift = 17;
     int fdt_size;
+    char *filename;
 
     spapr = qemu_malloc(sizeof(*spapr));
     cpu_ppc_hypercall = emulate_spapr_hypercall;
@@ -237,6 +247,8 @@ static void ppc_spapr_init(ram_addr_t ram_size,
      * 2GB, so that it can be processed with 32-bit code if
      * necessary */
     fdt_addr = MIN(ram_size, 0x80000000) - FDT_MAX_SIZE;
+    /* RTAS goes just below that */
+    rtas_addr = fdt_addr - RTAS_MAX_SIZE;
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -275,6 +287,14 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         envs[i]->htab_base = -1;
         envs[i]->htab_mask = htab_size - 1;
     }
+
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "spapr-rtas.bin");
+    rtas_size = load_image_targphys(filename, rtas_addr, ram_size - rtas_addr);
+    if (rtas_size < 0) {
+        hw_error("qemu: could not load LPAR rtas '%s'\n", filename);
+        exit(1);
+    }
+    qemu_free(filename);
 
     spapr->vio_bus = spapr_vio_bus_init();
 
@@ -323,7 +343,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     /* Prepare the device tree */
     fdt = spapr_create_fdt(&fdt_size, ram_size, cpu_model, envs, spapr,
                            initrd_base, initrd_size, kernel_cmdline,
-                           pteg_shift + 7);
+                           rtas_addr, rtas_size, pteg_shift + 7);
     assert(fdt != NULL);
 
     cpu_physical_memory_write(fdt_addr, fdt, fdt_size);

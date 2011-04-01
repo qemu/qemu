@@ -237,6 +237,18 @@ typedef struct sPAPREnvironment {
 #define H_GET_MPP               0x2D4
 #define MAX_HCALL_OPCODE        H_GET_MPP
 
+/* The hcalls above are standardized in PAPR and implemented by pHyp
+ * as well.
+ *
+ * We also need some hcalls which are specific to qemu / KVM-on-POWER.
+ * So far we just need one for H_RTAS, but in future we'll need more
+ * for extensions like virtio.  We put those into the 0xf000-0xfffc
+ * range which is reserved by PAPR for "platform-specific" hcalls.
+ */
+#define KVMPPC_HCALL_BASE       0xf000
+#define KVMPPC_H_RTAS           (KVMPPC_HCALL_BASE + 0x0)
+#define KVMPPC_HCALL_MAX        KVMPPC_H_RTAS
+
 extern sPAPREnvironment *spapr;
 
 /*#define DEBUG_SPAPR_HCALLS*/
@@ -256,5 +268,25 @@ typedef target_ulong (*spapr_hcall_fn)(CPUState *env, sPAPREnvironment *spapr,
 void spapr_register_hypercall(target_ulong opcode, spapr_hcall_fn fn);
 target_ulong spapr_hypercall(CPUState *env, target_ulong opcode,
                              target_ulong *args);
+
+static inline uint32_t rtas_ld(target_ulong phys, int n)
+{
+    return ldl_phys(phys + 4*n);
+}
+
+static inline void rtas_st(target_ulong phys, int n, uint32_t val)
+{
+    stl_phys(phys + 4*n, val);
+}
+
+typedef void (*spapr_rtas_fn)(sPAPREnvironment *spapr, uint32_t token,
+                              uint32_t nargs, target_ulong args,
+                              uint32_t nret, target_ulong rets);
+void spapr_rtas_register(const char *name, spapr_rtas_fn fn);
+target_ulong spapr_rtas_call(sPAPREnvironment *spapr,
+                             uint32_t token, uint32_t nargs, target_ulong args,
+                             uint32_t nret, target_ulong rets);
+int spapr_rtas_device_tree_setup(void *fdt, target_phys_addr_t rtas_addr,
+                                 target_phys_addr_t rtas_size);
 
 #endif /* !defined (__HW_SPAPR_H__) */

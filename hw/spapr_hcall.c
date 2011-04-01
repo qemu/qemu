@@ -248,20 +248,38 @@ static target_ulong h_protect(CPUState *env, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
-spapr_hcall_fn hypercall_table[(MAX_HCALL_OPCODE / 4) + 1];
+static target_ulong h_rtas(CPUState *env, sPAPREnvironment *spapr,
+                           target_ulong opcode, target_ulong *args)
+{
+    target_ulong rtas_r3 = args[0];
+    uint32_t token = ldl_phys(rtas_r3);
+    uint32_t nargs = ldl_phys(rtas_r3 + 4);
+    uint32_t nret = ldl_phys(rtas_r3 + 8);
+
+    return spapr_rtas_call(spapr, token, nargs, rtas_r3 + 12,
+                           nret, rtas_r3 + 12 + 4*nargs);
+}
+
+spapr_hcall_fn papr_hypercall_table[(MAX_HCALL_OPCODE / 4) + 1];
+spapr_hcall_fn kvmppc_hypercall_table[KVMPPC_HCALL_MAX - KVMPPC_HCALL_BASE];
 
 void spapr_register_hypercall(target_ulong opcode, spapr_hcall_fn fn)
 {
-    spapr_hcall_fn old_fn;
+    spapr_hcall_fn *slot;
 
-    assert(opcode <= MAX_HCALL_OPCODE);
-    assert((opcode & 0x3) == 0);
+    if (opcode <= MAX_HCALL_OPCODE) {
+        assert((opcode & 0x3) == 0);
 
-    old_fn = hypercall_table[opcode / 4];
+        slot = &papr_hypercall_table[opcode / 4];
+    } else {
+        assert((opcode >= KVMPPC_HCALL_BASE) && (opcode <= KVMPPC_HCALL_MAX));
 
-    assert(!old_fn || (fn == old_fn));
 
-    hypercall_table[opcode / 4] = fn;
+        slot = &kvmppc_hypercall_table[opcode - KVMPPC_HCALL_BASE];
+    }
+
+    assert(!(*slot) || (fn == *slot));
+    *slot = fn;
 }
 
 target_ulong spapr_hypercall(CPUState *env, target_ulong opcode,
@@ -274,7 +292,14 @@ target_ulong spapr_hypercall(CPUState *env, target_ulong opcode,
 
     if ((opcode <= MAX_HCALL_OPCODE)
         && ((opcode & 0x3) == 0)) {
-        spapr_hcall_fn fn = hypercall_table[opcode / 4];
+        spapr_hcall_fn fn = papr_hypercall_table[opcode / 4];
+
+        if (fn) {
+            return fn(env, spapr, opcode, args);
+        }
+    } else if ((opcode >= KVMPPC_HCALL_BASE) &&
+               (opcode <= KVMPPC_HCALL_MAX)) {
+        spapr_hcall_fn fn = kvmppc_hypercall_table[opcode - KVMPPC_HCALL_BASE];
 
         if (fn) {
             return fn(env, spapr, opcode, args);
@@ -291,5 +316,8 @@ static void hypercall_init(void)
     spapr_register_hypercall(H_ENTER, h_enter);
     spapr_register_hypercall(H_REMOVE, h_remove);
     spapr_register_hypercall(H_PROTECT, h_protect);
+
+    /* qemu/KVM-PPC specific hcalls */
+    spapr_register_hypercall(KVMPPC_H_RTAS, h_rtas);
 }
 device_init(hypercall_init);
