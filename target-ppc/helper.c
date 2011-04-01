@@ -589,8 +589,13 @@ static inline int _find_pte(CPUState *env, mmu_ctx_t *ctx, int is_64b, int h,
     for (i = 0; i < 8; i++) {
 #if defined(TARGET_PPC64)
         if (is_64b) {
-            pte0 = ldq_phys(env->htab_base + pteg_off + (i * 16));
-            pte1 = ldq_phys(env->htab_base + pteg_off + (i * 16) + 8);
+            if (env->external_htab) {
+                pte0 = ldq_p(env->external_htab + pteg_off + (i * 16));
+                pte1 = ldq_p(env->external_htab + pteg_off + (i * 16) + 8);
+            } else {
+                pte0 = ldq_phys(env->htab_base + pteg_off + (i * 16));
+                pte1 = ldq_phys(env->htab_base + pteg_off + (i * 16) + 8);
+            }
 
             /* We have a TLB that saves 4K pages, so let's
              * split a huge page to 4k chunks */
@@ -606,8 +611,13 @@ static inline int _find_pte(CPUState *env, mmu_ctx_t *ctx, int is_64b, int h,
         } else
 #endif
         {
-            pte0 = ldl_phys(env->htab_base + pteg_off + (i * 8));
-            pte1 =  ldl_phys(env->htab_base + pteg_off + (i * 8) + 4);
+            if (env->external_htab) {
+                pte0 = ldl_p(env->external_htab + pteg_off + (i * 8));
+                pte1 = ldl_p(env->external_htab + pteg_off + (i * 8) + 4);
+            } else {
+                pte0 = ldl_phys(env->htab_base + pteg_off + (i * 8));
+                pte1 = ldl_phys(env->htab_base + pteg_off + (i * 8) + 4);
+            }
             r = pte32_check(ctx, pte0, pte1, h, rw, type);
             LOG_MMU("Load pte from " TARGET_FMT_lx " => " TARGET_FMT_lx " "
                     TARGET_FMT_lx " %d %d %d " TARGET_FMT_lx "\n",
@@ -647,13 +657,23 @@ static inline int _find_pte(CPUState *env, mmu_ctx_t *ctx, int is_64b, int h,
         if (pte_update_flags(ctx, &pte1, ret, rw) == 1) {
 #if defined(TARGET_PPC64)
             if (is_64b) {
-                stq_phys_notdirty(env->htab_base + pteg_off + (good * 16) + 8,
-                                  pte1);
+                if (env->external_htab) {
+                    stq_p(env->external_htab + pteg_off + (good * 16) + 8,
+                          pte1);
+                } else {
+                    stq_phys_notdirty(env->htab_base + pteg_off +
+                                      (good * 16) + 8, pte1);
+                }
             } else
 #endif
             {
-                stl_phys_notdirty(env->htab_base + pteg_off + (good * 8) + 4,
-                                  pte1);
+                if (env->external_htab) {
+                    stl_p(env->external_htab + pteg_off + (good * 8) + 4,
+                          pte1);
+                } else {
+                    stl_phys_notdirty(env->htab_base + pteg_off +
+                                      (good * 8) + 4, pte1);
+                }
             }
         }
     }

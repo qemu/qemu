@@ -52,12 +52,15 @@ static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
                               sPAPREnvironment *spapr,
                               target_phys_addr_t initrd_base,
                               target_phys_addr_t initrd_size,
-                              const char *kernel_cmdline)
+                              const char *kernel_cmdline,
+                              long hash_shift)
 {
     void *fdt;
     uint64_t mem_reg_property[] = { 0, cpu_to_be64(ramsize) };
     uint32_t start_prop = cpu_to_be32(initrd_base);
     uint32_t end_prop = cpu_to_be32(initrd_base + initrd_size);
+    uint32_t pft_size_prop[] = {0, cpu_to_be32(hash_shift)};
+    char hypertas_prop[] = "hcall-pft\0hcall-term";
     int i;
     char *modelname;
     int ret;
@@ -145,6 +148,8 @@ static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
          * full emu, for kvm we should copy it from the host */
         _FDT((fdt_property_cell(fdt, "clock-frequency", 1000000000)));
         _FDT((fdt_property_cell(fdt, "ibm,slb-size", env->slb_nr)));
+        _FDT((fdt_property(fdt, "ibm,pft-size",
+                           pft_size_prop, sizeof(pft_size_prop))));
         _FDT((fdt_property_string(fdt, "status", "okay")));
         _FDT((fdt_property(fdt, "64-bit", NULL, 0)));
 
@@ -157,6 +162,14 @@ static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
     }
 
     qemu_free(modelname);
+
+    _FDT((fdt_end_node(fdt)));
+
+    /* RTAS */
+    _FDT((fdt_begin_node(fdt, "rtas")));
+
+    _FDT((fdt_property(fdt, "ibm,hypertas-functions", hypertas_prop,
+                       sizeof(hypertas_prop))));
 
     _FDT((fdt_end_node(fdt)));
 
@@ -208,12 +221,13 @@ static void ppc_spapr_init(ram_addr_t ram_size,
                            const char *cpu_model)
 {
     CPUState *envs[MAX_CPUS];
-    void *fdt;
+    void *fdt, *htab;
     int i;
     ram_addr_t ram_offset;
     target_phys_addr_t fdt_addr;
     uint32_t kernel_base, initrd_base;
-    long kernel_size, initrd_size;
+    long kernel_size, initrd_size, htab_size;
+    long pteg_shift = 17;
     int fdt_size;
 
     spapr = qemu_malloc(sizeof(*spapr));
@@ -249,6 +263,18 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     /* allocate RAM */
     ram_offset = qemu_ram_alloc(NULL, "ppc_spapr.ram", ram_size);
     cpu_register_physical_memory(0, ram_size, ram_offset);
+
+    /* allocate hash page table.  For now we always make this 16mb,
+     * later we should probably make it scale to the size of guest
+     * RAM */
+    htab_size = 1ULL << (pteg_shift + 7);
+    htab = qemu_mallocz(htab_size);
+
+    for (i = 0; i < smp_cpus; i++) {
+        envs[i]->external_htab = htab;
+        envs[i]->htab_base = -1;
+        envs[i]->htab_mask = htab_size - 1;
+    }
 
     spapr->vio_bus = spapr_vio_bus_init();
 
@@ -296,7 +322,8 @@ static void ppc_spapr_init(ram_addr_t ram_size,
 
     /* Prepare the device tree */
     fdt = spapr_create_fdt(&fdt_size, ram_size, cpu_model, envs, spapr,
-                           initrd_base, initrd_size, kernel_cmdline);
+                           initrd_base, initrd_size, kernel_cmdline,
+                           pteg_shift + 7);
     assert(fdt != NULL);
 
     cpu_physical_memory_write(fdt_addr, fdt, fdt_size);

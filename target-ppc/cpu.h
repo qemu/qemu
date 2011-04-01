@@ -670,6 +670,8 @@ struct CPUPPCState {
     target_phys_addr_t htab_base;
     target_phys_addr_t htab_mask;
     target_ulong sr[32];
+    /* externally stored hash table */
+    uint8_t *external_htab;
     /* BATs */
     int nb_BATs;
     target_ulong DBAT[2][8];
