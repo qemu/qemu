@@ -1,7 +1,10 @@
 #if !defined(__HW_SPAPR_H__)
 #define __HW_SPAPR_H__
 
+struct VIOsPAPRBus;
+
 typedef struct sPAPREnvironment {
+    struct VIOsPAPRBus *vio_bus;
 } sPAPREnvironment;
 
 #define H_SUCCESS         0

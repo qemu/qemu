@@ -25,7 +25,6 @@
  *
  */
 #include "sysemu.h"
-#include "qemu-char.h"
 #include "hw.h"
 #include "elf.h"
 
@@ -34,6 +33,7 @@
 #include "hw/loader.h"
 
 #include "hw/spapr.h"
+#include "hw/spapr_vio.h"
 
 #include <libfdt.h>
 
@@ -60,6 +60,7 @@ static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
     uint32_t end_prop = cpu_to_be32(initrd_base + initrd_size);
     int i;
     char *modelname;
+    int ret;
 
 #define _FDT(exp) \
     do { \
@@ -159,8 +160,29 @@ static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
 
     _FDT((fdt_end_node(fdt)));
 
+    /* vdevice */
+    _FDT((fdt_begin_node(fdt, "vdevice")));
+
+    _FDT((fdt_property_string(fdt, "device_type", "vdevice")));
+    _FDT((fdt_property_string(fdt, "compatible", "IBM,vdevice")));
+    _FDT((fdt_property_cell(fdt, "#address-cells", 0x1)));
+    _FDT((fdt_property_cell(fdt, "#size-cells", 0x0)));
+
+    _FDT((fdt_end_node(fdt)));
+
     _FDT((fdt_end_node(fdt))); /* close root node */
     _FDT((fdt_finish(fdt)));
+
+    /* re-expand to allow for further tweaks */
+    _FDT((fdt_open_into(fdt, fdt, FDT_MAX_SIZE)));
+
+    ret = spapr_populate_vdevice(spapr->vio_bus, fdt);
+    if (ret < 0) {
+        fprintf(stderr, "couldn't setup vio devices in fdt\n");
+        exit(1);
+    }
+
+    _FDT((fdt_pack(fdt)));
 
     *fdt_size = fdt_totalsize(fdt);
 
@@ -176,21 +198,6 @@ static void emulate_spapr_hypercall(CPUState *env)
 {
     env->gpr[3] = spapr_hypercall(env, env->gpr[3], &env->gpr[4]);
 }
-
-/* FIXME: hack until we implement the proper VIO console */
-static target_ulong h_put_term_char(CPUState *env, sPAPREnvironment *spapr,
-                                    target_ulong opcode, target_ulong *args)
-{
-    uint8_t buf[16];
-
-    stq_p(buf, args[2]);
-    stq_p(buf + 8, args[3]);
-
-    qemu_chr_write(serial_hds[0], buf, args[1]);
-
-    return 0;
-}
-
 
 /* pSeries LPAR / sPAPR hardware init */
 static void ppc_spapr_init(ram_addr_t ram_size,
@@ -243,7 +250,13 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     ram_offset = qemu_ram_alloc(NULL, "ppc_spapr.ram", ram_size);
     cpu_register_physical_memory(0, ram_size, ram_offset);
 
-    spapr_register_hypercall(H_PUT_TERM_CHAR, h_put_term_char);
+    spapr->vio_bus = spapr_vio_bus_init();
+
+    for (i = 0; i < MAX_SERIAL_PORTS; i++) {
+        if (serial_hds[i]) {
+            spapr_vty_create(spapr->vio_bus, i, serial_hds[i]);
+        }
+    }
 
     if (kernel_filename) {
         uint64_t lowaddr = 0;
@@ -276,7 +289,6 @@ static void ppc_spapr_init(ram_addr_t ram_size,
             initrd_base = 0;
             initrd_size = 0;
         }
-
     } else {
         fprintf(stderr, "pSeries machine needs -kernel for now");
         exit(1);
