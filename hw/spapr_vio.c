@@ -105,6 +105,16 @@ static int vio_make_devnode(VIOsPAPRDevice *dev,
         }
     }
 
+    if (dev->qirq) {
+        uint32_t ints_prop[] = {cpu_to_be32(dev->vio_irq_num), 0};
+
+        ret = fdt_setprop(fdt, node_off, "interrupts", ints_prop,
+                          sizeof(ints_prop));
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
     if (info->devnode) {
         ret = (info->devnode)(dev, fdt, node_off);
         if (ret < 0) {
@@ -140,6 +150,30 @@ void spapr_vio_bus_register_withprop(VIOsPAPRDeviceInfo *info)
     qdev_register(&info->qdev);
 }
 
+static target_ulong h_vio_signal(CPUState *env, sPAPREnvironment *spapr,
+                                 target_ulong opcode,
+                                 target_ulong *args)
+{
+    target_ulong reg = args[0];
+    target_ulong mode = args[1];
+    VIOsPAPRDevice *dev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
+    VIOsPAPRDeviceInfo *info;
+
+    if (!dev) {
+        return H_PARAMETER;
+    }
+
+    info = (VIOsPAPRDeviceInfo *)dev->qdev.info;
+
+    if (mode & ~info->signal_mask) {
+        return H_PARAMETER;
+    }
+
+    dev->signal_state = mode;
+
+    return H_SUCCESS;
+}
+
 VIOsPAPRBus *spapr_vio_bus_init(void)
 {
     VIOsPAPRBus *bus;
@@ -155,6 +189,9 @@ VIOsPAPRBus *spapr_vio_bus_init(void)
 
     qbus = qbus_create(&spapr_vio_bus_info, dev, "spapr-vio");
     bus = DO_UPCAST(VIOsPAPRBus, bus, qbus);
+
+    /* hcall-vio */
+    spapr_register_hypercall(H_VIO_SIGNAL, h_vio_signal);
 
     for (qinfo = device_info_list; qinfo; qinfo = qinfo->next) {
         VIOsPAPRDeviceInfo *info = (VIOsPAPRDeviceInfo *)qinfo;

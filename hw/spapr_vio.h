@@ -24,6 +24,9 @@
 typedef struct VIOsPAPRDevice {
     DeviceState qdev;
     uint32_t reg;
+    qemu_irq qirq;
+    uint32_t vio_irq_num;
+    target_ulong signal_state;
 } VIOsPAPRDevice;
 
 typedef struct VIOsPAPRBus {
@@ -33,6 +36,7 @@ typedef struct VIOsPAPRBus {
 typedef struct {
     DeviceInfo qdev;
     const char *dt_name, *dt_type, *dt_compatible;
+    target_ulong signal_mask;
     int (*init)(VIOsPAPRDevice *dev);
     void (*hcalls)(VIOsPAPRBus *bus);
     int (*devnode)(VIOsPAPRDevice *dev, void *fdt, int node_off);
@@ -42,6 +46,8 @@ extern VIOsPAPRBus *spapr_vio_bus_init(void);
 extern VIOsPAPRDevice *spapr_vio_find_by_reg(VIOsPAPRBus *bus, uint32_t reg);
 extern void spapr_vio_bus_register_withprop(VIOsPAPRDeviceInfo *info);
 extern int spapr_populate_vdevice(VIOsPAPRBus *bus, void *fdt);
+
+extern int spapr_vio_signal(VIOsPAPRDevice *dev, target_ulong mode);
 
 void vty_putchars(VIOsPAPRDevice *sdev, uint8_t *buf, int len);
 void spapr_vty_create(VIOsPAPRBus *bus,
