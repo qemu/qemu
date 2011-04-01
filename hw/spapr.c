@@ -44,6 +44,10 @@
 #define INITRD_LOAD_ADDR        0x02800000
 #define FDT_MAX_SIZE            0x10000
 #define RTAS_MAX_SIZE           0x10000
+#define FW_MAX_SIZE             0x400000
+#define FW_FILE_NAME            "slof.bin"
+
+#define MIN_RAM_SLOF		512UL
 
 #define TIMEBASE_FREQ           512000000ULL
 
@@ -57,6 +61,7 @@ static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
                               sPAPREnvironment *spapr,
                               target_phys_addr_t initrd_base,
                               target_phys_addr_t initrd_size,
+                              const char *boot_device,
                               const char *kernel_cmdline,
                               target_phys_addr_t rtas_addr,
                               target_phys_addr_t rtas_size,
@@ -105,6 +110,7 @@ static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
                        &start_prop, sizeof(start_prop))));
     _FDT((fdt_property(fdt, "linux,initrd-end",
                        &end_prop, sizeof(end_prop))));
+    _FDT((fdt_property_string(fdt, "qemu,boot-device", boot_device)));
 
     _FDT((fdt_end_node(fdt)));
 
@@ -261,7 +267,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     ram_addr_t ram_offset;
     target_phys_addr_t fdt_addr, rtas_addr;
     uint32_t kernel_base, initrd_base;
-    long kernel_size, initrd_size, htab_size, rtas_size;
+    long kernel_size, initrd_size, htab_size, rtas_size, fw_size;
     long pteg_shift = 17;
     int fdt_size;
     char *filename;
@@ -392,13 +398,33 @@ static void ppc_spapr_init(ram_addr_t ram_size,
             initrd_size = 0;
         }
     } else {
-        fprintf(stderr, "pSeries machine needs -kernel for now");
-        exit(1);
+        if (ram_size < (MIN_RAM_SLOF << 20)) {
+            fprintf(stderr, "qemu: pSeries SLOF firmware requires >= "
+                    "%ldM guest RAM\n", MIN_RAM_SLOF);
+            exit(1);
+        }
+        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "slof.bin");
+        fw_size = load_image_targphys(filename, 0, FW_MAX_SIZE);
+        if (fw_size < 0) {
+            hw_error("qemu: could not load LPAR rtas '%s'\n", filename);
+            exit(1);
+        }
+        qemu_free(filename);
+        kernel_base = 0x100;
+        initrd_base = 0;
+        initrd_size = 0;
+
+        /* SLOF will startup the secondary CPUs using RTAS,
+           rather than expecting a kexec() style entry */
+        for (i = 0; i < smp_cpus; i++) {
+            envs[i]->halted = 1;
+        }
     }
 
     /* Prepare the device tree */
     fdt = spapr_create_fdt(&fdt_size, ram_size, cpu_model, envs, spapr,
-                           initrd_base, initrd_size, kernel_cmdline,
+                           initrd_base, initrd_size,
+                           boot_device, kernel_cmdline,
                            rtas_addr, rtas_size, pteg_shift + 7);
     assert(fdt != NULL);
 
@@ -409,6 +435,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     envs[0]->gpr[3] = fdt_addr;
     envs[0]->gpr[5] = 0;
     envs[0]->hreset_vector = kernel_base;
+    envs[0]->halted = 0;
 }
 
 static QEMUMachine spapr_machine = {
