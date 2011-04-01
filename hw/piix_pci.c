@@ -37,10 +37,14 @@
 
 typedef PCIHostState I440FXState;
 
+#define PIIX_NUM_PIRQS          4ULL    /* PIRQ[A-D] */
+
 typedef struct PIIX3State {
     PCIDevice dev;
-    int pci_irq_levels[4];
     qemu_irq *pic;
+
+    /* This member isn't used. Just for save/load compatibility */
+    int32_t pci_irq_levels_vmstate[PIIX_NUM_PIRQS];
 } PIIX3State;
 
 struct PCII440FXState {
@@ -162,9 +166,11 @@ static int i440fx_load_old(QEMUFile* f, void *opaque, int version_id)
     i440fx_update_memory_mappings(d);
     qemu_get_8s(f, &d->smm_enabled);
 
-    if (version_id == 2)
-        for (i = 0; i < 4; i++)
-            d->piix3->pci_irq_levels[i] = qemu_get_be32(f);
+    if (version_id == 2) {
+        for (i = 0; i < PIIX_NUM_PIRQS; i++) {
+            qemu_get_be32(f); /* dummy load for compatibility */
+        }
+    }
 
     return 0;
 }
@@ -236,7 +242,7 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn, qemu_irq *
     piix3 = DO_UPCAST(PIIX3State, dev,
                       pci_create_simple_multifunction(b, -1, true, "PIIX3"));
     piix3->pic = pic;
-    pci_bus_irqs(b, piix3_set_irq, pci_slot_get_pirq, piix3, 4);
+    pci_bus_irqs(b, piix3_set_irq, pci_slot_get_pirq, piix3, PIIX_NUM_PIRQS);
     (*pi440fx_state)->piix3 = piix3;
 
     *piix3_devfn = piix3->dev.devfn;
@@ -256,8 +262,6 @@ static void piix3_set_irq(void *opaque, int irq_num, int level)
     int i, pic_irq, pic_level;
     PIIX3State *piix3 = opaque;
 
-    piix3->pci_irq_levels[irq_num] = level;
-
     /* now we change the pic irq level according to the piix irq mappings */
     /* XXX: optimize */
     pic_irq = piix3->dev.config[0x60 + irq_num];
@@ -266,8 +270,9 @@ static void piix3_set_irq(void *opaque, int irq_num, int level)
            to it */
         pic_level = 0;
         for (i = 0; i < 4; i++) {
-            if (pic_irq == piix3->dev.config[0x60 + i])
-                pic_level |= piix3->pci_irq_levels[i];
+            if (pic_irq == piix3->dev.config[0x60 + i]) {
+                pic_level |= pci_bus_get_irq_level(piix3->dev.bus, i);
+            }
         }
         qemu_set_irq(piix3->pic[pic_irq], pic_level);
     }
@@ -309,8 +314,17 @@ static void piix3_reset(void *opaque)
     pci_conf[0xab] = 0x00;
     pci_conf[0xac] = 0x00;
     pci_conf[0xae] = 0x00;
+}
 
-    memset(d->pci_irq_levels, 0, sizeof(d->pci_irq_levels));
+static void piix3_pre_save(void *opaque)
+{
+    int i;
+    PIIX3State *piix3 = opaque;
+
+    for (i = 0; i < ARRAY_SIZE(piix3->pci_irq_levels_vmstate); i++) {
+        piix3->pci_irq_levels_vmstate[i] =
+            pci_bus_get_irq_level(piix3->dev.bus, i);
+    }
 }
 
 static const VMStateDescription vmstate_piix3 = {
@@ -318,9 +332,11 @@ static const VMStateDescription vmstate_piix3 = {
     .version_id = 3,
     .minimum_version_id = 2,
     .minimum_version_id_old = 2,
+    .pre_save = piix3_pre_save,
     .fields      = (VMStateField []) {
         VMSTATE_PCI_DEVICE(dev, PIIX3State),
-        VMSTATE_INT32_ARRAY_V(pci_irq_levels, PIIX3State, 4, 3),
+        VMSTATE_INT32_ARRAY_V(pci_irq_levels_vmstate, PIIX3State,
+                              PIIX_NUM_PIRQS, 3),
         VMSTATE_END_OF_LIST()
     }
 };
