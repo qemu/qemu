@@ -37,10 +37,27 @@
 
 typedef PCIHostState I440FXState;
 
+#define PIIX_NUM_PIC_IRQS       16      /* i8259 * 2 */
 #define PIIX_NUM_PIRQS          4ULL    /* PIRQ[A-D] */
+#define PIIX_PIRQC              0x60
 
 typedef struct PIIX3State {
     PCIDevice dev;
+
+    /*
+     * bitmap to track pic levels.
+     * The pic level is the logical OR of all the PCI irqs mapped to it
+     * So one PIC level is tracked by PIIX_NUM_PIRQS bits.
+     *
+     * PIRQ is mapped to PIC pins, we track it by
+     * PIIX_NUM_PIRQS * PIIX_NUM_PIC_IRQS = 64 bits with
+     * pic_irq * PIIX_NUM_PIRQS + pirq
+     */
+#if PIIX_NUM_PIC_IRQS * PIIX_NUM_PIRQS > 64
+#error "unable to encode pic state in 64bit in pic_levels."
+#endif
+    uint64_t pic_levels;
+
     qemu_irq *pic;
 
     /* This member isn't used. Just for save/load compatibility */
@@ -59,16 +76,16 @@ struct PCII440FXState {
 #define I440FX_PAM_SIZE 7
 #define I440FX_SMRAM    0x72
 
-static void piix3_set_irq(void *opaque, int irq_num, int level);
+static void piix3_set_irq(void *opaque, int pirq, int level);
 
 /* return the global irq number corresponding to a given device irq
    pin. We could also use the bus number to have a more precise
    mapping. */
-static int pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
+static int pci_slot_get_pirq(PCIDevice *pci_dev, int pci_intx)
 {
     int slot_addend;
     slot_addend = (pci_dev->devfn >> 3) - 1;
-    return (irq_num + slot_addend) & 3;
+    return (pci_intx + slot_addend) & 3;
 }
 
 static void update_pam(PCII440FXState *d, uint32_t start, uint32_t end, int r)
@@ -256,25 +273,64 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn, qemu_irq *
 }
 
 /* PIIX3 PCI to ISA bridge */
-
-static void piix3_set_irq(void *opaque, int irq_num, int level)
+static void piix3_set_irq_pic(PIIX3State *piix3, int pic_irq)
 {
-    int i, pic_irq, pic_level;
-    PIIX3State *piix3 = opaque;
+    qemu_set_irq(piix3->pic[pic_irq],
+                 !!(piix3->pic_levels &
+                    (((1UL << PIIX_NUM_PIRQS) - 1) <<
+                     (pic_irq * PIIX_NUM_PIRQS))));
+}
 
-    /* now we change the pic irq level according to the piix irq mappings */
-    /* XXX: optimize */
-    pic_irq = piix3->dev.config[0x60 + irq_num];
-    if (pic_irq < 16) {
-        /* The pic level is the logical OR of all the PCI irqs mapped
-           to it */
-        pic_level = 0;
-        for (i = 0; i < 4; i++) {
-            if (pic_irq == piix3->dev.config[0x60 + i]) {
-                pic_level |= pci_bus_get_irq_level(piix3->dev.bus, i);
-            }
+static void piix3_set_irq_level(PIIX3State *piix3, int pirq, int level,
+                                bool propagate)
+{
+    int pic_irq;
+    uint64_t mask;
+
+    pic_irq = piix3->dev.config[PIIX_PIRQC + pirq];
+    if (pic_irq >= PIIX_NUM_PIC_IRQS) {
+        return;
+    }
+
+    mask = 1ULL << ((pic_irq * PIIX_NUM_PIRQS) + pirq);
+    piix3->pic_levels &= ~mask;
+    piix3->pic_levels |= mask * !!level;
+
+    if (propagate) {
+        piix3_set_irq_pic(piix3, pic_irq);
+    }
+}
+
+static void piix3_set_irq(void *opaque, int pirq, int level)
+{
+    PIIX3State *piix3 = opaque;
+    piix3_set_irq_level(piix3, pirq, level, true);
+}
+
+/* irq routing is changed. so rebuild bitmap */
+static void piix3_update_irq_levels(PIIX3State *piix3)
+{
+    int pirq;
+
+    piix3->pic_levels = 0;
+    for (pirq = 0; pirq < PIIX_NUM_PIRQS; pirq++) {
+        piix3_set_irq_level(piix3, pirq,
+                            pci_bus_get_irq_level(piix3->dev.bus, pirq),
+                            false);
+    }
+}
+
+static void piix3_write_config(PCIDevice *dev,
+                               uint32_t address, uint32_t val, int len)
+{
+    pci_default_write_config(dev, address, val, len);
+    if (ranges_overlap(address, len, PIIX_PIRQC, 4)) {
+        PIIX3State *piix3 = DO_UPCAST(PIIX3State, dev, dev);
+        int pic_irq;
+        piix3_update_irq_levels(piix3);
+        for (pic_irq = 0; pic_irq < PIIX_NUM_PIC_IRQS; pic_irq++) {
+            piix3_set_irq_pic(piix3, pic_irq);
         }
-        qemu_set_irq(piix3->pic[pic_irq], pic_level);
     }
 }
 
@@ -314,6 +370,15 @@ static void piix3_reset(void *opaque)
     pci_conf[0xab] = 0x00;
     pci_conf[0xac] = 0x00;
     pci_conf[0xae] = 0x00;
+
+    d->pic_levels = 0;
+}
+
+static int piix3_post_load(void *opaque, int version_id)
+{
+    PIIX3State *piix3 = opaque;
+    piix3_update_irq_levels(piix3);
+    return 0;
 }
 
 static void piix3_pre_save(void *opaque)
@@ -332,6 +397,7 @@ static const VMStateDescription vmstate_piix3 = {
     .version_id = 3,
     .minimum_version_id = 2,
     .minimum_version_id_old = 2,
+    .post_load = piix3_post_load,
     .pre_save = piix3_pre_save,
     .fields      = (VMStateField []) {
         VMSTATE_PCI_DEVICE(dev, PIIX3State),
@@ -375,6 +441,7 @@ static PCIDeviceInfo i440fx_info[] = {
         .qdev.no_user = 1,
         .no_hotplug   = 1,
         .init         = piix3_initfn,
+        .config_write = piix3_write_config,
     },{
         /* end of list */
     }
