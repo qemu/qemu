@@ -1200,6 +1200,7 @@ static inline int check_physical(CPUState *env, mmu_ctx_t *ctx,
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_620:
     case POWERPC_MMU_64B:
+    case POWERPC_MMU_2_06:
         /* Real address are 60 bits long */
         ctx->raddr &= 0x0FFFFFFFFFFFFFFFULL;
         ctx->prot |= PAGE_WRITE;
@@ -1277,6 +1278,7 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
 #if defined(TARGET_PPC64)
         case POWERPC_MMU_620:
         case POWERPC_MMU_64B:
+        case POWERPC_MMU_2_06:
 #endif
             if (ret < 0) {
                 /* We didn't match any BAT entry or don't have BATs */
@@ -1376,6 +1378,7 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 #if defined(TARGET_PPC64)
                 case POWERPC_MMU_620:
                 case POWERPC_MMU_64B:
+                case POWERPC_MMU_2_06:
 #endif
                     env->exception_index = POWERPC_EXCP_ISI;
                     env->error_code = 0x40000000;
@@ -1485,6 +1488,7 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 #if defined(TARGET_PPC64)
                 case POWERPC_MMU_620:
                 case POWERPC_MMU_64B:
+                case POWERPC_MMU_2_06:
 #endif
                     env->exception_index = POWERPC_EXCP_DSI;
                     env->error_code = 0;
@@ -1808,6 +1812,7 @@ void ppc_tlb_invalidate_all (CPUPPCState *env)
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_620:
     case POWERPC_MMU_64B:
+    case POWERPC_MMU_2_06:
 #endif /* defined(TARGET_PPC64) */
         tlb_flush(env, 1);
         break;
@@ -1875,6 +1880,7 @@ void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr)
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_620:
     case POWERPC_MMU_64B:
+    case POWERPC_MMU_2_06:
         /* tlbie invalidate TLBs for all segments */
         /* XXX: given the fact that there are too many segments to invalidate,
          *      and we still don't have a tlb_flush_mask(env, n, mask) in Qemu,

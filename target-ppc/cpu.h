@@ -119,6 +119,8 @@ enum powerpc_mmu_t {
     POWERPC_MMU_64B        = POWERPC_MMU_64 | 0x00000001,
     /* 620 variant (no segment exceptions)                     */
     POWERPC_MMU_620        = POWERPC_MMU_64 | 0x00000002,
+    /* Architecture 2.06 variant                               */
+    POWERPC_MMU_2_06       = POWERPC_MMU_64 | POWERPC_MMU_1TSEG | 0x00000003,
 #endif /* defined(TARGET_PPC64) */
 };
 
@@ -154,6 +156,8 @@ enum powerpc_excp_t {
 #if defined(TARGET_PPC64)
     /* PowerPC 970 exception model      */
     POWERPC_EXCP_970,
+    /* POWER7 exception model           */
+    POWERPC_EXCP_POWER7,
 #endif /* defined(TARGET_PPC64) */
 };
 
@@ -289,6 +293,8 @@ enum powerpc_input_t {
     PPC_FLAGS_INPUT_405,
     /* PowerPC 970 bus                  */
     PPC_FLAGS_INPUT_970,
+    /* PowerPC POWER7 bus               */
+    PPC_FLAGS_INPUT_POWER7,
     /* PowerPC 401 bus                  */
     PPC_FLAGS_INPUT_401,
     /* Freescale RCPU bus               */
@@ -1001,6 +1007,7 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 #define SPR_HSPRG1            (0x131)
 #define SPR_HDSISR            (0x132)
 #define SPR_HDAR              (0x133)
+#define SPR_SPURR             (0x134)
 #define SPR_BOOKE_DBCR0       (0x134)
 #define SPR_IBCR              (0x135)
 #define SPR_PURR              (0x135)
@@ -1624,6 +1631,15 @@ enum {
     PPC970_INPUT_INT        = 5,
     PPC970_INPUT_THINT      = 6,
     PPC970_INPUT_NB,
+};
+
+enum {
+    /* POWER7 input pins */
+    POWER7_INPUT_INT        = 0,
+    /* POWER7 probably has other inputs, but we don't care about them
+     * for any existing machine.  We can wire these up when we need
+     * them */
+    POWER7_INPUT_NB,
 };
 #endif
 
