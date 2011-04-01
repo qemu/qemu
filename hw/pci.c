@@ -126,6 +126,13 @@ static void pci_change_irq_level(PCIDevice *pci_dev, int irq_num, int change)
     bus->set_irq(bus->irq_opaque, irq_num, bus->irq_count[irq_num] != 0);
 }
 
+int pci_bus_get_irq_level(PCIBus *bus, int irq_num)
+{
+    assert(irq_num >= 0);
+    assert(irq_num < bus->nirq);
+    return !!bus->irq_count[irq_num];
+}
+
 /* Update interrupt status bit in config space on interrupt
  * state change. */
 static void pci_update_irq_status(PCIDevice *dev)
