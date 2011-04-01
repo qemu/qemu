@@ -37,6 +37,7 @@
 #endif /* CONFIG_FDT */
 
 /* #define DEBUG_SPAPR */
+/* #define DEBUG_TCE */
 
 #ifdef DEBUG_SPAPR
 #define dprintf(fmt, ...) \
@@ -115,6 +116,28 @@ static int vio_make_devnode(VIOsPAPRDevice *dev,
         }
     }
 
+    if (dev->rtce_window_size) {
+        uint32_t dma_prop[] = {cpu_to_be32(dev->reg),
+                               0, 0,
+                               0, cpu_to_be32(dev->rtce_window_size)};
+
+        ret = fdt_setprop_cell(fdt, node_off, "ibm,#dma-address-cells", 2);
+        if (ret < 0) {
+            return ret;
+        }
+
+        ret = fdt_setprop_cell(fdt, node_off, "ibm,#dma-size-cells", 2);
+        if (ret < 0) {
+            return ret;
+        }
+
+        ret = fdt_setprop(fdt, node_off, "ibm,my-dma-window", dma_prop,
+                          sizeof(dma_prop));
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
     if (info->devnode) {
         ret = (info->devnode)(dev, fdt, node_off);
         if (ret < 0) {
@@ -125,6 +148,216 @@ static int vio_make_devnode(VIOsPAPRDevice *dev,
     return node_off;
 }
 #endif /* CONFIG_FDT */
+
+/*
+ * RTCE handling
+ */
+
+static void rtce_init(VIOsPAPRDevice *dev)
+{
+    size_t size = (dev->rtce_window_size >> SPAPR_VIO_TCE_PAGE_SHIFT)
+        * sizeof(VIOsPAPR_RTCE);
+
+    if (size) {
+        dev->rtce_table = qemu_mallocz(size);
+    }
+}
+
+static target_ulong h_put_tce(CPUState *env, sPAPREnvironment *spapr,
+                              target_ulong opcode, target_ulong *args)
+{
+    target_ulong liobn = args[0];
+    target_ulong ioba = args[1];
+    target_ulong tce = args[2];
+    VIOsPAPRDevice *dev = spapr_vio_find_by_reg(spapr->vio_bus, liobn);
+    VIOsPAPR_RTCE *rtce;
+
+    if (!dev) {
+        hcall_dprintf("spapr_vio_put_tce on non-existent LIOBN "
+                      TARGET_FMT_lx "\n", liobn);
+        return H_PARAMETER;
+    }
+
+    ioba &= ~(SPAPR_VIO_TCE_PAGE_SIZE - 1);
+
+#ifdef DEBUG_TCE
+    fprintf(stderr, "spapr_vio_put_tce on %s  ioba 0x" TARGET_FMT_lx
+            "  TCE 0x" TARGET_FMT_lx "\n", dev->qdev.id, ioba, tce);
+#endif
+
+    if (ioba >= dev->rtce_window_size) {
+        hcall_dprintf("spapr_vio_put_tce on out-of-boards IOBA 0x"
+                      TARGET_FMT_lx "\n", ioba);
+        return H_PARAMETER;
+    }
+
+    rtce = dev->rtce_table + (ioba >> SPAPR_VIO_TCE_PAGE_SHIFT);
+    rtce->tce = tce;
+
+    return H_SUCCESS;
+}
+
+int spapr_vio_check_tces(VIOsPAPRDevice *dev, target_ulong ioba,
+                         target_ulong len, enum VIOsPAPR_TCEAccess access)
+{
+    int start, end, i;
+
+    start = ioba >> SPAPR_VIO_TCE_PAGE_SHIFT;
+    end = (ioba + len - 1) >> SPAPR_VIO_TCE_PAGE_SHIFT;
+
+    for (i = start; i <= end; i++) {
+        if ((dev->rtce_table[i].tce & access) != access) {
+#ifdef DEBUG_TCE
+            fprintf(stderr, "FAIL on %d\n", i);
+#endif
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+int spapr_tce_dma_write(VIOsPAPRDevice *dev, uint64_t taddr, const void *buf,
+                        uint32_t size)
+{
+#ifdef DEBUG_TCE
+    fprintf(stderr, "spapr_tce_dma_write taddr=0x%llx size=0x%x\n",
+            (unsigned long long)taddr, size);
+#endif
+
+    while (size) {
+        uint64_t tce;
+        uint32_t lsize;
+        uint64_t txaddr;
+
+        /* Check if we are in bound */
+        if (taddr >= dev->rtce_window_size) {
+#ifdef DEBUG_TCE
+            fprintf(stderr, "spapr_tce_dma_write out of bounds\n");
+#endif
+            return H_DEST_PARM;
+        }
+        tce = dev->rtce_table[taddr >> SPAPR_VIO_TCE_PAGE_SHIFT].tce;
+
+        /* How much til end of page ? */
+        lsize = MIN(size, ((~taddr) & SPAPR_VIO_TCE_PAGE_MASK) + 1);
+
+        /* Check TCE */
+        if (!(tce & 2)) {
+            return H_DEST_PARM;
+        }
+
+        /* Translate */
+        txaddr = (tce & ~SPAPR_VIO_TCE_PAGE_MASK) |
+            (taddr & SPAPR_VIO_TCE_PAGE_MASK);
+
+#ifdef DEBUG_TCE
+        fprintf(stderr, " -> write to txaddr=0x%llx, size=0x%x\n",
+                (unsigned long long)txaddr, lsize);
+#endif
+
+        /* Do it */
+        cpu_physical_memory_write(txaddr, buf, lsize);
+        buf += lsize;
+        taddr += lsize;
+        size -= lsize;
+    }
+    return 0;
+}
+
+int spapr_tce_dma_zero(VIOsPAPRDevice *dev, uint64_t taddr, uint32_t size)
+{
+    /* FIXME: allocating a temp buffer is nasty, but just stepping
+     * through writing zeroes is awkward.  This will do for now. */
+    uint8_t zeroes[size];
+
+#ifdef DEBUG_TCE
+    fprintf(stderr, "spapr_tce_dma_zero taddr=0x%llx size=0x%x\n",
+            (unsigned long long)taddr, size);
+#endif
+
+    memset(zeroes, 0, size);
+    return spapr_tce_dma_write(dev, taddr, zeroes, size);
+}
+
+void stb_tce(VIOsPAPRDevice *dev, uint64_t taddr, uint8_t val)
+{
+    spapr_tce_dma_write(dev, taddr, &val, sizeof(val));
+}
+
+void sth_tce(VIOsPAPRDevice *dev, uint64_t taddr, uint16_t val)
+{
+    val = tswap16(val);
+    spapr_tce_dma_write(dev, taddr, &val, sizeof(val));
+}
+
+
+void stw_tce(VIOsPAPRDevice *dev, uint64_t taddr, uint32_t val)
+{
+    val = tswap32(val);
+    spapr_tce_dma_write(dev, taddr, &val, sizeof(val));
+}
+
+void stq_tce(VIOsPAPRDevice *dev, uint64_t taddr, uint64_t val)
+{
+    val = tswap64(val);
+    spapr_tce_dma_write(dev, taddr, &val, sizeof(val));
+}
+
+int spapr_tce_dma_read(VIOsPAPRDevice *dev, uint64_t taddr, void *buf,
+                       uint32_t size)
+{
+#ifdef DEBUG_TCE
+    fprintf(stderr, "spapr_tce_dma_write taddr=0x%llx size=0x%x\n",
+            (unsigned long long)taddr, size);
+#endif
+
+    while (size) {
+        uint64_t tce;
+        uint32_t lsize;
+        uint64_t txaddr;
+
+        /* Check if we are in bound */
+        if (taddr >= dev->rtce_window_size) {
+#ifdef DEBUG_TCE
+            fprintf(stderr, "spapr_tce_dma_read out of bounds\n");
+#endif
+            return H_DEST_PARM;
+        }
+        tce = dev->rtce_table[taddr >> SPAPR_VIO_TCE_PAGE_SHIFT].tce;
+
+        /* How much til end of page ? */
+        lsize = MIN(size, ((~taddr) & SPAPR_VIO_TCE_PAGE_MASK) + 1);
+
+        /* Check TCE */
+        if (!(tce & 1)) {
+            return H_DEST_PARM;
+        }
+
+        /* Translate */
+        txaddr = (tce & ~SPAPR_VIO_TCE_PAGE_MASK) |
+            (taddr & SPAPR_VIO_TCE_PAGE_MASK);
+
+#ifdef DEBUG_TCE
+        fprintf(stderr, " -> write to txaddr=0x%llx, size=0x%x\n",
+                (unsigned long long)txaddr, lsize);
+#endif
+        /* Do it */
+        cpu_physical_memory_read(txaddr, buf, lsize);
+        buf += lsize;
+        taddr += lsize;
+        size -= lsize;
+    }
+    return H_SUCCESS;
+}
+
+uint64_t ldq_tce(VIOsPAPRDevice *dev, uint64_t taddr)
+{
+    uint64_t val;
+
+    spapr_tce_dma_read(dev, taddr, &val, sizeof(val));
+    return tswap64(val);
+}
 
 static int spapr_vio_busdev_init(DeviceState *qdev, DeviceInfo *qinfo)
 {
@@ -137,6 +370,8 @@ static int spapr_vio_busdev_init(DeviceState *qdev, DeviceInfo *qinfo)
     }
 
     dev->qdev.id = id;
+
+    rtce_init(dev);
 
     return info->init(dev);
 }
@@ -192,6 +427,9 @@ VIOsPAPRBus *spapr_vio_bus_init(void)
 
     /* hcall-vio */
     spapr_register_hypercall(H_VIO_SIGNAL, h_vio_signal);
+
+    /* hcall-tce */
+    spapr_register_hypercall(H_PUT_TCE, h_put_tce);
 
     for (qinfo = device_info_list; qinfo; qinfo = qinfo->next) {
         VIOsPAPRDeviceInfo *info = (VIOsPAPRDeviceInfo *)qinfo;
