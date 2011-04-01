@@ -1646,4 +1646,6 @@ static inline void cpu_set_tls(CPUState *env, target_ulong newtls)
 #endif
 }
 
+extern void (*cpu_ppc_hypercall)(CPUState *);
+
 #endif /* !defined (__CPU_PPC_H__) */

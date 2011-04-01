@@ -70,6 +70,10 @@
 #  define LOG_EXCP(...) do { } while (0)
 #endif
 
+/*****************************************************************************/
+/* PowerPC Hypercall emulation */
+
+void (*cpu_ppc_hypercall)(CPUState *);
 
 /*****************************************************************************/
 /* PowerPC MMU emulation */
@@ -2152,6 +2156,10 @@ static inline void powerpc_excp(CPUState *env, int excp_model, int excp)
     case POWERPC_EXCP_SYSCALL:   /* System call exception                    */
         dump_syscall(env);
         lev = env->error_code;
+        if ((lev == 1) && cpu_ppc_hypercall) {
+            cpu_ppc_hypercall(env);
+            return;
+        }
         if (lev == 1 || (lpes0 == 0 && lpes1 == 0))
             new_msr |= (target_ulong)MSR_HVB;
         goto store_next;
