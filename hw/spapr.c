@@ -28,6 +28,7 @@
 #include "hw.h"
 #include "elf.h"
 #include "net.h"
+#include "blockdev.h"
 
 #include "hw/boards.h"
 #include "hw/ppc.h"
@@ -353,6 +354,12 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         }
     }
 
+    for (i = 0; i <= drive_get_max_bus(IF_SCSI); i++) {
+        spapr_vscsi_create(spapr->vio_bus, 0x2000 + i,
+                           xics_find_qirq(spapr->icp, irq), irq);
+        irq++;
+    }
+
     if (kernel_filename) {
         uint64_t lowaddr = 0;
 
@@ -411,6 +418,7 @@ static QEMUMachine spapr_machine = {
     .max_cpus = MAX_CPUS,
     .no_vga = 1,
     .no_parallel = 1,
+    .use_scsi = 1,
 };
 
 static void spapr_machine_init(void)
