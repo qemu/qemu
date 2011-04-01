@@ -74,7 +74,7 @@ fail:
 }
 
 int qemu_devtree_setprop(void *fdt, const char *node_path,
-                         const char *property, uint32_t *val_array, int size)
+                         const char *property, void *val_array, int size)
 {
     int offset;
 

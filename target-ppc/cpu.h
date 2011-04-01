@@ -43,6 +43,8 @@
 # define TARGET_VIRT_ADDR_SPACE_BITS 64
 #endif
 
+#define TARGET_PAGE_BITS_16M 24
+
 #else /* defined (TARGET_PPC64) */
 /* PowerPC 32 definitions */
 #define TARGET_LONG_BITS 32
@@ -112,10 +114,13 @@ enum powerpc_mmu_t {
     POWERPC_MMU_601        = 0x0000000A,
 #if defined(TARGET_PPC64)
 #define POWERPC_MMU_64       0x00010000
+#define POWERPC_MMU_1TSEG    0x00020000
     /* 64 bits PowerPC MMU                                     */
     POWERPC_MMU_64B        = POWERPC_MMU_64 | 0x00000001,
     /* 620 variant (no segment exceptions)                     */
     POWERPC_MMU_620        = POWERPC_MMU_64 | 0x00000002,
+    /* Architecture 2.06 variant                               */
+    POWERPC_MMU_2_06       = POWERPC_MMU_64 | POWERPC_MMU_1TSEG | 0x00000003,
 #endif /* defined(TARGET_PPC64) */
 };
 
@@ -151,6 +156,8 @@ enum powerpc_excp_t {
 #if defined(TARGET_PPC64)
     /* PowerPC 970 exception model      */
     POWERPC_EXCP_970,
+    /* POWER7 exception model           */
+    POWERPC_EXCP_POWER7,
 #endif /* defined(TARGET_PPC64) */
 };
 
@@ -286,6 +293,8 @@ enum powerpc_input_t {
     PPC_FLAGS_INPUT_405,
     /* PowerPC 970 bus                  */
     PPC_FLAGS_INPUT_970,
+    /* PowerPC POWER7 bus               */
+    PPC_FLAGS_INPUT_POWER7,
     /* PowerPC 401 bus                  */
     PPC_FLAGS_INPUT_401,
     /* Freescale RCPU bus               */
@@ -357,11 +366,50 @@ union ppc_tlb_t {
 };
 #endif
 
+#define SDR_32_HTABORG         0xFFFF0000UL
+#define SDR_32_HTABMASK        0x000001FFUL
+
+#if defined(TARGET_PPC64)
+#define SDR_64_HTABORG         0xFFFFFFFFFFFC0000ULL
+#define SDR_64_HTABSIZE        0x000000000000001FULL
+#endif /* defined(TARGET_PPC64 */
+
+#define HASH_PTE_SIZE_32       8
+#define HASH_PTE_SIZE_64       16
+
 typedef struct ppc_slb_t ppc_slb_t;
 struct ppc_slb_t {
-    uint64_t tmp64;
-    uint32_t tmp;
+    uint64_t esid;
+    uint64_t vsid;
 };
+
+/* Bits in the SLB ESID word */
+#define SLB_ESID_ESID           0xFFFFFFFFF0000000ULL
+#define SLB_ESID_V              0x0000000008000000ULL /* valid */
+
+/* Bits in the SLB VSID word */
+#define SLB_VSID_SHIFT          12
+#define SLB_VSID_SHIFT_1T       24
+#define SLB_VSID_SSIZE_SHIFT    62
+#define SLB_VSID_B              0xc000000000000000ULL
+#define SLB_VSID_B_256M         0x0000000000000000ULL
+#define SLB_VSID_B_1T           0x4000000000000000ULL
+#define SLB_VSID_VSID           0x3FFFFFFFFFFFF000ULL
+#define SLB_VSID_PTEM           (SLB_VSID_B | SLB_VSID_VSID)
+#define SLB_VSID_KS             0x0000000000000800ULL
+#define SLB_VSID_KP             0x0000000000000400ULL
+#define SLB_VSID_N              0x0000000000000200ULL /* no-execute */
+#define SLB_VSID_L              0x0000000000000100ULL
+#define SLB_VSID_C              0x0000000000000080ULL /* class */
+#define SLB_VSID_LP             0x0000000000000030ULL
+#define SLB_VSID_ATTR           0x0000000000000FFFULL
+
+#define SEGMENT_SHIFT_256M      28
+#define SEGMENT_MASK_256M       (~((1ULL << SEGMENT_SHIFT_256M) - 1))
+
+#define SEGMENT_SHIFT_1T        40
+#define SEGMENT_MASK_1T         (~((1ULL << SEGMENT_SHIFT_1T) - 1))
+
 
 /*****************************************************************************/
 /* Machine state register bits definition                                    */
@@ -619,8 +667,11 @@ struct CPUPPCState {
     int slb_nr;
 #endif
     /* segment registers */
-    target_ulong sdr1;
+    target_phys_addr_t htab_base;
+    target_phys_addr_t htab_mask;
     target_ulong sr[32];
+    /* externally stored hash table */
+    uint8_t *external_htab;
     /* BATs */
     int nb_BATs;
     target_ulong DBAT[2][8];
@@ -670,6 +721,13 @@ struct CPUPPCState {
     uint32_t flags;
     uint64_t insns_flags;
 
+#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+    target_phys_addr_t vpa;
+    target_phys_addr_t slb_shadow;
+    target_phys_addr_t dispatch_trace_log;
+    uint32_t dtl_size;
+#endif /* TARGET_PPC64 */
+
     int error_code;
     uint32_t pending_interrupts;
 #if !defined(CONFIG_USER_ONLY)
@@ -712,7 +770,7 @@ struct mmu_ctx_t {
     target_phys_addr_t raddr;      /* Real address              */
     target_phys_addr_t eaddr;      /* Effective address         */
     int prot;                      /* Protection bits           */
-    target_phys_addr_t pg_addr[2]; /* PTE tables base addresses */
+    target_phys_addr_t hash[2];    /* Pagetable hash values     */
     target_ulong ptem;             /* Virtual segment ID | API  */
     int key;                       /* Access key                */
     int nx;                        /* Non-execute area          */
@@ -755,7 +813,9 @@ void ppc_store_sdr1 (CPUPPCState *env, target_ulong value);
 void ppc_store_asr (CPUPPCState *env, target_ulong value);
 target_ulong ppc_load_slb (CPUPPCState *env, int slb_nr);
 target_ulong ppc_load_sr (CPUPPCState *env, int sr_nr);
-void ppc_store_slb (CPUPPCState *env, target_ulong rb, target_ulong rs);
+int ppc_store_slb (CPUPPCState *env, target_ulong rb, target_ulong rs);
+int ppc_load_slb_esid (CPUPPCState *env, target_ulong rb, target_ulong *rt);
+int ppc_load_slb_vsid (CPUPPCState *env, target_ulong rb, target_ulong *rt);
 #endif /* defined(TARGET_PPC64) */
 void ppc_store_sr (CPUPPCState *env, int srnum, target_ulong value);
 #endif /* !defined(CONFIG_USER_ONLY) */
@@ -956,6 +1016,7 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 #define SPR_HSPRG1            (0x131)
 #define SPR_HDSISR            (0x132)
 #define SPR_HDAR              (0x133)
+#define SPR_SPURR             (0x134)
 #define SPR_BOOKE_DBCR0       (0x134)
 #define SPR_IBCR              (0x135)
 #define SPR_PURR              (0x135)
@@ -1480,6 +1541,8 @@ enum {
     PPC_DCRX           = 0x2000000000000000ULL,
     /* user-mode DCR access, implemented in PowerPC 460                      */
     PPC_DCRUX          = 0x4000000000000000ULL,
+    /* popcntw and popcntd instructions                                      */
+    PPC_POPCNTWD       = 0x8000000000000000ULL,
 };
 
 /*****************************************************************************/
@@ -1578,6 +1641,15 @@ enum {
     PPC970_INPUT_THINT      = 6,
     PPC970_INPUT_NB,
 };
+
+enum {
+    /* POWER7 input pins */
+    POWER7_INPUT_INT        = 0,
+    /* POWER7 probably has other inputs, but we don't care about them
+     * for any existing machine.  We can wire these up when we need
+     * them */
+    POWER7_INPUT_NB,
+};
 #endif
 
 /* Hardware exceptions definitions */
@@ -1622,5 +1694,7 @@ static inline void cpu_set_tls(CPUState *env, target_ulong newtls)
     env->gpr[2] = newtls;
 #endif
 }
+
+extern void (*cpu_ppc_hypercall)(CPUState *);
 
 #endif /* !defined (__CPU_PPC_H__) */

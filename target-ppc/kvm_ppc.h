@@ -18,6 +18,17 @@ uint32_t kvmppc_get_tbfreq(void);
 int kvmppc_get_hypercall(CPUState *env, uint8_t *buf, int buf_len);
 int kvmppc_set_interrupt(CPUState *env, int irq, int level);
 
+#ifndef CONFIG_KVM
+#define kvmppc_eieio() do { } while (0)
+#else
+#define kvmppc_eieio() \
+    do {                                          \
+        if (kvm_enabled()) {                          \
+            asm volatile("eieio" : : : "memory"); \
+        } \
+    } while (0)
+#endif
+
 #ifndef KVM_INTERRUPT_SET
 #define KVM_INTERRUPT_SET -1
 #endif

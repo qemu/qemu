@@ -169,7 +169,7 @@ int kvm_arch_get_registers(CPUState *env)
 
 #ifdef KVM_CAP_PPC_SEGSTATE
     if (kvm_check_extension(env->kvm_state, KVM_CAP_PPC_SEGSTATE)) {
-        env->sdr1 = sregs.u.s.sdr1;
+        ppc_store_sdr1(env, sregs.u.s.sdr1);
 
         /* Sync SLB */
 #ifdef TARGET_PPC64

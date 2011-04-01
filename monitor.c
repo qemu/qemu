@@ -3462,7 +3462,7 @@ static const MonitorDef monitor_defs[] = {
     { "asr", offsetof(CPUState, asr) },
 #endif
     /* Segment registers */
-    { "sdr1", offsetof(CPUState, sdr1) },
+    { "sdr1", offsetof(CPUState, spr[SPR_SDR1]) },
     { "sr0", offsetof(CPUState, sr[0]) },
     { "sr1", offsetof(CPUState, sr[1]) },
     { "sr2", offsetof(CPUState, sr[2]) },

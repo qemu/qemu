@@ -29,7 +29,6 @@
 #include "disas.h"
 #include "helper.h"
 #include "tcg-op.h"
-#include "lm32-decode.h"
 #include "qemu-common.h"
 
 #include "hw/lm32_pic.h"
@@ -583,7 +582,7 @@ static void dec_orhi(DisasContext *dc)
     tcg_gen_ori_tl(cpu_R[dc->r1], cpu_R[dc->r0], (dc->imm16 << 16));
 }
 
-static void dec_raise(DisasContext *dc)
+static void dec_scall(DisasContext *dc)
 {
     TCGv t0;
     int l1;
@@ -963,66 +962,28 @@ static void dec_xor(DisasContext *dc)
     }
 }
 
-typedef struct {
-    struct {
-        uint32_t bits;
-        uint32_t mask;
-    };
-    void (*dec)(DisasContext *dc);
-} DecoderInfo;
+static void dec_ill(DisasContext *dc)
+{
+    cpu_abort(dc->env, "unknown opcode 0x%02x\n", dc->opcode);
+}
 
+typedef void (*DecoderInfo)(DisasContext *dc);
 static const DecoderInfo decinfo[] = {
-    {DEC_ADD, dec_add},
-    {DEC_AND, dec_and},
-    {DEC_ANDHI, dec_andhi},
-    {DEC_B, dec_b},
-    {DEC_BI, dec_bi},
-    {DEC_BE, dec_be},
-    {DEC_BG, dec_bg},
-    {DEC_BGE, dec_bge},
-    {DEC_BGEU, dec_bgeu},
-    {DEC_BGU, dec_bgu},
-    {DEC_BNE, dec_bne},
-    {DEC_CALL, dec_call},
-    {DEC_CALLI, dec_calli},
-    {DEC_CMPE, dec_cmpe},
-    {DEC_CMPG, dec_cmpg},
-    {DEC_CMPGE, dec_cmpge},
-    {DEC_CMPGEU, dec_cmpgeu},
-    {DEC_CMPGU, dec_cmpgu},
-    {DEC_CMPNE, dec_cmpne},
-    {DEC_DIVU, dec_divu},
-    {DEC_LB, dec_lb},
-    {DEC_LBU, dec_lbu},
-    {DEC_LH, dec_lh},
-    {DEC_LHU, dec_lhu},
-    {DEC_LW, dec_lw},
-    {DEC_MODU, dec_modu},
-    {DEC_MUL, dec_mul},
-    {DEC_NOR, dec_nor},
-    {DEC_OR, dec_or},
-    {DEC_ORHI, dec_orhi},
-    {DEC_RAISE, dec_raise},
-    {DEC_RCSR, dec_rcsr},
-    {DEC_SB, dec_sb},
-    {DEC_SEXTB, dec_sextb},
-    {DEC_SEXTH, dec_sexth},
-    {DEC_SH, dec_sh},
-    {DEC_SL, dec_sl},
-    {DEC_SR, dec_sr},
-    {DEC_SRU, dec_sru},
-    {DEC_SUB, dec_sub},
-    {DEC_SW, dec_sw},
-    {DEC_USER, dec_user},
-    {DEC_WCSR, dec_wcsr},
-    {DEC_XNOR, dec_xnor},
-    {DEC_XOR, dec_xor},
+    dec_sru, dec_nor, dec_mul, dec_sh, dec_lb, dec_sr, dec_xor, dec_lh,
+    dec_and, dec_xnor, dec_lw, dec_lhu, dec_sb, dec_add, dec_or, dec_sl,
+    dec_lbu, dec_be, dec_bg, dec_bge, dec_bgeu, dec_bgu, dec_sw, dec_bne,
+    dec_andhi, dec_cmpe, dec_cmpg, dec_cmpge, dec_cmpgeu, dec_cmpgu, dec_orhi,
+    dec_cmpne,
+    dec_sru, dec_nor, dec_mul, dec_divu, dec_rcsr, dec_sr, dec_xor, dec_ill,
+    dec_and, dec_xnor, dec_ill, dec_scall, dec_sextb, dec_add, dec_or, dec_sl,
+    dec_b, dec_modu, dec_sub, dec_user, dec_wcsr, dec_ill, dec_call, dec_sexth,
+    dec_bi, dec_cmpe, dec_cmpg, dec_cmpge, dec_cmpgeu, dec_cmpgu, dec_calli,
+    dec_cmpne
 };
 
 static inline void decode(DisasContext *dc)
 {
     uint32_t ir;
-    int i;
 
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP))) {
         tcg_gen_debug_insn_start(dc->pc);
@@ -1061,15 +1022,10 @@ static inline void decode(DisasContext *dc)
         dc->format = OP_FMT_RI;
     }
 
-    /* Large switch for all insns.  */
-    for (i = 0; i < ARRAY_SIZE(decinfo); i++) {
-        if ((dc->opcode & decinfo[i].mask) == decinfo[i].bits) {
-            decinfo[i].dec(dc);
-            return;
-        }
-    }
+    assert(ARRAY_SIZE(decinfo) == 64);
+    assert(dc->opcode < 64);
 
-    cpu_abort(dc->env, "unknown opcode 0x%02x\n", dc->opcode);
+    decinfo[dc->opcode](dc);
 }
 
 static void check_breakpoint(CPUState *env, DisasContext *dc)
