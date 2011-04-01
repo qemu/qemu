@@ -281,8 +281,7 @@ static void piix3_set_irq_pic(PIIX3State *piix3, int pic_irq)
                      (pic_irq * PIIX_NUM_PIRQS))));
 }
 
-static void piix3_set_irq_level(PIIX3State *piix3, int pirq, int level,
-                                bool propagate)
+static void piix3_set_irq_level(PIIX3State *piix3, int pirq, int level)
 {
     int pic_irq;
     uint64_t mask;
@@ -296,15 +295,13 @@ static void piix3_set_irq_level(PIIX3State *piix3, int pirq, int level,
     piix3->pic_levels &= ~mask;
     piix3->pic_levels |= mask * !!level;
 
-    if (propagate) {
-        piix3_set_irq_pic(piix3, pic_irq);
-    }
+    piix3_set_irq_pic(piix3, pic_irq);
 }
 
 static void piix3_set_irq(void *opaque, int pirq, int level)
 {
     PIIX3State *piix3 = opaque;
-    piix3_set_irq_level(piix3, pirq, level, true);
+    piix3_set_irq_level(piix3, pirq, level);
 }
 
 /* irq routing is changed. so rebuild bitmap */
@@ -315,8 +312,7 @@ static void piix3_update_irq_levels(PIIX3State *piix3)
     piix3->pic_levels = 0;
     for (pirq = 0; pirq < PIIX_NUM_PIRQS; pirq++) {
         piix3_set_irq_level(piix3, pirq,
-                            pci_bus_get_irq_level(piix3->dev.bus, pirq),
-                            false);
+                            pci_bus_get_irq_level(piix3->dev.bus, pirq));
     }
 }
 
