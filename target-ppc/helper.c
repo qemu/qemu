@@ -676,9 +676,7 @@ static inline int find_pte(CPUState *env, mmu_ctx_t *ctx, int h, int rw,
 }
 
 #if defined(TARGET_PPC64)
-static inline int slb_lookup(CPUPPCState *env, target_ulong eaddr,
-                             target_ulong *vsid, target_ulong *page_mask,
-                             int *attr, int *target_page_bits)
+static inline ppc_slb_t *slb_lookup(CPUPPCState *env, target_ulong eaddr)
 {
     uint64_t esid;
     int n;
@@ -693,19 +691,11 @@ static inline int slb_lookup(CPUPPCState *env, target_ulong eaddr,
         LOG_SLB("%s: slot %d %016" PRIx64 " %016"
                     PRIx64 "\n", __func__, n, slb->esid, slb->vsid);
         if (slb->esid == esid) {
-            *vsid = (slb->vsid & SLB_VSID_VSID) >> SLB_VSID_SHIFT;
-            *page_mask = ~SEGMENT_MASK_256M;
-            *attr = slb->vsid & SLB_VSID_ATTR;
-            if (target_page_bits) {
-                *target_page_bits = (slb->vsid & SLB_VSID_L)
-                    ? TARGET_PAGE_BITS_16M
-                    : TARGET_PAGE_BITS;
-            }
-            return n;
+            return slb;
         }
     }
 
-    return -5;
+    return NULL;
 }
 
 void ppc_slb_invalidate_all (CPUPPCState *env)
@@ -732,17 +722,12 @@ void ppc_slb_invalidate_all (CPUPPCState *env)
 
 void ppc_slb_invalidate_one (CPUPPCState *env, uint64_t T0)
 {
-    target_ulong vsid, page_mask;
-    int attr;
-    int n;
     ppc_slb_t *slb;
 
-    n = slb_lookup(env, T0, &vsid, &page_mask, &attr, NULL);
-    if (n < 0) {
+    slb = slb_lookup(env, T0);
+    if (!slb) {
         return;
     }
-
-    slb = &env->slb[n];
 
     if (slb->esid & SLB_ESID_V) {
         slb->esid &= ~SLB_ESID_V;
@@ -822,16 +807,22 @@ static inline int get_segment(CPUState *env, mmu_ctx_t *ctx,
     pr = msr_pr;
 #if defined(TARGET_PPC64)
     if (env->mmu_model & POWERPC_MMU_64) {
-        int attr;
+        ppc_slb_t *slb;
 
         LOG_MMU("Check SLBs\n");
-        ret = slb_lookup(env, eaddr, &vsid, &page_mask, &attr,
-                         &target_page_bits);
-        if (ret < 0)
-            return ret;
-        ctx->key = !!(pr ? (attr & SLB_VSID_KP) : (attr & SLB_VSID_KS));
+        slb = slb_lookup(env, eaddr);
+        if (!slb) {
+            return -5;
+        }
+
+        vsid = (slb->vsid & SLB_VSID_VSID) >> SLB_VSID_SHIFT;
+        page_mask = ~SEGMENT_MASK_256M;
+        target_page_bits = (slb->vsid & SLB_VSID_L)
+            ? TARGET_PAGE_BITS_16M : TARGET_PAGE_BITS;
+        ctx->key = !!(pr ? (slb->vsid & SLB_VSID_KP)
+                      : (slb->vsid & SLB_VSID_KS));
         ds = 0;
-        ctx->nx = !!(attr & SLB_VSID_N);
+        ctx->nx = !!(slb->vsid & SLB_VSID_N);
         ctx->eaddr = eaddr;
         vsid_mask = 0x00003FFFFFFFFF80ULL;
         vsid_sh = 7;
