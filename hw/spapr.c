@@ -262,6 +262,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     long pteg_shift = 17;
     int fdt_size;
     char *filename;
+    int irq = 16;
 
     spapr = qemu_malloc(sizeof(*spapr));
     cpu_ppc_hypercall = emulate_spapr_hypercall;
@@ -325,9 +326,10 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     /* Set up VIO bus */
     spapr->vio_bus = spapr_vio_bus_init();
 
-    for (i = 0; i < MAX_SERIAL_PORTS; i++) {
+    for (i = 0; i < MAX_SERIAL_PORTS; i++, irq++) {
         if (serial_hds[i]) {
-            spapr_vty_create(spapr->vio_bus, i, serial_hds[i]);
+            spapr_vty_create(spapr->vio_bus, i, serial_hds[i],
+                             xics_find_qirq(spapr->icp, irq), irq);
         }
     }
 

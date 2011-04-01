@@ -24,6 +24,10 @@ static void vty_receive(void *opaque, const uint8_t *buf, int size)
     VIOsPAPRVTYDevice *dev = (VIOsPAPRVTYDevice *)opaque;
     int i;
 
+    if ((dev->in == dev->out) && size) {
+        /* toggle line to simulate edge interrupt */
+        qemu_irq_pulse(dev->sdev.qirq);
+    }
     for (i = 0; i < size; i++) {
         assert((dev->in - dev->out) < VTERM_BUFSIZE);
         dev->buf[dev->in++ % VTERM_BUFSIZE] = buf[i];
@@ -112,14 +116,19 @@ static target_ulong h_get_term_char(CPUState *env, sPAPREnvironment *spapr,
 }
 
 void spapr_vty_create(VIOsPAPRBus *bus,
-                      uint32_t reg, CharDriverState *chardev)
+                      uint32_t reg, CharDriverState *chardev,
+                      qemu_irq qirq, uint32_t vio_irq_num)
 {
     DeviceState *dev;
+    VIOsPAPRDevice *sdev;
 
     dev = qdev_create(&bus->bus, "spapr-vty");
     qdev_prop_set_uint32(dev, "reg", reg);
     qdev_prop_set_chr(dev, "chardev", chardev);
     qdev_init_nofail(dev);
+    sdev = (VIOsPAPRDevice *)dev;
+    sdev->qirq = qirq;
+    sdev->vio_irq_num = vio_irq_num;
 }
 
 static void vty_hcalls(VIOsPAPRBus *bus)

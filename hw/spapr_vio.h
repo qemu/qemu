@@ -51,6 +51,7 @@ extern int spapr_vio_signal(VIOsPAPRDevice *dev, target_ulong mode);
 
 void vty_putchars(VIOsPAPRDevice *sdev, uint8_t *buf, int len);
 void spapr_vty_create(VIOsPAPRBus *bus,
-                      uint32_t reg, CharDriverState *chardev);
+                      uint32_t reg, CharDriverState *chardev,
+                      qemu_irq qirq, uint32_t vio_irq_num);
 
 #endif /* _HW_SPAPR_VIO_H */
