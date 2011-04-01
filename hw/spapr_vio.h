@@ -86,4 +86,7 @@ void spapr_vty_create(VIOsPAPRBus *bus,
                       uint32_t reg, CharDriverState *chardev,
                       qemu_irq qirq, uint32_t vio_irq_num);
 
+void spapr_vlan_create(VIOsPAPRBus *bus, uint32_t reg, NICInfo *nd,
+                       qemu_irq qirq, uint32_t vio_irq_num);
+
 #endif /* _HW_SPAPR_VIO_H */

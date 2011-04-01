@@ -27,6 +27,7 @@
 #include "sysemu.h"
 #include "hw.h"
 #include "elf.h"
+#include "net.h"
 
 #include "hw/boards.h"
 #include "hw/ppc.h"
@@ -331,6 +332,24 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         if (serial_hds[i]) {
             spapr_vty_create(spapr->vio_bus, i, serial_hds[i],
                              xics_find_qirq(spapr->icp, irq), irq);
+        }
+    }
+
+    for (i = 0; i < nb_nics; i++, irq++) {
+        NICInfo *nd = &nd_table[i];
+
+        if (!nd->model) {
+            nd->model = qemu_strdup("ibmveth");
+        }
+
+        if (strcmp(nd->model, "ibmveth") == 0) {
+            spapr_vlan_create(spapr->vio_bus, 0x1000 + i, nd,
+                              xics_find_qirq(spapr->icp, irq), irq);
+        } else {
+            fprintf(stderr, "pSeries (sPAPR) platform does not support "
+                    "NIC model '%s' (only ibmveth is supported)\n",
+                    nd->model);
+            exit(1);
         }
     }
 

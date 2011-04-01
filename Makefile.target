@@ -234,7 +234,7 @@ obj-ppc-y += ppc_newworld.o
 # IBM pSeries (sPAPR)
 ifeq ($(CONFIG_FDT)$(TARGET_PPC64),yy)
 obj-ppc-y += spapr.o spapr_hcall.o spapr_rtas.o spapr_vio.o
-obj-ppc-y += xics.o spapr_vty.o
+obj-ppc-y += xics.o spapr_vty.o spapr_llan.o
 endif
 # PowerPC 4xx boards
 obj-ppc-y += ppc4xx_devs.o ppc4xx_pci.o ppc405_uc.o ppc405_boards.o
