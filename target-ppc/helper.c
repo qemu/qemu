@@ -661,29 +661,15 @@ static inline int _find_pte(CPUState *env, mmu_ctx_t *ctx, int is_64b, int h,
     return ret;
 }
 
-static inline int find_pte32(CPUState *env, mmu_ctx_t *ctx, int h, int rw,
-                             int type, int target_page_bits)
-{
-    return _find_pte(env, ctx, 0, h, rw, type, target_page_bits);
-}
-
-#if defined(TARGET_PPC64)
-static inline int find_pte64(CPUState *env, mmu_ctx_t *ctx, int h, int rw,
-                             int type, int target_page_bits)
-{
-    return _find_pte(env, ctx, 1, h, rw, type, target_page_bits);
-}
-#endif
-
 static inline int find_pte(CPUState *env, mmu_ctx_t *ctx, int h, int rw,
                            int type, int target_page_bits)
 {
 #if defined(TARGET_PPC64)
     if (env->mmu_model & POWERPC_MMU_64)
-        return find_pte64(env, ctx, h, rw, type, target_page_bits);
+        return _find_pte(env, ctx, 1, h, rw, type, target_page_bits);
 #endif
 
-    return find_pte32(env, ctx, h, rw, type, target_page_bits);
+    return _find_pte(env, ctx, 0, h, rw, type, target_page_bits);
 }
 
 #if defined(TARGET_PPC64)
@@ -803,14 +789,16 @@ static inline int get_segment(CPUState *env, mmu_ctx_t *ctx,
                               target_ulong eaddr, int rw, int type)
 {
     target_phys_addr_t hash;
-    target_ulong sr, vsid, pgidx, page_mask;
+    target_ulong vsid;
     int ds, pr, target_page_bits;
     int ret, ret2;
 
     pr = msr_pr;
+    ctx->eaddr = eaddr;
 #if defined(TARGET_PPC64)
     if (env->mmu_model & POWERPC_MMU_64) {
         ppc_slb_t *slb;
+        target_ulong pageaddr;
 
         LOG_MMU("Check SLBs\n");
         slb = slb_lookup(env, eaddr);
@@ -819,19 +807,24 @@ static inline int get_segment(CPUState *env, mmu_ctx_t *ctx,
         }
 
         vsid = (slb->vsid & SLB_VSID_VSID) >> SLB_VSID_SHIFT;
-        page_mask = ~SEGMENT_MASK_256M;
         target_page_bits = (slb->vsid & SLB_VSID_L)
             ? TARGET_PAGE_BITS_16M : TARGET_PAGE_BITS;
         ctx->key = !!(pr ? (slb->vsid & SLB_VSID_KP)
                       : (slb->vsid & SLB_VSID_KS));
         ds = 0;
         ctx->nx = !!(slb->vsid & SLB_VSID_N);
-        ctx->eaddr = eaddr;
+
+        pageaddr = eaddr & ((1ULL << 28) - (1ULL << target_page_bits));
+        /* XXX: this is false for 1 TB segments */
+        hash = vsid ^ (pageaddr >> target_page_bits);
+        /* Only 5 bits of the page index are used in the AVPN */
+        ctx->ptem = (slb->vsid & SLB_VSID_PTEM) | ((pageaddr >> 16) & 0x0F80);
     } else
 #endif /* defined(TARGET_PPC64) */
     {
+        target_ulong sr, pgidx;
+
         sr = env->sr[eaddr >> 28];
-        page_mask = 0x0FFFFFFF;
         ctx->key = (((sr & 0x20000000) && (pr != 0)) ||
                     ((sr & 0x40000000) && (pr == 0))) ? 1 : 0;
         ds = sr & 0x80000000 ? 1 : 0;
@@ -843,6 +836,9 @@ static inline int get_segment(CPUState *env, mmu_ctx_t *ctx,
                 " ir=%d dr=%d pr=%d %d t=%d\n",
                 eaddr, (int)(eaddr >> 28), sr, env->nip, env->lr, (int)msr_ir,
                 (int)msr_dr, pr != 0 ? 1 : 0, rw, type);
+        pgidx = (eaddr & ~SEGMENT_MASK_256M) >> target_page_bits;
+        hash = vsid ^ pgidx;
+        ctx->ptem = (vsid << 7) | (pgidx >> 10);
     }
     LOG_MMU("pte segment: key=%d ds %d nx %d vsid " TARGET_FMT_lx "\n",
             ctx->key, ds, ctx->nx, vsid);
@@ -851,36 +847,12 @@ static inline int get_segment(CPUState *env, mmu_ctx_t *ctx,
         /* Check if instruction fetch is allowed, if needed */
         if (type != ACCESS_CODE || ctx->nx == 0) {
             /* Page address translation */
-            pgidx = (eaddr & page_mask) >> target_page_bits;
-#if defined(TARGET_PPC64)
-            if (env->mmu_model & POWERPC_MMU_64) {
-                /* XXX: this is false for 1 TB segments */
-                hash = vsid ^ pgidx;
-            } else
-#endif
-            {
-                hash = vsid ^ pgidx;
-            }
             LOG_MMU("htab_base " TARGET_FMT_plx " htab_mask " TARGET_FMT_plx
                     " hash " TARGET_FMT_plx "\n",
                     env->htab_base, env->htab_mask, hash);
             ctx->hash[0] = hash;
             ctx->hash[1] = ~hash;
 
-#if defined(TARGET_PPC64)
-            if (env->mmu_model & POWERPC_MMU_64) {
-                /* Only 5 bits of the page index are used in the AVPN */
-                if (target_page_bits > 23) {
-                    ctx->ptem = (vsid << 12) |
-                                ((pgidx << (target_page_bits - 16)) & 0xF80);
-                } else {
-                    ctx->ptem = (vsid << 12) | ((pgidx >> 4) & 0x0F80);
-                }
-            } else
-#endif
-            {
-                ctx->ptem = (vsid << 7) | (pgidx >> 10);
-            }
             /* Initialize real address with an invalid value */
             ctx->raddr = (target_phys_addr_t)-1ULL;
             if (unlikely(env->mmu_model == POWERPC_MMU_SOFT_6xx ||
@@ -889,9 +861,9 @@ static inline int get_segment(CPUState *env, mmu_ctx_t *ctx,
                 ret = ppc6xx_tlb_check(env, ctx, eaddr, rw, type);
             } else {
                 LOG_MMU("0 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
-                        " vsid=" TARGET_FMT_lx " api=" TARGET_FMT_lx
+                        " vsid=" TARGET_FMT_lx " ptem=" TARGET_FMT_lx
                         " hash=" TARGET_FMT_plx "\n",
-                        env->htab_base, env->htab_mask, vsid, pgidx,
+                        env->htab_base, env->htab_mask, vsid, ctx->ptem,
                         ctx->hash[0]);
                 /* Primary table lookup */
                 ret = find_pte(env, ctx, 0, rw, type, target_page_bits);
@@ -902,8 +874,7 @@ static inline int get_segment(CPUState *env, mmu_ctx_t *ctx,
                                 " vsid=" TARGET_FMT_lx " api=" TARGET_FMT_lx
                                 " hash=" TARGET_FMT_plx " pg_addr="
                                 TARGET_FMT_plx "\n", env->htab_base,
-                                env->htab_mask, vsid, pgidx, hash,
-                                ctx->hash[1]);
+                                env->htab_mask, vsid, ctx->ptem, ctx->hash[1]);
                     ret2 = find_pte(env, ctx, 1, rw, type,
                                     target_page_bits);
                     if (ret2 != -1)
