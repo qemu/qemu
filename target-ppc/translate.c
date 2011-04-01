@@ -1483,13 +1483,21 @@ static void gen_xoris(DisasContext *ctx)
 /* popcntb : PowerPC 2.03 specification */
 static void gen_popcntb(DisasContext *ctx)
 {
-#if defined(TARGET_PPC64)
-    if (ctx->sf_mode)
-        gen_helper_popcntb_64(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
-    else
-#endif
-        gen_helper_popcntb(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
+    gen_helper_popcntb(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
 }
+
+static void gen_popcntw(DisasContext *ctx)
+{
+    gen_helper_popcntw(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
+}
+
+#if defined(TARGET_PPC64)
+/* popcntd: PowerPC 2.06 specification */
+static void gen_popcntd(DisasContext *ctx)
+{
+    gen_helper_popcntd(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
+}
+#endif
 
 #if defined(TARGET_PPC64)
 /* extsw & extsw. */
@@ -8226,7 +8234,9 @@ GEN_HANDLER(oris, 0x19, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(xori, 0x1A, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(xoris, 0x1B, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(popcntb, 0x1F, 0x03, 0x03, 0x0000F801, PPC_POPCNTB),
+GEN_HANDLER(popcntw, 0x1F, 0x1A, 0x0b, 0x0000F801, PPC_POPCNTWD),
 #if defined(TARGET_PPC64)
+GEN_HANDLER(popcntd, 0x1F, 0x1A, 0x0F, 0x0000F801, PPC_POPCNTWD),
 GEN_HANDLER(cntlzd, 0x1F, 0x1A, 0x01, 0x00000000, PPC_64B),
 #endif
 GEN_HANDLER(rlwimi, 0x14, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),

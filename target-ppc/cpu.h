@@ -1505,6 +1505,8 @@ enum {
     PPC_DCRX           = 0x2000000000000000ULL,
     /* user-mode DCR access, implemented in PowerPC 460                      */
     PPC_DCRUX          = 0x4000000000000000ULL,
+    /* popcntw and popcntd instructions                                      */
+    PPC_POPCNTWD       = 0x8000000000000000ULL,
 };
 
 /*****************************************************************************/

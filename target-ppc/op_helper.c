@@ -499,6 +499,50 @@ target_ulong helper_srad (target_ulong value, target_ulong shift)
 }
 #endif
 
+#if defined(TARGET_PPC64)
+target_ulong helper_popcntb (target_ulong val)
+{
+    val = (val & 0x5555555555555555ULL) + ((val >>  1) &
+                                           0x5555555555555555ULL);
+    val = (val & 0x3333333333333333ULL) + ((val >>  2) &
+                                           0x3333333333333333ULL);
+    val = (val & 0x0f0f0f0f0f0f0f0fULL) + ((val >>  4) &
+                                           0x0f0f0f0f0f0f0f0fULL);
+    return val;
+}
+
+target_ulong helper_popcntw (target_ulong val)
+{
+    val = (val & 0x5555555555555555ULL) + ((val >>  1) &
+                                           0x5555555555555555ULL);
+    val = (val & 0x3333333333333333ULL) + ((val >>  2) &
+                                           0x3333333333333333ULL);
+    val = (val & 0x0f0f0f0f0f0f0f0fULL) + ((val >>  4) &
+                                           0x0f0f0f0f0f0f0f0fULL);
+    val = (val & 0x00ff00ff00ff00ffULL) + ((val >>  8) &
+                                           0x00ff00ff00ff00ffULL);
+    val = (val & 0x0000ffff0000ffffULL) + ((val >> 16) &
+                                           0x0000ffff0000ffffULL);
+    return val;
+}
+
+target_ulong helper_popcntd (target_ulong val)
+{
+    val = (val & 0x5555555555555555ULL) + ((val >>  1) &
+                                           0x5555555555555555ULL);
+    val = (val & 0x3333333333333333ULL) + ((val >>  2) &
+                                           0x3333333333333333ULL);
+    val = (val & 0x0f0f0f0f0f0f0f0fULL) + ((val >>  4) &
+                                           0x0f0f0f0f0f0f0f0fULL);
+    val = (val & 0x00ff00ff00ff00ffULL) + ((val >>  8) &
+                                           0x00ff00ff00ff00ffULL);
+    val = (val & 0x0000ffff0000ffffULL) + ((val >> 16) &
+                                           0x0000ffff0000ffffULL);
+    val = (val & 0x00000000ffffffffULL) + ((val >> 32) &
+                                           0x00000000ffffffffULL);
+    return val;
+}
+#else
 target_ulong helper_popcntb (target_ulong val)
 {
     val = (val & 0x55555555) + ((val >>  1) & 0x55555555);
@@ -507,12 +551,13 @@ target_ulong helper_popcntb (target_ulong val)
     return val;
 }
 
-#if defined(TARGET_PPC64)
-target_ulong helper_popcntb_64 (target_ulong val)
+target_ulong helper_popcntw (target_ulong val)
 {
-    val = (val & 0x5555555555555555ULL) + ((val >>  1) & 0x5555555555555555ULL);
-    val = (val & 0x3333333333333333ULL) + ((val >>  2) & 0x3333333333333333ULL);
-    val = (val & 0x0f0f0f0f0f0f0f0fULL) + ((val >>  4) & 0x0f0f0f0f0f0f0f0fULL);
+    val = (val & 0x55555555) + ((val >>  1) & 0x55555555);
+    val = (val & 0x33333333) + ((val >>  2) & 0x33333333);
+    val = (val & 0x0f0f0f0f) + ((val >>  4) & 0x0f0f0f0f);
+    val = (val & 0x00ff00ff) + ((val >>  8) & 0x00ff00ff);
+    val = (val & 0x0000ffff) + ((val >> 16) & 0x0000ffff);
     return val;
 }
 #endif

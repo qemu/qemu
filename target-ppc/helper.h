@@ -38,10 +38,11 @@ DEF_HELPER_2(mulldo, i64, i64, i64)
 
 DEF_HELPER_FLAGS_1(cntlzw, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl)
 DEF_HELPER_FLAGS_1(popcntb, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl)
+DEF_HELPER_FLAGS_1(popcntw, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl)
 DEF_HELPER_2(sraw, tl, tl, tl)
 #if defined(TARGET_PPC64)
 DEF_HELPER_FLAGS_1(cntlzd, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl)
-DEF_HELPER_FLAGS_1(popcntb_64, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl)
+DEF_HELPER_FLAGS_1(popcntd, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl)
 DEF_HELPER_2(srad, tl, tl, tl)
 #endif
 
