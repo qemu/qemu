@@ -48,6 +48,8 @@ typedef struct VIOsPAPR_CRQ {
 typedef struct VIOsPAPRDevice {
     DeviceState qdev;
     uint32_t reg;
+    uint32_t flags;
+#define VIO_PAPR_FLAG_DMA_BYPASS        0x1
     qemu_irq qirq;
     uint32_t vio_irq_num;
     target_ulong signal_state;
@@ -103,5 +105,8 @@ void spapr_vlan_create(VIOsPAPRBus *bus, uint32_t reg, NICInfo *nd,
 
 void spapr_vscsi_create(VIOsPAPRBus *bus, uint32_t reg,
                         qemu_irq qirq, uint32_t vio_irq_num);
+
+int spapr_tce_set_bypass(uint32_t unit, uint32_t enable);
+void spapr_vio_quiesce(void);
 
 #endif /* _HW_SPAPR_VIO_H */

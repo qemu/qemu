@@ -226,6 +226,12 @@ int spapr_tce_dma_write(VIOsPAPRDevice *dev, uint64_t taddr, const void *buf,
             (unsigned long long)taddr, size);
 #endif
 
+    /* Check for bypass */
+    if (dev->flags & VIO_PAPR_FLAG_DMA_BYPASS) {
+        cpu_physical_memory_write(taddr, buf, size);
+        return 0;
+    }
+
     while (size) {
         uint64_t tce;
         uint32_t lsize;
@@ -312,6 +318,12 @@ int spapr_tce_dma_read(VIOsPAPRDevice *dev, uint64_t taddr, void *buf,
     fprintf(stderr, "spapr_tce_dma_write taddr=0x%llx size=0x%x\n",
             (unsigned long long)taddr, size);
 #endif
+
+    /* Check for bypass */
+    if (dev->flags & VIO_PAPR_FLAG_DMA_BYPASS) {
+        cpu_physical_memory_read(taddr, buf, size);
+        return 0;
+    }
 
     while (size) {
         uint64_t tce;
@@ -513,6 +525,72 @@ int spapr_vio_send_crq(VIOsPAPRDevice *dev, uint8_t *crq)
     return 0;
 }
 
+/* "quiesce" handling */
+
+static void spapr_vio_quiesce_one(VIOsPAPRDevice *dev)
+{
+    dev->flags &= ~VIO_PAPR_FLAG_DMA_BYPASS;
+
+    if (dev->rtce_table) {
+        size_t size = (dev->rtce_window_size >> SPAPR_VIO_TCE_PAGE_SHIFT)
+            * sizeof(VIOsPAPR_RTCE);
+        memset(dev->rtce_table, 0, size);
+    }
+
+    dev->crq.qladdr = 0;
+    dev->crq.qsize = 0;
+    dev->crq.qnext = 0;
+}
+
+static void rtas_set_tce_bypass(sPAPREnvironment *spapr, uint32_t token,
+                                uint32_t nargs, target_ulong args,
+                                uint32_t nret, target_ulong rets)
+{
+    VIOsPAPRBus *bus = spapr->vio_bus;
+    VIOsPAPRDevice *dev;
+    uint32_t unit, enable;
+
+    if (nargs != 2) {
+        rtas_st(rets, 0, -3);
+        return;
+    }
+    unit = rtas_ld(args, 0);
+    enable = rtas_ld(args, 1);
+    dev = spapr_vio_find_by_reg(bus, unit);
+    if (!dev) {
+        rtas_st(rets, 0, -3);
+        return;
+    }
+    if (enable) {
+        dev->flags |= VIO_PAPR_FLAG_DMA_BYPASS;
+    } else {
+        dev->flags &= ~VIO_PAPR_FLAG_DMA_BYPASS;
+    }
+
+    rtas_st(rets, 0, 0);
+}
+
+static void rtas_quiesce(sPAPREnvironment *spapr, uint32_t token,
+                         uint32_t nargs, target_ulong args,
+                         uint32_t nret, target_ulong rets)
+{
+    VIOsPAPRBus *bus = spapr->vio_bus;
+    DeviceState *qdev;
+    VIOsPAPRDevice *dev = NULL;
+
+    if (nargs != 0) {
+        rtas_st(rets, 0, -3);
+        return;
+    }
+
+    QLIST_FOREACH(qdev, &bus->bus.children, sibling) {
+        dev = (VIOsPAPRDevice *)qdev;
+        spapr_vio_quiesce_one(dev);
+    }
+
+    rtas_st(rets, 0, 0);
+}
+
 static int spapr_vio_busdev_init(DeviceState *qdev, DeviceInfo *qinfo)
 {
     VIOsPAPRDeviceInfo *info = (VIOsPAPRDeviceInfo *)qinfo;
@@ -590,6 +668,10 @@ VIOsPAPRBus *spapr_vio_bus_init(void)
     spapr_register_hypercall(H_FREE_CRQ, h_free_crq);
     spapr_register_hypercall(H_SEND_CRQ, h_send_crq);
     spapr_register_hypercall(H_ENABLE_CRQ, h_enable_crq);
+
+    /* RTAS calls */
+    spapr_rtas_register("ibm,set-tce-bypass", rtas_set_tce_bypass);
+    spapr_rtas_register("quiesce", rtas_quiesce);
 
     for (qinfo = device_info_list; qinfo; qinfo = qinfo->next) {
         VIOsPAPRDeviceInfo *info = (VIOsPAPRDeviceInfo *)qinfo;
