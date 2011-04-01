@@ -721,6 +721,13 @@ struct CPUPPCState {
     uint32_t flags;
     uint64_t insns_flags;
 
+#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+    target_phys_addr_t vpa;
+    target_phys_addr_t slb_shadow;
+    target_phys_addr_t dispatch_trace_log;
+    uint32_t dtl_size;
+#endif /* TARGET_PPC64 */
+
     int error_code;
     uint32_t pending_interrupts;
 #if !defined(CONFIG_USER_ONLY)

@@ -4,6 +4,8 @@
 #include "sysemu.h"
 #include "qemu-char.h"
 #include "exec-all.h"
+#include "exec.h"
+#include "helper_regs.h"
 #include "hw/spapr.h"
 
 #define HPTES_PER_GROUP 8
@@ -255,6 +257,192 @@ static target_ulong h_set_dabr(CPUState *env, sPAPREnvironment *spapr,
     return H_HARDWARE;
 }
 
+#define FLAGS_REGISTER_VPA         0x0000200000000000ULL
+#define FLAGS_REGISTER_DTL         0x0000400000000000ULL
+#define FLAGS_REGISTER_SLBSHADOW   0x0000600000000000ULL
+#define FLAGS_DEREGISTER_VPA       0x0000a00000000000ULL
+#define FLAGS_DEREGISTER_DTL       0x0000c00000000000ULL
+#define FLAGS_DEREGISTER_SLBSHADOW 0x0000e00000000000ULL
+
+#define VPA_MIN_SIZE           640
+#define VPA_SIZE_OFFSET        0x4
+#define VPA_SHARED_PROC_OFFSET 0x9
+#define VPA_SHARED_PROC_VAL    0x2
+
+static target_ulong register_vpa(CPUState *env, target_ulong vpa)
+{
+    uint16_t size;
+    uint8_t tmp;
+
+    if (vpa == 0) {
+        hcall_dprintf("Can't cope with registering a VPA at logical 0\n");
+        return H_HARDWARE;
+    }
+
+    if (vpa % env->dcache_line_size) {
+        return H_PARAMETER;
+    }
+    /* FIXME: bounds check the address */
+
+    size = lduw_phys(vpa + 0x4);
+
+    if (size < VPA_MIN_SIZE) {
+        return H_PARAMETER;
+    }
+
+    /* VPA is not allowed to cross a page boundary */
+    if ((vpa / 4096) != ((vpa + size - 1) / 4096)) {
+        return H_PARAMETER;
+    }
+
+    env->vpa = vpa;
+
+    tmp = ldub_phys(env->vpa + VPA_SHARED_PROC_OFFSET);
+    tmp |= VPA_SHARED_PROC_VAL;
+    stb_phys(env->vpa + VPA_SHARED_PROC_OFFSET, tmp);
+
+    return H_SUCCESS;
+}
+
+static target_ulong deregister_vpa(CPUState *env, target_ulong vpa)
+{
+    if (env->slb_shadow) {
+        return H_RESOURCE;
+    }
+
+    if (env->dispatch_trace_log) {
+        return H_RESOURCE;
+    }
+
+    env->vpa = 0;
+    return H_SUCCESS;
+}
+
+static target_ulong register_slb_shadow(CPUState *env, target_ulong addr)
+{
+    uint32_t size;
+
+    if (addr == 0) {
+        hcall_dprintf("Can't cope with SLB shadow at logical 0\n");
+        return H_HARDWARE;
+    }
+
+    size = ldl_phys(addr + 0x4);
+    if (size < 0x8) {
+        return H_PARAMETER;
+    }
+
+    if ((addr / 4096) != ((addr + size - 1) / 4096)) {
+        return H_PARAMETER;
+    }
+
+    if (!env->vpa) {
+        return H_RESOURCE;
+    }
+
+    env->slb_shadow = addr;
+
+    return H_SUCCESS;
+}
+
+static target_ulong deregister_slb_shadow(CPUState *env, target_ulong addr)
+{
+    env->slb_shadow = 0;
+    return H_SUCCESS;
+}
+
+static target_ulong register_dtl(CPUState *env, target_ulong addr)
+{
+    uint32_t size;
+
+    if (addr == 0) {
+        hcall_dprintf("Can't cope with DTL at logical 0\n");
+        return H_HARDWARE;
+    }
+
+    size = ldl_phys(addr + 0x4);
+
+    if (size < 48) {
+        return H_PARAMETER;
+    }
+
+    if (!env->vpa) {
+        return H_RESOURCE;
+    }
+
+    env->dispatch_trace_log = addr;
+    env->dtl_size = size;
+
+    return H_SUCCESS;
+}
+
+static target_ulong deregister_dtl(CPUState *emv, target_ulong addr)
+{
+    env->dispatch_trace_log = 0;
+    env->dtl_size = 0;
+
+    return H_SUCCESS;
+}
+
+static target_ulong h_register_vpa(CPUState *env, sPAPREnvironment *spapr,
+                                   target_ulong opcode, target_ulong *args)
+{
+    target_ulong flags = args[0];
+    target_ulong procno = args[1];
+    target_ulong vpa = args[2];
+    target_ulong ret = H_PARAMETER;
+    CPUState *tenv;
+
+    for (tenv = first_cpu; tenv; tenv = tenv->next_cpu) {
+        if (tenv->cpu_index == procno) {
+            break;
+        }
+    }
+
+    if (!tenv) {
+        return H_PARAMETER;
+    }
+
+    switch (flags) {
+    case FLAGS_REGISTER_VPA:
+        ret = register_vpa(tenv, vpa);
+        break;
+
+    case FLAGS_DEREGISTER_VPA:
+        ret = deregister_vpa(tenv, vpa);
+        break;
+
+    case FLAGS_REGISTER_SLBSHADOW:
+        ret = register_slb_shadow(tenv, vpa);
+        break;
+
+    case FLAGS_DEREGISTER_SLBSHADOW:
+        ret = deregister_slb_shadow(tenv, vpa);
+        break;
+
+    case FLAGS_REGISTER_DTL:
+        ret = register_dtl(tenv, vpa);
+        break;
+
+    case FLAGS_DEREGISTER_DTL:
+        ret = deregister_dtl(tenv, vpa);
+        break;
+    }
+
+    return ret;
+}
+
+static target_ulong h_cede(CPUState *env, sPAPREnvironment *spapr,
+                           target_ulong opcode, target_ulong *args)
+{
+    env->msr |= (1ULL << MSR_EE);
+    hreg_compute_hflags(env);
+    if (!cpu_has_work(env)) {
+        env->halted = 1;
+    }
+    return H_SUCCESS;
+}
+
 static target_ulong h_rtas(CPUState *env, sPAPREnvironment *spapr,
                            target_ulong opcode, target_ulong *args)
 {
@@ -326,6 +514,10 @@ static void hypercall_init(void)
 
     /* hcall-dabr */
     spapr_register_hypercall(H_SET_DABR, h_set_dabr);
+
+    /* hcall-splpar */
+    spapr_register_hypercall(H_REGISTER_VPA, h_register_vpa);
+    spapr_register_hypercall(H_CEDE, h_cede);
 
     /* qemu/KVM-PPC specific hcalls */
     spapr_register_hypercall(KVMPPC_H_RTAS, h_rtas);
