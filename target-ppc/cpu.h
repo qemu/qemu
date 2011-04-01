@@ -367,6 +367,9 @@ union ppc_tlb_t {
 #define SDR_64_HTABSIZE        0x000000000000001FULL
 #endif /* defined(TARGET_PPC64 */
 
+#define HASH_PTE_SIZE_32       8
+#define HASH_PTE_SIZE_64       16
+
 typedef struct ppc_slb_t ppc_slb_t;
 struct ppc_slb_t {
     uint64_t esid;
@@ -744,7 +747,7 @@ struct mmu_ctx_t {
     target_phys_addr_t raddr;      /* Real address              */
     target_phys_addr_t eaddr;      /* Effective address         */
     int prot;                      /* Protection bits           */
-    target_phys_addr_t pg_addr[2]; /* PTE tables base addresses */
+    target_phys_addr_t hash[2];    /* Pagetable hash values     */
     target_ulong ptem;             /* Virtual segment ID | API  */
     int key;                       /* Access key                */
     int nx;                        /* Non-execute area          */
