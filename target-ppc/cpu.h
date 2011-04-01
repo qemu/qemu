@@ -114,6 +114,7 @@ enum powerpc_mmu_t {
     POWERPC_MMU_601        = 0x0000000A,
 #if defined(TARGET_PPC64)
 #define POWERPC_MMU_64       0x00010000
+#define POWERPC_MMU_1TSEG    0x00020000
     /* 64 bits PowerPC MMU                                     */
     POWERPC_MMU_64B        = POWERPC_MMU_64 | 0x00000001,
     /* 620 variant (no segment exceptions)                     */
@@ -382,9 +383,11 @@ struct ppc_slb_t {
 
 /* Bits in the SLB VSID word */
 #define SLB_VSID_SHIFT          12
+#define SLB_VSID_SHIFT_1T       24
 #define SLB_VSID_SSIZE_SHIFT    62
 #define SLB_VSID_B              0xc000000000000000ULL
 #define SLB_VSID_B_256M         0x0000000000000000ULL
+#define SLB_VSID_B_1T           0x4000000000000000ULL
 #define SLB_VSID_VSID           0x3FFFFFFFFFFFF000ULL
 #define SLB_VSID_PTEM           (SLB_VSID_B | SLB_VSID_VSID)
 #define SLB_VSID_KS             0x0000000000000800ULL
@@ -397,6 +400,10 @@ struct ppc_slb_t {
 
 #define SEGMENT_SHIFT_256M      28
 #define SEGMENT_MASK_256M       (~((1ULL << SEGMENT_SHIFT_256M) - 1))
+
+#define SEGMENT_SHIFT_1T        40
+#define SEGMENT_MASK_1T         (~((1ULL << SEGMENT_SHIFT_1T) - 1))
+
 
 /*****************************************************************************/
 /* Machine state register bits definition                                    */

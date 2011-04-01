@@ -675,19 +675,26 @@ static inline int find_pte(CPUState *env, mmu_ctx_t *ctx, int h, int rw,
 #if defined(TARGET_PPC64)
 static inline ppc_slb_t *slb_lookup(CPUPPCState *env, target_ulong eaddr)
 {
-    uint64_t esid;
+    uint64_t esid_256M, esid_1T;
     int n;
 
     LOG_SLB("%s: eaddr " TARGET_FMT_lx "\n", __func__, eaddr);
 
-    esid = (eaddr & SEGMENT_MASK_256M) | SLB_ESID_V;
+    esid_256M = (eaddr & SEGMENT_MASK_256M) | SLB_ESID_V;
+    esid_1T = (eaddr & SEGMENT_MASK_1T) | SLB_ESID_V;
 
     for (n = 0; n < env->slb_nr; n++) {
         ppc_slb_t *slb = &env->slb[n];
 
         LOG_SLB("%s: slot %d %016" PRIx64 " %016"
                     PRIx64 "\n", __func__, n, slb->esid, slb->vsid);
-        if (slb->esid == esid) {
+        /* We check for 1T matches on all MMUs here - if the MMU
+         * doesn't have 1T segment support, we will have prevented 1T
+         * entries from being inserted in the slbmte code. */
+        if (((slb->esid == esid_256M) &&
+             ((slb->vsid & SLB_VSID_B) == SLB_VSID_B_256M))
+            || ((slb->esid == esid_1T) &&
+                ((slb->vsid & SLB_VSID_B) == SLB_VSID_B_1T))) {
             return slb;
         }
     }
@@ -740,14 +747,20 @@ void ppc_slb_invalidate_one (CPUPPCState *env, uint64_t T0)
 int ppc_store_slb (CPUPPCState *env, target_ulong rb, target_ulong rs)
 {
     int slot = rb & 0xfff;
-    uint64_t esid = rb & ~0xfff;
     ppc_slb_t *slb = &env->slb[slot];
 
-    if (slot >= env->slb_nr) {
-        return -1;
+    if (rb & (0x1000 - env->slb_nr)) {
+        return -1; /* Reserved bits set or slot too high */
+    }
+    if (rs & (SLB_VSID_B & ~SLB_VSID_B_1T)) {
+        return -1; /* Bad segment size */
+    }
+    if ((rs & SLB_VSID_B) && !(env->mmu_model & POWERPC_MMU_1TSEG)) {
+        return -1; /* 1T segment on MMU that doesn't support it */
     }
 
-    slb->esid = esid;
+    /* Mask out the slot number as we store the entry */
+    slb->esid = rb & (SLB_ESID_ESID | SLB_ESID_V);
     slb->vsid = rs;
 
     LOG_SLB("%s: %d " TARGET_FMT_lx " - " TARGET_FMT_lx " => %016" PRIx64
@@ -799,6 +812,7 @@ static inline int get_segment(CPUState *env, mmu_ctx_t *ctx,
     if (env->mmu_model & POWERPC_MMU_64) {
         ppc_slb_t *slb;
         target_ulong pageaddr;
+        int segment_bits;
 
         LOG_MMU("Check SLBs\n");
         slb = slb_lookup(env, eaddr);
@@ -806,7 +820,14 @@ static inline int get_segment(CPUState *env, mmu_ctx_t *ctx,
             return -5;
         }
 
-        vsid = (slb->vsid & SLB_VSID_VSID) >> SLB_VSID_SHIFT;
+        if (slb->vsid & SLB_VSID_B) {
+            vsid = (slb->vsid & SLB_VSID_VSID) >> SLB_VSID_SHIFT_1T;
+            segment_bits = 40;
+        } else {
+            vsid = (slb->vsid & SLB_VSID_VSID) >> SLB_VSID_SHIFT;
+            segment_bits = 28;
+        }
+
         target_page_bits = (slb->vsid & SLB_VSID_L)
             ? TARGET_PAGE_BITS_16M : TARGET_PAGE_BITS;
         ctx->key = !!(pr ? (slb->vsid & SLB_VSID_KP)
@@ -814,11 +835,16 @@ static inline int get_segment(CPUState *env, mmu_ctx_t *ctx,
         ds = 0;
         ctx->nx = !!(slb->vsid & SLB_VSID_N);
 
-        pageaddr = eaddr & ((1ULL << 28) - (1ULL << target_page_bits));
-        /* XXX: this is false for 1 TB segments */
-        hash = vsid ^ (pageaddr >> target_page_bits);
+        pageaddr = eaddr & ((1ULL << segment_bits)
+                            - (1ULL << target_page_bits));
+        if (slb->vsid & SLB_VSID_B) {
+            hash = vsid ^ (vsid << 25) ^ (pageaddr >> target_page_bits);
+        } else {
+            hash = vsid ^ (pageaddr >> target_page_bits);
+        }
         /* Only 5 bits of the page index are used in the AVPN */
-        ctx->ptem = (slb->vsid & SLB_VSID_PTEM) | ((pageaddr >> 16) & 0x0F80);
+        ctx->ptem = (slb->vsid & SLB_VSID_PTEM) |
+            ((pageaddr >> 16) & ((1ULL << segment_bits) - 0x80));
     } else
 #endif /* defined(TARGET_PPC64) */
     {
