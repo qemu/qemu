@@ -774,6 +774,32 @@ int ppc_store_slb (CPUPPCState *env, target_ulong rb, target_ulong rs)
 
     return 0;
 }
+
+int ppc_load_slb_esid (CPUPPCState *env, target_ulong rb, target_ulong *rt)
+{
+    int slot = rb & 0xfff;
+    ppc_slb_t *slb = &env->slb[slot];
+
+    if (slot >= env->slb_nr) {
+        return -1;
+    }
+
+    *rt = slb->esid;
+    return 0;
+}
+
+int ppc_load_slb_vsid (CPUPPCState *env, target_ulong rb, target_ulong *rt)
+{
+    int slot = rb & 0xfff;
+    ppc_slb_t *slb = &env->slb[slot];
+
+    if (slot >= env->slb_nr) {
+        return -1;
+    }
+
+    *rt = slb->vsid;
+    return 0;
+}
 #endif /* defined(TARGET_PPC64) */
 
 /* Perform segment based translation */

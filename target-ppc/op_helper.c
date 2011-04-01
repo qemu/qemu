@@ -3753,6 +3753,26 @@ void helper_store_slb (target_ulong rb, target_ulong rs)
     }
 }
 
+target_ulong helper_load_slb_esid (target_ulong rb)
+{
+    target_ulong rt;
+
+    if (ppc_load_slb_esid(env, rb, &rt) < 0) {
+        helper_raise_exception_err(POWERPC_EXCP_PROGRAM, POWERPC_EXCP_INVAL);
+    }
+    return rt;
+}
+
+target_ulong helper_load_slb_vsid (target_ulong rb)
+{
+    target_ulong rt;
+
+    if (ppc_load_slb_vsid(env, rb, &rt) < 0) {
+        helper_raise_exception_err(POWERPC_EXCP_PROGRAM, POWERPC_EXCP_INVAL);
+    }
+    return rt;
+}
+
 void helper_slbia (void)
 {
     ppc_slb_invalidate_all(env);

@@ -779,6 +779,8 @@ void ppc_store_asr (CPUPPCState *env, target_ulong value);
 target_ulong ppc_load_slb (CPUPPCState *env, int slb_nr);
 target_ulong ppc_load_sr (CPUPPCState *env, int sr_nr);
 int ppc_store_slb (CPUPPCState *env, target_ulong rb, target_ulong rs);
+int ppc_load_slb_esid (CPUPPCState *env, target_ulong rb, target_ulong *rt);
+int ppc_load_slb_vsid (CPUPPCState *env, target_ulong rb, target_ulong *rt);
 #endif /* defined(TARGET_PPC64) */
 void ppc_store_sr (CPUPPCState *env, int srnum, target_ulong value);
 #endif /* !defined(CONFIG_USER_ONLY) */
