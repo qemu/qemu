@@ -28,6 +28,7 @@
 #include "hw/sysbus.h"
 #include "kvm.h"
 #include "device_tree.h"
+#include "kvm_ppc.h"
 
 #include "hw/spapr.h"
 #include "hw/spapr_vio.h"
@@ -359,6 +360,159 @@ uint64_t ldq_tce(VIOsPAPRDevice *dev, uint64_t taddr)
     return tswap64(val);
 }
 
+/*
+ * CRQ handling
+ */
+static target_ulong h_reg_crq(CPUState *env, sPAPREnvironment *spapr,
+                              target_ulong opcode, target_ulong *args)
+{
+    target_ulong reg = args[0];
+    target_ulong queue_addr = args[1];
+    target_ulong queue_len = args[2];
+    VIOsPAPRDevice *dev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
+
+    if (!dev) {
+        hcall_dprintf("h_reg_crq on non-existent unit 0x"
+                      TARGET_FMT_lx "\n", reg);
+        return H_PARAMETER;
+    }
+
+    /* We can't grok a queue size bigger than 256M for now */
+    if (queue_len < 0x1000 || queue_len > 0x10000000) {
+        hcall_dprintf("h_reg_crq, queue size too small or too big (0x%llx)\n",
+                      (unsigned long long)queue_len);
+        return H_PARAMETER;
+    }
+
+    /* Check queue alignment */
+    if (queue_addr & 0xfff) {
+        hcall_dprintf("h_reg_crq, queue not aligned (0x%llx)\n",
+                      (unsigned long long)queue_addr);
+        return H_PARAMETER;
+    }
+
+    /* Check if device supports CRQs */
+    if (!dev->crq.SendFunc) {
+        return H_NOT_FOUND;
+    }
+
+
+    /* Already a queue ? */
+    if (dev->crq.qsize) {
+        return H_RESOURCE;
+    }
+    dev->crq.qladdr = queue_addr;
+    dev->crq.qsize = queue_len;
+    dev->crq.qnext = 0;
+
+    dprintf("CRQ for dev 0x" TARGET_FMT_lx " registered at 0x"
+            TARGET_FMT_lx "/0x" TARGET_FMT_lx "\n",
+            reg, queue_addr, queue_len);
+    return H_SUCCESS;
+}
+
+static target_ulong h_free_crq(CPUState *env, sPAPREnvironment *spapr,
+                               target_ulong opcode, target_ulong *args)
+{
+    target_ulong reg = args[0];
+    VIOsPAPRDevice *dev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
+
+    if (!dev) {
+        hcall_dprintf("h_free_crq on non-existent unit 0x"
+                      TARGET_FMT_lx "\n", reg);
+        return H_PARAMETER;
+    }
+
+    dev->crq.qladdr = 0;
+    dev->crq.qsize = 0;
+    dev->crq.qnext = 0;
+
+    dprintf("CRQ for dev 0x" TARGET_FMT_lx " freed\n", reg);
+
+    return H_SUCCESS;
+}
+
+static target_ulong h_send_crq(CPUState *env, sPAPREnvironment *spapr,
+                               target_ulong opcode, target_ulong *args)
+{
+    target_ulong reg = args[0];
+    target_ulong msg_hi = args[1];
+    target_ulong msg_lo = args[2];
+    VIOsPAPRDevice *dev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
+    uint64_t crq_mangle[2];
+
+    if (!dev) {
+        hcall_dprintf("h_send_crq on non-existent unit 0x"
+                      TARGET_FMT_lx "\n", reg);
+        return H_PARAMETER;
+    }
+    crq_mangle[0] = cpu_to_be64(msg_hi);
+    crq_mangle[1] = cpu_to_be64(msg_lo);
+
+    if (dev->crq.SendFunc) {
+        return dev->crq.SendFunc(dev, (uint8_t *)crq_mangle);
+    }
+
+    return H_HARDWARE;
+}
+
+static target_ulong h_enable_crq(CPUState *env, sPAPREnvironment *spapr,
+                                 target_ulong opcode, target_ulong *args)
+{
+    target_ulong reg = args[0];
+    VIOsPAPRDevice *dev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
+
+    if (!dev) {
+        hcall_dprintf("h_enable_crq on non-existent unit 0x"
+                      TARGET_FMT_lx "\n", reg);
+        return H_PARAMETER;
+    }
+
+    return 0;
+}
+
+/* Returns negative error, 0 success, or positive: queue full */
+int spapr_vio_send_crq(VIOsPAPRDevice *dev, uint8_t *crq)
+{
+    int rc;
+    uint8_t byte;
+
+    if (!dev->crq.qsize) {
+        fprintf(stderr, "spapr_vio_send_creq on uninitialized queue\n");
+        return -1;
+    }
+
+    /* Maybe do a fast path for KVM just writing to the pages */
+    rc = spapr_tce_dma_read(dev, dev->crq.qladdr + dev->crq.qnext, &byte, 1);
+    if (rc) {
+        return rc;
+    }
+    if (byte != 0) {
+        return 1;
+    }
+
+    rc = spapr_tce_dma_write(dev, dev->crq.qladdr + dev->crq.qnext + 8,
+                             &crq[8], 8);
+    if (rc) {
+        return rc;
+    }
+
+    kvmppc_eieio();
+
+    rc = spapr_tce_dma_write(dev, dev->crq.qladdr + dev->crq.qnext, crq, 8);
+    if (rc) {
+        return rc;
+    }
+
+    dev->crq.qnext = (dev->crq.qnext + 16) % dev->crq.qsize;
+
+    if (dev->signal_state & 1) {
+        qemu_irq_pulse(dev->qirq);
+    }
+
+    return 0;
+}
+
 static int spapr_vio_busdev_init(DeviceState *qdev, DeviceInfo *qinfo)
 {
     VIOsPAPRDeviceInfo *info = (VIOsPAPRDeviceInfo *)qinfo;
@@ -430,6 +584,12 @@ VIOsPAPRBus *spapr_vio_bus_init(void)
 
     /* hcall-tce */
     spapr_register_hypercall(H_PUT_TCE, h_put_tce);
+
+    /* hcall-crq */
+    spapr_register_hypercall(H_REG_CRQ, h_reg_crq);
+    spapr_register_hypercall(H_FREE_CRQ, h_free_crq);
+    spapr_register_hypercall(H_SEND_CRQ, h_send_crq);
+    spapr_register_hypercall(H_ENABLE_CRQ, h_enable_crq);
 
     for (qinfo = device_info_list; qinfo; qinfo = qinfo->next) {
         VIOsPAPRDeviceInfo *info = (VIOsPAPRDeviceInfo *)qinfo;

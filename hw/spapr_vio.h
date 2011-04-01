@@ -32,9 +32,18 @@ enum VIOsPAPR_TCEAccess {
     SPAPR_TCE_RW = 3,
 };
 
+struct VIOsPAPRDevice;
+
 typedef struct VIOsPAPR_RTCE {
     uint64_t tce;
 } VIOsPAPR_RTCE;
+
+typedef struct VIOsPAPR_CRQ {
+    uint64_t qladdr;
+    uint32_t qsize;
+    uint32_t qnext;
+    int(*SendFunc)(struct VIOsPAPRDevice *vdev, uint8_t *crq);
+} VIOsPAPR_CRQ;
 
 typedef struct VIOsPAPRDevice {
     DeviceState qdev;
@@ -44,6 +53,7 @@ typedef struct VIOsPAPRDevice {
     target_ulong signal_state;
     uint32_t rtce_window_size;
     VIOsPAPR_RTCE *rtce_table;
+    VIOsPAPR_CRQ crq;
 } VIOsPAPRDevice;
 
 typedef struct VIOsPAPRBus {
@@ -80,6 +90,8 @@ void sth_tce(VIOsPAPRDevice *dev, uint64_t taddr, uint16_t val);
 void stw_tce(VIOsPAPRDevice *dev, uint64_t taddr, uint32_t val);
 void stq_tce(VIOsPAPRDevice *dev, uint64_t taddr, uint64_t val);
 uint64_t ldq_tce(VIOsPAPRDevice *dev, uint64_t taddr);
+
+int spapr_vio_send_crq(VIOsPAPRDevice *dev, uint8_t *crq);
 
 void vty_putchars(VIOsPAPRDevice *sdev, uint8_t *buf, int len);
 void spapr_vty_create(VIOsPAPRBus *bus,
