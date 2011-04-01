@@ -86,6 +86,13 @@ target_ulong helper_load_atbu (void)
     return cpu_ppc_load_atbu(env);
 }
 
+#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+target_ulong helper_load_purr (void)
+{
+    return (target_ulong)cpu_ppc_load_purr(env);
+}
+#endif
+
 target_ulong helper_load_601_rtcl (void)
 {
     return cpu_ppc601_load_rtcl(env);

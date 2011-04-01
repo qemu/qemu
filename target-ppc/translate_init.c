@@ -251,6 +251,14 @@ static void spr_write_atbu (void *opaque, int sprn, int gprn)
 {
     gen_helper_store_atbu(cpu_gpr[gprn]);
 }
+
+#if defined(TARGET_PPC64)
+__attribute__ (( unused ))
+static void spr_read_purr (void *opaque, int gprn, int sprn)
+{
+    gen_helper_load_purr(cpu_gpr[gprn]);
+}
+#endif
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
