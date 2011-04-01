@@ -672,85 +672,36 @@ static inline int find_pte(CPUState *env, mmu_ctx_t *ctx, int h, int rw,
 }
 
 #if defined(TARGET_PPC64)
-static ppc_slb_t *slb_get_entry(CPUPPCState *env, int nr)
-{
-    ppc_slb_t *retval = &env->slb[nr];
-
-#if 0 // XXX implement bridge mode?
-    if (env->spr[SPR_ASR] & 1) {
-        target_phys_addr_t sr_base;
-
-        sr_base = env->spr[SPR_ASR] & 0xfffffffffffff000;
-        sr_base += (12 * nr);
-
-        retval->tmp64 = ldq_phys(sr_base);
-        retval->tmp = ldl_phys(sr_base + 8);
-    }
-#endif
-
-    return retval;
-}
-
-static void slb_set_entry(CPUPPCState *env, int nr, ppc_slb_t *slb)
-{
-    ppc_slb_t *entry = &env->slb[nr];
-
-    if (slb == entry)
-        return;
-
-    entry->tmp64 = slb->tmp64;
-    entry->tmp = slb->tmp;
-}
-
-static inline int slb_is_valid(ppc_slb_t *slb)
-{
-    return (int)(slb->tmp64 & 0x0000000008000000ULL);
-}
-
-static inline void slb_invalidate(ppc_slb_t *slb)
-{
-    slb->tmp64 &= ~0x0000000008000000ULL;
-}
-
 static inline int slb_lookup(CPUPPCState *env, target_ulong eaddr,
                              target_ulong *vsid, target_ulong *page_mask,
                              int *attr, int *target_page_bits)
 {
-    target_ulong mask;
-    int n, ret;
+    uint64_t esid;
+    int n;
 
-    ret = -5;
     LOG_SLB("%s: eaddr " TARGET_FMT_lx "\n", __func__, eaddr);
-    mask = 0x0000000000000000ULL; /* Avoid gcc warning */
-    for (n = 0; n < env->slb_nr; n++) {
-        ppc_slb_t *slb = slb_get_entry(env, n);
 
-        LOG_SLB("%s: seg %d %016" PRIx64 " %08"
-                    PRIx32 "\n", __func__, n, slb->tmp64, slb->tmp);
-        if (slb_is_valid(slb)) {
-            /* SLB entry is valid */
-            mask = 0xFFFFFFFFF0000000ULL;
-            if (slb->tmp & 0x8) {
-                /* 16 MB PTEs */
-                if (target_page_bits)
-                    *target_page_bits = 24;
-            } else {
-                /* 4 KB PTEs */
-                if (target_page_bits)
-                    *target_page_bits = TARGET_PAGE_BITS;
+    esid = (eaddr & SEGMENT_MASK_256M) | SLB_ESID_V;
+
+    for (n = 0; n < env->slb_nr; n++) {
+        ppc_slb_t *slb = &env->slb[n];
+
+        LOG_SLB("%s: slot %d %016" PRIx64 " %016"
+                    PRIx64 "\n", __func__, n, slb->esid, slb->vsid);
+        if (slb->esid == esid) {
+            *vsid = (slb->vsid & SLB_VSID_VSID) >> SLB_VSID_SHIFT;
+            *page_mask = ~SEGMENT_MASK_256M;
+            *attr = slb->vsid & SLB_VSID_ATTR;
+            if (target_page_bits) {
+                *target_page_bits = (slb->vsid & SLB_VSID_L)
+                    ? TARGET_PAGE_BITS_16M
+                    : TARGET_PAGE_BITS;
             }
-            if ((eaddr & mask) == (slb->tmp64 & mask)) {
-                /* SLB match */
-                *vsid = ((slb->tmp64 << 24) | (slb->tmp >> 8)) & 0x0003FFFFFFFFFFFFULL;
-                *page_mask = ~mask;
-                *attr = slb->tmp & 0xFF;
-                ret = n;
-                break;
-            }
+            return n;
         }
     }
 
-    return ret;
+    return -5;
 }
 
 void ppc_slb_invalidate_all (CPUPPCState *env)
@@ -760,11 +711,10 @@ void ppc_slb_invalidate_all (CPUPPCState *env)
     do_invalidate = 0;
     /* XXX: Warning: slbia never invalidates the first segment */
     for (n = 1; n < env->slb_nr; n++) {
-        ppc_slb_t *slb = slb_get_entry(env, n);
+        ppc_slb_t *slb = &env->slb[n];
 
-        if (slb_is_valid(slb)) {
-            slb_invalidate(slb);
-            slb_set_entry(env, n, slb);
+        if (slb->esid & SLB_ESID_V) {
+            slb->esid &= ~SLB_ESID_V;
             /* XXX: given the fact that segment size is 256 MB or 1TB,
              *      and we still don't have a tlb_flush_mask(env, n, mask)
              *      in Qemu, we just invalidate all TLBs
@@ -781,68 +731,44 @@ void ppc_slb_invalidate_one (CPUPPCState *env, uint64_t T0)
     target_ulong vsid, page_mask;
     int attr;
     int n;
-
-    n = slb_lookup(env, T0, &vsid, &page_mask, &attr, NULL);
-    if (n >= 0) {
-        ppc_slb_t *slb = slb_get_entry(env, n);
-
-        if (slb_is_valid(slb)) {
-            slb_invalidate(slb);
-            slb_set_entry(env, n, slb);
-            /* XXX: given the fact that segment size is 256 MB or 1TB,
-             *      and we still don't have a tlb_flush_mask(env, n, mask)
-             *      in Qemu, we just invalidate all TLBs
-             */
-            tlb_flush(env, 1);
-        }
-    }
-}
-
-target_ulong ppc_load_slb (CPUPPCState *env, int slb_nr)
-{
-    target_ulong rt;
-    ppc_slb_t *slb = slb_get_entry(env, slb_nr);
-
-    if (slb_is_valid(slb)) {
-        /* SLB entry is valid */
-        /* Copy SLB bits 62:88 to Rt 37:63 (VSID 23:49) */
-        rt = slb->tmp >> 8;             /* 65:88 => 40:63 */
-        rt |= (slb->tmp64 & 0x7) << 24; /* 62:64 => 37:39 */
-        /* Copy SLB bits 89:92 to Rt 33:36 (KsKpNL) */
-        rt |= ((slb->tmp >> 4) & 0xF) << 27;
-    } else {
-        rt = 0;
-    }
-    LOG_SLB("%s: %016" PRIx64 " %08" PRIx32 " => %d "
-            TARGET_FMT_lx "\n", __func__, slb->tmp64, slb->tmp, slb_nr, rt);
-
-    return rt;
-}
-
-void ppc_store_slb (CPUPPCState *env, target_ulong rb, target_ulong rs)
-{
     ppc_slb_t *slb;
 
-    uint64_t vsid;
-    uint64_t esid;
-    int flags, valid, slb_nr;
+    n = slb_lookup(env, T0, &vsid, &page_mask, &attr, NULL);
+    if (n < 0) {
+        return;
+    }
 
-    vsid = rs >> 12;
-    flags = ((rs >> 8) & 0xf);
+    slb = &env->slb[n];
 
-    esid = rb >> 28;
-    valid = (rb & (1 << 27));
-    slb_nr = rb & 0xfff;
+    if (slb->esid & SLB_ESID_V) {
+        slb->esid &= ~SLB_ESID_V;
 
-    slb = slb_get_entry(env, slb_nr);
-    slb->tmp64 = (esid << 28) | valid | (vsid >> 24);
-    slb->tmp = (vsid << 8) | (flags << 3);
+        /* XXX: given the fact that segment size is 256 MB or 1TB,
+         *      and we still don't have a tlb_flush_mask(env, n, mask)
+         *      in Qemu, we just invalidate all TLBs
+         */
+        tlb_flush(env, 1);
+    }
+}
+
+int ppc_store_slb (CPUPPCState *env, target_ulong rb, target_ulong rs)
+{
+    int slot = rb & 0xfff;
+    uint64_t esid = rb & ~0xfff;
+    ppc_slb_t *slb = &env->slb[slot];
+
+    if (slot >= env->slb_nr) {
+        return -1;
+    }
+
+    slb->esid = esid;
+    slb->vsid = rs;
 
     LOG_SLB("%s: %d " TARGET_FMT_lx " - " TARGET_FMT_lx " => %016" PRIx64
-            " %08" PRIx32 "\n", __func__, slb_nr, rb, rs, slb->tmp64,
-            slb->tmp);
+            " %016" PRIx64 "\n", __func__, slot, rb, rs,
+            slb->esid, slb->vsid);
 
-    slb_set_entry(env, slb_nr, slb);
+    return 0;
 }
 #endif /* defined(TARGET_PPC64) */
 
@@ -860,24 +786,22 @@ static inline int get_segment(CPUState *env, mmu_ctx_t *ctx,
 {
     target_phys_addr_t sdr, hash, mask, sdr_mask, htab_mask;
     target_ulong sr, vsid, vsid_mask, pgidx, page_mask;
-#if defined(TARGET_PPC64)
-    int attr;
-#endif
     int ds, vsid_sh, sdr_sh, pr, target_page_bits;
     int ret, ret2;
 
     pr = msr_pr;
 #if defined(TARGET_PPC64)
     if (env->mmu_model & POWERPC_MMU_64) {
+        int attr;
+
         LOG_MMU("Check SLBs\n");
         ret = slb_lookup(env, eaddr, &vsid, &page_mask, &attr,
                          &target_page_bits);
         if (ret < 0)
             return ret;
-        ctx->key = ((attr & 0x40) && (pr != 0)) ||
-            ((attr & 0x80) && (pr == 0)) ? 1 : 0;
+        ctx->key = !!(pr ? (attr & SLB_VSID_KP) : (attr & SLB_VSID_KS));
         ds = 0;
-        ctx->nx = attr & 0x10 ? 1 : 0;
+        ctx->nx = !!(attr & SLB_VSID_N);
         ctx->eaddr = eaddr;
         vsid_mask = 0x00003FFFFFFFFF80ULL;
         vsid_sh = 7;

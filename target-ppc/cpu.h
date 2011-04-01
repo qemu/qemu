@@ -43,6 +43,8 @@
 # define TARGET_VIRT_ADDR_SPACE_BITS 64
 #endif
 
+#define TARGET_PAGE_BITS_16M 24
+
 #else /* defined (TARGET_PPC64) */
 /* PowerPC 32 definitions */
 #define TARGET_LONG_BITS 32
@@ -359,9 +361,30 @@ union ppc_tlb_t {
 
 typedef struct ppc_slb_t ppc_slb_t;
 struct ppc_slb_t {
-    uint64_t tmp64;
-    uint32_t tmp;
+    uint64_t esid;
+    uint64_t vsid;
 };
+
+/* Bits in the SLB ESID word */
+#define SLB_ESID_ESID           0xFFFFFFFFF0000000ULL
+#define SLB_ESID_V              0x0000000008000000ULL /* valid */
+
+/* Bits in the SLB VSID word */
+#define SLB_VSID_SHIFT          12
+#define SLB_VSID_SSIZE_SHIFT    62
+#define SLB_VSID_B              0xc000000000000000ULL
+#define SLB_VSID_B_256M         0x0000000000000000ULL
+#define SLB_VSID_VSID           0x3FFFFFFFFFFFF000ULL
+#define SLB_VSID_KS             0x0000000000000800ULL
+#define SLB_VSID_KP             0x0000000000000400ULL
+#define SLB_VSID_N              0x0000000000000200ULL /* no-execute */
+#define SLB_VSID_L              0x0000000000000100ULL
+#define SLB_VSID_C              0x0000000000000080ULL /* class */
+#define SLB_VSID_LP             0x0000000000000030ULL
+#define SLB_VSID_ATTR           0x0000000000000FFFULL
+
+#define SEGMENT_SHIFT_256M      28
+#define SEGMENT_MASK_256M       (~((1ULL << SEGMENT_SHIFT_256M) - 1))
 
 /*****************************************************************************/
 /* Machine state register bits definition                                    */
@@ -755,7 +778,7 @@ void ppc_store_sdr1 (CPUPPCState *env, target_ulong value);
 void ppc_store_asr (CPUPPCState *env, target_ulong value);
 target_ulong ppc_load_slb (CPUPPCState *env, int slb_nr);
 target_ulong ppc_load_sr (CPUPPCState *env, int sr_nr);
-void ppc_store_slb (CPUPPCState *env, target_ulong rb, target_ulong rs);
+int ppc_store_slb (CPUPPCState *env, target_ulong rb, target_ulong rs);
 #endif /* defined(TARGET_PPC64) */
 void ppc_store_sr (CPUPPCState *env, int srnum, target_ulong value);
 #endif /* !defined(CONFIG_USER_ONLY) */
