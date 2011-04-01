@@ -34,6 +34,7 @@
 
 #include "hw/spapr.h"
 #include "hw/spapr_vio.h"
+#include "hw/xics.h"
 
 #include <libfdt.h>
 
@@ -45,6 +46,7 @@
 #define TIMEBASE_FREQ           512000000ULL
 
 #define MAX_CPUS                32
+#define XICS_IRQS		1024
 
 sPAPREnvironment *spapr;
 
@@ -64,6 +66,7 @@ static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
     uint32_t end_prop = cpu_to_be32(initrd_base + initrd_size);
     uint32_t pft_size_prop[] = {0, cpu_to_be32(hash_shift)};
     char hypertas_prop[] = "hcall-pft\0hcall-term\0hcall-dabr";
+    uint32_t interrupt_server_ranges_prop[] = {0, cpu_to_be32(smp_cpus)};
     int i;
     char *modelname;
     int ret;
@@ -125,6 +128,7 @@ static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
 
     for (i = 0; i < smp_cpus; i++) {
         CPUState *env = envs[i];
+        uint32_t gserver_prop[] = {cpu_to_be32(i), 0}; /* HACK! */
         char *nodename;
         uint32_t segs[] = {cpu_to_be32(28), cpu_to_be32(40),
                            0xffffffff, 0xffffffff};
@@ -155,6 +159,9 @@ static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
                            pft_size_prop, sizeof(pft_size_prop))));
         _FDT((fdt_property_string(fdt, "status", "okay")));
         _FDT((fdt_property(fdt, "64-bit", NULL, 0)));
+        _FDT((fdt_property_cell(fdt, "ibm,ppc-interrupt-server#s", i)));
+        _FDT((fdt_property(fdt, "ibm,ppc-interrupt-gserver#s",
+                           gserver_prop, sizeof(gserver_prop))));
 
         if (envs[i]->mmu_model & POWERPC_MMU_1TSEG) {
             _FDT((fdt_property(fdt, "ibm,processor-segment-sizes",
@@ -176,6 +183,20 @@ static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
 
     _FDT((fdt_end_node(fdt)));
 
+    /* interrupt controller */
+    _FDT((fdt_begin_node(fdt, "interrupt-controller@0")));
+
+    _FDT((fdt_property_string(fdt, "device_type",
+                              "PowerPC-External-Interrupt-Presentation")));
+    _FDT((fdt_property_string(fdt, "compatible", "IBM,ppc-xicp")));
+    _FDT((fdt_property_cell(fdt, "reg", 0)));
+    _FDT((fdt_property(fdt, "interrupt-controller", NULL, 0)));
+    _FDT((fdt_property(fdt, "ibm,interrupt-server-ranges",
+                       interrupt_server_ranges_prop,
+                       sizeof(interrupt_server_ranges_prop))));
+
+    _FDT((fdt_end_node(fdt)));
+
     /* vdevice */
     _FDT((fdt_begin_node(fdt, "vdevice")));
 
@@ -183,6 +204,8 @@ static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
     _FDT((fdt_property_string(fdt, "compatible", "IBM,vdevice")));
     _FDT((fdt_property_cell(fdt, "#address-cells", 0x1)));
     _FDT((fdt_property_cell(fdt, "#size-cells", 0x0)));
+    _FDT((fdt_property_cell(fdt, "#interrupt-cells", 0x2)));
+    _FDT((fdt_property(fdt, "interrupt-controller", NULL, 0)));
 
     _FDT((fdt_end_node(fdt)));
 
@@ -296,6 +319,10 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     }
     qemu_free(filename);
 
+    /* Set up Interrupt Controller */
+    spapr->icp = xics_system_init(smp_cpus, envs, XICS_IRQS);
+
+    /* Set up VIO bus */
     spapr->vio_bus = spapr_vio_bus_init();
 
     for (i = 0; i < MAX_SERIAL_PORTS; i++) {

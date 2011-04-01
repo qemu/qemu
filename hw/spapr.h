@@ -2,9 +2,11 @@
 #define __HW_SPAPR_H__
 
 struct VIOsPAPRBus;
+struct icp_state;
 
 typedef struct sPAPREnvironment {
     struct VIOsPAPRBus *vio_bus;
+    struct icp_state *icp;
 } sPAPREnvironment;
 
 #define H_SUCCESS         0
