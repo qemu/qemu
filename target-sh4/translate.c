@@ -302,7 +302,7 @@ static void gen_goto_tb(DisasContext * ctx, int n, target_ulong dest)
 	/* Use a direct jump if in same page and singlestep not enabled */
         tcg_gen_goto_tb(n);
         tcg_gen_movi_i32(cpu_pc, dest);
-        tcg_gen_exit_tb((long) tb + n);
+        tcg_gen_exit_tb((tcg_target_long)tb + n);
     } else {
         tcg_gen_movi_i32(cpu_pc, dest);
         if (ctx->singlestep_enabled)

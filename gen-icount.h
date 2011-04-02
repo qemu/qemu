@@ -29,7 +29,7 @@ static void gen_icount_end(TranslationBlock *tb, int num_insns)
     if (use_icount) {
         *icount_arg = num_insns;
         gen_set_label(icount_label);
-        tcg_gen_exit_tb((long)tb + 2);
+        tcg_gen_exit_tb((tcg_target_long)tb + 2);
     }
 }
 

@@ -596,7 +596,7 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
 	if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
 		tcg_gen_goto_tb(n);
 		tcg_gen_movi_tl(env_pc, dest);
-		tcg_gen_exit_tb((long)tb + n);
+                tcg_gen_exit_tb((tcg_target_long)tb + n);
 	} else {
 		tcg_gen_movi_tl(env_pc, dest);
 		tcg_gen_exit_tb(0);

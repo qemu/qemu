@@ -3347,7 +3347,7 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
         likely(!ctx->singlestep_enabled)) {
         tcg_gen_goto_tb(n);
         tcg_gen_movi_tl(cpu_nip, dest & ~3);
-        tcg_gen_exit_tb((long)tb + n);
+        tcg_gen_exit_tb((tcg_target_long)tb + n);
     } else {
         tcg_gen_movi_tl(cpu_nip, dest & ~3);
         if (unlikely(ctx->singlestep_enabled)) {
