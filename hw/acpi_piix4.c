@@ -190,7 +190,8 @@ static void pm_ioport_write(IORange *ioport, uint64_t addr, unsigned width,
     default:
         break;
     }
-    PIIX4_DPRINTF("PM writew port=0x%04x val=0x%04x\n", addr, val);
+    PIIX4_DPRINTF("PM writew port=0x%04x val=0x%04x\n", (unsigned int)addr,
+                  (unsigned int)val);
 }
 
 static void pm_ioport_read(IORange *ioport, uint64_t addr, unsigned width,
@@ -216,7 +217,7 @@ static void pm_ioport_read(IORange *ioport, uint64_t addr, unsigned width,
         val = 0;
         break;
     }
-    PIIX4_DPRINTF("PM readw port=0x%04x val=0x%04x\n", addr, val);
+    PIIX4_DPRINTF("PM readw port=0x%04x val=0x%04x\n", (unsigned int)addr, val);
     *data = val;
 }
 

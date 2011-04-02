@@ -2645,6 +2645,28 @@ static void gen_neon_dup_high16(TCGv var)
     tcg_temp_free_i32(tmp);
 }
 
+static TCGv gen_load_and_replicate(DisasContext *s, TCGv addr, int size)
+{
+    /* Load a single Neon element and replicate into a 32 bit TCG reg */
+    TCGv tmp;
+    switch (size) {
+    case 0:
+        tmp = gen_ld8u(addr, IS_USER(s));
+        gen_neon_dup_u8(tmp, 0);
+        break;
+    case 1:
+        tmp = gen_ld16u(addr, IS_USER(s));
+        gen_neon_dup_low16(tmp);
+        break;
+    case 2:
+        tmp = gen_ld32(addr, IS_USER(s));
+        break;
+    default: /* Avoid compiler warnings.  */
+        abort();
+    }
+    return tmp;
+}
+
 /* Disassemble a VFP instruction.  Returns nonzero if an error occured
    (ie. an undefined instruction).  */
 static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
@@ -3785,7 +3807,6 @@ static int disas_neon_ls_insn(CPUState * env, DisasContext *s, uint32_t insn)
     rn = (insn >> 16) & 0xf;
     rm = insn & 0xf;
     load = (insn & (1 << 21)) != 0;
-    addr = tcg_temp_new_i32();
     if ((insn & (1 << 23)) == 0) {
         /* Load store all elements.  */
         op = (insn >> 8) & 0xf;
@@ -3797,6 +3818,7 @@ static int disas_neon_ls_insn(CPUState * env, DisasContext *s, uint32_t insn)
         spacing = neon_ls_element_type[op].spacing;
         if (size == 3 && (interleave | spacing) != 1)
             return 1;
+        addr = tcg_temp_new_i32();
         load_reg_var(s, addr, rn);
         stride = (1 << size) * interleave;
         for (reg = 0; reg < nregs; reg++) {
@@ -3882,42 +3904,57 @@ static int disas_neon_ls_insn(CPUState * env, DisasContext *s, uint32_t insn)
             }
             rd += spacing;
         }
+        tcg_temp_free_i32(addr);
         stride = nregs * 8;
     } else {
         size = (insn >> 10) & 3;
         if (size == 3) {
             /* Load single element to all lanes.  */
-            if (!load)
+            int a = (insn >> 4) & 1;
+            if (!load) {
                 return 1;
+            }
             size = (insn >> 6) & 3;
             nregs = ((insn >> 8) & 3) + 1;
-            stride = (insn & (1 << 5)) ? 2 : 1;
-            load_reg_var(s, addr, rn);
-            for (reg = 0; reg < nregs; reg++) {
-                switch (size) {
-                case 0:
-                    tmp = gen_ld8u(addr, IS_USER(s));
-                    gen_neon_dup_u8(tmp, 0);
-                    break;
-                case 1:
-                    tmp = gen_ld16u(addr, IS_USER(s));
-                    gen_neon_dup_low16(tmp);
-                    break;
-                case 2:
-                    tmp = gen_ld32(addr, IS_USER(s));
-                    break;
-                case 3:
+
+            if (size == 3) {
+                if (nregs != 4 || a == 0) {
                     return 1;
-                default: /* Avoid compiler warnings.  */
-                    abort();
                 }
-                tcg_gen_addi_i32(addr, addr, 1 << size);
-                tmp2 = tcg_temp_new_i32();
-                tcg_gen_mov_i32(tmp2, tmp);
-                neon_store_reg(rd, 0, tmp2);
-                neon_store_reg(rd, 1, tmp);
-                rd += stride;
+                /* For VLD4 size==3 a == 1 means 32 bits at 16 byte alignment */
+                size = 2;
             }
+            if (nregs == 1 && a == 1 && size == 0) {
+                return 1;
+            }
+            if (nregs == 3 && a == 1) {
+                return 1;
+            }
+            addr = tcg_temp_new_i32();
+            load_reg_var(s, addr, rn);
+            if (nregs == 1) {
+                /* VLD1 to all lanes: bit 5 indicates how many Dregs to write */
+                tmp = gen_load_and_replicate(s, addr, size);
+                tcg_gen_st_i32(tmp, cpu_env, neon_reg_offset(rd, 0));
+                tcg_gen_st_i32(tmp, cpu_env, neon_reg_offset(rd, 1));
+                if (insn & (1 << 5)) {
+                    tcg_gen_st_i32(tmp, cpu_env, neon_reg_offset(rd + 1, 0));
+                    tcg_gen_st_i32(tmp, cpu_env, neon_reg_offset(rd + 1, 1));
+                }
+                tcg_temp_free_i32(tmp);
+            } else {
+                /* VLD2/3/4 to all lanes: bit 5 indicates register stride */
+                stride = (insn & (1 << 5)) ? 2 : 1;
+                for (reg = 0; reg < nregs; reg++) {
+                    tmp = gen_load_and_replicate(s, addr, size);
+                    tcg_gen_st_i32(tmp, cpu_env, neon_reg_offset(rd, 0));
+                    tcg_gen_st_i32(tmp, cpu_env, neon_reg_offset(rd, 1));
+                    tcg_temp_free_i32(tmp);
+                    tcg_gen_addi_i32(addr, addr, 1 << size);
+                    rd += stride;
+                }
+            }
+            tcg_temp_free_i32(addr);
             stride = (1 << size) * nregs;
         } else {
             /* Single element.  */
@@ -3939,6 +3976,7 @@ static int disas_neon_ls_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 abort();
             }
             nregs = ((insn >> 8) & 3) + 1;
+            addr = tcg_temp_new_i32();
             load_reg_var(s, addr, rn);
             for (reg = 0; reg < nregs; reg++) {
                 if (load) {
@@ -3980,10 +4018,10 @@ static int disas_neon_ls_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 rd += stride;
                 tcg_gen_addi_i32(addr, addr, 1 << size);
             }
+            tcg_temp_free_i32(addr);
             stride = nregs * (1 << size);
         }
     }
-    tcg_temp_free_i32(addr);
     if (rm != 15) {
         TCGv base;
 
