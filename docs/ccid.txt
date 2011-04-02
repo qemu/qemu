@@ -1,0 +1,135 @@
+Qemu CCID Device Documentation.
+
+Contents
+1. USB CCID device
+2. Building
+3. Using ccid-card-emulated with hardware
+4. Using ccid-card-emulated with certificates
+5. Using ccid-card-passthru with client side hardware
+6. Using ccid-card-passthru with client side certificates
+7. Passthrough protocol scenario
+8. libcacard
+
+1. USB CCID device
+
+The USB CCID device is a USB device implementing the CCID specification, which
+lets one connect smart card readers that implement the same spec. For more
+information see the specification:
+
+ Universal Serial Bus
+ Device Class: Smart Card
+ CCID
+ Specification for
+ Integrated Circuit(s) Cards Interface Devices
+ Revision 1.1
+ April 22rd, 2005
+
+Smartcard are used for authentication, single sign on, decryption in
+public/private schemes and digital signatures. A smartcard reader on the client
+cannot be used on a guest with simple usb passthrough since it will then not be
+available on the client, possibly locking the computer when it is "removed". On
+the other hand this device can let you use the smartcard on both the client and
+the guest machine. It is also possible to have a completely virtual smart card
+reader and smart card (i.e. not backed by a physical device) using this device.
+
+2. Building
+
+The cryptographic functions and access to the physical card is done via NSS.
+
+Installing NSS:
+
+In redhat/fedora:
+    yum install nss-devel
+In ubuntu/debian:
+    apt-get install libnss3-dev
+    (not tested on ubuntu)
+
+Configuring and building:
+    ./configure --enable-smartcard && make
+
+3. Using ccid-card-emulated with hardware
+
+Assuming you have a working smartcard on the host with the current
+user, using NSS, qemu acts as another NSS client using ccid-card-emulated:
+
+    qemu -usb -device usb-ccid -device ccid-card-emualated
+
+4. Using ccid-card-emulated with certificates
+
+You must create the certificates. This is a one time process. We use NSS
+certificates:
+
+    certutil -d /etc/pki/nssdb -x -t "CT,CT,CT" -S -s "CN=cert1" -n cert1
+
+Note: you must have exactly three certificates.
+
+Assuming the current user can access the certificates (use certutil -L to
+verify), you can use the emulated card type with the certificates backend:
+
+    qemu -usb -device usb-ccid -device ccid-card-emulated,backend=certificates,cert1=cert1,cert2=cert2,cert3=cert3
+
+5. Using ccid-card-passthru with client side hardware
+
+on the host specify the ccid-card-passthru device with a suitable chardev:
+
+    qemu -chardev socket,server,host=0.0.0.0,port=2001,id=ccid,nowait -usb -device usb-ccid -device ccid-card-passthru,chardev=ccid
+
+on the client run vscclient, built when you built the libcacard library:
+    libcacard/vscclient <qemu-host> 2001
+
+6. Using ccid-card-passthru with client side certificates
+
+Run qemu as per #5, and run vscclient as follows:
+(Note: vscclient command line interface is in a state of change)
+
+    libcacard/vscclient -e "db=\"/etc/pki/nssdb\" use_hw=no soft=(,Test,CAC,,cert1,cert2,cert3)" <qemu-host> 2001
+
+7. Passthrough protocol scenario
+
+This is a typical interchange of messages when using the passthru card device.
+usb-ccid is a usb device. It defaults to an unattached usb device on startup.
+usb-ccid expects a chardev and expects the protocol defined in
+cac_card/vscard_common.h to be passed over that.
+The usb-ccid device can be in one of three modes:
+ * detached
+ * attached with no card
+ * attached with card
+
+A typical interchange is: (the arrow shows who started each exchange, it can be client
+originated or guest originated)
+
+client event      |      vscclient           |    passthru    |     usb-ccid  |  guest event
+----------------------------------------------------------------------------------------------
+                  |      VSC_Init            |                |               |
+                  |      VSC_ReaderAdd       |                |     attach    |
+                  |                          |                |               |  sees new usb device.
+card inserted ->  |                          |                |               |
+                  |      VSC_ATR             |   insert       |     insert    |  see new card
+                  |                          |                |               |
+                  |      VSC_APDU            |   VSC_APDU     |               | <- guest sends APDU
+client<->physical |                          |                |               |
+card APDU exchange|                          |                |               |
+client response ->|      VSC_APDU            |   VSC_APDU     |               |  receive APDU response
+                                                    ...
+                                    [APDU<->APDU repeats several times]
+                                                    ...
+card removed  ->  |                          |                |               |
+                  |      VSC_CardRemove      |   remove       |    remove     |   card removed
+                                                    ...
+                                    [(card insert, apdu's, card remove) repeat]
+                                                    ...
+kill/quit         |                          |                |               |
+  vscclient       |                          |                |               |
+                  |      VSC_ReaderRemove    |                |    detach     |
+                  |                          |                |               |   usb device removed.
+
+
+8. libcacard
+
+ccid-card-passthru and vscclient use libcacard as the card emulator.
+libcacard implements a completely virtual CAC (DoD standard for smart cards)
+compliant card and uses NSS to actually retrive certificates and do any
+encryption using the backend (real reader + card or file backed certificates).
+
+For documentation of cac_card see README in libcacard subdirectory.
+
