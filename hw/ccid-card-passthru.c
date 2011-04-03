@@ -8,9 +8,8 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include <arpa/inet.h>
-
 #include "qemu-char.h"
+#include "qemu_socket.h"
 #include "monitor.h"
 #include "hw/ccid.h"
 #include "libcacard/vscard_common.h"
