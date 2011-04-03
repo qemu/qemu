@@ -108,6 +108,7 @@ static const USBDescDevice desc_device_wacom = {
             .bConfigurationValue   = 1,
             .bmAttributes          = 0x80,
             .bMaxPower             = 40,
+            .nif = 1,
             .ifs = &desc_iface_wacom,
         },
     },

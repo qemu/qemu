@@ -146,6 +146,7 @@ static const USBDescDevice desc_device = {
             .bConfigurationValue   = 1,
             .bmAttributes          = 0x80,
             .bMaxPower             = 50,
+            .nif = 1,
             .ifs = &desc_iface0,
         },
     },

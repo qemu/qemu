@@ -119,6 +119,7 @@ static const USBDescDevice desc_device_hub = {
             .bNumInterfaces        = 1,
             .bConfigurationValue   = 1,
             .bmAttributes          = 0xe0,
+            .nif = 1,
             .ifs = &desc_iface_hub,
         },
     },
