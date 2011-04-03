@@ -91,6 +91,18 @@ int usb_desc_config(const USBDescConfig *conf, uint8_t *dest, size_t len)
     dest[0x08] = conf->bMaxPower;
     wTotalLength += bLength;
 
+    /* handle grouped interfaces if any*/
+    for (i = 0; i < conf->nif_groups; i++) {
+        rc = usb_desc_iface_group(&(conf->if_groups[i]),
+                                  dest + wTotalLength,
+                                  len - wTotalLength);
+        if (rc < 0) {
+            return rc;
+        }
+        wTotalLength += rc;
+    }
+
+    /* handle normal (ungrouped / no IAD) interfaces if any */
     for (i = 0; i < conf->nif; i++) {
         rc = usb_desc_iface(conf->ifs + i, dest + wTotalLength, len - wTotalLength);
         if (rc < 0) {
@@ -102,6 +114,41 @@ int usb_desc_config(const USBDescConfig *conf, uint8_t *dest, size_t len)
     dest[0x02] = usb_lo(wTotalLength);
     dest[0x03] = usb_hi(wTotalLength);
     return wTotalLength;
+}
+
+int usb_desc_iface_group(const USBDescIfaceAssoc *iad, uint8_t *dest,
+                         size_t len)
+{
+    int pos = 0;
+    int i = 0;
+
+    /* handle interface association descriptor */
+    uint8_t bLength = 0x08;
+
+    if (len < bLength) {
+        return -1;
+    }
+
+    dest[0x00] = bLength;
+    dest[0x01] = USB_DT_INTERFACE_ASSOC;
+    dest[0x02] = iad->bFirstInterface;
+    dest[0x03] = iad->bInterfaceCount;
+    dest[0x04] = iad->bFunctionClass;
+    dest[0x05] = iad->bFunctionSubClass;
+    dest[0x06] = iad->bFunctionProtocol;
+    dest[0x07] = iad->iFunction;
+    pos += bLength;
+
+    /* handle associated interfaces in this group */
+    for (i = 0; i < iad->nif; i++) {
+        int rc = usb_desc_iface(&(iad->ifs[i]), dest + pos, len - pos);
+        if (rc < 0) {
+            return rc;
+        }
+        pos += rc;
+    }
+
+    return pos;
 }
 
 int usb_desc_iface(const USBDescIface *iface, uint8_t *dest, size_t len)

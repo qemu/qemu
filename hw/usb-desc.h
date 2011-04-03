@@ -30,6 +30,24 @@ struct USBDescConfig {
     uint8_t                   bmAttributes;
     uint8_t                   bMaxPower;
 
+    /* grouped interfaces */
+    uint8_t                   nif_groups;
+    const USBDescIfaceAssoc   *if_groups;
+
+    /* "normal" interfaces */
+    uint8_t                   nif;
+    const USBDescIface        *ifs;
+};
+
+/* conceptually an Interface Association Descriptor, and releated interfaces */
+struct USBDescIfaceAssoc {
+    uint8_t                   bFirstInterface;
+    uint8_t                   bInterfaceCount;
+    uint8_t                   bFunctionClass;
+    uint8_t                   bFunctionSubClass;
+    uint8_t                   bFunctionProtocol;
+    uint8_t                   iFunction;
+
     uint8_t                   nif;
     const USBDescIface        *ifs;
 };
@@ -75,6 +93,8 @@ int usb_desc_device(const USBDescID *id, const USBDescDevice *dev,
 int usb_desc_device_qualifier(const USBDescDevice *dev,
                               uint8_t *dest, size_t len);
 int usb_desc_config(const USBDescConfig *conf, uint8_t *dest, size_t len);
+int usb_desc_iface_group(const USBDescIfaceAssoc *iad, uint8_t *dest,
+                         size_t len);
 int usb_desc_iface(const USBDescIface *iface, uint8_t *dest, size_t len);
 int usb_desc_endpoint(const USBDescEndpoint *ep, uint8_t *dest, size_t len);
 int usb_desc_other(const USBDescOther *desc, uint8_t *dest, size_t len);

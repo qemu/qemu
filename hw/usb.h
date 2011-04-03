@@ -141,6 +141,7 @@ typedef struct USBDesc USBDesc;
 typedef struct USBDescID USBDescID;
 typedef struct USBDescDevice USBDescDevice;
 typedef struct USBDescConfig USBDescConfig;
+typedef struct USBDescIfaceAssoc USBDescIfaceAssoc;
 typedef struct USBDescIface USBDescIface;
 typedef struct USBDescEndpoint USBDescEndpoint;
 typedef struct USBDescOther USBDescOther;
