@@ -37,10 +37,6 @@ void qemu_del_vm_change_state_handler(VMChangeStateEntry *e);
 void vm_start(void);
 void vm_stop(int reason);
 
-uint64_t ram_bytes_remaining(void);
-uint64_t ram_bytes_transferred(void);
-uint64_t ram_bytes_total(void);
-
 void qemu_system_reset_request(void);
 void qemu_system_shutdown_request(void);
 void qemu_system_powerdown_request(void);
@@ -89,7 +85,6 @@ typedef enum DisplayType
 } DisplayType;
 
 extern int autostart;
-extern int incoming_expected;
 extern int bios_size;
 
 typedef enum {
