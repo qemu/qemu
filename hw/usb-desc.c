@@ -76,7 +76,7 @@ int usb_desc_config(const USBDescConfig *conf, uint8_t *dest, size_t len)
 {
     uint8_t  bLength = 0x09;
     uint16_t wTotalLength = 0;
-    int i, rc, count;
+    int i, rc;
 
     if (len < bLength) {
         return -1;
@@ -91,8 +91,7 @@ int usb_desc_config(const USBDescConfig *conf, uint8_t *dest, size_t len)
     dest[0x08] = conf->bMaxPower;
     wTotalLength += bLength;
 
-    count = conf->nif ? conf->nif : conf->bNumInterfaces;
-    for (i = 0; i < count; i++) {
+    for (i = 0; i < conf->nif; i++) {
         rc = usb_desc_iface(conf->ifs + i, dest + wTotalLength, len - wTotalLength);
         if (rc < 0) {
             return rc;
