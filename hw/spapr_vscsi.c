@@ -255,7 +255,7 @@ static int vscsi_srp_direct_data(VSCSIState *s, vscsi_req *req,
 {
     struct srp_direct_buf *md = req->cur_desc;
     uint32_t llen;
-    int rc;
+    int rc = 0;
 
     dprintf("VSCSI: direct segment 0x%x bytes, va=0x%llx desc len=0x%x\n",
             len, (unsigned long long)md->va, md->len);
