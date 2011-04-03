@@ -139,7 +139,7 @@ static int aud_to_sdlfmt (audfmt_e fmt)
     }
 }
 
-static int sdl_to_audfmt (int sdlfmt, audfmt_e *fmt, int *endianness)
+static int sdl_to_audfmt(int sdlfmt, audfmt_e *fmt, int *endianness)
 {
     switch (sdlfmt) {
     case AUDIO_S8:
@@ -354,7 +354,7 @@ static int sdl_init_out (HWVoiceOut *hw, struct audsettings *as)
         return -1;
     }
 
-    err = sdl_to_audfmt (obt.format, &effective_fmt, &endianness);
+    err = sdl_to_audfmt(obt.format, &effective_fmt, &endianness);
     if (err) {
         sdl_close (s);
         return -1;

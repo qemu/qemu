@@ -20,29 +20,6 @@
 static float_status neon_float_status;
 #define NFS &neon_float_status
 
-/* Helper routines to perform bitwise copies between float and int.  */
-static inline float32 vfp_itos(uint32_t i)
-{
-    union {
-        uint32_t i;
-        float32 s;
-    } v;
-
-    v.i = i;
-    return v.s;
-}
-
-static inline uint32_t vfp_stoi(float32 s)
-{
-    union {
-        uint32_t i;
-        float32 s;
-    } v;
-
-    v.s = s;
-    return v.i;
-}
-
 #define NEON_TYPE1(name, type) \
 typedef struct \
 { \
@@ -1795,68 +1772,71 @@ uint32_t HELPER(neon_qneg_s32)(CPUState *env, uint32_t x)
 /* NEON Float helpers.  */
 uint32_t HELPER(neon_min_f32)(uint32_t a, uint32_t b)
 {
-    float32 f0 = vfp_itos(a);
-    float32 f1 = vfp_itos(b);
-    return (float32_compare_quiet(f0, f1, NFS) == -1) ? a : b;
+    return float32_val(float32_min(make_float32(a), make_float32(b), NFS));
 }
 
 uint32_t HELPER(neon_max_f32)(uint32_t a, uint32_t b)
 {
-    float32 f0 = vfp_itos(a);
-    float32 f1 = vfp_itos(b);
-    return (float32_compare_quiet(f0, f1, NFS) == 1) ? a : b;
+    return float32_val(float32_max(make_float32(a), make_float32(b), NFS));
 }
 
 uint32_t HELPER(neon_abd_f32)(uint32_t a, uint32_t b)
 {
-    float32 f0 = vfp_itos(a);
-    float32 f1 = vfp_itos(b);
-    return vfp_stoi((float32_compare_quiet(f0, f1, NFS) == 1)
-                    ? float32_sub(f0, f1, NFS)
-                    : float32_sub(f1, f0, NFS));
+    float32 f0 = make_float32(a);
+    float32 f1 = make_float32(b);
+    return float32_val(float32_abs(float32_sub(f0, f1, NFS)));
 }
 
 uint32_t HELPER(neon_add_f32)(uint32_t a, uint32_t b)
 {
-    return vfp_stoi(float32_add(vfp_itos(a), vfp_itos(b), NFS));
+    return float32_val(float32_add(make_float32(a), make_float32(b), NFS));
 }
 
 uint32_t HELPER(neon_sub_f32)(uint32_t a, uint32_t b)
 {
-    return vfp_stoi(float32_sub(vfp_itos(a), vfp_itos(b), NFS));
+    return float32_val(float32_sub(make_float32(a), make_float32(b), NFS));
 }
 
 uint32_t HELPER(neon_mul_f32)(uint32_t a, uint32_t b)
 {
-    return vfp_stoi(float32_mul(vfp_itos(a), vfp_itos(b), NFS));
+    return float32_val(float32_mul(make_float32(a), make_float32(b), NFS));
 }
 
 /* Floating point comparisons produce an integer result.  */
-#define NEON_VOP_FCMP(name, cmp) \
+#define NEON_VOP_FCMP(name, ok) \
 uint32_t HELPER(neon_##name)(uint32_t a, uint32_t b) \
 { \
-    if (float32_compare_quiet(vfp_itos(a), vfp_itos(b), NFS) cmp 0) \
-        return ~0; \
-    else \
-        return 0; \
+    switch (float32_compare_quiet(make_float32(a), make_float32(b), NFS)) { \
+    ok return ~0; \
+    default: return 0; \
+    } \
 }
 
-NEON_VOP_FCMP(ceq_f32, ==)
-NEON_VOP_FCMP(cge_f32, >=)
-NEON_VOP_FCMP(cgt_f32, >)
+NEON_VOP_FCMP(ceq_f32, case float_relation_equal:)
+NEON_VOP_FCMP(cge_f32, case float_relation_equal: case float_relation_greater:)
+NEON_VOP_FCMP(cgt_f32, case float_relation_greater:)
 
 uint32_t HELPER(neon_acge_f32)(uint32_t a, uint32_t b)
 {
-    float32 f0 = float32_abs(vfp_itos(a));
-    float32 f1 = float32_abs(vfp_itos(b));
-    return (float32_compare_quiet(f0, f1,NFS) >= 0) ? ~0 : 0;
+    float32 f0 = float32_abs(make_float32(a));
+    float32 f1 = float32_abs(make_float32(b));
+    switch (float32_compare_quiet(f0, f1, NFS)) {
+    case float_relation_equal:
+    case float_relation_greater:
+        return ~0;
+    default:
+        return 0;
+    }
 }
 
 uint32_t HELPER(neon_acgt_f32)(uint32_t a, uint32_t b)
 {
-    float32 f0 = float32_abs(vfp_itos(a));
-    float32 f1 = float32_abs(vfp_itos(b));
-    return (float32_compare_quiet(f0, f1, NFS) > 0) ? ~0 : 0;
+    float32 f0 = float32_abs(make_float32(a));
+    float32 f1 = float32_abs(make_float32(b));
+    if (float32_compare_quiet(f0, f1, NFS) == float_relation_greater) {
+        return ~0;
+    }
+    return 0;
 }
 
 #define ELEM(V, N, SIZE) (((V) >> ((N) * (SIZE))) & ((1ull << (SIZE)) - 1))

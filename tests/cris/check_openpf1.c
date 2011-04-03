@@ -27,7 +27,7 @@ int main (int argc, char *argv[])
   f = fopen (fnam, "rb");
   if (f == NULL)
     abort ();
-  close (f);
+  fclose(f);
 
   /* Cover another execution path.  */
   if (fopen ("/nonexistent", "rb") != NULL
