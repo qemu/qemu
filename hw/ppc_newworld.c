@@ -325,20 +325,13 @@ static void ppc_core99_init (ram_addr_t ram_size,
     for(i = 0; i < nb_nics; i++)
         pci_nic_init_nofail(&nd_table[i], "ne2k_pci", NULL);
 
-    if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {
-        fprintf(stderr, "qemu: too many IDE bus\n");
-        exit(1);
-    }
+    ide_drive_get(hd, MAX_IDE_BUS);
     dbdma = DBDMA_init(&dbdma_mem_index);
 
     /* We only emulate 2 out of 3 IDE controllers for now */
     ide_mem_index[0] = -1;
-    hd[0] = drive_get(IF_IDE, 0, 0);
-    hd[1] = drive_get(IF_IDE, 0, 1);
     ide_mem_index[1] = pmac_ide_init(hd, pic[0x0d], dbdma, 0x16, pic[0x02]);
-    hd[0] = drive_get(IF_IDE, 1, 0);
-    hd[1] = drive_get(IF_IDE, 1, 1);
-    ide_mem_index[2] = pmac_ide_init(hd, pic[0x0e], dbdma, 0x1a, pic[0x02]);
+    ide_mem_index[2] = pmac_ide_init(&hd[MAX_IDE_DEVS], pic[0x0e], dbdma, 0x1a, pic[0x02]);
 
     /* cuda also initialize ADB */
     if (machine_arch == ARCH_MAC99_U3) {
