@@ -3184,6 +3184,7 @@ case "$target_arch2" in
   s390x)
     target_nptl="yes"
     target_phys_bits=64
+    target_long_alignment=8
   ;;
   *)
     echo "Unsupported target CPU"
