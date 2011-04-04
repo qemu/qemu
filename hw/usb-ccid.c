@@ -1199,7 +1199,7 @@ void ccid_card_card_error(CCIDCardState *card, uint64_t error)
 
     s->bmCommandStatus = COMMAND_STATUS_FAILED;
     s->last_answer_error = error;
-    DPRINTF(s, 1, "VSC_Error: %lX\n", s->last_answer_error);
+    DPRINTF(s, 1, "VSC_Error: %" PRIX64 "\n", s->last_answer_error);
     /* TODO: these error's should be more verbose and propogated to the guest.*/
     /*
      * We flush all pending answers on CardRemove message in ccid-card-passthru,
