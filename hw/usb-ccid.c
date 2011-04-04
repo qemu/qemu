@@ -22,7 +22,7 @@
  *  "Universal Serial Bus, Device Class: Smart Card"
  *  Specification for Integrated Circuit(s) Cards Interface Devices
  *
- * Endianess note: from the spec (1.3)
+ * Endianness note: from the spec (1.3)
  *  "Fields that are larger than a byte are stored in little endian"
  *
  * KNOWN BUGS
@@ -172,7 +172,7 @@ enum {
     CLOCK_STATUS_RUNNING = 0,
     /*
      * 0 - Clock Running, 1 - Clock stopped in State L, 2 - H,
-     * 3 - unkonwn state. rest are RFU
+     * 3 - unknown state. rest are RFU
      */
 };
 
@@ -1200,7 +1200,7 @@ void ccid_card_card_error(CCIDCardState *card, uint64_t error)
     s->bmCommandStatus = COMMAND_STATUS_FAILED;
     s->last_answer_error = error;
     DPRINTF(s, 1, "VSC_Error: %" PRIX64 "\n", s->last_answer_error);
-    /* TODO: these error's should be more verbose and propogated to the guest.*/
+    /* TODO: these errors should be more verbose and propagated to the guest.*/
     /*
      * We flush all pending answers on CardRemove message in ccid-card-passthru,
      * so check that first to not trigger abort
@@ -1319,7 +1319,7 @@ static void ccid_pre_save(void *opaque)
     if (s->dev.attached) {
         /*
          * Migrating an open device, ignore reconnection CHR_EVENT to avoid an
-         * erronous detach.
+         * erroneous detach.
          */
         s->migration_state = MIGRATION_MIGRATED;
     }
