@@ -18,8 +18,7 @@
 
 #define SET_QC() env->vfp.xregs[ARM_VFP_FPSCR] = CPSR_Q
 
-static float_status neon_float_status;
-#define NFS &neon_float_status
+#define NFS (&env->vfp.standard_fp_status)
 
 #define NEON_TYPE1(name, type) \
 typedef struct \
