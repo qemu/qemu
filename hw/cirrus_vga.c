@@ -3081,15 +3081,6 @@ static void cirrus_pci_lfb_map(PCIDevice *d, int region_num,
     vga_dirty_log_start(&s->vga);
 }
 
-static void cirrus_pci_mmio_map(PCIDevice *d, int region_num,
-				pcibus_t addr, pcibus_t size, int type)
-{
-    CirrusVGAState *s = &DO_UPCAST(PCICirrusVGAState, dev, d)->cirrus_vga;
-
-    cpu_register_physical_memory(addr, CIRRUS_PNPMMIO_SIZE,
-				 s->cirrus_mmio_io_addr);
-}
-
 static void pci_cirrus_write_config(PCIDevice *d,
                                     uint32_t address, uint32_t val, int len)
 {
@@ -3128,8 +3119,8 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
      pci_register_bar(&d->dev, 0, 0x2000000,
                       PCI_BASE_ADDRESS_MEM_PREFETCH, cirrus_pci_lfb_map);
      if (device_id == CIRRUS_ID_CLGD5446) {
-         pci_register_bar(&d->dev, 1, CIRRUS_PNPMMIO_SIZE,
-                          PCI_BASE_ADDRESS_SPACE_MEMORY, cirrus_pci_mmio_map);
+         pci_register_bar_simple(&d->dev, 1, CIRRUS_PNPMMIO_SIZE, 0,
+                                 s->cirrus_mmio_io_addr);
      }
      return 0;
 }
