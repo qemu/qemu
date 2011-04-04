@@ -23,7 +23,7 @@
 #include <stdio.h>
 
 #include "cpu.h"
-#include "exec-all.h"
+#include "exec.h"
 #include "helpers.h"
 
 /* iwMMXt macros extracted from GNU gdb.  */
@@ -162,8 +162,7 @@ uint64_t HELPER(iwmmxt_macuw)(uint64_t a, uint64_t b)
     SIMD64_SET(NBIT64(x), SIMD_NBIT) | \
     SIMD64_SET(ZBIT64(x), SIMD_ZBIT)
 #define IWMMXT_OP_UNPACK(S, SH0, SH1, SH2, SH3)			\
-uint64_t HELPER(glue(iwmmxt_unpack, glue(S, b)))(CPUState *env, \
-                                                 uint64_t a, uint64_t b) \
+uint64_t HELPER(glue(iwmmxt_unpack, glue(S, b)))(uint64_t a, uint64_t b) \
 {								\
     a =							        \
         (((a >> SH0) & 0xff) << 0) | (((b >> SH0) & 0xff) << 8) |	\
@@ -177,8 +176,7 @@ uint64_t HELPER(glue(iwmmxt_unpack, glue(S, b)))(CPUState *env, \
         NZBIT8(a >> 48, 6) | NZBIT8(a >> 56, 7);		\
     return a;                                                   \
 }								\
-uint64_t HELPER(glue(iwmmxt_unpack, glue(S, w)))(CPUState *env, \
-                                        uint64_t a, uint64_t b) \
+uint64_t HELPER(glue(iwmmxt_unpack, glue(S, w)))(uint64_t a, uint64_t b) \
 {								\
     a =							        \
         (((a >> SH0) & 0xffff) << 0) |				\
@@ -190,8 +188,7 @@ uint64_t HELPER(glue(iwmmxt_unpack, glue(S, w)))(CPUState *env, \
         NZBIT8(a >> 32, 2) | NZBIT8(a >> 48, 3);		\
     return a;                                                   \
 }								\
-uint64_t HELPER(glue(iwmmxt_unpack, glue(S, l)))(CPUState *env, \
-                                        uint64_t a, uint64_t b) \
+uint64_t HELPER(glue(iwmmxt_unpack, glue(S, l)))(uint64_t a, uint64_t b) \
 {								\
     a =							        \
         (((a >> SH0) & 0xffffffff) << 0) |			\
@@ -200,8 +197,7 @@ uint64_t HELPER(glue(iwmmxt_unpack, glue(S, l)))(CPUState *env, \
         NZBIT32(a >> 0, 0) | NZBIT32(a >> 32, 1);		\
     return a;                                                   \
 }								\
-uint64_t HELPER(glue(iwmmxt_unpack, glue(S, ub)))(CPUState *env, \
-                                                  uint64_t x)   \
+uint64_t HELPER(glue(iwmmxt_unpack, glue(S, ub)))(uint64_t x)   \
 {								\
     x =							        \
         (((x >> SH0) & 0xff) << 0) |				\
@@ -213,8 +209,7 @@ uint64_t HELPER(glue(iwmmxt_unpack, glue(S, ub)))(CPUState *env, \
         NZBIT16(x >> 32, 2) | NZBIT16(x >> 48, 3);		\
     return x;                                                   \
 }								\
-uint64_t HELPER(glue(iwmmxt_unpack, glue(S, uw)))(CPUState *env, \
-                                                  uint64_t x)   \
+uint64_t HELPER(glue(iwmmxt_unpack, glue(S, uw)))(uint64_t x)   \
 {								\
     x =							        \
         (((x >> SH0) & 0xffff) << 0) |				\
@@ -223,15 +218,13 @@ uint64_t HELPER(glue(iwmmxt_unpack, glue(S, uw)))(CPUState *env, \
         NZBIT32(x >> 0, 0) | NZBIT32(x >> 32, 1);		\
     return x;                                                   \
 }								\
-uint64_t HELPER(glue(iwmmxt_unpack, glue(S, ul)))(CPUState *env, \
-                                                  uint64_t x)   \
+uint64_t HELPER(glue(iwmmxt_unpack, glue(S, ul)))(uint64_t x)   \
 {								\
     x = (((x >> SH0) & 0xffffffff) << 0);			\
     env->iwmmxt.cregs[ARM_IWMMXT_wCASF] = NZBIT64(x >> 0);	\
     return x;                                                   \
 }								\
-uint64_t HELPER(glue(iwmmxt_unpack, glue(S, sb)))(CPUState *env, \
-                                                  uint64_t x)   \
+uint64_t HELPER(glue(iwmmxt_unpack, glue(S, sb)))(uint64_t x)   \
 {								\
     x =							        \
         ((uint64_t) EXTEND8H((x >> SH0) & 0xff) << 0) |	        \
@@ -243,8 +236,7 @@ uint64_t HELPER(glue(iwmmxt_unpack, glue(S, sb)))(CPUState *env, \
         NZBIT16(x >> 32, 2) | NZBIT16(x >> 48, 3);		\
     return x;                                                   \
 }								\
-uint64_t HELPER(glue(iwmmxt_unpack, glue(S, sw)))(CPUState *env, \
-                                                  uint64_t x)   \
+uint64_t HELPER(glue(iwmmxt_unpack, glue(S, sw)))(uint64_t x)   \
 {								\
     x =							        \
         ((uint64_t) EXTEND16((x >> SH0) & 0xffff) << 0) |	\
@@ -253,8 +245,7 @@ uint64_t HELPER(glue(iwmmxt_unpack, glue(S, sw)))(CPUState *env, \
         NZBIT32(x >> 0, 0) | NZBIT32(x >> 32, 1);		\
     return x;                                                   \
 }								\
-uint64_t HELPER(glue(iwmmxt_unpack, glue(S, sl)))(CPUState *env, \
-                                                  uint64_t x)   \
+uint64_t HELPER(glue(iwmmxt_unpack, glue(S, sl)))(uint64_t x)   \
 {								\
     x = EXTEND32((x >> SH0) & 0xffffffff);			\
     env->iwmmxt.cregs[ARM_IWMMXT_wCASF] = NZBIT64(x >> 0);	\
@@ -264,8 +255,7 @@ IWMMXT_OP_UNPACK(l, 0, 8, 16, 24)
 IWMMXT_OP_UNPACK(h, 32, 40, 48, 56)
 
 #define IWMMXT_OP_CMP(SUFF, Tb, Tw, Tl, O)			\
-uint64_t HELPER(glue(iwmmxt_, glue(SUFF, b)))(CPUState *env,    \
-                                        uint64_t a, uint64_t b) \
+uint64_t HELPER(glue(iwmmxt_, glue(SUFF, b)))(uint64_t a, uint64_t b) \
 {								\
     a =							        \
         CMP(0, Tb, O, 0xff) | CMP(8, Tb, O, 0xff) |		\
@@ -279,8 +269,7 @@ uint64_t HELPER(glue(iwmmxt_, glue(SUFF, b)))(CPUState *env,    \
         NZBIT8(a >> 48, 6) | NZBIT8(a >> 56, 7);		\
     return a;                                                   \
 }								\
-uint64_t HELPER(glue(iwmmxt_, glue(SUFF, w)))(CPUState *env,    \
-                                        uint64_t a, uint64_t b) \
+uint64_t HELPER(glue(iwmmxt_, glue(SUFF, w)))(uint64_t a, uint64_t b) \
 {								\
     a = CMP(0, Tw, O, 0xffff) | CMP(16, Tw, O, 0xffff) |	\
         CMP(32, Tw, O, 0xffff) | CMP(48, Tw, O, 0xffff);	\
@@ -289,8 +278,7 @@ uint64_t HELPER(glue(iwmmxt_, glue(SUFF, w)))(CPUState *env,    \
         NZBIT16(a >> 32, 2) | NZBIT16(a >> 48, 3);		\
     return a;                                                   \
 }								\
-uint64_t HELPER(glue(iwmmxt_, glue(SUFF, l)))(CPUState *env,    \
-                                        uint64_t a, uint64_t b) \
+uint64_t HELPER(glue(iwmmxt_, glue(SUFF, l)))(uint64_t a, uint64_t b) \
 {								\
     a = CMP(0, Tl, O, 0xffffffff) |				\
         CMP(32, Tl, O, 0xffffffff);				\
@@ -329,7 +317,7 @@ IWMMXT_OP_CMP(adds, int8_t, int16_t, int32_t, +)
 #define AVGB(SHR) ((( \
         ((a >> SHR) & 0xff) + ((b >> SHR) & 0xff) + round) >> 1) << SHR)
 #define IWMMXT_OP_AVGB(r)                                                 \
-uint64_t HELPER(iwmmxt_avgb##r)(CPUState *env, uint64_t a, uint64_t b)    \
+uint64_t HELPER(iwmmxt_avgb##r)(uint64_t a, uint64_t b)                   \
 {                                                                         \
     const int round = r;                                                  \
     a = AVGB(0) | AVGB(8) | AVGB(16) | AVGB(24) |                         \
@@ -353,7 +341,7 @@ IWMMXT_OP_AVGB(1)
 #define AVGW(SHR) ((( \
         ((a >> SHR) & 0xffff) + ((b >> SHR) & 0xffff) + round) >> 1) << SHR)
 #define IWMMXT_OP_AVGW(r)                                               \
-uint64_t HELPER(iwmmxt_avgw##r)(CPUState *env, uint64_t a, uint64_t b)  \
+uint64_t HELPER(iwmmxt_avgw##r)(uint64_t a, uint64_t b)                 \
 {                                                                       \
     const int round = r;                                                \
     a = AVGW(0) | AVGW(16) | AVGW(32) | AVGW(48);                       \
@@ -464,7 +452,7 @@ uint32_t HELPER(iwmmxt_msbl)(uint64_t x)
 }
 
 /* FIXME: Split wCASF setting into a separate op to avoid env use.  */
-uint64_t HELPER(iwmmxt_srlw)(CPUState *env, uint64_t x, uint32_t n)
+uint64_t HELPER(iwmmxt_srlw)(uint64_t x, uint32_t n)
 {
     x = (((x & (0xffffll << 0)) >> n) & (0xffffll << 0)) |
         (((x & (0xffffll << 16)) >> n) & (0xffffll << 16)) |
@@ -476,7 +464,7 @@ uint64_t HELPER(iwmmxt_srlw)(CPUState *env, uint64_t x, uint32_t n)
     return x;
 }
 
-uint64_t HELPER(iwmmxt_srll)(CPUState *env, uint64_t x, uint32_t n)
+uint64_t HELPER(iwmmxt_srll)(uint64_t x, uint32_t n)
 {
     x = ((x & (0xffffffffll << 0)) >> n) |
         ((x >> n) & (0xffffffffll << 32));
@@ -485,14 +473,14 @@ uint64_t HELPER(iwmmxt_srll)(CPUState *env, uint64_t x, uint32_t n)
     return x;
 }
 
-uint64_t HELPER(iwmmxt_srlq)(CPUState *env, uint64_t x, uint32_t n)
+uint64_t HELPER(iwmmxt_srlq)(uint64_t x, uint32_t n)
 {
     x >>= n;
     env->iwmmxt.cregs[ARM_IWMMXT_wCASF] = NZBIT64(x);
     return x;
 }
 
-uint64_t HELPER(iwmmxt_sllw)(CPUState *env, uint64_t x, uint32_t n)
+uint64_t HELPER(iwmmxt_sllw)(uint64_t x, uint32_t n)
 {
     x = (((x & (0xffffll << 0)) << n) & (0xffffll << 0)) |
         (((x & (0xffffll << 16)) << n) & (0xffffll << 16)) |
@@ -504,7 +492,7 @@ uint64_t HELPER(iwmmxt_sllw)(CPUState *env, uint64_t x, uint32_t n)
     return x;
 }
 
-uint64_t HELPER(iwmmxt_slll)(CPUState *env, uint64_t x, uint32_t n)
+uint64_t HELPER(iwmmxt_slll)(uint64_t x, uint32_t n)
 {
     x = ((x << n) & (0xffffffffll << 0)) |
         ((x & (0xffffffffll << 32)) << n);
@@ -513,14 +501,14 @@ uint64_t HELPER(iwmmxt_slll)(CPUState *env, uint64_t x, uint32_t n)
     return x;
 }
 
-uint64_t HELPER(iwmmxt_sllq)(CPUState *env, uint64_t x, uint32_t n)
+uint64_t HELPER(iwmmxt_sllq)(uint64_t x, uint32_t n)
 {
     x <<= n;
     env->iwmmxt.cregs[ARM_IWMMXT_wCASF] = NZBIT64(x);
     return x;
 }
 
-uint64_t HELPER(iwmmxt_sraw)(CPUState *env, uint64_t x, uint32_t n)
+uint64_t HELPER(iwmmxt_sraw)(uint64_t x, uint32_t n)
 {
     x = ((uint64_t) ((EXTEND16(x >> 0) >> n) & 0xffff) << 0) |
         ((uint64_t) ((EXTEND16(x >> 16) >> n) & 0xffff) << 16) |
@@ -532,7 +520,7 @@ uint64_t HELPER(iwmmxt_sraw)(CPUState *env, uint64_t x, uint32_t n)
     return x;
 }
 
-uint64_t HELPER(iwmmxt_sral)(CPUState *env, uint64_t x, uint32_t n)
+uint64_t HELPER(iwmmxt_sral)(uint64_t x, uint32_t n)
 {
     x = (((EXTEND32(x >> 0) >> n) & 0xffffffff) << 0) |
         (((EXTEND32(x >> 32) >> n) & 0xffffffff) << 32);
@@ -541,14 +529,14 @@ uint64_t HELPER(iwmmxt_sral)(CPUState *env, uint64_t x, uint32_t n)
     return x;
 }
 
-uint64_t HELPER(iwmmxt_sraq)(CPUState *env, uint64_t x, uint32_t n)
+uint64_t HELPER(iwmmxt_sraq)(uint64_t x, uint32_t n)
 {
     x = (int64_t) x >> n;
     env->iwmmxt.cregs[ARM_IWMMXT_wCASF] = NZBIT64(x);
     return x;
 }
 
-uint64_t HELPER(iwmmxt_rorw)(CPUState *env, uint64_t x, uint32_t n)
+uint64_t HELPER(iwmmxt_rorw)(uint64_t x, uint32_t n)
 {
     x = ((((x & (0xffffll << 0)) >> n) |
           ((x & (0xffffll << 0)) << (16 - n))) & (0xffffll << 0)) |
@@ -564,7 +552,7 @@ uint64_t HELPER(iwmmxt_rorw)(CPUState *env, uint64_t x, uint32_t n)
     return x;
 }
 
-uint64_t HELPER(iwmmxt_rorl)(CPUState *env, uint64_t x, uint32_t n)
+uint64_t HELPER(iwmmxt_rorl)(uint64_t x, uint32_t n)
 {
     x = ((x & (0xffffffffll << 0)) >> n) |
         ((x >> n) & (0xffffffffll << 32)) |
@@ -575,14 +563,14 @@ uint64_t HELPER(iwmmxt_rorl)(CPUState *env, uint64_t x, uint32_t n)
     return x;
 }
 
-uint64_t HELPER(iwmmxt_rorq)(CPUState *env, uint64_t x, uint32_t n)
+uint64_t HELPER(iwmmxt_rorq)(uint64_t x, uint32_t n)
 {
     x = (x >> n) | (x << (64 - n));
     env->iwmmxt.cregs[ARM_IWMMXT_wCASF] = NZBIT64(x);
     return x;
 }
 
-uint64_t HELPER(iwmmxt_shufh)(CPUState *env, uint64_t x, uint32_t n)
+uint64_t HELPER(iwmmxt_shufh)(uint64_t x, uint32_t n)
 {
     x = (((x >> ((n << 4) & 0x30)) & 0xffff) << 0) |
         (((x >> ((n << 2) & 0x30)) & 0xffff) << 16) |
@@ -595,7 +583,7 @@ uint64_t HELPER(iwmmxt_shufh)(CPUState *env, uint64_t x, uint32_t n)
 }
 
 /* TODO: Unsigned-Saturation */
-uint64_t HELPER(iwmmxt_packuw)(CPUState *env, uint64_t a, uint64_t b)
+uint64_t HELPER(iwmmxt_packuw)(uint64_t a, uint64_t b)
 {
     a = (((a >> 0) & 0xff) << 0) | (((a >> 16) & 0xff) << 8) |
         (((a >> 32) & 0xff) << 16) | (((a >> 48) & 0xff) << 24) |
@@ -609,7 +597,7 @@ uint64_t HELPER(iwmmxt_packuw)(CPUState *env, uint64_t a, uint64_t b)
     return a;
 }
 
-uint64_t HELPER(iwmmxt_packul)(CPUState *env, uint64_t a, uint64_t b)
+uint64_t HELPER(iwmmxt_packul)(uint64_t a, uint64_t b)
 {
     a = (((a >> 0) & 0xffff) << 0) | (((a >> 32) & 0xffff) << 16) |
         (((b >> 0) & 0xffff) << 32) | (((b >> 32) & 0xffff) << 48);
@@ -619,7 +607,7 @@ uint64_t HELPER(iwmmxt_packul)(CPUState *env, uint64_t a, uint64_t b)
     return a;
 }
 
-uint64_t HELPER(iwmmxt_packuq)(CPUState *env, uint64_t a, uint64_t b)
+uint64_t HELPER(iwmmxt_packuq)(uint64_t a, uint64_t b)
 {
     a = (a & 0xffffffff) | ((b & 0xffffffff) << 32);
     env->iwmmxt.cregs[ARM_IWMMXT_wCASF] =
@@ -628,7 +616,7 @@ uint64_t HELPER(iwmmxt_packuq)(CPUState *env, uint64_t a, uint64_t b)
 }
 
 /* TODO: Signed-Saturation */
-uint64_t HELPER(iwmmxt_packsw)(CPUState *env, uint64_t a, uint64_t b)
+uint64_t HELPER(iwmmxt_packsw)(uint64_t a, uint64_t b)
 {
     a = (((a >> 0) & 0xff) << 0) | (((a >> 16) & 0xff) << 8) |
         (((a >> 32) & 0xff) << 16) | (((a >> 48) & 0xff) << 24) |
@@ -642,7 +630,7 @@ uint64_t HELPER(iwmmxt_packsw)(CPUState *env, uint64_t a, uint64_t b)
     return a;
 }
 
-uint64_t HELPER(iwmmxt_packsl)(CPUState *env, uint64_t a, uint64_t b)
+uint64_t HELPER(iwmmxt_packsl)(uint64_t a, uint64_t b)
 {
     a = (((a >> 0) & 0xffff) << 0) | (((a >> 32) & 0xffff) << 16) |
         (((b >> 0) & 0xffff) << 32) | (((b >> 32) & 0xffff) << 48);
@@ -652,7 +640,7 @@ uint64_t HELPER(iwmmxt_packsl)(CPUState *env, uint64_t a, uint64_t b)
     return a;
 }
 
-uint64_t HELPER(iwmmxt_packsq)(CPUState *env, uint64_t a, uint64_t b)
+uint64_t HELPER(iwmmxt_packsq)(uint64_t a, uint64_t b)
 {
     a = (a & 0xffffffff) | ((b & 0xffffffff) << 32);
     env->iwmmxt.cregs[ARM_IWMMXT_wCASF] =

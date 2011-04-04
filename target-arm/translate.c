@@ -1159,22 +1159,15 @@ static inline void gen_op_iwmmxt_##name##_M0_wRn(int rn) \
     gen_helper_iwmmxt_##name(cpu_M0, cpu_M0, cpu_V1); \
 }
 
-#define IWMMXT_OP_ENV(name) \
-static inline void gen_op_iwmmxt_##name##_M0_wRn(int rn) \
-{ \
-    iwmmxt_load_reg(cpu_V1, rn); \
-    gen_helper_iwmmxt_##name(cpu_M0, cpu_env, cpu_M0, cpu_V1); \
-}
+#define IWMMXT_OP_SIZE(name) \
+IWMMXT_OP(name##b) \
+IWMMXT_OP(name##w) \
+IWMMXT_OP(name##l)
 
-#define IWMMXT_OP_ENV_SIZE(name) \
-IWMMXT_OP_ENV(name##b) \
-IWMMXT_OP_ENV(name##w) \
-IWMMXT_OP_ENV(name##l)
-
-#define IWMMXT_OP_ENV1(name) \
+#define IWMMXT_OP_1(name) \
 static inline void gen_op_iwmmxt_##name##_M0(void) \
 { \
-    gen_helper_iwmmxt_##name(cpu_M0, cpu_env, cpu_M0); \
+    gen_helper_iwmmxt_##name(cpu_M0, cpu_M0); \
 }
 
 IWMMXT_OP(maddsq)
@@ -1188,51 +1181,51 @@ IWMMXT_OP(muluhw)
 IWMMXT_OP(macsw)
 IWMMXT_OP(macuw)
 
-IWMMXT_OP_ENV_SIZE(unpackl)
-IWMMXT_OP_ENV_SIZE(unpackh)
+IWMMXT_OP_SIZE(unpackl)
+IWMMXT_OP_SIZE(unpackh)
 
-IWMMXT_OP_ENV1(unpacklub)
-IWMMXT_OP_ENV1(unpackluw)
-IWMMXT_OP_ENV1(unpacklul)
-IWMMXT_OP_ENV1(unpackhub)
-IWMMXT_OP_ENV1(unpackhuw)
-IWMMXT_OP_ENV1(unpackhul)
-IWMMXT_OP_ENV1(unpacklsb)
-IWMMXT_OP_ENV1(unpacklsw)
-IWMMXT_OP_ENV1(unpacklsl)
-IWMMXT_OP_ENV1(unpackhsb)
-IWMMXT_OP_ENV1(unpackhsw)
-IWMMXT_OP_ENV1(unpackhsl)
+IWMMXT_OP_1(unpacklub)
+IWMMXT_OP_1(unpackluw)
+IWMMXT_OP_1(unpacklul)
+IWMMXT_OP_1(unpackhub)
+IWMMXT_OP_1(unpackhuw)
+IWMMXT_OP_1(unpackhul)
+IWMMXT_OP_1(unpacklsb)
+IWMMXT_OP_1(unpacklsw)
+IWMMXT_OP_1(unpacklsl)
+IWMMXT_OP_1(unpackhsb)
+IWMMXT_OP_1(unpackhsw)
+IWMMXT_OP_1(unpackhsl)
 
-IWMMXT_OP_ENV_SIZE(cmpeq)
-IWMMXT_OP_ENV_SIZE(cmpgtu)
-IWMMXT_OP_ENV_SIZE(cmpgts)
+IWMMXT_OP_SIZE(cmpeq)
+IWMMXT_OP_SIZE(cmpgtu)
+IWMMXT_OP_SIZE(cmpgts)
 
-IWMMXT_OP_ENV_SIZE(mins)
-IWMMXT_OP_ENV_SIZE(minu)
-IWMMXT_OP_ENV_SIZE(maxs)
-IWMMXT_OP_ENV_SIZE(maxu)
+IWMMXT_OP_SIZE(mins)
+IWMMXT_OP_SIZE(minu)
+IWMMXT_OP_SIZE(maxs)
+IWMMXT_OP_SIZE(maxu)
 
-IWMMXT_OP_ENV_SIZE(subn)
-IWMMXT_OP_ENV_SIZE(addn)
-IWMMXT_OP_ENV_SIZE(subu)
-IWMMXT_OP_ENV_SIZE(addu)
-IWMMXT_OP_ENV_SIZE(subs)
-IWMMXT_OP_ENV_SIZE(adds)
+IWMMXT_OP_SIZE(subn)
+IWMMXT_OP_SIZE(addn)
+IWMMXT_OP_SIZE(subu)
+IWMMXT_OP_SIZE(addu)
+IWMMXT_OP_SIZE(subs)
+IWMMXT_OP_SIZE(adds)
 
-IWMMXT_OP_ENV(avgb0)
-IWMMXT_OP_ENV(avgb1)
-IWMMXT_OP_ENV(avgw0)
-IWMMXT_OP_ENV(avgw1)
+IWMMXT_OP(avgb0)
+IWMMXT_OP(avgb1)
+IWMMXT_OP(avgw0)
+IWMMXT_OP(avgw1)
 
 IWMMXT_OP(msadb)
 
-IWMMXT_OP_ENV(packuw)
-IWMMXT_OP_ENV(packul)
-IWMMXT_OP_ENV(packuq)
-IWMMXT_OP_ENV(packsw)
-IWMMXT_OP_ENV(packsl)
-IWMMXT_OP_ENV(packsq)
+IWMMXT_OP(packuw)
+IWMMXT_OP(packul)
+IWMMXT_OP(packuq)
+IWMMXT_OP(packsw)
+IWMMXT_OP(packsl)
+IWMMXT_OP(packsq)
 
 static void gen_op_iwmmxt_set_mup(void)
 {
@@ -1966,13 +1959,13 @@ static int disas_iwmmxt_insn(CPUState *env, DisasContext *s, uint32_t insn)
         }
         switch ((insn >> 22) & 3) {
         case 1:
-            gen_helper_iwmmxt_srlw(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_srlw(cpu_M0, cpu_M0, tmp);
             break;
         case 2:
-            gen_helper_iwmmxt_srll(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_srll(cpu_M0, cpu_M0, tmp);
             break;
         case 3:
-            gen_helper_iwmmxt_srlq(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_srlq(cpu_M0, cpu_M0, tmp);
             break;
         }
         tcg_temp_free_i32(tmp);
@@ -1994,13 +1987,13 @@ static int disas_iwmmxt_insn(CPUState *env, DisasContext *s, uint32_t insn)
         }
         switch ((insn >> 22) & 3) {
         case 1:
-            gen_helper_iwmmxt_sraw(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_sraw(cpu_M0, cpu_M0, tmp);
             break;
         case 2:
-            gen_helper_iwmmxt_sral(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_sral(cpu_M0, cpu_M0, tmp);
             break;
         case 3:
-            gen_helper_iwmmxt_sraq(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_sraq(cpu_M0, cpu_M0, tmp);
             break;
         }
         tcg_temp_free_i32(tmp);
@@ -2022,13 +2015,13 @@ static int disas_iwmmxt_insn(CPUState *env, DisasContext *s, uint32_t insn)
         }
         switch ((insn >> 22) & 3) {
         case 1:
-            gen_helper_iwmmxt_sllw(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_sllw(cpu_M0, cpu_M0, tmp);
             break;
         case 2:
-            gen_helper_iwmmxt_slll(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_slll(cpu_M0, cpu_M0, tmp);
             break;
         case 3:
-            gen_helper_iwmmxt_sllq(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_sllq(cpu_M0, cpu_M0, tmp);
             break;
         }
         tcg_temp_free_i32(tmp);
@@ -2050,21 +2043,21 @@ static int disas_iwmmxt_insn(CPUState *env, DisasContext *s, uint32_t insn)
                 tcg_temp_free_i32(tmp);
                 return 1;
             }
-            gen_helper_iwmmxt_rorw(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_rorw(cpu_M0, cpu_M0, tmp);
             break;
         case 2:
             if (gen_iwmmxt_shift(insn, 0x1f, tmp)) {
                 tcg_temp_free_i32(tmp);
                 return 1;
             }
-            gen_helper_iwmmxt_rorl(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_rorl(cpu_M0, cpu_M0, tmp);
             break;
         case 3:
             if (gen_iwmmxt_shift(insn, 0x3f, tmp)) {
                 tcg_temp_free_i32(tmp);
                 return 1;
             }
-            gen_helper_iwmmxt_rorq(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_rorq(cpu_M0, cpu_M0, tmp);
             break;
         }
         tcg_temp_free_i32(tmp);
@@ -2198,7 +2191,7 @@ static int disas_iwmmxt_insn(CPUState *env, DisasContext *s, uint32_t insn)
         rd0 = (insn >> 16) & 0xf;
         gen_op_iwmmxt_movq_M0_wRn(rd0);
         tmp = tcg_const_i32(((insn >> 16) & 0xf0) | (insn & 0x0f));
-        gen_helper_iwmmxt_shufh(cpu_M0, cpu_env, cpu_M0, tmp);
+        gen_helper_iwmmxt_shufh(cpu_M0, cpu_M0, tmp);
         tcg_temp_free(tmp);
         gen_op_iwmmxt_movq_wRn_M0(wrd);
         gen_op_iwmmxt_set_mup();
