@@ -214,19 +214,6 @@ static CPUReadMemoryFunc * const pcnet_mmio_read[] = {
     &pcnet_mmio_readl
 };
 
-static void pcnet_mmio_map(PCIDevice *pci_dev, int region_num,
-                            pcibus_t addr, pcibus_t size, int type)
-{
-    PCIPCNetState *d = DO_UPCAST(PCIPCNetState, pci_dev, pci_dev);
-
-#ifdef PCNET_DEBUG_IO
-    printf("pcnet_mmio_map addr=0x%08"FMT_PCIBUS" 0x%08"FMT_PCIBUS"\n",
-           addr, size);
-#endif
-
-    cpu_register_physical_memory(addr, PCNET_PNPMMIO_SIZE, d->state.mmio_index);
-}
-
 static void pci_physical_memory_write(void *dma_opaque, target_phys_addr_t addr,
                                       uint8_t *buf, int len, int do_bswap)
 {
@@ -300,8 +287,7 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
     pci_register_bar(pci_dev, 0, PCNET_IOPORT_SIZE,
                            PCI_BASE_ADDRESS_SPACE_IO, pcnet_ioport_map);
 
-    pci_register_bar(pci_dev, 1, PCNET_PNPMMIO_SIZE,
-                           PCI_BASE_ADDRESS_SPACE_MEMORY, pcnet_mmio_map);
+    pci_register_bar_simple(pci_dev, 1, PCNET_PNPMMIO_SIZE, 0, s->mmio_index);
 
     s->irq = pci_dev->irq[0];
     s->phys_mem_read = pci_physical_memory_read;
