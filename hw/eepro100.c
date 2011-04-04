@@ -228,7 +228,7 @@ typedef struct {
     uint8_t scb_stat;           /* SCB stat/ack byte */
     uint8_t int_stat;           /* PCI interrupt status */
     /* region must not be saved by nic_save. */
-    uint32_t region[3];         /* PCI region addresses */
+    uint32_t region1;           /* PCI region 1 address */
     uint16_t mdimem[32];
     eeprom_t *eeprom;
     uint32_t device;            /* device variant */
@@ -1488,19 +1488,19 @@ static uint32_t ioport_read1(void *opaque, uint32_t addr)
 #if 0
     logout("addr=%s\n", regname(addr));
 #endif
-    return eepro100_read1(s, addr - s->region[1]);
+    return eepro100_read1(s, addr - s->region1);
 }
 
 static uint32_t ioport_read2(void *opaque, uint32_t addr)
 {
     EEPRO100State *s = opaque;
-    return eepro100_read2(s, addr - s->region[1]);
+    return eepro100_read2(s, addr - s->region1);
 }
 
 static uint32_t ioport_read4(void *opaque, uint32_t addr)
 {
     EEPRO100State *s = opaque;
-    return eepro100_read4(s, addr - s->region[1]);
+    return eepro100_read4(s, addr - s->region1);
 }
 
 static void ioport_write1(void *opaque, uint32_t addr, uint32_t val)
@@ -1509,19 +1509,19 @@ static void ioport_write1(void *opaque, uint32_t addr, uint32_t val)
 #if 0
     logout("addr=%s val=0x%02x\n", regname(addr), val);
 #endif
-    eepro100_write1(s, addr - s->region[1], val);
+    eepro100_write1(s, addr - s->region1, val);
 }
 
 static void ioport_write2(void *opaque, uint32_t addr, uint32_t val)
 {
     EEPRO100State *s = opaque;
-    eepro100_write2(s, addr - s->region[1], val);
+    eepro100_write2(s, addr - s->region1, val);
 }
 
 static void ioport_write4(void *opaque, uint32_t addr, uint32_t val)
 {
     EEPRO100State *s = opaque;
-    eepro100_write4(s, addr - s->region[1], val);
+    eepro100_write4(s, addr - s->region1, val);
 }
 
 /***********************************************************/
@@ -1544,7 +1544,7 @@ static void pci_map(PCIDevice * pci_dev, int region_num,
     register_ioport_write(addr, size, 4, ioport_write4, s);
     register_ioport_read(addr, size, 4, ioport_read4, s);
 
-    s->region[region_num] = addr;
+    s->region1 = addr;
 }
 
 /*****************************************************************************
@@ -1618,22 +1618,6 @@ static CPUReadMemoryFunc * const pci_mmio_read[] = {
     pci_mmio_readw,
     pci_mmio_readl
 };
-
-static void pci_mmio_map(PCIDevice * pci_dev, int region_num,
-                         pcibus_t addr, pcibus_t size, int type)
-{
-    EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
-
-    TRACE(OTHER, logout("region %d, addr=0x%08"FMT_PCIBUS", "
-          "size=0x%08"FMT_PCIBUS", type=%d\n",
-          region_num, addr, size, type));
-
-    assert(region_num == 0 || region_num == 2);
-
-    /* Map control / status registers and flash. */
-    cpu_register_physical_memory(addr, size, s->mmio_index);
-    s->region[region_num] = addr;
-}
 
 static int nic_can_receive(VLANClientState *nc)
 {
@@ -1882,17 +1866,16 @@ static int e100_nic_init(PCIDevice *pci_dev)
         cpu_register_io_memory(pci_mmio_read, pci_mmio_write, s,
                                DEVICE_NATIVE_ENDIAN);
 
-    pci_register_bar(&s->dev, 0, PCI_MEM_SIZE,
-                           PCI_BASE_ADDRESS_SPACE_MEMORY |
-                           PCI_BASE_ADDRESS_MEM_PREFETCH, pci_mmio_map);
+    pci_register_bar_simple(&s->dev, 0, PCI_MEM_SIZE,
+                            PCI_BASE_ADDRESS_MEM_PREFETCH, s->mmio_index);
+
     pci_register_bar(&s->dev, 1, PCI_IO_SIZE, PCI_BASE_ADDRESS_SPACE_IO,
                            pci_map);
-    pci_register_bar(&s->dev, 2, PCI_FLASH_SIZE, PCI_BASE_ADDRESS_SPACE_MEMORY,
-                           pci_mmio_map);
+    pci_register_bar_simple(&s->dev, 2, PCI_FLASH_SIZE, 0, s->mmio_index);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     logout("macaddr: %s\n", nic_dump(&s->conf.macaddr.a[0], 6));
-    assert(s->region[1] == 0);
+    assert(s->region1 == 0);
 
     nic_reset(s);
 
