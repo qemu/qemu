@@ -92,6 +92,7 @@ typedef struct PCIIORegion {
     pcibus_t filtered_size;
     uint8_t type;
     PCIMapIORegionFunc *map_func;
+    ram_addr_t ram_addr;
 } PCIIORegion;
 
 #define PCI_ROM_SLOT 6
@@ -200,6 +201,8 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
 void pci_register_bar(PCIDevice *pci_dev, int region_num,
                             pcibus_t size, uint8_t type,
                             PCIMapIORegionFunc *map_func);
+void pci_register_bar_simple(PCIDevice *pci_dev, int region_num,
+                             pcibus_t size, uint8_t attr, ram_addr_t ram_addr);
 
 int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
                        uint8_t offset, uint8_t size);

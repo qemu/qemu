@@ -866,6 +866,7 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
     r->filtered_size = size;
     r->type = type;
     r->map_func = map_func;
+    r->ram_addr = IO_MEM_UNASSIGNED;
 
     wmask = ~(size - 1);
     addr = pci_bar(pci_dev, region_num);
@@ -882,6 +883,22 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
         pci_set_long(pci_dev->wmask + addr, wmask & 0xffffffff);
         pci_set_long(pci_dev->cmask + addr, 0xffffffff);
     }
+}
+
+static void pci_simple_bar_mapfunc(PCIDevice *pci_dev, int region_num,
+                                   pcibus_t addr, pcibus_t size, int type)
+{
+    cpu_register_physical_memory(addr, size,
+                                 pci_dev->io_regions[region_num].ram_addr);
+}
+
+void pci_register_bar_simple(PCIDevice *pci_dev, int region_num,
+                             pcibus_t size,  uint8_t attr, ram_addr_t ram_addr)
+{
+    pci_register_bar(pci_dev, region_num, size,
+                     PCI_BASE_ADDRESS_SPACE_MEMORY | attr,
+                     pci_simple_bar_mapfunc);
+    pci_dev->io_regions[region_num].ram_addr = ram_addr;
 }
 
 static void pci_bridge_filter(PCIDevice *d, pcibus_t *addr, pcibus_t *size,
