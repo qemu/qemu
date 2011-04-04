@@ -48,17 +48,23 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     env->cp15.c0_cpuid = id;
     switch (id) {
     case ARM_CPUID_ARM926:
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_VFP);
         env->vfp.xregs[ARM_VFP_FPSID] = 0x41011090;
         env->cp15.c0_cachetype = 0x1dd20d2;
         env->cp15.c1_sys = 0x00090078;
         break;
     case ARM_CPUID_ARM946:
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_MPU);
         env->cp15.c0_cachetype = 0x0f004006;
         env->cp15.c1_sys = 0x00000078;
         break;
     case ARM_CPUID_ARM1026:
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_VFP);
         set_feature(env, ARM_FEATURE_AUXCR);
         env->vfp.xregs[ARM_VFP_FPSID] = 0x410110a0;
@@ -67,6 +73,8 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         break;
     case ARM_CPUID_ARM1136_R2:
     case ARM_CPUID_ARM1136:
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_V6);
         set_feature(env, ARM_FEATURE_VFP);
         set_feature(env, ARM_FEATURE_AUXCR);
@@ -79,6 +87,8 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c1_sys = 0x00050078;
         break;
     case ARM_CPUID_ARM11MPCORE:
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_V6);
         set_feature(env, ARM_FEATURE_V6K);
         set_feature(env, ARM_FEATURE_VFP);
@@ -91,6 +101,8 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c0_cachetype = 0x1dd20d2;
         break;
     case ARM_CPUID_CORTEXA8:
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_V6);
         set_feature(env, ARM_FEATURE_V6K);
         set_feature(env, ARM_FEATURE_V7);
@@ -113,6 +125,8 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c1_sys = 0x00c50078;
         break;
     case ARM_CPUID_CORTEXA9:
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_V6);
         set_feature(env, ARM_FEATURE_V6K);
         set_feature(env, ARM_FEATURE_V7);
@@ -140,6 +154,8 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c1_sys = 0x00c50078;
         break;
     case ARM_CPUID_CORTEXM3:
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_V6);
         set_feature(env, ARM_FEATURE_THUMB2);
         set_feature(env, ARM_FEATURE_V7);
@@ -147,6 +163,8 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         set_feature(env, ARM_FEATURE_DIV);
         break;
     case ARM_CPUID_ANY: /* For userspace emulation.  */
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_V6);
         set_feature(env, ARM_FEATURE_V6K);
         set_feature(env, ARM_FEATURE_V7);
@@ -161,6 +179,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         break;
     case ARM_CPUID_TI915T:
     case ARM_CPUID_TI925T:
+        set_feature(env, ARM_FEATURE_V4T);
         set_feature(env, ARM_FEATURE_OMAPCP);
         env->cp15.c0_cpuid = ARM_CPUID_TI925T; /* Depends on wiring.  */
         env->cp15.c0_cachetype = 0x5109149;
@@ -173,6 +192,8 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     case ARM_CPUID_PXA260:
     case ARM_CPUID_PXA261:
     case ARM_CPUID_PXA262:
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_XSCALE);
         /* JTAG_ID is ((id << 28) | 0x09265013) */
         env->cp15.c0_cachetype = 0xd172172;
@@ -184,6 +205,8 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     case ARM_CPUID_PXA270_B1:
     case ARM_CPUID_PXA270_C0:
     case ARM_CPUID_PXA270_C5:
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_XSCALE);
         /* JTAG_ID is ((id << 28) | 0x09265013) */
         set_feature(env, ARM_FEATURE_IWMMXT);
@@ -856,7 +879,11 @@ void do_interrupt(CPUARMState *env)
     /* Switch to the new mode, and to the correct instruction set.  */
     env->uncached_cpsr = (env->uncached_cpsr & ~CPSR_M) | new_mode;
     env->uncached_cpsr |= mask;
-    env->thumb = (env->cp15.c1_sys & (1 << 30)) != 0;
+    /* this is a lie, as the was no c1_sys on V4T/V5, but who cares
+     * and we should just guard the thumb mode on V4 */
+    if (arm_feature(env, ARM_FEATURE_V4T)) {
+        env->thumb = (env->cp15.c1_sys & (1 << 30)) != 0;
+    }
     env->regs[14] = env->regs[15] + offset;
     env->regs[15] = addr;
     env->interrupt_request |= CPU_INTERRUPT_EXITTB;

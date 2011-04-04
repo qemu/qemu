@@ -34,6 +34,10 @@
 #define GEN_HELPER 1
 #include "helpers.h"
 
+#define ENABLE_ARCH_4T    arm_feature(env, ARM_FEATURE_V4T)
+#define ENABLE_ARCH_5     arm_feature(env, ARM_FEATURE_V5)
+/* currently all emulated v5 cores are also v5TE, so don't bother */
+#define ENABLE_ARCH_5TE   arm_feature(env, ARM_FEATURE_V5)
 #define ENABLE_ARCH_5J    0
 #define ENABLE_ARCH_6     arm_feature(env, ARM_FEATURE_V6)
 #define ENABLE_ARCH_6K   arm_feature(env, ARM_FEATURE_V6K)
@@ -744,6 +748,20 @@ static inline void store_reg_bx(CPUState *env, DisasContext *s,
                                 int reg, TCGv var)
 {
     if (reg == 15 && ENABLE_ARCH_7) {
+        gen_bx(s, var);
+    } else {
+        store_reg(s, reg, var);
+    }
+}
+
+/* Variant of store_reg which uses branch&exchange logic when storing
+ * to r15 in ARM architecture v5T and above. This is used for storing
+ * the results of a LDR/LDM/POP into r15, and corresponds to the cases
+ * in the ARM ARM which use the LoadWritePC() pseudocode function. */
+static inline void store_reg_from_load(CPUState *env, DisasContext *s,
+                                int reg, TCGv var)
+{
+    if (reg == 15 && ENABLE_ARCH_5) {
         gen_bx(s, var);
     } else {
         store_reg(s, reg, var);
@@ -3436,6 +3454,10 @@ static uint32_t msr_mask(CPUState *env, DisasContext *s, int flags, int spsr) {
 
     /* Mask out undefined bits.  */
     mask &= ~CPSR_RESERVED;
+    if (!arm_feature(env, ARM_FEATURE_V4T))
+        mask &= ~CPSR_T;
+    if (!arm_feature(env, ARM_FEATURE_V5))
+        mask &= ~CPSR_Q; /* V5TE in reality*/
     if (!arm_feature(env, ARM_FEATURE_V6))
         mask &= ~(CPSR_E | CPSR_GE);
     if (!arm_feature(env, ARM_FEATURE_THUMB2))
@@ -6127,6 +6149,12 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
         goto illegal_op;
     cond = insn >> 28;
     if (cond == 0xf){
+        /* In ARMv3 and v4 the NV condition is UNPREDICTABLE; we
+         * choose to UNDEF. In ARMv5 and above the space is used
+         * for miscellaneous unconditional instructions.
+         */
+        ARCH(5);
+
         /* Unconditional instructions.  */
         if (((insn >> 25) & 7) == 1) {
             /* NEON Data processing.  */
@@ -6155,6 +6183,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 }
             }
             /* Otherwise PLD; v5TE+ */
+            ARCH(5TE);
             return;
         }
         if (((insn & 0x0f70f000) == 0x0450f000) ||
@@ -6291,6 +6320,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             val += (offset << 2) | ((insn >> 23) & 2) | 1;
             /* pipeline offset */
             val += 4;
+            /* protected by ARCH(5); above, near the start of uncond block */
             gen_bx_im(s, val);
             return;
         } else if ((insn & 0x0e000f00) == 0x0c000100) {
@@ -6302,6 +6332,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             }
         } else if ((insn & 0x0fe00000) == 0x0c400000) {
             /* Coprocessor double register transfer.  */
+            ARCH(5TE);
         } else if ((insn & 0x0f000010) == 0x0e000010) {
             /* Additional coprocessor register transfer.  */
         } else if ((insn & 0x0ff10020) == 0x01000000) {
@@ -6402,10 +6433,12 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
         case 0x1:
             if (op1 == 1) {
                 /* branch/exchange thumb (bx).  */
+                ARCH(4T);
                 tmp = load_reg(s, rm);
                 gen_bx(s, tmp);
             } else if (op1 == 3) {
                 /* clz */
+                ARCH(5);
                 rd = (insn >> 12) & 0xf;
                 tmp = load_reg(s, rm);
                 gen_helper_clz(tmp, tmp);
@@ -6428,6 +6461,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             if (op1 != 1)
               goto illegal_op;
 
+            ARCH(5);
             /* branch link/exchange thumb (blx) */
             tmp = load_reg(s, rm);
             tmp2 = tcg_temp_new_i32();
@@ -6436,6 +6470,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             gen_bx(s, tmp);
             break;
         case 0x5: /* saturating add/subtract */
+            ARCH(5TE);
             rd = (insn >> 12) & 0xf;
             rn = (insn >> 16) & 0xf;
             tmp = load_reg(s, rm);
@@ -6457,12 +6492,14 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 goto illegal_op;
             }
             /* bkpt */
+            ARCH(5);
             gen_exception_insn(s, 4, EXCP_BKPT);
             break;
         case 0x8: /* signed multiply */
         case 0xa:
         case 0xc:
         case 0xe:
+            ARCH(5TE);
             rs = (insn >> 8) & 0xf;
             rn = (insn >> 12) & 0xf;
             rd = (insn >> 16) & 0xf;
@@ -6858,6 +6895,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                     }
                     load = 1;
                 } else if (sh & 2) {
+                    ARCH(5TE);
                     /* doubleword */
                     if (sh & 1) {
                         /* store */
@@ -7198,10 +7236,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             }
             if (insn & (1 << 20)) {
                 /* Complete the load.  */
-                if (rd == 15)
-                    gen_bx(s, tmp);
-                else
-                    store_reg(s, rd, tmp);
+                store_reg_from_load(env, s, rd, tmp);
             }
             break;
         case 0x08:
@@ -7254,9 +7289,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         if (insn & (1 << 20)) {
                             /* load */
                             tmp = gen_ld32(addr, IS_USER(s));
-                            if (i == 15) {
-                                gen_bx(s, tmp);
-                            } else if (user) {
+                            if (user) {
                                 tmp2 = tcg_const_i32(i);
                                 gen_helper_set_user_reg(tmp2, tmp);
                                 tcg_temp_free_i32(tmp2);
@@ -7265,7 +7298,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                                 loaded_var = tmp;
                                 loaded_base = 1;
                             } else {
-                                store_reg(s, i, tmp);
+                                store_reg_from_load(env, s, i, tmp);
                             }
                         } else {
                             /* store */
@@ -7465,6 +7498,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
            16-bit instructions to get correct prefetch abort behavior.  */
         insn = insn_hw1;
         if ((insn & (1 << 12)) == 0) {
+            ARCH(5);
             /* Second half of blx.  */
             offset = ((insn & 0x7ff) << 1);
             tmp = load_reg(s, 14);
@@ -8061,6 +8095,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                 } else {
                     /* blx */
                     offset &= ~(uint32_t)2;
+                    /* thumb2 bx, no need to check */
                     gen_bx_im(s, offset);
                 }
             } else if (((insn >> 23) & 7) == 7) {
@@ -8642,11 +8677,13 @@ static void disas_thumb_insn(CPUState *env, DisasContext *s)
             case 3:/* branch [and link] exchange thumb register */
                 tmp = load_reg(s, rm);
                 if (insn & (1 << 7)) {
+                    ARCH(5);
                     val = (uint32_t)s->pc | 1;
                     tmp2 = tcg_temp_new_i32();
                     tcg_gen_movi_i32(tmp2, val);
                     store_reg(s, 14, tmp2);
                 }
+                /* already thumb, no need to check */
                 gen_bx(s, tmp);
                 break;
             }
@@ -9006,8 +9043,9 @@ static void disas_thumb_insn(CPUState *env, DisasContext *s)
             /* write back the new stack pointer */
             store_reg(s, 13, addr);
             /* set the new PC value */
-            if ((insn & 0x0900) == 0x0900)
-                gen_bx(s, tmp);
+            if ((insn & 0x0900) == 0x0900) {
+                store_reg_from_load(env, s, 15, tmp);
+            }
             break;
 
         case 1: case 3: case 9: case 11: /* czb */
@@ -9038,6 +9076,7 @@ static void disas_thumb_insn(CPUState *env, DisasContext *s)
             break;
 
         case 0xe: /* bkpt */
+            ARCH(5);
             gen_exception_insn(s, 2, EXCP_BKPT);
             break;
 
