@@ -2037,15 +2037,6 @@ static void lsi_ram_mapfunc(PCIDevice *pci_dev, int region_num,
     cpu_register_physical_memory(addr + 0, 0x2000, s->ram_io_addr);
 }
 
-static void lsi_mmio_mapfunc(PCIDevice *pci_dev, int region_num,
-                             pcibus_t addr, pcibus_t size, int type)
-{
-    LSIState *s = DO_UPCAST(LSIState, dev, pci_dev);
-
-    DPRINTF("Mapping registers at %08"FMT_PCIBUS"\n", addr);
-    cpu_register_physical_memory(addr + 0, 0x400, s->mmio_io_addr);
-}
-
 static void lsi_scsi_reset(DeviceState *dev)
 {
     LSIState *s = DO_UPCAST(LSIState, dev.qdev, dev);
@@ -2188,8 +2179,7 @@ static int lsi_scsi_init(PCIDevice *dev)
 
     pci_register_bar(&s->dev, 0, 256,
                            PCI_BASE_ADDRESS_SPACE_IO, lsi_io_mapfunc);
-    pci_register_bar(&s->dev, 1, 0x400,
-                           PCI_BASE_ADDRESS_SPACE_MEMORY, lsi_mmio_mapfunc);
+    pci_register_bar_simple(&s->dev, 1, 0x400, 0, s->mmio_io_addr);
     pci_register_bar(&s->dev, 2, 0x2000,
                            PCI_BASE_ADDRESS_SPACE_MEMORY, lsi_ram_mapfunc);
     QTAILQ_INIT(&s->queue);
