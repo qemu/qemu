@@ -164,7 +164,6 @@ static void ioapic_set_irq(void *opaque, int vector, int level)
             if (level) {
                 s->irr |= mask;
                 ioapic_service(s);
-                s->irr &= ~mask;
             }
         }
     }

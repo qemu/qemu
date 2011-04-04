@@ -1176,8 +1176,15 @@ int qemu_shutdown_requested(void)
 void qemu_kill_report(void)
 {
     if (shutdown_signal != -1) {
-        fprintf(stderr, "Got signal %d from pid %d\n",
-                         shutdown_signal, shutdown_pid);
+        fprintf(stderr, "qemu: terminating on signal %d", shutdown_signal);
+        if (shutdown_pid == 0) {
+            /* This happens for eg ^C at the terminal, so it's worth
+             * avoiding printing an odd message in that case.
+             */
+            fputc('\n', stderr);
+        } else {
+            fprintf(stderr, " from pid %d\n", shutdown_pid);
+        }
         shutdown_signal = -1;
     }
 }
@@ -1598,7 +1605,7 @@ static int balloon_parse(const char *arg)
             /* create empty opts */
             opts = qemu_opts_create(qemu_find_opts("device"), NULL, 0);
         }
-        qemu_opt_set(opts, "driver", "virtio-balloon-pci");
+        qemu_opt_set(opts, "driver", "virtio-balloon");
         return 0;
     }
 
@@ -2528,12 +2535,12 @@ int main(int argc, char **argv, char **envp)
                          qemu_opt_get(opts, "path"),
                          qemu_opt_get(opts, "security_model"));
 
-                len = strlen("virtio-9p-pci,fsdev=,mount_tag=");
+                len = strlen("virtio-9p,fsdev=,mount_tag=");
                 len += 2*strlen(qemu_opt_get(opts, "mount_tag"));
                 arg_9p = qemu_malloc((len + 1) * sizeof(*arg_9p));
 
                 snprintf(arg_9p, (len + 1) * sizeof(*arg_9p),
-                         "virtio-9p-pci,fsdev=%s,mount_tag=%s",
+                         "virtio-9p,fsdev=%s,mount_tag=%s",
                          qemu_opt_get(opts, "mount_tag"),
                          qemu_opt_get(opts, "mount_tag"));
 
@@ -3106,9 +3113,6 @@ int main(int argc, char **argv, char **envp)
 
     cpu_synchronize_all_post_init();
 
-    /* must be after terminal init, SDL library changes signal handlers */
-    os_setup_signal_handling();
-
     set_numa_modes();
 
     current_machine = machine;
@@ -3163,6 +3167,9 @@ int main(int argc, char **argv, char **envp)
     default:
         break;
     }
+
+    /* must be after terminal init, SDL library changes signal handlers */
+    os_setup_signal_handling();
 
 #ifdef CONFIG_VNC
     /* init remote displays */

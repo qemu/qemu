@@ -441,7 +441,7 @@ static int handle_instruction(CPUState *env, struct kvm_run *run)
     if (r < 0) {
         enter_pgmcheck(env, 0x0001);
     }
-    return r;
+    return 0;
 }
 
 static int handle_intercept(CPUState *env)

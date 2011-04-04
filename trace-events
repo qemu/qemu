@@ -286,3 +286,76 @@ disable lm32_uart_irq_state(int level) "irq state %d"
 
 # hw/lm32_sys.c
 disable lm32_sys_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
+
+# hw/milkymist-ac97.c
+disable milkymist_ac97_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_ac97_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_ac97_pulse_irq_crrequest(void) "Pulse IRQ CR request"
+disable milkymist_ac97_pulse_irq_crreply(void) "Pulse IRQ CR reply"
+disable milkymist_ac97_pulse_irq_dmaw(void) "Pulse IRQ DMA write"
+disable milkymist_ac97_pulse_irq_dmar(void) "Pulse IRQ DMA read"
+disable milkymist_ac97_in_cb(int avail, uint32_t remaining) "avail %d remaining %u"
+disable milkymist_ac97_in_cb_transferred(int transferred) "transferred %d"
+disable milkymist_ac97_out_cb(int free, uint32_t remaining) "free %d remaining %u"
+disable milkymist_ac97_out_cb_transferred(int transferred) "transferred %d"
+
+# hw/milkymist-hpdmc.c
+disable milkymist_hpdmc_memory_read(uint32_t addr, uint32_t value) "addr=%08x value=%08x"
+disable milkymist_hpdmc_memory_write(uint32_t addr, uint32_t value) "addr=%08x value=%08x"
+
+# hw/milkymist-memcard.c
+disable milkymist_memcard_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_memcard_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+
+# hw/milkymist-minimac.c
+disable milkymist_minimac_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_minimac_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_minimac_mdio_write(uint8_t phy_addr, uint8_t addr, uint16_t value) "phy_addr %02x addr %02x value %04x"
+disable milkymist_minimac_mdio_read(uint8_t phy_addr, uint8_t addr, uint16_t value) "phy_addr %02x addr %02x value %04x"
+disable milkymist_minimac_tx_frame(uint32_t length) "length %u"
+disable milkymist_minimac_rx_frame(const void *buf, uint32_t length) "buf %p length %u"
+disable milkymist_minimac_drop_rx_frame(const void *buf) "buf %p"
+disable milkymist_minimac_rx_transfer(const void *buf, uint32_t length) "buf %p length %d"
+disable milkymist_minimac_pulse_irq_rx(void) "Pulse IRQ RX"
+disable milkymist_minimac_pulse_irq_tx(void) "Pulse IRQ TX"
+
+# hw/milkymist-pfpu.c
+disable milkymist_pfpu_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_pfpu_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_pfpu_vectout(uint32_t a, uint32_t b, uint32_t dma_ptr) "a %08x b %08x dma_ptr %08x"
+disable milkymist_pfpu_pulse_irq(void) "Pulse IRQ"
+
+# hw/milkymist-softusb.c
+disable milkymist_softusb_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_softusb_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_softusb_mevt(uint8_t m) "m %d"
+disable milkymist_softusb_kevt(uint8_t m) "m %d"
+disable milkymist_softusb_mouse_event(int dx, int dy, int dz, int bs) "dx %d dy %d dz %d bs %02x"
+disable milkymist_softusb_pulse_irq(void) "Pulse IRQ"
+
+# hw/milkymist-sysctl.c
+disable milkymist_sysctl_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_sysctl_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_sysctl_icap_write(uint32_t value) "value %08x"
+disable milkymist_sysctl_start_timer0(void) "Start timer0"
+disable milkymist_sysctl_stop_timer0(void) "Stop timer0"
+disable milkymist_sysctl_start_timer1(void) "Start timer1"
+disable milkymist_sysctl_stop_timer1(void) "Stop timer1"
+disable milkymist_sysctl_pulse_irq_timer0(void) "Pulse IRQ Timer0"
+disable milkymist_sysctl_pulse_irq_timer1(void) "Pulse IRQ Timer1"
+
+# hw/milkymist-tmu2.c
+disable milkymist_tmu2_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_tmu2_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_tmu2_start(void) "Start TMU"
+disable milkymist_tmu2_pulse_irq(void) "Pulse IRQ"
+
+# hw/milkymist-uart.c
+disable milkymist_uart_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_uart_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_uart_pulse_irq_rx(void) "Pulse IRQ RX"
+disable milkymist_uart_pulse_irq_tx(void) "Pulse IRQ TX"
+
+# hw/milkymist-vgafb.c
+disable milkymist_vgafb_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
+disable milkymist_vgafb_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"

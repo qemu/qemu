@@ -747,6 +747,10 @@ for opt do
   ;;
   --enable-vhost-net) vhost_net="yes"
   ;;
+  --disable-opengl) opengl="no"
+  ;;
+  --enable-opengl) opengl="yes"
+  ;;
   --*dir)
   ;;
   --disable-rbd) rbd="no"
@@ -1993,6 +1997,27 @@ EOF
   fi
 fi
 
+##########################################
+# opengl probe, used by milkymist-tmu2
+if test "$opengl" != "no" ; then
+  opengl_libs="-lGL"
+  cat > $TMPC << EOF
+#include <X11/Xlib.h>
+#include <GL/gl.h>
+#include <GL/glx.h>
+int main(void) { GL_VERSION; return 0; }
+EOF
+  if compile_prog "" "-lGL" ; then
+    opengl=yes
+       libs_softmmu="$opengl_libs $libs_softmmu"
+  else
+    if test "$opengl" = "yes" ; then
+      feature_not_found "opengl"
+    fi
+    opengl=no
+  fi
+fi
+
 #
 # Check for xxxat() functions when we are building linux-user
 # emulator.  This is done because older glibc versions don't
@@ -2643,6 +2668,7 @@ echo "spice support     $spice"
 echo "rbd support       $rbd"
 echo "xfsctl support    $xfs"
 echo "nss used          $smartcard_nss"
+echo "OpenGL support    $opengl"
 
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -2953,6 +2979,10 @@ if test "$smartcard_nss" = "yes" ; then
   echo "CONFIG_SMARTCARD_NSS=y" >> $config_host_mak
 fi
 
+if test "$opengl" = "yes" ; then
+  echo "CONFIG_OPENGL=y" >> $config_host_mak
+fi
+
 # XXX: suppress that
 if [ "$bsd" = "yes" ] ; then
   echo "CONFIG_BSD=y" >> $config_host_mak
@@ -3231,6 +3261,7 @@ case "$target_arch2" in
     target_phys_bits=64
   ;;
   s390x)
+    target_nptl="yes"
     target_phys_bits=64
   ;;
   *)
@@ -3430,6 +3461,9 @@ esac
 if test "$target_softmmu" = "yes" ; then
   case "$TARGET_BASE_ARCH" in
   arm)
+    cflags="-DHAS_AUDIO $cflags"
+  ;;
+  lm32)
     cflags="-DHAS_AUDIO $cflags"
   ;;
   i386|mips|ppc)

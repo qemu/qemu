@@ -226,7 +226,13 @@ obj-$(CONFIG_XEN) += xen_machine_pv.o xen_domainbuild.o
 obj-$(CONFIG_DP8381X_PCI) += dp8381x.o
 
 # Inter-VM PCI shared memory
-obj-$(CONFIG_KVM) += ivshmem.o
+CONFIG_IVSHMEM =
+ifeq ($(CONFIG_KVM), y)
+  ifeq ($(CONFIG_PCI), y)
+    CONFIG_IVSHMEM = y
+  endif
+endif
+obj-$(CONFIG_IVSHMEM) += ivshmem.o
 
 # Hardware support
 obj-i386-y += vga.o
@@ -271,6 +277,7 @@ obj-ppc-y += xilinx_ethlite.o
 
 # LM32 boards
 obj-lm32-y += lm32_boards.o
+obj-lm32-y += milkymist.o
 
 # LM32 peripherals
 obj-lm32-y += lm32_pic.o
@@ -278,6 +285,17 @@ obj-lm32-y += lm32_juart.o
 obj-lm32-y += lm32_timer.o
 obj-lm32-y += lm32_uart.o
 obj-lm32-y += lm32_sys.o
+obj-lm32-y += milkymist-ac97.o
+obj-lm32-y += milkymist-hpdmc.o
+obj-lm32-y += milkymist-memcard.o
+obj-lm32-y += milkymist-minimac.o
+obj-lm32-y += milkymist-pfpu.o
+obj-lm32-y += milkymist-softusb.o
+obj-lm32-y += milkymist-sysctl.o
+obj-lm32-$(CONFIG_OPENGL) += milkymist-tmu2.o
+obj-lm32-y += milkymist-uart.o
+obj-lm32-y += milkymist-vgafb.o
+obj-lm32-y += framebuffer.o
 
 obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 obj-mips-y += mips_addr.o mips_timer.o mips_int.o

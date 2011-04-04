@@ -517,6 +517,14 @@ txdesc_writeback(target_phys_addr_t base, struct e1000_tx_desc *dp)
     return E1000_ICR_TXDW;
 }
 
+static uint64_t tx_desc_base(E1000State *s)
+{
+    uint64_t bah = s->mac_reg[TDBAH];
+    uint64_t bal = s->mac_reg[TDBAL] & ~0xf;
+
+    return (bah << 32) + bal;
+}
+
 static void
 start_xmit(E1000State *s)
 {
@@ -530,7 +538,7 @@ start_xmit(E1000State *s)
     }
 
     while (s->mac_reg[TDH] != s->mac_reg[TDT]) {
-        base = ((uint64_t)s->mac_reg[TDBAH] << 32) + s->mac_reg[TDBAL] +
+        base = tx_desc_base(s) +
                sizeof(struct e1000_tx_desc) * s->mac_reg[TDH];
         cpu_physical_memory_read(base, (void *)&desc, sizeof(desc));
 
@@ -651,6 +659,14 @@ e1000_can_receive(VLANClientState *nc)
     return (s->mac_reg[RCTL] & E1000_RCTL_EN) && e1000_has_rxbufs(s, 1);
 }
 
+static uint64_t rx_desc_base(E1000State *s)
+{
+    uint64_t bah = s->mac_reg[RDBAH];
+    uint64_t bal = s->mac_reg[RDBAL] & ~0xf;
+
+    return (bah << 32) + bal;
+}
+
 static ssize_t
 e1000_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
 {
@@ -700,8 +716,7 @@ e1000_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
         if (desc_size > s->rxbuf_size) {
             desc_size = s->rxbuf_size;
         }
-        base = ((uint64_t)s->mac_reg[RDBAH] << 32) + s->mac_reg[RDBAL] +
-               sizeof(desc) * s->mac_reg[RDH];
+        base = rx_desc_base(s) + sizeof(desc) * s->mac_reg[RDH];
         cpu_physical_memory_read(base, (void *)&desc, sizeof(desc));
         desc.special = vlan_special;
         desc.status |= (vlan_status | E1000_RXD_STAT_DD);

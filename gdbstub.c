@@ -45,7 +45,12 @@
 enum {
     GDB_SIGNAL_0 = 0,
     GDB_SIGNAL_INT = 2,
+    GDB_SIGNAL_QUIT = 3,
     GDB_SIGNAL_TRAP = 5,
+    GDB_SIGNAL_ABRT = 6,
+    GDB_SIGNAL_ALRM = 14,
+    GDB_SIGNAL_IO = 23,
+    GDB_SIGNAL_XCPU = 24,
     GDB_SIGNAL_UNKNOWN = 143
 };
 
@@ -2270,14 +2275,11 @@ static void gdb_vm_state_change(void *opaque, int running, int reason)
     const char *type;
     int ret;
 
-    if (running || (reason != VMSTOP_DEBUG && reason != VMSTOP_USER) ||
-        s->state == RS_INACTIVE || s->state == RS_SYSCALL) {
+    if (running || s->state == RS_INACTIVE || s->state == RS_SYSCALL) {
         return;
     }
-    /* disable single step if it was enable */
-    cpu_single_step(env, 0);
-
-    if (reason == VMSTOP_DEBUG) {
+    switch (reason) {
+    case VMSTOP_DEBUG:
         if (env->watchpoint_hit) {
             switch (env->watchpoint_hit->flags & BP_MEM_ACCESS) {
             case BP_MEM_READ:
@@ -2294,17 +2296,44 @@ static void gdb_vm_state_change(void *opaque, int running, int reason)
                      "T%02xthread:%02x;%swatch:" TARGET_FMT_lx ";",
                      GDB_SIGNAL_TRAP, gdb_id(env), type,
                      env->watchpoint_hit->vaddr);
-            put_packet(s, buf);
             env->watchpoint_hit = NULL;
-            return;
+            goto send_packet;
         }
-	tb_flush(env);
+        tb_flush(env);
         ret = GDB_SIGNAL_TRAP;
-    } else {
+        break;
+    case VMSTOP_USER:
         ret = GDB_SIGNAL_INT;
+        break;
+    case VMSTOP_SHUTDOWN:
+        ret = GDB_SIGNAL_QUIT;
+        break;
+    case VMSTOP_DISKFULL:
+        ret = GDB_SIGNAL_IO;
+        break;
+    case VMSTOP_WATCHDOG:
+        ret = GDB_SIGNAL_ALRM;
+        break;
+    case VMSTOP_PANIC:
+        ret = GDB_SIGNAL_ABRT;
+        break;
+    case VMSTOP_SAVEVM:
+    case VMSTOP_LOADVM:
+        return;
+    case VMSTOP_MIGRATE:
+        ret = GDB_SIGNAL_XCPU;
+        break;
+    default:
+        ret = GDB_SIGNAL_UNKNOWN;
+        break;
     }
     snprintf(buf, sizeof(buf), "T%02xthread:%02x;", ret, gdb_id(env));
+
+send_packet:
     put_packet(s, buf);
+
+    /* disable single step if it was enabled */
+    cpu_single_step(env, 0);
 }
 #endif
 
