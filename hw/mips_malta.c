@@ -770,7 +770,6 @@ void mips_malta_init (ram_addr_t ram_size,
     qemu_irq *i8259;
     qemu_irq *cpu_exit_irq;
     int piix4_devfn;
-    uint8_t *eeprom_buf;
     i2c_bus *smbus;
     int i;
     DriveInfo *dinfo;
@@ -913,15 +912,8 @@ void mips_malta_init (ram_addr_t ram_size,
     usb_uhci_piix4_init(pci_bus, piix4_devfn + 2);
     smbus = piix4_pm_init(pci_bus, piix4_devfn + 3, 0x1100, isa_get_irq(9),
                           NULL, NULL, 0);
-    eeprom_buf = qemu_mallocz(8 * 256); /* XXX: make this persistent */
-    for (i = 0; i < 8; i++) {
-        /* TODO: Populate SPD eeprom data.  */
-        DeviceState *eeprom;
-        eeprom = qdev_create((BusState *)smbus, "smbus-eeprom");
-        qdev_prop_set_uint8(eeprom, "address", 0x50 + i);
-        qdev_prop_set_ptr(eeprom, "data", eeprom_buf + (i * 256));
-        qdev_init_nofail(eeprom);
-    }
+    /* TODO: Populate SPD eeprom data.  */
+    smbus_eeprom_init(smbus, 8, NULL, 0);
     pit = pit_init(0x40, 0);
     cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
     DMA_init(0, cpu_exit_irq);

@@ -37,6 +37,7 @@
 #include "sysbus.h"
 #include "arch_init.h"
 #include "blockdev.h"
+#include "smbus.h"
 
 #define MAX_IDE_BUS 2
 
@@ -154,7 +155,6 @@ static void pc_init1(ram_addr_t ram_size,
     }
 
     if (pci_enabled && acpi_enabled) {
-        uint8_t *eeprom_buf = qemu_mallocz(8 * 256); /* XXX: make this persistent */
         i2c_bus *smbus;
 
         cmos_s3 = qemu_allocate_irqs(pc_cmos_set_s3_resume, rtc_state, 1);
@@ -163,13 +163,7 @@ static void pc_init1(ram_addr_t ram_size,
         smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
                               isa_get_irq(9), *cmos_s3, *smi_irq,
                               kvm_enabled());
-        for (i = 0; i < 8; i++) {
-            DeviceState *eeprom;
-            eeprom = qdev_create((BusState *)smbus, "smbus-eeprom");
-            qdev_prop_set_uint8(eeprom, "address", 0x50 + i);
-            qdev_prop_set_ptr(eeprom, "data", eeprom_buf + (i * 256));
-            qdev_init_nofail(eeprom);
-        }
+        smbus_eeprom_init(smbus, 8, NULL, 0);
     }
 
     if (i440fx_state) {
