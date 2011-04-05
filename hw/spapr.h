@@ -7,6 +7,13 @@ struct icp_state;
 typedef struct sPAPREnvironment {
     struct VIOsPAPRBus *vio_bus;
     struct icp_state *icp;
+
+    void *htab;
+    long htab_size;
+    target_phys_addr_t fdt_addr, rtas_addr;
+    long rtas_size;
+    void *fdt_skel;
+    target_ulong entry_point;
 } sPAPREnvironment;
 
 #define H_SUCCESS         0

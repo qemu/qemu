@@ -56,20 +56,16 @@
 
 sPAPREnvironment *spapr;
 
-static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
-                              const char *cpu_model,
-                              sPAPREnvironment *spapr,
-                              target_phys_addr_t initrd_base,
-                              target_phys_addr_t initrd_size,
-                              const char *boot_device,
-                              const char *kernel_cmdline,
-                              target_phys_addr_t rtas_addr,
-                              target_phys_addr_t rtas_size,
-                              long hash_shift)
+static void *spapr_create_fdt_skel(const char *cpu_model,
+                                   target_phys_addr_t initrd_base,
+                                   target_phys_addr_t initrd_size,
+                                   const char *boot_device,
+                                   const char *kernel_cmdline,
+                                   long hash_shift)
 {
     void *fdt;
     CPUState *env;
-    uint64_t mem_reg_property[] = { 0, cpu_to_be64(ramsize) };
+    uint64_t mem_reg_property[] = { 0, cpu_to_be64(ram_size) };
     uint32_t start_prop = cpu_to_be32(initrd_base);
     uint32_t end_prop = cpu_to_be32(initrd_base + initrd_size);
     uint32_t pft_size_prop[] = {0, cpu_to_be32(hash_shift)};
@@ -78,7 +74,6 @@ static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
     uint32_t interrupt_server_ranges_prop[] = {0, cpu_to_be32(smp_cpus)};
     int i;
     char *modelname;
-    int ret;
 
 #define _FDT(exp) \
     do { \
@@ -222,8 +217,21 @@ static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
     _FDT((fdt_end_node(fdt))); /* close root node */
     _FDT((fdt_finish(fdt)));
 
-    /* re-expand to allow for further tweaks */
-    _FDT((fdt_open_into(fdt, fdt, FDT_MAX_SIZE)));
+    return fdt;
+}
+
+static void spapr_finalize_fdt(sPAPREnvironment *spapr,
+                               target_phys_addr_t fdt_addr,
+                               target_phys_addr_t rtas_addr,
+                               target_phys_addr_t rtas_size)
+{
+    int ret;
+    void *fdt;
+
+    fdt = qemu_malloc(FDT_MAX_SIZE);
+
+    /* open out the base tree into a temp buffer for the final tweaks */
+    _FDT((fdt_open_into(spapr->fdt_skel, fdt, FDT_MAX_SIZE)));
 
     ret = spapr_populate_vdevice(spapr->vio_bus, fdt);
     if (ret < 0) {
@@ -239,9 +247,9 @@ static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
 
     _FDT((fdt_pack(fdt)));
 
-    *fdt_size = fdt_totalsize(fdt);
+    cpu_physical_memory_write(fdt_addr, fdt, fdt_totalsize(fdt));
 
-    return fdt;
+    qemu_free(fdt);
 }
 
 static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
@@ -254,6 +262,27 @@ static void emulate_spapr_hypercall(CPUState *env)
     env->gpr[3] = spapr_hypercall(env, env->gpr[3], &env->gpr[4]);
 }
 
+static void spapr_reset(void *opaque)
+{
+    sPAPREnvironment *spapr = (sPAPREnvironment *)opaque;
+
+    fprintf(stderr, "sPAPR reset\n");
+
+    /* flush out the hash table */
+    memset(spapr->htab, 0, spapr->htab_size);
+
+    /* Load the fdt */
+    spapr_finalize_fdt(spapr, spapr->fdt_addr, spapr->rtas_addr,
+                       spapr->rtas_size);
+
+    /* Set up the entry state */
+    first_cpu->gpr[3] = spapr->fdt_addr;
+    first_cpu->gpr[5] = 0;
+    first_cpu->halted = 0;
+    first_cpu->nip = spapr->entry_point;
+
+}
+
 /* pSeries LPAR / sPAPR hardware init */
 static void ppc_spapr_init(ram_addr_t ram_size,
                            const char *boot_device,
@@ -262,15 +291,12 @@ static void ppc_spapr_init(ram_addr_t ram_size,
                            const char *initrd_filename,
                            const char *cpu_model)
 {
-    void *fdt, *htab;
     CPUState *env;
     int i;
     ram_addr_t ram_offset;
-    target_phys_addr_t fdt_addr, rtas_addr;
-    uint32_t kernel_base, initrd_base;
-    long kernel_size, initrd_size, htab_size, rtas_size, fw_size;
+    uint32_t initrd_base;
+    long kernel_size, initrd_size, fw_size;
     long pteg_shift = 17;
-    int fdt_size;
     char *filename;
     int irq = 16;
 
@@ -280,9 +306,8 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     /* We place the device tree just below either the top of RAM, or
      * 2GB, so that it can be processed with 32-bit code if
      * necessary */
-    fdt_addr = MIN(ram_size, 0x80000000) - FDT_MAX_SIZE;
-    /* RTAS goes just below that */
-    rtas_addr = fdt_addr - RTAS_MAX_SIZE;
+    spapr->fdt_addr = MIN(ram_size, 0x80000000) - FDT_MAX_SIZE;
+    spapr->rtas_addr = spapr->fdt_addr - RTAS_MAX_SIZE;
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -311,18 +336,19 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     /* allocate hash page table.  For now we always make this 16mb,
      * later we should probably make it scale to the size of guest
      * RAM */
-    htab_size = 1ULL << (pteg_shift + 7);
-    htab = qemu_mallocz(htab_size);
+    spapr->htab_size = 1ULL << (pteg_shift + 7);
+    spapr->htab = qemu_malloc(spapr->htab_size);
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        env->external_htab = htab;
+        env->external_htab = spapr->htab;
         env->htab_base = -1;
-        env->htab_mask = htab_size - 1;
+        env->htab_mask = spapr->htab_size - 1;
     }
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "spapr-rtas.bin");
-    rtas_size = load_image_targphys(filename, rtas_addr, ram_size - rtas_addr);
-    if (rtas_size < 0) {
+    spapr->rtas_size = load_image_targphys(filename, spapr->rtas_addr,
+                                           ram_size - spapr->rtas_addr);
+    if (spapr->rtas_size < 0) {
         hw_error("qemu: could not load LPAR rtas '%s'\n", filename);
         exit(1);
     }
@@ -368,13 +394,12 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     if (kernel_filename) {
         uint64_t lowaddr = 0;
 
-        kernel_base = KERNEL_LOAD_ADDR;
-
         kernel_size = load_elf(kernel_filename, translate_kernel_address, NULL,
                                NULL, &lowaddr, NULL, 1, ELF_MACHINE, 0);
         if (kernel_size < 0) {
-            kernel_size = load_image_targphys(kernel_filename, kernel_base,
-                                              ram_size - kernel_base);
+            kernel_size = load_image_targphys(kernel_filename,
+                                              KERNEL_LOAD_ADDR,
+                                              ram_size - KERNEL_LOAD_ADDR);
         }
         if (kernel_size < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n",
@@ -396,6 +421,8 @@ static void ppc_spapr_init(ram_addr_t ram_size,
             initrd_base = 0;
             initrd_size = 0;
         }
+
+        spapr->entry_point = KERNEL_LOAD_ADDR;
     } else {
         if (ram_size < (MIN_RAM_SLOF << 20)) {
             fprintf(stderr, "qemu: pSeries SLOF firmware requires >= "
@@ -409,7 +436,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
             exit(1);
         }
         qemu_free(filename);
-        kernel_base = 0x100;
+        spapr->entry_point = 0x100;
         initrd_base = 0;
         initrd_size = 0;
 
@@ -421,20 +448,13 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     }
 
     /* Prepare the device tree */
-    fdt = spapr_create_fdt(&fdt_size, ram_size, cpu_model, spapr,
-                           initrd_base, initrd_size,
-                           boot_device, kernel_cmdline,
-                           rtas_addr, rtas_size, pteg_shift + 7);
-    assert(fdt != NULL);
+    spapr->fdt_skel = spapr_create_fdt_skel(cpu_model,
+                                            initrd_base, initrd_size,
+                                            boot_device, kernel_cmdline,
+                                            pteg_shift + 7);
+    assert(spapr->fdt_skel != NULL);
 
-    cpu_physical_memory_write(fdt_addr, fdt, fdt_size);
-
-    qemu_free(fdt);
-
-    first_cpu->gpr[3] = fdt_addr;
-    first_cpu->gpr[5] = 0;
-    first_cpu->hreset_vector = kernel_base;
-    first_cpu->halted = 0;
+    qemu_register_reset(spapr_reset, spapr);
 }
 
 static QEMUMachine spapr_machine = {
