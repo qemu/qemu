@@ -57,7 +57,7 @@
 sPAPREnvironment *spapr;
 
 static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
-                              const char *cpu_model, CPUState *envs[],
+                              const char *cpu_model,
                               sPAPREnvironment *spapr,
                               target_phys_addr_t initrd_base,
                               target_phys_addr_t initrd_size,
@@ -68,6 +68,7 @@ static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
                               long hash_shift)
 {
     void *fdt;
+    CPUState *env;
     uint64_t mem_reg_property[] = { 0, cpu_to_be64(ramsize) };
     uint32_t start_prop = cpu_to_be32(initrd_base);
     uint32_t end_prop = cpu_to_be32(initrd_base + initrd_size);
@@ -135,14 +136,14 @@ static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
         modelname[i] = toupper(modelname[i]);
     }
 
-    for (i = 0; i < smp_cpus; i++) {
-        CPUState *env = envs[i];
-        uint32_t gserver_prop[] = {cpu_to_be32(i), 0}; /* HACK! */
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        int index = env->cpu_index;
+        uint32_t gserver_prop[] = {cpu_to_be32(index), 0}; /* HACK! */
         char *nodename;
         uint32_t segs[] = {cpu_to_be32(28), cpu_to_be32(40),
                            0xffffffff, 0xffffffff};
 
-        if (asprintf(&nodename, "%s@%x", modelname, i) < 0) {
+        if (asprintf(&nodename, "%s@%x", modelname, index) < 0) {
             fprintf(stderr, "Allocation failure\n");
             exit(1);
         }
@@ -151,7 +152,7 @@ static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
 
         free(nodename);
 
-        _FDT((fdt_property_cell(fdt, "reg", i)));
+        _FDT((fdt_property_cell(fdt, "reg", index)));
         _FDT((fdt_property_string(fdt, "device_type", "cpu")));
 
         _FDT((fdt_property_cell(fdt, "cpu-version", env->spr[SPR_PVR])));
@@ -168,11 +169,11 @@ static void *spapr_create_fdt(int *fdt_size, ram_addr_t ramsize,
                            pft_size_prop, sizeof(pft_size_prop))));
         _FDT((fdt_property_string(fdt, "status", "okay")));
         _FDT((fdt_property(fdt, "64-bit", NULL, 0)));
-        _FDT((fdt_property_cell(fdt, "ibm,ppc-interrupt-server#s", i)));
+        _FDT((fdt_property_cell(fdt, "ibm,ppc-interrupt-server#s", index)));
         _FDT((fdt_property(fdt, "ibm,ppc-interrupt-gserver#s",
                            gserver_prop, sizeof(gserver_prop))));
 
-        if (envs[i]->mmu_model & POWERPC_MMU_1TSEG) {
+        if (env->mmu_model & POWERPC_MMU_1TSEG) {
             _FDT((fdt_property(fdt, "ibm,processor-segment-sizes",
                                segs, sizeof(segs))));
         }
@@ -261,8 +262,8 @@ static void ppc_spapr_init(ram_addr_t ram_size,
                            const char *initrd_filename,
                            const char *cpu_model)
 {
-    CPUState *envs[MAX_CPUS];
     void *fdt, *htab;
+    CPUState *env;
     int i;
     ram_addr_t ram_offset;
     target_phys_addr_t fdt_addr, rtas_addr;
@@ -288,7 +289,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         cpu_model = "POWER7";
     }
     for (i = 0; i < smp_cpus; i++) {
-        CPUState *env = cpu_init(cpu_model);
+        env = cpu_init(cpu_model);
 
         if (!env) {
             fprintf(stderr, "Unable to find PowerPC CPU definition\n");
@@ -300,9 +301,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
 
         env->hreset_vector = 0x60;
         env->hreset_excp_prefix = 0;
-        env->gpr[3] = i;
-
-        envs[i] = env;
+        env->gpr[3] = env->cpu_index;
     }
 
     /* allocate RAM */
@@ -315,10 +314,10 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     htab_size = 1ULL << (pteg_shift + 7);
     htab = qemu_mallocz(htab_size);
 
-    for (i = 0; i < smp_cpus; i++) {
-        envs[i]->external_htab = htab;
-        envs[i]->htab_base = -1;
-        envs[i]->htab_mask = htab_size - 1;
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        env->external_htab = htab;
+        env->htab_base = -1;
+        env->htab_mask = htab_size - 1;
     }
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "spapr-rtas.bin");
@@ -330,7 +329,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     qemu_free(filename);
 
     /* Set up Interrupt Controller */
-    spapr->icp = xics_system_init(smp_cpus, envs, XICS_IRQS);
+    spapr->icp = xics_system_init(XICS_IRQS);
 
     /* Set up VIO bus */
     spapr->vio_bus = spapr_vio_bus_init();
@@ -416,13 +415,13 @@ static void ppc_spapr_init(ram_addr_t ram_size,
 
         /* SLOF will startup the secondary CPUs using RTAS,
            rather than expecting a kexec() style entry */
-        for (i = 0; i < smp_cpus; i++) {
-            envs[i]->halted = 1;
+        for (env = first_cpu; env != NULL; env = env->next_cpu) {
+            env->halted = 1;
         }
     }
 
     /* Prepare the device tree */
-    fdt = spapr_create_fdt(&fdt_size, ram_size, cpu_model, envs, spapr,
+    fdt = spapr_create_fdt(&fdt_size, ram_size, cpu_model, spapr,
                            initrd_base, initrd_size,
                            boot_device, kernel_cmdline,
                            rtas_addr, rtas_size, pteg_shift + 7);
@@ -432,10 +431,10 @@ static void ppc_spapr_init(ram_addr_t ram_size,
 
     qemu_free(fdt);
 
-    envs[0]->gpr[3] = fdt_addr;
-    envs[0]->gpr[5] = 0;
-    envs[0]->hreset_vector = kernel_base;
-    envs[0]->halted = 0;
+    first_cpu->gpr[3] = fdt_addr;
+    first_cpu->gpr[5] = 0;
+    first_cpu->hreset_vector = kernel_base;
+    first_cpu->halted = 0;
 }
 
 static QEMUMachine spapr_machine = {

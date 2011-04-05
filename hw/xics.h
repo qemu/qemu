@@ -33,7 +33,6 @@ struct icp_state;
 
 qemu_irq xics_find_qirq(struct icp_state *icp, int irq);
 
-struct icp_state *xics_system_init(int nr_servers, CPUState *servers[],
-                                   int nr_irqs);
+struct icp_state *xics_system_init(int nr_irqs);
 
 #endif /* __XICS_H__ */
