@@ -2611,6 +2611,7 @@ void cpu_register_physical_memory_offset(target_phys_addr_t start_addr,
     ram_addr_t orig_size = size;
     subpage_t *subpage;
 
+    assert(size);
     cpu_notify_set_memory(start_addr, size, phys_offset);
 
     if (phys_offset == IO_MEM_UNASSIGNED) {
@@ -2619,7 +2620,9 @@ void cpu_register_physical_memory_offset(target_phys_addr_t start_addr,
     region_offset &= TARGET_PAGE_MASK;
     size = (size + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
     end_addr = start_addr + (target_phys_addr_t)size;
-    for(addr = start_addr; addr != end_addr; addr += TARGET_PAGE_SIZE) {
+
+    addr = start_addr;
+    do {
         p = phys_page_find(addr >> TARGET_PAGE_BITS);
         if (p && p->phys_offset != IO_MEM_UNASSIGNED) {
             ram_addr_t orig_memory = p->phys_offset;
@@ -2671,7 +2674,8 @@ void cpu_register_physical_memory_offset(target_phys_addr_t start_addr,
             }
         }
         region_offset += TARGET_PAGE_SIZE;
-    }
+        addr += TARGET_PAGE_SIZE;
+    } while (addr != end_addr);
 
     /* since each CPU stores ram addresses in its TLB cache, we must
        reset the modified entries */
