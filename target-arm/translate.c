@@ -1156,22 +1156,15 @@ static inline void gen_op_iwmmxt_##name##_M0_wRn(int rn) \
     gen_helper_iwmmxt_##name(cpu_M0, cpu_M0, cpu_V1); \
 }
 
-#define IWMMXT_OP_ENV(name) \
-static inline void gen_op_iwmmxt_##name##_M0_wRn(int rn) \
-{ \
-    iwmmxt_load_reg(cpu_V1, rn); \
-    gen_helper_iwmmxt_##name(cpu_M0, cpu_env, cpu_M0, cpu_V1); \
-}
+#define IWMMXT_OP_SIZE(name) \
+IWMMXT_OP(name##b) \
+IWMMXT_OP(name##w) \
+IWMMXT_OP(name##l)
 
-#define IWMMXT_OP_ENV_SIZE(name) \
-IWMMXT_OP_ENV(name##b) \
-IWMMXT_OP_ENV(name##w) \
-IWMMXT_OP_ENV(name##l)
-
-#define IWMMXT_OP_ENV1(name) \
+#define IWMMXT_OP_1(name) \
 static inline void gen_op_iwmmxt_##name##_M0(void) \
 { \
-    gen_helper_iwmmxt_##name(cpu_M0, cpu_env, cpu_M0); \
+    gen_helper_iwmmxt_##name(cpu_M0, cpu_M0); \
 }
 
 IWMMXT_OP(maddsq)
@@ -1185,51 +1178,51 @@ IWMMXT_OP(muluhw)
 IWMMXT_OP(macsw)
 IWMMXT_OP(macuw)
 
-IWMMXT_OP_ENV_SIZE(unpackl)
-IWMMXT_OP_ENV_SIZE(unpackh)
+IWMMXT_OP_SIZE(unpackl)
+IWMMXT_OP_SIZE(unpackh)
 
-IWMMXT_OP_ENV1(unpacklub)
-IWMMXT_OP_ENV1(unpackluw)
-IWMMXT_OP_ENV1(unpacklul)
-IWMMXT_OP_ENV1(unpackhub)
-IWMMXT_OP_ENV1(unpackhuw)
-IWMMXT_OP_ENV1(unpackhul)
-IWMMXT_OP_ENV1(unpacklsb)
-IWMMXT_OP_ENV1(unpacklsw)
-IWMMXT_OP_ENV1(unpacklsl)
-IWMMXT_OP_ENV1(unpackhsb)
-IWMMXT_OP_ENV1(unpackhsw)
-IWMMXT_OP_ENV1(unpackhsl)
+IWMMXT_OP_1(unpacklub)
+IWMMXT_OP_1(unpackluw)
+IWMMXT_OP_1(unpacklul)
+IWMMXT_OP_1(unpackhub)
+IWMMXT_OP_1(unpackhuw)
+IWMMXT_OP_1(unpackhul)
+IWMMXT_OP_1(unpacklsb)
+IWMMXT_OP_1(unpacklsw)
+IWMMXT_OP_1(unpacklsl)
+IWMMXT_OP_1(unpackhsb)
+IWMMXT_OP_1(unpackhsw)
+IWMMXT_OP_1(unpackhsl)
 
-IWMMXT_OP_ENV_SIZE(cmpeq)
-IWMMXT_OP_ENV_SIZE(cmpgtu)
-IWMMXT_OP_ENV_SIZE(cmpgts)
+IWMMXT_OP_SIZE(cmpeq)
+IWMMXT_OP_SIZE(cmpgtu)
+IWMMXT_OP_SIZE(cmpgts)
 
-IWMMXT_OP_ENV_SIZE(mins)
-IWMMXT_OP_ENV_SIZE(minu)
-IWMMXT_OP_ENV_SIZE(maxs)
-IWMMXT_OP_ENV_SIZE(maxu)
+IWMMXT_OP_SIZE(mins)
+IWMMXT_OP_SIZE(minu)
+IWMMXT_OP_SIZE(maxs)
+IWMMXT_OP_SIZE(maxu)
 
-IWMMXT_OP_ENV_SIZE(subn)
-IWMMXT_OP_ENV_SIZE(addn)
-IWMMXT_OP_ENV_SIZE(subu)
-IWMMXT_OP_ENV_SIZE(addu)
-IWMMXT_OP_ENV_SIZE(subs)
-IWMMXT_OP_ENV_SIZE(adds)
+IWMMXT_OP_SIZE(subn)
+IWMMXT_OP_SIZE(addn)
+IWMMXT_OP_SIZE(subu)
+IWMMXT_OP_SIZE(addu)
+IWMMXT_OP_SIZE(subs)
+IWMMXT_OP_SIZE(adds)
 
-IWMMXT_OP_ENV(avgb0)
-IWMMXT_OP_ENV(avgb1)
-IWMMXT_OP_ENV(avgw0)
-IWMMXT_OP_ENV(avgw1)
+IWMMXT_OP(avgb0)
+IWMMXT_OP(avgb1)
+IWMMXT_OP(avgw0)
+IWMMXT_OP(avgw1)
 
 IWMMXT_OP(msadb)
 
-IWMMXT_OP_ENV(packuw)
-IWMMXT_OP_ENV(packul)
-IWMMXT_OP_ENV(packuq)
-IWMMXT_OP_ENV(packsw)
-IWMMXT_OP_ENV(packsl)
-IWMMXT_OP_ENV(packsq)
+IWMMXT_OP(packuw)
+IWMMXT_OP(packul)
+IWMMXT_OP(packuq)
+IWMMXT_OP(packsw)
+IWMMXT_OP(packsl)
+IWMMXT_OP(packsq)
 
 static void gen_op_iwmmxt_set_mup(void)
 {
@@ -1963,13 +1956,13 @@ static int disas_iwmmxt_insn(CPUState *env, DisasContext *s, uint32_t insn)
         }
         switch ((insn >> 22) & 3) {
         case 1:
-            gen_helper_iwmmxt_srlw(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_srlw(cpu_M0, cpu_M0, tmp);
             break;
         case 2:
-            gen_helper_iwmmxt_srll(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_srll(cpu_M0, cpu_M0, tmp);
             break;
         case 3:
-            gen_helper_iwmmxt_srlq(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_srlq(cpu_M0, cpu_M0, tmp);
             break;
         }
         tcg_temp_free_i32(tmp);
@@ -1991,13 +1984,13 @@ static int disas_iwmmxt_insn(CPUState *env, DisasContext *s, uint32_t insn)
         }
         switch ((insn >> 22) & 3) {
         case 1:
-            gen_helper_iwmmxt_sraw(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_sraw(cpu_M0, cpu_M0, tmp);
             break;
         case 2:
-            gen_helper_iwmmxt_sral(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_sral(cpu_M0, cpu_M0, tmp);
             break;
         case 3:
-            gen_helper_iwmmxt_sraq(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_sraq(cpu_M0, cpu_M0, tmp);
             break;
         }
         tcg_temp_free_i32(tmp);
@@ -2019,13 +2012,13 @@ static int disas_iwmmxt_insn(CPUState *env, DisasContext *s, uint32_t insn)
         }
         switch ((insn >> 22) & 3) {
         case 1:
-            gen_helper_iwmmxt_sllw(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_sllw(cpu_M0, cpu_M0, tmp);
             break;
         case 2:
-            gen_helper_iwmmxt_slll(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_slll(cpu_M0, cpu_M0, tmp);
             break;
         case 3:
-            gen_helper_iwmmxt_sllq(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_sllq(cpu_M0, cpu_M0, tmp);
             break;
         }
         tcg_temp_free_i32(tmp);
@@ -2047,21 +2040,21 @@ static int disas_iwmmxt_insn(CPUState *env, DisasContext *s, uint32_t insn)
                 tcg_temp_free_i32(tmp);
                 return 1;
             }
-            gen_helper_iwmmxt_rorw(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_rorw(cpu_M0, cpu_M0, tmp);
             break;
         case 2:
             if (gen_iwmmxt_shift(insn, 0x1f, tmp)) {
                 tcg_temp_free_i32(tmp);
                 return 1;
             }
-            gen_helper_iwmmxt_rorl(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_rorl(cpu_M0, cpu_M0, tmp);
             break;
         case 3:
             if (gen_iwmmxt_shift(insn, 0x3f, tmp)) {
                 tcg_temp_free_i32(tmp);
                 return 1;
             }
-            gen_helper_iwmmxt_rorq(cpu_M0, cpu_env, cpu_M0, tmp);
+            gen_helper_iwmmxt_rorq(cpu_M0, cpu_M0, tmp);
             break;
         }
         tcg_temp_free_i32(tmp);
@@ -2195,7 +2188,7 @@ static int disas_iwmmxt_insn(CPUState *env, DisasContext *s, uint32_t insn)
         rd0 = (insn >> 16) & 0xf;
         gen_op_iwmmxt_movq_M0_wRn(rd0);
         tmp = tcg_const_i32(((insn >> 16) & 0xf0) | (insn & 0x0f));
-        gen_helper_iwmmxt_shufh(cpu_M0, cpu_env, cpu_M0, tmp);
+        gen_helper_iwmmxt_shufh(cpu_M0, cpu_M0, tmp);
         tcg_temp_free(tmp);
         gen_op_iwmmxt_movq_wRn_M0(wrd);
         gen_op_iwmmxt_set_mup();
@@ -3653,13 +3646,13 @@ static int gen_neon_unzip(int rd, int rm, int size, int q)
     if (q) {
         switch (size) {
         case 0:
-            gen_helper_neon_qunzip8(cpu_env, tmp, tmp2);
+            gen_helper_neon_qunzip8(tmp, tmp2);
             break;
         case 1:
-            gen_helper_neon_qunzip16(cpu_env, tmp, tmp2);
+            gen_helper_neon_qunzip16(tmp, tmp2);
             break;
         case 2:
-            gen_helper_neon_qunzip32(cpu_env, tmp, tmp2);
+            gen_helper_neon_qunzip32(tmp, tmp2);
             break;
         default:
             abort();
@@ -3667,10 +3660,10 @@ static int gen_neon_unzip(int rd, int rm, int size, int q)
     } else {
         switch (size) {
         case 0:
-            gen_helper_neon_unzip8(cpu_env, tmp, tmp2);
+            gen_helper_neon_unzip8(tmp, tmp2);
             break;
         case 1:
-            gen_helper_neon_unzip16(cpu_env, tmp, tmp2);
+            gen_helper_neon_unzip16(tmp, tmp2);
             break;
         default:
             abort();
@@ -3692,13 +3685,13 @@ static int gen_neon_zip(int rd, int rm, int size, int q)
     if (q) {
         switch (size) {
         case 0:
-            gen_helper_neon_qzip8(cpu_env, tmp, tmp2);
+            gen_helper_neon_qzip8(tmp, tmp2);
             break;
         case 1:
-            gen_helper_neon_qzip16(cpu_env, tmp, tmp2);
+            gen_helper_neon_qzip16(tmp, tmp2);
             break;
         case 2:
-            gen_helper_neon_qzip32(cpu_env, tmp, tmp2);
+            gen_helper_neon_qzip32(tmp, tmp2);
             break;
         default:
             abort();
@@ -3706,10 +3699,10 @@ static int gen_neon_zip(int rd, int rm, int size, int q)
     } else {
         switch (size) {
         case 0:
-            gen_helper_neon_zip8(cpu_env, tmp, tmp2);
+            gen_helper_neon_zip8(tmp, tmp2);
             break;
         case 1:
-            gen_helper_neon_zip16(cpu_env, tmp, tmp2);
+            gen_helper_neon_zip16(tmp, tmp2);
             break;
         default:
             abort();
@@ -4060,9 +4053,9 @@ static inline void gen_neon_narrow(int size, TCGv dest, TCGv_i64 src)
 static inline void gen_neon_narrow_sats(int size, TCGv dest, TCGv_i64 src)
 {
     switch (size) {
-    case 0: gen_helper_neon_narrow_sat_s8(dest, cpu_env, src); break;
-    case 1: gen_helper_neon_narrow_sat_s16(dest, cpu_env, src); break;
-    case 2: gen_helper_neon_narrow_sat_s32(dest, cpu_env, src); break;
+    case 0: gen_helper_neon_narrow_sat_s8(dest, src); break;
+    case 1: gen_helper_neon_narrow_sat_s16(dest, src); break;
+    case 2: gen_helper_neon_narrow_sat_s32(dest, src); break;
     default: abort();
     }
 }
@@ -4070,9 +4063,9 @@ static inline void gen_neon_narrow_sats(int size, TCGv dest, TCGv_i64 src)
 static inline void gen_neon_narrow_satu(int size, TCGv dest, TCGv_i64 src)
 {
     switch (size) {
-    case 0: gen_helper_neon_narrow_sat_u8(dest, cpu_env, src); break;
-    case 1: gen_helper_neon_narrow_sat_u16(dest, cpu_env, src); break;
-    case 2: gen_helper_neon_narrow_sat_u32(dest, cpu_env, src); break;
+    case 0: gen_helper_neon_narrow_sat_u8(dest, src); break;
+    case 1: gen_helper_neon_narrow_sat_u16(dest, src); break;
+    case 2: gen_helper_neon_narrow_sat_u32(dest, src); break;
     default: abort();
     }
 }
@@ -4080,9 +4073,9 @@ static inline void gen_neon_narrow_satu(int size, TCGv dest, TCGv_i64 src)
 static inline void gen_neon_unarrow_sats(int size, TCGv dest, TCGv_i64 src)
 {
     switch (size) {
-    case 0: gen_helper_neon_unarrow_sat8(dest, cpu_env, src); break;
-    case 1: gen_helper_neon_unarrow_sat16(dest, cpu_env, src); break;
-    case 2: gen_helper_neon_unarrow_sat32(dest, cpu_env, src); break;
+    case 0: gen_helper_neon_unarrow_sat8(dest, src); break;
+    case 1: gen_helper_neon_unarrow_sat16(dest, src); break;
+    case 2: gen_helper_neon_unarrow_sat32(dest, src); break;
     default: abort();
     }
 }
@@ -4174,8 +4167,8 @@ static inline void gen_neon_negl(TCGv_i64 var, int size)
 static inline void gen_neon_addl_saturate(TCGv_i64 op0, TCGv_i64 op1, int size)
 {
     switch (size) {
-    case 1: gen_helper_neon_addl_saturate_s32(op0, cpu_env, op0, op1); break;
-    case 2: gen_helper_neon_addl_saturate_s64(op0, cpu_env, op0, op1); break;
+    case 1: gen_helper_neon_addl_saturate_s32(op0, op0, op1); break;
+    case 2: gen_helper_neon_addl_saturate_s64(op0, op0, op1); break;
     default: abort();
     }
 }
@@ -4268,20 +4261,16 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 switch (op) {
                 case 1: /* VQADD */
                     if (u) {
-                        gen_helper_neon_qadd_u64(cpu_V0, cpu_env,
-                                                 cpu_V0, cpu_V1);
+                        gen_helper_neon_qadd_u64(cpu_V0, cpu_V0, cpu_V1);
                     } else {
-                        gen_helper_neon_qadd_s64(cpu_V0, cpu_env,
-                                                 cpu_V0, cpu_V1);
+                        gen_helper_neon_qadd_s64(cpu_V0, cpu_V0, cpu_V1);
                     }
                     break;
                 case 5: /* VQSUB */
                     if (u) {
-                        gen_helper_neon_qsub_u64(cpu_V0, cpu_env,
-                                                 cpu_V0, cpu_V1);
+                        gen_helper_neon_qsub_u64(cpu_V0, cpu_V0, cpu_V1);
                     } else {
-                        gen_helper_neon_qsub_s64(cpu_V0, cpu_env,
-                                                 cpu_V0, cpu_V1);
+                        gen_helper_neon_qsub_s64(cpu_V0, cpu_V0, cpu_V1);
                     }
                     break;
                 case 8: /* VSHL */
@@ -4293,11 +4282,9 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     break;
                 case 9: /* VQSHL */
                     if (u) {
-                        gen_helper_neon_qshl_u64(cpu_V0, cpu_env,
-                                                 cpu_V1, cpu_V0);
+                        gen_helper_neon_qshl_u64(cpu_V0, cpu_V1, cpu_V0);
                     } else {
-                        gen_helper_neon_qshl_s64(cpu_V0, cpu_env,
-                                                 cpu_V1, cpu_V0);
+                        gen_helper_neon_qshl_s64(cpu_V0, cpu_V1, cpu_V0);
                     }
                     break;
                 case 10: /* VRSHL */
@@ -4309,11 +4296,9 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     break;
                 case 11: /* VQRSHL */
                     if (u) {
-                        gen_helper_neon_qrshl_u64(cpu_V0, cpu_env,
-                                                  cpu_V1, cpu_V0);
+                        gen_helper_neon_qrshl_u64(cpu_V0, cpu_V1, cpu_V0);
                     } else {
-                        gen_helper_neon_qrshl_s64(cpu_V0, cpu_env,
-                                                  cpu_V1, cpu_V0);
+                        gen_helper_neon_qrshl_s64(cpu_V0, cpu_V1, cpu_V0);
                     }
                     break;
                 case 16:
@@ -4385,7 +4370,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
             GEN_NEON_INTEGER_OP(hadd);
             break;
         case 1: /* VQADD */
-            GEN_NEON_INTEGER_OP_ENV(qadd);
+            GEN_NEON_INTEGER_OP(qadd);
             break;
         case 2: /* VRHADD */
             GEN_NEON_INTEGER_OP(rhadd);
@@ -4428,7 +4413,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
             GEN_NEON_INTEGER_OP(hsub);
             break;
         case 5: /* VQSUB */
-            GEN_NEON_INTEGER_OP_ENV(qsub);
+            GEN_NEON_INTEGER_OP(qsub);
             break;
         case 6: /* VCGT */
             GEN_NEON_INTEGER_OP(cgt);
@@ -4440,13 +4425,13 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
             GEN_NEON_INTEGER_OP(shl);
             break;
         case 9: /* VQSHL */
-            GEN_NEON_INTEGER_OP_ENV(qshl);
+            GEN_NEON_INTEGER_OP(qshl);
             break;
         case 10: /* VRSHL */
             GEN_NEON_INTEGER_OP(rshl);
             break;
         case 11: /* VQRSHL */
-            GEN_NEON_INTEGER_OP_ENV(qrshl);
+            GEN_NEON_INTEGER_OP(qrshl);
             break;
         case 12: /* VMAX */
             GEN_NEON_INTEGER_OP(max);
@@ -4529,14 +4514,14 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
         case 22: /* Hultiply high.  */
             if (!u) { /* VQDMULH */
                 switch (size) {
-                case 1: gen_helper_neon_qdmulh_s16(tmp, cpu_env, tmp, tmp2); break;
-                case 2: gen_helper_neon_qdmulh_s32(tmp, cpu_env, tmp, tmp2); break;
+                case 1: gen_helper_neon_qdmulh_s16(tmp, tmp, tmp2); break;
+                case 2: gen_helper_neon_qdmulh_s32(tmp, tmp, tmp2); break;
                 default: return 1;
                 }
             } else { /* VQRDHMUL */
                 switch (size) {
-                case 1: gen_helper_neon_qrdmulh_s16(tmp, cpu_env, tmp, tmp2); break;
-                case 2: gen_helper_neon_qrdmulh_s32(tmp, cpu_env, tmp, tmp2); break;
+                case 1: gen_helper_neon_qrdmulh_s16(tmp, tmp, tmp2); break;
+                case 2: gen_helper_neon_qrdmulh_s32(tmp, tmp, tmp2); break;
                 default: return 1;
                 }
             }
@@ -4707,7 +4692,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             break;
                         case 6: /* VQSHLU */
                             if (u) {
-                                gen_helper_neon_qshlu_s64(cpu_V0, cpu_env,
+                                gen_helper_neon_qshlu_s64(cpu_V0,
                                                           cpu_V0, cpu_V1);
                             } else {
                                 return 1;
@@ -4715,10 +4700,10 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             break;
                         case 7: /* VQSHL */
                             if (u) {
-                                gen_helper_neon_qshl_u64(cpu_V0, cpu_env,
+                                gen_helper_neon_qshl_u64(cpu_V0,
                                                          cpu_V0, cpu_V1);
                             } else {
-                                gen_helper_neon_qshl_s64(cpu_V0, cpu_env,
+                                gen_helper_neon_qshl_s64(cpu_V0,
                                                          cpu_V0, cpu_V1);
                             }
                             break;
@@ -4777,23 +4762,20 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             }
                             switch (size) {
                             case 0:
-                                gen_helper_neon_qshlu_s8(tmp, cpu_env,
-                                                         tmp, tmp2);
+                                gen_helper_neon_qshlu_s8(tmp, tmp, tmp2);
                                 break;
                             case 1:
-                                gen_helper_neon_qshlu_s16(tmp, cpu_env,
-                                                          tmp, tmp2);
+                                gen_helper_neon_qshlu_s16(tmp, tmp, tmp2);
                                 break;
                             case 2:
-                                gen_helper_neon_qshlu_s32(tmp, cpu_env,
-                                                          tmp, tmp2);
+                                gen_helper_neon_qshlu_s32(tmp, tmp, tmp2);
                                 break;
                             default:
                                 return 1;
                             }
                             break;
                         case 7: /* VQSHL */
-                            GEN_NEON_INTEGER_OP_ENV(qshl);
+                            GEN_NEON_INTEGER_OP(qshl);
                             break;
                         }
                         tcg_temp_free_i32(tmp2);
@@ -5256,15 +5238,15 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         tmp2 = neon_load_reg(rn, pass);
                         if (op == 12) {
                             if (size == 1) {
-                                gen_helper_neon_qdmulh_s16(tmp, cpu_env, tmp, tmp2);
+                                gen_helper_neon_qdmulh_s16(tmp, tmp, tmp2);
                             } else {
-                                gen_helper_neon_qdmulh_s32(tmp, cpu_env, tmp, tmp2);
+                                gen_helper_neon_qdmulh_s32(tmp, tmp, tmp2);
                             }
                         } else if (op == 13) {
                             if (size == 1) {
-                                gen_helper_neon_qrdmulh_s16(tmp, cpu_env, tmp, tmp2);
+                                gen_helper_neon_qrdmulh_s16(tmp, tmp, tmp2);
                             } else {
-                                gen_helper_neon_qrdmulh_s32(tmp, cpu_env, tmp, tmp2);
+                                gen_helper_neon_qrdmulh_s32(tmp, tmp, tmp2);
                             }
                         } else if (op & 1) {
                             gen_helper_neon_mul_f32(tmp, tmp, tmp2);
@@ -5611,17 +5593,17 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             break;
                         case 14: /* VQABS */
                             switch (size) {
-                            case 0: gen_helper_neon_qabs_s8(tmp, cpu_env, tmp); break;
-                            case 1: gen_helper_neon_qabs_s16(tmp, cpu_env, tmp); break;
-                            case 2: gen_helper_neon_qabs_s32(tmp, cpu_env, tmp); break;
+                            case 0: gen_helper_neon_qabs_s8(tmp, tmp); break;
+                            case 1: gen_helper_neon_qabs_s16(tmp, tmp); break;
+                            case 2: gen_helper_neon_qabs_s32(tmp, tmp); break;
                             default: return 1;
                             }
                             break;
                         case 15: /* VQNEG */
                             switch (size) {
-                            case 0: gen_helper_neon_qneg_s8(tmp, cpu_env, tmp); break;
-                            case 1: gen_helper_neon_qneg_s16(tmp, cpu_env, tmp); break;
-                            case 2: gen_helper_neon_qneg_s32(tmp, cpu_env, tmp); break;
+                            case 0: gen_helper_neon_qneg_s8(tmp, tmp); break;
+                            case 1: gen_helper_neon_qneg_s16(tmp, tmp); break;
+                            case 2: gen_helper_neon_qneg_s32(tmp, tmp); break;
                             default: return 1;
                             }
                             break;
