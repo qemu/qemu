@@ -528,19 +528,7 @@ target_ulong helper_popcntw (target_ulong val)
 
 target_ulong helper_popcntd (target_ulong val)
 {
-    val = (val & 0x5555555555555555ULL) + ((val >>  1) &
-                                           0x5555555555555555ULL);
-    val = (val & 0x3333333333333333ULL) + ((val >>  2) &
-                                           0x3333333333333333ULL);
-    val = (val & 0x0f0f0f0f0f0f0f0fULL) + ((val >>  4) &
-                                           0x0f0f0f0f0f0f0f0fULL);
-    val = (val & 0x00ff00ff00ff00ffULL) + ((val >>  8) &
-                                           0x00ff00ff00ff00ffULL);
-    val = (val & 0x0000ffff0000ffffULL) + ((val >> 16) &
-                                           0x0000ffff0000ffffULL);
-    val = (val & 0x00000000ffffffffULL) + ((val >> 32) &
-                                           0x00000000ffffffffULL);
-    return val;
+    return ctpop64(val);
 }
 #else
 target_ulong helper_popcntb (target_ulong val)
