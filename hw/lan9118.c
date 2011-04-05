@@ -785,6 +785,12 @@ static void do_mac_write(lan9118_state *s, int reg, uint32_t val)
     case MAC_FLOW:
         s->mac_flow = val & 0xffff0000;
         break;
+    case MAC_VLAN1:
+        /* Writing to this register changes a condition for
+         * FrameTooLong bit in rx_status.  Since we do not set
+         * FrameTooLong anyway, just ignore write to this.
+         */
+        break;
     default:
         hw_error("lan9118: Unimplemented MAC register write: %d = 0x%x\n",
                  s->mac_cmd & 0xf, val);
