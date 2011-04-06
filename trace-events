@@ -254,8 +254,8 @@ disable leon3_set_irq(int intno) "Set CPU IRQ %d"
 disable leon3_reset_irq(int intno) "Reset CPU IRQ %d"
 
 # spice-qemu-char.c
-disable spice_vmc_write(ssize_t out, int len) "spice wrottn %lu of requested %zd"
-disable spice_vmc_read(int bytes, int len) "spice read %lu of requested %zd"
+disable spice_vmc_write(ssize_t out, int len) "spice wrottn %zd of requested %d"
+disable spice_vmc_read(int bytes, int len) "spice read %d of requested %d"
 disable spice_vmc_register_interface(void *scd) "spice vmc registered interface %p"
 disable spice_vmc_unregister_interface(void *scd) "spice vmc unregistered interface %p"
 
