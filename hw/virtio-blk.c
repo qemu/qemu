@@ -290,6 +290,10 @@ static void virtio_blk_handle_write(VirtIOBlockReq *req, MultiReqBuffer *mrb)
         virtio_blk_rw_complete(req, -EIO);
         return;
     }
+    if (req->qiov.size % req->dev->conf->logical_block_size) {
+        virtio_blk_rw_complete(req, -EIO);
+        return;
+    }
 
     if (mrb->num_writes == 32) {
         virtio_submit_multiwrite(req->dev->bs, mrb);
@@ -314,6 +318,10 @@ static void virtio_blk_handle_read(VirtIOBlockReq *req)
     sector = ldq_p(&req->out->sector);
 
     if (sector & req->dev->sector_mask) {
+        virtio_blk_rw_complete(req, -EIO);
+        return;
+    }
+    if (req->qiov.size % req->dev->conf->logical_block_size) {
         virtio_blk_rw_complete(req, -EIO);
         return;
     }
