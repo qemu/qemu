@@ -311,6 +311,10 @@ static void vhost_client_set_memory(CPUPhysMemoryClient *client,
     int r;
     dev->mem = qemu_realloc(dev->mem, s);
 
+    if (log_dirty) {
+        flags = IO_MEM_UNASSIGNED;
+    }
+
     assert(size);
 
     vhost_dev_unassign_memory(dev, start_addr, size);
