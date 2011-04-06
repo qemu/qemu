@@ -300,7 +300,8 @@ static int vhost_verify_ring_mappings(struct vhost_dev *dev,
 static void vhost_client_set_memory(CPUPhysMemoryClient *client,
                                     target_phys_addr_t start_addr,
                                     ram_addr_t size,
-                                    ram_addr_t phys_offset)
+                                    ram_addr_t phys_offset,
+                                    bool log_dirty)
 {
     struct vhost_dev *dev = container_of(client, struct vhost_dev, client);
     ram_addr_t flags = phys_offset & ~TARGET_PAGE_MASK;
