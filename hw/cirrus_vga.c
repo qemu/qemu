@@ -2489,7 +2489,9 @@ static void map_linear_vram(CirrusVGAState *s)
     if (!s->vga.map_addr && s->vga.lfb_addr && s->vga.lfb_end) {
         s->vga.map_addr = s->vga.lfb_addr;
         s->vga.map_end = s->vga.lfb_end;
-        cpu_register_physical_memory(s->vga.map_addr, s->vga.map_end - s->vga.map_addr, s->vga.vram_offset);
+        cpu_register_physical_memory_log(s->vga.map_addr,
+					 s->vga.map_end - s->vga.map_addr,
+					 s->vga.vram_offset, 0, true);
     }
 
     if (!s->vga.map_addr)
@@ -2502,10 +2504,14 @@ static void map_linear_vram(CirrusVGAState *s)
         && !((s->vga.gr[0x0B] & 0x14) == 0x14)
         && !(s->vga.gr[0x0B] & 0x02)) {
 
-        cpu_register_physical_memory(isa_mem_base + 0xa0000, 0x8000,
-                                    (s->vga.vram_offset + s->cirrus_bank_base[0]) | IO_MEM_RAM);
-        cpu_register_physical_memory(isa_mem_base + 0xa8000, 0x8000,
-                                    (s->vga.vram_offset + s->cirrus_bank_base[1]) | IO_MEM_RAM);
+        cpu_register_physical_memory_log(isa_mem_base + 0xa0000, 0x8000,
+					 (s->vga.vram_offset +
+					  s->cirrus_bank_base[0]) |
+					 IO_MEM_RAM, 0, true);
+        cpu_register_physical_memory_log(isa_mem_base + 0xa8000, 0x8000,
+					 (s->vga.vram_offset +
+					  s->cirrus_bank_base[1]) |
+					 IO_MEM_RAM, 0, true);
 
         s->vga.lfb_vram_mapped = 1;
     }
