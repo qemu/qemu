@@ -9,6 +9,7 @@
 #include <sys/mount.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <sched.h>
 #include "qemu.h"
 
 int do_strace=0;
@@ -63,6 +64,7 @@ UNUSED static void print_string(abi_long, int);
 UNUSED static void print_raw_param(const char *, abi_long, int);
 UNUSED static void print_timeval(abi_ulong, int);
 UNUSED static void print_number(abi_long, int);
+UNUSED static void print_signal(abi_ulong, int);
 
 /*
  * Utility functions
@@ -115,6 +117,37 @@ if( cmd == val ) { \
 
     /* Some value we don't recognize */
     gemu_log("%d",cmd);
+}
+
+static void
+print_signal(abi_ulong arg, int last)
+{
+    const char *signal_name = NULL;
+    switch(arg) {
+    case TARGET_SIGHUP: signal_name = "SIGHUP"; break;
+    case TARGET_SIGINT: signal_name = "SIGINT"; break;
+    case TARGET_SIGQUIT: signal_name = "SIGQUIT"; break;
+    case TARGET_SIGILL: signal_name = "SIGILL"; break;
+    case TARGET_SIGABRT: signal_name = "SIGABRT"; break;
+    case TARGET_SIGFPE: signal_name = "SIGFPE"; break;
+    case TARGET_SIGKILL: signal_name = "SIGKILL"; break;
+    case TARGET_SIGSEGV: signal_name = "SIGSEGV"; break;
+    case TARGET_SIGPIPE: signal_name = "SIGPIPE"; break;
+    case TARGET_SIGALRM: signal_name = "SIGALRM"; break;
+    case TARGET_SIGTERM: signal_name = "SIGTERM"; break;
+    case TARGET_SIGUSR1: signal_name = "SIGUSR1"; break;
+    case TARGET_SIGUSR2: signal_name = "SIGUSR2"; break;
+    case TARGET_SIGCHLD: signal_name = "SIGCHLD"; break;
+    case TARGET_SIGCONT: signal_name = "SIGCONT"; break;
+    case TARGET_SIGSTOP: signal_name = "SIGSTOP"; break;
+    case TARGET_SIGTTIN: signal_name = "SIGTTIN"; break;
+    case TARGET_SIGTTOU: signal_name = "SIGTTOU"; break;
+    }
+    if (signal_name == NULL) {
+        print_raw_param("%ld", arg, 1);
+        return;
+    }
+    gemu_log("%s%s", signal_name, get_comma(last));
 }
 
 #ifdef TARGET_NR__newselect
@@ -427,6 +460,32 @@ UNUSED static struct flags fcntl_flags[] = {
     FLAG_END,
 };
 
+UNUSED static struct flags clone_flags[] = {
+    FLAG_GENERIC(CLONE_VM),
+    FLAG_GENERIC(CLONE_FS),
+    FLAG_GENERIC(CLONE_FILES),
+    FLAG_GENERIC(CLONE_SIGHAND),
+    FLAG_GENERIC(CLONE_PTRACE),
+    FLAG_GENERIC(CLONE_VFORK),
+    FLAG_GENERIC(CLONE_PARENT),
+    FLAG_GENERIC(CLONE_THREAD),
+    FLAG_GENERIC(CLONE_NEWNS),
+    FLAG_GENERIC(CLONE_SYSVSEM),
+    FLAG_GENERIC(CLONE_SETTLS),
+    FLAG_GENERIC(CLONE_PARENT_SETTID),
+    FLAG_GENERIC(CLONE_CHILD_CLEARTID),
+    FLAG_GENERIC(CLONE_DETACHED),
+    FLAG_GENERIC(CLONE_UNTRACED),
+    FLAG_GENERIC(CLONE_CHILD_SETTID),
+    FLAG_GENERIC(CLONE_NEWUTS),
+    FLAG_GENERIC(CLONE_NEWIPC),
+    FLAG_GENERIC(CLONE_NEWUSER),
+    FLAG_GENERIC(CLONE_NEWPID),
+    FLAG_GENERIC(CLONE_NEWNET),
+    FLAG_GENERIC(CLONE_IO),
+    FLAG_END,
+};
+
 /*
  * print_xxx utility functions.  These are used to print syscall
  * parameters in certain format.  All of these have parameter
@@ -669,6 +728,39 @@ print_chmod(const struct syscallname *name,
 }
 #endif
 
+#ifdef TARGET_NR_clone
+static void
+print_clone(const struct syscallname *name,
+    abi_long arg0, abi_long arg1, abi_long arg2,
+    abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    print_syscall_prologue(name);
+#if defined(TARGET_M68K)
+    print_flags(clone_flags, arg0, 0);
+    print_raw_param("newsp=0x" TARGET_ABI_FMT_lx, arg1, 1);
+#elif defined(TARGET_SH4) || defined(TARGET_ALPHA)
+    print_flags(clone_flags, arg0, 0);
+    print_raw_param("child_stack=0x" TARGET_ABI_FMT_lx, arg1, 0);
+    print_raw_param("parent_tidptr=0x" TARGET_ABI_FMT_lx, arg2, 0);
+    print_raw_param("child_tidptr=0x" TARGET_ABI_FMT_lx, arg3, 0);
+    print_raw_param("tls=0x" TARGET_ABI_FMT_lx, arg4, 1);
+#elif defined(TARGET_CRIS)
+    print_raw_param("child_stack=0x" TARGET_ABI_FMT_lx, arg0, 0);
+    print_flags(clone_flags, arg1, 0);
+    print_raw_param("parent_tidptr=0x" TARGET_ABI_FMT_lx, arg2, 0);
+    print_raw_param("tls=0x" TARGET_ABI_FMT_lx, arg3, 0);
+    print_raw_param("child_tidptr=0x" TARGET_ABI_FMT_lx, arg4, 1);
+#else
+    print_flags(clone_flags, arg0, 0);
+    print_raw_param("child_stack=0x" TARGET_ABI_FMT_lx, arg1, 0);
+    print_raw_param("parent_tidptr=0x" TARGET_ABI_FMT_lx, arg2, 0);
+    print_raw_param("tls=0x" TARGET_ABI_FMT_lx, arg3, 0);
+    print_raw_param("child_tidptr=0x" TARGET_ABI_FMT_lx, arg4, 1);
+#endif
+    print_syscall_epilogue(name);
+}
+#endif
+
 #ifdef TARGET_NR_creat
 static void
 print_creat(const struct syscallname *name,
@@ -805,6 +897,28 @@ print_linkat(const struct syscallname *name,
 }
 #endif
 
+#ifdef TARGET_NR__llseek
+static void
+print__llseek(const struct syscallname *name,
+    abi_long arg0, abi_long arg1, abi_long arg2,
+    abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    const char *whence = "UNKNOWN";
+    print_syscall_prologue(name);
+    print_raw_param("%d", arg0, 0);
+    print_raw_param("%ld", arg1, 0);
+    print_raw_param("%ld", arg2, 0);
+    print_pointer(arg3, 0);
+    switch(arg4) {
+    case SEEK_SET: whence = "SEEK_SET"; break;
+    case SEEK_CUR: whence = "SEEK_CUR"; break;
+    case SEEK_END: whence = "SEEK_END"; break;
+    }
+    gemu_log("%s",whence);
+    print_syscall_epilogue(name);
+}
+#endif
+
 #if defined(TARGET_NR_stat) || defined(TARGET_NR_stat64) || \
     defined(TARGET_NR_lstat) || defined(TARGET_NR_lstat64)
 static void
@@ -871,6 +985,40 @@ print_rmdir(const struct syscallname *name,
 {
     print_syscall_prologue(name);
     print_string(arg0, 0);
+    print_syscall_epilogue(name);
+}
+#endif
+
+#ifdef TARGET_NR_rt_sigaction
+static void
+print_rt_sigaction(const struct syscallname *name,
+    abi_long arg0, abi_long arg1, abi_long arg2,
+    abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    print_syscall_prologue(name);
+    print_signal(arg0, 0);
+    print_pointer(arg1, 0);
+    print_pointer(arg2, 1);
+    print_syscall_epilogue(name);
+}
+#endif
+
+#ifdef TARGET_NR_rt_sigprocmask
+static void
+print_rt_sigprocmask(const struct syscallname *name,
+    abi_long arg0, abi_long arg1, abi_long arg2,
+    abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    const char *how = "UNKNOWN";
+    print_syscall_prologue(name);
+    switch(arg0) {
+    case TARGET_SIG_BLOCK: how = "SIG_BLOCK"; break;
+    case TARGET_SIG_UNBLOCK: how = "SIG_UNBLOCK"; break;
+    case TARGET_SIG_SETMASK: how = "SIG_SETMASK"; break;
+    }
+    gemu_log("%s,",how);
+    print_pointer(arg1, 0);
+    print_pointer(arg2, 1);
     print_syscall_epilogue(name);
 }
 #endif
@@ -1294,6 +1442,19 @@ print_futex(const struct syscallname *name,
     print_pointer(arg3, 0); /* struct timespec */
     print_pointer(arg4, 0);
     print_raw_param("%d", arg4, 1);
+    print_syscall_epilogue(name);
+}
+#endif
+
+#ifdef TARGET_NR_kill
+static void
+print_kill(const struct syscallname *name,
+    abi_long arg0, abi_long arg1, abi_long arg2,
+    abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    print_syscall_prologue(name);
+    print_raw_param("%d", arg0, 0);
+    print_signal(arg1, 1);
     print_syscall_epilogue(name);
 }
 #endif
