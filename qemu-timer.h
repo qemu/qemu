@@ -7,7 +7,6 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#include <mmsystem.h>
 #endif
 
 /* timers */
