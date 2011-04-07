@@ -697,14 +697,22 @@ void bdrv_close_all(void)
     }
 }
 
+/* make a BlockDriverState anonymous by removing from bdrv_state list.
+   Also, NULL terminate the device_name to prevent double remove */
+void bdrv_make_anon(BlockDriverState *bs)
+{
+    if (bs->device_name[0] != '\0') {
+        QTAILQ_REMOVE(&bdrv_states, bs, list);
+    }
+    bs->device_name[0] = '\0';
+}
+
 void bdrv_delete(BlockDriverState *bs)
 {
     assert(!bs->peer);
 
     /* remove from list, if necessary */
-    if (bs->device_name[0] != '\0') {
-        QTAILQ_REMOVE(&bdrv_states, bs, list);
-    }
+    bdrv_make_anon(bs);
 
     bdrv_close(bs);
     if (bs->file != NULL) {
@@ -1153,14 +1161,12 @@ int64_t bdrv_getlength(BlockDriverState *bs)
     if (!drv)
         return -ENOMEDIUM;
 
-    /* Fixed size devices use the total_sectors value for speed instead of
-       issuing a length query (like lseek) on each call.  Also, legacy block
-       drivers don't provide a bdrv_getlength function and must use
-       total_sectors. */
-    if (!bs->growable || !drv->bdrv_getlength) {
-        return bs->total_sectors * BDRV_SECTOR_SIZE;
+    if (bs->growable || bs->removable) {
+        if (drv->bdrv_getlength) {
+            return drv->bdrv_getlength(bs);
+        }
     }
-    return drv->bdrv_getlength(bs);
+    return bs->total_sectors * BDRV_SECTOR_SIZE;
 }
 
 /* return 0 as number of sectors if no device present or error */
@@ -2808,6 +2814,8 @@ int bdrv_is_locked(BlockDriverState *bs)
 void bdrv_set_locked(BlockDriverState *bs, int locked)
 {
     BlockDriver *drv = bs->drv;
+
+    trace_bdrv_set_locked(bs, locked);
 
     bs->locked = locked;
     if (drv && drv->bdrv_set_locked) {

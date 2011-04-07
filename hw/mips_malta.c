@@ -905,15 +905,7 @@ void mips_malta_init (ram_addr_t ram_size,
     pci_bus = gt64120_register(i8259);
 
     /* Southbridge */
-
-    if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {
-        fprintf(stderr, "qemu: too many IDE bus\n");
-        exit(1);
-    }
-
-    for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
-        hd[i] = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
-    }
+    ide_drive_get(hd, MAX_IDE_BUS);
 
     piix4_devfn = piix4_init(pci_bus, 80);
     isa_bus_irqs(i8259);
