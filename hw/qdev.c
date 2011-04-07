@@ -358,7 +358,8 @@ int qdev_simple_unplug_cb(DeviceState *dev)
     return 0;
 }
 
-/* Like qdev_init(), but terminate program via hw_error() instead of
+
+/* Like qdev_init(), but terminate program via error_report() instead of
    returning an error value.  This is okay during machine creation.
    Don't use for hotplug, because there callers need to recover from
    failure.  Exception: if you know the device's init() callback can't

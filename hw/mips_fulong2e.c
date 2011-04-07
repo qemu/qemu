@@ -338,14 +338,7 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
     pci_bus = bonito_init((qemu_irq *)&(env->irq[2]));
 
     /* South bridge */
-    if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {
-        fprintf(stderr, "qemu: too many IDE bus\n");
-        exit(1);
-    }
-
-    for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
-        hd[i] = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
-    }
+    ide_drive_get(hd, MAX_IDE_BUS);
 
     via_devfn = vt82c686b_init(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 0));
     if (via_devfn < 0) {

@@ -54,6 +54,7 @@ disable bdrv_aio_multiwrite_latefail(void *mcb, int i) "mcb %p i %d"
 disable bdrv_aio_flush(void *bs, void *opaque) "bs %p opaque %p"
 disable bdrv_aio_readv(void *bs, int64_t sector_num, int nb_sectors, void *opaque) "bs %p sector_num %"PRId64" nb_sectors %d opaque %p"
 disable bdrv_aio_writev(void *bs, int64_t sector_num, int nb_sectors, void *opaque) "bs %p sector_num %"PRId64" nb_sectors %d opaque %p"
+disable bdrv_set_locked(void *bs, int locked) "bs %p locked %d"
 
 # hw/virtio-blk.c
 disable virtio_blk_req_complete(void *req, int status) "req %p status %d"
