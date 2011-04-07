@@ -494,6 +494,8 @@ for opt do
   case "$opt" in
   --help|-h) show_help=yes
   ;;
+  --version|-V) exec cat $source_path/VERSION
+  ;;
   --prefix=*) prefix="$optarg"
   ;;
   --interp-prefix=*) interp_prefix="$optarg"
