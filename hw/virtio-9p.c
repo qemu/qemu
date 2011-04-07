@@ -696,25 +696,22 @@ static size_t pdu_unmarshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...)
         case 'w': {
             uint16_t val, *valp;
             valp = va_arg(ap, uint16_t *);
-            val = le16_to_cpupu(valp);
             offset += pdu_unpack(&val, pdu, offset, sizeof(val));
-            *valp = val;
+            *valp = le16_to_cpu(val);
             break;
         }
         case 'd': {
             uint32_t val, *valp;
             valp = va_arg(ap, uint32_t *);
-            val = le32_to_cpupu(valp);
             offset += pdu_unpack(&val, pdu, offset, sizeof(val));
-            *valp = val;
+            *valp = le32_to_cpu(val);
             break;
         }
         case 'q': {
             uint64_t val, *valp;
             valp = va_arg(ap, uint64_t *);
-            val = le64_to_cpup(valp);
             offset += pdu_unpack(&val, pdu, offset, sizeof(val));
-            *valp = val;
+            *valp = le64_to_cpu(val);
             break;
         }
         case 'v': {
