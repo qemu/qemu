@@ -191,7 +191,7 @@ static void virtio_balloon_set_config(VirtIODevice *vdev,
     VirtIOBalloon *dev = to_virtio_balloon(vdev);
     struct virtio_balloon_config config;
     memcpy(&config, config_data, 8);
-    dev->actual = config.actual;
+    dev->actual = le32_to_cpu(config.actual);
 }
 
 static uint32_t virtio_balloon_get_features(VirtIODevice *vdev, uint32_t f)
