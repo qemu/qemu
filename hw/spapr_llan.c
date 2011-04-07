@@ -274,9 +274,6 @@ static target_ulong h_register_logical_lan(CPUState *env,
     VIOsPAPRDevice *sdev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
     VIOsPAPRVLANDevice *dev = (VIOsPAPRVLANDevice *)sdev;
     vlan_bd_t filter_list_bd;
-#ifdef DEBUG
-    target_ulong mac_address = args[4];
-#endif
 
     if (!dev) {
         return H_PARAMETER;
