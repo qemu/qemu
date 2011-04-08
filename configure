@@ -1233,7 +1233,7 @@ else
   fi
   sdl=no
 fi
-if test -n "$cross_prefix" && test "`basename $sdlconfig`" = sdl-config; then
+if test -n "$cross_prefix" && test "$(basename "$sdlconfig")" = sdl-config; then
   echo warning: using "\"$sdlconfig\"" to detect cross-compiled sdl >&2
 fi
 
