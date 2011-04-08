@@ -425,27 +425,39 @@ static void rtas_int_on(sPAPREnvironment *spapr, uint32_t token,
     rtas_st(rets, 0, 0); /* Success */
 }
 
-struct icp_state *xics_system_init(int nr_servers, CPUState *servers[],
-                                   int nr_irqs)
+struct icp_state *xics_system_init(int nr_irqs)
 {
+    CPUState *env;
+    int max_server_num;
     int i;
     struct icp_state *icp;
     struct ics_state *ics;
 
+    max_server_num = -1;
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        if (env->cpu_index > max_server_num) {
+            max_server_num = env->cpu_index;
+        }
+    }
+
     icp = qemu_mallocz(sizeof(*icp));
-    icp->nr_servers = nr_servers;
-    icp->ss = qemu_mallocz(nr_servers * sizeof(struct icp_server_state));
+    icp->nr_servers = max_server_num + 1;
+    icp->ss = qemu_mallocz(icp->nr_servers*sizeof(struct icp_server_state));
 
-    for (i = 0; i < nr_servers; i++) {
-        servers[i]->cpu_index = i;
+    for (i = 0; i < icp->nr_servers; i++) {
+        icp->ss[i].mfrr = 0xff;
+    }
 
-        switch (PPC_INPUT(servers[i])) {
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        struct icp_server_state *ss = &icp->ss[env->cpu_index];
+
+        switch (PPC_INPUT(env)) {
         case PPC_FLAGS_INPUT_POWER7:
-            icp->ss[i].output = servers[i]->irq_inputs[POWER7_INPUT_INT];
+            ss->output = env->irq_inputs[POWER7_INPUT_INT];
             break;
 
         case PPC_FLAGS_INPUT_970:
-            icp->ss[i].output = servers[i]->irq_inputs[PPC970_INPUT_INT];
+            ss->output = env->irq_inputs[PPC970_INPUT_INT];
             break;
 
         default:
@@ -453,8 +465,6 @@ struct icp_state *xics_system_init(int nr_servers, CPUState *servers[],
                      "model\n");
             exit(1);
         }
-
-        icp->ss[i].mfrr = 0xff;
     }
 
     ics = qemu_mallocz(sizeof(*ics));
