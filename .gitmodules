@@ -7,3 +7,6 @@
 [submodule "roms/SLOF"]
 	path = roms/SLOF
 	url = git://git.qemu.org/SLOF.git
+[submodule "roms/ipxe"]
+	path = roms/ipxe
+	url = git://git.qemu.org/ipxe.git
