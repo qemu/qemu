@@ -1220,7 +1220,7 @@ static PCIDeviceInfo e1000_info = {
     .qdev.vmsd  = &vmstate_e1000,
     .init       = pci_e1000_init,
     .exit       = pci_e1000_uninit,
-    .romfile    = "pxe-e1000.bin",
+    .romfile    = "pxe-e1000.rom",
     .qdev.props = (Property[]) {
         DEFINE_NIC_PROPERTIES(E1000State, conf),
         DEFINE_PROP_END_OF_LIST(),
