@@ -1230,13 +1230,8 @@ static void ide_atapi_cmd(IDEState *s)
         ide_atapi_cmd_reply(s, 18, max_len);
         break;
     case GPCMD_PREVENT_ALLOW_MEDIUM_REMOVAL:
-        if (bdrv_is_inserted(s->bs)) {
-            bdrv_set_locked(s->bs, packet[4] & 1);
-            ide_atapi_cmd_ok(s);
-        } else {
-            ide_atapi_cmd_error(s, SENSE_NOT_READY,
-                                ASC_MEDIUM_NOT_PRESENT);
-        }
+        bdrv_set_locked(s->bs, packet[4] & 1);
+        ide_atapi_cmd_ok(s);
         break;
     case GPCMD_READ_10:
     case GPCMD_READ_12:
