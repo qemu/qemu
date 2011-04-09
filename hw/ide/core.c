@@ -1304,7 +1304,7 @@ static void ide_atapi_cmd(IDEState *s)
         break;
     case GPCMD_START_STOP_UNIT:
         {
-            int start, eject, err = 0;
+            int start, eject, sense, err = 0;
             start = packet[4] & 1;
             eject = (packet[4] >> 1) & 1;
 
@@ -1317,7 +1317,11 @@ static void ide_atapi_cmd(IDEState *s)
                 ide_atapi_cmd_ok(s);
                 break;
             case -EBUSY:
-                ide_atapi_cmd_error(s, SENSE_NOT_READY,
+                sense = SENSE_NOT_READY;
+                if (bdrv_is_inserted(s->bs)) {
+                    sense = SENSE_ILLEGAL_REQUEST;
+                }
+                ide_atapi_cmd_error(s, sense,
                                     ASC_MEDIA_REMOVAL_PREVENTED);
                 break;
             default:
