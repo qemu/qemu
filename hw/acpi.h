@@ -74,5 +74,56 @@
 #define ACPI_BITMASK_ARB_DISABLE                0x0001
 
 /* PM_TMR */
+struct ACPIPMTimer;
+typedef struct ACPIPMTimer ACPIPMTimer;
+
+typedef void (*acpi_update_sci_fn)(ACPIPMTimer *tmr);
+
+struct ACPIPMTimer {
+    QEMUTimer *timer;
+    int64_t overflow_time;
+
+    acpi_update_sci_fn update_sci;
+};
+
+void acpi_pm_tmr_update(ACPIPMTimer *tmr, bool enable);
+void acpi_pm_tmr_calc_overflow_time(ACPIPMTimer *tmr);
+uint32_t acpi_pm_tmr_get(ACPIPMTimer *tmr);
+void acpi_pm_tmr_init(ACPIPMTimer *tmr, acpi_update_sci_fn update_sci);
+void acpi_pm_tmr_reset(ACPIPMTimer *tmr);
+
+#include "qemu-timer.h"
+static inline int64_t acpi_pm_tmr_get_clock(void)
+{
+    return muldiv64(qemu_get_clock_ns(vm_clock), PM_TIMER_FREQUENCY,
+                    get_ticks_per_sec());
+}
+
+/* PM1a_EVT: piix and ich9 don't implement PM1b. */
+struct ACPIPM1EVT
+{
+    uint16_t sts;
+    uint16_t en;
+};
+typedef struct ACPIPM1EVT ACPIPM1EVT;
+
+uint16_t acpi_pm1_evt_get_sts(ACPIPM1EVT *pm1, int64_t overflow_time);
+void acpi_pm1_evt_write_sts(ACPIPM1EVT *pm1, ACPIPMTimer *tmr, uint16_t val);
+void acpi_pm1_evt_power_down(ACPIPM1EVT *pm1, ACPIPMTimer *tmr);
+void acpi_pm1_evt_reset(ACPIPM1EVT *pm1);
+
+/* PM1a_CNT: piix and ich9 don't implement PM1b CNT. */
+struct ACPIPM1CNT {
+    uint16_t cnt;
+
+    qemu_irq cmos_s3;
+};
+typedef struct ACPIPM1CNT ACPIPM1CNT;
+
+void acpi_pm1_cnt_init(ACPIPM1CNT *pm1_cnt, qemu_irq cmos_s3);
+void acpi_pm1_cnt_write(ACPIPM1EVT *pm1a, ACPIPM1CNT *pm1_cnt, uint16_t val);
+void acpi_pm1_cnt_update(ACPIPM1CNT *pm1_cnt,
+                         bool sci_enable, bool sci_disable);
+void acpi_pm1_cnt_reset(ACPIPM1CNT *pm1_cnt);
 
 #endif /* !QEMU_HW_ACPI_H */

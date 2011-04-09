@@ -112,7 +112,7 @@ static uint32_t pflash_read (pflash_t *pfl, target_phys_addr_t offset,
 
     DPRINTF("%s: offset " TARGET_FMT_plx "\n", __func__, offset);
     ret = -1;
-    if (pfl->rom_mode) {
+    if (!pfl->rom_mode) {
         /* Lazy reset of to ROMD mode */
         if (pfl->wcycle == 0)
             pflash_register_memory(pfl, 1);

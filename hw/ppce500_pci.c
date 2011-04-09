@@ -198,7 +198,7 @@ static int mpc85xx_pci_map_irq(PCIDevice *pci_dev, int irq_num)
             ret = (irq_num + devno - 0x10) % 4;
             break;
         default:
-            printf("Error:%s:unknow dev number\n", __func__);
+            printf("Error:%s:unknown dev number\n", __func__);
     }
 
     pci_debug("%s: devfn %x irq %d -> %d  devno:%x\n", __func__,
