@@ -3932,7 +3932,7 @@ void *cpu_physical_memory_map(target_phys_addr_t addr,
             bounce.addr = addr;
             bounce.len = l;
             if (!is_write) {
-                cpu_physical_memory_rw(addr, bounce.buffer, l, 0);
+                cpu_physical_memory_read(addr, bounce.buffer, l);
             }
             ptr = bounce.buffer;
         } else {

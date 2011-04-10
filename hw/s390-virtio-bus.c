@@ -233,7 +233,8 @@ void s390_virtio_device_sync(VirtIOS390Device *dev)
         dev->vdev->get_config(dev->vdev, dev->vdev->config);
     }
 
-    cpu_physical_memory_rw(cur_offs, dev->vdev->config, dev->vdev->config_len, 1);
+    cpu_physical_memory_write(cur_offs,
+                              dev->vdev->config, dev->vdev->config_len);
     cur_offs += dev->vdev->config_len;
 }
 

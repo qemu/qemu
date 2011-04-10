@@ -307,7 +307,7 @@ static void rc4030_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
         if (s->cache_ltag == 0x80000001 && s->cache_bmask == 0xf0f0f0f) {
             target_phys_addr_t dest = s->cache_ptag & ~0x1;
             dest += (s->cache_maint & 0x3) << 3;
-            cpu_physical_memory_rw(dest, (uint8_t*)&val, 4, 1);
+            cpu_physical_memory_write(dest, &val, 4);
         }
         break;
     /* Remote Speed Registers */
@@ -704,7 +704,7 @@ void rc4030_dma_memory_rw(void *opaque, target_phys_addr_t addr, uint8_t *buf, i
         entry_addr = s->dma_tl_base + index * sizeof(dma_pagetable_entry);
         /* XXX: not sure. should we really use only lowest bits? */
         entry_addr &= 0x7fffffff;
-        cpu_physical_memory_rw(entry_addr, (uint8_t *)&entry, sizeof(entry), 0);
+        cpu_physical_memory_read(entry_addr, &entry, sizeof(entry));
 
         /* Read/write data at right place */
         phys_addr = entry.frame + (addr & (DMA_PAGESIZE - 1));

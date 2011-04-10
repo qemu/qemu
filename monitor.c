@@ -1429,7 +1429,7 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
         if (l > line_size)
             l = line_size;
         if (is_physical) {
-            cpu_physical_memory_rw(addr, buf, l, 0);
+            cpu_physical_memory_read(addr, buf, l);
         } else {
             env = mon_get_cpu();
             if (cpu_memory_rw_debug(env, addr, buf, l, 0) < 0) {
@@ -1605,7 +1605,7 @@ static int do_physical_memory_save(Monitor *mon, const QDict *qdict,
         l = sizeof(buf);
         if (l > size)
             l = size;
-        cpu_physical_memory_rw(addr, buf, l, 0);
+        cpu_physical_memory_read(addr, buf, l);
         if (fwrite(buf, 1, l, f) != l) {
             monitor_printf(mon, "fwrite() error in do_physical_memory_save\n");
             goto exit;
@@ -1625,17 +1625,16 @@ exit:
 static void do_sum(Monitor *mon, const QDict *qdict)
 {
     uint32_t addr;
-    uint8_t buf[1];
     uint16_t sum;
     uint32_t start = qdict_get_int(qdict, "start");
     uint32_t size = qdict_get_int(qdict, "size");
 
     sum = 0;
     for(addr = start; addr < (start + size); addr++) {
-        cpu_physical_memory_rw(addr, buf, 1, 0);
+        uint8_t val = ldub_phys(addr);
         /* BSD sum algorithm ('sum' Unix command) */
         sum = (sum >> 1) | (sum << 15);
-        sum += buf[0];
+        sum += val;
     }
     monitor_printf(mon, "%05d\n", sum);
 }

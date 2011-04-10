@@ -345,7 +345,7 @@ monitor_read_memory (bfd_vma memaddr, bfd_byte *myaddr, int length,
                      struct disassemble_info *info)
 {
     if (monitor_disas_is_physical) {
-        cpu_physical_memory_rw(memaddr, myaddr, length, 0);
+        cpu_physical_memory_read(memaddr, myaddr, length);
     } else {
         cpu_memory_rw_debug(monitor_disas_env, memaddr,myaddr, length, 0);
     }
