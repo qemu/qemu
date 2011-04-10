@@ -398,7 +398,7 @@ static ExitStatus gen_bdirect(DisasContext *ctx, int ra, int32_t disp)
     } else if (use_goto_tb(ctx, dest)) {
         tcg_gen_goto_tb(0);
         tcg_gen_movi_i64(cpu_pc, dest);
-        tcg_gen_exit_tb((long)ctx->tb);
+        tcg_gen_exit_tb((tcg_target_long)ctx->tb);
         return EXIT_GOTO_TB;
     } else {
         tcg_gen_movi_i64(cpu_pc, dest);
@@ -417,12 +417,12 @@ static ExitStatus gen_bcond_internal(DisasContext *ctx, TCGCond cond,
 
         tcg_gen_goto_tb(0);
         tcg_gen_movi_i64(cpu_pc, ctx->pc);
-        tcg_gen_exit_tb((long)ctx->tb);
+        tcg_gen_exit_tb((tcg_target_long)ctx->tb);
 
         gen_set_label(lab_true);
         tcg_gen_goto_tb(1);
         tcg_gen_movi_i64(cpu_pc, dest);
-        tcg_gen_exit_tb((long)ctx->tb + 1);
+        tcg_gen_exit_tb((tcg_target_long)ctx->tb + 1);
 
         return EXIT_GOTO_TB;
     } else {

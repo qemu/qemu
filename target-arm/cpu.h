@@ -350,7 +350,6 @@ enum arm_features {
     ARM_FEATURE_IWMMXT, /* Intel iwMMXt extension.  */
     //~ ARM_FEATURE_V4,     /* TODO: still unused. */
     //~ See http://lists.nongnu.org/archive/html/qemu-devel/2009-05/msg01570.html
-    ARM_FEATURE_V5,
     ARM_FEATURE_V6,
     ARM_FEATURE_V6K,
     ARM_FEATURE_V7,
@@ -368,7 +367,9 @@ enum arm_features {
     // TODO: enhanced dsp instructions (E variant).
     // TODO: ARMv5TExP.
     ARM_FEATURE_THUMB2EE,
-    ARM_FEATURE_V7MP    /* v7 Multiprocessing Extensions */
+    ARM_FEATURE_V7MP,    /* v7 Multiprocessing Extensions */
+    ARM_FEATURE_V4T,
+    ARM_FEATURE_V5,
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)

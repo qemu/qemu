@@ -263,11 +263,9 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
     qemu_irq *cpu_exit_irq;
     int via_devfn;
     PCIBus *pci_bus;
-    uint8_t *eeprom_buf;
     i2c_bus *smbus;
     int i;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
-    DeviceState *eeprom;
     CPUState *env;
 
     /* init CPUs */
@@ -353,13 +351,8 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
 
     smbus = vt82c686b_pm_init(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 4),
                               0xeee1, NULL);
-    eeprom_buf = qemu_mallocz(8 * 256); /* XXX: make this persistent */
-    memcpy(eeprom_buf, eeprom_spd, sizeof(eeprom_spd));
     /* TODO: Populate SPD eeprom data.  */
-    eeprom = qdev_create((BusState *)smbus, "smbus-eeprom");
-    qdev_prop_set_uint8(eeprom, "address", 0x50);
-    qdev_prop_set_ptr(eeprom, "data", eeprom_buf);
-    qdev_init_nofail(eeprom);
+    smbus_eeprom_init(smbus, 1, eeprom_spd, sizeof(eeprom_spd));
 
     /* init other devices */
     pit = pit_init(0x40, 0);
