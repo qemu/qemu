@@ -238,10 +238,6 @@ extern const unsigned alpha_num_operands;
 #define AXP_REG_SP	30
 #define AXP_REG_ZERO	31
 
-#define bfd_mach_alpha_ev4  0x10
-#define bfd_mach_alpha_ev5  0x20
-#define bfd_mach_alpha_ev6  0x30
-
 enum bfd_reloc_code_real {
     BFD_RELOC_23_PCREL_S2,
     BFD_RELOC_ALPHA_HINT
