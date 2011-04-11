@@ -6023,7 +6023,14 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 }
             } else if ((insn & (1 << 10)) == 0) {
                 /* VTBL, VTBX.  */
-                int n = ((insn >> 5) & 0x18) + 8;
+                int n = ((insn >> 8) & 3) + 1;
+                if ((rn + n) > 32) {
+                    /* This is UNPREDICTABLE; we choose to UNDEF to avoid the
+                     * helper function running off the end of the register file.
+                     */
+                    return 1;
+                }
+                n <<= 3;
                 if (insn & (1 << 6)) {
                     tmp = neon_load_reg(rd, 0);
                 } else {
