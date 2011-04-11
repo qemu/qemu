@@ -5514,6 +5514,10 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 if (imm > 7 && !q)
                     return 1;
 
+                if (q && ((rd | rn | rm) & 1)) {
+                    return 1;
+                }
+
                 if (imm == 0) {
                     neon_load_reg64(cpu_V0, rn);
                     if (q) {
