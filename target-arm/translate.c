@@ -3662,7 +3662,7 @@ static inline TCGv neon_get_scalar(int size, int reg)
 static int gen_neon_unzip(int rd, int rm, int size, int q)
 {
     TCGv tmp, tmp2;
-    if (size == 3 || (!q && size == 2)) {
+    if (!q && size == 2) {
         return 1;
     }
     tmp = tcg_const_i32(rd);
@@ -3701,7 +3701,7 @@ static int gen_neon_unzip(int rd, int rm, int size, int q)
 static int gen_neon_zip(int rd, int rm, int size, int q)
 {
     TCGv tmp, tmp2;
-    if (size == 3 || (!q && size == 2)) {
+    if (!q && size == 2) {
         return 1;
     }
     tmp = tcg_const_i32(rd);
@@ -4310,6 +4310,113 @@ static const uint8_t neon_3r_sizes[] = {
     [NEON_3R_FLOAT_ACMP] = 0x5, /* size bit 1 encodes op */
     [NEON_3R_FLOAT_MINMAX] = 0x5, /* size bit 1 encodes op */
     [NEON_3R_VRECPS_VRSQRTS] = 0x5, /* size bit 1 encodes op */
+};
+
+/* Symbolic constants for op fields for Neon 2-register miscellaneous.
+ * The values correspond to bits [17:16,10:7]; see the ARM ARM DDI0406B
+ * table A7-13.
+ */
+#define NEON_2RM_VREV64 0
+#define NEON_2RM_VREV32 1
+#define NEON_2RM_VREV16 2
+#define NEON_2RM_VPADDL 4
+#define NEON_2RM_VPADDL_U 5
+#define NEON_2RM_VCLS 8
+#define NEON_2RM_VCLZ 9
+#define NEON_2RM_VCNT 10
+#define NEON_2RM_VMVN 11
+#define NEON_2RM_VPADAL 12
+#define NEON_2RM_VPADAL_U 13
+#define NEON_2RM_VQABS 14
+#define NEON_2RM_VQNEG 15
+#define NEON_2RM_VCGT0 16
+#define NEON_2RM_VCGE0 17
+#define NEON_2RM_VCEQ0 18
+#define NEON_2RM_VCLE0 19
+#define NEON_2RM_VCLT0 20
+#define NEON_2RM_VABS 22
+#define NEON_2RM_VNEG 23
+#define NEON_2RM_VCGT0_F 24
+#define NEON_2RM_VCGE0_F 25
+#define NEON_2RM_VCEQ0_F 26
+#define NEON_2RM_VCLE0_F 27
+#define NEON_2RM_VCLT0_F 28
+#define NEON_2RM_VABS_F 30
+#define NEON_2RM_VNEG_F 31
+#define NEON_2RM_VSWP 32
+#define NEON_2RM_VTRN 33
+#define NEON_2RM_VUZP 34
+#define NEON_2RM_VZIP 35
+#define NEON_2RM_VMOVN 36 /* Includes VQMOVN, VQMOVUN */
+#define NEON_2RM_VQMOVN 37 /* Includes VQMOVUN */
+#define NEON_2RM_VSHLL 38
+#define NEON_2RM_VCVT_F16_F32 44
+#define NEON_2RM_VCVT_F32_F16 46
+#define NEON_2RM_VRECPE 56
+#define NEON_2RM_VRSQRTE 57
+#define NEON_2RM_VRECPE_F 58
+#define NEON_2RM_VRSQRTE_F 59
+#define NEON_2RM_VCVT_FS 60
+#define NEON_2RM_VCVT_FU 61
+#define NEON_2RM_VCVT_SF 62
+#define NEON_2RM_VCVT_UF 63
+
+static int neon_2rm_is_float_op(int op)
+{
+    /* Return true if this neon 2reg-misc op is float-to-float */
+    return (op == NEON_2RM_VABS_F || op == NEON_2RM_VNEG_F ||
+            op >= NEON_2RM_VRECPE_F);
+}
+
+/* Each entry in this array has bit n set if the insn allows
+ * size value n (otherwise it will UNDEF). Since unallocated
+ * op values will have no bits set they always UNDEF.
+ */
+static const uint8_t neon_2rm_sizes[] = {
+    [NEON_2RM_VREV64] = 0x7,
+    [NEON_2RM_VREV32] = 0x3,
+    [NEON_2RM_VREV16] = 0x1,
+    [NEON_2RM_VPADDL] = 0x7,
+    [NEON_2RM_VPADDL_U] = 0x7,
+    [NEON_2RM_VCLS] = 0x7,
+    [NEON_2RM_VCLZ] = 0x7,
+    [NEON_2RM_VCNT] = 0x1,
+    [NEON_2RM_VMVN] = 0x1,
+    [NEON_2RM_VPADAL] = 0x7,
+    [NEON_2RM_VPADAL_U] = 0x7,
+    [NEON_2RM_VQABS] = 0x7,
+    [NEON_2RM_VQNEG] = 0x7,
+    [NEON_2RM_VCGT0] = 0x7,
+    [NEON_2RM_VCGE0] = 0x7,
+    [NEON_2RM_VCEQ0] = 0x7,
+    [NEON_2RM_VCLE0] = 0x7,
+    [NEON_2RM_VCLT0] = 0x7,
+    [NEON_2RM_VABS] = 0x7,
+    [NEON_2RM_VNEG] = 0x7,
+    [NEON_2RM_VCGT0_F] = 0x4,
+    [NEON_2RM_VCGE0_F] = 0x4,
+    [NEON_2RM_VCEQ0_F] = 0x4,
+    [NEON_2RM_VCLE0_F] = 0x4,
+    [NEON_2RM_VCLT0_F] = 0x4,
+    [NEON_2RM_VABS_F] = 0x4,
+    [NEON_2RM_VNEG_F] = 0x4,
+    [NEON_2RM_VSWP] = 0x1,
+    [NEON_2RM_VTRN] = 0x7,
+    [NEON_2RM_VUZP] = 0x7,
+    [NEON_2RM_VZIP] = 0x7,
+    [NEON_2RM_VMOVN] = 0x7,
+    [NEON_2RM_VQMOVN] = 0x7,
+    [NEON_2RM_VSHLL] = 0x7,
+    [NEON_2RM_VCVT_F16_F32] = 0x2,
+    [NEON_2RM_VCVT_F32_F16] = 0x2,
+    [NEON_2RM_VRECPE] = 0x4,
+    [NEON_2RM_VRSQRTE] = 0x4,
+    [NEON_2RM_VRECPE_F] = 0x4,
+    [NEON_2RM_VRSQRTE_F] = 0x4,
+    [NEON_2RM_VCVT_FS] = 0x4,
+    [NEON_2RM_VCVT_FU] = 0x4,
+    [NEON_2RM_VCVT_SF] = 0x4,
+    [NEON_2RM_VCVT_UF] = 0x4,
 };
 
 /* Translate a NEON data processing instruction.  Return nonzero if the
@@ -5566,10 +5673,12 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 /* Two register misc.  */
                 op = ((insn >> 12) & 0x30) | ((insn >> 7) & 0xf);
                 size = (insn >> 18) & 3;
+                /* UNDEF for unknown op values and bad op-size combinations */
+                if ((neon_2rm_sizes[op] & (1 << size)) == 0) {
+                    return 1;
+                }
                 switch (op) {
-                case 0: /* VREV64 */
-                    if (size == 3)
-                        return 1;
+                case NEON_2RM_VREV64:
                     for (pass = 0; pass < (q ? 2 : 1); pass++) {
                         tmp = neon_load_reg(rm, pass * 2);
                         tmp2 = neon_load_reg(rm, pass * 2 + 1);
@@ -5592,10 +5701,8 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         }
                     }
                     break;
-                case 4: case 5: /* VPADDL */
-                case 12: case 13: /* VPADAL */
-                    if (size == 3)
-                        return 1;
+                case NEON_2RM_VPADDL: case NEON_2RM_VPADDL_U:
+                case NEON_2RM_VPADAL: case NEON_2RM_VPADAL_U:
                     for (pass = 0; pass < q + 1; pass++) {
                         tmp = neon_load_reg(rm, pass * 2);
                         gen_neon_widen(cpu_V0, tmp, size, op & 1);
@@ -5607,7 +5714,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         case 2: tcg_gen_add_i64(CPU_V001); break;
                         default: abort();
                         }
-                        if (op >= 12) {
+                        if (op >= NEON_2RM_VPADAL) {
                             /* Accumulate.  */
                             neon_load_reg64(cpu_V1, rd + pass);
                             gen_neon_addl(size);
@@ -5615,7 +5722,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         neon_store_reg64(cpu_V0, rd + pass);
                     }
                     break;
-                case 33: /* VTRN */
+                case NEON_2RM_VTRN:
                     if (size == 2) {
                         int n;
                         for (n = 0; n < (q ? 4 : 2); n += 2) {
@@ -5628,24 +5735,24 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         goto elementwise;
                     }
                     break;
-                case 34: /* VUZP */
+                case NEON_2RM_VUZP:
                     if (gen_neon_unzip(rd, rm, size, q)) {
                         return 1;
                     }
                     break;
-                case 35: /* VZIP */
+                case NEON_2RM_VZIP:
                     if (gen_neon_zip(rd, rm, size, q)) {
                         return 1;
                     }
                     break;
-                case 36: case 37: /* VMOVN, VQMOVUN, VQMOVN */
-                    if (size == 3)
-                        return 1;
+                case NEON_2RM_VMOVN: case NEON_2RM_VQMOVN:
+                    /* also VQMOVUN; op field and mnemonics don't line up */
                     TCGV_UNUSED(tmp2);
                     for (pass = 0; pass < 2; pass++) {
                         neon_load_reg64(cpu_V0, rm + pass);
                         tmp = tcg_temp_new_i32();
-                        gen_neon_narrow_op(op == 36, q, size, tmp, cpu_V0);
+                        gen_neon_narrow_op(op == NEON_2RM_VMOVN, q, size,
+                                           tmp, cpu_V0);
                         if (pass == 0) {
                             tmp2 = tmp;
                         } else {
@@ -5654,9 +5761,10 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         }
                     }
                     break;
-                case 38: /* VSHLL */
-                    if (q || size == 3)
+                case NEON_2RM_VSHLL:
+                    if (q) {
                         return 1;
+                    }
                     tmp = neon_load_reg(rm, 0);
                     tmp2 = neon_load_reg(rm, 1);
                     for (pass = 0; pass < 2; pass++) {
@@ -5667,7 +5775,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         neon_store_reg64(cpu_V0, rd + pass);
                     }
                     break;
-                case 44: /* VCVT.F16.F32 */
+                case NEON_2RM_VCVT_F16_F32:
                     if (!arm_feature(env, ARM_FEATURE_VFP_FP16))
                       return 1;
                     tmp = tcg_temp_new_i32();
@@ -5689,7 +5797,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     neon_store_reg(rd, 1, tmp2);
                     tcg_temp_free_i32(tmp);
                     break;
-                case 46: /* VCVT.F32.F16 */
+                case NEON_2RM_VCVT_F32_F16:
                     if (!arm_feature(env, ARM_FEATURE_VFP_FP16))
                       return 1;
                     tmp3 = tcg_temp_new_i32();
@@ -5714,7 +5822,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 default:
                 elementwise:
                     for (pass = 0; pass < (q ? 4 : 2); pass++) {
-                        if (op == 30 || op == 31 || op >= 58) {
+                        if (neon_2rm_is_float_op(op)) {
                             tcg_gen_ld_f32(cpu_F0s, cpu_env,
                                            neon_reg_offset(rm, pass));
                             TCGV_UNUSED(tmp);
@@ -5722,183 +5830,178 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             tmp = neon_load_reg(rm, pass);
                         }
                         switch (op) {
-                        case 1: /* VREV32 */
+                        case NEON_2RM_VREV32:
                             switch (size) {
                             case 0: tcg_gen_bswap32_i32(tmp, tmp); break;
                             case 1: gen_swap_half(tmp); break;
-                            default: return 1;
+                            default: abort();
                             }
                             break;
-                        case 2: /* VREV16 */
-                            if (size != 0)
-                                return 1;
+                        case NEON_2RM_VREV16:
                             gen_rev16(tmp);
                             break;
-                        case 8: /* CLS */
+                        case NEON_2RM_VCLS:
                             switch (size) {
                             case 0: gen_helper_neon_cls_s8(tmp, tmp); break;
                             case 1: gen_helper_neon_cls_s16(tmp, tmp); break;
                             case 2: gen_helper_neon_cls_s32(tmp, tmp); break;
-                            default: return 1;
+                            default: abort();
                             }
                             break;
-                        case 9: /* CLZ */
+                        case NEON_2RM_VCLZ:
                             switch (size) {
                             case 0: gen_helper_neon_clz_u8(tmp, tmp); break;
                             case 1: gen_helper_neon_clz_u16(tmp, tmp); break;
                             case 2: gen_helper_clz(tmp, tmp); break;
-                            default: return 1;
+                            default: abort();
                             }
                             break;
-                        case 10: /* CNT */
-                            if (size != 0)
-                                return 1;
+                        case NEON_2RM_VCNT:
                             gen_helper_neon_cnt_u8(tmp, tmp);
                             break;
-                        case 11: /* VNOT */
-                            if (size != 0)
-                                return 1;
+                        case NEON_2RM_VMVN:
                             tcg_gen_not_i32(tmp, tmp);
                             break;
-                        case 14: /* VQABS */
+                        case NEON_2RM_VQABS:
                             switch (size) {
                             case 0: gen_helper_neon_qabs_s8(tmp, tmp); break;
                             case 1: gen_helper_neon_qabs_s16(tmp, tmp); break;
                             case 2: gen_helper_neon_qabs_s32(tmp, tmp); break;
-                            default: return 1;
+                            default: abort();
                             }
                             break;
-                        case 15: /* VQNEG */
+                        case NEON_2RM_VQNEG:
                             switch (size) {
                             case 0: gen_helper_neon_qneg_s8(tmp, tmp); break;
                             case 1: gen_helper_neon_qneg_s16(tmp, tmp); break;
                             case 2: gen_helper_neon_qneg_s32(tmp, tmp); break;
-                            default: return 1;
+                            default: abort();
                             }
                             break;
-                        case 16: case 19: /* VCGT #0, VCLE #0 */
+                        case NEON_2RM_VCGT0: case NEON_2RM_VCLE0:
                             tmp2 = tcg_const_i32(0);
                             switch(size) {
                             case 0: gen_helper_neon_cgt_s8(tmp, tmp, tmp2); break;
                             case 1: gen_helper_neon_cgt_s16(tmp, tmp, tmp2); break;
                             case 2: gen_helper_neon_cgt_s32(tmp, tmp, tmp2); break;
-                            default: return 1;
+                            default: abort();
                             }
                             tcg_temp_free(tmp2);
-                            if (op == 19)
+                            if (op == NEON_2RM_VCLE0) {
                                 tcg_gen_not_i32(tmp, tmp);
+                            }
                             break;
-                        case 17: case 20: /* VCGE #0, VCLT #0 */
+                        case NEON_2RM_VCGE0: case NEON_2RM_VCLT0:
                             tmp2 = tcg_const_i32(0);
                             switch(size) {
                             case 0: gen_helper_neon_cge_s8(tmp, tmp, tmp2); break;
                             case 1: gen_helper_neon_cge_s16(tmp, tmp, tmp2); break;
                             case 2: gen_helper_neon_cge_s32(tmp, tmp, tmp2); break;
-                            default: return 1;
+                            default: abort();
                             }
                             tcg_temp_free(tmp2);
-                            if (op == 20)
+                            if (op == NEON_2RM_VCLT0) {
                                 tcg_gen_not_i32(tmp, tmp);
+                            }
                             break;
-                        case 18: /* VCEQ #0 */
+                        case NEON_2RM_VCEQ0:
                             tmp2 = tcg_const_i32(0);
                             switch(size) {
                             case 0: gen_helper_neon_ceq_u8(tmp, tmp, tmp2); break;
                             case 1: gen_helper_neon_ceq_u16(tmp, tmp, tmp2); break;
                             case 2: gen_helper_neon_ceq_u32(tmp, tmp, tmp2); break;
-                            default: return 1;
+                            default: abort();
                             }
                             tcg_temp_free(tmp2);
                             break;
-                        case 22: /* VABS */
+                        case NEON_2RM_VABS:
                             switch(size) {
                             case 0: gen_helper_neon_abs_s8(tmp, tmp); break;
                             case 1: gen_helper_neon_abs_s16(tmp, tmp); break;
                             case 2: tcg_gen_abs_i32(tmp, tmp); break;
-                            default: return 1;
+                            default: abort();
                             }
                             break;
-                        case 23: /* VNEG */
-                            if (size == 3)
-                                return 1;
+                        case NEON_2RM_VNEG:
                             tmp2 = tcg_const_i32(0);
                             gen_neon_rsb(size, tmp, tmp2);
                             tcg_temp_free(tmp2);
                             break;
-                        case 24: /* Float VCGT #0 */
+                        case NEON_2RM_VCGT0_F:
                             tmp2 = tcg_const_i32(0);
                             gen_helper_neon_cgt_f32(tmp, tmp, tmp2);
                             tcg_temp_free(tmp2);
                             break;
-                        case 25: /* Float VCGE #0 */
+                        case NEON_2RM_VCGE0_F:
                             tmp2 = tcg_const_i32(0);
                             gen_helper_neon_cge_f32(tmp, tmp, tmp2);
                             tcg_temp_free(tmp2);
                             break;
-                        case 26: /* Float VCEQ #0 */
+                        case NEON_2RM_VCEQ0_F:
                             tmp2 = tcg_const_i32(0);
                             gen_helper_neon_ceq_f32(tmp, tmp, tmp2);
                             tcg_temp_free(tmp2);
                             break;
-                        case 27: /* Float VCLE #0 */
+                        case NEON_2RM_VCLE0_F:
                             tmp2 = tcg_const_i32(0);
                             gen_helper_neon_cge_f32(tmp, tmp2, tmp);
                             tcg_temp_free(tmp2);
                             break;
-                        case 28: /* Float VCLT #0 */
+                        case NEON_2RM_VCLT0_F:
                             tmp2 = tcg_const_i32(0);
                             gen_helper_neon_cgt_f32(tmp, tmp2, tmp);
                             tcg_temp_free(tmp2);
                             break;
-                        case 30: /* Float VABS */
+                        case NEON_2RM_VABS_F:
                             gen_vfp_abs(0);
                             break;
-                        case 31: /* Float VNEG */
+                        case NEON_2RM_VNEG_F:
                             gen_vfp_neg(0);
                             break;
-                        case 32: /* VSWP */
+                        case NEON_2RM_VSWP:
                             tmp2 = neon_load_reg(rd, pass);
                             neon_store_reg(rm, pass, tmp2);
                             break;
-                        case 33: /* VTRN */
+                        case NEON_2RM_VTRN:
                             tmp2 = neon_load_reg(rd, pass);
                             switch (size) {
                             case 0: gen_neon_trn_u8(tmp, tmp2); break;
                             case 1: gen_neon_trn_u16(tmp, tmp2); break;
-                            case 2: abort();
-                            default: return 1;
+                            default: abort();
                             }
                             neon_store_reg(rm, pass, tmp2);
                             break;
-                        case 56: /* Integer VRECPE */
+                        case NEON_2RM_VRECPE:
                             gen_helper_recpe_u32(tmp, tmp, cpu_env);
                             break;
-                        case 57: /* Integer VRSQRTE */
+                        case NEON_2RM_VRSQRTE:
                             gen_helper_rsqrte_u32(tmp, tmp, cpu_env);
                             break;
-                        case 58: /* Float VRECPE */
+                        case NEON_2RM_VRECPE_F:
                             gen_helper_recpe_f32(cpu_F0s, cpu_F0s, cpu_env);
                             break;
-                        case 59: /* Float VRSQRTE */
+                        case NEON_2RM_VRSQRTE_F:
                             gen_helper_rsqrte_f32(cpu_F0s, cpu_F0s, cpu_env);
                             break;
-                        case 60: /* VCVT.F32.S32 */
+                        case NEON_2RM_VCVT_FS: /* VCVT.F32.S32 */
                             gen_vfp_sito(0);
                             break;
-                        case 61: /* VCVT.F32.U32 */
+                        case NEON_2RM_VCVT_FU: /* VCVT.F32.U32 */
                             gen_vfp_uito(0);
                             break;
-                        case 62: /* VCVT.S32.F32 */
+                        case NEON_2RM_VCVT_SF: /* VCVT.S32.F32 */
                             gen_vfp_tosiz(0);
                             break;
-                        case 63: /* VCVT.U32.F32 */
+                        case NEON_2RM_VCVT_UF: /* VCVT.U32.F32 */
                             gen_vfp_touiz(0);
                             break;
                         default:
-                            /* Reserved: 21, 29, 39-56 */
-                            return 1;
+                            /* Reserved op values were caught by the
+                             * neon_2rm_sizes[] check earlier.
+                             */
+                            abort();
                         }
-                        if (op == 30 || op == 31 || op >= 58) {
+                        if (neon_2rm_is_float_op(op)) {
                             tcg_gen_st_f32(cpu_F0s, cpu_env,
                                            neon_reg_offset(rd, pass));
                         } else {
