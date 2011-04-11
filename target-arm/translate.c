@@ -5368,16 +5368,29 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     }
                 }
             } else {
-                /* Two registers and a scalar.  */
+                /* Two registers and a scalar. NB that for ops of this form
+                 * the ARM ARM labels bit 24 as Q, but it is in our variable
+                 * 'u', not 'q'.
+                 */
+                if (size == 0) {
+                    return 1;
+                }
                 switch (op) {
-                case 0: /* Integer VMLA scalar */
                 case 1: /* Float VMLA scalar */
-                case 4: /* Integer VMLS scalar */
                 case 5: /* Floating point VMLS scalar */
-                case 8: /* Integer VMUL scalar */
                 case 9: /* Floating point VMUL scalar */
+                    if (size == 1) {
+                        return 1;
+                    }
+                    /* fall through */
+                case 0: /* Integer VMLA scalar */
+                case 4: /* Integer VMLS scalar */
+                case 8: /* Integer VMUL scalar */
                 case 12: /* VQDMULH scalar */
                 case 13: /* VQRDMULH scalar */
+                    if (u && ((rd | rn) & 1)) {
+                        return 1;
+                    }
                     tmp = neon_get_scalar(size, rm);
                     neon_store_scratch(0, tmp);
                     for (pass = 0; pass < (u ? 4 : 2); pass++) {
@@ -5402,7 +5415,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             case 0: gen_helper_neon_mul_u8(tmp, tmp, tmp2); break;
                             case 1: gen_helper_neon_mul_u16(tmp, tmp, tmp2); break;
                             case 2: tcg_gen_mul_i32(tmp, tmp, tmp2); break;
-                            default: return 1;
+                            default: abort();
                             }
                         }
                         tcg_temp_free_i32(tmp2);
@@ -5430,15 +5443,19 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         neon_store_reg(rd, pass, tmp);
                     }
                     break;
-                case 2: /* VMLAL sclar */
                 case 3: /* VQDMLAL scalar */
-                case 6: /* VMLSL scalar */
                 case 7: /* VQDMLSL scalar */
-                case 10: /* VMULL scalar */
                 case 11: /* VQDMULL scalar */
-                    if (size == 0 && (op == 3 || op == 7 || op == 11))
+                    if (u == 1) {
                         return 1;
-
+                    }
+                    /* fall through */
+                case 2: /* VMLAL sclar */
+                case 6: /* VMLSL scalar */
+                case 10: /* VMULL scalar */
+                    if (rd & 1) {
+                        return 1;
+                    }
                     tmp2 = neon_get_scalar(size, rm);
                     /* We need a copy of tmp2 because gen_neon_mull
                      * deletes it during pass 0.  */
