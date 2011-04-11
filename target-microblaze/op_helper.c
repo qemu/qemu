@@ -69,6 +69,41 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 }
 #endif
 
+void helper_put(uint32_t id, uint32_t ctrl, uint32_t data)
+{
+    int test = ctrl & STREAM_TEST;
+    int atomic = ctrl & STREAM_ATOMIC;
+    int control = ctrl & STREAM_CONTROL;
+    int nonblock = ctrl & STREAM_NONBLOCK;
+    int exception = ctrl & STREAM_EXCEPTION;
+
+    qemu_log("Unhandled stream put to stream-id=%d data=%x %s%s%s%s%s\n",
+             id, data,
+             test ? "t" : "",
+             nonblock ? "n" : "",
+             exception ? "e" : "",
+             control ? "c" : "",
+             atomic ? "a" : "");
+}
+
+uint32_t helper_get(uint32_t id, uint32_t ctrl)
+{
+    int test = ctrl & STREAM_TEST;
+    int atomic = ctrl & STREAM_ATOMIC;
+    int control = ctrl & STREAM_CONTROL;
+    int nonblock = ctrl & STREAM_NONBLOCK;
+    int exception = ctrl & STREAM_EXCEPTION;
+
+    qemu_log("Unhandled stream get from stream-id=%d %s%s%s%s%s\n",
+             id,
+             test ? "t" : "",
+             nonblock ? "n" : "",
+             exception ? "e" : "",
+             control ? "c" : "",
+             atomic ? "a" : "");
+    return 0xdead0000 | id;
+}
+
 void helper_raise_exception(uint32_t index)
 {
     env->exception_index = index;
