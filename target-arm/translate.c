@@ -4348,6 +4348,12 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
         if ((neon_3r_sizes[op] & (1 << size)) == 0) {
             return 1;
         }
+        /* All insns of this form UNDEF for either this condition or the
+         * superset of cases "Q==1"; we catch the latter later.
+         */
+        if (q && ((rd | rn | rm) & 1)) {
+            return 1;
+        }
         if (size == 3 && op != NEON_3R_LOGIC) {
             /* 64-bit element instructions. */
             for (pass = 0; pass < (q ? 2 : 1); pass++) {
@@ -4410,6 +4416,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
             }
             return 0;
         }
+        pairwise = 0;
         switch (op) {
         case NEON_3R_VSHL:
         case NEON_3R_VQSHL:
@@ -4421,23 +4428,52 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 rtmp = rn;
                 rn = rm;
                 rm = rtmp;
-                pairwise = 0;
             }
             break;
+        case NEON_3R_VPADD:
+            if (u) {
+                return 1;
+            }
+            /* Fall through */
         case NEON_3R_VPMAX:
         case NEON_3R_VPMIN:
-        case NEON_3R_VPADD:
             pairwise = 1;
             break;
-        case NEON_3R_FLOAT_ARITH: /* VADD, VSUB, VPADD, VABD (float) */
-            pairwise = (u && size < 2);
+        case NEON_3R_FLOAT_ARITH:
+            pairwise = (u && size < 2); /* if VPADD (float) */
             break;
-        case NEON_3R_FLOAT_MINMAX: /* VPMIN/VPMAX (float) */
-            pairwise = u;
+        case NEON_3R_FLOAT_MINMAX:
+            pairwise = u; /* if VPMIN/VPMAX (float) */
+            break;
+        case NEON_3R_FLOAT_CMP:
+            if (!u && size) {
+                /* no encoding for U=0 C=1x */
+                return 1;
+            }
+            break;
+        case NEON_3R_FLOAT_ACMP:
+            if (!u) {
+                return 1;
+            }
+            break;
+        case NEON_3R_VRECPS_VRSQRTS:
+            if (u) {
+                return 1;
+            }
+            break;
+        case NEON_3R_VMUL:
+            if (u && (size != 0)) {
+                /* UNDEF on invalid size for polynomial subcase */
+                return 1;
+            }
             break;
         default:
-            pairwise = 0;
             break;
+        }
+
+        if (pairwise && q) {
+            /* All the pairwise insns UNDEF if Q is set */
+            return 1;
         }
 
         for (pass = 0; pass < (q ? 4 : 2); pass++) {
@@ -4621,8 +4657,6 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
             }
             break;
         case NEON_3R_VPADD:
-            if (u)
-                return 1;
             switch (size) {
             case 0: gen_helper_neon_padd_u8(tmp, tmp, tmp2); break;
             case 1: gen_helper_neon_padd_u16(tmp, tmp, tmp2); break;
@@ -4671,8 +4705,6 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
             }
             break;
         case NEON_3R_FLOAT_ACMP:
-            if (!u)
-                return 1;
             if (size == 0)
                 gen_helper_neon_acge_f32(tmp, tmp, tmp2);
             else
