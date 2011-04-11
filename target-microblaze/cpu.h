@@ -91,6 +91,7 @@ struct CPUMBState;
 #define          ESR_EC_INSN_STORAGE    9
 #define          ESR_EC_DATA_TLB        10
 #define          ESR_EC_INSN_TLB        11
+#define          ESR_EC_MASK            31
 
 /* Floating Point Status Register (FSR) Bits */
 #define FSR_IO          (1<<4) /* Invalid operation */
