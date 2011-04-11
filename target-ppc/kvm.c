@@ -77,13 +77,40 @@ int kvm_arch_init(KVMState *s)
     return 0;
 }
 
-int kvm_arch_init_vcpu(CPUState *cenv)
+static int kvm_arch_sync_sregs(CPUState *cenv)
 {
-    int ret = 0;
     struct kvm_sregs sregs;
+    int ret;
+
+    if (cenv->excp_model == POWERPC_EXCP_BOOKE) {
+        return 0;
+    } else {
+#ifdef KVM_CAP_PPC_SEGSTATE
+        if (!kvm_check_extension(cenv->kvm_state, KVM_CAP_PPC_SEGSTATE)) {
+            return 0;
+        }
+#else
+        return 0;
+#endif
+    }
+
+    ret = kvm_vcpu_ioctl(cenv, KVM_GET_SREGS, &sregs);
+    if (ret) {
+        return ret;
+    }
 
     sregs.pvr = cenv->spr[SPR_PVR];
-    ret = kvm_vcpu_ioctl(cenv, KVM_SET_SREGS, &sregs);
+    return kvm_vcpu_ioctl(cenv, KVM_SET_SREGS, &sregs);
+}
+
+int kvm_arch_init_vcpu(CPUState *cenv)
+{
+    int ret;
+
+    ret = kvm_arch_sync_sregs(cenv);
+    if (ret) {
+        return ret;
+    }
 
     idle_timer = qemu_new_timer_ns(vm_clock, kvm_kick_env, cenv);
 
