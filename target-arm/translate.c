@@ -5174,31 +5174,47 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 int src1_wide;
                 int src2_wide;
                 int prewiden;
-                /* prewiden, src1_wide, src2_wide */
-                static const int neon_3reg_wide[16][3] = {
-                    {1, 0, 0}, /* VADDL */
-                    {1, 1, 0}, /* VADDW */
-                    {1, 0, 0}, /* VSUBL */
-                    {1, 1, 0}, /* VSUBW */
-                    {0, 1, 1}, /* VADDHN */
-                    {0, 0, 0}, /* VABAL */
-                    {0, 1, 1}, /* VSUBHN */
-                    {0, 0, 0}, /* VABDL */
-                    {0, 0, 0}, /* VMLAL */
-                    {0, 0, 0}, /* VQDMLAL */
-                    {0, 0, 0}, /* VMLSL */
-                    {0, 0, 0}, /* VQDMLSL */
-                    {0, 0, 0}, /* Integer VMULL */
-                    {0, 0, 0}, /* VQDMULL */
-                    {0, 0, 0}  /* Polynomial VMULL */
+                /* undefreq: bit 0 : UNDEF if size != 0
+                 *           bit 1 : UNDEF if size == 0
+                 *           bit 2 : UNDEF if U == 1
+                 * Note that [1:0] set implies 'always UNDEF'
+                 */
+                int undefreq;
+                /* prewiden, src1_wide, src2_wide, undefreq */
+                static const int neon_3reg_wide[16][4] = {
+                    {1, 0, 0, 0}, /* VADDL */
+                    {1, 1, 0, 0}, /* VADDW */
+                    {1, 0, 0, 0}, /* VSUBL */
+                    {1, 1, 0, 0}, /* VSUBW */
+                    {0, 1, 1, 0}, /* VADDHN */
+                    {0, 0, 0, 0}, /* VABAL */
+                    {0, 1, 1, 0}, /* VSUBHN */
+                    {0, 0, 0, 0}, /* VABDL */
+                    {0, 0, 0, 0}, /* VMLAL */
+                    {0, 0, 0, 6}, /* VQDMLAL */
+                    {0, 0, 0, 0}, /* VMLSL */
+                    {0, 0, 0, 6}, /* VQDMLSL */
+                    {0, 0, 0, 0}, /* Integer VMULL */
+                    {0, 0, 0, 2}, /* VQDMULL */
+                    {0, 0, 0, 5}, /* Polynomial VMULL */
+                    {0, 0, 0, 3}, /* Reserved: always UNDEF */
                 };
 
                 prewiden = neon_3reg_wide[op][0];
                 src1_wide = neon_3reg_wide[op][1];
                 src2_wide = neon_3reg_wide[op][2];
+                undefreq = neon_3reg_wide[op][3];
 
-                if (size == 0 && (op == 9 || op == 11 || op == 13))
+                if (((undefreq & 1) && (size != 0)) ||
+                    ((undefreq & 2) && (size == 0)) ||
+                    ((undefreq & 4) && u)) {
                     return 1;
+                }
+                if ((src1_wide && (rn & 1)) ||
+                    (src2_wide && (rm & 1)) ||
+                    (!src2_wide && (rd & 1))) {
+                    return 1;
+                }
 
                 /* Avoid overlapping operands.  Wide source operands are
                    always aligned so will never overlap with wide
@@ -5279,8 +5295,8 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         tcg_temp_free_i32(tmp2);
                         tcg_temp_free_i32(tmp);
                         break;
-                    default: /* 15 is RESERVED.  */
-                        return 1;
+                    default: /* 15 is RESERVED: caught earlier  */
+                        abort();
                     }
                     if (op == 13) {
                         /* VQDMULL */
