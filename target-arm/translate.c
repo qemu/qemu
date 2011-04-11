@@ -3558,15 +3558,14 @@ static void gen_nop_hint(DisasContext *s, int val)
 
 #define CPU_V001 cpu_V0, cpu_V0, cpu_V1
 
-static inline int gen_neon_add(int size, TCGv t0, TCGv t1)
+static inline void gen_neon_add(int size, TCGv t0, TCGv t1)
 {
     switch (size) {
     case 0: gen_helper_neon_add_u8(t0, t0, t1); break;
     case 1: gen_helper_neon_add_u16(t0, t0, t1); break;
     case 2: tcg_gen_add_i32(t0, t0, t1); break;
-    default: return 1;
+    default: abort();
     }
-    return 0;
 }
 
 static inline void gen_neon_rsb(int size, TCGv t0, TCGv t1)
@@ -4245,6 +4244,74 @@ static void gen_neon_narrow_op(int op, int u, int size, TCGv dest, TCGv_i64 src)
     }
 }
 
+/* Symbolic constants for op fields for Neon 3-register same-length.
+ * The values correspond to bits [11:8,4]; see the ARM ARM DDI0406B
+ * table A7-9.
+ */
+#define NEON_3R_VHADD 0
+#define NEON_3R_VQADD 1
+#define NEON_3R_VRHADD 2
+#define NEON_3R_LOGIC 3 /* VAND,VBIC,VORR,VMOV,VORN,VEOR,VBIF,VBIT,VBSL */
+#define NEON_3R_VHSUB 4
+#define NEON_3R_VQSUB 5
+#define NEON_3R_VCGT 6
+#define NEON_3R_VCGE 7
+#define NEON_3R_VSHL 8
+#define NEON_3R_VQSHL 9
+#define NEON_3R_VRSHL 10
+#define NEON_3R_VQRSHL 11
+#define NEON_3R_VMAX 12
+#define NEON_3R_VMIN 13
+#define NEON_3R_VABD 14
+#define NEON_3R_VABA 15
+#define NEON_3R_VADD_VSUB 16
+#define NEON_3R_VTST_VCEQ 17
+#define NEON_3R_VML 18 /* VMLA, VMLAL, VMLS, VMLSL */
+#define NEON_3R_VMUL 19
+#define NEON_3R_VPMAX 20
+#define NEON_3R_VPMIN 21
+#define NEON_3R_VQDMULH_VQRDMULH 22
+#define NEON_3R_VPADD 23
+#define NEON_3R_FLOAT_ARITH 26 /* float VADD, VSUB, VPADD, VABD */
+#define NEON_3R_FLOAT_MULTIPLY 27 /* float VMLA, VMLS, VMUL */
+#define NEON_3R_FLOAT_CMP 28 /* float VCEQ, VCGE, VCGT */
+#define NEON_3R_FLOAT_ACMP 29 /* float VACGE, VACGT, VACLE, VACLT */
+#define NEON_3R_FLOAT_MINMAX 30 /* float VMIN, VMAX */
+#define NEON_3R_VRECPS_VRSQRTS 31 /* float VRECPS, VRSQRTS */
+
+static const uint8_t neon_3r_sizes[] = {
+    [NEON_3R_VHADD] = 0x7,
+    [NEON_3R_VQADD] = 0xf,
+    [NEON_3R_VRHADD] = 0x7,
+    [NEON_3R_LOGIC] = 0xf, /* size field encodes op type */
+    [NEON_3R_VHSUB] = 0x7,
+    [NEON_3R_VQSUB] = 0xf,
+    [NEON_3R_VCGT] = 0x7,
+    [NEON_3R_VCGE] = 0x7,
+    [NEON_3R_VSHL] = 0xf,
+    [NEON_3R_VQSHL] = 0xf,
+    [NEON_3R_VRSHL] = 0xf,
+    [NEON_3R_VQRSHL] = 0xf,
+    [NEON_3R_VMAX] = 0x7,
+    [NEON_3R_VMIN] = 0x7,
+    [NEON_3R_VABD] = 0x7,
+    [NEON_3R_VABA] = 0x7,
+    [NEON_3R_VADD_VSUB] = 0xf,
+    [NEON_3R_VTST_VCEQ] = 0x7,
+    [NEON_3R_VML] = 0x7,
+    [NEON_3R_VMUL] = 0x7,
+    [NEON_3R_VPMAX] = 0x7,
+    [NEON_3R_VPMIN] = 0x7,
+    [NEON_3R_VQDMULH_VQRDMULH] = 0x6,
+    [NEON_3R_VPADD] = 0x7,
+    [NEON_3R_FLOAT_ARITH] = 0x5, /* size bit 1 encodes op */
+    [NEON_3R_FLOAT_MULTIPLY] = 0x5, /* size bit 1 encodes op */
+    [NEON_3R_FLOAT_CMP] = 0x5, /* size bit 1 encodes op */
+    [NEON_3R_FLOAT_ACMP] = 0x5, /* size bit 1 encodes op */
+    [NEON_3R_FLOAT_MINMAX] = 0x5, /* size bit 1 encodes op */
+    [NEON_3R_VRECPS_VRSQRTS] = 0x5, /* size bit 1 encodes op */
+};
+
 /* Translate a NEON data processing instruction.  Return nonzero if the
    instruction is invalid.
    We process data in a mixture of 32-bit and 64-bit chunks.
@@ -4277,56 +4344,59 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
     if ((insn & (1 << 23)) == 0) {
         /* Three register same length.  */
         op = ((insn >> 7) & 0x1e) | ((insn >> 4) & 1);
-        if (size == 3 && (op == 1 || op == 5 || op == 8 || op == 9
-                          || op == 10 || op  == 11 || op == 16)) {
-            /* 64-bit element instructions.  */
+        /* Catch invalid op and bad size combinations: UNDEF */
+        if ((neon_3r_sizes[op] & (1 << size)) == 0) {
+            return 1;
+        }
+        if (size == 3 && op != NEON_3R_LOGIC) {
+            /* 64-bit element instructions. */
             for (pass = 0; pass < (q ? 2 : 1); pass++) {
                 neon_load_reg64(cpu_V0, rn + pass);
                 neon_load_reg64(cpu_V1, rm + pass);
                 switch (op) {
-                case 1: /* VQADD */
+                case NEON_3R_VQADD:
                     if (u) {
                         gen_helper_neon_qadd_u64(cpu_V0, cpu_V0, cpu_V1);
                     } else {
                         gen_helper_neon_qadd_s64(cpu_V0, cpu_V0, cpu_V1);
                     }
                     break;
-                case 5: /* VQSUB */
+                case NEON_3R_VQSUB:
                     if (u) {
                         gen_helper_neon_qsub_u64(cpu_V0, cpu_V0, cpu_V1);
                     } else {
                         gen_helper_neon_qsub_s64(cpu_V0, cpu_V0, cpu_V1);
                     }
                     break;
-                case 8: /* VSHL */
+                case NEON_3R_VSHL:
                     if (u) {
                         gen_helper_neon_shl_u64(cpu_V0, cpu_V1, cpu_V0);
                     } else {
                         gen_helper_neon_shl_s64(cpu_V0, cpu_V1, cpu_V0);
                     }
                     break;
-                case 9: /* VQSHL */
+                case NEON_3R_VQSHL:
                     if (u) {
                         gen_helper_neon_qshl_u64(cpu_V0, cpu_V1, cpu_V0);
                     } else {
                         gen_helper_neon_qshl_s64(cpu_V0, cpu_V1, cpu_V0);
                     }
                     break;
-                case 10: /* VRSHL */
+                case NEON_3R_VRSHL:
                     if (u) {
                         gen_helper_neon_rshl_u64(cpu_V0, cpu_V1, cpu_V0);
                     } else {
                         gen_helper_neon_rshl_s64(cpu_V0, cpu_V1, cpu_V0);
                     }
                     break;
-                case 11: /* VQRSHL */
+                case NEON_3R_VQRSHL:
                     if (u) {
                         gen_helper_neon_qrshl_u64(cpu_V0, cpu_V1, cpu_V0);
                     } else {
                         gen_helper_neon_qrshl_s64(cpu_V0, cpu_V1, cpu_V0);
                     }
                     break;
-                case 16:
+                case NEON_3R_VADD_VSUB:
                     if (u) {
                         tcg_gen_sub_i64(CPU_V001);
                     } else {
@@ -4341,10 +4411,10 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
             return 0;
         }
         switch (op) {
-        case 8: /* VSHL */
-        case 9: /* VQSHL */
-        case 10: /* VRSHL */
-        case 11: /* VQRSHL */
+        case NEON_3R_VSHL:
+        case NEON_3R_VQSHL:
+        case NEON_3R_VRSHL:
+        case NEON_3R_VQRSHL:
             {
                 int rtmp;
                 /* Shift instruction operands are reversed.  */
@@ -4354,15 +4424,15 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 pairwise = 0;
             }
             break;
-        case 20: /* VPMAX */
-        case 21: /* VPMIN */
-        case 23: /* VPADD */
+        case NEON_3R_VPMAX:
+        case NEON_3R_VPMIN:
+        case NEON_3R_VPADD:
             pairwise = 1;
             break;
-        case 26: /* VPADD (float) */
+        case NEON_3R_FLOAT_ARITH: /* VADD, VSUB, VPADD, VABD (float) */
             pairwise = (u && size < 2);
             break;
-        case 30: /* VPMIN/VPMAX (float) */
+        case NEON_3R_FLOAT_MINMAX: /* VPMIN/VPMAX (float) */
             pairwise = u;
             break;
         default:
@@ -4391,16 +4461,16 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
             tmp2 = neon_load_reg(rm, pass);
         }
         switch (op) {
-        case 0: /* VHADD */
+        case NEON_3R_VHADD:
             GEN_NEON_INTEGER_OP(hadd);
             break;
-        case 1: /* VQADD */
+        case NEON_3R_VQADD:
             GEN_NEON_INTEGER_OP(qadd);
             break;
-        case 2: /* VRHADD */
+        case NEON_3R_VRHADD:
             GEN_NEON_INTEGER_OP(rhadd);
             break;
-        case 3: /* Logic ops.  */
+        case NEON_3R_LOGIC: /* Logic ops.  */
             switch ((u << 2) | size) {
             case 0: /* VAND */
                 tcg_gen_and_i32(tmp, tmp, tmp2);
@@ -4434,81 +4504,80 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 break;
             }
             break;
-        case 4: /* VHSUB */
+        case NEON_3R_VHSUB:
             GEN_NEON_INTEGER_OP(hsub);
             break;
-        case 5: /* VQSUB */
+        case NEON_3R_VQSUB:
             GEN_NEON_INTEGER_OP(qsub);
             break;
-        case 6: /* VCGT */
+        case NEON_3R_VCGT:
             GEN_NEON_INTEGER_OP(cgt);
             break;
-        case 7: /* VCGE */
+        case NEON_3R_VCGE:
             GEN_NEON_INTEGER_OP(cge);
             break;
-        case 8: /* VSHL */
+        case NEON_3R_VSHL:
             GEN_NEON_INTEGER_OP(shl);
             break;
-        case 9: /* VQSHL */
+        case NEON_3R_VQSHL:
             GEN_NEON_INTEGER_OP(qshl);
             break;
-        case 10: /* VRSHL */
+        case NEON_3R_VRSHL:
             GEN_NEON_INTEGER_OP(rshl);
             break;
-        case 11: /* VQRSHL */
+        case NEON_3R_VQRSHL:
             GEN_NEON_INTEGER_OP(qrshl);
             break;
-        case 12: /* VMAX */
+        case NEON_3R_VMAX:
             GEN_NEON_INTEGER_OP(max);
             break;
-        case 13: /* VMIN */
+        case NEON_3R_VMIN:
             GEN_NEON_INTEGER_OP(min);
             break;
-        case 14: /* VABD */
+        case NEON_3R_VABD:
             GEN_NEON_INTEGER_OP(abd);
             break;
-        case 15: /* VABA */
+        case NEON_3R_VABA:
             GEN_NEON_INTEGER_OP(abd);
             tcg_temp_free_i32(tmp2);
             tmp2 = neon_load_reg(rd, pass);
             gen_neon_add(size, tmp, tmp2);
             break;
-        case 16:
+        case NEON_3R_VADD_VSUB:
             if (!u) { /* VADD */
-                if (gen_neon_add(size, tmp, tmp2))
-                    return 1;
+                gen_neon_add(size, tmp, tmp2);
             } else { /* VSUB */
                 switch (size) {
                 case 0: gen_helper_neon_sub_u8(tmp, tmp, tmp2); break;
                 case 1: gen_helper_neon_sub_u16(tmp, tmp, tmp2); break;
                 case 2: tcg_gen_sub_i32(tmp, tmp, tmp2); break;
-                default: return 1;
+                default: abort();
                 }
             }
             break;
-        case 17:
+        case NEON_3R_VTST_VCEQ:
             if (!u) { /* VTST */
                 switch (size) {
                 case 0: gen_helper_neon_tst_u8(tmp, tmp, tmp2); break;
                 case 1: gen_helper_neon_tst_u16(tmp, tmp, tmp2); break;
                 case 2: gen_helper_neon_tst_u32(tmp, tmp, tmp2); break;
-                default: return 1;
+                default: abort();
                 }
             } else { /* VCEQ */
                 switch (size) {
                 case 0: gen_helper_neon_ceq_u8(tmp, tmp, tmp2); break;
                 case 1: gen_helper_neon_ceq_u16(tmp, tmp, tmp2); break;
                 case 2: gen_helper_neon_ceq_u32(tmp, tmp, tmp2); break;
-                default: return 1;
+                default: abort();
                 }
             }
             break;
-        case 18: /* Multiply.  */
+        case NEON_3R_VML: /* VMLA, VMLAL, VMLS,VMLSL */
             switch (size) {
             case 0: gen_helper_neon_mul_u8(tmp, tmp, tmp2); break;
             case 1: gen_helper_neon_mul_u16(tmp, tmp, tmp2); break;
             case 2: tcg_gen_mul_i32(tmp, tmp, tmp2); break;
-            default: return 1;
+            default: abort();
             }
             tcg_temp_free_i32(tmp2);
             tmp2 = neon_load_reg(rd, pass);
@@ -4518,7 +4587,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 gen_neon_add(size, tmp, tmp2);
             }
             break;
-        case 19: /* VMUL */
+        case NEON_3R_VMUL:
             if (u) { /* polynomial */
                 gen_helper_neon_mul_p8(tmp, tmp, tmp2);
             } else { /* Integer */
@@ -4526,42 +4595,42 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 case 0: gen_helper_neon_mul_u8(tmp, tmp, tmp2); break;
                 case 1: gen_helper_neon_mul_u16(tmp, tmp, tmp2); break;
                 case 2: tcg_gen_mul_i32(tmp, tmp, tmp2); break;
-                default: return 1;
+                default: abort();
                 }
             }
             break;
-        case 20: /* VPMAX */
+        case NEON_3R_VPMAX:
             GEN_NEON_INTEGER_OP(pmax);
             break;
-        case 21: /* VPMIN */
+        case NEON_3R_VPMIN:
             GEN_NEON_INTEGER_OP(pmin);
             break;
-        case 22: /* Hultiply high.  */
+        case NEON_3R_VQDMULH_VQRDMULH: /* Multiply high.  */
             if (!u) { /* VQDMULH */
                 switch (size) {
                 case 1: gen_helper_neon_qdmulh_s16(tmp, tmp, tmp2); break;
                 case 2: gen_helper_neon_qdmulh_s32(tmp, tmp, tmp2); break;
-                default: return 1;
+                default: abort();
                 }
-            } else { /* VQRDHMUL */
+            } else { /* VQRDMULH */
                 switch (size) {
                 case 1: gen_helper_neon_qrdmulh_s16(tmp, tmp, tmp2); break;
                 case 2: gen_helper_neon_qrdmulh_s32(tmp, tmp, tmp2); break;
-                default: return 1;
+                default: abort();
                 }
             }
             break;
-        case 23: /* VPADD */
+        case NEON_3R_VPADD:
             if (u)
                 return 1;
             switch (size) {
             case 0: gen_helper_neon_padd_u8(tmp, tmp, tmp2); break;
             case 1: gen_helper_neon_padd_u16(tmp, tmp, tmp2); break;
             case 2: tcg_gen_add_i32(tmp, tmp, tmp2); break;
-            default: return 1;
+            default: abort();
             }
             break;
-        case 26: /* Floating point arithnetic.  */
+        case NEON_3R_FLOAT_ARITH: /* Floating point arithmetic. */
             switch ((u << 2) | size) {
             case 0: /* VADD */
                 gen_helper_neon_add_f32(tmp, tmp, tmp2);
@@ -4576,10 +4645,10 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 gen_helper_neon_abd_f32(tmp, tmp, tmp2);
                 break;
             default:
-                return 1;
+                abort();
             }
             break;
-        case 27: /* Float multiply.  */
+        case NEON_3R_FLOAT_MULTIPLY:
             gen_helper_neon_mul_f32(tmp, tmp, tmp2);
             if (!u) {
                 tcg_temp_free_i32(tmp2);
@@ -4591,7 +4660,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 }
             }
             break;
-        case 28: /* Float compare.  */
+        case NEON_3R_FLOAT_CMP:
             if (!u) {
                 gen_helper_neon_ceq_f32(tmp, tmp, tmp2);
             } else {
@@ -4601,7 +4670,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     gen_helper_neon_cgt_f32(tmp, tmp, tmp2);
             }
             break;
-        case 29: /* Float compare absolute.  */
+        case NEON_3R_FLOAT_ACMP:
             if (!u)
                 return 1;
             if (size == 0)
@@ -4609,13 +4678,13 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
             else
                 gen_helper_neon_acgt_f32(tmp, tmp, tmp2);
             break;
-        case 30: /* Float min/max.  */
+        case NEON_3R_FLOAT_MINMAX:
             if (size == 0)
                 gen_helper_neon_max_f32(tmp, tmp, tmp2);
             else
                 gen_helper_neon_min_f32(tmp, tmp, tmp2);
             break;
-        case 31:
+        case NEON_3R_VRECPS_VRSQRTS:
             if (size == 0)
                 gen_helper_recps_f32(tmp, tmp, tmp2, cpu_env);
             else
