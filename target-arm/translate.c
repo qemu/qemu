@@ -5677,6 +5677,10 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 if ((neon_2rm_sizes[op] & (1 << size)) == 0) {
                     return 1;
                 }
+                if ((op != NEON_2RM_VMOVN && op != NEON_2RM_VQMOVN) &&
+                    q && ((rm | rd) & 1)) {
+                    return 1;
+                }
                 switch (op) {
                 case NEON_2RM_VREV64:
                     for (pass = 0; pass < (q ? 2 : 1); pass++) {
@@ -5747,6 +5751,9 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     break;
                 case NEON_2RM_VMOVN: case NEON_2RM_VQMOVN:
                     /* also VQMOVUN; op field and mnemonics don't line up */
+                    if (rm & 1) {
+                        return 1;
+                    }
                     TCGV_UNUSED(tmp2);
                     for (pass = 0; pass < 2; pass++) {
                         neon_load_reg64(cpu_V0, rm + pass);
@@ -5762,7 +5769,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     }
                     break;
                 case NEON_2RM_VSHLL:
-                    if (q) {
+                    if (q || (rd & 1)) {
                         return 1;
                     }
                     tmp = neon_load_reg(rm, 0);
@@ -5776,8 +5783,10 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     }
                     break;
                 case NEON_2RM_VCVT_F16_F32:
-                    if (!arm_feature(env, ARM_FEATURE_VFP_FP16))
-                      return 1;
+                    if (!arm_feature(env, ARM_FEATURE_VFP_FP16) ||
+                        q || (rm & 1)) {
+                        return 1;
+                    }
                     tmp = tcg_temp_new_i32();
                     tmp2 = tcg_temp_new_i32();
                     tcg_gen_ld_f32(cpu_F0s, cpu_env, neon_reg_offset(rm, 0));
@@ -5798,8 +5807,10 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     tcg_temp_free_i32(tmp);
                     break;
                 case NEON_2RM_VCVT_F32_F16:
-                    if (!arm_feature(env, ARM_FEATURE_VFP_FP16))
-                      return 1;
+                    if (!arm_feature(env, ARM_FEATURE_VFP_FP16) ||
+                        q || (rd & 1)) {
+                        return 1;
+                    }
                     tmp3 = tcg_temp_new_i32();
                     tmp = neon_load_reg(rm, 0);
                     tmp2 = neon_load_reg(rm, 1);
