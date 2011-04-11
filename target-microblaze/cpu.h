@@ -79,6 +79,8 @@ struct CPUMBState;
 #define          ESR_DIZ       (1<<11) /* Zone Protection */
 #define          ESR_S         (1<<10) /* Store instruction */
 
+#define          ESR_ESS_FSL_OFFSET     5
+
 #define          ESR_EC_FSL             0
 #define          ESR_EC_UNALIGNED_DATA  1
 #define          ESR_EC_ILLEGAL_OP      2
@@ -212,6 +214,13 @@ struct CPUMBState;
 #define CC_EQ  0
 
 #define NB_MMU_MODES    3
+
+#define STREAM_EXCEPTION (1 << 0)
+#define STREAM_ATOMIC    (1 << 1)
+#define STREAM_TEST      (1 << 2)
+#define STREAM_CONTROL   (1 << 3)
+#define STREAM_NONBLOCK  (1 << 4)
+
 typedef struct CPUMBState {
     uint32_t debug;
     uint32_t btaken;
