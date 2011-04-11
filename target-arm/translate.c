@@ -4328,7 +4328,6 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
     int count;
     int pairwise;
     int u;
-    int n;
     uint32_t imm, mask;
     TCGv tmp, tmp2, tmp3, tmp4, tmp5;
     TCGv_i64 tmp64;
@@ -4480,16 +4479,12 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
 
         if (pairwise) {
             /* Pairwise.  */
-            if (q)
-                n = (pass & 1) * 2;
-            else
-                n = 0;
-            if (pass < q + 1) {
-                tmp = neon_load_reg(rn, n);
-                tmp2 = neon_load_reg(rn, n + 1);
+            if (pass < 1) {
+                tmp = neon_load_reg(rn, 0);
+                tmp2 = neon_load_reg(rn, 1);
             } else {
-                tmp = neon_load_reg(rm, n);
-                tmp2 = neon_load_reg(rm, n + 1);
+                tmp = neon_load_reg(rm, 0);
+                tmp2 = neon_load_reg(rm, 1);
             }
         } else {
             /* Elementwise.  */
@@ -5147,6 +5142,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     /* VMOV, VMVN.  */
                     tmp = tcg_temp_new_i32();
                     if (op == 14 && invert) {
+                        int n;
                         uint32_t val;
                         val = 0;
                         for (n = 0; n < 4; n++) {
@@ -5575,6 +5571,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     break;
                 case 33: /* VTRN */
                     if (size == 2) {
+                        int n;
                         for (n = 0; n < (q ? 4 : 2); n += 2) {
                             tmp = neon_load_reg(rm, n);
                             tmp2 = neon_load_reg(rd, n + 1);
@@ -5866,7 +5863,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 }
             } else if ((insn & (1 << 10)) == 0) {
                 /* VTBL, VTBX.  */
-                n = ((insn >> 5) & 0x18) + 8;
+                int n = ((insn >> 5) & 0x18) + 8;
                 if (insn & (1 << 6)) {
                     tmp = neon_load_reg(rd, 0);
                 } else {
