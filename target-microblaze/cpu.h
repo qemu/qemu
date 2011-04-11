@@ -194,7 +194,7 @@ struct CPUMBState;
 #define PVR11_MMU_ITLB_SIZE             0x38000000
 #define PVR11_MMU_DTLB_SIZE             0x07000000
 #define PVR11_MMU_TLB_ACCESS            0x00C00000
-#define PVR11_MMU_ZONES                 0x003C0000
+#define PVR11_MMU_ZONES                 0x003E0000
 /* MSR Reset value PVR mask */
 #define PVR11_MSR_RESET_VALUE_MASK      0x000007FF
 
