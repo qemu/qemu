@@ -957,28 +957,17 @@ void pc_cpus_init(const char *cpu_model)
     }
 }
 
-void pc_memory_init(ram_addr_t ram_size,
-                    const char *kernel_filename,
+void pc_memory_init(const char *kernel_filename,
                     const char *kernel_cmdline,
                     const char *initrd_filename,
-                    ram_addr_t *below_4g_mem_size_p,
-                    ram_addr_t *above_4g_mem_size_p)
+                    ram_addr_t below_4g_mem_size,
+                    ram_addr_t above_4g_mem_size)
 {
     char *filename;
     int ret, linux_boot, i;
     ram_addr_t ram_addr, bios_offset, option_rom_offset;
-    ram_addr_t below_4g_mem_size, above_4g_mem_size = 0;
     int bios_size, isa_bios_size;
     void *fw_cfg;
-
-    if (ram_size >= 0xe0000000 ) {
-        above_4g_mem_size = ram_size - 0xe0000000;
-        below_4g_mem_size = 0xe0000000;
-    } else {
-        below_4g_mem_size = ram_size;
-    }
-    *above_4g_mem_size_p = above_4g_mem_size;
-    *below_4g_mem_size_p = below_4g_mem_size;
 
     linux_boot = (kernel_filename != NULL);
 

@@ -92,9 +92,17 @@ static void pc_init1(ram_addr_t ram_size,
         kvmclock_create();
     }
 
+    if (ram_size >= 0xe0000000 ) {
+        above_4g_mem_size = ram_size - 0xe0000000;
+        below_4g_mem_size = 0xe0000000;
+    } else {
+        above_4g_mem_size = 0;
+        below_4g_mem_size = ram_size;
+    }
+
     /* allocate ram and load rom/bios */
-    pc_memory_init(ram_size, kernel_filename, kernel_cmdline, initrd_filename,
-                   &below_4g_mem_size, &above_4g_mem_size);
+    pc_memory_init(kernel_filename, kernel_cmdline, initrd_filename,
+                   below_4g_mem_size, above_4g_mem_size);
 
     cpu_irq = pc_allocate_cpu_irq();
     i8259 = i8259_init(cpu_irq[0]);

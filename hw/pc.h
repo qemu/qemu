@@ -129,12 +129,11 @@ void pc_cmos_set_s3_resume(void *opaque, int irq, int level);
 void pc_acpi_smi_interrupt(void *opaque, int irq, int level);
 
 void pc_cpus_init(const char *cpu_model);
-void pc_memory_init(ram_addr_t ram_size,
-                    const char *kernel_filename,
+void pc_memory_init(const char *kernel_filename,
                     const char *kernel_cmdline,
                     const char *initrd_filename,
-                    ram_addr_t *below_4g_mem_size_p,
-                    ram_addr_t *above_4g_mem_size_p);
+                    ram_addr_t below_4g_mem_size,
+                    ram_addr_t above_4g_mem_size);
 qemu_irq *pc_allocate_cpu_irq(void);
 void pc_vga_init(PCIBus *pci_bus);
 void pc_basic_device_init(qemu_irq *isa_irq,
