@@ -4744,7 +4744,10 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
             /* Two registers and shift.  */
             op = (insn >> 8) & 0xf;
             if (insn & (1 << 7)) {
-                /* 64-bit shift.   */
+                /* 64-bit shift. */
+                if (op > 7) {
+                    return 1;
+                }
                 size = 3;
             } else {
                 size = 2;
@@ -4757,6 +4760,12 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
             if (op < 8) {
                 /* Shift by immediate:
                    VSHR, VSRA, VRSHR, VRSRA, VSRI, VSHL, VQSHL, VQSHLU.  */
+                if (q && ((rd | rm) & 1)) {
+                    return 1;
+                }
+                if (!u && (op == 4 || op == 6)) {
+                    return 1;
+                }
                 /* Right shifts are encoded as N - shift, where N is the
                    element size in bits.  */
                 if (op <= 4)
@@ -4804,20 +4813,13 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                                 gen_helper_neon_rshl_s64(cpu_V0, cpu_V0, cpu_V1);
                             break;
                         case 4: /* VSRI */
-                            if (!u)
-                                return 1;
                             gen_helper_neon_shl_u64(cpu_V0, cpu_V0, cpu_V1);
                             break;
                         case 5: /* VSHL, VSLI */
                             gen_helper_neon_shl_u64(cpu_V0, cpu_V0, cpu_V1);
                             break;
                         case 6: /* VQSHLU */
-                            if (u) {
-                                gen_helper_neon_qshlu_s64(cpu_V0,
-                                                          cpu_V0, cpu_V1);
-                            } else {
-                                return 1;
-                            }
+                            gen_helper_neon_qshlu_s64(cpu_V0, cpu_V0, cpu_V1);
                             break;
                         case 7: /* VQSHL */
                             if (u) {
@@ -4865,8 +4867,6 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             GEN_NEON_INTEGER_OP(rshl);
                             break;
                         case 4: /* VSRI */
-                            if (!u)
-                                return 1;
                             GEN_NEON_INTEGER_OP(shl);
                             break;
                         case 5: /* VSHL, VSLI */
@@ -4874,13 +4874,10 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             case 0: gen_helper_neon_shl_u8(tmp, tmp, tmp2); break;
                             case 1: gen_helper_neon_shl_u16(tmp, tmp, tmp2); break;
                             case 2: gen_helper_neon_shl_u32(tmp, tmp, tmp2); break;
-                            default: return 1;
+                            default: abort();
                             }
                             break;
                         case 6: /* VQSHLU */
-                            if (!u) {
-                                return 1;
-                            }
                             switch (size) {
                             case 0:
                                 gen_helper_neon_qshlu_s8(tmp, tmp, tmp2);
@@ -4892,7 +4889,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                                 gen_helper_neon_qshlu_s32(tmp, tmp, tmp2);
                                 break;
                             default:
-                                return 1;
+                                abort();
                             }
                             break;
                         case 7: /* VQSHL */
@@ -4950,7 +4947,9 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 /* Shift by immediate and narrow:
                    VSHRN, VRSHRN, VQSHRN, VQRSHRN.  */
                 int input_unsigned = (op == 8) ? !u : u;
-
+                if (rm & 1) {
+                    return 1;
+                }
                 shift = shift - (1 << (size + 3));
                 size++;
                 if (size == 3) {
@@ -5018,9 +5017,10 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     tcg_temp_free_i32(tmp2);
                 }
             } else if (op == 10) {
-                /* VSHLL */
-                if (q || size == 3)
+                /* VSHLL, VMOVL */
+                if (q || (rd & 1)) {
                     return 1;
+                }
                 tmp = neon_load_reg(rm, 0);
                 tmp2 = neon_load_reg(rm, 1);
                 for (pass = 0; pass < 2; pass++) {
@@ -5061,6 +5061,9 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 }
             } else if (op >= 14) {
                 /* VCVT fixed-point.  */
+                if (!(insn & (1 << 21)) || (q && ((rd | rm) & 1))) {
+                    return 1;
+                }
                 /* We have already masked out the must-be-1 top bit of imm6,
                  * hence this 32-shift where the ARM ARM has 64-imm6.
                  */
