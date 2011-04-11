@@ -1514,9 +1514,13 @@ uint64_t HELPER(neon_addl_saturate_s64)(uint64_t a, uint64_t b)
     return result;
 }
 
-#define DO_ABD(dest, x, y, type) do { \
-    type tmp_x = x; \
-    type tmp_y = y; \
+/* We have to do the arithmetic in a larger type than
+ * the input type, because for example with a signed 32 bit
+ * op the absolute difference can overflow a signed 32 bit value.
+ */
+#define DO_ABD(dest, x, y, intype, arithtype) do {            \
+    arithtype tmp_x = (intype)(x);                            \
+    arithtype tmp_y = (intype)(y);                            \
     dest = ((tmp_x > tmp_y) ? tmp_x - tmp_y : tmp_y - tmp_x); \
     } while(0)
 
@@ -1524,12 +1528,12 @@ uint64_t HELPER(neon_abdl_u16)(uint32_t a, uint32_t b)
 {
     uint64_t tmp;
     uint64_t result;
-    DO_ABD(result, a, b, uint8_t);
-    DO_ABD(tmp, a >> 8, b >> 8, uint8_t);
+    DO_ABD(result, a, b, uint8_t, uint32_t);
+    DO_ABD(tmp, a >> 8, b >> 8, uint8_t, uint32_t);
     result |= tmp << 16;
-    DO_ABD(tmp, a >> 16, b >> 16, uint8_t);
+    DO_ABD(tmp, a >> 16, b >> 16, uint8_t, uint32_t);
     result |= tmp << 32;
-    DO_ABD(tmp, a >> 24, b >> 24, uint8_t);
+    DO_ABD(tmp, a >> 24, b >> 24, uint8_t, uint32_t);
     result |= tmp << 48;
     return result;
 }
@@ -1538,12 +1542,12 @@ uint64_t HELPER(neon_abdl_s16)(uint32_t a, uint32_t b)
 {
     uint64_t tmp;
     uint64_t result;
-    DO_ABD(result, a, b, int8_t);
-    DO_ABD(tmp, a >> 8, b >> 8, int8_t);
+    DO_ABD(result, a, b, int8_t, int32_t);
+    DO_ABD(tmp, a >> 8, b >> 8, int8_t, int32_t);
     result |= tmp << 16;
-    DO_ABD(tmp, a >> 16, b >> 16, int8_t);
+    DO_ABD(tmp, a >> 16, b >> 16, int8_t, int32_t);
     result |= tmp << 32;
-    DO_ABD(tmp, a >> 24, b >> 24, int8_t);
+    DO_ABD(tmp, a >> 24, b >> 24, int8_t, int32_t);
     result |= tmp << 48;
     return result;
 }
@@ -1552,8 +1556,8 @@ uint64_t HELPER(neon_abdl_u32)(uint32_t a, uint32_t b)
 {
     uint64_t tmp;
     uint64_t result;
-    DO_ABD(result, a, b, uint16_t);
-    DO_ABD(tmp, a >> 16, b >> 16, uint16_t);
+    DO_ABD(result, a, b, uint16_t, uint32_t);
+    DO_ABD(tmp, a >> 16, b >> 16, uint16_t, uint32_t);
     return result | (tmp << 32);
 }
 
@@ -1561,22 +1565,22 @@ uint64_t HELPER(neon_abdl_s32)(uint32_t a, uint32_t b)
 {
     uint64_t tmp;
     uint64_t result;
-    DO_ABD(result, a, b, int16_t);
-    DO_ABD(tmp, a >> 16, b >> 16, int16_t);
+    DO_ABD(result, a, b, int16_t, int32_t);
+    DO_ABD(tmp, a >> 16, b >> 16, int16_t, int32_t);
     return result | (tmp << 32);
 }
 
 uint64_t HELPER(neon_abdl_u64)(uint32_t a, uint32_t b)
 {
     uint64_t result;
-    DO_ABD(result, a, b, uint32_t);
+    DO_ABD(result, a, b, uint32_t, uint64_t);
     return result;
 }
 
 uint64_t HELPER(neon_abdl_s64)(uint32_t a, uint32_t b)
 {
     uint64_t result;
-    DO_ABD(result, a, b, int32_t);
+    DO_ABD(result, a, b, int32_t, int64_t);
     return result;
 }
 #undef DO_ABD
