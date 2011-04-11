@@ -4813,8 +4813,6 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                                 gen_helper_neon_rshl_s64(cpu_V0, cpu_V0, cpu_V1);
                             break;
                         case 4: /* VSRI */
-                            gen_helper_neon_shl_u64(cpu_V0, cpu_V0, cpu_V1);
-                            break;
                         case 5: /* VSHL, VSLI */
                             gen_helper_neon_shl_u64(cpu_V0, cpu_V0, cpu_V1);
                             break;
@@ -4867,8 +4865,6 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             GEN_NEON_INTEGER_OP(rshl);
                             break;
                         case 4: /* VSRI */
-                            GEN_NEON_INTEGER_OP(shl);
-                            break;
                         case 5: /* VSHL, VSLI */
                             switch (size) {
                             case 0: gen_helper_neon_shl_u8(tmp, tmp, tmp2); break;
