@@ -252,11 +252,9 @@ void ppc970_irq_init (CPUState *env)
 static void power7_set_irq (void *opaque, int pin, int level)
 {
     CPUState *env = opaque;
-    int cur_level;
 
     LOG_IRQ("%s: env %p pin %d level %d\n", __func__,
                 env, pin, level);
-    cur_level = (env->irq_input_state >> pin) & 1;
 
     switch (pin) {
     case POWER7_INPUT_INT:
