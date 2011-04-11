@@ -5084,11 +5084,18 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
             }
         } else { /* (insn & 0x00380080) == 0 */
             int invert;
+            if (q && (rd & 1)) {
+                return 1;
+            }
 
             op = (insn >> 8) & 0xf;
             /* One register and immediate.  */
             imm = (u << 7) | ((insn >> 12) & 0x70) | (insn & 0xf);
             invert = (insn & (1 << 5)) != 0;
+            /* Note that op = 2,3,4,5,6,7,10,11,12,13 imm=0 is UNPREDICTABLE.
+             * We choose to not special-case this and will behave as if a
+             * valid constant encoding of 0 had been given.
+             */
             switch (op) {
             case 0: case 1:
                 /* no-op */
@@ -5120,6 +5127,9 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     imm = ~imm;
                 break;
             case 15:
+                if (invert) {
+                    return 1;
+                }
                 imm = ((imm & 0x80) << 24) | ((imm & 0x3f) << 19)
                       | ((imm & 0x40) ? (0x1f << 25) : (1 << 30));
                 break;
