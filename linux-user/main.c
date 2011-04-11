@@ -2258,7 +2258,7 @@ void cpu_loop (CPUState *env)
                     break;
                 default:
                     printf ("Unhandled hw-exception: 0x%x\n",
-                            env->sregs[SR_ESR] & 5);
+                            env->sregs[SR_ESR] & ESR_EC_MASK);
                     cpu_dump_state(env, stderr, fprintf, 0);
                     exit (1);
                     break;
