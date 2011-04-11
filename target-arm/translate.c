@@ -6057,6 +6057,9 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 tcg_temp_free_i32(tmp);
             } else if ((insn & 0x380) == 0) {
                 /* VDUP */
+                if ((insn & (7 << 16)) == 0 || (q && (rd & 1))) {
+                    return 1;
+                }
                 if (insn & (1 << 19)) {
                     tmp = neon_load_reg(rm, 1);
                 } else {
