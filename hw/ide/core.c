@@ -1098,9 +1098,17 @@ static void handle_get_event_status_notification(IDEState *s,
         uint8_t control;
     } __attribute__((packed)) *gesn_cdb;
 
-    unsigned int max_len;
+    struct {
+        uint16_t len;
+        uint8_t notification_class;
+        uint8_t supported_events;
+    } __attribute((packed)) *gesn_event_header;
+
+    unsigned int max_len, used_len;
 
     gesn_cdb = (void *)packet;
+    gesn_event_header = (void *)buf;
+
     max_len = be16_to_cpu(gesn_cdb->len);
 
     /* It is fine by the MMC spec to not support async mode operations */
@@ -1111,12 +1119,17 @@ static void handle_get_event_status_notification(IDEState *s,
         return;
     }
 
-    /* polling */
+    /* polling mode operation */
+
     /* We don't support any event class (yet). */
-    cpu_to_ube16(buf, 0x00); /* No event descriptor returned */
-    buf[2] = 0x80;           /* No Event Available (NEA) */
-    buf[3] = 0x00;           /* Empty supported event classes */
-    ide_atapi_cmd_reply(s, 4, max_len);
+    gesn_event_header->supported_events = 0;
+
+    gesn_event_header->notification_class = 0x80; /* No event available */
+    used_len = sizeof(*gesn_event_header);
+
+    gesn_event_header->len = cpu_to_be16(used_len
+                                         - sizeof(*gesn_event_header));
+    ide_atapi_cmd_reply(s, used_len, max_len);
 }
 
 static void ide_atapi_cmd(IDEState *s)
