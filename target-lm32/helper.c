@@ -76,11 +76,7 @@ void do_interrupt(CPUState *env)
         env->regs[R_BA] = env->pc;
         env->ie |= (env->ie & IE_IE) ? IE_BIE : 0;
         env->ie &= ~IE_IE;
-        if (env->dc & DC_RE) {
-            env->pc = env->deba + (env->exception_index * 32);
-        } else {
-            env->pc = env->eba + (env->exception_index * 32);
-        }
+        env->pc = env->deba + (env->exception_index * 32);
         log_cpu_state_mask(CPU_LOG_INT, env, 0);
         break;
     default:
