@@ -1629,6 +1629,7 @@ static void cpu_unlink_tb(CPUState *env)
     spin_unlock(&interrupt_lock);
 }
 
+#ifndef CONFIG_USER_ONLY
 /* mask must never be zero, except for A20 change call */
 void cpu_interrupt(CPUState *env, int mask)
 {
@@ -1637,7 +1638,6 @@ void cpu_interrupt(CPUState *env, int mask)
     old_mask = env->interrupt_request;
     env->interrupt_request |= mask;
 
-#ifndef CONFIG_USER_ONLY
     /*
      * If called from iothread context, wake the target cpu in
      * case its halted.
@@ -1646,20 +1646,26 @@ void cpu_interrupt(CPUState *env, int mask)
         qemu_cpu_kick(env);
         return;
     }
-#endif
 
     if (use_icount) {
         env->icount_decr.u16.high = 0xffff;
-#ifndef CONFIG_USER_ONLY
         if (!can_do_io(env)
             && (mask & ~old_mask) != 0) {
             cpu_abort(env, "Raised interrupt while not in I/O function");
         }
-#endif
     } else {
         cpu_unlink_tb(env);
     }
 }
+
+#else /* CONFIG_USER_ONLY */
+
+void cpu_interrupt(CPUState *env, int mask)
+{
+    env->interrupt_request |= mask;
+    cpu_unlink_tb(env);
+}
+#endif /* CONFIG_USER_ONLY */
 
 void cpu_reset_interrupt(CPUState *env, int mask)
 {
