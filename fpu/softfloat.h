@@ -211,6 +211,10 @@ typedef struct float_status {
 
 void set_float_rounding_mode(int val STATUS_PARAM);
 void set_float_exception_flags(int val STATUS_PARAM);
+INLINE void set_float_detect_tininess(int val STATUS_PARAM)
+{
+    STATUS(float_detect_tininess) = val;
+}
 INLINE void set_flush_to_zero(flag val STATUS_PARAM)
 {
     STATUS(flush_to_zero) = val;
