@@ -199,6 +199,9 @@ vgafb_write(void *opaque, target_phys_addr_t addr, uint32_t value)
     addr >>= 2;
     switch (addr) {
     case R_CTRL:
+        s->regs[addr] = value;
+        vgafb_resize(s);
+        break;
     case R_HSYNC_START:
     case R_HSYNC_END:
     case R_HSCAN:
