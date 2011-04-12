@@ -1102,13 +1102,21 @@ static void ide_atapi_cmd(IDEState *s)
         printf("\n");
     }
 #endif
-    /* If there's a UNIT_ATTENTION condition pending, only
-       REQUEST_SENSE and INQUIRY commands are allowed to complete. */
+    /*
+     * If there's a UNIT_ATTENTION condition pending, only
+     * REQUEST_SENSE, INQUIRY, GET_CONFIGURATION and
+     * GET_EVENT_STATUS_NOTIFICATION commands are allowed to complete.
+     * MMC-5, section 4.1.6.1 lists only these commands being allowed
+     * to complete, with other commands getting a CHECK condition
+     * response unless a higher priority status, defined by the drive
+     * here, is pending.
+     */
     if (s->sense_key == SENSE_UNIT_ATTENTION &&
-	s->io_buffer[0] != GPCMD_REQUEST_SENSE &&
-	s->io_buffer[0] != GPCMD_INQUIRY) {
-	ide_atapi_cmd_check_status(s);
-	return;
+        s->io_buffer[0] != GPCMD_REQUEST_SENSE &&
+        s->io_buffer[0] != GPCMD_INQUIRY &&
+        s->io_buffer[0] != GPCMD_GET_EVENT_STATUS_NOTIFICATION) {
+        ide_atapi_cmd_check_status(s);
+        return;
     }
     switch(s->io_buffer[0]) {
     case GPCMD_TEST_UNIT_READY:
