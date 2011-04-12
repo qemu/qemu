@@ -6505,7 +6505,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     unsigned long zero = arg2 - ret;
                     p = alloca(zero);
                     memset(p, 0, zero);
-                    if (copy_to_user(arg3 + zero, p, zero)) {
+                    if (copy_to_user(arg3 + ret, p, zero)) {
                         goto efault;
                     }
                     arg2 = ret;
