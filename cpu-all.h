@@ -799,7 +799,19 @@ extern CPUState *cpu_single_env;
 #define CPU_INTERRUPT_SIPI   0x800 /* SIPI pending. */
 #define CPU_INTERRUPT_MCE    0x1000 /* (x86 only) MCE pending. */
 
-void cpu_interrupt(CPUState *s, int mask);
+#ifndef CONFIG_USER_ONLY
+typedef void (*CPUInterruptHandler)(CPUState *, int);
+
+extern CPUInterruptHandler cpu_interrupt_handler;
+
+static inline void cpu_interrupt(CPUState *s, int mask)
+{
+    cpu_interrupt_handler(s, mask);
+}
+#else /* USER_ONLY */
+void cpu_interrupt(CPUState *env, int mask);
+#endif /* USER_ONLY */
+
 void cpu_reset_interrupt(CPUState *env, int mask);
 
 void cpu_exit(CPUState *s);

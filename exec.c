@@ -1631,7 +1631,7 @@ static void cpu_unlink_tb(CPUState *env)
 
 #ifndef CONFIG_USER_ONLY
 /* mask must never be zero, except for A20 change call */
-void cpu_interrupt(CPUState *env, int mask)
+static void tcg_handle_interrupt(CPUState *env, int mask)
 {
     int old_mask;
 
@@ -1657,6 +1657,8 @@ void cpu_interrupt(CPUState *env, int mask)
         cpu_unlink_tb(env);
     }
 }
+
+CPUInterruptHandler cpu_interrupt_handler = tcg_handle_interrupt;
 
 #else /* CONFIG_USER_ONLY */
 
