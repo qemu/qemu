@@ -1084,6 +1084,29 @@ static int ide_dvd_read_structure(IDEState *s, int format,
     }
 }
 
+static void handle_get_event_status_notification(IDEState *s,
+                                                 uint8_t *buf,
+                                                 const uint8_t *packet)
+{
+    unsigned int max_len;
+
+    max_len = ube16_to_cpu(packet + 7);
+
+    if (!(packet[1] & 0x01)) { /* asynchronous mode */
+        /* Only polling is supported, asynchronous mode is not. */
+        ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST,
+                            ASC_INV_FIELD_IN_CMD_PACKET);
+        return;
+    }
+
+    /* polling */
+    /* We don't support any event class (yet). */
+    cpu_to_ube16(buf, 0x00); /* No event descriptor returned */
+    buf[2] = 0x80;           /* No Event Available (NEA) */
+    buf[3] = 0x00;           /* Empty supported event classes */
+    ide_atapi_cmd_reply(s, 4, max_len);
+}
+
 static void ide_atapi_cmd(IDEState *s)
 {
     const uint8_t *packet;
@@ -1529,19 +1552,7 @@ static void ide_atapi_cmd(IDEState *s)
             break;
         }
     case GPCMD_GET_EVENT_STATUS_NOTIFICATION:
-        max_len = ube16_to_cpu(packet + 7);
-
-        if (packet[1] & 0x01) { /* polling */
-            /* We don't support any event class (yet). */
-            cpu_to_ube16(buf, 0x00); /* No event descriptor returned */
-            buf[2] = 0x80;           /* No Event Available (NEA) */
-            buf[3] = 0x00;           /* Empty supported event classes */
-            ide_atapi_cmd_reply(s, 4, max_len);
-        } else { /* asynchronous mode */
-            /* Only polling is supported, asynchronous mode is not. */
-            ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST,
-                                ASC_INV_FIELD_IN_CMD_PACKET);
-        }
+        handle_get_event_status_notification(s, buf, packet);
         break;
     default:
         ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST,
