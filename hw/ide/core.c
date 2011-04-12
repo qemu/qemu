@@ -1088,11 +1088,23 @@ static void handle_get_event_status_notification(IDEState *s,
                                                  uint8_t *buf,
                                                  const uint8_t *packet)
 {
+    struct {
+        uint8_t opcode;
+        uint8_t polled;        /* lsb bit is polled; others are reserved */
+        uint8_t reserved2[2];
+        uint8_t class;
+        uint8_t reserved3[2];
+        uint16_t len;
+        uint8_t control;
+    } __attribute__((packed)) *gesn_cdb;
+
     unsigned int max_len;
 
-    max_len = ube16_to_cpu(packet + 7);
+    gesn_cdb = (void *)packet;
+    max_len = be16_to_cpu(gesn_cdb->len);
 
-    if (!(packet[1] & 0x01)) { /* asynchronous mode */
+    /* It is fine by the MMC spec to not support async mode operations */
+    if (!(gesn_cdb->polled & 0x01)) { /* asynchronous mode */
         /* Only polling is supported, asynchronous mode is not. */
         ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST,
                             ASC_INV_FIELD_IN_CMD_PACKET);
