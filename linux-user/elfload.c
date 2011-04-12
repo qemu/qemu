@@ -339,6 +339,80 @@ enum
 
 #endif
 
+#ifdef TARGET_UNICORE32
+
+#define ELF_START_MMAP          0x80000000
+
+#define elf_check_arch(x)       ((x) == EM_UNICORE32)
+
+#define ELF_CLASS               ELFCLASS32
+#define ELF_DATA                ELFDATA2LSB
+#define ELF_ARCH                EM_UNICORE32
+
+static inline void init_thread(struct target_pt_regs *regs,
+        struct image_info *infop)
+{
+    abi_long stack = infop->start_stack;
+    memset(regs, 0, sizeof(*regs));
+    regs->UC32_REG_asr = 0x10;
+    regs->UC32_REG_pc = infop->entry & 0xfffffffe;
+    regs->UC32_REG_sp = infop->start_stack;
+    /* FIXME - what to for failure of get_user()? */
+    get_user_ual(regs->UC32_REG_02, stack + 8); /* envp */
+    get_user_ual(regs->UC32_REG_01, stack + 4); /* envp */
+    /* XXX: it seems that r0 is zeroed after ! */
+    regs->UC32_REG_00 = 0;
+}
+
+#define ELF_NREG    34
+typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
+
+static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
+{
+    (*regs)[0] = env->regs[0];
+    (*regs)[1] = env->regs[1];
+    (*regs)[2] = env->regs[2];
+    (*regs)[3] = env->regs[3];
+    (*regs)[4] = env->regs[4];
+    (*regs)[5] = env->regs[5];
+    (*regs)[6] = env->regs[6];
+    (*regs)[7] = env->regs[7];
+    (*regs)[8] = env->regs[8];
+    (*regs)[9] = env->regs[9];
+    (*regs)[10] = env->regs[10];
+    (*regs)[11] = env->regs[11];
+    (*regs)[12] = env->regs[12];
+    (*regs)[13] = env->regs[13];
+    (*regs)[14] = env->regs[14];
+    (*regs)[15] = env->regs[15];
+    (*regs)[16] = env->regs[16];
+    (*regs)[17] = env->regs[17];
+    (*regs)[18] = env->regs[18];
+    (*regs)[19] = env->regs[19];
+    (*regs)[20] = env->regs[20];
+    (*regs)[21] = env->regs[21];
+    (*regs)[22] = env->regs[22];
+    (*regs)[23] = env->regs[23];
+    (*regs)[24] = env->regs[24];
+    (*regs)[25] = env->regs[25];
+    (*regs)[26] = env->regs[26];
+    (*regs)[27] = env->regs[27];
+    (*regs)[28] = env->regs[28];
+    (*regs)[29] = env->regs[29];
+    (*regs)[30] = env->regs[30];
+    (*regs)[31] = env->regs[31];
+
+    (*regs)[32] = cpu_asr_read((CPUState *)env);
+    (*regs)[33] = env->regs[0]; /* XXX */
+}
+
+#define USE_ELF_CORE_DUMP
+#define ELF_EXEC_PAGESIZE               4096
+
+#define ELF_HWCAP                       (UC32_HWCAP_CMOV | UC32_HWCAP_UCF64)
+
+#endif
+
 #ifdef TARGET_SPARC
 #ifdef TARGET_SPARC64
 

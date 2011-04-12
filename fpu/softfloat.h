@@ -68,7 +68,7 @@ typedef int64_t int64;
 #define LIT64( a ) a##LL
 #define INLINE static inline
 
-#if defined(TARGET_MIPS) || defined(TARGET_SH4)
+#if defined(TARGET_MIPS) || defined(TARGET_SH4) || defined(TARGET_UNICORE32)
 #define SNAN_BIT_IS_ONE		1
 #else
 #define SNAN_BIT_IS_ONE		0
