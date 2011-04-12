@@ -651,6 +651,15 @@ static CPUPhysMemoryClient kvm_cpu_phys_memory_client = {
     .log_stop = kvm_log_stop,
 };
 
+static void kvm_handle_interrupt(CPUState *env, int mask)
+{
+    env->interrupt_request |= mask;
+
+    if (!qemu_cpu_is_self(env)) {
+        qemu_cpu_kick(env);
+    }
+}
+
 int kvm_init(void)
 {
     static const char upgrade_note[] =
@@ -758,6 +767,8 @@ int kvm_init(void)
     cpu_register_phys_memory_client(&kvm_cpu_phys_memory_client);
 
     s->many_ioeventfds = kvm_check_many_ioeventfds();
+
+    cpu_interrupt_handler = kvm_handle_interrupt;
 
     return 0;
 
