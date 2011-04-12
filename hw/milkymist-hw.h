@@ -1,6 +1,9 @@
 #ifndef QEMU_HW_MILKYMIST_H
 #define QEMU_HW_MILKYMIST_H
 
+#include "qdev.h"
+#include "qdev-addr.h"
+
 static inline DeviceState *milkymist_uart_create(target_phys_addr_t base,
         qemu_irq rx_irq, qemu_irq tx_irq)
 {
@@ -174,6 +177,23 @@ static inline DeviceState *milkymist_minimac_create(target_phys_addr_t base,
 
     qemu_check_nic_model(&nd_table[0], "minimac");
     dev = qdev_create(NULL, "milkymist-minimac");
+    qdev_set_nic_properties(dev, &nd_table[0]);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
+    sysbus_connect_irq(sysbus_from_qdev(dev), 0, rx_irq);
+    sysbus_connect_irq(sysbus_from_qdev(dev), 1, tx_irq);
+
+    return dev;
+}
+
+static inline DeviceState *milkymist_minimac2_create(target_phys_addr_t base,
+        target_phys_addr_t buffers_base, qemu_irq rx_irq, qemu_irq tx_irq)
+{
+    DeviceState *dev;
+
+    qemu_check_nic_model(&nd_table[0], "minimac2");
+    dev = qdev_create(NULL, "milkymist-minimac2");
+    qdev_prop_set_taddr(dev, "buffers_base", buffers_base);
     qdev_set_nic_properties(dev, &nd_table[0]);
     qdev_init_nofail(dev);
     sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
