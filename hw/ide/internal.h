@@ -373,6 +373,11 @@ typedef int DMAFunc(IDEDMA *);
 typedef int DMAIntFunc(IDEDMA *, int);
 typedef void DMARestartFunc(void *, int, int);
 
+struct unreported_events {
+    bool eject_request;
+    bool new_media;
+};
+
 /* NOTE: IDEState represents in fact one drive */
 struct IDEState {
     IDEBus *bus;
@@ -408,6 +413,7 @@ struct IDEState {
     BlockDriverState *bs;
     char version[9];
     /* ATAPI specific */
+    struct unreported_events events;
     uint8_t sense_key;
     uint8_t asc;
     uint8_t cdrom_changed;
