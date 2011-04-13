@@ -163,7 +163,7 @@ static int pfpu_decode_insn(MilkymistPFPUState *s)
     uint32_t reg_b = (insn >> 11) & 0x7f;
     uint32_t op = (insn >> 7) & 0xf;
     uint32_t reg_d = insn & 0x7f;
-    uint32_t r;
+    uint32_t r = 0;
     int latency = 0;
 
     switch (op) {
