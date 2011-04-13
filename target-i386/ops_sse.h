@@ -924,11 +924,11 @@ void helper_ ## name ## sd (Reg *d, Reg *s)\
 #define FPU_CMPEQ(size, a, b) float ## size ## _eq(a, b, &env->sse_status) ? -1 : 0
 #define FPU_CMPLT(size, a, b) float ## size ## _lt(a, b, &env->sse_status) ? -1 : 0
 #define FPU_CMPLE(size, a, b) float ## size ## _le(a, b, &env->sse_status) ? -1 : 0
-#define FPU_CMPUNORD(size, a, b) float ## size ## _unordered(a, b, &env->sse_status) ? - 1 : 0
+#define FPU_CMPUNORD(size, a, b) float ## size ## _unordered_quiet(a, b, &env->sse_status) ? - 1 : 0
 #define FPU_CMPNEQ(size, a, b) float ## size ## _eq(a, b, &env->sse_status) ? 0 : -1
 #define FPU_CMPNLT(size, a, b) float ## size ## _lt(a, b, &env->sse_status) ? 0 : -1
 #define FPU_CMPNLE(size, a, b) float ## size ## _le(a, b, &env->sse_status) ? 0 : -1
-#define FPU_CMPORD(size, a, b) float ## size ## _unordered(a, b, &env->sse_status) ? 0 : -1
+#define FPU_CMPORD(size, a, b) float ## size ## _unordered_quiet(a, b, &env->sse_status) ? 0 : -1
 
 SSE_HELPER_CMP(cmpeq, FPU_CMPEQ)
 SSE_HELPER_CMP(cmplt, FPU_CMPLT)
