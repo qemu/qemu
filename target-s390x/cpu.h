@@ -67,7 +67,6 @@ typedef struct CPUS390XState {
 
     PSW psw;
 
-    uint32_t cc;
     uint32_t cc_op;
     uint64_t cc_src;
     uint64_t cc_dst;
