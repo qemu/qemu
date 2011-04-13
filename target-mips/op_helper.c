@@ -2962,10 +2962,10 @@ FOP_COND_S(ngt, float32_unordered(fst1, fst0, &env->active_fpu.fp_status)  || fl
 #define FOP_COND_PS(op, condl, condh)                           \
 void helper_cmp_ps_ ## op (uint64_t fdt0, uint64_t fdt1, int cc)    \
 {                                                               \
-    uint32_t fst0 = float32_abs(fdt0 & 0XFFFFFFFF);             \
-    uint32_t fsth0 = float32_abs(fdt0 >> 32);                   \
-    uint32_t fst1 = float32_abs(fdt1 & 0XFFFFFFFF);             \
-    uint32_t fsth1 = float32_abs(fdt1 >> 32);                   \
+    uint32_t fst0 = fdt0 & 0XFFFFFFFF;                          \
+    uint32_t fsth0 = fdt0 >> 32;                                \
+    uint32_t fst1 = fdt1 & 0XFFFFFFFF;                          \
+    uint32_t fsth1 = fdt1 >> 32;                                \
     int cl = condl;                                             \
     int ch = condh;                                             \
                                                                 \
