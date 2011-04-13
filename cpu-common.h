@@ -68,14 +68,14 @@ void cpu_unregister_io_memory(int table_address);
 void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
                             int len, int is_write);
 static inline void cpu_physical_memory_read(target_phys_addr_t addr,
-                                            uint8_t *buf, int len)
+                                            void *buf, int len)
 {
     cpu_physical_memory_rw(addr, buf, len, 0);
 }
 static inline void cpu_physical_memory_write(target_phys_addr_t addr,
-                                             const uint8_t *buf, int len)
+                                             const void *buf, int len)
 {
-    cpu_physical_memory_rw(addr, (uint8_t *)buf, len, 1);
+    cpu_physical_memory_rw(addr, (void *)buf, len, 1);
 }
 void *cpu_physical_memory_map(target_phys_addr_t addr,
                               target_phys_addr_t *plen,

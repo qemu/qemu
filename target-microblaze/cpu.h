@@ -79,6 +79,8 @@ struct CPUMBState;
 #define          ESR_DIZ       (1<<11) /* Zone Protection */
 #define          ESR_S         (1<<10) /* Store instruction */
 
+#define          ESR_ESS_FSL_OFFSET     5
+
 #define          ESR_EC_FSL             0
 #define          ESR_EC_UNALIGNED_DATA  1
 #define          ESR_EC_ILLEGAL_OP      2
@@ -91,6 +93,7 @@ struct CPUMBState;
 #define          ESR_EC_INSN_STORAGE    9
 #define          ESR_EC_DATA_TLB        10
 #define          ESR_EC_INSN_TLB        11
+#define          ESR_EC_MASK            31
 
 /* Floating Point Status Register (FSR) Bits */
 #define FSR_IO          (1<<4) /* Invalid operation */
@@ -194,7 +197,7 @@ struct CPUMBState;
 #define PVR11_MMU_ITLB_SIZE             0x38000000
 #define PVR11_MMU_DTLB_SIZE             0x07000000
 #define PVR11_MMU_TLB_ACCESS            0x00C00000
-#define PVR11_MMU_ZONES                 0x003C0000
+#define PVR11_MMU_ZONES                 0x003E0000
 /* MSR Reset value PVR mask */
 #define PVR11_MSR_RESET_VALUE_MASK      0x000007FF
 
@@ -211,6 +214,13 @@ struct CPUMBState;
 #define CC_EQ  0
 
 #define NB_MMU_MODES    3
+
+#define STREAM_EXCEPTION (1 << 0)
+#define STREAM_ATOMIC    (1 << 1)
+#define STREAM_TEST      (1 << 2)
+#define STREAM_CONTROL   (1 << 3)
+#define STREAM_NONBLOCK  (1 << 4)
+
 typedef struct CPUMBState {
     uint32_t debug;
     uint32_t btaken;

@@ -72,7 +72,8 @@ static unsigned int qed_check_l2_table(QEDCheck *check, QEDTable *table)
     for (i = 0; i < s->table_nelems; i++) {
         uint64_t offset = table->offsets[i];
 
-        if (!offset) {
+        if (qed_offset_is_unalloc_cluster(offset) ||
+            qed_offset_is_zero_cluster(offset)) {
             continue;
         }
 
@@ -111,7 +112,7 @@ static int qed_check_l1_table(QEDCheck *check, QEDTable *table)
         unsigned int num_invalid_l2;
         uint64_t offset = table->offsets[i];
 
-        if (!offset) {
+        if (qed_offset_is_unalloc_cluster(offset)) {
             continue;
         }
 

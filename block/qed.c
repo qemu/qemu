@@ -573,7 +573,7 @@ static void qed_is_allocated_cb(void *opaque, int ret, uint64_t offset, size_t l
 {
     QEDIsAllocatedCB *cb = opaque;
     *cb->pnum = len / BDRV_SECTOR_SIZE;
-    cb->is_allocated = ret == QED_CLUSTER_FOUND;
+    cb->is_allocated = (ret == QED_CLUSTER_FOUND || ret == QED_CLUSTER_ZERO);
 }
 
 static int bdrv_qed_is_allocated(BlockDriverState *bs, int64_t sector_num,
@@ -745,7 +745,10 @@ static void qed_copy_from_backing_file(BDRVQEDState *s, uint64_t pos,
  * @table:          L2 table
  * @index:          First cluster index
  * @n:              Number of contiguous clusters
- * @cluster:        First cluster byte offset in image file
+ * @cluster:        First cluster offset
+ *
+ * The cluster offset may be an allocated byte offset in the image file, the
+ * zero cluster marker, or the unallocated cluster marker.
  */
 static void qed_update_l2_table(BDRVQEDState *s, QEDTable *table, int index,
                                 unsigned int n, uint64_t cluster)
@@ -753,7 +756,10 @@ static void qed_update_l2_table(BDRVQEDState *s, QEDTable *table, int index,
     int i;
     for (i = index; i < index + n; i++) {
         table->offsets[i] = cluster;
-        cluster += s->header.cluster_size;
+        if (!qed_offset_is_unalloc_cluster(cluster) &&
+            !qed_offset_is_zero_cluster(cluster)) {
+            cluster += s->header.cluster_size;
+        }
     }
 }
 
@@ -1075,6 +1081,7 @@ static void qed_aio_write_data(void *opaque, int ret,
 
     case QED_CLUSTER_L2:
     case QED_CLUSTER_L1:
+    case QED_CLUSTER_ZERO:
         qed_aio_write_alloc(acb, len);
         break;
 
@@ -1114,8 +1121,12 @@ static void qed_aio_read_data(void *opaque, int ret,
 
     qemu_iovec_copy(&acb->cur_qiov, acb->qiov, acb->qiov_offset, len);
 
-    /* Handle backing file and unallocated sparse hole reads */
-    if (ret != QED_CLUSTER_FOUND) {
+    /* Handle zero cluster and backing file reads */
+    if (ret == QED_CLUSTER_ZERO) {
+        qemu_iovec_memset(&acb->cur_qiov, 0, acb->cur_qiov.size);
+        qed_aio_next_io(acb, 0);
+        return;
+    } else if (ret != QED_CLUSTER_FOUND) {
         qed_read_backing_file(s, acb->cur_pos, &acb->cur_qiov,
                               qed_aio_next_io, acb);
         return;

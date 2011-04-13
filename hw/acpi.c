@@ -355,7 +355,7 @@ static uint8_t *acpi_gpe_ioport_get_ptr(ACPIGPE *gpe, uint32_t addr)
     if (addr < gpe->len / 2) {
         cur = gpe->sts + addr;
     } else if (addr < gpe->len) {
-        cur = gpe->en + addr;
+        cur = gpe->en + addr - gpe->len / 2;
     } else {
         abort();
     }

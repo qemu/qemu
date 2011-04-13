@@ -1084,6 +1084,136 @@ static int ide_dvd_read_structure(IDEState *s, int format,
     }
 }
 
+static unsigned int event_status_media(IDEState *s,
+                                       uint8_t *buf)
+{
+    enum media_event_code {
+        MEC_NO_CHANGE = 0,       /* Status unchanged */
+        MEC_EJECT_REQUESTED,     /* received a request from user to eject */
+        MEC_NEW_MEDIA,           /* new media inserted and ready for access */
+        MEC_MEDIA_REMOVAL,       /* only for media changers */
+        MEC_MEDIA_CHANGED,       /* only for media changers */
+        MEC_BG_FORMAT_COMPLETED, /* MRW or DVD+RW b/g format completed */
+        MEC_BG_FORMAT_RESTARTED, /* MRW or DVD+RW b/g format restarted */
+    };
+    enum media_status {
+        MS_TRAY_OPEN = 1,
+        MS_MEDIA_PRESENT = 2,
+    };
+    uint8_t event_code, media_status;
+
+    media_status = 0;
+    if (s->bs->tray_open) {
+        media_status = MS_TRAY_OPEN;
+    } else if (bdrv_is_inserted(s->bs)) {
+        media_status = MS_MEDIA_PRESENT;
+    }
+
+    /* Event notification descriptor */
+    event_code = MEC_NO_CHANGE;
+    if (media_status != MS_TRAY_OPEN && s->events.new_media) {
+        event_code = MEC_NEW_MEDIA;
+        s->events.new_media = false;
+    }
+
+    buf[4] = event_code;
+    buf[5] = media_status;
+
+    /* These fields are reserved, just clear them. */
+    buf[6] = 0;
+    buf[7] = 0;
+
+    return 8; /* We wrote to 4 extra bytes from the header */
+}
+
+static void handle_get_event_status_notification(IDEState *s,
+                                                 uint8_t *buf,
+                                                 const uint8_t *packet)
+{
+    struct {
+        uint8_t opcode;
+        uint8_t polled;        /* lsb bit is polled; others are reserved */
+        uint8_t reserved2[2];
+        uint8_t class;
+        uint8_t reserved3[2];
+        uint16_t len;
+        uint8_t control;
+    } __attribute__((packed)) *gesn_cdb;
+
+    struct {
+        uint16_t len;
+        uint8_t notification_class;
+        uint8_t supported_events;
+    } __attribute((packed)) *gesn_event_header;
+
+    enum notification_class_request_type {
+        NCR_RESERVED1 = 1 << 0,
+        NCR_OPERATIONAL_CHANGE = 1 << 1,
+        NCR_POWER_MANAGEMENT = 1 << 2,
+        NCR_EXTERNAL_REQUEST = 1 << 3,
+        NCR_MEDIA = 1 << 4,
+        NCR_MULTI_HOST = 1 << 5,
+        NCR_DEVICE_BUSY = 1 << 6,
+        NCR_RESERVED2 = 1 << 7,
+    };
+    enum event_notification_class_field {
+        ENC_NO_EVENTS = 0,
+        ENC_OPERATIONAL_CHANGE,
+        ENC_POWER_MANAGEMENT,
+        ENC_EXTERNAL_REQUEST,
+        ENC_MEDIA,
+        ENC_MULTIPLE_HOSTS,
+        ENC_DEVICE_BUSY,
+        ENC_RESERVED,
+    };
+    unsigned int max_len, used_len;
+
+    gesn_cdb = (void *)packet;
+    gesn_event_header = (void *)buf;
+
+    max_len = be16_to_cpu(gesn_cdb->len);
+
+    /* It is fine by the MMC spec to not support async mode operations */
+    if (!(gesn_cdb->polled & 0x01)) { /* asynchronous mode */
+        /* Only polling is supported, asynchronous mode is not. */
+        ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST,
+                            ASC_INV_FIELD_IN_CMD_PACKET);
+        return;
+    }
+
+    /* polling mode operation */
+
+    /*
+     * These are the supported events.
+     *
+     * We currently only support requests of the 'media' type.
+     */
+    gesn_event_header->supported_events = NCR_MEDIA;
+
+    /*
+     * We use |= below to set the class field; other bits in this byte
+     * are reserved now but this is useful to do if we have to use the
+     * reserved fields later.
+     */
+    gesn_event_header->notification_class = 0;
+
+    /*
+     * Responses to requests are to be based on request priority.  The
+     * notification_class_request_type enum above specifies the
+     * priority: upper elements are higher prio than lower ones.
+     */
+    if (gesn_cdb->class & NCR_MEDIA) {
+        gesn_event_header->notification_class |= ENC_MEDIA;
+        used_len = event_status_media(s, buf);
+    } else {
+        gesn_event_header->notification_class = 0x80; /* No event available */
+        used_len = sizeof(*gesn_event_header);
+    }
+    gesn_event_header->len = cpu_to_be16(used_len
+                                         - sizeof(*gesn_event_header));
+    ide_atapi_cmd_reply(s, used_len, max_len);
+}
+
 static void ide_atapi_cmd(IDEState *s)
 {
     const uint8_t *packet;
@@ -1102,13 +1232,21 @@ static void ide_atapi_cmd(IDEState *s)
         printf("\n");
     }
 #endif
-    /* If there's a UNIT_ATTENTION condition pending, only
-       REQUEST_SENSE and INQUIRY commands are allowed to complete. */
+    /*
+     * If there's a UNIT_ATTENTION condition pending, only
+     * REQUEST_SENSE, INQUIRY, GET_CONFIGURATION and
+     * GET_EVENT_STATUS_NOTIFICATION commands are allowed to complete.
+     * MMC-5, section 4.1.6.1 lists only these commands being allowed
+     * to complete, with other commands getting a CHECK condition
+     * response unless a higher priority status, defined by the drive
+     * here, is pending.
+     */
     if (s->sense_key == SENSE_UNIT_ATTENTION &&
-	s->io_buffer[0] != GPCMD_REQUEST_SENSE &&
-	s->io_buffer[0] != GPCMD_INQUIRY) {
-	ide_atapi_cmd_check_status(s);
-	return;
+        s->io_buffer[0] != GPCMD_REQUEST_SENSE &&
+        s->io_buffer[0] != GPCMD_INQUIRY &&
+        s->io_buffer[0] != GPCMD_GET_EVENT_STATUS_NOTIFICATION) {
+        ide_atapi_cmd_check_status(s);
+        return;
     }
     switch(s->io_buffer[0]) {
     case GPCMD_TEST_UNIT_READY:
@@ -1230,13 +1368,8 @@ static void ide_atapi_cmd(IDEState *s)
         ide_atapi_cmd_reply(s, 18, max_len);
         break;
     case GPCMD_PREVENT_ALLOW_MEDIUM_REMOVAL:
-        if (bdrv_is_inserted(s->bs)) {
-            bdrv_set_locked(s->bs, packet[4] & 1);
-            ide_atapi_cmd_ok(s);
-        } else {
-            ide_atapi_cmd_error(s, SENSE_NOT_READY,
-                                ASC_MEDIUM_NOT_PRESENT);
-        }
+        bdrv_set_locked(s->bs, packet[4] & 1);
+        ide_atapi_cmd_ok(s);
         break;
     case GPCMD_READ_10:
     case GPCMD_READ_12:
@@ -1309,7 +1442,7 @@ static void ide_atapi_cmd(IDEState *s)
         break;
     case GPCMD_START_STOP_UNIT:
         {
-            int start, eject, err = 0;
+            int start, eject, sense, err = 0;
             start = packet[4] & 1;
             eject = (packet[4] >> 1) & 1;
 
@@ -1322,7 +1455,11 @@ static void ide_atapi_cmd(IDEState *s)
                 ide_atapi_cmd_ok(s);
                 break;
             case -EBUSY:
-                ide_atapi_cmd_error(s, SENSE_NOT_READY,
+                sense = SENSE_NOT_READY;
+                if (bdrv_is_inserted(s->bs)) {
+                    sense = SENSE_ILLEGAL_REQUEST;
+                }
+                ide_atapi_cmd_error(s, sense,
                                     ASC_MEDIA_REMOVAL_PREVENTED);
                 break;
             default:
@@ -1522,19 +1659,7 @@ static void ide_atapi_cmd(IDEState *s)
             break;
         }
     case GPCMD_GET_EVENT_STATUS_NOTIFICATION:
-        max_len = ube16_to_cpu(packet + 7);
-
-        if (packet[1] & 0x01) { /* polling */
-            /* We don't support any event class (yet). */
-            cpu_to_ube16(buf, 0x00); /* No event descriptor returned */
-            buf[2] = 0x80;           /* No Event Available (NEA) */
-            buf[3] = 0x00;           /* Empty supported event classes */
-            ide_atapi_cmd_reply(s, 4, max_len);
-        } else { /* asynchronous mode */
-            /* Only polling is supported, asynchronous mode is not. */
-            ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST,
-                                ASC_INV_FIELD_IN_CMD_PACKET);
-        }
+        handle_get_event_status_notification(s, buf, packet);
         break;
     default:
         ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST,
@@ -1612,6 +1737,7 @@ static void cdrom_change_cb(void *opaque, int reason)
     s->sense_key = SENSE_UNIT_ATTENTION;
     s->asc = ASC_MEDIUM_MAY_HAVE_CHANGED;
     s->cdrom_changed = 1;
+    s->events.new_media = true;
     ide_set_irq(s->bus);
 }
 
@@ -2756,6 +2882,25 @@ static bool ide_drive_pio_state_needed(void *opaque)
     return (s->status & DRQ_STAT) != 0;
 }
 
+static bool ide_atapi_gesn_needed(void *opaque)
+{
+    IDEState *s = opaque;
+
+    return s->events.new_media || s->events.eject_request;
+}
+
+/* Fields for GET_EVENT_STATUS_NOTIFICATION ATAPI command */
+const VMStateDescription vmstate_ide_atapi_gesn_state = {
+    .name ="ide_drive/atapi/gesn_state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField []) {
+        VMSTATE_BOOL(events.new_media, IDEState),
+        VMSTATE_BOOL(events.eject_request, IDEState),
+    }
+};
+
 const VMStateDescription vmstate_ide_drive_pio_state = {
     .name = "ide_drive/pio_state",
     .version_id = 1,
@@ -2809,6 +2954,9 @@ const VMStateDescription vmstate_ide_drive = {
         {
             .vmsd = &vmstate_ide_drive_pio_state,
             .needed = ide_drive_pio_state_needed,
+        }, {
+            .vmsd = &vmstate_ide_atapi_gesn_state,
+            .needed = ide_atapi_gesn_needed,
         }, {
             /* empty */
         }

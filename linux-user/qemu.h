@@ -105,6 +105,9 @@ typedef struct TaskState {
     FPA11 fpa;
     int swi_errno;
 #endif
+#ifdef TARGET_UNICORE32
+    int swi_errno;
+#endif
 #if defined(TARGET_I386) && !defined(TARGET_X86_64)
     abi_ulong target_v86;
     struct vm86_saved_state vm86_saved_regs;
@@ -118,7 +121,7 @@ typedef struct TaskState {
 #ifdef TARGET_M68K
     int sim_syscalls;
 #endif
-#if defined(TARGET_ARM) || defined(TARGET_M68K)
+#if defined(TARGET_ARM) || defined(TARGET_M68K) || defined(TARGET_UNICORE32)
     /* Extra fields for semihosted binaries.  */
     uint32_t stack_base;
     uint32_t heap_base;
