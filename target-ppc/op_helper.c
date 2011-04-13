@@ -3364,7 +3364,7 @@ static inline uint32_t efststeq(uint32_t op1, uint32_t op2)
     CPU_FloatU u1, u2;
     u1.l = op1;
     u2.l = op2;
-    return float32_eq(u1.f, u2.f, &env->vec_status) ? 4 : 0;
+    return float32_eq_quiet(u1.f, u2.f, &env->vec_status) ? 4 : 0;
 }
 
 static inline uint32_t efscmplt(uint32_t op1, uint32_t op2)
@@ -3678,7 +3678,7 @@ uint32_t helper_efdtsteq (uint64_t op1, uint64_t op2)
     CPU_DoubleU u1, u2;
     u1.ll = op1;
     u2.ll = op2;
-    return float64_eq(u1.d, u2.d, &env->vec_status) ? 4 : 0;
+    return float64_eq_quiet(u1.d, u2.d, &env->vec_status) ? 4 : 0;
 }
 
 uint32_t helper_efdcmplt (uint64_t op1, uint64_t op2)

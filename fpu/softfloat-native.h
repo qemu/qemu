@@ -210,7 +210,7 @@ INLINE float32 float32_div( float32 a, float32 b STATUS_PARAM)
 }
 float32 float32_rem( float32, float32  STATUS_PARAM);
 float32 float32_sqrt( float32  STATUS_PARAM);
-INLINE int float32_eq( float32 a, float32 b STATUS_PARAM)
+INLINE int float32_eq_quiet( float32 a, float32 b STATUS_PARAM)
 {
     return a == b;
 }
@@ -321,7 +321,7 @@ INLINE float64 float64_div( float64 a, float64 b STATUS_PARAM)
 }
 float64 float64_rem( float64, float64 STATUS_PARAM );
 float64 float64_sqrt( float64 STATUS_PARAM );
-INLINE int float64_eq( float64 a, float64 b STATUS_PARAM)
+INLINE int float64_eq_quiet( float64 a, float64 b STATUS_PARAM)
 {
     return a == b;
 }
@@ -428,7 +428,7 @@ INLINE floatx80 floatx80_div( floatx80 a, floatx80 b STATUS_PARAM)
 }
 floatx80 floatx80_rem( floatx80, floatx80 STATUS_PARAM );
 floatx80 floatx80_sqrt( floatx80 STATUS_PARAM );
-INLINE int floatx80_eq( floatx80 a, floatx80 b STATUS_PARAM)
+INLINE int floatx80_eq_quiet( floatx80 a, floatx80 b STATUS_PARAM)
 {
     return a == b;
 }

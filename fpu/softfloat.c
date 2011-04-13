@@ -2318,7 +2318,7 @@ float32 float32_log2( float32 a STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float32_eq( float32 a, float32 b STATUS_PARAM )
+int float32_eq_quiet( float32 a, float32 b STATUS_PARAM )
 {
     a = float32_squash_input_denormal(a STATUS_VAR);
     b = float32_squash_input_denormal(b STATUS_VAR);
@@ -3582,7 +3582,7 @@ float64 float64_log2( float64 a STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float64_eq( float64 a, float64 b STATUS_PARAM )
+int float64_eq_quiet( float64 a, float64 b STATUS_PARAM )
 {
     uint64_t av, bv;
     a = float64_squash_input_denormal(a STATUS_VAR);
@@ -4592,7 +4592,7 @@ floatx80 floatx80_sqrt( floatx80 a STATUS_PARAM )
 | Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int floatx80_eq( floatx80 a, floatx80 b STATUS_PARAM )
+int floatx80_eq_quiet( floatx80 a, floatx80 b STATUS_PARAM )
 {
 
     if (    (    ( extractFloatx80Exp( a ) == 0x7FFF )
@@ -5754,7 +5754,7 @@ float128 float128_sqrt( float128 a STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float128_eq( float128 a, float128 b STATUS_PARAM )
+int float128_eq_quiet( float128 a, float128 b STATUS_PARAM )
 {
 
     if (    (    ( extractFloat128Exp( a ) == 0x7FFF )

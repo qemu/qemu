@@ -159,7 +159,7 @@ PerformComparisonOperation(floatx80 Fn, floatx80 Fm)
    }
 
    /* test for equal condition */
-   if (floatx80_eq(Fn,Fm, &fpa11->fp_status))
+   if (floatx80_eq_quiet(Fn,Fm, &fpa11->fp_status))
    {
       flags |= CC_ZERO;
    }
