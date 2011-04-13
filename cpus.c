@@ -833,7 +833,7 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
 
     while (1) {
         cpu_exec_all();
-        if (use_icount && qemu_next_deadline() <= 0) {
+        if (use_icount && qemu_next_icount_deadline() <= 0) {
             qemu_notify_event();
         }
         qemu_tcg_wait_io_event();
@@ -1050,7 +1050,7 @@ static int tcg_cpu_exec(CPUState *env)
         qemu_icount -= (env->icount_decr.u16.low + env->icount_extra);
         env->icount_decr.u16.low = 0;
         env->icount_extra = 0;
-        count = qemu_icount_round (qemu_next_deadline());
+        count = qemu_icount_round(qemu_next_icount_deadline());
         qemu_icount += count;
         decr = (count > 0xffff) ? 0xffff : count;
         count -= decr;

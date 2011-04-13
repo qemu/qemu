@@ -452,7 +452,7 @@ void qemu_clock_warp(QEMUClock *clock)
     }
 
     vm_clock_warp_start = qemu_get_clock_ns(rt_clock);
-    deadline = qemu_next_deadline();
+    deadline = qemu_next_icount_deadline();
     if (deadline > 0) {
         /*
          * Ensure the vm_clock proceeds even when the virtual CPU goes to
@@ -765,20 +765,15 @@ static void host_alarm_handler(int host_signum)
     }
 }
 
-int64_t qemu_next_deadline(void)
+int64_t qemu_next_icount_deadline(void)
 {
     /* To avoid problems with overflow limit this to 2^32.  */
     int64_t delta = INT32_MAX;
 
+    assert(use_icount);
     if (active_timers[QEMU_CLOCK_VIRTUAL]) {
         delta = active_timers[QEMU_CLOCK_VIRTUAL]->expire_time -
                      qemu_get_clock_ns(vm_clock);
-    }
-    if (active_timers[QEMU_CLOCK_HOST]) {
-        int64_t hdelta = active_timers[QEMU_CLOCK_HOST]->expire_time -
-                 qemu_get_clock_ns(host_clock);
-        if (hdelta < delta)
-            delta = hdelta;
     }
 
     if (delta < 0)
@@ -1169,7 +1164,7 @@ int qemu_calculate_timeout(void)
         } else {
             /* Wait for either IO to occur or the next
                timer event.  */
-            add = qemu_next_deadline();
+            add = qemu_next_icount_deadline();
             /* We advance the timer before checking for IO.
                Limit the amount we advance so that early IO
                activity won't get the guest too far ahead.  */

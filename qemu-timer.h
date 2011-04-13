@@ -51,7 +51,7 @@ int qemu_timer_expired(QEMUTimer *timer_head, int64_t current_time);
 
 void qemu_run_all_timers(void);
 int qemu_alarm_pending(void);
-int64_t qemu_next_deadline(void);
+int64_t qemu_next_icount_deadline(void);
 void configure_alarms(char const *opt);
 void configure_icount(const char *option);
 int qemu_calculate_timeout(void);
