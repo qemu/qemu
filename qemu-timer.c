@@ -110,9 +110,12 @@ static int64_t cpu_get_clock(void)
     }
 }
 
+#ifndef CONFIG_IOTHREAD
 static int64_t qemu_icount_delta(void)
 {
-    if (use_icount == 1) {
+    if (!use_icount) {
+        return 5000 * (int64_t) 1000000;
+    } else if (use_icount == 1) {
         /* When not using an adaptive execution frequency
            we tend to get badly out of sync with real time,
            so just delay for a reasonable amount of time.  */
@@ -121,6 +124,7 @@ static int64_t qemu_icount_delta(void)
         return cpu_get_icount() - cpu_get_clock();
     }
 }
+#endif
 
 /* enable cpu_get_ticks() */
 void cpu_enable_ticks(void)
@@ -1147,39 +1151,41 @@ void quit_timers(void)
 
 int qemu_calculate_timeout(void)
 {
+#ifndef CONFIG_IOTHREAD
     int timeout;
-    int64_t add;
-    int64_t delta;
 
-    /* When using icount, making forward progress with qemu_icount when the
-       guest CPU is idle is critical. We only use the static io-thread timeout
-       for non icount runs.  */
-    if (!use_icount || !vm_running) {
-        return 5000;
-    }
-
-    /* Advance virtual time to the next event.  */
-    delta = qemu_icount_delta();
-    if (delta > 0) {
-        /* If virtual time is ahead of real time then just
-           wait for IO.  */
-        timeout = (delta + 999999) / 1000000;
-    } else {
-        /* Wait for either IO to occur or the next
-           timer event.  */
-        add = qemu_next_deadline();
-        /* We advance the timer before checking for IO.
-           Limit the amount we advance so that early IO
-           activity won't get the guest too far ahead.  */
-        if (add > 10000000)
-            add = 10000000;
-        delta += add;
-        qemu_icount += qemu_icount_round (add);
-        timeout = delta / 1000000;
-        if (timeout < 0)
-            timeout = 0;
+    if (!vm_running)
+        timeout = 5000;
+    else {
+     /* XXX: use timeout computed from timers */
+        int64_t add;
+        int64_t delta;
+        /* Advance virtual time to the next event.  */
+	delta = qemu_icount_delta();
+        if (delta > 0) {
+            /* If virtual time is ahead of real time then just
+               wait for IO.  */
+            timeout = (delta + 999999) / 1000000;
+        } else {
+            /* Wait for either IO to occur or the next
+               timer event.  */
+            add = qemu_next_deadline();
+            /* We advance the timer before checking for IO.
+               Limit the amount we advance so that early IO
+               activity won't get the guest too far ahead.  */
+            if (add > 10000000)
+                add = 10000000;
+            delta += add;
+            qemu_icount += qemu_icount_round (add);
+            timeout = delta / 1000000;
+            if (timeout < 0)
+                timeout = 0;
+        }
     }
 
     return timeout;
+#else /* CONFIG_IOTHREAD */
+    return 1000;
+#endif
 }
 
