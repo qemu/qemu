@@ -144,13 +144,7 @@ static inline void svm_check_intercept(uint32_t type)
 #ifdef USE_X86LDOUBLE
 
 /* only for x86 */
-typedef union {
-    long double d;
-    struct {
-        unsigned long long lower;
-        unsigned short upper;
-    } l;
-} CPU86_LDoubleU;
+typedef CPU_LDoubleU CPU86_LDoubleU;
 
 /* the following deal with x86 long double-precision numbers */
 #define MAXEXPD 0x7fff
@@ -162,24 +156,7 @@ typedef union {
 
 #else
 
-/* NOTE: arm is horrible as double 32 bit words are stored in big endian ! */
-typedef union {
-    double d;
-#if !defined(HOST_WORDS_BIGENDIAN) && !defined(__arm__)
-    struct {
-        uint32_t lower;
-        int32_t upper;
-    } l;
-#else
-    struct {
-        int32_t upper;
-        uint32_t lower;
-    } l;
-#endif
-#ifndef __arm__
-    int64_t ll;
-#endif
-} CPU86_LDoubleU;
+typedef CPU_DoubleU CPU86_LDoubleU;
 
 /* the following deal with IEEE double-precision numbers */
 #define MAXEXPD 0x7ff
