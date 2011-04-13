@@ -110,6 +110,9 @@ static inline void svm_check_intercept(uint32_t type)
 #define float64_to_floatx float64_to_floatx80
 #define floatx_to_float32 floatx80_to_float32
 #define floatx_to_float64 floatx80_to_float64
+#define floatx_add floatx80_add
+#define floatx_mul floatx80_mul
+#define floatx_sub floatx80_sub
 #define floatx_abs floatx80_abs
 #define floatx_chs floatx80_chs
 #define floatx_round_to_int floatx80_round_to_int
@@ -126,6 +129,9 @@ static inline void svm_check_intercept(uint32_t type)
 #define float64_to_floatx(x, e) (x)
 #define floatx_to_float32 float64_to_float32
 #define floatx_to_float64(x, e) (x)
+#define floatx_add float64_add
+#define floatx_mul float64_mul
+#define floatx_sub float64_sub
 #define floatx_abs float64_abs
 #define floatx_chs float64_chs
 #define floatx_round_to_int float64_round_to_int

@@ -3711,22 +3711,22 @@ void helper_fucomi_ST0_FT0(void)
 
 void helper_fadd_ST0_FT0(void)
 {
-    ST0 += FT0;
+    ST0 = floatx_add(ST0, FT0, &env->fp_status);
 }
 
 void helper_fmul_ST0_FT0(void)
 {
-    ST0 *= FT0;
+    ST0 = floatx_mul(ST0, FT0, &env->fp_status);
 }
 
 void helper_fsub_ST0_FT0(void)
 {
-    ST0 -= FT0;
+    ST0 = floatx_sub(ST0, FT0, &env->fp_status);
 }
 
 void helper_fsubr_ST0_FT0(void)
 {
-    ST0 = FT0 - ST0;
+    ST0 = floatx_sub(FT0, ST0, &env->fp_status);
 }
 
 void helper_fdiv_ST0_FT0(void)
@@ -3743,24 +3743,22 @@ void helper_fdivr_ST0_FT0(void)
 
 void helper_fadd_STN_ST0(int st_index)
 {
-    ST(st_index) += ST0;
+    ST(st_index) = floatx_add(ST(st_index), ST0, &env->fp_status);
 }
 
 void helper_fmul_STN_ST0(int st_index)
 {
-    ST(st_index) *= ST0;
+    ST(st_index) = floatx_mul(ST(st_index), ST0, &env->fp_status);
 }
 
 void helper_fsub_STN_ST0(int st_index)
 {
-    ST(st_index) -= ST0;
+    ST(st_index) = floatx_sub(ST(st_index), ST0, &env->fp_status);
 }
 
 void helper_fsubr_STN_ST0(int st_index)
 {
-    CPU86_LDouble *p;
-    p = &ST(st_index);
-    *p = ST0 - *p;
+    ST(st_index) = floatx_sub(ST0, ST(st_index), &env->fp_status);
 }
 
 void helper_fdiv_STN_ST0(int st_index)
