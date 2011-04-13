@@ -5,7 +5,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "gdbstub.h"
-#include "helpers.h"
+#include "helper.h"
 #include "qemu-common.h"
 #include "host-utils.h"
 #if !defined(CONFIG_USER_ONLY)

@@ -30,9 +30,9 @@
 #include "tcg-op.h"
 #include "qemu-log.h"
 
-#include "helpers.h"
+#include "helper.h"
 #define GEN_HELPER 1
-#include "helpers.h"
+#include "helper.h"
 
 #define ENABLE_ARCH_4T    arm_feature(env, ARM_FEATURE_V4T)
 #define ENABLE_ARCH_5     arm_feature(env, ARM_FEATURE_V5)
@@ -129,7 +129,7 @@ void arm_translate_init(void)
 #endif
 
 #define GEN_HELPER 2
-#include "helpers.h"
+#include "helper.h"
 }
 
 static inline TCGv load_cpu_offset(int offset)
