@@ -404,16 +404,10 @@ void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
                     env->mxcsr);
         for(i=0;i<8;i++) {
 #if defined(USE_X86LDOUBLE)
-            union {
-                long double d;
-                struct {
-                    uint64_t lower;
-                    uint16_t upper;
-                } l;
-            } tmp;
-            tmp.d = env->fpregs[i].d;
+            CPU_LDoubleU u;
+            u.d = env->fpregs[i].d;
             cpu_fprintf(f, "FPR%d=%016" PRIx64 " %04x",
-                        i, tmp.l.lower, tmp.l.upper);
+                        i, u.l.lower, u.l.upper);
 #else
             cpu_fprintf(f, "FPR%d=%016" PRIx64,
                         i, env->fpregs[i].mmx.q);
