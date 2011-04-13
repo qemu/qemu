@@ -2874,7 +2874,9 @@ uint64_t helper_float_mulr_ps(uint64_t fdt0, uint64_t fdt1)
 #define FOP_COND_D(op, cond)                                   \
 void helper_cmp_d_ ## op (uint64_t fdt0, uint64_t fdt1, int cc)    \
 {                                                              \
-    int c = cond;                                              \
+    int c;                                                     \
+    set_float_exception_flags(0, &env->active_fpu.fp_status);  \
+    c = cond;                                                  \
     update_fcr31();                                            \
     if (c)                                                     \
         SET_FP_COND(cc, env->active_fpu);                      \
@@ -2884,6 +2886,7 @@ void helper_cmp_d_ ## op (uint64_t fdt0, uint64_t fdt1, int cc)    \
 void helper_cmpabs_d_ ## op (uint64_t fdt0, uint64_t fdt1, int cc) \
 {                                                              \
     int c;                                                     \
+    set_float_exception_flags(0, &env->active_fpu.fp_status);  \
     fdt0 = float64_abs(fdt0);                                  \
     fdt1 = float64_abs(fdt1);                                  \
     c = cond;                                                  \
@@ -2918,7 +2921,9 @@ FOP_COND_D(ngt, float64_unordered(fdt1, fdt0, &env->active_fpu.fp_status)  || fl
 #define FOP_COND_S(op, cond)                                   \
 void helper_cmp_s_ ## op (uint32_t fst0, uint32_t fst1, int cc)    \
 {                                                              \
-    int c = cond;                                              \
+    int c;                                                     \
+    set_float_exception_flags(0, &env->active_fpu.fp_status);  \
+    c = cond;                                                  \
     update_fcr31();                                            \
     if (c)                                                     \
         SET_FP_COND(cc, env->active_fpu);                      \
@@ -2928,6 +2933,7 @@ void helper_cmp_s_ ## op (uint32_t fst0, uint32_t fst1, int cc)    \
 void helper_cmpabs_s_ ## op (uint32_t fst0, uint32_t fst1, int cc) \
 {                                                              \
     int c;                                                     \
+    set_float_exception_flags(0, &env->active_fpu.fp_status);  \
     fst0 = float32_abs(fst0);                                  \
     fst1 = float32_abs(fst1);                                  \
     c = cond;                                                  \
@@ -2962,13 +2968,15 @@ FOP_COND_S(ngt, float32_unordered(fst1, fst0, &env->active_fpu.fp_status)  || fl
 #define FOP_COND_PS(op, condl, condh)                           \
 void helper_cmp_ps_ ## op (uint64_t fdt0, uint64_t fdt1, int cc)    \
 {                                                               \
-    uint32_t fst0 = fdt0 & 0XFFFFFFFF;                          \
-    uint32_t fsth0 = fdt0 >> 32;                                \
-    uint32_t fst1 = fdt1 & 0XFFFFFFFF;                          \
-    uint32_t fsth1 = fdt1 >> 32;                                \
-    int cl = condl;                                             \
-    int ch = condh;                                             \
-                                                                \
+    uint32_t fst0, fsth0, fst1, fsth1;                          \
+    int ch, cl;                                                 \
+    set_float_exception_flags(0, &env->active_fpu.fp_status);   \
+    fst0 = fdt0 & 0XFFFFFFFF;                                   \
+    fsth0 = fdt0 >> 32;                                         \
+    fst1 = fdt1 & 0XFFFFFFFF;                                   \
+    fsth1 = fdt1 >> 32;                                         \
+    cl = condl;                                                 \
+    ch = condh;                                                 \
     update_fcr31();                                             \
     if (cl)                                                     \
         SET_FP_COND(cc, env->active_fpu);                       \
@@ -2981,13 +2989,14 @@ void helper_cmp_ps_ ## op (uint64_t fdt0, uint64_t fdt1, int cc)    \
 }                                                               \
 void helper_cmpabs_ps_ ## op (uint64_t fdt0, uint64_t fdt1, int cc) \
 {                                                               \
-    uint32_t fst0 = float32_abs(fdt0 & 0XFFFFFFFF);             \
-    uint32_t fsth0 = float32_abs(fdt0 >> 32);                   \
-    uint32_t fst1 = float32_abs(fdt1 & 0XFFFFFFFF);             \
-    uint32_t fsth1 = float32_abs(fdt1 >> 32);                   \
-    int cl = condl;                                             \
-    int ch = condh;                                             \
-                                                                \
+    uint32_t fst0, fsth0, fst1, fsth1;                          \
+    int ch, cl;                                                 \
+    fst0 = float32_abs(fdt0 & 0XFFFFFFFF);                      \
+    fsth0 = float32_abs(fdt0 >> 32);                            \
+    fst1 = float32_abs(fdt1 & 0XFFFFFFFF);                      \
+    fsth1 = float32_abs(fdt1 >> 32);                            \
+    cl = condl;                                                 \
+    ch = condh;                                                 \
     update_fcr31();                                             \
     if (cl)                                                     \
         SET_FP_COND(cc, env->active_fpu);                       \
