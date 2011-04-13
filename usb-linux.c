@@ -344,6 +344,7 @@ static int usb_host_claim_interfaces(USBHostDevice *dev, int configuration)
         for (interface = 0; interface < nb_interfaces; interface++) {
             ctrl.ioctl_code = USBDEVFS_DISCONNECT;
             ctrl.ifno = interface;
+            ctrl.data = 0;
             ret = ioctl(dev->fd, USBDEVFS_IOCTL, &ctrl);
             if (ret < 0 && errno != ENODATA) {
                 perror("USBDEVFS_DISCONNECT");
