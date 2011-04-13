@@ -155,7 +155,7 @@ static bool cpu_thread_is_idle(CPUState *env)
     return true;
 }
 
-static bool all_cpu_threads_idle(void)
+bool all_cpu_threads_idle(void)
 {
     CPUState *env;
 
@@ -739,6 +739,9 @@ static void qemu_tcg_wait_io_event(void)
     CPUState *env;
 
     while (all_cpu_threads_idle()) {
+       /* Start accounting real time to the virtual clock if the CPUs
+          are idle.  */
+        qemu_clock_warp(vm_clock);
         qemu_cond_wait(tcg_halt_cond, &qemu_global_mutex);
     }
 
@@ -1072,6 +1075,9 @@ static int tcg_cpu_exec(CPUState *env)
 bool cpu_exec_all(void)
 {
     int r;
+
+    /* Account partial waits to the vm_clock.  */
+    qemu_clock_warp(vm_clock);
 
     if (next_cpu == NULL) {
         next_cpu = first_cpu;

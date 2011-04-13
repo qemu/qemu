@@ -39,6 +39,7 @@ extern QEMUClock *host_clock;
 
 int64_t qemu_get_clock_ns(QEMUClock *clock);
 void qemu_clock_enable(QEMUClock *clock, int enabled);
+void qemu_clock_warp(QEMUClock *clock);
 
 QEMUTimer *qemu_new_timer(QEMUClock *clock, int scale,
                           QEMUTimerCB *cb, void *opaque);

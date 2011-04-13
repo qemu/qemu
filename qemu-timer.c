@@ -153,6 +153,8 @@ void cpu_disable_ticks(void)
 struct QEMUClock {
     int type;
     int enabled;
+
+    QEMUTimer *warp_timer;
 };
 
 struct QEMUTimer {
@@ -386,6 +388,90 @@ void qemu_clock_enable(QEMUClock *clock, int enabled)
     clock->enabled = enabled;
 }
 
+static int64_t vm_clock_warp_start;
+
+static void icount_warp_rt(void *opaque)
+{
+    if (vm_clock_warp_start == -1) {
+        return;
+    }
+
+    if (vm_running) {
+        int64_t clock = qemu_get_clock_ns(rt_clock);
+        int64_t warp_delta = clock - vm_clock_warp_start;
+        if (use_icount == 1) {
+            qemu_icount_bias += warp_delta;
+        } else {
+            /*
+             * In adaptive mode, do not let the vm_clock run too
+             * far ahead of real time.
+             */
+            int64_t cur_time = cpu_get_clock();
+            int64_t cur_icount = qemu_get_clock_ns(vm_clock);
+            int64_t delta = cur_time - cur_icount;
+            qemu_icount_bias += MIN(warp_delta, delta);
+        }
+        if (qemu_timer_expired(active_timers[QEMU_CLOCK_VIRTUAL],
+                               qemu_get_clock_ns(vm_clock))) {
+            qemu_notify_event();
+        }
+    }
+    vm_clock_warp_start = -1;
+}
+
+void qemu_clock_warp(QEMUClock *clock)
+{
+    int64_t deadline;
+
+    if (!clock->warp_timer) {
+        return;
+    }
+
+    /*
+     * There are too many global variables to make the "warp" behavior
+     * applicable to other clocks.  But a clock argument removes the
+     * need for if statements all over the place.
+     */
+    assert(clock == vm_clock);
+
+    /*
+     * If the CPUs have been sleeping, advance the vm_clock timer now.  This
+     * ensures that the deadline for the timer is computed correctly below.
+     * This also makes sure that the insn counter is synchronized before the
+     * CPU starts running, in case the CPU is woken by an event other than
+     * the earliest vm_clock timer.
+     */
+    icount_warp_rt(NULL);
+    if (!all_cpu_threads_idle() || !active_timers[clock->type]) {
+        qemu_del_timer(clock->warp_timer);
+        return;
+    }
+
+    vm_clock_warp_start = qemu_get_clock_ns(rt_clock);
+    deadline = qemu_next_deadline();
+    if (deadline > 0) {
+        /*
+         * Ensure the vm_clock proceeds even when the virtual CPU goes to
+         * sleep.  Otherwise, the CPU might be waiting for a future timer
+         * interrupt to wake it up, but the interrupt never comes because
+         * the vCPU isn't running any insns and thus doesn't advance the
+         * vm_clock.
+         *
+         * An extreme solution for this problem would be to never let VCPUs
+         * sleep in icount mode if there is a pending vm_clock timer; rather
+         * time could just advance to the next vm_clock event.  Instead, we
+         * do stop VCPUs and only advance vm_clock after some "real" time,
+         * (related to the time left until the next event) has passed.  This
+         * rt_clock timer will do this.  This avoids that the warps are too
+         * visible externally---for example, you will not be sending network
+         * packets continously instead of every 100ms.
+         */
+        qemu_mod_timer(clock->warp_timer, vm_clock_warp_start + deadline);
+    } else {
+        qemu_notify_event();
+    }
+}
+
 QEMUTimer *qemu_new_timer(QEMUClock *clock, int scale,
                           QEMUTimerCB *cb, void *opaque)
 {
@@ -454,8 +540,10 @@ static void qemu_mod_timer_ns(QEMUTimer *ts, int64_t expire_time)
             qemu_rearm_alarm_timer(alarm_timer);
         }
         /* Interrupt execution to force deadline recalculation.  */
-        if (use_icount)
+        qemu_clock_warp(ts->clock);
+        if (use_icount) {
             qemu_notify_event();
+        }
     }
 }
 
@@ -575,6 +663,10 @@ void configure_icount(const char *option)
     vmstate_register(NULL, 0, &vmstate_timers, &timers_state);
     if (!option)
         return;
+
+#ifdef CONFIG_IOTHREAD
+    vm_clock->warp_timer = qemu_new_timer_ns(rt_clock, icount_warp_rt, NULL);
+#endif
 
     if (strcmp(option, "auto") != 0) {
         icount_time_shift = strtol(option, NULL, 0);

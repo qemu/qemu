@@ -298,6 +298,7 @@ void qemu_notify_event(void);
 void qemu_cpu_kick(void *env);
 void qemu_cpu_kick_self(void);
 int qemu_cpu_is_self(void *env);
+bool all_cpu_threads_idle(void);
 
 /* work queue */
 struct qemu_work_item {
