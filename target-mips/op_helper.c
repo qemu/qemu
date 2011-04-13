@@ -2077,22 +2077,27 @@ void helper_ctc1 (target_ulong arg1, uint32_t reg)
         helper_raise_exception(EXCP_FPE);
 }
 
-static inline char ieee_ex_to_mips(char xcpt)
+static inline int ieee_ex_to_mips(int xcpt)
 {
-    return (xcpt & float_flag_inexact) >> 5 |
-           (xcpt & float_flag_underflow) >> 3 |
-           (xcpt & float_flag_overflow) >> 1 |
-           (xcpt & float_flag_divbyzero) << 1 |
-           (xcpt & float_flag_invalid) << 4;
-}
-
-static inline char mips_ex_to_ieee(char xcpt)
-{
-    return (xcpt & FP_INEXACT) << 5 |
-           (xcpt & FP_UNDERFLOW) << 3 |
-           (xcpt & FP_OVERFLOW) << 1 |
-           (xcpt & FP_DIV0) >> 1 |
-           (xcpt & FP_INVALID) >> 4;
+    int ret = 0;
+    if (xcpt) {
+        if (xcpt & float_flag_invalid) {
+            ret |= FP_INVALID;
+        }
+        if (xcpt & float_flag_overflow) {
+            ret |= FP_OVERFLOW;
+        }
+        if (xcpt & float_flag_underflow) {
+            ret |= FP_UNDERFLOW;
+        }
+        if (xcpt & float_flag_divbyzero) {
+            ret |= FP_DIV0;
+        }
+        if (xcpt & float_flag_inexact) {
+            ret |= FP_INEXACT;
+        }
+    }
+    return ret;
 }
 
 static inline void update_fcr31(void)
