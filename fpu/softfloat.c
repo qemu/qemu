@@ -2419,7 +2419,7 @@ int float32_unordered( float32 a, float32 b STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float32_eq_signaling( float32 a, float32 b STATUS_PARAM )
+int float32_eq( float32 a, float32 b STATUS_PARAM )
 {
     uint32_t av, bv;
     a = float32_squash_input_denormal(a STATUS_VAR);
@@ -3686,7 +3686,7 @@ int float64_unordered( float64 a, float64 b STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float64_eq_signaling( float64 a, float64 b STATUS_PARAM )
+int float64_eq( float64 a, float64 b STATUS_PARAM )
 {
     uint64_t av, bv;
     a = float64_squash_input_denormal(a STATUS_VAR);
@@ -4706,7 +4706,7 @@ int floatx80_unordered( floatx80 a, floatx80 b STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int floatx80_eq_signaling( floatx80 a, floatx80 b STATUS_PARAM )
+int floatx80_eq( floatx80 a, floatx80 b STATUS_PARAM )
 {
 
     if (    (    ( extractFloatx80Exp( a ) == 0x7FFF )
@@ -5868,7 +5868,7 @@ int float128_unordered( float128 a, float128 b STATUS_PARAM )
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float128_eq_signaling( float128 a, float128 b STATUS_PARAM )
+int float128_eq( float128 a, float128 b STATUS_PARAM )
 {
 
     if (    (    ( extractFloat128Exp( a ) == 0x7FFF )
