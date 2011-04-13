@@ -830,6 +830,9 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
 
     while (1) {
         cpu_exec_all();
+        if (use_icount && qemu_next_deadline() <= 0) {
+            qemu_notify_event();
+        }
         qemu_tcg_wait_io_event();
     }
 
