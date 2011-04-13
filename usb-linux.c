@@ -107,7 +107,7 @@ enum {
 /*
  * Control transfer state.
  * Note that 'buffer' _must_ follow 'req' field because
- * we need contigious buffer when we submit control URB.
+ * we need contiguous buffer when we submit control URB.
  */
 struct ctrl_struct {
     uint16_t len;
@@ -580,7 +580,7 @@ static int usb_host_handle_control(USBHostDevice *s, USBPacket *p)
     /*
      * Setup ctrl transfer.
      *
-     * s->ctrl is layed out such that data buffer immediately follows
+     * s->ctrl is laid out such that data buffer immediately follows
      * 'req' struct which is exactly what usbdevfs expects.
      */
     urb = &aurb->urb;
