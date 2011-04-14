@@ -69,6 +69,11 @@ Trace events should use types as follows:
    cannot include all user-defined struct declarations and it is therefore
    necessary to use void * for pointers to structs.
 
+   Pointers (including char *) cannot be dereferenced easily (or at all) in
+   some trace backends.  If pointers are used, ensure they are meaningful by
+   themselves and do not assume the data they point to will be traced.  Do
+   not pass in string arguments.
+
  * For everything else, use primitive scalar types (char, int, long) with the
    appropriate signedness.
 
