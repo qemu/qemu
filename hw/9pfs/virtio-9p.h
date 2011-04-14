@@ -282,7 +282,7 @@ typedef struct V9fsStatStateDotl {
 typedef struct V9fsWalkState {
     V9fsPDU *pdu;
     size_t offset;
-    int16_t nwnames;
+    uint16_t nwnames;
     int name_idx;
     V9fsQID *qids;
     V9fsFidState *fidp;

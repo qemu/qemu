@@ -1482,7 +1482,7 @@ static void v9fs_walk_complete(V9fsState *s, V9fsWalkState *vs, int err)
 {
     complete_pdu(s, vs->pdu, err);
 
-    if (vs->nwnames) {
+    if (vs->nwnames && vs->nwnames <= P9_MAXWELEM) {
         for (vs->name_idx = 0; vs->name_idx < vs->nwnames; vs->name_idx++) {
             v9fs_string_free(&vs->wnames[vs->name_idx]);
         }
@@ -1578,7 +1578,7 @@ static void v9fs_walk(V9fsState *s, V9fsPDU *pdu)
     vs->offset += pdu_unmarshal(vs->pdu, vs->offset, "ddw", &fid,
                                             &newfid, &vs->nwnames);
 
-    if (vs->nwnames) {
+    if (vs->nwnames && vs->nwnames <= P9_MAXWELEM) {
         vs->wnames = qemu_mallocz(sizeof(vs->wnames[0]) * vs->nwnames);
 
         vs->qids = qemu_mallocz(sizeof(vs->qids[0]) * vs->nwnames);
@@ -1587,6 +1587,9 @@ static void v9fs_walk(V9fsState *s, V9fsPDU *pdu)
             vs->offset += pdu_unmarshal(vs->pdu, vs->offset, "s",
                                             &vs->wnames[i]);
         }
+    } else if (vs->nwnames > P9_MAXWELEM) {
+        err = -EINVAL;
+        goto out;
     }
 
     vs->fidp = lookup_fid(s, fid);
