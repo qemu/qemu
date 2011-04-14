@@ -133,7 +133,7 @@ grlib_apbuart_writel(void *opaque, target_phys_addr_t addr, uint32_t value)
         break;
     }
 
-    trace_grlib_apbuart_unknown_register("write", addr);
+    trace_grlib_apbuart_writel_unknown(addr, value);
 }
 
 static CPUReadMemoryFunc * const grlib_apbuart_read[] = {
