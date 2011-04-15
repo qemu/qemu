@@ -4,6 +4,7 @@
 #include "scsi-defs.h"
 #include "qdev.h"
 #include "blockdev.h"
+#include "trace.h"
 
 static char *scsibus_get_fw_dev_path(DeviceState *dev);
 
@@ -141,6 +142,7 @@ SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag, uint32_t l
     req->lun = lun;
     req->status = -1;
     req->enqueued = true;
+    trace_scsi_req_alloc(req->dev->id, req->lun, req->tag);
     QTAILQ_INSERT_TAIL(&d->requests, req, next);
     return req;
 }
@@ -159,6 +161,7 @@ SCSIRequest *scsi_req_find(SCSIDevice *d, uint32_t tag)
 
 static void scsi_req_dequeue(SCSIRequest *req)
 {
+    trace_scsi_req_dequeue(req->dev->id, req->lun, req->tag);
     if (req->enqueued) {
         QTAILQ_REMOVE(&req->dev->requests, req, next);
         req->enqueued = false;
@@ -195,6 +198,7 @@ static int scsi_req_length(SCSIRequest *req, uint8_t *cmd)
         req->cmd.len = 12;
         break;
     default:
+        trace_scsi_req_parse_bad(req->dev->id, req->lun, req->tag, cmd[0]);
         return -1;
     }
 
@@ -392,6 +396,8 @@ int scsi_req_parse(SCSIRequest *req, uint8_t *buf)
     memcpy(req->cmd.buf, buf, req->cmd.len);
     scsi_req_xfer_mode(req);
     req->cmd.lba = scsi_req_lba(req);
+    trace_scsi_req_parsed(req->dev->id, req->lun, req->tag, buf[0],
+                          req->cmd.mode, req->cmd.xfer, req->cmd.lba);
     return 0;
 }
 
