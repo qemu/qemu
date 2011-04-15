@@ -31,7 +31,16 @@ register struct CPUS390XState *env asm(AREG0);
 
 static inline int cpu_has_work(CPUState *env)
 {
-    return env->interrupt_request & CPU_INTERRUPT_HARD; // guess
+    return ((env->interrupt_request & CPU_INTERRUPT_HARD) &&
+            (env->psw.mask & PSW_MASK_EXT));
+}
+
+static inline void regs_to_env(void)
+{
+}
+
+static inline void env_to_regs(void)
+{
 }
 
 static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock* tb)
