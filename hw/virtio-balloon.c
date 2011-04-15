@@ -15,7 +15,6 @@
 #include "qemu-common.h"
 #include "virtio.h"
 #include "pc.h"
-#include "sysemu.h"
 #include "cpu.h"
 #include "monitor.h"
 #include "balloon.h"

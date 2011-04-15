@@ -28,7 +28,6 @@
 
 #define ARM_ANGEL_HEAP_SIZE (128 * 1024 * 1024)
 #else
-#include "sysemu.h"
 #include "gdbstub.h"
 #endif
 

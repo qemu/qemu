@@ -28,7 +28,6 @@
 #include <hw/isa.h>
 #include "block.h"
 #include "block_int.h"
-#include "sysemu.h"
 #include "dma.h"
 
 #include <hw/ide/pci.h>

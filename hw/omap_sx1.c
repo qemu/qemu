@@ -26,7 +26,6 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "hw.h"
-#include "sysemu.h"
 #include "console.h"
 #include "omap.h"
 #include "boards.h"

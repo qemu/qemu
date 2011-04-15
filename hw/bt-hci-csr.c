@@ -22,7 +22,6 @@
 #include "qemu-char.h"
 #include "qemu-timer.h"
 #include "irq.h"
-#include "sysemu.h"
 #include "net.h"
 #include "bt.h"
 

@@ -23,7 +23,6 @@
  */
 
 #include "hw.h"
-#include "sysemu.h"
 #include "loader.h"
 #include "elf.h"
 #include "cris-boot.h"

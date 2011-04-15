@@ -38,6 +38,7 @@ extern QEMUClock *host_clock;
 
 int64_t qemu_get_clock_ns(QEMUClock *clock);
 void qemu_clock_enable(QEMUClock *clock, int enabled);
+void qemu_clock_warp(QEMUClock *clock);
 
 QEMUTimer *qemu_new_timer(QEMUClock *clock, int scale,
                           QEMUTimerCB *cb, void *opaque);
@@ -49,13 +50,17 @@ int qemu_timer_expired(QEMUTimer *timer_head, int64_t current_time);
 
 void qemu_run_all_timers(void);
 int qemu_alarm_pending(void);
-int64_t qemu_next_deadline(void);
+int64_t qemu_next_icount_deadline(void);
 void configure_alarms(char const *opt);
 void configure_icount(const char *option);
 int qemu_calculate_timeout(void);
 void init_clocks(void);
 int init_timer_alarm(void);
 void quit_timers(void);
+
+int64_t cpu_get_ticks(void);
+void cpu_enable_ticks(void);
+void cpu_disable_ticks(void);
 
 static inline QEMUTimer *qemu_new_timer_ns(QEMUClock *clock, QEMUTimerCB *cb,
                                            void *opaque)

@@ -15,7 +15,6 @@
 #include "monitor.h"
 #include "qemu-timer.h"
 #include "qemu-log.h"
-#include "sysemu.h"
 
 #include <sys/time.h>
 

@@ -32,7 +32,6 @@
 #include "net/vde.h"
 #include "net/util.h"
 #include "monitor.h"
-#include "sysemu.h"
 #include "qemu-common.h"
 #include "qemu_socket.h"
 #include "hw/qdev.h"

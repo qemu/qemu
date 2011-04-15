@@ -14,7 +14,6 @@
 #include "qemu-timer.h"
 #include "i2c.h"
 #include "net.h"
-#include "sysemu.h"
 #include "boards.h"
 
 #define GPIO_A 0

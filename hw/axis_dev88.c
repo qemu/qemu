@@ -26,7 +26,6 @@
 #include "net.h"
 #include "flash.h"
 #include "boards.h"
-#include "sysemu.h"
 #include "etraxfs.h"
 #include "loader.h"
 #include "elf.h"

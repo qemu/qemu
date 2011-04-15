@@ -17,7 +17,6 @@
 #include "hw.h"
 #include "pci.h"
 #include "boards.h"
-#include "sysemu.h"
 #include "ppc440.h"
 #include "kvm.h"
 #include "kvm_ppc.h"

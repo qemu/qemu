@@ -24,7 +24,6 @@
 #include "hw.h"
 #include "ppc.h"
 #include "ppc4xx.h"
-#include "sysemu.h"
 #include "qemu-log.h"
 
 //#define DEBUG_MMIO

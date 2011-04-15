@@ -14,7 +14,6 @@
 #include "net.h"
 #include "devices.h"
 #include "boards.h"
-#include "sysemu.h"
 #include "flash.h"
 #include "blockdev.h"
 #include "sysbus.h"

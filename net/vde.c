@@ -31,7 +31,6 @@
 #include "qemu-char.h"
 #include "qemu-common.h"
 #include "qemu-option.h"
-#include "sysemu.h"
 
 typedef struct VDEState {
     VLANClientState nc;

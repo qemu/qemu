@@ -10,7 +10,6 @@
 #include "sysbus.h"
 #include "primecell.h"
 #include "devices.h"
-#include "sysemu.h"
 #include "boards.h"
 #include "arm-misc.h"
 #include "net.h"

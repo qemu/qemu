@@ -27,7 +27,6 @@
 #include <hw/mac_dbdma.h>
 #include "block.h"
 #include "block_int.h"
-#include "sysemu.h"
 #include "dma.h"
 
 #include <hw/ide/internal.h>

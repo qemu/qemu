@@ -1,6 +1,5 @@
 #include "hw.h"
 #include "sh.h"
-#include "sysemu.h"
 #include "loader.h"
 
 #define CE1  0x0100

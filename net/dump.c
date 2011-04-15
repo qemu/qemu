@@ -24,9 +24,9 @@
 
 #include "dump.h"
 #include "qemu-common.h"
-#include "sysemu.h"
 #include "qemu-error.h"
 #include "qemu-log.h"
+#include "qemu-timer.h"
 
 typedef struct DumpState {
     VLANClientState nc;
