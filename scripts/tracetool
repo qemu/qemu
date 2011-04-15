@@ -51,7 +51,7 @@ get_args()
 {
     local args
     args=${1#*\(}
-    args=${args%\)*}
+    args=${args%%\)*}
     echo "$args"
 }
 
