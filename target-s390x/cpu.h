@@ -287,10 +287,27 @@ int cpu_s390x_handle_mmu_fault (CPUS390XState *env, target_ulong address, int rw
 #ifndef CONFIG_USER_ONLY
 int s390_virtio_hypercall(CPUState *env, uint64_t mem, uint64_t hypercall);
 
+#ifdef CONFIG_KVM
 void kvm_s390_interrupt(CPUState *env, int type, uint32_t code);
 void kvm_s390_virtio_irq(CPUState *env, int config_change, uint64_t token);
 void kvm_s390_interrupt_internal(CPUState *env, int type, uint32_t parm,
                                  uint64_t parm64, int vm);
+#else
+static inline void kvm_s390_interrupt(CPUState *env, int type, uint32_t code)
+{
+}
+
+static inline void kvm_s390_virtio_irq(CPUState *env, int config_change,
+                                       uint64_t token)
+{
+}
+
+static inline void kvm_s390_interrupt_internal(CPUState *env, int type,
+                                               uint32_t parm, uint64_t parm64,
+                                               int vm)
+{
+}
+#endif
 CPUState *s390_cpu_addr2state(uint16_t cpu_addr);
 
 #ifndef KVM_S390_SIGP_STOP
