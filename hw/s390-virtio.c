@@ -82,7 +82,7 @@ CPUState *s390_cpu_addr2state(uint16_t cpu_addr)
     return ipi_states[cpu_addr];
 }
 
-int s390_virtio_hypercall(CPUState *env)
+int s390_virtio_hypercall(CPUState *env, uint64_t mem_, uint64_t hypercall)
 {
     int r = 0, i;
     target_ulong mem = env->regs[2];
