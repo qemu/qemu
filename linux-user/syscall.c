@@ -197,7 +197,8 @@ static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,	\
 #define __NR_sys_inotify_add_watch __NR_inotify_add_watch
 #define __NR_sys_inotify_rm_watch __NR_inotify_rm_watch
 
-#if defined(__alpha__) || defined (__ia64__) || defined(__x86_64__)
+#if defined(__alpha__) || defined (__ia64__) || defined(__x86_64__) || \
+    defined(__s390x__)
 #define __NR__llseek __NR_lseek
 #endif
 
