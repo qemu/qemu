@@ -94,19 +94,33 @@ static int kvm_arch_sync_sregs(CPUState *cenv)
     int ret;
 
     if (cenv->excp_model == POWERPC_EXCP_BOOKE) {
+        /* What we're really trying to say is "if we're on BookE, we use
+           the native PVR for now". This is the only sane way to check
+           it though, so we potentially confuse users that they can run
+           BookE guests on BookS. Let's hope nobody dares enough :) */
         return 0;
     } else {
         if (!cap_segstate) {
-            return 0;
+            fprintf(stderr, "kvm error: missing PVR setting capability\n");
+            return -ENOSYS;
         }
     }
+
+#if !defined(CONFIG_KVM_PPC_PVR)
+    if (1) {
+        fprintf(stderr, "kvm error: missing PVR setting capability\n");
+        return -ENOSYS;
+    }
+#endif
 
     ret = kvm_vcpu_ioctl(cenv, KVM_GET_SREGS, &sregs);
     if (ret) {
         return ret;
     }
 
+#ifdef CONFIG_KVM_PPC_PVR
     sregs.pvr = cenv->spr[SPR_PVR];
+#endif
     return kvm_vcpu_ioctl(cenv, KVM_SET_SREGS, &sregs);
 }
 
