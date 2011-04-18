@@ -49,10 +49,6 @@ do { fprintf(stderr, "scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 
 typedef struct SCSIDiskState SCSIDiskState;
 
-typedef struct SCSISense {
-    uint8_t key;
-} SCSISense;
-
 typedef struct SCSIDiskReq {
     SCSIRequest req;
     /* ??? We should probably keep track of whether the data transfer is
@@ -111,24 +107,19 @@ static void scsi_disk_clear_sense(SCSIDiskState *s)
     memset(&s->sense, 0, sizeof(s->sense));
 }
 
-static void scsi_disk_set_sense(SCSIDiskState *s, uint8_t key)
-{
-    s->sense.key = key;
-}
-
-static void scsi_req_set_status(SCSIDiskReq *r, int status, int sense_code)
+static void scsi_req_set_status(SCSIDiskReq *r, int status, SCSISense sense)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
 
     r->req.status = status;
-    scsi_disk_set_sense(s, sense_code);
+    s->sense = sense;
 }
 
 /* Helper function for command completion.  */
-static void scsi_command_complete(SCSIDiskReq *r, int status, int sense)
+static void scsi_command_complete(SCSIDiskReq *r, int status, SCSISense sense)
 {
-    DPRINTF("Command complete tag=0x%x status=%d sense=%d\n",
-            r->req.tag, status, sense);
+    DPRINTF("Command complete tag=0x%x status=%d sense=%d/%d/%d\n",
+            r->req.tag, status, sense.key, sense.asc, sense.ascq);
     scsi_req_set_status(r, status, sense);
     scsi_req_complete(&r->req);
 }
@@ -182,7 +173,7 @@ static void scsi_read_data(SCSIRequest *req)
     }
     DPRINTF("Read sector_count=%d\n", r->sector_count);
     if (r->sector_count == 0) {
-        scsi_command_complete(r, GOOD, NO_SENSE);
+        scsi_command_complete(r, GOOD, SENSE_CODE(NO_SENSE));
         return;
     }
 
@@ -225,8 +216,13 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type)
         if (type == SCSI_REQ_STATUS_RETRY_READ) {
             scsi_req_data(&r->req, 0);
         }
-        scsi_command_complete(r, CHECK_CONDITION,
-                HARDWARE_ERROR);
+        if (error == ENOMEM) {
+            scsi_command_complete(r, CHECK_CONDITION,
+                                  SENSE_CODE(TARGET_FAILURE));
+        } else {
+            scsi_command_complete(r, CHECK_CONDITION,
+                                  SENSE_CODE(IO_ERROR));
+        }
         bdrv_mon_event(s->bs, BDRV_ACTION_REPORT, is_read);
     }
 
@@ -251,7 +247,7 @@ static void scsi_write_complete(void * opaque, int ret)
     r->sector += n;
     r->sector_count -= n;
     if (r->sector_count == 0) {
-        scsi_command_complete(r, GOOD, NO_SENSE);
+        scsi_command_complete(r, GOOD, SENSE_CODE(NO_SENSE));
     } else {
         len = r->sector_count * 512;
         if (len > SCSI_DMA_BUF_SIZE) {
@@ -278,7 +274,7 @@ static int scsi_write_data(SCSIRequest *req)
         r->req.aiocb = bdrv_aio_writev(s->bs, r->sector, &r->qiov, n,
                                    scsi_write_complete, r);
         if (r->req.aiocb == NULL) {
-            scsi_write_complete(r, -EIO);
+            scsi_write_complete(r, -ENOMEM);
         }
     } else {
         /* Invoke completion routine to fetch data from host.  */
@@ -316,7 +312,7 @@ static void scsi_dma_restart_bh(void *opaque)
             case SCSI_REQ_STATUS_RETRY_FLUSH:
                 ret = scsi_disk_emulate_command(r, r->iov.iov_base);
                 if (ret == 0) {
-                    scsi_command_complete(r, GOOD, NO_SENSE);
+                    scsi_command_complete(r, GOOD, SENSE_CODE(NO_SENSE));
                 }
             }
         }
@@ -815,19 +811,8 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
     case REQUEST_SENSE:
         if (req->cmd.xfer < 4)
             goto illegal_request;
-        memset(outbuf, 0, 4);
-        buflen = 4;
-        if (s->sense.key == NOT_READY && req->cmd.xfer >= 18) {
-            memset(outbuf, 0, 18);
-            buflen = 18;
-            outbuf[7] = 10;
-            /* asc 0x3a, ascq 0: Medium not present */
-            outbuf[12] = 0x3a;
-            outbuf[13] = 0;
-        }
-        outbuf[0] = 0xf0;
-        outbuf[1] = 0;
-        outbuf[2] = s->sense.key;
+        buflen = scsi_build_sense(s->sense, outbuf, req->cmd.xfer,
+                                  req->cmd.xfer > 13);
         scsi_disk_clear_sense(s);
         break;
     case INQUIRY:
@@ -965,17 +950,22 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
         }
         break;
     default:
-        goto illegal_request;
+        scsi_command_complete(r, CHECK_CONDITION, SENSE_CODE(INVALID_OPCODE));
+        return -1;
     }
-    scsi_req_set_status(r, GOOD, NO_SENSE);
+    scsi_req_set_status(r, GOOD, SENSE_CODE(NO_SENSE));
     return buflen;
 
 not_ready:
-    scsi_command_complete(r, CHECK_CONDITION, NOT_READY);
+    if (!bdrv_is_inserted(s->bs)) {
+        scsi_command_complete(r, CHECK_CONDITION, SENSE_CODE(NO_MEDIUM));
+    } else {
+        scsi_command_complete(r, CHECK_CONDITION, SENSE_CODE(LUN_NOT_READY));
+    }
     return -1;
 
 illegal_request:
-    scsi_command_complete(r, CHECK_CONDITION, ILLEGAL_REQUEST);
+    scsi_command_complete(r, CHECK_CONDITION, SENSE_CODE(INVALID_FIELD));
     return -1;
 }
 
@@ -1002,7 +992,8 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
 
     if (scsi_req_parse(&r->req, buf) != 0) {
         BADF("Unsupported command length, command %x\n", command);
-        goto fail;
+        scsi_command_complete(r, CHECK_CONDITION, SENSE_CODE(INVALID_OPCODE));
+        return 0;
     }
 #ifdef DEBUG_SCSI
     {
@@ -1017,8 +1008,11 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
     if (req->lun || buf[1] >> 5) {
         /* Only LUN 0 supported.  */
         DPRINTF("Unimplemented LUN %d\n", req->lun ? req->lun : buf[1] >> 5);
-        if (command != REQUEST_SENSE && command != INQUIRY)
-            goto fail;
+        if (command != REQUEST_SENSE && command != INQUIRY) {
+            scsi_command_complete(r, CHECK_CONDITION,
+                                  SENSE_CODE(LUN_NOT_SUPPORTED));
+            return 0;
+        }
     }
     switch (command) {
     case TEST_UNIT_READY:
@@ -1126,15 +1120,17 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
         break;
     default:
         DPRINTF("Unknown SCSI command (%2.2x)\n", buf[0]);
+        scsi_command_complete(r, CHECK_CONDITION, SENSE_CODE(INVALID_OPCODE));
+        return 0;
     fail:
-        scsi_command_complete(r, CHECK_CONDITION, ILLEGAL_REQUEST);
+        scsi_command_complete(r, CHECK_CONDITION, SENSE_CODE(INVALID_FIELD));
         return 0;
     illegal_lba:
-        scsi_command_complete(r, CHECK_CONDITION, HARDWARE_ERROR);
+        scsi_command_complete(r, CHECK_CONDITION, SENSE_CODE(LBA_OUT_OF_RANGE));
         return 0;
     }
     if (r->sector_count == 0 && r->iov.iov_len == 0) {
-        scsi_command_complete(r, GOOD, NO_SENSE);
+        scsi_command_complete(r, GOOD, SENSE_CODE(NO_SENSE));
     }
     len = r->sector_count * 512 + r->iov.iov_len;
     if (is_write) {

@@ -27,6 +27,12 @@ enum SCSIXferMode {
     SCSI_XFER_TO_DEV,    /*  WRITE, MODE_SELECT, ...         */
 };
 
+typedef struct SCSISense {
+    uint8_t key;
+    uint8_t asc;
+    uint8_t ascq;
+} SCSISense;
+
 struct SCSIRequest {
     SCSIBus           *bus;
     SCSIDevice        *dev;
@@ -104,10 +110,41 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockDriverState *bdrv,
                                       int unit, bool removable);
 int scsi_bus_legacy_handle_cmdline(SCSIBus *bus);
 
+/*
+ * Predefined sense codes
+ */
+
+/* No sense data available */
+extern const struct SCSISense sense_code_NO_SENSE;
+/* LUN not ready, Manual intervention required */
+extern const struct SCSISense sense_code_LUN_NOT_READY;
+/* LUN not ready, Medium not present */
+extern const struct SCSISense sense_code_NO_MEDIUM;
+/* Hardware error, internal target failure */
+extern const struct SCSISense sense_code_TARGET_FAILURE;
+/* Illegal request, invalid command operation code */
+extern const struct SCSISense sense_code_INVALID_OPCODE;
+/* Illegal request, LBA out of range */
+extern const struct SCSISense sense_code_LBA_OUT_OF_RANGE;
+/* Illegal request, Invalid field in CDB */
+extern const struct SCSISense sense_code_INVALID_FIELD;
+/* Illegal request, LUN not supported */
+extern const struct SCSISense sense_code_LUN_NOT_SUPPORTED;
+/* Command aborted, I/O process terminated */
+extern const struct SCSISense sense_code_IO_ERROR;
+/* Command aborted, I_T Nexus loss occurred */
+extern const struct SCSISense sense_code_I_T_NEXUS_LOSS;
+/* Command aborted, Logical Unit failure */
+extern const struct SCSISense sense_code_LUN_FAILURE;
+
+#define SENSE_CODE(x) sense_code_ ## x
+
+int scsi_build_sense(SCSISense sense, uint8_t *buf, int len, int fixed);
+int scsi_sense_valid(SCSISense sense);
+
 SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag, uint32_t lun);
 void scsi_req_enqueue(SCSIRequest *req);
 void scsi_req_free(SCSIRequest *req);
-void scsi_req_dequeue(SCSIRequest *req);
 SCSIRequest *scsi_req_ref(SCSIRequest *req);
 void scsi_req_unref(SCSIRequest *req);
 

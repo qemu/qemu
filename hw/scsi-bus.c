@@ -154,7 +154,7 @@ void scsi_req_enqueue(SCSIRequest *req)
     QTAILQ_INSERT_TAIL(&req->dev->requests, req, next);
 }
 
-void scsi_req_dequeue(SCSIRequest *req)
+static void scsi_req_dequeue(SCSIRequest *req)
 {
     trace_scsi_req_dequeue(req->dev->id, req->lun, req->tag);
     if (req->enqueued) {
@@ -389,6 +389,95 @@ int scsi_req_parse(SCSIRequest *req, uint8_t *buf)
     trace_scsi_req_parsed(req->dev->id, req->lun, req->tag, buf[0],
                           req->cmd.mode, req->cmd.xfer, req->cmd.lba);
     return 0;
+}
+
+/*
+ * Predefined sense codes
+ */
+
+/* No sense data available */
+const struct SCSISense sense_code_NO_SENSE = {
+    .key = NO_SENSE , .asc = 0x00 , .ascq = 0x00
+};
+
+/* LUN not ready, Manual intervention required */
+const struct SCSISense sense_code_LUN_NOT_READY = {
+    .key = NOT_READY, .asc = 0x04, .ascq = 0x03
+};
+
+/* LUN not ready, Medium not present */
+const struct SCSISense sense_code_NO_MEDIUM = {
+    .key = NOT_READY, .asc = 0x3a, .ascq = 0x00
+};
+
+/* Hardware error, internal target failure */
+const struct SCSISense sense_code_TARGET_FAILURE = {
+    .key = HARDWARE_ERROR, .asc = 0x44, .ascq = 0x00
+};
+
+/* Illegal request, invalid command operation code */
+const struct SCSISense sense_code_INVALID_OPCODE = {
+    .key = ILLEGAL_REQUEST, .asc = 0x20, .ascq = 0x00
+};
+
+/* Illegal request, LBA out of range */
+const struct SCSISense sense_code_LBA_OUT_OF_RANGE = {
+    .key = ILLEGAL_REQUEST, .asc = 0x21, .ascq = 0x00
+};
+
+/* Illegal request, Invalid field in CDB */
+const struct SCSISense sense_code_INVALID_FIELD = {
+    .key = ILLEGAL_REQUEST, .asc = 0x24, .ascq = 0x00
+};
+
+/* Illegal request, LUN not supported */
+const struct SCSISense sense_code_LUN_NOT_SUPPORTED = {
+    .key = ILLEGAL_REQUEST, .asc = 0x25, .ascq = 0x00
+};
+
+/* Command aborted, I/O process terminated */
+const struct SCSISense sense_code_IO_ERROR = {
+    .key = ABORTED_COMMAND, .asc = 0x00, .ascq = 0x06
+};
+
+/* Command aborted, I_T Nexus loss occurred */
+const struct SCSISense sense_code_I_T_NEXUS_LOSS = {
+    .key = ABORTED_COMMAND, .asc = 0x29, .ascq = 0x07
+};
+
+/* Command aborted, Logical Unit failure */
+const struct SCSISense sense_code_LUN_FAILURE = {
+    .key = ABORTED_COMMAND, .asc = 0x3e, .ascq = 0x01
+};
+
+/*
+ * scsi_build_sense
+ *
+ * Build a sense buffer
+ */
+int scsi_build_sense(SCSISense sense, uint8_t *buf, int len, int fixed)
+{
+    if (!fixed && len < 8) {
+        return 0;
+    }
+
+    memset(buf, 0, len);
+    if (fixed) {
+        /* Return fixed format sense buffer */
+        buf[0] = 0xf0;
+        buf[2] = sense.key;
+        buf[7] = 7;
+        buf[12] = sense.asc;
+        buf[13] = sense.ascq;
+        return MIN(len, 18);
+    } else {
+        /* Return descriptor format sense buffer */
+        buf[0] = 0x72;
+        buf[1] = sense.key;
+        buf[2] = sense.asc;
+        buf[3] = sense.ascq;
+        return 8;
+    }
 }
 
 static const char *scsi_command_name(uint8_t cmd)

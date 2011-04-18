@@ -66,6 +66,19 @@ struct SCSIGenericState
     uint8_t senselen;
 };
 
+static void scsi_set_sense(SCSIGenericState *s, SCSISense sense)
+{
+    s->senselen = scsi_build_sense(sense, s->sensebuf, SCSI_SENSE_BUF_SIZE, 0);
+    s->driver_status = SG_ERR_DRIVER_SENSE;
+}
+
+static void scsi_clear_sense(SCSIGenericState *s)
+{
+    memset(s->sensebuf, 0, SCSI_SENSE_BUF_SIZE);
+    s->senselen = 0;
+    s->driver_status = 0;
+}
+
 static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun)
 {
     SCSIRequest *req;
@@ -92,9 +105,22 @@ static void scsi_command_complete(void *opaque, int ret)
     if (s->driver_status & SG_ERR_DRIVER_SENSE)
         s->senselen = r->io_header.sb_len_wr;
 
-    if (ret != 0)
-        r->req.status = BUSY;
-    else {
+    if (ret != 0) {
+        switch (ret) {
+        case -EINVAL:
+            r->req.status = CHECK_CONDITION;
+            scsi_set_sense(s, SENSE_CODE(INVALID_FIELD));
+            break;
+        case -ENOMEM:
+            r->req.status = CHECK_CONDITION;
+            scsi_set_sense(s, SENSE_CODE(TARGET_FAILURE));
+            break;
+        default:
+            r->req.status = CHECK_CONDITION;
+            scsi_set_sense(s, SENSE_CODE(IO_ERROR));
+            break;
+        }
+    } else {
         if (s->driver_status & SG_ERR_DRIVER_TIMEOUT) {
             r->req.status = BUSY;
             BADF("Driver Timeout\n");
@@ -144,7 +170,7 @@ static int execute_command(BlockDriverState *bdrv,
     r->req.aiocb = bdrv_aio_ioctl(bdrv, SG_IO, &r->io_header, complete, r);
     if (r->req.aiocb == NULL) {
         BADF("execute_command: read failed !\n");
-        return -1;
+        return -ENOMEM;
     }
 
     return 0;
@@ -198,12 +224,14 @@ static void scsi_read_data(SCSIRequest *req)
                 r->buf[0], r->buf[1], r->buf[2], r->buf[3],
                 r->buf[4], r->buf[5], r->buf[6], r->buf[7]);
         scsi_req_data(&r->req, s->senselen);
+        /* Clear sensebuf after REQUEST_SENSE */
+        scsi_clear_sense(s);
         return;
     }
 
     ret = execute_command(s->bs, r, SG_DXFER_FROM_DEV, scsi_read_complete);
-    if (ret == -1) {
-        scsi_command_complete(r, -EINVAL);
+    if (ret < 0) {
+        scsi_command_complete(r, ret);
         return;
     }
 }
@@ -246,8 +274,8 @@ static int scsi_write_data(SCSIRequest *req)
     }
 
     ret = execute_command(s->bs, r, SG_DXFER_TO_DEV, scsi_write_complete);
-    if (ret == -1) {
-        scsi_command_complete(r, -EINVAL);
+    if (ret < 0) {
+        scsi_command_complete(r, ret);
         return 1;
     }
 
@@ -296,16 +324,7 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *cmd)
     if (cmd[0] != REQUEST_SENSE &&
         (req->lun != s->lun || (cmd[1] >> 5) != s->lun)) {
         DPRINTF("Unimplemented LUN %d\n", req->lun ? req->lun : cmd[1] >> 5);
-
-        s->sensebuf[0] = 0x70;
-        s->sensebuf[1] = 0x00;
-        s->sensebuf[2] = ILLEGAL_REQUEST;
-        s->sensebuf[3] = 0x00;
-        s->sensebuf[4] = 0x00;
-        s->sensebuf[5] = 0x00;
-        s->sensebuf[6] = 0x00;
-        s->senselen = 7;
-        s->driver_status = SG_ERR_DRIVER_SENSE;
+        scsi_set_sense(s, SENSE_CODE(LUN_NOT_SUPPORTED));
         r->req.status = CHECK_CONDITION;
         scsi_req_complete(&r->req);
         return 0;
@@ -313,8 +332,7 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *cmd)
 
     if (-1 == scsi_req_parse(&r->req, cmd)) {
         BADF("Unsupported command length, command %x\n", cmd[0]);
-        scsi_req_dequeue(&r->req);
-        scsi_req_unref(&r->req);
+        scsi_command_complete(r, -EINVAL);
         return 0;
     }
     scsi_req_fixup(&r->req);
@@ -338,8 +356,9 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *cmd)
         r->buflen = 0;
         r->buf = NULL;
         ret = execute_command(s->bs, r, SG_DXFER_NONE, scsi_command_complete);
-        if (ret == -1) {
-            scsi_command_complete(r, -EINVAL);
+        if (ret < 0) {
+            scsi_command_complete(r, ret);
+            return 0;
         }
         return 0;
     }
