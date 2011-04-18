@@ -533,10 +533,11 @@ static unsigned int event_status_media(IDEState *s,
     return 8; /* We wrote to 4 extra bytes from the header */
 }
 
-static void handle_get_event_status_notification(IDEState *s,
-                                                 uint8_t *buf,
-                                                 const uint8_t *packet)
+static void cmd_get_event_status_notification(IDEState *s,
+                                              uint8_t *buf)
 {
+    const uint8_t *packet = buf;
+
     struct {
         uint8_t opcode;
         uint8_t polled;        /* lsb bit is polled; others are reserved */
@@ -1064,6 +1065,38 @@ static void cmd_set_speed(IDEState *s, uint8_t* buf)
     ide_atapi_cmd_ok(s);
 }
 
+enum {
+    /*
+     * Only commands flagged as ALLOW_UA are allowed to run under a
+     * unit attention condition. (See MMC-5, section 4.1.6.1)
+     */
+    ALLOW_UA = 0x01,
+};
+
+static const struct {
+    void (*handler)(IDEState *s, uint8_t *buf);
+    int flags;
+} atapi_cmd_table[0x100] = {
+    [ 0x00 ] = { cmd_test_unit_ready,               0 },
+    [ 0x03 ] = { cmd_request_sense,                 ALLOW_UA },
+    [ 0x12 ] = { cmd_inquiry,                       ALLOW_UA },
+    [ 0x1a ] = { cmd_mode_sense, /* (6) */          0 },
+    [ 0x1b ] = { cmd_start_stop_unit,               0 },
+    [ 0x1e ] = { cmd_prevent_allow_medium_removal,  0 },
+    [ 0x25 ] = { cmd_read_cdvd_capacity,            0 },
+    [ 0x28 ] = { cmd_read, /* (10) */               0 },
+    [ 0x2b ] = { cmd_seek,                          0 },
+    [ 0x43 ] = { cmd_read_toc_pma_atip,             0 },
+    [ 0x46 ] = { cmd_get_configuration,             ALLOW_UA },
+    [ 0x4a ] = { cmd_get_event_status_notification, ALLOW_UA },
+    [ 0x5a ] = { cmd_mode_sense, /* (10) */         0 },
+    [ 0xa8 ] = { cmd_read, /* (12) */               0 },
+    [ 0xad ] = { cmd_read_dvd_structure,            0 },
+    [ 0xbb ] = { cmd_set_speed,                     0 },
+    [ 0xbd ] = { cmd_mechanism_status,              0 },
+    [ 0xbe ] = { cmd_read_cd,                       0 },
+};
+
 void ide_atapi_cmd(IDEState *s)
 {
     const uint8_t *packet;
@@ -1082,21 +1115,17 @@ void ide_atapi_cmd(IDEState *s)
     }
 #endif
     /*
-     * If there's a UNIT_ATTENTION condition pending, only
-     * REQUEST_SENSE, INQUIRY, GET_CONFIGURATION and
-     * GET_EVENT_STATUS_NOTIFICATION commands are allowed to complete.
-     * MMC-5, section 4.1.6.1 lists only these commands being allowed
-     * to complete, with other commands getting a CHECK condition
-     * response unless a higher priority status, defined by the drive
+     * If there's a UNIT_ATTENTION condition pending, only command flagged with
+     * ALLOW_UA are allowed to complete. with other commands getting a CHECK
+     * condition response unless a higher priority status, defined by the drive
      * here, is pending.
      */
     if (s->sense_key == SENSE_UNIT_ATTENTION &&
-        s->io_buffer[0] != GPCMD_REQUEST_SENSE &&
-        s->io_buffer[0] != GPCMD_INQUIRY &&
-        s->io_buffer[0] != GPCMD_GET_EVENT_STATUS_NOTIFICATION) {
+        !(atapi_cmd_table[s->io_buffer[0]].flags & ALLOW_UA)) {
         ide_atapi_cmd_check_status(s);
         return;
     }
+
     if (bdrv_is_inserted(s->bs) && s->cdrom_changed) {
         ide_atapi_cmd_error(s, SENSE_NOT_READY, ASC_MEDIUM_NOT_PRESENT);
 
@@ -1105,60 +1134,12 @@ void ide_atapi_cmd(IDEState *s)
         s->asc = ASC_MEDIUM_MAY_HAVE_CHANGED;
         return;
     }
-    switch(s->io_buffer[0]) {
-    case GPCMD_TEST_UNIT_READY:
-        cmd_test_unit_ready(s, buf);
-        break;
-    case GPCMD_MODE_SENSE_6:
-    case GPCMD_MODE_SENSE_10:
-        cmd_mode_sense(s, buf);
-        break;
-    case GPCMD_REQUEST_SENSE:
-        cmd_request_sense(s, buf);
-        break;
-    case GPCMD_PREVENT_ALLOW_MEDIUM_REMOVAL:
-        cmd_prevent_allow_medium_removal(s, buf);
-        break;
-    case GPCMD_READ_10:
-    case GPCMD_READ_12:
-        cmd_read(s, buf);
-        break;
-    case GPCMD_READ_CD:
-        cmd_read_cd(s, buf);
-        break;
-    case GPCMD_SEEK:
-        cmd_seek(s, buf);
-        break;
-    case GPCMD_START_STOP_UNIT:
-        cmd_start_stop_unit(s, buf);
-        break;
-    case GPCMD_MECHANISM_STATUS:
-        cmd_mechanism_status(s, buf);
-        break;
-    case GPCMD_READ_TOC_PMA_ATIP:
-        cmd_read_toc_pma_atip(s, buf);
-        break;
-    case GPCMD_READ_CDVD_CAPACITY:
-        cmd_read_cdvd_capacity(s, buf);
-        break;
-    case GPCMD_READ_DVD_STRUCTURE:
-        cmd_read_dvd_structure(s, buf);
-        break;
-    case GPCMD_SET_SPEED:
-        cmd_set_speed(s, buf);
-        break;
-    case GPCMD_INQUIRY:
-        cmd_inquiry(s, buf);
-        break;
-    case GPCMD_GET_CONFIGURATION:
-        cmd_get_configuration(s, buf);
-        break;
-    case GPCMD_GET_EVENT_STATUS_NOTIFICATION:
-        handle_get_event_status_notification(s, buf, packet);
-        break;
-    default:
-        ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST,
-                            ASC_ILLEGAL_OPCODE);
-        break;
+
+    /* Execute the command */
+    if (atapi_cmd_table[s->io_buffer[0]].handler) {
+        atapi_cmd_table[s->io_buffer[0]].handler(s, buf);
+        return;
     }
+
+    ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST, ASC_ILLEGAL_OPCODE);
 }
