@@ -370,7 +370,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
         TaskState *ts = env->opaque;
         /* Allocate the heap using sbrk.  */
         if (!ts->heap_limit) {
-            long ret;
+            abi_ulong ret;
             uint32_t size;
             uint32_t base;
 
@@ -379,8 +379,9 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
             /* Try a big heap, and reduce the size if that fails.  */
             for (;;) {
                 ret = do_brk(base + size);
-                if (ret != -1)
+                if (ret >= (base + size)) {
                     break;
+                }
                 size >>= 1;
             }
             ts->heap_limit = base + size;
