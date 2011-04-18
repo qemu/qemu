@@ -1008,7 +1008,7 @@ const VMStateInfo vmstate_info_buffer = {
 };
 
 /* unused buffers: space that was used for some fields that are
-   not usefull anymore */
+   not useful anymore */
 
 static int get_unused_buffer(QEMUFile *f, void *pv, size_t size)
 {

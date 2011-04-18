@@ -33,7 +33,7 @@ do { printf("usb-msd: " fmt , ## __VA_ARGS__); } while (0)
 
 enum USBMSDMode {
     USB_MSDM_CBW, /* Command Block.  */
-    USB_MSDM_DATAOUT, /* Tranfer data to device.  */
+    USB_MSDM_DATAOUT, /* Transfer data to device.  */
     USB_MSDM_DATAIN, /* Transfer data from device.  */
     USB_MSDM_CSW /* Command Status.  */
 };
@@ -253,7 +253,7 @@ static void usb_msd_command_complete(SCSIBus *bus, int reason, uint32_t tag,
         usb_msd_copy_data(s);
         if (s->usb_len == 0) {
             /* Set s->packet to NULL before calling usb_packet_complete
-               because annother request may be issued before
+               because another request may be issued before
                usb_packet_complete returns.  */
             DPRINTF("Packet complete %p\n", p);
             s->packet = NULL;

@@ -937,8 +937,8 @@ a lot of bandwidth at the expense of quality.
 Disable adaptive encodings. Adaptive encodings are enabled by default.
 An adaptive encoding will try to detect frequently updated screen regions,
 and send updates in these regions using a lossy encoding (like JPEG).
-This can be really helpfull to save bandwidth when playing videos. Disabling
-adaptive encodings allow to restore the original static behavior of encodings
+This can be really helpful to save bandwidth when playing videos. Disabling
+adaptive encodings allows to restore the original static behavior of encodings
 like Tight.
 
 @end table
