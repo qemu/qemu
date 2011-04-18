@@ -463,10 +463,8 @@ static void vscsi_send_request_sense(VSCSIState *s, vscsi_req *req)
     dprintf("VSCSI: Queued request sense tag 0x%x\n", req->qtag);
     if (n < 0) {
         fprintf(stderr, "VSCSI: REQUEST_SENSE wants write data !?!?!?\n");
-        sdev->info->cancel_io(req->sreq);
         vscsi_makeup_sense(s, req, HARDWARE_ERROR, 0, 0);
-        vscsi_send_rsp(s, req, CHECK_CONDITION, 0, 0);
-        vscsi_put_req(s, req);
+        scsi_req_abort(req->sreq, CHECK_CONDITION);
         return;
     } else if (n == 0) {
         return;
@@ -547,10 +545,8 @@ static void vscsi_command_complete(SCSIRequest *sreq, int reason, uint32_t arg)
     }
     if (rc < 0) {
         fprintf(stderr, "VSCSI: RDMA error rc=%d!\n", rc);
-        sdev->info->cancel_io(sreq);
         vscsi_makeup_sense(s, req, HARDWARE_ERROR, 0, 0);
-        vscsi_send_rsp(s, req, CHECK_CONDITION, 0, 0);
-        vscsi_put_req(s, req);
+        scsi_req_abort(req->sreq, CHECK_CONDITION);
         return;
     }
 

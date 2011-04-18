@@ -114,6 +114,7 @@ int scsi_req_parse(SCSIRequest *req, uint8_t *buf);
 void scsi_req_print(SCSIRequest *req);
 void scsi_req_data(SCSIRequest *req, int len);
 void scsi_req_complete(SCSIRequest *req);
+void scsi_req_abort(SCSIRequest *req, int status);
 void scsi_device_purge_requests(SCSIDevice *sdev);
 
 #endif

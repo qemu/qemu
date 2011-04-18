@@ -549,6 +549,15 @@ void scsi_req_complete(SCSIRequest *req)
     scsi_req_unref(req);
 }
 
+void scsi_req_abort(SCSIRequest *req, int status)
+{
+    req->status = status;
+    if (req->dev && req->dev->info->cancel_io) {
+        req->dev->info->cancel_io(req);
+    }
+    scsi_req_complete(req);
+}
+
 void scsi_device_purge_requests(SCSIDevice *sdev)
 {
     SCSIRequest *req;
