@@ -315,6 +315,11 @@ enum {
     EXCP_STQ_C,
 };
 
+/* Alpha-specific interrupt pending bits.  */
+#define CPU_INTERRUPT_TIMER	CPU_INTERRUPT_TGT_EXT_0
+#define CPU_INTERRUPT_SMP	CPU_INTERRUPT_TGT_EXT_1
+#define CPU_INTERRUPT_MCHK	CPU_INTERRUPT_TGT_EXT_2
+
 /* Hardware interrupt (entInt) constants.  */
 enum {
     INT_K_IP,
