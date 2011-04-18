@@ -652,38 +652,51 @@ static void lsi_reselect(LSIState *s, lsi_request *p)
     }
 }
 
+static lsi_request *lsi_find_by_tag(LSIState *s, uint32_t tag)
+{
+    lsi_request *p;
+
+    QTAILQ_FOREACH(p, &s->queue, next) {
+        if (p->tag == tag) {
+            return p;
+        }
+    }
+
+    return NULL;
+}
+
 /* Record that data is available for a queued command.  Returns zero if
    the device was reselected, nonzero if the IO is deferred.  */
 static int lsi_queue_tag(LSIState *s, uint32_t tag, uint32_t arg)
 {
     lsi_request *p;
 
-    QTAILQ_FOREACH(p, &s->queue, next) {
-        if (p->tag == tag) {
-            if (p->pending) {
-                BADF("Multiple IO pending for tag %d\n", tag);
-            }
-            p->pending = arg;
-            /* Reselect if waiting for it, or if reselection triggers an IRQ
-               and the bus is free.
-               Since no interrupt stacking is implemented in the emulation, it
-               is also required that there are no pending interrupts waiting
-               for service from the device driver. */
-            if (s->waiting == 1 ||
-                (lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON) &&
-                 !(s->istat0 & (LSI_ISTAT0_SIP | LSI_ISTAT0_DIP)))) {
-                /* Reselect device.  */
-                lsi_reselect(s, p);
-                return 0;
-            } else {
-                DPRINTF("Queueing IO tag=0x%x\n", tag);
-                p->pending = arg;
-                return 1;
-            }
-        }
+    p = lsi_find_by_tag(s, tag);
+    if (!p) {
+        BADF("IO with unknown tag %d\n", tag);
+        return 1;
     }
-    BADF("IO with unknown tag %d\n", tag);
-    return 1;
+
+    if (p->pending) {
+        BADF("Multiple IO pending for tag %d\n", tag);
+    }
+    p->pending = arg;
+    /* Reselect if waiting for it, or if reselection triggers an IRQ
+       and the bus is free.
+       Since no interrupt stacking is implemented in the emulation, it
+       is also required that there are no pending interrupts waiting
+       for service from the device driver. */
+    if (s->waiting == 1 ||
+        (lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON) &&
+         !(s->istat0 & (LSI_ISTAT0_SIP | LSI_ISTAT0_DIP)))) {
+        /* Reselect device.  */
+        lsi_reselect(s, p);
+        return 0;
+    } else {
+        DPRINTF("Queueing IO tag=0x%x\n", tag);
+        p->pending = arg;
+        return 1;
+    }
 }
 
 /* Callback to indicate that the SCSI layer has completed a transfer.  */
