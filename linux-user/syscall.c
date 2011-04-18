@@ -6500,20 +6500,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             ret = get_errno(sys_sched_getaffinity(arg1, mask_size, mask));
 
             if (!is_error(ret)) {
-                if (arg2 > ret) {
-                    /* Zero out any extra space kernel didn't fill */
-                    unsigned long zero = arg2 - ret;
-                    p = alloca(zero);
-                    memset(p, 0, zero);
-                    if (copy_to_user(arg3 + ret, p, zero)) {
-                        goto efault;
-                    }
-                    arg2 = ret;
-                }
-                if (copy_to_user(arg3, mask, arg2)) {
+                if (copy_to_user(arg3, mask, ret)) {
                     goto efault;
                 }
-                ret = arg2;
             }
         }
         break;
