@@ -328,7 +328,7 @@ static int sys_fchmodat(int dirfd, const char *pathname, mode_t mode)
   return (fchmodat(dirfd, pathname, mode, 0));
 }
 #endif
-#if defined(TARGET_NR_fchownat) && defined(USE_UID16)
+#if defined(TARGET_NR_fchownat)
 static int sys_fchownat(int dirfd, const char *pathname, uid_t owner,
     gid_t group, int flags)
 {
@@ -437,7 +437,7 @@ _syscall3(int,sys_faccessat,int,dirfd,const char *,pathname,int,mode)
 #if defined(TARGET_NR_fchmodat) && defined(__NR_fchmodat)
 _syscall3(int,sys_fchmodat,int,dirfd,const char *,pathname, mode_t,mode)
 #endif
-#if defined(TARGET_NR_fchownat) && defined(__NR_fchownat) && defined(USE_UID16)
+#if defined(TARGET_NR_fchownat) && defined(__NR_fchownat)
 _syscall5(int,sys_fchownat,int,dirfd,const char *,pathname,
           uid_t,owner,gid_t,group,int,flags)
 #endif
@@ -4164,7 +4164,31 @@ static inline int low2highgid(int gid)
     else
         return gid;
 }
-
+static inline int tswapid(int id)
+{
+    return tswap16(id);
+}
+#else /* !USE_UID16 */
+static inline int high2lowuid(int uid)
+{
+    return uid;
+}
+static inline int high2lowgid(int gid)
+{
+    return gid;
+}
+static inline int low2highuid(int uid)
+{
+    return uid;
+}
+static inline int low2highgid(int gid)
+{
+    return gid;
+}
+static inline int tswapid(int id)
+{
+    return tswap32(id);
+}
 #endif /* USE_UID16 */
 
 void syscall_init(void)
@@ -6765,25 +6789,32 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             ret = host_to_target_stat64(cpu_env, arg3, &st);
         break;
 #endif
-#ifdef USE_UID16
     case TARGET_NR_lchown:
         if (!(p = lock_user_string(arg1)))
             goto efault;
         ret = get_errno(lchown(p, low2highuid(arg2), low2highgid(arg3)));
         unlock_user(p, arg1, 0);
         break;
+#ifdef TARGET_NR_getuid
     case TARGET_NR_getuid:
         ret = get_errno(high2lowuid(getuid()));
         break;
+#endif
+#ifdef TARGET_NR_getgid
     case TARGET_NR_getgid:
         ret = get_errno(high2lowgid(getgid()));
         break;
+#endif
+#ifdef TARGET_NR_geteuid
     case TARGET_NR_geteuid:
         ret = get_errno(high2lowuid(geteuid()));
         break;
+#endif
+#ifdef TARGET_NR_getegid
     case TARGET_NR_getegid:
         ret = get_errno(high2lowgid(getegid()));
         break;
+#endif
     case TARGET_NR_setreuid:
         ret = get_errno(setreuid(low2highuid(arg1), low2highuid(arg2)));
         break;
@@ -6793,7 +6824,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_getgroups:
         {
             int gidsetsize = arg1;
-            uint16_t *target_grouplist;
+            target_id *target_grouplist;
             gid_t *grouplist;
             int i;
 
@@ -6806,7 +6837,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 if (!target_grouplist)
                     goto efault;
                 for(i = 0;i < ret; i++)
-                    target_grouplist[i] = tswap16(grouplist[i]);
+                    target_grouplist[i] = tswapid(high2lowgid(grouplist[i]));
                 unlock_user(target_grouplist, arg2, gidsetsize * 2);
             }
         }
@@ -6814,7 +6845,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_setgroups:
         {
             int gidsetsize = arg1;
-            uint16_t *target_grouplist;
+            target_id *target_grouplist;
             gid_t *grouplist;
             int i;
 
@@ -6825,7 +6856,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 goto fail;
             }
             for(i = 0;i < gidsetsize; i++)
-                grouplist[i] = tswap16(target_grouplist[i]);
+                grouplist[i] = low2highgid(tswapid(target_grouplist[i]));
             unlock_user(target_grouplist, arg2, 0);
             ret = get_errno(setgroups(gidsetsize, grouplist));
         }
@@ -6901,7 +6932,6 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_setfsgid:
         ret = get_errno(setfsgid(arg1));
         break;
-#endif /* USE_UID16 */
 
 #ifdef TARGET_NR_lchown32
     case TARGET_NR_lchown32:
