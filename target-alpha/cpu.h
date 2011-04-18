@@ -320,6 +320,19 @@ enum {
 #define CPU_INTERRUPT_SMP	CPU_INTERRUPT_TGT_EXT_1
 #define CPU_INTERRUPT_MCHK	CPU_INTERRUPT_TGT_EXT_2
 
+/* OSF/1 Page table bits.  */
+enum {
+    PTE_VALID = 0x0001,
+    PTE_FOR   = 0x0002,  /* used for page protection (fault on read) */
+    PTE_FOW   = 0x0004,  /* used for page protection (fault on write) */
+    PTE_FOE   = 0x0008,  /* used for page protection (fault on exec) */
+    PTE_ASM   = 0x0010,
+    PTE_KRE   = 0x0100,
+    PTE_URE   = 0x0200,
+    PTE_KWE   = 0x1000,
+    PTE_UWE   = 0x2000
+};
+
 /* Hardware interrupt (entInt) constants.  */
 enum {
     INT_K_IP,

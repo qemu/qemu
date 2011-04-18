@@ -200,14 +200,135 @@ void swap_shadow_regs(CPUState *env)
     env->shadow[7] = i7;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug (CPUState *env, target_ulong addr)
+/* Returns the OSF/1 entMM failure indication, or -1 on success.  */
+static int get_physical_address(CPUState *env, target_ulong addr,
+                                int prot_need, int mmu_idx,
+                                target_ulong *pphys, int *pprot)
 {
-    return -1;
+    target_long saddr = addr;
+    target_ulong phys = 0;
+    target_ulong L1pte, L2pte, L3pte;
+    target_ulong pt, index;
+    int prot = 0;
+    int ret = MM_K_ACV;
+
+    /* Ensure that the virtual address is properly sign-extended from
+       the last implemented virtual address bit.  */
+    if (saddr >> TARGET_VIRT_ADDR_SPACE_BITS != saddr >> 63) {
+        goto exit;
+    }
+
+    /* Translate the superpage.  */
+    /* ??? When we do more than emulate Unix PALcode, we'll need to
+       determine which superpage is actually active.  */
+    if (saddr < 0 && (saddr >> (TARGET_VIRT_ADDR_SPACE_BITS - 2) & 3) == 2) {
+        /* User-space cannot access kseg addresses.  */
+        if (mmu_idx != MMU_KERNEL_IDX) {
+            goto exit;
+        }
+
+        phys = saddr & ((1ull << 40) - 1);
+        prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        ret = -1;
+        goto exit;
+    }
+
+    /* Interpret the page table exactly like PALcode does.  */
+
+    pt = env->ptbr;
+
+    /* L1 page table read.  */
+    index = (addr >> (TARGET_PAGE_BITS + 20)) & 0x3ff;
+    L1pte = ldq_phys(pt + index*8);
+
+    if (unlikely((L1pte & PTE_VALID) == 0)) {
+        ret = MM_K_TNV;
+        goto exit;
+    }
+    if (unlikely((L1pte & PTE_KRE) == 0)) {
+        goto exit;
+    }
+    pt = L1pte >> 32 << TARGET_PAGE_BITS;
+
+    /* L2 page table read.  */
+    index = (addr >> (TARGET_PAGE_BITS + 10)) & 0x3ff;
+    L2pte = ldq_phys(pt + index*8);
+
+    if (unlikely((L2pte & PTE_VALID) == 0)) {
+        ret = MM_K_TNV;
+        goto exit;
+    }
+    if (unlikely((L2pte & PTE_KRE) == 0)) {
+        goto exit;
+    }
+    pt = L2pte >> 32 << TARGET_PAGE_BITS;
+
+    /* L3 page table read.  */
+    index = (addr >> TARGET_PAGE_BITS) & 0x3ff;
+    L3pte = ldq_phys(pt + index*8);
+
+    phys = L3pte >> 32 << TARGET_PAGE_BITS;
+    if (unlikely((L3pte & PTE_VALID) == 0)) {
+        ret = MM_K_TNV;
+        goto exit;
+    }
+
+#if PAGE_READ != 1 || PAGE_WRITE != 2 || PAGE_EXEC != 4
+# error page bits out of date
+#endif
+
+    /* Check access violations.  */
+    if (L3pte & (PTE_KRE << mmu_idx)) {
+        prot |= PAGE_READ | PAGE_EXEC;
+    }
+    if (L3pte & (PTE_KWE << mmu_idx)) {
+        prot |= PAGE_WRITE;
+    }
+    if (unlikely((prot & prot_need) == 0 && prot_need)) {
+        goto exit;
+    }
+
+    /* Check fault-on-operation violations.  */
+    prot &= ~(L3pte >> 1);
+    ret = -1;
+    if (unlikely((prot & prot_need) == 0)) {
+        ret = (prot_need & PAGE_EXEC ? MM_K_FOE :
+               prot_need & PAGE_WRITE ? MM_K_FOW :
+               prot_need & PAGE_READ ? MM_K_FOR : -1);
+    }
+
+ exit:
+    *pphys = phys;
+    *pprot = prot;
+    return ret;
 }
 
-int cpu_alpha_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                                int mmu_idx, int is_softmmu)
+target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
+    target_ulong phys;
+    int prot, fail;
+
+    fail = get_physical_address(env, addr, 0, 0, &phys, &prot);
+    return (fail >= 0 ? -1 : phys);
+}
+
+int cpu_alpha_handle_mmu_fault(CPUState *env, target_ulong addr, int rw,
+                               int mmu_idx, int is_softmmu)
+{
+    target_ulong phys;
+    int prot, fail;
+
+    fail = get_physical_address(env, addr, 1 << rw, mmu_idx, &phys, &prot);
+    if (unlikely(fail >= 0)) {
+        env->exception_index = EXCP_MMFAULT;
+        env->trap_arg0 = addr;
+        env->trap_arg1 = fail;
+        env->trap_arg2 = (rw == 2 ? -1 : rw);
+        return 1;
+    }
+
+    tlb_set_page(env, addr & TARGET_PAGE_MASK, phys & TARGET_PAGE_MASK,
+                 prot, mmu_idx, TARGET_PAGE_SIZE);
     return 0;
 }
 #endif /* USER_ONLY */
