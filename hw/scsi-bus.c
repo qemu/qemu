@@ -549,6 +549,18 @@ void scsi_req_complete(SCSIRequest *req)
     scsi_req_unref(req);
 }
 
+void scsi_device_purge_requests(SCSIDevice *sdev)
+{
+    SCSIRequest *req;
+
+    while (!QTAILQ_EMPTY(&sdev->requests)) {
+        req = QTAILQ_FIRST(&sdev->requests);
+        sdev->info->cancel_io(req);
+        scsi_req_dequeue(req);
+        scsi_req_unref(req);
+    }
+}
+
 static char *scsibus_get_fw_dev_path(DeviceState *dev)
 {
     SCSIDevice *d = (SCSIDevice*)dev;

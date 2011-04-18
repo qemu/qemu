@@ -424,32 +424,18 @@ static int get_stream_blocksize(BlockDriverState *bdrv)
     return (buf[9] << 16) | (buf[10] << 8) | buf[11];
 }
 
-static void scsi_generic_purge_requests(SCSIGenericState *s)
-{
-    SCSIGenericReq *r;
-
-    while (!QTAILQ_EMPTY(&s->qdev.requests)) {
-        r = DO_UPCAST(SCSIGenericReq, req, QTAILQ_FIRST(&s->qdev.requests));
-        if (r->req.aiocb) {
-            bdrv_aio_cancel(r->req.aiocb);
-        }
-        scsi_req_dequeue(&r->req);
-        scsi_req_unref(&r->req);
-    }
-}
-
 static void scsi_generic_reset(DeviceState *dev)
 {
     SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev.qdev, dev);
 
-    scsi_generic_purge_requests(s);
+    scsi_device_purge_requests(&s->qdev);
 }
 
 static void scsi_destroy(SCSIDevice *d)
 {
     SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, d);
 
-    scsi_generic_purge_requests(s);
+    scsi_device_purge_requests(&s->qdev);
     blockdev_mark_auto_del(s->qdev.conf.bs);
 }
 

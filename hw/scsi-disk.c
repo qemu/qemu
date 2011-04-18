@@ -1147,26 +1147,12 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
     return len;
 }
 
-static void scsi_disk_purge_requests(SCSIDiskState *s)
-{
-    SCSIDiskReq *r;
-
-    while (!QTAILQ_EMPTY(&s->qdev.requests)) {
-        r = DO_UPCAST(SCSIDiskReq, req, QTAILQ_FIRST(&s->qdev.requests));
-        if (r->req.aiocb) {
-            bdrv_aio_cancel(r->req.aiocb);
-        }
-        scsi_req_dequeue(&r->req);
-        scsi_req_unref(&r->req);
-    }
-}
-
 static void scsi_disk_reset(DeviceState *dev)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev.qdev, dev);
     uint64_t nb_sectors;
 
-    scsi_disk_purge_requests(s);
+    scsi_device_purge_requests(&s->qdev);
 
     bdrv_get_geometry(s->bs, &nb_sectors);
     nb_sectors /= s->cluster_size;
@@ -1180,7 +1166,7 @@ static void scsi_destroy(SCSIDevice *dev)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
 
-    scsi_disk_purge_requests(s);
+    scsi_device_purge_requests(&s->qdev);
     blockdev_mark_auto_del(s->qdev.conf.bs);
 }
 
