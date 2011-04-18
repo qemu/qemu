@@ -146,6 +146,11 @@ SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag, uint32_t l
     return req;
 }
 
+SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun)
+{
+    return d->info->alloc_req(d, tag, lun);
+}
+
 int32_t scsi_req_enqueue(SCSIRequest *req, uint8_t *buf)
 {
     int32_t rc;

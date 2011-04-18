@@ -653,7 +653,7 @@ static int vscsi_queue_cmd(VSCSIState *s, vscsi_req *req)
 
     req->sdev = sdev;
     req->lun = lun;
-    req->sreq = sdev->info->alloc_req(sdev, req->qtag, lun);
+    req->sreq = scsi_req_new(sdev, req->qtag, lun);
     n = scsi_req_enqueue(req->sreq, srp->cmd.cdb);
 
     dprintf("VSCSI: Queued command tag 0x%x CMD 0x%x ID %d LUN %d ret: %d\n",

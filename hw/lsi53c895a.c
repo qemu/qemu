@@ -788,8 +788,7 @@ static void lsi_do_command(LSIState *s)
     assert(s->current == NULL);
     s->current = qemu_mallocz(sizeof(lsi_request));
     s->current->tag = s->select_tag;
-    s->current->req = dev->info->alloc_req(dev, s->current->tag,
-                                           s->current_lun);
+    s->current->req = scsi_req_new(dev, s->current->tag, s->current_lun);
 
     n = scsi_req_enqueue(s->current->req, buf);
     if (n > 0) {
