@@ -74,10 +74,11 @@ static SCSIGenericReq *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lu
     return DO_UPCAST(SCSIGenericReq, req, req);
 }
 
-static void scsi_remove_request(SCSIGenericReq *r)
+static void scsi_free_request(SCSIRequest *req)
 {
+    SCSIGenericReq *r = DO_UPCAST(SCSIGenericReq, req, req);
+
     qemu_free(r->buf);
-    scsi_req_free(&r->req);
 }
 
 static SCSIGenericReq *scsi_find_request(SCSIGenericState *s, uint32_t tag)
@@ -113,7 +114,6 @@ static void scsi_command_complete(void *opaque, int ret)
             r, r->req.tag, r->req.status);
 
     scsi_req_complete(&r->req);
-    scsi_remove_request(r);
 }
 
 /* Cancel a pending data transfer.  */
@@ -128,7 +128,7 @@ static void scsi_cancel_io(SCSIDevice *d, uint32_t tag)
         if (r->req.aiocb)
             bdrv_aio_cancel(r->req.aiocb);
         r->req.aiocb = NULL;
-        scsi_remove_request(r);
+        scsi_req_dequeue(&r->req);
     }
 }
 
@@ -323,6 +323,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     SCSIGenericReq *r;
     SCSIBus *bus;
     int ret;
+    int32_t len;
 
     if (cmd[0] != REQUEST_SENSE &&
         (lun != s->lun || (cmd[1] >> 5) != s->lun)) {
@@ -351,7 +352,8 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
 
     if (-1 == scsi_req_parse(&r->req, cmd)) {
         BADF("Unsupported command length, command %x\n", cmd[0]);
-        scsi_remove_request(r);
+        scsi_req_dequeue(&r->req);
+        scsi_req_unref(&r->req);
         return 0;
     }
     scsi_req_fixup(&r->req);
@@ -377,8 +379,10 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         ret = execute_command(s->bs, r, SG_DXFER_NONE, scsi_command_complete);
         if (ret == -1) {
             scsi_command_complete(r, -EINVAL);
+            scsi_req_unref(&r->req);
             return 0;
         }
+        scsi_req_unref(&r->req);
         return 0;
     }
 
@@ -393,10 +397,13 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     r->len = r->req.cmd.xfer;
     if (r->req.cmd.mode == SCSI_XFER_TO_DEV) {
         r->len = 0;
-        return -r->req.cmd.xfer;
+        len = -r->req.cmd.xfer;
+    } else {
+        len = r->req.cmd.xfer;
     }
 
-    return r->req.cmd.xfer;
+    scsi_req_unref(&r->req);
+    return len;
 }
 
 static int get_blocksize(BlockDriverState *bdrv)
@@ -469,7 +476,7 @@ static void scsi_generic_purge_requests(SCSIGenericState *s)
         if (r->req.aiocb) {
             bdrv_aio_cancel(r->req.aiocb);
         }
-        scsi_remove_request(r);
+        scsi_req_dequeue(&r->req);
     }
 }
 
@@ -561,6 +568,7 @@ static SCSIDeviceInfo scsi_generic_info = {
     .qdev.reset   = scsi_generic_reset,
     .init         = scsi_generic_initfn,
     .destroy      = scsi_destroy,
+    .free_req     = scsi_free_request,
     .send_command = scsi_send_command,
     .read_data    = scsi_read_data,
     .write_data   = scsi_write_data,

@@ -136,6 +136,8 @@ SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag, uint32_t l
     SCSIRequest *req;
 
     req = qemu_mallocz(size);
+    /* Two references: one is passed back to the HBA, one is in d->requests.  */
+    req->refcount = 2;
     req->bus = scsi_bus_from_device(d);
     req->dev = d;
     req->tag = tag;
@@ -159,19 +161,14 @@ SCSIRequest *scsi_req_find(SCSIDevice *d, uint32_t tag)
     return NULL;
 }
 
-static void scsi_req_dequeue(SCSIRequest *req)
+void scsi_req_dequeue(SCSIRequest *req)
 {
     trace_scsi_req_dequeue(req->dev->id, req->lun, req->tag);
     if (req->enqueued) {
         QTAILQ_REMOVE(&req->dev->requests, req, next);
         req->enqueued = false;
+        scsi_req_unref(req);
     }
-}
-
-void scsi_req_free(SCSIRequest *req)
-{
-    scsi_req_dequeue(req);
-    qemu_free(req);
 }
 
 static int scsi_req_length(SCSIRequest *req, uint8_t *cmd)
@@ -495,6 +492,22 @@ static const char *scsi_command_name(uint8_t cmd)
     return names[cmd];
 }
 
+SCSIRequest *scsi_req_ref(SCSIRequest *req)
+{
+    req->refcount++;
+    return req;
+}
+
+void scsi_req_unref(SCSIRequest *req)
+{
+    if (--req->refcount == 0) {
+        if (req->dev->info->free_req) {
+            req->dev->info->free_req(req);
+        }
+        qemu_free(req);
+    }
+}
+
 /* Called by the devices when data is ready for the HBA.  The HBA should
    start a DMA operation to read or fill the device's data buffer.
    Once it completes, calling one of req->dev->info->read_data or
@@ -537,10 +550,12 @@ void scsi_req_print(SCSIRequest *req)
 void scsi_req_complete(SCSIRequest *req)
 {
     assert(req->status != -1);
+    scsi_req_ref(req);
     scsi_req_dequeue(req);
     req->bus->ops->complete(req->bus, SCSI_REASON_DONE,
                             req->tag,
                             req->status);
+    scsi_req_unref(req);
 }
 
 static char *scsibus_get_fw_dev_path(DeviceState *dev)

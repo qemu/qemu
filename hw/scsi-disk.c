@@ -98,10 +98,11 @@ static SCSIDiskReq *scsi_new_request(SCSIDiskState *s, uint32_t tag,
     return r;
 }
 
-static void scsi_remove_request(SCSIDiskReq *r)
+static void scsi_free_request(SCSIRequest *req)
 {
+    SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
+
     qemu_vfree(r->iov.iov_base);
-    scsi_req_free(&r->req);
 }
 
 static SCSIDiskReq *scsi_find_request(SCSIDiskState *s, uint32_t tag)
@@ -134,7 +135,6 @@ static void scsi_command_complete(SCSIDiskReq *r, int status, int sense)
             r->req.tag, status, sense);
     scsi_req_set_status(r, status, sense);
     scsi_req_complete(&r->req);
-    scsi_remove_request(r);
 }
 
 /* Cancel a pending data transfer.  */
@@ -148,7 +148,7 @@ static void scsi_cancel_io(SCSIDevice *d, uint32_t tag)
         if (r->req.aiocb)
             bdrv_aio_cancel(r->req.aiocb);
         r->req.aiocb = NULL;
-        scsi_remove_request(r);
+        scsi_req_dequeue(&r->req);
     }
 }
 
@@ -1033,7 +1033,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
                                  uint8_t *buf, int lun)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
-    uint32_t len;
+    int32_t len;
     int is_write;
     uint8_t command;
     uint8_t *outbuf;
@@ -1095,6 +1095,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case REZERO_UNIT:
         rc = scsi_disk_emulate_command(r, outbuf);
         if (rc < 0) {
+            scsi_req_unref(&r->req);
             return 0;
         }
 
@@ -1181,9 +1182,11 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         DPRINTF("Unknown SCSI command (%2.2x)\n", buf[0]);
     fail:
         scsi_command_complete(r, CHECK_CONDITION, ILLEGAL_REQUEST);
+        scsi_req_unref(&r->req);
         return 0;
     illegal_lba:
         scsi_command_complete(r, CHECK_CONDITION, HARDWARE_ERROR);
+        scsi_req_unref(&r->req);
         return 0;
     }
     if (r->sector_count == 0 && r->iov.iov_len == 0) {
@@ -1191,12 +1194,13 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     }
     len = r->sector_count * 512 + r->iov.iov_len;
     if (is_write) {
-        return -len;
+        len = -len;
     } else {
         if (!r->sector_count)
             r->sector_count = -1;
-        return len;
     }
+    scsi_req_unref(&r->req);
+    return len;
 }
 
 static void scsi_disk_purge_requests(SCSIDiskState *s)
@@ -1208,7 +1212,7 @@ static void scsi_disk_purge_requests(SCSIDiskState *s)
         if (r->req.aiocb) {
             bdrv_aio_cancel(r->req.aiocb);
         }
-        scsi_remove_request(r);
+        scsi_req_dequeue(&r->req);
     }
 }
 
@@ -1321,6 +1325,7 @@ static SCSIDeviceInfo scsi_disk_info[] = {
         .qdev.reset   = scsi_disk_reset,
         .init         = scsi_hd_initfn,
         .destroy      = scsi_destroy,
+        .free_req     = scsi_free_request,
         .send_command = scsi_send_command,
         .read_data    = scsi_read_data,
         .write_data   = scsi_write_data,
@@ -1339,6 +1344,7 @@ static SCSIDeviceInfo scsi_disk_info[] = {
         .qdev.reset   = scsi_disk_reset,
         .init         = scsi_cd_initfn,
         .destroy      = scsi_destroy,
+        .free_req     = scsi_free_request,
         .send_command = scsi_send_command,
         .read_data    = scsi_read_data,
         .write_data   = scsi_write_data,
@@ -1356,6 +1362,7 @@ static SCSIDeviceInfo scsi_disk_info[] = {
         .qdev.reset   = scsi_disk_reset,
         .init         = scsi_disk_initfn,
         .destroy      = scsi_destroy,
+        .free_req     = scsi_free_request,
         .send_command = scsi_send_command,
         .read_data    = scsi_read_data,
         .write_data   = scsi_write_data,

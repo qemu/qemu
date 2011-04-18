@@ -29,6 +29,7 @@ enum SCSIXferMode {
 typedef struct SCSIRequest {
     SCSIBus           *bus;
     SCSIDevice        *dev;
+    uint32_t          refcount;
     uint32_t          tag;
     uint32_t          lun;
     uint32_t          status;
@@ -65,6 +66,7 @@ struct SCSIDeviceInfo {
     DeviceInfo qdev;
     scsi_qdev_initfn init;
     void (*destroy)(SCSIDevice *s);
+    void (*free_req)(SCSIRequest *req);
     int32_t (*send_command)(SCSIDevice *s, uint32_t tag, uint8_t *buf,
                             int lun);
     void (*read_data)(SCSIDevice *s, uint32_t tag);
@@ -103,6 +105,9 @@ int scsi_bus_legacy_handle_cmdline(SCSIBus *bus);
 SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag, uint32_t lun);
 SCSIRequest *scsi_req_find(SCSIDevice *d, uint32_t tag);
 void scsi_req_free(SCSIRequest *req);
+void scsi_req_dequeue(SCSIRequest *req);
+SCSIRequest *scsi_req_ref(SCSIRequest *req);
+void scsi_req_unref(SCSIRequest *req);
 
 int scsi_req_parse(SCSIRequest *req, uint8_t *buf);
 void scsi_req_print(SCSIRequest *req);
