@@ -376,7 +376,7 @@ obj-m68k-y += m68k-semi.o dummy_m68k.o
 
 obj-s390x-y = s390-virtio-bus.o s390-virtio.o
 
-obj-alpha-y = alpha_palcode.o
+obj-alpha-y =
 
 main.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 

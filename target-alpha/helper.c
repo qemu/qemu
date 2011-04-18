@@ -528,7 +528,7 @@ void do_interrupt (CPUState *env)
         env->pc = env->ipr[IPR_PAL_BASE] + excp;
     } else {
         /* We use emulated PALcode */
-        call_pal(env);
+        abort();
         /* Emulate REI */
         env->pc = env->ipr[IPR_EXC_ADDR] & ~7;
         env->ipr[IPR_EXC_ADDR] = env->ipr[IPR_EXC_ADDR] & 1;

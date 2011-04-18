@@ -319,36 +319,6 @@ enum {
 
 typedef struct CPUAlphaState CPUAlphaState;
 
-typedef struct pal_handler_t pal_handler_t;
-struct pal_handler_t {
-    /* Reset */
-    void (*reset)(CPUAlphaState *env);
-    /* Uncorrectable hardware error */
-    void (*machine_check)(CPUAlphaState *env);
-    /* Arithmetic exception */
-    void (*arithmetic)(CPUAlphaState *env);
-    /* Interrupt / correctable hardware error */
-    void (*interrupt)(CPUAlphaState *env);
-    /* Data fault */
-    void (*dfault)(CPUAlphaState *env);
-    /* DTB miss pal */
-    void (*dtb_miss_pal)(CPUAlphaState *env);
-    /* DTB miss native */
-    void (*dtb_miss_native)(CPUAlphaState *env);
-    /* Unaligned access */
-    void (*unalign)(CPUAlphaState *env);
-    /* ITB miss */
-    void (*itb_miss)(CPUAlphaState *env);
-    /* Instruction stream access violation */
-    void (*itb_acv)(CPUAlphaState *env);
-    /* Reserved or privileged opcode */
-    void (*opcdec)(CPUAlphaState *env);
-    /* Floating point exception */
-    void (*fen)(CPUAlphaState *env);
-    /* Call pal instruction */
-    void (*call_pal)(CPUAlphaState *env, uint32_t palcode);
-};
-
 #define NB_MMU_MODES 4
 
 struct CPUAlphaState {
@@ -393,7 +363,6 @@ struct CPUAlphaState {
     uint32_t features;
     uint32_t amask;
     int implver;
-    pal_handler_t *pal_handler;
 };
 
 #define cpu_init cpu_alpha_init
@@ -506,10 +475,6 @@ uint64_t cpu_alpha_load_fpcr (CPUState *env);
 void cpu_alpha_store_fpcr (CPUState *env, uint64_t val);
 int cpu_alpha_mfpr (CPUState *env, int iprn, uint64_t *valp);
 int cpu_alpha_mtpr (CPUState *env, int iprn, uint64_t val, uint64_t *oldvalp);
-#if !defined (CONFIG_USER_ONLY)
-void pal_init (CPUState *env);
-void call_pal (CPUState *env);
-#endif
 
 static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)

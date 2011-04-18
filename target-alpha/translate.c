@@ -3335,8 +3335,6 @@ CPUAlphaState * cpu_alpha_init (const char *cpu_model)
     env->ps |= 1 << 3;
     cpu_alpha_store_fpcr(env, (FPCR_INVD | FPCR_DZED | FPCR_OVFD
                                | FPCR_UNFD | FPCR_INED | FPCR_DNOD));
-#else
-    pal_init(env);
 #endif
     env->lock_addr = -1;
 
