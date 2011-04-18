@@ -51,8 +51,6 @@ typedef struct SCSIDiskState SCSIDiskState;
 
 typedef struct SCSIDiskReq {
     SCSIRequest req;
-    /* ??? We should probably keep track of whether the data transfer is
-       a read or a write.  Currently we rely on the host getting it right.  */
     /* Both sector and sector_count are in terms of qemu 512 byte blocks.  */
     uint64_t sector;
     uint32_t sector_count;
@@ -180,6 +178,12 @@ static void scsi_read_data(SCSIRequest *req)
     /* No data transfer may already be in progress */
     assert(r->req.aiocb == NULL);
 
+    if (r->req.cmd.mode == SCSI_XFER_TO_DEV) {
+        DPRINTF("Data transfer direction invalid\n");
+        scsi_read_complete(r, -EINVAL);
+        return;
+    }
+
     n = r->sector_count;
     if (n > SCSI_DMA_BUF_SIZE / 512)
         n = SCSI_DMA_BUF_SIZE / 512;
@@ -216,16 +220,22 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type)
         if (type == SCSI_REQ_STATUS_RETRY_READ) {
             scsi_req_data(&r->req, 0);
         }
-        if (error == ENOMEM) {
+        switch (error) {
+        case ENOMEM:
             scsi_command_complete(r, CHECK_CONDITION,
                                   SENSE_CODE(TARGET_FAILURE));
-        } else {
+            break;
+        case EINVAL:
+            scsi_command_complete(r, CHECK_CONDITION,
+                                  SENSE_CODE(INVALID_FIELD));
+            break;
+        default:
             scsi_command_complete(r, CHECK_CONDITION,
                                   SENSE_CODE(IO_ERROR));
+            break;
         }
         bdrv_mon_event(s->bs, BDRV_ACTION_REPORT, is_read);
     }
-
     return 1;
 }
 
@@ -267,6 +277,12 @@ static int scsi_write_data(SCSIRequest *req)
 
     /* No data transfer may already be in progress */
     assert(r->req.aiocb == NULL);
+
+    if (r->req.cmd.mode != SCSI_XFER_TO_DEV) {
+        DPRINTF("Data transfer direction invalid\n");
+        scsi_write_complete(r, -EINVAL);
+        return 0;
+    }
 
     n = r->iov.iov_len / 512;
     if (n) {
@@ -987,14 +1003,12 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
     int32_t len;
-    int is_write;
     uint8_t command;
     uint8_t *outbuf;
     int rc;
 
     command = buf[0];
     outbuf = (uint8_t *)r->iov.iov_base;
-    is_write = 0;
     DPRINTF("Command: lun=%d tag=0x%x data=0x%02x", lun, tag, buf[0]);
 
     if (scsi_req_parse(&r->req, buf) != 0) {
@@ -1074,7 +1088,6 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
             goto illegal_lba;
         r->sector = r->req.cmd.lba * s->cluster_size;
         r->sector_count = len * s->cluster_size;
-        is_write = 1;
         break;
     case MODE_SELECT:
         DPRINTF("Mode Select(6) (len %lu)\n", (long)r->req.cmd.xfer);
@@ -1140,13 +1153,13 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
         scsi_command_complete(r, GOOD, SENSE_CODE(NO_SENSE));
     }
     len = r->sector_count * 512 + r->iov.iov_len;
-    if (is_write) {
-        len = -len;
+    if (r->req.cmd.mode == SCSI_XFER_TO_DEV) {
+        return -len;
     } else {
         if (!r->sector_count)
             r->sector_count = -1;
+        return len;
     }
-    return len;
 }
 
 static void scsi_disk_reset(DeviceState *dev)
