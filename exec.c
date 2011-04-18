@@ -1085,8 +1085,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
                 restore the CPU state */
 
                 current_tb_modified = 1;
-                cpu_restore_state(current_tb, env,
-                                  env->mem_io_pc, NULL);
+                cpu_restore_state(current_tb, env, env->mem_io_pc);
                 cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base,
                                      &current_flags);
             }
@@ -1194,7 +1193,7 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
                    restore the CPU state */
 
             current_tb_modified = 1;
-            cpu_restore_state(current_tb, env, pc, puc);
+            cpu_restore_state(current_tb, env, pc);
             cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base,
                                  &current_flags);
         }
@@ -3335,7 +3334,7 @@ static void check_watchpoint(int offset, int len_mask, int flags)
                     cpu_abort(env, "check_watchpoint: could not find TB for "
                               "pc=%p", (void *)env->mem_io_pc);
                 }
-                cpu_restore_state(tb, env, env->mem_io_pc, NULL);
+                cpu_restore_state(tb, env, env->mem_io_pc);
                 tb_phys_invalidate(tb, -1);
                 if (wp->flags & BP_STOP_BEFORE_ACCESS) {
                     env->exception_index = EXCP_DEBUG;
@@ -4370,7 +4369,7 @@ void cpu_io_recompile(CPUState *env, void *retaddr)
                   retaddr);
     }
     n = env->icount_decr.u16.low + tb->icount;
-    cpu_restore_state(tb, env, (unsigned long)retaddr, NULL);
+    cpu_restore_state(tb, env, (unsigned long)retaddr);
     /* Calculate how many instructions had been executed before the fault
        occurred.  */
     n = n - env->icount_decr.u16.low;
