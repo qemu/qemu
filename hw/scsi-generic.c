@@ -175,7 +175,7 @@ static void scsi_read_complete(void * opaque, int ret)
     if (len == 0) {
         scsi_command_complete(r, 0);
     } else {
-        r->req.bus->complete(r->req.bus, SCSI_REASON_DATA, r->req.tag, len);
+        scsi_req_data(&r->req, len);
     }
 }
 
@@ -212,7 +212,7 @@ static void scsi_read_data(SCSIDevice *d, uint32_t tag)
         DPRINTF("Sense: %d %d %d %d %d %d %d %d\n",
                 r->buf[0], r->buf[1], r->buf[2], r->buf[3],
                 r->buf[4], r->buf[5], r->buf[6], r->buf[7]);
-        r->req.bus->complete(r->req.bus, SCSI_REASON_DATA, r->req.tag, s->senselen);
+        scsi_req_data(&r->req, s->senselen);
         return;
     }
 
@@ -263,7 +263,7 @@ static int scsi_write_data(SCSIDevice *d, uint32_t tag)
 
     if (r->len == 0) {
         r->len = r->buflen;
-        r->req.bus->complete(r->req.bus, SCSI_REASON_DATA, r->req.tag, r->len);
+        scsi_req_data(&r->req, r->len);
         return 0;
     }
 

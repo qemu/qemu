@@ -105,6 +105,7 @@ void scsi_req_free(SCSIRequest *req);
 
 int scsi_req_parse(SCSIRequest *req, uint8_t *buf);
 void scsi_req_print(SCSIRequest *req);
+void scsi_req_data(SCSIRequest *req, int len);
 void scsi_req_complete(SCSIRequest *req);
 
 #endif

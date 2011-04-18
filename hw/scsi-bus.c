@@ -495,6 +495,17 @@ static const char *scsi_command_name(uint8_t cmd)
     return names[cmd];
 }
 
+/* Called by the devices when data is ready for the HBA.  The HBA should
+   start a DMA operation to read or fill the device's data buffer.
+   Once it completes, calling one of req->dev->info->read_data or
+   req->dev->info->write_data (depending on the direction of the
+   transfer) will restart I/O.  */
+void scsi_req_data(SCSIRequest *req, int len)
+{
+    trace_scsi_req_data(req->dev->id, req->lun, req->tag, len);
+    req->bus->complete(req->bus, SCSI_REASON_DATA, req->tag, len);
+}
+
 void scsi_req_print(SCSIRequest *req)
 {
     FILE *fp = stderr;

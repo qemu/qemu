@@ -170,7 +170,7 @@ static void scsi_read_complete(void * opaque, int ret)
     n = r->iov.iov_len / 512;
     r->sector += n;
     r->sector_count -= n;
-    r->req.bus->complete(r->req.bus, SCSI_REASON_DATA, r->req.tag, r->iov.iov_len);
+    scsi_req_data(&r->req, r->iov.iov_len);
 }
 
 
@@ -182,7 +182,7 @@ static void scsi_read_request(SCSIDiskReq *r)
     if (r->sector_count == (uint32_t)-1) {
         DPRINTF("Read buf_len=%zd\n", r->iov.iov_len);
         r->sector_count = 0;
-        r->req.bus->complete(r->req.bus, SCSI_REASON_DATA, r->req.tag, r->iov.iov_len);
+        scsi_req_data(&r->req, r->iov.iov_len);
         return;
     }
     DPRINTF("Read sector_count=%d\n", r->sector_count);
@@ -245,7 +245,7 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type)
         vm_stop(VMSTOP_DISKFULL);
     } else {
         if (type == SCSI_REQ_STATUS_RETRY_READ) {
-            r->req.bus->complete(r->req.bus, SCSI_REASON_DATA, r->req.tag, 0);
+            scsi_req_data(&r->req, 0);
         }
         scsi_command_complete(r, CHECK_CONDITION,
                 HARDWARE_ERROR);
@@ -281,7 +281,7 @@ static void scsi_write_complete(void * opaque, int ret)
         }
         r->iov.iov_len = len;
         DPRINTF("Write complete tag=0x%x more=%d\n", r->req.tag, len);
-        r->req.bus->complete(r->req.bus, SCSI_REASON_DATA, r->req.tag, len);
+        scsi_req_data(&r->req, len);
     }
 }
 
