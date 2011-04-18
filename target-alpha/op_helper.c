@@ -32,6 +32,15 @@ void QEMU_NORETURN helper_excp (int excp, int error)
     cpu_loop_exit();
 }
 
+static void QEMU_NORETURN arith_excp(int exc, uint64_t mask)
+{
+    env->exception_index = EXCP_ARITH;
+    env->error_code = 0;
+    env->trap_arg0 = exc;
+    env->trap_arg1 = mask;
+    cpu_loop_exit();
+}
+
 uint64_t helper_load_pcc (void)
 {
     /* ??? This isn't a timer for which we have any rate info.  */
@@ -53,7 +62,7 @@ uint64_t helper_addqv (uint64_t op1, uint64_t op2)
     uint64_t tmp = op1;
     op1 += op2;
     if (unlikely((tmp ^ op2 ^ (-1ULL)) & (tmp ^ op1) & (1ULL << 63))) {
-        helper_excp(EXCP_ARITH, EXC_M_IOV);
+        arith_excp(EXC_M_IOV, 0);
     }
     return op1;
 }
@@ -63,7 +72,7 @@ uint64_t helper_addlv (uint64_t op1, uint64_t op2)
     uint64_t tmp = op1;
     op1 = (uint32_t)(op1 + op2);
     if (unlikely((tmp ^ op2 ^ (-1UL)) & (tmp ^ op1) & (1UL << 31))) {
-        helper_excp(EXCP_ARITH, EXC_M_IOV);
+        arith_excp(EXC_M_IOV, 0);
     }
     return op1;
 }
@@ -73,7 +82,7 @@ uint64_t helper_subqv (uint64_t op1, uint64_t op2)
     uint64_t res;
     res = op1 - op2;
     if (unlikely((op1 ^ op2) & (res ^ op1) & (1ULL << 63))) {
-        helper_excp(EXCP_ARITH, EXC_M_IOV);
+        arith_excp(EXC_M_IOV, 0);
     }
     return res;
 }
@@ -83,7 +92,7 @@ uint64_t helper_sublv (uint64_t op1, uint64_t op2)
     uint32_t res;
     res = op1 - op2;
     if (unlikely((op1 ^ op2) & (res ^ op1) & (1UL << 31))) {
-        helper_excp(EXCP_ARITH, EXC_M_IOV);
+        arith_excp(EXC_M_IOV, 0);
     }
     return res;
 }
@@ -93,7 +102,7 @@ uint64_t helper_mullv (uint64_t op1, uint64_t op2)
     int64_t res = (int64_t)op1 * (int64_t)op2;
 
     if (unlikely((int32_t)res != res)) {
-        helper_excp(EXCP_ARITH, EXC_M_IOV);
+        arith_excp(EXC_M_IOV, 0);
     }
     return (int64_t)((int32_t)res);
 }
@@ -105,7 +114,7 @@ uint64_t helper_mulqv (uint64_t op1, uint64_t op2)
     muls64(&tl, &th, op1, op2);
     /* If th != 0 && th != -1, then we had an overflow */
     if (unlikely((th + 1) > 1)) {
-        helper_excp(EXCP_ARITH, EXC_M_IOV);
+        arith_excp(EXC_M_IOV, 0);
     }
     return tl;
 }
@@ -373,8 +382,6 @@ void helper_fp_exc_raise(uint32_t exc, uint32_t regno)
     if (exc) {
         uint32_t hw_exc = 0;
 
-        env->trap_arg1 = 1ull << regno;
-
         if (exc & float_flag_invalid) {
             hw_exc |= EXC_M_INV;
         }
@@ -390,7 +397,8 @@ void helper_fp_exc_raise(uint32_t exc, uint32_t regno)
         if (exc & float_flag_inexact) {
             hw_exc |= EXC_M_INE;
         }
-        helper_excp(EXCP_ARITH, hw_exc);
+
+        arith_excp(hw_exc, 1ull << regno);
     }
 }
 
@@ -420,7 +428,7 @@ uint64_t helper_ieee_input(uint64_t val)
             if (env->fpcr_dnz) {
                 val &= 1ull << 63;
             } else {
-                helper_excp(EXCP_ARITH, EXC_M_UNF);
+                arith_excp(EXC_M_UNF, 0);
             }
         }
     } else if (exp == 0x7ff) {
@@ -428,7 +436,7 @@ uint64_t helper_ieee_input(uint64_t val)
         /* ??? I'm not sure these exception bit flags are correct.  I do
            know that the Linux kernel, at least, doesn't rely on them and
            just emulates the insn to figure out what exception to use.  */
-        helper_excp(EXCP_ARITH, frac ? EXC_M_INV : EXC_M_FOV);
+        arith_excp(frac ? EXC_M_INV : EXC_M_FOV, 0);
     }
     return val;
 }
@@ -445,12 +453,12 @@ uint64_t helper_ieee_input_cmp(uint64_t val)
             if (env->fpcr_dnz) {
                 val &= 1ull << 63;
             } else {
-                helper_excp(EXCP_ARITH, EXC_M_UNF);
+                arith_excp(EXC_M_UNF, 0);
             }
         }
     } else if (exp == 0x7ff && frac) {
         /* NaN.  */
-        helper_excp(EXCP_ARITH, EXC_M_INV);
+        arith_excp(EXC_M_INV, 0);
     }
     return val;
 }
