@@ -124,6 +124,9 @@ static void scsi_command_complete(void *opaque, int ret)
 
     if (ret != 0) {
         switch (ret) {
+        case -EDOM:
+            r->req.status = TASK_SET_FULL;
+            break;
         case -EINVAL:
             r->req.status = CHECK_CONDITION;
             scsi_set_sense(s, SENSE_CODE(INVALID_FIELD));
