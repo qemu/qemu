@@ -3830,6 +3830,21 @@ static int disas_neon_ls_insn(CPUState * env, DisasContext *s, uint32_t insn)
         size = (insn >> 6) & 3;
         if (op > 10)
             return 1;
+        /* Catch UNDEF cases for bad values of align field */
+        switch (op & 0xc) {
+        case 4:
+            if (((insn >> 5) & 1) == 1) {
+                return 1;
+            }
+            break;
+        case 8:
+            if (((insn >> 4) & 3) == 3) {
+                return 1;
+            }
+            break;
+        default:
+            break;
+        }
         nregs = neon_ls_element_type[op].nregs;
         interleave = neon_ls_element_type[op].interleave;
         spacing = neon_ls_element_type[op].spacing;
