@@ -156,6 +156,15 @@ uint8_t *scsi_req_get_buf(SCSIRequest *req)
     return req->dev->info->get_buf(req);
 }
 
+int scsi_req_get_sense(SCSIRequest *req, uint8_t *buf, int len)
+{
+    if (req->dev->info->get_sense) {
+        return req->dev->info->get_sense(req, buf, len);
+    } else {
+        return 0;
+    }
+}
+
 int32_t scsi_req_enqueue(SCSIRequest *req, uint8_t *buf)
 {
     int32_t rc;

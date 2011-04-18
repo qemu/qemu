@@ -79,6 +79,23 @@ static void scsi_clear_sense(SCSIGenericState *s)
     s->driver_status = 0;
 }
 
+static int scsi_get_sense(SCSIRequest *req, uint8_t *outbuf, int len)
+{
+    SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, req->dev);
+    int size = SCSI_SENSE_BUF_SIZE;
+
+    if (!(s->driver_status & SG_ERR_DRIVER_SENSE)) {
+        size = scsi_build_sense(SENSE_CODE(NO_SENSE), s->sensebuf,
+                                SCSI_SENSE_BUF_SIZE, 0);
+    }
+    if (size > len) {
+        size = len;
+    }
+    memcpy(outbuf, s->sensebuf, size);
+
+    return size;
+}
+
 static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun)
 {
     SCSIRequest *req;
@@ -535,6 +552,7 @@ static SCSIDeviceInfo scsi_generic_info = {
     .write_data   = scsi_write_data,
     .cancel_io    = scsi_cancel_io,
     .get_buf      = scsi_get_buf,
+    .get_sense    = scsi_get_sense,
     .qdev.props   = (Property[]) {
         DEFINE_BLOCK_PROPERTIES(SCSIGenericState, qdev.conf),
         DEFINE_PROP_END_OF_LIST(),

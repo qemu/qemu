@@ -340,6 +340,14 @@ static uint8_t *scsi_get_buf(SCSIRequest *req)
     return (uint8_t *)r->iov.iov_base;
 }
 
+/* Copy sense information into the provided buffer */
+static int scsi_get_sense(SCSIRequest *req, uint8_t *outbuf, int len)
+{
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
+
+    return scsi_build_sense(s->sense, outbuf, len, len > 14);
+}
+
 static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
@@ -1257,6 +1265,7 @@ static SCSIDeviceInfo scsi_disk_info[] = {
         .write_data   = scsi_write_data,
         .cancel_io    = scsi_cancel_io,
         .get_buf      = scsi_get_buf,
+        .get_sense    = scsi_get_sense,
         .qdev.props   = (Property[]) {
             DEFINE_SCSI_DISK_PROPERTIES(),
             DEFINE_PROP_BIT("removable", SCSIDiskState, removable, 0, false),
@@ -1277,6 +1286,7 @@ static SCSIDeviceInfo scsi_disk_info[] = {
         .write_data   = scsi_write_data,
         .cancel_io    = scsi_cancel_io,
         .get_buf      = scsi_get_buf,
+        .get_sense    = scsi_get_sense,
         .qdev.props   = (Property[]) {
             DEFINE_SCSI_DISK_PROPERTIES(),
             DEFINE_PROP_END_OF_LIST(),
@@ -1296,6 +1306,7 @@ static SCSIDeviceInfo scsi_disk_info[] = {
         .write_data   = scsi_write_data,
         .cancel_io    = scsi_cancel_io,
         .get_buf      = scsi_get_buf,
+        .get_sense    = scsi_get_sense,
         .qdev.props   = (Property[]) {
             DEFINE_SCSI_DISK_PROPERTIES(),
             DEFINE_PROP_BIT("removable", SCSIDiskState, removable, 0, false),

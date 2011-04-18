@@ -450,6 +450,15 @@ static void vscsi_send_request_sense(VSCSIState *s, vscsi_req *req)
     uint8_t *cdb = req->iu.srp.cmd.cdb;
     int n;
 
+    n = scsi_req_get_sense(req->sreq, req->sense, sizeof(req->sense));
+    if (n) {
+        req->senselen = n;
+        vscsi_send_rsp(s, req, CHECK_CONDITION, 0, 0);
+        vscsi_put_req(s, req);
+        return;
+    }
+
+    dprintf("VSCSI: Got CHECK_CONDITION, requesting sense...\n");
     cdb[0] = 3;
     cdb[1] = 0;
     cdb[2] = 0;
@@ -522,7 +531,6 @@ static void vscsi_command_complete(SCSIRequest *sreq, int reason, uint32_t arg)
             }
             vscsi_send_rsp(s, req, 0, res_in, res_out);
         } else if (arg == CHECK_CONDITION) {
-            dprintf("VSCSI: Got CHECK_CONDITION, requesting sense...\n");
             vscsi_send_request_sense(s, req);
             return;
         } else {
