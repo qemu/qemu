@@ -9551,8 +9551,8 @@ static inline void gen_intermediate_code_internal(CPUState *env,
      * This is handled in the same way as restoration of the
      * PC in these situations: we will be called again with search_pc=1
      * and generate a mapping of the condexec bits for each PC in
-     * gen_opc_condexec_bits[]. gen_pc_load[] then uses this to restore
-     * the condexec bits.
+     * gen_opc_condexec_bits[]. restore_state_to_opc() then uses
+     * this to restore the condexec bits.
      *
      * Note that there are no instructions which can read the condexec
      * bits, and none which can write non-static values to them, so
@@ -9817,8 +9817,7 @@ void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
 #endif
 }
 
-void gen_pc_load(CPUState *env, TranslationBlock *tb,
-                unsigned long searched_pc, int pc_pos, void *puc)
+void restore_state_to_opc(CPUState *env, TranslationBlock *tb, int pc_pos)
 {
     env->regs[15] = gen_opc_pc[pc_pos];
     env->condexec_bits = gen_opc_condexec_bits[pc_pos];

@@ -9367,8 +9367,7 @@ void gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
     gen_intermediate_code_internal(env, tb, 1);
 }
 
-void gen_pc_load(CPUState *env, TranslationBlock *tb,
-                unsigned long searched_pc, int pc_pos, void *puc)
+void restore_state_to_opc(CPUState *env, TranslationBlock *tb, int pc_pos)
 {
     env->nip = gen_opc_pc[pc_pos];
 }

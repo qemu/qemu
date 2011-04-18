@@ -157,7 +157,7 @@ int cpu_restore_state(TranslationBlock *tb,
         j--;
     env->icount_decr.u16.low -= gen_opc_icount[j];
 
-    gen_pc_load(env, tb, searched_pc, j, puc);
+    restore_state_to_opc(env, tb, j);
 
 #ifdef CONFIG_PROFILER
     s->restore_time += profile_getclock() - ti;
