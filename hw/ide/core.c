@@ -1248,12 +1248,19 @@ static void ide_atapi_cmd(IDEState *s)
         ide_atapi_cmd_check_status(s);
         return;
     }
+    if (bdrv_is_inserted(s->bs) && s->cdrom_changed) {
+        ide_atapi_cmd_error(s, SENSE_NOT_READY, ASC_MEDIUM_NOT_PRESENT);
+
+        s->cdrom_changed = 0;
+        s->sense_key = SENSE_UNIT_ATTENTION;
+        s->asc = ASC_MEDIUM_MAY_HAVE_CHANGED;
+        return;
+    }
     switch(s->io_buffer[0]) {
     case GPCMD_TEST_UNIT_READY:
-        if (bdrv_is_inserted(s->bs) && !s->cdrom_changed) {
+        if (bdrv_is_inserted(s->bs)) {
             ide_atapi_cmd_ok(s);
         } else {
-            s->cdrom_changed = 0;
             ide_atapi_cmd_error(s, SENSE_NOT_READY,
                                 ASC_MEDIUM_NOT_PRESENT);
         }
@@ -1734,8 +1741,13 @@ static void cdrom_change_cb(void *opaque, int reason)
     bdrv_get_geometry(s->bs, &nb_sectors);
     s->nb_sectors = nb_sectors;
 
-    s->sense_key = SENSE_UNIT_ATTENTION;
-    s->asc = ASC_MEDIUM_MAY_HAVE_CHANGED;
+    /*
+     * First indicate to the guest that a CD has been removed.  That's
+     * done on the next command the guest sends us.
+     *
+     * Then we set SENSE_UNIT_ATTENTION, by which the guest will
+     * detect a new CD in the drive.  See ide_atapi_cmd() for details.
+     */
     s->cdrom_changed = 1;
     s->events.new_media = true;
     ide_set_irq(s->bus);
