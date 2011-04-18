@@ -664,6 +664,26 @@ static lsi_request *lsi_find_by_tag(LSIState *s, uint32_t tag)
     return NULL;
 }
 
+static void lsi_request_cancelled(SCSIRequest *req)
+{
+    LSIState *s = DO_UPCAST(LSIState, dev.qdev, req->bus->qbus.parent);
+    lsi_request *p;
+
+    if (s->current && req == s->current->req) {
+        scsi_req_unref(req);
+        qemu_free(s->current);
+        s->current = NULL;
+        return;
+    }
+
+    p = lsi_find_by_tag(s, req->tag);
+    if (p) {
+        QTAILQ_REMOVE(&s->queue, p, next);
+        scsi_req_unref(req);
+        qemu_free(p);
+    }
+}
+
 /* Record that data is available for a queued command.  Returns zero if
    the device was reselected, nonzero if the IO is deferred.  */
 static int lsi_queue_tag(LSIState *s, uint32_t tag, uint32_t arg)
@@ -931,7 +951,7 @@ static void lsi_do_msgout(LSIState *s)
             /* The ABORT TAG message clears the current I/O process only. */
             DPRINTF("MSG: ABORT TAG tag=0x%x\n", current_tag);
             if (current_req) {
-                current_dev->info->cancel_io(current_req->req);
+                scsi_req_cancel(current_req->req);
             }
             lsi_disconnect(s);
             break;
@@ -956,7 +976,7 @@ static void lsi_do_msgout(LSIState *s)
 
             /* clear the current I/O process */
             if (s->current) {
-                current_dev->info->cancel_io(s->current->req);
+                scsi_req_cancel(s->current->req);
             }
 
             /* As the current implemented devices scsi_disk and scsi_generic
@@ -969,8 +989,7 @@ static void lsi_do_msgout(LSIState *s)
             id = current_tag & 0x0000ff00;
             QTAILQ_FOREACH_SAFE(p, &s->queue, next, p_next) {
                 if ((p->tag & 0x0000ff00) == id) {
-                    current_dev->info->cancel_io(p->req);
-                    QTAILQ_REMOVE(&s->queue, p, next);
+                    scsi_req_cancel(p->req);
                 }
             }
 
@@ -2227,7 +2246,8 @@ static int lsi_scsi_uninit(PCIDevice *d)
 }
 
 static const struct SCSIBusOps lsi_scsi_ops = {
-    .complete = lsi_command_complete
+    .complete = lsi_command_complete,
+    .cancel = lsi_request_cancelled
 };
 
 static int lsi_scsi_init(PCIDevice *dev)

@@ -121,7 +121,6 @@ static void scsi_cancel_io(SCSIRequest *req)
         bdrv_aio_cancel(r->req.aiocb);
     }
     r->req.aiocb = NULL;
-    scsi_req_dequeue(&r->req);
 }
 
 static int execute_command(BlockDriverState *bdrv,

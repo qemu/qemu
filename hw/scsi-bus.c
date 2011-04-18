@@ -549,6 +549,19 @@ void scsi_req_complete(SCSIRequest *req)
     scsi_req_unref(req);
 }
 
+void scsi_req_cancel(SCSIRequest *req)
+{
+    if (req->dev && req->dev->info->cancel_io) {
+        req->dev->info->cancel_io(req);
+    }
+    scsi_req_ref(req);
+    scsi_req_dequeue(req);
+    if (req->bus->ops->cancel) {
+        req->bus->ops->cancel(req);
+    }
+    scsi_req_unref(req);
+}
+
 void scsi_req_abort(SCSIRequest *req, int status)
 {
     req->status = status;
@@ -564,9 +577,7 @@ void scsi_device_purge_requests(SCSIDevice *sdev)
 
     while (!QTAILQ_EMPTY(&sdev->requests)) {
         req = QTAILQ_FIRST(&sdev->requests);
-        sdev->info->cancel_io(req);
-        scsi_req_dequeue(req);
-        scsi_req_unref(req);
+        scsi_req_cancel(req);
     }
 }
 

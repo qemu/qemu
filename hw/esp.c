@@ -188,6 +188,17 @@ static void esp_dma_enable(void *opaque, int irq, int level)
     }
 }
 
+static void esp_request_cancelled(SCSIRequest *req)
+{
+    ESPState *s = DO_UPCAST(ESPState, busdev.qdev, req->bus->qbus.parent);
+
+    if (req == s->current_req) {
+        scsi_req_unref(s->current_req);
+        s->current_req = NULL;
+        s->current_dev = NULL;
+    }
+}
+
 static uint32_t get_cmd(ESPState *s, uint8_t *buf)
 {
     uint32_t dmalen;
@@ -210,7 +221,7 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf)
 
     if (s->current_dev) {
         /* Started a new command before the old one finished.  Cancel it.  */
-        s->current_dev->info->cancel_io(s->current_req);
+        scsi_req_cancel(s->current_req);
         s->async_len = 0;
     }
 
@@ -720,7 +731,8 @@ void esp_init(target_phys_addr_t espaddr, int it_shift,
 }
 
 static const struct SCSIBusOps esp_scsi_ops = {
-    .complete = esp_command_complete
+    .complete = esp_command_complete,
+    .cancel = esp_request_cancelled
 };
 
 static int esp_init1(SysBusDevice *dev)

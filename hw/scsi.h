@@ -78,6 +78,7 @@ struct SCSIDeviceInfo {
 
 struct SCSIBusOps {
     void (*complete)(SCSIRequest *req, int reason, uint32_t arg);
+    void (*cancel)(SCSIRequest *req);
 };
 
 struct SCSIBus {
@@ -115,6 +116,7 @@ void scsi_req_print(SCSIRequest *req);
 void scsi_req_data(SCSIRequest *req, int len);
 void scsi_req_complete(SCSIRequest *req);
 void scsi_req_abort(SCSIRequest *req, int status);
+void scsi_req_cancel(SCSIRequest *req);
 void scsi_device_purge_requests(SCSIDevice *sdev);
 
 #endif

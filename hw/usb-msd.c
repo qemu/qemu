@@ -264,6 +264,18 @@ static void usb_msd_command_complete(SCSIRequest *req, int reason, uint32_t arg)
     }
 }
 
+static void usb_msd_request_cancelled(SCSIRequest *req)
+{
+    MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
+
+    if (req == s->req) {
+        scsi_req_unref(s->req);
+        s->req = NULL;
+        s->packet = NULL;
+        s->scsi_len = 0;
+    }
+}
+
 static void usb_msd_handle_reset(USBDevice *dev)
 {
     MSDState *s = (MSDState *)dev;
@@ -318,9 +330,7 @@ static int usb_msd_handle_control(USBDevice *dev, int request, int value,
 static void usb_msd_cancel_io(USBPacket *p, void *opaque)
 {
     MSDState *s = opaque;
-    s->scsi_dev->info->cancel_io(s->req);
-    s->packet = NULL;
-    s->scsi_len = 0;
+    scsi_req_cancel(s->req);
 }
 
 static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
@@ -491,7 +501,8 @@ static void usb_msd_password_cb(void *opaque, int err)
 }
 
 static const struct SCSIBusOps usb_msd_scsi_ops = {
-    .complete = usb_msd_command_complete
+    .complete = usb_msd_command_complete,
+    .cancel = usb_msd_request_cancelled
 };
 
 static int usb_msd_initfn(USBDevice *dev)

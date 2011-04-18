@@ -559,6 +559,14 @@ static void vscsi_command_complete(SCSIRequest *sreq, int reason, uint32_t arg)
     }
 }
 
+static void vscsi_request_cancelled(SCSIRequest *sreq)
+{
+    VSCSIState *s = DO_UPCAST(VSCSIState, vdev.qdev, sreq->bus->qbus.parent);
+    vscsi_req *req = vscsi_find_req(s, sreq);
+
+    vscsi_put_req(s, req);
+}
+
 static void vscsi_process_login(VSCSIState *s, vscsi_req *req)
 {
     union viosrp_iu *iu = &req->iu;
@@ -910,7 +918,8 @@ static int vscsi_do_crq(struct VIOsPAPRDevice *dev, uint8_t *crq_data)
 }
 
 static const struct SCSIBusOps vscsi_scsi_ops = {
-    .complete = vscsi_command_complete
+    .complete = vscsi_command_complete,
+    .cancel = vscsi_request_cancelled
 };
 
 static int spapr_vscsi_init(VIOsPAPRDevice *dev)
