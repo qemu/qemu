@@ -1265,7 +1265,33 @@ uint64_t helper_stq_c_phys(uint64_t p, uint64_t v)
     return ret;
 }
 
+static void QEMU_NORETURN do_unaligned_access(target_ulong addr, int is_write,
+                                              int is_user, void *retaddr)
+{
+    uint64_t pc;
+    uint32_t insn;
+
+    do_restore_state(retaddr);
+
+    pc = env->pc;
+    insn = ldl_code(pc);
+
+    env->trap_arg0 = addr;
+    env->trap_arg1 = insn >> 26;                /* opcode */
+    env->trap_arg2 = (insn >> 21) & 31;         /* dest regno */
+    helper_excp(EXCP_UNALIGN, 0);
+}
+
+void QEMU_NORETURN do_unassigned_access(target_phys_addr_t addr, int is_write,
+                                        int is_exec, int unused, int size)
+{
+    env->trap_arg0 = addr;
+    env->trap_arg1 = is_write;
+    dynamic_excp(EXCP_MCHK, 0);
+}
+
 #define MMUSUFFIX _mmu
+#define ALIGNED_ONLY
 
 #define SHIFT 0
 #include "softmmu_template.h"

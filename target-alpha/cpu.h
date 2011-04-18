@@ -434,7 +434,11 @@ void do_interrupt (CPUState *env);
 
 uint64_t cpu_alpha_load_fpcr (CPUState *env);
 void cpu_alpha_store_fpcr (CPUState *env, uint64_t val);
-extern void swap_shadow_regs(CPUState *env);
+#ifndef CONFIG_USER_ONLY
+void swap_shadow_regs(CPUState *env);
+extern QEMU_NORETURN void do_unassigned_access(target_phys_addr_t addr,
+                                               int, int, int, int);
+#endif
 
 /* Bits in TB->FLAGS that control how translation is processed.  */
 enum {
