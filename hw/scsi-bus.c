@@ -146,12 +146,19 @@ SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag, uint32_t l
     return req;
 }
 
-void scsi_req_enqueue(SCSIRequest *req)
+int32_t scsi_req_enqueue(SCSIRequest *req, uint8_t *buf)
 {
+    int32_t rc;
+
     assert(!req->enqueued);
     scsi_req_ref(req);
     req->enqueued = true;
     QTAILQ_INSERT_TAIL(&req->dev->requests, req, next);
+
+    scsi_req_ref(req);
+    rc = req->dev->info->send_command(req, buf);
+    scsi_req_unref(req);
+    return rc;
 }
 
 static void scsi_req_dequeue(SCSIRequest *req)

@@ -984,7 +984,6 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
     uint8_t *outbuf;
     int rc;
 
-    scsi_req_enqueue(req);
     command = buf[0];
     outbuf = (uint8_t *)r->iov.iov_base;
     is_write = 0;

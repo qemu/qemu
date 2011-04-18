@@ -791,7 +791,7 @@ static void lsi_do_command(LSIState *s)
     s->current->req = dev->info->alloc_req(dev, s->current->tag,
                                            s->current_lun);
 
-    n = dev->info->send_command(s->current->req, buf);
+    n = scsi_req_enqueue(s->current->req, buf);
     if (n > 0) {
         lsi_set_phase(s, PHASE_DI);
         dev->info->read_data(s->current->req);

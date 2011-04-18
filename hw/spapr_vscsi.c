@@ -459,7 +459,7 @@ static void vscsi_send_request_sense(VSCSIState *s, vscsi_req *req)
     cdb[4] = 96;
     cdb[5] = 0;
     req->sensing = 1;
-    n = sdev->info->send_command(req->sreq, cdb);
+    n = scsi_req_enqueue(req->sreq, cdb);
     dprintf("VSCSI: Queued request sense tag 0x%x\n", req->qtag);
     if (n < 0) {
         fprintf(stderr, "VSCSI: REQUEST_SENSE wants write data !?!?!?\n");
@@ -654,7 +654,7 @@ static int vscsi_queue_cmd(VSCSIState *s, vscsi_req *req)
     req->sdev = sdev;
     req->lun = lun;
     req->sreq = sdev->info->alloc_req(sdev, req->qtag, lun);
-    n = sdev->info->send_command(req->sreq, srp->cmd.cdb);
+    n = scsi_req_enqueue(req->sreq, srp->cmd.cdb);
 
     dprintf("VSCSI: Queued command tag 0x%x CMD 0x%x ID %d LUN %d ret: %d\n",
             req->qtag, srp->cmd.cdb[0], id, lun, n);

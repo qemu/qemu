@@ -378,7 +378,7 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
             s->residue = 0;
             s->scsi_len = 0;
             s->req = s->scsi_dev->info->alloc_req(s->scsi_dev, s->tag, 0);
-            s->scsi_dev->info->send_command(s->req, cbw.cmd);
+            scsi_req_enqueue(s->req, cbw.cmd);
             /* ??? Should check that USB and SCSI data transfer
                directions match.  */
             if (s->residue == 0) {

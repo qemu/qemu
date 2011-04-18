@@ -143,7 +143,7 @@ int scsi_build_sense(SCSISense sense, uint8_t *buf, int len, int fixed);
 int scsi_sense_valid(SCSISense sense);
 
 SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag, uint32_t lun);
-void scsi_req_enqueue(SCSIRequest *req);
+int32_t scsi_req_enqueue(SCSIRequest *req, uint8_t *buf);
 void scsi_req_free(SCSIRequest *req);
 SCSIRequest *scsi_req_ref(SCSIRequest *req);
 void scsi_req_unref(SCSIRequest *req);

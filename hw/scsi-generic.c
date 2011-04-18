@@ -320,7 +320,6 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *cmd)
     SCSIGenericReq *r = DO_UPCAST(SCSIGenericReq, req, req);
     int ret;
 
-    scsi_req_enqueue(req);
     if (cmd[0] != REQUEST_SENSE &&
         (req->lun != s->lun || (cmd[1] >> 5) != s->lun)) {
         DPRINTF("Unimplemented LUN %d\n", req->lun ? req->lun : cmd[1] >> 5);
