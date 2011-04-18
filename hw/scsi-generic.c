@@ -290,7 +290,6 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *cmd)
 {
     SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, req->dev);
     SCSIGenericReq *r = DO_UPCAST(SCSIGenericReq, req, req);
-    SCSIBus *bus;
     int ret;
 
     scsi_req_enqueue(req);
@@ -307,8 +306,8 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *cmd)
         s->sensebuf[6] = 0x00;
         s->senselen = 7;
         s->driver_status = SG_ERR_DRIVER_SENSE;
-        bus = scsi_bus_from_device(&s->qdev);
-        bus->ops->complete(req, SCSI_REASON_DONE, CHECK_CONDITION);
+        r->req.status = CHECK_CONDITION;
+        scsi_req_complete(&r->req);
         return 0;
     }
 
