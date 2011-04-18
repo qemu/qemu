@@ -160,7 +160,6 @@ void cpu_alpha_store_fpcr (CPUState *env, uint64_t val)
 }
 
 #if defined(CONFIG_USER_ONLY)
-
 int cpu_alpha_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                                 int mmu_idx, int is_softmmu)
 {
@@ -168,14 +167,7 @@ int cpu_alpha_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     env->trap_arg0 = address;
     return 1;
 }
-
-void do_interrupt (CPUState *env)
-{
-    env->exception_index = -1;
-}
-
 #else
-
 target_phys_addr_t cpu_get_phys_page_debug (CPUState *env, target_ulong addr)
 {
     return -1;
@@ -186,12 +178,121 @@ int cpu_alpha_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 {
     return 0;
 }
+#endif /* USER_ONLY */
 
 void do_interrupt (CPUState *env)
 {
-    abort();
+    int i = env->exception_index;
+
+    if (qemu_loglevel_mask(CPU_LOG_INT)) {
+        static int count;
+        const char *name = "<unknown>";
+
+        switch (i) {
+        case EXCP_RESET:
+            name = "reset";
+            break;
+        case EXCP_MCHK:
+            name = "mchk";
+            break;
+        case EXCP_SMP_INTERRUPT:
+            name = "smp_interrupt";
+            break;
+        case EXCP_CLK_INTERRUPT:
+            name = "clk_interrupt";
+            break;
+        case EXCP_DEV_INTERRUPT:
+            name = "dev_interrupt";
+            break;
+        case EXCP_MMFAULT:
+            name = "mmfault";
+            break;
+        case EXCP_UNALIGN:
+            name = "unalign";
+            break;
+        case EXCP_OPCDEC:
+            name = "opcdec";
+            break;
+        case EXCP_ARITH:
+            name = "arith";
+            break;
+        case EXCP_FEN:
+            name = "fen";
+            break;
+        case EXCP_CALL_PAL:
+            name = "call_pal";
+            break;
+        case EXCP_STL_C:
+            name = "stl_c";
+            break;
+        case EXCP_STQ_C:
+            name = "stq_c";
+            break;
+        }
+        qemu_log("INT %6d: %s(%#x) pc=%016" PRIx64 " sp=%016" PRIx64 "\n",
+                 ++count, name, env->error_code, env->pc, env->ir[IR_SP]);
+    }
+
+    env->exception_index = -1;
+
+#if !defined(CONFIG_USER_ONLY)
+    switch (i) {
+    case EXCP_RESET:
+        i = 0x0000;
+        break;
+    case EXCP_MCHK:
+        i = 0x0080;
+        break;
+    case EXCP_SMP_INTERRUPT:
+        i = 0x0100;
+        break;
+    case EXCP_CLK_INTERRUPT:
+        i = 0x0180;
+        break;
+    case EXCP_DEV_INTERRUPT:
+        i = 0x0200;
+        break;
+    case EXCP_MMFAULT:
+        i = 0x0280;
+        break;
+    case EXCP_UNALIGN:
+        i = 0x0300;
+        break;
+    case EXCP_OPCDEC:
+        i = 0x0380;
+        break;
+    case EXCP_ARITH:
+        i = 0x0400;
+        break;
+    case EXCP_FEN:
+        i = 0x0480;
+        break;
+    case EXCP_CALL_PAL:
+        i = env->error_code;
+        /* There are 64 entry points for both privileged and unprivileged,
+           with bit 0x80 indicating unprivileged.  Each entry point gets
+           64 bytes to do its job.  */
+        if (i & 0x80) {
+            i = 0x2000 + (i - 0x80) * 64;
+        } else {
+            i = 0x1000 + i * 64;
+        }
+        break;
+    default:
+        cpu_abort(env, "Unhandled CPU exception");
+    }
+
+    /* Remember where the exception happened.  Emulate real hardware in
+       that the low bit of the PC indicates PALmode.  */
+    env->exc_addr = env->pc | env->pal_mode;
+
+    /* Continue execution at the PALcode entry point.  */
+    env->pc = env->palbr + i;
+
+    /* Switch to PALmode.  */
+    env->pal_mode = 1;
+#endif /* !USER_ONLY */
 }
-#endif
 
 void cpu_dump_state (CPUState *env, FILE *f, fprintf_function cpu_fprintf,
                      int flags)
