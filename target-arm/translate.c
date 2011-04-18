@@ -3975,6 +3975,7 @@ static int disas_neon_ls_insn(CPUState * env, DisasContext *s, uint32_t insn)
             stride = (1 << size) * nregs;
         } else {
             /* Single element.  */
+            int idx = (insn >> 4) & 0xf;
             pass = (insn >> 7) & 1;
             switch (size) {
             case 0:
@@ -3993,6 +3994,39 @@ static int disas_neon_ls_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 abort();
             }
             nregs = ((insn >> 8) & 3) + 1;
+            /* Catch the UNDEF cases. This is unavoidably a bit messy. */
+            switch (nregs) {
+            case 1:
+                if (((idx & (1 << size)) != 0) ||
+                    (size == 2 && ((idx & 3) == 1 || (idx & 3) == 2))) {
+                    return 1;
+                }
+                break;
+            case 3:
+                if ((idx & 1) != 0) {
+                    return 1;
+                }
+                /* fall through */
+            case 2:
+                if (size == 2 && (idx & 2) != 0) {
+                    return 1;
+                }
+                break;
+            case 4:
+                if ((size == 2) && ((idx & 3) == 3)) {
+                    return 1;
+                }
+                break;
+            default:
+                abort();
+            }
+            if ((rd + stride * (nregs - 1)) > 31) {
+                /* Attempts to write off the end of the register file
+                 * are UNPREDICTABLE; we choose to UNDEF because otherwise
+                 * the neon_load_reg() would write off the end of the array.
+                 */
+                return 1;
+            }
             addr = tcg_temp_new_i32();
             load_reg_var(s, addr, rn);
             for (reg = 0; reg < nregs; reg++) {
