@@ -274,11 +274,6 @@ struct CPUAlphaState {
 #define cpu_gen_code cpu_alpha_gen_code
 #define cpu_signal_handler cpu_alpha_signal_handler
 
-static inline int cpu_mmu_index (CPUState *env)
-{
-    return (env->ps >> 3) & 1;
-}
-
 #include "cpu-all.h"
 
 enum {
@@ -305,14 +300,49 @@ enum {
     EXCP_STQ_C,
 };
 
-/* Arithmetic exception */
-#define EXC_M_IOV       (1<<16)         /* Integer Overflow */
-#define EXC_M_INE       (1<<15)         /* Inexact result */
-#define EXC_M_UNF       (1<<14)         /* Underflow */
-#define EXC_M_FOV       (1<<13)         /* Overflow */
-#define EXC_M_DZE       (1<<12)         /* Division by zero */
-#define EXC_M_INV       (1<<11)         /* Invalid operation */
-#define EXC_M_SWC       (1<<10)         /* Software completion */
+/* Hardware interrupt (entInt) constants.  */
+enum {
+    INT_K_IP,
+    INT_K_CLK,
+    INT_K_MCHK,
+    INT_K_DEV,
+    INT_K_PERF,
+};
+
+/* Memory management (entMM) constants.  */
+enum {
+    MM_K_TNV,
+    MM_K_ACV,
+    MM_K_FOR,
+    MM_K_FOE,
+    MM_K_FOW
+};
+
+/* Arithmetic exception (entArith) constants.  */
+enum {
+    EXC_M_SWC = 1,      /* Software completion */
+    EXC_M_INV = 2,      /* Invalid operation */
+    EXC_M_DZE = 4,      /* Division by zero */
+    EXC_M_FOV = 8,      /* Overflow */
+    EXC_M_UNF = 16,     /* Underflow */
+    EXC_M_INE = 32,     /* Inexact result */
+    EXC_M_IOV = 64      /* Integer Overflow */
+};
+
+/* Processor status constants.  */
+enum {
+    /* Low 3 bits are interrupt mask level.  */
+    PS_INT_MASK = 7,
+
+    /* Bits 4 and 5 are the mmu mode.  The VMS PALcode uses all 4 modes;
+       The Unix PALcode only uses bit 4.  */
+    PS_USER_MODE = 8
+};
+
+static inline int cpu_mmu_index(CPUState *env)
+{
+    return (env->ps & PS_USER_MODE) != 0;
+}
 
 enum {
     IR_V0   = 0,
