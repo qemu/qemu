@@ -112,8 +112,7 @@ int cpu_gen_code(CPUState *env, TranslationBlock *tb, int *gen_code_size_ptr)
 /* The cpu state corresponding to 'searched_pc' is restored.
  */
 int cpu_restore_state(TranslationBlock *tb,
-                      CPUState *env, unsigned long searched_pc,
-                      void *puc)
+                      CPUState *env, unsigned long searched_pc)
 {
     TCGContext *s = &tcg_ctx;
     int j;

@@ -84,8 +84,7 @@ void cpu_gen_init(void);
 int cpu_gen_code(CPUState *env, struct TranslationBlock *tb,
                  int *gen_code_size_ptr);
 int cpu_restore_state(struct TranslationBlock *tb,
-                      CPUState *env, unsigned long searched_pc,
-                      void *puc);
+                      CPUState *env, unsigned long searched_pc);
 void cpu_resume_from_signal(CPUState *env1, void *puc);
 void cpu_io_recompile(CPUState *env, void *retaddr);
 TranslationBlock *tb_gen_code(CPUState *env, 

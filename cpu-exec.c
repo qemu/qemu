@@ -808,7 +808,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     if (tb) {
         /* the PC is inside the translated code. It means that we have
            a virtual CPU fault */
-        cpu_restore_state(tb, env, pc, puc);
+        cpu_restore_state(tb, env, pc);
     }
 
     /* we restore the process signal mask as the sigreturn should
