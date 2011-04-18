@@ -168,6 +168,38 @@ int cpu_alpha_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     return 1;
 }
 #else
+void swap_shadow_regs(CPUState *env)
+{
+    uint64_t i0, i1, i2, i3, i4, i5, i6, i7;
+
+    i0 = env->ir[8];
+    i1 = env->ir[9];
+    i2 = env->ir[10];
+    i3 = env->ir[11];
+    i4 = env->ir[12];
+    i5 = env->ir[13];
+    i6 = env->ir[14];
+    i7 = env->ir[25];
+
+    env->ir[8]  = env->shadow[0];
+    env->ir[9]  = env->shadow[1];
+    env->ir[10] = env->shadow[2];
+    env->ir[11] = env->shadow[3];
+    env->ir[12] = env->shadow[4];
+    env->ir[13] = env->shadow[5];
+    env->ir[14] = env->shadow[6];
+    env->ir[25] = env->shadow[7];
+
+    env->shadow[0] = i0;
+    env->shadow[1] = i1;
+    env->shadow[2] = i2;
+    env->shadow[3] = i3;
+    env->shadow[4] = i4;
+    env->shadow[5] = i5;
+    env->shadow[6] = i6;
+    env->shadow[7] = i7;
+}
+
 target_phys_addr_t cpu_get_phys_page_debug (CPUState *env, target_ulong addr)
 {
     return -1;
@@ -290,7 +322,10 @@ void do_interrupt (CPUState *env)
     env->pc = env->palbr + i;
 
     /* Switch to PALmode.  */
-    env->pal_mode = 1;
+    if (!env->pal_mode) {
+        env->pal_mode = 1;
+        swap_shadow_regs(env);
+    }
 #endif /* !USER_ONLY */
 }
 

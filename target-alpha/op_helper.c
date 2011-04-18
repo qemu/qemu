@@ -1189,9 +1189,12 @@ uint64_t helper_cvtqg (uint64_t a)
 void helper_hw_ret (uint64_t a)
 {
     env->pc = a & ~3;
-    env->pal_mode = a & 1;
     env->intr_flag = 0;
     env->lock_addr = -1;
+    if ((a & 1) == 0) {
+        env->pal_mode = 0;
+        swap_shadow_regs(env);
+    }
 }
 #endif
 

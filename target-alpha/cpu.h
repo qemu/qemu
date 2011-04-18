@@ -416,6 +416,7 @@ void do_interrupt (CPUState *env);
 
 uint64_t cpu_alpha_load_fpcr (CPUState *env);
 void cpu_alpha_store_fpcr (CPUState *env, uint64_t val);
+extern void swap_shadow_regs(CPUState *env);
 
 static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
