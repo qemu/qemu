@@ -65,6 +65,7 @@ struct ESPState {
     uint32_t dma;
     SCSIBus bus;
     SCSIDevice *current_dev;
+    SCSIRequest *current_req;
     uint8_t cmdbuf[TI_BUFSZ];
     uint32_t cmdlen;
     uint32_t do_cmd;
@@ -209,7 +210,7 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf)
 
     if (s->current_dev) {
         /* Started a new command before the old one finished.  Cancel it.  */
-        s->current_dev->info->cancel_io(s->current_dev, 0);
+        s->current_dev->info->cancel_io(s->current_req);
         s->async_len = 0;
     }
 
@@ -232,7 +233,8 @@ static void do_busid_cmd(ESPState *s, uint8_t *buf, uint8_t busid)
 
     DPRINTF("do_busid_cmd: busid 0x%x\n", busid);
     lun = busid & 7;
-    datalen = s->current_dev->info->send_command(s->current_dev, 0, buf, lun);
+    s->current_req = s->current_dev->info->alloc_req(s->current_dev, 0, lun);
+    datalen = s->current_dev->info->send_command(s->current_req, buf);
     s->ti_size = datalen;
     if (datalen != 0) {
         s->rregs[ESP_RSTAT] = STAT_TC;
@@ -240,10 +242,10 @@ static void do_busid_cmd(ESPState *s, uint8_t *buf, uint8_t busid)
         s->dma_counter = 0;
         if (datalen > 0) {
             s->rregs[ESP_RSTAT] |= STAT_DI;
-            s->current_dev->info->read_data(s->current_dev, 0);
+            s->current_dev->info->read_data(s->current_req);
         } else {
             s->rregs[ESP_RSTAT] |= STAT_DO;
-            s->current_dev->info->write_data(s->current_dev, 0);
+            s->current_dev->info->write_data(s->current_req);
         }
     }
     s->rregs[ESP_RINTR] = INTR_BS | INTR_FC;
@@ -372,9 +374,9 @@ static void esp_do_dma(ESPState *s)
     if (s->async_len == 0) {
         if (to_device) {
             // ti_size is negative
-            s->current_dev->info->write_data(s->current_dev, 0);
+            s->current_dev->info->write_data(s->current_req);
         } else {
-            s->current_dev->info->read_data(s->current_dev, 0);
+            s->current_dev->info->read_data(s->current_req);
             /* If there is still data to be read from the device then
                complete the DMA operation immediately.  Otherwise defer
                until the scsi layer has completed.  */
@@ -388,10 +390,9 @@ static void esp_do_dma(ESPState *s)
     }
 }
 
-static void esp_command_complete(SCSIBus *bus, int reason, uint32_t tag,
-                                 uint32_t arg)
+static void esp_command_complete(SCSIRequest *req, int reason, uint32_t arg)
 {
-    ESPState *s = DO_UPCAST(ESPState, busdev.qdev, bus->qbus.parent);
+    ESPState *s = DO_UPCAST(ESPState, busdev.qdev, req->bus->qbus.parent);
 
     if (reason == SCSI_REASON_DONE) {
         DPRINTF("SCSI Command complete\n");
@@ -405,11 +406,15 @@ static void esp_command_complete(SCSIBus *bus, int reason, uint32_t tag,
         s->sense = arg;
         s->rregs[ESP_RSTAT] = STAT_ST;
         esp_dma_done(s);
-        s->current_dev = NULL;
+        if (s->current_req) {
+            scsi_req_unref(s->current_req);
+            s->current_req = NULL;
+            s->current_dev = NULL;
+        }
     } else {
         DPRINTF("transfer %d/%d\n", s->dma_left, s->ti_size);
         s->async_len = arg;
-        s->async_buf = s->current_dev->info->get_buf(s->current_dev, 0);
+        s->async_buf = s->current_dev->info->get_buf(req);
         if (s->dma_left) {
             esp_do_dma(s);
         } else if (s->dma_counter != 0 && s->ti_size <= 0) {

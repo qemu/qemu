@@ -19,6 +19,7 @@ typedef struct SCSIBus SCSIBus;
 typedef struct SCSIBusOps SCSIBusOps;
 typedef struct SCSIDevice SCSIDevice;
 typedef struct SCSIDeviceInfo SCSIDeviceInfo;
+typedef struct SCSIRequest SCSIRequest;
 
 enum SCSIXferMode {
     SCSI_XFER_NONE,      /*  TEST_UNIT_READY, ...            */
@@ -26,7 +27,7 @@ enum SCSIXferMode {
     SCSI_XFER_TO_DEV,    /*  WRITE, MODE_SELECT, ...         */
 };
 
-typedef struct SCSIRequest {
+struct SCSIRequest {
     SCSIBus           *bus;
     SCSIDevice        *dev;
     uint32_t          refcount;
@@ -43,7 +44,7 @@ typedef struct SCSIRequest {
     BlockDriverAIOCB  *aiocb;
     bool enqueued;
     QTAILQ_ENTRY(SCSIRequest) next;
-} SCSIRequest;
+};
 
 struct SCSIDevice
 {
@@ -66,17 +67,17 @@ struct SCSIDeviceInfo {
     DeviceInfo qdev;
     scsi_qdev_initfn init;
     void (*destroy)(SCSIDevice *s);
+    SCSIRequest *(*alloc_req)(SCSIDevice *s, uint32_t tag, uint32_t lun);
     void (*free_req)(SCSIRequest *req);
-    int32_t (*send_command)(SCSIDevice *s, uint32_t tag, uint8_t *buf,
-                            int lun);
-    void (*read_data)(SCSIDevice *s, uint32_t tag);
-    int (*write_data)(SCSIDevice *s, uint32_t tag);
-    void (*cancel_io)(SCSIDevice *s, uint32_t tag);
-    uint8_t *(*get_buf)(SCSIDevice *s, uint32_t tag);
+    int32_t (*send_command)(SCSIRequest *req, uint8_t *buf);
+    void (*read_data)(SCSIRequest *req);
+    int (*write_data)(SCSIRequest *req);
+    void (*cancel_io)(SCSIRequest *req);
+    uint8_t *(*get_buf)(SCSIRequest *req);
 };
 
 struct SCSIBusOps {
-    void (*complete)(SCSIBus *bus, int reason, uint32_t tag, uint32_t arg);
+    void (*complete)(SCSIRequest *req, int reason, uint32_t arg);
 };
 
 struct SCSIBus {
@@ -103,7 +104,7 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockDriverState *bdrv,
 int scsi_bus_legacy_handle_cmdline(SCSIBus *bus);
 
 SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag, uint32_t lun);
-SCSIRequest *scsi_req_find(SCSIDevice *d, uint32_t tag);
+void scsi_req_enqueue(SCSIRequest *req);
 void scsi_req_free(SCSIRequest *req);
 void scsi_req_dequeue(SCSIRequest *req);
 SCSIRequest *scsi_req_ref(SCSIRequest *req);

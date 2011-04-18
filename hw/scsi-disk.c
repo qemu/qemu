@@ -86,16 +86,17 @@ struct SCSIDiskState
 static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type);
 static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf);
 
-static SCSIDiskReq *scsi_new_request(SCSIDiskState *s, uint32_t tag,
+static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag,
         uint32_t lun)
 {
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
     SCSIRequest *req;
     SCSIDiskReq *r;
 
     req = scsi_req_alloc(sizeof(SCSIDiskReq), &s->qdev, tag, lun);
     r = DO_UPCAST(SCSIDiskReq, req, req);
     r->iov.iov_base = qemu_blockalign(s->bs, SCSI_DMA_BUF_SIZE);
-    return r;
+    return req;
 }
 
 static void scsi_free_request(SCSIRequest *req)
@@ -103,11 +104,6 @@ static void scsi_free_request(SCSIRequest *req)
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
 
     qemu_vfree(r->iov.iov_base);
-}
-
-static SCSIDiskReq *scsi_find_request(SCSIDiskState *s, uint32_t tag)
-{
-    return DO_UPCAST(SCSIDiskReq, req, scsi_req_find(&s->qdev, tag));
 }
 
 static void scsi_disk_clear_sense(SCSIDiskState *s)
@@ -138,18 +134,16 @@ static void scsi_command_complete(SCSIDiskReq *r, int status, int sense)
 }
 
 /* Cancel a pending data transfer.  */
-static void scsi_cancel_io(SCSIDevice *d, uint32_t tag)
+static void scsi_cancel_io(SCSIRequest *req)
 {
-    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
-    SCSIDiskReq *r;
-    DPRINTF("Cancel tag=0x%x\n", tag);
-    r = scsi_find_request(s, tag);
-    if (r) {
-        if (r->req.aiocb)
-            bdrv_aio_cancel(r->req.aiocb);
-        r->req.aiocb = NULL;
-        scsi_req_dequeue(&r->req);
+    SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
+
+    DPRINTF("Cancel tag=0x%x\n", req->tag);
+    if (r->req.aiocb) {
+        bdrv_aio_cancel(r->req.aiocb);
     }
+    r->req.aiocb = NULL;
+    scsi_req_dequeue(&r->req);
 }
 
 static void scsi_read_complete(void * opaque, int ret)
@@ -174,8 +168,10 @@ static void scsi_read_complete(void * opaque, int ret)
 }
 
 
-static void scsi_read_request(SCSIDiskReq *r)
+/* Read more data from scsi device into buffer.  */
+static void scsi_read_data(SCSIRequest *req)
 {
+    SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
     uint32_t n;
 
@@ -205,23 +201,6 @@ static void scsi_read_request(SCSIDiskReq *r)
     if (r->req.aiocb == NULL) {
         scsi_read_complete(r, -EIO);
     }
-}
-
-/* Read more data from scsi device into buffer.  */
-static void scsi_read_data(SCSIDevice *d, uint32_t tag)
-{
-    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
-    SCSIDiskReq *r;
-
-    r = scsi_find_request(s, tag);
-    if (!r) {
-        BADF("Bad read tag 0x%x\n", tag);
-        /* ??? This is the wrong error.  */
-        scsi_command_complete(r, CHECK_CONDITION, HARDWARE_ERROR);
-        return;
-    }
-
-    scsi_read_request(r);
 }
 
 static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type)
@@ -285,8 +264,9 @@ static void scsi_write_complete(void * opaque, int ret)
     }
 }
 
-static void scsi_write_request(SCSIDiskReq *r)
+static int scsi_write_data(SCSIRequest *req)
 {
+    SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
     uint32_t n;
 
@@ -305,24 +285,6 @@ static void scsi_write_request(SCSIDiskReq *r)
         /* Invoke completion routine to fetch data from host.  */
         scsi_write_complete(r, 0);
     }
-}
-
-/* Write data to a scsi device.  Returns nonzero on failure.
-   The transfer may complete asynchronously.  */
-static int scsi_write_data(SCSIDevice *d, uint32_t tag)
-{
-    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
-    SCSIDiskReq *r;
-
-    DPRINTF("Write data tag=0x%x\n", tag);
-    r = scsi_find_request(s, tag);
-    if (!r) {
-        BADF("Bad write tag 0x%x\n", tag);
-        scsi_command_complete(r, CHECK_CONDITION, HARDWARE_ERROR);
-        return 1;
-    }
-
-    scsi_write_request(r);
 
     return 0;
 }
@@ -347,10 +309,10 @@ static void scsi_dma_restart_bh(void *opaque)
 
             switch (status & SCSI_REQ_STATUS_RETRY_TYPE_MASK) {
             case SCSI_REQ_STATUS_RETRY_READ:
-                scsi_read_request(r);
+                scsi_read_data(&r->req);
                 break;
             case SCSI_REQ_STATUS_RETRY_WRITE:
-                scsi_write_request(r);
+                scsi_write_data(&r->req);
                 break;
             case SCSI_REQ_STATUS_RETRY_FLUSH:
                 ret = scsi_disk_emulate_command(r, r->iov.iov_base);
@@ -376,16 +338,10 @@ static void scsi_dma_restart_cb(void *opaque, int running, int reason)
 }
 
 /* Return a pointer to the data buffer.  */
-static uint8_t *scsi_get_buf(SCSIDevice *d, uint32_t tag)
+static uint8_t *scsi_get_buf(SCSIRequest *req)
 {
-    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
-    SCSIDiskReq *r;
+    SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
 
-    r = scsi_find_request(s, tag);
-    if (!r) {
-        BADF("Bad buffer tag 0x%x\n", tag);
-        return NULL;
-    }
     return (uint8_t *)r->iov.iov_base;
 }
 
@@ -1029,26 +985,18 @@ illegal_request:
    (eg. disk reads), negative for transfers to the device (eg. disk writes),
    and zero if the command does not transfer any data.  */
 
-static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
-                                 uint8_t *buf, int lun)
+static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
 {
-    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
+    SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
     int32_t len;
     int is_write;
     uint8_t command;
     uint8_t *outbuf;
-    SCSIDiskReq *r;
     int rc;
 
+    scsi_req_enqueue(req);
     command = buf[0];
-    r = scsi_find_request(s, tag);
-    if (r) {
-        BADF("Tag 0x%x already in use\n", tag);
-        scsi_cancel_io(d, tag);
-    }
-    /* ??? Tags are not unique for different luns.  We only implement a
-       single lun, so this should not matter.  */
-    r = scsi_new_request(s, tag, lun);
     outbuf = (uint8_t *)r->iov.iov_base;
     is_write = 0;
     DPRINTF("Command: lun=%d tag=0x%x data=0x%02x", lun, tag, buf[0]);
@@ -1067,9 +1015,9 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     }
 #endif
 
-    if (lun || buf[1] >> 5) {
+    if (req->lun || buf[1] >> 5) {
         /* Only LUN 0 supported.  */
-        DPRINTF("Unimplemented LUN %d\n", lun ? lun : buf[1] >> 5);
+        DPRINTF("Unimplemented LUN %d\n", req->lun ? req->lun : buf[1] >> 5);
         if (command != REQUEST_SENSE && command != INQUIRY)
             goto fail;
     }
@@ -1095,7 +1043,6 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case REZERO_UNIT:
         rc = scsi_disk_emulate_command(r, outbuf);
         if (rc < 0) {
-            scsi_req_unref(&r->req);
             return 0;
         }
 
@@ -1105,7 +1052,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case READ_10:
     case READ_12:
     case READ_16:
-        len = r->req.cmd.xfer / d->blocksize;
+        len = r->req.cmd.xfer / s->qdev.blocksize;
         DPRINTF("Read (sector %" PRId64 ", count %d)\n", r->req.cmd.lba, len);
         if (r->req.cmd.lba > s->max_lba)
             goto illegal_lba;
@@ -1119,7 +1066,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case WRITE_VERIFY:
     case WRITE_VERIFY_12:
     case WRITE_VERIFY_16:
-        len = r->req.cmd.xfer / d->blocksize;
+        len = r->req.cmd.xfer / s->qdev.blocksize;
         DPRINTF("Write %s(sector %" PRId64 ", count %d)\n",
                 (command & 0xe) == 0xe ? "And Verify " : "",
                 r->req.cmd.lba, len);
@@ -1154,7 +1101,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         }
         break;
     case WRITE_SAME_16:
-        len = r->req.cmd.xfer / d->blocksize;
+        len = r->req.cmd.xfer / s->qdev.blocksize;
 
         DPRINTF("WRITE SAME(16) (sector %" PRId64 ", count %d)\n",
                 r->req.cmd.lba, len);
@@ -1182,11 +1129,9 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         DPRINTF("Unknown SCSI command (%2.2x)\n", buf[0]);
     fail:
         scsi_command_complete(r, CHECK_CONDITION, ILLEGAL_REQUEST);
-        scsi_req_unref(&r->req);
         return 0;
     illegal_lba:
         scsi_command_complete(r, CHECK_CONDITION, HARDWARE_ERROR);
-        scsi_req_unref(&r->req);
         return 0;
     }
     if (r->sector_count == 0 && r->iov.iov_len == 0) {
@@ -1199,7 +1144,6 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         if (!r->sector_count)
             r->sector_count = -1;
     }
-    scsi_req_unref(&r->req);
     return len;
 }
 
@@ -1213,6 +1157,7 @@ static void scsi_disk_purge_requests(SCSIDiskState *s)
             bdrv_aio_cancel(r->req.aiocb);
         }
         scsi_req_dequeue(&r->req);
+        scsi_req_unref(&r->req);
     }
 }
 
@@ -1325,6 +1270,7 @@ static SCSIDeviceInfo scsi_disk_info[] = {
         .qdev.reset   = scsi_disk_reset,
         .init         = scsi_hd_initfn,
         .destroy      = scsi_destroy,
+        .alloc_req    = scsi_new_request,
         .free_req     = scsi_free_request,
         .send_command = scsi_send_command,
         .read_data    = scsi_read_data,
@@ -1344,6 +1290,7 @@ static SCSIDeviceInfo scsi_disk_info[] = {
         .qdev.reset   = scsi_disk_reset,
         .init         = scsi_cd_initfn,
         .destroy      = scsi_destroy,
+        .alloc_req    = scsi_new_request,
         .free_req     = scsi_free_request,
         .send_command = scsi_send_command,
         .read_data    = scsi_read_data,
@@ -1362,6 +1309,7 @@ static SCSIDeviceInfo scsi_disk_info[] = {
         .qdev.reset   = scsi_disk_reset,
         .init         = scsi_disk_initfn,
         .destroy      = scsi_destroy,
+        .alloc_req    = scsi_new_request,
         .free_req     = scsi_free_request,
         .send_command = scsi_send_command,
         .read_data    = scsi_read_data,

@@ -48,6 +48,7 @@ typedef struct {
     uint32_t data_len;
     uint32_t residue;
     uint32_t tag;
+    SCSIRequest *req;
     SCSIBus bus;
     BlockConf conf;
     SCSIDevice *scsi_dev;
@@ -190,9 +191,9 @@ static void usb_msd_copy_data(MSDState *s)
     s->data_len -= len;
     if (s->scsi_len == 0 || s->data_len == 0) {
         if (s->mode == USB_MSDM_DATAIN) {
-            s->scsi_dev->info->read_data(s->scsi_dev, s->tag);
+            s->scsi_dev->info->read_data(s->req);
         } else if (s->mode == USB_MSDM_DATAOUT) {
-            s->scsi_dev->info->write_data(s->scsi_dev, s->tag);
+            s->scsi_dev->info->write_data(s->req);
         }
     }
 }
@@ -211,14 +212,13 @@ static void usb_msd_send_status(MSDState *s, USBPacket *p)
     memcpy(p->data, &csw, len);
 }
 
-static void usb_msd_command_complete(SCSIBus *bus, int reason, uint32_t tag,
-                                     uint32_t arg)
+static void usb_msd_command_complete(SCSIRequest *req, int reason, uint32_t arg)
 {
-    MSDState *s = DO_UPCAST(MSDState, dev.qdev, bus->qbus.parent);
+    MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
     USBPacket *p = s->packet;
 
-    if (tag != s->tag) {
-        fprintf(stderr, "usb-msd: Unexpected SCSI Tag 0x%x\n", tag);
+    if (req->tag != s->tag) {
+        fprintf(stderr, "usb-msd: Unexpected SCSI Tag 0x%x\n", req->tag);
     }
     if (reason == SCSI_REASON_DONE) {
         DPRINTF("Command complete %d\n", arg);
@@ -245,10 +245,12 @@ static void usb_msd_command_complete(SCSIBus *bus, int reason, uint32_t tag,
         } else if (s->data_len == 0) {
             s->mode = USB_MSDM_CSW;
         }
+        scsi_req_unref(req);
+        s->req = NULL;
         return;
     }
     s->scsi_len = arg;
-    s->scsi_buf = s->scsi_dev->info->get_buf(s->scsi_dev, tag);
+    s->scsi_buf = s->scsi_dev->info->get_buf(req);
     if (p) {
         usb_msd_copy_data(s);
         if (s->usb_len == 0) {
@@ -316,7 +318,7 @@ static int usb_msd_handle_control(USBDevice *dev, int request, int value,
 static void usb_msd_cancel_io(USBPacket *p, void *opaque)
 {
     MSDState *s = opaque;
-    s->scsi_dev->info->cancel_io(s->scsi_dev, s->tag);
+    s->scsi_dev->info->cancel_io(s->req);
     s->packet = NULL;
     s->scsi_len = 0;
 }
@@ -365,14 +367,15 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
                     s->tag, cbw.flags, cbw.cmd_len, s->data_len);
             s->residue = 0;
             s->scsi_len = 0;
-            s->scsi_dev->info->send_command(s->scsi_dev, s->tag, cbw.cmd, 0);
+            s->req = s->scsi_dev->info->alloc_req(s->scsi_dev, s->tag, 0);
+            s->scsi_dev->info->send_command(s->req, cbw.cmd);
             /* ??? Should check that USB and SCSI data transfer
                directions match.  */
             if (s->residue == 0) {
                 if (s->mode == USB_MSDM_DATAIN) {
-                    s->scsi_dev->info->read_data(s->scsi_dev, s->tag);
+                    s->scsi_dev->info->read_data(s->req);
                 } else if (s->mode == USB_MSDM_DATAOUT) {
-                    s->scsi_dev->info->write_data(s->scsi_dev, s->tag);
+                    s->scsi_dev->info->write_data(s->req);
                 }
             }
             ret = len;

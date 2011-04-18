@@ -136,29 +136,22 @@ SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag, uint32_t l
     SCSIRequest *req;
 
     req = qemu_mallocz(size);
-    /* Two references: one is passed back to the HBA, one is in d->requests.  */
-    req->refcount = 2;
+    req->refcount = 1;
     req->bus = scsi_bus_from_device(d);
     req->dev = d;
     req->tag = tag;
     req->lun = lun;
     req->status = -1;
-    req->enqueued = true;
     trace_scsi_req_alloc(req->dev->id, req->lun, req->tag);
-    QTAILQ_INSERT_TAIL(&d->requests, req, next);
     return req;
 }
 
-SCSIRequest *scsi_req_find(SCSIDevice *d, uint32_t tag)
+void scsi_req_enqueue(SCSIRequest *req)
 {
-    SCSIRequest *req;
-
-    QTAILQ_FOREACH(req, &d->requests, next) {
-        if (req->tag == tag) {
-            return req;
-        }
-    }
-    return NULL;
+    assert(!req->enqueued);
+    scsi_req_ref(req);
+    req->enqueued = true;
+    QTAILQ_INSERT_TAIL(&req->dev->requests, req, next);
 }
 
 void scsi_req_dequeue(SCSIRequest *req)
@@ -516,7 +509,7 @@ void scsi_req_unref(SCSIRequest *req)
 void scsi_req_data(SCSIRequest *req, int len)
 {
     trace_scsi_req_data(req->dev->id, req->lun, req->tag, len);
-    req->bus->ops->complete(req->bus, SCSI_REASON_DATA, req->tag, len);
+    req->bus->ops->complete(req, SCSI_REASON_DATA, len);
 }
 
 void scsi_req_print(SCSIRequest *req)
@@ -552,9 +545,7 @@ void scsi_req_complete(SCSIRequest *req)
     assert(req->status != -1);
     scsi_req_ref(req);
     scsi_req_dequeue(req);
-    req->bus->ops->complete(req->bus, SCSI_REASON_DONE,
-                            req->tag,
-                            req->status);
+    req->bus->ops->complete(req, SCSI_REASON_DONE, req->status);
     scsi_req_unref(req);
 }
 
