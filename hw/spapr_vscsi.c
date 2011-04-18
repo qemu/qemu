@@ -448,7 +448,6 @@ static int vscsi_preprocess_desc(vscsi_req *req)
 
 static void vscsi_send_request_sense(VSCSIState *s, vscsi_req *req)
 {
-    SCSIDevice *sdev = req->sdev;
     uint8_t *cdb = req->iu.srp.cmd.cdb;
     int n;
 
@@ -469,7 +468,7 @@ static void vscsi_send_request_sense(VSCSIState *s, vscsi_req *req)
     } else if (n == 0) {
         return;
     }
-    sdev->info->read_data(req->sreq);
+    scsi_req_continue(req->sreq);
 }
 
 /* Callback to indicate that the SCSI layer has completed a transfer.  */
@@ -508,7 +507,7 @@ static void vscsi_command_complete(SCSIRequest *sreq, int reason, uint32_t arg)
                     buf[12], buf[13], buf[14], buf[15]);
             memcpy(req->sense, buf, len);
             req->senselen = len;
-            sdev->info->read_data(sreq);
+            scsi_req_continue(req->sreq);
         }
         return;
     }
@@ -552,11 +551,7 @@ static void vscsi_command_complete(SCSIRequest *sreq, int reason, uint32_t arg)
 
     /* Start next chunk */
     req->data_len -= rc;
-    if (req->writing) {
-        sdev->info->write_data(sreq);
-    } else {
-        sdev->info->read_data(sreq);
-    }
+    scsi_req_continue(sreq);
 }
 
 static void vscsi_request_cancelled(SCSIRequest *sreq)
@@ -667,15 +662,14 @@ static int vscsi_queue_cmd(VSCSIState *s, vscsi_req *req)
 
         /* Preprocess RDMA descriptors */
         vscsi_preprocess_desc(req);
-    }
 
-    /* Get transfer direction and initiate transfer */
-    if (n > 0) {
-        req->data_len = n;
-        sdev->info->read_data(req->sreq);
-    } else if (n < 0) {
-        req->data_len = -n;
-        sdev->info->write_data(req->sreq);
+        /* Get transfer direction and initiate transfer */
+        if (n > 0) {
+            req->data_len = n;
+        } else if (n < 0) {
+            req->data_len = -n;
+        }
+        scsi_req_continue(req->sreq);
     }
     /* Don't touch req here, it may have been recycled already */
 

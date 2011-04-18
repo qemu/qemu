@@ -209,6 +209,7 @@ disable usb_set_device_feature(int addr, int feature, int ret) "dev %d, feature 
 disable scsi_req_alloc(int target, int lun, int tag) "target %d lun %d tag %d"
 disable scsi_req_data(int target, int lun, int tag, int len) "target %d lun %d tag %d len %d"
 disable scsi_req_dequeue(int target, int lun, int tag) "target %d lun %d tag %d"
+disable scsi_req_continue(int target, int lun, int tag) "target %d lun %d tag %d"
 disable scsi_req_parsed(int target, int lun, int tag, int cmd, int mode, int xfer, uint64_t lba) "target %d lun %d tag %d command %d dir %d length %d lba %"PRIu64""
 disable scsi_req_parse_bad(int target, int lun, int tag, int cmd) "target %d lun %d tag %d command %d"
 

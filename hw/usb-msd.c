@@ -190,11 +190,7 @@ static void usb_msd_copy_data(MSDState *s)
     s->scsi_buf += len;
     s->data_len -= len;
     if (s->scsi_len == 0 || s->data_len == 0) {
-        if (s->mode == USB_MSDM_DATAIN) {
-            s->scsi_dev->info->read_data(s->req);
-        } else if (s->mode == USB_MSDM_DATAOUT) {
-            s->scsi_dev->info->write_data(s->req);
-        }
+        scsi_req_continue(s->req);
     }
 }
 
@@ -249,6 +245,7 @@ static void usb_msd_command_complete(SCSIRequest *req, int reason, uint32_t arg)
         s->req = NULL;
         return;
     }
+    assert((s->mode == USB_MSDM_DATAOUT) == (req->cmd.mode == SCSI_XFER_TO_DEV));
     s->scsi_len = arg;
     s->scsi_buf = s->scsi_dev->info->get_buf(req);
     if (p) {
@@ -381,12 +378,8 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
             scsi_req_enqueue(s->req, cbw.cmd);
             /* ??? Should check that USB and SCSI data transfer
                directions match.  */
-            if (s->residue == 0) {
-                if (s->mode == USB_MSDM_DATAIN) {
-                    s->scsi_dev->info->read_data(s->req);
-                } else if (s->mode == USB_MSDM_DATAOUT) {
-                    s->scsi_dev->info->write_data(s->req);
-                }
+            if (s->mode != USB_MSDM_CSW && s->residue == 0) {
+                scsi_req_continue(s->req);
             }
             ret = len;
             break;

@@ -580,13 +580,7 @@ static void lsi_do_dma(LSIState *s, int out)
     s->current->dma_len -= count;
     if (s->current->dma_len == 0) {
         s->current->dma_buf = NULL;
-        if (out) {
-            /* Write the data.  */
-            dev->info->write_data(s->current->req);
-        } else {
-            /* Request any remaining data.  */
-            dev->info->read_data(s->current->req);
-        }
+        scsi_req_continue(s->current->req);
     } else {
         s->current->dma_buf += count;
         lsi_resume_script(s);
@@ -791,14 +785,14 @@ static void lsi_do_command(LSIState *s)
     s->current->req = scsi_req_new(dev, s->current->tag, s->current_lun);
 
     n = scsi_req_enqueue(s->current->req, buf);
-    if (n > 0) {
-        lsi_set_phase(s, PHASE_DI);
-        dev->info->read_data(s->current->req);
-    } else if (n < 0) {
-        lsi_set_phase(s, PHASE_DO);
-        dev->info->write_data(s->current->req);
+    if (n) {
+        if (n > 0) {
+            lsi_set_phase(s, PHASE_DI);
+        } else if (n < 0) {
+            lsi_set_phase(s, PHASE_DO);
+        }
+        scsi_req_continue(s->current->req);
     }
-
     if (!s->command_complete) {
         if (n) {
             /* Command did not complete immediately so disconnect.  */

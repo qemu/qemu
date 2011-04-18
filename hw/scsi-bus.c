@@ -602,11 +602,21 @@ void scsi_req_unref(SCSIRequest *req)
     }
 }
 
+/* Tell the device that we finished processing this chunk of I/O.  It
+   will start the next chunk or complete the command.  */
+void scsi_req_continue(SCSIRequest *req)
+{
+    trace_scsi_req_continue(req->dev->id, req->lun, req->tag);
+    if (req->cmd.mode == SCSI_XFER_TO_DEV) {
+        req->dev->info->write_data(req);
+    } else {
+        req->dev->info->read_data(req);
+    }
+}
+
 /* Called by the devices when data is ready for the HBA.  The HBA should
    start a DMA operation to read or fill the device's data buffer.
-   Once it completes, calling one of req->dev->info->read_data or
-   req->dev->info->write_data (depending on the direction of the
-   transfer) will restart I/O.  */
+   Once it completes, calling scsi_req_continue will restart I/O.  */
 void scsi_req_data(SCSIRequest *req, int len)
 {
     trace_scsi_req_data(req->dev->id, req->lun, req->tag, len);

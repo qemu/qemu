@@ -253,11 +253,10 @@ static void do_busid_cmd(ESPState *s, uint8_t *buf, uint8_t busid)
         s->dma_counter = 0;
         if (datalen > 0) {
             s->rregs[ESP_RSTAT] |= STAT_DI;
-            s->current_dev->info->read_data(s->current_req);
         } else {
             s->rregs[ESP_RSTAT] |= STAT_DO;
-            s->current_dev->info->write_data(s->current_req);
         }
+        scsi_req_continue(s->current_req);
     }
     s->rregs[ESP_RINTR] = INTR_BS | INTR_FC;
     s->rregs[ESP_RSEQ] = SEQ_CD;
@@ -383,22 +382,17 @@ static void esp_do_dma(ESPState *s)
     else
         s->ti_size -= len;
     if (s->async_len == 0) {
-        if (to_device) {
-            // ti_size is negative
-            s->current_dev->info->write_data(s->current_req);
-        } else {
-            s->current_dev->info->read_data(s->current_req);
-            /* If there is still data to be read from the device then
-               complete the DMA operation immediately.  Otherwise defer
-               until the scsi layer has completed.  */
-            if (s->dma_left == 0 && s->ti_size > 0) {
-                esp_dma_done(s);
-            }
+        scsi_req_continue(s->current_req);
+        /* If there is still data to be read from the device then
+           complete the DMA operation immediately.  Otherwise defer
+           until the scsi layer has completed.  */
+        if (to_device || s->dma_left != 0 || s->ti_size == 0) {
+            return;
         }
-    } else {
-        /* Partially filled a scsi buffer. Complete immediately.  */
-        esp_dma_done(s);
     }
+
+    /* Partially filled a scsi buffer. Complete immediately.  */
+    esp_dma_done(s);
 }
 
 static void esp_command_complete(SCSIRequest *req, int reason, uint32_t arg)
