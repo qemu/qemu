@@ -3484,7 +3484,7 @@ static PCIDeviceInfo rtl8139_info = {
     .qdev.vmsd  = &vmstate_rtl8139,
     .init       = pci_rtl8139_init,
     .exit       = pci_rtl8139_uninit,
-    .romfile    = "pxe-rtl8139.bin",
+    .romfile    = "pxe-rtl8139.rom",
     .qdev.props = (Property[]) {
         DEFINE_NIC_PROPERTIES(RTL8139State, conf),
         DEFINE_PROP_END_OF_LIST(),

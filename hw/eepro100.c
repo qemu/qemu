@@ -2054,7 +2054,7 @@ static void eepro100_register_devices(void)
         PCIDeviceInfo *pci_dev = &e100_devices[i].pci;
         /* We use the same rom file for all device ids.
            QEMU fixes the device id during rom load. */
-        pci_dev->romfile = "gpxe-eepro100-80861209.rom";
+        pci_dev->romfile = "pxe-eepro100.rom";
         pci_dev->init = e100_nic_init;
         pci_dev->exit = pci_nic_uninit;
         pci_dev->qdev.props = e100_properties;
