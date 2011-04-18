@@ -242,7 +242,7 @@ hw-obj-$(CONFIG_LAN9118) += lan9118.o
 hw-obj-$(CONFIG_NE2000_ISA) += ne2000-isa.o
 
 # IDE
-hw-obj-$(CONFIG_IDE_CORE) += ide/core.o
+hw-obj-$(CONFIG_IDE_CORE) += ide/core.o ide/atapi.o
 hw-obj-$(CONFIG_IDE_QDEV) += ide/qdev.o
 hw-obj-$(CONFIG_IDE_PCI) += ide/pci.o
 hw-obj-$(CONFIG_IDE_ISA) += ide/isa.o
