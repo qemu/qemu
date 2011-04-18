@@ -261,11 +261,13 @@ typedef struct {
     /* Statistical counters. Also used for wake-up packet (i82559). */
     eepro100_stats_t statistics;
 
+    /* Data in mem is always in the byte order of the controller (le).
+     * It must be dword aligned to allow direct access to 32 bit values. */
+    uint8_t mem[PCI_MEM_SIZE] __attribute__((aligned));;
+    
     /* Configuration bytes. */
     uint8_t configuration[22];
 
-    /* Data in mem is always in the byte order of the controller (le). */
-    uint8_t mem[PCI_MEM_SIZE];
     /* vmstate for each particular nic */
     VMStateDescription *vmstate;
 
@@ -379,12 +381,14 @@ static unsigned compute_mcast_idx(const uint8_t * ep)
 /* Read a 16 bit control/status (CSR) register. */
 static uint16_t e100_read_reg2(EEPRO100State *s, E100RegisterOffset addr)
 {
+    assert(!((uintptr_t)&s->mem[addr] & 1));
     return le16_to_cpup((uint16_t *)&s->mem[addr]);
 }
 
 /* Read a 32 bit control/status (CSR) register. */
 static uint32_t e100_read_reg4(EEPRO100State *s, E100RegisterOffset addr)
 {
+    assert(!((uintptr_t)&s->mem[addr] & 3));
     return le32_to_cpup((uint32_t *)&s->mem[addr]);
 }
 
@@ -392,6 +396,7 @@ static uint32_t e100_read_reg4(EEPRO100State *s, E100RegisterOffset addr)
 static void e100_write_reg2(EEPRO100State *s, E100RegisterOffset addr,
                             uint16_t val)
 {
+    assert(!((uintptr_t)&s->mem[addr] & 1));
     cpu_to_le16w((uint16_t *)&s->mem[addr], val);
 }
 
@@ -399,6 +404,7 @@ static void e100_write_reg2(EEPRO100State *s, E100RegisterOffset addr,
 static void e100_write_reg4(EEPRO100State *s, E100RegisterOffset addr,
                             uint32_t val)
 {
+    assert(!((uintptr_t)&s->mem[addr] & 3));
     cpu_to_le32w((uint32_t *)&s->mem[addr], val);
 }
 
@@ -1182,7 +1188,7 @@ static void eepro100_write_command(EEPRO100State * s, uint8_t val)
 
 static uint16_t eepro100_read_eeprom(EEPRO100State * s)
 {
-    uint16_t val = e100_read_reg4(s, SCBeeprom);
+    uint16_t val = e100_read_reg2(s, SCBeeprom);
     if (eeprom93xx_read(s->eeprom)) {
         val |= EEPROM_DO;
     } else {
@@ -1196,7 +1202,7 @@ static void eepro100_write_eeprom(eeprom_t * eeprom, uint8_t val)
 {
     TRACE(EEPROM, logout("val=0x%02x\n", val));
 
-    /* mask unwriteable bits */
+    /* mask unwritable bits */
 #if 0
     val = SET_MASKED(val, 0x31, eeprom->value);
 #endif
