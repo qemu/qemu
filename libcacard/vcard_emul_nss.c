@@ -955,7 +955,7 @@ count_tokens(const char *str, char token, char token_end)
 static const char *
 strip(const char *str)
 {
-    for (; *str && !isspace(*str); str++) {
+    for (; *str && isspace(*str); str++) {
     }
     return str;
 }
@@ -963,7 +963,7 @@ strip(const char *str)
 static const char *
 find_blank(const char *str)
 {
-    for (; *str && isspace(*str); str++) {
+    for (; *str && !isspace(*str); str++) {
     }
     return str;
 }

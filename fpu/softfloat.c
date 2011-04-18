@@ -2314,33 +2314,33 @@ float32 float32_log2( float32 a STATUS_PARAM )
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the single-precision floating-point value `a' is equal to
-| the corresponding value `b', and 0 otherwise.  The comparison is performed
+| the corresponding value `b', and 0 otherwise.  The invalid exception is
+| raised if either operand is a NaN.  Otherwise, the comparison is performed
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
 int float32_eq( float32 a, float32 b STATUS_PARAM )
 {
+    uint32_t av, bv;
     a = float32_squash_input_denormal(a STATUS_VAR);
     b = float32_squash_input_denormal(b STATUS_VAR);
 
     if (    ( ( extractFloat32Exp( a ) == 0xFF ) && extractFloat32Frac( a ) )
          || ( ( extractFloat32Exp( b ) == 0xFF ) && extractFloat32Frac( b ) )
        ) {
-        if ( float32_is_signaling_nan( a ) || float32_is_signaling_nan( b ) ) {
-            float_raise( float_flag_invalid STATUS_VAR);
-        }
+        float_raise( float_flag_invalid STATUS_VAR);
         return 0;
     }
-    return ( float32_val(a) == float32_val(b) ) ||
-            ( (uint32_t) ( ( float32_val(a) | float32_val(b) )<<1 ) == 0 );
-
+    av = float32_val(a);
+    bv = float32_val(b);
+    return ( av == bv ) || ( (uint32_t) ( ( av | bv )<<1 ) == 0 );
 }
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the single-precision floating-point value `a' is less than
-| or equal to the corresponding value `b', and 0 otherwise.  The comparison
-| is performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic.
+| or equal to the corresponding value `b', and 0 otherwise.  The invalid
+| exception is raised if either operand is a NaN.  The comparison is performed
+| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
 int float32_le( float32 a, float32 b STATUS_PARAM )
@@ -2367,8 +2367,9 @@ int float32_le( float32 a, float32 b STATUS_PARAM )
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the single-precision floating-point value `a' is less than
-| the corresponding value `b', and 0 otherwise.  The comparison is performed
-| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+| the corresponding value `b', and 0 otherwise.  The invalid exception is
+| raised if either operand is a NaN.  The comparison is performed according
+| to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
 int float32_lt( float32 a, float32 b STATUS_PARAM )
@@ -2394,15 +2395,14 @@ int float32_lt( float32 a, float32 b STATUS_PARAM )
 }
 
 /*----------------------------------------------------------------------------
-| Returns 1 if the single-precision floating-point value `a' is equal to
-| the corresponding value `b', and 0 otherwise.  The invalid exception is
-| raised if either operand is a NaN.  Otherwise, the comparison is performed
-| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+| Returns 1 if the single-precision floating-point values `a' and `b' cannot
+| be compared, and 0 otherwise.  The invalid exception is raised if either
+| operand is a NaN.  The comparison is performed according to the IEC/IEEE
+| Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float32_eq_signaling( float32 a, float32 b STATUS_PARAM )
+int float32_unordered( float32 a, float32 b STATUS_PARAM )
 {
-    uint32_t av, bv;
     a = float32_squash_input_denormal(a STATUS_VAR);
     b = float32_squash_input_denormal(b STATUS_VAR);
 
@@ -2410,12 +2410,33 @@ int float32_eq_signaling( float32 a, float32 b STATUS_PARAM )
          || ( ( extractFloat32Exp( b ) == 0xFF ) && extractFloat32Frac( b ) )
        ) {
         float_raise( float_flag_invalid STATUS_VAR);
+        return 1;
+    }
+    return 0;
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the single-precision floating-point value `a' is equal to
+| the corresponding value `b', and 0 otherwise.  Quiet NaNs do not cause an
+| exception.  The comparison is performed according to the IEC/IEEE Standard
+| for Binary Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+
+int float32_eq_quiet( float32 a, float32 b STATUS_PARAM )
+{
+    a = float32_squash_input_denormal(a STATUS_VAR);
+    b = float32_squash_input_denormal(b STATUS_VAR);
+
+    if (    ( ( extractFloat32Exp( a ) == 0xFF ) && extractFloat32Frac( a ) )
+         || ( ( extractFloat32Exp( b ) == 0xFF ) && extractFloat32Frac( b ) )
+       ) {
+        if ( float32_is_signaling_nan( a ) || float32_is_signaling_nan( b ) ) {
+            float_raise( float_flag_invalid STATUS_VAR);
+        }
         return 0;
     }
-    av = float32_val(a);
-    bv = float32_val(b);
-    return ( av == bv ) || ( (uint32_t) ( ( av | bv )<<1 ) == 0 );
-
+    return ( float32_val(a) == float32_val(b) ) ||
+            ( (uint32_t) ( ( float32_val(a) | float32_val(b) )<<1 ) == 0 );
 }
 
 /*----------------------------------------------------------------------------
@@ -2478,6 +2499,29 @@ int float32_lt_quiet( float32 a, float32 b STATUS_PARAM )
     if ( aSign != bSign ) return aSign && ( (uint32_t) ( ( av | bv )<<1 ) != 0 );
     return ( av != bv ) && ( aSign ^ ( av < bv ) );
 
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the single-precision floating-point values `a' and `b' cannot
+| be compared, and 0 otherwise.  Quiet NaNs do not cause an exception.  The
+| comparison is performed according to the IEC/IEEE Standard for Binary
+| Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+
+int float32_unordered_quiet( float32 a, float32 b STATUS_PARAM )
+{
+    a = float32_squash_input_denormal(a STATUS_VAR);
+    b = float32_squash_input_denormal(b STATUS_VAR);
+
+    if (    ( ( extractFloat32Exp( a ) == 0xFF ) && extractFloat32Frac( a ) )
+         || ( ( extractFloat32Exp( b ) == 0xFF ) && extractFloat32Frac( b ) )
+       ) {
+        if ( float32_is_signaling_nan( a ) || float32_is_signaling_nan( b ) ) {
+            float_raise( float_flag_invalid STATUS_VAR);
+        }
+        return 1;
+    }
+    return 0;
 }
 
 /*----------------------------------------------------------------------------
@@ -3536,7 +3580,8 @@ float64 float64_log2( float64 a STATUS_PARAM )
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the double-precision floating-point value `a' is equal to the
-| corresponding value `b', and 0 otherwise.  The comparison is performed
+| corresponding value `b', and 0 otherwise.  The invalid exception is raised
+| if either operand is a NaN.  Otherwise, the comparison is performed
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
@@ -3549,9 +3594,7 @@ int float64_eq( float64 a, float64 b STATUS_PARAM )
     if (    ( ( extractFloat64Exp( a ) == 0x7FF ) && extractFloat64Frac( a ) )
          || ( ( extractFloat64Exp( b ) == 0x7FF ) && extractFloat64Frac( b ) )
        ) {
-        if ( float64_is_signaling_nan( a ) || float64_is_signaling_nan( b ) ) {
-            float_raise( float_flag_invalid STATUS_VAR);
-        }
+        float_raise( float_flag_invalid STATUS_VAR);
         return 0;
     }
     av = float64_val(a);
@@ -3562,9 +3605,9 @@ int float64_eq( float64 a, float64 b STATUS_PARAM )
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the double-precision floating-point value `a' is less than or
-| equal to the corresponding value `b', and 0 otherwise.  The comparison is
-| performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic.
+| equal to the corresponding value `b', and 0 otherwise.  The invalid
+| exception is raised if either operand is a NaN.  The comparison is performed
+| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
 int float64_le( float64 a, float64 b STATUS_PARAM )
@@ -3591,8 +3634,9 @@ int float64_le( float64 a, float64 b STATUS_PARAM )
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the double-precision floating-point value `a' is less than
-| the corresponding value `b', and 0 otherwise.  The comparison is performed
-| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+| the corresponding value `b', and 0 otherwise.  The invalid exception is
+| raised if either operand is a NaN.  The comparison is performed according
+| to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
 int float64_lt( float64 a, float64 b STATUS_PARAM )
@@ -3618,13 +3662,34 @@ int float64_lt( float64 a, float64 b STATUS_PARAM )
 }
 
 /*----------------------------------------------------------------------------
-| Returns 1 if the double-precision floating-point value `a' is equal to the
-| corresponding value `b', and 0 otherwise.  The invalid exception is raised
-| if either operand is a NaN.  Otherwise, the comparison is performed
-| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+| Returns 1 if the double-precision floating-point values `a' and `b' cannot
+| be compared, and 0 otherwise.  The invalid exception is raised if either
+| operand is a NaN.  The comparison is performed according to the IEC/IEEE
+| Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float64_eq_signaling( float64 a, float64 b STATUS_PARAM )
+int float64_unordered( float64 a, float64 b STATUS_PARAM )
+{
+    a = float64_squash_input_denormal(a STATUS_VAR);
+    b = float64_squash_input_denormal(b STATUS_VAR);
+
+    if (    ( ( extractFloat64Exp( a ) == 0x7FF ) && extractFloat64Frac( a ) )
+         || ( ( extractFloat64Exp( b ) == 0x7FF ) && extractFloat64Frac( b ) )
+       ) {
+        float_raise( float_flag_invalid STATUS_VAR);
+        return 1;
+    }
+    return 0;
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the double-precision floating-point value `a' is equal to the
+| corresponding value `b', and 0 otherwise.  Quiet NaNs do not cause an
+| exception.The comparison is performed according to the IEC/IEEE Standard
+| for Binary Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+
+int float64_eq_quiet( float64 a, float64 b STATUS_PARAM )
 {
     uint64_t av, bv;
     a = float64_squash_input_denormal(a STATUS_VAR);
@@ -3633,7 +3698,9 @@ int float64_eq_signaling( float64 a, float64 b STATUS_PARAM )
     if (    ( ( extractFloat64Exp( a ) == 0x7FF ) && extractFloat64Frac( a ) )
          || ( ( extractFloat64Exp( b ) == 0x7FF ) && extractFloat64Frac( b ) )
        ) {
-        float_raise( float_flag_invalid STATUS_VAR);
+        if ( float64_is_signaling_nan( a ) || float64_is_signaling_nan( b ) ) {
+            float_raise( float_flag_invalid STATUS_VAR);
+        }
         return 0;
     }
     av = float64_val(a);
@@ -3702,6 +3769,29 @@ int float64_lt_quiet( float64 a, float64 b STATUS_PARAM )
     if ( aSign != bSign ) return aSign && ( (uint64_t) ( ( av | bv )<<1 ) != 0 );
     return ( av != bv ) && ( aSign ^ ( av < bv ) );
 
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the double-precision floating-point values `a' and `b' cannot
+| be compared, and 0 otherwise.  Quiet NaNs do not cause an exception.  The
+| comparison is performed according to the IEC/IEEE Standard for Binary
+| Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+
+int float64_unordered_quiet( float64 a, float64 b STATUS_PARAM )
+{
+    a = float64_squash_input_denormal(a STATUS_VAR);
+    b = float64_squash_input_denormal(b STATUS_VAR);
+
+    if (    ( ( extractFloat64Exp( a ) == 0x7FF ) && extractFloat64Frac( a ) )
+         || ( ( extractFloat64Exp( b ) == 0x7FF ) && extractFloat64Frac( b ) )
+       ) {
+        if ( float64_is_signaling_nan( a ) || float64_is_signaling_nan( b ) ) {
+            float_raise( float_flag_invalid STATUS_VAR);
+        }
+        return 1;
+    }
+    return 0;
 }
 
 #ifdef FLOATX80
@@ -4501,10 +4591,10 @@ floatx80 floatx80_sqrt( floatx80 a STATUS_PARAM )
 }
 
 /*----------------------------------------------------------------------------
-| Returns 1 if the extended double-precision floating-point value `a' is
-| equal to the corresponding value `b', and 0 otherwise.  The comparison is
-| performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic.
+| Returns 1 if the extended double-precision floating-point value `a' is equal
+| to the corresponding value `b', and 0 otherwise.  The invalid exception is
+| raised if either operand is a NaN.  Otherwise, the comparison is performed
+| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
 int floatx80_eq( floatx80 a, floatx80 b STATUS_PARAM )
@@ -4515,10 +4605,7 @@ int floatx80_eq( floatx80 a, floatx80 b STATUS_PARAM )
          || (    ( extractFloatx80Exp( b ) == 0x7FFF )
               && (uint64_t) ( extractFloatx80Frac( b )<<1 ) )
        ) {
-        if (    floatx80_is_signaling_nan( a )
-             || floatx80_is_signaling_nan( b ) ) {
-            float_raise( float_flag_invalid STATUS_VAR);
-        }
+        float_raise( float_flag_invalid STATUS_VAR);
         return 0;
     }
     return
@@ -4533,8 +4620,9 @@ int floatx80_eq( floatx80 a, floatx80 b STATUS_PARAM )
 /*----------------------------------------------------------------------------
 | Returns 1 if the extended double-precision floating-point value `a' is
 | less than or equal to the corresponding value `b', and 0 otherwise.  The
-| comparison is performed according to the IEC/IEEE Standard for Binary
-| Floating-Point Arithmetic.
+| invalid exception is raised if either operand is a NaN.  The comparison is
+| performed according to the IEC/IEEE Standard for Binary Floating-Point
+| Arithmetic.
 *----------------------------------------------------------------------------*/
 
 int floatx80_le( floatx80 a, floatx80 b STATUS_PARAM )
@@ -4565,9 +4653,9 @@ int floatx80_le( floatx80 a, floatx80 b STATUS_PARAM )
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the extended double-precision floating-point value `a' is
-| less than the corresponding value `b', and 0 otherwise.  The comparison
-| is performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic.
+| less than the corresponding value `b', and 0 otherwise.  The invalid
+| exception is raised if either operand is a NaN.  The comparison is performed
+| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
 int floatx80_lt( floatx80 a, floatx80 b STATUS_PARAM )
@@ -4597,13 +4685,32 @@ int floatx80_lt( floatx80 a, floatx80 b STATUS_PARAM )
 }
 
 /*----------------------------------------------------------------------------
-| Returns 1 if the extended double-precision floating-point value `a' is equal
-| to the corresponding value `b', and 0 otherwise.  The invalid exception is
-| raised if either operand is a NaN.  Otherwise, the comparison is performed
-| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+| Returns 1 if the extended double-precision floating-point values `a' and `b'
+| cannot be compared, and 0 otherwise.  The invalid exception is raised if
+| either operand is a NaN.   The comparison is performed according to the
+| IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+int floatx80_unordered( floatx80 a, floatx80 b STATUS_PARAM )
+{
+    if (    (    ( extractFloatx80Exp( a ) == 0x7FFF )
+              && (uint64_t) ( extractFloatx80Frac( a )<<1 ) )
+         || (    ( extractFloatx80Exp( b ) == 0x7FFF )
+              && (uint64_t) ( extractFloatx80Frac( b )<<1 ) )
+       ) {
+        float_raise( float_flag_invalid STATUS_VAR);
+        return 1;
+    }
+    return 0;
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the extended double-precision floating-point value `a' is
+| equal to the corresponding value `b', and 0 otherwise.  Quiet NaNs do not
+| cause an exception.  The comparison is performed according to the IEC/IEEE
+| Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int floatx80_eq_signaling( floatx80 a, floatx80 b STATUS_PARAM )
+int floatx80_eq_quiet( floatx80 a, floatx80 b STATUS_PARAM )
 {
 
     if (    (    ( extractFloatx80Exp( a ) == 0x7FFF )
@@ -4611,7 +4718,10 @@ int floatx80_eq_signaling( floatx80 a, floatx80 b STATUS_PARAM )
          || (    ( extractFloatx80Exp( b ) == 0x7FFF )
               && (uint64_t) ( extractFloatx80Frac( b )<<1 ) )
        ) {
-        float_raise( float_flag_invalid STATUS_VAR);
+        if (    floatx80_is_signaling_nan( a )
+             || floatx80_is_signaling_nan( b ) ) {
+            float_raise( float_flag_invalid STATUS_VAR);
+        }
         return 0;
     }
     return
@@ -4693,6 +4803,28 @@ int floatx80_lt_quiet( floatx80 a, floatx80 b STATUS_PARAM )
           aSign ? lt128( b.high, b.low, a.high, a.low )
         : lt128( a.high, a.low, b.high, b.low );
 
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the extended double-precision floating-point values `a' and `b'
+| cannot be compared, and 0 otherwise.  Quiet NaNs do not cause an exception.
+| The comparison is performed according to the IEC/IEEE Standard for Binary
+| Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+int floatx80_unordered_quiet( floatx80 a, floatx80 b STATUS_PARAM )
+{
+    if (    (    ( extractFloatx80Exp( a ) == 0x7FFF )
+              && (uint64_t) ( extractFloatx80Frac( a )<<1 ) )
+         || (    ( extractFloatx80Exp( b ) == 0x7FFF )
+              && (uint64_t) ( extractFloatx80Frac( b )<<1 ) )
+       ) {
+        if (    floatx80_is_signaling_nan( a )
+             || floatx80_is_signaling_nan( b ) ) {
+            float_raise( float_flag_invalid STATUS_VAR);
+        }
+        return 1;
+    }
+    return 0;
 }
 
 #endif
@@ -5625,7 +5757,8 @@ float128 float128_sqrt( float128 a STATUS_PARAM )
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the quadruple-precision floating-point value `a' is equal to
-| the corresponding value `b', and 0 otherwise.  The comparison is performed
+| the corresponding value `b', and 0 otherwise.  The invalid exception is
+| raised if either operand is a NaN.  Otherwise, the comparison is performed
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
@@ -5637,10 +5770,7 @@ int float128_eq( float128 a, float128 b STATUS_PARAM )
          || (    ( extractFloat128Exp( b ) == 0x7FFF )
               && ( extractFloat128Frac0( b ) | extractFloat128Frac1( b ) ) )
        ) {
-        if (    float128_is_signaling_nan( a )
-             || float128_is_signaling_nan( b ) ) {
-            float_raise( float_flag_invalid STATUS_VAR);
-        }
+        float_raise( float_flag_invalid STATUS_VAR);
         return 0;
     }
     return
@@ -5654,9 +5784,9 @@ int float128_eq( float128 a, float128 b STATUS_PARAM )
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the quadruple-precision floating-point value `a' is less than
-| or equal to the corresponding value `b', and 0 otherwise.  The comparison
-| is performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic.
+| or equal to the corresponding value `b', and 0 otherwise.  The invalid
+| exception is raised if either operand is a NaN.  The comparison is performed
+| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
 int float128_le( float128 a, float128 b STATUS_PARAM )
@@ -5687,8 +5817,9 @@ int float128_le( float128 a, float128 b STATUS_PARAM )
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the quadruple-precision floating-point value `a' is less than
-| the corresponding value `b', and 0 otherwise.  The comparison is performed
-| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+| the corresponding value `b', and 0 otherwise.  The invalid exception is
+| raised if either operand is a NaN.  The comparison is performed according
+| to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
 int float128_lt( float128 a, float128 b STATUS_PARAM )
@@ -5718,13 +5849,33 @@ int float128_lt( float128 a, float128 b STATUS_PARAM )
 }
 
 /*----------------------------------------------------------------------------
-| Returns 1 if the quadruple-precision floating-point value `a' is equal to
-| the corresponding value `b', and 0 otherwise.  The invalid exception is
-| raised if either operand is a NaN.  Otherwise, the comparison is performed
-| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+| Returns 1 if the quadruple-precision floating-point values `a' and `b' cannot
+| be compared, and 0 otherwise.  The invalid exception is raised if either
+| operand is a NaN. The comparison is performed according to the IEC/IEEE
+| Standard for Binary Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-int float128_eq_signaling( float128 a, float128 b STATUS_PARAM )
+int float128_unordered( float128 a, float128 b STATUS_PARAM )
+{
+    if (    (    ( extractFloat128Exp( a ) == 0x7FFF )
+              && ( extractFloat128Frac0( a ) | extractFloat128Frac1( a ) ) )
+         || (    ( extractFloat128Exp( b ) == 0x7FFF )
+              && ( extractFloat128Frac0( b ) | extractFloat128Frac1( b ) ) )
+       ) {
+        float_raise( float_flag_invalid STATUS_VAR);
+        return 1;
+    }
+    return 0;
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the quadruple-precision floating-point value `a' is equal to
+| the corresponding value `b', and 0 otherwise.  Quiet NaNs do not cause an
+| exception.  The comparison is performed according to the IEC/IEEE Standard
+| for Binary Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+
+int float128_eq_quiet( float128 a, float128 b STATUS_PARAM )
 {
 
     if (    (    ( extractFloat128Exp( a ) == 0x7FFF )
@@ -5732,7 +5883,10 @@ int float128_eq_signaling( float128 a, float128 b STATUS_PARAM )
          || (    ( extractFloat128Exp( b ) == 0x7FFF )
               && ( extractFloat128Frac0( b ) | extractFloat128Frac1( b ) ) )
        ) {
-        float_raise( float_flag_invalid STATUS_VAR);
+        if (    float128_is_signaling_nan( a )
+             || float128_is_signaling_nan( b ) ) {
+            float_raise( float_flag_invalid STATUS_VAR);
+        }
         return 0;
     }
     return
@@ -5814,6 +5968,29 @@ int float128_lt_quiet( float128 a, float128 b STATUS_PARAM )
           aSign ? lt128( b.high, b.low, a.high, a.low )
         : lt128( a.high, a.low, b.high, b.low );
 
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the quadruple-precision floating-point values `a' and `b' cannot
+| be compared, and 0 otherwise.  Quiet NaNs do not cause an exception.  The
+| comparison is performed according to the IEC/IEEE Standard for Binary
+| Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+
+int float128_unordered_quiet( float128 a, float128 b STATUS_PARAM )
+{
+    if (    (    ( extractFloat128Exp( a ) == 0x7FFF )
+              && ( extractFloat128Frac0( a ) | extractFloat128Frac1( a ) ) )
+         || (    ( extractFloat128Exp( b ) == 0x7FFF )
+              && ( extractFloat128Frac0( b ) | extractFloat128Frac1( b ) ) )
+       ) {
+        if (    float128_is_signaling_nan( a )
+             || float128_is_signaling_nan( b ) ) {
+            float_raise( float_flag_invalid STATUS_VAR);
+        }
+        return 1;
+    }
+    return 0;
 }
 
 #endif

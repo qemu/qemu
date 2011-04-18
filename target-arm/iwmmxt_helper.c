@@ -22,7 +22,7 @@
 #include "qemu-common.h"
 #include "cpu.h"
 #include "exec.h"
-#include "helpers.h"
+#include "helper.h"
 
 /* iwMMXt macros extracted from GNU gdb.  */
 

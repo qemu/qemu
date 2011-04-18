@@ -338,7 +338,7 @@ uint32_t helper_fcmp_eq(uint32_t a, uint32_t b)
     set_float_exception_flags(0, &env->fp_status);
     fa.l = a;
     fb.l = b;
-    r = float32_eq(fa.f, fb.f, &env->fp_status);
+    r = float32_eq_quiet(fa.f, fb.f, &env->fp_status);
     flags = get_float_exception_flags(&env->fp_status);
     update_fpu_flags(flags & float_flag_invalid);
 
@@ -384,7 +384,7 @@ uint32_t helper_fcmp_ne(uint32_t a, uint32_t b)
     fa.l = a;
     fb.l = b;
     set_float_exception_flags(0, &env->fp_status);
-    r = !float32_eq(fa.f, fb.f, &env->fp_status);
+    r = !float32_eq_quiet(fa.f, fb.f, &env->fp_status);
     flags = get_float_exception_flags(&env->fp_status);
     update_fpu_flags(flags & float_flag_invalid);
 

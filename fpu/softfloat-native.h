@@ -210,7 +210,7 @@ INLINE float32 float32_div( float32 a, float32 b STATUS_PARAM)
 }
 float32 float32_rem( float32, float32  STATUS_PARAM);
 float32 float32_sqrt( float32  STATUS_PARAM);
-INLINE int float32_eq( float32 a, float32 b STATUS_PARAM)
+INLINE int float32_eq_quiet( float32 a, float32 b STATUS_PARAM)
 {
     return a == b;
 }
@@ -222,7 +222,7 @@ INLINE int float32_lt( float32 a, float32 b STATUS_PARAM)
 {
     return a < b;
 }
-INLINE int float32_eq_signaling( float32 a, float32 b STATUS_PARAM)
+INLINE int float32_eq( float32 a, float32 b STATUS_PARAM)
 {
     return a <= b && a >= b;
 }
@@ -237,7 +237,10 @@ INLINE int float32_lt_quiet( float32 a, float32 b STATUS_PARAM)
 INLINE int float32_unordered( float32 a, float32 b STATUS_PARAM)
 {
     return isunordered(a, b);
-
+}
+INLINE int float32_unordered_quiet( float32 a, float32 b STATUS_PARAM)
+{
+    return isunordered(a, b);
 }
 int float32_compare( float32, float32 STATUS_PARAM );
 int float32_compare_quiet( float32, float32 STATUS_PARAM );
@@ -318,7 +321,7 @@ INLINE float64 float64_div( float64 a, float64 b STATUS_PARAM)
 }
 float64 float64_rem( float64, float64 STATUS_PARAM );
 float64 float64_sqrt( float64 STATUS_PARAM );
-INLINE int float64_eq( float64 a, float64 b STATUS_PARAM)
+INLINE int float64_eq_quiet( float64 a, float64 b STATUS_PARAM)
 {
     return a == b;
 }
@@ -330,7 +333,7 @@ INLINE int float64_lt( float64 a, float64 b STATUS_PARAM)
 {
     return a < b;
 }
-INLINE int float64_eq_signaling( float64 a, float64 b STATUS_PARAM)
+INLINE int float64_eq( float64 a, float64 b STATUS_PARAM)
 {
     return a <= b && a >= b;
 }
@@ -346,7 +349,10 @@ INLINE int float64_lt_quiet( float64 a, float64 b STATUS_PARAM)
 INLINE int float64_unordered( float64 a, float64 b STATUS_PARAM)
 {
     return isunordered(a, b);
-
+}
+INLINE int float64_unordered_quiet( float64 a, float64 b STATUS_PARAM)
+{
+    return isunordered(a, b);
 }
 int float64_compare( float64, float64 STATUS_PARAM );
 int float64_compare_quiet( float64, float64 STATUS_PARAM );
@@ -422,7 +428,7 @@ INLINE floatx80 floatx80_div( floatx80 a, floatx80 b STATUS_PARAM)
 }
 floatx80 floatx80_rem( floatx80, floatx80 STATUS_PARAM );
 floatx80 floatx80_sqrt( floatx80 STATUS_PARAM );
-INLINE int floatx80_eq( floatx80 a, floatx80 b STATUS_PARAM)
+INLINE int floatx80_eq_quiet( floatx80 a, floatx80 b STATUS_PARAM)
 {
     return a == b;
 }
@@ -434,7 +440,7 @@ INLINE int floatx80_lt( floatx80 a, floatx80 b STATUS_PARAM)
 {
     return a < b;
 }
-INLINE int floatx80_eq_signaling( floatx80 a, floatx80 b STATUS_PARAM)
+INLINE int floatx80_eq( floatx80 a, floatx80 b STATUS_PARAM)
 {
     return a <= b && a >= b;
 }
@@ -450,7 +456,10 @@ INLINE int floatx80_lt_quiet( floatx80 a, floatx80 b STATUS_PARAM)
 INLINE int floatx80_unordered( floatx80 a, floatx80 b STATUS_PARAM)
 {
     return isunordered(a, b);
-
+}
+INLINE int floatx80_unordered_quiet( floatx80 a, floatx80 b STATUS_PARAM)
+{
+    return isunordered(a, b);
 }
 int floatx80_compare( floatx80, floatx80 STATUS_PARAM );
 int floatx80_compare_quiet( floatx80, floatx80 STATUS_PARAM );

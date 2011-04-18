@@ -905,10 +905,11 @@ uint64_t helper_cmptun (uint64_t a, uint64_t b)
     fa = t_to_float64(a);
     fb = t_to_float64(b);
 
-    if (float64_is_quiet_nan(fa) || float64_is_quiet_nan(fb))
+    if (float64_unordered_quiet(fa, fb, &FP_STATUS)) {
         return 0x4000000000000000ULL;
-    else
+    } else {
         return 0;
+    }
 }
 
 uint64_t helper_cmpteq(uint64_t a, uint64_t b)
@@ -918,7 +919,7 @@ uint64_t helper_cmpteq(uint64_t a, uint64_t b)
     fa = t_to_float64(a);
     fb = t_to_float64(b);
 
-    if (float64_eq(fa, fb, &FP_STATUS))
+    if (float64_eq_quiet(fa, fb, &FP_STATUS))
         return 0x4000000000000000ULL;
     else
         return 0;
@@ -957,7 +958,7 @@ uint64_t helper_cmpgeq(uint64_t a, uint64_t b)
     fa = g_to_float64(a);
     fb = g_to_float64(b);
 
-    if (float64_eq(fa, fb, &FP_STATUS))
+    if (float64_eq_quiet(fa, fb, &FP_STATUS))
         return 0x4000000000000000ULL;
     else
         return 0;

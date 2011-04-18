@@ -182,8 +182,8 @@ int kvm_arch_process_async_events(CPUState *env)
     return 0;
 }
 
-static void kvm_s390_interrupt_internal(CPUState *env, int type, uint32_t parm,
-                                        uint64_t parm64, int vm)
+void kvm_s390_interrupt_internal(CPUState *env, int type, uint32_t parm,
+                                 uint64_t parm64, int vm)
 {
     struct kvm_s390_interrupt kvmint;
     int r;
@@ -218,7 +218,7 @@ void kvm_s390_virtio_irq(CPUState *env, int config_change, uint64_t token)
                                 token, 1);
 }
 
-static void kvm_s390_interrupt(CPUState *env, int type, uint32_t code)
+void kvm_s390_interrupt(CPUState *env, int type, uint32_t code)
 {
     kvm_s390_interrupt_internal(env, type, code, 0, 0);
 }
@@ -237,7 +237,8 @@ static void setcc(CPUState *env, uint64_t cc)
     env->psw.mask |= (cc & 3) << 44;
 }
 
-static int sclp_service_call(CPUState *env, struct kvm_run *run, uint16_t ipbh0)
+static int kvm_sclp_service_call(CPUState *env, struct kvm_run *run,
+                                 uint16_t ipbh0)
 {
     uint32_t sccb;
     uint64_t code;
@@ -287,7 +288,7 @@ static int handle_priv(CPUState *env, struct kvm_run *run, uint8_t ipa1)
     dprintf("KVM: PRIV: %d\n", ipa1);
     switch (ipa1) {
         case PRIV_SCLP_CALL:
-            r = sclp_service_call(env, run, ipbh0);
+            r = kvm_sclp_service_call(env, run, ipbh0);
             break;
         default:
             dprintf("KVM: unknown PRIV: 0x%x\n", ipa1);
@@ -300,12 +301,10 @@ static int handle_priv(CPUState *env, struct kvm_run *run, uint8_t ipa1)
 
 static int handle_hypercall(CPUState *env, struct kvm_run *run)
 {
-    int r;
-
     cpu_synchronize_state(env);
-    r = s390_virtio_hypercall(env);
+    env->regs[2] = s390_virtio_hypercall(env, env->regs[2], env->regs[1]);
 
-    return r;
+    return 0;
 }
 
 static int handle_diag(CPUState *env, struct kvm_run *run, int ipb_code)
