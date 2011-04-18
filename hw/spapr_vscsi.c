@@ -907,6 +907,10 @@ static int vscsi_do_crq(struct VIOsPAPRDevice *dev, uint8_t *crq_data)
     return 0;
 }
 
+static const struct SCSIBusOps vscsi_scsi_ops = {
+    .complete = vscsi_command_complete
+};
+
 static int spapr_vscsi_init(VIOsPAPRDevice *dev)
 {
     VSCSIState *s = DO_UPCAST(VSCSIState, vdev, dev);
@@ -923,7 +927,7 @@ static int spapr_vscsi_init(VIOsPAPRDevice *dev)
     dev->crq.SendFunc = vscsi_do_crq;
 
     scsi_bus_new(&s->bus, &dev->qdev, 1, VSCSI_REQ_LIMIT,
-                 vscsi_command_complete);
+                 &vscsi_scsi_ops);
     if (!dev->qdev.hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus);
     }

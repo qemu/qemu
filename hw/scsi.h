@@ -16,10 +16,9 @@ enum scsi_reason {
 };
 
 typedef struct SCSIBus SCSIBus;
+typedef struct SCSIBusOps SCSIBusOps;
 typedef struct SCSIDevice SCSIDevice;
 typedef struct SCSIDeviceInfo SCSIDeviceInfo;
-typedef void (*scsi_completionfn)(SCSIBus *bus, int reason, uint32_t tag,
-                                  uint32_t arg);
 
 enum SCSIXferMode {
     SCSI_XFER_NONE,      /*  TEST_UNIT_READY, ...            */
@@ -74,20 +73,22 @@ struct SCSIDeviceInfo {
     uint8_t *(*get_buf)(SCSIDevice *s, uint32_t tag);
 };
 
-typedef void (*SCSIAttachFn)(DeviceState *host, BlockDriverState *bdrv,
-              int unit);
+struct SCSIBusOps {
+    void (*complete)(SCSIBus *bus, int reason, uint32_t tag, uint32_t arg);
+};
+
 struct SCSIBus {
     BusState qbus;
     int busnr;
 
     int tcq, ndev;
-    scsi_completionfn complete;
+    const SCSIBusOps *ops;
 
     SCSIDevice *devs[MAX_SCSI_DEVS];
 };
 
 void scsi_bus_new(SCSIBus *bus, DeviceState *host, int tcq, int ndev,
-                  scsi_completionfn complete);
+                  const SCSIBusOps *ops);
 void scsi_qdev_register(SCSIDeviceInfo *info);
 
 static inline SCSIBus *scsi_bus_from_device(SCSIDevice *d)

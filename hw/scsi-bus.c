@@ -21,13 +21,13 @@ static int next_scsi_bus;
 
 /* Create a scsi bus, and attach devices to it.  */
 void scsi_bus_new(SCSIBus *bus, DeviceState *host, int tcq, int ndev,
-                  scsi_completionfn complete)
+                  const SCSIBusOps *ops)
 {
     qbus_create_inplace(&bus->qbus, &scsi_bus_info, host, NULL);
     bus->busnr = next_scsi_bus++;
     bus->tcq = tcq;
     bus->ndev = ndev;
-    bus->complete = complete;
+    bus->ops = ops;
     bus->qbus.allow_hotplug = 1;
 }
 
@@ -503,7 +503,7 @@ static const char *scsi_command_name(uint8_t cmd)
 void scsi_req_data(SCSIRequest *req, int len)
 {
     trace_scsi_req_data(req->dev->id, req->lun, req->tag, len);
-    req->bus->complete(req->bus, SCSI_REASON_DATA, req->tag, len);
+    req->bus->ops->complete(req->bus, SCSI_REASON_DATA, req->tag, len);
 }
 
 void scsi_req_print(SCSIRequest *req)
@@ -538,9 +538,9 @@ void scsi_req_complete(SCSIRequest *req)
 {
     assert(req->status != -1);
     scsi_req_dequeue(req);
-    req->bus->complete(req->bus, SCSI_REASON_DONE,
-                       req->tag,
-                       req->status);
+    req->bus->ops->complete(req->bus, SCSI_REASON_DONE,
+                            req->tag,
+                            req->status);
 }
 
 static char *scsibus_get_fw_dev_path(DeviceState *dev)

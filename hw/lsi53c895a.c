@@ -2205,6 +2205,10 @@ static int lsi_scsi_uninit(PCIDevice *d)
     return 0;
 }
 
+static const struct SCSIBusOps lsi_scsi_ops = {
+    .complete = lsi_command_complete
+};
+
 static int lsi_scsi_init(PCIDevice *dev)
 {
     LSIState *s = DO_UPCAST(LSIState, dev, dev);
@@ -2241,7 +2245,7 @@ static int lsi_scsi_init(PCIDevice *dev)
                            PCI_BASE_ADDRESS_SPACE_MEMORY, lsi_ram_mapfunc);
     QTAILQ_INIT(&s->queue);
 
-    scsi_bus_new(&s->bus, &dev->qdev, 1, LSI_MAX_DEVS, lsi_command_complete);
+    scsi_bus_new(&s->bus, &dev->qdev, 1, LSI_MAX_DEVS, &lsi_scsi_ops);
     if (!dev->qdev.hotplugged) {
         return scsi_bus_legacy_handle_cmdline(&s->bus);
     }

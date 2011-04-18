@@ -335,7 +335,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         s->senselen = 7;
         s->driver_status = SG_ERR_DRIVER_SENSE;
         bus = scsi_bus_from_device(d);
-        bus->complete(bus, SCSI_REASON_DONE, tag, CHECK_CONDITION);
+        bus->ops->complete(bus, SCSI_REASON_DONE, tag, CHECK_CONDITION);
         return 0;
     }
 
