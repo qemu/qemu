@@ -363,6 +363,7 @@ enum arm_features {
     ARM_FEATURE_V7MP,    /* v7 Multiprocessing Extensions */
     ARM_FEATURE_V4T,
     ARM_FEATURE_V5,
+    ARM_FEATURE_STRONGARM,
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)
@@ -393,6 +394,8 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
 #define ARM_CPUID_ARM946      0x41059461
 #define ARM_CPUID_TI915T      0x54029152
 #define ARM_CPUID_TI925T      0x54029252
+#define ARM_CPUID_SA1100      0x4401A11B
+#define ARM_CPUID_SA1110      0x6901B119
 #define ARM_CPUID_PXA250      0x69052100
 #define ARM_CPUID_PXA255      0x69052d00
 #define ARM_CPUID_PXA260      0x69052903

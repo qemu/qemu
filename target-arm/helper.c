@@ -214,6 +214,11 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c0_cachetype = 0xd172172;
         env->cp15.c1_sys = 0x00000078;
         break;
+    case ARM_CPUID_SA1100:
+    case ARM_CPUID_SA1110:
+        set_feature(env, ARM_FEATURE_STRONGARM);
+        env->cp15.c1_sys = 0x00000070;
+        break;
     default:
         cpu_abort(env, "Bad CPU ID: %x\n", id);
         break;
@@ -378,6 +383,8 @@ static const struct arm_cpu_t arm_cpu_names[] = {
     { ARM_CPUID_CORTEXA9, "cortex-a9"},
     { ARM_CPUID_TI925T, "ti925t" },
     { ARM_CPUID_PXA250, "pxa250" },
+    { ARM_CPUID_SA1100,    "sa1100" },
+    { ARM_CPUID_SA1110,    "sa1110" },
     { ARM_CPUID_PXA255, "pxa255" },
     { ARM_CPUID_PXA260, "pxa260" },
     { ARM_CPUID_PXA261, "pxa261" },
@@ -1553,6 +1560,8 @@ void HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
     case 9:
         if (arm_feature(env, ARM_FEATURE_OMAPCP))
             break;
+        if (arm_feature(env, ARM_FEATURE_STRONGARM))
+            break; /* Ignore ReadBuffer access */
         switch (crm) {
         case 0: /* Cache lockdown.  */
 	    switch (op1) {
