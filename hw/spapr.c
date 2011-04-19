@@ -93,7 +93,7 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     /* Root node */
     _FDT((fdt_begin_node(fdt, "")));
     _FDT((fdt_property_string(fdt, "device_type", "chrp")));
-    _FDT((fdt_property_string(fdt, "model", "qemu,emulated-pSeries-LPAR")));
+    _FDT((fdt_property_string(fdt, "model", "IBM pSeries (emulated by qemu)")));
 
     _FDT((fdt_property_cell(fdt, "#address-cells", 0x2)));
     _FDT((fdt_property_cell(fdt, "#size-cells", 0x2)));
