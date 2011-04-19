@@ -32,6 +32,8 @@ enum VIOsPAPR_TCEAccess {
     SPAPR_TCE_RW = 3,
 };
 
+#define SPAPR_VTY_BASE_ADDRESS     0x30000000
+
 struct VIOsPAPRDevice;
 
 typedef struct VIOsPAPR_RTCE {

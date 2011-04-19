@@ -362,8 +362,9 @@ static void ppc_spapr_init(ram_addr_t ram_size,
 
     for (i = 0; i < MAX_SERIAL_PORTS; i++, irq++) {
         if (serial_hds[i]) {
-            spapr_vty_create(spapr->vio_bus, i, serial_hds[i],
-                             xics_find_qirq(spapr->icp, irq), irq);
+            spapr_vty_create(spapr->vio_bus, SPAPR_VTY_BASE_ADDRESS + i,
+                             serial_hds[i], xics_find_qirq(spapr->icp, irq),
+                             irq);
         }
     }
 
