@@ -813,11 +813,9 @@ error_cmd:
 
 static void cmd_test_unit_ready(IDEState *s, uint8_t *buf)
 {
-    if (bdrv_is_inserted(s->bs)) {
-        ide_atapi_cmd_ok(s);
-    } else {
-        ide_atapi_cmd_error(s, SENSE_NOT_READY, ASC_MEDIUM_NOT_PRESENT);
-    }
+    /* Not Ready Conditions are already handled in ide_atapi_cmd(), so if we
+     * come here, we know that it's ready. */
+    ide_atapi_cmd_ok(s);
 }
 
 static void cmd_prevent_allow_medium_removal(IDEState *s, uint8_t* buf)
@@ -883,11 +881,6 @@ static void cmd_seek(IDEState *s, uint8_t* buf)
     unsigned int lba;
     uint64_t total_sectors = s->nb_sectors >> 2;
 
-    if (total_sectors == 0) {
-        ide_atapi_cmd_error(s, SENSE_NOT_READY, ASC_MEDIUM_NOT_PRESENT);
-        return;
-    }
-
     lba = ube32_to_cpu(buf + 2);
     if (lba >= total_sectors) {
         ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST, ASC_LOGICAL_BLOCK_OOR);
@@ -941,13 +934,8 @@ static void cmd_mechanism_status(IDEState *s, uint8_t* buf)
 static void cmd_read_toc_pma_atip(IDEState *s, uint8_t* buf)
 {
     int format, msf, start_track, len;
-    uint64_t total_sectors = s->nb_sectors >> 2;
     int max_len;
-
-    if (total_sectors == 0) {
-        ide_atapi_cmd_error(s, SENSE_NOT_READY, ASC_MEDIUM_NOT_PRESENT);
-        return;
-    }
+    uint64_t total_sectors = s->nb_sectors >> 2;
 
     max_len = ube16_to_cpu(buf + 7);
     format = buf[9] >> 6;
@@ -985,11 +973,6 @@ static void cmd_read_toc_pma_atip(IDEState *s, uint8_t* buf)
 static void cmd_read_cdvd_capacity(IDEState *s, uint8_t* buf)
 {
     uint64_t total_sectors = s->nb_sectors >> 2;
-
-    if (total_sectors == 0) {
-        ide_atapi_cmd_error(s, SENSE_NOT_READY, ASC_MEDIUM_NOT_PRESENT);
-        return;
-    }
 
     /* NOTE: it is really the number of sectors minus 1 */
     cpu_to_ube32(buf, total_sectors - 1);
@@ -1062,22 +1045,29 @@ enum {
      * unit attention condition. (See MMC-5, section 4.1.6.1)
      */
     ALLOW_UA = 0x01,
+
+    /*
+     * Commands flagged with CHECK_READY can only execute if a medium is present.
+     * Otherwise they report the Not Ready Condition. (See MMC-5, section
+     * 4.1.8)
+     */
+    CHECK_READY = 0x02,
 };
 
 static const struct {
     void (*handler)(IDEState *s, uint8_t *buf);
     int flags;
 } atapi_cmd_table[0x100] = {
-    [ 0x00 ] = { cmd_test_unit_ready,               0 },
+    [ 0x00 ] = { cmd_test_unit_ready,               CHECK_READY },
     [ 0x03 ] = { cmd_request_sense,                 ALLOW_UA },
     [ 0x12 ] = { cmd_inquiry,                       ALLOW_UA },
     [ 0x1a ] = { cmd_mode_sense, /* (6) */          0 },
     [ 0x1b ] = { cmd_start_stop_unit,               0 },
     [ 0x1e ] = { cmd_prevent_allow_medium_removal,  0 },
-    [ 0x25 ] = { cmd_read_cdvd_capacity,            0 },
+    [ 0x25 ] = { cmd_read_cdvd_capacity,            CHECK_READY },
     [ 0x28 ] = { cmd_read, /* (10) */               0 },
-    [ 0x2b ] = { cmd_seek,                          0 },
-    [ 0x43 ] = { cmd_read_toc_pma_atip,             0 },
+    [ 0x2b ] = { cmd_seek,                          CHECK_READY },
+    [ 0x43 ] = { cmd_read_toc_pma_atip,             CHECK_READY },
     [ 0x46 ] = { cmd_get_configuration,             ALLOW_UA },
     [ 0x4a ] = { cmd_get_event_status_notification, ALLOW_UA },
     [ 0x5a ] = { cmd_mode_sense, /* (10) */         0 },
@@ -1123,6 +1113,14 @@ void ide_atapi_cmd(IDEState *s)
         s->cdrom_changed = 0;
         s->sense_key = SENSE_UNIT_ATTENTION;
         s->asc = ASC_MEDIUM_MAY_HAVE_CHANGED;
+        return;
+    }
+
+    /* Report a Not Ready condition if appropriate for the command */
+    if ((atapi_cmd_table[s->io_buffer[0]].flags & CHECK_READY) &&
+        (!media_present(s) || !bdrv_is_inserted(s->bs)))
+    {
+        ide_atapi_cmd_error(s, SENSE_NOT_READY, ASC_MEDIUM_NOT_PRESENT);
         return;
     }
 
