@@ -65,8 +65,17 @@ static void QEMU_NORETURN arith_excp(int exc, uint64_t mask)
 
 uint64_t helper_load_pcc (void)
 {
-    /* ??? This isn't a timer for which we have any rate info.  */
+#ifndef CONFIG_USER_ONLY
+    /* In system mode we have access to a decent high-resolution clock.
+       In order to make OS-level time accounting work with the RPCC,
+       present it with a well-timed clock fixed at 250MHz.  */
+    return (((uint64_t)env->pcc_ofs << 32)
+            | (uint32_t)(qemu_get_clock_ns(vm_clock) >> 2));
+#else
+    /* In user-mode, vm_clock doesn't exist.  Just pass through the host cpu
+       clock ticks.  Also, don't bother taking PCC_OFS into account.  */
     return (uint32_t)cpu_get_real_ticks();
+#endif
 }
 
 uint64_t helper_load_fpcr (void)
