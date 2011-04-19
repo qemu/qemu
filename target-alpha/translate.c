@@ -1621,7 +1621,6 @@ static void gen_mfpr(int ra, int regno)
 static void gen_mtpr(int rb, int regno)
 {
     TCGv tmp;
-    int data;
 
     if (rb == 31) {
         tmp = tcg_const_i64(0);
@@ -1629,16 +1628,27 @@ static void gen_mtpr(int rb, int regno)
         tmp = cpu_ir[rb];
     }
 
-    /* The basic registers are data only, and unknown registers
-       are read-zero, write-ignore.  */
-    data = cpu_pr_data(regno);
-    if (data != 0) {
-        if (data & PR_BYTE) {
-            tcg_gen_st8_i64(tmp, cpu_env, data & ~PR_BYTE);
-        } else if (data & PR_LONG) {
-            tcg_gen_st32_i64(tmp, cpu_env, data & ~PR_LONG);
-        } else {
-            tcg_gen_st_i64(tmp, cpu_env, data);
+    /* These two register numbers perform a TLB cache flush.  Thankfully we
+       can only do this inside PALmode, which means that the current basic
+       block cannot be affected by the change in mappings.  */
+    if (regno == 255) {
+        /* TBIA */
+        gen_helper_tbia();
+    } else if (regno == 254) {
+        /* TBIS */
+        gen_helper_tbis(tmp);
+    } else {
+        /* The basic registers are data only, and unknown registers
+           are read-zero, write-ignore.  */
+        int data = cpu_pr_data(regno);
+        if (data != 0) {
+            if (data & PR_BYTE) {
+                tcg_gen_st8_i64(tmp, cpu_env, data & ~PR_BYTE);
+            } else if (data & PR_LONG) {
+                tcg_gen_st32_i64(tmp, cpu_env, data & ~PR_LONG);
+            } else {
+                tcg_gen_st_i64(tmp, cpu_env, data);
+            }
         }
     }
 

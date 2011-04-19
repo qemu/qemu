@@ -1205,6 +1205,16 @@ void helper_hw_ret (uint64_t a)
         swap_shadow_regs(env);
     }
 }
+
+void helper_tbia(void)
+{
+    tlb_flush(env, 1);
+}
+
+void helper_tbis(uint64_t p)
+{
+    tlb_flush_page(env, p);
+}
 #endif
 
 /*****************************************************************************/
@@ -1335,5 +1345,4 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     }
     env = saved_env;
 }
-
 #endif

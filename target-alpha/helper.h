@@ -110,6 +110,9 @@ DEF_HELPER_2(stl_phys, void, i64, i64)
 DEF_HELPER_2(stq_phys, void, i64, i64)
 DEF_HELPER_2(stl_c_phys, i64, i64, i64)
 DEF_HELPER_2(stq_c_phys, i64, i64, i64)
+
+DEF_HELPER_FLAGS_0(tbia, TCG_CALL_CONST, void)
+DEF_HELPER_FLAGS_1(tbis, TCG_CALL_CONST, void, i64)
 #endif
 
 #include "def-helper.h"
