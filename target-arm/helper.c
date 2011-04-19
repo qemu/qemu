@@ -2551,6 +2551,7 @@ float64 VFP_HELPER(sito, d)(uint32_t x, CPUState *env)
 uint32_t VFP_HELPER(toui, s)(float32 x, CPUState *env)
 {
     if (float32_is_any_nan(x)) {
+        float_raise(float_flag_invalid, &env->vfp.fp_status);
         return 0;
     }
     return float32_to_uint32(x, &env->vfp.fp_status);
@@ -2559,6 +2560,7 @@ uint32_t VFP_HELPER(toui, s)(float32 x, CPUState *env)
 uint32_t VFP_HELPER(toui, d)(float64 x, CPUState *env)
 {
     if (float64_is_any_nan(x)) {
+        float_raise(float_flag_invalid, &env->vfp.fp_status);
         return 0;
     }
     return float64_to_uint32(x, &env->vfp.fp_status);
@@ -2567,6 +2569,7 @@ uint32_t VFP_HELPER(toui, d)(float64 x, CPUState *env)
 uint32_t VFP_HELPER(tosi, s)(float32 x, CPUState *env)
 {
     if (float32_is_any_nan(x)) {
+        float_raise(float_flag_invalid, &env->vfp.fp_status);
         return 0;
     }
     return float32_to_int32(x, &env->vfp.fp_status);
@@ -2575,6 +2578,7 @@ uint32_t VFP_HELPER(tosi, s)(float32 x, CPUState *env)
 uint32_t VFP_HELPER(tosi, d)(float64 x, CPUState *env)
 {
     if (float64_is_any_nan(x)) {
+        float_raise(float_flag_invalid, &env->vfp.fp_status);
         return 0;
     }
     return float64_to_int32(x, &env->vfp.fp_status);
@@ -2583,6 +2587,7 @@ uint32_t VFP_HELPER(tosi, d)(float64 x, CPUState *env)
 uint32_t VFP_HELPER(touiz, s)(float32 x, CPUState *env)
 {
     if (float32_is_any_nan(x)) {
+        float_raise(float_flag_invalid, &env->vfp.fp_status);
         return 0;
     }
     return float32_to_uint32_round_to_zero(x, &env->vfp.fp_status);
@@ -2591,6 +2596,7 @@ uint32_t VFP_HELPER(touiz, s)(float32 x, CPUState *env)
 uint32_t VFP_HELPER(touiz, d)(float64 x, CPUState *env)
 {
     if (float64_is_any_nan(x)) {
+        float_raise(float_flag_invalid, &env->vfp.fp_status);
         return 0;
     }
     return float64_to_uint32_round_to_zero(x, &env->vfp.fp_status);
@@ -2599,6 +2605,7 @@ uint32_t VFP_HELPER(touiz, d)(float64 x, CPUState *env)
 uint32_t VFP_HELPER(tosiz, s)(float32 x, CPUState *env)
 {
     if (float32_is_any_nan(x)) {
+        float_raise(float_flag_invalid, &env->vfp.fp_status);
         return 0;
     }
     return float32_to_int32_round_to_zero(x, &env->vfp.fp_status);
@@ -2607,6 +2614,7 @@ uint32_t VFP_HELPER(tosiz, s)(float32 x, CPUState *env)
 uint32_t VFP_HELPER(tosiz, d)(float64 x, CPUState *env)
 {
     if (float64_is_any_nan(x)) {
+        float_raise(float_flag_invalid, &env->vfp.fp_status);
         return 0;
     }
     return float64_to_int32_round_to_zero(x, &env->vfp.fp_status);
@@ -2645,6 +2653,7 @@ uint##fsz##_t VFP_HELPER(to##name, p)(float##fsz x, uint32_t shift, \
 { \
     float##fsz tmp; \
     if (float##fsz##_is_any_nan(x)) { \
+        float_raise(float_flag_invalid, &env->vfp.fp_status); \
         return 0; \
     } \
     tmp = float##fsz##_scalbn(x, shift, &env->vfp.fp_status); \
