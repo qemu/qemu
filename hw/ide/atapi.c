@@ -416,10 +416,10 @@ static int ide_dvd_read_structure(IDEState *s, int format,
                 if (layer != 0)
                     return -ASC_INV_FIELD_IN_CMD_PACKET;
 
-                bdrv_get_geometry(s->bs, &total_sectors);
-                total_sectors >>= 2;
-                if (total_sectors == 0)
+                total_sectors = s->nb_sectors >> 2;
+                if (total_sectors == 0) {
                     return -ASC_MEDIUM_NOT_PRESENT;
+                }
 
                 buf[4] = 1;   /* DVD-ROM, part version 1 */
                 buf[5] = 0xf; /* 120mm disc, minimum rate unspecified */
@@ -881,11 +881,8 @@ static void cmd_read_cd(IDEState *s, uint8_t* buf)
 static void cmd_seek(IDEState *s, uint8_t* buf)
 {
     unsigned int lba;
-    uint64_t total_sectors;
+    uint64_t total_sectors = s->nb_sectors >> 2;
 
-    bdrv_get_geometry(s->bs, &total_sectors);
-
-    total_sectors >>= 2;
     if (total_sectors == 0) {
         ide_atapi_cmd_error(s, SENSE_NOT_READY, ASC_MEDIUM_NOT_PRESENT);
         return;
@@ -944,12 +941,9 @@ static void cmd_mechanism_status(IDEState *s, uint8_t* buf)
 static void cmd_read_toc_pma_atip(IDEState *s, uint8_t* buf)
 {
     int format, msf, start_track, len;
-    uint64_t total_sectors;
+    uint64_t total_sectors = s->nb_sectors >> 2;
     int max_len;
 
-    bdrv_get_geometry(s->bs, &total_sectors);
-
-    total_sectors >>= 2;
     if (total_sectors == 0) {
         ide_atapi_cmd_error(s, SENSE_NOT_READY, ASC_MEDIUM_NOT_PRESENT);
         return;
@@ -990,11 +984,8 @@ static void cmd_read_toc_pma_atip(IDEState *s, uint8_t* buf)
 
 static void cmd_read_cdvd_capacity(IDEState *s, uint8_t* buf)
 {
-    uint64_t total_sectors;
+    uint64_t total_sectors = s->nb_sectors >> 2;
 
-    bdrv_get_geometry(s->bs, &total_sectors);
-
-    total_sectors >>= 2;
     if (total_sectors == 0) {
         ide_atapi_cmd_error(s, SENSE_NOT_READY, ASC_MEDIUM_NOT_PRESENT);
         return;
