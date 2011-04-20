@@ -88,7 +88,11 @@
 #  define DPRINTF(fmt, ...) \
     do { fprintf(stderr, "RTL8139: " fmt, ## __VA_ARGS__); } while (0)
 #else
-#  define DPRINTF(fmt, ...) do { } while (0)
+static inline __attribute__ ((format (printf, 1, 2)))
+    int DPRINTF(const char *fmt, ...)
+{
+    return 0;
+}
 #endif
 
 /* Symbolic offsets to registers. */
@@ -2201,9 +2205,8 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
 
                 if ((txdw0 & CP_TX_LGSEN) && ip_protocol == IP_PROTO_TCP)
                 {
-#if defined (DEBUG_RTL8139)
                     int large_send_mss = (txdw0 >> 16) & CP_TC_LGSEN_MSS_MASK;
-#endif
+
                     DPRINTF("+++ C+ mode offloaded task TSO MTU=%d IP data %d "
                         "frame data %d specified MSS=%d\n", ETH_MTU,
                         ip_data_len, saved_size - ETH_HLEN, large_send_mss);
