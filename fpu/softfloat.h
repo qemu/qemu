@@ -154,6 +154,7 @@ typedef struct {
     uint64_t low;
     uint16_t high;
 } floatx80;
+#define make_floatx80(exp, mant) ((floatx80) { mant, exp })
 #endif
 #ifdef FLOAT128
 typedef struct {
@@ -583,6 +584,12 @@ INLINE int floatx80_is_any_nan(floatx80 a)
 {
     return ((a.high & 0x7fff) == 0x7fff) && (a.low<<1);
 }
+
+#define floatx80_zero make_floatx80(0x0000, 0x0000000000000000LL)
+#define floatx80_one make_floatx80(0x3fff, 0x8000000000000000LL)
+#define floatx80_ln2 make_floatx80(0x3ffe, 0xb17217f7d1cf79acLL)
+#define floatx80_half make_floatx80(0x3ffe, 0x8000000000000000LL)
+#define floatx80_infinity make_floatx80(0x7fff, 0x8000000000000000LL)
 
 /*----------------------------------------------------------------------------
 | The pattern for a default generated extended double-precision NaN.  The
