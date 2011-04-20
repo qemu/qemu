@@ -4794,16 +4794,6 @@ void helper_boundl(target_ulong a0, int v)
     }
 }
 
-static float approx_rsqrt(float a)
-{
-    return 1.0 / sqrt(a);
-}
-
-static float approx_rcp(float a)
-{
-    return 1.0 / a;
-}
-
 #if !defined(CONFIG_USER_ONLY)
 
 #define MMUSUFFIX _mmu
