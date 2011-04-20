@@ -4005,15 +4005,24 @@ void helper_fpatan(void)
 void helper_fxtract(void)
 {
     CPU86_LDoubleU temp;
-    unsigned int expdif;
 
     temp.d = ST0;
-    expdif = EXPD(temp) - EXPBIAS;
-    /*DP exponent bias*/
-    ST0 = expdif;
-    fpush();
-    BIASEXPONENT(temp);
-    ST0 = temp.d;
+
+    if (floatx_is_zero(ST0)) {
+        /* Easy way to generate -inf and raising division by 0 exception */
+        ST0 = floatx_div(floatx_chs(floatx_one), floatx_zero, &env->fp_status);
+        fpush();
+        ST0 = temp.d;
+    } else {
+        int expdif;
+
+        expdif = EXPD(temp) - EXPBIAS;
+        /*DP exponent bias*/
+        ST0 = int32_to_floatx(expdif, &env->fp_status);
+        fpush();
+        BIASEXPONENT(temp);
+        ST0 = temp.d;
+    }
 }
 
 void helper_fprem1(void)
