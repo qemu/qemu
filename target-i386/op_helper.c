@@ -4053,21 +4053,24 @@ void helper_fxtract(void)
 
 void helper_fprem1(void)
 {
-    CPU86_LDouble dblq, fpsrcop, fptemp;
+    double st0, st1, dblq, fpsrcop, fptemp;
     CPU86_LDoubleU fpsrcop1, fptemp1;
     int expdif;
     signed long long int q;
 
-    if (isinf(ST0) || isnan(ST0) || isnan(ST1) || (ST1 == 0.0)) {
-        ST0 = 0.0 / 0.0; /* NaN */
+    st0 = CPU86_LDouble_to_double(ST0);
+    st1 = CPU86_LDouble_to_double(ST1);
+
+    if (isinf(st0) || isnan(st0) || isnan(st1) || (st1 == 0.0)) {
+        ST0 = double_to_CPU86_LDouble(0.0 / 0.0); /* NaN */
         env->fpus &= (~0x4700); /* (C3,C2,C1,C0) <-- 0000 */
         return;
     }
 
-    fpsrcop = ST0;
-    fptemp = ST1;
-    fpsrcop1.d = fpsrcop;
-    fptemp1.d = fptemp;
+    fpsrcop = st0;
+    fptemp = st1;
+    fpsrcop1.d = ST0;
+    fptemp1.d = ST1;
     expdif = EXPD(fpsrcop1) - EXPD(fptemp1);
 
     if (expdif < 0) {
@@ -4081,7 +4084,7 @@ void helper_fprem1(void)
         dblq = fpsrcop / fptemp;
         /* round dblq towards nearest integer */
         dblq = rint(dblq);
-        ST0 = fpsrcop - fptemp * dblq;
+        st0 = fpsrcop - fptemp * dblq;
 
         /* convert dblq to q by truncating towards zero */
         if (dblq < 0.0)
@@ -4097,31 +4100,35 @@ void helper_fprem1(void)
     } else {
         env->fpus |= 0x400;  /* C2 <-- 1 */
         fptemp = pow(2.0, expdif - 50);
-        fpsrcop = (ST0 / ST1) / fptemp;
+        fpsrcop = (st0 / st1) / fptemp;
         /* fpsrcop = integer obtained by chopping */
         fpsrcop = (fpsrcop < 0.0) ?
                   -(floor(fabs(fpsrcop))) : floor(fpsrcop);
-        ST0 -= (ST1 * fpsrcop * fptemp);
+        st0 -= (st1 * fpsrcop * fptemp);
     }
+    ST0 = double_to_CPU86_LDouble(st0);
 }
 
 void helper_fprem(void)
 {
-    CPU86_LDouble dblq, fpsrcop, fptemp;
+    double st0, st1, dblq, fpsrcop, fptemp;
     CPU86_LDoubleU fpsrcop1, fptemp1;
     int expdif;
     signed long long int q;
 
-    if (isinf(ST0) || isnan(ST0) || isnan(ST1) || (ST1 == 0.0)) {
-       ST0 = 0.0 / 0.0; /* NaN */
+    st0 = CPU86_LDouble_to_double(ST0);
+    st1 = CPU86_LDouble_to_double(ST1);
+
+    if (isinf(st0) || isnan(st0) || isnan(st1) || (st1 == 0.0)) {
+       ST0 = double_to_CPU86_LDouble(0.0 / 0.0); /* NaN */
        env->fpus &= (~0x4700); /* (C3,C2,C1,C0) <-- 0000 */
        return;
     }
 
-    fpsrcop = (CPU86_LDouble)ST0;
-    fptemp = (CPU86_LDouble)ST1;
-    fpsrcop1.d = fpsrcop;
-    fptemp1.d = fptemp;
+    fpsrcop = st0;
+    fptemp = st1;
+    fpsrcop1.d = ST0;
+    fptemp1.d = ST1;
     expdif = EXPD(fpsrcop1) - EXPD(fptemp1);
 
     if (expdif < 0) {
@@ -4135,7 +4142,7 @@ void helper_fprem(void)
         dblq = fpsrcop/*ST0*/ / fptemp/*ST1*/;
         /* round dblq towards zero */
         dblq = (dblq < 0.0) ? ceil(dblq) : floor(dblq);
-        ST0 = fpsrcop/*ST0*/ - fptemp * dblq;
+        st0 = fpsrcop/*ST0*/ - fptemp * dblq;
 
         /* convert dblq to q by truncating towards zero */
         if (dblq < 0.0)
@@ -4152,12 +4159,13 @@ void helper_fprem(void)
         int N = 32 + (expdif % 32); /* as per AMD docs */
         env->fpus |= 0x400;  /* C2 <-- 1 */
         fptemp = pow(2.0, (double)(expdif - N));
-        fpsrcop = (ST0 / ST1) / fptemp;
+        fpsrcop = (st0 / st1) / fptemp;
         /* fpsrcop = integer obtained by chopping */
         fpsrcop = (fpsrcop < 0.0) ?
                   -(floor(fabs(fpsrcop))) : floor(fpsrcop);
-        ST0 -= (ST1 * fpsrcop * fptemp);
+        st0 -= (st1 * fpsrcop * fptemp);
     }
+    ST0 = double_to_CPU86_LDouble(st0);
 }
 
 void helper_fyl2xp1(void)
