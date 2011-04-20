@@ -566,7 +566,7 @@ INLINE floatx80 floatx80_chs(floatx80 a)
 
 INLINE int floatx80_is_infinity(floatx80 a)
 {
-    return (a.high & 0x7fff) == 0x7fff && a.low == 0;
+    return (a.high & 0x7fff) == 0x7fff && a.low == 0x8000000000000000LL;
 }
 
 INLINE int floatx80_is_neg(floatx80 a)
