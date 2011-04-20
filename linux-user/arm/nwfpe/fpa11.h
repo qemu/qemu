@@ -111,7 +111,7 @@ static inline void writeConditionCodes(unsigned int x)
         cpsr_write(user_registers,x,CPSR_NZCV);
 }
 
-#define REG_PC 15
+#define ARM_REG_PC 15
 
 unsigned int EmulateAll(unsigned int opcode, FPA11* qfpa, CPUARMState* qregs);
 
