@@ -124,6 +124,10 @@ static inline void svm_check_intercept(uint32_t type)
 #define floatx_is_any_nan floatx80_is_any_nan
 #define floatx_is_neg floatx80_is_neg
 #define floatx_is_zero floatx80_is_zero
+#define floatx_zero floatx80_zero
+#define floatx_one floatx80_one
+#define floatx_ln2 floatx80_ln2
+#define floatx_pi floatx80_pi
 #else
 #define floatx_to_int32 float64_to_int32
 #define floatx_to_int64 float64_to_int64
@@ -149,6 +153,10 @@ static inline void svm_check_intercept(uint32_t type)
 #define floatx_is_any_nan float64_is_any_nan
 #define floatx_is_neg float64_is_neg
 #define floatx_is_zero float64_is_zero
+#define floatx_zero float64_zero
+#define floatx_one float64_one
+#define floatx_ln2 float64_ln2
+#define floatx_pi float64_pi
 #endif
 
 #define RC_MASK         0xc00

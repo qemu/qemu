@@ -95,15 +95,25 @@ static const uint8_t rclb_table[32] = {
     6, 7, 8, 0, 1, 2, 3, 4,
 };
 
+#if defined(CONFIG_SOFTFLOAT)
+# define floatx_lg2 make_floatx80( 0x3ffd, 0x9a209a84fbcff799LL )
+# define floatx_l2e make_floatx80( 0x3fff, 0xb8aa3b295c17f0bcLL )
+# define floatx_l2t make_floatx80( 0x4000, 0xd49a784bcd1b8afeLL )
+#else
+# define floatx_lg2 (0.30102999566398119523L)
+# define floatx_l2e (1.44269504088896340739L)
+# define floatx_l2t (3.32192809488736234781L)
+#endif
+
 static const CPU86_LDouble f15rk[7] =
 {
-    0.00000000000000000000L,
-    1.00000000000000000000L,
-    3.14159265358979323851L,  /*pi*/
-    0.30102999566398119523L,  /*lg2*/
-    0.69314718055994530943L,  /*ln2*/
-    1.44269504088896340739L,  /*l2e*/
-    3.32192809488736234781L,  /*l2t*/
+    floatx_zero,
+    floatx_one,
+    floatx_pi,
+    floatx_lg2,
+    floatx_ln2,
+    floatx_l2e,
+    floatx_l2t,
 };
 
 /* broken thread support */
