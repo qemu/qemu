@@ -9547,7 +9547,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
      * This is handled in the same way as restoration of the
      * PC in these situations: we will be called again with search_pc=1
      * and generate a mapping of the condexec bits for each PC in
-     * gen_opc_condexec_bits[]. restore_state_to_opc[] then uses
+     * gen_opc_condexec_bits[]. restore_state_to_opc() then uses
      * this to restore the condexec bits.
      *
      * Note that there are no instructions which can read the condexec
