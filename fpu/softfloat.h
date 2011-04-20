@@ -550,6 +550,8 @@ int floatx80_eq_quiet( floatx80, floatx80 STATUS_PARAM );
 int floatx80_le_quiet( floatx80, floatx80 STATUS_PARAM );
 int floatx80_lt_quiet( floatx80, floatx80 STATUS_PARAM );
 int floatx80_unordered_quiet( floatx80, floatx80 STATUS_PARAM );
+int floatx80_compare( floatx80, floatx80 STATUS_PARAM );
+int floatx80_compare_quiet( floatx80, floatx80 STATUS_PARAM );
 int floatx80_is_quiet_nan( floatx80 );
 int floatx80_is_signaling_nan( floatx80 );
 floatx80 floatx80_maybe_silence_nan( floatx80 );

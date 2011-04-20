@@ -6190,6 +6190,52 @@ int float ## s ## _compare_quiet( float ## s a, float ## s b STATUS_PARAM )  \
 COMPARE(32, 0xff)
 COMPARE(64, 0x7ff)
 
+INLINE int floatx80_compare_internal( floatx80 a, floatx80 b,
+                                      int is_quiet STATUS_PARAM )
+{
+    flag aSign, bSign;
+
+    if (( ( extractFloatx80Exp( a ) == 0x7fff ) &&
+          ( extractFloatx80Frac( a )<<1 ) ) ||
+        ( ( extractFloatx80Exp( b ) == 0x7fff ) &&
+          ( extractFloatx80Frac( b )<<1 ) )) {
+        if (!is_quiet ||
+            floatx80_is_signaling_nan( a ) ||
+            floatx80_is_signaling_nan( b ) ) {
+            float_raise( float_flag_invalid STATUS_VAR);
+        }
+        return float_relation_unordered;
+    }
+    aSign = extractFloatx80Sign( a );
+    bSign = extractFloatx80Sign( b );
+    if ( aSign != bSign ) {
+
+        if ( ( ( (uint16_t) ( ( a.high | b.high ) << 1 ) ) == 0) &&
+             ( ( a.low | b.low ) == 0 ) ) {
+            /* zero case */
+            return float_relation_equal;
+        } else {
+            return 1 - (2 * aSign);
+        }
+    } else {
+        if (a.low == b.low && a.high == b.high) {
+            return float_relation_equal;
+        } else {
+            return 1 - 2 * (aSign ^ ( lt128( a.high, a.low, b.high, b.low ) ));
+        }
+    }
+}
+
+int floatx80_compare( floatx80 a, floatx80 b STATUS_PARAM )
+{
+    return floatx80_compare_internal(a, b, 0 STATUS_VAR);
+}
+
+int floatx80_compare_quiet( floatx80 a, floatx80 b STATUS_PARAM )
+{
+    return floatx80_compare_internal(a, b, 1 STATUS_VAR);
+}
+
 INLINE int float128_compare_internal( float128 a, float128 b,
                                       int is_quiet STATUS_PARAM )
 {
