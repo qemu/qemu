@@ -978,8 +978,9 @@ static ssize_t rtl8139_do_receive(VLANClientState *nc, const uint8_t *buf, size_
         cplus_rx_ring_desc = rtl8139_addr64(s->RxRingAddrLO, s->RxRingAddrHI);
         cplus_rx_ring_desc += 16 * descriptor;
 
-        DEBUG_PRINT(("RTL8139: +++ C+ mode reading RX descriptor %d from host memory at %08x %08x = %016" PRIx64 "\n",
-               descriptor, s->RxRingAddrHI, s->RxRingAddrLO, (uint64_t)cplus_rx_ring_desc));
+        DEBUG_PRINT(("RTL8139: +++ C+ mode reading RX descriptor %d from "
+                "host memory at %08x %08x = " TARGET_FMT_plx "\n", descriptor,
+                s->RxRingAddrHI, s->RxRingAddrLO, cplus_rx_ring_desc));
 
         uint32_t val, rxdw0,rxdw1,rxbufLO,rxbufHI;
 
@@ -1957,8 +1958,9 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
     /* Normal priority ring */
     cplus_tx_ring_desc += 16 * descriptor;
 
-    DEBUG_PRINT(("RTL8139: +++ C+ mode reading TX descriptor %d from host memory at %08x0x%08x = 0x%8lx\n",
-           descriptor, s->TxAddr[1], s->TxAddr[0], cplus_tx_ring_desc));
+    DEBUG_PRINT(("RTL8139: +++ C+ mode reading TX descriptor %d from host "
+            "memory at %08x0x%08x = 0x" TARGET_FMT_plx "\n", descriptor,
+            s->TxAddr[1], s->TxAddr[0], cplus_tx_ring_desc));
 
     uint32_t val, txdw0,txdw1,txbufLO,txbufHI;
 
@@ -2069,8 +2071,9 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
 
     /* append more data to the packet */
 
-    DEBUG_PRINT(("RTL8139: +++ C+ mode transmit reading %d bytes from host memory at %016" PRIx64 " to offset %d\n",
-                 txsize, (uint64_t)tx_addr, s->cplus_txbuffer_offset));
+    DEBUG_PRINT(("RTL8139: +++ C+ mode transmit reading %d bytes from host "
+            "memory at " TARGET_FMT_plx " to offset %d\n", txsize, tx_addr,
+            s->cplus_txbuffer_offset));
 
     cpu_physical_memory_read(tx_addr, s->cplus_txbuffer + s->cplus_txbuffer_offset, txsize);
     s->cplus_txbuffer_offset += txsize;
