@@ -115,9 +115,11 @@ static inline void svm_check_intercept(uint32_t type)
 #define floatx_sub floatx80_sub
 #define floatx_abs floatx80_abs
 #define floatx_chs floatx80_chs
+#define floatx_scalbn floatx80_scalbn
 #define floatx_round_to_int floatx80_round_to_int
 #define floatx_compare floatx80_compare
 #define floatx_compare_quiet floatx80_compare_quiet
+#define floatx_is_any_nan floatx80_is_any_nan
 #else
 #define floatx_to_int32 float64_to_int32
 #define floatx_to_int64 float64_to_int64
@@ -134,9 +136,11 @@ static inline void svm_check_intercept(uint32_t type)
 #define floatx_sub float64_sub
 #define floatx_abs float64_abs
 #define floatx_chs float64_chs
+#define floatx_scalbn float64_scalbn
 #define floatx_round_to_int float64_round_to_int
 #define floatx_compare float64_compare
 #define floatx_compare_quiet float64_compare_quiet
+#define floatx_is_any_nan float64_is_any_nan
 #endif
 
 #define RC_MASK         0xc00
