@@ -3920,9 +3920,10 @@ void helper_fbld_ST0(target_ulong ptr)
         v = ldub(ptr + i);
         val = (val * 100) + ((v >> 4) * 10) + (v & 0xf);
     }
-    tmp = val;
-    if (ldub(ptr + 9) & 0x80)
-        tmp = -tmp;
+    tmp = int64_to_floatx(val, &env->fp_status);
+    if (ldub(ptr + 9) & 0x80) {
+        floatx_chs(tmp);
+    }
     fpush();
     ST0 = tmp;
 }
