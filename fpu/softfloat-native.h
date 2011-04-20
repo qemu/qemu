@@ -172,6 +172,15 @@ float128 int64_to_float128( int64_t STATUS_PARAM);
 #endif
 
 /*----------------------------------------------------------------------------
+| Software IEC/IEEE single-precision conversion constants.
+*----------------------------------------------------------------------------*/
+#define float32_zero (0.0)
+#define float32_one (1.0)
+#define float32_ln2 (0.6931471)
+#define float32_pi (3.1415926)
+#define float32_half (0.5)
+
+/*----------------------------------------------------------------------------
 | Software IEC/IEEE single-precision conversion routines.
 *----------------------------------------------------------------------------*/
 int float32_to_int32( float32  STATUS_PARAM);
@@ -278,6 +287,15 @@ INLINE float32 float32_scalbn(float32 a, int n)
 {
     return scalbnf(a, n);
 }
+
+/*----------------------------------------------------------------------------
+| Software IEC/IEEE double-precision conversion constants.
+*----------------------------------------------------------------------------*/
+#define float64_zero (0.0)
+#define float64_one (1.0)
+#define float64_ln2 (0.693147180559945)
+#define float64_pi (3.141592653589793)
+#define float64_half (0.5)
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE double-precision conversion routines.
@@ -392,6 +410,15 @@ INLINE float64 float64_scalbn(float64 a, int n)
 }
 
 #ifdef FLOATX80
+
+/*----------------------------------------------------------------------------
+| Software IEC/IEEE extended double-precision conversion constants.
+*----------------------------------------------------------------------------*/
+#define floatx80_zero (0.0L)
+#define floatx80_one (1.0L)
+#define floatx80_ln2 (0.69314718055994530943L)
+#define floatx80_pi (3.14159265358979323851L)
+#define floatx80_half (0.5L)
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE extended double-precision conversion routines.
