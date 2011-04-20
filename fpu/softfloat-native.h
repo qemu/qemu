@@ -283,7 +283,7 @@ INLINE float32 float32_is_zero(float32 a)
     return fpclassify(a) == FP_ZERO;
 }
 
-INLINE float32 float32_scalbn(float32 a, int n)
+INLINE float32 float32_scalbn(float32 a, int n STATUS_PARAM)
 {
     return scalbnf(a, n);
 }
@@ -404,7 +404,7 @@ INLINE float64 float64_is_zero(float64 a)
     return fpclassify(a) == FP_ZERO;
 }
 
-INLINE float64 float64_scalbn(float64 a, int n)
+INLINE float64 float64_scalbn(float64 a, int n STATUS_PARAM)
 {
     return scalbn(a, n);
 }
@@ -520,7 +520,7 @@ INLINE floatx80 floatx80_is_zero(floatx80 a)
     return fpclassify(a) == FP_ZERO;
 }
 
-INLINE floatx80 floatx80_scalbn(floatx80 a, int n)
+INLINE floatx80 floatx80_scalbn(floatx80 a, int n STATUS_PARAM)
 {
     return scalbnl(a, n);
 }
