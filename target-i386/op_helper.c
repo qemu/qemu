@@ -17,6 +17,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <math.h>
 #include "exec.h"
 #include "exec-all.h"
 #include "host-utils.h"
@@ -3981,17 +3982,19 @@ void helper_fbst_ST0(target_ulong ptr)
 
 void helper_f2xm1(void)
 {
-    ST0 = pow(2.0,ST0) - 1.0;
+    double val = CPU86_LDouble_to_double(ST0);
+    val = pow(2.0, val) - 1.0;
+    ST0 = double_to_CPU86_LDouble(val);
 }
 
 void helper_fyl2x(void)
 {
-    CPU86_LDouble fptemp;
+    double fptemp = CPU86_LDouble_to_double(ST0);
 
-    fptemp = ST0;
     if (fptemp>0.0){
-        fptemp = log(fptemp)/log(2.0);	 /* log2(ST) */
-        ST1 *= fptemp;
+        fptemp = log(fptemp)/log(2.0);    /* log2(ST) */
+        fptemp *= CPU86_LDouble_to_double(ST1);
+        ST1 = double_to_CPU86_LDouble(fptemp);
         fpop();
     } else {
         env->fpus &= (~0x4700);
@@ -4001,15 +4004,15 @@ void helper_fyl2x(void)
 
 void helper_fptan(void)
 {
-    CPU86_LDouble fptemp;
+    double fptemp = CPU86_LDouble_to_double(ST0);
 
-    fptemp = ST0;
     if((fptemp > MAXTAN)||(fptemp < -MAXTAN)) {
         env->fpus |= 0x400;
     } else {
-        ST0 = tan(fptemp);
+        fptemp = tan(fptemp);
+        ST0 = double_to_CPU86_LDouble(fptemp);
         fpush();
-        ST0 = 1.0;
+        ST0 = floatx_one;
         env->fpus &= (~0x400);  /* C2 <-- 0 */
         /* the above code is for  |arg| < 2**52 only */
     }
@@ -4017,11 +4020,11 @@ void helper_fptan(void)
 
 void helper_fpatan(void)
 {
-    CPU86_LDouble fptemp, fpsrcop;
+    double fptemp, fpsrcop;
 
-    fpsrcop = ST1;
-    fptemp = ST0;
-    ST1 = atan2(fpsrcop,fptemp);
+    fpsrcop = CPU86_LDouble_to_double(ST1);
+    fptemp = CPU86_LDouble_to_double(ST0);
+    ST1 = double_to_CPU86_LDouble(atan2(fpsrcop, fptemp));
     fpop();
 }
 
@@ -4159,12 +4162,12 @@ void helper_fprem(void)
 
 void helper_fyl2xp1(void)
 {
-    CPU86_LDouble fptemp;
+    double fptemp = CPU86_LDouble_to_double(ST0);
 
-    fptemp = ST0;
     if ((fptemp+1.0)>0.0) {
         fptemp = log(fptemp+1.0) / log(2.0); /* log2(ST+1.0) */
-        ST1 *= fptemp;
+        fptemp *= CPU86_LDouble_to_double(ST1);
+        ST1 = double_to_CPU86_LDouble(fptemp);
         fpop();
     } else {
         env->fpus &= (~0x4700);
@@ -4183,15 +4186,14 @@ void helper_fsqrt(void)
 
 void helper_fsincos(void)
 {
-    CPU86_LDouble fptemp;
+    double fptemp = CPU86_LDouble_to_double(ST0);
 
-    fptemp = ST0;
     if ((fptemp > MAXTAN)||(fptemp < -MAXTAN)) {
         env->fpus |= 0x400;
     } else {
-        ST0 = sin(fptemp);
+        ST0 = double_to_CPU86_LDouble(sin(fptemp));
         fpush();
-        ST0 = cos(fptemp);
+        ST0 = double_to_CPU86_LDouble(cos(fptemp));
         env->fpus &= (~0x400);  /* C2 <-- 0 */
         /* the above code is for  |arg| < 2**63 only */
     }
@@ -4214,13 +4216,12 @@ void helper_fscale(void)
 
 void helper_fsin(void)
 {
-    CPU86_LDouble fptemp;
+    double fptemp = CPU86_LDouble_to_double(ST0);
 
-    fptemp = ST0;
     if ((fptemp > MAXTAN)||(fptemp < -MAXTAN)) {
         env->fpus |= 0x400;
     } else {
-        ST0 = sin(fptemp);
+        ST0 = double_to_CPU86_LDouble(sin(fptemp));
         env->fpus &= (~0x400);  /* C2 <-- 0 */
         /* the above code is for  |arg| < 2**53 only */
     }
@@ -4228,13 +4229,12 @@ void helper_fsin(void)
 
 void helper_fcos(void)
 {
-    CPU86_LDouble fptemp;
+    double fptemp = CPU86_LDouble_to_double(ST0);
 
-    fptemp = ST0;
     if((fptemp > MAXTAN)||(fptemp < -MAXTAN)) {
         env->fpus |= 0x400;
     } else {
-        ST0 = cos(fptemp);
+        ST0 = double_to_CPU86_LDouble(cos(fptemp));
         env->fpus &= (~0x400);  /* C2 <-- 0 */
         /* the above code is for  |arg5 < 2**63 only */
     }
