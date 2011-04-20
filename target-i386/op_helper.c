@@ -3440,9 +3440,10 @@ static void fpu_set_exception(int mask)
 
 static inline CPU86_LDouble helper_fdiv(CPU86_LDouble a, CPU86_LDouble b)
 {
-    if (b == 0.0)
+    if (floatx_is_zero(b)) {
         fpu_set_exception(FPUS_ZE);
-    return a / b;
+    }
+    return floatx_div(a, b, &env->fp_status);
 }
 
 static void fpu_raise_exception(void)
