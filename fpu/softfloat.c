@@ -6333,7 +6333,7 @@ MINMAX(64, 0x7ff)
 float32 float32_scalbn( float32 a, int n STATUS_PARAM )
 {
     flag aSign;
-    int16 aExp;
+    int16_t aExp;
     uint32_t aSig;
 
     a = float32_squash_input_denormal(a STATUS_VAR);
@@ -6342,12 +6342,21 @@ float32 float32_scalbn( float32 a, int n STATUS_PARAM )
     aSign = extractFloat32Sign( a );
 
     if ( aExp == 0xFF ) {
+        if ( aSig ) {
+            return propagateFloat32NaN( a, a STATUS_VAR );
+        }
         return a;
     }
     if ( aExp != 0 )
         aSig |= 0x00800000;
     else if ( aSig == 0 )
         return a;
+
+    if (n > 0x200) {
+        n = 0x200;
+    } else if (n < -0x200) {
+        n = -0x200;
+    }
 
     aExp += n - 1;
     aSig <<= 7;
@@ -6357,7 +6366,7 @@ float32 float32_scalbn( float32 a, int n STATUS_PARAM )
 float64 float64_scalbn( float64 a, int n STATUS_PARAM )
 {
     flag aSign;
-    int16 aExp;
+    int16_t aExp;
     uint64_t aSig;
 
     a = float64_squash_input_denormal(a STATUS_VAR);
@@ -6366,12 +6375,21 @@ float64 float64_scalbn( float64 a, int n STATUS_PARAM )
     aSign = extractFloat64Sign( a );
 
     if ( aExp == 0x7FF ) {
+        if ( aSig ) {
+            return propagateFloat64NaN( a, a STATUS_VAR );
+        }
         return a;
     }
     if ( aExp != 0 )
         aSig |= LIT64( 0x0010000000000000 );
     else if ( aSig == 0 )
         return a;
+
+    if (n > 0x1000) {
+        n = 0x1000;
+    } else if (n < -0x1000) {
+        n = -0x1000;
+    }
 
     aExp += n - 1;
     aSig <<= 10;
@@ -6382,18 +6400,28 @@ float64 float64_scalbn( float64 a, int n STATUS_PARAM )
 floatx80 floatx80_scalbn( floatx80 a, int n STATUS_PARAM )
 {
     flag aSign;
-    int16 aExp;
+    int32_t aExp;
     uint64_t aSig;
 
     aSig = extractFloatx80Frac( a );
     aExp = extractFloatx80Exp( a );
     aSign = extractFloatx80Sign( a );
 
-    if ( aExp == 0x7FF ) {
+    if ( aExp == 0x7FFF ) {
+        if ( aSig<<1 ) {
+            return propagateFloatx80NaN( a, a STATUS_VAR );
+        }
         return a;
     }
+
     if (aExp == 0 && aSig == 0)
         return a;
+
+    if (n > 0x10000) {
+        n = 0x10000;
+    } else if (n < -0x10000) {
+        n = -0x10000;
+    }
 
     aExp += n;
     return normalizeRoundAndPackFloatx80( STATUS(floatx80_rounding_precision),
@@ -6405,7 +6433,7 @@ floatx80 floatx80_scalbn( floatx80 a, int n STATUS_PARAM )
 float128 float128_scalbn( float128 a, int n STATUS_PARAM )
 {
     flag aSign;
-    int32 aExp;
+    int32_t aExp;
     uint64_t aSig0, aSig1;
 
     aSig1 = extractFloat128Frac1( a );
@@ -6413,12 +6441,21 @@ float128 float128_scalbn( float128 a, int n STATUS_PARAM )
     aExp = extractFloat128Exp( a );
     aSign = extractFloat128Sign( a );
     if ( aExp == 0x7FFF ) {
+        if ( aSig0 | aSig1 ) {
+            return propagateFloat128NaN( a, a STATUS_VAR );
+        }
         return a;
     }
     if ( aExp != 0 )
         aSig0 |= LIT64( 0x0001000000000000 );
     else if ( aSig0 == 0 && aSig1 == 0 )
         return a;
+
+    if (n > 0x10000) {
+        n = 0x10000;
+    } else if (n < -0x10000) {
+        n = -0x10000;
+    }
 
     aExp += n - 1;
     return normalizeRoundAndPackFloat128( aSign, aExp, aSig0, aSig1
