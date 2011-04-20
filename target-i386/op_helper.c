@@ -4152,14 +4152,11 @@ void helper_fyl2xp1(void)
 
 void helper_fsqrt(void)
 {
-    CPU86_LDouble fptemp;
-
-    fptemp = ST0;
-    if (fptemp<0.0) {
+    if (floatx_is_neg(ST0)) {
         env->fpus &= (~0x4700);  /* (C3,C2,C1,C0) <-- 0000 */
         env->fpus |= 0x400;
     }
-    ST0 = sqrt(fptemp);
+    ST0 = floatx_sqrt(ST0, &env->fp_status);
 }
 
 void helper_fsincos(void)
