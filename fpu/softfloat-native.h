@@ -255,6 +255,7 @@ int float32_compare( float32, float32 STATUS_PARAM );
 int float32_compare_quiet( float32, float32 STATUS_PARAM );
 int float32_is_signaling_nan( float32 );
 int float32_is_quiet_nan( float32 );
+int float32_is_any_nan( float32 );
 
 INLINE float32 float32_abs(float32 a)
 {
@@ -375,6 +376,7 @@ INLINE int float64_unordered_quiet( float64 a, float64 b STATUS_PARAM)
 int float64_compare( float64, float64 STATUS_PARAM );
 int float64_compare_quiet( float64, float64 STATUS_PARAM );
 int float64_is_signaling_nan( float64 );
+int float64_is_any_nan( float64 );
 int float64_is_quiet_nan( float64 );
 
 INLINE float64 float64_abs(float64 a)
@@ -492,6 +494,7 @@ int floatx80_compare( floatx80, floatx80 STATUS_PARAM );
 int floatx80_compare_quiet( floatx80, floatx80 STATUS_PARAM );
 int floatx80_is_signaling_nan( floatx80 );
 int floatx80_is_quiet_nan( floatx80 );
+int floatx80_is_any_nan( floatx80 );
 
 INLINE floatx80 floatx80_abs(floatx80 a)
 {
