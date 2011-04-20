@@ -3431,6 +3431,28 @@ void helper_verw(target_ulong selector1)
 
 /* x87 FPU helpers */
 
+static inline double CPU86_LDouble_to_double(CPU86_LDouble a)
+{
+    union {
+        float64 f64;
+        double d;
+    } u;
+
+    u.f64 = floatx_to_float64(a, &env->fp_status);
+    return u.d;
+}
+
+static inline CPU86_LDouble double_to_CPU86_LDouble(double a)
+{
+    union {
+        float64 f64;
+        double d;
+    } u;
+
+    u.d = a;
+    return float64_to_floatx(u.f64, &env->fp_status);
+}
+
 static void fpu_set_exception(int mask)
 {
     env->fpus |= mask;
