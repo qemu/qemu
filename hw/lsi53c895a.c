@@ -569,7 +569,7 @@ static void lsi_do_dma(LSIState *s, int out)
     s->dnad += count;
     s->dbc -= count;
      if (s->current->dma_buf == NULL) {
-        s->current->dma_buf = dev->info->get_buf(s->current->req);
+        s->current->dma_buf = scsi_req_get_buf(s->current->req);
     }
     /* ??? Set SFBR to first data byte.  */
     if (out) {

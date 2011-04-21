@@ -247,7 +247,7 @@ static void usb_msd_command_complete(SCSIRequest *req, int reason, uint32_t arg)
     }
     assert((s->mode == USB_MSDM_DATAOUT) == (req->cmd.mode == SCSI_XFER_TO_DEV));
     s->scsi_len = arg;
-    s->scsi_buf = s->scsi_dev->info->get_buf(req);
+    s->scsi_buf = scsi_req_get_buf(req);
     if (p) {
         usb_msd_copy_data(s);
         if (s->usb_len == 0) {

@@ -419,7 +419,7 @@ static void esp_command_complete(SCSIRequest *req, int reason, uint32_t arg)
     } else {
         DPRINTF("transfer %d/%d\n", s->dma_left, s->ti_size);
         s->async_len = arg;
-        s->async_buf = s->current_dev->info->get_buf(req);
+        s->async_buf = scsi_req_get_buf(req);
         if (s->dma_left) {
             esp_do_dma(s);
         } else if (s->dma_counter != 0 && s->ti_size <= 0) {

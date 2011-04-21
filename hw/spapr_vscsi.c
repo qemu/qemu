@@ -74,7 +74,6 @@ typedef struct vscsi_req {
     union viosrp_iu         iu;
 
     /* SCSI request tracking */
-    SCSIDevice              *sdev;
     SCSIRequest             *sreq;
     uint32_t                qtag; /* qemu tag != srp tag */
     int                     lun;
@@ -476,7 +475,6 @@ static void vscsi_command_complete(SCSIRequest *sreq, int reason, uint32_t arg)
 {
     VSCSIState *s = DO_UPCAST(VSCSIState, vdev.qdev, sreq->bus->qbus.parent);
     vscsi_req *req = vscsi_find_req(s, sreq);
-    SCSIDevice *sdev;
     uint8_t *buf;
     int32_t res_in = 0, res_out = 0;
     int len, rc = 0;
@@ -487,7 +485,6 @@ static void vscsi_command_complete(SCSIRequest *sreq, int reason, uint32_t arg)
         fprintf(stderr, "VSCSI: Can't find request for tag 0x%x\n", sreq->tag);
         return;
     }
-    sdev = req->sdev;
 
     if (req->sensing) {
         if (reason == SCSI_REASON_DONE) {
@@ -495,7 +492,7 @@ static void vscsi_command_complete(SCSIRequest *sreq, int reason, uint32_t arg)
             vscsi_send_rsp(s, req, CHECK_CONDITION, 0, 0);
             vscsi_put_req(s, req);
         } else {
-            uint8_t *buf = sdev->info->get_buf(sreq);
+            uint8_t *buf = scsi_req_get_buf(sreq);
 
             len = MIN(arg, SCSI_SENSE_BUF_SIZE);
             dprintf("VSCSI: Sense data, %d bytes:\n", len);
@@ -539,7 +536,7 @@ static void vscsi_command_complete(SCSIRequest *sreq, int reason, uint32_t arg)
      * to write for writes (ie, how much is to be DMA'd)
      */
     if (arg) {
-        buf = sdev->info->get_buf(sreq);
+        buf = scsi_req_get_buf(sreq);
         rc = vscsi_srp_transfer_data(s, req, req->writing, buf, arg);
     }
     if (rc < 0) {
@@ -646,7 +643,6 @@ static int vscsi_queue_cmd(VSCSIState *s, vscsi_req *req)
         } return 1;
     }
 
-    req->sdev = sdev;
     req->lun = lun;
     req->sreq = scsi_req_new(sdev, req->qtag, lun);
     n = scsi_req_enqueue(req->sreq, srp->cmd.cdb);
