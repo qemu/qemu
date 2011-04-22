@@ -1617,9 +1617,10 @@ static void gen_mfpr(int ra, int regno)
     }
 }
 
-static void gen_mtpr(int rb, int regno)
+static ExitStatus gen_mtpr(DisasContext *ctx, int rb, int regno)
 {
     TCGv tmp;
+    int data;
 
     if (rb == 31) {
         tmp = tcg_const_i64(0);
@@ -1627,19 +1628,27 @@ static void gen_mtpr(int rb, int regno)
         tmp = cpu_ir[rb];
     }
 
-    /* These two register numbers perform a TLB cache flush.  Thankfully we
-       can only do this inside PALmode, which means that the current basic
-       block cannot be affected by the change in mappings.  */
-    if (regno == 255) {
+    switch (regno) {
+    case 255:
         /* TBIA */
         gen_helper_tbia();
-    } else if (regno == 254) {
+        break;
+
+    case 254:
         /* TBIS */
         gen_helper_tbis(tmp);
-    } else {
+        break;
+
+    case 253:
+        /* WAIT */
+        tmp = tcg_const_i64(1);
+        tcg_gen_st32_i64(tmp, cpu_env, offsetof(CPUState, halted));
+        return gen_excp(ctx, EXCP_HLT, 0);
+
+    default:
         /* The basic registers are data only, and unknown registers
            are read-zero, write-ignore.  */
-        int data = cpu_pr_data(regno);
+        data = cpu_pr_data(regno);
         if (data != 0) {
             if (data & PR_BYTE) {
                 tcg_gen_st8_i64(tmp, cpu_env, data & ~PR_BYTE);
@@ -1649,11 +1658,14 @@ static void gen_mtpr(int rb, int regno)
                 tcg_gen_st_i64(tmp, cpu_env, data);
             }
         }
+        break;
     }
 
     if (rb == 31) {
         tcg_temp_free(tmp);
     }
+
+    return NO_EXIT;
 }
 #endif /* !USER_ONLY*/
 
@@ -3061,8 +3073,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         /* HW_MTPR (PALcode) */
 #ifndef CONFIG_USER_ONLY
         if (ctx->tb->flags & TB_FLAGS_PAL_MODE) {
-            gen_mtpr(rb, insn & 0xffff);
-            break;
+            return gen_mtpr(ctx, rb, insn & 0xffff);
         }
 #endif
         goto invalid_opc;
