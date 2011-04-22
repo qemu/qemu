@@ -634,7 +634,7 @@ void scsi_req_continue(SCSIRequest *req)
 void scsi_req_data(SCSIRequest *req, int len)
 {
     trace_scsi_req_data(req->dev->id, req->lun, req->tag, len);
-    req->bus->ops->complete(req, SCSI_REASON_DATA, len);
+    req->bus->ops->transfer_data(req, len);
 }
 
 void scsi_req_print(SCSIRequest *req)
@@ -670,7 +670,7 @@ void scsi_req_complete(SCSIRequest *req)
     assert(req->status != -1);
     scsi_req_ref(req);
     scsi_req_dequeue(req);
-    req->bus->ops->complete(req, SCSI_REASON_DONE, req->status);
+    req->bus->ops->complete(req, req->status);
     scsi_req_unref(req);
 }
 

@@ -9,12 +9,6 @@
 
 #define SCSI_CMD_BUF_SIZE     16
 
-/* scsi-disk.c */
-enum scsi_reason {
-    SCSI_REASON_DONE, /* Command complete.  */
-    SCSI_REASON_DATA  /* Transfer complete, more data required.  */
-};
-
 typedef struct SCSIBus SCSIBus;
 typedef struct SCSIBusOps SCSIBusOps;
 typedef struct SCSIDevice SCSIDevice;
@@ -84,7 +78,8 @@ struct SCSIDeviceInfo {
 };
 
 struct SCSIBusOps {
-    void (*complete)(SCSIRequest *req, int reason, uint32_t arg);
+    void (*transfer_data)(SCSIRequest *req, uint32_t arg);
+    void (*complete)(SCSIRequest *req, uint32_t arg);
     void (*cancel)(SCSIRequest *req);
 };
 

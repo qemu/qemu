@@ -395,38 +395,43 @@ static void esp_do_dma(ESPState *s)
     esp_dma_done(s);
 }
 
-static void esp_command_complete(SCSIRequest *req, int reason, uint32_t arg)
+static void esp_command_complete(SCSIRequest *req, uint32_t arg)
 {
     ESPState *s = DO_UPCAST(ESPState, busdev.qdev, req->bus->qbus.parent);
 
-    if (reason == SCSI_REASON_DONE) {
-        DPRINTF("SCSI Command complete\n");
-        if (s->ti_size != 0)
-            DPRINTF("SCSI command completed unexpectedly\n");
-        s->ti_size = 0;
-        s->dma_left = 0;
-        s->async_len = 0;
-        if (arg)
-            DPRINTF("Command failed\n");
-        s->status = arg;
-        s->rregs[ESP_RSTAT] = STAT_ST;
+    DPRINTF("SCSI Command complete\n");
+    if (s->ti_size != 0) {
+        DPRINTF("SCSI command completed unexpectedly\n");
+    }
+    s->ti_size = 0;
+    s->dma_left = 0;
+    s->async_len = 0;
+    if (arg) {
+        DPRINTF("Command failed\n");
+    }
+    s->status = arg;
+    s->rregs[ESP_RSTAT] = STAT_ST;
+    esp_dma_done(s);
+    if (s->current_req) {
+        scsi_req_unref(s->current_req);
+        s->current_req = NULL;
+        s->current_dev = NULL;
+    }
+}
+
+static void esp_transfer_data(SCSIRequest *req, uint32_t arg)
+{
+    ESPState *s = DO_UPCAST(ESPState, busdev.qdev, req->bus->qbus.parent);
+
+    DPRINTF("transfer %d/%d\n", s->dma_left, s->ti_size);
+    s->async_len = arg;
+    s->async_buf = scsi_req_get_buf(req);
+    if (s->dma_left) {
+        esp_do_dma(s);
+    } else if (s->dma_counter != 0 && s->ti_size <= 0) {
+        /* If this was the last part of a DMA transfer then the
+           completion interrupt is deferred to here.  */
         esp_dma_done(s);
-        if (s->current_req) {
-            scsi_req_unref(s->current_req);
-            s->current_req = NULL;
-            s->current_dev = NULL;
-        }
-    } else {
-        DPRINTF("transfer %d/%d\n", s->dma_left, s->ti_size);
-        s->async_len = arg;
-        s->async_buf = scsi_req_get_buf(req);
-        if (s->dma_left) {
-            esp_do_dma(s);
-        } else if (s->dma_counter != 0 && s->ti_size <= 0) {
-            /* If this was the last part of a DMA transfer then the
-               completion interrupt is deferred to here.  */
-            esp_dma_done(s);
-        }
     }
 }
 
@@ -725,6 +730,7 @@ void esp_init(target_phys_addr_t espaddr, int it_shift,
 }
 
 static const struct SCSIBusOps esp_scsi_ops = {
+    .transfer_data = esp_transfer_data,
     .complete = esp_command_complete,
     .cancel = esp_request_cancelled
 };

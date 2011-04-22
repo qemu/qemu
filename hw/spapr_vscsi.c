@@ -480,63 +480,34 @@ static void vscsi_send_request_sense(VSCSIState *s, vscsi_req *req)
 }
 
 /* Callback to indicate that the SCSI layer has completed a transfer.  */
-static void vscsi_command_complete(SCSIRequest *sreq, int reason, uint32_t arg)
+static void vscsi_transfer_data(SCSIRequest *sreq, uint32_t arg)
 {
     VSCSIState *s = DO_UPCAST(VSCSIState, vdev.qdev, sreq->bus->qbus.parent);
     vscsi_req *req = vscsi_find_req(s, sreq);
     uint8_t *buf;
-    int32_t res_in = 0, res_out = 0;
     int len, rc = 0;
 
-    dprintf("VSCSI: SCSI cmd complete, r=0x%x tag=0x%x arg=0x%x, req=%p\n",
-            reason, sreq->tag, arg, req);
+    dprintf("VSCSI: SCSI xfer complete tag=0x%x arg=0x%x, req=%p\n",
+            sreq->tag, arg, req);
     if (req == NULL) {
         fprintf(stderr, "VSCSI: Can't find request for tag 0x%x\n", sreq->tag);
         return;
     }
 
     if (req->sensing) {
-        if (reason == SCSI_REASON_DONE) {
-            dprintf("VSCSI: Sense done !\n");
-            vscsi_send_rsp(s, req, CHECK_CONDITION, 0, 0);
-            vscsi_put_req(s, req);
-        } else {
-            uint8_t *buf = scsi_req_get_buf(sreq);
+        uint8_t *buf = scsi_req_get_buf(sreq);
 
-            len = MIN(arg, SCSI_SENSE_BUF_SIZE);
-            dprintf("VSCSI: Sense data, %d bytes:\n", len);
-            dprintf("       %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x\n",
-                    buf[0], buf[1], buf[2], buf[3],
-                    buf[4], buf[5], buf[6], buf[7]);
-            dprintf("       %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x\n",
-                    buf[8], buf[9], buf[10], buf[11],
-                    buf[12], buf[13], buf[14], buf[15]);
-            memcpy(req->sense, buf, len);
-            req->senselen = len;
-            scsi_req_continue(req->sreq);
-        }
-        return;
-    }
-
-    if (reason == SCSI_REASON_DONE) {
-        dprintf("VSCSI: Command complete err=%d\n", arg);
-        if (arg == 0) {
-            /* We handle overflows, not underflows for normal commands,
-             * but hopefully nobody cares
-             */
-            if (req->writing) {
-                res_out = req->data_len;
-            } else {
-                res_in = req->data_len;
-            }
-            vscsi_send_rsp(s, req, 0, res_in, res_out);
-        } else if (arg == CHECK_CONDITION) {
-            vscsi_send_request_sense(s, req);
-            return;
-        } else {
-            vscsi_send_rsp(s, req, arg, 0, 0);
-        }
-        vscsi_put_req(s, req);
+        len = MIN(arg, SCSI_SENSE_BUF_SIZE);
+        dprintf("VSCSI: Sense data, %d bytes:\n", len);
+        dprintf("       %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x\n",
+                buf[0], buf[1], buf[2], buf[3],
+                buf[4], buf[5], buf[6], buf[7]);
+        dprintf("       %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x\n",
+                buf[8], buf[9], buf[10], buf[11],
+                buf[12], buf[13], buf[14], buf[15]);
+        memcpy(req->sense, buf, len);
+        req->senselen = len;
+        scsi_req_continue(req->sreq);
         return;
     }
 
@@ -557,6 +528,45 @@ static void vscsi_command_complete(SCSIRequest *sreq, int reason, uint32_t arg)
     /* Start next chunk */
     req->data_len -= rc;
     scsi_req_continue(sreq);
+}
+
+/* Callback to indicate that the SCSI layer has completed a transfer.  */
+static void vscsi_command_complete(SCSIRequest *sreq, uint32_t arg)
+{
+    VSCSIState *s = DO_UPCAST(VSCSIState, vdev.qdev, sreq->bus->qbus.parent);
+    vscsi_req *req = vscsi_find_req(s, sreq);
+    int32_t res_in = 0, res_out = 0;
+
+    dprintf("VSCSI: SCSI cmd complete, r=0x%x tag=0x%x arg=0x%x, req=%p\n",
+            reason, sreq->tag, arg, req);
+    if (req == NULL) {
+        fprintf(stderr, "VSCSI: Can't find request for tag 0x%x\n", sreq->tag);
+        return;
+    }
+
+    if (!req->sensing && arg == CHECK_CONDITION) {
+        vscsi_send_request_sense(s, req);
+        return;
+    }
+
+    if (req->sensing) {
+        dprintf("VSCSI: Sense done !\n");
+        arg = CHECK_CONDITION;
+    } else {
+        dprintf("VSCSI: Command complete err=%d\n", arg);
+        if (arg == 0) {
+            /* We handle overflows, not underflows for normal commands,
+             * but hopefully nobody cares
+             */
+            if (req->writing) {
+                res_out = req->data_len;
+            } else {
+                res_in = req->data_len;
+            }
+        }
+    }
+    vscsi_send_rsp(s, req, 0, res_in, res_out);
+    vscsi_put_req(s, req);
 }
 
 static void vscsi_request_cancelled(SCSIRequest *sreq)
@@ -916,6 +926,7 @@ static int vscsi_do_crq(struct VIOsPAPRDevice *dev, uint8_t *crq_data)
 }
 
 static const struct SCSIBusOps vscsi_scsi_ops = {
+    .transfer_data = vscsi_transfer_data,
     .complete = vscsi_command_complete,
     .cancel = vscsi_request_cancelled
 };

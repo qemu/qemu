@@ -711,32 +711,37 @@ static int lsi_queue_tag(LSIState *s, uint32_t tag, uint32_t arg)
         return 1;
     }
 }
- /* Callback to indicate that the SCSI layer has completed a transfer.  */
-static void lsi_command_complete(SCSIRequest *req, int reason, uint32_t arg)
+
+ /* Callback to indicate that the SCSI layer has completed a command.  */
+static void lsi_command_complete(SCSIRequest *req, uint32_t arg)
 {
     LSIState *s = DO_UPCAST(LSIState, dev.qdev, req->bus->qbus.parent);
     int out;
 
     out = (s->sstat1 & PHASE_MASK) == PHASE_DO;
-    if (reason == SCSI_REASON_DONE) {
-        DPRINTF("Command complete status=%d\n", (int)arg);
-        s->status = arg;
-        s->command_complete = 2;
-        if (s->waiting && s->dbc != 0) {
-            /* Raise phase mismatch for short transfers.  */
-            lsi_bad_phase(s, out, PHASE_ST);
-        } else {
-            lsi_set_phase(s, PHASE_ST);
-        }
-
-        if (s->current && req == s->current->req) {
-            scsi_req_unref(s->current->req);
-            qemu_free(s->current);
-            s->current = NULL;
-        }
-        lsi_resume_script(s);
-        return;
+    DPRINTF("Command complete status=%d\n", (int)arg);
+    s->status = arg;
+    s->command_complete = 2;
+    if (s->waiting && s->dbc != 0) {
+        /* Raise phase mismatch for short transfers.  */
+        lsi_bad_phase(s, out, PHASE_ST);
+    } else {
+        lsi_set_phase(s, PHASE_ST);
     }
+
+    if (s->current && req == s->current->req) {
+        scsi_req_unref(s->current->req);
+        qemu_free(s->current);
+        s->current = NULL;
+    }
+    lsi_resume_script(s);
+}
+
+ /* Callback to indicate that the SCSI layer has completed a transfer.  */
+static void lsi_transfer_data(SCSIRequest *req, uint32_t arg)
+{
+    LSIState *s = DO_UPCAST(LSIState, dev.qdev, req->bus->qbus.parent);
+    int out;
 
     if (s->waiting == 1 || !s->current || req->tag != s->current->tag ||
         (lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON))) {
@@ -745,16 +750,18 @@ static void lsi_command_complete(SCSIRequest *req, int reason, uint32_t arg)
         }
     }
 
+    out = (s->sstat1 & PHASE_MASK) == PHASE_DO;
+
     /* host adapter (re)connected */
     DPRINTF("Data ready tag=0x%x len=%d\n", req->tag, arg);
     s->current->dma_len = arg;
     s->command_complete = 1;
-    if (!s->waiting)
-        return;
-    if (s->waiting == 1 || s->dbc == 0) {
-        lsi_resume_script(s);
-    } else {
-        lsi_do_dma(s, out);
+    if (s->waiting) {
+        if (s->waiting == 1 || s->dbc == 0) {
+            lsi_resume_script(s);
+        } else {
+            lsi_do_dma(s, out);
+        }
     }
 }
 
@@ -2239,6 +2246,7 @@ static int lsi_scsi_uninit(PCIDevice *d)
 }
 
 static const struct SCSIBusOps lsi_scsi_ops = {
+    .transfer_data = lsi_transfer_data,
     .complete = lsi_command_complete,
     .cancel = lsi_request_cancelled
 };
