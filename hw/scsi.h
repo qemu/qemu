@@ -77,7 +77,7 @@ struct SCSIDeviceInfo {
     void (*free_req)(SCSIRequest *req);
     int32_t (*send_command)(SCSIRequest *req, uint8_t *buf);
     void (*read_data)(SCSIRequest *req);
-    int (*write_data)(SCSIRequest *req);
+    void (*write_data)(SCSIRequest *req);
     void (*cancel_io)(SCSIRequest *req);
     uint8_t *(*get_buf)(SCSIRequest *req);
     int (*get_sense)(SCSIRequest *req, uint8_t *buf, int len);

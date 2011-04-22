@@ -277,7 +277,7 @@ static void scsi_write_complete(void * opaque, int ret)
 
 /* Write data to a scsi device.  Returns nonzero on failure.
    The transfer may complete asynchronously.  */
-static int scsi_write_data(SCSIRequest *req)
+static void scsi_write_data(SCSIRequest *req)
 {
     SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, req->dev);
     SCSIGenericReq *r = DO_UPCAST(SCSIGenericReq, req, req);
@@ -287,16 +287,13 @@ static int scsi_write_data(SCSIRequest *req)
     if (r->len == 0) {
         r->len = r->buflen;
         scsi_req_data(&r->req, r->len);
-        return 0;
+        return;
     }
 
     ret = execute_command(s->bs, r, SG_DXFER_TO_DEV, scsi_write_complete);
     if (ret < 0) {
         scsi_command_complete(r, ret);
-        return 1;
     }
-
-    return 0;
 }
 
 /* Return a pointer to the data buffer.  */

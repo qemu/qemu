@@ -269,7 +269,7 @@ static void scsi_write_complete(void * opaque, int ret)
     }
 }
 
-static int scsi_write_data(SCSIRequest *req)
+static void scsi_write_data(SCSIRequest *req)
 {
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
@@ -281,7 +281,7 @@ static int scsi_write_data(SCSIRequest *req)
     if (r->req.cmd.mode != SCSI_XFER_TO_DEV) {
         DPRINTF("Data transfer direction invalid\n");
         scsi_write_complete(r, -EINVAL);
-        return 0;
+        return;
     }
 
     n = r->iov.iov_len / 512;
@@ -296,8 +296,6 @@ static int scsi_write_data(SCSIRequest *req)
         /* Invoke completion routine to fetch data from host.  */
         scsi_write_complete(r, 0);
     }
-
-    return 0;
 }
 
 static void scsi_dma_restart_bh(void *opaque)
