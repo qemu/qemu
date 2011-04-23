@@ -1,7 +1,7 @@
 /*
  * QEMU AR7 support
  *
- * Copyright (C) 2006-2008 Stefan Weil
+ * Copyright (C) 2006-2011 Stefan Weil
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
  * Maybe support for Titan can be added, too.
  *
  * TODO:
- * - Add save, load support.
+ * - Fix save, load support.
  * - ldl_phys, stl_phys wrong for big endian AR7
  * - TNETD7100 emulation is missing
  * - TNETD7200 emulation is very incomplete
@@ -3457,7 +3457,6 @@ static void ar7_nic_cleanup(VLANClientState *vc)
     /* TODO: check this code. */
     //~ void *d = vc->opaque;
     MISSING();
-    //~ unregister_savevm("ar7", d);
 
 #if 0
     qemu_del_timer(d->poll_timer);
@@ -3574,25 +3573,6 @@ static void ar7_display_init(CPUState *env)
     malta_display.display = qemu_chr_open("led-display", "vc:320x200", malta_fpga_led_init);
 }
 
-#if 0 // TODO
-static int ar7_load(QEMUFile * f, void *opaque, int version_id)
-{
-    int result = 0;
-    if (version_id == 0) {
-        qemu_get_buffer(f, (uint8_t *) & av, sizeof(av));
-    } else {
-        result = -EINVAL;
-    }
-    return result;
-}
-
-static void ar7_save(QEMUFile * f, void *opaque)
-{
-    /* TODO: fix */
-    qemu_put_buffer(f, (uint8_t *) & av, sizeof(av));
-}
-#endif
-
 static void ar7_reset(DeviceState *d)
 {
     /* TODO: fix code. */
@@ -3667,10 +3647,6 @@ static void ar7_init(CPUState * env)
     //~ s_io_memory = cpu_register_io_memory(mips_mm_read, mips_mm_write, 0);
     //~ cpu_register_physical_memory(0x08610000, 0x2000, s_io_memory);
     //~ }
-#define ar7_instance 0
-#define ar7_version 0
-    /* TODO: fix code. */
-    //~ register_savevm("ar7", ar7_instance, ar7_version, ar7_save, ar7_load, 0);
 }
 
 /* Kernel */
