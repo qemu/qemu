@@ -473,16 +473,14 @@ int print_insn_bytecode(bfd_vma addr, disassemble_info *info)
     return length;
 }
 
+#if defined(CONFIG_DEBUG_TCG_INTERPRETER)
 void tci_disas(uint8_t opc)
 {
-#if defined(CONFIG_DEBUG_TCG_INTERPRETER)
-    if (loglevel) {
-        const TCGOpDef *def = &tcg_op_defs[opc];
-        fprintf(stderr, "TCG %s %u, %u, %u\n",
-                def->name, def->nb_oargs, def->nb_iargs, def->nb_cargs);
-    }
-#endif
+    const TCGOpDef *def = &tcg_op_defs[opc];
+    fprintf(stderr, "TCG %s %u, %u, %u\n",
+            def->name, def->nb_oargs, def->nb_iargs, def->nb_cargs);
 }
+#endif
 
 static void tcg_disas3(TCGContext *s, TCGOpcode c, const TCGArg *args)
 {

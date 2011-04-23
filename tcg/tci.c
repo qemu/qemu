@@ -446,7 +446,11 @@ unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
         uint64_t v64;
 #endif
 
-        tci_disas(opc);
+#if defined(CONFIG_DEBUG_TCG_INTERPRETER)
+        if (loglevel) {
+            tci_disas(opc);
+        }
+#endif
 
         switch (opc) {
         case INDEX_op_end:
