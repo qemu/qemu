@@ -239,54 +239,42 @@ static CPUWriteMemoryFunc * const pl022_writefn[] = {
    pl022_write
 };
 
-static void pl022_save(QEMUFile *f, void *opaque)
-{
-    pl022_state *s = (pl022_state *)opaque;
-    int i;
-
-    qemu_put_be32(f, s->cr0);
-    qemu_put_be32(f, s->cr1);
-    qemu_put_be32(f, s->bitmask);
-    qemu_put_be32(f, s->sr);
-    qemu_put_be32(f, s->cpsr);
-    qemu_put_be32(f, s->is);
-    qemu_put_be32(f, s->im);
-    qemu_put_be32(f, s->tx_fifo_head);
-    qemu_put_be32(f, s->rx_fifo_head);
-    qemu_put_be32(f, s->tx_fifo_len);
-    qemu_put_be32(f, s->rx_fifo_len);
-    for (i = 0; i < 8; i++) {
-        qemu_put_be16(f, s->tx_fifo[i]);
-        qemu_put_be16(f, s->rx_fifo[i]);
+static const VMStateDescription vmstate_pl022 = {
+    .name = "pl022_ssp",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32(cr0, pl022_state),
+        VMSTATE_UINT32(cr1, pl022_state),
+        VMSTATE_UINT32(bitmask, pl022_state),
+        VMSTATE_UINT32(sr, pl022_state),
+        VMSTATE_UINT32(cpsr, pl022_state),
+        VMSTATE_UINT32(is, pl022_state),
+        VMSTATE_UINT32(im, pl022_state),
+        VMSTATE_INT32(tx_fifo_head, pl022_state),
+        VMSTATE_INT32(rx_fifo_head, pl022_state),
+        VMSTATE_INT32(tx_fifo_len, pl022_state),
+        VMSTATE_INT32(rx_fifo_len, pl022_state),
+        VMSTATE_UINT16(tx_fifo[0], pl022_state),
+        VMSTATE_UINT16(rx_fifo[0], pl022_state),
+        VMSTATE_UINT16(tx_fifo[1], pl022_state),
+        VMSTATE_UINT16(rx_fifo[1], pl022_state),
+        VMSTATE_UINT16(tx_fifo[2], pl022_state),
+        VMSTATE_UINT16(rx_fifo[2], pl022_state),
+        VMSTATE_UINT16(tx_fifo[3], pl022_state),
+        VMSTATE_UINT16(rx_fifo[3], pl022_state),
+        VMSTATE_UINT16(tx_fifo[4], pl022_state),
+        VMSTATE_UINT16(rx_fifo[4], pl022_state),
+        VMSTATE_UINT16(tx_fifo[5], pl022_state),
+        VMSTATE_UINT16(rx_fifo[5], pl022_state),
+        VMSTATE_UINT16(tx_fifo[6], pl022_state),
+        VMSTATE_UINT16(rx_fifo[6], pl022_state),
+        VMSTATE_UINT16(tx_fifo[7], pl022_state),
+        VMSTATE_UINT16(rx_fifo[7], pl022_state),
+        VMSTATE_END_OF_LIST()
     }
-}
-
-static int pl022_load(QEMUFile *f, void *opaque, int version_id)
-{
-    pl022_state *s = (pl022_state *)opaque;
-    int i;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    s->cr0 = qemu_get_be32(f);
-    s->cr1 = qemu_get_be32(f);
-    s->bitmask = qemu_get_be32(f);
-    s->sr = qemu_get_be32(f);
-    s->cpsr = qemu_get_be32(f);
-    s->is = qemu_get_be32(f);
-    s->im = qemu_get_be32(f);
-    s->tx_fifo_head = qemu_get_be32(f);
-    s->rx_fifo_head = qemu_get_be32(f);
-    s->tx_fifo_len = qemu_get_be32(f);
-    s->rx_fifo_len = qemu_get_be32(f);
-    for (i = 0; i < 8; i++) {
-        s->tx_fifo[i] = qemu_get_be16(f);
-        s->rx_fifo[i] = qemu_get_be16(f);
-    }
-
-    return 0;
-}
+};
 
 static int pl022_init(SysBusDevice *dev)
 {
@@ -300,7 +288,7 @@ static int pl022_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
     s->ssi = ssi_create_bus(&dev->qdev, "ssi");
     pl022_reset(s);
-    register_savevm(&dev->qdev, "pl022_ssp", -1, 1, pl022_save, pl022_load, s);
+    vmstate_register(&dev->qdev, -1, &vmstate_pl022, s);
     return 0;
 }
 

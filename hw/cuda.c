@@ -644,80 +644,56 @@ static CPUReadMemoryFunc * const cuda_read[] = {
     &cuda_readl,
 };
 
-static void cuda_save_timer(QEMUFile *f, CUDATimer *s)
+static bool cuda_timer_exist(void *opaque, int version_id)
 {
-    qemu_put_be16s(f, &s->latch);
-    qemu_put_be16s(f, &s->counter_value);
-    qemu_put_sbe64s(f, &s->load_time);
-    qemu_put_sbe64s(f, &s->next_irq_time);
-    if (s->timer)
-        qemu_put_timer(f, s->timer);
+    CUDATimer *s = opaque;
+
+    return s->timer != NULL;
 }
 
-static void cuda_save(QEMUFile *f, void *opaque)
-{
-    CUDAState *s = (CUDAState *)opaque;
+static const VMStateDescription vmstate_cuda_timer = {
+    .name = "cuda_timer",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT16(latch, CUDATimer),
+        VMSTATE_UINT16(counter_value, CUDATimer),
+        VMSTATE_INT64(load_time, CUDATimer),
+        VMSTATE_INT64(next_irq_time, CUDATimer),
+        VMSTATE_TIMER_TEST(timer, CUDATimer, cuda_timer_exist),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
-    qemu_put_ubyte(f, s->b);
-    qemu_put_ubyte(f, s->a);
-    qemu_put_ubyte(f, s->dirb);
-    qemu_put_ubyte(f, s->dira);
-    qemu_put_ubyte(f, s->sr);
-    qemu_put_ubyte(f, s->acr);
-    qemu_put_ubyte(f, s->pcr);
-    qemu_put_ubyte(f, s->ifr);
-    qemu_put_ubyte(f, s->ier);
-    qemu_put_ubyte(f, s->anh);
-    qemu_put_sbe32s(f, &s->data_in_size);
-    qemu_put_sbe32s(f, &s->data_in_index);
-    qemu_put_sbe32s(f, &s->data_out_index);
-    qemu_put_ubyte(f, s->autopoll);
-    qemu_put_buffer(f, s->data_in, sizeof(s->data_in));
-    qemu_put_buffer(f, s->data_out, sizeof(s->data_out));
-    qemu_put_be32s(f, &s->tick_offset);
-    cuda_save_timer(f, &s->timers[0]);
-    cuda_save_timer(f, &s->timers[1]);
-}
-
-static void cuda_load_timer(QEMUFile *f, CUDATimer *s)
-{
-    qemu_get_be16s(f, &s->latch);
-    qemu_get_be16s(f, &s->counter_value);
-    qemu_get_sbe64s(f, &s->load_time);
-    qemu_get_sbe64s(f, &s->next_irq_time);
-    if (s->timer)
-        qemu_get_timer(f, s->timer);
-}
-
-static int cuda_load(QEMUFile *f, void *opaque, int version_id)
-{
-    CUDAState *s = (CUDAState *)opaque;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    s->b = qemu_get_ubyte(f);
-    s->a = qemu_get_ubyte(f);
-    s->dirb = qemu_get_ubyte(f);
-    s->dira = qemu_get_ubyte(f);
-    s->sr = qemu_get_ubyte(f);
-    s->acr = qemu_get_ubyte(f);
-    s->pcr = qemu_get_ubyte(f);
-    s->ifr = qemu_get_ubyte(f);
-    s->ier = qemu_get_ubyte(f);
-    s->anh = qemu_get_ubyte(f);
-    qemu_get_sbe32s(f, &s->data_in_size);
-    qemu_get_sbe32s(f, &s->data_in_index);
-    qemu_get_sbe32s(f, &s->data_out_index);
-    s->autopoll = qemu_get_ubyte(f);
-    qemu_get_buffer(f, s->data_in, sizeof(s->data_in));
-    qemu_get_buffer(f, s->data_out, sizeof(s->data_out));
-    qemu_get_be32s(f, &s->tick_offset);
-    cuda_load_timer(f, &s->timers[0]);
-    cuda_load_timer(f, &s->timers[1]);
-
-    return 0;
-}
+static const VMStateDescription vmstate_cuda = {
+    .name = "cuda",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT8(a, CUDAState),
+        VMSTATE_UINT8(b, CUDAState),
+        VMSTATE_UINT8(dira, CUDAState),
+        VMSTATE_UINT8(dirb, CUDAState),
+        VMSTATE_UINT8(sr, CUDAState),
+        VMSTATE_UINT8(acr, CUDAState),
+        VMSTATE_UINT8(pcr, CUDAState),
+        VMSTATE_UINT8(ifr, CUDAState),
+        VMSTATE_UINT8(ier, CUDAState),
+        VMSTATE_UINT8(anh, CUDAState),
+        VMSTATE_INT32(data_in_size, CUDAState),
+        VMSTATE_INT32(data_in_index, CUDAState),
+        VMSTATE_INT32(data_out_index, CUDAState),
+        VMSTATE_UINT8(autopoll, CUDAState),
+        VMSTATE_BUFFER(data_in, CUDAState),
+        VMSTATE_BUFFER(data_out, CUDAState),
+        VMSTATE_UINT32(tick_offset, CUDAState),
+        VMSTATE_STRUCT_ARRAY(timers, CUDAState, 2, 1,
+                             vmstate_cuda_timer, CUDATimer),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void cuda_reset(void *opaque)
 {
@@ -764,6 +740,6 @@ void cuda_init (int *cuda_mem_index, qemu_irq irq)
     s->adb_poll_timer = qemu_new_timer_ns(vm_clock, cuda_adb_poll, s);
     *cuda_mem_index = cpu_register_io_memory(cuda_read, cuda_write, s,
                                              DEVICE_NATIVE_ENDIAN);
-    register_savevm(NULL, "cuda", -1, 1, cuda_save, cuda_load, s);
+    vmstate_register(NULL, -1, &vmstate_cuda, s);
     qemu_register_reset(cuda_reset, s);
 }

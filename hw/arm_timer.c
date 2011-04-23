@@ -140,28 +140,19 @@ static void arm_timer_tick(void *opaque)
     arm_timer_update(s);
 }
 
-static void arm_timer_save(QEMUFile *f, void *opaque)
-{
-    arm_timer_state *s = (arm_timer_state *)opaque;
-    qemu_put_be32(f, s->control);
-    qemu_put_be32(f, s->limit);
-    qemu_put_be32(f, s->int_level);
-    qemu_put_ptimer(f, s->timer);
-}
-
-static int arm_timer_load(QEMUFile *f, void *opaque, int version_id)
-{
-    arm_timer_state *s = (arm_timer_state *)opaque;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    s->control = qemu_get_be32(f);
-    s->limit = qemu_get_be32(f);
-    s->int_level = qemu_get_be32(f);
-    qemu_get_ptimer(f, s->timer);
-    return 0;
-}
+static const VMStateDescription vmstate_arm_timer = {
+    .name = "arm_timer",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32(control, arm_timer_state),
+        VMSTATE_UINT32(limit, arm_timer_state),
+        VMSTATE_INT32(int_level, arm_timer_state),
+        VMSTATE_PTIMER(timer, arm_timer_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static arm_timer_state *arm_timer_init(uint32_t freq)
 {
@@ -174,7 +165,7 @@ static arm_timer_state *arm_timer_init(uint32_t freq)
 
     bh = qemu_bh_new(arm_timer_tick, s);
     s->timer = ptimer_init(bh);
-    register_savevm(NULL, "arm_timer", -1, 1, arm_timer_save, arm_timer_load, s);
+    vmstate_register(NULL, -1, &vmstate_arm_timer, s);
     return s;
 }
 
@@ -235,24 +226,17 @@ static CPUWriteMemoryFunc * const sp804_writefn[] = {
    sp804_write
 };
 
-static void sp804_save(QEMUFile *f, void *opaque)
-{
-    sp804_state *s = (sp804_state *)opaque;
-    qemu_put_be32(f, s->level[0]);
-    qemu_put_be32(f, s->level[1]);
-}
 
-static int sp804_load(QEMUFile *f, void *opaque, int version_id)
-{
-    sp804_state *s = (sp804_state *)opaque;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    s->level[0] = qemu_get_be32(f);
-    s->level[1] = qemu_get_be32(f);
-    return 0;
-}
+static const VMStateDescription vmstate_sp804 = {
+    .name = "sp804",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_INT32_ARRAY(level, sp804_state, 2),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static int sp804_init(SysBusDevice *dev)
 {
@@ -271,7 +255,7 @@ static int sp804_init(SysBusDevice *dev)
     iomemtype = cpu_register_io_memory(sp804_readfn,
                                        sp804_writefn, s, DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
-    register_savevm(&dev->qdev, "sp804", -1, 1, sp804_save, sp804_load, s);
+    vmstate_register(&dev->qdev, -1, &vmstate_sp804, s);
     return 0;
 }
 

@@ -202,44 +202,29 @@ static void mipsnet_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static void mipsnet_save(QEMUFile *f, void *opaque)
-{
-    MIPSnetState *s = opaque;
-
-    qemu_put_be32s(f, &s->busy);
-    qemu_put_be32s(f, &s->rx_count);
-    qemu_put_be32s(f, &s->rx_read);
-    qemu_put_be32s(f, &s->tx_count);
-    qemu_put_be32s(f, &s->tx_written);
-    qemu_put_be32s(f, &s->intctl);
-    qemu_put_buffer(f, s->rx_buffer, MAX_ETH_FRAME_SIZE);
-    qemu_put_buffer(f, s->tx_buffer, MAX_ETH_FRAME_SIZE);
-}
-
-static int mipsnet_load(QEMUFile *f, void *opaque, int version_id)
-{
-    MIPSnetState *s = opaque;
-
-    if (version_id > 0)
-        return -EINVAL;
-
-    qemu_get_be32s(f, &s->busy);
-    qemu_get_be32s(f, &s->rx_count);
-    qemu_get_be32s(f, &s->rx_read);
-    qemu_get_be32s(f, &s->tx_count);
-    qemu_get_be32s(f, &s->tx_written);
-    qemu_get_be32s(f, &s->intctl);
-    qemu_get_buffer(f, s->rx_buffer, MAX_ETH_FRAME_SIZE);
-    qemu_get_buffer(f, s->tx_buffer, MAX_ETH_FRAME_SIZE);
-
-    return 0;
-}
+static const VMStateDescription vmstate_mipsnet = {
+    .name = "mipsnet",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32(busy, MIPSnetState),
+        VMSTATE_UINT32(rx_count, MIPSnetState),
+        VMSTATE_UINT32(rx_read, MIPSnetState),
+        VMSTATE_UINT32(tx_count, MIPSnetState),
+        VMSTATE_UINT32(tx_written, MIPSnetState),
+        VMSTATE_UINT32(intctl, MIPSnetState),
+        VMSTATE_BUFFER(rx_buffer, MIPSnetState),
+        VMSTATE_BUFFER(tx_buffer, MIPSnetState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void mipsnet_cleanup(VLANClientState *nc)
 {
     MIPSnetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
-    unregister_savevm(NULL, "mipsnet", s);
+    vmstate_unregister(NULL, &vmstate_mipsnet, s);
 
     isa_unassign_ioport(s->io_base, 36);
 
@@ -284,5 +269,5 @@ void mipsnet_init (int base, qemu_irq irq, NICInfo *nd)
     }
 
     mipsnet_reset(s);
-    register_savevm(NULL, "mipsnet", 0, 0, mipsnet_save, mipsnet_load, s);
+    vmstate_register(NULL, 0, &vmstate_mipsnet, s);
 }

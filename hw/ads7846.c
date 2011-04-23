@@ -105,34 +105,29 @@ static void ads7846_ts_event(void *opaque,
     }
 }
 
-static void ads7846_save(QEMUFile *f, void *opaque)
+static int ads7856_post_load(void *opaque, int version_id)
 {
-    ADS7846State *s = (ADS7846State *) opaque;
-    int i;
-
-    for (i = 0; i < 8; i ++)
-        qemu_put_be32(f, s->input[i]);
-    qemu_put_be32(f, s->noise);
-    qemu_put_be32(f, s->cycle);
-    qemu_put_be32(f, s->output);
-}
-
-static int ads7846_load(QEMUFile *f, void *opaque, int version_id)
-{
-    ADS7846State *s = (ADS7846State *) opaque;
-    int i;
-
-    for (i = 0; i < 8; i ++)
-        s->input[i] = qemu_get_be32(f);
-    s->noise = qemu_get_be32(f);
-    s->cycle = qemu_get_be32(f);
-    s->output = qemu_get_be32(f);
+    ADS7846State *s = opaque;
 
     s->pressure = 0;
     ads7846_int_update(s);
-
     return 0;
 }
+
+static const VMStateDescription vmstate_ads7846 = {
+    .name = "ads7846",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .post_load = ads7856_post_load,
+    .fields      = (VMStateField[]) {
+        VMSTATE_INT32_ARRAY(input, ADS7846State, 8),
+        VMSTATE_INT32(noise, ADS7846State),
+        VMSTATE_INT32(cycle, ADS7846State),
+        VMSTATE_INT32(output, ADS7846State),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static int ads7846_init(SSISlave *dev)
 {
@@ -151,7 +146,7 @@ static int ads7846_init(SSISlave *dev)
 
     ads7846_int_update(s);
 
-    register_savevm(NULL, "ads7846", -1, 0, ads7846_save, ads7846_load, s);
+    vmstate_register(NULL, -1, &vmstate_ads7846, s);
     return 0;
 }
 

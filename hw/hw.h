@@ -689,6 +689,17 @@ extern const VMStateDescription vmstate_usb_device;
     .offset     = vmstate_offset_macaddr(_state, _field),            \
 }
 
+extern const VMStateDescription vmstate_ptimer;
+
+#define VMSTATE_PTIMER(_field, _state) {                             \
+    .name       = (stringify(_field)),                               \
+    .version_id = (1),                                               \
+    .vmsd       = &vmstate_ptimer,                                   \
+    .size       = sizeof(ptimer_state *),                            \
+    .flags      = VMS_STRUCT|VMS_POINTER,                            \
+    .offset     = vmstate_offset_pointer(_state, _field, ptimer_state), \
+}
+
 /* _f : field name
    _f_n : num of elements field_name
    _n : num of elements
@@ -783,12 +794,6 @@ extern const VMStateDescription vmstate_usb_device;
 
 #define VMSTATE_TIMER_ARRAY(_f, _s, _n)                              \
     VMSTATE_ARRAY_OF_POINTER(_f, _s, _n, 0, vmstate_info_timer, QEMUTimer *)
-
-#define VMSTATE_PTIMER_V(_f, _s, _v)                                  \
-    VMSTATE_POINTER(_f, _s, _v, vmstate_info_ptimer, ptimer_state *)
-
-#define VMSTATE_PTIMER(_f, _s)                                        \
-    VMSTATE_PTIMER_V(_f, _s, 0)
 
 #define VMSTATE_BOOL_ARRAY_V(_f, _s, _n, _v)                         \
     VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_bool, bool)

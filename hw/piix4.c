@@ -30,10 +30,14 @@
 
 PCIDevice *piix4_dev;
 
+typedef struct PIIX4State {
+    PCIDevice dev;
+} PIIX4State;
+
 static void piix4_reset(void *opaque)
 {
-    PCIDevice *d = opaque;
-    uint8_t *pci_conf = d->config;
+    PIIX4State *d = opaque;
+    uint8_t *pci_conf = d->dev.config;
 
     pci_conf[0x04] = 0x07; // master, memory and I/O
     pci_conf[0x05] = 0x00;
@@ -68,33 +72,30 @@ static void piix4_reset(void *opaque)
     pci_conf[0xae] = 0x00;
 }
 
-static void piix_save(QEMUFile* f, void *opaque)
-{
-    PCIDevice *d = opaque;
-    pci_device_save(d, f);
-}
+static const VMStateDescription vmstate_piix4 = {
+    .name = "PIIX4",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
+    .fields      = (VMStateField[]) {
+        VMSTATE_PCI_DEVICE(dev, PIIX4State),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
-static int piix_load(QEMUFile* f, void *opaque, int version_id)
+static int piix4_initfn(PCIDevice *dev)
 {
-    PCIDevice *d = opaque;
-    if (version_id != 2)
-        return -EINVAL;
-    return pci_device_load(d, f);
-}
-
-static int piix4_initfn(PCIDevice *d)
-{
+    PIIX4State *d = DO_UPCAST(PIIX4State, dev, dev);
     uint8_t *pci_conf;
 
-    isa_bus_new(&d->qdev);
-    register_savevm(&d->qdev, "PIIX4", 0, 2, piix_save, piix_load, d);
+    isa_bus_new(&d->dev.qdev);
 
-    pci_conf = d->config;
+    pci_conf = d->dev.config;
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82371AB_0); // 82371AB/EB/MB PIIX4 PCI-to-ISA bridge
     pci_config_set_class(pci_conf, PCI_CLASS_BRIDGE_ISA);
 
-    piix4_dev = d;
+    piix4_dev = &d->dev;
     qemu_register_reset(piix4_reset, d);
     return 0;
 }
@@ -111,7 +112,8 @@ static PCIDeviceInfo piix4_info[] = {
     {
         .qdev.name    = "PIIX4",
         .qdev.desc    = "ISA bridge",
-        .qdev.size    = sizeof(PCIDevice),
+        .qdev.size    = sizeof(PIIX4State),
+        .qdev.vmsd    = &vmstate_piix4,
         .qdev.no_user = 1,
         .no_hotplug   = 1,
         .init         = piix4_initfn,

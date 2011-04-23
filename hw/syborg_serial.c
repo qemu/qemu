@@ -273,47 +273,24 @@ static CPUWriteMemoryFunc * const syborg_serial_writefn[] = {
      syborg_serial_write
 };
 
-static void syborg_serial_save(QEMUFile *f, void *opaque)
-{
-    SyborgSerialState *s = opaque;
-    int i;
-
-    qemu_put_be32(f, s->fifo_size);
-    qemu_put_be32(f, s->int_enable);
-    qemu_put_be32(f, s->read_pos);
-    qemu_put_be32(f, s->read_count);
-    qemu_put_be32(f, s->dma_tx_ptr);
-    qemu_put_be32(f, s->dma_rx_ptr);
-    qemu_put_be32(f, s->dma_rx_size);
-    for (i = 0; i < s->fifo_size; i++) {
-        qemu_put_be32(f, s->read_fifo[i]);
+static const VMStateDescription vmstate_syborg_serial = {
+    .name = "syborg_serial",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32_EQUAL(fifo_size, SyborgSerialState),
+        VMSTATE_UINT32(int_enable, SyborgSerialState),
+        VMSTATE_INT32(read_pos, SyborgSerialState),
+        VMSTATE_INT32(read_count, SyborgSerialState),
+        VMSTATE_UINT32(dma_tx_ptr, SyborgSerialState),
+        VMSTATE_UINT32(dma_rx_ptr, SyborgSerialState),
+        VMSTATE_UINT32(dma_rx_size, SyborgSerialState),
+        VMSTATE_VARRAY_UINT32(read_fifo, SyborgSerialState, fifo_size, 1,
+                              vmstate_info_uint32, uint32),
+        VMSTATE_END_OF_LIST()
     }
-}
-
-static int syborg_serial_load(QEMUFile *f, void *opaque, int version_id)
-{
-    SyborgSerialState *s = opaque;
-    int i;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    i = qemu_get_be32(f);
-    if (s->fifo_size != i)
-        return -EINVAL;
-
-    s->int_enable = qemu_get_be32(f);
-    s->read_pos = qemu_get_be32(f);
-    s->read_count = qemu_get_be32(f);
-    s->dma_tx_ptr = qemu_get_be32(f);
-    s->dma_rx_ptr = qemu_get_be32(f);
-    s->dma_rx_size = qemu_get_be32(f);
-    for (i = 0; i < s->fifo_size; i++) {
-        s->read_fifo[i] = qemu_get_be32(f);
-    }
-
-    return 0;
-}
+};
 
 static int syborg_serial_init(SysBusDevice *dev)
 {
@@ -336,8 +313,6 @@ static int syborg_serial_init(SysBusDevice *dev)
     }
     s->read_fifo = qemu_mallocz(s->fifo_size * sizeof(s->read_fifo[0]));
 
-    register_savevm(&dev->qdev, "syborg_serial", -1, 1,
-                    syborg_serial_save, syborg_serial_load, s);
     return 0;
 }
 
@@ -345,6 +320,7 @@ static SysBusDeviceInfo syborg_serial_info = {
     .init = syborg_serial_init,
     .qdev.name  = "syborg,serial",
     .qdev.size  = sizeof(SyborgSerialState),
+    .qdev.vmsd  = &vmstate_syborg_serial,
     .qdev.props = (Property[]) {
         DEFINE_PROP_UINT32("fifo-size", SyborgSerialState, fifo_size, 16),
         DEFINE_PROP_END_OF_LIST(),
