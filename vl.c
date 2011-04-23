@@ -756,7 +756,7 @@ void add_boot_device_path(int32_t bootindex, DeviceState *dev,
 
 /*
  * This function returns null terminated string that consist of new line
- * separated device pathes.
+ * separated device paths.
  *
  * memory pointed by "size" is assigned total length of the array in bytes
  *
