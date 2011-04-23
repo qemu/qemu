@@ -2414,7 +2414,6 @@ static void nic_cleanup(VLANClientState *vc)
     //~ E100State *s = DO_UPCAST(NICState, nc, vc)->opaque;
 
 #if 0
-    unregister_savevm("e100", d);
     qemu_del_timer(d->poll_timer);
     qemu_free_timer(d->poll_timer);
 #endif
