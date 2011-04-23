@@ -94,9 +94,6 @@
 #define DP8381X_IO_SIZE         256
 #define DP8381X_MEM_SIZE        4096
 
-static int dp8381x_instance = 0;
-static const int dp8381x_version = 20060726;
-
 /*****************************************************************************
  *
  * EEPROM emulation.
@@ -1367,34 +1364,6 @@ static void nic_cleanup(VLANClientState *vc)
 #endif
 }
 
-static int dp8381x_load(QEMUFile * f, void *opaque, int version_id)
-{
-    dp8381x_t *s = opaque;
-    int result = 0;
-    logout("\n");
-    if (version_id == dp8381x_version) {
-        result = pci_device_load(&s->dev, f);
-    } else {
-        result = -EINVAL;
-    }
-    return result;
-}
-
-static void dp8381x_nic_reset(void *opaque)
-{
-    dp8381x_t *s = opaque;
-    logout("%p\n", s);
-}
-
-static void dp8381x_save(QEMUFile * f, void *opaque)
-{
-    dp8381x_t *s = opaque;
-    logout("\n");
-    pci_device_save(&s->dev, f);
-    /* TODO: support different endianness */
-    //~ qemu_put_buffer(f, (uint8_t *) s, sizeof(*s));
-}
-
 #if defined(CONFIG_EEPROM)
 /* SWAP_BITS is needed for buggy Linux driver. */
 #define SWAP_BITS(x)	( (((x) & 0x0001) << 15) | (((x) & 0x0002) << 13) \
@@ -1529,13 +1498,6 @@ static int pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
 
     qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
 
-    qemu_register_reset(dp8381x_nic_reset, s);
-
-    // TODO: use &s->nic->nc->model or d->name instead of "dp8381x".
-    /* TODO: replace NULL by &dev->qdev. */
-    register_savevm(NULL, "dp8381x", dp8381x_instance, dp8381x_version,
-                    dp8381x_save, dp8381x_load, s);
-
     return 0;
 }
 
@@ -1549,9 +1511,27 @@ static int dp8381x_init(PCIDevice *pci_dev)
 #endif
 }
 
+static void qdev_dp8381x_reset(DeviceState *dev)
+{
+    dp8381x_t *d = DO_UPCAST(dp8381x_t, dev.qdev, dev);
+    dp8381x_reset(d);
+}
+
 static Property dp8381x_properties[] = {
     DEFINE_NIC_PROPERTIES(dp8381x_t, conf),
     DEFINE_PROP_END_OF_LIST(),
+};
+
+static const VMStateDescription vmstate_dp8381x = {
+    .name = "dp8381x",
+    .version_id = 20060726,
+    .minimum_version_id = 20060726,
+    .minimum_version_id_old = 20060726,
+    .fields      = (VMStateField []) {
+        VMSTATE_PCI_DEVICE(dev, dp8381x_t),
+        // TODO: Add missing entries here.
+        VMSTATE_END_OF_LIST()
+    }
 };
 
 #if defined(DP83815)
@@ -1560,6 +1540,8 @@ static PCIDeviceInfo dp8381x_info = {
     .qdev.desc = "National Semiconductor DP83815",
     .qdev.props = dp8381x_properties,
     .qdev.size = sizeof(dp8381x_t),
+    .qdev.reset = qdev_dp8381x_reset,
+    .qdev.vmsd = &vmstate_dp8381x,
     .init      = dp8381x_init,
 };
 #else
@@ -1568,6 +1550,8 @@ static PCIDeviceInfo dp8381x_info = {
     .qdev.desc = "National Semiconductor DP83816",
     .qdev.props = dp8381x_properties,
     .qdev.size = sizeof(dp8381x_t),
+    .qdev.reset = qdev_dp8381x_reset,
+    .qdev.vmsd = &vmstate_dp8381x,
     .init      = dp8381x_init,
 };
 #endif
