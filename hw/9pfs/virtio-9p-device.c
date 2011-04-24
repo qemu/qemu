@@ -18,6 +18,7 @@
 #include "virtio-9p.h"
 #include "fsdev/qemu-fsdev.h"
 #include "virtio-9p-xattr.h"
+#include "virtio-9p-coth.h"
 
 static uint32_t virtio_9p_get_features(VirtIODevice *vdev, uint32_t features)
 {
@@ -50,13 +51,11 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
     struct stat stat;
     FsTypeEntry *fse;
 
-
     s = (V9fsState *)virtio_common_init("virtio-9p",
                                     VIRTIO_ID_9P,
                                     sizeof(struct virtio_9p_config)+
                                     MAX_TAG_LEN,
                                     sizeof(V9fsState));
-
     /* initialize pdu allocator */
     QLIST_INIT(&s->free_list);
     for (i = 0; i < (MAX_REQ - 1); i++) {
@@ -132,6 +131,10 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
                         s->tag_len;
     s->vdev.get_config = virtio_9p_get_config;
 
+    if (v9fs_init_worker_threads() < 0) {
+        fprintf(stderr, "worker thread initialization failed\n");
+        exit(1);
+    }
     return &s->vdev;
 }
 

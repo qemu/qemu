@@ -305,8 +305,10 @@ hw-obj-$(CONFIG_SOUND) += $(sound-obj-y)
 9pfs-nested-$(CONFIG_VIRTFS) = virtio-9p.o virtio-9p-debug.o
 9pfs-nested-$(CONFIG_VIRTFS) +=  virtio-9p-local.o virtio-9p-xattr.o
 9pfs-nested-$(CONFIG_VIRTFS) +=   virtio-9p-xattr-user.o virtio-9p-posix-acl.o
+9pfs-nested-$(CONFIG_VIRTFS) += virtio-9p-coth.o
 
 hw-obj-$(CONFIG_REALLY_VIRTFS) += $(addprefix 9pfs/, $(9pfs-nested-y))
+$(addprefix 9pfs/, $(9pfs-nested-y)): QEMU_CFLAGS+=$(GLIB_CFLAGS)
 
 
 ######################################################################
