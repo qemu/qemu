@@ -603,9 +603,15 @@ static commonNaNT floatx80ToCommonNaN( floatx80 a STATUS_PARAM)
     commonNaNT z;
 
     if ( floatx80_is_signaling_nan( a ) ) float_raise( float_flag_invalid STATUS_VAR);
-    z.sign = a.high>>15;
-    z.low = 0;
-    z.high = a.low;
+    if ( a.low >> 63 ) {
+        z.sign = a.high >> 15;
+        z.low = 0;
+        z.high = a.low << 1;
+    } else {
+        z.sign = floatx80_default_nan_high >> 15;
+        z.low = 0;
+        z.high = floatx80_default_nan_low << 1;
+    }
     return z;
 }
 
@@ -624,11 +630,14 @@ static floatx80 commonNaNToFloatx80( commonNaNT a STATUS_PARAM)
         return z;
     }
 
-    if (a.high)
-        z.low = a.high;
-    else
+    if (a.high >> 1) {
+        z.low = LIT64( 0x8000000000000000 ) | a.high >> 1;
+        z.high = ( ( (uint16_t) a.sign )<<15 ) | 0x7FFF;
+    } else {
         z.low = floatx80_default_nan_low;
-    z.high = ( ( (uint16_t) a.sign )<<15 ) | 0x7FFF;
+        z.high = floatx80_default_nan_high;
+    }
+
     return z;
 }
 

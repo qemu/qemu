@@ -778,28 +778,38 @@ int64_t helper_cvttsd2sq(XMMReg *s)
 
 void helper_rsqrtps(XMMReg *d, XMMReg *s)
 {
-    d->XMM_S(0) = approx_rsqrt(s->XMM_S(0));
-    d->XMM_S(1) = approx_rsqrt(s->XMM_S(1));
-    d->XMM_S(2) = approx_rsqrt(s->XMM_S(2));
-    d->XMM_S(3) = approx_rsqrt(s->XMM_S(3));
+    d->XMM_S(0) = float32_div(float32_one,
+                              float32_sqrt(s->XMM_S(0), &env->sse_status),
+                              &env->sse_status);
+    d->XMM_S(1) = float32_div(float32_one,
+                              float32_sqrt(s->XMM_S(1), &env->sse_status),
+                              &env->sse_status);
+    d->XMM_S(2) = float32_div(float32_one,
+                              float32_sqrt(s->XMM_S(2), &env->sse_status),
+                              &env->sse_status);
+    d->XMM_S(3) = float32_div(float32_one,
+                              float32_sqrt(s->XMM_S(3), &env->sse_status),
+                              &env->sse_status);
 }
 
 void helper_rsqrtss(XMMReg *d, XMMReg *s)
 {
-    d->XMM_S(0) = approx_rsqrt(s->XMM_S(0));
+    d->XMM_S(0) = float32_div(float32_one,
+                              float32_sqrt(s->XMM_S(0), &env->sse_status),
+                              &env->sse_status);
 }
 
 void helper_rcpps(XMMReg *d, XMMReg *s)
 {
-    d->XMM_S(0) = approx_rcp(s->XMM_S(0));
-    d->XMM_S(1) = approx_rcp(s->XMM_S(1));
-    d->XMM_S(2) = approx_rcp(s->XMM_S(2));
-    d->XMM_S(3) = approx_rcp(s->XMM_S(3));
+    d->XMM_S(0) = float32_div(float32_one, s->XMM_S(0), &env->sse_status);
+    d->XMM_S(1) = float32_div(float32_one, s->XMM_S(1), &env->sse_status);
+    d->XMM_S(2) = float32_div(float32_one, s->XMM_S(2), &env->sse_status);
+    d->XMM_S(3) = float32_div(float32_one, s->XMM_S(3), &env->sse_status);
 }
 
 void helper_rcpss(XMMReg *d, XMMReg *s)
 {
-    d->XMM_S(0) = approx_rcp(s->XMM_S(0));
+    d->XMM_S(0) = float32_div(float32_one, s->XMM_S(0), &env->sse_status);
 }
 
 static inline uint64_t helper_extrq(uint64_t src, int shift, int len)
@@ -1272,14 +1282,16 @@ void helper_pfpnacc(MMXReg *d, MMXReg *s)
 
 void helper_pfrcp(MMXReg *d, MMXReg *s)
 {
-    d->MMX_S(0) = approx_rcp(s->MMX_S(0));
+    d->MMX_S(0) = float32_div(float32_one, s->MMX_S(0), &env->mmx_status);
     d->MMX_S(1) = d->MMX_S(0);
 }
 
 void helper_pfrsqrt(MMXReg *d, MMXReg *s)
 {
     d->MMX_L(1) = s->MMX_L(0) & 0x7fffffff;
-    d->MMX_S(1) = approx_rsqrt(d->MMX_S(1));
+    d->MMX_S(1) = float32_div(float32_one,
+                              float32_sqrt(d->MMX_S(1), &env->mmx_status),
+                              &env->mmx_status);
     d->MMX_L(1) |= s->MMX_L(0) & 0x80000000;
     d->MMX_L(0) = d->MMX_L(1);
 }

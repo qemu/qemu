@@ -154,6 +154,7 @@ typedef struct {
     uint64_t low;
     uint16_t high;
 } floatx80;
+#define make_floatx80(exp, mant) ((floatx80) { mant, exp })
 #endif
 #ifdef FLOAT128
 typedef struct {
@@ -386,6 +387,7 @@ INLINE float32 float32_set_sign(float32 a, int sign)
 #define float32_zero make_float32(0)
 #define float32_one make_float32(0x3f800000)
 #define float32_ln2 make_float32(0x3f317218)
+#define float32_pi make_float32(0x40490fdb)
 #define float32_half make_float32(0x3f000000)
 #define float32_infinity make_float32(0x7f800000)
 
@@ -498,6 +500,7 @@ INLINE float64 float64_set_sign(float64 a, int sign)
 #define float64_zero make_float64(0)
 #define float64_one make_float64(0x3ff0000000000000LL)
 #define float64_ln2 make_float64(0x3fe62e42fefa39efLL)
+#define float64_pi make_float64(0x400921fb54442d18LL)
 #define float64_half make_float64(0x3fe0000000000000LL)
 #define float64_infinity make_float64(0x7ff0000000000000LL)
 
@@ -547,6 +550,8 @@ int floatx80_eq_quiet( floatx80, floatx80 STATUS_PARAM );
 int floatx80_le_quiet( floatx80, floatx80 STATUS_PARAM );
 int floatx80_lt_quiet( floatx80, floatx80 STATUS_PARAM );
 int floatx80_unordered_quiet( floatx80, floatx80 STATUS_PARAM );
+int floatx80_compare( floatx80, floatx80 STATUS_PARAM );
+int floatx80_compare_quiet( floatx80, floatx80 STATUS_PARAM );
 int floatx80_is_quiet_nan( floatx80 );
 int floatx80_is_signaling_nan( floatx80 );
 floatx80 floatx80_maybe_silence_nan( floatx80 );
@@ -566,7 +571,7 @@ INLINE floatx80 floatx80_chs(floatx80 a)
 
 INLINE int floatx80_is_infinity(floatx80 a)
 {
-    return (a.high & 0x7fff) == 0x7fff && a.low == 0;
+    return (a.high & 0x7fff) == 0x7fff && a.low == 0x8000000000000000LL;
 }
 
 INLINE int floatx80_is_neg(floatx80 a)
@@ -583,6 +588,13 @@ INLINE int floatx80_is_any_nan(floatx80 a)
 {
     return ((a.high & 0x7fff) == 0x7fff) && (a.low<<1);
 }
+
+#define floatx80_zero make_floatx80(0x0000, 0x0000000000000000LL)
+#define floatx80_one make_floatx80(0x3fff, 0x8000000000000000LL)
+#define floatx80_ln2 make_floatx80(0x3ffe, 0xb17217f7d1cf79acLL)
+#define floatx80_pi make_floatx80(0x4000, 0xc90fdaa22168c235LL)
+#define floatx80_half make_floatx80(0x3ffe, 0x8000000000000000LL)
+#define floatx80_infinity make_floatx80(0x7fff, 0x8000000000000000LL)
 
 /*----------------------------------------------------------------------------
 | The pattern for a default generated extended double-precision NaN.  The
