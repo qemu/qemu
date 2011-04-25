@@ -8016,7 +8016,8 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                     }
                 }
             } else {
-                int i;
+                int i, loaded_base = 0;
+                TCGv loaded_var;
                 /* Load/store multiple.  */
                 addr = load_reg(s, rn);
                 offset = 0;
@@ -8028,6 +8029,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                     tcg_gen_addi_i32(addr, addr, -offset);
                 }
 
+                TCGV_UNUSED(loaded_var);
                 for (i = 0; i < 16; i++) {
                     if ((insn & (1 << i)) == 0)
                         continue;
@@ -8036,6 +8038,9 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                         tmp = gen_ld32(addr, IS_USER(s));
                         if (i == 15) {
                             gen_bx(s, tmp);
+                        } else if (i == rn) {
+                            loaded_var = tmp;
+                            loaded_base = 1;
                         } else {
                             store_reg(s, i, tmp);
                         }
@@ -8045,6 +8050,9 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                         gen_st32(tmp, addr, IS_USER(s));
                     }
                     tcg_gen_addi_i32(addr, addr, 4);
+                }
+                if (loaded_base) {
+                    store_reg(s, rn, loaded_var);
                 }
                 if (insn & (1 << 21)) {
                     /* Base register writeback.  */
