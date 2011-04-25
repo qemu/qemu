@@ -25,20 +25,42 @@
 
 /*****************************************************************************/
 /* Exceptions processing helpers */
-void QEMU_NORETURN helper_excp (int excp, int error)
+
+/* This should only be called from translate, via gen_excp.
+   We expect that ENV->PC has already been updated.  */
+void QEMU_NORETURN helper_excp(int excp, int error)
 {
     env->exception_index = excp;
     env->error_code = error;
     cpu_loop_exit();
 }
 
+static void do_restore_state(void *retaddr)
+{
+    unsigned long pc = (unsigned long)retaddr;
+
+    if (pc) {
+        TranslationBlock *tb = tb_find_pc(pc);
+        if (tb) {
+            cpu_restore_state(tb, env, pc);
+        }
+    }
+}
+
+/* This may be called from any of the helpers to set up EXCEPTION_INDEX.  */
+static void QEMU_NORETURN dynamic_excp(int excp, int error)
+{
+    env->exception_index = excp;
+    env->error_code = error;
+    do_restore_state(GETPC());
+    cpu_loop_exit();
+}
+
 static void QEMU_NORETURN arith_excp(int exc, uint64_t mask)
 {
-    env->exception_index = EXCP_ARITH;
-    env->error_code = 0;
     env->trap_arg0 = exc;
     env->trap_arg1 = mask;
-    cpu_loop_exit();
+    dynamic_excp(EXCP_ARITH, 0);
 }
 
 uint64_t helper_load_pcc (void)
@@ -521,7 +543,7 @@ static inline float32 f_to_float32(uint64_t a)
 
     if (unlikely(!exp && mant_sig)) {
         /* Reserved operands / Dirty zero */
-        helper_excp(EXCP_OPCDEC, 0);
+        dynamic_excp(EXCP_OPCDEC, 0);
     }
 
     if (exp < 3) {
@@ -651,7 +673,7 @@ static inline float64 g_to_float64(uint64_t a)
 
     if (!exp && mant_sig) {
         /* Reserved operands / Dirty zero */
-        helper_excp(EXCP_OPCDEC, 0);
+        dynamic_excp(EXCP_OPCDEC, 0);
     }
 
     if (exp < 3) {
@@ -1260,9 +1282,7 @@ uint64_t helper_stq_c_phys(uint64_t p, uint64_t v)
 /* XXX: fix it to restore all registers */
 void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 {
-    TranslationBlock *tb;
     CPUState *saved_env;
-    unsigned long pc;
     int ret;
 
     /* XXX: hack to restore env in all cases, even if not called from
@@ -1270,17 +1290,8 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     saved_env = env;
     env = cpu_single_env;
     ret = cpu_alpha_handle_mmu_fault(env, addr, is_write, mmu_idx, 1);
-    if (!likely(ret == 0)) {
-        if (likely(retaddr)) {
-            /* now we have a real cpu fault */
-            pc = (unsigned long)retaddr;
-            tb = tb_find_pc(pc);
-            if (likely(tb)) {
-                /* the PC is inside the translated code. It means that we have
-                   a virtual CPU fault */
-                cpu_restore_state(tb, env, pc);
-            }
-        }
+    if (unlikely(ret != 0)) {
+        do_restore_state(retaddr);
         /* Exception index and error code are already set */
         cpu_loop_exit();
     }
