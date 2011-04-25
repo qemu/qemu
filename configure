@@ -177,7 +177,7 @@ spice=""
 rbd=""
 smartcard=""
 smartcard_nss=""
-opengl="no"
+opengl=""
 
 # parse CC options first
 for opt do
