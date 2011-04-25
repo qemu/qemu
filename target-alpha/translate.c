@@ -147,17 +147,21 @@ static void alpha_translate_init(void)
     done_init = 1;
 }
 
-static ExitStatus gen_excp(DisasContext *ctx, int exception, int error_code)
+static void gen_excp_1(int exception, int error_code)
 {
     TCGv_i32 tmp1, tmp2;
 
-    tcg_gen_movi_i64(cpu_pc, ctx->pc);
     tmp1 = tcg_const_i32(exception);
     tmp2 = tcg_const_i32(error_code);
     gen_helper_excp(tmp1, tmp2);
     tcg_temp_free_i32(tmp2);
     tcg_temp_free_i32(tmp1);
+}
 
+static ExitStatus gen_excp(DisasContext *ctx, int exception, int error_code)
+{
+    tcg_gen_movi_i64(cpu_pc, ctx->pc);
+    gen_excp_1(exception, error_code);
     return EXIT_NORETURN;
 }
 
@@ -3211,18 +3215,15 @@ static inline void gen_intermediate_code_internal(CPUState *env,
         ctx.pc += 4;
         ret = translate_one(ctxp, insn);
 
-        if (ret == NO_EXIT) {
-            /* If we reach a page boundary, are single stepping,
-               or exhaust instruction count, stop generation.  */
-            if (env->singlestep_enabled) {
-                gen_excp(&ctx, EXCP_DEBUG, 0);
-                ret = EXIT_PC_UPDATED;
-            } else if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0
-                       || gen_opc_ptr >= gen_opc_end
-                       || num_insns >= max_insns
-                       || singlestep) {
-                ret = EXIT_PC_STALE;
-            }
+        /* If we reach a page boundary, are single stepping,
+           or exhaust instruction count, stop generation.  */
+        if (ret == NO_EXIT
+            && ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0
+                || gen_opc_ptr >= gen_opc_end
+                || num_insns >= max_insns
+                || singlestep
+                || env->singlestep_enabled)) {
+            ret = EXIT_PC_STALE;
         }
     } while (ret == NO_EXIT);
 
@@ -3238,7 +3239,11 @@ static inline void gen_intermediate_code_internal(CPUState *env,
         tcg_gen_movi_i64(cpu_pc, ctx.pc);
         /* FALLTHRU */
     case EXIT_PC_UPDATED:
-        tcg_gen_exit_tb(0);
+        if (env->singlestep_enabled) {
+            gen_excp_1(EXCP_DEBUG, 0);
+        } else {
+            tcg_gen_exit_tb(0);
+        }
         break;
     default:
         abort();
