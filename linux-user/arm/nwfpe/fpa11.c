@@ -144,7 +144,7 @@ unsigned int EmulateAll(unsigned int opcode, FPA11* qfpa, CPUARMState* qregs)
 
 #if 0
   fprintf(stderr,"emulating FP insn 0x%08x, PC=0x%08x\n",
-          opcode, qregs[REG_PC]);
+          opcode, qregs[ARM_REG_PC]);
 #endif
   fpa11 = GET_FPA11();
 

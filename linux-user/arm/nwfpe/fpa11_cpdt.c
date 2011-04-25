@@ -220,7 +220,7 @@ static unsigned int PerformLDF(const unsigned int opcode)
    //printk("PerformLDF(0x%08x), Fd = 0x%08x\n",opcode,getFd(opcode));
 
    pBase = readRegister(getRn(opcode));
-   if (REG_PC == getRn(opcode))
+   if (ARM_REG_PC == getRn(opcode))
    {
      pBase += 8;
      write_back = 0;
@@ -256,7 +256,7 @@ static unsigned int PerformSTF(const unsigned int opcode)
    SetRoundingMode(ROUND_TO_NEAREST);
 
    pBase = readRegister(getRn(opcode));
-   if (REG_PC == getRn(opcode))
+   if (ARM_REG_PC == getRn(opcode))
    {
      pBase += 8;
      write_back = 0;
@@ -289,7 +289,7 @@ static unsigned int PerformLFM(const unsigned int opcode)
    target_ulong pBase, pAddress, pFinal;
 
    pBase = readRegister(getRn(opcode));
-   if (REG_PC == getRn(opcode))
+   if (ARM_REG_PC == getRn(opcode))
    {
      pBase += 8;
      write_back = 0;
@@ -322,7 +322,7 @@ static unsigned int PerformSFM(const unsigned int opcode)
    target_ulong pBase, pAddress, pFinal;
 
    pBase = readRegister(getRn(opcode));
-   if (REG_PC == getRn(opcode))
+   if (ARM_REG_PC == getRn(opcode))
    {
      pBase += 8;
      write_back = 0;
