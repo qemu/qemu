@@ -877,7 +877,7 @@ static PCIDeviceInfo virtio_info[] = {
         .qdev.size  = sizeof(VirtIOPCIProxy),
         .init       = virtio_net_init_pci,
         .exit       = virtio_net_exit_pci,
-        .romfile    = "pxe-virtio.bin",
+        .romfile    = "pxe-virtio.rom",
         .qdev.props = (Property[]) {
             DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags,
                             VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, false),

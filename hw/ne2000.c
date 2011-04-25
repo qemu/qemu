@@ -742,7 +742,7 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
     if (!pci_dev->qdev.hotplugged) {
         static int loaded = 0;
         if (!loaded) {
-            rom_add_option("pxe-ne2k_pci.bin", -1);
+            rom_add_option("pxe-ne2k_pci.rom", -1);
             loaded = 1;
         }
     }

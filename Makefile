@@ -180,10 +180,8 @@ ifdef INSTALL_BLOBS
 BLOBS=bios.bin vgabios.bin vgabios-cirrus.bin \
 vgabios-stdvga.bin vgabios-vmware.bin vgabios-qxl.bin \
 ppc_rom.bin openbios-sparc32 openbios-sparc64 openbios-ppc \
-gpxe-eepro100-80861209.rom \
-pxe-e1000.bin \
-pxe-ne2k_pci.bin pxe-pcnet.bin \
-pxe-rtl8139.bin pxe-virtio.bin \
+pxe-e1000.rom pxe-eepro100.rom pxe-ne2k_pci.rom \
+pxe-pcnet.rom pxe-rtl8139.rom pxe-virtio.rom \
 bamboo.dtb petalogix-s3adsp1800.dtb petalogix-ml605.dtb \
 multiboot.bin linuxboot.bin \
 s390-zipl.rom \
@@ -329,10 +327,12 @@ tarbin:
 	$(datadir)/openbios-sparc32 \
 	$(datadir)/openbios-sparc64 \
 	$(datadir)/openbios-ppc \
-	$(datadir)/pxe-ne2k_pci.bin \
-	$(datadir)/pxe-rtl8139.bin \
-	$(datadir)/pxe-pcnet.bin \
-	$(datadir)/pxe-e1000.bin \
+	$(datadir)/pxe-e1000.rom \
+	$(datadir)/pxe-eepro100.rom \
+	$(datadir)/pxe-ne2k_pci.rom \
+	$(datadir)/pxe-pcnet.rom \
+	$(datadir)/pxe-rtl8139.rom \
+	$(datadir)/pxe-virtio.rom \
 	$(docdir)/qemu-doc.html \
 	$(docdir)/qemu-tech.html \
 	$(mandir)/man1/qemu.1 \

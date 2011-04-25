@@ -18,16 +18,15 @@
   https://github.com/dgibson/SLOF, and the image currently in qemu is
   built from git tag qemu-slof-20110323.
 
-- The PXE roms come from Rom-o-Matic gPXE 0.9.9 with BANNER_TIMEOUT=0
+- The PXE roms come from the iPXE project. Built with BANNER_TIME 0.
+  Sources available at http://ipxe.org.  Vendor:Device ID -> ROM mapping:
 
-  e1000 8086:100E
-  eepro100 8086:1209 (also used for 8086:1229 and 8086:2449)
-  ns8390 1050:0940
-  pcnet32 1022:2000
-  rtl8139 10ec:8139
-  virtio 1af4:1000
-
-  http://rom-o-matic.net/
+	8086:100e -> pxe-e1000.rom
+	8086:1209 -> pxe-eepro100.rom
+	1050:0940 -> pxe-ne2k_pci.rom
+	1022:2000 -> pxe-pcnet.rom
+	10ec:8139 -> pxe-rtl8139.rom
+	1af4:1000 -> pxe-virtio.rom
 
 - The S390 zipl loader is an addition to the official IBM s390-tools
   package. That fork is maintained in its own git repository at:
