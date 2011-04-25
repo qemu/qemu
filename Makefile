@@ -190,7 +190,7 @@ ifdef INSTALL_BLOBS
 BLOBS=bios.bin vgabios.bin vgabios-cirrus.bin \
 vgabios-stdvga.bin vgabios-vmware.bin vgabios-qxl.bin \
 ppc_rom.bin openbios-sparc32 openbios-sparc64 openbios-ppc \
-pxe-eepro100.rom pxe-e1000.rom  pxe-ne2k_pci.rom \
+pxe-e1000.rom pxe-eepro100.rom pxe-ne2k_pci.rom \
 pxe-pcnet.rom pxe-rtl8139.rom pxe-virtio.rom \
 bamboo.dtb petalogix-s3adsp1800.dtb petalogix-ml605.dtb \
 multiboot.bin linuxboot.bin \
@@ -372,11 +372,11 @@ tarbin:
 	$(datadir)/openbios-sparc32 \
 	$(datadir)/openbios-sparc64 \
 	$(datadir)/openbios-ppc \
-	$(datadir)/pxe-ne2k_pci.rom \
-	$(datadir)/pxe-rtl8139.rom \
-	$(datadir)/pxe-pcnet.rom \
 	$(datadir)/pxe-e1000.rom \
 	$(datadir)/pxe-eepro100.rom \
+	$(datadir)/pxe-ne2k_pci.rom \
+	$(datadir)/pxe-pcnet.rom \
+	$(datadir)/pxe-rtl8139.rom \
 	$(datadir)/pxe-virtio.rom \
 	$(docdir)/qemu-doc.html \
 	$(docdir)/qemu-tech.html \
