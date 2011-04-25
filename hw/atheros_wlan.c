@@ -210,7 +210,7 @@ static void Atheros_WLAN_setup_type(NICInfo *nd, PCIAtheros_WLANState *d)
 	}
 }
 
-
+#if 0
 static void Atheros_WLAN_save(QEMUFile* f, void* opaque)
 {
 	int i;
@@ -315,7 +315,7 @@ static int Atheros_WLAN_load(QEMUFile* f, void* opaque, int version_id)
 
 	return 0;
 }
-
+#endif
 
 static int pci_Atheros_WLAN_init(PCIDevice *pci_dev)
 {
@@ -348,7 +348,7 @@ static int pci_Atheros_WLAN_init(PCIDevice *pci_dev)
 
     /* TODO: we don't support multiple instance yet!! */
     /* TODO: replace NULL by &dev->qdev. */
-    register_savevm(NULL, "Atheros_WLAN", 0, 3, Atheros_WLAN_save, Atheros_WLAN_load, s);
+    //~ register_savevm(NULL, "Atheros_WLAN", 0, 3, Atheros_WLAN_save, Atheros_WLAN_load, s);
 
     Atheros_WLAN_reset(nd, s);
     return 0;

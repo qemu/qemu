@@ -25,8 +25,6 @@
  *  2008-February-24  Clemens Kolbitsch :
  *                                  New implementation based on ne2000.c
  *
- * TODO: register_savevm is missing.
- *
  */
 
 #include "config-host.h"
@@ -277,8 +275,6 @@ static void Atheros_WLAN_cleanup(VLANClientState *vc)
 {
 #if 0
     Atheros_WLANState *d = vc->opaque;
-    unregister_savevm("e100", d);
-
     qemu_del_timer(d->poll_timer);
     qemu_free_timer(d->poll_timer);
 #endif
