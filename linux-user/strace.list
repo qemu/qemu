@@ -85,7 +85,7 @@
 { TARGET_NR_clock_settime, "clock_settime" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_clone
-{ TARGET_NR_clone, "clone" , NULL, NULL, NULL },
+{ TARGET_NR_clone, "clone" , NULL, print_clone, NULL },
 #endif
 #ifdef TARGET_NR_close
 { TARGET_NR_close, "close" , "%s(%d)", NULL, NULL },
@@ -292,7 +292,7 @@
 { TARGET_NR_getpgrp, "getpgrp" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_getpid
-{ TARGET_NR_getpid, "getpid" , NULL, NULL, NULL },
+{ TARGET_NR_getpid, "getpid" , "%s()", NULL, NULL },
 #endif
 #ifdef TARGET_NR_getpmsg
 { TARGET_NR_getpmsg, "getpmsg" , NULL, NULL, NULL },
@@ -418,7 +418,7 @@
 { TARGET_NR_keyctl, "keyctl" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_kill
-{ TARGET_NR_kill, "kill" , NULL, NULL, NULL },
+{ TARGET_NR_kill, "kill", NULL, print_kill, NULL },
 #endif
 #ifdef TARGET_NR_lchown
 { TARGET_NR_lchown, "lchown" , NULL, NULL, NULL },
@@ -448,7 +448,7 @@
 { TARGET_NR_llistxattr, "llistxattr" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR__llseek
-{ TARGET_NR__llseek, "_llseek" , NULL, NULL, NULL },
+{ TARGET_NR__llseek, "_llseek" , NULL, print__llseek, NULL },
 #endif
 #ifdef TARGET_NR_lock
 { TARGET_NR_lock, "lock" , NULL, NULL, NULL },
@@ -1063,13 +1063,13 @@
 { TARGET_NR_rmdir, "rmdir" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_rt_sigaction
-{ TARGET_NR_rt_sigaction, "rt_sigaction" , NULL, NULL, NULL },
+{ TARGET_NR_rt_sigaction, "rt_sigaction" , NULL, print_rt_sigaction, NULL },
 #endif
 #ifdef TARGET_NR_rt_sigpending
 { TARGET_NR_rt_sigpending, "rt_sigpending" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_rt_sigprocmask
-{ TARGET_NR_rt_sigprocmask, "rt_sigprocmask" , NULL, NULL, NULL },
+{ TARGET_NR_rt_sigprocmask, "rt_sigprocmask" , NULL, print_rt_sigprocmask, NULL },
 #endif
 #ifdef TARGET_NR_rt_sigqueueinfo
 { TARGET_NR_rt_sigqueueinfo, "rt_sigqueueinfo" , NULL, NULL, NULL },

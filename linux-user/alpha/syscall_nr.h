@@ -412,10 +412,3 @@
 #define TARGET_NR_timerfd			477
 #define TARGET_NR_eventfd			478
 
-/* The following aliases are defined in order to match up with the
-   standard i386 syscalls implemented in syscalls.c.  */
-#define TARGET_NR_chown32	TARGET_NR_chown
-#define TARGET_NR_setuid32	TARGET_NR_setuid
-#define TARGET_NR_setgid32	TARGET_NR_setgid
-#define TARGET_NR_setfsuid32	TARGET_NR_setfsuid
-#define TARGET_NR_setfsgid32	TARGET_NR_setfsgid
