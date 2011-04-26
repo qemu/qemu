@@ -165,15 +165,15 @@ static uint32_t grlib_gptimer_readl(void *opaque, target_phys_addr_t addr)
     /* Unit registers */
     switch (addr) {
     case SCALER_OFFSET:
-        trace_grlib_gptimer_readl(-1, "scaler:", unit->scaler);
+        trace_grlib_gptimer_readl(-1, addr, unit->scaler);
         return unit->scaler;
 
     case SCALER_RELOAD_OFFSET:
-        trace_grlib_gptimer_readl(-1, "reload:", unit->reload);
+        trace_grlib_gptimer_readl(-1, addr, unit->reload);
         return unit->reload;
 
     case CONFIG_OFFSET:
-        trace_grlib_gptimer_readl(-1, "config:", unit->config);
+        trace_grlib_gptimer_readl(-1, addr, unit->config);
         return unit->config;
 
     default:
@@ -189,17 +189,16 @@ static uint32_t grlib_gptimer_readl(void *opaque, target_phys_addr_t addr)
         switch (timer_addr) {
         case COUNTER_OFFSET:
             value = ptimer_get_count(unit->timers[id].ptimer);
-            trace_grlib_gptimer_readl(id, "counter value:", value);
+            trace_grlib_gptimer_readl(id, addr, value);
             return value;
 
         case COUNTER_RELOAD_OFFSET:
             value = unit->timers[id].reload;
-            trace_grlib_gptimer_readl(id, "reload value:", value);
+            trace_grlib_gptimer_readl(id, addr, value);
             return value;
 
         case CONFIG_OFFSET:
-            trace_grlib_gptimer_readl(id, "scaler value:",
-                                      unit->timers[id].config);
+            trace_grlib_gptimer_readl(id, addr, unit->timers[id].config);
             return unit->timers[id].config;
 
         default:
@@ -208,7 +207,7 @@ static uint32_t grlib_gptimer_readl(void *opaque, target_phys_addr_t addr)
 
     }
 
-    trace_grlib_gptimer_unknown_register("read", addr);
+    trace_grlib_gptimer_readl(-1, addr, 0);
     return 0;
 }
 
@@ -226,19 +225,19 @@ grlib_gptimer_writel(void *opaque, target_phys_addr_t addr, uint32_t value)
     case SCALER_OFFSET:
         value &= 0xFFFF; /* clean up the value */
         unit->scaler = value;
-        trace_grlib_gptimer_writel(-1, "scaler:", unit->scaler);
+        trace_grlib_gptimer_writel(-1, addr, unit->scaler);
         return;
 
     case SCALER_RELOAD_OFFSET:
         value &= 0xFFFF; /* clean up the value */
         unit->reload = value;
-        trace_grlib_gptimer_writel(-1, "reload:", unit->reload);
+        trace_grlib_gptimer_writel(-1, addr, unit->reload);
         grlib_gptimer_set_scaler(unit, value);
         return;
 
     case CONFIG_OFFSET:
         /* Read Only (disable timer freeze not supported) */
-        trace_grlib_gptimer_writel(-1, "config (Read Only):", 0);
+        trace_grlib_gptimer_writel(-1, addr, 0);
         return;
 
     default:
@@ -253,18 +252,18 @@ grlib_gptimer_writel(void *opaque, target_phys_addr_t addr, uint32_t value)
         /* GPTimer registers */
         switch (timer_addr) {
         case COUNTER_OFFSET:
-            trace_grlib_gptimer_writel(id, "counter:", value);
+            trace_grlib_gptimer_writel(id, addr, value);
             unit->timers[id].counter = value;
             grlib_gptimer_enable(&unit->timers[id]);
             return;
 
         case COUNTER_RELOAD_OFFSET:
-            trace_grlib_gptimer_writel(id, "reload:", value);
+            trace_grlib_gptimer_writel(id, addr, value);
             unit->timers[id].reload = value;
             return;
 
         case CONFIG_OFFSET:
-            trace_grlib_gptimer_writel(id, "config:", value);
+            trace_grlib_gptimer_writel(id, addr, value);
 
             if (value & GPTIMER_INT_PENDING) {
                 /* clear pending bit */
@@ -297,7 +296,7 @@ grlib_gptimer_writel(void *opaque, target_phys_addr_t addr, uint32_t value)
 
     }
 
-    trace_grlib_gptimer_unknown_register("write", addr);
+    trace_grlib_gptimer_writel(-1, addr, value);
 }
 
 static CPUReadMemoryFunc * const grlib_gptimer_read[] = {

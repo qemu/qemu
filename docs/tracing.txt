@@ -26,14 +26,14 @@ for debugging, profiling, and observing execution.
 
 == Trace events ==
 
-There is a set of static trace events declared in the trace-events source
+There is a set of static trace events declared in the "trace-events" source
 file.  Each trace event declaration names the event, its arguments, and the
 format string which can be used for pretty-printing:
 
     qemu_malloc(size_t size, void *ptr) "size %zu ptr %p"
     qemu_free(void *ptr) "ptr %p"
 
-The trace-events file is processed by the tracetool script during build to
+The "trace-events" file is processed by the "tracetool" script during build to
 generate code for the trace events.  Trace events are invoked directly from
 source code like this:
 
@@ -52,10 +52,10 @@ source code like this:
 
 === Declaring trace events ===
 
-The tracetool script produces the trace.h header file which is included by
+The "tracetool" script produces the trace.h header file which is included by
 every source file that uses trace events.  Since many source files include
-trace.h, it uses a minimum of types and other header files included to keep
-the namespace clean and compile times and dependencies down.
+trace.h, it uses a minimum of types and other header files included to keep the
+namespace clean and compile times and dependencies down.
 
 Trace events should use types as follows:
 
@@ -68,6 +68,11 @@ Trace events should use types as follows:
  * Use void * for pointers to structs or for arrays.  The trace.h header
    cannot include all user-defined struct declarations and it is therefore
    necessary to use void * for pointers to structs.
+
+   Pointers (including char *) cannot be dereferenced easily (or at all) in
+   some trace backends.  If pointers are used, ensure they are meaningful by
+   themselves and do not assume the data they point to will be traced.  Do
+   not pass in string arguments.
 
  * For everything else, use primitive scalar types (char, int, long) with the
    appropriate signedness.
@@ -105,10 +110,10 @@ portability macros, ensure they are preceded and followed by double quotes:
 
 == Trace backends ==
 
-The tracetool script automates tedious trace event code generation and also
+The "tracetool" script automates tedious trace event code generation and also
 keeps the trace event declarations independent of the trace backend.  The trace
 events are not tightly coupled to a specific trace backend, such as LTTng or
-SystemTap.  Support for trace backends can be added by extending the tracetool
+SystemTap.  Support for trace backends can be added by extending the "tracetool"
 script.
 
 The trace backend is chosen at configure time and only one trace backend can
@@ -176,12 +181,12 @@ events at runtime inside QEMU:
 ==== Analyzing trace files ====
 
 The "simple" backend produces binary trace files that can be formatted with the
-simpletrace.py script.  The script takes the trace-events file and the binary
+simpletrace.py script.  The script takes the "trace-events" file and the binary
 trace:
 
     ./simpletrace.py trace-events trace-12345
 
-You must ensure that the same trace-events file was used to build QEMU,
+You must ensure that the same "trace-events" file was used to build QEMU,
 otherwise trace event declarations may have changed and output will not be
 consistent.
 
