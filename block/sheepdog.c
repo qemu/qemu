@@ -196,7 +196,7 @@ static inline uint64_t fnv_64a_buf(void *buf, size_t len, uint64_t hval)
     return hval;
 }
 
-static inline int is_data_obj_writeable(SheepdogInode *inode, unsigned int idx)
+static inline int is_data_obj_writable(SheepdogInode *inode, unsigned int idx)
 {
     return inode->vdi_id == inode->data_vdi_id[idx];
 }
@@ -1577,7 +1577,7 @@ static void sd_readv_writev_bh_cb(void *p)
 
             create = 1;
         } else if (acb->aiocb_type == AIOCB_WRITE_UDATA
-                   && !is_data_obj_writeable(inode, idx)) {
+                   && !is_data_obj_writable(inode, idx)) {
             /* Copy-On-Write */
             create = 1;
             old_oid = oid;

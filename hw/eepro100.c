@@ -1126,7 +1126,7 @@ static void eepro100_write_eeprom(eeprom_t * eeprom, uint8_t val)
 {
     TRACE(EEPROM, logout("val=0x%02x\n", val));
 
-    /* mask unwriteable bits */
+    /* mask unwritable bits */
 #if 0
     val = SET_MASKED(val, 0x31, eeprom->value);
 #endif

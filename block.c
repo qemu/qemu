@@ -455,7 +455,7 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
     open_flags = flags & ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
 
     /*
-     * Snapshots should be writeable.
+     * Snapshots should be writable.
      */
     if (bs->is_temporary) {
         open_flags |= BDRV_O_RDWR;
