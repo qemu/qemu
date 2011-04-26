@@ -199,7 +199,7 @@ void qemu_chr_add_handlers(CharDriverState *s,
 {
     if (!opaque) {
         /* chr driver being released. */
-        s->assigned = 0;
+        ++s->avail_connections;
     }
     s->chr_can_read = fd_can_read;
     s->chr_read = fd_read;
@@ -2547,7 +2547,10 @@ CharDriverState *qemu_chr_open_opts(QemuOpts *opts,
         snprintf(base->label, len, "%s-base", qemu_opts_id(opts));
         chr = qemu_chr_open_mux(base);
         chr->filename = base->filename;
+        chr->avail_connections = MAX_MUX;
         QTAILQ_INSERT_TAIL(&chardevs, chr, next);
+    } else {
+        chr->avail_connections = 1;
     }
     chr->label = qemu_strdup(qemu_opts_id(opts));
     return chr;

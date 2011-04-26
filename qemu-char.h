@@ -72,7 +72,7 @@ struct CharDriverState {
     char *label;
     char *filename;
     int opened;
-    int assigned; /* chardev assigned to a device */
+    int avail_connections;
     QTAILQ_ENTRY(CharDriverState) next;
 };
 
