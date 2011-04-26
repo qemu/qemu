@@ -3505,16 +3505,28 @@ static void disas_sparc_insn(DisasContext * dc)
                                 tcg_gen_mov_tl(cpu_tbr, cpu_tmp0);
                                 break;
                             case 6: // pstate
-                                save_state(dc, cpu_cond);
-                                gen_helper_wrpstate(cpu_tmp0);
-                                dc->npc = DYNAMIC_PC;
+                                {
+                                    TCGv r_tmp = tcg_temp_local_new();
+
+                                    tcg_gen_mov_tl(r_tmp, cpu_tmp0);
+                                    save_state(dc, cpu_cond);
+                                    gen_helper_wrpstate(r_tmp);
+                                    tcg_temp_free(r_tmp);
+                                    dc->npc = DYNAMIC_PC;
+                                }
                                 break;
                             case 7: // tl
-                                save_state(dc, cpu_cond);
-                                tcg_gen_trunc_tl_i32(cpu_tmp32, cpu_tmp0);
-                                tcg_gen_st_i32(cpu_tmp32, cpu_env,
-                                               offsetof(CPUSPARCState, tl));
-                                dc->npc = DYNAMIC_PC;
+                                {
+                                    TCGv r_tmp = tcg_temp_local_new();
+
+                                    tcg_gen_mov_tl(r_tmp, cpu_tmp0);
+                                    save_state(dc, cpu_cond);
+                                    tcg_gen_trunc_tl_i32(cpu_tmp32, r_tmp);
+                                    tcg_temp_free(r_tmp);
+                                    tcg_gen_st_i32(cpu_tmp32, cpu_env,
+                                                   offsetof(CPUSPARCState, tl));
+                                    dc->npc = DYNAMIC_PC;
+                                }
                                 break;
                             case 8: // pil
                                 gen_helper_wrpil(cpu_tmp0);
