@@ -2225,7 +2225,15 @@ cat > $TMPC << EOF
 
 int main(void)
 {
-    epoll_create1(0);
+    /* Note that we use epoll_create1 as a value, not as
+     * a function being called. This is necessary so that on
+     * old SPARC glibc versions where the function was present in
+     * the library but not declared in the header file we will
+     * fail the configure check. (Otherwise we will get a compiler
+     * warning but not an error, and will proceed to fail the
+     * qemu compile where we compile with -Werror.)
+     */
+    epoll_create1;
     return 0;
 }
 EOF
