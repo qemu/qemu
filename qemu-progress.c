@@ -26,12 +26,15 @@
 #include "osdep.h"
 #include "sysemu.h"
 #include <stdio.h>
+#include <signal.h>
 
 struct progress_state {
     int enabled;
     float current;
     float last_print;
     float min_skip;
+    void (*print)(void);
+    void (*end)(void);
 };
 
 static struct progress_state state;
@@ -51,20 +54,60 @@ static void progress_simple_print(void)
 
 static void progress_simple_end(void)
 {
-    if (state.enabled) {
-        printf("\n");
-    }
+    printf("\n");
+}
+
+static void progress_simple_init(void)
+{
+    state.print = progress_simple_print;
+    state.end = progress_simple_end;
+}
+
+#ifdef CONFIG_POSIX
+static void sigusr_print(int signal)
+{
+    printf("    (%3.2f/100%%)\n", state.current);
+}
+#endif
+
+static void progress_dummy_print(void)
+{
+}
+
+static void progress_dummy_end(void)
+{
+}
+
+static void progress_dummy_init(void)
+{
+#ifdef CONFIG_POSIX
+    struct sigaction action;
+
+    memset(&action, 0, sizeof(action));
+    sigfillset(&action.sa_mask);
+    action.sa_handler = sigusr_print;
+    action.sa_flags = 0;
+    sigaction(SIGUSR1, &action, NULL);
+#endif
+
+    state.print = progress_dummy_print;
+    state.end = progress_dummy_end;
 }
 
 void qemu_progress_init(int enabled, float min_skip)
 {
     state.enabled = enabled;
     state.min_skip = min_skip;
+    if (enabled) {
+        progress_simple_init();
+    } else {
+        progress_dummy_init();
+    }
 }
 
 void qemu_progress_end(void)
 {
-    progress_simple_end();
+    state.end();
 }
 
 void qemu_progress_print(float percent, int max)
@@ -84,6 +127,6 @@ void qemu_progress_print(float percent, int max)
     if (current > (state.last_print + state.min_skip) ||
         (current == 100) || (current == 0)) {
         state.last_print = state.current;
-        progress_simple_print();
+        state.print();
     }
 }
