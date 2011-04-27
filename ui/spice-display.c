@@ -254,6 +254,16 @@ void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd)
         ssd->update = qemu_spice_create_update(ssd);
         ssd->notify++;
     }
+    if (ssd->cursor) {
+        ssd->ds->cursor_define(ssd->cursor);
+        cursor_put(ssd->cursor);
+        ssd->cursor = NULL;
+    }
+    if (ssd->mouse_x != -1 && ssd->mouse_y != -1) {
+        ssd->ds->mouse_set(ssd->mouse_x, ssd->mouse_y, 1);
+        ssd->mouse_x = -1;
+        ssd->mouse_y = -1;
+    }
     qemu_mutex_unlock(&ssd->lock);
 
     if (ssd->notify) {
@@ -409,6 +419,8 @@ void qemu_spice_display_init(DisplayState *ds)
     assert(sdpy.ds == NULL);
     sdpy.ds = ds;
     qemu_mutex_init(&sdpy.lock);
+    sdpy.mouse_x = -1;
+    sdpy.mouse_y = -1;
     sdpy.bufsize = (16 * 1024 * 1024);
     sdpy.buf = qemu_malloc(sdpy.bufsize);
     register_displaychangelistener(ds, &display_listener);

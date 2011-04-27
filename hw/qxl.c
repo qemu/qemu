@@ -1309,6 +1309,8 @@ static int qxl_init_primary(PCIDevice *dev)
                                    qxl_hw_screen_dump, qxl_hw_text_update, qxl);
     qxl->ssd.ds = vga->ds;
     qemu_mutex_init(&qxl->ssd.lock);
+    qxl->ssd.mouse_x = -1;
+    qxl->ssd.mouse_y = -1;
     qxl->ssd.bufsize = (16 * 1024 * 1024);
     qxl->ssd.buf = qemu_malloc(qxl->ssd.bufsize);
 

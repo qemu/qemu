@@ -20,6 +20,7 @@
 #include <spice/qxl_dev.h>
 
 #include "qemu-thread.h"
+#include "console.h"
 #include "pflib.h"
 
 #define NUM_MEMSLOTS 8
@@ -55,6 +56,8 @@ struct SimpleSpiceDisplay {
      */
     QemuMutex lock;
     SimpleSpiceUpdate *update;
+    QEMUCursor *cursor;
+    int mouse_x, mouse_y;
 };
 
 struct SimpleSpiceUpdate {
