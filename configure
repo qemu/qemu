@@ -180,7 +180,7 @@ spice=""
 rbd=""
 smartcard=""
 smartcard_nss=""
-opengl="no"
+opengl=""
 
 # parse CC options first
 for opt do
@@ -1995,11 +1995,11 @@ int main(void) { return 0; }
 EOF
   if compile_prog "" "$fdt_libs" ; then
     fdt=yes
-    libs_softmmu="$fdt_libs $libs_softmmu"
   else
     if test "$fdt" = "yes" ; then
       feature_not_found "fdt"
     fi
+    fdt_libs=
     fdt=no
   fi
 fi
@@ -2016,11 +2016,11 @@ int main(void) { GL_VERSION; return 0; }
 EOF
   if compile_prog "" "-lGL" ; then
     opengl=yes
-       libs_softmmu="$opengl_libs $libs_softmmu"
   else
     if test "$opengl" = "yes" ; then
       feature_not_found "opengl"
     fi
+    opengl_libs=
     opengl=no
   fi
 fi
@@ -2275,7 +2275,15 @@ cat > $TMPC << EOF
 
 int main(void)
 {
-    epoll_create1(0);
+    /* Note that we use epoll_create1 as a value, not as
+     * a function being called. This is necessary so that on
+     * old SPARC glibc versions where the function was present in
+     * the library but not declared in the header file we will
+     * fail the configure check. (Otherwise we will get a compiler
+     * warning but not an error, and will proceed to fail the
+     * qemu compile where we compile with -Werror.)
+     */
+    epoll_create1;
     return 0;
 }
 EOF
@@ -3152,6 +3160,7 @@ target_short_alignment=2
 target_int_alignment=4
 target_long_alignment=4
 target_llong_alignment=8
+target_libs_softmmu=
 
 TARGET_ARCH="$target_arch2"
 TARGET_BASE_ARCH=""
@@ -3185,6 +3194,7 @@ case "$target_arch2" in
   ;;
   lm32)
     target_phys_bits=32
+    target_libs_softmmu="$opengl_libs"
   ;;
   m68k)
     bflt="yes"
@@ -3199,6 +3209,7 @@ case "$target_arch2" in
     bflt="yes"
     target_nptl="yes"
     target_phys_bits=32
+    target_libs_softmmu="$fdt_libs"
   ;;
   mips|mipsel)
     TARGET_ARCH=mips
@@ -3223,6 +3234,7 @@ case "$target_arch2" in
     gdb_xml_files="power-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
     target_phys_bits=32
     target_nptl="yes"
+    target_libs_softmmu="$fdt_libs"
   ;;
   ppcemb)
     TARGET_BASE_ARCH=ppc
@@ -3230,6 +3242,7 @@ case "$target_arch2" in
     gdb_xml_files="power-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
     target_phys_bits=64
     target_nptl="yes"
+    target_libs_softmmu="$fdt_libs"
   ;;
   ppc64)
     TARGET_BASE_ARCH=ppc
@@ -3237,6 +3250,7 @@ case "$target_arch2" in
     gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
     target_phys_bits=64
     target_long_alignment=8
+    target_libs_softmmu="$fdt_libs"
   ;;
   ppc64abi32)
     TARGET_ARCH=ppc64
@@ -3245,6 +3259,7 @@ case "$target_arch2" in
     echo "TARGET_ABI32=y" >> $config_target_mak
     gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
     target_phys_bits=64
+    target_libs_softmmu="$fdt_libs"
   ;;
   sh4|sh4eb)
     TARGET_ARCH=sh4
@@ -3330,7 +3345,7 @@ fi
 if test "$target_softmmu" = "yes" ; then
   echo "TARGET_PHYS_ADDR_BITS=$target_phys_bits" >> $config_target_mak
   echo "CONFIG_SOFTMMU=y" >> $config_target_mak
-  echo "LIBS+=$libs_softmmu" >> $config_target_mak
+  echo "LIBS+=$libs_softmmu $target_libs_softmmu" >> $config_target_mak
   echo "HWDIR=../libhw$target_phys_bits" >> $config_target_mak
   echo "subdir-$target: subdir-libhw$target_phys_bits" >> $config_host_mak
 fi

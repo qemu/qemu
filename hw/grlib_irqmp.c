@@ -220,7 +220,7 @@ static uint32_t grlib_irqmp_readl(void *opaque, target_phys_addr_t addr)
         return state->extended[cpu];
     }
 
-    trace_grlib_irqmp_unknown_register("read", addr);
+    trace_grlib_irqmp_readl_unknown(addr);
     return 0;
 }
 
@@ -308,7 +308,7 @@ grlib_irqmp_writel(void *opaque, target_phys_addr_t addr, uint32_t value)
         return;
     }
 
-    trace_grlib_irqmp_unknown_register("write", addr);
+    trace_grlib_irqmp_writel_unknown(addr, value);
 }
 
 static CPUReadMemoryFunc * const grlib_irqmp_read[] = {

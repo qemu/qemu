@@ -235,27 +235,27 @@ disable grlib_gptimer_disabled(int id, uint32_t config) "timer:%d Timer disable 
 disable grlib_gptimer_restart(int id, uint32_t reload) "timer:%d reload val: 0x%x"
 disable grlib_gptimer_set_scaler(uint32_t scaler, uint32_t freq) "scaler:0x%x freq: 0x%x"
 disable grlib_gptimer_hit(int id) "timer:%d HIT"
-disable grlib_gptimer_readl(int id, const char *s, uint32_t val) "timer:%d %s 0x%x"
-disable grlib_gptimer_writel(int id, const char *s, uint32_t val) "timer:%d %s 0x%x"
-disable grlib_gptimer_unknown_register(const char *op, uint64_t val) "%s unknown register 0x%"PRIx64""
+disable grlib_gptimer_readl(int id, uint64_t addr, uint32_t val) "timer:%d addr 0x%"PRIx64" 0x%x"
+disable grlib_gptimer_writel(int id, uint64_t addr, uint32_t val) "timer:%d addr 0x%"PRIx64" 0x%x"
 
 # hw/grlib_irqmp.c
 disable grlib_irqmp_check_irqs(uint32_t pend, uint32_t force, uint32_t mask, uint32_t lvl1, uint32_t lvl2) "pend:0x%04x force:0x%04x mask:0x%04x lvl1:0x%04x lvl0:0x%04x\n"
 disable grlib_irqmp_ack(int intno) "interrupt:%d"
 disable grlib_irqmp_set_irq(int irq) "Raise CPU IRQ %d"
-disable grlib_irqmp_unknown_register(const char *op, uint64_t val) "%s unknown register 0x%"PRIx64""
+disable grlib_irqmp_readl_unknown(uint64_t addr) "addr 0x%"PRIx64""
+disable grlib_irqmp_writel_unknown(uint64_t addr, uint32_t value) "addr 0x%"PRIx64" value 0x%x"
 
 # hw/grlib_apbuart.c
 disable grlib_apbuart_event(int event) "event:%d"
-disable grlib_apbuart_unknown_register(const char *op, uint64_t val) "%s unknown register 0x%"PRIx64""
+disable grlib_apbuart_writel_unknown(uint64_t addr, uint32_t value) "addr 0x%"PRIx64" value 0x%x"
 
 # hw/leon3.c
 disable leon3_set_irq(int intno) "Set CPU IRQ %d"
 disable leon3_reset_irq(int intno) "Reset CPU IRQ %d"
 
 # spice-qemu-char.c
-disable spice_vmc_write(ssize_t out, int len) "spice wrottn %lu of requested %zd"
-disable spice_vmc_read(int bytes, int len) "spice read %lu of requested %zd"
+disable spice_vmc_write(ssize_t out, int len) "spice wrottn %zd of requested %d"
+disable spice_vmc_read(int bytes, int len) "spice read %d of requested %d"
 disable spice_vmc_register_interface(void *scd) "spice vmc registered interface %p"
 disable spice_vmc_unregister_interface(void *scd) "spice vmc unregistered interface %p"
 
