@@ -343,18 +343,22 @@ static int interface_get_command(QXLInstance *sin, struct QXLCommandExt *ext)
     SimpleSpiceUpdate *update;
     QXLCommandRing *ring;
     QXLCommand *cmd;
-    int notify;
+    int notify, ret;
 
     switch (qxl->mode) {
     case QXL_MODE_VGA:
         dprint(qxl, 2, "%s: vga\n", __FUNCTION__);
-        update = qemu_spice_create_update(&qxl->ssd);
-        if (update == NULL) {
-            return false;
+        ret = false;
+        qemu_mutex_lock(&qxl->ssd.lock);
+        if (qxl->ssd.update != NULL) {
+            update = qxl->ssd.update;
+            qxl->ssd.update = NULL;
+            *ext = update->ext;
+            ret = true;
         }
-        *ext = update->ext;
+        qemu_mutex_unlock(&qxl->ssd.lock);
         qxl_log_command(qxl, "vga", ext);
-        return true;
+        return ret;
     case QXL_MODE_COMPAT:
     case QXL_MODE_NATIVE:
     case QXL_MODE_UNDEFINED:
@@ -1304,6 +1308,7 @@ static int qxl_init_primary(PCIDevice *dev)
     vga->ds = graphic_console_init(qxl_hw_update, qxl_hw_invalidate,
                                    qxl_hw_screen_dump, qxl_hw_text_update, qxl);
     qxl->ssd.ds = vga->ds;
+    qemu_mutex_init(&qxl->ssd.lock);
     qxl->ssd.bufsize = (16 * 1024 * 1024);
     qxl->ssd.buf = qemu_malloc(qxl->ssd.bufsize);
 
