@@ -220,14 +220,18 @@ static int get_physical_address(CPUState *env, target_ulong addr,
 
     /* Translate the superpage.  */
     /* ??? When we do more than emulate Unix PALcode, we'll need to
-       determine which superpage is actually active.  */
-    if (saddr < 0 && (saddr >> (TARGET_VIRT_ADDR_SPACE_BITS - 2) & 3) == 2) {
-        /* User-space cannot access kseg addresses.  */
+       determine which KSEG is actually active.  */
+    if (saddr < 0 && ((saddr >> 41) & 3) == 2) {
+        /* User-space cannot access KSEG addresses.  */
         if (mmu_idx != MMU_KERNEL_IDX) {
             goto exit;
         }
 
+        /* For the benefit of the Typhoon chipset, move bit 40 to bit 43.
+           We would not do this if the 48-bit KSEG is enabled.  */
         phys = saddr & ((1ull << 40) - 1);
+        phys |= (saddr & (1ull << 40)) << 3;
+
         prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         ret = -1;
         goto exit;
