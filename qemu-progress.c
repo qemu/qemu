@@ -29,7 +29,6 @@
 #include <signal.h>
 
 struct progress_state {
-    int enabled;
     float current;
     float last_print;
     float min_skip;
@@ -46,10 +45,8 @@ static struct progress_state state;
  */
 static void progress_simple_print(void)
 {
-    if (state.enabled) {
-        printf("    (%3.2f/100%%)\r", state.current);
-        fflush(stdout);
-    }
+    printf("    (%3.2f/100%%)\r", state.current);
+    fflush(stdout);
 }
 
 static void progress_simple_end(void)
@@ -96,7 +93,6 @@ static void progress_dummy_init(void)
 
 void qemu_progress_init(int enabled, float min_skip)
 {
-    state.enabled = enabled;
     state.min_skip = min_skip;
     if (enabled) {
         progress_simple_init();
