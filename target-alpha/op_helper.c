@@ -22,6 +22,7 @@
 #include "host-utils.h"
 #include "softfloat.h"
 #include "helper.h"
+#include "sysemu.h"
 #include "qemu-timer.h"
 
 #define FP_STATUS (env->fp_status)
@@ -1217,6 +1218,15 @@ void helper_tbia(void)
 void helper_tbis(uint64_t p)
 {
     tlb_flush_page(env, p);
+}
+
+void helper_halt(uint64_t restart)
+{
+    if (restart) {
+        qemu_system_reset_request();
+    } else {
+        qemu_system_shutdown_request();
+    }
 }
 #endif
 

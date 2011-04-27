@@ -1645,6 +1645,11 @@ static ExitStatus gen_mtpr(DisasContext *ctx, int rb, int regno)
         tcg_gen_st32_i64(tmp, cpu_env, offsetof(CPUState, halted));
         return gen_excp(ctx, EXCP_HLT, 0);
 
+    case 252:
+        /* HALT */
+        gen_helper_halt(tmp);
+        return EXIT_PC_STALE;
+
     default:
         /* The basic registers are data only, and unknown registers
            are read-zero, write-ignore.  */
