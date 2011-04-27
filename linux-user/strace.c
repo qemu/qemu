@@ -477,12 +477,24 @@ UNUSED static struct flags clone_flags[] = {
     FLAG_GENERIC(CLONE_DETACHED),
     FLAG_GENERIC(CLONE_UNTRACED),
     FLAG_GENERIC(CLONE_CHILD_SETTID),
+#if defined(CLONE_NEWUTS)
     FLAG_GENERIC(CLONE_NEWUTS),
+#endif
+#if defined(CLONE_NEWIPC)
     FLAG_GENERIC(CLONE_NEWIPC),
+#endif
+#if defined(CLONE_NEWUSER)
     FLAG_GENERIC(CLONE_NEWUSER),
+#endif
+#if defined(CLONE_NEWPID)
     FLAG_GENERIC(CLONE_NEWPID),
+#endif
+#if defined(CLONE_NEWNET)
     FLAG_GENERIC(CLONE_NEWNET),
+#endif
+#if defined(CLONE_IO)
     FLAG_GENERIC(CLONE_IO),
+#endif
     FLAG_END,
 };
 
