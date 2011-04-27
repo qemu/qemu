@@ -18,7 +18,7 @@ typedef struct {
     BdrvCheckResult *result;
     bool fix;                           /* whether to fix invalid offsets */
 
-    size_t nclusters;
+    uint64_t nclusters;
     uint32_t *used_clusters;            /* referenced cluster bitmap */
 
     QEDRequest request;
@@ -177,7 +177,7 @@ static int qed_check_l1_table(QEDCheck *check, QEDTable *table)
 static void qed_check_for_leaks(QEDCheck *check)
 {
     BDRVQEDState *s = check->s;
-    size_t i;
+    uint64_t i;
 
     for (i = s->header.header_size; i < check->nclusters; i++) {
         if (!qed_test_bit(check->used_clusters, i)) {

@@ -62,7 +62,6 @@ typedef struct BlkMigBlock {
     QEMUIOVector qiov;
     BlockDriverAIOCB *aiocb;
     int ret;
-    int64_t time;
     QSIMPLEQ_ENTRY(BlkMigBlock) entry;
 } BlkMigBlock;
 
@@ -78,6 +77,7 @@ typedef struct BlkMigState {
     int prev_progress;
     int bulk_completed;
     long double total_time;
+    long double prev_time_offset;
     int reads;
 } BlkMigState;
 
@@ -129,12 +129,6 @@ uint64_t blk_mig_bytes_total(void)
         sum += bmds->total_sectors;
     }
     return sum << BDRV_SECTOR_BITS;
-}
-
-static inline void add_avg_read_time(int64_t time)
-{
-    block_mig_state.reads++;
-    block_mig_state.total_time += time;
 }
 
 static inline long double compute_read_bwidth(void)
@@ -191,13 +185,14 @@ static void alloc_aio_bitmap(BlkMigDevState *bmds)
 
 static void blk_mig_read_cb(void *opaque, int ret)
 {
+    long double curr_time = qemu_get_clock_ns(rt_clock);
     BlkMigBlock *blk = opaque;
 
     blk->ret = ret;
 
-    blk->time = qemu_get_clock_ns(rt_clock) - blk->time;
-
-    add_avg_read_time(blk->time);
+    block_mig_state.reads++;
+    block_mig_state.total_time += (curr_time - block_mig_state.prev_time_offset);
+    block_mig_state.prev_time_offset = curr_time;
 
     QSIMPLEQ_INSERT_TAIL(&block_mig_state.blk_list, blk, entry);
     bmds_set_aio_inflight(blk->bmds, blk->sector, blk->nr_sectors, 0);
@@ -250,7 +245,9 @@ static int mig_save_device_bulk(Monitor *mon, QEMUFile *f,
     blk->iov.iov_len = nr_sectors * BDRV_SECTOR_SIZE;
     qemu_iovec_init_external(&blk->qiov, &blk->iov, 1);
 
-    blk->time = qemu_get_clock_ns(rt_clock);
+    if (block_mig_state.submitted == 0) {
+        block_mig_state.prev_time_offset = qemu_get_clock_ns(rt_clock);
+    }
 
     blk->aiocb = bdrv_aio_readv(bs, cur_sector, &blk->qiov,
                                 nr_sectors, blk_mig_read_cb, blk);
@@ -409,7 +406,9 @@ static int mig_save_device_dirty(Monitor *mon, QEMUFile *f,
                 blk->iov.iov_len = nr_sectors * BDRV_SECTOR_SIZE;
                 qemu_iovec_init_external(&blk->qiov, &blk->iov, 1);
 
-                blk->time = qemu_get_clock_ns(rt_clock);
+                if (block_mig_state.submitted == 0) {
+                    block_mig_state.prev_time_offset = qemu_get_clock_ns(rt_clock);
+                }
 
                 blk->aiocb = bdrv_aio_readv(bmds->bs, sector, &blk->qiov,
                                             nr_sectors, blk_mig_read_cb, blk);
