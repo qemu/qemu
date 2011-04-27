@@ -596,7 +596,10 @@ static V9fsPDU *alloc_pdu(V9fsState *s)
 static void free_pdu(V9fsState *s, V9fsPDU *pdu)
 {
     if (pdu) {
-	QLIST_INSERT_HEAD(&s->free_list, pdu, next);
+        if (debug_9p_pdu) {
+            pprint_pdu(pdu);
+        }
+        QLIST_INSERT_HEAD(&s->free_list, pdu, next);
     }
 }
 
