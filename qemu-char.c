@@ -197,9 +197,9 @@ void qemu_chr_add_handlers(CharDriverState *s,
                            IOEventHandler *fd_event,
                            void *opaque)
 {
-    if (!opaque) {
+    if (!opaque && !fd_can_read && !fd_read && !fd_event) {
         /* chr driver being released. */
-        s->assigned = 0;
+        ++s->avail_connections;
     }
     s->chr_can_read = fd_can_read;
     s->chr_read = fd_read;
@@ -480,6 +480,9 @@ static CharDriverState *qemu_chr_open_mux(CharDriverState *drv)
     chr->chr_write = mux_chr_write;
     chr->chr_update_read_handler = mux_chr_update_read_handler;
     chr->chr_accept_input = mux_chr_accept_input;
+    /* Frontend guest-open / -close notification is not support with muxes */
+    chr->chr_guest_open = NULL;
+    chr->chr_guest_close = NULL;
 
     /* Muxes are always open on creation */
     qemu_chr_generic_open(chr);
@@ -2544,7 +2547,10 @@ CharDriverState *qemu_chr_open_opts(QemuOpts *opts,
         snprintf(base->label, len, "%s-base", qemu_opts_id(opts));
         chr = qemu_chr_open_mux(base);
         chr->filename = base->filename;
+        chr->avail_connections = MAX_MUX;
         QTAILQ_INSERT_TAIL(&chardevs, chr, next);
+    } else {
+        chr->avail_connections = 1;
     }
     chr->label = qemu_strdup(qemu_opts_id(opts));
     return chr;
@@ -2576,6 +2582,20 @@ void qemu_chr_set_echo(struct CharDriverState *chr, bool echo)
 {
     if (chr->chr_set_echo) {
         chr->chr_set_echo(chr, echo);
+    }
+}
+
+void qemu_chr_guest_open(struct CharDriverState *chr)
+{
+    if (chr->chr_guest_open) {
+        chr->chr_guest_open(chr);
+    }
+}
+
+void qemu_chr_guest_close(struct CharDriverState *chr)
+{
+    if (chr->chr_guest_close) {
+        chr->chr_guest_close(chr);
     }
 }
 

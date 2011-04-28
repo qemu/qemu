@@ -28,6 +28,22 @@ static ssize_t flush_buf(VirtIOSerialPort *port, const uint8_t *buf, size_t len)
     return qemu_chr_write(vcon->chr, buf, len);
 }
 
+/* Callback function that's called when the guest opens the port */
+static void guest_open(VirtIOSerialPort *port)
+{
+    VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
+
+    qemu_chr_guest_open(vcon->chr);
+}
+
+/* Callback function that's called when the guest closes the port */
+static void guest_close(VirtIOSerialPort *port)
+{
+    VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
+
+    qemu_chr_guest_close(vcon->chr);
+}
+
 /* Readiness of the guest to accept data on a port */
 static int chr_can_read(void *opaque)
 {
@@ -64,6 +80,8 @@ static int generic_port_init(VirtConsole *vcon, VirtIOSerialPort *port)
         qemu_chr_add_handlers(vcon->chr, chr_can_read, chr_read, chr_event,
                               vcon);
         vcon->port.info->have_data = flush_buf;
+        vcon->port.info->guest_open = guest_open;
+        vcon->port.info->guest_close = guest_close;
     }
     return 0;
 }
