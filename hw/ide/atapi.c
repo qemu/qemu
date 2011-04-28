@@ -1106,7 +1106,13 @@ void ide_atapi_cmd(IDEState *s)
         ide_atapi_cmd_check_status(s);
         return;
     }
-
+    /*
+     * When a CD gets changed, we have to report an ejected state and
+     * then a loaded state to guests so that they detect tray
+     * open/close and media change events.  Guests that do not use
+     * GET_EVENT_STATUS_NOTIFICATION to detect such tray open/close
+     * states rely on this behavior.
+     */
     if (bdrv_is_inserted(s->bs) && s->cdrom_changed) {
         ide_atapi_cmd_error(s, SENSE_NOT_READY, ASC_MEDIUM_NOT_PRESENT);
 
