@@ -612,7 +612,7 @@ static bool pcie_aer_inject_uncor_error(PCIEAERInject *inj, bool is_fatal)
 /*
  * non-Function specific error must be recorded in all functions.
  * It is the responsibility of the caller of this function.
- * It is also caller's responsiblity to determine which function should
+ * It is also caller's responsibility to determine which function should
  * report the rerror.
  *
  * 6.2.4 Error Logging
