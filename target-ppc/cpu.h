@@ -225,7 +225,7 @@ enum {
     /* 970FX specific exceptions                                             */
     POWERPC_EXCP_SOFTP    = 88, /* Soft patch exception                      */
     POWERPC_EXCP_MAINT    = 89, /* Maintenance exception                     */
-    /* Freescale embeded cores specific exceptions                           */
+    /* Freescale embedded cores specific exceptions                          */
     POWERPC_EXCP_MEXTBR   = 90, /* Maskable external breakpoint              */
     POWERPC_EXCP_NMEXTBR  = 91, /* Non maskable external breakpoint          */
     POWERPC_EXCP_ITLBE    = 92, /* Instruction TLB error                     */
