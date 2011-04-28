@@ -9049,7 +9049,7 @@ static const ppc_def_t ppc_defs[] = {
 };
 
 /*****************************************************************************/
-/* Generic CPU instanciation routine                                         */
+/* Generic CPU instantiation routine                                         */
 static void init_ppc_proc (CPUPPCState *env, const ppc_def_t *def)
 {
 #if !defined(CONFIG_USER_ONLY)
