@@ -2447,9 +2447,8 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_virtfs: {
-                char *arg_fsdev = NULL;
-                char *arg_9p = NULL;
-                int len = 0;
+                QemuOpts *fsdev;
+                QemuOpts *device;
 
                 olist = qemu_find_opts("virtfs");
                 if (!olist) {
@@ -2468,45 +2467,28 @@ int main(int argc, char **argv, char **envp)
                         qemu_opt_get(opts, "security_model") == NULL) {
                     fprintf(stderr, "Usage: -virtfs fstype,path=/share_path/,"
                             "security_model=[mapped|passthrough|none],"
-                            "mnt_tag=tag.\n");
+                            "mount_tag=tag.\n");
                     exit(1);
                 }
 
-                len = strlen(",id=,path=,security_model=");
-                len += strlen(qemu_opt_get(opts, "fstype"));
-                len += strlen(qemu_opt_get(opts, "mount_tag"));
-                len += strlen(qemu_opt_get(opts, "path"));
-                len += strlen(qemu_opt_get(opts, "security_model"));
-                arg_fsdev = qemu_malloc((len + 1) * sizeof(*arg_fsdev));
-
-                snprintf(arg_fsdev, (len + 1) * sizeof(*arg_fsdev),
-                         "%s,id=%s,path=%s,security_model=%s",
-                         qemu_opt_get(opts, "fstype"),
-                         qemu_opt_get(opts, "mount_tag"),
-                         qemu_opt_get(opts, "path"),
-                         qemu_opt_get(opts, "security_model"));
-
-                len = strlen("virtio-9p,fsdev=,mount_tag=");
-                len += 2*strlen(qemu_opt_get(opts, "mount_tag"));
-                arg_9p = qemu_malloc((len + 1) * sizeof(*arg_9p));
-
-                snprintf(arg_9p, (len + 1) * sizeof(*arg_9p),
-                         "virtio-9p,fsdev=%s,mount_tag=%s",
-                         qemu_opt_get(opts, "mount_tag"),
-                         qemu_opt_get(opts, "mount_tag"));
-
-                if (!qemu_opts_parse(qemu_find_opts("fsdev"), arg_fsdev, 1)) {
-                    fprintf(stderr, "parse error [fsdev]: %s\n", optarg);
+                fsdev = qemu_opts_create(qemu_find_opts("fsdev"),
+                                         qemu_opt_get(opts, "mount_tag"), 1);
+                if (!fsdev) {
+                    fprintf(stderr, "duplicate fsdev id: %s\n",
+                            qemu_opt_get(opts, "mount_tag"));
                     exit(1);
                 }
+                qemu_opt_set(fsdev, "fstype", qemu_opt_get(opts, "fstype"));
+                qemu_opt_set(fsdev, "path", qemu_opt_get(opts, "path"));
+                qemu_opt_set(fsdev, "security_model",
+                             qemu_opt_get(opts, "security_model"));
 
-                if (!qemu_opts_parse(qemu_find_opts("device"), arg_9p, 1)) {
-                    fprintf(stderr, "parse error [device]: %s\n", optarg);
-                    exit(1);
-                }
-
-                qemu_free(arg_fsdev);
-                qemu_free(arg_9p);
+                device = qemu_opts_create(qemu_find_opts("device"), NULL, 0);
+                qemu_opt_set(device, "driver", "virtio-9p-pci");
+                qemu_opt_set(device, "fsdev",
+                             qemu_opt_get(opts, "mount_tag"));
+                qemu_opt_set(device, "mount_tag",
+                             qemu_opt_get(opts, "mount_tag"));
                 break;
             }
             case QEMU_OPTION_serial:

@@ -6,7 +6,7 @@
 #include <sys/time.h>
 #include <utime.h>
 
-#include "file-op-9p.h"
+#include "fsdev/file-op-9p.h"
 
 /* The feature bitmap for virtio 9P */
 /* The mount point is specified in a config variable */
@@ -282,7 +282,7 @@ typedef struct V9fsStatStateDotl {
 typedef struct V9fsWalkState {
     V9fsPDU *pdu;
     size_t offset;
-    int16_t nwnames;
+    uint16_t nwnames;
     int name_idx;
     V9fsQID *qids;
     V9fsFidState *fidp;

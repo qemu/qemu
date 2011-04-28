@@ -15,7 +15,7 @@
 #include <attr/xattr.h>
 #include "virtio.h"
 #include "virtio-9p.h"
-#include "file-op-9p.h"
+#include "fsdev/file-op-9p.h"
 #include "virtio-9p-xattr.h"
 
 #define MAP_ACL_ACCESS "user.virtfs.system.posix_acl_access"
@@ -60,7 +60,7 @@ static int mp_pacl_removexattr(FsContext *ctx,
     ret  = lremovexattr(rpath(ctx, path), MAP_ACL_ACCESS);
     if (ret == -1 && errno == ENODATA) {
         /*
-         * We don't get ENODATA error when trying to remote a
+         * We don't get ENODATA error when trying to remove a
          * posix acl that is not present. So don't throw the error
          * even in case of mapped security model
          */
@@ -103,7 +103,18 @@ static int mp_dacl_setxattr(FsContext *ctx, const char *path, const char *name,
 static int mp_dacl_removexattr(FsContext *ctx,
                                const char *path, const char *name)
 {
-    return lremovexattr(rpath(ctx, path), MAP_ACL_DEFAULT);
+    int ret;
+    ret  = lremovexattr(rpath(ctx, path), MAP_ACL_DEFAULT);
+    if (ret == -1 && errno == ENODATA) {
+        /*
+         * We don't get ENODATA error when trying to remove a
+         * posix acl that is not present. So don't throw the error
+         * even in case of mapped security model
+         */
+        errno = 0;
+        ret = 0;
+    }
+    return ret;
 }
 
 

@@ -13,7 +13,7 @@
 #ifndef QEMU_FSDEV_H
 #define QEMU_FSDEV_H
 #include "qemu-option.h"
-#include "hw/file-op-9p.h"
+#include "file-op-9p.h"
 
 
 /*
