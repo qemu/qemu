@@ -1080,17 +1080,15 @@ static const struct {
 
 void ide_atapi_cmd(IDEState *s)
 {
-    const uint8_t *packet;
     uint8_t *buf;
 
-    packet = s->io_buffer;
     buf = s->io_buffer;
 #ifdef DEBUG_IDE_ATAPI
     {
         int i;
         printf("ATAPI limit=0x%x packet:", s->lcyl | (s->hcyl << 8));
         for(i = 0; i < ATAPI_PACKET_SIZE; i++) {
-            printf(" %02x", packet[i]);
+            printf(" %02x", buf[i]);
         }
         printf("\n");
     }
