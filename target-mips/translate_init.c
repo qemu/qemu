@@ -38,7 +38,7 @@
 ((1 << CP0C2_M))
 
 /* No config4, no DSP ASE, no large physaddr (PABITS),
-   no external interrupt controller, no vectored interupts,
+   no external interrupt controller, no vectored interrupts,
    no 1kb pages, no SmartMIPS ASE, no trace logic */
 #define MIPS_CONFIG3                                              \
 ((0 << CP0C3_M) | (0 << CP0C3_DSPP) | (0 << CP0C3_LPA) |          \

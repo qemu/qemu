@@ -161,7 +161,7 @@ static void pl031_write(void * opaque, target_phys_addr_t offset,
         pl031_update(s);
         break;
     case RTC_ICR:
-        /* The PL031 documentation (DDI0224B) states that the interupt is
+        /* The PL031 documentation (DDI0224B) states that the interrupt is
            cleared when bit 0 of the written value is set.  However the
            arm926e documentation (DDI0287B) states that the interrupt is
            cleared when any value is written.  */

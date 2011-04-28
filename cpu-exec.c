@@ -569,7 +569,7 @@ int cpu_exec(CPUState *env1)
                         next_tb = 0;
                     }
 #endif
-                   /* Don't use the cached interupt_request value,
+                   /* Don't use the cached interrupt_request value,
                       do_interrupt may have updated the EXITTB flag. */
                     if (env->interrupt_request & CPU_INTERRUPT_EXITTB) {
                         env->interrupt_request &= ~CPU_INTERRUPT_EXITTB;
