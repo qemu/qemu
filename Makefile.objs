@@ -335,7 +335,7 @@ trace-dtrace.h: trace-dtrace.dtrace
 	$(call quiet-command,dtrace -o $@ -h -s $<, "  GEN   trace-dtrace.h")
 
 # Normal practice is to name DTrace probe file with a '.d' extension
-# but that gets picked up by QEMU's Makefile as an external dependancy
+# but that gets picked up by QEMU's Makefile as an external dependency
 # rule file. So we use '.dtrace' instead
 trace-dtrace.dtrace: trace-dtrace.dtrace-timestamp
 trace-dtrace.dtrace-timestamp: $(SRC_PATH)/trace-events config-host.mak

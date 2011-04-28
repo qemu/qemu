@@ -525,7 +525,7 @@ version 0.1.5:
 
  - ppc64 support + personality() patch (Rusty Russell)
  - first Alpha CPU patches (Falk Hueffner)
- - removed bfd.h dependancy
+ - removed bfd.h dependency
  - fixed shrd, shld, idivl and divl on PowerPC.
  - fixed buggy glibc PowerPC rint() function (test-i386 passes now on PowerPC).
 
