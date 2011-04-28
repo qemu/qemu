@@ -239,6 +239,10 @@ static int nbd_write(BlockDriverState *bs, int64_t sector_num,
 
 static void nbd_close(BlockDriverState *bs)
 {
+    BDRVNBDState *s = bs->opaque;
+    qemu_free(s->export_name);
+    qemu_free(s->host_spec);
+
     nbd_teardown_connection(bs);
 }
 
