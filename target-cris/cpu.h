@@ -101,7 +101,7 @@ typedef struct CPUCRISState {
 	/* P0 - P15 are referred to as special registers in the docs.  */
 	uint32_t pregs[16];
 
-	/* Pseudo register for the PC. Not directly accessable on CRIS.  */
+	/* Pseudo register for the PC. Not directly accessible on CRIS.  */
 	uint32_t pc;
 
 	/* Pseudo register for the kernel stack.  */
