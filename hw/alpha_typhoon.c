@@ -681,6 +681,16 @@ static void typhoon_set_timer_irq(void *opaque, int irq, int level)
     }
 }
 
+static void typhoon_alarm_timer(void *opaque)
+{
+    TyphoonState *s = (TyphoonState *)((uintptr_t)opaque & ~3);
+    int cpu = (uintptr_t)opaque & 3;
+
+    /* Set the ITI bit for this cpu.  */
+    s->cchip.misc |= 1 << (cpu + 4);
+    cpu_interrupt(s->cchip.cpu[cpu], CPU_INTERRUPT_TIMER);
+}
+
 PCIBus *typhoon_init(ram_addr_t ram_size, qemu_irq *p_rtc_irq,
                      CPUState *cpus[4], pci_map_irq_fn sys_map_irq)
 {
@@ -692,6 +702,7 @@ PCIBus *typhoon_init(ram_addr_t ram_size, qemu_irq *p_rtc_irq,
     PCIHostState *p;
     TyphoonState *s;
     PCIBus *b;
+    int i;
 
     dev = qdev_create(NULL, "typhoon-pcihost");
     qdev_init_nofail(dev);
@@ -700,7 +711,15 @@ PCIBus *typhoon_init(ram_addr_t ram_size, qemu_irq *p_rtc_irq,
     s = container_of(p, TyphoonState, host);
 
     /* Remember the CPUs so that we can deliver interrupts to them.  */
-    memcpy(s->cchip.cpu, cpus, 4 * sizeof(CPUState *));
+    for (i = 0; i < 4; i++) {
+        CPUState *env = cpus[i];
+        s->cchip.cpu[i] = env;
+        if (env) {
+            env->alarm_timer = qemu_new_timer_ns(rtc_clock,
+                                                 typhoon_alarm_timer,
+                                                 (void *)((uintptr_t)s + i));
+        }
+    }
 
     *p_rtc_irq = *qemu_allocate_irqs(typhoon_set_timer_irq, s, 1);
 

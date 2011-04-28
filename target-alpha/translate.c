@@ -1590,18 +1590,34 @@ static int cpu_pr_data(int pr)
         return offsetof(CPUAlphaState, shadow[pr - 32]);
     case 40 ... 63:
         return offsetof(CPUAlphaState, scratch[pr - 40]);
+
+    case 251:
+        return offsetof(CPUAlphaState, alarm_expire);
     }
     return 0;
 }
 
-static void gen_mfpr(int ra, int regno)
+static ExitStatus gen_mfpr(int ra, int regno)
 {
     int data = cpu_pr_data(regno);
 
     /* In our emulated PALcode, these processor registers have no
        side effects from reading.  */
     if (ra == 31) {
-        return;
+        return NO_EXIT;
+    }
+
+    if (regno == 250) {
+        /* WALL_TIME */
+        if (use_icount) {
+            gen_io_start();
+            gen_helper_get_time(cpu_ir[ra]);
+            gen_io_end();
+            return EXIT_PC_STALE;
+        } else {
+            gen_helper_get_time(cpu_ir[ra]);
+            return NO_EXIT;
+        }
     }
 
     /* The basic registers are data only, and unknown registers
@@ -1615,6 +1631,7 @@ static void gen_mfpr(int ra, int regno)
     } else {
         tcg_gen_ld_i64(cpu_ir[ra], cpu_env, data);
     }
+    return NO_EXIT;
 }
 
 static ExitStatus gen_mtpr(DisasContext *ctx, int rb, int regno)
@@ -1649,6 +1666,11 @@ static ExitStatus gen_mtpr(DisasContext *ctx, int rb, int regno)
         /* HALT */
         gen_helper_halt(tmp);
         return EXIT_PC_STALE;
+
+    case 251:
+        /* ALARM */
+        gen_helper_set_alarm(tmp);
+        break;
 
     default:
         /* The basic registers are data only, and unknown registers
@@ -2772,8 +2794,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         /* HW_MFPR (PALcode) */
 #ifndef CONFIG_USER_ONLY
         if (ctx->tb->flags & TB_FLAGS_PAL_MODE) {
-            gen_mfpr(ra, insn & 0xffff);
-            break;
+            return gen_mfpr(ra, insn & 0xffff);
         }
 #endif
         goto invalid_opc;

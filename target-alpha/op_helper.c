@@ -1228,6 +1228,21 @@ void helper_halt(uint64_t restart)
         qemu_system_shutdown_request();
     }
 }
+
+uint64_t helper_get_time(void)
+{
+    return qemu_get_clock_ns(rtc_clock);
+}
+
+void helper_set_alarm(uint64_t expire)
+{
+    if (expire) {
+        env->alarm_expire = expire;
+        qemu_mod_timer(env->alarm_timer, expire);
+    } else {
+        qemu_del_timer(env->alarm_timer);
+    }
+}
 #endif
 
 /*****************************************************************************/
