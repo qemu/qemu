@@ -71,12 +71,12 @@ static void lba_to_msf(uint8_t *buf, int lba)
     buf[2] = lba % 75;
 }
 
-/* XXX: DVDs that could fit on a CD will be reported as a CD */
 static inline int media_present(IDEState *s)
 {
     return (s->nb_sectors > 0);
 }
 
+/* XXX: DVDs that could fit on a CD will be reported as a CD */
 static inline int media_is_dvd(IDEState *s)
 {
     return (media_present(s) && s->nb_sectors > CD_MAX_SECTORS);
