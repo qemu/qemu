@@ -662,7 +662,8 @@ DEF("alt-grab", 0, QEMU_OPTION_alt_grab,
 STEXI
 @item -alt-grab
 @findex -alt-grab
-Use Ctrl-Alt-Shift to grab mouse (instead of Ctrl-Alt).
+Use Ctrl-Alt-Shift to grab mouse (instead of Ctrl-Alt). Note that this also
+affects the special keys (for fullscreen, monitor-mode switching, etc).
 ETEXI
 
 DEF("ctrl-grab", 0, QEMU_OPTION_ctrl_grab,
@@ -671,7 +672,8 @@ DEF("ctrl-grab", 0, QEMU_OPTION_ctrl_grab,
 STEXI
 @item -ctrl-grab
 @findex -ctrl-grab
-Use Right-Ctrl to grab mouse (instead of Ctrl-Alt).
+Use Right-Ctrl to grab mouse (instead of Ctrl-Alt). Note that this also
+affects the special keys (for fullscreen, monitor-mode switching, etc).
 ETEXI
 
 DEF("no-quit", 0, QEMU_OPTION_no_quit,
