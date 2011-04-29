@@ -452,6 +452,10 @@ uint64_t cpu_ppc_load_tbl (CPUState *env)
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
 
+    if (kvm_enabled()) {
+        return env->spr[SPR_TBL];
+    }
+
     tb = cpu_ppc_get_tb(tb_env, qemu_get_clock_ns(vm_clock), tb_env->tb_offset);
     LOG_TB("%s: tb %016" PRIx64 "\n", __func__, tb);
 
@@ -471,6 +475,10 @@ static inline uint32_t _cpu_ppc_load_tbu(CPUState *env)
 
 uint32_t cpu_ppc_load_tbu (CPUState *env)
 {
+    if (kvm_enabled()) {
+        return env->spr[SPR_TBU];
+    }
+
     return _cpu_ppc_load_tbu(env);
 }
 
@@ -615,6 +623,10 @@ static inline uint32_t _cpu_ppc_load_decr(CPUState *env, uint64_t next)
 uint32_t cpu_ppc_load_decr (CPUState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;
+
+    if (kvm_enabled()) {
+        return env->spr[SPR_DECR];
+    }
 
     return _cpu_ppc_load_decr(env, tb_env->decr_next);
 }

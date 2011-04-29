@@ -2,6 +2,7 @@
  *  PowerPC emulation for qemu: main translation routines.
  *
  *  Copyright (c) 2003-2007 Jocelyn Mayer
+ *  Copyright (C) 2011 Freescale Semiconductor, Inc.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -9124,9 +9125,84 @@ void cpu_dump_state (CPUState *env, FILE *f, fprintf_function cpu_fprintf,
     }
     cpu_fprintf(f, "FPSCR %08x\n", env->fpscr);
 #if !defined(CONFIG_USER_ONLY)
-    cpu_fprintf(f, "SRR0 " TARGET_FMT_lx " SRR1 " TARGET_FMT_lx " SDR1 "
-                TARGET_FMT_lx "\n", env->spr[SPR_SRR0], env->spr[SPR_SRR1],
-                env->spr[SPR_SDR1]);
+    cpu_fprintf(f, " SRR0 " TARGET_FMT_lx "  SRR1 " TARGET_FMT_lx
+                   "    PVR " TARGET_FMT_lx " VRSAVE " TARGET_FMT_lx "\n",
+                env->spr[SPR_SRR0], env->spr[SPR_SRR1],
+                env->spr[SPR_PVR], env->spr[SPR_VRSAVE]);
+
+    cpu_fprintf(f, "SPRG0 " TARGET_FMT_lx " SPRG1 " TARGET_FMT_lx
+                   "  SPRG2 " TARGET_FMT_lx "  SPRG3 " TARGET_FMT_lx "\n",
+                env->spr[SPR_SPRG0], env->spr[SPR_SPRG1],
+                env->spr[SPR_SPRG2], env->spr[SPR_SPRG3]);
+
+    cpu_fprintf(f, "SPRG4 " TARGET_FMT_lx " SPRG5 " TARGET_FMT_lx
+                   "  SPRG6 " TARGET_FMT_lx "  SPRG7 " TARGET_FMT_lx "\n",
+                env->spr[SPR_SPRG4], env->spr[SPR_SPRG5],
+                env->spr[SPR_SPRG6], env->spr[SPR_SPRG7]);
+
+    if (env->excp_model == POWERPC_EXCP_BOOKE) {
+        cpu_fprintf(f, "CSRR0 " TARGET_FMT_lx " CSRR1 " TARGET_FMT_lx
+                       " MCSRR0 " TARGET_FMT_lx " MCSRR1 " TARGET_FMT_lx "\n",
+                    env->spr[SPR_BOOKE_CSRR0], env->spr[SPR_BOOKE_CSRR1],
+                    env->spr[SPR_BOOKE_MCSRR0], env->spr[SPR_BOOKE_MCSRR1]);
+
+        cpu_fprintf(f, "  TCR " TARGET_FMT_lx "   TSR " TARGET_FMT_lx
+                       "    ESR " TARGET_FMT_lx "   DEAR " TARGET_FMT_lx "\n",
+                    env->spr[SPR_BOOKE_TCR], env->spr[SPR_BOOKE_TSR],
+                    env->spr[SPR_BOOKE_ESR], env->spr[SPR_BOOKE_DEAR]);
+
+        cpu_fprintf(f, "  PIR " TARGET_FMT_lx " DECAR " TARGET_FMT_lx
+                       "   IVPR " TARGET_FMT_lx "   EPCR " TARGET_FMT_lx "\n",
+                    env->spr[SPR_BOOKE_PIR], env->spr[SPR_BOOKE_DECAR],
+                    env->spr[SPR_BOOKE_IVPR], env->spr[SPR_BOOKE_EPCR]);
+
+        cpu_fprintf(f, " MCSR " TARGET_FMT_lx " SPRG8 " TARGET_FMT_lx
+                       "    EPR " TARGET_FMT_lx "\n",
+                    env->spr[SPR_BOOKE_MCSR], env->spr[SPR_BOOKE_SPRG8],
+                    env->spr[SPR_BOOKE_EPR]);
+
+        /* FSL-specific */
+        cpu_fprintf(f, " MCAR " TARGET_FMT_lx "  PID1 " TARGET_FMT_lx
+                       "   PID2 " TARGET_FMT_lx "    SVR " TARGET_FMT_lx "\n",
+                    env->spr[SPR_Exxx_MCAR], env->spr[SPR_BOOKE_PID1],
+                    env->spr[SPR_BOOKE_PID2], env->spr[SPR_E500_SVR]);
+
+        /*
+         * IVORs are left out as they are large and do not change often --
+         * they can be read with "p $ivor0", "p $ivor1", etc.
+         */
+    }
+
+    switch (env->mmu_model) {
+    case POWERPC_MMU_32B:
+    case POWERPC_MMU_601:
+    case POWERPC_MMU_SOFT_6xx:
+    case POWERPC_MMU_SOFT_74xx:
+#if defined(TARGET_PPC64)
+    case POWERPC_MMU_620:
+    case POWERPC_MMU_64B:
+#endif
+        cpu_fprintf(f, " SDR1 " TARGET_FMT_lx "\n", env->spr[SPR_SDR1]);
+        break;
+    case POWERPC_MMU_BOOKE_FSL:
+        cpu_fprintf(f, " MAS0 " TARGET_FMT_lx "  MAS1 " TARGET_FMT_lx
+                       "   MAS2 " TARGET_FMT_lx "   MAS3 " TARGET_FMT_lx "\n",
+                    env->spr[SPR_BOOKE_MAS0], env->spr[SPR_BOOKE_MAS1],
+                    env->spr[SPR_BOOKE_MAS2], env->spr[SPR_BOOKE_MAS3]);
+
+        cpu_fprintf(f, " MAS4 " TARGET_FMT_lx "  MAS6 " TARGET_FMT_lx
+                       "   MAS7 " TARGET_FMT_lx "    PID " TARGET_FMT_lx "\n",
+                    env->spr[SPR_BOOKE_MAS4], env->spr[SPR_BOOKE_MAS6],
+                    env->spr[SPR_BOOKE_MAS7], env->spr[SPR_BOOKE_PID]);
+
+        cpu_fprintf(f, "MMUCFG " TARGET_FMT_lx " TLB0CFG " TARGET_FMT_lx
+                       " TLB1CFG " TARGET_FMT_lx "\n",
+                    env->spr[SPR_MMUCFG], env->spr[SPR_BOOKE_TLB0CFG],
+                    env->spr[SPR_BOOKE_TLB1CFG]);
+        break;
+    default:
+        break;
+    }
 #endif
 
 #undef RGPL
