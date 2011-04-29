@@ -160,8 +160,9 @@ static void ioapic_set_irq(void *opaque, int vector, int level)
                 s->irr &= ~mask;
             }
         } else {
-            /* edge triggered */
-            if (level) {
+            /* According to the 82093AA manual, we must ignore edge requests
+             * if the input pin is masked. */
+            if (level && !(entry & IOAPIC_LVT_MASKED)) {
                 s->irr |= mask;
                 ioapic_service(s);
             }

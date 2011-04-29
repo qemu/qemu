@@ -596,7 +596,10 @@ static V9fsPDU *alloc_pdu(V9fsState *s)
 static void free_pdu(V9fsState *s, V9fsPDU *pdu)
 {
     if (pdu) {
-	QLIST_INSERT_HEAD(&s->free_list, pdu, next);
+        if (debug_9p_pdu) {
+            pprint_pdu(pdu);
+        }
+        QLIST_INSERT_HEAD(&s->free_list, pdu, next);
     }
 }
 
@@ -1479,7 +1482,7 @@ static void v9fs_walk_complete(V9fsState *s, V9fsWalkState *vs, int err)
 {
     complete_pdu(s, vs->pdu, err);
 
-    if (vs->nwnames) {
+    if (vs->nwnames && vs->nwnames <= P9_MAXWELEM) {
         for (vs->name_idx = 0; vs->name_idx < vs->nwnames; vs->name_idx++) {
             v9fs_string_free(&vs->wnames[vs->name_idx]);
         }
@@ -1575,7 +1578,7 @@ static void v9fs_walk(V9fsState *s, V9fsPDU *pdu)
     vs->offset += pdu_unmarshal(vs->pdu, vs->offset, "ddw", &fid,
                                             &newfid, &vs->nwnames);
 
-    if (vs->nwnames) {
+    if (vs->nwnames && vs->nwnames <= P9_MAXWELEM) {
         vs->wnames = qemu_mallocz(sizeof(vs->wnames[0]) * vs->nwnames);
 
         vs->qids = qemu_mallocz(sizeof(vs->qids[0]) * vs->nwnames);
@@ -1584,6 +1587,9 @@ static void v9fs_walk(V9fsState *s, V9fsPDU *pdu)
             vs->offset += pdu_unmarshal(vs->pdu, vs->offset, "s",
                                             &vs->wnames[i]);
         }
+    } else if (vs->nwnames > P9_MAXWELEM) {
+        err = -EINVAL;
+        goto out;
     }
 
     vs->fidp = lookup_fid(s, fid);
@@ -1768,7 +1774,7 @@ static void v9fs_post_lcreate(V9fsState *s, V9fsLcreateState *vs, int err)
         v9fs_string_copy(&vs->fidp->path, &vs->fullname);
         stat_to_qid(&vs->stbuf, &vs->qid);
         vs->offset += pdu_marshal(vs->pdu, vs->offset, "Qd", &vs->qid,
-                &vs->iounit);
+                vs->iounit);
         err = vs->offset;
     } else {
         vs->fidp->fid_type = P9_FID_NONE;

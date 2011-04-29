@@ -370,7 +370,7 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
             return fd;
         }
         /* Write the oldpath (target) to the file. */
-        oldpath_size = strlen(oldpath) + 1;
+        oldpath_size = strlen(oldpath);
         do {
             write_size = write(fd, (void *)oldpath, oldpath_size);
         } while (write_size == -1 && errno == EINTR);

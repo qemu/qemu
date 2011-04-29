@@ -8012,7 +8012,8 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                     }
                 }
             } else {
-                int i;
+                int i, loaded_base = 0;
+                TCGv loaded_var;
                 /* Load/store multiple.  */
                 addr = load_reg(s, rn);
                 offset = 0;
@@ -8024,6 +8025,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                     tcg_gen_addi_i32(addr, addr, -offset);
                 }
 
+                TCGV_UNUSED(loaded_var);
                 for (i = 0; i < 16; i++) {
                     if ((insn & (1 << i)) == 0)
                         continue;
@@ -8032,6 +8034,9 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                         tmp = gen_ld32(addr, IS_USER(s));
                         if (i == 15) {
                             gen_bx(s, tmp);
+                        } else if (i == rn) {
+                            loaded_var = tmp;
+                            loaded_base = 1;
                         } else {
                             store_reg(s, i, tmp);
                         }
@@ -8041,6 +8046,9 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                         gen_st32(tmp, addr, IS_USER(s));
                     }
                     tcg_gen_addi_i32(addr, addr, 4);
+                }
+                if (loaded_base) {
+                    store_reg(s, rn, loaded_var);
                 }
                 if (insn & (1 << 21)) {
                     /* Base register writeback.  */
@@ -9442,7 +9450,10 @@ static void disas_thumb_insn(CPUState *env, DisasContext *s)
         break;
 
     case 12:
+    {
         /* load/store multiple */
+        TCGv loaded_var;
+        TCGV_UNUSED(loaded_var);
         rn = (insn >> 8) & 0x7;
         addr = load_reg(s, rn);
         for (i = 0; i < 8; i++) {
@@ -9450,7 +9461,11 @@ static void disas_thumb_insn(CPUState *env, DisasContext *s)
                 if (insn & (1 << 11)) {
                     /* load */
                     tmp = gen_ld32(addr, IS_USER(s));
-                    store_reg(s, i, tmp);
+                    if (i == rn) {
+                        loaded_var = tmp;
+                    } else {
+                        store_reg(s, i, tmp);
+                    }
                 } else {
                     /* store */
                     tmp = load_reg(s, i);
@@ -9460,14 +9475,18 @@ static void disas_thumb_insn(CPUState *env, DisasContext *s)
                 tcg_gen_addi_i32(addr, addr, 4);
             }
         }
-        /* Base register writeback.  */
         if ((insn & (1 << rn)) == 0) {
+            /* base reg not in list: base register writeback */
             store_reg(s, rn, addr);
         } else {
+            /* base reg in list: if load, complete it now */
+            if (insn & (1 << 11)) {
+                store_reg(s, rn, loaded_var);
+            }
             tcg_temp_free_i32(addr);
         }
         break;
-
+    }
     case 13:
         /* conditional branch or swi */
         cond = (insn >> 8) & 0xf;

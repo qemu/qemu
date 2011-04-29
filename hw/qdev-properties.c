@@ -354,10 +354,10 @@ static int parse_chr(DeviceState *dev, Property *prop, const char *str)
     if (*ptr == NULL) {
         return -ENOENT;
     }
-    if ((*ptr)->assigned) {
+    if ((*ptr)->avail_connections < 1) {
         return -EEXIST;
     }
-    (*ptr)->assigned = 1;
+    --(*ptr)->avail_connections;
     return 0;
 }
 
