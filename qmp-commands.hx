@@ -435,7 +435,7 @@ EQMP
         .params     = "",
         .help       = "",
         .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_inject_nmi_all,
+        .mhandler.cmd_new = do_inject_nmi,
     },
 
 SQMP
