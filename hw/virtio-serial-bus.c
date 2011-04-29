@@ -285,6 +285,13 @@ size_t virtio_serial_guest_ready(VirtIOSerialPort *port)
     return 0;
 }
 
+static void flush_queued_data_bh(void *opaque)
+{
+    VirtIOSerialPort *port = opaque;
+
+    flush_queued_data(port);
+}
+
 void virtio_serial_throttle_port(VirtIOSerialPort *port, bool throttle)
 {
     if (!port) {
@@ -295,8 +302,7 @@ void virtio_serial_throttle_port(VirtIOSerialPort *port, bool throttle)
     if (throttle) {
         return;
     }
-
-    flush_queued_data(port);
+    qemu_bh_schedule(port->bh);
 }
 
 /* Guest wants to notify us of some event */
@@ -726,6 +732,7 @@ static int virtser_port_qdev_init(DeviceState *qdev, DeviceInfo *base)
     bool plugging_port0;
 
     port->vser = bus->vser;
+    port->bh = qemu_bh_new(flush_queued_data_bh, port);
 
     /*
      * Is the first console port we're seeing? If so, put it up at
@@ -792,6 +799,7 @@ static int virtser_port_qdev_exit(DeviceState *qdev)
     VirtIOSerialPort *port = DO_UPCAST(VirtIOSerialPort, dev, qdev);
     VirtIOSerial *vser = port->vser;
 
+    qemu_bh_delete(port->bh);
     remove_port(port->vser, port->id);
 
     QTAILQ_REMOVE(&vser->ports, port, next);

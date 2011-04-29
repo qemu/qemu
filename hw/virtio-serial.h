@@ -119,6 +119,11 @@ struct VirtIOSerialPort {
     uint32_t iov_idx;
     uint64_t iov_offset;
 
+    /*
+     * When unthrottling we use a bottom-half to call flush_queued_data.
+     */
+    QEMUBH *bh;
+
     /* Identify if this is a port that binds with hvc in the guest */
     uint8_t is_console;
 
