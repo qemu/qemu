@@ -178,7 +178,11 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     qemu_irq *irqs, *mpic, *pci_irqs;
 
     /* Setup CPU */
-    env = cpu_ppc_init("e500v2_v30");
+    if (cpu_model == NULL) {
+        cpu_model = "e500v2_v30";
+    }
+
+    env = cpu_ppc_init(cpu_model);
     if (!env) {
         fprintf(stderr, "Unable to initialize CPU!\n");
         exit(1);
