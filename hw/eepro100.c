@@ -48,6 +48,15 @@
 #include "eeprom93xx.h"
 #include "sysemu.h"
 
+/* QEMU sends frames smaller than 60 bytes to ethernet nics.
+ * Such frames are rejected by real nics and their emulations.
+ * To avoid this behaviour, other nic emulations pad received
+ * frames. The following definition enables this padding for
+ * eepro100, too. We keep the define around in case it might
+ * become useful the future if the core networking is ever
+ * changed to pad short packets itself. */
+#define CONFIG_PAD_RECEIVED_FRAMES
+
 #define KiB 1024
 
 /* Debug EEPRO100 card. */
@@ -1640,19 +1649,32 @@ static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size
      */
     EEPRO100State *s = DO_UPCAST(NICState, nc, nc)->opaque;
     uint16_t rfd_status = 0xa000;
+#if defined(CONFIG_PAD_RECEIVED_FRAMES)
+    uint8_t min_buf[60];
+#endif
     static const uint8_t broadcast_macaddr[6] =
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+
+#if defined(CONFIG_PAD_RECEIVED_FRAMES)
+    /* Pad to minimum Ethernet frame length */
+    if (size < sizeof(min_buf)) {
+        memcpy(min_buf, buf, size);
+        memset(&min_buf[size], 0, sizeof(min_buf) - size);
+        buf = min_buf;
+        size = sizeof(min_buf);
+    }
+#endif
 
     if (s->configuration[8] & 0x80) {
         /* CSMA is disabled. */
         logout("%p received while CSMA is disabled\n", s);
         return -1;
+#if !defined(CONFIG_PAD_RECEIVED_FRAMES)
     } else if (size < 64 && (s->configuration[7] & BIT(0))) {
         /* Short frame and configuration byte 7/0 (discard short receive) set:
          * Short frame is discarded */
         logout("%p received short frame (%zu byte)\n", s, size);
         s->statistics.rx_short_frame_errors++;
-#if 0
         return -1;
 #endif
     } else if ((size > MAX_ETH_FRAME_SIZE + 4) && !(s->configuration[18] & BIT(3))) {
@@ -1731,9 +1753,11 @@ static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size
             "(%zu bytes); data truncated\n", rfd_size, size);
         size = rfd_size;
     }
+#if !defined(CONFIG_PAD_RECEIVED_FRAMES)
     if (size < 64) {
         rfd_status |= 0x0080;
     }
+#endif
     TRACE(OTHER, logout("command 0x%04x, link 0x%08x, addr 0x%08x, size %u\n",
           rfd_command, rx.link, rx.rx_buf_addr, rfd_size));
     stw_phys(s->ru_base + s->ru_offset + offsetof(eepro100_rx_t, status),
