@@ -1382,6 +1382,9 @@ static uint8_t eepro100_read1(EEPRO100State * s, uint32_t addr)
         val = 0;
         TRACE(OTHER, logout("addr=%s val=0x%02x\n", regname(addr), val));
         break;
+    case SCBgctrl:      /* General Control Register */
+        TRACE(OTHER, logout("addr=%s val=0x%02x\n", regname(addr), val));
+        break;
     case SCBgstat:      /* General Status Register */
         /* 100 Mbps full duplex, valid link */
         val = 0x07;
