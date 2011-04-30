@@ -1317,8 +1317,9 @@ static uint32_t eepro100_read_port(EEPRO100State * s)
     return 0;
 }
 
-static void eepro100_write_port(EEPRO100State * s, uint32_t val)
+static void eepro100_write_port(EEPRO100State *s)
 {
+    uint32_t val = e100_read_reg4(s, SCBPort);
     uint32_t address = (val & ~PORT_SELECTION_MASK);
     uint8_t selection = (val & PORT_SELECTION_MASK);
     switch (selection) {
@@ -1472,7 +1473,15 @@ static void eepro100_write1(EEPRO100State * s, uint32_t addr, uint8_t val)
         }
         eepro100_interrupt(s, 0);
         break;
+    case SCBPort:
+    case SCBPort + 1:
+    case SCBPort + 2:
+        TRACE(OTHER, logout("addr=%s val=0x%02x\n", regname(addr), val));
+        break;
     case SCBPort + 3:
+        TRACE(OTHER, logout("addr=%s val=0x%02x\n", regname(addr), val));
+        eepro100_write_port(s);
+        break;
     case SCBFlow:       /* does not exist on 82557 */
     case SCBFlow + 1:
     case SCBFlow + 2:
@@ -1507,6 +1516,13 @@ static void eepro100_write2(EEPRO100State * s, uint32_t addr, uint16_t val)
         eepro100_write_command(s, val);
         eepro100_write1(s, SCBIntmask, val >> 8);
         break;
+    case SCBPort:
+        TRACE(OTHER, logout("addr=%s val=0x%04x\n", regname(addr), val));
+        break;
+    case SCBPort + 2:
+        TRACE(OTHER, logout("addr=%s val=0x%04x\n", regname(addr), val));
+        eepro100_write_port(s);
+        break;
     case SCBeeprom:
         TRACE(OTHER, logout("addr=%s val=0x%04x\n", regname(addr), val));
         eepro100_write_eeprom(s->eeprom, val);
@@ -1529,7 +1545,7 @@ static void eepro100_write4(EEPRO100State * s, uint32_t addr, uint32_t val)
         break;
     case SCBPort:
         TRACE(OTHER, logout("addr=%s val=0x%08x\n", regname(addr), val));
-        eepro100_write_port(s, val);
+        eepro100_write_port(s);
         break;
     case SCBCtrlMDI:
         eepro100_write_mdi(s, val);
