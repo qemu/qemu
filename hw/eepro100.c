@@ -240,7 +240,6 @@ typedef struct {
     uint16_t mdimem[32];
     eeprom_t *eeprom;
     uint32_t device;            /* device variant */
-    uint32_t pointer;
     /* (cu_base + cu_offset) address the next command block in the command block list. */
     uint32_t cu_base;           /* CU base address */
     uint32_t cu_offset;         /* CU address offset */
@@ -991,7 +990,7 @@ static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
             logout("unexpected CU state is %u\n", cu_state);
         }
         set_cu_state(s, cu_active);
-        s->cu_offset = s->pointer;
+        s->cu_offset = e100_read_reg4(s, SCBPointer);
         action_command(s);
         break;
     case CU_RESUME:
@@ -1012,7 +1011,7 @@ static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
         break;
     case CU_STATSADDR:
         /* Load dump counters address. */
-        s->statsaddr = s->pointer;
+        s->statsaddr = e100_read_reg4(s, SCBPointer);
         TRACE(OTHER, logout("val=0x%02x (status address)\n", val));
         break;
     case CU_SHOWSTATS:
@@ -1024,7 +1023,7 @@ static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
     case CU_CMD_BASE:
         /* Load CU base. */
         TRACE(OTHER, logout("val=0x%02x (CU base address)\n", val));
-        s->cu_base = s->pointer;
+        s->cu_base = e100_read_reg4(s, SCBPointer);
         break;
     case CU_DUMPSTATS:
         /* Dump and reset statistical counters. */
@@ -1057,7 +1056,7 @@ static void eepro100_ru_command(EEPRO100State * s, uint8_t val)
 #endif
         }
         set_ru_state(s, ru_ready);
-        s->ru_offset = s->pointer;
+        s->ru_offset = e100_read_reg4(s, SCBPointer);
         TRACE(OTHER, logout("val=0x%02x (rx start)\n", val));
         break;
     case RX_RESUME:
@@ -1081,7 +1080,7 @@ static void eepro100_ru_command(EEPRO100State * s, uint8_t val)
     case RX_ADDR_LOAD:
         /* Load RU base. */
         TRACE(OTHER, logout("val=0x%02x (RU base address)\n", val));
-        s->ru_base = s->pointer;
+        s->ru_base = e100_read_reg4(s, SCBPointer);
         break;
     default:
         logout("val=0x%02x (undefined RU command)\n", val);
@@ -1136,12 +1135,6 @@ static void eepro100_write_eeprom(eeprom_t * eeprom, uint8_t val)
     int eesk = ((val & EEPROM_SK) != 0);
     int eedi = ((val & EEPROM_DI) != 0);
     eeprom93xx_write(eeprom, eecs, eesk, eedi);
-}
-
-static void eepro100_write_pointer(EEPRO100State * s, uint32_t val)
-{
-    s->pointer = le32_to_cpu(val);
-    TRACE(OTHER, logout("val=0x%08x\n", val));
 }
 
 /*****************************************************************************
@@ -1428,9 +1421,6 @@ static uint32_t eepro100_read4(EEPRO100State * s, uint32_t addr)
         TRACE(OTHER, logout("addr=%s val=0x%08x\n", regname(addr), val));
         break;
     case SCBPointer:
-#if 0
-        val = eepro100_read_pointer(s);
-#endif
         TRACE(OTHER, logout("addr=%s val=0x%08x\n", regname(addr), val));
         break;
     case SCBPort:
@@ -1472,6 +1462,12 @@ static void eepro100_write1(EEPRO100State * s, uint32_t addr, uint8_t val)
             eepro100_swi_interrupt(s);
         }
         eepro100_interrupt(s, 0);
+        break;
+    case SCBPointer:
+    case SCBPointer + 1:
+    case SCBPointer + 2:
+    case SCBPointer + 3:
+        TRACE(OTHER, logout("addr=%s val=0x%02x\n", regname(addr), val));
         break;
     case SCBPort:
     case SCBPort + 1:
@@ -1516,6 +1512,10 @@ static void eepro100_write2(EEPRO100State * s, uint32_t addr, uint16_t val)
         eepro100_write_command(s, val);
         eepro100_write1(s, SCBIntmask, val >> 8);
         break;
+    case SCBPointer:
+    case SCBPointer + 2:
+        TRACE(OTHER, logout("addr=%s val=0x%04x\n", regname(addr), val));
+        break;
     case SCBPort:
         TRACE(OTHER, logout("addr=%s val=0x%04x\n", regname(addr), val));
         break;
@@ -1541,7 +1541,7 @@ static void eepro100_write4(EEPRO100State * s, uint32_t addr, uint32_t val)
 
     switch (addr) {
     case SCBPointer:
-        eepro100_write_pointer(s, val);
+        TRACE(OTHER, logout("addr=%s val=0x%08x\n", regname(addr), val));
         break;
     case SCBPort:
         TRACE(OTHER, logout("addr=%s val=0x%08x\n", regname(addr), val));
@@ -1881,7 +1881,6 @@ static const VMStateDescription vmstate_eepro100 = {
         /* The eeprom should be saved and restored by its own routines. */
         VMSTATE_UINT32(device, EEPRO100State),
         /* TODO check device. */
-        VMSTATE_UINT32(pointer, EEPRO100State),
         VMSTATE_UINT32(cu_base, EEPRO100State),
         VMSTATE_UINT32(cu_offset, EEPRO100State),
         VMSTATE_UINT32(ru_base, EEPRO100State),
