@@ -1443,6 +1443,10 @@ static uint32_t eepro100_read4(EEPRO100State * s, uint32_t addr)
         val = eepro100_read_port(s);
         TRACE(OTHER, logout("addr=%s val=0x%08x\n", regname(addr), val));
         break;
+    case SCBflash:
+        val = eepro100_read_eeprom(s);
+        TRACE(OTHER, logout("addr=%s val=0x%08x\n", regname(addr), val));
+        break;
     case SCBCtrlMDI:
         val = eepro100_read_mdi(s);
         break;
@@ -1578,6 +1582,11 @@ static void eepro100_write4(EEPRO100State * s, uint32_t addr, uint32_t val)
     case SCBPort:
         TRACE(OTHER, logout("addr=%s val=0x%08x\n", regname(addr), val));
         eepro100_write_port(s);
+        break;
+    case SCBflash:
+        TRACE(OTHER, logout("addr=%s val=0x%08x\n", regname(addr), val));
+        val = val >> 16;
+        eepro100_write_eeprom(s->eeprom, val);
         break;
     case SCBCtrlMDI:
         TRACE(OTHER, logout("addr=%s val=0x%08x\n", regname(addr), val));
