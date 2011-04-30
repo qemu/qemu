@@ -1,7 +1,7 @@
 /*
  * QEMU i8255x (PRO100) emulation
  *
- * Copyright (C) 2006-2010 Stefan Weil
+ * Copyright (C) 2006-2011 Stefan Weil
  *
  * Portions of the code are copies from grub / etherboot eepro100.c
  * and linux e100.c.
@@ -1393,18 +1393,20 @@ static void eepro100_write1(EEPRO100State * s, uint32_t addr, uint8_t val)
         memcpy(&s->mem[addr], &val, sizeof(val));
     }
 
-    TRACE(OTHER, logout("addr=%s val=0x%02x\n", regname(addr), val));
-
     switch (addr) {
     case SCBStatus:
+        TRACE(OTHER, logout("addr=%s val=0x%02x\n", regname(addr), val));
         break;
     case SCBAck:
+        TRACE(OTHER, logout("addr=%s val=0x%02x\n", regname(addr), val));
         eepro100_acknowledge(s);
         break;
     case SCBCmd:
+        TRACE(OTHER, logout("addr=%s val=0x%02x\n", regname(addr), val));
         eepro100_write_command(s, val);
         break;
     case SCBIntmask:
+        TRACE(OTHER, logout("addr=%s val=0x%02x\n", regname(addr), val));
         if (val & BIT(1)) {
             eepro100_swi_interrupt(s);
         }
@@ -1418,6 +1420,7 @@ static void eepro100_write1(EEPRO100State * s, uint32_t addr, uint8_t val)
         TRACE(OTHER, logout("addr=%s val=0x%02x\n", regname(addr), val));
         break;
     case SCBeeprom:
+        TRACE(OTHER, logout("addr=%s val=0x%02x\n", regname(addr), val));
         eepro100_write_eeprom(s->eeprom, val);
         break;
     default:
@@ -1433,18 +1436,19 @@ static void eepro100_write2(EEPRO100State * s, uint32_t addr, uint16_t val)
         memcpy(&s->mem[addr], &val, sizeof(val));
     }
 
-    TRACE(OTHER, logout("addr=%s val=0x%04x\n", regname(addr), val));
-
     switch (addr) {
     case SCBStatus:
+        TRACE(OTHER, logout("addr=%s val=0x%04x\n", regname(addr), val));
         s->mem[SCBAck] = (val >> 8);
         eepro100_acknowledge(s);
         break;
     case SCBCmd:
+        TRACE(OTHER, logout("addr=%s val=0x%04x\n", regname(addr), val));
         eepro100_write_command(s, val);
         eepro100_write1(s, SCBIntmask, val >> 8);
         break;
     case SCBeeprom:
+        TRACE(OTHER, logout("addr=%s val=0x%04x\n", regname(addr), val));
         eepro100_write_eeprom(s->eeprom, val);
         break;
     default:
