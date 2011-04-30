@@ -37,6 +37,7 @@ struct ppc_def_t {
     uint32_t pvr;
     uint32_t svr;
     uint64_t insns_flags;
+    uint64_t insns_flags2;
     uint64_t msr_mask;
     powerpc_mmu_t   mmu_model;
     powerpc_excp_t  excp_model;
@@ -3201,6 +3202,7 @@ static int check_pow_hid0_74xx (CPUPPCState *env)
                               PPC_CACHE_DCBZ |                                \
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_4xx_COMMON | PPC_40x_EXCP)
+#define POWERPC_INSNS2_401   (PPC_NONE)
 #define POWERPC_MSRM_401     (0x00000000000FD201ULL)
 #define POWERPC_MMU_401      (POWERPC_MMU_REAL)
 #define POWERPC_EXCP_401     (POWERPC_EXCP_40x)
@@ -3230,6 +3232,7 @@ static void init_proc_401 (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC | \
                               PPC_4xx_COMMON | PPC_40x_EXCP)
+#define POWERPC_INSNS2_401x2 (PPC_NONE)
 #define POWERPC_MSRM_401x2   (0x00000000001FD231ULL)
 #define POWERPC_MMU_401x2    (POWERPC_MMU_SOFT_4xx_Z)
 #define POWERPC_EXCP_401x2   (POWERPC_EXCP_40x)
@@ -3266,6 +3269,7 @@ static void init_proc_401x2 (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC | \
                               PPC_4xx_COMMON | PPC_40x_EXCP)
+#define POWERPC_INSNS2_401x3 (PPC_NONE)
 #define POWERPC_MSRM_401x3   (0x00000000001FD631ULL)
 #define POWERPC_MMU_401x3    (POWERPC_MMU_SOFT_4xx_Z)
 #define POWERPC_EXCP_401x3   (POWERPC_EXCP_40x)
@@ -3298,6 +3302,7 @@ static void init_proc_401x3 (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC | \
                               PPC_4xx_COMMON | PPC_40x_EXCP)
+#define POWERPC_INSNS2_IOP480 (PPC_NONE)
 #define POWERPC_MSRM_IOP480  (0x00000000001FD231ULL)
 #define POWERPC_MMU_IOP480   (POWERPC_MMU_SOFT_4xx_Z)
 #define POWERPC_EXCP_IOP480  (POWERPC_EXCP_40x)
@@ -3333,6 +3338,7 @@ static void init_proc_IOP480 (CPUPPCState *env)
                               PPC_CACHE_DCBZ |                                \
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_4xx_COMMON | PPC_40x_EXCP)
+#define POWERPC_INSNS2_403   (PPC_NONE)
 #define POWERPC_MSRM_403     (0x000000000007D00DULL)
 #define POWERPC_MMU_403      (POWERPC_MMU_REAL)
 #define POWERPC_EXCP_403     (POWERPC_EXCP_40x)
@@ -3363,6 +3369,7 @@ static void init_proc_403 (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC | \
                               PPC_4xx_COMMON | PPC_40x_EXCP)
+#define POWERPC_INSNS2_403GCX (PPC_NONE)
 #define POWERPC_MSRM_403GCX  (0x000000000007D00DULL)
 #define POWERPC_MMU_403GCX   (POWERPC_MMU_SOFT_4xx_Z)
 #define POWERPC_EXCP_403GCX  (POWERPC_EXCP_40x)
@@ -3411,6 +3418,7 @@ static void init_proc_403GCX (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC | \
                               PPC_4xx_COMMON | PPC_405_MAC | PPC_40x_EXCP)
+#define POWERPC_INSNS2_405   (PPC_NONE)
 #define POWERPC_MSRM_405     (0x000000000006E630ULL)
 #define POWERPC_MMU_405      (POWERPC_MMU_SOFT_4xx)
 #define POWERPC_EXCP_405     (POWERPC_EXCP_40x)
@@ -3458,6 +3466,7 @@ static void init_proc_405 (CPUPPCState *env)
                               PPC_MEM_TLBSYNC | PPC_MFTB |                    \
                               PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |      \
                               PPC_440_SPEC)
+#define POWERPC_INSNS2_440EP (PPC_NONE)
 #define POWERPC_MSRM_440EP   (0x000000000006D630ULL)
 #define POWERPC_MMU_440EP    (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_440EP   (POWERPC_EXCP_BOOKE)
@@ -3538,6 +3547,7 @@ static void init_proc_440EP (CPUPPCState *env)
                               PPC_MEM_TLBSYNC | PPC_TLBIVA | PPC_MFTB |       \
                               PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |      \
                               PPC_440_SPEC)
+#define POWERPC_INSNS2_440GP (PPC_NONE)
 #define POWERPC_MSRM_440GP   (0x000000000006FF30ULL)
 #define POWERPC_MMU_440GP    (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_440GP   (POWERPC_EXCP_BOOKE)
@@ -3600,6 +3610,7 @@ static void init_proc_440GP (CPUPPCState *env)
                               PPC_MEM_TLBSYNC | PPC_MFTB |                    \
                               PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |      \
                               PPC_440_SPEC)
+#define POWERPC_INSNS2_440x4 (PPC_NONE)
 #define POWERPC_MSRM_440x4   (0x000000000006FF30ULL)
 #define POWERPC_MMU_440x4    (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_440x4   (POWERPC_EXCP_BOOKE)
@@ -3662,6 +3673,7 @@ static void init_proc_440x4 (CPUPPCState *env)
                               PPC_MEM_TLBSYNC | PPC_MFTB |                    \
                               PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |      \
                               PPC_440_SPEC)
+#define POWERPC_INSNS2_440x5 (PPC_NONE)
 #define POWERPC_MSRM_440x5   (0x000000000006FF30ULL)
 #define POWERPC_MMU_440x5    (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_440x5   (POWERPC_EXCP_BOOKE)
@@ -3742,6 +3754,7 @@ static void init_proc_440x5 (CPUPPCState *env)
                               PPC_MEM_TLBSYNC | PPC_TLBIVA |                  \
                               PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |      \
                               PPC_440_SPEC)
+#define POWERPC_INSNS2_460   (PPC_NONE)
 #define POWERPC_MSRM_460     (0x000000000006FF30ULL)
 #define POWERPC_MMU_460      (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_460     (POWERPC_EXCP_BOOKE)
@@ -3831,6 +3844,7 @@ static void init_proc_460 (CPUPPCState *env)
                               PPC_MEM_TLBSYNC | PPC_TLBIVA |                  \
                               PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |      \
                               PPC_440_SPEC)
+#define POWERPC_INSNS2_460F  (PPC_NONE)
 #define POWERPC_MSRM_460     (0x000000000006FF30ULL)
 #define POWERPC_MMU_460F     (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_460F    (POWERPC_EXCP_BOOKE)
@@ -3913,6 +3927,7 @@ static void init_proc_460F (CPUPPCState *env)
                               PPC_MEM_EIEIO | PPC_MEM_SYNC |                  \
                               PPC_CACHE_ICBI | PPC_FLOAT | PPC_FLOAT_STFIWX | \
                               PPC_MFTB)
+#define POWERPC_INSNS2_MPC5xx (PPC_NONE)
 #define POWERPC_MSRM_MPC5xx  (0x000000000001FF43ULL)
 #define POWERPC_MMU_MPC5xx   (POWERPC_MMU_REAL)
 #define POWERPC_EXCP_MPC5xx  (POWERPC_EXCP_603)
@@ -3939,6 +3954,7 @@ static void init_proc_MPC5xx (CPUPPCState *env)
 #define POWERPC_INSNS_MPC8xx (PPC_INSNS_BASE | PPC_STRING  |                  \
                               PPC_MEM_EIEIO | PPC_MEM_SYNC |                  \
                               PPC_CACHE_ICBI | PPC_MFTB)
+#define POWERPC_INSNS2_MPC8xx (PPC_NONE)
 #define POWERPC_MSRM_MPC8xx  (0x000000000001F673ULL)
 #define POWERPC_MMU_MPC8xx   (POWERPC_MMU_MPC8xx)
 #define POWERPC_EXCP_MPC8xx  (POWERPC_EXCP_603)
@@ -3970,6 +3986,7 @@ static void init_proc_MPC8xx (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB | \
                               PPC_SEGMENT | PPC_EXTERN)
+#define POWERPC_INSNS2_G2    (PPC_NONE)
 #define POWERPC_MSRM_G2      (0x000000000006FFF2ULL)
 #define POWERPC_MMU_G2       (POWERPC_MMU_SOFT_6xx)
 //#define POWERPC_EXCP_G2      (POWERPC_EXCP_G2)
@@ -4027,6 +4044,7 @@ static void init_proc_G2 (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB | \
                               PPC_SEGMENT | PPC_EXTERN)
+#define POWERPC_INSNS2_G2LE  (PPC_NONE)
 #define POWERPC_MSRM_G2LE    (0x000000000007FFF3ULL)
 #define POWERPC_MMU_G2LE     (POWERPC_MMU_SOFT_6xx)
 #define POWERPC_EXCP_G2LE    (POWERPC_EXCP_G2)
@@ -4093,6 +4111,7 @@ static void init_proc_G2LE (CPUPPCState *env)
                               PPC_CACHE_DCBZ | PPC_CACHE_DCBA |               \
                               PPC_MEM_TLBSYNC | PPC_TLBIVAX |                 \
                               PPC_BOOKE)
+#define POWERPC_INSNS2_e200  (PPC_NONE)
 #define POWERPC_MSRM_e200    (0x000000000606FF30ULL)
 #define POWERPC_MMU_e200     (POWERPC_MMU_BOOKE_FSL)
 #define POWERPC_EXCP_e200    (POWERPC_EXCP_BOOKE)
@@ -4213,6 +4232,7 @@ static void init_proc_e200 (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB | \
                               PPC_SEGMENT | PPC_EXTERN)
+#define POWERPC_INSNS2_e300  (PPC_NONE)
 #define POWERPC_MSRM_e300    (0x000000000007FFF3ULL)
 #define POWERPC_MMU_e300     (POWERPC_MMU_SOFT_6xx)
 #define POWERPC_EXCP_e300    (POWERPC_EXCP_603)
@@ -4264,6 +4284,7 @@ static void init_proc_e300 (CPUPPCState *env)
                                 PPC_CACHE_DCBZ | PPC_CACHE_DCBA |       \
                                 PPC_MEM_TLBSYNC | PPC_TLBIVAX |         \
                                 PPC_BOOKE)
+#define POWERPC_INSNS2_e500v1  (PPC_NONE)
 #define POWERPC_MSRM_e500v1    (0x000000000606FF30ULL)
 #define POWERPC_MMU_e500v1     (POWERPC_MMU_BOOKE_FSL)
 #define POWERPC_EXCP_e500v1    (POWERPC_EXCP_BOOKE)
@@ -4283,6 +4304,7 @@ static void init_proc_e300 (CPUPPCState *env)
                                 PPC_CACHE_DCBZ | PPC_CACHE_DCBA |       \
                                 PPC_MEM_TLBSYNC | PPC_TLBIVAX |         \
                                 PPC_BOOKE)
+#define POWERPC_INSNS2_e500v2  (PPC_NONE)
 #define POWERPC_MSRM_e500v2    (0x000000000606FF30ULL)
 #define POWERPC_MMU_e500v2     (POWERPC_MMU_BOOKE_FSL)
 #define POWERPC_EXCP_e500v2    (POWERPC_EXCP_BOOKE)
@@ -4414,6 +4436,7 @@ static void init_proc_e500 (CPUPPCState *env)
                               PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |   \
                               PPC_MEM_SYNC | PPC_MEM_EIEIO | PPC_MEM_TLBIE |  \
                               PPC_SEGMENT | PPC_EXTERN)
+#define POWERPC_INSNS2_601   (PPC_NONE)
 #define POWERPC_MSRM_601     (0x000000000000FD70ULL)
 #define POWERPC_MSRR_601     (0x0000000000001040ULL)
 //#define POWERPC_MMU_601      (POWERPC_MMU_601)
@@ -4466,6 +4489,7 @@ static void init_proc_601 (CPUPPCState *env)
                               PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |   \
                               PPC_MEM_SYNC | PPC_MEM_EIEIO | PPC_MEM_TLBIE |  \
                               PPC_SEGMENT | PPC_EXTERN)
+#define POWERPC_INSNS2_601v  (PPC_NONE)
 #define POWERPC_MSRM_601v    (0x000000000000FD70ULL)
 #define POWERPC_MSRR_601v    (0x0000000000001040ULL)
 #define POWERPC_MMU_601v     (POWERPC_MMU_601)
@@ -4493,6 +4517,7 @@ static void init_proc_601v (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_MEM_TLBIE | PPC_6xx_TLB | PPC_MEM_TLBSYNC | \
                               PPC_SEGMENT | PPC_602_SPEC)
+#define POWERPC_INSNS2_602   (PPC_NONE)
 #define POWERPC_MSRM_602     (0x0000000000C7FF73ULL)
 /* XXX: 602 MMU is quite specific. Should add a special case */
 #define POWERPC_MMU_602      (POWERPC_MMU_SOFT_6xx)
@@ -4538,6 +4563,7 @@ static void init_proc_602 (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB | \
                               PPC_SEGMENT | PPC_EXTERN)
+#define POWERPC_INSNS2_603   (PPC_NONE)
 #define POWERPC_MSRM_603     (0x000000000007FF73ULL)
 #define POWERPC_MMU_603      (POWERPC_MMU_SOFT_6xx)
 //#define POWERPC_EXCP_603     (POWERPC_EXCP_603)
@@ -4582,6 +4608,7 @@ static void init_proc_603 (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB | \
                               PPC_SEGMENT | PPC_EXTERN)
+#define POWERPC_INSNS2_603E  (PPC_NONE)
 #define POWERPC_MSRM_603E    (0x000000000007FF73ULL)
 #define POWERPC_MMU_603E     (POWERPC_MMU_SOFT_6xx)
 //#define POWERPC_EXCP_603E    (POWERPC_EXCP_603E)
@@ -4631,6 +4658,7 @@ static void init_proc_603E (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
                               PPC_SEGMENT | PPC_EXTERN)
+#define POWERPC_INSNS2_604   (PPC_NONE)
 #define POWERPC_MSRM_604     (0x000000000005FF77ULL)
 #define POWERPC_MMU_604      (POWERPC_MMU_32B)
 //#define POWERPC_EXCP_604     (POWERPC_EXCP_604)
@@ -4669,6 +4697,7 @@ static void init_proc_604 (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
                               PPC_SEGMENT | PPC_EXTERN)
+#define POWERPC_INSNS2_604E  (PPC_NONE)
 #define POWERPC_MSRM_604E    (0x000000000005FF77ULL)
 #define POWERPC_MMU_604E     (POWERPC_MMU_32B)
 #define POWERPC_EXCP_604E    (POWERPC_EXCP_604)
@@ -4727,6 +4756,7 @@ static void init_proc_604E (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
                               PPC_SEGMENT | PPC_EXTERN)
+#define POWERPC_INSNS2_740   (PPC_NONE)
 #define POWERPC_MSRM_740     (0x000000000005FF77ULL)
 #define POWERPC_MMU_740      (POWERPC_MMU_32B)
 #define POWERPC_EXCP_740     (POWERPC_EXCP_7x0)
@@ -4772,6 +4802,7 @@ static void init_proc_740 (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
                               PPC_SEGMENT | PPC_EXTERN)
+#define POWERPC_INSNS2_750   (PPC_NONE)
 #define POWERPC_MSRM_750     (0x000000000005FF77ULL)
 #define POWERPC_MMU_750      (POWERPC_MMU_32B)
 #define POWERPC_EXCP_750     (POWERPC_EXCP_7x0)
@@ -4863,6 +4894,7 @@ static void init_proc_750 (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
                               PPC_SEGMENT | PPC_EXTERN)
+#define POWERPC_INSNS2_750cl (PPC_NONE)
 #define POWERPC_MSRM_750cl   (0x000000000005FF77ULL)
 #define POWERPC_MMU_750cl    (POWERPC_MMU_32B)
 #define POWERPC_EXCP_750cl   (POWERPC_EXCP_7x0)
@@ -5001,6 +5033,7 @@ static void init_proc_750cl (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
                               PPC_SEGMENT | PPC_EXTERN)
+#define POWERPC_INSNS2_750cx (PPC_NONE)
 #define POWERPC_MSRM_750cx   (0x000000000005FF77ULL)
 #define POWERPC_MMU_750cx    (POWERPC_MMU_32B)
 #define POWERPC_EXCP_750cx   (POWERPC_EXCP_7x0)
@@ -5058,6 +5091,7 @@ static void init_proc_750cx (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
                               PPC_SEGMENT  | PPC_EXTERN)
+#define POWERPC_INSNS2_750fx (PPC_NONE)
 #define POWERPC_MSRM_750fx   (0x000000000005FF77ULL)
 #define POWERPC_MMU_750fx    (POWERPC_MMU_32B)
 #define POWERPC_EXCP_750fx   (POWERPC_EXCP_7x0)
@@ -5120,6 +5154,7 @@ static void init_proc_750fx (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
                               PPC_SEGMENT  | PPC_EXTERN)
+#define POWERPC_INSNS2_750gx (PPC_NONE)
 #define POWERPC_MSRM_750gx   (0x000000000005FF77ULL)
 #define POWERPC_MMU_750gx    (POWERPC_MMU_32B)
 #define POWERPC_EXCP_750gx   (POWERPC_EXCP_7x0)
@@ -5182,6 +5217,7 @@ static void init_proc_750gx (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB | \
                               PPC_SEGMENT | PPC_EXTERN)
+#define POWERPC_INSNS2_745   (PPC_NONE)
 #define POWERPC_MSRM_745     (0x000000000005FF77ULL)
 #define POWERPC_MMU_745      (POWERPC_MMU_SOFT_6xx)
 #define POWERPC_EXCP_745     (POWERPC_EXCP_7x5)
@@ -5235,6 +5271,7 @@ static void init_proc_745 (CPUPPCState *env)
                               PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC | PPC_6xx_TLB | \
                               PPC_SEGMENT | PPC_EXTERN)
+#define POWERPC_INSNS2_755   (PPC_NONE)
 #define POWERPC_MSRM_755     (0x000000000005FF77ULL)
 #define POWERPC_MMU_755      (POWERPC_MMU_SOFT_6xx)
 #define POWERPC_EXCP_755     (POWERPC_EXCP_7x5)
@@ -5303,6 +5340,7 @@ static void init_proc_755 (CPUPPCState *env)
                               PPC_MEM_TLBIA |                                 \
                               PPC_SEGMENT | PPC_EXTERN |                      \
                               PPC_ALTIVEC)
+#define POWERPC_INSNS2_7400  (PPC_NONE)
 #define POWERPC_MSRM_7400    (0x000000000205FF77ULL)
 #define POWERPC_MMU_7400     (POWERPC_MMU_32B)
 #define POWERPC_EXCP_7400    (POWERPC_EXCP_74xx)
@@ -5355,6 +5393,7 @@ static void init_proc_7400 (CPUPPCState *env)
                               PPC_MEM_TLBIA |                                 \
                               PPC_SEGMENT | PPC_EXTERN |                      \
                               PPC_ALTIVEC)
+#define POWERPC_INSNS2_7410  (PPC_NONE)
 #define POWERPC_MSRM_7410    (0x000000000205FF77ULL)
 #define POWERPC_MMU_7410     (POWERPC_MMU_32B)
 #define POWERPC_EXCP_7410    (POWERPC_EXCP_74xx)
@@ -5413,6 +5452,7 @@ static void init_proc_7410 (CPUPPCState *env)
                               PPC_MEM_TLBIA | PPC_74xx_TLB |                  \
                               PPC_SEGMENT | PPC_EXTERN |                      \
                               PPC_ALTIVEC)
+#define POWERPC_INSNS2_7440  (PPC_NONE)
 #define POWERPC_MSRM_7440    (0x000000000205FF77ULL)
 #define POWERPC_MMU_7440     (POWERPC_MMU_SOFT_74xx)
 #define POWERPC_EXCP_7440    (POWERPC_EXCP_74xx)
@@ -5498,6 +5538,7 @@ static void init_proc_7440 (CPUPPCState *env)
                               PPC_MEM_TLBIA | PPC_74xx_TLB |                  \
                               PPC_SEGMENT | PPC_EXTERN |                      \
                               PPC_ALTIVEC)
+#define POWERPC_INSNS2_7450  (PPC_NONE)
 #define POWERPC_MSRM_7450    (0x000000000205FF77ULL)
 #define POWERPC_MMU_7450     (POWERPC_MMU_SOFT_74xx)
 #define POWERPC_EXCP_7450    (POWERPC_EXCP_74xx)
@@ -5609,6 +5650,7 @@ static void init_proc_7450 (CPUPPCState *env)
                               PPC_MEM_TLBIA | PPC_74xx_TLB |                  \
                               PPC_SEGMENT | PPC_EXTERN |                      \
                               PPC_ALTIVEC)
+#define POWERPC_INSNS2_7445  (PPC_NONE)
 #define POWERPC_MSRM_7445    (0x000000000205FF77ULL)
 #define POWERPC_MMU_7445     (POWERPC_MMU_SOFT_74xx)
 #define POWERPC_EXCP_7445    (POWERPC_EXCP_74xx)
@@ -5723,6 +5765,7 @@ static void init_proc_7445 (CPUPPCState *env)
                               PPC_MEM_TLBIA | PPC_74xx_TLB |                  \
                               PPC_SEGMENT | PPC_EXTERN |                      \
                               PPC_ALTIVEC)
+#define POWERPC_INSNS2_7455  (PPC_NONE)
 #define POWERPC_MSRM_7455    (0x000000000205FF77ULL)
 #define POWERPC_MMU_7455     (POWERPC_MMU_SOFT_74xx)
 #define POWERPC_EXCP_7455    (POWERPC_EXCP_74xx)
@@ -5839,6 +5882,7 @@ static void init_proc_7455 (CPUPPCState *env)
                               PPC_MEM_TLBIA | PPC_74xx_TLB |                  \
                               PPC_SEGMENT | PPC_EXTERN |                      \
                               PPC_ALTIVEC)
+#define POWERPC_INSNS2_7457  (PPC_NONE)
 #define POWERPC_MSRM_7457    (0x000000000205FF77ULL)
 #define POWERPC_MMU_7457     (POWERPC_MMU_SOFT_74xx)
 #define POWERPC_EXCP_7457    (POWERPC_EXCP_74xx)
@@ -5978,6 +6022,7 @@ static void init_proc_7457 (CPUPPCState *env)
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
                               PPC_64B | PPC_ALTIVEC |                         \
                               PPC_SEGMENT_64B | PPC_SLBI)
+#define POWERPC_INSNS2_970   (PPC_NONE)
 #define POWERPC_MSRM_970     (0x900000000204FF36ULL)
 #define POWERPC_MMU_970      (POWERPC_MMU_64B)
 //#define POWERPC_EXCP_970     (POWERPC_EXCP_970)
@@ -6073,6 +6118,7 @@ static void init_proc_970 (CPUPPCState *env)
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
                               PPC_64B | PPC_ALTIVEC |                         \
                               PPC_SEGMENT_64B | PPC_SLBI)
+#define POWERPC_INSNS2_970FX (PPC_NONE)
 #define POWERPC_MSRM_970FX   (0x800000000204FF36ULL)
 #define POWERPC_MMU_970FX    (POWERPC_MMU_64B)
 #define POWERPC_EXCP_970FX   (POWERPC_EXCP_970)
@@ -6174,6 +6220,7 @@ static void init_proc_970FX (CPUPPCState *env)
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
                               PPC_64B | PPC_ALTIVEC |                         \
                               PPC_SEGMENT_64B | PPC_SLBI)
+#define POWERPC_INSNS2_970GX (PPC_NONE)
 #define POWERPC_MSRM_970GX   (0x800000000204FF36ULL)
 #define POWERPC_MMU_970GX    (POWERPC_MMU_64B)
 #define POWERPC_EXCP_970GX   (POWERPC_EXCP_970)
@@ -6263,6 +6310,7 @@ static void init_proc_970GX (CPUPPCState *env)
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
                               PPC_64B | PPC_ALTIVEC |                         \
                               PPC_SEGMENT_64B | PPC_SLBI)
+#define POWERPC_INSNS2_970MP (PPC_NONE)
 #define POWERPC_MSRM_970MP   (0x900000000204FF36ULL)
 #define POWERPC_MMU_970MP    (POWERPC_MMU_64B)
 #define POWERPC_EXCP_970MP   (POWERPC_EXCP_970)
@@ -6354,6 +6402,7 @@ static void init_proc_970MP (CPUPPCState *env)
                               PPC_64B | PPC_ALTIVEC |                         \
                               PPC_SEGMENT_64B | PPC_SLBI |                    \
                               PPC_POPCNTB | PPC_POPCNTWD)
+#define POWERPC_INSNS2_POWER7 (PPC_NONE)
 #define POWERPC_MSRM_POWER7   (0x800000000204FF36ULL)
 #define POWERPC_MMU_POWER7    (POWERPC_MMU_2_06)
 #define POWERPC_EXCP_POWER7   (POWERPC_EXCP_POWER7)
@@ -6424,6 +6473,7 @@ static void init_proc_POWER7 (CPUPPCState *env)
                               PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
                               PPC_SEGMENT | PPC_EXTERN |                      \
                               PPC_64B | PPC_SLBI)
+#define POWERPC_INSNS2_620   (PPC_NONE)
 #define POWERPC_MSRM_620     (0x800000000005FF77ULL)
 //#define POWERPC_MMU_620      (POWERPC_MMU_620)
 #define POWERPC_EXCP_620     (POWERPC_EXCP_970)
@@ -6459,6 +6509,7 @@ static void init_proc_620 (CPUPPCState *env)
 /* Default 32 bits PowerPC target will be 604 */
 #define CPU_POWERPC_PPC32     CPU_POWERPC_604
 #define POWERPC_INSNS_PPC32   POWERPC_INSNS_604
+#define POWERPC_INSNS2_PPC32  POWERPC_INSNS2_604
 #define POWERPC_MSRM_PPC32    POWERPC_MSRM_604
 #define POWERPC_MMU_PPC32     POWERPC_MMU_604
 #define POWERPC_EXCP_PPC32    POWERPC_EXCP_604
@@ -6471,6 +6522,7 @@ static void init_proc_620 (CPUPPCState *env)
 /* Default 64 bits PowerPC target will be 970 FX */
 #define CPU_POWERPC_PPC64     CPU_POWERPC_970FX
 #define POWERPC_INSNS_PPC64   POWERPC_INSNS_970FX
+#define POWERPC_INSNS2_PPC64  POWERPC_INSNS2_970FX
 #define POWERPC_MSRM_PPC64    POWERPC_MSRM_970FX
 #define POWERPC_MMU_PPC64     POWERPC_MMU_970FX
 #define POWERPC_EXCP_PPC64    POWERPC_EXCP_970FX
@@ -6482,27 +6534,29 @@ static void init_proc_620 (CPUPPCState *env)
 
 /* Default PowerPC target will be PowerPC 32 */
 #if defined (TARGET_PPC64) && 0 // XXX: TODO
-#define CPU_POWERPC_DEFAULT   CPU_POWERPC_PPC64
-#define POWERPC_INSNS_DEFAULT POWERPC_INSNS_PPC64
-#define POWERPC_MSRM_DEFAULT  POWERPC_MSRM_PPC64
-#define POWERPC_MMU_DEFAULT   POWERPC_MMU_PPC64
-#define POWERPC_EXCP_DEFAULT  POWERPC_EXCP_PPC64
-#define POWERPC_INPUT_DEFAULT POWERPC_INPUT_PPC64
-#define POWERPC_BFDM_DEFAULT  POWERPC_BFDM_PPC64
-#define POWERPC_FLAG_DEFAULT  POWERPC_FLAG_PPC64
-#define check_pow_DEFAULT     check_pow_PPC64
-#define init_proc_DEFAULT     init_proc_PPC64
+#define CPU_POWERPC_DEFAULT    CPU_POWERPC_PPC64
+#define POWERPC_INSNS_DEFAULT  POWERPC_INSNS_PPC64
+#define POWERPC_INSNS2_DEFAULT POWERPC_INSNS_PPC64
+#define POWERPC_MSRM_DEFAULT   POWERPC_MSRM_PPC64
+#define POWERPC_MMU_DEFAULT    POWERPC_MMU_PPC64
+#define POWERPC_EXCP_DEFAULT   POWERPC_EXCP_PPC64
+#define POWERPC_INPUT_DEFAULT  POWERPC_INPUT_PPC64
+#define POWERPC_BFDM_DEFAULT   POWERPC_BFDM_PPC64
+#define POWERPC_FLAG_DEFAULT   POWERPC_FLAG_PPC64
+#define check_pow_DEFAULT      check_pow_PPC64
+#define init_proc_DEFAULT      init_proc_PPC64
 #else
-#define CPU_POWERPC_DEFAULT   CPU_POWERPC_PPC32
-#define POWERPC_INSNS_DEFAULT POWERPC_INSNS_PPC32
-#define POWERPC_MSRM_DEFAULT  POWERPC_MSRM_PPC32
-#define POWERPC_MMU_DEFAULT   POWERPC_MMU_PPC32
-#define POWERPC_EXCP_DEFAULT  POWERPC_EXCP_PPC32
-#define POWERPC_INPUT_DEFAULT POWERPC_INPUT_PPC32
-#define POWERPC_BFDM_DEFAULT  POWERPC_BFDM_PPC32
-#define POWERPC_FLAG_DEFAULT  POWERPC_FLAG_PPC32
-#define check_pow_DEFAULT     check_pow_PPC32
-#define init_proc_DEFAULT     init_proc_PPC32
+#define CPU_POWERPC_DEFAULT    CPU_POWERPC_PPC32
+#define POWERPC_INSNS_DEFAULT  POWERPC_INSNS_PPC32
+#define POWERPC_INSNS2_DEFAULT POWERPC_INSNS_PPC32
+#define POWERPC_MSRM_DEFAULT   POWERPC_MSRM_PPC32
+#define POWERPC_MMU_DEFAULT    POWERPC_MMU_PPC32
+#define POWERPC_EXCP_DEFAULT   POWERPC_EXCP_PPC32
+#define POWERPC_INPUT_DEFAULT  POWERPC_INPUT_PPC32
+#define POWERPC_BFDM_DEFAULT   POWERPC_BFDM_PPC32
+#define POWERPC_FLAG_DEFAULT   POWERPC_FLAG_PPC32
+#define check_pow_DEFAULT      check_pow_PPC32
+#define init_proc_DEFAULT      init_proc_PPC32
 #endif
 
 /*****************************************************************************/
@@ -7351,18 +7405,19 @@ enum {
 /* PowerPC CPU definitions                                                   */
 #define POWERPC_DEF_SVR(_name, _pvr, _svr, _type)                             \
     {                                                                         \
-        .name        = _name,                                                 \
-        .pvr         = _pvr,                                                  \
-        .svr         = _svr,                                                  \
-        .insns_flags = glue(POWERPC_INSNS_,_type),                            \
-        .msr_mask    = glue(POWERPC_MSRM_,_type),                             \
-        .mmu_model   = glue(POWERPC_MMU_,_type),                              \
-        .excp_model  = glue(POWERPC_EXCP_,_type),                             \
-        .bus_model   = glue(POWERPC_INPUT_,_type),                            \
-        .bfd_mach    = glue(POWERPC_BFDM_,_type),                             \
-        .flags       = glue(POWERPC_FLAG_,_type),                             \
-        .init_proc   = &glue(init_proc_,_type),                               \
-        .check_pow   = &glue(check_pow_,_type),                               \
+        .name         = _name,                                                \
+        .pvr          = _pvr,                                                 \
+        .svr          = _svr,                                                 \
+        .insns_flags  = glue(POWERPC_INSNS_,_type),                           \
+        .insns_flags2 = glue(POWERPC_INSNS2_,_type),                          \
+        .msr_mask     = glue(POWERPC_MSRM_,_type),                            \
+        .mmu_model    = glue(POWERPC_MMU_,_type),                             \
+        .excp_model   = glue(POWERPC_EXCP_,_type),                            \
+        .bus_model    = glue(POWERPC_INPUT_,_type),                           \
+        .bfd_mach     = glue(POWERPC_BFDM_,_type),                            \
+        .flags        = glue(POWERPC_FLAG_,_type),                            \
+        .init_proc    = &glue(init_proc_,_type),                              \
+        .check_pow    = &glue(check_pow_,_type),                              \
     }
 #define POWERPC_DEF(_name, _pvr, _type)                                       \
 POWERPC_DEF_SVR(_name, _pvr, POWERPC_SVR_NONE, _type)
@@ -9437,7 +9492,8 @@ static int create_ppc_opcodes (CPUPPCState *env, const ppc_def_t *def)
 
     fill_new_table(env->opcodes, 0x40);
     for (opc = opcodes; opc < &opcodes[ARRAY_SIZE(opcodes)]; opc++) {
-        if ((opc->handler.type & def->insns_flags) != 0) {
+        if (((opc->handler.type & def->insns_flags) != 0) ||
+            ((opc->handler.type2 & def->insns_flags2) != 0)) {
             if (register_insn(env->opcodes, opc) < 0) {
                 printf("*** ERROR initializing PowerPC instruction "
                        "0x%02x 0x%02x 0x%02x\n", opc->opc1, opc->opc2,
@@ -9650,6 +9706,7 @@ int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
     env->excp_model = def->excp_model;
     env->bus_model = def->bus_model;
     env->insns_flags = def->insns_flags;
+    env->insns_flags2 = def->insns_flags2;
     env->flags = def->flags;
     env->bfd_mach = def->bfd_mach;
     env->check_pow = def->check_pow;

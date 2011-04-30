@@ -201,6 +201,8 @@ struct opc_handler_t {
     uint32_t inval;
     /* instruction type */
     uint64_t type;
+    /* extended instruction type */
+    uint64_t type2;
     /* handler */
     void (*handler)(DisasContext *ctx);
 #if defined(DO_PPC_STATISTICS) || defined(PPC_DUMP_CPU)
@@ -314,10 +316,16 @@ static inline void gen_sync_exception(DisasContext *ctx)
 }
 
 #define GEN_HANDLER(name, opc1, opc2, opc3, inval, type)                      \
-GEN_OPCODE(name, opc1, opc2, opc3, inval, type)
+GEN_OPCODE(name, opc1, opc2, opc3, inval, type, PPC_NONE)
+
+#define GEN_HANDLER_E(name, opc1, opc2, opc3, inval, type, type2)             \
+GEN_OPCODE(name, opc1, opc2, opc3, inval, type, type2)
 
 #define GEN_HANDLER2(name, onam, opc1, opc2, opc3, inval, type)               \
-GEN_OPCODE2(name, onam, opc1, opc2, opc3, inval, type)
+GEN_OPCODE2(name, onam, opc1, opc2, opc3, inval, type, PPC_NONE)
+
+#define GEN_HANDLER2_E(name, onam, opc1, opc2, opc3, inval, type, type2)      \
+GEN_OPCODE2(name, onam, opc1, opc2, opc3, inval, type, type2)
 
 typedef struct opcode_t {
     unsigned char opc1, opc2, opc3;
@@ -457,7 +465,7 @@ static inline target_ulong MASK(uint32_t start, uint32_t end)
 /* PowerPC instructions table                                                */
 
 #if defined(DO_PPC_STATISTICS)
-#define GEN_OPCODE(name, op1, op2, op3, invl, _typ)                           \
+#define GEN_OPCODE(name, op1, op2, op3, invl, _typ, _typ2)                    \
 {                                                                             \
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
@@ -466,12 +474,13 @@ static inline target_ulong MASK(uint32_t start, uint32_t end)
     .handler = {                                                              \
         .inval   = invl,                                                      \
         .type = _typ,                                                         \
+        .type2 = _typ2,                                                       \
         .handler = &gen_##name,                                               \
         .oname = stringify(name),                                             \
     },                                                                        \
     .oname = stringify(name),                                                 \
 }
-#define GEN_OPCODE2(name, onam, op1, op2, op3, invl, _typ)                    \
+#define GEN_OPCODE2(name, onam, op1, op2, op3, invl, _typ, _typ2)             \
 {                                                                             \
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
@@ -480,13 +489,14 @@ static inline target_ulong MASK(uint32_t start, uint32_t end)
     .handler = {                                                              \
         .inval   = invl,                                                      \
         .type = _typ,                                                         \
+        .type2 = _typ2,                                                       \
         .handler = &gen_##name,                                               \
         .oname = onam,                                                        \
     },                                                                        \
     .oname = onam,                                                            \
 }
 #else
-#define GEN_OPCODE(name, op1, op2, op3, invl, _typ)                           \
+#define GEN_OPCODE(name, op1, op2, op3, invl, _typ, _typ2)                    \
 {                                                                             \
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
@@ -495,11 +505,12 @@ static inline target_ulong MASK(uint32_t start, uint32_t end)
     .handler = {                                                              \
         .inval   = invl,                                                      \
         .type = _typ,                                                         \
+        .type2 = _typ2,                                                       \
         .handler = &gen_##name,                                               \
     },                                                                        \
     .oname = stringify(name),                                                 \
 }
-#define GEN_OPCODE2(name, onam, op1, op2, op3, invl, _typ)                    \
+#define GEN_OPCODE2(name, onam, op1, op2, op3, invl, _typ, _typ2)             \
 {                                                                             \
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
@@ -508,6 +519,7 @@ static inline target_ulong MASK(uint32_t start, uint32_t end)
     .handler = {                                                              \
         .inval   = invl,                                                      \
         .type = _typ,                                                         \
+        .type2 = _typ2,                                                       \
         .handler = &gen_##name,                                               \
     },                                                                        \
     .oname = onam,                                                            \
@@ -534,6 +546,7 @@ static void gen_invalid(DisasContext *ctx)
 static opc_handler_t invalid_handler = {
     .inval   = 0xFFFFFFFF,
     .type    = PPC_NONE,
+    .type2   = PPC_NONE,
     .handler = gen_invalid,
 };
 

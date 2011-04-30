@@ -722,6 +722,7 @@ struct CPUPPCState {
     int bfd_mach;
     uint32_t flags;
     uint64_t insns_flags;
+    uint64_t insns_flags2;
 
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
     target_phys_addr_t vpa;
