@@ -1355,6 +1355,31 @@ static void gen_74xx_soft_tlb (CPUPPCState *env, int nb_tlbs, int nb_ways)
 #endif
 }
 
+#if !defined(CONFIG_USER_ONLY)
+static void spr_write_e500_l1csr0 (void *opaque, int sprn, int gprn)
+{
+    TCGv t0 = tcg_temp_new();
+
+    tcg_gen_andi_tl(t0, cpu_gpr[gprn], ~256);
+    gen_store_spr(sprn, t0);
+    tcg_temp_free(t0);
+}
+
+static void spr_write_booke206_mmucsr0 (void *opaque, int sprn, int gprn)
+{
+    TCGv t0 = tcg_const_i32(sprn);
+    gen_helper_booke206_tlbflush(t0);
+    tcg_temp_free(t0);
+}
+
+static void spr_write_booke_pid (void *opaque, int sprn, int gprn)
+{
+    TCGv t0 = tcg_const_i32(sprn);
+    gen_helper_booke_setpid(t0, cpu_gpr[gprn]);
+    tcg_temp_free(t0);
+}
+#endif
+
 static void gen_spr_usprgh (CPUPPCState *env)
 {
     spr_register(env, SPR_USPRG4, "USPRG4",
@@ -1494,7 +1519,7 @@ static void gen_spr_BookE (CPUPPCState *env, uint64_t ivor_mask)
     }
     spr_register(env, SPR_BOOKE_PID, "PID",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_booke_pid,
                  0x00000000);
     spr_register(env, SPR_BOOKE_TCR, "TCR",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -1536,8 +1561,19 @@ static void gen_spr_BookE (CPUPPCState *env, uint64_t ivor_mask)
                  0x00000000);
 }
 
-/* FSL storage control registers */
-static void gen_spr_BookE_FSL (CPUPPCState *env, uint32_t mas_mask)
+static inline uint32_t gen_tlbncfg(uint32_t assoc, uint32_t minsize,
+                                   uint32_t maxsize, uint32_t flags,
+                                   uint32_t nentries)
+{
+    return (assoc << TLBnCFG_ASSOC_SHIFT) |
+           (minsize << TLBnCFG_MINSIZE_SHIFT) |
+           (maxsize << TLBnCFG_MAXSIZE_SHIFT) |
+           flags | nentries;
+}
+
+/* BookE 2.06 storage control registers */
+static void gen_spr_BookE206(CPUPPCState *env, uint32_t mas_mask,
+                              uint32_t *tlbncfg)
 {
 #if !defined(CONFIG_USER_ONLY)
     const char *mas_names[8] = {
@@ -1563,14 +1599,14 @@ static void gen_spr_BookE_FSL (CPUPPCState *env, uint32_t mas_mask)
         /* XXX : not implemented */
         spr_register(env, SPR_BOOKE_PID1, "PID1",
                      SPR_NOACCESS, SPR_NOACCESS,
-                     &spr_read_generic, &spr_write_generic,
+                     &spr_read_generic, &spr_write_booke_pid,
                      0x00000000);
     }
     if (env->nb_pids > 2) {
         /* XXX : not implemented */
         spr_register(env, SPR_BOOKE_PID2, "PID2",
                      SPR_NOACCESS, SPR_NOACCESS,
-                     &spr_read_generic, &spr_write_generic,
+                     &spr_read_generic, &spr_write_booke_pid,
                      0x00000000);
     }
     /* XXX : not implemented */
@@ -1578,45 +1614,38 @@ static void gen_spr_BookE_FSL (CPUPPCState *env, uint32_t mas_mask)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
                  0x00000000); /* TOFIX */
-    /* XXX : not implemented */
-    spr_register(env, SPR_MMUCSR0, "MMUCSR0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000); /* TOFIX */
     switch (env->nb_ways) {
     case 4:
-        /* XXX : not implemented */
         spr_register(env, SPR_BOOKE_TLB3CFG, "TLB3CFG",
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, SPR_NOACCESS,
-                     0x00000000); /* TOFIX */
+                     tlbncfg[3]);
         /* Fallthru */
     case 3:
-        /* XXX : not implemented */
         spr_register(env, SPR_BOOKE_TLB2CFG, "TLB2CFG",
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, SPR_NOACCESS,
-                     0x00000000); /* TOFIX */
+                     tlbncfg[2]);
         /* Fallthru */
     case 2:
-        /* XXX : not implemented */
         spr_register(env, SPR_BOOKE_TLB1CFG, "TLB1CFG",
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, SPR_NOACCESS,
-                     0x00000000); /* TOFIX */
+                     tlbncfg[1]);
         /* Fallthru */
     case 1:
-        /* XXX : not implemented */
         spr_register(env, SPR_BOOKE_TLB0CFG, "TLB0CFG",
                      SPR_NOACCESS, SPR_NOACCESS,
                      &spr_read_generic, SPR_NOACCESS,
-                     0x00000000); /* TOFIX */
+                     tlbncfg[0]);
         /* Fallthru */
     case 0:
     default:
         break;
     }
 #endif
+
+    gen_spr_usprgh(env);
 }
 
 /* SPR specific to PowerPC 440 implementation */
@@ -4113,7 +4142,7 @@ static void init_proc_G2LE (CPUPPCState *env)
                               PPC_BOOKE)
 #define POWERPC_INSNS2_e200  (PPC_NONE)
 #define POWERPC_MSRM_e200    (0x000000000606FF30ULL)
-#define POWERPC_MMU_e200     (POWERPC_MMU_BOOKE_FSL)
+#define POWERPC_MMU_e200     (POWERPC_MMU_BOOKE206)
 #define POWERPC_EXCP_e200    (POWERPC_EXCP_BOOKE)
 #define POWERPC_INPUT_e200   (PPC_FLAGS_INPUT_BookE)
 #define POWERPC_BFDM_e200    (bfd_mach_ppc_860)
@@ -4134,7 +4163,7 @@ static void init_proc_e200 (CPUPPCState *env)
                  &spr_read_spefscr, &spr_write_spefscr,
                  0x00000000);
     /* Memory management */
-    gen_spr_BookE_FSL(env, 0x0000005D);
+    gen_spr_BookE206(env, 0x0000005D, NULL);
     /* XXX : not implemented */
     spr_register(env, SPR_HID0, "HID0",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -4205,6 +4234,11 @@ static void init_proc_e200 (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
+    /* XXX : not implemented */
+    spr_register(env, SPR_MMUCSR0, "MMUCSR0",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000); /* TOFIX */
     spr_register(env, SPR_BOOKE_DSRR0, "DSRR0",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
@@ -4282,11 +4316,10 @@ static void init_proc_e300 (CPUPPCState *env)
                                 PPC_WRTEE | PPC_RFDI |                  \
                                 PPC_CACHE | PPC_CACHE_LOCK | PPC_CACHE_ICBI | \
                                 PPC_CACHE_DCBZ | PPC_CACHE_DCBA |       \
-                                PPC_MEM_TLBSYNC | PPC_TLBIVAX |         \
-                                PPC_BOOKE)
-#define POWERPC_INSNS2_e500v1  (PPC_NONE)
+                                PPC_MEM_TLBSYNC | PPC_TLBIVAX)
+#define POWERPC_INSNS2_e500v1  (PPC2_BOOKE206)
 #define POWERPC_MSRM_e500v1    (0x000000000606FF30ULL)
-#define POWERPC_MMU_e500v1     (POWERPC_MMU_BOOKE_FSL)
+#define POWERPC_MMU_e500v1     (POWERPC_MMU_BOOKE206)
 #define POWERPC_EXCP_e500v1    (POWERPC_EXCP_BOOKE)
 #define POWERPC_INPUT_e500v1   (PPC_FLAGS_INPUT_BookE)
 #define POWERPC_BFDM_e500v1    (bfd_mach_ppc_860)
@@ -4294,7 +4327,7 @@ static void init_proc_e300 (CPUPPCState *env)
                                 POWERPC_FLAG_UBLE | POWERPC_FLAG_DE |   \
                                 POWERPC_FLAG_BUS_CLK)
 #define check_pow_e500v1       check_pow_hid0
-#define init_proc_e500v1       init_proc_e500
+#define init_proc_e500v1       init_proc_e500v1
 
 /* e500v2 core                                                               */
 #define POWERPC_INSNS_e500v2   (PPC_INSNS_BASE | PPC_ISEL |             \
@@ -4302,11 +4335,10 @@ static void init_proc_e300 (CPUPPCState *env)
                                 PPC_WRTEE | PPC_RFDI |                  \
                                 PPC_CACHE | PPC_CACHE_LOCK | PPC_CACHE_ICBI | \
                                 PPC_CACHE_DCBZ | PPC_CACHE_DCBA |       \
-                                PPC_MEM_TLBSYNC | PPC_TLBIVAX |         \
-                                PPC_BOOKE)
-#define POWERPC_INSNS2_e500v2  (PPC_NONE)
+                                PPC_MEM_TLBSYNC | PPC_TLBIVAX)
+#define POWERPC_INSNS2_e500v2  (PPC2_BOOKE206)
 #define POWERPC_MSRM_e500v2    (0x000000000606FF30ULL)
-#define POWERPC_MMU_e500v2     (POWERPC_MMU_BOOKE_FSL)
+#define POWERPC_MMU_e500v2     (POWERPC_MMU_BOOKE206)
 #define POWERPC_EXCP_e500v2    (POWERPC_EXCP_BOOKE)
 #define POWERPC_INPUT_e500v2   (PPC_FLAGS_INPUT_BookE)
 #define POWERPC_BFDM_e500v2    (bfd_mach_ppc_860)
@@ -4314,13 +4346,23 @@ static void init_proc_e300 (CPUPPCState *env)
                                 POWERPC_FLAG_UBLE | POWERPC_FLAG_DE |   \
                                 POWERPC_FLAG_BUS_CLK)
 #define check_pow_e500v2       check_pow_hid0
-#define init_proc_e500v2       init_proc_e500
+#define init_proc_e500v2       init_proc_e500v2
 
-static void init_proc_e500 (CPUPPCState *env)
+static void init_proc_e500 (CPUPPCState *env, int version)
 {
+    uint32_t tlbncfg[2];
+#if !defined(CONFIG_USER_ONLY)
+    int i;
+#endif
+
     /* Time base */
     gen_tbl(env);
-    gen_spr_BookE(env, 0x0000000F0000FD7FULL);
+    /*
+     * XXX The e500 doesn't implement IVOR7 and IVOR9, but doesn't
+     *     complain when accessing them.
+     * gen_spr_BookE(env, 0x0000000F0000FD7FULL);
+     */
+    gen_spr_BookE(env, 0x0000000F0000FFFFULL);
     /* Processor identification */
     spr_register(env, SPR_BOOKE_PIR, "PIR",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -4334,8 +4376,24 @@ static void init_proc_e500 (CPUPPCState *env)
     /* Memory management */
 #if !defined(CONFIG_USER_ONLY)
     env->nb_pids = 3;
+    env->nb_ways = 2;
+    env->id_tlbs = 0;
+    switch (version) {
+    case 1:
+        /* e500v1 */
+        tlbncfg[0] = gen_tlbncfg(2, 1, 1, 0, 256);
+        tlbncfg[1] = gen_tlbncfg(16, 1, 9, TLBnCFG_AVAIL | TLBnCFG_IPROT, 16);
+        break;
+    case 2:
+        /* e500v2 */
+        tlbncfg[0] = gen_tlbncfg(4, 1, 1, 0, 512);
+        tlbncfg[1] = gen_tlbncfg(16, 1, 12, TLBnCFG_AVAIL | TLBnCFG_IPROT, 16);
+        break;
+    default:
+        cpu_abort(env, "Unknown CPU: " TARGET_FMT_lx "\n", env->spr[SPR_PVR]);
+    }
 #endif
-    gen_spr_BookE_FSL(env, 0x0000005F);
+    gen_spr_BookE206(env, 0x000000DF, tlbncfg);
     /* XXX : not implemented */
     spr_register(env, SPR_HID0, "HID0",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -4384,20 +4442,10 @@ static void init_proc_e500 (CPUPPCState *env)
     /* XXX : not implemented */
     spr_register(env, SPR_Exxx_L1CSR0, "L1CSR0",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_e500_l1csr0,
                  0x00000000);
     /* XXX : not implemented */
     spr_register(env, SPR_Exxx_L1CSR1, "L1CSR1",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_BOOKE_TLB0CFG, "TLB0CFG",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_BOOKE_TLB1CFG, "TLB1CFG",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
@@ -4409,16 +4457,33 @@ static void init_proc_e500 (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
+    spr_register(env, SPR_MMUCSR0, "MMUCSR0",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_booke206_mmucsr0,
+                 0x00000000);
+
 #if !defined(CONFIG_USER_ONLY)
-    env->nb_tlb = 64;
-    env->nb_ways = 1;
-    env->id_tlbs = 0;
+    env->nb_tlb = 0;
+    for (i = 0; i < BOOKE206_MAX_TLBN; i++) {
+        env->nb_tlb += booke206_tlb_size(env, i);
+    }
 #endif
+
     init_excp_e200(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppce500_irq_init(env);
+}
+
+static void init_proc_e500v1(CPUPPCState *env)
+{
+    init_proc_e500(env, 1);
+}
+
+static void init_proc_e500v2(CPUPPCState *env)
+{
+    init_proc_e500(env, 2);
 }
 
 /* Non-embedded PowerPC                                                      */
@@ -9756,8 +9821,8 @@ int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
         case POWERPC_MMU_BOOKE:
             mmu_model = "PowerPC BookE";
             break;
-        case POWERPC_MMU_BOOKE_FSL:
-            mmu_model = "PowerPC BookE FSL";
+        case POWERPC_MMU_BOOKE206:
+            mmu_model = "PowerPC BookE 2.06";
             break;
         case POWERPC_MMU_601:
             mmu_model = "PowerPC 601";
