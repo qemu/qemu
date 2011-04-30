@@ -311,7 +311,7 @@ static const uint16_t eepro100_mdi_mask[] = {
 static void stl_le_phys(target_phys_addr_t addr, uint32_t val)
 {
     val = cpu_to_le32(val);
-    cpu_physical_memory_write(addr, (const uint8_t *)&val, sizeof(val));
+    cpu_physical_memory_write(addr, &val, sizeof(val));
 }
 
 #define POLYNOMIAL 0x04c11db6
@@ -694,8 +694,7 @@ static void dump_statistics(EEPRO100State * s)
      * values which really matter.
      * Number of data should check configuration!!!
      */
-    cpu_physical_memory_write(s->statsaddr,
-                              (uint8_t *) & s->statistics, s->stats_size);
+    cpu_physical_memory_write(s->statsaddr, &s->statistics, s->stats_size);
     stl_le_phys(s->statsaddr + 0, s->statistics.tx_good_frames);
     stl_le_phys(s->statsaddr + 36, s->statistics.rx_good_frames);
     stl_le_phys(s->statsaddr + 48, s->statistics.rx_resource_errors);
@@ -709,7 +708,7 @@ static void dump_statistics(EEPRO100State * s)
 
 static void read_cb(EEPRO100State *s)
 {
-    cpu_physical_memory_read(s->cb_address, (uint8_t *) &s->tx, sizeof(s->tx));
+    cpu_physical_memory_read(s->cb_address, &s->tx, sizeof(s->tx));
     s->tx.status = le16_to_cpu(s->tx.status);
     s->tx.command = le16_to_cpu(s->tx.command);
     s->tx.link = le32_to_cpu(s->tx.link);
@@ -1268,10 +1267,10 @@ static void eepro100_write_port(EEPRO100State * s, uint32_t val)
     case PORT_SELFTEST:
         TRACE(OTHER, logout("selftest address=0x%08x\n", address));
         eepro100_selftest_t data;
-        cpu_physical_memory_read(address, (uint8_t *) & data, sizeof(data));
+        cpu_physical_memory_read(address, &data, sizeof(data));
         data.st_sign = 0xffffffff;
         data.st_result = 0;
-        cpu_physical_memory_write(address, (uint8_t *) & data, sizeof(data));
+        cpu_physical_memory_write(address, &data, sizeof(data));
         break;
     case PORT_SELECTIVE_RESET:
         TRACE(OTHER, logout("selective reset, selftest address=0x%08x\n", address));
@@ -1722,7 +1721,7 @@ static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size
     }
     /* !!! */
     eepro100_rx_t rx;
-    cpu_physical_memory_read(s->ru_base + s->ru_offset, (uint8_t *) & rx,
+    cpu_physical_memory_read(s->ru_base + s->ru_offset, &rx,
                              offsetof(eepro100_rx_t, packet));
     uint16_t rfd_command = le16_to_cpu(rx.command);
     uint16_t rfd_size = le16_to_cpu(rx.size);
