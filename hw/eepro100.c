@@ -173,7 +173,7 @@ typedef struct {
     uint32_t rx_buf_addr;       /* void * */
     uint16_t count;
     uint16_t size;
-    char packet[MAX_ETH_FRAME_SIZE + 4];
+    /* Ethernet frame data follows. */
 } eepro100_rx_t;
 
 typedef enum {
@@ -1722,7 +1722,7 @@ static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size
     /* !!! */
     eepro100_rx_t rx;
     cpu_physical_memory_read(s->ru_base + s->ru_offset, &rx,
-                             offsetof(eepro100_rx_t, packet));
+                             sizeof(eepro100_rx_t));
     uint16_t rfd_command = le16_to_cpu(rx.command);
     uint16_t rfd_size = le16_to_cpu(rx.size);
 
@@ -1753,7 +1753,7 @@ static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size
     assert(!(s->configuration[17] & BIT(0)));
 #endif
     cpu_physical_memory_write(s->ru_base + s->ru_offset +
-                              offsetof(eepro100_rx_t, packet), buf, size);
+                              sizeof(eepro100_rx_t), buf, size);
     s->statistics.rx_good_frames++;
     eepro100_fr_interrupt(s);
     s->ru_offset = le32_to_cpu(rx.link);
