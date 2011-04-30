@@ -1193,8 +1193,9 @@ static uint32_t eepro100_read_mdi(EEPRO100State * s)
     return val;
 }
 
-static void eepro100_write_mdi(EEPRO100State * s, uint32_t val)
+static void eepro100_write_mdi(EEPRO100State *s)
 {
+    uint32_t val = e100_read_reg4(s, SCBCtrlMDI);
     uint8_t raiseint = (val & BIT(29)) >> 29;
     uint8_t opcode = (val & BITS(27, 26)) >> 26;
     uint8_t phy = (val & BITS(25, 21)) >> 21;
@@ -1370,6 +1371,13 @@ static uint8_t eepro100_read1(EEPRO100State * s, uint32_t addr)
     case SCBeeprom:
         val = eepro100_read_eeprom(s);
         break;
+    case SCBCtrlMDI:
+    case SCBCtrlMDI + 1:
+    case SCBCtrlMDI + 2:
+    case SCBCtrlMDI + 3:
+        val = (uint8_t)(eepro100_read_mdi(s) >> (8 * (addr & 3)));
+        TRACE(OTHER, logout("addr=%s val=0x%02x\n", regname(addr), val));
+        break;
     case SCBpmdr:       /* Power Management Driver Register */
         val = 0;
         TRACE(OTHER, logout("addr=%s val=0x%02x\n", regname(addr), val));
@@ -1400,6 +1408,11 @@ static uint16_t eepro100_read2(EEPRO100State * s, uint32_t addr)
         break;
     case SCBeeprom:
         val = eepro100_read_eeprom(s);
+        TRACE(OTHER, logout("addr=%s val=0x%04x\n", regname(addr), val));
+        break;
+    case SCBCtrlMDI:
+    case SCBCtrlMDI + 2:
+        val = (uint16_t)(eepro100_read_mdi(s) >> (8 * (addr & 3)));
         TRACE(OTHER, logout("addr=%s val=0x%04x\n", regname(addr), val));
         break;
     default:
@@ -1488,6 +1501,15 @@ static void eepro100_write1(EEPRO100State * s, uint32_t addr, uint8_t val)
         TRACE(OTHER, logout("addr=%s val=0x%02x\n", regname(addr), val));
         eepro100_write_eeprom(s->eeprom, val);
         break;
+    case SCBCtrlMDI:
+    case SCBCtrlMDI + 1:
+    case SCBCtrlMDI + 2:
+        TRACE(OTHER, logout("addr=%s val=0x%02x\n", regname(addr), val));
+        break;
+    case SCBCtrlMDI + 3:
+        TRACE(OTHER, logout("addr=%s val=0x%02x\n", regname(addr), val));
+        eepro100_write_mdi(s);
+        break;
     default:
         logout("addr=%s val=0x%02x\n", regname(addr), val);
         missing("unknown byte write");
@@ -1527,6 +1549,13 @@ static void eepro100_write2(EEPRO100State * s, uint32_t addr, uint16_t val)
         TRACE(OTHER, logout("addr=%s val=0x%04x\n", regname(addr), val));
         eepro100_write_eeprom(s->eeprom, val);
         break;
+    case SCBCtrlMDI:
+        TRACE(OTHER, logout("addr=%s val=0x%04x\n", regname(addr), val));
+        break;
+    case SCBCtrlMDI + 2:
+        TRACE(OTHER, logout("addr=%s val=0x%04x\n", regname(addr), val));
+        eepro100_write_mdi(s);
+        break;
     default:
         logout("addr=%s val=0x%04x\n", regname(addr), val);
         missing("unknown word write");
@@ -1548,7 +1577,8 @@ static void eepro100_write4(EEPRO100State * s, uint32_t addr, uint32_t val)
         eepro100_write_port(s);
         break;
     case SCBCtrlMDI:
-        eepro100_write_mdi(s, val);
+        TRACE(OTHER, logout("addr=%s val=0x%08x\n", regname(addr), val));
+        eepro100_write_mdi(s);
         break;
     default:
         logout("addr=%s val=0x%08x\n", regname(addr), val);
