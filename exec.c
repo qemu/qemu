@@ -2061,7 +2061,7 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
     /* we modify the TLB cache so that the dirty bit will be set again
        when accessing the range */
     start1 = (unsigned long)qemu_safe_ram_ptr(start);
-    /* Chek that we don't span multiple blocks - this breaks the
+    /* Check that we don't span multiple blocks - this breaks the
        address comparisons below.  */
     if ((unsigned long)qemu_safe_ram_ptr(end - 1) - start1
             != (end - 1) - start) {
