@@ -103,7 +103,11 @@ static SysBusDeviceInfo kvmclock_info = {
 void kvmclock_create(void)
 {
     if (kvm_enabled() &&
-        first_cpu->cpuid_kvm_features & (1ULL << KVM_FEATURE_CLOCKSOURCE)) {
+        first_cpu->cpuid_kvm_features & ((1ULL << KVM_FEATURE_CLOCKSOURCE)
+#ifdef KVM_FEATURE_CLOCKSOURCE2
+        || (1ULL << KVM_FEATURE_CLOCKSOURCE2)
+#endif
+    )) {
         sysbus_create_simple("kvmclock", -1, NULL);
     }
 }
