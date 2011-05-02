@@ -87,9 +87,12 @@ typedef struct CPUS390XState {
     int pending_int;
     ExtQueue ext_queue[MAX_EXT_QUEUE];
 
+    int ext_index;
+
+    CPU_COMMON
+
     /* reset does memset(0) up to here */
 
-    int ext_index;
     int cpu_num;
     uint8_t *storage_keys;
 
@@ -98,8 +101,6 @@ typedef struct CPUS390XState {
     QEMUTimer *tod_timer;
 
     QEMUTimer *cpu_timer;
-
-    CPU_COMMON
 } CPUS390XState;
 
 #if defined(CONFIG_USER_ONLY)
