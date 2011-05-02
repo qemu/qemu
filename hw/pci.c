@@ -1169,6 +1169,7 @@ static const pci_class_desc pci_class_descriptions[] =
     { 0x0400, "Video controller", "video"},
     { 0x0401, "Audio controller", "sound"},
     { 0x0402, "Phone"},
+    { 0x0403, "Audio controller", "sound"},
     { 0x0480, "Multimedia controller"},
     { 0x0500, "RAM controller", "memory"},
     { 0x0501, "Flash controller", "flash"},
