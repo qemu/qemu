@@ -88,6 +88,8 @@ include $(SRC_PATH)/Makefile.objs
 endif
 
 $(common-obj-y): $(GENERATED_HEADERS)
+subdir-libcacard: $(oslib-obj-y) $(trace-obj-y) qemu-malloc.o qemu-timer-common.o
+
 $(filter %-softmmu,$(SUBDIR_RULES)): $(trace-obj-y) $(common-obj-y) subdir-libdis
 
 $(filter %-user,$(SUBDIR_RULES)): $(GENERATED_HEADERS) $(trace-obj-y) subdir-libdis-user subdir-libuser

@@ -7,8 +7,8 @@ qobject-obj-y += qerror.o
 #######################################################################
 # oslib-obj-y is code depending on the OS (win32 vs posix)
 oslib-obj-y = osdep.o
-oslib-obj-$(CONFIG_WIN32) += oslib-win32.o
-oslib-obj-$(CONFIG_POSIX) += oslib-posix.o
+oslib-obj-$(CONFIG_WIN32) += oslib-win32.o qemu-thread-win32.o
+oslib-obj-$(CONFIG_POSIX) += oslib-posix.o qemu-thread-posix.o
 
 #######################################################################
 # block-obj-y is code used by both qemu system emulation and qemu-img
@@ -143,8 +143,7 @@ common-obj-y += $(addprefix ui/, $(ui-obj-y))
 common-obj-$(CONFIG_VNC) += $(addprefix ui/, $(vnc-obj-y))
 
 common-obj-y += iov.o acl.o
-common-obj-$(CONFIG_POSIX) += qemu-thread-posix.o compatfd.o
-common-obj-$(CONFIG_WIN32) += qemu-thread-win32.o
+common-obj-$(CONFIG_POSIX) += compatfd.o
 common-obj-y += notify.o event_notifier.o
 common-obj-y += qemu-timer.o qemu-timer-common.o
 
