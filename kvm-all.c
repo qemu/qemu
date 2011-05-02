@@ -1191,7 +1191,7 @@ int kvm_insert_breakpoint(CPUState *current_env, target_ulong addr,
         bp->use_count = 1;
         err = kvm_arch_insert_sw_breakpoint(current_env, bp);
         if (err) {
-            free(bp);
+            qemu_free(bp);
             return err;
         }
 
@@ -1315,7 +1315,7 @@ int kvm_set_signal_mask(CPUState *env, const sigset_t *sigset)
     sigmask->len = 8;
     memcpy(sigmask->sigset, sigset, sizeof(*sigset));
     r = kvm_vcpu_ioctl(env, KVM_SET_SIGNAL_MASK, sigmask);
-    free(sigmask);
+    qemu_free(sigmask);
 
     return r;
 }
