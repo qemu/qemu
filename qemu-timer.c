@@ -175,8 +175,12 @@ struct qemu_alarm_timer {
     int (*start)(struct qemu_alarm_timer *t);
     void (*stop)(struct qemu_alarm_timer *t);
     void (*rearm)(struct qemu_alarm_timer *t);
-    void *priv;
-
+#if defined(__linux__)
+    int fd;
+    timer_t timer;
+#elif defined(_WIN32)
+    HANDLE timer;
+#endif
     char expired;
     char pending;
 };
@@ -210,11 +214,6 @@ static void qemu_rearm_alarm_timer(struct qemu_alarm_timer *t)
 #define MIN_TIMER_REARM_NS 250000
 
 #ifdef _WIN32
-
-static struct qemu_alarm_win32 {
-    MMRESULT timerId;
-    unsigned int period;
-} alarm_win32_data = {0, 0};
 
 static int mm_start_timer(struct qemu_alarm_timer *t);
 static void mm_stop_timer(struct qemu_alarm_timer *t);
@@ -304,22 +303,18 @@ static struct qemu_alarm_timer alarm_timers[] = {
 #ifndef _WIN32
 #ifdef __linux__
     {"dynticks", dynticks_start_timer,
-     dynticks_stop_timer, dynticks_rearm_timer, NULL},
+     dynticks_stop_timer, dynticks_rearm_timer},
     /* HPET - if available - is preferred */
-    {"hpet", hpet_start_timer, hpet_stop_timer, NULL, NULL},
+    {"hpet", hpet_start_timer, hpet_stop_timer, NULL},
     /* ...otherwise try RTC */
-    {"rtc", rtc_start_timer, rtc_stop_timer, NULL, NULL},
+    {"rtc", rtc_start_timer, rtc_stop_timer, NULL},
 #endif
-    {"unix", unix_start_timer, unix_stop_timer, NULL, NULL},
+    {"unix", unix_start_timer, unix_stop_timer, NULL},
 #else
-    {"mmtimer", mm_start_timer,
-     mm_stop_timer, NULL, &alarm_win32_data},
-    {"mmtimer2", mm_start_timer,
-     mm_stop_timer, mm_rearm_timer, &alarm_win32_data},
-    {"dynticks", win32_start_timer,
-     win32_stop_timer, win32_rearm_timer, NULL},
-    {"win32", win32_start_timer,
-     win32_stop_timer, NULL, NULL},
+    {"mmtimer", mm_start_timer, mm_stop_timer, NULL},
+    {"mmtimer2", mm_start_timer, mm_stop_timer, mm_rearm_timer},
+    {"dynticks", win32_start_timer, win32_stop_timer, win32_rearm_timer},
+    {"win32", win32_start_timer, win32_stop_timer, NULL},
 #endif
     {NULL, }
 };
@@ -877,7 +872,7 @@ static int hpet_start_timer(struct qemu_alarm_timer *t)
         goto fail;
 
     enable_sigio_timer(fd);
-    t->priv = (void *)(long)fd;
+    t->fd = fd;
 
     return 0;
 fail:
@@ -887,7 +882,7 @@ fail:
 
 static void hpet_stop_timer(struct qemu_alarm_timer *t)
 {
-    int fd = (long)t->priv;
+    int fd = t->fd;
 
     close(fd);
 }
@@ -916,14 +911,14 @@ static int rtc_start_timer(struct qemu_alarm_timer *t)
 
     enable_sigio_timer(rtc_fd);
 
-    t->priv = (void *)(long)rtc_fd;
+    t->fd = rtc_fd;
 
     return 0;
 }
 
 static void rtc_stop_timer(struct qemu_alarm_timer *t)
 {
-    int rtc_fd = (long)t->priv;
+    int rtc_fd = t->fd;
 
     close(rtc_fd);
 }
@@ -958,21 +953,21 @@ static int dynticks_start_timer(struct qemu_alarm_timer *t)
         return -1;
     }
 
-    t->priv = (void *)(long)host_timer;
+    t->timer = host_timer;
 
     return 0;
 }
 
 static void dynticks_stop_timer(struct qemu_alarm_timer *t)
 {
-    timer_t host_timer = (timer_t)(long)t->priv;
+    timer_t host_timer = t->timer;
 
     timer_delete(host_timer);
 }
 
 static void dynticks_rearm_timer(struct qemu_alarm_timer *t)
 {
-    timer_t host_timer = (timer_t)(long)t->priv;
+    timer_t host_timer = t->timer;
     struct itimerspec timeout;
     int64_t nearest_delta_ns = INT64_MAX;
     int64_t current_ns;
@@ -1051,6 +1046,9 @@ static void unix_stop_timer(struct qemu_alarm_timer *t)
 
 #ifdef _WIN32
 
+static MMRESULT mm_timer;
+static unsigned mm_period;
+
 static void CALLBACK mm_alarm_handler(UINT uTimerID, UINT uMsg,
                                       DWORD_PTR dwUser, DWORD_PTR dw1,
                                       DWORD_PTR dw2)
@@ -1069,14 +1067,13 @@ static void CALLBACK mm_alarm_handler(UINT uTimerID, UINT uMsg,
 static int mm_start_timer(struct qemu_alarm_timer *t)
 {
     TIMECAPS tc;
-    struct qemu_alarm_win32 *data = t->priv;
     UINT flags;
 
     memset(&tc, 0, sizeof(tc));
     timeGetDevCaps(&tc, sizeof(tc));
 
-    data->period = tc.wPeriodMin;
-    timeBeginPeriod(data->period);
+    mm_period = tc.wPeriodMin;
+    timeBeginPeriod(mm_period);
 
     flags = TIME_CALLBACK_FUNCTION;
     if (alarm_has_dynticks(t)) {
@@ -1085,16 +1082,16 @@ static int mm_start_timer(struct qemu_alarm_timer *t)
         flags |= TIME_PERIODIC;
     }
 
-    data->timerId = timeSetEvent(1,         /* interval (ms) */
-                        data->period,       /* resolution */
-                        mm_alarm_handler,   /* function */
-                        (DWORD)t,           /* parameter */
-                        flags);
+    mm_timer = timeSetEvent(1,                  /* interval (ms) */
+                            mm_period,          /* resolution */
+                            mm_alarm_handler,   /* function */
+                            (DWORD_PTR)t,       /* parameter */
+                            flags);
 
-    if (!data->timerId) {
+    if (!mm_timer) {
         fprintf(stderr, "Failed to initialize win32 alarm timer: %ld\n",
                 GetLastError());
-        timeEndPeriod(data->period);
+        timeEndPeriod(mm_period);
         return -1;
     }
 
@@ -1103,15 +1100,12 @@ static int mm_start_timer(struct qemu_alarm_timer *t)
 
 static void mm_stop_timer(struct qemu_alarm_timer *t)
 {
-    struct qemu_alarm_win32 *data = t->priv;
-
-    timeKillEvent(data->timerId);
-    timeEndPeriod(data->period);
+    timeKillEvent(mm_timer);
+    timeEndPeriod(mm_period);
 }
 
 static void mm_rearm_timer(struct qemu_alarm_timer *t)
 {
-    struct qemu_alarm_win32 *data = t->priv;
     int nearest_delta_ms;
 
     assert(alarm_has_dynticks(t));
@@ -1121,23 +1115,23 @@ static void mm_rearm_timer(struct qemu_alarm_timer *t)
         return;
     }
 
-    timeKillEvent(data->timerId);
+    timeKillEvent(mm_timer);
 
     nearest_delta_ms = (qemu_next_alarm_deadline() + 999999) / 1000000;
     if (nearest_delta_ms < 1) {
         nearest_delta_ms = 1;
     }
-    data->timerId = timeSetEvent(nearest_delta_ms,
-                        data->period,
-                        mm_alarm_handler,
-                        (DWORD)t,
-                        TIME_ONESHOT | TIME_CALLBACK_FUNCTION);
+    mm_timer = timeSetEvent(nearest_delta_ms,
+                            mm_period,
+                            mm_alarm_handler,
+                            (DWORD_PTR)t,
+                            TIME_ONESHOT | TIME_CALLBACK_FUNCTION);
 
-    if (!data->timerId) {
+    if (!mm_timer) {
         fprintf(stderr, "Failed to re-arm win32 alarm timer %ld\n",
                 GetLastError());
 
-        timeEndPeriod(data->period);
+        timeEndPeriod(mm_period);
         exit(1);
     }
 }
@@ -1165,13 +1159,13 @@ static int win32_start_timer(struct qemu_alarm_timer *t)
         return -1;
     }
 
-    t->priv = (PVOID) hTimer;
+    t->timer = hTimer;
     return 0;
 }
 
 static void win32_stop_timer(struct qemu_alarm_timer *t)
 {
-    HANDLE hTimer = t->priv;
+    HANDLE hTimer = t->timer;
 
     if (hTimer) {
         DeleteTimerQueueTimer(NULL, hTimer, NULL);
@@ -1180,7 +1174,7 @@ static void win32_stop_timer(struct qemu_alarm_timer *t)
 
 static void win32_rearm_timer(struct qemu_alarm_timer *t)
 {
-    HANDLE hTimer = t->priv;
+    HANDLE hTimer = t->timer;
     int nearest_delta_ms;
     BOOLEAN success;
 
