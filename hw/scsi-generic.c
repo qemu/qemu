@@ -172,9 +172,11 @@ static void scsi_read_complete(void * opaque, int ret)
     DPRINTF("Data ready tag=0x%x len=%d\n", r->req.tag, len);
 
     r->len = -1;
-    r->req.bus->complete(r->req.bus, SCSI_REASON_DATA, r->req.tag, len);
-    if (len == 0)
+    if (len == 0) {
         scsi_command_complete(r, 0);
+    } else {
+        r->req.bus->complete(r->req.bus, SCSI_REASON_DATA, r->req.tag, len);
+    }
 }
 
 /* Read more data from scsi device into buffer.  */
