@@ -140,24 +140,8 @@ static void sysctl_write(void *opaque, target_phys_addr_t addr, uint32_t value)
     case R_GPIO_OUT:
     case R_GPIO_INTEN:
     case R_TIMER0_COUNTER:
-        if (value > s->regs[R_TIMER0_COUNTER]) {
-            value = s->regs[R_TIMER0_COUNTER];
-            error_report("milkymist_sysctl: timer0: trying to write a "
-                    "value greater than the limit. Clipping.");
-        }
-        /* milkymist timer counts up */
-        value = s->regs[R_TIMER0_COUNTER] - value;
-        ptimer_set_count(s->ptimer0, value);
-        break;
     case R_TIMER1_COUNTER:
-        if (value > s->regs[R_TIMER1_COUNTER]) {
-            value = s->regs[R_TIMER1_COUNTER];
-            error_report("milkymist_sysctl: timer1: trying to write a "
-                    "value greater than the limit. Clipping.");
-        }
-        /* milkymist timer counts up */
-        value = s->regs[R_TIMER1_COUNTER] - value;
-        ptimer_set_count(s->ptimer1, value);
+        s->regs[addr] = value;
         break;
     case R_TIMER0_COMPARE:
         ptimer_set_limit(s->ptimer0, value, 0);
@@ -170,10 +154,12 @@ static void sysctl_write(void *opaque, target_phys_addr_t addr, uint32_t value)
     case R_TIMER0_CONTROL:
         s->regs[addr] = value;
         if (s->regs[R_TIMER0_CONTROL] & CTRL_ENABLE) {
-            trace_milkymist_sysctl_start_timer1();
+            trace_milkymist_sysctl_start_timer0();
+            ptimer_set_count(s->ptimer0,
+                    s->regs[R_TIMER0_COMPARE] - s->regs[R_TIMER0_COUNTER]);
             ptimer_run(s->ptimer0, 0);
         } else {
-            trace_milkymist_sysctl_stop_timer1();
+            trace_milkymist_sysctl_stop_timer0();
             ptimer_stop(s->ptimer0);
         }
         break;
@@ -181,6 +167,8 @@ static void sysctl_write(void *opaque, target_phys_addr_t addr, uint32_t value)
         s->regs[addr] = value;
         if (s->regs[R_TIMER1_CONTROL] & CTRL_ENABLE) {
             trace_milkymist_sysctl_start_timer1();
+            ptimer_set_count(s->ptimer1,
+                    s->regs[R_TIMER1_COMPARE] - s->regs[R_TIMER1_COUNTER]);
             ptimer_run(s->ptimer1, 0);
         } else {
             trace_milkymist_sysctl_stop_timer1();

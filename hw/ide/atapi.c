@@ -71,12 +71,12 @@ static void lba_to_msf(uint8_t *buf, int lba)
     buf[2] = lba % 75;
 }
 
-/* XXX: DVDs that could fit on a CD will be reported as a CD */
 static inline int media_present(IDEState *s)
 {
     return (s->nb_sectors > 0);
 }
 
+/* XXX: DVDs that could fit on a CD will be reported as a CD */
 static inline int media_is_dvd(IDEState *s)
 {
     return (media_present(s) && s->nb_sectors > CD_MAX_SECTORS);
@@ -1080,17 +1080,15 @@ static const struct {
 
 void ide_atapi_cmd(IDEState *s)
 {
-    const uint8_t *packet;
     uint8_t *buf;
 
-    packet = s->io_buffer;
     buf = s->io_buffer;
 #ifdef DEBUG_IDE_ATAPI
     {
         int i;
         printf("ATAPI limit=0x%x packet:", s->lcyl | (s->hcyl << 8));
         for(i = 0; i < ATAPI_PACKET_SIZE; i++) {
-            printf(" %02x", packet[i]);
+            printf(" %02x", buf[i]);
         }
         printf("\n");
     }
@@ -1106,7 +1104,13 @@ void ide_atapi_cmd(IDEState *s)
         ide_atapi_cmd_check_status(s);
         return;
     }
-
+    /*
+     * When a CD gets changed, we have to report an ejected state and
+     * then a loaded state to guests so that they detect tray
+     * open/close and media change events.  Guests that do not use
+     * GET_EVENT_STATUS_NOTIFICATION to detect such tray open/close
+     * states rely on this behavior.
+     */
     if (bdrv_is_inserted(s->bs) && s->cdrom_changed) {
         ide_atapi_cmd_error(s, SENSE_NOT_READY, ASC_MEDIUM_NOT_PRESENT);
 

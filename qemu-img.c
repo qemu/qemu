@@ -1482,6 +1482,16 @@ static int img_resize(int argc, char **argv)
         { NULL }
     };
 
+    /* Remove size from argv manually so that negative numbers are not treated
+     * as options by getopt. */
+    if (argc < 3) {
+        help();
+        return 1;
+    }
+
+    size = argv[--argc];
+
+    /* Parse getopt arguments */
     fmt = NULL;
     for(;;) {
         c = getopt(argc, argv, "f:h");
@@ -1498,11 +1508,10 @@ static int img_resize(int argc, char **argv)
             break;
         }
     }
-    if (optind + 1 >= argc) {
+    if (optind >= argc) {
         help();
     }
     filename = argv[optind++];
-    size = argv[optind++];
 
     /* Choose grow, shrink, or absolute resize mode */
     switch (size[0]) {

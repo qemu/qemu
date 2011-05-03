@@ -156,7 +156,7 @@ milkymist_init(ram_addr_t ram_size_not_used,
     milkymist_ac97_create(0x60005000, irq[5], irq[6], irq[7], irq[8]);
     milkymist_pfpu_create(0x60006000, irq[9]);
     milkymist_tmu2_create(0x60007000, irq[10]);
-    milkymist_minimac_create(0x60008000, irq[11], irq[12]);
+    milkymist_minimac2_create(0x60008000, 0x30000000, irq[11], irq[12]);
     milkymist_softusb_create(0x6000f000, irq[17],
             0x20000000, 0x1000, 0x20020000, 0x2000);
 

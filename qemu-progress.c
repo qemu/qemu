@@ -37,6 +37,7 @@ struct progress_state {
 };
 
 static struct progress_state state;
+static volatile sig_atomic_t print_pending;
 
 /*
  * Simple progress print function.
@@ -63,12 +64,16 @@ static void progress_simple_init(void)
 #ifdef CONFIG_POSIX
 static void sigusr_print(int signal)
 {
-    printf("    (%3.2f/100%%)\n", state.current);
+    print_pending = 1;
 }
 #endif
 
 static void progress_dummy_print(void)
 {
+    if (print_pending) {
+        fprintf(stderr, "    (%3.2f/100%%)\n", state.current);
+        print_pending = 0;
+    }
 }
 
 static void progress_dummy_end(void)

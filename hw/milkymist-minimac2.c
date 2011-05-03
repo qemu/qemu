@@ -1,7 +1,7 @@
 /*
- *  QEMU model of the Milkymist minimac block.
+ *  QEMU model of the Milkymist minimac2 block.
  *
- *  Copyright (c) 2010 Michael Walle <michael@walle.cc>
+ *  Copyright (c) 2011 Michael Walle <michael@walle.cc>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,7 +18,7 @@
  *
  *
  * Specification available at:
- *   http://www.milkymist.org/socdoc/minimac.pdf
+ *   not available yet
  *
  */
 
@@ -27,6 +27,7 @@
 #include "trace.h"
 #include "net.h"
 #include "qemu-error.h"
+#include "qdev-addr.h"
 
 #include <zlib.h>
 
@@ -34,25 +35,15 @@ enum {
     R_SETUP = 0,
     R_MDIO,
     R_STATE0,
-    R_ADDR0,
     R_COUNT0,
     R_STATE1,
-    R_ADDR1,
     R_COUNT1,
-    R_STATE2,
-    R_ADDR2,
-    R_COUNT2,
-    R_STATE3,
-    R_ADDR3,
-    R_COUNT3,
-    R_TXADDR,
     R_TXCOUNT,
     R_MAX
 };
 
 enum {
-    SETUP_RX_RST = (1<<0),
-    SETUP_TX_RST = (1<<2),
+    SETUP_PHY_RST = (1<<0),
 };
 
 enum {
@@ -85,9 +76,10 @@ enum {
     R_PHY_MAX  = 32
 };
 
-#define MINIMAC_MTU 1530
+#define MINIMAC2_MTU 1530
+#define MINIMAC2_BUFFER_SIZE 2048
 
-struct MilkymistMinimacMdioState {
+struct MilkymistMinimac2MdioState {
     int last_clk;
     int count;
     uint32_t data;
@@ -97,50 +89,55 @@ struct MilkymistMinimacMdioState {
     uint8_t phy_addr;
     uint8_t reg_addr;
 };
-typedef struct MilkymistMinimacMdioState MilkymistMinimacMdioState;
+typedef struct MilkymistMinimac2MdioState MilkymistMinimac2MdioState;
 
-struct MilkymistMinimacState {
+struct MilkymistMinimac2State {
     SysBusDevice busdev;
     NICState *nic;
     NICConf conf;
     char *phy_model;
+    target_phys_addr_t buffers_base;
 
     qemu_irq rx_irq;
     qemu_irq tx_irq;
 
     uint32_t regs[R_MAX];
 
-    MilkymistMinimacMdioState mdio;
+    MilkymistMinimac2MdioState mdio;
 
     uint16_t phy_regs[R_PHY_MAX];
+
+    uint8_t *rx0_buf;
+    uint8_t *rx1_buf;
+    uint8_t *tx_buf;
 };
-typedef struct MilkymistMinimacState MilkymistMinimacState;
+typedef struct MilkymistMinimac2State MilkymistMinimac2State;
 
 static const uint8_t preamble_sfd[] = {
         0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0xd5
 };
 
-static void minimac_mdio_write_reg(MilkymistMinimacState *s,
+static void minimac2_mdio_write_reg(MilkymistMinimac2State *s,
         uint8_t phy_addr, uint8_t reg_addr, uint16_t value)
 {
-    trace_milkymist_minimac_mdio_write(phy_addr, reg_addr, value);
+    trace_milkymist_minimac2_mdio_write(phy_addr, reg_addr, value);
 
     /* nop */
 }
 
-static uint16_t minimac_mdio_read_reg(MilkymistMinimacState *s,
+static uint16_t minimac2_mdio_read_reg(MilkymistMinimac2State *s,
         uint8_t phy_addr, uint8_t reg_addr)
 {
     uint16_t r = s->phy_regs[reg_addr];
 
-    trace_milkymist_minimac_mdio_read(phy_addr, reg_addr, r);
+    trace_milkymist_minimac2_mdio_read(phy_addr, reg_addr, r);
 
     return r;
 }
 
-static void minimac_update_mdio(MilkymistMinimacState *s)
+static void minimac2_update_mdio(MilkymistMinimac2State *s)
 {
-    MilkymistMinimacMdioState *m = &s->mdio;
+    MilkymistMinimac2MdioState *m = &s->mdio;
 
     /* detect rising clk edge */
     if (m->last_clk == 0 && (s->regs[R_MDIO] & MDIO_CLK)) {
@@ -173,7 +170,7 @@ static void minimac_update_mdio(MilkymistMinimacState *s)
             }
 
             if (m->state == MDIO_STATE_READING) {
-                m->data_out = minimac_mdio_read_reg(s, m->phy_addr,
+                m->data_out = minimac2_mdio_read_reg(s, m->phy_addr,
                         m->reg_addr);
             }
         }
@@ -192,7 +189,7 @@ static void minimac_update_mdio(MilkymistMinimacState *s)
         if (m->count == 0 && m->state) {
             if (m->state == MDIO_STATE_WRITING) {
                 uint16_t data = m->data & 0xffff;
-                minimac_mdio_write_reg(s, m->phy_addr, m->reg_addr, data);
+                minimac2_mdio_write_reg(s, m->phy_addr, m->reg_addr, data);
             }
             m->state = MDIO_STATE_IDLE;
         }
@@ -208,7 +205,7 @@ static size_t assemble_frame(uint8_t *buf, size_t size,
     uint32_t crc;
 
     if (size < payload_size + 12) {
-        error_report("milkymist_minimac: received too big ethernet frame");
+        error_report("milkymist_minimac2: received too big ethernet frame");
         return 0;
     }
 
@@ -231,115 +228,102 @@ static size_t assemble_frame(uint8_t *buf, size_t size,
     return payload_size + 12;
 }
 
-static void minimac_tx(MilkymistMinimacState *s)
+static void minimac2_tx(MilkymistMinimac2State *s)
 {
-    uint8_t buf[MINIMAC_MTU];
     uint32_t txcount = s->regs[R_TXCOUNT];
-
-    /* do nothing if transmission logic is in reset */
-    if (s->regs[R_SETUP] & SETUP_TX_RST) {
-        return;
-    }
+    uint8_t *buf = s->tx_buf;
 
     if (txcount < 64) {
-        error_report("milkymist_minimac: ethernet frame too small (%u < %u)\n",
+        error_report("milkymist_minimac2: ethernet frame too small (%u < %u)\n",
                 txcount, 64);
-        return;
+        goto err;
     }
 
-    if (txcount > MINIMAC_MTU) {
-        error_report("milkymist_minimac: MTU exceeded (%u > %u)\n",
-                txcount, MINIMAC_MTU);
-        return;
+    if (txcount > MINIMAC2_MTU) {
+        error_report("milkymist_minimac2: MTU exceeded (%u > %u)\n",
+                txcount, MINIMAC2_MTU);
+        goto err;
     }
-
-    /* dma */
-    cpu_physical_memory_read(s->regs[R_TXADDR], buf, txcount);
 
     if (memcmp(buf, preamble_sfd, 8) != 0) {
-        error_report("milkymist_minimac: frame doesn't contain the preamble "
+        error_report("milkymist_minimac2: frame doesn't contain the preamble "
                 "and/or the SFD (%02x %02x %02x %02x %02x %02x %02x %02x)\n",
                 buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
-        return;
+        goto err;
     }
 
-    trace_milkymist_minimac_tx_frame(txcount - 12);
+    trace_milkymist_minimac2_tx_frame(txcount - 12);
 
     /* send packet, skipping preamble and sfd */
     qemu_send_packet_raw(&s->nic->nc, buf + 8, txcount - 12);
 
     s->regs[R_TXCOUNT] = 0;
 
-    trace_milkymist_minimac_pulse_irq_tx();
+err:
+    trace_milkymist_minimac2_pulse_irq_tx();
     qemu_irq_pulse(s->tx_irq);
 }
 
-static ssize_t minimac_rx(VLANClientState *nc, const uint8_t *buf, size_t size)
+static void update_rx_interrupt(MilkymistMinimac2State *s)
 {
-    MilkymistMinimacState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    if (s->regs[R_STATE0] == STATE_PENDING
+            || s->regs[R_STATE1] == STATE_PENDING) {
+        trace_milkymist_minimac2_raise_irq_rx();
+        qemu_irq_raise(s->rx_irq);
+    } else {
+        trace_milkymist_minimac2_lower_irq_rx();
+        qemu_irq_lower(s->rx_irq);
+    }
+}
 
-    uint32_t r_addr;
+static ssize_t minimac2_rx(VLANClientState *nc, const uint8_t *buf, size_t size)
+{
+    MilkymistMinimac2State *s = DO_UPCAST(NICState, nc, nc)->opaque;
+
     uint32_t r_count;
     uint32_t r_state;
+    uint8_t *rx_buf;
 
-    uint8_t frame_buf[MINIMAC_MTU];
     size_t frame_size;
 
-    trace_milkymist_minimac_rx_frame(buf, size);
-
-    /* discard frames if nic is in reset */
-    if (s->regs[R_SETUP] & SETUP_RX_RST) {
-        return size;
-    }
+    trace_milkymist_minimac2_rx_frame(buf, size);
 
     /* choose appropriate slot */
     if (s->regs[R_STATE0] == STATE_LOADED) {
-        r_addr = R_ADDR0;
         r_count = R_COUNT0;
         r_state = R_STATE0;
+        rx_buf = s->rx0_buf;
     } else if (s->regs[R_STATE1] == STATE_LOADED) {
-        r_addr = R_ADDR1;
         r_count = R_COUNT1;
         r_state = R_STATE1;
-    } else if (s->regs[R_STATE2] == STATE_LOADED) {
-        r_addr = R_ADDR2;
-        r_count = R_COUNT2;
-        r_state = R_STATE2;
-    } else if (s->regs[R_STATE3] == STATE_LOADED) {
-        r_addr = R_ADDR3;
-        r_count = R_COUNT3;
-        r_state = R_STATE3;
+        rx_buf = s->rx1_buf;
     } else {
-        trace_milkymist_minimac_drop_rx_frame(buf);
+        trace_milkymist_minimac2_drop_rx_frame(buf);
         return size;
     }
 
     /* assemble frame */
-    frame_size = assemble_frame(frame_buf, sizeof(frame_buf), buf, size);
+    frame_size = assemble_frame(rx_buf, MINIMAC2_BUFFER_SIZE, buf, size);
 
     if (frame_size == 0) {
         return size;
     }
 
-    trace_milkymist_minimac_rx_transfer(buf, frame_size);
-
-    /* do dma */
-    cpu_physical_memory_write(s->regs[r_addr], frame_buf, frame_size);
+    trace_milkymist_minimac2_rx_transfer(rx_buf, frame_size);
 
     /* update slot */
     s->regs[r_count] = frame_size;
     s->regs[r_state] = STATE_PENDING;
 
-    trace_milkymist_minimac_pulse_irq_rx();
-    qemu_irq_pulse(s->rx_irq);
+    update_rx_interrupt(s);
 
     return size;
 }
 
 static uint32_t
-minimac_read(void *opaque, target_phys_addr_t addr)
+minimac2_read(void *opaque, target_phys_addr_t addr)
 {
-    MilkymistMinimacState *s = opaque;
+    MilkymistMinimac2State *s = opaque;
     uint32_t r = 0;
 
     addr >>= 2;
@@ -347,39 +331,30 @@ minimac_read(void *opaque, target_phys_addr_t addr)
     case R_SETUP:
     case R_MDIO:
     case R_STATE0:
-    case R_ADDR0:
     case R_COUNT0:
     case R_STATE1:
-    case R_ADDR1:
     case R_COUNT1:
-    case R_STATE2:
-    case R_ADDR2:
-    case R_COUNT2:
-    case R_STATE3:
-    case R_ADDR3:
-    case R_COUNT3:
-    case R_TXADDR:
     case R_TXCOUNT:
         r = s->regs[addr];
         break;
 
     default:
-        error_report("milkymist_minimac: read access to unknown register 0x"
+        error_report("milkymist_minimac2: read access to unknown register 0x"
                 TARGET_FMT_plx, addr << 2);
         break;
     }
 
-    trace_milkymist_minimac_memory_read(addr << 2, r);
+    trace_milkymist_minimac2_memory_read(addr << 2, r);
 
     return r;
 }
 
 static void
-minimac_write(void *opaque, target_phys_addr_t addr, uint32_t value)
+minimac2_write(void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-    MilkymistMinimacState *s = opaque;
+    MilkymistMinimac2State *s = opaque;
 
-    trace_milkymist_minimac_memory_read(addr, value);
+    trace_milkymist_minimac2_memory_read(addr, value);
 
     addr >>= 2;
     switch (addr) {
@@ -394,58 +369,47 @@ minimac_write(void *opaque, target_phys_addr_t addr, uint32_t value)
             s->regs[R_MDIO] &= ~mdio_di;
         }
 
-        minimac_update_mdio(s);
+        minimac2_update_mdio(s);
     } break;
     case R_TXCOUNT:
         s->regs[addr] = value;
         if (value > 0) {
-            minimac_tx(s);
+            minimac2_tx(s);
         }
         break;
-    case R_SETUP:
     case R_STATE0:
-    case R_ADDR0:
-    case R_COUNT0:
     case R_STATE1:
-    case R_ADDR1:
+        s->regs[addr] = value;
+        update_rx_interrupt(s);
+        break;
+    case R_SETUP:
+    case R_COUNT0:
     case R_COUNT1:
-    case R_STATE2:
-    case R_ADDR2:
-    case R_COUNT2:
-    case R_STATE3:
-    case R_ADDR3:
-    case R_COUNT3:
-    case R_TXADDR:
         s->regs[addr] = value;
         break;
 
     default:
-        error_report("milkymist_minimac: write access to unknown register 0x"
+        error_report("milkymist_minimac2: write access to unknown register 0x"
                 TARGET_FMT_plx, addr << 2);
         break;
     }
 }
 
-static CPUReadMemoryFunc * const minimac_read_fn[] = {
+static CPUReadMemoryFunc * const minimac2_read_fn[] = {
     NULL,
     NULL,
-    &minimac_read,
+    &minimac2_read,
 };
 
-static CPUWriteMemoryFunc * const minimac_write_fn[] = {
+static CPUWriteMemoryFunc * const minimac2_write_fn[] = {
     NULL,
     NULL,
-    &minimac_write,
+    &minimac2_write,
 };
 
-static int minimac_can_rx(VLANClientState *nc)
+static int minimac2_can_rx(VLANClientState *nc)
 {
-    MilkymistMinimacState *s = DO_UPCAST(NICState, nc, nc)->opaque;
-
-    /* discard frames if nic is in reset */
-    if (s->regs[R_SETUP] & SETUP_RX_RST) {
-        return 1;
-    }
+    MilkymistMinimac2State *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
     if (s->regs[R_STATE0] == STATE_LOADED) {
         return 1;
@@ -453,27 +417,21 @@ static int minimac_can_rx(VLANClientState *nc)
     if (s->regs[R_STATE1] == STATE_LOADED) {
         return 1;
     }
-    if (s->regs[R_STATE2] == STATE_LOADED) {
-        return 1;
-    }
-    if (s->regs[R_STATE3] == STATE_LOADED) {
-        return 1;
-    }
 
     return 0;
 }
 
-static void minimac_cleanup(VLANClientState *nc)
+static void minimac2_cleanup(VLANClientState *nc)
 {
-    MilkymistMinimacState *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    MilkymistMinimac2State *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
     s->nic = NULL;
 }
 
-static void milkymist_minimac_reset(DeviceState *d)
+static void milkymist_minimac2_reset(DeviceState *d)
 {
-    MilkymistMinimacState *s =
-            container_of(d, MilkymistMinimacState, busdev.qdev);
+    MilkymistMinimac2State *s =
+            container_of(d, MilkymistMinimac2State, busdev.qdev);
     int i;
 
     for (i = 0; i < R_MAX; i++) {
@@ -488,81 +446,94 @@ static void milkymist_minimac_reset(DeviceState *d)
     s->phy_regs[R_PHY_ID2] = 0x161a;
 }
 
-static NetClientInfo net_milkymist_minimac_info = {
+static NetClientInfo net_milkymist_minimac2_info = {
     .type = NET_CLIENT_TYPE_NIC,
     .size = sizeof(NICState),
-    .can_receive = minimac_can_rx,
-    .receive = minimac_rx,
-    .cleanup = minimac_cleanup,
+    .can_receive = minimac2_can_rx,
+    .receive = minimac2_rx,
+    .cleanup = minimac2_cleanup,
 };
 
-static int milkymist_minimac_init(SysBusDevice *dev)
+static int milkymist_minimac2_init(SysBusDevice *dev)
 {
-    MilkymistMinimacState *s = FROM_SYSBUS(typeof(*s), dev);
+    MilkymistMinimac2State *s = FROM_SYSBUS(typeof(*s), dev);
     int regs;
+    ram_addr_t buffers;
+    size_t buffers_size = TARGET_PAGE_ALIGN(3 * MINIMAC2_BUFFER_SIZE);
 
     sysbus_init_irq(dev, &s->rx_irq);
     sysbus_init_irq(dev, &s->tx_irq);
 
-    regs = cpu_register_io_memory(minimac_read_fn, minimac_write_fn, s,
+    regs = cpu_register_io_memory(minimac2_read_fn, minimac2_write_fn, s,
             DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, R_MAX * 4, regs);
 
+    /* register buffers memory */
+    buffers = qemu_ram_alloc(NULL, "milkymist_minimac2.buffers", buffers_size);
+    s->rx0_buf = qemu_get_ram_ptr(buffers);
+    s->rx1_buf = s->rx0_buf + MINIMAC2_BUFFER_SIZE;
+    s->tx_buf = s->rx1_buf + MINIMAC2_BUFFER_SIZE;
+
+    cpu_register_physical_memory(s->buffers_base, buffers_size,
+            buffers | IO_MEM_RAM);
+
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
-    s->nic = qemu_new_nic(&net_milkymist_minimac_info, &s->conf,
+    s->nic = qemu_new_nic(&net_milkymist_minimac2_info, &s->conf,
                           dev->qdev.info->name, dev->qdev.id, s);
     qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
 
     return 0;
 }
 
-static const VMStateDescription vmstate_milkymist_minimac_mdio = {
-    .name = "milkymist_minimac_mdio",
+static const VMStateDescription vmstate_milkymist_minimac2_mdio = {
+    .name = "milkymist-minimac2-mdio",
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField[]) {
-        VMSTATE_INT32(last_clk, MilkymistMinimacMdioState),
-        VMSTATE_INT32(count, MilkymistMinimacMdioState),
-        VMSTATE_UINT32(data, MilkymistMinimacMdioState),
-        VMSTATE_UINT16(data_out, MilkymistMinimacMdioState),
-        VMSTATE_INT32(state, MilkymistMinimacMdioState),
-        VMSTATE_UINT8(phy_addr, MilkymistMinimacMdioState),
-        VMSTATE_UINT8(reg_addr, MilkymistMinimacMdioState),
+        VMSTATE_INT32(last_clk, MilkymistMinimac2MdioState),
+        VMSTATE_INT32(count, MilkymistMinimac2MdioState),
+        VMSTATE_UINT32(data, MilkymistMinimac2MdioState),
+        VMSTATE_UINT16(data_out, MilkymistMinimac2MdioState),
+        VMSTATE_INT32(state, MilkymistMinimac2MdioState),
+        VMSTATE_UINT8(phy_addr, MilkymistMinimac2MdioState),
+        VMSTATE_UINT8(reg_addr, MilkymistMinimac2MdioState),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static const VMStateDescription vmstate_milkymist_minimac = {
-    .name = "milkymist-minimac",
+static const VMStateDescription vmstate_milkymist_minimac2 = {
+    .name = "milkymist-minimac2",
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, MilkymistMinimacState, R_MAX),
-        VMSTATE_UINT16_ARRAY(phy_regs, MilkymistMinimacState, R_PHY_MAX),
-        VMSTATE_STRUCT(mdio, MilkymistMinimacState, 0,
-                vmstate_milkymist_minimac_mdio, MilkymistMinimacMdioState),
+        VMSTATE_UINT32_ARRAY(regs, MilkymistMinimac2State, R_MAX),
+        VMSTATE_UINT16_ARRAY(phy_regs, MilkymistMinimac2State, R_PHY_MAX),
+        VMSTATE_STRUCT(mdio, MilkymistMinimac2State, 0,
+                vmstate_milkymist_minimac2_mdio, MilkymistMinimac2MdioState),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static SysBusDeviceInfo milkymist_minimac_info = {
-    .init = milkymist_minimac_init,
-    .qdev.name  = "milkymist-minimac",
-    .qdev.size  = sizeof(MilkymistMinimacState),
-    .qdev.vmsd  = &vmstate_milkymist_minimac,
-    .qdev.reset = milkymist_minimac_reset,
+static SysBusDeviceInfo milkymist_minimac2_info = {
+    .init = milkymist_minimac2_init,
+    .qdev.name  = "milkymist-minimac2",
+    .qdev.size  = sizeof(MilkymistMinimac2State),
+    .qdev.vmsd  = &vmstate_milkymist_minimac2,
+    .qdev.reset = milkymist_minimac2_reset,
     .qdev.props = (Property[]) {
-        DEFINE_NIC_PROPERTIES(MilkymistMinimacState, conf),
-        DEFINE_PROP_STRING("phy_model", MilkymistMinimacState, phy_model),
+        DEFINE_PROP_TADDR("buffers_base", MilkymistMinimac2State,
+                buffers_base, 0),
+        DEFINE_NIC_PROPERTIES(MilkymistMinimac2State, conf),
+        DEFINE_PROP_STRING("phy_model", MilkymistMinimac2State, phy_model),
         DEFINE_PROP_END_OF_LIST(),
     }
 };
 
-static void milkymist_minimac_register(void)
+static void milkymist_minimac2_register(void)
 {
-    sysbus_register_withprop(&milkymist_minimac_info);
+    sysbus_register_withprop(&milkymist_minimac2_info);
 }
 
-device_init(milkymist_minimac_register)
+device_init(milkymist_minimac2_register)
