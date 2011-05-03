@@ -1743,8 +1743,14 @@ static int cpu_notify_migration_log(int enable)
     return 0;
 }
 
+/* The l1_phys_map provides the upper P_L1_BITs of the guest physical
+ * address.  Each intermediate table provides the next L2_BITs of guest
+ * physical address space.  The number of levels vary based on host and
+ * guest configuration, making it efficient to build the final guest
+ * physical address by seeding the L1 offset and shifting and adding in
+ * each L2 offset as we recurse through them. */
 static void phys_page_for_each_1(CPUPhysMemoryClient *client,
-                                 int level, void **lp)
+                                 int level, void **lp, target_phys_addr_t addr)
 {
     int i;
 
@@ -1753,16 +1759,18 @@ static void phys_page_for_each_1(CPUPhysMemoryClient *client,
     }
     if (level == 0) {
         PhysPageDesc *pd = *lp;
+        addr <<= L2_BITS + TARGET_PAGE_BITS;
         for (i = 0; i < L2_SIZE; ++i) {
             if (pd[i].phys_offset != IO_MEM_UNASSIGNED) {
-                client->set_memory(client, pd[i].region_offset,
+                client->set_memory(client, addr | i << TARGET_PAGE_BITS,
                                    TARGET_PAGE_SIZE, pd[i].phys_offset, false);
             }
         }
     } else {
         void **pp = *lp;
         for (i = 0; i < L2_SIZE; ++i) {
-            phys_page_for_each_1(client, level - 1, pp + i);
+            phys_page_for_each_1(client, level - 1, pp + i,
+                                 (addr << L2_BITS) | i);
         }
     }
 }
@@ -1772,7 +1780,7 @@ static void phys_page_for_each(CPUPhysMemoryClient *client)
     int i;
     for (i = 0; i < P_L1_SIZE; ++i) {
         phys_page_for_each_1(client, P_L1_SHIFT / L2_BITS - 1,
-                             l1_phys_map + i);
+                             l1_phys_map + i, i);
     }
 }
 
