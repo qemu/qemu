@@ -298,9 +298,9 @@ void bmdma_cmd_writeb(void *opaque, uint32_t addr, uint32_t val)
                 qemu_aio_flush();
 #ifdef DEBUG_IDE
                 if (bm->bus->dma->aiocb)
-                    printf("ide_dma_cancel: aiocb still pending");
+                    printf("ide_dma_cancel: aiocb still pending\n");
                 if (bm->status & BM_STATUS_DMAING)
-                    printf("ide_dma_cancel: BM_STATUS_DMAING still pending");
+                    printf("ide_dma_cancel: BM_STATUS_DMAING still pending\n");
 #endif
             }
         } else {
