@@ -1772,7 +1772,7 @@ static void phys_page_for_each(CPUPhysMemoryClient *client)
     int i;
     for (i = 0; i < P_L1_SIZE; ++i) {
         phys_page_for_each_1(client, P_L1_SHIFT / L2_BITS - 1,
-                             l1_phys_map + 1);
+                             l1_phys_map + i);
     }
 }
 
