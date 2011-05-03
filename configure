@@ -823,6 +823,72 @@ esac
 
 [ -z "$guest_base" ] && guest_base="$host_guest_base"
 
+
+default_target_list=""
+
+# these targets are portable
+if [ "$softmmu" = "yes" ] ; then
+    default_target_list="\
+i386-softmmu \
+x86_64-softmmu \
+arm-softmmu \
+cris-softmmu \
+lm32-softmmu \
+m68k-softmmu \
+microblaze-softmmu \
+microblazeel-softmmu \
+mips-softmmu \
+mipsel-softmmu \
+mips64-softmmu \
+mips64el-softmmu \
+ppc-softmmu \
+ppcemb-softmmu \
+ppc64-softmmu \
+sh4-softmmu \
+sh4eb-softmmu \
+sparc-softmmu \
+sparc64-softmmu \
+"
+fi
+# the following are Linux specific
+if [ "$linux_user" = "yes" ] ; then
+    default_target_list="${default_target_list}\
+i386-linux-user \
+x86_64-linux-user \
+alpha-linux-user \
+arm-linux-user \
+armeb-linux-user \
+cris-linux-user \
+m68k-linux-user \
+microblaze-linux-user \
+microblazeel-linux-user \
+mips-linux-user \
+mipsel-linux-user \
+ppc-linux-user \
+ppc64-linux-user \
+ppc64abi32-linux-user \
+sh4-linux-user \
+sh4eb-linux-user \
+sparc-linux-user \
+sparc64-linux-user \
+sparc32plus-linux-user \
+unicore32-linux-user \
+"
+fi
+# the following are Darwin specific
+if [ "$darwin_user" = "yes" ] ; then
+    default_target_list="$default_target_list i386-darwin-user ppc-darwin-user "
+fi
+# the following are BSD specific
+if [ "$bsd_user" = "yes" ] ; then
+    default_target_list="${default_target_list}\
+i386-bsd-user \
+x86_64-bsd-user \
+sparc-bsd-user \
+sparc64-bsd-user \
+"
+fi
+
 if test x"$show_help" = x"yes" ; then
 cat << EOF
 
@@ -835,7 +901,9 @@ echo "  --help                   print this message"
 echo "  --prefix=PREFIX          install in PREFIX [$prefix]"
 echo "  --interp-prefix=PREFIX   where to find shared libraries, etc."
 echo "                           use %M for cpu name [$interp_prefix]"
-echo "  --target-list=LIST       set target list [$target_list]"
+echo "  --target-list=LIST       set target list (default: build everything)"
+echo "Available targets: $default_target_list" | \
+    fold -s -w 53 | sed -e 's/^/                           /'
 echo ""
 echo "Advanced options (experts only):"
 echo "  --source-path=PATH       path of source code [$source_path]"
@@ -1005,70 +1073,8 @@ if test "$solaris" = "yes" ; then
   fi
 fi
 
-
 if test -z "$target_list" ; then
-# these targets are portable
-    if [ "$softmmu" = "yes" ] ; then
-        target_list="\
-i386-softmmu \
-x86_64-softmmu \
-arm-softmmu \
-cris-softmmu \
-lm32-softmmu \
-m68k-softmmu \
-microblaze-softmmu \
-microblazeel-softmmu \
-mips-softmmu \
-mipsel-softmmu \
-mips64-softmmu \
-mips64el-softmmu \
-ppc-softmmu \
-ppcemb-softmmu \
-ppc64-softmmu \
-sh4-softmmu \
-sh4eb-softmmu \
-sparc-softmmu \
-sparc64-softmmu \
-"
-    fi
-# the following are Linux specific
-    if [ "$linux_user" = "yes" ] ; then
-        target_list="${target_list}\
-i386-linux-user \
-x86_64-linux-user \
-alpha-linux-user \
-arm-linux-user \
-armeb-linux-user \
-cris-linux-user \
-m68k-linux-user \
-microblaze-linux-user \
-microblazeel-linux-user \
-mips-linux-user \
-mipsel-linux-user \
-ppc-linux-user \
-ppc64-linux-user \
-ppc64abi32-linux-user \
-sh4-linux-user \
-sh4eb-linux-user \
-sparc-linux-user \
-sparc64-linux-user \
-sparc32plus-linux-user \
-unicore32-linux-user \
-"
-    fi
-# the following are Darwin specific
-    if [ "$darwin_user" = "yes" ] ; then
-        target_list="$target_list i386-darwin-user ppc-darwin-user "
-    fi
-# the following are BSD specific
-    if [ "$bsd_user" = "yes" ] ; then
-        target_list="${target_list}\
-i386-bsd-user \
-x86_64-bsd-user \
-sparc-bsd-user \
-sparc64-bsd-user \
-"
-    fi
+    target_list="$default_target_list"
 else
     target_list=`echo "$target_list" | sed -e 's/,/ /g'`
 fi
