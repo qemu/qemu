@@ -1082,7 +1082,8 @@ static void cpu_request_exit(void *opaque, int irq, int level)
 }
 
 void pc_basic_device_init(qemu_irq *isa_irq,
-                          ISADevice **rtc_state)
+                          ISADevice **rtc_state,
+                          bool no_vmport)
 {
     int i;
     DriveInfo *fd[MAX_FD];
@@ -1127,8 +1128,12 @@ void pc_basic_device_init(qemu_irq *isa_irq,
     a20_line = qemu_allocate_irqs(handle_a20_line_change, first_cpu, 2);
     i8042 = isa_create_simple("i8042");
     i8042_setup_a20_line(i8042, &a20_line[0]);
-    vmport_init();
-    vmmouse = isa_try_create("vmmouse");
+    if (!no_vmport) {
+        vmport_init();
+        vmmouse = isa_try_create("vmmouse");
+    } else {
+        vmmouse = NULL;
+    }
     if (vmmouse) {
         qdev_prop_set_ptr(&vmmouse->qdev, "ps2_mouse", i8042);
         qdev_init_nofail(&vmmouse->qdev);

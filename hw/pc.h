@@ -137,7 +137,8 @@ void pc_memory_init(const char *kernel_filename,
 qemu_irq *pc_allocate_cpu_irq(void);
 void pc_vga_init(PCIBus *pci_bus);
 void pc_basic_device_init(qemu_irq *isa_irq,
-                          ISADevice **rtc_state);
+                          ISADevice **rtc_state,
+                          bool no_vmport);
 void pc_init_ne2k_isa(NICInfo *nd);
 void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
                   const char *boot_device,

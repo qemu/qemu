@@ -133,7 +133,7 @@ static void pc_init1(ram_addr_t ram_size,
     pc_vga_init(pci_enabled? pci_bus: NULL);
 
     /* init basic PC hardware */
-    pc_basic_device_init(isa_irq, &rtc_state);
+    pc_basic_device_init(isa_irq, &rtc_state, xen_enabled());
 
     for(i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
