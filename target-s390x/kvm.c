@@ -377,7 +377,7 @@ static int handle_sigp(CPUState *env, struct kvm_run *run, uint8_t ipa1)
             r = s390_cpu_initial_reset(target_env);
             break;
         default:
-            fprintf(stderr, "KVM: unknown SIGP: 0x%x\n", ipa1);
+            fprintf(stderr, "KVM: unknown SIGP: 0x%x\n", order_code);
             break;
     }
 
