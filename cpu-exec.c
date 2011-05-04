@@ -360,10 +360,7 @@ int cpu_exec(CPUState *env1)
                 if (unlikely(interrupt_request)) {
                     if (unlikely(env->singlestep_enabled & SSTEP_NOIRQ)) {
                         /* Mask out external interrupts for this step. */
-                        interrupt_request &= ~(CPU_INTERRUPT_HARD |
-                                               CPU_INTERRUPT_FIQ |
-                                               CPU_INTERRUPT_SMI |
-                                               CPU_INTERRUPT_NMI);
+                        interrupt_request &= ~CPU_INTERRUPT_SSTEP_MASK;
                     }
                     if (interrupt_request & CPU_INTERRUPT_DEBUG) {
                         env->interrupt_request &= ~CPU_INTERRUPT_DEBUG;

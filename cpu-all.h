@@ -837,6 +837,14 @@ extern CPUState *cpu_single_env;
 #define CPU_INTERRUPT_SIPI        CPU_INTERRUPT_TGT_INT_2
 #define CPU_INTERRUPT_MCE         CPU_INTERRUPT_TGT_EXT_4
 
+/* The set of all bits that should be masked when single-stepping.  */
+#define CPU_INTERRUPT_SSTEP_MASK \
+    (CPU_INTERRUPT_HARD          \
+     | CPU_INTERRUPT_TGT_EXT_0   \
+     | CPU_INTERRUPT_TGT_EXT_1   \
+     | CPU_INTERRUPT_TGT_EXT_2   \
+     | CPU_INTERRUPT_TGT_EXT_3   \
+     | CPU_INTERRUPT_TGT_EXT_4)
 
 #ifndef CONFIG_USER_ONLY
 typedef void (*CPUInterruptHandler)(CPUState *, int);
