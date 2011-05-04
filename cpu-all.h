@@ -828,12 +828,7 @@ extern CPUState *cpu_single_env;
 
 /* Temporary remapping from the generic names back to the previous
    cpu-specific names.  These will be moved to target-foo/cpu.h next.  */
-#define CPU_INTERRUPT_SMI         CPU_INTERRUPT_TGT_EXT_2
-#define CPU_INTERRUPT_VIRQ        CPU_INTERRUPT_TGT_INT_0
 #define CPU_INTERRUPT_NMI         CPU_INTERRUPT_TGT_EXT_3
-#define CPU_INTERRUPT_INIT        CPU_INTERRUPT_TGT_INT_1
-#define CPU_INTERRUPT_SIPI        CPU_INTERRUPT_TGT_INT_2
-#define CPU_INTERRUPT_MCE         CPU_INTERRUPT_TGT_EXT_4
 
 /* The set of all bits that should be masked when single-stepping.  */
 #define CPU_INTERRUPT_SSTEP_MASK \

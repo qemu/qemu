@@ -466,6 +466,14 @@
 #define EXCP_SYSCALL    0x100 /* only happens in user only emulation
                                  for syscall instruction */
 
+/* i386-specific interrupt pending bits.  */
+#define CPU_INTERRUPT_SMI       CPU_INTERRUPT_TGT_EXT_2
+#define CPU_INTERRUPT_MCE       CPU_INTERRUPT_TGT_EXT_4
+#define CPU_INTERRUPT_VIRQ      CPU_INTERRUPT_TGT_INT_0
+#define CPU_INTERRUPT_INIT      CPU_INTERRUPT_TGT_INT_1
+#define CPU_INTERRUPT_SIPI      CPU_INTERRUPT_TGT_INT_2
+
+
 enum {
     CC_OP_DYNAMIC, /* must use dynamic code to get cc_op */
     CC_OP_EFLAGS,  /* all cc are explicitly computed, CC_SRC = flags */
