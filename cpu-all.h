@@ -826,10 +826,6 @@ extern CPUState *cpu_single_env;
 
 /* First unused bit: 0x2000.  */
 
-/* Temporary remapping from the generic names back to the previous
-   cpu-specific names.  These will be moved to target-foo/cpu.h next.  */
-#define CPU_INTERRUPT_NMI         CPU_INTERRUPT_TGT_EXT_3
-
 /* The set of all bits that should be masked when single-stepping.  */
 #define CPU_INTERRUPT_SSTEP_MASK \
     (CPU_INTERRUPT_HARD          \
