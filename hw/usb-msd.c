@@ -364,6 +364,7 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
             DPRINTF("Command tag 0x%x flags %08x len %d data %d\n",
                     s->tag, cbw.flags, cbw.cmd_len, s->data_len);
             s->residue = 0;
+            s->scsi_len = 0;
             s->scsi_dev->info->send_command(s->scsi_dev, s->tag, cbw.cmd, 0);
             /* ??? Should check that USB and SCSI data transfer
                directions match.  */
