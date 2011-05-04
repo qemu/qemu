@@ -828,7 +828,6 @@ extern CPUState *cpu_single_env;
 
 /* Temporary remapping from the generic names back to the previous
    cpu-specific names.  These will be moved to target-foo/cpu.h next.  */
-#define CPU_INTERRUPT_TIMER       CPU_INTERRUPT_TGT_EXT_0
 #define CPU_INTERRUPT_FIQ         CPU_INTERRUPT_TGT_EXT_1
 #define CPU_INTERRUPT_SMI         CPU_INTERRUPT_TGT_EXT_2
 #define CPU_INTERRUPT_VIRQ        CPU_INTERRUPT_TGT_INT_0
