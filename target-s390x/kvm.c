@@ -179,7 +179,7 @@ void kvm_arch_post_run(CPUState *env, struct kvm_run *run)
 
 int kvm_arch_process_async_events(CPUState *env)
 {
-    return 0;
+    return env->halted;
 }
 
 void kvm_s390_interrupt_internal(CPUState *env, int type, uint32_t parm,
