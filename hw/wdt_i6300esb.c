@@ -355,31 +355,6 @@ static void i6300esb_mem_writel(void *vp, target_phys_addr_t addr, uint32_t val)
     }
 }
 
-static void i6300esb_map(PCIDevice *dev, int region_num,
-                         pcibus_t addr, pcibus_t size, int type)
-{
-    static CPUReadMemoryFunc * const mem_read[3] = {
-        i6300esb_mem_readb,
-        i6300esb_mem_readw,
-        i6300esb_mem_readl,
-    };
-    static CPUWriteMemoryFunc * const mem_write[3] = {
-        i6300esb_mem_writeb,
-        i6300esb_mem_writew,
-        i6300esb_mem_writel,
-    };
-    I6300State *d = DO_UPCAST(I6300State, dev, dev);
-    int io_mem;
-
-    i6300esb_debug("addr = %"FMT_PCIBUS", size = %"FMT_PCIBUS", type = %d\n",
-                   addr, size, type);
-
-    io_mem = cpu_register_io_memory(mem_read, mem_write, d,
-                                    DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory (addr, 0x10, io_mem);
-    /* qemu_register_coalesced_mmio (addr, 0x10); ? */
-}
-
 static const VMStateDescription vmstate_i6300esb = {
     .name = "i6300esb_wdt",
     .version_id = sizeof(I6300State),
@@ -407,6 +382,17 @@ static int i6300esb_init(PCIDevice *dev)
 {
     I6300State *d = DO_UPCAST(I6300State, dev, dev);
     uint8_t *pci_conf;
+    int io_mem;
+    static CPUReadMemoryFunc * const mem_read[3] = {
+        i6300esb_mem_readb,
+        i6300esb_mem_readw,
+        i6300esb_mem_readl,
+    };
+    static CPUWriteMemoryFunc * const mem_write[3] = {
+        i6300esb_mem_writeb,
+        i6300esb_mem_writew,
+        i6300esb_mem_writel,
+    };
 
     i6300esb_debug("I6300State = %p\n", d);
 
@@ -418,8 +404,10 @@ static int i6300esb_init(PCIDevice *dev)
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_ESB_9);
     pci_config_set_class(pci_conf, PCI_CLASS_SYSTEM_OTHER);
 
-    pci_register_bar(&d->dev, 0, 0x10,
-                            PCI_BASE_ADDRESS_SPACE_MEMORY, i6300esb_map);
+    io_mem = cpu_register_io_memory(mem_read, mem_write, d,
+                                    DEVICE_NATIVE_ENDIAN);
+    pci_register_bar_simple(&d->dev, 0, 0x10, 0, io_mem);
+    /* qemu_register_coalesced_mmio (addr, 0x10); ? */
 
     return 0;
 }

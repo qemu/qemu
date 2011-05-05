@@ -93,6 +93,12 @@ static int do_token_setup(USBDevice *s, USBPacket *p)
             s->setup_len = ret;
         s->setup_state = SETUP_STATE_DATA;
     } else {
+        if (s->setup_len > sizeof(s->data_buf)) {
+            fprintf(stderr,
+                "usb_generic_handle_packet: ctrl buffer too small (%d > %zu)\n",
+                s->setup_len, sizeof(s->data_buf));
+            return USB_RET_STALL;
+        }
         if (s->setup_len == 0)
             s->setup_state = SETUP_STATE_ACK;
         else

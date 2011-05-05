@@ -575,9 +575,9 @@ static void ohci_copy_iso_td(OHCIState *ohci,
 
 static void ohci_process_lists(OHCIState *ohci, int completion);
 
-static void ohci_async_complete_packet(USBPacket *packet, void *opaque)
+static void ohci_async_complete_packet(USBDevice *dev, USBPacket *packet)
 {
-    OHCIState *ohci = opaque;
+    OHCIState *ohci = container_of(packet, OHCIState, usb_packet);
 #ifdef DEBUG_PACKET
     DPRINTF("Async packet complete\n");
 #endif
@@ -748,8 +748,6 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
             ohci->usb_packet.devep = OHCI_BM(ed->flags, ED_EN);
             ohci->usb_packet.data = ohci->usb_buf;
             ohci->usb_packet.len = len;
-            ohci->usb_packet.complete_cb = ohci_async_complete_packet;
-            ohci->usb_packet.complete_opaque = ohci;
             ret = dev->info->handle_packet(dev, &ohci->usb_packet);
             if (ret != USB_RET_NODEV)
                 break;
@@ -946,8 +944,6 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
             ohci->usb_packet.devep = OHCI_BM(ed->flags, ED_EN);
             ohci->usb_packet.data = ohci->usb_buf;
             ohci->usb_packet.len = len;
-            ohci->usb_packet.complete_cb = ohci_async_complete_packet;
-            ohci->usb_packet.complete_opaque = ohci;
             ret = dev->info->handle_packet(dev, &ohci->usb_packet);
             if (ret != USB_RET_NODEV)
                 break;
@@ -1665,6 +1661,7 @@ static CPUWriteMemoryFunc * const ohci_writefn[3]={
 static USBPortOps ohci_port_ops = {
     .attach = ohci_attach,
     .detach = ohci_detach,
+    .complete = ohci_async_complete_packet,
 };
 
 static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
@@ -1711,13 +1708,6 @@ typedef struct {
     OHCIState state;
 } OHCIPCIState;
 
-static void ohci_mapfunc(PCIDevice *pci_dev, int i,
-            pcibus_t addr, pcibus_t size, int type)
-{
-    OHCIPCIState *ohci = DO_UPCAST(OHCIPCIState, pci_dev, pci_dev);
-    cpu_register_physical_memory(addr, size, ohci->state.mem);
-}
-
 static int usb_ohci_initfn_pci(struct PCIDevice *dev)
 {
     OHCIPCIState *ohci = DO_UPCAST(OHCIPCIState, pci_dev, dev);
@@ -1734,8 +1724,7 @@ static int usb_ohci_initfn_pci(struct PCIDevice *dev)
     usb_ohci_init(&ohci->state, &dev->qdev, num_ports, 0);
     ohci->state.irq = ohci->pci_dev.irq[0];
 
-    pci_register_bar(&ohci->pci_dev, 0, 256,
-                           PCI_BASE_ADDRESS_SPACE_MEMORY, ohci_mapfunc);
+    pci_register_bar_simple(&ohci->pci_dev, 0, 256, 0, ohci->state.mem);
     return 0;
 }
 

@@ -241,7 +241,7 @@ static void usb_msd_command_complete(SCSIBus *bus, int reason, uint32_t tag,
                     s->mode = USB_MSDM_CSW;
             }
             s->packet = NULL;
-            usb_packet_complete(p);
+            usb_packet_complete(&s->dev, p);
         } else if (s->data_len == 0) {
             s->mode = USB_MSDM_CSW;
         }
@@ -257,7 +257,7 @@ static void usb_msd_command_complete(SCSIBus *bus, int reason, uint32_t tag,
                usb_packet_complete returns.  */
             DPRINTF("Packet complete %p\n", p);
             s->packet = NULL;
-            usb_packet_complete(p);
+            usb_packet_complete(&s->dev, p);
         }
     }
 }
@@ -364,6 +364,7 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
             DPRINTF("Command tag 0x%x flags %08x len %d data %d\n",
                     s->tag, cbw.flags, cbw.cmd_len, s->data_len);
             s->residue = 0;
+            s->scsi_len = 0;
             s->scsi_dev->info->send_command(s->scsi_dev, s->tag, cbw.cmd, 0);
             /* ??? Should check that USB and SCSI data transfer
                directions match.  */

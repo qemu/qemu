@@ -256,6 +256,19 @@ static void usb_hub_wakeup(USBDevice *dev)
     }
 }
 
+static void usb_hub_complete(USBDevice *dev, USBPacket *packet)
+{
+    USBHubState *s = dev->port->opaque;
+
+    /*
+     * Just pass it along upstream for now.
+     *
+     * If we ever inplement usb 2.0 split transactions this will
+     * become a little more complicated ...
+     */
+    usb_packet_complete(&s->dev, packet);
+}
+
 static void usb_hub_handle_attach(USBDevice *dev)
 {
     USBHubState *s = DO_UPCAST(USBHubState, dev, dev);
@@ -524,6 +537,7 @@ static USBPortOps usb_hub_port_ops = {
     .attach = usb_hub_attach,
     .detach = usb_hub_detach,
     .wakeup = usb_hub_wakeup,
+    .complete = usb_hub_complete,
 };
 
 static int usb_hub_initfn(USBDevice *dev)

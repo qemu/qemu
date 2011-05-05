@@ -126,6 +126,13 @@ static void pci_change_irq_level(PCIDevice *pci_dev, int irq_num, int change)
     bus->set_irq(bus->irq_opaque, irq_num, bus->irq_count[irq_num] != 0);
 }
 
+int pci_bus_get_irq_level(PCIBus *bus, int irq_num)
+{
+    assert(irq_num >= 0);
+    assert(irq_num < bus->nirq);
+    return !!bus->irq_count[irq_num];
+}
+
 /* Update interrupt status bit in config space on interrupt
  * state change. */
 static void pci_update_irq_status(PCIDevice *dev)
@@ -859,6 +866,7 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
     r->filtered_size = size;
     r->type = type;
     r->map_func = map_func;
+    r->ram_addr = IO_MEM_UNASSIGNED;
 
     wmask = ~(size - 1);
     addr = pci_bar(pci_dev, region_num);
@@ -875,6 +883,22 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
         pci_set_long(pci_dev->wmask + addr, wmask & 0xffffffff);
         pci_set_long(pci_dev->cmask + addr, 0xffffffff);
     }
+}
+
+static void pci_simple_bar_mapfunc(PCIDevice *pci_dev, int region_num,
+                                   pcibus_t addr, pcibus_t size, int type)
+{
+    cpu_register_physical_memory(addr, size,
+                                 pci_dev->io_regions[region_num].ram_addr);
+}
+
+void pci_register_bar_simple(PCIDevice *pci_dev, int region_num,
+                             pcibus_t size,  uint8_t attr, ram_addr_t ram_addr)
+{
+    pci_register_bar(pci_dev, region_num, size,
+                     PCI_BASE_ADDRESS_SPACE_MEMORY | attr,
+                     pci_simple_bar_mapfunc);
+    pci_dev->io_regions[region_num].ram_addr = ram_addr;
 }
 
 static void pci_bridge_filter(PCIDevice *d, pcibus_t *addr, pcibus_t *size,
@@ -1145,6 +1169,7 @@ static const pci_class_desc pci_class_descriptions[] =
     { 0x0400, "Video controller", "video"},
     { 0x0401, "Audio controller", "sound"},
     { 0x0402, "Phone"},
+    { 0x0403, "Audio controller", "sound"},
     { 0x0480, "Multimedia controller"},
     { 0x0500, "RAM controller", "memory"},
     { 0x0501, "Flash controller", "flash"},
