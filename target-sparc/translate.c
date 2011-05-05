@@ -241,7 +241,7 @@ static inline void gen_goto_tb(DisasContext *s, int tb_num,
         tcg_gen_goto_tb(tb_num);
         tcg_gen_movi_tl(cpu_pc, pc);
         tcg_gen_movi_tl(cpu_npc, npc);
-        tcg_gen_exit_tb((long)tb + tb_num);
+        tcg_gen_exit_tb((tcg_target_long)tb + tb_num);
     } else {
         /* jump to another page: currently not optimized */
         tcg_gen_movi_tl(cpu_pc, pc);
@@ -5080,8 +5080,7 @@ void gen_intermediate_code_init(CPUSPARCState *env)
     }
 }
 
-void gen_pc_load(CPUState *env, TranslationBlock *tb,
-                unsigned long searched_pc, int pc_pos, void *puc)
+void restore_state_to_opc(CPUState *env, TranslationBlock *tb, int pc_pos)
 {
     target_ulong npc;
     env->pc = gen_opc_pc[pc_pos];

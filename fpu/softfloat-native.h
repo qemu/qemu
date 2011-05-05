@@ -172,6 +172,15 @@ float128 int64_to_float128( int64_t STATUS_PARAM);
 #endif
 
 /*----------------------------------------------------------------------------
+| Software IEC/IEEE single-precision conversion constants.
+*----------------------------------------------------------------------------*/
+#define float32_zero (0.0)
+#define float32_one (1.0)
+#define float32_ln2 (0.6931471)
+#define float32_pi (3.1415926)
+#define float32_half (0.5)
+
+/*----------------------------------------------------------------------------
 | Software IEC/IEEE single-precision conversion routines.
 *----------------------------------------------------------------------------*/
 int float32_to_int32( float32  STATUS_PARAM);
@@ -210,7 +219,7 @@ INLINE float32 float32_div( float32 a, float32 b STATUS_PARAM)
 }
 float32 float32_rem( float32, float32  STATUS_PARAM);
 float32 float32_sqrt( float32  STATUS_PARAM);
-INLINE int float32_eq( float32 a, float32 b STATUS_PARAM)
+INLINE int float32_eq_quiet( float32 a, float32 b STATUS_PARAM)
 {
     return a == b;
 }
@@ -222,7 +231,7 @@ INLINE int float32_lt( float32 a, float32 b STATUS_PARAM)
 {
     return a < b;
 }
-INLINE int float32_eq_signaling( float32 a, float32 b STATUS_PARAM)
+INLINE int float32_eq( float32 a, float32 b STATUS_PARAM)
 {
     return a <= b && a >= b;
 }
@@ -237,12 +246,16 @@ INLINE int float32_lt_quiet( float32 a, float32 b STATUS_PARAM)
 INLINE int float32_unordered( float32 a, float32 b STATUS_PARAM)
 {
     return isunordered(a, b);
-
+}
+INLINE int float32_unordered_quiet( float32 a, float32 b STATUS_PARAM)
+{
+    return isunordered(a, b);
 }
 int float32_compare( float32, float32 STATUS_PARAM );
 int float32_compare_quiet( float32, float32 STATUS_PARAM );
 int float32_is_signaling_nan( float32 );
 int float32_is_quiet_nan( float32 );
+int float32_is_any_nan( float32 );
 
 INLINE float32 float32_abs(float32 a)
 {
@@ -271,10 +284,19 @@ INLINE float32 float32_is_zero(float32 a)
     return fpclassify(a) == FP_ZERO;
 }
 
-INLINE float32 float32_scalbn(float32 a, int n)
+INLINE float32 float32_scalbn(float32 a, int n STATUS_PARAM)
 {
     return scalbnf(a, n);
 }
+
+/*----------------------------------------------------------------------------
+| Software IEC/IEEE double-precision conversion constants.
+*----------------------------------------------------------------------------*/
+#define float64_zero (0.0)
+#define float64_one (1.0)
+#define float64_ln2 (0.693147180559945)
+#define float64_pi (3.141592653589793)
+#define float64_half (0.5)
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE double-precision conversion routines.
@@ -318,7 +340,7 @@ INLINE float64 float64_div( float64 a, float64 b STATUS_PARAM)
 }
 float64 float64_rem( float64, float64 STATUS_PARAM );
 float64 float64_sqrt( float64 STATUS_PARAM );
-INLINE int float64_eq( float64 a, float64 b STATUS_PARAM)
+INLINE int float64_eq_quiet( float64 a, float64 b STATUS_PARAM)
 {
     return a == b;
 }
@@ -330,7 +352,7 @@ INLINE int float64_lt( float64 a, float64 b STATUS_PARAM)
 {
     return a < b;
 }
-INLINE int float64_eq_signaling( float64 a, float64 b STATUS_PARAM)
+INLINE int float64_eq( float64 a, float64 b STATUS_PARAM)
 {
     return a <= b && a >= b;
 }
@@ -346,11 +368,15 @@ INLINE int float64_lt_quiet( float64 a, float64 b STATUS_PARAM)
 INLINE int float64_unordered( float64 a, float64 b STATUS_PARAM)
 {
     return isunordered(a, b);
-
+}
+INLINE int float64_unordered_quiet( float64 a, float64 b STATUS_PARAM)
+{
+    return isunordered(a, b);
 }
 int float64_compare( float64, float64 STATUS_PARAM );
 int float64_compare_quiet( float64, float64 STATUS_PARAM );
 int float64_is_signaling_nan( float64 );
+int float64_is_any_nan( float64 );
 int float64_is_quiet_nan( float64 );
 
 INLINE float64 float64_abs(float64 a)
@@ -380,12 +406,21 @@ INLINE float64 float64_is_zero(float64 a)
     return fpclassify(a) == FP_ZERO;
 }
 
-INLINE float64 float64_scalbn(float64 a, int n)
+INLINE float64 float64_scalbn(float64 a, int n STATUS_PARAM)
 {
     return scalbn(a, n);
 }
 
 #ifdef FLOATX80
+
+/*----------------------------------------------------------------------------
+| Software IEC/IEEE extended double-precision conversion constants.
+*----------------------------------------------------------------------------*/
+#define floatx80_zero (0.0L)
+#define floatx80_one (1.0L)
+#define floatx80_ln2 (0.69314718055994530943L)
+#define floatx80_pi (3.14159265358979323851L)
+#define floatx80_half (0.5L)
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE extended double-precision conversion routines.
@@ -422,7 +457,7 @@ INLINE floatx80 floatx80_div( floatx80 a, floatx80 b STATUS_PARAM)
 }
 floatx80 floatx80_rem( floatx80, floatx80 STATUS_PARAM );
 floatx80 floatx80_sqrt( floatx80 STATUS_PARAM );
-INLINE int floatx80_eq( floatx80 a, floatx80 b STATUS_PARAM)
+INLINE int floatx80_eq_quiet( floatx80 a, floatx80 b STATUS_PARAM)
 {
     return a == b;
 }
@@ -434,7 +469,7 @@ INLINE int floatx80_lt( floatx80 a, floatx80 b STATUS_PARAM)
 {
     return a < b;
 }
-INLINE int floatx80_eq_signaling( floatx80 a, floatx80 b STATUS_PARAM)
+INLINE int floatx80_eq( floatx80 a, floatx80 b STATUS_PARAM)
 {
     return a <= b && a >= b;
 }
@@ -450,12 +485,16 @@ INLINE int floatx80_lt_quiet( floatx80 a, floatx80 b STATUS_PARAM)
 INLINE int floatx80_unordered( floatx80 a, floatx80 b STATUS_PARAM)
 {
     return isunordered(a, b);
-
+}
+INLINE int floatx80_unordered_quiet( floatx80 a, floatx80 b STATUS_PARAM)
+{
+    return isunordered(a, b);
 }
 int floatx80_compare( floatx80, floatx80 STATUS_PARAM );
 int floatx80_compare_quiet( floatx80, floatx80 STATUS_PARAM );
 int floatx80_is_signaling_nan( floatx80 );
 int floatx80_is_quiet_nan( floatx80 );
+int floatx80_is_any_nan( floatx80 );
 
 INLINE floatx80 floatx80_abs(floatx80 a)
 {
@@ -484,7 +523,7 @@ INLINE floatx80 floatx80_is_zero(floatx80 a)
     return fpclassify(a) == FP_ZERO;
 }
 
-INLINE floatx80 floatx80_scalbn(floatx80 a, int n)
+INLINE floatx80 floatx80_scalbn(floatx80 a, int n STATUS_PARAM)
 {
     return scalbnl(a, n);
 }

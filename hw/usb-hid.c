@@ -26,7 +26,7 @@
 #include "console.h"
 #include "usb.h"
 #include "usb-desc.h"
-#include "sysemu.h"
+#include "qemu-timer.h"
 
 /* HID interface requests */
 #define GET_REPORT   0xa101

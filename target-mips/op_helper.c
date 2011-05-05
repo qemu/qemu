@@ -54,7 +54,7 @@ static void do_restore_state (void *pc_ptr)
     
     tb = tb_find_pc (pc);
     if (tb) {
-        cpu_restore_state (tb, env, pc, NULL);
+        cpu_restore_state(tb, env, pc);
     }
 }
 #endif
@@ -1972,7 +1972,7 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
             if (tb) {
                 /* the PC is inside the translated code. It means that we have
                    a virtual CPU fault */
-                cpu_restore_state(tb, env, pc, NULL);
+                cpu_restore_state(tb, env, pc);
             }
         }
         helper_raise_exception_err(env->exception_index, env->error_code);
@@ -2077,22 +2077,27 @@ void helper_ctc1 (target_ulong arg1, uint32_t reg)
         helper_raise_exception(EXCP_FPE);
 }
 
-static inline char ieee_ex_to_mips(char xcpt)
+static inline int ieee_ex_to_mips(int xcpt)
 {
-    return (xcpt & float_flag_inexact) >> 5 |
-           (xcpt & float_flag_underflow) >> 3 |
-           (xcpt & float_flag_overflow) >> 1 |
-           (xcpt & float_flag_divbyzero) << 1 |
-           (xcpt & float_flag_invalid) << 4;
-}
-
-static inline char mips_ex_to_ieee(char xcpt)
-{
-    return (xcpt & FP_INEXACT) << 5 |
-           (xcpt & FP_UNDERFLOW) << 3 |
-           (xcpt & FP_OVERFLOW) << 1 |
-           (xcpt & FP_DIV0) >> 1 |
-           (xcpt & FP_INVALID) >> 4;
+    int ret = 0;
+    if (xcpt) {
+        if (xcpt & float_flag_invalid) {
+            ret |= FP_INVALID;
+        }
+        if (xcpt & float_flag_overflow) {
+            ret |= FP_OVERFLOW;
+        }
+        if (xcpt & float_flag_underflow) {
+            ret |= FP_UNDERFLOW;
+        }
+        if (xcpt & float_flag_divbyzero) {
+            ret |= FP_DIV0;
+        }
+        if (xcpt & float_flag_inexact) {
+            ret |= FP_INEXACT;
+        }
+    }
+    return ret;
 }
 
 static inline void update_fcr31(void)
@@ -2869,7 +2874,9 @@ uint64_t helper_float_mulr_ps(uint64_t fdt0, uint64_t fdt1)
 #define FOP_COND_D(op, cond)                                   \
 void helper_cmp_d_ ## op (uint64_t fdt0, uint64_t fdt1, int cc)    \
 {                                                              \
-    int c = cond;                                              \
+    int c;                                                     \
+    set_float_exception_flags(0, &env->active_fpu.fp_status);  \
+    c = cond;                                                  \
     update_fcr31();                                            \
     if (c)                                                     \
         SET_FP_COND(cc, env->active_fpu);                      \
@@ -2879,6 +2886,7 @@ void helper_cmp_d_ ## op (uint64_t fdt0, uint64_t fdt1, int cc)    \
 void helper_cmpabs_d_ ## op (uint64_t fdt0, uint64_t fdt1, int cc) \
 {                                                              \
     int c;                                                     \
+    set_float_exception_flags(0, &env->active_fpu.fp_status);  \
     fdt0 = float64_abs(fdt0);                                  \
     fdt1 = float64_abs(fdt1);                                  \
     c = cond;                                                  \
@@ -2889,45 +2897,33 @@ void helper_cmpabs_d_ ## op (uint64_t fdt0, uint64_t fdt1, int cc) \
         CLEAR_FP_COND(cc, env->active_fpu);                    \
 }
 
-static int float64_is_unordered(int sig, float64 a, float64 b STATUS_PARAM)
-{
-    if (float64_is_signaling_nan(a) ||
-        float64_is_signaling_nan(b) ||
-        (sig && (float64_is_quiet_nan(a) || float64_is_quiet_nan(b)))) {
-        float_raise(float_flag_invalid, status);
-        return 1;
-    } else if (float64_is_quiet_nan(a) || float64_is_quiet_nan(b)) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
 /* NOTE: the comma operator will make "cond" to eval to false,
- * but float*_is_unordered() is still called. */
-FOP_COND_D(f,   (float64_is_unordered(0, fdt1, fdt0, &env->active_fpu.fp_status), 0))
-FOP_COND_D(un,  float64_is_unordered(0, fdt1, fdt0, &env->active_fpu.fp_status))
-FOP_COND_D(eq,  !float64_is_unordered(0, fdt1, fdt0, &env->active_fpu.fp_status) && float64_eq(fdt0, fdt1, &env->active_fpu.fp_status))
-FOP_COND_D(ueq, float64_is_unordered(0, fdt1, fdt0, &env->active_fpu.fp_status)  || float64_eq(fdt0, fdt1, &env->active_fpu.fp_status))
-FOP_COND_D(olt, !float64_is_unordered(0, fdt1, fdt0, &env->active_fpu.fp_status) && float64_lt(fdt0, fdt1, &env->active_fpu.fp_status))
-FOP_COND_D(ult, float64_is_unordered(0, fdt1, fdt0, &env->active_fpu.fp_status)  || float64_lt(fdt0, fdt1, &env->active_fpu.fp_status))
-FOP_COND_D(ole, !float64_is_unordered(0, fdt1, fdt0, &env->active_fpu.fp_status) && float64_le(fdt0, fdt1, &env->active_fpu.fp_status))
-FOP_COND_D(ule, float64_is_unordered(0, fdt1, fdt0, &env->active_fpu.fp_status)  || float64_le(fdt0, fdt1, &env->active_fpu.fp_status))
+ * but float64_unordered_quiet() is still called. */
+FOP_COND_D(f,   (float64_unordered_quiet(fdt1, fdt0, &env->active_fpu.fp_status), 0))
+FOP_COND_D(un,  float64_unordered_quiet(fdt1, fdt0, &env->active_fpu.fp_status))
+FOP_COND_D(eq,  float64_eq_quiet(fdt0, fdt1, &env->active_fpu.fp_status))
+FOP_COND_D(ueq, float64_unordered_quiet(fdt1, fdt0, &env->active_fpu.fp_status)  || float64_eq_quiet(fdt0, fdt1, &env->active_fpu.fp_status))
+FOP_COND_D(olt, float64_lt_quiet(fdt0, fdt1, &env->active_fpu.fp_status))
+FOP_COND_D(ult, float64_unordered_quiet(fdt1, fdt0, &env->active_fpu.fp_status)  || float64_lt_quiet(fdt0, fdt1, &env->active_fpu.fp_status))
+FOP_COND_D(ole, float64_le_quiet(fdt0, fdt1, &env->active_fpu.fp_status))
+FOP_COND_D(ule, float64_unordered_quiet(fdt1, fdt0, &env->active_fpu.fp_status)  || float64_le_quiet(fdt0, fdt1, &env->active_fpu.fp_status))
 /* NOTE: the comma operator will make "cond" to eval to false,
- * but float*_is_unordered() is still called. */
-FOP_COND_D(sf,  (float64_is_unordered(1, fdt1, fdt0, &env->active_fpu.fp_status), 0))
-FOP_COND_D(ngle,float64_is_unordered(1, fdt1, fdt0, &env->active_fpu.fp_status))
-FOP_COND_D(seq, !float64_is_unordered(1, fdt1, fdt0, &env->active_fpu.fp_status) && float64_eq(fdt0, fdt1, &env->active_fpu.fp_status))
-FOP_COND_D(ngl, float64_is_unordered(1, fdt1, fdt0, &env->active_fpu.fp_status)  || float64_eq(fdt0, fdt1, &env->active_fpu.fp_status))
-FOP_COND_D(lt,  !float64_is_unordered(1, fdt1, fdt0, &env->active_fpu.fp_status) && float64_lt(fdt0, fdt1, &env->active_fpu.fp_status))
-FOP_COND_D(nge, float64_is_unordered(1, fdt1, fdt0, &env->active_fpu.fp_status)  || float64_lt(fdt0, fdt1, &env->active_fpu.fp_status))
-FOP_COND_D(le,  !float64_is_unordered(1, fdt1, fdt0, &env->active_fpu.fp_status) && float64_le(fdt0, fdt1, &env->active_fpu.fp_status))
-FOP_COND_D(ngt, float64_is_unordered(1, fdt1, fdt0, &env->active_fpu.fp_status)  || float64_le(fdt0, fdt1, &env->active_fpu.fp_status))
+ * but float64_unordered() is still called. */
+FOP_COND_D(sf,  (float64_unordered(fdt1, fdt0, &env->active_fpu.fp_status), 0))
+FOP_COND_D(ngle,float64_unordered(fdt1, fdt0, &env->active_fpu.fp_status))
+FOP_COND_D(seq, float64_eq(fdt0, fdt1, &env->active_fpu.fp_status))
+FOP_COND_D(ngl, float64_unordered(fdt1, fdt0, &env->active_fpu.fp_status)  || float64_eq(fdt0, fdt1, &env->active_fpu.fp_status))
+FOP_COND_D(lt,  float64_lt(fdt0, fdt1, &env->active_fpu.fp_status))
+FOP_COND_D(nge, float64_unordered(fdt1, fdt0, &env->active_fpu.fp_status)  || float64_lt(fdt0, fdt1, &env->active_fpu.fp_status))
+FOP_COND_D(le,  float64_le(fdt0, fdt1, &env->active_fpu.fp_status))
+FOP_COND_D(ngt, float64_unordered(fdt1, fdt0, &env->active_fpu.fp_status)  || float64_le(fdt0, fdt1, &env->active_fpu.fp_status))
 
 #define FOP_COND_S(op, cond)                                   \
 void helper_cmp_s_ ## op (uint32_t fst0, uint32_t fst1, int cc)    \
 {                                                              \
-    int c = cond;                                              \
+    int c;                                                     \
+    set_float_exception_flags(0, &env->active_fpu.fp_status);  \
+    c = cond;                                                  \
     update_fcr31();                                            \
     if (c)                                                     \
         SET_FP_COND(cc, env->active_fpu);                      \
@@ -2937,6 +2933,7 @@ void helper_cmp_s_ ## op (uint32_t fst0, uint32_t fst1, int cc)    \
 void helper_cmpabs_s_ ## op (uint32_t fst0, uint32_t fst1, int cc) \
 {                                                              \
     int c;                                                     \
+    set_float_exception_flags(0, &env->active_fpu.fp_status);  \
     fst0 = float32_abs(fst0);                                  \
     fst1 = float32_abs(fst1);                                  \
     c = cond;                                                  \
@@ -2947,51 +2944,39 @@ void helper_cmpabs_s_ ## op (uint32_t fst0, uint32_t fst1, int cc) \
         CLEAR_FP_COND(cc, env->active_fpu);                    \
 }
 
-static flag float32_is_unordered(int sig, float32 a, float32 b STATUS_PARAM)
-{
-    if (float32_is_signaling_nan(a) ||
-        float32_is_signaling_nan(b) ||
-        (sig && (float32_is_quiet_nan(a) || float32_is_quiet_nan(b)))) {
-        float_raise(float_flag_invalid, status);
-        return 1;
-    } else if (float32_is_quiet_nan(a) || float32_is_quiet_nan(b)) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
 /* NOTE: the comma operator will make "cond" to eval to false,
- * but float*_is_unordered() is still called. */
-FOP_COND_S(f,   (float32_is_unordered(0, fst1, fst0, &env->active_fpu.fp_status), 0))
-FOP_COND_S(un,  float32_is_unordered(0, fst1, fst0, &env->active_fpu.fp_status))
-FOP_COND_S(eq,  !float32_is_unordered(0, fst1, fst0, &env->active_fpu.fp_status) && float32_eq(fst0, fst1, &env->active_fpu.fp_status))
-FOP_COND_S(ueq, float32_is_unordered(0, fst1, fst0, &env->active_fpu.fp_status)  || float32_eq(fst0, fst1, &env->active_fpu.fp_status))
-FOP_COND_S(olt, !float32_is_unordered(0, fst1, fst0, &env->active_fpu.fp_status) && float32_lt(fst0, fst1, &env->active_fpu.fp_status))
-FOP_COND_S(ult, float32_is_unordered(0, fst1, fst0, &env->active_fpu.fp_status)  || float32_lt(fst0, fst1, &env->active_fpu.fp_status))
-FOP_COND_S(ole, !float32_is_unordered(0, fst1, fst0, &env->active_fpu.fp_status) && float32_le(fst0, fst1, &env->active_fpu.fp_status))
-FOP_COND_S(ule, float32_is_unordered(0, fst1, fst0, &env->active_fpu.fp_status)  || float32_le(fst0, fst1, &env->active_fpu.fp_status))
+ * but float32_unordered_quiet() is still called. */
+FOP_COND_S(f,   (float32_unordered_quiet(fst1, fst0, &env->active_fpu.fp_status), 0))
+FOP_COND_S(un,  float32_unordered_quiet(fst1, fst0, &env->active_fpu.fp_status))
+FOP_COND_S(eq,  float32_eq_quiet(fst0, fst1, &env->active_fpu.fp_status))
+FOP_COND_S(ueq, float32_unordered_quiet(fst1, fst0, &env->active_fpu.fp_status)  || float32_eq_quiet(fst0, fst1, &env->active_fpu.fp_status))
+FOP_COND_S(olt, float32_lt_quiet(fst0, fst1, &env->active_fpu.fp_status))
+FOP_COND_S(ult, float32_unordered_quiet(fst1, fst0, &env->active_fpu.fp_status)  || float32_lt_quiet(fst0, fst1, &env->active_fpu.fp_status))
+FOP_COND_S(ole, float32_le_quiet(fst0, fst1, &env->active_fpu.fp_status))
+FOP_COND_S(ule, float32_unordered_quiet(fst1, fst0, &env->active_fpu.fp_status)  || float32_le_quiet(fst0, fst1, &env->active_fpu.fp_status))
 /* NOTE: the comma operator will make "cond" to eval to false,
- * but float*_is_unordered() is still called. */
-FOP_COND_S(sf,  (float32_is_unordered(1, fst1, fst0, &env->active_fpu.fp_status), 0))
-FOP_COND_S(ngle,float32_is_unordered(1, fst1, fst0, &env->active_fpu.fp_status))
-FOP_COND_S(seq, !float32_is_unordered(1, fst1, fst0, &env->active_fpu.fp_status) && float32_eq(fst0, fst1, &env->active_fpu.fp_status))
-FOP_COND_S(ngl, float32_is_unordered(1, fst1, fst0, &env->active_fpu.fp_status)  || float32_eq(fst0, fst1, &env->active_fpu.fp_status))
-FOP_COND_S(lt,  !float32_is_unordered(1, fst1, fst0, &env->active_fpu.fp_status) && float32_lt(fst0, fst1, &env->active_fpu.fp_status))
-FOP_COND_S(nge, float32_is_unordered(1, fst1, fst0, &env->active_fpu.fp_status)  || float32_lt(fst0, fst1, &env->active_fpu.fp_status))
-FOP_COND_S(le,  !float32_is_unordered(1, fst1, fst0, &env->active_fpu.fp_status) && float32_le(fst0, fst1, &env->active_fpu.fp_status))
-FOP_COND_S(ngt, float32_is_unordered(1, fst1, fst0, &env->active_fpu.fp_status)  || float32_le(fst0, fst1, &env->active_fpu.fp_status))
+ * but float32_unordered() is still called. */
+FOP_COND_S(sf,  (float32_unordered(fst1, fst0, &env->active_fpu.fp_status), 0))
+FOP_COND_S(ngle,float32_unordered(fst1, fst0, &env->active_fpu.fp_status))
+FOP_COND_S(seq, float32_eq(fst0, fst1, &env->active_fpu.fp_status))
+FOP_COND_S(ngl, float32_unordered(fst1, fst0, &env->active_fpu.fp_status)  || float32_eq(fst0, fst1, &env->active_fpu.fp_status))
+FOP_COND_S(lt,  float32_lt(fst0, fst1, &env->active_fpu.fp_status))
+FOP_COND_S(nge, float32_unordered(fst1, fst0, &env->active_fpu.fp_status)  || float32_lt(fst0, fst1, &env->active_fpu.fp_status))
+FOP_COND_S(le,  float32_le(fst0, fst1, &env->active_fpu.fp_status))
+FOP_COND_S(ngt, float32_unordered(fst1, fst0, &env->active_fpu.fp_status)  || float32_le(fst0, fst1, &env->active_fpu.fp_status))
 
 #define FOP_COND_PS(op, condl, condh)                           \
 void helper_cmp_ps_ ## op (uint64_t fdt0, uint64_t fdt1, int cc)    \
 {                                                               \
-    uint32_t fst0 = float32_abs(fdt0 & 0XFFFFFFFF);             \
-    uint32_t fsth0 = float32_abs(fdt0 >> 32);                   \
-    uint32_t fst1 = float32_abs(fdt1 & 0XFFFFFFFF);             \
-    uint32_t fsth1 = float32_abs(fdt1 >> 32);                   \
-    int cl = condl;                                             \
-    int ch = condh;                                             \
-                                                                \
+    uint32_t fst0, fsth0, fst1, fsth1;                          \
+    int ch, cl;                                                 \
+    set_float_exception_flags(0, &env->active_fpu.fp_status);   \
+    fst0 = fdt0 & 0XFFFFFFFF;                                   \
+    fsth0 = fdt0 >> 32;                                         \
+    fst1 = fdt1 & 0XFFFFFFFF;                                   \
+    fsth1 = fdt1 >> 32;                                         \
+    cl = condl;                                                 \
+    ch = condh;                                                 \
     update_fcr31();                                             \
     if (cl)                                                     \
         SET_FP_COND(cc, env->active_fpu);                       \
@@ -3004,13 +2989,14 @@ void helper_cmp_ps_ ## op (uint64_t fdt0, uint64_t fdt1, int cc)    \
 }                                                               \
 void helper_cmpabs_ps_ ## op (uint64_t fdt0, uint64_t fdt1, int cc) \
 {                                                               \
-    uint32_t fst0 = float32_abs(fdt0 & 0XFFFFFFFF);             \
-    uint32_t fsth0 = float32_abs(fdt0 >> 32);                   \
-    uint32_t fst1 = float32_abs(fdt1 & 0XFFFFFFFF);             \
-    uint32_t fsth1 = float32_abs(fdt1 >> 32);                   \
-    int cl = condl;                                             \
-    int ch = condh;                                             \
-                                                                \
+    uint32_t fst0, fsth0, fst1, fsth1;                          \
+    int ch, cl;                                                 \
+    fst0 = float32_abs(fdt0 & 0XFFFFFFFF);                      \
+    fsth0 = float32_abs(fdt0 >> 32);                            \
+    fst1 = float32_abs(fdt1 & 0XFFFFFFFF);                      \
+    fsth1 = float32_abs(fdt1 >> 32);                            \
+    cl = condl;                                                 \
+    ch = condh;                                                 \
     update_fcr31();                                             \
     if (cl)                                                     \
         SET_FP_COND(cc, env->active_fpu);                       \
@@ -3023,38 +3009,38 @@ void helper_cmpabs_ps_ ## op (uint64_t fdt0, uint64_t fdt1, int cc) \
 }
 
 /* NOTE: the comma operator will make "cond" to eval to false,
- * but float*_is_unordered() is still called. */
-FOP_COND_PS(f,   (float32_is_unordered(0, fst1, fst0, &env->active_fpu.fp_status), 0),
-                 (float32_is_unordered(0, fsth1, fsth0, &env->active_fpu.fp_status), 0))
-FOP_COND_PS(un,  float32_is_unordered(0, fst1, fst0, &env->active_fpu.fp_status),
-                 float32_is_unordered(0, fsth1, fsth0, &env->active_fpu.fp_status))
-FOP_COND_PS(eq,  !float32_is_unordered(0, fst1, fst0, &env->active_fpu.fp_status)   && float32_eq(fst0, fst1, &env->active_fpu.fp_status),
-                 !float32_is_unordered(0, fsth1, fsth0, &env->active_fpu.fp_status) && float32_eq(fsth0, fsth1, &env->active_fpu.fp_status))
-FOP_COND_PS(ueq, float32_is_unordered(0, fst1, fst0, &env->active_fpu.fp_status)    || float32_eq(fst0, fst1, &env->active_fpu.fp_status),
-                 float32_is_unordered(0, fsth1, fsth0, &env->active_fpu.fp_status)  || float32_eq(fsth0, fsth1, &env->active_fpu.fp_status))
-FOP_COND_PS(olt, !float32_is_unordered(0, fst1, fst0, &env->active_fpu.fp_status)   && float32_lt(fst0, fst1, &env->active_fpu.fp_status),
-                 !float32_is_unordered(0, fsth1, fsth0, &env->active_fpu.fp_status) && float32_lt(fsth0, fsth1, &env->active_fpu.fp_status))
-FOP_COND_PS(ult, float32_is_unordered(0, fst1, fst0, &env->active_fpu.fp_status)    || float32_lt(fst0, fst1, &env->active_fpu.fp_status),
-                 float32_is_unordered(0, fsth1, fsth0, &env->active_fpu.fp_status)  || float32_lt(fsth0, fsth1, &env->active_fpu.fp_status))
-FOP_COND_PS(ole, !float32_is_unordered(0, fst1, fst0, &env->active_fpu.fp_status)   && float32_le(fst0, fst1, &env->active_fpu.fp_status),
-                 !float32_is_unordered(0, fsth1, fsth0, &env->active_fpu.fp_status) && float32_le(fsth0, fsth1, &env->active_fpu.fp_status))
-FOP_COND_PS(ule, float32_is_unordered(0, fst1, fst0, &env->active_fpu.fp_status)    || float32_le(fst0, fst1, &env->active_fpu.fp_status),
-                 float32_is_unordered(0, fsth1, fsth0, &env->active_fpu.fp_status)  || float32_le(fsth0, fsth1, &env->active_fpu.fp_status))
+ * but float32_unordered_quiet() is still called. */
+FOP_COND_PS(f,   (float32_unordered_quiet(fst1, fst0, &env->active_fpu.fp_status), 0),
+                 (float32_unordered_quiet(fsth1, fsth0, &env->active_fpu.fp_status), 0))
+FOP_COND_PS(un,  float32_unordered_quiet(fst1, fst0, &env->active_fpu.fp_status),
+                 float32_unordered_quiet(fsth1, fsth0, &env->active_fpu.fp_status))
+FOP_COND_PS(eq,  float32_eq_quiet(fst0, fst1, &env->active_fpu.fp_status),
+                 float32_eq_quiet(fsth0, fsth1, &env->active_fpu.fp_status))
+FOP_COND_PS(ueq, float32_unordered_quiet(fst1, fst0, &env->active_fpu.fp_status)    || float32_eq_quiet(fst0, fst1, &env->active_fpu.fp_status),
+                 float32_unordered_quiet(fsth1, fsth0, &env->active_fpu.fp_status)  || float32_eq_quiet(fsth0, fsth1, &env->active_fpu.fp_status))
+FOP_COND_PS(olt, float32_lt_quiet(fst0, fst1, &env->active_fpu.fp_status),
+                 float32_lt_quiet(fsth0, fsth1, &env->active_fpu.fp_status))
+FOP_COND_PS(ult, float32_unordered_quiet(fst1, fst0, &env->active_fpu.fp_status)    || float32_lt_quiet(fst0, fst1, &env->active_fpu.fp_status),
+                 float32_unordered_quiet(fsth1, fsth0, &env->active_fpu.fp_status)  || float32_lt_quiet(fsth0, fsth1, &env->active_fpu.fp_status))
+FOP_COND_PS(ole, float32_le_quiet(fst0, fst1, &env->active_fpu.fp_status),
+                 float32_le_quiet(fsth0, fsth1, &env->active_fpu.fp_status))
+FOP_COND_PS(ule, float32_unordered_quiet(fst1, fst0, &env->active_fpu.fp_status)    || float32_le_quiet(fst0, fst1, &env->active_fpu.fp_status),
+                 float32_unordered_quiet(fsth1, fsth0, &env->active_fpu.fp_status)  || float32_le_quiet(fsth0, fsth1, &env->active_fpu.fp_status))
 /* NOTE: the comma operator will make "cond" to eval to false,
- * but float*_is_unordered() is still called. */
-FOP_COND_PS(sf,  (float32_is_unordered(1, fst1, fst0, &env->active_fpu.fp_status), 0),
-                 (float32_is_unordered(1, fsth1, fsth0, &env->active_fpu.fp_status), 0))
-FOP_COND_PS(ngle,float32_is_unordered(1, fst1, fst0, &env->active_fpu.fp_status),
-                 float32_is_unordered(1, fsth1, fsth0, &env->active_fpu.fp_status))
-FOP_COND_PS(seq, !float32_is_unordered(1, fst1, fst0, &env->active_fpu.fp_status)   && float32_eq(fst0, fst1, &env->active_fpu.fp_status),
-                 !float32_is_unordered(1, fsth1, fsth0, &env->active_fpu.fp_status) && float32_eq(fsth0, fsth1, &env->active_fpu.fp_status))
-FOP_COND_PS(ngl, float32_is_unordered(1, fst1, fst0, &env->active_fpu.fp_status)    || float32_eq(fst0, fst1, &env->active_fpu.fp_status),
-                 float32_is_unordered(1, fsth1, fsth0, &env->active_fpu.fp_status)  || float32_eq(fsth0, fsth1, &env->active_fpu.fp_status))
-FOP_COND_PS(lt,  !float32_is_unordered(1, fst1, fst0, &env->active_fpu.fp_status)   && float32_lt(fst0, fst1, &env->active_fpu.fp_status),
-                 !float32_is_unordered(1, fsth1, fsth0, &env->active_fpu.fp_status) && float32_lt(fsth0, fsth1, &env->active_fpu.fp_status))
-FOP_COND_PS(nge, float32_is_unordered(1, fst1, fst0, &env->active_fpu.fp_status)    || float32_lt(fst0, fst1, &env->active_fpu.fp_status),
-                 float32_is_unordered(1, fsth1, fsth0, &env->active_fpu.fp_status)  || float32_lt(fsth0, fsth1, &env->active_fpu.fp_status))
-FOP_COND_PS(le,  !float32_is_unordered(1, fst1, fst0, &env->active_fpu.fp_status)   && float32_le(fst0, fst1, &env->active_fpu.fp_status),
-                 !float32_is_unordered(1, fsth1, fsth0, &env->active_fpu.fp_status) && float32_le(fsth0, fsth1, &env->active_fpu.fp_status))
-FOP_COND_PS(ngt, float32_is_unordered(1, fst1, fst0, &env->active_fpu.fp_status)    || float32_le(fst0, fst1, &env->active_fpu.fp_status),
-                 float32_is_unordered(1, fsth1, fsth0, &env->active_fpu.fp_status)  || float32_le(fsth0, fsth1, &env->active_fpu.fp_status))
+ * but float32_unordered() is still called. */
+FOP_COND_PS(sf,  (float32_unordered(fst1, fst0, &env->active_fpu.fp_status), 0),
+                 (float32_unordered(fsth1, fsth0, &env->active_fpu.fp_status), 0))
+FOP_COND_PS(ngle,float32_unordered(fst1, fst0, &env->active_fpu.fp_status),
+                 float32_unordered(fsth1, fsth0, &env->active_fpu.fp_status))
+FOP_COND_PS(seq, float32_eq(fst0, fst1, &env->active_fpu.fp_status),
+                 float32_eq(fsth0, fsth1, &env->active_fpu.fp_status))
+FOP_COND_PS(ngl, float32_unordered(fst1, fst0, &env->active_fpu.fp_status)    || float32_eq(fst0, fst1, &env->active_fpu.fp_status),
+                 float32_unordered(fsth1, fsth0, &env->active_fpu.fp_status)  || float32_eq(fsth0, fsth1, &env->active_fpu.fp_status))
+FOP_COND_PS(lt,  float32_lt(fst0, fst1, &env->active_fpu.fp_status),
+                 float32_lt(fsth0, fsth1, &env->active_fpu.fp_status))
+FOP_COND_PS(nge, float32_unordered(fst1, fst0, &env->active_fpu.fp_status)    || float32_lt(fst0, fst1, &env->active_fpu.fp_status),
+                 float32_unordered(fsth1, fsth0, &env->active_fpu.fp_status)  || float32_lt(fsth0, fsth1, &env->active_fpu.fp_status))
+FOP_COND_PS(le,  float32_le(fst0, fst1, &env->active_fpu.fp_status),
+                 float32_le(fsth0, fsth1, &env->active_fpu.fp_status))
+FOP_COND_PS(ngt, float32_unordered(fst1, fst0, &env->active_fpu.fp_status)    || float32_le(fst0, fst1, &env->active_fpu.fp_status),
+                 float32_unordered(fsth1, fsth0, &env->active_fpu.fp_status)  || float32_le(fsth0, fsth1, &env->active_fpu.fp_status))

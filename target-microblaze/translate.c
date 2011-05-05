@@ -146,7 +146,7 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
     if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
         tcg_gen_goto_tb(n);
         tcg_gen_movi_tl(cpu_SR[SR_PC], dest);
-        tcg_gen_exit_tb((long)tb + n);
+        tcg_gen_exit_tb((tcg_target_long)tb + n);
     } else {
         tcg_gen_movi_tl(cpu_SR[SR_PC], dest);
         tcg_gen_exit_tb(0);
@@ -923,7 +923,7 @@ static void dec_load(DisasContext *dc)
     /*
      * When doing reverse accesses we need to do two things.
      *
-     * 1. Reverse the address wrt endianess.
+     * 1. Reverse the address wrt endianness.
      * 2. Byteswap the data lanes on the way back into the CPU core.
      */
     if (rev && size != 4) {
@@ -1476,6 +1476,42 @@ static void dec_null(DisasContext *dc)
     dc->abort_at_next_insn = 1;
 }
 
+/* Insns connected to FSL or AXI stream attached devices.  */
+static void dec_stream(DisasContext *dc)
+{
+    int mem_index = cpu_mmu_index(dc->env);
+    TCGv_i32 t_id, t_ctrl;
+    int ctrl;
+
+    LOG_DIS("%s%s imm=%x\n", dc->rd ? "get" : "put",
+            dc->type_b ? "" : "d", dc->imm);
+
+    if ((dc->tb_flags & MSR_EE_FLAG) && (mem_index == MMU_USER_IDX)) {
+        tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_PRIVINSN);
+        t_gen_raise_exception(dc, EXCP_HW_EXCP);
+        return;
+    }
+
+    t_id = tcg_temp_new();
+    if (dc->type_b) {
+        tcg_gen_movi_tl(t_id, dc->imm & 0xf);
+        ctrl = dc->imm >> 10;
+    } else {
+        tcg_gen_andi_tl(t_id, cpu_R[dc->rb], 0xf);
+        ctrl = dc->imm >> 5;
+    }
+
+    t_ctrl = tcg_const_tl(ctrl);
+
+    if (dc->rd == 0) {
+        gen_helper_put(t_id, t_ctrl, cpu_R[dc->ra]);
+    } else {
+        gen_helper_get(cpu_R[dc->rd], t_id, t_ctrl);
+    }
+    tcg_temp_free(t_id);
+    tcg_temp_free(t_ctrl);
+}
+
 static struct decoder_info {
     struct {
         uint32_t bits;
@@ -1500,6 +1536,7 @@ static struct decoder_info {
     {DEC_MUL, dec_mul},
     {DEC_DIV, dec_div},
     {DEC_MSR, dec_msr},
+    {DEC_STREAM, dec_stream},
     {{0, 0}, dec_null}
 };
 
@@ -1903,8 +1940,7 @@ void cpu_reset (CPUState *env)
 #endif
 }
 
-void gen_pc_load(CPUState *env, struct TranslationBlock *tb,
-                 unsigned long searched_pc, int pc_pos, void *puc)
+void restore_state_to_opc(CPUState *env, TranslationBlock *tb, int pc_pos)
 {
     env->sregs[SR_PC] = gen_opc_pc[pc_pos];
 }

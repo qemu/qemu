@@ -793,14 +793,7 @@ static void sun4uv_init(ram_addr_t RAM_size,
     for(i = 0; i < nb_nics; i++)
         pci_nic_init_nofail(&nd_table[i], "ne2k_pci", NULL);
 
-    if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {
-        fprintf(stderr, "qemu: too many IDE bus\n");
-        exit(1);
-    }
-    for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
-        hd[i] = drive_get(IF_IDE, i / MAX_IDE_DEVS,
-                          i % MAX_IDE_DEVS);
-    }
+    ide_drive_get(hd, MAX_IDE_BUS);
 
     pci_cmd646_ide_init(pci_bus, hd, 1);
 

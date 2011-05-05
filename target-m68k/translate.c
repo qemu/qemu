@@ -861,7 +861,7 @@ static void gen_jmp_tb(DisasContext *s, int n, uint32_t dest)
                (s->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
         tcg_gen_goto_tb(n);
         tcg_gen_movi_i32(QREG_PC, dest);
-        tcg_gen_exit_tb((long)tb + n);
+        tcg_gen_exit_tb((tcg_target_long)tb + n);
     } else {
         gen_jmp_im(s, dest);
         tcg_gen_exit_tb(0);
@@ -3113,8 +3113,7 @@ void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
     cpu_fprintf (f, "FPRESULT = %12g\n", *(double *)&env->fp_result);
 }
 
-void gen_pc_load(CPUState *env, TranslationBlock *tb,
-                unsigned long searched_pc, int pc_pos, void *puc)
+void restore_state_to_opc(CPUState *env, TranslationBlock *tb, int pc_pos)
 {
     env->pc = gen_opc_pc[pc_pos];
 }

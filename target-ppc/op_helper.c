@@ -86,6 +86,13 @@ target_ulong helper_load_atbu (void)
     return cpu_ppc_load_atbu(env);
 }
 
+#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+target_ulong helper_load_purr (void)
+{
+    return (target_ulong)cpu_ppc_load_purr(env);
+}
+#endif
+
 target_ulong helper_load_601_rtcl (void)
 {
     return cpu_ppc601_load_rtcl(env);
@@ -492,6 +499,38 @@ target_ulong helper_srad (target_ulong value, target_ulong shift)
 }
 #endif
 
+#if defined(TARGET_PPC64)
+target_ulong helper_popcntb (target_ulong val)
+{
+    val = (val & 0x5555555555555555ULL) + ((val >>  1) &
+                                           0x5555555555555555ULL);
+    val = (val & 0x3333333333333333ULL) + ((val >>  2) &
+                                           0x3333333333333333ULL);
+    val = (val & 0x0f0f0f0f0f0f0f0fULL) + ((val >>  4) &
+                                           0x0f0f0f0f0f0f0f0fULL);
+    return val;
+}
+
+target_ulong helper_popcntw (target_ulong val)
+{
+    val = (val & 0x5555555555555555ULL) + ((val >>  1) &
+                                           0x5555555555555555ULL);
+    val = (val & 0x3333333333333333ULL) + ((val >>  2) &
+                                           0x3333333333333333ULL);
+    val = (val & 0x0f0f0f0f0f0f0f0fULL) + ((val >>  4) &
+                                           0x0f0f0f0f0f0f0f0fULL);
+    val = (val & 0x00ff00ff00ff00ffULL) + ((val >>  8) &
+                                           0x00ff00ff00ff00ffULL);
+    val = (val & 0x0000ffff0000ffffULL) + ((val >> 16) &
+                                           0x0000ffff0000ffffULL);
+    return val;
+}
+
+target_ulong helper_popcntd (target_ulong val)
+{
+    return ctpop64(val);
+}
+#else
 target_ulong helper_popcntb (target_ulong val)
 {
     val = (val & 0x55555555) + ((val >>  1) & 0x55555555);
@@ -500,12 +539,13 @@ target_ulong helper_popcntb (target_ulong val)
     return val;
 }
 
-#if defined(TARGET_PPC64)
-target_ulong helper_popcntb_64 (target_ulong val)
+target_ulong helper_popcntw (target_ulong val)
 {
-    val = (val & 0x5555555555555555ULL) + ((val >>  1) & 0x5555555555555555ULL);
-    val = (val & 0x3333333333333333ULL) + ((val >>  2) & 0x3333333333333333ULL);
-    val = (val & 0x0f0f0f0f0f0f0f0fULL) + ((val >>  4) & 0x0f0f0f0f0f0f0f0fULL);
+    val = (val & 0x55555555) + ((val >>  1) & 0x55555555);
+    val = (val & 0x33333333) + ((val >>  2) & 0x33333333);
+    val = (val & 0x0f0f0f0f) + ((val >>  4) & 0x0f0f0f0f);
+    val = (val & 0x00ff00ff) + ((val >>  8) & 0x00ff00ff);
+    val = (val & 0x0000ffff) + ((val >> 16) & 0x0000ffff);
     return val;
 }
 #endif
@@ -1247,7 +1287,6 @@ uint64_t helper_fmadd (uint64_t arg1, uint64_t arg2, uint64_t arg3)
             /* sNaN operation */
             fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
         }
-#ifdef FLOAT128
         /* This is the way the PowerPC specification defines it */
         float128 ft0_128, ft1_128;
 
@@ -1263,10 +1302,6 @@ uint64_t helper_fmadd (uint64_t arg1, uint64_t arg2, uint64_t arg3)
             ft0_128 = float128_add(ft0_128, ft1_128, &env->fp_status);
             farg1.d = float128_to_float64(ft0_128, &env->fp_status);
         }
-#else
-        /* This is OK on x86 hosts */
-        farg1.d = (farg1.d * farg2.d) + farg3.d;
-#endif
     }
 
     return farg1.ll;
@@ -1292,7 +1327,6 @@ uint64_t helper_fmsub (uint64_t arg1, uint64_t arg2, uint64_t arg3)
             /* sNaN operation */
             fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
         }
-#ifdef FLOAT128
         /* This is the way the PowerPC specification defines it */
         float128 ft0_128, ft1_128;
 
@@ -1308,10 +1342,6 @@ uint64_t helper_fmsub (uint64_t arg1, uint64_t arg2, uint64_t arg3)
             ft0_128 = float128_sub(ft0_128, ft1_128, &env->fp_status);
             farg1.d = float128_to_float64(ft0_128, &env->fp_status);
         }
-#else
-        /* This is OK on x86 hosts */
-        farg1.d = (farg1.d * farg2.d) - farg3.d;
-#endif
     }
     return farg1.ll;
 }
@@ -1336,7 +1366,6 @@ uint64_t helper_fnmadd (uint64_t arg1, uint64_t arg2, uint64_t arg3)
             /* sNaN operation */
             fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
         }
-#ifdef FLOAT128
         /* This is the way the PowerPC specification defines it */
         float128 ft0_128, ft1_128;
 
@@ -1352,10 +1381,6 @@ uint64_t helper_fnmadd (uint64_t arg1, uint64_t arg2, uint64_t arg3)
             ft0_128 = float128_add(ft0_128, ft1_128, &env->fp_status);
             farg1.d = float128_to_float64(ft0_128, &env->fp_status);
         }
-#else
-        /* This is OK on x86 hosts */
-        farg1.d = (farg1.d * farg2.d) + farg3.d;
-#endif
         if (likely(!float64_is_any_nan(farg1.d))) {
             farg1.d = float64_chs(farg1.d);
         }
@@ -1383,7 +1408,6 @@ uint64_t helper_fnmsub (uint64_t arg1, uint64_t arg2, uint64_t arg3)
             /* sNaN operation */
             fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
         }
-#ifdef FLOAT128
         /* This is the way the PowerPC specification defines it */
         float128 ft0_128, ft1_128;
 
@@ -1399,10 +1423,6 @@ uint64_t helper_fnmsub (uint64_t arg1, uint64_t arg2, uint64_t arg3)
             ft0_128 = float128_sub(ft0_128, ft1_128, &env->fp_status);
             farg1.d = float128_to_float64(ft0_128, &env->fp_status);
         }
-#else
-        /* This is OK on x86 hosts */
-        farg1.d = (farg1.d * farg2.d) - farg3.d;
-#endif
         if (likely(!float64_is_any_nan(farg1.d))) {
             farg1.d = float64_chs(farg1.d);
         }
@@ -3323,7 +3343,7 @@ HELPER_SPE_VECTOR_ARITH(fsmul);
 HELPER_SPE_VECTOR_ARITH(fsdiv);
 
 /* Single-precision floating-point comparisons */
-static inline uint32_t efststlt(uint32_t op1, uint32_t op2)
+static inline uint32_t efscmplt(uint32_t op1, uint32_t op2)
 {
     CPU_FloatU u1, u2;
     u1.l = op1;
@@ -3331,7 +3351,7 @@ static inline uint32_t efststlt(uint32_t op1, uint32_t op2)
     return float32_lt(u1.f, u2.f, &env->vec_status) ? 4 : 0;
 }
 
-static inline uint32_t efststgt(uint32_t op1, uint32_t op2)
+static inline uint32_t efscmpgt(uint32_t op1, uint32_t op2)
 {
     CPU_FloatU u1, u2;
     u1.l = op1;
@@ -3339,7 +3359,7 @@ static inline uint32_t efststgt(uint32_t op1, uint32_t op2)
     return float32_le(u1.f, u2.f, &env->vec_status) ? 0 : 4;
 }
 
-static inline uint32_t efststeq(uint32_t op1, uint32_t op2)
+static inline uint32_t efscmpeq(uint32_t op1, uint32_t op2)
 {
     CPU_FloatU u1, u2;
     u1.l = op1;
@@ -3347,22 +3367,22 @@ static inline uint32_t efststeq(uint32_t op1, uint32_t op2)
     return float32_eq(u1.f, u2.f, &env->vec_status) ? 4 : 0;
 }
 
-static inline uint32_t efscmplt(uint32_t op1, uint32_t op2)
+static inline uint32_t efststlt(uint32_t op1, uint32_t op2)
 {
-    /* XXX: TODO: test special values (NaN, infinites, ...) */
-    return efststlt(op1, op2);
+    /* XXX: TODO: ignore special values (NaN, infinites, ...) */
+    return efscmplt(op1, op2);
 }
 
-static inline uint32_t efscmpgt(uint32_t op1, uint32_t op2)
+static inline uint32_t efststgt(uint32_t op1, uint32_t op2)
 {
-    /* XXX: TODO: test special values (NaN, infinites, ...) */
-    return efststgt(op1, op2);
+    /* XXX: TODO: ignore special values (NaN, infinites, ...) */
+    return efscmpgt(op1, op2);
 }
 
-static inline uint32_t efscmpeq(uint32_t op1, uint32_t op2)
+static inline uint32_t efststeq(uint32_t op1, uint32_t op2)
 {
-    /* XXX: TODO: test special values (NaN, infinites, ...) */
-    return efststeq(op1, op2);
+    /* XXX: TODO: ignore special values (NaN, infinites, ...) */
+    return efscmpeq(op1, op2);
 }
 
 #define HELPER_SINGLE_SPE_CMP(name)                                           \
@@ -3658,7 +3678,7 @@ uint32_t helper_efdtsteq (uint64_t op1, uint64_t op2)
     CPU_DoubleU u1, u2;
     u1.ll = op1;
     u2.ll = op2;
-    return float64_eq(u1.d, u2.d, &env->vec_status) ? 4 : 0;
+    return float64_eq_quiet(u1.d, u2.d, &env->vec_status) ? 4 : 0;
 }
 
 uint32_t helper_efdcmplt (uint64_t op1, uint64_t op2)
@@ -3721,7 +3741,7 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
             if (likely(tb)) {
                 /* the PC is inside the translated code. It means that we have
                    a virtual CPU fault */
-                cpu_restore_state(tb, env, pc, NULL);
+                cpu_restore_state(tb, env, pc);
             }
         }
         helper_raise_exception_err(env->exception_index, env->error_code);
@@ -3746,14 +3766,31 @@ void helper_store_sr (target_ulong sr_num, target_ulong val)
 
 /* SLB management */
 #if defined(TARGET_PPC64)
-target_ulong helper_load_slb (target_ulong slb_nr)
-{
-    return ppc_load_slb(env, slb_nr);
-}
-
 void helper_store_slb (target_ulong rb, target_ulong rs)
 {
-    ppc_store_slb(env, rb, rs);
+    if (ppc_store_slb(env, rb, rs) < 0) {
+        helper_raise_exception_err(POWERPC_EXCP_PROGRAM, POWERPC_EXCP_INVAL);
+    }
+}
+
+target_ulong helper_load_slb_esid (target_ulong rb)
+{
+    target_ulong rt;
+
+    if (ppc_load_slb_esid(env, rb, &rt) < 0) {
+        helper_raise_exception_err(POWERPC_EXCP_PROGRAM, POWERPC_EXCP_INVAL);
+    }
+    return rt;
+}
+
+target_ulong helper_load_slb_vsid (target_ulong rb)
+{
+    target_ulong rt;
+
+    if (ppc_load_slb_vsid(env, rb, &rt) < 0) {
+        helper_raise_exception_err(POWERPC_EXCP_PROGRAM, POWERPC_EXCP_INVAL);
+    }
+    return rt;
 }
 
 void helper_slbia (void)

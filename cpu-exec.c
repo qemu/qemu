@@ -267,6 +267,7 @@ int cpu_exec(CPUState *env1)
     env->cc_x = (env->sr >> 4) & 1;
 #elif defined(TARGET_ALPHA)
 #elif defined(TARGET_ARM)
+#elif defined(TARGET_UNICORE32)
 #elif defined(TARGET_PPC)
 #elif defined(TARGET_LM32)
 #elif defined(TARGET_MICROBLAZE)
@@ -335,6 +336,8 @@ int cpu_exec(CPUState *env1)
                     do_interrupt(env);
 #elif defined(TARGET_ARM)
                     do_interrupt(env);
+#elif defined(TARGET_UNICORE32)
+                    do_interrupt(env);
 #elif defined(TARGET_SH4)
 		    do_interrupt(env);
 #elif defined(TARGET_ALPHA)
@@ -343,6 +346,8 @@ int cpu_exec(CPUState *env1)
                     do_interrupt(env);
 #elif defined(TARGET_M68K)
                     do_interrupt(0);
+#elif defined(TARGET_S390X)
+                    do_interrupt(env);
 #endif
                     env->exception_index = -1;
 #endif
@@ -367,7 +372,7 @@ int cpu_exec(CPUState *env1)
                     }
 #if defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_MIPS) || \
     defined(TARGET_PPC) || defined(TARGET_ALPHA) || defined(TARGET_CRIS) || \
-    defined(TARGET_MICROBLAZE) || defined(TARGET_LM32)
+    defined(TARGET_MICROBLAZE) || defined(TARGET_LM32) || defined(TARGET_UNICORE32)
                     if (interrupt_request & CPU_INTERRUPT_HALT) {
                         env->interrupt_request &= ~CPU_INTERRUPT_HALT;
                         env->halted = 1;
@@ -514,6 +519,12 @@ int cpu_exec(CPUState *env1)
                         do_interrupt(env);
                         next_tb = 0;
                     }
+#elif defined(TARGET_UNICORE32)
+                    if (interrupt_request & CPU_INTERRUPT_HARD
+                        && !(env->uncached_asr & ASR_I)) {
+                        do_interrupt(env);
+                        next_tb = 0;
+                    }
 #elif defined(TARGET_SH4)
                     if (interrupt_request & CPU_INTERRUPT_HARD) {
                         do_interrupt(env);
@@ -549,6 +560,12 @@ int cpu_exec(CPUState *env1)
                            first signalled.  */
                         env->exception_index = env->pending_vector;
                         do_interrupt(1);
+                        next_tb = 0;
+                    }
+#elif defined(TARGET_S390X) && !defined(CONFIG_USER_ONLY)
+                    if ((interrupt_request & CPU_INTERRUPT_HARD) &&
+                        (env->psw.mask & PSW_MASK_EXT)) {
+                        do_interrupt(env);
                         next_tb = 0;
                     }
 #endif
@@ -664,6 +681,7 @@ int cpu_exec(CPUState *env1)
     env->eflags = env->eflags | helper_cc_compute_all(CC_OP) | (DF & DF_MASK);
 #elif defined(TARGET_ARM)
     /* XXX: Save/restore host fpu exception state?.  */
+#elif defined(TARGET_UNICORE32)
 #elif defined(TARGET_SPARC)
 #elif defined(TARGET_PPC)
 #elif defined(TARGET_LM32)
@@ -790,7 +808,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     if (tb) {
         /* the PC is inside the translated code. It means that we have
            a virtual CPU fault */
-        cpu_restore_state(tb, env, pc, puc);
+        cpu_restore_state(tb, env, pc);
     }
 
     /* we restore the process signal mask as the sigreturn should

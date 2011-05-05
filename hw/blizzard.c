@@ -19,7 +19,6 @@
  */
 
 #include "qemu-common.h"
-#include "sysemu.h"
 #include "console.h"
 #include "devices.h"
 #include "vga_int.h"

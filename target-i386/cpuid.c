@@ -73,7 +73,7 @@ static const char *ext3_feature_name[] = {
 };
 
 static const char *kvm_feature_name[] = {
-    "kvmclock", "kvm_nopiodelay", "kvm_mmu", NULL, "kvm_asyncpf", NULL, NULL, NULL,
+    "kvmclock", "kvm_nopiodelay", "kvm_mmu", "kvmclock", "kvm_asyncpf", NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -182,20 +182,22 @@ static int altcmp(const char *s, const char *e, const char *altstr)
 }
 
 /* search featureset for flag *[s..e), if found set corresponding bit in
- * *pval and return success, otherwise return zero
+ * *pval and return true, otherwise return false
  */
-static int lookup_feature(uint32_t *pval, const char *s, const char *e,
-    const char **featureset)
+static bool lookup_feature(uint32_t *pval, const char *s, const char *e,
+                           const char **featureset)
 {
     uint32_t mask;
     const char **ppc;
+    bool found = false;
 
-    for (mask = 1, ppc = featureset; mask; mask <<= 1, ++ppc)
+    for (mask = 1, ppc = featureset; mask; mask <<= 1, ++ppc) {
         if (*ppc && !altcmp(s, e, *ppc)) {
             *pval |= mask;
-            break;
+            found = true;
         }
-    return (mask ? 1 : 0);
+    }
+    return found;
 }
 
 static void add_flagname_to_bitmaps(const char *flagname, uint32_t *features,

@@ -113,23 +113,23 @@ struct qemu_ether_header {
 #define CSR_XMTRL(S)     ((S)->csr[78])
 #define CSR_MISSC(S)     ((S)->csr[112])
 
-#define CSR_IADR(S)      ((S)->csr[ 1] | ((S)->csr[ 2] << 16))
-#define CSR_CRBA(S)      ((S)->csr[18] | ((S)->csr[19] << 16))
-#define CSR_CXBA(S)      ((S)->csr[20] | ((S)->csr[21] << 16))
-#define CSR_NRBA(S)      ((S)->csr[22] | ((S)->csr[23] << 16))
-#define CSR_BADR(S)      ((S)->csr[24] | ((S)->csr[25] << 16))
-#define CSR_NRDA(S)      ((S)->csr[26] | ((S)->csr[27] << 16))
-#define CSR_CRDA(S)      ((S)->csr[28] | ((S)->csr[29] << 16))
-#define CSR_BADX(S)      ((S)->csr[30] | ((S)->csr[31] << 16))
-#define CSR_NXDA(S)      ((S)->csr[32] | ((S)->csr[33] << 16))
-#define CSR_CXDA(S)      ((S)->csr[34] | ((S)->csr[35] << 16))
-#define CSR_NNRD(S)      ((S)->csr[36] | ((S)->csr[37] << 16))
-#define CSR_NNXD(S)      ((S)->csr[38] | ((S)->csr[39] << 16))
-#define CSR_PXDA(S)      ((S)->csr[60] | ((S)->csr[61] << 16))
-#define CSR_NXBA(S)      ((S)->csr[64] | ((S)->csr[65] << 16))
+#define CSR_IADR(S)      ((S)->csr[ 1] | ((uint32_t)(S)->csr[ 2] << 16))
+#define CSR_CRBA(S)      ((S)->csr[18] | ((uint32_t)(S)->csr[19] << 16))
+#define CSR_CXBA(S)      ((S)->csr[20] | ((uint32_t)(S)->csr[21] << 16))
+#define CSR_NRBA(S)      ((S)->csr[22] | ((uint32_t)(S)->csr[23] << 16))
+#define CSR_BADR(S)      ((S)->csr[24] | ((uint32_t)(S)->csr[25] << 16))
+#define CSR_NRDA(S)      ((S)->csr[26] | ((uint32_t)(S)->csr[27] << 16))
+#define CSR_CRDA(S)      ((S)->csr[28] | ((uint32_t)(S)->csr[29] << 16))
+#define CSR_BADX(S)      ((S)->csr[30] | ((uint32_t)(S)->csr[31] << 16))
+#define CSR_NXDA(S)      ((S)->csr[32] | ((uint32_t)(S)->csr[33] << 16))
+#define CSR_CXDA(S)      ((S)->csr[34] | ((uint32_t)(S)->csr[35] << 16))
+#define CSR_NNRD(S)      ((S)->csr[36] | ((uint32_t)(S)->csr[37] << 16))
+#define CSR_NNXD(S)      ((S)->csr[38] | ((uint32_t)(S)->csr[39] << 16))
+#define CSR_PXDA(S)      ((S)->csr[60] | ((uint32_t)(S)->csr[61] << 16))
+#define CSR_NXBA(S)      ((S)->csr[64] | ((uint32_t)(S)->csr[65] << 16))
 
 #define PHYSADDR(S,A) \
-  (BCR_SSIZE32(S) ? (A) : (A) | ((0xff00 & (uint32_t)(s)->csr[2])<<16))
+  (BCR_SSIZE32(S) ? (A) : (A) | ((0xff00 & (uint32_t)(S)->csr[2])<<16))
 
 struct pcnet_initblk16 {
     uint16_t mode;

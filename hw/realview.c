@@ -288,8 +288,8 @@ static void realview_init(ram_addr_t ram_size,
     for(n = 0; n < nb_nics; n++) {
         nd = &nd_table[n];
 
-        if ((!nd->model && !done_nic)
-            || strcmp(nd->model, is_pb ? "lan9118" : "smc91c111") == 0) {
+        if (!done_nic && (!nd->model ||
+                    strcmp(nd->model, is_pb ? "lan9118" : "smc91c111") == 0)) {
             if (is_pb) {
                 lan9118_init(nd, 0x4e000000, pic[28]);
             } else {

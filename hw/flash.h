@@ -21,8 +21,8 @@ pflash_t *pflash_cfi02_register(target_phys_addr_t base, ram_addr_t off,
 typedef struct NANDFlashState NANDFlashState;
 NANDFlashState *nand_init(int manf_id, int chip_id);
 void nand_done(NANDFlashState *s);
-void nand_setpins(NANDFlashState *s,
-                int cle, int ale, int ce, int wp, int gnd);
+void nand_setpins(NANDFlashState *s, uint8_t cle, uint8_t ale,
+                  uint8_t ce, uint8_t wp, uint8_t gnd);
 void nand_getpins(NANDFlashState *s, int *rb);
 void nand_setio(NANDFlashState *s, uint8_t value);
 uint8_t nand_getio(NANDFlashState *s);

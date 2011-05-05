@@ -12,6 +12,7 @@
 #endif
 
 #define QEMU_BUILD_BUG_ON(x) typedef char __build_bug_on__##__LINE__[(x)?-1:1];
+#define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
 
 typedef struct QEMUTimer QEMUTimer;
 typedef struct QEMUFile QEMUFile;
@@ -38,6 +39,14 @@ typedef struct Monitor Monitor;
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <assert.h>
+
+#ifdef _WIN32
+#include "qemu-os-win32.h"
+#endif
+
+#ifdef CONFIG_POSIX
+#include "qemu-os-posix.h"
+#endif
 
 #ifndef O_LARGEFILE
 #define O_LARGEFILE 0
@@ -214,6 +223,7 @@ ssize_t qemu_write_full(int fd, const void *buf, size_t count)
 void qemu_set_cloexec(int fd);
 
 #ifndef _WIN32
+int qemu_add_child_watch(pid_t pid);
 int qemu_eventfd(int pipefd[2]);
 int qemu_pipe(int pipefd[2]);
 #endif
@@ -226,6 +236,9 @@ void QEMU_NORETURN hw_error(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 typedef void IOReadHandler(void *opaque, const uint8_t *buf, int size);
 typedef int IOCanReadHandler(void *opaque);
 typedef void IOHandler(void *opaque);
+
+void qemu_iohandler_fill(int *pnfds, fd_set *readfds, fd_set *writefds, fd_set *xfds);
+void qemu_iohandler_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds, int rc);
 
 struct ParallelIOArg {
     void *buffer;
@@ -294,6 +307,7 @@ void qemu_notify_event(void);
 void qemu_cpu_kick(void *env);
 void qemu_cpu_kick_self(void);
 int qemu_cpu_is_self(void *env);
+bool all_cpu_threads_idle(void);
 
 /* work queue */
 struct qemu_work_item {
@@ -329,6 +343,20 @@ void qemu_iovec_from_buffer(QEMUIOVector *qiov, const void *buf, size_t count);
 void qemu_iovec_memset(QEMUIOVector *qiov, int c, size_t count);
 void qemu_iovec_memset_skip(QEMUIOVector *qiov, int c, size_t count,
                             size_t skip);
+
+void qemu_progress_init(int enabled, float min_skip);
+void qemu_progress_end(void);
+void qemu_progress_print(float percent, int max);
+
+#define QEMU_FILE_TYPE_BIOS   0
+#define QEMU_FILE_TYPE_KEYMAP 1
+char *qemu_find_file(int type, const char *name);
+
+/* OS specific functions */
+void os_setup_early_signal_handling(void);
+char *os_find_datadir(const char *argv0);
+void os_parse_cmd_args(int index, const char *optarg);
+void os_pidfile_error(void);
 
 /* Convert a byte between binary and BCD.  */
 static inline uint8_t to_bcd(uint8_t val)

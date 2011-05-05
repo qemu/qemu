@@ -596,7 +596,7 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
 	if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
 		tcg_gen_goto_tb(n);
 		tcg_gen_movi_tl(env_pc, dest);
-		tcg_gen_exit_tb((long)tb + n);
+                tcg_gen_exit_tb((tcg_target_long)tb + n);
 	} else {
 		tcg_gen_movi_tl(env_pc, dest);
 		tcg_gen_exit_tb(0);
@@ -3604,8 +3604,7 @@ void cpu_reset (CPUCRISState *env)
 #endif
 }
 
-void gen_pc_load(CPUState *env, struct TranslationBlock *tb,
-                 unsigned long searched_pc, int pc_pos, void *puc)
+void restore_state_to_opc(CPUState *env, TranslationBlock *tb, int pc_pos)
 {
 	env->pc = gen_opc_pc[pc_pos];
 }

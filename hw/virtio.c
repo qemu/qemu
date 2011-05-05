@@ -16,7 +16,6 @@
 #include "trace.h"
 #include "qemu-error.h"
 #include "virtio.h"
-#include "sysemu.h"
 
 /* The alignment to use between consumer and producer parts of vring.
  * x86 pagesize again. */

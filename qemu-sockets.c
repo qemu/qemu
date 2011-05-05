@@ -627,24 +627,28 @@ int unix_connect(const char *path)
 int unix_listen_opts(QemuOpts *opts)
 {
     fprintf(stderr, "unix sockets are not available on windows\n");
+    errno = ENOTSUP;
     return -1;
 }
 
 int unix_connect_opts(QemuOpts *opts)
 {
     fprintf(stderr, "unix sockets are not available on windows\n");
+    errno = ENOTSUP;
     return -1;
 }
 
 int unix_listen(const char *path, char *ostr, int olen)
 {
     fprintf(stderr, "unix sockets are not available on windows\n");
+    errno = ENOTSUP;
     return -1;
 }
 
 int unix_connect(const char *path)
 {
     fprintf(stderr, "unix sockets are not available on windows\n");
+    errno = ENOTSUP;
     return -1;
 }
 

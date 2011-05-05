@@ -1070,8 +1070,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
                 restore the CPU state */
 
                 current_tb_modified = 1;
-                cpu_restore_state(current_tb, env,
-                                  env->mem_io_pc, NULL);
+                cpu_restore_state(current_tb, env, env->mem_io_pc);
                 cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base,
                                      &current_flags);
             }
@@ -1179,7 +1178,7 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
                    restore the CPU state */
 
             current_tb_modified = 1;
-            cpu_restore_state(current_tb, env, pc, puc);
+            cpu_restore_state(current_tb, env, pc);
             cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base,
                                  &current_flags);
         }
@@ -1630,15 +1629,15 @@ static void cpu_unlink_tb(CPUState *env)
     spin_unlock(&interrupt_lock);
 }
 
+#ifndef CONFIG_USER_ONLY
 /* mask must never be zero, except for A20 change call */
-void cpu_interrupt(CPUState *env, int mask)
+static void tcg_handle_interrupt(CPUState *env, int mask)
 {
     int old_mask;
 
     old_mask = env->interrupt_request;
     env->interrupt_request |= mask;
 
-#ifndef CONFIG_USER_ONLY
     /*
      * If called from iothread context, wake the target cpu in
      * case its halted.
@@ -1647,20 +1646,28 @@ void cpu_interrupt(CPUState *env, int mask)
         qemu_cpu_kick(env);
         return;
     }
-#endif
 
     if (use_icount) {
         env->icount_decr.u16.high = 0xffff;
-#ifndef CONFIG_USER_ONLY
         if (!can_do_io(env)
             && (mask & ~old_mask) != 0) {
             cpu_abort(env, "Raised interrupt while not in I/O function");
         }
-#endif
     } else {
         cpu_unlink_tb(env);
     }
 }
+
+CPUInterruptHandler cpu_interrupt_handler = tcg_handle_interrupt;
+
+#else /* CONFIG_USER_ONLY */
+
+void cpu_interrupt(CPUState *env, int mask)
+{
+    env->interrupt_request |= mask;
+    cpu_unlink_tb(env);
+}
+#endif /* CONFIG_USER_ONLY */
 
 void cpu_reset_interrupt(CPUState *env, int mask)
 {
@@ -2621,6 +2628,7 @@ void cpu_register_physical_memory_log(target_phys_addr_t start_addr,
     ram_addr_t orig_size = size;
     subpage_t *subpage;
 
+    assert(size);
     cpu_notify_set_memory(start_addr, size, phys_offset, log_dirty);
 
     if (phys_offset == IO_MEM_UNASSIGNED) {
@@ -2629,7 +2637,9 @@ void cpu_register_physical_memory_log(target_phys_addr_t start_addr,
     region_offset &= TARGET_PAGE_MASK;
     size = (size + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
     end_addr = start_addr + (target_phys_addr_t)size;
-    for(addr = start_addr; addr != end_addr; addr += TARGET_PAGE_SIZE) {
+
+    addr = start_addr;
+    do {
         p = phys_page_find(addr >> TARGET_PAGE_BITS);
         if (p && p->phys_offset != IO_MEM_UNASSIGNED) {
             ram_addr_t orig_memory = p->phys_offset;
@@ -2681,7 +2691,8 @@ void cpu_register_physical_memory_log(target_phys_addr_t start_addr,
             }
         }
         region_offset += TARGET_PAGE_SIZE;
-    }
+        addr += TARGET_PAGE_SIZE;
+    } while (addr != end_addr);
 
     /* since each CPU stores ram addresses in its TLB cache, we must
        reset the modified entries */
@@ -3272,7 +3283,7 @@ static void check_watchpoint(int offset, int len_mask, int flags)
                     cpu_abort(env, "check_watchpoint: could not find TB for "
                               "pc=%p", (void *)env->mem_io_pc);
                 }
-                cpu_restore_state(tb, env, env->mem_io_pc, NULL);
+                cpu_restore_state(tb, env, env->mem_io_pc);
                 tb_phys_invalidate(tb, -1);
                 if (wp->flags & BP_STOP_BEFORE_ACCESS) {
                     env->exception_index = EXCP_DEBUG;
@@ -3938,7 +3949,7 @@ void *cpu_physical_memory_map(target_phys_addr_t addr,
             bounce.addr = addr;
             bounce.len = l;
             if (!is_write) {
-                cpu_physical_memory_rw(addr, bounce.buffer, l, 0);
+                cpu_physical_memory_read(addr, bounce.buffer, l);
             }
             ptr = bounce.buffer;
         } else {
@@ -4259,7 +4270,7 @@ void stw_phys(target_phys_addr_t addr, uint32_t val)
 void stq_phys(target_phys_addr_t addr, uint64_t val)
 {
     val = tswap64(val);
-    cpu_physical_memory_write(addr, (const uint8_t *)&val, 8);
+    cpu_physical_memory_write(addr, &val, 8);
 }
 
 /* virtual memory access for debug (includes writing to ROM) */
@@ -4307,7 +4318,7 @@ void cpu_io_recompile(CPUState *env, void *retaddr)
                   retaddr);
     }
     n = env->icount_decr.u16.low + tb->icount;
-    cpu_restore_state(tb, env, (unsigned long)retaddr, NULL);
+    cpu_restore_state(tb, env, (unsigned long)retaddr);
     /* Calculate how many instructions had been executed before the fault
        occurred.  */
     n = n - env->icount_decr.u16.low;

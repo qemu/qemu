@@ -505,12 +505,8 @@ static int vpc_create(const char *filename, QEMUOptionParameter *options)
     int ret = -EIO;
 
     // Read out options
-    while (options && options->name) {
-        if (!strcmp(options->name, "size")) {
-            total_sectors = options->value.n / 512;
-        }
-        options++;
-    }
+    total_sectors = get_option_parameter(options, BLOCK_OPT_SIZE)->value.n /
+                    BDRV_SECTOR_SIZE;
 
     // Create the file
     fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0644);

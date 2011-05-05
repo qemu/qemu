@@ -247,6 +247,39 @@ void ppc970_irq_init (CPUState *env)
     env->irq_inputs = (void **)qemu_allocate_irqs(&ppc970_set_irq, env,
                                                   PPC970_INPUT_NB);
 }
+
+/* POWER7 internal IRQ controller */
+static void power7_set_irq (void *opaque, int pin, int level)
+{
+    CPUState *env = opaque;
+
+    LOG_IRQ("%s: env %p pin %d level %d\n", __func__,
+                env, pin, level);
+
+    switch (pin) {
+    case POWER7_INPUT_INT:
+        /* Level sensitive - active high */
+        LOG_IRQ("%s: set the external IRQ state to %d\n",
+                __func__, level);
+        ppc_set_irq(env, PPC_INTERRUPT_EXT, level);
+        break;
+    default:
+        /* Unknown pin - do nothing */
+        LOG_IRQ("%s: unknown IRQ pin %d\n", __func__, pin);
+        return;
+    }
+    if (level) {
+        env->irq_input_state |= 1 << pin;
+    } else {
+        env->irq_input_state &= ~(1 << pin);
+    }
+}
+
+void ppcPOWER7_irq_init (CPUState *env)
+{
+    env->irq_inputs = (void **)qemu_allocate_irqs(&power7_set_irq, env,
+                                                  POWER7_INPUT_NB);
+}
 #endif /* defined(TARGET_PPC64) */
 
 /* PowerPC 40x internal IRQ controller */

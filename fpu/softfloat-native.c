@@ -263,6 +263,15 @@ int float32_is_quiet_nan( float32 a1 )
     return ( 0xFF800000 < ( a<<1 ) );
 }
 
+int float32_is_any_nan( float32 a1 )
+{
+    float32u u;
+    uint32_t a;
+    u.f = a1;
+    a = u.i;
+    return (a & ~(1 << 31)) > 0x7f800000U;
+}
+
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE double-precision conversion routines.
 *----------------------------------------------------------------------------*/
@@ -422,6 +431,16 @@ int float64_is_quiet_nan( float64 a1 )
 
 }
 
+int float64_is_any_nan( float64 a1 )
+{
+    float64u u;
+    uint64_t a;
+    u.f = a1;
+    a = u.i;
+
+    return (a & ~(1ULL << 63)) > LIT64 (0x7FF0000000000000 );
+}
+
 #ifdef FLOATX80
 
 /*----------------------------------------------------------------------------
@@ -509,6 +528,13 @@ int floatx80_is_quiet_nan( floatx80 a1 )
     floatx80u u;
     u.f = a1;
     return ( ( u.i.high & 0x7FFF ) == 0x7FFF ) && (uint64_t) ( u.i.low<<1 );
+}
+
+int floatx80_is_any_nan( floatx80 a1 )
+{
+    floatx80u u;
+    u.f = a1;
+    return ((u.i.high & 0x7FFF) == 0x7FFF) && ( u.i.low<<1 );
 }
 
 #endif

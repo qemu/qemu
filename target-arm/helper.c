@@ -5,7 +5,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "gdbstub.h"
-#include "helpers.h"
+#include "helper.h"
 #include "qemu-common.h"
 #include "host-utils.h"
 #if !defined(CONFIG_USER_ONLY)
@@ -48,17 +48,23 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     env->cp15.c0_cpuid = id;
     switch (id) {
     case ARM_CPUID_ARM926:
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_VFP);
         env->vfp.xregs[ARM_VFP_FPSID] = 0x41011090;
         env->cp15.c0_cachetype = 0x1dd20d2;
         env->cp15.c1_sys = 0x00090078;
         break;
     case ARM_CPUID_ARM946:
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_MPU);
         env->cp15.c0_cachetype = 0x0f004006;
         env->cp15.c1_sys = 0x00000078;
         break;
     case ARM_CPUID_ARM1026:
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_VFP);
         set_feature(env, ARM_FEATURE_AUXCR);
         env->vfp.xregs[ARM_VFP_FPSID] = 0x410110a0;
@@ -67,6 +73,8 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         break;
     case ARM_CPUID_ARM1136_R2:
     case ARM_CPUID_ARM1136:
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_V6);
         set_feature(env, ARM_FEATURE_VFP);
         set_feature(env, ARM_FEATURE_AUXCR);
@@ -79,6 +87,8 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c1_sys = 0x00050078;
         break;
     case ARM_CPUID_ARM11MPCORE:
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_V6);
         set_feature(env, ARM_FEATURE_V6K);
         set_feature(env, ARM_FEATURE_VFP);
@@ -91,6 +101,8 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c0_cachetype = 0x1dd20d2;
         break;
     case ARM_CPUID_CORTEXA8:
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_V6);
         set_feature(env, ARM_FEATURE_V6K);
         set_feature(env, ARM_FEATURE_V7);
@@ -113,6 +125,8 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c1_sys = 0x00c50078;
         break;
     case ARM_CPUID_CORTEXA9:
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_V6);
         set_feature(env, ARM_FEATURE_V6K);
         set_feature(env, ARM_FEATURE_V7);
@@ -140,6 +154,8 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c1_sys = 0x00c50078;
         break;
     case ARM_CPUID_CORTEXM3:
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_V6);
         set_feature(env, ARM_FEATURE_THUMB2);
         set_feature(env, ARM_FEATURE_V7);
@@ -147,6 +163,8 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         set_feature(env, ARM_FEATURE_DIV);
         break;
     case ARM_CPUID_ANY: /* For userspace emulation.  */
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_V6);
         set_feature(env, ARM_FEATURE_V6K);
         set_feature(env, ARM_FEATURE_V7);
@@ -161,6 +179,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         break;
     case ARM_CPUID_TI915T:
     case ARM_CPUID_TI925T:
+        set_feature(env, ARM_FEATURE_V4T);
         set_feature(env, ARM_FEATURE_OMAPCP);
         env->cp15.c0_cpuid = ARM_CPUID_TI925T; /* Depends on wiring.  */
         env->cp15.c0_cachetype = 0x5109149;
@@ -173,6 +192,8 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     case ARM_CPUID_PXA260:
     case ARM_CPUID_PXA261:
     case ARM_CPUID_PXA262:
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_XSCALE);
         /* JTAG_ID is ((id << 28) | 0x09265013) */
         env->cp15.c0_cachetype = 0xd172172;
@@ -184,12 +205,19 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     case ARM_CPUID_PXA270_B1:
     case ARM_CPUID_PXA270_C0:
     case ARM_CPUID_PXA270_C5:
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_XSCALE);
         /* JTAG_ID is ((id << 28) | 0x09265013) */
         set_feature(env, ARM_FEATURE_IWMMXT);
         env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';
         env->cp15.c0_cachetype = 0xd172172;
         env->cp15.c1_sys = 0x00000078;
+        break;
+    case ARM_CPUID_SA1100:
+    case ARM_CPUID_SA1110:
+        set_feature(env, ARM_FEATURE_STRONGARM);
+        env->cp15.c1_sys = 0x00000070;
         break;
     default:
         cpu_abort(env, "Bad CPU ID: %x\n", id);
@@ -246,6 +274,10 @@ void cpu_reset(CPUARMState *env)
     set_flush_to_zero(1, &env->vfp.standard_fp_status);
     set_flush_inputs_to_zero(1, &env->vfp.standard_fp_status);
     set_default_nan_mode(1, &env->vfp.standard_fp_status);
+    set_float_detect_tininess(float_tininess_before_rounding,
+                              &env->vfp.fp_status);
+    set_float_detect_tininess(float_tininess_before_rounding,
+                              &env->vfp.standard_fp_status);
     tlb_flush(env, 1);
 }
 
@@ -351,6 +383,8 @@ static const struct arm_cpu_t arm_cpu_names[] = {
     { ARM_CPUID_CORTEXA9, "cortex-a9"},
     { ARM_CPUID_TI925T, "ti925t" },
     { ARM_CPUID_PXA250, "pxa250" },
+    { ARM_CPUID_SA1100,    "sa1100" },
+    { ARM_CPUID_SA1110,    "sa1110" },
     { ARM_CPUID_PXA255, "pxa255" },
     { ARM_CPUID_PXA260, "pxa260" },
     { ARM_CPUID_PXA261, "pxa261" },
@@ -856,7 +890,11 @@ void do_interrupt(CPUARMState *env)
     /* Switch to the new mode, and to the correct instruction set.  */
     env->uncached_cpsr = (env->uncached_cpsr & ~CPSR_M) | new_mode;
     env->uncached_cpsr |= mask;
-    env->thumb = (env->cp15.c1_sys & (1 << 30)) != 0;
+    /* this is a lie, as the was no c1_sys on V4T/V5, but who cares
+     * and we should just guard the thumb mode on V4 */
+    if (arm_feature(env, ARM_FEATURE_V4T)) {
+        env->thumb = (env->cp15.c1_sys & (1 << 30)) != 0;
+    }
     env->regs[14] = env->regs[15] + offset;
     env->regs[15] = addr;
     env->interrupt_request |= CPU_INTERRUPT_EXITTB;
@@ -1347,7 +1385,7 @@ void HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
             /* This may enable/disable the MMU, so do a TLB flush.  */
             tlb_flush(env, 1);
             break;
-        case 1: /* Auxiliary cotrol register.  */
+        case 1: /* Auxiliary control register.  */
             if (arm_feature(env, ARM_FEATURE_XSCALE)) {
                 env->cp15.c1_xscaleauxcr = val;
                 break;
@@ -1522,6 +1560,8 @@ void HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
     case 9:
         if (arm_feature(env, ARM_FEATURE_OMAPCP))
             break;
+        if (arm_feature(env, ARM_FEATURE_STRONGARM))
+            break; /* Ignore ReadBuffer access */
         switch (crm) {
         case 0: /* Cache lockdown.  */
 	    switch (op1) {
@@ -2486,135 +2526,98 @@ DO_VFP_cmp(s, float32)
 DO_VFP_cmp(d, float64)
 #undef DO_VFP_cmp
 
-/* Helper routines to perform bitwise copies between float and int.  */
-static inline float32 vfp_itos(uint32_t i)
-{
-    union {
-        uint32_t i;
-        float32 s;
-    } v;
-
-    v.i = i;
-    return v.s;
-}
-
-static inline uint32_t vfp_stoi(float32 s)
-{
-    union {
-        uint32_t i;
-        float32 s;
-    } v;
-
-    v.s = s;
-    return v.i;
-}
-
-static inline float64 vfp_itod(uint64_t i)
-{
-    union {
-        uint64_t i;
-        float64 d;
-    } v;
-
-    v.i = i;
-    return v.d;
-}
-
-static inline uint64_t vfp_dtoi(float64 d)
-{
-    union {
-        uint64_t i;
-        float64 d;
-    } v;
-
-    v.d = d;
-    return v.i;
-}
-
 /* Integer to float conversion.  */
-float32 VFP_HELPER(uito, s)(float32 x, CPUState *env)
+float32 VFP_HELPER(uito, s)(uint32_t x, CPUState *env)
 {
-    return uint32_to_float32(vfp_stoi(x), &env->vfp.fp_status);
+    return uint32_to_float32(x, &env->vfp.fp_status);
 }
 
-float64 VFP_HELPER(uito, d)(float32 x, CPUState *env)
+float64 VFP_HELPER(uito, d)(uint32_t x, CPUState *env)
 {
-    return uint32_to_float64(vfp_stoi(x), &env->vfp.fp_status);
+    return uint32_to_float64(x, &env->vfp.fp_status);
 }
 
-float32 VFP_HELPER(sito, s)(float32 x, CPUState *env)
+float32 VFP_HELPER(sito, s)(uint32_t x, CPUState *env)
 {
-    return int32_to_float32(vfp_stoi(x), &env->vfp.fp_status);
+    return int32_to_float32(x, &env->vfp.fp_status);
 }
 
-float64 VFP_HELPER(sito, d)(float32 x, CPUState *env)
+float64 VFP_HELPER(sito, d)(uint32_t x, CPUState *env)
 {
-    return int32_to_float64(vfp_stoi(x), &env->vfp.fp_status);
+    return int32_to_float64(x, &env->vfp.fp_status);
 }
 
 /* Float to integer conversion.  */
-float32 VFP_HELPER(toui, s)(float32 x, CPUState *env)
+uint32_t VFP_HELPER(toui, s)(float32 x, CPUState *env)
 {
     if (float32_is_any_nan(x)) {
-        return float32_zero;
+        float_raise(float_flag_invalid, &env->vfp.fp_status);
+        return 0;
     }
-    return vfp_itos(float32_to_uint32(x, &env->vfp.fp_status));
+    return float32_to_uint32(x, &env->vfp.fp_status);
 }
 
-float32 VFP_HELPER(toui, d)(float64 x, CPUState *env)
+uint32_t VFP_HELPER(toui, d)(float64 x, CPUState *env)
 {
     if (float64_is_any_nan(x)) {
-        return float32_zero;
+        float_raise(float_flag_invalid, &env->vfp.fp_status);
+        return 0;
     }
-    return vfp_itos(float64_to_uint32(x, &env->vfp.fp_status));
+    return float64_to_uint32(x, &env->vfp.fp_status);
 }
 
-float32 VFP_HELPER(tosi, s)(float32 x, CPUState *env)
+uint32_t VFP_HELPER(tosi, s)(float32 x, CPUState *env)
 {
     if (float32_is_any_nan(x)) {
-        return float32_zero;
+        float_raise(float_flag_invalid, &env->vfp.fp_status);
+        return 0;
     }
-    return vfp_itos(float32_to_int32(x, &env->vfp.fp_status));
+    return float32_to_int32(x, &env->vfp.fp_status);
 }
 
-float32 VFP_HELPER(tosi, d)(float64 x, CPUState *env)
+uint32_t VFP_HELPER(tosi, d)(float64 x, CPUState *env)
 {
     if (float64_is_any_nan(x)) {
-        return float32_zero;
+        float_raise(float_flag_invalid, &env->vfp.fp_status);
+        return 0;
     }
-    return vfp_itos(float64_to_int32(x, &env->vfp.fp_status));
+    return float64_to_int32(x, &env->vfp.fp_status);
 }
 
-float32 VFP_HELPER(touiz, s)(float32 x, CPUState *env)
+uint32_t VFP_HELPER(touiz, s)(float32 x, CPUState *env)
 {
     if (float32_is_any_nan(x)) {
-        return float32_zero;
+        float_raise(float_flag_invalid, &env->vfp.fp_status);
+        return 0;
     }
-    return vfp_itos(float32_to_uint32_round_to_zero(x, &env->vfp.fp_status));
+    return float32_to_uint32_round_to_zero(x, &env->vfp.fp_status);
 }
 
-float32 VFP_HELPER(touiz, d)(float64 x, CPUState *env)
+uint32_t VFP_HELPER(touiz, d)(float64 x, CPUState *env)
 {
     if (float64_is_any_nan(x)) {
-        return float32_zero;
+        float_raise(float_flag_invalid, &env->vfp.fp_status);
+        return 0;
     }
-    return vfp_itos(float64_to_uint32_round_to_zero(x, &env->vfp.fp_status));
+    return float64_to_uint32_round_to_zero(x, &env->vfp.fp_status);
 }
 
-float32 VFP_HELPER(tosiz, s)(float32 x, CPUState *env)
+uint32_t VFP_HELPER(tosiz, s)(float32 x, CPUState *env)
 {
     if (float32_is_any_nan(x)) {
-        return float32_zero;
+        float_raise(float_flag_invalid, &env->vfp.fp_status);
+        return 0;
     }
-    return vfp_itos(float32_to_int32_round_to_zero(x, &env->vfp.fp_status));
+    return float32_to_int32_round_to_zero(x, &env->vfp.fp_status);
 }
 
-float32 VFP_HELPER(tosiz, d)(float64 x, CPUState *env)
+uint32_t VFP_HELPER(tosiz, d)(float64 x, CPUState *env)
 {
     if (float64_is_any_nan(x)) {
-        return float32_zero;
+        float_raise(float_flag_invalid, &env->vfp.fp_status);
+        return 0;
     }
-    return vfp_itos(float64_to_int32_round_to_zero(x, &env->vfp.fp_status));
+    return float64_to_int32_round_to_zero(x, &env->vfp.fp_status);
 }
 
 /* floating point conversion */
@@ -2637,33 +2640,34 @@ float32 VFP_HELPER(fcvts, d)(float64 x, CPUState *env)
 }
 
 /* VFP3 fixed point conversion.  */
-#define VFP_CONV_FIX(name, p, ftype, itype, sign) \
-ftype VFP_HELPER(name##to, p)(ftype x, uint32_t shift, CPUState *env) \
+#define VFP_CONV_FIX(name, p, fsz, itype, sign) \
+float##fsz VFP_HELPER(name##to, p)(uint##fsz##_t  x, uint32_t shift, \
+                                   CPUState *env) \
 { \
-    ftype tmp; \
-    tmp = sign##int32_to_##ftype ((itype##_t)vfp_##p##toi(x), \
-                                  &env->vfp.fp_status); \
-    return ftype##_scalbn(tmp, -(int)shift, &env->vfp.fp_status); \
+    float##fsz tmp; \
+    tmp = sign##int32_to_##float##fsz ((itype##_t)x, &env->vfp.fp_status); \
+    return float##fsz##_scalbn(tmp, -(int)shift, &env->vfp.fp_status); \
 } \
-ftype VFP_HELPER(to##name, p)(ftype x, uint32_t shift, CPUState *env) \
+uint##fsz##_t VFP_HELPER(to##name, p)(float##fsz x, uint32_t shift, \
+                                      CPUState *env) \
 { \
-    ftype tmp; \
-    if (ftype##_is_any_nan(x)) { \
-        return ftype##_zero; \
+    float##fsz tmp; \
+    if (float##fsz##_is_any_nan(x)) { \
+        float_raise(float_flag_invalid, &env->vfp.fp_status); \
+        return 0; \
     } \
-    tmp = ftype##_scalbn(x, shift, &env->vfp.fp_status); \
-    return vfp_ito##p(ftype##_to_##itype##_round_to_zero(tmp, \
-        &env->vfp.fp_status)); \
+    tmp = float##fsz##_scalbn(x, shift, &env->vfp.fp_status); \
+    return float##fsz##_to_##itype##_round_to_zero(tmp, &env->vfp.fp_status); \
 }
 
-VFP_CONV_FIX(sh, d, float64, int16, )
-VFP_CONV_FIX(sl, d, float64, int32, )
-VFP_CONV_FIX(uh, d, float64, uint16, u)
-VFP_CONV_FIX(ul, d, float64, uint32, u)
-VFP_CONV_FIX(sh, s, float32, int16, )
-VFP_CONV_FIX(sl, s, float32, int32, )
-VFP_CONV_FIX(uh, s, float32, uint16, u)
-VFP_CONV_FIX(ul, s, float32, uint32, u)
+VFP_CONV_FIX(sh, d, 64, int16, )
+VFP_CONV_FIX(sl, d, 64, int32, )
+VFP_CONV_FIX(uh, d, 64, uint16, u)
+VFP_CONV_FIX(ul, d, 64, uint32, u)
+VFP_CONV_FIX(sh, s, 32, int16, )
+VFP_CONV_FIX(sl, s, 32, int32, )
+VFP_CONV_FIX(uh, s, 32, uint16, u)
+VFP_CONV_FIX(ul, s, 32, uint32, u)
 #undef VFP_CONV_FIX
 
 /* Half precision conversions.  */

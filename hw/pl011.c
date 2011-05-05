@@ -235,56 +235,30 @@ static CPUWriteMemoryFunc * const pl011_writefn[] = {
    pl011_write
 };
 
-static void pl011_save(QEMUFile *f, void *opaque)
-{
-    pl011_state *s = (pl011_state *)opaque;
-    int i;
-
-    qemu_put_be32(f, s->readbuff);
-    qemu_put_be32(f, s->flags);
-    qemu_put_be32(f, s->lcr);
-    qemu_put_be32(f, s->cr);
-    qemu_put_be32(f, s->dmacr);
-    qemu_put_be32(f, s->int_enabled);
-    qemu_put_be32(f, s->int_level);
-    for (i = 0; i < 16; i++)
-        qemu_put_be32(f, s->read_fifo[i]);
-    qemu_put_be32(f, s->ilpr);
-    qemu_put_be32(f, s->ibrd);
-    qemu_put_be32(f, s->fbrd);
-    qemu_put_be32(f, s->ifl);
-    qemu_put_be32(f, s->read_pos);
-    qemu_put_be32(f, s->read_count);
-    qemu_put_be32(f, s->read_trigger);
-}
-
-static int pl011_load(QEMUFile *f, void *opaque, int version_id)
-{
-    pl011_state *s = (pl011_state *)opaque;
-    int i;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    s->readbuff = qemu_get_be32(f);
-    s->flags = qemu_get_be32(f);
-    s->lcr = qemu_get_be32(f);
-    s->cr = qemu_get_be32(f);
-    s->dmacr = qemu_get_be32(f);
-    s->int_enabled = qemu_get_be32(f);
-    s->int_level = qemu_get_be32(f);
-    for (i = 0; i < 16; i++)
-        s->read_fifo[i] = qemu_get_be32(f);
-    s->ilpr = qemu_get_be32(f);
-    s->ibrd = qemu_get_be32(f);
-    s->fbrd = qemu_get_be32(f);
-    s->ifl = qemu_get_be32(f);
-    s->read_pos = qemu_get_be32(f);
-    s->read_count = qemu_get_be32(f);
-    s->read_trigger = qemu_get_be32(f);
-
-    return 0;
-}
+static const VMStateDescription vmstate_pl011 = {
+    .name = "pl011",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32(readbuff, pl011_state),
+        VMSTATE_UINT32(flags, pl011_state),
+        VMSTATE_UINT32(lcr, pl011_state),
+        VMSTATE_UINT32(cr, pl011_state),
+        VMSTATE_UINT32(dmacr, pl011_state),
+        VMSTATE_UINT32(int_enabled, pl011_state),
+        VMSTATE_UINT32(int_level, pl011_state),
+        VMSTATE_UINT32_ARRAY(read_fifo, pl011_state, 16),
+        VMSTATE_UINT32(ilpr, pl011_state),
+        VMSTATE_UINT32(ibrd, pl011_state),
+        VMSTATE_UINT32(fbrd, pl011_state),
+        VMSTATE_UINT32(ifl, pl011_state),
+        VMSTATE_INT32(read_pos, pl011_state),
+        VMSTATE_INT32(read_count, pl011_state),
+        VMSTATE_INT32(read_trigger, pl011_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static int pl011_init(SysBusDevice *dev, const unsigned char *id)
 {
@@ -307,7 +281,7 @@ static int pl011_init(SysBusDevice *dev, const unsigned char *id)
         qemu_chr_add_handlers(s->chr, pl011_can_receive, pl011_receive,
                               pl011_event, s);
     }
-    register_savevm(&dev->qdev, "pl011_uart", -1, 1, pl011_save, pl011_load, s);
+    vmstate_register(&dev->qdev, -1, &vmstate_pl011, s);
     return 0;
 }
 

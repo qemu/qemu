@@ -106,6 +106,8 @@ typedef int64_t  Elf64_Sxword;
 #define EM_H8S          48      /* Hitachi H8S     */
 #define EM_LATTICEMICO32 138    /* LatticeMico32 */
 
+#define EM_UNICORE32    110     /* UniCore32 */
+
 /*
  * This is an interim value that we will use until the committee comes
  * up with a final number.

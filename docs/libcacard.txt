@@ -1,0 +1,483 @@
+This file documents the CAC (Common Access Card) library in the libcacard
+subdirectory.
+
+Virtual Smart Card Emulator
+
+This emulator is designed to provide emulation of actual smart cards to a
+virtual card reader running in a guest virtual machine. The emulated smart
+cards can be representations of real smart cards, where the necessary functions
+such as signing, card removal/insertion, etc. are mapped to real, physical
+cards which are shared with the client machine the emulator is running on, or
+the cards could be pure software constructs.
+
+The emulator is structured to allow multiple replacable or additional pieces,
+so it can be easily modified for future requirements. The primary envisioned
+modifications are:
+
+1) The socket connection to the virtual card reader (presumably a CCID reader,
+but other ISO-7816 compatible readers could be used). The code that handles
+this is in vscclient.c.
+
+2) The virtual card low level emulation. This is currently supplied by using
+NSS. This emulation could be replaced by implementations based on other
+security libraries, including but not limitted to openssl+pkcs#11 library,
+raw pkcs#11, Microsoft CAPI, direct opensc calls, etc. The code that handles
+this is in vcard_emul_nss.c.
+
+3) Emulation for new types of cards. The current implementation emulates the
+original DoD CAC standard with separate pki containers. This emulator lives in
+cac.c. More than one card type emulator could be included. Other cards could
+be emulated as well, including PIV, newer versions of CAC, PKCS #15, etc.
+
+--------------------
+Replacing the Socket Based Virtual Reader Interface.
+
+The current implementation contains a replacable module vscclient.c. The
+current vscclient.c implements a sockets interface to the virtual ccid reader
+on the guest. CCID commands that are pertinent to emulation are passed
+across the socket, and their responses are passed back along that same socket.
+The protocol that vscclient uses is defined in vscard_common.h and connects
+to a qemu ccid usb device. Since this socket runs as a client, vscclient.c
+implements a program with a main entry. It also handles argument parsing for
+the emulator.
+
+An application that wants to use the virtual reader can replace vscclient.c
+with it's own implementation that connects to it's own CCID reader.  The calls
+that the CCID reader can call are:
+
+      VReaderList * vreader_get_reader_list();
+
+  This function returns a list of virtual readers.  These readers may map to
+  physical devices, or simulated devices depending on vcard the back end. Each
+  reader in the list should represent a reader to the virtual machine. Virtual
+  USB address mapping is left to the CCID reader front end. This call can be
+  made any time to get an updated list. The returned list is a copy of the
+  internal list that can be referenced by the caller without locking. This copy
+  must be freed by the caller with vreader_list_delete when it is no longer
+  needed.
+
+      VReaderListEntry *vreader_list_get_first(VReaderList *);
+
+  This function gets the first entry on the reader list. Along with
+  vreader_list_get_next(), vreader_list_get_first() can be used to walk the
+  reader list returned from vreader_get_reader_list(). VReaderListEntries are
+  part of the list themselves and do not need to be freed separately from the
+  list. If there are no entries on the list, it will return NULL.
+
+      VReaderListEntry *vreader_list_get_next(VReaderListEntry *);
+
+  This function gets the next entry in the list. If there are no more entries
+  it will return NULL.
+
+      VReader * vreader_list_get_reader(VReaderListEntry *)
+
+  This function returns the reader stored in the reader List entry. Caller gets
+  a new reference to a reader. The caller must free it's reference when it is
+  finished with vreader_free().
+
+      void vreader_free(VReader *reader);
+
+   This function frees a reference to a reader. Reader's are reference counted
+   and are automatically deleted when the last reference is freed.
+
+      void vreader_list_delete(VReaderList *list);
+
+   This function frees the list, all the elements on the list, and all the
+   reader references held by the list.
+
+      VReaderStatus vreader_power_on(VReader *reader, char *atr, int *len);
+
+  This functions simulates a card power on. Virtual cards do not care about
+  the actual voltage and other physical parameters, but it does care that the
+  card is actually on or off. Cycling the card causes the card to reset. If
+  the caller provides enough space, vreader_power_on will return the ATR of
+  the virtual card. The amount of space provided in atr should be indicated
+  in *len. The function modifies *len to be the actual length of of the
+  returned ATR.
+
+      VReaderStatus vreader_power_off(VReader *reader);
+
+  This function simulates a power off of a virtual card.
+
+      VReaderStatus vreader_xfer_bytes(VReader *reader, unsigne char *send_buf,
+                                       int send_buf_len,
+                                       unsigned char *receive_buf,
+                                       int receive_buf_len);
+
+  This functions send a raw apdu to a card and returns the card's response.
+  The CCID front end should return the response back. Most of the emulation
+  is driven from these APDUs.
+
+      VReaderStatus vreader_card_is_present(VReader *reader);
+
+  This function returns whether or not the reader has a card inserted. The
+  vreader_power_on, vreader_power_off, and vreader_xfer_bytes will return
+  VREADER_NO_CARD.
+
+       const char *vreader_get_name(VReader *reader);
+
+  This function returns the name of the reader. The name comes from the card
+  emulator level and is usually related to the name of the physical reader.
+
+       VReaderID vreader_get_id(VReader *reader);
+
+  This function returns the id of a reader. All readers start out with an id
+  of -1. The application can set the id with vreader_set_id.
+
+       VReaderStatus vreader_get_id(VReader *reader, VReaderID id);
+
+  This function sets the reader id. The application is responsible for making
+  sure that the id is unique for all readers it is actively using.
+
+       VReader *vreader_find_reader_by_id(VReaderID id);
+
+  This function returns the reader which matches the id. If two readers match,
+  only one is returned. The function returns NULL if the id is -1.
+
+       Event *vevent_wait_next_vevent();
+
+  This function blocks waiting for reader and card insertion events. There
+  will be one event for each card insertion, each card removal, each reader
+  insertion and each reader removal. At start up, events are created for all
+  the initial readers found, as well as all the cards that are inserted.
+
+       Event *vevent_get_next_vevent();
+
+  This function returns a pending event if it exists, otherwise it returns
+  NULL. It does not block.
+
+----------------
+Card Type Emulator: Adding a New Virtual Card Type
+
+The ISO 7816 card spec describes 2 types of cards:
+ 1) File system cards, where the smartcard is managed by reading and writing
+data to files in a file system. There is currently only boiler plate
+implemented for file system cards.
+ 2) VM cards, where the card has loadable applets which perform the card
+functions. The current implementation supports VM cards.
+
+In the case of VM cards, the difference between various types of cards is
+really what applets have been installed in that card. This structure is
+mirrored in card type emulators. The 7816 emulator already handles the basic
+ISO 7186 commands. Card type emulators simply need to add the virtual applets
+which emulate the real card applets. Card type emulators have exactly one
+public entry point:
+
+       VCARDStatus xxx_card_init(VCard *card, const char *flags,
+                               const unsigned char *cert[],
+                               int cert_len[],
+                               VCardKey *key[],
+                               int cert_count);
+
+  The parameters for this are:
+  card       - the virtual card structure which will prepresent this card.
+  flags      - option flags that may be specific to this card type.
+  cert       - array of binary certificates.
+  cert_len   - array of lengths of each of the certificates specified in cert.
+  key        - array of opaque key structures representing the private keys on
+               the card.
+  cert_count - number of entries in cert, cert_len, and key arrays.
+
+  Any cert, cert_len, or key with the same index are matching sets. That is
+  cert[0] is cert_len[0] long and has the corresponsing private key of key[0].
+
+The card type emulator is expected to own the VCardKeys, but it should copy
+any raw cert data it wants to save. It can create new applets and add them to
+the card using the following functions:
+
+       VCardApplet *vcard_new_applet(VCardProcessAPDU apdu_func,
+                                     VCardResetApplet reset_func,
+                                     const unsigned char *aid,
+                                     int aid_len);
+
+  This function creates a new applet. Applet structures store the following
+  information:
+     1) the AID of the applet (set by aid and aid_len).
+     2) a function to handle APDUs for this applet. (set by apdu_func, more on
+        this below).
+     3) a function to reset the applet state when the applet is selected.
+        (set by reset_func, more on this below).
+     3) applet private data, a data pointer used by the card type emulator to
+        store any data or state it needs to complete requests. (set by a
+        separate call).
+     4) applet private data free, a function used to free the applet private
+        data when the applet itself is destroyed.
+  The created applet can be added to the card with vcard_add_applet below.
+
+        void vcard_set_applet_private(VCardApplet *applet,
+                                      VCardAppletPrivate *private,
+                                      VCardAppletPrivateFree private_free);
+  This function sets the private data and the corresponding free function.
+  VCardAppletPrivate is an opaque data structure to the rest of the emulator.
+  The card type emulator can define it any way it wants by defining
+  struct VCardAppletPrivateStruct {};. If there is already a private data
+  structure on the applet, the old one is freed before the new one is set up.
+  passing two NULL clear any existing private data.
+
+         VCardStatus vcard_add_applet(VCard *card, VCardApplet *applet);
+
+  Add an applet onto the list of applets attached to the card. Once an applet
+  has been added, it can be selected by it's aid, and then commands will be
+  routed to it VCardProcessAPDU function. This function adopts the applet the
+  passed int applet. Note: 2 applets with the same AID should not be added to
+  the same card. It's permissible to add more than one applet. Multiple applets
+  may have the same VCardPRocessAPDU entry point.
+
+The certs and keys should be attached to private data associated with one or
+more appropriate applets for that card. Control will come to the card type
+emulators once one of its applets are selected through the VCardProcessAPDU
+function it specified when it created the applet.
+
+The signature of VCardResetApplet is:
+        VCardStatus (*VCardResetApplet) (VCard *card, int channel);
+  This function will reset the any internal applet state that needs to be
+  cleared after a select applet call. It should return VCARD_DONE;
+
+The signature of VCardProcessAPDU is:
+        VCardStatus (*VCardProcessAPDU)(VCard *card, VCardAPDU *apdu,
+                                         VCardResponse **response);
+  This function examines the APDU and determines whether it should process
+  the apdu directly, reject the apdu as invalid, or pass the apdu on to
+  the basic 7816 emulator for processing.
+      If the 7816 emulator should process the apdu, then the VCardProcessAPDU
+  should return VCARD_NEXT.
+      If there is an error, then VCardProcessAPDU should return an error
+  response using vcard_make_response and the appropriate 7816 error code
+  (see card_7816t.h) or vcard_make_response with a card type specific error
+  code. It should then return VCARD_DONE.
+      If the apdu can be processed correctly, VCardProcessAPDU should do so,
+  set the response value appropriately for that APDU, and return VCARD_DONE.
+  VCardProcessAPDU should always set the response if it returns VCARD_DONE.
+  It should always either return VCARD_DONE or VCARD_NEXT.
+
+Parsing the APDU --
+
+Prior to processing calling the card type emulator's VCardProcessAPDU function, the emulator has already decoded the APDU header and set several fields:
+
+   apdu->a_data - The raw apdu data bytes.
+   apdu->a_len  - The len of the raw apdu data.
+   apdu->a_body - The start of any post header parameter data.
+   apdu->a_Lc   - The parameter length value.
+   apdu->a_Le   - The expected length of any returned data.
+   apdu->a_cla  - The raw apdu class.
+   apdu->a_channel - The channel (decoded from the class).
+   apdu->a_secure_messaging_type - The decoded secure messagin type
+                                   (from class).
+   apdu->a_type - The decode class type.
+   apdu->a_gen_type - the generic class type (7816, PROPRIETARY, RFU, PTS).
+   apdu->a_ins  - The instruction byte.
+   apdu->a_p1   - Parameter 1.
+   apdu->a_p2   - Parameter 2.
+
+Creating a Response --
+
+The expected result of any APDU call is a response. The card type emulator must
+set *response with an appropriate VCardResponse value if it returns VCARD_DONE.
+Reponses could be as simple as returning a 2 byte status word response, to as
+complex as returning a block of data along with a 2 byte response. Which is
+returned will depend on the semantics of the APDU. The following functions will
+create card responses.
+
+        VCardResponse *vcard_make_response(VCard7816Status status);
+
+    This is the most basic function to get a response. This function will
+    return a response the consists soley one 2 byte status code. If that status
+    code is defined in card_7816t.h, then this function is guarrenteed to
+    return a response with that status. If a cart type specific status code
+    is passed and vcard_make_response fails to allocate the appropriate memory
+    for that response, then vcard_make_response will return a VCardResponse
+    of VCARD7816_STATUS_EXC_ERROR_MEMORY. In any case, this function is
+    guarrenteed to return a valid VCardResponse.
+
+        VCardResponse *vcard_response_new(unsigned char *buf, int len,
+                                          VCard7816Status status);
+
+    This function is similar to vcard_make_response except it includes some
+    returned data with the response. It could also fail to allocate enough
+    memory, in which case it will return NULL.
+
+        VCardResponse *vcard_response_new_status_bytes(unsigned char sw1,
+                                                       unsigned char sw2);
+
+    Sometimes in 7816 the response bytes are treated as two separate bytes with
+    split meanings. This function allows you to create a response based on
+    two separate bytes. This function could fail, in which case it will return
+    NULL.
+
+       VCardResponse *vcard_response_new_bytes(unsigned char *buf, int len,
+                                               unsigned char sw1,
+                                               unsigned char sw2);
+
+    This function is the same as vcard_response_new except you may specify
+    the status as two separate bytes like vcard_response_new_status_bytes.
+
+
+Implementing functionality ---
+
+The following helper functions access information about the current card
+and applet.
+
+        VCARDAppletPrivate *vcard_get_current_applet_private(VCard *card,
+                                                             int channel);
+
+    This function returns any private data set by the card type emulator on
+    the currently selected applet. The card type emulator keeps track of the
+    current applet state in this data structure. Any certs and keys associated
+    with a particular applet is also stored here.
+
+        int vcard_emul_get_login_count(VCard *card);
+
+    This function returns the the number of remaing login attempts for this
+    card. If the card emulator does not know, or the card does not have a
+    way of giving this information, this function returns -1.
+
+
+         VCard7816Status vcard_emul_login(VCard *card, unsigned char *pin,
+                                          int pin_len);
+
+    This function logins into the card and return the standard 7816 status
+    word depending on the success or failure of the call.
+
+         void vcard_emul_delete_key(VCardKey *key);
+
+     This function frees the VCardKey passed in to xxxx_card_init. The card
+     type emulator is responsible for freeing this key when it no longer needs
+     it.
+
+         VCard7816Status vcard_emul_rsa_op(VCard *card, VCardKey *key,
+                                           unsigned char *buffer,
+                                           int buffer_size);
+
+     This function does a raw rsa op on the buffer with the given key.
+
+The sample card type emulator is found in cac.c. It implements the cac specific
+applets.  Only those applets needed by the coolkey pkcs#11 driver on the guest
+have been implemented. To support the full range CAC middleware, a complete CAC
+card according to the CAC specs should be implemented here.
+
+------------------------------
+Virtual Card Emulator
+
+This code accesses both real smart cards and simulated smart cards through
+services provided on the client. The current implementation uses NSS, which
+already knows how to talk to various PKCS #11 modules on the client, and is
+portable to most operating systems. A particular emulator can have only one
+virtual card implementation at a time.
+
+The virtual card emulator consists of a series of virtual card services. In
+addition to the services describe above (services starting with
+vcard_emul_xxxx), the virtual card emulator also provides the following
+functions:
+
+    VCardEmulError vcard_emul_init(cont VCardEmulOptions *options);
+
+  The options structure is built by another function in the virtual card
+  interface where a string of virtual card emulator specific strings are
+  mapped to the options. The actual structure is defined by the virutal card
+  emulator and is used to determine the configuration of soft cards, or to
+  determine which physical cards to present to the guest.
+
+  The vcard_emul_init function will build up sets of readers, create any
+  threads that are needed to watch for changes in the reader state. If readers
+  have cards present in them, they are also initialized.
+
+  Readers are created with the function.
+
+          VReader *vreader_new(VReaderEmul *reader_emul,
+                               VReaderEmulFree reader_emul_free);
+
+      The freeFunc is used to free the VReaderEmul * when the reader is
+      destroyed.  The VReaderEmul structure is an opaque structure to the
+      rest of the code, but defined by the virtual card emulator, which can
+      use it to store any reader specific state.
+
+  Once the reader has been created, it can be added to the front end with the
+  call:
+
+           VReaderStatus vreader_add_reader(VReader *reader);
+
+      This function will automatically generate the appropriate new reader
+      events and add the reader to the list.
+
+  To create a new card, the virtual card emulator will call a similiar
+  function.
+
+           VCard *vcard_new(VCardEmul *card_emul,
+                            VCardEmulFree card_emul_free);
+
+      Like vreader_new, this function takes a virtual card emulator specific
+      structure which it uses to keep track of the card state.
+
+  Once the card is created, it is attached to a card type emulator with the
+  following function:
+
+            VCardStatus vcard_init(VCard *vcard, VCardEmulType type,
+                                   const char *flags,
+                                   unsigned char *const *certs,
+                                   int *cert_len,
+                                   VCardKey *key[],
+                                   int cert_count);
+
+      The vcard is the value returned from vcard_new. The type is the
+      card type emulator that this card should presented to the guest as.
+      The flags are card type emulator specific options. The certs,
+      cert_len, and keys are all arrays of length cert_count. These are the
+      the same of the parameters xxxx_card_init() accepts.
+
+   Finally the card is associated with it's reader by the call:
+
+            VReaderStatus vreader_insert_card(VReader *vreader, VCard *vcard);
+
+      This function, like vreader_add_reader, will take care of any event
+      notification for the card insert.
+
+
+    VCardEmulError vcard_emul_force_card_remove(VReader *vreader);
+
+  Force a card that is present to appear to be removed to the guest, even if
+  that card is a physical card and is present.
+
+
+    VCardEmulError vcard_emul_force_card_insert(VReader *reader);
+
+  Force a card that has been removed by vcard_emul_force_card_remove to be
+  reinserted from the point of view of the guest. This will only work if the
+  card is physically present (which is always true fro a soft card).
+
+     void vcard_emul_get_atr(Vcard *card, unsigned char *atr, int *atr_len);
+
+  Return the virtual ATR for the card. By convention this should be the value
+  VCARD_ATR_PREFIX(size) followed by several ascii bytes related to this
+  particular emulator. For instance the NSS emulator returns
+  {VCARD_ATR_PREFIX(3), 'N', 'S', 'S' }. Do ot return more data then *atr_len;
+
+     void vcard_emul_reset(VCard *card, VCardPower power)
+
+   Set the state of 'card' to the current power level and reset its internal
+   state (logout, etc).
+
+-------------------------------------------------------
+List of files and their function:
+README - This file
+card_7816.c - emulate basic 7816 functionality. Parse APDUs.
+card_7816.h - apdu and response services definitions.
+card_7816t.h - 7816 specific structures, types and definitions.
+event.c - event handling code.
+event.h - event handling services definitions.
+eventt.h - event handling structures and types
+vcard.c - handle common virtual card services like creation, destruction, and
+          applet management.
+vcard.h - common virtual card services function definitions.
+vcardt.h - comon virtual card types
+vreader.c - common virtual reader services.
+vreader.h - common virtual reader services definitions.
+vreadert.h - comon virtual reader types.
+vcard_emul_type.c - manage the card type emulators.
+vcard_emul_type.h - definitions for card type emulators.
+cac.c - card type emulator for CAC cards
+vcard_emul.h - virtual card emulator service definitions.
+vcard_emul_nss.c - virtual card emulator implementation for nss.
+vscclient.c - socket connection to guest qemu usb driver.
+vscard_common.h - common header with the guest qemu usb driver.
+mutex.h - header file for machine independent mutexes.
+link_test.c - static test to make sure all the symbols are properly defined.

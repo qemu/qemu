@@ -2,7 +2,6 @@
 #include "qemu-error.h"
 #include "qemu-option.h"
 #include "qemu-config.h"
-#include "sysemu.h"
 #include "hw/qdev.h"
 
 static QemuOptsList qemu_drive_opts = {

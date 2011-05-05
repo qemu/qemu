@@ -37,6 +37,7 @@
 #include "sysbus.h"
 #include "arch_init.h"
 #include "blockdev.h"
+#include "smbus.h"
 
 #define MAX_IDE_BUS 2
 
@@ -129,15 +130,7 @@ static void pc_init1(ram_addr_t ram_size,
             pci_nic_init_nofail(nd, "e1000", NULL);
     }
 
-    if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {
-        fprintf(stderr, "qemu: too many IDE bus\n");
-        exit(1);
-    }
-
-    for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
-        hd[i] = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
-    }
-
+    ide_drive_get(hd, MAX_IDE_BUS);
     if (pci_enabled) {
         PCIDevice *dev;
         dev = pci_piix3_ide_init(pci_bus, hd, piix3_devfn + 1);
@@ -162,7 +155,6 @@ static void pc_init1(ram_addr_t ram_size,
     }
 
     if (pci_enabled && acpi_enabled) {
-        uint8_t *eeprom_buf = qemu_mallocz(8 * 256); /* XXX: make this persistent */
         i2c_bus *smbus;
 
         cmos_s3 = qemu_allocate_irqs(pc_cmos_set_s3_resume, rtc_state, 1);
@@ -171,13 +163,7 @@ static void pc_init1(ram_addr_t ram_size,
         smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
                               isa_get_irq(9), *cmos_s3, *smi_irq,
                               kvm_enabled());
-        for (i = 0; i < 8; i++) {
-            DeviceState *eeprom;
-            eeprom = qdev_create((BusState *)smbus, "smbus-eeprom");
-            qdev_prop_set_uint8(eeprom, "address", 0x50 + i);
-            qdev_prop_set_ptr(eeprom, "data", eeprom_buf + (i * 256));
-            qdev_init_nofail(eeprom);
-        }
+        smbus_eeprom_init(smbus, 8, NULL, 0);
     }
 
     if (i440fx_state) {

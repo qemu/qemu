@@ -215,6 +215,9 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
         disasm_info.mach = bfd_mach_cris_v32;
         print_insn = print_insn_crisv32;
     }
+#elif defined(TARGET_S390X)
+    disasm_info.mach = bfd_mach_s390_64;
+    print_insn = print_insn_s390;
 #elif defined(TARGET_MICROBLAZE)
     disasm_info.mach = bfd_arch_microblaze;
     print_insn = print_insn_microblaze;
@@ -342,7 +345,7 @@ monitor_read_memory (bfd_vma memaddr, bfd_byte *myaddr, int length,
                      struct disassemble_info *info)
 {
     if (monitor_disas_is_physical) {
-        cpu_physical_memory_rw(memaddr, myaddr, length, 0);
+        cpu_physical_memory_read(memaddr, myaddr, length);
     } else {
         cpu_memory_rw_debug(monitor_disas_env, memaddr,myaddr, length, 0);
     }
@@ -414,6 +417,9 @@ void monitor_disas(Monitor *mon, CPUState *env,
 #elif defined(TARGET_SH4)
     disasm_info.mach = bfd_mach_sh4;
     print_insn = print_insn_sh;
+#elif defined(TARGET_S390X)
+    disasm_info.mach = bfd_mach_s390_64;
+    print_insn = print_insn_s390;
 #else
     monitor_printf(mon, "0x" TARGET_FMT_lx
                    ": Asm output not supported on this arch\n", pc);

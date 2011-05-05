@@ -24,7 +24,6 @@
 #include "hw.h"
 #include "isa.h"
 #include "pc.h"
-#include "sysemu.h"
 #include "kvm.h"
 #include "qdev.h"
 

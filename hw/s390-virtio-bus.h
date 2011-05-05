@@ -18,6 +18,7 @@
  */
 
 #include "virtio-net.h"
+#include "virtio-serial.h"
 
 #define VIRTIO_DEV_OFFS_TYPE		0	/* 8 bits */
 #define VIRTIO_DEV_OFFS_NUM_VQ		1	/* 8 bits */
@@ -43,8 +44,7 @@ typedef struct VirtIOS390Device {
     BlockConf block;
     NICConf nic;
     uint32_t host_features;
-    /* Max. number of ports we can have for a the virtio-serial device */
-    uint32_t max_virtserial_ports;
+    virtio_serial_conf serial;
     virtio_net_conf net;
 } VirtIOS390Device;
 

@@ -146,25 +146,16 @@ static CPUWriteMemoryFunc * const pxa2xx_pm_writefn[] = {
     pxa2xx_pm_write,
 };
 
-static void pxa2xx_pm_save(QEMUFile *f, void *opaque)
-{
-    PXA2xxState *s = (PXA2xxState *) opaque;
-    int i;
-
-    for (i = 0; i < 0x40; i ++)
-        qemu_put_be32s(f, &s->pm_regs[i]);
-}
-
-static int pxa2xx_pm_load(QEMUFile *f, void *opaque, int version_id)
-{
-    PXA2xxState *s = (PXA2xxState *) opaque;
-    int i;
-
-    for (i = 0; i < 0x40; i ++)
-        qemu_get_be32s(f, &s->pm_regs[i]);
-
-    return 0;
-}
+static const VMStateDescription vmstate_pxa2xx_pm = {
+    .name = "pxa2xx_pm",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32_ARRAY(pm_regs, PXA2xxState, 0x40),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 #define CCCR	0x00	/* Core Clock Configuration register */
 #define CKEN	0x04	/* Clock Enable register */
@@ -227,29 +218,18 @@ static CPUWriteMemoryFunc * const pxa2xx_cm_writefn[] = {
     pxa2xx_cm_write,
 };
 
-static void pxa2xx_cm_save(QEMUFile *f, void *opaque)
-{
-    PXA2xxState *s = (PXA2xxState *) opaque;
-    int i;
-
-    for (i = 0; i < 4; i ++)
-        qemu_put_be32s(f, &s->cm_regs[i]);
-    qemu_put_be32s(f, &s->clkcfg);
-    qemu_put_be32s(f, &s->pmnc);
-}
-
-static int pxa2xx_cm_load(QEMUFile *f, void *opaque, int version_id)
-{
-    PXA2xxState *s = (PXA2xxState *) opaque;
-    int i;
-
-    for (i = 0; i < 4; i ++)
-        qemu_get_be32s(f, &s->cm_regs[i]);
-    qemu_get_be32s(f, &s->clkcfg);
-    qemu_get_be32s(f, &s->pmnc);
-
-    return 0;
-}
+static const VMStateDescription vmstate_pxa2xx_cm = {
+    .name = "pxa2xx_cm",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32_ARRAY(cm_regs, PXA2xxState, 4),
+        VMSTATE_UINT32(clkcfg, PXA2xxState),
+        VMSTATE_UINT32(pmnc, PXA2xxState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static uint32_t pxa2xx_clkpwr_read(void *opaque, int op2, int reg, int crm)
 {
@@ -527,25 +507,16 @@ static CPUWriteMemoryFunc * const pxa2xx_mm_writefn[] = {
     pxa2xx_mm_write,
 };
 
-static void pxa2xx_mm_save(QEMUFile *f, void *opaque)
-{
-    PXA2xxState *s = (PXA2xxState *) opaque;
-    int i;
-
-    for (i = 0; i < 0x1a; i ++)
-        qemu_put_be32s(f, &s->mm_regs[i]);
-}
-
-static int pxa2xx_mm_load(QEMUFile *f, void *opaque, int version_id)
-{
-    PXA2xxState *s = (PXA2xxState *) opaque;
-    int i;
-
-    for (i = 0; i < 0x1a; i ++)
-        qemu_get_be32s(f, &s->mm_regs[i]);
-
-    return 0;
-}
+static const VMStateDescription vmstate_pxa2xx_mm = {
+    .name = "pxa2xx_mm",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32_ARRAY(mm_regs, PXA2xxState, 0x1a),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 /* Synchronous Serial Ports */
 typedef struct {
@@ -1748,39 +1719,23 @@ static CPUWriteMemoryFunc * const pxa2xx_i2s_writefn[] = {
     pxa2xx_i2s_write,
 };
 
-static void pxa2xx_i2s_save(QEMUFile *f, void *opaque)
-{
-    PXA2xxI2SState *s = (PXA2xxI2SState *) opaque;
-
-    qemu_put_be32s(f, &s->control[0]);
-    qemu_put_be32s(f, &s->control[1]);
-    qemu_put_be32s(f, &s->status);
-    qemu_put_be32s(f, &s->mask);
-    qemu_put_be32s(f, &s->clk);
-
-    qemu_put_be32(f, s->enable);
-    qemu_put_be32(f, s->rx_len);
-    qemu_put_be32(f, s->tx_len);
-    qemu_put_be32(f, s->fifo_len);
-}
-
-static int pxa2xx_i2s_load(QEMUFile *f, void *opaque, int version_id)
-{
-    PXA2xxI2SState *s = (PXA2xxI2SState *) opaque;
-
-    qemu_get_be32s(f, &s->control[0]);
-    qemu_get_be32s(f, &s->control[1]);
-    qemu_get_be32s(f, &s->status);
-    qemu_get_be32s(f, &s->mask);
-    qemu_get_be32s(f, &s->clk);
-
-    s->enable = qemu_get_be32(f);
-    s->rx_len = qemu_get_be32(f);
-    s->tx_len = qemu_get_be32(f);
-    s->fifo_len = qemu_get_be32(f);
-
-    return 0;
-}
+static const VMStateDescription vmstate_pxa2xx_i2s = {
+    .name = "pxa2xx_i2s",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32_ARRAY(control, PXA2xxI2SState, 2),
+        VMSTATE_UINT32(status, PXA2xxI2SState),
+        VMSTATE_UINT32(mask, PXA2xxI2SState),
+        VMSTATE_UINT32(clk, PXA2xxI2SState),
+        VMSTATE_INT32(enable, PXA2xxI2SState),
+        VMSTATE_INT32(rx_len, PXA2xxI2SState),
+        VMSTATE_INT32(tx_len, PXA2xxI2SState),
+        VMSTATE_INT32(fifo_len, PXA2xxI2SState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void pxa2xx_i2s_data_req(void *opaque, int tx, int rx)
 {
@@ -1822,8 +1777,7 @@ static PXA2xxI2SState *pxa2xx_i2s_init(target_phys_addr_t base,
                     pxa2xx_i2s_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(base, 0x100000, iomemtype);
 
-    register_savevm(NULL, "pxa2xx_i2s", base, 0,
-                    pxa2xx_i2s_save, pxa2xx_i2s_load, s);
+    vmstate_register(NULL, base, &vmstate_pxa2xx_i2s, s);
 
     return s;
 }
@@ -2188,7 +2142,7 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
     iomemtype = cpu_register_io_memory(pxa2xx_cm_readfn,
                     pxa2xx_cm_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(s->cm_base, 0x1000, iomemtype);
-    register_savevm(NULL, "pxa2xx_cm", 0, 0, pxa2xx_cm_save, pxa2xx_cm_load, s);
+    vmstate_register(NULL, 0, &vmstate_pxa2xx_cm, s);
 
     cpu_arm_set_cp_io(s->env, 14, pxa2xx_cp14_read, pxa2xx_cp14_write, s);
 
@@ -2199,13 +2153,13 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
     iomemtype = cpu_register_io_memory(pxa2xx_mm_readfn,
                     pxa2xx_mm_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(s->mm_base, 0x1000, iomemtype);
-    register_savevm(NULL, "pxa2xx_mm", 0, 0, pxa2xx_mm_save, pxa2xx_mm_load, s);
+    vmstate_register(NULL, 0, &vmstate_pxa2xx_mm, s);
 
     s->pm_base = 0x40f00000;
     iomemtype = cpu_register_io_memory(pxa2xx_pm_readfn,
                     pxa2xx_pm_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(s->pm_base, 0x100, iomemtype);
-    register_savevm(NULL, "pxa2xx_pm", 0, 0, pxa2xx_pm_save, pxa2xx_pm_load, s);
+    vmstate_register(NULL, 0, &vmstate_pxa2xx_pm, s);
 
     for (i = 0; pxa27x_ssp[i].io_base; i ++);
     s->ssp = (SSIBus **)qemu_mallocz(sizeof(SSIBus *) * i);
@@ -2324,7 +2278,7 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
     iomemtype = cpu_register_io_memory(pxa2xx_cm_readfn,
                     pxa2xx_cm_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(s->cm_base, 0x1000, iomemtype);
-    register_savevm(NULL, "pxa2xx_cm", 0, 0, pxa2xx_cm_save, pxa2xx_cm_load, s);
+    vmstate_register(NULL, 0, &vmstate_pxa2xx_cm, s);
 
     cpu_arm_set_cp_io(s->env, 14, pxa2xx_cp14_read, pxa2xx_cp14_write, s);
 
@@ -2335,13 +2289,13 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
     iomemtype = cpu_register_io_memory(pxa2xx_mm_readfn,
                     pxa2xx_mm_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(s->mm_base, 0x1000, iomemtype);
-    register_savevm(NULL, "pxa2xx_mm", 0, 0, pxa2xx_mm_save, pxa2xx_mm_load, s);
+    vmstate_register(NULL, 0, &vmstate_pxa2xx_mm, s);
 
     s->pm_base = 0x40f00000;
     iomemtype = cpu_register_io_memory(pxa2xx_pm_readfn,
                     pxa2xx_pm_writefn, s, DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(s->pm_base, 0x100, iomemtype);
-    register_savevm(NULL, "pxa2xx_pm", 0, 0, pxa2xx_pm_save, pxa2xx_pm_load, s);
+    vmstate_register(NULL, 0, &vmstate_pxa2xx_pm, s);
 
     for (i = 0; pxa255_ssp[i].io_base; i ++);
     s->ssp = (SSIBus **)qemu_mallocz(sizeof(SSIBus *) * i);

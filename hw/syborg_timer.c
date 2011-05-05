@@ -174,34 +174,21 @@ static CPUWriteMemoryFunc * const syborg_timer_writefn[] = {
     syborg_timer_write
 };
 
-static void syborg_timer_save(QEMUFile *f, void *opaque)
-{
-    SyborgTimerState *s = opaque;
-
-    qemu_put_be32(f, s->running);
-    qemu_put_be32(f, s->oneshot);
-    qemu_put_be32(f, s->limit);
-    qemu_put_be32(f, s->int_level);
-    qemu_put_be32(f, s->int_enabled);
-    qemu_put_ptimer(f, s->timer);
-}
-
-static int syborg_timer_load(QEMUFile *f, void *opaque, int version_id)
-{
-    SyborgTimerState *s = opaque;
-
-    if (version_id != 1)
-        return -EINVAL;
-
-    s->running = qemu_get_be32(f);
-    s->oneshot = qemu_get_be32(f);
-    s->limit = qemu_get_be32(f);
-    s->int_level = qemu_get_be32(f);
-    s->int_enabled = qemu_get_be32(f);
-    qemu_get_ptimer(f, s->timer);
-
-    return 0;
-}
+static const VMStateDescription vmstate_syborg_timer = {
+    .name = "syborg_timer",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_INT32(running, SyborgTimerState),
+        VMSTATE_INT32(oneshot, SyborgTimerState),
+        VMSTATE_UINT32(limit, SyborgTimerState),
+        VMSTATE_UINT32(int_level, SyborgTimerState),
+        VMSTATE_UINT32(int_enabled, SyborgTimerState),
+        VMSTATE_PTIMER(timer, SyborgTimerState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static int syborg_timer_init(SysBusDevice *dev)
 {
@@ -222,8 +209,7 @@ static int syborg_timer_init(SysBusDevice *dev)
     bh = qemu_bh_new(syborg_timer_tick, s);
     s->timer = ptimer_init(bh);
     ptimer_set_freq(s->timer, s->freq);
-    register_savevm(&dev->qdev, "syborg_timer", -1, 1,
-                    syborg_timer_save, syborg_timer_load, s);
+    vmstate_register(&dev->qdev, -1, &vmstate_syborg_timer, s);
     return 0;
 }
 

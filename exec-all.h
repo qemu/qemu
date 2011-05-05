@@ -77,15 +77,14 @@ extern uint16_t gen_opc_icount[OPC_BUF_SIZE];
 
 void gen_intermediate_code(CPUState *env, struct TranslationBlock *tb);
 void gen_intermediate_code_pc(CPUState *env, struct TranslationBlock *tb);
-void gen_pc_load(CPUState *env, struct TranslationBlock *tb,
-                 unsigned long searched_pc, int pc_pos, void *puc);
+void restore_state_to_opc(CPUState *env, struct TranslationBlock *tb,
+                          int pc_pos);
 
 void cpu_gen_init(void);
 int cpu_gen_code(CPUState *env, struct TranslationBlock *tb,
                  int *gen_code_size_ptr);
 int cpu_restore_state(struct TranslationBlock *tb,
-                      CPUState *env, unsigned long searched_pc,
-                      void *puc);
+                      CPUState *env, unsigned long searched_pc);
 void cpu_resume_from_signal(CPUState *env1, void *puc);
 void cpu_io_recompile(CPUState *env, void *retaddr);
 TranslationBlock *tb_gen_code(CPUState *env, 

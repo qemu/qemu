@@ -853,6 +853,18 @@ static void lsi_do_msgout(LSIState *s)
 {
     uint8_t msg;
     int len;
+    uint32_t current_tag;
+    SCSIDevice *current_dev;
+    lsi_request *p, *p_next;
+    int id;
+
+    if (s->current) {
+        current_tag = s->current->tag;
+    } else {
+        current_tag = s->select_tag;
+    }
+    id = (current_tag >> 8) & 0xf;
+    current_dev = s->bus.devs[id];
 
     DPRINTF("MSG out len=%d\n", s->dbc);
     while (s->dbc) {
@@ -897,6 +909,51 @@ static void lsi_do_msgout(LSIState *s)
         case 0x22: /* ORDERED queue */
             BADF("ORDERED queue not implemented\n");
             s->select_tag |= lsi_get_msgbyte(s) | LSI_TAG_VALID;
+            break;
+        case 0x0d:
+            /* The ABORT TAG message clears the current I/O process only. */
+            DPRINTF("MSG: ABORT TAG tag=0x%x\n", current_tag);
+            current_dev->info->cancel_io(current_dev, current_tag);
+            lsi_disconnect(s);
+            break;
+        case 0x06:
+        case 0x0e:
+        case 0x0c:
+            /* The ABORT message clears all I/O processes for the selecting
+               initiator on the specified logical unit of the target. */
+            if (msg == 0x06) {
+                DPRINTF("MSG: ABORT tag=0x%x\n", current_tag);
+            }
+            /* The CLEAR QUEUE message clears all I/O processes for all
+               initiators on the specified logical unit of the target. */
+            if (msg == 0x0e) {
+                DPRINTF("MSG: CLEAR QUEUE tag=0x%x\n", current_tag);
+            }
+            /* The BUS DEVICE RESET message clears all I/O processes for all
+               initiators on all logical units of the target. */
+            if (msg == 0x0c) {
+                DPRINTF("MSG: BUS DEVICE RESET tag=0x%x\n", current_tag);
+            }
+
+            /* clear the current I/O process */
+            current_dev->info->cancel_io(current_dev, current_tag);
+
+            /* As the current implemented devices scsi_disk and scsi_generic
+               only support one LUN, we don't need to keep track of LUNs.
+               Clearing I/O processes for other initiators could be possible
+               for scsi_generic by sending a SG_SCSI_RESET to the /dev/sgX
+               device, but this is currently not implemented (and seems not
+               to be really necessary). So let's simply clear all queued
+               commands for the current device: */
+            id = current_tag & 0x0000ff00;
+            QTAILQ_FOREACH_SAFE(p, &s->queue, next, p_next) {
+                if ((p->tag & 0x0000ff00) == id) {
+                    current_dev->info->cancel_io(current_dev, p->tag);
+                    QTAILQ_REMOVE(&s->queue, p, next);
+                }
+            }
+
+            lsi_disconnect(s);
             break;
         default:
             if ((msg & 0x80) == 0) {

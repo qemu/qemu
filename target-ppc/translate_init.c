@@ -61,6 +61,7 @@ void glue(glue(ppc, name),_irq_init) (CPUPPCState *env);
 PPC_IRQ_INIT_FN(40x);
 PPC_IRQ_INIT_FN(6xx);
 PPC_IRQ_INIT_FN(970);
+PPC_IRQ_INIT_FN(POWER7);
 PPC_IRQ_INIT_FN(e500);
 
 /* Generic callbacks:
@@ -251,6 +252,14 @@ static void spr_write_atbu (void *opaque, int sprn, int gprn)
 {
     gen_helper_store_atbu(cpu_gpr[gprn]);
 }
+
+#if defined(TARGET_PPC64)
+__attribute__ (( unused ))
+static void spr_read_purr (void *opaque, int gprn, int sprn)
+{
+    gen_helper_load_purr(cpu_gpr[gprn]);
+}
+#endif
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
@@ -335,11 +344,6 @@ static void spr_write_dbatl_h (void *opaque, int sprn, int gprn)
 }
 
 /* SDR1 */
-static void spr_read_sdr1 (void *opaque, int gprn, int sprn)
-{
-    tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUState, sdr1));
-}
-
 static void spr_write_sdr1 (void *opaque, int sprn, int gprn)
 {
     gen_helper_store_sdr1(cpu_gpr[gprn]);
@@ -663,7 +667,7 @@ static void gen_spr_ne_601 (CPUPPCState *env)
     /* Memory management */
     spr_register(env, SPR_SDR1, "SDR1",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_sdr1, &spr_write_sdr1,
+                 &spr_read_generic, &spr_write_sdr1,
                  0x00000000);
 }
 
@@ -3124,6 +3128,35 @@ static void init_excp_970 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_VPUA]     = 0x00001700;
     env->excp_vectors[POWERPC_EXCP_THERM]    = 0x00001800;
     env->hreset_excp_prefix = 0x00000000FFF00000ULL;
+    /* Hardware reset vector */
+    env->hreset_vector = 0x0000000000000100ULL;
+#endif
+}
+
+static void init_excp_POWER7 (CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    env->excp_vectors[POWERPC_EXCP_RESET]    = 0x00000100;
+    env->excp_vectors[POWERPC_EXCP_MCHECK]   = 0x00000200;
+    env->excp_vectors[POWERPC_EXCP_DSI]      = 0x00000300;
+    env->excp_vectors[POWERPC_EXCP_DSEG]     = 0x00000380;
+    env->excp_vectors[POWERPC_EXCP_ISI]      = 0x00000400;
+    env->excp_vectors[POWERPC_EXCP_ISEG]     = 0x00000480;
+    env->excp_vectors[POWERPC_EXCP_EXTERNAL] = 0x00000500;
+    env->excp_vectors[POWERPC_EXCP_ALIGN]    = 0x00000600;
+    env->excp_vectors[POWERPC_EXCP_PROGRAM]  = 0x00000700;
+    env->excp_vectors[POWERPC_EXCP_FPU]      = 0x00000800;
+    env->excp_vectors[POWERPC_EXCP_DECR]     = 0x00000900;
+    env->excp_vectors[POWERPC_EXCP_HDECR]    = 0x00000980;
+    env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000C00;
+    env->excp_vectors[POWERPC_EXCP_TRACE]    = 0x00000D00;
+    env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
+    env->excp_vectors[POWERPC_EXCP_VPU]      = 0x00000F20;
+    env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
+    env->excp_vectors[POWERPC_EXCP_MAINT]    = 0x00001600;
+    env->excp_vectors[POWERPC_EXCP_VPUA]     = 0x00001700;
+    env->excp_vectors[POWERPC_EXCP_THERM]    = 0x00001800;
+    env->hreset_excp_prefix = 0;
     /* Hardware reset vector */
     env->hreset_vector = 0x0000000000000100ULL;
 #endif
@@ -6309,6 +6342,78 @@ static void init_proc_970MP (CPUPPCState *env)
     vscr_init(env, 0x00010000);
 }
 
+#if defined(TARGET_PPC64)
+/* POWER7 */
+#define POWERPC_INSNS_POWER7  (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
+                              PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
+                              PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |           \
+                              PPC_FLOAT_STFIWX |                              \
+                              PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZT |  \
+                              PPC_MEM_SYNC | PPC_MEM_EIEIO |                  \
+                              PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |               \
+                              PPC_64B | PPC_ALTIVEC |                         \
+                              PPC_SEGMENT_64B | PPC_SLBI |                    \
+                              PPC_POPCNTB | PPC_POPCNTWD)
+#define POWERPC_MSRM_POWER7   (0x800000000204FF36ULL)
+#define POWERPC_MMU_POWER7    (POWERPC_MMU_2_06)
+#define POWERPC_EXCP_POWER7   (POWERPC_EXCP_POWER7)
+#define POWERPC_INPUT_POWER7  (PPC_FLAGS_INPUT_POWER7)
+#define POWERPC_BFDM_POWER7   (bfd_mach_ppc64)
+#define POWERPC_FLAG_POWER7   (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
+                              POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
+                              POWERPC_FLAG_BUS_CLK)
+#define check_pow_POWER7    check_pow_nocheck
+
+static void init_proc_POWER7 (CPUPPCState *env)
+{
+    gen_spr_ne_601(env);
+    gen_spr_7xx(env);
+    /* Time base */
+    gen_tbl(env);
+#if !defined(CONFIG_USER_ONLY)
+    /* PURR & SPURR: Hack - treat these as aliases for the TB for now */
+    spr_register(env, SPR_PURR,   "PURR",
+                 &spr_read_purr, SPR_NOACCESS,
+                 &spr_read_purr, SPR_NOACCESS,
+                 0x00000000);
+    spr_register(env, SPR_SPURR,   "SPURR",
+                 &spr_read_purr, SPR_NOACCESS,
+                 &spr_read_purr, SPR_NOACCESS,
+                 0x00000000);
+#endif /* !CONFIG_USER_ONLY */
+    /* Memory management */
+    /* XXX : not implemented */
+    spr_register(env, SPR_MMUCFG, "MMUCFG",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, SPR_NOACCESS,
+                 0x00000000); /* TOFIX */
+    /* XXX : not implemented */
+    spr_register(env, SPR_CTRL, "SPR_CTRLT",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x80800000);
+    spr_register(env, SPR_UCTRL, "SPR_CTRLF",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x80800000);
+    spr_register(env, SPR_VRSAVE, "SPR_VRSAVE",
+                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+#if !defined(CONFIG_USER_ONLY)
+    env->slb_nr = 32;
+#endif
+    init_excp_POWER7(env);
+    env->dcache_line_size = 128;
+    env->icache_line_size = 128;
+    /* Allocate hardware IRQ controller */
+    ppcPOWER7_irq_init(env);
+    /* Can't find information on what this should be on reset.  This
+     * value is the one used by 74xx processors. */
+    vscr_init(env, 0x00010000);
+}
+#endif /* TARGET_PPC64 */
+
 /* PowerPC 620                                                               */
 #define POWERPC_INSNS_620    (PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |        \
                               PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |   \
@@ -7031,6 +7136,8 @@ enum {
     CPU_POWERPC_POWER6             = 0x003E0000,
     CPU_POWERPC_POWER6_5           = 0x0F000001, /* POWER6 in POWER5 mode */
     CPU_POWERPC_POWER6A            = 0x0F000002,
+#define CPU_POWERPC_POWER7           CPU_POWERPC_POWER7_v20
+    CPU_POWERPC_POWER7_v20         = 0x003F0200,
     CPU_POWERPC_970                = 0x00390202,
 #define CPU_POWERPC_970FX            CPU_POWERPC_970FX_v31
     CPU_POWERPC_970FX_v10          = 0x00391100,
@@ -8833,6 +8940,9 @@ static const ppc_def_t ppc_defs[] = {
     /* POWER6A                                                               */
     POWERPC_DEF("POWER6A",       CPU_POWERPC_POWER6A,                POWER6),
 #endif
+    /* POWER7                                                                */
+    POWERPC_DEF("POWER7",        CPU_POWERPC_POWER7,                 POWER7),
+    POWERPC_DEF("POWER7_v2.0",   CPU_POWERPC_POWER7_v20,             POWER7),
     /* PowerPC 970                                                           */
     POWERPC_DEF("970",           CPU_POWERPC_970,                    970),
     /* PowerPC 970FX (G5)                                                    */

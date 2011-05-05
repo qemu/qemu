@@ -110,11 +110,24 @@ static inline void svm_check_intercept(uint32_t type)
 #define float64_to_floatx float64_to_floatx80
 #define floatx_to_float32 floatx80_to_float32
 #define floatx_to_float64 floatx80_to_float64
+#define floatx_add floatx80_add
+#define floatx_div floatx80_div
+#define floatx_mul floatx80_mul
+#define floatx_sub floatx80_sub
+#define floatx_sqrt floatx80_sqrt
 #define floatx_abs floatx80_abs
 #define floatx_chs floatx80_chs
+#define floatx_scalbn floatx80_scalbn
 #define floatx_round_to_int floatx80_round_to_int
 #define floatx_compare floatx80_compare
 #define floatx_compare_quiet floatx80_compare_quiet
+#define floatx_is_any_nan floatx80_is_any_nan
+#define floatx_is_neg floatx80_is_neg
+#define floatx_is_zero floatx80_is_zero
+#define floatx_zero floatx80_zero
+#define floatx_one floatx80_one
+#define floatx_ln2 floatx80_ln2
+#define floatx_pi floatx80_pi
 #else
 #define floatx_to_int32 float64_to_int32
 #define floatx_to_int64 float64_to_int64
@@ -126,11 +139,24 @@ static inline void svm_check_intercept(uint32_t type)
 #define float64_to_floatx(x, e) (x)
 #define floatx_to_float32 float64_to_float32
 #define floatx_to_float64(x, e) (x)
+#define floatx_add float64_add
+#define floatx_div float64_div
+#define floatx_mul float64_mul
+#define floatx_sub float64_sub
+#define floatx_sqrt float64_sqrt
 #define floatx_abs float64_abs
 #define floatx_chs float64_chs
+#define floatx_scalbn float64_scalbn
 #define floatx_round_to_int float64_round_to_int
 #define floatx_compare float64_compare
 #define floatx_compare_quiet float64_compare_quiet
+#define floatx_is_any_nan float64_is_any_nan
+#define floatx_is_neg float64_is_neg
+#define floatx_is_zero float64_is_zero
+#define floatx_zero float64_zero
+#define floatx_one float64_one
+#define floatx_ln2 float64_ln2
+#define floatx_pi float64_pi
 #endif
 
 #define RC_MASK         0xc00
@@ -144,13 +170,7 @@ static inline void svm_check_intercept(uint32_t type)
 #ifdef USE_X86LDOUBLE
 
 /* only for x86 */
-typedef union {
-    long double d;
-    struct {
-        unsigned long long lower;
-        unsigned short upper;
-    } l;
-} CPU86_LDoubleU;
+typedef CPU_LDoubleU CPU86_LDoubleU;
 
 /* the following deal with x86 long double-precision numbers */
 #define MAXEXPD 0x7fff
@@ -162,24 +182,7 @@ typedef union {
 
 #else
 
-/* NOTE: arm is horrible as double 32 bit words are stored in big endian ! */
-typedef union {
-    double d;
-#if !defined(HOST_WORDS_BIGENDIAN) && !defined(__arm__)
-    struct {
-        uint32_t lower;
-        int32_t upper;
-    } l;
-#else
-    struct {
-        int32_t upper;
-        uint32_t lower;
-    } l;
-#endif
-#ifndef __arm__
-    int64_t ll;
-#endif
-} CPU86_LDoubleU;
+typedef CPU_DoubleU CPU86_LDoubleU;
 
 /* the following deal with IEEE double-precision numbers */
 #define MAXEXPD 0x7ff

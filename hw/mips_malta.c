@@ -770,7 +770,6 @@ void mips_malta_init (ram_addr_t ram_size,
     qemu_irq *i8259;
     qemu_irq *cpu_exit_irq;
     int piix4_devfn;
-    uint8_t *eeprom_buf;
     i2c_bus *smbus;
     int i;
     DriveInfo *dinfo;
@@ -905,15 +904,7 @@ void mips_malta_init (ram_addr_t ram_size,
     pci_bus = gt64120_register(i8259);
 
     /* Southbridge */
-
-    if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {
-        fprintf(stderr, "qemu: too many IDE bus\n");
-        exit(1);
-    }
-
-    for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
-        hd[i] = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
-    }
+    ide_drive_get(hd, MAX_IDE_BUS);
 
     piix4_devfn = piix4_init(pci_bus, 80);
     isa_bus_irqs(i8259);
@@ -921,15 +912,8 @@ void mips_malta_init (ram_addr_t ram_size,
     usb_uhci_piix4_init(pci_bus, piix4_devfn + 2);
     smbus = piix4_pm_init(pci_bus, piix4_devfn + 3, 0x1100, isa_get_irq(9),
                           NULL, NULL, 0);
-    eeprom_buf = qemu_mallocz(8 * 256); /* XXX: make this persistent */
-    for (i = 0; i < 8; i++) {
-        /* TODO: Populate SPD eeprom data.  */
-        DeviceState *eeprom;
-        eeprom = qdev_create((BusState *)smbus, "smbus-eeprom");
-        qdev_prop_set_uint8(eeprom, "address", 0x50 + i);
-        qdev_prop_set_ptr(eeprom, "data", eeprom_buf + (i * 256));
-        qdev_init_nofail(eeprom);
-    }
+    /* TODO: Populate SPD eeprom data.  */
+    smbus_eeprom_init(smbus, 8, NULL, 0);
     pit = pit_init(0x40, 0);
     cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
     DMA_init(0, cpu_exit_irq);

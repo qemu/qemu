@@ -1597,11 +1597,11 @@ static void musicpal_init(ram_addr_t ram_size,
     musicpal_misc_init();
 
     dev = sysbus_create_simple("musicpal_gpio", MP_GPIO_BASE, pic[MP_GPIO_IRQ]);
-    i2c_dev = sysbus_create_simple("gpio_i2c", 0, NULL);
+    i2c_dev = sysbus_create_simple("gpio_i2c", -1, NULL);
     i2c = (i2c_bus *)qdev_get_child_bus(i2c_dev, "i2c");
 
     lcd_dev = sysbus_create_simple("musicpal_lcd", MP_LCD_BASE, NULL);
-    key_dev = sysbus_create_simple("musicpal_key", 0, NULL);
+    key_dev = sysbus_create_simple("musicpal_key", -1, NULL);
 
     /* I2C read data */
     qdev_connect_gpio_out(i2c_dev, 0,

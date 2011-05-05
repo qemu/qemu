@@ -82,3 +82,7 @@ int cpu_s390x_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     return 0;
 }
 #endif /* CONFIG_USER_ONLY */
+
+void do_interrupt (CPUState *env)
+{
+}

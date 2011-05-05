@@ -18,7 +18,6 @@
  */
 
 #include "sysbus.h"
-#include "sysemu.h"
 #include "monitor.h"
 
 static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent);

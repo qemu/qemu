@@ -30,7 +30,6 @@
 #endif
 #include "net.h"
 #include "monitor.h"
-#include "sysemu.h"
 #include "qemu_socket.h"
 #include "slirp/libslirp.h"
 

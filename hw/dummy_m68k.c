@@ -7,7 +7,6 @@
  */
 
 #include "hw.h"
-#include "sysemu.h"
 #include "boards.h"
 #include "loader.h"
 #include "elf.h"

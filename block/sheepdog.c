@@ -13,6 +13,7 @@
 #include "qemu-error.h"
 #include "qemu_socket.h"
 #include "block_int.h"
+#include "bitops.h"
 
 #define SD_PROTO_VER 0x01
 
@@ -1827,20 +1828,6 @@ static int sd_snapshot_delete(BlockDriverState *bs, const char *snapshot_id)
 {
     /* FIXME: Delete specified snapshot id.  */
     return 0;
-}
-
-#define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
-#define BITS_PER_BYTE        8
-#define BITS_TO_LONGS(nr)    DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(long))
-#define DECLARE_BITMAP(name,bits)               \
-    unsigned long name[BITS_TO_LONGS(bits)]
-
-#define BITS_PER_LONG (BITS_PER_BYTE * sizeof(long))
-
-static inline int test_bit(unsigned int nr, const unsigned long *addr)
-{
-    return ((1UL << (nr % BITS_PER_LONG)) &
-            (((unsigned long *)addr)[nr / BITS_PER_LONG])) != 0;
 }
 
 static int sd_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)

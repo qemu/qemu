@@ -164,6 +164,7 @@ void check_aligned_anonymous_unfixed_colliding_mmaps(void)
 		nlen = pagesize * 8;
 		p3 = mmap(NULL, nlen, PROT_READ, 
 			  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		fail_unless (p3 != MAP_FAILED);
 
 		/* Check if the mmaped areas collide.  */
 		if (p3 < p2 
@@ -174,7 +175,6 @@ void check_aligned_anonymous_unfixed_colliding_mmaps(void)
 
 		/* Make sure we get pages aligned with the pagesize. The
 		   target expects this.  */
-		fail_unless (p3 != MAP_FAILED);
 		p = (uintptr_t) p3;
 		fail_unless ((p & pagemask) == 0);
 		munmap (p2, pagesize);

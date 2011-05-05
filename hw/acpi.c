@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>
  */
+#include "sysemu.h"
 #include "hw.h"
 #include "pc.h"
 #include "acpi.h"
@@ -196,4 +197,200 @@ out:
         acpi_tables = NULL;
     }
     return -1;
+}
+
+/* ACPI PM1a EVT */
+uint16_t acpi_pm1_evt_get_sts(ACPIPM1EVT *pm1, int64_t overflow_time)
+{
+    int64_t d = acpi_pm_tmr_get_clock();
+    if (d >= overflow_time) {
+        pm1->sts |= ACPI_BITMASK_TIMER_STATUS;
+    }
+    return pm1->sts;
+}
+
+void acpi_pm1_evt_write_sts(ACPIPM1EVT *pm1, ACPIPMTimer *tmr, uint16_t val)
+{
+    uint16_t pm1_sts = acpi_pm1_evt_get_sts(pm1, tmr->overflow_time);
+    if (pm1_sts & val & ACPI_BITMASK_TIMER_STATUS) {
+        /* if TMRSTS is reset, then compute the new overflow time */
+        acpi_pm_tmr_calc_overflow_time(tmr);
+    }
+    pm1->sts &= ~val;
+}
+
+void acpi_pm1_evt_power_down(ACPIPM1EVT *pm1, ACPIPMTimer *tmr)
+{
+    if (!pm1) {
+        qemu_system_shutdown_request();
+    } else if (pm1->en & ACPI_BITMASK_POWER_BUTTON_ENABLE) {
+        pm1->sts |= ACPI_BITMASK_POWER_BUTTON_STATUS;
+        tmr->update_sci(tmr);
+    }
+}
+
+void acpi_pm1_evt_reset(ACPIPM1EVT *pm1)
+{
+    pm1->sts = 0;
+    pm1->en = 0;
+}
+
+/* ACPI PM_TMR */
+void acpi_pm_tmr_update(ACPIPMTimer *tmr, bool enable)
+{
+    int64_t expire_time;
+
+    /* schedule a timer interruption if needed */
+    if (enable) {
+        expire_time = muldiv64(tmr->overflow_time, get_ticks_per_sec(),
+                               PM_TIMER_FREQUENCY);
+        qemu_mod_timer(tmr->timer, expire_time);
+    } else {
+        qemu_del_timer(tmr->timer);
+    }
+}
+
+void acpi_pm_tmr_calc_overflow_time(ACPIPMTimer *tmr)
+{
+    int64_t d = acpi_pm_tmr_get_clock();
+    tmr->overflow_time = (d + 0x800000LL) & ~0x7fffffLL;
+}
+
+uint32_t acpi_pm_tmr_get(ACPIPMTimer *tmr)
+{
+    uint32_t d = acpi_pm_tmr_get_clock();;
+    return d & 0xffffff;
+}
+
+static void acpi_pm_tmr_timer(void *opaque)
+{
+    ACPIPMTimer *tmr = opaque;
+    tmr->update_sci(tmr);
+}
+
+void acpi_pm_tmr_init(ACPIPMTimer *tmr, acpi_update_sci_fn update_sci)
+{
+    tmr->update_sci = update_sci;
+    tmr->timer = qemu_new_timer_ns(vm_clock, acpi_pm_tmr_timer, tmr);
+}
+
+void acpi_pm_tmr_reset(ACPIPMTimer *tmr)
+{
+    tmr->overflow_time = 0;
+    qemu_del_timer(tmr->timer);
+}
+
+/* ACPI PM1aCNT */
+void acpi_pm1_cnt_init(ACPIPM1CNT *pm1_cnt, qemu_irq cmos_s3)
+{
+    pm1_cnt->cmos_s3 = cmos_s3;
+}
+
+void acpi_pm1_cnt_write(ACPIPM1EVT *pm1a, ACPIPM1CNT *pm1_cnt, uint16_t val)
+{
+    pm1_cnt->cnt = val & ~(ACPI_BITMASK_SLEEP_ENABLE);
+
+    if (val & ACPI_BITMASK_SLEEP_ENABLE) {
+        /* change suspend type */
+        uint16_t sus_typ = (val >> 10) & 7;
+        switch(sus_typ) {
+        case 0: /* soft power off */
+            qemu_system_shutdown_request();
+            break;
+        case 1:
+            /* ACPI_BITMASK_WAKE_STATUS should be set on resume.
+               Pretend that resume was caused by power button */
+            pm1a->sts |=
+                (ACPI_BITMASK_WAKE_STATUS | ACPI_BITMASK_POWER_BUTTON_STATUS);
+            qemu_system_reset_request();
+            qemu_irq_raise(pm1_cnt->cmos_s3);
+        default:
+            break;
+        }
+    }
+}
+
+void acpi_pm1_cnt_update(ACPIPM1CNT *pm1_cnt,
+                         bool sci_enable, bool sci_disable)
+{
+    /* ACPI specs 3.0, 4.7.2.5 */
+    if (sci_enable) {
+        pm1_cnt->cnt |= ACPI_BITMASK_SCI_ENABLE;
+    } else if (sci_disable) {
+        pm1_cnt->cnt &= ~ACPI_BITMASK_SCI_ENABLE;
+    }
+}
+
+void acpi_pm1_cnt_reset(ACPIPM1CNT *pm1_cnt)
+{
+    pm1_cnt->cnt = 0;
+    if (pm1_cnt->cmos_s3) {
+        qemu_irq_lower(pm1_cnt->cmos_s3);
+    }
+}
+
+/* ACPI GPE */
+void acpi_gpe_init(ACPIGPE *gpe, uint8_t len)
+{
+    gpe->len = len;
+    gpe->sts = qemu_mallocz(len / 2);
+    gpe->en = qemu_mallocz(len / 2);
+}
+
+void acpi_gpe_blk(ACPIGPE *gpe, uint32_t blk)
+{
+    gpe->blk = blk;
+}
+
+void acpi_gpe_reset(ACPIGPE *gpe)
+{
+    memset(gpe->sts, 0, gpe->len / 2);
+    memset(gpe->en, 0, gpe->len / 2);
+}
+
+static uint8_t *acpi_gpe_ioport_get_ptr(ACPIGPE *gpe, uint32_t addr)
+{
+    uint8_t *cur = NULL;
+
+    if (addr < gpe->len / 2) {
+        cur = gpe->sts + addr;
+    } else if (addr < gpe->len) {
+        cur = gpe->en + addr - gpe->len / 2;
+    } else {
+        abort();
+    }
+
+    return cur;
+}
+
+void acpi_gpe_ioport_writeb(ACPIGPE *gpe, uint32_t addr, uint32_t val)
+{
+    uint8_t *cur;
+
+    addr -= gpe->blk;
+    cur = acpi_gpe_ioport_get_ptr(gpe, addr);
+    if (addr < gpe->len / 2) {
+        /* GPE_STS */
+        *cur = (*cur) & ~val;
+    } else if (addr < gpe->len) {
+        /* GPE_EN */
+        *cur = val;
+    } else {
+        abort();
+    }
+}
+
+uint32_t acpi_gpe_ioport_readb(ACPIGPE *gpe, uint32_t addr)
+{
+    uint8_t *cur;
+    uint32_t val;
+
+    addr -= gpe->blk;
+    cur = acpi_gpe_ioport_get_ptr(gpe, addr);
+    val = 0;
+    if (cur != NULL) {
+        val = *cur;
+    }
+
+    return val;
 }

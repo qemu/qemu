@@ -385,7 +385,20 @@ static int kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
             break;
         }
 
-        size = ALIGN(((mem->memory_size) >> TARGET_PAGE_BITS), HOST_LONG_BITS) / 8;
+        /* XXX bad kernel interface alert
+         * For dirty bitmap, kernel allocates array of size aligned to
+         * bits-per-long.  But for case when the kernel is 64bits and
+         * the userspace is 32bits, userspace can't align to the same
+         * bits-per-long, since sizeof(long) is different between kernel
+         * and user space.  This way, userspace will provide buffer which
+         * may be 4 bytes less than the kernel will use, resulting in
+         * userspace memory corruption (which is not detectable by valgrind
+         * too, in most cases).
+         * So for now, let's align to 64 instead of HOST_LONG_BITS here, in
+         * a hope that sizeof(long) wont become >8 any time soon.
+         */
+        size = ALIGN(((mem->memory_size) >> TARGET_PAGE_BITS),
+                     /*HOST_LONG_BITS*/ 64) / 8;
         if (!d.dirty_bitmap) {
             d.dirty_bitmap = qemu_malloc(size);
         } else if (size > allocated_size) {
@@ -665,6 +678,15 @@ static CPUPhysMemoryClient kvm_cpu_phys_memory_client = {
     .log_stop = kvm_log_stop,
 };
 
+static void kvm_handle_interrupt(CPUState *env, int mask)
+{
+    env->interrupt_request |= mask;
+
+    if (!qemu_cpu_is_self(env)) {
+        qemu_cpu_kick(env);
+    }
+}
+
 int kvm_init(void)
 {
     static const char upgrade_note[] =
@@ -772,6 +794,8 @@ int kvm_init(void)
     cpu_register_phys_memory_client(&kvm_cpu_phys_memory_client);
 
     s->many_ioeventfds = kvm_check_many_ioeventfds();
+
+    cpu_interrupt_handler = kvm_handle_interrupt;
 
     return 0;
 
@@ -1181,7 +1205,7 @@ int kvm_insert_breakpoint(CPUState *current_env, target_ulong addr,
         bp->use_count = 1;
         err = kvm_arch_insert_sw_breakpoint(current_env, bp);
         if (err) {
-            free(bp);
+            qemu_free(bp);
             return err;
         }
 
@@ -1305,7 +1329,7 @@ int kvm_set_signal_mask(CPUState *env, const sigset_t *sigset)
     sigmask->len = 8;
     memcpy(sigmask->sigset, sigset, sizeof(*sigset));
     r = kvm_vcpu_ioctl(env, KVM_SET_SIGNAL_MASK, sigmask);
-    free(sigmask);
+    qemu_free(sigmask);
 
     return r;
 }

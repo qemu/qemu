@@ -89,6 +89,7 @@ L1, L2, and data cluster offsets must be aligned to header.cluster_size.  The fo
 
 ===Data cluster offsets===
 * 0 - unallocated.  The data cluster is not yet allocated.
+* 1 - zero.  The data cluster contents are all zeroes and no cluster is allocated.
 
 Future format extensions may wish to store per-offset information.  The least significant 12 bits of an offset are reserved for this purpose and must be set to zero.  Image files with cluster_size > 2^12 will have more unused bits which should also be zeroed.
 
@@ -96,6 +97,13 @@ Future format extensions may wish to store per-offset information.  The least si
 Reads to an unallocated area of the image file access the backing file.  If there is no backing file, then zeroes are produced.  The backing file may be smaller than the image file and reads of unallocated areas beyond the end of the backing file produce zeroes.
 
 Writes to an unallocated area cause a new data clusters to be allocated, and a new L2 table if that is also unallocated.  The new data cluster is populated with data from the backing file (or zeroes if no backing file) and the data being written.
+
+===Zero data clusters===
+Zero data clusters are a space-efficient way of storing zeroed regions of the image.
+
+Reads to a zero data cluster produce zeroes.  Note that the difference between an unallocated and a zero data cluster is that zero data clusters stop the reading of contents from the backing file.
+
+Writes to a zero data cluster cause a new data cluster to be allocated.  The new data cluster is populated with zeroes and the data being written.
 
 ===Logical offset translation===
 Logical offsets are translated into cluster offsets as follows:

@@ -161,6 +161,7 @@ typedef struct {
 
 enum {
     QED_CLUSTER_FOUND,         /* cluster found */
+    QED_CLUSTER_ZERO,          /* zero cluster found */
     QED_CLUSTER_L2,            /* cluster missing in L2 */
     QED_CLUSTER_L1,            /* cluster missing in L1 */
 };
@@ -251,7 +252,7 @@ static inline uint64_t qed_offset_into_cluster(BDRVQEDState *s, uint64_t offset)
     return offset & (s->header.cluster_size - 1);
 }
 
-static inline unsigned int qed_bytes_to_clusters(BDRVQEDState *s, size_t bytes)
+static inline uint64_t qed_bytes_to_clusters(BDRVQEDState *s, uint64_t bytes)
 {
     return qed_start_of_cluster(s, bytes + (s->header.cluster_size - 1)) /
            (s->header.cluster_size - 1);
@@ -296,6 +297,31 @@ static inline bool qed_check_table_offset(BDRVQEDState *s, uint64_t offset)
 
     return qed_check_cluster_offset(s, offset) &&
            qed_check_cluster_offset(s, end_offset);
+}
+
+static inline bool qed_offset_is_cluster_aligned(BDRVQEDState *s,
+                                                 uint64_t offset)
+{
+    if (qed_offset_into_cluster(s, offset)) {
+        return false;
+    }
+    return true;
+}
+
+static inline bool qed_offset_is_unalloc_cluster(uint64_t offset)
+{
+    if (offset == 0) {
+        return true;
+    }
+    return false;
+}
+
+static inline bool qed_offset_is_zero_cluster(uint64_t offset)
+{
+    if (offset == 1) {
+        return true;
+    }
+    return false;
 }
 
 #endif /* BLOCK_QED_H */

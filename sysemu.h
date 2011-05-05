@@ -8,21 +8,8 @@
 #include "qemu-timer.h"
 #include "notify.h"
 
-#ifdef _WIN32
-#include <windows.h>
-#include "qemu-os-win32.h"
-#endif
-
-#ifdef CONFIG_POSIX
-#include "qemu-os-posix.h"
-#endif
-
 /* vl.c */
 extern const char *bios_name;
-
-#define QEMU_FILE_TYPE_BIOS   0
-#define QEMU_FILE_TYPE_KEYMAP 1
-char *qemu_find_file(int type, const char *name);
 
 extern int vm_running;
 extern const char *qemu_name;
@@ -50,14 +37,6 @@ void qemu_del_vm_change_state_handler(VMChangeStateEntry *e);
 void vm_start(void);
 void vm_stop(int reason);
 
-uint64_t ram_bytes_remaining(void);
-uint64_t ram_bytes_transferred(void);
-uint64_t ram_bytes_total(void);
-
-int64_t cpu_get_ticks(void);
-void cpu_enable_ticks(void);
-void cpu_disable_ticks(void);
-
 void qemu_system_reset_request(void);
 void qemu_system_shutdown_request(void);
 void qemu_system_powerdown_request(void);
@@ -81,10 +60,6 @@ int load_vmstate(const char *name);
 void do_delvm(Monitor *mon, const QDict *qdict);
 void do_info_snapshots(Monitor *mon);
 
-void cpu_synchronize_all_states(void);
-void cpu_synchronize_all_post_reset(void);
-void cpu_synchronize_all_post_init(void);
-
 void qemu_announce_self(void);
 
 void main_loop_wait(int nonblocking);
@@ -100,12 +75,6 @@ int qemu_loadvm_state(QEMUFile *f);
 /* SLIRP */
 void do_info_slirp(Monitor *mon);
 
-/* OS specific functions */
-void os_setup_early_signal_handling(void);
-char *os_find_datadir(const char *argv0);
-void os_parse_cmd_args(int index, const char *optarg);
-void os_pidfile_error(void);
-
 typedef enum DisplayType
 {
     DT_DEFAULT,
@@ -116,7 +85,6 @@ typedef enum DisplayType
 } DisplayType;
 
 extern int autostart;
-extern int incoming_expected;
 extern int bios_size;
 
 typedef enum {
@@ -190,8 +158,6 @@ extern CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 #define MAX_PARALLEL_PORTS 3
 
 extern CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
-
-#define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
 
 void do_usb_add(Monitor *mon, const QDict *qdict);
 void do_usb_del(Monitor *mon, const QDict *qdict);

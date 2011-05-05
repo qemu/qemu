@@ -11,7 +11,6 @@
 #include "hw.h"
 #include "pxa.h"
 #include "arm-misc.h"
-#include "sysemu.h"
 #include "devices.h"
 #include "sharpsl.h"
 #include "pcmcia.h"

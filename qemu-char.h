@@ -65,12 +65,14 @@ struct CharDriverState {
     void (*chr_close)(struct CharDriverState *chr);
     void (*chr_accept_input)(struct CharDriverState *chr);
     void (*chr_set_echo)(struct CharDriverState *chr, bool echo);
+    void (*chr_guest_open)(struct CharDriverState *chr);
+    void (*chr_guest_close)(struct CharDriverState *chr);
     void *opaque;
     QEMUBH *bh;
     char *label;
     char *filename;
     int opened;
-    int assigned; /* chardev assigned to a device */
+    int avail_connections;
     QTAILQ_ENTRY(CharDriverState) next;
 };
 
@@ -79,6 +81,8 @@ CharDriverState *qemu_chr_open_opts(QemuOpts *opts,
                                     void (*init)(struct CharDriverState *s));
 CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*init)(struct CharDriverState *s));
 void qemu_chr_set_echo(struct CharDriverState *chr, bool echo);
+void qemu_chr_guest_open(struct CharDriverState *chr);
+void qemu_chr_guest_close(struct CharDriverState *chr);
 void qemu_chr_close(CharDriverState *chr);
 void qemu_chr_printf(CharDriverState *s, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);

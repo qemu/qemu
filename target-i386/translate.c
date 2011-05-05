@@ -2274,7 +2274,7 @@ static inline void gen_goto_tb(DisasContext *s, int tb_num, target_ulong eip)
         /* jump to same page: we can use a direct jump */
         tcg_gen_goto_tb(tb_num);
         gen_jmp_im(eip);
-        tcg_gen_exit_tb((long)tb + tb_num);
+        tcg_gen_exit_tb((tcg_target_long)tb + tb_num);
     } else {
         /* jump to another page: currently not optimized */
         gen_jmp_im(eip);
@@ -7890,8 +7890,7 @@ void gen_intermediate_code_pc(CPUState *env, TranslationBlock *tb)
     gen_intermediate_code_internal(env, tb, 1);
 }
 
-void gen_pc_load(CPUState *env, TranslationBlock *tb,
-                unsigned long searched_pc, int pc_pos, void *puc)
+void restore_state_to_opc(CPUState *env, TranslationBlock *tb, int pc_pos)
 {
     int cc_op;
 #ifdef DEBUG_DISAS
@@ -7903,8 +7902,8 @@ void gen_pc_load(CPUState *env, TranslationBlock *tb,
                 qemu_log("0x%04x: " TARGET_FMT_lx "\n", i, gen_opc_pc[i]);
             }
         }
-        qemu_log("spc=0x%08lx pc_pos=0x%x eip=" TARGET_FMT_lx " cs_base=%x\n",
-                searched_pc, pc_pos, gen_opc_pc[pc_pos] - tb->cs_base,
+        qemu_log("pc_pos=0x%x eip=" TARGET_FMT_lx " cs_base=%x\n",
+                pc_pos, gen_opc_pc[pc_pos] - tb->cs_base,
                 (uint32_t)tb->cs_base);
     }
 #endif

@@ -17,7 +17,6 @@
 #include "hw.h"
 #include "pci.h"
 #include "boards.h"
-#include "sysemu.h"
 #include "ppc440.h"
 #include "kvm.h"
 #include "kvm_ppc.h"
@@ -155,8 +154,6 @@ static void bamboo_init(ram_addr_t ram_size,
             fprintf(stderr, "couldn't load device tree\n");
             exit(1);
         }
-
-        cpu_synchronize_state(env);
 
         /* Set initial guest state. */
         env->gpr[1] = (16<<20) - 8;

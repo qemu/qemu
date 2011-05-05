@@ -272,7 +272,7 @@ int load_multiboot(void *fw_cfg,
             mb_debug("multiboot loading module: %s\n", initrd_filename);
             mb_mod_length = get_image_size(initrd_filename);
             if (mb_mod_length < 0) {
-                fprintf(stderr, "failed to get %s image size\n", initrd_filename);
+                fprintf(stderr, "Failed to open file '%s'\n", initrd_filename);
                 exit(1);
             }
 

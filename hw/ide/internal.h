@@ -9,6 +9,7 @@
 #include <hw/ide.h>
 #include "block_int.h"
 #include "iorange.h"
+#include "dma.h"
 
 /* debug IDE devices */
 //#define DEBUG_IDE
@@ -373,6 +374,11 @@ typedef int DMAFunc(IDEDMA *);
 typedef int DMAIntFunc(IDEDMA *, int);
 typedef void DMARestartFunc(void *, int, int);
 
+struct unreported_events {
+    bool eject_request;
+    bool new_media;
+};
+
 /* NOTE: IDEState represents in fact one drive */
 struct IDEState {
     IDEBus *bus;
@@ -408,6 +414,7 @@ struct IDEState {
     BlockDriverState *bs;
     char version[9];
     /* ATAPI specific */
+    struct unreported_events events;
     uint8_t sense_key;
     uint8_t asc;
     uint8_t cdrom_changed;
@@ -563,6 +570,15 @@ void ide_dma_cb(void *opaque, int ret);
 void ide_sector_write(IDEState *s);
 void ide_sector_read(IDEState *s);
 void ide_flush_cache(IDEState *s);
+
+void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
+                        EndTransferFunc *end_transfer_func);
+void ide_transfer_stop(IDEState *s);
+void ide_set_inactive(IDEState *s);
+
+/* hw/ide/atapi.c */
+void ide_atapi_cmd(IDEState *s);
+void ide_atapi_cmd_reply_end(IDEState *s);
 
 /* hw/ide/qdev.c */
 void ide_bus_new(IDEBus *idebus, DeviceState *dev, int bus_id);

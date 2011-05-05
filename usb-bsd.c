@@ -464,7 +464,7 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
                 printf("usb_host_scan: couldn't get device information for %s - %s\n",
                        devbuf, strerror(errno));
 
-            // XXX: might need to fixup endianess of word values before copying over
+            /* XXX: might need to fixup endianness of word values before copying over */
 
             vendor_id = dev_info.udi_vendorNo;
             product_id = dev_info.udi_productNo;

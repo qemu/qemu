@@ -44,7 +44,6 @@
 #include <xen/io/protocols.h>
 
 #include "hw.h"
-#include "sysemu.h"
 #include "console.h"
 #include "qemu-char.h"
 #include "xen_backend.h"

@@ -138,11 +138,20 @@ typedef union {
     uint64_t ll;
 } CPU_DoubleU;
 
-#ifdef TARGET_SPARC
+#if defined(FLOATX80)
+typedef union {
+     floatx80 d;
+     struct {
+         uint64_t lower;
+         uint16_t upper;
+     } l;
+} CPU_LDoubleU;
+#endif
+
+#if defined(CONFIG_SOFTFLOAT)
 typedef union {
     float128 q;
-#if defined(HOST_WORDS_BIGENDIAN) \
-    || (defined(__arm__) && !defined(__VFP_FP__) && !defined(CONFIG_SOFTFLOAT))
+#if defined(HOST_WORDS_BIGENDIAN)
     struct {
         uint32_t upmost;
         uint32_t upper;
@@ -790,7 +799,19 @@ extern CPUState *cpu_single_env;
 #define CPU_INTERRUPT_SIPI   0x800 /* SIPI pending. */
 #define CPU_INTERRUPT_MCE    0x1000 /* (x86 only) MCE pending. */
 
-void cpu_interrupt(CPUState *s, int mask);
+#ifndef CONFIG_USER_ONLY
+typedef void (*CPUInterruptHandler)(CPUState *, int);
+
+extern CPUInterruptHandler cpu_interrupt_handler;
+
+static inline void cpu_interrupt(CPUState *s, int mask)
+{
+    cpu_interrupt_handler(s, mask);
+}
+#else /* USER_ONLY */
+void cpu_interrupt(CPUState *env, int mask);
+#endif /* USER_ONLY */
+
 void cpu_reset_interrupt(CPUState *env, int mask);
 
 void cpu_exit(CPUState *s);

@@ -236,21 +236,16 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
         pci_nic_init_nofail(&nd_table[i], "ne2k_pci", NULL);
 
 
-    if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {
-        fprintf(stderr, "qemu: too many IDE bus\n");
-        exit(1);
-    }
+    ide_drive_get(hd, MAX_IDE_BUS);
 
     /* First IDE channel is a MAC IDE on the MacIO bus */
-    hd[0] = drive_get(IF_IDE, 0, 0);
-    hd[1] = drive_get(IF_IDE, 0, 1);
     dbdma = DBDMA_init(&dbdma_mem_index);
     ide_mem_index[0] = -1;
     ide_mem_index[1] = pmac_ide_init(hd, pic[0x0D], dbdma, 0x16, pic[0x02]);
 
     /* Second IDE channel is a CMD646 on the PCI bus */
-    hd[0] = drive_get(IF_IDE, 1, 0);
-    hd[1] = drive_get(IF_IDE, 1, 1);
+    hd[0] = hd[MAX_IDE_DEVS];
+    hd[1] = hd[MAX_IDE_DEVS + 1];
     hd[3] = hd[2] = NULL;
     pci_cmd646_ide_init(pci_bus, hd, 0);
 

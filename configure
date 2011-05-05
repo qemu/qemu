@@ -175,6 +175,9 @@ trace_backend="nop"
 trace_file="trace"
 spice=""
 rbd=""
+smartcard=""
+smartcard_nss=""
+opengl=""
 
 # parse CC options first
 for opt do
@@ -281,7 +284,7 @@ else
 fi
 
 case "$cpu" in
-  alpha|cris|ia64|lm32|m68k|microblaze|ppc|ppc64|sparc64)
+  alpha|cris|ia64|lm32|m68k|microblaze|ppc|ppc64|sparc64|unicore32)
     cpu="$cpu"
   ;;
   i386|i486|i586|i686|i86pc|BePC)
@@ -491,6 +494,8 @@ for opt do
   optarg=`expr "x$opt" : 'x[^=]*=\(.*\)'`
   case "$opt" in
   --help|-h) show_help=yes
+  ;;
+  --version|-V) exec cat $source_path/VERSION
   ;;
   --prefix=*) prefix="$optarg"
   ;;
@@ -718,11 +723,23 @@ for opt do
   ;;
   --enable-vhost-net) vhost_net="yes"
   ;;
+  --disable-opengl) opengl="no"
+  ;;
+  --enable-opengl) opengl="yes"
+  ;;
   --*dir)
   ;;
   --disable-rbd) rbd="no"
   ;;
   --enable-rbd) rbd="yes"
+  ;;
+  --disable-smartcard) smartcard="no"
+  ;;
+  --enable-smartcard) smartcard="yes"
+  ;;
+  --disable-smartcard-nss) smartcard_nss="no"
+  ;;
+  --enable-smartcard-nss) smartcard_nss="yes"
   ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
@@ -796,6 +813,9 @@ case "$cpu" in
            host_guest_base="yes"
            ;;
     hppa*)
+           host_guest_base="yes"
+           ;;
+    unicore32*)
            host_guest_base="yes"
            ;;
 esac
@@ -921,6 +941,10 @@ echo "                           Default:trace-<pid>"
 echo "  --disable-spice          disable spice"
 echo "  --enable-spice           enable spice"
 echo "  --enable-rbd             enable building the rados block device (rbd)"
+echo "  --disable-smartcard      disable smartcard support"
+echo "  --enable-smartcard       enable smartcard support"
+echo "  --disable-smartcard-nss  disable smartcard nss support"
+echo "  --enable-smartcard-nss   enable smartcard nss support"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -1028,6 +1052,7 @@ sh4eb-linux-user \
 sparc-linux-user \
 sparc64-linux-user \
 sparc32plus-linux-user \
+unicore32-linux-user \
 "
     fi
 # the following are Darwin specific
@@ -1213,7 +1238,7 @@ else
   fi
   sdl=no
 fi
-if test -n "$cross_prefix" && test "`basename $sdlconfig`" = sdl-config; then
+if test -n "$cross_prefix" && test "$(basename "$sdlconfig")" = sdl-config; then
   echo warning: using "\"$sdlconfig\"" to detect cross-compiled sdl >&2
 fi
 
@@ -1921,12 +1946,33 @@ int main(void) { return 0; }
 EOF
   if compile_prog "" "$fdt_libs" ; then
     fdt=yes
-    libs_softmmu="$fdt_libs $libs_softmmu"
   else
     if test "$fdt" = "yes" ; then
       feature_not_found "fdt"
     fi
+    fdt_libs=
     fdt=no
+  fi
+fi
+
+##########################################
+# opengl probe, used by milkymist-tmu2
+if test "$opengl" != "no" ; then
+  opengl_libs="-lGL"
+  cat > $TMPC << EOF
+#include <X11/Xlib.h>
+#include <GL/gl.h>
+#include <GL/glx.h>
+int main(void) { GL_VERSION; return 0; }
+EOF
+  if compile_prog "" "-lGL" ; then
+    opengl=yes
+  else
+    if test "$opengl" = "yes" ; then
+      feature_not_found "opengl"
+    fi
+    opengl_libs=
+    opengl=no
   fi
 fi
 
@@ -2179,7 +2225,15 @@ cat > $TMPC << EOF
 
 int main(void)
 {
-    epoll_create1(0);
+    /* Note that we use epoll_create1 as a value, not as
+     * a function being called. This is necessary so that on
+     * old SPARC glibc versions where the function was present in
+     * the library but not declared in the header file we will
+     * fail the configure check. (Otherwise we will get a compiler
+     * warning but not an error, and will proceed to fail the
+     * qemu compile where we compile with -Werror.)
+     */
+    epoll_create1;
     return 0;
 }
 EOF
@@ -2302,6 +2356,31 @@ EOF
     fi
     spice="no"
   fi
+fi
+
+# check for libcacard for smartcard support
+if test "$smartcard" != "no" ; then
+    smartcard="yes"
+    smartcard_cflags=""
+    # TODO - what's the minimal nss version we support?
+    if test "$smartcard_nss" != "no"; then
+        if $pkg_config --atleast-version=3.12.8 nss >/dev/null 2>&1 ; then
+            smartcard_nss="yes"
+            smartcard_cflags="-I\$(SRC_PATH)/libcacard"
+            libcacard_libs=$($pkg_config --libs nss 2>/dev/null)
+            libcacard_cflags=$($pkg_config --cflags nss 2>/dev/null)
+            QEMU_CFLAGS="$QEMU_CFLAGS $smartcard_cflags $libcacard_cflags"
+            LIBS="$libcacard_libs $LIBS"
+        else
+            if test "$smartcard_nss" = "yes"; then
+                feature_not_found "nss"
+            fi
+            smartcard_nss="no"
+        fi
+    fi
+fi
+if test "$smartcard" = "no" ; then
+    smartcard_nss="no"
 fi
 
 ##########################################
@@ -2461,7 +2540,9 @@ if test \( "$cpu" = "i386" -o "$cpu" = "x86_64" \) -a \
         "$softmmu" = yes ; then
   roms="optionrom"
 fi
-
+if test "$cpu" = "ppc64" ; then
+  roms="$roms spapr-rtas"
+fi
 
 echo "Install prefix    $prefix"
 echo "BIOS directory    `eval echo $datadir`"
@@ -2540,6 +2621,8 @@ echo "Trace output file $trace_file-<pid>"
 echo "spice support     $spice"
 echo "rbd support       $rbd"
 echo "xfsctl support    $xfs"
+echo "nss used          $smartcard_nss"
+echo "OpenGL support    $opengl"
 
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -2563,7 +2646,7 @@ echo "docdir=$docdir" >> $config_host_mak
 echo "confdir=$confdir" >> $config_host_mak
 
 case "$cpu" in
-  i386|x86_64|alpha|cris|hppa|ia64|lm32|m68k|microblaze|mips|mips64|ppc|ppc64|s390|s390x|sparc|sparc64)
+  i386|x86_64|alpha|cris|hppa|ia64|lm32|m68k|microblaze|mips|mips64|ppc|ppc64|s390|s390x|sparc|sparc64|unicore32)
     ARCH=$cpu
   ;;
   armv4b|armv4l)
@@ -2822,6 +2905,18 @@ if test "$spice" = "yes" ; then
   echo "CONFIG_SPICE=y" >> $config_host_mak
 fi
 
+if test "$smartcard" = "yes" ; then
+  echo "CONFIG_SMARTCARD=y" >> $config_host_mak
+fi
+
+if test "$smartcard_nss" = "yes" ; then
+  echo "CONFIG_SMARTCARD_NSS=y" >> $config_host_mak
+fi
+
+if test "$opengl" = "yes" ; then
+  echo "CONFIG_OPENGL=y" >> $config_host_mak
+fi
+
 # XXX: suppress that
 if [ "$bsd" = "yes" ] ; then
   echo "CONFIG_BSD=y" >> $config_host_mak
@@ -2967,6 +3062,7 @@ mkdir -p $target_dir
 mkdir -p $target_dir/fpu
 mkdir -p $target_dir/tcg
 mkdir -p $target_dir/ide
+mkdir -p $target_dir/9pfs
 if test "$target" = "arm-linux-user" -o "$target" = "armeb-linux-user" -o "$target" = "arm-bsd-user" -o "$target" = "armeb-bsd-user" ; then
   mkdir -p $target_dir/nwfpe
 fi
@@ -2984,6 +3080,7 @@ target_short_alignment=2
 target_int_alignment=4
 target_long_alignment=4
 target_llong_alignment=8
+target_libs_softmmu=
 
 TARGET_ARCH="$target_arch2"
 TARGET_BASE_ARCH=""
@@ -3017,6 +3114,7 @@ case "$target_arch2" in
   ;;
   lm32)
     target_phys_bits=32
+    target_libs_softmmu="$opengl_libs"
   ;;
   m68k)
     bflt="yes"
@@ -3031,6 +3129,7 @@ case "$target_arch2" in
     bflt="yes"
     target_nptl="yes"
     target_phys_bits=32
+    target_libs_softmmu="$fdt_libs"
   ;;
   mips|mipsel)
     TARGET_ARCH=mips
@@ -3055,6 +3154,7 @@ case "$target_arch2" in
     gdb_xml_files="power-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
     target_phys_bits=32
     target_nptl="yes"
+    target_libs_softmmu="$fdt_libs"
   ;;
   ppcemb)
     TARGET_BASE_ARCH=ppc
@@ -3062,6 +3162,7 @@ case "$target_arch2" in
     gdb_xml_files="power-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
     target_phys_bits=64
     target_nptl="yes"
+    target_libs_softmmu="$fdt_libs"
   ;;
   ppc64)
     TARGET_BASE_ARCH=ppc
@@ -3069,6 +3170,7 @@ case "$target_arch2" in
     gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
     target_phys_bits=64
     target_long_alignment=8
+    target_libs_softmmu="$fdt_libs"
   ;;
   ppc64abi32)
     TARGET_ARCH=ppc64
@@ -3077,6 +3179,7 @@ case "$target_arch2" in
     echo "TARGET_ABI32=y" >> $config_target_mak
     gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
     target_phys_bits=64
+    target_libs_softmmu="$fdt_libs"
   ;;
   sh4|sh4eb)
     TARGET_ARCH=sh4
@@ -3100,7 +3203,12 @@ case "$target_arch2" in
     target_phys_bits=64
   ;;
   s390x)
+    target_nptl="yes"
     target_phys_bits=64
+    target_long_alignment=8
+  ;;
+  unicore32)
+    target_phys_bits=32
   ;;
   *)
     echo "Unsupported target CPU"
@@ -3157,7 +3265,7 @@ fi
 if test "$target_softmmu" = "yes" ; then
   echo "TARGET_PHYS_ADDR_BITS=$target_phys_bits" >> $config_target_mak
   echo "CONFIG_SOFTMMU=y" >> $config_target_mak
-  echo "LIBS+=$libs_softmmu" >> $config_target_mak
+  echo "LIBS+=$libs_softmmu $target_libs_softmmu" >> $config_target_mak
   echo "HWDIR=../libhw$target_phys_bits" >> $config_target_mak
   echo "subdir-$target: subdir-libhw$target_phys_bits" >> $config_host_mak
 fi
@@ -3170,6 +3278,11 @@ fi
 if test "$target_darwin_user" = "yes" ; then
   echo "CONFIG_DARWIN_USER=y" >> $config_target_mak
 fi
+if test "$smartcard_nss" = "yes" ; then
+  echo "subdir-$target: subdir-libcacard" >> $config_host_mak
+  echo "libcacard_libs=$libcacard_libs" >> $config_host_mak
+  echo "libcacard_cflags=$libcacard_cflags" >> $config_host_mak
+fi
 list=""
 if test ! -z "$gdb_xml_files" ; then
   for x in $gdb_xml_files; do
@@ -3178,14 +3291,7 @@ if test ! -z "$gdb_xml_files" ; then
   echo "TARGET_XML_FILES=$list" >> $config_target_mak
 fi
 
-case "$target_arch2" in
-  i386|x86_64)
-    echo "CONFIG_NOSOFTFLOAT=y" >> $config_target_mak
-    ;;
-  *)
-    echo "CONFIG_SOFTFLOAT=y" >> $config_target_mak
-    ;;
-esac
+echo "CONFIG_SOFTFLOAT=y" >> $config_target_mak
 
 if test "$target_user_only" = "yes" -a "$bflt" = "yes"; then
   echo "TARGET_HAS_BFLT=y" >> $config_target_mak
@@ -3294,6 +3400,9 @@ if test "$target_softmmu" = "yes" ; then
   arm)
     cflags="-DHAS_AUDIO $cflags"
   ;;
+  lm32)
+    cflags="-DHAS_AUDIO $cflags"
+  ;;
   i386|mips|ppc)
     cflags="-DHAS_AUDIO -DHAS_AUDIO_CHOICE $cflags"
   ;;
@@ -3354,7 +3463,7 @@ FILES="Makefile tests/Makefile"
 FILES="$FILES tests/cris/Makefile tests/cris/.gdbinit"
 FILES="$FILES pc-bios/optionrom/Makefile pc-bios/keymaps"
 FILES="$FILES roms/seabios/Makefile roms/vgabios/Makefile"
-for bios_file in $source_path/pc-bios/*.bin $source_path/pc-bios/*.dtb $source_path/pc-bios/openbios-*; do
+for bios_file in $source_path/pc-bios/*.bin $source_path/pc-bios/*.rom $source_path/pc-bios/*.dtb $source_path/pc-bios/openbios-*; do
     FILES="$FILES pc-bios/`basename $bios_file`"
 done
 mkdir -p $DIRS
@@ -3380,8 +3489,16 @@ for hwlib in 32 64; do
   mkdir -p $d
   mkdir -p $d/ide
   symlink $source_path/Makefile.hw $d/Makefile
+  mkdir -p $d/9pfs
   echo "QEMU_CFLAGS+=-DTARGET_PHYS_ADDR_BITS=$hwlib" > $d/config.mak
 done
+
+if [ "$source_path" != `pwd` ]; then
+    # out of tree build
+    mkdir -p libcacard
+    rm -f libcacard/Makefile
+    ln -s "$source_path/libcacard/Makefile" libcacard/Makefile
+fi
 
 d=libuser
 mkdir -p $d

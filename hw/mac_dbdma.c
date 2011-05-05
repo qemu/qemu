@@ -165,6 +165,10 @@ typedef struct DBDMA_channel {
     int processing;
 } DBDMA_channel;
 
+typedef struct {
+    DBDMA_channel channels[DBDMA_CHANNELS];
+} DBDMAState;
+
 #ifdef DEBUG_DBDMA
 static void dump_dbdma_cmd(dbdma_cmd *cmd)
 {
@@ -617,31 +621,34 @@ static void channel_run(DBDMA_channel *ch)
     }
 }
 
-static void DBDMA_run (DBDMA_channel *ch)
+static void DBDMA_run(DBDMAState *s)
 {
     int channel;
 
-    for (channel = 0; channel < DBDMA_CHANNELS; channel++, ch++) {
-            uint32_t status = ch->regs[DBDMA_STATUS];
-            if (!ch->processing && (status & RUN) && (status & ACTIVE))
-                channel_run(ch);
+    for (channel = 0; channel < DBDMA_CHANNELS; channel++) {
+        DBDMA_channel *ch = &s->channels[channel];
+        uint32_t status = ch->regs[DBDMA_STATUS];
+        if (!ch->processing && (status & RUN) && (status & ACTIVE)) {
+            channel_run(ch);
+        }
     }
 }
 
 static void DBDMA_run_bh(void *opaque)
 {
-    DBDMA_channel *ch = opaque;
+    DBDMAState *s = opaque;
 
     DBDMA_DPRINTF("DBDMA_run_bh\n");
 
-    DBDMA_run(ch);
+    DBDMA_run(s);
 }
 
 void DBDMA_register_channel(void *dbdma, int nchan, qemu_irq irq,
                             DBDMA_rw rw, DBDMA_flush flush,
                             void *opaque)
 {
-    DBDMA_channel *ch = ( DBDMA_channel *)dbdma + nchan;
+    DBDMAState *s = dbdma;
+    DBDMA_channel *ch = &s->channels[nchan];
 
     DBDMA_DPRINTF("DBDMA_register_channel 0x%x\n", nchan);
 
@@ -700,7 +707,8 @@ static void dbdma_writel (void *opaque,
                           target_phys_addr_t addr, uint32_t value)
 {
     int channel = addr >> DBDMA_CHANNEL_SHIFT;
-    DBDMA_channel *ch = (DBDMA_channel *)opaque + channel;
+    DBDMAState *s = opaque;
+    DBDMA_channel *ch = &s->channels[channel];
     int reg = (addr - (channel << DBDMA_CHANNEL_SHIFT)) >> 2;
 
     DBDMA_DPRINTF("writel 0x" TARGET_FMT_plx " <= 0x%08x\n", addr, value);
@@ -749,7 +757,8 @@ static uint32_t dbdma_readl (void *opaque, target_phys_addr_t addr)
 {
     uint32_t value;
     int channel = addr >> DBDMA_CHANNEL_SHIFT;
-    DBDMA_channel *ch = (DBDMA_channel *)opaque + channel;
+    DBDMAState *s = opaque;
+    DBDMA_channel *ch = &s->channels[channel];
     int reg = (addr - (channel << DBDMA_CHANNEL_SHIFT)) >> 2;
 
     value = ch->regs[reg];
@@ -801,49 +810,47 @@ static CPUReadMemoryFunc * const dbdma_read[] = {
     dbdma_readl,
 };
 
-static void dbdma_save(QEMUFile *f, void *opaque)
-{
-    DBDMA_channel *s = opaque;
-    unsigned int i, j;
+static const VMStateDescription vmstate_dbdma_channel = {
+    .name = "dbdma_channel",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32_ARRAY(regs, struct DBDMA_channel, DBDMA_REGS),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
-    for (i = 0; i < DBDMA_CHANNELS; i++)
-        for (j = 0; j < DBDMA_REGS; j++)
-            qemu_put_be32s(f, &s[i].regs[j]);
-}
-
-static int dbdma_load(QEMUFile *f, void *opaque, int version_id)
-{
-    DBDMA_channel *s = opaque;
-    unsigned int i, j;
-
-    if (version_id != 2)
-        return -EINVAL;
-
-    for (i = 0; i < DBDMA_CHANNELS; i++)
-        for (j = 0; j < DBDMA_REGS; j++)
-            qemu_get_be32s(f, &s[i].regs[j]);
-
-    return 0;
-}
+static const VMStateDescription vmstate_dbdma = {
+    .name = "dbdma",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
+    .fields      = (VMStateField[]) {
+        VMSTATE_STRUCT_ARRAY(channels, DBDMAState, DBDMA_CHANNELS, 1,
+                             vmstate_dbdma_channel, DBDMA_channel),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void dbdma_reset(void *opaque)
 {
-    DBDMA_channel *s = opaque;
+    DBDMAState *s = opaque;
     int i;
 
     for (i = 0; i < DBDMA_CHANNELS; i++)
-        memset(s[i].regs, 0, DBDMA_SIZE);
+        memset(s->channels[i].regs, 0, DBDMA_SIZE);
 }
 
 void* DBDMA_init (int *dbdma_mem_index)
 {
-    DBDMA_channel *s;
+    DBDMAState *s;
 
-    s = qemu_mallocz(sizeof(DBDMA_channel) * DBDMA_CHANNELS);
+    s = qemu_mallocz(sizeof(DBDMAState));
 
     *dbdma_mem_index = cpu_register_io_memory(dbdma_read, dbdma_write, s,
                                               DEVICE_LITTLE_ENDIAN);
-    register_savevm(NULL, "dbdma", -1, 1, dbdma_save, dbdma_load, s);
+    vmstate_register(NULL, -1, &vmstate_dbdma, s);
     qemu_register_reset(dbdma_reset, s);
 
     dbdma_bh = qemu_bh_new(DBDMA_run_bh, s);

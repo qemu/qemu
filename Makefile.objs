@@ -14,7 +14,7 @@ oslib-obj-$(CONFIG_POSIX) += oslib-posix.o
 # block-obj-y is code used by both qemu system emulation and qemu-img
 
 block-obj-y = cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o async.o
-block-obj-y += nbd.o block.o aio.o aes.o qemu-config.o
+block-obj-y += nbd.o block.o aio.o aes.o qemu-config.o qemu-progress.o qemu-sockets.o
 block-obj-$(CONFIG_POSIX) += posix-aio-compat.o
 block-obj-$(CONFIG_LINUX_AIO) += linux-aio.o
 
@@ -94,11 +94,11 @@ common-obj-$(CONFIG_SSI_SD) += ssi-sd.o
 common-obj-$(CONFIG_SD) += sd.o
 common-obj-y += bt.o bt-host.o bt-vhci.o bt-l2cap.o bt-sdp.o bt-hci.o bt-hid.o usb-bt.o
 common-obj-y += bt-hci-csr.o
-common-obj-y += buffered_file.o migration.o migration-tcp.o qemu-sockets.o
+common-obj-y += buffered_file.o migration.o migration-tcp.o
 common-obj-y += qemu-char.o savevm.o #aio.o
 common-obj-y += msmouse.o ps2.o
 common-obj-y += qdev.o qdev-properties.o
-common-obj-y += block-migration.o
+common-obj-y += block-migration.o iohandler.o
 common-obj-y += pflib.o
 common-obj-y += bitmap.o bitops.o
 
@@ -200,6 +200,8 @@ hw-obj-$(CONFIG_APM) += pm_smbus.o apm.o
 hw-obj-$(CONFIG_DMA) += dma.o
 hw-obj-$(CONFIG_HPET) += hpet.o
 hw-obj-$(CONFIG_APPLESMC) += applesmc.o
+hw-obj-$(CONFIG_SMARTCARD) += usb-ccid.o ccid-card-passthru.o
+hw-obj-$(CONFIG_SMARTCARD_NSS) += ccid-card-emulated.o
 
 # PPC devices
 hw-obj-$(CONFIG_OPENPIC) += openpic.o
@@ -240,7 +242,7 @@ hw-obj-$(CONFIG_LAN9118) += lan9118.o
 hw-obj-$(CONFIG_NE2000_ISA) += ne2000-isa.o
 
 # IDE
-hw-obj-$(CONFIG_IDE_CORE) += ide/core.o
+hw-obj-$(CONFIG_IDE_CORE) += ide/core.o ide/atapi.o
 hw-obj-$(CONFIG_IDE_QDEV) += ide/qdev.o
 hw-obj-$(CONFIG_IDE_PCI) += ide/pci.o
 hw-obj-$(CONFIG_IDE_ISA) += ide/isa.o
@@ -283,9 +285,13 @@ sound-obj-$(CONFIG_HDA) += intel-hda.o hda-audio.o
 adlib.o fmopl.o: QEMU_CFLAGS += -DBUILD_Y8950=0
 hw-obj-$(CONFIG_SOUND) += $(sound-obj-y)
 
-hw-obj-$(CONFIG_REALLY_VIRTFS) += virtio-9p-debug.o
-hw-obj-$(CONFIG_VIRTFS) += virtio-9p-local.o virtio-9p-xattr.o
-hw-obj-$(CONFIG_VIRTFS) += virtio-9p-xattr-user.o virtio-9p-posix-acl.o
+9pfs-nested-$(CONFIG_REALLY_VIRTFS) = virtio-9p-debug.o
+9pfs-nested-$(CONFIG_VIRTFS) +=  virtio-9p-local.o virtio-9p-xattr.o
+9pfs-nested-$(CONFIG_VIRTFS) +=   virtio-9p-xattr-user.o virtio-9p-posix-acl.o
+
+hw-obj-$(CONFIG_VIRTFS) += $(addprefix 9pfs/, $(9pfs-nested-y))
+$(addprefix 9pfs/, $(9pfs-nested-y)): CFLAGS +=  -I$(SRC_PATH)/hw/
+
 
 ######################################################################
 # libdis
@@ -310,6 +316,38 @@ libdis-$(CONFIG_SPARC_DIS) += sparc-dis.o
 # trace
 
 ifeq ($(TRACE_BACKEND),dtrace)
+trace.h: trace.h-timestamp trace-dtrace.h
+else
+trace.h: trace.h-timestamp
+endif
+trace.h-timestamp: $(SRC_PATH)/trace-events config-host.mak
+	$(call quiet-command,sh $(SRC_PATH)/scripts/tracetool --$(TRACE_BACKEND) -h < $< > $@,"  GEN   trace.h")
+	@cmp -s $@ trace.h || cp $@ trace.h
+
+trace.c: trace.c-timestamp
+trace.c-timestamp: $(SRC_PATH)/trace-events config-host.mak
+	$(call quiet-command,sh $(SRC_PATH)/scripts/tracetool --$(TRACE_BACKEND) -c < $< > $@,"  GEN   trace.c")
+	@cmp -s $@ trace.c || cp $@ trace.c
+
+trace.o: trace.c $(GENERATED_HEADERS)
+
+trace-dtrace.h: trace-dtrace.dtrace
+	$(call quiet-command,dtrace -o $@ -h -s $<, "  GEN   trace-dtrace.h")
+
+# Normal practice is to name DTrace probe file with a '.d' extension
+# but that gets picked up by QEMU's Makefile as an external dependancy
+# rule file. So we use '.dtrace' instead
+trace-dtrace.dtrace: trace-dtrace.dtrace-timestamp
+trace-dtrace.dtrace-timestamp: $(SRC_PATH)/trace-events config-host.mak
+	$(call quiet-command,sh $(SRC_PATH)/scripts/tracetool --$(TRACE_BACKEND) -d < $< > $@,"  GEN   trace-dtrace.dtrace")
+	@cmp -s $@ trace-dtrace.dtrace || cp $@ trace-dtrace.dtrace
+
+trace-dtrace.o: trace-dtrace.dtrace $(GENERATED_HEADERS)
+	$(call quiet-command,dtrace -o $@ -G -s $<, "  GEN trace-dtrace.o")
+
+simpletrace.o: simpletrace.c $(GENERATED_HEADERS)
+
+ifeq ($(TRACE_BACKEND),dtrace)
 trace-obj-y = trace-dtrace.o
 else
 trace-obj-y = trace.o
@@ -318,6 +356,11 @@ trace-obj-y += simpletrace.o
 user-obj-y += qemu-timer-common.o
 endif
 endif
+
+######################################################################
+# smartcard
+
+libcacard-y = cac.o event.o vcard.o vreader.o vcard_emul_nss.o vcard_emul_type.o card_7816.o
 
 vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 

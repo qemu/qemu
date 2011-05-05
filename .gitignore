@@ -44,6 +44,9 @@ QMP/qmp-commands.txt
 *.ky
 *.log
 *.pdf
+*.cps
+*.fns
+*.kys
 *.pg
 *.pyc
 *.toc

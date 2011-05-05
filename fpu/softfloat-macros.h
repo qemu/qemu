@@ -36,6 +36,17 @@ these four paragraphs for those parts of this code that are retained.
 =============================================================================*/
 
 /*----------------------------------------------------------------------------
+| This macro tests for minimum version of the GNU C compiler.
+*----------------------------------------------------------------------------*/
+#if defined(__GNUC__) && defined(__GNUC_MINOR__)
+# define SOFTFLOAT_GNUC_PREREQ(maj, min) \
+         ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
+#else
+# define SOFTFLOAT_GNUC_PREREQ(maj, min) 0
+#endif
+
+
+/*----------------------------------------------------------------------------
 | Shifts `a' right by the number of bits given in `count'.  If any nonzero
 | bits are shifted off, they are ``jammed'' into the least significant bit of
 | the result by setting the least significant bit to 1.  The value of `count'
@@ -616,6 +627,13 @@ static uint32_t estimateSqrt32( int16 aExp, uint32_t a )
 
 static int8 countLeadingZeros32( uint32_t a )
 {
+#if SOFTFLOAT_GNUC_PREREQ(3, 4)
+    if (a) {
+        return __builtin_clz(a);
+    } else {
+        return 32;
+    }
+#else
     static const int8 countLeadingZerosHigh[] = {
         8, 7, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4, 4,
         3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
@@ -647,7 +665,7 @@ static int8 countLeadingZeros32( uint32_t a )
     }
     shiftCount += countLeadingZerosHigh[ a>>24 ];
     return shiftCount;
-
+#endif
 }
 
 /*----------------------------------------------------------------------------
@@ -657,6 +675,13 @@ static int8 countLeadingZeros32( uint32_t a )
 
 static int8 countLeadingZeros64( uint64_t a )
 {
+#if SOFTFLOAT_GNUC_PREREQ(3, 4)
+    if (a) {
+        return __builtin_clzll(a);
+    } else {
+        return 64;
+    }
+#else
     int8 shiftCount;
 
     shiftCount = 0;
@@ -668,7 +693,7 @@ static int8 countLeadingZeros64( uint64_t a )
     }
     shiftCount += countLeadingZeros32( a );
     return shiftCount;
-
+#endif
 }
 
 /*----------------------------------------------------------------------------

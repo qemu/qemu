@@ -92,6 +92,35 @@ static struct kvm_cpuid2 *try_get_cpuid(KVMState *s, int max)
     return cpuid;
 }
 
+#ifdef CONFIG_KVM_PARA
+struct kvm_para_features {
+    int cap;
+    int feature;
+} para_features[] = {
+    { KVM_CAP_CLOCKSOURCE, KVM_FEATURE_CLOCKSOURCE },
+    { KVM_CAP_NOP_IO_DELAY, KVM_FEATURE_NOP_IO_DELAY },
+    { KVM_CAP_PV_MMU, KVM_FEATURE_MMU_OP },
+#ifdef KVM_CAP_ASYNC_PF
+    { KVM_CAP_ASYNC_PF, KVM_FEATURE_ASYNC_PF },
+#endif
+    { -1, -1 }
+};
+
+static int get_para_features(CPUState *env)
+{
+    int i, features = 0;
+
+    for (i = 0; i < ARRAY_SIZE(para_features) - 1; i++) {
+        if (kvm_check_extension(env->kvm_state, para_features[i].cap)) {
+            features |= (1 << para_features[i].feature);
+        }
+    }
+
+    return features;
+}
+#endif
+
+
 uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function,
                                       uint32_t index, int reg)
 {
@@ -99,6 +128,9 @@ uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function,
     int i, max;
     uint32_t ret = 0;
     uint32_t cpuid_1_edx;
+#ifdef CONFIG_KVM_PARA
+    int has_kvm_features = 0;
+#endif
 
     max = 1;
     while ((cpuid = try_get_cpuid(env->kvm_state, max)) == NULL) {
@@ -108,6 +140,11 @@ uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function,
     for (i = 0; i < cpuid->nent; ++i) {
         if (cpuid->entries[i].function == function &&
             cpuid->entries[i].index == index) {
+#ifdef CONFIG_KVM_PARA
+            if (cpuid->entries[i].function == KVM_CPUID_FEATURES) {
+                has_kvm_features = 1;
+            }
+#endif
             switch (reg) {
             case R_EAX:
                 ret = cpuid->entries[i].eax;
@@ -140,38 +177,15 @@ uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function,
 
     qemu_free(cpuid);
 
+#ifdef CONFIG_KVM_PARA
+    /* fallback for older kernels */
+    if (!has_kvm_features && (function == KVM_CPUID_FEATURES)) {
+        ret = get_para_features(env);
+    }
+#endif
+
     return ret;
 }
-
-#ifdef CONFIG_KVM_PARA
-struct kvm_para_features {
-    int cap;
-    int feature;
-} para_features[] = {
-    { KVM_CAP_CLOCKSOURCE, KVM_FEATURE_CLOCKSOURCE },
-    { KVM_CAP_NOP_IO_DELAY, KVM_FEATURE_NOP_IO_DELAY },
-    { KVM_CAP_PV_MMU, KVM_FEATURE_MMU_OP },
-#ifdef KVM_CAP_ASYNC_PF
-    { KVM_CAP_ASYNC_PF, KVM_FEATURE_ASYNC_PF },
-#endif
-    { -1, -1 }
-};
-
-static int get_para_features(CPUState *env)
-{
-    int i, features = 0;
-
-    for (i = 0; i < ARRAY_SIZE(para_features) - 1; i++) {
-        if (kvm_check_extension(env->kvm_state, para_features[i].cap)) {
-            features |= (1 << para_features[i].feature);
-        }
-    }
-#ifdef KVM_CAP_ASYNC_PF
-    has_msr_async_pf_en = features & (1 << KVM_FEATURE_ASYNC_PF);
-#endif
-    return features;
-}
-#endif /* CONFIG_KVM_PARA */
 
 typedef struct HWPoisonPage {
     ram_addr_t ram_addr;
@@ -397,7 +411,13 @@ int kvm_arch_init_vcpu(CPUState *env)
     c = &cpuid_data.entries[cpuid_i++];
     memset(c, 0, sizeof(*c));
     c->function = KVM_CPUID_FEATURES;
-    c->eax = env->cpuid_kvm_features & get_para_features(env);
+    c->eax = env->cpuid_kvm_features & kvm_arch_get_supported_cpuid(env,
+                                                KVM_CPUID_FEATURES, 0, R_EAX);
+
+#ifdef KVM_CAP_ASYNC_PF
+    has_msr_async_pf_en = c->eax & (1 << KVM_FEATURE_ASYNC_PF);
+#endif
+
 #endif
 
     cpu_x86_cpuid(env, 0, 0, &limit, &unused, &unused, &unused);
@@ -552,7 +572,7 @@ static int kvm_get_supported_msrs(KVMState *s)
             }
         }
 
-        free(kvm_msr_list);
+        qemu_free(kvm_msr_list);
     }
 
     return ret;

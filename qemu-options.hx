@@ -937,8 +937,8 @@ a lot of bandwidth at the expense of quality.
 Disable adaptive encodings. Adaptive encodings are enabled by default.
 An adaptive encoding will try to detect frequently updated screen regions,
 and send updates in these regions using a lossy encoding (like JPEG).
-This can be really helpfull to save bandwidth when playing videos. Disabling
-adaptive encodings allow to restore the original static behavior of encodings
+This can be really helpful to save bandwidth when playing videos. Disabling
+adaptive encodings allows to restore the original static behavior of encodings
 like Tight.
 
 @end table
@@ -1152,7 +1152,7 @@ Assign symbolic name for use in monitor commands.
 @item net=@var{addr}[/@var{mask}]
 Set IP network address the guest will see. Optionally specify the netmask,
 either in the form a.b.c.d or as number of valid top-most bits. Default is
-10.0.2.0/8.
+10.0.2.0/24.
 
 @item host=@var{addr}
 Specify the guest-visible address of the host. Default is the 2nd IP in the
@@ -1168,7 +1168,7 @@ Specifies the client hostname reported by the builtin DHCP server.
 
 @item dhcpstart=@var{addr}
 Specify the first of the 16 IPs the built-in DHCP server can assign. Default
-is the 16th to 31st IP in the guest network, i.e. x.x.x.16 to x.x.x.31.
+is the 15th to 31st IP in the guest network, i.e. x.x.x.15 to x.x.x.31.
 
 @item dns=@var{addr}
 Specify the guest-visible address of the virtual nameserver. The address must

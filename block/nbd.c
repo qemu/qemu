@@ -29,96 +29,152 @@
 #include "qemu-common.h"
 #include "nbd.h"
 #include "module.h"
+#include "qemu_socket.h"
 
 #include <sys/types.h>
 #include <unistd.h>
 
 #define EN_OPTSTR ":exportname="
 
+/* #define DEBUG_NBD */
+
+#if defined(DEBUG_NBD)
+#define logout(fmt, ...) \
+                fprintf(stderr, "nbd\t%-24s" fmt, __func__, ##__VA_ARGS__)
+#else
+#define logout(fmt, ...) ((void)0)
+#endif
+
 typedef struct BDRVNBDState {
     int sock;
     off_t size;
     size_t blocksize;
+    char *export_name; /* An NBD server may export several devices */
+
+    /* If it begins with  '/', this is a UNIX domain socket. Otherwise,
+     * it's a string of the form <hostname|ip4|\[ip6\]>:port
+     */
+    char *host_spec;
 } BDRVNBDState;
 
-static int nbd_open(BlockDriverState *bs, const char* filename, int flags)
+static int nbd_config(BDRVNBDState *s, const char *filename, int flags)
 {
-    BDRVNBDState *s = bs->opaque;
-    uint32_t nbdflags;
-
     char *file;
-    char *name;
-    const char *host;
+    char *export_name;
+    const char *host_spec;
     const char *unixpath;
-    int sock;
-    off_t size;
-    size_t blocksize;
-    int ret;
     int err = -EINVAL;
 
     file = qemu_strdup(filename);
 
-    name = strstr(file, EN_OPTSTR);
-    if (name) {
-        if (name[strlen(EN_OPTSTR)] == 0) {
+    export_name = strstr(file, EN_OPTSTR);
+    if (export_name) {
+        if (export_name[strlen(EN_OPTSTR)] == 0) {
             goto out;
         }
-        name[0] = 0;
-        name += strlen(EN_OPTSTR);
+        export_name[0] = 0; /* truncate 'file' */
+        export_name += strlen(EN_OPTSTR);
+        s->export_name = qemu_strdup(export_name);
     }
 
-    if (!strstart(file, "nbd:", &host)) {
+    /* extract the host_spec - fail if it's not nbd:... */
+    if (!strstart(file, "nbd:", &host_spec)) {
         goto out;
     }
 
-    if (strstart(host, "unix:", &unixpath)) {
-
-        if (unixpath[0] != '/') {
+    /* are we a UNIX or TCP socket? */
+    if (strstart(host_spec, "unix:", &unixpath)) {
+        if (unixpath[0] != '/') { /* We demand  an absolute path*/
             goto out;
         }
-
-        sock = unix_socket_outgoing(unixpath);
-
+        s->host_spec = qemu_strdup(unixpath);
     } else {
-        uint16_t port = NBD_DEFAULT_PORT;
-        char *p, *r;
-        char hostname[128];
-
-        pstrcpy(hostname, 128, host);
-
-        p = strchr(hostname, ':');
-        if (p != NULL) {
-            *p = '\0';
-            p++;
-
-            port = strtol(p, &r, 0);
-            if (r == p) {
-                goto out;
-            }
-        }
-
-        sock = tcp_socket_outgoing(hostname, port);
+        s->host_spec = qemu_strdup(host_spec);
     }
 
-    if (sock == -1) {
-        err = -errno;
-        goto out;
-    }
-
-    ret = nbd_receive_negotiate(sock, name, &nbdflags, &size, &blocksize);
-    if (ret == -1) {
-        err = -errno;
-        goto out;
-    }
-
-    s->sock = sock;
-    s->size = size;
-    s->blocksize = blocksize;
     err = 0;
 
 out:
     qemu_free(file);
+    if (err != 0) {
+        qemu_free(s->export_name);
+        qemu_free(s->host_spec);
+    }
     return err;
+}
+
+static int nbd_establish_connection(BlockDriverState *bs)
+{
+    BDRVNBDState *s = bs->opaque;
+    int sock;
+    int ret;
+    off_t size;
+    size_t blocksize;
+    uint32_t nbdflags;
+
+    if (s->host_spec[0] == '/') {
+        sock = unix_socket_outgoing(s->host_spec);
+    } else {
+        sock = tcp_socket_outgoing_spec(s->host_spec);
+    }
+
+    /* Failed to establish connection */
+    if (sock == -1) {
+        logout("Failed to establish connection to NBD server\n");
+        return -errno;
+    }
+
+    /* NBD handshake */
+    ret = nbd_receive_negotiate(sock, s->export_name, &nbdflags, &size,
+                                &blocksize);
+    if (ret == -1) {
+        logout("Failed to negotiate with the NBD server\n");
+        closesocket(sock);
+        return -errno;
+    }
+
+    /* Now that we're connected, set the socket to be non-blocking */
+    socket_set_nonblock(sock);
+
+    s->sock = sock;
+    s->size = size;
+    s->blocksize = blocksize;
+
+    logout("Established connection with NBD server\n");
+    return 0;
+}
+
+static void nbd_teardown_connection(BlockDriverState *bs)
+{
+    BDRVNBDState *s = bs->opaque;
+    struct nbd_request request;
+
+    request.type = NBD_CMD_DISC;
+    request.handle = (uint64_t)(intptr_t)bs;
+    request.from = 0;
+    request.len = 0;
+    nbd_send_request(s->sock, &request);
+
+    closesocket(s->sock);
+}
+
+static int nbd_open(BlockDriverState *bs, const char* filename, int flags)
+{
+    BDRVNBDState *s = bs->opaque;
+    int result;
+
+    /* Pop the config into our state object. Exit if invalid. */
+    result = nbd_config(s, filename, flags);
+    if (result != 0) {
+        return result;
+    }
+
+    /* establish TCP connection, return error if it fails
+     * TODO: Configurable retry-until-timeout behaviour.
+     */
+    result = nbd_establish_connection(bs);
+
+    return result;
 }
 
 static int nbd_read(BlockDriverState *bs, int64_t sector_num,
@@ -184,15 +240,10 @@ static int nbd_write(BlockDriverState *bs, int64_t sector_num,
 static void nbd_close(BlockDriverState *bs)
 {
     BDRVNBDState *s = bs->opaque;
-    struct nbd_request request;
+    qemu_free(s->export_name);
+    qemu_free(s->host_spec);
 
-    request.type = NBD_CMD_DISC;
-    request.handle = (uint64_t)(intptr_t)bs;
-    request.from = 0;
-    request.len = 0;
-    nbd_send_request(s->sock, &request);
-
-    close(s->sock);
+    nbd_teardown_connection(bs);
 }
 
 static int64_t nbd_getlength(BlockDriverState *bs)
