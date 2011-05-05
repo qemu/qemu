@@ -909,6 +909,26 @@ VFP_OP2(div)
 
 #undef VFP_OP2
 
+static inline void gen_vfp_F1_mul(int dp)
+{
+    /* Like gen_vfp_mul() but put result in F1 */
+    if (dp) {
+        gen_helper_vfp_muld(cpu_F1d, cpu_F0d, cpu_F1d, cpu_env);
+    } else {
+        gen_helper_vfp_muls(cpu_F1s, cpu_F0s, cpu_F1s, cpu_env);
+    }
+}
+
+static inline void gen_vfp_F1_neg(int dp)
+{
+    /* Like gen_vfp_neg() but put result in F1 */
+    if (dp) {
+        gen_helper_vfp_negd(cpu_F1d, cpu_F0d);
+    } else {
+        gen_helper_vfp_negs(cpu_F1s, cpu_F0s);
+    }
+}
+
 static inline void gen_vfp_abs(int dp)
 {
     if (dp)
@@ -3021,27 +3041,34 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
             for (;;) {
                 /* Perform the calculation.  */
                 switch (op) {
-                case 0: /* mac: fd + (fn * fm) */
-                    gen_vfp_mul(dp);
-                    gen_mov_F1_vreg(dp, rd);
+                case 0: /* VMLA: fd + (fn * fm) */
+                    /* Note that order of inputs to the add matters for NaNs */
+                    gen_vfp_F1_mul(dp);
+                    gen_mov_F0_vreg(dp, rd);
                     gen_vfp_add(dp);
                     break;
-                case 1: /* nmac: fd - (fn * fm) */
+                case 1: /* VMLS: fd + -(fn * fm) */
                     gen_vfp_mul(dp);
-                    gen_vfp_neg(dp);
-                    gen_mov_F1_vreg(dp, rd);
+                    gen_vfp_F1_neg(dp);
+                    gen_mov_F0_vreg(dp, rd);
                     gen_vfp_add(dp);
                     break;
-                case 2: /* msc: -fd + (fn * fm) */
-                    gen_vfp_mul(dp);
-                    gen_mov_F1_vreg(dp, rd);
-                    gen_vfp_sub(dp);
-                    break;
-                case 3: /* nmsc: -fd - (fn * fm)  */
-                    gen_vfp_mul(dp);
+                case 2: /* VNMLS: -fd + (fn * fm) */
+                    /* Note that it isn't valid to replace (-A + B) with (B - A)
+                     * or similar plausible looking simplifications
+                     * because this will give wrong results for NaNs.
+                     */
+                    gen_vfp_F1_mul(dp);
+                    gen_mov_F0_vreg(dp, rd);
                     gen_vfp_neg(dp);
-                    gen_mov_F1_vreg(dp, rd);
-                    gen_vfp_sub(dp);
+                    gen_vfp_add(dp);
+                    break;
+                case 3: /* VNMLA: -fd + -(fn * fm) */
+                    gen_vfp_mul(dp);
+                    gen_vfp_F1_neg(dp);
+                    gen_mov_F0_vreg(dp, rd);
+                    gen_vfp_neg(dp);
+                    gen_vfp_add(dp);
                     break;
                 case 4: /* mul: fn * fm */
                     gen_vfp_mul(dp);
