@@ -1718,11 +1718,12 @@ static QLIST_HEAD(memory_client_list, CPUPhysMemoryClient) memory_client_list
 
 static void cpu_notify_set_memory(target_phys_addr_t start_addr,
                                   ram_addr_t size,
-                                  ram_addr_t phys_offset)
+                                  ram_addr_t phys_offset,
+                                  bool log_dirty)
 {
     CPUPhysMemoryClient *client;
     QLIST_FOREACH(client, &memory_client_list, list) {
-        client->set_memory(client, start_addr, size, phys_offset);
+        client->set_memory(client, start_addr, size, phys_offset, log_dirty);
     }
 }
 
@@ -1749,8 +1750,14 @@ static int cpu_notify_migration_log(int enable)
     return 0;
 }
 
+/* The l1_phys_map provides the upper P_L1_BITs of the guest physical
+ * address.  Each intermediate table provides the next L2_BITs of guest
+ * physical address space.  The number of levels vary based on host and
+ * guest configuration, making it efficient to build the final guest
+ * physical address by seeding the L1 offset and shifting and adding in
+ * each L2 offset as we recurse through them. */
 static void phys_page_for_each_1(CPUPhysMemoryClient *client,
-                                 int level, void **lp)
+                                 int level, void **lp, target_phys_addr_t addr)
 {
     int i;
 
@@ -1759,16 +1766,18 @@ static void phys_page_for_each_1(CPUPhysMemoryClient *client,
     }
     if (level == 0) {
         PhysPageDesc *pd = *lp;
+        addr <<= L2_BITS + TARGET_PAGE_BITS;
         for (i = 0; i < L2_SIZE; ++i) {
             if (pd[i].phys_offset != IO_MEM_UNASSIGNED) {
-                client->set_memory(client, pd[i].region_offset,
-                                   TARGET_PAGE_SIZE, pd[i].phys_offset);
+                client->set_memory(client, addr | i << TARGET_PAGE_BITS,
+                                   TARGET_PAGE_SIZE, pd[i].phys_offset, false);
             }
         }
     } else {
         void **pp = *lp;
         for (i = 0; i < L2_SIZE; ++i) {
-            phys_page_for_each_1(client, level - 1, pp + i);
+            phys_page_for_each_1(client, level - 1, pp + i,
+                                 (addr << L2_BITS) | i);
         }
     }
 }
@@ -1778,7 +1787,7 @@ static void phys_page_for_each(CPUPhysMemoryClient *client)
     int i;
     for (i = 0; i < P_L1_SIZE; ++i) {
         phys_page_for_each_1(client, P_L1_SHIFT / L2_BITS - 1,
-                             l1_phys_map + 1);
+                             l1_phys_map + i, i);
     }
 }
 
@@ -2607,10 +2616,11 @@ static subpage_t *subpage_init (target_phys_addr_t base, ram_addr_t *phys,
    start_addr and region_offset are rounded down to a page boundary
    before calculating this offset.  This should not be a problem unless
    the low bits of start_addr and region_offset differ.  */
-void cpu_register_physical_memory_offset(target_phys_addr_t start_addr,
+void cpu_register_physical_memory_log(target_phys_addr_t start_addr,
                                          ram_addr_t size,
                                          ram_addr_t phys_offset,
-                                         ram_addr_t region_offset)
+                                         ram_addr_t region_offset,
+                                         bool log_dirty)
 {
     target_phys_addr_t addr, end_addr;
     PhysPageDesc *p;
@@ -2619,7 +2629,7 @@ void cpu_register_physical_memory_offset(target_phys_addr_t start_addr,
     subpage_t *subpage;
 
     assert(size);
-    cpu_notify_set_memory(start_addr, size, phys_offset);
+    cpu_notify_set_memory(start_addr, size, phys_offset, log_dirty);
 
     if (phys_offset == IO_MEM_UNASSIGNED) {
         region_offset = start_addr;

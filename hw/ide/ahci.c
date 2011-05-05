@@ -1129,15 +1129,6 @@ void ahci_uninit(AHCIState *s)
     qemu_free(s->dev);
 }
 
-void ahci_pci_map(PCIDevice *pci_dev, int region_num,
-        pcibus_t addr, pcibus_t size, int type)
-{
-    struct AHCIPCIState *d = (struct AHCIPCIState *)pci_dev;
-    AHCIState *s = &d->ahci;
-
-    cpu_register_physical_memory(addr, size, s->mem);
-}
-
 void ahci_reset(void *opaque)
 {
     struct AHCIPCIState *d = opaque;

@@ -1109,14 +1109,6 @@ static CPUWriteMemoryFunc * const intel_hda_mmio_write[3] = {
     intel_hda_mmio_writel,
 };
 
-static void intel_hda_map(PCIDevice *pci, int region_num,
-                          pcibus_t addr, pcibus_t size, int type)
-{
-    IntelHDAState *d = DO_UPCAST(IntelHDAState, pci, pci);
-
-    cpu_register_physical_memory(addr, 0x4000, d->mmio_addr);
-}
-
 /* --------------------------------------------------------------------- */
 
 static void intel_hda_reset(DeviceState *dev)
@@ -1158,8 +1150,7 @@ static int intel_hda_init(PCIDevice *pci)
     d->mmio_addr = cpu_register_io_memory(intel_hda_mmio_read,
                                           intel_hda_mmio_write, d,
                                           DEVICE_NATIVE_ENDIAN);
-    pci_register_bar(&d->pci, 0, 0x4000, PCI_BASE_ADDRESS_SPACE_MEMORY,
-                     intel_hda_map);
+    pci_register_bar_simple(&d->pci, 0, 0x4000, 0, d->mmio_addr);
     if (d->msi) {
         msi_init(&d->pci, 0x50, 1, true, false);
     }
@@ -1174,9 +1165,7 @@ static int intel_hda_exit(PCIDevice *pci)
 {
     IntelHDAState *d = DO_UPCAST(IntelHDAState, pci, pci);
 
-    if (d->msi) {
-        msi_uninit(&d->pci);
-    }
+    msi_uninit(&d->pci);
     cpu_unregister_io_memory(d->mmio_addr);
     return 0;
 }

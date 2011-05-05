@@ -245,48 +245,60 @@ err:
 /*
  * dirty pages logging control
  */
-static int kvm_dirty_pages_log_change(target_phys_addr_t phys_addr,
-                                      ram_addr_t size, int flags, int mask)
+
+static int kvm_mem_flags(KVMState *s, bool log_dirty)
+{
+    return log_dirty ? KVM_MEM_LOG_DIRTY_PAGES : 0;
+}
+
+static int kvm_slot_dirty_pages_log_change(KVMSlot *mem, bool log_dirty)
 {
     KVMState *s = kvm_state;
-    KVMSlot *mem = kvm_lookup_matching_slot(s, phys_addr, phys_addr + size);
+    int flags, mask = KVM_MEM_LOG_DIRTY_PAGES;
     int old_flags;
-
-    if (mem == NULL)  {
-            fprintf(stderr, "BUG: %s: invalid parameters " TARGET_FMT_plx "-"
-                    TARGET_FMT_plx "\n", __func__, phys_addr,
-                    (target_phys_addr_t)(phys_addr + size - 1));
-            return -EINVAL;
-    }
 
     old_flags = mem->flags;
 
-    flags = (mem->flags & ~mask) | flags;
+    flags = (mem->flags & ~mask) | kvm_mem_flags(s, log_dirty);
     mem->flags = flags;
 
     /* If nothing changed effectively, no need to issue ioctl */
     if (s->migration_log) {
         flags |= KVM_MEM_LOG_DIRTY_PAGES;
     }
+
     if (flags == old_flags) {
-            return 0;
+        return 0;
     }
 
     return kvm_set_user_memory_region(s, mem);
 }
 
+static int kvm_dirty_pages_log_change(target_phys_addr_t phys_addr,
+                                      ram_addr_t size, bool log_dirty)
+{
+    KVMState *s = kvm_state;
+    KVMSlot *mem = kvm_lookup_matching_slot(s, phys_addr, phys_addr + size);
+
+    if (mem == NULL)  {
+        fprintf(stderr, "BUG: %s: invalid parameters " TARGET_FMT_plx "-"
+                TARGET_FMT_plx "\n", __func__, phys_addr,
+                (target_phys_addr_t)(phys_addr + size - 1));
+        return -EINVAL;
+    }
+    return kvm_slot_dirty_pages_log_change(mem, log_dirty);
+}
+
 static int kvm_log_start(CPUPhysMemoryClient *client,
                          target_phys_addr_t phys_addr, ram_addr_t size)
 {
-    return kvm_dirty_pages_log_change(phys_addr, size, KVM_MEM_LOG_DIRTY_PAGES,
-                                      KVM_MEM_LOG_DIRTY_PAGES);
+    return kvm_dirty_pages_log_change(phys_addr, size, true);
 }
 
 static int kvm_log_stop(CPUPhysMemoryClient *client,
                         target_phys_addr_t phys_addr, ram_addr_t size)
 {
-    return kvm_dirty_pages_log_change(phys_addr, size, 0,
-                                      KVM_MEM_LOG_DIRTY_PAGES);
+    return kvm_dirty_pages_log_change(phys_addr, size, false);
 }
 
 static int kvm_set_migration_log(int enable)
@@ -508,7 +520,7 @@ kvm_check_extension_list(KVMState *s, const KVMCapabilityInfo *list)
 }
 
 static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
-                             ram_addr_t phys_offset)
+                             ram_addr_t phys_offset, bool log_dirty)
 {
     KVMState *s = kvm_state;
     ram_addr_t flags = phys_offset & ~TARGET_PAGE_MASK;
@@ -533,7 +545,8 @@ static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
             (start_addr + size <= mem->start_addr + mem->memory_size) &&
             (phys_offset - start_addr == mem->phys_offset - mem->start_addr)) {
             /* The new slot fits into the existing one and comes with
-             * identical parameters - nothing to be done. */
+             * identical parameters - update flags and done. */
+            kvm_slot_dirty_pages_log_change(mem, log_dirty);
             return;
         }
 
@@ -563,7 +576,7 @@ static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
             mem->memory_size = old.memory_size;
             mem->start_addr = old.start_addr;
             mem->phys_offset = old.phys_offset;
-            mem->flags = 0;
+            mem->flags = kvm_mem_flags(s, log_dirty);
 
             err = kvm_set_user_memory_region(s, mem);
             if (err) {
@@ -584,7 +597,7 @@ static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
             mem->memory_size = start_addr - old.start_addr;
             mem->start_addr = old.start_addr;
             mem->phys_offset = old.phys_offset;
-            mem->flags = 0;
+            mem->flags =  kvm_mem_flags(s, log_dirty);
 
             err = kvm_set_user_memory_region(s, mem);
             if (err) {
@@ -603,7 +616,7 @@ static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
             size_delta = mem->start_addr - old.start_addr;
             mem->memory_size = old.memory_size - size_delta;
             mem->phys_offset = old.phys_offset + size_delta;
-            mem->flags = 0;
+            mem->flags = kvm_mem_flags(s, log_dirty);
 
             err = kvm_set_user_memory_region(s, mem);
             if (err) {
@@ -626,7 +639,7 @@ static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
     mem->memory_size = size;
     mem->start_addr = start_addr;
     mem->phys_offset = phys_offset;
-    mem->flags = 0;
+    mem->flags = kvm_mem_flags(s, log_dirty);
 
     err = kvm_set_user_memory_region(s, mem);
     if (err) {
@@ -638,9 +651,10 @@ static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
 
 static void kvm_client_set_memory(struct CPUPhysMemoryClient *client,
                                   target_phys_addr_t start_addr,
-                                  ram_addr_t size, ram_addr_t phys_offset)
+                                  ram_addr_t size, ram_addr_t phys_offset,
+                                  bool log_dirty)
 {
-    kvm_set_phys_mem(start_addr, size, phys_offset);
+    kvm_set_phys_mem(start_addr, size, phys_offset, log_dirty);
 }
 
 static int kvm_client_sync_dirty_bitmap(struct CPUPhysMemoryClient *client,

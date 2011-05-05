@@ -1708,13 +1708,6 @@ typedef struct {
     OHCIState state;
 } OHCIPCIState;
 
-static void ohci_mapfunc(PCIDevice *pci_dev, int i,
-            pcibus_t addr, pcibus_t size, int type)
-{
-    OHCIPCIState *ohci = DO_UPCAST(OHCIPCIState, pci_dev, pci_dev);
-    cpu_register_physical_memory(addr, size, ohci->state.mem);
-}
-
 static int usb_ohci_initfn_pci(struct PCIDevice *dev)
 {
     OHCIPCIState *ohci = DO_UPCAST(OHCIPCIState, pci_dev, dev);
@@ -1732,8 +1725,7 @@ static int usb_ohci_initfn_pci(struct PCIDevice *dev)
     ohci->state.irq = ohci->pci_dev.irq[0];
 
     /* TODO: avoid cast below by using dev */
-    pci_register_bar(&ohci->pci_dev, 0, 256,
-                           PCI_BASE_ADDRESS_SPACE_MEMORY, ohci_mapfunc);
+    pci_register_bar_simple(&ohci->pci_dev, 0, 256, 0, ohci->state.mem);
     return 0;
 }
 
