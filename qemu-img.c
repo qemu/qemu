@@ -785,7 +785,7 @@ static int img_convert(int argc, char **argv)
 
         nb_sectors = total_sectors;
         local_progress = (float)100 /
-            (nb_sectors / MIN(nb_sectors, (cluster_sectors)));
+            (nb_sectors / MIN(nb_sectors, cluster_sectors));
 
         for(;;) {
             int64_t bs_num;
@@ -856,7 +856,7 @@ static int img_convert(int argc, char **argv)
         sector_num = 0; // total number of sectors converted so far
         nb_sectors = total_sectors - sector_num;
         local_progress = (float)100 /
-            (nb_sectors / MIN(nb_sectors, (IO_BUF_SIZE / 512)));
+            (nb_sectors / MIN(nb_sectors, IO_BUF_SIZE / 512));
 
         for(;;) {
             nb_sectors = total_sectors - sector_num;
@@ -1331,7 +1331,7 @@ static int img_rebase(int argc, char **argv)
         bdrv_get_geometry(bs, &num_sectors);
 
         local_progress = (float)100 /
-            (num_sectors / MIN(num_sectors, (IO_BUF_SIZE / 512)));
+            (num_sectors / MIN(num_sectors, IO_BUF_SIZE / 512));
         for (sector = 0; sector < num_sectors; sector += n) {
 
             /* How many sectors can we handle with the next read? */
