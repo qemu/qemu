@@ -179,7 +179,7 @@ static void mmubooke_create_initial_mapping(CPUState *env,
                                      target_ulong va,
                                      target_phys_addr_t pa)
 {
-    ppcemb_tlb_t *tlb = &env->tlb[512].tlbe;
+    ppcemb_tlb_t *tlb = booke206_get_tlbe(env, 1, 0, 0);
 
     tlb->attr = 0;
     tlb->prot = PAGE_VALID | ((PAGE_READ | PAGE_WRITE | PAGE_EXEC) << 4);
