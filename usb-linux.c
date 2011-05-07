@@ -659,6 +659,7 @@ static int usb_host_handle_iso_data(USBHostDevice *s, USBPacket *p, int in)
                         switch(errno) {
                         case ETIMEDOUT:
                             len = USB_RET_NAK;
+                            break;
                         case EPIPE:
                         default:
                             len = USB_RET_STALL;
