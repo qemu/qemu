@@ -75,4 +75,5 @@ extern int v9fs_co_mknod(V9fsState *, V9fsString *, uid_t,
                          gid_t, dev_t, mode_t);
 extern int v9fs_co_mkdir(V9fsState *, char *, mode_t, uid_t, gid_t);
 extern int v9fs_co_remove(V9fsState *, V9fsString *);
+extern int v9fs_co_rename(V9fsState *, V9fsString *, V9fsString *);
 #endif

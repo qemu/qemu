@@ -155,3 +155,17 @@ int v9fs_co_remove(V9fsState *s, V9fsString *path)
         });
     return err;
 }
+
+int v9fs_co_rename(V9fsState *s, V9fsString *oldpath, V9fsString *newpath)
+{
+    int err;
+
+    v9fs_co_run_in_worker(
+        {
+            err = s->ops->rename(&s->ctx, oldpath->data, newpath->data);
+            if (err < 0) {
+                err = -errno;
+            }
+        });
+    return err;
+}
