@@ -99,3 +99,19 @@ int v9fs_co_opendir(V9fsState *s, V9fsFidState *fidp)
         });
     return err;
 }
+
+int v9fs_co_closedir(V9fsState *s, V9fsFidState *fidp)
+{
+    int err;
+    DIR *dir;
+
+    dir = fidp->fs.dir;
+    v9fs_co_run_in_worker(
+        {
+            err = s->ops->closedir(&s->ctx, dir);
+            if (err < 0) {
+                err = -errno;
+            }
+        });
+    return err;
+}

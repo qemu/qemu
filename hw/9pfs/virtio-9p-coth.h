@@ -80,4 +80,9 @@ extern int v9fs_co_fstat(V9fsState *, int, struct stat *);
 extern int v9fs_co_opendir(V9fsState *, V9fsFidState *);
 extern int v9fs_co_open(V9fsState *, V9fsFidState *, int);
 extern int v9fs_co_open2(V9fsState *, V9fsFidState *, char *, gid_t, int, int);
+extern int v9fs_co_lsetxattr(V9fsState *, V9fsString *, V9fsString *,
+                             void *, size_t, int);
+extern int v9fs_co_lremovexattr(V9fsState *, V9fsString *, V9fsString *);
+extern int v9fs_co_closedir(V9fsState *, V9fsFidState *);
+extern int v9fs_co_close(V9fsState *, V9fsFidState *);
 #endif

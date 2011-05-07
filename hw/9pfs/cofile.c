@@ -81,3 +81,19 @@ int v9fs_co_open2(V9fsState *s, V9fsFidState *fidp, char *fullname, gid_t gid,
         });
     return err;
 }
+
+int v9fs_co_close(V9fsState *s, V9fsFidState *fidp)
+{
+    int fd;
+    int err;
+
+    fd = fidp->fs.fd;
+    v9fs_co_run_in_worker(
+        {
+            err = s->ops->close(&s->ctx, fd);
+            if (err < 0) {
+                err = -errno;
+            }
+        });
+    return err;
+}
