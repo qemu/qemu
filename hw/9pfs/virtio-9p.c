@@ -82,16 +82,6 @@ static int v9fs_do_lstat(V9fsState *s, V9fsString *path, struct stat *stbuf)
     return s->ops->lstat(&s->ctx, path->data, stbuf);
 }
 
-static int v9fs_do_close(V9fsState *s, int fd)
-{
-    return s->ops->close(&s->ctx, fd);
-}
-
-static int v9fs_do_closedir(V9fsState *s, DIR *dir)
-{
-    return s->ops->closedir(&s->ctx, dir);
-}
-
 static DIR *v9fs_do_opendir(V9fsState *s, V9fsString *path)
 {
     return s->ops->opendir(&s->ctx, path->data);
@@ -191,22 +181,6 @@ static int v9fs_do_fsync(V9fsState *s, int fd, int datasync)
 {
     return s->ops->fsync(&s->ctx, fd, datasync);
 }
-
-static int v9fs_do_lsetxattr(V9fsState *s, V9fsString *path,
-                             V9fsString *xattr_name,
-                             void *value, size_t size, int flags)
-{
-    return s->ops->lsetxattr(&s->ctx, path->data,
-                             xattr_name->data, value, size, flags);
-}
-
-static int v9fs_do_lremovexattr(V9fsState *s, V9fsString *path,
-                                V9fsString *xattr_name)
-{
-    return s->ops->lremovexattr(&s->ctx, path->data,
-                                xattr_name->data);
-}
-
 
 static void v9fs_string_init(V9fsString *str)
 {
@@ -414,12 +388,12 @@ static int v9fs_xattr_fid_clunk(V9fsState *s, V9fsFidState *fidp)
         goto free_out;
     }
     if (fidp->fs.xattr.len) {
-        retval = v9fs_do_lsetxattr(s, &fidp->path, &fidp->fs.xattr.name,
+        retval = v9fs_co_lsetxattr(s, &fidp->path, &fidp->fs.xattr.name,
                                    fidp->fs.xattr.value,
                                    fidp->fs.xattr.len,
                                    fidp->fs.xattr.flags);
     } else {
-        retval = v9fs_do_lremovexattr(s, &fidp->path, &fidp->fs.xattr.name);
+        retval = v9fs_co_lremovexattr(s, &fidp->path, &fidp->fs.xattr.name);
     }
 free_out:
     v9fs_string_free(&fidp->fs.xattr.name);
@@ -449,15 +423,14 @@ static int free_fid(V9fsState *s, int32_t fid)
     *fidpp = fidp->next;
 
     if (fidp->fid_type == P9_FID_FILE) {
-        v9fs_do_close(s, fidp->fs.fd);
+        retval = v9fs_co_close(s, fidp);
     } else if (fidp->fid_type == P9_FID_DIR) {
-        v9fs_do_closedir(s, fidp->fs.dir);
+        retval = v9fs_co_closedir(s, fidp);
     } else if (fidp->fid_type == P9_FID_XATTR) {
         retval = v9fs_xattr_fid_clunk(s, fidp);
     }
     v9fs_string_free(&fidp->path);
     g_free(fidp);
-
     return retval;
 }
 
@@ -1588,20 +1561,17 @@ static void v9fs_fsync(void *opaque)
 
 static void v9fs_clunk(void *opaque)
 {
-    V9fsPDU *pdu = opaque;
-    V9fsState *s = pdu->s;
+    int err;
     int32_t fid;
     size_t offset = 7;
-    int err;
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
 
     pdu_unmarshal(pdu, offset, "d", &fid);
-
     err = free_fid(s, fid);
     if (err < 0) {
         goto out;
     }
-
-    offset = 7;
     err = offset;
 out:
     complete_pdu(s, pdu, err);
