@@ -1530,33 +1530,28 @@ out:
     v9fs_string_free(&fullname);
 }
 
-static void v9fs_post_do_fsync(V9fsState *s, V9fsPDU *pdu, int err)
-{
-    if (err == -1) {
-        err = -errno;
-    }
-    complete_pdu(s, pdu, err);
-}
-
 static void v9fs_fsync(void *opaque)
 {
-    V9fsPDU *pdu = opaque;
-    V9fsState *s = pdu->s;
+    int err;
     int32_t fid;
+    int datasync;
     size_t offset = 7;
     V9fsFidState *fidp;
-    int datasync;
-    int err;
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
 
     pdu_unmarshal(pdu, offset, "dd", &fid, &datasync);
     fidp = lookup_fid(s, fid);
     if (fidp == NULL) {
         err = -ENOENT;
-        v9fs_post_do_fsync(s, pdu, err);
-        return;
+        goto out;
     }
-    err = v9fs_do_fsync(s, fidp->fs.fd, datasync);
-    v9fs_post_do_fsync(s, pdu, err);
+    err = v9fs_co_fsync(s, fidp, datasync);
+    if (!err) {
+        err = offset;
+    }
+out:
+    complete_pdu(s, pdu, err);
 }
 
 static void v9fs_clunk(void *opaque)
