@@ -1169,56 +1169,36 @@ out:
     v9fs_string_free(&aname);
 }
 
-static void v9fs_stat_post_lstat(V9fsState *s, V9fsStatState *vs, int err)
-{
-    if (err == -1) {
-        err = -errno;
-        goto out;
-    }
-
-    err = stat_to_v9stat(s, &vs->fidp->path, &vs->stbuf, &vs->v9stat);
-    if (err) {
-        goto out;
-    }
-    vs->offset += pdu_marshal(vs->pdu, vs->offset, "wS", 0, &vs->v9stat);
-    err = vs->offset;
-
-out:
-    complete_pdu(s, vs->pdu, err);
-    v9fs_stat_free(&vs->v9stat);
-    g_free(vs);
-}
-
 static void v9fs_stat(void *opaque)
 {
+    int32_t fid;
+    V9fsStat v9stat;
+    ssize_t err = 0;
+    size_t offset = 7;
+    struct stat stbuf;
+    V9fsFidState *fidp;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
-    int32_t fid;
-    V9fsStatState *vs;
-    ssize_t err = 0;
 
-    vs = g_malloc(sizeof(*vs));
-    vs->pdu = pdu;
-    vs->offset = 7;
-
-    memset(&vs->v9stat, 0, sizeof(vs->v9stat));
-
-    pdu_unmarshal(vs->pdu, vs->offset, "d", &fid);
-
-    vs->fidp = lookup_fid(s, fid);
-    if (vs->fidp == NULL) {
+    pdu_unmarshal(pdu, offset, "d", &fid);
+    fidp = lookup_fid(s, fid);
+    if (fidp == NULL) {
         err = -ENOENT;
         goto out;
     }
-
-    err = v9fs_do_lstat(s, &vs->fidp->path, &vs->stbuf);
-    v9fs_stat_post_lstat(s, vs, err);
-    return;
-
+    err = v9fs_co_lstat(s, &fidp->path, &stbuf);
+    if (err < 0) {
+        goto out;
+    }
+    err = stat_to_v9stat(s, &fidp->path, &stbuf, &v9stat);
+    if (err < 0) {
+        goto out;
+    }
+    offset += pdu_marshal(pdu, offset, "wS", 0, &v9stat);
+    err = offset;
+    v9fs_stat_free(&v9stat);
 out:
-    complete_pdu(s, vs->pdu, err);
-    v9fs_stat_free(&vs->v9stat);
-    g_free(vs);
+    complete_pdu(s, pdu, err);
 }
 
 static void v9fs_getattr(void *opaque)
