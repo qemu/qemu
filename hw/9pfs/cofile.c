@@ -97,3 +97,19 @@ int v9fs_co_close(V9fsState *s, V9fsFidState *fidp)
         });
     return err;
 }
+
+int v9fs_co_fsync(V9fsState *s, V9fsFidState *fidp, int datasync)
+{
+    int fd;
+    int err;
+
+    fd = fidp->fs.fd;
+    v9fs_co_run_in_worker(
+        {
+            err = s->ops->fsync(&s->ctx, fd, datasync);
+            if (err < 0) {
+                err = -errno;
+            }
+        });
+    return err;
+}
