@@ -83,3 +83,19 @@ int v9fs_co_mkdir(V9fsState *s, char *name, mode_t mode, uid_t uid, gid_t gid)
         });
     return err;
 }
+
+int v9fs_co_opendir(V9fsState *s, V9fsFidState *fidp)
+{
+    int err;
+
+    v9fs_co_run_in_worker(
+        {
+            fidp->fs.dir = s->ops->opendir(&s->ctx, fidp->path.data);
+            if (!fidp->fs.dir) {
+                err = -errno;
+            } else {
+                err = 0;
+            }
+        });
+    return err;
+}

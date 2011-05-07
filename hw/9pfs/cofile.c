@@ -44,3 +44,19 @@ int v9fs_co_fstat(V9fsState *s, int fd, struct stat *stbuf)
         });
     return err;
 }
+
+int v9fs_co_open(V9fsState *s, V9fsFidState *fidp, int flags)
+{
+    int err;
+
+    v9fs_co_run_in_worker(
+        {
+            fidp->fs.fd = s->ops->open(&s->ctx, fidp->path.data, flags);
+            if (fidp->fs.fd == -1) {
+                err = -errno;
+            } else {
+                err = 0;
+            }
+        });
+    return err;
+}

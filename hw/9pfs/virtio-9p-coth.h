@@ -77,4 +77,6 @@ extern int v9fs_co_mkdir(V9fsState *, char *, mode_t, uid_t, gid_t);
 extern int v9fs_co_remove(V9fsState *, V9fsString *);
 extern int v9fs_co_rename(V9fsState *, V9fsString *, V9fsString *);
 extern int v9fs_co_fstat(V9fsState *, int, struct stat *);
+extern int v9fs_co_opendir(V9fsState *, V9fsFidState *);
+extern int v9fs_co_open(V9fsState *, V9fsFidState *, int);
 #endif
