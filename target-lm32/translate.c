@@ -584,9 +584,6 @@ static void dec_orhi(DisasContext *dc)
 
 static void dec_scall(DisasContext *dc)
 {
-    TCGv t0;
-    int l1;
-
     if (dc->imm5 == 7) {
         LOG_DIS("scall\n");
     } else if (dc->imm5 == 2) {
@@ -594,9 +591,6 @@ static void dec_scall(DisasContext *dc)
     } else {
         cpu_abort(dc->env, "invalid opcode\n");
     }
-
-    t0 = tcg_temp_new();
-    l1 = gen_new_label();
 
     if (dc->imm5 == 7) {
         tcg_gen_movi_tl(cpu_pc, dc->pc);
