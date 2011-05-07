@@ -3049,42 +3049,38 @@ out:
  * When a TGETLOCK request comes, always return success because all lock
  * handling is done by client's VFS layer.
  */
-
 static void v9fs_getlock(void *opaque)
 {
+    size_t offset = 7;
+    struct stat stbuf;
+    V9fsFidState *fidp;
+    V9fsGetlock *glock;
+    int32_t fid, err = 0;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
-    int32_t fid, err = 0;
-    V9fsGetlockState *vs;
 
-    vs = g_malloc0(sizeof(*vs));
-    vs->pdu = pdu;
-    vs->offset = 7;
+    glock = g_malloc(sizeof(*glock));
+    pdu_unmarshal(pdu, offset, "dbqqds", &fid, &glock->type,
+                  &glock->start, &glock->length, &glock->proc_id,
+                  &glock->client_id);
 
-    vs->glock = g_malloc(sizeof(*vs->glock));
-    pdu_unmarshal(vs->pdu, vs->offset, "dbqqds", &fid, &vs->glock->type,
-                &vs->glock->start, &vs->glock->length, &vs->glock->proc_id,
-		&vs->glock->client_id);
-
-    vs->fidp = lookup_fid(s, fid);
-    if (vs->fidp == NULL) {
+    fidp = lookup_fid(s, fid);
+    if (fidp == NULL) {
         err = -ENOENT;
         goto out;
     }
-
-    err = v9fs_do_fstat(s, vs->fidp->fs.fd, &vs->stbuf);
+    err = v9fs_co_fstat(s, fidp->fs.fd, &stbuf);
     if (err < 0) {
-        err = -errno;
         goto out;
     }
-    vs->glock->type = F_UNLCK;
-    vs->offset += pdu_marshal(vs->pdu, vs->offset, "bqqds", vs->glock->type,
-                vs->glock->start, vs->glock->length, vs->glock->proc_id,
-		&vs->glock->client_id);
+    glock->type = F_UNLCK;
+    offset += pdu_marshal(pdu, offset, "bqqds", glock->type,
+                          glock->start, glock->length, glock->proc_id,
+                          &glock->client_id);
+    err = offset;
 out:
-    complete_pdu(s, vs->pdu, err);
-    g_free(vs->glock);
-    g_free(vs);
+    complete_pdu(s, pdu, err);
+    g_free(glock);
 }
 
 static void v9fs_mkdir(void *opaque)

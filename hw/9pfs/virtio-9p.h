@@ -412,15 +412,6 @@ typedef struct V9fsGetlock
     V9fsString client_id;
 } V9fsGetlock;
 
-typedef struct V9fsGetlockState
-{
-    V9fsPDU *pdu;
-    size_t offset;
-    struct stat stbuf;
-    V9fsFidState *fidp;
-    V9fsGetlock *glock;
-} V9fsGetlockState;
-
 size_t pdu_packunpack(void *addr, struct iovec *sg, int sg_count,
                       size_t offset, size_t size, int pack);
 
