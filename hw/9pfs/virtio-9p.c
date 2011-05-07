@@ -92,11 +92,6 @@ static int v9fs_do_closedir(V9fsState *s, DIR *dir)
     return s->ops->closedir(&s->ctx, dir);
 }
 
-static int v9fs_do_open(V9fsState *s, V9fsString *path, int flags)
-{
-    return s->ops->open(&s->ctx, path->data, flags);
-}
-
 static DIR *v9fs_do_opendir(V9fsState *s, V9fsString *path)
 {
     return s->ops->opendir(&s->ctx, path->data);
@@ -208,11 +203,6 @@ static int v9fs_do_utimensat(V9fsState *s, V9fsString *path,
 static int v9fs_do_fsync(V9fsState *s, int fd, int datasync)
 {
     return s->ops->fsync(&s->ctx, fd, datasync);
-}
-
-static int v9fs_do_statfs(V9fsState *s, V9fsString *path, struct statfs *stbuf)
-{
-    return s->ops->statfs(&s->ctx, path->data, stbuf);
 }
 
 static int v9fs_do_lsetxattr(V9fsState *s, V9fsString *path,
@@ -1546,122 +1536,75 @@ static int32_t get_iounit(V9fsState *s, V9fsString *name)
      * iounit should be multiples of f_bsize (host filesystem block size
      * and as well as less than (client msize - P9_IOHDRSZ))
      */
-    if (!v9fs_do_statfs(s, name, &stbuf)) {
+    if (!v9fs_co_statfs(s, name, &stbuf)) {
         iounit = stbuf.f_bsize;
         iounit *= (s->msize - P9_IOHDRSZ)/stbuf.f_bsize;
     }
-
     if (!iounit) {
         iounit = s->msize - P9_IOHDRSZ;
     }
     return iounit;
 }
 
-static void v9fs_open_post_opendir(V9fsState *s, V9fsOpenState *vs, int err)
-{
-    if (vs->fidp->fs.dir == NULL) {
-        err = -errno;
-        goto out;
-    }
-    vs->fidp->fid_type = P9_FID_DIR;
-    vs->offset += pdu_marshal(vs->pdu, vs->offset, "Qd", &vs->qid, 0);
-    err = vs->offset;
-out:
-    complete_pdu(s, vs->pdu, err);
-    g_free(vs);
-
-}
-
-static void v9fs_open_post_getiounit(V9fsState *s, V9fsOpenState *vs)
-{
-    int err;
-    vs->offset += pdu_marshal(vs->pdu, vs->offset, "Qd", &vs->qid, vs->iounit);
-    err = vs->offset;
-    complete_pdu(s, vs->pdu, err);
-    g_free(vs);
-}
-
-static void v9fs_open_post_open(V9fsState *s, V9fsOpenState *vs, int err)
-{
-    if (vs->fidp->fs.fd == -1) {
-        err = -errno;
-        goto out;
-    }
-    vs->fidp->fid_type = P9_FID_FILE;
-    vs->iounit = get_iounit(s, &vs->fidp->path);
-    v9fs_open_post_getiounit(s, vs);
-    return;
-out:
-    complete_pdu(s, vs->pdu, err);
-    g_free(vs);
-}
-
-static void v9fs_open_post_lstat(V9fsState *s, V9fsOpenState *vs, int err)
+static void v9fs_open(void *opaque)
 {
     int flags;
+    int iounit;
+    int32_t fid;
+    int32_t mode;
+    V9fsQID qid;
+    ssize_t err = 0;
+    size_t offset = 7;
+    struct stat stbuf;
+    V9fsFidState *fidp;
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
 
-    if (err) {
-        err = -errno;
+    if (s->proto_version == V9FS_PROTO_2000L) {
+        pdu_unmarshal(pdu, offset, "dd", &fid, &mode);
+    } else {
+        pdu_unmarshal(pdu, offset, "db", &fid, &mode);
+    }
+    fidp = lookup_fid(s, fid);
+    if (fidp == NULL) {
+        err = -ENOENT;
         goto out;
     }
+    BUG_ON(fidp->fid_type != P9_FID_NONE);
 
-    stat_to_qid(&vs->stbuf, &vs->qid);
-
-    if (S_ISDIR(vs->stbuf.st_mode)) {
-        vs->fidp->fs.dir = v9fs_do_opendir(s, &vs->fidp->path);
-        v9fs_open_post_opendir(s, vs, err);
+    err = v9fs_co_lstat(s, &fidp->path, &stbuf);
+    if (err < 0) {
+        goto out;
+    }
+    stat_to_qid(&stbuf, &qid);
+    if (S_ISDIR(stbuf.st_mode)) {
+        err = v9fs_co_opendir(s, fidp);
+        if (err < 0) {
+            goto out;
+        }
+        fidp->fid_type = P9_FID_DIR;
+        offset += pdu_marshal(pdu, offset, "Qd", &qid, 0);
+        err = offset;
     } else {
         if (s->proto_version == V9FS_PROTO_2000L) {
-            flags = vs->mode;
+            flags = mode;
             flags &= ~(O_NOCTTY | O_ASYNC | O_CREAT);
             /* Ignore direct disk access hint until the server supports it. */
             flags &= ~O_DIRECT;
         } else {
-            flags = omode_to_uflags(vs->mode);
+            flags = omode_to_uflags(mode);
         }
-        vs->fidp->fs.fd = v9fs_do_open(s, &vs->fidp->path, flags);
-        v9fs_open_post_open(s, vs, err);
+        err = v9fs_co_open(s, fidp, flags);
+        if (err < 0) {
+            goto out;
+        }
+        fidp->fid_type = P9_FID_FILE;
+        iounit = get_iounit(s, &fidp->path);
+        offset += pdu_marshal(pdu, offset, "Qd", &qid, iounit);
+        err = offset;
     }
-    return;
-out:
-    complete_pdu(s, vs->pdu, err);
-    g_free(vs);
-}
-
-static void v9fs_open(void *opaque)
-{
-    V9fsPDU *pdu = opaque;
-    V9fsState *s = pdu->s;
-    int32_t fid;
-    V9fsOpenState *vs;
-    ssize_t err = 0;
-
-    vs = g_malloc(sizeof(*vs));
-    vs->pdu = pdu;
-    vs->offset = 7;
-    vs->mode = 0;
-
-    if (s->proto_version == V9FS_PROTO_2000L) {
-        pdu_unmarshal(vs->pdu, vs->offset, "dd", &fid, &vs->mode);
-    } else {
-        pdu_unmarshal(vs->pdu, vs->offset, "db", &fid, &vs->mode);
-    }
-
-    vs->fidp = lookup_fid(s, fid);
-    if (vs->fidp == NULL) {
-        err = -ENOENT;
-        goto out;
-    }
-
-    BUG_ON(vs->fidp->fid_type != P9_FID_NONE);
-
-    err = v9fs_do_lstat(s, &vs->fidp->path, &vs->stbuf);
-
-    v9fs_open_post_lstat(s, vs, err);
-    return;
 out:
     complete_pdu(s, pdu, err);
-    g_free(vs);
 }
 
 static void v9fs_post_lcreate(V9fsState *s, V9fsLcreateState *vs, int err)
