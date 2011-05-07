@@ -287,7 +287,7 @@ static int sys_uname(struct new_utsname *buf)
    * struct linux kernel uses).
    */
 
-  bzero(buf, sizeof (*buf));
+  memset(buf, 0, sizeof(*buf));
   COPY_UTSNAME_FIELD(buf->sysname, uts_buf.sysname);
   COPY_UTSNAME_FIELD(buf->nodename, uts_buf.nodename);
   COPY_UTSNAME_FIELD(buf->release, uts_buf.release);
