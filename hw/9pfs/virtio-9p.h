@@ -267,19 +267,6 @@ typedef struct V9fsStatDotl {
     uint64_t st_data_version;
 } V9fsStatDotl;
 
-typedef struct V9fsWalkState {
-    V9fsPDU *pdu;
-    size_t offset;
-    uint16_t nwnames;
-    int name_idx;
-    V9fsQID *qids;
-    V9fsFidState *fidp;
-    V9fsFidState *newfidp;
-    V9fsString path;
-    V9fsString *wnames;
-    struct stat stbuf;
-} V9fsWalkState;
-
 typedef struct V9fsOpenState {
     V9fsPDU *pdu;
     size_t offset;

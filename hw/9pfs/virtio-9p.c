@@ -1327,171 +1327,101 @@ out:
     complete_pdu(s, pdu, err);
 }
 
-static void v9fs_walk_complete(V9fsState *s, V9fsWalkState *vs, int err)
-{
-    complete_pdu(s, vs->pdu, err);
-
-    if (vs->nwnames && vs->nwnames <= P9_MAXWELEM) {
-        for (vs->name_idx = 0; vs->name_idx < vs->nwnames; vs->name_idx++) {
-            v9fs_string_free(&vs->wnames[vs->name_idx]);
-        }
-
-        g_free(vs->wnames);
-        g_free(vs->qids);
-    }
-}
-
-static void v9fs_walk_marshal(V9fsWalkState *vs)
+static int v9fs_walk_marshal(V9fsPDU *pdu, uint16_t nwnames, V9fsQID *qids)
 {
     int i;
-    vs->offset = 7;
-    vs->offset += pdu_marshal(vs->pdu, vs->offset, "w", vs->nwnames);
-
-    for (i = 0; i < vs->nwnames; i++) {
-        vs->offset += pdu_marshal(vs->pdu, vs->offset, "Q", &vs->qids[i]);
+    size_t offset = 7;
+    offset += pdu_marshal(pdu, offset, "w", nwnames);
+    for (i = 0; i < nwnames; i++) {
+        offset += pdu_marshal(pdu, offset, "Q", &qids[i]);
     }
-}
-
-static void v9fs_walk_post_newfid_lstat(V9fsState *s, V9fsWalkState *vs,
-                                                                int err)
-{
-    if (err == -1) {
-        free_fid(s, vs->newfidp->fid);
-        v9fs_string_free(&vs->path);
-        err = -ENOENT;
-        goto out;
-    }
-
-    stat_to_qid(&vs->stbuf, &vs->qids[vs->name_idx]);
-
-    vs->name_idx++;
-    if (vs->name_idx < vs->nwnames) {
-        v9fs_string_sprintf(&vs->path, "%s/%s", vs->newfidp->path.data,
-                                            vs->wnames[vs->name_idx].data);
-        v9fs_string_copy(&vs->newfidp->path, &vs->path);
-
-        err = v9fs_do_lstat(s, &vs->newfidp->path, &vs->stbuf);
-        v9fs_walk_post_newfid_lstat(s, vs, err);
-        return;
-    }
-
-    v9fs_string_free(&vs->path);
-    v9fs_walk_marshal(vs);
-    err = vs->offset;
-out:
-    v9fs_walk_complete(s, vs, err);
-}
-
-static void v9fs_walk_post_oldfid_lstat(V9fsState *s, V9fsWalkState *vs,
-        int err)
-{
-    if (err == -1) {
-        v9fs_string_free(&vs->path);
-        err = -ENOENT;
-        goto out;
-    }
-
-    stat_to_qid(&vs->stbuf, &vs->qids[vs->name_idx]);
-    vs->name_idx++;
-    if (vs->name_idx < vs->nwnames) {
-
-        v9fs_string_sprintf(&vs->path, "%s/%s",
-                vs->fidp->path.data, vs->wnames[vs->name_idx].data);
-        v9fs_string_copy(&vs->fidp->path, &vs->path);
-
-        err = v9fs_do_lstat(s, &vs->fidp->path, &vs->stbuf);
-        v9fs_walk_post_oldfid_lstat(s, vs, err);
-        return;
-    }
-
-    v9fs_string_free(&vs->path);
-    v9fs_walk_marshal(vs);
-    err = vs->offset;
-out:
-    v9fs_walk_complete(s, vs, err);
+    return offset;
 }
 
 static void v9fs_walk(void *opaque)
 {
+    int name_idx;
+    V9fsQID *qids = NULL;
+    int i, err = 0;
+    V9fsString path;
+    uint16_t nwnames;
+    struct stat stbuf;
+    size_t offset = 7;
+    int32_t fid, newfid;
+    V9fsString *wnames = NULL;
+    V9fsFidState *fidp;
+    V9fsFidState *newfidp;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
-    int32_t fid, newfid;
-    V9fsWalkState *vs;
-    int err = 0;
-    int i;
 
-    vs = g_malloc(sizeof(*vs));
-    vs->pdu = pdu;
-    vs->wnames = NULL;
-    vs->qids = NULL;
-    vs->offset = 7;
+    offset += pdu_unmarshal(pdu, offset, "ddw", &fid,
+                            &newfid, &nwnames);
 
-    vs->offset += pdu_unmarshal(vs->pdu, vs->offset, "ddw", &fid,
-                                            &newfid, &vs->nwnames);
-
-    if (vs->nwnames && vs->nwnames <= P9_MAXWELEM) {
-        vs->wnames = g_malloc0(sizeof(vs->wnames[0]) * vs->nwnames);
-
-        vs->qids = g_malloc0(sizeof(vs->qids[0]) * vs->nwnames);
-
-        for (i = 0; i < vs->nwnames; i++) {
-            vs->offset += pdu_unmarshal(vs->pdu, vs->offset, "s",
-                                            &vs->wnames[i]);
+    if (nwnames && nwnames <= P9_MAXWELEM) {
+        wnames = g_malloc0(sizeof(wnames[0]) * nwnames);
+        qids   = g_malloc0(sizeof(qids[0]) * nwnames);
+        for (i = 0; i < nwnames; i++) {
+            offset += pdu_unmarshal(pdu, offset, "s", &wnames[i]);
         }
-    } else if (vs->nwnames > P9_MAXWELEM) {
+
+    } else if (nwnames > P9_MAXWELEM) {
         err = -EINVAL;
         goto out;
     }
-
-    vs->fidp = lookup_fid(s, fid);
-    if (vs->fidp == NULL) {
+    fidp = lookup_fid(s, fid);
+    if (fidp == NULL) {
         err = -ENOENT;
         goto out;
     }
-
-    /* FIXME: is this really valid? */
     if (fid == newfid) {
+        BUG_ON(fidp->fid_type != P9_FID_NONE);
+        v9fs_string_init(&path);
+        for (name_idx = 0; name_idx < nwnames; name_idx++) {
+            v9fs_string_sprintf(&path, "%s/%s",
+                                fidp->path.data, wnames[name_idx].data);
+            v9fs_string_copy(&fidp->path, &path);
 
-        BUG_ON(vs->fidp->fid_type != P9_FID_NONE);
-        v9fs_string_init(&vs->path);
-        vs->name_idx = 0;
-
-        if (vs->name_idx < vs->nwnames) {
-            v9fs_string_sprintf(&vs->path, "%s/%s",
-                vs->fidp->path.data, vs->wnames[vs->name_idx].data);
-            v9fs_string_copy(&vs->fidp->path, &vs->path);
-
-            err = v9fs_do_lstat(s, &vs->fidp->path, &vs->stbuf);
-            v9fs_walk_post_oldfid_lstat(s, vs, err);
-            return;
+            err = v9fs_co_lstat(s, &fidp->path, &stbuf);
+            if (err < 0) {
+                v9fs_string_free(&path);
+                goto out;
+            }
+            stat_to_qid(&stbuf, &qids[name_idx]);
         }
+        v9fs_string_free(&path);
     } else {
-        vs->newfidp = alloc_fid(s, newfid);
-        if (vs->newfidp == NULL) {
+        newfidp = alloc_fid(s, newfid);
+        if (newfidp == NULL) {
             err = -EINVAL;
             goto out;
         }
-
-        vs->newfidp->uid = vs->fidp->uid;
-        v9fs_string_init(&vs->path);
-        vs->name_idx = 0;
-        v9fs_string_copy(&vs->newfidp->path, &vs->fidp->path);
-
-        if (vs->name_idx < vs->nwnames) {
-            v9fs_string_sprintf(&vs->path, "%s/%s", vs->newfidp->path.data,
-                                vs->wnames[vs->name_idx].data);
-            v9fs_string_copy(&vs->newfidp->path, &vs->path);
-
-            err = v9fs_do_lstat(s, &vs->newfidp->path, &vs->stbuf);
-            v9fs_walk_post_newfid_lstat(s, vs, err);
-            return;
+        newfidp->uid = fidp->uid;
+        v9fs_string_init(&path);
+        v9fs_string_copy(&newfidp->path, &fidp->path);
+        for (name_idx = 0; name_idx < nwnames; name_idx++) {
+            v9fs_string_sprintf(&path, "%s/%s", newfidp->path.data,
+                                wnames[name_idx].data);
+            v9fs_string_copy(&newfidp->path, &path);
+            err = v9fs_co_lstat(s, &newfidp->path, &stbuf);
+            if (err < 0) {
+                free_fid(s, newfidp->fid);
+                v9fs_string_free(&path);
+                goto out;
+            }
+            stat_to_qid(&stbuf, &qids[name_idx]);
         }
+        v9fs_string_free(&path);
     }
-
-    v9fs_walk_marshal(vs);
-    err = vs->offset;
+    err = v9fs_walk_marshal(pdu, nwnames, qids);
 out:
-    v9fs_walk_complete(s, vs, err);
+    complete_pdu(s, pdu, err);
+    if (nwnames && nwnames <= P9_MAXWELEM) {
+        for (name_idx = 0; name_idx < nwnames; name_idx++) {
+            v9fs_string_free(&wnames[name_idx]);
+        }
+        g_free(wnames);
+        g_free(qids);
+    }
 }
 
 static int32_t get_iounit(V9fsState *s, V9fsString *name)
