@@ -189,12 +189,6 @@ static int v9fs_do_truncate(V9fsState *s, V9fsString *path, off_t size)
     return s->ops->truncate(&s->ctx, path->data, size);
 }
 
-static int v9fs_do_rename(V9fsState *s, V9fsString *oldpath,
-                            V9fsString *newpath)
-{
-    return s->ops->rename(&s->ctx, oldpath->data, newpath->data);
-}
-
 static int v9fs_do_chown(V9fsState *s, V9fsString *path, uid_t uid, gid_t gid)
 {
     FsCred cred;
@@ -2633,82 +2627,72 @@ out:
     qemu_free(vs);
 }
 
-static int v9fs_complete_rename(V9fsState *s, V9fsRenameState *vs)
+static int v9fs_complete_rename(V9fsState *s, V9fsFidState *fidp,
+                                int32_t newdirfid, V9fsString *name)
 {
+    char *end;
     int err = 0;
     char *old_name, *new_name;
-    char *end;
 
-    if (vs->newdirfid != -1) {
+    if (newdirfid != -1) {
         V9fsFidState *dirfidp;
-        dirfidp = lookup_fid(s, vs->newdirfid);
-
+        dirfidp = lookup_fid(s, newdirfid);
         if (dirfidp == NULL) {
             err = -ENOENT;
             goto out;
         }
-
         BUG_ON(dirfidp->fid_type != P9_FID_NONE);
 
-        new_name = qemu_mallocz(dirfidp->path.size + vs->name.size + 2);
+        new_name = qemu_mallocz(dirfidp->path.size + name->size + 2);
 
         strcpy(new_name, dirfidp->path.data);
         strcat(new_name, "/");
-        strcat(new_name + dirfidp->path.size, vs->name.data);
+        strcat(new_name + dirfidp->path.size, name->data);
     } else {
-        old_name = vs->fidp->path.data;
+        old_name = fidp->path.data;
         end = strrchr(old_name, '/');
         if (end) {
             end++;
         } else {
             end = old_name;
         }
-        new_name = qemu_mallocz(end - old_name + vs->name.size + 1);
+        new_name = qemu_mallocz(end - old_name + name->size + 1);
 
         strncat(new_name, old_name, end - old_name);
-        strncat(new_name + (end - old_name), vs->name.data, vs->name.size);
+        strncat(new_name + (end - old_name), name->data, name->size);
     }
 
-    v9fs_string_free(&vs->name);
-    vs->name.data = qemu_strdup(new_name);
-    vs->name.size = strlen(new_name);
+    v9fs_string_free(name);
+    name->data = new_name;
+    name->size = strlen(new_name);
 
-    if (strcmp(new_name, vs->fidp->path.data) != 0) {
-        if (v9fs_do_rename(s, &vs->fidp->path, &vs->name)) {
-            err = -errno;
-        } else {
-            V9fsFidState *fidp;
-            /*
-            * Fixup fid's pointing to the old name to
-            * start pointing to the new name
-            */
-            for (fidp = s->fid_list; fidp; fidp = fidp->next) {
-                if (vs->fidp == fidp) {
-                    /*
-                    * we replace name of this fid towards the end so
-                    * that our below v9fs_path_is_ancestor check will
-                    * work
-                    */
-                    continue;
-                }
-                if (v9fs_path_is_ancestor(&vs->fidp->path, &fidp->path)) {
-                    /* replace the name */
-                    v9fs_fix_path(&fidp->path, &vs->name,
-                                  strlen(vs->fidp->path.data));
-                }
-            }
-            v9fs_string_copy(&vs->fidp->path, &vs->name);
+    if (strcmp(new_name, fidp->path.data) != 0) {
+        err = v9fs_co_rename(s, &fidp->path, name);
+        if (err < 0) {
+            goto out;
         }
+        V9fsFidState *tfidp;
+        /*
+         * Fixup fid's pointing to the old name to
+         * start pointing to the new name
+         */
+        for (tfidp = s->fid_list; tfidp; tfidp = tfidp->next) {
+            if (fidp == tfidp) {
+                /*
+                 * we replace name of this fid towards the end
+                 * so that our below strcmp will work
+                 */
+                continue;
+            }
+            if (v9fs_path_is_ancestor(&fidp->path, &tfidp->path)) {
+                /* replace the name */
+                v9fs_fix_path(&tfidp->path, name, strlen(fidp->path.data));
+            }
+        }
+        v9fs_string_copy(&fidp->path, name);
     }
 out:
-    v9fs_string_free(&vs->name);
     return err;
-}
-
-static void v9fs_rename_post_rename(V9fsState *s, V9fsRenameState *vs, int err)
-{
-    complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
 }
 
 static void v9fs_wstat_post_chown(V9fsState *s, V9fsWstatState *vs, int err)
@@ -2718,18 +2702,7 @@ static void v9fs_wstat_post_chown(V9fsState *s, V9fsWstatState *vs, int err)
     }
 
     if (vs->v9stat.name.size != 0) {
-        V9fsRenameState *vr;
-
-        vr = qemu_mallocz(sizeof(V9fsRenameState));
-        vr->newdirfid = -1;
-        vr->pdu = vs->pdu;
-        vr->fidp = vs->fidp;
-        vr->offset = vs->offset;
-        vr->name.size = vs->v9stat.name.size;
-        vr->name.data = qemu_strdup(vs->v9stat.name.data);
-
-        err = v9fs_complete_rename(s, vr);
-        qemu_free(vr);
+        err = v9fs_complete_rename(s, vs->fidp, -1, &vs->v9stat.name);
     }
     v9fs_wstat_post_rename(s, vs, err);
     return;
@@ -2742,32 +2715,31 @@ out:
 
 static void v9fs_rename(void *opaque)
 {
+    int32_t fid;
+    ssize_t err = 0;
+    size_t offset = 7;
+    V9fsString name;
+    int32_t newdirfid;
+    V9fsFidState *fidp;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
-    int32_t fid;
-    V9fsRenameState *vs;
-    ssize_t err = 0;
 
-    vs = qemu_malloc(sizeof(*vs));
-    vs->pdu = pdu;
-    vs->offset = 7;
+    pdu_unmarshal(pdu, offset, "dds", &fid, &newdirfid, &name);
 
-    pdu_unmarshal(vs->pdu, vs->offset, "dds", &fid, &vs->newdirfid, &vs->name);
-
-    vs->fidp = lookup_fid(s, fid);
-    if (vs->fidp == NULL) {
+    fidp = lookup_fid(s, fid);
+    if (fidp == NULL) {
         err = -ENOENT;
         goto out;
     }
+    BUG_ON(fidp->fid_type != P9_FID_NONE);
 
-    BUG_ON(vs->fidp->fid_type != P9_FID_NONE);
-
-    err = v9fs_complete_rename(s, vs);
-    v9fs_rename_post_rename(s, vs, err);
-    return;
+    err = v9fs_complete_rename(s, fidp, newdirfid, &name);
+    if (!err) {
+        err = offset;
+    }
 out:
-    complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    complete_pdu(s, pdu, err);
+    v9fs_string_free(&name);
 }
 
 static void v9fs_wstat_post_utime(V9fsState *s, V9fsWstatState *vs, int err)

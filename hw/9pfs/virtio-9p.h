@@ -385,15 +385,6 @@ typedef struct V9fsMkState {
     V9fsString fullname;
 } V9fsMkState;
 
-typedef struct V9fsRenameState {
-    V9fsPDU *pdu;
-    V9fsFidState *fidp;
-    size_t offset;
-    int32_t newdirfid;
-    V9fsString name;
-} V9fsRenameState;
-
-
 #define P9_LOCK_SUCCESS 0
 #define P9_LOCK_BLOCKED 1
 #define P9_LOCK_ERROR 2
