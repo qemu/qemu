@@ -402,11 +402,10 @@ static int fid_to_qid(V9fsState *s, V9fsFidState *fidp, V9fsQID *qidp)
     struct stat stbuf;
     int err;
 
-    err = v9fs_do_lstat(s, &fidp->path, &stbuf);
-    if (err) {
+    err = v9fs_co_lstat(s, &fidp->path, &stbuf);
+    if (err < 0) {
         return err;
     }
-
     stat_to_qid(&stbuf, qidp);
     return 0;
 }
@@ -1032,8 +1031,8 @@ static void v9fs_attach(void *opaque)
     int32_t fid, afid, n_uname;
     V9fsString uname, aname;
     V9fsFidState *fidp;
-    V9fsQID qid;
     size_t offset = 7;
+    V9fsQID qid;
     ssize_t err;
 
     pdu_unmarshal(pdu, offset, "ddssd", &fid, &afid, &uname, &aname, &n_uname);
@@ -1043,19 +1042,15 @@ static void v9fs_attach(void *opaque)
         err = -EINVAL;
         goto out;
     }
-
     fidp->uid = n_uname;
-
     v9fs_string_sprintf(&fidp->path, "%s", "/");
     err = fid_to_qid(s, fidp, &qid);
-    if (err) {
+    if (err < 0) {
         err = -EINVAL;
         free_fid(s, fid);
         goto out;
     }
-
     offset += pdu_marshal(pdu, offset, "Q", &qid);
-
     err = offset;
 out:
     complete_pdu(s, pdu, err);
