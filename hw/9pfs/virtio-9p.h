@@ -295,16 +295,6 @@ typedef struct V9fsWriteState {
     int cnt;
 } V9fsWriteState;
 
-typedef struct V9fsWstatState
-{
-    V9fsPDU *pdu;
-    size_t offset;
-    int16_t unused;
-    V9fsStat v9stat;
-    V9fsFidState *fidp;
-    struct stat stbuf;
-} V9fsWstatState;
-
 typedef struct V9fsIattr
 {
     int32_t valid;

@@ -103,40 +103,6 @@ static int v9fs_do_preadv(V9fsState *s, int fd, const struct iovec *iov,
     return s->ops->preadv(&s->ctx, fd, iov, iovcnt, offset);
 }
 
-static int v9fs_do_chmod(V9fsState *s, V9fsString *path, mode_t mode)
-{
-    FsCred cred;
-    cred_init(&cred);
-    cred.fc_mode = mode;
-    return s->ops->chmod(&s->ctx, path->data, &cred);
-}
-
-static int v9fs_do_truncate(V9fsState *s, V9fsString *path, off_t size)
-{
-    return s->ops->truncate(&s->ctx, path->data, size);
-}
-
-static int v9fs_do_chown(V9fsState *s, V9fsString *path, uid_t uid, gid_t gid)
-{
-    FsCred cred;
-    cred_init(&cred);
-    cred.fc_uid = uid;
-    cred.fc_gid = gid;
-
-    return s->ops->chown(&s->ctx, path->data, &cred);
-}
-
-static int v9fs_do_utimensat(V9fsState *s, V9fsString *path,
-                                           const struct timespec times[2])
-{
-    return s->ops->utimensat(&s->ctx, path->data, times);
-}
-
-static int v9fs_do_fsync(V9fsState *s, int fd, int datasync)
-{
-    return s->ops->fsync(&s->ctx, fd, datasync);
-}
-
 static void v9fs_string_init(V9fsString *str)
 {
     str->data = NULL;
@@ -2181,39 +2147,6 @@ out:
     complete_pdu(pdu->s, pdu, err);
 }
 
-static void v9fs_wstat_post_truncate(V9fsState *s, V9fsWstatState *vs, int err)
-{
-    if (err < 0) {
-        goto out;
-    }
-
-    err = vs->offset;
-
-out:
-    v9fs_stat_free(&vs->v9stat);
-    complete_pdu(s, vs->pdu, err);
-    g_free(vs);
-}
-
-static void v9fs_wstat_post_rename(V9fsState *s, V9fsWstatState *vs, int err)
-{
-    if (err < 0) {
-        goto out;
-    }
-    if (vs->v9stat.length != -1) {
-        if (v9fs_do_truncate(s, &vs->fidp->path, vs->v9stat.length) < 0) {
-            err = -errno;
-        }
-    }
-    v9fs_wstat_post_truncate(s, vs, err);
-    return;
-
-out:
-    v9fs_stat_free(&vs->v9stat);
-    complete_pdu(s, vs->pdu, err);
-    g_free(vs);
-}
-
 static int v9fs_complete_rename(V9fsState *s, V9fsFidState *fidp,
                                 int32_t newdirfid, V9fsString *name)
 {
@@ -2282,24 +2215,6 @@ out:
     return err;
 }
 
-static void v9fs_wstat_post_chown(V9fsState *s, V9fsWstatState *vs, int err)
-{
-    if (err < 0) {
-        goto out;
-    }
-
-    if (vs->v9stat.name.size != 0) {
-        err = v9fs_complete_rename(s, vs->fidp, -1, &vs->v9stat.name);
-    }
-    v9fs_wstat_post_rename(s, vs, err);
-    return;
-
-out:
-    v9fs_stat_free(&vs->v9stat);
-    complete_pdu(s, vs->pdu, err);
-    g_free(vs);
-}
-
 static void v9fs_rename(void *opaque)
 {
     int32_t fid;
@@ -2329,143 +2244,90 @@ out:
     v9fs_string_free(&name);
 }
 
-static void v9fs_wstat_post_utime(V9fsState *s, V9fsWstatState *vs, int err)
+static void v9fs_wstat(void *opaque)
 {
-    if (err < 0) {
+    int32_t fid;
+    int err = 0;
+    int16_t unused;
+    V9fsStat v9stat;
+    size_t offset = 7;
+    struct stat stbuf;
+    V9fsFidState *fidp;
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
+
+    pdu_unmarshal(pdu, offset, "dwS", &fid, &unused, &v9stat);
+    fidp = lookup_fid(s, fid);
+    if (fidp == NULL) {
+        err = -EINVAL;
         goto out;
     }
-
-    if (vs->v9stat.n_gid != -1 || vs->v9stat.n_uid != -1) {
-        if (v9fs_do_chown(s, &vs->fidp->path, vs->v9stat.n_uid,
-                    vs->v9stat.n_gid)) {
-            err = -errno;
+    /* do we need to sync the file? */
+    if (donttouch_stat(&v9stat)) {
+        err = v9fs_co_fsync(s, fidp, 0);
+        goto out;
+    }
+    if (v9stat.mode != -1) {
+        uint32_t v9_mode;
+        err = v9fs_co_lstat(s, &fidp->path, &stbuf);
+        if (err < 0) {
+            goto out;
+        }
+        v9_mode = stat_to_v9mode(&stbuf);
+        if ((v9stat.mode & P9_STAT_MODE_TYPE_BITS) !=
+            (v9_mode & P9_STAT_MODE_TYPE_BITS)) {
+            /* Attempting to change the type */
+            err = -EIO;
+            goto out;
+        }
+        err = v9fs_co_chmod(s, &fidp->path,
+                            v9mode_to_mode(v9stat.mode,
+                                           &v9stat.extension));
+        if (err < 0) {
+            goto out;
         }
     }
-    v9fs_wstat_post_chown(s, vs, err);
-    return;
-
-out:
-    v9fs_stat_free(&vs->v9stat);
-    complete_pdu(s, vs->pdu, err);
-    g_free(vs);
-}
-
-static void v9fs_wstat_post_chmod(V9fsState *s, V9fsWstatState *vs, int err)
-{
-    if (err < 0) {
-        goto out;
-    }
-
-    if (vs->v9stat.mtime != -1 || vs->v9stat.atime != -1) {
+    if (v9stat.mtime != -1 || v9stat.atime != -1) {
         struct timespec times[2];
-        if (vs->v9stat.atime != -1) {
-            times[0].tv_sec = vs->v9stat.atime;
+        if (v9stat.atime != -1) {
+            times[0].tv_sec = v9stat.atime;
             times[0].tv_nsec = 0;
         } else {
             times[0].tv_nsec = UTIME_OMIT;
         }
-        if (vs->v9stat.mtime != -1) {
-            times[1].tv_sec = vs->v9stat.mtime;
+        if (v9stat.mtime != -1) {
+            times[1].tv_sec = v9stat.mtime;
             times[1].tv_nsec = 0;
         } else {
             times[1].tv_nsec = UTIME_OMIT;
         }
-
-        if (v9fs_do_utimensat(s, &vs->fidp->path, times)) {
-            err = -errno;
+        err = v9fs_co_utimensat(s, &fidp->path, times);
+        if (err < 0) {
+            goto out;
         }
     }
-
-    v9fs_wstat_post_utime(s, vs, err);
-    return;
-
-out:
-    v9fs_stat_free(&vs->v9stat);
-    complete_pdu(s, vs->pdu, err);
-    g_free(vs);
-}
-
-static void v9fs_wstat_post_fsync(V9fsState *s, V9fsWstatState *vs, int err)
-{
-    if (err == -1) {
-        err = -errno;
-    }
-    v9fs_stat_free(&vs->v9stat);
-    complete_pdu(s, vs->pdu, err);
-    g_free(vs);
-}
-
-static void v9fs_wstat_post_lstat(V9fsState *s, V9fsWstatState *vs, int err)
-{
-    uint32_t v9_mode;
-
-    if (err == -1) {
-        err = -errno;
-        goto out;
-    }
-
-    v9_mode = stat_to_v9mode(&vs->stbuf);
-
-    if ((vs->v9stat.mode & P9_STAT_MODE_TYPE_BITS) !=
-        (v9_mode & P9_STAT_MODE_TYPE_BITS)) {
-            /* Attempting to change the type */
-            err = -EIO;
+    if (v9stat.n_gid != -1 || v9stat.n_uid != -1) {
+        err = v9fs_co_chown(s, &fidp->path, v9stat.n_uid, v9stat.n_gid);
+        if (err < 0) {
             goto out;
+        }
     }
-
-    if (v9fs_do_chmod(s, &vs->fidp->path, v9mode_to_mode(vs->v9stat.mode,
-                    &vs->v9stat.extension))) {
-            err = -errno;
-     }
-    v9fs_wstat_post_chmod(s, vs, err);
-    return;
-
+    if (v9stat.name.size != 0) {
+        err = v9fs_complete_rename(s, fidp, -1, &v9stat.name);
+        if (err < 0) {
+            goto out;
+        }
+    }
+    if (v9stat.length != -1) {
+        err = v9fs_co_truncate(s, &fidp->path, v9stat.length);
+        if (err < 0) {
+            goto out;
+        }
+    }
+    err = offset;
 out:
-    v9fs_stat_free(&vs->v9stat);
-    complete_pdu(s, vs->pdu, err);
-    g_free(vs);
-}
-
-static void v9fs_wstat(void *opaque)
-{
-    V9fsPDU *pdu = opaque;
-    V9fsState *s = pdu->s;
-    int32_t fid;
-    V9fsWstatState *vs;
-    int err = 0;
-
-    vs = g_malloc(sizeof(*vs));
-    vs->pdu = pdu;
-    vs->offset = 7;
-
-    pdu_unmarshal(pdu, vs->offset, "dwS", &fid, &vs->unused, &vs->v9stat);
-
-    vs->fidp = lookup_fid(s, fid);
-    if (vs->fidp == NULL) {
-        err = -EINVAL;
-        goto out;
-    }
-
-    /* do we need to sync the file? */
-    if (donttouch_stat(&vs->v9stat)) {
-        err = v9fs_do_fsync(s, vs->fidp->fs.fd, 0);
-        v9fs_wstat_post_fsync(s, vs, err);
-        return;
-    }
-
-    if (vs->v9stat.mode != -1) {
-        err = v9fs_do_lstat(s, &vs->fidp->path, &vs->stbuf);
-        v9fs_wstat_post_lstat(s, vs, err);
-        return;
-    }
-
-    v9fs_wstat_post_chmod(s, vs, err);
-    return;
-
-out:
-    v9fs_stat_free(&vs->v9stat);
-    complete_pdu(s, vs->pdu, err);
-    g_free(vs);
+    v9fs_stat_free(&v9stat);
+    complete_pdu(s, pdu, err);
 }
 
 static int v9fs_fill_statfs(V9fsState *s, V9fsPDU *pdu, struct statfs *stbuf)
