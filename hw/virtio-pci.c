@@ -348,7 +348,9 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             vdev->queue_sel = val;
         break;
     case VIRTIO_PCI_QUEUE_NOTIFY:
-        virtio_queue_notify(vdev, val);
+        if (val < VIRTIO_PCI_QUEUE_MAX) {
+            virtio_queue_notify(vdev, val);
+        }
         break;
     case VIRTIO_PCI_STATUS:
         if (!(val & VIRTIO_CONFIG_S_DRIVER_OK)) {

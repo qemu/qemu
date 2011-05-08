@@ -585,9 +585,7 @@ void virtio_queue_notify_vq(VirtQueue *vq)
 
 void virtio_queue_notify(VirtIODevice *vdev, int n)
 {
-    if (n < VIRTIO_PCI_QUEUE_MAX) {
-        virtio_queue_notify_vq(&vdev->vq[n]);
-    }
+    virtio_queue_notify_vq(&vdev->vq[n]);
 }
 
 uint16_t virtio_queue_vector(VirtIODevice *vdev, int n)
