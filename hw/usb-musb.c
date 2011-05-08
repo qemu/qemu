@@ -513,7 +513,7 @@ static inline void musb_cb_tick1(void *opaque)
 
 #define musb_cb_tick	(dir ? musb_cb_tick1 : musb_cb_tick0)
 
-static inline void musb_schedule_cb(USBDevice *dev, USBPacket *packey)
+static void musb_schedule_cb(USBDevice *dev, USBPacket *packey)
 {
     MUSBPacket *p = container_of(packey, MUSBPacket, p);
     MUSBEndPoint *ep = p->ep;
@@ -572,7 +572,7 @@ static int musb_timeout(int ttype, int speed, int val)
     hw_error("bad interval\n");
 }
 
-static inline void musb_packet(MUSBState *s, MUSBEndPoint *ep,
+static void musb_packet(MUSBState *s, MUSBEndPoint *ep,
                 int epnum, int pid, int len, USBCallback cb, int dir)
 {
     int ret;
