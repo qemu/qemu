@@ -362,10 +362,7 @@ int cpu_exec(CPUState *env1)
                 if (unlikely(interrupt_request)) {
                     if (unlikely(env->singlestep_enabled & SSTEP_NOIRQ)) {
                         /* Mask out external interrupts for this step. */
-                        interrupt_request &= ~(CPU_INTERRUPT_HARD |
-                                               CPU_INTERRUPT_FIQ |
-                                               CPU_INTERRUPT_SMI |
-                                               CPU_INTERRUPT_NMI);
+                        interrupt_request &= ~CPU_INTERRUPT_SSTEP_MASK;
                     }
                     if (interrupt_request & CPU_INTERRUPT_DEBUG) {
                         env->interrupt_request &= ~CPU_INTERRUPT_DEBUG;
@@ -494,9 +491,6 @@ int cpu_exec(CPUState *env1)
                                 next_tb = 0;
                             }
                         }
-		    } else if (interrupt_request & CPU_INTERRUPT_TIMER) {
-			//do_interrupt(0, 0, 0, 0, 0);
-			env->interrupt_request &= ~CPU_INTERRUPT_TIMER;
 		    }
 #elif defined(TARGET_ARM)
                     if (interrupt_request & CPU_INTERRUPT_FIQ

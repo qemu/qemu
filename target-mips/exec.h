@@ -29,10 +29,6 @@ static inline int cpu_has_work(CPUState *env)
         has_work = 1;
     }
 
-    if (env->interrupt_request & CPU_INTERRUPT_TIMER) {
-        has_work = 1;
-    }
-
     return has_work;
 }
 

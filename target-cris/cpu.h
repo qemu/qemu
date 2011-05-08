@@ -36,6 +36,9 @@
 #define EXCP_IRQ        4
 #define EXCP_BREAK      5
 
+/* CRIS-specific interrupt pending bits.  */
+#define CPU_INTERRUPT_NMI       CPU_INTERRUPT_TGT_EXT_3
+
 /* Register aliases. R0 - R15 */
 #define R_FP  8
 #define R_SP  14

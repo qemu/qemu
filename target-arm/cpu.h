@@ -55,6 +55,10 @@
 #define ARMV7M_EXCP_PENDSV  14
 #define ARMV7M_EXCP_SYSTICK 15
 
+/* ARM-specific interrupt pending bits.  */
+#define CPU_INTERRUPT_FIQ   CPU_INTERRUPT_TGT_EXT_1
+
+
 typedef void ARMWriteCPFunc(void *opaque, int cp_info,
                             int srcreg, int operand, uint32_t value);
 typedef uint32_t ARMReadCPFunc(void *opaque, int cp_info,
