@@ -352,11 +352,10 @@ enum arm_features {
     ARM_FEATURE_AUXCR,  /* ARM1026 Auxiliary control register.  */
     ARM_FEATURE_XSCALE, /* Intel XScale extensions.  */
     ARM_FEATURE_IWMMXT, /* Intel iwMMXt extension.  */
-    //~ ARM_FEATURE_V4,     /* TODO: still unused. */
-    //~ See http://lists.nongnu.org/archive/html/qemu-devel/2009-05/msg01570.html
     ARM_FEATURE_V6,
     ARM_FEATURE_V6K,
     ARM_FEATURE_V7,
+    //~ See http://lists.nongnu.org/archive/html/qemu-devel/2009-05/msg01570.html
     //~ ARM_FEATURE_THUMB,  /* TODO: still unused. */
     //~ ARM_FEATURE_THUMB1 = ARM_FEATURE_THUMB, /* TODO: still unused. */
     ARM_FEATURE_THUMB2,

@@ -46,10 +46,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     case ARM_CPUID_ARM920T:
         set_feature(env, ARM_FEATURE_V4T);
         /* TODO: check features. */
-        //~ set_feature(env, ARM_FEATURE_V5);
-        //~ set_feature(env, ARM_FEATURE_ABORT_BU);
-        //~ set_feature(env, ARM_FEATURE_CP15);
-        //~ env->vfp.xregs[ARM_VFP_FPSID] = 0x41011090;
         env->cp15.c0_cachetype = 0x0d172172;
         env->cp15.c1_sys = 0x00000078;
         break;
@@ -187,7 +183,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     case ARM_CPUID_TI915T:
     case ARM_CPUID_TI925T:
         set_feature(env, ARM_FEATURE_V4T);
-        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_OMAPCP);
         env->cp15.c0_cpuid = ARM_CPUID_TI925T; /* Depends on wiring.  */
         env->cp15.c0_cachetype = 0x5109149;
