@@ -144,3 +144,20 @@ int v9fs_co_pwritev(V9fsState *s, V9fsFidState *fidp,
         });
     return err;
 }
+
+int v9fs_co_preadv(V9fsState *s, V9fsFidState *fidp,
+                   struct iovec *iov, int iovcnt, int64_t offset)
+{
+    int fd;
+    int err;
+
+    fd = fidp->fs.fd;
+    v9fs_co_run_in_worker(
+        {
+            err = s->ops->preadv(&s->ctx, fd, iov, iovcnt, offset);
+            if (err < 0) {
+                err = -errno;
+            }
+        });
+    return err;
+}

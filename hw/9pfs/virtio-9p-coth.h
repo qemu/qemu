@@ -91,4 +91,6 @@ extern int v9fs_co_symlink(V9fsState *, V9fsFidState *, const char *,
 extern int v9fs_co_link(V9fsState *, V9fsString *, V9fsString *);
 extern int v9fs_co_pwritev(V9fsState *, V9fsFidState *,
                            struct iovec *, int, int64_t);
+extern int v9fs_co_preadv(V9fsState *, V9fsFidState *,
+                          struct iovec *, int, int64_t);
 #endif
