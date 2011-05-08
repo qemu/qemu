@@ -94,10 +94,10 @@ tcg/tcg.o: cpu.h
 
 # HELPER_CFLAGS is used for all the code compiled with static register
 # variables
-%_helper.o cpu-exec.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
+%_helper.o cpu-exec.o user-exec.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 
 # Note: this is a workaround. The real fix is to avoid compiling
-# cpu_signal_handler() in cpu-exec.c.
+# cpu_signal_handler() in user-exec.c.
 signal.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 
 #########################################################
@@ -110,7 +110,7 @@ $(call set-vpath, $(SRC_PATH)/linux-user:$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR
 QEMU_CFLAGS+=-I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR) -I$(SRC_PATH)/linux-user
 obj-y = main.o syscall.o strace.o mmap.o signal.o thunk.o \
       elfload.o linuxload.o uaccess.o gdbstub.o cpu-uname.o \
-      qemu-malloc.o $(oslib-obj-y)
+      qemu-malloc.o user-exec.o $(oslib-obj-y)
 
 obj-$(TARGET_HAS_BFLT) += flatload.o
 
@@ -148,7 +148,7 @@ LDFLAGS+=-Wl,-segaddr,__STD_PROG_ZONE,0x1000 -image_base 0x0e000000
 LIBS+=-lmx
 
 obj-y = main.o commpage.o machload.o mmap.o signal.o syscall.o thunk.o \
-        gdbstub.o
+        gdbstub.o user-exec.o
 
 obj-i386-y += ioport-user.o
 
@@ -170,7 +170,7 @@ $(call set-vpath, $(SRC_PATH)/bsd-user)
 QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
 
 obj-y = main.o bsdload.o elfload.o mmap.o signal.o strace.o syscall.o \
-        gdbstub.o uaccess.o
+        gdbstub.o uaccess.o user-exec.o
 
 obj-i386-y += ioport-user.o
 
