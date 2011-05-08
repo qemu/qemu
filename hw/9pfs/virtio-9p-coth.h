@@ -89,4 +89,6 @@ extern int v9fs_co_fsync(V9fsState *, V9fsFidState *, int);
 extern int v9fs_co_symlink(V9fsState *, V9fsFidState *, const char *,
                            const char *, gid_t);
 extern int v9fs_co_link(V9fsState *, V9fsString *, V9fsString *);
+extern int v9fs_co_pwritev(V9fsState *, V9fsFidState *,
+                           struct iovec *, int, int64_t);
 #endif
