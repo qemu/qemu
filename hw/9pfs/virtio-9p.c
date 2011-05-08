@@ -103,12 +103,6 @@ static int v9fs_do_preadv(V9fsState *s, int fd, const struct iovec *iov,
     return s->ops->preadv(&s->ctx, fd, iov, iovcnt, offset);
 }
 
-static int v9fs_do_pwritev(V9fsState *s, int fd, const struct iovec *iov,
-                       int iovcnt, int64_t offset)
-{
-    return s->ops->pwritev(&s->ctx, fd, iov, iovcnt, offset);
-}
-
 static int v9fs_do_chmod(V9fsState *s, V9fsString *path, mode_t mode)
 {
     FsCred cred;
@@ -1834,51 +1828,21 @@ out:
     complete_pdu(s, pdu, retval);
 }
 
-static void v9fs_write_post_pwritev(V9fsState *s, V9fsWriteState *vs,
-                                   ssize_t err)
-{
-    if (err  < 0) {
-        /* IO error return the error */
-        err = -errno;
-        goto out;
-    }
-    vs->total += vs->len;
-    vs->sg = adjust_sg(vs->sg, vs->len, &vs->cnt);
-    if (vs->total < vs->count && vs->len > 0) {
-        do {
-            if (0) {
-                print_sg(vs->sg, vs->cnt);
-            }
-            vs->len = v9fs_do_pwritev(s, vs->fidp->fs.fd, vs->sg, vs->cnt,
-                      vs->off);
-            if (vs->len > 0) {
-                vs->off += vs->len;
-            }
-        } while (vs->len == -1 && errno == EINTR);
-        if (vs->len == -1) {
-            err  = -errno;
-        }
-        v9fs_write_post_pwritev(s, vs, err);
-        return;
-    }
-    vs->offset += pdu_marshal(vs->pdu, vs->offset, "d", vs->total);
-    err = vs->offset;
-out:
-    complete_pdu(s, vs->pdu, err);
-    g_free(vs);
-}
-
-static void v9fs_xattr_write(V9fsState *s, V9fsWriteState *vs)
+static int v9fs_xattr_write(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
+                            int64_t off, int32_t count,
+                            struct iovec *sg, int cnt)
 {
     int i, to_copy;
     ssize_t err = 0;
     int write_count;
     int64_t xattr_len;
+    size_t offset = 7;
 
-    xattr_len = vs->fidp->fs.xattr.len;
-    write_count = xattr_len - vs->off;
-    if (write_count > vs->count) {
-        write_count = vs->count;
+
+    xattr_len = fidp->fs.xattr.len;
+    write_count = xattr_len - off;
+    if (write_count > count) {
+        write_count = count;
     } else if (write_count < 0) {
         /*
          * write beyond XATTR value len specified in
@@ -1887,82 +1851,88 @@ static void v9fs_xattr_write(V9fsState *s, V9fsWriteState *vs)
         err = -ENOSPC;
         goto out;
     }
-    vs->offset += pdu_marshal(vs->pdu, vs->offset, "d", write_count);
-    err = vs->offset;
-    vs->fidp->fs.xattr.copied_len += write_count;
+    offset += pdu_marshal(pdu, offset, "d", write_count);
+    err = offset;
+    fidp->fs.xattr.copied_len += write_count;
     /*
      * Now copy the content from sg list
      */
-    for (i = 0; i < vs->cnt; i++) {
-        if (write_count > vs->sg[i].iov_len) {
-            to_copy = vs->sg[i].iov_len;
+    for (i = 0; i < cnt; i++) {
+        if (write_count > sg[i].iov_len) {
+            to_copy = sg[i].iov_len;
         } else {
             to_copy = write_count;
         }
-        memcpy((char *)vs->fidp->fs.xattr.value + vs->off,
-               vs->sg[i].iov_base, to_copy);
+        memcpy((char *)fidp->fs.xattr.value + off, sg[i].iov_base, to_copy);
         /* updating vs->off since we are not using below */
-        vs->off += to_copy;
+        off += to_copy;
         write_count -= to_copy;
     }
 out:
-    complete_pdu(s, vs->pdu, err);
-    g_free(vs);
+    return err;
 }
 
 static void v9fs_write(void *opaque)
 {
+    int cnt;
+    ssize_t err;
+    int32_t fid;
+    int64_t off;
+    int32_t count;
+    int32_t len = 0;
+    int32_t total = 0;
+    size_t offset = 7;
+    V9fsFidState *fidp;
+    struct iovec iov[128]; /* FIXME: bad, bad, bad */
+    struct iovec *sg = iov;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
-    int32_t fid;
-    V9fsWriteState *vs;
-    ssize_t err;
 
-    vs = g_malloc(sizeof(*vs));
-
-    vs->pdu = pdu;
-    vs->offset = 7;
-    vs->sg = vs->iov;
-    vs->total = 0;
-    vs->len = 0;
-
-    pdu_unmarshal(vs->pdu, vs->offset, "dqdv", &fid, &vs->off, &vs->count,
-                  vs->sg, &vs->cnt);
-
-    vs->fidp = lookup_fid(s, fid);
-    if (vs->fidp == NULL) {
+    pdu_unmarshal(pdu, offset, "dqdv", &fid, &off, &count, sg, &cnt);
+    fidp = lookup_fid(s, fid);
+    if (fidp == NULL) {
         err = -EINVAL;
         goto out;
     }
-
-    if (vs->fidp->fid_type == P9_FID_FILE) {
-        if (vs->fidp->fs.fd == -1) {
+    if (fidp->fid_type == P9_FID_FILE) {
+        if (fidp->fs.fd == -1) {
             err = -EINVAL;
             goto out;
         }
-    } else if (vs->fidp->fid_type == P9_FID_XATTR) {
+    } else if (fidp->fid_type == P9_FID_XATTR) {
         /*
          * setxattr operation
          */
-        v9fs_xattr_write(s, vs);
-        return;
+        err = v9fs_xattr_write(s, pdu, fidp, off, count, sg, cnt);
+        goto out;
     } else {
         err = -EINVAL;
         goto out;
     }
-    vs->sg = cap_sg(vs->sg, vs->count, &vs->cnt);
-    if (vs->total <= vs->count) {
-        vs->len = v9fs_do_pwritev(s, vs->fidp->fs.fd, vs->sg, vs->cnt, vs->off);
-        if (vs->len > 0) {
-            vs->off += vs->len;
+    sg = cap_sg(sg, count, &cnt);
+    do {
+        if (0) {
+            print_sg(sg, cnt);
         }
-        err = vs->len;
-        v9fs_write_post_pwritev(s, vs, err);
-    }
-    return;
+        /* Loop in case of EINTR */
+        do {
+            len = v9fs_co_pwritev(s, fidp, sg, cnt, off);
+            if (len >= 0) {
+                off   += len;
+                total += len;
+            }
+        } while (len == -EINTR);
+        if (len < 0) {
+            /* IO error return the error */
+            err = len;
+            goto out;
+        }
+        sg = adjust_sg(sg, len, &cnt);
+    } while (total < count && len > 0);
+    offset += pdu_marshal(pdu, offset, "d", total);
+    err = offset;
 out:
-    complete_pdu(s, vs->pdu, err);
-    g_free(vs);
+    complete_pdu(s, pdu, err);
 }
 
 static void v9fs_create(void *opaque)
