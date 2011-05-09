@@ -117,11 +117,6 @@ static int v9fs_do_chmod(V9fsState *s, V9fsString *path, mode_t mode)
     return s->ops->chmod(&s->ctx, path->data, &cred);
 }
 
-static int v9fs_do_link(V9fsState *s, V9fsString *oldpath, V9fsString *newpath)
-{
-    return s->ops->link(&s->ctx, oldpath->data, newpath->data);
-}
-
 static int v9fs_do_truncate(V9fsState *s, V9fsString *path, off_t size)
 {
     return s->ops->truncate(&s->ctx, path->data, size);
@@ -2029,9 +2024,8 @@ static void v9fs_create(void *opaque)
             err = -EINVAL;
             goto out;
         }
-        err = v9fs_do_link(pdu->s, &nfidp->path, &fullname);
+        err = v9fs_co_link(pdu->s, &nfidp->path, &fullname);
         if (err < 0) {
-            err = -errno;
             goto out;
         }
     } else if (perm & P9_STAT_MODE_DEVICE) {
@@ -2169,21 +2163,20 @@ static void v9fs_link(void *opaque)
 
     dfidp = lookup_fid(s, dfid);
     if (dfidp == NULL) {
-        err = -errno;
+        err = -ENOENT;
         goto out;
     }
 
     oldfidp = lookup_fid(s, oldfid);
     if (oldfidp == NULL) {
-        err = -errno;
+        err = -ENOENT;
         goto out;
     }
 
     v9fs_string_sprintf(&fullname, "%s/%s", dfidp->path.data, name.data);
-    err = offset;
-    err = v9fs_do_link(s, &oldfidp->path, &fullname);
-    if (err) {
-        err = -errno;
+    err = v9fs_co_link(s, &oldfidp->path, &fullname);
+    if (!err) {
+        err = offset;
     }
     v9fs_string_free(&fullname);
 
