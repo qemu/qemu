@@ -12,6 +12,7 @@
  *
  */
 
+#include "qemu-timer.h"
 #include "trace.h"
 #include "qed.h"
 #include "qerror.h"
@@ -291,6 +292,88 @@ static CachedL2Table *qed_new_l2_table(BDRVQEDState *s)
 
 static void qed_aio_next_io(void *opaque, int ret);
 
+static void qed_plug_allocating_write_reqs(BDRVQEDState *s)
+{
+    assert(!s->allocating_write_reqs_plugged);
+
+    s->allocating_write_reqs_plugged = true;
+}
+
+static void qed_unplug_allocating_write_reqs(BDRVQEDState *s)
+{
+    QEDAIOCB *acb;
+
+    assert(s->allocating_write_reqs_plugged);
+
+    s->allocating_write_reqs_plugged = false;
+
+    acb = QSIMPLEQ_FIRST(&s->allocating_write_reqs);
+    if (acb) {
+        qed_aio_next_io(acb, 0);
+    }
+}
+
+static void qed_finish_clear_need_check(void *opaque, int ret)
+{
+    /* Do nothing */
+}
+
+static void qed_flush_after_clear_need_check(void *opaque, int ret)
+{
+    BDRVQEDState *s = opaque;
+
+    bdrv_aio_flush(s->bs, qed_finish_clear_need_check, s);
+
+    /* No need to wait until flush completes */
+    qed_unplug_allocating_write_reqs(s);
+}
+
+static void qed_clear_need_check(void *opaque, int ret)
+{
+    BDRVQEDState *s = opaque;
+
+    if (ret) {
+        qed_unplug_allocating_write_reqs(s);
+        return;
+    }
+
+    s->header.features &= ~QED_F_NEED_CHECK;
+    qed_write_header(s, qed_flush_after_clear_need_check, s);
+}
+
+static void qed_need_check_timer_cb(void *opaque)
+{
+    BDRVQEDState *s = opaque;
+
+    /* The timer should only fire when allocating writes have drained */
+    assert(!QSIMPLEQ_FIRST(&s->allocating_write_reqs));
+
+    trace_qed_need_check_timer_cb(s);
+
+    qed_plug_allocating_write_reqs(s);
+
+    /* Ensure writes are on disk before clearing flag */
+    bdrv_aio_flush(s->bs, qed_clear_need_check, s);
+}
+
+static void qed_start_need_check_timer(BDRVQEDState *s)
+{
+    trace_qed_start_need_check_timer(s);
+
+    /* Use vm_clock so we don't alter the image file while suspended for
+     * migration.
+     */
+    qemu_mod_timer(s->need_check_timer, qemu_get_clock_ns(vm_clock) +
+                   get_ticks_per_sec() * QED_NEED_CHECK_TIMEOUT);
+}
+
+/* It's okay to call this multiple times or when no timer is started */
+static void qed_cancel_need_check_timer(BDRVQEDState *s)
+{
+    trace_qed_cancel_need_check_timer(s);
+    qemu_del_timer(s->need_check_timer);
+}
+
 static int bdrv_qed_open(BlockDriverState *bs, int flags)
 {
     BDRVQEDState *s = bs->opaque;
@@ -406,7 +489,10 @@ static int bdrv_qed_open(BlockDriverState *bs, int flags)
             BdrvCheckResult result = {0};
 
             ret = qed_check(s, &result, true);
-            if (!ret && !result.corruptions && !result.check_errors) {
+            if (ret) {
+                goto out;
+            }
+            if (!result.corruptions && !result.check_errors) {
                 /* Ensure fixes reach storage before clearing check bit */
                 bdrv_flush(s->bs);
 
@@ -415,6 +501,9 @@ static int bdrv_qed_open(BlockDriverState *bs, int flags)
             }
         }
     }
+
+    s->need_check_timer = qemu_new_timer_ns(vm_clock,
+                                            qed_need_check_timer_cb, s);
 
 out:
     if (ret) {
@@ -427,6 +516,9 @@ out:
 static void bdrv_qed_close(BlockDriverState *bs)
 {
     BDRVQEDState *s = bs->opaque;
+
+    qed_cancel_need_check_timer(s);
+    qemu_free_timer(s->need_check_timer);
 
     /* Ensure writes reach stable storage */
     bdrv_flush(bs->file);
@@ -809,6 +901,8 @@ static void qed_aio_complete(QEDAIOCB *acb, int ret)
         acb = QSIMPLEQ_FIRST(&s->allocating_write_reqs);
         if (acb) {
             qed_aio_next_io(acb, 0);
+        } else if (s->header.features & QED_F_NEED_CHECK) {
+            qed_start_need_check_timer(s);
         }
     }
 }
@@ -1014,11 +1108,17 @@ static void qed_aio_write_alloc(QEDAIOCB *acb, size_t len)
 {
     BDRVQEDState *s = acb_to_s(acb);
 
+    /* Cancel timer when the first allocating request comes in */
+    if (QSIMPLEQ_EMPTY(&s->allocating_write_reqs)) {
+        qed_cancel_need_check_timer(s);
+    }
+
     /* Freeze this request if another allocating write is in progress */
     if (acb != QSIMPLEQ_FIRST(&s->allocating_write_reqs)) {
         QSIMPLEQ_INSERT_TAIL(&s->allocating_write_reqs, acb, next);
     }
-    if (acb != QSIMPLEQ_FIRST(&s->allocating_write_reqs)) {
+    if (acb != QSIMPLEQ_FIRST(&s->allocating_write_reqs) ||
+        s->allocating_write_reqs_plugged) {
         return; /* wait for existing request to finish */
     }
 
