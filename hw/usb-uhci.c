@@ -702,11 +702,15 @@ out:
     case USB_RET_STALL:
         td->ctrl |= TD_CTRL_STALL;
         td->ctrl &= ~TD_CTRL_ACTIVE;
+        s->status |= UHCI_STS_USBERR;
+        uhci_update_irq(s);
         return 1;
 
     case USB_RET_BABBLE:
         td->ctrl |= TD_CTRL_BABBLE | TD_CTRL_STALL;
         td->ctrl &= ~TD_CTRL_ACTIVE;
+        s->status |= UHCI_STS_USBERR;
+        uhci_update_irq(s);
         /* frame interrupted */
         return -1;
 
