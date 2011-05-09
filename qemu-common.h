@@ -341,7 +341,7 @@ void qemu_iovec_memset_skip(QEMUIOVector *qiov, int c, size_t count,
 
 void qemu_progress_init(int enabled, float min_skip);
 void qemu_progress_end(void);
-void qemu_progress_print(float percent, int max);
+void qemu_progress_print(float delta, int max);
 
 #define QEMU_FILE_TYPE_BIOS   0
 #define QEMU_FILE_TYPE_KEYMAP 1

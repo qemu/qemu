@@ -96,6 +96,13 @@ static void progress_dummy_init(void)
     state.end = progress_dummy_end;
 }
 
+/*
+ * Initialize progress reporting.
+ * If @enabled is false, actual reporting is suppressed.  The user can
+ * still trigger a report by sending a SIGUSR1.
+ * Reports are also suppressed unless we've had at least @min_skip
+ * percent progress since the last report.
+ */
 void qemu_progress_init(int enabled, float min_skip)
 {
     state.min_skip = min_skip;
@@ -111,14 +118,25 @@ void qemu_progress_end(void)
     state.end();
 }
 
-void qemu_progress_print(float percent, int max)
+/*
+ * Report progress.
+ * @delta is how much progress we made.
+ * If @max is zero, @delta is an absolut value of the total job done.
+ * Else, @delta is a progress delta since the last call, as a fraction
+ * of @max.  I.e. the delta is @delta * @max / 100. This allows
+ * relative accounting of functions which may be a different fraction of
+ * the full job, depending on the context they are called in. I.e.
+ * a function might be considered 40% of the full job if used from
+ * bdrv_img_create() but only 20% if called from img_convert().
+ */
+void qemu_progress_print(float delta, int max)
 {
     float current;
 
     if (max == 0) {
-        current = percent;
+        current = delta;
     } else {
-        current = state.current + percent / 100 * max;
+        current = state.current + delta / 100 * max;
     }
     if (current > 100) {
         current = 100;
