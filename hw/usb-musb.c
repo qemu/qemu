@@ -497,14 +497,14 @@ static void musb_detach(USBPort *port)
     musb_session_update(s, 1, s->session);
 }
 
-static inline void musb_cb_tick0(void *opaque)
+static void musb_cb_tick0(void *opaque)
 {
     MUSBEndPoint *ep = (MUSBEndPoint *) opaque;
 
     ep->delayed_cb[0](&ep->packey[0].p, opaque);
 }
 
-static inline void musb_cb_tick1(void *opaque)
+static void musb_cb_tick1(void *opaque)
 {
     MUSBEndPoint *ep = (MUSBEndPoint *) opaque;
 
