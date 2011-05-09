@@ -296,12 +296,8 @@ void bmdma_cmd_writeb(void *opaque, uint32_t addr, uint32_t val)
              */
             if (bm->bus->dma->aiocb) {
                 qemu_aio_flush();
-#ifdef DEBUG_IDE
-                if (bm->bus->dma->aiocb)
-                    printf("ide_dma_cancel: aiocb still pending\n");
-                if (bm->status & BM_STATUS_DMAING)
-                    printf("ide_dma_cancel: BM_STATUS_DMAING still pending\n");
-#endif
+                assert(bm->bus->dma->aiocb == NULL);
+                assert((bm->status & BM_STATUS_DMAING) == 0);
             }
         } else {
             bm->cur_addr = bm->addr;
