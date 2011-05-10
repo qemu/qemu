@@ -2910,10 +2910,14 @@ ram_addr_t qemu_ram_alloc_from_ptr(DeviceState *dev, const char *name,
 #endif
         } else {
 #if defined(TARGET_S390X) && defined(CONFIG_KVM)
-            /* XXX S390 KVM requires the topmost vma of the RAM to be < 256GB */
-            new_block->host = mmap((void*)0x1000000, size,
+            /* S390 KVM requires the topmost vma of the RAM to be smaller than
+               an system defined value, which is at least 256GB. Larger systems
+               have larger values. We put the guest between the end of data
+               segment (system break) and this value. We use 32GB as a base to
+               have enough room for the system break to grow. */
+            new_block->host = mmap((void*)0x800000000, size,
                                    PROT_EXEC|PROT_READ|PROT_WRITE,
-                                   MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+                                   MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
 #else
             if (xen_mapcache_enabled()) {
                 xen_ram_alloc(new_block->offset, size);
