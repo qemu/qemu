@@ -104,6 +104,7 @@ struct endp_data {
 struct USBAutoFilter {
     uint32_t bus_num;
     uint32_t addr;
+    char     *port;
     uint32_t vendor_id;
     uint32_t product_id;
 };
@@ -1162,6 +1163,7 @@ static struct USBDeviceInfo usb_host_dev_info = {
     .qdev.props     = (Property[]) {
         DEFINE_PROP_UINT32("hostbus",  USBHostDevice, match.bus_num,    0),
         DEFINE_PROP_UINT32("hostaddr", USBHostDevice, match.addr,       0),
+        DEFINE_PROP_STRING("hostport", USBHostDevice, match.port),
         DEFINE_PROP_HEX32("vendorid",  USBHostDevice, match.vendor_id,  0),
         DEFINE_PROP_HEX32("productid", USBHostDevice, match.product_id, 0),
         DEFINE_PROP_END_OF_LIST(),
@@ -1580,6 +1582,9 @@ static int usb_host_auto_scan(void *opaque, int bus_num, int addr, char *port,
         if (f->addr > 0 && f->addr != addr) {
             continue;
         }
+        if (f->port != NULL && (port == NULL || strcmp(f->port, port) != 0)) {
+            continue;
+        }
 
         if (f->vendor_id > 0 && f->vendor_id != vendor_id) {
             continue;
@@ -1805,7 +1810,7 @@ void usb_host_info(Monitor *mon)
         dec2str(f->addr, addr, sizeof(addr));
         hex2str(f->vendor_id, vid, sizeof(vid));
         hex2str(f->product_id, pid, sizeof(pid));
-        monitor_printf(mon, "    Device %s.%s ID %s:%s\n",
-                       bus, addr, vid, pid);
+        monitor_printf(mon, "    Bus %s, Addr %s, Port %s, ID %s:%s\n",
+                       bus, addr, f->port ? f->port : "*", vid, pid);
     }
 }
