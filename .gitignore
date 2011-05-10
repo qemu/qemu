@@ -36,6 +36,7 @@ qemu-io
 qemu-ga
 qemu-monitor.texi
 QMP/qmp-commands.txt
+test-coroutine
 .gdbinit
 *.a
 *.aux
