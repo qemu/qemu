@@ -455,8 +455,8 @@ static target_ulong h_rtas(CPUState *env, sPAPREnvironment *spapr,
                            nret, rtas_r3 + 12 + 4*nargs);
 }
 
-spapr_hcall_fn papr_hypercall_table[(MAX_HCALL_OPCODE / 4) + 1];
-spapr_hcall_fn kvmppc_hypercall_table[KVMPPC_HCALL_MAX - KVMPPC_HCALL_BASE];
+static spapr_hcall_fn papr_hypercall_table[(MAX_HCALL_OPCODE / 4) + 1];
+static spapr_hcall_fn kvmppc_hypercall_table[KVMPPC_HCALL_MAX - KVMPPC_HCALL_BASE + 1];
 
 void spapr_register_hypercall(target_ulong opcode, spapr_hcall_fn fn)
 {
