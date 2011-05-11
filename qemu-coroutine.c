@@ -91,7 +91,10 @@ static void *coroutine_swap(Coroutine *from, Coroutine *to, void *opaque)
     case COROUTINE_TERMINATE:
         current = to->caller;
         qemu_coroutine_terminate(to);
-        return to->data;
+        opaque = to->data;
+        qemu_free(to->stack);
+        qemu_free(to);
+        return opaque;
     default:
         /* Switch to called coroutine */
         current = to;
