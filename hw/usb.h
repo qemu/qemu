@@ -262,11 +262,14 @@ struct USBPacket {
     uint8_t *data;
     int len;
     /* Internal use by the USB layer.  */
+    USBDevice *owner;
     USBCallback *cancel_cb;
     void *cancel_opaque;
 };
 
 int usb_handle_packet(USBDevice *dev, USBPacket *p);
+void usb_packet_complete(USBDevice *dev, USBPacket *p);
+void usb_cancel_packet(USBPacket * p);
 
 /* Defer completion of a USB packet.  The hadle_packet routine should then
    return USB_RET_ASYNC.  Packets that complete immediately (before
@@ -276,21 +279,6 @@ static inline void usb_defer_packet(USBPacket *p, USBCallback *cancel,
 {
     p->cancel_cb = cancel;
     p->cancel_opaque = opaque;
-}
-
-/* Notify the controller that an async packet is complete.  This should only
-   be called for packets previously deferred with usb_defer_packet, and
-   should never be called from within handle_packet.  */
-static inline void usb_packet_complete(USBDevice *dev, USBPacket *p)
-{
-    dev->port->ops->complete(dev, p);
-}
-
-/* Cancel an active packet.  The packed must have been deferred with
-   usb_defer_packet,  and not yet completed.  */
-static inline void usb_cancel_packet(USBPacket * p)
-{
-    p->cancel_cb(p, p->cancel_opaque);
 }
 
 void usb_attach(USBPort *port, USBDevice *dev);

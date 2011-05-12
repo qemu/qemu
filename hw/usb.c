@@ -313,6 +313,38 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
 {
     int ret;
 
+    assert(p->owner == NULL);
     ret = dev->info->handle_packet(dev, p);
+    if (ret == USB_RET_ASYNC) {
+        if (p->owner == NULL) {
+            p->owner = dev;
+        } else {
+            /* We'll end up here when usb_handle_packet is called
+             * recursively due to a hub being in the chain.  Nothing
+             * to do.  Leave p->owner pointing to the device, not the
+             * hub. */;
+        }
+    }
     return ret;
+}
+
+/* Notify the controller that an async packet is complete.  This should only
+   be called for packets previously deferred by returning USB_RET_ASYNC from
+   handle_packet. */
+void usb_packet_complete(USBDevice *dev, USBPacket *p)
+{
+    /* Note: p->owner != dev is possible in case dev is a hub */
+    assert(p->owner != NULL);
+    dev->port->ops->complete(dev, p);
+    p->owner = NULL;
+}
+
+/* Cancel an active packet.  The packed must have been deferred by
+   returning USB_RET_ASYNC from handle_packet, and not yet
+   completed.  */
+void usb_cancel_packet(USBPacket * p)
+{
+    assert(p->owner != NULL);
+    p->cancel_cb(p, p->cancel_opaque);
+    p->owner = NULL;
 }
