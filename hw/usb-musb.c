@@ -601,7 +601,7 @@ static void musb_packet(MUSBState *s, MUSBEndPoint *ep,
     ep->packey[dir].dir = dir;
 
     if (s->port.dev)
-        ret = s->port.dev->info->handle_packet(s->port.dev, &ep->packey[dir].p);
+        ret = usb_handle_packet(s->port.dev, &ep->packey[dir].p);
     else
         ret = USB_RET_NODEV;
 

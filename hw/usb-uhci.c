@@ -632,7 +632,7 @@ static int uhci_broadcast_packet(UHCIState *s, USBPacket *p)
         USBDevice *dev = port->port.dev;
 
         if (dev && (port->ctrl & UHCI_PORT_EN))
-            ret = dev->info->handle_packet(dev, p);
+            ret = usb_handle_packet(dev, p);
     }
 
     DPRINTF("uhci: packet exit. ret %d len %d\n", ret, p->len);

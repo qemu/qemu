@@ -297,9 +297,22 @@ int set_usb_string(uint8_t *buf, const char *str)
 void usb_send_msg(USBDevice *dev, int msg)
 {
     USBPacket p;
+    int ret;
+
     memset(&p, 0, sizeof(p));
     p.pid = msg;
-    dev->info->handle_packet(dev, &p);
-
+    ret = usb_handle_packet(dev, &p);
     /* This _must_ be synchronous */
+    assert(ret != USB_RET_ASYNC);
+}
+
+/* Hand over a packet to a device for processing.  Return value
+   USB_RET_ASYNC indicates the processing isn't finished yet, the
+   driver will call usb_packet_complete() when done processing it. */
+int usb_handle_packet(USBDevice *dev, USBPacket *p)
+{
+    int ret;
+
+    ret = dev->info->handle_packet(dev, p);
+    return ret;
 }

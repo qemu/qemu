@@ -495,7 +495,7 @@ static int usb_hub_broadcast_packet(USBHubState *s, USBPacket *p)
         port = &s->ports[i];
         dev = port->port.dev;
         if (dev && (port->wPortStatus & PORT_STAT_ENABLE)) {
-            ret = dev->info->handle_packet(dev, p);
+            ret = usb_handle_packet(dev, p);
             if (ret != USB_RET_NODEV) {
                 return ret;
             }

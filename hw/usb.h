@@ -266,6 +266,8 @@ struct USBPacket {
     void *cancel_opaque;
 };
 
+int usb_handle_packet(USBDevice *dev, USBPacket *p);
+
 /* Defer completion of a USB packet.  The hadle_packet routine should then
    return USB_RET_ASYNC.  Packets that complete immediately (before
    handle_packet returns) should not call this method.  */
