@@ -40,7 +40,7 @@ typedef enum {
      *
      * Not all the bits of slot control register match with the ones of
      * slot status. Not some bits of slot status register is used to
-     * show status, not to report event occurence.
+     * show status, not to report event occurrence.
      * So such bits must be masked out when checking the software
      * notification condition.
      */

@@ -189,7 +189,7 @@ typedef struct {
     uint32_t script_ram_base;
 
     int carry; /* ??? Should this be an a visible register somewhere?  */
-    int sense;
+    int status;
     /* Action to take at the end of a MSG IN phase.
        0 = COMMAND, 1 = disconnect, 2 = DATA OUT, 3 = DATA IN.  */
     int msg_action;
@@ -695,8 +695,8 @@ static void lsi_command_complete(SCSIBus *bus, int reason, uint32_t tag,
 
     out = (s->sstat1 & PHASE_MASK) == PHASE_DO;
     if (reason == SCSI_REASON_DONE) {
-        DPRINTF("Command complete sense=%d\n", (int)arg);
-        s->sense = arg;
+        DPRINTF("Command complete status=%d\n", (int)arg);
+        s->status = arg;
         s->command_complete = 2;
         if (s->waiting && s->dbc != 0) {
             /* Raise phase mismatch for short transfers.  */
@@ -783,14 +783,14 @@ static void lsi_do_command(LSIState *s)
 
 static void lsi_do_status(LSIState *s)
 {
-    uint8_t sense;
-    DPRINTF("Get status len=%d sense=%d\n", s->dbc, s->sense);
+    uint8_t status;
+    DPRINTF("Get status len=%d status=%d\n", s->dbc, s->status);
     if (s->dbc != 1)
         BADF("Bad Status move\n");
     s->dbc = 1;
-    sense = s->sense;
-    s->sfbr = sense;
-    cpu_physical_memory_write(s->dnad, &sense, 1);
+    status = s->status;
+    s->sfbr = status;
+    cpu_physical_memory_write(s->dnad, &status, 1);
     lsi_set_phase(s, PHASE_MI);
     s->msg_action = 1;
     lsi_add_msg_byte(s, 0); /* COMMAND COMPLETE */
@@ -2122,7 +2122,7 @@ static const VMStateDescription vmstate_lsi_scsi = {
         VMSTATE_PCI_DEVICE(dev, LSIState),
 
         VMSTATE_INT32(carry, LSIState),
-        VMSTATE_INT32(sense, LSIState),
+        VMSTATE_INT32(status, LSIState),
         VMSTATE_INT32(msg_action, LSIState),
         VMSTATE_INT32(msg_len, LSIState),
         VMSTATE_BUFFER(msg, LSIState),

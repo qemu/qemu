@@ -379,7 +379,7 @@ abi_long copy_from_user(void *hptr, abi_ulong gaddr, size_t len);
 abi_long copy_to_user(abi_ulong gaddr, void *hptr, size_t len);
 
 /* Functions for accessing guest memory.  The tget and tput functions
-   read/write single values, byteswapping as neccessary.  The lock_user
+   read/write single values, byteswapping as necessary.  The lock_user
    gets a pointer to a contiguous area of guest memory, but does not perform
    and byteswapping.  lock_user may return either a pointer to the guest
    memory, or a temporary buffer.  */

@@ -322,7 +322,7 @@ void check_file_unfixed_eof_mmaps(void)
 		fail_unless (p1[(test_fsize & pagemask) / sizeof *p1 - 1]
 			     == ((test_fsize - sizeof *p1) / sizeof *p1));
 
-		/* Verify that the end of page is accessable and zeroed.  */
+		/* Verify that the end of page is accessible and zeroed.  */
 		cp = (void *) p1;
 		fail_unless (cp[pagesize - 4] == 0);
 		munmap (p1, pagesize);
@@ -365,7 +365,7 @@ void check_file_fixed_eof_mmaps(void)
 		fail_unless (p1[(test_fsize & pagemask) / sizeof *p1 - 1]
 			     == ((test_fsize - sizeof *p1) / sizeof *p1));
 
-		/* Verify that the end of page is accessable and zeroed.  */
+		/* Verify that the end of page is accessible and zeroed.  */
 		cp = (void *)p1;
 		fail_unless (cp[pagesize - 4] == 0);
 		munmap (p1, pagesize);

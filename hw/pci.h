@@ -132,7 +132,7 @@ struct PCIDevice {
     /* PCI config space */
     uint8_t *config;
 
-    /* Used to enable config checks on load. Note that writeable bits are
+    /* Used to enable config checks on load. Note that writable bits are
      * never checked even if set in cmask. */
     uint8_t *cmask;
 

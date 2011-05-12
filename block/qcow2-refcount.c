@@ -1063,7 +1063,7 @@ fail:
  * Checks an image for refcount consistency.
  *
  * Returns 0 if no errors are found, the number of errors in case the image is
- * detected as corrupted, and -errno when an internal error occured.
+ * detected as corrupted, and -errno when an internal error occurred.
  */
 int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res)
 {

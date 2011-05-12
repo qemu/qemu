@@ -38,6 +38,10 @@
 #include "arch_init.h"
 #include "blockdev.h"
 #include "smbus.h"
+#include "xen.h"
+#ifdef CONFIG_XEN
+#  include <xen/hvm/hvm_info_table.h>
+#endif
 
 #define MAX_IDE_BUS 2
 
@@ -92,12 +96,26 @@ static void pc_init1(ram_addr_t ram_size,
         kvmclock_create();
     }
 
-    /* allocate ram and load rom/bios */
-    pc_memory_init(ram_size, kernel_filename, kernel_cmdline, initrd_filename,
-                   &below_4g_mem_size, &above_4g_mem_size);
+    if (ram_size >= 0xe0000000 ) {
+        above_4g_mem_size = ram_size - 0xe0000000;
+        below_4g_mem_size = 0xe0000000;
+    } else {
+        above_4g_mem_size = 0;
+        below_4g_mem_size = ram_size;
+    }
 
-    cpu_irq = pc_allocate_cpu_irq();
-    i8259 = i8259_init(cpu_irq[0]);
+    /* allocate ram and load rom/bios */
+    if (!xen_enabled()) {
+        pc_memory_init(kernel_filename, kernel_cmdline, initrd_filename,
+                       below_4g_mem_size, above_4g_mem_size);
+    }
+
+    if (!xen_enabled()) {
+        cpu_irq = pc_allocate_cpu_irq();
+        i8259 = i8259_init(cpu_irq[0]);
+    } else {
+        i8259 = xen_interrupt_controller_init();
+    }
     isa_irq_state = qemu_mallocz(sizeof(*isa_irq_state));
     isa_irq_state->i8259 = i8259;
     if (pci_enabled) {
@@ -106,7 +124,11 @@ static void pc_init1(ram_addr_t ram_size,
     isa_irq = qemu_allocate_irqs(isa_irq_handler, isa_irq_state, 24);
 
     if (pci_enabled) {
-        pci_bus = i440fx_init(&i440fx_state, &piix3_devfn, isa_irq, ram_size);
+        if (!xen_enabled()) {
+            pci_bus = i440fx_init(&i440fx_state, &piix3_devfn, isa_irq, ram_size);
+        } else {
+            pci_bus = i440fx_xen_init(&i440fx_state, &piix3_devfn, isa_irq, ram_size);
+        }
     } else {
         pci_bus = NULL;
         i440fx_state = NULL;
@@ -119,7 +141,7 @@ static void pc_init1(ram_addr_t ram_size,
     pc_vga_init(pci_enabled? pci_bus: NULL);
 
     /* init basic PC hardware */
-    pc_basic_device_init(isa_irq, &rtc_state);
+    pc_basic_device_init(isa_irq, &rtc_state, xen_enabled());
 
     for(i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
@@ -157,7 +179,11 @@ static void pc_init1(ram_addr_t ram_size,
     if (pci_enabled && acpi_enabled) {
         i2c_bus *smbus;
 
-        cmos_s3 = qemu_allocate_irqs(pc_cmos_set_s3_resume, rtc_state, 1);
+        if (!xen_enabled()) {
+            cmos_s3 = qemu_allocate_irqs(pc_cmos_set_s3_resume, rtc_state, 1);
+        } else {
+            cmos_s3 = qemu_allocate_irqs(xen_cmos_set_s3_resume, rtc_state, 1);
+        }
         smi_irq = qemu_allocate_irqs(pc_acpi_smi_interrupt, first_cpu, 1);
         /* TODO: Populate SPD eeprom data.  */
         smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
@@ -212,6 +238,24 @@ static void pc_init_isa(ram_addr_t ram_size,
              kernel_filename, kernel_cmdline,
              initrd_filename, cpu_model, 0, 1);
 }
+
+#ifdef CONFIG_XEN
+static void pc_xen_hvm_init(ram_addr_t ram_size,
+                            const char *boot_device,
+                            const char *kernel_filename,
+                            const char *kernel_cmdline,
+                            const char *initrd_filename,
+                            const char *cpu_model)
+{
+    if (xen_hvm_init() != 0) {
+        hw_error("xen hardware virtual machine initialisation failed");
+    }
+    pc_init_pci_no_kvmclock(ram_size, boot_device,
+                            kernel_filename, kernel_cmdline,
+                            initrd_filename, cpu_model);
+    xen_vcpu_init();
+}
+#endif
 
 static QEMUMachine pc_machine = {
     .name = "pc-0.14",
@@ -377,6 +421,16 @@ static QEMUMachine isapc_machine = {
     .max_cpus = 1,
 };
 
+#ifdef CONFIG_XEN
+static QEMUMachine xenfv_machine = {
+    .name = "xenfv",
+    .desc = "Xen Fully-virtualized PC",
+    .init = pc_xen_hvm_init,
+    .max_cpus = HVM_MAX_VCPUS,
+    .default_machine_opts = "accel=xen",
+};
+#endif
+
 static void pc_machine_init(void)
 {
     qemu_register_machine(&pc_machine);
@@ -385,6 +439,9 @@ static void pc_machine_init(void)
     qemu_register_machine(&pc_machine_v0_11);
     qemu_register_machine(&pc_machine_v0_10);
     qemu_register_machine(&isapc_machine);
+#ifdef CONFIG_XEN
+    qemu_register_machine(&xenfv_machine);
+#endif
 }
 
 machine_init(pc_machine_init);

@@ -27,6 +27,7 @@ void do_smbios_option(const char *optarg);
 void cpudef_init(void);
 int audio_available(void);
 void audio_init(qemu_irq *isa_pic, PCIBus *pci_bus);
+int tcg_available(void);
 int kvm_available(void);
 int xen_available(void);
 

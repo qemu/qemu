@@ -450,6 +450,19 @@ QemuOptsList qemu_option_rom_opts = {
     },
 };
 
+static QemuOptsList qemu_machine_opts = {
+    .name = "machine",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_machine_opts.head),
+    .desc = {
+        {
+            .name = "accel",
+            .type = QEMU_OPT_STRING,
+            .help = "accelerator list",
+        },
+        { /* End of list */ }
+    },
+};
+
 static QemuOptsList *vm_config_groups[32] = {
     &qemu_drive_opts,
     &qemu_chardev_opts,
@@ -464,6 +477,7 @@ static QemuOptsList *vm_config_groups[32] = {
     &qemu_trace_opts,
 #endif
     &qemu_option_rom_opts,
+    &qemu_machine_opts,
     NULL,
 };
 

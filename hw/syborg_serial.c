@@ -126,7 +126,7 @@ static void do_dma_tx(SyborgSerialState *s, uint32_t count)
         s->dma_tx_ptr += count;
     }
     /* QEMU char backends do not have a nonblocking mode, so we transmit all
-       the data imediately and the interrupt status will be unchanged.  */
+       the data immediately and the interrupt status will be unchanged.  */
 }
 
 /* Initiate RX DMA, and transfer data from the FIFO.  */

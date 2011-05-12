@@ -23,9 +23,9 @@
  * All register has 2 addresses: in 0xff000000 - 0xffffffff (P4 address)  and
  * in 0x1f000000 - 0x1fffffff (area 7 address)
  */
-#define SH7750_P4_BASE       0xff000000	/* Accessable only in
-					   priveleged mode */
-#define SH7750_A7_BASE       0x1f000000	/* Accessable only using TLB */
+#define SH7750_P4_BASE       0xff000000	/* Accessible only in
+					   privileged mode */
+#define SH7750_A7_BASE       0x1f000000	/* Accessible only using TLB */
 
 #define SH7750_P4_REG32(ofs) (SH7750_P4_BASE + (ofs))
 #define SH7750_A7_REG32(ofs) (SH7750_A7_BASE + (ofs))

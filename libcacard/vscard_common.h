@@ -153,7 +153,7 @@ typedef struct VSCMsgCardRemove {
 
 /*
  * VSCMsgAPDU               Client <-> Host
- * Main reason of existance. Transfer a single APDU in either direction.
+ * Main reason of existence. Transfer a single APDU in either direction.
  */
 typedef struct VSCMsgAPDU {
     uint8_t    data[0];
