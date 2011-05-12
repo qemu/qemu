@@ -118,7 +118,7 @@
 #define IOPTE_PAGE          0xffffff00 /* Physical page number (PA[35:12]) */
 #define IOPTE_CACHE         0x00000080 /* Cached (in vme IOCACHE or
                                           Viking/MXCC) */
-#define IOPTE_WRITE         0x00000004 /* Writeable */
+#define IOPTE_WRITE         0x00000004 /* Writable */
 #define IOPTE_VALID         0x00000002 /* IOPTE is valid */
 #define IOPTE_WAZ           0x00000001 /* Write as zeros */
 

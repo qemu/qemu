@@ -1331,7 +1331,7 @@ static inline int gen_iwmmxt_shift(uint32_t insn, uint32_t mask, TCGv dest)
     return 0;
 }
 
-/* Disassemble an iwMMXt instruction.  Returns nonzero if an error occured
+/* Disassemble an iwMMXt instruction.  Returns nonzero if an error occurred
    (ie. an undefined instruction).  */
 static int disas_iwmmxt_insn(CPUState *env, DisasContext *s, uint32_t insn)
 {
@@ -2335,7 +2335,7 @@ static int disas_iwmmxt_insn(CPUState *env, DisasContext *s, uint32_t insn)
     return 0;
 }
 
-/* Disassemble an XScale DSP instruction.  Returns nonzero if an error occured
+/* Disassemble an XScale DSP instruction.  Returns nonzero if an error occurred
    (ie. an undefined instruction).  */
 static int disas_dsp_insn(CPUState *env, DisasContext *s, uint32_t insn)
 {
@@ -2681,7 +2681,7 @@ static TCGv gen_load_and_replicate(DisasContext *s, TCGv addr, int size)
     return tmp;
 }
 
-/* Disassemble a VFP instruction.  Returns nonzero if an error occured
+/* Disassemble a VFP instruction.  Returns nonzero if an error occurred
    (ie. an undefined instruction).  */
 static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
 {
@@ -7348,7 +7348,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                     } else if ((insn & 0x000003e0) == 0x00000060) {
                         tmp = load_reg(s, rm);
                         shift = (insn >> 10) & 3;
-                        /* ??? In many cases it's not neccessary to do a
+                        /* ??? In many cases it's not necessary to do a
                            rotate, a shift is sufficient.  */
                         if (shift != 0)
                             tcg_gen_rotri_i32(tmp, tmp, shift * 8);
@@ -8139,7 +8139,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
         case 1: /* Sign/zero extend.  */
             tmp = load_reg(s, rm);
             shift = (insn >> 4) & 3;
-            /* ??? In many cases it's not neccessary to do a
+            /* ??? In many cases it's not necessary to do a
                rotate, a shift is sufficient.  */
             if (shift != 0)
                 tcg_gen_rotri_i32(tmp, tmp, shift * 8);

@@ -323,7 +323,7 @@ void cpu_loop(CPUX86State *env)
             break;
 #ifndef TARGET_ABI32
         case EXCP_SYSCALL:
-            /* linux syscall from syscall intruction */
+            /* linux syscall from syscall instruction */
             env->regs[R_EAX] = do_syscall(env,
                                           env->regs[R_EAX],
                                           env->regs[R_EDI],

@@ -455,7 +455,7 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
     open_flags = flags & ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
 
     /*
-     * Snapshots should be writeable.
+     * Snapshots should be writable.
      */
     if (bs->is_temporary) {
         open_flags |= BDRV_O_RDWR;
@@ -747,7 +747,7 @@ DeviceState *bdrv_get_attached(BlockDriverState *bs)
  * Run consistency checks on an image
  *
  * Returns 0 if the check could be completed (it doesn't mean that the image is
- * free of errors) or -errno when an internal error occured. The results of the
+ * free of errors) or -errno when an internal error occurred. The results of the
  * check are stored in res.
  */
 int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res)

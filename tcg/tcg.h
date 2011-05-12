@@ -252,9 +252,9 @@ typedef struct TCGTemp {
     unsigned int fixed_reg:1;
     unsigned int mem_coherent:1;
     unsigned int mem_allocated:1;
-    unsigned int temp_local:1; /* If true, the temp is saved accross
+    unsigned int temp_local:1; /* If true, the temp is saved across
                                   basic blocks. Otherwise, it is not
-                                  preserved accross basic blocks. */
+                                  preserved across basic blocks. */
     unsigned int temp_allocated:1; /* never used for code gen */
     /* index of next free temp of same base type, -1 if end */
     int next_free_temp;

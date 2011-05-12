@@ -154,7 +154,7 @@ mst_fpga_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
 	case MST_MSCRD:
 		s->mscrd =  value;
 		break;
-	case MST_INTMSKENA:	/* Mask interupt */
+	case MST_INTMSKENA:	/* Mask interrupt */
 		s->intmskena = (value & 0xFEEFF);
 		qemu_set_irq(s->parent, s->intsetclr & s->intmskena);
 		break;

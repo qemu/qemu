@@ -176,7 +176,7 @@ static void hotplug_event_notify(PCIDevice *dev)
 }
 
 /*
- * A PCI Express Hot-Plug Event has occured, so update slot status register
+ * A PCI Express Hot-Plug Event has occurred, so update slot status register
  * and notify OS of the event if necessary.
  *
  * 6.7.3 PCI Express Hot-Plug Events

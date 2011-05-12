@@ -38,7 +38,7 @@
 ((1 << CP0C2_M))
 
 /* No config4, no DSP ASE, no large physaddr (PABITS),
-   no external interrupt controller, no vectored interupts,
+   no external interrupt controller, no vectored interrupts,
    no 1kb pages, no SmartMIPS ASE, no trace logic */
 #define MIPS_CONFIG3                                              \
 ((0 << CP0C3_M) | (0 << CP0C3_DSPP) | (0 << CP0C3_LPA) |          \
@@ -477,7 +477,7 @@ static const mips_def_t mips_defs[] =
       .CP0_Config1 = (1 << CP0C1_FP) | (47 << CP0C1_MMU),
       .SYNCI_Step = 16,
       .CCRes = 2,
-      .CP0_Status_rw_bitmask = 0xF5D0FF1F,   /*bit5:7 not writeable*/
+      .CP0_Status_rw_bitmask = 0xF5D0FF1F,   /*bit5:7 not writable*/
       .CP1_fcr0 = (0x5 << FCR0_PRID) | (0x1 << FCR0_REV),
       .SEGBITS = 40,
       .PABITS = 40,

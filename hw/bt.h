@@ -1441,7 +1441,7 @@ typedef struct {
 #define EVT_FLUSH_OCCURRED		0x11
 typedef struct {
     uint16_t	handle;
-} __attribute__ ((packed)) evt_flush_occured;
+} __attribute__ ((packed)) evt_flush_occurred;
 #define EVT_FLUSH_OCCURRED_SIZE 2
 
 #define EVT_ROLE_CHANGE			0x12

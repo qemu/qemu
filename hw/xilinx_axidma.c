@@ -134,10 +134,10 @@ static inline int stream_idle(struct AXIStream *s)
 static void stream_reset(struct AXIStream *s)
 {
     s->regs[R_DMASR] = DMASR_HALTED;  /* starts up halted.  */
-    s->regs[R_DMACR] = 1 << 16; /* Starts with one in compl threshhold.  */
+    s->regs[R_DMACR] = 1 << 16; /* Starts with one in compl threshold.  */
 }
 
-/* Mapp an offset addr into a channel index.  */
+/* Map an offset addr into a channel index.  */
 static inline int streamid_from_addr(target_phys_addr_t addr)
 {
     int sid;

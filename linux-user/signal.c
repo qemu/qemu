@@ -391,7 +391,7 @@ static void QEMU_NORETURN force_sig(int target_sig)
             target_sig, strsignal(host_sig), "core dumped" );
     }
 
-    /* The proper exit code for dieing from an uncaught signal is
+    /* The proper exit code for dying from an uncaught signal is
      * -<signal>.  The kernel doesn't allow exit() or _exit() to pass
      * a negative value.  To get the proper exit code we need to
      * actually die from an uncaught signal.  Here the default signal

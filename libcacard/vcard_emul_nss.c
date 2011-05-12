@@ -971,7 +971,7 @@ find_blank(const char *str)
 
 /*
  *  We really want to use some existing argument parsing library here. That
- *  would give us a consistant look */
+ *  would give us a consistent look */
 static VCardEmulOptions options;
 #define READER_STEP 4
 

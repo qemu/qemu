@@ -237,7 +237,7 @@ void cpu_loop(CPUX86State *env)
             break;
 #ifndef TARGET_ABI32
         case EXCP_SYSCALL:
-            /* syscall from syscall intruction */
+            /* syscall from syscall instruction */
             if (bsd_type == target_freebsd)
                 env->regs[R_EAX] = do_freebsd_syscall(env,
                                                       env->regs[R_EAX],
