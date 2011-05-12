@@ -131,7 +131,7 @@ int s390_virtio_hypercall(CPUState *env, uint64_t mem, uint64_t hypercall)
 }
 
 /* PC hardware initialisation */
-static void s390_init(ram_addr_t ram_size,
+static void s390_init(ram_addr_t my_ram_size,
                       const char *boot_device,
                       const char *kernel_filename,
                       const char *kernel_cmdline,
@@ -143,19 +143,29 @@ static void s390_init(ram_addr_t ram_size,
     ram_addr_t kernel_size = 0;
     ram_addr_t initrd_offset;
     ram_addr_t initrd_size = 0;
+    int shift = 0;
     uint8_t *storage_keys;
     int i;
 
+    /* s390x ram size detection needs a 16bit multiplier + an increment. So
+       guests > 64GB can be specified in 2MB steps etc. */
+    while ((my_ram_size >> (20 + shift)) > 65535) {
+        shift++;
+    }
+    my_ram_size = my_ram_size >> (20 + shift) << (20 + shift);
+
+    /* lets propagate the changed ram size into the global variable. */
+    ram_size = my_ram_size;
 
     /* get a BUS */
-    s390_bus = s390_virtio_bus_init(&ram_size);
+    s390_bus = s390_virtio_bus_init(&my_ram_size);
 
     /* allocate RAM */
-    ram_addr = qemu_ram_alloc(NULL, "s390.ram", ram_size);
-    cpu_register_physical_memory(0, ram_size, ram_addr);
+    ram_addr = qemu_ram_alloc(NULL, "s390.ram", my_ram_size);
+    cpu_register_physical_memory(0, my_ram_size, ram_addr);
 
     /* allocate storage keys */
-    storage_keys = qemu_mallocz(ram_size / TARGET_PAGE_SIZE);
+    storage_keys = qemu_mallocz(my_ram_size / TARGET_PAGE_SIZE);
 
     /* init CPUs */
     if (cpu_model == NULL) {

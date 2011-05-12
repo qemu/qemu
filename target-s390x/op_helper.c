@@ -2361,6 +2361,7 @@ static void ext_interrupt(CPUState *env, int type, uint32_t param,
 int sclp_service_call(CPUState *env, uint32_t sccb, uint64_t code)
 {
     int r = 0;
+    int shift = 0;
 
 #ifdef DEBUG_HELPER
     printf("sclp(0x%x, 0x%" PRIx64 ")\n", sccb, code);
@@ -2375,8 +2376,11 @@ int sclp_service_call(CPUState *env, uint32_t sccb, uint64_t code)
     switch(code) {
         case SCLP_CMDW_READ_SCP_INFO:
         case SCLP_CMDW_READ_SCP_INFO_FORCED:
-            stw_phys(sccb + SCP_MEM_CODE, ram_size >> 20);
-            stb_phys(sccb + SCP_INCREMENT, 1);
+            while ((ram_size >> (20 + shift)) > 65535) {
+                shift++;
+            }
+            stw_phys(sccb + SCP_MEM_CODE, ram_size >> (20 + shift));
+            stb_phys(sccb + SCP_INCREMENT, 1 << shift);
             stw_phys(sccb + SCP_RESPONSE_CODE, 0x10);
 
             if (kvm_enabled()) {
