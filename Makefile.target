@@ -206,7 +206,19 @@ QEMU_CFLAGS += $(VNC_JPEG_CFLAGS)
 QEMU_CFLAGS += $(VNC_PNG_CFLAGS)
 
 # xen backend driver support
-obj-$(CONFIG_XEN) += xen_machine_pv.o xen_domainbuild.o
+obj-i386-$(CONFIG_XEN) += xen_machine_pv.o xen_domainbuild.o
+
+ifeq ($(TARGET_BASE_ARCH), i386)
+  CONFIG_NO_XEN = $(if $(subst n,,$(CONFIG_XEN)),n,y)
+else
+  CONFIG_NO_XEN = y
+endif
+# xen support
+CONFIG_NO_XEN_MAPCACHE = $(if $(subst n,,$(CONFIG_XEN_MAPCACHE)),n,y)
+obj-i386-$(CONFIG_XEN) += xen-all.o
+obj-$(CONFIG_NO_XEN) += xen-stub.o
+obj-i386-$(CONFIG_XEN_MAPCACHE) += xen-mapcache.o
+obj-$(CONFIG_NO_XEN_MAPCACHE) += xen-mapcache-stub.o
 
 # Inter-VM PCI shared memory
 CONFIG_IVSHMEM =

@@ -29,6 +29,7 @@
 #include "isa.h"
 #include "sysbus.h"
 #include "range.h"
+#include "xen.h"
 
 /*
  * I440FX chipset data sheet.
@@ -172,6 +173,13 @@ static void i440fx_write_config(PCIDevice *dev,
     }
 }
 
+static void i440fx_write_config_xen(PCIDevice *dev,
+                                    uint32_t address, uint32_t val, int len)
+{
+    xen_piix_pci_write_config_client(address, val, len);
+    i440fx_write_config(dev, address, val, len);
+}
+
 static int i440fx_load_old(QEMUFile* f, void *opaque, int version_id)
 {
     PCII440FXState *d = opaque;
@@ -239,7 +247,10 @@ static int i440fx_initfn(PCIDevice *dev)
     return 0;
 }
 
-PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn, qemu_irq *pic, ram_addr_t ram_size)
+static PCIBus *i440fx_common_init(const char *device_name,
+                                  PCII440FXState **pi440fx_state,
+                                  int *piix3_devfn,
+                                  qemu_irq *pic, ram_addr_t ram_size)
 {
     DeviceState *dev;
     PCIBus *b;
@@ -253,13 +264,13 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn, qemu_irq *
     s->bus = b;
     qdev_init_nofail(dev);
 
-    d = pci_create_simple(b, 0, "i440FX");
+    d = pci_create_simple(b, 0, device_name);
     *pi440fx_state = DO_UPCAST(PCII440FXState, dev, d);
 
     piix3 = DO_UPCAST(PIIX3State, dev,
                       pci_create_simple_multifunction(b, -1, true, "PIIX3"));
     piix3->pic = pic;
-    pci_bus_irqs(b, piix3_set_irq, pci_slot_get_pirq, piix3, PIIX_NUM_PIRQS);
+
     (*pi440fx_state)->piix3 = piix3;
 
     *piix3_devfn = piix3->dev.devfn;
@@ -268,6 +279,30 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn, qemu_irq *
     if (ram_size > 255)
         ram_size = 255;
     (*pi440fx_state)->dev.config[0x57]=ram_size;
+
+    return b;
+}
+
+PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn,
+                    qemu_irq *pic, ram_addr_t ram_size)
+{
+    PCIBus *b;
+
+    b = i440fx_common_init("i440FX", pi440fx_state, piix3_devfn, pic, ram_size);
+    pci_bus_irqs(b, piix3_set_irq, pci_slot_get_pirq, (*pi440fx_state)->piix3,
+                 PIIX_NUM_PIRQS);
+
+    return b;
+}
+
+PCIBus *i440fx_xen_init(PCII440FXState **pi440fx_state, int *piix3_devfn,
+                        qemu_irq *pic, ram_addr_t ram_size)
+{
+    PCIBus *b;
+
+    b = i440fx_common_init("i440FX-xen", pi440fx_state, piix3_devfn, pic, ram_size);
+    pci_bus_irqs(b, xen_piix3_set_irq, xen_pci_slot_get_pirq,
+                 (*pi440fx_state)->piix3, PIIX_NUM_PIRQS);
 
     return b;
 }
@@ -429,6 +464,14 @@ static PCIDeviceInfo i440fx_info[] = {
         .no_hotplug   = 1,
         .init         = i440fx_initfn,
         .config_write = i440fx_write_config,
+    },{
+        .qdev.name    = "i440FX-xen",
+        .qdev.desc    = "Host bridge",
+        .qdev.size    = sizeof(PCII440FXState),
+        .qdev.vmsd    = &vmstate_i440fx,
+        .qdev.no_user = 1,
+        .init         = i440fx_initfn,
+        .config_write = i440fx_write_config_xen,
     },{
         .qdev.name    = "PIIX3",
         .qdev.desc    = "ISA bridge",
