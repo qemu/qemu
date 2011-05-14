@@ -1918,20 +1918,24 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
     /* TB prologue */
 
+    /* Reserve some stack space, also for TCG temps.  */
+    push_size = 1 + ARRAY_SIZE(tcg_target_callee_save_regs);
+    push_size *= TCG_TARGET_REG_BITS / 8;
+
+    frame_size = push_size + TCG_STATIC_CALL_ARGS_SIZE +
+        CPU_TEMP_BUF_NLONGS * sizeof(long);
+    frame_size = (frame_size + TCG_TARGET_STACK_ALIGN - 1) &
+        ~(TCG_TARGET_STACK_ALIGN - 1);
+    stack_addend = frame_size - push_size;
+    tcg_set_frame(s, TCG_REG_CALL_STACK, TCG_STATIC_CALL_ARGS_SIZE,
+                  CPU_TEMP_BUF_NLONGS * sizeof(long));
+
     /* Save all callee saved registers.  */
     for (i = 0; i < ARRAY_SIZE(tcg_target_callee_save_regs); i++) {
         tcg_out_push(s, tcg_target_callee_save_regs[i]);
     }
 
-    /* Reserve some stack space.  */
-    push_size = 1 + ARRAY_SIZE(tcg_target_callee_save_regs);
-    push_size *= TCG_TARGET_REG_BITS / 8;
-
-    frame_size = push_size + TCG_STATIC_CALL_ARGS_SIZE;
-    frame_size = (frame_size + TCG_TARGET_STACK_ALIGN - 1) &
-        ~(TCG_TARGET_STACK_ALIGN - 1);
-    stack_addend = frame_size - push_size;
-    tcg_out_addi(s, TCG_REG_CALL_STACK, -stack_addend);
+    tcg_out_addi(s, TCG_REG_ESP, -stack_addend);
 
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
 
@@ -1981,6 +1985,4 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
 
     tcg_add_target_add_op_defs(x86_op_defs);
-    tcg_set_frame(s, TCG_AREG0, offsetof(CPUState, temp_buf),
-                  CPU_TEMP_BUF_NLONGS * sizeof(long));
 }
