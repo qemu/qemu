@@ -1893,7 +1893,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     int cc;
 
                     target = GET_FIELD_SP(insn, 0, 18);
-                    target = sign_extend(target, 18);
+                    target = sign_extend(target, 19);
                     target <<= 2;
                     cc = GET_FIELD_SP(insn, 20, 21);
                     if (cc == 0)
