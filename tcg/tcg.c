@@ -1439,9 +1439,11 @@ static void temp_allocate_frame(TCGContext *s, int temp)
 {
     TCGTemp *ts;
     ts = &s->temps[temp];
+#ifndef __sparc_v9__ /* Sparc64 stack is accessed with offset of 2047 */
     s->current_frame_offset = (s->current_frame_offset +
                                (tcg_target_long)sizeof(tcg_target_long) - 1) &
         ~(sizeof(tcg_target_long) - 1);
+#endif
     if (s->current_frame_offset + (tcg_target_long)sizeof(tcg_target_long) >
         s->frame_end) {
         tcg_abort();

@@ -693,8 +693,11 @@ static void tcg_out_setcond2_i32(TCGContext *s, TCGCond cond, TCGArg ret,
 /* Generate global QEMU prologue and epilogue code */
 static void tcg_target_qemu_prologue(TCGContext *s)
 {
+    tcg_set_frame(s, TCG_REG_I6, TCG_TARGET_CALL_STACK_OFFSET,
+                  CPU_TEMP_BUF_NLONGS * (int)sizeof(long));
     tcg_out32(s, SAVE | INSN_RD(TCG_REG_O6) | INSN_RS1(TCG_REG_O6) |
-              INSN_IMM13(-TCG_TARGET_STACK_MINFRAME));
+              INSN_IMM13(-(TCG_TARGET_STACK_MINFRAME +
+                           CPU_TEMP_BUF_NLONGS * (int)sizeof(long))));
     tcg_out32(s, JMPL | INSN_RD(TCG_REG_G0) | INSN_RS1(TCG_REG_I1) |
               INSN_RS2(TCG_REG_G0));
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, TCG_REG_I0);
@@ -1566,6 +1569,4 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_O6);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_O7);
     tcg_add_target_add_op_defs(sparc_op_defs);
-    tcg_set_frame(s, TCG_AREG0, offsetof(CPUState, temp_buf),
-                  CPU_TEMP_BUF_NLONGS * sizeof(long));
 }
