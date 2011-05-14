@@ -4226,7 +4226,7 @@ static void disas_sparc_insn(DisasContext * dc)
                 case 0x3b: /* flush */
                     if (!((dc)->def->features & CPU_FEATURE_FLUSH))
                         goto unimp_flush;
-                    gen_helper_flush(cpu_dst);
+                    /* nop */
                     break;
                 case 0x3c:      /* save */
                     save_state(dc, cpu_cond);

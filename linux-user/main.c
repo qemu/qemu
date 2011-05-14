@@ -455,24 +455,6 @@ void cpu_loop(CPUX86State *env)
 
 #ifdef TARGET_ARM
 
-static void arm_cache_flush(abi_ulong start, abi_ulong last)
-{
-    abi_ulong addr, last1;
-
-    if (last < start)
-        return;
-    addr = start;
-    for(;;) {
-        last1 = ((addr + TARGET_PAGE_SIZE) & TARGET_PAGE_MASK) - 1;
-        if (last1 > last)
-            last1 = last;
-        tb_invalidate_page_range(addr, last1 + 1);
-        if (last1 == last)
-            break;
-        addr = last1 + 1;
-    }
-}
-
 /* Handle a jump to the kernel code page.  */
 static int
 do_kernel_trap(CPUARMState *env)
@@ -717,7 +699,7 @@ void cpu_loop(CPUARMState *env)
                 }
 
                 if (n == ARM_NR_cacheflush) {
-                    arm_cache_flush(env->regs[0], env->regs[1]);
+                    /* nop */
                 } else if (n == ARM_NR_semihosting
                            || n == ARM_NR_thumb_semihosting) {
                     env->regs[0] = do_arm_semihosting (env);
@@ -733,7 +715,7 @@ void cpu_loop(CPUARMState *env)
                     if ( n > ARM_NR_BASE) {
                         switch (n) {
                         case ARM_NR_cacheflush:
-                            arm_cache_flush(env->regs[0], env->regs[1]);
+                            /* nop */
                             break;
                         case ARM_NR_set_tls:
                             cpu_set_tls(env, env->regs[0]);

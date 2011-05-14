@@ -362,7 +362,6 @@ void helper_icbi(target_ulong addr)
      * do the load "by hand".
      */
     ldl(addr);
-    tb_invalidate_page_range(addr, addr + env->icache_line_size);
 }
 
 // XXX: to be tested
