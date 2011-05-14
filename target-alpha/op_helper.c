@@ -32,7 +32,7 @@ void QEMU_NORETURN helper_excp(int excp, int error)
 {
     env->exception_index = excp;
     env->error_code = error;
-    cpu_loop_exit();
+    cpu_loop_exit(env);
 }
 
 static void do_restore_state(void *retaddr)
@@ -53,7 +53,7 @@ static void QEMU_NORETURN dynamic_excp(int excp, int error)
     env->exception_index = excp;
     env->error_code = error;
     do_restore_state(GETPC());
-    cpu_loop_exit();
+    cpu_loop_exit(env);
 }
 
 static void QEMU_NORETURN arith_excp(int exc, uint64_t mask)
@@ -1341,7 +1341,7 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     if (unlikely(ret != 0)) {
         do_restore_state(retaddr);
         /* Exception index and error code are already set */
-        cpu_loop_exit();
+        cpu_loop_exit(env);
     }
     env = saved_env;
 }

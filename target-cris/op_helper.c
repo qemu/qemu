@@ -83,7 +83,7 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
                 helper_top_evaluate_flags();
             }
         }
-        cpu_loop_exit();
+        cpu_loop_exit(env);
     }
     env = saved_env;
 }
@@ -93,7 +93,7 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 void helper_raise_exception(uint32_t index)
 {
 	env->exception_index = index;
-	cpu_loop_exit();
+        cpu_loop_exit(env);
 }
 
 void helper_tlb_flush_pid(uint32_t pid)

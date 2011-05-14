@@ -20,14 +20,14 @@
 void helper_raise_exception(uint32_t index)
 {
     env->exception_index = index;
-    cpu_loop_exit();
+    cpu_loop_exit(env);
 }
 
 void helper_hlt(void)
 {
     env->halted = 1;
     env->exception_index = EXCP_HLT;
-    cpu_loop_exit();
+    cpu_loop_exit(env);
 }
 
 void helper_wcsr_im(uint32_t im)
@@ -98,7 +98,7 @@ void tlb_fill(target_ulong addr, int is_write, int mmu_idx, void *retaddr)
                 cpu_restore_state(tb, env, pc);
             }
         }
-        cpu_loop_exit();
+        cpu_loop_exit(env);
     }
     env = saved_env;
 }

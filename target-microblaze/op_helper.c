@@ -63,7 +63,7 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
                 cpu_restore_state(tb, env, pc);
             }
         }
-        cpu_loop_exit();
+        cpu_loop_exit(env);
     }
     env = saved_env;
 }
@@ -107,7 +107,7 @@ uint32_t helper_get(uint32_t id, uint32_t ctrl)
 void helper_raise_exception(uint32_t index)
 {
     env->exception_index = index;
-    cpu_loop_exit();
+    cpu_loop_exit(env);
 }
 
 void helper_debug(void)

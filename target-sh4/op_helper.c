@@ -66,7 +66,7 @@ void tlb_fill(target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     if (ret) {
         /* now we have a real cpu fault */
         cpu_restore_state_from_retaddr(retaddr);
-	cpu_loop_exit();
+        cpu_loop_exit(env);
     }
     env = saved_env;
 }
@@ -87,7 +87,7 @@ static inline void raise_exception(int index, void *retaddr)
 {
     env->exception_index = index;
     cpu_restore_state_from_retaddr(retaddr);
-    cpu_loop_exit();
+    cpu_loop_exit(env);
 }
 
 void helper_raise_illegal_instruction(void)
@@ -113,7 +113,7 @@ void helper_raise_slot_fpu_disable(void)
 void helper_debug(void)
 {
     env->exception_index = EXCP_DEBUG;
-    cpu_loop_exit();
+    cpu_loop_exit(env);
 }
 
 void helper_sleep(uint32_t next_pc)
@@ -122,7 +122,7 @@ void helper_sleep(uint32_t next_pc)
     env->in_sleep = 1;
     env->exception_index = EXCP_HLT;
     env->pc = next_pc;
-    cpu_loop_exit();
+    cpu_loop_exit(env);
 }
 
 void helper_trapa(uint32_t tra)
@@ -482,7 +482,7 @@ static void update_fpscr(void *retaddr)
         if (cause & enable) {
             cpu_restore_state_from_retaddr(retaddr);
             env->exception_index = 0x120;
-            cpu_loop_exit();
+            cpu_loop_exit(env);
         }
     }
 }

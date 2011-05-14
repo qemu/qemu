@@ -37,10 +37,10 @@ int qemu_cpu_has_work(CPUState *env)
     return cpu_has_work(env);
 }
 
-void cpu_loop_exit(void)
+void cpu_loop_exit(CPUState *env1)
 {
-    env->current_tb = NULL;
-    longjmp(env->jmp_env, 1);
+    env1->current_tb = NULL;
+    longjmp(env1->jmp_env, 1);
 }
 
 /* exit the current TB from a signal handler. The host registers are
@@ -327,7 +327,7 @@ int cpu_exec(CPUState *env1)
                     if (interrupt_request & CPU_INTERRUPT_DEBUG) {
                         env->interrupt_request &= ~CPU_INTERRUPT_DEBUG;
                         env->exception_index = EXCP_DEBUG;
-                        cpu_loop_exit();
+                        cpu_loop_exit(env);
                     }
 #if defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_MIPS) || \
     defined(TARGET_PPC) || defined(TARGET_ALPHA) || defined(TARGET_CRIS) || \
@@ -336,7 +336,7 @@ int cpu_exec(CPUState *env1)
                         env->interrupt_request &= ~CPU_INTERRUPT_HALT;
                         env->halted = 1;
                         env->exception_index = EXCP_HLT;
-                        cpu_loop_exit();
+                        cpu_loop_exit(env);
                     }
 #endif
 #if defined(TARGET_I386)
@@ -344,7 +344,7 @@ int cpu_exec(CPUState *env1)
                             svm_check_intercept(SVM_EXIT_INIT);
                             do_cpu_init(env);
                             env->exception_index = EXCP_HALTED;
-                            cpu_loop_exit();
+                            cpu_loop_exit(env);
                     } else if (interrupt_request & CPU_INTERRUPT_SIPI) {
                             do_cpu_sipi(env);
                     } else if (env->hflags2 & HF2_GIF_MASK) {
@@ -564,7 +564,7 @@ int cpu_exec(CPUState *env1)
                 if (unlikely(env->exit_request)) {
                     env->exit_request = 0;
                     env->exception_index = EXCP_INTERRUPT;
-                    cpu_loop_exit();
+                    cpu_loop_exit(env);
                 }
 #if defined(DEBUG_DISAS) || defined(CONFIG_DEBUG_EXEC)
                 if (qemu_loglevel_mask(CPU_LOG_TB_CPU)) {
@@ -647,7 +647,7 @@ int cpu_exec(CPUState *env1)
                             }
                             env->exception_index = EXCP_INTERRUPT;
                             next_tb = 0;
-                            cpu_loop_exit();
+                            cpu_loop_exit(env);
                         }
                     }
                 }

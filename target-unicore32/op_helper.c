@@ -16,7 +16,7 @@
 void HELPER(exception)(uint32_t excp)
 {
     env->exception_index = excp;
-    cpu_loop_exit();
+    cpu_loop_exit(env);
 }
 
 static target_ulong asr_read(void)

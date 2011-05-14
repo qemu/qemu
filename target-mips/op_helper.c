@@ -38,7 +38,7 @@ void helper_raise_exception_err (uint32_t exception, int error_code)
 #endif
     env->exception_index = exception;
     env->error_code = error_code;
-    cpu_loop_exit();
+    cpu_loop_exit(env);
 }
 
 void helper_raise_exception (uint32_t exception)
@@ -277,7 +277,7 @@ static inline target_phys_addr_t do_translate_address(target_ulong address, int 
     lladdr = cpu_mips_translate_address(env, address, rw);
 
     if (lladdr == -1LL) {
-        cpu_loop_exit();
+        cpu_loop_exit(env);
     } else {
         return lladdr;
     }

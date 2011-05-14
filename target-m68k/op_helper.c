@@ -71,7 +71,7 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
                 cpu_restore_state(tb, env, pc);
             }
         }
-        cpu_loop_exit();
+        cpu_loop_exit(env);
     }
     env = saved_env;
 }
@@ -118,7 +118,7 @@ void do_interrupt(int is_hw)
             }
             env->halted = 1;
             env->exception_index = EXCP_HLT;
-            cpu_loop_exit();
+            cpu_loop_exit(env);
             return;
         }
         if (env->exception_index >= EXCP_TRAP0
@@ -160,7 +160,7 @@ void do_interrupt(int is_hw)
 static void raise_exception(int tt)
 {
     env->exception_index = tt;
-    cpu_loop_exit();
+    cpu_loop_exit(env);
 }
 
 void HELPER(raise_exception)(uint32_t tt)

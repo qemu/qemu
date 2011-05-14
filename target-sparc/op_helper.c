@@ -316,7 +316,7 @@ static inline target_ulong asi_address_mask(CPUState *env1,
 static void raise_exception(int tt)
 {
     env->exception_index = tt;
-    cpu_loop_exit();
+    cpu_loop_exit(env);
 }
 
 void HELPER(raise_exception)(int tt)
@@ -3724,7 +3724,7 @@ void helper_ldxfsr(uint64_t new_fsr)
 void helper_debug(void)
 {
     env->exception_index = EXCP_DEBUG;
-    cpu_loop_exit();
+    cpu_loop_exit(env);
 }
 
 #ifndef TARGET_SPARC64
@@ -4424,7 +4424,7 @@ void tlb_fill(target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     ret = cpu_sparc_handle_mmu_fault(env, addr, is_write, mmu_idx, 1);
     if (ret) {
         cpu_restore_state2(retaddr);
-        cpu_loop_exit();
+        cpu_loop_exit(env);
     }
     env = saved_env;
 }
