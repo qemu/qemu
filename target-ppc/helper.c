@@ -993,10 +993,10 @@ static inline int get_segment(CPUState *env, mmu_ctx_t *ctx,
 }
 
 /* Generic TLB check function for embedded PowerPC implementations */
-static inline int ppcemb_tlb_check(CPUState *env, ppcemb_tlb_t *tlb,
-                                   target_phys_addr_t *raddrp,
-                                   target_ulong address, uint32_t pid, int ext,
-                                   int i)
+int ppcemb_tlb_check(CPUState *env, ppcemb_tlb_t *tlb,
+                     target_phys_addr_t *raddrp,
+                     target_ulong address, uint32_t pid, int ext,
+                     int i)
 {
     target_ulong mask;
 
@@ -1006,8 +1006,8 @@ static inline int ppcemb_tlb_check(CPUState *env, ppcemb_tlb_t *tlb,
     }
     mask = ~(tlb->size - 1);
     LOG_SWTLB("%s: TLB %d address " TARGET_FMT_lx " PID %u <=> " TARGET_FMT_lx
-              " " TARGET_FMT_lx " %u\n", __func__, i, address, pid, tlb->EPN,
-              mask, (uint32_t)tlb->PID);
+              " " TARGET_FMT_lx " %u %x\n", __func__, i, address, pid, tlb->EPN,
+              mask, (uint32_t)tlb->PID, tlb->prot);
     /* Check PID */
     if (tlb->PID != 0 && tlb->PID != pid)
         return -1;
@@ -1153,48 +1153,164 @@ void store_40x_sler (CPUPPCState *env, uint32_t val)
     env->spr[SPR_405_SLER] = val;
 }
 
+static inline int mmubooke_check_tlb (CPUState *env, ppcemb_tlb_t *tlb,
+                                      target_phys_addr_t *raddr, int *prot,
+                                      target_ulong address, int rw,
+                                      int access_type, int i)
+{
+    int ret, _prot;
+
+    if (ppcemb_tlb_check(env, tlb, raddr, address,
+                         env->spr[SPR_BOOKE_PID],
+                         !env->nb_pids, i) >= 0) {
+        goto found_tlb;
+    }
+
+    if (env->spr[SPR_BOOKE_PID1] &&
+        ppcemb_tlb_check(env, tlb, raddr, address,
+                         env->spr[SPR_BOOKE_PID1], 0, i) >= 0) {
+        goto found_tlb;
+    }
+
+    if (env->spr[SPR_BOOKE_PID2] &&
+        ppcemb_tlb_check(env, tlb, raddr, address,
+                         env->spr[SPR_BOOKE_PID2], 0, i) >= 0) {
+        goto found_tlb;
+    }
+
+    LOG_SWTLB("%s: TLB entry not found\n", __func__);
+    return -1;
+
+found_tlb:
+
+    if (msr_pr != 0) {
+        _prot = tlb->prot & 0xF;
+    } else {
+        _prot = (tlb->prot >> 4) & 0xF;
+    }
+
+    /* Check the address space */
+    if (access_type == ACCESS_CODE) {
+        if (msr_ir != (tlb->attr & 1)) {
+            LOG_SWTLB("%s: AS doesn't match\n", __func__);
+            return -1;
+        }
+
+        *prot = _prot;
+        if (_prot & PAGE_EXEC) {
+            LOG_SWTLB("%s: good TLB!\n", __func__);
+            return 0;
+        }
+
+        LOG_SWTLB("%s: no PAGE_EXEC: %x\n", __func__, _prot);
+        ret = -3;
+    } else {
+        if (msr_dr != (tlb->attr & 1)) {
+            LOG_SWTLB("%s: AS doesn't match\n", __func__);
+            return -1;
+        }
+
+        *prot = _prot;
+        if ((!rw && _prot & PAGE_READ) || (rw && (_prot & PAGE_WRITE))) {
+            LOG_SWTLB("%s: found TLB!\n", __func__);
+            return 0;
+        }
+
+        LOG_SWTLB("%s: PAGE_READ/WRITE doesn't match: %x\n", __func__, _prot);
+        ret = -2;
+    }
+
+    return ret;
+}
+
 static int mmubooke_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
                                           target_ulong address, int rw,
                                           int access_type)
 {
     ppcemb_tlb_t *tlb;
     target_phys_addr_t raddr;
-    int i, prot, ret;
+    int i, ret;
 
     ret = -1;
     raddr = (target_phys_addr_t)-1ULL;
     for (i = 0; i < env->nb_tlb; i++) {
         tlb = &env->tlb[i].tlbe;
-        if (ppcemb_tlb_check(env, tlb, &raddr, address,
-                             env->spr[SPR_BOOKE_PID], 1, i) < 0)
-            continue;
-        if (msr_pr != 0)
-            prot = tlb->prot & 0xF;
-        else
-            prot = (tlb->prot >> 4) & 0xF;
-        /* Check the address space */
-        if (access_type == ACCESS_CODE) {
-            if (msr_ir != (tlb->attr & 1))
-                continue;
-            ctx->prot = prot;
-            if (prot & PAGE_EXEC) {
-                ret = 0;
-                break;
-            }
-            ret = -3;
-        } else {
-            if (msr_dr != (tlb->attr & 1))
-                continue;
-            ctx->prot = prot;
-            if ((!rw && prot & PAGE_READ) || (rw && (prot & PAGE_WRITE))) {
-                ret = 0;
-                break;
-            }
-            ret = -2;
+        ret = mmubooke_check_tlb(env, tlb, &raddr, &ctx->prot, address, rw,
+                                 access_type, i);
+        if (!ret) {
+            break;
         }
     }
-    if (ret >= 0)
+
+    if (ret >= 0) {
         ctx->raddr = raddr;
+        LOG_SWTLB("%s: access granted " TARGET_FMT_lx " => " TARGET_FMT_plx
+                  " %d %d\n", __func__, address, ctx->raddr, ctx->prot,
+                  ret);
+    } else {
+        LOG_SWTLB("%s: access refused " TARGET_FMT_lx " => " TARGET_FMT_plx
+                  " %d %d\n", __func__, address, raddr, ctx->prot, ret);
+    }
+
+    return ret;
+}
+
+void booke206_flush_tlb(CPUState *env, int flags, const int check_iprot)
+{
+    int tlb_size;
+    int i, j;
+    ppc_tlb_t *tlb = env->tlb;
+
+    for (i = 0; i < BOOKE206_MAX_TLBN; i++) {
+        if (flags & (1 << i)) {
+            tlb_size = booke206_tlb_size(env, i);
+            for (j = 0; j < tlb_size; j++) {
+                if (!check_iprot || !(tlb[j].tlbe.attr & MAS1_IPROT)) {
+                    tlb[j].tlbe.prot = 0;
+                }
+            }
+        }
+        tlb += booke206_tlb_size(env, i);
+    }
+
+    tlb_flush(env, 1);
+}
+
+static int mmubooke206_get_physical_address(CPUState *env, mmu_ctx_t *ctx,
+                                        target_ulong address, int rw,
+                                        int access_type)
+{
+    ppcemb_tlb_t *tlb;
+    target_phys_addr_t raddr;
+    int i, j, ret;
+
+    ret = -1;
+    raddr = (target_phys_addr_t)-1ULL;
+
+    for (i = 0; i < BOOKE206_MAX_TLBN; i++) {
+        int ways = booke206_tlb_ways(env, i);
+
+        for (j = 0; j < ways; j++) {
+            tlb = booke206_get_tlbe(env, i, address, j);
+            ret = mmubooke_check_tlb(env, tlb, &raddr, &ctx->prot, address, rw,
+                                     access_type, j);
+            if (ret != -1) {
+                goto found_tlb;
+            }
+        }
+    }
+
+found_tlb:
+
+    if (ret >= 0) {
+        ctx->raddr = raddr;
+        LOG_SWTLB("%s: access granted " TARGET_FMT_lx " => " TARGET_FMT_plx
+                  " %d %d\n", __func__, address, ctx->raddr, ctx->prot,
+                  ret);
+    } else {
+        LOG_SWTLB("%s: access refused " TARGET_FMT_lx " => " TARGET_FMT_plx
+                  " %d %d\n", __func__, address, raddr, ctx->prot, ret);
+    }
 
     return ret;
 }
@@ -1254,9 +1370,8 @@ static inline int check_physical(CPUState *env, mmu_ctx_t *ctx,
         /* XXX: TODO */
         cpu_abort(env, "MPC8xx MMU model is not implemented\n");
         break;
-    case POWERPC_MMU_BOOKE_FSL:
-        /* XXX: TODO */
-        cpu_abort(env, "BookE FSL MMU model not implemented\n");
+    case POWERPC_MMU_BOOKE206:
+        cpu_abort(env, "BookE 2.06 MMU doesn't have physical real mode\n");
         break;
     default:
         cpu_abort(env, "Unknown or invalid MMU model\n");
@@ -1281,6 +1396,9 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
                IS and DS bits only affect the address space.  */
             ret = mmubooke_get_physical_address(env, ctx, eaddr,
                                                 rw, access_type);
+        } else if (env->mmu_model == POWERPC_MMU_BOOKE206) {
+            ret = mmubooke206_get_physical_address(env, ctx, eaddr, rw,
+                                               access_type);
         } else {
             /* No address translation.  */
             ret = check_physical(env, ctx, eaddr, rw);
@@ -1314,14 +1432,14 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
             ret = mmubooke_get_physical_address(env, ctx, eaddr,
                                                 rw, access_type);
             break;
+        case POWERPC_MMU_BOOKE206:
+            ret = mmubooke206_get_physical_address(env, ctx, eaddr, rw,
+                                               access_type);
+            break;
         case POWERPC_MMU_MPC8xx:
             /* XXX: TODO */
             cpu_abort(env, "MPC8xx MMU model is not implemented\n");
             break;
-        case POWERPC_MMU_BOOKE_FSL:
-            /* XXX: TODO */
-            cpu_abort(env, "BookE FSL MMU model not implemented\n");
-            return -1;
         case POWERPC_MMU_REAL:
             cpu_abort(env, "PowerPC in real mode do not do any translation\n");
             return -1;
@@ -1346,6 +1464,46 @@ target_phys_addr_t cpu_get_phys_page_debug (CPUState *env, target_ulong addr)
         return -1;
 
     return ctx.raddr & TARGET_PAGE_MASK;
+}
+
+static void booke206_update_mas_tlb_miss(CPUState *env, target_ulong address,
+                                     int rw)
+{
+    env->spr[SPR_BOOKE_MAS0] = env->spr[SPR_BOOKE_MAS4] & MAS4_TLBSELD_MASK;
+    env->spr[SPR_BOOKE_MAS1] = env->spr[SPR_BOOKE_MAS4] & MAS4_TSIZED_MASK;
+    env->spr[SPR_BOOKE_MAS2] = env->spr[SPR_BOOKE_MAS4] & MAS4_WIMGED_MASK;
+    env->spr[SPR_BOOKE_MAS3] = 0;
+    env->spr[SPR_BOOKE_MAS6] = 0;
+    env->spr[SPR_BOOKE_MAS7] = 0;
+
+    /* AS */
+    if (((rw == 2) && msr_ir) || ((rw != 2) && msr_dr)) {
+        env->spr[SPR_BOOKE_MAS1] |= MAS1_TS;
+        env->spr[SPR_BOOKE_MAS6] |= MAS6_SAS;
+    }
+
+    env->spr[SPR_BOOKE_MAS1] |= MAS1_VALID;
+    env->spr[SPR_BOOKE_MAS2] |= address & MAS2_EPN_MASK;
+
+    switch (env->spr[SPR_BOOKE_MAS4] & MAS4_TIDSELD_PIDZ) {
+    case MAS4_TIDSELD_PID0:
+        env->spr[SPR_BOOKE_MAS1] |= env->spr[SPR_BOOKE_PID] << MAS1_TID_SHIFT;
+        break;
+    case MAS4_TIDSELD_PID1:
+        env->spr[SPR_BOOKE_MAS1] |= env->spr[SPR_BOOKE_PID1] << MAS1_TID_SHIFT;
+        break;
+    case MAS4_TIDSELD_PID2:
+        env->spr[SPR_BOOKE_MAS1] |= env->spr[SPR_BOOKE_PID2] << MAS1_TID_SHIFT;
+        break;
+    }
+
+    env->spr[SPR_BOOKE_MAS6] |= env->spr[SPR_BOOKE_PID] << 16;
+
+    /* next victim logic */
+    env->spr[SPR_BOOKE_MAS0] |= env->last_way << MAS0_ESEL_SHIFT;
+    env->last_way++;
+    env->last_way &= booke206_tlb_ways(env, 0) - 1;
+    env->spr[SPR_BOOKE_MAS0] |= env->last_way << MAS0_NV_SHIFT;
 }
 
 /* Perform address translation */
@@ -1403,14 +1561,13 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                     env->exception_index = POWERPC_EXCP_ISI;
                     env->error_code = 0x40000000;
                     break;
+                case POWERPC_MMU_BOOKE206:
+                    booke206_update_mas_tlb_miss(env, address, rw);
+                    /* fall through */
                 case POWERPC_MMU_BOOKE:
                     env->exception_index = POWERPC_EXCP_ITLB;
                     env->error_code = 0;
                     env->spr[SPR_BOOKE_DEAR] = address;
-                    return -1;
-                case POWERPC_MMU_BOOKE_FSL:
-                    /* XXX: TODO */
-                    cpu_abort(env, "BookE FSL MMU model is not implemented\n");
                     return -1;
                 case POWERPC_MMU_MPC8xx:
                     /* XXX: TODO */
@@ -1432,7 +1589,8 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                 break;
             case -3:
                 /* No execute protection violation */
-                if (env->mmu_model == POWERPC_MMU_BOOKE) {
+                if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
+                    (env->mmu_model == POWERPC_MMU_BOOKE206)) {
                     env->spr[SPR_BOOKE_ESR] = 0x00000000;
                 }
                 env->exception_index = POWERPC_EXCP_ISI;
@@ -1522,15 +1680,14 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                     /* XXX: TODO */
                     cpu_abort(env, "MPC8xx MMU model is not implemented\n");
                     break;
+                case POWERPC_MMU_BOOKE206:
+                    booke206_update_mas_tlb_miss(env, address, rw);
+                    /* fall through */
                 case POWERPC_MMU_BOOKE:
                     env->exception_index = POWERPC_EXCP_DTLB;
                     env->error_code = 0;
                     env->spr[SPR_BOOKE_DEAR] = address;
                     env->spr[SPR_BOOKE_ESR] = rw ? 1 << ESR_ST : 0;
-                    return -1;
-                case POWERPC_MMU_BOOKE_FSL:
-                    /* XXX: TODO */
-                    cpu_abort(env, "BookE FSL MMU model is not implemented\n");
                     return -1;
                 case POWERPC_MMU_REAL:
                     cpu_abort(env, "PowerPC in real mode should never raise "
@@ -1551,7 +1708,8 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                     if (rw) {
                         env->spr[SPR_40x_ESR] |= 0x00800000;
                     }
-                } else if (env->mmu_model == POWERPC_MMU_BOOKE) {
+                } else if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
+                           (env->mmu_model == POWERPC_MMU_BOOKE206)) {
                     env->spr[SPR_BOOKE_DEAR] = address;
                     env->spr[SPR_BOOKE_ESR] = rw ? 1 << ESR_ST : 0;
                 } else {
@@ -1822,10 +1980,8 @@ void ppc_tlb_invalidate_all (CPUPPCState *env)
     case POWERPC_MMU_BOOKE:
         tlb_flush(env, 1);
         break;
-    case POWERPC_MMU_BOOKE_FSL:
-        /* XXX: TODO */
-        if (!kvm_enabled())
-            cpu_abort(env, "BookE MMU model is not implemented\n");
+    case POWERPC_MMU_BOOKE206:
+        booke206_flush_tlb(env, -1, 0);
         break;
     case POWERPC_MMU_32B:
     case POWERPC_MMU_601:
@@ -1869,9 +2025,9 @@ void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr)
         /* XXX: TODO */
         cpu_abort(env, "BookE MMU model is not implemented\n");
         break;
-    case POWERPC_MMU_BOOKE_FSL:
+    case POWERPC_MMU_BOOKE206:
         /* XXX: TODO */
-        cpu_abort(env, "BookE FSL MMU model is not implemented\n");
+        cpu_abort(env, "BookE 2.06 MMU model is not implemented\n");
         break;
     case POWERPC_MMU_32B:
     case POWERPC_MMU_601:
@@ -2589,7 +2745,8 @@ static inline void powerpc_excp(CPUState *env, int excp_model, int excp)
     env->exception_index = POWERPC_EXCP_NONE;
     env->error_code = 0;
 
-    if (env->mmu_model == POWERPC_MMU_BOOKE) {
+    if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
+        (env->mmu_model == POWERPC_MMU_BOOKE206)) {
         /* XXX: The BookE changes address space when switching modes,
                 we should probably implement that as different MMU indexes,
                 but for the moment we do it the slow way and flush all.  */

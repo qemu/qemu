@@ -1834,6 +1834,21 @@ recent kvm-kmod from http://sourceforge.net/projects/kvm."
 fi
 
 ##########################################
+# test for ppc kvm pvr setting
+
+if test "$kvm" = "yes" && test "$cpu" = "ppc" -o "$cpu" = "ppc64"; then
+            cat > $TMPC <<EOF
+    #include <asm/kvm.h>
+    int main(void) { struct kvm_sregs s; s.pvr = 0; return 0; }
+EOF
+    if compile_prog "$kvm_cflags" "" ; then
+        kvm_ppc_pvr=yes
+    else
+        kvm_ppc_pvr=no
+    fi
+fi
+
+##########################################
 # test for vhost net
 
 if test "$vhost_net" != "no"; then
@@ -2602,7 +2617,7 @@ if test \( "$cpu" = "i386" -o "$cpu" = "x86_64" \) -a \
         "$softmmu" = yes ; then
   roms="optionrom"
 fi
-if test "$cpu" = "ppc64" ; then
+if test "$cpu" = "ppc64" -a "$targetos" != "Darwin" ; then
   roms="$roms spapr-rtas"
 fi
 
@@ -3324,6 +3339,9 @@ case "$target_arch2" in
       if test $vhost_net = "yes" ; then
         echo "CONFIG_VHOST_NET=y" >> $config_target_mak
       fi
+      if test $kvm_ppc_pvr = "yes" ; then
+        echo "CONFIG_KVM_PPC_PVR=y" >> $config_target_mak
+      fi
     fi
 esac
 if test "$target_bigendian" = "yes" ; then
@@ -3524,11 +3542,13 @@ done # for target in $targets
 
 # build tree in object directory in case the source is not in the current directory
 DIRS="tests tests/cris slirp audio block net pc-bios/optionrom"
+DIRS="$DIRS pc-bios/spapr-rtas"
 DIRS="$DIRS roms/seabios roms/vgabios"
 DIRS="$DIRS fsdev ui"
 FILES="Makefile tests/Makefile"
 FILES="$FILES tests/cris/Makefile tests/cris/.gdbinit"
 FILES="$FILES pc-bios/optionrom/Makefile pc-bios/keymaps"
+FILES="$FILES pc-bios/spapr-rtas/Makefile"
 FILES="$FILES roms/seabios/Makefile roms/vgabios/Makefile"
 for bios_file in $source_path/pc-bios/*.bin $source_path/pc-bios/*.rom $source_path/pc-bios/*.dtb $source_path/pc-bios/openbios-*; do
     FILES="$FILES pc-bios/`basename $bios_file`"
