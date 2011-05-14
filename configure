@@ -3339,7 +3339,7 @@ case "$target_arch2" in
       if test $vhost_net = "yes" ; then
         echo "CONFIG_VHOST_NET=y" >> $config_target_mak
       fi
-      if test $kvm_ppc_pvr = "yes" ; then
+      if test "$kvm_ppc_pvr" = "yes" ; then
         echo "CONFIG_KVM_PPC_PVR=y" >> $config_target_mak
       fi
     fi
