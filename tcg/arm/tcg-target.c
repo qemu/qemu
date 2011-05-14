@@ -1804,6 +1804,8 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_PC);
 
     tcg_add_target_add_op_defs(arm_op_defs);
+    tcg_set_frame(s, TCG_AREG0, offsetof(CPUState, temp_buf),
+                  CPU_TEMP_BUF_NLONGS * sizeof(long));
 }
 
 static inline void tcg_out_ld(TCGContext *s, TCGType type, int arg,

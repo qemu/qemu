@@ -2388,4 +2388,6 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R6);
 
     tcg_add_target_add_op_defs(ia64_op_defs);
+    tcg_set_frame(s, TCG_AREG0, offsetof(CPUState, temp_buf),
+                  CPU_TEMP_BUF_NLONGS * sizeof(long));
 }
