@@ -345,6 +345,14 @@ trace-dtrace.dtrace-timestamp: $(SRC_PATH)/trace-events config-host.mak
 trace-dtrace.o: trace-dtrace.dtrace $(GENERATED_HEADERS)
 	$(call quiet-command,dtrace -o $@ -G -s $<, "  GEN trace-dtrace.o")
 
+ifeq ($(LIBTOOL),)
+trace-dtrace.lo: trace-dtrace.dtrace
+	@echo "missing libtool. please install and rerun configure."; exit 1
+else
+trace-dtrace.lo: trace-dtrace.dtrace
+	$(call quiet-command,libtool --mode=compile --tag=CC dtrace -o $@ -G -s $<, "  lt GEN trace-dtrace.o")
+endif
+
 simpletrace.o: simpletrace.c $(GENERATED_HEADERS)
 
 ifeq ($(TRACE_BACKEND),dtrace)
