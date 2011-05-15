@@ -449,6 +449,11 @@ INLINE int float64_is_any_nan(float64 a)
     return ((float64_val(a) & ~(1ULL << 63)) > 0x7ff0000000000000ULL);
 }
 
+INLINE int float64_is_zero_or_denormal(float64 a)
+{
+    return (float64_val(a) & 0x7ff0000000000000LL) == 0;
+}
+
 INLINE float64 float64_set_sign(float64 a, int sign)
 {
     return make_float64((float64_val(a) & 0x7fffffffffffffffULL)
@@ -538,6 +543,11 @@ INLINE int floatx80_is_zero(floatx80 a)
     return (a.high & 0x7fff) == 0 && a.low == 0;
 }
 
+INLINE int floatx80_is_zero_or_denormal(floatx80 a)
+{
+    return (a.high & 0x7fff) == 0;
+}
+
 INLINE int floatx80_is_any_nan(floatx80 a)
 {
     return ((a.high & 0x7fff) == 0x7fff) && (a.low<<1);
@@ -624,6 +634,11 @@ INLINE int float128_is_neg(float128 a)
 INLINE int float128_is_zero(float128 a)
 {
     return (a.high & 0x7fffffffffffffffLL) == 0 && a.low == 0;
+}
+
+INLINE int float128_is_zero_or_denormal(float128 a)
+{
+    return (a.high & 0x7fff000000000000LL) == 0;
 }
 
 INLINE int float128_is_any_nan(float128 a)
