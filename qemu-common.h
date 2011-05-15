@@ -201,11 +201,6 @@ const char *path(const char *pathname);
 #define qemu_isascii(c)		isascii((unsigned char)(c))
 #define qemu_toascii(c)		toascii((unsigned char)(c))
 
-#ifdef _WIN32
-/* ffs() in oslib-win32.c for WIN32, strings.h for the rest of the world */
-int ffs(int i);
-#endif
-
 void *qemu_oom_check(void *ptr);
 void *qemu_malloc(size_t size);
 void *qemu_realloc(void *ptr, size_t size);

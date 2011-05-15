@@ -29,6 +29,9 @@
 #include <windows.h>
 #include <winsock2.h>
 
+/* Declaration of ffs() is missing in MinGW's strings.h. */
+int ffs(int i);
+
 /* Polling handling */
 
 /* return TRUE if no sleep should be done afterwards */
