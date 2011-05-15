@@ -476,6 +476,7 @@ target_ulong cpu_get_ccr(CPUState *env1);
 void cpu_put_ccr(CPUState *env1, target_ulong val);
 target_ulong cpu_get_cwp64(CPUState *env1);
 void cpu_put_cwp64(CPUState *env1, int cwp);
+void cpu_change_pstate(CPUState *env1, uint32_t new_pstate);
 #endif
 int cpu_cwp_inc(CPUState *env1, int cwp);
 int cpu_cwp_dec(CPUState *env1, int cwp);
@@ -657,5 +658,8 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
     *flags = (env->psref << 4) | env->psrs;
 #endif
 }
+
+/* helper.c */
+void do_interrupt(CPUState *env);
 
 #endif

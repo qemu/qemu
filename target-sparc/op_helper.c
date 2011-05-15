@@ -4029,6 +4029,16 @@ void helper_wrpstate(target_ulong new_state)
 #endif
 }
 
+void cpu_change_pstate(CPUState *env1, uint32_t new_pstate)
+{
+    CPUState *saved_env;
+
+    saved_env = env;
+    env = env1;
+    change_pstate(new_pstate);
+    env = saved_env;
+}
+
 void helper_wrpil(target_ulong new_pil)
 {
 #if !defined(CONFIG_USER_ONLY)
@@ -4115,249 +4125,9 @@ void helper_write_softint(uint64_t value)
 #endif
 
 #ifdef TARGET_SPARC64
-#ifdef DEBUG_PCALL
-static const char * const excp_names[0x80] = {
-    [TT_TFAULT] = "Instruction Access Fault",
-    [TT_TMISS] = "Instruction Access MMU Miss",
-    [TT_CODE_ACCESS] = "Instruction Access Error",
-    [TT_ILL_INSN] = "Illegal Instruction",
-    [TT_PRIV_INSN] = "Privileged Instruction",
-    [TT_NFPU_INSN] = "FPU Disabled",
-    [TT_FP_EXCP] = "FPU Exception",
-    [TT_TOVF] = "Tag Overflow",
-    [TT_CLRWIN] = "Clean Windows",
-    [TT_DIV_ZERO] = "Division By Zero",
-    [TT_DFAULT] = "Data Access Fault",
-    [TT_DMISS] = "Data Access MMU Miss",
-    [TT_DATA_ACCESS] = "Data Access Error",
-    [TT_DPROT] = "Data Protection Error",
-    [TT_UNALIGNED] = "Unaligned Memory Access",
-    [TT_PRIV_ACT] = "Privileged Action",
-    [TT_EXTINT | 0x1] = "External Interrupt 1",
-    [TT_EXTINT | 0x2] = "External Interrupt 2",
-    [TT_EXTINT | 0x3] = "External Interrupt 3",
-    [TT_EXTINT | 0x4] = "External Interrupt 4",
-    [TT_EXTINT | 0x5] = "External Interrupt 5",
-    [TT_EXTINT | 0x6] = "External Interrupt 6",
-    [TT_EXTINT | 0x7] = "External Interrupt 7",
-    [TT_EXTINT | 0x8] = "External Interrupt 8",
-    [TT_EXTINT | 0x9] = "External Interrupt 9",
-    [TT_EXTINT | 0xa] = "External Interrupt 10",
-    [TT_EXTINT | 0xb] = "External Interrupt 11",
-    [TT_EXTINT | 0xc] = "External Interrupt 12",
-    [TT_EXTINT | 0xd] = "External Interrupt 13",
-    [TT_EXTINT | 0xe] = "External Interrupt 14",
-    [TT_EXTINT | 0xf] = "External Interrupt 15",
-};
-#endif
-
 trap_state* cpu_tsptr(CPUState* env)
 {
     return &env->ts[env->tl & MAXTL_MASK];
-}
-
-void do_interrupt(CPUState *env)
-{
-    int intno = env->exception_index;
-    trap_state *tsptr;
-
-#ifdef DEBUG_PCALL
-    if (qemu_loglevel_mask(CPU_LOG_INT)) {
-        static int count;
-        const char *name;
-
-        if (intno < 0 || intno >= 0x180) {
-            name = "Unknown";
-        } else if (intno >= 0x100) {
-            name = "Trap Instruction";
-        } else if (intno >= 0xc0) {
-            name = "Window Fill";
-        } else if (intno >= 0x80) {
-            name = "Window Spill";
-        } else {
-            name = excp_names[intno];
-            if (!name) {
-                name = "Unknown";
-            }
-        }
-
-        qemu_log("%6d: %s (v=%04x) pc=%016" PRIx64 " npc=%016" PRIx64
-                " SP=%016" PRIx64 "\n",
-                count, name, intno,
-                env->pc,
-                env->npc, env->regwptr[6]);
-        log_cpu_state(env, 0);
-#if 0
-        {
-            int i;
-            uint8_t *ptr;
-
-            qemu_log("       code=");
-            ptr = (uint8_t *)env->pc;
-            for (i = 0; i < 16; i++) {
-                qemu_log(" %02x", ldub(ptr + i));
-            }
-            qemu_log("\n");
-        }
-#endif
-        count++;
-    }
-#endif
-#if !defined(CONFIG_USER_ONLY)
-    if (env->tl >= env->maxtl) {
-        cpu_abort(env, "Trap 0x%04x while trap level (%d) >= MAXTL (%d),"
-                  " Error state", env->exception_index, env->tl, env->maxtl);
-        return;
-    }
-#endif
-    if (env->tl < env->maxtl - 1) {
-        env->tl++;
-    } else {
-        env->pstate |= PS_RED;
-        if (env->tl < env->maxtl) {
-            env->tl++;
-        }
-    }
-    tsptr = cpu_tsptr(env);
-
-    tsptr->tstate = (get_ccr() << 32) |
-        ((env->asi & 0xff) << 24) | ((env->pstate & 0xf3f) << 8) |
-        get_cwp64();
-    tsptr->tpc = env->pc;
-    tsptr->tnpc = env->npc;
-    tsptr->tt = intno;
-
-    switch (intno) {
-    case TT_IVEC:
-        change_pstate(PS_PEF | PS_PRIV | PS_IG);
-        break;
-    case TT_TFAULT:
-    case TT_DFAULT:
-    case TT_TMISS ... TT_TMISS + 3:
-    case TT_DMISS ... TT_DMISS + 3:
-    case TT_DPROT ... TT_DPROT + 3:
-        change_pstate(PS_PEF | PS_PRIV | PS_MG);
-        break;
-    default:
-        change_pstate(PS_PEF | PS_PRIV | PS_AG);
-        break;
-    }
-
-    if (intno == TT_CLRWIN) {
-        set_cwp(cwp_dec(env->cwp - 1));
-    } else if ((intno & 0x1c0) == TT_SPILL) {
-        set_cwp(cwp_dec(env->cwp - env->cansave - 2));
-    } else if ((intno & 0x1c0) == TT_FILL) {
-        set_cwp(cwp_inc(env->cwp + 1));
-    }
-    env->tbr &= ~0x7fffULL;
-    env->tbr |= ((env->tl > 1) ? 1 << 14 : 0) | (intno << 5);
-    env->pc = env->tbr;
-    env->npc = env->pc + 4;
-    env->exception_index = -1;
-}
-#else
-#ifdef DEBUG_PCALL
-static const char * const excp_names[0x80] = {
-    [TT_TFAULT] = "Instruction Access Fault",
-    [TT_ILL_INSN] = "Illegal Instruction",
-    [TT_PRIV_INSN] = "Privileged Instruction",
-    [TT_NFPU_INSN] = "FPU Disabled",
-    [TT_WIN_OVF] = "Window Overflow",
-    [TT_WIN_UNF] = "Window Underflow",
-    [TT_UNALIGNED] = "Unaligned Memory Access",
-    [TT_FP_EXCP] = "FPU Exception",
-    [TT_DFAULT] = "Data Access Fault",
-    [TT_TOVF] = "Tag Overflow",
-    [TT_EXTINT | 0x1] = "External Interrupt 1",
-    [TT_EXTINT | 0x2] = "External Interrupt 2",
-    [TT_EXTINT | 0x3] = "External Interrupt 3",
-    [TT_EXTINT | 0x4] = "External Interrupt 4",
-    [TT_EXTINT | 0x5] = "External Interrupt 5",
-    [TT_EXTINT | 0x6] = "External Interrupt 6",
-    [TT_EXTINT | 0x7] = "External Interrupt 7",
-    [TT_EXTINT | 0x8] = "External Interrupt 8",
-    [TT_EXTINT | 0x9] = "External Interrupt 9",
-    [TT_EXTINT | 0xa] = "External Interrupt 10",
-    [TT_EXTINT | 0xb] = "External Interrupt 11",
-    [TT_EXTINT | 0xc] = "External Interrupt 12",
-    [TT_EXTINT | 0xd] = "External Interrupt 13",
-    [TT_EXTINT | 0xe] = "External Interrupt 14",
-    [TT_EXTINT | 0xf] = "External Interrupt 15",
-    [TT_TOVF] = "Tag Overflow",
-    [TT_CODE_ACCESS] = "Instruction Access Error",
-    [TT_DATA_ACCESS] = "Data Access Error",
-    [TT_DIV_ZERO] = "Division By Zero",
-    [TT_NCP_INSN] = "Coprocessor Disabled",
-};
-#endif
-
-void do_interrupt(CPUState *env)
-{
-    int cwp, intno = env->exception_index;
-
-#ifdef DEBUG_PCALL
-    if (qemu_loglevel_mask(CPU_LOG_INT)) {
-        static int count;
-        const char *name;
-
-        if (intno < 0 || intno >= 0x100) {
-            name = "Unknown";
-        } else if (intno >= 0x80) {
-            name = "Trap Instruction";
-        } else {
-            name = excp_names[intno];
-            if (!name) {
-                name = "Unknown";
-            }
-        }
-
-        qemu_log("%6d: %s (v=%02x) pc=%08x npc=%08x SP=%08x\n",
-                count, name, intno,
-                env->pc,
-                env->npc, env->regwptr[6]);
-        log_cpu_state(env, 0);
-#if 0
-        {
-            int i;
-            uint8_t *ptr;
-
-            qemu_log("       code=");
-            ptr = (uint8_t *)env->pc;
-            for (i = 0; i < 16; i++) {
-                qemu_log(" %02x", ldub(ptr + i));
-            }
-            qemu_log("\n");
-        }
-#endif
-        count++;
-    }
-#endif
-#if !defined(CONFIG_USER_ONLY)
-    if (env->psret == 0) {
-        cpu_abort(env, "Trap 0x%02x while interrupts disabled, Error state",
-                  env->exception_index);
-        return;
-    }
-#endif
-    env->psret = 0;
-    cwp = cwp_dec(env->cwp - 1);
-    set_cwp(cwp);
-    env->regwptr[9] = env->pc;
-    env->regwptr[10] = env->npc;
-    env->psrps = env->psrs;
-    env->psrs = 1;
-    env->tbr = (env->tbr & TBR_BASE_MASK) | (intno << 4);
-    env->pc = env->tbr;
-    env->npc = env->pc + 4;
-    env->exception_index = -1;
-
-#if !defined(CONFIG_USER_ONLY)
-    /* IRQ acknowledgment */
-    if ((intno & ~15) == TT_EXTINT && env->qemu_irq_ack != NULL) {
-        env->qemu_irq_ack(env->irq_manager, intno);
-    }
-#endif
 }
 #endif
 
