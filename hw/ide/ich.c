@@ -77,6 +77,8 @@ static int pci_ich9_ahci_init(PCIDevice *dev)
     struct AHCIPCIState *d;
     d = DO_UPCAST(struct AHCIPCIState, card, dev);
 
+    ahci_init(&d->ahci, &dev->qdev, 6);
+
     pci_config_set_vendor_id(d->card.config, PCI_VENDOR_ID_INTEL);
     pci_config_set_device_id(d->card.config, PCI_DEVICE_ID_INTEL_82801IR);
 
@@ -97,8 +99,6 @@ static int pci_ich9_ahci_init(PCIDevice *dev)
     pci_register_bar_simple(&d->card, 5, 0x1000, 0, d->ahci.mem);
 
     msi_init(dev, 0x50, 1, true, false);
-
-    ahci_init(&d->ahci, &dev->qdev, 6);
     d->ahci.irq = d->card.irq[0];
 
     return 0;
