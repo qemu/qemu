@@ -137,7 +137,6 @@ typedef union {
     uint64_t ll;
 } CPU_DoubleU;
 
-#if defined(FLOATX80)
 typedef union {
      floatx80 d;
      struct {
@@ -145,7 +144,6 @@ typedef union {
          uint16_t upper;
      } l;
 } CPU_LDoubleU;
-#endif
 
 typedef union {
     float128 q;
