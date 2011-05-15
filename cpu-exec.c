@@ -17,16 +17,10 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "config.h"
-#include "exec.h"
+#include "cpu.h"
 #include "disas.h"
 #include "tcg.h"
 #include "qemu-barrier.h"
-
-#if defined(__sparc__) && !defined(CONFIG_SOLARIS)
-// Work around ugly bugs in glibc that mangle global register contents
-#undef env
-#define env cpu_single_env
-#endif
 
 int tb_invalidated_flag;
 
@@ -37,20 +31,18 @@ bool qemu_cpu_has_work(CPUState *env)
     return cpu_has_work(env);
 }
 
-void cpu_loop_exit(CPUState *env1)
+void cpu_loop_exit(CPUState *env)
 {
-    env1->current_tb = NULL;
-    longjmp(env1->jmp_env, 1);
+    env->current_tb = NULL;
+    longjmp(env->jmp_env, 1);
 }
 
 /* exit the current TB from a signal handler. The host registers are
    restored in a state compatible with the CPU emulator
  */
 #if defined(CONFIG_SOFTMMU)
-void cpu_resume_from_signal(CPUState *env1, void *puc)
+void cpu_resume_from_signal(CPUState *env, void *puc)
 {
-    env = env1;
-
     /* XXX: restore cpu registers saved in host registers */
 
     env->exception_index = -1;
@@ -60,7 +52,8 @@ void cpu_resume_from_signal(CPUState *env1, void *puc)
 
 /* Execute the code without caching the generated code. An interpreter
    could be used if available. */
-static void cpu_exec_nocache(int max_cycles, TranslationBlock *orig_tb)
+static void cpu_exec_nocache(CPUState *env, int max_cycles,
+                             TranslationBlock *orig_tb)
 {
     unsigned long next_tb;
     TranslationBlock *tb;
@@ -74,7 +67,7 @@ static void cpu_exec_nocache(int max_cycles, TranslationBlock *orig_tb)
                      max_cycles);
     env->current_tb = tb;
     /* execute the generated code */
-    next_tb = tcg_qemu_tb_exec(tb->tc_ptr);
+    next_tb = tcg_qemu_tb_exec(env, tb->tc_ptr);
     env->current_tb = NULL;
 
     if ((next_tb & 3) == 2) {
@@ -86,7 +79,8 @@ static void cpu_exec_nocache(int max_cycles, TranslationBlock *orig_tb)
     tb_free(tb);
 }
 
-static TranslationBlock *tb_find_slow(target_ulong pc,
+static TranslationBlock *tb_find_slow(CPUState *env,
+                                      target_ulong pc,
                                       target_ulong cs_base,
                                       uint64_t flags)
 {
@@ -140,7 +134,7 @@ static TranslationBlock *tb_find_slow(target_ulong pc,
     return tb;
 }
 
-static inline TranslationBlock *tb_find_fast(void)
+static inline TranslationBlock *tb_find_fast(CPUState *env)
 {
     TranslationBlock *tb;
     target_ulong cs_base, pc;
@@ -153,7 +147,7 @@ static inline TranslationBlock *tb_find_fast(void)
     tb = env->tb_jmp_cache[tb_jmp_cache_hash_func(pc)];
     if (unlikely(!tb || tb->pc != pc || tb->cs_base != cs_base ||
                  tb->flags != flags)) {
-        tb = tb_find_slow(pc, cs_base, flags);
+        tb = tb_find_slow(env, pc, cs_base, flags);
     }
     return tb;
 }
@@ -186,31 +180,22 @@ static void cpu_handle_debug_exception(CPUState *env)
 
 volatile sig_atomic_t exit_request;
 
-int cpu_exec(CPUState *env1)
+int cpu_exec(CPUState *env)
 {
-    volatile host_reg_t saved_env_reg;
     int ret, interrupt_request;
     TranslationBlock *tb;
     uint8_t *tc_ptr;
     unsigned long next_tb;
 
-    if (env1->halted) {
-        if (!cpu_has_work(env1)) {
+    if (env->halted) {
+        if (!cpu_has_work(env)) {
             return EXCP_HALTED;
         }
 
-        env1->halted = 0;
+        env->halted = 0;
     }
 
-    cpu_single_env = env1;
-
-    /* the access to env below is actually saving the global register's
-       value, so that files not including target-xyz/exec.h are free to
-       use it.  */
-    QEMU_BUILD_BUG_ON (sizeof (saved_env_reg) != sizeof (env));
-    saved_env_reg = (host_reg_t) env;
-    barrier();
-    env = env1;
+    cpu_single_env = env;
 
     if (unlikely(exit_request)) {
         env->exit_request = 1;
@@ -246,11 +231,6 @@ int cpu_exec(CPUState *env1)
     /* prepare setjmp context for exception handling */
     for(;;) {
         if (setjmp(env->jmp_env) == 0) {
-#if defined(__sparc__) && !defined(CONFIG_SOLARIS)
-#undef env
-            env = cpu_single_env;
-#define env cpu_single_env
-#endif
             /* if an exception is pending, we execute it here */
             if (env->exception_index >= 0) {
                 if (env->exception_index >= EXCP_INTERRUPT) {
@@ -336,11 +316,6 @@ int cpu_exec(CPUState *env1)
                             env->interrupt_request &= ~(CPU_INTERRUPT_HARD | CPU_INTERRUPT_VIRQ);
                             intno = cpu_get_pic_interrupt(env);
                             qemu_log_mask(CPU_LOG_TB_IN_ASM, "Servicing hardware INT=0x%02x\n", intno);
-#if defined(__sparc__) && !defined(CONFIG_SOLARIS)
-#undef env
-                    env = cpu_single_env;
-#define env cpu_single_env
-#endif
                             do_interrupt_x86_hardirq(env, intno, 1);
                             /* ensure that no TB jump will be modified as
                                the program flow was changed */
@@ -547,7 +522,7 @@ int cpu_exec(CPUState *env1)
                 }
 #endif /* DEBUG_DISAS || CONFIG_DEBUG_EXEC */
                 spin_lock(&tb_lock);
-                tb = tb_find_fast();
+                tb = tb_find_fast(env);
                 /* Note: we do it here to avoid a gcc bug on Mac OS X when
                    doing it in tb_find_slow */
                 if (tb_invalidated_flag) {
@@ -579,12 +554,7 @@ int cpu_exec(CPUState *env1)
                 if (likely(!env->exit_request)) {
                     tc_ptr = tb->tc_ptr;
                 /* execute the generated code */
-#if defined(__sparc__) && !defined(CONFIG_SOLARIS)
-#undef env
-                    env = cpu_single_env;
-#define env cpu_single_env
-#endif
-                    next_tb = tcg_qemu_tb_exec(tc_ptr);
+                    next_tb = tcg_qemu_tb_exec(env, tc_ptr);
                     if ((next_tb & 3) == 2) {
                         /* Instruction counter expired.  */
                         int insns_left;
@@ -605,7 +575,7 @@ int cpu_exec(CPUState *env1)
                         } else {
                             if (insns_left > 0) {
                                 /* Execute remaining instructions.  */
-                                cpu_exec_nocache(insns_left, tb);
+                                cpu_exec_nocache(env, insns_left, tb);
                             }
                             env->exception_index = EXCP_INTERRUPT;
                             next_tb = 0;
@@ -646,10 +616,6 @@ int cpu_exec(CPUState *env1)
 #else
 #error unsupported target CPU
 #endif
-
-    /* restore global registers */
-    barrier();
-    env = (void *) saved_env_reg;
 
     /* fail safe : never use cpu_single_env outside cpu_exec() */
     cpu_single_env = NULL;

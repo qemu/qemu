@@ -1452,9 +1452,7 @@ static const TCGTargetOpDef mips_op_defs[] = {
 };
 
 static int tcg_target_callee_save_regs[] = {
-#if 0 /* used for the global env (TCG_AREG0), so no need to save */
-    TCG_REG_S0,
-#endif
+    TCG_REG_S0,       /* used for the global env (TCG_AREG0) */
     TCG_REG_S1,
     TCG_REG_S2,
     TCG_REG_S3,
@@ -1486,8 +1484,8 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     }
 
     /* Call generated code */
-    tcg_out_opc_reg(s, OPC_JR, 0, TCG_REG_A0, 0);
-    tcg_out_nop(s);
+    tcg_out_opc_reg(s, OPC_JR, 0, tcg_target_call_iarg_regs[1]), 0);
+    tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
     tb_ret_addr = s->code_ptr;
 
     /* TB epilogue */

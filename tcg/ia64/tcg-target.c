@@ -2292,7 +2292,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
                    tcg_opc_m34(TCG_REG_P0, OPC_ALLOC_M34,
                                TCG_REG_R33, 32, 24, 0),
                    tcg_opc_i21(TCG_REG_P0, OPC_MOV_I21,
-                               TCG_REG_B6, TCG_REG_R32, 0),
+                               TCG_REG_B6, TCG_REG_R33, 0),
                    tcg_opc_i22(TCG_REG_P0, OPC_MOV_I22,
                                TCG_REG_R32, TCG_REG_B0));
 
@@ -2308,7 +2308,8 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     }
 
     tcg_out_bundle(s, miB,
-                   tcg_opc_m48(TCG_REG_P0, OPC_NOP_M48, 0),
+                   tcg_opc_m48(TCG_REG_P0, OPC_MOV_I21,
+                               TCG_REG_AREG0, TCG_REG_R32, 0),
                    tcg_opc_a4 (TCG_REG_P0, OPC_ADDS_A4,
                                TCG_REG_R12, -frame_size, TCG_REG_R12),
                    tcg_opc_b4 (TCG_REG_P0, OPC_BR_SPTK_MANY_B4, TCG_REG_B6));

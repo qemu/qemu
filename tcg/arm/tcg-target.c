@@ -1846,15 +1846,18 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
 
 static void tcg_target_qemu_prologue(TCGContext *s)
 {
-    /* There is no need to save r7, it is used to store the address
-       of the env structure and is not modified by GCC. */
+    /* Calling convention requires us to save r4-r11 and lr;
+     * save also r12 to maintain stack 8-alignment.
+     */
 
-    /* stmdb sp!, { r4 - r6, r8 - r11, lr } */
-    tcg_out32(s, (COND_AL << 28) | 0x092d4f70);
+    /* stmdb sp!, { r4 - r12, lr } */
+    tcg_out32(s, (COND_AL << 28) | 0x092d5ff0);
 
-    tcg_out_bx(s, COND_AL, TCG_REG_R0);
+    tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
+
+    tcg_out_bx(s, COND_AL, tcg_target_call_iarg_regs[1]);
     tb_ret_addr = s->code_ptr;
 
-    /* ldmia sp!, { r4 - r6, r8 - r11, pc } */
-    tcg_out32(s, (COND_AL << 28) | 0x08bd8f70);
+    /* ldmia sp!, { r4 - r12, pc } */
+    tcg_out32(s, (COND_AL << 28) | 0x08bd9ff0);
 }

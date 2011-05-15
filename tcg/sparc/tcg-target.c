@@ -695,9 +695,9 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 {
     tcg_out32(s, SAVE | INSN_RD(TCG_REG_O6) | INSN_RS1(TCG_REG_O6) |
               INSN_IMM13(-TCG_TARGET_STACK_MINFRAME));
-    tcg_out32(s, JMPL | INSN_RD(TCG_REG_G0) | INSN_RS1(TCG_REG_I0) |
+    tcg_out32(s, JMPL | INSN_RD(TCG_REG_G0) | INSN_RS1(TCG_REG_I1) |
               INSN_RS2(TCG_REG_G0));
-    tcg_out_nop(s);
+    tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, TCG_REG_I0);
 }
 
 #if defined(CONFIG_SOFTMMU)

@@ -160,8 +160,7 @@ static const int tcg_target_callee_save_regs[] = {
     TCG_REG_R24,
     TCG_REG_R25,
     TCG_REG_R26,
-    /* TCG_REG_R27, */ /* currently used for the global env, so no
-                          need to save */
+    TCG_REG_R27, /* currently used for the global env */
     TCG_REG_R28,
     TCG_REG_R29,
     TCG_REG_R30,
@@ -939,7 +938,8 @@ static void tcg_target_qemu_prologue (TCGContext *s)
     }
 #endif
 
-    tcg_out32 (s, MTSPR | RS (3) | CTR);
+    tcg_out_mov (s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
+    tcg_out32 (s, MTSPR | RS (tcg_target_call_iarg_regs[1]) | CTR);
     tcg_out32 (s, BCCTR | BO_ALWAYS);
     tb_ret_addr = s->code_ptr;
 

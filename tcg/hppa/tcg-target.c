@@ -1596,7 +1596,7 @@ static int tcg_target_callee_save_regs[] = {
     TCG_REG_R14,
     TCG_REG_R15,
     TCG_REG_R16,
-    /* R17 is the global env, so no need to save.  */
+    TCG_REG_R17, /* R17 is the global env.  */
     TCG_REG_R18
 };
 
@@ -1635,8 +1635,10 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     }
 #endif
 
+    tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
+
     /* Jump to TB, and adjust R18 to be the return address.  */
-    tcg_out32(s, INSN_BLE_SR4 | INSN_R2(TCG_REG_R26));
+    tcg_out32(s, INSN_BLE_SR4 | INSN_R2(tcg_target_call_iarg_regs[1]));
     tcg_out_mov(s, TCG_TYPE_I32, TCG_REG_R18, TCG_REG_R31);
 
     /* Restore callee saved registers.  */
