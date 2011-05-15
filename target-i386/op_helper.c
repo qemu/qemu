@@ -99,17 +99,6 @@ static const uint8_t rclb_table[32] = {
 #define floatx80_l2e make_floatx80( 0x3fff, 0xb8aa3b295c17f0bcLL )
 #define floatx80_l2t make_floatx80( 0x4000, 0xd49a784bcd1b8afeLL )
 
-static const floatx80 f15rk[7] =
-{
-    floatx80_zero,
-    floatx80_one,
-    floatx80_pi,
-    floatx80_lg2,
-    floatx80_ln2,
-    floatx80_l2e,
-    floatx80_l2t,
-};
-
 /* broken thread support */
 
 static spinlock_t global_cpu_lock = SPIN_LOCK_UNLOCKED;
@@ -3816,42 +3805,42 @@ void helper_fabs_ST0(void)
 
 void helper_fld1_ST0(void)
 {
-    ST0 = f15rk[1];
+    ST0 = floatx80_one;
 }
 
 void helper_fldl2t_ST0(void)
 {
-    ST0 = f15rk[6];
+    ST0 = floatx80_l2t;
 }
 
 void helper_fldl2e_ST0(void)
 {
-    ST0 = f15rk[5];
+    ST0 = floatx80_l2e;
 }
 
 void helper_fldpi_ST0(void)
 {
-    ST0 = f15rk[2];
+    ST0 = floatx80_pi;
 }
 
 void helper_fldlg2_ST0(void)
 {
-    ST0 = f15rk[3];
+    ST0 = floatx80_lg2;
 }
 
 void helper_fldln2_ST0(void)
 {
-    ST0 = f15rk[4];
+    ST0 = floatx80_ln2;
 }
 
 void helper_fldz_ST0(void)
 {
-    ST0 = f15rk[0];
+    ST0 = floatx80_zero;
 }
 
 void helper_fldz_FT0(void)
 {
-    FT0 = f15rk[0];
+    FT0 = floatx80_zero;
 }
 
 uint32_t helper_fnstsw(void)
