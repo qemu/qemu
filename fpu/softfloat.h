@@ -81,16 +81,9 @@ typedef int64_t int64;
 | input or output the `floatx80' type will be defined.  The same applies to
 | the `FLOAT128' macro and the quadruple-precision format `float128'.
 *----------------------------------------------------------------------------*/
-#ifdef CONFIG_SOFTFLOAT
 /* bit exact soft float support */
 #define FLOATX80
 #define FLOAT128
-#else
-/* native float support */
-#if (defined(__i386__) || defined(__x86_64__)) && !defined(CONFIG_BSD)
-#define FLOATX80
-#endif
-#endif /* !CONFIG_SOFTFLOAT */
 
 #define STATUS_PARAM , float_status *status
 #define STATUS(field) status->field
@@ -106,7 +99,6 @@ enum {
     float_relation_unordered =  2
 };
 
-#ifdef CONFIG_SOFTFLOAT
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE floating-point types.
 *----------------------------------------------------------------------------*/
@@ -698,11 +690,5 @@ INLINE int float128_is_any_nan(float128 a)
 #endif
 
 #endif
-
-#else /* CONFIG_SOFTFLOAT */
-
-#include "softfloat-native.h"
-
-#endif /* !CONFIG_SOFTFLOAT */
 
 #endif /* !SOFTFLOAT_H */

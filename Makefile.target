@@ -71,8 +71,7 @@ all: $(PROGS) stap
 # cpu emulator library
 libobj-y = exec.o translate-all.o cpu-exec.o translate.o
 libobj-y += tcg/tcg.o
-libobj-$(CONFIG_SOFTFLOAT) += fpu/softfloat.o
-libobj-$(CONFIG_NOSOFTFLOAT) += fpu/softfloat-native.o
+libobj-y += fpu/softfloat.o
 libobj-y += op_helper.o helper.o
 ifeq ($(TARGET_BASE_ARCH), i386)
 libobj-y += cpuid.o
