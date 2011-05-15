@@ -119,6 +119,23 @@ version.o: $(SRC_PATH)/version.rc config-host.mak
 
 version-obj-$(CONFIG_WIN32) += version.o
 ######################################################################
+# Support building shared library libcacard
+
+.PHONY: libcacard.la install-libcacard
+ifeq ($(LIBTOOL),)
+libcacard.la:
+	@echo "libtool is missing, please install and rerun configure"; exit 1
+
+install-libcacard:
+	@echo "libtool is missing, please install and rerun configure"; exit 1
+else
+libcacard.la: $(GENERATED_HEADERS) $(oslib-obj-y) qemu-malloc.o qemu-timer-common.o $(addsuffix .lo, $(basename $(trace-obj-y)))
+	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C libcacard V="$(V)" TARGET_DIR="$*/" libcacard.la,)
+
+install-libcacard: libcacard.la
+	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C libcacard V="$(V)" TARGET_DIR="$*/" install-libcacard,)
+endif
+######################################################################
 
 qemu-img.o: qemu-img-cmds.h
 qemu-img.o qemu-tool.o qemu-nbd.o qemu-io.o cmd.o: $(GENERATED_HEADERS)
@@ -149,7 +166,8 @@ clean:
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	rm -f qemu-options.def
-	rm -f *.o *.d *.a $(TOOLS) TAGS cscope.* *.pod *~ */*~
+	rm -f *.o *.d *.a *.lo $(TOOLS) TAGS cscope.* *.pod *~ */*~
+	rm -Rf .libs
 	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d net/*.o net/*.d fsdev/*.o fsdev/*.d ui/*.o ui/*.d
 	rm -f qemu-img-cmds.h
 	rm -f trace.c trace.h trace.c-timestamp trace.h-timestamp

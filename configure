@@ -1280,6 +1280,15 @@ if ! has $pkg_config; then
 fi
 
 ##########################################
+# libtool probe
+
+if ! has libtool; then
+    libtool=
+else
+    libtool=libtool
+fi
+
+##########################################
 # Sparse probe
 if test "$sparse" != "no" ; then
   if has cgcc; then
@@ -3047,6 +3056,7 @@ echo "AR=$ar" >> $config_host_mak
 echo "OBJCOPY=$objcopy" >> $config_host_mak
 echo "LD=$ld" >> $config_host_mak
 echo "WINDRES=$windres" >> $config_host_mak
+echo "LIBTOOL=$libtool" >> $config_host_mak
 echo "CFLAGS=$CFLAGS" >> $config_host_mak
 echo "QEMU_CFLAGS=$QEMU_CFLAGS" >> $config_host_mak
 echo "QEMU_INCLUDES=$QEMU_INCLUDES" >> $config_host_mak
@@ -3580,7 +3590,7 @@ if [ "$source_path" != `pwd` ]; then
     # out of tree build
     mkdir -p libcacard
     rm -f libcacard/Makefile
-    ln -s "$source_path/libcacard/Makefile" libcacard/Makefile
+    symlink "$source_path/libcacard/Makefile" libcacard/Makefile
 fi
 
 d=libuser
