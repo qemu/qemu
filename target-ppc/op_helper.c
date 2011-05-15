@@ -971,7 +971,6 @@ void helper_store_fpscr (uint64_t arg, uint32_t mask)
 
 void helper_float_check_status (void)
 {
-#ifdef CONFIG_SOFTFLOAT
     if (env->exception_index == POWERPC_EXCP_PROGRAM &&
         (env->error_code & POWERPC_EXCP_FP)) {
         /* Differred floating-point exception after target FPR update */
@@ -989,22 +988,12 @@ void helper_float_check_status (void)
             float_inexact_excp();
         }
     }
-#else
-    if (env->exception_index == POWERPC_EXCP_PROGRAM &&
-        (env->error_code & POWERPC_EXCP_FP)) {
-        /* Differred floating-point exception after target FPR update */
-        if (msr_fe0 != 0 || msr_fe1 != 0)
-            helper_raise_exception_err(env->exception_index, env->error_code);
-    }
-#endif
 }
 
-#ifdef CONFIG_SOFTFLOAT
 void helper_reset_fpstatus (void)
 {
     set_float_exception_flags(0, &env->fp_status);
 }
-#endif
 
 /* fadd - fadd. */
 uint64_t helper_fadd (uint64_t arg1, uint64_t arg2)

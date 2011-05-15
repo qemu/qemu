@@ -51,9 +51,7 @@ DEF_HELPER_FLAGS_1(cntlzw32, TCG_CALL_CONST | TCG_CALL_PURE, i32, i32)
 DEF_HELPER_FLAGS_2(brinc, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl, tl)
 
 DEF_HELPER_0(float_check_status, void)
-#ifdef CONFIG_SOFTFLOAT
 DEF_HELPER_0(reset_fpstatus, void)
-#endif
 DEF_HELPER_2(compute_fprf, i32, i64, i32)
 DEF_HELPER_2(store_fpscr, void, i64, i32)
 DEF_HELPER_1(fpscr_clrbit, void, i32)

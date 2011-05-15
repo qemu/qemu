@@ -215,9 +215,7 @@ struct opc_handler_t {
 
 static inline void gen_reset_fpstatus(void)
 {
-#ifdef CONFIG_SOFTFLOAT
     gen_helper_reset_fpstatus();
-#endif
 }
 
 static inline void gen_compute_fprf(TCGv_i64 arg, int set_fprf, int set_rc)
