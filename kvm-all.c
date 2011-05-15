@@ -603,6 +603,11 @@ static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
             if (err) {
                 fprintf(stderr, "%s: error registering prefix slot: %s\n",
                         __func__, strerror(-err));
+#ifdef TARGET_PPC
+                fprintf(stderr, "%s: This is probably because your kernel's " \
+                                "PAGE_SIZE is too big. Please try to use 4k " \
+                                "PAGE_SIZE!\n", __func__);
+#endif
                 abort();
             }
         }
