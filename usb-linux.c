@@ -121,6 +121,7 @@ typedef struct USBHostDevice {
     Notifier  exit;
 
     struct endp_data endp_table[MAX_ENDPOINTS];
+    QLIST_HEAD(, AsyncURB) aurbs;
 
     /* Host side address */
     int bus_num;
@@ -223,22 +224,27 @@ struct AsyncURB
 {
     struct usbdevfs_urb urb;
     struct usbdevfs_iso_packet_desc isocpd[ISO_FRAME_DESC_PER_URB];
+    USBHostDevice *hdev;
+    QLIST_ENTRY(AsyncURB) next;
 
     /* For regular async urbs */
     USBPacket     *packet;
-    USBHostDevice *hdev;
 
     /* For buffered iso handling */
     int iso_frame_idx; /* -1 means in flight */
 };
 
-static AsyncURB *async_alloc(void)
+static AsyncURB *async_alloc(USBHostDevice *s)
 {
-    return (AsyncURB *) qemu_mallocz(sizeof(AsyncURB));
+    AsyncURB *aurb = qemu_mallocz(sizeof(AsyncURB));
+    aurb->hdev = s;
+    QLIST_INSERT_HEAD(&s->aurbs, aurb, next);
+    return aurb;
 }
 
 static void async_free(AsyncURB *aurb)
 {
+    QLIST_REMOVE(aurb, next);
     qemu_free(aurb);
 }
 
@@ -661,8 +667,7 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
         return usb_host_handle_iso_data(s, p, p->pid == USB_TOKEN_IN);
     }
 
-    aurb = async_alloc();
-    aurb->hdev   = s;
+    aurb = async_alloc(s);
     aurb->packet = p;
 
     urb = &aurb->urb;
@@ -787,8 +792,7 @@ static int usb_host_handle_control(USBDevice *dev, USBPacket *p,
         return USB_RET_STALL;
     }
 
-    aurb = async_alloc();
-    aurb->hdev   = s;
+    aurb = async_alloc(s);
     aurb->packet = p;
 
     /*
