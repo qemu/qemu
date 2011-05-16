@@ -1150,9 +1150,10 @@ static void do_interrupt_real(int intno, int is_int, int error_code,
     env->eflags &= ~(IF_MASK | TF_MASK | AC_MASK | RF_MASK);
 }
 
+#if defined(CONFIG_USER_ONLY)
 /* fake user mode interrupt */
-void do_interrupt_user(int intno, int is_int, int error_code,
-                       target_ulong next_eip)
+static void do_interrupt_user(int intno, int is_int, int error_code,
+                              target_ulong next_eip)
 {
     SegmentCache *dt;
     target_ulong ptr;
@@ -1181,7 +1182,8 @@ void do_interrupt_user(int intno, int is_int, int error_code,
         EIP = next_eip;
 }
 
-#if !defined(CONFIG_USER_ONLY)
+#else
+
 static void handle_even_inj(int intno, int is_int, int error_code,
 		int is_hw, int rm)
 {
@@ -1207,8 +1209,8 @@ static void handle_even_inj(int intno, int is_int, int error_code,
  * the int instruction. next_eip is the EIP value AFTER the interrupt
  * instruction. It is only relevant if is_int is TRUE.
  */
-void do_interrupt(int intno, int is_int, int error_code,
-                  target_ulong next_eip, int is_hw)
+static void do_interrupt_all(int intno, int is_int, int error_code,
+                             target_ulong next_eip, int is_hw)
 {
     if (qemu_loglevel_mask(CPU_LOG_INT)) {
         if ((env->cr[0] & CR0_PE_MASK)) {
@@ -1268,6 +1270,46 @@ void do_interrupt(int intno, int is_int, int error_code,
 	    stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.event_inj), event_inj & ~SVM_EVTINJ_VALID);
     }
 #endif
+}
+
+void do_interrupt(CPUState *env1)
+{
+    CPUState *saved_env;
+
+    saved_env = env;
+    env = env1;
+#if defined(CONFIG_USER_ONLY)
+    /* if user mode only, we simulate a fake exception
+       which will be handled outside the cpu execution
+       loop */
+    do_interrupt_user(env->exception_index,
+                      env->exception_is_int,
+                      env->error_code,
+                      env->exception_next_eip);
+    /* successfully delivered */
+    env->old_exception = -1;
+#else
+    /* simulate a real cpu exception. On i386, it can
+       trigger new exceptions, but we do not handle
+       double or triple faults yet. */
+    do_interrupt_all(env->exception_index,
+                     env->exception_is_int,
+                     env->error_code,
+                     env->exception_next_eip, 0);
+    /* successfully delivered */
+    env->old_exception = -1;
+#endif
+    env = saved_env;
+}
+
+void do_interrupt_x86_hardirq(CPUState *env1, int intno, int is_hw)
+{
+    CPUState *saved_env;
+
+    saved_env = env;
+    env = env1;
+    do_interrupt_all(intno, 0, 0, 0, is_hw);
+    env = saved_env;
 }
 
 /* This should come from sysemu.h - if we could include it here... */
@@ -1359,7 +1401,7 @@ void raise_exception_env(int exception_index, CPUState *nenv)
 
 #if defined(CONFIG_USER_ONLY)
 
-void do_smm_enter(void)
+void do_smm_enter(CPUState *env1)
 {
 }
 
@@ -1375,11 +1417,15 @@ void helper_rsm(void)
 #define SMM_REVISION_ID 0x00020000
 #endif
 
-void do_smm_enter(void)
+void do_smm_enter(CPUState *env1)
 {
     target_ulong sm_state;
     SegmentCache *dt;
     int i, offset;
+    CPUState *saved_env;
+
+    saved_env = env;
+    env = env1;
 
     qemu_log_mask(CPU_LOG_INT, "SMM: enter\n");
     log_cpu_state_mask(CPU_LOG_INT, env, X86_DUMP_CCOP);
@@ -1506,6 +1552,7 @@ void do_smm_enter(void)
     cpu_x86_update_cr4(env, 0);
     env->dr[7] = 0x00000400;
     CC_OP = CC_OP_EFLAGS;
+    env = saved_env;
 }
 
 void helper_rsm(void)
@@ -4859,6 +4906,10 @@ void helper_svm_check_intercept_param(uint32_t type, uint64_t param)
 {
 }
 
+void svm_check_intercept(CPUState *env1, uint32_t type)
+{
+}
+
 void helper_svm_check_io(uint32_t port, uint32_t param, 
                          uint32_t next_eip_addend)
 {
@@ -5040,7 +5091,7 @@ void helper_vmrun(int aflag, int next_eip_addend)
                 env->exception_next_eip = -1;
                 qemu_log_mask(CPU_LOG_TB_IN_ASM, "INTR");
                 /* XXX: is it always correct ? */
-                do_interrupt(vector, 0, 0, 0, 1);
+                do_interrupt_all(vector, 0, 0, 0, 1);
                 break;
         case SVM_EVTINJ_TYPE_NMI:
                 env->exception_index = EXCP02_NMI;
@@ -5247,6 +5298,16 @@ void helper_svm_check_intercept_param(uint32_t type, uint64_t param)
         }
         break;
     }
+}
+
+void svm_check_intercept(CPUState *env1, uint32_t type)
+{
+    CPUState *saved_env;
+
+    saved_env = env;
+    env = env1;
+    helper_svm_check_intercept_param(type, 0);
+    env = saved_env;
 }
 
 void helper_svm_check_io(uint32_t port, uint32_t param, 
@@ -5573,6 +5634,18 @@ uint32_t helper_cc_compute_all(int op)
     case CC_OP_SARQ: return compute_all_sarq();
 #endif
     }
+}
+
+uint32_t cpu_cc_compute_all(CPUState *env1, int op)
+{
+    CPUState *saved_env;
+    uint32_t ret;
+
+    saved_env = env;
+    env = env1;
+    ret = helper_cc_compute_all(op);
+    env = saved_env;
+    return ret;
 }
 
 uint32_t helper_cc_compute_c(int op)

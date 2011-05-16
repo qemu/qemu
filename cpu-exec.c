@@ -266,26 +266,13 @@ int cpu_exec(CPUState *env1)
                        which will be handled outside the cpu execution
                        loop */
 #if defined(TARGET_I386)
-                    do_interrupt_user(env->exception_index,
-                                      env->exception_is_int,
-                                      env->error_code,
-                                      env->exception_next_eip);
-                    /* successfully delivered */
-                    env->old_exception = -1;
+                    do_interrupt(env);
 #endif
                     ret = env->exception_index;
                     break;
 #else
 #if defined(TARGET_I386)
-                    /* simulate a real cpu exception. On i386, it can
-                       trigger new exceptions, but we do not handle
-                       double or triple faults yet. */
-                    do_interrupt(env->exception_index,
-                                 env->exception_is_int,
-                                 env->error_code,
-                                 env->exception_next_eip, 0);
-                    /* successfully delivered */
-                    env->old_exception = -1;
+                    do_interrupt(env);
 #elif defined(TARGET_PPC)
                     do_interrupt(env);
 #elif defined(TARGET_LM32)
@@ -341,7 +328,7 @@ int cpu_exec(CPUState *env1)
 #endif
 #if defined(TARGET_I386)
                     if (interrupt_request & CPU_INTERRUPT_INIT) {
-                            svm_check_intercept(SVM_EXIT_INIT);
+                            svm_check_intercept(env, SVM_EXIT_INIT);
                             do_cpu_init(env);
                             env->exception_index = EXCP_HALTED;
                             cpu_loop_exit(env);
@@ -350,19 +337,19 @@ int cpu_exec(CPUState *env1)
                     } else if (env->hflags2 & HF2_GIF_MASK) {
                         if ((interrupt_request & CPU_INTERRUPT_SMI) &&
                             !(env->hflags & HF_SMM_MASK)) {
-                            svm_check_intercept(SVM_EXIT_SMI);
+                            svm_check_intercept(env, SVM_EXIT_SMI);
                             env->interrupt_request &= ~CPU_INTERRUPT_SMI;
-                            do_smm_enter();
+                            do_smm_enter(env);
                             next_tb = 0;
                         } else if ((interrupt_request & CPU_INTERRUPT_NMI) &&
                                    !(env->hflags2 & HF2_NMI_MASK)) {
                             env->interrupt_request &= ~CPU_INTERRUPT_NMI;
                             env->hflags2 |= HF2_NMI_MASK;
-                            do_interrupt(EXCP02_NMI, 0, 0, 0, 1);
+                            do_interrupt_x86_hardirq(env, EXCP02_NMI, 1);
                             next_tb = 0;
 			} else if (interrupt_request & CPU_INTERRUPT_MCE) {
                             env->interrupt_request &= ~CPU_INTERRUPT_MCE;
-                            do_interrupt(EXCP12_MCHK, 0, 0, 0, 0);
+                            do_interrupt_x86_hardirq(env, EXCP12_MCHK, 0);
                             next_tb = 0;
                         } else if ((interrupt_request & CPU_INTERRUPT_HARD) &&
                                    (((env->hflags2 & HF2_VINTR_MASK) && 
@@ -371,7 +358,7 @@ int cpu_exec(CPUState *env1)
                                      (env->eflags & IF_MASK && 
                                       !(env->hflags & HF_INHIBIT_IRQ_MASK))))) {
                             int intno;
-                            svm_check_intercept(SVM_EXIT_INTR);
+                            svm_check_intercept(env, SVM_EXIT_INTR);
                             env->interrupt_request &= ~(CPU_INTERRUPT_HARD | CPU_INTERRUPT_VIRQ);
                             intno = cpu_get_pic_interrupt(env);
                             qemu_log_mask(CPU_LOG_TB_IN_ASM, "Servicing hardware INT=0x%02x\n", intno);
@@ -380,7 +367,7 @@ int cpu_exec(CPUState *env1)
                     env = cpu_single_env;
 #define env cpu_single_env
 #endif
-                            do_interrupt(intno, 0, 0, 0, 1);
+                            do_interrupt_x86_hardirq(env, intno, 1);
                             /* ensure that no TB jump will be modified as
                                the program flow was changed */
                             next_tb = 0;
@@ -390,10 +377,10 @@ int cpu_exec(CPUState *env1)
                                    !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
                             int intno;
                             /* FIXME: this should respect TPR */
-                            svm_check_intercept(SVM_EXIT_VINTR);
+                            svm_check_intercept(env, SVM_EXIT_VINTR);
                             intno = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_vector));
                             qemu_log_mask(CPU_LOG_TB_IN_ASM, "Servicing virtual hardware INT=0x%02x\n", intno);
-                            do_interrupt(intno, 0, 0, 0, 1);
+                            do_interrupt_x86_hardirq(env, intno, 1);
                             env->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
                             next_tb = 0;
 #endif
@@ -570,7 +557,8 @@ int cpu_exec(CPUState *env1)
                 if (qemu_loglevel_mask(CPU_LOG_TB_CPU)) {
                     /* restore flags in standard format */
 #if defined(TARGET_I386)
-                    env->eflags = env->eflags | helper_cc_compute_all(CC_OP) | (DF & DF_MASK);
+                    env->eflags = env->eflags | cpu_cc_compute_all(env, CC_OP)
+                        | (DF & DF_MASK);
                     log_cpu_state(env, X86_DUMP_CCOP);
                     env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
 #elif defined(TARGET_M68K)
@@ -661,7 +649,8 @@ int cpu_exec(CPUState *env1)
 
 #if defined(TARGET_I386)
     /* restore flags in standard format */
-    env->eflags = env->eflags | helper_cc_compute_all(CC_OP) | (DF & DF_MASK);
+    env->eflags = env->eflags | cpu_cc_compute_all(env, CC_OP)
+        | (DF & DF_MASK);
 #elif defined(TARGET_ARM)
     /* XXX: Save/restore host fpu exception state?.  */
 #elif defined(TARGET_UNICORE32)

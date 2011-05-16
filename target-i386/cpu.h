@@ -1000,4 +1000,14 @@ void cpu_x86_inject_mce(Monitor *mon, CPUState *cenv, int bank,
                         uint64_t status, uint64_t mcg_status, uint64_t addr,
                         uint64_t misc, int flags);
 
+/* op_helper.c */
+void do_interrupt(CPUState *env);
+void do_interrupt_x86_hardirq(CPUState *env, int intno, int is_hw);
+
+void do_smm_enter(CPUState *env1);
+
+void svm_check_intercept(CPUState *env1, uint32_t type);
+
+uint32_t cpu_cc_compute_all(CPUState *env1, int op);
+
 #endif /* CPU_I386_H */
