@@ -1333,7 +1333,27 @@ static BlockDriverAIOCB *bdrv_qed_aio_flush(BlockDriverState *bs,
 
 static int bdrv_qed_truncate(BlockDriverState *bs, int64_t offset)
 {
-    return -ENOTSUP;
+    BDRVQEDState *s = bs->opaque;
+    uint64_t old_image_size;
+    int ret;
+
+    if (!qed_is_image_size_valid(offset, s->header.cluster_size,
+                                 s->header.table_size)) {
+        return -EINVAL;
+    }
+
+    /* Shrinking is currently not supported */
+    if ((uint64_t)offset < s->header.image_size) {
+        return -ENOTSUP;
+    }
+
+    old_image_size = s->header.image_size;
+    s->header.image_size = offset;
+    ret = qed_write_header_sync(s);
+    if (ret < 0) {
+        s->header.image_size = old_image_size;
+    }
+    return ret;
 }
 
 static int64_t bdrv_qed_getlength(BlockDriverState *bs)
