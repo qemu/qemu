@@ -487,7 +487,7 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
             }
 	    break;
 	case MEDIA_CDROM:
-            bdrv_set_type_hint(dinfo->bdrv, BDRV_TYPE_CDROM);
+            bdrv_set_removable(dinfo->bdrv, 1);
             dinfo->media_cd = 1;
 	    break;
 	}
@@ -496,7 +496,7 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
         /* FIXME: This isn't really a floppy, but it's a reasonable
            approximation.  */
     case IF_FLOPPY:
-        bdrv_set_type_hint(dinfo->bdrv, BDRV_TYPE_FLOPPY);
+        bdrv_set_removable(dinfo->bdrv, 1);
         break;
     case IF_PFLASH:
     case IF_MTD:
