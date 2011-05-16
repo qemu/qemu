@@ -315,19 +315,25 @@ static void async_complete(void *opaque)
     }
 }
 
-static void async_cancel(USBPacket *unused, void *opaque)
+static void async_cancel(USBPacket *p, void *opaque)
 {
-    AsyncURB *aurb = opaque;
-    USBHostDevice *s = aurb->hdev;
+    USBHostDevice *s = opaque;
+    AsyncURB *aurb;
 
-    DPRINTF("husb: async cancel. aurb %p\n", aurb);
+    QLIST_FOREACH(aurb, &s->aurbs, next) {
+        if (p != aurb->packet) {
+            continue;
+        }
 
-    /* Mark it as dead (see async_complete above) */
-    aurb->packet = NULL;
+        DPRINTF("husb: async cancel: packet %p, aurb %p\n", p, aurb);
 
-    int r = ioctl(s->fd, USBDEVFS_DISCARDURB, aurb);
-    if (r < 0) {
-        DPRINTF("husb: async. discard urb failed errno %d\n", errno);
+        /* Mark it as dead (see async_complete above) */
+        aurb->packet = NULL;
+
+        int r = ioctl(s->fd, USBDEVFS_DISCARDURB, aurb);
+        if (r < 0) {
+            DPRINTF("husb: async. discard urb failed errno %d\n", errno);
+        }
     }
 }
 
@@ -696,7 +702,7 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
         }
     }
 
-    usb_defer_packet(p, async_cancel, aurb);
+    usb_defer_packet(p, async_cancel, s);
     return USB_RET_ASYNC;
 }
 
@@ -828,7 +834,7 @@ static int usb_host_handle_control(USBDevice *dev, USBPacket *p,
         }
     }
 
-    usb_defer_packet(p, async_cancel, aurb);
+    usb_defer_packet(p, async_cancel, s);
     return USB_RET_ASYNC;
 }
 
