@@ -213,6 +213,22 @@ static int get_iso_buffer_used(USBHostDevice *s, int ep)
     return s->endp_table[ep - 1].iso_buffer_used;
 }
 
+static void set_max_packet_size(USBHostDevice *s, int ep, uint8_t *descriptor)
+{
+    int raw = descriptor[4] + (descriptor[5] << 8);
+    int size, microframes;
+
+    size = raw & 0x7ff;
+    switch ((raw >> 11) & 3) {
+    case 1:  microframes = 2; break;
+    case 2:  microframes = 3; break;
+    default: microframes = 1; break;
+    }
+    DPRINTF("husb: max packet size: 0x%x -> %d x %d\n",
+            raw, microframes, size);
+    s->endp_table[ep - 1].max_packet_size = size * microframes;
+}
+
 static int get_max_packet_size(USBHostDevice *s, int ep)
 {
     return s->endp_table[ep - 1].max_packet_size;
@@ -1008,8 +1024,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
                 break;
             case 0x01:
                 type = USBDEVFS_URB_TYPE_ISO;
-                s->endp_table[(devep & 0xf) - 1].max_packet_size =
-                    descriptors[i + 4] + (descriptors[i + 5] << 8);
+                set_max_packet_size(s, (devep & 0xf), descriptors + i);
                 break;
             case 0x02:
                 type = USBDEVFS_URB_TYPE_BULK;
