@@ -1704,9 +1704,8 @@ static void bdrv_print_dict(QObject *obj, void *opaque)
 
     bs_dict = qobject_to_qdict(obj);
 
-    monitor_printf(mon, "%s: type=%s removable=%d",
+    monitor_printf(mon, "%s: removable=%d",
                         qdict_get_str(bs_dict, "device"),
-                        qdict_get_str(bs_dict, "type"),
                         qdict_get_bool(bs_dict, "removable"));
 
     if (qdict_get_bool(bs_dict, "removable")) {
@@ -1747,23 +1746,10 @@ void bdrv_info(Monitor *mon, QObject **ret_data)
 
     QTAILQ_FOREACH(bs, &bdrv_states, list) {
         QObject *bs_obj;
-        const char *type = "unknown";
 
-        switch(bs->type) {
-        case BDRV_TYPE_HD:
-            type = "hd";
-            break;
-        case BDRV_TYPE_CDROM:
-            type = "cdrom";
-            break;
-        case BDRV_TYPE_FLOPPY:
-            type = "floppy";
-            break;
-        }
-
-        bs_obj = qobject_from_jsonf("{ 'device': %s, 'type': %s, "
+        bs_obj = qobject_from_jsonf("{ 'device': %s, 'type': 'unknown', "
                                     "'removable': %i, 'locked': %i }",
-                                    bs->device_name, type, bs->removable,
+                                    bs->device_name, bs->removable,
                                     bs->locked);
 
         if (bs->drv) {

@@ -1039,7 +1039,8 @@ Each json-object contain the following:
 
 - "device": device name (json-string)
 - "type": device type (json-string)
-         - Possible values: "hd", "cdrom", "floppy", "unknown"
+         - deprecated, retained for backward compatibility
+         - Possible values: "unknown"
 - "removable": true if the device is removable, false otherwise (json-bool)
 - "locked": true if the device is locked, false otherwise (json-bool)
 - "inserted": only present if the device is inserted, it is a json-object
@@ -1070,25 +1071,25 @@ Example:
                "encrypted":false,
                "file":"disks/test.img"
             },
-            "type":"hd"
+            "type":"unknown"
          },
          {
             "device":"ide1-cd0",
             "locked":false,
             "removable":true,
-            "type":"cdrom"
+            "type":"unknown"
          },
          {
             "device":"floppy0",
             "locked":false,
             "removable":true,
-            "type": "floppy"
+            "type":"unknown"
          },
          {
             "device":"sd0",
             "locked":false,
             "removable":true,
-            "type":"floppy"
+            "type":"unknown"
          }
       ]
    }
