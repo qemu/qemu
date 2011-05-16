@@ -315,9 +315,9 @@ static int usb_msd_handle_control(USBDevice *dev, USBPacket *p,
     return ret;
 }
 
-static void usb_msd_cancel_io(USBPacket *p, void *opaque)
+static void usb_msd_cancel_io(USBDevice *dev, USBPacket *p)
 {
-    MSDState *s = opaque;
+    MSDState *s = DO_UPCAST(MSDState, dev, dev);
     s->scsi_dev->info->cancel_io(s->scsi_dev, s->tag);
     s->packet = NULL;
     s->scsi_len = 0;
@@ -398,7 +398,6 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
             }
             if (s->usb_len) {
                 DPRINTF("Deferring packet %p\n", p);
-                usb_defer_packet(p, usb_msd_cancel_io, s);
                 s->packet = p;
                 ret = USB_RET_ASYNC;
             } else {
@@ -421,7 +420,6 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
             if (s->data_len != 0 || len < 13)
                 goto fail;
             /* Waiting for SCSI write to complete.  */
-            usb_defer_packet(p, usb_msd_cancel_io, s);
             s->packet = p;
             ret = USB_RET_ASYNC;
             break;
@@ -455,7 +453,6 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
             }
             if (s->usb_len) {
                 DPRINTF("Deferring packet %p\n", p);
-                usb_defer_packet(p, usb_msd_cancel_io, s);
                 s->packet = p;
                 ret = USB_RET_ASYNC;
             } else {
@@ -604,6 +601,7 @@ static struct USBDeviceInfo msd_info = {
     .usb_desc       = &desc,
     .init           = usb_msd_initfn,
     .handle_packet  = usb_generic_handle_packet,
+    .cancel_packet  = usb_msd_cancel_io,
     .handle_attach  = usb_desc_attach,
     .handle_reset   = usb_msd_handle_reset,
     .handle_control = usb_msd_handle_control,

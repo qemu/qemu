@@ -345,6 +345,6 @@ void usb_packet_complete(USBDevice *dev, USBPacket *p)
 void usb_cancel_packet(USBPacket * p)
 {
     assert(p->owner != NULL);
-    p->cancel_cb(p, p->cancel_opaque);
+    p->owner->info->cancel_packet(p->owner, p);
     p->owner = NULL;
 }

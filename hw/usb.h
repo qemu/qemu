@@ -194,6 +194,11 @@ struct USBDeviceInfo {
     int (*handle_packet)(USBDevice *dev, USBPacket *p);
 
     /*
+     * Called when a packet is canceled.
+     */
+    void (*cancel_packet)(USBDevice *dev, USBPacket *p);
+
+    /*
      * Called when device is destroyed.
      */
     void (*handle_destroy)(USBDevice *dev);
@@ -263,23 +268,11 @@ struct USBPacket {
     int len;
     /* Internal use by the USB layer.  */
     USBDevice *owner;
-    USBCallback *cancel_cb;
-    void *cancel_opaque;
 };
 
 int usb_handle_packet(USBDevice *dev, USBPacket *p);
 void usb_packet_complete(USBDevice *dev, USBPacket *p);
 void usb_cancel_packet(USBPacket * p);
-
-/* Defer completion of a USB packet.  The hadle_packet routine should then
-   return USB_RET_ASYNC.  Packets that complete immediately (before
-   handle_packet returns) should not call this method.  */
-static inline void usb_defer_packet(USBPacket *p, USBCallback *cancel,
-                                    void * opaque)
-{
-    p->cancel_cb = cancel;
-    p->cancel_opaque = opaque;
-}
 
 void usb_attach(USBPort *port, USBDevice *dev);
 void usb_wakeup(USBDevice *dev);
