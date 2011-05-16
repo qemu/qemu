@@ -488,6 +488,7 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
 	    break;
 	case MEDIA_CDROM:
             bdrv_set_type_hint(dinfo->bdrv, BDRV_TYPE_CDROM);
+            dinfo->media_cd = 1;
 	    break;
 	}
         break;

@@ -1295,12 +1295,13 @@ static int scsi_cd_initfn(SCSIDevice *dev)
 static int scsi_disk_initfn(SCSIDevice *dev)
 {
     SCSIDriveKind kind;
+    DriveInfo *dinfo;
 
     if (!dev->conf.bs) {
         kind = SCSI_HD;         /* will die in scsi_initfn() */
     } else {
-        kind = bdrv_get_type_hint(dev->conf.bs) == BDRV_TYPE_CDROM
-            ? SCSI_CD : SCSI_HD;
+        dinfo = drive_get_by_blockdev(dev->conf.bs);
+        kind = dinfo->media_cd ? SCSI_CD : SCSI_HD;
     }
 
     return scsi_initfn(dev, kind);

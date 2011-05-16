@@ -1731,8 +1731,7 @@ void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
         ide_init1(bus, i);
         if (dinfo) {
             if (ide_init_drive(&bus->ifs[i], dinfo->bdrv,
-                               bdrv_get_type_hint(dinfo->bdrv) == BDRV_TYPE_CDROM ? IDE_CD : IDE_HD,
-                               NULL,
+                               dinfo->media_cd ? IDE_CD : IDE_HD, NULL,
                                *dinfo->serial ? dinfo->serial : NULL) < 0) {
                 error_report("Can't set up IDE drive %s", dinfo->id);
                 exit(1);

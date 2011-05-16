@@ -98,9 +98,7 @@ IDEDevice *ide_create_drive(IDEBus *bus, int unit, DriveInfo *drive)
 {
     DeviceState *dev;
 
-    dev = qdev_create(&bus->qbus,
-                      bdrv_get_type_hint(drive->bdrv) == BDRV_TYPE_CDROM
-                      ? "ide-cd" : "ide-hd");
+    dev = qdev_create(&bus->qbus, drive->media_cd ? "ide-cd" : "ide-hd");
     qdev_prop_set_uint32(dev, "unit", unit);
     qdev_prop_set_drive_nofail(dev, "drive", drive->bdrv);
     qdev_init_nofail(dev);
@@ -165,9 +163,9 @@ static int ide_cd_initfn(IDEDevice *dev)
 
 static int ide_drive_initfn(IDEDevice *dev)
 {
-    return ide_dev_initfn(dev,
-                          bdrv_get_type_hint(dev->conf.bs) == BDRV_TYPE_CDROM
-                          ? IDE_CD : IDE_HD);
+    DriveInfo *dinfo = drive_get_by_blockdev(dev->conf.bs);
+
+    return ide_dev_initfn(dev, dinfo->media_cd ? IDE_CD : IDE_HD);
 }
 
 #define DEFINE_IDE_DEV_PROPERTIES()                     \
