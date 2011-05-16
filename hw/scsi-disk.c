@@ -65,6 +65,8 @@ typedef struct SCSIDiskReq {
     uint32_t status;
 } SCSIDiskReq;
 
+typedef enum { SCSI_HD, SCSI_CD } SCSIDriveKind;
+
 struct SCSIDiskState
 {
     SCSIDevice qdev;
@@ -78,6 +80,7 @@ struct SCSIDiskState
     char *version;
     char *serial;
     SCSISense sense;
+    SCSIDriveKind drive_kind;
 };
 
 static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type);
@@ -406,7 +409,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             return -1;
         }
 
-        if (bdrv_get_type_hint(s->bs) == BDRV_TYPE_CDROM) {
+        if (s->drive_kind == SCSI_CD) {
             outbuf[buflen++] = 5;
         } else {
             outbuf[buflen++] = 0;
@@ -424,7 +427,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             outbuf[buflen++] = 0x00; // list of supported pages (this page)
             outbuf[buflen++] = 0x80; // unit serial number
             outbuf[buflen++] = 0x83; // device identification
-            if (bdrv_get_type_hint(s->bs) != BDRV_TYPE_CDROM) {
+            if (s->drive_kind == SCSI_HD) {
                 outbuf[buflen++] = 0xb0; // block limits
                 outbuf[buflen++] = 0xb2; // thin provisioning
             }
@@ -477,7 +480,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             unsigned int opt_io_size =
                     s->qdev.conf.opt_io_size / s->qdev.blocksize;
 
-            if (bdrv_get_type_hint(s->bs) == BDRV_TYPE_CDROM) {
+            if (s->drive_kind == SCSI_CD) {
                 DPRINTF("Inquiry (EVPD[%02X] not supported for CDROM\n",
                         page_code);
                 return -1;
@@ -547,7 +550,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
         return buflen;
     }
 
-    if (bdrv_get_type_hint(s->bs) == BDRV_TYPE_CDROM) {
+    if (s->drive_kind == SCSI_CD) {
         outbuf[0] = 5;
         outbuf[1] = 0x80;
         memcpy(&outbuf[16], "QEMU CD-ROM     ", 16);
@@ -678,7 +681,7 @@ static int mode_sense_page(SCSIRequest *req, int page, uint8_t *p,
         return p[1] + 2;
 
     case 0x2a: /* CD Capabilities and Mechanical Status page. */
-        if (bdrv_get_type_hint(bdrv) != BDRV_TYPE_CDROM)
+        if (s->drive_kind != SCSI_CD)
             return 0;
         p[0] = 0x2a;
         p[1] = 0x14;
@@ -905,7 +908,7 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
             goto illegal_request;
         break;
     case START_STOP:
-        if (bdrv_get_type_hint(s->bs) == BDRV_TYPE_CDROM && (req->cmd.buf[4] & 2)) {
+        if (s->drive_kind == SCSI_CD && (req->cmd.buf[4] & 2)) {
             /* load/eject medium */
             bdrv_eject(s->bs, !(req->cmd.buf[4] & 1));
         }
@@ -1232,10 +1235,9 @@ static void scsi_destroy(SCSIDevice *dev)
     blockdev_mark_auto_del(s->qdev.conf.bs);
 }
 
-static int scsi_disk_initfn(SCSIDevice *dev)
+static int scsi_initfn(SCSIDevice *dev, SCSIDriveKind kind)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
-    int is_cd;
     DriveInfo *dinfo;
 
     if (!s->qdev.conf.bs) {
@@ -1243,9 +1245,9 @@ static int scsi_disk_initfn(SCSIDevice *dev)
         return -1;
     }
     s->bs = s->qdev.conf.bs;
-    is_cd = bdrv_get_type_hint(s->bs) == BDRV_TYPE_CDROM;
+    s->drive_kind = kind;
 
-    if (!is_cd && !bdrv_is_inserted(s->bs)) {
+    if (kind == SCSI_HD && !bdrv_is_inserted(s->bs)) {
         error_report("Device needs media, but drive is empty");
         return -1;
     }
@@ -1265,7 +1267,7 @@ static int scsi_disk_initfn(SCSIDevice *dev)
         return -1;
     }
 
-    if (is_cd) {
+    if (kind == SCSI_CD) {
         s->qdev.blocksize = 2048;
     } else {
         s->qdev.blocksize = s->qdev.conf.logical_block_size;
@@ -1275,35 +1277,103 @@ static int scsi_disk_initfn(SCSIDevice *dev)
 
     s->qdev.type = TYPE_DISK;
     qemu_add_vm_change_state_handler(scsi_dma_restart_cb, s);
-    bdrv_set_removable(s->bs, is_cd);
+    bdrv_set_removable(s->bs, kind == SCSI_CD);
     add_boot_device_path(s->qdev.conf.bootindex, &dev->qdev, ",0");
     return 0;
 }
 
-static SCSIDeviceInfo scsi_disk_info = {
-    .qdev.name    = "scsi-disk",
-    .qdev.fw_name = "disk",
-    .qdev.desc    = "virtual scsi disk or cdrom",
-    .qdev.size    = sizeof(SCSIDiskState),
-    .qdev.reset   = scsi_disk_reset,
-    .init         = scsi_disk_initfn,
-    .destroy      = scsi_destroy,
-    .send_command = scsi_send_command,
-    .read_data    = scsi_read_data,
-    .write_data   = scsi_write_data,
-    .cancel_io    = scsi_cancel_io,
-    .get_buf      = scsi_get_buf,
-    .qdev.props   = (Property[]) {
-        DEFINE_BLOCK_PROPERTIES(SCSIDiskState, qdev.conf),
-        DEFINE_PROP_STRING("ver",  SCSIDiskState, version),
-        DEFINE_PROP_STRING("serial",  SCSIDiskState, serial),
-        DEFINE_PROP_BIT("removable", SCSIDiskState, removable, 0, false),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static int scsi_hd_initfn(SCSIDevice *dev)
+{
+    return scsi_initfn(dev, SCSI_HD);
+}
+
+static int scsi_cd_initfn(SCSIDevice *dev)
+{
+    return scsi_initfn(dev, SCSI_CD);
+}
+
+static int scsi_disk_initfn(SCSIDevice *dev)
+{
+    SCSIDriveKind kind;
+
+    if (!dev->conf.bs) {
+        kind = SCSI_HD;         /* will die in scsi_initfn() */
+    } else {
+        kind = bdrv_get_type_hint(dev->conf.bs) == BDRV_TYPE_CDROM
+            ? SCSI_CD : SCSI_HD;
+    }
+
+    return scsi_initfn(dev, kind);
+}
+
+#define DEFINE_SCSI_DISK_PROPERTIES()                           \
+    DEFINE_BLOCK_PROPERTIES(SCSIDiskState, qdev.conf),          \
+    DEFINE_PROP_STRING("ver",  SCSIDiskState, version),         \
+    DEFINE_PROP_STRING("serial",  SCSIDiskState, serial)
+
+static SCSIDeviceInfo scsi_disk_info[] = {
+    {
+        .qdev.name    = "scsi-hd",
+        .qdev.fw_name = "disk",
+        .qdev.desc    = "virtual SCSI disk",
+        .qdev.size    = sizeof(SCSIDiskState),
+        .qdev.reset   = scsi_disk_reset,
+        .init         = scsi_hd_initfn,
+        .destroy      = scsi_destroy,
+        .send_command = scsi_send_command,
+        .read_data    = scsi_read_data,
+        .write_data   = scsi_write_data,
+        .cancel_io    = scsi_cancel_io,
+        .get_buf      = scsi_get_buf,
+        .qdev.props   = (Property[]) {
+            DEFINE_SCSI_DISK_PROPERTIES(),
+            DEFINE_PROP_BIT("removable", SCSIDiskState, removable, 0, false),
+            DEFINE_PROP_END_OF_LIST(),
+        }
+    },{
+        .qdev.name    = "scsi-cd",
+        .qdev.fw_name = "disk",
+        .qdev.desc    = "virtual SCSI CD-ROM",
+        .qdev.size    = sizeof(SCSIDiskState),
+        .qdev.reset   = scsi_disk_reset,
+        .init         = scsi_cd_initfn,
+        .destroy      = scsi_destroy,
+        .send_command = scsi_send_command,
+        .read_data    = scsi_read_data,
+        .write_data   = scsi_write_data,
+        .cancel_io    = scsi_cancel_io,
+        .get_buf      = scsi_get_buf,
+        .qdev.props   = (Property[]) {
+            DEFINE_SCSI_DISK_PROPERTIES(),
+            DEFINE_PROP_END_OF_LIST(),
+        },
+    },{
+        .qdev.name    = "scsi-disk", /* legacy -device scsi-disk */
+        .qdev.fw_name = "disk",
+        .qdev.desc    = "virtual SCSI disk or CD-ROM (legacy)",
+        .qdev.size    = sizeof(SCSIDiskState),
+        .qdev.reset   = scsi_disk_reset,
+        .init         = scsi_disk_initfn,
+        .destroy      = scsi_destroy,
+        .send_command = scsi_send_command,
+        .read_data    = scsi_read_data,
+        .write_data   = scsi_write_data,
+        .cancel_io    = scsi_cancel_io,
+        .get_buf      = scsi_get_buf,
+        .qdev.props   = (Property[]) {
+            DEFINE_SCSI_DISK_PROPERTIES(),
+            DEFINE_PROP_BIT("removable", SCSIDiskState, removable, 0, false),
+            DEFINE_PROP_END_OF_LIST(),
+        }
+    }
 };
 
 static void scsi_disk_register_devices(void)
 {
-    scsi_qdev_register(&scsi_disk_info);
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(scsi_disk_info); i++) {
+        scsi_qdev_register(&scsi_disk_info[i]);
+    }
 }
 device_init(scsi_disk_register_devices)
