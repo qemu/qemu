@@ -1070,6 +1070,15 @@ void pc_vga_init(PCIBus *pci_bus)
             isa_vga_init();
         }
     }
+
+    /*
+     * sga does not suppress normal vga output. So a machine can have both a
+     * vga card and sga manually enabled. Output will be seen on both.
+     * For nographic case, sga is enabled at all times
+     */
+    if (display_type == DT_NOGRAPHIC) {
+        isa_create_simple("sga");
+    }
 }
 
 static void cpu_request_exit(void *opaque, int irq, int level)

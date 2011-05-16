@@ -231,7 +231,7 @@ obj-$(CONFIG_IVSHMEM) += ivshmem.o
 # Hardware support
 obj-i386-y += vga.o
 obj-i386-y += mc146818rtc.o i8259.o pc.o
-obj-i386-y += cirrus_vga.o apic.o ioapic.o piix_pci.o
+obj-i386-y += cirrus_vga.o sga.o apic.o ioapic.o piix_pci.o
 obj-i386-y += vmport.o
 obj-i386-y += device-hotplug.o pci-hotplug.o smbios.o wdt_ib700.o
 obj-i386-y += debugcon.o multiboot.o
