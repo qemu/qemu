@@ -1245,8 +1245,12 @@ static void tcg_liveness_analysis(TCGContext *s)
                 do_not_remove_call:
 
                     /* output args are dead */
+                    dead_args = 0;
                     for(i = 0; i < nb_oargs; i++) {
                         arg = args[i];
+                        if (dead_temps[arg]) {
+                            dead_args |= (1 << i);
+                        }
                         dead_temps[arg] = 1;
                     }
                     
@@ -1256,7 +1260,6 @@ static void tcg_liveness_analysis(TCGContext *s)
                     }
 
                     /* input args are live */
-                    dead_args = 0;
                     for(i = nb_oargs; i < nb_iargs + nb_oargs; i++) {
                         arg = args[i];
                         if (arg != TCG_CALL_DUMMY_ARG) {
@@ -1313,8 +1316,12 @@ static void tcg_liveness_analysis(TCGContext *s)
             do_not_remove:
 
                 /* output args are dead */
+                dead_args = 0;
                 for(i = 0; i < nb_oargs; i++) {
                     arg = args[i];
+                    if (dead_temps[arg]) {
+                        dead_args |= (1 << i);
+                    }
                     dead_temps[arg] = 1;
                 }
 
@@ -1327,7 +1334,6 @@ static void tcg_liveness_analysis(TCGContext *s)
                 }
 
                 /* input args are live */
-                dead_args = 0;
                 for(i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
                     arg = args[i];
                     if (dead_temps[arg]) {
