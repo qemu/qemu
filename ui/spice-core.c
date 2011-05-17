@@ -299,8 +299,6 @@ static int parse_name(const char *string, const char *optname,
     exit(1);
 }
 
-#if SPICE_SERVER_VERSION >= 0x000600 /* 0.6.0 */
-
 static const char *stream_video_names[] = {
     [ SPICE_STREAM_VIDEO_OFF ]    = "off",
     [ SPICE_STREAM_VIDEO_ALL ]    = "all",
@@ -308,8 +306,6 @@ static const char *stream_video_names[] = {
 };
 #define parse_stream_video(_name) \
     name2enum(_name, stream_video_names, ARRAY_SIZE(stream_video_names))
-
-#endif /* >= 0.6.0 */
 
 static const char *compression_names[] = {
     [ SPICE_IMAGE_COMPRESS_OFF ]      = "off",
@@ -593,8 +589,6 @@ void qemu_spice_init(void)
     }
     spice_server_set_zlib_glz_compression(spice_server, wan_compr);
 
-#if SPICE_SERVER_VERSION >= 0x000600 /* 0.6.0 */
-
     str = qemu_opt_get(opts, "streaming-video");
     if (str) {
         int streaming_video = parse_stream_video(str);
@@ -605,8 +599,6 @@ void qemu_spice_init(void)
         (spice_server, qemu_opt_get_bool(opts, "agent-mouse", 1));
     spice_server_set_playback_compression
         (spice_server, qemu_opt_get_bool(opts, "playback-compression", 1));
-
-#endif /* >= 0.6.0 */
 
     qemu_opt_foreach(opts, add_channel, NULL, 0);
 
