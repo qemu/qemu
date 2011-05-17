@@ -154,7 +154,7 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
      * and O_DIRECT for no caching. */
     if ((bdrv_flags & BDRV_O_NOCACHE))
         s->open_flags |= O_DIRECT;
-    else if (!(bdrv_flags & BDRV_O_CACHE_WB))
+    if (!(bdrv_flags & BDRV_O_CACHE_WB))
         s->open_flags |= O_DSYNC;
 
     s->fd = -1;

@@ -229,7 +229,7 @@ static int qcow2_open(BlockDriverState *bs, int flags)
     }
 
     /* alloc L2 table/refcount block cache */
-    writethrough = ((flags & BDRV_O_CACHE_MASK) == 0);
+    writethrough = ((flags & BDRV_O_CACHE_WB) == 0);
     s->l2_table_cache = qcow2_cache_create(bs, L2_CACHE_SIZE, writethrough);
     s->refcount_block_cache = qcow2_cache_create(bs, REFCOUNT_CACHE_SIZE,
         writethrough);

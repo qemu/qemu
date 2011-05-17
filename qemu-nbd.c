@@ -238,7 +238,7 @@ int main(int argc, char **argv)
             flags |= BDRV_O_SNAPSHOT;
             break;
         case 'n':
-            flags |= BDRV_O_NOCACHE;
+            flags |= BDRV_O_NOCACHE | BDRV_O_CACHE_WB;
             break;
         case 'b':
             bindto = optarg;
