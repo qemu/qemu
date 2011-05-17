@@ -1782,12 +1782,16 @@ static void tcg_reg_alloc_op(TCGContext *s,
             if (!ts->fixed_reg) {
                 if (ts->val_type == TEMP_VAL_REG)
                     s->reg_to_temp[ts->reg] = -1;
-                ts->val_type = TEMP_VAL_REG;
-                ts->reg = reg;
-                /* temp value is modified, so the value kept in memory is
-                   potentially not the same */
-                ts->mem_coherent = 0; 
-                s->reg_to_temp[reg] = arg;
+                if (IS_DEAD_ARG(i)) {
+                    ts->val_type = TEMP_VAL_DEAD;
+                } else {
+                    ts->val_type = TEMP_VAL_REG;
+                    ts->reg = reg;
+                    /* temp value is modified, so the value kept in memory is
+                       potentially not the same */
+                    ts->mem_coherent = 0;
+                    s->reg_to_temp[reg] = arg;
+               }
             }
         oarg_end:
             new_args[i] = reg;
@@ -1981,10 +1985,14 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
         } else {
             if (ts->val_type == TEMP_VAL_REG)
                 s->reg_to_temp[ts->reg] = -1;
-            ts->val_type = TEMP_VAL_REG;
-            ts->reg = reg;
-            ts->mem_coherent = 0; 
-            s->reg_to_temp[reg] = arg;
+            if (IS_DEAD_ARG(i)) {
+                ts->val_type = TEMP_VAL_DEAD;
+            } else {
+                ts->val_type = TEMP_VAL_REG;
+                ts->reg = reg;
+                ts->mem_coherent = 0;
+                s->reg_to_temp[reg] = arg;
+            }
         }
     }
     
