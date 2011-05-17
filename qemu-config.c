@@ -306,7 +306,7 @@ static QemuOptsList qemu_trace_opts = {
             .name = "file",
             .type = QEMU_OPT_STRING,
         },
-        { /* end if list */ }
+        { /* end of list */ }
     },
 };
 #endif
@@ -436,7 +436,7 @@ QemuOptsList qemu_spice_opts = {
             .name = "playback-compression",
             .type = QEMU_OPT_BOOL,
         },
-        { /* end if list */ }
+        { /* end of list */ }
     },
 };
 
@@ -452,7 +452,7 @@ QemuOptsList qemu_option_rom_opts = {
             .name = "romfile",
             .type = QEMU_OPT_STRING,
         },
-        { /* end if list */ }
+        { /* end of list */ }
     },
 };
 
