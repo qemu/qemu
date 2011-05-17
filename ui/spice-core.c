@@ -549,6 +549,18 @@ void qemu_spice_init(void)
     if (password) {
         spice_server_set_ticket(spice_server, password, 0, 0, 0);
     }
+    if (qemu_opt_get_bool(opts, "sasl", 0)) {
+#if SPICE_SERVER_VERSION >= 0x000900 /* 0.9.0 */
+        if (spice_server_set_sasl_appname(spice_server, "qemu") == -1 ||
+            spice_server_set_sasl(spice_server, 1) == -1) {
+            fprintf(stderr, "spice: failed to enable sasl\n");
+            exit(1);
+        }
+#else
+        fprintf(stderr, "spice: sasl is not available (spice >= 0.9 required)\n");
+        exit(1);
+#endif
+    }
     if (qemu_opt_get_bool(opts, "disable-ticketing", 0)) {
         auth = "none";
         spice_server_set_noauth(spice_server);

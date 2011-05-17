@@ -714,6 +714,19 @@ Force using the specified IP version.
 @item password=<secret>
 Set the password you need to authenticate.
 
+@item sasl
+Require that the client use SASL to authenticate with the spice.
+The exact choice of authentication method used is controlled from the
+system / user's SASL configuration file for the 'qemu' service. This
+is typically found in /etc/sasl2/qemu.conf. If running QEMU as an
+unprivileged user, an environment variable SASL_CONF_PATH can be used
+to make it search alternate locations for the service config.
+While some SASL auth methods can also provide data encryption (eg GSSAPI),
+it is recommended that SASL always be combined with the 'tls' and
+'x509' settings to enable use of SSL and server certificates. This
+ensures a data encryption preventing compromise of authentication
+credentials.
+
 @item disable-ticketing
 Allow client connects without authentication.
 

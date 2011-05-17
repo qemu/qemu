@@ -388,6 +388,9 @@ QemuOptsList qemu_spice_opts = {
             .name = "disable-copy-paste",
             .type = QEMU_OPT_BOOL,
         },{
+            .name = "sasl",
+            .type = QEMU_OPT_BOOL,
+        },{
             .name = "x509-dir",
             .type = QEMU_OPT_STRING,
         },{
