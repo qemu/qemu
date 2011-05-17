@@ -185,9 +185,6 @@ static NetClientInfo net_spapr_vlan_info = {
 static int spapr_vlan_init(VIOsPAPRDevice *sdev)
 {
     VIOsPAPRVLANDevice *dev = (VIOsPAPRVLANDevice *)sdev;
-    VIOsPAPRBus *bus;
-
-    bus = DO_UPCAST(VIOsPAPRBus, bus, sdev->qdev.parent_bus);
 
     qemu_macaddr_default_if_unset(&dev->nicconf.macaddr);
 

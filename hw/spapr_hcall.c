@@ -100,22 +100,18 @@ static target_ulong h_enter(CPUState *env, sPAPREnvironment *spapr,
     target_ulong pte_index = args[1];
     target_ulong pteh = args[2];
     target_ulong ptel = args[3];
-    target_ulong porder;
-    target_ulong i, pa;
+    target_ulong i;
     uint8_t *hpte;
 
     /* only handle 4k and 16M pages for now */
-    porder = 12;
     if (pteh & HPTE_V_LARGE) {
 #if 0 /* We don't support 64k pages yet */
         if ((ptel & 0xf000) == 0x1000) {
             /* 64k page */
-            porder = 16;
         } else
 #endif
         if ((ptel & 0xff000) == 0) {
             /* 16M page */
-            porder = 24;
             /* lowest AVA bit must be 0 for 16M pages */
             if (pteh & 0x80) {
                 return H_PARAMETER;
@@ -125,7 +121,6 @@ static target_ulong h_enter(CPUState *env, sPAPREnvironment *spapr,
         }
     }
 
-    pa = ptel & HPTE_R_RPN;
     /* FIXME: bounds check the pa? */
 
     /* Check WIMG */
