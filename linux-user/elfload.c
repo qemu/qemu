@@ -1288,6 +1288,78 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     return sp;
 }
 
+static void probe_guest_base(const char *image_name,
+                             abi_ulong loaddr, abi_ulong hiaddr)
+{
+    /* Probe for a suitable guest base address, if the user has not set
+     * it explicitly, and set guest_base appropriately.
+     * In case of error we will print a suitable message and exit.
+     */
+#if defined(CONFIG_USE_GUEST_BASE)
+    const char *errmsg;
+    if (!have_guest_base && !reserved_va) {
+        unsigned long host_start, real_start, host_size;
+
+        /* Round addresses to page boundaries.  */
+        loaddr &= qemu_host_page_mask;
+        hiaddr = HOST_PAGE_ALIGN(hiaddr);
+
+        if (loaddr < mmap_min_addr) {
+            host_start = HOST_PAGE_ALIGN(mmap_min_addr);
+        } else {
+            host_start = loaddr;
+            if (host_start != loaddr) {
+                errmsg = "Address overflow loading ELF binary";
+                goto exit_errmsg;
+            }
+        }
+        host_size = hiaddr - loaddr;
+        while (1) {
+            /* Do not use mmap_find_vma here because that is limited to the
+               guest address space.  We are going to make the
+               guest address space fit whatever we're given.  */
+            real_start = (unsigned long)
+                mmap((void *)host_start, host_size, PROT_NONE,
+                     MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0);
+            if (real_start == (unsigned long)-1) {
+                goto exit_perror;
+            }
+            if (real_start == host_start) {
+                break;
+            }
+            /* That address didn't work.  Unmap and try a different one.
+               The address the host picked because is typically right at
+               the top of the host address space and leaves the guest with
+               no usable address space.  Resort to a linear search.  We
+               already compensated for mmap_min_addr, so this should not
+               happen often.  Probably means we got unlucky and host
+               address space randomization put a shared library somewhere
+               inconvenient.  */
+            munmap((void *)real_start, host_size);
+            host_start += qemu_host_page_size;
+            if (host_start == loaddr) {
+                /* Theoretically possible if host doesn't have any suitably
+                   aligned areas.  Normally the first mmap will fail.  */
+                errmsg = "Unable to find space for application";
+                goto exit_errmsg;
+            }
+        }
+        qemu_log("Relocating guest address space from 0x"
+                 TARGET_ABI_FMT_lx " to 0x%lx\n",
+                 loaddr, real_start);
+        guest_base = real_start - loaddr;
+    }
+    return;
+
+exit_perror:
+    errmsg = strerror(errno);
+exit_errmsg:
+    fprintf(stderr, "%s: %s\n", image_name, errmsg);
+    exit(-1);
+#endif
+}
+
+
 /* Load an ELF image into the address space.
 
    IMAGE_NAME is the filename of the image, to use in error messages.
@@ -1373,63 +1445,7 @@ static void load_elf_image(const char *image_name, int image_fd,
         /* This is the main executable.  Make sure that the low
            address does not conflict with MMAP_MIN_ADDR or the
            QEMU application itself.  */
-#if defined(CONFIG_USE_GUEST_BASE)
-        /*
-         * In case where user has not explicitly set the guest_base, we
-         * probe here that should we set it automatically.
-         */
-        if (!have_guest_base && !reserved_va) {
-            unsigned long host_start, real_start, host_size;
-
-            /* Round addresses to page boundaries.  */
-            loaddr &= qemu_host_page_mask;
-            hiaddr = HOST_PAGE_ALIGN(hiaddr);
-
-            if (loaddr < mmap_min_addr) {
-                host_start = HOST_PAGE_ALIGN(mmap_min_addr);
-            } else {
-                host_start = loaddr;
-                if (host_start != loaddr) {
-                    errmsg = "Address overflow loading ELF binary";
-                    goto exit_errmsg;
-                }
-            }
-            host_size = hiaddr - loaddr;
-            while (1) {
-                /* Do not use mmap_find_vma here because that is limited to the
-                   guest address space.  We are going to make the
-                   guest address space fit whatever we're given.  */
-                real_start = (unsigned long)
-                    mmap((void *)host_start, host_size, PROT_NONE,
-                         MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0);
-                if (real_start == (unsigned long)-1) {
-                    goto exit_perror;
-                }
-                if (real_start == host_start) {
-                    break;
-                }
-                /* That address didn't work.  Unmap and try a different one.
-                   The address the host picked because is typically right at
-                   the top of the host address space and leaves the guest with
-                   no usable address space.  Resort to a linear search.  We
-                   already compensated for mmap_min_addr, so this should not
-                   happen often.  Probably means we got unlucky and host
-                   address space randomization put a shared library somewhere
-                   inconvenient.  */
-                munmap((void *)real_start, host_size);
-                host_start += qemu_host_page_size;
-                if (host_start == loaddr) {
-                    /* Theoretically possible if host doesn't have any suitably
-                       aligned areas.  Normally the first mmap will fail.  */
-                    errmsg = "Unable to find space for application";
-                    goto exit_errmsg;
-                }
-            }
-            qemu_log("Relocating guest address space from 0x"
-                     TARGET_ABI_FMT_lx " to 0x%lx\n", loaddr, real_start);
-            guest_base = real_start - loaddr;
-        }
-#endif
+        probe_guest_base(image_name, loaddr, hiaddr);
     }
     load_bias = load_addr - loaddr;
 
