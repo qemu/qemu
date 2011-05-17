@@ -229,7 +229,7 @@ sdl_config="${cross_prefix}${SDL_CONFIG-sdl-config}"
 # default flags for all hosts
 QEMU_CFLAGS="-fno-strict-aliasing $QEMU_CFLAGS"
 CFLAGS="-g $CFLAGS"
-QEMU_CFLAGS="-Wall -Wundef -Wendif-labels -Wwrite-strings -Wmissing-prototypes $QEMU_CFLAGS"
+QEMU_CFLAGS="-Wall -Wundef -Wwrite-strings -Wmissing-prototypes $QEMU_CFLAGS"
 QEMU_CFLAGS="-Wstrict-prototypes -Wredundant-decls $QEMU_CFLAGS"
 QEMU_CFLAGS="-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE $QEMU_CFLAGS"
 QEMU_CFLAGS="-D_FORTIFY_SOURCE=2 $QEMU_CFLAGS"
@@ -1037,7 +1037,7 @@ fi
 gcc_flags="-Wold-style-declaration -Wold-style-definition -Wtype-limits"
 gcc_flags="-Wformat-security -Wformat-y2k -Winit-self -Wignored-qualifiers $gcc_flags"
 gcc_flags="-Wmissing-include-dirs -Wempty-body -Wnested-externs $gcc_flags"
-gcc_flags="-fstack-protector-all $gcc_flags"
+gcc_flags="-fstack-protector-all -Wendif-labels $gcc_flags"
 cat > $TMPC << EOF
 int main(void) { return 0; }
 EOF
