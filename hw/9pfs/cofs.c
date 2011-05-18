@@ -56,3 +56,67 @@ int v9fs_co_statfs(V9fsState *s, V9fsString *path, struct statfs *stbuf)
         });
     return err;
 }
+
+int v9fs_co_chmod(V9fsState *s, V9fsString *path, mode_t mode)
+{
+    int err;
+    FsCred cred;
+
+    cred_init(&cred);
+    cred.fc_mode = mode;
+    v9fs_co_run_in_worker(
+        {
+            err = s->ops->chmod(&s->ctx, path->data, &cred);
+            if (err < 0) {
+                err = -errno;
+            }
+        });
+    return err;
+}
+
+int v9fs_co_utimensat(V9fsState *s, V9fsString *path,
+                      struct timespec times[2])
+{
+    int err;
+
+    v9fs_co_run_in_worker(
+        {
+            err = s->ops->utimensat(&s->ctx, path->data, times);
+            if (err < 0) {
+                err = -errno;
+            }
+        });
+    return err;
+}
+
+int v9fs_co_chown(V9fsState *s, V9fsString *path, uid_t uid, gid_t gid)
+{
+    int err;
+    FsCred cred;
+
+    cred_init(&cred);
+    cred.fc_uid = uid;
+    cred.fc_gid = gid;
+    v9fs_co_run_in_worker(
+        {
+            err = s->ops->chown(&s->ctx, path->data, &cred);
+            if (err < 0) {
+                err = -errno;
+            }
+        });
+    return err;
+}
+
+int v9fs_co_truncate(V9fsState *s, V9fsString *path, off_t size)
+{
+    int err;
+
+    v9fs_co_run_in_worker(
+        {
+            err = s->ops->truncate(&s->ctx, path->data, size);
+            if (err < 0) {
+                err = -errno;
+            }
+        });
+    return err;
+}

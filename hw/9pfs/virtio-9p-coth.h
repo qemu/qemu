@@ -64,4 +64,8 @@ extern void v9fs_co_seekdir(V9fsState *, V9fsFidState *, off_t);
 extern void v9fs_co_rewinddir(V9fsState *, V9fsFidState *);
 extern int v9fs_co_statfs(V9fsState *, V9fsString *, struct statfs *);
 extern int v9fs_co_lstat(V9fsState *, V9fsString *, struct stat *);
+extern int v9fs_co_chmod(V9fsState *, V9fsString *, mode_t);
+extern int v9fs_co_utimensat(V9fsState *, V9fsString *, struct timespec [2]);
+extern int v9fs_co_chown(V9fsState *, V9fsString *, uid_t, gid_t);
+extern int v9fs_co_truncate(V9fsState *, V9fsString *, off_t);
 #endif
