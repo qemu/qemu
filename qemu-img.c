@@ -496,14 +496,37 @@ static int img_commit(int argc, char **argv)
     return 0;
 }
 
+/*
+ * Checks whether the sector is not a zero sector.
+ *
+ * Attention! The len must be a multiple of 4 * sizeof(long) due to
+ * restriction of optimizations in this function.
+ */
 static int is_not_zero(const uint8_t *sector, int len)
 {
+    /*
+     * Use long as the biggest available internal data type that fits into the
+     * CPU register and unroll the loop to smooth out the effect of memory
+     * latency.
+     */
+
     int i;
-    len >>= 2;
-    for(i = 0;i < len; i++) {
-        if (((uint32_t *)sector)[i] != 0)
+    long d0, d1, d2, d3;
+    const long * const data = (const long *) sector;
+
+    len /= sizeof(long);
+
+    for(i = 0; i < len; i += 4) {
+        d0 = data[i + 0];
+        d1 = data[i + 1];
+        d2 = data[i + 2];
+        d3 = data[i + 3];
+
+        if (d0 || d1 || d2 || d3) {
             return 1;
+        }
     }
+
     return 0;
 }
 
