@@ -93,13 +93,13 @@ static int pci_ich9_ahci_init(PCIDevice *dev)
 
     qemu_register_reset(ahci_reset, d);
 
-    /* XXX BAR size should be 1k, but that breaks, so bump it to 4k for now */
-    pci_register_bar_simple(&d->card, 5, 0x1000, 0, d->ahci.mem);
-
     msi_init(dev, 0x50, 1, true, false);
 
     ahci_init(&d->ahci, &dev->qdev, 6);
     d->ahci.irq = d->card.irq[0];
+
+    /* XXX BAR size should be 1k, but that breaks, so bump it to 4k for now */
+    pci_register_bar_simple(&d->card, 5, 0x1000, 0, d->ahci.mem);
 
     return 0;
 }
