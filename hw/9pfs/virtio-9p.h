@@ -5,6 +5,7 @@
 #include <dirent.h>
 #include <sys/time.h>
 #include <utime.h>
+#include <sys/resource.h>
 #include "hw/virtio.h"
 #include "fsdev/file-op-9p.h"
 
@@ -101,6 +102,9 @@ enum p9_proto_version {
 #define P9_NOTAG    (u16)(~0)
 #define P9_NOFID    (u32)(~0)
 #define P9_MAXWELEM 16
+
+#define FID_REFERENCED          0x1
+#define FID_NON_RECLAIMABLE     0x2
 static inline const char *rpath(FsContext *ctx, const char *path, char *buffer)
 {
     snprintf(buffer, PATH_MAX, "%s/%s", ctx->fs_root, path);
@@ -198,14 +202,21 @@ struct V9fsFidState
     int32_t fid;
     V9fsString path;
     union {
-	int fd;
-	DIR *dir;
-	V9fsXattr xattr;
+        int fd;
+        DIR *dir;
+        V9fsXattr xattr;
     } fs;
+    union {
+        int fd;
+        DIR *dir;
+    } fs_reclaim;
+    int flags;
+    int open_flags;
     uid_t uid;
     int ref;
     int clunked;
     V9fsFidState *next;
+    V9fsFidState *rclm_lst;
 };
 
 typedef struct V9fsState
@@ -354,6 +365,9 @@ typedef struct V9fsGetlock
     V9fsString client_id;
 } V9fsGetlock;
 
+extern int open_fd_hw;
+extern int total_open_fd;
+
 size_t pdu_packunpack(void *addr, struct iovec *sg, int sg_count,
                       size_t offset, size_t size, int pack);
 
@@ -364,4 +378,6 @@ static inline size_t do_pdu_unpack(void *dst, struct iovec *sg, int sg_count,
 }
 
 extern void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq);
+extern void virtio_9p_set_fd_limit(void);
+extern void v9fs_reclaim_fd(V9fsState *s);
 #endif

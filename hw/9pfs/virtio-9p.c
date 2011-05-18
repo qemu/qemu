@@ -22,6 +22,9 @@
 #include "virtio-9p-coth.h"
 
 int debug_9p_pdu;
+int open_fd_hw;
+int total_open_fd;
+static int open_fd_rc;
 
 enum {
     Oread   = 0x00,
@@ -234,12 +237,41 @@ static size_t v9fs_string_size(V9fsString *str)
 
 static V9fsFidState *get_fid(V9fsState *s, int32_t fid)
 {
+    int err;
     V9fsFidState *f;
 
     for (f = s->fid_list; f; f = f->next) {
         BUG_ON(f->clunked);
         if (f->fid == fid) {
+            /*
+             * Update the fid ref upfront so that
+             * we don't get reclaimed when we yield
+             * in open later.
+             */
             f->ref++;
+
+            /*
+             * check whether we need to reopen the
+             * file. We might have closed the fd
+             * while trying to free up some file
+             * descriptors.
+             */
+            if (f->fid_type == P9_FID_FILE) {
+                if (f->fs.fd == -1) {
+                    do {
+                        err = v9fs_co_open(s, f, f->open_flags);
+                    } while (err == -EINTR);
+                    if (err < 0) {
+                        f->ref--;
+                        return NULL;
+                    }
+                }
+            }
+            /*
+             * Mark the fid as referenced so that the LRU
+             * reclaim won't close the file descriptor
+             */
+            f->flags |= FID_REFERENCED;
             return f;
         }
     }
@@ -261,6 +293,11 @@ static V9fsFidState *alloc_fid(V9fsState *s, int32_t fid)
     f->fid = fid;
     f->fid_type = P9_FID_NONE;
     f->ref = 1;
+    /*
+     * Mark the fid as referenced so that the LRU
+     * reclaim won't close the file descriptor
+     */
+    f->flags |= FID_REFERENCED;
     f->next = s->fid_list;
     s->fid_list = f;
 
@@ -306,9 +343,12 @@ static int free_fid(V9fsState *s, V9fsFidState *fidp)
     int retval = 0;
 
     if (fidp->fid_type == P9_FID_FILE) {
-        retval = v9fs_co_close(s, fidp);
+        /* If we reclaimed the fd no need to close */
+        if (fidp->fs.fd != -1) {
+            retval = v9fs_co_close(s, fidp->fs.fd);
+        }
     } else if (fidp->fid_type == P9_FID_DIR) {
-        retval = v9fs_co_closedir(s, fidp);
+        retval = v9fs_co_closedir(s, fidp->fs.dir);
     } else if (fidp->fid_type == P9_FID_XATTR) {
         retval = v9fs_xattr_fid_clunk(s, fidp);
     }
@@ -321,6 +361,9 @@ static void put_fid(V9fsState *s, V9fsFidState *fidp)
 {
     BUG_ON(!fidp->ref);
     fidp->ref--;
+    /*
+     * Don't free the fid if it is in reclaim list
+     */
     if (!fidp->ref && fidp->clunked) {
         free_fid(s, fidp);
     }
@@ -342,6 +385,101 @@ static int clunk_fid(V9fsState *s, int32_t fid)
     fidp = *fidpp;
     *fidpp = fidp->next;
     fidp->clunked = 1;
+    return 0;
+}
+
+void v9fs_reclaim_fd(V9fsState *s)
+{
+    int reclaim_count = 0;
+    V9fsFidState *f, *reclaim_list = NULL;
+
+    for (f = s->fid_list; f; f = f->next) {
+        /*
+         * Unlink fids cannot be reclaimed. Check
+         * for them and skip them. Also skip fids
+         * currently being operated on.
+         */
+        if (f->ref || f->flags & FID_NON_RECLAIMABLE) {
+            continue;
+        }
+        /*
+         * if it is a recently referenced fid
+         * we leave the fid untouched and clear the
+         * reference bit. We come back to it later
+         * in the next iteration. (a simple LRU without
+         * moving list elements around)
+         */
+        if (f->flags & FID_REFERENCED) {
+            f->flags &= ~FID_REFERENCED;
+            continue;
+        }
+        /*
+         * Add fids to reclaim list.
+         */
+        if (f->fid_type == P9_FID_FILE) {
+            if (f->fs.fd != -1) {
+                /*
+                 * Up the reference count so that
+                 * a clunk request won't free this fid
+                 */
+                f->ref++;
+                f->rclm_lst = reclaim_list;
+                reclaim_list = f;
+                f->fs_reclaim.fd = f->fs.fd;
+                f->fs.fd = -1;
+                reclaim_count++;
+            }
+        }
+        if (reclaim_count >= open_fd_rc) {
+            break;
+        }
+    }
+    /*
+     * Now close the fid in reclaim list. Free them if they
+     * are already clunked.
+     */
+    while (reclaim_list) {
+        f = reclaim_list;
+        reclaim_list = f->rclm_lst;
+        if (f->fid_type == P9_FID_FILE) {
+            v9fs_co_close(s, f->fs_reclaim.fd);
+        }
+        f->rclm_lst = NULL;
+        /*
+         * Now drop the fid reference, free it
+         * if clunked.
+         */
+        put_fid(s, f);
+    }
+}
+
+static int v9fs_mark_fids_unreclaim(V9fsState *s, V9fsString *str)
+{
+    int err;
+    V9fsFidState *fidp, head_fid;
+
+    head_fid.next = s->fid_list;
+    for (fidp = s->fid_list; fidp; fidp = fidp->next) {
+        if (!strcmp(fidp->path.data, str->data)) {
+            /* Mark the fid non reclaimable. */
+            fidp->flags |= FID_NON_RECLAIMABLE;
+            /* reopen the file if already closed */
+            if (fidp->fs.fd == -1) {
+                do {
+                    err = v9fs_co_open(s, fidp, fidp->open_flags);
+                } while (err == -EINTR);
+                if (err < 0) {
+                    return -1;
+                }
+                /*
+                 * Go back to head of fid list because
+                 * the list could have got updated when
+                 * switched to the worker thread
+                 */
+                fidp = &head_fid;
+            }
+        }
+    }
     return 0;
 }
 
@@ -1389,6 +1527,14 @@ static void v9fs_open(void *opaque)
             goto out;
         }
         fidp->fid_type = P9_FID_FILE;
+        fidp->open_flags = flags;
+        if (flags & O_EXCL) {
+            /*
+             * We let the host file system do O_EXCL check
+             * We should not reclaim such fd
+             */
+            fidp->flags |= FID_NON_RECLAIMABLE;
+        }
         iounit = get_iounit(s, &fidp->path);
         offset += pdu_marshal(pdu, offset, "Qd", &qid, iounit);
         err = offset;
@@ -1432,6 +1578,14 @@ static void v9fs_lcreate(void *opaque)
         goto out;
     }
     fidp->fid_type = P9_FID_FILE;
+    fidp->open_flags = flags;
+    if (flags & O_EXCL) {
+        /*
+         * We let the host file system do O_EXCL check
+         * We should not reclaim such fd
+         */
+        fidp->flags |= FID_NON_RECLAIMABLE;
+    }
     iounit =  get_iounit(pdu->s, &fullname);
 
     err = v9fs_co_lstat(pdu->s, &fullname, &stbuf);
@@ -1993,6 +2147,14 @@ static void v9fs_create(void *opaque)
             goto out;
         }
         fidp->fid_type = P9_FID_FILE;
+        fidp->open_flags = omode_to_uflags(mode);
+        if (fidp->open_flags & O_EXCL) {
+            /*
+             * We let the host file system do O_EXCL check
+             * We should not reclaim such fd
+             */
+            fidp->flags |= FID_NON_RECLAIMABLE;
+        }
     }
     err = v9fs_co_lstat(pdu->s, &fullname, &stbuf);
     if (err < 0) {
@@ -2124,11 +2286,19 @@ static void v9fs_remove(void *opaque)
         err = -EINVAL;
         goto out_nofid;
     }
+    /*
+     * IF the file is unlinked, we cannot reopen
+     * the file later. So don't reclaim fd
+     */
+    err = v9fs_mark_fids_unreclaim(pdu->s, &fidp->path);
+    if (err < 0) {
+        goto out_err;
+    }
     err = v9fs_co_remove(pdu->s, &fidp->path);
     if (!err) {
         err = offset;
     }
-
+out_err:
     /* For TREMOVE we need to clunk the fid even on failed remove */
     clunk_fid(pdu->s, fidp->fid);
     put_fid(pdu->s, fidp);
@@ -2822,4 +2992,15 @@ void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
         submit_pdu(s, pdu);
     }
     free_pdu(s, pdu);
+}
+
+void virtio_9p_set_fd_limit(void)
+{
+    struct rlimit rlim;
+    if (getrlimit(RLIMIT_NOFILE, &rlim) < 0) {
+        fprintf(stderr, "Failed to get the resource limit\n");
+        exit(1);
+    }
+    open_fd_hw = rlim.rlim_cur - MIN(400, rlim.rlim_cur/3);
+    open_fd_rc = rlim.rlim_cur/2;
 }
