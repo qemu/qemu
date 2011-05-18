@@ -31,6 +31,7 @@
 #include "hw/hw.h"
 #include "hw/qdev.h"
 #include "osdep.h"
+#include "trace.h"
 #include "kvm.h"
 #include "hw/xen.h"
 #include "qemu-timer.h"
@@ -56,7 +57,9 @@
 #endif
 #endif
 #else /* !CONFIG_USER_ONLY */
+#if defined(CONFIG_XEN_MAPCACHE)
 #include "xen-mapcache.h"
+#endif
 #endif
 
 //#define DEBUG_TB_INVALIDATE
@@ -2970,12 +2973,14 @@ ram_addr_t qemu_ram_alloc_from_ptr(DeviceState *dev, const char *name,
             new_block->host = mmap((void*)0x1000000, size,
                                    PROT_EXEC|PROT_READ|PROT_WRITE,
                                    MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-#else
+#elif defined(CONFIG_XEN_MAPCACHE)
             if (xen_mapcache_enabled()) {
                 xen_ram_alloc(new_block->offset, size);
             } else {
                 new_block->host = qemu_vmalloc(size);
             }
+#else
+            new_block->host = qemu_vmalloc(size);
 #endif
             qemu_madvise(new_block->host, size, QEMU_MADV_MERGEABLE);
         }
@@ -3023,12 +3028,14 @@ void qemu_ram_free(ram_addr_t addr)
             } else {
 #if defined(TARGET_S390X) && defined(CONFIG_KVM)
                 munmap(block->host, block->length);
-#else
+#elif defined(CONFIG_XEN_MAPCACHE)
                 if (xen_mapcache_enabled()) {
                     qemu_invalidate_entry(block->host);
                 } else {
                     qemu_vfree(block->host);
                 }
+#else
+                qemu_vfree(block->host);
 #endif
             }
             qemu_free(block);
@@ -3117,6 +3124,7 @@ void *qemu_get_ram_ptr(ram_addr_t addr)
                 QLIST_REMOVE(block, next);
                 QLIST_INSERT_HEAD(&ram_list.blocks, block, next);
             }
+#if defined(CONFIG_XEN_MAPCACHE)
             if (xen_mapcache_enabled()) {
                 /* We need to check if the requested address is in the RAM
                  * because we don't want to map the entire memory in QEMU.
@@ -3127,6 +3135,7 @@ void *qemu_get_ram_ptr(ram_addr_t addr)
                     block->host = xen_map_block(block->offset, block->length);
                 }
             }
+#endif
             return block->host + (addr - block->offset);
         }
     }
@@ -3146,6 +3155,7 @@ void *qemu_safe_ram_ptr(ram_addr_t addr)
 
     QLIST_FOREACH(block, &ram_list.blocks, next) {
         if (addr - block->offset < block->length) {
+#if defined(CONFIG_XEN_MAPCACHE)
             if (xen_mapcache_enabled()) {
                 /* We need to check if the requested address is in the RAM
                  * because we don't want to map the entire memory in QEMU.
@@ -3156,6 +3166,7 @@ void *qemu_safe_ram_ptr(ram_addr_t addr)
                     block->host = xen_map_block(block->offset, block->length);
                 }
             }
+#endif
             return block->host + (addr - block->offset);
         }
     }
@@ -3169,7 +3180,7 @@ void *qemu_safe_ram_ptr(ram_addr_t addr)
 void qemu_put_ram_ptr(void *addr)
 {
     trace_qemu_put_ram_ptr(addr);
-
+#if defined(CONFIG_XEN_MAPCACHE)
     if (xen_mapcache_enabled()) {
         RAMBlock *block;
 
@@ -3185,6 +3196,7 @@ void qemu_put_ram_ptr(void *addr)
             qemu_map_cache_unlock(addr);
         }
     }
+#endif
 }
 
 int qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
@@ -3203,10 +3215,12 @@ int qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
         }
     }
 
+#if defined(CONFIG_XEN_MAPCACHE)
     if (xen_mapcache_enabled()) {
         *ram_addr = qemu_ram_addr_from_mapcache(ptr);
         return 0;
     }
+#endif
 
     return -1;
 }
@@ -4128,6 +4142,7 @@ void cpu_physical_memory_unmap(void *buffer, target_phys_addr_t len,
                 access_len -= l;
             }
         }
+#if defined(CONFIG_XEN_MAPCACHE)
         if (xen_mapcache_enabled()) {
             uint8_t *buffer1 = buffer;
             uint8_t *end_buffer = buffer + len;
@@ -4137,6 +4152,7 @@ void cpu_physical_memory_unmap(void *buffer, target_phys_addr_t len,
                 buffer1 += TARGET_PAGE_SIZE;
             }
         }
+#endif
         return;
     }
     if (is_write) {
