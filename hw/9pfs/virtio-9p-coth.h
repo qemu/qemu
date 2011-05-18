@@ -71,4 +71,6 @@ extern int v9fs_co_truncate(V9fsState *, V9fsString *, off_t);
 extern int v9fs_co_llistxattr(V9fsState *, V9fsString *, void *, size_t);
 extern int v9fs_co_lgetxattr(V9fsState *, V9fsString *,
                              V9fsString *, void *, size_t);
+extern int v9fs_co_mknod(V9fsState *, V9fsString *, uid_t,
+                         gid_t, dev_t, mode_t);
 #endif
