@@ -194,6 +194,12 @@ disable sun4m_iommu_page_get_flags(uint64_t pa, uint64_t iopte, uint32_t ret) "g
 disable sun4m_iommu_translate_pa(uint64_t addr, uint64_t pa, uint32_t iopte) "xlate dva %"PRIx64" => pa %"PRIx64" iopte = %x"
 disable sun4m_iommu_bad_addr(uint64_t addr) "bad addr %"PRIx64""
 
+# hw/usb-ehci.c
+disable usb_ehci_reset(void) "=== RESET ==="
+disable usb_ehci_mmio_readl(uint32_t addr, const char *str, uint32_t val) "rd mmio %04x [%s] = %x"
+disable usb_ehci_mmio_writel(uint32_t addr, const char *str, uint32_t val, uint32_t oldval) "wr mmio %04x [%s] = %x (old: %x)"
+disable usb_ehci_usbsts(const char *sts, int state) "usbsts %s %d"
+
 # hw/usb-desc.c
 disable usb_desc_device(int addr, int len, int ret) "dev %d query device, len %d, ret %d"
 disable usb_desc_device_qualifier(int addr, int len, int ret) "dev %d query device qualifier, len %d, ret %d"

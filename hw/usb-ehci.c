@@ -30,6 +30,7 @@
 #include "usb.h"
 #include "pci.h"
 #include "monitor.h"
+#include "trace.h"
 
 #define EHCI_DEBUG   0
 #define STATE_DEBUG  0       /* state transitions  */
@@ -417,24 +418,23 @@ typedef struct {
     } while(0)
 
 
-#if EHCI_DEBUG
-static const char *addr2str(unsigned addr)
+static const char *addr2str(target_phys_addr_t addr)
 {
-    const char *r            = "   unknown";
+    const char *r            = "unknown";
     const char *n[] = {
-        [ CAPLENGTH ]        = " CAPLENGTH",
+        [ CAPLENGTH ]        = "CAPLENGTH",
         [ HCIVERSION ]       = "HCIVERSION",
-        [ HCSPARAMS ]        = " HCSPARAMS",
-        [ HCCPARAMS ]        = " HCCPARAMS",
-        [ USBCMD ]           = "   COMMAND",
-        [ USBSTS ]           = "    STATUS",
-        [ USBINTR ]          = " INTERRUPT",
-        [ FRINDEX ]          = " FRAME IDX",
+        [ HCSPARAMS ]        = "HCSPARAMS",
+        [ HCCPARAMS ]        = "HCCPARAMS",
+        [ USBCMD ]           = "USBCMD",
+        [ USBSTS ]           = "USBSTS",
+        [ USBINTR ]          = "USBINTR",
+        [ FRINDEX ]          = "FRINDEX",
         [ PERIODICLISTBASE ] = "P-LIST BASE",
         [ ASYNCLISTADDR ]    = "A-LIST ADDR",
         [ PORTSC_BEGIN ...
-          PORTSC_END ]       = "PORT STATUS",
-        [ CONFIGFLAG ]       = "CONFIG FLAG",
+          PORTSC_END ]       = "PORTSC",
+        [ CONFIGFLAG ]       = "CONFIGFLAG",
     };
 
     if (addr < ARRAY_SIZE(n) && n[addr] != NULL) {
@@ -443,8 +443,61 @@ static const char *addr2str(unsigned addr)
         return r;
     }
 }
-#endif
 
+static void ehci_trace_usbsts(uint32_t mask, int state)
+{
+    /* interrupts */
+    if (mask & USBSTS_INT) {
+        trace_usb_ehci_usbsts("INT", state);
+    }
+    if (mask & USBSTS_ERRINT) {
+        trace_usb_ehci_usbsts("ERRINT", state);
+    }
+    if (mask & USBSTS_PCD) {
+        trace_usb_ehci_usbsts("PCD", state);
+    }
+    if (mask & USBSTS_FLR) {
+        trace_usb_ehci_usbsts("FLR", state);
+    }
+    if (mask & USBSTS_HSE) {
+        trace_usb_ehci_usbsts("HSE", state);
+    }
+    if (mask & USBSTS_IAA) {
+        trace_usb_ehci_usbsts("IAA", state);
+    }
+
+    /* status */
+    if (mask & USBSTS_HALT) {
+        trace_usb_ehci_usbsts("HALT", state);
+    }
+    if (mask & USBSTS_REC) {
+        trace_usb_ehci_usbsts("REC", state);
+    }
+    if (mask & USBSTS_PSS) {
+        trace_usb_ehci_usbsts("PSS", state);
+    }
+    if (mask & USBSTS_ASS) {
+        trace_usb_ehci_usbsts("ASS", state);
+    }
+}
+
+static inline void ehci_set_usbsts(EHCIState *s, int mask)
+{
+    if ((s->usbsts & mask) == mask) {
+        return;
+    }
+    ehci_trace_usbsts(mask, 1);
+    s->usbsts |= mask;
+}
+
+static inline void ehci_clear_usbsts(EHCIState *s, int mask)
+{
+    if ((s->usbsts & mask) == 0) {
+        return;
+    }
+    ehci_trace_usbsts(mask, 0);
+    s->usbsts &= ~mask;
+}
 
 static inline void ehci_set_interrupt(EHCIState *s, int intr)
 {
@@ -452,7 +505,7 @@ static inline void ehci_set_interrupt(EHCIState *s, int intr)
 
     // TODO honour interrupt threshold requests
 
-    s->usbsts |= intr;
+    ehci_set_usbsts(s, intr);
 
     if ((s->usbsts & USBINTR_MASK) & s->usbintr) {
         level = 1;
@@ -526,6 +579,7 @@ static void ehci_reset(void *opaque)
     uint8_t *pci_conf;
     int i;
 
+    trace_usb_ehci_reset();
     pci_conf = s->dev.config;
 
     memset(&s->mmio[OPREGBASE], 0x00, MMIO_SIZE - OPREGBASE);
@@ -576,6 +630,7 @@ static uint32_t ehci_mem_readl(void *ptr, target_phys_addr_t addr)
     val = s->mmio[addr] | (s->mmio[addr+1] << 8) |
           (s->mmio[addr+2] << 16) | (s->mmio[addr+3] << 24);
 
+    trace_usb_ehci_mmio_readl(addr, addr2str(addr), val);
     return val;
 }
 
@@ -645,9 +700,9 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
 {
     EHCIState *s = ptr;
     int i;
-#if EHCI_DEBUG
-    const char *str;
-#endif
+
+    trace_usb_ehci_mmio_writel(addr, addr2str(addr), val,
+                               *(uint32_t *)(&s->mmio[addr]));
 
     /* Only aligned reads are allowed on OHCI */
     if (addr & 3) {
@@ -669,30 +724,21 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
 
 
     /* Do any register specific pre-write processing here.  */
-#if EHCI_DEBUG
-    str = addr2str((unsigned) addr);
-#endif
     switch(addr) {
     case USBCMD:
-        DPRINTF("ehci_mem_writel: USBCMD val=0x%08X, current cmd=0x%08X\n",
-                val, s->usbcmd);
-
         if ((val & USBCMD_RUNSTOP) && !(s->usbcmd & USBCMD_RUNSTOP)) {
-            DPRINTF("ehci_mem_writel: %s run, clear halt\n", str);
             qemu_mod_timer(s->frame_timer, qemu_get_clock_ns(vm_clock));
             SET_LAST_RUN_CLOCK(s);
-            s->usbsts &= ~USBSTS_HALT;
+            ehci_clear_usbsts(s, USBSTS_HALT);
         }
 
         if (!(val & USBCMD_RUNSTOP) && (s->usbcmd & USBCMD_RUNSTOP)) {
-            DPRINTF("                         ** STOP **\n");
             qemu_del_timer(s->frame_timer);
             // TODO - should finish out some stuff before setting halt
-            s->usbsts |= USBSTS_HALT;
+            ehci_set_usbsts(s, USBSTS_HALT);
         }
 
         if (val & USBCMD_HCRESET) {
-            DPRINTF("ehci_mem_writel: %s run, resetting\n", str);
             ehci_reset(s);
             val &= ~USBCMD_HCRESET;
         }
@@ -703,56 +749,24 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
                     val & USBCMD_FLS);
             val &= ~USBCMD_FLS;
         }
-#if EHCI_DEBUG
-        if ((val & USBCMD_PSE) && !(s->usbcmd & USBCMD_PSE)) {
-            DPRINTF("periodic scheduling enabled\n");
-        }
-        if (!(val & USBCMD_PSE) && (s->usbcmd & USBCMD_PSE)) {
-            DPRINTF("periodic scheduling disabled\n");
-        }
-        if ((val & USBCMD_ASE) && !(s->usbcmd & USBCMD_ASE)) {
-            DPRINTF("asynchronous scheduling enabled\n");
-        }
-        if (!(val & USBCMD_ASE) && (s->usbcmd & USBCMD_ASE)) {
-            DPRINTF("asynchronous scheduling disabled\n");
-        }
-        if ((val & USBCMD_IAAD) && !(s->usbcmd & USBCMD_IAAD)) {
-            DPRINTF("doorbell request received\n");
-        }
-        if ((val & USBCMD_LHCR) && !(s->usbcmd & USBCMD_LHCR)) {
-            DPRINTF("light host controller reset received\n");
-        }
-        if ((val & USBCMD_ITC) != (s->usbcmd & USBCMD_ITC)) {
-            DPRINTF("interrupt threshold control set to %x\n",
-                    (val & USBCMD_ITC)>>USBCMD_ITC_SH);
-        }
-#endif
         break;
-
 
     case USBSTS:
         val &= USBSTS_RO_MASK;              // bits 6 thru 31 are RO
-        DPRINTF("ehci_mem_writel: %s RWC set to 0x%08X\n", str, val);
-
-        val = (s->usbsts &= ~val);         // bits 0 thru 5 are R/WC
-
-        DPRINTF("ehci_mem_writel: %s updating interrupt condition\n", str);
+        ehci_clear_usbsts(s, val);          // bits 0 thru 5 are R/WC
+        val = s->usbsts;
         ehci_set_interrupt(s, 0);
         break;
 
-
     case USBINTR:
         val &= USBINTR_MASK;
-        DPRINTF("ehci_mem_writel: %s set to 0x%08X\n", str, val);
         break;
 
     case FRINDEX:
         s->sofv = val >> 3;
-        DPRINTF("ehci_mem_writel: %s set to 0x%08X\n", str, val);
         break;
 
     case CONFIGFLAG:
-        DPRINTF("ehci_mem_writel: %s set to 0x%08X\n", str, val);
         val &= 0x1;
         if (val) {
             for(i = 0; i < NB_PORTS; i++)
@@ -766,7 +780,6 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
               "ehci: PERIODIC list base register set while periodic schedule\n"
               "      is enabled and HC is enabled\n");
         }
-        DPRINTF("ehci_mem_writel: P-LIST BASE set to 0x%08X\n", val);
         break;
 
     case ASYNCLISTADDR:
@@ -775,7 +788,6 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
               "ehci: ASYNC list address register set while async schedule\n"
               "      is enabled and HC is enabled\n");
         }
-        DPRINTF("ehci_mem_writel: A-LIST ADDR set to 0x%08X\n", val);
         break;
     }
 
@@ -1227,7 +1239,7 @@ static int ehci_state_waitlisthead(EHCIState *ehci,  int async, int *state)
 
     /* set reclamation flag at start event (4.8.6) */
     if (async) {
-        ehci->usbsts |= USBSTS_REC;
+        ehci_set_usbsts(ehci, USBSTS_REC);
     }
 
     /*  Find the head of the list (4.9.1.1) */
@@ -1334,7 +1346,7 @@ static int ehci_state_fetchqh(EHCIState *ehci, int async, int *state)
 
         /*  EHCI spec version 1.0 Section 4.8.3 & 4.10.1 */
         if (ehci->usbsts & USBSTS_REC) {
-            ehci->usbsts &= ~USBSTS_REC;
+            ehci_clear_usbsts(ehci, USBSTS_REC);
         } else {
             DPRINTF("FETCHQH:  QH 0x%08x. H-bit set, reclamation status reset"
                        " - done processing\n", ehci->qhaddr);
@@ -1534,7 +1546,7 @@ static int ehci_state_execute(EHCIState *ehci, int async, int *state)
     }
 
     if (async) {
-        ehci->usbsts |= USBSTS_REC;
+        ehci_set_usbsts(ehci, USBSTS_REC);
     }
 
     ehci->exec_status = ehci_execute(ehci, qh);
@@ -1734,13 +1746,13 @@ static void ehci_advance_async_state(EHCIState *ehci)
         if (!(ehci->usbcmd & USBCMD_ASE)) {
             break;
         }
-        ehci->usbsts |= USBSTS_ASS;
+        ehci_set_usbsts(ehci, USBSTS_ASS);
         ehci->astate = EST_ACTIVE;
         // No break, fall through to ACTIVE
 
     case EST_ACTIVE:
         if ( !(ehci->usbcmd & USBCMD_ASE)) {
-            ehci->usbsts &= ~USBSTS_ASS;
+            ehci_clear_usbsts(ehci, USBSTS_ASS);
             ehci->astate = EST_INACTIVE;
             break;
         }
@@ -1800,8 +1812,7 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
     switch(ehci->pstate) {
     case EST_INACTIVE:
         if ( !(ehci->frindex & 7) && (ehci->usbcmd & USBCMD_PSE)) {
-            DPRINTF("PERIODIC going active\n");
-            ehci->usbsts |= USBSTS_PSS;
+            ehci_set_usbsts(ehci, USBSTS_PSS);
             ehci->pstate = EST_ACTIVE;
             // No break, fall through to ACTIVE
         } else
@@ -1809,8 +1820,7 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
 
     case EST_ACTIVE:
         if ( !(ehci->frindex & 7) && !(ehci->usbcmd & USBCMD_PSE)) {
-            DPRINTF("PERIODIC going inactive\n");
-            ehci->usbsts &= ~USBSTS_PSS;
+            ehci_clear_usbsts(ehci, USBSTS_PSS);
             ehci->pstate = EST_INACTIVE;
             break;
         }
