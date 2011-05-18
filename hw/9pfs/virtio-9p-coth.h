@@ -63,4 +63,5 @@ extern off_t v9fs_co_telldir(V9fsState *, V9fsFidState *);
 extern void v9fs_co_seekdir(V9fsState *, V9fsFidState *, off_t);
 extern void v9fs_co_rewinddir(V9fsState *, V9fsFidState *);
 extern int v9fs_co_statfs(V9fsState *, V9fsString *, struct statfs *);
+extern int v9fs_co_lstat(V9fsState *, V9fsString *, struct stat *);
 #endif
