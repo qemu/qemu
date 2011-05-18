@@ -17,16 +17,16 @@
 #include "qemu-coroutine.h"
 #include "virtio-9p-coth.h"
 
-int v9fs_co_readdir(V9fsState *s, V9fsFidState *fidp, struct dirent **dent)
+int v9fs_co_readdir_r(V9fsState *s, V9fsFidState *fidp, struct dirent *dent,
+                      struct dirent **result)
 {
     int err;
 
     v9fs_co_run_in_worker(
         {
             errno = 0;
-            /*FIXME!! need to switch to readdir_r */
-            *dent = s->ops->readdir(&s->ctx, fidp->fs.dir);
-            if (!*dent && errno) {
+            err = s->ops->readdir_r(&s->ctx, fidp->fs.dir, dent, result);
+            if (!*result && errno) {
                 err = -errno;
             } else {
                 err = 0;
