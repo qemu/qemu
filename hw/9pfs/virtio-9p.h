@@ -278,14 +278,6 @@ typedef struct V9fsStatDotl {
     uint64_t st_data_version;
 } V9fsStatDotl;
 
-typedef struct V9fsStatStateDotl {
-    V9fsPDU *pdu;
-    size_t offset;
-    V9fsStatDotl v9stat_dotl;
-    struct stat stbuf;
-} V9fsStatStateDotl;
-
-
 typedef struct V9fsWalkState {
     V9fsPDU *pdu;
     size_t offset;

@@ -1086,7 +1086,7 @@ static int stat_to_v9stat(V9fsState *s, V9fsString *name,
 
 
 static void stat_to_v9stat_dotl(V9fsState *s, const struct stat *stbuf,
-                            V9fsStatDotl *v9lstat)
+                                V9fsStatDotl *v9lstat)
 {
     memset(v9lstat, 0, sizeof(*v9lstat));
 
@@ -1283,57 +1283,38 @@ out:
     qemu_free(vs);
 }
 
-static void v9fs_getattr_post_lstat(V9fsState *s, V9fsStatStateDotl *vs,
-                                                                int err)
-{
-    if (err == -1) {
-        err = -errno;
-        goto out;
-    }
-
-    stat_to_v9stat_dotl(s, &vs->stbuf, &vs->v9stat_dotl);
-    vs->offset += pdu_marshal(vs->pdu, vs->offset, "A", &vs->v9stat_dotl);
-    err = vs->offset;
-
-out:
-    complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
-}
-
 static void v9fs_getattr(void *opaque)
 {
-    V9fsPDU *pdu = opaque;
-    V9fsState *s = pdu->s;
     int32_t fid;
-    V9fsStatStateDotl *vs;
-    ssize_t err = 0;
+    size_t offset = 7;
+    ssize_t retval = 0;
+    struct stat stbuf;
     V9fsFidState *fidp;
     uint64_t request_mask;
+    V9fsStatDotl v9stat_dotl;
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
 
-    vs = qemu_malloc(sizeof(*vs));
-    vs->pdu = pdu;
-    vs->offset = 7;
-
-    memset(&vs->v9stat_dotl, 0, sizeof(vs->v9stat_dotl));
-
-    pdu_unmarshal(vs->pdu, vs->offset, "dq", &fid, &request_mask);
+    pdu_unmarshal(pdu, offset, "dq", &fid, &request_mask);
 
     fidp = lookup_fid(s, fid);
     if (fidp == NULL) {
-        err = -ENOENT;
+        retval = -ENOENT;
         goto out;
     }
-
-    /* Currently we only support BASIC fields in stat, so there is no
+    /*
+     * Currently we only support BASIC fields in stat, so there is no
      * need to look at request_mask.
      */
-    err = v9fs_do_lstat(s, &fidp->path, &vs->stbuf);
-    v9fs_getattr_post_lstat(s, vs, err);
-    return;
-
+    retval = v9fs_co_lstat(s, &fidp->path, &stbuf);
+    if (retval < 0) {
+        goto out;
+    }
+    stat_to_v9stat_dotl(s, &stbuf, &v9stat_dotl);
+    retval = offset;
+    retval += pdu_marshal(pdu, offset, "A", &v9stat_dotl);
 out:
-    complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    complete_pdu(s, pdu, retval);
 }
 
 /* From Linux kernel code */
