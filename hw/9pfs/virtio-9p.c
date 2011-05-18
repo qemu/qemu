@@ -1329,139 +1329,84 @@ out:
 #define ATTR_ATIME_SET  (1 << 7)
 #define ATTR_MTIME_SET  (1 << 8)
 
-static void v9fs_setattr_post_truncate(V9fsState *s, V9fsSetattrState *vs,
-                                                                  int err)
+static void v9fs_setattr(void *opaque)
 {
-    if (err == -1) {
-        err = -errno;
+    int err = 0;
+    int32_t fid;
+    V9fsFidState *fidp;
+    size_t offset = 7;
+    V9fsIattr v9iattr;
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
+
+    pdu_unmarshal(pdu, offset, "dI", &fid, &v9iattr);
+
+    fidp = lookup_fid(s, fid);
+    if (fidp == NULL) {
+        err = -EINVAL;
         goto out;
     }
-    err = vs->offset;
-
-out:
-    complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
-}
-
-static void v9fs_setattr_post_chown(V9fsState *s, V9fsSetattrState *vs, int err)
-{
-    if (err == -1) {
-        err = -errno;
-        goto out;
-    }
-
-    if (vs->v9iattr.valid & (ATTR_SIZE)) {
-        err = v9fs_do_truncate(s, &vs->fidp->path, vs->v9iattr.size);
-    }
-    v9fs_setattr_post_truncate(s, vs, err);
-    return;
-
-out:
-    complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
-}
-
-static void v9fs_setattr_post_utimensat(V9fsState *s, V9fsSetattrState *vs,
-                                                                   int err)
-{
-    if (err == -1) {
-        err = -errno;
-        goto out;
-    }
-
-    /* If the only valid entry in iattr is ctime we can call
-     * chown(-1,-1) to update the ctime of the file
-     */
-    if ((vs->v9iattr.valid & (ATTR_UID | ATTR_GID)) ||
-            ((vs->v9iattr.valid & ATTR_CTIME)
-            && !((vs->v9iattr.valid & ATTR_MASK) & ~ATTR_CTIME))) {
-        if (!(vs->v9iattr.valid & ATTR_UID)) {
-            vs->v9iattr.uid = -1;
+    if (v9iattr.valid & ATTR_MODE) {
+        err = v9fs_co_chmod(s, &fidp->path, v9iattr.mode);
+        if (err < 0) {
+            goto out;
         }
-        if (!(vs->v9iattr.valid & ATTR_GID)) {
-            vs->v9iattr.gid = -1;
-        }
-        err = v9fs_do_chown(s, &vs->fidp->path, vs->v9iattr.uid,
-                                                vs->v9iattr.gid);
     }
-    v9fs_setattr_post_chown(s, vs, err);
-    return;
-
-out:
-    complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
-}
-
-static void v9fs_setattr_post_chmod(V9fsState *s, V9fsSetattrState *vs, int err)
-{
-    if (err == -1) {
-        err = -errno;
-        goto out;
-    }
-
-    if (vs->v9iattr.valid & (ATTR_ATIME | ATTR_MTIME)) {
+    if (v9iattr.valid & (ATTR_ATIME | ATTR_MTIME)) {
         struct timespec times[2];
-        if (vs->v9iattr.valid & ATTR_ATIME) {
-            if (vs->v9iattr.valid & ATTR_ATIME_SET) {
-                times[0].tv_sec = vs->v9iattr.atime_sec;
-                times[0].tv_nsec = vs->v9iattr.atime_nsec;
+        if (v9iattr.valid & ATTR_ATIME) {
+            if (v9iattr.valid & ATTR_ATIME_SET) {
+                times[0].tv_sec = v9iattr.atime_sec;
+                times[0].tv_nsec = v9iattr.atime_nsec;
             } else {
                 times[0].tv_nsec = UTIME_NOW;
             }
         } else {
             times[0].tv_nsec = UTIME_OMIT;
         }
-
-        if (vs->v9iattr.valid & ATTR_MTIME) {
-            if (vs->v9iattr.valid & ATTR_MTIME_SET) {
-                times[1].tv_sec = vs->v9iattr.mtime_sec;
-                times[1].tv_nsec = vs->v9iattr.mtime_nsec;
+        if (v9iattr.valid & ATTR_MTIME) {
+            if (v9iattr.valid & ATTR_MTIME_SET) {
+                times[1].tv_sec = v9iattr.mtime_sec;
+                times[1].tv_nsec = v9iattr.mtime_nsec;
             } else {
                 times[1].tv_nsec = UTIME_NOW;
             }
         } else {
             times[1].tv_nsec = UTIME_OMIT;
         }
-        err = v9fs_do_utimensat(s, &vs->fidp->path, times);
+        err = v9fs_co_utimensat(s, &fidp->path, times);
+        if (err < 0) {
+            goto out;
+        }
     }
-    v9fs_setattr_post_utimensat(s, vs, err);
-    return;
-
+    /*
+     * If the only valid entry in iattr is ctime we can call
+     * chown(-1,-1) to update the ctime of the file
+     */
+    if ((v9iattr.valid & (ATTR_UID | ATTR_GID)) ||
+        ((v9iattr.valid & ATTR_CTIME)
+         && !((v9iattr.valid & ATTR_MASK) & ~ATTR_CTIME))) {
+        if (!(v9iattr.valid & ATTR_UID)) {
+            v9iattr.uid = -1;
+        }
+        if (!(v9iattr.valid & ATTR_GID)) {
+            v9iattr.gid = -1;
+        }
+        err = v9fs_co_chown(s, &fidp->path, v9iattr.uid,
+                            v9iattr.gid);
+        if (err < 0) {
+            goto out;
+        }
+    }
+    if (v9iattr.valid & (ATTR_SIZE)) {
+        err = v9fs_co_truncate(s, &fidp->path, v9iattr.size);
+        if (err < 0) {
+            goto out;
+        }
+    }
+    err = offset;
 out:
-    complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
-}
-
-static void v9fs_setattr(void *opaque)
-{
-    V9fsPDU *pdu = opaque;
-    V9fsState *s = pdu->s;
-    int32_t fid;
-    V9fsSetattrState *vs;
-    int err = 0;
-
-    vs = qemu_malloc(sizeof(*vs));
-    vs->pdu = pdu;
-    vs->offset = 7;
-
-    pdu_unmarshal(pdu, vs->offset, "dI", &fid, &vs->v9iattr);
-
-    vs->fidp = lookup_fid(s, fid);
-    if (vs->fidp == NULL) {
-        err = -EINVAL;
-        goto out;
-    }
-
-    if (vs->v9iattr.valid & ATTR_MODE) {
-        err = v9fs_do_chmod(s, &vs->fidp->path, vs->v9iattr.mode);
-    }
-
-    v9fs_setattr_post_chmod(s, vs, err);
-    return;
-
-out:
-    complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    complete_pdu(s, pdu, err);
 }
 
 static void v9fs_walk_complete(V9fsState *s, V9fsWalkState *vs, int err)

@@ -374,14 +374,6 @@ typedef struct V9fsIattr
     int64_t mtime_nsec;
 } V9fsIattr;
 
-typedef struct V9fsSetattrState
-{
-    V9fsPDU *pdu;
-    size_t offset;
-    V9fsIattr v9iattr;
-    V9fsFidState *fidp;
-} V9fsSetattrState;
-
 struct virtio_9p_config
 {
     /* number of characters in tag */
