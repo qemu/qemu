@@ -112,11 +112,6 @@ static off_t v9fs_do_telldir(V9fsState *s, DIR *dir)
     return s->ops->telldir(&s->ctx, dir);
 }
 
-static struct dirent *v9fs_do_readdir(V9fsState *s, DIR *dir)
-{
-    return s->ops->readdir(&s->ctx, dir);
-}
-
 static void v9fs_do_seekdir(V9fsState *s, DIR *dir, off_t off)
 {
     return s->ops->seekdir(&s->ctx, dir, off);
@@ -1966,7 +1961,7 @@ static void v9fs_read_post_dir_lstat(V9fsState *s, V9fsReadState *vs,
     v9fs_stat_free(&vs->v9stat);
     v9fs_string_free(&vs->name);
     vs->dir_pos = vs->dent->d_off;
-    vs->dent = v9fs_do_readdir(s, vs->fidp->fs.dir);
+    v9fs_co_readdir(s, vs->fidp, &vs->dent);
     v9fs_read_post_readdir(s, vs, err);
     return;
 out:
@@ -1998,7 +1993,7 @@ static void v9fs_read_post_readdir(V9fsState *s, V9fsReadState *vs, ssize_t err)
 
 static void v9fs_read_post_telldir(V9fsState *s, V9fsReadState *vs, ssize_t err)
 {
-    vs->dent = v9fs_do_readdir(s, vs->fidp->fs.dir);
+    v9fs_co_readdir(s, vs->fidp, &vs->dent);
     v9fs_read_post_readdir(s, vs, err);
     return;
 }
@@ -2127,126 +2122,102 @@ out:
     qemu_free(vs);
 }
 
-typedef struct V9fsReadDirState {
-    V9fsPDU *pdu;
-    V9fsFidState *fidp;
-    V9fsQID qid;
-    off_t saved_dir_pos;
-    struct dirent *dent;
-    int32_t count;
-    int32_t max_count;
-    size_t offset;
-    int64_t initial_offset;
-    V9fsString name;
-} V9fsReadDirState;
-
-static void v9fs_readdir_post_seekdir(V9fsState *s, V9fsReadDirState *vs)
+static size_t v9fs_readdir_data_size(V9fsString *name)
 {
-    vs->offset += pdu_marshal(vs->pdu, vs->offset, "d", vs->count);
-    vs->offset += vs->count;
-    complete_pdu(s, vs->pdu, vs->offset);
-    qemu_free(vs);
-    return;
+    /*
+     * Size of each dirent on the wire: size of qid (13) + size of offset (8)
+     * size of type (1) + size of name.size (2) + strlen(name.data)
+     */
+    return 24 + v9fs_string_size(name);
 }
 
-/* Size of each dirent on the wire: size of qid (13) + size of offset (8)
- * size of type (1) + size of name.size (2) + strlen(name.data)
- */
-#define V9_READDIR_DATA_SZ (24 + strlen(vs->name.data))
-
-static void v9fs_readdir_post_readdir(V9fsState *s, V9fsReadDirState *vs)
+static int v9fs_do_readdir(V9fsState *s, V9fsPDU *pdu,
+                           V9fsFidState *fidp, int32_t max_count)
 {
-    int len;
     size_t size;
+    V9fsQID qid;
+    V9fsString name;
+    int len, err = 0;
+    int32_t count = 0;
+    off_t saved_dir_pos;
+    struct dirent *dent;
 
-    if (vs->dent) {
-        v9fs_string_init(&vs->name);
-        v9fs_string_sprintf(&vs->name, "%s", vs->dent->d_name);
-
-        if ((vs->count + V9_READDIR_DATA_SZ) > vs->max_count) {
-            /* Ran out of buffer. Set dir back to old position and return */
-            v9fs_do_seekdir(s, vs->fidp->fs.dir, vs->saved_dir_pos);
-            v9fs_readdir_post_seekdir(s, vs);
-            return;
+    /* save the directory position */
+    saved_dir_pos = v9fs_co_telldir(s, fidp);
+    if (saved_dir_pos < 0) {
+        return saved_dir_pos;
+    }
+    while (1) {
+        err = v9fs_co_readdir(s, fidp, &dent);
+        if (err || !dent) {
+            break;
         }
-
-        /* Fill up just the path field of qid because the client uses
+        v9fs_string_init(&name);
+        v9fs_string_sprintf(&name, "%s", dent->d_name);
+        if ((count + v9fs_readdir_data_size(&name)) > max_count) {
+            /* Ran out of buffer. Set dir back to old position and return */
+            v9fs_co_seekdir(s, fidp, saved_dir_pos);
+            v9fs_string_free(&name);
+            return count;
+        }
+        /*
+         * Fill up just the path field of qid because the client uses
          * only that. To fill the entire qid structure we will have
          * to stat each dirent found, which is expensive
          */
-        size = MIN(sizeof(vs->dent->d_ino), sizeof(vs->qid.path));
-        memcpy(&vs->qid.path, &vs->dent->d_ino, size);
+        size = MIN(sizeof(dent->d_ino), sizeof(qid.path));
+        memcpy(&qid.path, &dent->d_ino, size);
         /* Fill the other fields with dummy values */
-        vs->qid.type = 0;
-        vs->qid.version = 0;
+        qid.type = 0;
+        qid.version = 0;
 
-        len = pdu_marshal(vs->pdu, vs->offset+4+vs->count, "Qqbs",
-                              &vs->qid, vs->dent->d_off,
-                              vs->dent->d_type, &vs->name);
-        vs->count += len;
-        v9fs_string_free(&vs->name);
-        vs->saved_dir_pos = vs->dent->d_off;
-        vs->dent = v9fs_do_readdir(s, vs->fidp->fs.dir);
-        v9fs_readdir_post_readdir(s, vs);
-        return;
+        /* 11 = 7 + 4 (7 = start offset, 4 = space for storing count) */
+        len = pdu_marshal(pdu, 11 + count, "Qqbs",
+                          &qid, dent->d_off,
+                          dent->d_type, &name);
+        count += len;
+        v9fs_string_free(&name);
+        saved_dir_pos = dent->d_off;
     }
-
-    vs->offset += pdu_marshal(vs->pdu, vs->offset, "d", vs->count);
-    vs->offset += vs->count;
-    complete_pdu(s, vs->pdu, vs->offset);
-    qemu_free(vs);
-    return;
-}
-
-static void v9fs_readdir_post_telldir(V9fsState *s, V9fsReadDirState *vs)
-{
-    vs->dent = v9fs_do_readdir(s, vs->fidp->fs.dir);
-    v9fs_readdir_post_readdir(s, vs);
-    return;
-}
-
-static void v9fs_readdir_post_setdir(V9fsState *s, V9fsReadDirState *vs)
-{
-    vs->saved_dir_pos = v9fs_do_telldir(s, vs->fidp->fs.dir);
-    v9fs_readdir_post_telldir(s, vs);
-    return;
+    if (err < 0) {
+        return err;
+    }
+    return count;
 }
 
 static void v9fs_readdir(void *opaque)
 {
+    int32_t fid;
+    V9fsFidState *fidp;
+    ssize_t retval = 0;
+    size_t offset = 7;
+    int64_t initial_offset;
+    int32_t count, max_count;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
-    int32_t fid;
-    V9fsReadDirState *vs;
-    ssize_t err = 0;
-    size_t offset = 7;
 
-    vs = qemu_malloc(sizeof(*vs));
-    vs->pdu = pdu;
-    vs->offset = 7;
-    vs->count = 0;
+    pdu_unmarshal(pdu, offset, "dqd", &fid, &initial_offset, &max_count);
 
-    pdu_unmarshal(vs->pdu, offset, "dqd", &fid, &vs->initial_offset,
-                                                        &vs->max_count);
-
-    vs->fidp = lookup_fid(s, fid);
-    if (vs->fidp == NULL || !(vs->fidp->fs.dir)) {
-        err = -EINVAL;
+    fidp = lookup_fid(s, fid);
+    if (fidp == NULL || !fidp->fs.dir) {
+        retval = -EINVAL;
         goto out;
     }
-
-    if (vs->initial_offset == 0) {
-        v9fs_do_rewinddir(s, vs->fidp->fs.dir);
+    if (initial_offset == 0) {
+        v9fs_co_rewinddir(s, fidp);
     } else {
-        v9fs_do_seekdir(s, vs->fidp->fs.dir, vs->initial_offset);
+        v9fs_co_seekdir(s, fidp, initial_offset);
     }
-
-    v9fs_readdir_post_setdir(s, vs);
-    return;
-
+    count = v9fs_do_readdir(s, pdu, fidp, max_count);
+    if (count < 0) {
+        retval = count;
+        goto out;
+    }
+    retval = offset;
+    retval += pdu_marshal(pdu, offset, "d", count);
+    retval += count;
 out:
-    complete_pdu(s, pdu, err);
-    qemu_free(vs);
+    complete_pdu(s, pdu, retval);
 }
 
 static void v9fs_write_post_pwritev(V9fsState *s, V9fsWriteState *vs,
