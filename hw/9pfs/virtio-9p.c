@@ -1592,7 +1592,7 @@ static void v9fs_lcreate(void *opaque)
     if (err < 0) {
         fidp->fid_type = P9_FID_NONE;
         if (fidp->fs.fd > 0) {
-            close(fidp->fs.fd);
+            v9fs_co_close(pdu->s, fidp->fs.fd);
         }
         goto out;
     }
@@ -2160,7 +2160,7 @@ static void v9fs_create(void *opaque)
     if (err < 0) {
         fidp->fid_type = P9_FID_NONE;
         if (fidp->fs.fd) {
-            close(fidp->fs.fd);
+            v9fs_co_close(pdu->s, fidp->fs.fd);
         }
         goto out;
     }
