@@ -19,6 +19,7 @@
 #include "fsdev/qemu-fsdev.h"
 #include "virtio-9p-debug.h"
 #include "virtio-9p-xattr.h"
+#include "virtio-9p-coth.h"
 
 int debug_9p_pdu;
 
@@ -1191,8 +1192,10 @@ static void v9fs_fix_path(V9fsString *dst, V9fsString *src, int len)
     v9fs_string_free(&str);
 }
 
-static void v9fs_version(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_version(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     V9fsString version;
     size_t offset = 7;
 
@@ -1210,10 +1213,13 @@ static void v9fs_version(V9fsState *s, V9fsPDU *pdu)
     complete_pdu(s, pdu, offset);
 
     v9fs_string_free(&version);
+    return;
 }
 
-static void v9fs_attach(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_attach(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t fid, afid, n_uname;
     V9fsString uname, aname;
     V9fsFidState *fidp;
@@ -1268,8 +1274,10 @@ out:
     qemu_free(vs);
 }
 
-static void v9fs_stat(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_stat(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t fid;
     V9fsStatState *vs;
     ssize_t err = 0;
@@ -1315,8 +1323,10 @@ out:
     qemu_free(vs);
 }
 
-static void v9fs_getattr(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_getattr(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t fid;
     V9fsStatStateDotl *vs;
     ssize_t err = 0;
@@ -1464,8 +1474,10 @@ out:
     qemu_free(vs);
 }
 
-static void v9fs_setattr(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_setattr(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t fid;
     V9fsSetattrState *vs;
     int err = 0;
@@ -1578,8 +1590,10 @@ out:
     v9fs_walk_complete(s, vs, err);
 }
 
-static void v9fs_walk(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_walk(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t fid, newfid;
     V9fsWalkState *vs;
     int err = 0;
@@ -1750,8 +1764,10 @@ out:
     qemu_free(vs);
 }
 
-static void v9fs_open(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_open(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t fid;
     V9fsOpenState *vs;
     ssize_t err = 0;
@@ -1835,8 +1851,10 @@ out:
     v9fs_post_lcreate(s, vs, err);
 }
 
-static void v9fs_lcreate(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_lcreate(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t dfid, flags, mode;
     gid_t gid;
     V9fsLcreateState *vs;
@@ -1882,8 +1900,10 @@ static void v9fs_post_do_fsync(V9fsState *s, V9fsPDU *pdu, int err)
     complete_pdu(s, pdu, err);
 }
 
-static void v9fs_fsync(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_fsync(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t fid;
     size_t offset = 7;
     V9fsFidState *fidp;
@@ -1901,8 +1921,10 @@ static void v9fs_fsync(V9fsState *s, V9fsPDU *pdu)
     v9fs_post_do_fsync(s, pdu, err);
 }
 
-static void v9fs_clunk(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_clunk(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t fid;
     size_t offset = 7;
     int err;
@@ -2067,8 +2089,10 @@ static void v9fs_xattr_read(V9fsState *s, V9fsReadState *vs)
     qemu_free(vs);
 }
 
-static void v9fs_read(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_read(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t fid;
     V9fsReadState *vs;
     ssize_t err = 0;
@@ -2206,8 +2230,10 @@ static void v9fs_readdir_post_setdir(V9fsState *s, V9fsReadDirState *vs)
     return;
 }
 
-static void v9fs_readdir(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_readdir(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t fid;
     V9fsReadDirState *vs;
     ssize_t err = 0;
@@ -2239,7 +2265,6 @@ static void v9fs_readdir(V9fsState *s, V9fsPDU *pdu)
 out:
     complete_pdu(s, pdu, err);
     qemu_free(vs);
-    return;
 }
 
 static void v9fs_write_post_pwritev(V9fsState *s, V9fsWriteState *vs,
@@ -2318,8 +2343,10 @@ out:
     qemu_free(vs);
 }
 
-static void v9fs_write(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_write(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t fid;
     V9fsWriteState *vs;
     ssize_t err;
@@ -2552,8 +2579,10 @@ out:
     v9fs_post_create(s, vs, err);
 }
 
-static void v9fs_create(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_create(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t fid;
     V9fsCreateState *vs;
     int err = 0;
@@ -2614,8 +2643,10 @@ out:
     v9fs_post_symlink(s, vs, err);
 }
 
-static void v9fs_symlink(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_symlink(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t dfid;
     V9fsSymlinkState *vs;
     int err = 0;
@@ -2650,14 +2681,19 @@ out:
     qemu_free(vs);
 }
 
-static void v9fs_flush(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_flush(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     /* A nop call with no return */
     complete_pdu(s, pdu, 7);
+    return;
 }
 
-static void v9fs_link(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_link(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t dfid, oldfid;
     V9fsFidState *dfidp, *oldfidp;
     V9fsString name, fullname;
@@ -2709,8 +2745,10 @@ static void v9fs_remove_post_remove(V9fsState *s, V9fsRemoveState *vs,
     qemu_free(vs);
 }
 
-static void v9fs_remove(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_remove(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t fid;
     V9fsRemoveState *vs;
     int err = 0;
@@ -2876,8 +2914,10 @@ out:
     qemu_free(vs);
 }
 
-static void v9fs_rename(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_rename(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t fid;
     V9fsRenameState *vs;
     ssize_t err = 0;
@@ -3001,8 +3041,10 @@ out:
     qemu_free(vs);
 }
 
-static void v9fs_wstat(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_wstat(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t fid;
     V9fsWstatState *vs;
     int err = 0;
@@ -3086,8 +3128,10 @@ out:
     qemu_free(vs);
 }
 
-static void v9fs_statfs(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_statfs(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     V9fsStatfsState *vs;
     ssize_t err = 0;
 
@@ -3112,6 +3156,7 @@ static void v9fs_statfs(V9fsState *s, V9fsPDU *pdu)
 out:
     complete_pdu(s, vs->pdu, err);
     qemu_free(vs);
+    return;
 }
 
 static void v9fs_mknod_post_lstat(V9fsState *s, V9fsMkState *vs, int err)
@@ -3148,8 +3193,10 @@ out:
     qemu_free(vs);
 }
 
-static void v9fs_mknod(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_mknod(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t fid;
     V9fsMkState *vs;
     int err = 0;
@@ -3194,8 +3241,10 @@ out:
  * So when a TLOCK request comes, always return success
  */
 
-static void v9fs_lock(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_lock(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t fid, err = 0;
     V9fsLockState *vs;
 
@@ -3239,8 +3288,10 @@ out:
  * handling is done by client's VFS layer.
  */
 
-static void v9fs_getlock(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_getlock(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t fid, err = 0;
     V9fsGetlockState *vs;
 
@@ -3308,8 +3359,10 @@ out:
     qemu_free(vs);
 }
 
-static void v9fs_mkdir(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_mkdir(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t fid;
     V9fsMkState *vs;
     int err = 0;
@@ -3432,8 +3485,10 @@ out:
     qemu_free(vs);
 }
 
-static void v9fs_xattrwalk(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_xattrwalk(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     ssize_t err = 0;
     V9fsXattrState *vs;
     int32_t fid, newfid;
@@ -3486,8 +3541,10 @@ out:
     qemu_free(vs);
 }
 
-static void v9fs_xattrcreate(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_xattrcreate(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int flags;
     int32_t fid;
     ssize_t err = 0;
@@ -3540,8 +3597,10 @@ out:
     qemu_free(vs);
 }
 
-static void v9fs_readlink(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_readlink(void *opaque)
 {
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
     int32_t fid;
     V9fsReadLinkState *vs;
     int err = 0;
@@ -3568,9 +3627,7 @@ out:
     qemu_free(vs);
 }
 
-typedef void (pdu_handler_t)(V9fsState *s, V9fsPDU *pdu);
-
-static pdu_handler_t *pdu_handlers[] = {
+static CoroutineEntry *pdu_co_handlers[] = {
     [P9_TREADDIR] = v9fs_readdir,
     [P9_TSTATFS] = v9fs_statfs,
     [P9_TGETATTR] = v9fs_getattr,
@@ -3605,25 +3662,28 @@ static pdu_handler_t *pdu_handlers[] = {
     [P9_TREMOVE] = v9fs_remove,
 };
 
-static void v9fs_op_not_supp(V9fsState *s, V9fsPDU *pdu)
+static void v9fs_op_not_supp(void *opaque)
 {
-    complete_pdu(s, pdu, -EOPNOTSUPP);
+    V9fsPDU *pdu = opaque;
+    complete_pdu(pdu->s, pdu, -EOPNOTSUPP);
 }
 
 static void submit_pdu(V9fsState *s, V9fsPDU *pdu)
 {
-    pdu_handler_t *handler;
+    Coroutine *co;
+    CoroutineEntry *handler;
 
     if (debug_9p_pdu) {
         pprint_pdu(pdu);
     }
-    if (pdu->id >= ARRAY_SIZE(pdu_handlers) ||
-        (pdu_handlers[pdu->id] == NULL)) {
+    if (pdu->id >= ARRAY_SIZE(pdu_co_handlers) ||
+        (pdu_co_handlers[pdu->id] == NULL)) {
         handler = v9fs_op_not_supp;
     } else {
-        handler = pdu_handlers[pdu->id];
+        handler = pdu_co_handlers[pdu->id];
     }
-    handler(s, pdu);
+    co = qemu_coroutine_create(handler);
+    qemu_coroutine_enter(co, pdu);
 }
 
 void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
@@ -3635,7 +3695,7 @@ void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
     while ((pdu = alloc_pdu(s)) &&
             (len = virtqueue_pop(vq, &pdu->elem)) != 0) {
         uint8_t *ptr;
-
+        pdu->s = s;
         BUG_ON(pdu->elem.out_num == 0 || pdu->elem.in_num == 0);
         BUG_ON(pdu->elem.out_sg[0].iov_len < 7);
 
@@ -3644,9 +3704,7 @@ void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
         memcpy(&pdu->size, ptr, 4);
         pdu->id = ptr[4];
         memcpy(&pdu->tag, ptr + 5, 2);
-
         submit_pdu(s, pdu);
     }
-
     free_pdu(s, pdu);
 }

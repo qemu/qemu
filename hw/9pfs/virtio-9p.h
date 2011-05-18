@@ -5,7 +5,7 @@
 #include <dirent.h>
 #include <sys/time.h>
 #include <utime.h>
-
+#include "hw/virtio.h"
 #include "fsdev/file-op-9p.h"
 
 /* The feature bitmap for virtio 9P */
@@ -114,6 +114,7 @@ static inline const char *rpath(FsContext *ctx, const char *path, char *buffer)
 #define P9_IOHDRSZ 24
 
 typedef struct V9fsPDU V9fsPDU;
+struct V9fsState;
 
 struct V9fsPDU
 {
@@ -121,6 +122,7 @@ struct V9fsPDU
     uint16_t tag;
     uint8_t id;
     VirtQueueElement elem;
+    struct V9fsState *s;
     QLIST_ENTRY(V9fsPDU) next;
 };
 

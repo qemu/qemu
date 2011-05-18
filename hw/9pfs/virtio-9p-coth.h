@@ -17,6 +17,7 @@
 
 #include "qemu-thread.h"
 #include "qemu-coroutine.h"
+#include "virtio-9p.h"
 #include <glib.h>
 
 typedef struct V9fsThPool {
