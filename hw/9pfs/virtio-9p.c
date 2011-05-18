@@ -3019,77 +3019,49 @@ out:
     return;
 }
 
-static void v9fs_mknod_post_lstat(V9fsState *s, V9fsMkState *vs, int err)
-{
-    if (err == -1) {
-        err = -errno;
-        goto out;
-    }
-
-    stat_to_qid(&vs->stbuf, &vs->qid);
-    vs->offset += pdu_marshal(vs->pdu, vs->offset, "Q", &vs->qid);
-    err = vs->offset;
-out:
-    complete_pdu(s, vs->pdu, err);
-    v9fs_string_free(&vs->fullname);
-    v9fs_string_free(&vs->name);
-    qemu_free(vs);
-}
-
-static void v9fs_mknod_post_mknod(V9fsState *s, V9fsMkState *vs, int err)
-{
-    if (err == -1) {
-        err = -errno;
-        goto out;
-    }
-
-    err = v9fs_do_lstat(s, &vs->fullname, &vs->stbuf);
-    v9fs_mknod_post_lstat(s, vs, err);
-    return;
-out:
-    complete_pdu(s, vs->pdu, err);
-    v9fs_string_free(&vs->fullname);
-    v9fs_string_free(&vs->name);
-    qemu_free(vs);
-}
-
 static void v9fs_mknod(void *opaque)
 {
+
+    int mode;
+    gid_t gid;
+    int32_t fid;
+    V9fsQID qid;
+    int err = 0;
+    int major, minor;
+    size_t offset = 7;
+    V9fsString name;
+    struct stat stbuf;
+    V9fsString fullname;
+    V9fsFidState *fidp;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
-    int32_t fid;
-    V9fsMkState *vs;
-    int err = 0;
-    V9fsFidState *fidp;
-    gid_t gid;
-    int mode;
-    int major, minor;
 
-    vs = qemu_malloc(sizeof(*vs));
-    vs->pdu = pdu;
-    vs->offset = 7;
-
-    v9fs_string_init(&vs->fullname);
-    pdu_unmarshal(vs->pdu, vs->offset, "dsdddd", &fid, &vs->name, &mode,
-        &major, &minor, &gid);
+    v9fs_string_init(&fullname);
+    pdu_unmarshal(pdu, offset, "dsdddd", &fid, &name, &mode,
+                  &major, &minor, &gid);
 
     fidp = lookup_fid(s, fid);
     if (fidp == NULL) {
         err = -ENOENT;
         goto out;
     }
-
-    v9fs_string_sprintf(&vs->fullname, "%s/%s", fidp->path.data, vs->name.data);
-    err = v9fs_do_mknod(s, vs->fullname.data, mode, makedev(major, minor),
-        fidp->uid, gid);
-    v9fs_mknod_post_mknod(s, vs, err);
-    return;
-
+    v9fs_string_sprintf(&fullname, "%s/%s", fidp->path.data, name.data);
+    err = v9fs_co_mknod(s, &fullname, fidp->uid, gid,
+                        makedev(major, minor), mode);
+    if (err < 0) {
+        goto out;
+    }
+    err = v9fs_co_lstat(s, &fullname, &stbuf);
+    if (err < 0) {
+        goto out;
+    }
+    stat_to_qid(&stbuf, &qid);
+    err = offset;
+    err += pdu_marshal(pdu, offset, "Q", &qid);
 out:
-    complete_pdu(s, vs->pdu, err);
-    v9fs_string_free(&vs->fullname);
-    v9fs_string_free(&vs->name);
-    qemu_free(vs);
+    complete_pdu(s, pdu, err);
+    v9fs_string_free(&fullname);
+    v9fs_string_free(&name);
 }
 
 /*
