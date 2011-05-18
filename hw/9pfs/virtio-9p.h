@@ -203,6 +203,8 @@ struct V9fsFidState
 	V9fsXattr xattr;
     } fs;
     uid_t uid;
+    int ref;
+    int clunked;
     V9fsFidState *next;
 };
 
