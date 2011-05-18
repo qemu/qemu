@@ -97,6 +97,12 @@ int v9fs_co_opendir(V9fsState *s, V9fsFidState *fidp)
                 err = 0;
             }
         });
+    if (!err) {
+        total_open_fd++;
+        if (total_open_fd > open_fd_hw) {
+            v9fs_reclaim_fd(s);
+        }
+    }
     return err;
 }
 
@@ -111,5 +117,8 @@ int v9fs_co_closedir(V9fsState *s, DIR *dir)
                 err = -errno;
             }
         });
+    if (!err) {
+        total_open_fd--;
+    }
     return err;
 }

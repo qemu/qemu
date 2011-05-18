@@ -266,7 +266,17 @@ static V9fsFidState *get_fid(V9fsState *s, int32_t fid)
                         return NULL;
                     }
                 }
-            }
+            } else if (f->fid_type == P9_FID_DIR) {
+                if (f->fs.dir == NULL) {
+                    do {
+                        err = v9fs_co_opendir(s, f);
+                    } while (err == -EINTR);
+                    if (err < 0) {
+                        f->ref--;
+                        return NULL;
+                    }
+                }
+             }
             /*
              * Mark the fid as referenced so that the LRU
              * reclaim won't close the file descriptor
@@ -348,7 +358,9 @@ static int free_fid(V9fsState *s, V9fsFidState *fidp)
             retval = v9fs_co_close(s, fidp->fs.fd);
         }
     } else if (fidp->fid_type == P9_FID_DIR) {
-        retval = v9fs_co_closedir(s, fidp->fs.dir);
+        if (fidp->fs.dir != NULL) {
+            retval = v9fs_co_closedir(s, fidp->fs.dir);
+        }
     } else if (fidp->fid_type == P9_FID_XATTR) {
         retval = v9fs_xattr_fid_clunk(s, fidp);
     }
@@ -429,6 +441,19 @@ void v9fs_reclaim_fd(V9fsState *s)
                 f->fs.fd = -1;
                 reclaim_count++;
             }
+        } else if (f->fid_type == P9_FID_DIR) {
+            if (f->fs.dir != NULL) {
+                /*
+                 * Up the reference count so that
+                 * a clunk request won't free this fid
+                 */
+                f->ref++;
+                f->rclm_lst = reclaim_list;
+                reclaim_list = f;
+                f->fs_reclaim.dir = f->fs.dir;
+                f->fs.dir = NULL;
+                reclaim_count++;
+            }
         }
         if (reclaim_count >= open_fd_rc) {
             break;
@@ -443,6 +468,8 @@ void v9fs_reclaim_fd(V9fsState *s)
         reclaim_list = f->rclm_lst;
         if (f->fid_type == P9_FID_FILE) {
             v9fs_co_close(s, f->fs_reclaim.fd);
+        } else if (f->fid_type == P9_FID_DIR) {
+            v9fs_co_closedir(s, f->fs_reclaim.dir);
         }
         f->rclm_lst = NULL;
         /*
