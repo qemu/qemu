@@ -398,28 +398,6 @@ struct virtio_9p_config
     uint8_t tag[0];
 } __attribute__((packed));
 
-typedef struct V9fsStatfs
-{
-    uint32_t f_type;
-    uint32_t f_bsize;
-    uint64_t f_blocks;
-    uint64_t f_bfree;
-    uint64_t f_bavail;
-    uint64_t f_files;
-    uint64_t f_ffree;
-    uint64_t fsid_val;
-    uint32_t f_namelen;
-} V9fsStatfs;
-
-typedef struct V9fsStatfsState {
-    V9fsPDU *pdu;
-    size_t offset;
-    int32_t fid;
-    V9fsStatfs v9statfs;
-    V9fsFidState *fidp;
-    struct statfs stbuf;
-} V9fsStatfsState;
-
 typedef struct V9fsMkState {
     V9fsPDU *pdu;
     size_t offset;

@@ -3036,79 +3036,75 @@ out:
     qemu_free(vs);
 }
 
-static void v9fs_statfs_post_statfs(V9fsState *s, V9fsStatfsState *vs, int err)
+static int v9fs_fill_statfs(V9fsState *s, V9fsPDU *pdu, struct statfs *stbuf)
 {
+    uint32_t f_type;
+    uint32_t f_bsize;
+    uint64_t f_blocks;
+    uint64_t f_bfree;
+    uint64_t f_bavail;
+    uint64_t f_files;
+    uint64_t f_ffree;
+    uint64_t fsid_val;
+    uint32_t f_namelen;
+    size_t offset = 7;
     int32_t bsize_factor;
-
-    if (err) {
-        err = -errno;
-        goto out;
-    }
 
     /*
      * compute bsize factor based on host file system block size
      * and client msize
      */
-    bsize_factor = (s->msize - P9_IOHDRSZ)/vs->stbuf.f_bsize;
+    bsize_factor = (s->msize - P9_IOHDRSZ)/stbuf->f_bsize;
     if (!bsize_factor) {
         bsize_factor = 1;
     }
-    vs->v9statfs.f_type = vs->stbuf.f_type;
-    vs->v9statfs.f_bsize = vs->stbuf.f_bsize;
-    vs->v9statfs.f_bsize *= bsize_factor;
+    f_type  = stbuf->f_type;
+    f_bsize = stbuf->f_bsize;
+    f_bsize *= bsize_factor;
     /*
      * f_bsize is adjusted(multiplied) by bsize factor, so we need to
      * adjust(divide) the number of blocks, free blocks and available
      * blocks by bsize factor
      */
-    vs->v9statfs.f_blocks = vs->stbuf.f_blocks/bsize_factor;
-    vs->v9statfs.f_bfree = vs->stbuf.f_bfree/bsize_factor;
-    vs->v9statfs.f_bavail = vs->stbuf.f_bavail/bsize_factor;
-    vs->v9statfs.f_files = vs->stbuf.f_files;
-    vs->v9statfs.f_ffree = vs->stbuf.f_ffree;
-    vs->v9statfs.fsid_val = (unsigned int) vs->stbuf.f_fsid.__val[0] |
-			(unsigned long long)vs->stbuf.f_fsid.__val[1] << 32;
-    vs->v9statfs.f_namelen = vs->stbuf.f_namelen;
+    f_blocks = stbuf->f_blocks/bsize_factor;
+    f_bfree  = stbuf->f_bfree/bsize_factor;
+    f_bavail = stbuf->f_bavail/bsize_factor;
+    f_files  = stbuf->f_files;
+    f_ffree  = stbuf->f_ffree;
+    fsid_val = (unsigned int) stbuf->f_fsid.__val[0] |
+               (unsigned long long)stbuf->f_fsid.__val[1] << 32;
+    f_namelen = stbuf->f_namelen;
 
-    vs->offset += pdu_marshal(vs->pdu, vs->offset, "ddqqqqqqd",
-         vs->v9statfs.f_type, vs->v9statfs.f_bsize, vs->v9statfs.f_blocks,
-         vs->v9statfs.f_bfree, vs->v9statfs.f_bavail, vs->v9statfs.f_files,
-         vs->v9statfs.f_ffree, vs->v9statfs.fsid_val,
-         vs->v9statfs.f_namelen);
-
-out:
-    complete_pdu(s, vs->pdu, vs->offset);
-    qemu_free(vs);
+    return pdu_marshal(pdu, offset, "ddqqqqqqd",
+                       f_type, f_bsize, f_blocks, f_bfree,
+                       f_bavail, f_files, f_ffree,
+                       fsid_val, f_namelen);
 }
 
 static void v9fs_statfs(void *opaque)
 {
+    int32_t fid;
+    ssize_t retval = 0;
+    size_t offset = 7;
+    V9fsFidState *fidp;
+    struct statfs stbuf;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
-    V9fsStatfsState *vs;
-    ssize_t err = 0;
 
-    vs = qemu_malloc(sizeof(*vs));
-    vs->pdu = pdu;
-    vs->offset = 7;
-
-    memset(&vs->v9statfs, 0, sizeof(vs->v9statfs));
-
-    pdu_unmarshal(vs->pdu, vs->offset, "d", &vs->fid);
-
-    vs->fidp = lookup_fid(s, vs->fid);
-    if (vs->fidp == NULL) {
-        err = -ENOENT;
+    pdu_unmarshal(pdu, offset, "d", &fid);
+    fidp = lookup_fid(s, fid);
+    if (fidp == NULL) {
+        retval = -ENOENT;
         goto out;
     }
-
-    err = v9fs_do_statfs(s, &vs->fidp->path, &vs->stbuf);
-    v9fs_statfs_post_statfs(s, vs, err);
-    return;
-
+    retval = v9fs_co_statfs(s, &fidp->path, &stbuf);
+    if (retval < 0) {
+        goto out;
+    }
+    retval = offset;
+    retval += v9fs_fill_statfs(s, pdu, &stbuf);
 out:
-    complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    complete_pdu(s, pdu, retval);
     return;
 }
 
