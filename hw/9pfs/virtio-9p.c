@@ -3346,43 +3346,42 @@ out:
 
 static void v9fs_xattrcreate(void *opaque)
 {
-    V9fsPDU *pdu = opaque;
-    V9fsState *s = pdu->s;
     int flags;
     int32_t fid;
+    int64_t size;
     ssize_t err = 0;
-    V9fsXattrState *vs;
+    V9fsString name;
+    size_t offset = 7;
+    V9fsFidState *file_fidp;
+    V9fsFidState *xattr_fidp;
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
 
-    vs = qemu_malloc(sizeof(*vs));
-    vs->pdu = pdu;
-    vs->offset = 7;
+    pdu_unmarshal(pdu, offset, "dsqd",
+                  &fid, &name, &size, &flags);
 
-    pdu_unmarshal(vs->pdu, vs->offset, "dsqd",
-                  &fid, &vs->name, &vs->size, &flags);
-
-    vs->file_fidp = lookup_fid(s, fid);
-    if (vs->file_fidp == NULL) {
+    file_fidp = lookup_fid(s, fid);
+    if (file_fidp == NULL) {
         err = -EINVAL;
         goto out;
     }
-
     /* Make the file fid point to xattr */
-    vs->xattr_fidp = vs->file_fidp;
-    vs->xattr_fidp->fid_type = P9_FID_XATTR;
-    vs->xattr_fidp->fs.xattr.copied_len = 0;
-    vs->xattr_fidp->fs.xattr.len = vs->size;
-    vs->xattr_fidp->fs.xattr.flags = flags;
-    v9fs_string_init(&vs->xattr_fidp->fs.xattr.name);
-    v9fs_string_copy(&vs->xattr_fidp->fs.xattr.name, &vs->name);
-    if (vs->size)
-        vs->xattr_fidp->fs.xattr.value = qemu_malloc(vs->size);
-    else
-        vs->xattr_fidp->fs.xattr.value = NULL;
-
+    xattr_fidp = file_fidp;
+    xattr_fidp->fid_type = P9_FID_XATTR;
+    xattr_fidp->fs.xattr.copied_len = 0;
+    xattr_fidp->fs.xattr.len = size;
+    xattr_fidp->fs.xattr.flags = flags;
+    v9fs_string_init(&xattr_fidp->fs.xattr.name);
+    v9fs_string_copy(&xattr_fidp->fs.xattr.name, &name);
+    if (size) {
+        xattr_fidp->fs.xattr.value = qemu_malloc(size);
+    } else {
+        xattr_fidp->fs.xattr.value = NULL;
+    }
+    err = offset;
 out:
-    complete_pdu(s, vs->pdu, err);
-    v9fs_string_free(&vs->name);
-    qemu_free(vs);
+    complete_pdu(s, pdu, err);
+    v9fs_string_free(&name);
 }
 
 static void v9fs_readlink(void *opaque)

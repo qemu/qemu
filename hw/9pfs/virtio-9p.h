@@ -399,17 +399,6 @@ typedef struct V9fsRenameState {
     V9fsString name;
 } V9fsRenameState;
 
-typedef struct V9fsXattrState
-{
-    V9fsPDU *pdu;
-    size_t offset;
-    V9fsFidState *file_fidp;
-    V9fsFidState *xattr_fidp;
-    V9fsString name;
-    int64_t size;
-    int flags;
-    void *value;
-} V9fsXattrState;
 
 #define P9_LOCK_SUCCESS 0
 #define P9_LOCK_BLOCKED 1
