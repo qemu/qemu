@@ -68,4 +68,7 @@ extern int v9fs_co_chmod(V9fsState *, V9fsString *, mode_t);
 extern int v9fs_co_utimensat(V9fsState *, V9fsString *, struct timespec [2]);
 extern int v9fs_co_chown(V9fsState *, V9fsString *, uid_t, gid_t);
 extern int v9fs_co_truncate(V9fsState *, V9fsString *, off_t);
+extern int v9fs_co_llistxattr(V9fsState *, V9fsString *, void *, size_t);
+extern int v9fs_co_lgetxattr(V9fsState *, V9fsString *,
+                             V9fsString *, void *, size_t);
 #endif
