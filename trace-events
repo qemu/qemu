@@ -199,6 +199,10 @@ disable usb_ehci_reset(void) "=== RESET ==="
 disable usb_ehci_mmio_readl(uint32_t addr, const char *str, uint32_t val) "rd mmio %04x [%s] = %x"
 disable usb_ehci_mmio_writel(uint32_t addr, const char *str, uint32_t val, uint32_t oldval) "wr mmio %04x [%s] = %x (old: %x)"
 disable usb_ehci_usbsts(const char *sts, int state) "usbsts %s %d"
+disable usb_ehci_state(const char *schedule, const char *state) "%s schedule %s"
+disable usb_ehci_qh(uint32_t addr, uint32_t next, uint32_t c_qtd, uint32_t n_qtd, uint32_t a_qtd, int rl, int mplen, int eps, int ep, int devaddr, int c, int h, int dtc, int i) "QH @ %08x: next %08x qtds %08x,%08x,%08x - rl %d, mplen %d, eps %d, ep %d, dev %d, c %d, h %d, dtc %d, i %d"
+disable usb_ehci_qtd(uint32_t addr, uint32_t next, uint32_t altnext, int tbytes, int cpage, int cerr, int pid, int ioc, int active, int halt, int babble, int xacterr) "QH @ %08x: next %08x altnext %08x - tbytes %d, cpage %d, cerr %d, pid %d, ioc %d, active %d, halt %d, babble %d, xacterr %d"
+disable usb_ehci_itd(uint32_t addr, uint32_t next) "ITD @ %08x: next %08x"
 
 # hw/usb-desc.c
 disable usb_desc_device(int addr, int len, int ret) "dev %d query device, len %d, ret %d"

@@ -33,18 +33,11 @@
 #include "trace.h"
 
 #define EHCI_DEBUG   0
-#define STATE_DEBUG  0       /* state transitions  */
 
-#if EHCI_DEBUG || STATE_DEBUG
+#if EHCI_DEBUG
 #define DPRINTF printf
 #else
 #define DPRINTF(...)
-#endif
-
-#if STATE_DEBUG
-#define DPRINTF_ST DPRINTF
-#else
-#define DPRINTF_ST(...)
 #endif
 
 /* internal processing - reset HC to try and recover */
@@ -417,31 +410,57 @@ typedef struct {
     *data = val; \
     } while(0)
 
+static const char *ehci_state_names[] = {
+    [ EST_INACTIVE ]     = "INACTIVE",
+    [ EST_ACTIVE ]       = "ACTIVE",
+    [ EST_EXECUTING ]    = "EXECUTING",
+    [ EST_SLEEPING ]     = "SLEEPING",
+    [ EST_WAITLISTHEAD ] = "WAITLISTHEAD",
+    [ EST_FETCHENTRY ]   = "FETCH ENTRY",
+    [ EST_FETCHQH ]      = "FETCH QH",
+    [ EST_FETCHITD ]     = "FETCH ITD",
+    [ EST_ADVANCEQUEUE ] = "ADVANCEQUEUE",
+    [ EST_FETCHQTD ]     = "FETCH QTD",
+    [ EST_EXECUTE ]      = "EXECUTE",
+    [ EST_WRITEBACK ]    = "WRITEBACK",
+    [ EST_HORIZONTALQH ] = "HORIZONTALQH",
+};
+
+static const char *ehci_mmio_names[] = {
+    [ CAPLENGTH ]        = "CAPLENGTH",
+    [ HCIVERSION ]       = "HCIVERSION",
+    [ HCSPARAMS ]        = "HCSPARAMS",
+    [ HCCPARAMS ]        = "HCCPARAMS",
+    [ USBCMD ]           = "USBCMD",
+    [ USBSTS ]           = "USBSTS",
+    [ USBINTR ]          = "USBINTR",
+    [ FRINDEX ]          = "FRINDEX",
+    [ PERIODICLISTBASE ] = "P-LIST BASE",
+    [ ASYNCLISTADDR ]    = "A-LIST ADDR",
+    [ PORTSC_BEGIN ]     = "PORTSC #0",
+    [ PORTSC_BEGIN + 4]  = "PORTSC #1",
+    [ PORTSC_BEGIN + 8]  = "PORTSC #2",
+    [ PORTSC_BEGIN + 12] = "PORTSC #3",
+    [ CONFIGFLAG ]       = "CONFIGFLAG",
+};
+
+static const char *nr2str(const char **n, size_t len, uint32_t nr)
+{
+    if (nr < len && n[nr] != NULL) {
+        return n[nr];
+    } else {
+        return "unknown";
+    }
+}
+
+static const char *state2str(uint32_t state)
+{
+    return nr2str(ehci_state_names, ARRAY_SIZE(ehci_state_names), state);
+}
 
 static const char *addr2str(target_phys_addr_t addr)
 {
-    const char *r            = "unknown";
-    const char *n[] = {
-        [ CAPLENGTH ]        = "CAPLENGTH",
-        [ HCIVERSION ]       = "HCIVERSION",
-        [ HCSPARAMS ]        = "HCSPARAMS",
-        [ HCCPARAMS ]        = "HCCPARAMS",
-        [ USBCMD ]           = "USBCMD",
-        [ USBSTS ]           = "USBSTS",
-        [ USBINTR ]          = "USBINTR",
-        [ FRINDEX ]          = "FRINDEX",
-        [ PERIODICLISTBASE ] = "P-LIST BASE",
-        [ ASYNCLISTADDR ]    = "A-LIST ADDR",
-        [ PORTSC_BEGIN ...
-          PORTSC_END ]       = "PORTSC",
-        [ CONFIGFLAG ]       = "CONFIGFLAG",
-    };
-
-    if (addr < ARRAY_SIZE(n) && n[addr] != NULL) {
-        return n[addr];
-    } else {
-        return r;
-    }
+    return nr2str(ehci_mmio_names, ARRAY_SIZE(ehci_mmio_names), addr);
 }
 
 static void ehci_trace_usbsts(uint32_t mask, int state)
@@ -526,6 +545,56 @@ static inline void ehci_commit_interrupt(EHCIState *s)
     }
     ehci_set_interrupt(s, s->usbsts_pending);
     s->usbsts_pending = 0;
+}
+
+static void ehci_set_state(EHCIState *s, int async, int state)
+{
+    if (async) {
+        trace_usb_ehci_state("async", state2str(state));
+        s->astate = state;
+    } else {
+        trace_usb_ehci_state("periodic", state2str(state));
+        s->pstate = state;
+    }
+}
+
+static int ehci_get_state(EHCIState *s, int async)
+{
+    return async ? s->astate : s->pstate;
+}
+
+static void ehci_trace_qh(EHCIState *s, target_phys_addr_t addr, EHCIqh *qh)
+{
+    trace_usb_ehci_qh(addr, qh->next,
+                      qh->current_qtd, qh->next_qtd, qh->altnext_qtd,
+                      get_field(qh->epchar, QH_EPCHAR_RL),
+                      get_field(qh->epchar, QH_EPCHAR_MPLEN),
+                      get_field(qh->epchar, QH_EPCHAR_EPS),
+                      get_field(qh->epchar, QH_EPCHAR_EP),
+                      get_field(qh->epchar, QH_EPCHAR_DEVADDR),
+                      (bool)(qh->epchar & QH_EPCHAR_C),
+                      (bool)(qh->epchar & QH_EPCHAR_H),
+                      (bool)(qh->epchar & QH_EPCHAR_DTC),
+                      (bool)(qh->epchar & QH_EPCHAR_I));
+}
+
+static void ehci_trace_qtd(EHCIState *s, target_phys_addr_t addr, EHCIqtd *qtd)
+{
+    trace_usb_ehci_qtd(addr, qtd->next, qtd->altnext,
+                       get_field(qtd->token, QTD_TOKEN_TBYTES),
+                       get_field(qtd->token, QTD_TOKEN_CPAGE),
+                       get_field(qtd->token, QTD_TOKEN_CERR),
+                       get_field(qtd->token, QTD_TOKEN_PID),
+                       (bool)(qtd->token & QTD_TOKEN_IOC),
+                       (bool)(qtd->token & QTD_TOKEN_ACTIVE),
+                       (bool)(qtd->token & QTD_TOKEN_HALT),
+                       (bool)(qtd->token & QTD_TOKEN_BABBLE),
+                       (bool)(qtd->token & QTD_TOKEN_XACTERR));
+}
+
+static void ehci_trace_itd(EHCIState *s, target_phys_addr_t addr, EHCIitd *itd)
+{
+    trace_usb_ehci_itd(addr, itd->next);
 }
 
 /* Attach or detach a device on root hub */
@@ -1230,7 +1299,7 @@ static int ehci_process_itd(EHCIState *ehci,
 /*  This state is the entry point for asynchronous schedule
  *  processing.  Entry here consitutes a EHCI start event state (4.8.5)
  */
-static int ehci_state_waitlisthead(EHCIState *ehci,  int async, int *state)
+static int ehci_state_waitlisthead(EHCIState *ehci,  int async)
 {
     EHCIqh *qh = &ehci->qh;
     int i = 0;
@@ -1245,32 +1314,28 @@ static int ehci_state_waitlisthead(EHCIState *ehci,  int async, int *state)
     /*  Find the head of the list (4.9.1.1) */
     for(i = 0; i < MAX_QH; i++) {
         get_dwords(NLPTR_GET(entry), (uint32_t *) qh, sizeof(EHCIqh) >> 2);
+        ehci_trace_qh(ehci, NLPTR_GET(entry), qh);
 
         if (qh->epchar & QH_EPCHAR_H) {
-            DPRINTF_ST("WAITLISTHEAD: QH %08X is the HEAD of the list\n",
-                       entry);
             if (async) {
                 entry |= (NLPTR_TYPE_QH << 1);
             }
 
             ehci->fetch_addr = entry;
-            *state = EST_FETCHENTRY;
+            ehci_set_state(ehci, async, EST_FETCHENTRY);
             again = 1;
             goto out;
         }
 
-        DPRINTF_ST("WAITLISTHEAD: QH %08X is NOT the HEAD of the list\n",
-                   entry);
         entry = qh->next;
         if (entry == ehci->asynclistaddr) {
-            DPRINTF("WAITLISTHEAD: reached beginning of QH list\n");
             break;
         }
     }
 
     /* no head found for list. */
 
-    *state = EST_ACTIVE;
+    ehci_set_state(ehci, async, EST_ACTIVE);
 
 out:
     return again;
@@ -1280,7 +1345,7 @@ out:
 /*  This state is the entry point for periodic schedule processing as
  *  well as being a continuation state for async processing.
  */
-static int ehci_state_fetchentry(EHCIState *ehci, int async, int *state)
+static int ehci_state_fetchentry(EHCIState *ehci, int async)
 {
     int again = 0;
     uint32_t entry = ehci->fetch_addr;
@@ -1298,7 +1363,7 @@ static int ehci_state_fetchentry(EHCIState *ehci, int async, int *state)
 #endif
     if (entry < 0x1000) {
         DPRINTF("fetchentry: entry invalid (0x%08x)\n", entry);
-        *state = EST_ACTIVE;
+        ehci_set_state(ehci, async, EST_ACTIVE);
         goto out;
     }
 
@@ -1310,15 +1375,13 @@ static int ehci_state_fetchentry(EHCIState *ehci, int async, int *state)
 
     switch (NLPTR_TYPE_GET(entry)) {
     case NLPTR_TYPE_QH:
-        DPRINTF_ST("FETCHENTRY: entry %X is a Queue Head\n", entry);
-        *state = EST_FETCHQH;
+        ehci_set_state(ehci, async, EST_FETCHQH);
         ehci->qhaddr = entry;
         again = 1;
         break;
 
     case NLPTR_TYPE_ITD:
-        DPRINTF_ST("FETCHENTRY: entry %X is an ITD\n", entry);
-        *state = EST_FETCHITD;
+        ehci_set_state(ehci, async, EST_FETCHITD);
         ehci->itdaddr = entry;
         again = 1;
         break;
@@ -1334,13 +1397,14 @@ out:
     return again;
 }
 
-static int ehci_state_fetchqh(EHCIState *ehci, int async, int *state)
+static int ehci_state_fetchqh(EHCIState *ehci, int async)
 {
     EHCIqh *qh = &ehci->qh;
     int reload;
     int again = 0;
 
     get_dwords(NLPTR_GET(ehci->qhaddr), (uint32_t *) qh, sizeof(EHCIqh) >> 2);
+    ehci_trace_qh(ehci, NLPTR_GET(ehci->qhaddr), qh);
 
     if (async && (qh->epchar & QH_EPCHAR_H)) {
 
@@ -1350,7 +1414,7 @@ static int ehci_state_fetchqh(EHCIState *ehci, int async, int *state)
         } else {
             DPRINTF("FETCHQH:  QH 0x%08x. H-bit set, reclamation status reset"
                        " - done processing\n", ehci->qhaddr);
-            *state = EST_ACTIVE;
+            ehci_set_state(ehci, async, EST_ACTIVE);
             goto out;
         }
     }
@@ -1368,25 +1432,21 @@ static int ehci_state_fetchqh(EHCIState *ehci, int async, int *state)
 
     reload = get_field(qh->epchar, QH_EPCHAR_RL);
     if (reload) {
-        DPRINTF_ST("FETCHQH: reloading nakcnt to %d\n", reload);
         set_field(&qh->altnext_qtd, reload, QH_ALTNEXT_NAKCNT);
     }
 
     if (qh->token & QTD_TOKEN_HALT) {
-        DPRINTF_ST("FETCHQH: QH Halted, go horizontal\n");
-        *state = EST_HORIZONTALQH;
+        ehci_set_state(ehci, async, EST_HORIZONTALQH);
         again = 1;
 
     } else if ((qh->token & QTD_TOKEN_ACTIVE) && (qh->current_qtd > 0x1000)) {
-        DPRINTF_ST("FETCHQH: Active, !Halt, execute - fetch qTD\n");
         ehci->qtdaddr = qh->current_qtd;
-        *state = EST_FETCHQTD;
+        ehci_set_state(ehci, async, EST_FETCHQTD);
         again = 1;
 
     } else {
         /*  EHCI spec version 1.0 Section 4.10.2 */
-        DPRINTF_ST("FETCHQH: !Active, !Halt, advance queue\n");
-        *state = EST_ADVANCEQUEUE;
+        ehci_set_state(ehci, async, EST_ADVANCEQUEUE);
         again = 1;
     }
 
@@ -1394,14 +1454,13 @@ out:
     return again;
 }
 
-static int ehci_state_fetchitd(EHCIState *ehci, int async, int *state)
+static int ehci_state_fetchitd(EHCIState *ehci, int async)
 {
     EHCIitd itd;
 
     get_dwords(NLPTR_GET(ehci->itdaddr),(uint32_t *) &itd,
                sizeof(EHCIitd) >> 2);
-    DPRINTF_ST("FETCHITD: Fetched ITD at address %08X " "(next is %08X)\n",
-               ehci->itdaddr, itd.next);
+    ehci_trace_itd(ehci, ehci->itdaddr, &itd);
 
     if (ehci_process_itd(ehci, &itd) != 0) {
         return -1;
@@ -1410,13 +1469,13 @@ static int ehci_state_fetchitd(EHCIState *ehci, int async, int *state)
     put_dwords(NLPTR_GET(ehci->itdaddr), (uint32_t *) &itd,
                 sizeof(EHCIitd) >> 2);
     ehci->fetch_addr = itd.next;
-    *state = EST_FETCHENTRY;
+    ehci_set_state(ehci, async, EST_FETCHENTRY);
 
     return 1;
 }
 
 /* Section 4.10.2 - paragraph 3 */
-static int ehci_state_advqueue(EHCIState *ehci, int async, int *state)
+static int ehci_state_advqueue(EHCIState *ehci, int async)
 {
 #if 0
     /* TO-DO: 4.10.2 - paragraph 2
@@ -1424,7 +1483,7 @@ static int ehci_state_advqueue(EHCIState *ehci, int async, int *state)
      * go to horizontal QH
      */
     if (I-bit set) {
-        *state = EST_HORIZONTALQH;
+        ehci_set_state(ehci, async, EST_HORIZONTALQH);
         goto out;
     }
 #endif
@@ -1435,84 +1494,69 @@ static int ehci_state_advqueue(EHCIState *ehci, int async, int *state)
     if (((ehci->qh.token & QTD_TOKEN_TBYTES_MASK) != 0) &&
         (ehci->qh.altnext_qtd > 0x1000) &&
         (NLPTR_TBIT(ehci->qh.altnext_qtd) == 0)) {
-        DPRINTF_ST("ADVQUEUE: goto alt next qTD. "
-                   "curr 0x%08x next 0x%08x alt 0x%08x (next qh %x)\n",
-                   ehci->qh.current_qtd, ehci->qh.altnext_qtd,
-                   ehci->qh.next_qtd, ehci->qh.next);
         ehci->qtdaddr = ehci->qh.altnext_qtd;
-        *state = EST_FETCHQTD;
+        ehci_set_state(ehci, async, EST_FETCHQTD);
 
     /*
      *  next qTD is valid
      */
     } else if ((ehci->qh.next_qtd > 0x1000) &&
                (NLPTR_TBIT(ehci->qh.next_qtd) == 0)) {
-        DPRINTF_ST("ADVQUEUE: next qTD. "
-                   "curr 0x%08x next 0x%08x alt 0x%08x (next qh %x)\n",
-                   ehci->qh.current_qtd, ehci->qh.altnext_qtd,
-                   ehci->qh.next_qtd, ehci->qh.next);
         ehci->qtdaddr = ehci->qh.next_qtd;
-        *state = EST_FETCHQTD;
+        ehci_set_state(ehci, async, EST_FETCHQTD);
 
     /*
      *  no valid qTD, try next QH
      */
     } else {
-        DPRINTF_ST("ADVQUEUE: go to horizontal QH\n");
-        *state = EST_HORIZONTALQH;
+        ehci_set_state(ehci, async, EST_HORIZONTALQH);
     }
 
     return 1;
 }
 
 /* Section 4.10.2 - paragraph 4 */
-static int ehci_state_fetchqtd(EHCIState *ehci, int async, int *state)
+static int ehci_state_fetchqtd(EHCIState *ehci, int async)
 {
     EHCIqtd *qtd = &ehci->qtd;
     int again = 0;
 
     get_dwords(NLPTR_GET(ehci->qtdaddr),(uint32_t *) qtd, sizeof(EHCIqtd) >> 2);
+    ehci_trace_qtd(ehci, NLPTR_GET(ehci->qtdaddr), qtd);
 
     if (qtd->token & QTD_TOKEN_ACTIVE) {
-        *state = EST_EXECUTE;
+        ehci_set_state(ehci, async, EST_EXECUTE);
         again = 1;
     } else {
-        *state = EST_HORIZONTALQH;
+        ehci_set_state(ehci, async, EST_HORIZONTALQH);
         again = 1;
     }
 
     return again;
 }
 
-static int ehci_state_horizqh(EHCIState *ehci, int async, int *state)
+static int ehci_state_horizqh(EHCIState *ehci, int async)
 {
     int again = 0;
 
     if (ehci->fetch_addr != ehci->qh.next) {
         ehci->fetch_addr = ehci->qh.next;
-        *state = EST_FETCHENTRY;
+        ehci_set_state(ehci, async, EST_FETCHENTRY);
         again = 1;
     } else {
-        *state = EST_ACTIVE;
+        ehci_set_state(ehci, async, EST_ACTIVE);
     }
 
     return again;
 }
 
-static int ehci_state_execute(EHCIState *ehci, int async, int *state)
+static int ehci_state_execute(EHCIState *ehci, int async)
 {
     EHCIqh *qh = &ehci->qh;
     EHCIqtd *qtd = &ehci->qtd;
     int again = 0;
     int reload, nakcnt;
     int smask;
-
-    if (async) {
-        DPRINTF_ST(">>>>> ASYNC STATE MACHINE execute QH 0x%08x, QTD 0x%08x\n",
-                  ehci->qhaddr, ehci->qtdaddr);
-    } else {
-        DPRINTF_ST(">>>>> PERIODIC STATE MACHINE execute\n");
-    }
 
     if (ehci_qh_do_overlay(ehci, qh, qtd) != 0) {
         return -1;
@@ -1524,8 +1568,7 @@ static int ehci_state_execute(EHCIState *ehci, int async, int *state)
         reload = get_field(qh->epchar, QH_EPCHAR_RL);
         nakcnt = get_field(qh->altnext_qtd, QH_ALTNEXT_NAKCNT);
         if (reload && !nakcnt) {
-            DPRINTF_ST("EXECUTE: RL != 0 but NakCnt == 0 -- no execute\n");
-            *state = EST_HORIZONTALQH;
+            ehci_set_state(ehci, async, EST_HORIZONTALQH);
             again = 1;
             goto out;
         }
@@ -1538,8 +1581,7 @@ static int ehci_state_execute(EHCIState *ehci, int async, int *state)
     if (!async) {
         int transactCtr = get_field(qh->epcap, QH_EPCAP_MULT);
         if (!transactCtr) {
-            DPRINTF("ZERO transactctr for int qh, go HORIZ\n");
-            *state = EST_HORIZONTALQH;
+            ehci_set_state(ehci, async, EST_HORIZONTALQH);
             again = 1;
             goto out;
         }
@@ -1554,7 +1596,7 @@ static int ehci_state_execute(EHCIState *ehci, int async, int *state)
         again = -1;
         goto out;
     }
-    *state = EST_EXECUTING;
+    ehci_set_state(ehci, async, EST_EXECUTING);
 
     if (ehci->exec_status != USB_RET_ASYNC) {
         again = 1;
@@ -1564,7 +1606,7 @@ out:
     return again;
 }
 
-static int ehci_state_executing(EHCIState *ehci, int async, int *state)
+static int ehci_state_executing(EHCIState *ehci, int async)
 {
     EHCIqh *qh = &ehci->qh;
     int again = 0;
@@ -1596,12 +1638,8 @@ static int ehci_state_executing(EHCIState *ehci, int async, int *state)
             if (nakcnt) {
                 nakcnt--;
             }
-            DPRINTF_ST("EXECUTING: Nak occured and RL != 0, dec NakCnt to %d\n",
-                    nakcnt);
         } else {
             nakcnt = reload;
-            DPRINTF_ST("EXECUTING: Nak didn't occur, reloading to %d\n",
-                       nakcnt);
         }
         set_field(&qh->altnext_qtd, nakcnt, QH_ALTNEXT_NAKCNT);
     }
@@ -1611,16 +1649,13 @@ static int ehci_state_executing(EHCIState *ehci, int async, int *state)
      *  in the EHCI spec but we need to do it since we don't share
      *  physical memory with our guest VM.
      */
-
-    DPRINTF("EXECUTING: write QH to VM memory: qhaddr 0x%x, next 0x%x\n",
-              ehci->qhaddr, qh->next);
     put_dwords(NLPTR_GET(ehci->qhaddr), (uint32_t *) qh, sizeof(EHCIqh) >> 2);
 
     /* 4.10.5 */
     if ((ehci->exec_status == USB_RET_NAK) || (qh->token & QTD_TOKEN_ACTIVE)) {
-        *state = EST_HORIZONTALQH;
+        ehci_set_state(ehci, async, EST_HORIZONTALQH);
     } else {
-        *state = EST_WRITEBACK;
+        ehci_set_state(ehci, async, EST_WRITEBACK);
     }
 
     again = 1;
@@ -1630,13 +1665,13 @@ out:
 }
 
 
-static int ehci_state_writeback(EHCIState *ehci, int async, int *state)
+static int ehci_state_writeback(EHCIState *ehci, int async)
 {
     EHCIqh *qh = &ehci->qh;
     int again = 0;
 
     /*  Write back the QTD from the QH area */
-    DPRINTF_ST("WRITEBACK: write QTD to VM memory\n");
+    ehci_trace_qtd(ehci, NLPTR_GET(ehci->qtdaddr), (EHCIqtd*) &qh->next_qtd);
     put_dwords(NLPTR_GET(ehci->qtdaddr),(uint32_t *) &qh->next_qtd,
                 sizeof(EHCIqtd) >> 2);
 
@@ -1644,10 +1679,10 @@ static int ehci_state_writeback(EHCIState *ehci, int async, int *state)
      * but stop after one qtd if periodic
      */
     //if (async) {
-        *state = EST_ADVANCEQUEUE;
+        ehci_set_state(ehci, async, EST_ADVANCEQUEUE);
         again = 1;
     //} else {
-    //    *state = EST_ACTIVE;
+    //    ehci_set_state(ehci, async, EST_ACTIVE);
     //}
     return again;
 }
@@ -1656,15 +1691,14 @@ static int ehci_state_writeback(EHCIState *ehci, int async, int *state)
  * This is the state machine that is common to both async and periodic
  */
 
-static int ehci_advance_state(EHCIState *ehci,
-                              int async,
-                              int state)
+static void ehci_advance_state(EHCIState *ehci,
+                               int async)
 {
     int again;
     int iter = 0;
 
     do {
-        if (state == EST_FETCHQH) {
+        if (ehci_get_state(ehci, async) == EST_FETCHQH) {
             iter++;
             /* if we are roaming a lot of QH without executing a qTD
              * something is wrong with the linked list. TO-DO: why is
@@ -1672,50 +1706,50 @@ static int ehci_advance_state(EHCIState *ehci,
              */
             if (iter > MAX_ITERATIONS) {
                 DPRINTF("\n*** advance_state: bailing on MAX ITERATIONS***\n");
-                state = EST_ACTIVE;
+                ehci_set_state(ehci, async, EST_ACTIVE);
                 break;
             }
         }
-        switch(state) {
+        switch(ehci_get_state(ehci, async)) {
         case EST_WAITLISTHEAD:
-            again = ehci_state_waitlisthead(ehci, async, &state);
+            again = ehci_state_waitlisthead(ehci, async);
             break;
 
         case EST_FETCHENTRY:
-            again = ehci_state_fetchentry(ehci, async, &state);
+            again = ehci_state_fetchentry(ehci, async);
             break;
 
         case EST_FETCHQH:
-            again = ehci_state_fetchqh(ehci, async, &state);
+            again = ehci_state_fetchqh(ehci, async);
             break;
 
         case EST_FETCHITD:
-            again = ehci_state_fetchitd(ehci, async, &state);
+            again = ehci_state_fetchitd(ehci, async);
             break;
 
         case EST_ADVANCEQUEUE:
-            again = ehci_state_advqueue(ehci, async, &state);
+            again = ehci_state_advqueue(ehci, async);
             break;
 
         case EST_FETCHQTD:
-            again = ehci_state_fetchqtd(ehci, async, &state);
+            again = ehci_state_fetchqtd(ehci, async);
             break;
 
         case EST_HORIZONTALQH:
-            again = ehci_state_horizqh(ehci, async, &state);
+            again = ehci_state_horizqh(ehci, async);
             break;
 
         case EST_EXECUTE:
             iter = 0;
-            again = ehci_state_execute(ehci, async, &state);
+            again = ehci_state_execute(ehci, async);
             break;
 
         case EST_EXECUTING:
-            again = ehci_state_executing(ehci, async, &state);
+            again = ehci_state_executing(ehci, async);
             break;
 
         case EST_WRITEBACK:
-            again = ehci_state_writeback(ehci, async, &state);
+            again = ehci_state_writeback(ehci, async);
             break;
 
         default:
@@ -1733,27 +1767,26 @@ static int ehci_advance_state(EHCIState *ehci,
     while (again);
 
     ehci_commit_interrupt(ehci);
-    return state;
 }
 
 static void ehci_advance_async_state(EHCIState *ehci)
 {
     EHCIqh qh;
-    int state = ehci->astate;
+    int async = 1;
 
-    switch(state) {
+    switch(ehci_get_state(ehci, async)) {
     case EST_INACTIVE:
         if (!(ehci->usbcmd & USBCMD_ASE)) {
             break;
         }
         ehci_set_usbsts(ehci, USBSTS_ASS);
-        ehci->astate = EST_ACTIVE;
+        ehci_set_state(ehci, async, EST_ACTIVE);
         // No break, fall through to ACTIVE
 
     case EST_ACTIVE:
         if ( !(ehci->usbcmd & USBCMD_ASE)) {
             ehci_clear_usbsts(ehci, USBSTS_ASS);
-            ehci->astate = EST_INACTIVE;
+            ehci_set_state(ehci, async, EST_INACTIVE);
             break;
         }
 
@@ -1775,14 +1808,12 @@ static void ehci_advance_async_state(EHCIState *ehci)
             break;
         }
 
-        DPRINTF_ST("ASYNC: waiting for listhead, starting at %08x\n",
-                ehci->asynclistaddr);
         /* check that address register has been set */
         if (ehci->asynclistaddr == 0) {
             break;
         }
 
-        state = EST_WAITLISTHEAD;
+        ehci_set_state(ehci, async, EST_WAITLISTHEAD);
         /* fall through */
 
     case EST_FETCHENTRY:
@@ -1791,14 +1822,14 @@ static void ehci_advance_async_state(EHCIState *ehci)
     case EST_EXECUTING:
         get_dwords(NLPTR_GET(ehci->qhaddr), (uint32_t *) &qh,
                    sizeof(EHCIqh) >> 2);
-        ehci->astate = ehci_advance_state(ehci, 1, state);
+        ehci_advance_state(ehci, async);
         break;
 
     default:
         /* this should only be due to a developer mistake */
         fprintf(stderr, "ehci: Bad asynchronous state %d. "
                 "Resetting to active\n", ehci->astate);
-        ehci->astate = EST_ACTIVE;
+        ehci_set_state(ehci, async, EST_ACTIVE);
     }
 }
 
@@ -1806,14 +1837,15 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
 {
     uint32_t entry;
     uint32_t list;
+    int async = 0;
 
     // 4.6
 
-    switch(ehci->pstate) {
+    switch(ehci_get_state(ehci, async)) {
     case EST_INACTIVE:
         if ( !(ehci->frindex & 7) && (ehci->usbcmd & USBCMD_PSE)) {
             ehci_set_usbsts(ehci, USBSTS_PSS);
-            ehci->pstate = EST_ACTIVE;
+            ehci_set_state(ehci, async, EST_ACTIVE);
             // No break, fall through to ACTIVE
         } else
             break;
@@ -1821,7 +1853,7 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
     case EST_ACTIVE:
         if ( !(ehci->frindex & 7) && !(ehci->usbcmd & USBCMD_PSE)) {
             ehci_clear_usbsts(ehci, USBSTS_PSS);
-            ehci->pstate = EST_INACTIVE;
+            ehci_set_state(ehci, async, EST_INACTIVE);
             break;
         }
 
@@ -1838,19 +1870,20 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
         DPRINTF("PERIODIC state adv fr=%d.  [%08X] -> %08X\n",
                 ehci->frindex / 8, list, entry);
         ehci->fetch_addr = entry;
-        ehci->pstate = ehci_advance_state(ehci, 0, EST_FETCHENTRY);
+        ehci_set_state(ehci, async, EST_FETCHENTRY);
+        ehci_advance_state(ehci, async);
         break;
 
     case EST_EXECUTING:
         DPRINTF("PERIODIC state adv for executing\n");
-        ehci->pstate = ehci_advance_state(ehci, 0, EST_EXECUTING);
+        ehci_advance_state(ehci, async);
         break;
 
     default:
         /* this should only be due to a developer mistake */
         fprintf(stderr, "ehci: Bad periodic state %d. "
                 "Resetting to active\n", ehci->pstate);
-        ehci->pstate = EST_ACTIVE;
+        ehci_set_state(ehci, async, EST_ACTIVE);
     }
 }
 
@@ -1896,7 +1929,7 @@ static void ehci_frame_timer(void *opaque)
         } else {
             // TODO could this cause periodic frames to get skipped if async
             // active?
-            if (ehci->astate != EST_EXECUTING) {
+            if (ehci_get_state(ehci, 1) != EST_EXECUTING) {
                 ehci_advance_periodic_state(ehci);
             }
         }
@@ -1913,7 +1946,7 @@ static void ehci_frame_timer(void *opaque)
     /*  Async is not inside loop since it executes everything it can once
      *  called
      */
-    if (ehci->pstate != EST_EXECUTING) {
+    if (ehci_get_state(ehci, 0) != EST_EXECUTING) {
         ehci_advance_async_state(ehci);
     }
 
