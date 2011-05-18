@@ -42,3 +42,17 @@ int v9fs_co_readlink(V9fsState *s, V9fsString *path, V9fsString *buf)
     }
     return err;
 }
+
+int v9fs_co_statfs(V9fsState *s, V9fsString *path, struct statfs *stbuf)
+{
+    int err;
+
+    v9fs_co_run_in_worker(
+        {
+            err = s->ops->statfs(&s->ctx, path->data, stbuf);
+            if (err < 0) {
+                err = -errno;
+            }
+        });
+    return err;
+}
