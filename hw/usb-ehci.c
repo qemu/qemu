@@ -719,10 +719,6 @@ static void handle_port_status_write(EHCIState *s, int port, uint32_t val)
     int rwc;
     USBDevice *dev = s->ports[port].dev;
 
-    DPRINTF("port_status_write: "
-            "PORTSC (port %d) curr %08X new %08X rw-clear %08X rw %08X\n",
-            port, *portsc, val, (val & PORTSC_RWC_MASK), val & PORTSC_RO_MASK);
-
     rwc = val & PORTSC_RWC_MASK;
     val &= PORTSC_RO_MASK;
 
@@ -744,8 +740,6 @@ static void handle_port_status_write(EHCIState *s, int port, uint32_t val)
         }
 
         if (s->ports[port].dev) {
-            DPRINTF("port_status_write: "
-                    "Device was connected before reset, clearing CSC bit\n");
             *portsc &= ~PORTSC_CSC;
         }
 
@@ -760,16 +754,16 @@ static void handle_port_status_write(EHCIState *s, int port, uint32_t val)
 
     *portsc &= ~PORTSC_RO_MASK;
     *portsc |= val;
-    DPRINTF("port_status_write: Port %d status set to 0x%08x\n", port, *portsc);
 }
 
 static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
 {
     EHCIState *s = ptr;
+    uint32_t *mmio = (uint32_t *)(&s->mmio[addr]);
+    uint32_t old = *mmio;
     int i;
 
-    trace_usb_ehci_mmio_writel(addr, addr2str(addr), val,
-                               *(uint32_t *)(&s->mmio[addr]));
+    trace_usb_ehci_mmio_writel(addr, addr2str(addr), val);
 
     /* Only aligned reads are allowed on OHCI */
     if (addr & 3) {
@@ -780,6 +774,7 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
 
     if (addr >= PORTSC && addr < PORTSC + 4 * NB_PORTS) {
         handle_port_status_write(s, (addr-PORTSC)/4, val);
+        trace_usb_ehci_mmio_change(addr, addr2str(addr), *mmio, old);
         return;
     }
 
@@ -858,7 +853,8 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
         break;
     }
 
-    *(uint32_t *)(&s->mmio[addr]) = val;
+    *mmio = val;
+    trace_usb_ehci_mmio_change(addr, addr2str(addr), *mmio, old);
 }
 
 
