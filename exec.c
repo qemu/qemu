@@ -3085,9 +3085,10 @@ void *qemu_get_ram_ptr(ram_addr_t addr)
             if (xen_mapcache_enabled()) {
                 /* We need to check if the requested address is in the RAM
                  * because we don't want to map the entire memory in QEMU.
+                 * In that case just map until the end of the page.
                  */
                 if (block->offset == 0) {
-                    return qemu_map_cache(addr, 0, 1);
+                    return qemu_map_cache(addr, 0, 0);
                 } else if (block->host == NULL) {
                     block->host = qemu_map_cache(block->offset, block->length, 1);
                 }
@@ -3114,9 +3115,10 @@ void *qemu_safe_ram_ptr(ram_addr_t addr)
             if (xen_mapcache_enabled()) {
                 /* We need to check if the requested address is in the RAM
                  * because we don't want to map the entire memory in QEMU.
+                 * In that case just map until the end of the page.
                  */
                 if (block->offset == 0) {
-                    return qemu_map_cache(addr, 0, 1);
+                    return qemu_map_cache(addr, 0, 0);
                 } else if (block->host == NULL) {
                     block->host = qemu_map_cache(block->offset, block->length, 1);
                 }
@@ -3159,16 +3161,17 @@ void *qemu_ram_ptr_length(target_phys_addr_t addr, target_phys_addr_t *size)
 void qemu_put_ram_ptr(void *addr)
 {
     trace_qemu_put_ram_ptr(addr);
-
-    if (xen_mapcache_enabled()) {
-            qemu_invalidate_entry(block->host);
-    }
 }
 
 int qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
 {
     RAMBlock *block;
     uint8_t *host = ptr;
+
+    if (xen_mapcache_enabled()) {
+        *ram_addr = qemu_ram_addr_from_mapcache(ptr);
+        return 0;
+    }
 
     QLIST_FOREACH(block, &ram_list.blocks, next) {
         /* This case append when the block is not mapped. */
@@ -3179,11 +3182,6 @@ int qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
             *ram_addr = block->offset + (host - block->host);
             return 0;
         }
-    }
-
-    if (xen_mapcache_enabled()) {
-        *ram_addr = qemu_ram_addr_from_mapcache(ptr);
-        return 0;
     }
 
     return -1;
@@ -4086,13 +4084,7 @@ void cpu_physical_memory_unmap(void *buffer, target_phys_addr_t len,
             }
         }
         if (xen_mapcache_enabled()) {
-            uint8_t *buffer1 = buffer;
-            uint8_t *end_buffer = buffer + len;
-
-            while (buffer1 < end_buffer) {
-                qemu_put_ram_ptr(buffer1);
-                buffer1 += TARGET_PAGE_SIZE;
-            }
+            qemu_invalidate_entry(buffer);
         }
         return;
     }
