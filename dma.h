@@ -32,6 +32,14 @@ void qemu_sglist_add(QEMUSGList *qsg, target_phys_addr_t base,
                      target_phys_addr_t len);
 void qemu_sglist_destroy(QEMUSGList *qsg);
 
+typedef BlockDriverAIOCB *DMAIOFunc(BlockDriverState *bs, int64_t sector_num,
+                                 QEMUIOVector *iov, int nb_sectors,
+                                 BlockDriverCompletionFunc *cb, void *opaque);
+
+BlockDriverAIOCB *dma_bdrv_io(BlockDriverState *bs,
+                              QEMUSGList *sg, uint64_t sector_num,
+                              DMAIOFunc *io_func, BlockDriverCompletionFunc *cb,
+                              void *opaque, int is_write);
 BlockDriverAIOCB *dma_bdrv_read(BlockDriverState *bs,
                                 QEMUSGList *sg, uint64_t sector,
                                 BlockDriverCompletionFunc *cb, void *opaque);
