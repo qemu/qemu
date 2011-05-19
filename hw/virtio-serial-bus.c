@@ -674,14 +674,11 @@ static void virtser_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
 {
     VirtIOSerialPort *port = DO_UPCAST(VirtIOSerialPort, dev, qdev);
 
-    monitor_printf(mon, "%*s dev-prop-int: id: %u\n",
-                   indent, "", port->id);
-    monitor_printf(mon, "%*s dev-prop-int: guest_connected: %d\n",
-                   indent, "", port->guest_connected);
-    monitor_printf(mon, "%*s dev-prop-int: host_connected: %d\n",
-                   indent, "", port->host_connected);
-    monitor_printf(mon, "%*s dev-prop-int: throttled: %d\n",
-                   indent, "", port->throttled);
+    monitor_printf(mon, "%*sport %d, guest %s, host %s, throttle %s\n",
+                   indent, "", port->id,
+                   port->guest_connected ? "on" : "off",
+                   port->host_connected ? "on" : "off",
+                   port->throttled ? "on" : "off");
 }
 
 /* This function is only used if a port id is not provided by the user */
