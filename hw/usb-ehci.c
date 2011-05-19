@@ -604,8 +604,7 @@ static void ehci_attach(USBPort *port)
     EHCIState *s = port->opaque;
     uint32_t *portsc = &s->portsc[port->index];
 
-    DPRINTF("ehci_attach invoked for index %d, portsc 0x%x, desc %s\n",
-           port->index, *portsc, port->dev->product_desc);
+    trace_usb_ehci_port_attach(port->index, port->dev->product_desc);
 
     *portsc |= PORTSC_CONNECT;
     *portsc |= PORTSC_CSC;
@@ -625,8 +624,7 @@ static void ehci_detach(USBPort *port)
     EHCIState *s = port->opaque;
     uint32_t *portsc = &s->portsc[port->index];
 
-    DPRINTF("ehci_attach invoked for index %d, portsc 0x%x\n",
-           port->index, *portsc);
+    trace_usb_ehci_port_detach(port->index);
 
     *portsc &= ~PORTSC_CONNECT;
     *portsc |= PORTSC_CSC;
@@ -733,11 +731,11 @@ static void handle_port_status_write(EHCIState *s, int port, uint32_t val)
     *portsc &= ~rwc;
 
     if ((val & PORTSC_PRESET) && !(*portsc & PORTSC_PRESET)) {
-        DPRINTF("port_status_write: USBTRAN Port %d reset begin\n", port);
+        trace_usb_ehci_port_reset(port, 1);
     }
 
     if (!(val & PORTSC_PRESET) &&(*portsc & PORTSC_PRESET)) {
-        DPRINTF("port_status_write: USBTRAN Port %d reset done\n", port);
+        trace_usb_ehci_port_reset(port, 0);
         usb_attach(&s->ports[port], dev);
 
         // TODO how to handle reset of ports with no device
