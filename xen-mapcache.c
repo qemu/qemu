@@ -362,34 +362,3 @@ void qemu_invalidate_map_cache(void)
 
     mapcache_unlock();
 }
-
-uint8_t *xen_map_block(target_phys_addr_t phys_addr, target_phys_addr_t size)
-{
-    uint8_t *vaddr_base;
-    xen_pfn_t *pfns;
-    int *err;
-    unsigned int i;
-    target_phys_addr_t nb_pfn = size >> XC_PAGE_SHIFT;
-
-    trace_xen_map_block(phys_addr, size);
-    phys_addr >>= XC_PAGE_SHIFT;
-
-    pfns = qemu_mallocz(nb_pfn * sizeof (xen_pfn_t));
-    err = qemu_mallocz(nb_pfn * sizeof (int));
-
-    for (i = 0; i < nb_pfn; i++) {
-        pfns[i] = phys_addr + i;
-    }
-
-    vaddr_base = xc_map_foreign_bulk(xen_xc, xen_domid, PROT_READ|PROT_WRITE,
-                                     pfns, err, nb_pfn);
-    if (vaddr_base == NULL) {
-        perror("xc_map_foreign_bulk");
-        exit(-1);
-    }
-
-    qemu_free(pfns);
-    qemu_free(err);
-
-    return vaddr_base;
-}

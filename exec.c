@@ -53,6 +53,7 @@
 #endif
 #else /* !CONFIG_USER_ONLY */
 #include "xen-mapcache.h"
+#include "trace.h"
 #endif
 
 //#define DEBUG_TB_INVALIDATE
@@ -3088,7 +3089,7 @@ void *qemu_get_ram_ptr(ram_addr_t addr)
                 if (block->offset == 0) {
                     return qemu_map_cache(addr, 0, 1);
                 } else if (block->host == NULL) {
-                    block->host = xen_map_block(block->offset, block->length);
+                    block->host = qemu_map_cache(block->offset, block->length, 1);
                 }
             }
             return block->host + (addr - block->offset);
@@ -3117,7 +3118,7 @@ void *qemu_safe_ram_ptr(ram_addr_t addr)
                 if (block->offset == 0) {
                     return qemu_map_cache(addr, 0, 1);
                 } else if (block->host == NULL) {
-                    block->host = xen_map_block(block->offset, block->length);
+                    block->host = qemu_map_cache(block->offset, block->length, 1);
                 }
             }
             return block->host + (addr - block->offset);
@@ -3135,19 +3136,7 @@ void qemu_put_ram_ptr(void *addr)
     trace_qemu_put_ram_ptr(addr);
 
     if (xen_mapcache_enabled()) {
-        RAMBlock *block;
-
-        QLIST_FOREACH(block, &ram_list.blocks, next) {
-            if (addr == block->host) {
-                break;
-            }
-        }
-        if (block && block->host) {
-            xen_unmap_block(block->host, block->length);
-            block->host = NULL;
-        } else {
-            qemu_invalidate_entry(addr);
-        }
+            qemu_invalidate_entry(block->host);
     }
 }
 

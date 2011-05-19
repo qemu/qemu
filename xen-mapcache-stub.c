@@ -34,7 +34,3 @@ void qemu_invalidate_map_cache(void)
 void qemu_invalidate_entry(uint8_t *buffer)
 {
 }
-uint8_t *xen_map_block(target_phys_addr_t phys_addr, target_phys_addr_t size)
-{
-    return NULL;
-}
