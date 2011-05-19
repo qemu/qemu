@@ -29,7 +29,6 @@ struct CCIDCardState {
  */
 struct CCIDCardInfo {
     DeviceInfo qdev;
-    void (*print)(Monitor *mon, CCIDCardState *card, int indent);
     const uint8_t *(*get_atr)(CCIDCardState *card, uint32_t *len);
     void (*apdu_from_guest)(CCIDCardState *card,
                             const uint8_t *apdu,
