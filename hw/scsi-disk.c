@@ -518,7 +518,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
 
     memset(outbuf, 0, buflen);
 
-    if (req->lun || req->cmd.buf[1] >> 5) {
+    if (req->lun) {
         outbuf[0] = 0x7f;	/* LUN not supported */
         return buflen;
     }
@@ -1024,9 +1024,9 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
     }
 #endif
 
-    if (req->lun || buf[1] >> 5) {
+    if (req->lun) {
         /* Only LUN 0 supported.  */
-        DPRINTF("Unimplemented LUN %d\n", req->lun ? req->lun : buf[1] >> 5);
+        DPRINTF("Unimplemented LUN %d\n", req->lun);
         if (command != REQUEST_SENSE && command != INQUIRY) {
             scsi_command_complete(r, CHECK_CONDITION,
                                   SENSE_CODE(LUN_NOT_SUPPORTED));

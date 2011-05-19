@@ -337,9 +337,8 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *cmd)
     SCSIGenericReq *r = DO_UPCAST(SCSIGenericReq, req, req);
     int ret;
 
-    if (cmd[0] != REQUEST_SENSE &&
-        (req->lun != s->lun || (cmd[1] >> 5) != s->lun)) {
-        DPRINTF("Unimplemented LUN %d\n", req->lun ? req->lun : cmd[1] >> 5);
+    if (cmd[0] != REQUEST_SENSE && req->lun != s->lun) {
+        DPRINTF("Unimplemented LUN %d\n", req->lun);
         scsi_set_sense(s, SENSE_CODE(LUN_NOT_SUPPORTED));
         r->req.status = CHECK_CONDITION;
         scsi_req_complete(&r->req);
