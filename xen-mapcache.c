@@ -230,39 +230,6 @@ uint8_t *qemu_map_cache(target_phys_addr_t phys_addr, target_phys_addr_t size, u
     return mapcache->last_address_vaddr + address_offset;
 }
 
-void qemu_map_cache_unlock(void *buffer)
-{
-    MapCacheEntry *entry = NULL, *pentry = NULL;
-    MapCacheRev *reventry;
-    target_phys_addr_t paddr_index;
-    int found = 0;
-
-    QTAILQ_FOREACH(reventry, &mapcache->locked_entries, next) {
-        if (reventry->vaddr_req == buffer) {
-            paddr_index = reventry->paddr_index;
-            found = 1;
-            break;
-        }
-    }
-    if (!found) {
-        return;
-    }
-    QTAILQ_REMOVE(&mapcache->locked_entries, reventry, next);
-    qemu_free(reventry);
-
-    entry = &mapcache->entry[paddr_index % mapcache->nr_buckets];
-    while (entry && entry->paddr_index != paddr_index) {
-        pentry = entry;
-        entry = entry->next;
-    }
-    if (!entry) {
-        return;
-    }
-    if (entry->lock > 0) {
-        entry->lock--;
-    }
-}
-
 ram_addr_t qemu_ram_addr_from_mapcache(void *ptr)
 {
     MapCacheEntry *entry = NULL, *pentry = NULL;

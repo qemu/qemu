@@ -3146,7 +3146,7 @@ void qemu_put_ram_ptr(void *addr)
             xen_unmap_block(block->host, block->length);
             block->host = NULL;
         } else {
-            qemu_map_cache_unlock(addr);
+            qemu_invalidate_entry(addr);
         }
     }
 }
