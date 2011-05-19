@@ -2720,6 +2720,9 @@ float32 HELPER(recps_f32)(float32 a, float32 b, CPUState *env)
     float_status *s = &env->vfp.standard_fp_status;
     if ((float32_is_infinity(a) && float32_is_zero_or_denormal(b)) ||
         (float32_is_infinity(b) && float32_is_zero_or_denormal(a))) {
+        if (!(float32_is_zero(a) || float32_is_zero(b))) {
+            float_raise(float_flag_input_denormal, s);
+        }
         return float32_two;
     }
     return float32_sub(float32_two, float32_mul(a, b, s), s);
@@ -2731,6 +2734,9 @@ float32 HELPER(rsqrts_f32)(float32 a, float32 b, CPUState *env)
     float32 product;
     if ((float32_is_infinity(a) && float32_is_zero_or_denormal(b)) ||
         (float32_is_infinity(b) && float32_is_zero_or_denormal(a))) {
+        if (!(float32_is_zero(a) || float32_is_zero(b))) {
+            float_raise(float_flag_input_denormal, s);
+        }
         return float32_one_point_five;
     }
     product = float32_mul(a, b, s);
@@ -2791,6 +2797,9 @@ float32 HELPER(recpe_f32)(float32 a, CPUState *env)
     } else if (float32_is_infinity(a)) {
         return float32_set_sign(float32_zero, float32_is_neg(a));
     } else if (float32_is_zero_or_denormal(a)) {
+        if (!float32_is_zero(a)) {
+            float_raise(float_flag_input_denormal, s);
+        }
         float_raise(float_flag_divbyzero, s);
         return float32_set_sign(float32_infinity, float32_is_neg(a));
     } else if (a_exp >= 253) {
@@ -2882,6 +2891,9 @@ float32 HELPER(rsqrte_f32)(float32 a, CPUState *env)
         }
         return float32_default_nan;
     } else if (float32_is_zero_or_denormal(a)) {
+        if (!float32_is_zero(a)) {
+            float_raise(float_flag_input_denormal, s);
+        }
         float_raise(float_flag_divbyzero, s);
         return float32_set_sign(float32_infinity, float32_is_neg(a));
     } else if (float32_is_neg(a)) {
