@@ -977,63 +977,73 @@ static inline void gen_vfp_F1_ld0(int dp)
         tcg_gen_movi_i32(cpu_F1s, 0);
 }
 
-static inline void gen_vfp_uito(int dp)
-{
-    if (dp)
-        gen_helper_vfp_uitod(cpu_F0d, cpu_F0s, cpu_env);
-    else
-        gen_helper_vfp_uitos(cpu_F0s, cpu_F0s, cpu_env);
+#define VFP_GEN_ITOF(name) \
+static inline void gen_vfp_##name(int dp, int neon) \
+{ \
+    TCGv statusptr = tcg_temp_new_i32(); \
+    int offset; \
+    if (neon) { \
+        offset = offsetof(CPUState, vfp.standard_fp_status); \
+    } else { \
+        offset = offsetof(CPUState, vfp.fp_status); \
+    } \
+    tcg_gen_addi_i32(statusptr, cpu_env, offset); \
+    if (dp) { \
+        gen_helper_vfp_##name##d(cpu_F0d, cpu_F0s, statusptr); \
+    } else { \
+        gen_helper_vfp_##name##s(cpu_F0s, cpu_F0s, statusptr); \
+    } \
+    tcg_temp_free_i32(statusptr); \
 }
 
-static inline void gen_vfp_sito(int dp)
-{
-    if (dp)
-        gen_helper_vfp_sitod(cpu_F0d, cpu_F0s, cpu_env);
-    else
-        gen_helper_vfp_sitos(cpu_F0s, cpu_F0s, cpu_env);
+VFP_GEN_ITOF(uito)
+VFP_GEN_ITOF(sito)
+#undef VFP_GEN_ITOF
+
+#define VFP_GEN_FTOI(name) \
+static inline void gen_vfp_##name(int dp, int neon) \
+{ \
+    TCGv statusptr = tcg_temp_new_i32(); \
+    int offset; \
+    if (neon) { \
+        offset = offsetof(CPUState, vfp.standard_fp_status); \
+    } else { \
+        offset = offsetof(CPUState, vfp.fp_status); \
+    } \
+    tcg_gen_addi_i32(statusptr, cpu_env, offset); \
+    if (dp) { \
+        gen_helper_vfp_##name##d(cpu_F0s, cpu_F0d, statusptr); \
+    } else { \
+        gen_helper_vfp_##name##s(cpu_F0s, cpu_F0s, statusptr); \
+    } \
+    tcg_temp_free_i32(statusptr); \
 }
 
-static inline void gen_vfp_toui(int dp)
-{
-    if (dp)
-        gen_helper_vfp_touid(cpu_F0s, cpu_F0d, cpu_env);
-    else
-        gen_helper_vfp_touis(cpu_F0s, cpu_F0s, cpu_env);
-}
-
-static inline void gen_vfp_touiz(int dp)
-{
-    if (dp)
-        gen_helper_vfp_touizd(cpu_F0s, cpu_F0d, cpu_env);
-    else
-        gen_helper_vfp_touizs(cpu_F0s, cpu_F0s, cpu_env);
-}
-
-static inline void gen_vfp_tosi(int dp)
-{
-    if (dp)
-        gen_helper_vfp_tosid(cpu_F0s, cpu_F0d, cpu_env);
-    else
-        gen_helper_vfp_tosis(cpu_F0s, cpu_F0s, cpu_env);
-}
-
-static inline void gen_vfp_tosiz(int dp)
-{
-    if (dp)
-        gen_helper_vfp_tosizd(cpu_F0s, cpu_F0d, cpu_env);
-    else
-        gen_helper_vfp_tosizs(cpu_F0s, cpu_F0s, cpu_env);
-}
+VFP_GEN_FTOI(toui)
+VFP_GEN_FTOI(touiz)
+VFP_GEN_FTOI(tosi)
+VFP_GEN_FTOI(tosiz)
+#undef VFP_GEN_FTOI
 
 #define VFP_GEN_FIX(name) \
-static inline void gen_vfp_##name(int dp, int shift) \
+static inline void gen_vfp_##name(int dp, int shift, int neon) \
 { \
     TCGv tmp_shift = tcg_const_i32(shift); \
-    if (dp) \
-        gen_helper_vfp_##name##d(cpu_F0d, cpu_F0d, tmp_shift, cpu_env);\
-    else \
-        gen_helper_vfp_##name##s(cpu_F0s, cpu_F0s, tmp_shift, cpu_env);\
+    TCGv statusptr = tcg_temp_new_i32(); \
+    int offset; \
+    if (neon) { \
+        offset = offsetof(CPUState, vfp.standard_fp_status); \
+    } else { \
+        offset = offsetof(CPUState, vfp.fp_status); \
+    } \
+    tcg_gen_addi_i32(statusptr, cpu_env, offset); \
+    if (dp) { \
+        gen_helper_vfp_##name##d(cpu_F0d, cpu_F0d, tmp_shift, statusptr); \
+    } else { \
+        gen_helper_vfp_##name##s(cpu_F0s, cpu_F0s, tmp_shift, statusptr); \
+    } \
     tcg_temp_free_i32(tmp_shift); \
+    tcg_temp_free_i32(statusptr); \
 }
 VFP_GEN_FIX(tosh)
 VFP_GEN_FIX(tosl)
@@ -3183,62 +3193,62 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             gen_helper_vfp_fcvtds(cpu_F0d, cpu_F0s, cpu_env);
                         break;
                     case 16: /* fuito */
-                        gen_vfp_uito(dp);
+                        gen_vfp_uito(dp, 0);
                         break;
                     case 17: /* fsito */
-                        gen_vfp_sito(dp);
+                        gen_vfp_sito(dp, 0);
                         break;
                     case 20: /* fshto */
                         if (!arm_feature(env, ARM_FEATURE_VFP3))
                           return 1;
-                        gen_vfp_shto(dp, 16 - rm);
+                        gen_vfp_shto(dp, 16 - rm, 0);
                         break;
                     case 21: /* fslto */
                         if (!arm_feature(env, ARM_FEATURE_VFP3))
                           return 1;
-                        gen_vfp_slto(dp, 32 - rm);
+                        gen_vfp_slto(dp, 32 - rm, 0);
                         break;
                     case 22: /* fuhto */
                         if (!arm_feature(env, ARM_FEATURE_VFP3))
                           return 1;
-                        gen_vfp_uhto(dp, 16 - rm);
+                        gen_vfp_uhto(dp, 16 - rm, 0);
                         break;
                     case 23: /* fulto */
                         if (!arm_feature(env, ARM_FEATURE_VFP3))
                           return 1;
-                        gen_vfp_ulto(dp, 32 - rm);
+                        gen_vfp_ulto(dp, 32 - rm, 0);
                         break;
                     case 24: /* ftoui */
-                        gen_vfp_toui(dp);
+                        gen_vfp_toui(dp, 0);
                         break;
                     case 25: /* ftouiz */
-                        gen_vfp_touiz(dp);
+                        gen_vfp_touiz(dp, 0);
                         break;
                     case 26: /* ftosi */
-                        gen_vfp_tosi(dp);
+                        gen_vfp_tosi(dp, 0);
                         break;
                     case 27: /* ftosiz */
-                        gen_vfp_tosiz(dp);
+                        gen_vfp_tosiz(dp, 0);
                         break;
                     case 28: /* ftosh */
                         if (!arm_feature(env, ARM_FEATURE_VFP3))
                           return 1;
-                        gen_vfp_tosh(dp, 16 - rm);
+                        gen_vfp_tosh(dp, 16 - rm, 0);
                         break;
                     case 29: /* ftosl */
                         if (!arm_feature(env, ARM_FEATURE_VFP3))
                           return 1;
-                        gen_vfp_tosl(dp, 32 - rm);
+                        gen_vfp_tosl(dp, 32 - rm, 0);
                         break;
                     case 30: /* ftouh */
                         if (!arm_feature(env, ARM_FEATURE_VFP3))
                           return 1;
-                        gen_vfp_touh(dp, 16 - rm);
+                        gen_vfp_touh(dp, 16 - rm, 0);
                         break;
                     case 31: /* ftoul */
                         if (!arm_feature(env, ARM_FEATURE_VFP3))
                           return 1;
-                        gen_vfp_toul(dp, 32 - rm);
+                        gen_vfp_toul(dp, 32 - rm, 0);
                         break;
                     default: /* undefined */
                         printf ("rn:%d\n", rn);
@@ -5251,14 +5261,14 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     tcg_gen_ld_f32(cpu_F0s, cpu_env, neon_reg_offset(rm, pass));
                     if (!(op & 1)) {
                         if (u)
-                            gen_vfp_ulto(0, shift);
+                            gen_vfp_ulto(0, shift, 1);
                         else
-                            gen_vfp_slto(0, shift);
+                            gen_vfp_slto(0, shift, 1);
                     } else {
                         if (u)
-                            gen_vfp_toul(0, shift);
+                            gen_vfp_toul(0, shift, 1);
                         else
-                            gen_vfp_tosl(0, shift);
+                            gen_vfp_tosl(0, shift, 1);
                     }
                     tcg_gen_st_f32(cpu_F0s, cpu_env, neon_reg_offset(rd, pass));
                 }
@@ -6071,16 +6081,16 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             gen_helper_rsqrte_f32(cpu_F0s, cpu_F0s, cpu_env);
                             break;
                         case NEON_2RM_VCVT_FS: /* VCVT.F32.S32 */
-                            gen_vfp_sito(0);
+                            gen_vfp_sito(0, 1);
                             break;
                         case NEON_2RM_VCVT_FU: /* VCVT.F32.U32 */
-                            gen_vfp_uito(0);
+                            gen_vfp_uito(0, 1);
                             break;
                         case NEON_2RM_VCVT_SF: /* VCVT.S32.F32 */
-                            gen_vfp_tosiz(0);
+                            gen_vfp_tosiz(0, 1);
                             break;
                         case NEON_2RM_VCVT_UF: /* VCVT.U32.F32 */
-                            gen_vfp_touiz(0);
+                            gen_vfp_touiz(0, 1);
                             break;
                         default:
                             /* Reserved op values were caught by the
