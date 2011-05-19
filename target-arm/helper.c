@@ -2749,7 +2749,11 @@ float32 HELPER(rsqrts_f32)(float32 a, float32 b, CPUState *env)
  */
 static float64 recip_estimate(float64 a, CPUState *env)
 {
-    float_status *s = &env->vfp.standard_fp_status;
+    /* These calculations mustn't set any fp exception flags,
+     * so we use a local copy of the fp_status.
+     */
+    float_status dummy_status = env->vfp.standard_fp_status;
+    float_status *s = &dummy_status;
     /* q = (int)(a * 512.0) */
     float64 q = float64_mul(float64_512, a, s);
     int64_t q_int = float64_to_int64_round_to_zero(q, s);
@@ -2812,7 +2816,11 @@ float32 HELPER(recpe_f32)(float32 a, CPUState *env)
  */
 static float64 recip_sqrt_estimate(float64 a, CPUState *env)
 {
-    float_status *s = &env->vfp.standard_fp_status;
+    /* These calculations mustn't set any fp exception flags,
+     * so we use a local copy of the fp_status.
+     */
+    float_status dummy_status = env->vfp.standard_fp_status;
+    float_status *s = &dummy_status;
     float64 q;
     int64_t q_int;
 
