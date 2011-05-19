@@ -901,8 +901,6 @@ static int ehci_qh_do_overlay(EHCIState *ehci, EHCIqh *qh, EHCIqtd *qtd)
     dtoggle = qh->token & QTD_TOKEN_DTOGGLE;
     ping    = qh->token & QTD_TOKEN_PING;
 
-    DPRINTF("setting qh.current from %08X to 0x%08X\n", qh->current_qtd,
-            ehci->qtdaddr);
     qh->current_qtd = ehci->qtdaddr;
     qh->next_qtd    = qtd->next;
     qh->altnext_qtd = qtd->altnext;
@@ -955,8 +953,6 @@ static int ehci_buffer_rw(uint8_t *buffer, EHCIqh *qh, int bytes, int rw)
     }
 
     offset = qh->bufptr[0] & ~QTD_BUFPTR_MASK;
-    DPRINTF("ehci_buffer_rw: %sing %d bytes %08x cpage %d offset %d\n",
-           rw ? "writ" : "read", bytes, qh->bufptr[0], cpage, offset);
 
     do {
         /* start and end of this page */
@@ -969,9 +965,7 @@ static int ehci_buffer_rw(uint8_t *buffer, EHCIqh *qh, int bytes, int rw)
             tail = head + bytes;
         }
 
-        DPRINTF("DATA %s cpage:%d head:%08X tail:%08X target:%08X\n",
-                rw ? "WRITE" : "READ ", cpage, head, tail, bufpos);
-
+        trace_usb_ehci_data(rw, cpage, offset, head, tail-head, bufpos);
         cpu_physical_memory_rw(head, &buffer[bufpos], tail - head, rw);
 
         bufpos += (tail - head);

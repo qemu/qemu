@@ -207,6 +207,7 @@ disable usb_ehci_itd(uint32_t addr, uint32_t next) "ITD @ %08x: next %08x"
 disable usb_ehci_port_attach(uint32_t port, const char *device) "attach port #%d - %s"
 disable usb_ehci_port_detach(uint32_t port) "detach port #%d"
 disable usb_ehci_port_reset(uint32_t port, int enable) "reset port #%d - %d"
+disable usb_ehci_data(int rw, uint32_t cpage, uint32_t offset, uint32_t addr, uint32_t len, uint32_t bufpos) "write %d, cpage %d, offset 0x%03x, addr 0x%08x, len %d, bufpos %d"
 
 # hw/usb-desc.c
 disable usb_desc_device(int addr, int len, int ret) "dev %d query device, len %d, ret %d"
