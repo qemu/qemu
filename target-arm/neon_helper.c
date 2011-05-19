@@ -1802,41 +1802,37 @@ uint32_t HELPER(neon_mul_f32)(uint32_t a, uint32_t b)
     return float32_val(float32_mul(make_float32(a), make_float32(b), NFS));
 }
 
-/* Floating point comparisons produce an integer result.  */
-#define NEON_VOP_FCMP(name, ok) \
-uint32_t HELPER(neon_##name)(uint32_t a, uint32_t b) \
-{ \
-    switch (float32_compare_quiet(make_float32(a), make_float32(b), NFS)) { \
-    ok return ~0; \
-    default: return 0; \
-    } \
+/* Floating point comparisons produce an integer result.
+ * Note that EQ doesn't signal InvalidOp for QNaNs but GE and GT do.
+ * Softfloat routines return 0/1, which we convert to the 0/-1 Neon requires.
+ */
+uint32_t HELPER(neon_ceq_f32)(uint32_t a, uint32_t b)
+{
+    return -float32_eq_quiet(make_float32(a), make_float32(b), NFS);
 }
 
-NEON_VOP_FCMP(ceq_f32, case float_relation_equal:)
-NEON_VOP_FCMP(cge_f32, case float_relation_equal: case float_relation_greater:)
-NEON_VOP_FCMP(cgt_f32, case float_relation_greater:)
+uint32_t HELPER(neon_cge_f32)(uint32_t a, uint32_t b)
+{
+    return -float32_le(make_float32(b), make_float32(a), NFS);
+}
+
+uint32_t HELPER(neon_cgt_f32)(uint32_t a, uint32_t b)
+{
+    return -float32_lt(make_float32(b), make_float32(a), NFS);
+}
 
 uint32_t HELPER(neon_acge_f32)(uint32_t a, uint32_t b)
 {
     float32 f0 = float32_abs(make_float32(a));
     float32 f1 = float32_abs(make_float32(b));
-    switch (float32_compare_quiet(f0, f1, NFS)) {
-    case float_relation_equal:
-    case float_relation_greater:
-        return ~0;
-    default:
-        return 0;
-    }
+    return -float32_le(f1, f0, NFS);
 }
 
 uint32_t HELPER(neon_acgt_f32)(uint32_t a, uint32_t b)
 {
     float32 f0 = float32_abs(make_float32(a));
     float32 f1 = float32_abs(make_float32(b));
-    if (float32_compare_quiet(f0, f1, NFS) == float_relation_greater) {
-        return ~0;
-    }
-    return 0;
+    return -float32_lt(f1, f0, NFS);
 }
 
 #define ELEM(V, N, SIZE) (((V) >> ((N) * (SIZE))) & ((1ull << (SIZE)) - 1))
