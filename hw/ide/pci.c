@@ -169,7 +169,7 @@ static int bmdma_set_inactive(IDEDMA *dma)
     return 0;
 }
 
-static void bmdma_restart_dma(BMDMAState *bm, int is_read)
+static void bmdma_restart_dma(BMDMAState *bm, enum ide_dma_cmd dma_cmd)
 {
     IDEState *s = bmdma_active_if(bm);
 
@@ -177,7 +177,7 @@ static void bmdma_restart_dma(BMDMAState *bm, int is_read)
     s->io_buffer_index = 0;
     s->io_buffer_size = 0;
     s->nsector = bm->nsector;
-    s->is_read = is_read;
+    s->dma_cmd = dma_cmd;
     bm->cur_addr = bm->addr;
     bm->dma_cb = ide_dma_cb;
     bmdma_start_dma(&bm->dma, s, bm->dma_cb);
@@ -201,7 +201,7 @@ static void bmdma_restart_bh(void *opaque)
 
     if (bus->error_status & BM_STATUS_DMA_RETRY) {
         bus->error_status &= ~(BM_STATUS_DMA_RETRY | BM_STATUS_RETRY_READ);
-        bmdma_restart_dma(bm, is_read);
+        bmdma_restart_dma(bm, is_read ? IDE_DMA_READ : IDE_DMA_WRITE);
     } else if (bus->error_status & BM_STATUS_PIO_RETRY) {
         bus->error_status &= ~(BM_STATUS_PIO_RETRY | BM_STATUS_RETRY_READ);
         if (is_read) {

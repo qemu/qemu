@@ -472,7 +472,7 @@ handle_rw_error:
     if (ret < 0) {
         int op = BM_STATUS_DMA_RETRY;
 
-        if (s->is_read)
+        if (s->dma_cmd == IDE_DMA_READ)
             op |= BM_STATUS_RETRY_READ;
         if (ide_handle_rw_error(s, -ret, op)) {
             return;
@@ -482,7 +482,7 @@ handle_rw_error:
     n = s->io_buffer_size >> 9;
     sector_num = ide_get_sector(s);
     if (n > 0) {
-        dma_buf_commit(s, s->is_read);
+        dma_buf_commit(s, ide_cmd_is_read(s));
         sector_num += n;
         ide_set_sector(s, sector_num);
         s->nsector -= n;
@@ -499,23 +499,26 @@ handle_rw_error:
     n = s->nsector;
     s->io_buffer_index = 0;
     s->io_buffer_size = n * 512;
-    if (s->bus->dma->ops->prepare_buf(s->bus->dma, s->is_read) == 0) {
+    if (s->bus->dma->ops->prepare_buf(s->bus->dma, ide_cmd_is_read(s)) == 0) {
         /* The PRDs were too short. Reset the Active bit, but don't raise an
          * interrupt. */
         goto eot;
     }
 
 #ifdef DEBUG_AIO
-    printf("ide_dma_cb: sector_num=%" PRId64 " n=%d, is_read=%d\n",
-           sector_num, n, s->is_read);
+    printf("ide_dma_cb: sector_num=%" PRId64 " n=%d, cmd_cmd=%d\n",
+           sector_num, n, s->dma_cmd);
 #endif
 
-    if (s->is_read) {
+    switch (s->dma_cmd) {
+    case IDE_DMA_READ:
         s->bus->dma->aiocb = dma_bdrv_read(s->bs, &s->sg, sector_num,
                                            ide_dma_cb, s);
-    } else {
+        break;
+    case IDE_DMA_WRITE:
         s->bus->dma->aiocb = dma_bdrv_write(s->bs, &s->sg, sector_num,
                                             ide_dma_cb, s);
+        break;
     }
 
     if (!s->bus->dma->aiocb) {
@@ -528,12 +531,12 @@ eot:
    ide_set_inactive(s);
 }
 
-static void ide_sector_start_dma(IDEState *s, int is_read)
+static void ide_sector_start_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
 {
     s->status = READY_STAT | SEEK_STAT | DRQ_STAT | BUSY_STAT;
     s->io_buffer_index = 0;
     s->io_buffer_size = 0;
-    s->is_read = is_read;
+    s->dma_cmd = dma_cmd;
     s->bus->dma->ops->start_dma(s->bus->dma, s, ide_dma_cb);
 }
 
@@ -916,7 +919,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         if (!s->bs)
             goto abort_cmd;
 	ide_cmd_lba48_transform(s, lba48);
-        ide_sector_start_dma(s, 1);
+        ide_sector_start_dma(s, IDE_DMA_READ);
         break;
 	case WIN_WRITEDMA_EXT:
 	lba48 = 1;
@@ -925,7 +928,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         if (!s->bs)
             goto abort_cmd;
 	ide_cmd_lba48_transform(s, lba48);
-        ide_sector_start_dma(s, 0);
+        ide_sector_start_dma(s, IDE_DMA_WRITE);
         s->media_changed = 1;
         break;
     case WIN_READ_NATIVE_MAX_EXT:

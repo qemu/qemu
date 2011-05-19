@@ -145,12 +145,17 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
     io->addr += io->len;
     io->len = 0;
 
-    if (s->is_read)
+    switch (s->dma_cmd) {
+    case IDE_DMA_READ:
         m->aiocb = dma_bdrv_read(s->bs, &s->sg, sector_num,
 		                 pmac_ide_transfer_cb, io);
-    else
+        break;
+    case IDE_DMA_WRITE:
         m->aiocb = dma_bdrv_write(s->bs, &s->sg, sector_num,
 		                  pmac_ide_transfer_cb, io);
+        break;
+    }
+
     if (!m->aiocb)
         pmac_ide_transfer_cb(io, -1);
 }

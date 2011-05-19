@@ -379,6 +379,14 @@ struct unreported_events {
     bool new_media;
 };
 
+enum ide_dma_cmd {
+    IDE_DMA_READ,
+    IDE_DMA_WRITE,
+};
+
+#define ide_cmd_is_read(s) \
+	((s)->dma_cmd == IDE_DMA_READ)
+
 /* NOTE: IDEState represents in fact one drive */
 struct IDEState {
     IDEBus *bus;
@@ -446,7 +454,7 @@ struct IDEState {
     uint32_t mdata_size;
     uint8_t *mdata_storage;
     int media_changed;
-    int is_read;
+    enum ide_dma_cmd dma_cmd;
     /* SMART */
     uint8_t smart_enabled;
     uint8_t smart_autosave;
