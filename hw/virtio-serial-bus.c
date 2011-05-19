@@ -668,6 +668,11 @@ static struct BusInfo virtser_bus_info = {
     .name      = "virtio-serial-bus",
     .size      = sizeof(VirtIOSerialBus),
     .print_dev = virtser_bus_dev_print,
+    .props      = (Property[]) {
+        DEFINE_PROP_UINT32("nr", VirtIOSerialPort, id, VIRTIO_CONSOLE_BAD_ID),
+        DEFINE_PROP_STRING("name", VirtIOSerialPort, name),
+        DEFINE_PROP_END_OF_LIST()
+    }
 };
 
 static void virtser_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)

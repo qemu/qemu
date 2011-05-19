@@ -139,9 +139,7 @@ static VirtIOSerialPortInfo virtconsole_info = {
     .init          = virtconsole_initfn,
     .exit          = virtconsole_exitfn,
     .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("nr", VirtConsole, port.id, VIRTIO_CONSOLE_BAD_ID),
         DEFINE_PROP_CHR("chardev", VirtConsole, chr),
-        DEFINE_PROP_STRING("name", VirtConsole, port.name),
         DEFINE_PROP_END_OF_LIST(),
     },
 };
@@ -158,9 +156,7 @@ static VirtIOSerialPortInfo virtserialport_info = {
     .init          = virtconsole_initfn,
     .exit          = virtconsole_exitfn,
     .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("nr", VirtConsole, port.id, VIRTIO_CONSOLE_BAD_ID),
         DEFINE_PROP_CHR("chardev", VirtConsole, chr),
-        DEFINE_PROP_STRING("name", VirtConsole, port.name),
         DEFINE_PROP_END_OF_LIST(),
     },
 };
