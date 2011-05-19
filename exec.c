@@ -3131,6 +3131,31 @@ void *qemu_safe_ram_ptr(ram_addr_t addr)
     return NULL;
 }
 
+/* Return a host pointer to guest's ram. Similar to qemu_get_ram_ptr
+ * but takes a size argument */
+void *qemu_ram_ptr_length(target_phys_addr_t addr, target_phys_addr_t *size)
+{
+    if (xen_mapcache_enabled())
+        return qemu_map_cache(addr, *size, 1);
+    else {
+        RAMBlock *block;
+
+        QLIST_FOREACH(block, &ram_list.blocks, next) {
+            if (addr - block->offset < block->length) {
+                if (addr - block->offset + *size > block->length)
+                    *size = block->length - addr + block->offset;
+                return block->host + (addr - block->offset);
+            }
+        }
+
+        fprintf(stderr, "Bad ram offset %" PRIx64 "\n", (uint64_t)addr);
+        abort();
+
+        *size = 0;
+        return NULL;
+    }
+}
+
 void qemu_put_ram_ptr(void *addr)
 {
     trace_qemu_put_ram_ptr(addr);
@@ -3992,14 +4017,12 @@ void *cpu_physical_memory_map(target_phys_addr_t addr,
                               int is_write)
 {
     target_phys_addr_t len = *plen;
-    target_phys_addr_t done = 0;
+    target_phys_addr_t todo = 0;
     int l;
-    uint8_t *ret = NULL;
-    uint8_t *ptr;
     target_phys_addr_t page;
     unsigned long pd;
     PhysPageDesc *p;
-    unsigned long addr1;
+    target_phys_addr_t addr1 = addr;
 
     while (len > 0) {
         page = addr & TARGET_PAGE_MASK;
@@ -4014,7 +4037,7 @@ void *cpu_physical_memory_map(target_phys_addr_t addr,
         }
 
         if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM) {
-            if (done || bounce.buffer) {
+            if (todo || bounce.buffer) {
                 break;
             }
             bounce.buffer = qemu_memalign(TARGET_PAGE_SIZE, TARGET_PAGE_SIZE);
@@ -4023,23 +4046,17 @@ void *cpu_physical_memory_map(target_phys_addr_t addr,
             if (!is_write) {
                 cpu_physical_memory_read(addr, bounce.buffer, l);
             }
-            ptr = bounce.buffer;
-        } else {
-            addr1 = (pd & TARGET_PAGE_MASK) + (addr & ~TARGET_PAGE_MASK);
-            ptr = qemu_get_ram_ptr(addr1);
-        }
-        if (!done) {
-            ret = ptr;
-        } else if (ret + done != ptr) {
-            break;
+
+            *plen = l;
+            return bounce.buffer;
         }
 
         len -= l;
         addr += l;
-        done += l;
+        todo += l;
     }
-    *plen = done;
-    return ret;
+    *plen = todo;
+    return qemu_ram_ptr_length(addr1, plen);
 }
 
 /* Unmaps a memory region previously mapped by cpu_physical_memory_map().
