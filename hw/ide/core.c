@@ -430,7 +430,6 @@ void ide_dma_error(IDEState *s)
     s->error = ABRT_ERR;
     s->status = READY_STAT | ERR_STAT;
     ide_set_inactive(s);
-    s->bus->dma->ops->add_status(s->bus->dma, BM_STATUS_INT);
     ide_set_irq(s->bus);
 }
 
@@ -500,8 +499,11 @@ handle_rw_error:
     n = s->nsector;
     s->io_buffer_index = 0;
     s->io_buffer_size = n * 512;
-    if (s->bus->dma->ops->prepare_buf(s->bus->dma, s->is_read) == 0)
+    if (s->bus->dma->ops->prepare_buf(s->bus->dma, s->is_read) == 0) {
+        /* The PRDs were too short. Reset the Active bit, but don't raise an
+         * interrupt. */
         goto eot;
+    }
 
 #ifdef DEBUG_AIO
     printf("ide_dma_cb: sector_num=%" PRId64 " n=%d, is_read=%d\n",
@@ -523,7 +525,6 @@ handle_rw_error:
     return;
 
 eot:
-   s->bus->dma->ops->add_status(s->bus->dma, BM_STATUS_INT);
    ide_set_inactive(s);
 }
 
