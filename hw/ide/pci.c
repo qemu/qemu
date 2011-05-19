@@ -200,8 +200,13 @@ static void bmdma_restart_bh(void *opaque)
     is_read = !!(bus->error_status & BM_STATUS_RETRY_READ);
 
     if (bus->error_status & BM_STATUS_DMA_RETRY) {
-        bus->error_status &= ~(BM_STATUS_DMA_RETRY | BM_STATUS_RETRY_READ);
-        bmdma_restart_dma(bm, is_read ? IDE_DMA_READ : IDE_DMA_WRITE);
+        if (bus->error_status & BM_STATUS_RETRY_TRIM) {
+            bus->error_status &= ~BM_STATUS_RETRY_TRIM;
+            bmdma_restart_dma(bm, IDE_DMA_TRIM);
+        } else {
+            bus->error_status &= ~(BM_STATUS_DMA_RETRY | BM_STATUS_RETRY_READ);
+            bmdma_restart_dma(bm, is_read ? IDE_DMA_READ : IDE_DMA_WRITE);
+        }
     } else if (bus->error_status & BM_STATUS_PIO_RETRY) {
         bus->error_status &= ~(BM_STATUS_PIO_RETRY | BM_STATUS_RETRY_READ);
         if (is_read) {

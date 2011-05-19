@@ -154,6 +154,10 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
         m->aiocb = dma_bdrv_write(s->bs, &s->sg, sector_num,
 		                  pmac_ide_transfer_cb, io);
         break;
+    case IDE_DMA_TRIM:
+        m->aiocb = dma_bdrv_io(s->bs, &s->sg, sector_num,
+                               ide_issue_trim, pmac_ide_transfer_cb, s, 1);
+        break;
     }
 
     if (!m->aiocb)

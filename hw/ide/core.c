@@ -78,7 +78,7 @@ static void ide_identify(IDEState *s)
 {
     uint16_t *p;
     unsigned int oldsize;
-    IDEDevice *dev;
+    IDEDevice *dev = s->unit ? s->bus->slave : s->bus->master;
 
     if (s->identify_set) {
 	memcpy(s->io_buffer, s->identify_data, sizeof(s->identify_data));
@@ -124,6 +124,9 @@ static void ide_identify(IDEState *s)
     put_le16(p + 66, 120);
     put_le16(p + 67, 120);
     put_le16(p + 68, 120);
+    if (dev && dev->conf.discard_granularity) {
+        put_le16(p + 69, (1 << 14)); /* determinate TRIM behavior */
+    }
 
     if (s->ncq_queues) {
         put_le16(p + 75, s->ncq_queues - 1);
@@ -154,9 +157,12 @@ static void ide_identify(IDEState *s)
     put_le16(p + 101, s->nb_sectors >> 16);
     put_le16(p + 102, s->nb_sectors >> 32);
     put_le16(p + 103, s->nb_sectors >> 48);
-    dev = s->unit ? s->bus->slave : s->bus->master;
+
     if (dev && dev->conf.physical_block_size)
         put_le16(p + 106, 0x6000 | get_physical_block_exp(&dev->conf));
+    if (dev && dev->conf.discard_granularity) {
+        put_le16(p + 169, 1); /* TRIM support */
+    }
 
     memcpy(s->identify_data, p, sizeof(s->identify_data));
     s->identify_set = 1;
@@ -297,6 +303,74 @@ static void ide_set_signature(IDEState *s)
         s->lcyl = 0xff;
         s->hcyl = 0xff;
     }
+}
+
+typedef struct TrimAIOCB {
+    BlockDriverAIOCB common;
+    QEMUBH *bh;
+    int ret;
+} TrimAIOCB;
+
+static void trim_aio_cancel(BlockDriverAIOCB *acb)
+{
+    TrimAIOCB *iocb = container_of(acb, TrimAIOCB, common);
+
+    qemu_bh_delete(iocb->bh);
+    iocb->bh = NULL;
+    qemu_aio_release(iocb);
+}
+
+static AIOPool trim_aio_pool = {
+    .aiocb_size         = sizeof(TrimAIOCB),
+    .cancel             = trim_aio_cancel,
+};
+
+static void ide_trim_bh_cb(void *opaque)
+{
+    TrimAIOCB *iocb = opaque;
+
+    iocb->common.cb(iocb->common.opaque, iocb->ret);
+
+    qemu_bh_delete(iocb->bh);
+    iocb->bh = NULL;
+
+    qemu_aio_release(iocb);
+}
+
+BlockDriverAIOCB *ide_issue_trim(BlockDriverState *bs,
+        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque)
+{
+    TrimAIOCB *iocb;
+    int i, j, ret;
+
+    iocb = qemu_aio_get(&trim_aio_pool, bs, cb, opaque);
+    iocb->bh = qemu_bh_new(ide_trim_bh_cb, iocb);
+    iocb->ret = 0;
+
+    for (j = 0; j < qiov->niov; j++) {
+        uint64_t *buffer = qiov->iov[j].iov_base;
+
+        for (i = 0; i < qiov->iov[j].iov_len / 8; i++) {
+            /* 6-byte LBA + 2-byte range per entry */
+            uint64_t entry = le64_to_cpu(buffer[i]);
+            uint64_t sector = entry & 0x0000ffffffffffffULL;
+            uint16_t count = entry >> 48;
+
+            if (count == 0) {
+                break;
+            }
+
+            ret = bdrv_discard(bs, sector, count);
+            if (!iocb->ret) {
+                iocb->ret = ret;
+            }
+        }
+    }
+
+    qemu_bh_schedule(iocb->bh);
+
+    return &iocb->common;
 }
 
 static inline void ide_abort_command(IDEState *s)
@@ -474,6 +548,9 @@ handle_rw_error:
 
         if (s->dma_cmd == IDE_DMA_READ)
             op |= BM_STATUS_RETRY_READ;
+        else if (s->dma_cmd == IDE_DMA_TRIM)
+            op |= BM_STATUS_RETRY_TRIM;
+
         if (ide_handle_rw_error(s, -ret, op)) {
             return;
         }
@@ -518,6 +595,10 @@ handle_rw_error:
     case IDE_DMA_WRITE:
         s->bus->dma->aiocb = dma_bdrv_write(s->bs, &s->sg, sector_num,
                                             ide_dma_cb, s);
+        break;
+    case IDE_DMA_TRIM:
+        s->bus->dma->aiocb = dma_bdrv_io(s->bs, &s->sg, sector_num,
+                                         ide_issue_trim, ide_dma_cb, s, 1);
         break;
     }
 
@@ -818,6 +899,18 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         return;
 
     switch(val) {
+    case WIN_DSM:
+        switch (s->feature) {
+        case DSM_TRIM:
+            if (!s->bs) {
+                goto abort_cmd;
+            }
+            ide_sector_start_dma(s, IDE_DMA_TRIM);
+            break;
+        default:
+            goto abort_cmd;
+        }
+        break;
     case WIN_IDENTIFY:
         if (s->bs && s->drive_kind != IDE_CD) {
             if (s->drive_kind != IDE_CFATA)

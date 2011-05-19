@@ -62,7 +62,11 @@ typedef struct IDEDMAOps IDEDMAOps;
  */
 #define CFA_REQ_EXT_ERROR_CODE		0x03 /* CFA Request Extended Error Code */
 /*
- *	0x04->0x07 Reserved
+ *      0x04->0x05 Reserved
+ */
+#define WIN_DSM                         0x06
+/*
+ *      0x07 Reserved
  */
 #define WIN_SRST			0x08 /* ATAPI soft reset command */
 #define WIN_DEVICE_RESET		0x08
@@ -189,6 +193,9 @@ typedef struct IDEDMAOps IDEDMAOps;
 #define MAX_MULT_SECTORS 16
 
 #define IDE_DMA_BUF_SECTORS 256
+
+/* feature values for Data Set Management */
+#define DSM_TRIM                        0x01
 
 #if (IDE_DMA_BUF_SECTORS < MAX_MULT_SECTORS)
 #error "IDE_DMA_BUF_SECTORS must be bigger or equal to MAX_MULT_SECTORS"
@@ -382,6 +389,7 @@ struct unreported_events {
 enum ide_dma_cmd {
     IDE_DMA_READ,
     IDE_DMA_WRITE,
+    IDE_DMA_TRIM,
 };
 
 #define ide_cmd_is_read(s) \
@@ -521,6 +529,7 @@ struct IDEDeviceInfo {
 #define BM_STATUS_PIO_RETRY  0x10
 #define BM_STATUS_RETRY_READ  0x20
 #define BM_STATUS_RETRY_FLUSH 0x40
+#define BM_STATUS_RETRY_TRIM 0x80
 
 #define BM_MIGRATION_COMPAT_STATUS_BITS \
         (BM_STATUS_DMA_RETRY | BM_STATUS_PIO_RETRY | \
@@ -591,6 +600,9 @@ void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
                         EndTransferFunc *end_transfer_func);
 void ide_transfer_stop(IDEState *s);
 void ide_set_inactive(IDEState *s);
+BlockDriverAIOCB *ide_issue_trim(BlockDriverState *bs,
+        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque);
 
 /* hw/ide/atapi.c */
 void ide_atapi_cmd(IDEState *s);
