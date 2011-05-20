@@ -2616,27 +2616,26 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             switch ((insn >> 12) & 0xF) {
             case 0x0:
                 /* Longword physical access (hw_ldl/p) */
-                gen_helper_ldl_raw(cpu_ir[ra], addr);
+                gen_helper_ldl_phys(cpu_ir[ra], addr);
                 break;
             case 0x1:
                 /* Quadword physical access (hw_ldq/p) */
-                gen_helper_ldq_raw(cpu_ir[ra], addr);
+                gen_helper_ldq_phys(cpu_ir[ra], addr);
                 break;
             case 0x2:
                 /* Longword physical access with lock (hw_ldl_l/p) */
-                gen_helper_ldl_l_raw(cpu_ir[ra], addr);
+                gen_helper_ldl_l_phys(cpu_ir[ra], addr);
                 break;
             case 0x3:
                 /* Quadword physical access with lock (hw_ldq_l/p) */
-                gen_helper_ldq_l_raw(cpu_ir[ra], addr);
+                gen_helper_ldq_l_phys(cpu_ir[ra], addr);
                 break;
             case 0x4:
                 /* Longword virtual PTE fetch (hw_ldl/v) */
-                tcg_gen_qemu_ld32s(cpu_ir[ra], addr, 0);
-                break;
+                goto invalid_opc;
             case 0x5:
                 /* Quadword virtual PTE fetch (hw_ldq/v) */
-                tcg_gen_qemu_ld64(cpu_ir[ra], addr, 0);
+                goto invalid_opc;
                 break;
             case 0x6:
                 /* Incpu_ir[ra]id */
@@ -2646,14 +2645,10 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
                 goto invalid_opc;
             case 0x8:
                 /* Longword virtual access (hw_ldl) */
-                gen_helper_st_virt_to_phys(addr, addr);
-                gen_helper_ldl_raw(cpu_ir[ra], addr);
-                break;
+                goto invalid_opc;
             case 0x9:
                 /* Quadword virtual access (hw_ldq) */
-                gen_helper_st_virt_to_phys(addr, addr);
-                gen_helper_ldq_raw(cpu_ir[ra], addr);
-                break;
+                goto invalid_opc;
             case 0xA:
                 /* Longword virtual access with protection check (hw_ldl/w) */
                 tcg_gen_qemu_ld32s(cpu_ir[ra], addr, 0);
@@ -2664,33 +2659,19 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
                 break;
             case 0xC:
                 /* Longword virtual access with alt access mode (hw_ldl/a)*/
-                gen_helper_set_alt_mode();
-                gen_helper_st_virt_to_phys(addr, addr);
-                gen_helper_ldl_raw(cpu_ir[ra], addr);
-                gen_helper_restore_mode();
-                break;
+                goto invalid_opc;
             case 0xD:
                 /* Quadword virtual access with alt access mode (hw_ldq/a) */
-                gen_helper_set_alt_mode();
-                gen_helper_st_virt_to_phys(addr, addr);
-                gen_helper_ldq_raw(cpu_ir[ra], addr);
-                gen_helper_restore_mode();
-                break;
+                goto invalid_opc;
             case 0xE:
                 /* Longword virtual access with alternate access mode and
-                 * protection checks (hw_ldl/wa)
-                 */
-                gen_helper_set_alt_mode();
-                gen_helper_ldl_data(cpu_ir[ra], addr);
-                gen_helper_restore_mode();
+                   protection checks (hw_ldl/wa) */
+                tcg_gen_qemu_ld32s(cpu_ir[ra], addr, MMU_USER_IDX);
                 break;
             case 0xF:
                 /* Quadword virtual access with alternate access mode and
-                 * protection checks (hw_ldq/wa)
-                 */
-                gen_helper_set_alt_mode();
-                gen_helper_ldq_data(cpu_ir[ra], addr);
-                gen_helper_restore_mode();
+                   protection checks (hw_ldq/wa) */
+                tcg_gen_qemu_ld64(cpu_ir[ra], addr, MMU_USER_IDX);
                 break;
             }
             tcg_temp_free(addr);
@@ -2940,30 +2921,26 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             switch ((insn >> 12) & 0xF) {
             case 0x0:
                 /* Longword physical access */
-                gen_helper_stl_raw(val, addr);
+                gen_helper_stl_phys(addr, val);
                 break;
             case 0x1:
                 /* Quadword physical access */
-                gen_helper_stq_raw(val, addr);
+                gen_helper_stq_phys(addr, val);
                 break;
             case 0x2:
                 /* Longword physical access with lock */
-                gen_helper_stl_c_raw(val, val, addr);
+                gen_helper_stl_c_phys(val, addr, val);
                 break;
             case 0x3:
                 /* Quadword physical access with lock */
-                gen_helper_stq_c_raw(val, val, addr);
+                gen_helper_stq_c_phys(val, addr, val);
                 break;
             case 0x4:
                 /* Longword virtual access */
-                gen_helper_st_virt_to_phys(addr, addr);
-                gen_helper_stl_raw(val, addr);
-                break;
+                goto invalid_opc;
             case 0x5:
                 /* Quadword virtual access */
-                gen_helper_st_virt_to_phys(addr, addr);
-                gen_helper_stq_raw(val, addr);
-                break;
+                goto invalid_opc;
             case 0x6:
                 /* Invalid */
                 goto invalid_opc;
@@ -2984,18 +2961,10 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
                 goto invalid_opc;
             case 0xC:
                 /* Longword virtual access with alternate access mode */
-                gen_helper_set_alt_mode();
-                gen_helper_st_virt_to_phys(addr, addr);
-                gen_helper_stl_raw(val, addr);
-                gen_helper_restore_mode();
-                break;
+                goto invalid_opc;
             case 0xD:
                 /* Quadword virtual access with alternate access mode */
-                gen_helper_set_alt_mode();
-                gen_helper_st_virt_to_phys(addr, addr);
-                gen_helper_stl_raw(val, addr);
-                gen_helper_restore_mode();
-                break;
+                goto invalid_opc;
             case 0xE:
                 /* Invalid */
                 goto invalid_opc;

@@ -1188,150 +1188,71 @@ void helper_mtpr (int iprn, uint64_t val)
 {
     cpu_alpha_mtpr(env, iprn, val, NULL);
 }
-
-void helper_set_alt_mode (void)
-{
-    env->saved_mode = env->ps & 0xC;
-    env->ps = (env->ps & ~0xC) | (env->ipr[IPR_ALT_MODE] & 0xC);
-}
-
-void helper_restore_mode (void)
-{
-    env->ps = (env->ps & ~0xC) | env->saved_mode;
-}
-
 #endif
 
 /*****************************************************************************/
 /* Softmmu support */
 #if !defined (CONFIG_USER_ONLY)
-
-/* XXX: the two following helpers are pure hacks.
- *      Hopefully, we emulate the PALcode, then we should never see
- *      HW_LD / HW_ST instructions.
- */
-uint64_t helper_ld_virt_to_phys (uint64_t virtaddr)
+uint64_t helper_ldl_phys(uint64_t p)
 {
-    uint64_t tlb_addr, physaddr;
-    int index, mmu_idx;
-    void *retaddr;
+    return (int32_t)ldl_phys(p);
+}
 
-    mmu_idx = cpu_mmu_index(env);
-    index = (virtaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
- redo:
-    tlb_addr = env->tlb_table[mmu_idx][index].addr_read;
-    if ((virtaddr & TARGET_PAGE_MASK) ==
-        (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-        physaddr = virtaddr + env->tlb_table[mmu_idx][index].addend;
-    } else {
-        /* the page is not in the TLB : fill it */
-        retaddr = GETPC();
-        tlb_fill(virtaddr, 0, mmu_idx, retaddr);
-        goto redo;
+uint64_t helper_ldq_phys(uint64_t p)
+{
+    return ldq_phys(p);
+}
+
+uint64_t helper_ldl_l_phys(uint64_t p)
+{
+    env->lock_addr = p;
+    return env->lock_value = (int32_t)ldl_phys(p);
+}
+
+uint64_t helper_ldq_l_phys(uint64_t p)
+{
+    env->lock_addr = p;
+    return env->lock_value = ldl_phys(p);
+}
+
+void helper_stl_phys(uint64_t p, uint64_t v)
+{
+    stl_phys(p, v);
+}
+
+void helper_stq_phys(uint64_t p, uint64_t v)
+{
+    stq_phys(p, v);
+}
+
+uint64_t helper_stl_c_phys(uint64_t p, uint64_t v)
+{
+    uint64_t ret = 0;
+
+    if (p == env->lock_addr) {
+        int32_t old = ldl_phys(p);
+        if (old == (int32_t)env->lock_value) {
+            stl_phys(p, v);
+            ret = 1;
+        }
     }
-    return physaddr;
-}
-
-uint64_t helper_st_virt_to_phys (uint64_t virtaddr)
-{
-    uint64_t tlb_addr, physaddr;
-    int index, mmu_idx;
-    void *retaddr;
-
-    mmu_idx = cpu_mmu_index(env);
-    index = (virtaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
- redo:
-    tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
-    if ((virtaddr & TARGET_PAGE_MASK) ==
-        (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-        physaddr = virtaddr + env->tlb_table[mmu_idx][index].addend;
-    } else {
-        /* the page is not in the TLB : fill it */
-        retaddr = GETPC();
-        tlb_fill(virtaddr, 1, mmu_idx, retaddr);
-        goto redo;
-    }
-    return physaddr;
-}
-
-void helper_ldl_raw(uint64_t t0, uint64_t t1)
-{
-    ldl_raw(t1, t0);
-}
-
-void helper_ldq_raw(uint64_t t0, uint64_t t1)
-{
-    ldq_raw(t1, t0);
-}
-
-void helper_ldl_l_raw(uint64_t t0, uint64_t t1)
-{
-    env->lock = t1;
-    ldl_raw(t1, t0);
-}
-
-void helper_ldq_l_raw(uint64_t t0, uint64_t t1)
-{
-    env->lock = t1;
-    ldl_raw(t1, t0);
-}
-
-void helper_ldl_kernel(uint64_t t0, uint64_t t1)
-{
-    ldl_kernel(t1, t0);
-}
-
-void helper_ldq_kernel(uint64_t t0, uint64_t t1)
-{
-    ldq_kernel(t1, t0);
-}
-
-void helper_ldl_data(uint64_t t0, uint64_t t1)
-{
-    ldl_data(t1, t0);
-}
-
-void helper_ldq_data(uint64_t t0, uint64_t t1)
-{
-    ldq_data(t1, t0);
-}
-
-void helper_stl_raw(uint64_t t0, uint64_t t1)
-{
-    stl_raw(t1, t0);
-}
-
-void helper_stq_raw(uint64_t t0, uint64_t t1)
-{
-    stq_raw(t1, t0);
-}
-
-uint64_t helper_stl_c_raw(uint64_t t0, uint64_t t1)
-{
-    uint64_t ret;
-
-    if (t1 == env->lock) {
-        stl_raw(t1, t0);
-        ret = 0;
-    } else
-        ret = 1;
-
-    env->lock = 1;
+    env->lock_addr = -1;
 
     return ret;
 }
 
-uint64_t helper_stq_c_raw(uint64_t t0, uint64_t t1)
+uint64_t helper_stq_c_phys(uint64_t p, uint64_t v)
 {
-    uint64_t ret;
+    uint64_t ret = 0;
 
-    if (t1 == env->lock) {
-        stq_raw(t1, t0);
-        ret = 0;
-    } else
-        ret = 1;
-
-    env->lock = 1;
+    if (p == env->lock_addr) {
+        uint64_t old = ldq_phys(p);
+        if (old == env->lock_value) {
+            stq_phys(p, v);
+            ret = 1;
+        }
+    }
+    env->lock_addr = -1;
 
     return ret;
 }
