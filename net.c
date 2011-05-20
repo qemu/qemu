@@ -1304,22 +1304,6 @@ void net_check_clients(void)
 {
     VLANState *vlan;
     VLANClientState *vc;
-    int seen_nics = 0;
-
-    /* Don't warn about the default network setup that you get if
-     * no command line -net options are specified. There are two
-     * cases that we would otherwise complain about:
-     * (1) board doesn't support a NIC but the implicit "-net nic"
-     * requested one; we'd otherwise complain about more NICs being
-     * specified than we support, and also that the vlan set up by
-     * the implicit "-net user" didn't have any NICs connected to it
-     * (2) CONFIG_SLIRP not set: we'd otherwise complain about the
-     * implicit "-net nic" setting up a nic that wasn't connected to
-     * anything.
-     */
-    if (default_net) {
-        return;
-    }
 
     QTAILQ_FOREACH(vlan, &vlans, next) {
         int has_nic = 0, has_host_dev = 0;
@@ -1327,7 +1311,6 @@ void net_check_clients(void)
         QTAILQ_FOREACH(vc, &vlan->clients, next) {
             switch (vc->info->type) {
             case NET_CLIENT_TYPE_NIC:
-                seen_nics++;
                 has_nic = 1;
                 break;
             case NET_CLIENT_TYPE_SLIRP:
@@ -1347,25 +1330,11 @@ void net_check_clients(void)
                     vlan->id);
     }
     QTAILQ_FOREACH(vc, &non_vlan_clients, next) {
-        if (vc->info->type == NET_CLIENT_TYPE_NIC) {
-            seen_nics++;
-        }
         if (!vc->peer) {
             fprintf(stderr, "Warning: %s %s has no peer\n",
                     vc->info->type == NET_CLIENT_TYPE_NIC ? "nic" : "netdev",
                     vc->name);
         }
-    }
-    if (seen_nics != nb_nics) {
-        /* Number of NICs requested by user on command line doesn't match
-         * the number the model actually registered with us.
-         * This will generally only happen for models of embedded boards
-         * with no PCI bus or similar. PCI based machines can instantiate
-         * all requested NICs as PCI devices but usually embedded boards
-         * only have a single NIC.
-         */
-        fprintf(stderr, "Warning: more nics requested than this machine "
-                "supports; some have been ignored\n");
     }
 }
 
