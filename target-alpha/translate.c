@@ -326,7 +326,7 @@ static ExitStatus gen_store_conditional(DisasContext *ctx, int ra, int rb,
 #if defined(CONFIG_USER_ONLY)
     addr = cpu_lock_st_addr;
 #else
-    addr = tcg_local_new();
+    addr = tcg_temp_local_new();
 #endif
 
     if (rb != 31) {
@@ -349,7 +349,7 @@ static ExitStatus gen_store_conditional(DisasContext *ctx, int ra, int rb,
 
         lab_fail = gen_new_label();
         lab_done = gen_new_label();
-        tcg_gen_brcond(TCG_COND_NE, addr, cpu_lock_addr, lab_fail);
+        tcg_gen_brcond_i64(TCG_COND_NE, addr, cpu_lock_addr, lab_fail);
 
         val = tcg_temp_new();
         if (quad) {
@@ -357,7 +357,7 @@ static ExitStatus gen_store_conditional(DisasContext *ctx, int ra, int rb,
         } else {
             tcg_gen_qemu_ld32s(val, addr, ctx->mem_idx);
         }
-        tcg_gen_brcond(TCG_COND_NE, val, cpu_lock_value, lab_fail);
+        tcg_gen_brcond_i64(TCG_COND_NE, val, cpu_lock_value, lab_fail);
 
         if (quad) {
             tcg_gen_qemu_st64(cpu_ir[ra], addr, ctx->mem_idx);
