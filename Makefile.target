@@ -376,7 +376,8 @@ obj-m68k-y += m68k-semi.o dummy_m68k.o
 
 obj-s390x-y = s390-virtio-bus.o s390-virtio.o
 
-obj-alpha-y =
+obj-alpha-y = i8259.o mc146818rtc.o
+obj-alpha-y += vga.o cirrus_vga.o
 
 main.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
