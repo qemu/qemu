@@ -317,9 +317,34 @@ enum {
     IPR_LAST,
 };
 
-typedef struct CPUAlphaState CPUAlphaState;
+/* MMU modes definitions */
 
-#define NB_MMU_MODES 4
+/* Alpha has 5 MMU modes: PALcode, kernel, executive, supervisor, and user.
+   The Unix PALcode only exposes the kernel and user modes; presumably
+   executive and supervisor are used by VMS.
+
+   PALcode itself uses physical mode for code and kernel mode for data;
+   there are PALmode instructions that can access data via physical mode
+   or via an os-installed "alternate mode", which is one of the 4 above.
+
+   QEMU does not currently properly distinguish between code/data when
+   looking up addresses.  To avoid having to address this issue, our
+   emulated PALcode will cheat and use the KSEG mapping for its code+data
+   rather than physical addresses.
+
+   Moreover, we're only emulating Unix PALcode, and not attempting VMS.
+
+   All of which allows us to drop all but kernel and user modes.
+   Elide the unused MMU modes to save space.  */
+
+#define NB_MMU_MODES 2
+
+#define MMU_MODE0_SUFFIX _kernel
+#define MMU_MODE1_SUFFIX _user
+#define MMU_KERNEL_IDX   0
+#define MMU_USER_IDX     1
+
+typedef struct CPUAlphaState CPUAlphaState;
 
 struct CPUAlphaState {
     uint64_t ir[31];
@@ -370,15 +395,9 @@ struct CPUAlphaState {
 #define cpu_gen_code cpu_alpha_gen_code
 #define cpu_signal_handler cpu_alpha_signal_handler
 
-/* MMU modes definitions */
-#define MMU_MODE0_SUFFIX _kernel
-#define MMU_MODE1_SUFFIX _executive
-#define MMU_MODE2_SUFFIX _supervisor
-#define MMU_MODE3_SUFFIX _user
-#define MMU_USER_IDX 3
 static inline int cpu_mmu_index (CPUState *env)
 {
-    return (env->ps >> 3) & 3;
+    return (env->ps >> 3) & 1;
 }
 
 #include "cpu-all.h"

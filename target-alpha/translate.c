@@ -1522,8 +1522,9 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
 #ifndef CONFIG_USER_ONLY
         if (palcode < 0x40) {
             /* Privileged PAL code */
-            if (ctx->mem_idx & 1)
+            if (ctx->mem_idx != MMU_KERNEL_IDX) {
                 goto invalid_opc;
+            }
             ret = gen_excp(ctx, EXCP_CALL_PALP + ((palcode & 0x3F) << 6), 0);
         }
 #endif
@@ -2651,11 +2652,11 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
                 goto invalid_opc;
             case 0xA:
                 /* Longword virtual access with protection check (hw_ldl/w) */
-                tcg_gen_qemu_ld32s(cpu_ir[ra], addr, 0);
+                tcg_gen_qemu_ld32s(cpu_ir[ra], addr, MMU_KERNEL_IDX);
                 break;
             case 0xB:
                 /* Quadword virtual access with protection check (hw_ldq/w) */
-                tcg_gen_qemu_ld64(cpu_ir[ra], addr, 0);
+                tcg_gen_qemu_ld64(cpu_ir[ra], addr, MMU_KERNEL_IDX);
                 break;
             case 0xC:
                 /* Longword virtual access with alt access mode (hw_ldl/a)*/
