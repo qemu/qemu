@@ -1437,17 +1437,6 @@ static int ehci_state_fetchentry(EHCIState *ehci, int async)
     int again = 0;
     uint32_t entry = ehci_get_fetch_addr(ehci, async);
 
-#if EHCI_DEBUG == 0
-    if (qemu_get_clock_ns(vm_clock) / 1000 >= ehci->frame_end_usec) {
-        if (async) {
-            DPRINTF("FETCHENTRY: FRAME timer elapsed, exit state machine\n");
-            goto out;
-        } else {
-            DPRINTF("FETCHENTRY: WARNING "
-                    "- frame timer elapsed during periodic\n");
-        }
-    }
-#endif
     if (entry < 0x1000) {
         DPRINTF("fetchentry: entry invalid (0x%08x)\n", entry);
         ehci_set_state(ehci, async, EST_ACTIVE);
@@ -1952,12 +1941,6 @@ static void ehci_advance_async_state(EHCIState *ehci)
         }
 
         ehci_set_state(ehci, async, EST_WAITLISTHEAD);
-        /* fall through */
-
-    case EST_FETCHENTRY:
-        /* fall through */
-
-    case EST_EXECUTING:
         ehci_advance_state(ehci, async);
         break;
 
@@ -2010,11 +1993,6 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
         ehci_advance_state(ehci, async);
         break;
 
-    case EST_EXECUTING:
-        DPRINTF("PERIODIC state adv for executing\n");
-        ehci_advance_state(ehci, async);
-        break;
-
     default:
         /* this should only be due to a developer mistake */
         fprintf(stderr, "ehci: Bad periodic state %d. "
@@ -2063,11 +2041,7 @@ static void ehci_frame_timer(void *opaque)
         if (frames - i > 10) {
             skipped_frames++;
         } else {
-            // TODO could this cause periodic frames to get skipped if async
-            // active?
-            if (ehci_get_state(ehci, 1) != EST_EXECUTING) {
-                ehci_advance_periodic_state(ehci);
-            }
+            ehci_advance_periodic_state(ehci);
         }
 
         ehci->last_run_usec += FRAME_TIMER_USEC;
@@ -2082,9 +2056,7 @@ static void ehci_frame_timer(void *opaque)
     /*  Async is not inside loop since it executes everything it can once
      *  called
      */
-    if (ehci_get_state(ehci, 0) != EST_EXECUTING) {
-        ehci_advance_async_state(ehci);
-    }
+    ehci_advance_async_state(ehci);
 
     qemu_mod_timer(ehci->frame_timer, expire_time);
 }
