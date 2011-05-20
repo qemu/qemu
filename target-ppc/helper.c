@@ -606,7 +606,7 @@ static inline int _find_pte(CPUState *env, mmu_ctx_t *ctx, int is_64b, int h,
             r = pte64_check(ctx, pte0, pte1, h, rw, type);
             LOG_MMU("Load pte from " TARGET_FMT_lx " => " TARGET_FMT_lx " "
                     TARGET_FMT_lx " %d %d %d " TARGET_FMT_lx "\n",
-                    pteg_base + (i * 16), pte0, pte1, (int)(pte0 & 1), h,
+                    pteg_off + (i * 16), pte0, pte1, (int)(pte0 & 1), h,
                     (int)((pte0 >> 1) & 1), ctx->ptem);
         } else
 #endif
@@ -621,7 +621,7 @@ static inline int _find_pte(CPUState *env, mmu_ctx_t *ctx, int is_64b, int h,
             r = pte32_check(ctx, pte0, pte1, h, rw, type);
             LOG_MMU("Load pte from " TARGET_FMT_lx " => " TARGET_FMT_lx " "
                     TARGET_FMT_lx " %d %d %d " TARGET_FMT_lx "\n",
-                    pteg_base + (i * 8), pte0, pte1, (int)(pte0 >> 31), h,
+                    pteg_off + (i * 8), pte0, pte1, (int)(pte0 >> 31), h,
                     (int)((pte0 >> 6) & 1), ctx->ptem);
         }
         switch (r) {
@@ -918,8 +918,7 @@ static inline int get_segment(CPUState *env, mmu_ctx_t *ctx,
                     if (eaddr != 0xEFFFFFFF)
                         LOG_MMU("1 htab=" TARGET_FMT_plx "/" TARGET_FMT_plx
                                 " vsid=" TARGET_FMT_lx " api=" TARGET_FMT_lx
-                                " hash=" TARGET_FMT_plx " pg_addr="
-                                TARGET_FMT_plx "\n", env->htab_base,
+                                " hash=" TARGET_FMT_plx "\n", env->htab_base,
                                 env->htab_mask, vsid, ctx->ptem, ctx->hash[1]);
                     ret2 = find_pte(env, ctx, 1, rw, type,
                                     target_page_bits);
@@ -2140,7 +2139,7 @@ void ppc_store_sr (CPUPPCState *env, int srnum, target_ulong value)
         /* VSID = VSID */
         rs |= (value & 0xfffffff) << 12;
         /* flags = flags */
-        rs |= ((value >> 27) & 0xf) << 9;
+        rs |= ((value >> 27) & 0xf) << 8;
 
         ppc_store_slb(env, rb, rs);
     } else
