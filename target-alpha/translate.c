@@ -2576,18 +2576,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         break;
     case 0x19:
         /* HW_MFPR (PALcode) */
-#if defined (CONFIG_USER_ONLY)
         goto invalid_opc;
-#else
-        if (!ctx->pal_mode)
-            goto invalid_opc;
-        if (ra != 31) {
-            TCGv tmp = tcg_const_i32(insn & 0xFF);
-            gen_helper_mfpr(cpu_ir[ra], tmp, cpu_ir[ra]);
-            tcg_temp_free(tmp);
-        }
-        break;
-#endif
     case 0x1A:
         /* JMP, JSR, RET, JSR_COROUTINE.  These only differ by the branch
            prediction stack action, which of course we don't implement.  */
@@ -2856,25 +2845,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         break;
     case 0x1D:
         /* HW_MTPR (PALcode) */
-#if defined (CONFIG_USER_ONLY)
         goto invalid_opc;
-#else
-        if (!ctx->pal_mode)
-            goto invalid_opc;
-        else {
-            TCGv tmp1 = tcg_const_i32(insn & 0xFF);
-            if (ra != 31)
-                gen_helper_mtpr(tmp1, cpu_ir[ra]);
-            else {
-                TCGv tmp2 = tcg_const_i64(0);
-                gen_helper_mtpr(tmp1, tmp2);
-                tcg_temp_free(tmp2);
-            }
-            tcg_temp_free(tmp1);
-            ret = EXIT_PC_STALE;
-        }
-        break;
-#endif
     case 0x1E:
         /* HW_RET (PALcode) */
 #if defined (CONFIG_USER_ONLY)
@@ -2887,7 +2858,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
                address from EXC_ADDR.  This turns out to be useful for our
                emulation PALcode, so continue to accept it.  */
             TCGv tmp = tcg_temp_new();
-            tcg_gen_ld_i64(tmp, cpu_env, offsetof(CPUState, ipr[IPR_EXC_ADDR]));
+            /* FIXME: Get exc_addr.  */
             gen_helper_hw_ret(tmp);
             tcg_temp_free(tmp);
         } else {
@@ -3131,7 +3102,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
     ctx.mem_idx = 0;
 #else
     ctx.mem_idx = ((env->ps >> 3) & 3);
-    ctx.pal_mode = env->ipr[IPR_EXC_ADDR] & 1;
+    ctx.pal_mode = env->pal_mode;
 #endif
 
     /* ??? Every TB begins with unset rounding mode, to be initialized on
@@ -3297,41 +3268,12 @@ CPUAlphaState * cpu_alpha_init (const char *cpu_model)
     env->implver = implver;
     env->amask = amask;
 
-    env->ps = 0x1F00;
 #if defined (CONFIG_USER_ONLY)
-    env->ps |= 1 << 3;
+    env->ps = 1 << 3;
     cpu_alpha_store_fpcr(env, (FPCR_INVD | FPCR_DZED | FPCR_OVFD
                                | FPCR_UNFD | FPCR_INED | FPCR_DNOD));
 #endif
     env->lock_addr = -1;
-
-    /* Initialize IPR */
-#if defined (CONFIG_USER_ONLY)
-    env->ipr[IPR_EXC_ADDR] = 0;
-    env->ipr[IPR_EXC_SUM] = 0;
-    env->ipr[IPR_EXC_MASK] = 0;
-#else
-    {
-        // uint64_t hwpcb;
-        // hwpcb = env->ipr[IPR_PCBB];
-        env->ipr[IPR_ASN] = 0;
-        env->ipr[IPR_ASTEN] = 0;
-        env->ipr[IPR_ASTSR] = 0;
-        env->ipr[IPR_DATFX] = 0;
-        /* XXX: fix this */
-        //    env->ipr[IPR_ESP] = ldq_raw(hwpcb + 8);
-        //    env->ipr[IPR_KSP] = ldq_raw(hwpcb + 0);
-        //    env->ipr[IPR_SSP] = ldq_raw(hwpcb + 16);
-        //    env->ipr[IPR_USP] = ldq_raw(hwpcb + 24);
-        env->ipr[IPR_FEN] = 0;
-        env->ipr[IPR_IPL] = 31;
-        env->ipr[IPR_MCES] = 0;
-        env->ipr[IPR_PERFMON] = 0; /* Implementation specific */
-        //    env->ipr[IPR_PTBR] = ldq_raw(hwpcb + 32);
-        env->ipr[IPR_SISR] = 0;
-        env->ipr[IPR_VIRBND] = -1ULL;
-    }
-#endif
 
     qemu_init_vcpu(env);
     return env;

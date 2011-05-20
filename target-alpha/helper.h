@@ -101,8 +101,6 @@ DEF_HELPER_1(ieee_input_s, i64, i64)
 
 #if !defined (CONFIG_USER_ONLY)
 DEF_HELPER_1(hw_ret, void, i64)
-DEF_HELPER_2(mfpr, i64, int, i64)
-DEF_HELPER_2(mtpr, void, int, i64)
 
 DEF_HELPER_1(ldl_phys, i64, i64)
 DEF_HELPER_1(ldq_phys, i64, i64)

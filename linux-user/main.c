@@ -2524,9 +2524,9 @@ void cpu_loop (CPUState *env)
             env->lock_addr = -1;
             info.si_signo = TARGET_SIGSEGV;
             info.si_errno = 0;
-            info.si_code = (page_get_flags(env->ipr[IPR_EXC_ADDR]) & PAGE_VALID
+            info.si_code = (page_get_flags(env->trap_arg0) & PAGE_VALID
                             ? TARGET_SEGV_ACCERR : TARGET_SEGV_MAPERR);
-            info._sifields._sigfault._addr = env->ipr[IPR_EXC_ADDR];
+            info._sifields._sigfault._addr = env->trap_arg0;
             queue_signal(env, info.si_signo, &info);
             break;
         case EXCP_DTB_MISS_PAL:
@@ -2550,7 +2550,7 @@ void cpu_loop (CPUState *env)
             info.si_signo = TARGET_SIGBUS;
             info.si_errno = 0;
             info.si_code = TARGET_BUS_ADRALN;
-            info._sifields._sigfault._addr = env->ipr[IPR_EXC_ADDR];
+            info._sifields._sigfault._addr = env->trap_arg0;
             queue_signal(env, info.si_signo, &info);
             break;
         case EXCP_OPCDEC:

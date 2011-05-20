@@ -192,131 +192,6 @@ enum {
 
 #define SWCR_MASK  (SWCR_TRAP_ENABLE_MASK | SWCR_MAP_MASK | SWCR_STATUS_MASK)
 
-/* Internal processor registers */
-/* XXX: TOFIX: most of those registers are implementation dependant */
-enum {
-#if defined(CONFIG_USER_ONLY)
-    IPR_EXC_ADDR,
-    IPR_EXC_SUM,
-    IPR_EXC_MASK,
-#else
-    /* Ebox IPRs */
-    IPR_CC           = 0xC0,            /* 21264 */
-    IPR_CC_CTL       = 0xC1,            /* 21264 */
-#define IPR_CC_CTL_ENA_SHIFT 32
-#define IPR_CC_CTL_COUNTER_MASK 0xfffffff0UL
-    IPR_VA           = 0xC2,            /* 21264 */
-    IPR_VA_CTL       = 0xC4,            /* 21264 */
-#define IPR_VA_CTL_VA_48_SHIFT 1
-#define IPR_VA_CTL_VPTB_SHIFT 30
-    IPR_VA_FORM      = 0xC3,            /* 21264 */
-    /* Ibox IPRs */
-    IPR_ITB_TAG      = 0x00,            /* 21264 */
-    IPR_ITB_PTE      = 0x01,            /* 21264 */
-    IPR_ITB_IAP      = 0x02,
-    IPR_ITB_IA       = 0x03,            /* 21264 */
-    IPR_ITB_IS       = 0x04,            /* 21264 */
-    IPR_PMPC         = 0x05,
-    IPR_EXC_ADDR     = 0x06,            /* 21264 */
-    IPR_IVA_FORM     = 0x07,            /* 21264 */
-    IPR_CM           = 0x09,            /* 21264 */
-#define IPR_CM_SHIFT 3
-#define IPR_CM_MASK (3ULL << IPR_CM_SHIFT)      /* 21264 */
-    IPR_IER          = 0x0A,            /* 21264 */
-#define IPR_IER_MASK 0x0000007fffffe000ULL
-    IPR_IER_CM       = 0x0B,            /* 21264: = CM | IER */
-    IPR_SIRR         = 0x0C,            /* 21264 */
-#define IPR_SIRR_SHIFT 14
-#define IPR_SIRR_MASK 0x7fff
-    IPR_ISUM         = 0x0D,            /* 21264 */
-    IPR_HW_INT_CLR   = 0x0E,            /* 21264 */
-    IPR_EXC_SUM      = 0x0F,
-    IPR_PAL_BASE     = 0x10,
-    IPR_I_CTL        = 0x11,
-#define IPR_I_CTL_CHIP_ID_SHIFT 24      /* 21264 */
-#define IPR_I_CTL_BIST_FAIL (1 << 23)   /* 21264 */
-#define IPR_I_CTL_IC_EN_SHIFT 2         /* 21264 */
-#define IPR_I_CTL_SDE1_SHIFT 7          /* 21264 */
-#define IPR_I_CTL_HWE_SHIFT 12          /* 21264 */
-#define IPR_I_CTL_VA_48_SHIFT 15        /* 21264 */
-#define IPR_I_CTL_SPE_SHIFT 3           /* 21264 */
-#define IPR_I_CTL_CALL_PAL_R23_SHIFT 20 /* 21264 */
-    IPR_I_STAT       = 0x16,            /* 21264 */
-    IPR_IC_FLUSH     = 0x13,            /* 21264 */
-    IPR_IC_FLUSH_ASM = 0x12,            /* 21264 */
-    IPR_CLR_MAP      = 0x15,
-    IPR_SLEEP        = 0x17,
-    IPR_PCTX         = 0x40,
-    IPR_PCTX_ASN       = 0x01,  /* field */
-#define IPR_PCTX_ASN_SHIFT 39
-    IPR_PCTX_ASTER     = 0x02,  /* field */
-#define IPR_PCTX_ASTER_SHIFT 5
-    IPR_PCTX_ASTRR     = 0x04,  /* field */
-#define IPR_PCTX_ASTRR_SHIFT 9
-    IPR_PCTX_PPCE      = 0x08,  /* field */
-#define IPR_PCTX_PPCE_SHIFT 1
-    IPR_PCTX_FPE       = 0x10,  /* field */
-#define IPR_PCTX_FPE_SHIFT 2
-    IPR_PCTX_ALL       = 0x5f,  /* all fields */
-    IPR_PCTR_CTL     = 0x14,            /* 21264 */
-    /* Mbox IPRs */
-    IPR_DTB_TAG0     = 0x20,            /* 21264 */
-    IPR_DTB_TAG1     = 0xA0,            /* 21264 */
-    IPR_DTB_PTE0     = 0x21,            /* 21264 */
-    IPR_DTB_PTE1     = 0xA1,            /* 21264 */
-    IPR_DTB_ALTMODE  = 0xA6,
-    IPR_DTB_ALTMODE0 = 0x26,            /* 21264 */
-#define IPR_DTB_ALTMODE_MASK 3
-    IPR_DTB_IAP      = 0xA2,
-    IPR_DTB_IA       = 0xA3,            /* 21264 */
-    IPR_DTB_IS0      = 0x24,
-    IPR_DTB_IS1      = 0xA4,
-    IPR_DTB_ASN0     = 0x25,            /* 21264 */
-    IPR_DTB_ASN1     = 0xA5,            /* 21264 */
-#define IPR_DTB_ASN_SHIFT 56
-    IPR_MM_STAT      = 0x27,            /* 21264 */
-    IPR_M_CTL        = 0x28,            /* 21264 */
-#define IPR_M_CTL_SPE_SHIFT 1
-#define IPR_M_CTL_SPE_MASK 7
-    IPR_DC_CTL       = 0x29,            /* 21264 */
-    IPR_DC_STAT      = 0x2A,            /* 21264 */
-    /* Cbox IPRs */
-    IPR_C_DATA       = 0x2B,
-    IPR_C_SHIFT      = 0x2C,
-
-    IPR_ASN,
-    IPR_ASTEN,
-    IPR_ASTSR,
-    IPR_DATFX,
-    IPR_ESP,
-    IPR_FEN,
-    IPR_IPIR,
-    IPR_IPL,
-    IPR_KSP,
-    IPR_MCES,
-    IPR_PERFMON,
-    IPR_PCBB,
-    IPR_PRBR,
-    IPR_PTBR,
-    IPR_SCBB,
-    IPR_SISR,
-    IPR_SSP,
-    IPR_SYSPTBR,
-    IPR_TBCHK,
-    IPR_TBIA,
-    IPR_TBIAP,
-    IPR_TBIS,
-    IPR_TBISD,
-    IPR_TBISI,
-    IPR_USP,
-    IPR_VIRBND,
-    IPR_VPTB,
-    IPR_WHAMI,
-    IPR_ALT_MODE,
-#endif
-    IPR_LAST,
-};
-
 /* MMU modes definitions */
 
 /* Alpha has 5 MMU modes: PALcode, kernel, executive, supervisor, and user.
@@ -350,8 +225,6 @@ struct CPUAlphaState {
     uint64_t ir[31];
     float64 fir[31];
     uint64_t pc;
-    uint64_t ipr[IPR_LAST];
-    uint64_t ps;
     uint64_t unique;
     uint64_t lock_addr;
     uint64_t lock_st_addr;
@@ -366,10 +239,18 @@ struct CPUAlphaState {
     uint8_t fpcr_dnod;
     uint8_t fpcr_undz;
 
-    /* Used for HW_LD / HW_ST */
-    uint8_t saved_mode;
-    /* For RC and RS */
+    /* The Internal Processor Registers.  Some of these we assume always
+       exist for use in user-mode.  */
+    uint8_t ps;
     uint8_t intr_flag;
+    uint8_t pal_mode;
+
+    /* These pass data from the exception logic in the translator and
+       helpers to the OS entry point.  This is used for both system
+       emulation and user-mode.  */
+    uint64_t trap_arg0;
+    uint64_t trap_arg1;
+    uint64_t trap_arg2;
 
 #if TARGET_LONG_BITS > HOST_LONG_BITS
     /* temporary fixed-point registers
@@ -380,8 +261,6 @@ struct CPUAlphaState {
 
     /* Those resources are used only in Qemu core */
     CPU_COMMON
-
-    uint32_t hflags;
 
     int error_code;
 
@@ -492,8 +371,6 @@ void do_interrupt (CPUState *env);
 
 uint64_t cpu_alpha_load_fpcr (CPUState *env);
 void cpu_alpha_store_fpcr (CPUState *env, uint64_t val);
-int cpu_alpha_mfpr (CPUState *env, int iprn, uint64_t *valp);
-int cpu_alpha_mtpr (CPUState *env, int iprn, uint64_t val, uint64_t *oldvalp);
 
 static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)

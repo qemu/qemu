@@ -373,7 +373,7 @@ void helper_fp_exc_raise(uint32_t exc, uint32_t regno)
     if (exc) {
         uint32_t hw_exc = 0;
 
-        env->ipr[IPR_EXC_MASK] |= 1ull << regno;
+        env->trap_arg1 = 1ull << regno;
 
         if (exc & float_flag_invalid) {
             hw_exc |= EXC_M_INV;
@@ -1159,24 +1159,9 @@ uint64_t helper_cvtqg (uint64_t a)
 void helper_hw_ret (uint64_t a)
 {
     env->pc = a & ~3;
-    env->ipr[IPR_EXC_ADDR] = a & 1;
+    env->pal_mode = a & 1;
     env->intr_flag = 0;
     env->lock_addr = -1;
-}
-
-uint64_t helper_mfpr (int iprn, uint64_t val)
-{
-    uint64_t tmp;
-
-    if (cpu_alpha_mfpr(env, iprn, &tmp) == 0)
-        val = tmp;
-
-    return val;
-}
-
-void helper_mtpr (int iprn, uint64_t val)
-{
-    cpu_alpha_mtpr(env, iprn, val, NULL);
 }
 #endif
 
