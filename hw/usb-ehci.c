@@ -1066,6 +1066,7 @@ static int ehci_buffer_rw(EHCIQueue *q, int bytes, int rw)
         cpu_physical_memory_rw(head, q->buffer + bufpos, tail - head, rw);
 
         bufpos += (tail - head);
+        offset += (tail - head);
         bytes -= (tail - head);
 
         if (bytes > 0) {
@@ -1078,8 +1079,7 @@ static int ehci_buffer_rw(EHCIQueue *q, int bytes, int rw)
     set_field(&q->qh.token, cpage, QTD_TOKEN_CPAGE);
 
     /* save offset into cpage */
-    offset = tail - head;
-    q->qh.bufptr[0] &= ~QTD_BUFPTR_MASK;
+    q->qh.bufptr[0] &= QTD_BUFPTR_MASK;
     q->qh.bufptr[0] |= offset;
 
     return 0;
