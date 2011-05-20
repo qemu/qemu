@@ -680,7 +680,7 @@ static void lsi_request_cancelled(SCSIRequest *req)
 
 /* Record that data is available for a queued command.  Returns zero if
    the device was reselected, nonzero if the IO is deferred.  */
-static int lsi_queue_tag(LSIState *s, uint32_t tag, uint32_t arg)
+static int lsi_queue_tag(LSIState *s, uint32_t tag, uint32_t len)
 {
     lsi_request *p;
 
@@ -693,7 +693,7 @@ static int lsi_queue_tag(LSIState *s, uint32_t tag, uint32_t arg)
     if (p->pending) {
         BADF("Multiple IO pending for tag %d\n", tag);
     }
-    p->pending = arg;
+    p->pending = len;
     /* Reselect if waiting for it, or if reselection triggers an IRQ
        and the bus is free.
        Since no interrupt stacking is implemented in the emulation, it
@@ -707,20 +707,20 @@ static int lsi_queue_tag(LSIState *s, uint32_t tag, uint32_t arg)
         return 0;
     } else {
         DPRINTF("Queueing IO tag=0x%x\n", tag);
-        p->pending = arg;
+        p->pending = len;
         return 1;
     }
 }
 
  /* Callback to indicate that the SCSI layer has completed a command.  */
-static void lsi_command_complete(SCSIRequest *req, uint32_t arg)
+static void lsi_command_complete(SCSIRequest *req, uint32_t status)
 {
     LSIState *s = DO_UPCAST(LSIState, dev.qdev, req->bus->qbus.parent);
     int out;
 
     out = (s->sstat1 & PHASE_MASK) == PHASE_DO;
-    DPRINTF("Command complete status=%d\n", (int)arg);
-    s->status = arg;
+    DPRINTF("Command complete status=%d\n", (int)status);
+    s->status = status;
     s->command_complete = 2;
     if (s->waiting && s->dbc != 0) {
         /* Raise phase mismatch for short transfers.  */
@@ -738,14 +738,14 @@ static void lsi_command_complete(SCSIRequest *req, uint32_t arg)
 }
 
  /* Callback to indicate that the SCSI layer has completed a transfer.  */
-static void lsi_transfer_data(SCSIRequest *req, uint32_t arg)
+static void lsi_transfer_data(SCSIRequest *req, uint32_t len)
 {
     LSIState *s = DO_UPCAST(LSIState, dev.qdev, req->bus->qbus.parent);
     int out;
 
     if (s->waiting == 1 || !s->current || req->tag != s->current->tag ||
         (lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON))) {
-        if (lsi_queue_tag(s, req->tag, arg)) {
+        if (lsi_queue_tag(s, req->tag, len)) {
             return;
         }
     }
@@ -753,8 +753,8 @@ static void lsi_transfer_data(SCSIRequest *req, uint32_t arg)
     out = (s->sstat1 & PHASE_MASK) == PHASE_DO;
 
     /* host adapter (re)connected */
-    DPRINTF("Data ready tag=0x%x len=%d\n", req->tag, arg);
-    s->current->dma_len = arg;
+    DPRINTF("Data ready tag=0x%x len=%d\n", req->tag, len);
+    s->current->dma_len = len;
     s->command_complete = 1;
     if (s->waiting) {
         if (s->waiting == 1 || s->dbc == 0) {

@@ -208,7 +208,7 @@ static void usb_msd_send_status(MSDState *s, USBPacket *p)
     memcpy(p->data, &csw, len);
 }
 
-static void usb_msd_transfer_data(SCSIRequest *req, uint32_t arg)
+static void usb_msd_transfer_data(SCSIRequest *req, uint32_t len)
 {
     MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
     USBPacket *p = s->packet;
@@ -218,7 +218,7 @@ static void usb_msd_transfer_data(SCSIRequest *req, uint32_t arg)
     }
 
     assert((s->mode == USB_MSDM_DATAOUT) == (req->cmd.mode == SCSI_XFER_TO_DEV));
-    s->scsi_len = arg;
+    s->scsi_len = len;
     s->scsi_buf = scsi_req_get_buf(req);
     if (p) {
         usb_msd_copy_data(s);
@@ -233,7 +233,7 @@ static void usb_msd_transfer_data(SCSIRequest *req, uint32_t arg)
     }
 }
 
-static void usb_msd_command_complete(SCSIRequest *req, uint32_t arg)
+static void usb_msd_command_complete(SCSIRequest *req, uint32_t status)
 {
     MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
     USBPacket *p = s->packet;
@@ -241,9 +241,9 @@ static void usb_msd_command_complete(SCSIRequest *req, uint32_t arg)
     if (req->tag != s->tag) {
         fprintf(stderr, "usb-msd: Unexpected SCSI Tag 0x%x\n", req->tag);
     }
-    DPRINTF("Command complete %d\n", arg);
+    DPRINTF("Command complete %d\n", status);
     s->residue = s->data_len;
-    s->result = arg != 0;
+    s->result = status != 0;
     if (s->packet) {
         if (s->data_len == 0 && s->mode == USB_MSDM_DATAOUT) {
             /* A deferred packet with no write data remaining must be
