@@ -3098,10 +3098,8 @@ static inline void gen_intermediate_code_internal(CPUState *env,
     ctx.env = env;
     ctx.pc = pc_start;
     ctx.amask = env->amask;
-#if defined (CONFIG_USER_ONLY)
-    ctx.mem_idx = 0;
-#else
-    ctx.mem_idx = ((env->ps >> 3) & 3);
+    ctx.mem_idx = cpu_mmu_index(env);
+#if !defined (CONFIG_USER_ONLY)
     ctx.pal_mode = env->pal_mode;
 #endif
 

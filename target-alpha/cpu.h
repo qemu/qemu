@@ -341,7 +341,13 @@ enum {
 
 static inline int cpu_mmu_index(CPUState *env)
 {
-    return (env->ps & PS_USER_MODE) != 0;
+    if (env->pal_mode) {
+        return MMU_KERNEL_IDX;
+    } else if (env->ps & PS_USER_MODE) {
+        return MMU_USER_IDX;
+    } else {
+        return MMU_KERNEL_IDX;
+    }
 }
 
 enum {
