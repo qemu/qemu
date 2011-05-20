@@ -2918,6 +2918,10 @@ ram_addr_t qemu_ram_alloc_from_ptr(DeviceState *dev, const char *name,
             new_block->host = mmap((void*)0x800000000, size,
                                    PROT_EXEC|PROT_READ|PROT_WRITE,
                                    MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+            if (new_block->host == MAP_FAILED) {
+                fprintf(stderr, "Allocating RAM failed\n");
+                abort();
+            }
 #else
             if (xen_mapcache_enabled()) {
                 xen_ram_alloc(new_block->offset, size);
