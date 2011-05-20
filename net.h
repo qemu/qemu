@@ -133,7 +133,8 @@ struct NICInfo {
     char *devaddr;
     VLANState *vlan;
     VLANClientState *netdev;
-    int used;
+    int used;         /* is this slot in nd_table[] being used? */
+    int instantiated; /* does this NICInfo correspond to an instantiated NIC? */
     int nvectors;
 };
 

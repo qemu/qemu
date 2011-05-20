@@ -1304,6 +1304,7 @@ void net_check_clients(void)
 {
     VLANState *vlan;
     VLANClientState *vc;
+    int i;
 
     /* Don't warn about the default network setup that you get if
      * no command line -net or -netdev options are specified. There
@@ -1346,6 +1347,20 @@ void net_check_clients(void)
             fprintf(stderr, "Warning: %s %s has no peer\n",
                     vc->info->type == NET_CLIENT_TYPE_NIC ? "nic" : "netdev",
                     vc->name);
+        }
+    }
+
+    /* Check that all NICs requested via -net nic actually got created.
+     * NICs created via -device don't need to be checked here because
+     * they are always instantiated.
+     */
+    for (i = 0; i < MAX_NICS; i++) {
+        NICInfo *nd = &nd_table[i];
+        if (nd->used && !nd->instantiated) {
+            fprintf(stderr, "Warning: requested NIC (%s, model %s) "
+                    "was not created (not supported by this machine?)\n",
+                    nd->name ? nd->name : "anonymous",
+                    nd->model ? nd->model : "unspecified");
         }
     }
 }
