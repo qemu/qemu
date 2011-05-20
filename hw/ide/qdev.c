@@ -98,7 +98,7 @@ IDEDevice *ide_create_drive(IDEBus *bus, int unit, DriveInfo *drive)
 {
     DeviceState *dev;
 
-    dev = qdev_create(&bus->qbus, "ide-drive");
+    dev = qdev_create(&bus->qbus, drive->media_cd ? "ide-cd" : "ide-hd");
     qdev_prop_set_uint32(dev, "unit", unit);
     qdev_prop_set_drive_nofail(dev, "drive", drive->bdrv);
     qdev_init_nofail(dev);
@@ -118,7 +118,7 @@ typedef struct IDEDrive {
     IDEDevice dev;
 } IDEDrive;
 
-static int ide_drive_initfn(IDEDevice *dev)
+static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
 {
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, dev->qdev.parent_bus);
     IDEState *s = bus->ifs + dev->unit;
@@ -134,7 +134,7 @@ static int ide_drive_initfn(IDEDevice *dev)
         }
     }
 
-    if (ide_init_drive(s, dev->conf.bs, dev->version, serial) < 0) {
+    if (ide_init_drive(s, dev->conf.bs, kind, dev->version, serial) < 0) {
         return -1;
     }
 
@@ -151,22 +151,69 @@ static int ide_drive_initfn(IDEDevice *dev)
     return 0;
 }
 
-static IDEDeviceInfo ide_drive_info = {
-    .qdev.name  = "ide-drive",
-    .qdev.fw_name  = "drive",
-    .qdev.size  = sizeof(IDEDrive),
-    .init       = ide_drive_initfn,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("unit", IDEDrive, dev.unit, -1),
-        DEFINE_BLOCK_PROPERTIES(IDEDrive, dev.conf),
-        DEFINE_PROP_STRING("ver",  IDEDrive, dev.version),
-        DEFINE_PROP_STRING("serial",  IDEDrive, dev.serial),
-        DEFINE_PROP_END_OF_LIST(),
+static int ide_hd_initfn(IDEDevice *dev)
+{
+    return ide_dev_initfn(dev, IDE_HD);
+}
+
+static int ide_cd_initfn(IDEDevice *dev)
+{
+    return ide_dev_initfn(dev, IDE_CD);
+}
+
+static int ide_drive_initfn(IDEDevice *dev)
+{
+    DriveInfo *dinfo = drive_get_by_blockdev(dev->conf.bs);
+
+    return ide_dev_initfn(dev, dinfo->media_cd ? IDE_CD : IDE_HD);
+}
+
+#define DEFINE_IDE_DEV_PROPERTIES()                     \
+    DEFINE_PROP_UINT32("unit", IDEDrive, dev.unit, -1), \
+    DEFINE_BLOCK_PROPERTIES(IDEDrive, dev.conf),        \
+    DEFINE_PROP_STRING("ver",  IDEDrive, dev.version),  \
+    DEFINE_PROP_STRING("serial",  IDEDrive, dev.serial)
+
+static IDEDeviceInfo ide_dev_info[] = {
+    {
+        .qdev.name    = "ide-hd",
+        .qdev.fw_name = "drive",
+        .qdev.desc    = "virtual IDE disk",
+        .qdev.size    = sizeof(IDEDrive),
+        .init         = ide_hd_initfn,
+        .qdev.props   = (Property[]) {
+            DEFINE_IDE_DEV_PROPERTIES(),
+            DEFINE_PROP_END_OF_LIST(),
+        }
+    },{
+        .qdev.name    = "ide-cd",
+        .qdev.fw_name = "drive",
+        .qdev.desc    = "virtual IDE CD-ROM",
+        .qdev.size    = sizeof(IDEDrive),
+        .init         = ide_cd_initfn,
+        .qdev.props   = (Property[]) {
+            DEFINE_IDE_DEV_PROPERTIES(),
+            DEFINE_PROP_END_OF_LIST(),
+        }
+    },{
+        .qdev.name    = "ide-drive", /* legacy -device ide-drive */
+        .qdev.fw_name = "drive",
+        .qdev.desc    = "virtual IDE disk or CD-ROM (legacy)",
+        .qdev.size    = sizeof(IDEDrive),
+        .init         = ide_drive_initfn,
+        .qdev.props   = (Property[]) {
+            DEFINE_IDE_DEV_PROPERTIES(),
+            DEFINE_PROP_END_OF_LIST(),
+        }
     }
 };
 
-static void ide_drive_register(void)
+static void ide_dev_register(void)
 {
-    ide_qdev_register(&ide_drive_info);
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(ide_dev_info); i++) {
+        ide_qdev_register(&ide_dev_info[i]);
+    }
 }
-device_init(ide_drive_register);
+device_init(ide_dev_register);

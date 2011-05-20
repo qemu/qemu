@@ -316,7 +316,7 @@ static int ioreq_map(struct ioreq *ioreq)
 static int ioreq_runio_qemu_sync(struct ioreq *ioreq)
 {
     struct XenBlkDev *blkdev = ioreq->blkdev;
-    int i, rc, len = 0;
+    int i, rc;
     off_t pos;
 
     if (ioreq->req.nr_segments && ioreq_map(ioreq) == -1) {
@@ -339,7 +339,6 @@ static int ioreq_runio_qemu_sync(struct ioreq *ioreq)
                               ioreq->v.iov[i].iov_len);
                 goto err;
             }
-            len += ioreq->v.iov[i].iov_len;
             pos += ioreq->v.iov[i].iov_len;
         }
         break;
@@ -359,7 +358,6 @@ static int ioreq_runio_qemu_sync(struct ioreq *ioreq)
                               ioreq->v.iov[i].iov_len);
                 goto err;
             }
-            len += ioreq->v.iov[i].iov_len;
             pos += ioreq->v.iov[i].iov_len;
         }
         break;

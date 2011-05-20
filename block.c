@@ -1305,13 +1305,6 @@ void bdrv_set_geometry_hint(BlockDriverState *bs,
     bs->secs = secs;
 }
 
-void bdrv_set_type_hint(BlockDriverState *bs, int type)
-{
-    bs->type = type;
-    bs->removable = ((type == BDRV_TYPE_CDROM ||
-                      type == BDRV_TYPE_FLOPPY));
-}
-
 void bdrv_set_translation_hint(BlockDriverState *bs, int translation)
 {
     bs->translation = translation;
@@ -1426,11 +1419,6 @@ void bdrv_get_floppy_geometry_hint(BlockDriverState *bs, int *nb_heads,
         *last_sect = parse->last_sect;
         *drive = parse->drive;
     }
-}
-
-int bdrv_get_type_hint(BlockDriverState *bs)
-{
-    return bs->type;
 }
 
 int bdrv_get_translation_hint(BlockDriverState *bs)
@@ -1704,9 +1692,8 @@ static void bdrv_print_dict(QObject *obj, void *opaque)
 
     bs_dict = qobject_to_qdict(obj);
 
-    monitor_printf(mon, "%s: type=%s removable=%d",
+    monitor_printf(mon, "%s: removable=%d",
                         qdict_get_str(bs_dict, "device"),
-                        qdict_get_str(bs_dict, "type"),
                         qdict_get_bool(bs_dict, "removable"));
 
     if (qdict_get_bool(bs_dict, "removable")) {
@@ -1747,23 +1734,10 @@ void bdrv_info(Monitor *mon, QObject **ret_data)
 
     QTAILQ_FOREACH(bs, &bdrv_states, list) {
         QObject *bs_obj;
-        const char *type = "unknown";
 
-        switch(bs->type) {
-        case BDRV_TYPE_HD:
-            type = "hd";
-            break;
-        case BDRV_TYPE_CDROM:
-            type = "cdrom";
-            break;
-        case BDRV_TYPE_FLOPPY:
-            type = "floppy";
-            break;
-        }
-
-        bs_obj = qobject_from_jsonf("{ 'device': %s, 'type': %s, "
+        bs_obj = qobject_from_jsonf("{ 'device': %s, 'type': 'unknown', "
                                     "'removable': %i, 'locked': %i }",
-                                    bs->device_name, type, bs->removable,
+                                    bs->device_name, bs->removable,
                                     bs->locked);
 
         if (bs->drv) {

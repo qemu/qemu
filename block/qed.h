@@ -78,6 +78,9 @@ enum {
     QED_MIN_TABLE_SIZE = 1,        /* in clusters */
     QED_MAX_TABLE_SIZE = 16,
     QED_DEFAULT_TABLE_SIZE = 4,
+
+    /* Delay to flush and clean image after last allocating write completes */
+    QED_NEED_CHECK_TIMEOUT = 5,    /* in seconds */
 };
 
 typedef struct {
@@ -157,6 +160,10 @@ typedef struct {
 
     /* Allocating write request queue */
     QSIMPLEQ_HEAD(, QEDAIOCB) allocating_write_reqs;
+    bool allocating_write_reqs_plugged;
+
+    /* Periodic flush and clear need check flag */
+    QEMUTimer *need_check_timer;
 } BDRVQEDState;
 
 enum {

@@ -33,6 +33,7 @@ struct DriveInfo {
     int bus;
     int unit;
     int auto_del;               /* see blockdev_mark_auto_del() */
+    int media_cd;
     QemuOpts *opts;
     char serial[BLOCK_SERIAL_STRLEN + 1];
     QTAILQ_ENTRY(DriveInfo) next;

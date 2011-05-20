@@ -884,8 +884,31 @@ static int handle_cmd(AHCIState *s, int port, int slot)
         }
 
         if (ide_state->drive_kind != IDE_CD) {
-            ide_set_sector(ide_state, (cmd_fis[6] << 16) | (cmd_fis[5] << 8) |
-                           cmd_fis[4]);
+            /*
+             * We set the sector depending on the sector defined in the FIS.
+             * Unfortunately, the spec isn't exactly obvious on this one.
+             *
+             * Apparently LBA48 commands set fis bytes 10,9,8,6,5,4 to the
+             * 48 bit sector number. ATA_CMD_READ_DMA_EXT is an example for
+             * such a command.
+             *
+             * Non-LBA48 commands however use 7[lower 4 bits],6,5,4 to define a
+             * 28-bit sector number. ATA_CMD_READ_DMA is an example for such
+             * a command.
+             *
+             * Since the spec doesn't explicitly state what each field should
+             * do, I simply assume non-used fields as reserved and OR everything
+             * together, independent of the command.
+             */
+            ide_set_sector(ide_state, ((uint64_t)cmd_fis[10] << 40)
+                                    | ((uint64_t)cmd_fis[9] << 32)
+                                    /* This is used for LBA48 commands */
+                                    | ((uint64_t)cmd_fis[8] << 24)
+                                    /* This is used for non-LBA48 commands */
+                                    | ((uint64_t)(cmd_fis[7] & 0xf) << 24)
+                                    | ((uint64_t)cmd_fis[6] << 16)
+                                    | ((uint64_t)cmd_fis[5] << 8)
+                                    | cmd_fis[4]);
         }
 
         /* Copy the ACMD field (ATAPI packet, if any) from the AHCI command
@@ -1066,9 +1089,11 @@ static int ahci_dma_set_inactive(IDEDMA *dma)
 
     ad->dma_cb = NULL;
 
-    /* maybe we still have something to process, check later */
-    ad->check_bh = qemu_bh_new(ahci_check_cmd_bh, ad);
-    qemu_bh_schedule(ad->check_bh);
+    if (!ad->check_bh) {
+        /* maybe we still have something to process, check later */
+        ad->check_bh = qemu_bh_new(ahci_check_cmd_bh, ad);
+        qemu_bh_schedule(ad->check_bh);
+    }
 
     return 0;
 }
