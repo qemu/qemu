@@ -61,7 +61,7 @@ struct ESPState {
     int32_t ti_size;
     uint32_t ti_rptr, ti_wptr;
     uint8_t ti_buf[TI_BUFSZ];
-    uint32_t sense;
+    uint32_t status;
     uint32_t dma;
     SCSIBus bus;
     SCSIDevice *current_dev;
@@ -318,8 +318,8 @@ static void handle_satn_stop(ESPState *s)
 
 static void write_response(ESPState *s)
 {
-    DPRINTF("Transfer status (sense=%d)\n", s->sense);
-    s->ti_buf[0] = s->sense;
+    DPRINTF("Transfer status (status=%d)\n", s->status);
+    s->ti_buf[0] = s->status;
     s->ti_buf[1] = 0;
     if (s->dma) {
         s->dma_memory_write(s->dma_opaque, s->ti_buf, 2);
@@ -408,7 +408,7 @@ static void esp_command_complete(SCSIRequest *req, int reason, uint32_t arg)
         s->async_len = 0;
         if (arg)
             DPRINTF("Command failed\n");
-        s->sense = arg;
+        s->status = arg;
         s->rregs[ESP_RSTAT] = STAT_ST;
         esp_dma_done(s);
         if (s->current_req) {
@@ -688,7 +688,7 @@ static const VMStateDescription vmstate_esp = {
         VMSTATE_UINT32(ti_rptr, ESPState),
         VMSTATE_UINT32(ti_wptr, ESPState),
         VMSTATE_BUFFER(ti_buf, ESPState),
-        VMSTATE_UINT32(sense, ESPState),
+        VMSTATE_UINT32(status, ESPState),
         VMSTATE_UINT32(dma, ESPState),
         VMSTATE_BUFFER(cmdbuf, ESPState),
         VMSTATE_UINT32(cmdlen, ESPState),
