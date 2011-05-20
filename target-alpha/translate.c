@@ -1516,7 +1516,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
 #endif
         if (palcode >= 0x80 && palcode < 0xC0) {
             /* Unprivileged PAL call */
-            ret = gen_excp(ctx, EXCP_CALL_PAL + ((palcode & 0x3F) << 6), 0);
+            ret = gen_excp(ctx, EXCP_CALL_PAL, palcode & 0xBF);
             break;
         }
 #ifndef CONFIG_USER_ONLY
@@ -1525,7 +1525,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             if (ctx->mem_idx != MMU_KERNEL_IDX) {
                 goto invalid_opc;
             }
-            ret = gen_excp(ctx, EXCP_CALL_PALP + ((palcode & 0x3F) << 6), 0);
+            ret = gen_excp(ctx, EXCP_CALL_PAL, palcode & 0x3F);
         }
 #endif
         /* Invalid PAL call */

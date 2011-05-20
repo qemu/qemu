@@ -164,10 +164,7 @@ void cpu_alpha_store_fpcr (CPUState *env, uint64_t val)
 int cpu_alpha_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                                 int mmu_idx, int is_softmmu)
 {
-    if (rw == 2)
-        env->exception_index = EXCP_ITB_MISS;
-    else
-        env->exception_index = EXCP_DFAULT;
+    env->exception_index = EXCP_MMFAULT;
     env->trap_arg0 = address;
     return 1;
 }

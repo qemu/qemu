@@ -289,26 +289,20 @@ enum {
 };
 
 enum {
-    EXCP_RESET            = 0x0000,
-    EXCP_MCHK             = 0x0020,
-    EXCP_ARITH            = 0x0060,
-    EXCP_HW_INTERRUPT     = 0x00E0,
-    EXCP_DFAULT           = 0x01E0,
-    EXCP_DTB_MISS_PAL     = 0x09E0,
-    EXCP_ITB_MISS         = 0x03E0,
-    EXCP_ITB_ACV          = 0x07E0,
-    EXCP_DTB_MISS_NATIVE  = 0x08E0,
-    EXCP_UNALIGN          = 0x11E0,
-    EXCP_OPCDEC           = 0x13E0,
-    EXCP_FEN              = 0x17E0,
-    EXCP_CALL_PAL         = 0x2000,
-    EXCP_CALL_PALP        = 0x3000,
-    EXCP_CALL_PALE        = 0x4000,
-    /* Pseudo exception for console */
-    EXCP_CONSOLE_DISPATCH = 0x4001,
-    EXCP_CONSOLE_FIXUP    = 0x4002,
-    EXCP_STL_C            = 0x4003,
-    EXCP_STQ_C            = 0x4004,
+    EXCP_RESET,
+    EXCP_MCHK,
+    EXCP_SMP_INTERRUPT,
+    EXCP_CLK_INTERRUPT,
+    EXCP_DEV_INTERRUPT,
+    EXCP_MMFAULT,
+    EXCP_UNALIGN,
+    EXCP_OPCDEC,
+    EXCP_ARITH,
+    EXCP_FEN,
+    EXCP_CALL_PAL,
+    /* For Usermode emulation.  */
+    EXCP_STL_C,
+    EXCP_STQ_C,
 };
 
 /* Arithmetic exception */
