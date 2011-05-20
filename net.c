@@ -1305,6 +1305,18 @@ void net_check_clients(void)
     VLANState *vlan;
     VLANClientState *vc;
 
+    /* Don't warn about the default network setup that you get if
+     * no command line -net or -netdev options are specified. There
+     * are two cases that we would otherwise complain about:
+     * (1) board doesn't support a NIC but the implicit "-net nic"
+     * requested one
+     * (2) CONFIG_SLIRP not set, in which case the implicit "-net nic"
+     * sets up a nic that isn't connected to anything.
+     */
+    if (default_net) {
+        return;
+    }
+
     QTAILQ_FOREACH(vlan, &vlans, next) {
         int has_nic = 0, has_host_dev = 0;
 
