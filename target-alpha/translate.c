@@ -2876,25 +2876,22 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         break;
 #endif
     case 0x1E:
-        /* HW_REI (PALcode) */
+        /* HW_RET (PALcode) */
 #if defined (CONFIG_USER_ONLY)
         goto invalid_opc;
 #else
         if (!ctx->pal_mode)
             goto invalid_opc;
         if (rb == 31) {
-            /* "Old" alpha */
-            gen_helper_hw_rei();
-        } else {
-            TCGv tmp;
-
-            if (ra != 31) {
-                tmp = tcg_temp_new();
-                tcg_gen_addi_i64(tmp, cpu_ir[rb], (((int64_t)insn << 51) >> 51));
-            } else
-                tmp = tcg_const_i64(((int64_t)insn << 51) >> 51);
+            /* Pre-EV6 CPUs interpreted this as HW_REI, loading the return
+               address from EXC_ADDR.  This turns out to be useful for our
+               emulation PALcode, so continue to accept it.  */
+            TCGv tmp = tcg_temp_new();
+            tcg_gen_ld_i64(tmp, cpu_env, offsetof(CPUState, ipr[IPR_EXC_ADDR]));
             gen_helper_hw_ret(tmp);
             tcg_temp_free(tmp);
+        } else {
+            gen_helper_hw_ret(cpu_ir[rb]);
         }
         ret = EXIT_PC_UPDATED;
         break;
