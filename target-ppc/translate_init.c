@@ -73,7 +73,7 @@ static void spr_read_generic (void *opaque, int gprn, int sprn)
     gen_load_spr(cpu_gpr[gprn], sprn);
 #ifdef PPC_DUMP_SPR_ACCESSES
     {
-        TCGv t0 = tcg_const_i32(sprn);
+        TCGv_i32 t0 = tcg_const_i32(sprn);
         gen_helper_load_dump_spr(t0);
         tcg_temp_free_i32(t0);
     }
@@ -85,7 +85,7 @@ static void spr_write_generic (void *opaque, int sprn, int gprn)
     gen_store_spr(sprn, cpu_gpr[gprn]);
 #ifdef PPC_DUMP_SPR_ACCESSES
     {
-        TCGv t0 = tcg_const_i32(sprn);
+        TCGv_i32 t0 = tcg_const_i32(sprn);
         gen_helper_store_dump_spr(t0);
         tcg_temp_free_i32(t0);
     }
@@ -1367,16 +1367,16 @@ static void spr_write_e500_l1csr0 (void *opaque, int sprn, int gprn)
 
 static void spr_write_booke206_mmucsr0 (void *opaque, int sprn, int gprn)
 {
-    TCGv t0 = tcg_const_i32(sprn);
+    TCGv_i32 t0 = tcg_const_i32(sprn);
     gen_helper_booke206_tlbflush(t0);
-    tcg_temp_free(t0);
+    tcg_temp_free_i32(t0);
 }
 
 static void spr_write_booke_pid (void *opaque, int sprn, int gprn)
 {
-    TCGv t0 = tcg_const_i32(sprn);
+    TCGv_i32 t0 = tcg_const_i32(sprn);
     gen_helper_booke_setpid(t0, cpu_gpr[gprn]);
-    tcg_temp_free(t0);
+    tcg_temp_free_i32(t0);
 }
 #endif
 
