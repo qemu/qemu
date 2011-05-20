@@ -56,8 +56,8 @@ M: Paul Brook <paul@codesourcery.com>
 Guest CPU cores (TCG):
 ----------------------
 Alpha
-M: qemu-devel@nongnu.org
-S: Orphan
+M: Richard Henderson <rth@twiddle.net>
+S: Maintained
 F: target-alpha/
 
 ARM
