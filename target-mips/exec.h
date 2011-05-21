@@ -17,7 +17,7 @@ register struct CPUMIPSState *env asm(AREG0);
 #include "softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-static inline int cpu_has_work(CPUState *env)
+static inline bool cpu_has_work(CPUState *env)
 {
     int has_work = 0;
 

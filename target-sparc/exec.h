@@ -13,7 +13,7 @@ register struct CPUSPARCState *env asm(AREG0);
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 /* op_helper.c */
-static inline int cpu_has_work(CPUState *env1)
+static inline bool cpu_has_work(CPUState *env1)
 {
     return (env1->interrupt_request & CPU_INTERRUPT_HARD) &&
            cpu_interrupts_enabled(env1);

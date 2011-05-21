@@ -847,7 +847,7 @@ void cpu_reset_interrupt(CPUState *env, int mask);
 
 void cpu_exit(CPUState *s);
 
-int qemu_cpu_has_work(CPUState *env);
+bool qemu_cpu_has_work(CPUState *env);
 
 /* Breakpoint/watchpoint flags */
 #define BP_MEM_READ           0x01

@@ -160,7 +160,7 @@ static inline void load_eflags(int eflags, int update_mask)
         (eflags & update_mask) | 0x2;
 }
 
-static inline int cpu_has_work(CPUState *env)
+static inline bool cpu_has_work(CPUState *env)
 {
     return ((env->interrupt_request & CPU_INTERRUPT_HARD) &&
             (env->eflags & IF_MASK)) ||

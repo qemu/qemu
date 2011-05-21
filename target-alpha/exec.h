@@ -37,7 +37,7 @@ register struct CPUAlphaState *env asm(AREG0);
 #include "softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-static inline int cpu_has_work(CPUState *env)
+static inline bool cpu_has_work(CPUState *env)
 {
     /* Here we are checking to see if the CPU should wake up from HALT.
        We will have gotten into this state only for WTINT from PALmode.  */

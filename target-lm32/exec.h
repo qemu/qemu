@@ -24,7 +24,7 @@ register struct CPULM32State *env asm(AREG0);
 #include "cpu.h"
 #include "exec-all.h"
 
-static inline int cpu_has_work(CPUState *env)
+static inline bool cpu_has_work(CPUState *env)
 {
     return env->interrupt_request & CPU_INTERRUPT_HARD;
 }

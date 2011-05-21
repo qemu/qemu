@@ -24,10 +24,10 @@ register struct CPUARMState *env asm(AREG0);
 #include "cpu.h"
 #include "exec-all.h"
 
-static inline int cpu_has_work(CPUState *env)
+static inline bool cpu_has_work(CPUState *env)
 {
-    return (env->interrupt_request &
-            (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD | CPU_INTERRUPT_EXITTB));
+    return env->interrupt_request &
+        (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD | CPU_INTERRUPT_EXITTB);
 }
 
 #if !defined(CONFIG_USER_ONLY)
