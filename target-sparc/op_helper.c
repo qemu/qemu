@@ -4159,25 +4159,26 @@ trap_state* cpu_tsptr(CPUState* env)
 void do_interrupt(CPUState *env)
 {
     int intno = env->exception_index;
-    trap_state* tsptr;
+    trap_state *tsptr;
 
 #ifdef DEBUG_PCALL
     if (qemu_loglevel_mask(CPU_LOG_INT)) {
         static int count;
         const char *name;
 
-        if (intno < 0 || intno >= 0x180)
+        if (intno < 0 || intno >= 0x180) {
             name = "Unknown";
-        else if (intno >= 0x100)
+        } else if (intno >= 0x100) {
             name = "Trap Instruction";
-        else if (intno >= 0xc0)
+        } else if (intno >= 0xc0) {
             name = "Window Fill";
-        else if (intno >= 0x80)
+        } else if (intno >= 0x80) {
             name = "Window Spill";
-        else {
+        } else {
             name = excp_names[intno];
-            if (!name)
+            if (!name) {
                 name = "Unknown";
+            }
         }
 
         qemu_log("%6d: %s (v=%04x) pc=%016" PRIx64 " npc=%016" PRIx64
@@ -4193,7 +4194,7 @@ void do_interrupt(CPUState *env)
 
             qemu_log("       code=");
             ptr = (uint8_t *)env->pc;
-            for(i = 0; i < 16; i++) {
+            for (i = 0; i < 16; i++) {
                 qemu_log(" %02x", ldub(ptr + i));
             }
             qemu_log("\n");
@@ -4213,8 +4214,9 @@ void do_interrupt(CPUState *env)
         env->tl++;
     } else {
         env->pstate |= PS_RED;
-        if (env->tl < env->maxtl)
+        if (env->tl < env->maxtl) {
             env->tl++;
+        }
     }
     tsptr = cpu_tsptr(env);
 
@@ -4299,14 +4301,15 @@ void do_interrupt(CPUState *env)
         static int count;
         const char *name;
 
-        if (intno < 0 || intno >= 0x100)
+        if (intno < 0 || intno >= 0x100) {
             name = "Unknown";
-        else if (intno >= 0x80)
+        } else if (intno >= 0x80) {
             name = "Trap Instruction";
-        else {
+        } else {
             name = excp_names[intno];
-            if (!name)
+            if (!name) {
                 name = "Unknown";
+            }
         }
 
         qemu_log("%6d: %s (v=%02x) pc=%08x npc=%08x SP=%08x\n",
@@ -4321,7 +4324,7 @@ void do_interrupt(CPUState *env)
 
             qemu_log("       code=");
             ptr = (uint8_t *)env->pc;
-            for(i = 0; i < 16; i++) {
+            for (i = 0; i < 16; i++) {
                 qemu_log(" %02x", ldub(ptr + i));
             }
             qemu_log("\n");
