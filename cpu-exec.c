@@ -64,21 +64,31 @@ void cpu_loop_exit(void)
 /* exit the current TB from a signal handler. The host registers are
    restored in a state compatible with the CPU emulator
  */
+#if defined(CONFIG_SOFTMMU)
 void cpu_resume_from_signal(CPUState *env1, void *puc)
 {
-#if !defined(CONFIG_SOFTMMU)
+    env = env1;
+
+    /* XXX: restore cpu registers saved in host registers */
+
+    env->exception_index = -1;
+    longjmp(env->jmp_env, 1);
+}
+
+#else
+
+void cpu_resume_from_signal(CPUState *env1, void *puc)
+{
 #ifdef __linux__
     struct ucontext *uc = puc;
 #elif defined(__OpenBSD__)
     struct sigcontext *uc = puc;
-#endif
 #endif
 
     env = env1;
 
     /* XXX: restore cpu registers saved in host registers */
 
-#if !defined(CONFIG_SOFTMMU)
     if (puc) {
         /* XXX: use siglongjmp ? */
 #ifdef __linux__
@@ -91,10 +101,10 @@ void cpu_resume_from_signal(CPUState *env1, void *puc)
         sigprocmask(SIG_SETMASK, &uc->sc_mask, NULL);
 #endif
     }
-#endif
     env->exception_index = -1;
     longjmp(env->jmp_env, 1);
 }
+#endif
 
 /* Execute the code without caching the generated code. An interpreter
    could be used if available. */
@@ -751,9 +761,11 @@ void cpu_x86_frstor(CPUX86State *s, target_ulong ptr, int data32)
 #if !defined(CONFIG_SOFTMMU)
 
 #if defined(TARGET_I386)
-#define EXCEPTION_ACTION raise_exception_err(env->exception_index, env->error_code)
+#define EXCEPTION_ACTION                                        \
+    raise_exception_err(env->exception_index, env->error_code)
 #else
-#define EXCEPTION_ACTION cpu_loop_exit()
+#define EXCEPTION_ACTION                                        \
+    cpu_loop_exit()
 #endif
 
 /* 'pc' is the host PC at which the exception was raised. 'address' is
@@ -767,8 +779,9 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     TranslationBlock *tb;
     int ret;
 
-    if (cpu_single_env)
+    if (cpu_single_env) {
         env = cpu_single_env; /* XXX: find a correct solution for multithread */
+    }
 #if defined(DEBUG_SIGNAL)
     qemu_printf("qemu: SIGSEGV pc=0x%08lx address=%08lx w=%d oldset=0x%08lx\n",
                 pc, address, is_write, *(unsigned long *)old_set);
@@ -780,10 +793,12 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
 
     /* see if it is an MMU fault */
     ret = cpu_handle_mmu_fault(env, address, is_write, MMU_USER_IDX, 0);
-    if (ret < 0)
+    if (ret < 0) {
         return 0; /* not an MMU fault */
-    if (ret == 0)
+    }
+    if (ret == 0) {
         return 1; /* the MMU fault was handled without causing real CPU fault */
+    }
     /* now we have a real cpu fault */
     tb = tb_find_pc(pc);
     if (tb) {
@@ -804,43 +819,43 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
 #if defined(__i386__)
 
 #if defined(__APPLE__)
-# include <sys/ucontext.h>
+#include <sys/ucontext.h>
 
-# define EIP_sig(context)  (*((unsigned long*)&(context)->uc_mcontext->ss.eip))
-# define TRAP_sig(context)    ((context)->uc_mcontext->es.trapno)
-# define ERROR_sig(context)   ((context)->uc_mcontext->es.err)
-# define MASK_sig(context)    ((context)->uc_sigmask)
-#elif defined (__NetBSD__)
-# include <ucontext.h>
+#define EIP_sig(context)  (*((unsigned long *)&(context)->uc_mcontext->ss.eip))
+#define TRAP_sig(context)    ((context)->uc_mcontext->es.trapno)
+#define ERROR_sig(context)   ((context)->uc_mcontext->es.err)
+#define MASK_sig(context)    ((context)->uc_sigmask)
+#elif defined(__NetBSD__)
+#include <ucontext.h>
 
-# define EIP_sig(context)     ((context)->uc_mcontext.__gregs[_REG_EIP])
-# define TRAP_sig(context)    ((context)->uc_mcontext.__gregs[_REG_TRAPNO])
-# define ERROR_sig(context)   ((context)->uc_mcontext.__gregs[_REG_ERR])
-# define MASK_sig(context)    ((context)->uc_sigmask)
-#elif defined (__FreeBSD__) || defined(__DragonFly__)
-# include <ucontext.h>
+#define EIP_sig(context)     ((context)->uc_mcontext.__gregs[_REG_EIP])
+#define TRAP_sig(context)    ((context)->uc_mcontext.__gregs[_REG_TRAPNO])
+#define ERROR_sig(context)   ((context)->uc_mcontext.__gregs[_REG_ERR])
+#define MASK_sig(context)    ((context)->uc_sigmask)
+#elif defined(__FreeBSD__) || defined(__DragonFly__)
+#include <ucontext.h>
 
-# define EIP_sig(context)  (*((unsigned long*)&(context)->uc_mcontext.mc_eip))
-# define TRAP_sig(context)    ((context)->uc_mcontext.mc_trapno)
-# define ERROR_sig(context)   ((context)->uc_mcontext.mc_err)
-# define MASK_sig(context)    ((context)->uc_sigmask)
+#define EIP_sig(context)  (*((unsigned long *)&(context)->uc_mcontext.mc_eip))
+#define TRAP_sig(context)    ((context)->uc_mcontext.mc_trapno)
+#define ERROR_sig(context)   ((context)->uc_mcontext.mc_err)
+#define MASK_sig(context)    ((context)->uc_sigmask)
 #elif defined(__OpenBSD__)
-# define EIP_sig(context)     ((context)->sc_eip)
-# define TRAP_sig(context)    ((context)->sc_trapno)
-# define ERROR_sig(context)   ((context)->sc_err)
-# define MASK_sig(context)    ((context)->sc_mask)
+#define EIP_sig(context)     ((context)->sc_eip)
+#define TRAP_sig(context)    ((context)->sc_trapno)
+#define ERROR_sig(context)   ((context)->sc_err)
+#define MASK_sig(context)    ((context)->sc_mask)
 #else
-# define EIP_sig(context)     ((context)->uc_mcontext.gregs[REG_EIP])
-# define TRAP_sig(context)    ((context)->uc_mcontext.gregs[REG_TRAPNO])
-# define ERROR_sig(context)   ((context)->uc_mcontext.gregs[REG_ERR])
-# define MASK_sig(context)    ((context)->uc_sigmask)
+#define EIP_sig(context)     ((context)->uc_mcontext.gregs[REG_EIP])
+#define TRAP_sig(context)    ((context)->uc_mcontext.gregs[REG_TRAPNO])
+#define ERROR_sig(context)   ((context)->uc_mcontext.gregs[REG_ERR])
+#define MASK_sig(context)    ((context)->uc_sigmask)
 #endif
 
 int cpu_signal_handler(int host_signum, void *pinfo,
                        void *puc)
 {
     siginfo_t *info = pinfo;
-#if defined(__NetBSD__) || defined (__FreeBSD__) || defined(__DragonFly__)
+#if defined(__NetBSD__) || defined(__FreeBSD__) || defined(__DragonFly__)
     ucontext_t *uc = puc;
 #elif defined(__OpenBSD__)
     struct sigcontext *uc = puc;
@@ -876,10 +891,10 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 #define TRAP_sig(context)     ((context)->sc_trapno)
 #define ERROR_sig(context)    ((context)->sc_err)
 #define MASK_sig(context)     ((context)->sc_mask)
-#elif defined (__FreeBSD__) || defined(__DragonFly__)
+#elif defined(__FreeBSD__) || defined(__DragonFly__)
 #include <ucontext.h>
 
-#define PC_sig(context)  (*((unsigned long*)&(context)->uc_mcontext.mc_rip))
+#define PC_sig(context)  (*((unsigned long *)&(context)->uc_mcontext.mc_rip))
 #define TRAP_sig(context)     ((context)->uc_mcontext.mc_trapno)
 #define ERROR_sig(context)    ((context)->uc_mcontext.mc_err)
 #define MASK_sig(context)     ((context)->uc_sigmask)
@@ -895,7 +910,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 {
     siginfo_t *info = pinfo;
     unsigned long pc;
-#if defined(__NetBSD__) || defined (__FreeBSD__) || defined(__DragonFly__)
+#if defined(__NetBSD__) || defined(__FreeBSD__) || defined(__DragonFly__)
     ucontext_t *uc = puc;
 #elif defined(__OpenBSD__)
     struct sigcontext *uc = puc;
@@ -918,61 +933,84 @@ int cpu_signal_handler(int host_signum, void *pinfo,
  */
 #ifdef linux
 /* All Registers access - only for local access */
-# define REG_sig(reg_name, context)		((context)->uc_mcontext.regs->reg_name)
+#define REG_sig(reg_name, context)              \
+    ((context)->uc_mcontext.regs->reg_name)
 /* Gpr Registers access  */
-# define GPR_sig(reg_num, context)		REG_sig(gpr[reg_num], context)
-# define IAR_sig(context)			REG_sig(nip, context)	/* Program counter */
-# define MSR_sig(context)			REG_sig(msr, context)   /* Machine State Register (Supervisor) */
-# define CTR_sig(context)			REG_sig(ctr, context)   /* Count register */
-# define XER_sig(context)			REG_sig(xer, context) /* User's integer exception register */
-# define LR_sig(context)			REG_sig(link, context) /* Link register */
-# define CR_sig(context)			REG_sig(ccr, context) /* Condition register */
+#define GPR_sig(reg_num, context)              REG_sig(gpr[reg_num], context)
+/* Program counter */
+#define IAR_sig(context)                       REG_sig(nip, context)
+/* Machine State Register (Supervisor) */
+#define MSR_sig(context)                       REG_sig(msr, context)
+/* Count register */
+#define CTR_sig(context)                       REG_sig(ctr, context)
+/* User's integer exception register */
+#define XER_sig(context)                       REG_sig(xer, context)
+/* Link register */
+#define LR_sig(context)                        REG_sig(link, context)
+/* Condition register */
+#define CR_sig(context)                        REG_sig(ccr, context)
+
 /* Float Registers access  */
-# define FLOAT_sig(reg_num, context)		(((double*)((char*)((context)->uc_mcontext.regs+48*4)))[reg_num])
-# define FPSCR_sig(context)			(*(int*)((char*)((context)->uc_mcontext.regs+(48+32*2)*4)))
+#define FLOAT_sig(reg_num, context)                                     \
+    (((double *)((char *)((context)->uc_mcontext.regs + 48 * 4)))[reg_num])
+#define FPSCR_sig(context) \
+    (*(int *)((char *)((context)->uc_mcontext.regs + (48 + 32 * 2) * 4)))
 /* Exception Registers access */
-# define DAR_sig(context)			REG_sig(dar, context)
-# define DSISR_sig(context)			REG_sig(dsisr, context)
-# define TRAP_sig(context)			REG_sig(trap, context)
+#define DAR_sig(context)                       REG_sig(dar, context)
+#define DSISR_sig(context)                     REG_sig(dsisr, context)
+#define TRAP_sig(context)                      REG_sig(trap, context)
 #endif /* linux */
 
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 #include <ucontext.h>
-# define IAR_sig(context)		((context)->uc_mcontext.mc_srr0)
-# define MSR_sig(context)		((context)->uc_mcontext.mc_srr1)
-# define CTR_sig(context)		((context)->uc_mcontext.mc_ctr)
-# define XER_sig(context)		((context)->uc_mcontext.mc_xer)
-# define LR_sig(context)		((context)->uc_mcontext.mc_lr)
-# define CR_sig(context)		((context)->uc_mcontext.mc_cr)
+#define IAR_sig(context)               ((context)->uc_mcontext.mc_srr0)
+#define MSR_sig(context)               ((context)->uc_mcontext.mc_srr1)
+#define CTR_sig(context)               ((context)->uc_mcontext.mc_ctr)
+#define XER_sig(context)               ((context)->uc_mcontext.mc_xer)
+#define LR_sig(context)                ((context)->uc_mcontext.mc_lr)
+#define CR_sig(context)                ((context)->uc_mcontext.mc_cr)
 /* Exception Registers access */
-# define DAR_sig(context)		((context)->uc_mcontext.mc_dar)
-# define DSISR_sig(context)		((context)->uc_mcontext.mc_dsisr)
-# define TRAP_sig(context)		((context)->uc_mcontext.mc_exc)
+#define DAR_sig(context)               ((context)->uc_mcontext.mc_dar)
+#define DSISR_sig(context)             ((context)->uc_mcontext.mc_dsisr)
+#define TRAP_sig(context)              ((context)->uc_mcontext.mc_exc)
 #endif /* __FreeBSD__|| __FreeBSD_kernel__ */
 
 #ifdef __APPLE__
-# include <sys/ucontext.h>
+#include <sys/ucontext.h>
 typedef struct ucontext SIGCONTEXT;
 /* All Registers access - only for local access */
-# define REG_sig(reg_name, context)		((context)->uc_mcontext->ss.reg_name)
-# define FLOATREG_sig(reg_name, context)	((context)->uc_mcontext->fs.reg_name)
-# define EXCEPREG_sig(reg_name, context)	((context)->uc_mcontext->es.reg_name)
-# define VECREG_sig(reg_name, context)		((context)->uc_mcontext->vs.reg_name)
+#define REG_sig(reg_name, context)              \
+    ((context)->uc_mcontext->ss.reg_name)
+#define FLOATREG_sig(reg_name, context)         \
+    ((context)->uc_mcontext->fs.reg_name)
+#define EXCEPREG_sig(reg_name, context)         \
+    ((context)->uc_mcontext->es.reg_name)
+#define VECREG_sig(reg_name, context)           \
+    ((context)->uc_mcontext->vs.reg_name)
 /* Gpr Registers access */
-# define GPR_sig(reg_num, context)		REG_sig(r##reg_num, context)
-# define IAR_sig(context)			REG_sig(srr0, context)	/* Program counter */
-# define MSR_sig(context)			REG_sig(srr1, context)  /* Machine State Register (Supervisor) */
-# define CTR_sig(context)			REG_sig(ctr, context)
-# define XER_sig(context)			REG_sig(xer, context) /* Link register */
-# define LR_sig(context)			REG_sig(lr, context)  /* User's integer exception register */
-# define CR_sig(context)			REG_sig(cr, context)  /* Condition register */
+#define GPR_sig(reg_num, context)              REG_sig(r##reg_num, context)
+/* Program counter */
+#define IAR_sig(context)                       REG_sig(srr0, context)
+/* Machine State Register (Supervisor) */
+#define MSR_sig(context)                       REG_sig(srr1, context)
+#define CTR_sig(context)                       REG_sig(ctr, context)
+/* Link register */
+#define XER_sig(context)                       REG_sig(xer, context)
+/* User's integer exception register */
+#define LR_sig(context)                        REG_sig(lr, context)
+/* Condition register */
+#define CR_sig(context)                        REG_sig(cr, context)
 /* Float Registers access */
-# define FLOAT_sig(reg_num, context)		FLOATREG_sig(fpregs[reg_num], context)
-# define FPSCR_sig(context)			((double)FLOATREG_sig(fpscr, context))
+#define FLOAT_sig(reg_num, context)             \
+    FLOATREG_sig(fpregs[reg_num], context)
+#define FPSCR_sig(context)                      \
+    ((double)FLOATREG_sig(fpscr, context))
 /* Exception Registers access */
-# define DAR_sig(context)			EXCEPREG_sig(dar, context)     /* Fault registers for coredump */
-# define DSISR_sig(context)			EXCEPREG_sig(dsisr, context)
-# define TRAP_sig(context)			EXCEPREG_sig(exception, context) /* number of powerpc exception taken */
+/* Fault registers for coredump */
+#define DAR_sig(context)                       EXCEPREG_sig(dar, context)
+#define DSISR_sig(context)                     EXCEPREG_sig(dsisr, context)
+/* number of powerpc exception taken */
+#define TRAP_sig(context)                      EXCEPREG_sig(exception, context)
 #endif /* __APPLE__ */
 
 int cpu_signal_handler(int host_signum, void *pinfo,
@@ -991,11 +1029,13 @@ int cpu_signal_handler(int host_signum, void *pinfo,
     is_write = 0;
 #if 0
     /* ppc 4xx case */
-    if (DSISR_sig(uc) & 0x00800000)
+    if (DSISR_sig(uc) & 0x00800000) {
         is_write = 1;
+    }
 #else
-    if (TRAP_sig(uc) != 0x400 && (DSISR_sig(uc) & 0x02000000))
+    if (TRAP_sig(uc) != 0x400 && (DSISR_sig(uc) & 0x02000000)) {
         is_write = 1;
+    }
 #endif
     return handle_cpu_signal(pc, (unsigned long)info->si_addr,
                              is_write, &uc->uc_sigmask, puc);
@@ -1014,18 +1054,18 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 
     /* XXX: need kernel patch to get write flag faster */
     switch (insn >> 26) {
-    case 0x0d: // stw
-    case 0x0e: // stb
-    case 0x0f: // stq_u
-    case 0x24: // stf
-    case 0x25: // stg
-    case 0x26: // sts
-    case 0x27: // stt
-    case 0x2c: // stl
-    case 0x2d: // stq
-    case 0x2e: // stl_c
-    case 0x2f: // stq_c
-	is_write = 1;
+    case 0x0d: /* stw */
+    case 0x0e: /* stb */
+    case 0x0f: /* stq_u */
+    case 0x24: /* stf */
+    case 0x25: /* stg */
+    case 0x26: /* sts */
+    case 0x27: /* stt */
+    case 0x2c: /* stl */
+    case 0x2d: /* stq */
+    case 0x2e: /* stl_c */
+    case 0x2f: /* stq_c */
+        is_write = 1;
     }
 
     return handle_cpu_signal(pc, (unsigned long)info->si_addr,
@@ -1060,29 +1100,29 @@ int cpu_signal_handler(int host_signum, void *pinfo,
     is_write = 0;
     insn = *(uint32_t *)pc;
     if ((insn >> 30) == 3) {
-      switch((insn >> 19) & 0x3f) {
-      case 0x05: // stb
-      case 0x15: // stba
-      case 0x06: // sth
-      case 0x16: // stha
-      case 0x04: // st
-      case 0x14: // sta
-      case 0x07: // std
-      case 0x17: // stda
-      case 0x0e: // stx
-      case 0x1e: // stxa
-      case 0x24: // stf
-      case 0x34: // stfa
-      case 0x27: // stdf
-      case 0x37: // stdfa
-      case 0x26: // stqf
-      case 0x36: // stqfa
-      case 0x25: // stfsr
-      case 0x3c: // casa
-      case 0x3e: // casxa
-	is_write = 1;
-	break;
-      }
+        switch ((insn >> 19) & 0x3f) {
+        case 0x05: /* stb */
+        case 0x15: /* stba */
+        case 0x06: /* sth */
+        case 0x16: /* stha */
+        case 0x04: /* st */
+        case 0x14: /* sta */
+        case 0x07: /* std */
+        case 0x17: /* stda */
+        case 0x0e: /* stx */
+        case 0x1e: /* stxa */
+        case 0x24: /* stf */
+        case 0x34: /* stfa */
+        case 0x27: /* stdf */
+        case 0x37: /* stdfa */
+        case 0x26: /* stqf */
+        case 0x36: /* stqfa */
+        case 0x25: /* stfsr */
+        case 0x3c: /* casa */
+        case 0x3e: /* casxa */
+            is_write = 1;
+            break;
+        }
     }
     return handle_cpu_signal(pc, (unsigned long)info->si_addr,
                              is_write, sigmask, NULL);
@@ -1132,7 +1172,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 
 #ifndef __ISR_VALID
   /* This ought to be in <bits/siginfo.h>... */
-# define __ISR_VALID	1
+# define __ISR_VALID    1
 #endif
 
 int cpu_signal_handler(int host_signum, void *pinfo, void *puc)
@@ -1144,18 +1184,19 @@ int cpu_signal_handler(int host_signum, void *pinfo, void *puc)
 
     ip = uc->uc_mcontext.sc_ip;
     switch (host_signum) {
-      case SIGILL:
-      case SIGFPE:
-      case SIGSEGV:
-      case SIGBUS:
-      case SIGTRAP:
-	  if (info->si_code && (info->si_segvflags & __ISR_VALID))
-	      /* ISR.W (write-access) is bit 33:  */
-	      is_write = (info->si_isr >> 33) & 1;
-	  break;
+    case SIGILL:
+    case SIGFPE:
+    case SIGSEGV:
+    case SIGBUS:
+    case SIGTRAP:
+        if (info->si_code && (info->si_segvflags & __ISR_VALID)) {
+            /* ISR.W (write-access) is bit 33:  */
+            is_write = (info->si_isr >> 33) & 1;
+        }
+        break;
 
-      default:
-	  break;
+    default:
+        break;
     }
     return handle_cpu_signal(ip, (unsigned long)info->si_addr,
                              is_write,
@@ -1269,7 +1310,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
         break;
     }
 
-    return handle_cpu_signal(pc, (unsigned long)info->si_addr, 
+    return handle_cpu_signal(pc, (unsigned long)info->si_addr,
                              is_write, &uc->uc_sigmask, puc);
 }
 
