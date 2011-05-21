@@ -21,9 +21,13 @@
 
 #if defined(CONFIG_USER_ONLY)
 
-void do_interrupt(int is_hw)
+void do_interrupt(CPUState *env1)
 {
-    env->exception_index = -1;
+    env1->exception_index = -1;
+}
+
+void do_interrupt_m68k_hardirq(CPUState *env1)
+{
 }
 
 #else
@@ -90,7 +94,7 @@ static void do_rte(void)
     env->aregs[7] = sp + 8;
 }
 
-void do_interrupt(int is_hw)
+static void do_interrupt_all(int is_hw)
 {
     uint32_t sp;
     uint32_t fmt;
@@ -155,6 +159,25 @@ void do_interrupt(int is_hw)
     env->pc = ldl_kernel(env->vbr + vector);
 }
 
+void do_interrupt(CPUState *env1)
+{
+    CPUState *saved_env;
+
+    saved_env = env;
+    env = env1;
+    do_interrupt_all(0);
+    env = saved_env;
+}
+
+void do_interrupt_m68k_hardirq(CPUState *env1)
+{
+    CPUState *saved_env;
+
+    saved_env = env;
+    env = env1;
+    do_interrupt_all(1);
+    env = saved_env;
+}
 #endif
 
 static void raise_exception(int tt)
