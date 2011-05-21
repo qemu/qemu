@@ -271,33 +271,7 @@ int cpu_exec(CPUState *env1)
                     ret = env->exception_index;
                     break;
 #else
-#if defined(TARGET_I386)
                     do_interrupt(env);
-#elif defined(TARGET_PPC)
-                    do_interrupt(env);
-#elif defined(TARGET_LM32)
-                    do_interrupt(env);
-#elif defined(TARGET_MICROBLAZE)
-                    do_interrupt(env);
-#elif defined(TARGET_MIPS)
-                    do_interrupt(env);
-#elif defined(TARGET_SPARC)
-                    do_interrupt(env);
-#elif defined(TARGET_ARM)
-                    do_interrupt(env);
-#elif defined(TARGET_UNICORE32)
-                    do_interrupt(env);
-#elif defined(TARGET_SH4)
-		    do_interrupt(env);
-#elif defined(TARGET_ALPHA)
-                    do_interrupt(env);
-#elif defined(TARGET_CRIS)
-                    do_interrupt(env);
-#elif defined(TARGET_M68K)
-                    do_interrupt(env);
-#elif defined(TARGET_S390X)
-                    do_interrupt(env);
-#endif
                     env->exception_index = -1;
 #endif
                 }
