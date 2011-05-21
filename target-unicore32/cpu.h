@@ -179,4 +179,10 @@ void uc32_translate_init(void);
 void do_interrupt(CPUState *);
 void switch_mode(CPUState_UniCore32 *, int);
 
+static inline bool cpu_has_work(CPUState *env)
+{
+    return env->interrupt_request &
+        (CPU_INTERRUPT_HARD | CPU_INTERRUPT_EXITTB);
+}
+
 #endif /* __CPU_UC32_H__ */

@@ -24,11 +24,6 @@ register struct CPULM32State *env asm(AREG0);
 #include "cpu.h"
 #include "exec-all.h"
 
-static inline bool cpu_has_work(CPUState *env)
-{
-    return env->interrupt_request & CPU_INTERRUPT_HARD;
-}
-
 static inline int cpu_halted(CPUState *env)
 {
     if (!env->halted) {
@@ -42,9 +37,3 @@ static inline int cpu_halted(CPUState *env)
     }
     return EXCP_HALTED;
 }
-
-static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
-{
-    env->pc = tb->pc;
-}
-

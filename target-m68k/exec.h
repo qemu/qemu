@@ -27,14 +27,3 @@ register struct CPUM68KState *env asm(AREG0);
 #if !defined(CONFIG_USER_ONLY)
 #include "softmmu_exec.h"
 #endif
-
-static inline bool cpu_has_work(CPUState *env)
-{
-    return env->interrupt_request & (CPU_INTERRUPT_HARD);
-}
-
-static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
-{
-    env->pc = tb->pc;
-}
-

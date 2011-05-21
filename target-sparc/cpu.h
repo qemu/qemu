@@ -662,4 +662,18 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
 /* helper.c */
 void do_interrupt(CPUState *env);
 
+static inline bool cpu_has_work(CPUState *env1)
+{
+    return (env1->interrupt_request & CPU_INTERRUPT_HARD) &&
+           cpu_interrupts_enabled(env1);
+}
+
+#include "exec-all.h"
+
+static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+{
+    env->pc = tb->pc;
+    env->npc = tb->cs_base;
+}
+
 #endif

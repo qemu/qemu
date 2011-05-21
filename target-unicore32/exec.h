@@ -26,12 +26,6 @@ static inline void regs_to_env(void)
 {
 }
 
-static inline bool cpu_has_work(CPUState *env)
-{
-    return env->interrupt_request &
-        (CPU_INTERRUPT_HARD | CPU_INTERRUPT_EXITTB);
-}
-
 static inline int cpu_halted(CPUState *env)
 {
     if (!env->halted) {

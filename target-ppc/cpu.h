@@ -1999,4 +1999,16 @@ static inline ppcemb_tlb_t *booke206_get_tlbe(CPUState *env, const int tlbn,
 
 extern void (*cpu_ppc_hypercall)(CPUState *);
 
+static inline bool cpu_has_work(CPUState *env)
+{
+    return msr_ee && (env->interrupt_request & CPU_INTERRUPT_HARD);
+}
+
+#include "exec-all.h"
+
+static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+{
+    env->nip = tb->pc;
+}
+
 #endif /* !defined (__CPU_PPC_H__) */

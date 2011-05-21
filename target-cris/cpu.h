@@ -268,4 +268,15 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
 #define cpu_list cris_cpu_list
 void cris_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 
+static inline bool cpu_has_work(CPUState *env)
+{
+    return env->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
+}
+
+#include "exec-all.h"
+
+static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+{
+    env->pc = tb->pc;
+}
 #endif

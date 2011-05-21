@@ -12,18 +12,4 @@ register struct CPUSPARCState *env asm(AREG0);
 #include "softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-/* op_helper.c */
-static inline bool cpu_has_work(CPUState *env1)
-{
-    return (env1->interrupt_request & CPU_INTERRUPT_HARD) &&
-           cpu_interrupts_enabled(env1);
-}
-
-
-static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
-{
-    env->pc = tb->pc;
-    env->npc = tb->cs_base;
-}
-
 #endif

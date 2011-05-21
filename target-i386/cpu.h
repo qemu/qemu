@@ -957,6 +957,36 @@ static inline int cpu_mmu_index (CPUState *env)
     return (env->hflags & HF_CPL_MASK) == 3 ? 1 : 0;
 }
 
+#undef EAX
+#define EAX (env->regs[R_EAX])
+#undef ECX
+#define ECX (env->regs[R_ECX])
+#undef EDX
+#define EDX (env->regs[R_EDX])
+#undef EBX
+#define EBX (env->regs[R_EBX])
+#undef ESP
+#define ESP (env->regs[R_ESP])
+#undef EBP
+#define EBP (env->regs[R_EBP])
+#undef ESI
+#define ESI (env->regs[R_ESI])
+#undef EDI
+#define EDI (env->regs[R_EDI])
+#undef EIP
+#define EIP (env->eip)
+#define DF  (env->df)
+
+#define CC_SRC (env->cc_src)
+#define CC_DST (env->cc_dst)
+#define CC_OP  (env->cc_op)
+
+/* float macros */
+#define FT0    (env->ft0)
+#define ST0    (env->fpregs[env->fpstt].d)
+#define ST(n)  (env->fpregs[(env->fpstt + (n)) & 7].d)
+#define ST1    ST(1)
+
 /* translate.c */
 void optimize_flags_init(void);
 
@@ -980,6 +1010,23 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/apic.h"
 #endif
+
+static inline bool cpu_has_work(CPUState *env)
+{
+    return ((env->interrupt_request & CPU_INTERRUPT_HARD) &&
+            (env->eflags & IF_MASK)) ||
+           (env->interrupt_request & (CPU_INTERRUPT_NMI |
+                                      CPU_INTERRUPT_INIT |
+                                      CPU_INTERRUPT_SIPI |
+                                      CPU_INTERRUPT_MCE));
+}
+
+#include "exec-all.h"
+
+static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+{
+    env->eip = tb->pc - tb->cs_base;
+}
 
 static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
