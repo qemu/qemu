@@ -2683,6 +2683,80 @@ void cpu_loop (CPUState *env)
 }
 #endif /* TARGET_ALPHA */
 
+#ifdef TARGET_S390X
+void cpu_loop(CPUS390XState *env)
+{
+    int trapnr;
+    target_siginfo_t info;
+
+    while (1) {
+        trapnr = cpu_s390x_exec (env);
+
+        switch (trapnr) {
+        case EXCP_INTERRUPT:
+            /* just indicate that signals should be handled asap */
+            break;
+        case EXCP_DEBUG:
+            {
+                int sig;
+
+                sig = gdb_handlesig (env, TARGET_SIGTRAP);
+                if (sig) {
+                    info.si_signo = sig;
+                    info.si_errno = 0;
+                    info.si_code = TARGET_TRAP_BRKPT;
+                    queue_signal(env, info.si_signo, &info);
+                }
+            }
+            break;
+        case EXCP_SVC:
+            {
+                int n = env->int_svc_code;
+                if (!n) {
+                    /* syscalls > 255 */
+                    n = env->regs[1];
+                }
+                env->psw.addr += env->int_svc_ilc;
+                env->regs[2] = do_syscall(env, n,
+                           env->regs[2],
+                           env->regs[3],
+                           env->regs[4],
+                           env->regs[5],
+                           env->regs[6],
+                           env->regs[7]);
+            }
+            break;
+        case EXCP_ADDR:
+            {
+                info.si_signo = SIGSEGV;
+                info.si_errno = 0;
+                /* XXX: check env->error_code */
+                info.si_code = TARGET_SEGV_MAPERR;
+                info._sifields._sigfault._addr = env->__excp_addr;
+                queue_signal(env, info.si_signo, &info);
+            }
+            break;
+        case EXCP_SPEC:
+            {
+                fprintf(stderr,"specification exception insn 0x%08x%04x\n", ldl(env->psw.addr), lduw(env->psw.addr + 4));
+                info.si_signo = SIGILL;
+                info.si_errno = 0;
+                info.si_code = TARGET_ILL_ILLOPC;
+                info._sifields._sigfault._addr = env->__excp_addr;
+                queue_signal(env, info.si_signo, &info);
+            }
+            break;
+        default:
+            printf ("Unhandled trap: 0x%x\n", trapnr);
+            cpu_dump_state(env, stderr, fprintf, 0);
+            exit (1);
+        }
+        process_pending_signals (env);
+    }
+}
+
+#endif /* TARGET_S390X */
+
 static void version(void)
 {
     printf("qemu-" TARGET_ARCH " version " QEMU_VERSION QEMU_PKGVERSION
@@ -3431,6 +3505,15 @@ int main(int argc, char **argv, char **envp)
 	    env->regs[14] = info->start_stack;
 	    env->regs[15] = regs->acr;	    
 	    env->pc = regs->erp;
+    }
+#elif defined(TARGET_S390X)
+    {
+            int i;
+            for (i = 0; i < 16; i++) {
+                env->regs[i] = regs->gprs[i];
+            }
+            env->psw.mask = regs->psw.mask;
+            env->psw.addr = regs->psw.addr;
     }
 #else
 #error unsupported target CPU

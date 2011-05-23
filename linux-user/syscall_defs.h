@@ -58,7 +58,8 @@
 #endif
 
 #if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SH4) \
-    || defined(TARGET_M68K) || defined(TARGET_CRIS) || defined(TARGET_UNICORE32)
+    || defined(TARGET_M68K) || defined(TARGET_CRIS) || defined(TARGET_UNICORE32) \
+    || defined(TARGET_S390X)
 
 #define TARGET_IOC_SIZEBITS	14
 #define TARGET_IOC_DIRBITS	2
@@ -321,7 +322,8 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 #if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SPARC) \
     || defined(TARGET_PPC) || defined(TARGET_MIPS) || defined(TARGET_SH4) \
     || defined(TARGET_M68K) || defined(TARGET_ALPHA) || defined(TARGET_CRIS) \
-    || defined(TARGET_MICROBLAZE) || defined(TARGET_UNICORE32)
+    || defined(TARGET_MICROBLAZE) || defined(TARGET_UNICORE32) \
+    || defined(TARGET_S390X)
 
 #if defined(TARGET_SPARC)
 #define TARGET_SA_NOCLDSTOP    8u
@@ -1688,6 +1690,27 @@ struct target_stat {
 
   	abi_long	__unused[3];
 };
+#elif defined(TARGET_S390X)
+struct target_stat {
+    abi_ulong  st_dev;
+    abi_ulong  st_ino;
+    abi_ulong  st_nlink;
+    unsigned int   st_mode;
+    unsigned int   st_uid;
+    unsigned int   st_gid;
+    unsigned int   __pad1;
+    abi_ulong  st_rdev;
+    abi_ulong  st_size;
+    abi_ulong  target_st_atime;
+    abi_ulong  target_st_atime_nsec;
+    abi_ulong  target_st_mtime;
+    abi_ulong  target_st_mtime_nsec;
+    abi_ulong  target_st_ctime;
+    abi_ulong  target_st_ctime_nsec;
+    abi_ulong  st_blksize;
+    abi_long       st_blocks;
+    abi_ulong  __unused[3];
+};
 #else
 #error unsupported CPU
 #endif
@@ -1773,6 +1796,34 @@ struct target_statfs64 {
 	abi_long f_namelen;
 	abi_long f_frsize;
 	abi_long f_spare[5];
+};
+#elif defined(TARGET_S390X)
+struct target_statfs {
+    int32_t  f_type;
+    int32_t  f_bsize;
+    abi_long f_blocks;
+    abi_long f_bfree;
+    abi_long f_bavail;
+    abi_long f_files;
+    abi_long f_ffree;
+    kernel_fsid_t f_fsid;
+    int32_t  f_namelen;
+    int32_t  f_frsize;
+    int32_t  f_spare[5];
+};
+
+struct target_statfs64 {
+    int32_t  f_type;
+    int32_t  f_bsize;
+    abi_long f_blocks;
+    abi_long f_bfree;
+    abi_long f_bavail;
+    abi_long f_files;
+    abi_long f_ffree;
+    kernel_fsid_t f_fsid;
+    int32_t  f_namelen;
+    int32_t  f_frsize;
+    int32_t  f_spare[5];
 };
 #else
 struct target_statfs {

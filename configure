@@ -848,6 +848,7 @@ sh4-softmmu \
 sh4eb-softmmu \
 sparc-softmmu \
 sparc64-softmmu \
+s390x-softmmu \
 "
 fi
 # the following are Linux specific
@@ -873,6 +874,7 @@ sparc-linux-user \
 sparc64-linux-user \
 sparc32plus-linux-user \
 unicore32-linux-user \
+s390x-linux-user \
 "
 fi
 # the following are Darwin specific

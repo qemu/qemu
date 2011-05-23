@@ -33,7 +33,7 @@
 #define VIRTIO_VQCONFIG_LEN		24
 
 #define VIRTIO_RING_LEN			(TARGET_PAGE_SIZE * 3)
-#define S390_DEVICE_PAGES		256
+#define S390_DEVICE_PAGES		512
 
 typedef struct VirtIOS390Device {
     DeviceState qdev;
