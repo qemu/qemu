@@ -1929,8 +1929,8 @@ static inline void cpu_set_tls(CPUState *env, target_ulong newtls)
 #if !defined(CONFIG_USER_ONLY)
 static inline int booke206_tlbe_id(CPUState *env, ppcemb_tlb_t *tlbe)
 {
-    ulong tlbel = (ulong)tlbe;
-    ulong tlbl = (ulong)env->tlb;
+    uintptr_t tlbel = (uintptr_t)tlbe;
+    uintptr_t tlbl = (uintptr_t)env->tlb;
 
     return (tlbel - tlbl) / sizeof(env->tlb[0]);
 }
