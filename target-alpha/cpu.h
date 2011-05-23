@@ -418,12 +418,40 @@ uint64_t cpu_alpha_load_fpcr (CPUState *env);
 void cpu_alpha_store_fpcr (CPUState *env, uint64_t val);
 extern void swap_shadow_regs(CPUState *env);
 
+/* Bits in TB->FLAGS that control how translation is processed.  */
+enum {
+    TB_FLAGS_PAL_MODE = 1,
+    TB_FLAGS_FEN = 2,
+    TB_FLAGS_USER_MODE = 8,
+
+    TB_FLAGS_AMASK_SHIFT = 4,
+    TB_FLAGS_AMASK_BWX = AMASK_BWX << TB_FLAGS_AMASK_SHIFT,
+    TB_FLAGS_AMASK_FIX = AMASK_FIX << TB_FLAGS_AMASK_SHIFT,
+    TB_FLAGS_AMASK_CIX = AMASK_CIX << TB_FLAGS_AMASK_SHIFT,
+    TB_FLAGS_AMASK_MVI = AMASK_MVI << TB_FLAGS_AMASK_SHIFT,
+    TB_FLAGS_AMASK_TRAP = AMASK_TRAP << TB_FLAGS_AMASK_SHIFT,
+    TB_FLAGS_AMASK_PREFETCH = AMASK_PREFETCH << TB_FLAGS_AMASK_SHIFT,
+};
+
 static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
-                                        target_ulong *cs_base, int *flags)
+                                        target_ulong *cs_base, int *pflags)
 {
+    int flags = 0;
+
     *pc = env->pc;
     *cs_base = 0;
-    *flags = env->ps;
+
+    if (env->pal_mode) {
+        flags = TB_FLAGS_PAL_MODE;
+    } else {
+        flags = env->ps & PS_USER_MODE;
+    }
+    if (env->fen) {
+        flags |= TB_FLAGS_FEN;
+    }
+    flags |= env->amask << TB_FLAGS_AMASK_SHIFT;
+
+    *pflags = flags;
 }
 
 #if defined(CONFIG_USER_ONLY)

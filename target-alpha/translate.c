@@ -47,10 +47,6 @@ struct DisasContext {
     CPUAlphaState *env;
     uint64_t pc;
     int mem_idx;
-#if !defined (CONFIG_USER_ONLY)
-    int pal_mode;
-#endif
-    uint32_t amask;
 
     /* Current rounding mode for this TB.  */
     int tb_rm;
@@ -1654,20 +1650,22 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         break;
     case 0x0A:
         /* LDBU */
-        if (!(ctx->amask & AMASK_BWX))
-            goto invalid_opc;
-        gen_load_mem(ctx, &tcg_gen_qemu_ld8u, ra, rb, disp16, 0, 0);
-        break;
+        if (ctx->tb->flags & TB_FLAGS_AMASK_BWX) {
+            gen_load_mem(ctx, &tcg_gen_qemu_ld8u, ra, rb, disp16, 0, 0);
+            break;
+        }
+        goto invalid_opc;
     case 0x0B:
         /* LDQ_U */
         gen_load_mem(ctx, &tcg_gen_qemu_ld64, ra, rb, disp16, 0, 1);
         break;
     case 0x0C:
         /* LDWU */
-        if (!(ctx->amask & AMASK_BWX))
-            goto invalid_opc;
-        gen_load_mem(ctx, &tcg_gen_qemu_ld16u, ra, rb, disp16, 0, 0);
-        break;
+        if (ctx->tb->flags & TB_FLAGS_AMASK_BWX) {
+            gen_load_mem(ctx, &tcg_gen_qemu_ld16u, ra, rb, disp16, 0, 0);
+            break;
+        }
+        goto invalid_opc;
     case 0x0D:
         /* STW */
         gen_store_mem(ctx, &tcg_gen_qemu_st16, ra, rb, disp16, 0, 0);
@@ -2071,20 +2069,12 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         case 0x61:
             /* AMASK */
             if (likely(rc != 31)) {
-                if (islit)
-                    tcg_gen_movi_i64(cpu_ir[rc], lit);
-                else
-                    tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[rb]);
-                switch (ctx->env->implver) {
-                case IMPLVER_2106x:
-                    /* EV4, EV45, LCA, LCA45 & EV5 */
-                    break;
-                case IMPLVER_21164:
-                case IMPLVER_21264:
-                case IMPLVER_21364:
-                    tcg_gen_andi_i64(cpu_ir[rc], cpu_ir[rc],
-                                     ~(uint64_t)ctx->amask);
-                    break;
+                uint64_t amask = ctx->tb->flags >> TB_FLAGS_AMASK_SHIFT;
+
+                if (islit) {
+                    tcg_gen_movi_i64(cpu_ir[rc], lit & ~amask);
+                } else {
+                    tcg_gen_andi_i64(cpu_ir[rc], cpu_ir[rb], ~amask);
                 }
             }
             break;
@@ -2298,8 +2288,9 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         switch (fpfn) { /* fn11 & 0x3F */
         case 0x04:
             /* ITOFS */
-            if (!(ctx->amask & AMASK_FIX))
+            if ((ctx->tb->flags & TB_FLAGS_AMASK_FIX) == 0) {
                 goto invalid_opc;
+            }
             if (likely(rc != 31)) {
                 if (ra != 31) {
                     TCGv_i32 tmp = tcg_temp_new_i32();
@@ -2312,20 +2303,23 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x0A:
             /* SQRTF */
-            if (!(ctx->amask & AMASK_FIX))
-                goto invalid_opc;
-            gen_fsqrtf(rb, rc);
-            break;
+            if (ctx->tb->flags & TB_FLAGS_AMASK_FIX) {
+                gen_fsqrtf(rb, rc);
+                break;
+            }
+            goto invalid_opc;
         case 0x0B:
             /* SQRTS */
-            if (!(ctx->amask & AMASK_FIX))
-                goto invalid_opc;
-            gen_fsqrts(ctx, rb, rc, fn11);
-            break;
+            if (ctx->tb->flags & TB_FLAGS_AMASK_FIX) {
+                gen_fsqrts(ctx, rb, rc, fn11);
+                break;
+            }
+            goto invalid_opc;
         case 0x14:
             /* ITOFF */
-            if (!(ctx->amask & AMASK_FIX))
+            if ((ctx->tb->flags & TB_FLAGS_AMASK_FIX) == 0) {
                 goto invalid_opc;
+            }
             if (likely(rc != 31)) {
                 if (ra != 31) {
                     TCGv_i32 tmp = tcg_temp_new_i32();
@@ -2338,8 +2332,9 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x24:
             /* ITOFT */
-            if (!(ctx->amask & AMASK_FIX))
+            if ((ctx->tb->flags & TB_FLAGS_AMASK_FIX) == 0) {
                 goto invalid_opc;
+            }
             if (likely(rc != 31)) {
                 if (ra != 31)
                     tcg_gen_mov_i64(cpu_fir[rc], cpu_ir[ra]);
@@ -2349,16 +2344,18 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x2A:
             /* SQRTG */
-            if (!(ctx->amask & AMASK_FIX))
-                goto invalid_opc;
-            gen_fsqrtg(rb, rc);
-            break;
+            if (ctx->tb->flags & TB_FLAGS_AMASK_FIX) {
+                gen_fsqrtg(rb, rc);
+                break;
+            }
+            goto invalid_opc;
         case 0x02B:
             /* SQRTT */
-            if (!(ctx->amask & AMASK_FIX))
-                goto invalid_opc;
-            gen_fsqrtt(ctx, rb, rc, fn11);
-            break;
+            if (ctx->tb->flags & TB_FLAGS_AMASK_FIX) {
+                gen_fsqrtt(ctx, rb, rc, fn11);
+                break;
+            }
+            goto invalid_opc;
         default:
             goto invalid_opc;
         }
@@ -2660,7 +2657,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     case 0x19:
         /* HW_MFPR (PALcode) */
 #ifndef CONFIG_USER_ONLY
-        if (ctx->pal_mode) {
+        if (ctx->tb->flags & TB_FLAGS_PAL_MODE) {
             gen_mfpr(ra, insn & 0xffff);
             break;
         }
@@ -2681,13 +2678,15 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         break;
     case 0x1B:
         /* HW_LD (PALcode) */
-#if defined (CONFIG_USER_ONLY)
-        goto invalid_opc;
-#else
-        if (!ctx->pal_mode)
-            goto invalid_opc;
-        if (ra != 31) {
-            TCGv addr = tcg_temp_new();
+#ifndef CONFIG_USER_ONLY
+        if (ctx->tb->flags & TB_FLAGS_PAL_MODE) {
+            TCGv addr;
+
+            if (ra == 31) {
+                break;
+            }
+
+            addr = tcg_temp_new();
             if (rb != 31)
                 tcg_gen_addi_i64(addr, cpu_ir[rb], disp12);
             else
@@ -2754,15 +2753,17 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
                 break;
             }
             tcg_temp_free(addr);
+            break;
         }
-        break;
 #endif
+        goto invalid_opc;
     case 0x1C:
         switch (fn7) {
         case 0x00:
             /* SEXTB */
-            if (!(ctx->amask & AMASK_BWX))
+            if ((ctx->tb->flags & TB_FLAGS_AMASK_BWX) == 0) {
                 goto invalid_opc;
+            }
             if (likely(rc != 31)) {
                 if (islit)
                     tcg_gen_movi_i64(cpu_ir[rc], (int64_t)((int8_t)lit));
@@ -2772,138 +2773,164 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x01:
             /* SEXTW */
-            if (!(ctx->amask & AMASK_BWX))
-                goto invalid_opc;
-            if (likely(rc != 31)) {
-                if (islit)
-                    tcg_gen_movi_i64(cpu_ir[rc], (int64_t)((int16_t)lit));
-                else
-                    tcg_gen_ext16s_i64(cpu_ir[rc], cpu_ir[rb]);
+            if (ctx->tb->flags & TB_FLAGS_AMASK_BWX) {
+                if (likely(rc != 31)) {
+                    if (islit) {
+                        tcg_gen_movi_i64(cpu_ir[rc], (int64_t)((int16_t)lit));
+                    } else {
+                        tcg_gen_ext16s_i64(cpu_ir[rc], cpu_ir[rb]);
+                    }
+                }
+                break;
             }
-            break;
+            goto invalid_opc;
         case 0x30:
             /* CTPOP */
-            if (!(ctx->amask & AMASK_CIX))
-                goto invalid_opc;
-            if (likely(rc != 31)) {
-                if (islit)
-                    tcg_gen_movi_i64(cpu_ir[rc], ctpop64(lit));
-                else
-                    gen_helper_ctpop(cpu_ir[rc], cpu_ir[rb]);
+            if (ctx->tb->flags & TB_FLAGS_AMASK_CIX) {
+                if (likely(rc != 31)) {
+                    if (islit) {
+                        tcg_gen_movi_i64(cpu_ir[rc], ctpop64(lit));
+                    } else {
+                        gen_helper_ctpop(cpu_ir[rc], cpu_ir[rb]);
+                    }
+                }
+                break;
             }
-            break;
+            goto invalid_opc;
         case 0x31:
             /* PERR */
-            if (!(ctx->amask & AMASK_MVI))
-                goto invalid_opc;
-            gen_perr(ra, rb, rc, islit, lit);
-            break;
+            if (ctx->tb->flags & TB_FLAGS_AMASK_MVI) {
+                gen_perr(ra, rb, rc, islit, lit);
+                break;
+            }
+            goto invalid_opc;
         case 0x32:
             /* CTLZ */
-            if (!(ctx->amask & AMASK_CIX))
-                goto invalid_opc;
-            if (likely(rc != 31)) {
-                if (islit)
-                    tcg_gen_movi_i64(cpu_ir[rc], clz64(lit));
-                else
-                    gen_helper_ctlz(cpu_ir[rc], cpu_ir[rb]);
+            if (ctx->tb->flags & TB_FLAGS_AMASK_CIX) {
+                if (likely(rc != 31)) {
+                    if (islit) {
+                        tcg_gen_movi_i64(cpu_ir[rc], clz64(lit));
+                    } else {
+                        gen_helper_ctlz(cpu_ir[rc], cpu_ir[rb]);
+                    }
+                }
+                break;
             }
-            break;
+            goto invalid_opc;
         case 0x33:
             /* CTTZ */
-            if (!(ctx->amask & AMASK_CIX))
-                goto invalid_opc;
-            if (likely(rc != 31)) {
-                if (islit)
-                    tcg_gen_movi_i64(cpu_ir[rc], ctz64(lit));
-                else
-                    gen_helper_cttz(cpu_ir[rc], cpu_ir[rb]);
+            if (ctx->tb->flags & TB_FLAGS_AMASK_CIX) {
+                if (likely(rc != 31)) {
+                    if (islit) {
+                        tcg_gen_movi_i64(cpu_ir[rc], ctz64(lit));
+                    } else {
+                        gen_helper_cttz(cpu_ir[rc], cpu_ir[rb]);
+                    }
+                }
+                break;
             }
-            break;
+            goto invalid_opc;
         case 0x34:
             /* UNPKBW */
-            if (!(ctx->amask & AMASK_MVI))
-                goto invalid_opc;
-            if (real_islit || ra != 31)
-                goto invalid_opc;
-            gen_unpkbw (rb, rc);
-            break;
+            if (ctx->tb->flags & TB_FLAGS_AMASK_MVI) {
+                if (real_islit || ra != 31) {
+                    goto invalid_opc;
+                }
+                gen_unpkbw(rb, rc);
+                break;
+            }
+            goto invalid_opc;
         case 0x35:
             /* UNPKBL */
-            if (!(ctx->amask & AMASK_MVI))
-                goto invalid_opc;
-            if (real_islit || ra != 31)
-                goto invalid_opc;
-            gen_unpkbl (rb, rc);
-            break;
+            if (ctx->tb->flags & TB_FLAGS_AMASK_MVI) {
+                if (real_islit || ra != 31) {
+                    goto invalid_opc;
+                }
+                gen_unpkbl(rb, rc);
+                break;
+            }
+            goto invalid_opc;
         case 0x36:
             /* PKWB */
-            if (!(ctx->amask & AMASK_MVI))
-                goto invalid_opc;
-            if (real_islit || ra != 31)
-                goto invalid_opc;
-            gen_pkwb (rb, rc);
-            break;
+            if (ctx->tb->flags & TB_FLAGS_AMASK_MVI) {
+                if (real_islit || ra != 31) {
+                    goto invalid_opc;
+                }
+                gen_pkwb(rb, rc);
+                break;
+            }
+            goto invalid_opc;
         case 0x37:
             /* PKLB */
-            if (!(ctx->amask & AMASK_MVI))
-                goto invalid_opc;
-            if (real_islit || ra != 31)
-                goto invalid_opc;
-            gen_pklb (rb, rc);
-            break;
+            if (ctx->tb->flags & TB_FLAGS_AMASK_MVI) {
+                if (real_islit || ra != 31) {
+                    goto invalid_opc;
+                }
+                gen_pklb(rb, rc);
+                break;
+            }
+            goto invalid_opc;
         case 0x38:
             /* MINSB8 */
-            if (!(ctx->amask & AMASK_MVI))
-                goto invalid_opc;
-            gen_minsb8 (ra, rb, rc, islit, lit);
-            break;
+            if (ctx->tb->flags & TB_FLAGS_AMASK_MVI) {
+                gen_minsb8(ra, rb, rc, islit, lit);
+                break;
+            }
+            goto invalid_opc;
         case 0x39:
             /* MINSW4 */
-            if (!(ctx->amask & AMASK_MVI))
-                goto invalid_opc;
-            gen_minsw4 (ra, rb, rc, islit, lit);
-            break;
+            if (ctx->tb->flags & TB_FLAGS_AMASK_MVI) {
+                gen_minsw4(ra, rb, rc, islit, lit);
+                break;
+            }
+            goto invalid_opc;
         case 0x3A:
             /* MINUB8 */
-            if (!(ctx->amask & AMASK_MVI))
-                goto invalid_opc;
-            gen_minub8 (ra, rb, rc, islit, lit);
-            break;
+            if (ctx->tb->flags & TB_FLAGS_AMASK_MVI) {
+                gen_minub8(ra, rb, rc, islit, lit);
+                break;
+            }
+            goto invalid_opc;
         case 0x3B:
             /* MINUW4 */
-            if (!(ctx->amask & AMASK_MVI))
-                goto invalid_opc;
-            gen_minuw4 (ra, rb, rc, islit, lit);
-            break;
+            if (ctx->tb->flags & TB_FLAGS_AMASK_MVI) {
+                gen_minuw4(ra, rb, rc, islit, lit);
+                break;
+            }
+            goto invalid_opc;
         case 0x3C:
             /* MAXUB8 */
-            if (!(ctx->amask & AMASK_MVI))
-                goto invalid_opc;
-            gen_maxub8 (ra, rb, rc, islit, lit);
-            break;
+            if (ctx->tb->flags & TB_FLAGS_AMASK_MVI) {
+                gen_maxub8(ra, rb, rc, islit, lit);
+                break;
+            }
+            goto invalid_opc;
         case 0x3D:
             /* MAXUW4 */
-            if (!(ctx->amask & AMASK_MVI))
-                goto invalid_opc;
-            gen_maxuw4 (ra, rb, rc, islit, lit);
-            break;
+            if (ctx->tb->flags & TB_FLAGS_AMASK_MVI) {
+                gen_maxuw4(ra, rb, rc, islit, lit);
+                break;
+            }
+            goto invalid_opc;
         case 0x3E:
             /* MAXSB8 */
-            if (!(ctx->amask & AMASK_MVI))
-                goto invalid_opc;
-            gen_maxsb8 (ra, rb, rc, islit, lit);
-            break;
+            if (ctx->tb->flags & TB_FLAGS_AMASK_MVI) {
+                gen_maxsb8(ra, rb, rc, islit, lit);
+                break;
+            }
+            goto invalid_opc;
         case 0x3F:
             /* MAXSW4 */
-            if (!(ctx->amask & AMASK_MVI))
-                goto invalid_opc;
-            gen_maxsw4 (ra, rb, rc, islit, lit);
-            break;
+            if (ctx->tb->flags & TB_FLAGS_AMASK_MVI) {
+                gen_maxsw4(ra, rb, rc, islit, lit);
+                break;
+            }
+            goto invalid_opc;
         case 0x70:
             /* FTOIT */
-            if (!(ctx->amask & AMASK_FIX))
+            if ((ctx->tb->flags & TB_FLAGS_AMASK_FIX) == 0) {
                 goto invalid_opc;
+            }
             if (likely(rc != 31)) {
                 if (ra != 31)
                     tcg_gen_mov_i64(cpu_ir[rc], cpu_fir[ra]);
@@ -2913,8 +2940,9 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x78:
             /* FTOIS */
-            if (!(ctx->amask & AMASK_FIX))
+            if ((ctx->tb->flags & TB_FLAGS_AMASK_FIX) == 0) {
                 goto invalid_opc;
+            }
             if (rc != 31) {
                 TCGv_i32 tmp1 = tcg_temp_new_i32();
                 if (ra != 31)
@@ -2935,41 +2963,36 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     case 0x1D:
         /* HW_MTPR (PALcode) */
 #ifndef CONFIG_USER_ONLY
-        if (ctx->pal_mode) {
-            gen_mtpr(ra, insn & 0xffff);
+        if (ctx->tb->flags & TB_FLAGS_PAL_MODE) {
+            gen_mtpr(rb, insn & 0xffff);
             break;
         }
 #endif
         goto invalid_opc;
     case 0x1E:
         /* HW_RET (PALcode) */
-#if defined (CONFIG_USER_ONLY)
-        goto invalid_opc;
-#else
-        if (!ctx->pal_mode)
-            goto invalid_opc;
-        if (rb == 31) {
-            /* Pre-EV6 CPUs interpreted this as HW_REI, loading the return
-               address from EXC_ADDR.  This turns out to be useful for our
-               emulation PALcode, so continue to accept it.  */
-            TCGv tmp = tcg_temp_new();
-            /* FIXME: Get exc_addr.  */
-            gen_helper_hw_ret(tmp);
-            tcg_temp_free(tmp);
-        } else {
-            gen_helper_hw_ret(cpu_ir[rb]);
+#ifndef CONFIG_USER_ONLY
+        if (ctx->tb->flags & TB_FLAGS_PAL_MODE) {
+            if (rb == 31) {
+                /* Pre-EV6 CPUs interpreted this as HW_REI, loading the return
+                   address from EXC_ADDR.  This turns out to be useful for our
+                   emulation PALcode, so continue to accept it.  */
+                TCGv tmp = tcg_temp_new();
+                tcg_gen_ld_i64(tmp, cpu_env, offsetof(CPUState, exc_addr));
+                gen_helper_hw_ret(tmp);
+                tcg_temp_free(tmp);
+            } else {
+                gen_helper_hw_ret(cpu_ir[rb]);
+            }
+            ret = EXIT_PC_UPDATED;
+            break;
         }
-        ret = EXIT_PC_UPDATED;
-        break;
 #endif
+        goto invalid_opc;
     case 0x1F:
         /* HW_ST (PALcode) */
-#if defined (CONFIG_USER_ONLY)
-        goto invalid_opc;
-#else
-        if (!ctx->pal_mode)
-            goto invalid_opc;
-        else {
+#ifndef CONFIG_USER_ONLY
+        if (ctx->tb->flags & TB_FLAGS_PAL_MODE) {
             TCGv addr, val;
             addr = tcg_temp_new();
             if (rb != 31)
@@ -3039,9 +3062,10 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             if (ra == 31)
                 tcg_temp_free(val);
             tcg_temp_free(addr);
+            break;
         }
-        break;
 #endif
+        goto invalid_opc;
     case 0x20:
         /* LDF */
         gen_load_mem(ctx, &gen_qemu_ldf, ra, rb, disp16, 1, 0);
@@ -3192,11 +3216,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
     ctx.tb = tb;
     ctx.env = env;
     ctx.pc = pc_start;
-    ctx.amask = env->amask;
     ctx.mem_idx = cpu_mmu_index(env);
-#if !defined (CONFIG_USER_ONLY)
-    ctx.pal_mode = env->pal_mode;
-#endif
 
     /* ??? Every TB begins with unset rounding mode, to be initialized on
        the first fp insn of the TB.  Alternately we could define a proper
