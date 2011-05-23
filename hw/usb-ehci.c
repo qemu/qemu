@@ -685,6 +685,18 @@ static void ehci_queues_rip_unused(EHCIState *ehci)
     }
 }
 
+static void ehci_queues_rip_device(EHCIState *ehci, USBDevice *dev)
+{
+    EHCIQueue *q, *tmp;
+
+    QTAILQ_FOREACH_SAFE(q, &ehci->queues, next, tmp) {
+        if (q->packet.owner != dev) {
+            continue;
+        }
+        ehci_free_queue(q);
+    }
+}
+
 static void ehci_queues_rip_all(EHCIState *ehci)
 {
     EHCIQueue *q, *tmp;
@@ -2100,12 +2112,23 @@ static void ehci_map(PCIDevice *pci_dev, int region_num,
     cpu_register_physical_memory(addr, size, s->mem);
 }
 
+static void ehci_device_destroy(USBBus *bus, USBDevice *dev)
+{
+    EHCIState *s = container_of(bus, EHCIState, bus);
+
+    ehci_queues_rip_device(s, dev);
+}
+
 static int usb_ehci_initfn(PCIDevice *dev);
 
 static USBPortOps ehci_port_ops = {
     .attach = ehci_attach,
     .detach = ehci_detach,
     .complete = ehci_async_complete_packet,
+};
+
+static USBBusOps ehci_bus_ops = {
+    .device_destroy = ehci_device_destroy,
 };
 
 static PCIDeviceInfo ehci_info = {
@@ -2170,7 +2193,7 @@ static int usb_ehci_initfn(PCIDevice *dev)
 
     s->irq = s->dev.irq[3];
 
-    usb_bus_new(&s->bus, &s->dev.qdev);
+    usb_bus_new(&s->bus, &ehci_bus_ops, &s->dev.qdev);
     for(i = 0; i < NB_PORTS; i++) {
         usb_register_port(&s->bus, &s->ports[i], s, i, &ehci_port_ops,
                           USB_SPEED_MASK_HIGH);

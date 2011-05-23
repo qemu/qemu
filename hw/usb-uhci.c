@@ -234,6 +234,19 @@ static void uhci_async_validate_end(UHCIState *s)
     }
 }
 
+static void uhci_async_cancel_device(UHCIState *s, USBDevice *dev)
+{
+    UHCIAsync *curr, *n;
+
+    QTAILQ_FOREACH_SAFE(curr, &s->async_pending, next, n) {
+        if (curr->packet.owner != dev) {
+            continue;
+        }
+        uhci_async_unlink(s, curr);
+        uhci_async_cancel(s, curr);
+    }
+}
+
 static void uhci_async_cancel_all(UHCIState *s)
 {
     UHCIAsync *curr, *n;
@@ -1081,11 +1094,22 @@ static void uhci_map(PCIDevice *pci_dev, int region_num,
     register_ioport_read(addr, 32, 1, uhci_ioport_readb, s);
 }
 
+static void uhci_device_destroy(USBBus *bus, USBDevice *dev)
+{
+    UHCIState *s = container_of(bus, UHCIState, bus);
+
+    uhci_async_cancel_device(s, dev);
+}
+
 static USBPortOps uhci_port_ops = {
     .attach = uhci_attach,
     .detach = uhci_detach,
     .wakeup = uhci_wakeup,
     .complete = uhci_async_complete,
+};
+
+static USBBusOps uhci_bus_ops = {
+    .device_destroy = uhci_device_destroy,
 };
 
 static int usb_uhci_common_initfn(UHCIState *s)
@@ -1100,7 +1124,7 @@ static int usb_uhci_common_initfn(UHCIState *s)
     pci_conf[PCI_INTERRUPT_PIN] = 4; // interrupt pin 3
     pci_conf[0x60] = 0x10; // release number
 
-    usb_bus_new(&s->bus, &s->dev.qdev);
+    usb_bus_new(&s->bus, &uhci_bus_ops, &s->dev.qdev);
     for(i = 0; i < NB_PORTS; i++) {
         usb_register_port(&s->bus, &s->ports[i].port, s, i, &uhci_port_ops,
                           USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);

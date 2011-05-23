@@ -1644,6 +1644,16 @@ static void ohci_mem_write(void *ptr, target_phys_addr_t addr, uint32_t val)
     }
 }
 
+static void ohci_device_destroy(USBBus *bus, USBDevice *dev)
+{
+    OHCIState *ohci = container_of(bus, OHCIState, bus);
+
+    if (ohci->async_td && ohci->usb_packet.owner == dev) {
+        usb_cancel_packet(&ohci->usb_packet);
+        ohci->async_td = 0;
+    }
+}
+
 /* Only dword reads are defined on OHCI register space */
 static CPUReadMemoryFunc * const ohci_readfn[3]={
     ohci_mem_read,
@@ -1662,6 +1672,10 @@ static USBPortOps ohci_port_ops = {
     .attach = ohci_attach,
     .detach = ohci_detach,
     .complete = ohci_async_complete_packet,
+};
+
+static USBBusOps ohci_bus_ops = {
+    .device_destroy = ohci_device_destroy,
 };
 
 static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
@@ -1691,7 +1705,7 @@ static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
 
     ohci->name = dev->info->name;
 
-    usb_bus_new(&ohci->bus, dev);
+    usb_bus_new(&ohci->bus, &ohci_bus_ops, dev);
     ohci->num_ports = num_ports;
     for (i = 0; i < num_ports; i++) {
         usb_register_port(&ohci->bus, &ohci->rhport[i].port, ohci, i, &ohci_port_ops,

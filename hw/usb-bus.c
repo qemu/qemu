@@ -39,9 +39,10 @@ const VMStateDescription vmstate_usb_device = {
     }
 };
 
-void usb_bus_new(USBBus *bus, DeviceState *host)
+void usb_bus_new(USBBus *bus, USBBusOps *ops, DeviceState *host)
 {
     qbus_create_inplace(&bus->qbus, &usb_bus_info, host, NULL);
+    bus->ops = ops;
     bus->busnr = next_usb_bus++;
     bus->qbus.allow_hotplug = 1; /* Yes, we can */
     QTAILQ_INIT(&bus->free);
@@ -81,8 +82,10 @@ static int usb_qdev_init(DeviceState *qdev, DeviceInfo *base)
 static int usb_qdev_exit(DeviceState *qdev)
 {
     USBDevice *dev = DO_UPCAST(USBDevice, qdev, qdev);
+    USBBus *bus = usb_bus_from_device(dev);
 
     usb_device_detach(dev);
+    bus->ops->device_destroy(bus, dev);
     if (dev->info->handle_destroy) {
         dev->info->handle_destroy(dev);
     }
