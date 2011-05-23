@@ -2440,6 +2440,87 @@ out_nofid:
     v9fs_string_free(&name);
 }
 
+static int v9fs_complete_renameat(V9fsState *s, int32_t olddirfid,
+                                  V9fsString *old_name, int32_t newdirfid,
+                                  V9fsString *new_name)
+{
+    int err = 0;
+    V9fsString old_full_name, new_full_name;
+    V9fsFidState *newdirfidp = NULL, *olddirfidp = NULL;
+
+    olddirfidp = get_fid(s, olddirfid);
+    if (olddirfidp == NULL) {
+        err = -ENOENT;
+        goto out;
+    }
+    v9fs_string_init(&old_full_name);
+    v9fs_string_init(&new_full_name);
+
+    v9fs_string_sprintf(&old_full_name, "%s/%s",
+                        olddirfidp->path.data, old_name->data);
+    if (newdirfid != -1) {
+        newdirfidp = get_fid(s, newdirfid);
+        if (newdirfidp == NULL) {
+            err = -ENOENT;
+            goto out;
+        }
+        v9fs_string_sprintf(&new_full_name, "%s/%s",
+                            newdirfidp->path.data, new_name->data);
+    } else {
+        v9fs_string_sprintf(&new_full_name, "%s/%s",
+                            olddirfidp->path.data, new_name->data);
+    }
+
+    if (strcmp(old_full_name.data, new_full_name.data) != 0) {
+        V9fsFidState *tfidp;
+        err = v9fs_co_rename(s, &old_full_name, &new_full_name);
+        if (err < 0) {
+            goto out;
+        }
+        /*
+         * Fixup fid's pointing to the old name to
+         * start pointing to the new name
+         */
+        for (tfidp = s->fid_list; tfidp; tfidp = tfidp->next) {
+            if (v9fs_path_is_ancestor(&old_full_name, &tfidp->path)) {
+                /* replace the name */
+                v9fs_fix_path(&tfidp->path, &new_full_name, old_full_name.size);
+            }
+        }
+    }
+out:
+    if (olddirfidp) {
+        put_fid(s, olddirfidp);
+    }
+    if (newdirfidp) {
+        put_fid(s, newdirfidp);
+    }
+    v9fs_string_free(&old_full_name);
+    v9fs_string_free(&new_full_name);
+    return err;
+}
+
+static void v9fs_renameat(void *opaque)
+{
+    ssize_t err = 0;
+    size_t offset = 7;
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
+    int32_t olddirfid, newdirfid;
+    V9fsString old_name, new_name;
+
+    pdu_unmarshal(pdu, offset, "dsds", &olddirfid,
+                  &old_name, &newdirfid, &new_name);
+
+    err = v9fs_complete_renameat(s, olddirfid, &old_name, newdirfid, &new_name);
+    if (!err) {
+        err = offset;
+    }
+    complete_pdu(s, pdu, err);
+    v9fs_string_free(&old_name);
+    v9fs_string_free(&new_name);
+}
+
 static void v9fs_wstat(void *opaque)
 {
     int32_t fid;
@@ -2957,6 +3038,7 @@ static CoroutineEntry *pdu_co_handlers[] = {
     [P9_TRENAME] = v9fs_rename,
     [P9_TLOCK] = v9fs_lock,
     [P9_TGETLOCK] = v9fs_getlock,
+    [P9_TRENAMEAT] = v9fs_renameat,
     [P9_TREADLINK] = v9fs_readlink,
     [P9_TMKDIR] = v9fs_mkdir,
     [P9_TVERSION] = v9fs_version,
