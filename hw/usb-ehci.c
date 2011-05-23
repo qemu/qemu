@@ -1114,10 +1114,10 @@ err:
 
         switch(q->usb_status) {
         case USB_RET_NODEV:
-            fprintf(stderr, "USB no device\n");
+            q->qh.token |= (QTD_TOKEN_HALT | QTD_TOKEN_XACTERR);
+            ehci_record_interrupt(q->ehci, USBSTS_ERRINT);
             break;
         case USB_RET_STALL:
-            fprintf(stderr, "USB stall\n");
             q->qh.token |= QTD_TOKEN_HALT;
             ehci_record_interrupt(q->ehci, USBSTS_ERRINT);
             break;
@@ -1133,8 +1133,7 @@ err:
             }
             break;
         case USB_RET_BABBLE:
-            fprintf(stderr, "USB babble TODO\n");
-            q->qh.token |= QTD_TOKEN_BABBLE;
+            q->qh.token |= (QTD_TOKEN_HALT | QTD_TOKEN_BABBLE);
             ehci_record_interrupt(q->ehci, USBSTS_ERRINT);
             break;
         default:
@@ -1792,15 +1791,21 @@ static int ehci_state_writeback(EHCIQueue *q, int async)
     put_dwords(NLPTR_GET(q->qtdaddr),(uint32_t *) &q->qh.next_qtd,
                 sizeof(EHCIqtd) >> 2);
 
-    /* TODO confirm next state.  For now, keep going if async
-     * but stop after one qtd if periodic
+    /*
+     * EHCI specs say go horizontal here.
+     *
+     * We can also advance the queue here for performance reasons.  We
+     * need to take care to only take that shortcut in case we've
+     * processed the qtd just written back without errors, i.e. halt
+     * bit is clear.
      */
-    //if (async) {
+    if (q->qh.token & QTD_TOKEN_HALT) {
+        ehci_set_state(q->ehci, async, EST_HORIZONTALQH);
+        again = 1;
+    } else {
         ehci_set_state(q->ehci, async, EST_ADVANCEQUEUE);
         again = 1;
-    //} else {
-    //    ehci_set_state(ehci, async, EST_ACTIVE);
-    //}
+    }
     return again;
 }
 
