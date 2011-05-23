@@ -740,11 +740,9 @@ static void ehci_detach(USBPort *port)
 static void ehci_reset(void *opaque)
 {
     EHCIState *s = opaque;
-    uint8_t *pci_conf;
     int i;
 
     trace_usb_ehci_reset();
-    pci_conf = s->dev.config;
 
     memset(&s->mmio[OPREGBASE], 0x00, MMIO_SIZE - OPREGBASE);
 
@@ -1268,12 +1266,11 @@ static int ehci_process_itd(EHCIState *ehci,
     int dir;
     int devadr;
     int endp;
-    int maxpkt;
 
     dir =(itd->bufptr[1] & ITD_BUFPTR_DIRECTION);
     devadr = get_field(itd->bufptr[0], ITD_BUFPTR_DEVADDR);
     endp = get_field(itd->bufptr[0], ITD_BUFPTR_EP);
-    maxpkt = get_field(itd->bufptr[1], ITD_BUFPTR_MAXPKT);
+    /* maxpkt = get_field(itd->bufptr[1], ITD_BUFPTR_MAXPKT); */
 
     for(i = 0; i < 8; i++) {
         if (itd->transact[i] & ITD_XACT_ACTIVE) {
