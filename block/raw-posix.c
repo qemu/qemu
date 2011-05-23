@@ -64,6 +64,13 @@
 #include <sys/dkio.h>
 #endif
 
+#ifdef __NetBSD__
+#include <sys/ioctl.h>
+#include <sys/disklabel.h>
+#include <sys/dkio.h>
+#include <sys/disk.h>
+#endif
+
 #ifdef __DragonFly__
 #include <sys/ioctl.h>
 #include <sys/diskslice.h>
@@ -662,6 +669,31 @@ static int64_t raw_getlength(BlockDriverState *bs)
             return -1;
         return (uint64_t)dl.d_secsize *
             dl.d_partitions[DISKPART(st.st_rdev)].p_size;
+    } else
+        return st.st_size;
+}
+#elif defined(__NetBSD__)
+static int64_t raw_getlength(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+    int fd = s->fd;
+    struct stat st;
+
+    if (fstat(fd, &st))
+        return -1;
+    if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) {
+        struct dkwedge_info dkw;
+
+        if (ioctl(fd, DIOCGWEDGEINFO, &dkw) != -1) {
+            return dkw.dkw_size * 512;
+        } else {
+            struct disklabel dl;
+
+            if (ioctl(fd, DIOCGDINFO, &dl))
+                return -1;
+            return (uint64_t)dl.d_secsize *
+                dl.d_partitions[DISKPART(st.st_rdev)].p_size;
+        }
     } else
         return st.st_size;
 }
