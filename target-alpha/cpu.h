@@ -244,6 +244,9 @@ struct CPUAlphaState {
     uint8_t ps;
     uint8_t intr_flag;
     uint8_t pal_mode;
+    uint8_t fen;
+
+    uint32_t pcc_ofs;
 
     /* These pass data from the exception logic in the translator and
        helpers to the OS entry point.  This is used for both system
@@ -251,6 +254,18 @@ struct CPUAlphaState {
     uint64_t trap_arg0;
     uint64_t trap_arg1;
     uint64_t trap_arg2;
+
+#if !defined(CONFIG_USER_ONLY)
+    /* The internal data required by our emulation of the Unix PALcode.  */
+    uint64_t exc_addr;
+    uint64_t palbr;
+    uint64_t ptbr;
+    uint64_t vptptr;
+    uint64_t sysval;
+    uint64_t usp;
+    uint64_t shadow[8];
+    uint64_t scratch[24];
+#endif
 
 #if TARGET_LONG_BITS > HOST_LONG_BITS
     /* temporary fixed-point registers

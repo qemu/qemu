@@ -47,10 +47,23 @@ static VMStateField vmstate_cpu_fields[] = {
     VMSTATE_UINT8(ps, CPUState),
     VMSTATE_UINT8(intr_flag, CPUState),
     VMSTATE_UINT8(pal_mode, CPUState),
+    VMSTATE_UINT8(fen, CPUState),
+
+    VMSTATE_UINT32(pcc_ofs, CPUState),
 
     VMSTATE_UINTTL(trap_arg0, CPUState),
     VMSTATE_UINTTL(trap_arg1, CPUState),
     VMSTATE_UINTTL(trap_arg2, CPUState),
+
+    VMSTATE_UINTTL(exc_addr, CPUState),
+    VMSTATE_UINTTL(palbr, CPUState),
+    VMSTATE_UINTTL(ptbr, CPUState),
+    VMSTATE_UINTTL(vptptr, CPUState),
+    VMSTATE_UINTTL(sysval, CPUState),
+    VMSTATE_UINTTL(usp, CPUState),
+
+    VMSTATE_UINTTL_ARRAY(shadow, CPUState, 8),
+    VMSTATE_UINTTL_ARRAY(scratch, CPUState, 24),
 
     VMSTATE_END_OF_LIST()
 };

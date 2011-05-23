@@ -1468,6 +1468,89 @@ static void gen_rx(int ra, int set)
     tcg_temp_free_i32(tmp);
 }
 
+#ifndef CONFIG_USER_ONLY
+
+#define PR_BYTE         0x100000
+#define PR_LONG         0x200000
+
+static int cpu_pr_data(int pr)
+{
+    switch (pr) {
+    case  0: return offsetof(CPUAlphaState, ps) | PR_BYTE;
+    case  1: return offsetof(CPUAlphaState, fen) | PR_BYTE;
+    case  2: return offsetof(CPUAlphaState, pcc_ofs) | PR_LONG;
+    case  3: return offsetof(CPUAlphaState, trap_arg0);
+    case  4: return offsetof(CPUAlphaState, trap_arg1);
+    case  5: return offsetof(CPUAlphaState, trap_arg2);
+    case  6: return offsetof(CPUAlphaState, exc_addr);
+    case  7: return offsetof(CPUAlphaState, palbr);
+    case  8: return offsetof(CPUAlphaState, ptbr);
+    case  9: return offsetof(CPUAlphaState, vptptr);
+    case 10: return offsetof(CPUAlphaState, unique);
+    case 11: return offsetof(CPUAlphaState, sysval);
+    case 12: return offsetof(CPUAlphaState, usp);
+
+    case 32 ... 39:
+        return offsetof(CPUAlphaState, shadow[pr - 32]);
+    case 40 ... 63:
+        return offsetof(CPUAlphaState, scratch[pr - 40]);
+    }
+    return 0;
+}
+
+static void gen_mfpr(int ra, int regno)
+{
+    int data = cpu_pr_data(regno);
+
+    /* In our emulated PALcode, these processor registers have no
+       side effects from reading.  */
+    if (ra == 31) {
+        return;
+    }
+
+    /* The basic registers are data only, and unknown registers
+       are read-zero, write-ignore.  */
+    if (data == 0) {
+        tcg_gen_movi_i64(cpu_ir[ra], 0);
+    } else if (data & PR_BYTE) {
+        tcg_gen_ld8u_i64(cpu_ir[ra], cpu_env, data & ~PR_BYTE);
+    } else if (data & PR_LONG) {
+        tcg_gen_ld32s_i64(cpu_ir[ra], cpu_env, data & ~PR_LONG);
+    } else {
+        tcg_gen_ld_i64(cpu_ir[ra], cpu_env, data);
+    }
+}
+
+static void gen_mtpr(int rb, int regno)
+{
+    TCGv tmp;
+    int data;
+
+    if (rb == 31) {
+        tmp = tcg_const_i64(0);
+    } else {
+        tmp = cpu_ir[rb];
+    }
+
+    /* The basic registers are data only, and unknown registers
+       are read-zero, write-ignore.  */
+    data = cpu_pr_data(regno);
+    if (data != 0) {
+        if (data & PR_BYTE) {
+            tcg_gen_st8_i64(tmp, cpu_env, data & ~PR_BYTE);
+        } else if (data & PR_LONG) {
+            tcg_gen_st32_i64(tmp, cpu_env, data & ~PR_LONG);
+        } else {
+            tcg_gen_st_i64(tmp, cpu_env, data);
+        }
+    }
+
+    if (rb == 31) {
+        tcg_temp_free(tmp);
+    }
+}
+#endif /* !USER_ONLY*/
+
 static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
 {
     uint32_t palcode;
@@ -2576,6 +2659,12 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         break;
     case 0x19:
         /* HW_MFPR (PALcode) */
+#ifndef CONFIG_USER_ONLY
+        if (ctx->pal_mode) {
+            gen_mfpr(ra, insn & 0xffff);
+            break;
+        }
+#endif
         goto invalid_opc;
     case 0x1A:
         /* JMP, JSR, RET, JSR_COROUTINE.  These only differ by the branch
@@ -2845,6 +2934,12 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         break;
     case 0x1D:
         /* HW_MTPR (PALcode) */
+#ifndef CONFIG_USER_ONLY
+        if (ctx->pal_mode) {
+            gen_mtpr(ra, insn & 0xffff);
+            break;
+        }
+#endif
         goto invalid_opc;
     case 0x1E:
         /* HW_RET (PALcode) */
@@ -3272,6 +3367,7 @@ CPUAlphaState * cpu_alpha_init (const char *cpu_model)
                                | FPCR_UNFD | FPCR_INED | FPCR_DNOD));
 #endif
     env->lock_addr = -1;
+    env->fen = 1;
 
     qemu_init_vcpu(env);
     return env;
