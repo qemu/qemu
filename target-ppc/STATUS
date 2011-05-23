@@ -11,7 +11,7 @@ INSN: instruction set.
 SPR:  special purpose registers set
       OK => all SPR registered (but some may be fake)
       KO => some SPR are missing or should be removed
-      ?  => uncheked
+      ?  => unchecked
 MSR:  MSR bits definitions
       OK => all MSR bits properly defined
       KO => MSR definition is incorrect

@@ -312,7 +312,7 @@ static void piix3_set_irq_pic(PIIX3State *piix3, int pic_irq)
 {
     qemu_set_irq(piix3->pic[pic_irq],
                  !!(piix3->pic_levels &
-                    (((1UL << PIIX_NUM_PIRQS) - 1) <<
+                    (((1ULL << PIIX_NUM_PIRQS) - 1) <<
                      (pic_irq * PIIX_NUM_PIRQS))));
 }
 
