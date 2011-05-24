@@ -21,6 +21,7 @@ int v9fs_co_lstat(V9fsState *s, V9fsString *path, struct stat *stbuf)
 {
     int err;
 
+    qemu_co_rwlock_rdlock(&s->rename_lock);
     v9fs_co_run_in_worker(
         {
             err = s->ops->lstat(&s->ctx, path->data, stbuf);
@@ -28,6 +29,7 @@ int v9fs_co_lstat(V9fsState *s, V9fsString *path, struct stat *stbuf)
                 err = -errno;
             }
         });
+    qemu_co_rwlock_unlock(&s->rename_lock);
     return err;
 }
 
@@ -49,6 +51,7 @@ int v9fs_co_open(V9fsState *s, V9fsFidState *fidp, int flags)
 {
     int err;
 
+    qemu_co_rwlock_rdlock(&s->rename_lock);
     v9fs_co_run_in_worker(
         {
             fidp->fs.fd = s->ops->open(&s->ctx, fidp->path.data, flags);
@@ -58,6 +61,7 @@ int v9fs_co_open(V9fsState *s, V9fsFidState *fidp, int flags)
                 err = 0;
             }
         });
+    qemu_co_rwlock_unlock(&s->rename_lock);
     if (!err) {
         total_open_fd++;
         if (total_open_fd > open_fd_hw) {
@@ -67,30 +71,48 @@ int v9fs_co_open(V9fsState *s, V9fsFidState *fidp, int flags)
     return err;
 }
 
-int v9fs_co_open2(V9fsState *s, V9fsFidState *fidp, char *fullname, gid_t gid,
-                  int flags, int mode)
+int v9fs_co_open2(V9fsState *s, V9fsFidState *fidp, V9fsString *name, gid_t gid,
+                  int flags, int mode, struct stat *stbuf)
 {
     int err;
     FsCred cred;
+    V9fsString fullname;
 
     cred_init(&cred);
     cred.fc_mode = mode & 07777;
     cred.fc_uid = fidp->uid;
     cred.fc_gid = gid;
+    v9fs_string_init(&fullname);
+    /*
+     * Hold the directory fid lock so that directory path name
+     * don't change. Read lock is fine because this fid cannot
+     * be used by any other operation.
+     */
+    qemu_co_rwlock_rdlock(&s->rename_lock);
+    v9fs_string_sprintf(&fullname, "%s/%s", fidp->path.data, name->data);
     v9fs_co_run_in_worker(
         {
-            fidp->fs.fd = s->ops->open2(&s->ctx, fullname, flags, &cred);
-            err = 0;
+            fidp->fs.fd = s->ops->open2(&s->ctx, fullname.data, flags, &cred);
             if (fidp->fs.fd == -1) {
                 err = -errno;
+            } else {
+                err = s->ops->lstat(&s->ctx, fullname.data, stbuf);
+                if (err < 0) {
+                    err = -errno;
+                    err = s->ops->close(&s->ctx, fidp->fs.fd);
+                } else {
+                    v9fs_string_copy(&fidp->path, &fullname);
+                }
             }
         });
+    qemu_co_rwlock_unlock(&s->rename_lock);
     if (!err) {
         total_open_fd++;
         if (total_open_fd > open_fd_hw) {
             v9fs_reclaim_fd(s);
         }
     }
+    v9fs_string_free(&fullname);
     return err;
 }
 
@@ -131,6 +153,7 @@ int v9fs_co_link(V9fsState *s, V9fsString *oldpath, V9fsString *newpath)
 {
     int err;
 
+    qemu_co_rwlock_rdlock(&s->rename_lock);
     v9fs_co_run_in_worker(
         {
             err = s->ops->link(&s->ctx, oldpath->data, newpath->data);
@@ -138,6 +161,7 @@ int v9fs_co_link(V9fsState *s, V9fsString *oldpath, V9fsString *newpath)
                 err = -errno;
             }
         });
+    qemu_co_rwlock_unlock(&s->rename_lock);
     return err;
 }
 

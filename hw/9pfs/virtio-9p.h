@@ -8,6 +8,8 @@
 #include <sys/resource.h>
 #include "hw/virtio.h"
 #include "fsdev/file-op-9p.h"
+#include "qemu-thread.h"
+#include "qemu-coroutine.h"
 
 /* The feature bitmap for virtio 9P */
 /* The mount point is specified in a config variable */
@@ -237,6 +239,11 @@ typedef struct V9fsState
     size_t config_size;
     enum p9_proto_version proto_version;
     int32_t msize;
+    /*
+     * lock ensuring atomic path update
+     * on rename.
+     */
+    CoRwlock rename_lock;
 } V9fsState;
 
 typedef struct V9fsStatState {

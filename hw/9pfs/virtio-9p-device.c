@@ -131,6 +131,7 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
                         s->tag_len;
     s->vdev.get_config = virtio_9p_get_config;
     s->fid_list = NULL;
+    qemu_co_rwlock_init(&s->rename_lock);
 
     if (v9fs_init_worker_threads() < 0) {
         fprintf(stderr, "worker thread initialization failed\n");
