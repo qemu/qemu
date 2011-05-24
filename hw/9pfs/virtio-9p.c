@@ -80,20 +80,20 @@ void cred_init(FsCred *credp)
     credp->fc_rdev = -1;
 }
 
-static void v9fs_string_init(V9fsString *str)
+void v9fs_string_init(V9fsString *str)
 {
     str->data = NULL;
     str->size = 0;
 }
 
-static void v9fs_string_free(V9fsString *str)
+void v9fs_string_free(V9fsString *str)
 {
     g_free(str->data);
     str->data = NULL;
     str->size = 0;
 }
 
-static void v9fs_string_null(V9fsString *str)
+void v9fs_string_null(V9fsString *str)
 {
     v9fs_string_free(str);
 }
@@ -192,7 +192,7 @@ alloc_print:
     return vsprintf(*strp, fmt, ap);
 }
 
-static void GCC_FMT_ATTR(2, 3)
+void GCC_FMT_ATTR(2, 3)
 v9fs_string_sprintf(V9fsString *str, const char *fmt, ...)
 {
     va_list ap;
@@ -208,7 +208,7 @@ v9fs_string_sprintf(V9fsString *str, const char *fmt, ...)
     str->size = err;
 }
 
-static void v9fs_string_copy(V9fsString *lhs, V9fsString *rhs)
+void v9fs_string_copy(V9fsString *lhs, V9fsString *rhs)
 {
     v9fs_string_free(lhs);
     v9fs_string_sprintf(lhs, "%s", rhs->data);

@@ -384,4 +384,9 @@ static inline size_t do_pdu_unpack(void *dst, struct iovec *sg, int sg_count,
 extern void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq);
 extern void virtio_9p_set_fd_limit(void);
 extern void v9fs_reclaim_fd(V9fsState *s);
+extern void v9fs_string_init(V9fsString *str);
+extern void v9fs_string_free(V9fsString *str);
+extern void v9fs_string_null(V9fsString *str);
+extern void v9fs_string_sprintf(V9fsString *str, const char *fmt, ...);
+extern void v9fs_string_copy(V9fsString *lhs, V9fsString *rhs);
 #endif
