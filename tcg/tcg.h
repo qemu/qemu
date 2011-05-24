@@ -286,8 +286,8 @@ struct TCGContext {
     uint16_t *tb_jmp_offset; /* != NULL if USE_DIRECT_JUMP */
 
     /* liveness analysis */
-    uint16_t *op_dead_iargs; /* for each operation, each bit tells if the
-                                corresponding input argument is dead */
+    uint16_t *op_dead_args; /* for each operation, each bit tells if the
+                               corresponding argument is dead */
     
     /* tells in which temporary a given register is. It does not take
        into account fixed registers */

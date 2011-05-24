@@ -2079,7 +2079,7 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
     /* we modify the TLB cache so that the dirty bit will be set again
        when accessing the range */
     start1 = (unsigned long)qemu_safe_ram_ptr(start);
-    /* Chek that we don't span multiple blocks - this breaks the
+    /* Check that we don't span multiple blocks - this breaks the
        address comparisons below.  */
     if ((unsigned long)qemu_safe_ram_ptr(end - 1) - start1
             != (end - 1) - start) {
@@ -2969,10 +2969,18 @@ ram_addr_t qemu_ram_alloc_from_ptr(DeviceState *dev, const char *name,
 #endif
         } else {
 #if defined(TARGET_S390X) && defined(CONFIG_KVM)
-            /* XXX S390 KVM requires the topmost vma of the RAM to be < 256GB */
-            new_block->host = mmap((void*)0x1000000, size,
+            /* S390 KVM requires the topmost vma of the RAM to be smaller than
+               an system defined value, which is at least 256GB. Larger systems
+               have larger values. We put the guest between the end of data
+               segment (system break) and this value. We use 32GB as a base to
+               have enough room for the system break to grow. */
+            new_block->host = mmap((void*)0x800000000, size,
                                    PROT_EXEC|PROT_READ|PROT_WRITE,
-                                   MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+                                   MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+            if (new_block->host == MAP_FAILED) {
+                fprintf(stderr, "Allocating RAM failed\n");
+                abort();
+            }
 #elif defined(CONFIG_XEN_MAPCACHE)
             if (xen_mapcache_enabled()) {
                 xen_ram_alloc(new_block->offset, size);

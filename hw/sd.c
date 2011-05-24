@@ -1104,6 +1104,17 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
         }
         break;
 
+    case 52:
+    case 53:
+        /* CMD52, CMD53: reserved for SDIO cards
+         * (see the SDIO Simplified Specification V2.0)
+         * Handle as illegal command but do not complain
+         * on stderr, as some OSes may use these in their
+         * probing for presence of an SDIO card.
+         */
+        sd->card_status |= ILLEGAL_COMMAND;
+        return sd_r0;
+
     /* Application specific commands (Class 8) */
     case 55:	/* CMD55:  APP_CMD */
         if (sd->rca != rca)

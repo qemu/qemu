@@ -67,7 +67,6 @@ typedef struct CPUS390XState {
 
     PSW psw;
 
-    uint32_t cc;
     uint32_t cc_op;
     uint64_t cc_src;
     uint64_t cc_dst;
@@ -87,9 +86,12 @@ typedef struct CPUS390XState {
     int pending_int;
     ExtQueue ext_queue[MAX_EXT_QUEUE];
 
+    int ext_index;
+
+    CPU_COMMON
+
     /* reset does memset(0) up to here */
 
-    int ext_index;
     int cpu_num;
     uint8_t *storage_keys;
 
@@ -98,8 +100,6 @@ typedef struct CPUS390XState {
     QEMUTimer *tod_timer;
 
     QEMUTimer *cpu_timer;
-
-    CPU_COMMON
 } CPUS390XState;
 
 #if defined(CONFIG_USER_ONLY)
@@ -287,11 +287,31 @@ int cpu_s390x_handle_mmu_fault (CPUS390XState *env, target_ulong address, int rw
 #ifndef CONFIG_USER_ONLY
 int s390_virtio_hypercall(CPUState *env, uint64_t mem, uint64_t hypercall);
 
+#ifdef CONFIG_KVM
 void kvm_s390_interrupt(CPUState *env, int type, uint32_t code);
 void kvm_s390_virtio_irq(CPUState *env, int config_change, uint64_t token);
 void kvm_s390_interrupt_internal(CPUState *env, int type, uint32_t parm,
                                  uint64_t parm64, int vm);
+#else
+static inline void kvm_s390_interrupt(CPUState *env, int type, uint32_t code)
+{
+}
+
+static inline void kvm_s390_virtio_irq(CPUState *env, int config_change,
+                                       uint64_t token)
+{
+}
+
+static inline void kvm_s390_interrupt_internal(CPUState *env, int type,
+                                               uint32_t parm, uint64_t parm64,
+                                               int vm)
+{
+}
+#endif
 CPUState *s390_cpu_addr2state(uint16_t cpu_addr);
+
+/* from s390-virtio-bus */
+extern const target_phys_addr_t virtio_size;
 
 #ifndef KVM_S390_SIGP_STOP
 #define KVM_S390_SIGP_STOP              0

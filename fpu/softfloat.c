@@ -341,7 +341,10 @@ static float32 roundAndPackFloat32( flag zSign, int16 zExp, uint32_t zSig STATUS
             return packFloat32( zSign, 0xFF, - ( roundIncrement == 0 ));
         }
         if ( zExp < 0 ) {
-            if ( STATUS(flush_to_zero) ) return packFloat32( zSign, 0, 0 );
+            if (STATUS(flush_to_zero)) {
+                float_raise(float_flag_output_denormal STATUS_VAR);
+                return packFloat32(zSign, 0, 0);
+            }
             isTiny =
                    ( STATUS(float_detect_tininess) == float_tininess_before_rounding )
                 || ( zExp < -1 )
@@ -520,7 +523,10 @@ static float64 roundAndPackFloat64( flag zSign, int16 zExp, uint64_t zSig STATUS
             return packFloat64( zSign, 0x7FF, - ( roundIncrement == 0 ));
         }
         if ( zExp < 0 ) {
-            if ( STATUS(flush_to_zero) ) return packFloat64( zSign, 0, 0 );
+            if (STATUS(flush_to_zero)) {
+                float_raise(float_flag_output_denormal STATUS_VAR);
+                return packFloat64(zSign, 0, 0);
+            }
             isTiny =
                    ( STATUS(float_detect_tininess) == float_tininess_before_rounding )
                 || ( zExp < -1 )
@@ -699,7 +705,10 @@ static floatx80
             goto overflow;
         }
         if ( zExp <= 0 ) {
-            if ( STATUS(flush_to_zero) ) return packFloatx80( zSign, 0, 0 );
+            if (STATUS(flush_to_zero)) {
+                float_raise(float_flag_output_denormal STATUS_VAR);
+                return packFloatx80(zSign, 0, 0);
+            }
             isTiny =
                    ( STATUS(float_detect_tininess) == float_tininess_before_rounding )
                 || ( zExp < 0 )
@@ -1030,7 +1039,10 @@ static float128
             return packFloat128( zSign, 0x7FFF, 0, 0 );
         }
         if ( zExp < 0 ) {
-            if ( STATUS(flush_to_zero) ) return packFloat128( zSign, 0, 0, 0 );
+            if (STATUS(flush_to_zero)) {
+                float_raise(float_flag_output_denormal STATUS_VAR);
+                return packFloat128(zSign, 0, 0, 0);
+            }
             isTiny =
                    ( STATUS(float_detect_tininess) == float_tininess_before_rounding )
                 || ( zExp < -1 )
@@ -1761,7 +1773,12 @@ static float32 addFloat32Sigs( float32 a, float32 b, flag zSign STATUS_PARAM)
             return a;
         }
         if ( aExp == 0 ) {
-            if ( STATUS(flush_to_zero) ) return packFloat32( zSign, 0, 0 );
+            if (STATUS(flush_to_zero)) {
+                if (aSig | bSig) {
+                    float_raise(float_flag_output_denormal STATUS_VAR);
+                }
+                return packFloat32(zSign, 0, 0);
+            }
             return packFloat32( zSign, 0, ( aSig + bSig )>>6 );
         }
         zSig = 0x40000000 + aSig + bSig;
@@ -3120,7 +3137,12 @@ static float64 addFloat64Sigs( float64 a, float64 b, flag zSign STATUS_PARAM )
             return a;
         }
         if ( aExp == 0 ) {
-            if ( STATUS(flush_to_zero) ) return packFloat64( zSign, 0, 0 );
+            if (STATUS(flush_to_zero)) {
+                if (aSig | bSig) {
+                    float_raise(float_flag_output_denormal STATUS_VAR);
+                }
+                return packFloat64(zSign, 0, 0);
+            }
             return packFloat64( zSign, 0, ( aSig + bSig )>>9 );
         }
         zSig = LIT64( 0x4000000000000000 ) + aSig + bSig;
@@ -5282,7 +5304,12 @@ static float128 addFloat128Sigs( float128 a, float128 b, flag zSign STATUS_PARAM
         }
         add128( aSig0, aSig1, bSig0, bSig1, &zSig0, &zSig1 );
         if ( aExp == 0 ) {
-            if ( STATUS(flush_to_zero) ) return packFloat128( zSign, 0, 0, 0 );
+            if (STATUS(flush_to_zero)) {
+                if (zSig0 | zSig1) {
+                    float_raise(float_flag_output_denormal STATUS_VAR);
+                }
+                return packFloat128(zSign, 0, 0, 0);
+            }
             return packFloat128( zSign, 0, zSig0, zSig1 );
         }
         zSig2 = 0;

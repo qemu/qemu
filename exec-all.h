@@ -43,7 +43,11 @@ typedef ram_addr_t tb_page_addr_t;
 typedef struct TranslationBlock TranslationBlock;
 
 /* XXX: make safe guess about sizes */
+#if (HOST_LONG_BITS == 32) && (TARGET_LONG_BITS == 64)
+#define MAX_OP_PER_INSTR 128
+#else
 #define MAX_OP_PER_INSTR 96
+#endif
 
 #if HOST_LONG_BITS == 32
 #define MAX_OPC_PARAM_PER_ARG 2

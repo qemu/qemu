@@ -21,8 +21,6 @@
 
 DECLARE_QEMU_ENV(CPUARMState);
 
-#define M0   env->iwmmxt.val
-
 #include "cpu.h"
 #include "exec-all.h"
 
