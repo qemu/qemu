@@ -136,11 +136,54 @@ static int64_t raw_getlength(BlockDriverState *bs);
 static int cdrom_reopen(BlockDriverState *bs);
 #endif
 
+#if defined(__NetBSD__)
+static int raw_normalize_devicepath(const char **filename)
+{
+    static char namebuf[PATH_MAX];
+    const char *dp, *fname;
+    struct stat sb;
+
+    fname = *filename;
+    dp = strrchr(fname, '/');
+    if (lstat(fname, &sb) < 0) {
+        fprintf(stderr, "%s: stat failed: %s\n",
+            fname, strerror(errno));
+        return -errno;
+    }
+
+    if (!S_ISBLK(sb.st_mode)) {
+        return 0;
+    }
+
+    if (dp == NULL) {
+        snprintf(namebuf, PATH_MAX, "r%s", fname);
+    } else {
+        snprintf(namebuf, PATH_MAX, "%.*s/r%s",
+            (int)(dp - fname), fname, dp + 1);
+    }
+    fprintf(stderr, "%s is a block device", fname);
+    *filename = namebuf;
+    fprintf(stderr, ", using %s\n", *filename);
+
+    return 0;
+}
+#else
+static int raw_normalize_devicepath(const char **filename)
+{
+    return 0;
+}
+#endif
+
 static int raw_open_common(BlockDriverState *bs, const char *filename,
                            int bdrv_flags, int open_flags)
 {
     BDRVRawState *s = bs->opaque;
     int fd, ret;
+
+    ret = raw_normalize_devicepath(&filename);
+    if (ret != 0) {
+        return ret;
+    }
 
     s->open_flags = open_flags | O_BINARY;
     s->open_flags &= ~O_ACCMODE;
