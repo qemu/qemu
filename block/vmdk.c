@@ -716,11 +716,11 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
         return -errno;
     magic = cpu_to_be32(VMDK4_MAGIC);
     memset(&header, 0, sizeof(header));
-    header.version = cpu_to_le32(1);
-    header.flags = cpu_to_le32(3); /* ?? */
-    header.capacity = cpu_to_le64(total_size);
-    header.granularity = cpu_to_le64(128);
-    header.num_gtes_per_gte = cpu_to_le32(512);
+    header.version = 1;
+    header.flags = 3; /* ?? */
+    header.capacity = total_size;
+    header.granularity = 128;
+    header.num_gtes_per_gte = 512;
 
     grains = (total_size + header.granularity - 1) / header.granularity;
     gt_size = ((header.num_gtes_per_gte * sizeof(uint32_t)) + 511) >> 9;
@@ -736,6 +736,12 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
          header.granularity - 1) / header.granularity) *
         header.granularity;
 
+    /* swap endianness for all header fields */
+    header.version = cpu_to_le32(header.version);
+    header.flags = cpu_to_le32(header.flags);
+    header.capacity = cpu_to_le64(header.capacity);
+    header.granularity = cpu_to_le64(header.granularity);
+    header.num_gtes_per_gte = cpu_to_le32(header.num_gtes_per_gte);
     header.desc_offset = cpu_to_le64(header.desc_offset);
     header.desc_size = cpu_to_le64(header.desc_size);
     header.rgd_offset = cpu_to_le64(header.rgd_offset);
@@ -759,7 +765,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
         goto exit;
     }
 
-    ret = ftruncate(fd, header.grain_offset << 9);
+    ret = ftruncate(fd, le64_to_cpu(header.grain_offset) << 9);
     if (ret < 0) {
         ret = -errno;
         goto exit;
@@ -767,7 +773,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
 
     /* write grain directory */
     lseek(fd, le64_to_cpu(header.rgd_offset) << 9, SEEK_SET);
-    for (i = 0, tmp = header.rgd_offset + gd_size;
+    for (i = 0, tmp = le64_to_cpu(header.rgd_offset) + gd_size;
          i < gt_count; i++, tmp += gt_size) {
         ret = qemu_write_full(fd, &tmp, sizeof(tmp));
         if (ret != sizeof(tmp)) {
@@ -778,7 +784,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
 
     /* write backup grain directory */
     lseek(fd, le64_to_cpu(header.gd_offset) << 9, SEEK_SET);
-    for (i = 0, tmp = header.gd_offset + gd_size;
+    for (i = 0, tmp = le64_to_cpu(header.gd_offset) + gd_size;
          i < gt_count; i++, tmp += gt_size) {
         ret = qemu_write_full(fd, &tmp, sizeof(tmp));
         if (ret != sizeof(tmp)) {
