@@ -91,6 +91,7 @@ static void scsi_command_complete(void *opaque, int ret)
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;
     SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, r->req.dev);
 
+    r->req.aiocb = NULL;
     s->driver_status = r->io_header.driver_status;
     if (s->driver_status & SG_ERR_DRIVER_SENSE)
         s->senselen = r->io_header.sb_len_wr;
@@ -163,6 +164,7 @@ static void scsi_read_complete(void * opaque, int ret)
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;
     int len;
 
+    r->req.aiocb = NULL;
     if (ret) {
         DPRINTF("IO error ret %d\n", ret);
         scsi_command_complete(r, ret);
@@ -229,6 +231,7 @@ static void scsi_write_complete(void * opaque, int ret)
     SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, r->req.dev);
 
     DPRINTF("scsi_write_complete() ret = %d\n", ret);
+    r->req.aiocb = NULL;
     if (ret) {
         DPRINTF("IO error\n");
         scsi_command_complete(r, ret);
