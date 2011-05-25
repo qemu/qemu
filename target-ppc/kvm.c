@@ -45,9 +45,7 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
 static int cap_interrupt_unset = false;
 static int cap_interrupt_level = false;
 static int cap_segstate;
-#ifdef KVM_CAP_PPC_BOOKE_SREGS
 static int cap_booke_sregs;
-#endif
 
 /* XXX We have a race condition where we actually have a level triggered
  *     interrupt, but the infrastructure can't expose that yet, so the guest
@@ -222,13 +220,13 @@ int kvm_arch_get_registers(CPUState *env)
     for (i = 0;i < 32; i++)
         env->gpr[i] = regs.gpr[i];
 
-#ifdef KVM_CAP_PPC_BOOKE_SREGS
     if (cap_booke_sregs) {
         ret = kvm_vcpu_ioctl(env, KVM_GET_SREGS, &sregs);
         if (ret < 0) {
             return ret;
         }
 
+#ifdef KVM_CAP_PPC_BOOKE_SREGS
         if (sregs.u.e.features & KVM_SREGS_E_BASE) {
             env->spr[SPR_BOOKE_CSRR0] = sregs.u.e.csrr0;
             env->spr[SPR_BOOKE_CSRR1] = sregs.u.e.csrr1;
@@ -325,16 +323,16 @@ int kvm_arch_get_registers(CPUState *env)
                 env->spr[SPR_BOOKE_PID2] = sregs.u.e.impl.fsl.pid2;
             }
         }
-    }
 #endif
+    }
 
-#ifdef KVM_CAP_PPC_SEGSTATE
     if (cap_segstate) {
         ret = kvm_vcpu_ioctl(env, KVM_GET_SREGS, &sregs);
         if (ret < 0) {
             return ret;
         }
 
+#ifdef KVM_CAP_PPC_SEGSTATE
         ppc_store_sdr1(env, sregs.u.s.sdr1);
 
         /* Sync SLB */
@@ -357,8 +355,8 @@ int kvm_arch_get_registers(CPUState *env)
             env->IBAT[0][i] = sregs.u.s.ppc32.ibat[i] & 0xffffffff;
             env->IBAT[1][i] = sregs.u.s.ppc32.ibat[i] >> 32;
         }
-    }
 #endif
+    }
 
     return 0;
 }
