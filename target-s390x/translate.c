@@ -2393,6 +2393,7 @@ static void disas_a5(DisasContext *s, int op, int r1, int i2)
         tcg_gen_trunc_i64_i32(tmp32, tmp2);
         tcg_gen_andi_i32(tmp32, tmp32, 0xffff);
         set_cc_nz_u32(s, tmp32);
+        tcg_temp_free_i64(tmp);
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i32(tmp32);
         break;
