@@ -79,11 +79,6 @@ static int pci_ich9_ahci_init(PCIDevice *dev)
 
     ahci_init(&d->ahci, &dev->qdev, 6);
 
-    pci_config_set_vendor_id(d->card.config, PCI_VENDOR_ID_INTEL);
-    pci_config_set_device_id(d->card.config, PCI_DEVICE_ID_INTEL_82801IR);
-
-    pci_config_set_class(d->card.config, PCI_CLASS_STORAGE_SATA);
-    pci_config_set_revision(d->card.config, 0x02);
     pci_config_set_prog_interface(d->card.config, AHCI_PROGMODE_MAJOR_REV_1);
 
     d->card.config[PCI_CACHE_LINE_SIZE] = 0x08;  /* Cache line size */
@@ -131,6 +126,10 @@ static PCIDeviceInfo ich_ahci_info[] = {
         .init         = pci_ich9_ahci_init,
         .exit         = pci_ich9_uninit,
         .config_write = pci_ich9_write_config,
+        .vendor_id    = PCI_VENDOR_ID_INTEL,
+        .device_id    = PCI_DEVICE_ID_INTEL_82801IR,
+        .revision     = 0x02,
+        .class_id     = PCI_CLASS_STORAGE_SATA,
     },{
         /* end of list */
     }
