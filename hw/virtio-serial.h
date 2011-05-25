@@ -124,9 +124,6 @@ struct VirtIOSerialPort {
      */
     QEMUBH *bh;
 
-    /* For property backward compatibility, not used otherwise */
-    uint8_t is_console_dummy;
-
     /* Is the corresponding guest device open? */
     bool guest_connected;
     /* Is this device open for IO on the host? */
