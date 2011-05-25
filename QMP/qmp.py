@@ -43,7 +43,7 @@ class QEMUMonitorProtocol:
             family = socket.AF_UNIX
         return socket.socket(family, socket.SOCK_STREAM)
 
-    def __json_read(self):
+    def __json_read(self, only_event=False):
         while True:
             data = self.__sockfile.readline()
             if not data:
@@ -51,7 +51,8 @@ class QEMUMonitorProtocol:
             resp = json.loads(data)
             if 'event' in resp:
                 self.__events.append(resp)
-                continue
+                if not only_event:
+                    continue
             return resp
 
     error = socket.error
@@ -106,9 +107,11 @@ class QEMUMonitorProtocol:
             qmp_cmd['id'] = id
         return self.cmd_obj(qmp_cmd)
 
-    def get_events(self):
+    def get_events(self, wait=False):
         """
         Get a list of available QMP events.
+
+        @param wait: block until an event is available (bool)
         """
         self.__sock.setblocking(0)
         try:
@@ -118,6 +121,8 @@ class QEMUMonitorProtocol:
                 # No data available
                 pass
         self.__sock.setblocking(1)
+        if not self.__events and wait:
+            self.__json_read(only_event=True)
         return self.__events
 
     def clear_events(self):
