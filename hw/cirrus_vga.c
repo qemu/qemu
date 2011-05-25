@@ -3097,8 +3097,8 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
 {
      PCICirrusVGAState *d = DO_UPCAST(PCICirrusVGAState, dev, dev);
      CirrusVGAState *s = &d->cirrus_vga;
-     uint8_t *pci_conf = d->dev.config;
-     int device_id = CIRRUS_ID_CLGD5446;
+     PCIDeviceInfo *info = DO_UPCAST(PCIDeviceInfo, qdev, dev->qdev.info);
+     int16_t device_id = info->device_id;
 
      /* setup VGA */
      vga_common_init(&s->vga, VGA_RAM_SIZE);
@@ -3108,9 +3108,6 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
                                       &s->vga);
 
      /* setup PCI */
-     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_CIRRUS);
-     pci_config_set_device_id(pci_conf, device_id);
-     pci_config_set_class(pci_conf, PCI_CLASS_DISPLAY_VGA);
 
      /* setup memory space */
      /* memory #0 LFB */
@@ -3139,6 +3136,9 @@ static PCIDeviceInfo cirrus_vga_info = {
     .init         = pci_cirrus_vga_initfn,
     .romfile      = VGABIOS_CIRRUS_FILENAME,
     .config_write = pci_cirrus_write_config,
+    .vendor_id    = PCI_VENDOR_ID_CIRRUS,
+    .device_id    = CIRRUS_ID_CLGD5446,
+    .class_id     = PCI_CLASS_DISPLAY_VGA,
 };
 
 static void cirrus_vga_register(void)
