@@ -909,10 +909,13 @@ static TCGv_ptr get_fpstatus_ptr(int neon)
 #define VFP_OP2(name)                                                 \
 static inline void gen_vfp_##name(int dp)                             \
 {                                                                     \
-    if (dp)                                                           \
-        gen_helper_vfp_##name##d(cpu_F0d, cpu_F0d, cpu_F1d, cpu_env); \
-    else                                                              \
-        gen_helper_vfp_##name##s(cpu_F0s, cpu_F0s, cpu_F1s, cpu_env); \
+    TCGv_ptr fpst = get_fpstatus_ptr(0);                              \
+    if (dp) {                                                         \
+        gen_helper_vfp_##name##d(cpu_F0d, cpu_F0d, cpu_F1d, fpst);    \
+    } else {                                                          \
+        gen_helper_vfp_##name##s(cpu_F0s, cpu_F0s, cpu_F1s, fpst);    \
+    }                                                                 \
+    tcg_temp_free_ptr(fpst);                                          \
 }
 
 VFP_OP2(add)
@@ -925,11 +928,13 @@ VFP_OP2(div)
 static inline void gen_vfp_F1_mul(int dp)
 {
     /* Like gen_vfp_mul() but put result in F1 */
+    TCGv_ptr fpst = get_fpstatus_ptr(0);
     if (dp) {
-        gen_helper_vfp_muld(cpu_F1d, cpu_F0d, cpu_F1d, cpu_env);
+        gen_helper_vfp_muld(cpu_F1d, cpu_F0d, cpu_F1d, fpst);
     } else {
-        gen_helper_vfp_muls(cpu_F1s, cpu_F0s, cpu_F1s, cpu_env);
+        gen_helper_vfp_muls(cpu_F1s, cpu_F0s, cpu_F1s, fpst);
     }
+    tcg_temp_free_ptr(fpst);
 }
 
 static inline void gen_vfp_F1_neg(int dp)

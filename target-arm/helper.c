@@ -2453,13 +2453,15 @@ void vfp_set_fpscr(CPUState *env, uint32_t val)
 #define VFP_HELPER(name, p) HELPER(glue(glue(vfp_,name),p))
 
 #define VFP_BINOP(name) \
-float32 VFP_HELPER(name, s)(float32 a, float32 b, CPUState *env) \
+float32 VFP_HELPER(name, s)(float32 a, float32 b, void *fpstp) \
 { \
-    return float32_ ## name (a, b, &env->vfp.fp_status); \
+    float_status *fpst = fpstp; \
+    return float32_ ## name(a, b, fpst); \
 } \
-float64 VFP_HELPER(name, d)(float64 a, float64 b, CPUState *env) \
+float64 VFP_HELPER(name, d)(float64 a, float64 b, void *fpstp) \
 { \
-    return float64_ ## name (a, b, &env->vfp.fp_status); \
+    float_status *fpst = fpstp; \
+    return float64_ ## name(a, b, fpst); \
 }
 VFP_BINOP(add)
 VFP_BINOP(sub)
