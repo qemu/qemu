@@ -471,11 +471,13 @@ static void pciej_write(void *opaque, uint32_t addr, uint32_t val)
     BusState *bus = opaque;
     DeviceState *qdev, *next;
     PCIDevice *dev;
+    PCIDeviceInfo *info;
     int slot = ffs(val) - 1;
 
     QLIST_FOREACH_SAFE(qdev, &bus->children, sibling, next) {
         dev = DO_UPCAST(PCIDevice, qdev, qdev);
-        if (PCI_SLOT(dev->devfn) == slot) {
+        info = container_of(qdev->info, PCIDeviceInfo, qdev);
+        if (PCI_SLOT(dev->devfn) == slot && !info->no_hotplug) {
             qdev_free(qdev);
         }
     }
