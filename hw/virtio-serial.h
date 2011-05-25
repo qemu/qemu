@@ -124,8 +124,8 @@ struct VirtIOSerialPort {
      */
     QEMUBH *bh;
 
-    /* Identify if this is a port that binds with hvc in the guest */
-    uint8_t is_console;
+    /* For property backward compatibility, not used otherwise */
+    uint8_t is_console_dummy;
 
     /* Is the corresponding guest device open? */
     bool guest_connected;
@@ -137,6 +137,10 @@ struct VirtIOSerialPort {
 
 struct VirtIOSerialPortInfo {
     DeviceInfo qdev;
+
+    /* Is this a device that binds with hvc in the guest? */
+    bool is_console;
+
     /*
      * The per-port (or per-app) init function that's called when a
      * new device is found on the bus.

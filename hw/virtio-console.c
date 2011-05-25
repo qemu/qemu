@@ -91,7 +91,7 @@ static int virtconsole_initfn(VirtIOSerialPort *port)
 {
     VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
 
-    port->is_console = true;
+    port->is_console_dummy = true;
     return generic_port_init(vcon, port);
 }
 
@@ -113,10 +113,11 @@ static int virtconsole_exitfn(VirtIOSerialPort *port)
 static VirtIOSerialPortInfo virtconsole_info = {
     .qdev.name     = "virtconsole",
     .qdev.size     = sizeof(VirtConsole),
+    .is_console    = true,
     .init          = virtconsole_initfn,
     .exit          = virtconsole_exitfn,
     .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT8("is_console", VirtConsole, port.is_console, 1),
+        DEFINE_PROP_UINT8("is_console", VirtConsole, port.is_console_dummy, 1),
         DEFINE_PROP_UINT32("nr", VirtConsole, port.id, VIRTIO_CONSOLE_BAD_ID),
         DEFINE_PROP_CHR("chardev", VirtConsole, chr),
         DEFINE_PROP_STRING("name", VirtConsole, port.name),

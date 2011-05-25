@@ -356,7 +356,7 @@ static void handle_control_message(VirtIOSerial *vser, void *buf, size_t len)
          * this port is a console port so that the guest can hook it
          * up to hvc.
          */
-        if (port->is_console) {
+        if (port->info->is_console) {
             send_control_event(port, VIRTIO_CONSOLE_CONSOLE_PORT, 1);
         }
 
@@ -729,7 +729,7 @@ static int virtser_port_qdev_init(DeviceState *qdev, DeviceInfo *base)
      * location 0. This is done for backward compatibility (old
      * kernel, new qemu).
      */
-    plugging_port0 = port->is_console && !find_port_by_id(port->vser, 0);
+    plugging_port0 = info->is_console && !find_port_by_id(port->vser, 0);
 
     if (find_port_by_id(port->vser, port->id)) {
         error_report("virtio-serial-bus: A port already exists at id %u\n",
