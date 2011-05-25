@@ -1095,6 +1095,7 @@ static void gen_jcc(DisasContext *s, uint32_t mask, int skip)
             tcg_gen_brcondi_i64(TCG_COND_EQ, tmp64, 0, skip);
             break;
         default:
+            tcg_temp_free_i64(tmp64);
             goto do_dynamic;
         }
         tcg_temp_free_i64(tmp64);
