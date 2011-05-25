@@ -18,8 +18,6 @@
 
 #define SET_QC() env->vfp.xregs[ARM_VFP_FPSCR] = CPSR_Q
 
-#define NFS (&env->vfp.standard_fp_status)
-
 #define NEON_TYPE1(name, type) \
 typedef struct \
 { \
@@ -1770,69 +1768,62 @@ uint32_t HELPER(neon_qneg_s32)(uint32_t x)
 }
 
 /* NEON Float helpers.  */
-uint32_t HELPER(neon_min_f32)(uint32_t a, uint32_t b)
+uint32_t HELPER(neon_min_f32)(uint32_t a, uint32_t b, void *fpstp)
 {
-    return float32_val(float32_min(make_float32(a), make_float32(b), NFS));
+    float_status *fpst = fpstp;
+    return float32_val(float32_min(make_float32(a), make_float32(b), fpst));
 }
 
-uint32_t HELPER(neon_max_f32)(uint32_t a, uint32_t b)
+uint32_t HELPER(neon_max_f32)(uint32_t a, uint32_t b, void *fpstp)
 {
-    return float32_val(float32_max(make_float32(a), make_float32(b), NFS));
+    float_status *fpst = fpstp;
+    return float32_val(float32_max(make_float32(a), make_float32(b), fpst));
 }
 
-uint32_t HELPER(neon_abd_f32)(uint32_t a, uint32_t b)
+uint32_t HELPER(neon_abd_f32)(uint32_t a, uint32_t b, void *fpstp)
 {
+    float_status *fpst = fpstp;
     float32 f0 = make_float32(a);
     float32 f1 = make_float32(b);
-    return float32_val(float32_abs(float32_sub(f0, f1, NFS)));
-}
-
-uint32_t HELPER(neon_add_f32)(uint32_t a, uint32_t b)
-{
-    return float32_val(float32_add(make_float32(a), make_float32(b), NFS));
-}
-
-uint32_t HELPER(neon_sub_f32)(uint32_t a, uint32_t b)
-{
-    return float32_val(float32_sub(make_float32(a), make_float32(b), NFS));
-}
-
-uint32_t HELPER(neon_mul_f32)(uint32_t a, uint32_t b)
-{
-    return float32_val(float32_mul(make_float32(a), make_float32(b), NFS));
+    return float32_val(float32_abs(float32_sub(f0, f1, fpst)));
 }
 
 /* Floating point comparisons produce an integer result.
  * Note that EQ doesn't signal InvalidOp for QNaNs but GE and GT do.
  * Softfloat routines return 0/1, which we convert to the 0/-1 Neon requires.
  */
-uint32_t HELPER(neon_ceq_f32)(uint32_t a, uint32_t b)
+uint32_t HELPER(neon_ceq_f32)(uint32_t a, uint32_t b, void *fpstp)
 {
-    return -float32_eq_quiet(make_float32(a), make_float32(b), NFS);
+    float_status *fpst = fpstp;
+    return -float32_eq_quiet(make_float32(a), make_float32(b), fpst);
 }
 
-uint32_t HELPER(neon_cge_f32)(uint32_t a, uint32_t b)
+uint32_t HELPER(neon_cge_f32)(uint32_t a, uint32_t b, void *fpstp)
 {
-    return -float32_le(make_float32(b), make_float32(a), NFS);
+    float_status *fpst = fpstp;
+    return -float32_le(make_float32(b), make_float32(a), fpst);
 }
 
-uint32_t HELPER(neon_cgt_f32)(uint32_t a, uint32_t b)
+uint32_t HELPER(neon_cgt_f32)(uint32_t a, uint32_t b, void *fpstp)
 {
-    return -float32_lt(make_float32(b), make_float32(a), NFS);
+    float_status *fpst = fpstp;
+    return -float32_lt(make_float32(b), make_float32(a), fpst);
 }
 
-uint32_t HELPER(neon_acge_f32)(uint32_t a, uint32_t b)
+uint32_t HELPER(neon_acge_f32)(uint32_t a, uint32_t b, void *fpstp)
 {
+    float_status *fpst = fpstp;
     float32 f0 = float32_abs(make_float32(a));
     float32 f1 = float32_abs(make_float32(b));
-    return -float32_le(f1, f0, NFS);
+    return -float32_le(f1, f0, fpst);
 }
 
-uint32_t HELPER(neon_acgt_f32)(uint32_t a, uint32_t b)
+uint32_t HELPER(neon_acgt_f32)(uint32_t a, uint32_t b, void *fpstp)
 {
+    float_status *fpst = fpstp;
     float32 f0 = float32_abs(make_float32(a));
     float32 f1 = float32_abs(make_float32(b));
-    return -float32_lt(f1, f0, NFS);
+    return -float32_lt(f1, f0, fpst);
 }
 
 #define ELEM(V, N, SIZE) (((V) >> ((N) * (SIZE))) & ((1ull << (SIZE)) - 1))

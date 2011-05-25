@@ -4857,57 +4857,78 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
             }
             break;
         case NEON_3R_FLOAT_ARITH: /* Floating point arithmetic. */
+        {
+            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
             switch ((u << 2) | size) {
             case 0: /* VADD */
-                gen_helper_neon_add_f32(tmp, tmp, tmp2);
+            case 4: /* VPADD */
+                gen_helper_vfp_adds(tmp, tmp, tmp2, fpstatus);
                 break;
             case 2: /* VSUB */
-                gen_helper_neon_sub_f32(tmp, tmp, tmp2);
-                break;
-            case 4: /* VPADD */
-                gen_helper_neon_add_f32(tmp, tmp, tmp2);
+                gen_helper_vfp_subs(tmp, tmp, tmp2, fpstatus);
                 break;
             case 6: /* VABD */
-                gen_helper_neon_abd_f32(tmp, tmp, tmp2);
+                gen_helper_neon_abd_f32(tmp, tmp, tmp2, fpstatus);
                 break;
             default:
                 abort();
             }
+            tcg_temp_free_ptr(fpstatus);
             break;
+        }
         case NEON_3R_FLOAT_MULTIPLY:
-            gen_helper_neon_mul_f32(tmp, tmp, tmp2);
+        {
+            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+            gen_helper_vfp_muls(tmp, tmp, tmp2, fpstatus);
             if (!u) {
                 tcg_temp_free_i32(tmp2);
                 tmp2 = neon_load_reg(rd, pass);
                 if (size == 0) {
-                    gen_helper_neon_add_f32(tmp, tmp, tmp2);
+                    gen_helper_vfp_adds(tmp, tmp, tmp2, fpstatus);
                 } else {
-                    gen_helper_neon_sub_f32(tmp, tmp2, tmp);
+                    gen_helper_vfp_subs(tmp, tmp2, tmp, fpstatus);
                 }
             }
+            tcg_temp_free_ptr(fpstatus);
             break;
+        }
         case NEON_3R_FLOAT_CMP:
+        {
+            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
             if (!u) {
-                gen_helper_neon_ceq_f32(tmp, tmp, tmp2);
+                gen_helper_neon_ceq_f32(tmp, tmp, tmp2, fpstatus);
             } else {
-                if (size == 0)
-                    gen_helper_neon_cge_f32(tmp, tmp, tmp2);
-                else
-                    gen_helper_neon_cgt_f32(tmp, tmp, tmp2);
+                if (size == 0) {
+                    gen_helper_neon_cge_f32(tmp, tmp, tmp2, fpstatus);
+                } else {
+                    gen_helper_neon_cgt_f32(tmp, tmp, tmp2, fpstatus);
+                }
             }
+            tcg_temp_free_ptr(fpstatus);
             break;
+        }
         case NEON_3R_FLOAT_ACMP:
-            if (size == 0)
-                gen_helper_neon_acge_f32(tmp, tmp, tmp2);
-            else
-                gen_helper_neon_acgt_f32(tmp, tmp, tmp2);
+        {
+            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+            if (size == 0) {
+                gen_helper_neon_acge_f32(tmp, tmp, tmp2, fpstatus);
+            } else {
+                gen_helper_neon_acgt_f32(tmp, tmp, tmp2, fpstatus);
+            }
+            tcg_temp_free_ptr(fpstatus);
             break;
+        }
         case NEON_3R_FLOAT_MINMAX:
-            if (size == 0)
-                gen_helper_neon_max_f32(tmp, tmp, tmp2);
-            else
-                gen_helper_neon_min_f32(tmp, tmp, tmp2);
+        {
+            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+            if (size == 0) {
+                gen_helper_neon_max_f32(tmp, tmp, tmp2, fpstatus);
+            } else {
+                gen_helper_neon_min_f32(tmp, tmp, tmp2, fpstatus);
+            }
+            tcg_temp_free_ptr(fpstatus);
             break;
+        }
         case NEON_3R_VRECPS_VRSQRTS:
             if (size == 0)
                 gen_helper_recps_f32(tmp, tmp, tmp2, cpu_env);
@@ -5606,7 +5627,9 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                                 gen_helper_neon_qrdmulh_s32(tmp, tmp, tmp2);
                             }
                         } else if (op & 1) {
-                            gen_helper_neon_mul_f32(tmp, tmp, tmp2);
+                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+                            gen_helper_vfp_muls(tmp, tmp, tmp2, fpstatus);
+                            tcg_temp_free_ptr(fpstatus);
                         } else {
                             switch (size) {
                             case 0: gen_helper_neon_mul_u8(tmp, tmp, tmp2); break;
@@ -5624,14 +5647,22 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                                 gen_neon_add(size, tmp, tmp2);
                                 break;
                             case 1:
-                                gen_helper_neon_add_f32(tmp, tmp, tmp2);
+                            {
+                                TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+                                gen_helper_vfp_adds(tmp, tmp, tmp2, fpstatus);
+                                tcg_temp_free_ptr(fpstatus);
                                 break;
+                            }
                             case 4:
                                 gen_neon_rsb(size, tmp, tmp2);
                                 break;
                             case 5:
-                                gen_helper_neon_sub_f32(tmp, tmp2, tmp);
+                            {
+                                TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+                                gen_helper_vfp_subs(tmp, tmp2, tmp, fpstatus);
+                                tcg_temp_free_ptr(fpstatus);
                                 break;
+                            }
                             default:
                                 abort();
                             }
@@ -6029,30 +6060,50 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             tcg_temp_free(tmp2);
                             break;
                         case NEON_2RM_VCGT0_F:
+                        {
+                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
                             tmp2 = tcg_const_i32(0);
-                            gen_helper_neon_cgt_f32(tmp, tmp, tmp2);
+                            gen_helper_neon_cgt_f32(tmp, tmp, tmp2, fpstatus);
                             tcg_temp_free(tmp2);
+                            tcg_temp_free_ptr(fpstatus);
                             break;
+                        }
                         case NEON_2RM_VCGE0_F:
+                        {
+                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
                             tmp2 = tcg_const_i32(0);
-                            gen_helper_neon_cge_f32(tmp, tmp, tmp2);
+                            gen_helper_neon_cge_f32(tmp, tmp, tmp2, fpstatus);
                             tcg_temp_free(tmp2);
+                            tcg_temp_free_ptr(fpstatus);
                             break;
+                        }
                         case NEON_2RM_VCEQ0_F:
+                        {
+                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
                             tmp2 = tcg_const_i32(0);
-                            gen_helper_neon_ceq_f32(tmp, tmp, tmp2);
+                            gen_helper_neon_ceq_f32(tmp, tmp, tmp2, fpstatus);
                             tcg_temp_free(tmp2);
+                            tcg_temp_free_ptr(fpstatus);
                             break;
+                        }
                         case NEON_2RM_VCLE0_F:
+                        {
+                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
                             tmp2 = tcg_const_i32(0);
-                            gen_helper_neon_cge_f32(tmp, tmp2, tmp);
+                            gen_helper_neon_cge_f32(tmp, tmp2, tmp, fpstatus);
                             tcg_temp_free(tmp2);
+                            tcg_temp_free_ptr(fpstatus);
                             break;
+                        }
                         case NEON_2RM_VCLT0_F:
+                        {
+                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
                             tmp2 = tcg_const_i32(0);
-                            gen_helper_neon_cgt_f32(tmp, tmp2, tmp);
+                            gen_helper_neon_cgt_f32(tmp, tmp2, tmp, fpstatus);
                             tcg_temp_free(tmp2);
+                            tcg_temp_free_ptr(fpstatus);
                             break;
+                        }
                         case NEON_2RM_VABS_F:
                             gen_vfp_abs(0);
                             break;
