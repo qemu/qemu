@@ -19,7 +19,7 @@
 
 #include "dyngen-exec.h"
 
-register struct CPULM32State *env asm(AREG0);
+DECLARE_QEMU_ENV(CPULM32State);
 
 #include "cpu.h"
 #include "exec-all.h"

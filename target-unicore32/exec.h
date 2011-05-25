@@ -13,7 +13,7 @@
 #include "config.h"
 #include "dyngen-exec.h"
 
-register struct CPUState_UniCore32 *env asm(AREG0);
+DECLARE_QEMU_ENV(CPUState_UniCore32);
 
 #include "cpu.h"
 #include "exec-all.h"
