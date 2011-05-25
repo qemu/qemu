@@ -129,8 +129,12 @@ static void discard_vq_data(VirtQueue *vq, VirtIODevice *vdev)
 static void do_flush_queued_data(VirtIOSerialPort *port, VirtQueue *vq,
                                  VirtIODevice *vdev)
 {
+    VirtIOSerialPortInfo *info;
+
     assert(port);
     assert(virtio_queue_ready(vq));
+
+    info = DO_UPCAST(VirtIOSerialPortInfo, qdev, port->dev.info);
 
     while (!port->throttled) {
         unsigned int i;
@@ -149,10 +153,10 @@ static void do_flush_queued_data(VirtIOSerialPort *port, VirtQueue *vq,
             ssize_t ret;
 
             buf_size = port->elem.out_sg[i].iov_len - port->iov_offset;
-            ret = port->info->have_data(port,
-                                        port->elem.out_sg[i].iov_base
-                                          + port->iov_offset,
-                                        buf_size);
+            ret = info->have_data(port,
+                                  port->elem.out_sg[i].iov_base
+                                  + port->iov_offset,
+                                  buf_size);
             if (ret < 0 && ret != -EAGAIN) {
                 /* We don't handle any other type of errors here */
                 abort();
@@ -309,6 +313,7 @@ void virtio_serial_throttle_port(VirtIOSerialPort *port, bool throttle)
 static void handle_control_message(VirtIOSerial *vser, void *buf, size_t len)
 {
     struct VirtIOSerialPort *port;
+    struct VirtIOSerialPortInfo *info;
     struct virtio_console_control cpkt, *gcpkt;
     uint8_t *buffer;
     size_t buffer_len;
@@ -326,6 +331,8 @@ static void handle_control_message(VirtIOSerial *vser, void *buf, size_t len)
     port = find_port_by_id(vser, ldl_p(&gcpkt->id));
     if (!port && cpkt.event != VIRTIO_CONSOLE_DEVICE_READY)
         return;
+
+    info = DO_UPCAST(VirtIOSerialPortInfo, qdev, port->dev.info);
 
     switch(cpkt.event) {
     case VIRTIO_CONSOLE_DEVICE_READY:
@@ -356,7 +363,7 @@ static void handle_control_message(VirtIOSerial *vser, void *buf, size_t len)
          * this port is a console port so that the guest can hook it
          * up to hvc.
          */
-        if (port->info->is_console) {
+        if (info->is_console) {
             send_control_event(port, VIRTIO_CONSOLE_CONSOLE_PORT, 1);
         }
 
@@ -385,21 +392,21 @@ static void handle_control_message(VirtIOSerial *vser, void *buf, size_t len)
          * initialised. If some app is interested in knowing about
          * this event, let it know.
          */
-        if (port->info->guest_ready) {
-            port->info->guest_ready(port);
+        if (info->guest_ready) {
+            info->guest_ready(port);
         }
         break;
 
     case VIRTIO_CONSOLE_PORT_OPEN:
         port->guest_connected = cpkt.value;
-        if (cpkt.value && port->info->guest_open) {
+        if (cpkt.value && info->guest_open) {
             /* Send the guest opened notification if an app is interested */
-            port->info->guest_open(port);
+            info->guest_open(port);
         }
 
-        if (!cpkt.value && port->info->guest_close) {
+        if (!cpkt.value && info->guest_close) {
             /* Send the guest closed notification if an app is interested */
-            port->info->guest_close(port);
+            info->guest_close(port);
         }
         break;
     }
@@ -448,11 +455,13 @@ static void handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOSerial *vser;
     VirtIOSerialPort *port;
+    VirtIOSerialPortInfo *info;
 
     vser = DO_UPCAST(VirtIOSerial, vdev, vdev);
     port = find_port_by_vq(vser, vq);
+    info = port ? DO_UPCAST(VirtIOSerialPortInfo, qdev, port->dev.info) : NULL;
 
-    if (!port || !port->host_connected || !port->info->have_data) {
+    if (!port || !port->host_connected || !info->have_data) {
         discard_vq_data(vq, vdev);
         return;
     }
@@ -756,7 +765,6 @@ static int virtser_port_qdev_init(DeviceState *qdev, DeviceInfo *base)
         return -1;
     }
 
-    port->info = info;
     ret = info->init(port);
     if (ret) {
         return ret;
@@ -787,6 +795,8 @@ static int virtser_port_qdev_init(DeviceState *qdev, DeviceInfo *base)
 static int virtser_port_qdev_exit(DeviceState *qdev)
 {
     VirtIOSerialPort *port = DO_UPCAST(VirtIOSerialPort, dev, qdev);
+    VirtIOSerialPortInfo *info = DO_UPCAST(VirtIOSerialPortInfo, qdev,
+                                           port->dev.info);
     VirtIOSerial *vser = port->vser;
 
     qemu_bh_delete(port->bh);
@@ -794,9 +804,9 @@ static int virtser_port_qdev_exit(DeviceState *qdev)
 
     QTAILQ_REMOVE(&vser->ports, port, next);
 
-    if (port->info->exit)
-        port->info->exit(port);
-
+    if (info->exit) {
+        info->exit(port);
+    }
     return 0;
 }
 

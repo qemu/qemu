@@ -75,7 +75,6 @@ typedef struct VirtIOSerialPortInfo VirtIOSerialPortInfo;
  */
 struct VirtIOSerialPort {
     DeviceState dev;
-    VirtIOSerialPortInfo *info;
 
     QTAILQ_ENTRY(VirtIOSerialPort) next;
 
