@@ -893,6 +893,19 @@ static inline void gen_add_datah_offset(DisasContext *s, unsigned int insn,
     }
 }
 
+static TCGv_ptr get_fpstatus_ptr(int neon)
+{
+    TCGv_ptr statusptr = tcg_temp_new_ptr();
+    int offset;
+    if (neon) {
+        offset = offsetof(CPUState, vfp.standard_fp_status);
+    } else {
+        offset = offsetof(CPUState, vfp.fp_status);
+    }
+    tcg_gen_addi_ptr(statusptr, cpu_env, offset);
+    return statusptr;
+}
+
 #define VFP_OP2(name)                                                 \
 static inline void gen_vfp_##name(int dp)                             \
 {                                                                     \
@@ -980,14 +993,7 @@ static inline void gen_vfp_F1_ld0(int dp)
 #define VFP_GEN_ITOF(name) \
 static inline void gen_vfp_##name(int dp, int neon) \
 { \
-    TCGv_ptr statusptr = tcg_temp_new_ptr(); \
-    int offset; \
-    if (neon) { \
-        offset = offsetof(CPUState, vfp.standard_fp_status); \
-    } else { \
-        offset = offsetof(CPUState, vfp.fp_status); \
-    } \
-    tcg_gen_addi_ptr(statusptr, cpu_env, offset); \
+    TCGv_ptr statusptr = get_fpstatus_ptr(neon); \
     if (dp) { \
         gen_helper_vfp_##name##d(cpu_F0d, cpu_F0s, statusptr); \
     } else { \
@@ -1003,14 +1009,7 @@ VFP_GEN_ITOF(sito)
 #define VFP_GEN_FTOI(name) \
 static inline void gen_vfp_##name(int dp, int neon) \
 { \
-    TCGv_ptr statusptr = tcg_temp_new_ptr(); \
-    int offset; \
-    if (neon) { \
-        offset = offsetof(CPUState, vfp.standard_fp_status); \
-    } else { \
-        offset = offsetof(CPUState, vfp.fp_status); \
-    } \
-    tcg_gen_addi_ptr(statusptr, cpu_env, offset); \
+    TCGv_ptr statusptr = get_fpstatus_ptr(neon); \
     if (dp) { \
         gen_helper_vfp_##name##d(cpu_F0s, cpu_F0d, statusptr); \
     } else { \
@@ -1029,14 +1028,7 @@ VFP_GEN_FTOI(tosiz)
 static inline void gen_vfp_##name(int dp, int shift, int neon) \
 { \
     TCGv tmp_shift = tcg_const_i32(shift); \
-    TCGv_ptr statusptr = tcg_temp_new_ptr(); \
-    int offset; \
-    if (neon) { \
-        offset = offsetof(CPUState, vfp.standard_fp_status); \
-    } else { \
-        offset = offsetof(CPUState, vfp.fp_status); \
-    } \
-    tcg_gen_addi_ptr(statusptr, cpu_env, offset); \
+    TCGv_ptr statusptr = get_fpstatus_ptr(neon); \
     if (dp) { \
         gen_helper_vfp_##name##d(cpu_F0d, cpu_F0d, tmp_shift, statusptr); \
     } else { \
