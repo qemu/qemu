@@ -1164,12 +1164,8 @@ static int pci_e1000_init(PCIDevice *pci_dev)
 
     pci_conf = d->dev.config;
 
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
-    pci_config_set_device_id(pci_conf, E1000_DEVID);
     /* TODO: we have no capabilities, so why is this bit set? */
     pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_CAP_LIST);
-    pci_conf[PCI_REVISION_ID] = 0x03;
-    pci_config_set_class(pci_conf, PCI_CLASS_NETWORK_ETHERNET);
     /* TODO: RST# value should be 0, PCI spec 6.2.4 */
     pci_conf[PCI_CACHE_LINE_SIZE] = 0x10;
 
@@ -1221,6 +1217,10 @@ static PCIDeviceInfo e1000_info = {
     .init       = pci_e1000_init,
     .exit       = pci_e1000_uninit,
     .romfile    = "pxe-e1000.rom",
+    .vendor_id  = PCI_VENDOR_ID_INTEL,
+    .device_id  = E1000_DEVID,
+    .revision   = 0x03,
+    .class_id   = PCI_CLASS_NETWORK_ETHERNET,
     .qdev.props = (Property[]) {
         DEFINE_NIC_PROPERTIES(E1000State, conf),
         DEFINE_PROP_END_OF_LIST(),
