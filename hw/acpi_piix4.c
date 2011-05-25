@@ -317,13 +317,9 @@ static int piix4_pm_initfn(PCIDevice *dev)
     uint8_t *pci_conf;
 
     pci_conf = s->dev.config;
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82371AB_3);
     pci_conf[0x06] = 0x80;
     pci_conf[0x07] = 0x02;
-    pci_conf[0x08] = 0x03; // revision number
     pci_conf[0x09] = 0x00;
-    pci_config_set_class(pci_conf, PCI_CLASS_BRIDGE_OTHER);
     pci_conf[0x3d] = 0x01; // interrupt pin 1
 
     pci_conf[0x40] = 0x01; /* PM io base read only bit */
@@ -394,6 +390,10 @@ static PCIDeviceInfo piix4_pm_info = {
     .no_hotplug         = 1,
     .init               = piix4_pm_initfn,
     .config_write       = pm_write_config,
+    .vendor_id          = PCI_VENDOR_ID_INTEL,
+    .device_id          = PCI_DEVICE_ID_INTEL_82371AB_3,
+    .revision           = 0x03,
+    .class_id           = PCI_CLASS_BRIDGE_OTHER,
     .qdev.props         = (Property[]) {
         DEFINE_PROP_UINT32("smb_io_base", PIIX4PMState, smb_io_base, 0),
         DEFINE_PROP_END_OF_LIST(),
