@@ -400,9 +400,6 @@ static int i6300esb_init(PCIDevice *dev)
     d->previous_reboot_flag = 0;
 
     pci_conf = d->dev.config;
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_ESB_9);
-    pci_config_set_class(pci_conf, PCI_CLASS_SYSTEM_OTHER);
 
     io_mem = cpu_register_io_memory(mem_read, mem_write, d,
                                     DEVICE_NATIVE_ENDIAN);
@@ -425,6 +422,9 @@ static PCIDeviceInfo i6300esb_info = {
     .config_read  = i6300esb_config_read,
     .config_write = i6300esb_config_write,
     .init         = i6300esb_init,
+    .vendor_id    = PCI_VENDOR_ID_INTEL,
+    .device_id    = PCI_DEVICE_ID_INTEL_ESB_9,
+    .class_id     = PCI_CLASS_SYSTEM_OTHER,
 };
 
 static void i6300esb_register_devices(void)
