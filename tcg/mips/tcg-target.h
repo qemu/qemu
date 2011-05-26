@@ -102,7 +102,11 @@ enum {
 /* guest base is supported */
 #define TCG_TARGET_HAS_GUEST_BASE
 
+#ifdef __OpenBSD__
+#include <machine/sysarch.h>
+#else
 #include <sys/cachectl.h>
+#endif
 
 static inline void flush_icache_range(unsigned long start, unsigned long stop)
 {
