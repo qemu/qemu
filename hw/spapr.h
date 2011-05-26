@@ -1,6 +1,8 @@
 #if !defined(__HW_SPAPR_H__)
 #define __HW_SPAPR_H__
 
+#include "hw/xics.h"
+
 struct VIOsPAPRBus;
 struct icp_state;
 
@@ -277,6 +279,12 @@ typedef target_ulong (*spapr_hcall_fn)(CPUState *env, sPAPREnvironment *spapr,
 void spapr_register_hypercall(target_ulong opcode, spapr_hcall_fn fn);
 target_ulong spapr_hypercall(CPUState *env, target_ulong opcode,
                              target_ulong *args);
+
+static inline qemu_irq spapr_find_qirq(sPAPREnvironment *spapr,
+                                        int irq_num)
+{
+    return xics_find_qirq(spapr->icp, irq_num);
+}
 
 static inline uint32_t rtas_ld(target_ulong phys, int n)
 {

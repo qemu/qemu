@@ -893,20 +893,14 @@ static int spapr_vscsi_init(VIOsPAPRDevice *dev)
     return 0;
 }
 
-void spapr_vscsi_create(VIOsPAPRBus *bus, uint32_t reg,
-                        qemu_irq qirq, uint32_t vio_irq_num)
+void spapr_vscsi_create(VIOsPAPRBus *bus, uint32_t reg)
 {
     DeviceState *dev;
-    VIOsPAPRDevice *sdev;
 
     dev = qdev_create(&bus->bus, "spapr-vscsi");
     qdev_prop_set_uint32(dev, "reg", reg);
 
     qdev_init_nofail(dev);
-
-    sdev = (VIOsPAPRDevice *)dev;
-    sdev->qirq = qirq;
-    sdev->vio_irq_num = vio_irq_num;
 }
 
 static int spapr_vscsi_devnode(VIOsPAPRDevice *dev, void *fdt, int node_off)

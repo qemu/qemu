@@ -32,6 +32,7 @@
 
 #include "hw/spapr.h"
 #include "hw/spapr_vio.h"
+#include "hw/xics.h"
 
 #ifdef CONFIG_FDT
 #include <libfdt.h>
@@ -595,6 +596,7 @@ static int spapr_vio_busdev_init(DeviceState *qdev, DeviceInfo *qinfo)
 {
     VIOsPAPRDeviceInfo *info = (VIOsPAPRDeviceInfo *)qinfo;
     VIOsPAPRDevice *dev = (VIOsPAPRDevice *)qdev;
+    VIOsPAPRBus *bus = DO_UPCAST(VIOsPAPRBus, bus, dev->qdev.parent_bus);
     char *id;
 
     if (asprintf(&id, "%s@%x", info->dt_name, dev->reg) < 0) {
@@ -602,6 +604,8 @@ static int spapr_vio_busdev_init(DeviceState *qdev, DeviceInfo *qinfo)
     }
 
     dev->qdev.id = id;
+    dev->vio_irq_num = bus->irq++;
+    dev->qirq = spapr_find_qirq(spapr, dev->vio_irq_num);
 
     rtce_init(dev);
 
@@ -656,6 +660,7 @@ VIOsPAPRBus *spapr_vio_bus_init(void)
 
     qbus = qbus_create(&spapr_vio_bus_info, dev, "spapr-vio");
     bus = DO_UPCAST(VIOsPAPRBus, bus, qbus);
+    bus->irq = 16;
 
     /* hcall-vio */
     spapr_register_hypercall(H_VIO_SIGNAL, h_vio_signal);

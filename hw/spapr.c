@@ -298,7 +298,6 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     long kernel_size, initrd_size, fw_size;
     long pteg_shift = 17;
     char *filename;
-    int irq = 16;
 
     spapr = g_malloc(sizeof(*spapr));
     cpu_ppc_hypercall = emulate_spapr_hypercall;
@@ -360,15 +359,14 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     /* Set up VIO bus */
     spapr->vio_bus = spapr_vio_bus_init();
 
-    for (i = 0; i < MAX_SERIAL_PORTS; i++, irq++) {
+    for (i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {
             spapr_vty_create(spapr->vio_bus, SPAPR_VTY_BASE_ADDRESS + i,
-                             serial_hds[i], xics_find_qirq(spapr->icp, irq),
-                             irq);
+                             serial_hds[i]);
         }
     }
 
-    for (i = 0; i < nb_nics; i++, irq++) {
+    for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
 
         if (!nd->model) {
@@ -376,8 +374,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         }
 
         if (strcmp(nd->model, "ibmveth") == 0) {
-            spapr_vlan_create(spapr->vio_bus, 0x1000 + i, nd,
-                              xics_find_qirq(spapr->icp, irq), irq);
+            spapr_vlan_create(spapr->vio_bus, 0x1000 + i, nd);
         } else {
             fprintf(stderr, "pSeries (sPAPR) platform does not support "
                     "NIC model '%s' (only ibmveth is supported)\n",
@@ -387,9 +384,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     }
 
     for (i = 0; i <= drive_get_max_bus(IF_SCSI); i++) {
-        spapr_vscsi_create(spapr->vio_bus, 0x2000 + i,
-                           xics_find_qirq(spapr->icp, irq), irq);
-        irq++;
+        spapr_vscsi_create(spapr->vio_bus, 0x2000 + i);
     }
 
     if (kernel_filename) {
