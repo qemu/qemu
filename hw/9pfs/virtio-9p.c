@@ -2106,6 +2106,7 @@ static void v9fs_create(void *opaque)
         if (err < 0) {
             goto out;
         }
+        v9fs_string_copy(&fidp->path, &fullname);
         err = v9fs_co_opendir(pdu->s, fidp);
         if (err < 0) {
             goto out;
