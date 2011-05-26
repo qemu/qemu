@@ -980,20 +980,20 @@ static inline void gen_vfp_F1_ld0(int dp)
 #define VFP_GEN_ITOF(name) \
 static inline void gen_vfp_##name(int dp, int neon) \
 { \
-    TCGv statusptr = tcg_temp_new_i32(); \
+    TCGv_ptr statusptr = tcg_temp_new_ptr(); \
     int offset; \
     if (neon) { \
         offset = offsetof(CPUState, vfp.standard_fp_status); \
     } else { \
         offset = offsetof(CPUState, vfp.fp_status); \
     } \
-    tcg_gen_addi_i32(statusptr, cpu_env, offset); \
+    tcg_gen_addi_ptr(statusptr, cpu_env, offset); \
     if (dp) { \
         gen_helper_vfp_##name##d(cpu_F0d, cpu_F0s, statusptr); \
     } else { \
         gen_helper_vfp_##name##s(cpu_F0s, cpu_F0s, statusptr); \
     } \
-    tcg_temp_free_i32(statusptr); \
+    tcg_temp_free_ptr(statusptr); \
 }
 
 VFP_GEN_ITOF(uito)
@@ -1003,20 +1003,20 @@ VFP_GEN_ITOF(sito)
 #define VFP_GEN_FTOI(name) \
 static inline void gen_vfp_##name(int dp, int neon) \
 { \
-    TCGv statusptr = tcg_temp_new_i32(); \
+    TCGv_ptr statusptr = tcg_temp_new_ptr(); \
     int offset; \
     if (neon) { \
         offset = offsetof(CPUState, vfp.standard_fp_status); \
     } else { \
         offset = offsetof(CPUState, vfp.fp_status); \
     } \
-    tcg_gen_addi_i32(statusptr, cpu_env, offset); \
+    tcg_gen_addi_ptr(statusptr, cpu_env, offset); \
     if (dp) { \
         gen_helper_vfp_##name##d(cpu_F0s, cpu_F0d, statusptr); \
     } else { \
         gen_helper_vfp_##name##s(cpu_F0s, cpu_F0s, statusptr); \
     } \
-    tcg_temp_free_i32(statusptr); \
+    tcg_temp_free_ptr(statusptr); \
 }
 
 VFP_GEN_FTOI(toui)
@@ -1029,21 +1029,21 @@ VFP_GEN_FTOI(tosiz)
 static inline void gen_vfp_##name(int dp, int shift, int neon) \
 { \
     TCGv tmp_shift = tcg_const_i32(shift); \
-    TCGv statusptr = tcg_temp_new_i32(); \
+    TCGv_ptr statusptr = tcg_temp_new_ptr(); \
     int offset; \
     if (neon) { \
         offset = offsetof(CPUState, vfp.standard_fp_status); \
     } else { \
         offset = offsetof(CPUState, vfp.fp_status); \
     } \
-    tcg_gen_addi_i32(statusptr, cpu_env, offset); \
+    tcg_gen_addi_ptr(statusptr, cpu_env, offset); \
     if (dp) { \
         gen_helper_vfp_##name##d(cpu_F0d, cpu_F0d, tmp_shift, statusptr); \
     } else { \
         gen_helper_vfp_##name##s(cpu_F0s, cpu_F0s, tmp_shift, statusptr); \
     } \
     tcg_temp_free_i32(tmp_shift); \
-    tcg_temp_free_i32(statusptr); \
+    tcg_temp_free_ptr(statusptr); \
 }
 VFP_GEN_FIX(tosh)
 VFP_GEN_FIX(tosl)
