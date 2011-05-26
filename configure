@@ -1917,40 +1917,23 @@ fi
 if test "$rbd" != "no" ; then
   cat > $TMPC <<EOF
 #include <stdio.h>
-#include <rados/librados.h>
-int main(void) { rados_initialize(0, NULL); return 0; }
-EOF
-  rbd_libs="-lrados"
-  if compile_prog "" "$rbd_libs" ; then
-    librados_too_old=no
-    cat > $TMPC <<EOF
-#include <stdio.h>
-#include <rados/librados.h>
-#ifndef CEPH_OSD_TMAP_SET
-#error missing CEPH_OSD_TMAP_SET
-#endif
+#include <rbd/librbd.h>
 int main(void) {
-    int (*func)(const rados_pool_t pool, uint64_t *snapid) = rados_selfmanaged_snap_create;
-    rados_initialize(0, NULL);
+    rados_t cluster;
+    rados_create(&cluster, NULL);
     return 0;
 }
 EOF
-    if compile_prog "" "$rbd_libs" ; then
-      rbd=yes
-      libs_tools="$rbd_libs $libs_tools"
-      libs_softmmu="$rbd_libs $libs_softmmu"
-    else
-      rbd=no
-      librados_too_old=yes
-    fi
+  rbd_libs="-lrbd -lrados"
+  if compile_prog "" "$rbd_libs" ; then
+    rbd=yes
+    libs_tools="$rbd_libs $libs_tools"
+    libs_softmmu="$rbd_libs $libs_softmmu"
   else
     if test "$rbd" = "yes" ; then
       feature_not_found "rados block device"
     fi
     rbd=no
-  fi
-  if test "$librados_too_old" = "yes" ; then
-    echo "-> Your librados version is too old - upgrade needed to have rbd support"
   fi
 fi
 
