@@ -581,10 +581,14 @@ static BlockDriverAIOCB *rbd_aio_rw_vector(BlockDriverState *bs,
     rbd_completion_t c;
     int64_t off, size;
     char *buf;
+    int r;
 
     BDRVRBDState *s = bs->opaque;
 
     acb = qemu_aio_get(&rbd_aio_pool, bs, cb, opaque);
+    if (!acb) {
+        return NULL;
+    }
     acb->write = write;
     acb->qiov = qiov;
     acb->bounce = qemu_blockalign(bs, qiov->size);
@@ -611,16 +615,28 @@ static BlockDriverAIOCB *rbd_aio_rw_vector(BlockDriverState *bs,
     rcb->buf = buf;
     rcb->s = acb->s;
     rcb->size = size;
+    r = rbd_aio_create_completion(rcb, (rbd_callback_t) rbd_finish_aiocb, &c);
+    if (r < 0) {
+        goto failed;
+    }
 
     if (write) {
-        rbd_aio_create_completion(rcb, (rbd_callback_t) rbd_finish_aiocb, &c);
-        rbd_aio_write(s->image, off, size, buf, c);
+        r = rbd_aio_write(s->image, off, size, buf, c);
     } else {
-        rbd_aio_create_completion(rcb, (rbd_callback_t) rbd_finish_aiocb, &c);
-        rbd_aio_read(s->image, off, size, buf, c);
+        r = rbd_aio_read(s->image, off, size, buf, c);
+    }
+
+    if (r < 0) {
+        goto failed;
     }
 
     return &acb->common;
+
+failed:
+    qemu_free(rcb);
+    s->qemu_aio_count--;
+    qemu_aio_release(acb);
+    return NULL;
 }
 
 static BlockDriverAIOCB *qemu_rbd_aio_readv(BlockDriverState *bs,
