@@ -52,6 +52,10 @@
 static struct BusInfo spapr_vio_bus_info = {
     .name       = "spapr-vio",
     .size       = sizeof(VIOsPAPRBus),
+    .props = (Property[]) {
+        DEFINE_PROP_UINT32("irq", VIOsPAPRDevice, vio_irq_num, 0), \
+        DEFINE_PROP_END_OF_LIST(),
+    },
 };
 
 VIOsPAPRDevice *spapr_vio_find_by_reg(VIOsPAPRBus *bus, uint32_t reg)
@@ -604,7 +608,9 @@ static int spapr_vio_busdev_init(DeviceState *qdev, DeviceInfo *qinfo)
     }
 
     dev->qdev.id = id;
-    dev->vio_irq_num = bus->irq++;
+    if (!dev->vio_irq_num) {
+        dev->vio_irq_num = bus->irq++;
+    }
     dev->qirq = spapr_find_qirq(spapr, dev->vio_irq_num);
 
     rtce_init(dev);
