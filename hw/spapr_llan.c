@@ -495,9 +495,7 @@ static VIOsPAPRDeviceInfo spapr_vlan = {
     .qdev.name = "spapr-vlan",
     .qdev.size = sizeof(VIOsPAPRVLANDevice),
     .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("reg", VIOsPAPRDevice, reg, 0x1000),
-        DEFINE_PROP_UINT32("dma-window", VIOsPAPRDevice, rtce_window_size,
-                           0x10000000),
+        DEFINE_SPAPR_PROPERTIES(VIOsPAPRVLANDevice, sdev, 0x1000, 0x10000000),
         DEFINE_NIC_PROPERTIES(VIOsPAPRVLANDevice, nicconf),
         DEFINE_PROP_END_OF_LIST(),
     },

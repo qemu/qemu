@@ -930,9 +930,7 @@ static VIOsPAPRDeviceInfo spapr_vscsi = {
     .qdev.name = "spapr-vscsi",
     .qdev.size = sizeof(VSCSIState),
     .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("reg", VIOsPAPRDevice, reg, 0x2000),
-        DEFINE_PROP_UINT32("dma-window", VIOsPAPRDevice,
-                           rtce_window_size, 0x10000000),
+        DEFINE_SPAPR_PROPERTIES(VSCSIState, vdev, 0x2000, 0x10000000),
         DEFINE_PROP_END_OF_LIST(),
     },
 };

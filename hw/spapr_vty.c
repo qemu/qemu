@@ -140,7 +140,7 @@ static VIOsPAPRDeviceInfo spapr_vty = {
     .qdev.name = "spapr-vty",
     .qdev.size = sizeof(VIOsPAPRVTYDevice),
     .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("reg", VIOsPAPRDevice, reg, 0),
+        DEFINE_SPAPR_PROPERTIES(VIOsPAPRVTYDevice, sdev, 0, 0),
         DEFINE_PROP_CHR("chardev", VIOsPAPRVTYDevice, chardev),
         DEFINE_PROP_END_OF_LIST(),
     },

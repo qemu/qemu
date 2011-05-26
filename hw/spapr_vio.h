@@ -60,6 +60,11 @@ typedef struct VIOsPAPRDevice {
     VIOsPAPR_CRQ crq;
 } VIOsPAPRDevice;
 
+#define DEFINE_SPAPR_PROPERTIES(type, field, default_reg, default_dma_window) \
+        DEFINE_PROP_UINT32("reg", type, field.reg, default_reg), \
+        DEFINE_PROP_UINT32("dma-window", type, field.rtce_window_size, \
+                           default_dma_window)
+
 typedef struct VIOsPAPRBus {
     BusState bus;
     int irq;
