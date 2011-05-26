@@ -79,10 +79,7 @@ typedef void * host_reg_t;
 
 /* The return address may point to the start of the next instruction.
    Subtracting one gets us the call instruction itself.  */
-#if defined(CONFIG_TCG_INTERPRETER)
-extern uint8_t * tci_tb_ptr;
-# define GETPC() ((void *)tci_tb_ptr)
-#elif defined(__s390__) && !defined(__s390x__)
+#if defined(__s390__) && !defined(__s390x__)
 # define GETPC() ((void*)(((unsigned long)__builtin_return_address(0) & 0x7fffffffUL) - 1))
 #elif defined(__arm__)
 /* Thumb return addresses have the low bit set, so we need to subtract two.
