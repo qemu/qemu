@@ -446,7 +446,7 @@ static int ide_handle_rw_error(IDEState *s, int error, int op)
     if ((error == ENOSPC && action == BLOCK_ERR_STOP_ENOSPC)
             || action == BLOCK_ERR_STOP_ANY) {
         s->bus->dma->ops->set_unit(s->bus->dma, s->unit);
-        s->bus->dma->ops->add_status(s->bus->dma, op);
+        s->bus->error_status = op;
         bdrv_mon_event(s->bs, BDRV_ACTION_STOP, is_read);
         vm_stop(VMSTOP_DISKFULL);
     } else {
@@ -1847,6 +1847,13 @@ static bool ide_atapi_gesn_needed(void *opaque)
     return s->events.new_media || s->events.eject_request;
 }
 
+static bool ide_error_needed(void *opaque)
+{
+    IDEBus *bus = opaque;
+
+    return (bus->error_status != 0);
+}
+
 /* Fields for GET_EVENT_STATUS_NOTIFICATION ATAPI command */
 const VMStateDescription vmstate_ide_atapi_gesn_state = {
     .name ="ide_drive/atapi/gesn_state",
@@ -1921,6 +1928,17 @@ const VMStateDescription vmstate_ide_drive = {
     }
 };
 
+const VMStateDescription vmstate_ide_error_status = {
+    .name ="ide_bus/error",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField []) {
+        VMSTATE_INT32(error_status, IDEBus),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_ide_bus = {
     .name = "ide_bus",
     .version_id = 1,
@@ -1930,6 +1948,14 @@ const VMStateDescription vmstate_ide_bus = {
         VMSTATE_UINT8(cmd, IDEBus),
         VMSTATE_UINT8(unit, IDEBus),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (VMStateSubsection []) {
+        {
+            .vmsd = &vmstate_ide_error_status,
+            .needed = ide_error_needed,
+        }, {
+            /* empty */
+        }
     }
 };
 
