@@ -2056,7 +2056,7 @@ do_mh:
            even for very long ones... */
         tmp = get_address(s, 0, b2, d2);
         tmp3 = tcg_const_i64(stm_len);
-        tmp4 = tcg_const_i64(32);
+        tmp4 = tcg_const_i64(op == 0x26 ? 32 : 4);
         for (i = r1;; i = (i + 1) % 16) {
             switch (op) {
             case 0x4:
@@ -2070,7 +2070,7 @@ do_mh:
 #else
                 tmp2 = tcg_temp_new_i64();
                 tcg_gen_qemu_ld32u(tmp2, tmp, get_mem_index(s));
-                tcg_gen_shl_i64(tmp2, tmp2, 4);
+                tcg_gen_shl_i64(tmp2, tmp2, tmp4);
                 tcg_gen_ext32u_i64(regs[i], regs[i]);
                 tcg_gen_or_i64(regs[i], regs[i], tmp2);
 #endif
