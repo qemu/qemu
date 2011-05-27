@@ -4621,6 +4621,7 @@ static void disas_s390_insn(DisasContext *s)
             }
             tcg_gen_add_i64(tmp, tmp, tmp3);
         }
+        tcg_temp_free_i64(tmp);
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i64(tmp3);
         tcg_temp_free_i64(tmp4);
