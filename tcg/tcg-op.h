@@ -2304,8 +2304,8 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #endif
 }
 
-#define tcg_gen_ld_ptr tcg_gen_ld_i32
-#define tcg_gen_discard_ptr tcg_gen_discard_i32
+#define tcg_gen_ld_ptr(R, A, O) tcg_gen_ld_i32(TCGV_PTR_TO_NAT(R), (A), (O))
+#define tcg_gen_discard_ptr(A) tcg_gen_discard_i32(TCGV_PTR_TO_NAT(A))
 
 #else /* TCG_TARGET_REG_BITS == 32 */
 
@@ -2372,8 +2372,8 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
     tcg_gen_qemu_ldst_op_i64(INDEX_op_qemu_st64, arg, addr, mem_index);
 }
 
-#define tcg_gen_ld_ptr tcg_gen_ld_i64
-#define tcg_gen_discard_ptr tcg_gen_discard_i64
+#define tcg_gen_ld_ptr(R, A, O) tcg_gen_ld_i64(TCGV_PTR_TO_NAT(R), (A), (O))
+#define tcg_gen_discard_ptr(A) tcg_gen_discard_i64(TCGV_PTR_TO_NAT(A))
 
 #endif /* TCG_TARGET_REG_BITS != 32 */
 
@@ -2523,11 +2523,17 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #endif
 
 #if TCG_TARGET_REG_BITS == 32
-#define tcg_gen_add_ptr tcg_gen_add_i32
-#define tcg_gen_addi_ptr tcg_gen_addi_i32
-#define tcg_gen_ext_i32_ptr tcg_gen_mov_i32
+#define tcg_gen_add_ptr(R, A, B) tcg_gen_add_i32(TCGV_PTR_TO_NAT(R), \
+                                               TCGV_PTR_TO_NAT(A), \
+                                               TCGV_PTR_TO_NAT(B))
+#define tcg_gen_addi_ptr(R, A, B) tcg_gen_addi_i32(TCGV_PTR_TO_NAT(R), \
+                                                 TCGV_PTR_TO_NAT(A), (B))
+#define tcg_gen_ext_i32_ptr(R, A) tcg_gen_mov_i32(TCGV_PTR_TO_NAT(R), (A))
 #else /* TCG_TARGET_REG_BITS == 32 */
-#define tcg_gen_add_ptr tcg_gen_add_i64
-#define tcg_gen_addi_ptr tcg_gen_addi_i64
-#define tcg_gen_ext_i32_ptr tcg_gen_ext_i32_i64
+#define tcg_gen_add_ptr(R, A, B) tcg_gen_add_i64(TCGV_PTR_TO_NAT(R), \
+                                               TCGV_PTR_TO_NAT(A), \
+                                               TCGV_PTR_TO_NAT(B))
+#define tcg_gen_addi_ptr(R, A, B) tcg_gen_addi_i64(TCGV_PTR_TO_NAT(R),   \
+                                                 TCGV_PTR_TO_NAT(A), (B))
+#define tcg_gen_ext_i32_ptr(R, A) tcg_gen_ext_i32_i64(TCGV_PTR_TO_NAT(R), (A))
 #endif /* TCG_TARGET_REG_BITS != 32 */

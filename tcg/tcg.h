@@ -150,12 +150,19 @@ typedef struct
     int i64;
 } TCGv_i64;
 
+typedef struct {
+    int iptr;
+} TCGv_ptr;
+
 #define MAKE_TCGV_I32(i) __extension__                  \
     ({ TCGv_i32 make_tcgv_tmp = {i}; make_tcgv_tmp;})
 #define MAKE_TCGV_I64(i) __extension__                  \
     ({ TCGv_i64 make_tcgv_tmp = {i}; make_tcgv_tmp;})
+#define MAKE_TCGV_PTR(i) __extension__                  \
+    ({ TCGv_ptr make_tcgv_tmp = {i}; make_tcgv_tmp; })
 #define GET_TCGV_I32(t) ((t).i32)
 #define GET_TCGV_I64(t) ((t).i64)
+#define GET_TCGV_PTR(t) ((t).iptr)
 #if TCG_TARGET_REG_BITS == 32
 #define TCGV_LOW(t) MAKE_TCGV_I32(GET_TCGV_I64(t))
 #define TCGV_HIGH(t) MAKE_TCGV_I32(GET_TCGV_I64(t) + 1)
@@ -165,10 +172,17 @@ typedef struct
 
 typedef int TCGv_i32;
 typedef int TCGv_i64;
+#if TCG_TARGET_REG_BITS == 32
+#define TCGv_ptr TCGv_i32
+#else
+#define TCGv_ptr TCGv_i64
+#endif
 #define MAKE_TCGV_I32(x) (x)
 #define MAKE_TCGV_I64(x) (x)
+#define MAKE_TCGV_PTR(x) (x)
 #define GET_TCGV_I32(t) (t)
 #define GET_TCGV_I64(t) (t)
+#define GET_TCGV_PTR(t) (t)
 
 #if TCG_TARGET_REG_BITS == 32
 #define TCGV_LOW(t) (t)
@@ -459,25 +473,27 @@ do {\
 void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs);
 
 #if TCG_TARGET_REG_BITS == 32
-#define tcg_const_ptr tcg_const_i32
-#define tcg_add_ptr tcg_add_i32
-#define tcg_sub_ptr tcg_sub_i32
-#define TCGv_ptr TCGv_i32
-#define GET_TCGV_PTR GET_TCGV_I32
-#define tcg_global_reg_new_ptr tcg_global_reg_new_i32
-#define tcg_global_mem_new_ptr tcg_global_mem_new_i32
-#define tcg_temp_new_ptr tcg_temp_new_i32
-#define tcg_temp_free_ptr tcg_temp_free_i32
+#define TCGV_NAT_TO_PTR(n) MAKE_TCGV_PTR(GET_TCGV_I32(n))
+#define TCGV_PTR_TO_NAT(n) MAKE_TCGV_I32(GET_TCGV_PTR(n))
+
+#define tcg_const_ptr(V) TCGV_NAT_TO_PTR(tcg_const_i32(V))
+#define tcg_global_reg_new_ptr(R, N) \
+    TCGV_NAT_TO_PTR(tcg_global_reg_new_i32((R), (N)))
+#define tcg_global_mem_new_ptr(R, O, N) \
+    TCGV_NAT_TO_PTR(tcg_global_mem_new_i32((R), (O), (N)))
+#define tcg_temp_new_ptr() TCGV_NAT_TO_PTR(tcg_temp_new_i32())
+#define tcg_temp_free_ptr(T) tcg_temp_free_i32(TCGV_PTR_TO_NAT(T))
 #else
-#define tcg_const_ptr tcg_const_i64
-#define tcg_add_ptr tcg_add_i64
-#define tcg_sub_ptr tcg_sub_i64
-#define TCGv_ptr TCGv_i64
-#define GET_TCGV_PTR GET_TCGV_I64
-#define tcg_global_reg_new_ptr tcg_global_reg_new_i64
-#define tcg_global_mem_new_ptr tcg_global_mem_new_i64
-#define tcg_temp_new_ptr tcg_temp_new_i64
-#define tcg_temp_free_ptr tcg_temp_free_i64
+#define TCGV_NAT_TO_PTR(n) MAKE_TCGV_PTR(GET_TCGV_I64(n))
+#define TCGV_PTR_TO_NAT(n) MAKE_TCGV_I64(GET_TCGV_PTR(n))
+
+#define tcg_const_ptr(V) TCGV_NAT_TO_PTR(tcg_const_i64(V))
+#define tcg_global_reg_new_ptr(R, N) \
+    TCGV_NAT_TO_PTR(tcg_global_reg_new_i64((R), (N)))
+#define tcg_global_mem_new_ptr(R, O, N) \
+    TCGV_NAT_TO_PTR(tcg_global_mem_new_i64((R), (O), (N)))
+#define tcg_temp_new_ptr() TCGV_NAT_TO_PTR(tcg_temp_new_i64())
+#define tcg_temp_free_ptr(T) tcg_temp_free_i64(TCGV_PTR_TO_NAT(T))
 #endif
 
 void tcg_gen_callN(TCGContext *s, TCGv_ptr func, unsigned int flags,
