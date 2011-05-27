@@ -1078,9 +1078,12 @@ static void gen_jcc(DisasContext *s, uint32_t mask, int skip)
             tcg_gen_brcondi_i32(TCG_COND_EQ, tmp, 0, skip);
             break;
         default:
+            tcg_temp_free_i32(tmp);
+            tcg_temp_free_i32(tmp2);
             goto do_dynamic;
         }
         tcg_temp_free_i32(tmp);
+        tcg_temp_free_i32(tmp2);
         account_inline_branch(s);
         break;
     case CC_OP_TM_64:
