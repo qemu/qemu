@@ -1178,10 +1178,14 @@ static int usb_host_open(USBHostDevice *dev, int bus_num,
                 prod_name);
     }
 
+    ret = usb_device_attach(&dev->dev);
+    if (ret) {
+        goto fail;
+    }
+
     /* USB devio uses 'write' flag to check for async completions */
     qemu_set_fd_handler(dev->fd, NULL, async_complete, dev);
 
-    usb_device_attach(&dev->dev);
     return 0;
 
 fail:

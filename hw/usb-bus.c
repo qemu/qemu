@@ -75,7 +75,7 @@ static int usb_qdev_init(DeviceState *qdev, DeviceInfo *base)
     QLIST_INIT(&dev->strings);
     rc = dev->info->init(dev);
     if (rc == 0 && dev->auto_attach)
-        usb_device_attach(dev);
+        rc = usb_device_attach(dev);
     return rc;
 }
 
@@ -121,7 +121,7 @@ USBDevice *usb_create(USBBus *bus, const char *name)
         bus = usb_bus_find(-1);
         if (!bus)
             return NULL;
-        fprintf(stderr, "%s: no bus specified, using \"%s\" for \"%s\"\n",
+        error_report("%s: no bus specified, using \"%s\" for \"%s\"\n",
                 __FUNCTION__, bus->qbus.name, name);
     }
 #endif
@@ -171,20 +171,20 @@ void usb_unregister_port(USBBus *bus, USBPort *port)
     bus->nfree--;
 }
 
-static void do_attach(USBDevice *dev)
+static int do_attach(USBDevice *dev)
 {
     USBBus *bus = usb_bus_from_device(dev);
     USBPort *port;
 
     if (dev->attached) {
-        fprintf(stderr, "Warning: tried to attach usb device %s twice\n",
+        error_report("Error: tried to attach usb device %s twice\n",
                 dev->product_desc);
-        return;
+        return -1;
     }
     if (bus->nfree == 0) {
-        fprintf(stderr, "Warning: tried to attach usb device %s to a bus with no free ports\n",
+        error_report("Error: tried to attach usb device %s to a bus with no free ports\n",
                 dev->product_desc);
-        return;
+        return -1;
     }
     if (dev->port_path) {
         QTAILQ_FOREACH(port, &bus->free, next) {
@@ -193,9 +193,9 @@ static void do_attach(USBDevice *dev)
             }
         }
         if (port == NULL) {
-            fprintf(stderr, "Warning: usb port %s (bus %s) not found\n",
+            error_report("Error: usb port %s (bus %s) not found\n",
                     dev->port_path, bus->qbus.name);
-            return;
+            return -1;
         }
     } else {
         port = QTAILQ_FIRST(&bus->free);
@@ -209,6 +209,8 @@ static void do_attach(USBDevice *dev)
 
     QTAILQ_INSERT_TAIL(&bus->used, port, next);
     bus->nused++;
+
+    return 0;
 }
 
 int usb_device_attach(USBDevice *dev)
@@ -220,8 +222,7 @@ int usb_device_attach(USBDevice *dev)
            (unless a physical port location is specified). */
         usb_create_simple(bus, "usb-hub");
     }
-    do_attach(dev);
-    return 0;
+    return do_attach(dev);
 }
 
 int usb_device_detach(USBDevice *dev)
@@ -230,7 +231,7 @@ int usb_device_detach(USBDevice *dev)
     USBPort *port;
 
     if (!dev->attached) {
-        fprintf(stderr, "Warning: tried to detach unattached usb device %s\n",
+        error_report("Error: tried to detach unattached usb device %s\n",
                 dev->product_desc);
         return -1;
     }
