@@ -2068,7 +2068,6 @@ do_mh:
                 tcg_gen_qemu_ld32u(tmp2, tmp, get_mem_index(s));
                 tcg_gen_trunc_i64_i32(TCGV_HIGH(regs[i]), tmp2);
 #else
-                tmp2 = tcg_temp_new_i64();
                 tcg_gen_qemu_ld32u(tmp2, tmp, get_mem_index(s));
                 tcg_gen_shl_i64(tmp2, tmp2, tmp4);
                 tcg_gen_ext32u_i64(regs[i], regs[i]);
