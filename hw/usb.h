@@ -168,7 +168,10 @@ struct USBDevice {
     char *port_path;
     void *opaque;
 
+    /* Actual connected speed */
     int speed;
+    /* Supported speeds, not in info because it may be variable (hostdevs) */
+    int speedmask;
     uint8_t addr;
     char product_desc[32];
     int auto_attach;

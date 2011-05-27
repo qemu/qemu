@@ -1167,6 +1167,7 @@ static int usb_host_open(USBHostDevice *dev, int bus_num,
         }
     }
     dev->dev.speed = speed;
+    dev->dev.speedmask = (1 << speed);
 
     printf("husb: grabbed usb device %d.%d\n", bus_num, addr);
 

@@ -242,7 +242,17 @@ static void usb_desc_setdefaults(USBDevice *dev)
 
 void usb_desc_init(USBDevice *dev)
 {
+    const USBDesc *desc = dev->info->usb_desc;
+
+    assert(desc != NULL);
     dev->speed = USB_SPEED_FULL;
+    dev->speedmask = 0;
+    if (desc->full) {
+        dev->speedmask |= USB_SPEED_MASK_FULL;
+    }
+    if (desc->high) {
+        dev->speedmask |= USB_SPEED_MASK_HIGH;
+    }
     usb_desc_setdefaults(dev);
 }
 
