@@ -2094,6 +2094,7 @@ do_mh:
             tcg_gen_add_i64(tmp, tmp, tmp3);
         }
         tcg_temp_free_i64(tmp);
+        tcg_temp_free_i64(tmp3);
         tcg_temp_free_i64(tmp4);
         break;
     case 0x2c: /* STCMH R1,M3,D2(B2) [RSY] */
