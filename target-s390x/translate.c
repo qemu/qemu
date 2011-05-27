@@ -2964,6 +2964,8 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         /* we need to keep cc_op intact */
         s->is_jmp = DISAS_JUMP;
         tcg_temp_free_i64(tmp);
+        tcg_temp_free_i64(tmp2);
+        tcg_temp_free_i64(tmp3);
         break;
     case 0x20: /* SERVC     R1,R2     [RRE] */
         /* SCLP Service call (PV hypercall) */
