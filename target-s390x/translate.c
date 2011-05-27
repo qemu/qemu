@@ -4596,6 +4596,8 @@ static void disas_s390_insn(DisasContext *s)
         store_reg32(r1, tmp32_1);
         tcg_gen_trunc_i64_i32(tmp32_2, tmp2);
         store_reg32(r1 + 1, tmp32_2);
+        tcg_temp_free_i64(tmp);
+        tcg_temp_free_i64(tmp2);
         break;
     case 0x98: /* LM     R1,R3,D2(B2)     [RS] */
     case 0x90: /* STM    R1,R3,D2(B2)     [RS] */
