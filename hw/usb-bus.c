@@ -181,6 +181,11 @@ static void do_attach(USBDevice *dev)
                 dev->product_desc);
         return;
     }
+    if (bus->nfree == 0) {
+        fprintf(stderr, "Warning: tried to attach usb device %s to a bus with no free ports\n",
+                dev->product_desc);
+        return;
+    }
     if (dev->port_path) {
         QTAILQ_FOREACH(port, &bus->free, next) {
             if (strcmp(port->path, dev->port_path) == 0) {
