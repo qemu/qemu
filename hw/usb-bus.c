@@ -200,6 +200,11 @@ static int do_attach(USBDevice *dev)
     } else {
         port = QTAILQ_FIRST(&bus->free);
     }
+    if (!(port->speedmask & dev->speedmask)) {
+        error_report("Warning: speed mismatch trying to attach usb device %s to bus %s\n",
+                dev->product_desc, bus->qbus.name);
+        return -1;
+    }
 
     dev->attached++;
     QTAILQ_REMOVE(&bus->free, port, next);
