@@ -2334,18 +2334,22 @@ static void disas_a5(DisasContext *s, int op, int r1, int i2)
     case 0x0: /* IIHH     R1,I2     [RI] */
         tmp = tcg_const_i64(i2);
         tcg_gen_deposit_i64(regs[r1], regs[r1], tmp, 48, 16);
+        tcg_temp_free_i64(tmp);
         break;
     case 0x1: /* IIHL     R1,I2     [RI] */
         tmp = tcg_const_i64(i2);
         tcg_gen_deposit_i64(regs[r1], regs[r1], tmp, 32, 16);
+        tcg_temp_free_i64(tmp);
         break;
     case 0x2: /* IILH     R1,I2     [RI] */
         tmp = tcg_const_i64(i2);
         tcg_gen_deposit_i64(regs[r1], regs[r1], tmp, 16, 16);
+        tcg_temp_free_i64(tmp);
         break;
     case 0x3: /* IILL     R1,I2     [RI] */
         tmp = tcg_const_i64(i2);
         tcg_gen_deposit_i64(regs[r1], regs[r1], tmp, 0, 16);
+        tcg_temp_free_i64(tmp);
         break;
     case 0x4: /* NIHH     R1,I2     [RI] */
     case 0x8: /* OIHH     R1,I2     [RI] */
@@ -2370,6 +2374,7 @@ static void disas_a5(DisasContext *s, int op, int r1, int i2)
         set_cc_nz_u32(s, tmp32);
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i32(tmp32);
+        tcg_temp_free_i64(tmp);
         break;
     case 0x5: /* NIHL     R1,I2     [RI] */
     case 0x9: /* OIHL     R1,I2     [RI] */
@@ -2395,6 +2400,7 @@ static void disas_a5(DisasContext *s, int op, int r1, int i2)
         set_cc_nz_u32(s, tmp32);
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i32(tmp32);
+        tcg_temp_free_i64(tmp);
         break;
     case 0x6: /* NILH     R1,I2     [RI] */
     case 0xa: /* OILH     R1,I2     [RI] */
@@ -2420,6 +2426,7 @@ static void disas_a5(DisasContext *s, int op, int r1, int i2)
         set_cc_nz_u32(s, tmp32);
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i32(tmp32);
+        tcg_temp_free_i64(tmp);
         break;
     case 0x7: /* NILL     R1,I2     [RI] */
     case 0xb: /* OILL     R1,I2     [RI] */
@@ -2443,29 +2450,33 @@ static void disas_a5(DisasContext *s, int op, int r1, int i2)
         set_cc_nz_u32(s, tmp32);        /* signedness should not matter here */
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i32(tmp32);
+        tcg_temp_free_i64(tmp);
         break;
     case 0xc: /* LLIHH     R1,I2     [RI] */
         tmp = tcg_const_i64( ((uint64_t)i2) << 48 );
         store_reg(r1, tmp);
+        tcg_temp_free_i64(tmp);
         break;
     case 0xd: /* LLIHL     R1,I2     [RI] */
         tmp = tcg_const_i64( ((uint64_t)i2) << 32 );
         store_reg(r1, tmp);
+        tcg_temp_free_i64(tmp);
         break;
     case 0xe: /* LLILH     R1,I2     [RI] */
         tmp = tcg_const_i64( ((uint64_t)i2) << 16 );
         store_reg(r1, tmp);
+        tcg_temp_free_i64(tmp);
         break;
     case 0xf: /* LLILL     R1,I2     [RI] */
         tmp = tcg_const_i64(i2);
         store_reg(r1, tmp);
+        tcg_temp_free_i64(tmp);
         break;
     default:
         LOG_DISAS("illegal a5 operation 0x%x\n", op);
         gen_illegal_opcode(s, 2);
         return;
     }
-    tcg_temp_free_i64(tmp);
 }
 
 static void disas_a7(DisasContext *s, int op, int r1, int i2)
