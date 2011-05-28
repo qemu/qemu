@@ -1612,6 +1612,9 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     /* Allocate space for the saved registers.  */
     frame_size += ARRAY_SIZE(tcg_target_callee_save_regs) * 4;
 
+    /* Allocate space for the TCG temps. */
+    frame_size += CPU_TEMP_BUF_NLONGS * sizeof(long);
+
     /* Align the allocated space.  */
     frame_size = ((frame_size + TCG_TARGET_STACK_ALIGN - 1)
                   & -TCG_TARGET_STACK_ALIGN);
@@ -1628,6 +1631,10 @@ static void tcg_target_qemu_prologue(TCGContext *s)
         tcg_out_st(s, TCG_TYPE_PTR, tcg_target_callee_save_regs[i],
                    TCG_REG_CALL_STACK, -frame_size + i * 4);
     }
+
+    /* Record the location of the TCG temps.  */
+    tcg_set_frame(s, TCG_REG_CALL_STACK, -frame_size + i * 4,
+                  TCG_TEMP_BUF_NLONGS * sizeof(long));
 
 #ifdef CONFIG_USE_GUEST_BASE
     if (GUEST_BASE != 0) {
@@ -1684,6 +1691,4 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R31); /* ble link reg */
 
     tcg_add_target_add_op_defs(hppa_op_defs);
-    tcg_set_frame(s, TCG_AREG0, offsetof(CPUState, temp_buf),
-                  CPU_TEMP_BUF_NLONGS * sizeof(long));
 }
