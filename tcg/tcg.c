@@ -1845,13 +1845,14 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
         nb_regs = nb_params;
 
     /* assign stack slots first */
-    /* XXX: preallocate call stack */
     call_stack_size = (nb_params - nb_regs) * sizeof(tcg_target_long);
     call_stack_size = (call_stack_size + TCG_TARGET_STACK_ALIGN - 1) & 
         ~(TCG_TARGET_STACK_ALIGN - 1);
     allocate_args = (call_stack_size > TCG_STATIC_CALL_ARGS_SIZE);
     if (allocate_args) {
-        tcg_out_addi(s, TCG_REG_CALL_STACK, -STACK_DIR(call_stack_size));
+        /* XXX: if more than TCG_STATIC_CALL_ARGS_SIZE is needed,
+           preallocate call stack */
+        tcg_abort();
     }
 
     stack_offset = TCG_TARGET_CALL_STACK_OFFSET;
@@ -1970,10 +1971,6 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
     }
 
     tcg_out_op(s, opc, &func_arg, &const_func_arg);
-    
-    if (allocate_args) {
-        tcg_out_addi(s, TCG_REG_CALL_STACK, STACK_DIR(call_stack_size));
-    }
 
     /* assign output registers and emit moves if needed */
     for(i = 0; i < nb_oargs; i++) {
