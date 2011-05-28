@@ -1398,7 +1398,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
         /* Pop and discard.  This is 2 bytes smaller than the add.  */
         tcg_out_pop(s, TCG_REG_ECX);
     } else if (stack_adjust != 0) {
-        tcg_out_addi(s, TCG_REG_ESP, stack_adjust);
+        tcg_out_addi(s, TCG_REG_CALL_STACK, stack_adjust);
     }
 
     /* label2: */
@@ -1931,7 +1931,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     frame_size = (frame_size + TCG_TARGET_STACK_ALIGN - 1) &
         ~(TCG_TARGET_STACK_ALIGN - 1);
     stack_addend = frame_size - push_size;
-    tcg_out_addi(s, TCG_REG_ESP, -stack_addend);
+    tcg_out_addi(s, TCG_REG_CALL_STACK, -stack_addend);
 
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
 
@@ -1941,7 +1941,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     /* TB epilogue */
     tb_ret_addr = s->code_ptr;
 
-    tcg_out_addi(s, TCG_REG_ESP, stack_addend);
+    tcg_out_addi(s, TCG_REG_CALL_STACK, stack_addend);
 
     for (i = ARRAY_SIZE(tcg_target_callee_save_regs) - 1; i >= 0; i--) {
         tcg_out_pop(s, tcg_target_callee_save_regs[i]);
@@ -1978,7 +1978,7 @@ static void tcg_target_init(TCGContext *s)
     }
 
     tcg_regset_clear(s->reserved_regs);
-    tcg_regset_set_reg(s->reserved_regs, TCG_REG_ESP);
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
 
     tcg_add_target_add_op_defs(x86_op_defs);
     tcg_set_frame(s, TCG_AREG0, offsetof(CPUState, temp_buf),
