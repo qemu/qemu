@@ -646,14 +646,14 @@ static void tcg_out_xmpyu(TCGContext *s, int retl, int reth,
                           int arg1, int arg2)
 {
     /* Store both words into the stack for copy to the FPU.  */
-    tcg_out_ldst(s, arg1, TCG_REG_SP, STACK_TEMP_OFS, INSN_STW);
-    tcg_out_ldst(s, arg2, TCG_REG_SP, STACK_TEMP_OFS + 4, INSN_STW);
+    tcg_out_ldst(s, arg1, TCG_REG_CALL_STACK, STACK_TEMP_OFS, INSN_STW);
+    tcg_out_ldst(s, arg2, TCG_REG_CALL_STACK, STACK_TEMP_OFS + 4, INSN_STW);
 
     /* Load both words into the FPU at the same time.  We get away
        with this because we can address the left and right half of the
        FPU registers individually once loaded.  */
     /* fldds stack_temp(sp),fr22 */
-    tcg_out32(s, INSN_FLDDS | INSN_R2(TCG_REG_SP)
+    tcg_out32(s, INSN_FLDDS | INSN_R2(TCG_REG_CALL_STACK)
               | INSN_IM5(STACK_TEMP_OFS) | INSN_T(22));
 
     /* xmpyu fr22r,fr22,fr22 */
@@ -661,15 +661,16 @@ static void tcg_out_xmpyu(TCGContext *s, int retl, int reth,
 
     /* Store the 64-bit result back into the stack.  */
     /* fstds stack_temp(sp),fr22 */
-    tcg_out32(s, INSN_FSTDS | INSN_R2(TCG_REG_SP)
+    tcg_out32(s, INSN_FSTDS | INSN_R2(TCG_REG_CALL_STACK)
               | INSN_IM5(STACK_TEMP_OFS) | INSN_T(22));
 
     /* Load the pieces of the result that the caller requested.  */
     if (reth) {
-        tcg_out_ldst(s, reth, TCG_REG_SP, STACK_TEMP_OFS, INSN_LDW);
+        tcg_out_ldst(s, reth, TCG_REG_CALL_STACK, STACK_TEMP_OFS, INSN_LDW);
     }
     if (retl) {
-        tcg_out_ldst(s, retl, TCG_REG_SP, STACK_TEMP_OFS + 4, INSN_LDW);
+        tcg_out_ldst(s, retl, TCG_REG_CALL_STACK, STACK_TEMP_OFS + 4,
+                     INSN_LDW);
     }
 }
 
@@ -1198,7 +1199,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
         }
         tcg_out_mov(s, TCG_TYPE_I32, TCG_REG_R23, datahi_reg);
         tcg_out_mov(s, TCG_TYPE_I32, TCG_REG_R24, datalo_reg);
-        tcg_out_st(s, TCG_TYPE_I32, argreg, TCG_REG_SP,
+        tcg_out_st(s, TCG_TYPE_I32, argreg, TCG_REG_CALL_STACK,
                    TCG_TARGET_CALL_STACK_OFFSET - 4);
         break;
     default:
@@ -1616,16 +1617,16 @@ static void tcg_target_qemu_prologue(TCGContext *s)
                   & -TCG_TARGET_STACK_ALIGN);
 
     /* The return address is stored in the caller's frame.  */
-    tcg_out_st(s, TCG_TYPE_PTR, TCG_REG_RP, TCG_REG_SP, -20);
+    tcg_out_st(s, TCG_TYPE_PTR, TCG_REG_RP, TCG_REG_CALL_STACK, -20);
 
     /* Allocate stack frame, saving the first register at the same time.  */
     tcg_out_ldst(s, tcg_target_callee_save_regs[0],
-                 TCG_REG_SP, frame_size, INSN_STWM);
+                 TCG_REG_CALL_STACK, frame_size, INSN_STWM);
 
     /* Save all callee saved registers.  */
     for (i = 1; i < ARRAY_SIZE(tcg_target_callee_save_regs); i++) {
         tcg_out_st(s, TCG_TYPE_PTR, tcg_target_callee_save_regs[i],
-                   TCG_REG_SP, -frame_size + i * 4);
+                   TCG_REG_CALL_STACK, -frame_size + i * 4);
     }
 
 #ifdef CONFIG_USE_GUEST_BASE
@@ -1642,16 +1643,17 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out_mov(s, TCG_TYPE_I32, TCG_REG_R18, TCG_REG_R31);
 
     /* Restore callee saved registers.  */
-    tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_RP, TCG_REG_SP, -frame_size - 20);
+    tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_RP, TCG_REG_CALL_STACK,
+               -frame_size - 20);
     for (i = 1; i < ARRAY_SIZE(tcg_target_callee_save_regs); i++) {
         tcg_out_ld(s, TCG_TYPE_PTR, tcg_target_callee_save_regs[i],
-                   TCG_REG_SP, -frame_size + i * 4);
+                   TCG_REG_CALL_STACK, -frame_size + i * 4);
     }
 
     /* Deallocate stack frame and return.  */
     tcg_out32(s, INSN_BV | INSN_R2(TCG_REG_RP));
     tcg_out_ldst(s, tcg_target_callee_save_regs[0],
-                 TCG_REG_SP, -frame_size, INSN_LDWM);
+                 TCG_REG_CALL_STACK, -frame_size, INSN_LDWM);
 }
 
 static void tcg_target_init(TCGContext *s)
@@ -1678,7 +1680,7 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R19); /* clobbered w/o pic */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R20); /* reserved */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_DP);  /* data pointer */
-    tcg_regset_set_reg(s->reserved_regs, TCG_REG_SP);  /* stack pointer */
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);  /* stack pointer */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R31); /* ble link reg */
 
     tcg_add_target_add_op_defs(hppa_op_defs);
