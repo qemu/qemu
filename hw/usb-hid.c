@@ -142,7 +142,6 @@ static const USBDescIface desc_iface_tablet = {
     .bInterfaceNumber              = 0,
     .bNumEndpoints                 = 1,
     .bInterfaceClass               = USB_CLASS_HID,
-    .bInterfaceSubClass            = 0x01, /* boot */
     .bInterfaceProtocol            = 0x02,
     .ndesc                         = 1,
     .descs = (USBDescOther[]) {
