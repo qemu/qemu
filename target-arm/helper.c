@@ -2128,11 +2128,11 @@ uint32_t HELPER(v7m_mrs)(CPUState *env, uint32_t reg)
         return env->v7m.current_sp ? env->regs[13] : env->v7m.other_sp;
     case 16: /* PRIMASK */
         return (env->uncached_cpsr & CPSR_I) != 0;
-    case 17: /* FAULTMASK */
-        return (env->uncached_cpsr & CPSR_F) != 0;
-    case 18: /* BASEPRI */
-    case 19: /* BASEPRI_MAX */
+    case 17: /* BASEPRI */
+    case 18: /* BASEPRI_MAX */
         return env->v7m.basepri;
+    case 19: /* FAULTMASK */
+        return (env->uncached_cpsr & CPSR_F) != 0;
     case 20: /* CONTROL */
         return env->v7m.control;
     default:
@@ -2184,19 +2184,19 @@ void HELPER(v7m_msr)(CPUState *env, uint32_t reg, uint32_t val)
         else
             env->uncached_cpsr &= ~CPSR_I;
         break;
-    case 17: /* FAULTMASK */
+    case 17: /* BASEPRI */
+        env->v7m.basepri = val & 0xff;
+        break;
+    case 18: /* BASEPRI_MAX */
+        val &= 0xff;
+        if (val != 0 && (val < env->v7m.basepri || env->v7m.basepri == 0))
+            env->v7m.basepri = val;
+        break;
+    case 19: /* FAULTMASK */
         if (val & 1)
             env->uncached_cpsr |= CPSR_F;
         else
             env->uncached_cpsr &= ~CPSR_F;
-        break;
-    case 18: /* BASEPRI */
-        env->v7m.basepri = val & 0xff;
-        break;
-    case 19: /* BASEPRI_MAX */
-        val &= 0xff;
-        if (val != 0 && (val < env->v7m.basepri || env->v7m.basepri == 0))
-            env->v7m.basepri = val;
         break;
     case 20: /* CONTROL */
         env->v7m.control = val & 3;
