@@ -132,6 +132,11 @@ static inline char *realpath(const char *path, char *resolved_path)
 
 #endif /* !defined(NEED_CPU_H) */
 
+/* main function, renamed */
+#if defined(CONFIG_COCOA)
+int qemu_main(int argc, char **argv, char **envp);
+#endif
+
 /* bottom halves */
 typedef void QEMUBHFunc(void *opaque);
 

@@ -23,6 +23,7 @@
  */
 
 #import <Cocoa/Cocoa.h>
+#include <crt_externs.h>
 
 #include "qemu-common.h"
 #include "console.h"
@@ -61,7 +62,6 @@ typedef struct {
     int bitsPerPixel;
 } QEMUScreen;
 
-int qemu_main(int argc, char **argv); // main defined in qemu/vl.c
 NSWindow *normalWindow;
 id cocoaView;
 static DisplayChangeListener *dcl;
@@ -794,7 +794,7 @@ static int cocoa_keycode_to_qemu(int keycode)
     COCOA_DEBUG("QemuCocoaAppController: startEmulationWithArgc\n");
 
     int status;
-    status = qemu_main(argc, argv);
+    status = qemu_main(argc, argv, *_NSGetEnviron());
     exit(status);
 }
 
@@ -877,7 +877,7 @@ int main (int argc, const char * argv[]) {
                 !strcmp(opt, "-nographic") ||
                 !strcmp(opt, "-version") ||
                 !strcmp(opt, "-curses")) {
-                return qemu_main(gArgc, gArgv);
+                return qemu_main(gArgc, gArgv, *_NSGetEnviron());
             }
         }
     }
