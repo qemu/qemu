@@ -2461,7 +2461,13 @@ fi
 fdatasync=no
 cat > $TMPC << EOF
 #include <unistd.h>
-int main(void) { return fdatasync(0); }
+int main(void) {
+#if defined(_POSIX_SYNCHRONIZED_IO) && _POSIX_SYNCHRONIZED_IO > 0
+return fdatasync(0);
+#else
+#abort Not supported
+#endif
+}
 EOF
 if compile_prog "" "" ; then
     fdatasync=yes
