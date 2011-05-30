@@ -373,6 +373,11 @@ struct EHCIState {
     target_phys_addr_t mem_base;
     int mem;
     int num_ports;
+
+    /* properties */
+    uint32_t freq;
+    uint32_t maxframes;
+
     /*
      *  EHCI spec version 1.0 Section 2.3
      *  Host Controller Operational Registers
@@ -2048,7 +2053,7 @@ static void ehci_frame_timer(void *opaque)
 
 
     t_now = qemu_get_clock_ns(vm_clock);
-    expire_time = t_now + (get_ticks_per_sec() / FRAME_TIMER_FREQ);
+    expire_time = t_now + (get_ticks_per_sec() / ehci->freq);
     if (expire_time == t_now) {
         expire_time++;
     }
@@ -2073,7 +2078,7 @@ static void ehci_frame_timer(void *opaque)
             ehci->sofv &= 0x000003ff;
         }
 
-        if (frames - i > 10) {
+        if (frames - i > ehci->maxframes) {
             skipped_frames++;
         } else {
             ehci_advance_periodic_state(ehci);
@@ -2146,6 +2151,11 @@ static PCIDeviceInfo ehci_info = {
     .device_id    = PCI_DEVICE_ID_INTEL_82801D,
     .revision     = 0x10,
     .class_id     = PCI_CLASS_SERIAL_USB,
+    .qdev.props   = (Property[]) {
+        DEFINE_PROP_UINT32("freq",      EHCIState, freq, FRAME_TIMER_FREQ),
+        DEFINE_PROP_UINT32("maxframes", EHCIState, maxframes, 128),
+        DEFINE_PROP_END_OF_LIST(),
+    },
 };
 
 static int usb_ehci_initfn(PCIDevice *dev)
