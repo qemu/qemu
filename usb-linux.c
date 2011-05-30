@@ -1088,6 +1088,42 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
     return 0;
 }
 
+/*
+ * Check if we can safely redirect a usb2 device to a usb1 virtual controller,
+ * this function assumes this is safe, if:
+ * 1) There are no isoc endpoints
+ * 2) There are no interrupt endpoints with a max_packet_size > 64
+ * Note bulk endpoints with a max_packet_size > 64 in theory also are not
+ * usb1 compatible, but in practice this seems to work fine.
+ */
+static int usb_linux_full_speed_compat(USBHostDevice *dev)
+{
+    int i, packet_size;
+
+    /*
+     * usb_linux_update_endp_table only registers info about ep in the current
+     * interface altsettings, so we need to parse the descriptors again.
+     */
+    for (i = 0; (i + 5) < dev->descr_len; i += dev->descr[i]) {
+        if (dev->descr[i + 1] == USB_DT_ENDPOINT) {
+            switch (dev->descr[i + 3] & 0x3) {
+            case 0x00: /* CONTROL */
+                break;
+            case 0x01: /* ISO */
+                return 0;
+            case 0x02: /* BULK */
+                break;
+            case 0x03: /* INTERRUPT */
+                packet_size = dev->descr[i + 4] + (dev->descr[i + 5] << 8);
+                if (packet_size > 64)
+                    return 0;
+                break;
+            }
+        }
+    }
+    return 1;
+}
+
 static int usb_host_open(USBHostDevice *dev, int bus_num,
                         int addr, char *port, const char *prod_name, int speed)
 {
@@ -1168,6 +1204,9 @@ static int usb_host_open(USBHostDevice *dev, int bus_num,
     }
     dev->dev.speed = speed;
     dev->dev.speedmask = (1 << speed);
+    if (dev->dev.speed == USB_SPEED_HIGH && usb_linux_full_speed_compat(dev)) {
+        dev->dev.speedmask |= USB_SPEED_MASK_FULL;
+    }
 
     printf("husb: grabbed usb device %d.%d\n", bus_num, addr);
 
