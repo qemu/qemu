@@ -1731,25 +1731,15 @@ void HELPER(sqdbr)(uint32_t f1, uint32_t f2)
     env->fregs[f1].d = float64_sqrt(env->fregs[f2].d, &env->fpu_status);
 }
 
-static inline uint64_t cksm_overflow(uint64_t cksm)
-{
-    if (cksm > 0xffffffffULL) {
-        cksm &= 0xffffffffULL;
-        cksm++;
-    }
-    return cksm;
-}
-
 /* checksum */
 void HELPER(cksm)(uint32_t r1, uint32_t r2)
 {
     uint64_t src = get_address_31fix(r2);
     uint64_t src_len = env->regs[(r2 + 1) & 15];
-    uint64_t cksm = 0;
+    uint64_t cksm = (uint32_t)env->regs[r1];
 
     while (src_len >= 4) {
         cksm += ldl(src);
-        cksm = cksm_overflow(cksm);
 
         /* move to next word */
         src_len -= 4;
@@ -1760,26 +1750,24 @@ void HELPER(cksm)(uint32_t r1, uint32_t r2)
     case 0:
         break;
     case 1:
-        cksm += ldub(src);
-        cksm = cksm_overflow(cksm);
+        cksm += ldub(src) << 24;
         break;
     case 2:
-        cksm += lduw(src);
-        cksm = cksm_overflow(cksm);
+        cksm += lduw(src) << 16;
         break;
     case 3:
-        /* XXX check if this really is correct */
-        cksm += lduw(src) << 8;
-        cksm += ldub(src + 2);
-        cksm = cksm_overflow(cksm);
+        cksm += lduw(src) << 16;
+        cksm += ldub(src + 2) << 8;
         break;
     }
 
     /* indicate we've processed everything */
+    env->regs[r2] = src + src_len;
     env->regs[(r2 + 1) & 15] = 0;
 
     /* store result */
-    env->regs[r1] = (env->regs[r1] & 0xffffffff00000000ULL) | (uint32_t)cksm;
+    env->regs[r1] = (env->regs[r1] & 0xffffffff00000000ULL) |
+                    ((uint32_t)cksm + (cksm >> 32));
 }
 
 static inline uint32_t cc_calc_ltgt_32(CPUState *env, int32_t src,
