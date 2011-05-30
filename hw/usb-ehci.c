@@ -198,6 +198,7 @@ typedef struct EHCIitd {
 #define ITD_BUFPTR_MAXPKT_MASK   0x000007ff
 #define ITD_BUFPTR_MAXPKT_SH     0
 #define ITD_BUFPTR_MULT_MASK     0x00000003
+#define ITD_BUFPTR_MULT_SH       0
 } EHCIitd;
 
 /*  EHCI spec version 1.0 Section 3.4
@@ -628,7 +629,11 @@ static void ehci_trace_qtd(EHCIQueue *q, target_phys_addr_t addr, EHCIqtd *qtd)
 
 static void ehci_trace_itd(EHCIState *s, target_phys_addr_t addr, EHCIitd *itd)
 {
-    trace_usb_ehci_itd(addr, itd->next);
+    trace_usb_ehci_itd(addr, itd->next,
+                       get_field(itd->bufptr[1], ITD_BUFPTR_MAXPKT),
+                       get_field(itd->bufptr[2], ITD_BUFPTR_MULT),
+                       get_field(itd->bufptr[0], ITD_BUFPTR_EP),
+                       get_field(itd->bufptr[0], ITD_BUFPTR_DEVADDR));
 }
 
 /* queue management */
@@ -1270,41 +1275,51 @@ static int ehci_process_itd(EHCIState *ehci,
     USBPort *port;
     USBDevice *dev;
     int ret;
-    int i, j;
-    int ptr;
-    int pid;
-    int pg;
-    int len;
-    int dir;
-    int devadr;
-    int endp;
+    uint32_t i, j, len, len1, len2, pid, dir, devaddr, endp;
+    uint32_t pg, off, ptr1, ptr2, max, mult;
 
     dir =(itd->bufptr[1] & ITD_BUFPTR_DIRECTION);
-    devadr = get_field(itd->bufptr[0], ITD_BUFPTR_DEVADDR);
+    devaddr = get_field(itd->bufptr[0], ITD_BUFPTR_DEVADDR);
     endp = get_field(itd->bufptr[0], ITD_BUFPTR_EP);
-    /* maxpkt = get_field(itd->bufptr[1], ITD_BUFPTR_MAXPKT); */
+    max = get_field(itd->bufptr[1], ITD_BUFPTR_MAXPKT);
+    mult = get_field(itd->bufptr[2], ITD_BUFPTR_MULT);
 
     for(i = 0; i < 8; i++) {
         if (itd->transact[i] & ITD_XACT_ACTIVE) {
-            DPRINTF("ISOCHRONOUS active for frame %d, interval %d\n",
-                    ehci->frindex >> 3, i);
+            pg   = get_field(itd->transact[i], ITD_XACT_PGSEL);
+            off  = itd->transact[i] & ITD_XACT_OFFSET_MASK;
+            ptr1 = (itd->bufptr[pg] & ITD_BUFPTR_MASK);
+            ptr2 = (itd->bufptr[pg+1] & ITD_BUFPTR_MASK);
+            len  = get_field(itd->transact[i], ITD_XACT_LENGTH);
 
-            pg = get_field(itd->transact[i], ITD_XACT_PGSEL);
-            ptr = (itd->bufptr[pg] & ITD_BUFPTR_MASK) |
-                (itd->transact[i] & ITD_XACT_OFFSET_MASK);
-            len = get_field(itd->transact[i], ITD_XACT_LENGTH);
+            if (len > max * mult) {
+                len = max * mult;
+            }
 
             if (len > BUFF_SIZE) {
                 return USB_RET_PROCERR;
             }
 
-            DPRINTF("ISOCH: buffer %08X len %d\n", ptr, len);
+            if (off + len > 4096) {
+                /* transfer crosses page border */
+                len2 = off + len - 4096;
+                len1 = len - len2;
+            } else {
+                len1 = len;
+                len2 = 0;
+            }
 
             if (!dir) {
-                cpu_physical_memory_rw(ptr, &ehci->ibuffer[0], len, 0);
                 pid = USB_TOKEN_OUT;
-            } else
+                trace_usb_ehci_data(0, pg, off, ptr1 + off, len1, 0);
+                cpu_physical_memory_rw(ptr1 + off, &ehci->ibuffer[0], len1, 0);
+                if (len2) {
+                    trace_usb_ehci_data(0, pg+1, 0, ptr2, len2, len1);
+                    cpu_physical_memory_rw(ptr2, &ehci->ibuffer[len1], len2, 0);
+                }
+            } else {
                 pid = USB_TOKEN_IN;
+            }
 
             ret = USB_RET_NODEV;
 
@@ -1315,18 +1330,15 @@ static int ehci_process_itd(EHCIState *ehci,
                 // TODO sometime we will also need to check if we are the port owner
 
                 if (!(ehci->portsc[j] &(PORTSC_CONNECT))) {
-                    DPRINTF("Port %d, no exec, not connected(%08X)\n",
-                            j, ehci->portsc[j]);
                     continue;
                 }
 
                 ehci->ipacket.pid = pid;
-                ehci->ipacket.devaddr = devadr;
+                ehci->ipacket.devaddr = devaddr;
                 ehci->ipacket.devep = endp;
                 ehci->ipacket.data = ehci->ibuffer;
                 ehci->ipacket.len = len;
 
-                DPRINTF("calling usb_handle_packet\n");
                 ret = usb_handle_packet(dev, &ehci->ipacket);
 
                 if (ret != USB_RET_NODEV) {
@@ -1334,6 +1346,7 @@ static int ehci_process_itd(EHCIState *ehci,
                 }
             }
 
+#if 0
             /*  In isoch, there is no facility to indicate a NAK so let's
              *  instead just complete a zero-byte transaction.  Setting
              *  DBERR seems too draconian.
@@ -1358,24 +1371,40 @@ static int ehci_process_itd(EHCIState *ehci,
                 DPRINTF("ISOCH: received ACK, clearing pause\n");
                 ehci->isoch_pause = -1;
             }
+#else
+            if (ret == USB_RET_NAK) {
+                ret = 0;
+            }
+#endif
 
             if (ret >= 0) {
-                itd->transact[i] &= ~ITD_XACT_ACTIVE;
+                if (!dir) {
+                    /* OUT */
+                    set_field(&itd->transact[i], len - ret, ITD_XACT_LENGTH);
+                } else {
+                    /* IN */
+                    if (len1 > ret) {
+                        len1 = ret;
+                    }
+                    if (len2 > ret - len1) {
+                        len2 = ret - len1;
+                    }
+                    if (len1) {
+                        trace_usb_ehci_data(1, pg, off, ptr1 + off, len1, 0);
+                        cpu_physical_memory_rw(ptr1 + off, &ehci->ibuffer[0], len1, 1);
+                    }
+                    if (len2) {
+                        trace_usb_ehci_data(1, pg+1, 0, ptr2, len2, len1);
+                        cpu_physical_memory_rw(ptr2, &ehci->ibuffer[len1], len2, 1);
+                    }
+                    set_field(&itd->transact[i], ret, ITD_XACT_LENGTH);
+                }
 
                 if (itd->transact[i] & ITD_XACT_IOC) {
                     ehci_record_interrupt(ehci, USBSTS_INT);
                 }
             }
-
-            if (ret >= 0 && dir) {
-                cpu_physical_memory_rw(ptr, &ehci->ibuffer[0], len, 1);
-
-                if (ret != len) {
-                    DPRINTF("ISOCH IN expected %d, got %d\n",
-                            len, ret);
-                    set_field(&itd->transact[i], ret, ITD_XACT_LENGTH);
-                }
-            }
+            itd->transact[i] &= ~ITD_XACT_ACTIVE;
         }
     }
     return 0;
