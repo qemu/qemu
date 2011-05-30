@@ -3473,6 +3473,9 @@ static void disas_b9(DisasContext *s, int op, int r1, int r2)
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i64(tmp3);
         break;
+    case 0x0f: /* LRVGR    R1,R2     [RRE] */
+        tcg_gen_bswap64_i64(regs[r1], regs[r2]);
+        break;
     case 0x1f: /* LRVR     R1,R2     [RRE] */
         tmp32_1 = load_reg32(r2);
         tcg_gen_bswap32_i32(tmp32_1, tmp32_1);
