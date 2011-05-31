@@ -1378,7 +1378,9 @@ static int usb_host_scan_dev(void *opaque, USBScanFunc *func)
             if (get_tag_value(buf, sizeof(buf), line, "Spd=", " ") < 0) {
                 goto fail;
             }
-            if (!strcmp(buf, "480")) {
+            if (!strcmp(buf, "5000")) {
+                speed = USB_SPEED_SUPER;
+            } else if (!strcmp(buf, "480")) {
                 speed = USB_SPEED_HIGH;
             } else if (!strcmp(buf, "1.5")) {
                 speed = USB_SPEED_LOW;
@@ -1522,7 +1524,9 @@ static int usb_host_scan_sys(void *opaque, USBScanFunc *func)
             if (!usb_host_read_file(line, sizeof(line), "speed", de->d_name)) {
                 goto the_end;
             }
-            if (!strcmp(line, "480\n")) {
+            if (!strcmp(line, "5000\n")) {
+                speed = USB_SPEED_SUPER;
+            } else if (!strcmp(line, "480\n")) {
                 speed = USB_SPEED_HIGH;
             } else if (!strcmp(line, "1.5\n")) {
                 speed = USB_SPEED_LOW;
@@ -1798,6 +1802,9 @@ static void usb_info_device(Monitor *mon, int bus_num, int addr, char *port,
         break;
     case USB_SPEED_HIGH:
         speed_str = "480";
+        break;
+    case USB_SPEED_SUPER:
+        speed_str = "5000";
         break;
     default:
         speed_str = "?";
