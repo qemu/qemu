@@ -129,7 +129,7 @@ typedef tcg_target_ulong TCGArg;
    We use plain int by default to avoid this runtime overhead.
    Users of tcg_gen_* don't need to know about any of this, and should
    treat TCGv as an opaque type.
-   In additon we do typechecking for different types of variables.  TCGv_i32
+   In addition we do typechecking for different types of variables.  TCGv_i32
    and TCGv_i64 are 32/64-bit variables respectively.  TCGv and TCGv_ptr
    are aliases for target_ulong and host pointer sized values respectively.
  */

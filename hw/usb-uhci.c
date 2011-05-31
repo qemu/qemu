@@ -632,7 +632,7 @@ static int uhci_broadcast_packet(UHCIState *s, USBPacket *p)
         USBDevice *dev = port->port.dev;
 
         if (dev && (port->ctrl & UHCI_PORT_EN))
-            ret = dev->info->handle_packet(dev, p);
+            ret = usb_handle_packet(dev, p);
     }
 
     DPRINTF("uhci: packet exit. ret %d len %d\n", ret, p->len);
@@ -702,11 +702,15 @@ out:
     case USB_RET_STALL:
         td->ctrl |= TD_CTRL_STALL;
         td->ctrl &= ~TD_CTRL_ACTIVE;
+        s->status |= UHCI_STS_USBERR;
+        uhci_update_irq(s);
         return 1;
 
     case USB_RET_BABBLE:
         td->ctrl |= TD_CTRL_BABBLE | TD_CTRL_STALL;
         td->ctrl &= ~TD_CTRL_ACTIVE;
+        s->status |= UHCI_STS_USBERR;
+        uhci_update_irq(s);
         /* frame interrupted */
         return -1;
 

@@ -1,0 +1,38 @@
+
+USB 2.0 Quick Start
+===================
+
+The QEMU EHCI Adapter does *not* support companion controllers.  That
+implies there are two completely separate USB busses: One USB 1.1 bus
+driven by the UHCI controller and one USB 2.0 bus driven by the EHCI
+controller.  Devices must be attached to the correct controller
+manually.
+
+The '-usb' switch will make qemu create the UHCI controller as part of
+the PIIX3 chipset.  The USB 1.1 bus will carry the name "usb.0".
+
+You can use the standard -device switch to add a EHCI controller to
+your virtual machine.  It is strongly recommended to specify an ID for
+the controller so the USB 2.0 bus gets a individual name, for example
+'-device usb-ehci,id=ehci".  This will give you a USB 2.0 bus named
+"ehci.0".
+
+I strongly recomment to also use -device to attach usb devices because
+you can specify the bus they should be attached to this way.  Here is
+a complete example:
+
+    qemu -M pc ${otheroptions}                           \
+        -drive if=none,id=usbstick,file=/path/to/image   \
+        -usb                                             \
+        -device usb-ehci,id=ehci                         \
+        -device usb-tablet,bus=usb.0                     \
+        -device usb-storage,bus=ehci.0,drive=usbstick
+
+This attaches a usb tablet to the UHCI adapter and a usb mass storage
+device to the EHCI adapter.
+
+enjoy,
+  Gerd
+
+--
+Gerd Hoffmann <kraxel@redhat.com>
