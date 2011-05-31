@@ -188,7 +188,7 @@ static uint32_t pflash_read (pflash_t *pfl, target_phys_addr_t offset,
         default:
             goto flash_read;
         }
-        DPRINTF("%s: ID " TARGET_FMT_pld " %x\n", __func__, boff, ret);
+        DPRINTF("%s: ID " TARGET_FMT_plx " %x\n", __func__, boff, ret);
         break;
     case 0xA0:
     case 0x10:
