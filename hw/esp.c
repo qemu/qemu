@@ -61,10 +61,11 @@ struct ESPState {
     int32_t ti_size;
     uint32_t ti_rptr, ti_wptr;
     uint8_t ti_buf[TI_BUFSZ];
-    uint32_t sense;
+    uint32_t status;
     uint32_t dma;
     SCSIBus bus;
     SCSIDevice *current_dev;
+    SCSIRequest *current_req;
     uint8_t cmdbuf[TI_BUFSZ];
     uint32_t cmdlen;
     uint32_t do_cmd;
@@ -187,6 +188,17 @@ static void esp_dma_enable(void *opaque, int irq, int level)
     }
 }
 
+static void esp_request_cancelled(SCSIRequest *req)
+{
+    ESPState *s = DO_UPCAST(ESPState, busdev.qdev, req->bus->qbus.parent);
+
+    if (req == s->current_req) {
+        scsi_req_unref(s->current_req);
+        s->current_req = NULL;
+        s->current_dev = NULL;
+    }
+}
+
 static uint32_t get_cmd(ESPState *s, uint8_t *buf)
 {
     uint32_t dmalen;
@@ -209,7 +221,7 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf)
 
     if (s->current_dev) {
         /* Started a new command before the old one finished.  Cancel it.  */
-        s->current_dev->info->cancel_io(s->current_dev, 0);
+        scsi_req_cancel(s->current_req);
         s->async_len = 0;
     }
 
@@ -232,7 +244,8 @@ static void do_busid_cmd(ESPState *s, uint8_t *buf, uint8_t busid)
 
     DPRINTF("do_busid_cmd: busid 0x%x\n", busid);
     lun = busid & 7;
-    datalen = s->current_dev->info->send_command(s->current_dev, 0, buf, lun);
+    s->current_req = scsi_req_new(s->current_dev, 0, lun);
+    datalen = scsi_req_enqueue(s->current_req, buf);
     s->ti_size = datalen;
     if (datalen != 0) {
         s->rregs[ESP_RSTAT] = STAT_TC;
@@ -240,11 +253,10 @@ static void do_busid_cmd(ESPState *s, uint8_t *buf, uint8_t busid)
         s->dma_counter = 0;
         if (datalen > 0) {
             s->rregs[ESP_RSTAT] |= STAT_DI;
-            s->current_dev->info->read_data(s->current_dev, 0);
         } else {
             s->rregs[ESP_RSTAT] |= STAT_DO;
-            s->current_dev->info->write_data(s->current_dev, 0);
         }
+        scsi_req_continue(s->current_req);
     }
     s->rregs[ESP_RINTR] = INTR_BS | INTR_FC;
     s->rregs[ESP_RSEQ] = SEQ_CD;
@@ -306,8 +318,8 @@ static void handle_satn_stop(ESPState *s)
 
 static void write_response(ESPState *s)
 {
-    DPRINTF("Transfer status (sense=%d)\n", s->sense);
-    s->ti_buf[0] = s->sense;
+    DPRINTF("Transfer status (status=%d)\n", s->status);
+    s->ti_buf[0] = s->status;
     s->ti_buf[1] = 0;
     if (s->dma) {
         s->dma_memory_write(s->dma_opaque, s->ti_buf, 2);
@@ -370,53 +382,56 @@ static void esp_do_dma(ESPState *s)
     else
         s->ti_size -= len;
     if (s->async_len == 0) {
-        if (to_device) {
-            // ti_size is negative
-            s->current_dev->info->write_data(s->current_dev, 0);
-        } else {
-            s->current_dev->info->read_data(s->current_dev, 0);
-            /* If there is still data to be read from the device then
-               complete the DMA operation immediately.  Otherwise defer
-               until the scsi layer has completed.  */
-            if (s->dma_left == 0 && s->ti_size > 0) {
-                esp_dma_done(s);
-            }
+        scsi_req_continue(s->current_req);
+        /* If there is still data to be read from the device then
+           complete the DMA operation immediately.  Otherwise defer
+           until the scsi layer has completed.  */
+        if (to_device || s->dma_left != 0 || s->ti_size == 0) {
+            return;
         }
-    } else {
-        /* Partially filled a scsi buffer. Complete immediately.  */
-        esp_dma_done(s);
+    }
+
+    /* Partially filled a scsi buffer. Complete immediately.  */
+    esp_dma_done(s);
+}
+
+static void esp_command_complete(SCSIRequest *req, uint32_t status)
+{
+    ESPState *s = DO_UPCAST(ESPState, busdev.qdev, req->bus->qbus.parent);
+
+    DPRINTF("SCSI Command complete\n");
+    if (s->ti_size != 0) {
+        DPRINTF("SCSI command completed unexpectedly\n");
+    }
+    s->ti_size = 0;
+    s->dma_left = 0;
+    s->async_len = 0;
+    if (status) {
+        DPRINTF("Command failed\n");
+    }
+    s->status = status;
+    s->rregs[ESP_RSTAT] = STAT_ST;
+    esp_dma_done(s);
+    if (s->current_req) {
+        scsi_req_unref(s->current_req);
+        s->current_req = NULL;
+        s->current_dev = NULL;
     }
 }
 
-static void esp_command_complete(SCSIBus *bus, int reason, uint32_t tag,
-                                 uint32_t arg)
+static void esp_transfer_data(SCSIRequest *req, uint32_t len)
 {
-    ESPState *s = DO_UPCAST(ESPState, busdev.qdev, bus->qbus.parent);
+    ESPState *s = DO_UPCAST(ESPState, busdev.qdev, req->bus->qbus.parent);
 
-    if (reason == SCSI_REASON_DONE) {
-        DPRINTF("SCSI Command complete\n");
-        if (s->ti_size != 0)
-            DPRINTF("SCSI command completed unexpectedly\n");
-        s->ti_size = 0;
-        s->dma_left = 0;
-        s->async_len = 0;
-        if (arg)
-            DPRINTF("Command failed\n");
-        s->sense = arg;
-        s->rregs[ESP_RSTAT] = STAT_ST;
+    DPRINTF("transfer %d/%d\n", s->dma_left, s->ti_size);
+    s->async_len = len;
+    s->async_buf = scsi_req_get_buf(req);
+    if (s->dma_left) {
+        esp_do_dma(s);
+    } else if (s->dma_counter != 0 && s->ti_size <= 0) {
+        /* If this was the last part of a DMA transfer then the
+           completion interrupt is deferred to here.  */
         esp_dma_done(s);
-        s->current_dev = NULL;
-    } else {
-        DPRINTF("transfer %d/%d\n", s->dma_left, s->ti_size);
-        s->async_len = arg;
-        s->async_buf = s->current_dev->info->get_buf(s->current_dev, 0);
-        if (s->dma_left) {
-            esp_do_dma(s);
-        } else if (s->dma_counter != 0 && s->ti_size <= 0) {
-            /* If this was the last part of a DMA transfer then the
-               completion interrupt is deferred to here.  */
-            esp_dma_done(s);
-        }
     }
 }
 
@@ -678,7 +693,7 @@ static const VMStateDescription vmstate_esp = {
         VMSTATE_UINT32(ti_rptr, ESPState),
         VMSTATE_UINT32(ti_wptr, ESPState),
         VMSTATE_BUFFER(ti_buf, ESPState),
-        VMSTATE_UINT32(sense, ESPState),
+        VMSTATE_UINT32(status, ESPState),
         VMSTATE_UINT32(dma, ESPState),
         VMSTATE_BUFFER(cmdbuf, ESPState),
         VMSTATE_UINT32(cmdlen, ESPState),
@@ -714,6 +729,12 @@ void esp_init(target_phys_addr_t espaddr, int it_shift,
     *dma_enable = qdev_get_gpio_in(dev, 1);
 }
 
+static const struct SCSIBusOps esp_scsi_ops = {
+    .transfer_data = esp_transfer_data,
+    .complete = esp_command_complete,
+    .cancel = esp_request_cancelled
+};
+
 static int esp_init1(SysBusDevice *dev)
 {
     ESPState *s = FROM_SYSBUS(ESPState, dev);
@@ -728,7 +749,7 @@ static int esp_init1(SysBusDevice *dev)
 
     qdev_init_gpio_in(&dev->qdev, esp_gpio_demux, 2);
 
-    scsi_bus_new(&s->bus, &dev->qdev, 0, ESP_MAX_DEVS, esp_command_complete);
+    scsi_bus_new(&s->bus, &dev->qdev, 0, ESP_MAX_DEVS, &esp_scsi_ops);
     return scsi_bus_legacy_handle_cmdline(&s->bus);
 }
 

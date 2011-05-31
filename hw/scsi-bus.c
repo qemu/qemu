@@ -4,6 +4,7 @@
 #include "scsi-defs.h"
 #include "qdev.h"
 #include "blockdev.h"
+#include "trace.h"
 
 static char *scsibus_get_fw_dev_path(DeviceState *dev);
 
@@ -20,13 +21,13 @@ static int next_scsi_bus;
 
 /* Create a scsi bus, and attach devices to it.  */
 void scsi_bus_new(SCSIBus *bus, DeviceState *host, int tcq, int ndev,
-                  scsi_completionfn complete)
+                  const SCSIBusOps *ops)
 {
     qbus_create_inplace(&bus->qbus, &scsi_bus_info, host, NULL);
     bus->busnr = next_scsi_bus++;
     bus->tcq = tcq;
     bus->ndev = ndev;
-    bus->complete = complete;
+    bus->ops = ops;
     bus->qbus.allow_hotplug = 1;
 }
 
@@ -135,40 +136,58 @@ SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag, uint32_t l
     SCSIRequest *req;
 
     req = qemu_mallocz(size);
+    req->refcount = 1;
     req->bus = scsi_bus_from_device(d);
     req->dev = d;
     req->tag = tag;
     req->lun = lun;
     req->status = -1;
-    req->enqueued = true;
-    QTAILQ_INSERT_TAIL(&d->requests, req, next);
+    trace_scsi_req_alloc(req->dev->id, req->lun, req->tag);
     return req;
 }
 
-SCSIRequest *scsi_req_find(SCSIDevice *d, uint32_t tag)
+SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun)
 {
-    SCSIRequest *req;
+    return d->info->alloc_req(d, tag, lun);
+}
 
-    QTAILQ_FOREACH(req, &d->requests, next) {
-        if (req->tag == tag) {
-            return req;
-        }
+uint8_t *scsi_req_get_buf(SCSIRequest *req)
+{
+    return req->dev->info->get_buf(req);
+}
+
+int scsi_req_get_sense(SCSIRequest *req, uint8_t *buf, int len)
+{
+    if (req->dev->info->get_sense) {
+        return req->dev->info->get_sense(req, buf, len);
+    } else {
+        return 0;
     }
-    return NULL;
+}
+
+int32_t scsi_req_enqueue(SCSIRequest *req, uint8_t *buf)
+{
+    int32_t rc;
+
+    assert(!req->enqueued);
+    scsi_req_ref(req);
+    req->enqueued = true;
+    QTAILQ_INSERT_TAIL(&req->dev->requests, req, next);
+
+    scsi_req_ref(req);
+    rc = req->dev->info->send_command(req, buf);
+    scsi_req_unref(req);
+    return rc;
 }
 
 static void scsi_req_dequeue(SCSIRequest *req)
 {
+    trace_scsi_req_dequeue(req->dev->id, req->lun, req->tag);
     if (req->enqueued) {
         QTAILQ_REMOVE(&req->dev->requests, req, next);
         req->enqueued = false;
+        scsi_req_unref(req);
     }
-}
-
-void scsi_req_free(SCSIRequest *req)
-{
-    scsi_req_dequeue(req);
-    qemu_free(req);
 }
 
 static int scsi_req_length(SCSIRequest *req, uint8_t *cmd)
@@ -195,6 +214,7 @@ static int scsi_req_length(SCSIRequest *req, uint8_t *cmd)
         req->cmd.len = 12;
         break;
     default:
+        trace_scsi_req_parse_bad(req->dev->id, req->lun, req->tag, cmd[0]);
         return -1;
     }
 
@@ -392,7 +412,98 @@ int scsi_req_parse(SCSIRequest *req, uint8_t *buf)
     memcpy(req->cmd.buf, buf, req->cmd.len);
     scsi_req_xfer_mode(req);
     req->cmd.lba = scsi_req_lba(req);
+    trace_scsi_req_parsed(req->dev->id, req->lun, req->tag, buf[0],
+                          req->cmd.mode, req->cmd.xfer, req->cmd.lba);
     return 0;
+}
+
+/*
+ * Predefined sense codes
+ */
+
+/* No sense data available */
+const struct SCSISense sense_code_NO_SENSE = {
+    .key = NO_SENSE , .asc = 0x00 , .ascq = 0x00
+};
+
+/* LUN not ready, Manual intervention required */
+const struct SCSISense sense_code_LUN_NOT_READY = {
+    .key = NOT_READY, .asc = 0x04, .ascq = 0x03
+};
+
+/* LUN not ready, Medium not present */
+const struct SCSISense sense_code_NO_MEDIUM = {
+    .key = NOT_READY, .asc = 0x3a, .ascq = 0x00
+};
+
+/* Hardware error, internal target failure */
+const struct SCSISense sense_code_TARGET_FAILURE = {
+    .key = HARDWARE_ERROR, .asc = 0x44, .ascq = 0x00
+};
+
+/* Illegal request, invalid command operation code */
+const struct SCSISense sense_code_INVALID_OPCODE = {
+    .key = ILLEGAL_REQUEST, .asc = 0x20, .ascq = 0x00
+};
+
+/* Illegal request, LBA out of range */
+const struct SCSISense sense_code_LBA_OUT_OF_RANGE = {
+    .key = ILLEGAL_REQUEST, .asc = 0x21, .ascq = 0x00
+};
+
+/* Illegal request, Invalid field in CDB */
+const struct SCSISense sense_code_INVALID_FIELD = {
+    .key = ILLEGAL_REQUEST, .asc = 0x24, .ascq = 0x00
+};
+
+/* Illegal request, LUN not supported */
+const struct SCSISense sense_code_LUN_NOT_SUPPORTED = {
+    .key = ILLEGAL_REQUEST, .asc = 0x25, .ascq = 0x00
+};
+
+/* Command aborted, I/O process terminated */
+const struct SCSISense sense_code_IO_ERROR = {
+    .key = ABORTED_COMMAND, .asc = 0x00, .ascq = 0x06
+};
+
+/* Command aborted, I_T Nexus loss occurred */
+const struct SCSISense sense_code_I_T_NEXUS_LOSS = {
+    .key = ABORTED_COMMAND, .asc = 0x29, .ascq = 0x07
+};
+
+/* Command aborted, Logical Unit failure */
+const struct SCSISense sense_code_LUN_FAILURE = {
+    .key = ABORTED_COMMAND, .asc = 0x3e, .ascq = 0x01
+};
+
+/*
+ * scsi_build_sense
+ *
+ * Build a sense buffer
+ */
+int scsi_build_sense(SCSISense sense, uint8_t *buf, int len, int fixed)
+{
+    if (!fixed && len < 8) {
+        return 0;
+    }
+
+    memset(buf, 0, len);
+    if (fixed) {
+        /* Return fixed format sense buffer */
+        buf[0] = 0xf0;
+        buf[2] = sense.key;
+        buf[7] = 7;
+        buf[12] = sense.asc;
+        buf[13] = sense.ascq;
+        return MIN(len, 18);
+    } else {
+        /* Return descriptor format sense buffer */
+        buf[0] = 0x72;
+        buf[1] = sense.key;
+        buf[2] = sense.asc;
+        buf[3] = sense.ascq;
+        return 8;
+    }
 }
 
 static const char *scsi_command_name(uint8_t cmd)
@@ -489,6 +600,43 @@ static const char *scsi_command_name(uint8_t cmd)
     return names[cmd];
 }
 
+SCSIRequest *scsi_req_ref(SCSIRequest *req)
+{
+    req->refcount++;
+    return req;
+}
+
+void scsi_req_unref(SCSIRequest *req)
+{
+    if (--req->refcount == 0) {
+        if (req->dev->info->free_req) {
+            req->dev->info->free_req(req);
+        }
+        qemu_free(req);
+    }
+}
+
+/* Tell the device that we finished processing this chunk of I/O.  It
+   will start the next chunk or complete the command.  */
+void scsi_req_continue(SCSIRequest *req)
+{
+    trace_scsi_req_continue(req->dev->id, req->lun, req->tag);
+    if (req->cmd.mode == SCSI_XFER_TO_DEV) {
+        req->dev->info->write_data(req);
+    } else {
+        req->dev->info->read_data(req);
+    }
+}
+
+/* Called by the devices when data is ready for the HBA.  The HBA should
+   start a DMA operation to read or fill the device's data buffer.
+   Once it completes, calling scsi_req_continue will restart I/O.  */
+void scsi_req_data(SCSIRequest *req, int len)
+{
+    trace_scsi_req_data(req->dev->id, req->lun, req->tag, len);
+    req->bus->ops->transfer_data(req, len);
+}
+
 void scsi_req_print(SCSIRequest *req)
 {
     FILE *fp = stderr;
@@ -520,10 +668,42 @@ void scsi_req_print(SCSIRequest *req)
 void scsi_req_complete(SCSIRequest *req)
 {
     assert(req->status != -1);
+    scsi_req_ref(req);
     scsi_req_dequeue(req);
-    req->bus->complete(req->bus, SCSI_REASON_DONE,
-                       req->tag,
-                       req->status);
+    req->bus->ops->complete(req, req->status);
+    scsi_req_unref(req);
+}
+
+void scsi_req_cancel(SCSIRequest *req)
+{
+    if (req->dev && req->dev->info->cancel_io) {
+        req->dev->info->cancel_io(req);
+    }
+    scsi_req_ref(req);
+    scsi_req_dequeue(req);
+    if (req->bus->ops->cancel) {
+        req->bus->ops->cancel(req);
+    }
+    scsi_req_unref(req);
+}
+
+void scsi_req_abort(SCSIRequest *req, int status)
+{
+    req->status = status;
+    if (req->dev && req->dev->info->cancel_io) {
+        req->dev->info->cancel_io(req);
+    }
+    scsi_req_complete(req);
+}
+
+void scsi_device_purge_requests(SCSIDevice *sdev)
+{
+    SCSIRequest *req;
+
+    while (!QTAILQ_EMPTY(&sdev->requests)) {
+        req = QTAILQ_FIRST(&sdev->requests);
+        scsi_req_cancel(req);
+    }
 }
 
 static char *scsibus_get_fw_dev_path(DeviceState *dev)
