@@ -1671,6 +1671,7 @@ static int usb_host_auto_scan(void *opaque, int bus_num, int addr, char *port,
         DPRINTF("husb: auto open: bus_num %d addr %d\n", bus_num, addr);
 
         usb_host_open(s, bus_num, addr, port, product_name, speed);
+        break;
     }
 
     return 0;
