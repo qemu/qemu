@@ -1029,6 +1029,11 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
             }
 
             devep = descriptors[i + 2];
+            if ((devep & 0x0f) == 0) {
+                fprintf(stderr, "usb-linux: invalid ep descriptor, ep == 0\n");
+                return 1;
+            }
+
             switch (descriptors[i + 3] & 0x3) {
             case 0x00:
                 type = USBDEVFS_URB_TYPE_CONTROL;
