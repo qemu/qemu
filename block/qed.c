@@ -1464,7 +1464,8 @@ static QEMUOptionParameter qed_create_options[] = {
     }, {
         .name = BLOCK_OPT_CLUSTER_SIZE,
         .type = OPT_SIZE,
-        .help = "Cluster size (in bytes)"
+        .help = "Cluster size (in bytes)",
+        .value = { .n = QED_DEFAULT_CLUSTER_SIZE },
     }, {
         .name = BLOCK_OPT_TABLE_SIZE,
         .type = OPT_SIZE,
