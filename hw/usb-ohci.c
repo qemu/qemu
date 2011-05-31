@@ -748,7 +748,7 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
             ohci->usb_packet.devep = OHCI_BM(ed->flags, ED_EN);
             ohci->usb_packet.data = ohci->usb_buf;
             ohci->usb_packet.len = len;
-            ret = dev->info->handle_packet(dev, &ohci->usb_packet);
+            ret = usb_handle_packet(dev, &ohci->usb_packet);
             if (ret != USB_RET_NODEV)
                 break;
         }
@@ -944,7 +944,7 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
             ohci->usb_packet.devep = OHCI_BM(ed->flags, ED_EN);
             ohci->usb_packet.data = ohci->usb_buf;
             ohci->usb_packet.len = len;
-            ret = dev->info->handle_packet(dev, &ohci->usb_packet);
+            ret = usb_handle_packet(dev, &ohci->usb_packet);
             if (ret != USB_RET_NODEV)
                 break;
         }

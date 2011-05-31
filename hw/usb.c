@@ -63,9 +63,10 @@ void usb_wakeup(USBDevice *dev)
    protocol)
 */
 
-#define SETUP_STATE_IDLE 0
-#define SETUP_STATE_DATA 1
-#define SETUP_STATE_ACK  2
+#define SETUP_STATE_IDLE  0
+#define SETUP_STATE_SETUP 1
+#define SETUP_STATE_DATA  2
+#define SETUP_STATE_ACK   3
 
 static int do_token_setup(USBDevice *s, USBPacket *p)
 {
@@ -82,10 +83,14 @@ static int do_token_setup(USBDevice *s, USBPacket *p)
     request = (s->setup_buf[0] << 8) | s->setup_buf[1];
     value   = (s->setup_buf[3] << 8) | s->setup_buf[2];
     index   = (s->setup_buf[5] << 8) | s->setup_buf[4];
- 
+
     if (s->setup_buf[0] & USB_DIR_IN) {
-        ret = s->info->handle_control(s, request, value, index, 
+        ret = s->info->handle_control(s, p, request, value, index,
                                       s->setup_len, s->data_buf);
+        if (ret == USB_RET_ASYNC) {
+             s->setup_state = SETUP_STATE_SETUP;
+             return USB_RET_ASYNC;
+        }
         if (ret < 0)
             return ret;
 
@@ -123,9 +128,12 @@ static int do_token_in(USBDevice *s, USBPacket *p)
     switch(s->setup_state) {
     case SETUP_STATE_ACK:
         if (!(s->setup_buf[0] & USB_DIR_IN)) {
-            s->setup_state = SETUP_STATE_IDLE;
-            ret = s->info->handle_control(s, request, value, index,
+            ret = s->info->handle_control(s, p, request, value, index,
                                           s->setup_len, s->data_buf);
+            if (ret == USB_RET_ASYNC) {
+                return USB_RET_ASYNC;
+            }
+            s->setup_state = SETUP_STATE_IDLE;
             if (ret > 0)
                 return 0;
             return ret;
@@ -238,6 +246,36 @@ int usb_generic_handle_packet(USBDevice *s, USBPacket *p)
     }
 }
 
+/* ctrl complete function for devices which use usb_generic_handle_packet and
+   may return USB_RET_ASYNC from their handle_control callback. Device code
+   which does this *must* call this function instead of the normal
+   usb_packet_complete to complete their async control packets. */
+void usb_generic_async_ctrl_complete(USBDevice *s, USBPacket *p)
+{
+    if (p->len < 0) {
+        s->setup_state = SETUP_STATE_IDLE;
+    }
+
+    switch (s->setup_state) {
+    case SETUP_STATE_SETUP:
+        if (p->len < s->setup_len) {
+            s->setup_len = p->len;
+        }
+        s->setup_state = SETUP_STATE_DATA;
+        p->len = 8;
+        break;
+
+    case SETUP_STATE_ACK:
+        s->setup_state = SETUP_STATE_IDLE;
+        p->len = 0;
+        break;
+
+    default:
+        break;
+    }
+    usb_packet_complete(s, p);
+}
+
 /* XXX: fix overflow */
 int set_usb_string(uint8_t *buf, const char *str)
 {
@@ -259,9 +297,54 @@ int set_usb_string(uint8_t *buf, const char *str)
 void usb_send_msg(USBDevice *dev, int msg)
 {
     USBPacket p;
+    int ret;
+
     memset(&p, 0, sizeof(p));
     p.pid = msg;
-    dev->info->handle_packet(dev, &p);
-
+    ret = usb_handle_packet(dev, &p);
     /* This _must_ be synchronous */
+    assert(ret != USB_RET_ASYNC);
+}
+
+/* Hand over a packet to a device for processing.  Return value
+   USB_RET_ASYNC indicates the processing isn't finished yet, the
+   driver will call usb_packet_complete() when done processing it. */
+int usb_handle_packet(USBDevice *dev, USBPacket *p)
+{
+    int ret;
+
+    assert(p->owner == NULL);
+    ret = dev->info->handle_packet(dev, p);
+    if (ret == USB_RET_ASYNC) {
+        if (p->owner == NULL) {
+            p->owner = dev;
+        } else {
+            /* We'll end up here when usb_handle_packet is called
+             * recursively due to a hub being in the chain.  Nothing
+             * to do.  Leave p->owner pointing to the device, not the
+             * hub. */;
+        }
+    }
+    return ret;
+}
+
+/* Notify the controller that an async packet is complete.  This should only
+   be called for packets previously deferred by returning USB_RET_ASYNC from
+   handle_packet. */
+void usb_packet_complete(USBDevice *dev, USBPacket *p)
+{
+    /* Note: p->owner != dev is possible in case dev is a hub */
+    assert(p->owner != NULL);
+    dev->port->ops->complete(dev, p);
+    p->owner = NULL;
+}
+
+/* Cancel an active packet.  The packed must have been deferred by
+   returning USB_RET_ASYNC from handle_packet, and not yet
+   completed.  */
+void usb_cancel_packet(USBPacket * p)
+{
+    assert(p->owner != NULL);
+    p->owner->info->cancel_packet(p->owner, p);
+    p->owner = NULL;
 }
