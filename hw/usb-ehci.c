@@ -130,7 +130,7 @@
 #define PORTSC_CONNECT       (1 << 0)     // Current Connect Status
 
 #define FRAME_TIMER_FREQ 1000
-#define FRAME_TIMER_USEC (1000000 / FRAME_TIMER_FREQ)
+#define FRAME_TIMER_NS   (1000000000 / FRAME_TIMER_FREQ)
 
 #define NB_MAXINTRATE    8        // Max rate at which controller issues ints
 #define NB_PORTS         4        // Number of downstream ports
@@ -348,7 +348,8 @@ struct EHCIQueue {
     EHCIState *ehci;
     QTAILQ_ENTRY(EHCIQueue) next;
     bool async_schedule;
-    uint32_t seen, ts;
+    uint32_t seen;
+    uint64_t ts;
 
     /* cached data from guest - needs to be flushed
      * when guest removes an entry (doorbell, handshake sequence)
@@ -418,12 +419,11 @@ struct EHCIState {
     uint8_t ibuffer[BUFF_SIZE];
     int isoch_pause;
 
-    uint32_t last_run_usec;
-    uint32_t frame_end_usec;
+    uint64_t last_run_ns;
 };
 
 #define SET_LAST_RUN_CLOCK(s) \
-    (s)->last_run_usec = qemu_get_clock_ns(vm_clock) / 1000;
+    (s)->last_run_ns = qemu_get_clock_ns(vm_clock);
 
 /* nifty macros from Arnon's EHCI version  */
 #define get_field(data, field) \
@@ -690,10 +690,10 @@ static void ehci_queues_rip_unused(EHCIState *ehci)
     QTAILQ_FOREACH_SAFE(q, &ehci->queues, next, tmp) {
         if (q->seen) {
             q->seen = 0;
-            q->ts = ehci->last_run_usec;
+            q->ts = ehci->last_run_ns;
             continue;
         }
-        if (ehci->last_run_usec < q->ts + 250000) {
+        if (ehci->last_run_ns < q->ts + 250000000) {
             /* allow 0.25 sec idle */
             continue;
         }
@@ -2045,23 +2045,16 @@ static void ehci_frame_timer(void *opaque)
 {
     EHCIState *ehci = opaque;
     int64_t expire_time, t_now;
-    int usec_elapsed;
+    uint64_t ns_elapsed;
     int frames;
-    int usec_now;
     int i;
     int skipped_frames = 0;
 
-
     t_now = qemu_get_clock_ns(vm_clock);
     expire_time = t_now + (get_ticks_per_sec() / ehci->freq);
-    if (expire_time == t_now) {
-        expire_time++;
-    }
 
-    usec_now = t_now / 1000;
-    usec_elapsed = usec_now - ehci->last_run_usec;
-    frames = usec_elapsed / FRAME_TIMER_USEC;
-    ehci->frame_end_usec = usec_now + FRAME_TIMER_USEC - 10;
+    ns_elapsed = t_now - ehci->last_run_ns;
+    frames = ns_elapsed / FRAME_TIMER_NS;
 
     for (i = 0; i < frames; i++) {
         if ( !(ehci->usbsts & USBSTS_HALT)) {
@@ -2084,7 +2077,7 @@ static void ehci_frame_timer(void *opaque)
             ehci_advance_periodic_state(ehci);
         }
 
-        ehci->last_run_usec += FRAME_TIMER_USEC;
+        ehci->last_run_ns += FRAME_TIMER_NS;
     }
 
 #if 0
