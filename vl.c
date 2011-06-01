@@ -925,9 +925,13 @@ static int usb_device_add(const char *devname)
         goto done;
 
     /* the other ones */
+#ifndef CONFIG_LINUX
+    /* only the linux version is qdev-ified, usb-bsd still needs this */
     if (strstart(devname, "host:", &p)) {
         dev = usb_host_device_open(p);
-    } else if (!strcmp(devname, "bt") || strstart(devname, "bt:", &p)) {
+    } else
+#endif
+    if (!strcmp(devname, "bt") || strstart(devname, "bt:", &p)) {
         dev = usb_bt_init(devname[2] ? hci_init(p) :
                         bt_new_hci(qemu_find_bt_vlan(0)));
     } else {
