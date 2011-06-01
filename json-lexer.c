@@ -305,6 +305,9 @@ static int json_lexer_feed_char(JSONLexer *lexer, char ch)
             new_state = IN_START;
             break;
         case IN_ERROR:
+            QDECREF(lexer->token);
+            lexer->token = qstring_new();
+            new_state = IN_START;
             return -EINVAL;
         default:
             break;
