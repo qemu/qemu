@@ -51,8 +51,12 @@ static void json_message_process_token(JSONLexer *lexer, QString *token, JSONTok
 
     qlist_append(parser->tokens, dict);
 
-    if (parser->brace_count == 0 &&
-        parser->bracket_count == 0) {
+    if (parser->brace_count < 0 ||
+        parser->bracket_count < 0 ||
+        (parser->brace_count == 0 &&
+         parser->bracket_count == 0)) {
+        parser->brace_count = 0;
+        parser->bracket_count = 0;
         parser->emit(parser, parser->tokens);
         QDECREF(parser->tokens);
         parser->tokens = qlist_new();
