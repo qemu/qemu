@@ -18,6 +18,8 @@
 #include "qemu-common.h"
 #include "json-lexer.h"
 
+#define MAX_TOKEN_SIZE (64ULL << 20)
+
 /*
  * \"([^\\\"]|(\\\"\\'\\\\\\/\\b\\f\\n\\r\\t\\u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]))*\"
  * '([^\\']|(\\\"\\'\\\\\\/\\b\\f\\n\\r\\t\\u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]))*'
@@ -309,6 +311,17 @@ static int json_lexer_feed_char(JSONLexer *lexer, char ch)
         }
         lexer->state = new_state;
     } while (!char_consumed);
+
+    /* Do not let a single token grow to an arbitrarily large size,
+     * this is a security consideration.
+     */
+    if (lexer->token->length > MAX_TOKEN_SIZE) {
+        lexer->emit(lexer, lexer->token, lexer->state, lexer->x, lexer->y);
+        QDECREF(lexer->token);
+        lexer->token = qstring_new();
+        lexer->state = IN_START;
+    }
+
     return 0;
 }
 
