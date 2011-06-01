@@ -2881,7 +2881,7 @@ int bdrv_img_create(const char *filename, const char *fmt,
                     char *options, uint64_t img_size, int flags)
 {
     QEMUOptionParameter *param = NULL, *create_options = NULL;
-    QEMUOptionParameter *backing_fmt, *backing_file;
+    QEMUOptionParameter *backing_fmt, *backing_file, *size;
     BlockDriverState *bs = NULL;
     BlockDriver *drv, *proto_drv;
     BlockDriver *backing_drv = NULL;
@@ -2964,7 +2964,8 @@ int bdrv_img_create(const char *filename, const char *fmt,
 
     // The size for the image must always be specified, with one exception:
     // If we are using a backing file, we can obtain the size from there
-    if (get_option_parameter(param, BLOCK_OPT_SIZE)->value.n == -1) {
+    size = get_option_parameter(param, BLOCK_OPT_SIZE);
+    if (size && size->value.n == -1) {
         if (backing_file && backing_file->value.s) {
             uint64_t size;
             char buf[32];
