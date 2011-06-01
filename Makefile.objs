@@ -2,7 +2,7 @@
 # QObject
 qobject-obj-y = qint.o qstring.o qdict.o qlist.o qfloat.o qbool.o
 qobject-obj-y += qjson.o json-lexer.o json-streamer.o json-parser.o
-qobject-obj-y += qerror.o
+qobject-obj-y += qerror.o error.o
 
 #######################################################################
 # oslib-obj-y is code depending on the OS (win32 vs posix)
@@ -59,7 +59,7 @@ fsdev-obj-$(CONFIG_VIRTFS) += $(addprefix fsdev/, $(fsdev-nested-y))
 # system emulation, i.e. a single QEMU executable should support all
 # CPUs and machines.
 
-common-obj-y = $(block-obj-y) blockdev.o error.o
+common-obj-y = $(block-obj-y) blockdev.o
 common-obj-y += $(net-obj-y)
 common-obj-y += $(qobject-obj-y)
 common-obj-$(CONFIG_LINUX) += $(fsdev-obj-$(CONFIG_LINUX))

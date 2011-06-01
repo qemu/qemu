@@ -121,6 +121,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_JSON_PARSING \
     "{ 'class': 'JSONParsing', 'data': {} }"
 
+#define QERR_JSON_PARSE_ERROR \
+    "{ 'class': 'JSONParseError', 'data': { 'message': %s } }"
+
 #define QERR_KVM_MISSING_CAP \
     "{ 'class': 'KVMMissingCap', 'data': { 'capability': %s, 'feature': %s } }"
 

@@ -22,9 +22,11 @@
 #include "qbool.h"
 #include "json-parser.h"
 #include "json-lexer.h"
+#include "qerror.h"
 
 typedef struct JSONParserContext
 {
+    Error *err;
 } JSONParserContext;
 
 #define BUG_ON(cond) assert(!(cond))
@@ -95,11 +97,15 @@ static void GCC_FMT_ATTR(3, 4) parse_error(JSONParserContext *ctxt,
                                            QObject *token, const char *msg, ...)
 {
     va_list ap;
+    char message[1024];
     va_start(ap, msg);
-    fprintf(stderr, "parse error: ");
-    vfprintf(stderr, msg, ap);
-    fprintf(stderr, "\n");
+    vsnprintf(message, sizeof(message), msg, ap);
     va_end(ap);
+    if (ctxt->err) {
+        error_free(ctxt->err);
+        ctxt->err = NULL;
+    }
+    error_set(&ctxt->err, QERR_JSON_PARSE_ERROR, message);
 }
 
 /**
@@ -565,6 +571,11 @@ static QObject *parse_value(JSONParserContext *ctxt, QList **tokens, va_list *ap
 
 QObject *json_parser_parse(QList *tokens, va_list *ap)
 {
+    return json_parser_parse_err(tokens, ap, NULL);
+}
+
+QObject *json_parser_parse_err(QList *tokens, va_list *ap, Error **errp)
+{
     JSONParserContext ctxt = {};
     QList *working = qlist_copy(tokens);
     QObject *result;
@@ -572,6 +583,8 @@ QObject *json_parser_parse(QList *tokens, va_list *ap)
     result = parse_value(&ctxt, &working, ap);
 
     QDECREF(working);
+
+    error_propagate(errp, ctxt.err);
 
     return result;
 }
