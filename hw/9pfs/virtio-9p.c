@@ -3606,6 +3606,11 @@ static pdu_handler_t *pdu_handlers[] = {
     [P9_TREMOVE] = v9fs_remove,
 };
 
+static void v9fs_op_not_supp(V9fsState *s, V9fsPDU *pdu)
+{
+    complete_pdu(s, pdu, -EOPNOTSUPP);
+}
+
 static void submit_pdu(V9fsState *s, V9fsPDU *pdu)
 {
     pdu_handler_t *handler;
@@ -3613,12 +3618,12 @@ static void submit_pdu(V9fsState *s, V9fsPDU *pdu)
     if (debug_9p_pdu) {
         pprint_pdu(pdu);
     }
-
-    BUG_ON(pdu->id >= ARRAY_SIZE(pdu_handlers));
-
-    handler = pdu_handlers[pdu->id];
-    BUG_ON(handler == NULL);
-
+    if (pdu->id >= ARRAY_SIZE(pdu_handlers) ||
+        (pdu_handlers[pdu->id] == NULL)) {
+        handler = v9fs_op_not_supp;
+    } else {
+        handler = pdu_handlers[pdu->id];
+    }
     handler(s, pdu);
 }
 
