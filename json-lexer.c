@@ -274,7 +274,7 @@ void json_lexer_init(JSONLexer *lexer, JSONLexerEmitter func)
     lexer->x = lexer->y = 0;
 }
 
-static int json_lexer_feed_char(JSONLexer *lexer, char ch)
+static int json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
 {
     int char_consumed, new_state;
 
@@ -313,7 +313,7 @@ static int json_lexer_feed_char(JSONLexer *lexer, char ch)
             break;
         }
         lexer->state = new_state;
-    } while (!char_consumed);
+    } while (!char_consumed && !flush);
 
     /* Do not let a single token grow to an arbitrarily large size,
      * this is a security consideration.
@@ -335,7 +335,7 @@ int json_lexer_feed(JSONLexer *lexer, const char *buffer, size_t size)
     for (i = 0; i < size; i++) {
         int err;
 
-        err = json_lexer_feed_char(lexer, buffer[i]);
+        err = json_lexer_feed_char(lexer, buffer[i], false);
         if (err < 0) {
             return err;
         }
