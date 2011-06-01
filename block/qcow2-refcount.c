@@ -1086,7 +1086,7 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res)
     ret = check_refcounts_l1(bs, res, refcount_table, nb_clusters,
                        s->l1_table_offset, s->l1_size, 1);
     if (ret < 0) {
-        return ret;
+        goto fail;
     }
 
     /* snapshots */
@@ -1095,7 +1095,7 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res)
         ret = check_refcounts_l1(bs, res, refcount_table, nb_clusters,
             sn->l1_table_offset, sn->l1_size, 0);
         if (ret < 0) {
-            return ret;
+            goto fail;
         }
     }
     inc_refcounts(bs, res, refcount_table, nb_clusters,
@@ -1159,8 +1159,11 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res)
         }
     }
 
+    ret = 0;
+
+fail:
     qemu_free(refcount_table);
 
-    return 0;
+    return ret;
 }
 
