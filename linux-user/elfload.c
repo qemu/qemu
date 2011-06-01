@@ -1643,9 +1643,9 @@ static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
 {
     int i, shnum, nsyms, sym_idx = 0, str_idx = 0;
     struct elf_shdr *shdr;
-    char *strings;
-    struct syminfo *s;
-    struct elf_sym *syms, *new_syms;
+    char *strings = NULL;
+    struct syminfo *s = NULL;
+    struct elf_sym *new_syms, *syms = NULL;
 
     shnum = hdr->e_shnum;
     i = shnum * sizeof(struct elf_shdr);
@@ -1670,24 +1670,19 @@ static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
     /* Now know where the strtab and symtab are.  Snarf them.  */
     s = malloc(sizeof(*s));
     if (!s) {
-        return;
+        goto give_up;
     }
 
     i = shdr[str_idx].sh_size;
     s->disas_strtab = strings = malloc(i);
     if (!strings || pread(fd, strings, i, shdr[str_idx].sh_offset) != i) {
-        free(s);
-        free(strings);
-        return;
+        goto give_up;
     }
 
     i = shdr[sym_idx].sh_size;
     syms = malloc(i);
     if (!syms || pread(fd, syms, i, shdr[sym_idx].sh_offset) != i) {
-        free(s);
-        free(strings);
-        free(syms);
-        return;
+        goto give_up;
     }
 
     nsyms = i / sizeof(struct elf_sym);
@@ -1710,16 +1705,18 @@ static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
         }
     }
 
+    /* No "useful" symbol.  */
+    if (nsyms == 0) {
+        goto give_up;
+    }
+
     /* Attempt to free the storage associated with the local symbols
        that we threw away.  Whether or not this has any effect on the
        memory allocation depends on the malloc implementation and how
        many symbols we managed to discard.  */
     new_syms = realloc(syms, nsyms * sizeof(*syms));
     if (new_syms == NULL) {
-        free(s);
-        free(syms);
-        free(strings);
-        return;
+        goto give_up;
     }
     syms = new_syms;
 
@@ -1734,6 +1731,13 @@ static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
     s->lookup_symbol = lookup_symbolxx;
     s->next = syminfos;
     syminfos = s;
+
+    return;
+
+give_up:
+    free(s);
+    free(strings);
+    free(syms);
 }
 
 int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
