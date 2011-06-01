@@ -423,6 +423,22 @@ static void v9fs_string_copy(V9fsString *lhs, V9fsString *rhs)
     v9fs_string_sprintf(lhs, "%s", rhs->data);
 }
 
+/*
+ * Return TRUE if s1 is an ancestor of s2.
+ *
+ * E.g. "a/b" is an ancestor of "a/b/c" but not of "a/bc/d".
+ * As a special case, We treat s1 as ancestor of s2 if they are same!
+ */
+static int v9fs_path_is_ancestor(V9fsString *s1, V9fsString *s2)
+{
+    if (!strncmp(s1->data, s2->data, s1->size)) {
+        if (s2->data[s1->size] == '\0' || s2->data[s1->size] == '/') {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static size_t v9fs_string_size(V9fsString *str)
 {
     return str->size;
@@ -2805,13 +2821,13 @@ static int v9fs_complete_rename(V9fsState *s, V9fsRenameState *vs)
             for (fidp = s->fid_list; fidp; fidp = fidp->next) {
                 if (vs->fidp == fidp) {
                     /*
-                    * we replace name of this fid towards the end
-                    * so that our below strcmp will work
+                    * we replace name of this fid towards the end so
+                    * that our below v9fs_path_is_ancestor check will
+                    * work
                     */
                     continue;
                 }
-                if (!strncmp(vs->fidp->path.data, fidp->path.data,
-                    strlen(vs->fidp->path.data))) {
+                if (v9fs_path_is_ancestor(&vs->fidp->path, &fidp->path)) {
                     /* replace the name */
                     v9fs_fix_path(&fidp->path, &vs->name,
                                   strlen(vs->fidp->path.data));
