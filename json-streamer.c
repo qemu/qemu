@@ -65,6 +65,7 @@ static void json_message_process_token(JSONLexer *lexer, QString *token, JSONTok
         parser->emit(parser, parser->tokens);
         QDECREF(parser->tokens);
         parser->tokens = qlist_new();
+        parser->token_size = 0;
     } else if (parser->token_size > MAX_TOKEN_SIZE ||
                parser->bracket_count > MAX_NESTING ||
                parser->brace_count > MAX_NESTING) {
@@ -76,6 +77,7 @@ static void json_message_process_token(JSONLexer *lexer, QString *token, JSONTok
         parser->emit(parser, parser->tokens);
         QDECREF(parser->tokens);
         parser->tokens = qlist_new();
+        parser->token_size = 0;
     }
 }
 
