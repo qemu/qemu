@@ -889,7 +889,6 @@ static void lsi_do_msgout(LSIState *s)
     uint8_t msg;
     int len;
     uint32_t current_tag;
-    SCSIDevice *current_dev;
     lsi_request *current_req, *p, *p_next;
     int id;
 
@@ -901,7 +900,6 @@ static void lsi_do_msgout(LSIState *s)
         current_req = lsi_find_by_tag(s, current_tag);
     }
     id = (current_tag >> 8) & 0xf;
-    current_dev = s->bus.devs[id];
 
     DPRINTF("MSG out len=%d\n", s->dbc);
     while (s->dbc) {
