@@ -26,6 +26,7 @@
 #include "loader.h"
 #include "kvm.h"
 #include "blockdev.h"
+#include "virtio-pci.h"
 
 /* from Linux's linux/virtio_pci.h */
 
@@ -94,27 +95,6 @@
  * KVM or if kqemu gets SMP support.
  */
 #define wmb() do { } while (0)
-
-/* PCI bindings.  */
-
-typedef struct {
-    PCIDevice pci_dev;
-    VirtIODevice *vdev;
-    uint32_t flags;
-    uint32_t addr;
-    uint32_t class_code;
-    uint32_t nvectors;
-    BlockConf block;
-    NICConf nic;
-    uint32_t host_features;
-#ifdef CONFIG_LINUX
-    V9fsConf fsconf;
-#endif
-    virtio_serial_conf serial;
-    virtio_net_conf net;
-    bool ioeventfd_disabled;
-    bool ioeventfd_started;
-} VirtIOPCIProxy;
 
 /* virtio device */
 
@@ -669,7 +649,7 @@ static const VirtIOBindings virtio_pci_bindings = {
     .vmstate_change = virtio_pci_vmstate_change,
 };
 
-static void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev,
+void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev,
                             uint16_t vendor, uint16_t device,
                             uint16_t class_code, uint8_t pif)
 {
@@ -835,25 +815,6 @@ static int virtio_balloon_init_pci(PCIDevice *pci_dev)
     return 0;
 }
 
-#ifdef CONFIG_VIRTFS
-static int virtio_9p_init_pci(PCIDevice *pci_dev)
-{
-    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
-    VirtIODevice *vdev;
-
-    vdev = virtio_9p_init(&pci_dev->qdev, &proxy->fsconf);
-    vdev->nvectors = proxy->nvectors;
-    virtio_init_pci(proxy, vdev,
-                    PCI_VENDOR_ID_REDHAT_QUMRANET,
-                    0x1009,
-                    0x2,
-                    0x00);
-    /* make the actual value visible */
-    proxy->nvectors = vdev->nvectors;
-    return 0;
-}
-#endif
-
 static PCIDeviceInfo virtio_info[] = {
     {
         .qdev.name = "virtio-blk-pci",
@@ -922,20 +883,6 @@ static PCIDeviceInfo virtio_info[] = {
         },
         .qdev.reset = virtio_pci_reset,
     },{
-#ifdef CONFIG_VIRTFS
-        .qdev.name = "virtio-9p-pci",
-        .qdev.alias = "virtio-9p",
-        .qdev.size = sizeof(VirtIOPCIProxy),
-        .init      = virtio_9p_init_pci,
-        .qdev.props = (Property[]) {
-            DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
-            DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
-            DEFINE_PROP_STRING("mount_tag", VirtIOPCIProxy, fsconf.tag),
-            DEFINE_PROP_STRING("fsdev", VirtIOPCIProxy, fsconf.fsdev_id),
-            DEFINE_PROP_END_OF_LIST(),
-        },
-    }, {
-#endif
         /* end of list */
     }
 };

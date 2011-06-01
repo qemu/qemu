@@ -14,6 +14,7 @@
 #include "virtio.h"
 #include "pc.h"
 #include "qemu_socket.h"
+#include "virtio-pci.h"
 #include "virtio-9p.h"
 #include "fsdev/qemu-fsdev.h"
 #include "virtio-9p-debug.h"
@@ -3761,3 +3762,40 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
 
     return &s->vdev;
 }
+
+static int virtio_9p_init_pci(PCIDevice *pci_dev)
+{
+    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
+    VirtIODevice *vdev;
+
+    vdev = virtio_9p_init(&pci_dev->qdev, &proxy->fsconf);
+    vdev->nvectors = proxy->nvectors;
+    virtio_init_pci(proxy, vdev,
+                    PCI_VENDOR_ID_REDHAT_QUMRANET,
+                    0x1009,
+                    0x2,
+                    0x00);
+    /* make the actual value visible */
+    proxy->nvectors = vdev->nvectors;
+    return 0;
+}
+
+static PCIDeviceInfo virtio_9p_info = {
+    .qdev.name = "virtio-9p-pci",
+    .qdev.size = sizeof(VirtIOPCIProxy),
+    .init      = virtio_9p_init_pci,
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
+        DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
+        DEFINE_PROP_STRING("mount_tag", VirtIOPCIProxy, fsconf.tag),
+        DEFINE_PROP_STRING("fsdev", VirtIOPCIProxy, fsconf.fsdev_id),
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
+
+static void virtio_9p_register_devices(void)
+{
+    pci_qdev_register(&virtio_9p_info);
+}
+
+device_init(virtio_9p_register_devices)
