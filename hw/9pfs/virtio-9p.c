@@ -11,10 +11,10 @@
  *
  */
 
-#include "virtio.h"
-#include "pc.h"
+#include "hw/virtio.h"
+#include "hw/pc.h"
 #include "qemu_socket.h"
-#include "virtio-pci.h"
+#include "hw/virtio-pci.h"
 #include "virtio-9p.h"
 #include "fsdev/qemu-fsdev.h"
 #include "virtio-9p-debug.h"

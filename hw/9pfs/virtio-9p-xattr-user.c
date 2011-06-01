@@ -12,7 +12,7 @@
  */
 
 #include <sys/types.h>
-#include "virtio.h"
+#include "hw/virtio.h"
 #include "virtio-9p.h"
 #include "fsdev/file-op-9p.h"
 #include "virtio-9p-xattr.h"

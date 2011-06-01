@@ -413,8 +413,6 @@ hmp-commands.h: $(SRC_PATH)/hmp-commands.hx
 qmp-commands.h: $(SRC_PATH)/qmp-commands.hx
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
 
-9pfs/virtio-9p-device.o: CFLAGS +=  -I$(SRC_PATH)/hw/
-
 clean:
 	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o
 	rm -f *.d */*.d tcg/*.o ide/*.o 9pfs/*.o
