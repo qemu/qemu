@@ -49,8 +49,10 @@ ifeq ($(CONFIG_VIRTIO)$(CONFIG_VIRTFS),yy)
 # Lots of the fsdev/9pcode is pulled in by vl.c via qemu_fsdev_add.
 # only pull in the actual virtio-9p device if we also enabled virtio.
 CONFIG_REALLY_VIRTFS=y
+fsdev-nested-y = qemu-fsdev.o
+else
+fsdev-nested-y = qemu-fsdev-dummy.o
 endif
-fsdev-nested-$(CONFIG_VIRTFS) = qemu-fsdev.o
 fsdev-obj-$(CONFIG_VIRTFS) += $(addprefix fsdev/, $(fsdev-nested-y))
 
 ######################################################################
@@ -285,11 +287,11 @@ sound-obj-$(CONFIG_HDA) += intel-hda.o hda-audio.o
 adlib.o fmopl.o: QEMU_CFLAGS += -DBUILD_Y8950=0
 hw-obj-$(CONFIG_SOUND) += $(sound-obj-y)
 
-9pfs-nested-$(CONFIG_REALLY_VIRTFS) = virtio-9p-debug.o
+9pfs-nested-$(CONFIG_VIRTFS) = virtio-9p-debug.o
 9pfs-nested-$(CONFIG_VIRTFS) +=  virtio-9p-local.o virtio-9p-xattr.o
 9pfs-nested-$(CONFIG_VIRTFS) +=   virtio-9p-xattr-user.o virtio-9p-posix-acl.o
 
-hw-obj-$(CONFIG_VIRTFS) += $(addprefix 9pfs/, $(9pfs-nested-y))
+hw-obj-$(CONFIG_REALLY_VIRTFS) += $(addprefix 9pfs/, $(9pfs-nested-y))
 $(addprefix 9pfs/, $(9pfs-nested-y)): CFLAGS +=  -I$(SRC_PATH)/hw/
 
 
