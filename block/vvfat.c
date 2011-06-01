@@ -1690,7 +1690,7 @@ static int check_directory_consistency(BDRVVVFATState *s,
 
     long_file_name lfn;
     int path_len = strlen(path);
-    char path2[PATH_MAX];
+    char path2[PATH_MAX + 1];
 
     assert(path_len < PATH_MAX); /* len was tested before! */
     pstrcpy(path2, sizeof(path2), path);
