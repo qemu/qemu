@@ -400,6 +400,21 @@ static QString *qerror_format_desc(QDict *error,
     return qstring;
 }
 
+QString *qerror_format(const char *fmt, QDict *error)
+{
+    const QErrorStringTable *entry = NULL;
+    int i;
+
+    for (i = 0; qerror_table[i].error_fmt; i++) {
+        if (strcmp(qerror_table[i].error_fmt, fmt) == 0) {
+            entry = &qerror_table[i];
+            break;
+        }
+    }
+
+    return qerror_format_desc(error, entry);
+}
+
 /**
  * qerror_human(): Format QError data into human-readable string.
  */
