@@ -230,6 +230,9 @@ typedef struct x86_def_t {
     char model_id[48];
     int vendor_override;
     uint32_t flags;
+    /* Store the results of Centaur's CPUID instructions */
+    uint32_t ext4_features;
+    uint32_t xlevel2;
 } x86_def_t;
 
 #define I486_FEATURES (CPUID_FP87 | CPUID_VME | CPUID_PSE)
@@ -522,6 +525,18 @@ static int cpu_x86_fill_host(x86_def_t *x86_cpu_def)
     cpu_x86_fill_model_id(x86_cpu_def->model_id);
     x86_cpu_def->vendor_override = 0;
 
+    /* Call Centaur's CPUID instruction. */
+    if (x86_cpu_def->vendor1 == CPUID_VENDOR_VIA_1 &&
+        x86_cpu_def->vendor2 == CPUID_VENDOR_VIA_2 &&
+        x86_cpu_def->vendor3 == CPUID_VENDOR_VIA_3) {
+        host_cpuid(0xC0000000, 0, &eax, &ebx, &ecx, &edx);
+        if (eax >= 0xC0000001) {
+            /* Support VIA max extended level */
+            x86_cpu_def->xlevel2 = eax;
+            host_cpuid(0xC0000001, 0, &eax, &ebx, &ecx, &edx);
+            x86_cpu_def->ext4_features = edx;
+        }
+    }
 
     /*
      * Every SVM feature requires emulation support in KVM - so we can't just
@@ -855,6 +870,8 @@ int cpu_x86_register (CPUX86State *env, const char *cpu_model)
     env->cpuid_xlevel = def->xlevel;
     env->cpuid_kvm_features = def->kvm_features;
     env->cpuid_svm_features = def->svm_features;
+    env->cpuid_ext4_features = def->ext4_features;
+    env->cpuid_xlevel2 = def->xlevel2;
     if (!kvm_enabled()) {
         env->cpuid_features &= TCG_FEATURES;
         env->cpuid_ext_features &= TCG_EXT_FEATURES;
@@ -1035,8 +1052,18 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
 {
     /* test if maximum index reached */
     if (index & 0x80000000) {
-        if (index > env->cpuid_xlevel)
-            index = env->cpuid_level;
+        if (index > env->cpuid_xlevel) {
+            if (env->cpuid_xlevel2 > 0) {
+                /* Handle the Centaur's CPUID instruction. */
+                if (index > env->cpuid_xlevel2) {
+                    index = env->cpuid_xlevel2;
+                } else if (index < 0xC0000000) {
+                    index = env->cpuid_xlevel;
+                }
+            } else {
+                index =  env->cpuid_xlevel;
+            }
+        }
     } else {
         if (index > env->cpuid_level)
             index = env->cpuid_level;
@@ -1230,6 +1257,28 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
 		*ecx = 0;
 		*edx = 0;
 	}
+        break;
+    case 0xC0000000:
+        *eax = env->cpuid_xlevel2;
+        *ebx = 0;
+        *ecx = 0;
+        *edx = 0;
+        break;
+    case 0xC0000001:
+        /* Support for VIA CPU's CPUID instruction */
+        *eax = env->cpuid_version;
+        *ebx = 0;
+        *ecx = 0;
+        *edx = env->cpuid_ext4_features;
+        break;
+    case 0xC0000002:
+    case 0xC0000003:
+    case 0xC0000004:
+        /* Reserved for the future, and now filled with zero */
+        *eax = 0;
+        *ebx = 0;
+        *ecx = 0;
+        *edx = 0;
         break;
     default:
         /* reserved values: zero */

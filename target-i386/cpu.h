@@ -438,8 +438,12 @@
 #define CPUID_VENDOR_INTEL_3 0x6c65746e /* "ntel" */
 
 #define CPUID_VENDOR_AMD_1   0x68747541 /* "Auth" */
-#define CPUID_VENDOR_AMD_2   0x69746e65 /* "enti" */ 
+#define CPUID_VENDOR_AMD_2   0x69746e65 /* "enti" */
 #define CPUID_VENDOR_AMD_3   0x444d4163 /* "cAMD" */
+
+#define CPUID_VENDOR_VIA_1   0x746e6543 /* "Cent" */
+#define CPUID_VENDOR_VIA_2   0x48727561 /* "aurH" */
+#define CPUID_VENDOR_VIA_3   0x736c7561 /* "auls" */
 
 #define CPUID_MWAIT_IBE     (1 << 1) /* Interrupts can exit capability */
 #define CPUID_MWAIT_EMX     (1 << 0) /* enumeration supported */
@@ -730,6 +734,9 @@ typedef struct CPUX86State {
     uint32_t cpuid_ext3_features;
     uint32_t cpuid_apic_id;
     int cpuid_vendor_override;
+    /* Store the results of Centaur's CPUID instructions */
+    uint32_t cpuid_xlevel2;
+    uint32_t cpuid_ext4_features;
 
     /* MTRRs */
     uint64_t mtrr_fixed[11];
