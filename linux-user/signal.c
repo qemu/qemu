@@ -981,8 +981,8 @@ restore_sigcontext(CPUX86State *env, struct target_sigcontext *sc, int *peax)
         env->regs[R_ECX] = tswapl(sc->ecx);
         env->eip = tswapl(sc->eip);
 
-        cpu_x86_load_seg(env, R_CS, lduw(&sc->cs) | 3);
-        cpu_x86_load_seg(env, R_SS, lduw(&sc->ss) | 3);
+        cpu_x86_load_seg(env, R_CS, lduw_p(&sc->cs) | 3);
+        cpu_x86_load_seg(env, R_SS, lduw_p(&sc->ss) | 3);
 
         tmpflags = tswapl(sc->eflags);
         env->eflags = (env->eflags & ~0x40DD5) | (tmpflags & 0x40DD5);
