@@ -64,7 +64,7 @@ static void msmouse_chr_close (struct CharDriverState *chr)
     qemu_free (chr);
 }
 
-CharDriverState *qemu_chr_open_msmouse(QemuOpts *opts)
+int qemu_chr_open_msmouse(QemuOpts *opts, CharDriverState **_chr)
 {
     CharDriverState *chr;
 
@@ -74,5 +74,6 @@ CharDriverState *qemu_chr_open_msmouse(QemuOpts *opts)
 
     qemu_add_mouse_event_handler(msmouse_event, chr, 0, "QEMU Microsoft Mouse");
 
-    return chr;
+    *_chr = chr;
+    return 0;
 }
