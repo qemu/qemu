@@ -26,7 +26,8 @@
 static ssize_t mp_pacl_getxattr(FsContext *ctx, const char *path,
                                 const char *name, void *value, size_t size)
 {
-    return lgetxattr(rpath(ctx, path), MAP_ACL_ACCESS, value, size);
+    char buffer[PATH_MAX];
+    return lgetxattr(rpath(ctx, path, buffer), MAP_ACL_ACCESS, value, size);
 }
 
 static ssize_t mp_pacl_listxattr(FsContext *ctx, const char *path,
@@ -50,14 +51,17 @@ static ssize_t mp_pacl_listxattr(FsContext *ctx, const char *path,
 static int mp_pacl_setxattr(FsContext *ctx, const char *path, const char *name,
                             void *value, size_t size, int flags)
 {
-    return lsetxattr(rpath(ctx, path), MAP_ACL_ACCESS, value, size, flags);
+    char buffer[PATH_MAX];
+    return lsetxattr(rpath(ctx, path, buffer), MAP_ACL_ACCESS, value,
+            size, flags);
 }
 
 static int mp_pacl_removexattr(FsContext *ctx,
                                const char *path, const char *name)
 {
     int ret;
-    ret  = lremovexattr(rpath(ctx, path), MAP_ACL_ACCESS);
+    char buffer[PATH_MAX];
+    ret  = lremovexattr(rpath(ctx, path, buffer), MAP_ACL_ACCESS);
     if (ret == -1 && errno == ENODATA) {
         /*
          * We don't get ENODATA error when trying to remove a
@@ -73,7 +77,8 @@ static int mp_pacl_removexattr(FsContext *ctx,
 static ssize_t mp_dacl_getxattr(FsContext *ctx, const char *path,
                                 const char *name, void *value, size_t size)
 {
-    return lgetxattr(rpath(ctx, path), MAP_ACL_DEFAULT, value, size);
+    char buffer[PATH_MAX];
+    return lgetxattr(rpath(ctx, path, buffer), MAP_ACL_DEFAULT, value, size);
 }
 
 static ssize_t mp_dacl_listxattr(FsContext *ctx, const char *path,
@@ -97,14 +102,17 @@ static ssize_t mp_dacl_listxattr(FsContext *ctx, const char *path,
 static int mp_dacl_setxattr(FsContext *ctx, const char *path, const char *name,
                             void *value, size_t size, int flags)
 {
-    return lsetxattr(rpath(ctx, path), MAP_ACL_DEFAULT, value, size, flags);
+    char buffer[PATH_MAX];
+    return lsetxattr(rpath(ctx, path, buffer), MAP_ACL_DEFAULT, value,
+            size, flags);
 }
 
 static int mp_dacl_removexattr(FsContext *ctx,
                                const char *path, const char *name)
 {
     int ret;
-    ret  = lremovexattr(rpath(ctx, path), MAP_ACL_DEFAULT);
+    char buffer[PATH_MAX];
+    ret  = lremovexattr(rpath(ctx, path, buffer), MAP_ACL_DEFAULT);
     if (ret == -1 && errno == ENODATA) {
         /*
          * We don't get ENODATA error when trying to remove a

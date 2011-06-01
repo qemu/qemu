@@ -101,6 +101,11 @@ enum p9_proto_version {
 #define P9_NOTAG    (u16)(~0)
 #define P9_NOFID    (u32)(~0)
 #define P9_MAXWELEM 16
+static inline const char *rpath(FsContext *ctx, const char *path, char *buffer)
+{
+    snprintf(buffer, PATH_MAX, "%s/%s", ctx->fs_root, path);
+    return buffer;
+}
 
 /*
  * ample room for Twrite/Rread header
