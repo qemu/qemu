@@ -482,6 +482,21 @@ int kvm_arch_init_vcpu(CPUState *env)
         cpu_x86_cpuid(env, i, 0, &c->eax, &c->ebx, &c->ecx, &c->edx);
     }
 
+    /* Call Centaur's CPUID instructions they are supported. */
+    if (env->cpuid_xlevel2 > 0) {
+        env->cpuid_ext4_features &=
+            kvm_arch_get_supported_cpuid(env, 0xC0000001, 0, R_EDX);
+        cpu_x86_cpuid(env, 0xC0000000, 0, &limit, &unused, &unused, &unused);
+
+        for (i = 0xC0000000; i <= limit; i++) {
+            c = &cpuid_data.entries[cpuid_i++];
+
+            c->function = i;
+            c->flags = 0;
+            cpu_x86_cpuid(env, i, 0, &c->eax, &c->ebx, &c->ecx, &c->edx);
+        }
+    }
+
     cpuid_data.cpuid.nent = cpuid_i;
 
 #ifdef KVM_CAP_MCE
