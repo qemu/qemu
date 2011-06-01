@@ -504,4 +504,6 @@ static inline size_t do_pdu_unpack(void *dst, struct iovec *sg, int sg_count,
     return pdu_packunpack(dst, sg, sg_count, offset, size, 0);
 }
 
+extern void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq);
+
 #endif
