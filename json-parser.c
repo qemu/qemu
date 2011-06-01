@@ -633,9 +633,13 @@ QObject *json_parser_parse(QList *tokens, va_list *ap)
 QObject *json_parser_parse_err(QList *tokens, va_list *ap, Error **errp)
 {
     JSONParserContext ctxt = {};
-    QList *working = qlist_copy(tokens);
+    QList *working;
     QObject *result;
 
+    if (!tokens) {
+        return NULL;
+    }
+    working = qlist_copy(tokens);
     result = parse_value(&ctxt, &working, ap);
 
     QDECREF(working);
