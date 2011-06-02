@@ -1197,7 +1197,7 @@ void qemu_kill_report(void)
              */
             fputc('\n', stderr);
         } else {
-            fprintf(stderr, " from pid %d\n", shutdown_pid);
+            fprintf(stderr, " from pid " FMT_pid "\n", shutdown_pid);
         }
         shutdown_signal = -1;
     }

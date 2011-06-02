@@ -128,6 +128,12 @@ void qemu_vfree(void *ptr);
 
 int qemu_madvise(void *addr, size_t len, int advice);
 
+#if defined(__HAIKU__) && defined(__i386__)
+#define FMT_pid "%ld"
+#else
+#define FMT_pid "%d"
+#endif
+
 int qemu_create_pidfile(const char *filename);
 int qemu_get_thread_id(void);
 

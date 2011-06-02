@@ -368,7 +368,7 @@ int qemu_create_pidfile(const char *filename)
     if (lockf(fd, F_TLOCK, 0) == -1) {
         return -1;
     }
-    len = snprintf(buffer, sizeof(buffer), "%ld\n", (long)getpid());
+    len = snprintf(buffer, sizeof(buffer), FMT_pid "\n", getpid());
     if (write(fd, buffer, len) != len) {
         return -1;
     }

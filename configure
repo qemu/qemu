@@ -3041,7 +3041,7 @@ if test "$trace_backend" = "simple"; then
 fi
 # Set the appropriate trace file.
 if test "$trace_backend" = "simple"; then
-  trace_file="\"$trace_file-%u\""
+  trace_file="\"$trace_file-\" FMT_pid"
 fi
 if test "$trace_backend" = "dtrace" -a "$trace_backend_stap" = "yes" ; then
   echo "CONFIG_SYSTEMTAP_TRACE=y" >> $config_host_mak
