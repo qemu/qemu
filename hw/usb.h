@@ -26,6 +26,12 @@
 #include "qdev.h"
 #include "qemu-queue.h"
 
+/* Constants related to the USB / PCI interaction */
+#define USB_SBRN    0x60 /* Serial Bus Release Number Register */
+#define USB_RELEASE_1  0x10 /* USB 1.0 */
+#define USB_RELEASE_2  0x20 /* USB 2.0 */
+#define USB_RELEASE_3  0x30 /* USB 3.0 */
+
 #define USB_TOKEN_SETUP 0x2d
 #define USB_TOKEN_IN    0x69 /* device -> host */
 #define USB_TOKEN_OUT   0xe1 /* host -> device */
