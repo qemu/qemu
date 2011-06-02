@@ -2167,7 +2167,7 @@ static int usb_ehci_initfn(PCIDevice *dev)
 
     // pci_conf[0x50] = 0x01; // power management caps
 
-    pci_set_byte(&pci_conf[0x60], 0x20);  // spec release number (2.1.4)
+    pci_set_byte(&pci_conf[USB_SBRN], USB_RELEASE_2); // release number (2.1.4)
     pci_set_byte(&pci_conf[0x61], 0x20);  // frame length adjustment (2.1.5)
     pci_set_word(&pci_conf[0x62], 0x00);  // port wake up capability (2.1.6)
 
