@@ -256,7 +256,7 @@ endif
 obj-ppc-y += ppc4xx_devs.o ppc4xx_pci.o ppc405_uc.o ppc405_boards.o
 obj-ppc-y += ppc440.o ppc440_bamboo.o
 # PowerPC E500 boards
-obj-ppc-y += ppce500_mpc8544ds.o
+obj-ppc-y += ppce500_mpc8544ds.o mpc8544_guts.o
 # PowerPC 440 Xilinx ML507 reference board.
 obj-ppc-y += virtex_ml507.o
 obj-ppc-$(CONFIG_KVM) += kvm_ppc.o

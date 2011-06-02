@@ -50,6 +50,7 @@
 #define MPC8544_PCI_REGS_SIZE      0x1000
 #define MPC8544_PCI_IO             0xE1000000
 #define MPC8544_PCI_IOLEN          0x10000
+#define MPC8544_UTIL_BASE          (MPC8544_CCSRBAR_BASE + 0xe0000)
 
 struct boot_info
 {
@@ -269,6 +270,9 @@ static void mpc8544ds_init(ram_addr_t ram_size,
                        0, mpic[12+26], 399193,
                        serial_hds[0], 1, 1);
     }
+
+    /* General Utility device */
+    sysbus_create_simple("mpc8544-guts", MPC8544_UTIL_BASE, NULL);
 
     /* PCI */
     dev = sysbus_create_varargs("e500-pcihost", MPC8544_PCI_REGS_BASE,
