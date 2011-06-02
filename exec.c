@@ -1208,12 +1208,16 @@ static inline void tb_alloc_page(TranslationBlock *tb,
                                  unsigned int n, tb_page_addr_t page_addr)
 {
     PageDesc *p;
-    TranslationBlock *last_first_tb;
+#ifndef CONFIG_USER_ONLY
+    bool page_already_protected;
+#endif
 
     tb->page_addr[n] = page_addr;
     p = page_find_alloc(page_addr >> TARGET_PAGE_BITS, 1);
     tb->page_next[n] = p->first_tb;
-    last_first_tb = p->first_tb;
+#ifndef CONFIG_USER_ONLY
+    page_already_protected = p->first_tb != NULL;
+#endif
     p->first_tb = (TranslationBlock *)((long)tb | n);
     invalidate_page_bitmap(p);
 
@@ -1249,7 +1253,7 @@ static inline void tb_alloc_page(TranslationBlock *tb,
     /* if some code is already present, then the pages are already
        protected. So we handle the case where only the first TB is
        allocated in a physical page */
-    if (!last_first_tb) {
+    if (!page_already_protected) {
         tlb_protect_code(page_addr);
     }
 #endif
