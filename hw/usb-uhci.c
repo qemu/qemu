@@ -1122,7 +1122,7 @@ static int usb_uhci_common_initfn(UHCIState *s)
     pci_config_set_class(pci_conf, PCI_CLASS_SERIAL_USB);
     /* TODO: reset value should be 0. */
     pci_conf[PCI_INTERRUPT_PIN] = 4; // interrupt pin 3
-    pci_conf[0x60] = 0x10; // release number
+    pci_conf[USB_SBRN] = USB_RELEASE_1; // release number
 
     usb_bus_new(&s->bus, &uhci_bus_ops, &s->dev.qdev);
     for(i = 0; i < NB_PORTS; i++) {
