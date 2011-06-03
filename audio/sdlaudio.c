@@ -32,7 +32,6 @@
 #elif defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__DragonFly__)
 #include <pthread.h>
 #endif
-#include <signal.h>
 #endif
 
 #define AUDIO_CAP "sdl"

@@ -26,7 +26,6 @@
 #include "osdep.h"
 #include "sysemu.h"
 #include <stdio.h>
-#include <signal.h>
 
 struct progress_state {
     float current;

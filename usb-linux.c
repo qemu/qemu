@@ -37,7 +37,6 @@
 
 #include <dirent.h>
 #include <sys/ioctl.h>
-#include <signal.h>
 
 #include <linux/usbdevice_fs.h>
 #include <linux/version.h>

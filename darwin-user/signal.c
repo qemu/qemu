@@ -21,7 +21,6 @@
 #include <string.h>
 #include <stdarg.h>
 #include <unistd.h>
-#include <signal.h>
 #include <errno.h>
 #include <sys/ucontext.h>
 
@@ -31,8 +30,6 @@
 #undef uc_stack
 #undef uc_link
 #endif
-
-#include <signal.h>
 
 #include "qemu.h"
 #include "qemu-common.h"
