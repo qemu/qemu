@@ -1078,9 +1078,12 @@ static void gen_jcc(DisasContext *s, uint32_t mask, int skip)
             tcg_gen_brcondi_i32(TCG_COND_EQ, tmp, 0, skip);
             break;
         default:
+            tcg_temp_free_i32(tmp);
+            tcg_temp_free_i32(tmp2);
             goto do_dynamic;
         }
         tcg_temp_free_i32(tmp);
+        tcg_temp_free_i32(tmp2);
         account_inline_branch(s);
         break;
     case CC_OP_TM_64:
@@ -1095,6 +1098,7 @@ static void gen_jcc(DisasContext *s, uint32_t mask, int skip)
             tcg_gen_brcondi_i64(TCG_COND_EQ, tmp64, 0, skip);
             break;
         default:
+            tcg_temp_free_i64(tmp64);
             goto do_dynamic;
         }
         tcg_temp_free_i64(tmp64);
@@ -2056,7 +2060,7 @@ do_mh:
            even for very long ones... */
         tmp = get_address(s, 0, b2, d2);
         tmp3 = tcg_const_i64(stm_len);
-        tmp4 = tcg_const_i64(32);
+        tmp4 = tcg_const_i64(op == 0x26 ? 32 : 4);
         for (i = r1;; i = (i + 1) % 16) {
             switch (op) {
             case 0x4:
@@ -2068,9 +2072,8 @@ do_mh:
                 tcg_gen_qemu_ld32u(tmp2, tmp, get_mem_index(s));
                 tcg_gen_trunc_i64_i32(TCGV_HIGH(regs[i]), tmp2);
 #else
-                tmp2 = tcg_temp_new_i64();
                 tcg_gen_qemu_ld32u(tmp2, tmp, get_mem_index(s));
-                tcg_gen_shl_i64(tmp2, tmp2, 4);
+                tcg_gen_shl_i64(tmp2, tmp2, tmp4);
                 tcg_gen_ext32u_i64(regs[i], regs[i]);
                 tcg_gen_or_i64(regs[i], regs[i], tmp2);
 #endif
@@ -2094,6 +2097,7 @@ do_mh:
             tcg_gen_add_i64(tmp, tmp, tmp3);
         }
         tcg_temp_free_i64(tmp);
+        tcg_temp_free_i64(tmp3);
         tcg_temp_free_i64(tmp4);
         break;
     case 0x2c: /* STCMH R1,M3,D2(B2) [RSY] */
@@ -2330,18 +2334,22 @@ static void disas_a5(DisasContext *s, int op, int r1, int i2)
     case 0x0: /* IIHH     R1,I2     [RI] */
         tmp = tcg_const_i64(i2);
         tcg_gen_deposit_i64(regs[r1], regs[r1], tmp, 48, 16);
+        tcg_temp_free_i64(tmp);
         break;
     case 0x1: /* IIHL     R1,I2     [RI] */
         tmp = tcg_const_i64(i2);
         tcg_gen_deposit_i64(regs[r1], regs[r1], tmp, 32, 16);
+        tcg_temp_free_i64(tmp);
         break;
     case 0x2: /* IILH     R1,I2     [RI] */
         tmp = tcg_const_i64(i2);
         tcg_gen_deposit_i64(regs[r1], regs[r1], tmp, 16, 16);
+        tcg_temp_free_i64(tmp);
         break;
     case 0x3: /* IILL     R1,I2     [RI] */
         tmp = tcg_const_i64(i2);
         tcg_gen_deposit_i64(regs[r1], regs[r1], tmp, 0, 16);
+        tcg_temp_free_i64(tmp);
         break;
     case 0x4: /* NIHH     R1,I2     [RI] */
     case 0x8: /* OIHH     R1,I2     [RI] */
@@ -2366,6 +2374,7 @@ static void disas_a5(DisasContext *s, int op, int r1, int i2)
         set_cc_nz_u32(s, tmp32);
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i32(tmp32);
+        tcg_temp_free_i64(tmp);
         break;
     case 0x5: /* NIHL     R1,I2     [RI] */
     case 0x9: /* OIHL     R1,I2     [RI] */
@@ -2391,6 +2400,7 @@ static void disas_a5(DisasContext *s, int op, int r1, int i2)
         set_cc_nz_u32(s, tmp32);
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i32(tmp32);
+        tcg_temp_free_i64(tmp);
         break;
     case 0x6: /* NILH     R1,I2     [RI] */
     case 0xa: /* OILH     R1,I2     [RI] */
@@ -2416,6 +2426,7 @@ static void disas_a5(DisasContext *s, int op, int r1, int i2)
         set_cc_nz_u32(s, tmp32);
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i32(tmp32);
+        tcg_temp_free_i64(tmp);
         break;
     case 0x7: /* NILL     R1,I2     [RI] */
     case 0xb: /* OILL     R1,I2     [RI] */
@@ -2439,29 +2450,33 @@ static void disas_a5(DisasContext *s, int op, int r1, int i2)
         set_cc_nz_u32(s, tmp32);        /* signedness should not matter here */
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i32(tmp32);
+        tcg_temp_free_i64(tmp);
         break;
     case 0xc: /* LLIHH     R1,I2     [RI] */
         tmp = tcg_const_i64( ((uint64_t)i2) << 48 );
         store_reg(r1, tmp);
+        tcg_temp_free_i64(tmp);
         break;
     case 0xd: /* LLIHL     R1,I2     [RI] */
         tmp = tcg_const_i64( ((uint64_t)i2) << 32 );
         store_reg(r1, tmp);
+        tcg_temp_free_i64(tmp);
         break;
     case 0xe: /* LLILH     R1,I2     [RI] */
         tmp = tcg_const_i64( ((uint64_t)i2) << 16 );
         store_reg(r1, tmp);
+        tcg_temp_free_i64(tmp);
         break;
     case 0xf: /* LLILL     R1,I2     [RI] */
         tmp = tcg_const_i64(i2);
         store_reg(r1, tmp);
+        tcg_temp_free_i64(tmp);
         break;
     default:
         LOG_DISAS("illegal a5 operation 0x%x\n", op);
         gen_illegal_opcode(s, 2);
         return;
     }
-    tcg_temp_free_i64(tmp);
 }
 
 static void disas_a7(DisasContext *s, int op, int r1, int i2)
@@ -2963,6 +2978,8 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         /* we need to keep cc_op intact */
         s->is_jmp = DISAS_JUMP;
         tcg_temp_free_i64(tmp);
+        tcg_temp_free_i64(tmp2);
+        tcg_temp_free_i64(tmp3);
         break;
     case 0x20: /* SERVC     R1,R2     [RRE] */
         /* SCLP Service call (PV hypercall) */
@@ -3455,6 +3472,9 @@ static void disas_b9(DisasContext *s, int op, int r1, int r2)
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i64(tmp3);
+        break;
+    case 0x0f: /* LRVGR    R1,R2     [RRE] */
+        tcg_gen_bswap64_i64(regs[r1], regs[r2]);
         break;
     case 0x1f: /* LRVR     R1,R2     [RRE] */
         tmp32_1 = load_reg32(r2);
@@ -4593,6 +4613,8 @@ static void disas_s390_insn(DisasContext *s)
         store_reg32(r1, tmp32_1);
         tcg_gen_trunc_i64_i32(tmp32_2, tmp2);
         store_reg32(r1 + 1, tmp32_2);
+        tcg_temp_free_i64(tmp);
+        tcg_temp_free_i64(tmp2);
         break;
     case 0x98: /* LM     R1,R3,D2(B2)     [RS] */
     case 0x90: /* STM    R1,R3,D2(B2)     [RS] */
@@ -4616,6 +4638,7 @@ static void disas_s390_insn(DisasContext *s)
             }
             tcg_gen_add_i64(tmp, tmp, tmp3);
         }
+        tcg_temp_free_i64(tmp);
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i64(tmp3);
         tcg_temp_free_i64(tmp4);

@@ -28,11 +28,6 @@
 #include "qemu-common.h"
 #include "qemu-timer.h"
 
-#if !defined(CONFIG_USER_ONLY)
-#include <linux/kvm.h>
-#include "kvm.h"
-#endif
-
 //#define DEBUG_S390
 //#define DEBUG_S390_PTE
 //#define DEBUG_S390_STDOUT
