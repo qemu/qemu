@@ -124,8 +124,7 @@ typedef union {
    endian ! */
 typedef union {
     float64 d;
-#if defined(HOST_WORDS_BIGENDIAN) \
-    || (defined(__arm__) && !defined(__VFP_FP__) && !defined(CONFIG_SOFTFLOAT))
+#if defined(HOST_WORDS_BIGENDIAN)
     struct {
         uint32_t upper;
         uint32_t lower;
@@ -139,7 +138,6 @@ typedef union {
     uint64_t ll;
 } CPU_DoubleU;
 
-#if defined(FLOATX80)
 typedef union {
      floatx80 d;
      struct {
@@ -147,9 +145,7 @@ typedef union {
          uint16_t upper;
      } l;
 } CPU_LDoubleU;
-#endif
 
-#if defined(CONFIG_SOFTFLOAT)
 typedef union {
     float128 q;
 #if defined(HOST_WORDS_BIGENDIAN)
@@ -176,7 +172,6 @@ typedef union {
     } ll;
 #endif
 } CPU_QuadU;
-#endif
 
 /* CPU memory access without any memory or io remapping */
 

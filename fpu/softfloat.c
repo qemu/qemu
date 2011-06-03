@@ -64,12 +64,10 @@ void set_float_exception_flags(int val STATUS_PARAM)
     STATUS(float_exception_flags) = val;
 }
 
-#ifdef FLOATX80
 void set_floatx80_rounding_precision(int val STATUS_PARAM)
 {
     STATUS(floatx80_rounding_precision) = val;
 }
-#endif
 
 /*----------------------------------------------------------------------------
 | Returns the fraction bits of the half-precision floating-point value `a'.
@@ -564,8 +562,6 @@ static float64
 
 }
 
-#ifdef FLOATX80
-
 /*----------------------------------------------------------------------------
 | Returns the fraction bits of the extended double-precision floating-point
 | value `a'.
@@ -851,10 +847,6 @@ static floatx80
 
 }
 
-#endif
-
-#ifdef FLOAT128
-
 /*----------------------------------------------------------------------------
 | Returns the least-significant 64 fraction bits of the quadruple-precision
 | floating-point value `a'.
@@ -1118,8 +1110,6 @@ static float128
 
 }
 
-#endif
-
 /*----------------------------------------------------------------------------
 | Returns the result of converting the 32-bit two's complement integer `a'
 | to the single-precision floating-point format.  The conversion is performed
@@ -1159,8 +1149,6 @@ float64 int32_to_float64( int32 a STATUS_PARAM )
 
 }
 
-#ifdef FLOATX80
-
 /*----------------------------------------------------------------------------
 | Returns the result of converting the 32-bit two's complement integer `a'
 | to the extended double-precision floating-point format.  The conversion
@@ -1184,10 +1172,6 @@ floatx80 int32_to_floatx80( int32 a STATUS_PARAM )
 
 }
 
-#endif
-
-#ifdef FLOAT128
-
 /*----------------------------------------------------------------------------
 | Returns the result of converting the 32-bit two's complement integer `a' to
 | the quadruple-precision floating-point format.  The conversion is performed
@@ -1209,8 +1193,6 @@ float128 int32_to_float128( int32 a STATUS_PARAM )
     return packFloat128( zSign, 0x402E - shiftCount, zSig0<<shiftCount, 0 );
 
 }
-
-#endif
 
 /*----------------------------------------------------------------------------
 | Returns the result of converting the 64-bit two's complement integer `a'
@@ -1291,8 +1273,6 @@ float64 uint64_to_float64( uint64 a STATUS_PARAM )
 
 }
 
-#ifdef FLOATX80
-
 /*----------------------------------------------------------------------------
 | Returns the result of converting the 64-bit two's complement integer `a'
 | to the extended double-precision floating-point format.  The conversion
@@ -1313,10 +1293,6 @@ floatx80 int64_to_floatx80( int64 a STATUS_PARAM )
     return packFloatx80( zSign, 0x403E - shiftCount, absA<<shiftCount );
 
 }
-
-#endif
-
-#ifdef FLOAT128
 
 /*----------------------------------------------------------------------------
 | Returns the result of converting the 64-bit two's complement integer `a' to
@@ -1350,8 +1326,6 @@ float128 int64_to_float128( int64 a STATUS_PARAM )
     return packFloat128( zSign, zExp, zSig0, zSig1 );
 
 }
-
-#endif
 
 /*----------------------------------------------------------------------------
 | Returns the result of converting the single-precision floating-point value
@@ -1590,8 +1564,6 @@ float64 float32_to_float64( float32 a STATUS_PARAM )
 
 }
 
-#ifdef FLOATX80
-
 /*----------------------------------------------------------------------------
 | Returns the result of converting the single-precision floating-point value
 | `a' to the extended double-precision floating-point format.  The conversion
@@ -1622,10 +1594,6 @@ floatx80 float32_to_floatx80( float32 a STATUS_PARAM )
 
 }
 
-#endif
-
-#ifdef FLOAT128
-
 /*----------------------------------------------------------------------------
 | Returns the result of converting the single-precision floating-point value
 | `a' to the double-precision floating-point format.  The conversion is
@@ -1655,8 +1623,6 @@ float128 float32_to_float128( float32 a STATUS_PARAM )
     return packFloat128( aSign, aExp + 0x3F80, ( (uint64_t) aSig )<<25, 0 );
 
 }
-
-#endif
 
 /*----------------------------------------------------------------------------
 | Rounds the single-precision floating-point value `a' to an integer, and
@@ -2939,8 +2905,6 @@ float16 float32_to_float16(float32 a, flag ieee STATUS_PARAM)
     return packFloat16(aSign, aExp + 14, aSig >> 13);
 }
 
-#ifdef FLOATX80
-
 /*----------------------------------------------------------------------------
 | Returns the result of converting the double-precision floating-point value
 | `a' to the extended double-precision floating-point format.  The conversion
@@ -2972,10 +2936,6 @@ floatx80 float64_to_floatx80( float64 a STATUS_PARAM )
 
 }
 
-#endif
-
-#ifdef FLOAT128
-
 /*----------------------------------------------------------------------------
 | Returns the result of converting the double-precision floating-point value
 | `a' to the quadruple-precision floating-point format.  The conversion is
@@ -3006,8 +2966,6 @@ float128 float64_to_float128( float64 a STATUS_PARAM )
     return packFloat128( aSign, aExp + 0x3C00, zSig0, zSig1 );
 
 }
-
-#endif
 
 /*----------------------------------------------------------------------------
 | Rounds the double-precision floating-point value `a' to an integer, and
@@ -3816,8 +3774,6 @@ int float64_unordered_quiet( float64 a, float64 b STATUS_PARAM )
     return 0;
 }
 
-#ifdef FLOATX80
-
 /*----------------------------------------------------------------------------
 | Returns the result of converting the extended double-precision floating-
 | point value `a' to the 32-bit two's complement integer format.  The
@@ -4030,8 +3986,6 @@ float64 floatx80_to_float64( floatx80 a STATUS_PARAM )
 
 }
 
-#ifdef FLOAT128
-
 /*----------------------------------------------------------------------------
 | Returns the result of converting the extended double-precision floating-
 | point value `a' to the quadruple-precision floating-point format.  The
@@ -4055,8 +4009,6 @@ float128 floatx80_to_float128( floatx80 a STATUS_PARAM )
     return packFloat128( aSign, aExp, zSig0, zSig1 );
 
 }
-
-#endif
 
 /*----------------------------------------------------------------------------
 | Rounds the extended double-precision floating-point value `a' to an integer,
@@ -4849,10 +4801,6 @@ int floatx80_unordered_quiet( floatx80 a, floatx80 b STATUS_PARAM )
     return 0;
 }
 
-#endif
-
-#ifdef FLOAT128
-
 /*----------------------------------------------------------------------------
 | Returns the result of converting the quadruple-precision floating-point
 | value `a' to the 32-bit two's complement integer format.  The conversion
@@ -5102,8 +5050,6 @@ float64 float128_to_float64( float128 a STATUS_PARAM )
 
 }
 
-#ifdef FLOATX80
-
 /*----------------------------------------------------------------------------
 | Returns the result of converting the quadruple-precision floating-point
 | value `a' to the extended double-precision floating-point format.  The
@@ -5138,8 +5084,6 @@ floatx80 float128_to_floatx80( float128 a STATUS_PARAM )
     return roundAndPackFloatx80( 80, aSign, aExp, aSig0, aSig1 STATUS_VAR );
 
 }
-
-#endif
 
 /*----------------------------------------------------------------------------
 | Rounds the quadruple-precision floating-point value `a' to an integer, and
@@ -6020,8 +5964,6 @@ int float128_unordered_quiet( float128 a, float128 b STATUS_PARAM )
     return 0;
 }
 
-#endif
-
 /* misc functions */
 float32 uint32_to_float32( unsigned int a STATUS_PARAM )
 {
@@ -6423,7 +6365,6 @@ float64 float64_scalbn( float64 a, int n STATUS_PARAM )
     return normalizeRoundAndPackFloat64( aSign, aExp, aSig STATUS_VAR );
 }
 
-#ifdef FLOATX80
 floatx80 floatx80_scalbn( floatx80 a, int n STATUS_PARAM )
 {
     flag aSign;
@@ -6454,9 +6395,7 @@ floatx80 floatx80_scalbn( floatx80 a, int n STATUS_PARAM )
     return normalizeRoundAndPackFloatx80( STATUS(floatx80_rounding_precision),
                                           aSign, aExp, aSig, 0 STATUS_VAR );
 }
-#endif
 
-#ifdef FLOAT128
 float128 float128_scalbn( float128 a, int n STATUS_PARAM )
 {
     flag aSign;
@@ -6489,4 +6428,3 @@ float128 float128_scalbn( float128 a, int n STATUS_PARAM )
                                           STATUS_VAR );
 
 }
-#endif

@@ -1105,10 +1105,6 @@ static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
             env->active_fpu.fcr31 = tmp & 0xFF83FFFF;
             /* set rounding mode */
             RESTORE_ROUNDING_MODE;
-#ifndef CONFIG_SOFTFLOAT
-            /* no floating point exception for native float */
-            SET_FP_ENABLE(env->active_fpu.fcr31, 0);
-#endif
             break;
         case 71: env->active_fpu.fcr0 = tmp; break;
         }

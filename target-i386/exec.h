@@ -98,67 +98,6 @@ static inline void svm_check_intercept(uint32_t type)
 
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-#ifdef USE_X86LDOUBLE
-/* use long double functions */
-#define floatx_to_int32 floatx80_to_int32
-#define floatx_to_int64 floatx80_to_int64
-#define floatx_to_int32_round_to_zero floatx80_to_int32_round_to_zero
-#define floatx_to_int64_round_to_zero floatx80_to_int64_round_to_zero
-#define int32_to_floatx int32_to_floatx80
-#define int64_to_floatx int64_to_floatx80
-#define float32_to_floatx float32_to_floatx80
-#define float64_to_floatx float64_to_floatx80
-#define floatx_to_float32 floatx80_to_float32
-#define floatx_to_float64 floatx80_to_float64
-#define floatx_add floatx80_add
-#define floatx_div floatx80_div
-#define floatx_mul floatx80_mul
-#define floatx_sub floatx80_sub
-#define floatx_sqrt floatx80_sqrt
-#define floatx_abs floatx80_abs
-#define floatx_chs floatx80_chs
-#define floatx_scalbn floatx80_scalbn
-#define floatx_round_to_int floatx80_round_to_int
-#define floatx_compare floatx80_compare
-#define floatx_compare_quiet floatx80_compare_quiet
-#define floatx_is_any_nan floatx80_is_any_nan
-#define floatx_is_neg floatx80_is_neg
-#define floatx_is_zero floatx80_is_zero
-#define floatx_zero floatx80_zero
-#define floatx_one floatx80_one
-#define floatx_ln2 floatx80_ln2
-#define floatx_pi floatx80_pi
-#else
-#define floatx_to_int32 float64_to_int32
-#define floatx_to_int64 float64_to_int64
-#define floatx_to_int32_round_to_zero float64_to_int32_round_to_zero
-#define floatx_to_int64_round_to_zero float64_to_int64_round_to_zero
-#define int32_to_floatx int32_to_float64
-#define int64_to_floatx int64_to_float64
-#define float32_to_floatx float32_to_float64
-#define float64_to_floatx(x, e) (x)
-#define floatx_to_float32 float64_to_float32
-#define floatx_to_float64(x, e) (x)
-#define floatx_add float64_add
-#define floatx_div float64_div
-#define floatx_mul float64_mul
-#define floatx_sub float64_sub
-#define floatx_sqrt float64_sqrt
-#define floatx_abs float64_abs
-#define floatx_chs float64_chs
-#define floatx_scalbn float64_scalbn
-#define floatx_round_to_int float64_round_to_int
-#define floatx_compare float64_compare
-#define floatx_compare_quiet float64_compare_quiet
-#define floatx_is_any_nan float64_is_any_nan
-#define floatx_is_neg float64_is_neg
-#define floatx_is_zero float64_is_zero
-#define floatx_zero float64_zero
-#define floatx_one float64_one
-#define floatx_ln2 float64_ln2
-#define floatx_pi float64_pi
-#endif
-
 #define RC_MASK         0xc00
 #define RC_NEAR		0x000
 #define RC_DOWN		0x400
@@ -167,11 +106,6 @@ static inline void svm_check_intercept(uint32_t type)
 
 #define MAXTAN 9223372036854775808.0
 
-#ifdef USE_X86LDOUBLE
-
-/* only for x86 */
-typedef CPU_LDoubleU CPU86_LDoubleU;
-
 /* the following deal with x86 long double-precision numbers */
 #define MAXEXPD 0x7fff
 #define EXPBIAS 16383
@@ -179,23 +113,6 @@ typedef CPU_LDoubleU CPU86_LDoubleU;
 #define SIGND(fp)	((fp.l.upper) & 0x8000)
 #define MANTD(fp)       (fp.l.lower)
 #define BIASEXPONENT(fp) fp.l.upper = (fp.l.upper & ~(0x7fff)) | EXPBIAS
-
-#else
-
-typedef CPU_DoubleU CPU86_LDoubleU;
-
-/* the following deal with IEEE double-precision numbers */
-#define MAXEXPD 0x7ff
-#define EXPBIAS 1023
-#define EXPD(fp)	(((fp.l.upper) >> 20) & 0x7FF)
-#define SIGND(fp)	((fp.l.upper) & 0x80000000)
-#ifdef __arm__
-#define MANTD(fp)	(fp.l.lower | ((uint64_t)(fp.l.upper & ((1 << 20) - 1)) << 32))
-#else
-#define MANTD(fp)	(fp.ll & ((1LL << 52) - 1))
-#endif
-#define BIASEXPONENT(fp) fp.l.upper = (fp.l.upper & ~(0x7ff << 20)) | (EXPBIAS << 20)
-#endif
 
 static inline void fpush(void)
 {
@@ -209,64 +126,23 @@ static inline void fpop(void)
     env->fpstt = (env->fpstt + 1) & 7;
 }
 
-#ifndef USE_X86LDOUBLE
-static inline CPU86_LDouble helper_fldt(target_ulong ptr)
+static inline floatx80 helper_fldt(target_ulong ptr)
 {
-    CPU86_LDoubleU temp;
-    int upper, e;
-    uint64_t ll;
-
-    /* mantissa */
-    upper = lduw(ptr + 8);
-    /* XXX: handle overflow ? */
-    e = (upper & 0x7fff) - 16383 + EXPBIAS; /* exponent */
-    e |= (upper >> 4) & 0x800; /* sign */
-    ll = (ldq(ptr) >> 11) & ((1LL << 52) - 1);
-#ifdef __arm__
-    temp.l.upper = (e << 20) | (ll >> 32);
-    temp.l.lower = ll;
-#else
-    temp.ll = ll | ((uint64_t)e << 52);
-#endif
-    return temp.d;
-}
-
-static inline void helper_fstt(CPU86_LDouble f, target_ulong ptr)
-{
-    CPU86_LDoubleU temp;
-    int e;
-
-    temp.d = f;
-    /* mantissa */
-    stq(ptr, (MANTD(temp) << 11) | (1LL << 63));
-    /* exponent + sign */
-    e = EXPD(temp) - EXPBIAS + 16383;
-    e |= SIGND(temp) >> 16;
-    stw(ptr + 8, e);
-}
-#else
-
-/* we use memory access macros */
-
-static inline CPU86_LDouble helper_fldt(target_ulong ptr)
-{
-    CPU86_LDoubleU temp;
+    CPU_LDoubleU temp;
 
     temp.l.lower = ldq(ptr);
     temp.l.upper = lduw(ptr + 8);
     return temp.d;
 }
 
-static inline void helper_fstt(CPU86_LDouble f, target_ulong ptr)
+static inline void helper_fstt(floatx80 f, target_ulong ptr)
 {
-    CPU86_LDoubleU temp;
+    CPU_LDoubleU temp;
 
     temp.d = f;
     stq(ptr, temp.l.lower);
     stw(ptr + 8, temp.l.upper);
 }
-
-#endif /* USE_X86LDOUBLE */
 
 #define FPUS_IE (1 << 0)
 #define FPUS_DE (1 << 1)
