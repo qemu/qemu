@@ -550,6 +550,15 @@ _syscall5(int, sys_ppoll, struct pollfd *, fds, nfds_t, nfds,
           size_t, sigsetsize)
 #endif
 
+#if defined(TARGET_NR_pselect6)
+#ifndef __NR_pselect6
+# define __NR_pselect6 -1
+#endif
+#define __NR_sys_pselect6 __NR_pselect6
+_syscall6(int, sys_pselect6, int, nfds, fd_set *, readfds, fd_set *, writefds,
+          fd_set *, exceptfds, struct timespec *, timeout, void *, sig);
+#endif
+
 extern int personality(int);
 extern int flock(int, int);
 extern int setfsuid(int);
@@ -819,6 +828,20 @@ static inline abi_long copy_from_user_fdset(fd_set *fds,
     return 0;
 }
 
+static inline abi_ulong copy_from_user_fdset_ptr(fd_set *fds, fd_set **fds_ptr,
+                                                 abi_ulong target_fds_addr,
+                                                 int n)
+{
+    if (target_fds_addr) {
+        if (copy_from_user_fdset(fds, target_fds_addr, n))
+            return -TARGET_EFAULT;
+        *fds_ptr = fds;
+    } else {
+        *fds_ptr = NULL;
+    }
+    return 0;
+}
+
 static inline abi_long copy_to_user_fdset(abi_ulong target_fds_addr,
                                           const fd_set *fds,
                                           int n)
@@ -984,6 +1007,7 @@ static inline abi_long copy_to_user_mq_attr(abi_ulong target_mq_attr_addr,
 }
 #endif
 
+#if defined(TARGET_NR_select) || defined(TARGET_NR__newselect)
 /* do_select() must return target values and target errnos. */
 static abi_long do_select(int n,
                           abi_ulong rfd_addr, abi_ulong wfd_addr,
@@ -994,26 +1018,17 @@ static abi_long do_select(int n,
     struct timeval tv, *tv_ptr;
     abi_long ret;
 
-    if (rfd_addr) {
-        if (copy_from_user_fdset(&rfds, rfd_addr, n))
-            return -TARGET_EFAULT;
-        rfds_ptr = &rfds;
-    } else {
-        rfds_ptr = NULL;
+    ret = copy_from_user_fdset_ptr(&rfds, &rfds_ptr, rfd_addr, n);
+    if (ret) {
+        return ret;
     }
-    if (wfd_addr) {
-        if (copy_from_user_fdset(&wfds, wfd_addr, n))
-            return -TARGET_EFAULT;
-        wfds_ptr = &wfds;
-    } else {
-        wfds_ptr = NULL;
+    ret = copy_from_user_fdset_ptr(&wfds, &wfds_ptr, wfd_addr, n);
+    if (ret) {
+        return ret;
     }
-    if (efd_addr) {
-        if (copy_from_user_fdset(&efds, efd_addr, n))
-            return -TARGET_EFAULT;
-        efds_ptr = &efds;
-    } else {
-        efds_ptr = NULL;
+    ret = copy_from_user_fdset_ptr(&efds, &efds_ptr, efd_addr, n);
+    if (ret) {
+        return ret;
     }
 
     if (target_tv_addr) {
@@ -1040,6 +1055,7 @@ static abi_long do_select(int n,
 
     return ret;
 }
+#endif
 
 static abi_long do_pipe2(int host_pipe[], int flags)
 {
@@ -5601,7 +5617,102 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_pselect6
     case TARGET_NR_pselect6:
-	    goto unimplemented_nowarn;
+        {
+            abi_long rfd_addr, wfd_addr, efd_addr, n, ts_addr;
+            fd_set rfds, wfds, efds;
+            fd_set *rfds_ptr, *wfds_ptr, *efds_ptr;
+            struct timespec ts, *ts_ptr;
+
+            /*
+             * The 6th arg is actually two args smashed together,
+             * so we cannot use the C library.
+             */
+            sigset_t set;
+            struct {
+                sigset_t *set;
+                size_t size;
+            } sig, *sig_ptr;
+
+            abi_ulong arg_sigset, arg_sigsize, *arg7;
+            target_sigset_t *target_sigset;
+
+            n = arg1;
+            rfd_addr = arg2;
+            wfd_addr = arg3;
+            efd_addr = arg4;
+            ts_addr = arg5;
+
+            ret = copy_from_user_fdset_ptr(&rfds, &rfds_ptr, rfd_addr, n);
+            if (ret) {
+                goto fail;
+            }
+            ret = copy_from_user_fdset_ptr(&wfds, &wfds_ptr, wfd_addr, n);
+            if (ret) {
+                goto fail;
+            }
+            ret = copy_from_user_fdset_ptr(&efds, &efds_ptr, efd_addr, n);
+            if (ret) {
+                goto fail;
+            }
+
+            /*
+             * This takes a timespec, and not a timeval, so we cannot
+             * use the do_select() helper ...
+             */
+            if (ts_addr) {
+                if (target_to_host_timespec(&ts, ts_addr)) {
+                    goto efault;
+                }
+                ts_ptr = &ts;
+            } else {
+                ts_ptr = NULL;
+            }
+
+            /* Extract the two packed args for the sigset */
+            if (arg6) {
+                sig_ptr = &sig;
+                sig.size = _NSIG / 8;
+
+                arg7 = lock_user(VERIFY_READ, arg6, sizeof(*arg7) * 2, 1);
+                if (!arg7) {
+                    goto efault;
+                }
+                arg_sigset = tswapl(arg7[0]);
+                arg_sigsize = tswapl(arg7[1]);
+                unlock_user(arg7, arg6, 0);
+
+                if (arg_sigset) {
+                    sig.set = &set;
+                    target_sigset = lock_user(VERIFY_READ, arg_sigset,
+                                              sizeof(*target_sigset), 1);
+                    if (!target_sigset) {
+                        goto efault;
+                    }
+                    target_to_host_sigset(&set, target_sigset);
+                    unlock_user(target_sigset, arg_sigset, 0);
+                } else {
+                    sig.set = NULL;
+                }
+            } else {
+                sig_ptr = NULL;
+            }
+
+            ret = get_errno(sys_pselect6(n, rfds_ptr, wfds_ptr, efds_ptr,
+                                         ts_ptr, sig_ptr));
+
+            if (!is_error(ret)) {
+                if (rfd_addr && copy_to_user_fdset(rfd_addr, &rfds, n))
+                    goto efault;
+                if (wfd_addr && copy_to_user_fdset(wfd_addr, &wfds, n))
+                    goto efault;
+                if (efd_addr && copy_to_user_fdset(efd_addr, &efds, n))
+                    goto efault;
+
+                if (ts_addr && host_to_target_timespec(ts_addr, &ts))
+                    goto efault;
+            }
+        }
+        break;
 #endif
     case TARGET_NR_symlink:
         {
