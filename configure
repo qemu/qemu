@@ -3479,7 +3479,9 @@ for bios_file in $source_path/pc-bios/*.bin $source_path/pc-bios/*.rom $source_p
 done
 mkdir -p $DIRS
 for f in $FILES ; do
-    test -e $f || symlink $source_path/$f $f
+    if [ -e "$source_path/$f" ] && ! [ -e "$f" ]; then
+        symlink "$source_path/$f" "$f"
+    fi
 done
 
 # temporary config to build submodules
