@@ -848,6 +848,7 @@ void do_interrupt(CPUARMState *env)
                 return;
             }
         }
+        env->cp15.c5_insn = 2;
         /* Fall through to prefetch abort.  */
     case EXCP_PREFETCH_ABORT:
         new_mode = ARM_CPU_MODE_ABT;
