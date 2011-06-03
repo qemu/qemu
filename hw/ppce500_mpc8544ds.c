@@ -275,7 +275,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
                                 mpic[pci_irq_nrs[0]], mpic[pci_irq_nrs[1]],
                                 mpic[pci_irq_nrs[2]], mpic[pci_irq_nrs[3]],
                                 NULL);
-    pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci");
+    pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci.0");
     if (!pci_bus)
         printf("couldn't create PCI controller!\n");
 
