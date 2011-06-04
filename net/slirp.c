@@ -614,7 +614,7 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str,
     }
 
     fwd = qemu_malloc(sizeof(struct GuestFwd));
-    snprintf(buf, sizeof(buf), "guestfwd.tcp:%d", port);
+    snprintf(buf, sizeof(buf), "guestfwd.tcp.%d", port);
     fwd->hd = qemu_chr_open(buf, p, NULL);
     if (!fwd->hd) {
         error_report("could not open guest forwarding device '%s'", buf);
