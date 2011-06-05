@@ -413,7 +413,11 @@ int scsi_req_parse(SCSIRequest *req, uint8_t *buf)
     scsi_req_xfer_mode(req);
     req->cmd.lba = scsi_req_lba(req);
     trace_scsi_req_parsed(req->dev->id, req->lun, req->tag, buf[0],
-                          req->cmd.mode, req->cmd.xfer, req->cmd.lba);
+                          req->cmd.mode, req->cmd.xfer);
+    if (req->cmd.lba != -1) {
+        trace_scsi_req_parsed_lba(req->dev->id, req->lun, req->tag, buf[0],
+                              req->cmd.lba);
+    }
     return 0;
 }
 

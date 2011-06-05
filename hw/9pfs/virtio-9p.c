@@ -194,7 +194,6 @@ static int v9fs_do_open2(V9fsState *s, char *fullname, uid_t uid, gid_t gid,
     cred.fc_uid = uid;
     cred.fc_gid = gid;
     cred.fc_mode = mode & 07777;
-    flags = flags;
 
     return s->ops->open2(&s->ctx, fullname, flags, &cred);
 }
