@@ -1158,9 +1158,9 @@ static int usb_host_open(USBHostDevice *dev, int bus_num,
     return 0;
 
 fail:
-    dev->fd = -1;
-    if (fd != -1) {
-        close(fd);
+    if (dev->fd != -1) {
+        close(dev->fd);
+        dev->fd = -1;
     }
     return -1;
 }
@@ -1169,7 +1169,7 @@ static int usb_host_close(USBHostDevice *dev)
 {
     int i;
 
-    if (dev->fd == -1) {
+    if (dev->fd == -1 || !dev->dev.attached) {
         return -1;
     }
 
