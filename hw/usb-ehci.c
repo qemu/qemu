@@ -600,31 +600,37 @@ static int ehci_get_fetch_addr(EHCIState *s, int async)
 
 static void ehci_trace_qh(EHCIQueue *q, target_phys_addr_t addr, EHCIqh *qh)
 {
-    trace_usb_ehci_qh(q, addr, qh->next,
-                      qh->current_qtd, qh->next_qtd, qh->altnext_qtd,
-                      get_field(qh->epchar, QH_EPCHAR_RL),
-                      get_field(qh->epchar, QH_EPCHAR_MPLEN),
-                      get_field(qh->epchar, QH_EPCHAR_EPS),
-                      get_field(qh->epchar, QH_EPCHAR_EP),
-                      get_field(qh->epchar, QH_EPCHAR_DEVADDR),
-                      (bool)(qh->epchar & QH_EPCHAR_C),
-                      (bool)(qh->epchar & QH_EPCHAR_H),
-                      (bool)(qh->epchar & QH_EPCHAR_DTC),
-                      (bool)(qh->epchar & QH_EPCHAR_I));
+    /* need three here due to argument count limits */
+    trace_usb_ehci_qh_ptrs(q, addr, qh->next,
+                           qh->current_qtd, qh->next_qtd, qh->altnext_qtd);
+    trace_usb_ehci_qh_fields(addr,
+                             get_field(qh->epchar, QH_EPCHAR_RL),
+                             get_field(qh->epchar, QH_EPCHAR_MPLEN),
+                             get_field(qh->epchar, QH_EPCHAR_EPS),
+                             get_field(qh->epchar, QH_EPCHAR_EP),
+                             get_field(qh->epchar, QH_EPCHAR_DEVADDR));
+    trace_usb_ehci_qh_bits(addr,
+                           (bool)(qh->epchar & QH_EPCHAR_C),
+                           (bool)(qh->epchar & QH_EPCHAR_H),
+                           (bool)(qh->epchar & QH_EPCHAR_DTC),
+                           (bool)(qh->epchar & QH_EPCHAR_I));
 }
 
 static void ehci_trace_qtd(EHCIQueue *q, target_phys_addr_t addr, EHCIqtd *qtd)
 {
-    trace_usb_ehci_qtd(q, addr, qtd->next, qtd->altnext,
-                       get_field(qtd->token, QTD_TOKEN_TBYTES),
-                       get_field(qtd->token, QTD_TOKEN_CPAGE),
-                       get_field(qtd->token, QTD_TOKEN_CERR),
-                       get_field(qtd->token, QTD_TOKEN_PID),
-                       (bool)(qtd->token & QTD_TOKEN_IOC),
-                       (bool)(qtd->token & QTD_TOKEN_ACTIVE),
-                       (bool)(qtd->token & QTD_TOKEN_HALT),
-                       (bool)(qtd->token & QTD_TOKEN_BABBLE),
-                       (bool)(qtd->token & QTD_TOKEN_XACTERR));
+    /* need three here due to argument count limits */
+    trace_usb_ehci_qtd_ptrs(q, addr, qtd->next, qtd->altnext);
+    trace_usb_ehci_qtd_fields(addr,
+                              get_field(qtd->token, QTD_TOKEN_TBYTES),
+                              get_field(qtd->token, QTD_TOKEN_CPAGE),
+                              get_field(qtd->token, QTD_TOKEN_CERR),
+                              get_field(qtd->token, QTD_TOKEN_PID));
+    trace_usb_ehci_qtd_bits(addr,
+                            (bool)(qtd->token & QTD_TOKEN_IOC),
+                            (bool)(qtd->token & QTD_TOKEN_ACTIVE),
+                            (bool)(qtd->token & QTD_TOKEN_HALT),
+                            (bool)(qtd->token & QTD_TOKEN_BABBLE),
+                            (bool)(qtd->token & QTD_TOKEN_XACTERR));
 }
 
 static void ehci_trace_itd(EHCIState *s, target_phys_addr_t addr, EHCIitd *itd)
