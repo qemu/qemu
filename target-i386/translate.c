@@ -7538,7 +7538,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             break;
         case 5: /* lfence */
         case 6: /* mfence */
-            if ((modrm & 0xc7) != 0xc0 || !(s->cpuid_features & CPUID_SSE))
+            if ((modrm & 0xc7) != 0xc0 || !(s->cpuid_features & CPUID_SSE2))
                 goto illegal_op;
             break;
         case 7: /* sfence / clflush */
