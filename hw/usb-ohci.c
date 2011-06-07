@@ -1575,6 +1575,10 @@ static void ohci_mem_write(void *ptr, target_phys_addr_t addr, uint32_t val)
         ohci->hcca = val & OHCI_HCCA_MASK;
         break;
 
+    case 7: /* HcPeriodCurrentED */
+        /* Ignore writes to this read-only register, Linux does them */
+        break;
+
     case 8: /* HcControlHeadED */
         ohci->ctrl_head = val & OHCI_EDPTR_MASK;
         break;
