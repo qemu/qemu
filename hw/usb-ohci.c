@@ -367,6 +367,22 @@ static void ohci_detach(USBPort *port1)
         ohci_set_interrupt(s, OHCI_INTR_RHSC);
 }
 
+static void ohci_wakeup(USBDevice *dev)
+{
+    USBBus *bus = usb_bus_from_device(dev);
+    OHCIState *s = container_of(bus, OHCIState, bus);
+    int portnum = dev->port->index;
+    OHCIPort *port = &s->rhport[portnum];
+    if (port->ctrl & OHCI_PORT_PSS) {
+        DPRINTF("usb-ohci: port %d: wakeup\n", portnum);
+        port->ctrl |= OHCI_PORT_PSSC;
+        port->ctrl &= ~OHCI_PORT_PSS;
+        if ((s->ctl & OHCI_CTL_HCFS) == OHCI_USB_SUSPEND) {
+            ohci_set_interrupt(s, OHCI_INTR_RD);
+        }
+    }
+}
+
 /* Reset the controller */
 static void ohci_reset(void *opaque)
 {
@@ -1675,6 +1691,7 @@ static CPUWriteMemoryFunc * const ohci_writefn[3]={
 static USBPortOps ohci_port_ops = {
     .attach = ohci_attach,
     .detach = ohci_detach,
+    .wakeup = ohci_wakeup,
     .complete = ohci_async_complete_packet,
 };
 
