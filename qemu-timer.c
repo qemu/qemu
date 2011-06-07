@@ -39,15 +39,6 @@
 #include <sys/param.h>
 #endif
 
-#ifdef __linux__
-#include <sys/ioctl.h>
-#include <linux/rtc.h>
-/* For the benefit of older linux systems which don't supply it,
-   we use a local copy of hpet.h. */
-/* #include <linux/hpet.h> */
-#include "hpet.h"
-#endif
-
 #ifdef _WIN32
 #include <windows.h>
 #include <mmsystem.h>
@@ -234,12 +225,6 @@ static int dynticks_start_timer(struct qemu_alarm_timer *t);
 static void dynticks_stop_timer(struct qemu_alarm_timer *t);
 static void dynticks_rearm_timer(struct qemu_alarm_timer *t);
 
-static int hpet_start_timer(struct qemu_alarm_timer *t);
-static void hpet_stop_timer(struct qemu_alarm_timer *t);
-
-static int rtc_start_timer(struct qemu_alarm_timer *t);
-static void rtc_stop_timer(struct qemu_alarm_timer *t);
-
 #endif /* __linux__ */
 
 #endif /* _WIN32 */
@@ -304,10 +289,6 @@ static struct qemu_alarm_timer alarm_timers[] = {
 #ifdef __linux__
     {"dynticks", dynticks_start_timer,
      dynticks_stop_timer, dynticks_rearm_timer},
-    /* HPET - if available - is preferred */
-    {"hpet", hpet_start_timer, hpet_stop_timer, NULL},
-    /* ...otherwise try RTC */
-    {"rtc", rtc_start_timer, rtc_stop_timer, NULL},
 #endif
     {"unix", unix_start_timer, unix_stop_timer, NULL},
 #else
@@ -821,107 +802,6 @@ static int64_t qemu_next_alarm_deadline(void)
 }
 
 #if defined(__linux__)
-
-#define RTC_FREQ 1024
-
-static void enable_sigio_timer(int fd)
-{
-    struct sigaction act;
-
-    /* timer signal */
-    sigfillset(&act.sa_mask);
-    act.sa_flags = 0;
-    act.sa_handler = host_alarm_handler;
-
-    sigaction(SIGIO, &act, NULL);
-    fcntl_setfl(fd, O_ASYNC);
-    fcntl(fd, F_SETOWN, getpid());
-}
-
-static int hpet_start_timer(struct qemu_alarm_timer *t)
-{
-    struct hpet_info info;
-    int r, fd;
-
-    fd = qemu_open("/dev/hpet", O_RDONLY);
-    if (fd < 0)
-        return -1;
-
-    /* Set frequency */
-    r = ioctl(fd, HPET_IRQFREQ, RTC_FREQ);
-    if (r < 0) {
-        fprintf(stderr, "Could not configure '/dev/hpet' to have a 1024Hz timer. This is not a fatal\n"
-                "error, but for better emulation accuracy type:\n"
-                "'echo 1024 > /proc/sys/dev/hpet/max-user-freq' as root.\n");
-        goto fail;
-    }
-
-    /* Check capabilities */
-    r = ioctl(fd, HPET_INFO, &info);
-    if (r < 0)
-        goto fail;
-
-    /* Enable periodic mode */
-    r = ioctl(fd, HPET_EPI, 0);
-    if (info.hi_flags && (r < 0))
-        goto fail;
-
-    /* Enable interrupt */
-    r = ioctl(fd, HPET_IE_ON, 0);
-    if (r < 0)
-        goto fail;
-
-    enable_sigio_timer(fd);
-    t->fd = fd;
-
-    return 0;
-fail:
-    close(fd);
-    return -1;
-}
-
-static void hpet_stop_timer(struct qemu_alarm_timer *t)
-{
-    int fd = t->fd;
-
-    close(fd);
-}
-
-static int rtc_start_timer(struct qemu_alarm_timer *t)
-{
-    int rtc_fd;
-    unsigned long current_rtc_freq = 0;
-
-    TFR(rtc_fd = qemu_open("/dev/rtc", O_RDONLY));
-    if (rtc_fd < 0)
-        return -1;
-    ioctl(rtc_fd, RTC_IRQP_READ, &current_rtc_freq);
-    if (current_rtc_freq != RTC_FREQ &&
-        ioctl(rtc_fd, RTC_IRQP_SET, RTC_FREQ) < 0) {
-        fprintf(stderr, "Could not configure '/dev/rtc' to have a 1024 Hz timer. This is not a fatal\n"
-                "error, but for better emulation accuracy either use a 2.6 host Linux kernel or\n"
-                "type 'echo 1024 > /proc/sys/dev/rtc/max-user-freq' as root.\n");
-        goto fail;
-    }
-    if (ioctl(rtc_fd, RTC_PIE_ON, 0) < 0) {
-    fail:
-        close(rtc_fd);
-        return -1;
-    }
-
-    enable_sigio_timer(rtc_fd);
-
-    t->fd = rtc_fd;
-
-    return 0;
-}
-
-static void rtc_stop_timer(struct qemu_alarm_timer *t)
-{
-    int rtc_fd = t->fd;
-
-    close(rtc_fd);
-}
 
 static int dynticks_start_timer(struct qemu_alarm_timer *t)
 {

@@ -16,7 +16,9 @@
 
 #include "qemu-common.h"
 #include "qlist.h"
+#include "error.h"
 
 QObject *json_parser_parse(QList *tokens, va_list *ap);
+QObject *json_parser_parse_err(QList *tokens, va_list *ap, Error **errp);
 
 #endif

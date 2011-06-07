@@ -24,6 +24,7 @@ typedef struct JSONMessageParser
     int brace_count;
     int bracket_count;
     QList *tokens;
+    uint64_t token_size;
 } JSONMessageParser;
 
 void json_message_parser_init(JSONMessageParser *parser,

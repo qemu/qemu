@@ -8,19 +8,22 @@ more buses for children.  You can specify a device's parent bus with
 
 A device typically has a device address on its parent bus.  For buses
 where this address can be configured, devices provide a bus-specific
-property.  These are
+property.  Examples:
 
-    bus     property name       value format
-    PCI     addr                %x.%x (dev.fn, .fn optional)
-    I2C     address             %u
-    SCSI    scsi-id             %u
+    bus         property name       value format
+    PCI         addr                %x.%x    (dev.fn, .fn optional)
+    I2C         address             %u
+    SCSI        scsi-id             %u
+    IDE         unit                %u
+    HDA         cad                 %u
+    virtio-serial-bus  nr           %u
+    ccid-bus    slot                %u
+    USB         port                %d(.%d)*    (port.port...)
 
 Example: device i440FX-pcihost is on the root bus, and provides a PCI
 bus named pci.0.  To put a FOO device into its slot 4, use -device
 FOO,bus=/i440FX-pcihost/pci.0,addr=4.  The abbreviated form bus=pci.0
 also works as long as the bus name is unique.
-
-Note: the USB device address can't be controlled at this time.
 
 === Block Devices ===
 
@@ -44,28 +47,43 @@ The new way keeps the parts separate: you create the host part with
 
 The various old ways to define drives all boil down to the common form
 
-    -drive if=TYPE,index=IDX,bus=BUS,unit=UNIT,HOST-OPTS...
+    -drive if=TYPE,bus=BUS,unit=UNIT,OPTS...
 
 TYPE, BUS and UNIT identify the controller device, which of its buses
 to use, and the drive's address on that bus.  Details depend on TYPE.
-IDX is an alternative way to specify BUS and UNIT.
+
+Instead of bus=BUS,unit=UNIT, you can also say index=IDX.
 
 In the new way, this becomes something like
 
    -drive if=none,id=DRIVE-ID,HOST-OPTS...
    -device DEVNAME,drive=DRIVE-ID,DEV-OPTS...
 
-The -device argument differs in detail for each kind of drive:
+The old OPTS get split into HOST-OPTS and DEV-OPTS as follows:
+
+* file, format, snapshot, cache, aio, readonly, rerror, werror go into
+  HOST-OPTS.
+
+* cyls, head, secs and trans go into HOST-OPTS.  Future work: they
+  should go into DEV-OPTS instead.
+
+* serial goes into DEV-OPTS, for devices supporting serial numbers.
+  For other devices, it goes nowhere.
+
+* media is special.  In the old way, it selects disk vs. CD-ROM with
+  if=ide, if=scsi and if=xen.  The new way uses DEVNAME for that.
+  Additionally, readonly=on goes into HOST-OPTS.
+
+* addr is special, see if=virtio below.
+
+The -device argument differs in detail for each type of drive:
 
 * if=ide
 
-  -device ide-drive,drive=DRIVE-ID,bus=IDE-BUS,unit=UNIT
+  -device DEVNAME,drive=DRIVE-ID,bus=IDE-BUS,unit=UNIT
 
-  where IDE-BUS identifies an IDE bus, normally either ide.0 or ide.1,
-  and UNIT is either 0 or 1.
-
-  Bug: new way does not work for ide.1 unit 0 (in old terms: index=2)
-  unless you disable the default CD-ROM with -nodefaults.
+  where DEVNAME is either ide-hd or ide-cd, IDE-BUS identifies an IDE
+  bus, normally either ide.0 or ide.1, and UNIT is either 0 or 1.
 
 * if=scsi
 
@@ -77,27 +95,25 @@ The -device argument differs in detail for each kind of drive:
   As for all PCI devices, you can add bus=PCI-BUS,addr=DEVFN to
   control the PCI device address.
 
-  This SCSI controller a single SCSI bus, named ID.0.  Put a disk on
-  it:
+  This SCSI controller provides a single SCSI bus, named ID.0.  Put a
+  disk on it:
 
-  -device scsi-disk,drive=DRIVE-ID,bus=ID.0,scsi-id=SCSI-ID,removable=RMB
+  -device DEVNAME,drive=DRIVE-ID,bus=ID.0,scsi-id=UNIT
 
-  The (optional) removable parameter lets you override the SCSI INQUIRY
-  removable (RMB) bit for non CD-ROM devices.  It is ignored for CD-ROM devices
-  which are always removable.  RMB is "on" or "off".
+  where DEVNAME is either scsi-hd, scsi-cd or scsi-generic.
 
 * if=floppy
 
-  -global isa-fdc,driveA=DRIVE-ID,driveB=DRIVE-ID
+  -global isa-fdc.driveA=DRIVE-ID
+  -global isa-fdc.driveB=DRIVE-ID
 
   This is -global instead of -device, because the floppy controller is
   created automatically, and we want to configure that one, not create
   a second one (which isn't possible anyway).
 
-  Omitting a drive parameter makes that drive empty.
-
-  Bug: driveA works only if you disable the default floppy drive with
-  -nodefaults.
+  Without any -global isa-fdc,... you get an empty driveA and no
+  driveB.  You can use -nodefaults to suppress the default driveA, see
+  "Default Devices".
 
 * if=virtio
 
@@ -105,11 +121,12 @@ The -device argument differs in detail for each kind of drive:
 
   This lets you control PCI device class and MSI-X vectors.
 
-  IOEVENTFD controls whether or not ioeventfd is used for virtqueue notify.  It
-  can be set to on (default) or off.
+  IOEVENTFD controls whether or not ioeventfd is used for virtqueue
+  notify.  It can be set to on (default) or off.
 
   As for all PCI devices, you can add bus=PCI-BUS,addr=DEVFN to
-  control the PCI device address.
+  control the PCI device address.  This replaces option addr available
+  with -drive if=virtio.
 
 * if=pflash, if=mtd, if=sd, if=xen are not yet available with -device
 
@@ -117,15 +134,20 @@ For USB devices, the old way is actually different:
 
     -usbdevice disk:format=FMT:FILENAME
 
-Provides much less control than -drive's HOST-OPTS...  The new way
-fixes that:
+Provides much less control than -drive's OPTS...  The new way fixes
+that:
 
     -device usb-storage,drive=DRIVE-ID,removable=RMB
 
-The removable parameter gives control over the SCSI INQUIRY removable (RMB)
-bit.  USB thumbdrives usually set removable=on, while USB hard disks set
-removable=off.  See the if=scsi description above for details on the removable
-parameter, which applies only to scsi-disk devices and not to scsi-generic.
+The removable parameter gives control over the SCSI INQUIRY removable
+(RMB) bit.  USB thumbdrives usually set removable=on, while USB hard
+disks set removable=off.
+
+Bug: usb-storage pretends to be a block device, but it's really a SCSI
+controller that can serve only a single device, which it creates
+automatically.  The automatic creation guesses what kind of guest part
+to create from the host part, like -drive if=scsi.  Host and guest
+part are not cleanly separated.
 
 === Character Devices ===
 
@@ -170,7 +192,9 @@ The appropriate DEVNAME depends on the machine type.  For type "pc":
   -device usb-braille,chardev=braille,vendorid=VID,productid=PRID
   -chardev braille,id=braille
 
-* -virtioconsole is still being worked on
+* -virtioconsole becomes
+  -device virtio-serial-pci,class=C,vectors=V,ioeventfd=IOEVENTFD,max_ports=N
+  -device virtconsole,is_console=NUM,nr=NR,name=NAME
 
 LEGACY-CHARDEV translates to -chardev HOST-OPTS... as follows:
 
@@ -219,38 +243,29 @@ LEGACY-CHARDEV to refer to a host part defined with -chardev.
 
 === Network Devices ===
 
-A QEMU network device (NIC) has a host and a guest part.
+Host and guest part of network devices have always been separate.
 
-The old ways to define NICs define host and guest part together.  It
-looks like this:
+The old way to define the guest part looks like this:
 
-    -net nic,vlan=VLAN,macaddr=MACADDR,model=MODEL,name=ID,addr=STR,vectors=V
+    -net nic,netdev=NET-ID,macaddr=MACADDR,model=MODEL,name=ID,addr=STR,vectors=V
 
 Except for USB it looks like this:
 
-    -usbdevice net:vlan=VLAN,macaddr=MACADDR,name=ID,addr=STR,vectors=V
+    -usbdevice net:netdev=NET-ID,macaddr=MACADDR,name=ID
 
-The new way keeps the parts separate: you create the host part with
--netdev, and the guest device with -device, like this:
+The new way is -device:
 
-    -netdev type=TYPE,id=NET-ID
     -device DEVNAME,netdev=NET-ID,mac=MACADDR,DEV-OPTS...
-
-Unlike the old way, this creates just a network device, not a VLAN.
-If you really want a VLAN, create it the usual way, then create the
-guest device like this:
-
-    -device DEVNAME,vlan=VLAN,mac=MACADDR,DEV-OPTS...
 
 DEVNAME equals MODEL, except for virtio you have to name the virtio
 device appropriate for the bus (virtio-net-pci for PCI), and for USB
-NIC you have to use usb-net.
+you have to use usb-net.
 
 The old name=ID parameter becomes the usual id=ID with -device.
 
 For PCI devices, you can add bus=PCI-BUS,addr=DEVFN to control the PCI
 device address, as usual.  The old -net nic provides parameter addr
-for that, it is silently ignored when the NIC is not a PCI device.
+for that, which is silently ignored when the NIC is not a PCI device.
 
 For virtio-net-pci, you can control whether or not ioeventfd is used for
 virtqueue notify by setting ioeventfd= to on or off (default).
@@ -264,20 +279,25 @@ devices and ne2k_isa are.
 
 Some PCI devices aren't available with -net nic, e.g. i82558a.
 
-Bug: usb-net does not work, yet.  Patch posted.
+To connect to a VLAN instead of an ordinary host part, replace
+netdev=NET-ID by vlan=VLAN.
 
 === Graphics Devices ===
 
 Host and guest part of graphics devices have always been separate.
 
-The old way to define the guest graphics device is -vga VGA.
+The old way to define the guest graphics device is -vga VGA.  Not all
+machines support all -vga options.
 
-The new way is -device.  Map from -vga argument to -device:
+The new way is -device.  The mapping from -vga argument to -device
+depends on the machine type.  For machine "pc", it's:
 
     std         -device VGA
     cirrus      -device cirrus-vga
     vmware      -device vmware-svga
-    xenfb       not yet available with -device
+    qxl         -device qxl-vga
+    none        -nodefaults
+                disables more than just VGA, see "Default Devices"
 
 As for all PCI devices, you can add bus=PCI-BUS,addr=DEVFN to control
 the PCI device address.
@@ -285,13 +305,16 @@ the PCI device address.
 -device VGA supports properties bios-offset and bios-size, but they
 aren't used with machine type "pc".
 
-Bug: -device cirrus-vga and -device vmware-svga require -nodefaults.
+For machine "isapc", it's
 
-Bug: the new way requires PCI; ISA VGA is not yet available with
--device.
+    std         -device isa-vga
+    cirrus      not yet available with -device
+    none        -nodefaults
+                disables more than just VGA, see "Default Devices"
 
-Bug: the new way doesn't work for machine type "pc", because it
-violates obscure device initialization ordering constraints.
+Bug: the new way doesn't work for machine types "pc" and "isapc",
+because it violates obscure device initialization ordering
+constraints.
 
 === Audio Devices ===
 
@@ -308,6 +331,7 @@ Map from -soundhw sound card name to -device:
     cs4231a     -device cs4231a,iobase=IOADDR,irq=IRQ,dma=DMA
     es1370      -device ES1370
     gus         -device gus,iobase=IOADDR,irq=IRQ,dma=DMA,freq=F
+    hda         -device intel-hda,msi=MSI -device hda-duplex
     sb16        -device sb16,iobase=IOADDR,irq=IRQ,dma=DMA,dma16=DMA16,version=V
     adlib       not yet available with -device
     pcspk       not yet available with -device
@@ -321,9 +345,10 @@ The old way to define a virtual USB device is -usbdevice DRIVER:OPTS...
 
 The new way is -device DEVNAME,DEV-OPTS...  Details depend on DRIVER:
 
+* ccid            -device usb-ccid
+* keyboard        -device usb-kbd
 * mouse           -device usb-mouse
 * tablet          -device usb-tablet
-* keyboard        -device usb-kdb
 * wacom-tablet    -device usb-wacom-tablet
 * host:...        See "Host Device Assignment"
 * disk:...        See "Block Devices"
@@ -353,7 +378,7 @@ The new way is
 
     -device pci-assign,host=ADDR,iommu=IOMMU,id=ID
 
-The old dma=none becomes iommu=0 with -device.
+The old dma=none becomes iommu=off with -device.
 
 The old way to assign a host USB device is
 
@@ -365,4 +390,27 @@ The new way is
 
     -device usb-host,hostbus=BUS,hostaddr=ADDR,vendorid=VID,productid=PRID
 
-where left out or zero BUS, ADDR, VID, PRID serve as wildcard.
+Omitted options match anything, just like the old way's wildcard.
+
+=== Default Devices ===
+
+QEMU creates a number of devices by default, depending on the machine
+type.
+
+-device DEVNAME... and global DEVNAME... suppress default devices for
+some DEVNAMEs:
+
+    default device      suppressing DEVNAMEs
+    CD-ROM              ide-cd, ide-drive, scsi-cd
+    isa-fdc's driveA    isa-fdc
+    parallel            isa-parallel
+    serial              isa-serial
+    VGA                 VGA, cirrus-vga, vmware-svga
+    virtioconsole       virtio-serial-pci, virtio-serial-s390, virtio-serial
+
+The default NIC is connected to a default part created along with it.
+It is *not* suppressed by configuring a NIC with -device (you may call
+that a bug).  -net and -netdev suppress the default NIC.
+
+-nodefaults suppresses all the default devices mentioned above, plus a
+few other things such as default SD-Card drive and default monitor.

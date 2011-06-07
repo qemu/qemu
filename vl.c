@@ -296,6 +296,7 @@ static struct {
     { .driver = "VGA",                  .flag = &default_vga       },
     { .driver = "cirrus-vga",           .flag = &default_vga       },
     { .driver = "vmware-svga",          .flag = &default_vga       },
+    { .driver = "isa-vga",              .flag = &default_vga       },
 };
 
 static int default_driver_check(QemuOpts *opts, void *opaque)
@@ -1976,6 +1977,7 @@ static int configure_accelerator(void)
         p = get_opt_name(buf, sizeof (buf), p, ':');
         for (i = 0; i < ARRAY_SIZE(accel_list); i++) {
             if (strcmp(accel_list[i].opt_name, buf) == 0) {
+                *(accel_list[i].allowed) = 1;
                 ret = accel_list[i].init();
                 if (ret < 0) {
                     init_failed = 1;
@@ -1987,9 +1989,9 @@ static int configure_accelerator(void)
                                 accel_list[i].name,
                                 strerror(-ret));
                     }
+                    *(accel_list[i].allowed) = 0;
                 } else {
                     accel_initalised = 1;
-                    *(accel_list[i].allowed) = 1;
                 }
                 break;
             }

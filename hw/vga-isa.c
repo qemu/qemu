@@ -77,7 +77,6 @@ static ISADeviceInfo vga_info = {
     .qdev.size     = sizeof(ISAVGAState),
     .qdev.vmsd     = &vmstate_vga_common,
     .qdev.reset     = vga_reset_isa,
-    .qdev.no_user  = 1,
     .init          = vga_initfn,
 };
 
