@@ -496,6 +496,8 @@ typedef struct QCowAIOCB {
     uint64_t cluster_offset;
     uint8_t *cluster_data;
     struct iovec hd_iov;
+    bool is_write;
+    QEMUBH *bh;
     QEMUIOVector hd_qiov;
     BlockDriverAIOCB *hd_aiocb;
 } QCowAIOCB;
@@ -525,6 +527,8 @@ static QCowAIOCB *qcow_aio_setup(BlockDriverState *bs,
     acb->hd_aiocb = NULL;
     acb->sector_num = sector_num;
     acb->qiov = qiov;
+    acb->is_write = is_write;
+
     if (qiov->niov > 1) {
         acb->buf = acb->orig_buf = qemu_blockalign(bs, qiov->size);
         if (is_write)
@@ -536,6 +540,38 @@ static QCowAIOCB *qcow_aio_setup(BlockDriverState *bs,
     acb->n = 0;
     acb->cluster_offset = 0;
     return acb;
+}
+
+static void qcow_aio_read_cb(void *opaque, int ret);
+static void qcow_aio_write_cb(void *opaque, int ret);
+
+static void qcow_aio_rw_bh(void *opaque)
+{
+    QCowAIOCB *acb = opaque;
+    qemu_bh_delete(acb->bh);
+    acb->bh = NULL;
+
+    if (acb->is_write) {
+        qcow_aio_write_cb(opaque, 0);
+    } else {
+        qcow_aio_read_cb(opaque, 0);
+    }
+}
+
+static int qcow_schedule_bh(QEMUBHFunc *cb, QCowAIOCB *acb)
+{
+    if (acb->bh) {
+        return -EIO;
+    }
+
+    acb->bh = qemu_bh_new(cb, acb);
+    if (!acb->bh) {
+        return -EIO;
+    }
+
+    qemu_bh_schedule(acb->bh);
+
+    return 0;
 }
 
 static void qcow_aio_read_cb(void *opaque, int ret)
@@ -640,12 +676,21 @@ static BlockDriverAIOCB *qcow_aio_readv(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
     QCowAIOCB *acb;
+    int ret;
 
     acb = qcow_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque, 0);
     if (!acb)
         return NULL;
 
-    qcow_aio_read_cb(acb, 0);
+    ret = qcow_schedule_bh(qcow_aio_rw_bh, acb);
+    if (ret < 0) {
+        if (acb->qiov->niov > 1) {
+            qemu_vfree(acb->orig_buf);
+        }
+        qemu_aio_release(acb);
+        return NULL;
+    }
+
     return &acb->common;
 }
 
@@ -725,6 +770,7 @@ static BlockDriverAIOCB *qcow_aio_writev(BlockDriverState *bs,
 {
     BDRVQcowState *s = bs->opaque;
     QCowAIOCB *acb;
+    int ret;
 
     s->cluster_cache_offset = -1; /* disable compressed cache */
 
@@ -733,7 +779,15 @@ static BlockDriverAIOCB *qcow_aio_writev(BlockDriverState *bs,
         return NULL;
 
 
-    qcow_aio_write_cb(acb, 0);
+    ret = qcow_schedule_bh(qcow_aio_rw_bh, acb);
+    if (ret < 0) {
+        if (acb->qiov->niov > 1) {
+            qemu_vfree(acb->orig_buf);
+        }
+        qemu_aio_release(acb);
+        return NULL;
+    }
+
     return &acb->common;
 }
 
