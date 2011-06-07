@@ -690,7 +690,8 @@ static void usage(void)
            "-bsd type         select emulated BSD type FreeBSD/NetBSD/OpenBSD (default)\n"
            "\n"
            "Debug options:\n"
-           "-d options   activate log (logfile=%s)\n"
+           "-d options   activate log (default logfile=%s)\n"
+           "-D logfile   override default logfile location\n"
            "-p pagesize  set the host page size to 'pagesize'\n"
            "-singlestep  always run in singlestep mode\n"
            "-strace      log system calls\n"
@@ -731,6 +732,8 @@ int main(int argc, char **argv)
 {
     const char *filename;
     const char *cpu_model;
+    const char *log_file = DEBUG_LOGFILE;
+    const char *log_mask = NULL;
     struct target_pt_regs regs1, *regs = &regs1;
     struct image_info info1, *info = &info1;
     TaskState ts1, *ts = &ts1;
@@ -744,9 +747,6 @@ int main(int argc, char **argv)
 
     if (argc <= 1)
         usage();
-
-    /* init debug */
-    cpu_set_log_filename(DEBUG_LOGFILE);
 
     if ((envlist = envlist_create()) == NULL) {
         (void) fprintf(stderr, "Unable to allocate envlist\n");
@@ -775,22 +775,15 @@ int main(int argc, char **argv)
         if (!strcmp(r, "-")) {
             break;
         } else if (!strcmp(r, "d")) {
-            int mask;
-            const CPULogItem *item;
-
-            if (optind >= argc)
+            if (optind >= argc) {
                 break;
-
-            r = argv[optind++];
-            mask = cpu_str_to_log_mask(r);
-            if (!mask) {
-                printf("Log items (comma separated):\n");
-                for(item = cpu_log_items; item->mask != 0; item++) {
-                    printf("%-10s %s\n", item->name, item->help);
-                }
-                exit(1);
             }
-            cpu_set_log(mask);
+            log_mask = argv[optind++];
+        } else if (!strcmp(r, "D")) {
+            if (optind >= argc) {
+                break;
+            }
+            log_file = argv[optind++];
         } else if (!strcmp(r, "E")) {
             r = argv[optind++];
             if (envlist_setenv(envlist, r) != 0)
@@ -866,6 +859,23 @@ int main(int argc, char **argv)
     if (optind >= argc)
         usage();
     filename = argv[optind];
+
+    /* init debug */
+    cpu_set_log_filename(log_file);
+    if (log_mask) {
+        int mask;
+        const CPULogItem *item;
+
+        mask = cpu_str_to_log_mask(r);
+        if (!mask) {
+            printf("Log items (comma separated):\n");
+            for (item = cpu_log_items; item->mask != 0; item++) {
+                printf("%-10s %s\n", item->name, item->help);
+            }
+            exit(1);
+        }
+        cpu_set_log(mask);
+    }
 
     /* Zero out regs */
     memset(regs, 0, sizeof(struct target_pt_regs));
