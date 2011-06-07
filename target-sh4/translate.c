@@ -19,7 +19,6 @@
 
 #define DEBUG_DISAS
 #define SH4_DEBUG_DISAS
-//#define SH4_SINGLE_STEP
 
 #include "qemu-common.h"
 #include "cpu.h"
