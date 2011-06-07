@@ -137,11 +137,12 @@ QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque)
 
 int qemu_bh_poll(void)
 {
-    QEMUBH *bh, **bhp;
+    QEMUBH *bh, **bhp, *next;
     int ret;
 
     ret = 0;
-    for (bh = async_context->first_bh; bh; bh = bh->next) {
+    for (bh = async_context->first_bh; bh; bh = next) {
+        next = bh->next;
         if (!bh->deleted && bh->scheduled) {
             bh->scheduled = 0;
             if (!bh->idle)
