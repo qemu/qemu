@@ -290,6 +290,7 @@ static struct {
     { .driver = "cirrus-vga",           .flag = &default_vga       },
     { .driver = "vmware-svga",          .flag = &default_vga       },
     { .driver = "isa-vga",              .flag = &default_vga       },
+    { .driver = "qxl-vga",              .flag = &default_vga       },
 };
 
 static int default_driver_check(QemuOpts *opts, void *opaque)

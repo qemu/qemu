@@ -357,7 +357,9 @@ static int interface_get_command(QXLInstance *sin, struct QXLCommandExt *ext)
             ret = true;
         }
         qemu_mutex_unlock(&qxl->ssd.lock);
-        qxl_log_command(qxl, "vga", ext);
+        if (ret) {
+            qxl_log_command(qxl, "vga", ext);
+        }
         return ret;
     case QXL_MODE_COMPAT:
     case QXL_MODE_NATIVE:
