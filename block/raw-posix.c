@@ -43,7 +43,6 @@
 
 #ifdef __sun__
 #define _POSIX_PTHREAD_SEMANTICS 1
-#include <signal.h>
 #include <sys/dkio.h>
 #endif
 #ifdef __linux__
@@ -53,7 +52,6 @@
 #include <linux/fd.h>
 #endif
 #if defined (__FreeBSD__) || defined(__FreeBSD_kernel__)
-#include <signal.h>
 #include <sys/disk.h>
 #include <sys/cdio.h>
 #endif

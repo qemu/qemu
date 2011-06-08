@@ -190,7 +190,6 @@ obj-y = arch_init.o cpus.o monitor.o machine.o gdbstub.o balloon.o
 # need to fix this properly
 obj-$(CONFIG_NO_PCI) += pci-stub.o
 obj-$(CONFIG_VIRTIO) += virtio-blk.o virtio-balloon.o virtio-net.o virtio-serial-bus.o
-obj-$(CONFIG_VIRTIO_PCI) += virtio-pci.o
 obj-y += vhost_net.o
 obj-$(CONFIG_VHOST_NET) += vhost.o
 obj-$(CONFIG_REALLY_VIRTFS) += 9pfs/virtio-9p.o

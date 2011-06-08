@@ -31,7 +31,6 @@
 #include <sys/syscall.h>
 #include <sys/param.h>
 #include <sys/sysctl.h>
-#include <signal.h>
 #include <utime.h>
 
 #include "qemu.h"

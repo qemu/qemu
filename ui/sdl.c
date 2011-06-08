@@ -28,10 +28,6 @@
 #include <SDL.h>
 #include <SDL_syswm.h>
 
-#ifndef _WIN32
-#include <signal.h>
-#endif
-
 #include "qemu-common.h"
 #include "console.h"
 #include "sysemu.h"
