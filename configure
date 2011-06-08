@@ -3226,7 +3226,6 @@ case "$target_arch2" in
       if test $vhost_net = "yes" ; then
         echo "CONFIG_VHOST_NET=y" >> $config_target_mak
       fi
-      echo "CONFIG_KVM_PPC_PVR=y" >> $config_target_mak
     fi
 esac
 if test "$target_bigendian" = "yes" ; then

@@ -104,21 +104,12 @@ static int kvm_arch_sync_sregs(CPUState *cenv)
         }
     }
 
-#if !defined(CONFIG_KVM_PPC_PVR)
-    if (1) {
-        fprintf(stderr, "kvm error: missing PVR setting capability\n");
-        return -ENOSYS;
-    }
-#endif
-
     ret = kvm_vcpu_ioctl(cenv, KVM_GET_SREGS, &sregs);
     if (ret) {
         return ret;
     }
 
-#ifdef CONFIG_KVM_PPC_PVR
     sregs.pvr = cenv->spr[SPR_PVR];
-#endif
     return kvm_vcpu_ioctl(cenv, KVM_SET_SREGS, &sregs);
 }
 
