@@ -757,21 +757,17 @@ int kvm_init(void)
     s->coalesced_mmio = kvm_check_extension(s, KVM_CAP_COALESCED_MMIO);
 
     s->broken_set_mem_region = 1;
-#ifdef KVM_CAP_JOIN_MEMORY_REGIONS_WORKS
     ret = kvm_check_extension(s, KVM_CAP_JOIN_MEMORY_REGIONS_WORKS);
     if (ret > 0) {
         s->broken_set_mem_region = 0;
     }
-#endif
 
 #ifdef KVM_CAP_VCPU_EVENTS
     s->vcpu_events = kvm_check_extension(s, KVM_CAP_VCPU_EVENTS);
 #endif
 
-#ifdef KVM_CAP_X86_ROBUST_SINGLESTEP
     s->robust_singlestep =
         kvm_check_extension(s, KVM_CAP_X86_ROBUST_SINGLESTEP);
-#endif
 
 #ifdef KVM_CAP_DEBUGREGS
     s->debugregs = kvm_check_extension(s, KVM_CAP_DEBUGREGS);
@@ -850,7 +846,6 @@ static void kvm_handle_io(uint16_t port, void *data, int direction, int size,
     }
 }
 
-#ifdef KVM_CAP_INTERNAL_ERROR_DATA
 static int kvm_handle_internal_error(CPUState *env, struct kvm_run *run)
 {
     fprintf(stderr, "KVM internal error.");
@@ -877,7 +872,6 @@ static int kvm_handle_internal_error(CPUState *env, struct kvm_run *run)
      */
     return -1;
 }
-#endif
 
 void kvm_flush_coalesced_mmio_buffer(void)
 {
@@ -1008,11 +1002,9 @@ int kvm_cpu_exec(CPUState *env)
                     (uint64_t)run->hw.hardware_exit_reason);
             ret = -1;
             break;
-#ifdef KVM_CAP_INTERNAL_ERROR_DATA
         case KVM_EXIT_INTERNAL_ERROR:
             ret = kvm_handle_internal_error(env, run);
             break;
-#endif
         default:
             DPRINTF("kvm_arch_handle_exit\n");
             ret = kvm_arch_handle_exit(env, run);
