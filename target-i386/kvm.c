@@ -94,9 +94,7 @@ struct kvm_para_features {
     { KVM_CAP_CLOCKSOURCE, KVM_FEATURE_CLOCKSOURCE },
     { KVM_CAP_NOP_IO_DELAY, KVM_FEATURE_NOP_IO_DELAY },
     { KVM_CAP_PV_MMU, KVM_FEATURE_MMU_OP },
-#ifdef KVM_CAP_ASYNC_PF
     { KVM_CAP_ASYNC_PF, KVM_FEATURE_ASYNC_PF },
-#endif
     { -1, -1 }
 };
 
@@ -193,7 +191,6 @@ static void kvm_unpoison_all(void *param)
     }
 }
 
-#ifdef KVM_CAP_MCE
 static void kvm_hwpoison_page_add(ram_addr_t ram_addr)
 {
     HWPoisonPage *page;
@@ -239,7 +236,6 @@ static void kvm_mce_inject(CPUState *env, target_phys_addr_t paddr, int code)
                        cpu_x86_support_mca_broadcast(env) ?
                        MCE_INJECT_BROADCAST : 0);
 }
-#endif /* KVM_CAP_MCE */
 
 static void hardware_memory_error(void)
 {
@@ -249,7 +245,6 @@ static void hardware_memory_error(void)
 
 int kvm_arch_on_sigbus_vcpu(CPUState *env, int code, void *addr)
 {
-#ifdef KVM_CAP_MCE
     ram_addr_t ram_addr;
     target_phys_addr_t paddr;
 
@@ -269,9 +264,7 @@ int kvm_arch_on_sigbus_vcpu(CPUState *env, int code, void *addr)
         }
         kvm_hwpoison_page_add(ram_addr);
         kvm_mce_inject(env, paddr, code);
-    } else
-#endif /* KVM_CAP_MCE */
-    {
+    } else {
         if (code == BUS_MCEERR_AO) {
             return 0;
         } else if (code == BUS_MCEERR_AR) {
@@ -285,7 +278,6 @@ int kvm_arch_on_sigbus_vcpu(CPUState *env, int code, void *addr)
 
 int kvm_arch_on_sigbus(int code, void *addr)
 {
-#ifdef KVM_CAP_MCE
     if ((first_cpu->mcg_cap & MCG_SER_P) && addr && code == BUS_MCEERR_AO) {
         ram_addr_t ram_addr;
         target_phys_addr_t paddr;
@@ -300,9 +292,7 @@ int kvm_arch_on_sigbus(int code, void *addr)
         }
         kvm_hwpoison_page_add(ram_addr);
         kvm_mce_inject(first_cpu, paddr, code);
-    } else
-#endif /* KVM_CAP_MCE */
-    {
+    } else {
         if (code == BUS_MCEERR_AO) {
             return 0;
         } else if (code == BUS_MCEERR_AR) {
@@ -316,7 +306,6 @@ int kvm_arch_on_sigbus(int code, void *addr)
 
 static int kvm_inject_mce_oldstyle(CPUState *env)
 {
-#ifdef KVM_CAP_MCE
     if (!kvm_has_vcpu_events() && env->exception_injected == EXCP12_MCHK) {
         unsigned int bank, bank_num = env->mcg_cap & 0xff;
         struct kvm_x86_mce mce;
@@ -342,7 +331,6 @@ static int kvm_inject_mce_oldstyle(CPUState *env)
 
         return kvm_vcpu_ioctl(env, KVM_X86_SET_MCE, &mce);
     }
-#endif /* KVM_CAP_MCE */
     return 0;
 }
 
@@ -398,9 +386,7 @@ int kvm_arch_init_vcpu(CPUState *env)
     c->eax = env->cpuid_kvm_features & kvm_arch_get_supported_cpuid(env,
                                                 KVM_CPUID_FEATURES, 0, R_EAX);
 
-#ifdef KVM_CAP_ASYNC_PF
     has_msr_async_pf_en = c->eax & (1 << KVM_FEATURE_ASYNC_PF);
-#endif
 
     cpu_x86_cpuid(env, 0, 0, &limit, &unused, &unused, &unused);
 
@@ -481,7 +467,6 @@ int kvm_arch_init_vcpu(CPUState *env)
 
     cpuid_data.cpuid.nent = cpuid_i;
 
-#ifdef KVM_CAP_MCE
     if (((env->cpuid_version >> 8)&0xF) >= 6
         && (env->cpuid_features&(CPUID_MCE|CPUID_MCA)) == (CPUID_MCE|CPUID_MCA)
         && kvm_check_extension(env->kvm_state, KVM_CAP_MCE) > 0) {
@@ -508,7 +493,6 @@ int kvm_arch_init_vcpu(CPUState *env)
 
         env->mcg_cap = mcg_cap;
     }
-#endif
 
     qemu_add_vm_change_state_handler(cpu_update_state, env);
 
@@ -600,7 +584,6 @@ int kvm_arch_init(KVMState *s)
      * that case we need to stick with the default, i.e. a 256K maximum BIOS
      * size.
      */
-#ifdef KVM_CAP_SET_IDENTITY_MAP_ADDR
     if (kvm_check_extension(s, KVM_CAP_SET_IDENTITY_MAP_ADDR)) {
         /* Allows up to 16M BIOSes. */
         identity_base = 0xfeffc000;
@@ -610,7 +593,7 @@ int kvm_arch_init(KVMState *s)
             return ret;
         }
     }
-#endif
+
     /* Set TSS base one page after EPT identity map. */
     ret = kvm_vm_ioctl(s, KVM_SET_TSS_ADDR, identity_base + 0x1000);
     if (ret < 0) {
@@ -748,7 +731,6 @@ static int kvm_put_fpu(CPUState *env)
     return kvm_vcpu_ioctl(env, KVM_SET_FPU, &fpu);
 }
 
-#ifdef KVM_CAP_XSAVE
 #define XSAVE_CWD_RIP     2
 #define XSAVE_CWD_RDP     4
 #define XSAVE_MXCSR       6
@@ -756,11 +738,9 @@ static int kvm_put_fpu(CPUState *env)
 #define XSAVE_XMM_SPACE   40
 #define XSAVE_XSTATE_BV   128
 #define XSAVE_YMMH_SPACE  144
-#endif
 
 static int kvm_put_xsave(CPUState *env)
 {
-#ifdef KVM_CAP_XSAVE
     int i, r;
     struct kvm_xsave* xsave;
     uint16_t cwd, swd, twd;
@@ -793,14 +773,10 @@ static int kvm_put_xsave(CPUState *env)
     r = kvm_vcpu_ioctl(env, KVM_SET_XSAVE, xsave);
     qemu_free(xsave);
     return r;
-#else
-    return kvm_put_fpu(env);
-#endif
 }
 
 static int kvm_put_xcrs(CPUState *env)
 {
-#ifdef KVM_CAP_XCRS
     struct kvm_xcrs xcrs;
 
     if (!kvm_has_xcrs()) {
@@ -812,9 +788,6 @@ static int kvm_put_xcrs(CPUState *env)
     xcrs.xcrs[0].xcr = 0;
     xcrs.xcrs[0].value = env->xcr0;
     return kvm_vcpu_ioctl(env, KVM_SET_XCRS, &xcrs);
-#else
-    return 0;
-#endif
 }
 
 static int kvm_put_sregs(CPUState *env)
@@ -923,7 +896,6 @@ static int kvm_put_msrs(CPUState *env, int level)
                               env->async_pf_en_msr);
         }
     }
-#ifdef KVM_CAP_MCE
     if (env->mcg_cap) {
         int i;
 
@@ -933,7 +905,6 @@ static int kvm_put_msrs(CPUState *env, int level)
             kvm_msr_entry_set(&msrs[n++], MSR_MC0_CTL + i, env->mce_banks[i]);
         }
     }
-#endif
 
     msr_data.info.nmsrs = n;
 
@@ -970,7 +941,6 @@ static int kvm_get_fpu(CPUState *env)
 
 static int kvm_get_xsave(CPUState *env)
 {
-#ifdef KVM_CAP_XSAVE
     struct kvm_xsave* xsave;
     int ret, i;
     uint16_t cwd, swd, twd;
@@ -1008,14 +978,10 @@ static int kvm_get_xsave(CPUState *env)
             sizeof env->ymmh_regs);
     qemu_free(xsave);
     return 0;
-#else
-    return kvm_get_fpu(env);
-#endif
 }
 
 static int kvm_get_xcrs(CPUState *env)
 {
-#ifdef KVM_CAP_XCRS
     int i, ret;
     struct kvm_xcrs xcrs;
 
@@ -1036,9 +1002,6 @@ static int kvm_get_xcrs(CPUState *env)
         }
     }
     return 0;
-#else
-    return 0;
-#endif
 }
 
 static int kvm_get_sregs(CPUState *env)
@@ -1166,7 +1129,6 @@ static int kvm_get_msrs(CPUState *env)
         msrs[n++].index = MSR_KVM_ASYNC_PF_EN;
     }
 
-#ifdef KVM_CAP_MCE
     if (env->mcg_cap) {
         msrs[n++].index = MSR_MCG_STATUS;
         msrs[n++].index = MSR_MCG_CTL;
@@ -1174,7 +1136,6 @@ static int kvm_get_msrs(CPUState *env)
             msrs[n++].index = MSR_MC0_CTL + i;
         }
     }
-#endif
 
     msr_data.info.nmsrs = n;
     ret = kvm_vcpu_ioctl(env, KVM_GET_MSRS, &msr_data);
@@ -1225,21 +1186,17 @@ static int kvm_get_msrs(CPUState *env)
         case MSR_KVM_WALL_CLOCK:
             env->wall_clock_msr = msrs[i].data;
             break;
-#ifdef KVM_CAP_MCE
         case MSR_MCG_STATUS:
             env->mcg_status = msrs[i].data;
             break;
         case MSR_MCG_CTL:
             env->mcg_ctl = msrs[i].data;
             break;
-#endif
         default:
-#ifdef KVM_CAP_MCE
             if (msrs[i].index >= MSR_MC0_CTL &&
                 msrs[i].index < MSR_MC0_CTL + (env->mcg_cap & 0xff) * 4) {
                 env->mce_banks[msrs[i].index - MSR_MC0_CTL] = msrs[i].data;
             }
-#endif
             break;
         case MSR_KVM_ASYNC_PF_EN:
             env->async_pf_en_msr = msrs[i].data;
@@ -1275,7 +1232,6 @@ static int kvm_get_mp_state(CPUState *env)
 
 static int kvm_put_vcpu_events(CPUState *env, int level)
 {
-#ifdef KVM_CAP_VCPU_EVENTS
     struct kvm_vcpu_events events;
 
     if (!kvm_has_vcpu_events()) {
@@ -1304,14 +1260,10 @@ static int kvm_put_vcpu_events(CPUState *env, int level)
     }
 
     return kvm_vcpu_ioctl(env, KVM_SET_VCPU_EVENTS, &events);
-#else
-    return 0;
-#endif
 }
 
 static int kvm_get_vcpu_events(CPUState *env)
 {
-#ifdef KVM_CAP_VCPU_EVENTS
     struct kvm_vcpu_events events;
     int ret;
 
@@ -1341,7 +1293,6 @@ static int kvm_get_vcpu_events(CPUState *env)
     }
 
     env->sipi_vector = events.sipi_vector;
-#endif
 
     return 0;
 }
@@ -1349,7 +1300,6 @@ static int kvm_get_vcpu_events(CPUState *env)
 static int kvm_guest_debug_workarounds(CPUState *env)
 {
     int ret = 0;
-#ifdef KVM_CAP_SET_GUEST_DEBUG
     unsigned long reinject_trap = 0;
 
     if (!kvm_has_vcpu_events()) {
@@ -1373,13 +1323,11 @@ static int kvm_guest_debug_workarounds(CPUState *env)
         (!kvm_has_robust_singlestep() && env->singlestep_enabled)) {
         ret = kvm_update_guest_debug(env, reinject_trap);
     }
-#endif /* KVM_CAP_SET_GUEST_DEBUG */
     return ret;
 }
 
 static int kvm_put_debugregs(CPUState *env)
 {
-#ifdef KVM_CAP_DEBUGREGS
     struct kvm_debugregs dbgregs;
     int i;
 
@@ -1395,14 +1343,10 @@ static int kvm_put_debugregs(CPUState *env)
     dbgregs.flags = 0;
 
     return kvm_vcpu_ioctl(env, KVM_SET_DEBUGREGS, &dbgregs);
-#else
-    return 0;
-#endif
 }
 
 static int kvm_get_debugregs(CPUState *env)
 {
-#ifdef KVM_CAP_DEBUGREGS
     struct kvm_debugregs dbgregs;
     int i, ret;
 
@@ -1419,7 +1363,6 @@ static int kvm_get_debugregs(CPUState *env)
     }
     env->dr[4] = env->dr[6] = dbgregs.dr6;
     env->dr[5] = env->dr[7] = dbgregs.dr7;
-#endif
 
     return 0;
 }
@@ -1645,7 +1588,6 @@ static int kvm_handle_halt(CPUState *env)
     return 0;
 }
 
-#ifdef KVM_CAP_SET_GUEST_DEBUG
 int kvm_arch_insert_sw_breakpoint(CPUState *env, struct kvm_sw_breakpoint *bp)
 {
     static const uint8_t int3 = 0xcc;
@@ -1826,7 +1768,6 @@ void kvm_arch_update_guest_debug(CPUState *env, struct kvm_guest_debug *dbg)
         }
     }
 }
-#endif /* KVM_CAP_SET_GUEST_DEBUG */
 
 static bool host_supports_vmx(void)
 {
@@ -1873,12 +1814,10 @@ int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
                 run->ex.exception, run->ex.error_code);
         ret = -1;
         break;
-#ifdef KVM_CAP_SET_GUEST_DEBUG
     case KVM_EXIT_DEBUG:
         DPRINTF("kvm_exit_debug\n");
         ret = kvm_handle_debug(&run->debug.arch);
         break;
-#endif /* KVM_CAP_SET_GUEST_DEBUG */
     default:
         fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
         ret = -1;
