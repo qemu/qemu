@@ -10,8 +10,9 @@
  * the COPYING file in the top-level directory.
  *
  */
-#include "virtio.h"
-#include "pc.h"
+
+#include "hw/virtio.h"
+#include "hw/pc.h"
 #include "virtio-9p.h"
 #include "virtio-9p-debug.h"
 
