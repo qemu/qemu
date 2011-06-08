@@ -98,12 +98,12 @@ struct kvm_para_features {
     { -1, -1 }
 };
 
-static int get_para_features(CPUState *env)
+static int get_para_features(KVMState *s)
 {
     int i, features = 0;
 
     for (i = 0; i < ARRAY_SIZE(para_features) - 1; i++) {
-        if (kvm_check_extension(env->kvm_state, para_features[i].cap)) {
+        if (kvm_check_extension(s, para_features[i].cap)) {
             features |= (1 << para_features[i].feature);
         }
     }
@@ -112,7 +112,7 @@ static int get_para_features(CPUState *env)
 }
 
 
-uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function,
+uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
                                       uint32_t index, int reg)
 {
     struct kvm_cpuid2 *cpuid;
@@ -122,7 +122,7 @@ uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function,
     int has_kvm_features = 0;
 
     max = 1;
-    while ((cpuid = try_get_cpuid(env->kvm_state, max)) == NULL) {
+    while ((cpuid = try_get_cpuid(s, max)) == NULL) {
         max *= 2;
     }
 
@@ -153,7 +153,7 @@ uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function,
                     /* On Intel, kvm returns cpuid according to the Intel spec,
                      * so add missing bits according to the AMD spec:
                      */
-                    cpuid_1_edx = kvm_arch_get_supported_cpuid(env, 1, 0, R_EDX);
+                    cpuid_1_edx = kvm_arch_get_supported_cpuid(s, 1, 0, R_EDX);
                     ret |= cpuid_1_edx & 0x183f7ff;
                     break;
                 }
@@ -166,7 +166,7 @@ uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function,
 
     /* fallback for older kernels */
     if (!has_kvm_features && (function == KVM_CPUID_FEATURES)) {
-        ret = get_para_features(env);
+        ret = get_para_features(s);
     }
 
     return ret;
@@ -349,24 +349,24 @@ int kvm_arch_init_vcpu(CPUState *env)
         struct kvm_cpuid2 cpuid;
         struct kvm_cpuid_entry2 entries[100];
     } __attribute__((packed)) cpuid_data;
+    KVMState *s = env->kvm_state;
     uint32_t limit, i, j, cpuid_i;
     uint32_t unused;
     struct kvm_cpuid_entry2 *c;
     uint32_t signature[3];
 
-    env->cpuid_features &= kvm_arch_get_supported_cpuid(env, 1, 0, R_EDX);
+    env->cpuid_features &= kvm_arch_get_supported_cpuid(s, 1, 0, R_EDX);
 
     i = env->cpuid_ext_features & CPUID_EXT_HYPERVISOR;
-    env->cpuid_ext_features &= kvm_arch_get_supported_cpuid(env, 1, 0, R_ECX);
+    env->cpuid_ext_features &= kvm_arch_get_supported_cpuid(s, 1, 0, R_ECX);
     env->cpuid_ext_features |= i;
 
-    env->cpuid_ext2_features &= kvm_arch_get_supported_cpuid(env, 0x80000001,
+    env->cpuid_ext2_features &= kvm_arch_get_supported_cpuid(s, 0x80000001,
                                                              0, R_EDX);
-    env->cpuid_ext3_features &= kvm_arch_get_supported_cpuid(env, 0x80000001,
+    env->cpuid_ext3_features &= kvm_arch_get_supported_cpuid(s, 0x80000001,
                                                              0, R_ECX);
-    env->cpuid_svm_features  &= kvm_arch_get_supported_cpuid(env, 0x8000000A,
+    env->cpuid_svm_features  &= kvm_arch_get_supported_cpuid(s, 0x8000000A,
                                                              0, R_EDX);
-
 
     cpuid_i = 0;
 
@@ -383,8 +383,8 @@ int kvm_arch_init_vcpu(CPUState *env)
     c = &cpuid_data.entries[cpuid_i++];
     memset(c, 0, sizeof(*c));
     c->function = KVM_CPUID_FEATURES;
-    c->eax = env->cpuid_kvm_features & kvm_arch_get_supported_cpuid(env,
-                                                KVM_CPUID_FEATURES, 0, R_EAX);
+    c->eax = env->cpuid_kvm_features &
+        kvm_arch_get_supported_cpuid(s, KVM_CPUID_FEATURES, 0, R_EAX);
 
     has_msr_async_pf_en = c->eax & (1 << KVM_FEATURE_ASYNC_PF);
 
@@ -453,7 +453,7 @@ int kvm_arch_init_vcpu(CPUState *env)
     /* Call Centaur's CPUID instructions they are supported. */
     if (env->cpuid_xlevel2 > 0) {
         env->cpuid_ext4_features &=
-            kvm_arch_get_supported_cpuid(env, 0xC0000001, 0, R_EDX);
+            kvm_arch_get_supported_cpuid(s, 0xC0000001, 0, R_EDX);
         cpu_x86_cpuid(env, 0xC0000000, 0, &limit, &unused, &unused, &unused);
 
         for (i = 0xC0000000; i <= limit; i++) {
