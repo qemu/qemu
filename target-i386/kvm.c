@@ -18,6 +18,7 @@
 #include <sys/utsname.h>
 
 #include <linux/kvm.h>
+#include <linux/kvm_para.h>
 
 #include "qemu-common.h"
 #include "sysemu.h"
@@ -29,10 +30,6 @@
 #include "hw/apic.h"
 #include "ioport.h"
 
-#ifdef CONFIG_KVM_PARA
-#include <linux/kvm_para.h>
-#endif
-//
 //#define DEBUG_KVM
 
 #ifdef DEBUG_KVM
@@ -62,9 +59,7 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
 
 static bool has_msr_star;
 static bool has_msr_hsave_pa;
-#if defined(CONFIG_KVM_PARA) && defined(KVM_CAP_ASYNC_PF)
 static bool has_msr_async_pf_en;
-#endif
 static int lm_capable_kernel;
 
 static struct kvm_cpuid2 *try_get_cpuid(KVMState *s, int max)
@@ -92,7 +87,6 @@ static struct kvm_cpuid2 *try_get_cpuid(KVMState *s, int max)
     return cpuid;
 }
 
-#ifdef CONFIG_KVM_PARA
 struct kvm_para_features {
     int cap;
     int feature;
@@ -118,7 +112,6 @@ static int get_para_features(CPUState *env)
 
     return features;
 }
-#endif
 
 
 uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function,
@@ -128,9 +121,7 @@ uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function,
     int i, max;
     uint32_t ret = 0;
     uint32_t cpuid_1_edx;
-#ifdef CONFIG_KVM_PARA
     int has_kvm_features = 0;
-#endif
 
     max = 1;
     while ((cpuid = try_get_cpuid(env->kvm_state, max)) == NULL) {
@@ -140,11 +131,9 @@ uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function,
     for (i = 0; i < cpuid->nent; ++i) {
         if (cpuid->entries[i].function == function &&
             cpuid->entries[i].index == index) {
-#ifdef CONFIG_KVM_PARA
             if (cpuid->entries[i].function == KVM_CPUID_FEATURES) {
                 has_kvm_features = 1;
             }
-#endif
             switch (reg) {
             case R_EAX:
                 ret = cpuid->entries[i].eax;
@@ -177,12 +166,10 @@ uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function,
 
     qemu_free(cpuid);
 
-#ifdef CONFIG_KVM_PARA
     /* fallback for older kernels */
     if (!has_kvm_features && (function == KVM_CPUID_FEATURES)) {
         ret = get_para_features(env);
     }
-#endif
 
     return ret;
 }
@@ -377,9 +364,7 @@ int kvm_arch_init_vcpu(CPUState *env)
     uint32_t limit, i, j, cpuid_i;
     uint32_t unused;
     struct kvm_cpuid_entry2 *c;
-#ifdef CONFIG_KVM_PARA
     uint32_t signature[3];
-#endif
 
     env->cpuid_features &= kvm_arch_get_supported_cpuid(env, 1, 0, R_EDX);
 
@@ -397,7 +382,6 @@ int kvm_arch_init_vcpu(CPUState *env)
 
     cpuid_i = 0;
 
-#ifdef CONFIG_KVM_PARA
     /* Paravirtualization CPUIDs */
     memcpy(signature, "KVMKVMKVM\0\0\0", 12);
     c = &cpuid_data.entries[cpuid_i++];
@@ -416,8 +400,6 @@ int kvm_arch_init_vcpu(CPUState *env)
 
 #ifdef KVM_CAP_ASYNC_PF
     has_msr_async_pf_en = c->eax & (1 << KVM_FEATURE_ASYNC_PF);
-#endif
-
 #endif
 
     cpu_x86_cpuid(env, 0, 0, &limit, &unused, &unused, &unused);
@@ -936,12 +918,10 @@ static int kvm_put_msrs(CPUState *env, int level)
         kvm_msr_entry_set(&msrs[n++], MSR_KVM_SYSTEM_TIME,
                           env->system_time_msr);
         kvm_msr_entry_set(&msrs[n++], MSR_KVM_WALL_CLOCK, env->wall_clock_msr);
-#if defined(CONFIG_KVM_PARA) && defined(KVM_CAP_ASYNC_PF)
         if (has_msr_async_pf_en) {
             kvm_msr_entry_set(&msrs[n++], MSR_KVM_ASYNC_PF_EN,
                               env->async_pf_en_msr);
         }
-#endif
     }
 #ifdef KVM_CAP_MCE
     if (env->mcg_cap) {
@@ -1182,11 +1162,9 @@ static int kvm_get_msrs(CPUState *env)
 #endif
     msrs[n++].index = MSR_KVM_SYSTEM_TIME;
     msrs[n++].index = MSR_KVM_WALL_CLOCK;
-#if defined(CONFIG_KVM_PARA) && defined(KVM_CAP_ASYNC_PF)
     if (has_msr_async_pf_en) {
         msrs[n++].index = MSR_KVM_ASYNC_PF_EN;
     }
-#endif
 
 #ifdef KVM_CAP_MCE
     if (env->mcg_cap) {
@@ -1263,11 +1241,9 @@ static int kvm_get_msrs(CPUState *env)
             }
 #endif
             break;
-#if defined(CONFIG_KVM_PARA) && defined(KVM_CAP_ASYNC_PF)
         case MSR_KVM_ASYNC_PF_EN:
             env->async_pf_en_msr = msrs[i].data;
             break;
-#endif
         }
     }
 
