@@ -56,7 +56,8 @@ echo "creating image"
 # for the refcount table. On the other hand this is big enough to cause a
 # refcount table growth when rewriting the image after creating one snapshot.
 size=36M
-_make_test_img -o cluster_size=1k $size
+CLUSTER_SIZE=1k
+_make_test_img $size
 
 # Create two snapshots which fill the image with two different patterns
 echo "creating first snapshot"
