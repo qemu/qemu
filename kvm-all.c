@@ -764,28 +764,23 @@ int kvm_init(void)
     }
 #endif
 
-    s->vcpu_events = 0;
 #ifdef KVM_CAP_VCPU_EVENTS
     s->vcpu_events = kvm_check_extension(s, KVM_CAP_VCPU_EVENTS);
 #endif
 
-    s->robust_singlestep = 0;
 #ifdef KVM_CAP_X86_ROBUST_SINGLESTEP
     s->robust_singlestep =
         kvm_check_extension(s, KVM_CAP_X86_ROBUST_SINGLESTEP);
 #endif
 
-    s->debugregs = 0;
 #ifdef KVM_CAP_DEBUGREGS
     s->debugregs = kvm_check_extension(s, KVM_CAP_DEBUGREGS);
 #endif
 
-    s->xsave = 0;
 #ifdef KVM_CAP_XSAVE
     s->xsave = kvm_check_extension(s, KVM_CAP_XSAVE);
 #endif
 
-    s->xcrs = 0;
 #ifdef KVM_CAP_XCRS
     s->xcrs = kvm_check_extension(s, KVM_CAP_XCRS);
 #endif
