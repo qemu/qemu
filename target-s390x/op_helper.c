@@ -23,6 +23,7 @@
 #include "helpers.h"
 #include <string.h>
 #include "kvm.h"
+#include <linux/kvm.h>
 #include "qemu-timer.h"
 
 /*****************************************************************************/
