@@ -17,8 +17,6 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <signal.h>
-
 #include "qemu-common.h"
 #include "cpu.h"
 #include "exec-all.h"

@@ -39,7 +39,6 @@
 #else
 #include <bus/usb/usb.h>
 #endif
-#include <signal.h>
 
 /* This value has maximum potential at 16.
  * You should also set hw.usb.debug to gain

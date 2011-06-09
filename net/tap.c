@@ -27,7 +27,6 @@
 
 #include "config-host.h"
 
-#include <signal.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/wait.h>

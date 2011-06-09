@@ -22,19 +22,24 @@ class QMPCapabilitiesError(QMPError):
     pass
 
 class QEMUMonitorProtocol:
-    def __init__(self, address):
+    def __init__(self, address, server=False):
         """
         Create a QEMUMonitorProtocol class.
 
         @param address: QEMU address, can be either a unix socket path (string)
                         or a tuple in the form ( address, port ) for a TCP
                         connection
-        @note No connection is established, this is done by the connect() method
+        @param server: server mode listens on the socket (bool)
+        @raise socket.error on socket connection errors
+        @note No connection is established, this is done by the connect() or
+              accept() methods
         """
         self.__events = []
         self.__address = address
         self.__sock = self.__get_sock()
-        self.__sockfile = self.__sock.makefile()
+        if server:
+            self.__sock.bind(self.__address)
+            self.__sock.listen(1)
 
     def __get_sock(self):
         if isinstance(self.__address, tuple):
@@ -43,7 +48,18 @@ class QEMUMonitorProtocol:
             family = socket.AF_UNIX
         return socket.socket(family, socket.SOCK_STREAM)
 
-    def __json_read(self):
+    def __negotiate_capabilities(self):
+        self.__sockfile = self.__sock.makefile()
+        greeting = self.__json_read()
+        if greeting is None or not greeting.has_key('QMP'):
+            raise QMPConnectError
+        # Greeting seems ok, negotiate capabilities
+        resp = self.cmd('qmp_capabilities')
+        if "return" in resp:
+            return greeting
+        raise QMPCapabilitiesError
+
+    def __json_read(self, only_event=False):
         while True:
             data = self.__sockfile.readline()
             if not data:
@@ -51,7 +67,8 @@ class QEMUMonitorProtocol:
             resp = json.loads(data)
             if 'event' in resp:
                 self.__events.append(resp)
-                continue
+                if not only_event:
+                    continue
             return resp
 
     error = socket.error
@@ -66,14 +83,19 @@ class QEMUMonitorProtocol:
         @raise QMPCapabilitiesError if fails to negotiate capabilities
         """
         self.__sock.connect(self.__address)
-        greeting = self.__json_read()
-        if greeting is None or not greeting.has_key('QMP'):
-            raise QMPConnectError
-        # Greeting seems ok, negotiate capabilities
-        resp = self.cmd('qmp_capabilities')
-        if "return" in resp:
-            return greeting
-        raise QMPCapabilitiesError
+        return self.__negotiate_capabilities()
+
+    def accept(self):
+        """
+        Await connection from QMP Monitor and perform capabilities negotiation.
+
+        @return QMP greeting dict
+        @raise socket.error on socket connection errors
+        @raise QMPConnectError if the greeting is not received
+        @raise QMPCapabilitiesError if fails to negotiate capabilities
+        """
+        self.__sock, _ = self.__sock.accept()
+        return self.__negotiate_capabilities()
 
     def cmd_obj(self, qmp_cmd):
         """
@@ -106,9 +128,11 @@ class QEMUMonitorProtocol:
             qmp_cmd['id'] = id
         return self.cmd_obj(qmp_cmd)
 
-    def get_events(self):
+    def get_events(self, wait=False):
         """
         Get a list of available QMP events.
+
+        @param wait: block until an event is available (bool)
         """
         self.__sock.setblocking(0)
         try:
@@ -118,6 +142,8 @@ class QEMUMonitorProtocol:
                 # No data available
                 pass
         self.__sock.setblocking(1)
+        if not self.__events and wait:
+            self.__json_read(only_event=True)
         return self.__events
 
     def clear_events(self):

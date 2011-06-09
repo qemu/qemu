@@ -306,7 +306,7 @@ static QemuOptsList qemu_trace_opts = {
             .name = "file",
             .type = QEMU_OPT_STRING,
         },
-        { /* end if list */ }
+        { /* end of list */ }
     },
 };
 #endif
@@ -385,6 +385,12 @@ QemuOptsList qemu_spice_opts = {
             .name = "disable-ticketing",
             .type = QEMU_OPT_BOOL,
         },{
+            .name = "disable-copy-paste",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "sasl",
+            .type = QEMU_OPT_BOOL,
+        },{
             .name = "x509-dir",
             .type = QEMU_OPT_STRING,
         },{
@@ -430,7 +436,7 @@ QemuOptsList qemu_spice_opts = {
             .name = "playback-compression",
             .type = QEMU_OPT_BOOL,
         },
-        { /* end if list */ }
+        { /* end of list */ }
     },
 };
 
@@ -446,7 +452,7 @@ QemuOptsList qemu_option_rom_opts = {
             .name = "romfile",
             .type = QEMU_OPT_STRING,
         },
-        { /* end if list */ }
+        { /* end of list */ }
     },
 };
 

@@ -36,14 +36,13 @@ static int vmc_write(SpiceCharDeviceInstance *sin, const uint8_t *buf, int len)
 
     while (len > 0) {
         last_out = MIN(len, VMC_MAX_HOST_WRITE);
-        qemu_chr_read(scd->chr, p, last_out);
-        if (last_out > 0) {
-            out += last_out;
-            len -= last_out;
-            p += last_out;
-        } else {
+        if (qemu_chr_can_read(scd->chr) < last_out) {
             break;
         }
+        qemu_chr_read(scd->chr, p, last_out);
+        out += last_out;
+        len -= last_out;
+        p += last_out;
     }
 
     dprintf(scd, 3, "%s: %lu/%zd\n", __func__, out, len + out);

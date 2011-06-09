@@ -24,7 +24,6 @@
 #include <curses.h>
 
 #ifndef _WIN32
-#include <signal.h>
 #include <sys/ioctl.h>
 #include <termios.h>
 #endif

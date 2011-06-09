@@ -87,6 +87,7 @@ void uuid_unparse(const uuid_t uu, char *out);
 #define MiB     (KiB * KiB)
 
 #define SECTOR_SIZE 512
+#define DEFAULT_CLUSTER_SIZE (1 * MiB)
 
 #if defined(CONFIG_VDI_DEBUG)
 #define logout(fmt, ...) \
@@ -803,7 +804,7 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
     int result = 0;
     uint64_t bytes = 0;
     uint32_t blocks;
-    size_t block_size = 1 * MiB;
+    size_t block_size = DEFAULT_CLUSTER_SIZE;
     uint32_t image_type = VDI_TYPE_DYNAMIC;
     VdiHeader header;
     size_t i;
@@ -921,7 +922,8 @@ static QEMUOptionParameter vdi_create_options[] = {
     {
         .name = BLOCK_OPT_CLUSTER_SIZE,
         .type = OPT_SIZE,
-        .help = "VDI cluster (block) size"
+        .help = "VDI cluster (block) size",
+        .value = { .n = DEFAULT_CLUSTER_SIZE },
     },
 #endif
 #if defined(CONFIG_VDI_STATIC_IMAGE)

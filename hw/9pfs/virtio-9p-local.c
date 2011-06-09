@@ -25,7 +25,8 @@
 static int local_lstat(FsContext *fs_ctx, const char *path, struct stat *stbuf)
 {
     int err;
-    err =  lstat(rpath(fs_ctx, path), stbuf);
+    char buffer[PATH_MAX];
+    err =  lstat(rpath(fs_ctx, path, buffer), stbuf);
     if (err) {
         return err;
     }
@@ -35,19 +36,19 @@ static int local_lstat(FsContext *fs_ctx, const char *path, struct stat *stbuf)
         gid_t tmp_gid;
         mode_t tmp_mode;
         dev_t tmp_dev;
-        if (getxattr(rpath(fs_ctx, path), "user.virtfs.uid", &tmp_uid,
+        if (getxattr(rpath(fs_ctx, path, buffer), "user.virtfs.uid", &tmp_uid,
                     sizeof(uid_t)) > 0) {
             stbuf->st_uid = tmp_uid;
         }
-        if (getxattr(rpath(fs_ctx, path), "user.virtfs.gid", &tmp_gid,
+        if (getxattr(rpath(fs_ctx, path, buffer), "user.virtfs.gid", &tmp_gid,
                     sizeof(gid_t)) > 0) {
             stbuf->st_gid = tmp_gid;
         }
-        if (getxattr(rpath(fs_ctx, path), "user.virtfs.mode", &tmp_mode,
-                    sizeof(mode_t)) > 0) {
+        if (getxattr(rpath(fs_ctx, path, buffer), "user.virtfs.mode",
+                    &tmp_mode, sizeof(mode_t)) > 0) {
             stbuf->st_mode = tmp_mode;
         }
-        if (getxattr(rpath(fs_ctx, path), "user.virtfs.rdev", &tmp_dev,
+        if (getxattr(rpath(fs_ctx, path, buffer), "user.virtfs.rdev", &tmp_dev,
                         sizeof(dev_t)) > 0) {
                 stbuf->st_rdev = tmp_dev;
         }
@@ -92,10 +93,12 @@ static int local_set_xattr(const char *path, FsCred *credp)
 static int local_post_create_passthrough(FsContext *fs_ctx, const char *path,
         FsCred *credp)
 {
-    if (chmod(rpath(fs_ctx, path), credp->fc_mode & 07777) < 0) {
+    char buffer[PATH_MAX];
+    if (chmod(rpath(fs_ctx, path, buffer), credp->fc_mode & 07777) < 0) {
         return -1;
     }
-    if (lchown(rpath(fs_ctx, path), credp->fc_uid, credp->fc_gid) < 0) {
+    if (lchown(rpath(fs_ctx, path, buffer), credp->fc_uid,
+                credp->fc_gid) < 0) {
         /*
          * If we fail to change ownership and if we are
          * using security model none. Ignore the error
@@ -111,9 +114,10 @@ static ssize_t local_readlink(FsContext *fs_ctx, const char *path,
         char *buf, size_t bufsz)
 {
     ssize_t tsize = -1;
+    char buffer[PATH_MAX];
     if (fs_ctx->fs_sm == SM_MAPPED) {
         int fd;
-        fd = open(rpath(fs_ctx, path), O_RDONLY);
+        fd = open(rpath(fs_ctx, path, buffer), O_RDONLY);
         if (fd == -1) {
             return -1;
         }
@@ -124,7 +128,7 @@ static ssize_t local_readlink(FsContext *fs_ctx, const char *path,
         return tsize;
     } else if ((fs_ctx->fs_sm == SM_PASSTHROUGH) ||
                (fs_ctx->fs_sm == SM_NONE)) {
-        tsize = readlink(rpath(fs_ctx, path), buf, bufsz);
+        tsize = readlink(rpath(fs_ctx, path, buffer), buf, bufsz);
     }
     return tsize;
 }
@@ -141,12 +145,14 @@ static int local_closedir(FsContext *ctx, DIR *dir)
 
 static int local_open(FsContext *ctx, const char *path, int flags)
 {
-    return open(rpath(ctx, path), flags);
+    char buffer[PATH_MAX];
+    return open(rpath(ctx, path, buffer), flags);
 }
 
 static DIR *local_opendir(FsContext *ctx, const char *path)
 {
-    return opendir(rpath(ctx, path));
+    char buffer[PATH_MAX];
+    return opendir(rpath(ctx, path, buffer));
 }
 
 static void local_rewinddir(FsContext *ctx, DIR *dir)
@@ -201,11 +207,12 @@ static ssize_t local_pwritev(FsContext *ctx, int fd, const struct iovec *iov,
 
 static int local_chmod(FsContext *fs_ctx, const char *path, FsCred *credp)
 {
+    char buffer[PATH_MAX];
     if (fs_ctx->fs_sm == SM_MAPPED) {
-        return local_set_xattr(rpath(fs_ctx, path), credp);
+        return local_set_xattr(rpath(fs_ctx, path, buffer), credp);
     } else if ((fs_ctx->fs_sm == SM_PASSTHROUGH) ||
                (fs_ctx->fs_sm == SM_NONE)) {
-        return chmod(rpath(fs_ctx, path), credp->fc_mode);
+        return chmod(rpath(fs_ctx, path, buffer), credp->fc_mode);
     }
     return -1;
 }
@@ -214,21 +221,24 @@ static int local_mknod(FsContext *fs_ctx, const char *path, FsCred *credp)
 {
     int err = -1;
     int serrno = 0;
+    char buffer[PATH_MAX];
 
     /* Determine the security model */
     if (fs_ctx->fs_sm == SM_MAPPED) {
-        err = mknod(rpath(fs_ctx, path), SM_LOCAL_MODE_BITS|S_IFREG, 0);
+        err = mknod(rpath(fs_ctx, path, buffer),
+                SM_LOCAL_MODE_BITS|S_IFREG, 0);
         if (err == -1) {
             return err;
         }
-        local_set_xattr(rpath(fs_ctx, path), credp);
+        local_set_xattr(rpath(fs_ctx, path, buffer), credp);
         if (err == -1) {
             serrno = errno;
             goto err_end;
         }
     } else if ((fs_ctx->fs_sm == SM_PASSTHROUGH) ||
                (fs_ctx->fs_sm == SM_NONE)) {
-        err = mknod(rpath(fs_ctx, path), credp->fc_mode, credp->fc_rdev);
+        err = mknod(rpath(fs_ctx, path, buffer), credp->fc_mode,
+                credp->fc_rdev);
         if (err == -1) {
             return err;
         }
@@ -241,7 +251,7 @@ static int local_mknod(FsContext *fs_ctx, const char *path, FsCred *credp)
     return err;
 
 err_end:
-    remove(rpath(fs_ctx, path));
+    remove(rpath(fs_ctx, path, buffer));
     errno = serrno;
     return err;
 }
@@ -250,22 +260,23 @@ static int local_mkdir(FsContext *fs_ctx, const char *path, FsCred *credp)
 {
     int err = -1;
     int serrno = 0;
+    char buffer[PATH_MAX];
 
     /* Determine the security model */
     if (fs_ctx->fs_sm == SM_MAPPED) {
-        err = mkdir(rpath(fs_ctx, path), SM_LOCAL_DIR_MODE_BITS);
+        err = mkdir(rpath(fs_ctx, path, buffer), SM_LOCAL_DIR_MODE_BITS);
         if (err == -1) {
             return err;
         }
         credp->fc_mode = credp->fc_mode|S_IFDIR;
-        err = local_set_xattr(rpath(fs_ctx, path), credp);
+        err = local_set_xattr(rpath(fs_ctx, path, buffer), credp);
         if (err == -1) {
             serrno = errno;
             goto err_end;
         }
     } else if ((fs_ctx->fs_sm == SM_PASSTHROUGH) ||
                (fs_ctx->fs_sm == SM_NONE)) {
-        err = mkdir(rpath(fs_ctx, path), credp->fc_mode);
+        err = mkdir(rpath(fs_ctx, path, buffer), credp->fc_mode);
         if (err == -1) {
             return err;
         }
@@ -278,7 +289,7 @@ static int local_mkdir(FsContext *fs_ctx, const char *path, FsCred *credp)
     return err;
 
 err_end:
-    remove(rpath(fs_ctx, path));
+    remove(rpath(fs_ctx, path, buffer));
     errno = serrno;
     return err;
 }
@@ -319,23 +330,24 @@ static int local_open2(FsContext *fs_ctx, const char *path, int flags,
     int fd = -1;
     int err = -1;
     int serrno = 0;
+    char buffer[PATH_MAX];
 
     /* Determine the security model */
     if (fs_ctx->fs_sm == SM_MAPPED) {
-        fd = open(rpath(fs_ctx, path), flags, SM_LOCAL_MODE_BITS);
+        fd = open(rpath(fs_ctx, path, buffer), flags, SM_LOCAL_MODE_BITS);
         if (fd == -1) {
             return fd;
         }
         credp->fc_mode = credp->fc_mode|S_IFREG;
         /* Set cleint credentials in xattr */
-        err = local_set_xattr(rpath(fs_ctx, path), credp);
+        err = local_set_xattr(rpath(fs_ctx, path, buffer), credp);
         if (err == -1) {
             serrno = errno;
             goto err_end;
         }
     } else if ((fs_ctx->fs_sm == SM_PASSTHROUGH) ||
                (fs_ctx->fs_sm == SM_NONE)) {
-        fd = open(rpath(fs_ctx, path), flags, credp->fc_mode);
+        fd = open(rpath(fs_ctx, path, buffer), flags, credp->fc_mode);
         if (fd == -1) {
             return fd;
         }
@@ -349,7 +361,7 @@ static int local_open2(FsContext *fs_ctx, const char *path, int flags,
 
 err_end:
     close(fd);
-    remove(rpath(fs_ctx, path));
+    remove(rpath(fs_ctx, path, buffer));
     errno = serrno;
     return err;
 }
@@ -360,12 +372,13 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
 {
     int err = -1;
     int serrno = 0;
+    char buffer[PATH_MAX];
 
     /* Determine the security model */
     if (fs_ctx->fs_sm == SM_MAPPED) {
         int fd;
         ssize_t oldpath_size, write_size;
-        fd = open(rpath(fs_ctx, newpath), O_CREAT|O_EXCL|O_RDWR,
+        fd = open(rpath(fs_ctx, newpath, buffer), O_CREAT|O_EXCL|O_RDWR,
                 SM_LOCAL_MODE_BITS);
         if (fd == -1) {
             return fd;
@@ -385,18 +398,19 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
         close(fd);
         /* Set cleint credentials in symlink's xattr */
         credp->fc_mode = credp->fc_mode|S_IFLNK;
-        err = local_set_xattr(rpath(fs_ctx, newpath), credp);
+        err = local_set_xattr(rpath(fs_ctx, newpath, buffer), credp);
         if (err == -1) {
             serrno = errno;
             goto err_end;
         }
     } else if ((fs_ctx->fs_sm == SM_PASSTHROUGH) ||
                (fs_ctx->fs_sm == SM_NONE)) {
-        err = symlink(oldpath, rpath(fs_ctx, newpath));
+        err = symlink(oldpath, rpath(fs_ctx, newpath, buffer));
         if (err) {
             return err;
         }
-        err = lchown(rpath(fs_ctx, newpath), credp->fc_uid, credp->fc_gid);
+        err = lchown(rpath(fs_ctx, newpath, buffer), credp->fc_uid,
+                credp->fc_gid);
         if (err == -1) {
             /*
              * If we fail to change ownership and if we are
@@ -412,70 +426,45 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
     return err;
 
 err_end:
-    remove(rpath(fs_ctx, newpath));
+    remove(rpath(fs_ctx, newpath, buffer));
     errno = serrno;
     return err;
 }
 
 static int local_link(FsContext *ctx, const char *oldpath, const char *newpath)
 {
-    char *tmp = qemu_strdup(rpath(ctx, oldpath));
-    int err, serrno = 0;
+    char buffer[PATH_MAX], buffer1[PATH_MAX];
 
-    if (tmp == NULL) {
-        return -ENOMEM;
-    }
-
-    err = link(tmp, rpath(ctx, newpath));
-    if (err == -1) {
-        serrno = errno;
-    }
-
-    qemu_free(tmp);
-
-    if (err == -1) {
-        errno = serrno;
-    }
-
-    return err;
+    return link(rpath(ctx, oldpath, buffer), rpath(ctx, newpath, buffer1));
 }
 
 static int local_truncate(FsContext *ctx, const char *path, off_t size)
 {
-    return truncate(rpath(ctx, path), size);
+    char buffer[PATH_MAX];
+    return truncate(rpath(ctx, path, buffer), size);
 }
 
 static int local_rename(FsContext *ctx, const char *oldpath,
                         const char *newpath)
 {
-    char *tmp;
-    int err;
+    char buffer[PATH_MAX], buffer1[PATH_MAX];
 
-    tmp = qemu_strdup(rpath(ctx, oldpath));
-
-    err = rename(tmp, rpath(ctx, newpath));
-    if (err == -1) {
-        int serrno = errno;
-        qemu_free(tmp);
-        errno = serrno;
-    } else {
-        qemu_free(tmp);
-    }
-
-    return err;
-
+    return rename(rpath(ctx, oldpath, buffer), rpath(ctx, newpath, buffer1));
 }
 
 static int local_chown(FsContext *fs_ctx, const char *path, FsCred *credp)
 {
+    char buffer[PATH_MAX];
     if ((credp->fc_uid == -1 && credp->fc_gid == -1) ||
             (fs_ctx->fs_sm == SM_PASSTHROUGH)) {
-        return lchown(rpath(fs_ctx, path), credp->fc_uid, credp->fc_gid);
+        return lchown(rpath(fs_ctx, path, buffer), credp->fc_uid,
+                credp->fc_gid);
     } else if (fs_ctx->fs_sm == SM_MAPPED) {
-        return local_set_xattr(rpath(fs_ctx, path), credp);
+        return local_set_xattr(rpath(fs_ctx, path, buffer), credp);
     } else if ((fs_ctx->fs_sm == SM_PASSTHROUGH) ||
                (fs_ctx->fs_sm == SM_NONE)) {
-        return lchown(rpath(fs_ctx, path), credp->fc_uid, credp->fc_gid);
+        return lchown(rpath(fs_ctx, path, buffer), credp->fc_uid,
+                credp->fc_gid);
     }
     return -1;
 }
@@ -483,12 +472,15 @@ static int local_chown(FsContext *fs_ctx, const char *path, FsCred *credp)
 static int local_utimensat(FsContext *s, const char *path,
                            const struct timespec *buf)
 {
-    return qemu_utimensat(AT_FDCWD, rpath(s, path), buf, AT_SYMLINK_NOFOLLOW);
+    char buffer[PATH_MAX];
+    return qemu_utimensat(AT_FDCWD, rpath(s, path, buffer), buf,
+            AT_SYMLINK_NOFOLLOW);
 }
 
 static int local_remove(FsContext *ctx, const char *path)
 {
-    return remove(rpath(ctx, path));
+    char buffer[PATH_MAX];
+    return remove(rpath(ctx, path, buffer));
 }
 
 static int local_fsync(FsContext *ctx, int fd, int datasync)
@@ -502,7 +494,8 @@ static int local_fsync(FsContext *ctx, int fd, int datasync)
 
 static int local_statfs(FsContext *s, const char *path, struct statfs *stbuf)
 {
-   return statfs(rpath(s, path), stbuf);
+    char buffer[PATH_MAX];
+   return statfs(rpath(s, path, buffer), stbuf);
 }
 
 static ssize_t local_lgetxattr(FsContext *ctx, const char *path,

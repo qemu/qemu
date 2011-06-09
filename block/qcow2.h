@@ -54,6 +54,8 @@
 /* Must be at least 4 to cover all cases of refcount table growth */
 #define REFCOUNT_CACHE_SIZE 4
 
+#define DEFAULT_CLUSTER_SIZE 65536
+
 typedef struct QCowHeader {
     uint32_t magic;
     uint32_t version;

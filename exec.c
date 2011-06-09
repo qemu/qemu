@@ -37,7 +37,6 @@
 #include "qemu-timer.h"
 #if defined(CONFIG_USER_ONLY)
 #include <qemu.h>
-#include <signal.h>
 #if defined(TARGET_X86_64)
 #include "vsyscall.h"
 #endif

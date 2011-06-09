@@ -439,13 +439,7 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
     bs->drv = drv;
     bs->opaque = qemu_mallocz(drv->instance_size);
 
-    /*
-     * Yes, BDRV_O_NOCACHE aka O_DIRECT means we have to present a
-     * write cache to the guest.  We do need the fdatasync to flush
-     * out transactions for block allocations, and we maybe have a
-     * volatile write cache in our backing device to deal with.
-     */
-    if (flags & (BDRV_O_CACHE_WB|BDRV_O_NOCACHE))
+    if (flags & BDRV_O_CACHE_WB)
         bs->enable_write_cache = 1;
 
     /*
@@ -2887,7 +2881,7 @@ int bdrv_img_create(const char *filename, const char *fmt,
                     char *options, uint64_t img_size, int flags)
 {
     QEMUOptionParameter *param = NULL, *create_options = NULL;
-    QEMUOptionParameter *backing_fmt, *backing_file;
+    QEMUOptionParameter *backing_fmt, *backing_file, *size;
     BlockDriverState *bs = NULL;
     BlockDriver *drv, *proto_drv;
     BlockDriver *backing_drv = NULL;
@@ -2970,7 +2964,8 @@ int bdrv_img_create(const char *filename, const char *fmt,
 
     // The size for the image must always be specified, with one exception:
     // If we are using a backing file, we can obtain the size from there
-    if (get_option_parameter(param, BLOCK_OPT_SIZE)->value.n == -1) {
+    size = get_option_parameter(param, BLOCK_OPT_SIZE);
+    if (size && size->value.n == -1) {
         if (backing_file && backing_file->value.s) {
             uint64_t size;
             char buf[32];

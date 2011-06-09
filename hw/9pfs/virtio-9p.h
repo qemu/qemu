@@ -101,6 +101,11 @@ enum p9_proto_version {
 #define P9_NOTAG    (u16)(~0)
 #define P9_NOFID    (u32)(~0)
 #define P9_MAXWELEM 16
+static inline const char *rpath(FsContext *ctx, const char *path, char *buffer)
+{
+    snprintf(buffer, PATH_MAX, "%s/%s", ctx->fs_root, path);
+    return buffer;
+}
 
 /*
  * ample room for Twrite/Rread header
@@ -503,5 +508,7 @@ static inline size_t do_pdu_unpack(void *dst, struct iovec *sg, int sg_count,
 {
     return pdu_packunpack(dst, sg, sg_count, offset, size, 0);
 }
+
+extern void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq);
 
 #endif

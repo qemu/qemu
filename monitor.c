@@ -2544,16 +2544,21 @@ static void do_wav_capture(Monitor *mon, const QDict *qdict)
 #endif
 
 #if defined(TARGET_I386)
-static void do_inject_nmi(Monitor *mon, const QDict *qdict)
+static int do_inject_nmi(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     CPUState *env;
-    int cpu_index = qdict_get_int(qdict, "cpu_index");
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu)
-        if (env->cpu_index == cpu_index) {
-            cpu_interrupt(env, CPU_INTERRUPT_NMI);
-            break;
-        }
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        cpu_interrupt(env, CPU_INTERRUPT_NMI);
+    }
+
+    return 0;
+}
+#else
+static int do_inject_nmi(Monitor *mon, const QDict *qdict, QObject **ret_data)
+{
+    qerror_report(QERR_UNSUPPORTED);
+    return -1;
 }
 #endif
 
