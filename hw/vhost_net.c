@@ -15,6 +15,7 @@
 
 #include "virtio-net.h"
 #include "vhost_net.h"
+#include "qemu-error.h"
 
 #include "config.h"
 
@@ -203,6 +204,7 @@ void vhost_net_cleanup(struct vhost_net *net)
 struct vhost_net *vhost_net_init(VLANClientState *backend, int devfd,
                                  bool force)
 {
+    error_report("vhost-net support is not compiled in");
     return NULL;
 }
 
