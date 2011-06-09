@@ -16,23 +16,12 @@
 #include "pci.h"
 #include "range.h"
 
-/* MSI-X capability structure */
-#define MSIX_TABLE_OFFSET 4
-#define MSIX_PBA_OFFSET 8
 #define MSIX_CAP_LENGTH 12
 
 /* MSI enable bit and maskall bit are in byte 1 in FLAGS register */
 #define MSIX_CONTROL_OFFSET (PCI_MSIX_FLAGS + 1)
 #define MSIX_ENABLE_MASK (PCI_MSIX_FLAGS_ENABLE >> 8)
 #define MSIX_MASKALL_MASK (PCI_MSIX_FLAGS_MASKALL >> 8)
-
-/* MSI-X table format */
-#define MSIX_MSG_ADDR 0
-#define MSIX_MSG_UPPER_ADDR 4
-#define MSIX_MSG_DATA 8
-#define MSIX_VECTOR_CTRL 12
-#define MSIX_ENTRY_SIZE 16
-#define MSIX_VECTOR_MASK 0x1
 
 /* How much space does an MSIX table need. */
 /* The spec requires giving the table structure
@@ -82,9 +71,9 @@ static int msix_add_config(struct PCIDevice *pdev, unsigned short nentries,
 
     pci_set_word(config + PCI_MSIX_FLAGS, nentries - 1);
     /* Table on top of BAR */
-    pci_set_long(config + MSIX_TABLE_OFFSET, bar_size | bar_nr);
+    pci_set_long(config + PCI_MSIX_TABLE, bar_size | bar_nr);
     /* Pending bits on top of that */
-    pci_set_long(config + MSIX_PBA_OFFSET, (bar_size + MSIX_PAGE_PENDING) |
+    pci_set_long(config + PCI_MSIX_PBA, (bar_size + MSIX_PAGE_PENDING) |
                  bar_nr);
     pdev->msix_cap = config_offset;
     /* Make flags bit writeable. */
@@ -140,9 +129,10 @@ static int msix_function_masked(PCIDevice *dev)
 
 static int msix_is_masked(PCIDevice *dev, int vector)
 {
-    unsigned offset = vector * MSIX_ENTRY_SIZE + MSIX_VECTOR_CTRL;
+    unsigned offset =
+        vector * PCI_MSIX_ENTRY_SIZE + PCI_MSIX_ENTRY_VECTOR_CTRL;
     return msix_function_masked(dev) ||
-	   dev->msix_table_page[offset] & MSIX_VECTOR_MASK;
+	   dev->msix_table_page[offset] & PCI_MSIX_ENTRY_CTRL_MASKBIT;
 }
 
 static void msix_handle_mask_update(PCIDevice *dev, int vector)
@@ -184,7 +174,7 @@ static void msix_mmio_writel(void *opaque, target_phys_addr_t addr,
 {
     PCIDevice *dev = opaque;
     unsigned int offset = addr & (MSIX_PAGE_SIZE - 1) & ~0x3;
-    int vector = offset / MSIX_ENTRY_SIZE;
+    int vector = offset / PCI_MSIX_ENTRY_SIZE;
     pci_set_long(dev->msix_table_page + offset, val);
     msix_handle_mask_update(dev, vector);
 }
@@ -208,7 +198,7 @@ void msix_mmio_map(PCIDevice *d, int region_num,
                    pcibus_t addr, pcibus_t size, int type)
 {
     uint8_t *config = d->config + d->msix_cap;
-    uint32_t table = pci_get_long(config + MSIX_TABLE_OFFSET);
+    uint32_t table = pci_get_long(config + PCI_MSIX_TABLE);
     uint32_t offset = table & ~(MSIX_PAGE_SIZE - 1);
     /* TODO: for assigned devices, we'll want to make it possible to map
      * pending bits separately in case they are in a separate bar. */
@@ -226,8 +216,9 @@ static void msix_mask_all(struct PCIDevice *dev, unsigned nentries)
 {
     int vector;
     for (vector = 0; vector < nentries; ++vector) {
-        unsigned offset = vector * MSIX_ENTRY_SIZE + MSIX_VECTOR_CTRL;
-        dev->msix_table_page[offset] |= MSIX_VECTOR_MASK;
+        unsigned offset =
+            vector * PCI_MSIX_ENTRY_SIZE + PCI_MSIX_ENTRY_VECTOR_CTRL;
+        dev->msix_table_page[offset] |= PCI_MSIX_ENTRY_CTRL_MASKBIT;
     }
 }
 
@@ -313,7 +304,7 @@ void msix_save(PCIDevice *dev, QEMUFile *f)
         return;
     }
 
-    qemu_put_buffer(f, dev->msix_table_page, n * MSIX_ENTRY_SIZE);
+    qemu_put_buffer(f, dev->msix_table_page, n * PCI_MSIX_ENTRY_SIZE);
     qemu_put_buffer(f, dev->msix_table_page + MSIX_PAGE_PENDING, (n + 7) / 8);
 }
 
@@ -327,7 +318,7 @@ void msix_load(PCIDevice *dev, QEMUFile *f)
     }
 
     msix_free_irq_entries(dev);
-    qemu_get_buffer(f, dev->msix_table_page, n * MSIX_ENTRY_SIZE);
+    qemu_get_buffer(f, dev->msix_table_page, n * PCI_MSIX_ENTRY_SIZE);
     qemu_get_buffer(f, dev->msix_table_page + MSIX_PAGE_PENDING, (n + 7) / 8);
 }
 
@@ -355,7 +346,7 @@ uint32_t msix_bar_size(PCIDevice *dev)
 /* Send an MSI-X message */
 void msix_notify(PCIDevice *dev, unsigned vector)
 {
-    uint8_t *table_entry = dev->msix_table_page + vector * MSIX_ENTRY_SIZE;
+    uint8_t *table_entry = dev->msix_table_page + vector * PCI_MSIX_ENTRY_SIZE;
     uint64_t address;
     uint32_t data;
 
@@ -366,9 +357,8 @@ void msix_notify(PCIDevice *dev, unsigned vector)
         return;
     }
 
-    address = pci_get_long(table_entry + MSIX_MSG_UPPER_ADDR);
-    address = (address << 32) | pci_get_long(table_entry + MSIX_MSG_ADDR);
-    data = pci_get_long(table_entry + MSIX_MSG_DATA);
+    address = pci_get_quad(table_entry + PCI_MSIX_ENTRY_LOWER_ADDR);
+    data = pci_get_long(table_entry + PCI_MSIX_ENTRY_DATA);
     stl_phys(address, data);
 }
 
