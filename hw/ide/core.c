@@ -1864,6 +1864,7 @@ const VMStateDescription vmstate_ide_atapi_gesn_state = {
     .fields = (VMStateField []) {
         VMSTATE_BOOL(events.new_media, IDEState),
         VMSTATE_BOOL(events.eject_request, IDEState),
+        VMSTATE_END_OF_LIST()
     }
 };
 
