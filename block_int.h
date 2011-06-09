@@ -203,8 +203,8 @@ struct BlockDriverState {
     void *private;
 };
 
-#define CHANGE_MEDIA	0x01
-#define CHANGE_SIZE	0x02
+#define CHANGE_MEDIA    0x01
+#define CHANGE_SIZE     0x02
 
 struct BlockDriverAIOCB {
     AIOPool *pool;
