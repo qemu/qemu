@@ -1710,7 +1710,7 @@ fi
 if test "$curl" != "no" ; then
   cat > $TMPC << EOF
 #include <curl/curl.h>
-int main(void) { return curl_easy_init(); }
+int main(void) { curl_easy_init(); curl_multi_setopt(0, 0, 0); return 0; }
 EOF
   curl_cflags=`$curlconfig --cflags 2>/dev/null`
   curl_libs=`$curlconfig --libs 2>/dev/null`
