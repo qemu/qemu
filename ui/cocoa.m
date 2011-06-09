@@ -63,7 +63,6 @@ typedef struct {
 } QEMUScreen;
 
 NSWindow *normalWindow;
-id cocoaView;
 static DisplayChangeListener *dcl;
 
 int gArgc;
@@ -277,6 +276,8 @@ static int cocoa_keycode_to_qemu(int keycode)
 - (float) cdy;
 - (QEMUScreen) gscreen;
 @end
+
+QemuCocoaView *cocoaView;
 
 @implementation QemuCocoaView
 - (id)initWithFrame:(NSRect)frameRect
