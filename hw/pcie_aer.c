@@ -38,6 +38,9 @@
 #define PCIE_DEV_PRINTF(dev, fmt, ...)                                  \
     PCIE_DPRINTF("%s:%x "fmt, (dev)->name, (dev)->devfn, ## __VA_ARGS__)
 
+#define PCI_ERR_SRC_COR_OFFS    0
+#define PCI_ERR_SRC_UNCOR_OFFS  2
+
 /* From 6.2.7 Error Listing and Rules. Table 6-2, 6-3 and 6-4 */
 static uint32_t pcie_aer_uncor_default_severity(uint32_t status)
 {
@@ -320,7 +323,8 @@ static void pcie_aer_msg_root_port(PCIDevice *dev, const PCIEAERMsg *msg)
         if (root_status & PCI_ERR_ROOT_COR_RCV) {
             root_status |= PCI_ERR_ROOT_MULTI_COR_RCV;
         } else {
-            pci_set_word(aer_cap + PCI_ERR_ROOT_COR_SRC, msg->source_id);
+            pci_set_word(aer_cap + PCI_ERR_ROOT_ERR_SRC + PCI_ERR_SRC_COR_OFFS,
+                         msg->source_id);
         }
         root_status |= PCI_ERR_ROOT_COR_RCV;
         break;
@@ -341,7 +345,8 @@ static void pcie_aer_msg_root_port(PCIDevice *dev, const PCIEAERMsg *msg)
         if (root_status & PCI_ERR_ROOT_UNCOR_RCV) {
             root_status |= PCI_ERR_ROOT_MULTI_UNCOR_RCV;
         } else {
-            pci_set_word(aer_cap + PCI_ERR_ROOT_SRC, msg->source_id);
+            pci_set_word(aer_cap + PCI_ERR_ROOT_ERR_SRC +
+                         PCI_ERR_SRC_UNCOR_OFFS, msg->source_id);
         }
         root_status |= PCI_ERR_ROOT_UNCOR_RCV;
     }
