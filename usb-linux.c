@@ -142,74 +142,79 @@ static void usb_host_auto_check(void *unused);
 static int usb_host_read_file(char *line, size_t line_size,
                             const char *device_file, const char *device_name);
 
+static struct endp_data *get_endp(USBHostDevice *s, int ep)
+{
+    return s->endp_table + ep - 1;
+}
+
 static int is_isoc(USBHostDevice *s, int ep)
 {
-    return s->endp_table[ep - 1].type == USBDEVFS_URB_TYPE_ISO;
+    return get_endp(s, ep)->type == USBDEVFS_URB_TYPE_ISO;
 }
 
 static int is_valid(USBHostDevice *s, int ep)
 {
-    return s->endp_table[ep - 1].type != INVALID_EP_TYPE;
+    return get_endp(s, ep)->type != INVALID_EP_TYPE;
 }
 
 static int is_halted(USBHostDevice *s, int ep)
 {
-    return s->endp_table[ep - 1].halted;
+    return get_endp(s, ep)->halted;
 }
 
 static void clear_halt(USBHostDevice *s, int ep)
 {
-    s->endp_table[ep - 1].halted = 0;
+    get_endp(s, ep)->halted = 0;
 }
 
 static void set_halt(USBHostDevice *s, int ep)
 {
-    s->endp_table[ep - 1].halted = 1;
+    get_endp(s, ep)->halted = 1;
 }
 
 static int is_iso_started(USBHostDevice *s, int ep)
 {
-    return s->endp_table[ep - 1].iso_started;
+    return get_endp(s, ep)->iso_started;
 }
 
 static void clear_iso_started(USBHostDevice *s, int ep)
 {
-    s->endp_table[ep - 1].iso_started = 0;
+    get_endp(s, ep)->iso_started = 0;
 }
 
 static void set_iso_started(USBHostDevice *s, int ep)
 {
-    s->endp_table[ep - 1].iso_started = 1;
+    get_endp(s, ep)->iso_started = 1;
 }
 
 static void set_iso_urb(USBHostDevice *s, int ep, AsyncURB *iso_urb)
 {
-    s->endp_table[ep - 1].iso_urb = iso_urb;
+    get_endp(s, ep)->iso_urb = iso_urb;
 }
 
 static AsyncURB *get_iso_urb(USBHostDevice *s, int ep)
 {
-    return s->endp_table[ep - 1].iso_urb;
+    return get_endp(s, ep)->iso_urb;
 }
 
 static void set_iso_urb_idx(USBHostDevice *s, int ep, int i)
 {
-    s->endp_table[ep - 1].iso_urb_idx = i;
+    get_endp(s, ep)->iso_urb_idx = i;
 }
 
 static int get_iso_urb_idx(USBHostDevice *s, int ep)
 {
-    return s->endp_table[ep - 1].iso_urb_idx;
+    return get_endp(s, ep)->iso_urb_idx;
 }
 
 static void set_iso_buffer_used(USBHostDevice *s, int ep, int i)
 {
-    s->endp_table[ep - 1].iso_buffer_used = i;
+    get_endp(s, ep)->iso_buffer_used = i;
 }
 
 static int get_iso_buffer_used(USBHostDevice *s, int ep)
 {
-    return s->endp_table[ep - 1].iso_buffer_used;
+    return get_endp(s, ep)->iso_buffer_used;
 }
 
 static void set_max_packet_size(USBHostDevice *s, int ep, uint8_t *descriptor)
@@ -223,14 +228,12 @@ static void set_max_packet_size(USBHostDevice *s, int ep, uint8_t *descriptor)
     case 2:  microframes = 3; break;
     default: microframes = 1; break;
     }
-    DPRINTF("husb: max packet size: 0x%x -> %d x %d\n",
-            raw, microframes, size);
-    s->endp_table[ep - 1].max_packet_size = size * microframes;
+    get_endp(s, ep)->max_packet_size = size * microframes;
 }
 
 static int get_max_packet_size(USBHostDevice *s, int ep)
 {
-    return s->endp_table[ep - 1].max_packet_size;
+    return get_endp(s, ep)->max_packet_size;
 }
 
 /*
