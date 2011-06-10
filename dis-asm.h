@@ -184,6 +184,9 @@ enum bfd_architecture
 #define bfd_mach_sh5        0x50
   bfd_arch_alpha,      /* Dec Alpha */
 #define bfd_mach_alpha 1
+#define bfd_mach_alpha_ev4  0x10
+#define bfd_mach_alpha_ev5  0x20
+#define bfd_mach_alpha_ev6  0x30
   bfd_arch_arm,        /* Advanced Risc Machines ARM */
 #define bfd_mach_arm_unknown	0
 #define bfd_mach_arm_2		1
