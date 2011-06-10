@@ -488,9 +488,36 @@ int cpu_exec(CPUState *env1)
                         next_tb = 0;
                     }
 #elif defined(TARGET_ALPHA)
-                    if (interrupt_request & CPU_INTERRUPT_HARD) {
-                        do_interrupt(env);
-                        next_tb = 0;
+                    {
+                        int idx = -1;
+                        /* ??? This hard-codes the OSF/1 interrupt levels.  */
+		        switch (env->pal_mode ? 7 : env->ps & PS_INT_MASK) {
+                        case 0 ... 3:
+                            if (interrupt_request & CPU_INTERRUPT_HARD) {
+                                idx = EXCP_DEV_INTERRUPT;
+                            }
+                            /* FALLTHRU */
+                        case 4:
+                            if (interrupt_request & CPU_INTERRUPT_TIMER) {
+                                idx = EXCP_CLK_INTERRUPT;
+                            }
+                            /* FALLTHRU */
+                        case 5:
+                            if (interrupt_request & CPU_INTERRUPT_SMP) {
+                                idx = EXCP_SMP_INTERRUPT;
+                            }
+                            /* FALLTHRU */
+                        case 6:
+                            if (interrupt_request & CPU_INTERRUPT_MCHK) {
+                                idx = EXCP_MCHK;
+                            }
+                        }
+                        if (idx >= 0) {
+                            env->exception_index = idx;
+                            env->error_code = 0;
+                            do_interrupt(env);
+                            next_tb = 0;
+                        }
                     }
 #elif defined(TARGET_CRIS)
                     if (interrupt_request & CPU_INTERRUPT_HARD

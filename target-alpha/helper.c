@@ -160,382 +160,299 @@ void cpu_alpha_store_fpcr (CPUState *env, uint64_t val)
 }
 
 #if defined(CONFIG_USER_ONLY)
-
 int cpu_alpha_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                                 int mmu_idx, int is_softmmu)
 {
-    if (rw == 2)
-        env->exception_index = EXCP_ITB_MISS;
-    else
-        env->exception_index = EXCP_DFAULT;
-    env->ipr[IPR_EXC_ADDR] = address;
-
+    env->exception_index = EXCP_MMFAULT;
+    env->trap_arg0 = address;
     return 1;
 }
-
-void do_interrupt (CPUState *env)
-{
-    env->exception_index = -1;
-}
-
 #else
-
-target_phys_addr_t cpu_get_phys_page_debug (CPUState *env, target_ulong addr)
+void swap_shadow_regs(CPUState *env)
 {
-    return -1;
+    uint64_t i0, i1, i2, i3, i4, i5, i6, i7;
+
+    i0 = env->ir[8];
+    i1 = env->ir[9];
+    i2 = env->ir[10];
+    i3 = env->ir[11];
+    i4 = env->ir[12];
+    i5 = env->ir[13];
+    i6 = env->ir[14];
+    i7 = env->ir[25];
+
+    env->ir[8]  = env->shadow[0];
+    env->ir[9]  = env->shadow[1];
+    env->ir[10] = env->shadow[2];
+    env->ir[11] = env->shadow[3];
+    env->ir[12] = env->shadow[4];
+    env->ir[13] = env->shadow[5];
+    env->ir[14] = env->shadow[6];
+    env->ir[25] = env->shadow[7];
+
+    env->shadow[0] = i0;
+    env->shadow[1] = i1;
+    env->shadow[2] = i2;
+    env->shadow[3] = i3;
+    env->shadow[4] = i4;
+    env->shadow[5] = i5;
+    env->shadow[6] = i6;
+    env->shadow[7] = i7;
 }
 
-int cpu_alpha_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                                int mmu_idx, int is_softmmu)
+/* Returns the OSF/1 entMM failure indication, or -1 on success.  */
+static int get_physical_address(CPUState *env, target_ulong addr,
+                                int prot_need, int mmu_idx,
+                                target_ulong *pphys, int *pprot)
 {
-    uint32_t opc;
+    target_long saddr = addr;
+    target_ulong phys = 0;
+    target_ulong L1pte, L2pte, L3pte;
+    target_ulong pt, index;
+    int prot = 0;
+    int ret = MM_K_ACV;
 
-    if (rw == 2) {
-        /* Instruction translation buffer miss */
-        env->exception_index = EXCP_ITB_MISS;
-    } else {
-        if (env->ipr[IPR_EXC_ADDR] & 1)
-            env->exception_index = EXCP_DTB_MISS_PAL;
-        else
-            env->exception_index = EXCP_DTB_MISS_NATIVE;
-        opc = (ldl_code(env->pc) >> 21) << 4;
-        if (rw) {
-            opc |= 0x9;
-        } else {
-            opc |= 0x4;
-        }
-        env->ipr[IPR_MM_STAT] = opc;
+    /* Ensure that the virtual address is properly sign-extended from
+       the last implemented virtual address bit.  */
+    if (saddr >> TARGET_VIRT_ADDR_SPACE_BITS != saddr >> 63) {
+        goto exit;
     }
 
-    return 1;
-}
-
-int cpu_alpha_mfpr (CPUState *env, int iprn, uint64_t *valp)
-{
-    uint64_t hwpcb;
-    int ret = 0;
-
-    hwpcb = env->ipr[IPR_PCBB];
-    switch (iprn) {
-    case IPR_ASN:
-        if (env->features & FEATURE_ASN)
-            *valp = env->ipr[IPR_ASN];
-        else
-            *valp = 0;
-        break;
-    case IPR_ASTEN:
-        *valp = ((int64_t)(env->ipr[IPR_ASTEN] << 60)) >> 60;
-        break;
-    case IPR_ASTSR:
-        *valp = ((int64_t)(env->ipr[IPR_ASTSR] << 60)) >> 60;
-        break;
-    case IPR_DATFX:
-        /* Write only */
-        ret = -1;
-        break;
-    case IPR_ESP:
-        if (env->features & FEATURE_SPS)
-            *valp = env->ipr[IPR_ESP];
-        else
-            *valp = ldq_raw(hwpcb + 8);
-        break;
-    case IPR_FEN:
-        *valp = ((int64_t)(env->ipr[IPR_FEN] << 63)) >> 63;
-        break;
-    case IPR_IPIR:
-        /* Write-only */
-        ret = -1;
-        break;
-    case IPR_IPL:
-        *valp = ((int64_t)(env->ipr[IPR_IPL] << 59)) >> 59;
-        break;
-    case IPR_KSP:
-        if (!(env->ipr[IPR_EXC_ADDR] & 1)) {
-            ret = -1;
-        } else {
-            if (env->features & FEATURE_SPS)
-                *valp = env->ipr[IPR_KSP];
-            else
-                *valp = ldq_raw(hwpcb + 0);
+    /* Translate the superpage.  */
+    /* ??? When we do more than emulate Unix PALcode, we'll need to
+       determine which KSEG is actually active.  */
+    if (saddr < 0 && ((saddr >> 41) & 3) == 2) {
+        /* User-space cannot access KSEG addresses.  */
+        if (mmu_idx != MMU_KERNEL_IDX) {
+            goto exit;
         }
-        break;
-    case IPR_MCES:
-        *valp = ((int64_t)(env->ipr[IPR_MCES] << 59)) >> 59;
-        break;
-    case IPR_PERFMON:
-        /* Implementation specific */
-        *valp = 0;
-        break;
-    case IPR_PCBB:
-        *valp = ((int64_t)env->ipr[IPR_PCBB] << 16) >> 16;
-        break;
-    case IPR_PRBR:
-        *valp = env->ipr[IPR_PRBR];
-        break;
-    case IPR_PTBR:
-        *valp = env->ipr[IPR_PTBR];
-        break;
-    case IPR_SCBB:
-        *valp = (int64_t)((int32_t)env->ipr[IPR_SCBB]);
-        break;
-    case IPR_SIRR:
-        /* Write-only */
+
+        /* For the benefit of the Typhoon chipset, move bit 40 to bit 43.
+           We would not do this if the 48-bit KSEG is enabled.  */
+        phys = saddr & ((1ull << 40) - 1);
+        phys |= (saddr & (1ull << 40)) << 3;
+
+        prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         ret = -1;
-        break;
-    case IPR_SISR:
-        *valp = (int64_t)((int16_t)env->ipr[IPR_SISR]);
-    case IPR_SSP:
-        if (env->features & FEATURE_SPS)
-            *valp = env->ipr[IPR_SSP];
-        else
-            *valp = ldq_raw(hwpcb + 16);
-        break;
-    case IPR_SYSPTBR:
-        if (env->features & FEATURE_VIRBND)
-            *valp = env->ipr[IPR_SYSPTBR];
-        else
-            ret = -1;
-        break;
-    case IPR_TBCHK:
-        if ((env->features & FEATURE_TBCHK)) {
-            /* XXX: TODO */
-            *valp = 0;
-            ret = -1;
-        } else {
-            ret = -1;
-        }
-        break;
-    case IPR_TBIA:
-        /* Write-only */
-        ret = -1;
-        break;
-    case IPR_TBIAP:
-        /* Write-only */
-        ret = -1;
-        break;
-    case IPR_TBIS:
-        /* Write-only */
-        ret = -1;
-        break;
-    case IPR_TBISD:
-        /* Write-only */
-        ret = -1;
-        break;
-    case IPR_TBISI:
-        /* Write-only */
-        ret = -1;
-        break;
-    case IPR_USP:
-        if (env->features & FEATURE_SPS)
-            *valp = env->ipr[IPR_USP];
-        else
-            *valp = ldq_raw(hwpcb + 24);
-        break;
-    case IPR_VIRBND:
-        if (env->features & FEATURE_VIRBND)
-            *valp = env->ipr[IPR_VIRBND];
-        else
-            ret = -1;
-        break;
-    case IPR_VPTB:
-        *valp = env->ipr[IPR_VPTB];
-        break;
-    case IPR_WHAMI:
-        *valp = env->ipr[IPR_WHAMI];
-        break;
-    default:
-        /* Invalid */
-        ret = -1;
-        break;
+        goto exit;
     }
 
+    /* Interpret the page table exactly like PALcode does.  */
+
+    pt = env->ptbr;
+
+    /* L1 page table read.  */
+    index = (addr >> (TARGET_PAGE_BITS + 20)) & 0x3ff;
+    L1pte = ldq_phys(pt + index*8);
+
+    if (unlikely((L1pte & PTE_VALID) == 0)) {
+        ret = MM_K_TNV;
+        goto exit;
+    }
+    if (unlikely((L1pte & PTE_KRE) == 0)) {
+        goto exit;
+    }
+    pt = L1pte >> 32 << TARGET_PAGE_BITS;
+
+    /* L2 page table read.  */
+    index = (addr >> (TARGET_PAGE_BITS + 10)) & 0x3ff;
+    L2pte = ldq_phys(pt + index*8);
+
+    if (unlikely((L2pte & PTE_VALID) == 0)) {
+        ret = MM_K_TNV;
+        goto exit;
+    }
+    if (unlikely((L2pte & PTE_KRE) == 0)) {
+        goto exit;
+    }
+    pt = L2pte >> 32 << TARGET_PAGE_BITS;
+
+    /* L3 page table read.  */
+    index = (addr >> TARGET_PAGE_BITS) & 0x3ff;
+    L3pte = ldq_phys(pt + index*8);
+
+    phys = L3pte >> 32 << TARGET_PAGE_BITS;
+    if (unlikely((L3pte & PTE_VALID) == 0)) {
+        ret = MM_K_TNV;
+        goto exit;
+    }
+
+#if PAGE_READ != 1 || PAGE_WRITE != 2 || PAGE_EXEC != 4
+# error page bits out of date
+#endif
+
+    /* Check access violations.  */
+    if (L3pte & (PTE_KRE << mmu_idx)) {
+        prot |= PAGE_READ | PAGE_EXEC;
+    }
+    if (L3pte & (PTE_KWE << mmu_idx)) {
+        prot |= PAGE_WRITE;
+    }
+    if (unlikely((prot & prot_need) == 0 && prot_need)) {
+        goto exit;
+    }
+
+    /* Check fault-on-operation violations.  */
+    prot &= ~(L3pte >> 1);
+    ret = -1;
+    if (unlikely((prot & prot_need) == 0)) {
+        ret = (prot_need & PAGE_EXEC ? MM_K_FOE :
+               prot_need & PAGE_WRITE ? MM_K_FOW :
+               prot_need & PAGE_READ ? MM_K_FOR : -1);
+    }
+
+ exit:
+    *pphys = phys;
+    *pprot = prot;
     return ret;
 }
 
-int cpu_alpha_mtpr (CPUState *env, int iprn, uint64_t val, uint64_t *oldvalp)
+target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
-    uint64_t hwpcb, tmp64;
-    uint8_t tmp8;
-    int ret = 0;
+    target_ulong phys;
+    int prot, fail;
 
-    hwpcb = env->ipr[IPR_PCBB];
-    switch (iprn) {
-    case IPR_ASN:
-        /* Read-only */
-        ret = -1;
-        break;
-    case IPR_ASTEN:
-        tmp8 = ((int8_t)(env->ipr[IPR_ASTEN] << 4)) >> 4;
-        *oldvalp = tmp8;
-        tmp8 &= val & 0xF;
-        tmp8 |= (val >> 4) & 0xF;
-        env->ipr[IPR_ASTEN] &= ~0xF;
-        env->ipr[IPR_ASTEN] |= tmp8;
-        ret = 1;
-        break;
-    case IPR_ASTSR:
-        tmp8 = ((int8_t)(env->ipr[IPR_ASTSR] << 4)) >> 4;
-        *oldvalp = tmp8;
-        tmp8 &= val & 0xF;
-        tmp8 |= (val >> 4) & 0xF;
-        env->ipr[IPR_ASTSR] &= ~0xF;
-        env->ipr[IPR_ASTSR] |= tmp8;
-        ret = 1;
-    case IPR_DATFX:
-        env->ipr[IPR_DATFX] &= ~0x1;
-        env->ipr[IPR_DATFX] |= val & 1;
-        tmp64 = ldq_raw(hwpcb + 56);
-        tmp64 &= ~0x8000000000000000ULL;
-        tmp64 |= (val & 1) << 63;
-        stq_raw(hwpcb + 56, tmp64);
-        break;
-    case IPR_ESP:
-        if (env->features & FEATURE_SPS)
-            env->ipr[IPR_ESP] = val;
-        else
-            stq_raw(hwpcb + 8, val);
-        break;
-    case IPR_FEN:
-        env->ipr[IPR_FEN] = val & 1;
-        tmp64 = ldq_raw(hwpcb + 56);
-        tmp64 &= ~1;
-        tmp64 |= val & 1;
-        stq_raw(hwpcb + 56, tmp64);
-        break;
-    case IPR_IPIR:
-        /* XXX: TODO: Send IRQ to CPU #ir[16] */
-        break;
-    case IPR_IPL:
-        *oldvalp = ((int64_t)(env->ipr[IPR_IPL] << 59)) >> 59;
-        env->ipr[IPR_IPL] &= ~0x1F;
-        env->ipr[IPR_IPL] |= val & 0x1F;
-        /* XXX: may issue an interrupt or ASR _now_ */
-        ret = 1;
-        break;
-    case IPR_KSP:
-        if (!(env->ipr[IPR_EXC_ADDR] & 1)) {
-            ret = -1;
-        } else {
-            if (env->features & FEATURE_SPS)
-                env->ipr[IPR_KSP] = val;
-            else
-                stq_raw(hwpcb + 0, val);
-        }
-        break;
-    case IPR_MCES:
-        env->ipr[IPR_MCES] &= ~((val & 0x7) | 0x18);
-        env->ipr[IPR_MCES] |= val & 0x18;
-        break;
-    case IPR_PERFMON:
-        /* Implementation specific */
-        *oldvalp = 0;
-        ret = 1;
-        break;
-    case IPR_PCBB:
-        /* Read-only */
-        ret = -1;
-        break;
-    case IPR_PRBR:
-        env->ipr[IPR_PRBR] = val;
-        break;
-    case IPR_PTBR:
-        /* Read-only */
-        ret = -1;
-        break;
-    case IPR_SCBB:
-        env->ipr[IPR_SCBB] = (uint32_t)val;
-        break;
-    case IPR_SIRR:
-        if (val & 0xF) {
-            env->ipr[IPR_SISR] |= 1 << (val & 0xF);
-            /* XXX: request a software interrupt _now_ */
-        }
-        break;
-    case IPR_SISR:
-        /* Read-only */
-        ret = -1;
-        break;
-    case IPR_SSP:
-        if (env->features & FEATURE_SPS)
-            env->ipr[IPR_SSP] = val;
-        else
-            stq_raw(hwpcb + 16, val);
-        break;
-    case IPR_SYSPTBR:
-        if (env->features & FEATURE_VIRBND)
-            env->ipr[IPR_SYSPTBR] = val;
-        else
-            ret = -1;
-        break;
-    case IPR_TBCHK:
-        /* Read-only */
-        ret = -1;
-        break;
-    case IPR_TBIA:
-        tlb_flush(env, 1);
-        break;
-    case IPR_TBIAP:
-        tlb_flush(env, 1);
-        break;
-    case IPR_TBIS:
-        tlb_flush_page(env, val);
-        break;
-    case IPR_TBISD:
-        tlb_flush_page(env, val);
-        break;
-    case IPR_TBISI:
-        tlb_flush_page(env, val);
-        break;
-    case IPR_USP:
-        if (env->features & FEATURE_SPS)
-            env->ipr[IPR_USP] = val;
-        else
-            stq_raw(hwpcb + 24, val);
-        break;
-    case IPR_VIRBND:
-        if (env->features & FEATURE_VIRBND)
-            env->ipr[IPR_VIRBND] = val;
-        else
-            ret = -1;
-        break;
-    case IPR_VPTB:
-        env->ipr[IPR_VPTB] = val;
-        break;
-    case IPR_WHAMI:
-        /* Read-only */
-        ret = -1;
-        break;
-    default:
-        /* Invalid */
-        ret = -1;
-        break;
+    fail = get_physical_address(env, addr, 0, 0, &phys, &prot);
+    return (fail >= 0 ? -1 : phys);
+}
+
+int cpu_alpha_handle_mmu_fault(CPUState *env, target_ulong addr, int rw,
+                               int mmu_idx, int is_softmmu)
+{
+    target_ulong phys;
+    int prot, fail;
+
+    fail = get_physical_address(env, addr, 1 << rw, mmu_idx, &phys, &prot);
+    if (unlikely(fail >= 0)) {
+        env->exception_index = EXCP_MMFAULT;
+        env->trap_arg0 = addr;
+        env->trap_arg1 = fail;
+        env->trap_arg2 = (rw == 2 ? -1 : rw);
+        return 1;
     }
 
-    return ret;
+    tlb_set_page(env, addr & TARGET_PAGE_MASK, phys & TARGET_PAGE_MASK,
+                 prot, mmu_idx, TARGET_PAGE_SIZE);
+    return 0;
 }
+#endif /* USER_ONLY */
 
 void do_interrupt (CPUState *env)
 {
-    int excp;
+    int i = env->exception_index;
 
-    env->ipr[IPR_EXC_ADDR] = env->pc | 1;
-    excp = env->exception_index;
-    env->exception_index = -1;
-    env->error_code = 0;
-    /* XXX: disable interrupts and memory mapping */
-    if (env->ipr[IPR_PAL_BASE] != -1ULL) {
-        /* We use native PALcode */
-        env->pc = env->ipr[IPR_PAL_BASE] + excp;
-    } else {
-        /* We use emulated PALcode */
-        call_pal(env);
-        /* Emulate REI */
-        env->pc = env->ipr[IPR_EXC_ADDR] & ~7;
-        env->ipr[IPR_EXC_ADDR] = env->ipr[IPR_EXC_ADDR] & 1;
-        /* XXX: re-enable interrupts and memory mapping */
+    if (qemu_loglevel_mask(CPU_LOG_INT)) {
+        static int count;
+        const char *name = "<unknown>";
+
+        switch (i) {
+        case EXCP_RESET:
+            name = "reset";
+            break;
+        case EXCP_MCHK:
+            name = "mchk";
+            break;
+        case EXCP_SMP_INTERRUPT:
+            name = "smp_interrupt";
+            break;
+        case EXCP_CLK_INTERRUPT:
+            name = "clk_interrupt";
+            break;
+        case EXCP_DEV_INTERRUPT:
+            name = "dev_interrupt";
+            break;
+        case EXCP_MMFAULT:
+            name = "mmfault";
+            break;
+        case EXCP_UNALIGN:
+            name = "unalign";
+            break;
+        case EXCP_OPCDEC:
+            name = "opcdec";
+            break;
+        case EXCP_ARITH:
+            name = "arith";
+            break;
+        case EXCP_FEN:
+            name = "fen";
+            break;
+        case EXCP_CALL_PAL:
+            name = "call_pal";
+            break;
+        case EXCP_STL_C:
+            name = "stl_c";
+            break;
+        case EXCP_STQ_C:
+            name = "stq_c";
+            break;
+        }
+        qemu_log("INT %6d: %s(%#x) pc=%016" PRIx64 " sp=%016" PRIx64 "\n",
+                 ++count, name, env->error_code, env->pc, env->ir[IR_SP]);
     }
+
+    env->exception_index = -1;
+
+#if !defined(CONFIG_USER_ONLY)
+    switch (i) {
+    case EXCP_RESET:
+        i = 0x0000;
+        break;
+    case EXCP_MCHK:
+        i = 0x0080;
+        break;
+    case EXCP_SMP_INTERRUPT:
+        i = 0x0100;
+        break;
+    case EXCP_CLK_INTERRUPT:
+        i = 0x0180;
+        break;
+    case EXCP_DEV_INTERRUPT:
+        i = 0x0200;
+        break;
+    case EXCP_MMFAULT:
+        i = 0x0280;
+        break;
+    case EXCP_UNALIGN:
+        i = 0x0300;
+        break;
+    case EXCP_OPCDEC:
+        i = 0x0380;
+        break;
+    case EXCP_ARITH:
+        i = 0x0400;
+        break;
+    case EXCP_FEN:
+        i = 0x0480;
+        break;
+    case EXCP_CALL_PAL:
+        i = env->error_code;
+        /* There are 64 entry points for both privileged and unprivileged,
+           with bit 0x80 indicating unprivileged.  Each entry point gets
+           64 bytes to do its job.  */
+        if (i & 0x80) {
+            i = 0x2000 + (i - 0x80) * 64;
+        } else {
+            i = 0x1000 + i * 64;
+        }
+        break;
+    default:
+        cpu_abort(env, "Unhandled CPU exception");
+    }
+
+    /* Remember where the exception happened.  Emulate real hardware in
+       that the low bit of the PC indicates PALmode.  */
+    env->exc_addr = env->pc | env->pal_mode;
+
+    /* Continue execution at the PALcode entry point.  */
+    env->pc = env->palbr + i;
+
+    /* Switch to PALmode.  */
+    if (!env->pal_mode) {
+        env->pal_mode = 1;
+        swap_shadow_regs(env);
+    }
+#endif /* !USER_ONLY */
 }
-#endif
 
 void cpu_dump_state (CPUState *env, FILE *f, fprintf_function cpu_fprintf,
                      int flags)
@@ -548,7 +465,7 @@ void cpu_dump_state (CPUState *env, FILE *f, fprintf_function cpu_fprintf,
     };
     int i;
 
-    cpu_fprintf(f, "     PC  " TARGET_FMT_lx "      PS  " TARGET_FMT_lx "\n",
+    cpu_fprintf(f, "     PC  " TARGET_FMT_lx "      PS  %02x\n",
                 env->pc, env->ps);
     for (i = 0; i < 31; i++) {
         cpu_fprintf(f, "IR%02d %s " TARGET_FMT_lx " ", i,

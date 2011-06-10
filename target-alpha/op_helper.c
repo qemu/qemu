@@ -25,17 +25,57 @@
 
 /*****************************************************************************/
 /* Exceptions processing helpers */
-void QEMU_NORETURN helper_excp (int excp, int error)
+
+/* This should only be called from translate, via gen_excp.
+   We expect that ENV->PC has already been updated.  */
+void QEMU_NORETURN helper_excp(int excp, int error)
 {
     env->exception_index = excp;
     env->error_code = error;
     cpu_loop_exit();
 }
 
+static void do_restore_state(void *retaddr)
+{
+    unsigned long pc = (unsigned long)retaddr;
+
+    if (pc) {
+        TranslationBlock *tb = tb_find_pc(pc);
+        if (tb) {
+            cpu_restore_state(tb, env, pc);
+        }
+    }
+}
+
+/* This may be called from any of the helpers to set up EXCEPTION_INDEX.  */
+static void QEMU_NORETURN dynamic_excp(int excp, int error)
+{
+    env->exception_index = excp;
+    env->error_code = error;
+    do_restore_state(GETPC());
+    cpu_loop_exit();
+}
+
+static void QEMU_NORETURN arith_excp(int exc, uint64_t mask)
+{
+    env->trap_arg0 = exc;
+    env->trap_arg1 = mask;
+    dynamic_excp(EXCP_ARITH, 0);
+}
+
 uint64_t helper_load_pcc (void)
 {
-    /* ??? This isn't a timer for which we have any rate info.  */
+#ifndef CONFIG_USER_ONLY
+    /* In system mode we have access to a decent high-resolution clock.
+       In order to make OS-level time accounting work with the RPCC,
+       present it with a well-timed clock fixed at 250MHz.  */
+    return (((uint64_t)env->pcc_ofs << 32)
+            | (uint32_t)(qemu_get_clock_ns(vm_clock) >> 2));
+#else
+    /* In user-mode, vm_clock doesn't exist.  Just pass through the host cpu
+       clock ticks.  Also, don't bother taking PCC_OFS into account.  */
     return (uint32_t)cpu_get_real_ticks();
+#endif
 }
 
 uint64_t helper_load_fpcr (void)
@@ -53,7 +93,7 @@ uint64_t helper_addqv (uint64_t op1, uint64_t op2)
     uint64_t tmp = op1;
     op1 += op2;
     if (unlikely((tmp ^ op2 ^ (-1ULL)) & (tmp ^ op1) & (1ULL << 63))) {
-        helper_excp(EXCP_ARITH, EXC_M_IOV);
+        arith_excp(EXC_M_IOV, 0);
     }
     return op1;
 }
@@ -63,7 +103,7 @@ uint64_t helper_addlv (uint64_t op1, uint64_t op2)
     uint64_t tmp = op1;
     op1 = (uint32_t)(op1 + op2);
     if (unlikely((tmp ^ op2 ^ (-1UL)) & (tmp ^ op1) & (1UL << 31))) {
-        helper_excp(EXCP_ARITH, EXC_M_IOV);
+        arith_excp(EXC_M_IOV, 0);
     }
     return op1;
 }
@@ -73,7 +113,7 @@ uint64_t helper_subqv (uint64_t op1, uint64_t op2)
     uint64_t res;
     res = op1 - op2;
     if (unlikely((op1 ^ op2) & (res ^ op1) & (1ULL << 63))) {
-        helper_excp(EXCP_ARITH, EXC_M_IOV);
+        arith_excp(EXC_M_IOV, 0);
     }
     return res;
 }
@@ -83,7 +123,7 @@ uint64_t helper_sublv (uint64_t op1, uint64_t op2)
     uint32_t res;
     res = op1 - op2;
     if (unlikely((op1 ^ op2) & (res ^ op1) & (1UL << 31))) {
-        helper_excp(EXCP_ARITH, EXC_M_IOV);
+        arith_excp(EXC_M_IOV, 0);
     }
     return res;
 }
@@ -93,7 +133,7 @@ uint64_t helper_mullv (uint64_t op1, uint64_t op2)
     int64_t res = (int64_t)op1 * (int64_t)op2;
 
     if (unlikely((int32_t)res != res)) {
-        helper_excp(EXCP_ARITH, EXC_M_IOV);
+        arith_excp(EXC_M_IOV, 0);
     }
     return (int64_t)((int32_t)res);
 }
@@ -105,7 +145,7 @@ uint64_t helper_mulqv (uint64_t op1, uint64_t op2)
     muls64(&tl, &th, op1, op2);
     /* If th != 0 && th != -1, then we had an overflow */
     if (unlikely((th + 1) > 1)) {
-        helper_excp(EXCP_ARITH, EXC_M_IOV);
+        arith_excp(EXC_M_IOV, 0);
     }
     return tl;
 }
@@ -373,8 +413,6 @@ void helper_fp_exc_raise(uint32_t exc, uint32_t regno)
     if (exc) {
         uint32_t hw_exc = 0;
 
-        env->ipr[IPR_EXC_MASK] |= 1ull << regno;
-
         if (exc & float_flag_invalid) {
             hw_exc |= EXC_M_INV;
         }
@@ -390,7 +428,8 @@ void helper_fp_exc_raise(uint32_t exc, uint32_t regno)
         if (exc & float_flag_inexact) {
             hw_exc |= EXC_M_INE;
         }
-        helper_excp(EXCP_ARITH, hw_exc);
+
+        arith_excp(hw_exc, 1ull << regno);
     }
 }
 
@@ -420,7 +459,7 @@ uint64_t helper_ieee_input(uint64_t val)
             if (env->fpcr_dnz) {
                 val &= 1ull << 63;
             } else {
-                helper_excp(EXCP_ARITH, EXC_M_UNF);
+                arith_excp(EXC_M_UNF, 0);
             }
         }
     } else if (exp == 0x7ff) {
@@ -428,7 +467,7 @@ uint64_t helper_ieee_input(uint64_t val)
         /* ??? I'm not sure these exception bit flags are correct.  I do
            know that the Linux kernel, at least, doesn't rely on them and
            just emulates the insn to figure out what exception to use.  */
-        helper_excp(EXCP_ARITH, frac ? EXC_M_INV : EXC_M_FOV);
+        arith_excp(frac ? EXC_M_INV : EXC_M_FOV, 0);
     }
     return val;
 }
@@ -445,12 +484,12 @@ uint64_t helper_ieee_input_cmp(uint64_t val)
             if (env->fpcr_dnz) {
                 val &= 1ull << 63;
             } else {
-                helper_excp(EXCP_ARITH, EXC_M_UNF);
+                arith_excp(EXC_M_UNF, 0);
             }
         }
     } else if (exp == 0x7ff && frac) {
         /* NaN.  */
-        helper_excp(EXCP_ARITH, EXC_M_INV);
+        arith_excp(EXC_M_INV, 0);
     }
     return val;
 }
@@ -513,7 +552,7 @@ static inline float32 f_to_float32(uint64_t a)
 
     if (unlikely(!exp && mant_sig)) {
         /* Reserved operands / Dirty zero */
-        helper_excp(EXCP_OPCDEC, 0);
+        dynamic_excp(EXCP_OPCDEC, 0);
     }
 
     if (exp < 3) {
@@ -643,7 +682,7 @@ static inline float64 g_to_float64(uint64_t a)
 
     if (!exp && mant_sig) {
         /* Reserved operands / Dirty zero */
-        helper_excp(EXCP_OPCDEC, 0);
+        dynamic_excp(EXCP_OPCDEC, 0);
     }
 
     if (exp < 3) {
@@ -1156,187 +1195,122 @@ uint64_t helper_cvtqg (uint64_t a)
 
 /* PALcode support special instructions */
 #if !defined (CONFIG_USER_ONLY)
-void helper_hw_rei (void)
-{
-    env->pc = env->ipr[IPR_EXC_ADDR] & ~3;
-    env->ipr[IPR_EXC_ADDR] = env->ipr[IPR_EXC_ADDR] & 1;
-    env->intr_flag = 0;
-    env->lock_addr = -1;
-    /* XXX: re-enable interrupts and memory mapping */
-}
-
 void helper_hw_ret (uint64_t a)
 {
     env->pc = a & ~3;
-    env->ipr[IPR_EXC_ADDR] = a & 1;
     env->intr_flag = 0;
     env->lock_addr = -1;
-    /* XXX: re-enable interrupts and memory mapping */
+    if ((a & 1) == 0) {
+        env->pal_mode = 0;
+        swap_shadow_regs(env);
+    }
 }
 
-uint64_t helper_mfpr (int iprn, uint64_t val)
+void helper_tbia(void)
 {
-    uint64_t tmp;
-
-    if (cpu_alpha_mfpr(env, iprn, &tmp) == 0)
-        val = tmp;
-
-    return val;
+    tlb_flush(env, 1);
 }
 
-void helper_mtpr (int iprn, uint64_t val)
+void helper_tbis(uint64_t p)
 {
-    cpu_alpha_mtpr(env, iprn, val, NULL);
+    tlb_flush_page(env, p);
 }
-
-void helper_set_alt_mode (void)
-{
-    env->saved_mode = env->ps & 0xC;
-    env->ps = (env->ps & ~0xC) | (env->ipr[IPR_ALT_MODE] & 0xC);
-}
-
-void helper_restore_mode (void)
-{
-    env->ps = (env->ps & ~0xC) | env->saved_mode;
-}
-
 #endif
 
 /*****************************************************************************/
 /* Softmmu support */
 #if !defined (CONFIG_USER_ONLY)
-
-/* XXX: the two following helpers are pure hacks.
- *      Hopefully, we emulate the PALcode, then we should never see
- *      HW_LD / HW_ST instructions.
- */
-uint64_t helper_ld_virt_to_phys (uint64_t virtaddr)
+uint64_t helper_ldl_phys(uint64_t p)
 {
-    uint64_t tlb_addr, physaddr;
-    int index, mmu_idx;
-    void *retaddr;
+    return (int32_t)ldl_phys(p);
+}
 
-    mmu_idx = cpu_mmu_index(env);
-    index = (virtaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
- redo:
-    tlb_addr = env->tlb_table[mmu_idx][index].addr_read;
-    if ((virtaddr & TARGET_PAGE_MASK) ==
-        (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-        physaddr = virtaddr + env->tlb_table[mmu_idx][index].addend;
-    } else {
-        /* the page is not in the TLB : fill it */
-        retaddr = GETPC();
-        tlb_fill(virtaddr, 0, mmu_idx, retaddr);
-        goto redo;
+uint64_t helper_ldq_phys(uint64_t p)
+{
+    return ldq_phys(p);
+}
+
+uint64_t helper_ldl_l_phys(uint64_t p)
+{
+    env->lock_addr = p;
+    return env->lock_value = (int32_t)ldl_phys(p);
+}
+
+uint64_t helper_ldq_l_phys(uint64_t p)
+{
+    env->lock_addr = p;
+    return env->lock_value = ldl_phys(p);
+}
+
+void helper_stl_phys(uint64_t p, uint64_t v)
+{
+    stl_phys(p, v);
+}
+
+void helper_stq_phys(uint64_t p, uint64_t v)
+{
+    stq_phys(p, v);
+}
+
+uint64_t helper_stl_c_phys(uint64_t p, uint64_t v)
+{
+    uint64_t ret = 0;
+
+    if (p == env->lock_addr) {
+        int32_t old = ldl_phys(p);
+        if (old == (int32_t)env->lock_value) {
+            stl_phys(p, v);
+            ret = 1;
+        }
     }
-    return physaddr;
-}
-
-uint64_t helper_st_virt_to_phys (uint64_t virtaddr)
-{
-    uint64_t tlb_addr, physaddr;
-    int index, mmu_idx;
-    void *retaddr;
-
-    mmu_idx = cpu_mmu_index(env);
-    index = (virtaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
- redo:
-    tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
-    if ((virtaddr & TARGET_PAGE_MASK) ==
-        (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-        physaddr = virtaddr + env->tlb_table[mmu_idx][index].addend;
-    } else {
-        /* the page is not in the TLB : fill it */
-        retaddr = GETPC();
-        tlb_fill(virtaddr, 1, mmu_idx, retaddr);
-        goto redo;
-    }
-    return physaddr;
-}
-
-void helper_ldl_raw(uint64_t t0, uint64_t t1)
-{
-    ldl_raw(t1, t0);
-}
-
-void helper_ldq_raw(uint64_t t0, uint64_t t1)
-{
-    ldq_raw(t1, t0);
-}
-
-void helper_ldl_l_raw(uint64_t t0, uint64_t t1)
-{
-    env->lock = t1;
-    ldl_raw(t1, t0);
-}
-
-void helper_ldq_l_raw(uint64_t t0, uint64_t t1)
-{
-    env->lock = t1;
-    ldl_raw(t1, t0);
-}
-
-void helper_ldl_kernel(uint64_t t0, uint64_t t1)
-{
-    ldl_kernel(t1, t0);
-}
-
-void helper_ldq_kernel(uint64_t t0, uint64_t t1)
-{
-    ldq_kernel(t1, t0);
-}
-
-void helper_ldl_data(uint64_t t0, uint64_t t1)
-{
-    ldl_data(t1, t0);
-}
-
-void helper_ldq_data(uint64_t t0, uint64_t t1)
-{
-    ldq_data(t1, t0);
-}
-
-void helper_stl_raw(uint64_t t0, uint64_t t1)
-{
-    stl_raw(t1, t0);
-}
-
-void helper_stq_raw(uint64_t t0, uint64_t t1)
-{
-    stq_raw(t1, t0);
-}
-
-uint64_t helper_stl_c_raw(uint64_t t0, uint64_t t1)
-{
-    uint64_t ret;
-
-    if (t1 == env->lock) {
-        stl_raw(t1, t0);
-        ret = 0;
-    } else
-        ret = 1;
-
-    env->lock = 1;
+    env->lock_addr = -1;
 
     return ret;
 }
 
-uint64_t helper_stq_c_raw(uint64_t t0, uint64_t t1)
+uint64_t helper_stq_c_phys(uint64_t p, uint64_t v)
 {
-    uint64_t ret;
+    uint64_t ret = 0;
 
-    if (t1 == env->lock) {
-        stq_raw(t1, t0);
-        ret = 0;
-    } else
-        ret = 1;
-
-    env->lock = 1;
+    if (p == env->lock_addr) {
+        uint64_t old = ldq_phys(p);
+        if (old == env->lock_value) {
+            stq_phys(p, v);
+            ret = 1;
+        }
+    }
+    env->lock_addr = -1;
 
     return ret;
+}
+
+static void QEMU_NORETURN do_unaligned_access(target_ulong addr, int is_write,
+                                              int is_user, void *retaddr)
+{
+    uint64_t pc;
+    uint32_t insn;
+
+    do_restore_state(retaddr);
+
+    pc = env->pc;
+    insn = ldl_code(pc);
+
+    env->trap_arg0 = addr;
+    env->trap_arg1 = insn >> 26;                /* opcode */
+    env->trap_arg2 = (insn >> 21) & 31;         /* dest regno */
+    helper_excp(EXCP_UNALIGN, 0);
+}
+
+void QEMU_NORETURN do_unassigned_access(target_phys_addr_t addr, int is_write,
+                                        int is_exec, int unused, int size)
+{
+    env->trap_arg0 = addr;
+    env->trap_arg1 = is_write;
+    dynamic_excp(EXCP_MCHK, 0);
 }
 
 #define MMUSUFFIX _mmu
+#define ALIGNED_ONLY
 
 #define SHIFT 0
 #include "softmmu_template.h"
@@ -1356,9 +1330,7 @@ uint64_t helper_stq_c_raw(uint64_t t0, uint64_t t1)
 /* XXX: fix it to restore all registers */
 void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 {
-    TranslationBlock *tb;
     CPUState *saved_env;
-    unsigned long pc;
     int ret;
 
     /* XXX: hack to restore env in all cases, even if not called from
@@ -1366,21 +1338,11 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     saved_env = env;
     env = cpu_single_env;
     ret = cpu_alpha_handle_mmu_fault(env, addr, is_write, mmu_idx, 1);
-    if (!likely(ret == 0)) {
-        if (likely(retaddr)) {
-            /* now we have a real cpu fault */
-            pc = (unsigned long)retaddr;
-            tb = tb_find_pc(pc);
-            if (likely(tb)) {
-                /* the PC is inside the translated code. It means that we have
-                   a virtual CPU fault */
-                cpu_restore_state(tb, env, pc);
-            }
-        }
+    if (unlikely(ret != 0)) {
+        do_restore_state(retaddr);
         /* Exception index and error code are already set */
         cpu_loop_exit();
     }
     env = saved_env;
 }
-
 #endif
