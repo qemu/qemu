@@ -85,7 +85,6 @@ static int usb_fs_type;
 
 /* endpoint association data */
 #define ISO_FRAME_DESC_PER_URB 32
-#define ISO_URB_COUNT 3
 #define INVALID_EP_TYPE 255
 
 /* devio.c limits single requests to 16k */
@@ -120,6 +119,7 @@ typedef struct USBHostDevice {
     int       configuration;
     int       ninterfaces;
     int       closing;
+    uint32_t  iso_urb_count;
     Notifier  exit;
 
     struct endp_data endp_table[MAX_ENDPOINTS];
@@ -505,8 +505,8 @@ static AsyncURB *usb_host_alloc_iso(USBHostDevice *s, uint8_t ep, int in)
     AsyncURB *aurb;
     int i, j, len = get_max_packet_size(s, ep);
 
-    aurb = qemu_mallocz(ISO_URB_COUNT * sizeof(*aurb));
-    for (i = 0; i < ISO_URB_COUNT; i++) {
+    aurb = qemu_mallocz(s->iso_urb_count * sizeof(*aurb));
+    for (i = 0; i < s->iso_urb_count; i++) {
         aurb[i].urb.endpoint      = ep;
         aurb[i].urb.buffer_length = ISO_FRAME_DESC_PER_URB * len;
         aurb[i].urb.buffer        = qemu_malloc(aurb[i].urb.buffer_length);
@@ -536,7 +536,7 @@ static void usb_host_stop_n_free_iso(USBHostDevice *s, uint8_t ep)
         return;
     }
 
-    for (i = 0; i < ISO_URB_COUNT; i++) {
+    for (i = 0; i < s->iso_urb_count; i++) {
         /* in flight? */
         if (aurb[i].iso_frame_idx == -1) {
             ret = ioctl(s->fd, USBDEVFS_DISCARDURB, &aurb[i]);
@@ -554,7 +554,7 @@ static void usb_host_stop_n_free_iso(USBHostDevice *s, uint8_t ep)
         async_complete(s);
     }
 
-    for (i = 0; i < ISO_URB_COUNT; i++) {
+    for (i = 0; i < s->iso_urb_count; i++) {
         qemu_free(aurb[i].urb.buffer);
     }
 
@@ -639,7 +639,7 @@ static int usb_host_handle_iso_data(USBHostDevice *s, USBPacket *p, int in)
         }
         aurb[i].iso_frame_idx++;
         if (aurb[i].iso_frame_idx == ISO_FRAME_DESC_PER_URB) {
-            i = (i + 1) % ISO_URB_COUNT;
+            i = (i + 1) % s->iso_urb_count;
             set_iso_urb_idx(s, p->devep, i);
         }
     } else {
@@ -652,7 +652,7 @@ static int usb_host_handle_iso_data(USBHostDevice *s, USBPacket *p, int in)
 
     if (is_iso_started(s, p->devep)) {
         /* (Re)-submit all fully consumed / filled urbs */
-        for (i = 0; i < ISO_URB_COUNT; i++) {
+        for (i = 0; i < s->iso_urb_count; i++) {
             if (aurb[i].iso_frame_idx == ISO_FRAME_DESC_PER_URB) {
                 ret = ioctl(s->fd, USBDEVFS_SUBMITURB, &aurb[i]);
                 if (ret < 0) {
@@ -1233,6 +1233,7 @@ static struct USBDeviceInfo usb_host_dev_info = {
         DEFINE_PROP_STRING("hostport", USBHostDevice, match.port),
         DEFINE_PROP_HEX32("vendorid",  USBHostDevice, match.vendor_id,  0),
         DEFINE_PROP_HEX32("productid", USBHostDevice, match.product_id, 0),
+        DEFINE_PROP_UINT32("isobufs",  USBHostDevice, iso_urb_count,    4),
         DEFINE_PROP_END_OF_LIST(),
     },
 };
