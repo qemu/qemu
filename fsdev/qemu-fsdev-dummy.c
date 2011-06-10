@@ -13,8 +13,16 @@
 #include <stdio.h>
 #include <string.h>
 #include "qemu-fsdev.h"
+#include "qemu-config.h"
 
 int qemu_fsdev_add(QemuOpts *opts)
 {
     return 0;
 }
+
+static void fsdev_register_config(void)
+{
+    qemu_add_opts(&qemu_fsdev_opts);
+    qemu_add_opts(&qemu_virtfs_opts);
+}
+machine_init(fsdev_register_config);
