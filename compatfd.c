@@ -29,7 +29,7 @@ static void *sigwait_compat(void *opaque)
     sigset_t all;
 
     sigfillset(&all);
-    sigprocmask(SIG_BLOCK, &all, NULL);
+    pthread_sigmask(SIG_BLOCK, &all, NULL);
 
     while (1) {
         int sig;
