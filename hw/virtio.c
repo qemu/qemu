@@ -71,7 +71,17 @@ struct VirtQueue
     VRing vring;
     target_phys_addr_t pa;
     uint16_t last_avail_idx;
+    /* Last used index value we have signalled on */
+    uint16_t signalled_used;
+
+    /* Last used index value we have signalled on */
+    bool signalled_used_valid;
+
+    /* Notification enabled? */
+    bool notification;
+
     int inuse;
+
     uint16_t vector;
     void (*handle_output)(VirtIODevice *vdev, VirtQueue *vq);
     VirtIODevice *vdev;
@@ -140,6 +150,11 @@ static inline uint16_t vring_avail_ring(VirtQueue *vq, int i)
     return lduw_phys(pa);
 }
 
+static inline uint16_t vring_used_event(VirtQueue *vq)
+{
+    return vring_avail_ring(vq, vq->vring.num);
+}
+
 static inline void vring_used_ring_id(VirtQueue *vq, int i, uint32_t val)
 {
     target_phys_addr_t pa;
@@ -161,11 +176,11 @@ static uint16_t vring_used_idx(VirtQueue *vq)
     return lduw_phys(pa);
 }
 
-static inline void vring_used_idx_increment(VirtQueue *vq, uint16_t val)
+static inline void vring_used_idx_set(VirtQueue *vq, uint16_t val)
 {
     target_phys_addr_t pa;
     pa = vq->vring.used + offsetof(VRingUsed, idx);
-    stw_phys(pa, vring_used_idx(vq) + val);
+    stw_phys(pa, val);
 }
 
 static inline void vring_used_flags_set_bit(VirtQueue *vq, int mask)
@@ -182,12 +197,26 @@ static inline void vring_used_flags_unset_bit(VirtQueue *vq, int mask)
     stw_phys(pa, lduw_phys(pa) & ~mask);
 }
 
+static inline void vring_avail_event(VirtQueue *vq, uint16_t val)
+{
+    target_phys_addr_t pa;
+    if (!vq->notification) {
+        return;
+    }
+    pa = vq->vring.used + offsetof(VRingUsed, ring[vq->vring.num]);
+    stw_phys(pa, val);
+}
+
 void virtio_queue_set_notification(VirtQueue *vq, int enable)
 {
-    if (enable)
+    vq->notification = enable;
+    if (vq->vdev->guest_features & (1 << VIRTIO_RING_F_EVENT_IDX)) {
+        vring_avail_event(vq, vring_avail_idx(vq));
+    } else if (enable) {
         vring_used_flags_unset_bit(vq, VRING_USED_F_NO_NOTIFY);
-    else
+    } else {
         vring_used_flags_set_bit(vq, VRING_USED_F_NO_NOTIFY);
+    }
 }
 
 int virtio_queue_ready(VirtQueue *vq)
@@ -233,11 +262,16 @@ void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
 
 void virtqueue_flush(VirtQueue *vq, unsigned int count)
 {
+    uint16_t old, new;
     /* Make sure buffer is written before we update index. */
     wmb();
     trace_virtqueue_flush(vq, count);
-    vring_used_idx_increment(vq, count);
+    old = vring_used_idx(vq);
+    new = old + count;
+    vring_used_idx_set(vq, new);
     vq->inuse -= count;
+    if (unlikely((int16_t)(new - vq->signalled_used) < (uint16_t)(new - old)))
+        vq->signalled_used_valid = false;
 }
 
 void virtqueue_push(VirtQueue *vq, const VirtQueueElement *elem,
@@ -394,6 +428,9 @@ int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
     max = vq->vring.num;
 
     i = head = virtqueue_get_head(vq, vq->last_avail_idx++);
+    if (vq->vdev->guest_features & (1 << VIRTIO_RING_F_EVENT_IDX)) {
+        vring_avail_event(vq, vring_avail_idx(vq));
+    }
 
     if (vring_desc_flags(desc_pa, i) & VRING_DESC_F_INDIRECT) {
         if (vring_desc_len(desc_pa, i) % sizeof(VRingDesc)) {
@@ -477,6 +514,9 @@ void virtio_reset(void *opaque)
         vdev->vq[i].last_avail_idx = 0;
         vdev->vq[i].pa = 0;
         vdev->vq[i].vector = VIRTIO_NO_VECTOR;
+        vdev->vq[i].signalled_used = 0;
+        vdev->vq[i].signalled_used_valid = false;
+        vdev->vq[i].notification = true;
     }
 }
 
@@ -626,13 +666,45 @@ void virtio_irq(VirtQueue *vq)
     virtio_notify_vector(vq->vdev, vq->vector);
 }
 
+/* Assuming a given event_idx value from the other size, if
+ * we have just incremented index from old to new_idx,
+ * should we trigger an event? */
+static inline int vring_need_event(uint16_t event, uint16_t new, uint16_t old)
+{
+	/* Note: Xen has similar logic for notification hold-off
+	 * in include/xen/interface/io/ring.h with req_event and req_prod
+	 * corresponding to event_idx + 1 and new respectively.
+	 * Note also that req_event and req_prod in Xen start at 1,
+	 * event indexes in virtio start at 0. */
+	return (uint16_t)(new - event - 1) < (uint16_t)(new - old);
+}
+
+static bool vring_notify(VirtIODevice *vdev, VirtQueue *vq)
+{
+    uint16_t old, new;
+    bool v;
+    /* Always notify when queue is empty (when feature acknowledge) */
+    if (((vdev->guest_features & (1 << VIRTIO_F_NOTIFY_ON_EMPTY)) &&
+         !vq->inuse && vring_avail_idx(vq) == vq->last_avail_idx)) {
+        return true;
+    }
+
+    if (!(vdev->guest_features & (1 << VIRTIO_RING_F_EVENT_IDX))) {
+        return !(vring_avail_flags(vq) & VRING_AVAIL_F_NO_INTERRUPT);
+    }
+
+    v = vq->signalled_used_valid;
+    vq->signalled_used_valid = true;
+    old = vq->signalled_used;
+    new = vq->signalled_used = vring_used_idx(vq);
+    return !v || vring_need_event(vring_used_event(vq), new, old);
+}
+
 void virtio_notify(VirtIODevice *vdev, VirtQueue *vq)
 {
-    /* Always notify when queue is empty (when feature acknowledge) */
-    if ((vring_avail_flags(vq) & VRING_AVAIL_F_NO_INTERRUPT) &&
-        (!(vdev->guest_features & (1 << VIRTIO_F_NOTIFY_ON_EMPTY)) ||
-         (vq->inuse || vring_avail_idx(vq) != vq->last_avail_idx)))
+    if (!vring_notify(vdev, vq)) {
         return;
+    }
 
     trace_virtio_notify(vdev, vq);
     vdev->isr |= 0x01;
@@ -715,6 +787,8 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
         vdev->vq[i].vring.num = qemu_get_be32(f);
         vdev->vq[i].pa = qemu_get_be64(f);
         qemu_get_be16s(f, &vdev->vq[i].last_avail_idx);
+        vdev->vq[i].signalled_used_valid = false;
+        vdev->vq[i].notification = true;
 
         if (vdev->vq[i].pa) {
             uint16_t nheads;
