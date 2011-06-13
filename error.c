@@ -9,11 +9,12 @@
  * This work is licensed under the terms of the GNU LGPL, version 2.  See
  * the COPYING.LIB file in the top-level directory.
  */
+
+#include "qemu-common.h"
 #include "error.h"
 #include "error_int.h"
 #include "qemu-objects.h"
 #include "qerror.h"
-#include <assert.h>
 
 struct Error
 {
