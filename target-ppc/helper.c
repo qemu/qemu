@@ -949,8 +949,24 @@ static inline int get_segment(CPUState *env, mmu_ctx_t *ctx,
             ret = -3;
         }
     } else {
+        target_ulong sr;
         LOG_MMU("direct store...\n");
         /* Direct-store segment : absolutely *BUGGY* for now */
+
+        /* Direct-store implies a 32-bit MMU.
+         * Check the Segment Register's bus unit ID (BUID).
+         */
+        sr = env->sr[eaddr >> 28];
+        if ((sr & 0x1FF00000) >> 20 == 0x07f) {
+            /* Memory-forced I/O controller interface access */
+            /* If T=1 and BUID=x'07F', the 601 performs a memory access
+             * to SR[28-31] LA[4-31], bypassing all protection mechanisms.
+             */
+            ctx->raddr = ((sr & 0xF) << 28) | (eaddr & 0x0FFFFFFF);
+            ctx->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+            return 0;
+        }
+
         switch (type) {
         case ACCESS_INT:
             /* Integer load/store : only access allowed */
