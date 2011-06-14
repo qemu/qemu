@@ -258,9 +258,9 @@ if ($email &&
     die "$P: Please select at least 1 email option\n";
 }
 
-if (!top_of_kernel_tree($lk_path)) {
+if (!top_of_tree($lk_path)) {
     die "$P: The current directory does not appear to be "
-	. "a linux kernel source tree.\n";
+	. "a QEMU source tree.\n";
 }
 
 ## Read MAINTAINERS for type/value pairs
@@ -792,7 +792,7 @@ Notes:
           --git-min-signatures, --git-max-maintainers, --git-min-percent, and
           --git-blame
       Use --hg-since not --git-since to control date selection
-  File ".get_maintainer.conf", if it exists in the linux kernel source root
+  File ".get_maintainer.conf", if it exists in the QEMU source root
       directory, can change whatever get_maintainer defaults are desired.
       Entries in this file can be any command line argument.
       This file is prepended to any additional command line arguments.
@@ -800,28 +800,18 @@ Notes:
 EOT
 }
 
-sub top_of_kernel_tree {
+sub top_of_tree {
     my ($lk_path) = @_;
 
     if ($lk_path ne "" && substr($lk_path,length($lk_path)-1,1) ne "/") {
 	$lk_path .= "/";
     }
-    if (   (-f "${lk_path}COPYING")
-	&& (-f "${lk_path}CREDITS")
-	&& (-f "${lk_path}Kbuild")
-	&& (-f "${lk_path}MAINTAINERS")
-	&& (-f "${lk_path}Makefile")
-	&& (-f "${lk_path}README")
-	&& (-d "${lk_path}Documentation")
-	&& (-d "${lk_path}arch")
-	&& (-d "${lk_path}include")
-	&& (-d "${lk_path}drivers")
-	&& (-d "${lk_path}fs")
-	&& (-d "${lk_path}init")
-	&& (-d "${lk_path}ipc")
-	&& (-d "${lk_path}kernel")
-	&& (-d "${lk_path}lib")
-	&& (-d "${lk_path}scripts")) {
+    if (    (-f "${lk_path}COPYING")
+        && (-f "${lk_path}MAINTAINERS")
+        && (-f "${lk_path}Makefile")
+        && (-d "${lk_path}docs")
+        && (-f "${lk_path}VERSION")
+        && (-f "${lk_path}vl.c")) {
 	return 1;
     }
     return 0;
@@ -1387,8 +1377,8 @@ sub vcs_exists {
     if (!$printed_novcs) {
 	warn("$P: No supported VCS found.  Add --nogit to options?\n");
 	warn("Using a git repository produces better results.\n");
-	warn("Try Linus Torvalds' latest git repository using:\n");
-	warn("git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git\n");
+	warn("Try latest git repository using:\n");
+	warn("git clone git://git.qemu.org/qemu.git\n");
 	$printed_novcs = 1;
     }
     return 0;
