@@ -1663,7 +1663,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     uint32_t palcode;
     int32_t disp21, disp16, disp12;
     uint16_t fn11;
-    uint8_t opc, ra, rb, rc, fpfn, fn7, fn2, islit, real_islit;
+    uint8_t opc, ra, rb, rc, fpfn, fn7, islit, real_islit;
     uint8_t lit;
     ExitStatus ret;
 
@@ -1685,7 +1685,6 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     fn11 = (insn >> 5) & 0x000007FF;
     fpfn = fn11 & 0x3F;
     fn7 = (insn >> 5) & 0x0000007F;
-    fn2 = (insn >> 5) & 0x00000003;
     LOG_DISAS("opc %02x ra %2d rb %2d rc %2d disp16 %6d\n",
               opc, ra, rb, rc, disp16);
 
