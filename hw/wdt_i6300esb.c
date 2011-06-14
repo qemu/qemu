@@ -381,7 +381,6 @@ static const VMStateDescription vmstate_i6300esb = {
 static int i6300esb_init(PCIDevice *dev)
 {
     I6300State *d = DO_UPCAST(I6300State, dev, dev);
-    uint8_t *pci_conf;
     int io_mem;
     static CPUReadMemoryFunc * const mem_read[3] = {
         i6300esb_mem_readb,
@@ -398,8 +397,6 @@ static int i6300esb_init(PCIDevice *dev)
 
     d->timer = qemu_new_timer_ns(vm_clock, i6300esb_timer_expired, d);
     d->previous_reboot_flag = 0;
-
-    pci_conf = d->dev.config;
 
     io_mem = cpu_register_io_memory(mem_read, mem_write, d,
                                     DEVICE_NATIVE_ENDIAN);
