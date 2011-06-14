@@ -401,7 +401,6 @@ static int qemu_signal_init(void)
     sigaddset(&set, SIGALRM);
     sigaddset(&set, SIG_IPI);
     sigaddset(&set, SIGBUS);
-    pthread_sigmask(SIG_BLOCK, &set, NULL);
 #else
     sigemptyset(&set);
     sigaddset(&set, SIGBUS);
@@ -414,6 +413,7 @@ static int qemu_signal_init(void)
         sigaddset(&set, SIGALRM);
     }
 #endif
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
 
     sigfd = qemu_signalfd(&set);
     if (sigfd == -1) {
