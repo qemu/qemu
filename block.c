@@ -439,13 +439,7 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
     bs->drv = drv;
     bs->opaque = qemu_mallocz(drv->instance_size);
 
-    /*
-     * Yes, BDRV_O_NOCACHE aka O_DIRECT means we have to present a
-     * write cache to the guest.  We do need the fdatasync to flush
-     * out transactions for block allocations, and we maybe have a
-     * volatile write cache in our backing device to deal with.
-     */
-    if (flags & (BDRV_O_CACHE_WB|BDRV_O_NOCACHE))
+    if (flags & BDRV_O_CACHE_WB)
         bs->enable_write_cache = 1;
 
     /*
@@ -455,7 +449,7 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
     open_flags = flags & ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
 
     /*
-     * Snapshots should be writeable.
+     * Snapshots should be writable.
      */
     if (bs->is_temporary) {
         open_flags |= BDRV_O_RDWR;
@@ -747,7 +741,7 @@ DeviceState *bdrv_get_attached(BlockDriverState *bs)
  * Run consistency checks on an image
  *
  * Returns 0 if the check could be completed (it doesn't mean that the image is
- * free of errors) or -errno when an internal error occured. The results of the
+ * free of errors) or -errno when an internal error occurred. The results of the
  * check are stored in res.
  */
 int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res)
@@ -1305,13 +1299,6 @@ void bdrv_set_geometry_hint(BlockDriverState *bs,
     bs->secs = secs;
 }
 
-void bdrv_set_type_hint(BlockDriverState *bs, int type)
-{
-    bs->type = type;
-    bs->removable = ((type == BDRV_TYPE_CDROM ||
-                      type == BDRV_TYPE_FLOPPY));
-}
-
 void bdrv_set_translation_hint(BlockDriverState *bs, int translation)
 {
     bs->translation = translation;
@@ -1426,11 +1413,6 @@ void bdrv_get_floppy_geometry_hint(BlockDriverState *bs, int *nb_heads,
         *last_sect = parse->last_sect;
         *drive = parse->drive;
     }
-}
-
-int bdrv_get_type_hint(BlockDriverState *bs)
-{
-    return bs->type;
 }
 
 int bdrv_get_translation_hint(BlockDriverState *bs)
@@ -1704,9 +1686,8 @@ static void bdrv_print_dict(QObject *obj, void *opaque)
 
     bs_dict = qobject_to_qdict(obj);
 
-    monitor_printf(mon, "%s: type=%s removable=%d",
+    monitor_printf(mon, "%s: removable=%d",
                         qdict_get_str(bs_dict, "device"),
-                        qdict_get_str(bs_dict, "type"),
                         qdict_get_bool(bs_dict, "removable"));
 
     if (qdict_get_bool(bs_dict, "removable")) {
@@ -1747,23 +1728,10 @@ void bdrv_info(Monitor *mon, QObject **ret_data)
 
     QTAILQ_FOREACH(bs, &bdrv_states, list) {
         QObject *bs_obj;
-        const char *type = "unknown";
 
-        switch(bs->type) {
-        case BDRV_TYPE_HD:
-            type = "hd";
-            break;
-        case BDRV_TYPE_CDROM:
-            type = "cdrom";
-            break;
-        case BDRV_TYPE_FLOPPY:
-            type = "floppy";
-            break;
-        }
-
-        bs_obj = qobject_from_jsonf("{ 'device': %s, 'type': %s, "
+        bs_obj = qobject_from_jsonf("{ 'device': %s, 'type': 'unknown', "
                                     "'removable': %i, 'locked': %i }",
-                                    bs->device_name, type, bs->removable,
+                                    bs->device_name, bs->removable,
                                     bs->locked);
 
         if (bs->drv) {
@@ -2913,7 +2881,7 @@ int bdrv_img_create(const char *filename, const char *fmt,
                     char *options, uint64_t img_size, int flags)
 {
     QEMUOptionParameter *param = NULL, *create_options = NULL;
-    QEMUOptionParameter *backing_fmt, *backing_file;
+    QEMUOptionParameter *backing_fmt, *backing_file, *size;
     BlockDriverState *bs = NULL;
     BlockDriver *drv, *proto_drv;
     BlockDriver *backing_drv = NULL;
@@ -2996,7 +2964,8 @@ int bdrv_img_create(const char *filename, const char *fmt,
 
     // The size for the image must always be specified, with one exception:
     // If we are using a backing file, we can obtain the size from there
-    if (get_option_parameter(param, BLOCK_OPT_SIZE)->value.n == -1) {
+    size = get_option_parameter(param, BLOCK_OPT_SIZE);
+    if (size && size->value.n == -1) {
         if (backing_file && backing_file->value.s) {
             uint64_t size;
             char buf[32];

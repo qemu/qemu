@@ -175,8 +175,9 @@ static int xen_domain_watcher(void)
     for (i = 3; i < n; i++) {
         if (i == fd[0])
             continue;
-        if (i == xen_xc)
+        if (i == xc_fd(xen_xc)) {
             continue;
+        }
         close(i);
     }
 

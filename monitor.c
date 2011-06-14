@@ -2544,16 +2544,21 @@ static void do_wav_capture(Monitor *mon, const QDict *qdict)
 #endif
 
 #if defined(TARGET_I386)
-static void do_inject_nmi(Monitor *mon, const QDict *qdict)
+static int do_inject_nmi(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     CPUState *env;
-    int cpu_index = qdict_get_int(qdict, "cpu_index");
 
-    for (env = first_cpu; env != NULL; env = env->next_cpu)
-        if (env->cpu_index == cpu_index) {
-            cpu_interrupt(env, CPU_INTERRUPT_NMI);
-            break;
-        }
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        cpu_interrupt(env, CPU_INTERRUPT_NMI);
+    }
+
+    return 0;
+}
+#else
+static int do_inject_nmi(Monitor *mon, const QDict *qdict, QObject **ret_data)
+{
+    qerror_report(QERR_UNSUPPORTED);
+    return -1;
 }
 #endif
 
@@ -3466,7 +3471,76 @@ static const MonitorDef monitor_defs[] = {
     { "sr13", offsetof(CPUState, sr[13]) },
     { "sr14", offsetof(CPUState, sr[14]) },
     { "sr15", offsetof(CPUState, sr[15]) },
-    /* Too lazy to put BATs and SPRs ... */
+    /* Too lazy to put BATs... */
+    { "pvr", offsetof(CPUState, spr[SPR_PVR]) },
+
+    { "srr0", offsetof(CPUState, spr[SPR_SRR0]) },
+    { "srr1", offsetof(CPUState, spr[SPR_SRR1]) },
+    { "sprg0", offsetof(CPUState, spr[SPR_SPRG0]) },
+    { "sprg1", offsetof(CPUState, spr[SPR_SPRG1]) },
+    { "sprg2", offsetof(CPUState, spr[SPR_SPRG2]) },
+    { "sprg3", offsetof(CPUState, spr[SPR_SPRG3]) },
+    { "sprg4", offsetof(CPUState, spr[SPR_SPRG4]) },
+    { "sprg5", offsetof(CPUState, spr[SPR_SPRG5]) },
+    { "sprg6", offsetof(CPUState, spr[SPR_SPRG6]) },
+    { "sprg7", offsetof(CPUState, spr[SPR_SPRG7]) },
+    { "pid", offsetof(CPUState, spr[SPR_BOOKE_PID]) },
+    { "csrr0", offsetof(CPUState, spr[SPR_BOOKE_CSRR0]) },
+    { "csrr1", offsetof(CPUState, spr[SPR_BOOKE_CSRR1]) },
+    { "esr", offsetof(CPUState, spr[SPR_BOOKE_ESR]) },
+    { "dear", offsetof(CPUState, spr[SPR_BOOKE_DEAR]) },
+    { "mcsr", offsetof(CPUState, spr[SPR_BOOKE_MCSR]) },
+    { "tsr", offsetof(CPUState, spr[SPR_BOOKE_TSR]) },
+    { "tcr", offsetof(CPUState, spr[SPR_BOOKE_TCR]) },
+    { "vrsave", offsetof(CPUState, spr[SPR_VRSAVE]) },
+    { "pir", offsetof(CPUState, spr[SPR_BOOKE_PIR]) },
+    { "mcsrr0", offsetof(CPUState, spr[SPR_BOOKE_MCSRR0]) },
+    { "mcsrr1", offsetof(CPUState, spr[SPR_BOOKE_MCSRR1]) },
+    { "decar", offsetof(CPUState, spr[SPR_BOOKE_DECAR]) },
+    { "ivpr", offsetof(CPUState, spr[SPR_BOOKE_IVPR]) },
+    { "epcr", offsetof(CPUState, spr[SPR_BOOKE_EPCR]) },
+    { "sprg8", offsetof(CPUState, spr[SPR_BOOKE_SPRG8]) },
+    { "ivor0", offsetof(CPUState, spr[SPR_BOOKE_IVOR0]) },
+    { "ivor1", offsetof(CPUState, spr[SPR_BOOKE_IVOR1]) },
+    { "ivor2", offsetof(CPUState, spr[SPR_BOOKE_IVOR2]) },
+    { "ivor3", offsetof(CPUState, spr[SPR_BOOKE_IVOR3]) },
+    { "ivor4", offsetof(CPUState, spr[SPR_BOOKE_IVOR4]) },
+    { "ivor5", offsetof(CPUState, spr[SPR_BOOKE_IVOR5]) },
+    { "ivor6", offsetof(CPUState, spr[SPR_BOOKE_IVOR6]) },
+    { "ivor7", offsetof(CPUState, spr[SPR_BOOKE_IVOR7]) },
+    { "ivor8", offsetof(CPUState, spr[SPR_BOOKE_IVOR8]) },
+    { "ivor9", offsetof(CPUState, spr[SPR_BOOKE_IVOR9]) },
+    { "ivor10", offsetof(CPUState, spr[SPR_BOOKE_IVOR10]) },
+    { "ivor11", offsetof(CPUState, spr[SPR_BOOKE_IVOR11]) },
+    { "ivor12", offsetof(CPUState, spr[SPR_BOOKE_IVOR12]) },
+    { "ivor13", offsetof(CPUState, spr[SPR_BOOKE_IVOR13]) },
+    { "ivor14", offsetof(CPUState, spr[SPR_BOOKE_IVOR14]) },
+    { "ivor15", offsetof(CPUState, spr[SPR_BOOKE_IVOR15]) },
+    { "ivor32", offsetof(CPUState, spr[SPR_BOOKE_IVOR32]) },
+    { "ivor33", offsetof(CPUState, spr[SPR_BOOKE_IVOR33]) },
+    { "ivor34", offsetof(CPUState, spr[SPR_BOOKE_IVOR34]) },
+    { "ivor35", offsetof(CPUState, spr[SPR_BOOKE_IVOR35]) },
+    { "ivor36", offsetof(CPUState, spr[SPR_BOOKE_IVOR36]) },
+    { "ivor37", offsetof(CPUState, spr[SPR_BOOKE_IVOR37]) },
+    { "mas0", offsetof(CPUState, spr[SPR_BOOKE_MAS0]) },
+    { "mas1", offsetof(CPUState, spr[SPR_BOOKE_MAS1]) },
+    { "mas2", offsetof(CPUState, spr[SPR_BOOKE_MAS2]) },
+    { "mas3", offsetof(CPUState, spr[SPR_BOOKE_MAS3]) },
+    { "mas4", offsetof(CPUState, spr[SPR_BOOKE_MAS4]) },
+    { "mas6", offsetof(CPUState, spr[SPR_BOOKE_MAS6]) },
+    { "mas7", offsetof(CPUState, spr[SPR_BOOKE_MAS7]) },
+    { "mmucfg", offsetof(CPUState, spr[SPR_MMUCFG]) },
+    { "tlb0cfg", offsetof(CPUState, spr[SPR_BOOKE_TLB0CFG]) },
+    { "tlb1cfg", offsetof(CPUState, spr[SPR_BOOKE_TLB1CFG]) },
+    { "epr", offsetof(CPUState, spr[SPR_BOOKE_EPR]) },
+    { "eplc", offsetof(CPUState, spr[SPR_BOOKE_EPLC]) },
+    { "epsc", offsetof(CPUState, spr[SPR_BOOKE_EPSC]) },
+    { "svr", offsetof(CPUState, spr[SPR_E500_SVR]) },
+    { "mcar", offsetof(CPUState, spr[SPR_Exxx_MCAR]) },
+    { "pid1", offsetof(CPUState, spr[SPR_BOOKE_PID1]) },
+    { "pid2", offsetof(CPUState, spr[SPR_BOOKE_PID2]) },
+    { "hid0", offsetof(CPUState, spr[SPR_HID0]) },
+
 #elif defined(TARGET_SPARC)
     { "g0", offsetof(CPUState, gregs[0]) },
     { "g1", offsetof(CPUState, gregs[1]) },

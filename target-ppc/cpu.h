@@ -108,8 +108,8 @@ enum powerpc_mmu_t {
     POWERPC_MMU_MPC8xx     = 0x00000007,
     /* BookE MMU model                                         */
     POWERPC_MMU_BOOKE      = 0x00000008,
-    /* BookE FSL MMU model                                     */
-    POWERPC_MMU_BOOKE_FSL  = 0x00000009,
+    /* BookE 2.06 MMU model                                    */
+    POWERPC_MMU_BOOKE206   = 0x00000009,
     /* PowerPC 601 MMU model (specific BATs format)            */
     POWERPC_MMU_601        = 0x0000000A,
 #if defined(TARGET_PPC64)
@@ -225,7 +225,7 @@ enum {
     /* 970FX specific exceptions                                             */
     POWERPC_EXCP_SOFTP    = 88, /* Soft patch exception                      */
     POWERPC_EXCP_MAINT    = 89, /* Maintenance exception                     */
-    /* Freescale embeded cores specific exceptions                           */
+    /* Freescale embedded cores specific exceptions                          */
     POWERPC_EXCP_MEXTBR   = 90, /* Maskable external breakpoint              */
     POWERPC_EXCP_NMEXTBR  = 91, /* Non maskable external breakpoint          */
     POWERPC_EXCP_ITLBE    = 92, /* Instruction TLB error                     */
@@ -420,6 +420,7 @@ struct ppc_slb_t {
 #define MSR_CM   31 /* Computation mode for BookE                     hflags */
 #define MSR_ICM  30 /* Interrupt computation mode for BookE                  */
 #define MSR_THV  29 /* hypervisor state for 32 bits PowerPC           hflags */
+#define MSR_GS   28 /* guest state for BookE                                 */
 #define MSR_UCLE 26 /* User-mode cache lock enable for BookE                 */
 #define MSR_VR   25 /* altivec available                            x hflags */
 #define MSR_SPE  25 /* SPE enable for BookE                         x hflags */
@@ -457,6 +458,7 @@ struct ppc_slb_t {
 #define msr_cm   ((env->msr >> MSR_CM)   & 1)
 #define msr_icm  ((env->msr >> MSR_ICM)  & 1)
 #define msr_thv  ((env->msr >> MSR_THV)  & 1)
+#define msr_gs   ((env->msr >> MSR_GS)   & 1)
 #define msr_ucle ((env->msr >> MSR_UCLE) & 1)
 #define msr_vr   ((env->msr >> MSR_VR)   & 1)
 #define msr_spe  ((env->msr >> MSR_SPE)  & 1)
@@ -606,6 +608,224 @@ enum {
 #define vscr_sat	(((env->vscr) >> VSCR_SAT)	& 0x1)
 
 /*****************************************************************************/
+/* BookE e500 MMU registers */
+
+#define MAS0_NV_SHIFT      0
+#define MAS0_NV_MASK       (0xfff << MAS0_NV_SHIFT)
+
+#define MAS0_WQ_SHIFT      12
+#define MAS0_WQ_MASK       (3 << MAS0_WQ_SHIFT)
+/* Write TLB entry regardless of reservation */
+#define MAS0_WQ_ALWAYS     (0 << MAS0_WQ_SHIFT)
+/* Write TLB entry only already in use */
+#define MAS0_WQ_COND       (1 << MAS0_WQ_SHIFT)
+/* Clear TLB entry */
+#define MAS0_WQ_CLR_RSRV   (2 << MAS0_WQ_SHIFT)
+
+#define MAS0_HES_SHIFT     14
+#define MAS0_HES           (1 << MAS0_HES_SHIFT)
+
+#define MAS0_ESEL_SHIFT    16
+#define MAS0_ESEL_MASK     (0xfff << MAS0_ESEL_SHIFT)
+
+#define MAS0_TLBSEL_SHIFT  28
+#define MAS0_TLBSEL_MASK   (3 << MAS0_TLBSEL_SHIFT)
+#define MAS0_TLBSEL_TLB0   (0 << MAS0_TLBSEL_SHIFT)
+#define MAS0_TLBSEL_TLB1   (1 << MAS0_TLBSEL_SHIFT)
+#define MAS0_TLBSEL_TLB2   (2 << MAS0_TLBSEL_SHIFT)
+#define MAS0_TLBSEL_TLB3   (3 << MAS0_TLBSEL_SHIFT)
+
+#define MAS0_ATSEL_SHIFT   31
+#define MAS0_ATSEL         (1 << MAS0_ATSEL_SHIFT)
+#define MAS0_ATSEL_TLB     0
+#define MAS0_ATSEL_LRAT    MAS0_ATSEL
+
+#define MAS1_TSIZE_SHIFT   8
+#define MAS1_TSIZE_MASK    (0xf << MAS1_TSIZE_SHIFT)
+
+#define MAS1_TS_SHIFT      12
+#define MAS1_TS            (1 << MAS1_TS_SHIFT)
+
+#define MAS1_IND_SHIFT     13
+#define MAS1_IND           (1 << MAS1_IND_SHIFT)
+
+#define MAS1_TID_SHIFT     16
+#define MAS1_TID_MASK      (0x3fff << MAS1_TID_SHIFT)
+
+#define MAS1_IPROT_SHIFT   30
+#define MAS1_IPROT         (1 << MAS1_IPROT_SHIFT)
+
+#define MAS1_VALID_SHIFT   31
+#define MAS1_VALID         0x80000000
+
+#define MAS2_EPN_SHIFT     12
+#define MAS2_EPN_MASK      (0xfffff << MAS2_EPN_SHIFT)
+
+#define MAS2_ACM_SHIFT     6
+#define MAS2_ACM           (1 << MAS2_ACM_SHIFT)
+
+#define MAS2_VLE_SHIFT     5
+#define MAS2_VLE           (1 << MAS2_VLE_SHIFT)
+
+#define MAS2_W_SHIFT       4
+#define MAS2_W             (1 << MAS2_W_SHIFT)
+
+#define MAS2_I_SHIFT       3
+#define MAS2_I             (1 << MAS2_I_SHIFT)
+
+#define MAS2_M_SHIFT       2
+#define MAS2_M             (1 << MAS2_M_SHIFT)
+
+#define MAS2_G_SHIFT       1
+#define MAS2_G             (1 << MAS2_G_SHIFT)
+
+#define MAS2_E_SHIFT       0
+#define MAS2_E             (1 << MAS2_E_SHIFT)
+
+#define MAS3_RPN_SHIFT     12
+#define MAS3_RPN_MASK      (0xfffff << MAS3_RPN_SHIFT)
+
+#define MAS3_U0                 0x00000200
+#define MAS3_U1                 0x00000100
+#define MAS3_U2                 0x00000080
+#define MAS3_U3                 0x00000040
+#define MAS3_UX                 0x00000020
+#define MAS3_SX                 0x00000010
+#define MAS3_UW                 0x00000008
+#define MAS3_SW                 0x00000004
+#define MAS3_UR                 0x00000002
+#define MAS3_SR                 0x00000001
+#define MAS3_SPSIZE_SHIFT       1
+#define MAS3_SPSIZE_MASK        (0x3e << MAS3_SPSIZE_SHIFT)
+
+#define MAS4_TLBSELD_SHIFT      MAS0_TLBSEL_SHIFT
+#define MAS4_TLBSELD_MASK       MAS0_TLBSEL_MASK
+#define MAS4_TIDSELD_MASK       0x00030000
+#define MAS4_TIDSELD_PID0       0x00000000
+#define MAS4_TIDSELD_PID1       0x00010000
+#define MAS4_TIDSELD_PID2       0x00020000
+#define MAS4_TIDSELD_PIDZ       0x00030000
+#define MAS4_INDD               0x00008000      /* Default IND */
+#define MAS4_TSIZED_SHIFT       MAS1_TSIZE_SHIFT
+#define MAS4_TSIZED_MASK        MAS1_TSIZE_MASK
+#define MAS4_ACMD               0x00000040
+#define MAS4_VLED               0x00000020
+#define MAS4_WD                 0x00000010
+#define MAS4_ID                 0x00000008
+#define MAS4_MD                 0x00000004
+#define MAS4_GD                 0x00000002
+#define MAS4_ED                 0x00000001
+#define MAS4_WIMGED_MASK        0x0000001f      /* Default WIMGE */
+#define MAS4_WIMGED_SHIFT       0
+
+#define MAS5_SGS                0x80000000
+#define MAS5_SLPID_MASK         0x00000fff
+
+#define MAS6_SPID0              0x3fff0000
+#define MAS6_SPID1              0x00007ffe
+#define MAS6_ISIZE(x)           MAS1_TSIZE(x)
+#define MAS6_SAS                0x00000001
+#define MAS6_SPID               MAS6_SPID0
+#define MAS6_SIND               0x00000002      /* Indirect page */
+#define MAS6_SIND_SHIFT         1
+#define MAS6_SPID_MASK          0x3fff0000
+#define MAS6_SPID_SHIFT         16
+#define MAS6_ISIZE_MASK         0x00000f80
+#define MAS6_ISIZE_SHIFT        7
+
+#define MAS7_RPN                0xffffffff
+
+#define MAS8_TGS                0x80000000
+#define MAS8_VF                 0x40000000
+#define MAS8_TLBPID             0x00000fff
+
+/* Bit definitions for MMUCFG */
+#define MMUCFG_MAVN     0x00000003      /* MMU Architecture Version Number */
+#define MMUCFG_MAVN_V1  0x00000000      /* v1.0 */
+#define MMUCFG_MAVN_V2  0x00000001      /* v2.0 */
+#define MMUCFG_NTLBS    0x0000000c      /* Number of TLBs */
+#define MMUCFG_PIDSIZE  0x000007c0      /* PID Reg Size */
+#define MMUCFG_TWC      0x00008000      /* TLB Write Conditional (v2.0) */
+#define MMUCFG_LRAT     0x00010000      /* LRAT Supported (v2.0) */
+#define MMUCFG_RASIZE   0x00fe0000      /* Real Addr Size */
+#define MMUCFG_LPIDSIZE 0x0f000000      /* LPID Reg Size */
+
+/* Bit definitions for MMUCSR0 */
+#define MMUCSR0_TLB1FI  0x00000002      /* TLB1 Flash invalidate */
+#define MMUCSR0_TLB0FI  0x00000004      /* TLB0 Flash invalidate */
+#define MMUCSR0_TLB2FI  0x00000040      /* TLB2 Flash invalidate */
+#define MMUCSR0_TLB3FI  0x00000020      /* TLB3 Flash invalidate */
+#define MMUCSR0_TLBFI   (MMUCSR0_TLB0FI | MMUCSR0_TLB1FI | \
+                         MMUCSR0_TLB2FI | MMUCSR0_TLB3FI)
+#define MMUCSR0_TLB0PS  0x00000780      /* TLB0 Page Size */
+#define MMUCSR0_TLB1PS  0x00007800      /* TLB1 Page Size */
+#define MMUCSR0_TLB2PS  0x00078000      /* TLB2 Page Size */
+#define MMUCSR0_TLB3PS  0x00780000      /* TLB3 Page Size */
+
+/* TLBnCFG encoding */
+#define TLBnCFG_N_ENTRY         0x00000fff      /* number of entries */
+#define TLBnCFG_HES             0x00002000      /* HW select supported */
+#define TLBnCFG_AVAIL           0x00004000      /* variable page size */
+#define TLBnCFG_IPROT           0x00008000      /* IPROT supported */
+#define TLBnCFG_GTWE            0x00010000      /* Guest can write */
+#define TLBnCFG_IND             0x00020000      /* IND entries supported */
+#define TLBnCFG_PT              0x00040000      /* Can load from page table */
+#define TLBnCFG_MINSIZE         0x00f00000      /* Minimum Page Size (v1.0) */
+#define TLBnCFG_MINSIZE_SHIFT   20
+#define TLBnCFG_MAXSIZE         0x000f0000      /* Maximum Page Size (v1.0) */
+#define TLBnCFG_MAXSIZE_SHIFT   16
+#define TLBnCFG_ASSOC           0xff000000      /* Associativity */
+#define TLBnCFG_ASSOC_SHIFT     24
+
+/* TLBnPS encoding */
+#define TLBnPS_4K               0x00000004
+#define TLBnPS_8K               0x00000008
+#define TLBnPS_16K              0x00000010
+#define TLBnPS_32K              0x00000020
+#define TLBnPS_64K              0x00000040
+#define TLBnPS_128K             0x00000080
+#define TLBnPS_256K             0x00000100
+#define TLBnPS_512K             0x00000200
+#define TLBnPS_1M               0x00000400
+#define TLBnPS_2M               0x00000800
+#define TLBnPS_4M               0x00001000
+#define TLBnPS_8M               0x00002000
+#define TLBnPS_16M              0x00004000
+#define TLBnPS_32M              0x00008000
+#define TLBnPS_64M              0x00010000
+#define TLBnPS_128M             0x00020000
+#define TLBnPS_256M             0x00040000
+#define TLBnPS_512M             0x00080000
+#define TLBnPS_1G               0x00100000
+#define TLBnPS_2G               0x00200000
+#define TLBnPS_4G               0x00400000
+#define TLBnPS_8G               0x00800000
+#define TLBnPS_16G              0x01000000
+#define TLBnPS_32G              0x02000000
+#define TLBnPS_64G              0x04000000
+#define TLBnPS_128G             0x08000000
+#define TLBnPS_256G             0x10000000
+
+/* tlbilx action encoding */
+#define TLBILX_T_ALL                    0
+#define TLBILX_T_TID                    1
+#define TLBILX_T_FULLMATCH              3
+#define TLBILX_T_CLASS0                 4
+#define TLBILX_T_CLASS1                 5
+#define TLBILX_T_CLASS2                 6
+#define TLBILX_T_CLASS3                 7
+
+/* BookE 2.06 helper defines */
+
+#define BOOKE206_FLUSH_TLB0    (1 << 0)
+#define BOOKE206_FLUSH_TLB1    (1 << 1)
+#define BOOKE206_FLUSH_TLB2    (1 << 2)
+#define BOOKE206_FLUSH_TLB3    (1 << 3)
+
+/* number of possible TLBs */
+#define BOOKE206_MAX_TLBN      4
+
+/*****************************************************************************/
 /* The whole PowerPC CPU context */
 #define NB_MMU_MODES 3
 
@@ -676,7 +896,7 @@ struct CPUPPCState {
     int nb_BATs;
     target_ulong DBAT[2][8];
     target_ulong IBAT[2][8];
-    /* PowerPC TLB registers (for 4xx and 60x software driven TLBs) */
+    /* PowerPC TLB registers (for 4xx, e500 and 60x software driven TLBs) */
     int nb_tlb;      /* Total number of TLB                                  */
     int tlb_per_way; /* Speed-up helper: used to avoid divisions at run time */
     int nb_ways;     /* Number of ways in the TLB set                        */
@@ -720,6 +940,7 @@ struct CPUPPCState {
     int bfd_mach;
     uint32_t flags;
     uint64_t insns_flags;
+    uint64_t insns_flags2;
 
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
     target_phys_addr_t vpa;
@@ -853,6 +1074,10 @@ void store_40x_dbcr0 (CPUPPCState *env, uint32_t val);
 void store_40x_sler (CPUPPCState *env, uint32_t val);
 void store_booke_tcr (CPUPPCState *env, target_ulong val);
 void store_booke_tsr (CPUPPCState *env, target_ulong val);
+void booke206_flush_tlb(CPUState *env, int flags, const int check_iprot);
+int ppcemb_tlb_check(CPUState *env, ppcemb_tlb_t *tlb,
+                     target_phys_addr_t *raddrp, target_ulong address,
+                     uint32_t pid, int ext, int i);
 void ppc_tlb_invalidate_all (CPUPPCState *env);
 void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr);
 #if defined(TARGET_PPC64)
@@ -1016,6 +1241,7 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 #define SPR_HSPRG1            (0x131)
 #define SPR_HDSISR            (0x132)
 #define SPR_HDAR              (0x133)
+#define SPR_BOOKE_EPCR        (0x133)
 #define SPR_SPURR             (0x134)
 #define SPR_BOOKE_DBCR0       (0x134)
 #define SPR_IBCR              (0x135)
@@ -1543,6 +1769,11 @@ enum {
     PPC_DCRUX          = 0x4000000000000000ULL,
     /* popcntw and popcntd instructions                                      */
     PPC_POPCNTWD       = 0x8000000000000000ULL,
+
+    /* extended type values */
+
+    /* BookE 2.06 PowerPC specification                                      */
+    PPC2_BOOKE206      = 0x0000000000000001ULL,
 };
 
 /*****************************************************************************/
@@ -1694,6 +1925,77 @@ static inline void cpu_set_tls(CPUState *env, target_ulong newtls)
     env->gpr[2] = newtls;
 #endif
 }
+
+#if !defined(CONFIG_USER_ONLY)
+static inline int booke206_tlbe_id(CPUState *env, ppcemb_tlb_t *tlbe)
+{
+    uintptr_t tlbel = (uintptr_t)tlbe;
+    uintptr_t tlbl = (uintptr_t)env->tlb;
+
+    return (tlbel - tlbl) / sizeof(env->tlb[0]);
+}
+
+static inline int booke206_tlb_size(CPUState *env, int tlbn)
+{
+    uint32_t tlbncfg = env->spr[SPR_BOOKE_TLB0CFG + tlbn];
+    int r = tlbncfg & TLBnCFG_N_ENTRY;
+    return r;
+}
+
+static inline int booke206_tlb_ways(CPUState *env, int tlbn)
+{
+    uint32_t tlbncfg = env->spr[SPR_BOOKE_TLB0CFG + tlbn];
+    int r = tlbncfg >> TLBnCFG_ASSOC_SHIFT;
+    return r;
+}
+
+static inline int booke206_tlbe_to_tlbn(CPUState *env, ppcemb_tlb_t *tlbe)
+{
+    int id = booke206_tlbe_id(env, tlbe);
+    int end = 0;
+    int i;
+
+    for (i = 0; i < BOOKE206_MAX_TLBN; i++) {
+        end += booke206_tlb_size(env, i);
+        if (id < end) {
+            return i;
+        }
+    }
+
+    cpu_abort(env, "Unknown TLBe: %d\n", id);
+    return 0;
+}
+
+static inline int booke206_tlbe_to_way(CPUState *env, ppcemb_tlb_t *tlb)
+{
+    int tlbn = booke206_tlbe_to_tlbn(env, tlb);
+    int tlbid = booke206_tlbe_id(env, tlb);
+    return tlbid & (booke206_tlb_ways(env, tlbn) - 1);
+}
+
+static inline ppcemb_tlb_t *booke206_get_tlbe(CPUState *env, const int tlbn,
+                                              target_ulong ea, int way)
+{
+    int r;
+    uint32_t ways = booke206_tlb_ways(env, tlbn);
+    int ways_bits = ffs(ways) - 1;
+    int tlb_bits = ffs(booke206_tlb_size(env, tlbn)) - 1;
+    int i;
+
+    way &= ways - 1;
+    ea >>= MAS2_EPN_SHIFT;
+    ea &= (1 << (tlb_bits - ways_bits)) - 1;
+    r = (ea << ways_bits) | way;
+
+    /* bump up to tlbn index */
+    for (i = 0; i < tlbn; i++) {
+        r += booke206_tlb_size(env, i);
+    }
+
+    return &env->tlb[r].tlbe;
+}
+
+#endif
 
 extern void (*cpu_ppc_hypercall)(CPUState *);
 

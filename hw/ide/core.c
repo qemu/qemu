@@ -430,7 +430,6 @@ void ide_dma_error(IDEState *s)
     s->error = ABRT_ERR;
     s->status = READY_STAT | ERR_STAT;
     ide_set_inactive(s);
-    s->bus->dma->ops->add_status(s->bus->dma, BM_STATUS_INT);
     ide_set_irq(s->bus);
 }
 
@@ -500,8 +499,11 @@ handle_rw_error:
     n = s->nsector;
     s->io_buffer_index = 0;
     s->io_buffer_size = n * 512;
-    if (s->bus->dma->ops->prepare_buf(s->bus->dma, s->is_read) == 0)
+    if (s->bus->dma->ops->prepare_buf(s->bus->dma, s->is_read) == 0) {
+        /* The PRDs were too short. Reset the Active bit, but don't raise an
+         * interrupt. */
         goto eot;
+    }
 
 #ifdef DEBUG_AIO
     printf("ide_dma_cb: sector_num=%" PRId64 " n=%d, is_read=%d\n",
@@ -523,7 +525,6 @@ handle_rw_error:
     return;
 
 eot:
-   s->bus->dma->ops->add_status(s->bus->dma, BM_STATUS_INT);
    ide_set_inactive(s);
 }
 
@@ -1592,13 +1593,15 @@ void ide_bus_reset(IDEBus *bus)
     bus->dma->ops->reset(bus->dma);
 }
 
-int ide_init_drive(IDEState *s, BlockDriverState *bs,
+int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
                    const char *version, const char *serial)
 {
     int cylinders, heads, secs;
     uint64_t nb_sectors;
 
     s->bs = bs;
+    s->drive_kind = kind;
+
     bdrv_get_geometry(bs, &nb_sectors);
     bdrv_guess_geometry(bs, &cylinders, &heads, &secs);
     if (cylinders < 1 || cylinders > 16383) {
@@ -1623,8 +1626,7 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs,
     s->smart_autosave = 1;
     s->smart_errors = 0;
     s->smart_selftest_count = 0;
-    if (bdrv_get_type_hint(bs) == BDRV_TYPE_CDROM) {
-        s->drive_kind = IDE_CD;
+    if (kind == IDE_CD) {
         bdrv_set_change_cb(bs, cdrom_change_cb, s);
         bs->buffer_alignment = 2048;
     } else {
@@ -1729,7 +1731,8 @@ void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
         dinfo = i == 0 ? hd0 : hd1;
         ide_init1(bus, i);
         if (dinfo) {
-            if (ide_init_drive(&bus->ifs[i], dinfo->bdrv, NULL,
+            if (ide_init_drive(&bus->ifs[i], dinfo->bdrv,
+                               dinfo->media_cd ? IDE_CD : IDE_HD, NULL,
                                *dinfo->serial ? dinfo->serial : NULL) < 0) {
                 error_report("Can't set up IDE drive %s", dinfo->id);
                 exit(1);

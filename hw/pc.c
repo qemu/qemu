@@ -957,28 +957,17 @@ void pc_cpus_init(const char *cpu_model)
     }
 }
 
-void pc_memory_init(ram_addr_t ram_size,
-                    const char *kernel_filename,
+void pc_memory_init(const char *kernel_filename,
                     const char *kernel_cmdline,
                     const char *initrd_filename,
-                    ram_addr_t *below_4g_mem_size_p,
-                    ram_addr_t *above_4g_mem_size_p)
+                    ram_addr_t below_4g_mem_size,
+                    ram_addr_t above_4g_mem_size)
 {
     char *filename;
     int ret, linux_boot, i;
     ram_addr_t ram_addr, bios_offset, option_rom_offset;
-    ram_addr_t below_4g_mem_size, above_4g_mem_size = 0;
     int bios_size, isa_bios_size;
     void *fw_cfg;
-
-    if (ram_size >= 0xe0000000 ) {
-        above_4g_mem_size = ram_size - 0xe0000000;
-        below_4g_mem_size = 0xe0000000;
-    } else {
-        below_4g_mem_size = ram_size;
-    }
-    *above_4g_mem_size_p = above_4g_mem_size;
-    *below_4g_mem_size_p = below_4g_mem_size;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -1081,6 +1070,15 @@ void pc_vga_init(PCIBus *pci_bus)
             isa_vga_init();
         }
     }
+
+    /*
+     * sga does not suppress normal vga output. So a machine can have both a
+     * vga card and sga manually enabled. Output will be seen on both.
+     * For nographic case, sga is enabled at all times
+     */
+    if (display_type == DT_NOGRAPHIC) {
+        isa_create_simple("sga");
+    }
 }
 
 static void cpu_request_exit(void *opaque, int irq, int level)
@@ -1093,7 +1091,8 @@ static void cpu_request_exit(void *opaque, int irq, int level)
 }
 
 void pc_basic_device_init(qemu_irq *isa_irq,
-                          ISADevice **rtc_state)
+                          ISADevice **rtc_state,
+                          bool no_vmport)
 {
     int i;
     DriveInfo *fd[MAX_FD];
@@ -1138,8 +1137,12 @@ void pc_basic_device_init(qemu_irq *isa_irq,
     a20_line = qemu_allocate_irqs(handle_a20_line_change, first_cpu, 2);
     i8042 = isa_create_simple("i8042");
     i8042_setup_a20_line(i8042, &a20_line[0]);
-    vmport_init();
-    vmmouse = isa_try_create("vmmouse");
+    if (!no_vmport) {
+        vmport_init();
+        vmmouse = isa_try_create("vmmouse");
+    } else {
+        vmmouse = NULL;
+    }
     if (vmmouse) {
         qdev_prop_set_ptr(&vmmouse->qdev, "ps2_mouse", i8042);
         qdev_init_nofail(&vmmouse->qdev);

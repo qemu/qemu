@@ -323,7 +323,7 @@ void cpu_loop(CPUX86State *env)
             break;
 #ifndef TARGET_ABI32
         case EXCP_SYSCALL:
-            /* linux syscall from syscall intruction */
+            /* linux syscall from syscall instruction */
             env->regs[R_EAX] = do_syscall(env,
                                           env->regs[R_EAX],
                                           env->regs[R_EDI],
@@ -454,24 +454,6 @@ void cpu_loop(CPUX86State *env)
 #endif
 
 #ifdef TARGET_ARM
-
-static void arm_cache_flush(abi_ulong start, abi_ulong last)
-{
-    abi_ulong addr, last1;
-
-    if (last < start)
-        return;
-    addr = start;
-    for(;;) {
-        last1 = ((addr + TARGET_PAGE_SIZE) & TARGET_PAGE_MASK) - 1;
-        if (last1 > last)
-            last1 = last;
-        tb_invalidate_page_range(addr, last1 + 1);
-        if (last1 == last)
-            break;
-        addr = last1 + 1;
-    }
-}
 
 /* Handle a jump to the kernel code page.  */
 static int
@@ -717,7 +699,7 @@ void cpu_loop(CPUARMState *env)
                 }
 
                 if (n == ARM_NR_cacheflush) {
-                    arm_cache_flush(env->regs[0], env->regs[1]);
+                    /* nop */
                 } else if (n == ARM_NR_semihosting
                            || n == ARM_NR_thumb_semihosting) {
                     env->regs[0] = do_arm_semihosting (env);
@@ -733,7 +715,7 @@ void cpu_loop(CPUARMState *env)
                     if ( n > ARM_NR_BASE) {
                         switch (n) {
                         case ARM_NR_cacheflush:
-                            arm_cache_flush(env->regs[0], env->regs[1]);
+                            /* nop */
                             break;
                         case ARM_NR_set_tls:
                             cpu_set_tls(env, env->regs[0]);
@@ -2526,49 +2508,27 @@ void cpu_loop (CPUState *env)
             fprintf(stderr, "Machine check exception. Exit\n");
             exit(1);
             break;
-        case EXCP_ARITH:
-            env->lock_addr = -1;
-            info.si_signo = TARGET_SIGFPE;
-            info.si_errno = 0;
-            info.si_code = TARGET_FPE_FLTINV;
-            info._sifields._sigfault._addr = env->pc;
-            queue_signal(env, info.si_signo, &info);
-            break;
-        case EXCP_HW_INTERRUPT:
+        case EXCP_SMP_INTERRUPT:
+        case EXCP_CLK_INTERRUPT:
+        case EXCP_DEV_INTERRUPT:
             fprintf(stderr, "External interrupt. Exit\n");
             exit(1);
             break;
-        case EXCP_DFAULT:
+        case EXCP_MMFAULT:
             env->lock_addr = -1;
             info.si_signo = TARGET_SIGSEGV;
             info.si_errno = 0;
-            info.si_code = (page_get_flags(env->ipr[IPR_EXC_ADDR]) & PAGE_VALID
+            info.si_code = (page_get_flags(env->trap_arg0) & PAGE_VALID
                             ? TARGET_SEGV_ACCERR : TARGET_SEGV_MAPERR);
-            info._sifields._sigfault._addr = env->ipr[IPR_EXC_ADDR];
+            info._sifields._sigfault._addr = env->trap_arg0;
             queue_signal(env, info.si_signo, &info);
-            break;
-        case EXCP_DTB_MISS_PAL:
-            fprintf(stderr, "MMU data TLB miss in PALcode\n");
-            exit(1);
-            break;
-        case EXCP_ITB_MISS:
-            fprintf(stderr, "MMU instruction TLB miss\n");
-            exit(1);
-            break;
-        case EXCP_ITB_ACV:
-            fprintf(stderr, "MMU instruction access violation\n");
-            exit(1);
-            break;
-        case EXCP_DTB_MISS_NATIVE:
-            fprintf(stderr, "MMU data TLB miss\n");
-            exit(1);
             break;
         case EXCP_UNALIGN:
             env->lock_addr = -1;
             info.si_signo = TARGET_SIGBUS;
             info.si_errno = 0;
             info.si_code = TARGET_BUS_ADRALN;
-            info._sifields._sigfault._addr = env->ipr[IPR_EXC_ADDR];
+            info._sifields._sigfault._addr = env->trap_arg0;
             queue_signal(env, info.si_signo, &info);
             break;
         case EXCP_OPCDEC:
@@ -2580,12 +2540,20 @@ void cpu_loop (CPUState *env)
             info._sifields._sigfault._addr = env->pc;
             queue_signal(env, info.si_signo, &info);
             break;
+        case EXCP_ARITH:
+            env->lock_addr = -1;
+            info.si_signo = TARGET_SIGFPE;
+            info.si_errno = 0;
+            info.si_code = TARGET_FPE_FLTINV;
+            info._sifields._sigfault._addr = env->pc;
+            queue_signal(env, info.si_signo, &info);
+            break;
         case EXCP_FEN:
             /* No-op.  Linux simply re-enables the FPU.  */
             break;
-        case EXCP_CALL_PAL ... (EXCP_CALL_PALP - 1):
+        case EXCP_CALL_PAL:
             env->lock_addr = -1;
-            switch ((trapnr >> 6) | 0x80) {
+            switch (env->error_code) {
             case 0x80:
                 /* BPT */
                 info.si_signo = TARGET_SIGTRAP;
@@ -2676,8 +2644,6 @@ void cpu_loop (CPUState *env)
                 goto do_sigill;
             }
             break;
-        case EXCP_CALL_PALP ... (EXCP_CALL_PALE - 1):
-            goto do_sigill;
         case EXCP_DEBUG:
             info.si_signo = gdb_handlesig (env, TARGET_SIGTRAP);
             if (info.si_signo) {
@@ -2700,6 +2666,80 @@ void cpu_loop (CPUState *env)
     }
 }
 #endif /* TARGET_ALPHA */
+
+#ifdef TARGET_S390X
+void cpu_loop(CPUS390XState *env)
+{
+    int trapnr;
+    target_siginfo_t info;
+
+    while (1) {
+        trapnr = cpu_s390x_exec (env);
+
+        switch (trapnr) {
+        case EXCP_INTERRUPT:
+            /* just indicate that signals should be handled asap */
+            break;
+        case EXCP_DEBUG:
+            {
+                int sig;
+
+                sig = gdb_handlesig (env, TARGET_SIGTRAP);
+                if (sig) {
+                    info.si_signo = sig;
+                    info.si_errno = 0;
+                    info.si_code = TARGET_TRAP_BRKPT;
+                    queue_signal(env, info.si_signo, &info);
+                }
+            }
+            break;
+        case EXCP_SVC:
+            {
+                int n = env->int_svc_code;
+                if (!n) {
+                    /* syscalls > 255 */
+                    n = env->regs[1];
+                }
+                env->psw.addr += env->int_svc_ilc;
+                env->regs[2] = do_syscall(env, n,
+                           env->regs[2],
+                           env->regs[3],
+                           env->regs[4],
+                           env->regs[5],
+                           env->regs[6],
+                           env->regs[7]);
+            }
+            break;
+        case EXCP_ADDR:
+            {
+                info.si_signo = SIGSEGV;
+                info.si_errno = 0;
+                /* XXX: check env->error_code */
+                info.si_code = TARGET_SEGV_MAPERR;
+                info._sifields._sigfault._addr = env->__excp_addr;
+                queue_signal(env, info.si_signo, &info);
+            }
+            break;
+        case EXCP_SPEC:
+            {
+                fprintf(stderr,"specification exception insn 0x%08x%04x\n", ldl(env->psw.addr), lduw(env->psw.addr + 4));
+                info.si_signo = SIGILL;
+                info.si_errno = 0;
+                info.si_code = TARGET_ILL_ILLOPC;
+                info._sifields._sigfault._addr = env->__excp_addr;
+                queue_signal(env, info.si_signo, &info);
+            }
+            break;
+        default:
+            printf ("Unhandled trap: 0x%x\n", trapnr);
+            cpu_dump_state(env, stderr, fprintf, 0);
+            exit (1);
+        }
+        process_pending_signals (env);
+    }
+}
+
+#endif /* TARGET_S390X */
 
 static void version(void)
 {
@@ -3449,6 +3489,15 @@ int main(int argc, char **argv, char **envp)
 	    env->regs[14] = info->start_stack;
 	    env->regs[15] = regs->acr;	    
 	    env->pc = regs->erp;
+    }
+#elif defined(TARGET_S390X)
+    {
+            int i;
+            for (i = 0; i < 16; i++) {
+                env->regs[i] = regs->gprs[i];
+            }
+            env->psw.mask = regs->psw.mask;
+            env->psw.addr = regs->psw.addr;
     }
 #else
 #error unsupported target CPU

@@ -848,6 +848,7 @@ void do_interrupt(CPUARMState *env)
                 return;
             }
         }
+        env->cp15.c5_insn = 2;
         /* Fall through to prefetch abort.  */
     case EXCP_PREFETCH_ABORT:
         new_mode = ARM_CPU_MODE_ABT;
@@ -2355,7 +2356,7 @@ static inline int vfp_exceptbits_from_host(int host_bits)
         target_bits |= 2;
     if (host_bits & float_flag_overflow)
         target_bits |= 4;
-    if (host_bits & float_flag_underflow)
+    if (host_bits & (float_flag_underflow | float_flag_output_denormal))
         target_bits |= 8;
     if (host_bits & float_flag_inexact)
         target_bits |= 0x10;
@@ -2526,99 +2527,39 @@ DO_VFP_cmp(s, float32)
 DO_VFP_cmp(d, float64)
 #undef DO_VFP_cmp
 
-/* Integer to float conversion.  */
-float32 VFP_HELPER(uito, s)(uint32_t x, CPUState *env)
-{
-    return uint32_to_float32(x, &env->vfp.fp_status);
+/* Integer to float and float to integer conversions */
+
+#define CONV_ITOF(name, fsz, sign) \
+    float##fsz HELPER(name)(uint32_t x, void *fpstp) \
+{ \
+    float_status *fpst = fpstp; \
+    return sign##int32_to_##float##fsz(x, fpst); \
 }
 
-float64 VFP_HELPER(uito, d)(uint32_t x, CPUState *env)
-{
-    return uint32_to_float64(x, &env->vfp.fp_status);
+#define CONV_FTOI(name, fsz, sign, round) \
+uint32_t HELPER(name)(float##fsz x, void *fpstp) \
+{ \
+    float_status *fpst = fpstp; \
+    if (float##fsz##_is_any_nan(x)) { \
+        float_raise(float_flag_invalid, fpst); \
+        return 0; \
+    } \
+    return float##fsz##_to_##sign##int32##round(x, fpst); \
 }
 
-float32 VFP_HELPER(sito, s)(uint32_t x, CPUState *env)
-{
-    return int32_to_float32(x, &env->vfp.fp_status);
-}
+#define FLOAT_CONVS(name, p, fsz, sign) \
+CONV_ITOF(vfp_##name##to##p, fsz, sign) \
+CONV_FTOI(vfp_to##name##p, fsz, sign, ) \
+CONV_FTOI(vfp_to##name##z##p, fsz, sign, _round_to_zero)
 
-float64 VFP_HELPER(sito, d)(uint32_t x, CPUState *env)
-{
-    return int32_to_float64(x, &env->vfp.fp_status);
-}
+FLOAT_CONVS(si, s, 32, )
+FLOAT_CONVS(si, d, 64, )
+FLOAT_CONVS(ui, s, 32, u)
+FLOAT_CONVS(ui, d, 64, u)
 
-/* Float to integer conversion.  */
-uint32_t VFP_HELPER(toui, s)(float32 x, CPUState *env)
-{
-    if (float32_is_any_nan(x)) {
-        float_raise(float_flag_invalid, &env->vfp.fp_status);
-        return 0;
-    }
-    return float32_to_uint32(x, &env->vfp.fp_status);
-}
-
-uint32_t VFP_HELPER(toui, d)(float64 x, CPUState *env)
-{
-    if (float64_is_any_nan(x)) {
-        float_raise(float_flag_invalid, &env->vfp.fp_status);
-        return 0;
-    }
-    return float64_to_uint32(x, &env->vfp.fp_status);
-}
-
-uint32_t VFP_HELPER(tosi, s)(float32 x, CPUState *env)
-{
-    if (float32_is_any_nan(x)) {
-        float_raise(float_flag_invalid, &env->vfp.fp_status);
-        return 0;
-    }
-    return float32_to_int32(x, &env->vfp.fp_status);
-}
-
-uint32_t VFP_HELPER(tosi, d)(float64 x, CPUState *env)
-{
-    if (float64_is_any_nan(x)) {
-        float_raise(float_flag_invalid, &env->vfp.fp_status);
-        return 0;
-    }
-    return float64_to_int32(x, &env->vfp.fp_status);
-}
-
-uint32_t VFP_HELPER(touiz, s)(float32 x, CPUState *env)
-{
-    if (float32_is_any_nan(x)) {
-        float_raise(float_flag_invalid, &env->vfp.fp_status);
-        return 0;
-    }
-    return float32_to_uint32_round_to_zero(x, &env->vfp.fp_status);
-}
-
-uint32_t VFP_HELPER(touiz, d)(float64 x, CPUState *env)
-{
-    if (float64_is_any_nan(x)) {
-        float_raise(float_flag_invalid, &env->vfp.fp_status);
-        return 0;
-    }
-    return float64_to_uint32_round_to_zero(x, &env->vfp.fp_status);
-}
-
-uint32_t VFP_HELPER(tosiz, s)(float32 x, CPUState *env)
-{
-    if (float32_is_any_nan(x)) {
-        float_raise(float_flag_invalid, &env->vfp.fp_status);
-        return 0;
-    }
-    return float32_to_int32_round_to_zero(x, &env->vfp.fp_status);
-}
-
-uint32_t VFP_HELPER(tosiz, d)(float64 x, CPUState *env)
-{
-    if (float64_is_any_nan(x)) {
-        float_raise(float_flag_invalid, &env->vfp.fp_status);
-        return 0;
-    }
-    return float64_to_int32_round_to_zero(x, &env->vfp.fp_status);
-}
+#undef CONV_ITOF
+#undef CONV_FTOI
+#undef FLOAT_CONVS
 
 /* floating point conversion */
 float64 VFP_HELPER(fcvtd, s)(float32 x, CPUState *env)
@@ -2641,23 +2582,25 @@ float32 VFP_HELPER(fcvts, d)(float64 x, CPUState *env)
 
 /* VFP3 fixed point conversion.  */
 #define VFP_CONV_FIX(name, p, fsz, itype, sign) \
-float##fsz VFP_HELPER(name##to, p)(uint##fsz##_t  x, uint32_t shift, \
-                                   CPUState *env) \
+float##fsz HELPER(vfp_##name##to##p)(uint##fsz##_t  x, uint32_t shift, \
+                                    void *fpstp) \
 { \
+    float_status *fpst = fpstp; \
     float##fsz tmp; \
-    tmp = sign##int32_to_##float##fsz ((itype##_t)x, &env->vfp.fp_status); \
-    return float##fsz##_scalbn(tmp, -(int)shift, &env->vfp.fp_status); \
+    tmp = sign##int32_to_##float##fsz((itype##_t)x, fpst); \
+    return float##fsz##_scalbn(tmp, -(int)shift, fpst); \
 } \
-uint##fsz##_t VFP_HELPER(to##name, p)(float##fsz x, uint32_t shift, \
-                                      CPUState *env) \
+uint##fsz##_t HELPER(vfp_to##name##p)(float##fsz x, uint32_t shift, \
+                                       void *fpstp) \
 { \
+    float_status *fpst = fpstp; \
     float##fsz tmp; \
     if (float##fsz##_is_any_nan(x)) { \
-        float_raise(float_flag_invalid, &env->vfp.fp_status); \
+        float_raise(float_flag_invalid, fpst); \
         return 0; \
     } \
-    tmp = float##fsz##_scalbn(x, shift, &env->vfp.fp_status); \
-    return float##fsz##_to_##itype##_round_to_zero(tmp, &env->vfp.fp_status); \
+    tmp = float##fsz##_scalbn(x, shift, fpst); \
+    return float##fsz##_to_##itype##_round_to_zero(tmp, fpst); \
 }
 
 VFP_CONV_FIX(sh, d, 64, int16, )
@@ -2720,6 +2663,9 @@ float32 HELPER(recps_f32)(float32 a, float32 b, CPUState *env)
     float_status *s = &env->vfp.standard_fp_status;
     if ((float32_is_infinity(a) && float32_is_zero_or_denormal(b)) ||
         (float32_is_infinity(b) && float32_is_zero_or_denormal(a))) {
+        if (!(float32_is_zero(a) || float32_is_zero(b))) {
+            float_raise(float_flag_input_denormal, s);
+        }
         return float32_two;
     }
     return float32_sub(float32_two, float32_mul(a, b, s), s);
@@ -2731,6 +2677,9 @@ float32 HELPER(rsqrts_f32)(float32 a, float32 b, CPUState *env)
     float32 product;
     if ((float32_is_infinity(a) && float32_is_zero_or_denormal(b)) ||
         (float32_is_infinity(b) && float32_is_zero_or_denormal(a))) {
+        if (!(float32_is_zero(a) || float32_is_zero(b))) {
+            float_raise(float_flag_input_denormal, s);
+        }
         return float32_one_point_five;
     }
     product = float32_mul(a, b, s);
@@ -2749,7 +2698,11 @@ float32 HELPER(rsqrts_f32)(float32 a, float32 b, CPUState *env)
  */
 static float64 recip_estimate(float64 a, CPUState *env)
 {
-    float_status *s = &env->vfp.standard_fp_status;
+    /* These calculations mustn't set any fp exception flags,
+     * so we use a local copy of the fp_status.
+     */
+    float_status dummy_status = env->vfp.standard_fp_status;
+    float_status *s = &dummy_status;
     /* q = (int)(a * 512.0) */
     float64 q = float64_mul(float64_512, a, s);
     int64_t q_int = float64_to_int64_round_to_zero(q, s);
@@ -2787,6 +2740,9 @@ float32 HELPER(recpe_f32)(float32 a, CPUState *env)
     } else if (float32_is_infinity(a)) {
         return float32_set_sign(float32_zero, float32_is_neg(a));
     } else if (float32_is_zero_or_denormal(a)) {
+        if (!float32_is_zero(a)) {
+            float_raise(float_flag_input_denormal, s);
+        }
         float_raise(float_flag_divbyzero, s);
         return float32_set_sign(float32_infinity, float32_is_neg(a));
     } else if (a_exp >= 253) {
@@ -2812,7 +2768,11 @@ float32 HELPER(recpe_f32)(float32 a, CPUState *env)
  */
 static float64 recip_sqrt_estimate(float64 a, CPUState *env)
 {
-    float_status *s = &env->vfp.standard_fp_status;
+    /* These calculations mustn't set any fp exception flags,
+     * so we use a local copy of the fp_status.
+     */
+    float_status dummy_status = env->vfp.standard_fp_status;
+    float_status *s = &dummy_status;
     float64 q;
     int64_t q_int;
 
@@ -2874,6 +2834,9 @@ float32 HELPER(rsqrte_f32)(float32 a, CPUState *env)
         }
         return float32_default_nan;
     } else if (float32_is_zero_or_denormal(a)) {
+        if (!float32_is_zero(a)) {
+            float_raise(float_flag_input_denormal, s);
+        }
         float_raise(float_flag_divbyzero, s);
         return float32_set_sign(float32_infinity, float32_is_neg(a));
     } else if (float32_is_neg(a)) {

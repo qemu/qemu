@@ -354,7 +354,7 @@ abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size)
             }
             wrapped = 1;
             /* Don't actually use 0 when wrapping, instead indicate
-               that we'd truely like an allocation in low memory.  */
+               that we'd truly like an allocation in low memory.  */
             addr = (mmap_min_addr > TARGET_PAGE_SIZE
                      ? TARGET_PAGE_ALIGN(mmap_min_addr)
                      : TARGET_PAGE_SIZE);

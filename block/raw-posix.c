@@ -43,7 +43,6 @@
 
 #ifdef __sun__
 #define _POSIX_PTHREAD_SEMANTICS 1
-#include <signal.h>
 #include <sys/dkio.h>
 #endif
 #ifdef __linux__
@@ -53,7 +52,6 @@
 #include <linux/fd.h>
 #endif
 #if defined (__FreeBSD__) || defined(__FreeBSD_kernel__)
-#include <signal.h>
 #include <sys/disk.h>
 #include <sys/cdio.h>
 #endif
@@ -62,6 +60,13 @@
 #include <sys/ioctl.h>
 #include <sys/disklabel.h>
 #include <sys/dkio.h>
+#endif
+
+#ifdef __NetBSD__
+#include <sys/ioctl.h>
+#include <sys/disklabel.h>
+#include <sys/dkio.h>
+#include <sys/disk.h>
 #endif
 
 #ifdef __DragonFly__
@@ -136,11 +141,54 @@ static int64_t raw_getlength(BlockDriverState *bs);
 static int cdrom_reopen(BlockDriverState *bs);
 #endif
 
+#if defined(__NetBSD__)
+static int raw_normalize_devicepath(const char **filename)
+{
+    static char namebuf[PATH_MAX];
+    const char *dp, *fname;
+    struct stat sb;
+
+    fname = *filename;
+    dp = strrchr(fname, '/');
+    if (lstat(fname, &sb) < 0) {
+        fprintf(stderr, "%s: stat failed: %s\n",
+            fname, strerror(errno));
+        return -errno;
+    }
+
+    if (!S_ISBLK(sb.st_mode)) {
+        return 0;
+    }
+
+    if (dp == NULL) {
+        snprintf(namebuf, PATH_MAX, "r%s", fname);
+    } else {
+        snprintf(namebuf, PATH_MAX, "%.*s/r%s",
+            (int)(dp - fname), fname, dp + 1);
+    }
+    fprintf(stderr, "%s is a block device", fname);
+    *filename = namebuf;
+    fprintf(stderr, ", using %s\n", *filename);
+
+    return 0;
+}
+#else
+static int raw_normalize_devicepath(const char **filename)
+{
+    return 0;
+}
+#endif
+
 static int raw_open_common(BlockDriverState *bs, const char *filename,
                            int bdrv_flags, int open_flags)
 {
     BDRVRawState *s = bs->opaque;
     int fd, ret;
+
+    ret = raw_normalize_devicepath(&filename);
+    if (ret != 0) {
+        return ret;
+    }
 
     s->open_flags = open_flags | O_BINARY;
     s->open_flags &= ~O_ACCMODE;
@@ -154,7 +202,7 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
      * and O_DIRECT for no caching. */
     if ((bdrv_flags & BDRV_O_NOCACHE))
         s->open_flags |= O_DIRECT;
-    else if (!(bdrv_flags & BDRV_O_CACHE_WB))
+    if (!(bdrv_flags & BDRV_O_CACHE_WB))
         s->open_flags |= O_DSYNC;
 
     s->fd = -1;
@@ -619,6 +667,31 @@ static int64_t raw_getlength(BlockDriverState *bs)
             return -1;
         return (uint64_t)dl.d_secsize *
             dl.d_partitions[DISKPART(st.st_rdev)].p_size;
+    } else
+        return st.st_size;
+}
+#elif defined(__NetBSD__)
+static int64_t raw_getlength(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+    int fd = s->fd;
+    struct stat st;
+
+    if (fstat(fd, &st))
+        return -1;
+    if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) {
+        struct dkwedge_info dkw;
+
+        if (ioctl(fd, DIOCGWEDGEINFO, &dkw) != -1) {
+            return dkw.dkw_size * 512;
+        } else {
+            struct disklabel dl;
+
+            if (ioctl(fd, DIOCGDINFO, &dl))
+                return -1;
+            return (uint64_t)dl.d_secsize *
+                dl.d_partitions[DISKPART(st.st_rdev)].p_size;
+        }
     } else
         return st.st_size;
 }

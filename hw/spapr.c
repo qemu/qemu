@@ -51,7 +51,7 @@
 
 #define TIMEBASE_FREQ           512000000ULL
 
-#define MAX_CPUS                32
+#define MAX_CPUS                256
 #define XICS_IRQS		1024
 
 sPAPREnvironment *spapr;
@@ -93,7 +93,7 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     /* Root node */
     _FDT((fdt_begin_node(fdt, "")));
     _FDT((fdt_property_string(fdt, "device_type", "chrp")));
-    _FDT((fdt_property_string(fdt, "model", "qemu,emulated-pSeries-LPAR")));
+    _FDT((fdt_property_string(fdt, "model", "IBM pSeries (emulated by qemu)")));
 
     _FDT((fdt_property_cell(fdt, "#address-cells", 0x2)));
     _FDT((fdt_property_cell(fdt, "#size-cells", 0x2)));
@@ -362,8 +362,9 @@ static void ppc_spapr_init(ram_addr_t ram_size,
 
     for (i = 0; i < MAX_SERIAL_PORTS; i++, irq++) {
         if (serial_hds[i]) {
-            spapr_vty_create(spapr->vio_bus, i, serial_hds[i],
-                             xics_find_qirq(spapr->icp, irq), irq);
+            spapr_vty_create(spapr->vio_bus, SPAPR_VTY_BASE_ADDRESS + i,
+                             serial_hds[i], xics_find_qirq(spapr->icp, irq),
+                             irq);
         }
     }
 

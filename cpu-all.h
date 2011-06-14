@@ -123,8 +123,7 @@ typedef union {
    endian ! */
 typedef union {
     float64 d;
-#if defined(HOST_WORDS_BIGENDIAN) \
-    || (defined(__arm__) && !defined(__VFP_FP__) && !defined(CONFIG_SOFTFLOAT))
+#if defined(HOST_WORDS_BIGENDIAN)
     struct {
         uint32_t upper;
         uint32_t lower;
@@ -138,7 +137,6 @@ typedef union {
     uint64_t ll;
 } CPU_DoubleU;
 
-#if defined(FLOATX80)
 typedef union {
      floatx80 d;
      struct {
@@ -146,9 +144,7 @@ typedef union {
          uint16_t upper;
      } l;
 } CPU_LDoubleU;
-#endif
 
-#if defined(CONFIG_SOFTFLOAT)
 typedef union {
     float128 q;
 #if defined(HOST_WORDS_BIGENDIAN)
@@ -175,7 +171,6 @@ typedef union {
     } ll;
 #endif
 } CPU_QuadU;
-#endif
 
 /* CPU memory access without any memory or io remapping */
 
@@ -786,18 +781,54 @@ void QEMU_NORETURN cpu_abort(CPUState *env, const char *fmt, ...)
 extern CPUState *first_cpu;
 extern CPUState *cpu_single_env;
 
-#define CPU_INTERRUPT_HARD   0x02 /* hardware interrupt pending */
-#define CPU_INTERRUPT_EXITTB 0x04 /* exit the current TB (use for x86 a20 case) */
-#define CPU_INTERRUPT_TIMER  0x08 /* internal timer exception pending */
-#define CPU_INTERRUPT_FIQ    0x10 /* Fast interrupt pending.  */
-#define CPU_INTERRUPT_HALT   0x20 /* CPU halt wanted */
-#define CPU_INTERRUPT_SMI    0x40 /* (x86 only) SMI interrupt pending */
-#define CPU_INTERRUPT_DEBUG  0x80 /* Debug event occured.  */
-#define CPU_INTERRUPT_VIRQ   0x100 /* virtual interrupt pending.  */
-#define CPU_INTERRUPT_NMI    0x200 /* NMI pending. */
-#define CPU_INTERRUPT_INIT   0x400 /* INIT pending. */
-#define CPU_INTERRUPT_SIPI   0x800 /* SIPI pending. */
-#define CPU_INTERRUPT_MCE    0x1000 /* (x86 only) MCE pending. */
+/* Flags for use in ENV->INTERRUPT_PENDING.
+
+   The numbers assigned here are non-sequential in order to preserve
+   binary compatibility with the vmstate dump.  Bit 0 (0x0001) was
+   previously used for CPU_INTERRUPT_EXIT, and is cleared when loading
+   the vmstate dump.  */
+
+/* External hardware interrupt pending.  This is typically used for
+   interrupts from devices.  */
+#define CPU_INTERRUPT_HARD        0x0002
+
+/* Exit the current TB.  This is typically used when some system-level device
+   makes some change to the memory mapping.  E.g. the a20 line change.  */
+#define CPU_INTERRUPT_EXITTB      0x0004
+
+/* Halt the CPU.  */
+#define CPU_INTERRUPT_HALT        0x0020
+
+/* Debug event pending.  */
+#define CPU_INTERRUPT_DEBUG       0x0080
+
+/* Several target-specific external hardware interrupts.  Each target/cpu.h
+   should define proper names based on these defines.  */
+#define CPU_INTERRUPT_TGT_EXT_0   0x0008
+#define CPU_INTERRUPT_TGT_EXT_1   0x0010
+#define CPU_INTERRUPT_TGT_EXT_2   0x0040
+#define CPU_INTERRUPT_TGT_EXT_3   0x0200
+#define CPU_INTERRUPT_TGT_EXT_4   0x1000
+
+/* Several target-specific internal interrupts.  These differ from the
+   preceeding target-specific interrupts in that they are intended to
+   originate from within the cpu itself, typically in response to some
+   instruction being executed.  These, therefore, are not masked while
+   single-stepping within the debugger.  */
+#define CPU_INTERRUPT_TGT_INT_0   0x0100
+#define CPU_INTERRUPT_TGT_INT_1   0x0400
+#define CPU_INTERRUPT_TGT_INT_2   0x0800
+
+/* First unused bit: 0x2000.  */
+
+/* The set of all bits that should be masked when single-stepping.  */
+#define CPU_INTERRUPT_SSTEP_MASK \
+    (CPU_INTERRUPT_HARD          \
+     | CPU_INTERRUPT_TGT_EXT_0   \
+     | CPU_INTERRUPT_TGT_EXT_1   \
+     | CPU_INTERRUPT_TGT_EXT_2   \
+     | CPU_INTERRUPT_TGT_EXT_3   \
+     | CPU_INTERRUPT_TGT_EXT_4)
 
 #ifndef CONFIG_USER_ONLY
 typedef void (*CPUInterruptHandler)(CPUState *, int);

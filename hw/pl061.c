@@ -98,7 +98,7 @@ static uint32_t pl061_read(void *opaque, target_phys_addr_t offset)
         return s->isense;
     case 0x408: /* Interrupt both edges */
         return s->ibe;
-    case 0x40c: /* Interupt event */
+    case 0x40c: /* Interrupt event */
         return s->iev;
     case 0x410: /* Interrupt mask */
         return s->im;
@@ -156,7 +156,7 @@ static void pl061_write(void *opaque, target_phys_addr_t offset,
     case 0x408: /* Interrupt both edges */
         s->ibe = value;
         break;
-    case 0x40c: /* Interupt event */
+    case 0x40c: /* Interrupt event */
         s->iev = value;
         break;
     case 0x410: /* Interrupt mask */

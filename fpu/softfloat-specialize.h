@@ -523,8 +523,6 @@ static float64 propagateFloat64NaN( float64 a, float64 b STATUS_PARAM)
     }
 }
 
-#ifdef FLOATX80
-
 /*----------------------------------------------------------------------------
 | Returns 1 if the extended double-precision floating-point value `a' is a
 | quiet NaN; otherwise returns 0. This slightly differs from the same
@@ -681,10 +679,6 @@ static floatx80 propagateFloatx80NaN( floatx80 a, floatx80 b STATUS_PARAM)
     }
 }
 
-#endif
-
-#ifdef FLOAT128
-
 /*----------------------------------------------------------------------------
 | Returns 1 if the quadruple-precision floating-point value `a' is a quiet
 | NaN; otherwise returns 0.
@@ -820,4 +814,3 @@ static float128 propagateFloat128NaN( float128 a, float128 b STATUS_PARAM)
     }
 }
 
-#endif

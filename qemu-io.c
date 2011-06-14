@@ -1655,7 +1655,7 @@ open_f(int argc, char **argv)
 			flags |= BDRV_O_SNAPSHOT;
 			break;
 		case 'n':
-			flags |= BDRV_O_NOCACHE;
+			flags |= BDRV_O_NOCACHE | BDRV_O_CACHE_WB;
 			break;
 		case 'r':
 			readonly = 1;
@@ -1751,7 +1751,7 @@ int main(int argc, char **argv)
 			flags |= BDRV_O_SNAPSHOT;
 			break;
 		case 'n':
-			flags |= BDRV_O_NOCACHE;
+			flags |= BDRV_O_NOCACHE | BDRV_O_CACHE_WB;
 			break;
 		case 'c':
 			add_user_command(optarg);

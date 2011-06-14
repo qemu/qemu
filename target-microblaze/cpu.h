@@ -41,6 +41,9 @@ struct CPUMBState;
 #define EXCP_HW_BREAK   5
 #define EXCP_HW_EXCP    6
 
+/* MicroBlaze-specific interrupt pending bits.  */
+#define CPU_INTERRUPT_NMI       CPU_INTERRUPT_TGT_EXT_3
+
 /* Register aliases. R0 - R15 */
 #define R_SP     1
 #define SR_PC    0

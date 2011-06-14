@@ -21,8 +21,6 @@
 
 register struct CPUARMState *env asm(AREG0);
 
-#define M0   env->iwmmxt.val
-
 #include "cpu.h"
 #include "exec-all.h"
 

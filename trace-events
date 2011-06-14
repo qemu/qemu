@@ -205,6 +205,15 @@ disable usb_set_config(int addr, int config, int ret) "dev %d, config %d, ret %d
 disable usb_clear_device_feature(int addr, int feature, int ret) "dev %d, feature %d, ret %d"
 disable usb_set_device_feature(int addr, int feature, int ret) "dev %d, feature %d, ret %d"
 
+# hw/scsi-bus.c
+disable scsi_req_alloc(int target, int lun, int tag) "target %d lun %d tag %d"
+disable scsi_req_data(int target, int lun, int tag, int len) "target %d lun %d tag %d len %d"
+disable scsi_req_dequeue(int target, int lun, int tag) "target %d lun %d tag %d"
+disable scsi_req_continue(int target, int lun, int tag) "target %d lun %d tag %d"
+disable scsi_req_parsed(int target, int lun, int tag, int cmd, int mode, int xfer) "target %d lun %d tag %d command %d dir %d length %d"
+disable scsi_req_parsed_lba(int target, int lun, int tag, int cmd, uint64_t lba) "target %d lun %d tag %d command %d lba %"PRIu64""
+disable scsi_req_parse_bad(int target, int lun, int tag, int cmd) "target %d lun %d tag %d command %d"
+
 # vl.c
 disable vm_state_notify(int running, int reason) "running %d reason %d"
 
@@ -220,6 +229,9 @@ disable qed_write_table(void *s, uint64_t offset, void *table, unsigned int inde
 disable qed_write_table_cb(void *s, void *table, int flush, int ret) "s %p table %p flush %d ret %d"
 
 # block/qed.c
+disable qed_need_check_timer_cb(void *s) "s %p"
+disable qed_start_need_check_timer(void *s) "s %p"
+disable qed_cancel_need_check_timer(void *s) "s %p"
 disable qed_aio_complete(void *s, void *acb, int ret) "s %p acb %p ret %d"
 disable qed_aio_setup(void *s, void *acb, int64_t sector_num, int nb_sectors, void *opaque, int is_write) "s %p acb %p sector_num %"PRId64" nb_sectors %d opaque %p is_write %d"
 disable qed_aio_next_io(void *s, void *acb, int ret, uint64_t cur_pos) "s %p acb %p ret %d cur_pos %"PRIu64""
@@ -361,3 +373,16 @@ disable milkymist_uart_pulse_irq_tx(void) "Pulse IRQ TX"
 # hw/milkymist-vgafb.c
 disable milkymist_vgafb_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
 disable milkymist_vgafb_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
+
+# xen-all.c
+disable xen_ram_alloc(unsigned long ram_addr, unsigned long size) "requested: %#lx, size %#lx"
+
+# xen-mapcache.c
+disable qemu_map_cache(uint64_t phys_addr) "want %#"PRIx64""
+disable qemu_remap_bucket(uint64_t index) "index %#"PRIx64""
+disable qemu_map_cache_return(void* ptr) "%p"
+disable xen_map_block(uint64_t phys_addr, uint64_t size) "%#"PRIx64", size %#"PRIx64""
+disable xen_unmap_block(void* addr, unsigned long size) "%p, size %#lx"
+
+# exec.c
+disable qemu_put_ram_ptr(void* addr) "%p"

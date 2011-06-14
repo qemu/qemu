@@ -278,7 +278,11 @@ targets do not need a disk image.
 
 @c man begin OPTIONS
 
-During the graphical emulation, you can use the following keys:
+During the graphical emulation, you can use special key combinations to change
+modes. The default key mappings are shown below, but if you use @code{-alt-grab}
+then the modifier is Ctrl-Alt-Shift (instead of Ctrl-Alt) and if you use
+@code{-ctrl-grab} then the modifier is the right Ctrl key (instead of Ctrl-Alt):
+
 @table @key
 @item Ctrl-Alt-f
 @kindex Ctrl-Alt-f

@@ -28,10 +28,6 @@
 #include <SDL.h>
 #include <SDL_syswm.h>
 
-#ifndef _WIN32
-#include <signal.h>
-#endif
-
 #include "qemu-common.h"
 #include "console.h"
 #include "sysemu.h"
@@ -831,6 +827,18 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     if (!full_screen) {
         setenv("SDL_VIDEO_ALLOW_SCREENSAVER", "1", 0);
     }
+#ifdef __linux__
+    /* on Linux, SDL may use fbcon|directfb|svgalib when run without
+     * accessible $DISPLAY to open X11 window.  This is often the case
+     * when qemu is run using sudo.  But in this case, and when actually
+     * run in X11 environment, SDL fights with X11 for the video card,
+     * making current display unavailable, often until reboot.
+     * So make x11 the default SDL video driver if this variable is unset.
+     * This is a bit hackish but saves us from bigger problem.
+     * Maybe it's a good idea to fix this in SDL instead.
+     */
+    setenv("SDL_VIDEODRIVER", "x11", 0);
+#endif
 
     /* Enable normal up/down events for Caps-Lock and Num-Lock keys.
      * This requires SDL >= 1.2.14. */

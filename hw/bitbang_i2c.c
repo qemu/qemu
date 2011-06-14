@@ -38,7 +38,8 @@ typedef enum bitbang_i2c_state {
     RECEIVING_BIT2,
     RECEIVING_BIT1,
     RECEIVING_BIT0,
-    SENDING_ACK
+    SENDING_ACK,
+    SENT_NACK
 } bitbang_i2c_state;
 
 struct bitbang_i2c_interface {
@@ -115,6 +116,7 @@ int bitbang_i2c_set(bitbang_i2c_interface *i2c, int line, int level)
     }
     switch (i2c->state) {
     case STOPPED:
+    case SENT_NACK:
         return bitbang_i2c_ret(i2c, 1);
 
     case SENDING_BIT7 ... SENDING_BIT0:
@@ -155,6 +157,7 @@ int bitbang_i2c_set(bitbang_i2c_interface *i2c, int line, int level)
         i2c->state = RECEIVING_BIT7;
         if (data != 0) {
             DPRINTF("NACKED\n");
+            i2c->state = SENT_NACK;
             i2c_nack(i2c->bus);
         } else {
             DPRINTF("ACKED\n");

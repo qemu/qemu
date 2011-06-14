@@ -39,7 +39,6 @@
 #else
 #include <bus/usb/usb.h>
 #endif
-#include <signal.h>
 
 /* This value has maximum potential at 16.
  * You should also set hw.usb.debug to gain
@@ -126,6 +125,7 @@ static void usb_host_handle_reset(USBDevice *dev)
  *  and return appropriate response
  */
 static int usb_host_handle_control(USBDevice *dev,
+                                   USBPacket *p,
                                    int request,
                                    int value,
                                    int index,

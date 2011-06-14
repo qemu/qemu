@@ -74,7 +74,7 @@ typedef struct vscsi_req {
     union viosrp_iu         iu;
 
     /* SCSI request tracking */
-    SCSIDevice              *sdev;
+    SCSIRequest             *sreq;
     uint32_t                qtag; /* qemu tag != srp tag */
     int                     lun;
     int                     active;
@@ -123,11 +123,16 @@ static struct vscsi_req *vscsi_get_req(VSCSIState *s)
 
 static void vscsi_put_req(VSCSIState *s, vscsi_req *req)
 {
+    if (req->sreq != NULL) {
+        scsi_req_unref(req->sreq);
+    }
+    req->sreq = NULL;
     req->active = 0;
 }
 
-static vscsi_req *vscsi_find_req(VSCSIState *s, uint32_t tag)
+static vscsi_req *vscsi_find_req(VSCSIState *s, SCSIRequest *req)
 {
+    uint32_t tag = req->tag;
     if (tag >= VSCSI_REQ_LIMIT || !s->reqs[tag].active) {
         return NULL;
     }
@@ -442,10 +447,18 @@ static int vscsi_preprocess_desc(vscsi_req *req)
 
 static void vscsi_send_request_sense(VSCSIState *s, vscsi_req *req)
 {
-    SCSIDevice *sdev = req->sdev;
     uint8_t *cdb = req->iu.srp.cmd.cdb;
     int n;
 
+    n = scsi_req_get_sense(req->sreq, req->sense, sizeof(req->sense));
+    if (n) {
+        req->senselen = n;
+        vscsi_send_rsp(s, req, CHECK_CONDITION, 0, 0);
+        vscsi_put_req(s, req);
+        return;
+    }
+
+    dprintf("VSCSI: Got CHECK_CONDITION, requesting sense...\n");
     cdb[0] = 3;
     cdb[1] = 0;
     cdb[2] = 0;
@@ -453,66 +466,92 @@ static void vscsi_send_request_sense(VSCSIState *s, vscsi_req *req)
     cdb[4] = 96;
     cdb[5] = 0;
     req->sensing = 1;
-    n = sdev->info->send_command(sdev, req->qtag, cdb, req->lun);
+    n = scsi_req_enqueue(req->sreq, cdb);
     dprintf("VSCSI: Queued request sense tag 0x%x\n", req->qtag);
     if (n < 0) {
         fprintf(stderr, "VSCSI: REQUEST_SENSE wants write data !?!?!?\n");
-        sdev->info->cancel_io(sdev, req->qtag);
         vscsi_makeup_sense(s, req, HARDWARE_ERROR, 0, 0);
-        vscsi_send_rsp(s, req, CHECK_CONDITION, 0, 0);
-        vscsi_put_req(s, req);
+        scsi_req_abort(req->sreq, CHECK_CONDITION);
         return;
     } else if (n == 0) {
         return;
     }
-    sdev->info->read_data(sdev, req->qtag);
+    scsi_req_continue(req->sreq);
 }
 
 /* Callback to indicate that the SCSI layer has completed a transfer.  */
-static void vscsi_command_complete(SCSIBus *bus, int reason, uint32_t tag,
-                                   uint32_t arg)
+static void vscsi_transfer_data(SCSIRequest *sreq, uint32_t len)
 {
-    VSCSIState *s = DO_UPCAST(VSCSIState, vdev.qdev, bus->qbus.parent);
-    vscsi_req *req = vscsi_find_req(s, tag);
-    SCSIDevice *sdev;
+    VSCSIState *s = DO_UPCAST(VSCSIState, vdev.qdev, sreq->bus->qbus.parent);
+    vscsi_req *req = vscsi_find_req(s, sreq);
     uint8_t *buf;
-    int32_t res_in = 0, res_out = 0;
-    int len, rc = 0;
+    int rc = 0;
 
-    dprintf("VSCSI: SCSI cmd complete, r=0x%x tag=0x%x arg=0x%x, req=%p\n",
-            reason, tag, arg, req);
+    dprintf("VSCSI: SCSI xfer complete tag=0x%x len=0x%x, req=%p\n",
+            sreq->tag, len, req);
     if (req == NULL) {
-        fprintf(stderr, "VSCSI: Can't find request for tag 0x%x\n", tag);
+        fprintf(stderr, "VSCSI: Can't find request for tag 0x%x\n", sreq->tag);
         return;
     }
-    sdev = req->sdev;
 
     if (req->sensing) {
-        if (reason == SCSI_REASON_DONE) {
-            dprintf("VSCSI: Sense done !\n");
-            vscsi_send_rsp(s, req, CHECK_CONDITION, 0, 0);
-            vscsi_put_req(s, req);
-        } else {
-            uint8_t *buf = sdev->info->get_buf(sdev, tag);
+        uint8_t *buf = scsi_req_get_buf(sreq);
 
-            len = MIN(arg, SCSI_SENSE_BUF_SIZE);
-            dprintf("VSCSI: Sense data, %d bytes:\n", len);
-            dprintf("       %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x\n",
-                    buf[0], buf[1], buf[2], buf[3],
-                    buf[4], buf[5], buf[6], buf[7]);
-            dprintf("       %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x\n",
-                    buf[8], buf[9], buf[10], buf[11],
-                    buf[12], buf[13], buf[14], buf[15]);
-            memcpy(req->sense, buf, len);
-            req->senselen = len;
-            sdev->info->read_data(sdev, req->qtag);
-        }
+        len = MIN(len, SCSI_SENSE_BUF_SIZE);
+        dprintf("VSCSI: Sense data, %d bytes:\n", len);
+        dprintf("       %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x\n",
+                buf[0], buf[1], buf[2], buf[3],
+                buf[4], buf[5], buf[6], buf[7]);
+        dprintf("       %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x\n",
+                buf[8], buf[9], buf[10], buf[11],
+                buf[12], buf[13], buf[14], buf[15]);
+        memcpy(req->sense, buf, len);
+        req->senselen = len;
+        scsi_req_continue(req->sreq);
         return;
     }
 
-    if (reason == SCSI_REASON_DONE) {
-        dprintf("VSCSI: Command complete err=%d\n", arg);
-        if (arg == 0) {
+    if (len) {
+        buf = scsi_req_get_buf(sreq);
+        rc = vscsi_srp_transfer_data(s, req, req->writing, buf, len);
+    }
+    if (rc < 0) {
+        fprintf(stderr, "VSCSI: RDMA error rc=%d!\n", rc);
+        vscsi_makeup_sense(s, req, HARDWARE_ERROR, 0, 0);
+        scsi_req_abort(req->sreq, CHECK_CONDITION);
+        return;
+    }
+
+    /* Start next chunk */
+    req->data_len -= rc;
+    scsi_req_continue(sreq);
+}
+
+/* Callback to indicate that the SCSI layer has completed a transfer.  */
+static void vscsi_command_complete(SCSIRequest *sreq, uint32_t status)
+{
+    VSCSIState *s = DO_UPCAST(VSCSIState, vdev.qdev, sreq->bus->qbus.parent);
+    vscsi_req *req = vscsi_find_req(s, sreq);
+    int32_t res_in = 0, res_out = 0;
+
+    dprintf("VSCSI: SCSI cmd complete, r=0x%x tag=0x%x status=0x%x, req=%p\n",
+            reason, sreq->tag, status, req);
+    if (req == NULL) {
+        fprintf(stderr, "VSCSI: Can't find request for tag 0x%x\n", sreq->tag);
+        return;
+    }
+
+    if (!req->sensing && status == CHECK_CONDITION) {
+        vscsi_send_request_sense(s, req);
+        return;
+    }
+
+    if (req->sensing) {
+        dprintf("VSCSI: Sense done !\n");
+        status = CHECK_CONDITION;
+    } else {
+        dprintf("VSCSI: Command complete err=%d\n", status);
+        if (status == 0) {
             /* We handle overflows, not underflows for normal commands,
              * but hopefully nobody cares
              */
@@ -521,41 +560,18 @@ static void vscsi_command_complete(SCSIBus *bus, int reason, uint32_t tag,
             } else {
                 res_in = req->data_len;
             }
-            vscsi_send_rsp(s, req, 0, res_in, res_out);
-        } else if (arg == CHECK_CONDITION) {
-            dprintf("VSCSI: Got CHECK_CONDITION, requesting sense...\n");
-            vscsi_send_request_sense(s, req);
-            return;
-        } else {
-            vscsi_send_rsp(s, req, arg, 0, 0);
         }
-        vscsi_put_req(s, req);
-        return;
     }
+    vscsi_send_rsp(s, req, 0, res_in, res_out);
+    vscsi_put_req(s, req);
+}
 
-    /* "arg" is how much we have read for reads and how much we want
-     * to write for writes (ie, how much is to be DMA'd)
-     */
-    if (arg) {
-        buf = sdev->info->get_buf(sdev, tag);
-        rc = vscsi_srp_transfer_data(s, req, req->writing, buf, arg);
-    }
-    if (rc < 0) {
-        fprintf(stderr, "VSCSI: RDMA error rc=%d!\n", rc);
-        sdev->info->cancel_io(sdev, req->qtag);
-        vscsi_makeup_sense(s, req, HARDWARE_ERROR, 0, 0);
-        vscsi_send_rsp(s, req, CHECK_CONDITION, 0, 0);
-        vscsi_put_req(s, req);
-        return;
-    }
+static void vscsi_request_cancelled(SCSIRequest *sreq)
+{
+    VSCSIState *s = DO_UPCAST(VSCSIState, vdev.qdev, sreq->bus->qbus.parent);
+    vscsi_req *req = vscsi_find_req(s, sreq);
 
-    /* Start next chunk */
-    req->data_len -= rc;
-    if (req->writing) {
-        sdev->info->write_data(sdev, req->qtag);
-    } else {
-        sdev->info->read_data(sdev, req->qtag);
-    }
+    vscsi_put_req(s, req);
 }
 
 static void vscsi_process_login(VSCSIState *s, vscsi_req *req)
@@ -642,9 +658,9 @@ static int vscsi_queue_cmd(VSCSIState *s, vscsi_req *req)
         } return 1;
     }
 
-    req->sdev = sdev;
     req->lun = lun;
-    n = sdev->info->send_command(sdev, req->qtag, srp->cmd.cdb, lun);
+    req->sreq = scsi_req_new(sdev, req->qtag, lun);
+    n = scsi_req_enqueue(req->sreq, srp->cmd.cdb);
 
     dprintf("VSCSI: Queued command tag 0x%x CMD 0x%x ID %d LUN %d ret: %d\n",
             req->qtag, srp->cmd.cdb[0], id, lun, n);
@@ -657,15 +673,14 @@ static int vscsi_queue_cmd(VSCSIState *s, vscsi_req *req)
 
         /* Preprocess RDMA descriptors */
         vscsi_preprocess_desc(req);
-    }
 
-    /* Get transfer direction and initiate transfer */
-    if (n > 0) {
-        req->data_len = n;
-        sdev->info->read_data(sdev, req->qtag);
-    } else if (n < 0) {
-        req->data_len = -n;
-        sdev->info->write_data(sdev, req->qtag);
+        /* Get transfer direction and initiate transfer */
+        if (n > 0) {
+            req->data_len = n;
+        } else if (n < 0) {
+            req->data_len = -n;
+        }
+        scsi_req_continue(req->sreq);
     }
     /* Don't touch req here, it may have been recycled already */
 
@@ -907,6 +922,12 @@ static int vscsi_do_crq(struct VIOsPAPRDevice *dev, uint8_t *crq_data)
     return 0;
 }
 
+static const struct SCSIBusOps vscsi_scsi_ops = {
+    .transfer_data = vscsi_transfer_data,
+    .complete = vscsi_command_complete,
+    .cancel = vscsi_request_cancelled
+};
+
 static int spapr_vscsi_init(VIOsPAPRDevice *dev)
 {
     VSCSIState *s = DO_UPCAST(VSCSIState, vdev, dev);
@@ -923,7 +944,7 @@ static int spapr_vscsi_init(VIOsPAPRDevice *dev)
     dev->crq.SendFunc = vscsi_do_crq;
 
     scsi_bus_new(&s->bus, &dev->qdev, 1, VSCSI_REQ_LIMIT,
-                 vscsi_command_complete);
+                 &vscsi_scsi_ops);
     if (!dev->qdev.hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus);
     }

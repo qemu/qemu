@@ -11,9 +11,10 @@
  *
  */
 
-#include "virtio.h"
-#include "pc.h"
+#include "hw/virtio.h"
+#include "hw/pc.h"
 #include "qemu_socket.h"
+#include "hw/virtio-pci.h"
 #include "virtio-9p.h"
 #include "fsdev/qemu-fsdev.h"
 #include "virtio-9p-debug.h"
@@ -194,7 +195,6 @@ static int v9fs_do_open2(V9fsState *s, char *fullname, uid_t uid, gid_t gid,
     cred.fc_uid = uid;
     cred.fc_gid = gid;
     cred.fc_mode = mode & 07777;
-    flags = flags;
 
     return s->ops->open2(&s->ctx, fullname, flags, &cred);
 }
@@ -421,6 +421,22 @@ static void v9fs_string_copy(V9fsString *lhs, V9fsString *rhs)
 {
     v9fs_string_free(lhs);
     v9fs_string_sprintf(lhs, "%s", rhs->data);
+}
+
+/*
+ * Return TRUE if s1 is an ancestor of s2.
+ *
+ * E.g. "a/b" is an ancestor of "a/b/c" but not of "a/bc/d".
+ * As a special case, We treat s1 as ancestor of s2 if they are same!
+ */
+static int v9fs_path_is_ancestor(V9fsString *s1, V9fsString *s2)
+{
+    if (!strncmp(s1->data, s2->data, s1->size)) {
+        if (s2->data[s1->size] == '\0' || s2->data[s1->size] == '/') {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 static size_t v9fs_string_size(V9fsString *str)
@@ -2805,13 +2821,13 @@ static int v9fs_complete_rename(V9fsState *s, V9fsRenameState *vs)
             for (fidp = s->fid_list; fidp; fidp = fidp->next) {
                 if (vs->fidp == fidp) {
                     /*
-                    * we replace name of this fid towards the end
-                    * so that our below strcmp will work
+                    * we replace name of this fid towards the end so
+                    * that our below v9fs_path_is_ancestor check will
+                    * work
                     */
                     continue;
                 }
-                if (!strncmp(vs->fidp->path.data, fidp->path.data,
-                    strlen(vs->fidp->path.data))) {
+                if (v9fs_path_is_ancestor(&vs->fidp->path, &fidp->path)) {
                     /* replace the name */
                     v9fs_fix_path(&fidp->path, &vs->name,
                                   strlen(vs->fidp->path.data));
@@ -3589,6 +3605,11 @@ static pdu_handler_t *pdu_handlers[] = {
     [P9_TREMOVE] = v9fs_remove,
 };
 
+static void v9fs_op_not_supp(V9fsState *s, V9fsPDU *pdu)
+{
+    complete_pdu(s, pdu, -EOPNOTSUPP);
+}
+
 static void submit_pdu(V9fsState *s, V9fsPDU *pdu)
 {
     pdu_handler_t *handler;
@@ -3596,16 +3617,16 @@ static void submit_pdu(V9fsState *s, V9fsPDU *pdu)
     if (debug_9p_pdu) {
         pprint_pdu(pdu);
     }
-
-    BUG_ON(pdu->id >= ARRAY_SIZE(pdu_handlers));
-
-    handler = pdu_handlers[pdu->id];
-    BUG_ON(handler == NULL);
-
+    if (pdu->id >= ARRAY_SIZE(pdu_handlers) ||
+        (pdu_handlers[pdu->id] == NULL)) {
+        handler = v9fs_op_not_supp;
+    } else {
+        handler = pdu_handlers[pdu->id];
+    }
     handler(s, pdu);
 }
 
-static void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
+void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
 {
     V9fsState *s = (V9fsState *)vdev;
     V9fsPDU *pdu;
@@ -3628,120 +3649,4 @@ static void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
     }
 
     free_pdu(s, pdu);
-}
-
-static uint32_t virtio_9p_get_features(VirtIODevice *vdev, uint32_t features)
-{
-    features |= 1 << VIRTIO_9P_MOUNT_TAG;
-    return features;
-}
-
-static V9fsState *to_virtio_9p(VirtIODevice *vdev)
-{
-    return (V9fsState *)vdev;
-}
-
-static void virtio_9p_get_config(VirtIODevice *vdev, uint8_t *config)
-{
-    struct virtio_9p_config *cfg;
-    V9fsState *s = to_virtio_9p(vdev);
-
-    cfg = qemu_mallocz(sizeof(struct virtio_9p_config) +
-                        s->tag_len);
-    stw_raw(&cfg->tag_len, s->tag_len);
-    memcpy(cfg->tag, s->tag, s->tag_len);
-    memcpy(config, cfg, s->config_size);
-    qemu_free(cfg);
-}
-
-VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
- {
-    V9fsState *s;
-    int i, len;
-    struct stat stat;
-    FsTypeEntry *fse;
-
-
-    s = (V9fsState *)virtio_common_init("virtio-9p",
-                                    VIRTIO_ID_9P,
-                                    sizeof(struct virtio_9p_config)+
-                                    MAX_TAG_LEN,
-                                    sizeof(V9fsState));
-
-    /* initialize pdu allocator */
-    QLIST_INIT(&s->free_list);
-    for (i = 0; i < (MAX_REQ - 1); i++) {
-	QLIST_INSERT_HEAD(&s->free_list, &s->pdus[i], next);
-    }
-
-    s->vq = virtio_add_queue(&s->vdev, MAX_REQ, handle_9p_output);
-
-    fse = get_fsdev_fsentry(conf->fsdev_id);
-
-    if (!fse) {
-        /* We don't have a fsdev identified by fsdev_id */
-        fprintf(stderr, "Virtio-9p device couldn't find fsdev with the "
-                "id = %s\n", conf->fsdev_id ? conf->fsdev_id : "NULL");
-        exit(1);
-    }
-
-    if (!fse->path || !conf->tag) {
-        /* we haven't specified a mount_tag or the path */
-        fprintf(stderr, "fsdev with id %s needs path "
-                "and Virtio-9p device needs mount_tag arguments\n",
-                conf->fsdev_id);
-        exit(1);
-    }
-
-    if (!strcmp(fse->security_model, "passthrough")) {
-        /* Files on the Fileserver set to client user credentials */
-        s->ctx.fs_sm = SM_PASSTHROUGH;
-        s->ctx.xops = passthrough_xattr_ops;
-    } else if (!strcmp(fse->security_model, "mapped")) {
-        /* Files on the fileserver are set to QEMU credentials.
-         * Client user credentials are saved in extended attributes.
-         */
-        s->ctx.fs_sm = SM_MAPPED;
-        s->ctx.xops = mapped_xattr_ops;
-    } else if (!strcmp(fse->security_model, "none")) {
-        /*
-         * Files on the fileserver are set to QEMU credentials.
-         */
-        s->ctx.fs_sm = SM_NONE;
-        s->ctx.xops = none_xattr_ops;
-    } else {
-        fprintf(stderr, "Default to security_model=none. You may want"
-                " enable advanced security model using "
-                "security option:\n\t security_model=passthrough \n\t "
-                "security_model=mapped\n");
-        s->ctx.fs_sm = SM_NONE;
-        s->ctx.xops = none_xattr_ops;
-    }
-
-    if (lstat(fse->path, &stat)) {
-        fprintf(stderr, "share path %s does not exist\n", fse->path);
-        exit(1);
-    } else if (!S_ISDIR(stat.st_mode)) {
-        fprintf(stderr, "share path %s is not a directory \n", fse->path);
-        exit(1);
-    }
-
-    s->ctx.fs_root = qemu_strdup(fse->path);
-    len = strlen(conf->tag);
-    if (len > MAX_TAG_LEN) {
-        len = MAX_TAG_LEN;
-    }
-    /* s->tag is non-NULL terminated string */
-    s->tag = qemu_malloc(len);
-    memcpy(s->tag, conf->tag, len);
-    s->tag_len = len;
-    s->ctx.uid = -1;
-
-    s->ops = fse->ops;
-    s->vdev.get_features = virtio_9p_get_features;
-    s->config_size = sizeof(struct virtio_9p_config) +
-                        s->tag_len;
-    s->vdev.get_config = virtio_9p_get_config;
-
-    return &s->vdev;
 }

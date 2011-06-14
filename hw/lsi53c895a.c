@@ -174,6 +174,7 @@ do { fprintf(stderr, "lsi_scsi: error: " fmt , ## __VA_ARGS__);} while (0)
 #define LSI_TAG_VALID     (1 << 16)
 
 typedef struct lsi_request {
+    SCSIRequest *req;
     uint32_t tag;
     uint32_t dma_len;
     uint8_t *dma_buf;
@@ -189,7 +190,7 @@ typedef struct {
     uint32_t script_ram_base;
 
     int carry; /* ??? Should this be an a visible register somewhere?  */
-    int sense;
+    int status;
     /* Action to take at the end of a MSG IN phase.
        0 = COMMAND, 1 = disconnect, 2 = DATA OUT, 3 = DATA IN.  */
     int msg_action;
@@ -567,11 +568,9 @@ static void lsi_do_dma(LSIState *s, int out)
     s->csbc += count;
     s->dnad += count;
     s->dbc -= count;
-
-    if (s->current->dma_buf == NULL) {
-        s->current->dma_buf = dev->info->get_buf(dev, s->current->tag);
+     if (s->current->dma_buf == NULL) {
+        s->current->dma_buf = scsi_req_get_buf(s->current->req);
     }
-
     /* ??? Set SFBR to first data byte.  */
     if (out) {
         cpu_physical_memory_read(addr, s->current->dma_buf, count);
@@ -581,13 +580,7 @@ static void lsi_do_dma(LSIState *s, int out)
     s->current->dma_len -= count;
     if (s->current->dma_len == 0) {
         s->current->dma_buf = NULL;
-        if (out) {
-            /* Write the data.  */
-            dev->info->write_data(dev, s->current->tag);
-        } else {
-            /* Request any remaining data.  */
-            dev->info->read_data(dev, s->current->tag);
-        }
+        scsi_req_continue(s->current->req);
     } else {
         s->current->dma_buf += count;
         lsi_resume_script(s);
@@ -652,82 +645,123 @@ static void lsi_reselect(LSIState *s, lsi_request *p)
     }
 }
 
-/* Record that data is available for a queued command.  Returns zero if
-   the device was reselected, nonzero if the IO is deferred.  */
-static int lsi_queue_tag(LSIState *s, uint32_t tag, uint32_t arg)
+static lsi_request *lsi_find_by_tag(LSIState *s, uint32_t tag)
 {
     lsi_request *p;
 
     QTAILQ_FOREACH(p, &s->queue, next) {
         if (p->tag == tag) {
-            if (p->pending) {
-                BADF("Multiple IO pending for tag %d\n", tag);
-            }
-            p->pending = arg;
-            /* Reselect if waiting for it, or if reselection triggers an IRQ
-               and the bus is free.
-               Since no interrupt stacking is implemented in the emulation, it
-               is also required that there are no pending interrupts waiting
-               for service from the device driver. */
-            if (s->waiting == 1 ||
-                (lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON) &&
-                 !(s->istat0 & (LSI_ISTAT0_SIP | LSI_ISTAT0_DIP)))) {
-                /* Reselect device.  */
-                lsi_reselect(s, p);
-                return 0;
-            } else {
-                DPRINTF("Queueing IO tag=0x%x\n", tag);
-                p->pending = arg;
-                return 1;
-            }
+            return p;
         }
     }
-    BADF("IO with unknown tag %d\n", tag);
-    return 1;
+
+    return NULL;
 }
 
-/* Callback to indicate that the SCSI layer has completed a transfer.  */
-static void lsi_command_complete(SCSIBus *bus, int reason, uint32_t tag,
-                                 uint32_t arg)
+static void lsi_request_cancelled(SCSIRequest *req)
 {
-    LSIState *s = DO_UPCAST(LSIState, dev.qdev, bus->qbus.parent);
+    LSIState *s = DO_UPCAST(LSIState, dev.qdev, req->bus->qbus.parent);
+    lsi_request *p;
+
+    if (s->current && req == s->current->req) {
+        scsi_req_unref(req);
+        qemu_free(s->current);
+        s->current = NULL;
+        return;
+    }
+
+    p = lsi_find_by_tag(s, req->tag);
+    if (p) {
+        QTAILQ_REMOVE(&s->queue, p, next);
+        scsi_req_unref(req);
+        qemu_free(p);
+    }
+}
+
+/* Record that data is available for a queued command.  Returns zero if
+   the device was reselected, nonzero if the IO is deferred.  */
+static int lsi_queue_tag(LSIState *s, uint32_t tag, uint32_t len)
+{
+    lsi_request *p;
+
+    p = lsi_find_by_tag(s, tag);
+    if (!p) {
+        BADF("IO with unknown tag %d\n", tag);
+        return 1;
+    }
+
+    if (p->pending) {
+        BADF("Multiple IO pending for tag %d\n", tag);
+    }
+    p->pending = len;
+    /* Reselect if waiting for it, or if reselection triggers an IRQ
+       and the bus is free.
+       Since no interrupt stacking is implemented in the emulation, it
+       is also required that there are no pending interrupts waiting
+       for service from the device driver. */
+    if (s->waiting == 1 ||
+        (lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON) &&
+         !(s->istat0 & (LSI_ISTAT0_SIP | LSI_ISTAT0_DIP)))) {
+        /* Reselect device.  */
+        lsi_reselect(s, p);
+        return 0;
+    } else {
+        DPRINTF("Queueing IO tag=0x%x\n", tag);
+        p->pending = len;
+        return 1;
+    }
+}
+
+ /* Callback to indicate that the SCSI layer has completed a command.  */
+static void lsi_command_complete(SCSIRequest *req, uint32_t status)
+{
+    LSIState *s = DO_UPCAST(LSIState, dev.qdev, req->bus->qbus.parent);
     int out;
 
     out = (s->sstat1 & PHASE_MASK) == PHASE_DO;
-    if (reason == SCSI_REASON_DONE) {
-        DPRINTF("Command complete sense=%d\n", (int)arg);
-        s->sense = arg;
-        s->command_complete = 2;
-        if (s->waiting && s->dbc != 0) {
-            /* Raise phase mismatch for short transfers.  */
-            lsi_bad_phase(s, out, PHASE_ST);
-        } else {
-            lsi_set_phase(s, PHASE_ST);
-        }
+    DPRINTF("Command complete status=%d\n", (int)status);
+    s->status = status;
+    s->command_complete = 2;
+    if (s->waiting && s->dbc != 0) {
+        /* Raise phase mismatch for short transfers.  */
+        lsi_bad_phase(s, out, PHASE_ST);
+    } else {
+        lsi_set_phase(s, PHASE_ST);
+    }
 
+    if (s->current && req == s->current->req) {
+        scsi_req_unref(s->current->req);
         qemu_free(s->current);
         s->current = NULL;
-
-        lsi_resume_script(s);
-        return;
     }
+    lsi_resume_script(s);
+}
 
-    if (s->waiting == 1 || !s->current || tag != s->current->tag ||
+ /* Callback to indicate that the SCSI layer has completed a transfer.  */
+static void lsi_transfer_data(SCSIRequest *req, uint32_t len)
+{
+    LSIState *s = DO_UPCAST(LSIState, dev.qdev, req->bus->qbus.parent);
+    int out;
+
+    if (s->waiting == 1 || !s->current || req->tag != s->current->tag ||
         (lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON))) {
-        if (lsi_queue_tag(s, tag, arg))
+        if (lsi_queue_tag(s, req->tag, len)) {
             return;
+        }
     }
+
+    out = (s->sstat1 & PHASE_MASK) == PHASE_DO;
 
     /* host adapter (re)connected */
-    DPRINTF("Data ready tag=0x%x len=%d\n", tag, arg);
-    s->current->dma_len = arg;
+    DPRINTF("Data ready tag=0x%x len=%d\n", req->tag, len);
+    s->current->dma_len = len;
     s->command_complete = 1;
-    if (!s->waiting)
-        return;
-    if (s->waiting == 1 || s->dbc == 0) {
-        lsi_resume_script(s);
-    } else {
-        lsi_do_dma(s, out);
+    if (s->waiting) {
+        if (s->waiting == 1 || s->dbc == 0) {
+            lsi_resume_script(s);
+        } else {
+            lsi_do_dma(s, out);
+        }
     }
 }
 
@@ -755,16 +789,17 @@ static void lsi_do_command(LSIState *s)
     assert(s->current == NULL);
     s->current = qemu_mallocz(sizeof(lsi_request));
     s->current->tag = s->select_tag;
+    s->current->req = scsi_req_new(dev, s->current->tag, s->current_lun);
 
-    n = dev->info->send_command(dev, s->current->tag, buf, s->current_lun);
-    if (n > 0) {
-        lsi_set_phase(s, PHASE_DI);
-        dev->info->read_data(dev, s->current->tag);
-    } else if (n < 0) {
-        lsi_set_phase(s, PHASE_DO);
-        dev->info->write_data(dev, s->current->tag);
+    n = scsi_req_enqueue(s->current->req, buf);
+    if (n) {
+        if (n > 0) {
+            lsi_set_phase(s, PHASE_DI);
+        } else if (n < 0) {
+            lsi_set_phase(s, PHASE_DO);
+        }
+        scsi_req_continue(s->current->req);
     }
-
     if (!s->command_complete) {
         if (n) {
             /* Command did not complete immediately so disconnect.  */
@@ -783,14 +818,14 @@ static void lsi_do_command(LSIState *s)
 
 static void lsi_do_status(LSIState *s)
 {
-    uint8_t sense;
-    DPRINTF("Get status len=%d sense=%d\n", s->dbc, s->sense);
+    uint8_t status;
+    DPRINTF("Get status len=%d status=%d\n", s->dbc, s->status);
     if (s->dbc != 1)
         BADF("Bad Status move\n");
     s->dbc = 1;
-    sense = s->sense;
-    s->sfbr = sense;
-    cpu_physical_memory_write(s->dnad, &sense, 1);
+    status = s->status;
+    s->sfbr = status;
+    cpu_physical_memory_write(s->dnad, &status, 1);
     lsi_set_phase(s, PHASE_MI);
     s->msg_action = 1;
     lsi_add_msg_byte(s, 0); /* COMMAND COMPLETE */
@@ -855,13 +890,15 @@ static void lsi_do_msgout(LSIState *s)
     int len;
     uint32_t current_tag;
     SCSIDevice *current_dev;
-    lsi_request *p, *p_next;
+    lsi_request *current_req, *p, *p_next;
     int id;
 
     if (s->current) {
         current_tag = s->current->tag;
+        current_req = s->current;
     } else {
         current_tag = s->select_tag;
+        current_req = lsi_find_by_tag(s, current_tag);
     }
     id = (current_tag >> 8) & 0xf;
     current_dev = s->bus.devs[id];
@@ -913,7 +950,9 @@ static void lsi_do_msgout(LSIState *s)
         case 0x0d:
             /* The ABORT TAG message clears the current I/O process only. */
             DPRINTF("MSG: ABORT TAG tag=0x%x\n", current_tag);
-            current_dev->info->cancel_io(current_dev, current_tag);
+            if (current_req) {
+                scsi_req_cancel(current_req->req);
+            }
             lsi_disconnect(s);
             break;
         case 0x06:
@@ -936,7 +975,9 @@ static void lsi_do_msgout(LSIState *s)
             }
 
             /* clear the current I/O process */
-            current_dev->info->cancel_io(current_dev, current_tag);
+            if (s->current) {
+                scsi_req_cancel(s->current->req);
+            }
 
             /* As the current implemented devices scsi_disk and scsi_generic
                only support one LUN, we don't need to keep track of LUNs.
@@ -948,8 +989,7 @@ static void lsi_do_msgout(LSIState *s)
             id = current_tag & 0x0000ff00;
             QTAILQ_FOREACH_SAFE(p, &s->queue, next, p_next) {
                 if ((p->tag & 0x0000ff00) == id) {
-                    current_dev->info->cancel_io(current_dev, p->tag);
-                    QTAILQ_REMOVE(&s->queue, p, next);
+                    scsi_req_cancel(p->req);
                 }
             }
 
@@ -2122,7 +2162,7 @@ static const VMStateDescription vmstate_lsi_scsi = {
         VMSTATE_PCI_DEVICE(dev, LSIState),
 
         VMSTATE_INT32(carry, LSIState),
-        VMSTATE_INT32(sense, LSIState),
+        VMSTATE_INT32(status, LSIState),
         VMSTATE_INT32(msg_action, LSIState),
         VMSTATE_INT32(msg_len, LSIState),
         VMSTATE_BUFFER(msg, LSIState),
@@ -2205,6 +2245,12 @@ static int lsi_scsi_uninit(PCIDevice *d)
     return 0;
 }
 
+static const struct SCSIBusOps lsi_scsi_ops = {
+    .transfer_data = lsi_transfer_data,
+    .complete = lsi_command_complete,
+    .cancel = lsi_request_cancelled
+};
+
 static int lsi_scsi_init(PCIDevice *dev)
 {
     LSIState *s = DO_UPCAST(LSIState, dev, dev);
@@ -2232,7 +2278,7 @@ static int lsi_scsi_init(PCIDevice *dev)
                            PCI_BASE_ADDRESS_SPACE_MEMORY, lsi_ram_mapfunc);
     QTAILQ_INIT(&s->queue);
 
-    scsi_bus_new(&s->bus, &dev->qdev, 1, LSI_MAX_DEVS, lsi_command_complete);
+    scsi_bus_new(&s->bus, &dev->qdev, 1, LSI_MAX_DEVS, &lsi_scsi_ops);
     if (!dev->qdev.hotplugged) {
         return scsi_bus_legacy_handle_cmdline(&s->bus);
     }

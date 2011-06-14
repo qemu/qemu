@@ -602,8 +602,8 @@ static void ccid_handle_reset(USBDevice *dev)
     ccid_reset(s);
 }
 
-static int ccid_handle_control(USBDevice *dev, int request, int value,
-                                  int index, int length, uint8_t *data)
+static int ccid_handle_control(USBDevice *dev, USBPacket *p, int request,
+                               int value, int index, int length, uint8_t *data)
 {
     USBCCIDState *s = DO_UPCAST(USBCCIDState, dev, dev);
     int ret = 0;

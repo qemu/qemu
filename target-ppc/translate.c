@@ -2,6 +2,7 @@
  *  PowerPC emulation for qemu: main translation routines.
  *
  *  Copyright (c) 2003-2007 Jocelyn Mayer
+ *  Copyright (C) 2011 Freescale Semiconductor, Inc.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -200,6 +201,8 @@ struct opc_handler_t {
     uint32_t inval;
     /* instruction type */
     uint64_t type;
+    /* extended instruction type */
+    uint64_t type2;
     /* handler */
     void (*handler)(DisasContext *ctx);
 #if defined(DO_PPC_STATISTICS) || defined(PPC_DUMP_CPU)
@@ -212,9 +215,7 @@ struct opc_handler_t {
 
 static inline void gen_reset_fpstatus(void)
 {
-#ifdef CONFIG_SOFTFLOAT
     gen_helper_reset_fpstatus();
-#endif
 }
 
 static inline void gen_compute_fprf(TCGv_i64 arg, int set_fprf, int set_rc)
@@ -313,10 +314,16 @@ static inline void gen_sync_exception(DisasContext *ctx)
 }
 
 #define GEN_HANDLER(name, opc1, opc2, opc3, inval, type)                      \
-GEN_OPCODE(name, opc1, opc2, opc3, inval, type)
+GEN_OPCODE(name, opc1, opc2, opc3, inval, type, PPC_NONE)
+
+#define GEN_HANDLER_E(name, opc1, opc2, opc3, inval, type, type2)             \
+GEN_OPCODE(name, opc1, opc2, opc3, inval, type, type2)
 
 #define GEN_HANDLER2(name, onam, opc1, opc2, opc3, inval, type)               \
-GEN_OPCODE2(name, onam, opc1, opc2, opc3, inval, type)
+GEN_OPCODE2(name, onam, opc1, opc2, opc3, inval, type, PPC_NONE)
+
+#define GEN_HANDLER2_E(name, onam, opc1, opc2, opc3, inval, type, type2)      \
+GEN_OPCODE2(name, onam, opc1, opc2, opc3, inval, type, type2)
 
 typedef struct opcode_t {
     unsigned char opc1, opc2, opc3;
@@ -456,7 +463,7 @@ static inline target_ulong MASK(uint32_t start, uint32_t end)
 /* PowerPC instructions table                                                */
 
 #if defined(DO_PPC_STATISTICS)
-#define GEN_OPCODE(name, op1, op2, op3, invl, _typ)                           \
+#define GEN_OPCODE(name, op1, op2, op3, invl, _typ, _typ2)                    \
 {                                                                             \
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
@@ -465,12 +472,13 @@ static inline target_ulong MASK(uint32_t start, uint32_t end)
     .handler = {                                                              \
         .inval   = invl,                                                      \
         .type = _typ,                                                         \
+        .type2 = _typ2,                                                       \
         .handler = &gen_##name,                                               \
         .oname = stringify(name),                                             \
     },                                                                        \
     .oname = stringify(name),                                                 \
 }
-#define GEN_OPCODE2(name, onam, op1, op2, op3, invl, _typ)                    \
+#define GEN_OPCODE2(name, onam, op1, op2, op3, invl, _typ, _typ2)             \
 {                                                                             \
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
@@ -479,13 +487,14 @@ static inline target_ulong MASK(uint32_t start, uint32_t end)
     .handler = {                                                              \
         .inval   = invl,                                                      \
         .type = _typ,                                                         \
+        .type2 = _typ2,                                                       \
         .handler = &gen_##name,                                               \
         .oname = onam,                                                        \
     },                                                                        \
     .oname = onam,                                                            \
 }
 #else
-#define GEN_OPCODE(name, op1, op2, op3, invl, _typ)                           \
+#define GEN_OPCODE(name, op1, op2, op3, invl, _typ, _typ2)                    \
 {                                                                             \
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
@@ -494,11 +503,12 @@ static inline target_ulong MASK(uint32_t start, uint32_t end)
     .handler = {                                                              \
         .inval   = invl,                                                      \
         .type = _typ,                                                         \
+        .type2 = _typ2,                                                       \
         .handler = &gen_##name,                                               \
     },                                                                        \
     .oname = stringify(name),                                                 \
 }
-#define GEN_OPCODE2(name, onam, op1, op2, op3, invl, _typ)                    \
+#define GEN_OPCODE2(name, onam, op1, op2, op3, invl, _typ, _typ2)             \
 {                                                                             \
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
@@ -507,6 +517,7 @@ static inline target_ulong MASK(uint32_t start, uint32_t end)
     .handler = {                                                              \
         .inval   = invl,                                                      \
         .type = _typ,                                                         \
+        .type2 = _typ2,                                                       \
         .handler = &gen_##name,                                               \
     },                                                                        \
     .oname = onam,                                                            \
@@ -533,6 +544,7 @@ static void gen_invalid(DisasContext *ctx)
 static opc_handler_t invalid_handler = {
     .inval   = 0xFFFFFFFF,
     .type    = PPC_NONE,
+    .type2   = PPC_NONE,
     .handler = gen_invalid,
 };
 
@@ -5974,6 +5986,80 @@ static void gen_tlbwe_440(DisasContext *ctx)
 #endif
 }
 
+/* TLB management - PowerPC BookE 2.06 implementation */
+
+/* tlbre */
+static void gen_tlbre_booke206(DisasContext *ctx)
+{
+#if defined(CONFIG_USER_ONLY)
+    gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
+#else
+    if (unlikely(!ctx->mem_idx)) {
+        gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
+        return;
+    }
+
+    gen_helper_booke206_tlbre();
+#endif
+}
+
+/* tlbsx - tlbsx. */
+static void gen_tlbsx_booke206(DisasContext *ctx)
+{
+#if defined(CONFIG_USER_ONLY)
+    gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
+#else
+    TCGv t0;
+    if (unlikely(!ctx->mem_idx)) {
+        gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
+        return;
+    }
+
+    if (rA(ctx->opcode)) {
+        t0 = tcg_temp_new();
+        tcg_gen_mov_tl(t0, cpu_gpr[rD(ctx->opcode)]);
+    } else {
+        t0 = tcg_const_tl(0);
+    }
+
+    tcg_gen_add_tl(t0, t0, cpu_gpr[rB(ctx->opcode)]);
+    gen_helper_booke206_tlbsx(t0);
+#endif
+}
+
+/* tlbwe */
+static void gen_tlbwe_booke206(DisasContext *ctx)
+{
+#if defined(CONFIG_USER_ONLY)
+    gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
+#else
+    if (unlikely(!ctx->mem_idx)) {
+        gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
+        return;
+    }
+    gen_helper_booke206_tlbwe();
+#endif
+}
+
+static void gen_tlbivax_booke206(DisasContext *ctx)
+{
+#if defined(CONFIG_USER_ONLY)
+    gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
+#else
+    TCGv t0;
+    if (unlikely(!ctx->mem_idx)) {
+        gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
+        return;
+    }
+
+    t0 = tcg_temp_new();
+    gen_addr_reg_index(ctx, t0);
+
+    gen_helper_booke206_tlbivax(t0);
+#endif
+}
+
+
 /* wrtee */
 static void gen_wrtee(DisasContext *ctx)
 {
@@ -8420,7 +8506,7 @@ GEN_HANDLER2(icbt_40x, "icbt", 0x1F, 0x06, 0x08, 0x03E00001, PPC_40x_ICBT),
 GEN_HANDLER(iccci, 0x1F, 0x06, 0x1E, 0x00000001, PPC_4xx_COMMON),
 GEN_HANDLER(icread, 0x1F, 0x06, 0x1F, 0x03E00001, PPC_4xx_COMMON),
 GEN_HANDLER2(rfci_40x, "rfci", 0x13, 0x13, 0x01, 0x03FF8001, PPC_40x_EXCP),
-GEN_HANDLER(rfci, 0x13, 0x13, 0x01, 0x03FF8001, PPC_BOOKE),
+GEN_HANDLER_E(rfci, 0x13, 0x13, 0x01, 0x03FF8001, PPC_BOOKE, PPC2_BOOKE206),
 GEN_HANDLER(rfdi, 0x13, 0x07, 0x01, 0x03FF8001, PPC_RFDI),
 GEN_HANDLER(rfmci, 0x13, 0x06, 0x01, 0x03FF8001, PPC_RFMCI),
 GEN_HANDLER2(tlbre_40x, "tlbre", 0x1F, 0x12, 0x1D, 0x00000001, PPC_40x_TLB),
@@ -8429,12 +8515,23 @@ GEN_HANDLER2(tlbwe_40x, "tlbwe", 0x1F, 0x12, 0x1E, 0x00000001, PPC_40x_TLB),
 GEN_HANDLER2(tlbre_440, "tlbre", 0x1F, 0x12, 0x1D, 0x00000001, PPC_BOOKE),
 GEN_HANDLER2(tlbsx_440, "tlbsx", 0x1F, 0x12, 0x1C, 0x00000000, PPC_BOOKE),
 GEN_HANDLER2(tlbwe_440, "tlbwe", 0x1F, 0x12, 0x1E, 0x00000001, PPC_BOOKE),
+GEN_HANDLER2_E(tlbre_booke206, "tlbre", 0x1F, 0x12, 0x1D, 0x00000001,
+               PPC_NONE, PPC2_BOOKE206),
+GEN_HANDLER2_E(tlbsx_booke206, "tlbsx", 0x1F, 0x12, 0x1C, 0x00000000,
+               PPC_NONE, PPC2_BOOKE206),
+GEN_HANDLER2_E(tlbwe_booke206, "tlbwe", 0x1F, 0x12, 0x1E, 0x00000001,
+               PPC_NONE, PPC2_BOOKE206),
+GEN_HANDLER2_E(tlbivax_booke206, "tlbivax", 0x1F, 0x12, 0x18, 0x00000001,
+               PPC_NONE, PPC2_BOOKE206),
 GEN_HANDLER(wrtee, 0x1F, 0x03, 0x04, 0x000FFC01, PPC_WRTEE),
 GEN_HANDLER(wrteei, 0x1F, 0x03, 0x05, 0x000E7C01, PPC_WRTEE),
 GEN_HANDLER(dlmzb, 0x1F, 0x0E, 0x02, 0x00000000, PPC_440_SPEC),
-GEN_HANDLER(mbar, 0x1F, 0x16, 0x1a, 0x001FF801, PPC_BOOKE),
-GEN_HANDLER(msync, 0x1F, 0x16, 0x12, 0x03FFF801, PPC_BOOKE),
-GEN_HANDLER2(icbt_440, "icbt", 0x1F, 0x16, 0x00, 0x03E00001, PPC_BOOKE),
+GEN_HANDLER_E(mbar, 0x1F, 0x16, 0x1a, 0x001FF801,
+              PPC_BOOKE, PPC2_BOOKE206),
+GEN_HANDLER_E(msync, 0x1F, 0x16, 0x12, 0x03FFF801,
+              PPC_BOOKE, PPC2_BOOKE206),
+GEN_HANDLER2_E(icbt_440, "icbt", 0x1F, 0x16, 0x00, 0x03E00001,
+               PPC_BOOKE, PPC2_BOOKE206),
 GEN_HANDLER(lvsl, 0x1f, 0x06, 0x00, 0x00000001, PPC_ALTIVEC),
 GEN_HANDLER(lvsr, 0x1f, 0x06, 0x01, 0x00000001, PPC_ALTIVEC),
 GEN_HANDLER(mfvscr, 0x04, 0x2, 0x18, 0x001ff800, PPC_ALTIVEC),
@@ -9124,9 +9221,84 @@ void cpu_dump_state (CPUState *env, FILE *f, fprintf_function cpu_fprintf,
     }
     cpu_fprintf(f, "FPSCR %08x\n", env->fpscr);
 #if !defined(CONFIG_USER_ONLY)
-    cpu_fprintf(f, "SRR0 " TARGET_FMT_lx " SRR1 " TARGET_FMT_lx " SDR1 "
-                TARGET_FMT_lx "\n", env->spr[SPR_SRR0], env->spr[SPR_SRR1],
-                env->spr[SPR_SDR1]);
+    cpu_fprintf(f, " SRR0 " TARGET_FMT_lx "  SRR1 " TARGET_FMT_lx
+                   "    PVR " TARGET_FMT_lx " VRSAVE " TARGET_FMT_lx "\n",
+                env->spr[SPR_SRR0], env->spr[SPR_SRR1],
+                env->spr[SPR_PVR], env->spr[SPR_VRSAVE]);
+
+    cpu_fprintf(f, "SPRG0 " TARGET_FMT_lx " SPRG1 " TARGET_FMT_lx
+                   "  SPRG2 " TARGET_FMT_lx "  SPRG3 " TARGET_FMT_lx "\n",
+                env->spr[SPR_SPRG0], env->spr[SPR_SPRG1],
+                env->spr[SPR_SPRG2], env->spr[SPR_SPRG3]);
+
+    cpu_fprintf(f, "SPRG4 " TARGET_FMT_lx " SPRG5 " TARGET_FMT_lx
+                   "  SPRG6 " TARGET_FMT_lx "  SPRG7 " TARGET_FMT_lx "\n",
+                env->spr[SPR_SPRG4], env->spr[SPR_SPRG5],
+                env->spr[SPR_SPRG6], env->spr[SPR_SPRG7]);
+
+    if (env->excp_model == POWERPC_EXCP_BOOKE) {
+        cpu_fprintf(f, "CSRR0 " TARGET_FMT_lx " CSRR1 " TARGET_FMT_lx
+                       " MCSRR0 " TARGET_FMT_lx " MCSRR1 " TARGET_FMT_lx "\n",
+                    env->spr[SPR_BOOKE_CSRR0], env->spr[SPR_BOOKE_CSRR1],
+                    env->spr[SPR_BOOKE_MCSRR0], env->spr[SPR_BOOKE_MCSRR1]);
+
+        cpu_fprintf(f, "  TCR " TARGET_FMT_lx "   TSR " TARGET_FMT_lx
+                       "    ESR " TARGET_FMT_lx "   DEAR " TARGET_FMT_lx "\n",
+                    env->spr[SPR_BOOKE_TCR], env->spr[SPR_BOOKE_TSR],
+                    env->spr[SPR_BOOKE_ESR], env->spr[SPR_BOOKE_DEAR]);
+
+        cpu_fprintf(f, "  PIR " TARGET_FMT_lx " DECAR " TARGET_FMT_lx
+                       "   IVPR " TARGET_FMT_lx "   EPCR " TARGET_FMT_lx "\n",
+                    env->spr[SPR_BOOKE_PIR], env->spr[SPR_BOOKE_DECAR],
+                    env->spr[SPR_BOOKE_IVPR], env->spr[SPR_BOOKE_EPCR]);
+
+        cpu_fprintf(f, " MCSR " TARGET_FMT_lx " SPRG8 " TARGET_FMT_lx
+                       "    EPR " TARGET_FMT_lx "\n",
+                    env->spr[SPR_BOOKE_MCSR], env->spr[SPR_BOOKE_SPRG8],
+                    env->spr[SPR_BOOKE_EPR]);
+
+        /* FSL-specific */
+        cpu_fprintf(f, " MCAR " TARGET_FMT_lx "  PID1 " TARGET_FMT_lx
+                       "   PID2 " TARGET_FMT_lx "    SVR " TARGET_FMT_lx "\n",
+                    env->spr[SPR_Exxx_MCAR], env->spr[SPR_BOOKE_PID1],
+                    env->spr[SPR_BOOKE_PID2], env->spr[SPR_E500_SVR]);
+
+        /*
+         * IVORs are left out as they are large and do not change often --
+         * they can be read with "p $ivor0", "p $ivor1", etc.
+         */
+    }
+
+    switch (env->mmu_model) {
+    case POWERPC_MMU_32B:
+    case POWERPC_MMU_601:
+    case POWERPC_MMU_SOFT_6xx:
+    case POWERPC_MMU_SOFT_74xx:
+#if defined(TARGET_PPC64)
+    case POWERPC_MMU_620:
+    case POWERPC_MMU_64B:
+#endif
+        cpu_fprintf(f, " SDR1 " TARGET_FMT_lx "\n", env->spr[SPR_SDR1]);
+        break;
+    case POWERPC_MMU_BOOKE206:
+        cpu_fprintf(f, " MAS0 " TARGET_FMT_lx "  MAS1 " TARGET_FMT_lx
+                       "   MAS2 " TARGET_FMT_lx "   MAS3 " TARGET_FMT_lx "\n",
+                    env->spr[SPR_BOOKE_MAS0], env->spr[SPR_BOOKE_MAS1],
+                    env->spr[SPR_BOOKE_MAS2], env->spr[SPR_BOOKE_MAS3]);
+
+        cpu_fprintf(f, " MAS4 " TARGET_FMT_lx "  MAS6 " TARGET_FMT_lx
+                       "   MAS7 " TARGET_FMT_lx "    PID " TARGET_FMT_lx "\n",
+                    env->spr[SPR_BOOKE_MAS4], env->spr[SPR_BOOKE_MAS6],
+                    env->spr[SPR_BOOKE_MAS7], env->spr[SPR_BOOKE_PID]);
+
+        cpu_fprintf(f, "MMUCFG " TARGET_FMT_lx " TLB0CFG " TARGET_FMT_lx
+                       " TLB1CFG " TARGET_FMT_lx "\n",
+                    env->spr[SPR_MMUCFG], env->spr[SPR_BOOKE_TLB0CFG],
+                    env->spr[SPR_BOOKE_TLB1CFG]);
+        break;
+    default:
+        break;
+    }
 #endif
 
 #undef RGPL

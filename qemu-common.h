@@ -39,6 +39,7 @@ typedef struct Monitor Monitor;
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <assert.h>
+#include <signal.h>
 
 #ifdef _WIN32
 #include "qemu-os-win32.h"
@@ -201,11 +202,6 @@ const char *path(const char *pathname);
 #define qemu_isascii(c)		isascii((unsigned char)(c))
 #define qemu_toascii(c)		toascii((unsigned char)(c))
 
-#ifdef _WIN32
-/* ffs() in oslib-win32.c for WIN32, strings.h for the rest of the world */
-int ffs(int i);
-#endif
-
 void *qemu_oom_check(void *ptr);
 void *qemu_malloc(size_t size);
 void *qemu_realloc(void *ptr, size_t size);
@@ -346,7 +342,7 @@ void qemu_iovec_memset_skip(QEMUIOVector *qiov, int c, size_t count,
 
 void qemu_progress_init(int enabled, float min_skip);
 void qemu_progress_end(void);
-void qemu_progress_print(float percent, int max);
+void qemu_progress_print(float delta, int max);
 
 #define QEMU_FILE_TYPE_BIOS   0
 #define QEMU_FILE_TYPE_KEYMAP 1

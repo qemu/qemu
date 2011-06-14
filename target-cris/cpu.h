@@ -36,6 +36,9 @@
 #define EXCP_IRQ        4
 #define EXCP_BREAK      5
 
+/* CRIS-specific interrupt pending bits.  */
+#define CPU_INTERRUPT_NMI       CPU_INTERRUPT_TGT_EXT_3
+
 /* Register aliases. R0 - R15 */
 #define R_FP  8
 #define R_SP  14
@@ -101,7 +104,7 @@ typedef struct CPUCRISState {
 	/* P0 - P15 are referred to as special registers in the docs.  */
 	uint32_t pregs[16];
 
-	/* Pseudo register for the PC. Not directly accessable on CRIS.  */
+	/* Pseudo register for the PC. Not directly accessible on CRIS.  */
 	uint32_t pc;
 
 	/* Pseudo register for the kernel stack.  */

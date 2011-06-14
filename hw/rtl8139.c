@@ -1399,7 +1399,7 @@ static void rtl8139_ChipCmd_write(RTL8139State *s, uint32_t val)
         s->currCPlusTxDesc = 0;
     }
 
-    /* mask unwriteable bits */
+    /* mask unwritable bits */
     val = SET_MASKED(val, 0xe3, s->bChipCmdState);
 
     /* Deassert reset pin before next read */
@@ -1443,7 +1443,7 @@ static void rtl8139_CpCmd_write(RTL8139State *s, uint32_t val)
 
     s->cplus_enabled = 1;
 
-    /* mask unwriteable bits */
+    /* mask unwritable bits */
     val = SET_MASKED(val, 0xff84, s->CpCmd);
 
     s->CpCmd = val;
@@ -1472,7 +1472,7 @@ static uint32_t rtl8139_IntrMitigate_read(RTL8139State *s)
     return ret;
 }
 
-static int rtl8139_config_writeable(RTL8139State *s)
+static int rtl8139_config_writable(RTL8139State *s)
 {
     if (s->Cfg9346 & Cfg9346_Unlock)
     {
@@ -1490,10 +1490,10 @@ static void rtl8139_BasicModeCtrl_write(RTL8139State *s, uint32_t val)
 
     DPRINTF("BasicModeCtrl register write(w) val=0x%04x\n", val);
 
-    /* mask unwriteable bits */
+    /* mask unwritable bits */
     uint32_t mask = 0x4cff;
 
-    if (1 || !rtl8139_config_writeable(s))
+    if (1 || !rtl8139_config_writable(s))
     {
         /* Speed setting and autonegotiation enable bits are read-only */
         mask |= 0x3000;
@@ -1521,7 +1521,7 @@ static void rtl8139_BasicModeStatus_write(RTL8139State *s, uint32_t val)
 
     DPRINTF("BasicModeStatus register write(w) val=0x%04x\n", val);
 
-    /* mask unwriteable bits */
+    /* mask unwritable bits */
     val = SET_MASKED(val, 0xff3f, s->BasicModeStatus);
 
     s->BasicModeStatus = val;
@@ -1542,7 +1542,7 @@ static void rtl8139_Cfg9346_write(RTL8139State *s, uint32_t val)
 
     DPRINTF("Cfg9346 write val=0x%02x\n", val);
 
-    /* mask unwriteable bits */
+    /* mask unwritable bits */
     val = SET_MASKED(val, 0x31, s->Cfg9346);
 
     uint32_t opmode = val & 0xc0;
@@ -1594,10 +1594,11 @@ static void rtl8139_Config0_write(RTL8139State *s, uint32_t val)
 
     DPRINTF("Config0 write val=0x%02x\n", val);
 
-    if (!rtl8139_config_writeable(s))
+    if (!rtl8139_config_writable(s)) {
         return;
+    }
 
-    /* mask unwriteable bits */
+    /* mask unwritable bits */
     val = SET_MASKED(val, 0xf8, s->Config0);
 
     s->Config0 = val;
@@ -1618,10 +1619,11 @@ static void rtl8139_Config1_write(RTL8139State *s, uint32_t val)
 
     DPRINTF("Config1 write val=0x%02x\n", val);
 
-    if (!rtl8139_config_writeable(s))
+    if (!rtl8139_config_writable(s)) {
         return;
+    }
 
-    /* mask unwriteable bits */
+    /* mask unwritable bits */
     val = SET_MASKED(val, 0xC, s->Config1);
 
     s->Config1 = val;
@@ -1642,10 +1644,11 @@ static void rtl8139_Config3_write(RTL8139State *s, uint32_t val)
 
     DPRINTF("Config3 write val=0x%02x\n", val);
 
-    if (!rtl8139_config_writeable(s))
+    if (!rtl8139_config_writable(s)) {
         return;
+    }
 
-    /* mask unwriteable bits */
+    /* mask unwritable bits */
     val = SET_MASKED(val, 0x8F, s->Config3);
 
     s->Config3 = val;
@@ -1666,10 +1669,11 @@ static void rtl8139_Config4_write(RTL8139State *s, uint32_t val)
 
     DPRINTF("Config4 write val=0x%02x\n", val);
 
-    if (!rtl8139_config_writeable(s))
+    if (!rtl8139_config_writable(s)) {
         return;
+    }
 
-    /* mask unwriteable bits */
+    /* mask unwritable bits */
     val = SET_MASKED(val, 0x0a, s->Config4);
 
     s->Config4 = val;
@@ -1690,7 +1694,7 @@ static void rtl8139_Config5_write(RTL8139State *s, uint32_t val)
 
     DPRINTF("Config5 write val=0x%02x\n", val);
 
-    /* mask unwriteable bits */
+    /* mask unwritable bits */
     val = SET_MASKED(val, 0x80, s->Config5);
 
     s->Config5 = val;
@@ -1743,7 +1747,7 @@ static void rtl8139_RxConfig_write(RTL8139State *s, uint32_t val)
 {
     DPRINTF("RxConfig write val=0x%08x\n", val);
 
-    /* mask unwriteable bits */
+    /* mask unwritable bits */
     val = SET_MASKED(val, 0xf0fc0040, s->RxConfig);
 
     s->RxConfig = val;
@@ -2610,7 +2614,7 @@ static void rtl8139_IntrMask_write(RTL8139State *s, uint32_t val)
 {
     DPRINTF("IntrMask write(w) val=0x%04x\n", val);
 
-    /* mask unwriteable bits */
+    /* mask unwritable bits */
     val = SET_MASKED(val, 0x1e00, s->IntrMask);
 
     s->IntrMask = val;
@@ -2642,7 +2646,7 @@ static void rtl8139_IntrStatus_write(RTL8139State *s, uint32_t val)
 #else
     uint16_t newStatus = s->IntrStatus & ~val;
 
-    /* mask unwriteable bits */
+    /* mask unwritable bits */
     newStatus = SET_MASKED(newStatus, 0x1e00, s->IntrStatus);
 
     /* writing 1 to interrupt status register bit clears it */
@@ -2686,7 +2690,7 @@ static void rtl8139_MultiIntr_write(RTL8139State *s, uint32_t val)
 {
     DPRINTF("MultiIntr write(w) val=0x%04x\n", val);
 
-    /* mask unwriteable bits */
+    /* mask unwritable bits */
     val = SET_MASKED(val, 0xf000, s->MultiIntr);
 
     s->MultiIntr = val;

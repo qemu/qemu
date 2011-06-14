@@ -343,18 +343,24 @@ static int interface_get_command(QXLInstance *sin, struct QXLCommandExt *ext)
     SimpleSpiceUpdate *update;
     QXLCommandRing *ring;
     QXLCommand *cmd;
-    int notify;
+    int notify, ret;
 
     switch (qxl->mode) {
     case QXL_MODE_VGA:
         dprint(qxl, 2, "%s: vga\n", __FUNCTION__);
-        update = qemu_spice_create_update(&qxl->ssd);
-        if (update == NULL) {
-            return false;
+        ret = false;
+        qemu_mutex_lock(&qxl->ssd.lock);
+        if (qxl->ssd.update != NULL) {
+            update = qxl->ssd.update;
+            qxl->ssd.update = NULL;
+            *ext = update->ext;
+            ret = true;
         }
-        *ext = update->ext;
-        qxl_log_command(qxl, "vga", ext);
-        return true;
+        qemu_mutex_unlock(&qxl->ssd.lock);
+        if (ret) {
+            qxl_log_command(qxl, "vga", ext);
+        }
+        return ret;
     case QXL_MODE_COMPAT:
     case QXL_MODE_NATIVE:
     case QXL_MODE_UNDEFINED:
@@ -662,10 +668,8 @@ static void qxl_hard_reset(PCIQXLDevice *d, int loadvm)
     dprint(d, 1, "%s: start%s\n", __FUNCTION__,
            loadvm ? " (loadvm)" : "");
 
-    qemu_mutex_unlock_iothread();
     d->ssd.worker->reset_cursor(d->ssd.worker);
     d->ssd.worker->reset_image_cache(d->ssd.worker);
-    qemu_mutex_lock_iothread();
     qxl_reset_surfaces(d);
     qxl_reset_memslots(d);
 
@@ -795,9 +799,7 @@ static void qxl_reset_surfaces(PCIQXLDevice *d)
 {
     dprint(d, 1, "%s:\n", __FUNCTION__);
     d->mode = QXL_MODE_UNDEFINED;
-    qemu_mutex_unlock_iothread();
     d->ssd.worker->destroy_surfaces(d->ssd.worker);
-    qemu_mutex_lock_iothread();
     memset(&d->guest_surfaces.cmds, 0, sizeof(d->guest_surfaces.cmds));
 }
 
@@ -866,9 +868,7 @@ static void qxl_destroy_primary(PCIQXLDevice *d)
     dprint(d, 1, "%s\n", __FUNCTION__);
 
     d->mode = QXL_MODE_UNDEFINED;
-    qemu_mutex_unlock_iothread();
     d->ssd.worker->destroy_primary_surface(d->ssd.worker, 0);
-    qemu_mutex_lock_iothread();
 }
 
 static void qxl_set_mode(PCIQXLDevice *d, int modenr, int loadvm)
@@ -938,10 +938,8 @@ static void ioport_write(void *opaque, uint32_t addr, uint32_t val)
     case QXL_IO_UPDATE_AREA:
     {
         QXLRect update = d->ram->update_area;
-        qemu_mutex_unlock_iothread();
         d->ssd.worker->update_area(d->ssd.worker, d->ram->update_surface,
                                    &update, NULL, 0, 0);
-        qemu_mutex_lock_iothread();
         break;
     }
     case QXL_IO_NOTIFY_CMD:
@@ -1303,6 +1301,9 @@ static int qxl_init_primary(PCIDevice *dev)
     vga->ds = graphic_console_init(qxl_hw_update, qxl_hw_invalidate,
                                    qxl_hw_screen_dump, qxl_hw_text_update, qxl);
     qxl->ssd.ds = vga->ds;
+    qemu_mutex_init(&qxl->ssd.lock);
+    qxl->ssd.mouse_x = -1;
+    qxl->ssd.mouse_y = -1;
     qxl->ssd.bufsize = (16 * 1024 * 1024);
     qxl->ssd.buf = qemu_malloc(qxl->ssd.bufsize);
 

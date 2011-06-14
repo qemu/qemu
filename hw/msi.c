@@ -155,7 +155,7 @@ int msi_init(struct PCIDevice *dev, uint8_t offset,
     pci_set_word(dev->wmask + msi_data_off(dev, msi64bit), 0xffff);
 
     if (msi_per_vector_mask) {
-        /* Make mask bits 0 to nr_vectors - 1 writeable. */
+        /* Make mask bits 0 to nr_vectors - 1 writable. */
         pci_set_long(dev->wmask + msi_mask_off(dev, msi64bit),
                      0xffffffff >> (PCI_MSI_VECTORS_MAX - nr_vectors));
     }

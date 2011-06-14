@@ -229,7 +229,7 @@ static int qcow2_open(BlockDriverState *bs, int flags)
     }
 
     /* alloc L2 table/refcount block cache */
-    writethrough = ((flags & BDRV_O_CACHE_MASK) == 0);
+    writethrough = ((flags & BDRV_O_CACHE_WB) == 0);
     s->l2_table_cache = qcow2_cache_create(bs, L2_CACHE_SIZE, writethrough);
     s->refcount_block_cache = qcow2_cache_create(bs, REFCOUNT_CACHE_SIZE,
         writethrough);
@@ -1036,7 +1036,7 @@ static int qcow2_create(const char *filename, QEMUOptionParameter *options)
     const char *backing_fmt = NULL;
     uint64_t sectors = 0;
     int flags = 0;
-    size_t cluster_size = 65536;
+    size_t cluster_size = DEFAULT_CLUSTER_SIZE;
     int prealloc = 0;
 
     /* Read out options */
@@ -1343,7 +1343,8 @@ static QEMUOptionParameter qcow2_create_options[] = {
     {
         .name = BLOCK_OPT_CLUSTER_SIZE,
         .type = OPT_SIZE,
-        .help = "qcow2 cluster size"
+        .help = "qcow2 cluster size",
+        .value = { .n = DEFAULT_CLUSTER_SIZE },
     },
     {
         .name = BLOCK_OPT_PREALLOC,

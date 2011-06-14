@@ -71,8 +71,7 @@ all: $(PROGS) stap
 # cpu emulator library
 libobj-y = exec.o translate-all.o cpu-exec.o translate.o
 libobj-y += tcg/tcg.o
-libobj-$(CONFIG_SOFTFLOAT) += fpu/softfloat.o
-libobj-$(CONFIG_NOSOFTFLOAT) += fpu/softfloat-native.o
+libobj-y += fpu/softfloat.o
 libobj-y += op_helper.o helper.o
 ifeq ($(TARGET_BASE_ARCH), i386)
 libobj-y += cpuid.o
@@ -94,10 +93,10 @@ tcg/tcg.o: cpu.h
 
 # HELPER_CFLAGS is used for all the code compiled with static register
 # variables
-%_helper.o cpu-exec.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
+%_helper.o cpu-exec.o user-exec.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 
 # Note: this is a workaround. The real fix is to avoid compiling
-# cpu_signal_handler() in cpu-exec.c.
+# cpu_signal_handler() in user-exec.c.
 signal.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 
 #########################################################
@@ -110,7 +109,7 @@ $(call set-vpath, $(SRC_PATH)/linux-user:$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR
 QEMU_CFLAGS+=-I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR) -I$(SRC_PATH)/linux-user
 obj-y = main.o syscall.o strace.o mmap.o signal.o thunk.o \
       elfload.o linuxload.o uaccess.o gdbstub.o cpu-uname.o \
-      qemu-malloc.o $(oslib-obj-y)
+      qemu-malloc.o user-exec.o $(oslib-obj-y)
 
 obj-$(TARGET_HAS_BFLT) += flatload.o
 
@@ -148,7 +147,7 @@ LDFLAGS+=-Wl,-segaddr,__STD_PROG_ZONE,0x1000 -image_base 0x0e000000
 LIBS+=-lmx
 
 obj-y = main.o commpage.o machload.o mmap.o signal.o syscall.o thunk.o \
-        gdbstub.o
+        gdbstub.o user-exec.o
 
 obj-i386-y += ioport-user.o
 
@@ -170,7 +169,7 @@ $(call set-vpath, $(SRC_PATH)/bsd-user)
 QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
 
 obj-y = main.o bsdload.o elfload.o mmap.o signal.o strace.o syscall.o \
-        gdbstub.o uaccess.o
+        gdbstub.o uaccess.o user-exec.o
 
 obj-i386-y += ioport-user.o
 
@@ -191,10 +190,9 @@ obj-y = arch_init.o cpus.o monitor.o machine.o gdbstub.o balloon.o
 # need to fix this properly
 obj-$(CONFIG_NO_PCI) += pci-stub.o
 obj-$(CONFIG_VIRTIO) += virtio-blk.o virtio-balloon.o virtio-net.o virtio-serial-bus.o
-obj-$(CONFIG_VIRTIO_PCI) += virtio-pci.o
 obj-y += vhost_net.o
 obj-$(CONFIG_VHOST_NET) += vhost.o
-obj-$(CONFIG_REALLY_VIRTFS) += 9pfs/virtio-9p.o
+obj-$(CONFIG_REALLY_VIRTFS) += 9pfs/virtio-9p-device.o
 obj-y += rwhandler.o
 obj-$(CONFIG_KVM) += kvm.o kvm-all.o
 obj-$(CONFIG_NO_KVM) += kvm-stub.o
@@ -206,7 +204,19 @@ QEMU_CFLAGS += $(VNC_JPEG_CFLAGS)
 QEMU_CFLAGS += $(VNC_PNG_CFLAGS)
 
 # xen backend driver support
-obj-$(CONFIG_XEN) += xen_machine_pv.o xen_domainbuild.o
+obj-i386-$(CONFIG_XEN) += xen_machine_pv.o xen_domainbuild.o
+
+ifeq ($(TARGET_BASE_ARCH), i386)
+  CONFIG_NO_XEN = $(if $(subst n,,$(CONFIG_XEN)),n,y)
+else
+  CONFIG_NO_XEN = y
+endif
+# xen support
+CONFIG_NO_XEN_MAPCACHE = $(if $(subst n,,$(CONFIG_XEN_MAPCACHE)),n,y)
+obj-i386-$(CONFIG_XEN) += xen-all.o
+obj-$(CONFIG_NO_XEN) += xen-stub.o
+obj-i386-$(CONFIG_XEN_MAPCACHE) += xen-mapcache.o
+obj-$(CONFIG_NO_XEN_MAPCACHE) += xen-mapcache-stub.o
 
 # Inter-VM PCI shared memory
 CONFIG_IVSHMEM =
@@ -220,7 +230,7 @@ obj-$(CONFIG_IVSHMEM) += ivshmem.o
 # Hardware support
 obj-i386-y += vga.o
 obj-i386-y += mc146818rtc.o i8259.o pc.o
-obj-i386-y += cirrus_vga.o apic.o ioapic.o piix_pci.o
+obj-i386-y += cirrus_vga.o sga.o apic.o ioapic.o piix_pci.o
 obj-i386-y += vmport.o
 obj-i386-y += device-hotplug.o pci-hotplug.o smbios.o wdt_ib700.o
 obj-i386-y += debugcon.o multiboot.o
@@ -364,7 +374,8 @@ obj-m68k-y += m68k-semi.o dummy_m68k.o
 
 obj-s390x-y = s390-virtio-bus.o s390-virtio.o
 
-obj-alpha-y = alpha_palcode.o
+obj-alpha-y = i8259.o mc146818rtc.o
+obj-alpha-y += vga.o cirrus_vga.o
 
 main.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
@@ -400,8 +411,6 @@ hmp-commands.h: $(SRC_PATH)/hmp-commands.hx
 
 qmp-commands.h: $(SRC_PATH)/qmp-commands.hx
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
-
-9pfs/virtio-9p.o: CFLAGS +=  -I$(SRC_PATH)/hw/
 
 clean:
 	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o

@@ -721,7 +721,7 @@ static void do_phy_write(lan9118_state *s, int reg, uint32_t val)
             break;
         }
         s->phy_control = val & 0x7980;
-        /* Complete autonegotiation imediately.  */
+        /* Complete autonegotiation immediately.  */
         if (val & 0x1000) {
             s->phy_status |= 0x0020;
         }

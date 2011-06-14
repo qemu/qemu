@@ -662,7 +662,8 @@ DEF("alt-grab", 0, QEMU_OPTION_alt_grab,
 STEXI
 @item -alt-grab
 @findex -alt-grab
-Use Ctrl-Alt-Shift to grab mouse (instead of Ctrl-Alt).
+Use Ctrl-Alt-Shift to grab mouse (instead of Ctrl-Alt). Note that this also
+affects the special keys (for fullscreen, monitor-mode switching, etc).
 ETEXI
 
 DEF("ctrl-grab", 0, QEMU_OPTION_ctrl_grab,
@@ -671,7 +672,8 @@ DEF("ctrl-grab", 0, QEMU_OPTION_ctrl_grab,
 STEXI
 @item -ctrl-grab
 @findex -ctrl-grab
-Use Right-Ctrl to grab mouse (instead of Ctrl-Alt).
+Use Right-Ctrl to grab mouse (instead of Ctrl-Alt). Note that this also
+affects the special keys (for fullscreen, monitor-mode switching, etc).
 ETEXI
 
 DEF("no-quit", 0, QEMU_OPTION_no_quit,
@@ -712,8 +714,24 @@ Force using the specified IP version.
 @item password=<secret>
 Set the password you need to authenticate.
 
+@item sasl
+Require that the client use SASL to authenticate with the spice.
+The exact choice of authentication method used is controlled from the
+system / user's SASL configuration file for the 'qemu' service. This
+is typically found in /etc/sasl2/qemu.conf. If running QEMU as an
+unprivileged user, an environment variable SASL_CONF_PATH can be used
+to make it search alternate locations for the service config.
+While some SASL auth methods can also provide data encryption (eg GSSAPI),
+it is recommended that SASL always be combined with the 'tls' and
+'x509' settings to enable use of SSL and server certificates. This
+ensures a data encryption preventing compromise of authentication
+credentials.
+
 @item disable-ticketing
 Allow client connects without authentication.
+
+@item disable-copy-paste
+Disable copy paste between the client and the guest.
 
 @item tls-port=<nr>
 Set the TCP port spice is listening on for encrypted channels.
@@ -1159,9 +1177,9 @@ Specify the guest-visible address of the host. Default is the 2nd IP in the
 guest network, i.e. x.x.x.2.
 
 @item restrict=y|yes|n|no
-If this options is enabled, the guest will be isolated, i.e. it will not be
+If this option is enabled, the guest will be isolated, i.e. it will not be
 able to contact the host and no guest IP packets will be routed over the host
-to the outside. This option does not affect explicitly set forwarding rule.
+to the outside. This option does not affect any explicitly set forwarding rules.
 
 @item hostname=@var{name}
 Specifies the client hostname reported by the builtin DHCP server.
@@ -2028,6 +2046,16 @@ STEXI
 @findex -enable-kvm
 Enable KVM full virtualization support. This option is only available
 if KVM support is enabled when compiling.
+ETEXI
+
+DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
+    "-machine accel=accel1[:accel2]    use an accelerator (kvm,xen,tcg), default is tcg\n", QEMU_ARCH_ALL)
+STEXI
+@item -machine accel=@var{accels}
+@findex -machine
+This is use to enable an accelerator, in kvm,xen,tcg.
+By default, it use only tcg. If there a more than one accelerator
+specified, the next one is used if the first don't work.
 ETEXI
 
 DEF("xen-domid", HAS_ARG, QEMU_OPTION_xen_domid,

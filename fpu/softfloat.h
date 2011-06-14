@@ -74,24 +74,6 @@ typedef int64_t int64;
 #define SNAN_BIT_IS_ONE		0
 #endif
 
-/*----------------------------------------------------------------------------
-| The macro `FLOATX80' must be defined to enable the extended double-precision
-| floating-point format `floatx80'.  If this macro is not defined, the
-| `floatx80' type will not be defined, and none of the functions that either
-| input or output the `floatx80' type will be defined.  The same applies to
-| the `FLOAT128' macro and the quadruple-precision format `float128'.
-*----------------------------------------------------------------------------*/
-#ifdef CONFIG_SOFTFLOAT
-/* bit exact soft float support */
-#define FLOATX80
-#define FLOAT128
-#else
-/* native float support */
-#if (defined(__i386__) || defined(__x86_64__)) && !defined(CONFIG_BSD)
-#define FLOATX80
-#endif
-#endif /* !CONFIG_SOFTFLOAT */
-
 #define STATUS_PARAM , float_status *status
 #define STATUS(field) status->field
 #define STATUS_VAR , status
@@ -106,7 +88,6 @@ enum {
     float_relation_unordered =  2
 };
 
-#ifdef CONFIG_SOFTFLOAT
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE floating-point types.
 *----------------------------------------------------------------------------*/
@@ -149,14 +130,11 @@ typedef uint64_t float64;
 #define const_float32(x) (x)
 #define const_float64(x) (x)
 #endif
-#ifdef FLOATX80
 typedef struct {
     uint64_t low;
     uint16_t high;
 } floatx80;
 #define make_floatx80(exp, mant) ((floatx80) { mant, exp })
-#endif
-#ifdef FLOAT128
 typedef struct {
 #ifdef HOST_WORDS_BIGENDIAN
     uint64_t high, low;
@@ -164,7 +142,6 @@ typedef struct {
     uint64_t low, high;
 #endif
 } float128;
-#endif
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE floating-point underflow tininess-detection mode.
@@ -193,16 +170,15 @@ enum {
     float_flag_overflow  =  8,
     float_flag_underflow = 16,
     float_flag_inexact   = 32,
-    float_flag_input_denormal = 64
+    float_flag_input_denormal = 64,
+    float_flag_output_denormal = 128
 };
 
 typedef struct float_status {
     signed char float_detect_tininess;
     signed char float_rounding_mode;
     signed char float_exception_flags;
-#ifdef FLOATX80
     signed char floatx80_rounding_precision;
-#endif
     /* should denormalised results go to zero and set the inexact flag? */
     flag flush_to_zero;
     /* should denormalised inputs go to zero and set the input_denormal flag? */
@@ -232,9 +208,7 @@ INLINE int get_float_exception_flags(float_status *status)
 {
     return STATUS(float_exception_flags);
 }
-#ifdef FLOATX80
 void set_floatx80_rounding_precision(int val STATUS_PARAM);
-#endif
 
 /*----------------------------------------------------------------------------
 | Routine to raise any or all of the software IEC/IEEE floating-point
@@ -249,22 +223,14 @@ float32 int32_to_float32( int32 STATUS_PARAM );
 float64 int32_to_float64( int32 STATUS_PARAM );
 float32 uint32_to_float32( unsigned int STATUS_PARAM );
 float64 uint32_to_float64( unsigned int STATUS_PARAM );
-#ifdef FLOATX80
 floatx80 int32_to_floatx80( int32 STATUS_PARAM );
-#endif
-#ifdef FLOAT128
 float128 int32_to_float128( int32 STATUS_PARAM );
-#endif
 float32 int64_to_float32( int64 STATUS_PARAM );
 float32 uint64_to_float32( uint64 STATUS_PARAM );
 float64 int64_to_float64( int64 STATUS_PARAM );
 float64 uint64_to_float64( uint64 STATUS_PARAM );
-#ifdef FLOATX80
 floatx80 int64_to_floatx80( int64 STATUS_PARAM );
-#endif
-#ifdef FLOAT128
 float128 int64_to_float128( int64 STATUS_PARAM );
-#endif
 
 /*----------------------------------------------------------------------------
 | Software half-precision conversion routines.
@@ -302,12 +268,8 @@ uint32 float32_to_uint32_round_to_zero( float32 STATUS_PARAM );
 int64 float32_to_int64( float32 STATUS_PARAM );
 int64 float32_to_int64_round_to_zero( float32 STATUS_PARAM );
 float64 float32_to_float64( float32 STATUS_PARAM );
-#ifdef FLOATX80
 floatx80 float32_to_floatx80( float32 STATUS_PARAM );
-#endif
-#ifdef FLOAT128
 float128 float32_to_float128( float32 STATUS_PARAM );
-#endif
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE single-precision operations.
@@ -419,12 +381,8 @@ int64 float64_to_int64_round_to_zero( float64 STATUS_PARAM );
 uint64 float64_to_uint64 (float64 a STATUS_PARAM);
 uint64 float64_to_uint64_round_to_zero (float64 a STATUS_PARAM);
 float32 float64_to_float32( float64 STATUS_PARAM );
-#ifdef FLOATX80
 floatx80 float64_to_floatx80( float64 STATUS_PARAM );
-#endif
-#ifdef FLOAT128
 float128 float64_to_float128( float64 STATUS_PARAM );
-#endif
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE double-precision operations.
@@ -491,6 +449,11 @@ INLINE int float64_is_any_nan(float64 a)
     return ((float64_val(a) & ~(1ULL << 63)) > 0x7ff0000000000000ULL);
 }
 
+INLINE int float64_is_zero_or_denormal(float64 a)
+{
+    return (float64_val(a) & 0x7ff0000000000000LL) == 0;
+}
+
 INLINE float64 float64_set_sign(float64 a, int sign)
 {
     return make_float64((float64_val(a) & 0x7fffffffffffffffULL)
@@ -517,8 +480,6 @@ INLINE float64 float64_set_sign(float64 a, int sign)
 #define float64_default_nan make_float64(LIT64( 0xFFF8000000000000 ))
 #endif
 
-#ifdef FLOATX80
-
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE extended double-precision conversion routines.
 *----------------------------------------------------------------------------*/
@@ -528,9 +489,7 @@ int64 floatx80_to_int64( floatx80 STATUS_PARAM );
 int64 floatx80_to_int64_round_to_zero( floatx80 STATUS_PARAM );
 float32 floatx80_to_float32( floatx80 STATUS_PARAM );
 float64 floatx80_to_float64( floatx80 STATUS_PARAM );
-#ifdef FLOAT128
 float128 floatx80_to_float128( floatx80 STATUS_PARAM );
-#endif
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE extended double-precision operations.
@@ -584,6 +543,11 @@ INLINE int floatx80_is_zero(floatx80 a)
     return (a.high & 0x7fff) == 0 && a.low == 0;
 }
 
+INLINE int floatx80_is_zero_or_denormal(floatx80 a)
+{
+    return (a.high & 0x7fff) == 0;
+}
+
 INLINE int floatx80_is_any_nan(floatx80 a)
 {
     return ((a.high & 0x7fff) == 0x7fff) && (a.low<<1);
@@ -609,10 +573,6 @@ INLINE int floatx80_is_any_nan(floatx80 a)
 #define floatx80_default_nan_low  LIT64( 0xC000000000000000 )
 #endif
 
-#endif
-
-#ifdef FLOAT128
-
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE quadruple-precision conversion routines.
 *----------------------------------------------------------------------------*/
@@ -622,9 +582,7 @@ int64 float128_to_int64( float128 STATUS_PARAM );
 int64 float128_to_int64_round_to_zero( float128 STATUS_PARAM );
 float32 float128_to_float32( float128 STATUS_PARAM );
 float64 float128_to_float64( float128 STATUS_PARAM );
-#ifdef FLOATX80
 floatx80 float128_to_floatx80( float128 STATUS_PARAM );
-#endif
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE quadruple-precision operations.
@@ -678,6 +636,11 @@ INLINE int float128_is_zero(float128 a)
     return (a.high & 0x7fffffffffffffffLL) == 0 && a.low == 0;
 }
 
+INLINE int float128_is_zero_or_denormal(float128 a)
+{
+    return (a.high & 0x7fff000000000000LL) == 0;
+}
+
 INLINE int float128_is_any_nan(float128 a)
 {
     return ((a.high >> 48) & 0x7fff) == 0x7fff &&
@@ -695,13 +658,5 @@ INLINE int float128_is_any_nan(float128 a)
 #define float128_default_nan_high LIT64( 0xFFFF800000000000 )
 #define float128_default_nan_low  LIT64( 0x0000000000000000 )
 #endif
-
-#endif
-
-#else /* CONFIG_SOFTFLOAT */
-
-#include "softfloat-native.h"
-
-#endif /* !CONFIG_SOFTFLOAT */
 
 #endif /* !SOFTFLOAT_H */

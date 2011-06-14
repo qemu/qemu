@@ -70,7 +70,7 @@ int qcow2_grow_l1_table(BlockDriverState *bs, int min_size, bool exact_size)
 
     ret = qcow2_cache_flush(bs, s->refcount_block_cache);
     if (ret < 0) {
-        return ret;
+        goto fail;
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_L1_GROW_WRITE_TABLE);

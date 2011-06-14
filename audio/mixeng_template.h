@@ -46,7 +46,7 @@ static mixeng_real inline glue (conv_, ET) (IN_T v)
 #endif
 #else  /* !RECIPROCAL */
 #ifdef SIGNED
-    return nv / (mixeng_real) (IN_MAX - IN_MIN);
+    return nv / (mixeng_real) ((mixeng_real) IN_MAX - IN_MIN);
 #else
     return (nv - HALF) / (mixeng_real) IN_MAX;
 #endif
@@ -63,7 +63,7 @@ static IN_T inline glue (clip_, ET) (mixeng_real v)
     }
 
 #ifdef SIGNED
-    return ENDIAN_CONVERT ((IN_T) (v * (IN_MAX - IN_MIN)));
+    return ENDIAN_CONVERT ((IN_T) (v * ((mixeng_real) IN_MAX - IN_MIN)));
 #else
     return ENDIAN_CONVERT ((IN_T) ((v * IN_MAX) + HALF));
 #endif

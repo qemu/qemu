@@ -76,7 +76,7 @@ static int msix_add_config(struct PCIDevice *pdev, unsigned short nentries,
     pci_set_long(config + PCI_MSIX_PBA, (bar_size + MSIX_PAGE_PENDING) |
                  bar_nr);
     pdev->msix_cap = config_offset;
-    /* Make flags bit writeable. */
+    /* Make flags bit writable. */
     pdev->wmask[config_offset + MSIX_CONTROL_OFFSET] |= MSIX_ENABLE_MASK |
 	    MSIX_MASKALL_MASK;
     return 0;

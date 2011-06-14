@@ -129,7 +129,7 @@ typedef tcg_target_ulong TCGArg;
    We use plain int by default to avoid this runtime overhead.
    Users of tcg_gen_* don't need to know about any of this, and should
    treat TCGv as an opaque type.
-   In additon we do typechecking for different types of variables.  TCGv_i32
+   In addition we do typechecking for different types of variables.  TCGv_i32
    and TCGv_i64 are 32/64-bit variables respectively.  TCGv and TCGv_ptr
    are aliases for target_ulong and host pointer sized values respectively.
  */
@@ -150,12 +150,19 @@ typedef struct
     int i64;
 } TCGv_i64;
 
+typedef struct {
+    int iptr;
+} TCGv_ptr;
+
 #define MAKE_TCGV_I32(i) __extension__                  \
     ({ TCGv_i32 make_tcgv_tmp = {i}; make_tcgv_tmp;})
 #define MAKE_TCGV_I64(i) __extension__                  \
     ({ TCGv_i64 make_tcgv_tmp = {i}; make_tcgv_tmp;})
+#define MAKE_TCGV_PTR(i) __extension__                  \
+    ({ TCGv_ptr make_tcgv_tmp = {i}; make_tcgv_tmp; })
 #define GET_TCGV_I32(t) ((t).i32)
 #define GET_TCGV_I64(t) ((t).i64)
+#define GET_TCGV_PTR(t) ((t).iptr)
 #if TCG_TARGET_REG_BITS == 32
 #define TCGV_LOW(t) MAKE_TCGV_I32(GET_TCGV_I64(t))
 #define TCGV_HIGH(t) MAKE_TCGV_I32(GET_TCGV_I64(t) + 1)
@@ -165,10 +172,17 @@ typedef struct
 
 typedef int TCGv_i32;
 typedef int TCGv_i64;
+#if TCG_TARGET_REG_BITS == 32
+#define TCGv_ptr TCGv_i32
+#else
+#define TCGv_ptr TCGv_i64
+#endif
 #define MAKE_TCGV_I32(x) (x)
 #define MAKE_TCGV_I64(x) (x)
+#define MAKE_TCGV_PTR(x) (x)
 #define GET_TCGV_I32(t) (t)
 #define GET_TCGV_I64(t) (t)
+#define GET_TCGV_PTR(t) (t)
 
 #if TCG_TARGET_REG_BITS == 32
 #define TCGV_LOW(t) (t)
@@ -252,9 +266,9 @@ typedef struct TCGTemp {
     unsigned int fixed_reg:1;
     unsigned int mem_coherent:1;
     unsigned int mem_allocated:1;
-    unsigned int temp_local:1; /* If true, the temp is saved accross
+    unsigned int temp_local:1; /* If true, the temp is saved across
                                   basic blocks. Otherwise, it is not
-                                  preserved accross basic blocks. */
+                                  preserved across basic blocks. */
     unsigned int temp_allocated:1; /* never used for code gen */
     /* index of next free temp of same base type, -1 if end */
     int next_free_temp;
@@ -286,8 +300,8 @@ struct TCGContext {
     uint16_t *tb_jmp_offset; /* != NULL if USE_DIRECT_JUMP */
 
     /* liveness analysis */
-    uint16_t *op_dead_iargs; /* for each operation, each bit tells if the
-                                corresponding input argument is dead */
+    uint16_t *op_dead_args; /* for each operation, each bit tells if the
+                               corresponding argument is dead */
     
     /* tells in which temporary a given register is. It does not take
        into account fixed registers */
@@ -459,25 +473,27 @@ do {\
 void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs);
 
 #if TCG_TARGET_REG_BITS == 32
-#define tcg_const_ptr tcg_const_i32
-#define tcg_add_ptr tcg_add_i32
-#define tcg_sub_ptr tcg_sub_i32
-#define TCGv_ptr TCGv_i32
-#define GET_TCGV_PTR GET_TCGV_I32
-#define tcg_global_reg_new_ptr tcg_global_reg_new_i32
-#define tcg_global_mem_new_ptr tcg_global_mem_new_i32
-#define tcg_temp_new_ptr tcg_temp_new_i32
-#define tcg_temp_free_ptr tcg_temp_free_i32
+#define TCGV_NAT_TO_PTR(n) MAKE_TCGV_PTR(GET_TCGV_I32(n))
+#define TCGV_PTR_TO_NAT(n) MAKE_TCGV_I32(GET_TCGV_PTR(n))
+
+#define tcg_const_ptr(V) TCGV_NAT_TO_PTR(tcg_const_i32(V))
+#define tcg_global_reg_new_ptr(R, N) \
+    TCGV_NAT_TO_PTR(tcg_global_reg_new_i32((R), (N)))
+#define tcg_global_mem_new_ptr(R, O, N) \
+    TCGV_NAT_TO_PTR(tcg_global_mem_new_i32((R), (O), (N)))
+#define tcg_temp_new_ptr() TCGV_NAT_TO_PTR(tcg_temp_new_i32())
+#define tcg_temp_free_ptr(T) tcg_temp_free_i32(TCGV_PTR_TO_NAT(T))
 #else
-#define tcg_const_ptr tcg_const_i64
-#define tcg_add_ptr tcg_add_i64
-#define tcg_sub_ptr tcg_sub_i64
-#define TCGv_ptr TCGv_i64
-#define GET_TCGV_PTR GET_TCGV_I64
-#define tcg_global_reg_new_ptr tcg_global_reg_new_i64
-#define tcg_global_mem_new_ptr tcg_global_mem_new_i64
-#define tcg_temp_new_ptr tcg_temp_new_i64
-#define tcg_temp_free_ptr tcg_temp_free_i64
+#define TCGV_NAT_TO_PTR(n) MAKE_TCGV_PTR(GET_TCGV_I64(n))
+#define TCGV_PTR_TO_NAT(n) MAKE_TCGV_I64(GET_TCGV_PTR(n))
+
+#define tcg_const_ptr(V) TCGV_NAT_TO_PTR(tcg_const_i64(V))
+#define tcg_global_reg_new_ptr(R, N) \
+    TCGV_NAT_TO_PTR(tcg_global_reg_new_i64((R), (N)))
+#define tcg_global_mem_new_ptr(R, O, N) \
+    TCGV_NAT_TO_PTR(tcg_global_mem_new_i64((R), (O), (N)))
+#define tcg_temp_new_ptr() TCGV_NAT_TO_PTR(tcg_temp_new_i64())
+#define tcg_temp_free_ptr(T) tcg_temp_free_i64(TCGV_PTR_TO_NAT(T))
 #endif
 
 void tcg_gen_callN(TCGContext *s, TCGv_ptr func, unsigned int flags,

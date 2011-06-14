@@ -205,7 +205,7 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
     disasm_info.mach = bfd_mach_sh4;
     print_insn = print_insn_sh;
 #elif defined(TARGET_ALPHA)
-    disasm_info.mach = bfd_mach_alpha;
+    disasm_info.mach = bfd_mach_alpha_ev6;
     print_insn = print_insn_alpha;
 #elif defined(TARGET_CRIS)
     if (flags != 32) {

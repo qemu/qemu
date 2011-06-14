@@ -466,6 +466,15 @@
 #define EXCP_SYSCALL    0x100 /* only happens in user only emulation
                                  for syscall instruction */
 
+/* i386-specific interrupt pending bits.  */
+#define CPU_INTERRUPT_SMI       CPU_INTERRUPT_TGT_EXT_2
+#define CPU_INTERRUPT_NMI       CPU_INTERRUPT_TGT_EXT_3
+#define CPU_INTERRUPT_MCE       CPU_INTERRUPT_TGT_EXT_4
+#define CPU_INTERRUPT_VIRQ      CPU_INTERRUPT_TGT_INT_0
+#define CPU_INTERRUPT_INIT      CPU_INTERRUPT_TGT_INT_1
+#define CPU_INTERRUPT_SIPI      CPU_INTERRUPT_TGT_INT_2
+
+
 enum {
     CC_OP_DYNAMIC, /* must use dynamic code to get cc_op */
     CC_OP_EFLAGS,  /* all cc are explicitly computed, CC_SRC = flags */
@@ -523,16 +532,6 @@ enum {
     CC_OP_NB,
 };
 
-#ifdef FLOATX80
-#define USE_X86LDOUBLE
-#endif
-
-#ifdef USE_X86LDOUBLE
-typedef floatx80 CPU86_LDouble;
-#else
-typedef float64 CPU86_LDouble;
-#endif
-
 typedef struct SegmentCache {
     uint32_t selector;
     target_ulong base;
@@ -585,11 +584,7 @@ typedef union {
 #define MMX_Q(n) q
 
 typedef union {
-#ifdef USE_X86LDOUBLE
-    CPU86_LDouble d __attribute__((aligned(16)));
-#else
-    CPU86_LDouble d;
-#endif
+    floatx80 d __attribute__((aligned(16)));
     MMXReg mmx;
 } FPReg;
 
@@ -645,7 +640,7 @@ typedef struct CPUX86State {
 
     /* emulator internal variables */
     float_status fp_status;
-    CPU86_LDouble ft0;
+    floatx80 ft0;
 
     float_status mmx_status; /* for 3DNow! float ops */
     float_status sse_status;
@@ -856,8 +851,8 @@ static inline void cpu_x86_set_cpl(CPUX86State *s, int cpl)
 
 /* op_helper.c */
 /* used for debug or cpu save/restore */
-void cpu_get_fp80(uint64_t *pmant, uint16_t *pexp, CPU86_LDouble f);
-CPU86_LDouble cpu_set_fp80(uint64_t mant, uint16_t upper);
+void cpu_get_fp80(uint64_t *pmant, uint16_t *pexp, floatx80 f);
+floatx80 cpu_set_fp80(uint64_t mant, uint16_t upper);
 
 /* cpu-exec.c */
 /* the following helpers are only usable in user mode simulation as

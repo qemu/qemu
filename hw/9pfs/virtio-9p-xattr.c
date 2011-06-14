@@ -11,7 +11,7 @@
  *
  */
 
-#include "virtio.h"
+#include "hw/virtio.h"
 #include "virtio-9p.h"
 #include "fsdev/file-op-9p.h"
 #include "virtio-9p-xattr.h"
@@ -66,20 +66,21 @@ ssize_t v9fs_list_xattr(FsContext *ctx, const char *path,
                         void *value, size_t vsize)
 {
     ssize_t size = 0;
+    char buffer[PATH_MAX];
     void *ovalue = value;
     XattrOperations *xops;
     char *orig_value, *orig_value_start;
     ssize_t xattr_len, parsed_len = 0, attr_len;
 
     /* Get the actual len */
-    xattr_len = llistxattr(rpath(ctx, path), value, 0);
+    xattr_len = llistxattr(rpath(ctx, path, buffer), value, 0);
     if (xattr_len <= 0) {
         return xattr_len;
     }
 
     /* Now fetch the xattr and find the actual size */
     orig_value = qemu_malloc(xattr_len);
-    xattr_len = llistxattr(rpath(ctx, path), orig_value, xattr_len);
+    xattr_len = llistxattr(rpath(ctx, path, buffer), orig_value, xattr_len);
 
     /* store the orig pointer */
     orig_value_start = orig_value;

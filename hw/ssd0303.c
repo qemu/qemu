@@ -93,7 +93,7 @@ static int ssd0303_send(i2c_slave *i2c, uint8_t data)
             DPRINTF("cmd 0x%02x\n", data);
             s->mode = SSD0303_IDLE;
             switch (data) {
-            case 0x00 ... 0x0f: /* Set lower colum address.  */
+            case 0x00 ... 0x0f: /* Set lower column address.  */
                 s->col = (s->col & 0xf0) | (data & 0xf);
                 break;
             case 0x10 ... 0x20: /* Set higher column address.  */

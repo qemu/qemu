@@ -1105,10 +1105,6 @@ static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
             env->active_fpu.fcr31 = tmp & 0xFF83FFFF;
             /* set rounding mode */
             RESTORE_ROUNDING_MODE;
-#ifndef CONFIG_SOFTFLOAT
-            /* no floating point exception for native float */
-            SET_FP_ENABLE(env->active_fpu.fcr31, 0);
-#endif
             break;
         case 71: env->active_fpu.fcr0 = tmp; break;
         }
@@ -1436,7 +1432,11 @@ static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
             /* XXX */
             break;
         case S390_PC_REGNUM: GET_REGL(env->psw.addr); break;
-        case S390_CC_REGNUM: GET_REG32(env->cc); break;
+        case S390_CC_REGNUM:
+            env->cc_op = calc_cc(env, env->cc_op, env->cc_src, env->cc_dst,
+                                 env->cc_vr);
+            GET_REG32(env->cc_op);
+            break;
     }
 
     return 0;
@@ -1462,7 +1462,7 @@ static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
             /* XXX */
             break;
         case S390_PC_REGNUM: env->psw.addr = tmpl; break;
-        case S390_CC_REGNUM: env->cc = tmp32; r=4; break;
+        case S390_CC_REGNUM: env->cc_op = tmp32; r=4; break;
     }
 
     return r;
