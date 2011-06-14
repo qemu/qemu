@@ -616,7 +616,7 @@ static void musb_packet(MUSBState *s, MUSBEndPoint *ep,
     }
 
     ep->status[dir] = ret;
-    usb_packet_complete(s->port.dev, &ep->packey[dir].p);
+    musb_schedule_cb(s->port.dev, &ep->packey[dir].p);
 }
 
 static void musb_tx_packet_complete(USBPacket *packey, void *opaque)
