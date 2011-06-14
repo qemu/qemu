@@ -1681,10 +1681,12 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
         do_pci_unregister_device(pci_dev);
         return -1;
     }
-    rc = info->init(pci_dev);
-    if (rc != 0) {
-        do_pci_unregister_device(pci_dev);
-        return rc;
+    if (info->init) {
+        rc = info->init(pci_dev);
+        if (rc != 0) {
+            do_pci_unregister_device(pci_dev);
+            return rc;
+        }
     }
 
     /* rom loading */
