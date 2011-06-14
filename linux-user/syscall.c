@@ -709,29 +709,44 @@ char *target_strerror(int err)
 
 static abi_ulong target_brk;
 static abi_ulong target_original_brk;
+static abi_ulong brk_page;
 
 void target_set_brk(abi_ulong new_brk)
 {
     target_original_brk = target_brk = HOST_PAGE_ALIGN(new_brk);
+    brk_page = HOST_PAGE_ALIGN(target_brk);
 }
+
+//#define DEBUGF_BRK(message, args...) do { fprintf(stderr, (message), ## args); } while (0)
+#define DEBUGF_BRK(message, args...)
 
 /* do_brk() must return target values and target errnos. */
 abi_long do_brk(abi_ulong new_brk)
 {
-    abi_ulong brk_page;
     abi_long mapped_addr;
     int	new_alloc_size;
 
-    if (!new_brk)
-        return target_brk;
-    if (new_brk < target_original_brk)
-        return target_brk;
+    DEBUGF_BRK("do_brk(%#010x) -> ", new_brk);
 
-    brk_page = HOST_PAGE_ALIGN(target_brk);
+    if (!new_brk) {
+        DEBUGF_BRK("%#010x (!new_brk)\n", target_brk);
+        return target_brk;
+    }
+    if (new_brk < target_original_brk) {
+        DEBUGF_BRK("%#010x (new_brk < target_original_brk)\n", target_brk);
+        return target_brk;
+    }
 
-    /* If the new brk is less than this, set it and we're done... */
-    if (new_brk < brk_page) {
+    /* If the new brk is less than the highest page reserved to the
+     * target heap allocation, set it and we're almost done...  */
+    if (new_brk <= brk_page) {
+        /* Heap contents are initialized to zero, as for anonymous
+         * mapped pages.  */
+        if (new_brk > target_brk) {
+            memset(g2h(target_brk), 0, new_brk - target_brk);
+        }
 	target_brk = new_brk;
+        DEBUGF_BRK("%#010x (new_brk <= brk_page)\n", target_brk);
     	return target_brk;
     }
 
@@ -741,13 +756,15 @@ abi_long do_brk(abi_ulong new_brk)
      * itself); instead we treat "mapped but at wrong address" as
      * a failure and unmap again.
      */
-    new_alloc_size = HOST_PAGE_ALIGN(new_brk - brk_page + 1);
+    new_alloc_size = HOST_PAGE_ALIGN(new_brk - brk_page);
     mapped_addr = get_errno(target_mmap(brk_page, new_alloc_size,
                                         PROT_READ|PROT_WRITE,
                                         MAP_ANON|MAP_PRIVATE, 0, 0));
 
     if (mapped_addr == brk_page) {
         target_brk = new_brk;
+        brk_page = HOST_PAGE_ALIGN(target_brk);
+        DEBUGF_BRK("%#010x (mapped_addr == brk_page)\n", target_brk);
         return target_brk;
     } else if (mapped_addr != -1) {
         /* Mapped but at wrong address, meaning there wasn't actually
@@ -755,6 +772,10 @@ abi_long do_brk(abi_ulong new_brk)
          */
         target_munmap(mapped_addr, new_alloc_size);
         mapped_addr = -1;
+        DEBUGF_BRK("%#010x (mapped_addr != -1)\n", target_brk);
+    }
+    else {
+        DEBUGF_BRK("%#010x (otherwise)\n", target_brk);
     }
 
 #if defined(TARGET_ALPHA)
