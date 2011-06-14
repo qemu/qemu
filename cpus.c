@@ -297,7 +297,7 @@ static void qemu_event_increment(void)
 
     /* EAGAIN is fine, a read must be pending.  */
     if (ret < 0 && errno != EAGAIN) {
-        fprintf(stderr, "qemu_event_increment: write() filed: %s\n",
+        fprintf(stderr, "qemu_event_increment: write() failed: %s\n",
                 strerror(errno));
         exit (1);
     }
