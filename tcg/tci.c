@@ -52,8 +52,8 @@ typedef uint64_t (*helper_function)(tcg_target_ulong, tcg_target_ulong,
 
 CPUState *env;
 
-/* SH4 user mode emulation calls GETPC(), so it needs tci_tb_ptr, too. */
-#if defined(CONFIG_SOFTMMU) || defined(TARGET_SH4)
+/* Alpha and SH4 user mode emulations call GETPC(), so they need tci_tb_ptr. */
+#if defined(CONFIG_SOFTMMU) || defined(TARGET_ALPHA) || defined(TARGET_SH4)
 # define NEEDS_TB_PTR
 #endif
 
