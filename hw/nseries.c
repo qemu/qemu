@@ -1254,12 +1254,12 @@ static int n8x0_atag_setup(void *p, int model)
     return (void *) w - p;
 }
 
-static int n800_atag_setup(struct arm_boot_info *info, void *p)
+static int n800_atag_setup(const struct arm_boot_info *info, void *p)
 {
     return n8x0_atag_setup(p, 800);
 }
 
-static int n810_atag_setup(struct arm_boot_info *info, void *p)
+static int n810_atag_setup(const struct arm_boot_info *info, void *p)
 {
     return n8x0_atag_setup(p, 810);
 }
