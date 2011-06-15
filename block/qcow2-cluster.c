@@ -796,8 +796,8 @@ int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
                 m->depends_on = old_alloc;
                 m->nb_clusters = 0;
                 *num = 0;
-                ret = 0;
-                goto fail;
+
+                goto out_wait_dependency;
             }
         }
     }
@@ -812,7 +812,6 @@ int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
 
     cluster_offset = qcow2_alloc_clusters(bs, nb_clusters * s->cluster_size);
     if (cluster_offset < 0) {
-        QLIST_REMOVE(m, next_in_flight);
         ret = cluster_offset;
         goto fail;
     }
@@ -825,7 +824,7 @@ int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
 out:
     ret = qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
     if (ret < 0) {
-        return ret;
+        goto fail_put;
     }
 
     m->nb_available = MIN(nb_clusters << (s->cluster_bits - 9), n_end);
@@ -835,8 +834,13 @@ out:
 
     return 0;
 
+out_wait_dependency:
+    return qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
+
 fail:
     qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
+fail_put:
+    QLIST_REMOVE(m, next_in_flight);
     return ret;
 }
 

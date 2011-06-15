@@ -22,6 +22,10 @@ typedef struct BMDMAState {
     IORange addr_ioport;
     QEMUBH *bh;
     qemu_irq irq;
+
+    /* Bit 0-2 and 7:   BM status register
+     * Bit 3-6:         bus->error_status */
+    uint8_t migration_compat_status;
 } BMDMAState;
 
 typedef struct PCIIDEState {
