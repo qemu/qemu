@@ -125,6 +125,11 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
     const char *serial;
     DriveInfo *dinfo;
 
+    if (dev->conf.discard_granularity && dev->conf.discard_granularity != 512) {
+        error_report("discard_granularity must be 512 for ide");
+        return -1;
+    }
+
     serial = dev->serial;
     if (!serial) {
         /* try to fall back to value set with legacy -drive serial=... */

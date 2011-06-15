@@ -227,7 +227,6 @@ static int qemu_rbd_create(const char *filename, QEMUOptionParameter *options)
     char name[RBD_MAX_IMAGE_NAME_SIZE];
     char snap_buf[RBD_MAX_SNAP_NAME_SIZE];
     char conf[RBD_MAX_CONF_SIZE];
-    char *snap = NULL;
     rados_t cluster;
     rados_ioctx_t io_ctx;
     int ret;
@@ -237,9 +236,6 @@ static int qemu_rbd_create(const char *filename, QEMUOptionParameter *options)
                            name, sizeof(name),
                            conf, sizeof(conf)) < 0) {
         return -EINVAL;
-    }
-    if (snap_buf[0] != '\0') {
-        snap = snap_buf;
     }
 
     /* Read out options */

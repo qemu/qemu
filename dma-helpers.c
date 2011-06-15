@@ -47,6 +47,7 @@ typedef struct {
     target_phys_addr_t sg_cur_byte;
     QEMUIOVector iov;
     QEMUBH *bh;
+    DMAIOFunc *io_func;
 } DMAAIOCB;
 
 static void dma_bdrv_cb(void *opaque, int ret);
@@ -116,13 +117,8 @@ static void dma_bdrv_cb(void *opaque, int ret)
         return;
     }
 
-    if (dbs->is_write) {
-        dbs->acb = bdrv_aio_writev(dbs->bs, dbs->sector_num, &dbs->iov,
-                                   dbs->iov.size / 512, dma_bdrv_cb, dbs);
-    } else {
-        dbs->acb = bdrv_aio_readv(dbs->bs, dbs->sector_num, &dbs->iov,
-                                  dbs->iov.size / 512, dma_bdrv_cb, dbs);
-    }
+    dbs->acb = dbs->io_func(dbs->bs, dbs->sector_num, &dbs->iov,
+                            dbs->iov.size / 512, dma_bdrv_cb, dbs);
     if (!dbs->acb) {
         dma_bdrv_unmap(dbs);
         qemu_iovec_destroy(&dbs->iov);
@@ -144,12 +140,12 @@ static AIOPool dma_aio_pool = {
     .cancel             = dma_aio_cancel,
 };
 
-static BlockDriverAIOCB *dma_bdrv_io(
+BlockDriverAIOCB *dma_bdrv_io(
     BlockDriverState *bs, QEMUSGList *sg, uint64_t sector_num,
-    BlockDriverCompletionFunc *cb, void *opaque,
-    int is_write)
+    DMAIOFunc *io_func, BlockDriverCompletionFunc *cb,
+    void *opaque, int is_write)
 {
-    DMAAIOCB *dbs =  qemu_aio_get(&dma_aio_pool, bs, cb, opaque);
+    DMAAIOCB *dbs = qemu_aio_get(&dma_aio_pool, bs, cb, opaque);
 
     dbs->acb = NULL;
     dbs->bs = bs;
@@ -158,6 +154,7 @@ static BlockDriverAIOCB *dma_bdrv_io(
     dbs->sg_cur_index = 0;
     dbs->sg_cur_byte = 0;
     dbs->is_write = is_write;
+    dbs->io_func = io_func;
     dbs->bh = NULL;
     qemu_iovec_init(&dbs->iov, sg->nsg);
     dma_bdrv_cb(dbs, 0);
@@ -173,12 +170,12 @@ BlockDriverAIOCB *dma_bdrv_read(BlockDriverState *bs,
                                 QEMUSGList *sg, uint64_t sector,
                                 void (*cb)(void *opaque, int ret), void *opaque)
 {
-    return dma_bdrv_io(bs, sg, sector, cb, opaque, 0);
+    return dma_bdrv_io(bs, sg, sector, bdrv_aio_readv, cb, opaque, 0);
 }
 
 BlockDriverAIOCB *dma_bdrv_write(BlockDriverState *bs,
                                  QEMUSGList *sg, uint64_t sector,
                                  void (*cb)(void *opaque, int ret), void *opaque)
 {
-    return dma_bdrv_io(bs, sg, sector, cb, opaque, 1);
+    return dma_bdrv_io(bs, sg, sector, bdrv_aio_writev, cb, opaque, 1);
 }

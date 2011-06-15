@@ -26,6 +26,12 @@
 #include "qdev.h"
 #include "qemu-queue.h"
 
+/* Constants related to the USB / PCI interaction */
+#define USB_SBRN    0x60 /* Serial Bus Release Number Register */
+#define USB_RELEASE_1  0x10 /* USB 1.0 */
+#define USB_RELEASE_2  0x20 /* USB 2.0 */
+#define USB_RELEASE_3  0x30 /* USB 3.0 */
+
 #define USB_TOKEN_SETUP 0x2d
 #define USB_TOKEN_IN    0x69 /* device -> host */
 #define USB_TOKEN_OUT   0xe1 /* host -> device */
@@ -132,6 +138,7 @@
 #define USB_ENDPOINT_XFER_INT		3
 
 typedef struct USBBus USBBus;
+typedef struct USBBusOps USBBusOps;
 typedef struct USBPort USBPort;
 typedef struct USBDevice USBDevice;
 typedef struct USBDeviceInfo USBDeviceInfo;
@@ -323,6 +330,7 @@ void musb_set_size(MUSBState *s, int epnum, int size, int is_tx);
 
 struct USBBus {
     BusState qbus;
+    USBBusOps *ops;
     int busnr;
     int nfree;
     int nused;
@@ -331,7 +339,11 @@ struct USBBus {
     QTAILQ_ENTRY(USBBus) next;
 };
 
-void usb_bus_new(USBBus *bus, DeviceState *host);
+struct USBBusOps {
+    void (*device_destroy)(USBBus *bus, USBDevice *dev);
+};
+
+void usb_bus_new(USBBus *bus, USBBusOps *ops, DeviceState *host);
 USBBus *usb_bus_find(int busnr);
 void usb_qdev_register(USBDeviceInfo *info);
 void usb_qdev_register_many(USBDeviceInfo *info);

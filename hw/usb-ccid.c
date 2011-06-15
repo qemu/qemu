@@ -255,17 +255,18 @@ enum {
     MIGRATION_MIGRATED,
 };
 
-typedef struct CCIDBus CCIDBus;
-typedef struct USBCCIDState USBCCIDState;
+typedef struct CCIDBus {
+    BusState qbus;
+} CCIDBus;
 
 #define MAX_PROTOCOL_SIZE   7
 
 /*
  * powered - defaults to true, changed by PowerOn/PowerOff messages
  */
-struct USBCCIDState {
+typedef struct USBCCIDState {
     USBDevice dev;
-    CCIDBus *bus;
+    CCIDBus bus;
     CCIDCardState *card;
     CCIDCardInfo *cardinfo; /* caching the info pointer */
     BulkIn bulk_in_pending[BULK_IN_PENDING_NUM]; /* circular */
@@ -293,7 +294,7 @@ struct USBCCIDState {
     uint8_t  powered;
     uint8_t  notify_slot_change;
     uint8_t  debug;
-};
+} USBCCIDState;
 
 /*
  * CCID Spec chapter 4: CCID uses a standard device descriptor per Chapter 9,
@@ -1113,10 +1114,6 @@ static void ccid_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
     }
 }
 
-struct CCIDBus {
-    BusState qbus;
-};
-
 static struct BusInfo ccid_bus_info = {
     .name = "ccid-bus",
     .size = sizeof(CCIDBus),
@@ -1126,16 +1123,6 @@ static struct BusInfo ccid_bus_info = {
         DEFINE_PROP_END_OF_LIST(),
     }
 };
-
-static CCIDBus *ccid_bus_new(DeviceState *dev)
-{
-    CCIDBus *bus;
-
-    bus = FROM_QBUS(CCIDBus, qbus_create(&ccid_bus_info, dev, NULL));
-    bus->qbus.allow_hotplug = 1;
-
-    return bus;
-}
 
 void ccid_card_send_apdu_to_guest(CCIDCardState *card,
                                   uint8_t *apdu, uint32_t len)
@@ -1276,7 +1263,8 @@ static int ccid_initfn(USBDevice *dev)
 {
     USBCCIDState *s = DO_UPCAST(USBCCIDState, dev, dev);
 
-    s->bus = ccid_bus_new(&dev->qdev);
+    qbus_create_inplace(&s->bus.qbus, &ccid_bus_info, &dev->qdev, NULL);
+    s->bus.qbus.allow_hotplug = 1;
     s->card = NULL;
     s->cardinfo = NULL;
     s->migration_state = MIGRATION_NONE;

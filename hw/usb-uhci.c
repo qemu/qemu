@@ -234,6 +234,19 @@ static void uhci_async_validate_end(UHCIState *s)
     }
 }
 
+static void uhci_async_cancel_device(UHCIState *s, USBDevice *dev)
+{
+    UHCIAsync *curr, *n;
+
+    QTAILQ_FOREACH_SAFE(curr, &s->async_pending, next, n) {
+        if (curr->packet.owner != dev) {
+            continue;
+        }
+        uhci_async_unlink(s, curr);
+        uhci_async_cancel(s, curr);
+    }
+}
+
 static void uhci_async_cancel_all(UHCIState *s)
 {
     UHCIAsync *curr, *n;
@@ -411,6 +424,8 @@ static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
     case 0x00:
         if ((val & UHCI_CMD_RS) && !(s->cmd & UHCI_CMD_RS)) {
             /* start frame processing */
+            s->expire_time = qemu_get_clock_ns(vm_clock) +
+                (get_ticks_per_sec() / FRAME_TIMER_FREQ);
             qemu_mod_timer(s->frame_timer, qemu_get_clock_ns(vm_clock));
             s->status &= ~UHCI_STS_HCHALTED;
         } else if (!(val & UHCI_CMD_RS)) {
@@ -1081,11 +1096,22 @@ static void uhci_map(PCIDevice *pci_dev, int region_num,
     register_ioport_read(addr, 32, 1, uhci_ioport_readb, s);
 }
 
+static void uhci_device_destroy(USBBus *bus, USBDevice *dev)
+{
+    UHCIState *s = container_of(bus, UHCIState, bus);
+
+    uhci_async_cancel_device(s, dev);
+}
+
 static USBPortOps uhci_port_ops = {
     .attach = uhci_attach,
     .detach = uhci_detach,
     .wakeup = uhci_wakeup,
     .complete = uhci_async_complete,
+};
+
+static USBBusOps uhci_bus_ops = {
+    .device_destroy = uhci_device_destroy,
 };
 
 static int usb_uhci_common_initfn(UHCIState *s)
@@ -1098,17 +1124,15 @@ static int usb_uhci_common_initfn(UHCIState *s)
     pci_config_set_class(pci_conf, PCI_CLASS_SERIAL_USB);
     /* TODO: reset value should be 0. */
     pci_conf[PCI_INTERRUPT_PIN] = 4; // interrupt pin 3
-    pci_conf[0x60] = 0x10; // release number
+    pci_conf[USB_SBRN] = USB_RELEASE_1; // release number
 
-    usb_bus_new(&s->bus, &s->dev.qdev);
+    usb_bus_new(&s->bus, &uhci_bus_ops, &s->dev.qdev);
     for(i = 0; i < NB_PORTS; i++) {
         usb_register_port(&s->bus, &s->ports[i].port, s, i, &uhci_port_ops,
                           USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
         usb_port_location(&s->ports[i].port, NULL, i+1);
     }
     s->frame_timer = qemu_new_timer_ns(vm_clock, uhci_frame_timer, s);
-    s->expire_time = qemu_get_clock_ns(vm_clock) +
-        (get_ticks_per_sec() / FRAME_TIMER_FREQ);
     s->num_ports_vmstate = NB_PORTS;
     QTAILQ_INIT(&s->async_pending);
 

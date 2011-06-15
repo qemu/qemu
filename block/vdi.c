@@ -152,6 +152,7 @@ typedef struct {
     /* Buffer for new allocated block. */
     void *block_buffer;
     void *orig_buf;
+    bool is_write;
     int header_modified;
     BlockDriverAIOCB *hd_aiocb;
     struct iovec hd_iov;
@@ -504,6 +505,8 @@ static VdiAIOCB *vdi_aio_setup(BlockDriverState *bs, int64_t sector_num,
         acb->hd_aiocb = NULL;
         acb->sector_num = sector_num;
         acb->qiov = qiov;
+        acb->is_write = is_write;
+
         if (qiov->niov > 1) {
             acb->buf = qemu_blockalign(bs, qiov->size);
             acb->orig_buf = acb->buf;
@@ -542,14 +545,20 @@ static int vdi_schedule_bh(QEMUBHFunc *cb, VdiAIOCB *acb)
 }
 
 static void vdi_aio_read_cb(void *opaque, int ret);
+static void vdi_aio_write_cb(void *opaque, int ret);
 
-static void vdi_aio_read_bh(void *opaque)
+static void vdi_aio_rw_bh(void *opaque)
 {
     VdiAIOCB *acb = opaque;
     logout("\n");
     qemu_bh_delete(acb->bh);
     acb->bh = NULL;
-    vdi_aio_read_cb(opaque, 0);
+
+    if (acb->is_write) {
+        vdi_aio_write_cb(opaque, 0);
+    } else {
+        vdi_aio_read_cb(opaque, 0);
+    }
 }
 
 static void vdi_aio_read_cb(void *opaque, int ret)
@@ -597,7 +606,7 @@ static void vdi_aio_read_cb(void *opaque, int ret)
     if (bmap_entry == VDI_UNALLOCATED) {
         /* Block not allocated, return zeros, no need to wait. */
         memset(acb->buf, 0, n_sectors * SECTOR_SIZE);
-        ret = vdi_schedule_bh(vdi_aio_read_bh, acb);
+        ret = vdi_schedule_bh(vdi_aio_rw_bh, acb);
         if (ret < 0) {
             goto done;
         }
@@ -630,12 +639,23 @@ static BlockDriverAIOCB *vdi_aio_readv(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
     VdiAIOCB *acb;
+    int ret;
+
     logout("\n");
     acb = vdi_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque, 0);
     if (!acb) {
         return NULL;
     }
-    vdi_aio_read_cb(acb, 0);
+
+    ret = vdi_schedule_bh(vdi_aio_rw_bh, acb);
+    if (ret < 0) {
+        if (acb->qiov->niov > 1) {
+            qemu_vfree(acb->orig_buf);
+        }
+        qemu_aio_release(acb);
+        return NULL;
+    }
+
     return &acb->common;
 }
 
@@ -789,12 +809,23 @@ static BlockDriverAIOCB *vdi_aio_writev(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
     VdiAIOCB *acb;
+    int ret;
+
     logout("\n");
     acb = vdi_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque, 1);
     if (!acb) {
         return NULL;
     }
-    vdi_aio_write_cb(acb, 0);
+
+    ret = vdi_schedule_bh(vdi_aio_rw_bh, acb);
+    if (ret < 0) {
+        if (acb->qiov->niov > 1) {
+            qemu_vfree(acb->orig_buf);
+        }
+        qemu_aio_release(acb);
+        return NULL;
+    }
+
     return &acb->common;
 }
 

@@ -194,6 +194,26 @@ disable sun4m_iommu_page_get_flags(uint64_t pa, uint64_t iopte, uint32_t ret) "g
 disable sun4m_iommu_translate_pa(uint64_t addr, uint64_t pa, uint32_t iopte) "xlate dva %"PRIx64" => pa %"PRIx64" iopte = %x"
 disable sun4m_iommu_bad_addr(uint64_t addr) "bad addr %"PRIx64""
 
+# hw/usb-ehci.c
+disable usb_ehci_reset(void) "=== RESET ==="
+disable usb_ehci_mmio_readl(uint32_t addr, const char *str, uint32_t val) "rd mmio %04x [%s] = %x"
+disable usb_ehci_mmio_writel(uint32_t addr, const char *str, uint32_t val) "wr mmio %04x [%s] = %x"
+disable usb_ehci_mmio_change(uint32_t addr, const char *str, uint32_t new, uint32_t old) "ch mmio %04x [%s] = %x (old: %x)"
+disable usb_ehci_usbsts(const char *sts, int state) "usbsts %s %d"
+disable usb_ehci_state(const char *schedule, const char *state) "%s schedule %s"
+disable usb_ehci_qh_ptrs(void *q, uint32_t addr, uint32_t next, uint32_t c_qtd, uint32_t n_qtd, uint32_t a_qtd) "q %p - QH @ %08x: next %08x qtds %08x,%08x,%08x"
+disable usb_ehci_qh_fields(uint32_t addr, int rl, int mplen, int eps, int ep, int devaddr) "QH @ %08x - rl %d, mplen %d, eps %d, ep %d, dev %d"
+disable usb_ehci_qh_bits(uint32_t addr, int c, int h, int dtc, int i) "QH @ %08x - c %d, h %d, dtc %d, i %d"
+disable usb_ehci_qtd_ptrs(void *q, uint32_t addr, uint32_t next, uint32_t altnext) "q %p - QTD @ %08x: next %08x altnext %08x"
+disable usb_ehci_qtd_fields(uint32_t addr, int tbytes, int cpage, int cerr, int pid) "QTD @ %08x - tbytes %d, cpage %d, cerr %d, pid %d"
+disable usb_ehci_qtd_bits(uint32_t addr, int ioc, int active, int halt, int babble, int xacterr) "QTD @ %08x - ioc %d, active %d, halt %d, babble %d, xacterr %d"
+disable usb_ehci_itd(uint32_t addr, uint32_t next, uint32_t mplen, uint32_t mult, uint32_t ep, uint32_t devaddr) "ITD @ %08x: next %08x - mplen %d, mult %d, ep %d, dev %d"
+disable usb_ehci_port_attach(uint32_t port, const char *device) "attach port #%d - %s"
+disable usb_ehci_port_detach(uint32_t port) "detach port #%d"
+disable usb_ehci_port_reset(uint32_t port, int enable) "reset port #%d - %d"
+disable usb_ehci_data(int rw, uint32_t cpage, uint32_t offset, uint32_t addr, uint32_t len, uint32_t bufpos) "write %d, cpage %d, offset 0x%03x, addr 0x%08x, len %d, bufpos %d"
+disable usb_ehci_queue_action(void *q, const char *action) "q %p: %s"
+
 # hw/usb-desc.c
 disable usb_desc_device(int addr, int len, int ret) "dev %d query device, len %d, ret %d"
 disable usb_desc_device_qualifier(int addr, int len, int ret) "dev %d query device qualifier, len %d, ret %d"
