@@ -125,4 +125,7 @@
 	chosen {
 		linux,stdout-path = "/soc8544@e0000000/serial@4500";
 	};
+
+	hypervisor {
+	};
 };
