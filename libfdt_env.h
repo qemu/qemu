@@ -19,13 +19,9 @@
 #ifndef _LIBFDT_ENV_H
 #define _LIBFDT_ENV_H
 
-#include <stddef.h>
-#include <stdint.h>
-#include <string.h>
-#include <endian.h>
-#include <byteswap.h>
+#include "bswap.h"
 
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef HOST_WORDS_BIGENDIAN
 #define fdt32_to_cpu(x)		(x)
 #define cpu_to_fdt32(x)		(x)
 #define fdt64_to_cpu(x)		(x)

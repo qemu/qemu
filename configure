@@ -2532,7 +2532,13 @@ fi
 fdatasync=no
 cat > $TMPC << EOF
 #include <unistd.h>
-int main(void) { return fdatasync(0); }
+int main(void) {
+#if defined(_POSIX_SYNCHRONIZED_IO) && _POSIX_SYNCHRONIZED_IO > 0
+return fdatasync(0);
+#else
+#abort Not supported
+#endif
+}
 EOF
 if compile_prog "" "" ; then
     fdatasync=yes
@@ -3116,7 +3122,7 @@ if test "$trace_backend" = "simple"; then
 fi
 # Set the appropriate trace file.
 if test "$trace_backend" = "simple"; then
-  trace_file="\"$trace_file-%u\""
+  trace_file="\"$trace_file-\" FMT_pid"
 fi
 if test "$trace_backend" = "dtrace" -a "$trace_backend_stap" = "yes" ; then
   echo "CONFIG_SYSTEMTAP_TRACE=y" >> $config_host_mak

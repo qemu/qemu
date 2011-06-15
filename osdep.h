@@ -85,6 +85,7 @@
 # define QEMU_GNUC_PREREQ(maj, min) 0
 #endif
 
+int qemu_daemon(int nochdir, int noclose);
 void *qemu_memalign(size_t alignment, size_t size);
 void *qemu_vmalloc(size_t size);
 void qemu_vfree(void *ptr);
@@ -123,6 +124,12 @@ void qemu_vfree(void *ptr);
 #endif
 
 int qemu_madvise(void *addr, size_t len, int advice);
+
+#if defined(__HAIKU__) && defined(__i386__)
+#define FMT_pid "%ld"
+#else
+#define FMT_pid "%d"
+#endif
 
 int qemu_create_pidfile(const char *filename);
 int qemu_get_thread_id(void);

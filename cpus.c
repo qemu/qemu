@@ -1142,6 +1142,11 @@ void set_cpu_log(const char *optarg)
     cpu_set_log(mask);
 }
 
+void set_cpu_log_filename(const char *optarg)
+{
+    cpu_set_log_filename(optarg);
+}
+
 /* Return the virtual CPU time, based on the instruction counter.  */
 int64_t cpu_get_icount(void)
 {

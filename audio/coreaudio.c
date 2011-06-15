@@ -56,7 +56,7 @@ typedef struct coreaudioVoiceOut {
 
 static void coreaudio_logstatus (OSStatus status)
 {
-    char *str = "BUG";
+    const char *str = "BUG";
 
     switch(status) {
     case kAudioHardwareNoError:

@@ -2007,6 +2007,15 @@ STEXI
 Output log in /tmp/qemu.log
 ETEXI
 
+DEF("D", HAS_ARG, QEMU_OPTION_D, \
+    "-D logfile      output log to logfile (instead of the default /tmp/qemu.log)\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -D
+@findex -D
+Output log in logfile instead of /tmp/qemu.log
+ETEXI
+
 DEF("hdachs", HAS_ARG, QEMU_OPTION_hdachs, \
     "-hdachs c,h,s[,t]\n" \
     "                force hard disk 0 physical geometry and the optional BIOS\n" \
