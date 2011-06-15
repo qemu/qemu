@@ -641,6 +641,10 @@ typedef struct CPUX86State {
     uint16_t fpuc;
     uint8_t fptags[8];   /* 0 = valid, 1 = empty */
     FPReg fpregs[8];
+    /* KVM-only so far */
+    uint16_t fpop;
+    uint64_t fpip;
+    uint64_t fpdp;
 
     /* emulator internal variables */
     float_status fp_status;

@@ -290,6 +290,26 @@ static const VMStateDescription vmstate_async_pf_msr = {
     }
 };
 
+static bool fpop_ip_dp_needed(void *opaque)
+{
+    CPUState *env = opaque;
+
+    return env->fpop != 0 || env->fpip != 0 || env->fpdp != 0;
+}
+
+static const VMStateDescription vmstate_fpop_ip_dp = {
+    .name = "cpu/fpop_ip_dp",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT16_V(fpop, CPUState, 13),
+        VMSTATE_UINT64_V(fpip, CPUState, 13),
+        VMSTATE_UINT64_V(fpdp, CPUState, 13),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_cpu = {
     .name = "cpu",
     .version_id = CPU_SAVE_VERSION,
@@ -397,6 +417,9 @@ static const VMStateDescription vmstate_cpu = {
         {
             .vmsd = &vmstate_async_pf_msr,
             .needed = async_pf_msr_needed,
+        } , {
+            .vmsd = &vmstate_fpop_ip_dp,
+            .needed = fpop_ip_dp_needed,
         } , {
             /* empty */
         }
