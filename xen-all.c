@@ -215,6 +215,7 @@ static int xen_add_to_physmap(XenIOState *state,
     int rc = 0;
     XenPhysmap *physmap = NULL;
     target_phys_addr_t pfn, start_gpfn;
+    RAMBlock *block;
 
     if (get_physmapping(state, start_addr, size)) {
         return 0;
@@ -223,6 +224,19 @@ static int xen_add_to_physmap(XenIOState *state,
         return -1;
     }
 
+    /* Xen can only handle a single dirty log region for now and we want
+     * the linear framebuffer to be that region.
+     * Avoid tracking any regions that is not videoram and avoid tracking
+     * the legacy vga region. */
+    QLIST_FOREACH(block, &ram_list.blocks, next) {
+        if (!strcmp(block->idstr, "vga.vram") && block->offset == phys_offset
+                && start_addr > 0xbffff) {
+            goto go_physmap;
+        }
+    }
+    return -1;
+
+go_physmap:
     DPRINTF("mapping vram to %llx - %llx, from %llx\n",
             start_addr, start_addr + size, phys_offset);
 
