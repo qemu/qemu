@@ -247,8 +247,16 @@ static void softusb_attach(USBPort *port)
 {
 }
 
+static void softusb_device_destroy(USBBus *bus, USBDevice *dev)
+{
+}
+
 static USBPortOps softusb_ops = {
     .attach = softusb_attach,
+};
+
+static USBBusOps softusb_bus_ops = {
+    .device_destroy = softusb_device_destroy,
 };
 
 static void milkymist_softusb_reset(DeviceState *d)
@@ -294,7 +302,7 @@ static int milkymist_softusb_init(SysBusDevice *dev)
     qemu_add_mouse_event_handler(softusb_mouse_event, s, 0, "Milkymist Mouse");
 
     /* create our usb bus */
-    usb_bus_new(&s->usbbus, NULL);
+    usb_bus_new(&s->usbbus, &softusb_bus_ops, NULL);
 
     /* our two ports */
     usb_register_port(&s->usbbus, &s->usbport[0], NULL, 0, &softusb_ops,

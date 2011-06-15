@@ -142,7 +142,6 @@ static const USBDescIface desc_iface_tablet = {
     .bInterfaceNumber              = 0,
     .bNumEndpoints                 = 1,
     .bInterfaceClass               = USB_CLASS_HID,
-    .bInterfaceSubClass            = 0x01, /* boot */
     .bInterfaceProtocol            = 0x02,
     .ndesc                         = 1,
     .descs = (USBDescOther[]) {
@@ -782,13 +781,13 @@ static int usb_hid_handle_control(USBDevice *dev, USBPacket *p,
             goto fail;
         break;
     case GET_PROTOCOL:
-        if (s->kind != USB_KEYBOARD)
+        if (s->kind != USB_KEYBOARD && s->kind != USB_MOUSE)
             goto fail;
         ret = 1;
         data[0] = s->protocol;
         break;
     case SET_PROTOCOL:
-        if (s->kind != USB_KEYBOARD)
+        if (s->kind != USB_KEYBOARD && s->kind != USB_MOUSE)
             goto fail;
         ret = 0;
         s->protocol = value;

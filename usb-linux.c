@@ -115,7 +115,7 @@ typedef struct USBHostDevice {
     USBDevice dev;
     int       fd;
 
-    uint8_t   descr[1024];
+    uint8_t   descr[8192];
     int       descr_len;
     int       configuration;
     int       ninterfaces;
@@ -267,6 +267,14 @@ static void async_free(AsyncURB *aurb)
     qemu_free(aurb);
 }
 
+static void do_disconnect(USBHostDevice *s)
+{
+    printf("husb: device %d.%d disconnected\n",
+           s->bus_num, s->addr);
+    usb_host_close(s);
+    usb_host_auto_check(NULL);
+}
+
 static void async_complete(void *opaque)
 {
     USBHostDevice *s = opaque;
@@ -281,10 +289,7 @@ static void async_complete(void *opaque)
                 return;
             }
             if (errno == ENODEV && !s->closing) {
-                printf("husb: device %d.%d disconnected\n",
-                       s->bus_num, s->addr);
-                usb_host_close(s);
-                usb_host_auto_check(NULL);
+                do_disconnect(s);
                 return;
             }
 
@@ -358,6 +363,7 @@ static void usb_host_async_cancel(USBDevice *dev, USBPacket *p)
 
 static int usb_host_claim_interfaces(USBHostDevice *dev, int configuration)
 {
+    const char *op = NULL;
     int dev_descr_len, config_descr_len;
     int interface, nb_interfaces;
     int ret, i;
@@ -370,7 +376,8 @@ static int usb_host_claim_interfaces(USBHostDevice *dev, int configuration)
     i = 0;
     dev_descr_len = dev->descr[0];
     if (dev_descr_len > dev->descr_len) {
-        goto fail;
+        fprintf(stderr, "husb: update iface failed. descr too short\n");
+        return 0;
     }
 
     i += dev_descr_len;
@@ -398,7 +405,7 @@ static int usb_host_claim_interfaces(USBHostDevice *dev, int configuration)
     if (i >= dev->descr_len) {
         fprintf(stderr,
                 "husb: update iface failed. no matching configuration\n");
-        goto fail;
+        return 0;
     }
     nb_interfaces = dev->descr[i + 4];
 
@@ -410,9 +417,9 @@ static int usb_host_claim_interfaces(USBHostDevice *dev, int configuration)
             ctrl.ioctl_code = USBDEVFS_DISCONNECT;
             ctrl.ifno = interface;
             ctrl.data = 0;
+            op = "USBDEVFS_DISCONNECT";
             ret = ioctl(dev->fd, USBDEVFS_IOCTL, &ctrl);
             if (ret < 0 && errno != ENODATA) {
-                perror("USBDEVFS_DISCONNECT");
                 goto fail;
             }
         }
@@ -421,6 +428,7 @@ static int usb_host_claim_interfaces(USBHostDevice *dev, int configuration)
 
     /* XXX: only grab if all interfaces are free */
     for (interface = 0; interface < nb_interfaces; interface++) {
+        op = "USBDEVFS_CLAIMINTERFACE";
         ret = ioctl(dev->fd, USBDEVFS_CLAIMINTERFACE, &interface);
         if (ret < 0) {
             if (errno == EBUSY) {
@@ -428,8 +436,7 @@ static int usb_host_claim_interfaces(USBHostDevice *dev, int configuration)
             } else {
                 perror("husb: failed to claim interface");
             }
-        fail:
-            return 0;
+            goto fail;
         }
     }
 
@@ -439,6 +446,13 @@ static int usb_host_claim_interfaces(USBHostDevice *dev, int configuration)
     dev->ninterfaces   = nb_interfaces;
     dev->configuration = configuration;
     return 1;
+
+fail:
+    if (errno == ENODEV) {
+        do_disconnect(dev);
+    }
+    perror(op);
+    return 0;
 }
 
 static int usb_host_release_interfaces(USBHostDevice *s)
@@ -1015,6 +1029,11 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
             }
 
             devep = descriptors[i + 2];
+            if ((devep & 0x0f) == 0) {
+                fprintf(stderr, "usb-linux: invalid ep descriptor, ep == 0\n");
+                return 1;
+            }
+
             switch (descriptors[i + 3] & 0x3) {
             case 0x00:
                 type = USBDEVFS_URB_TYPE_CONTROL;
@@ -1043,10 +1062,9 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
 }
 
 static int usb_host_open(USBHostDevice *dev, int bus_num,
-                         int addr, char *port, const char *prod_name)
+                        int addr, char *port, const char *prod_name, int speed)
 {
     int fd = -1, ret;
-    struct usbdevfs_connectinfo ci;
     char buf[1024];
 
     if (dev->fd != -1) {
@@ -1101,24 +1119,29 @@ static int usb_host_open(USBHostDevice *dev, int bus_num,
         goto fail;
     }
 
-    ret = ioctl(fd, USBDEVFS_CONNECTINFO, &ci);
-    if (ret < 0) {
-        perror("usb_host_device_open: USBDEVFS_CONNECTINFO");
-        goto fail;
-    }
-
-    printf("husb: grabbed usb device %d.%d\n", bus_num, addr);
-
     ret = usb_linux_update_endp_table(dev);
     if (ret) {
         goto fail;
     }
 
-    if (ci.slow) {
-        dev->dev.speed = USB_SPEED_LOW;
-    } else {
-        dev->dev.speed = USB_SPEED_HIGH;
+    if (speed == -1) {
+        struct usbdevfs_connectinfo ci;
+
+        ret = ioctl(fd, USBDEVFS_CONNECTINFO, &ci);
+        if (ret < 0) {
+            perror("usb_host_device_open: USBDEVFS_CONNECTINFO");
+            goto fail;
+        }
+
+        if (ci.slow) {
+            speed = USB_SPEED_LOW;
+        } else {
+            speed = USB_SPEED_HIGH;
+        }
     }
+    dev->dev.speed = speed;
+
+    printf("husb: grabbed usb device %d.%d\n", bus_num, addr);
 
     if (!prod_name || prod_name[0] == '\0') {
         snprintf(dev->dev.product_desc, sizeof(dev->dev.product_desc),
@@ -1135,9 +1158,9 @@ static int usb_host_open(USBHostDevice *dev, int bus_num,
     return 0;
 
 fail:
-    dev->fd = -1;
-    if (fd != -1) {
-        close(fd);
+    if (dev->fd != -1) {
+        close(dev->fd);
+        dev->fd = -1;
     }
     return -1;
 }
@@ -1146,7 +1169,7 @@ static int usb_host_close(USBHostDevice *dev)
 {
     int i;
 
-    if (dev->fd == -1) {
+    if (dev->fd == -1 || !dev->dev.attached) {
         return -1;
     }
 
@@ -1332,7 +1355,8 @@ static int usb_host_scan_dev(void *opaque, USBScanFunc *func)
     }
 
     device_count = 0;
-    bus_num = addr = speed = class_id = product_id = vendor_id = 0;
+    bus_num = addr = class_id = product_id = vendor_id = 0;
+    speed = -1; /* Can't get the speed from /[proc|dev]/bus/usb/devices */
     for(;;) {
         if (fgets(line, sizeof(line), f) == NULL) {
             break;
@@ -1360,7 +1384,9 @@ static int usb_host_scan_dev(void *opaque, USBScanFunc *func)
             if (get_tag_value(buf, sizeof(buf), line, "Spd=", " ") < 0) {
                 goto fail;
             }
-            if (!strcmp(buf, "480")) {
+            if (!strcmp(buf, "5000")) {
+                speed = USB_SPEED_SUPER;
+            } else if (!strcmp(buf, "480")) {
                 speed = USB_SPEED_HIGH;
             } else if (!strcmp(buf, "1.5")) {
                 speed = USB_SPEED_LOW;
@@ -1504,7 +1530,9 @@ static int usb_host_scan_sys(void *opaque, USBScanFunc *func)
             if (!usb_host_read_file(line, sizeof(line), "speed", de->d_name)) {
                 goto the_end;
             }
-            if (!strcmp(line, "480\n")) {
+            if (!strcmp(line, "5000\n")) {
+                speed = USB_SPEED_SUPER;
+            } else if (!strcmp(line, "480\n")) {
                 speed = USB_SPEED_HIGH;
             } else if (!strcmp(line, "1.5\n")) {
                 speed = USB_SPEED_LOW;
@@ -1642,7 +1670,8 @@ static int usb_host_auto_scan(void *opaque, int bus_num, int addr, char *port,
         }
         DPRINTF("husb: auto open: bus_num %d addr %d\n", bus_num, addr);
 
-        usb_host_open(s, bus_num, addr, port, product_name);
+        usb_host_open(s, bus_num, addr, port, product_name, speed);
+        break;
     }
 
     return 0;
@@ -1780,6 +1809,9 @@ static void usb_info_device(Monitor *mon, int bus_num, int addr, char *port,
         break;
     case USB_SPEED_HIGH:
         speed_str = "480";
+        break;
+    case USB_SPEED_SUPER:
+        speed_str = "5000";
         break;
     default:
         speed_str = "?";
