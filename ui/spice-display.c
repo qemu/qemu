@@ -70,6 +70,7 @@ static SimpleSpiceUpdate *qemu_spice_create_update(SimpleSpiceDisplay *ssd)
     QXLCommand *cmd;
     uint8_t *src, *dst;
     int by, bw, bh;
+    struct timespec time_space;
 
     if (qemu_spice_rect_is_empty(&ssd->dirty)) {
         return NULL;
@@ -96,6 +97,10 @@ static SimpleSpiceUpdate *qemu_spice_create_update(SimpleSpiceDisplay *ssd)
     drawable->surfaces_dest[0] = -1;
     drawable->surfaces_dest[1] = -1;
     drawable->surfaces_dest[2] = -1;
+    clock_gettime(CLOCK_MONOTONIC, &time_space);
+    /* time in milliseconds from epoch. */
+    drawable->mm_time = time_space.tv_sec * 1000
+                      + time_space.tv_nsec / 1000 / 1000;
 
     drawable->u.copy.rop_descriptor  = SPICE_ROPD_OP_PUT;
     drawable->u.copy.src_bitmap      = (intptr_t)image;
