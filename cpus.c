@@ -396,10 +396,18 @@ static int qemu_signal_init(void)
     sigaddset(&set, SIGUSR2);
     pthread_sigmask(SIG_UNBLOCK, &set, NULL);
 
+    /*
+     * SIG_IPI must be blocked in the main thread and must not be caught
+     * by sigwait() in the signal thread. Otherwise, the cpu thread will
+     * not catch it reliably.
+     */
+    sigemptyset(&set);
+    sigaddset(&set, SIG_IPI);
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
+
     sigemptyset(&set);
     sigaddset(&set, SIGIO);
     sigaddset(&set, SIGALRM);
-    sigaddset(&set, SIG_IPI);
     sigaddset(&set, SIGBUS);
 #else
     sigemptyset(&set);
