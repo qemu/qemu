@@ -120,6 +120,11 @@ static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
     return (addr & 0x0fffffff) + KERNEL_LOAD_ADDR;
 }
 
+static target_phys_addr_t round_page(target_phys_addr_t addr)
+{
+    return (addr + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
+}
+
 /* PowerPC Mac99 hardware initialisation */
 static void ppc_core99_init (ram_addr_t ram_size,
                              const char *boot_device,
@@ -134,7 +139,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
     int unin_memory;
     int linux_boot, i;
     ram_addr_t ram_offset, bios_offset;
-    uint32_t kernel_base, initrd_base;
+    target_phys_addr_t kernel_base, initrd_base, cmdline_base = 0;
     long kernel_size, initrd_size;
     PCIBus *pci_bus;
     MacIONVRAMState *nvr;
@@ -220,7 +225,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
         }
         /* load initrd */
         if (initrd_filename) {
-            initrd_base = INITRD_LOAD_ADDR;
+            initrd_base = round_page(kernel_base + kernel_size + KERNEL_GAP);
             initrd_size = load_image_targphys(initrd_filename, initrd_base,
                                               ram_size - initrd_base);
             if (initrd_size < 0) {
@@ -228,9 +233,11 @@ static void ppc_core99_init (ram_addr_t ram_size,
                          initrd_filename);
                 exit(1);
             }
+            cmdline_base = round_page(initrd_base + initrd_size);
         } else {
             initrd_base = 0;
             initrd_size = 0;
+            cmdline_base = round_page(kernel_base + kernel_size + KERNEL_GAP);
         }
         ppc_boot_device = 'm';
     } else {
@@ -373,8 +380,8 @@ static void ppc_core99_init (ram_addr_t ram_size,
     fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ADDR, kernel_base);
     fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_SIZE, kernel_size);
     if (kernel_cmdline) {
-        fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_CMDLINE, CMDLINE_ADDR);
-        pstrcpy_targphys("cmdline", CMDLINE_ADDR, TARGET_PAGE_SIZE, kernel_cmdline);
+        fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_CMDLINE, cmdline_base);
+        pstrcpy_targphys("cmdline", cmdline_base, TARGET_PAGE_SIZE, kernel_cmdline);
     } else {
         fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_CMDLINE, 0);
     }
