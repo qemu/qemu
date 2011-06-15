@@ -359,7 +359,7 @@ int main(int argc, char **argv)
 
         if (!verbose) {
             /* detach client and server */
-            if (daemon(0, 0) == -1) {
+            if (qemu_daemon(0, 0) == -1) {
                 err(EXIT_FAILURE, "Failed to daemonize");
             }
         }

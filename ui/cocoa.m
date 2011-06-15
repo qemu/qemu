@@ -23,6 +23,7 @@
  */
 
 #import <Cocoa/Cocoa.h>
+#include <crt_externs.h>
 
 #include "qemu-common.h"
 #include "console.h"
@@ -61,9 +62,7 @@ typedef struct {
     int bitsPerPixel;
 } QEMUScreen;
 
-int qemu_main(int argc, char **argv); // main defined in qemu/vl.c
 NSWindow *normalWindow;
-id cocoaView;
 static DisplayChangeListener *dcl;
 
 int gArgc;
@@ -277,6 +276,8 @@ static int cocoa_keycode_to_qemu(int keycode)
 - (float) cdy;
 - (QEMUScreen) gscreen;
 @end
+
+QemuCocoaView *cocoaView;
 
 @implementation QemuCocoaView
 - (id)initWithFrame:(NSRect)frameRect
@@ -794,7 +795,7 @@ static int cocoa_keycode_to_qemu(int keycode)
     COCOA_DEBUG("QemuCocoaAppController: startEmulationWithArgc\n");
 
     int status;
-    status = qemu_main(argc, argv);
+    status = qemu_main(argc, argv, *_NSGetEnviron());
     exit(status);
 }
 
@@ -865,10 +866,20 @@ int main (int argc, const char * argv[]) {
 
     /* In case we don't need to display a window, let's not do that */
     for (i = 1; i < argc; i++) {
-        if (!strcmp(argv[i], "-vnc") ||
-            !strcmp(argv[i], "-nographic") ||
-            !strcmp(argv[i], "-curses")) {
-                return qemu_main(gArgc, gArgv);
+        const char *opt = argv[i];
+
+        if (opt[0] == '-') {
+            /* Treat --foo the same as -foo.  */
+            if (opt[1] == '-') {
+                opt++;
+            }
+            if (!strcmp(opt, "-h") || !strcmp(opt, "-help") ||
+                !strcmp(opt, "-vnc") ||
+                !strcmp(opt, "-nographic") ||
+                !strcmp(opt, "-version") ||
+                !strcmp(opt, "-curses")) {
+                return qemu_main(gArgc, gArgv, *_NSGetEnviron());
+            }
         }
     }
 

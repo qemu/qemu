@@ -88,6 +88,7 @@
 # define QEMU_GNUC_PREREQ(maj, min) 0
 #endif
 
+int qemu_daemon(int nochdir, int noclose);
 void *qemu_memalign(size_t alignment, size_t size);
 void *qemu_vmalloc(size_t size);
 void qemu_vfree(void *ptr);
