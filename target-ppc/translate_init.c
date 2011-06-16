@@ -844,6 +844,7 @@ static void gen_6xx_7xx_soft_tlb (CPUPPCState *env, int nb_tlbs, int nb_ways)
     env->nb_tlb = nb_tlbs;
     env->nb_ways = nb_ways;
     env->id_tlbs = 1;
+    env->tlb_type = TLB_6XX;
     spr_register(env, SPR_DMISS, "DMISS",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
@@ -1337,6 +1338,7 @@ static void gen_74xx_soft_tlb (CPUPPCState *env, int nb_tlbs, int nb_ways)
     env->nb_tlb = nb_tlbs;
     env->nb_ways = nb_ways;
     env->id_tlbs = 1;
+    env->tlb_type = TLB_6XX;
     /* XXX : not implemented */
     spr_register(env, SPR_PTEHI, "PTEHI",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -3282,6 +3284,7 @@ static void init_proc_401x2 (CPUPPCState *env)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+    env->tlb_type = TLB_EMB;
 #endif
     init_excp_4xx_softmmu(env);
     env->dcache_line_size = 32;
@@ -3352,6 +3355,7 @@ static void init_proc_IOP480 (CPUPPCState *env)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+    env->tlb_type = TLB_EMB;
 #endif
     init_excp_4xx_softmmu(env);
     env->dcache_line_size = 32;
@@ -3431,6 +3435,7 @@ static void init_proc_403GCX (CPUPPCState *env)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+    env->tlb_type = TLB_EMB;
 #endif
     init_excp_4xx_softmmu(env);
     env->dcache_line_size = 32;
@@ -3479,6 +3484,7 @@ static void init_proc_405 (CPUPPCState *env)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+    env->tlb_type = TLB_EMB;
 #endif
     init_excp_4xx_softmmu(env);
     env->dcache_line_size = 32;
@@ -3561,6 +3567,7 @@ static void init_proc_440EP (CPUPPCState *env)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+    env->tlb_type = TLB_EMB;
 #endif
     init_excp_BookE(env);
     env->dcache_line_size = 32;
@@ -3624,6 +3631,7 @@ static void init_proc_440GP (CPUPPCState *env)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+    env->tlb_type = TLB_EMB;
 #endif
     init_excp_BookE(env);
     env->dcache_line_size = 32;
@@ -3687,6 +3695,7 @@ static void init_proc_440x4 (CPUPPCState *env)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+    env->tlb_type = TLB_EMB;
 #endif
     init_excp_BookE(env);
     env->dcache_line_size = 32;
@@ -3767,6 +3776,7 @@ static void init_proc_440x5 (CPUPPCState *env)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+    env->tlb_type = TLB_EMB;
 #endif
     init_excp_BookE(env);
     env->dcache_line_size = 32;
@@ -3854,6 +3864,7 @@ static void init_proc_460 (CPUPPCState *env)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+    env->tlb_type = TLB_EMB;
 #endif
     init_excp_BookE(env);
     env->dcache_line_size = 32;
@@ -3944,6 +3955,7 @@ static void init_proc_460F (CPUPPCState *env)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+    env->tlb_type = TLB_EMB;
 #endif
     init_excp_BookE(env);
     env->dcache_line_size = 32;
@@ -4251,6 +4263,7 @@ static void init_proc_e200 (CPUPPCState *env)
     env->nb_tlb = 64;
     env->nb_ways = 1;
     env->id_tlbs = 0;
+    env->tlb_type = TLB_EMB;
 #endif
     init_excp_e200(env);
     env->dcache_line_size = 32;
@@ -4464,6 +4477,7 @@ static void init_proc_e500 (CPUPPCState *env, int version)
 
 #if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = 0;
+    env->tlb_type = TLB_MAS;
     for (i = 0; i < BOOKE206_MAX_TLBN; i++) {
         env->nb_tlb += booke206_tlb_size(env, i);
     }
@@ -9186,6 +9200,7 @@ static void init_ppc_proc (CPUPPCState *env, const ppc_def_t *def)
     env->nb_BATs = 0;
     env->nb_tlb = 0;
     env->nb_ways = 0;
+    env->tlb_type = TLB_NONE;
 #endif
     /* Register SPR common to all PowerPC implementations */
     gen_spr_generic(env);
@@ -9310,7 +9325,17 @@ static void init_ppc_proc (CPUPPCState *env, const ppc_def_t *def)
         int nb_tlb = env->nb_tlb;
         if (env->id_tlbs != 0)
             nb_tlb *= 2;
-        env->tlb = qemu_mallocz(nb_tlb * sizeof(ppc_tlb_t));
+        switch (env->tlb_type) {
+        case TLB_6XX:
+            env->tlb.tlb6 = qemu_mallocz(nb_tlb * sizeof(ppc6xx_tlb_t));
+            break;
+        case TLB_EMB:
+            env->tlb.tlbe = qemu_mallocz(nb_tlb * sizeof(ppcemb_tlb_t));
+            break;
+        case TLB_MAS:
+            env->tlb.tlbm = qemu_mallocz(nb_tlb * sizeof(ppcmas_tlb_t));
+            break;
+        }
         /* Pre-compute some useful values */
         env->tlb_per_way = env->nb_tlb / env->nb_ways;
     }

@@ -3959,7 +3959,7 @@ target_ulong helper_4xx_tlbre_hi (target_ulong entry)
     int size;
 
     entry &= PPC4XX_TLB_ENTRY_MASK;
-    tlb = &env->tlb[entry].tlbe;
+    tlb = &env->tlb.tlbe[entry];
     ret = tlb->EPN;
     if (tlb->prot & PAGE_VALID) {
         ret |= PPC4XX_TLBHI_V;
@@ -3979,7 +3979,7 @@ target_ulong helper_4xx_tlbre_lo (target_ulong entry)
     target_ulong ret;
 
     entry &= PPC4XX_TLB_ENTRY_MASK;
-    tlb = &env->tlb[entry].tlbe;
+    tlb = &env->tlb.tlbe[entry];
     ret = tlb->RPN;
     if (tlb->prot & PAGE_EXEC) {
         ret |= PPC4XX_TLBLO_EX;
@@ -3998,7 +3998,7 @@ void helper_4xx_tlbwe_hi (target_ulong entry, target_ulong val)
     LOG_SWTLB("%s entry %d val " TARGET_FMT_lx "\n", __func__, (int)entry,
               val);
     entry &= PPC4XX_TLB_ENTRY_MASK;
-    tlb = &env->tlb[entry].tlbe;
+    tlb = &env->tlb.tlbe[entry];
     /* Invalidate previous TLB (if it's valid) */
     if (tlb->prot & PAGE_VALID) {
         end = tlb->EPN + tlb->size;
@@ -4056,7 +4056,7 @@ void helper_4xx_tlbwe_lo (target_ulong entry, target_ulong val)
     LOG_SWTLB("%s entry %i val " TARGET_FMT_lx "\n", __func__, (int)entry,
               val);
     entry &= PPC4XX_TLB_ENTRY_MASK;
-    tlb = &env->tlb[entry].tlbe;
+    tlb = &env->tlb.tlbe[entry];
     tlb->attr = val & PPC4XX_TLBLO_ATTR_MASK;
     tlb->RPN = val & PPC4XX_TLBLO_RPN_MASK;
     tlb->prot = PAGE_READ;
@@ -4091,7 +4091,7 @@ void helper_440_tlbwe (uint32_t word, target_ulong entry, target_ulong value)
               __func__, word, (int)entry, value);
     do_flush_tlbs = 0;
     entry &= 0x3F;
-    tlb = &env->tlb[entry].tlbe;
+    tlb = &env->tlb.tlbe[entry];
     switch (word) {
     default:
         /* Just here to please gcc */
@@ -4150,7 +4150,7 @@ target_ulong helper_440_tlbre (uint32_t word, target_ulong entry)
     int size;
 
     entry &= 0x3F;
-    tlb = &env->tlb[entry].tlbe;
+    tlb = &env->tlb.tlbe[entry];
     switch (word) {
     default:
         /* Just here to please gcc */

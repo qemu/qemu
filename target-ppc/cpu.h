@@ -368,10 +368,16 @@ typedef struct ppcmas_tlb_t {
 } ppcmas_tlb_t;
 
 union ppc_tlb_t {
-    ppc6xx_tlb_t tlb6;
-    ppcemb_tlb_t tlbe;
-    ppcmas_tlb_t tlbm;
+    ppc6xx_tlb_t *tlb6;
+    ppcemb_tlb_t *tlbe;
+    ppcmas_tlb_t *tlbm;
 };
+
+/* possible TLB variants */
+#define TLB_NONE               0
+#define TLB_6XX                1
+#define TLB_EMB                2
+#define TLB_MAS                3
 #endif
 
 #define SDR_32_HTABORG         0xFFFF0000UL
@@ -911,7 +917,8 @@ struct CPUPPCState {
     int last_way;    /* Last used way used to allocate TLB in a LRU way      */
     int id_tlbs;     /* If 1, MMU has separated TLBs for instructions & data */
     int nb_pids;     /* Number of available PID registers                    */
-    ppc_tlb_t *tlb;  /* TLB is optional. Allocate them only if needed        */
+    int tlb_type;    /* Type of TLB we're dealing with                       */
+    ppc_tlb_t tlb;   /* TLB is optional. Allocate them only if needed        */
     /* 403 dedicated access protection registers */
     target_ulong pb[4];
 #endif
@@ -1942,9 +1949,9 @@ static inline void cpu_set_tls(CPUState *env, target_ulong newtls)
 static inline int booke206_tlbm_id(CPUState *env, ppcmas_tlb_t *tlbm)
 {
     uintptr_t tlbml = (uintptr_t)tlbm;
-    uintptr_t tlbl = (uintptr_t)env->tlb;
+    uintptr_t tlbl = (uintptr_t)env->tlb.tlbm;
 
-    return (tlbml - tlbl) / sizeof(env->tlb[0]);
+    return (tlbml - tlbl) / sizeof(env->tlb.tlbm[0]);
 }
 
 static inline int booke206_tlb_size(CPUState *env, int tlbn)
@@ -2004,7 +2011,7 @@ static inline ppcmas_tlb_t *booke206_get_tlbm(CPUState *env, const int tlbn,
         r += booke206_tlb_size(env, i);
     }
 
-    return &env->tlb[r].tlbm;
+    return &env->tlb.tlbm[r];
 }
 
 #endif

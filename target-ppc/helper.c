@@ -323,7 +323,7 @@ static inline void ppc6xx_tlb_invalidate_all(CPUState *env)
     if (env->id_tlbs == 1)
         max *= 2;
     for (nr = 0; nr < max; nr++) {
-        tlb = &env->tlb[nr].tlb6;
+        tlb = &env->tlb.tlb6[nr];
         pte_invalidate(&tlb->pte0);
     }
     tlb_flush(env, 1);
@@ -340,7 +340,7 @@ static inline void __ppc6xx_tlb_invalidate_virt(CPUState *env,
     /* Invalidate ITLB + DTLB, all ways */
     for (way = 0; way < env->nb_ways; way++) {
         nr = ppc6xx_tlb_getnum(env, eaddr, way, is_code);
-        tlb = &env->tlb[nr].tlb6;
+        tlb = &env->tlb.tlb6[nr];
         if (pte_is_valid(tlb->pte0) && (match_epn == 0 || eaddr == tlb->EPN)) {
             LOG_SWTLB("TLB invalidate %d/%d " TARGET_FMT_lx "\n", nr,
                       env->nb_tlb, eaddr);
@@ -367,7 +367,7 @@ void ppc6xx_tlb_store (CPUState *env, target_ulong EPN, int way, int is_code,
     int nr;
 
     nr = ppc6xx_tlb_getnum(env, EPN, way, is_code);
-    tlb = &env->tlb[nr].tlb6;
+    tlb = &env->tlb.tlb6[nr];
     LOG_SWTLB("Set TLB %d/%d EPN " TARGET_FMT_lx " PTE0 " TARGET_FMT_lx
               " PTE1 " TARGET_FMT_lx "\n", nr, env->nb_tlb, EPN, pte0, pte1);
     /* Invalidate any pending reference in Qemu for this virtual address */
@@ -391,7 +391,7 @@ static inline int ppc6xx_tlb_check(CPUState *env, mmu_ctx_t *ctx,
     for (way = 0; way < env->nb_ways; way++) {
         nr = ppc6xx_tlb_getnum(env, eaddr, way,
                                access_type == ACCESS_CODE ? 1 : 0);
-        tlb = &env->tlb[nr].tlb6;
+        tlb = &env->tlb.tlb6[nr];
         /* This test "emulates" the PTE index match for hardware TLBs */
         if ((eaddr & TARGET_PAGE_MASK) != tlb->EPN) {
             LOG_SWTLB("TLB %d/%d %s [" TARGET_FMT_lx " " TARGET_FMT_lx
@@ -434,7 +434,7 @@ static inline int ppc6xx_tlb_check(CPUState *env, mmu_ctx_t *ctx,
         LOG_SWTLB("found TLB at addr " TARGET_FMT_plx " prot=%01x ret=%d\n",
                   ctx->raddr & TARGET_PAGE_MASK, ctx->prot, ret);
         /* Update page flags */
-        pte_update_flags(ctx, &env->tlb[best].tlb6.pte1, ret, rw);
+        pte_update_flags(ctx, &env->tlb.tlb6[best].pte1, ret, rw);
     }
 
     return ret;
@@ -1049,7 +1049,7 @@ int ppcemb_tlb_search (CPUPPCState *env, target_ulong address, uint32_t pid)
     /* Default return value is no match */
     ret = -1;
     for (i = 0; i < env->nb_tlb; i++) {
-        tlb = &env->tlb[i].tlbe;
+        tlb = &env->tlb.tlbe[i];
         if (ppcemb_tlb_check(env, tlb, &raddr, address, pid, 0, i) == 0) {
             ret = i;
             break;
@@ -1066,7 +1066,7 @@ static inline void ppc4xx_tlb_invalidate_all(CPUState *env)
     int i;
 
     for (i = 0; i < env->nb_tlb; i++) {
-        tlb = &env->tlb[i].tlbe;
+        tlb = &env->tlb.tlbe[i];
         tlb->prot &= ~PAGE_VALID;
     }
     tlb_flush(env, 1);
@@ -1082,7 +1082,7 @@ static inline void ppc4xx_tlb_invalidate_virt(CPUState *env,
     int i;
 
     for (i = 0; i < env->nb_tlb; i++) {
-        tlb = &env->tlb[i].tlbe;
+        tlb = &env->tlb.tlbe[i];
         if (ppcemb_tlb_check(env, tlb, &raddr, eaddr, pid, 0, i) == 0) {
             end = tlb->EPN + tlb->size;
             for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
@@ -1107,7 +1107,7 @@ static int mmu40x_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
     raddr = (target_phys_addr_t)-1ULL;
     pr = msr_pr;
     for (i = 0; i < env->nb_tlb; i++) {
-        tlb = &env->tlb[i].tlbe;
+        tlb = &env->tlb.tlbe[i];
         if (ppcemb_tlb_check(env, tlb, &raddr, address,
                              env->spr[SPR_40x_PID], 0, i) < 0)
             continue;
@@ -1248,7 +1248,7 @@ static int mmubooke_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
     ret = -1;
     raddr = (target_phys_addr_t)-1ULL;
     for (i = 0; i < env->nb_tlb; i++) {
-        tlb = &env->tlb[i].tlbe;
+        tlb = &env->tlb.tlbe[i];
         ret = mmubooke_check_tlb(env, tlb, &raddr, &ctx->prot, address, rw,
                                  access_type, i);
         if (!ret) {
@@ -1273,14 +1273,14 @@ void booke206_flush_tlb(CPUState *env, int flags, const int check_iprot)
 {
     int tlb_size;
     int i, j;
-    ppc_tlb_t *tlb = env->tlb;
+    ppcmas_tlb_t *tlb = env->tlb.tlbm;
 
     for (i = 0; i < BOOKE206_MAX_TLBN; i++) {
         if (flags & (1 << i)) {
             tlb_size = booke206_tlb_size(env, i);
             for (j = 0; j < tlb_size; j++) {
-                if (!check_iprot || !(tlb[j].tlbm.mas1 & MAS1_IPROT)) {
-                    tlb[j].tlbm.mas1 &= ~MAS1_VALID;
+                if (!check_iprot || !(tlb[j].mas1 & MAS1_IPROT)) {
+                    tlb[j].mas1 &= ~MAS1_VALID;
                 }
             }
         }
