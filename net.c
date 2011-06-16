@@ -150,16 +150,21 @@ void qemu_macaddr_default_if_unset(MACAddr *macaddr)
 static char *assign_name(VLANClientState *vc1, const char *model)
 {
     VLANState *vlan;
+    VLANClientState *vc;
     char buf[256];
     int id = 0;
 
     QTAILQ_FOREACH(vlan, &vlans, next) {
-        VLANClientState *vc;
-
         QTAILQ_FOREACH(vc, &vlan->clients, next) {
             if (vc != vc1 && strcmp(vc->model, model) == 0) {
                 id++;
             }
+        }
+    }
+
+    QTAILQ_FOREACH(vc, &non_vlan_clients, next) {
+        if (vc != vc1 && strcmp(vc->model, model) == 0) {
+            id++;
         }
     }
 
