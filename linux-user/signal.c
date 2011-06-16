@@ -2228,7 +2228,6 @@ void sparc64_set_context(CPUSPARCState *env)
     target_mc_gregset_t *grp;
     abi_ulong pc, npc, tstate;
     abi_ulong fp, i7, w_addr;
-    unsigned char fenab;
     int err;
     unsigned int i;
 
@@ -2293,7 +2292,11 @@ void sparc64_set_context(CPUSPARCState *env)
     if (put_user(i7, w_addr + offsetof(struct target_reg_window, ins[7]), 
                  abi_ulong) != 0)
         goto do_sigsegv;
-    err |= __get_user(fenab, &(ucp->tuc_mcontext.mc_fpregs.mcfpu_enab));
+    /* FIXME this does not match how the kernel handles the FPU in
+     * its sparc64_set_context implementation. In particular the FPU
+     * is only restored if fenab is non-zero in:
+     *   __get_user(fenab, &(ucp->tuc_mcontext.mc_fpregs.mcfpu_enab));
+     */
     err |= __get_user(env->fprs, &(ucp->tuc_mcontext.mc_fpregs.mcfpu_fprs));
     {
         uint32_t *src, *dst;
