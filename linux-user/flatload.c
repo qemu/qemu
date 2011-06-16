@@ -384,7 +384,7 @@ static int load_flat_file(struct linux_binprm * bprm,
     abi_ulong reloc = 0, rp;
     int i, rev, relocs = 0;
     abi_ulong fpos;
-    abi_ulong start_code, end_code;
+    abi_ulong start_code;
     abi_ulong indx_len;
 
     hdr = ((struct flat_hdr *) bprm->buf);		/* exec-header */
@@ -552,11 +552,10 @@ static int load_flat_file(struct linux_binprm * bprm,
 
     /* The main program needs a little extra setup in the task structure */
     start_code = textpos + sizeof (struct flat_hdr);
-    end_code = textpos + text_len;
 
     DBG_FLT("%s %s: TEXT=%x-%x DATA=%x-%x BSS=%x-%x\n",
             id ? "Lib" : "Load", bprm->filename,
-            (int) start_code, (int) end_code,
+            (int) start_code, (int) (textpos + text_len),
             (int) datapos,
             (int) (datapos + data_len),
             (int) (datapos + data_len),
