@@ -3799,10 +3799,10 @@ static abi_long do_get_thread_area(CPUX86State *env, abi_ulong ptr)
 #ifndef TARGET_ABI32
 static abi_long do_arch_prctl(CPUX86State *env, int code, abi_ulong addr)
 {
-    abi_long ret;
+    abi_long ret = 0;
     abi_ulong val;
     int idx;
-    
+
     switch(code) {
     case TARGET_ARCH_SET_GS:
     case TARGET_ARCH_SET_FS:
@@ -3821,13 +3821,13 @@ static abi_long do_arch_prctl(CPUX86State *env, int code, abi_ulong addr)
             idx = R_FS;
         val = env->segs[idx].base;
         if (put_user(val, addr, abi_ulong))
-            return -TARGET_EFAULT;
+            ret = -TARGET_EFAULT;
         break;
     default:
         ret = -TARGET_EINVAL;
         break;
     }
-    return 0;
+    return ret;
 }
 #endif
 
