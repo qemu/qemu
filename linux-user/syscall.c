@@ -7201,7 +7201,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_osf_sigprocmask:
         {
             abi_ulong mask;
-            int how = arg1;
+            int how;
             sigset_t set, oldset;
 
             switch(arg1) {
@@ -7220,7 +7220,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
             mask = arg2;
             target_to_host_old_sigset(&set, &mask);
-            sigprocmask(arg1, &set, &oldset);
+            sigprocmask(how, &set, &oldset);
             host_to_target_old_sigset(&mask, &oldset);
             ret = mask;
         }
