@@ -407,3 +407,6 @@ disable xen_unmap_block(void* addr, unsigned long size) "%p, size %#lx"
 
 # exec.c
 disable qemu_put_ram_ptr(void* addr) "%p"
+
+# hw/xen_platform.c
+disable xen_platform_log(char *s) "xen platform: %s"

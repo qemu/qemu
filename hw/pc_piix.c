@@ -136,6 +136,10 @@ static void pc_init1(ram_addr_t ram_size,
 
     pc_vga_init(pci_enabled? pci_bus: NULL);
 
+    if (xen_enabled()) {
+        pci_create_simple(pci_bus, -1, "xen-platform");
+    }
+
     /* init basic PC hardware */
     pc_basic_device_init(isa_irq, &rtc_state, xen_enabled());
 
