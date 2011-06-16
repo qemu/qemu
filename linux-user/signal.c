@@ -2080,7 +2080,6 @@ long do_sigreturn(CPUState *env)
         uint32_t up_psr, pc, npc;
         target_sigset_t set;
         sigset_t host_set;
-        abi_ulong fpu_save_addr;
         int err, i;
 
         sf_addr = env->regwptr[UREG_FP];
@@ -2120,10 +2119,11 @@ long do_sigreturn(CPUState *env)
 		err |= __get_user(env->regwptr[i + UREG_I0], &sf->info.si_regs.u_regs[i+8]);
 	}
 
-        err |= __get_user(fpu_save_addr, &sf->fpu_save);
-
-        //if (fpu_save)
-        //        err |= restore_fpu_state(env, fpu_save);
+        /* FIXME: implement FPU save/restore:
+         * __get_user(fpu_save, &sf->fpu_save);
+         * if (fpu_save)
+         *        err |= restore_fpu_state(env, fpu_save);
+         */
 
         /* This is pretty much atomic, no amount locking would prevent
          * the races which exist anyways.
