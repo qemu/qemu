@@ -4532,7 +4532,8 @@ int get_osversion(void)
    All errnos that do_syscall() returns must be -TARGET_<errcode>. */
 abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     abi_long arg2, abi_long arg3, abi_long arg4,
-                    abi_long arg5, abi_long arg6)
+                    abi_long arg5, abi_long arg6, abi_long arg7,
+                    abi_long arg8)
 {
     abi_long ret;
     struct stat st;
@@ -6172,8 +6173,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_syscall
     case TARGET_NR_syscall:
-    	ret = do_syscall(cpu_env,arg1 & 0xffff,arg2,arg3,arg4,arg5,arg6,0);
-    	break;
+        ret = do_syscall(cpu_env, arg1 & 0xffff, arg2, arg3, arg4, arg5,
+                         arg6, arg7, arg8, 0);
+        break;
 #endif
     case TARGET_NR_wait4:
         {
