@@ -379,7 +379,6 @@ static int load_flat_file(struct linux_binprm * bprm,
     abi_long result;
     abi_ulong realdatastart = 0;
     abi_ulong text_len, data_len, bss_len, stack_len, flags;
-    abi_ulong memp = 0; /* for finding the brk area */
     abi_ulong extra;
     abi_ulong reloc = 0, rp;
     int i, rev, relocs = 0;
@@ -491,7 +490,6 @@ static int load_flat_file(struct linux_binprm * bprm,
         }
 
         reloc = datapos + (ntohl(hdr->reloc_start) - text_len);
-        memp = realdatastart;
 
     } else {
 
@@ -506,7 +504,6 @@ static int load_flat_file(struct linux_binprm * bprm,
         realdatastart = textpos + ntohl(hdr->data_start);
         datapos = realdatastart + indx_len;
         reloc = (textpos + ntohl(hdr->reloc_start) + indx_len);
-        memp = textpos;
 
 #ifdef CONFIG_BINFMT_ZFLAT
 #error code needs checking
