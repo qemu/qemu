@@ -4196,7 +4196,7 @@ target_ulong helper_440_tlbsx (target_ulong address)
 
 /* PowerPC BookE 2.06 TLB management */
 
-static ppcemb_tlb_t *booke206_cur_tlb(CPUState *env)
+static ppcmas_tlb_t *booke206_cur_tlb(CPUState *env)
 {
     uint32_t tlbncfg = 0;
     int esel = (env->spr[SPR_BOOKE_MAS0] & MAS0_ESEL_MASK) >> MAS0_ESEL_SHIFT;
@@ -4210,17 +4210,7 @@ static ppcemb_tlb_t *booke206_cur_tlb(CPUState *env)
         cpu_abort(env, "we don't support HES yet\n");
     }
 
-    return booke206_get_tlbe(env, tlb, ea, esel);
-}
-
-static inline target_phys_addr_t booke206_tlb_to_page_size(int size)
-{
-    return (1 << (size << 1)) << 10;
-}
-
-static inline target_phys_addr_t booke206_page_size_to_tlb(uint64_t size)
-{
-    return (ffs(size >> 10) - 1) >> 1;
+    return booke206_get_tlbm(env, tlb, ea, esel);
 }
 
 void helper_booke_setpid(uint32_t pidn, target_ulong pid)
@@ -4233,9 +4223,7 @@ void helper_booke_setpid(uint32_t pidn, target_ulong pid)
 void helper_booke206_tlbwe(void)
 {
     uint32_t tlbncfg, tlbn;
-    ppcemb_tlb_t *tlb;
-    target_phys_addr_t rpn;
-    int tlbe_size;
+    ppcmas_tlb_t *tlb;
 
     switch (env->spr[SPR_BOOKE_MAS0] & MAS0_WQ_MASK) {
     case MAS0_WQ_ALWAYS:
@@ -4269,116 +4257,43 @@ void helper_booke206_tlbwe(void)
 
     if (msr_gs) {
         cpu_abort(env, "missing HV implementation\n");
-    } else {
-        rpn = ((uint64_t)env->spr[SPR_BOOKE_MAS7] << 32) |
-              (env->spr[SPR_BOOKE_MAS3] & 0xfffff000);
     }
-    tlb->RPN = rpn;
+    tlb->mas7_3 = ((uint64_t)env->spr[SPR_BOOKE_MAS7] << 32) |
+                  env->spr[SPR_BOOKE_MAS3];
+    tlb->mas1 = env->spr[SPR_BOOKE_MAS1];
+    /* XXX needs to change when supporting 64-bit e500 */
+    tlb->mas2 = env->spr[SPR_BOOKE_MAS2] & 0xffffffff;
 
-    tlb->PID = (env->spr[SPR_BOOKE_MAS1] & MAS1_TID_MASK) >> MAS1_TID_SHIFT;
-    if (tlbncfg & TLBnCFG_AVAIL) {
-        tlbe_size = (env->spr[SPR_BOOKE_MAS1] & MAS1_TSIZE_MASK)
-                    >> MAS1_TSIZE_SHIFT;
-    } else {
-        tlbe_size = (tlbncfg & TLBnCFG_MINSIZE) >> TLBnCFG_MINSIZE_SHIFT;
+    if (!(tlbncfg & TLBnCFG_IPROT)) {
+        /* no IPROT supported by TLB */
+        tlb->mas1 &= ~MAS1_IPROT;
     }
 
-    tlb->size = booke206_tlb_to_page_size(tlbe_size);
-    tlb->EPN = (uint32_t)(env->spr[SPR_BOOKE_MAS2] & MAS2_EPN_MASK);
-    tlb->attr = env->spr[SPR_BOOKE_MAS2] & (MAS2_ACM | MAS2_VLE | MAS2_W |
-                                            MAS2_I | MAS2_M | MAS2_G | MAS2_E)
-                << 1;
-
-    if (tlbncfg & TLBnCFG_IPROT) {
-        tlb->attr |= env->spr[SPR_BOOKE_MAS1] & MAS1_IPROT;
-    }
-    tlb->attr |= (env->spr[SPR_BOOKE_MAS3] &
-                  ((MAS3_U0 | MAS3_U1 | MAS3_U2 | MAS3_U3)) << 8);
-    if (env->spr[SPR_BOOKE_MAS1] & MAS1_TS) {
-        tlb->attr |= 1;
-    }
-
-    tlb->prot = 0;
-
-    if (env->spr[SPR_BOOKE_MAS1] & MAS1_VALID) {
-        tlb->prot |= PAGE_VALID;
-    }
-    if (env->spr[SPR_BOOKE_MAS3] & MAS3_UX) {
-        tlb->prot |= PAGE_EXEC;
-    }
-    if (env->spr[SPR_BOOKE_MAS3] & MAS3_SX) {
-        tlb->prot |= PAGE_EXEC << 4;
-    }
-    if (env->spr[SPR_BOOKE_MAS3] & MAS3_UW) {
-        tlb->prot |= PAGE_WRITE;
-    }
-    if (env->spr[SPR_BOOKE_MAS3] & MAS3_SW) {
-        tlb->prot |= PAGE_WRITE << 4;
-    }
-    if (env->spr[SPR_BOOKE_MAS3] & MAS3_UR) {
-        tlb->prot |= PAGE_READ;
-    }
-    if (env->spr[SPR_BOOKE_MAS3] & MAS3_SR) {
-        tlb->prot |= PAGE_READ << 4;
-    }
-
-    if (tlb->size == TARGET_PAGE_SIZE) {
-        tlb_flush_page(env, tlb->EPN);
+    if (booke206_tlb_to_page_size(env, tlb) == TARGET_PAGE_SIZE) {
+        tlb_flush_page(env, tlb->mas2 & MAS2_EPN_MASK);
     } else {
         tlb_flush(env, 1);
     }
 }
 
-static inline void booke206_tlb_to_mas(CPUState *env, ppcemb_tlb_t *tlb)
+static inline void booke206_tlb_to_mas(CPUState *env, ppcmas_tlb_t *tlb)
 {
-    int tlbn = booke206_tlbe_to_tlbn(env, tlb);
-    int way = booke206_tlbe_to_way(env, tlb);
+    int tlbn = booke206_tlbm_to_tlbn(env, tlb);
+    int way = booke206_tlbm_to_way(env, tlb);
 
     env->spr[SPR_BOOKE_MAS0] = tlbn << MAS0_TLBSEL_SHIFT;
     env->spr[SPR_BOOKE_MAS0] |= way << MAS0_ESEL_SHIFT;
-
-    env->spr[SPR_BOOKE_MAS1] = MAS1_VALID;
-    env->spr[SPR_BOOKE_MAS2] = 0;
-
-    env->spr[SPR_BOOKE_MAS7] = (uint64_t)tlb->RPN >> 32;
-    env->spr[SPR_BOOKE_MAS3] = tlb->RPN;
-    env->spr[SPR_BOOKE_MAS1] |= tlb->PID << MAS1_TID_SHIFT;
-    env->spr[SPR_BOOKE_MAS1] |= booke206_page_size_to_tlb(tlb->size)
-                                << MAS1_TSIZE_SHIFT;
-    env->spr[SPR_BOOKE_MAS1] |= tlb->attr & MAS1_IPROT;
-    if (tlb->attr & 1) {
-        env->spr[SPR_BOOKE_MAS1] |= MAS1_TS;
-    }
-
-    env->spr[SPR_BOOKE_MAS2] = tlb->EPN;
-    env->spr[SPR_BOOKE_MAS2] |= (tlb->attr >> 1) &
-        (MAS2_ACM | MAS2_VLE | MAS2_W | MAS2_I | MAS2_M | MAS2_G | MAS2_E);
-
-    if (tlb->prot & PAGE_EXEC) {
-        env->spr[SPR_BOOKE_MAS3] |= MAS3_UX;
-    }
-    if (tlb->prot & (PAGE_EXEC << 4)) {
-        env->spr[SPR_BOOKE_MAS3] |= MAS3_SX;
-    }
-    if (tlb->prot & PAGE_WRITE) {
-        env->spr[SPR_BOOKE_MAS3] |= MAS3_UW;
-    }
-    if (tlb->prot & (PAGE_WRITE << 4)) {
-        env->spr[SPR_BOOKE_MAS3] |= MAS3_SW;
-    }
-    if (tlb->prot & PAGE_READ) {
-        env->spr[SPR_BOOKE_MAS3] |= MAS3_UR;
-    }
-    if (tlb->prot & (PAGE_READ << 4)) {
-        env->spr[SPR_BOOKE_MAS3] |= MAS3_SR;
-    }
-
     env->spr[SPR_BOOKE_MAS0] |= env->last_way << MAS0_NV_SHIFT;
+
+    env->spr[SPR_BOOKE_MAS1] = tlb->mas1;
+    env->spr[SPR_BOOKE_MAS2] = tlb->mas2;
+    env->spr[SPR_BOOKE_MAS3] = tlb->mas7_3;
+    env->spr[SPR_BOOKE_MAS7] = tlb->mas7_3 >> 32;
 }
 
 void helper_booke206_tlbre(void)
 {
-    ppcemb_tlb_t *tlb = NULL;
+    ppcmas_tlb_t *tlb = NULL;
 
     tlb = booke206_cur_tlb(env);
     booke206_tlb_to_mas(env, tlb);
@@ -4386,7 +4301,7 @@ void helper_booke206_tlbre(void)
 
 void helper_booke206_tlbsx(target_ulong address)
 {
-    ppcemb_tlb_t *tlb = NULL;
+    ppcmas_tlb_t *tlb = NULL;
     int i, j;
     target_phys_addr_t raddr;
     uint32_t spid, sas;
@@ -4398,13 +4313,13 @@ void helper_booke206_tlbsx(target_ulong address)
         int ways = booke206_tlb_ways(env, i);
 
         for (j = 0; j < ways; j++) {
-            tlb = booke206_get_tlbe(env, i, address, j);
+            tlb = booke206_get_tlbm(env, i, address, j);
 
-            if (ppcemb_tlb_check(env, tlb, &raddr, address, spid, 0, j)) {
+            if (ppcmas_tlb_check(env, tlb, &raddr, address, spid)) {
                 continue;
             }
 
-            if (sas != (tlb->attr & MAS6_SAS)) {
+            if (sas != ((tlb->mas1 & MAS1_TS) >> MAS1_TS_SHIFT)) {
                 continue;
             }
 
@@ -4439,13 +4354,14 @@ static inline void booke206_invalidate_ea_tlb(CPUState *env, int tlbn,
 {
     int i;
     int ways = booke206_tlb_ways(env, tlbn);
+    target_ulong mask;
 
     for (i = 0; i < ways; i++) {
-        ppcemb_tlb_t *tlb = booke206_get_tlbe(env, tlbn, ea, i);
-        target_phys_addr_t masked_ea = ea & ~(tlb->size - 1);
-        if ((tlb->EPN == (masked_ea >> MAS2_EPN_SHIFT)) &&
-            !(tlb->attr & MAS1_IPROT)) {
-            tlb->prot = 0;
+        ppcmas_tlb_t *tlb = booke206_get_tlbm(env, tlbn, ea, i);
+        mask = ~(booke206_tlb_to_page_size(env, tlb) - 1);
+        if (((tlb->mas2 & MAS2_EPN_MASK) == (ea & mask)) &&
+            !(tlb->mas1 & MAS1_IPROT)) {
+            tlb->mas1 &= ~MAS1_VALID;
         }
     }
 }

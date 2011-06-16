@@ -360,9 +360,17 @@ struct ppcemb_tlb_t {
     uint32_t attr; /* Storage attributes */
 };
 
+typedef struct ppcmas_tlb_t {
+     uint32_t mas8;
+     uint32_t mas1;
+     uint64_t mas2;
+     uint64_t mas7_3;
+} ppcmas_tlb_t;
+
 union ppc_tlb_t {
     ppc6xx_tlb_t tlb6;
     ppcemb_tlb_t tlbe;
+    ppcmas_tlb_t tlbm;
 };
 #endif
 
@@ -1075,9 +1083,13 @@ void store_40x_sler (CPUPPCState *env, uint32_t val);
 void store_booke_tcr (CPUPPCState *env, target_ulong val);
 void store_booke_tsr (CPUPPCState *env, target_ulong val);
 void booke206_flush_tlb(CPUState *env, int flags, const int check_iprot);
+target_phys_addr_t booke206_tlb_to_page_size(CPUState *env, ppcmas_tlb_t *tlb);
 int ppcemb_tlb_check(CPUState *env, ppcemb_tlb_t *tlb,
                      target_phys_addr_t *raddrp, target_ulong address,
                      uint32_t pid, int ext, int i);
+int ppcmas_tlb_check(CPUState *env, ppcmas_tlb_t *tlb,
+                     target_phys_addr_t *raddrp, target_ulong address,
+                     uint32_t pid);
 void ppc_tlb_invalidate_all (CPUPPCState *env);
 void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr);
 #if defined(TARGET_PPC64)
@@ -1927,12 +1939,12 @@ static inline void cpu_set_tls(CPUState *env, target_ulong newtls)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-static inline int booke206_tlbe_id(CPUState *env, ppcemb_tlb_t *tlbe)
+static inline int booke206_tlbm_id(CPUState *env, ppcmas_tlb_t *tlbm)
 {
-    uintptr_t tlbel = (uintptr_t)tlbe;
+    uintptr_t tlbml = (uintptr_t)tlbm;
     uintptr_t tlbl = (uintptr_t)env->tlb;
 
-    return (tlbel - tlbl) / sizeof(env->tlb[0]);
+    return (tlbml - tlbl) / sizeof(env->tlb[0]);
 }
 
 static inline int booke206_tlb_size(CPUState *env, int tlbn)
@@ -1949,9 +1961,9 @@ static inline int booke206_tlb_ways(CPUState *env, int tlbn)
     return r;
 }
 
-static inline int booke206_tlbe_to_tlbn(CPUState *env, ppcemb_tlb_t *tlbe)
+static inline int booke206_tlbm_to_tlbn(CPUState *env, ppcmas_tlb_t *tlbm)
 {
-    int id = booke206_tlbe_id(env, tlbe);
+    int id = booke206_tlbm_id(env, tlbm);
     int end = 0;
     int i;
 
@@ -1966,14 +1978,14 @@ static inline int booke206_tlbe_to_tlbn(CPUState *env, ppcemb_tlb_t *tlbe)
     return 0;
 }
 
-static inline int booke206_tlbe_to_way(CPUState *env, ppcemb_tlb_t *tlb)
+static inline int booke206_tlbm_to_way(CPUState *env, ppcmas_tlb_t *tlb)
 {
-    int tlbn = booke206_tlbe_to_tlbn(env, tlb);
-    int tlbid = booke206_tlbe_id(env, tlb);
+    int tlbn = booke206_tlbm_to_tlbn(env, tlb);
+    int tlbid = booke206_tlbm_id(env, tlb);
     return tlbid & (booke206_tlb_ways(env, tlbn) - 1);
 }
 
-static inline ppcemb_tlb_t *booke206_get_tlbe(CPUState *env, const int tlbn,
+static inline ppcmas_tlb_t *booke206_get_tlbm(CPUState *env, const int tlbn,
                                               target_ulong ea, int way)
 {
     int r;
@@ -1992,7 +2004,7 @@ static inline ppcemb_tlb_t *booke206_get_tlbe(CPUState *env, const int tlbn,
         r += booke206_tlb_size(env, i);
     }
 
-    return &env->tlb[r].tlbe;
+    return &env->tlb[r].tlbm;
 }
 
 #endif

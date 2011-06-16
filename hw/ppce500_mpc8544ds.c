@@ -185,18 +185,23 @@ out:
 }
 
 /* Create -kernel TLB entries for BookE, linearly spanning 256MB.  */
+static inline target_phys_addr_t booke206_page_size_to_tlb(uint64_t size)
+{
+    return (ffs(size >> 10) - 1) >> 1;
+}
+
 static void mmubooke_create_initial_mapping(CPUState *env,
                                      target_ulong va,
                                      target_phys_addr_t pa)
 {
-    ppcemb_tlb_t *tlb = booke206_get_tlbe(env, 1, 0, 0);
+    ppcmas_tlb_t *tlb = booke206_get_tlbm(env, 1, 0, 0);
+    target_phys_addr_t size;
 
-    tlb->attr = 0;
-    tlb->prot = PAGE_VALID | ((PAGE_READ | PAGE_WRITE | PAGE_EXEC) << 4);
-    tlb->size = 256 * 1024 * 1024;
-    tlb->EPN = va & TARGET_PAGE_MASK;
-    tlb->RPN = pa & TARGET_PAGE_MASK;
-    tlb->PID = 0;
+    size = (booke206_page_size_to_tlb(256 * 1024 * 1024) << MAS1_TSIZE_SHIFT);
+    tlb->mas1 = MAS1_VALID | size;
+    tlb->mas2 = va & TARGET_PAGE_MASK;
+    tlb->mas7_3 = pa & TARGET_PAGE_MASK;
+    tlb->mas7_3 |= MAS3_UR | MAS3_UW | MAS3_UX | MAS3_SR | MAS3_SW | MAS3_SX;
 }
 
 static void mpc8544ds_cpu_reset(void *opaque)

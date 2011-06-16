@@ -1279,8 +1279,8 @@ void booke206_flush_tlb(CPUState *env, int flags, const int check_iprot)
         if (flags & (1 << i)) {
             tlb_size = booke206_tlb_size(env, i);
             for (j = 0; j < tlb_size; j++) {
-                if (!check_iprot || !(tlb[j].tlbe.attr & MAS1_IPROT)) {
-                    tlb[j].tlbe.prot = 0;
+                if (!check_iprot || !(tlb[j].tlbm.mas1 & MAS1_IPROT)) {
+                    tlb[j].tlbm.mas1 &= ~MAS1_VALID;
                 }
             }
         }
@@ -1290,11 +1290,148 @@ void booke206_flush_tlb(CPUState *env, int flags, const int check_iprot)
     tlb_flush(env, 1);
 }
 
-static int mmubooke206_get_physical_address(CPUState *env, mmu_ctx_t *ctx,
-                                        target_ulong address, int rw,
-                                        int access_type)
+target_phys_addr_t booke206_tlb_to_page_size(CPUState *env, ppcmas_tlb_t *tlb)
 {
-    ppcemb_tlb_t *tlb;
+    uint32_t tlbncfg;
+    int tlbn = booke206_tlbm_to_tlbn(env, tlb);
+    target_phys_addr_t tlbm_size;
+
+    tlbncfg = env->spr[SPR_BOOKE_TLB0CFG + tlbn];
+
+    if (tlbncfg & TLBnCFG_AVAIL) {
+        tlbm_size = (tlb->mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
+    } else {
+        tlbm_size = (tlbncfg & TLBnCFG_MINSIZE) >> TLBnCFG_MINSIZE_SHIFT;
+    }
+
+    return (1 << (tlbm_size << 1)) << 10;
+}
+
+/* TLB check function for MAS based SoftTLBs */
+int ppcmas_tlb_check(CPUState *env, ppcmas_tlb_t *tlb,
+                     target_phys_addr_t *raddrp,
+                     target_ulong address, uint32_t pid)
+{
+    target_ulong mask;
+    uint32_t tlb_pid;
+
+    /* Check valid flag */
+    if (!(tlb->mas1 & MAS1_VALID)) {
+        return -1;
+    }
+
+    mask = ~(booke206_tlb_to_page_size(env, tlb) - 1);
+    LOG_SWTLB("%s: TLB ADDR=0x" TARGET_FMT_lx " PID=0x%x MAS1=0x%x MAS2=0x%"
+              PRIx64 " mask=0x" TARGET_FMT_lx " MAS7_3=0x%" PRIx64 " MAS8=%x\n",
+              __func__, address, pid, tlb->mas1, tlb->mas2, mask, tlb->mas7_3,
+              tlb->mas8);
+
+    /* Check PID */
+    tlb_pid = (tlb->mas1 & MAS1_TID_MASK) >> MAS1_TID_SHIFT;
+    if (tlb_pid != 0 && tlb_pid != pid) {
+        return -1;
+    }
+
+    /* Check effective address */
+    if ((address & mask) != (tlb->mas2 & MAS2_EPN_MASK)) {
+        return -1;
+    }
+    *raddrp = (tlb->mas7_3 & mask) | (address & ~mask);
+
+    return 0;
+}
+
+static int mmubooke206_check_tlb(CPUState *env, ppcmas_tlb_t *tlb,
+                                 target_phys_addr_t *raddr, int *prot,
+                                 target_ulong address, int rw,
+                                 int access_type)
+{
+    int ret;
+    int _prot = 0;
+
+    if (ppcmas_tlb_check(env, tlb, raddr, address,
+                         env->spr[SPR_BOOKE_PID]) >= 0) {
+        goto found_tlb;
+    }
+
+    if (env->spr[SPR_BOOKE_PID1] &&
+        ppcmas_tlb_check(env, tlb, raddr, address,
+                         env->spr[SPR_BOOKE_PID1]) >= 0) {
+        goto found_tlb;
+    }
+
+    if (env->spr[SPR_BOOKE_PID2] &&
+        ppcmas_tlb_check(env, tlb, raddr, address,
+                         env->spr[SPR_BOOKE_PID2]) >= 0) {
+        goto found_tlb;
+    }
+
+    LOG_SWTLB("%s: TLB entry not found\n", __func__);
+    return -1;
+
+found_tlb:
+
+    if (msr_pr != 0) {
+        if (tlb->mas7_3 & MAS3_UR) {
+            _prot |= PAGE_READ;
+        }
+        if (tlb->mas7_3 & MAS3_UW) {
+            _prot |= PAGE_WRITE;
+        }
+        if (tlb->mas7_3 & MAS3_UX) {
+            _prot |= PAGE_EXEC;
+        }
+    } else {
+        if (tlb->mas7_3 & MAS3_SR) {
+            _prot |= PAGE_READ;
+        }
+        if (tlb->mas7_3 & MAS3_SW) {
+            _prot |= PAGE_WRITE;
+        }
+        if (tlb->mas7_3 & MAS3_SX) {
+            _prot |= PAGE_EXEC;
+        }
+    }
+
+    /* Check the address space and permissions */
+    if (access_type == ACCESS_CODE) {
+        if (msr_ir != ((tlb->mas1 & MAS1_TS) >> MAS1_TS_SHIFT)) {
+            LOG_SWTLB("%s: AS doesn't match\n", __func__);
+            return -1;
+        }
+
+        *prot = _prot;
+        if (_prot & PAGE_EXEC) {
+            LOG_SWTLB("%s: good TLB!\n", __func__);
+            return 0;
+        }
+
+        LOG_SWTLB("%s: no PAGE_EXEC: %x\n", __func__, _prot);
+        ret = -3;
+    } else {
+        if (msr_dr != ((tlb->mas1 & MAS1_TS) >> MAS1_TS_SHIFT)) {
+            LOG_SWTLB("%s: AS doesn't match\n", __func__);
+            return -1;
+        }
+
+        *prot = _prot;
+        if ((!rw && _prot & PAGE_READ) || (rw && (_prot & PAGE_WRITE))) {
+            LOG_SWTLB("%s: found TLB!\n", __func__);
+            return 0;
+        }
+
+        LOG_SWTLB("%s: PAGE_READ/WRITE doesn't match: %x\n", __func__, _prot);
+        ret = -2;
+    }
+
+    return ret;
+}
+
+static int mmubooke206_get_physical_address(CPUState *env, mmu_ctx_t *ctx,
+                                            target_ulong address, int rw,
+                                            int access_type)
+{
+    ppcmas_tlb_t *tlb;
     target_phys_addr_t raddr;
     int i, j, ret;
 
@@ -1305,9 +1442,9 @@ static int mmubooke206_get_physical_address(CPUState *env, mmu_ctx_t *ctx,
         int ways = booke206_tlb_ways(env, i);
 
         for (j = 0; j < ways; j++) {
-            tlb = booke206_get_tlbe(env, i, address, j);
-            ret = mmubooke_check_tlb(env, tlb, &raddr, &ctx->prot, address, rw,
-                                     access_type, j);
+            tlb = booke206_get_tlbm(env, i, address, j);
+            ret = mmubooke206_check_tlb(env, tlb, &raddr, &ctx->prot, address,
+                                        rw, access_type);
             if (ret != -1) {
                 goto found_tlb;
             }
@@ -1412,7 +1549,7 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
                                                 rw, access_type);
         } else if (env->mmu_model == POWERPC_MMU_BOOKE206) {
             ret = mmubooke206_get_physical_address(env, ctx, eaddr, rw,
-                                               access_type);
+                                                   access_type);
         } else {
             /* No address translation.  */
             ret = check_physical(env, ctx, eaddr, rw);
