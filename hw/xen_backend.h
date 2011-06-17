@@ -21,7 +21,8 @@ struct XenDevOps {
     uint32_t  flags;
     void      (*alloc)(struct XenDevice *xendev);
     int       (*init)(struct XenDevice *xendev);
-    int       (*connect)(struct XenDevice *xendev);
+    int       (*initialise)(struct XenDevice *xendev);
+    void      (*connected)(struct XenDevice *xendev);
     void      (*event)(struct XenDevice *xendev);
     void      (*disconnect)(struct XenDevice *xendev);
     int       (*free)(struct XenDevice *xendev);

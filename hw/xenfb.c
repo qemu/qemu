@@ -351,7 +351,7 @@ static int input_init(struct XenDevice *xendev)
     return 0;
 }
 
-static int input_connect(struct XenDevice *xendev)
+static int input_initialise(struct XenDevice *xendev)
 {
     struct XenInput *in = container_of(xendev, struct XenInput, c.xendev);
     int rc;
@@ -865,7 +865,7 @@ static int fb_init(struct XenDevice *xendev)
     return 0;
 }
 
-static int fb_connect(struct XenDevice *xendev)
+static int fb_initialise(struct XenDevice *xendev)
 {
     struct XenFB *fb = container_of(xendev, struct XenFB, c.xendev);
     struct xenfb_page *fb_page;
@@ -959,7 +959,7 @@ static void fb_event(struct XenDevice *xendev)
 struct XenDevOps xen_kbdmouse_ops = {
     .size       = sizeof(struct XenInput),
     .init       = input_init,
-    .connect    = input_connect,
+    .initialise = input_initialise,
     .disconnect = input_disconnect,
     .event      = input_event,
 };
@@ -967,7 +967,7 @@ struct XenDevOps xen_kbdmouse_ops = {
 struct XenDevOps xen_framebuffer_ops = {
     .size       = sizeof(struct XenFB),
     .init       = fb_init,
-    .connect    = fb_connect,
+    .initialise = fb_initialise,
     .disconnect = fb_disconnect,
     .event      = fb_event,
     .frontend_changed = fb_frontend_changed,
