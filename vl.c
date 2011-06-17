@@ -1398,7 +1398,6 @@ static void main_loop(void)
             monitor_protocol_event(QEVENT_SHUTDOWN, NULL);
             if (no_shutdown) {
                 vm_stop(VMSTOP_SHUTDOWN);
-                no_shutdown = 0;
             } else
                 break;
         }
