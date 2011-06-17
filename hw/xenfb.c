@@ -356,10 +356,6 @@ static int input_initialise(struct XenDevice *xendev)
     struct XenInput *in = container_of(xendev, struct XenInput, c.xendev);
     int rc;
 
-    if (xenstore_read_fe_int(xendev, "request-abs-pointer",
-                             &in->abs_pointer_wanted) == -1)
-	in->abs_pointer_wanted = 0;
-
     if (!in->c.ds) {
         char *vfb = xenstore_read_str(NULL, "device/vfb");
         if (vfb == NULL) {
@@ -377,10 +373,24 @@ static int input_initialise(struct XenDevice *xendev)
 	return rc;
 
     qemu_add_kbd_event_handler(xenfb_key_event, in);
+    return 0;
+}
+
+static void input_connected(struct XenDevice *xendev)
+{
+    struct XenInput *in = container_of(xendev, struct XenInput, c.xendev);
+
+    if (xenstore_read_fe_int(xendev, "request-abs-pointer",
+                             &in->abs_pointer_wanted) == -1) {
+        in->abs_pointer_wanted = 0;
+    }
+
+    if (in->qmouse) {
+        qemu_remove_mouse_event_handler(in->qmouse);
+    }
     in->qmouse = qemu_add_mouse_event_handler(xenfb_mouse_event, in,
 					      in->abs_pointer_wanted,
 					      "Xen PVFB Mouse");
-    return 0;
 }
 
 static void input_disconnect(struct XenDevice *xendev)
@@ -960,6 +970,7 @@ struct XenDevOps xen_kbdmouse_ops = {
     .size       = sizeof(struct XenInput),
     .init       = input_init,
     .initialise = input_initialise,
+    .connected  = input_connected,
     .disconnect = input_disconnect,
     .event      = input_event,
 };
