@@ -328,18 +328,11 @@ static void handle_control_message(VirtIOSerial *vser, void *buf, size_t len)
     cpkt.event = lduw_p(&gcpkt->event);
     cpkt.value = lduw_p(&gcpkt->value);
 
-    port = find_port_by_id(vser, ldl_p(&gcpkt->id));
-    if (!port && cpkt.event != VIRTIO_CONSOLE_DEVICE_READY)
-        return;
-
-    info = DO_UPCAST(VirtIOSerialPortInfo, qdev, port->dev.info);
-
-    switch(cpkt.event) {
-    case VIRTIO_CONSOLE_DEVICE_READY:
+    if (cpkt.event == VIRTIO_CONSOLE_DEVICE_READY) {
         if (!cpkt.value) {
             error_report("virtio-serial-bus: Guest failure in adding device %s\n",
                          vser->bus.qbus.name);
-            break;
+            return;
         }
         /*
          * The device is up, we can now tell the device about all the
@@ -348,8 +341,19 @@ static void handle_control_message(VirtIOSerial *vser, void *buf, size_t len)
         QTAILQ_FOREACH(port, &vser->ports, next) {
             send_control_event(port, VIRTIO_CONSOLE_PORT_ADD, 1);
         }
-        break;
+        return;
+    }
 
+    port = find_port_by_id(vser, ldl_p(&gcpkt->id));
+    if (!port) {
+        error_report("virtio-serial-bus: Unexpected port id %u for device %s\n",
+                     ldl_p(&gcpkt->id), vser->bus.qbus.name);
+        return;
+    }
+
+    info = DO_UPCAST(VirtIOSerialPortInfo, qdev, port->dev.info);
+
+    switch(cpkt.event) {
     case VIRTIO_CONSOLE_PORT_READY:
         if (!cpkt.value) {
             error_report("virtio-serial-bus: Guest failure in adding port %u for device %s\n",
