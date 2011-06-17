@@ -51,6 +51,7 @@ typedef struct {
     SCSIRequest *req;
     SCSIBus bus;
     BlockConf conf;
+    char *serial;
     SCSIDevice *scsi_dev;
     uint32_t removable;
     int result;
@@ -532,9 +533,15 @@ static int usb_msd_initfn(USBDevice *dev)
     bdrv_detach(bs, &s->dev.qdev);
     s->conf.bs = NULL;
 
-    dinfo = drive_get_by_blockdev(bs);
-    if (dinfo && dinfo->serial) {
-        usb_desc_set_string(dev, STR_SERIALNUMBER, dinfo->serial);
+    if (!s->serial) {
+        /* try to fall back to value set with legacy -drive serial=... */
+        dinfo = drive_get_by_blockdev(bs);
+        if (*dinfo->serial) {
+            s->serial = strdup(dinfo->serial);
+        }
+    }
+    if (s->serial) {
+        usb_desc_set_string(dev, STR_SERIALNUMBER, s->serial);
     }
 
     usb_desc_init(dev);
@@ -633,6 +640,7 @@ static struct USBDeviceInfo msd_info = {
     .usbdevice_init = usb_msd_init,
     .qdev.props     = (Property[]) {
         DEFINE_BLOCK_PROPERTIES(MSDState, conf),
+        DEFINE_PROP_STRING("serial", MSDState, serial),
         DEFINE_PROP_BIT("removable", MSDState, removable, 0, false),
         DEFINE_PROP_END_OF_LIST(),
     },
