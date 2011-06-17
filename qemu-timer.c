@@ -831,6 +831,8 @@ static int64_t qemu_next_alarm_deadline(void)
 
 #if defined(__linux__)
 
+#include "compatfd.h"
+
 static int dynticks_start_timer(struct qemu_alarm_timer *t)
 {
     struct sigevent ev;
@@ -850,6 +852,12 @@ static int dynticks_start_timer(struct qemu_alarm_timer *t)
     memset(&ev, 0, sizeof(ev));
     ev.sigev_value.sival_int = 0;
     ev.sigev_notify = SIGEV_SIGNAL;
+#ifdef SIGEV_THREAD_ID
+    if (qemu_signalfd_available()) {
+        ev.sigev_notify = SIGEV_THREAD_ID;
+        ev._sigev_un._tid = qemu_get_thread_id();
+    }
+#endif /* SIGEV_THREAD_ID */
     ev.sigev_signo = SIGALRM;
 
     if (timer_create(CLOCK_REALTIME, &ev, &host_timer)) {
