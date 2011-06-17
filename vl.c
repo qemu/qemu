@@ -2300,7 +2300,16 @@ int main(int argc, char **argv, char **envp)
 #endif
                 break;
             case QEMU_OPTION_portrait:
-                graphic_rotate = 1;
+                graphic_rotate = 90;
+                break;
+            case QEMU_OPTION_rotate:
+                graphic_rotate = strtol(optarg, (char **) &optarg, 10);
+                if (graphic_rotate != 0 && graphic_rotate != 90 &&
+                    graphic_rotate != 180 && graphic_rotate != 270) {
+                    fprintf(stderr,
+                        "qemu: only 90, 180, 270 deg rotation is available\n");
+                    exit(1);
+                }
                 break;
             case QEMU_OPTION_kernel:
                 kernel_filename = optarg;
