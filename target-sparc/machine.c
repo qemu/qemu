@@ -45,6 +45,19 @@ void cpu_save(QEMUFile *f, void *opaque)
     /* MMU */
     for (i = 0; i < 32; i++)
         qemu_put_be32s(f, &env->mmuregs[i]);
+    for (i = 0; i < 4; i++) {
+        qemu_put_be64s(f, &env->mxccdata[i]);
+    }
+    for (i = 0; i < 8; i++) {
+        qemu_put_be64s(f, &env->mxccregs[i]);
+    }
+    qemu_put_be32s(f, &env->mmubpctrv);
+    qemu_put_be32s(f, &env->mmubpctrc);
+    qemu_put_be32s(f, &env->mmubpctrs);
+    qemu_put_be64s(f, &env->mmubpaction);
+    for (i = 0; i < 4; i++) {
+        qemu_put_be64s(f, &env->mmubpregs[i]);
+    }
 #else
     qemu_put_be64s(f, &env->lsu);
     for (i = 0; i < 16; i++) {
@@ -141,6 +154,19 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     /* MMU */
     for (i = 0; i < 32; i++)
         qemu_get_be32s(f, &env->mmuregs[i]);
+    for (i = 0; i < 4; i++) {
+        qemu_get_be64s(f, &env->mxccdata[i]);
+    }
+    for (i = 0; i < 8; i++) {
+        qemu_get_be64s(f, &env->mxccregs[i]);
+    }
+    qemu_get_be32s(f, &env->mmubpctrv);
+    qemu_get_be32s(f, &env->mmubpctrc);
+    qemu_get_be32s(f, &env->mmubpctrs);
+    qemu_get_be64s(f, &env->mmubpaction);
+    for (i = 0; i < 4; i++) {
+        qemu_get_be64s(f, &env->mmubpregs[i]);
+    }
 #else
     qemu_get_be64s(f, &env->lsu);
     for (i = 0; i < 16; i++) {

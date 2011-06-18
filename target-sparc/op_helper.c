@@ -1940,7 +1940,6 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
     case 0x31: // Turbosparc RAM snoop
     case 0x32: // Turbosparc page table descriptor diagnostic
     case 0x39: /* data cache diagnostic register */
-    case 0x4c: /* SuperSPARC MMU Breakpoint Action register */
         ret = 0;
         break;
     case 0x38: /* SuperSPARC MMU Breakpoint Control Registers */
@@ -1965,6 +1964,18 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
             DPRINTF_MMU("read breakpoint reg[%d] 0x%016" PRIx64 "\n", reg,
                         ret);
         }
+        break;
+    case 0x49: /* SuperSPARC MMU Counter Breakpoint Value */
+        ret = env->mmubpctrv;
+        break;
+    case 0x4a: /* SuperSPARC MMU Counter Breakpoint Control */
+        ret = env->mmubpctrc;
+        break;
+    case 0x4b: /* SuperSPARC MMU Counter Breakpoint Status */
+        ret = env->mmubpctrs;
+        break;
+    case 0x4c: /* SuperSPARC MMU Breakpoint Action */
+        ret = env->mmubpaction;
         break;
     case 8: /* User code access, XXX */
     default:
@@ -2304,7 +2315,6 @@ void helper_st_asi(target_ulong addr, uint64_t val, int asi, int size)
                // descriptor diagnostic
     case 0x36: /* I-cache flash clear */
     case 0x37: /* D-cache flash clear */
-    case 0x4c: /* breakpoint action */
         break;
     case 0x38: /* SuperSPARC MMU Breakpoint Control Registers*/
         {
@@ -2327,6 +2337,18 @@ void helper_st_asi(target_ulong addr, uint64_t val, int asi, int size)
             DPRINTF_MMU("write breakpoint reg[%d] 0x%016x\n", reg,
                         env->mmuregs[reg]);
         }
+        break;
+    case 0x49: /* SuperSPARC MMU Counter Breakpoint Value */
+        env->mmubpctrv = val & 0xffffffff;
+        break;
+    case 0x4a: /* SuperSPARC MMU Counter Breakpoint Control */
+        env->mmubpctrc = val & 0x3;
+        break;
+    case 0x4b: /* SuperSPARC MMU Counter Breakpoint Status */
+        env->mmubpctrs = val & 0x3;
+        break;
+    case 0x4c: /* SuperSPARC MMU Breakpoint Action */
+        env->mmubpaction = val & 0x1fff;
         break;
     case 8: /* User code access, XXX */
     case 9: /* Supervisor code access, XXX */

@@ -403,6 +403,8 @@ typedef struct CPUSPARCState {
     uint32_t mmuregs[32];
     uint64_t mxccdata[4];
     uint64_t mxccregs[8];
+    uint32_t mmubpctrv, mmubpctrc, mmubpctrs;
+    uint64_t mmubpaction;
     uint64_t mmubpregs[4];
     uint64_t prom_addr;
 #endif
@@ -521,7 +523,7 @@ int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
 #define cpu_signal_handler cpu_sparc_signal_handler
 #define cpu_list sparc_cpu_list
 
-#define CPU_SAVE_VERSION 6
+#define CPU_SAVE_VERSION 7
 
 /* MMU modes definitions */
 #if defined (TARGET_SPARC64)
