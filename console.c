@@ -1349,8 +1349,15 @@ static struct DisplayAllocator default_allocator = {
 static void dumb_display_init(void)
 {
     DisplayState *ds = qemu_mallocz(sizeof(DisplayState));
+    int width = 640;
+    int height = 480;
+
     ds->allocator = &default_allocator;
-    ds->surface = qemu_create_displaysurface(ds, 640, 480);
+    if (is_fixedsize_console()) {
+        width = active_console->g_width;
+        height = active_console->g_height;
+    }
+    ds->surface = qemu_create_displaysurface(ds, width, height);
     register_displaystate(ds);
 }
 
