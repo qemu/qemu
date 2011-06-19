@@ -23,7 +23,6 @@
 #include <inttypes.h>
 
 #include "cpu.h"
-#include "exec-all.h"
 #include "qemu-common.h"
 #include "kvm.h"
 #ifndef CONFIG_USER_ONLY

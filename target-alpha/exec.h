@@ -31,7 +31,6 @@ register struct CPUAlphaState *env asm(AREG0);
 #define FP_STATUS (env->fp_status)
 
 #include "cpu.h"
-#include "exec-all.h"
 
 #if !defined(CONFIG_USER_ONLY)
 #include "softmmu_exec.h"

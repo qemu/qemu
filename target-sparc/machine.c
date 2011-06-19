@@ -2,7 +2,7 @@
 #include "hw/boards.h"
 #include "qemu-timer.h"
 
-#include "exec-all.h"
+#include "cpu.h"
 
 void cpu_save(QEMUFile *f, void *opaque)
 {

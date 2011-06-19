@@ -1,7 +1,7 @@
 #include "hw/hw.h"
 #include "hw/boards.h"
 
-#include "exec-all.h"
+#include "cpu.h"
 
 static void save_tc(QEMUFile *f, TCState *tc)
 {

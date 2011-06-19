@@ -22,7 +22,6 @@
 #include <stdio.h>
 
 #include "cpu.h"
-#include "exec-all.h"
 #include "disas.h"
 #include "host-utils.h"
 #include "tcg-op.h"

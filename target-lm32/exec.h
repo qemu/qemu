@@ -22,7 +22,6 @@
 register struct CPULM32State *env asm(AREG0);
 
 #include "cpu.h"
-#include "exec-all.h"
 
 static inline int cpu_halted(CPUState *env)
 {

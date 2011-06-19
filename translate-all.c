@@ -26,7 +26,6 @@
 
 #define NO_CPU_IO_DEFS
 #include "cpu.h"
-#include "exec-all.h"
 #include "disas.h"
 #include "tcg.h"
 #include "qemu-timer.h"

@@ -56,7 +56,7 @@
 #include "json-streamer.h"
 #include "json-parser.h"
 #include "osdep.h"
-#include "exec-all.h"
+#include "cpu.h"
 #ifdef CONFIG_SIMPLE_TRACE
 #include "trace.h"
 #endif

@@ -12,7 +12,7 @@
 
 #include "qemu-common.h"
 #include "hw/hw.h"
-#include "exec-all.h"
+#include "cpu.h"
 #include "gdbstub.h"
 #include "kvm.h"
 

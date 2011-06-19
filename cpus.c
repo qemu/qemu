@@ -30,7 +30,6 @@
 #include "gdbstub.h"
 #include "dma.h"
 #include "kvm.h"
-#include "exec-all.h"
 
 #include "qemu-thread.h"
 #include "cpus.h"

@@ -54,7 +54,6 @@
    instructions */
 #define NO_CPU_IO_DEFS
 #include "cpu.h"
-#include "exec-all.h"
 
 #include "tcg-op.h"
 #include "elf.h"

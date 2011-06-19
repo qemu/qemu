@@ -29,7 +29,6 @@
 #include "sh7750_regs.h"
 #include "sh7750_regnames.h"
 #include "sh_intc.h"
-#include "exec-all.h"
 #include "cpu.h"
 
 #define NB_DEVICES 4

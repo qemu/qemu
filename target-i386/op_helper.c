@@ -19,7 +19,6 @@
 
 #include <math.h>
 #include "exec.h"
-#include "exec-all.h"
 #include "host-utils.h"
 #include "ioport.h"
 

@@ -16,7 +16,6 @@
 register struct CPUState_UniCore32 *env asm(AREG0);
 
 #include "cpu.h"
-#include "exec-all.h"
 
 static inline void env_to_regs(void)
 {

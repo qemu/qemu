@@ -3,7 +3,7 @@
 #include "hw/pc.h"
 #include "hw/isa.h"
 
-#include "exec-all.h"
+#include "cpu.h"
 #include "kvm.h"
 
 static const VMStateDescription vmstate_segment = {

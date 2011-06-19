@@ -34,7 +34,6 @@ register struct CPUX86State *env asm(AREG0);
 #include "qemu-log.h"
 
 #include "cpu.h"
-#include "exec-all.h"
 
 /* op_helper.c */
 void QEMU_NORETURN raise_exception_err(int exception_index, int error_code);

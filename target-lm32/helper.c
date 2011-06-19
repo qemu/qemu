@@ -23,7 +23,6 @@
 
 #include "config.h"
 #include "cpu.h"
-#include "exec-all.h"
 #include "host-utils.h"
 
 int cpu_lm32_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
