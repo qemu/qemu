@@ -2346,15 +2346,19 @@ int ppm_save(const char *filename, struct DisplaySurface *ds)
     uint32_t v;
     int y, x;
     uint8_t r, g, b;
+    int ret;
+    char *linebuf, *pbuf;
 
     f = fopen(filename, "wb");
     if (!f)
         return -1;
     fprintf(f, "P6\n%d %d\n%d\n",
             ds->width, ds->height, 255);
+    linebuf = qemu_malloc(ds->width * 3);
     d1 = ds->data;
     for(y = 0; y < ds->height; y++) {
         d = d1;
+        pbuf = linebuf;
         for(x = 0; x < ds->width; x++) {
             if (ds->pf.bits_per_pixel == 32)
                 v = *(uint32_t *)d;
@@ -2366,13 +2370,16 @@ int ppm_save(const char *filename, struct DisplaySurface *ds)
                 (ds->pf.gmax + 1);
             b = ((v >> ds->pf.bshift) & ds->pf.bmax) * 256 /
                 (ds->pf.bmax + 1);
-            fputc(r, f);
-            fputc(g, f);
-            fputc(b, f);
+            *pbuf++ = r;
+            *pbuf++ = g;
+            *pbuf++ = b;
             d += ds->pf.bytes_per_pixel;
         }
         d1 += ds->linesize;
+        ret = fwrite(linebuf, 1, pbuf - linebuf, f);
+        (void)ret;
     }
+    qemu_free(linebuf);
     fclose(f);
     return 0;
 }
