@@ -467,6 +467,14 @@ static inline void tcg_out_dep(TCGContext *s, int ret, int arg,
               | INSN_SHDEP_CP(31 - ofs) | INSN_DEP_LEN(len));
 }
 
+static inline void tcg_out_depi(TCGContext *s, int ret, int arg,
+                                unsigned ofs, unsigned len)
+{
+    assert(ofs < 32 && len <= 32 - ofs);
+    tcg_out32(s, INSN_DEPI | INSN_R2(ret) | INSN_IM5(arg)
+              | INSN_SHDEP_CP(31 - ofs) | INSN_DEP_LEN(len));
+}
+
 static inline void tcg_out_shd(TCGContext *s, int ret, int hi, int lo,
                                unsigned count)
 {
@@ -499,8 +507,7 @@ static void tcg_out_ori(TCGContext *s, int ret, int arg, tcg_target_ulong m)
     assert(bs1 == 32 || (1ul << bs1) > m);
 
     tcg_out_mov(s, TCG_TYPE_I32, ret, arg);
-    tcg_out32(s, INSN_DEPI | INSN_R2(ret) | INSN_IM5(-1)
-              | INSN_SHDEP_CP(31 - bs0) | INSN_DEP_LEN(bs1 - bs0));
+    tcg_out_depi(s, ret, -1, bs0, bs1 - bs0);
 }
 
 static void tcg_out_andi(TCGContext *s, int ret, int arg, tcg_target_ulong m)
@@ -529,8 +536,7 @@ static void tcg_out_andi(TCGContext *s, int ret, int arg, tcg_target_ulong m)
         tcg_out_extr(s, ret, arg, 0, ls0, 0);
     } else {
         tcg_out_mov(s, TCG_TYPE_I32, ret, arg);
-        tcg_out32(s, INSN_DEPI | INSN_R2(ret) | INSN_IM5(0)
-                  | INSN_SHDEP_CP(31 - ls0) | INSN_DEP_LEN(ls1 - ls0));
+        tcg_out_depi(s, ret, 0, ls0, ls1 - ls0);
     }
 }
 
@@ -1459,6 +1465,14 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
                      args[4], args[5], const_args[2], const_args[4]);
         break;
 
+    case INDEX_op_deposit_i32:
+        if (const_args[2]) {
+            tcg_out_depi(s, args[0], args[2], args[3], args[4]);
+        } else {
+            tcg_out_dep(s, args[0], args[2], args[3], args[4]);
+        }
+        break;
+
     case INDEX_op_qemu_ld8u:
         tcg_out_qemu_ld(s, args, 0);
         break;
@@ -1551,6 +1565,8 @@ static const TCGTargetOpDef hppa_op_defs[] = {
 
     { INDEX_op_add2_i32, { "r", "r", "rZ", "rZ", "rI", "rZ" } },
     { INDEX_op_sub2_i32, { "r", "r", "rI", "rZ", "rK", "rZ" } },
+
+    { INDEX_op_deposit_i32, { "r", "0", "rJ" } },
 
 #if TARGET_LONG_BITS == 32
     { INDEX_op_qemu_ld8u, { "r", "L" } },
