@@ -59,7 +59,7 @@ static void check_mode_change(void)
 
     if (is_absolute != current_is_absolute ||
         has_absolute != current_has_absolute) {
-        notifier_list_notify(&mouse_mode_notifiers);
+        notifier_list_notify(&mouse_mode_notifiers, NULL);
     }
 
     current_is_absolute = is_absolute;

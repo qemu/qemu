@@ -839,7 +839,7 @@ static void xen_vm_change_state_handler(void *opaque, int running, int reason)
     }
 }
 
-static void xen_exit_notifier(Notifier *n)
+static void xen_exit_notifier(Notifier *n, void *data)
 {
     XenIOState *state = container_of(n, XenIOState, exit);
 

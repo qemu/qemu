@@ -1346,7 +1346,7 @@ static void client_cut_text(VncState *vs, size_t len, uint8_t *text)
 {
 }
 
-static void check_pointer_type_change(Notifier *notifier)
+static void check_pointer_type_change(Notifier *notifier, void *data)
 {
     VncState *vs = container_of(notifier, VncState, mouse_mode_notifier);
     int absolute = kbd_mouse_is_absolute();
@@ -1769,7 +1769,7 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
         }
     }
     vnc_desktop_resize(vs);
-    check_pointer_type_change(&vs->mouse_mode_notifier);
+    check_pointer_type_change(&vs->mouse_mode_notifier, NULL);
 }
 
 static void set_pixel_conversion(VncState *vs)

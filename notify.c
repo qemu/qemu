@@ -29,11 +29,11 @@ void notifier_list_remove(NotifierList *list, Notifier *notifier)
     QTAILQ_REMOVE(&list->notifiers, notifier, node);
 }
 
-void notifier_list_notify(NotifierList *list)
+void notifier_list_notify(NotifierList *list, void *data)
 {
     Notifier *notifier, *next;
 
     QTAILQ_FOREACH_SAFE(notifier, &list->notifiers, node, next) {
-        notifier->notify(notifier);
+        notifier->notify(notifier, data);
     }
 }

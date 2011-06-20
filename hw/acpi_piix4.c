@@ -313,7 +313,7 @@ static void piix4_powerdown(void *opaque, int irq, int power_failing)
     acpi_pm1_evt_power_down(pm1a, tmr);
 }
 
-static void piix4_pm_machine_ready(struct Notifier* n)
+static void piix4_pm_machine_ready(Notifier *n, void *opaque)
 {
     PIIX4PMState *s = container_of(n, PIIX4PMState, machine_ready);
     uint8_t *pci_conf;
