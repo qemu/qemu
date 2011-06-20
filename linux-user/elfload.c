@@ -927,7 +927,7 @@ struct exec
 #define TARGET_ELF_PAGESTART(_v) ((_v) & ~(unsigned long)(TARGET_ELF_EXEC_PAGESIZE-1))
 #define TARGET_ELF_PAGEOFFSET(_v) ((_v) & (TARGET_ELF_EXEC_PAGESIZE-1))
 
-#define DLINFO_ITEMS 12
+#define DLINFO_ITEMS 13
 
 static inline void memcpy_fromfs(void * to, const void * from, unsigned long n)
 {
@@ -1202,6 +1202,9 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
 {
     abi_ulong sp;
     int size;
+    int i;
+    abi_ulong u_rand_bytes;
+    uint8_t k_rand_bytes[16];
     abi_ulong u_platform;
     const char *k_platform;
     const int n = sizeof(elf_addr_t);
@@ -1231,6 +1234,20 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
         /* FIXME - check return value of memcpy_to_target() for failure */
         memcpy_to_target(sp, k_platform, len);
     }
+
+    /*
+     * Generate 16 random bytes for userspace PRNG seeding (not
+     * cryptically secure but it's not the aim of QEMU).
+     */
+    srand((unsigned int) time(NULL));
+    for (i = 0; i < 16; i++) {
+        k_rand_bytes[i] = rand();
+    }
+    sp -= 16;
+    u_rand_bytes = sp;
+    /* FIXME - check return value of memcpy_to_target() for failure */
+    memcpy_to_target(sp, k_rand_bytes, 16);
+
     /*
      * Force 16 byte _final_ alignment here for generality.
      */
@@ -1271,6 +1288,8 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     NEW_AUX_ENT(AT_EGID, (abi_ulong) getegid());
     NEW_AUX_ENT(AT_HWCAP, (abi_ulong) ELF_HWCAP);
     NEW_AUX_ENT(AT_CLKTCK, (abi_ulong) sysconf(_SC_CLK_TCK));
+    NEW_AUX_ENT(AT_RANDOM, (abi_ulong) u_rand_bytes);
+
     if (k_platform)
         NEW_AUX_ENT(AT_PLATFORM, u_platform);
 #ifdef ARCH_DLINFO
