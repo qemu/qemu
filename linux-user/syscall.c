@@ -7862,8 +7862,13 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_sync_file_range)
     case TARGET_NR_sync_file_range:
 #if TARGET_ABI_BITS == 32
+#if defined(TARGET_MIPS)
+        ret = get_errno(sync_file_range(arg1, target_offset64(arg3, arg4),
+                                        target_offset64(arg5, arg6), arg7));
+#else
         ret = get_errno(sync_file_range(arg1, target_offset64(arg2, arg3),
                                         target_offset64(arg4, arg5), arg6));
+#endif /* !TARGET_MIPS */
 #else
         ret = get_errno(sync_file_range(arg1, arg2, arg3, arg4));
 #endif
