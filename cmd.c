@@ -486,7 +486,7 @@ timestr(
 			snprintf(ts, size, "%u:%02u.%02u",
 				(unsigned int) MINUTES(tv->tv_sec),
 				(unsigned int) SECONDS(tv->tv_sec),
-				(unsigned int) usec * 100);
+				(unsigned int) (usec * 100));
 			return;
 		}
 		format |= VERBOSE_FIXED_TIME;	/* fallback if hours needed */
@@ -497,9 +497,9 @@ timestr(
 			(unsigned int) HOURS(tv->tv_sec),
 			(unsigned int) MINUTES(tv->tv_sec),
 			(unsigned int) SECONDS(tv->tv_sec),
-			(unsigned int) usec * 100);
+			(unsigned int) (usec * 100));
 	} else {
-		snprintf(ts, size, "0.%04u sec", (unsigned int) usec * 10000);
+		snprintf(ts, size, "0.%04u sec", (unsigned int) (usec * 10000));
 	}
 }
 
