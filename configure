@@ -2850,7 +2850,7 @@ if test "$bluez" = "yes" ; then
   echo "BLUEZ_CFLAGS=$bluez_cflags" >> $config_host_mak
 fi
 if test "$xen" = "yes" ; then
-  echo "CONFIG_XEN=y" >> $config_host_mak
+  echo "CONFIG_XEN_BACKEND=y" >> $config_host_mak
   echo "CONFIG_XEN_CTRL_INTERFACE_VERSION=$xen_ctrl_version" >> $config_host_mak
 fi
 if test "$io_thread" = "yes" ; then
