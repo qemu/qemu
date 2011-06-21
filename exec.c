@@ -3020,7 +3020,7 @@ void qemu_ram_free(ram_addr_t addr)
                 munmap(block->host, block->length);
 #else
                 if (xen_mapcache_enabled()) {
-                    qemu_invalidate_entry(block->host);
+                    xen_invalidate_map_cache_entry(block->host);
                 } else {
                     qemu_vfree(block->host);
                 }
@@ -3118,9 +3118,10 @@ void *qemu_get_ram_ptr(ram_addr_t addr)
                  * In that case just map until the end of the page.
                  */
                 if (block->offset == 0) {
-                    return qemu_map_cache(addr, 0, 0);
+                    return xen_map_cache(addr, 0, 0);
                 } else if (block->host == NULL) {
-                    block->host = qemu_map_cache(block->offset, block->length, 1);
+                    block->host =
+                        xen_map_cache(block->offset, block->length, 1);
                 }
             }
             return block->host + (addr - block->offset);
@@ -3148,9 +3149,10 @@ void *qemu_safe_ram_ptr(ram_addr_t addr)
                  * In that case just map until the end of the page.
                  */
                 if (block->offset == 0) {
-                    return qemu_map_cache(addr, 0, 0);
+                    return xen_map_cache(addr, 0, 0);
                 } else if (block->host == NULL) {
-                    block->host = qemu_map_cache(block->offset, block->length, 1);
+                    block->host =
+                        xen_map_cache(block->offset, block->length, 1);
                 }
             }
             return block->host + (addr - block->offset);
@@ -3168,7 +3170,7 @@ void *qemu_safe_ram_ptr(ram_addr_t addr)
 void *qemu_ram_ptr_length(target_phys_addr_t addr, target_phys_addr_t *size)
 {
     if (xen_mapcache_enabled())
-        return qemu_map_cache(addr, *size, 1);
+        return xen_map_cache(addr, *size, 1);
     else {
         RAMBlock *block;
 
@@ -3199,7 +3201,7 @@ int qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
     uint8_t *host = ptr;
 
     if (xen_mapcache_enabled()) {
-        *ram_addr = qemu_ram_addr_from_mapcache(ptr);
+        *ram_addr = xen_ram_addr_from_mapcache(ptr);
         return 0;
     }
 
@@ -4114,7 +4116,7 @@ void cpu_physical_memory_unmap(void *buffer, target_phys_addr_t len,
             }
         }
         if (xen_mapcache_enabled()) {
-            qemu_invalidate_entry(buffer);
+            xen_invalidate_map_cache_entry(buffer);
         }
         return;
     }

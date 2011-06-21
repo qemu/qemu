@@ -644,7 +644,7 @@ static void handle_ioreq(ioreq_t *req)
         case IOREQ_TYPE_TIMEOFFSET:
             break;
         case IOREQ_TYPE_INVALIDATE:
-            qemu_invalidate_map_cache();
+            xen_invalidate_map_cache();
             break;
         default:
             hw_error("Invalid ioreq type 0x%x\n", req->type);
@@ -852,7 +852,7 @@ int xen_hvm_init(void)
     }
 
     /* Init RAM management */
-    qemu_map_cache_init();
+    xen_map_cache_init();
     xen_ram_init(ram_size);
 
     qemu_add_vm_change_state_handler(xen_vm_change_state_handler, state);
