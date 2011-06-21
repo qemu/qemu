@@ -4,7 +4,6 @@ GENERATED_HEADERS = config-target.h
 CONFIG_NO_PCI = $(if $(subst n,,$(CONFIG_PCI)),n,y)
 CONFIG_NO_KVM = $(if $(subst n,,$(CONFIG_KVM)),n,y)
 CONFIG_NO_XEN = $(if $(subst n,,$(CONFIG_XEN)),n,y)
-CONFIG_NO_XEN_MAPCACHE = $(if $(subst n,,$(CONFIG_XEN_MAPCACHE)),n,y)
 
 include ../config-host.mak
 include config-devices.mak
@@ -207,10 +206,8 @@ QEMU_CFLAGS += $(VNC_JPEG_CFLAGS)
 QEMU_CFLAGS += $(VNC_PNG_CFLAGS)
 
 # xen support
-obj-$(CONFIG_XEN) += xen-all.o xen_machine_pv.o xen_domainbuild.o
+obj-$(CONFIG_XEN) += xen-all.o xen_machine_pv.o xen_domainbuild.o xen-mapcache.o
 obj-$(CONFIG_NO_XEN) += xen-stub.o
-obj-i386-$(CONFIG_XEN_MAPCACHE) += xen-mapcache.o
-obj-$(CONFIG_NO_XEN_MAPCACHE) += xen-mapcache-stub.o
 
 obj-i386-$(CONFIG_XEN) += xen_platform.o
 
