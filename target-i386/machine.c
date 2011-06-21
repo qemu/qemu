@@ -303,9 +303,9 @@ static const VMStateDescription vmstate_fpop_ip_dp = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
-        VMSTATE_UINT16_V(fpop, CPUState, 13),
-        VMSTATE_UINT64_V(fpip, CPUState, 13),
-        VMSTATE_UINT64_V(fpdp, CPUState, 13),
+        VMSTATE_UINT16(fpop, CPUState),
+        VMSTATE_UINT64(fpip, CPUState),
+        VMSTATE_UINT64(fpdp, CPUState),
         VMSTATE_END_OF_LIST()
     }
 };
