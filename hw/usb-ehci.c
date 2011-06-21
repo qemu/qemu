@@ -103,10 +103,10 @@
 #define PORTSC_BEGIN         PORTSC
 #define PORTSC_END           (PORTSC + 4 * NB_PORTS)
 /*
- * Bits that are reserverd or are read-only are masked out of values
+ * Bits that are reserved or are read-only are masked out of values
  * written to us by software
  */
-#define PORTSC_RO_MASK       0x007021c5
+#define PORTSC_RO_MASK       0x007021c4
 #define PORTSC_RWC_MASK      0x0000002a
 #define PORTSC_WKOC_E        (1 << 22)    // Wake on Over Current Enable
 #define PORTSC_WKDS_E        (1 << 21)    // Wake on Disconnect Enable
