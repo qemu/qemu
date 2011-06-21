@@ -620,11 +620,10 @@ static void uhci_detach(USBPort *port1)
     uhci_resume(s);
 }
 
-static void uhci_wakeup(USBDevice *dev)
+static void uhci_wakeup(USBPort *port1)
 {
-    USBBus *bus = usb_bus_from_device(dev);
-    UHCIState *s = container_of(bus, UHCIState, bus);
-    UHCIPort *port = s->ports + dev->port->index;
+    UHCIState *s = port1->opaque;
+    UHCIPort *port = &s->ports[port1->index];
 
     if (port->ctrl & UHCI_PORT_SUSPEND && !(port->ctrl & UHCI_PORT_RD)) {
         port->ctrl |= UHCI_PORT_RD;
@@ -657,7 +656,7 @@ static int uhci_broadcast_packet(UHCIState *s, USBPacket *p)
     return ret;
 }
 
-static void uhci_async_complete(USBDevice *dev, USBPacket *packet);
+static void uhci_async_complete(USBPort *port, USBPacket *packet);
 static void uhci_process_frame(UHCIState *s);
 
 /* return -1 if fatal error (frame must be stopped)
@@ -849,7 +848,7 @@ done:
     return len;
 }
 
-static void uhci_async_complete(USBDevice *dev, USBPacket *packet)
+static void uhci_async_complete(USBPort *port, USBPacket *packet)
 {
     UHCIAsync *async = container_of(packet, UHCIAsync, packet);
     UHCIState *s = async->uhci;

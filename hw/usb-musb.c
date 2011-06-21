@@ -261,7 +261,7 @@
 
 static void musb_attach(USBPort *port);
 static void musb_detach(USBPort *port);
-static void musb_schedule_cb(USBDevice *dev, USBPacket *p);
+static void musb_schedule_cb(USBPort *port, USBPacket *p);
 static void musb_device_destroy(USBBus *bus, USBDevice *dev);
 
 static USBPortOps musb_port_ops = {
@@ -517,7 +517,7 @@ static void musb_cb_tick1(void *opaque)
 
 #define musb_cb_tick	(dir ? musb_cb_tick1 : musb_cb_tick0)
 
-static void musb_schedule_cb(USBDevice *dev, USBPacket *packey)
+static void musb_schedule_cb(USBPort *port, USBPacket *packey)
 {
     MUSBPacket *p = container_of(packey, MUSBPacket, p);
     MUSBEndPoint *ep = p->ep;
@@ -615,7 +615,7 @@ static void musb_packet(MUSBState *s, MUSBEndPoint *ep,
     }
 
     ep->status[dir] = ret;
-    musb_schedule_cb(s->port.dev, &ep->packey[dir].p);
+    musb_schedule_cb(&s->port, &ep->packey[dir].p);
 }
 
 static void musb_tx_packet_complete(USBPacket *packey, void *opaque)

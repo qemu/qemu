@@ -252,8 +252,13 @@ struct USBDeviceInfo {
 typedef struct USBPortOps {
     void (*attach)(USBPort *port);
     void (*detach)(USBPort *port);
-    void (*wakeup)(USBDevice *dev);
-    void (*complete)(USBDevice *dev, USBPacket *p);
+    void (*wakeup)(USBPort *port);
+    /*
+     * Note that port->dev will be different then the device from which
+     * the packet originated when a hub is involved, if you want the orginating
+     * device use p->owner
+     */
+    void (*complete)(USBPort *port, USBPacket *p);
 } USBPortOps;
 
 /* USB port on which a device can be connected */

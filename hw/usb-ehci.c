@@ -1111,7 +1111,7 @@ static int ehci_buffer_rw(EHCIQueue *q, int bytes, int rw)
     return 0;
 }
 
-static void ehci_async_complete_packet(USBDevice *dev, USBPacket *packet)
+static void ehci_async_complete_packet(USBPort *port, USBPacket *packet)
 {
     EHCIQueue *q = container_of(packet, EHCIQueue, packet);
 

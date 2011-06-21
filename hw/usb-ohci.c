@@ -367,15 +367,13 @@ static void ohci_detach(USBPort *port1)
         ohci_set_interrupt(s, OHCI_INTR_RHSC);
 }
 
-static void ohci_wakeup(USBDevice *dev)
+static void ohci_wakeup(USBPort *port1)
 {
-    USBBus *bus = usb_bus_from_device(dev);
-    OHCIState *s = container_of(bus, OHCIState, bus);
-    int portnum = dev->port->index;
-    OHCIPort *port = &s->rhport[portnum];
+    OHCIState *s = port1->opaque;
+    OHCIPort *port = &s->rhport[port1->index];
     uint32_t intr = 0;
     if (port->ctrl & OHCI_PORT_PSS) {
-        DPRINTF("usb-ohci: port %d: wakeup\n", portnum);
+        DPRINTF("usb-ohci: port %d: wakeup\n", port1->index);
         port->ctrl |= OHCI_PORT_PSSC;
         port->ctrl &= ~OHCI_PORT_PSS;
         intr = OHCI_INTR_RHSC;
@@ -602,7 +600,7 @@ static void ohci_copy_iso_td(OHCIState *ohci,
 
 static void ohci_process_lists(OHCIState *ohci, int completion);
 
-static void ohci_async_complete_packet(USBDevice *dev, USBPacket *packet)
+static void ohci_async_complete_packet(USBPort *port, USBPacket *packet)
 {
     OHCIState *ohci = container_of(packet, OHCIState, usb_packet);
 #ifdef DEBUG_PACKET

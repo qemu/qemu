@@ -52,7 +52,7 @@ void usb_attach(USBPort *port, USBDevice *dev)
 void usb_wakeup(USBDevice *dev)
 {
     if (dev->remote_wakeup && dev->port && dev->port->ops->wakeup) {
-        dev->port->ops->wakeup(dev);
+        dev->port->ops->wakeup(dev->port);
     }
 }
 
@@ -335,7 +335,7 @@ void usb_packet_complete(USBDevice *dev, USBPacket *p)
 {
     /* Note: p->owner != dev is possible in case dev is a hub */
     assert(p->owner != NULL);
-    dev->port->ops->complete(dev, p);
+    dev->port->ops->complete(dev->port, p);
     p->owner = NULL;
 }
 

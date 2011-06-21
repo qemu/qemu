@@ -246,10 +246,10 @@ static void usb_hub_detach(USBPort *port1)
     }
 }
 
-static void usb_hub_wakeup(USBDevice *dev)
+static void usb_hub_wakeup(USBPort *port1)
 {
-    USBHubState *s = dev->port->opaque;
-    USBHubPort *port = &s->ports[dev->port->index];
+    USBHubState *s = port1->opaque;
+    USBHubPort *port = &s->ports[port1->index];
 
     if (port->wPortStatus & PORT_STAT_SUSPEND) {
         port->wPortChange |= PORT_STAT_C_SUSPEND;
@@ -257,9 +257,9 @@ static void usb_hub_wakeup(USBDevice *dev)
     }
 }
 
-static void usb_hub_complete(USBDevice *dev, USBPacket *packet)
+static void usb_hub_complete(USBPort *port, USBPacket *packet)
 {
-    USBHubState *s = dev->port->opaque;
+    USBHubState *s = port->opaque;
 
     /*
      * Just pass it along upstream for now.
