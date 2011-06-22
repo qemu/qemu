@@ -17,8 +17,6 @@
 #include "kvm.h"
 #include "kvmclock.h"
 
-#if defined(CONFIG_KVM_PARA) && defined(KVM_CAP_ADJUST_CLOCK)
-
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
 
@@ -120,10 +118,3 @@ static void kvmclock_register_device(void)
 }
 
 device_init(kvmclock_register_device);
-
-#else /* !(CONFIG_KVM_PARA && KVM_CAP_ADJUST_CLOCK) */
-
-void kvmclock_create(void)
-{
-}
-#endif /* !(CONFIG_KVM_PARA && KVM_CAP_ADJUST_CLOCK) */

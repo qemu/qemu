@@ -14,7 +14,7 @@ endif
 
 TARGET_PATH=$(SRC_PATH)/target-$(TARGET_BASE_ARCH)
 $(call set-vpath, $(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw)
-QEMU_CFLAGS+= -I.. -I$(TARGET_PATH) -DNEED_CPU_H
+QEMU_CFLAGS+= -I.. -I../linux-headers -I$(TARGET_PATH) -DNEED_CPU_H
 
 include $(SRC_PATH)/Makefile.objs
 
@@ -36,8 +36,6 @@ STPFILES=
 ifndef CONFIG_HAIKU
 LIBS+=-lm
 endif
-
-kvm.o kvm-all.o vhost.o vhost_net.o kvmclock.o: QEMU_CFLAGS+=$(KVM_CFLAGS)
 
 config-target.h: config-target.h-timestamp
 config-target.h-timestamp: config-target.mak

@@ -42,11 +42,6 @@ int kvm_uncoalesce_mmio_region(target_phys_addr_t start, ram_addr_t size)
     return -ENOSYS;
 }
 
-int kvm_check_extension(KVMState *s, unsigned int extension)
-{
-    return 0;
-}
-
 int kvm_init(void)
 {
     return -ENOSYS;
@@ -78,16 +73,6 @@ int kvm_has_sync_mmu(void)
     return 0;
 }
 
-int kvm_has_vcpu_events(void)
-{
-    return 0;
-}
-
-int kvm_has_robust_singlestep(void)
-{
-    return 0;
-}
-
 int kvm_has_many_ioeventfds(void)
 {
     return 0;
@@ -99,8 +84,7 @@ void kvm_setup_guest_memory(void *start, size_t size)
 
 int kvm_update_guest_debug(CPUState *env, unsigned long reinject_trap)
 {
-    tb_flush(env);
-    return 0;
+    return -ENOSYS;
 }
 
 int kvm_insert_breakpoint(CPUState *current_env, target_ulong addr,

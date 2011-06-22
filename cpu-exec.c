@@ -20,7 +20,6 @@
 #include "exec.h"
 #include "disas.h"
 #include "tcg.h"
-#include "kvm.h"
 #include "qemu-barrier.h"
 
 #if defined(__sparc__) && !defined(CONFIG_SOLARIS)
