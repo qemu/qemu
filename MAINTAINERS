@@ -480,7 +480,7 @@ S: Maintained
 F: tcg/ia64/
 
 MIPS target
-M: Aurelien Jarno <aurelien@aurel32.ne>
+M: Aurelien Jarno <aurelien@aurel32.net>
 S: Maintained
 F: tcg/mips/
 
