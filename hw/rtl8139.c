@@ -3457,10 +3457,6 @@ static int pci_rtl8139_init(PCIDevice *dev)
     uint8_t *pci_conf;
 
     pci_conf = s->dev.config;
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_REALTEK);
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_REALTEK_8139);
-    pci_conf[PCI_REVISION_ID] = RTL8139_PCI_REVID; /* >=0x20 is for 8139C+ */
-    pci_config_set_class(pci_conf, PCI_CLASS_NETWORK_ETHERNET);
     pci_conf[PCI_INTERRUPT_PIN] = 1;    /* interrupt pin 0 */
     /* TODO: start of capability list, but no capability
      * list bit in status register, and offset 0xdc seems unused. */
@@ -3514,6 +3510,10 @@ static PCIDeviceInfo rtl8139_info = {
     .init       = pci_rtl8139_init,
     .exit       = pci_rtl8139_uninit,
     .romfile    = "pxe-rtl8139.rom",
+    .vendor_id  = PCI_VENDOR_ID_REALTEK,
+    .device_id  = PCI_DEVICE_ID_REALTEK_8139,
+    .revision   = RTL8139_PCI_REVID, /* >=0x20 is for 8139C+ */
+    .class_id   = PCI_CLASS_NETWORK_ETHERNET,
     .qdev.props = (Property[]) {
         DEFINE_NIC_PROPERTIES(RTL8139State, conf),
         DEFINE_PROP_END_OF_LIST(),

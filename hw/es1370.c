@@ -998,21 +998,9 @@ static int es1370_initfn (PCIDevice *dev)
     ES1370State *s = DO_UPCAST (ES1370State, dev, dev);
     uint8_t *c = s->dev.config;
 
-    pci_config_set_vendor_id (c, PCI_VENDOR_ID_ENSONIQ);
-    pci_config_set_device_id (c, PCI_DEVICE_ID_ENSONIQ_ES1370);
     c[PCI_STATUS + 1] = PCI_STATUS_DEVSEL_SLOW >> 8;
-    pci_config_set_class (c, PCI_CLASS_MULTIMEDIA_AUDIO);
 
-#if 1
-    c[PCI_SUBSYSTEM_VENDOR_ID] = 0x42;
-    c[PCI_SUBSYSTEM_VENDOR_ID + 1] = 0x49;
-    c[PCI_SUBSYSTEM_ID] = 0x4c;
-    c[PCI_SUBSYSTEM_ID + 1] = 0x4c;
-#else
-    c[PCI_SUBSYSTEM_VENDOR_ID] = 0x74;
-    c[PCI_SUBSYSTEM_VENDOR_ID + 1] = 0x12;
-    c[PCI_SUBSYSTEM_ID] = 0x71;
-    c[PCI_SUBSYSTEM_ID + 1] = 0x13;
+#if 0
     c[PCI_CAPABILITY_LIST] = 0xdc;
     c[PCI_INTERRUPT_LINE] = 10;
     c[0xdc] = 0x00;
@@ -1043,6 +1031,16 @@ static PCIDeviceInfo es1370_info = {
     .qdev.size    = sizeof (ES1370State),
     .qdev.vmsd    = &vmstate_es1370,
     .init         = es1370_initfn,
+    .vendor_id    = PCI_VENDOR_ID_ENSONIQ,
+    .device_id    = PCI_DEVICE_ID_ENSONIQ_ES1370,
+    .class_id     = PCI_CLASS_MULTIMEDIA_AUDIO,
+#if 1
+    .subsystem_vendor_id = 0x4942,
+    .subsystem_id = 0x4c4c,
+#else
+    .subsystem_vendor_id = 0x1274,
+    .subsystem_id = 0x1371,
+#endif
 };
 
 static void es1370_register (void)

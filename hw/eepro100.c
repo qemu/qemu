@@ -129,8 +129,6 @@
 typedef struct {
     PCIDeviceInfo pci;
     uint32_t device;
-    uint16_t device_id;
-    uint8_t revision;
     uint8_t stats_size;
     bool has_extended_tcb_support;
     bool power_management;
@@ -526,16 +524,9 @@ static void e100_pci_reset(EEPRO100State * s, E100PCIDeviceInfo *e100_device)
 
     TRACE(OTHER, logout("%p\n", s));
 
-    /* PCI Vendor ID */
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
-    /* PCI Device ID */
-    pci_config_set_device_id(pci_conf, e100_device->device_id);
     /* PCI Status */
     pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
                                         PCI_STATUS_FAST_BACK);
-    /* PCI Revision ID */
-    pci_config_set_revision(pci_conf, e100_device->revision);
-    pci_config_set_class(pci_conf, PCI_CLASS_NETWORK_ETHERNET);
     /* PCI Latency Timer */
     pci_set_byte(pci_conf + PCI_LATENCY_TIMER, 0x20);   /* latency timer = 32 clocks */
     /* Capability Pointer is set by PCI framework. */
@@ -563,12 +554,7 @@ static void e100_pci_reset(EEPRO100State * s, E100PCIDeviceInfo *e100_device)
     case i82559ER:
     case i82562:
     case i82801:
-        break;
     case i82559C:
-#if EEPROM_SIZE > 0
-        pci_set_word(pci_conf + PCI_SUBSYSTEM_VENDOR_ID, PCI_VENDOR_ID_INTEL);
-        pci_set_word(pci_conf + PCI_SUBSYSTEM_ID, 0x0040);
-#endif
         break;
     default:
         logout("Device %X is undefined!\n", device);
@@ -2040,9 +2026,9 @@ static E100PCIDeviceInfo e100_devices[] = {
         .pci.qdev.desc = "Intel i82550 Ethernet",
         .device = i82550,
         /* TODO: check device id. */
-        .device_id = PCI_DEVICE_ID_INTEL_82551IT,
+        .pci.device_id = PCI_DEVICE_ID_INTEL_82551IT,
         /* Revision ID: 0x0c, 0x0d, 0x0e. */
-        .revision = 0x0e,
+        .pci.revision = 0x0e,
         /* TODO: check size of statistical counters. */
         .stats_size = 80,
         /* TODO: check extended tcb support. */
@@ -2052,9 +2038,9 @@ static E100PCIDeviceInfo e100_devices[] = {
         .pci.qdev.name = "i82551",
         .pci.qdev.desc = "Intel i82551 Ethernet",
         .device = i82551,
-        .device_id = PCI_DEVICE_ID_INTEL_82551IT,
+        .pci.device_id = PCI_DEVICE_ID_INTEL_82551IT,
         /* Revision ID: 0x0f, 0x10. */
-        .revision = 0x0f,
+        .pci.revision = 0x0f,
         /* TODO: check size of statistical counters. */
         .stats_size = 80,
         .has_extended_tcb_support = true,
@@ -2063,29 +2049,29 @@ static E100PCIDeviceInfo e100_devices[] = {
         .pci.qdev.name = "i82557a",
         .pci.qdev.desc = "Intel i82557A Ethernet",
         .device = i82557A,
-        .device_id = PCI_DEVICE_ID_INTEL_82557,
-        .revision = 0x01,
+        .pci.device_id = PCI_DEVICE_ID_INTEL_82557,
+        .pci.revision = 0x01,
         .power_management = false,
     },{
         .pci.qdev.name = "i82557b",
         .pci.qdev.desc = "Intel i82557B Ethernet",
         .device = i82557B,
-        .device_id = PCI_DEVICE_ID_INTEL_82557,
-        .revision = 0x02,
+        .pci.device_id = PCI_DEVICE_ID_INTEL_82557,
+        .pci.revision = 0x02,
         .power_management = false,
     },{
         .pci.qdev.name = "i82557c",
         .pci.qdev.desc = "Intel i82557C Ethernet",
         .device = i82557C,
-        .device_id = PCI_DEVICE_ID_INTEL_82557,
-        .revision = 0x03,
+        .pci.device_id = PCI_DEVICE_ID_INTEL_82557,
+        .pci.revision = 0x03,
         .power_management = false,
     },{
         .pci.qdev.name = "i82558a",
         .pci.qdev.desc = "Intel i82558A Ethernet",
         .device = i82558A,
-        .device_id = PCI_DEVICE_ID_INTEL_82557,
-        .revision = 0x04,
+        .pci.device_id = PCI_DEVICE_ID_INTEL_82557,
+        .pci.revision = 0x04,
         .stats_size = 76,
         .has_extended_tcb_support = true,
         .power_management = true,
@@ -2093,8 +2079,8 @@ static E100PCIDeviceInfo e100_devices[] = {
         .pci.qdev.name = "i82558b",
         .pci.qdev.desc = "Intel i82558B Ethernet",
         .device = i82558B,
-        .device_id = PCI_DEVICE_ID_INTEL_82557,
-        .revision = 0x05,
+        .pci.device_id = PCI_DEVICE_ID_INTEL_82557,
+        .pci.revision = 0x05,
         .stats_size = 76,
         .has_extended_tcb_support = true,
         .power_management = true,
@@ -2102,8 +2088,8 @@ static E100PCIDeviceInfo e100_devices[] = {
         .pci.qdev.name = "i82559a",
         .pci.qdev.desc = "Intel i82559A Ethernet",
         .device = i82559A,
-        .device_id = PCI_DEVICE_ID_INTEL_82557,
-        .revision = 0x06,
+        .pci.device_id = PCI_DEVICE_ID_INTEL_82557,
+        .pci.revision = 0x06,
         .stats_size = 80,
         .has_extended_tcb_support = true,
         .power_management = true,
@@ -2111,8 +2097,8 @@ static E100PCIDeviceInfo e100_devices[] = {
         .pci.qdev.name = "i82559b",
         .pci.qdev.desc = "Intel i82559B Ethernet",
         .device = i82559B,
-        .device_id = PCI_DEVICE_ID_INTEL_82557,
-        .revision = 0x07,
+        .pci.device_id = PCI_DEVICE_ID_INTEL_82557,
+        .pci.revision = 0x07,
         .stats_size = 80,
         .has_extended_tcb_support = true,
         .power_management = true,
@@ -2120,12 +2106,16 @@ static E100PCIDeviceInfo e100_devices[] = {
         .pci.qdev.name = "i82559c",
         .pci.qdev.desc = "Intel i82559C Ethernet",
         .device = i82559C,
-        .device_id = PCI_DEVICE_ID_INTEL_82557,
+        .pci.device_id = PCI_DEVICE_ID_INTEL_82557,
 #if 0
-        .revision = 0x08,
+        .pci.revision = 0x08,
 #endif
         /* TODO: Windows wants revision id 0x0c. */
-        .revision = 0x0c,
+        .pci.revision = 0x0c,
+#if EEPROM_SIZE > 0
+        .pci.subsystem_vendor_id = PCI_VENDOR_ID_INTEL,
+        .pci.subsystem_id = 0x0040,
+#endif
         .stats_size = 80,
         .has_extended_tcb_support = true,
         .power_management = true,
@@ -2133,8 +2123,8 @@ static E100PCIDeviceInfo e100_devices[] = {
         .pci.qdev.name = "i82559er",
         .pci.qdev.desc = "Intel i82559ER Ethernet",
         .device = i82559ER,
-        .device_id = PCI_DEVICE_ID_INTEL_82551IT,
-        .revision = 0x09,
+        .pci.device_id = PCI_DEVICE_ID_INTEL_82551IT,
+        .pci.revision = 0x09,
         .stats_size = 80,
         .has_extended_tcb_support = true,
         .power_management = true,
@@ -2143,9 +2133,9 @@ static E100PCIDeviceInfo e100_devices[] = {
         .pci.qdev.desc = "Intel i82562 Ethernet",
         .device = i82562,
         /* TODO: check device id. */
-        .device_id = PCI_DEVICE_ID_INTEL_82551IT,
+        .pci.device_id = PCI_DEVICE_ID_INTEL_82551IT,
         /* TODO: wrong revision id. */
-        .revision = 0x0e,
+        .pci.revision = 0x0e,
         .stats_size = 80,
         .has_extended_tcb_support = true,
         .power_management = true,
@@ -2154,8 +2144,8 @@ static E100PCIDeviceInfo e100_devices[] = {
         .pci.qdev.name = "i82801",
         .pci.qdev.desc = "Intel i82801 Ethernet",
         .device = i82801,
-        .device_id = 0x2449,
-        .revision = 0x03,
+        .pci.device_id = 0x2449,
+        .pci.revision = 0x03,
         .stats_size = 80,
         .has_extended_tcb_support = true,
         .power_management = true,
@@ -2174,6 +2164,8 @@ static void eepro100_register_devices(void)
         PCIDeviceInfo *pci_dev = &e100_devices[i].pci;
         /* We use the same rom file for all device ids.
            QEMU fixes the device id during rom load. */
+        pci_dev->vendor_id = PCI_VENDOR_ID_INTEL;
+        pci_dev->class_id = PCI_CLASS_NETWORK_ETHERNET;
         pci_dev->romfile = "pxe-eepro100.rom";
         pci_dev->init = e100_nic_init;
         pci_dev->exit = pci_nic_uninit;

@@ -1661,9 +1661,12 @@ static void gen_mtpr(int rb, int regno)
 static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
 {
     uint32_t palcode;
-    int32_t disp21, disp16, disp12;
+    int32_t disp21, disp16;
+#ifndef CONFIG_USER_ONLY
+    int32_t disp12;
+#endif
     uint16_t fn11;
-    uint8_t opc, ra, rb, rc, fpfn, fn7, fn2, islit, real_islit;
+    uint8_t opc, ra, rb, rc, fpfn, fn7, islit, real_islit;
     uint8_t lit;
     ExitStatus ret;
 
@@ -1681,11 +1684,12 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     palcode = insn & 0x03FFFFFF;
     disp21 = ((int32_t)((insn & 0x001FFFFF) << 11)) >> 11;
     disp16 = (int16_t)(insn & 0x0000FFFF);
+#ifndef CONFIG_USER_ONLY
     disp12 = (int32_t)((insn & 0x00000FFF) << 20) >> 20;
+#endif
     fn11 = (insn >> 5) & 0x000007FF;
     fpfn = fn11 & 0x3F;
     fn7 = (insn >> 5) & 0x0000007F;
-    fn2 = (insn >> 5) & 0x00000003;
     LOG_DISAS("opc %02x ra %2d rb %2d rc %2d disp16 %6d\n",
               opc, ra, rb, rc, disp16);
 

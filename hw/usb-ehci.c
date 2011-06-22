@@ -2142,6 +2142,10 @@ static PCIDeviceInfo ehci_info = {
     .qdev.name    = "usb-ehci",
     .qdev.size    = sizeof(EHCIState),
     .init         = usb_ehci_initfn,
+    .vendor_id    = PCI_VENDOR_ID_INTEL,
+    .device_id    = PCI_DEVICE_ID_INTEL_82801D,
+    .revision     = 0x10,
+    .class_id     = PCI_CLASS_SERIAL_USB,
 };
 
 static int usb_ehci_initfn(PCIDevice *dev)
@@ -2150,12 +2154,7 @@ static int usb_ehci_initfn(PCIDevice *dev)
     uint8_t *pci_conf = s->dev.config;
     int i;
 
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82801D);
-    pci_set_byte(&pci_conf[PCI_REVISION_ID], 0x10);
     pci_set_byte(&pci_conf[PCI_CLASS_PROG], 0x20);
-    pci_config_set_class(pci_conf, PCI_CLASS_SERIAL_USB);
-    pci_set_byte(&pci_conf[PCI_HEADER_TYPE], PCI_HEADER_TYPE_NORMAL);
 
     /* capabilities pointer */
     pci_set_byte(&pci_conf[PCI_CAPABILITY_LIST], 0x00);

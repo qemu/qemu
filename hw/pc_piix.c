@@ -288,6 +288,18 @@ static QEMUMachine pc_machine_v0_13 = {
             .driver   = "PCI",
             .property = "command_serr_enable",
             .value    = "off",
+        },{
+            .driver   = "virtio-blk-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-serial-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-net-pci",
+            .property = "event_idx",
+            .value    = "off",
         },
         { /* end of list */ }
     },
@@ -318,6 +330,18 @@ static QEMUMachine pc_machine_v0_12 = {
         },{
             .driver   = "PCI",
             .property = "command_serr_enable",
+            .value    = "off",
+        },{
+            .driver   = "virtio-blk-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-serial-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-net-pci",
+            .property = "event_idx",
             .value    = "off",
         },
         { /* end of list */ }
@@ -357,6 +381,18 @@ static QEMUMachine pc_machine_v0_11 = {
         },{
             .driver   = "PCI",
             .property = "command_serr_enable",
+            .value    = "off",
+        },{
+            .driver   = "virtio-blk-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-serial-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-net-pci",
+            .property = "event_idx",
             .value    = "off",
         },
         { /* end of list */ }
@@ -408,6 +444,18 @@ static QEMUMachine pc_machine_v0_10 = {
         },{
             .driver   = "PCI",
             .property = "command_serr_enable",
+            .value    = "off",
+        },{
+            .driver   = "virtio-blk-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-serial-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-net-pci",
+            .property = "event_idx",
             .value    = "off",
         },
         { /* end of list */ }

@@ -104,11 +104,7 @@ static int ioh3420_initfn(PCIDevice *d)
         return rc;
     }
 
-    d->config[PCI_REVISION_ID] = PCI_DEVICE_ID_IOH_REV;
     pcie_port_init_reg(d);
-
-    pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_INTEL);
-    pci_config_set_device_id(d->config, PCI_DEVICE_ID_IOH_EPORT);
 
     rc = pci_bridge_ssvid_init(d, IOH_EP_SSVID_OFFSET,
                                IOH_EP_SSVID_SVID, IOH_EP_SSVID_SSID);
@@ -217,6 +213,9 @@ static PCIDeviceInfo ioh3420_info = {
     .config_write = ioh3420_write_config,
     .init = ioh3420_initfn,
     .exit = ioh3420_exitfn,
+    .vendor_id = PCI_VENDOR_ID_INTEL,
+    .device_id = PCI_DEVICE_ID_IOH_EPORT,
+    .revision = PCI_DEVICE_ID_IOH_REV,
 
     .qdev.props = (Property[]) {
         DEFINE_PROP_UINT8("port", PCIESlot, port.port, 0),

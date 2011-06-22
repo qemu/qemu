@@ -721,9 +721,6 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
     uint8_t *pci_conf;
 
     pci_conf = d->dev.config;
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_REALTEK);
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_REALTEK_8029);
-    pci_config_set_class(pci_conf, PCI_CLASS_NETWORK_ETHERNET);
     /* TODO: RST# value should be 0. PCI spec 6.2.4 */
     pci_conf[PCI_INTERRUPT_PIN] = 1; // interrupt pin 0
 
@@ -767,6 +764,9 @@ static PCIDeviceInfo ne2000_info = {
     .qdev.vmsd  = &vmstate_pci_ne2000,
     .init       = pci_ne2000_init,
     .exit       = pci_ne2000_exit,
+    .vendor_id  = PCI_VENDOR_ID_REALTEK,
+    .device_id  = PCI_DEVICE_ID_REALTEK_8029,
+    .class_id   = PCI_CLASS_NETWORK_ETHERNET,
     .qdev.props = (Property[]) {
         DEFINE_NIC_PROPERTIES(PCINE2000State, ne2000.c),
         DEFINE_PROP_END_OF_LIST(),

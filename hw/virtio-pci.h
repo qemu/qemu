@@ -37,7 +37,9 @@ typedef struct {
     bool ioeventfd_started;
 } VirtIOPCIProxy;
 
-extern void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev,
-                            uint16_t vendor, uint16_t device,
-                            uint16_t class_code, uint8_t pif);
+void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev);
+
+/* Virtio ABI version, if we increment this, we break the guest driver. */
+#define VIRTIO_PCI_ABI_VERSION          0
+
 #endif

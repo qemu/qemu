@@ -304,20 +304,13 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
     return 0;
 }
 
-static int e500_host_bridge_initfn(PCIDevice *dev)
-{
-    pci_config_set_vendor_id(dev->config, PCI_VENDOR_ID_FREESCALE);
-    pci_config_set_device_id(dev->config, PCI_DEVICE_ID_MPC8533E);
-    pci_config_set_class(dev->config, PCI_CLASS_PROCESSOR_POWERPC);
-
-    return 0;
-}
-
 static PCIDeviceInfo e500_host_bridge_info = {
     .qdev.name    = "e500-host-bridge",
     .qdev.desc    = "Host bridge",
     .qdev.size    = sizeof(PCIDevice),
-    .init         = e500_host_bridge_initfn,
+    .vendor_id    = PCI_VENDOR_ID_FREESCALE,
+    .device_id    = PCI_DEVICE_ID_MPC8533E,
+    .class_id     = PCI_CLASS_PROCESSOR_POWERPC,
 };
 
 static SysBusDeviceInfo e500_pcihost_info = {

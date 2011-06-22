@@ -2256,15 +2256,6 @@ static int lsi_scsi_init(PCIDevice *dev)
 
     pci_conf = s->dev.config;
 
-    /* PCI Vendor ID (word) */
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_LSI_LOGIC);
-    /* PCI device ID (word) */
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_LSI_53C895A);
-    /* PCI base class code */
-    pci_config_set_class(pci_conf, PCI_CLASS_STORAGE_SCSI);
-    /* PCI subsystem ID */
-    pci_conf[PCI_SUBSYSTEM_ID] = 0x00;
-    pci_conf[PCI_SUBSYSTEM_ID + 1] = 0x10;
     /* PCI latency timer = 255 */
     pci_conf[PCI_LATENCY_TIMER] = 0xff;
     /* TODO: RST# value should be 0 */
@@ -2300,6 +2291,10 @@ static PCIDeviceInfo lsi_info = {
     .qdev.vmsd  = &vmstate_lsi_scsi,
     .init       = lsi_scsi_init,
     .exit       = lsi_scsi_uninit,
+    .vendor_id  = PCI_VENDOR_ID_LSI_LOGIC,
+    .device_id  = PCI_DEVICE_ID_LSI_53C895A,
+    .class_id   = PCI_CLASS_STORAGE_SCSI,
+    .subsystem_id = 0x1000,
 };
 
 static void lsi53c895a_register_devices(void)

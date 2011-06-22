@@ -1114,14 +1114,13 @@ static USBBusOps uhci_bus_ops = {
     .device_destroy = uhci_device_destroy,
 };
 
-static int usb_uhci_common_initfn(UHCIState *s)
+static int usb_uhci_common_initfn(PCIDevice *dev)
 {
+    UHCIState *s = DO_UPCAST(UHCIState, dev, dev);
     uint8_t *pci_conf = s->dev.config;
     int i;
 
-    pci_conf[PCI_REVISION_ID] = 0x01; // revision number
     pci_conf[PCI_CLASS_PROG] = 0x00;
-    pci_config_set_class(pci_conf, PCI_CLASS_SERIAL_USB);
     /* TODO: reset value should be 0. */
     pci_conf[PCI_INTERRUPT_PIN] = 4; // interrupt pin 3
     pci_conf[USB_SBRN] = USB_RELEASE_1; // release number
@@ -1146,33 +1145,10 @@ static int usb_uhci_common_initfn(UHCIState *s)
     return 0;
 }
 
-static int usb_uhci_piix3_initfn(PCIDevice *dev)
-{
-    UHCIState *s = DO_UPCAST(UHCIState, dev, dev);
-    uint8_t *pci_conf = s->dev.config;
-
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82371SB_2);
-    return usb_uhci_common_initfn(s);
-}
-
-static int usb_uhci_piix4_initfn(PCIDevice *dev)
-{
-    UHCIState *s = DO_UPCAST(UHCIState, dev, dev);
-    uint8_t *pci_conf = s->dev.config;
-
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82371AB_2);
-    return usb_uhci_common_initfn(s);
-}
-
 static int usb_uhci_vt82c686b_initfn(PCIDevice *dev)
 {
     UHCIState *s = DO_UPCAST(UHCIState, dev, dev);
     uint8_t *pci_conf = s->dev.config;
-
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_VIA);
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_VIA_UHCI);
 
     /* USB misc control 1/2 */
     pci_set_long(pci_conf + 0x40,0x00001000);
@@ -1181,7 +1157,7 @@ static int usb_uhci_vt82c686b_initfn(PCIDevice *dev)
     /* USB legacy support  */
     pci_set_long(pci_conf + 0xc0,0x00002000);
 
-    return usb_uhci_common_initfn(s);
+    return usb_uhci_common_initfn(dev);
 }
 
 static PCIDeviceInfo uhci_info[] = {
@@ -1189,17 +1165,29 @@ static PCIDeviceInfo uhci_info[] = {
         .qdev.name    = "piix3-usb-uhci",
         .qdev.size    = sizeof(UHCIState),
         .qdev.vmsd    = &vmstate_uhci,
-        .init         = usb_uhci_piix3_initfn,
+        .init         = usb_uhci_common_initfn,
+        .vendor_id    = PCI_VENDOR_ID_INTEL,
+        .device_id    = PCI_DEVICE_ID_INTEL_82371SB_2,
+        .revision     = 0x01,
+        .class_id     = PCI_CLASS_SERIAL_USB,
     },{
         .qdev.name    = "piix4-usb-uhci",
         .qdev.size    = sizeof(UHCIState),
         .qdev.vmsd    = &vmstate_uhci,
-        .init         = usb_uhci_piix4_initfn,
+        .init         = usb_uhci_common_initfn,
+        .vendor_id    = PCI_VENDOR_ID_INTEL,
+        .device_id    = PCI_DEVICE_ID_INTEL_82371AB_2,
+        .revision     = 0x01,
+        .class_id     = PCI_CLASS_SERIAL_USB,
     },{
         .qdev.name    = "vt82c686b-usb-uhci",
         .qdev.size    = sizeof(UHCIState),
         .qdev.vmsd    = &vmstate_uhci,
         .init         = usb_uhci_vt82c686b_initfn,
+        .vendor_id    = PCI_VENDOR_ID_VIA,
+        .device_id    = PCI_DEVICE_ID_VIA_UHCI,
+        .revision     = 0x01,
+        .class_id     = PCI_CLASS_SERIAL_USB,
     },{
         /* end of list */
     }

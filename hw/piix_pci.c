@@ -232,11 +232,6 @@ static int i440fx_initfn(PCIDevice *dev)
 {
     PCII440FXState *d = DO_UPCAST(PCII440FXState, dev, dev);
 
-    pci_config_set_vendor_id(d->dev.config, PCI_VENDOR_ID_INTEL);
-    pci_config_set_device_id(d->dev.config, PCI_DEVICE_ID_INTEL_82441);
-    d->dev.config[0x08] = 0x02; // revision
-    pci_config_set_class(d->dev.config, PCI_CLASS_BRIDGE_HOST);
-
     d->dev.config[I440FX_SMRAM] = 0x02;
 
     cpu_smm_register(&i440fx_set_smm, d);
@@ -442,15 +437,8 @@ static const VMStateDescription vmstate_piix3 = {
 static int piix3_initfn(PCIDevice *dev)
 {
     PIIX3State *d = DO_UPCAST(PIIX3State, dev, dev);
-    uint8_t *pci_conf;
 
     isa_bus_new(&d->dev.qdev);
-
-    pci_conf = d->dev.config;
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82371SB_0); // 82371SB PIIX3 PCI-to-ISA bridge (Step A1)
-    pci_config_set_class(pci_conf, PCI_CLASS_BRIDGE_ISA);
-
     qemu_register_reset(piix3_reset, d);
     return 0;
 }
@@ -465,6 +453,10 @@ static PCIDeviceInfo i440fx_info[] = {
         .no_hotplug   = 1,
         .init         = i440fx_initfn,
         .config_write = i440fx_write_config,
+        .vendor_id    = PCI_VENDOR_ID_INTEL,
+        .device_id    = PCI_DEVICE_ID_INTEL_82441,
+        .revision     = 0x02,
+        .class_id     = PCI_CLASS_BRIDGE_HOST,
     },{
         .qdev.name    = "PIIX3",
         .qdev.desc    = "ISA bridge",
@@ -474,6 +466,9 @@ static PCIDeviceInfo i440fx_info[] = {
         .no_hotplug   = 1,
         .init         = piix3_initfn,
         .config_write = piix3_write_config,
+        .vendor_id    = PCI_VENDOR_ID_INTEL,
+        .device_id    = PCI_DEVICE_ID_INTEL_82371SB_0, // 82371SB PIIX3 PCI-to-ISA bridge (Step A1)
+        .class_id     = PCI_CLASS_BRIDGE_ISA,
     },{
         .qdev.name    = "PIIX3-xen",
         .qdev.desc    = "ISA bridge",

@@ -74,7 +74,6 @@ static int pci_vga_initfn(PCIDevice *dev)
 {
      PCIVGAState *d = DO_UPCAST(PCIVGAState, dev, dev);
      VGACommonState *s = &d->vga;
-     uint8_t *pci_conf = d->dev.config;
 
      // vga + console init
      vga_common_init(s, VGA_RAM_SIZE);
@@ -82,11 +81,6 @@ static int pci_vga_initfn(PCIDevice *dev)
 
      s->ds = graphic_console_init(s->update, s->invalidate,
                                   s->screen_dump, s->text_update, s);
-
-     // dummy VGA (same as Bochs ID)
-     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_QEMU);
-     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_QEMU_VGA);
-     pci_config_set_class(pci_conf, PCI_CLASS_DISPLAY_VGA);
 
      /* XXX: VGA_RAM_SIZE must be a power of two */
      pci_register_bar(&d->dev, 0, VGA_RAM_SIZE,
@@ -114,6 +108,11 @@ static PCIDeviceInfo vga_info = {
     .init         = pci_vga_initfn,
     .config_write = pci_vga_write_config,
     .romfile      = "vgabios-stdvga.bin",
+
+    /* dummy VGA (same as Bochs ID) */
+    .vendor_id    = PCI_VENDOR_ID_QEMU,
+    .device_id    = PCI_DEVICE_ID_QEMU_VGA,
+    .class_id     = PCI_CLASS_DISPLAY_VGA,
 };
 
 static void vga_register(void)

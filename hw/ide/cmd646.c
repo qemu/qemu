@@ -226,13 +226,7 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
     qemu_irq *irq;
     int i;
 
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_CMD);
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_CMD_646);
-
-    pci_conf[PCI_REVISION_ID] = 0x07; // IDE controller revision
     pci_conf[PCI_CLASS_PROG] = 0x8f;
-
-    pci_config_set_class(pci_conf, PCI_CLASS_STORAGE_IDE);
 
     pci_conf[0x51] = 0x04; // enable IDE0
     if (d->secondary) {
@@ -282,6 +276,10 @@ static PCIDeviceInfo cmd646_ide_info[] = {
         .qdev.name    = "cmd646-ide",
         .qdev.size    = sizeof(PCIIDEState),
         .init         = pci_cmd646_ide_initfn,
+        .vendor_id    = PCI_VENDOR_ID_CMD,
+        .device_id    = PCI_DEVICE_ID_CMD_646,
+        .revision     = 0x07, // IDE controller revision
+        .class_id     = PCI_CLASS_STORAGE_IDE,
         .qdev.props   = (Property[]) {
             DEFINE_PROP_UINT32("secondary", PCIIDEState, secondary, 0),
             DEFINE_PROP_END_OF_LIST(),
