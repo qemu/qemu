@@ -2073,6 +2073,7 @@ int load_vmstate(const char *name)
         return -EINVAL;
     }
 
+    qemu_system_reset(VMRESET_SILENT);
     ret = qemu_loadvm_state(f);
 
     qemu_fclose(f);

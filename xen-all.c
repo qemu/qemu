@@ -728,7 +728,7 @@ static void cpu_handle_ioreq(void *opaque)
                 destroy_hvm_domain();
             }
             if (qemu_reset_requested_get()) {
-                qemu_system_reset();
+                qemu_system_reset(VMRESET_REPORT);
             }
         }
 
