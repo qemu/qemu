@@ -304,11 +304,11 @@ static int img_create(int argc, char **argv)
             fmt = optarg;
             break;
         case 'e':
-            error_report("qemu-img: option -e is deprecated, please use \'-o "
+            error_report("option -e is deprecated, please use \'-o "
                   "encryption\' instead!");
             return 1;
         case '6':
-            error_report("qemu-img: option -6 is deprecated, please use \'-o "
+            error_report("option -6 is deprecated, please use \'-o "
                   "compat6\' instead!");
             return 1;
         case 'o':
@@ -633,11 +633,11 @@ static int img_convert(int argc, char **argv)
             compress = 1;
             break;
         case 'e':
-            error_report("qemu-img: option -e is deprecated, please use \'-o "
+            error_report("option -e is deprecated, please use \'-o "
                   "encryption\' instead!");
             return 1;
         case '6':
-            error_report("qemu-img: option -6 is deprecated, please use \'-o "
+            error_report("option -6 is deprecated, please use \'-o "
                   "compat6\' instead!");
             return 1;
         case 'o':
