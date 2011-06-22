@@ -396,6 +396,7 @@ disable milkymist_vgafb_memory_write(uint32_t addr, uint32_t value) "addr %08x v
 
 # xen-all.c
 disable xen_ram_alloc(unsigned long ram_addr, unsigned long size) "requested: %#lx, size %#lx"
+disable xen_client_set_memory(uint64_t start_addr, unsigned long size, unsigned long phys_offset, bool log_dirty) "%#"PRIx64" size %#lx, offset %#lx, log_dirty %i"
 
 # xen-mapcache.c
 disable qemu_map_cache(uint64_t phys_addr) "want %#"PRIx64""
@@ -406,3 +407,6 @@ disable xen_unmap_block(void* addr, unsigned long size) "%p, size %#lx"
 
 # exec.c
 disable qemu_put_ram_ptr(void* addr) "%p"
+
+# hw/xen_platform.c
+disable xen_platform_log(char *s) "xen platform: %s"

@@ -22,10 +22,6 @@ uint8_t *qemu_map_cache(target_phys_addr_t phys_addr, target_phys_addr_t size, u
     return qemu_get_ram_ptr(phys_addr);
 }
 
-void qemu_map_cache_unlock(void *buffer)
-{
-}
-
 ram_addr_t qemu_ram_addr_from_mapcache(void *ptr)
 {
     return -1;
@@ -37,8 +33,4 @@ void qemu_invalidate_map_cache(void)
 
 void qemu_invalidate_entry(uint8_t *buffer)
 {
-}
-uint8_t *xen_map_block(target_phys_addr_t phys_addr, target_phys_addr_t size)
-{
-    return NULL;
 }

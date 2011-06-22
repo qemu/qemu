@@ -71,6 +71,20 @@ static inline int xc_domain_populate_physmap_exact
         (xc_handle, domid, nr_extents, extent_order, mem_flags, extent_start);
 }
 
+static inline int xc_domain_add_to_physmap(int xc_handle, uint32_t domid,
+                                           unsigned int space, unsigned long idx,
+                                           xen_pfn_t gpfn)
+{
+    struct xen_add_to_physmap xatp = {
+        .domid = domid,
+        .space = space,
+        .idx = idx,
+        .gpfn = gpfn,
+    };
+
+    return xc_memory_op(xc_handle, XENMEM_add_to_physmap, &xatp);
+}
+
 
 /* Xen 4.1 */
 #else

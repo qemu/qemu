@@ -1210,6 +1210,7 @@ int main(void) {
   xc = xc_interface_open(0, 0, 0);
   xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
   xc_gnttab_open(NULL, 0);
+  xc_domain_add_to_physmap(0, 0, XENMAPSPACE_gmfn, 0, 0);
   return 0;
 }
 EOF
@@ -1228,10 +1229,14 @@ EOF
 # error HVM_MAX_VCPUS not defined
 #endif
 int main(void) {
+  struct xen_add_to_physmap xatp = {
+    .domid = 0, .space = XENMAPSPACE_gmfn, .idx = 0, .gpfn = 0,
+  };
   xs_daemon_open();
   xc_interface_open();
   xc_gnttab_open();
   xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
+  xc_memory_op(0, XENMEM_add_to_physmap, &xatp);
   return 0;
 }
 EOF
@@ -1240,7 +1245,29 @@ EOF
     xen_ctrl_version=400
     xen=yes
 
-  # Xen 3.3.0, 3.4.0
+  # Xen 3.4.0
+  elif (
+      cat > $TMPC <<EOF
+#include <xenctrl.h>
+#include <xs.h>
+int main(void) {
+  struct xen_add_to_physmap xatp = {
+    .domid = 0, .space = XENMAPSPACE_gmfn, .idx = 0, .gpfn = 0,
+  };
+  xs_daemon_open();
+  xc_interface_open();
+  xc_gnttab_open();
+  xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
+  xc_memory_op(0, XENMEM_add_to_physmap, &xatp);
+  return 0;
+}
+EOF
+      compile_prog "" "$xen_libs"
+    ) ; then
+    xen_ctrl_version=340
+    xen=yes
+
+  # Xen 3.3.0
   elif (
       cat > $TMPC <<EOF
 #include <xenctrl.h>

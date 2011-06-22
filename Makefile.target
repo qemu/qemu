@@ -218,6 +218,8 @@ obj-$(CONFIG_NO_XEN) += xen-stub.o
 obj-i386-$(CONFIG_XEN_MAPCACHE) += xen-mapcache.o
 obj-$(CONFIG_NO_XEN_MAPCACHE) += xen-mapcache-stub.o
 
+obj-i386-$(CONFIG_XEN) += xen_platform.o
+
 # Inter-VM PCI shared memory
 CONFIG_IVSHMEM =
 ifeq ($(CONFIG_KVM), y)
