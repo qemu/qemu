@@ -293,7 +293,7 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
 
     if ((buf = qemu_opt_get(opts, "trans")) != NULL) {
         if (!cyls) {
-            error_report("'%s' trans must be used with cyls,heads and secs",
+            error_report("'%s' trans must be used with cyls, heads and secs",
                          buf);
             return NULL;
         }
