@@ -690,12 +690,12 @@ static int img_convert(int argc, char **argv)
 
     if (snapshot_name != NULL) {
         if (bs_n > 1) {
-            error_report("No support for concatenating multiple snapshot\n");
+            error_report("No support for concatenating multiple snapshot");
             ret = -1;
             goto out;
         }
         if (bdrv_snapshot_load_tmp(bs[0], snapshot_name) < 0) {
-            error_report("Failed to load snapshot\n");
+            error_report("Failed to load snapshot");
             ret = -1;
             goto out;
         }

@@ -193,6 +193,8 @@ void error_print_loc(void)
 
 /*
  * Print an error message to current monitor if we have one, else to stderr.
+ * Format arguments like sprintf().  The result should not contain
+ * newlines.
  * Prepend the current location and append a newline.
  * It's wrong to call this in a QMP monitor.  Use qerror_report() there.
  */

@@ -234,20 +234,20 @@ static void minimac2_tx(MilkymistMinimac2State *s)
     uint8_t *buf = s->tx_buf;
 
     if (txcount < 64) {
-        error_report("milkymist_minimac2: ethernet frame too small (%u < %u)\n",
+        error_report("milkymist_minimac2: ethernet frame too small (%u < %u)",
                 txcount, 64);
         goto err;
     }
 
     if (txcount > MINIMAC2_MTU) {
-        error_report("milkymist_minimac2: MTU exceeded (%u > %u)\n",
+        error_report("milkymist_minimac2: MTU exceeded (%u > %u)",
                 txcount, MINIMAC2_MTU);
         goto err;
     }
 
     if (memcmp(buf, preamble_sfd, 8) != 0) {
         error_report("milkymist_minimac2: frame doesn't contain the preamble "
-                "and/or the SFD (%02x %02x %02x %02x %02x %02x %02x %02x)\n",
+                "and/or the SFD (%02x %02x %02x %02x %02x %02x %02x %02x)",
                 buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
         goto err;
     }

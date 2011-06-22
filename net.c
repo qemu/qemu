@@ -710,7 +710,7 @@ int qemu_find_nic_model(NICInfo *nd, const char * const *models,
             return i;
     }
 
-    error_report("qemu: Unsupported NIC model: %s", nd->model);
+    error_report("Unsupported NIC model: %s", nd->model);
     return -1;
 }
 

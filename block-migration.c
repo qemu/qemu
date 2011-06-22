@@ -671,7 +671,7 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
                 bs_prev = bs;
                 total_sectors = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
                 if (total_sectors <= 0) {
-                    error_report("Error getting length of block device %s\n",
+                    error_report("Error getting length of block device %s",
                                  device_name);
                     return -EINVAL;
                 }
