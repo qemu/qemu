@@ -44,11 +44,7 @@ struct TranslationBlock;
 typedef struct TranslationBlock TranslationBlock;
 
 /* XXX: make safe guess about sizes */
-#if (HOST_LONG_BITS == 32) && (TARGET_LONG_BITS == 64)
-#define MAX_OP_PER_INSTR 128
-#else
-#define MAX_OP_PER_INSTR 96
-#endif
+#define MAX_OP_PER_INSTR 208
 
 #if HOST_LONG_BITS == 32
 #define MAX_OPC_PARAM_PER_ARG 2
