@@ -555,8 +555,8 @@ static void code_gen_alloc(unsigned long tb_size)
 #endif
 #endif /* !USE_STATIC_CODE_GEN_BUFFER */
     map_exec(code_gen_prologue, sizeof(code_gen_prologue));
-    code_gen_buffer_max_size = code_gen_buffer_size - 
-        (TCG_MAX_OP_SIZE * OPC_MAX_SIZE);
+    code_gen_buffer_max_size = code_gen_buffer_size -
+        (TCG_MAX_OP_SIZE * OPC_BUF_SIZE);
     code_gen_max_blocks = code_gen_buffer_size / CODE_GEN_AVG_BLOCK_SIZE;
     tbs = qemu_malloc(code_gen_max_blocks * sizeof(TranslationBlock));
 }
