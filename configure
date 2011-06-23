@@ -113,7 +113,7 @@ curl=""
 curses=""
 docs=""
 fdt=""
-kvm="yes"
+kvm=""
 nptl=""
 sdl=""
 vnc="yes"
@@ -129,7 +129,7 @@ xen=""
 xen_ctrl_version=""
 linux_aio=""
 attr=""
-vhost_net="yes"
+vhost_net=""
 xfs=""
 
 gprof="no"
@@ -457,6 +457,8 @@ Haiku)
   linux="yes"
   linux_user="yes"
   usb="linux"
+  kvm="yes"
+  vhost_net="yes"
   if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     audio_possible_drivers="$audio_possible_drivers fmod"
   fi
@@ -3444,19 +3446,21 @@ if test "$target_linux_user" = "yes" -o "$target_bsd_user" = "yes" ; then
 fi
 
 # use included Linux headers
-includes="-I\$(SRC_PATH)/linux-headers $includes"
-mkdir -p linux-headers
-case "$cpu" in
-i386|x86_64)
-  symlink $source_path/linux-headers/asm-x86 linux-headers/asm
-  ;;
-ppcemb|ppc|ppc64)
-  symlink $source_path/linux-headers/asm-x86 linux-headers/asm
-  ;;
-s390x)
-  symlink $source_path/linux-headers/asm-s390 linux-headers/asm
-  ;;
-esac
+if test "$linux" = "yes" ; then
+  includes="-I\$(SRC_PATH)/linux-headers $includes"
+  mkdir -p linux-headers
+  case "$cpu" in
+  i386|x86_64)
+    symlink $source_path/linux-headers/asm-x86 linux-headers/asm
+    ;;
+  ppcemb|ppc|ppc64)
+    symlink $source_path/linux-headers/asm-powerpc linux-headers/asm
+    ;;
+  s390x)
+    symlink $source_path/linux-headers/asm-s390 linux-headers/asm
+    ;;
+  esac
+fi
 
 echo "LDFLAGS+=$ldflags" >> $config_target_mak
 echo "QEMU_CFLAGS+=$cflags" >> $config_target_mak

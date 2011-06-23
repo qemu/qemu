@@ -14,7 +14,10 @@ endif
 
 TARGET_PATH=$(SRC_PATH)/target-$(TARGET_BASE_ARCH)
 $(call set-vpath, $(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw)
-QEMU_CFLAGS+= -I.. -I../linux-headers -I$(TARGET_PATH) -DNEED_CPU_H
+ifdef CONFIG_LINUX
+QEMU_CFLAGS += -I../linux-headers
+endif
+QEMU_CFLAGS += -I.. -I$(TARGET_PATH) -DNEED_CPU_H
 
 include $(SRC_PATH)/Makefile.objs
 
@@ -234,7 +237,8 @@ obj-i386-y += cirrus_vga.o sga.o apic.o ioapic.o piix_pci.o
 obj-i386-y += vmport.o
 obj-i386-y += device-hotplug.o pci-hotplug.o smbios.o wdt_ib700.o
 obj-i386-y += debugcon.o multiboot.o
-obj-i386-y += pc_piix.o kvmclock.o
+obj-i386-y += pc_piix.o
+obj-i386-$(CONFIG_KVM) += kvmclock.o
 obj-i386-$(CONFIG_SPICE) += qxl.o qxl-logger.o qxl-render.o
 
 # shared objects

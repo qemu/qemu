@@ -23,8 +23,10 @@
 #include "helpers.h"
 #include <string.h>
 #include "kvm.h"
-#include <linux/kvm.h>
 #include "qemu-timer.h"
+#ifdef CONFIG_KVM
+#include <linux/kvm.h>
+#endif
 
 /*****************************************************************************/
 /* Softmmu support */
@@ -2332,7 +2334,9 @@ static void program_interrupt(CPUState *env, uint32_t code, int ilc)
     qemu_log("program interrupt at %#" PRIx64 "\n", env->psw.addr);
 
     if (kvm_enabled()) {
+#ifdef CONFIG_KVM
         kvm_s390_interrupt(env, KVM_S390_PROGRAM_INT, code);
+#endif
     } else {
         env->int_pgm_code = code;
         env->int_pgm_ilc = ilc;
