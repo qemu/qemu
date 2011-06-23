@@ -1328,7 +1328,6 @@ int kvm_set_signal_mask(CPUState *env, const sigset_t *sigset)
 
 int kvm_set_ioeventfd_mmio_long(int fd, uint32_t addr, uint32_t val, bool assign)
 {
-#ifdef KVM_IOEVENTFD
     int ret;
     struct kvm_ioeventfd iofd;
 
@@ -1353,14 +1352,10 @@ int kvm_set_ioeventfd_mmio_long(int fd, uint32_t addr, uint32_t val, bool assign
     }
 
     return 0;
-#else
-    return -ENOSYS;
-#endif
 }
 
 int kvm_set_ioeventfd_pio_word(int fd, uint16_t addr, uint16_t val, bool assign)
 {
-#ifdef KVM_IOEVENTFD
     struct kvm_ioeventfd kick = {
         .datamatch = val,
         .addr = addr,
@@ -1380,9 +1375,6 @@ int kvm_set_ioeventfd_pio_word(int fd, uint16_t addr, uint16_t val, bool assign)
         return r;
     }
     return 0;
-#else
-    return -ENOSYS;
-#endif
 }
 
 int kvm_on_sigbus_vcpu(CPUState *env, int code, void *addr)
