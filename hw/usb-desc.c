@@ -385,6 +385,10 @@ int usb_desc_get_descriptor(USBDevice *dev, int value, uint8_t *dest, size_t len
         trace_usb_desc_other_speed_config(dev->addr, index, len, ret);
         break;
 
+    case USB_DT_DEBUG:
+        /* ignore silently */
+        break;
+
     default:
         fprintf(stderr, "%s: %d unknown type %d (len %zd)\n", __FUNCTION__,
                 dev->addr, type, len);
