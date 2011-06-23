@@ -948,7 +948,7 @@ static inline int check_ap(CPUState *env, int ap, int domain, int access_type,
   case 6:
       return prot_ro;
   case 7:
-      if (!arm_feature (env, ARM_FEATURE_V7))
+      if (!arm_feature (env, ARM_FEATURE_V6K))
           return 0;
       return prot_ro;
   default:
