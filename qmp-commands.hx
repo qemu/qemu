@@ -919,6 +919,33 @@ Example:
 EQMP
 
     {
+        .name       = "add_client",
+        .args_type  = "protocol:s,fdname:s,skipauth:b?",
+        .params     = "protocol fdname skipauth",
+        .help       = "add a graphics client",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = add_graphics_client,
+    },
+
+SQMP
+add_client
+----------
+
+Add a graphics client
+
+Arguments:
+
+- "protocol": protocol name (json-string)
+- "fdname": file descriptor name (json-string)
+
+Example:
+
+-> { "execute": "add_client", "arguments": { "protocol": "vnc",
+                                             "fdname": "myclient" } }
+<- { "return": {} }
+
+EQMP
+    {
         .name       = "qmp_capabilities",
         .args_type  = "",
         .params     = "",

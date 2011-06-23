@@ -2924,3 +2924,10 @@ int vnc_display_open(DisplayState *ds, const char *display)
     }
     return qemu_set_fd_handler2(vs->lsock, NULL, vnc_listen_read, NULL, vs);
 }
+
+void vnc_display_add_client(DisplayState *ds, int csock, int skipauth)
+{
+    VncDisplay *vs = ds ? (VncDisplay *)ds->opaque : vnc_display;
+
+    return vnc_connect(vs, csock, skipauth);
+}

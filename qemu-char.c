@@ -168,6 +168,11 @@ int qemu_chr_get_msgfd(CharDriverState *s)
     return s->get_msgfd ? s->get_msgfd(s) : -1;
 }
 
+int qemu_chr_add_client(CharDriverState *s, int fd)
+{
+    return s->chr_add_client ? s->chr_add_client(s, fd) : -1;
+}
+
 void qemu_chr_accept_input(CharDriverState *s)
 {
     if (s->chr_accept_input)
@@ -2146,6 +2151,22 @@ static void socket_set_nodelay(int fd)
     setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&val, sizeof(val));
 }
 
+static int tcp_chr_add_client(CharDriverState *chr, int fd)
+{
+    TCPCharDriver *s = chr->opaque;
+    if (s->fd != -1)
+	return -1;
+
+    socket_set_nonblock(fd);
+    if (s->do_nodelay)
+        socket_set_nodelay(fd);
+    s->fd = fd;
+    qemu_set_fd_handler(s->listen_fd, NULL, NULL, NULL);
+    tcp_chr_connect(chr);
+
+    return 0;
+}
+
 static void tcp_chr_accept(void *opaque)
 {
     CharDriverState *chr = opaque;
@@ -2178,12 +2199,8 @@ static void tcp_chr_accept(void *opaque)
             break;
         }
     }
-    socket_set_nonblock(fd);
-    if (s->do_nodelay)
-        socket_set_nodelay(fd);
-    s->fd = fd;
-    qemu_set_fd_handler(s->listen_fd, NULL, NULL, NULL);
-    tcp_chr_connect(chr);
+    if (tcp_chr_add_client(chr, fd) < 0)
+	close(fd);
 }
 
 static void tcp_chr_close(CharDriverState *chr)
@@ -2256,6 +2273,7 @@ static int qemu_chr_open_socket(QemuOpts *opts, CharDriverState **_chr)
     chr->chr_write = tcp_chr_write;
     chr->chr_close = tcp_chr_close;
     chr->get_msgfd = tcp_get_msgfd;
+    chr->chr_add_client = tcp_chr_add_client;
 
     if (is_listen) {
         s->listen_fd = fd;

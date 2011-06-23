@@ -166,6 +166,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_SET_PASSWD_FAILED \
     "{ 'class': 'SetPasswdFailed', 'data': {} }"
 
+#define QERR_ADD_CLIENT_FAILED \
+    "{ 'class': 'AddClientFailed', 'data': {} }"
+
 #define QERR_TOO_MANY_FILES \
     "{ 'class': 'TooManyFiles', 'data': {} }"
 
