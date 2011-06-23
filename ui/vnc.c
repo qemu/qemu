@@ -2124,7 +2124,7 @@ static int protocol_client_auth(VncState *vs, uint8_t *data, size_t len)
 {
     /* We only advertise 1 auth scheme at a time, so client
      * must pick the one we sent. Verify this */
-    if (data[0] != vs->vd->auth) { /* Reject auth */
+    if (data[0] != vs->auth) { /* Reject auth */
        VNC_DEBUG("Reject auth %d because it didn't match advertized\n", (int)data[0]);
        vnc_write_u32(vs, 1);
        if (vs->minor >= 8) {
@@ -2135,7 +2135,7 @@ static int protocol_client_auth(VncState *vs, uint8_t *data, size_t len)
        vnc_client_error(vs);
     } else { /* Accept requested auth */
        VNC_DEBUG("Client requested auth %d\n", (int)data[0]);
-       switch (vs->vd->auth) {
+       switch (vs->auth) {
        case VNC_AUTH_NONE:
            VNC_DEBUG("Accept auth none\n");
            if (vs->minor >= 8) {
@@ -2165,7 +2165,7 @@ static int protocol_client_auth(VncState *vs, uint8_t *data, size_t len)
 #endif /* CONFIG_VNC_SASL */
 
        default: /* Should not be possible, but just in case */
-           VNC_DEBUG("Reject auth %d server code bug\n", vs->vd->auth);
+           VNC_DEBUG("Reject auth %d server code bug\n", vs->auth);
            vnc_write_u8(vs, 1);
            if (vs->minor >= 8) {
                static const char err[] = "Authentication failed";
@@ -2210,26 +2210,26 @@ static int protocol_version(VncState *vs, uint8_t *version, size_t len)
         vs->minor = 3;
 
     if (vs->minor == 3) {
-        if (vs->vd->auth == VNC_AUTH_NONE) {
+        if (vs->auth == VNC_AUTH_NONE) {
             VNC_DEBUG("Tell client auth none\n");
-            vnc_write_u32(vs, vs->vd->auth);
+            vnc_write_u32(vs, vs->auth);
             vnc_flush(vs);
             start_client_init(vs);
-       } else if (vs->vd->auth == VNC_AUTH_VNC) {
+       } else if (vs->auth == VNC_AUTH_VNC) {
             VNC_DEBUG("Tell client VNC auth\n");
-            vnc_write_u32(vs, vs->vd->auth);
+            vnc_write_u32(vs, vs->auth);
             vnc_flush(vs);
             start_auth_vnc(vs);
        } else {
-            VNC_DEBUG("Unsupported auth %d for protocol 3.3\n", vs->vd->auth);
+            VNC_DEBUG("Unsupported auth %d for protocol 3.3\n", vs->auth);
             vnc_write_u32(vs, VNC_AUTH_INVALID);
             vnc_flush(vs);
             vnc_client_error(vs);
        }
     } else {
-        VNC_DEBUG("Telling client we support auth %d\n", vs->vd->auth);
+        VNC_DEBUG("Telling client we support auth %d\n", vs->auth);
         vnc_write_u8(vs, 1); /* num auth */
-        vnc_write_u8(vs, vs->vd->auth);
+        vnc_write_u8(vs, vs->auth);
         vnc_read_when(vs, protocol_client_auth, 1);
         vnc_flush(vs);
     }
@@ -2494,12 +2494,25 @@ static void vnc_remove_timer(VncDisplay *vd)
     }
 }
 
-static void vnc_connect(VncDisplay *vd, int csock)
+static void vnc_connect(VncDisplay *vd, int csock, int skipauth)
 {
     VncState *vs = qemu_mallocz(sizeof(VncState));
     int i;
 
     vs->csock = csock;
+
+    if (skipauth) {
+	vs->auth = VNC_AUTH_NONE;
+#ifdef CONFIG_VNC_TLS
+	vs->subauth = VNC_AUTH_INVALID;
+#endif
+    } else {
+	vs->auth = vd->auth;
+#ifdef CONFIG_VNC_TLS
+	vs->subauth = vd->subauth;
+#endif
+    }
+
     vs->lossy_rect = qemu_mallocz(VNC_STAT_ROWS * sizeof (*vs->lossy_rect));
     for (i = 0; i < VNC_STAT_ROWS; ++i) {
         vs->lossy_rect[i] = qemu_mallocz(VNC_STAT_COLS * sizeof (uint8_t));
@@ -2557,7 +2570,7 @@ static void vnc_listen_read(void *opaque)
 
     int csock = qemu_accept(vs->lsock, (struct sockaddr *)&addr, &addrlen);
     if (csock != -1) {
-        vnc_connect(vs, csock);
+        vnc_connect(vs, csock, 0);
     }
 }
 
@@ -2887,7 +2900,7 @@ int vnc_display_open(DisplayState *ds, const char *display)
         } else {
             int csock = vs->lsock;
             vs->lsock = -1;
-            vnc_connect(vs, csock);
+            vnc_connect(vs, csock, 0);
         }
         return 0;
 

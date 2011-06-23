@@ -538,8 +538,8 @@ void start_auth_sasl(VncState *vs)
 
 #ifdef CONFIG_VNC_TLS
     /* Inform SASL that we've got an external SSF layer from TLS/x509 */
-    if (vs->vd->auth == VNC_AUTH_VENCRYPT &&
-        vs->vd->subauth == VNC_AUTH_VENCRYPT_X509SASL) {
+    if (vs->auth == VNC_AUTH_VENCRYPT &&
+        vs->subauth == VNC_AUTH_VENCRYPT_X509SASL) {
         gnutls_cipher_algorithm_t cipher;
         sasl_ssf_t ssf;
 
@@ -570,8 +570,8 @@ void start_auth_sasl(VncState *vs)
 #ifdef CONFIG_VNC_TLS
         /* Disable SSF, if using TLS+x509+SASL only. TLS without x509
            is not sufficiently strong */
-        || (vs->vd->auth == VNC_AUTH_VENCRYPT &&
-            vs->vd->subauth == VNC_AUTH_VENCRYPT_X509SASL)
+        || (vs->auth == VNC_AUTH_VENCRYPT &&
+            vs->subauth == VNC_AUTH_VENCRYPT_X509SASL)
 #endif /* CONFIG_VNC_TLS */
         ) {
         /* If we've got TLS or UNIX domain sock, we don't care about SSF */
