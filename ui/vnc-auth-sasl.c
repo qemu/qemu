@@ -491,13 +491,6 @@ static int protocol_client_auth_sasl_mechname_len(VncState *vs, uint8_t *data, s
     return 0;
 }
 
-#define USES_X509_AUTH(vs)                              \
-    ((vs)->subauth == VNC_AUTH_VENCRYPT_X509NONE ||   \
-     (vs)->subauth == VNC_AUTH_VENCRYPT_X509VNC ||    \
-     (vs)->subauth == VNC_AUTH_VENCRYPT_X509PLAIN ||  \
-     (vs)->subauth == VNC_AUTH_VENCRYPT_X509SASL)
-
-
 void start_auth_sasl(VncState *vs)
 {
     const char *mechlist = NULL;
