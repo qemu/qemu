@@ -49,7 +49,7 @@ static uint32_t smpboot[] = {
     p += 4;                       \
 } while (0)
 
-static void set_kernel_args(struct arm_boot_info *info,
+static void set_kernel_args(const struct arm_boot_info *info,
                 int initrd_size, target_phys_addr_t base)
 {
     target_phys_addr_t p;
@@ -102,7 +102,7 @@ static void set_kernel_args(struct arm_boot_info *info,
     WRITE_WORD(p, 0);
 }
 
-static void set_kernel_args_old(struct arm_boot_info *info,
+static void set_kernel_args_old(const struct arm_boot_info *info,
                 int initrd_size, target_phys_addr_t base)
 {
     target_phys_addr_t p;
@@ -178,7 +178,7 @@ static void set_kernel_args_old(struct arm_boot_info *info,
 static void do_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
-    struct arm_boot_info *info = env->boot_info;
+    const struct arm_boot_info *info = env->boot_info;
 
     cpu_reset(env);
     if (info) {
