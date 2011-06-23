@@ -360,8 +360,8 @@ static int coreaudio_init_out (HWVoiceOut *hw, struct audsettings *as)
         &core->audioDevicePropertyBufferFrameSize);
     if (status != kAudioHardwareNoError) {
         coreaudio_logerr2 (status, typ,
-                           "Could not set device buffer frame size %ld\n",
-                           core->audioDevicePropertyBufferFrameSize);
+                           "Could not set device buffer frame size %" PRIu32 "\n",
+                           (uint32_t)core->audioDevicePropertyBufferFrameSize);
         return -1;
     }
 
