@@ -40,12 +40,11 @@ void usb_attach(USBPort *port, USBDevice *dev)
     } else {
         /* detach */
         dev = port->dev;
+        assert(dev);
         port->ops->detach(port);
-        if (dev) {
-            usb_send_msg(dev, USB_MSG_DETACH);
-            dev->port = NULL;
-            port->dev = NULL;
-        }
+        usb_send_msg(dev, USB_MSG_DETACH);
+        dev->port = NULL;
+        port->dev = NULL;
     }
 }
 
