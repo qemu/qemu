@@ -868,6 +868,7 @@ int xen_hvm_init(void)
         exit(1);
     }
     xen_be_register("console", &xen_console_ops);
+    xen_be_register("vkbd", &xen_kbdmouse_ops);
     xen_be_register("qdisk", &xen_blkdev_ops);
 
     return 0;
