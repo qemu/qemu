@@ -336,6 +336,21 @@ static void interface_get_init_info(QXLInstance *sin, QXLDevInitInfo *info)
     info->n_surfaces = NUM_SURFACES;
 }
 
+static const char *qxl_mode_to_string(int mode)
+{
+    switch (mode) {
+    case QXL_MODE_COMPAT:
+        return "compat";
+    case QXL_MODE_NATIVE:
+        return "native";
+    case QXL_MODE_UNDEFINED:
+        return "undefined";
+    case QXL_MODE_VGA:
+        return "vga";
+    }
+    return "INVALID";
+}
+
 /* called from spice server thread context only */
 static int interface_get_command(QXLInstance *sin, struct QXLCommandExt *ext)
 {
@@ -358,18 +373,19 @@ static int interface_get_command(QXLInstance *sin, struct QXLCommandExt *ext)
         }
         qemu_mutex_unlock(&qxl->ssd.lock);
         if (ret) {
+            dprint(qxl, 2, "%s %s\n", __FUNCTION__, qxl_mode_to_string(qxl->mode));
             qxl_log_command(qxl, "vga", ext);
         }
         return ret;
     case QXL_MODE_COMPAT:
     case QXL_MODE_NATIVE:
     case QXL_MODE_UNDEFINED:
-        dprint(qxl, 2, "%s: %s\n", __FUNCTION__,
-               qxl->cmdflags ? "compat" : "native");
+        dprint(qxl, 4, "%s: %s\n", __FUNCTION__, qxl_mode_to_string(qxl->mode));
         ring = &qxl->ram->cmd_ring;
         if (SPICE_RING_IS_EMPTY(ring)) {
             return false;
         }
+        dprint(qxl, 2, "%s: %s\n", __FUNCTION__, qxl_mode_to_string(qxl->mode));
         SPICE_RING_CONS_ITEM(ring, cmd);
         ext->cmd      = *cmd;
         ext->group_id = MEMSLOT_GROUP_GUEST;
@@ -993,7 +1009,7 @@ static void ioport_write(void *opaque, uint32_t addr, uint32_t val)
         break;
     case QXL_IO_DESTROY_PRIMARY:
         PANIC_ON(val != 0);
-        dprint(d, 1, "QXL_IO_DESTROY_PRIMARY\n");
+        dprint(d, 1, "QXL_IO_DESTROY_PRIMARY (%s)\n", qxl_mode_to_string(d->mode));
         qxl_destroy_primary(d);
         break;
     case QXL_IO_DESTROY_SURFACE_WAIT:
@@ -1368,7 +1384,8 @@ static int qxl_post_load(void *opaque, int version)
 
     d->modes = (QXLModes*)((uint8_t*)d->rom + d->rom->modes_offset);
 
-    dprint(d, 1, "%s: restore mode\n", __FUNCTION__);
+    dprint(d, 1, "%s: restore mode (%s)\n", __FUNCTION__,
+        qxl_mode_to_string(d->mode));
     newmode = d->mode;
     d->mode = QXL_MODE_UNDEFINED;
     switch (newmode) {
