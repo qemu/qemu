@@ -1716,8 +1716,9 @@ static USBPortOps ohci_port_ops = {
 static USBBusOps ohci_bus_ops = {
 };
 
-static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
-                          int num_ports, uint32_t localmem_base)
+static int usb_ohci_init(OHCIState *ohci, DeviceState *dev,
+                         int num_ports, uint32_t localmem_base,
+                         char *masterbus, uint32_t firstport)
 {
     int i;
 
@@ -1737,38 +1738,58 @@ static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
                 usb_frame_time, usb_bit_time);
     }
 
+    ohci->num_ports = num_ports;
+    if (masterbus) {
+        USBPort *ports[OHCI_MAX_PORTS];
+        for(i = 0; i < num_ports; i++) {
+            ports[i] = &ohci->rhport[i].port;
+        }
+        if (usb_register_companion(masterbus, ports, num_ports,
+                firstport, ohci, &ohci_port_ops,
+                USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL) != 0) {
+            return -1;
+        }
+    } else {
+        usb_bus_new(&ohci->bus, &ohci_bus_ops, dev);
+        for (i = 0; i < num_ports; i++) {
+            usb_register_port(&ohci->bus, &ohci->rhport[i].port,
+                              ohci, i, &ohci_port_ops,
+                              USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
+        }
+    }
+
     ohci->mem = cpu_register_io_memory(ohci_readfn, ohci_writefn, ohci,
                                        DEVICE_LITTLE_ENDIAN);
     ohci->localmem_base = localmem_base;
 
     ohci->name = dev->info->name;
 
-    usb_bus_new(&ohci->bus, &ohci_bus_ops, dev);
-    ohci->num_ports = num_ports;
-    for (i = 0; i < num_ports; i++) {
-        usb_register_port(&ohci->bus, &ohci->rhport[i].port, ohci, i, &ohci_port_ops,
-                          USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
-    }
-
     ohci->async_td = 0;
     qemu_register_reset(ohci_reset, ohci);
+
+    return 0;
 }
 
 typedef struct {
     PCIDevice pci_dev;
     OHCIState state;
+    char *masterbus;
+    uint32_t num_ports;
+    uint32_t firstport;
 } OHCIPCIState;
 
 static int usb_ohci_initfn_pci(struct PCIDevice *dev)
 {
     OHCIPCIState *ohci = DO_UPCAST(OHCIPCIState, pci_dev, dev);
-    int num_ports = 3;
 
     ohci->pci_dev.config[PCI_CLASS_PROG] = 0x10; /* OHCI */
     /* TODO: RST# value should be 0. */
     ohci->pci_dev.config[PCI_INTERRUPT_PIN] = 0x01; /* interrupt pin 1 */
 
-    usb_ohci_init(&ohci->state, &dev->qdev, num_ports, 0);
+    if (usb_ohci_init(&ohci->state, &dev->qdev, ohci->num_ports, 0,
+                      ohci->masterbus, ohci->firstport) != 0) {
+        return -1;
+    }
     ohci->state.irq = ohci->pci_dev.irq[0];
 
     /* TODO: avoid cast below by using dev */
@@ -1792,7 +1813,8 @@ static int ohci_init_pxa(SysBusDevice *dev)
 {
     OHCISysBusState *s = FROM_SYSBUS(OHCISysBusState, dev);
 
-    usb_ohci_init(&s->ohci, &dev->qdev, s->num_ports, s->dma_offset);
+    /* Cannot fail as we pass NULL for masterbus */
+    usb_ohci_init(&s->ohci, &dev->qdev, s->num_ports, s->dma_offset, NULL, 0);
     sysbus_init_irq(dev, &s->ohci.irq);
     sysbus_init_mmio(dev, 0x1000, s->ohci.mem);
 
@@ -1807,6 +1829,12 @@ static PCIDeviceInfo ohci_pci_info = {
     .vendor_id    = PCI_VENDOR_ID_APPLE,
     .device_id    = PCI_DEVICE_ID_APPLE_IPID_USB,
     .class_id     = PCI_CLASS_SERIAL_USB,
+    .qdev.props   = (Property[]) {
+        DEFINE_PROP_STRING("masterbus", OHCIPCIState, masterbus),
+        DEFINE_PROP_UINT32("num-ports", OHCIPCIState, num_ports, 3),
+        DEFINE_PROP_UINT32("firstport", OHCIPCIState, firstport, 0),
+        DEFINE_PROP_END_OF_LIST(),
+    },
 };
 
 static SysBusDeviceInfo ohci_sysbus_info = {
