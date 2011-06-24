@@ -606,6 +606,8 @@ static void uhci_detach(USBPort *port1)
     UHCIState *s = port1->opaque;
     UHCIPort *port = &s->ports[port1->index];
 
+    uhci_async_cancel_device(s, port1->dev);
+
     /* set connect status */
     if (port->ctrl & UHCI_PORT_CCS) {
         port->ctrl &= ~UHCI_PORT_CCS;
@@ -618,6 +620,13 @@ static void uhci_detach(USBPort *port1)
     }
 
     uhci_resume(s);
+}
+
+static void uhci_child_detach(USBPort *port1, USBDevice *child)
+{
+    UHCIState *s = port1->opaque;
+
+    uhci_async_cancel_device(s, child);
 }
 
 static void uhci_wakeup(USBPort *port1)
@@ -1095,22 +1104,15 @@ static void uhci_map(PCIDevice *pci_dev, int region_num,
     register_ioport_read(addr, 32, 1, uhci_ioport_readb, s);
 }
 
-static void uhci_device_destroy(USBBus *bus, USBDevice *dev)
-{
-    UHCIState *s = container_of(bus, UHCIState, bus);
-
-    uhci_async_cancel_device(s, dev);
-}
-
 static USBPortOps uhci_port_ops = {
     .attach = uhci_attach,
     .detach = uhci_detach,
+    .child_detach = uhci_child_detach,
     .wakeup = uhci_wakeup,
     .complete = uhci_async_complete,
 };
 
 static USBBusOps uhci_bus_ops = {
-    .device_destroy = uhci_device_destroy,
 };
 
 static int usb_uhci_common_initfn(PCIDevice *dev)

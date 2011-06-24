@@ -238,12 +238,23 @@ static void usb_hub_detach(USBPort *port1)
     USBHubState *s = port1->opaque;
     USBHubPort *port = &s->ports[port1->index];
 
+    /* Let upstream know the device on this port is gone */
+    s->dev.port->ops->child_detach(s->dev.port, port1->dev);
+
     port->wPortStatus &= ~PORT_STAT_CONNECTION;
     port->wPortChange |= PORT_STAT_C_CONNECTION;
     if (port->wPortStatus & PORT_STAT_ENABLE) {
         port->wPortStatus &= ~PORT_STAT_ENABLE;
         port->wPortChange |= PORT_STAT_C_ENABLE;
     }
+}
+
+static void usb_hub_child_detach(USBPort *port1, USBDevice *child)
+{
+    USBHubState *s = port1->opaque;
+
+    /* Pass along upstream */
+    s->dev.port->ops->child_detach(s->dev.port, child);
 }
 
 static void usb_hub_wakeup(USBPort *port1)
@@ -537,6 +548,7 @@ static void usb_hub_handle_destroy(USBDevice *dev)
 static USBPortOps usb_hub_port_ops = {
     .attach = usb_hub_attach,
     .detach = usb_hub_detach,
+    .child_detach = usb_hub_child_detach,
     .wakeup = usb_hub_wakeup,
     .complete = usb_hub_complete,
 };

@@ -261,17 +261,18 @@
 
 static void musb_attach(USBPort *port);
 static void musb_detach(USBPort *port);
+static void musb_child_detach(USBPort *port, USBDevice *child);
 static void musb_schedule_cb(USBPort *port, USBPacket *p);
-static void musb_device_destroy(USBBus *bus, USBDevice *dev);
+static void musb_async_cancel_device(MUSBState *s, USBDevice *dev);
 
 static USBPortOps musb_port_ops = {
     .attach = musb_attach,
     .detach = musb_detach,
+    .child_detach = musb_child_detach,
     .complete = musb_schedule_cb,
 };
 
 static USBBusOps musb_bus_ops = {
-    .device_destroy = musb_device_destroy,
 };
 
 typedef struct MUSBPacket MUSBPacket;
@@ -497,8 +498,17 @@ static void musb_detach(USBPort *port)
 {
     MUSBState *s = (MUSBState *) port->opaque;
 
+    musb_async_cancel_device(s, port->dev);
+
     musb_intr_set(s, musb_irq_disconnect, 1);
     musb_session_update(s, 1, s->session);
+}
+
+static void musb_child_detach(USBPort *port, USBDevice *child)
+{
+    MUSBState *s = (MUSBState *) port->opaque;
+
+    musb_async_cancel_device(s, child);
 }
 
 static void musb_cb_tick0(void *opaque)
@@ -782,9 +792,8 @@ static void musb_rx_packet_complete(USBPacket *packey, void *opaque)
     musb_rx_intr_set(s, epnum, 1);
 }
 
-static void musb_device_destroy(USBBus *bus, USBDevice *dev)
+static void musb_async_cancel_device(MUSBState *s, USBDevice *dev)
 {
-    MUSBState *s = container_of(bus, MUSBState, bus);
     int ep, dir;
 
     for (ep = 0; ep < 16; ep++) {

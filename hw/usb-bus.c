@@ -82,12 +82,10 @@ static int usb_qdev_init(DeviceState *qdev, DeviceInfo *base)
 static int usb_qdev_exit(DeviceState *qdev)
 {
     USBDevice *dev = DO_UPCAST(USBDevice, qdev, qdev);
-    USBBus *bus = usb_bus_from_device(dev);
 
     if (dev->attached) {
         usb_device_detach(dev);
     }
-    bus->ops->device_destroy(bus, dev);
     if (dev->info->handle_destroy) {
         dev->info->handle_destroy(dev);
     }

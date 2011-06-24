@@ -247,16 +247,21 @@ static void softusb_attach(USBPort *port)
 {
 }
 
-static void softusb_device_destroy(USBBus *bus, USBDevice *dev)
+static void softusb_detach(USBPort *port)
+{
+}
+
+static void softusb_child_detach(USBPort *port, USBDevice *child)
 {
 }
 
 static USBPortOps softusb_ops = {
     .attach = softusb_attach,
+    .detach = softusb_detach,
+    .child_detach = softusb_child_detach,
 };
 
 static USBBusOps softusb_bus_ops = {
-    .device_destroy = softusb_device_destroy,
 };
 
 static void milkymist_softusb_reset(DeviceState *d)

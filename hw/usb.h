@@ -252,6 +252,11 @@ struct USBDeviceInfo {
 typedef struct USBPortOps {
     void (*attach)(USBPort *port);
     void (*detach)(USBPort *port);
+    /*
+     * This gets called when a device downstream from the device attached to
+     * the port (iow attached through a hub) gets detached.
+     */
+    void (*child_detach)(USBPort *port, USBDevice *child);
     void (*wakeup)(USBPort *port);
     /*
      * Note that port->dev will be different then the device from which
@@ -351,7 +356,6 @@ struct USBBus {
 struct USBBusOps {
     int (*register_companion)(USBBus *bus, USBPort *ports[],
                               uint32_t portcount, uint32_t firstport);
-    void (*device_destroy)(USBBus *bus, USBDevice *dev);
 };
 
 void usb_bus_new(USBBus *bus, USBBusOps *ops, DeviceState *host);

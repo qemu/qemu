@@ -751,6 +751,8 @@ static void ehci_detach(USBPort *port)
 
     trace_usb_ehci_port_detach(port->index);
 
+    ehci_queues_rip_device(s, port->dev);
+
     *portsc &= ~PORTSC_CONNECT;
     *portsc |= PORTSC_CSC;
 
@@ -762,6 +764,13 @@ static void ehci_detach(USBPort *port)
     if ( !(*portsc & PORTSC_POWNER)) {
         ehci_set_interrupt(s, USBSTS_PCD);
     }
+}
+
+static void ehci_child_detach(USBPort *port, USBDevice *child)
+{
+    EHCIState *s = port->opaque;
+
+    ehci_queues_rip_device(s, child);
 }
 
 /* 4.1 host controller initialization */
@@ -2117,23 +2126,16 @@ static void ehci_map(PCIDevice *pci_dev, int region_num,
     cpu_register_physical_memory(addr, size, s->mem);
 }
 
-static void ehci_device_destroy(USBBus *bus, USBDevice *dev)
-{
-    EHCIState *s = container_of(bus, EHCIState, bus);
-
-    ehci_queues_rip_device(s, dev);
-}
-
 static int usb_ehci_initfn(PCIDevice *dev);
 
 static USBPortOps ehci_port_ops = {
     .attach = ehci_attach,
     .detach = ehci_detach,
+    .child_detach = ehci_child_detach,
     .complete = ehci_async_complete_packet,
 };
 
 static USBBusOps ehci_bus_ops = {
-    .device_destroy = ehci_device_destroy,
 };
 
 static PCIDeviceInfo ehci_info = {
