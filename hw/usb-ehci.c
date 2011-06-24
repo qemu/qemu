@@ -20,9 +20,6 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
- * TODO:
- *  o Downstream port handoff
  */
 
 #include "hw.h"
@@ -106,7 +103,7 @@
  * Bits that are reserved or are read-only are masked out of values
  * written to us by software
  */
-#define PORTSC_RO_MASK       0x007021c0
+#define PORTSC_RO_MASK       0x007001c0
 #define PORTSC_RWC_MASK      0x0000002a
 #define PORTSC_WKOC_E        (1 << 22)    // Wake on Over Current Enable
 #define PORTSC_WKDS_E        (1 << 21)    // Wake on Disconnect Enable
@@ -373,6 +370,7 @@ struct EHCIState {
     qemu_irq irq;
     target_phys_addr_t mem_base;
     int mem;
+    int companion_count;
 
     /* properties */
     uint32_t freq;
@@ -408,6 +406,7 @@ struct EHCIState {
     int astate;                        // Current state in asynchronous schedule
     int pstate;                        // Current state in periodic schedule
     USBPort ports[NB_PORTS];
+    USBPort *companion_ports[NB_PORTS];
     uint32_t usbsts_pending;
     QTAILQ_HEAD(, EHCIQueue) queues;
 
@@ -730,17 +729,17 @@ static void ehci_attach(USBPort *port)
 
     trace_usb_ehci_port_attach(port->index, port->dev->product_desc);
 
+    if (*portsc & PORTSC_POWNER) {
+        USBPort *companion = s->companion_ports[port->index];
+        companion->dev = port->dev;
+        companion->ops->attach(companion);
+        return;
+    }
+
     *portsc |= PORTSC_CONNECT;
     *portsc |= PORTSC_CSC;
 
-    /*
-     *  If a high speed device is attached then we own this port(indicated
-     *  by zero in the PORTSC_POWNER bit field) so set the status bit
-     *  and set an interrupt if enabled.
-     */
-    if ( !(*portsc & PORTSC_POWNER)) {
-        ehci_set_interrupt(s, USBSTS_PCD);
-    }
+    ehci_set_interrupt(s, USBSTS_PCD);
 }
 
 static void ehci_detach(USBPort *port)
@@ -750,26 +749,88 @@ static void ehci_detach(USBPort *port)
 
     trace_usb_ehci_port_detach(port->index);
 
+    if (*portsc & PORTSC_POWNER) {
+        USBPort *companion = s->companion_ports[port->index];
+        companion->ops->detach(companion);
+        companion->dev = NULL;
+        return;
+    }
+
     ehci_queues_rip_device(s, port->dev);
 
     *portsc &= ~(PORTSC_CONNECT|PORTSC_PED);
     *portsc |= PORTSC_CSC;
 
-    /*
-     *  If a high speed device is attached then we own this port(indicated
-     *  by zero in the PORTSC_POWNER bit field) so set the status bit
-     *  and set an interrupt if enabled.
-     */
-    if ( !(*portsc & PORTSC_POWNER)) {
-        ehci_set_interrupt(s, USBSTS_PCD);
-    }
+    ehci_set_interrupt(s, USBSTS_PCD);
 }
 
 static void ehci_child_detach(USBPort *port, USBDevice *child)
 {
     EHCIState *s = port->opaque;
+    uint32_t portsc = s->portsc[port->index];
+
+    if (portsc & PORTSC_POWNER) {
+        USBPort *companion = s->companion_ports[port->index];
+        companion->ops->child_detach(companion, child);
+        companion->dev = NULL;
+        return;
+    }
 
     ehci_queues_rip_device(s, child);
+}
+
+static void ehci_wakeup(USBPort *port)
+{
+    EHCIState *s = port->opaque;
+    uint32_t portsc = s->portsc[port->index];
+
+    if (portsc & PORTSC_POWNER) {
+        USBPort *companion = s->companion_ports[port->index];
+        if (companion->ops->wakeup) {
+            companion->ops->wakeup(companion);
+        }
+    }
+}
+
+static int ehci_register_companion(USBBus *bus, USBPort *ports[],
+                                   uint32_t portcount, uint32_t firstport)
+{
+    EHCIState *s = container_of(bus, EHCIState, bus);
+    uint32_t i;
+
+    if (firstport + portcount > NB_PORTS) {
+        qerror_report(QERR_INVALID_PARAMETER_VALUE, "firstport",
+                      "firstport on masterbus");
+        error_printf_unless_qmp(
+            "firstport value of %u makes companion take ports %u - %u, which "
+            "is outside of the valid range of 0 - %u\n", firstport, firstport,
+            firstport + portcount - 1, NB_PORTS - 1);
+        return -1;
+    }
+
+    for (i = 0; i < portcount; i++) {
+        if (s->companion_ports[firstport + i]) {
+            qerror_report(QERR_INVALID_PARAMETER_VALUE, "masterbus",
+                          "an USB masterbus");
+            error_printf_unless_qmp(
+                "port %u on masterbus %s already has a companion assigned\n",
+                firstport + i, bus->qbus.name);
+            return -1;
+        }
+    }
+
+    for (i = 0; i < portcount; i++) {
+        s->companion_ports[firstport + i] = ports[i];
+        s->ports[firstport + i].speedmask |=
+            USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL;
+        /* Ensure devs attached before the initial reset go to the companion */
+        s->portsc[firstport + i] = PORTSC_POWNER;
+    }
+
+    s->companion_count++;
+    s->mmio[0x05] = (s->companion_count << 4) | portcount;
+
+    return 0;
 }
 
 /* 4.1 host controller initialization */
@@ -777,8 +838,20 @@ static void ehci_reset(void *opaque)
 {
     EHCIState *s = opaque;
     int i;
+    USBDevice *devs[NB_PORTS];
 
     trace_usb_ehci_reset();
+
+    /*
+     * Do the detach before touching portsc, so that it correctly gets send to
+     * us or to our companion based on PORTSC_POWNER before the reset.
+     */
+    for(i = 0; i < NB_PORTS; i++) {
+        devs[i] = s->ports[i].dev;
+        if (devs[i]) {
+            usb_attach(&s->ports[i], NULL);
+        }
+    }
 
     memset(&s->mmio[OPREGBASE], 0x00, MMIO_SIZE - OPREGBASE);
 
@@ -791,10 +864,13 @@ static void ehci_reset(void *opaque)
     s->attach_poll_counter = 0;
 
     for(i = 0; i < NB_PORTS; i++) {
-        s->portsc[i] = PORTSC_POWNER | PORTSC_PPOWER;
-
-        if (s->ports[i].dev) {
-            usb_attach(&s->ports[i], s->ports[i].dev);
+        if (s->companion_ports[i]) {
+            s->portsc[i] = PORTSC_POWNER | PORTSC_PPOWER;
+        } else {
+            s->portsc[i] = PORTSC_PPOWER;
+        }
+        if (devs[i]) {
+            usb_attach(&s->ports[i], devs[i]);
         }
     }
     ehci_queues_rip_all(s);
@@ -844,6 +920,34 @@ static void ehci_mem_writew(void *ptr, target_phys_addr_t addr, uint32_t val)
     exit(1);
 }
 
+static void handle_port_owner_write(EHCIState *s, int port, uint32_t owner)
+{
+    USBDevice *dev = s->ports[port].dev;
+    uint32_t *portsc = &s->portsc[port];
+    uint32_t orig;
+
+    if (s->companion_ports[port] == NULL)
+        return;
+
+    owner = owner & PORTSC_POWNER;
+    orig  = *portsc & PORTSC_POWNER;
+
+    if (!(owner ^ orig)) {
+        return;
+    }
+
+    if (dev) {
+        usb_attach(&s->ports[port], NULL);
+    }
+
+    *portsc &= ~PORTSC_POWNER;
+    *portsc |= owner;
+
+    if (dev) {
+        usb_attach(&s->ports[port], dev);
+    }
+}
+
 static void handle_port_status_write(EHCIState *s, int port, uint32_t val)
 {
     uint32_t *portsc = &s->portsc[port];
@@ -853,6 +957,9 @@ static void handle_port_status_write(EHCIState *s, int port, uint32_t val)
     *portsc &= ~(val & PORTSC_RWC_MASK);
     /* The guest may clear, but not set the PED bit */
     *portsc &= val | ~PORTSC_PED;
+    /* POWNER is masked out by RO_MASK as it is RO when we've no companion */
+    handle_port_owner_write(s, port, val);
+    /* And finally apply RO_MASK */
     val &= PORTSC_RO_MASK;
 
     if ((val & PORTSC_PRESET) && !(*portsc & PORTSC_PRESET)) {
@@ -956,7 +1063,7 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
         val &= 0x1;
         if (val) {
             for(i = 0; i < NB_PORTS; i++)
-                s->portsc[i] &= ~PORTSC_POWNER;
+                handle_port_owner_write(s, i, 0);
         }
         break;
 
@@ -1114,8 +1221,17 @@ static int ehci_buffer_rw(EHCIQueue *q, int bytes, int rw)
 
 static void ehci_async_complete_packet(USBPort *port, USBPacket *packet)
 {
-    EHCIQueue *q = container_of(packet, EHCIQueue, packet);
+    EHCIQueue *q;
+    EHCIState *s = port->opaque;
+    uint32_t portsc = s->portsc[port->index];
 
+    if (portsc & PORTSC_POWNER) {
+        USBPort *companion = s->companion_ports[port->index];
+        companion->ops->complete(companion, packet);
+        return;
+    }
+
+    q = container_of(packet, EHCIQueue, packet);
     trace_usb_ehci_queue_action(q, "wakeup");
     assert(q->async == EHCI_ASYNC_INFLIGHT);
     q->async = EHCI_ASYNC_FINISHED;
@@ -1245,8 +1361,6 @@ static int ehci_execute(EHCIQueue *q)
         port = &q->ehci->ports[i];
         dev = port->dev;
 
-        // TODO sometime we will also need to check if we are the port owner
-
         if (!(q->ehci->portsc[i] &(PORTSC_CONNECT))) {
             DPRINTF("Port %d, no exec, not connected(%08X)\n",
                     i, q->ehci->portsc[i]);
@@ -1338,8 +1452,6 @@ static int ehci_process_itd(EHCIState *ehci,
             for (j = 0; j < NB_PORTS; j++) {
                 port = &ehci->ports[j];
                 dev = port->dev;
-
-                // TODO sometime we will also need to check if we are the port owner
 
                 if (!(ehci->portsc[j] &(PORTSC_CONNECT))) {
                     continue;
@@ -2124,10 +2236,12 @@ static USBPortOps ehci_port_ops = {
     .attach = ehci_attach,
     .detach = ehci_detach,
     .child_detach = ehci_child_detach,
+    .wakeup = ehci_wakeup,
     .complete = ehci_async_complete_packet,
 };
 
 static USBBusOps ehci_bus_ops = {
+    .register_companion = ehci_register_companion,
 };
 
 static PCIDeviceInfo ehci_info = {
