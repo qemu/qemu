@@ -106,7 +106,7 @@
  * Bits that are reserved or are read-only are masked out of values
  * written to us by software
  */
-#define PORTSC_RO_MASK       0x007021c4
+#define PORTSC_RO_MASK       0x007021c0
 #define PORTSC_RWC_MASK      0x0000002a
 #define PORTSC_WKOC_E        (1 << 22)    // Wake on Over Current Enable
 #define PORTSC_WKDS_E        (1 << 21)    // Wake on Disconnect Enable
@@ -752,7 +752,7 @@ static void ehci_detach(USBPort *port)
 
     ehci_queues_rip_device(s, port->dev);
 
-    *portsc &= ~PORTSC_CONNECT;
+    *portsc &= ~(PORTSC_CONNECT|PORTSC_PED);
     *portsc |= PORTSC_CSC;
 
     /*
@@ -847,15 +847,13 @@ static void ehci_mem_writew(void *ptr, target_phys_addr_t addr, uint32_t val)
 static void handle_port_status_write(EHCIState *s, int port, uint32_t val)
 {
     uint32_t *portsc = &s->portsc[port];
-    int rwc;
     USBDevice *dev = s->ports[port].dev;
 
-    rwc = val & PORTSC_RWC_MASK;
+    /* Clear rwc bits */
+    *portsc &= ~(val & PORTSC_RWC_MASK);
+    /* The guest may clear, but not set the PED bit */
+    *portsc &= val | ~PORTSC_PED;
     val &= PORTSC_RO_MASK;
-
-    // handle_read_write_clear(&val, portsc, PORTSC_PEDC | PORTSC_CSC);
-
-    *portsc &= ~rwc;
 
     if ((val & PORTSC_PRESET) && !(*portsc & PORTSC_PRESET)) {
         trace_usb_ehci_port_reset(port, 1);
@@ -869,13 +867,13 @@ static void handle_port_status_write(EHCIState *s, int port, uint32_t val)
             *portsc &= ~PORTSC_CSC;
         }
 
-        /*  Table 2.16 Set the enable bit(and enable bit change) to indicate
+        /*
+         *  Table 2.16 Set the enable bit(and enable bit change) to indicate
          *  to SW that this port has a high speed device attached
-         *
-         *  TODO - when to disable?
          */
-        val |= PORTSC_PED;
-        val |= PORTSC_PEDC;
+        if (dev && (dev->speedmask & USB_SPEED_MASK_HIGH)) {
+            val |= PORTSC_PED;
+        }
     }
 
     *portsc &= ~PORTSC_RO_MASK;
