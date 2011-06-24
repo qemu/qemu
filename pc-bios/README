@@ -32,3 +32,6 @@
 - The S390 zipl loader is an addition to the official IBM s390-tools
   package. That fork is maintained in its own git repository at:
   git://repo.or.cz/s390-tools.git
+
+- The sources for the Alpha palcode image is available from:
+  git://repo.or.cz/qemu-palcode.git
