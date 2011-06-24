@@ -942,6 +942,7 @@ static void ioport_write(void *opaque, uint32_t addr, uint32_t val)
     case QXL_IO_MEMSLOT_ADD:
     case QXL_IO_MEMSLOT_DEL:
     case QXL_IO_CREATE_PRIMARY:
+    case QXL_IO_UPDATE_IRQ:
         break;
     default:
         if (d->mode == QXL_MODE_NATIVE || d->mode == QXL_MODE_COMPAT)
