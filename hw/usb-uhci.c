@@ -132,7 +132,7 @@ typedef struct UHCIPort {
 
 struct UHCIState {
     PCIDevice dev;
-    USBBus bus;
+    USBBus bus; /* Note unused when we're a companion controller */
     uint16_t cmd; /* cmd register */
     uint16_t status;
     uint16_t intr; /* interrupt enable register */
@@ -150,6 +150,10 @@ struct UHCIState {
     /* Active packets */
     QTAILQ_HEAD(,UHCIAsync) async_pending;
     uint8_t num_ports_vmstate;
+
+    /* Properties */
+    char *masterbus;
+    uint32_t firstport;
 };
 
 typedef struct UHCI_TD {
@@ -1126,10 +1130,22 @@ static int usb_uhci_common_initfn(PCIDevice *dev)
     pci_conf[PCI_INTERRUPT_PIN] = 4; // interrupt pin 3
     pci_conf[USB_SBRN] = USB_RELEASE_1; // release number
 
-    usb_bus_new(&s->bus, &uhci_bus_ops, &s->dev.qdev);
-    for(i = 0; i < NB_PORTS; i++) {
-        usb_register_port(&s->bus, &s->ports[i].port, s, i, &uhci_port_ops,
-                          USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
+    if (s->masterbus) {
+        USBPort *ports[NB_PORTS];
+        for(i = 0; i < NB_PORTS; i++) {
+            ports[i] = &s->ports[i].port;
+        }
+        if (usb_register_companion(s->masterbus, ports, NB_PORTS,
+                s->firstport, s, &uhci_port_ops,
+                USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL) != 0) {
+            return -1;
+        }
+    } else {
+        usb_bus_new(&s->bus, &uhci_bus_ops, &s->dev.qdev);
+        for (i = 0; i < NB_PORTS; i++) {
+            usb_register_port(&s->bus, &s->ports[i].port, s, i, &uhci_port_ops,
+                              USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
+        }
     }
     s->frame_timer = qemu_new_timer_ns(vm_clock, uhci_frame_timer, s);
     s->num_ports_vmstate = NB_PORTS;
@@ -1170,6 +1186,11 @@ static PCIDeviceInfo uhci_info[] = {
         .device_id    = PCI_DEVICE_ID_INTEL_82371SB_2,
         .revision     = 0x01,
         .class_id     = PCI_CLASS_SERIAL_USB,
+        .qdev.props   = (Property[]) {
+            DEFINE_PROP_STRING("masterbus", UHCIState, masterbus),
+            DEFINE_PROP_UINT32("firstport", UHCIState, firstport, 0),
+            DEFINE_PROP_END_OF_LIST(),
+        },
     },{
         .qdev.name    = "piix4-usb-uhci",
         .qdev.size    = sizeof(UHCIState),
@@ -1179,6 +1200,11 @@ static PCIDeviceInfo uhci_info[] = {
         .device_id    = PCI_DEVICE_ID_INTEL_82371AB_2,
         .revision     = 0x01,
         .class_id     = PCI_CLASS_SERIAL_USB,
+        .qdev.props   = (Property[]) {
+            DEFINE_PROP_STRING("masterbus", UHCIState, masterbus),
+            DEFINE_PROP_UINT32("firstport", UHCIState, firstport, 0),
+            DEFINE_PROP_END_OF_LIST(),
+        },
     },{
         .qdev.name    = "vt82c686b-usb-uhci",
         .qdev.size    = sizeof(UHCIState),
@@ -1188,6 +1214,11 @@ static PCIDeviceInfo uhci_info[] = {
         .device_id    = PCI_DEVICE_ID_VIA_UHCI,
         .revision     = 0x01,
         .class_id     = PCI_CLASS_SERIAL_USB,
+        .qdev.props   = (Property[]) {
+            DEFINE_PROP_STRING("masterbus", UHCIState, masterbus),
+            DEFINE_PROP_UINT32("firstport", UHCIState, firstport, 0),
+            DEFINE_PROP_END_OF_LIST(),
+        },
     },{
         /* end of list */
     }
