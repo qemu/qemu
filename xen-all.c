@@ -862,6 +862,14 @@ int xen_hvm_init(void)
     cpu_register_phys_memory_client(&state->client);
     state->log_for_dirtybit = NULL;
 
+    /* Initialize backend core & drivers */
+    if (xen_be_init() != 0) {
+        fprintf(stderr, "%s: xen backend core setup failed\n", __FUNCTION__);
+        exit(1);
+    }
+    xen_be_register("console", &xen_console_ops);
+    xen_be_register("qdisk", &xen_blkdev_ops);
+
     return 0;
 }
 
