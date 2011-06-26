@@ -290,10 +290,10 @@ static int xen_platform_initfn(PCIDevice *dev)
 
     pci_conf = d->pci_dev.config;
 
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_XENSOURCE);
-    pci_config_set_device_id(pci_conf, 0x0001);
-    pci_set_word(pci_conf + PCI_SUBSYSTEM_VENDOR_ID, PCI_VENDOR_ID_XENSOURCE);
-    pci_set_word(pci_conf + PCI_SUBSYSTEM_ID, 0x0001);
+    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_XEN);
+    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_XEN_PLATFORM);
+    pci_set_word(pci_conf + PCI_SUBSYSTEM_VENDOR_ID, PCI_VENDOR_ID_XEN);
+    pci_set_word(pci_conf + PCI_SUBSYSTEM_ID, PCI_DEVICE_ID_XEN_PLATFORM);
 
     pci_set_word(pci_conf + PCI_COMMAND, PCI_COMMAND_IO | PCI_COMMAND_MEMORY);
 
