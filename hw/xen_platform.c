@@ -290,17 +290,9 @@ static int xen_platform_initfn(PCIDevice *dev)
 
     pci_conf = d->pci_dev.config;
 
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_XEN);
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_XEN_PLATFORM);
-    pci_set_word(pci_conf + PCI_SUBSYSTEM_VENDOR_ID, PCI_VENDOR_ID_XEN);
-    pci_set_word(pci_conf + PCI_SUBSYSTEM_ID, PCI_DEVICE_ID_XEN_PLATFORM);
-
     pci_set_word(pci_conf + PCI_COMMAND, PCI_COMMAND_IO | PCI_COMMAND_MEMORY);
 
-    pci_config_set_revision(pci_conf, 1);
     pci_config_set_prog_interface(pci_conf, 0);
-
-    pci_config_set_class(pci_conf, PCI_CLASS_OTHERS << 8 | 0x80);
 
     pci_conf[PCI_INTERRUPT_PIN] = 1;
 
@@ -330,6 +322,13 @@ static PCIDeviceInfo xen_platform_info = {
     .qdev.size = sizeof(PCIXenPlatformState),
     .qdev.vmsd = &vmstate_xen_platform,
     .qdev.reset = platform_reset,
+
+    .vendor_id    =  PCI_VENDOR_ID_XEN,
+    .device_id    = PCI_DEVICE_ID_XEN_PLATFORM,
+    .class_id     = PCI_CLASS_OTHERS << 8 | 0x80,
+    .subsystem_vendor_id = PCI_VENDOR_ID_XEN,
+    .subsystem_id = PCI_DEVICE_ID_XEN_PLATFORM,
+    .revision = 1,
 };
 
 static void xen_platform_register(void)
