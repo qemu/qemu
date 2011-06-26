@@ -4,7 +4,7 @@
  * Copyright (c) 2009 CodeSourcery.
  * Written by Paul Brook
  *
- * This code is licenced under the GNU GPL v2.
+ * This code is licensed under the GNU GPL v2.
  */
 
 #include "i2c.h"

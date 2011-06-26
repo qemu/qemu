@@ -4,7 +4,7 @@
  * Copyright (c) 2009 CodeSourcery.
  * Written by Paul Brook
  *
- * This code is licenced under the GPL.
+ * This code is licensed under the GPL.
  */
 
 /* 64 external IRQ lines.  */

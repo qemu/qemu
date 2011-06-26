@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2007 CodeSourcery.
  *
- * This code is licenced under the GNU LGPL.
+ * This code is licensed under the GNU LGPL.
  */
 #include "hw.h"
 #include "qemu-timer.h"

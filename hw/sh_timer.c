@@ -5,7 +5,7 @@
  * Based on arm_timer.c by Paul Brook
  * Copyright (c) 2005-2006 CodeSourcery.
  *
- * This code is licenced under the GPL.
+ * This code is licensed under the GPL.
  */
 
 #include "hw.h"

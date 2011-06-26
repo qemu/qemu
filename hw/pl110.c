@@ -4,7 +4,7 @@
  * Copyright (c) 2005-2009 CodeSourcery.
  * Written by Paul Brook
  *
- * This code is licenced under the GNU LGPL
+ * This code is licensed under the GNU LGPL
  */
 
 #include "sysbus.h"

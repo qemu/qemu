@@ -7,7 +7,7 @@
  *
  * Written by Laurent Vivier <Laurent.Vivier@bull.net>
  *
- * This code is licenced under the LGPL.
+ * This code is licensed under the LGPL.
  *
  */
 
