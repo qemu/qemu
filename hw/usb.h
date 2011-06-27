@@ -130,6 +130,7 @@
 #define USB_DT_ENDPOINT			0x05
 #define USB_DT_DEVICE_QUALIFIER         0x06
 #define USB_DT_OTHER_SPEED_CONFIG       0x07
+#define USB_DT_DEBUG                    0x0A
 #define USB_DT_INTERFACE_ASSOC          0x0B
 
 #define USB_ENDPOINT_XFER_CONTROL	0
@@ -168,7 +169,10 @@ struct USBDevice {
     char *port_path;
     void *opaque;
 
+    /* Actual connected speed */
     int speed;
+    /* Supported speeds, not in info because it may be variable (hostdevs) */
+    int speedmask;
     uint8_t addr;
     char product_desc[32];
     int auto_attach;

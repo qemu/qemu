@@ -85,7 +85,6 @@ static int usb_fs_type;
 
 /* endpoint association data */
 #define ISO_FRAME_DESC_PER_URB 32
-#define ISO_URB_COUNT 3
 #define INVALID_EP_TYPE 255
 
 /* devio.c limits single requests to 16k */
@@ -101,6 +100,7 @@ struct endp_data {
     int iso_urb_idx;
     int iso_buffer_used;
     int max_packet_size;
+    int inflight;
 };
 
 struct USBAutoFilter {
@@ -120,6 +120,7 @@ typedef struct USBHostDevice {
     int       configuration;
     int       ninterfaces;
     int       closing;
+    uint32_t  iso_urb_count;
     Notifier  exit;
 
     struct endp_data endp_table[MAX_ENDPOINTS];
@@ -142,74 +143,91 @@ static void usb_host_auto_check(void *unused);
 static int usb_host_read_file(char *line, size_t line_size,
                             const char *device_file, const char *device_name);
 
+static struct endp_data *get_endp(USBHostDevice *s, int ep)
+{
+    return s->endp_table + ep - 1;
+}
+
 static int is_isoc(USBHostDevice *s, int ep)
 {
-    return s->endp_table[ep - 1].type == USBDEVFS_URB_TYPE_ISO;
+    return get_endp(s, ep)->type == USBDEVFS_URB_TYPE_ISO;
 }
 
 static int is_valid(USBHostDevice *s, int ep)
 {
-    return s->endp_table[ep - 1].type != INVALID_EP_TYPE;
+    return get_endp(s, ep)->type != INVALID_EP_TYPE;
 }
 
 static int is_halted(USBHostDevice *s, int ep)
 {
-    return s->endp_table[ep - 1].halted;
+    return get_endp(s, ep)->halted;
 }
 
 static void clear_halt(USBHostDevice *s, int ep)
 {
-    s->endp_table[ep - 1].halted = 0;
+    get_endp(s, ep)->halted = 0;
 }
 
 static void set_halt(USBHostDevice *s, int ep)
 {
-    s->endp_table[ep - 1].halted = 1;
+    get_endp(s, ep)->halted = 1;
 }
 
 static int is_iso_started(USBHostDevice *s, int ep)
 {
-    return s->endp_table[ep - 1].iso_started;
+    return get_endp(s, ep)->iso_started;
 }
 
 static void clear_iso_started(USBHostDevice *s, int ep)
 {
-    s->endp_table[ep - 1].iso_started = 0;
+    get_endp(s, ep)->iso_started = 0;
 }
 
 static void set_iso_started(USBHostDevice *s, int ep)
 {
-    s->endp_table[ep - 1].iso_started = 1;
+    struct endp_data *e = get_endp(s, ep);
+    if (!e->iso_started) {
+        e->iso_started = 1;
+        e->inflight = 0;
+    }
+}
+
+static int change_iso_inflight(USBHostDevice *s, int ep, int value)
+{
+    struct endp_data *e = get_endp(s, ep);
+
+    e->inflight += value;
+    return e->inflight;
 }
 
 static void set_iso_urb(USBHostDevice *s, int ep, AsyncURB *iso_urb)
 {
-    s->endp_table[ep - 1].iso_urb = iso_urb;
+    get_endp(s, ep)->iso_urb = iso_urb;
 }
 
 static AsyncURB *get_iso_urb(USBHostDevice *s, int ep)
 {
-    return s->endp_table[ep - 1].iso_urb;
+    return get_endp(s, ep)->iso_urb;
 }
 
 static void set_iso_urb_idx(USBHostDevice *s, int ep, int i)
 {
-    s->endp_table[ep - 1].iso_urb_idx = i;
+    get_endp(s, ep)->iso_urb_idx = i;
 }
 
 static int get_iso_urb_idx(USBHostDevice *s, int ep)
 {
-    return s->endp_table[ep - 1].iso_urb_idx;
+    return get_endp(s, ep)->iso_urb_idx;
 }
 
 static void set_iso_buffer_used(USBHostDevice *s, int ep, int i)
 {
-    s->endp_table[ep - 1].iso_buffer_used = i;
+    get_endp(s, ep)->iso_buffer_used = i;
 }
 
 static int get_iso_buffer_used(USBHostDevice *s, int ep)
 {
-    return s->endp_table[ep - 1].iso_buffer_used;
+    return get_endp(s, ep)->iso_buffer_used;
 }
 
 static void set_max_packet_size(USBHostDevice *s, int ep, uint8_t *descriptor)
@@ -223,14 +241,12 @@ static void set_max_packet_size(USBHostDevice *s, int ep, uint8_t *descriptor)
     case 2:  microframes = 3; break;
     default: microframes = 1; break;
     }
-    DPRINTF("husb: max packet size: 0x%x -> %d x %d\n",
-            raw, microframes, size);
-    s->endp_table[ep - 1].max_packet_size = size * microframes;
+    get_endp(s, ep)->max_packet_size = size * microframes;
 }
 
 static int get_max_packet_size(USBHostDevice *s, int ep)
 {
-    return s->endp_table[ep - 1].max_packet_size;
+    return get_endp(s, ep)->max_packet_size;
 }
 
 /*
@@ -279,6 +295,7 @@ static void async_complete(void *opaque)
 {
     USBHostDevice *s = opaque;
     AsyncURB *aurb;
+    int urbs = 0;
 
     while (1) {
         USBPacket *p;
@@ -286,6 +303,9 @@ static void async_complete(void *opaque)
         int r = ioctl(s->fd, USBDEVFS_REAPURBNDELAY, &aurb);
         if (r < 0) {
             if (errno == EAGAIN) {
+                if (urbs > 2) {
+                    fprintf(stderr, "husb: %d iso urbs finished at once\n", urbs);
+                }
                 return;
             }
             if (errno == ENODEV && !s->closing) {
@@ -303,10 +323,16 @@ static void async_complete(void *opaque)
         /* If this is a buffered iso urb mark it as complete and don't do
            anything else (it is handled further in usb_host_handle_iso_data) */
         if (aurb->iso_frame_idx == -1) {
+            int inflight;
             if (aurb->urb.status == -EPIPE) {
                 set_halt(s, aurb->urb.endpoint & 0xf);
             }
             aurb->iso_frame_idx = 0;
+            urbs++;
+            inflight = change_iso_inflight(s, aurb->urb.endpoint & 0xf, -1);
+            if (inflight == 0 && is_iso_started(s, aurb->urb.endpoint & 0xf)) {
+                fprintf(stderr, "husb: out of buffers for iso stream\n");
+            }
             continue;
         }
 
@@ -502,8 +528,8 @@ static AsyncURB *usb_host_alloc_iso(USBHostDevice *s, uint8_t ep, int in)
     AsyncURB *aurb;
     int i, j, len = get_max_packet_size(s, ep);
 
-    aurb = qemu_mallocz(ISO_URB_COUNT * sizeof(*aurb));
-    for (i = 0; i < ISO_URB_COUNT; i++) {
+    aurb = qemu_mallocz(s->iso_urb_count * sizeof(*aurb));
+    for (i = 0; i < s->iso_urb_count; i++) {
         aurb[i].urb.endpoint      = ep;
         aurb[i].urb.buffer_length = ISO_FRAME_DESC_PER_URB * len;
         aurb[i].urb.buffer        = qemu_malloc(aurb[i].urb.buffer_length);
@@ -533,7 +559,7 @@ static void usb_host_stop_n_free_iso(USBHostDevice *s, uint8_t ep)
         return;
     }
 
-    for (i = 0; i < ISO_URB_COUNT; i++) {
+    for (i = 0; i < s->iso_urb_count; i++) {
         /* in flight? */
         if (aurb[i].iso_frame_idx == -1) {
             ret = ioctl(s->fd, USBDEVFS_DISCARDURB, &aurb[i]);
@@ -551,7 +577,7 @@ static void usb_host_stop_n_free_iso(USBHostDevice *s, uint8_t ep)
         async_complete(s);
     }
 
-    for (i = 0; i < ISO_URB_COUNT; i++) {
+    for (i = 0; i < s->iso_urb_count; i++) {
         qemu_free(aurb[i].urb.buffer);
     }
 
@@ -636,7 +662,7 @@ static int usb_host_handle_iso_data(USBHostDevice *s, USBPacket *p, int in)
         }
         aurb[i].iso_frame_idx++;
         if (aurb[i].iso_frame_idx == ISO_FRAME_DESC_PER_URB) {
-            i = (i + 1) % ISO_URB_COUNT;
+            i = (i + 1) % s->iso_urb_count;
             set_iso_urb_idx(s, p->devep, i);
         }
     } else {
@@ -649,7 +675,7 @@ static int usb_host_handle_iso_data(USBHostDevice *s, USBPacket *p, int in)
 
     if (is_iso_started(s, p->devep)) {
         /* (Re)-submit all fully consumed / filled urbs */
-        for (i = 0; i < ISO_URB_COUNT; i++) {
+        for (i = 0; i < s->iso_urb_count; i++) {
             if (aurb[i].iso_frame_idx == ISO_FRAME_DESC_PER_URB) {
                 ret = ioctl(s->fd, USBDEVFS_SUBMITURB, &aurb[i]);
                 if (ret < 0) {
@@ -667,6 +693,7 @@ static int usb_host_handle_iso_data(USBHostDevice *s, USBPacket *p, int in)
                     break;
                 }
                 aurb[i].iso_frame_idx = -1;
+                change_iso_inflight(s, p->devep, +1);
             }
         }
     }
@@ -1061,6 +1088,42 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
     return 0;
 }
 
+/*
+ * Check if we can safely redirect a usb2 device to a usb1 virtual controller,
+ * this function assumes this is safe, if:
+ * 1) There are no isoc endpoints
+ * 2) There are no interrupt endpoints with a max_packet_size > 64
+ * Note bulk endpoints with a max_packet_size > 64 in theory also are not
+ * usb1 compatible, but in practice this seems to work fine.
+ */
+static int usb_linux_full_speed_compat(USBHostDevice *dev)
+{
+    int i, packet_size;
+
+    /*
+     * usb_linux_update_endp_table only registers info about ep in the current
+     * interface altsettings, so we need to parse the descriptors again.
+     */
+    for (i = 0; (i + 5) < dev->descr_len; i += dev->descr[i]) {
+        if (dev->descr[i + 1] == USB_DT_ENDPOINT) {
+            switch (dev->descr[i + 3] & 0x3) {
+            case 0x00: /* CONTROL */
+                break;
+            case 0x01: /* ISO */
+                return 0;
+            case 0x02: /* BULK */
+                break;
+            case 0x03: /* INTERRUPT */
+                packet_size = dev->descr[i + 4] + (dev->descr[i + 5] << 8);
+                if (packet_size > 64)
+                    return 0;
+                break;
+            }
+        }
+    }
+    return 1;
+}
+
 static int usb_host_open(USBHostDevice *dev, int bus_num,
                         int addr, char *port, const char *prod_name, int speed)
 {
@@ -1140,6 +1203,10 @@ static int usb_host_open(USBHostDevice *dev, int bus_num,
         }
     }
     dev->dev.speed = speed;
+    dev->dev.speedmask = (1 << speed);
+    if (dev->dev.speed == USB_SPEED_HIGH && usb_linux_full_speed_compat(dev)) {
+        dev->dev.speedmask |= USB_SPEED_MASK_FULL;
+    }
 
     printf("husb: grabbed usb device %d.%d\n", bus_num, addr);
 
@@ -1151,10 +1218,14 @@ static int usb_host_open(USBHostDevice *dev, int bus_num,
                 prod_name);
     }
 
+    ret = usb_device_attach(&dev->dev);
+    if (ret) {
+        goto fail;
+    }
+
     /* USB devio uses 'write' flag to check for async completions */
     qemu_set_fd_handler(dev->fd, NULL, async_complete, dev);
 
-    usb_device_attach(&dev->dev);
     return 0;
 
 fail:
@@ -1230,6 +1301,7 @@ static struct USBDeviceInfo usb_host_dev_info = {
         DEFINE_PROP_STRING("hostport", USBHostDevice, match.port),
         DEFINE_PROP_HEX32("vendorid",  USBHostDevice, match.vendor_id,  0),
         DEFINE_PROP_HEX32("productid", USBHostDevice, match.product_id, 0),
+        DEFINE_PROP_UINT32("isobufs",  USBHostDevice, iso_urb_count,    4),
         DEFINE_PROP_END_OF_LIST(),
     },
 };

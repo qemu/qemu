@@ -1271,6 +1271,7 @@ static int ccid_initfn(USBDevice *dev)
     s->migration_target_ip = 0;
     s->migration_target_port = 0;
     s->dev.speed = USB_SPEED_FULL;
+    s->dev.speedmask = USB_SPEED_MASK_FULL;
     s->notify_slot_change = false;
     s->powered = true;
     s->pending_answers_num = 0;

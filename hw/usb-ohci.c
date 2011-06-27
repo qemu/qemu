@@ -373,14 +373,25 @@ static void ohci_wakeup(USBDevice *dev)
     OHCIState *s = container_of(bus, OHCIState, bus);
     int portnum = dev->port->index;
     OHCIPort *port = &s->rhport[portnum];
+    uint32_t intr = 0;
     if (port->ctrl & OHCI_PORT_PSS) {
         DPRINTF("usb-ohci: port %d: wakeup\n", portnum);
         port->ctrl |= OHCI_PORT_PSSC;
         port->ctrl &= ~OHCI_PORT_PSS;
-        if ((s->ctl & OHCI_CTL_HCFS) == OHCI_USB_SUSPEND) {
-            ohci_set_interrupt(s, OHCI_INTR_RD);
-        }
+        intr = OHCI_INTR_RHSC;
     }
+    /* Note that the controller can be suspended even if this port is not */
+    if ((s->ctl & OHCI_CTL_HCFS) == OHCI_USB_SUSPEND) {
+        DPRINTF("usb-ohci: remote-wakeup: SUSPEND->RESUME\n");
+        /* This is the one state transition the controller can do by itself */
+        s->ctl &= ~OHCI_CTL_HCFS;
+        s->ctl |= OHCI_USB_RESUME;
+        /* In suspend mode only ResumeDetected is possible, not RHSC:
+         * see the OHCI spec 5.1.2.3.
+         */
+        intr = OHCI_INTR_RD;
+    }
+    ohci_set_interrupt(s, intr);
 }
 
 /* Reset the controller */
