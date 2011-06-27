@@ -3167,8 +3167,11 @@ void *qemu_safe_ram_ptr(ram_addr_t addr)
 
 /* Return a host pointer to guest's ram. Similar to qemu_get_ram_ptr
  * but takes a size argument */
-void *qemu_ram_ptr_length(target_phys_addr_t addr, target_phys_addr_t *size)
+void *qemu_ram_ptr_length(ram_addr_t addr, ram_addr_t *size)
 {
+    if (*size == 0) {
+        return NULL;
+    }
     if (xen_enabled()) {
         return xen_map_cache(addr, *size, 1);
     } else {
@@ -3184,9 +3187,6 @@ void *qemu_ram_ptr_length(target_phys_addr_t addr, target_phys_addr_t *size)
 
         fprintf(stderr, "Bad ram offset %" PRIx64 "\n", (uint64_t)addr);
         abort();
-
-        *size = 0;
-        return NULL;
     }
 }
 
@@ -4052,7 +4052,9 @@ void *cpu_physical_memory_map(target_phys_addr_t addr,
     target_phys_addr_t page;
     unsigned long pd;
     PhysPageDesc *p;
-    target_phys_addr_t addr1 = addr;
+    ram_addr_t raddr = ULONG_MAX;
+    ram_addr_t rlen;
+    void *ret;
 
     while (len > 0) {
         page = addr & TARGET_PAGE_MASK;
@@ -4080,13 +4082,18 @@ void *cpu_physical_memory_map(target_phys_addr_t addr,
             *plen = l;
             return bounce.buffer;
         }
+        if (!todo) {
+            raddr = (pd & TARGET_PAGE_MASK) + (addr & ~TARGET_PAGE_MASK);
+        }
 
         len -= l;
         addr += l;
         todo += l;
     }
-    *plen = todo;
-    return qemu_ram_ptr_length(addr1, plen);
+    rlen = todo;
+    ret = qemu_ram_ptr_length(raddr, &rlen);
+    *plen = rlen;
+    return ret;
 }
 
 /* Unmaps a memory region previously mapped by cpu_physical_memory_map().
