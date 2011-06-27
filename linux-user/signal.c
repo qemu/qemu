@@ -981,8 +981,8 @@ restore_sigcontext(CPUX86State *env, struct target_sigcontext *sc, int *peax)
         env->regs[R_ECX] = tswapl(sc->ecx);
         env->eip = tswapl(sc->eip);
 
-        cpu_x86_load_seg(env, R_CS, lduw(&sc->cs) | 3);
-        cpu_x86_load_seg(env, R_SS, lduw(&sc->ss) | 3);
+        cpu_x86_load_seg(env, R_CS, lduw_p(&sc->cs) | 3);
+        cpu_x86_load_seg(env, R_SS, lduw_p(&sc->ss) | 3);
 
         tmpflags = tswapl(sc->eflags);
         env->eflags = (env->eflags & ~0x40DD5) | (tmpflags & 0x40DD5);
@@ -2080,7 +2080,6 @@ long do_sigreturn(CPUState *env)
         uint32_t up_psr, pc, npc;
         target_sigset_t set;
         sigset_t host_set;
-        abi_ulong fpu_save_addr;
         int err, i;
 
         sf_addr = env->regwptr[UREG_FP];
@@ -2120,10 +2119,11 @@ long do_sigreturn(CPUState *env)
 		err |= __get_user(env->regwptr[i + UREG_I0], &sf->info.si_regs.u_regs[i+8]);
 	}
 
-        err |= __get_user(fpu_save_addr, &sf->fpu_save);
-
-        //if (fpu_save)
-        //        err |= restore_fpu_state(env, fpu_save);
+        /* FIXME: implement FPU save/restore:
+         * __get_user(fpu_save, &sf->fpu_save);
+         * if (fpu_save)
+         *        err |= restore_fpu_state(env, fpu_save);
+         */
 
         /* This is pretty much atomic, no amount locking would prevent
          * the races which exist anyways.
@@ -2228,7 +2228,6 @@ void sparc64_set_context(CPUSPARCState *env)
     target_mc_gregset_t *grp;
     abi_ulong pc, npc, tstate;
     abi_ulong fp, i7, w_addr;
-    unsigned char fenab;
     int err;
     unsigned int i;
 
@@ -2293,7 +2292,11 @@ void sparc64_set_context(CPUSPARCState *env)
     if (put_user(i7, w_addr + offsetof(struct target_reg_window, ins[7]), 
                  abi_ulong) != 0)
         goto do_sigsegv;
-    err |= __get_user(fenab, &(ucp->tuc_mcontext.mc_fpregs.mcfpu_enab));
+    /* FIXME this does not match how the kernel handles the FPU in
+     * its sparc64_set_context implementation. In particular the FPU
+     * is only restored if fenab is non-zero in:
+     *   __get_user(fenab, &(ucp->tuc_mcontext.mc_fpregs.mcfpu_enab));
+     */
     err |= __get_user(env->fprs, &(ucp->tuc_mcontext.mc_fpregs.mcfpu_fprs));
     {
         uint32_t *src, *dst;

@@ -550,6 +550,15 @@ _syscall5(int, sys_ppoll, struct pollfd *, fds, nfds_t, nfds,
           size_t, sigsetsize)
 #endif
 
+#if defined(TARGET_NR_pselect6)
+#ifndef __NR_pselect6
+# define __NR_pselect6 -1
+#endif
+#define __NR_sys_pselect6 __NR_pselect6
+_syscall6(int, sys_pselect6, int, nfds, fd_set *, readfds, fd_set *, writefds,
+          fd_set *, exceptfds, struct timespec *, timeout, void *, sig);
+#endif
+
 extern int personality(int);
 extern int flock(int, int);
 extern int setfsuid(int);
@@ -709,49 +718,81 @@ char *target_strerror(int err)
 
 static abi_ulong target_brk;
 static abi_ulong target_original_brk;
+static abi_ulong brk_page;
 
 void target_set_brk(abi_ulong new_brk)
 {
     target_original_brk = target_brk = HOST_PAGE_ALIGN(new_brk);
+    brk_page = HOST_PAGE_ALIGN(target_brk);
 }
+
+//#define DEBUGF_BRK(message, args...) do { fprintf(stderr, (message), ## args); } while (0)
+#define DEBUGF_BRK(message, args...)
 
 /* do_brk() must return target values and target errnos. */
 abi_long do_brk(abi_ulong new_brk)
 {
-    abi_ulong brk_page;
     abi_long mapped_addr;
     int	new_alloc_size;
 
-    if (!new_brk)
-        return target_brk;
-    if (new_brk < target_original_brk)
-        return target_brk;
+    DEBUGF_BRK("do_brk(%#010x) -> ", new_brk);
 
-    brk_page = HOST_PAGE_ALIGN(target_brk);
+    if (!new_brk) {
+        DEBUGF_BRK("%#010x (!new_brk)\n", target_brk);
+        return target_brk;
+    }
+    if (new_brk < target_original_brk) {
+        DEBUGF_BRK("%#010x (new_brk < target_original_brk)\n", target_brk);
+        return target_brk;
+    }
 
-    /* If the new brk is less than this, set it and we're done... */
-    if (new_brk < brk_page) {
+    /* If the new brk is less than the highest page reserved to the
+     * target heap allocation, set it and we're almost done...  */
+    if (new_brk <= brk_page) {
+        /* Heap contents are initialized to zero, as for anonymous
+         * mapped pages.  */
+        if (new_brk > target_brk) {
+            memset(g2h(target_brk), 0, new_brk - target_brk);
+        }
 	target_brk = new_brk;
+        DEBUGF_BRK("%#010x (new_brk <= brk_page)\n", target_brk);
     	return target_brk;
     }
 
-    /* We need to allocate more memory after the brk... */
-    new_alloc_size = HOST_PAGE_ALIGN(new_brk - brk_page + 1);
+    /* We need to allocate more memory after the brk... Note that
+     * we don't use MAP_FIXED because that will map over the top of
+     * any existing mapping (like the one with the host libc or qemu
+     * itself); instead we treat "mapped but at wrong address" as
+     * a failure and unmap again.
+     */
+    new_alloc_size = HOST_PAGE_ALIGN(new_brk - brk_page);
     mapped_addr = get_errno(target_mmap(brk_page, new_alloc_size,
                                         PROT_READ|PROT_WRITE,
-                                        MAP_ANON|MAP_FIXED|MAP_PRIVATE, 0, 0));
+                                        MAP_ANON|MAP_PRIVATE, 0, 0));
+
+    if (mapped_addr == brk_page) {
+        target_brk = new_brk;
+        brk_page = HOST_PAGE_ALIGN(target_brk);
+        DEBUGF_BRK("%#010x (mapped_addr == brk_page)\n", target_brk);
+        return target_brk;
+    } else if (mapped_addr != -1) {
+        /* Mapped but at wrong address, meaning there wasn't actually
+         * enough space for this brk.
+         */
+        target_munmap(mapped_addr, new_alloc_size);
+        mapped_addr = -1;
+        DEBUGF_BRK("%#010x (mapped_addr != -1)\n", target_brk);
+    }
+    else {
+        DEBUGF_BRK("%#010x (otherwise)\n", target_brk);
+    }
 
 #if defined(TARGET_ALPHA)
     /* We (partially) emulate OSF/1 on Alpha, which requires we
        return a proper errno, not an unchanged brk value.  */
-    if (is_error(mapped_addr)) {
-        return -TARGET_ENOMEM;
-    }
+    return -TARGET_ENOMEM;
 #endif
-
-    if (!is_error(mapped_addr)) {
-	target_brk = new_brk;
-    }
+    /* For everything else, return the previous break. */
     return target_brk;
 }
 
@@ -784,6 +825,20 @@ static inline abi_long copy_from_user_fdset(fd_set *fds,
 
     unlock_user(target_fds, target_fds_addr, 0);
 
+    return 0;
+}
+
+static inline abi_ulong copy_from_user_fdset_ptr(fd_set *fds, fd_set **fds_ptr,
+                                                 abi_ulong target_fds_addr,
+                                                 int n)
+{
+    if (target_fds_addr) {
+        if (copy_from_user_fdset(fds, target_fds_addr, n))
+            return -TARGET_EFAULT;
+        *fds_ptr = fds;
+    } else {
+        *fds_ptr = NULL;
+    }
     return 0;
 }
 
@@ -952,6 +1007,7 @@ static inline abi_long copy_to_user_mq_attr(abi_ulong target_mq_attr_addr,
 }
 #endif
 
+#if defined(TARGET_NR_select) || defined(TARGET_NR__newselect)
 /* do_select() must return target values and target errnos. */
 static abi_long do_select(int n,
                           abi_ulong rfd_addr, abi_ulong wfd_addr,
@@ -962,26 +1018,17 @@ static abi_long do_select(int n,
     struct timeval tv, *tv_ptr;
     abi_long ret;
 
-    if (rfd_addr) {
-        if (copy_from_user_fdset(&rfds, rfd_addr, n))
-            return -TARGET_EFAULT;
-        rfds_ptr = &rfds;
-    } else {
-        rfds_ptr = NULL;
+    ret = copy_from_user_fdset_ptr(&rfds, &rfds_ptr, rfd_addr, n);
+    if (ret) {
+        return ret;
     }
-    if (wfd_addr) {
-        if (copy_from_user_fdset(&wfds, wfd_addr, n))
-            return -TARGET_EFAULT;
-        wfds_ptr = &wfds;
-    } else {
-        wfds_ptr = NULL;
+    ret = copy_from_user_fdset_ptr(&wfds, &wfds_ptr, wfd_addr, n);
+    if (ret) {
+        return ret;
     }
-    if (efd_addr) {
-        if (copy_from_user_fdset(&efds, efd_addr, n))
-            return -TARGET_EFAULT;
-        efds_ptr = &efds;
-    } else {
-        efds_ptr = NULL;
+    ret = copy_from_user_fdset_ptr(&efds, &efds_ptr, efd_addr, n);
+    if (ret) {
+        return ret;
     }
 
     if (target_tv_addr) {
@@ -1008,6 +1055,7 @@ static abi_long do_select(int n,
 
     return ret;
 }
+#endif
 
 static abi_long do_pipe2(int host_pipe[], int flags)
 {
@@ -3751,10 +3799,10 @@ static abi_long do_get_thread_area(CPUX86State *env, abi_ulong ptr)
 #ifndef TARGET_ABI32
 static abi_long do_arch_prctl(CPUX86State *env, int code, abi_ulong addr)
 {
-    abi_long ret;
+    abi_long ret = 0;
     abi_ulong val;
     int idx;
-    
+
     switch(code) {
     case TARGET_ARCH_SET_GS:
     case TARGET_ARCH_SET_FS:
@@ -3773,13 +3821,13 @@ static abi_long do_arch_prctl(CPUX86State *env, int code, abi_ulong addr)
             idx = R_FS;
         val = env->segs[idx].base;
         if (put_user(val, addr, abi_ulong))
-            return -TARGET_EFAULT;
+            ret = -TARGET_EFAULT;
         break;
     default:
         ret = -TARGET_EINVAL;
         break;
     }
-    return 0;
+    return ret;
 }
 #endif
 
@@ -4484,7 +4532,8 @@ int get_osversion(void)
    All errnos that do_syscall() returns must be -TARGET_<errcode>. */
 abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     abi_long arg2, abi_long arg3, abi_long arg4,
-                    abi_long arg5, abi_long arg6)
+                    abi_long arg5, abi_long arg6, abi_long arg7,
+                    abi_long arg8)
 {
     abi_long ret;
     struct stat st;
@@ -5569,7 +5618,102 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_pselect6
     case TARGET_NR_pselect6:
-	    goto unimplemented_nowarn;
+        {
+            abi_long rfd_addr, wfd_addr, efd_addr, n, ts_addr;
+            fd_set rfds, wfds, efds;
+            fd_set *rfds_ptr, *wfds_ptr, *efds_ptr;
+            struct timespec ts, *ts_ptr;
+
+            /*
+             * The 6th arg is actually two args smashed together,
+             * so we cannot use the C library.
+             */
+            sigset_t set;
+            struct {
+                sigset_t *set;
+                size_t size;
+            } sig, *sig_ptr;
+
+            abi_ulong arg_sigset, arg_sigsize, *arg7;
+            target_sigset_t *target_sigset;
+
+            n = arg1;
+            rfd_addr = arg2;
+            wfd_addr = arg3;
+            efd_addr = arg4;
+            ts_addr = arg5;
+
+            ret = copy_from_user_fdset_ptr(&rfds, &rfds_ptr, rfd_addr, n);
+            if (ret) {
+                goto fail;
+            }
+            ret = copy_from_user_fdset_ptr(&wfds, &wfds_ptr, wfd_addr, n);
+            if (ret) {
+                goto fail;
+            }
+            ret = copy_from_user_fdset_ptr(&efds, &efds_ptr, efd_addr, n);
+            if (ret) {
+                goto fail;
+            }
+
+            /*
+             * This takes a timespec, and not a timeval, so we cannot
+             * use the do_select() helper ...
+             */
+            if (ts_addr) {
+                if (target_to_host_timespec(&ts, ts_addr)) {
+                    goto efault;
+                }
+                ts_ptr = &ts;
+            } else {
+                ts_ptr = NULL;
+            }
+
+            /* Extract the two packed args for the sigset */
+            if (arg6) {
+                sig_ptr = &sig;
+                sig.size = _NSIG / 8;
+
+                arg7 = lock_user(VERIFY_READ, arg6, sizeof(*arg7) * 2, 1);
+                if (!arg7) {
+                    goto efault;
+                }
+                arg_sigset = tswapl(arg7[0]);
+                arg_sigsize = tswapl(arg7[1]);
+                unlock_user(arg7, arg6, 0);
+
+                if (arg_sigset) {
+                    sig.set = &set;
+                    target_sigset = lock_user(VERIFY_READ, arg_sigset,
+                                              sizeof(*target_sigset), 1);
+                    if (!target_sigset) {
+                        goto efault;
+                    }
+                    target_to_host_sigset(&set, target_sigset);
+                    unlock_user(target_sigset, arg_sigset, 0);
+                } else {
+                    sig.set = NULL;
+                }
+            } else {
+                sig_ptr = NULL;
+            }
+
+            ret = get_errno(sys_pselect6(n, rfds_ptr, wfds_ptr, efds_ptr,
+                                         ts_ptr, sig_ptr));
+
+            if (!is_error(ret)) {
+                if (rfd_addr && copy_to_user_fdset(rfd_addr, &rfds, n))
+                    goto efault;
+                if (wfd_addr && copy_to_user_fdset(wfd_addr, &wfds, n))
+                    goto efault;
+                if (efd_addr && copy_to_user_fdset(efd_addr, &efds, n))
+                    goto efault;
+
+                if (ts_addr && host_to_target_timespec(ts_addr, &ts))
+                    goto efault;
+            }
+        }
+        break;
 #endif
     case TARGET_NR_symlink:
         {
@@ -6029,8 +6173,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_syscall
     case TARGET_NR_syscall:
-    	ret = do_syscall(cpu_env,arg1 & 0xffff,arg2,arg3,arg4,arg5,arg6,0);
-    	break;
+        ret = do_syscall(cpu_env, arg1 & 0xffff, arg2, arg3, arg4, arg5,
+                         arg6, arg7, arg8, 0);
+        break;
 #endif
     case TARGET_NR_wait4:
         {
@@ -7058,7 +7203,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_osf_sigprocmask:
         {
             abi_ulong mask;
-            int how = arg1;
+            int how;
             sigset_t set, oldset;
 
             switch(arg1) {
@@ -7077,7 +7222,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
             mask = arg2;
             target_to_host_old_sigset(&set, &mask);
-            sigprocmask(arg1, &set, &oldset);
+            sigprocmask(how, &set, &oldset);
             host_to_target_old_sigset(&mask, &oldset);
             ret = mask;
         }
@@ -7717,8 +7862,13 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_sync_file_range)
     case TARGET_NR_sync_file_range:
 #if TARGET_ABI_BITS == 32
+#if defined(TARGET_MIPS)
+        ret = get_errno(sync_file_range(arg1, target_offset64(arg3, arg4),
+                                        target_offset64(arg5, arg6), arg7));
+#else
         ret = get_errno(sync_file_range(arg1, target_offset64(arg2, arg3),
                                         target_offset64(arg4, arg5), arg6));
+#endif /* !TARGET_MIPS */
 #else
         ret = get_errno(sync_file_range(arg1, arg2, arg3, arg4));
 #endif

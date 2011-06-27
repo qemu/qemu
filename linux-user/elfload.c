@@ -927,7 +927,7 @@ struct exec
 #define TARGET_ELF_PAGESTART(_v) ((_v) & ~(unsigned long)(TARGET_ELF_EXEC_PAGESIZE-1))
 #define TARGET_ELF_PAGEOFFSET(_v) ((_v) & (TARGET_ELF_EXEC_PAGESIZE-1))
 
-#define DLINFO_ITEMS 12
+#define DLINFO_ITEMS 13
 
 static inline void memcpy_fromfs(void * to, const void * from, unsigned long n)
 {
@@ -1202,6 +1202,9 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
 {
     abi_ulong sp;
     int size;
+    int i;
+    abi_ulong u_rand_bytes;
+    uint8_t k_rand_bytes[16];
     abi_ulong u_platform;
     const char *k_platform;
     const int n = sizeof(elf_addr_t);
@@ -1231,6 +1234,20 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
         /* FIXME - check return value of memcpy_to_target() for failure */
         memcpy_to_target(sp, k_platform, len);
     }
+
+    /*
+     * Generate 16 random bytes for userspace PRNG seeding (not
+     * cryptically secure but it's not the aim of QEMU).
+     */
+    srand((unsigned int) time(NULL));
+    for (i = 0; i < 16; i++) {
+        k_rand_bytes[i] = rand();
+    }
+    sp -= 16;
+    u_rand_bytes = sp;
+    /* FIXME - check return value of memcpy_to_target() for failure */
+    memcpy_to_target(sp, k_rand_bytes, 16);
+
     /*
      * Force 16 byte _final_ alignment here for generality.
      */
@@ -1271,6 +1288,8 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     NEW_AUX_ENT(AT_EGID, (abi_ulong) getegid());
     NEW_AUX_ENT(AT_HWCAP, (abi_ulong) ELF_HWCAP);
     NEW_AUX_ENT(AT_CLKTCK, (abi_ulong) sysconf(_SC_CLK_TCK));
+    NEW_AUX_ENT(AT_RANDOM, (abi_ulong) u_rand_bytes);
+
     if (k_platform)
         NEW_AUX_ENT(AT_PLATFORM, u_platform);
 #ifdef ARCH_DLINFO
@@ -1287,6 +1306,78 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     sp = loader_build_argptr(envc, argc, sp, p, 0);
     return sp;
 }
+
+static void probe_guest_base(const char *image_name,
+                             abi_ulong loaddr, abi_ulong hiaddr)
+{
+    /* Probe for a suitable guest base address, if the user has not set
+     * it explicitly, and set guest_base appropriately.
+     * In case of error we will print a suitable message and exit.
+     */
+#if defined(CONFIG_USE_GUEST_BASE)
+    const char *errmsg;
+    if (!have_guest_base && !reserved_va) {
+        unsigned long host_start, real_start, host_size;
+
+        /* Round addresses to page boundaries.  */
+        loaddr &= qemu_host_page_mask;
+        hiaddr = HOST_PAGE_ALIGN(hiaddr);
+
+        if (loaddr < mmap_min_addr) {
+            host_start = HOST_PAGE_ALIGN(mmap_min_addr);
+        } else {
+            host_start = loaddr;
+            if (host_start != loaddr) {
+                errmsg = "Address overflow loading ELF binary";
+                goto exit_errmsg;
+            }
+        }
+        host_size = hiaddr - loaddr;
+        while (1) {
+            /* Do not use mmap_find_vma here because that is limited to the
+               guest address space.  We are going to make the
+               guest address space fit whatever we're given.  */
+            real_start = (unsigned long)
+                mmap((void *)host_start, host_size, PROT_NONE,
+                     MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0);
+            if (real_start == (unsigned long)-1) {
+                goto exit_perror;
+            }
+            if (real_start == host_start) {
+                break;
+            }
+            /* That address didn't work.  Unmap and try a different one.
+               The address the host picked because is typically right at
+               the top of the host address space and leaves the guest with
+               no usable address space.  Resort to a linear search.  We
+               already compensated for mmap_min_addr, so this should not
+               happen often.  Probably means we got unlucky and host
+               address space randomization put a shared library somewhere
+               inconvenient.  */
+            munmap((void *)real_start, host_size);
+            host_start += qemu_host_page_size;
+            if (host_start == loaddr) {
+                /* Theoretically possible if host doesn't have any suitably
+                   aligned areas.  Normally the first mmap will fail.  */
+                errmsg = "Unable to find space for application";
+                goto exit_errmsg;
+            }
+        }
+        qemu_log("Relocating guest address space from 0x"
+                 TARGET_ABI_FMT_lx " to 0x%lx\n",
+                 loaddr, real_start);
+        guest_base = real_start - loaddr;
+    }
+    return;
+
+exit_perror:
+    errmsg = strerror(errno);
+exit_errmsg:
+    fprintf(stderr, "%s: %s\n", image_name, errmsg);
+    exit(-1);
+#endif
+}
+
 
 /* Load an ELF image into the address space.
 
@@ -1373,63 +1464,7 @@ static void load_elf_image(const char *image_name, int image_fd,
         /* This is the main executable.  Make sure that the low
            address does not conflict with MMAP_MIN_ADDR or the
            QEMU application itself.  */
-#if defined(CONFIG_USE_GUEST_BASE)
-        /*
-         * In case where user has not explicitly set the guest_base, we
-         * probe here that should we set it automatically.
-         */
-        if (!have_guest_base && !reserved_va) {
-            unsigned long host_start, real_start, host_size;
-
-            /* Round addresses to page boundaries.  */
-            loaddr &= qemu_host_page_mask;
-            hiaddr = HOST_PAGE_ALIGN(hiaddr);
-
-            if (loaddr < mmap_min_addr) {
-                host_start = HOST_PAGE_ALIGN(mmap_min_addr);
-            } else {
-                host_start = loaddr;
-                if (host_start != loaddr) {
-                    errmsg = "Address overflow loading ELF binary";
-                    goto exit_errmsg;
-                }
-            }
-            host_size = hiaddr - loaddr;
-            while (1) {
-                /* Do not use mmap_find_vma here because that is limited to the
-                   guest address space.  We are going to make the
-                   guest address space fit whatever we're given.  */
-                real_start = (unsigned long)
-                    mmap((void *)host_start, host_size, PROT_NONE,
-                         MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0);
-                if (real_start == (unsigned long)-1) {
-                    goto exit_perror;
-                }
-                if (real_start == host_start) {
-                    break;
-                }
-                /* That address didn't work.  Unmap and try a different one.
-                   The address the host picked because is typically right at
-                   the top of the host address space and leaves the guest with
-                   no usable address space.  Resort to a linear search.  We
-                   already compensated for mmap_min_addr, so this should not
-                   happen often.  Probably means we got unlucky and host
-                   address space randomization put a shared library somewhere
-                   inconvenient.  */
-                munmap((void *)real_start, host_size);
-                host_start += qemu_host_page_size;
-                if (host_start == loaddr) {
-                    /* Theoretically possible if host doesn't have any suitably
-                       aligned areas.  Normally the first mmap will fail.  */
-                    errmsg = "Unable to find space for application";
-                    goto exit_errmsg;
-                }
-            }
-            qemu_log("Relocating guest address space from 0x"
-                     TARGET_ABI_FMT_lx " to 0x%lx\n", loaddr, real_start);
-            guest_base = real_start - loaddr;
-        }
-#endif
+        probe_guest_base(image_name, loaddr, hiaddr);
     }
     load_bias = load_addr - loaddr;
 
@@ -1643,9 +1678,9 @@ static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
 {
     int i, shnum, nsyms, sym_idx = 0, str_idx = 0;
     struct elf_shdr *shdr;
-    char *strings;
-    struct syminfo *s;
-    struct elf_sym *syms, *new_syms;
+    char *strings = NULL;
+    struct syminfo *s = NULL;
+    struct elf_sym *new_syms, *syms = NULL;
 
     shnum = hdr->e_shnum;
     i = shnum * sizeof(struct elf_shdr);
@@ -1670,24 +1705,19 @@ static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
     /* Now know where the strtab and symtab are.  Snarf them.  */
     s = malloc(sizeof(*s));
     if (!s) {
-        return;
+        goto give_up;
     }
 
     i = shdr[str_idx].sh_size;
     s->disas_strtab = strings = malloc(i);
     if (!strings || pread(fd, strings, i, shdr[str_idx].sh_offset) != i) {
-        free(s);
-        free(strings);
-        return;
+        goto give_up;
     }
 
     i = shdr[sym_idx].sh_size;
     syms = malloc(i);
     if (!syms || pread(fd, syms, i, shdr[sym_idx].sh_offset) != i) {
-        free(s);
-        free(strings);
-        free(syms);
-        return;
+        goto give_up;
     }
 
     nsyms = i / sizeof(struct elf_sym);
@@ -1710,16 +1740,18 @@ static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
         }
     }
 
+    /* No "useful" symbol.  */
+    if (nsyms == 0) {
+        goto give_up;
+    }
+
     /* Attempt to free the storage associated with the local symbols
        that we threw away.  Whether or not this has any effect on the
        memory allocation depends on the malloc implementation and how
        many symbols we managed to discard.  */
     new_syms = realloc(syms, nsyms * sizeof(*syms));
     if (new_syms == NULL) {
-        free(s);
-        free(syms);
-        free(strings);
-        return;
+        goto give_up;
     }
     syms = new_syms;
 
@@ -1734,6 +1766,13 @@ static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
     s->lookup_symbol = lookup_symbolxx;
     s->next = syminfos;
     syminfos = s;
+
+    return;
+
+give_up:
+    free(s);
+    free(strings);
+    free(syms);
 }
 
 int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,

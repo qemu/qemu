@@ -379,12 +379,11 @@ static int load_flat_file(struct linux_binprm * bprm,
     abi_long result;
     abi_ulong realdatastart = 0;
     abi_ulong text_len, data_len, bss_len, stack_len, flags;
-    abi_ulong memp = 0; /* for finding the brk area */
     abi_ulong extra;
     abi_ulong reloc = 0, rp;
     int i, rev, relocs = 0;
     abi_ulong fpos;
-    abi_ulong start_code, end_code;
+    abi_ulong start_code;
     abi_ulong indx_len;
 
     hdr = ((struct flat_hdr *) bprm->buf);		/* exec-header */
@@ -491,7 +490,6 @@ static int load_flat_file(struct linux_binprm * bprm,
         }
 
         reloc = datapos + (ntohl(hdr->reloc_start) - text_len);
-        memp = realdatastart;
 
     } else {
 
@@ -506,7 +504,6 @@ static int load_flat_file(struct linux_binprm * bprm,
         realdatastart = textpos + ntohl(hdr->data_start);
         datapos = realdatastart + indx_len;
         reloc = (textpos + ntohl(hdr->reloc_start) + indx_len);
-        memp = textpos;
 
 #ifdef CONFIG_BINFMT_ZFLAT
 #error code needs checking
@@ -552,11 +549,10 @@ static int load_flat_file(struct linux_binprm * bprm,
 
     /* The main program needs a little extra setup in the task structure */
     start_code = textpos + sizeof (struct flat_hdr);
-    end_code = textpos + text_len;
 
     DBG_FLT("%s %s: TEXT=%x-%x DATA=%x-%x BSS=%x-%x\n",
             id ? "Lib" : "Load", bprm->filename,
-            (int) start_code, (int) end_code,
+            (int) start_code, (int) (textpos + text_len),
             (int) datapos,
             (int) (datapos + data_len),
             (int) (datapos + data_len),

@@ -440,15 +440,16 @@ uint32_t do_arm_semihosting(CPUState *env)
             /* Some C libraries assume the heap immediately follows .bss, so
                allocate it using sbrk.  */
             if (!ts->heap_limit) {
-                long ret;
+                abi_ulong ret;
 
                 ts->heap_base = do_brk(0);
                 limit = ts->heap_base + ARM_ANGEL_HEAP_SIZE;
                 /* Try a big heap, and reduce the size if that fails.  */
                 for (;;) {
                     ret = do_brk(limit);
-                    if (ret != -1)
+                    if (ret >= limit) {
                         break;
+                    }
                     limit = (ts->heap_base >> 1) + (limit >> 1);
                 }
                 ts->heap_limit = limit;
