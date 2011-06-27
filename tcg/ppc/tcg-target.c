@@ -982,11 +982,6 @@ static void ppc_addi (TCGContext *s, int rt, int ra, tcg_target_long si)
     }
 }
 
-static void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val)
-{
-    ppc_addi (s, reg, reg, val);
-}
-
 static void tcg_out_cmp (TCGContext *s, int cond, TCGArg arg1, TCGArg arg2,
                          int const_arg2, int cr)
 {
