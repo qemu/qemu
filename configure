@@ -146,6 +146,7 @@ datadir="\${prefix}/share/qemu"
 docdir="\${prefix}/share/doc/qemu"
 bindir="\${prefix}/bin"
 libdir="\${prefix}/lib"
+includedir="\${prefix}/include"
 sysconfdir="\${prefix}/etc"
 confsuffix="/qemu"
 slirp="yes"
@@ -538,6 +539,8 @@ for opt do
   --bindir=*) bindir="$optarg"
   ;;
   --libdir=*) libdir="$optarg"
+  ;;
+  --includedir=*) includedir="$optarg"
   ;;
   --datadir=*) datadir="$optarg"
   ;;
@@ -2542,6 +2545,7 @@ echo "Install prefix    $prefix"
 echo "BIOS directory    `eval echo $datadir`"
 echo "binary directory  `eval echo $bindir`"
 echo "library directory `eval echo $libdir`"
+echo "include directory `eval echo $includedir`"
 echo "config directory  `eval echo $sysconfdir`"
 if test "$mingw32" = "no" ; then
 echo "Manual directory  `eval echo $mandir`"
@@ -2635,6 +2639,7 @@ echo all: >> $config_host_mak
 echo "prefix=$prefix" >> $config_host_mak
 echo "bindir=$bindir" >> $config_host_mak
 echo "libdir=$libdir" >> $config_host_mak
+echo "includedir=$includedir" >> $config_host_mak
 echo "mandir=$mandir" >> $config_host_mak
 echo "datadir=$datadir" >> $config_host_mak
 echo "sysconfdir=$sysconfdir" >> $config_host_mak
