@@ -103,7 +103,7 @@ static uint32_t ac97_read(void *opaque, target_phys_addr_t addr)
         break;
 
     default:
-        error_report("milkymist_ac97: read access to unkown register 0x"
+        error_report("milkymist_ac97: read access to unknown register 0x"
                 TARGET_FMT_plx, addr << 2);
         break;
     }
@@ -152,7 +152,7 @@ static void ac97_write(void *opaque, target_phys_addr_t addr, uint32_t value)
         break;
 
     default:
-        error_report("milkymist_ac97: write access to unkown register 0x"
+        error_report("milkymist_ac97: write access to unknown register 0x"
                 TARGET_FMT_plx, addr);
         break;
     }

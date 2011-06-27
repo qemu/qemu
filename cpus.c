@@ -33,7 +33,10 @@
 
 #include "qemu-thread.h"
 #include "cpus.h"
+
+#ifndef _WIN32
 #include "compatfd.h"
+#endif
 
 #ifdef SIGRTMIN
 #define SIG_IPI (SIGRTMIN+4)

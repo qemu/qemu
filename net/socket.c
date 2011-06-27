@@ -530,7 +530,7 @@ int net_init_socket(QemuOpts *opts,
             qemu_opt_get(opts, "connect") ||
             qemu_opt_get(opts, "mcast") ||
             qemu_opt_get(opts, "localaddr")) {
-            error_report("listen=, connect=, mcast= and localaddr= is invalid with fd=\n");
+            error_report("listen=, connect=, mcast= and localaddr= is invalid with fd=");
             return -1;
         }
 
@@ -550,7 +550,7 @@ int net_init_socket(QemuOpts *opts,
             qemu_opt_get(opts, "connect") ||
             qemu_opt_get(opts, "mcast") ||
             qemu_opt_get(opts, "localaddr")) {
-            error_report("fd=, connect=, mcast= and localaddr= is invalid with listen=\n");
+            error_report("fd=, connect=, mcast= and localaddr= is invalid with listen=");
             return -1;
         }
 
@@ -566,7 +566,7 @@ int net_init_socket(QemuOpts *opts,
             qemu_opt_get(opts, "listen") ||
             qemu_opt_get(opts, "mcast") ||
             qemu_opt_get(opts, "localaddr")) {
-            error_report("fd=, listen=, mcast= and localaddr= is invalid with connect=\n");
+            error_report("fd=, listen=, mcast= and localaddr= is invalid with connect=");
             return -1;
         }
 

@@ -1536,14 +1536,14 @@ StrongARMState *sa1110_init(unsigned int sdram_size, const char *rev)
     }
 
     if (strncmp(rev, "sa1110", 6)) {
-        error_report("Machine requires a SA1110 processor.\n");
+        error_report("Machine requires a SA1110 processor.");
         exit(1);
     }
 
     s->env = cpu_init(rev);
 
     if (!s->env) {
-        error_report("Unable to find CPU definition\n");
+        error_report("Unable to find CPU definition");
         exit(1);
     }
 

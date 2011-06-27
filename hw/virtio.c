@@ -797,7 +797,7 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
             /* Check it isn't doing very strange things with descriptor numbers. */
             if (nheads > vdev->vq[i].vring.num) {
                 error_report("VQ %d size 0x%x Guest index 0x%x "
-                             "inconsistent with Host index 0x%x: delta 0x%x\n",
+                             "inconsistent with Host index 0x%x: delta 0x%x",
                              i, vdev->vq[i].vring.num,
                              vring_avail_idx(&vdev->vq[i]),
                              vdev->vq[i].last_avail_idx, nheads);
@@ -805,7 +805,7 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
             }
         } else if (vdev->vq[i].last_avail_idx) {
             error_report("VQ %d address 0x0 "
-                         "inconsistent with Host index 0x%x\n",
+                         "inconsistent with Host index 0x%x",
                          i, vdev->vq[i].last_avail_idx);
                 return -1;
 	}

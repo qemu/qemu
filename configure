@@ -1640,7 +1640,7 @@ for drv in $audio_drv_list; do
 
     pa)
     audio_drv_probe $drv pulse/simple.h "-lpulse-simple -lpulse" \
-        "pa_simple *s = NULL; pa_simple_free(s); return 0;"
+        "pa_simple *s = 0; pa_simple_free(s); return 0;"
     libs_softmmu="-lpulse -lpulse-simple $libs_softmmu"
     audio_pt_int="yes"
     ;;
@@ -3483,7 +3483,9 @@ for bios_file in $source_path/pc-bios/*.bin $source_path/pc-bios/*.rom $source_p
 done
 mkdir -p $DIRS
 for f in $FILES ; do
-    test -e $f || symlink $source_path/$f $f
+    if [ -e "$source_path/$f" ] && ! [ -e "$f" ]; then
+        symlink "$source_path/$f" "$f"
+    fi
 done
 
 # temporary config to build submodules

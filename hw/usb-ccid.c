@@ -1240,7 +1240,7 @@ static int ccid_card_init(DeviceState *qdev, DeviceInfo *base)
         return -1;
     }
     if (s->card != NULL) {
-        error_report("Warning: usb-ccid card already full, not adding\n");
+        error_report("Warning: usb-ccid card already full, not adding");
         return -1;
     }
     ret = info->initfn ? info->initfn(card) : ret;

@@ -371,7 +371,7 @@ void qdev_init_nofail(DeviceState *dev)
     DeviceInfo *info = dev->info;
 
     if (qdev_init(dev) < 0) {
-        error_report("Initialization of device %s failed\n", info->name);
+        error_report("Initialization of device %s failed", info->name);
         exit(1);
     }
 }

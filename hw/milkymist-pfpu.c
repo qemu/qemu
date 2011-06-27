@@ -301,7 +301,7 @@ static int pfpu_decode_insn(MilkymistPFPUState *s)
     } break;
 
     default:
-        error_report("milkymist_pfpu: unknown opcode %d\n", op);
+        error_report("milkymist_pfpu: unknown opcode %d", op);
         break;
     }
 
@@ -358,7 +358,7 @@ static void pfpu_start(MilkymistPFPUState *s)
                 /* decode at most MICROCODE_WORDS instructions */
                 if (i++ >= MICROCODE_WORDS) {
                     error_report("milkymist_pfpu: too many instructions "
-                            "executed in microcode. No VECTOUT?\n");
+                            "executed in microcode. No VECTOUT?");
                     break;
                 }
             }

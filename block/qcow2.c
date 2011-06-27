@@ -936,7 +936,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         (1 << cluster_bits) != cluster_size)
     {
         error_report(
-            "Cluster size must be a power of two between %d and %dk\n",
+            "Cluster size must be a power of two between %d and %dk",
             1 << MIN_CLUSTER_BITS, 1 << (MAX_CLUSTER_BITS - 10));
         return -EINVAL;
     }
