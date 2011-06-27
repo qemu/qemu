@@ -559,6 +559,21 @@ _syscall6(int, sys_pselect6, int, nfds, fd_set *, readfds, fd_set *, writefds,
           fd_set *, exceptfds, struct timespec *, timeout, void *, sig);
 #endif
 
+#if defined(TARGET_NR_prlimit64)
+#ifndef __NR_prlimit64
+# define __NR_prlimit64 -1
+#endif
+#define __NR_sys_prlimit64 __NR_prlimit64
+/* The glibc rlimit structure may not be that used by the underlying syscall */
+struct host_rlimit64 {
+    uint64_t rlim_cur;
+    uint64_t rlim_max;
+};
+_syscall4(int, sys_prlimit64, pid_t, pid, int, resource,
+          const struct host_rlimit64 *, new_limit,
+          struct host_rlimit64 *, old_limit)
+#endif
+
 extern int personality(int);
 extern int flock(int, int);
 extern int setfsuid(int);
@@ -7989,6 +8004,34 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
     }
 #endif
+#endif
+#ifdef TARGET_NR_prlimit64
+    case TARGET_NR_prlimit64:
+    {
+        /* args: pid, resource number, ptr to new rlimit, ptr to old rlimit */
+        struct target_rlimit64 *target_rnew, *target_rold;
+        struct host_rlimit64 rnew, rold, *rnewp = 0;
+        if (arg3) {
+            if (!lock_user_struct(VERIFY_READ, target_rnew, arg3, 1)) {
+                goto efault;
+            }
+            rnew.rlim_cur = tswap64(target_rnew->rlim_cur);
+            rnew.rlim_max = tswap64(target_rnew->rlim_max);
+            unlock_user_struct(target_rnew, arg3, 0);
+            rnewp = &rnew;
+        }
+
+        ret = get_errno(sys_prlimit64(arg1, arg2, rnewp, arg4 ? &rold : 0));
+        if (!is_error(ret) && arg4) {
+            if (!lock_user_struct(VERIFY_WRITE, target_rold, arg4, 1)) {
+                goto efault;
+            }
+            target_rold->rlim_cur = tswap64(rold.rlim_cur);
+            target_rold->rlim_max = tswap64(rold.rlim_max);
+            unlock_user_struct(target_rold, arg4, 1);
+        }
+        break;
+    }
 #endif
     default:
     unimplemented:

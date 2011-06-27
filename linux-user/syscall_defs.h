@@ -2293,3 +2293,7 @@ struct target_epoll_event {
     target_epoll_data_t data;
 };
 #endif
+struct target_rlimit64 {
+    uint64_t rlim_cur;
+    uint64_t rlim_max;
+};
