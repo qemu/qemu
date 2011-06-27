@@ -333,3 +333,5 @@
 #define TARGET_NR_dup3               330
 #define TARGET_NR_pipe2              331
 #define TARGET_NR_inotify_init1      332
+#define TARGET_NR_preadv             333
+#define TARGET_NR_pwritev            334

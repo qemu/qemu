@@ -1985,6 +1985,33 @@ static const uint8_t mips_syscall_args[] = {
 	MIPS_SYS(sys_epoll_pwait, 6)
 	MIPS_SYS(sys_ioprio_set, 3)
 	MIPS_SYS(sys_ioprio_get, 2)
+        MIPS_SYS(sys_utimensat, 4)
+        MIPS_SYS(sys_signalfd, 3)
+        MIPS_SYS(sys_ni_syscall, 0)     /* was timerfd */
+        MIPS_SYS(sys_eventfd, 1)
+        MIPS_SYS(sys_fallocate, 6)      /* 4320 */
+        MIPS_SYS(sys_timerfd_create, 2)
+        MIPS_SYS(sys_timerfd_gettime, 2)
+        MIPS_SYS(sys_timerfd_settime, 4)
+        MIPS_SYS(sys_signalfd4, 4)
+        MIPS_SYS(sys_eventfd2, 2)       /* 4325 */
+        MIPS_SYS(sys_epoll_create1, 1)
+        MIPS_SYS(sys_dup3, 3)
+        MIPS_SYS(sys_pipe2, 2)
+        MIPS_SYS(sys_inotify_init1, 1)
+        MIPS_SYS(sys_preadv, 6)         /* 4330 */
+        MIPS_SYS(sys_pwritev, 6)
+        MIPS_SYS(sys_rt_tgsigqueueinfo, 4)
+        MIPS_SYS(sys_perf_event_open, 5)
+        MIPS_SYS(sys_accept4, 4)
+        MIPS_SYS(sys_recvmmsg, 5)       /* 4335 */
+        MIPS_SYS(sys_fanotify_init, 2)
+        MIPS_SYS(sys_fanotify_mark, 6)
+        MIPS_SYS(sys_prlimit64, 4)
+        MIPS_SYS(sys_name_to_handle_at, 5)
+        MIPS_SYS(sys_open_by_handle_at, 3) /* 4340 */
+        MIPS_SYS(sys_clock_adjtime, 2)
+        MIPS_SYS(sys_syncfs, 1)
 };
 
 #undef MIPS_SYS
