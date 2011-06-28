@@ -3030,7 +3030,7 @@ int main(int argc, char **argv, char **envp)
         int mask;
         const CPULogItem *item;
 
-        mask = cpu_str_to_log_mask(r);
+        mask = cpu_str_to_log_mask(log_mask);
         if (!mask) {
             printf("Log items (comma separated):\n");
             for (item = cpu_log_items; item->mask != 0; item++) {
