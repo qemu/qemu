@@ -5699,6 +5699,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
                 if (arg_sigset) {
                     sig.set = &set;
+                    if (arg_sigsize != sizeof(*target_sigset)) {
+                        /* Like the kernel, we enforce correct size sigsets */
+                        ret = -TARGET_EINVAL;
+                        goto fail;
+                    }
                     target_sigset = lock_user(VERIFY_READ, arg_sigset,
                                               sizeof(*target_sigset), 1);
                     if (!target_sigset) {
