@@ -33,10 +33,17 @@
 #include "vreader.h"
 #include "vevent.h"
 
+typedef enum {
+    VCardEmulUnknown = -1,
+    VCardEmulFalse = 0,
+    VCardEmulTrue = 1
+} VCardEmulTriState;
+
 struct VCardKeyStruct {
     CERTCertificate *cert;
     PK11SlotInfo *slot;
     SECKEYPrivateKey *key;
+    VCardEmulTriState failedX509;
 };
 
 
@@ -140,6 +147,7 @@ vcard_emul_make_key(PK11SlotInfo *slot, CERTCertificate *cert)
     /* NOTE: the cert is a temp cert, not necessarily the cert in the token,
      * use the DER version of this function */
     key->key = PK11_FindKeyByDERCert(slot, cert, NULL);
+    key->failedX509 = VCardEmulUnknown;
     return key;
 }
 
@@ -208,13 +216,23 @@ vcard_emul_rsa_op(VCard *card, VCardKey *key,
 {
     SECKEYPrivateKey *priv_key;
     unsigned signature_len;
+    PK11SlotInfo *slot;
     SECStatus rv;
+    unsigned char buf[2048];
+    unsigned char *bp = NULL;
+    int pad_len;
+    vcard_7816_status_t ret = VCARD7816_STATUS_SUCCESS;
 
     if ((!nss_emul_init) || (key == NULL)) {
         /* couldn't get the key, indicate that we aren't logged in */
         return VCARD7816_STATUS_ERROR_CONDITION_NOT_SATISFIED;
     }
     priv_key = vcard_emul_get_nss_key(key);
+    if (priv_key == NULL) {
+        /* couldn't get the key, indicate that we aren't logged in */
+        return VCARD7816_STATUS_ERROR_CONDITION_NOT_SATISFIED;
+    }
+    slot = vcard_emul_card_get_slot(card);
 
     /*
      * this is only true of the rsa signature
@@ -223,13 +241,116 @@ vcard_emul_rsa_op(VCard *card, VCardKey *key,
     if (buffer_size != signature_len) {
         return  VCARD7816_STATUS_ERROR_DATA_INVALID;
     }
-    rv = PK11_PrivDecryptRaw(priv_key, buffer, &signature_len, signature_len,
-                             buffer, buffer_size);
-    if (rv != SECSuccess) {
-        return vcard_emul_map_error(PORT_GetError());
+    /* be able to handle larger keys if necessariy */
+    bp = &buf[0];
+    if (sizeof(buf) < signature_len) {
+        bp = qemu_malloc(signature_len);
     }
-    assert(buffer_size == signature_len);
-    return VCARD7816_STATUS_SUCCESS;
+
+    /*
+     * do the raw operations. Some tokens claim to do CKM_RSA_X_509, but then
+     * choke when they try to do the actual operations. Try to detect
+     * those cases and treat them as if the token didn't claim support for
+     * X_509.
+     */
+    if (key->failedX509 != VCardEmulTrue
+                              && PK11_DoesMechanism(slot, CKM_RSA_X_509)) {
+        rv = PK11_PrivDecryptRaw(priv_key, bp, &signature_len, signature_len,
+                                 buffer, buffer_size);
+        if (rv == SECSuccess) {
+            assert(buffer_size == signature_len);
+            memcpy(buffer, bp, signature_len);
+            key->failedX509 = VCardEmulFalse;
+            goto cleanup;
+        }
+        /*
+         * we've had a successful X509 operation, this failure must be
+         * somethine else
+         */
+        if (key->failedX509 == VCardEmulFalse) {
+            ret = vcard_emul_map_error(PORT_GetError());
+            goto cleanup;
+        }
+        /*
+         * key->failedX509 must be Unknown at this point, try the
+         * non-x_509 case
+         */
+    }
+    /* token does not support CKM_RSA_X509, emulate that with CKM_RSA_PKCS */
+    /* is this a PKCS #1 formatted signature? */
+    if ((buffer[0] == 0) && (buffer[1] == 1)) {
+        int i;
+
+        for (i = 2; i < buffer_size; i++) {
+            /* rsa signature pad */
+            if (buffer[i] != 0xff) {
+                break;
+            }
+        }
+        if ((i < buffer_size) && (buffer[i] == 0)) {
+            /* yes, we have a properly formated PKCS #1 signature */
+            /*
+             * NOTE: even if we accidentally got an encrypt buffer, which
+             * through shear luck started with 00, 01, ff, 00, it won't matter
+             * because the resulting Sign operation will effectively decrypt
+             * the real buffer.
+             */
+            SECItem signature;
+            SECItem hash;
+
+            i++;
+            hash.data = &buffer[i];
+            hash.len = buffer_size - i;
+            signature.data = bp;
+            signature.len = signature_len;
+            rv = PK11_Sign(priv_key,  &signature, &hash);
+            if (rv != SECSuccess) {
+                ret = vcard_emul_map_error(PORT_GetError());
+                goto cleanup;
+            }
+            assert(buffer_size == signature.len);
+            memcpy(buffer, bp, signature.len);
+            /*
+             * we got here because either the X509 attempt failed, or the
+             * token couldn't do the X509 operation, in either case stay
+             * with the PKCS version for future operations on this key
+             */
+            key->failedX509 = VCardEmulTrue;
+            goto cleanup;
+        }
+    }
+    pad_len = buffer_size - signature_len;
+    assert(pad_len < 4);
+    /*
+     * OK now we've decrypted the payload, package it up in PKCS #1 for the
+     * upper layer.
+     */
+    buffer[0] = 0;
+    buffer[1] = 2; /* RSA_encrypt  */
+    pad_len -= 3; /* format is 0 || 2 || pad || 0 || data */
+    /*
+     * padding for PKCS #1 encrypted data is a string of random bytes. The
+     * random butes protect against potential decryption attacks against RSA.
+     * Since PrivDecrypt has already stripped those bytes, we can't reconstruct
+     * them. This shouldn't matter to the upper level code which should just
+     * strip this code out anyway, so We'll pad with a constant 3.
+     */
+    memset(&buffer[2], 0x03, pad_len);
+    pad_len += 2; /* index to the end of the pad */
+    buffer[pad_len] = 0;
+    pad_len++; /* index to the start of the data */
+    memcpy(&buffer[pad_len], bp, signature_len);
+    /*
+     * we got here because either the X509 attempt failed, or the
+     * token couldn't do the X509 operation, in either case stay
+     * with the PKCS version for future operations on this key
+     */
+    key->failedX509 = VCardEmulTrue;
+cleanup:
+    if (bp != buf) {
+        qemu_free(bp);
+    }
+    return ret;
 }
 
 /*
