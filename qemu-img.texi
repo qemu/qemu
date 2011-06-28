@@ -173,12 +173,6 @@ Linux or NTFS on Windows), then only the written sectors will reserve
 space. Use @code{qemu-img info} to know the real size used by the
 image or @code{ls -ls} on Unix/Linux.
 
-@item host_device
-
-Host device format. This format should be used instead of raw when
-converting to block devices or other devices where "holes" are not
-supported.
-
 @item qcow2
 QEMU image format, the most versatile format. Use it to have smaller
 images (useful if your filesystem does not supports holes, for example
