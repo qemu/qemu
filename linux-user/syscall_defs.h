@@ -940,6 +940,10 @@ struct target_pollfd {
 #define TARGET_VT_WAITACTIVE          0x5607
 #define TARGET_VT_LOCKSWITCH          0x560b
 #define TARGET_VT_UNLOCKSWITCH        0x560c
+#define TARGET_VT_GETMODE             0x5601
+#define TARGET_VT_SETMODE             0x5602
+#define TARGET_VT_RELDISP             0x5605
+#define TARGET_VT_DISALLOCATE         0x5608
 
 /* from asm/termbits.h */
 

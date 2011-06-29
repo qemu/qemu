@@ -166,6 +166,13 @@ STRUCT(vt_stat,
        TYPE_SHORT, /* v_signal */
        TYPE_SHORT) /* v_state */
 
+STRUCT(vt_mode,
+       TYPE_CHAR,  /* mode   */
+       TYPE_CHAR,  /* waitv  */
+       TYPE_SHORT, /* relsig */
+       TYPE_SHORT, /* acqsig */
+       TYPE_SHORT) /* frsig  */
+
 STRUCT(fiemap_extent,
        TYPE_ULONGLONG, /* fe_logical */
        TYPE_ULONGLONG, /* fe_physical */
