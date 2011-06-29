@@ -708,6 +708,10 @@ struct target_pollfd {
 #define TARGET_KDSKBMODE       0x4b45
 #define TARGET_KDGKBENT	       0x4B46	/* gets one entry in translation table */
 #define TARGET_KDGKBSENT       0x4B48	/* gets one function key string entry */
+#define TARGET_KDGKBLED        0x4B64	/* get led flags (not lights) */
+#define TARGET_KDSKBLED        0x4B65	/* set led flags (not lights) */
+#define TARGET_KDGETLED        0x4B31	/* return current led state */
+#define TARGET_KDSETLED        0x4B32	/* set led state [lights, not flags] */
 
 #define TARGET_SIOCATMARK      0x8905
 
