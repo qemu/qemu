@@ -985,7 +985,8 @@ static void ioport_write(void *opaque, uint32_t addr, uint32_t val)
         break;
     case QXL_IO_LOG:
         if (d->guestdebug) {
-            fprintf(stderr, "qxl/guest: %s", d->ram->log_buf);
+            fprintf(stderr, "qxl/guest-%d: %ld: %s", d->id,
+                    qemu_get_clock_ns(vm_clock), d->ram->log_buf);
         }
         break;
     case QXL_IO_RESET:
