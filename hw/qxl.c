@@ -1207,7 +1207,6 @@ static DisplayChangeListener display_listener = {
 static int qxl_init_common(PCIQXLDevice *qxl)
 {
     uint8_t* config = qxl->pci.config;
-    uint32_t pci_device_id;
     uint32_t pci_device_rev;
     uint32_t io_size;
 
@@ -1218,20 +1217,14 @@ static int qxl_init_common(PCIQXLDevice *qxl)
 
     switch (qxl->revision) {
     case 1: /* spice 0.4 -- qxl-1 */
-        pci_device_id  = QXL_DEVICE_ID_STABLE;
         pci_device_rev = QXL_REVISION_STABLE_V04;
         break;
     case 2: /* spice 0.6 -- qxl-2 */
-        pci_device_id  = QXL_DEVICE_ID_STABLE;
+    default:
         pci_device_rev = QXL_REVISION_STABLE_V06;
-        break;
-    default: /* experimental */
-        pci_device_id  = QXL_DEVICE_ID_DEVEL;
-        pci_device_rev = 1;
         break;
     }
 
-    pci_config_set_device_id(config, pci_device_id);
     pci_set_byte(&config[PCI_REVISION_ID], pci_device_rev);
     pci_set_byte(&config[PCI_INTERRUPT_PIN], 1);
 
@@ -1492,6 +1485,7 @@ static PCIDeviceInfo qxl_info_primary = {
     .config_write = qxl_write_config,
     .romfile      = "vgabios-qxl.bin",
     .vendor_id    = REDHAT_PCI_VENDOR_ID,
+    .device_id    = QXL_DEVICE_ID_STABLE,
     .class_id     = PCI_CLASS_DISPLAY_VGA,
     .qdev.props = (Property[]) {
         DEFINE_PROP_UINT32("ram_size", PCIQXLDevice, vga.vram_size, 64 * 1024 * 1024),
@@ -1512,6 +1506,7 @@ static PCIDeviceInfo qxl_info_secondary = {
     .qdev.vmsd    = &qxl_vmstate,
     .init         = qxl_init_secondary,
     .vendor_id    = REDHAT_PCI_VENDOR_ID,
+    .device_id    = QXL_DEVICE_ID_STABLE,
     .class_id     = PCI_CLASS_DISPLAY_OTHER,
     .qdev.props = (Property[]) {
         DEFINE_PROP_UINT32("ram_size", PCIQXLDevice, vga.vram_size, 64 * 1024 * 1024),
