@@ -28,6 +28,7 @@
 #include "block_int.h"
 #include "module.h"
 #include "qemu-objects.h"
+#include "qemu-coroutine.h"
 
 #ifdef CONFIG_BSD
 #include <sys/types.h>
@@ -57,6 +58,12 @@ static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num,
                         uint8_t *buf, int nb_sectors);
 static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
                          const uint8_t *buf, int nb_sectors);
+static BlockDriverAIOCB *bdrv_co_aio_readv_em(BlockDriverState *bs,
+        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque);
+static BlockDriverAIOCB *bdrv_co_aio_writev_em(BlockDriverState *bs,
+        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque);
 
 static QTAILQ_HEAD(, BlockDriverState) bdrv_states =
     QTAILQ_HEAD_INITIALIZER(bdrv_states);
@@ -169,7 +176,13 @@ void path_combine(char *dest, int dest_size,
 
 void bdrv_register(BlockDriver *bdrv)
 {
-    if (!bdrv->bdrv_aio_readv) {
+    if (bdrv->bdrv_co_readv) {
+        /* Emulate AIO by coroutines, and sync by AIO */
+        bdrv->bdrv_aio_readv = bdrv_co_aio_readv_em;
+        bdrv->bdrv_aio_writev = bdrv_co_aio_writev_em;
+        bdrv->bdrv_read = bdrv_read_em;
+        bdrv->bdrv_write = bdrv_write_em;
+     } else if (!bdrv->bdrv_aio_readv) {
         /* add AIO emulation layer */
         bdrv->bdrv_aio_readv = bdrv_aio_readv_em;
         bdrv->bdrv_aio_writev = bdrv_aio_writev_em;
@@ -2612,6 +2625,89 @@ static BlockDriverAIOCB *bdrv_aio_writev_em(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
     return bdrv_aio_rw_vector(bs, sector_num, qiov, nb_sectors, cb, opaque, 1);
+}
+
+
+typedef struct BlockDriverAIOCBCoroutine {
+    BlockDriverAIOCB common;
+    BlockRequest req;
+    bool is_write;
+    QEMUBH* bh;
+} BlockDriverAIOCBCoroutine;
+
+static void bdrv_aio_co_cancel_em(BlockDriverAIOCB *blockacb)
+{
+    qemu_aio_flush();
+}
+
+static AIOPool bdrv_em_co_aio_pool = {
+    .aiocb_size         = sizeof(BlockDriverAIOCBCoroutine),
+    .cancel             = bdrv_aio_co_cancel_em,
+};
+
+static void bdrv_co_rw_bh(void *opaque)
+{
+    BlockDriverAIOCBCoroutine *acb = opaque;
+
+    acb->common.cb(acb->common.opaque, acb->req.error);
+    qemu_bh_delete(acb->bh);
+    qemu_aio_release(acb);
+}
+
+static void coroutine_fn bdrv_co_rw(void *opaque)
+{
+    BlockDriverAIOCBCoroutine *acb = opaque;
+    BlockDriverState *bs = acb->common.bs;
+
+    if (!acb->is_write) {
+        acb->req.error = bs->drv->bdrv_co_readv(bs, acb->req.sector,
+            acb->req.nb_sectors, acb->req.qiov);
+    } else {
+        acb->req.error = bs->drv->bdrv_co_writev(bs, acb->req.sector,
+            acb->req.nb_sectors, acb->req.qiov);
+    }
+
+    acb->bh = qemu_bh_new(bdrv_co_rw_bh, acb);
+    qemu_bh_schedule(acb->bh);
+}
+
+static BlockDriverAIOCB *bdrv_co_aio_rw_vector(BlockDriverState *bs,
+                                               int64_t sector_num,
+                                               QEMUIOVector *qiov,
+                                               int nb_sectors,
+                                               BlockDriverCompletionFunc *cb,
+                                               void *opaque,
+                                               bool is_write)
+{
+    Coroutine *co;
+    BlockDriverAIOCBCoroutine *acb;
+
+    acb = qemu_aio_get(&bdrv_em_co_aio_pool, bs, cb, opaque);
+    acb->req.sector = sector_num;
+    acb->req.nb_sectors = nb_sectors;
+    acb->req.qiov = qiov;
+    acb->is_write = is_write;
+
+    co = qemu_coroutine_create(bdrv_co_rw);
+    qemu_coroutine_enter(co, acb);
+
+    return &acb->common;
+}
+
+static BlockDriverAIOCB *bdrv_co_aio_readv_em(BlockDriverState *bs,
+        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque)
+{
+    return bdrv_co_aio_rw_vector(bs, sector_num, qiov, nb_sectors, cb, opaque,
+                                 false);
+}
+
+static BlockDriverAIOCB *bdrv_co_aio_writev_em(BlockDriverState *bs,
+        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque)
+{
+    return bdrv_co_aio_rw_vector(bs, sector_num, qiov, nb_sectors, cb, opaque,
+                                 true);
 }
 
 static BlockDriverAIOCB *bdrv_aio_flush_em(BlockDriverState *bs,
