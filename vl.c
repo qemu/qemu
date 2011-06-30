@@ -3129,8 +3129,8 @@ int main(int argc, char **argv, char **envp)
     if (nb_numa_nodes > 0) {
         int i;
 
-        if (nb_numa_nodes > smp_cpus) {
-            nb_numa_nodes = smp_cpus;
+        if (nb_numa_nodes > MAX_NODES) {
+            nb_numa_nodes = MAX_NODES;
         }
 
         /* If no memory size if given for any node, assume the default case
