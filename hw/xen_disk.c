@@ -633,6 +633,9 @@ static int blk_init(struct XenDevice *xendev)
             blkdev->filename  = blkdev->params;
         }
     }
+    if (!strcmp("aio", blkdev->fileproto)) {
+        blkdev->fileproto = "raw";
+    }
     if (blkdev->mode == NULL) {
         blkdev->mode = xenstore_read_be_str(&blkdev->xendev, "mode");
     }
