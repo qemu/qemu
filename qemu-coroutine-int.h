@@ -38,6 +38,7 @@ struct Coroutine {
     void *entry_arg;
     Coroutine *caller;
     QLIST_ENTRY(Coroutine) pool_next;
+    QTAILQ_ENTRY(Coroutine) co_queue_next;
 };
 
 Coroutine *qemu_coroutine_new(void);

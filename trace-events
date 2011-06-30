@@ -433,3 +433,11 @@ disable xen_platform_log(char *s) "xen platform: %s"
 disable qemu_coroutine_enter(void *from, void *to, void *opaque) "from %p to %p opaque %p"
 disable qemu_coroutine_yield(void *from, void *to) "from %p to %p"
 disable qemu_coroutine_terminate(void *co) "self %p"
+
+# qemu-coroutine-lock.c
+disable qemu_co_queue_next_bh(void) ""
+disable qemu_co_queue_next(void *next) "next %p"
+disable qemu_co_mutex_lock_entry(void *mutex, void *self) "mutex %p self %p"
+disable qemu_co_mutex_lock_return(void *mutex, void *self) "mutex %p self %p"
+disable qemu_co_mutex_unlock_entry(void *mutex, void *self) "mutex %p self %p"
+disable qemu_co_mutex_unlock_return(void *mutex, void *self) "mutex %p self %p"
