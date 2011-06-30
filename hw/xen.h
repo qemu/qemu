@@ -41,6 +41,7 @@ qemu_irq *xen_interrupt_controller_init(void);
 int xen_init(void);
 int xen_hvm_init(void);
 void xen_vcpu_init(void);
+void xenstore_store_pv_console_info(int i, struct CharDriverState *chr);
 
 #if defined(NEED_CPU_H) && !defined(CONFIG_USER_ONLY)
 void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size);

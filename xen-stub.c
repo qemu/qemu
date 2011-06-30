@@ -9,6 +9,10 @@
 #include "qemu-common.h"
 #include "hw/xen.h"
 
+void xenstore_store_pv_console_info(int i, CharDriverState *chr)
+{
+}
+
 int xen_pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
 {
     return -1;
