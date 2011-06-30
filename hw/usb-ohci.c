@@ -1742,7 +1742,6 @@ static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
     for (i = 0; i < num_ports; i++) {
         usb_register_port(&ohci->bus, &ohci->rhport[i].port, ohci, i, &ohci_port_ops,
                           USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
-        usb_port_location(&ohci->rhport[i].port, NULL, i+1);
     }
 
     ohci->async_td = 0;

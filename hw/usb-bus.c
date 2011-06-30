@@ -149,6 +149,7 @@ static void usb_fill_port(USBPort *port, void *opaque, int index,
     port->index = index;
     port->ops = ops;
     port->speedmask = speedmask;
+    usb_port_location(port, NULL, index + 1);
 }
 
 void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,

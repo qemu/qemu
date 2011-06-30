@@ -369,7 +369,6 @@ struct MUSBState *musb_init(qemu_irq *irqs)
     usb_bus_new(&s->bus, &musb_bus_ops, NULL /* FIXME */);
     usb_register_port(&s->bus, &s->port, s, 0, &musb_port_ops,
                       USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
-    usb_port_location(&s->port, NULL, 1);
 
     return s;
 }

@@ -2206,7 +2206,6 @@ static int usb_ehci_initfn(PCIDevice *dev)
     for(i = 0; i < NB_PORTS; i++) {
         usb_register_port(&s->bus, &s->ports[i], s, i, &ehci_port_ops,
                           USB_SPEED_MASK_HIGH);
-        usb_port_location(&s->ports[i], NULL, i+1);
         s->ports[i].dev = 0;
     }
 
