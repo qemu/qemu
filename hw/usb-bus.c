@@ -140,8 +140,8 @@ USBDevice *usb_create_simple(USBBus *bus, const char *name)
     return dev;
 }
 
-void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,
-                       USBPortOps *ops, int speedmask)
+static void usb_fill_port(USBPort *port, void *opaque, int index,
+                          USBPortOps *ops, int speedmask)
 {
     port->opaque = opaque;
     port->index = index;
@@ -149,6 +149,12 @@ void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,
     port->index = index;
     port->ops = ops;
     port->speedmask = speedmask;
+}
+
+void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,
+                       USBPortOps *ops, int speedmask)
+{
+    usb_fill_port(port, opaque, index, ops, speedmask);
     QTAILQ_INSERT_TAIL(&bus->free, port, next);
     bus->nfree++;
 }
