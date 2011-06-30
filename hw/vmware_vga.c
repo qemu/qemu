@@ -1280,15 +1280,8 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
     struct pci_vmsvga_state_s *s =
         DO_UPCAST(struct pci_vmsvga_state_s, card, dev);
 
-    pci_config_set_vendor_id(s->card.config, PCI_VENDOR_ID_VMWARE);
-    pci_config_set_device_id(s->card.config, SVGA_PCI_DEVICE_ID);
-    pci_config_set_class(s->card.config, PCI_CLASS_DISPLAY_VGA);
     s->card.config[PCI_CACHE_LINE_SIZE]	= 0x08;		/* Cache line size */
     s->card.config[PCI_LATENCY_TIMER] = 0x40;		/* Latency timer */
-    s->card.config[PCI_SUBSYSTEM_VENDOR_ID] = PCI_VENDOR_ID_VMWARE & 0xff;
-    s->card.config[PCI_SUBSYSTEM_VENDOR_ID + 1]	= PCI_VENDOR_ID_VMWARE >> 8;
-    s->card.config[PCI_SUBSYSTEM_ID] = SVGA_PCI_DEVICE_ID & 0xff;
-    s->card.config[PCI_SUBSYSTEM_ID + 1] = SVGA_PCI_DEVICE_ID >> 8;
     s->card.config[PCI_INTERRUPT_LINE] = 0xff;		/* End */
 
     pci_register_bar(&s->card, 0, 0x10,
@@ -1316,6 +1309,12 @@ static PCIDeviceInfo vmsvga_info = {
     .no_hotplug   = 1,
     .init         = pci_vmsvga_initfn,
     .romfile      = "vgabios-vmware.bin",
+
+    .vendor_id    =  PCI_VENDOR_ID_VMWARE,
+    .device_id    = SVGA_PCI_DEVICE_ID,
+    .class_id     = PCI_CLASS_DISPLAY_VGA,
+    .subsystem_vendor_id = PCI_VENDOR_ID_VMWARE,
+    .subsystem_id = SVGA_PCI_DEVICE_ID,
 };
 
 static void vmsvga_register(void)

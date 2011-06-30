@@ -693,13 +693,6 @@ static void tci_out_label(TCGContext *s, TCGArg arg)
     }
 }
 
-static void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val)
-{
-    TCGArg args[2] = { reg, val };
-    tcg_disas3(s, INDEX_op_add_i32, args);
-    TODO();
-}
-
 static void tcg_out_ld(TCGContext *s, TCGType type, int ret, int arg1,
                        tcg_target_long arg2)
 {

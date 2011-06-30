@@ -33,48 +33,12 @@ DECLARE_QEMU_ENV(CPUX86State);
 #include "qemu-common.h"
 #include "qemu-log.h"
 
-#undef EAX
-#define EAX (env->regs[R_EAX])
-#undef ECX
-#define ECX (env->regs[R_ECX])
-#undef EDX
-#define EDX (env->regs[R_EDX])
-#undef EBX
-#define EBX (env->regs[R_EBX])
-#undef ESP
-#define ESP (env->regs[R_ESP])
-#undef EBP
-#define EBP (env->regs[R_EBP])
-#undef ESI
-#define ESI (env->regs[R_ESI])
-#undef EDI
-#define EDI (env->regs[R_EDI])
-#undef EIP
-#define EIP (env->eip)
-#define DF  (env->df)
-
-#define CC_SRC (env->cc_src)
-#define CC_DST (env->cc_dst)
-#define CC_OP  (env->cc_op)
-
-/* float macros */
-#define FT0    (env->ft0)
-#define ST0    (env->fpregs[env->fpstt].d)
-#define ST(n)  (env->fpregs[(env->fpstt + (n)) & 7].d)
-#define ST1    ST(1)
-
 #include "cpu.h"
-#include "exec-all.h"
 
 /* op_helper.c */
-void do_interrupt(int intno, int is_int, int error_code,
-                  target_ulong next_eip, int is_hw);
-void do_interrupt_user(int intno, int is_int, int error_code,
-                       target_ulong next_eip);
 void QEMU_NORETURN raise_exception_err(int exception_index, int error_code);
 void QEMU_NORETURN raise_exception(int exception_index);
 void QEMU_NORETURN raise_exception_env(int exception_index, CPUState *nenv);
-void do_smm_enter(void);
 
 /* n must be a constant to be efficient */
 static inline target_long lshift(target_long x, int n)
@@ -86,11 +50,6 @@ static inline target_long lshift(target_long x, int n)
 }
 
 #include "helper.h"
-
-static inline void svm_check_intercept(uint32_t type)
-{
-    helper_svm_check_intercept_param(type, 0);
-}
 
 #if !defined(CONFIG_USER_ONLY)
 
@@ -170,16 +129,6 @@ static inline void load_eflags(int eflags, int update_mask)
         (eflags & update_mask) | 0x2;
 }
 
-static inline int cpu_has_work(CPUState *env)
-{
-    return ((env->interrupt_request & CPU_INTERRUPT_HARD) &&
-            (env->eflags & IF_MASK)) ||
-           (env->interrupt_request & (CPU_INTERRUPT_NMI |
-                                      CPU_INTERRUPT_INIT |
-                                      CPU_INTERRUPT_SIPI |
-                                      CPU_INTERRUPT_MCE));
-}
-
 /* load efer and update the corresponding hflags. XXX: do consistency
    checks with cpuid bits ? */
 static inline void cpu_load_efer(CPUState *env, uint64_t val)
@@ -191,9 +140,3 @@ static inline void cpu_load_efer(CPUState *env, uint64_t val)
     if (env->efer & MSR_EFER_SVME)
         env->hflags |= HF_SVME_MASK;
 }
-
-static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
-{
-    env->eip = tb->pc - tb->cs_base;
-}
-

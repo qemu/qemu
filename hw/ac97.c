@@ -1277,9 +1277,6 @@ static int ac97_initfn (PCIDevice *dev)
     AC97LinkState *s = DO_UPCAST (AC97LinkState, dev, dev);
     uint8_t *c = s->dev.config;
 
-    pci_config_set_vendor_id (c, PCI_VENDOR_ID_INTEL); /* ro */
-    pci_config_set_device_id (c, PCI_DEVICE_ID_INTEL_82801AA_5); /* ro */
-
     /* TODO: no need to override */
     c[PCI_COMMAND] = 0x00;      /* pcicmd pci command rw, ro */
     c[PCI_COMMAND + 1] = 0x00;
@@ -1288,9 +1285,7 @@ static int ac97_initfn (PCIDevice *dev)
     c[PCI_STATUS] = PCI_STATUS_FAST_BACK;      /* pcists pci status rwc, ro */
     c[PCI_STATUS + 1] = PCI_STATUS_DEVSEL_MEDIUM >> 8;
 
-    c[PCI_REVISION_ID] = 0x01;      /* rid revision ro */
     c[PCI_CLASS_PROG] = 0x00;      /* pi programming interface ro */
-    pci_config_set_class (c, PCI_CLASS_MULTIMEDIA_AUDIO); /* ro */
 
     /* TODO set when bar is registered. no need to override. */
     /* nabmar native audio mixer base address rw */
@@ -1337,6 +1332,10 @@ static PCIDeviceInfo ac97_info = {
     .qdev.size    = sizeof (AC97LinkState),
     .qdev.vmsd    = &vmstate_ac97,
     .init         = ac97_initfn,
+    .vendor_id    = PCI_VENDOR_ID_INTEL,
+    .device_id    = PCI_DEVICE_ID_INTEL_82801AA_5,
+    .revision     = 0x01,
+    .class_id     = PCI_CLASS_MULTIMEDIA_AUDIO,
 };
 
 static void ac97_register (void)

@@ -1138,10 +1138,6 @@ static int intel_hda_init(PCIDevice *pci)
 
     d->name = d->pci.qdev.info->name;
 
-    pci_config_set_vendor_id(conf, PCI_VENDOR_ID_INTEL);
-    pci_config_set_device_id(conf, 0x2668);
-    pci_config_set_revision(conf, 1);
-    pci_config_set_class(conf, PCI_CLASS_MULTIMEDIA_HD_AUDIO);
     pci_config_set_interrupt_pin(conf, 1);
 
     /* HDCTL off 0x40 bit 0 selects signaling mode (1-HDA, 0 - Ac97) 18.1.19 */
@@ -1265,6 +1261,10 @@ static PCIDeviceInfo intel_hda_info = {
     .init         = intel_hda_init,
     .exit         = intel_hda_exit,
     .config_write = intel_hda_write_config,
+    .vendor_id    = PCI_VENDOR_ID_INTEL,
+    .device_id    = 0x2668,
+    .revision     = 1,
+    .class_id     = PCI_CLASS_MULTIMEDIA_HD_AUDIO,
     .qdev.props   = (Property[]) {
         DEFINE_PROP_UINT32("debug", IntelHDAState, debug, 0),
         DEFINE_PROP_UINT32("msi", IntelHDAState, msi, 1),

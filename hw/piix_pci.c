@@ -40,6 +40,7 @@ typedef PCIHostState I440FXState;
 
 #define PIIX_NUM_PIC_IRQS       16      /* i8259 * 2 */
 #define PIIX_NUM_PIRQS          4ULL    /* PIRQ[A-D] */
+#define XEN_PIIX_NUM_PIRQS      128ULL
 #define PIIX_PIRQC              0x60
 
 typedef struct PIIX3State {
@@ -78,6 +79,8 @@ struct PCII440FXState {
 #define I440FX_SMRAM    0x72
 
 static void piix3_set_irq(void *opaque, int pirq, int level);
+static void piix3_write_config_xen(PCIDevice *dev,
+                               uint32_t address, uint32_t val, int len);
 
 /* return the global irq number corresponding to a given device irq
    pin. We could also use the bus number to have a more precise
@@ -173,13 +176,6 @@ static void i440fx_write_config(PCIDevice *dev,
     }
 }
 
-static void i440fx_write_config_xen(PCIDevice *dev,
-                                    uint32_t address, uint32_t val, int len)
-{
-    xen_piix_pci_write_config_client(address, val, len);
-    i440fx_write_config(dev, address, val, len);
-}
-
 static int i440fx_load_old(QEMUFile* f, void *opaque, int version_id)
 {
     PCII440FXState *d = opaque;
@@ -236,11 +232,6 @@ static int i440fx_initfn(PCIDevice *dev)
 {
     PCII440FXState *d = DO_UPCAST(PCII440FXState, dev, dev);
 
-    pci_config_set_vendor_id(d->dev.config, PCI_VENDOR_ID_INTEL);
-    pci_config_set_device_id(d->dev.config, PCI_DEVICE_ID_INTEL_82441);
-    d->dev.config[0x08] = 0x02; // revision
-    pci_config_set_class(d->dev.config, PCI_CLASS_BRIDGE_HOST);
-
     d->dev.config[I440FX_SMRAM] = 0x02;
 
     cpu_smm_register(&i440fx_set_smm, d);
@@ -267,8 +258,21 @@ static PCIBus *i440fx_common_init(const char *device_name,
     d = pci_create_simple(b, 0, device_name);
     *pi440fx_state = DO_UPCAST(PCII440FXState, dev, d);
 
-    piix3 = DO_UPCAST(PIIX3State, dev,
-                      pci_create_simple_multifunction(b, -1, true, "PIIX3"));
+    /* Xen supports additional interrupt routes from the PCI devices to
+     * the IOAPIC: the four pins of each PCI device on the bus are also
+     * connected to the IOAPIC directly.
+     * These additional routes can be discovered through ACPI. */
+    if (xen_enabled()) {
+        piix3 = DO_UPCAST(PIIX3State, dev,
+                pci_create_simple_multifunction(b, -1, true, "PIIX3-xen"));
+        pci_bus_irqs(b, xen_piix3_set_irq, xen_pci_slot_get_pirq,
+                piix3, XEN_PIIX_NUM_PIRQS);
+    } else {
+        piix3 = DO_UPCAST(PIIX3State, dev,
+                pci_create_simple_multifunction(b, -1, true, "PIIX3"));
+        pci_bus_irqs(b, piix3_set_irq, pci_slot_get_pirq, piix3,
+                PIIX_NUM_PIRQS);
+    }
     piix3->pic = pic;
 
     (*pi440fx_state)->piix3 = piix3;
@@ -289,21 +293,6 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn,
     PCIBus *b;
 
     b = i440fx_common_init("i440FX", pi440fx_state, piix3_devfn, pic, ram_size);
-    pci_bus_irqs(b, piix3_set_irq, pci_slot_get_pirq, (*pi440fx_state)->piix3,
-                 PIIX_NUM_PIRQS);
-
-    return b;
-}
-
-PCIBus *i440fx_xen_init(PCII440FXState **pi440fx_state, int *piix3_devfn,
-                        qemu_irq *pic, ram_addr_t ram_size)
-{
-    PCIBus *b;
-
-    b = i440fx_common_init("i440FX-xen", pi440fx_state, piix3_devfn, pic, ram_size);
-    pci_bus_irqs(b, xen_piix3_set_irq, xen_pci_slot_get_pirq,
-                 (*pi440fx_state)->piix3, PIIX_NUM_PIRQS);
-
     return b;
 }
 
@@ -363,6 +352,13 @@ static void piix3_write_config(PCIDevice *dev,
             piix3_set_irq_pic(piix3, pic_irq);
         }
     }
+}
+
+static void piix3_write_config_xen(PCIDevice *dev,
+                               uint32_t address, uint32_t val, int len)
+{
+    xen_piix_pci_write_config_client(address, val, len);
+    piix3_write_config(dev, address, val, len);
 }
 
 static void piix3_reset(void *opaque)
@@ -441,15 +437,8 @@ static const VMStateDescription vmstate_piix3 = {
 static int piix3_initfn(PCIDevice *dev)
 {
     PIIX3State *d = DO_UPCAST(PIIX3State, dev, dev);
-    uint8_t *pci_conf;
 
     isa_bus_new(&d->dev.qdev);
-
-    pci_conf = d->dev.config;
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82371SB_0); // 82371SB PIIX3 PCI-to-ISA bridge (Step A1)
-    pci_config_set_class(pci_conf, PCI_CLASS_BRIDGE_ISA);
-
     qemu_register_reset(piix3_reset, d);
     return 0;
 }
@@ -464,14 +453,10 @@ static PCIDeviceInfo i440fx_info[] = {
         .no_hotplug   = 1,
         .init         = i440fx_initfn,
         .config_write = i440fx_write_config,
-    },{
-        .qdev.name    = "i440FX-xen",
-        .qdev.desc    = "Host bridge",
-        .qdev.size    = sizeof(PCII440FXState),
-        .qdev.vmsd    = &vmstate_i440fx,
-        .qdev.no_user = 1,
-        .init         = i440fx_initfn,
-        .config_write = i440fx_write_config_xen,
+        .vendor_id    = PCI_VENDOR_ID_INTEL,
+        .device_id    = PCI_DEVICE_ID_INTEL_82441,
+        .revision     = 0x02,
+        .class_id     = PCI_CLASS_BRIDGE_HOST,
     },{
         .qdev.name    = "PIIX3",
         .qdev.desc    = "ISA bridge",
@@ -481,6 +466,18 @@ static PCIDeviceInfo i440fx_info[] = {
         .no_hotplug   = 1,
         .init         = piix3_initfn,
         .config_write = piix3_write_config,
+        .vendor_id    = PCI_VENDOR_ID_INTEL,
+        .device_id    = PCI_DEVICE_ID_INTEL_82371SB_0, // 82371SB PIIX3 PCI-to-ISA bridge (Step A1)
+        .class_id     = PCI_CLASS_BRIDGE_ISA,
+    },{
+        .qdev.name    = "PIIX3-xen",
+        .qdev.desc    = "ISA bridge",
+        .qdev.size    = sizeof(PIIX3State),
+        .qdev.vmsd    = &vmstate_piix3,
+        .qdev.no_user = 1,
+        .no_hotplug   = 1,
+        .init         = piix3_initfn,
+        .config_write = piix3_write_config_xen,
     },{
         /* end of list */
     }

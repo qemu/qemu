@@ -149,7 +149,7 @@ static uint32_t uart_read(void *opaque, target_phys_addr_t addr)
                 TARGET_FMT_plx, addr << 2);
         break;
     default:
-        error_report("lm32_uart: read access to unkown register 0x"
+        error_report("lm32_uart: read access to unknown register 0x"
                 TARGET_FMT_plx, addr << 2);
         break;
     }
@@ -185,7 +185,7 @@ static void uart_write(void *opaque, target_phys_addr_t addr, uint32_t value)
                 TARGET_FMT_plx, addr << 2);
         break;
     default:
-        error_report("lm32_uart: write access to unkown register 0x"
+        error_report("lm32_uart: write access to unknown register 0x"
                 TARGET_FMT_plx, addr << 2);
         break;
     }

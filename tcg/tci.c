@@ -421,7 +421,7 @@ static bool tci_compare64(uint64_t u0, uint64_t u1, TCGCond condition)
 }
 
 /* Interpret pseudo code in tb. */
-unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr)
+unsigned long tcg_qemu_tb_exec(CPUState *env, uint8_t *tb_ptr)
 {
     unsigned long next_tb = 0;
 

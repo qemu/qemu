@@ -137,8 +137,6 @@ static int sh_pci_init_device(SysBusDevice *dev)
 
 static int sh_pci_host_init(PCIDevice *d)
 {
-    pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_HITACHI);
-    pci_config_set_device_id(d->config, PCI_DEVICE_ID_HITACHI_SH7751R);
     pci_set_word(d->config + PCI_COMMAND, PCI_COMMAND_WAIT);
     pci_set_word(d->config + PCI_STATUS, PCI_STATUS_CAP_LIST |
                  PCI_STATUS_FAST_BACK | PCI_STATUS_DEVSEL_MEDIUM);
@@ -149,6 +147,8 @@ static PCIDeviceInfo sh_pci_host_info = {
     .qdev.name = "sh_pci_host",
     .qdev.size = sizeof(PCIDevice),
     .init      = sh_pci_host_init,
+    .vendor_id = PCI_VENDOR_ID_HITACHI,
+    .device_id = PCI_DEVICE_ID_HITACHI_SH7751R,
 };
 
 static void sh_pci_register_devices(void)

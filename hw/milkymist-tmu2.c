@@ -352,21 +352,21 @@ static uint32_t tmu2_read(void *opaque, target_phys_addr_t addr)
 static void tmu2_check_registers(MilkymistTMU2State *s)
 {
     if (s->regs[R_BRIGHTNESS] > MAX_BRIGHTNESS) {
-        error_report("milkymist_tmu2: max brightness is %d\n", MAX_BRIGHTNESS);
+        error_report("milkymist_tmu2: max brightness is %d", MAX_BRIGHTNESS);
     }
 
     if (s->regs[R_ALPHA] > MAX_ALPHA) {
-        error_report("milkymist_tmu2: max alpha is %d\n", MAX_ALPHA);
+        error_report("milkymist_tmu2: max alpha is %d", MAX_ALPHA);
     }
 
     if (s->regs[R_VERTICESADDR] & 0x07) {
         error_report("milkymist_tmu2: vertex mesh address has to be 64-bit "
-                "aligned\n");
+                "aligned");
     }
 
     if (s->regs[R_TEXFBUF] & 0x01) {
         error_report("milkymist_tmu2: texture buffer address has to be "
-                "16-bit aligned\n");
+                "16-bit aligned");
     }
 }
 

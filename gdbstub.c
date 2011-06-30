@@ -37,7 +37,7 @@
 
 #define MAX_PACKET_LENGTH 4096
 
-#include "exec-all.h"
+#include "cpu.h"
 #include "qemu_socket.h"
 #include "kvm.h"
 

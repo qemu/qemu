@@ -119,7 +119,8 @@ void m68k_tcg_init(void);
 CPUM68KState *cpu_m68k_init(const char *cpu_model);
 int cpu_m68k_exec(CPUM68KState *s);
 void cpu_m68k_close(CPUM68KState *s);
-void do_interrupt(int is_hw);
+void do_interrupt(CPUState *env1);
+void do_interrupt_m68k_hardirq(CPUState *env1);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
@@ -252,6 +253,18 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
     *flags = (env->fpcr & M68K_FPCR_PREC)       /* Bit  6 */
             | (env->sr & SR_S)                  /* Bit  13 */
             | ((env->macsr >> 4) & 0xf);        /* Bits 0-3 */
+}
+
+static inline bool cpu_has_work(CPUState *env)
+{
+    return env->interrupt_request & CPU_INTERRUPT_HARD;
+}
+
+#include "exec-all.h"
+
+static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+{
+    env->pc = tb->pc;
 }
 
 #endif

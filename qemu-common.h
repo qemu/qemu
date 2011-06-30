@@ -118,16 +118,6 @@ static inline char *realpath(const char *path, char *resolved_path)
     _fullpath(resolved_path, path, _MAX_PATH);
     return resolved_path;
 }
-
-#undef PRId64
-#undef PRIx64
-#undef PRIu64
-#undef PRIo64
-
-#define PRId64 "lld"
-#define PRIx64 "llx"
-#define PRIu64 "llu"
-#define PRIo64 "llo"
 #endif
 
 /* FIXME: Remove NEED_CPU_H.  */

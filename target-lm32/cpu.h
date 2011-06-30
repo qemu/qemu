@@ -241,4 +241,17 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
     *cs_base = 0;
     *flags = 0;
 }
+
+static inline bool cpu_has_work(CPUState *env)
+{
+    return env->interrupt_request & CPU_INTERRUPT_HARD;
+}
+
+#include "exec-all.h"
+
+static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+{
+    env->pc = tb->pc;
+}
+
 #endif

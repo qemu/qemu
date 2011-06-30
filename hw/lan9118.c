@@ -228,6 +228,12 @@ static void lan9118_update(lan9118_state *s)
     if ((s->irq_cfg & IRQ_EN) == 0) {
         level = 0;
     }
+    if ((s->irq_cfg & (IRQ_TYPE | IRQ_POL)) != (IRQ_TYPE | IRQ_POL)) {
+        /* Interrupt is active low unless we're configured as
+         * active-high polarity, push-pull type.
+         */
+        level = !level;
+    }
     qemu_set_irq(s->irq, level);
 }
 
@@ -294,8 +300,7 @@ static void phy_reset(lan9118_state *s)
 static void lan9118_reset(DeviceState *d)
 {
     lan9118_state *s = FROM_SYSBUS(lan9118_state, sysbus_from_qdev(d));
-
-    s->irq_cfg &= ~(IRQ_TYPE | IRQ_POL);
+    s->irq_cfg &= (IRQ_TYPE | IRQ_POL);
     s->int_sts = 0;
     s->int_en = 0;
     s->fifo_int = 0x48000000;
@@ -904,7 +909,8 @@ static void lan9118_writel(void *opaque, target_phys_addr_t offset,
     switch (offset) {
     case CSR_IRQ_CFG:
         /* TODO: Implement interrupt deassertion intervals.  */
-        s->irq_cfg = (s->irq_cfg & IRQ_INT) | (val & IRQ_EN);
+        val &= (IRQ_EN | IRQ_POL | IRQ_TYPE);
+        s->irq_cfg = (s->irq_cfg & IRQ_INT) | val;
         break;
     case CSR_INT_STS:
         s->int_sts &= ~val;

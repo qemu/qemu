@@ -31,30 +31,9 @@ DECLARE_QEMU_ENV(CPUAlphaState);
 #define FP_STATUS (env->fp_status)
 
 #include "cpu.h"
-#include "exec-all.h"
 
 #if !defined(CONFIG_USER_ONLY)
 #include "softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
-
-static inline int cpu_has_work(CPUState *env)
-{
-    /* Here we are checking to see if the CPU should wake up from HALT.
-       We will have gotten into this state only for WTINT from PALmode.  */
-    /* ??? I'm not sure how the IPL state works with WTINT to keep a CPU
-       asleep even if (some) interrupts have been asserted.  For now, 
-       assume that if a CPU really wants to stay asleep, it will mask
-       interrupts at the chipset level, which will prevent these bits
-       from being set in the first place.  */
-    return env->interrupt_request & (CPU_INTERRUPT_HARD
-                                     | CPU_INTERRUPT_TIMER
-                                     | CPU_INTERRUPT_SMP
-                                     | CPU_INTERRUPT_MCHK);
-}
-
-static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
-{
-    env->pc = tb->pc;
-}
 
 #endif /* !defined (__ALPHA_EXEC_H__) */

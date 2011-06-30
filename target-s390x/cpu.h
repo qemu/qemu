@@ -313,16 +313,6 @@ CPUState *s390_cpu_addr2state(uint16_t cpu_addr);
 /* from s390-virtio-bus */
 extern const target_phys_addr_t virtio_size;
 
-#ifndef KVM_S390_SIGP_STOP
-#define KVM_S390_SIGP_STOP              0
-#define KVM_S390_PROGRAM_INT            0
-#define KVM_S390_SIGP_SET_PREFIX        0
-#define KVM_S390_RESTART                0
-#define KVM_S390_INT_VIRTIO             0
-#define KVM_S390_INT_SERVICE            0
-#define KVM_S390_INT_EMERGENCY          0
-#endif
-
 #endif
 void cpu_lock(void);
 void cpu_unlock(void);
@@ -970,6 +960,17 @@ static inline void cpu_inject_ext(CPUState *env, uint32_t code, uint32_t param,
 
     env->pending_int |= INTERRUPT_EXT;
     cpu_interrupt(env, CPU_INTERRUPT_HARD);
+}
+
+static inline bool cpu_has_work(CPUState *env)
+{
+    return (env->interrupt_request & CPU_INTERRUPT_HARD) &&
+        (env->psw.mask & PSW_MASK_EXT);
+}
+
+static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock* tb)
+{
+    env->psw.addr = tb->pc;
 }
 
 #endif

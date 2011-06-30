@@ -30,11 +30,13 @@
 #include "gdbstub.h"
 #include "dma.h"
 #include "kvm.h"
-#include "exec-all.h"
 
 #include "qemu-thread.h"
 #include "cpus.h"
+
+#ifndef _WIN32
 #include "compatfd.h"
+#endif
 
 #ifdef SIGRTMIN
 #define SIG_IPI (SIGRTMIN+4)
@@ -297,7 +299,7 @@ static void qemu_event_increment(void)
 
     /* EAGAIN is fine, a read must be pending.  */
     if (ret < 0 && errno != EAGAIN) {
-        fprintf(stderr, "qemu_event_increment: write() filed: %s\n",
+        fprintf(stderr, "qemu_event_increment: write() failed: %s\n",
                 strerror(errno));
         exit (1);
     }

@@ -15,6 +15,7 @@
 
 #include "virtio-net.h"
 #include "vhost_net.h"
+#include "qemu-error.h"
 
 #include "config.h"
 
@@ -50,6 +51,9 @@ unsigned vhost_net_get_features(struct vhost_net *net, unsigned features)
     if (!(net->dev.features & (1 << VIRTIO_RING_F_INDIRECT_DESC))) {
         features &= ~(1 << VIRTIO_RING_F_INDIRECT_DESC);
     }
+    if (!(net->dev.features & (1 << VIRTIO_RING_F_EVENT_IDX))) {
+        features &= ~(1 << VIRTIO_RING_F_EVENT_IDX);
+    }
     if (!(net->dev.features & (1 << VIRTIO_NET_F_MRG_RXBUF))) {
         features &= ~(1 << VIRTIO_NET_F_MRG_RXBUF);
     }
@@ -64,6 +68,9 @@ void vhost_net_ack_features(struct vhost_net *net, unsigned features)
     }
     if (features & (1 << VIRTIO_RING_F_INDIRECT_DESC)) {
         net->dev.acked_features |= (1 << VIRTIO_RING_F_INDIRECT_DESC);
+    }
+    if (features & (1 << VIRTIO_RING_F_EVENT_IDX)) {
+        net->dev.acked_features |= (1 << VIRTIO_RING_F_EVENT_IDX);
     }
     if (features & (1 << VIRTIO_NET_F_MRG_RXBUF)) {
         net->dev.acked_features |= (1 << VIRTIO_NET_F_MRG_RXBUF);
@@ -197,6 +204,7 @@ void vhost_net_cleanup(struct vhost_net *net)
 struct vhost_net *vhost_net_init(VLANClientState *backend, int devfd,
                                  bool force)
 {
+    error_report("vhost-net support is not compiled in");
     return NULL;
 }
 

@@ -326,11 +326,6 @@ static int vt82c686b_ac97_initfn(PCIDevice *dev)
     VT686AC97State *s = DO_UPCAST(VT686AC97State, dev, dev);
     uint8_t *pci_conf = s->dev.config;
 
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_VIA);
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_VIA_AC97);
-    pci_config_set_class(pci_conf, PCI_CLASS_MULTIMEDIA_AUDIO);
-    pci_config_set_revision(pci_conf, 0x50);
-
     pci_set_word(pci_conf + PCI_COMMAND, PCI_COMMAND_INVALIDATE |
                  PCI_COMMAND_PARITY);
     pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_CAP_LIST |
@@ -353,6 +348,10 @@ static PCIDeviceInfo via_ac97_info = {
     .qdev.desc          = "AC97",
     .qdev.size          = sizeof(VT686AC97State),
     .init               = vt82c686b_ac97_initfn,
+    .vendor_id          = PCI_VENDOR_ID_VIA,
+    .device_id          = PCI_DEVICE_ID_VIA_AC97,
+    .revision           = 0x50,
+    .class_id           = PCI_CLASS_MULTIMEDIA_AUDIO,
 };
 
 static void vt82c686b_ac97_register(void)
@@ -366,11 +365,6 @@ static int vt82c686b_mc97_initfn(PCIDevice *dev)
 {
     VT686MC97State *s = DO_UPCAST(VT686MC97State, dev, dev);
     uint8_t *pci_conf = s->dev.config;
-
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_VIA);
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_VIA_MC97);
-    pci_config_set_class(pci_conf, PCI_CLASS_COMMUNICATION_OTHER);
-    pci_config_set_revision(pci_conf, 0x30);
 
     pci_set_word(pci_conf + PCI_COMMAND, PCI_COMMAND_INVALIDATE |
                  PCI_COMMAND_VGA_PALETTE);
@@ -393,6 +387,10 @@ static PCIDeviceInfo via_mc97_info = {
     .qdev.desc          = "MC97",
     .qdev.size          = sizeof(VT686MC97State),
     .init               = vt82c686b_mc97_initfn,
+    .vendor_id          = PCI_VENDOR_ID_VIA,
+    .device_id          = PCI_DEVICE_ID_VIA_MC97,
+    .class_id           = PCI_CLASS_COMMUNICATION_OTHER,
+    .revision           = 0x30,
 };
 
 static void vt82c686b_mc97_register(void)
@@ -409,11 +407,6 @@ static int vt82c686b_pm_initfn(PCIDevice *dev)
     uint8_t *pci_conf;
 
     pci_conf = s->dev.config;
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_VIA);
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_VIA_ACPI);
-    pci_config_set_class(pci_conf, PCI_CLASS_BRIDGE_OTHER);
-    pci_config_set_revision(pci_conf, 0x40);
-
     pci_set_word(pci_conf + PCI_COMMAND, 0);
     pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_FAST_BACK |
                  PCI_STATUS_DEVSEL_MEDIUM);
@@ -462,6 +455,10 @@ static PCIDeviceInfo via_pm_info = {
     .qdev.vmsd          = &vmstate_acpi,
     .init               = vt82c686b_pm_initfn,
     .config_write       = pm_write_config,
+    .vendor_id          = PCI_VENDOR_ID_VIA,
+    .device_id          = PCI_DEVICE_ID_VIA_ACPI,
+    .class_id           = PCI_CLASS_BRIDGE_OTHER,
+    .revision           = 0x40,
     .qdev.props         = (Property[]) {
         DEFINE_PROP_UINT32("smb_io_base", VT686PMState, smb_io_base, 0),
         DEFINE_PROP_END_OF_LIST(),
@@ -496,11 +493,7 @@ static int vt82c686b_initfn(PCIDevice *d)
     isa_bus_new(&d->qdev);
 
     pci_conf = d->config;
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_VIA);
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_VIA_ISA_BRIDGE);
-    pci_config_set_class(pci_conf, PCI_CLASS_BRIDGE_ISA);
     pci_config_set_prog_interface(pci_conf, 0x0);
-    pci_config_set_revision(pci_conf,0x40); /* Revision 4.0 */
 
     wmask = d->wmask;
     for (i = 0x00; i < 0xff; i++) {
@@ -531,6 +524,10 @@ static PCIDeviceInfo via_info = {
     .qdev.no_user = 1,
     .init         = vt82c686b_initfn,
     .config_write = vt82c686b_write_config,
+    .vendor_id    = PCI_VENDOR_ID_VIA,
+    .device_id    = PCI_DEVICE_ID_VIA_ISA_BRIDGE,
+    .class_id     = PCI_CLASS_BRIDGE_ISA,
+    .revision     = 0x40,
 };
 
 static void vt82c686b_register(void)

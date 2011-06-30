@@ -114,7 +114,6 @@ curses=""
 docs=""
 fdt=""
 kvm=""
-kvm_para=""
 nptl=""
 sdl=""
 vnc="yes"
@@ -169,7 +168,6 @@ guest_base=""
 uname_release=""
 io_thread="no"
 mixemu="no"
-kerneldir=""
 aix="no"
 blobs="yes"
 pkgversion=""
@@ -477,6 +475,8 @@ Haiku)
   linux="yes"
   linux_user="yes"
   usb="linux"
+  kvm="yes"
+  vhost_net="yes"
   if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     audio_possible_drivers="$audio_possible_drivers fmod"
   fi
@@ -737,8 +737,6 @@ for opt do
   --enable-io-thread) io_thread="yes"
   ;;
   --disable-blobs) blobs="no"
-  ;;
-  --kerneldir=*) kerneldir="$optarg"
   ;;
   --with-pkgversion=*) pkgversion=" ($optarg)"
   ;;
@@ -1033,7 +1031,6 @@ echo "  --disable-attr           disables attr and xattr support"
 echo "  --enable-attr            enable attr and xattr support"
 echo "  --enable-io-thread       enable IO thread"
 echo "  --disable-blobs          disable installing provided firmware blobs"
-echo "  --kerneldir=PATH         look for kernel includes in PATH"
 echo "  --enable-docs            enable documentation build"
 echo "  --disable-docs           disable documentation build"
 echo "  --disable-vhost-net      disable vhost-net acceleration support"
@@ -1253,6 +1250,7 @@ int main(void) {
   xc = xc_interface_open(0, 0, 0);
   xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
   xc_gnttab_open(NULL, 0);
+  xc_domain_add_to_physmap(0, 0, XENMAPSPACE_gmfn, 0, 0);
   return 0;
 }
 EOF
@@ -1271,10 +1269,14 @@ EOF
 # error HVM_MAX_VCPUS not defined
 #endif
 int main(void) {
+  struct xen_add_to_physmap xatp = {
+    .domid = 0, .space = XENMAPSPACE_gmfn, .idx = 0, .gpfn = 0,
+  };
   xs_daemon_open();
   xc_interface_open();
   xc_gnttab_open();
   xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
+  xc_memory_op(0, XENMEM_add_to_physmap, &xatp);
   return 0;
 }
 EOF
@@ -1283,7 +1285,29 @@ EOF
     xen_ctrl_version=400
     xen=yes
 
-  # Xen 3.3.0, 3.4.0
+  # Xen 3.4.0
+  elif (
+      cat > $TMPC <<EOF
+#include <xenctrl.h>
+#include <xs.h>
+int main(void) {
+  struct xen_add_to_physmap xatp = {
+    .domid = 0, .space = XENMAPSPACE_gmfn, .idx = 0, .gpfn = 0,
+  };
+  xs_daemon_open();
+  xc_interface_open();
+  xc_gnttab_open();
+  xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
+  xc_memory_op(0, XENMEM_add_to_physmap, &xatp);
+  return 0;
+}
+EOF
+      compile_prog "" "$xen_libs"
+    ) ; then
+    xen_ctrl_version=340
+    xen=yes
+
+  # Xen 3.3.0
   elif (
       cat > $TMPC <<EOF
 #include <xenctrl.h>
@@ -1660,7 +1684,7 @@ for drv in $audio_drv_list; do
 
     pa)
     audio_drv_probe $drv pulse/simple.h "-lpulse-simple -lpulse" \
-        "pa_simple *s = NULL; pa_simple_free(s); return 0;"
+        "pa_simple *s = 0; pa_simple_free(s); return 0;"
     libs_softmmu="-lpulse -lpulse-simple $libs_softmmu"
     audio_pt_int="yes"
     ;;
@@ -1822,124 +1846,6 @@ EOF
     fi
     bluez="no"
   fi
-fi
-
-##########################################
-# kvm probe
-if test "$kvm" != "no" ; then
-    cat > $TMPC <<EOF
-#include <linux/kvm.h>
-#if !defined(KVM_API_VERSION) || KVM_API_VERSION < 12 || KVM_API_VERSION > 12
-#error Invalid KVM version
-#endif
-EOF
-    must_have_caps="KVM_CAP_USER_MEMORY \
-                    KVM_CAP_DESTROY_MEMORY_REGION_WORKS \
-                    KVM_CAP_COALESCED_MMIO \
-                    KVM_CAP_SYNC_MMU \
-                   "
-    if test \( "$cpu" = "i386" -o "$cpu" = "x86_64" \) ; then
-      must_have_caps="$caps \
-                      KVM_CAP_SET_TSS_ADDR \
-                      KVM_CAP_EXT_CPUID \
-                      KVM_CAP_CLOCKSOURCE \
-                      KVM_CAP_NOP_IO_DELAY \
-                      KVM_CAP_PV_MMU \
-                      KVM_CAP_MP_STATE \
-                      KVM_CAP_USER_NMI \
-                     "
-    fi
-    for c in $must_have_caps ; do
-      cat >> $TMPC <<EOF
-#if !defined($c)
-#error Missing KVM capability $c
-#endif
-EOF
-    done
-    cat >> $TMPC <<EOF
-int main(void) { return 0; }
-EOF
-  if test "$kerneldir" != "" ; then
-      kvm_cflags=-I"$kerneldir"/include
-      if test \( "$cpu" = "i386" -o "$cpu" = "x86_64" \) \
-         -a -d "$kerneldir/arch/x86/include" ; then
-            kvm_cflags="$kvm_cflags -I$kerneldir/arch/x86/include"
-	elif test "$cpu" = "ppc" -a -d "$kerneldir/arch/powerpc/include" ; then
-	    kvm_cflags="$kvm_cflags -I$kerneldir/arch/powerpc/include"
-	elif test "$cpu" = "s390x" -a -d "$kerneldir/arch/s390/include" ; then
-	    kvm_cflags="$kvm_cflags -I$kerneldir/arch/s390/include"
-        elif test -d "$kerneldir/arch/$cpu/include" ; then
-            kvm_cflags="$kvm_cflags -I$kerneldir/arch/$cpu/include"
-      fi
-  else
-    kvm_cflags=`$pkg_config --cflags kvm-kmod 2>/dev/null`
-  fi
-  if compile_prog "$kvm_cflags" "" ; then
-    kvm=yes
-    cat > $TMPC <<EOF
-#include <linux/kvm_para.h>
-int main(void) { return 0; }
-EOF
-    if compile_prog "$kvm_cflags" "" ; then
-      kvm_para=yes
-    fi
-  else
-    if test "$kvm" = "yes" ; then
-      if has awk && has grep; then
-        kvmerr=`LANG=C $cc $QEMU_CFLAGS -o $TMPE $kvm_cflags $TMPC 2>&1 \
-	| grep "error: " \
-	| awk -F "error: " '{if (NR>1) printf(", "); printf("%s",$2);}'`
-        if test "$kvmerr" != "" ; then
-          echo -e "${kvmerr}\n\
-NOTE: To enable KVM support, update your kernel to 2.6.29+ or install \
-recent kvm-kmod from http://sourceforge.net/projects/kvm."
-        fi
-      fi
-      feature_not_found "kvm"
-    fi
-    kvm=no
-  fi
-fi
-
-##########################################
-# test for ppc kvm pvr setting
-
-if test "$kvm" = "yes" && test "$cpu" = "ppc" -o "$cpu" = "ppc64"; then
-            cat > $TMPC <<EOF
-    #include <asm/kvm.h>
-    int main(void) { struct kvm_sregs s; s.pvr = 0; return 0; }
-EOF
-    if compile_prog "$kvm_cflags" "" ; then
-        kvm_ppc_pvr=yes
-    else
-        kvm_ppc_pvr=no
-    fi
-fi
-
-##########################################
-# test for vhost net
-
-if test "$vhost_net" != "no"; then
-    if test "$kvm" != "no"; then
-            cat > $TMPC <<EOF
-    #include <linux/vhost.h>
-    int main(void) { return 0; }
-EOF
-            if compile_prog "$kvm_cflags" "" ; then
-                vhost_net=yes
-            else
-                if test "$vhost_net" = "yes" ; then
-                    feature_not_found "vhost-net"
-                fi
-                vhost_net=no
-            fi
-    else
-            if test "$vhost_net" = "yes" ; then
-                echo "NOTE: vhost-net feature requires KVM (--enable-kvm)."
-                feature_not_found "vhost-net"
-            fi
-            vhost_net=no
-    fi
 fi
 
 ##########################################
@@ -3427,15 +3333,8 @@ case "$target_arch2" in
       \( "$target_arch2" = "x86_64" -a "$cpu" = "i386"   \) -o \
       \( "$target_arch2" = "i386"   -a "$cpu" = "x86_64" \) \) ; then
       echo "CONFIG_KVM=y" >> $config_target_mak
-      echo "KVM_CFLAGS=$kvm_cflags" >> $config_target_mak
-      if test "$kvm_para" = "yes"; then
-        echo "CONFIG_KVM_PARA=y" >> $config_target_mak
-      fi
       if test $vhost_net = "yes" ; then
         echo "CONFIG_VHOST_NET=y" >> $config_target_mak
-      fi
-      if test "$kvm_ppc_pvr" = "yes" ; then
-        echo "CONFIG_KVM_PPC_PVR=y" >> $config_target_mak
       fi
     fi
 esac
@@ -3634,6 +3533,23 @@ if test "$target_linux_user" = "yes" -o "$target_bsd_user" = "yes" ; then
   esac
 fi
 
+# use included Linux headers
+if test "$linux" = "yes" ; then
+  includes="-I\$(SRC_PATH)/linux-headers $includes"
+  mkdir -p linux-headers
+  case "$cpu" in
+  i386|x86_64)
+    symlink $source_path/linux-headers/asm-x86 linux-headers/asm
+    ;;
+  ppcemb|ppc|ppc64)
+    symlink $source_path/linux-headers/asm-powerpc linux-headers/asm
+    ;;
+  s390x)
+    symlink $source_path/linux-headers/asm-s390 linux-headers/asm
+    ;;
+  esac
+fi
+
 echo "LDFLAGS+=$ldflags" >> $config_target_mak
 echo "QEMU_CFLAGS+=$cflags" >> $config_target_mak
 echo "QEMU_INCLUDES+=$includes" >> $config_target_mak
@@ -3657,7 +3573,9 @@ for bios_file in $source_path/pc-bios/*.bin $source_path/pc-bios/*.rom $source_p
 done
 mkdir -p $DIRS
 for f in $FILES ; do
-    test -e $f || symlink $source_path/$f $f
+    if [ -e "$source_path/$f" ] && ! [ -e "$f" ]; then
+        symlink "$source_path/$f" "$f"
+    fi
 done
 
 # temporary config to build submodules

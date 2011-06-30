@@ -361,4 +361,17 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
             | (env->movcal_backup ? TB_FLAG_PENDING_MOVCA : 0); /* Bit 4 */
 }
 
+static inline bool cpu_has_work(CPUState *env)
+{
+    return env->interrupt_request & CPU_INTERRUPT_HARD;
+}
+
+#include "exec-all.h"
+
+static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+{
+    env->pc = tb->pc;
+    env->flags = tb->flags;
+}
+
 #endif				/* _CPU_SH4_H */

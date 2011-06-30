@@ -22,7 +22,6 @@
 
 #include "config.h"
 #include "cpu.h"
-#include "exec-all.h"
 
 #define D(x)
 

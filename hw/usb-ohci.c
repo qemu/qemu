@@ -373,14 +373,25 @@ static void ohci_wakeup(USBDevice *dev)
     OHCIState *s = container_of(bus, OHCIState, bus);
     int portnum = dev->port->index;
     OHCIPort *port = &s->rhport[portnum];
+    uint32_t intr = 0;
     if (port->ctrl & OHCI_PORT_PSS) {
         DPRINTF("usb-ohci: port %d: wakeup\n", portnum);
         port->ctrl |= OHCI_PORT_PSSC;
         port->ctrl &= ~OHCI_PORT_PSS;
-        if ((s->ctl & OHCI_CTL_HCFS) == OHCI_USB_SUSPEND) {
-            ohci_set_interrupt(s, OHCI_INTR_RD);
-        }
+        intr = OHCI_INTR_RHSC;
     }
+    /* Note that the controller can be suspended even if this port is not */
+    if ((s->ctl & OHCI_CTL_HCFS) == OHCI_USB_SUSPEND) {
+        DPRINTF("usb-ohci: remote-wakeup: SUSPEND->RESUME\n");
+        /* This is the one state transition the controller can do by itself */
+        s->ctl &= ~OHCI_CTL_HCFS;
+        s->ctl |= OHCI_USB_RESUME;
+        /* In suspend mode only ResumeDetected is possible, not RHSC:
+         * see the OHCI spec 5.1.2.3.
+         */
+        intr = OHCI_INTR_RD;
+    }
+    ohci_set_interrupt(s, intr);
 }
 
 /* Reset the controller */
@@ -1748,11 +1759,7 @@ static int usb_ohci_initfn_pci(struct PCIDevice *dev)
     OHCIPCIState *ohci = DO_UPCAST(OHCIPCIState, pci_dev, dev);
     int num_ports = 3;
 
-    pci_config_set_vendor_id(ohci->pci_dev.config, PCI_VENDOR_ID_APPLE);
-    pci_config_set_device_id(ohci->pci_dev.config,
-                             PCI_DEVICE_ID_APPLE_IPID_USB);
     ohci->pci_dev.config[PCI_CLASS_PROG] = 0x10; /* OHCI */
-    pci_config_set_class(ohci->pci_dev.config, PCI_CLASS_SERIAL_USB);
     /* TODO: RST# value should be 0. */
     ohci->pci_dev.config[PCI_INTERRUPT_PIN] = 0x01; /* interrupt pin 1 */
 
@@ -1791,6 +1798,9 @@ static PCIDeviceInfo ohci_pci_info = {
     .qdev.desc    = "Apple USB Controller",
     .qdev.size    = sizeof(OHCIPCIState),
     .init         = usb_ohci_initfn_pci,
+    .vendor_id    = PCI_VENDOR_ID_APPLE,
+    .device_id    = PCI_DEVICE_ID_APPLE_IPID_USB,
+    .class_id     = PCI_CLASS_SERIAL_USB,
 };
 
 static SysBusDeviceInfo ohci_sysbus_info = {

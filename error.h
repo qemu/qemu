@@ -25,8 +25,7 @@ typedef struct Error Error;
  * Currently, qerror.h defines these error formats.  This function is not
  * meant to be used outside of QEMU.
  */
-void error_set(Error **err, const char *fmt, ...)
-    __attribute__((format(printf, 2, 3)));
+void error_set(Error **err, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 
 /**
  * Returns true if an indirect pointer to an error is pointing to a valid

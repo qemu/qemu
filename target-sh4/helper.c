@@ -19,7 +19,6 @@
 
 #include "qemu-common.h"
 #include "cpu.h"
-#include "exec-all.h"
 #include "hw/sh_intc.h"
 
 #if defined(CONFIG_USER_ONLY)

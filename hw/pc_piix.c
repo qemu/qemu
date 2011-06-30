@@ -124,11 +124,7 @@ static void pc_init1(ram_addr_t ram_size,
     isa_irq = qemu_allocate_irqs(isa_irq_handler, isa_irq_state, 24);
 
     if (pci_enabled) {
-        if (!xen_enabled()) {
-            pci_bus = i440fx_init(&i440fx_state, &piix3_devfn, isa_irq, ram_size);
-        } else {
-            pci_bus = i440fx_xen_init(&i440fx_state, &piix3_devfn, isa_irq, ram_size);
-        }
+        pci_bus = i440fx_init(&i440fx_state, &piix3_devfn, isa_irq, ram_size);
     } else {
         pci_bus = NULL;
         i440fx_state = NULL;
@@ -139,6 +135,10 @@ static void pc_init1(ram_addr_t ram_size,
     pc_register_ferr_irq(isa_get_irq(13));
 
     pc_vga_init(pci_enabled? pci_bus: NULL);
+
+    if (xen_enabled()) {
+        pci_create_simple(pci_bus, -1, "xen-platform");
+    }
 
     /* init basic PC hardware */
     pc_basic_device_init(isa_irq, &rtc_state, xen_enabled());
@@ -288,6 +288,18 @@ static QEMUMachine pc_machine_v0_13 = {
             .driver   = "PCI",
             .property = "command_serr_enable",
             .value    = "off",
+        },{
+            .driver   = "virtio-blk-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-serial-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-net-pci",
+            .property = "event_idx",
+            .value    = "off",
         },
         { /* end of list */ }
     },
@@ -318,6 +330,18 @@ static QEMUMachine pc_machine_v0_12 = {
         },{
             .driver   = "PCI",
             .property = "command_serr_enable",
+            .value    = "off",
+        },{
+            .driver   = "virtio-blk-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-serial-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-net-pci",
+            .property = "event_idx",
             .value    = "off",
         },
         { /* end of list */ }
@@ -357,6 +381,18 @@ static QEMUMachine pc_machine_v0_11 = {
         },{
             .driver   = "PCI",
             .property = "command_serr_enable",
+            .value    = "off",
+        },{
+            .driver   = "virtio-blk-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-serial-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-net-pci",
+            .property = "event_idx",
             .value    = "off",
         },
         { /* end of list */ }
@@ -408,6 +444,18 @@ static QEMUMachine pc_machine_v0_10 = {
         },{
             .driver   = "PCI",
             .property = "command_serr_enable",
+            .value    = "off",
+        },{
+            .driver   = "virtio-blk-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-serial-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-net-pci",
+            .property = "event_idx",
             .value    = "off",
         },
         { /* end of list */ }

@@ -371,7 +371,7 @@ void qdev_init_nofail(DeviceState *dev)
     DeviceInfo *info = dev->info;
 
     if (qdev_init(dev) < 0) {
-        error_report("Initialization of device %s failed\n", info->name);
+        error_report("Initialization of device %s failed", info->name);
         exit(1);
     }
 }
@@ -468,6 +468,7 @@ void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd)
         qdev_prop_exists(dev, "vectors")) {
         qdev_prop_set_uint32(dev, "vectors", nd->nvectors);
     }
+    nd->instantiated = 1;
 }
 
 BusState *qdev_get_child_bus(DeviceState *dev, const char *name)

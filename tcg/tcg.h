@@ -515,10 +515,11 @@ TCGv_i64 tcg_const_local_i64(int64_t val);
 
 extern uint8_t code_gen_prologue[];
 #if defined(CONFIG_TCG_INTERPRETER)
-unsigned long tcg_qemu_tb_exec(uint8_t *tb_ptr);
+unsigned long tcg_qemu_tb_exec(CPUState *env, uint8_t *tb_ptr);
 #elif defined(_ARCH_PPC) && !defined(_ARCH_PPC64)
-#define tcg_qemu_tb_exec(tb_ptr) \
-    ((long REGPARM __attribute__ ((longcall)) (*)(void *))code_gen_prologue)(tb_ptr)
+#define tcg_qemu_tb_exec(env, tb_ptr)                                    \
+    ((long REGPARM __attribute__ ((longcall)) (*)(void *, void *))code_gen_prologue)(env, tb_ptr)
 #else
-#define tcg_qemu_tb_exec(tb_ptr) ((long REGPARM (*)(void *))code_gen_prologue)(tb_ptr)
+#define tcg_qemu_tb_exec(env, tb_ptr)                                    \
+    ((long REGPARM (*)(void *, void *))code_gen_prologue)(env, tb_ptr)
 #endif

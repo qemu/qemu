@@ -27,7 +27,6 @@
 #include "config.h"
 #include "cpu.h"
 #include "mmu.h"
-#include "exec-all.h"
 
 #ifdef DEBUG
 #define D(x) x

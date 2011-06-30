@@ -24,23 +24,11 @@
 #include "dyngen-exec.h"
 
 #include "cpu.h"
-#include "exec-all.h"
 
 DECLARE_QEMU_ENV(CPUPPCState);
 
 #if !defined(CONFIG_USER_ONLY)
 #include "softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
-
-static inline int cpu_has_work(CPUState *env)
-{
-    return (msr_ee && (env->interrupt_request & CPU_INTERRUPT_HARD));
-}
-
-
-static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
-{
-    env->nip = tb->pc;
-}
 
 #endif /* !defined (__PPC_H__) */

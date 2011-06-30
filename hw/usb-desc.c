@@ -242,7 +242,17 @@ static void usb_desc_setdefaults(USBDevice *dev)
 
 void usb_desc_init(USBDevice *dev)
 {
+    const USBDesc *desc = dev->info->usb_desc;
+
+    assert(desc != NULL);
     dev->speed = USB_SPEED_FULL;
+    dev->speedmask = 0;
+    if (desc->full) {
+        dev->speedmask |= USB_SPEED_MASK_FULL;
+    }
+    if (desc->high) {
+        dev->speedmask |= USB_SPEED_MASK_HIGH;
+    }
     usb_desc_setdefaults(dev);
 }
 
@@ -373,6 +383,10 @@ int usb_desc_get_descriptor(USBDevice *dev, int value, uint8_t *dest, size_t len
             buf[0x01] = USB_DT_OTHER_SPEED_CONFIG;
         }
         trace_usb_desc_other_speed_config(dev->addr, index, len, ret);
+        break;
+
+    case USB_DT_DEBUG:
+        /* ignore silently */
         break;
 
     default:

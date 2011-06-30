@@ -25,21 +25,9 @@
 DECLARE_QEMU_ENV(CPUSH4State);
 
 #include "cpu.h"
-#include "exec-all.h"
-
-static inline int cpu_has_work(CPUState *env)
-{
-    return (env->interrupt_request & CPU_INTERRUPT_HARD);
-}
 
 #ifndef CONFIG_USER_ONLY
 #include "softmmu_exec.h"
 #endif
-
-static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
-{
-    env->pc = tb->pc;
-    env->flags = tb->flags;
-}
 
 #endif				/* _EXEC_SH4_H */

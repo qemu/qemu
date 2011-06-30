@@ -3,7 +3,6 @@
 #include "qemu-char.h"
 #include "sysemu.h"
 #include "qemu-char.h"
-#include "exec-all.h"
 #include "exec.h"
 #include "helper_regs.h"
 #include "hw/spapr.h"

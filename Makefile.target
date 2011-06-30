@@ -14,7 +14,10 @@ endif
 
 TARGET_PATH=$(SRC_PATH)/target-$(TARGET_BASE_ARCH)
 $(call set-vpath, $(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw)
-QEMU_CFLAGS+= -I.. -I$(TARGET_PATH) -DNEED_CPU_H
+ifdef CONFIG_LINUX
+QEMU_CFLAGS += -I../linux-headers
+endif
+QEMU_CFLAGS += -I.. -I$(TARGET_PATH) -DNEED_CPU_H
 
 include $(SRC_PATH)/Makefile.objs
 
@@ -47,8 +50,6 @@ endif
 ifndef CONFIG_HAIKU
 LIBS+=-lm
 endif
-
-kvm.o kvm-all.o vhost.o vhost_net.o kvmclock.o: QEMU_CFLAGS+=$(KVM_CFLAGS)
 
 config-target.h: config-target.h-timestamp
 config-target.h-timestamp: config-target.mak
@@ -107,7 +108,7 @@ tcg/tcg.o: cpu.h
 
 # HELPER_CFLAGS is used for all the code compiled with static register
 # variables
-%_helper.o cpu-exec.o user-exec.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
+%_helper.o user-exec.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in user-exec.c.
@@ -232,10 +233,12 @@ obj-$(CONFIG_NO_XEN) += xen-stub.o
 obj-i386-$(CONFIG_XEN_MAPCACHE) += xen-mapcache.o
 obj-$(CONFIG_NO_XEN_MAPCACHE) += xen-mapcache-stub.o
 
+obj-i386-$(CONFIG_XEN) += xen_platform.o
+
+# Inter-VM PCI shared memory
 # PCI network cards
 obj-$(CONFIG_DP8381X_PCI) += dp8381x.o
 
-# Inter-VM PCI shared memory
 CONFIG_IVSHMEM =
 ifeq ($(CONFIG_KVM), y)
   ifeq ($(CONFIG_PCI), y)
@@ -251,7 +254,8 @@ obj-i386-y += cirrus_vga.o sga.o apic.o ioapic.o piix_pci.o
 obj-i386-y += vmport.o
 obj-i386-y += device-hotplug.o pci-hotplug.o smbios.o wdt_ib700.o
 obj-i386-y += debugcon.o multiboot.o
-obj-i386-y += pc_piix.o kvmclock.o
+obj-i386-y += pc_piix.o
+obj-i386-$(CONFIG_KVM) += kvmclock.o
 obj-i386-$(CONFIG_SPICE) += qxl.o qxl-logger.o qxl-render.o
 
 # shared objects

@@ -11,26 +11,10 @@
 DECLARE_QEMU_ENV(CPUMIPSState);
 
 #include "cpu.h"
-#include "exec-all.h"
 
 #if !defined(CONFIG_USER_ONLY)
 #include "softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
-
-static inline int cpu_has_work(CPUState *env)
-{
-    int has_work = 0;
-
-    /* It is implementation dependent if non-enabled interrupts
-       wake-up the CPU, however most of the implementations only
-       check for interrupts that can be taken. */
-    if ((env->interrupt_request & CPU_INTERRUPT_HARD) &&
-        cpu_mips_hw_interrupts_pending(env)) {
-        has_work = 1;
-    }
-
-    return has_work;
-}
 
 static inline void compute_hflags(CPUState *env)
 {
@@ -71,13 +55,6 @@ static inline void compute_hflags(CPUState *env)
         if (env->CP0_Status & (1 << CP0St_CU3))
             env->hflags |= MIPS_HFLAG_COP1X;
     }
-}
-
-static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
-{
-    env->active_tc.PC = tb->pc;
-    env->hflags &= ~MIPS_HFLAG_BMASK;
-    env->hflags |= tb->flags & MIPS_HFLAG_BMASK;
 }
 
 #endif /* !defined(__QEMU_MIPS_EXEC_H__) */

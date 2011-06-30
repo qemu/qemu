@@ -65,6 +65,7 @@ void qemu_ram_free_from_ptr(ram_addr_t addr);
 void qemu_ram_remap(ram_addr_t addr, ram_addr_t length);
 /* This should only be used for ram local to a device.  */
 void *qemu_get_ram_ptr(ram_addr_t addr);
+void *qemu_ram_ptr_length(target_phys_addr_t addr, target_phys_addr_t *size);
 /* Same but slower, to use for migration, where the order of
  * RAMBlocks must not change. */
 void *qemu_safe_ram_ptr(ram_addr_t addr);

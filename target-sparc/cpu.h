@@ -403,6 +403,8 @@ typedef struct CPUSPARCState {
     uint32_t mmuregs[32];
     uint64_t mxccdata[4];
     uint64_t mxccregs[8];
+    uint32_t mmubpctrv, mmubpctrc, mmubpctrs;
+    uint64_t mmubpaction;
     uint64_t mmubpregs[4];
     uint64_t prom_addr;
 #endif
@@ -474,6 +476,7 @@ target_ulong cpu_get_ccr(CPUState *env1);
 void cpu_put_ccr(CPUState *env1, target_ulong val);
 target_ulong cpu_get_cwp64(CPUState *env1);
 void cpu_put_cwp64(CPUState *env1, int cwp);
+void cpu_change_pstate(CPUState *env1, uint32_t new_pstate);
 #endif
 int cpu_cwp_inc(CPUState *env1, int cwp);
 int cpu_cwp_dec(CPUState *env1, int cwp);
@@ -521,7 +524,7 @@ int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
 #define cpu_signal_handler cpu_sparc_signal_handler
 #define cpu_list sparc_cpu_list
 
-#define CPU_SAVE_VERSION 6
+#define CPU_SAVE_VERSION 7
 
 /* MMU modes definitions */
 #if defined (TARGET_SPARC64)
@@ -654,6 +657,23 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
     // FPU enable . Supervisor
     *flags = (env->psref << 4) | env->psrs;
 #endif
+}
+
+/* helper.c */
+void do_interrupt(CPUState *env);
+
+static inline bool cpu_has_work(CPUState *env1)
+{
+    return (env1->interrupt_request & CPU_INTERRUPT_HARD) &&
+           cpu_interrupts_enabled(env1);
+}
+
+#include "exec-all.h"
+
+static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+{
+    env->pc = tb->pc;
+    env->npc = tb->cs_base;
 }
 
 #endif

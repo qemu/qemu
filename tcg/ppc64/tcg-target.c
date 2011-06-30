@@ -151,8 +151,7 @@ static const int tcg_target_callee_save_regs[] = {
     TCG_REG_R24,
     TCG_REG_R25,
     TCG_REG_R26,
-    /* TCG_REG_R27, */ /* currently used for the global env, so no
-                          need to save */
+    TCG_REG_R27, /* currently used for the global env */
     TCG_REG_R28,
     TCG_REG_R29,
     TCG_REG_R30,
@@ -905,7 +904,8 @@ static void tcg_target_qemu_prologue (TCGContext *s)
     }
 #endif
 
-    tcg_out32 (s, MTSPR | RS (3) | CTR);
+    tcg_out_mov (s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
+    tcg_out32 (s, MTSPR | RS (tcg_target_call_iarg_regs[1]) | CTR);
     tcg_out32 (s, BCCTR | BO_ALWAYS);
 
     /* Epilogue */
@@ -966,11 +966,6 @@ static void ppc_addi64 (TCGContext *s, int rt, int ra, tcg_target_long si)
         tcg_out_movi (s, TCG_TYPE_I64, 0, si);
         tcg_out32 (s, ADD | RT (rt) | RA (ra));
     }
-}
-
-static void tcg_out_addi (TCGContext *s, int reg, tcg_target_long val)
-{
-    ppc_addi64 (s, reg, reg, val);
 }
 
 static void tcg_out_cmp (TCGContext *s, int cond, TCGArg arg1, TCGArg arg2,
@@ -1696,4 +1691,6 @@ static void tcg_target_init (TCGContext *s)
     tcg_regset_set_reg (s->reserved_regs, TCG_REG_R13);
 
     tcg_add_target_add_op_defs (ppc_op_defs);
+    tcg_set_frame(s, TCG_AREG0, offsetof(CPUState, temp_buf),
+                  CPU_TEMP_BUF_NLONGS * sizeof(long));
 }

@@ -69,9 +69,6 @@ static int xio3130_downstream_initfn(PCIDevice *d)
     }
 
     pcie_port_init_reg(d);
-    pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_TI);
-    pci_config_set_device_id(d->config, PCI_DEVICE_ID_TI_XIO3130D);
-    d->config[PCI_REVISION_ID] = XIO3130_REVISION;
 
     rc = msi_init(d, XIO3130_MSI_OFFSET, XIO3130_MSI_NR_VECTOR,
                   XIO3130_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_64BIT,
@@ -182,6 +179,9 @@ static PCIDeviceInfo xio3130_downstream_info = {
     .config_write = xio3130_downstream_write_config,
     .init = xio3130_downstream_initfn,
     .exit = xio3130_downstream_exitfn,
+    .vendor_id = PCI_VENDOR_ID_TI,
+    .device_id = PCI_DEVICE_ID_TI_XIO3130D,
+    .revision = XIO3130_REVISION,
 
     .qdev.props = (Property[]) {
         DEFINE_PROP_UINT8("port", PCIESlot, port.port, 0),

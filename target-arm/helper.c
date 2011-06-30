@@ -1,6 +1,5 @@
 #include "qemu-common.h"
 #include "cpu.h"
-#include "exec-all.h"
 #include "gdbstub.h"
 #include "helper.h"
 #include "host-utils.h"

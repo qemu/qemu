@@ -2291,6 +2291,8 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
 
     tcg_add_target_add_op_defs(s390_op_defs);
+    tcg_set_frame(s, TCG_AREG0, offsetof(CPUState, temp_buf),
+                  CPU_TEMP_BUF_NLONGS * sizeof(long));
 }
 
 static void tcg_target_qemu_prologue(TCGContext *s)
@@ -2306,8 +2308,9 @@ static void tcg_target_qemu_prologue(TCGContext *s)
         tcg_regset_set_reg(s->reserved_regs, TCG_GUEST_BASE_REG);
     }
 
-    /* br %r2 (go to TB) */
-    tcg_out_insn(s, RR, BCR, S390_CC_ALWAYS, TCG_REG_R2);
+    tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
+    /* br %r3 (go to TB) */
+    tcg_out_insn(s, RR, BCR, S390_CC_ALWAYS, tcg_target_call_iarg_regs[1]);
 
     tb_ret_addr = s->code_ptr;
 

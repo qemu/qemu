@@ -104,7 +104,7 @@ static void coreaudio_logstatus (OSStatus status)
         break;
 
     default:
-        AUD_log (AUDIO_CAP, "Reason: status code %ld\n", status);
+        AUD_log (AUDIO_CAP, "Reason: status code %" PRId32 "\n", (int32_t)status);
         return;
     }
 
@@ -360,8 +360,8 @@ static int coreaudio_init_out (HWVoiceOut *hw, struct audsettings *as)
         &core->audioDevicePropertyBufferFrameSize);
     if (status != kAudioHardwareNoError) {
         coreaudio_logerr2 (status, typ,
-                           "Could not set device buffer frame size %ld\n",
-                           core->audioDevicePropertyBufferFrameSize);
+                           "Could not set device buffer frame size %" PRIu32 "\n",
+                           (uint32_t)core->audioDevicePropertyBufferFrameSize);
         return -1;
     }
 

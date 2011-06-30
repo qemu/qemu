@@ -190,14 +190,22 @@ static void serial_event(void *opaque, int event)
 
 }
 
-static int etraxfs_ser_init(SysBusDevice *dev)
+static void etraxfs_ser_reset(DeviceState *d)
 {
-    struct etrax_serial *s = FROM_SYSBUS(typeof (*s), dev);
-    int ser_regs;
+    struct etrax_serial *s = container_of(d, typeof(*s), busdev.qdev);
 
     /* transmitter begins ready and idle.  */
     s->regs[RS_STAT_DIN] |= (1 << STAT_TR_RDY);
     s->regs[RS_STAT_DIN] |= (1 << STAT_TR_IDLE);
+
+    s->regs[RW_REC_CTRL] = 0x10000;
+
+}
+
+static int etraxfs_ser_init(SysBusDevice *dev)
+{
+    struct etrax_serial *s = FROM_SYSBUS(typeof (*s), dev);
+    int ser_regs;
 
     sysbus_init_irq(dev, &s->irq);
     ser_regs = cpu_register_io_memory(ser_read, ser_write, s,
@@ -211,10 +219,16 @@ static int etraxfs_ser_init(SysBusDevice *dev)
     return 0;
 }
 
+static SysBusDeviceInfo etraxfs_ser_info = {
+    .init = etraxfs_ser_init,
+    .qdev.name  = "etraxfs,serial",
+    .qdev.size  = sizeof(struct etrax_serial),
+    .qdev.reset = etraxfs_ser_reset,
+};
+
 static void etraxfs_serial_register(void)
 {
-    sysbus_register_dev("etraxfs,serial", sizeof (struct etrax_serial),
-                etraxfs_ser_init);
+    sysbus_register_withprop(&etraxfs_ser_info);
 }
 
 device_init(etraxfs_serial_register)

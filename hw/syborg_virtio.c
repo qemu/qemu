@@ -146,7 +146,9 @@ static void syborg_virtio_writel(void *opaque, target_phys_addr_t offset,
             vdev->queue_sel = value;
         break;
     case SYBORG_VIRTIO_QUEUE_NOTIFY:
-        virtio_queue_notify(vdev, value);
+        if (value < VIRTIO_PCI_QUEUE_MAX) {
+            virtio_queue_notify(vdev, value);
+        }
         break;
     case SYBORG_VIRTIO_STATUS:
         virtio_set_status(vdev, value & 0xFF);

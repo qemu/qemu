@@ -86,7 +86,7 @@ static uint32_t timer_read(void *opaque, target_phys_addr_t addr)
         r = (uint32_t)ptimer_get_count(s->ptimer);
         break;
     default:
-        error_report("lm32_timer: read access to unkown register 0x"
+        error_report("lm32_timer: read access to unknown register 0x"
                 TARGET_FMT_plx, addr << 2);
         break;
     }
@@ -124,7 +124,7 @@ static void timer_write(void *opaque, target_phys_addr_t addr, uint32_t value)
                 TARGET_FMT_plx, addr << 2);
         break;
     default:
-        error_report("lm32_timer: write access to unkown register 0x"
+        error_report("lm32_timer: write access to unknown register 0x"
                 TARGET_FMT_plx, addr << 2);
         break;
     }

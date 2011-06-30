@@ -265,12 +265,8 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
 
     pci_conf = pci_dev->config;
 
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_AMD);
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_AMD_LANCE);
     pci_set_word(pci_conf + PCI_STATUS,
                  PCI_STATUS_FAST_BACK | PCI_STATUS_DEVSEL_MEDIUM);
-    pci_conf[PCI_REVISION_ID] = 0x10;
-    pci_config_set_class(pci_conf, PCI_CLASS_NETWORK_ETHERNET);
 
     pci_set_word(pci_conf + PCI_SUBSYSTEM_VENDOR_ID, 0x0);
     pci_set_word(pci_conf + PCI_SUBSYSTEM_ID, 0x0);
@@ -318,6 +314,10 @@ static PCIDeviceInfo pcnet_info = {
     .qdev.vmsd  = &vmstate_pci_pcnet,
     .init       = pci_pcnet_init,
     .exit       = pci_pcnet_uninit,
+    .vendor_id  = PCI_VENDOR_ID_AMD,
+    .device_id  = PCI_DEVICE_ID_AMD_LANCE,
+    .revision   = 0x10,
+    .class_id   = PCI_CLASS_NETWORK_ETHERNET,
     .qdev.props = (Property[]) {
         DEFINE_NIC_PROPERTIES(PCIPCNetState, state.conf),
         DEFINE_PROP_END_OF_LIST(),

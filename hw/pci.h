@@ -433,6 +433,13 @@ typedef struct {
     PCIConfigReadFunc *config_read;
     PCIConfigWriteFunc *config_write;
 
+    uint16_t vendor_id;
+    uint16_t device_id;
+    uint8_t revision;
+    uint16_t class_id;
+    uint16_t subsystem_vendor_id;       /* only for header type = 0 */
+    uint16_t subsystem_id;              /* only for header type = 0 */
+
     /*
      * pci-to-pci bridge or normal device.
      * This doesn't mean pci host switch.

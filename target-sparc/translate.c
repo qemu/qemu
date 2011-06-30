@@ -20,7 +20,6 @@
 
 #include "qemu-common.h"
 #include "cpu.h"
-#include "exec-all.h"
 #include "disas.h"
 #include "helper.h"
 #include "tcg-op.h"

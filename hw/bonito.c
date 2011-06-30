@@ -691,11 +691,7 @@ static int bonito_initfn(PCIDevice *dev)
     PCIBonitoState *s = DO_UPCAST(PCIBonitoState, dev, dev);
 
     /* Bonito North Bridge, built on FPGA, VENDOR_ID/DEVICE_ID are "undefined" */
-    pci_config_set_vendor_id(dev->config, 0xdf53);
-    pci_config_set_device_id(dev->config, 0x00d5);
-    pci_config_set_class(dev->config, PCI_CLASS_BRIDGE_HOST);
     pci_config_set_prog_interface(dev->config, 0x00);
-    pci_config_set_revision(dev->config, 0x01);
 
     /* set the north bridge register mapping */
     s->bonito_reg_handle = cpu_register_io_memory(bonito_read, bonito_write, s,
@@ -796,6 +792,11 @@ static PCIDeviceInfo bonito_info = {
     .qdev.vmsd    = &vmstate_bonito,
     .qdev.no_user = 1,
     .init         = bonito_initfn,
+    /*Bonito North Bridge, built on FPGA, VENDOR_ID/DEVICE_ID are "undefined"*/
+    .vendor_id    = 0xdf53,
+    .device_id    = 0x00d5,
+    .revision     = 0x01,
+    .class_id     = PCI_CLASS_BRIDGE_HOST,
 };
 
 static SysBusDeviceInfo bonito_pcihost_info = {
