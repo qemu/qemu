@@ -50,6 +50,7 @@
 #define MPC8544_PCI_REGS_SIZE      0x1000
 #define MPC8544_PCI_IO             0xE1000000
 #define MPC8544_PCI_IOLEN          0x10000
+#define MPC8544_UTIL_BASE          (MPC8544_CCSRBAR_BASE + 0xe0000)
 
 struct boot_info
 {
@@ -81,11 +82,12 @@ out:
 }
 #endif
 
-static int mpc8544_load_device_tree(target_phys_addr_t addr,
-                                     uint32_t ramsize,
-                                     target_phys_addr_t initrd_base,
-                                     target_phys_addr_t initrd_size,
-                                     const char *kernel_cmdline)
+static int mpc8544_load_device_tree(CPUState *env,
+                                    target_phys_addr_t addr,
+                                    uint32_t ramsize,
+                                    target_phys_addr_t initrd_base,
+                                    target_phys_addr_t initrd_size,
+                                    const char *kernel_cmdline)
 {
     int ret = -1;
 #ifdef CONFIG_FDT
@@ -93,6 +95,7 @@ static int mpc8544_load_device_tree(target_phys_addr_t addr,
     char *filename;
     int fdt_size;
     void *fdt;
+    uint8_t hypercall[16];
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
     if (!filename) {
@@ -156,6 +159,13 @@ static int mpc8544_load_device_tree(target_phys_addr_t addr,
 
         mpc8544_copy_soc_cell(fdt, buf, "clock-frequency");
         mpc8544_copy_soc_cell(fdt, buf, "timebase-frequency");
+
+        /* indicate KVM hypercall interface */
+        qemu_devtree_setprop_string(fdt, "/hypervisor", "compatible",
+                                    "linux,kvm");
+        kvmppc_get_hypercall(env, hypercall, sizeof(hypercall));
+        qemu_devtree_setprop(fdt, "/hypervisor", "hcall-instructions",
+                             hypercall, sizeof(hypercall));
     } else {
         const uint32_t freq = 400000000;
 
@@ -175,18 +185,23 @@ out:
 }
 
 /* Create -kernel TLB entries for BookE, linearly spanning 256MB.  */
+static inline target_phys_addr_t booke206_page_size_to_tlb(uint64_t size)
+{
+    return (ffs(size >> 10) - 1) >> 1;
+}
+
 static void mmubooke_create_initial_mapping(CPUState *env,
                                      target_ulong va,
                                      target_phys_addr_t pa)
 {
-    ppcemb_tlb_t *tlb = booke206_get_tlbe(env, 1, 0, 0);
+    ppcmas_tlb_t *tlb = booke206_get_tlbm(env, 1, 0, 0);
+    target_phys_addr_t size;
 
-    tlb->attr = 0;
-    tlb->prot = PAGE_VALID | ((PAGE_READ | PAGE_WRITE | PAGE_EXEC) << 4);
-    tlb->size = 256 * 1024 * 1024;
-    tlb->EPN = va & TARGET_PAGE_MASK;
-    tlb->RPN = pa & TARGET_PAGE_MASK;
-    tlb->PID = 0;
+    size = (booke206_page_size_to_tlb(256 * 1024 * 1024) << MAS1_TSIZE_SHIFT);
+    tlb->mas1 = MAS1_VALID | size;
+    tlb->mas2 = va & TARGET_PAGE_MASK;
+    tlb->mas7_3 = pa & TARGET_PAGE_MASK;
+    tlb->mas7_3 |= MAS3_UR | MAS3_UW | MAS3_UX | MAS3_SR | MAS3_SW | MAS3_SX;
 }
 
 static void mpc8544ds_cpu_reset(void *opaque)
@@ -270,6 +285,9 @@ static void mpc8544ds_init(ram_addr_t ram_size,
                        serial_hds[0], 1, 1);
     }
 
+    /* General Utility device */
+    sysbus_create_simple("mpc8544-guts", MPC8544_UTIL_BASE, NULL);
+
     /* PCI */
     dev = sysbus_create_varargs("e500-pcihost", MPC8544_PCI_REGS_BASE,
                                 mpic[pci_irq_nrs[0]], mpic[pci_irq_nrs[1]],
@@ -326,7 +344,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
         cpu_abort(env, "Compiled without FDT support - can't load kernel\n");
 #endif
         dt_base = (kernel_size + DTC_LOAD_PAD) & ~DTC_PAD_MASK;
-        if (mpc8544_load_device_tree(dt_base, ram_size,
+        if (mpc8544_load_device_tree(env, dt_base, ram_size,
                     initrd_base, initrd_size, kernel_cmdline) < 0) {
             fprintf(stderr, "couldn't load device tree\n");
             exit(1);

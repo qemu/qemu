@@ -35,8 +35,7 @@
 #define PROM_ADDR         0xfff00000
 
 #define KERNEL_LOAD_ADDR 0x01000000
-#define CMDLINE_ADDR     0x027ff000
-#define INITRD_LOAD_ADDR 0x02800000
+#define KERNEL_GAP       0x00100000
 
 #define ESCC_CLOCK 3686400
 

@@ -45,8 +45,9 @@ CPUState *ppc440ep_init(ram_addr_t *ram_size, PCIBus **pcip,
     qemu_irq *irqs;
     qemu_irq *pci_irqs;
 
-    if (cpu_model == NULL)
-        cpu_model = "405"; // XXX: should be 440EP
+    if (cpu_model == NULL) {
+        cpu_model = "440-Xilinx"; // XXX: should be 440EP
+    }
     env = cpu_init(cpu_model);
     if (!env) {
         fprintf(stderr, "Unable to initialize CPU!\n");
