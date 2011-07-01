@@ -310,7 +310,7 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
 	    media = MEDIA_DISK;
 	} else if (!strcmp(buf, "cdrom")) {
             if (cyls || secs || heads) {
-                error_report("'%s' invalid physical CHS format", buf);
+                error_report("CHS can't be set with media=%s", buf);
 	        return NULL;
             }
 	    media = MEDIA_CDROM;
