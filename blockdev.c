@@ -240,14 +240,6 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
     int ret;
 
     translation = BIOS_ATA_TRANSLATION_AUTO;
-
-    if (default_to_scsi) {
-        type = IF_SCSI;
-        pstrcpy(devname, sizeof(devname), "scsi");
-    } else {
-        type = IF_IDE;
-        pstrcpy(devname, sizeof(devname), "ide");
-    }
     media = MEDIA_DISK;
 
     /* extract parameters */
@@ -273,7 +265,11 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
             error_report("unsupported bus type '%s'", buf);
             return NULL;
 	}
+    } else {
+        type = default_to_scsi ? IF_SCSI : IF_IDE;
+        pstrcpy(devname, sizeof(devname), if_name[type]);
     }
+
     max_devs = if_max_devs[type];
 
     if (cyls || heads || secs) {
