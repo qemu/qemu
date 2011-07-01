@@ -727,19 +727,24 @@ static inline void gen_trap_ifdivzero_tl(TCGv divisor)
 static inline void gen_op_sdivx(TCGv dst, TCGv src1, TCGv src2)
 {
     int l1, l2;
+    TCGv r_temp1, r_temp2;
 
     l1 = gen_new_label();
     l2 = gen_new_label();
-    tcg_gen_mov_tl(cpu_cc_src, src1);
-    tcg_gen_mov_tl(cpu_cc_src2, src2);
-    gen_trap_ifdivzero_tl(cpu_cc_src2);
-    tcg_gen_brcondi_tl(TCG_COND_NE, cpu_cc_src, INT64_MIN, l1);
-    tcg_gen_brcondi_tl(TCG_COND_NE, cpu_cc_src2, -1, l1);
+    r_temp1 = tcg_temp_local_new();
+    r_temp2 = tcg_temp_local_new();
+    tcg_gen_mov_tl(r_temp1, src1);
+    tcg_gen_mov_tl(r_temp2, src2);
+    gen_trap_ifdivzero_tl(r_temp2);
+    tcg_gen_brcondi_tl(TCG_COND_NE, r_temp1, INT64_MIN, l1);
+    tcg_gen_brcondi_tl(TCG_COND_NE, r_temp2, -1, l1);
     tcg_gen_movi_i64(dst, INT64_MIN);
     tcg_gen_br(l2);
     gen_set_label(l1);
-    tcg_gen_div_i64(dst, cpu_cc_src, cpu_cc_src2);
+    tcg_gen_div_i64(dst, r_temp1, r_temp2);
     gen_set_label(l2);
+    tcg_temp_free(r_temp1);
+    tcg_temp_free(r_temp2);
 }
 #endif
 
@@ -3173,10 +3178,17 @@ static void disas_sparc_insn(DisasContext * dc)
                         break;
 #ifdef TARGET_SPARC64
                     case 0xd: /* V9 udivx */
-                        tcg_gen_mov_tl(cpu_cc_src, cpu_src1);
-                        tcg_gen_mov_tl(cpu_cc_src2, cpu_src2);
-                        gen_trap_ifdivzero_tl(cpu_cc_src2);
-                        tcg_gen_divu_i64(cpu_dst, cpu_cc_src, cpu_cc_src2);
+                        {
+                            TCGv r_temp1, r_temp2;
+                            r_temp1 = tcg_temp_local_new();
+                            r_temp2 = tcg_temp_local_new();
+                            tcg_gen_mov_tl(r_temp1, cpu_src1);
+                            tcg_gen_mov_tl(r_temp2, cpu_src2);
+                            gen_trap_ifdivzero_tl(r_temp2);
+                            tcg_gen_divu_i64(cpu_dst, r_temp1, r_temp2);
+                            tcg_temp_free(r_temp1);
+                            tcg_temp_free(r_temp2);
+                        }
                         break;
 #endif
                     case 0xe: /* udiv */
