@@ -2244,19 +2244,34 @@ static USBBusOps ehci_bus_ops = {
     .register_companion = ehci_register_companion,
 };
 
-static PCIDeviceInfo ehci_info = {
-    .qdev.name    = "usb-ehci",
-    .qdev.size    = sizeof(EHCIState),
-    .init         = usb_ehci_initfn,
-    .vendor_id    = PCI_VENDOR_ID_INTEL,
-    .device_id    = PCI_DEVICE_ID_INTEL_82801D,
-    .revision     = 0x10,
-    .class_id     = PCI_CLASS_SERIAL_USB,
-    .qdev.props   = (Property[]) {
-        DEFINE_PROP_UINT32("freq",      EHCIState, freq, FRAME_TIMER_FREQ),
-        DEFINE_PROP_UINT32("maxframes", EHCIState, maxframes, 128),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static Property ehci_properties[] = {
+    DEFINE_PROP_UINT32("freq",      EHCIState, freq, FRAME_TIMER_FREQ),
+    DEFINE_PROP_UINT32("maxframes", EHCIState, maxframes, 128),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static PCIDeviceInfo ehci_info[] = {
+    {
+        .qdev.name    = "usb-ehci",
+        .qdev.size    = sizeof(EHCIState),
+        .init         = usb_ehci_initfn,
+        .vendor_id    = PCI_VENDOR_ID_INTEL,
+        .device_id    = PCI_DEVICE_ID_INTEL_82801D, /* ich4 */
+        .revision     = 0x10,
+        .class_id     = PCI_CLASS_SERIAL_USB,
+        .qdev.props   = ehci_properties,
+    },{
+        .qdev.name    = "ich9-usb-ehci1",
+        .qdev.size    = sizeof(EHCIState),
+        .init         = usb_ehci_initfn,
+        .vendor_id    = PCI_VENDOR_ID_INTEL,
+        .device_id    = PCI_DEVICE_ID_INTEL_82801I_EHCI1,
+        .revision     = 0x03,
+        .class_id     = PCI_CLASS_SERIAL_USB,
+        .qdev.props   = ehci_properties,
+    },{
+        /* end of list */
+    }
 };
 
 static int usb_ehci_initfn(PCIDevice *dev)
@@ -2335,7 +2350,7 @@ static int usb_ehci_initfn(PCIDevice *dev)
 
 static void ehci_register(void)
 {
-    pci_qdev_register(&ehci_info);
+    pci_qdev_register_many(ehci_info);
 }
 device_init(ehci_register);
 
