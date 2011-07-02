@@ -211,7 +211,7 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf)
     } else {
         dmalen = s->ti_size;
         memcpy(buf, s->ti_buf, dmalen);
-        buf[0] = 0;
+        buf[0] = buf[2] >> 5;
     }
     DPRINTF("get_cmd: len %d target %d\n", dmalen, target);
 
