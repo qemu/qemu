@@ -1,8 +1,6 @@
 #include "cpu.h"
 #include "dyngen-exec.h"
-#include "host-utils.h"
 #include "helper.h"
-#include "sysemu.h"
 
 #if !defined(CONFIG_USER_ONLY)
 #include "softmmu_exec.h"
@@ -332,13 +330,6 @@ static void raise_exception(int tt)
 void HELPER(raise_exception)(int tt)
 {
     raise_exception(tt);
-}
-
-void helper_shutdown(void)
-{
-#if !defined(CONFIG_USER_ONLY)
-    qemu_system_shutdown_request();
-#endif
 }
 
 void helper_check_align(target_ulong addr, uint32_t align)
@@ -4003,11 +3994,6 @@ target_ulong helper_alignaddr(target_ulong addr, target_ulong offset)
     return tmp & ~7ULL;
 }
 
-target_ulong helper_popc(target_ulong val)
-{
-    return ctpop64(val);
-}
-
 static inline uint64_t *get_gregset(uint32_t pstate)
 {
     switch (pstate) {
@@ -4164,13 +4150,6 @@ void helper_write_softint(uint64_t value)
 }
 #endif
 
-#ifdef TARGET_SPARC64
-trap_state* cpu_tsptr(CPUState* env)
-{
-    return &env->ts[env->tl & MAXTL_MASK];
-}
-#endif
-
 #if !defined(CONFIG_USER_ONLY)
 
 static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
@@ -4317,32 +4296,6 @@ static void do_unassigned_access(target_phys_addr_t addr, int is_write,
         raise_exception(TT_CODE_ACCESS);
     else
         raise_exception(TT_DATA_ACCESS);
-}
-#endif
-
-
-#ifdef TARGET_SPARC64
-void helper_tick_set_count(void *opaque, uint64_t count)
-{
-#if !defined(CONFIG_USER_ONLY)
-    cpu_tick_set_count(opaque, count);
-#endif
-}
-
-uint64_t helper_tick_get_count(void *opaque)
-{
-#if !defined(CONFIG_USER_ONLY)
-    return cpu_tick_get_count(opaque);
-#else
-    return 0;
-#endif
-}
-
-void helper_tick_set_limit(void *opaque, uint64_t limit)
-{
-#if !defined(CONFIG_USER_ONLY)
-    cpu_tick_set_limit(opaque, limit);
-#endif
 }
 #endif
 

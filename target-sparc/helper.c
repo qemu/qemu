@@ -18,6 +18,9 @@
  */
 
 #include "cpu.h"
+#include "host-utils.h"
+#include "helper.h"
+#include "sysemu.h"
 
 //#define DEBUG_MMU
 
@@ -864,5 +867,43 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
         return -1;
     }
     return phys_addr;
+}
+#endif
+
+/* misc op helpers */
+void helper_shutdown(void)
+{
+#if !defined(CONFIG_USER_ONLY)
+    qemu_system_shutdown_request();
+#endif
+}
+
+#ifdef TARGET_SPARC64
+target_ulong helper_popc(target_ulong val)
+{
+    return ctpop64(val);
+}
+
+void helper_tick_set_count(void *opaque, uint64_t count)
+{
+#if !defined(CONFIG_USER_ONLY)
+    cpu_tick_set_count(opaque, count);
+#endif
+}
+
+uint64_t helper_tick_get_count(void *opaque)
+{
+#if !defined(CONFIG_USER_ONLY)
+    return cpu_tick_get_count(opaque);
+#else
+    return 0;
+#endif
+}
+
+void helper_tick_set_limit(void *opaque, uint64_t limit)
+{
+#if !defined(CONFIG_USER_ONLY)
+    cpu_tick_set_limit(opaque, limit);
+#endif
 }
 #endif

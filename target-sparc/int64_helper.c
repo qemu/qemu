@@ -157,3 +157,8 @@ void do_interrupt(CPUState *env)
     env->npc = env->pc + 4;
     env->exception_index = -1;
 }
+
+trap_state *cpu_tsptr(CPUState* env)
+{
+    return &env->ts[env->tl & MAXTL_MASK];
+}
