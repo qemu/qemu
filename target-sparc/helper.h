@@ -32,7 +32,7 @@ DEF_HELPER_1(tick_get_count, i64, ptr)
 DEF_HELPER_2(tick_set_limit, void, ptr, i64)
 #endif
 DEF_HELPER_2(check_align, void, tl, i32)
-DEF_HELPER_0(debug, void)
+DEF_HELPER_1(debug, void, env)
 DEF_HELPER_0(save, void)
 DEF_HELPER_0(restore, void)
 DEF_HELPER_2(udiv, tl, tl, tl)
@@ -83,7 +83,7 @@ DEF_HELPER_0(fcmpeq_fcc1, void)
 DEF_HELPER_0(fcmpeq_fcc2, void)
 DEF_HELPER_0(fcmpeq_fcc3, void)
 #endif
-DEF_HELPER_1(raise_exception, void, int)
+DEF_HELPER_2(raise_exception, void, env, int)
 DEF_HELPER_0(shutdown, void)
 #define F_HELPER_0_0(name) DEF_HELPER_0(f ## name, void)
 #define F_HELPER_DQ_0_0(name)                   \

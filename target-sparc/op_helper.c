@@ -321,17 +321,6 @@ static inline target_ulong asi_address_mask(CPUState *env1,
     }
 }
 
-static void raise_exception(int tt)
-{
-    env->exception_index = tt;
-    cpu_loop_exit(env);
-}
-
-void HELPER(raise_exception)(int tt)
-{
-    raise_exception(tt);
-}
-
 void helper_check_align(target_ulong addr, uint32_t align)
 {
     if (addr & align) {
@@ -339,7 +328,7 @@ void helper_check_align(target_ulong addr, uint32_t align)
     printf("Unaligned access to 0x" TARGET_FMT_lx " from 0x" TARGET_FMT_lx
            "\n", addr, env->pc);
 #endif
-        raise_exception(TT_UNALIGNED);
+        helper_raise_exception(env, TT_UNALIGNED);
     }
 }
 
@@ -853,7 +842,7 @@ void helper_check_ieee_exceptions(void)
         if ((env->fsr & FSR_CEXC_MASK) & ((env->fsr & FSR_TEM_MASK) >> 23)) {
             /* Unmasked exception, generate a trap */
             env->fsr |= FSR_FTT_IEEE_EXCP;
-            raise_exception(TT_FP_EXCP);
+            helper_raise_exception(env, TT_FP_EXCP);
         } else {
             /* Accumulate exceptions */
             env->fsr |= (env->fsr & FSR_CEXC_MASK) << 5;
@@ -907,14 +896,14 @@ void helper_fsqrtq(void)
             (env->fsr & FSR_NVM)) {                                     \
             env->fsr |= FSR_NVC;                                        \
             env->fsr |= FSR_FTT_IEEE_EXCP;                              \
-            raise_exception(TT_FP_EXCP);                                \
+            helper_raise_exception(env, TT_FP_EXCP);                    \
         }                                                               \
         switch (glue(size, _compare) (reg1, reg2, &env->fp_status)) {   \
         case float_relation_unordered:                                  \
             if ((env->fsr & FSR_NVM)) {                                 \
                 env->fsr |= FSR_NVC;                                    \
                 env->fsr |= FSR_FTT_IEEE_EXCP;                          \
-                raise_exception(TT_FP_EXCP);                            \
+                helper_raise_exception(env, TT_FP_EXCP);                \
             } else {                                                    \
                 env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);             \
                 env->fsr |= (FSR_FCC1 | FSR_FCC0) << FS;                \
@@ -943,14 +932,14 @@ void helper_fsqrtq(void)
             (env->fsr & FSR_NVM)) {                                     \
             env->fsr |= FSR_NVC;                                        \
             env->fsr |= FSR_FTT_IEEE_EXCP;                              \
-            raise_exception(TT_FP_EXCP);                                \
+            helper_raise_exception(env, TT_FP_EXCP);                    \
         }                                                               \
         switch (glue(size, _compare) (src1, src2, &env->fp_status)) {   \
         case float_relation_unordered:                                  \
             if ((env->fsr & FSR_NVM)) {                                 \
                 env->fsr |= FSR_NVC;                                    \
                 env->fsr |= FSR_FTT_IEEE_EXCP;                          \
-                raise_exception(TT_FP_EXCP);                            \
+                helper_raise_exception(env, TT_FP_EXCP);                \
             } else {                                                    \
                 env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);             \
                 env->fsr |= (FSR_FCC1 | FSR_FCC0) << FS;                \
@@ -2377,7 +2366,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
 #endif
 
     if (asi < 0x80)
-        raise_exception(TT_PRIV_ACT);
+        helper_raise_exception(env, TT_PRIV_ACT);
 
     helper_check_align(addr, size - 1);
     addr = asi_address_mask(env, asi, addr);
@@ -2480,7 +2469,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
     dump_asi("write", addr, asi, size, val);
 #endif
     if (asi < 0x80)
-        raise_exception(TT_PRIV_ACT);
+        helper_raise_exception(env, TT_PRIV_ACT);
 
     helper_check_align(addr, size - 1);
     addr = asi_address_mask(env, asi, addr);
@@ -2557,7 +2546,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         || (cpu_has_hypervisor(env)
             && asi >= 0x30 && asi < 0x80
             && !(env->hpstate & HS_PRIV)))
-        raise_exception(TT_PRIV_ACT);
+        helper_raise_exception(env, TT_PRIV_ACT);
 
     helper_check_align(addr, size - 1);
     addr = asi_address_mask(env, asi, addr);
@@ -2578,7 +2567,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
             dump_asi("read ", last_addr, asi, size, ret);
 #endif
             /* env->exception_index is set in get_physical_address_data(). */
-            raise_exception(env->exception_index);
+            helper_raise_exception(env, env->exception_index);
         }
 
         /* convert nonfaulting load ASIs to normal load ASIs */
@@ -2711,7 +2700,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
     case 0x24: // Nucleus quad LDD 128 bit atomic
     case 0x2c: // Nucleus quad LDD 128 bit atomic LE
         //  Only ldda allowed
-        raise_exception(TT_ILL_INSN);
+        helper_raise_exception(env, TT_ILL_INSN);
         return 0;
     case 0x04: // Nucleus
     case 0x0c: // Nucleus Little Endian (LE)
@@ -2914,7 +2903,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
         || (cpu_has_hypervisor(env)
             && asi >= 0x30 && asi < 0x80
             && !(env->hpstate & HS_PRIV)))
-        raise_exception(TT_PRIV_ACT);
+        helper_raise_exception(env, TT_PRIV_ACT);
 
     helper_check_align(addr, size - 1);
     addr = asi_address_mask(env, asi, addr);
@@ -3071,7 +3060,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
     case 0x24: // Nucleus quad LDD 128 bit atomic
     case 0x2c: // Nucleus quad LDD 128 bit atomic LE
         //  Only ldda allowed
-        raise_exception(TT_ILL_INSN);
+        helper_raise_exception(env, TT_ILL_INSN);
         return;
     case 0x04: // Nucleus
     case 0x0c: // Nucleus Little Endian (LE)
@@ -3291,7 +3280,7 @@ void helper_ldda_asi(target_ulong addr, int asi, int rd)
         || (cpu_has_hypervisor(env)
             && asi >= 0x30 && asi < 0x80
             && !(env->hpstate & HS_PRIV)))
-        raise_exception(TT_PRIV_ACT);
+        helper_raise_exception(env, TT_PRIV_ACT);
 
     addr = asi_address_mask(env, asi, addr);
 
@@ -3350,7 +3339,7 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
     case 0xf8: /* UA2007/JPS1 Block load primary LE */
     case 0xf9: /* UA2007/JPS1 Block load secondary LE */
         if (rd & 7) {
-            raise_exception(TT_ILL_INSN);
+            helper_raise_exception(env, TT_ILL_INSN);
             return;
         }
         helper_check_align(addr, 0x3f);
@@ -3370,7 +3359,7 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
     case 0x78: /* JPS1 Block load primary LE, user privilege */
     case 0x79: /* JPS1 Block load secondary LE, user privilege */
         if (rd & 7) {
-            raise_exception(TT_ILL_INSN);
+            helper_raise_exception(env, TT_ILL_INSN);
             return;
         }
         helper_check_align(addr, 0x3f);
@@ -3423,7 +3412,7 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
     case 0xf8: /* UA2007/JPS1 Block store primary LE */
     case 0xf9: /* UA2007/JPS1 Block store secondary LE */
         if (rd & 7) {
-            raise_exception(TT_ILL_INSN);
+            helper_raise_exception(env, TT_ILL_INSN);
             return;
         }
         helper_check_align(addr, 0x3f);
@@ -3443,7 +3432,7 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
     case 0x78: /* JPS1 Block load primary LE, user privilege */
     case 0x79: /* JPS1 Block load secondary LE, user privilege */
         if (rd & 7) {
-            raise_exception(TT_ILL_INSN);
+            helper_raise_exception(env, TT_ILL_INSN);
             return;
         }
         helper_check_align(addr, 0x3f);
@@ -3510,12 +3499,12 @@ void helper_rett(void)
     unsigned int cwp;
 
     if (env->psret == 1)
-        raise_exception(TT_ILL_INSN);
+        helper_raise_exception(env, TT_ILL_INSN);
 
     env->psret = 1;
     cwp = cwp_inc(env->cwp + 1) ;
     if (env->wim & (1 << cwp)) {
-        raise_exception(TT_WIN_UNF);
+        helper_raise_exception(env, TT_WIN_UNF);
     }
     set_cwp(cwp);
     env->psrs = env->psrps;
@@ -3532,7 +3521,7 @@ static target_ulong helper_udiv_common(target_ulong a, target_ulong b, int cc)
     x1 = (b & 0xffffffff);
 
     if (x1 == 0) {
-        raise_exception(TT_DIV_ZERO);
+        helper_raise_exception(env, TT_DIV_ZERO);
     }
 
     x0 = x0 / x1;
@@ -3569,7 +3558,7 @@ static target_ulong helper_sdiv_common(target_ulong a, target_ulong b, int cc)
     x1 = (b & 0xffffffff);
 
     if (x1 == 0) {
-        raise_exception(TT_DIV_ZERO);
+        helper_raise_exception(env, TT_DIV_ZERO);
     }
 
     x0 = x0 / x1;
@@ -3754,12 +3743,6 @@ void helper_ldxfsr(uint64_t new_fsr)
 }
 #endif
 
-void helper_debug(void)
-{
-    env->exception_index = EXCP_DEBUG;
-    cpu_loop_exit(env);
-}
-
 #ifndef TARGET_SPARC64
 /* XXX: use another pointer for %iN registers to avoid slow wrapping
    handling ? */
@@ -3769,7 +3752,7 @@ void helper_save(void)
 
     cwp = cwp_dec(env->cwp - 1);
     if (env->wim & (1 << cwp)) {
-        raise_exception(TT_WIN_OVF);
+        helper_raise_exception(env, TT_WIN_OVF);
     }
     set_cwp(cwp);
 }
@@ -3780,7 +3763,7 @@ void helper_restore(void)
 
     cwp = cwp_inc(env->cwp + 1);
     if (env->wim & (1 << cwp)) {
-        raise_exception(TT_WIN_UNF);
+        helper_raise_exception(env, TT_WIN_UNF);
     }
     set_cwp(cwp);
 }
@@ -3788,7 +3771,7 @@ void helper_restore(void)
 void helper_wrpsr(target_ulong new_psr)
 {
     if ((new_psr & PSR_CWP) >= env->nwindows) {
-        raise_exception(TT_ILL_INSN);
+        helper_raise_exception(env, TT_ILL_INSN);
     } else {
         cpu_put_psr(env, new_psr);
     }
@@ -3808,13 +3791,14 @@ void helper_save(void)
 
     cwp = cwp_dec(env->cwp - 1);
     if (env->cansave == 0) {
-        raise_exception(TT_SPILL | (env->otherwin != 0 ?
-                                    (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
-                                    ((env->wstate & 0x7) << 2)));
+        helper_raise_exception(env, TT_SPILL | (env->otherwin != 0 ?
+                                                (TT_WOTHER |
+                                                 ((env->wstate & 0x38) >> 1)) :
+                                                ((env->wstate & 0x7) << 2)));
     } else {
         if (env->cleanwin - env->canrestore == 0) {
             // XXX Clean windows without trap
-            raise_exception(TT_CLRWIN);
+            helper_raise_exception(env, TT_CLRWIN);
         } else {
             env->cansave--;
             env->canrestore++;
@@ -3829,9 +3813,10 @@ void helper_restore(void)
 
     cwp = cwp_inc(env->cwp + 1);
     if (env->canrestore == 0) {
-        raise_exception(TT_FILL | (env->otherwin != 0 ?
-                                   (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
-                                   ((env->wstate & 0x7) << 2)));
+        helper_raise_exception(env, TT_FILL | (env->otherwin != 0 ?
+                                               (TT_WOTHER |
+                                                ((env->wstate & 0x38) >> 1)) :
+                                               ((env->wstate & 0x7) << 2)));
     } else {
         env->cansave++;
         env->canrestore--;
@@ -3842,9 +3827,10 @@ void helper_restore(void)
 void helper_flushw(void)
 {
     if (env->cansave != env->nwindows - 2) {
-        raise_exception(TT_SPILL | (env->otherwin != 0 ?
-                                    (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
-                                    ((env->wstate & 0x7) << 2)));
+        helper_raise_exception(env, TT_SPILL | (env->otherwin != 0 ?
+                                                (TT_WOTHER |
+                                                 ((env->wstate & 0x38) >> 1)) :
+                                                ((env->wstate & 0x7) << 2)));
     }
 }
 
@@ -4196,7 +4182,7 @@ static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
            "\n", addr, env->pc);
 #endif
     cpu_restore_state2(retaddr);
-    raise_exception(TT_UNALIGNED);
+    helper_raise_exception(env, TT_UNALIGNED);
 }
 
 /* try to fill the TLB and return an exception if error. If retaddr is
@@ -4266,9 +4252,9 @@ static void do_unassigned_access(target_phys_addr_t addr, int is_write,
 
     if ((env->mmuregs[0] & MMU_E) && !(env->mmuregs[0] & MMU_NF)) {
         if (is_exec)
-            raise_exception(TT_CODE_ACCESS);
+            helper_raise_exception(env, TT_CODE_ACCESS);
         else
-            raise_exception(TT_DATA_ACCESS);
+            helper_raise_exception(env, TT_DATA_ACCESS);
     }
 
     /* flush neverland mappings created during no-fault mode,
@@ -4293,9 +4279,9 @@ static void do_unassigned_access(target_phys_addr_t addr, int is_write,
 #endif
 
     if (is_exec)
-        raise_exception(TT_CODE_ACCESS);
+        helper_raise_exception(env, TT_CODE_ACCESS);
     else
-        raise_exception(TT_DATA_ACCESS);
+        helper_raise_exception(env, TT_DATA_ACCESS);
 }
 #endif
 

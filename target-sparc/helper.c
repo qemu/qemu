@@ -871,6 +871,18 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 #endif
 
 /* misc op helpers */
+void helper_raise_exception(CPUState *env, int tt)
+{
+    env->exception_index = tt;
+    cpu_loop_exit(env);
+}
+
+void helper_debug(CPUState *env)
+{
+    env->exception_index = EXCP_DEBUG;
+    cpu_loop_exit(env);
+}
+
 void helper_shutdown(void)
 {
 #if !defined(CONFIG_USER_ONLY)

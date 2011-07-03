@@ -294,7 +294,7 @@ static inline void gen_add_tv(TCGv dst, TCGv src1, TCGv src2)
     tcg_gen_andi_tl(r_temp, r_temp, (1ULL << 31));
     tcg_gen_brcondi_tl(TCG_COND_EQ, r_temp, 0, l1);
     r_const = tcg_const_i32(TT_TOVF);
-    gen_helper_raise_exception(r_const);
+    gen_helper_raise_exception(cpu_env, r_const);
     tcg_temp_free_i32(r_const);
     gen_set_label(l1);
     tcg_temp_free(r_temp);
@@ -310,7 +310,7 @@ static inline void gen_tag_tv(TCGv src1, TCGv src2)
     tcg_gen_andi_tl(cpu_tmp0, cpu_tmp0, 0x3);
     tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_tmp0, 0, l1);
     r_const = tcg_const_i32(TT_TOVF);
-    gen_helper_raise_exception(r_const);
+    gen_helper_raise_exception(cpu_env, r_const);
     tcg_temp_free_i32(r_const);
     gen_set_label(l1);
 }
@@ -492,7 +492,7 @@ static inline void gen_sub_tv(TCGv dst, TCGv src1, TCGv src2)
     tcg_gen_andi_tl(r_temp, r_temp, (1ULL << 31));
     tcg_gen_brcondi_tl(TCG_COND_EQ, r_temp, 0, l1);
     r_const = tcg_const_i32(TT_TOVF);
-    gen_helper_raise_exception(r_const);
+    gen_helper_raise_exception(cpu_env, r_const);
     tcg_temp_free_i32(r_const);
     gen_set_label(l1);
     tcg_temp_free(r_temp);
@@ -719,7 +719,7 @@ static inline void gen_trap_ifdivzero_tl(TCGv divisor)
     l1 = gen_new_label();
     tcg_gen_brcondi_tl(TCG_COND_NE, divisor, 0, l1);
     r_const = tcg_const_i32(TT_DIV_ZERO);
-    gen_helper_raise_exception(r_const);
+    gen_helper_raise_exception(cpu_env, r_const);
     tcg_temp_free_i32(r_const);
     gen_set_label(l1);
 }
@@ -1549,7 +1549,7 @@ static inline void gen_op_fpexception_im(int fsr_flags)
     tcg_gen_andi_tl(cpu_fsr, cpu_fsr, FSR_FTT_NMASK);
     tcg_gen_ori_tl(cpu_fsr, cpu_fsr, fsr_flags);
     r_const = tcg_const_i32(TT_FP_EXCP);
-    gen_helper_raise_exception(r_const);
+    gen_helper_raise_exception(cpu_env, r_const);
     tcg_temp_free_i32(r_const);
 }
 
@@ -1561,7 +1561,7 @@ static int gen_trap_ifnofpu(DisasContext *dc, TCGv r_cond)
 
         save_state(dc, r_cond);
         r_const = tcg_const_i32(TT_NFPU_INSN);
-        gen_helper_raise_exception(r_const);
+        gen_helper_raise_exception(cpu_env, r_const);
         tcg_temp_free_i32(r_const);
         dc->is_br = 1;
         return 1;
@@ -2038,7 +2038,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         gen_helper_shutdown();
 
                     } else {
-                        gen_helper_raise_exception(cpu_tmp32);
+                        gen_helper_raise_exception(cpu_env, cpu_tmp32);
                     }
                 } else if (cond != 0) {
                     TCGv r_cond = tcg_temp_new();
@@ -2068,7 +2068,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         tcg_gen_andi_tl(cpu_dst, cpu_dst, V8_TRAP_MASK);
                     tcg_gen_addi_tl(cpu_dst, cpu_dst, TT_TRAP);
                     tcg_gen_trunc_tl_i32(cpu_tmp32, cpu_dst);
-                    gen_helper_raise_exception(cpu_tmp32);
+                    gen_helper_raise_exception(cpu_env, cpu_tmp32);
 
                     gen_set_label(l1);
                     tcg_temp_free(r_cond);
@@ -4931,7 +4931,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
         save_state(dc, cpu_cond);
         r_const = tcg_const_i32(TT_ILL_INSN);
-        gen_helper_raise_exception(r_const);
+        gen_helper_raise_exception(cpu_env, r_const);
         tcg_temp_free_i32(r_const);
         dc->is_br = 1;
     }
@@ -4942,7 +4942,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
         save_state(dc, cpu_cond);
         r_const = tcg_const_i32(TT_UNIMP_FLUSH);
-        gen_helper_raise_exception(r_const);
+        gen_helper_raise_exception(cpu_env, r_const);
         tcg_temp_free_i32(r_const);
         dc->is_br = 1;
     }
@@ -4954,7 +4954,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
         save_state(dc, cpu_cond);
         r_const = tcg_const_i32(TT_PRIV_INSN);
-        gen_helper_raise_exception(r_const);
+        gen_helper_raise_exception(cpu_env, r_const);
         tcg_temp_free_i32(r_const);
         dc->is_br = 1;
     }
@@ -4979,7 +4979,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
         save_state(dc, cpu_cond);
         r_const = tcg_const_i32(TT_NCP_INSN);
-        gen_helper_raise_exception(r_const);
+        gen_helper_raise_exception(cpu_env, r_const);
         tcg_temp_free(r_const);
         dc->is_br = 1;
     }
@@ -5036,7 +5036,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
                 if (bp->pc == dc->pc) {
                     if (dc->pc != pc_start)
                         save_state(dc, cpu_cond);
-                    gen_helper_debug();
+                    gen_helper_debug(cpu_env);
                     tcg_gen_exit_tb(0);
                     dc->is_br = 1;
                     goto exit_gen_loop;
