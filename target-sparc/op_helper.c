@@ -372,7 +372,7 @@ void cpu_set_cwp(CPUState *env1, int new_cwp)
 
 static target_ulong get_psr(void)
 {
-    helper_compute_psr();
+    helper_compute_psr(env);
 
 #if !defined (TARGET_SPARC64)
     return env->version | (env->psr & PSR_ICC) |

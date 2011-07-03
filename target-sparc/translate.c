@@ -428,7 +428,7 @@ static void gen_op_addx_int(DisasContext *dc, TCGv dst, TCGv src1,
     default:
         /* We need external help to produce the carry.  */
         carry_32 = tcg_temp_new_i32();
-        gen_helper_compute_C_icc(carry_32);
+        gen_helper_compute_C_icc(carry_32, cpu_env);
         break;
     }
 
@@ -567,7 +567,7 @@ static void gen_op_subx_int(DisasContext *dc, TCGv dst, TCGv src1,
     default:
         /* We need external help to produce the carry.  */
         carry_32 = tcg_temp_new_i32();
-        gen_helper_compute_C_icc(carry_32);
+        gen_helper_compute_C_icc(carry_32, cpu_env);
         break;
     }
 
@@ -1091,7 +1091,7 @@ static inline void save_state(DisasContext *dc, TCGv cond)
     /* flush pending conditional evaluations before exposing cpu state */
     if (dc->cc_op != CC_OP_FLAGS) {
         dc->cc_op = CC_OP_FLAGS;
-        gen_helper_compute_psr();
+        gen_helper_compute_psr(cpu_env);
     }
     save_npc(dc, cond);
 }
@@ -1133,7 +1133,7 @@ static inline void gen_cond(TCGv r_dst, unsigned int cc, unsigned int cond,
     case CC_OP_FLAGS:
         break;
     default:
-        gen_helper_compute_psr();
+        gen_helper_compute_psr(cpu_env);
         dc->cc_op = CC_OP_FLAGS;
         break;
     }
@@ -2106,7 +2106,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
 #ifdef TARGET_SPARC64
                 case 0x2: /* V9 rdccr */
-                    gen_helper_compute_psr();
+                    gen_helper_compute_psr(cpu_env);
                     gen_helper_rdccr(cpu_dst);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
@@ -2182,7 +2182,7 @@ static void disas_sparc_insn(DisasContext * dc)
 #ifndef TARGET_SPARC64
                 if (!supervisor(dc))
                     goto priv_insn;
-                gen_helper_compute_psr();
+                gen_helper_compute_psr(cpu_env);
                 dc->cc_op = CC_OP_FLAGS;
                 gen_helper_rdpsr(cpu_dst);
 #else
@@ -3321,7 +3321,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         dc->cc_op = CC_OP_TSUBTV;
                         break;
                     case 0x24: /* mulscc */
-                        gen_helper_compute_psr();
+                        gen_helper_compute_psr(cpu_env);
                         gen_op_mulscc(cpu_dst, cpu_src1, cpu_src2);
                         gen_movl_TN_reg(rd, cpu_dst);
                         tcg_gen_movi_i32(cpu_cc_op, CC_OP_ADD);
@@ -4417,7 +4417,7 @@ static void disas_sparc_insn(DisasContext * dc)
                cpu state */
             if (dc->cc_op != CC_OP_FLAGS) {
                 dc->cc_op = CC_OP_FLAGS;
-                gen_helper_compute_psr();
+                gen_helper_compute_psr(cpu_env);
             }
             cpu_src1 = get_src1(insn, cpu_src1);
             if (xop == 0x3c || xop == 0x3e) { // V9 casa/casxa
@@ -5269,6 +5269,6 @@ void restore_state_to_opc(CPUState *env, TranslationBlock *tb, int pc_pos)
 
     /* flush pending conditional evaluations before exposing cpu state */
     if (CC_OP != CC_OP_FLAGS) {
-        helper_compute_psr();
+        helper_compute_psr(env);
     }
 }

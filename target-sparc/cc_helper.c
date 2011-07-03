@@ -18,15 +18,14 @@
  */
 
 #include "cpu.h"
-#include "dyngen-exec.h"
 #include "helper.h"
 
-static uint32_t compute_all_flags(void)
+static uint32_t compute_all_flags(CPUState *env)
 {
     return env->psr & PSR_ICC;
 }
 
-static uint32_t compute_C_flags(void)
+static uint32_t compute_C_flags(CPUState *env)
 {
     return env->psr & PSR_CARRY;
 }
@@ -44,12 +43,12 @@ static inline uint32_t get_NZ_icc(int32_t dst)
 }
 
 #ifdef TARGET_SPARC64
-static uint32_t compute_all_flags_xcc(void)
+static uint32_t compute_all_flags_xcc(CPUState *env)
 {
     return env->xcc & PSR_ICC;
 }
 
-static uint32_t compute_C_flags_xcc(void)
+static uint32_t compute_C_flags_xcc(CPUState *env)
 {
     return env->xcc & PSR_CARRY;
 }
@@ -77,7 +76,7 @@ static inline uint32_t get_V_div_icc(target_ulong src2)
     return ret;
 }
 
-static uint32_t compute_all_div(void)
+static uint32_t compute_all_div(CPUState *env)
 {
     uint32_t ret;
 
@@ -86,7 +85,7 @@ static uint32_t compute_all_div(void)
     return ret;
 }
 
-static uint32_t compute_C_div(void)
+static uint32_t compute_C_div(CPUState *env)
 {
     return 0;
 }
@@ -156,7 +155,7 @@ static inline uint32_t get_V_add_xcc(target_ulong dst, target_ulong src1,
     return ret;
 }
 
-static uint32_t compute_all_add_xcc(void)
+static uint32_t compute_all_add_xcc(CPUState *env)
 {
     uint32_t ret;
 
@@ -166,13 +165,13 @@ static uint32_t compute_all_add_xcc(void)
     return ret;
 }
 
-static uint32_t compute_C_add_xcc(void)
+static uint32_t compute_C_add_xcc(CPUState *env)
 {
     return get_C_add_xcc(CC_DST, CC_SRC);
 }
 #endif
 
-static uint32_t compute_all_add(void)
+static uint32_t compute_all_add(CPUState *env)
 {
     uint32_t ret;
 
@@ -182,13 +181,13 @@ static uint32_t compute_all_add(void)
     return ret;
 }
 
-static uint32_t compute_C_add(void)
+static uint32_t compute_C_add(CPUState *env)
 {
     return get_C_add_icc(CC_DST, CC_SRC);
 }
 
 #ifdef TARGET_SPARC64
-static uint32_t compute_all_addx_xcc(void)
+static uint32_t compute_all_addx_xcc(CPUState *env)
 {
     uint32_t ret;
 
@@ -198,7 +197,7 @@ static uint32_t compute_all_addx_xcc(void)
     return ret;
 }
 
-static uint32_t compute_C_addx_xcc(void)
+static uint32_t compute_C_addx_xcc(CPUState *env)
 {
     uint32_t ret;
 
@@ -207,7 +206,7 @@ static uint32_t compute_C_addx_xcc(void)
 }
 #endif
 
-static uint32_t compute_all_addx(void)
+static uint32_t compute_all_addx(CPUState *env)
 {
     uint32_t ret;
 
@@ -217,7 +216,7 @@ static uint32_t compute_all_addx(void)
     return ret;
 }
 
-static uint32_t compute_C_addx(void)
+static uint32_t compute_C_addx(CPUState *env)
 {
     uint32_t ret;
 
@@ -235,7 +234,7 @@ static inline uint32_t get_V_tag_icc(target_ulong src1, target_ulong src2)
     return ret;
 }
 
-static uint32_t compute_all_tadd(void)
+static uint32_t compute_all_tadd(CPUState *env)
 {
     uint32_t ret;
 
@@ -246,7 +245,7 @@ static uint32_t compute_all_tadd(void)
     return ret;
 }
 
-static uint32_t compute_all_taddtv(void)
+static uint32_t compute_all_taddtv(CPUState *env)
 {
     uint32_t ret;
 
@@ -321,7 +320,7 @@ static inline uint32_t get_V_sub_xcc(target_ulong dst, target_ulong src1,
     return ret;
 }
 
-static uint32_t compute_all_sub_xcc(void)
+static uint32_t compute_all_sub_xcc(CPUState *env)
 {
     uint32_t ret;
 
@@ -331,13 +330,13 @@ static uint32_t compute_all_sub_xcc(void)
     return ret;
 }
 
-static uint32_t compute_C_sub_xcc(void)
+static uint32_t compute_C_sub_xcc(CPUState *env)
 {
     return get_C_sub_xcc(CC_SRC, CC_SRC2);
 }
 #endif
 
-static uint32_t compute_all_sub(void)
+static uint32_t compute_all_sub(CPUState *env)
 {
     uint32_t ret;
 
@@ -347,13 +346,13 @@ static uint32_t compute_all_sub(void)
     return ret;
 }
 
-static uint32_t compute_C_sub(void)
+static uint32_t compute_C_sub(CPUState *env)
 {
     return get_C_sub_icc(CC_SRC, CC_SRC2);
 }
 
 #ifdef TARGET_SPARC64
-static uint32_t compute_all_subx_xcc(void)
+static uint32_t compute_all_subx_xcc(CPUState *env)
 {
     uint32_t ret;
 
@@ -363,7 +362,7 @@ static uint32_t compute_all_subx_xcc(void)
     return ret;
 }
 
-static uint32_t compute_C_subx_xcc(void)
+static uint32_t compute_C_subx_xcc(CPUState *env)
 {
     uint32_t ret;
 
@@ -372,7 +371,7 @@ static uint32_t compute_C_subx_xcc(void)
 }
 #endif
 
-static uint32_t compute_all_subx(void)
+static uint32_t compute_all_subx(CPUState *env)
 {
     uint32_t ret;
 
@@ -382,7 +381,7 @@ static uint32_t compute_all_subx(void)
     return ret;
 }
 
-static uint32_t compute_C_subx(void)
+static uint32_t compute_C_subx(CPUState *env)
 {
     uint32_t ret;
 
@@ -390,7 +389,7 @@ static uint32_t compute_C_subx(void)
     return ret;
 }
 
-static uint32_t compute_all_tsub(void)
+static uint32_t compute_all_tsub(CPUState *env)
 {
     uint32_t ret;
 
@@ -401,7 +400,7 @@ static uint32_t compute_all_tsub(void)
     return ret;
 }
 
-static uint32_t compute_all_tsubtv(void)
+static uint32_t compute_all_tsubtv(CPUState *env)
 {
     uint32_t ret;
 
@@ -410,26 +409,26 @@ static uint32_t compute_all_tsubtv(void)
     return ret;
 }
 
-static uint32_t compute_all_logic(void)
+static uint32_t compute_all_logic(CPUState *env)
 {
     return get_NZ_icc(CC_DST);
 }
 
-static uint32_t compute_C_logic(void)
+static uint32_t compute_C_logic(CPUState *env)
 {
     return 0;
 }
 
 #ifdef TARGET_SPARC64
-static uint32_t compute_all_logic_xcc(void)
+static uint32_t compute_all_logic_xcc(CPUState *env)
 {
     return get_NZ_xcc(CC_DST);
 }
 #endif
 
 typedef struct CCTable {
-    uint32_t (*compute_all)(void); /* return all the flags */
-    uint32_t (*compute_c)(void);  /* return the C flag */
+    uint32_t (*compute_all)(CPUState *env); /* return all the flags */
+    uint32_t (*compute_c)(CPUState *env);  /* return the C flag */
 } CCTable;
 
 static const CCTable icc_table[CC_OP_NB] = {
@@ -464,23 +463,23 @@ static const CCTable xcc_table[CC_OP_NB] = {
 };
 #endif
 
-void helper_compute_psr(void)
+void helper_compute_psr(CPUState *env)
 {
     uint32_t new_psr;
 
-    new_psr = icc_table[CC_OP].compute_all();
+    new_psr = icc_table[CC_OP].compute_all(env);
     env->psr = new_psr;
 #ifdef TARGET_SPARC64
-    new_psr = xcc_table[CC_OP].compute_all();
+    new_psr = xcc_table[CC_OP].compute_all(env);
     env->xcc = new_psr;
 #endif
     CC_OP = CC_OP_FLAGS;
 }
 
-uint32_t helper_compute_C_icc(void)
+uint32_t helper_compute_C_icc(CPUState *env)
 {
     uint32_t ret;
 
-    ret = icc_table[CC_OP].compute_c() >> PSR_CARRY_SHIFT;
+    ret = icc_table[CC_OP].compute_c(env) >> PSR_CARRY_SHIFT;
     return ret;
 }
