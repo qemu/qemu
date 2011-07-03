@@ -82,6 +82,12 @@
 			compatible = "chrp,open-pic";
 			device_type = "open-pic";
 		};
+
+                global-utilities@e0000 {        //global utilities block
+                        compatible = "fsl,mpc8544-guts";
+                        reg = <0xe0000 0x1000>;
+                        fsl,has-rstcr;
+                };
 	};
 
 	pci0: pci@e0008000 {
@@ -118,5 +124,8 @@
 
 	chosen {
 		linux,stdout-path = "/soc8544@e0000000/serial@4500";
+	};
+
+	hypervisor {
 	};
 };

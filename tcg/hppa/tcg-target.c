@@ -467,6 +467,14 @@ static inline void tcg_out_dep(TCGContext *s, int ret, int arg,
               | INSN_SHDEP_CP(31 - ofs) | INSN_DEP_LEN(len));
 }
 
+static inline void tcg_out_depi(TCGContext *s, int ret, int arg,
+                                unsigned ofs, unsigned len)
+{
+    assert(ofs < 32 && len <= 32 - ofs);
+    tcg_out32(s, INSN_DEPI | INSN_R2(ret) | INSN_IM5(arg)
+              | INSN_SHDEP_CP(31 - ofs) | INSN_DEP_LEN(len));
+}
+
 static inline void tcg_out_shd(TCGContext *s, int ret, int hi, int lo,
                                unsigned count)
 {
@@ -499,8 +507,7 @@ static void tcg_out_ori(TCGContext *s, int ret, int arg, tcg_target_ulong m)
     assert(bs1 == 32 || (1ul << bs1) > m);
 
     tcg_out_mov(s, TCG_TYPE_I32, ret, arg);
-    tcg_out32(s, INSN_DEPI | INSN_R2(ret) | INSN_IM5(-1)
-              | INSN_SHDEP_CP(31 - bs0) | INSN_DEP_LEN(bs1 - bs0));
+    tcg_out_depi(s, ret, -1, bs0, bs1 - bs0);
 }
 
 static void tcg_out_andi(TCGContext *s, int ret, int arg, tcg_target_ulong m)
@@ -529,8 +536,7 @@ static void tcg_out_andi(TCGContext *s, int ret, int arg, tcg_target_ulong m)
         tcg_out_extr(s, ret, arg, 0, ls0, 0);
     } else {
         tcg_out_mov(s, TCG_TYPE_I32, ret, arg);
-        tcg_out32(s, INSN_DEPI | INSN_R2(ret) | INSN_IM5(0)
-                  | INSN_SHDEP_CP(31 - ls0) | INSN_DEP_LEN(ls1 - ls0));
+        tcg_out_depi(s, ret, 0, ls0, ls1 - ls0);
     }
 }
 
@@ -646,14 +652,14 @@ static void tcg_out_xmpyu(TCGContext *s, int retl, int reth,
                           int arg1, int arg2)
 {
     /* Store both words into the stack for copy to the FPU.  */
-    tcg_out_ldst(s, arg1, TCG_REG_SP, STACK_TEMP_OFS, INSN_STW);
-    tcg_out_ldst(s, arg2, TCG_REG_SP, STACK_TEMP_OFS + 4, INSN_STW);
+    tcg_out_ldst(s, arg1, TCG_REG_CALL_STACK, STACK_TEMP_OFS, INSN_STW);
+    tcg_out_ldst(s, arg2, TCG_REG_CALL_STACK, STACK_TEMP_OFS + 4, INSN_STW);
 
     /* Load both words into the FPU at the same time.  We get away
        with this because we can address the left and right half of the
        FPU registers individually once loaded.  */
     /* fldds stack_temp(sp),fr22 */
-    tcg_out32(s, INSN_FLDDS | INSN_R2(TCG_REG_SP)
+    tcg_out32(s, INSN_FLDDS | INSN_R2(TCG_REG_CALL_STACK)
               | INSN_IM5(STACK_TEMP_OFS) | INSN_T(22));
 
     /* xmpyu fr22r,fr22,fr22 */
@@ -661,15 +667,16 @@ static void tcg_out_xmpyu(TCGContext *s, int retl, int reth,
 
     /* Store the 64-bit result back into the stack.  */
     /* fstds stack_temp(sp),fr22 */
-    tcg_out32(s, INSN_FSTDS | INSN_R2(TCG_REG_SP)
+    tcg_out32(s, INSN_FSTDS | INSN_R2(TCG_REG_CALL_STACK)
               | INSN_IM5(STACK_TEMP_OFS) | INSN_T(22));
 
     /* Load the pieces of the result that the caller requested.  */
     if (reth) {
-        tcg_out_ldst(s, reth, TCG_REG_SP, STACK_TEMP_OFS, INSN_LDW);
+        tcg_out_ldst(s, reth, TCG_REG_CALL_STACK, STACK_TEMP_OFS, INSN_LDW);
     }
     if (retl) {
-        tcg_out_ldst(s, retl, TCG_REG_SP, STACK_TEMP_OFS + 4, INSN_LDW);
+        tcg_out_ldst(s, retl, TCG_REG_CALL_STACK, STACK_TEMP_OFS + 4,
+                     INSN_LDW);
     }
 }
 
@@ -1198,7 +1205,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
         }
         tcg_out_mov(s, TCG_TYPE_I32, TCG_REG_R23, datahi_reg);
         tcg_out_mov(s, TCG_TYPE_I32, TCG_REG_R24, datalo_reg);
-        tcg_out_st(s, TCG_TYPE_I32, argreg, TCG_REG_SP,
+        tcg_out_st(s, TCG_TYPE_I32, argreg, TCG_REG_CALL_STACK,
                    TCG_TARGET_CALL_STACK_OFFSET - 4);
         break;
     default:
@@ -1458,6 +1465,14 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
                      args[4], args[5], const_args[2], const_args[4]);
         break;
 
+    case INDEX_op_deposit_i32:
+        if (const_args[2]) {
+            tcg_out_depi(s, args[0], args[2], args[3], args[4]);
+        } else {
+            tcg_out_dep(s, args[0], args[2], args[3], args[4]);
+        }
+        break;
+
     case INDEX_op_qemu_ld8u:
         tcg_out_qemu_ld(s, args, 0);
         break;
@@ -1551,6 +1566,8 @@ static const TCGTargetOpDef hppa_op_defs[] = {
     { INDEX_op_add2_i32, { "r", "r", "rZ", "rZ", "rI", "rZ" } },
     { INDEX_op_sub2_i32, { "r", "r", "rI", "rZ", "rK", "rZ" } },
 
+    { INDEX_op_deposit_i32, { "r", "0", "rJ" } },
+
 #if TARGET_LONG_BITS == 32
     { INDEX_op_qemu_ld8u, { "r", "L" } },
     { INDEX_op_qemu_ld8s, { "r", "L" } },
@@ -1611,22 +1628,29 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     /* Allocate space for the saved registers.  */
     frame_size += ARRAY_SIZE(tcg_target_callee_save_regs) * 4;
 
+    /* Allocate space for the TCG temps. */
+    frame_size += CPU_TEMP_BUF_NLONGS * sizeof(long);
+
     /* Align the allocated space.  */
     frame_size = ((frame_size + TCG_TARGET_STACK_ALIGN - 1)
                   & -TCG_TARGET_STACK_ALIGN);
 
     /* The return address is stored in the caller's frame.  */
-    tcg_out_st(s, TCG_TYPE_PTR, TCG_REG_RP, TCG_REG_SP, -20);
+    tcg_out_st(s, TCG_TYPE_PTR, TCG_REG_RP, TCG_REG_CALL_STACK, -20);
 
     /* Allocate stack frame, saving the first register at the same time.  */
     tcg_out_ldst(s, tcg_target_callee_save_regs[0],
-                 TCG_REG_SP, frame_size, INSN_STWM);
+                 TCG_REG_CALL_STACK, frame_size, INSN_STWM);
 
     /* Save all callee saved registers.  */
     for (i = 1; i < ARRAY_SIZE(tcg_target_callee_save_regs); i++) {
         tcg_out_st(s, TCG_TYPE_PTR, tcg_target_callee_save_regs[i],
-                   TCG_REG_SP, -frame_size + i * 4);
+                   TCG_REG_CALL_STACK, -frame_size + i * 4);
     }
+
+    /* Record the location of the TCG temps.  */
+    tcg_set_frame(s, TCG_REG_CALL_STACK, -frame_size + i * 4,
+                  TCG_TEMP_BUF_NLONGS * sizeof(long));
 
 #ifdef CONFIG_USE_GUEST_BASE
     if (GUEST_BASE != 0) {
@@ -1642,16 +1666,17 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out_mov(s, TCG_TYPE_I32, TCG_REG_R18, TCG_REG_R31);
 
     /* Restore callee saved registers.  */
-    tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_RP, TCG_REG_SP, -frame_size - 20);
+    tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_RP, TCG_REG_CALL_STACK,
+               -frame_size - 20);
     for (i = 1; i < ARRAY_SIZE(tcg_target_callee_save_regs); i++) {
         tcg_out_ld(s, TCG_TYPE_PTR, tcg_target_callee_save_regs[i],
-                   TCG_REG_SP, -frame_size + i * 4);
+                   TCG_REG_CALL_STACK, -frame_size + i * 4);
     }
 
     /* Deallocate stack frame and return.  */
     tcg_out32(s, INSN_BV | INSN_R2(TCG_REG_RP));
     tcg_out_ldst(s, tcg_target_callee_save_regs[0],
-                 TCG_REG_SP, -frame_size, INSN_LDWM);
+                 TCG_REG_CALL_STACK, -frame_size, INSN_LDWM);
 }
 
 static void tcg_target_init(TCGContext *s)
@@ -1678,10 +1703,8 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R19); /* clobbered w/o pic */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R20); /* reserved */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_DP);  /* data pointer */
-    tcg_regset_set_reg(s->reserved_regs, TCG_REG_SP);  /* stack pointer */
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);  /* stack pointer */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R31); /* ble link reg */
 
     tcg_add_target_add_op_defs(hppa_op_defs);
-    tcg_set_frame(s, TCG_AREG0, offsetof(CPUState, temp_buf),
-                  CPU_TEMP_BUF_NLONGS * sizeof(long));
 }
