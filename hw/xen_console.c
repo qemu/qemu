@@ -196,12 +196,15 @@ static int con_init(struct XenDevice *xendev)
     }
 
     output = xenstore_read_str(con->console, "output");
-    /* output is a pty by default */
+
+    /* no Xen override, use qemu output device */
     if (output == NULL) {
-        output = "pty";
+        con->chr = serial_hds[con->xendev.dev];
+    } else {
+        snprintf(label, sizeof(label), "xencons%d", con->xendev.dev);
+        con->chr = qemu_chr_open(label, output, NULL);
     }
-    snprintf(label, sizeof(label), "xencons%d", con->xendev.dev);
-    con->chr = qemu_chr_open(label, output, NULL);
+
     xenstore_store_pv_console_info(con->xendev.dev, con->chr);
 
 out:
