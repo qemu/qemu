@@ -493,8 +493,8 @@ void r4k_helper_tlbwr (void);
 void r4k_helper_tlbp (void);
 void r4k_helper_tlbr (void);
 
-void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
-                          int unused, int size);
+void cpu_unassigned_access(CPUState *env, target_phys_addr_t addr,
+                           int is_write, int is_exec, int unused, int size);
 #endif
 
 void mips_cpu_list (FILE *f, fprintf_function cpu_fprintf);

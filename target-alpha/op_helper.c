@@ -1301,9 +1301,11 @@ static void QEMU_NORETURN do_unaligned_access(target_ulong addr, int is_write,
     helper_excp(EXCP_UNALIGN, 0);
 }
 
-void QEMU_NORETURN do_unassigned_access(target_phys_addr_t addr, int is_write,
-                                        int is_exec, int unused, int size)
+void QEMU_NORETURN cpu_unassigned_access(CPUState *env1,
+                                         target_phys_addr_t addr, int is_write,
+                                         int is_exec, int unused, int size)
 {
+    env = env1;
     env->trap_arg0 = addr;
     env->trap_arg1 = is_write;
     dynamic_excp(EXCP_MCHK, 0);

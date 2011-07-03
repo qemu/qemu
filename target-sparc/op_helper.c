@@ -79,9 +79,14 @@
 #define CACHE_CTRL_FD (1 << 22)  /* Flush Data cache (Write only) */
 #define CACHE_CTRL_DS (1 << 23)  /* Data cache snoop enable */
 
-#if defined(CONFIG_USER_ONLY) && defined(TARGET_SPARC64)
+#if !defined(CONFIG_USER_ONLY)
+static void do_unassigned_access(target_phys_addr_t addr, int is_write,
+                                 int is_exec, int is_asi, int size);
+#else
+#ifdef TARGET_SPARC64
 static void do_unassigned_access(target_ulong addr, int is_write, int is_exec,
-                          int is_asi, int size);
+                                 int is_asi, int size);
+#endif
 #endif
 
 #if defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
@@ -4235,8 +4240,8 @@ void tlb_fill(target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 
 #ifndef TARGET_SPARC64
 #if !defined(CONFIG_USER_ONLY)
-void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
-                          int is_asi, int size)
+static void do_unassigned_access(target_phys_addr_t addr, int is_write,
+                                 int is_exec, int is_asi, int size)
 {
     CPUState *saved_env;
     int fault_type;
@@ -4301,8 +4306,8 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
 static void do_unassigned_access(target_ulong addr, int is_write, int is_exec,
                           int is_asi, int size)
 #else
-void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
-                          int is_asi, int size)
+static void do_unassigned_access(target_phys_addr_t addr, int is_write,
+                                 int is_exec, int is_asi, int size)
 #endif
 {
     CPUState *saved_env;
@@ -4349,5 +4354,14 @@ void helper_tick_set_limit(void *opaque, uint64_t limit)
 #if !defined(CONFIG_USER_ONLY)
     cpu_tick_set_limit(opaque, limit);
 #endif
+}
+#endif
+
+#if !defined(CONFIG_USER_ONLY)
+void cpu_unassigned_access(CPUState *env1, target_phys_addr_t addr,
+                           int is_write, int is_exec, int is_asi, int size)
+{
+    env = env1;
+    do_unassigned_access(addr, is_write, is_exec, is_asi, size);
 }
 #endif

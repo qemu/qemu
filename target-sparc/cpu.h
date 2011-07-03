@@ -510,8 +510,8 @@ static inline int tlb_compare_context(const SparcTLBEntry *tlb,
 
 /* cpu-exec.c */
 #if !defined(CONFIG_USER_ONLY)
-void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
-                          int is_asi, int size);
+void cpu_unassigned_access(CPUState *env1, target_phys_addr_t addr,
+                           int is_write, int is_exec, int is_asi, int size);
 target_phys_addr_t cpu_get_phys_page_nofault(CPUState *env, target_ulong addr,
                                            int mmu_idx);
 

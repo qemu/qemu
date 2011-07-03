@@ -1980,9 +1980,11 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     env = saved_env;
 }
 
-void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
-                          int unused, int size)
+void cpu_unassigned_access(CPUState *env1, target_phys_addr_t addr,
+                           int is_write, int is_exec, int unused, int size)
 {
+    env = env1;
+
     if (is_exec)
         helper_raise_exception(EXCP_IBE);
     else
