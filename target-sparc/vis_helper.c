@@ -18,7 +18,6 @@
  */
 
 #include "cpu.h"
-#include "dyngen-exec.h"
 #include "helper.h"
 
 #define DT0 (env->dt0)
@@ -34,7 +33,8 @@
 #define GET_FIELD_SP(X, FROM, TO)               \
     GET_FIELD(X, 63 - (TO), 63 - (FROM))
 
-target_ulong helper_array8(target_ulong pixel_addr, target_ulong cubesize)
+target_ulong helper_array8(CPUState *env, target_ulong pixel_addr,
+                           target_ulong cubesize)
 {
     return (GET_FIELD_SP(pixel_addr, 60, 63) << (17 + 2 * cubesize)) |
         (GET_FIELD_SP(pixel_addr, 39, 39 + cubesize - 1) << (17 + cubesize)) |
@@ -47,7 +47,8 @@ target_ulong helper_array8(target_ulong pixel_addr, target_ulong cubesize)
         GET_FIELD_SP(pixel_addr, 11, 12);
 }
 
-target_ulong helper_alignaddr(target_ulong addr, target_ulong offset)
+target_ulong helper_alignaddr(CPUState *env, target_ulong addr,
+                              target_ulong offset)
 {
     uint64_t tmp;
 
@@ -57,7 +58,7 @@ target_ulong helper_alignaddr(target_ulong addr, target_ulong offset)
     return tmp & ~7ULL;
 }
 
-void helper_faligndata(void)
+void helper_faligndata(CPUState *env)
 {
     uint64_t tmp;
 
@@ -101,7 +102,7 @@ typedef union {
     float32 f;
 } VIS32;
 
-void helper_fpmerge(void)
+void helper_fpmerge(CPUState *env)
 {
     VIS64 s, d;
 
@@ -121,7 +122,7 @@ void helper_fpmerge(void)
     DT0 = d.d;
 }
 
-void helper_fmul8x16(void)
+void helper_fmul8x16(CPUState *env)
 {
     VIS64 s, d;
     uint32_t tmp;
@@ -145,7 +146,7 @@ void helper_fmul8x16(void)
     DT0 = d.d;
 }
 
-void helper_fmul8x16al(void)
+void helper_fmul8x16al(CPUState *env)
 {
     VIS64 s, d;
     uint32_t tmp;
@@ -169,7 +170,7 @@ void helper_fmul8x16al(void)
     DT0 = d.d;
 }
 
-void helper_fmul8x16au(void)
+void helper_fmul8x16au(CPUState *env)
 {
     VIS64 s, d;
     uint32_t tmp;
@@ -193,7 +194,7 @@ void helper_fmul8x16au(void)
     DT0 = d.d;
 }
 
-void helper_fmul8sux16(void)
+void helper_fmul8sux16(CPUState *env)
 {
     VIS64 s, d;
     uint32_t tmp;
@@ -217,7 +218,7 @@ void helper_fmul8sux16(void)
     DT0 = d.d;
 }
 
-void helper_fmul8ulx16(void)
+void helper_fmul8ulx16(CPUState *env)
 {
     VIS64 s, d;
     uint32_t tmp;
@@ -241,7 +242,7 @@ void helper_fmul8ulx16(void)
     DT0 = d.d;
 }
 
-void helper_fmuld8sux16(void)
+void helper_fmuld8sux16(CPUState *env)
 {
     VIS64 s, d;
     uint32_t tmp;
@@ -264,7 +265,7 @@ void helper_fmuld8sux16(void)
     DT0 = d.d;
 }
 
-void helper_fmuld8ulx16(void)
+void helper_fmuld8ulx16(CPUState *env)
 {
     VIS64 s, d;
     uint32_t tmp;
@@ -287,7 +288,7 @@ void helper_fmuld8ulx16(void)
     DT0 = d.d;
 }
 
-void helper_fexpand(void)
+void helper_fexpand(CPUState *env)
 {
     VIS32 s;
     VIS64 d;
@@ -303,7 +304,7 @@ void helper_fexpand(void)
 }
 
 #define VIS_HELPER(name, F)                             \
-    void name##16(void)                                 \
+    void name##16(CPUState *env)                        \
     {                                                   \
         VIS64 s, d;                                     \
                                                         \
@@ -318,7 +319,8 @@ void helper_fexpand(void)
         DT0 = d.d;                                      \
     }                                                   \
                                                         \
-    uint32_t name##16s(uint32_t src1, uint32_t src2)    \
+    uint32_t name##16s(CPUState *env, uint32_t src1,    \
+                       uint32_t src2)                   \
     {                                                   \
         VIS32 s, d;                                     \
                                                         \
@@ -331,7 +333,7 @@ void helper_fexpand(void)
         return d.l;                                     \
     }                                                   \
                                                         \
-    void name##32(void)                                 \
+    void name##32(CPUState *env)                        \
     {                                                   \
         VIS64 s, d;                                     \
                                                         \
@@ -344,7 +346,8 @@ void helper_fexpand(void)
         DT0 = d.d;                                      \
     }                                                   \
                                                         \
-    uint32_t name##32s(uint32_t src1, uint32_t src2)    \
+    uint32_t name##32s(CPUState *env, uint32_t src1,    \
+                       uint32_t src2)                   \
     {                                                   \
         VIS32 s, d;                                     \
                                                         \
@@ -362,7 +365,7 @@ VIS_HELPER(helper_fpadd, FADD)
 VIS_HELPER(helper_fpsub, FSUB)
 
 #define VIS_CMPHELPER(name, F)                                    \
-    uint64_t name##16(void)                                       \
+    uint64_t name##16(CPUState *env)                              \
     {                                                             \
         VIS64 s, d;                                               \
                                                                   \
@@ -378,7 +381,7 @@ VIS_HELPER(helper_fpsub, FSUB)
         return d.ll;                                              \
     }                                                             \
                                                                   \
-    uint64_t name##32(void)                                       \
+    uint64_t name##32(CPUState *env)                              \
     {                                                             \
         VIS64 s, d;                                               \
                                                                   \

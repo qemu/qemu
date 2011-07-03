@@ -16,8 +16,8 @@ DEF_HELPER_0(rdccr, tl)
 DEF_HELPER_1(wrccr, void, tl)
 DEF_HELPER_0(rdcwp, tl)
 DEF_HELPER_1(wrcwp, void, tl)
-DEF_HELPER_2(array8, tl, tl, tl)
-DEF_HELPER_2(alignaddr, tl, tl, tl)
+DEF_HELPER_3(array8, tl, env, tl, tl)
+DEF_HELPER_3(alignaddr, tl, env, tl, tl)
 DEF_HELPER_1(popc, tl, tl)
 DEF_HELPER_3(ldda_asi, void, tl, int, int)
 DEF_HELPER_4(ldf_asi, void, tl, int, int, int)
@@ -47,116 +47,116 @@ DEF_HELPER_2(stqf, void, tl, int)
 DEF_HELPER_4(ld_asi, i64, tl, int, int, int)
 DEF_HELPER_4(st_asi, void, tl, i64, int, int)
 #endif
-DEF_HELPER_1(ldfsr, void, i32)
-DEF_HELPER_0(check_ieee_exceptions, void)
-DEF_HELPER_0(clear_float_exceptions, void)
+DEF_HELPER_2(ldfsr, void, env, i32)
+DEF_HELPER_1(check_ieee_exceptions, void, env)
+DEF_HELPER_1(clear_float_exceptions, void, env)
 DEF_HELPER_1(fabss, f32, f32)
-DEF_HELPER_1(fsqrts, f32, f32)
-DEF_HELPER_0(fsqrtd, void)
-DEF_HELPER_2(fcmps, void, f32, f32)
-DEF_HELPER_0(fcmpd, void)
-DEF_HELPER_2(fcmpes, void, f32, f32)
-DEF_HELPER_0(fcmped, void)
-DEF_HELPER_0(fsqrtq, void)
-DEF_HELPER_0(fcmpq, void)
-DEF_HELPER_0(fcmpeq, void)
+DEF_HELPER_2(fsqrts, f32, env, f32)
+DEF_HELPER_1(fsqrtd, void, env)
+DEF_HELPER_3(fcmps, void, env, f32, f32)
+DEF_HELPER_1(fcmpd, void, env)
+DEF_HELPER_3(fcmpes, void, env, f32, f32)
+DEF_HELPER_1(fcmped, void, env)
+DEF_HELPER_1(fsqrtq, void, env)
+DEF_HELPER_1(fcmpq, void, env)
+DEF_HELPER_1(fcmpeq, void, env)
 #ifdef TARGET_SPARC64
-DEF_HELPER_1(ldxfsr, void, i64)
-DEF_HELPER_0(fabsd, void)
-DEF_HELPER_2(fcmps_fcc1, void, f32, f32)
-DEF_HELPER_2(fcmps_fcc2, void, f32, f32)
-DEF_HELPER_2(fcmps_fcc3, void, f32, f32)
-DEF_HELPER_0(fcmpd_fcc1, void)
-DEF_HELPER_0(fcmpd_fcc2, void)
-DEF_HELPER_0(fcmpd_fcc3, void)
-DEF_HELPER_2(fcmpes_fcc1, void, f32, f32)
-DEF_HELPER_2(fcmpes_fcc2, void, f32, f32)
-DEF_HELPER_2(fcmpes_fcc3, void, f32, f32)
-DEF_HELPER_0(fcmped_fcc1, void)
-DEF_HELPER_0(fcmped_fcc2, void)
-DEF_HELPER_0(fcmped_fcc3, void)
-DEF_HELPER_0(fabsq, void)
-DEF_HELPER_0(fcmpq_fcc1, void)
-DEF_HELPER_0(fcmpq_fcc2, void)
-DEF_HELPER_0(fcmpq_fcc3, void)
-DEF_HELPER_0(fcmpeq_fcc1, void)
-DEF_HELPER_0(fcmpeq_fcc2, void)
-DEF_HELPER_0(fcmpeq_fcc3, void)
+DEF_HELPER_2(ldxfsr, void, env, i64)
+DEF_HELPER_1(fabsd, void, env)
+DEF_HELPER_3(fcmps_fcc1, void, env, f32, f32)
+DEF_HELPER_3(fcmps_fcc2, void, env, f32, f32)
+DEF_HELPER_3(fcmps_fcc3, void, env, f32, f32)
+DEF_HELPER_1(fcmpd_fcc1, void, env)
+DEF_HELPER_1(fcmpd_fcc2, void, env)
+DEF_HELPER_1(fcmpd_fcc3, void, env)
+DEF_HELPER_3(fcmpes_fcc1, void, env, f32, f32)
+DEF_HELPER_3(fcmpes_fcc2, void, env, f32, f32)
+DEF_HELPER_3(fcmpes_fcc3, void, env, f32, f32)
+DEF_HELPER_1(fcmped_fcc1, void, env)
+DEF_HELPER_1(fcmped_fcc2, void, env)
+DEF_HELPER_1(fcmped_fcc3, void, env)
+DEF_HELPER_1(fabsq, void, env)
+DEF_HELPER_1(fcmpq_fcc1, void, env)
+DEF_HELPER_1(fcmpq_fcc2, void, env)
+DEF_HELPER_1(fcmpq_fcc3, void, env)
+DEF_HELPER_1(fcmpeq_fcc1, void, env)
+DEF_HELPER_1(fcmpeq_fcc2, void, env)
+DEF_HELPER_1(fcmpeq_fcc3, void, env)
 #endif
 DEF_HELPER_2(raise_exception, void, env, int)
 DEF_HELPER_0(shutdown, void)
-#define F_HELPER_0_0(name) DEF_HELPER_0(f ## name, void)
-#define F_HELPER_DQ_0_0(name)                   \
-    F_HELPER_0_0(name ## d);                    \
-    F_HELPER_0_0(name ## q)
+#define F_HELPER_0_1(name) DEF_HELPER_1(f ## name, void, env)
+#define F_HELPER_DQ_0_1(name)                   \
+    F_HELPER_0_1(name ## d);                    \
+    F_HELPER_0_1(name ## q)
 
-F_HELPER_DQ_0_0(add);
-F_HELPER_DQ_0_0(sub);
-F_HELPER_DQ_0_0(mul);
-F_HELPER_DQ_0_0(div);
+F_HELPER_DQ_0_1(add);
+F_HELPER_DQ_0_1(sub);
+F_HELPER_DQ_0_1(mul);
+F_HELPER_DQ_0_1(div);
 
-DEF_HELPER_2(fadds, f32, f32, f32)
-DEF_HELPER_2(fsubs, f32, f32, f32)
-DEF_HELPER_2(fmuls, f32, f32, f32)
-DEF_HELPER_2(fdivs, f32, f32, f32)
+DEF_HELPER_3(fadds, f32, env, f32, f32)
+DEF_HELPER_3(fsubs, f32, env, f32, f32)
+DEF_HELPER_3(fmuls, f32, env, f32, f32)
+DEF_HELPER_3(fdivs, f32, env, f32, f32)
 
-DEF_HELPER_2(fsmuld, void, f32, f32)
-F_HELPER_0_0(dmulq);
+DEF_HELPER_3(fsmuld, void, env, f32, f32)
+F_HELPER_0_1(dmulq);
 
 DEF_HELPER_1(fnegs, f32, f32)
-DEF_HELPER_1(fitod, void, s32)
-DEF_HELPER_1(fitoq, void, s32)
+DEF_HELPER_2(fitod, void, env, s32)
+DEF_HELPER_2(fitoq, void, env, s32)
 
-DEF_HELPER_1(fitos, f32, s32)
+DEF_HELPER_2(fitos, f32, env, s32)
 
 #ifdef TARGET_SPARC64
-DEF_HELPER_0(fnegd, void)
-DEF_HELPER_0(fnegq, void)
-DEF_HELPER_0(fxtos, i32)
-F_HELPER_DQ_0_0(xto);
+DEF_HELPER_1(fnegd, void, env)
+DEF_HELPER_1(fnegq, void, env)
+DEF_HELPER_1(fxtos, i32, env)
+F_HELPER_DQ_0_1(xto);
 #endif
-DEF_HELPER_0(fdtos, f32)
-DEF_HELPER_1(fstod, void, f32)
-DEF_HELPER_0(fqtos, f32)
-DEF_HELPER_1(fstoq, void, f32)
-F_HELPER_0_0(qtod);
-F_HELPER_0_0(dtoq);
-DEF_HELPER_1(fstoi, s32, f32)
-DEF_HELPER_0(fdtoi, s32)
-DEF_HELPER_0(fqtoi, s32)
+DEF_HELPER_1(fdtos, f32, env)
+DEF_HELPER_2(fstod, void, env, f32)
+DEF_HELPER_1(fqtos, f32, env)
+DEF_HELPER_2(fstoq, void, env, f32)
+F_HELPER_0_1(qtod);
+F_HELPER_0_1(dtoq);
+DEF_HELPER_2(fstoi, s32, env, f32)
+DEF_HELPER_1(fdtoi, s32, env)
+DEF_HELPER_1(fqtoi, s32, env)
 #ifdef TARGET_SPARC64
-DEF_HELPER_1(fstox, void, i32)
-F_HELPER_0_0(dtox);
-F_HELPER_0_0(qtox);
-F_HELPER_0_0(aligndata);
+DEF_HELPER_2(fstox, void, env, i32)
+F_HELPER_0_1(dtox);
+F_HELPER_0_1(qtox);
+F_HELPER_0_1(aligndata);
 
-F_HELPER_0_0(pmerge);
-F_HELPER_0_0(mul8x16);
-F_HELPER_0_0(mul8x16al);
-F_HELPER_0_0(mul8x16au);
-F_HELPER_0_0(mul8sux16);
-F_HELPER_0_0(mul8ulx16);
-F_HELPER_0_0(muld8sux16);
-F_HELPER_0_0(muld8ulx16);
-F_HELPER_0_0(expand);
+F_HELPER_0_1(pmerge);
+F_HELPER_0_1(mul8x16);
+F_HELPER_0_1(mul8x16al);
+F_HELPER_0_1(mul8x16au);
+F_HELPER_0_1(mul8sux16);
+F_HELPER_0_1(mul8ulx16);
+F_HELPER_0_1(muld8sux16);
+F_HELPER_0_1(muld8ulx16);
+F_HELPER_0_1(expand);
 #define VIS_HELPER(name)                                 \
-    F_HELPER_0_0(name##16);                              \
-    DEF_HELPER_2(f ## name ## 16s, i32, i32, i32) \
-    F_HELPER_0_0(name##32);                              \
-    DEF_HELPER_2(f ## name ## 32s, i32, i32, i32)
+    F_HELPER_0_1(name##16);                              \
+    DEF_HELPER_3(f ## name ## 16s, i32, env, i32, i32)   \
+    F_HELPER_0_1(name##32);                              \
+    DEF_HELPER_3(f ## name ## 32s, i32, env, i32, i32)
 
 VIS_HELPER(padd);
 VIS_HELPER(psub);
 #define VIS_CMPHELPER(name)                              \
-    DEF_HELPER_0(f##name##16, i64);                      \
-    DEF_HELPER_0(f##name##32, i64)
+    DEF_HELPER_1(f##name##16, i64, env);                 \
+    DEF_HELPER_1(f##name##32, i64, env)
 VIS_CMPHELPER(cmpgt);
 VIS_CMPHELPER(cmpeq);
 VIS_CMPHELPER(cmple);
 VIS_CMPHELPER(cmpne);
 #endif
-#undef F_HELPER_0_0
-#undef F_HELPER_DQ_0_0
+#undef F_HELPER_0_1
+#undef F_HELPER_DQ_0_1
 #undef VIS_HELPER
 #undef VIS_CMPHELPER
 DEF_HELPER_0(compute_psr, void);

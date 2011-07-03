@@ -18,7 +18,6 @@
  */
 
 #include "cpu.h"
-#include "dyngen-exec.h"
 #include "helper.h"
 
 #define DT0 (env->dt0)
@@ -26,10 +25,11 @@
 #define QT0 (env->qt0)
 #define QT1 (env->qt1)
 
-#define F_HELPER(name, p) void helper_f##name##p(void)
+#define F_HELPER(name, p) void helper_f##name##p(CPUState *env)
 
 #define F_BINOP(name)                                           \
-    float32 helper_f ## name ## s (float32 src1, float32 src2)  \
+    float32 helper_f ## name ## s (CPUState * env, float32 src1,\
+                                   float32 src2)                \
     {                                                           \
         return float32_ ## name (src1, src2, &env->fp_status);  \
     }                                                           \
@@ -48,14 +48,14 @@ F_BINOP(mul);
 F_BINOP(div);
 #undef F_BINOP
 
-void helper_fsmuld(float32 src1, float32 src2)
+void helper_fsmuld(CPUState *env, float32 src1, float32 src2)
 {
     DT0 = float64_mul(float32_to_float64(src1, &env->fp_status),
                       float32_to_float64(src2, &env->fp_status),
                       &env->fp_status);
 }
 
-void helper_fdmulq(void)
+void helper_fdmulq(CPUState *env)
 {
     QT0 = float128_mul(float64_to_float128(DT0, &env->fp_status),
                        float64_to_float128(DT1, &env->fp_status),
@@ -80,23 +80,23 @@ F_HELPER(neg, q)
 #endif
 
 /* Integer to float conversion.  */
-float32 helper_fitos(int32_t src)
+float32 helper_fitos(CPUState *env, int32_t src)
 {
     return int32_to_float32(src, &env->fp_status);
 }
 
-void helper_fitod(int32_t src)
+void helper_fitod(CPUState *env, int32_t src)
 {
     DT0 = int32_to_float64(src, &env->fp_status);
 }
 
-void helper_fitoq(int32_t src)
+void helper_fitoq(CPUState *env, int32_t src)
 {
     QT0 = int32_to_float128(src, &env->fp_status);
 }
 
 #ifdef TARGET_SPARC64
-float32 helper_fxtos(void)
+float32 helper_fxtos(CPUState *env)
 {
     return int64_to_float32(*((int64_t *)&DT1), &env->fp_status);
 }
@@ -114,64 +114,64 @@ F_HELPER(xto, q)
 #undef F_HELPER
 
 /* floating point conversion */
-float32 helper_fdtos(void)
+float32 helper_fdtos(CPUState *env)
 {
     return float64_to_float32(DT1, &env->fp_status);
 }
 
-void helper_fstod(float32 src)
+void helper_fstod(CPUState *env, float32 src)
 {
     DT0 = float32_to_float64(src, &env->fp_status);
 }
 
-float32 helper_fqtos(void)
+float32 helper_fqtos(CPUState *env)
 {
     return float128_to_float32(QT1, &env->fp_status);
 }
 
-void helper_fstoq(float32 src)
+void helper_fstoq(CPUState *env, float32 src)
 {
     QT0 = float32_to_float128(src, &env->fp_status);
 }
 
-void helper_fqtod(void)
+void helper_fqtod(CPUState *env)
 {
     DT0 = float128_to_float64(QT1, &env->fp_status);
 }
 
-void helper_fdtoq(void)
+void helper_fdtoq(CPUState *env)
 {
     QT0 = float64_to_float128(DT1, &env->fp_status);
 }
 
 /* Float to integer conversion.  */
-int32_t helper_fstoi(float32 src)
+int32_t helper_fstoi(CPUState *env, float32 src)
 {
     return float32_to_int32_round_to_zero(src, &env->fp_status);
 }
 
-int32_t helper_fdtoi(void)
+int32_t helper_fdtoi(CPUState *env)
 {
     return float64_to_int32_round_to_zero(DT1, &env->fp_status);
 }
 
-int32_t helper_fqtoi(void)
+int32_t helper_fqtoi(CPUState *env)
 {
     return float128_to_int32_round_to_zero(QT1, &env->fp_status);
 }
 
 #ifdef TARGET_SPARC64
-void helper_fstox(float32 src)
+void helper_fstox(CPUState *env, float32 src)
 {
     *((int64_t *)&DT0) = float32_to_int64_round_to_zero(src, &env->fp_status);
 }
 
-void helper_fdtox(void)
+void helper_fdtox(CPUState *env)
 {
     *((int64_t *)&DT0) = float64_to_int64_round_to_zero(DT1, &env->fp_status);
 }
 
-void helper_fqtox(void)
+void helper_fqtox(CPUState *env)
 {
     *((int64_t *)&DT0) = float128_to_int64_round_to_zero(QT1, &env->fp_status);
 }
@@ -183,34 +183,34 @@ float32 helper_fabss(float32 src)
 }
 
 #ifdef TARGET_SPARC64
-void helper_fabsd(void)
+void helper_fabsd(CPUState *env)
 {
     DT0 = float64_abs(DT1);
 }
 
-void helper_fabsq(void)
+void helper_fabsq(CPUState *env)
 {
     QT0 = float128_abs(QT1);
 }
 #endif
 
-float32 helper_fsqrts(float32 src)
+float32 helper_fsqrts(CPUState *env, float32 src)
 {
     return float32_sqrt(src, &env->fp_status);
 }
 
-void helper_fsqrtd(void)
+void helper_fsqrtd(CPUState *env)
 {
     DT0 = float64_sqrt(DT1, &env->fp_status);
 }
 
-void helper_fsqrtq(void)
+void helper_fsqrtq(CPUState *env)
 {
     QT0 = float128_sqrt(QT1, &env->fp_status);
 }
 
 #define GEN_FCMP(name, size, reg1, reg2, FS, E)                         \
-    void glue(helper_, name) (void)                                     \
+    void glue(helper_, name) (CPUState *env)                            \
     {                                                                   \
         env->fsr &= FSR_FTT_NMASK;                                      \
         if (E && (glue(size, _is_any_nan)(reg1) ||                      \
@@ -246,7 +246,7 @@ void helper_fsqrtq(void)
         }                                                               \
     }
 #define GEN_FCMPS(name, size, FS, E)                                    \
-    void glue(helper_, name)(float32 src1, float32 src2)                \
+    void glue(helper_, name)(CPUState *env, float32 src1, float32 src2) \
     {                                                                   \
         env->fsr &= FSR_FTT_NMASK;                                      \
         if (E && (glue(size, _is_any_nan)(src1) ||                      \
@@ -318,7 +318,7 @@ GEN_FCMP(fcmpeq_fcc3, float128, QT0, QT1, 26, 1);
 #endif
 #undef GEN_FCMPS
 
-void helper_check_ieee_exceptions(void)
+void helper_check_ieee_exceptions(CPUState *env)
 {
     target_ulong status;
 
@@ -352,12 +352,12 @@ void helper_check_ieee_exceptions(void)
     }
 }
 
-void helper_clear_float_exceptions(void)
+void helper_clear_float_exceptions(CPUState *env)
 {
     set_float_exception_flags(0, &env->fp_status);
 }
 
-static inline void set_fsr(void)
+static inline void set_fsr(CPUState *env)
 {
     int rnd_mode;
 
@@ -379,16 +379,16 @@ static inline void set_fsr(void)
     set_float_rounding_mode(rnd_mode, &env->fp_status);
 }
 
-void helper_ldfsr(uint32_t new_fsr)
+void helper_ldfsr(CPUState *env, uint32_t new_fsr)
 {
     env->fsr = (new_fsr & FSR_LDFSR_MASK) | (env->fsr & FSR_LDFSR_OLDMASK);
-    set_fsr();
+    set_fsr(env);
 }
 
 #ifdef TARGET_SPARC64
-void helper_ldxfsr(uint64_t new_fsr)
+void helper_ldxfsr(CPUState *env, uint64_t new_fsr)
 {
     env->fsr = (new_fsr & FSR_LDXFSR_MASK) | (env->fsr & FSR_LDXFSR_OLDMASK);
-    set_fsr();
+    set_fsr(env);
 }
 #endif
