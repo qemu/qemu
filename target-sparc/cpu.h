@@ -586,8 +586,90 @@ void cpu_unassigned_access(CPUSPARCState *env1, target_phys_addr_t addr,
 #if defined(TARGET_SPARC64)
 target_phys_addr_t cpu_get_phys_page_nofault(CPUSPARCState *env, target_ulong addr,
                                            int mmu_idx);
-
 #endif
+
+#define WRAP_LD(rettype, fn)                                    \
+    rettype cpu_ ## fn (CPUSPARCState *env1, target_ulong addr)
+
+WRAP_LD(uint32_t, ldub_kernel);
+WRAP_LD(uint32_t, lduw_kernel);
+WRAP_LD(uint32_t, ldl_kernel);
+WRAP_LD(uint64_t, ldq_kernel);
+
+WRAP_LD(uint32_t, ldub_user);
+WRAP_LD(uint32_t, lduw_user);
+WRAP_LD(uint32_t, ldl_user);
+WRAP_LD(uint64_t, ldq_user);
+
+WRAP_LD(uint64_t, ldfq_kernel);
+WRAP_LD(uint64_t, ldfq_user);
+
+#ifdef TARGET_SPARC64
+WRAP_LD(uint32_t, ldub_hypv);
+WRAP_LD(uint32_t, lduw_hypv);
+WRAP_LD(uint32_t, ldl_hypv);
+WRAP_LD(uint64_t, ldq_hypv);
+
+WRAP_LD(uint64_t, ldfq_hypv);
+
+WRAP_LD(uint32_t, ldub_nucleus);
+WRAP_LD(uint32_t, lduw_nucleus);
+WRAP_LD(uint32_t, ldl_nucleus);
+WRAP_LD(uint64_t, ldq_nucleus);
+
+WRAP_LD(uint32_t, ldub_kernel_secondary);
+WRAP_LD(uint32_t, lduw_kernel_secondary);
+WRAP_LD(uint32_t, ldl_kernel_secondary);
+WRAP_LD(uint64_t, ldq_kernel_secondary);
+
+WRAP_LD(uint32_t, ldub_user_secondary);
+WRAP_LD(uint32_t, lduw_user_secondary);
+WRAP_LD(uint32_t, ldl_user_secondary);
+WRAP_LD(uint64_t, ldq_user_secondary);
+#endif
+#undef WRAP_LD
+
+#define WRAP_ST(datatype, fn)                                           \
+    void cpu_ ## fn (CPUSPARCState *env1, target_ulong addr, datatype val)
+
+WRAP_ST(uint32_t, stb_kernel);
+WRAP_ST(uint32_t, stw_kernel);
+WRAP_ST(uint32_t, stl_kernel);
+WRAP_ST(uint64_t, stq_kernel);
+
+WRAP_ST(uint32_t, stb_user);
+WRAP_ST(uint32_t, stw_user);
+WRAP_ST(uint32_t, stl_user);
+WRAP_ST(uint64_t, stq_user);
+
+WRAP_ST(uint64_t, stfq_kernel);
+WRAP_ST(uint64_t, stfq_user);
+
+#ifdef TARGET_SPARC64
+WRAP_ST(uint32_t, stb_hypv);
+WRAP_ST(uint32_t, stw_hypv);
+WRAP_ST(uint32_t, stl_hypv);
+WRAP_ST(uint64_t, stq_hypv);
+
+WRAP_ST(uint64_t, stfq_hypv);
+
+WRAP_ST(uint32_t, stb_nucleus);
+WRAP_ST(uint32_t, stw_nucleus);
+WRAP_ST(uint32_t, stl_nucleus);
+WRAP_ST(uint64_t, stq_nucleus);
+
+WRAP_ST(uint32_t, stb_kernel_secondary);
+WRAP_ST(uint32_t, stw_kernel_secondary);
+WRAP_ST(uint32_t, stl_kernel_secondary);
+WRAP_ST(uint64_t, stq_kernel_secondary);
+
+WRAP_ST(uint32_t, stb_user_secondary);
+WRAP_ST(uint32_t, stw_user_secondary);
+WRAP_ST(uint32_t, stl_user_secondary);
+WRAP_ST(uint64_t, stq_user_secondary);
+#endif
+
+#undef WRAP_ST
 #endif
 int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
 
