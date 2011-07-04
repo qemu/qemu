@@ -1184,11 +1184,14 @@ static void qxl_vm_change_state_handler(void *opaque, int running, int reason)
     qemu_spice_vm_change_state_handler(&qxl->ssd, running, reason);
 
     if (!running && qxl->mode == QXL_MODE_NATIVE) {
-        /* dirty all vram (which holds surfaces) to make sure it is saved */
+        /* dirty all vram (which holds surfaces) and devram (primary surface)
+         * to make sure they are saved */
         /* FIXME #1: should go out during "live" stage */
         /* FIXME #2: we only need to save the areas which are actually used */
-        ram_addr_t addr = qxl->vram_offset;
-        qxl_set_dirty(addr, addr + qxl->vram_size);
+        ram_addr_t vram_addr = qxl->vram_offset;
+        ram_addr_t surface0_addr = qxl->vga.vram_offset + qxl->shadow_rom.draw_area_offset;
+        qxl_set_dirty(vram_addr, vram_addr + qxl->vram_size);
+        qxl_set_dirty(surface0_addr, surface0_addr + qxl->shadow_rom.surface0_area_size);
     }
 }
 
