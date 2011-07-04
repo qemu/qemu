@@ -56,6 +56,7 @@ static const int smart_attributes[][12] = {
 };
 
 static int ide_handle_rw_error(IDEState *s, int error, int op);
+static void ide_dummy_transfer_stop(IDEState *s);
 
 static void padstr(char *str, const char *src, int len)
 {
@@ -1532,15 +1533,36 @@ void ide_cmd_write(void *opaque, uint32_t addr, uint32_t val)
     bus->cmd = val;
 }
 
+/*
+ * Returns true if the running PIO transfer is a PIO out (i.e. data is
+ * transferred from the device to the guest), false if it's a PIO in
+ */
+static bool ide_is_pio_out(IDEState *s)
+{
+    if (s->end_transfer_func == ide_sector_write ||
+        s->end_transfer_func == ide_atapi_cmd) {
+        return false;
+    } else if (s->end_transfer_func == ide_sector_read ||
+               s->end_transfer_func == ide_transfer_stop ||
+               s->end_transfer_func == ide_atapi_cmd_reply_end ||
+               s->end_transfer_func == ide_dummy_transfer_stop) {
+        return true;
+    }
+
+    abort();
+}
+
 void ide_data_writew(void *opaque, uint32_t addr, uint32_t val)
 {
     IDEBus *bus = opaque;
     IDEState *s = idebus_active_if(bus);
     uint8_t *p;
 
-    /* PIO data access allowed only when DRQ bit is set */
-    if (!(s->status & DRQ_STAT))
+    /* PIO data access allowed only when DRQ bit is set. The result of a write
+     * during PIO out is indeterminate, just ignore it. */
+    if (!(s->status & DRQ_STAT) || ide_is_pio_out(s)) {
         return;
+    }
 
     p = s->data_ptr;
     *(uint16_t *)p = le16_to_cpu(val);
@@ -1557,9 +1579,11 @@ uint32_t ide_data_readw(void *opaque, uint32_t addr)
     uint8_t *p;
     int ret;
 
-    /* PIO data access allowed only when DRQ bit is set */
-    if (!(s->status & DRQ_STAT))
+    /* PIO data access allowed only when DRQ bit is set. The result of a read
+     * during PIO in is indeterminate, return 0 and don't move forward. */
+    if (!(s->status & DRQ_STAT) || !ide_is_pio_out(s)) {
         return 0;
+    }
 
     p = s->data_ptr;
     ret = cpu_to_le16(*(uint16_t *)p);
@@ -1576,9 +1600,11 @@ void ide_data_writel(void *opaque, uint32_t addr, uint32_t val)
     IDEState *s = idebus_active_if(bus);
     uint8_t *p;
 
-    /* PIO data access allowed only when DRQ bit is set */
-    if (!(s->status & DRQ_STAT))
+    /* PIO data access allowed only when DRQ bit is set. The result of a write
+     * during PIO out is indeterminate, just ignore it. */
+    if (!(s->status & DRQ_STAT) || ide_is_pio_out(s)) {
         return;
+    }
 
     p = s->data_ptr;
     *(uint32_t *)p = le32_to_cpu(val);
@@ -1595,9 +1621,11 @@ uint32_t ide_data_readl(void *opaque, uint32_t addr)
     uint8_t *p;
     int ret;
 
-    /* PIO data access allowed only when DRQ bit is set */
-    if (!(s->status & DRQ_STAT))
+    /* PIO data access allowed only when DRQ bit is set. The result of a read
+     * during PIO in is indeterminate, return 0 and don't move forward. */
+    if (!(s->status & DRQ_STAT) || !ide_is_pio_out(s)) {
         return 0;
+    }
 
     p = s->data_ptr;
     ret = cpu_to_le32(*(uint32_t *)p);
