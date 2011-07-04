@@ -597,6 +597,7 @@ vcard_emul_mirror_card(VReader *vreader)
     VCardKey **keys;
     PK11SlotInfo *slot;
     PRBool ret;
+    VCard *card;
 
     slot = vcard_emul_reader_get_slot(vreader);
     if (slot == NULL) {
@@ -656,7 +657,12 @@ vcard_emul_mirror_card(VReader *vreader)
     }
 
     /* now create the card */
-    return vcard_emul_make_card(vreader, certs, cert_len, keys, cert_count);
+    card = vcard_emul_make_card(vreader, certs, cert_len, keys, cert_count);
+    qemu_free(certs);
+    qemu_free(cert_len);
+    qemu_free(keys);
+
+    return card;
 }
 
 static VCardEmulType default_card_type = VCARD_EMUL_NONE;
@@ -941,6 +947,9 @@ vcard_emul_init(const VCardEmulOptions *options)
             vreader_free(vreader);
             has_readers = PR_TRUE;
         }
+        qemu_free(certs);
+        qemu_free(cert_len);
+        qemu_free(keys);
     }
 
     /* if we aren't suppose to use hw, skip looking up hardware tokens */
