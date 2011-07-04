@@ -3271,19 +3271,23 @@ static void disas_sparc_insn(DisasContext * dc)
                     case 0xe: /* udiv */
                         CHECK_IU_FEATURE(dc, DIV);
                         if (xop & 0x10) {
-                            gen_helper_udiv_cc(cpu_dst, cpu_src1, cpu_src2);
+                            gen_helper_udiv_cc(cpu_dst, cpu_env, cpu_src1,
+                                               cpu_src2);
                             dc->cc_op = CC_OP_DIV;
                         } else {
-                            gen_helper_udiv(cpu_dst, cpu_src1, cpu_src2);
+                            gen_helper_udiv(cpu_dst, cpu_env, cpu_src1,
+                                            cpu_src2);
                         }
                         break;
                     case 0xf: /* sdiv */
                         CHECK_IU_FEATURE(dc, DIV);
                         if (xop & 0x10) {
-                            gen_helper_sdiv_cc(cpu_dst, cpu_src1, cpu_src2);
+                            gen_helper_sdiv_cc(cpu_dst, cpu_env, cpu_src1,
+                                               cpu_src2);
                             dc->cc_op = CC_OP_DIV;
                         } else {
-                            gen_helper_sdiv(cpu_dst, cpu_src1, cpu_src2);
+                            gen_helper_sdiv(cpu_dst, cpu_env, cpu_src1,
+                                            cpu_src2);
                         }
                         break;
                     default:

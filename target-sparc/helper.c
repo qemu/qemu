@@ -919,3 +919,79 @@ void helper_tick_set_limit(void *opaque, uint64_t limit)
 #endif
 }
 #endif
+
+static target_ulong helper_udiv_common(CPUState *env, target_ulong a,
+                                       target_ulong b, int cc)
+{
+    int overflow = 0;
+    uint64_t x0;
+    uint32_t x1;
+
+    x0 = (a & 0xffffffff) | ((int64_t) (env->y) << 32);
+    x1 = (b & 0xffffffff);
+
+    if (x1 == 0) {
+        helper_raise_exception(env, TT_DIV_ZERO);
+    }
+
+    x0 = x0 / x1;
+    if (x0 > 0xffffffff) {
+        x0 = 0xffffffff;
+        overflow = 1;
+    }
+
+    if (cc) {
+        env->cc_dst = x0;
+        env->cc_src2 = overflow;
+        env->cc_op = CC_OP_DIV;
+    }
+    return x0;
+}
+
+target_ulong helper_udiv(CPUState *env, target_ulong a, target_ulong b)
+{
+    return helper_udiv_common(env, a, b, 0);
+}
+
+target_ulong helper_udiv_cc(CPUState *env, target_ulong a, target_ulong b)
+{
+    return helper_udiv_common(env, a, b, 1);
+}
+
+static target_ulong helper_sdiv_common(CPUState *env, target_ulong a,
+                                       target_ulong b, int cc)
+{
+    int overflow = 0;
+    int64_t x0;
+    int32_t x1;
+
+    x0 = (a & 0xffffffff) | ((int64_t) (env->y) << 32);
+    x1 = (b & 0xffffffff);
+
+    if (x1 == 0) {
+        helper_raise_exception(env, TT_DIV_ZERO);
+    }
+
+    x0 = x0 / x1;
+    if ((int32_t) x0 != x0) {
+        x0 = x0 < 0 ? 0x80000000 : 0x7fffffff;
+        overflow = 1;
+    }
+
+    if (cc) {
+        env->cc_dst = x0;
+        env->cc_src2 = overflow;
+        env->cc_op = CC_OP_DIV;
+    }
+    return x0;
+}
+
+target_ulong helper_sdiv(CPUState *env, target_ulong a, target_ulong b)
+{
+    return helper_sdiv_common(env, a, b, 0);
+}
+
+target_ulong helper_sdiv_cc(CPUState *env, target_ulong a, target_ulong b)
+{
+    return helper_sdiv_common(env, a, b, 1);
+}
