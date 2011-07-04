@@ -70,11 +70,12 @@ static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
     }
 }
 
-void tlb_fill(target_ulong vaddr, int is_write, int mmu_idx, void *retaddr)
+void tlb_fill(CPUState *env1, target_ulong vaddr, int is_write, int mmu_idx,
+              void *retaddr)
 {
     CPUState *saved_env = env;
 
-    env = cpu_single_env;
+    env = env1;
     {
         uint32_t paddr;
         uint32_t page_size;
