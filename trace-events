@@ -52,6 +52,11 @@ disable virtio_serial_throttle_port(unsigned int port, bool throttle) "port %u, 
 disable virtio_serial_handle_control_message(uint16_t event, uint16_t value) "event %u, value %u"
 disable virtio_serial_handle_control_message_port(unsigned int port) "port %u"
 
+# hw/virtio-console.c
+disable virtio_console_flush_buf(unsigned int port, size_t len, ssize_t ret) "port %u, in_len %zu, out_len %zd"
+disable virtio_console_chr_read(unsigned int port, int size) "port %u, size %d"
+disable virtio_console_chr_event(unsigned int port, int event) "port %u, event %d"
+
 # block.c
 disable multiwrite_cb(void *mcb, int ret) "mcb %p ret %d"
 disable bdrv_aio_multiwrite(void *mcb, int num_callbacks, int num_reqs) "mcb %p num_callbacks %d num_reqs %d"
