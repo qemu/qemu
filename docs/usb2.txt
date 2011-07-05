@@ -2,11 +2,13 @@
 USB 2.0 Quick Start
 ===================
 
-The QEMU EHCI Adapter does *not* support companion controllers.  That
-implies there are two completely separate USB busses: One USB 1.1 bus
-driven by the UHCI controller and one USB 2.0 bus driven by the EHCI
-controller.  Devices must be attached to the correct controller
-manually.
+The QEMU EHCI Adapter can be used with and without companion
+controllers.  See below for the companion controller mode.
+
+When not running in companion controller mode there are two completely
+separate USB busses: One USB 1.1 bus driven by the UHCI controller and
+one USB 2.0 bus driven by the EHCI controller.  Devices must be
+attached to the correct controller manually.
 
 The '-usb' switch will make qemu create the UHCI controller as part of
 the PIIX3 chipset.  The USB 1.1 bus will carry the name "usb.0".
@@ -30,6 +32,27 @@ a complete example:
 
 This attaches a usb tablet to the UHCI adapter and a usb mass storage
 device to the EHCI adapter.
+
+
+Companion controller support
+----------------------------
+
+Companion controller support has been added recently.  The operational
+model described above with two completely separate busses still works
+fine.  Additionally the UHCI and OHCI controllers got the ability to
+attach to a usb bus created by EHCI as companion controllers.  This is
+done by specifying the masterbus and firstport properties.  masterbus
+specifies the bus name the controller should attach to.  firstport
+specifies the first port the controller should attach to, which is
+needed as usually one ehci controller with six ports has three uhci
+companion controllers with two ports each.
+
+There is a config file in docs which will do all this for you, just
+try ...
+
+    qemu -readconfig docs/ich9-ehci-uhci.cfg
+
+... then use "bus=ehci.0" to assign your usb devices to that bus.
 
 
 More USB tips & tricks
