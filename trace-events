@@ -46,6 +46,12 @@ disable virtio_queue_notify(void *vdev, int n, void *vq) "vdev %p n %d vq %p"
 disable virtio_irq(void *vq) "vq %p"
 disable virtio_notify(void *vdev, void *vq) "vdev %p vq %p"
 
+# hw/virtio-serial-bus.c
+disable virtio_serial_send_control_event(unsigned int port, uint16_t event, uint16_t value) "port %u, event %u, value %u"
+disable virtio_serial_throttle_port(unsigned int port, bool throttle) "port %u, throttle %d"
+disable virtio_serial_handle_control_message(uint16_t event, uint16_t value) "event %u, value %u"
+disable virtio_serial_handle_control_message_port(unsigned int port) "port %u"
+
 # block.c
 disable multiwrite_cb(void *mcb, int ret) "mcb %p ret %d"
 disable bdrv_aio_multiwrite(void *mcb, int num_callbacks, int num_reqs) "mcb %p num_callbacks %d num_reqs %d"

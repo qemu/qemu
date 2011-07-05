@@ -19,6 +19,7 @@
 #include "monitor.h"
 #include "qemu-queue.h"
 #include "sysbus.h"
+#include "trace.h"
 #include "virtio-serial.h"
 
 /* The virtio-serial bus on top of which the ports will ride as devices */
@@ -221,6 +222,7 @@ static size_t send_control_event(VirtIOSerialPort *port, uint16_t event,
     stw_p(&cpkt.event, event);
     stw_p(&cpkt.value, value);
 
+    trace_virtio_serial_send_control_event(port->id, event, value);
     return send_control_msg(port, &cpkt, sizeof(cpkt));
 }
 
@@ -302,6 +304,7 @@ void virtio_serial_throttle_port(VirtIOSerialPort *port, bool throttle)
         return;
     }
 
+    trace_virtio_serial_throttle_port(port->id, throttle);
     port->throttled = throttle;
     if (throttle) {
         return;
@@ -328,6 +331,8 @@ static void handle_control_message(VirtIOSerial *vser, void *buf, size_t len)
     cpkt.event = lduw_p(&gcpkt->event);
     cpkt.value = lduw_p(&gcpkt->value);
 
+    trace_virtio_serial_handle_control_message(cpkt.event, cpkt.value);
+
     if (cpkt.event == VIRTIO_CONSOLE_DEVICE_READY) {
         if (!cpkt.value) {
             error_report("virtio-serial-bus: Guest failure in adding device %s",
@@ -350,6 +355,8 @@ static void handle_control_message(VirtIOSerial *vser, void *buf, size_t len)
                      ldl_p(&gcpkt->id), vser->bus.qbus.name);
         return;
     }
+
+    trace_virtio_serial_handle_control_message_port(port->id);
 
     info = DO_UPCAST(VirtIOSerialPortInfo, qdev, port->dev.info);
 
