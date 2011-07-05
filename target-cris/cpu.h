@@ -64,6 +64,7 @@
 #define PR_NRP 12
 #define PR_CCS 13
 #define PR_USP 14
+#define PRV10_BRP 14
 #define PR_SPC 15
 
 /* CPU flags.  */
