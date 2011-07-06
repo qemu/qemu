@@ -58,4 +58,7 @@ BlockDriverAIOCB *dma_bdrv_read(BlockDriverState *bs,
 BlockDriverAIOCB *dma_bdrv_write(BlockDriverState *bs,
                                  QEMUSGList *sg, uint64_t sector,
                                  BlockDriverCompletionFunc *cb, void *opaque);
+uint64_t dma_buf_read(uint8_t *ptr, int32_t len, QEMUSGList *sg);
+uint64_t dma_buf_write(uint8_t *ptr, int32_t len, QEMUSGList *sg);
+
 #endif
