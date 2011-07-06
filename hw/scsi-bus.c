@@ -5,6 +5,7 @@
 #include "qdev.h"
 #include "blockdev.h"
 #include "trace.h"
+#include "dma.h"
 
 static char *scsibus_get_fw_dev_path(DeviceState *dev);
 static int scsi_req_parse(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf);
@@ -651,6 +652,11 @@ int32_t scsi_req_enqueue(SCSIRequest *req)
 
     assert(!req->enqueued);
     scsi_req_ref(req);
+    if (req->bus->info->get_sg_list) {
+        req->sg = req->bus->info->get_sg_list(req);
+    } else {
+        req->sg = NULL;
+    }
     req->enqueued = true;
     QTAILQ_INSERT_TAIL(&req->dev->requests, req, next);
 
@@ -1275,14 +1281,32 @@ void scsi_req_continue(SCSIRequest *req)
    Once it completes, calling scsi_req_continue will restart I/O.  */
 void scsi_req_data(SCSIRequest *req, int len)
 {
+    uint8_t *buf;
     if (req->io_canceled) {
         trace_scsi_req_data_canceled(req->dev->id, req->lun, req->tag, len);
         return;
     }
     trace_scsi_req_data(req->dev->id, req->lun, req->tag, len);
     assert(req->cmd.mode != SCSI_XFER_NONE);
-    req->resid -= len;
-    req->bus->info->transfer_data(req, len);
+    if (!req->sg) {
+        req->resid -= len;
+        req->bus->info->transfer_data(req, len);
+        return;
+    }
+
+    /* If the device calls scsi_req_data and the HBA specified a
+     * scatter/gather list, the transfer has to happen in a single
+     * step.  */
+    assert(!req->dma_started);
+    req->dma_started = true;
+
+    buf = scsi_req_get_buf(req);
+    if (req->cmd.mode == SCSI_XFER_FROM_DEV) {
+        req->resid = dma_buf_read(buf, len, req->sg);
+    } else {
+        req->resid = dma_buf_write(buf, len, req->sg);
+    }
+    scsi_req_continue(req);
 }
 
 void scsi_req_print(SCSIRequest *req)
