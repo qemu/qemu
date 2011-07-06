@@ -533,6 +533,8 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
     }
 
     req->cmd = cmd;
+    req->resid = req->cmd.xfer;
+
     switch (buf[0]) {
     case INQUIRY:
         trace_scsi_inquiry(d->id, lun, tag, cmd.buf[1], cmd.buf[2]);
@@ -1275,10 +1277,12 @@ void scsi_req_data(SCSIRequest *req, int len)
 {
     if (req->io_canceled) {
         trace_scsi_req_data_canceled(req->dev->id, req->lun, req->tag, len);
-    } else {
-        trace_scsi_req_data(req->dev->id, req->lun, req->tag, len);
-        req->bus->info->transfer_data(req, len);
+        return;
     }
+    trace_scsi_req_data(req->dev->id, req->lun, req->tag, len);
+    assert(req->cmd.mode != SCSI_XFER_NONE);
+    req->resid -= len;
+    req->bus->info->transfer_data(req, len);
 }
 
 void scsi_req_print(SCSIRequest *req)
@@ -1337,7 +1341,7 @@ void scsi_req_complete(SCSIRequest *req, int status)
 
     scsi_req_ref(req);
     scsi_req_dequeue(req);
-    req->bus->info->complete(req, req->status);
+    req->bus->info->complete(req, req->status, req->resid);
     scsi_req_unref(req);
 }
 

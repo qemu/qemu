@@ -46,6 +46,7 @@ struct SCSIRequest {
     uint32_t          tag;
     uint32_t          lun;
     uint32_t          status;
+    size_t            resid;
     SCSICommand       cmd;
     BlockDriverAIOCB  *aiocb;
     uint8_t sense[SCSI_SENSE_BUF_SIZE];
@@ -112,7 +113,7 @@ struct SCSIBusInfo {
     int tcq;
     int max_channel, max_target, max_lun;
     void (*transfer_data)(SCSIRequest *req, uint32_t arg);
-    void (*complete)(SCSIRequest *req, uint32_t arg);
+    void (*complete)(SCSIRequest *req, uint32_t arg, size_t resid);
     void (*cancel)(SCSIRequest *req);
 };
 
