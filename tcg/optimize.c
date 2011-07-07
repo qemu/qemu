@@ -99,12 +99,18 @@ static int op_bits(int op)
     case INDEX_op_add_i32:
     case INDEX_op_sub_i32:
     case INDEX_op_mul_i32:
+    case INDEX_op_and_i32:
+    case INDEX_op_or_i32:
+    case INDEX_op_xor_i32:
         return 32;
 #if TCG_TARGET_REG_BITS == 64
     case INDEX_op_mov_i64:
     case INDEX_op_add_i64:
     case INDEX_op_sub_i64:
     case INDEX_op_mul_i64:
+    case INDEX_op_and_i64:
+    case INDEX_op_or_i64:
+    case INDEX_op_xor_i64:
         return 64;
 #endif
     default:
@@ -190,6 +196,15 @@ static TCGArg do_constant_folding_2(int op, TCGArg x, TCGArg y)
     CASE_OP_32_64(mul):
         return x * y;
 
+    CASE_OP_32_64(and):
+        return x & y;
+
+    CASE_OP_32_64(or):
+        return x | y;
+
+    CASE_OP_32_64(xor):
+        return x ^ y;
+
     default:
         fprintf(stderr,
                 "Unrecognized operation %d in do_constant_folding.\n", op);
@@ -246,6 +261,9 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
         switch (op) {
         CASE_OP_32_64(add):
         CASE_OP_32_64(mul):
+        CASE_OP_32_64(and):
+        CASE_OP_32_64(or):
+        CASE_OP_32_64(xor):
             if (temps[args[1]].state == TCG_TEMP_CONST) {
                 tmp = args[1];
                 args[1] = args[2];
@@ -291,6 +309,22 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                 continue;
             }
             break;
+        CASE_OP_32_64(or):
+        CASE_OP_32_64(and):
+            if (args[1] == args[2]) {
+                if (args[1] == args[0]) {
+                    args += 3;
+                    gen_opc_buf[op_index] = INDEX_op_nop;
+                } else {
+                    gen_opc_buf[op_index] = op_to_mov(op);
+                    tcg_opt_gen_mov(gen_args, args[0], args[1], nb_temps,
+                                    nb_globals);
+                    gen_args += 2;
+                    args += 3;
+                }
+                continue;
+            }
+            break;
         }
 
         /* Propagate constants through copy operations and do constant
@@ -326,6 +360,9 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
         CASE_OP_32_64(add):
         CASE_OP_32_64(sub):
         CASE_OP_32_64(mul):
+        CASE_OP_32_64(or):
+        CASE_OP_32_64(and):
+        CASE_OP_32_64(xor):
             if (temps[args[1]].state == TCG_TEMP_CONST
                 && temps[args[2]].state == TCG_TEMP_CONST) {
                 gen_opc_buf[op_index] = op_to_movi(op);
