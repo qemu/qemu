@@ -322,7 +322,8 @@ int fcntl_setfl(int fd, int flag)
  * value must be terminated by whitespace, ',' or '\0'. Return -1 on
  * error.
  */
-int64_t strtosz_suffix(const char *nptr, char **end, const char default_suffix)
+int64_t strtosz_suffix_unit(const char *nptr, char **end,
+                            const char default_suffix, int64_t unit)
 {
     int64_t retval = -1;
     char *endptr;
@@ -362,20 +363,20 @@ int64_t strtosz_suffix(const char *nptr, char **end, const char default_suffix)
         }
         break;
     case STRTOSZ_DEFSUFFIX_KB:
-        mul = 1 << 10;
+        mul = unit;
         break;
     case 0:
         if (mul_required) {
             goto fail;
         }
     case STRTOSZ_DEFSUFFIX_MB:
-        mul = 1ULL << 20;
+        mul = unit * unit;
         break;
     case STRTOSZ_DEFSUFFIX_GB:
-        mul = 1ULL << 30;
+        mul = unit * unit * unit;
         break;
     case STRTOSZ_DEFSUFFIX_TB:
-        mul = 1ULL << 40;
+        mul = unit * unit * unit * unit;
         break;
     default:
         goto fail;
@@ -403,6 +404,11 @@ fail:
     }
 
     return retval;
+}
+
+int64_t strtosz_suffix(const char *nptr, char **end, const char default_suffix)
+{
+        return strtosz_suffix_unit(nptr, end, default_suffix, 1024);
 }
 
 int64_t strtosz(const char *nptr, char **end)
