@@ -107,6 +107,11 @@ static int op_bits(int op)
     case INDEX_op_sar_i32:
     case INDEX_op_rotl_i32:
     case INDEX_op_rotr_i32:
+    case INDEX_op_not_i32:
+    case INDEX_op_ext8s_i32:
+    case INDEX_op_ext16s_i32:
+    case INDEX_op_ext8u_i32:
+    case INDEX_op_ext16u_i32:
         return 32;
 #if TCG_TARGET_REG_BITS == 64
     case INDEX_op_mov_i64:
@@ -121,6 +126,13 @@ static int op_bits(int op)
     case INDEX_op_sar_i64:
     case INDEX_op_rotl_i64:
     case INDEX_op_rotr_i64:
+    case INDEX_op_not_i64:
+    case INDEX_op_ext8s_i64:
+    case INDEX_op_ext16s_i64:
+    case INDEX_op_ext32s_i64:
+    case INDEX_op_ext8u_i64:
+    case INDEX_op_ext16u_i64:
+    case INDEX_op_ext32u_i64:
         return 64;
 #endif
     default:
@@ -265,6 +277,29 @@ static TCGArg do_constant_folding_2(int op, TCGArg x, TCGArg y)
     case INDEX_op_rotl_i64:
         x = (x << y) | (x >> (64 - y));
         return x;
+#endif
+
+    CASE_OP_32_64(not):
+        return ~x;
+
+    CASE_OP_32_64(ext8s):
+        return (int8_t)x;
+
+    CASE_OP_32_64(ext16s):
+        return (int16_t)x;
+
+    CASE_OP_32_64(ext8u):
+        return (uint8_t)x;
+
+    CASE_OP_32_64(ext16u):
+        return (uint16_t)x;
+
+#if TCG_TARGET_REG_BITS == 64
+    case INDEX_op_ext32s_i64:
+        return (int32_t)x;
+
+    case INDEX_op_ext32u_i64:
+        return (uint32_t)x;
 #endif
 
     default:
@@ -424,6 +459,30 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             gen_args += 2;
             args += 2;
             break;
+        CASE_OP_32_64(not):
+        CASE_OP_32_64(ext8s):
+        CASE_OP_32_64(ext16s):
+        CASE_OP_32_64(ext8u):
+        CASE_OP_32_64(ext16u):
+#if TCG_TARGET_REG_BITS == 64
+        case INDEX_op_ext32s_i64:
+        case INDEX_op_ext32u_i64:
+#endif
+            if (temps[args[1]].state == TCG_TEMP_CONST) {
+                gen_opc_buf[op_index] = op_to_movi(op);
+                tmp = do_constant_folding(op, temps[args[1]].val, 0);
+                tcg_opt_gen_movi(gen_args, args[0], tmp, nb_temps, nb_globals);
+                gen_args += 2;
+                args += 2;
+                break;
+            } else {
+                reset_temp(args[0], nb_temps, nb_globals);
+                gen_args[0] = args[0];
+                gen_args[1] = args[1];
+                gen_args += 2;
+                args += 2;
+                break;
+            }
         CASE_OP_32_64(add):
         CASE_OP_32_64(sub):
         CASE_OP_32_64(mul):
