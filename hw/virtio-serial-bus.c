@@ -351,7 +351,7 @@ static void handle_control_message(VirtIOSerial *vser, void *buf, size_t len)
 
     port = find_port_by_id(vser, ldl_p(&gcpkt->id));
     if (!port) {
-        error_report("virtio-serial-bus: Unexpected port id %u for device %s\n",
+        error_report("virtio-serial-bus: Unexpected port id %u for device %s",
                      ldl_p(&gcpkt->id), vser->bus.qbus.name);
         return;
     }
