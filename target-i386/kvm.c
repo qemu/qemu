@@ -354,6 +354,7 @@ int kvm_arch_init_vcpu(CPUState *env)
     uint32_t unused;
     struct kvm_cpuid_entry2 *c;
     uint32_t signature[3];
+    int r;
 
     env->cpuid_features &= kvm_arch_get_supported_cpuid(s, 1, 0, R_EDX);
 
@@ -499,7 +500,22 @@ int kvm_arch_init_vcpu(CPUState *env)
 
     qemu_add_vm_change_state_handler(cpu_update_state, env);
 
-    return kvm_vcpu_ioctl(env, KVM_SET_CPUID2, &cpuid_data);
+    r = kvm_vcpu_ioctl(env, KVM_SET_CPUID2, &cpuid_data);
+    if (r)
+	    return r;
+
+#ifdef KVM_CAP_TSC_CONTROL
+    r = kvm_check_extension(env->kvm_state, KVM_CAP_TSC_CONTROL);
+    if (r && env->tsc_khz) {
+        r = kvm_vcpu_ioctl(env, KVM_SET_TSC_KHZ, env->tsc_khz);
+        if (r < 0) {
+            fprintf(stderr, "KVM_SET_TSC_KHZ failed\n");
+            return r;
+        }
+    }
+#endif
+
+    return 0;
 }
 
 void kvm_arch_reset_vcpu(CPUState *env)
