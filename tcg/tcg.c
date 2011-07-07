@@ -24,6 +24,7 @@
 
 /* define it to use liveness analysis (better code) */
 #define USE_LIVENESS_ANALYSIS
+#define USE_TCG_OPTIMIZATIONS
 
 #include "config.h"
 
@@ -2033,6 +2034,11 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
         tcg_dump_ops(s, logfile);
         qemu_log("\n");
     }
+#endif
+
+#ifdef USE_TCG_OPTIMIZATIONS
+    gen_opparam_ptr =
+        tcg_optimize(s, gen_opc_ptr, gen_opparam_buf, tcg_op_defs);
 #endif
 
 #ifdef CONFIG_PROFILER
