@@ -743,6 +743,7 @@ typedef struct CPUX86State {
     uint32_t cpuid_kvm_features;
     uint32_t cpuid_svm_features;
     bool tsc_valid;
+    int tsc_khz;
     
     /* in order to simplify APIC support, we leave this pointer to the
        user */
