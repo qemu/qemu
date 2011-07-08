@@ -1234,6 +1234,7 @@ int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
     se->opaque = opaque;
     se->vmsd = vmsd;
     se->alias_id = alias_id;
+    se->no_migrate = vmsd->unmigratable;
 
     if (dev && dev->parent_bus && dev->parent_bus->info->get_dev_path) {
         char *id = dev->parent_bus->info->get_dev_path(dev);

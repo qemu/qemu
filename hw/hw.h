@@ -324,6 +324,7 @@ typedef struct VMStateSubsection {
 
 struct VMStateDescription {
     const char *name;
+    int unmigratable;
     int version_id;
     int minimum_version_id;
     int minimum_version_id_old;
