@@ -31,6 +31,7 @@
 /*needed for MAP_POPULATE before including qemu-options.h */
 #include <sys/mman.h>
 #include <pwd.h>
+#include <grp.h>
 #include <libgen.h>
 
 /* Needed early for CONFIG_BSD etc. */
@@ -197,6 +198,11 @@ static void change_process_uid(void)
     if (user_pwd) {
         if (setgid(user_pwd->pw_gid) < 0) {
             fprintf(stderr, "Failed to setgid(%d)\n", user_pwd->pw_gid);
+            exit(1);
+        }
+        if (initgroups(user_pwd->pw_name, user_pwd->pw_gid) < 0) {
+            fprintf(stderr, "Failed to initgroups(\"%s\", %d)\n",
+                    user_pwd->pw_name, user_pwd->pw_gid);
             exit(1);
         }
         if (setuid(user_pwd->pw_uid) < 0) {
