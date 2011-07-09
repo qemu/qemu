@@ -219,7 +219,7 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf)
     s->ti_rptr = 0;
     s->ti_wptr = 0;
 
-    if (s->current_dev) {
+    if (s->current_req) {
         /* Started a new command before the old one finished.  Cancel it.  */
         scsi_req_cancel(s->current_req);
         s->async_len = 0;
