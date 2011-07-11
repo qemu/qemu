@@ -1007,7 +1007,7 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
 
     command = buf[0];
     outbuf = (uint8_t *)r->iov.iov_base;
-    DPRINTF("Command: lun=%d tag=0x%x data=0x%02x", lun, tag, buf[0]);
+    DPRINTF("Command: lun=%d tag=0x%x data=0x%02x", req->lun, req->tag, buf[0]);
 
     if (scsi_req_parse(&r->req, buf) != 0) {
         BADF("Unsupported command length, command %x\n", command);
