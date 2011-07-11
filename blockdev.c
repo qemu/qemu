@@ -568,7 +568,7 @@ void do_commit(Monitor *mon, const QDict *qdict)
 int do_snapshot_blkdev(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *device = qdict_get_str(qdict, "device");
-    const char *filename = qdict_get_try_str(qdict, "snapshot_file");
+    const char *filename = qdict_get_try_str(qdict, "snapshot-file");
     const char *format = qdict_get_try_str(qdict, "format");
     BlockDriverState *bs;
     BlockDriver *drv, *old_drv, *proto_drv;
@@ -577,7 +577,7 @@ int do_snapshot_blkdev(Monitor *mon, const QDict *qdict, QObject **ret_data)
     char old_filename[1024];
 
     if (!filename) {
-        qerror_report(QERR_MISSING_PARAMETER, "snapshot_file");
+        qerror_report(QERR_MISSING_PARAMETER, "snapshot-file");
         ret = -1;
         goto out;
     }
