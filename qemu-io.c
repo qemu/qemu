@@ -449,7 +449,7 @@ static int read_f(int argc, char **argv)
         return 0;
     }
 
-    if (!pflag)
+    if (!pflag) {
         if (offset & 0x1ff) {
             printf("offset %" PRId64 " is not sector aligned\n",
                    offset);
@@ -460,6 +460,7 @@ static int read_f(int argc, char **argv)
                    count);
             return 0;
         }
+    }
 
     buf = qemu_io_alloc(count, 0xab);
 
