@@ -96,11 +96,12 @@ static int scsi_get_sense(SCSIRequest *req, uint8_t *outbuf, int len)
     return size;
 }
 
-static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun)
+static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
+                                     void *hba_private)
 {
     SCSIRequest *req;
 
-    req = scsi_req_alloc(sizeof(SCSIGenericReq), d, tag, lun);
+    req = scsi_req_alloc(sizeof(SCSIGenericReq), d, tag, lun, hba_private);
     return req;
 }
 

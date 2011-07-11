@@ -216,10 +216,6 @@ static void usb_msd_transfer_data(SCSIRequest *req, uint32_t len)
     MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
     USBPacket *p = s->packet;
 
-    if (req->tag != s->tag) {
-        fprintf(stderr, "usb-msd: Unexpected SCSI Tag 0x%x\n", req->tag);
-    }
-
     assert((s->mode == USB_MSDM_DATAOUT) == (req->cmd.mode == SCSI_XFER_TO_DEV));
     s->scsi_len = len;
     s->scsi_buf = scsi_req_get_buf(req);
@@ -241,9 +237,6 @@ static void usb_msd_command_complete(SCSIRequest *req, uint32_t status)
     MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
     USBPacket *p = s->packet;
 
-    if (req->tag != s->tag) {
-        fprintf(stderr, "usb-msd: Unexpected SCSI Tag 0x%x\n", req->tag);
-    }
     DPRINTF("Command complete %d\n", status);
     s->residue = s->data_len;
     s->result = status != 0;
@@ -387,7 +380,7 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
                     s->tag, cbw.flags, cbw.cmd_len, s->data_len);
             s->residue = 0;
             s->scsi_len = 0;
-            s->req = scsi_req_new(s->scsi_dev, s->tag, 0);
+            s->req = scsi_req_new(s->scsi_dev, s->tag, 0, NULL);
             scsi_req_enqueue(s->req, cbw.cmd);
             /* ??? Should check that USB and SCSI data transfer
                directions match.  */

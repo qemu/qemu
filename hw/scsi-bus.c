@@ -131,7 +131,8 @@ int scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
     return res;
 }
 
-SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag, uint32_t lun)
+SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag,
+                            uint32_t lun, void *hba_private)
 {
     SCSIRequest *req;
 
@@ -141,14 +142,16 @@ SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag, uint32_t l
     req->dev = d;
     req->tag = tag;
     req->lun = lun;
+    req->hba_private = hba_private;
     req->status = -1;
     trace_scsi_req_alloc(req->dev->id, req->lun, req->tag);
     return req;
 }
 
-SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun)
+SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
+                          void *hba_private)
 {
-    return d->info->alloc_req(d, tag, lun);
+    return d->info->alloc_req(d, tag, lun, hba_private);
 }
 
 uint8_t *scsi_req_get_buf(SCSIRequest *req)

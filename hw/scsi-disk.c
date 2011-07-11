@@ -81,13 +81,13 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type);
 static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf);
 
 static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag,
-        uint32_t lun)
+                                     uint32_t lun, void *hba_private)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
     SCSIRequest *req;
     SCSIDiskReq *r;
 
-    req = scsi_req_alloc(sizeof(SCSIDiskReq), &s->qdev, tag, lun);
+    req = scsi_req_alloc(sizeof(SCSIDiskReq), &s->qdev, tag, lun, hba_private);
     r = DO_UPCAST(SCSIDiskReq, req, req);
     r->iov.iov_base = qemu_blockalign(s->bs, SCSI_DMA_BUF_SIZE);
     return req;

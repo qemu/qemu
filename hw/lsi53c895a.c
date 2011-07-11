@@ -661,7 +661,7 @@ static lsi_request *lsi_find_by_tag(LSIState *s, uint32_t tag)
 static void lsi_request_cancelled(SCSIRequest *req)
 {
     LSIState *s = DO_UPCAST(LSIState, dev.qdev, req->bus->qbus.parent);
-    lsi_request *p;
+    lsi_request *p = req->hba_private;
 
     if (s->current && req == s->current->req) {
         scsi_req_unref(req);
@@ -670,7 +670,6 @@ static void lsi_request_cancelled(SCSIRequest *req)
         return;
     }
 
-    p = lsi_find_by_tag(s, req->tag);
     if (p) {
         QTAILQ_REMOVE(&s->queue, p, next);
         scsi_req_unref(req);
@@ -680,18 +679,12 @@ static void lsi_request_cancelled(SCSIRequest *req)
 
 /* Record that data is available for a queued command.  Returns zero if
    the device was reselected, nonzero if the IO is deferred.  */
-static int lsi_queue_tag(LSIState *s, uint32_t tag, uint32_t len)
+static int lsi_queue_req(LSIState *s, SCSIRequest *req, uint32_t len)
 {
-    lsi_request *p;
-
-    p = lsi_find_by_tag(s, tag);
-    if (!p) {
-        BADF("IO with unknown tag %d\n", tag);
-        return 1;
-    }
+    lsi_request *p = req->hba_private;
 
     if (p->pending) {
-        BADF("Multiple IO pending for tag %d\n", tag);
+        BADF("Multiple IO pending for request %p\n", p);
     }
     p->pending = len;
     /* Reselect if waiting for it, or if reselection triggers an IRQ
@@ -743,9 +736,9 @@ static void lsi_transfer_data(SCSIRequest *req, uint32_t len)
     LSIState *s = DO_UPCAST(LSIState, dev.qdev, req->bus->qbus.parent);
     int out;
 
-    if (s->waiting == 1 || !s->current || req->tag != s->current->tag ||
+    if (s->waiting == 1 || !s->current || req->hba_private != s->current ||
         (lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON))) {
-        if (lsi_queue_tag(s, req->tag, len)) {
+        if (lsi_queue_req(s, req, len)) {
             return;
         }
     }
@@ -789,7 +782,8 @@ static void lsi_do_command(LSIState *s)
     assert(s->current == NULL);
     s->current = qemu_mallocz(sizeof(lsi_request));
     s->current->tag = s->select_tag;
-    s->current->req = scsi_req_new(dev, s->current->tag, s->current_lun);
+    s->current->req = scsi_req_new(dev, s->current->tag, s->current_lun,
+                                   s->current);
 
     n = scsi_req_enqueue(s->current->req, buf);
     if (n) {
