@@ -398,7 +398,8 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
                     "buffer size %zd\n", req->cmd.xfer);
             pages = buflen++;
             outbuf[buflen++] = 0x00; // list of supported pages (this page)
-            outbuf[buflen++] = 0x80; // unit serial number
+            if (s->serial)
+                outbuf[buflen++] = 0x80; // unit serial number
             outbuf[buflen++] = 0x83; // device identification
             if (s->drive_kind == SCSI_HD) {
                 outbuf[buflen++] = 0xb0; // block limits
@@ -409,8 +410,14 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
         }
         case 0x80: /* Device serial number, optional */
         {
-            int l = strlen(s->serial);
+            int l;
 
+            if (!s->serial) {
+                DPRINTF("Inquiry (EVPD[Serial number] not supported\n");
+                return -1;
+            }
+
+            l = strlen(s->serial);
             if (l > req->cmd.xfer)
                 l = req->cmd.xfer;
             if (l > 20)
@@ -1203,7 +1210,9 @@ static int scsi_initfn(SCSIDevice *dev, SCSIDriveKind kind)
     if (!s->serial) {
         /* try to fall back to value set with legacy -drive serial=... */
         dinfo = drive_get_by_blockdev(s->bs);
-        s->serial = qemu_strdup(*dinfo->serial ? dinfo->serial : "0");
+        if (*dinfo->serial) {
+            s->serial = qemu_strdup(dinfo->serial);
+        }
     }
 
     if (!s->version) {
