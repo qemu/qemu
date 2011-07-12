@@ -102,8 +102,9 @@ static int vmdk_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
     uint32_t magic;
 
-    if (buf_size < 4)
+    if (buf_size < 4) {
         return 0;
+    }
     magic = be32_to_cpu(*(uint32_t *)buf);
     if (magic == VMDK3_MAGIC ||
         magic == VMDK4_MAGIC) {
@@ -193,9 +194,10 @@ static uint32_t vmdk_read_cid(BlockDriverState *bs, int parent)
         cid_str_size = sizeof("CID");
     }
 
-    if ((p_name = strstr(desc,cid_str)) != NULL) {
+    p_name = strstr(desc, cid_str);
+    if (p_name != NULL) {
         p_name += cid_str_size;
-        sscanf(p_name,"%x",&cid);
+        sscanf(p_name, "%x", &cid);
     }
 
     return cid;
@@ -212,9 +214,10 @@ static int vmdk_write_cid(BlockDriverState *bs, uint32_t cid)
         return -EIO;
     }
 
-    tmp_str = strstr(desc,"parentCID");
+    tmp_str = strstr(desc, "parentCID");
     pstrcpy(tmp_desc, sizeof(tmp_desc), tmp_str);
-    if ((p_name = strstr(desc,"CID")) != NULL) {
+    p_name = strstr(desc, "CID");
+    if (p_name != NULL) {
         p_name += sizeof("CID");
         snprintf(p_name, sizeof(desc) - (p_name - desc), "%x\n", cid);
         pstrcat(desc, sizeof(desc), tmp_desc);
@@ -234,13 +237,14 @@ static int vmdk_is_cid_valid(BlockDriverState *bs)
     uint32_t cur_pcid;
 
     if (p_bs) {
-        cur_pcid = vmdk_read_cid(p_bs,0);
-        if (s->parent_cid != cur_pcid)
-            // CID not valid
+        cur_pcid = vmdk_read_cid(p_bs, 0);
+        if (s->parent_cid != cur_pcid) {
+            /* CID not valid */
             return 0;
+        }
     }
 #endif
-    // CID valid
+    /* CID valid */
     return 1;
 }
 
@@ -255,14 +259,18 @@ static int vmdk_parent_open(BlockDriverState *bs)
         return -1;
     }
 
-    if ((p_name = strstr(desc,"parentFileNameHint")) != NULL) {
+    p_name = strstr(desc, "parentFileNameHint");
+    if (p_name != NULL) {
         char *end_name;
 
         p_name += sizeof("parentFileNameHint") + 1;
-        if ((end_name = strchr(p_name,'\"')) == NULL)
+        end_name = strchr(p_name, '\"');
+        if (end_name == NULL) {
             return -1;
-        if ((end_name - p_name) > sizeof (bs->backing_file) - 1)
+        }
+        if ((end_name - p_name) > sizeof(bs->backing_file) - 1) {
             return -1;
+        }
 
         pstrcpy(bs->backing_file, end_name - p_name + 1, p_name);
     }
@@ -595,8 +603,9 @@ static int get_whole_cluster(BlockDriverState *bs,
     if (bs->backing_hd) {
         int ret;
 
-        if (!vmdk_is_cid_valid(bs))
+        if (!vmdk_is_cid_valid(bs)) {
             return -1;
+        }
 
         /* floor offset to cluster */
         offset -= offset % (extent->cluster_sectors * 512);
@@ -655,8 +664,9 @@ static int get_cluster_offset(BlockDriverState *bs,
     int min_index, i, j;
     uint32_t min_count, *l2_table, tmp = 0;
 
-    if (m_data)
+    if (m_data) {
         m_data->valid = 0;
+    }
     if (extent->flat) {
         *cluster_offset = extent->flat_start_offset;
         return 0;
@@ -712,7 +722,7 @@ static int get_cluster_offset(BlockDriverState *bs,
             return -1;
         }
 
-        // Avoid the L2 tables update for the images that have snapshots.
+        /* Avoid the L2 tables update for the images that have snapshots. */
         *cluster_offset = bdrv_getlength(extent->file);
         bdrv_truncate(
             extent->file,
@@ -729,8 +739,9 @@ static int get_cluster_offset(BlockDriverState *bs,
          * or inappropriate VM shutdown.
          */
         if (get_whole_cluster(
-                bs, extent, *cluster_offset, offset, allocate) == -1)
+                bs, extent, *cluster_offset, offset, allocate) == -1) {
             return -1;
+        }
 
         if (m_data) {
             m_data->offset = tmp;
@@ -780,8 +791,9 @@ static int vmdk_is_allocated(BlockDriverState *bs, int64_t sector_num,
 
     index_in_cluster = sector_num % extent->cluster_sectors;
     n = extent->cluster_sectors - index_in_cluster;
-    if (n > nb_sectors)
+    if (n > nb_sectors) {
         n = nb_sectors;
+    }
     *pnum = n;
     return ret;
 }
@@ -805,16 +817,19 @@ static int vmdk_read(BlockDriverState *bs, int64_t sector_num,
                             sector_num << 9, 0, &cluster_offset);
         index_in_cluster = sector_num % extent->cluster_sectors;
         n = extent->cluster_sectors - index_in_cluster;
-        if (n > nb_sectors)
+        if (n > nb_sectors) {
             n = nb_sectors;
+        }
         if (ret) {
             /* if not allocated, try to read from parent image, if exist */
             if (bs->backing_hd) {
-                if (!vmdk_is_cid_valid(bs))
+                if (!vmdk_is_cid_valid(bs)) {
                     return -EINVAL;
+                }
                 ret = bdrv_read(bs->backing_hd, sector_num, buf, n);
-                if (ret < 0)
+                if (ret < 0) {
                     return ret;
+                }
             } else {
                 memset(buf, 0, 512 * n);
             }
@@ -888,7 +903,8 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
         sector_num += n;
         buf += n * 512;
 
-        // update CID on the first write every time the virtual disk is opened
+        /* update CID on the first write every time the virtual disk is
+         * opened */
         if (!s->cid_updated) {
             vmdk_write_cid(bs, time(NULL));
             s->cid_updated = true;
@@ -1301,16 +1317,16 @@ static QEMUOptionParameter vmdk_create_options[] = {
 };
 
 static BlockDriver bdrv_vmdk = {
-    .format_name	= "vmdk",
-    .instance_size	= sizeof(BDRVVmdkState),
-    .bdrv_probe		= vmdk_probe,
+    .format_name    = "vmdk",
+    .instance_size  = sizeof(BDRVVmdkState),
+    .bdrv_probe     = vmdk_probe,
     .bdrv_open      = vmdk_open,
-    .bdrv_read		= vmdk_read,
-    .bdrv_write		= vmdk_write,
-    .bdrv_close		= vmdk_close,
-    .bdrv_create	= vmdk_create,
-    .bdrv_flush		= vmdk_flush,
-    .bdrv_is_allocated	= vmdk_is_allocated,
+    .bdrv_read      = vmdk_read,
+    .bdrv_write     = vmdk_write,
+    .bdrv_close     = vmdk_close,
+    .bdrv_create    = vmdk_create,
+    .bdrv_flush     = vmdk_flush,
+    .bdrv_is_allocated  = vmdk_is_allocated,
 
     .create_options = vmdk_create_options,
 };
