@@ -2080,7 +2080,7 @@ void cpu_loop(CPUMIPSState *env)
             syscall_num = env->active_tc.gpr[2] - 4000;
             env->active_tc.PC += 4;
             if (syscall_num >= sizeof(mips_syscall_args)) {
-                ret = -ENOSYS;
+                ret = -TARGET_ENOSYS;
             } else {
                 int nb_args;
                 abi_ulong sp_reg;
