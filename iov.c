@@ -73,3 +73,34 @@ size_t iov_size(const struct iovec *iov, const unsigned int iov_cnt)
     }
     return len;
 }
+
+void iov_hexdump(const struct iovec *iov, const unsigned int iov_cnt,
+                 FILE *fp, const char *prefix, size_t limit)
+{
+    unsigned int i, v, b;
+    uint8_t *c;
+
+    c = iov[0].iov_base;
+    for (i = 0, v = 0, b = 0; b < limit; i++, b++) {
+        if (i == iov[v].iov_len) {
+            i = 0; v++;
+            if (v == iov_cnt) {
+                break;
+            }
+            c = iov[v].iov_base;
+        }
+        if ((b % 16) == 0) {
+            fprintf(fp, "%s: %04x:", prefix, b);
+        }
+        if ((b % 4) == 0) {
+            fprintf(fp, " ");
+        }
+        fprintf(fp, " %02x", c[i]);
+        if ((b % 16) == 15) {
+            fprintf(fp, "\n");
+        }
+    }
+    if ((b % 16) != 0) {
+        fprintf(fp, "\n");
+    }
+}
