@@ -20,12 +20,12 @@ typedef struct {
     target_phys_addr_t len;
 } ScatterGatherEntry;
 
-typedef struct {
+struct QEMUSGList {
     ScatterGatherEntry *sg;
     int nsg;
     int nalloc;
     target_phys_addr_t size;
-} QEMUSGList;
+};
 
 void qemu_sglist_init(QEMUSGList *qsg, int alloc_hint);
 void qemu_sglist_add(QEMUSGList *qsg, target_phys_addr_t base,
