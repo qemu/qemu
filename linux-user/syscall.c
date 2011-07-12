@@ -934,18 +934,30 @@ static inline abi_long host_to_target_rusage(abi_ulong target_addr,
 
 static inline rlim_t target_to_host_rlim(target_ulong target_rlim)
 {
-    if (target_rlim == TARGET_RLIM_INFINITY)
-        return RLIM_INFINITY;
+    target_ulong target_rlim_swap;
+    rlim_t result;
+    
+    target_rlim_swap = tswapl(target_rlim);
+    if (target_rlim_swap == TARGET_RLIM_INFINITY || target_rlim_swap != (rlim_t)target_rlim_swap)
+        result = RLIM_INFINITY;
     else
-        return tswapl(target_rlim);
+        result = target_rlim_swap;
+    
+    return result;
 }
 
 static inline target_ulong host_to_target_rlim(rlim_t rlim)
 {
+    target_ulong target_rlim_swap;
+    target_ulong result;
+    
     if (rlim == RLIM_INFINITY || rlim != (target_long)rlim)
-        return TARGET_RLIM_INFINITY;
+        target_rlim_swap = TARGET_RLIM_INFINITY;
     else
-        return tswapl(rlim);
+        target_rlim_swap = rlim;
+    result = tswapl(target_rlim_swap);
+    
+    return result;
 }
 
 static inline abi_long copy_from_user_timeval(struct timeval *tv,
