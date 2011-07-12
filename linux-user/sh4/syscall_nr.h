@@ -125,7 +125,7 @@
 #define TARGET_NR_clone		120
 #define TARGET_NR_setdomainname	121
 #define TARGET_NR_uname		122
-#define TARGET_NR_modify_ldt		123
+#define TARGET_NR_cacheflush		123
 #define TARGET_NR_adjtimex		124
 #define TARGET_NR_mprotect		125
 #define TARGET_NR_sigprocmask	126
