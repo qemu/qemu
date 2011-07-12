@@ -3662,11 +3662,11 @@ typedef struct {
 } sigframe;
 
 struct target_ucontext {
-    target_ulong uc_flags;
-    struct target_ucontext *uc_link;
-    target_stack_t uc_stack;
-    target_sigregs uc_mcontext;
-    target_sigset_t uc_sigmask;   /* mask last for extensibility */
+    target_ulong tuc_flags;
+    struct target_ucontext *tuc_link;
+    target_stack_t tuc_stack;
+    target_sigregs tuc_mcontext;
+    target_sigset_t tuc_sigmask;   /* mask last for extensibility */
 };
 
 typedef struct {
@@ -3814,16 +3814,16 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     }
 
     /* Create the ucontext.  */
-    __put_user(0, &frame->uc.uc_flags);
-    __put_user((abi_ulong)0, (abi_ulong *)&frame->uc.uc_link);
-    __put_user(target_sigaltstack_used.ss_sp, &frame->uc.uc_stack.ss_sp);
+    __put_user(0, &frame->uc.tuc_flags);
+    __put_user((abi_ulong)0, (abi_ulong *)&frame->uc.tuc_link);
+    __put_user(target_sigaltstack_used.ss_sp, &frame->uc.tuc_stack.ss_sp);
     __put_user(sas_ss_flags(get_sp_from_cpustate(env)),
-                      &frame->uc.uc_stack.ss_flags);
-    __put_user(target_sigaltstack_used.ss_size, &frame->uc.uc_stack.ss_size);
-    save_sigregs(env, &frame->uc.uc_mcontext);
+                      &frame->uc.tuc_stack.ss_flags);
+    __put_user(target_sigaltstack_used.ss_size, &frame->uc.tuc_stack.ss_size);
+    save_sigregs(env, &frame->uc.tuc_mcontext);
     for (i = 0; i < TARGET_NSIG_WORDS; i++) {
         __put_user((abi_ulong)set->sig[i],
-        (abi_ulong *)&frame->uc.uc_sigmask.sig[i]);
+        (abi_ulong *)&frame->uc.tuc_sigmask.sig[i]);
     }
 
     /* Set up to return from userspace.  If provided, use a stub
@@ -3928,15 +3928,15 @@ long do_rt_sigreturn(CPUState *env)
     if (!lock_user_struct(VERIFY_READ, frame, frame_addr, 1)) {
         goto badframe;
     }
-    target_to_host_sigset(&set, &frame->uc.uc_sigmask);
+    target_to_host_sigset(&set, &frame->uc.tuc_sigmask);
 
     sigprocmask(SIG_SETMASK, &set, NULL); /* ~_BLOCKABLE? */
 
-    if (restore_sigregs(env, &frame->uc.uc_mcontext)) {
+    if (restore_sigregs(env, &frame->uc.tuc_mcontext)) {
         goto badframe;
     }
 
-    if (do_sigaltstack(frame_addr + offsetof(rt_sigframe, uc.uc_stack), 0,
+    if (do_sigaltstack(frame_addr + offsetof(rt_sigframe, uc.tuc_stack), 0,
                        get_sp_from_cpustate(env)) == -EFAULT) {
         goto badframe;
     }
