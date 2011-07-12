@@ -82,6 +82,7 @@ typedef struct VmdkExtent {
 
 typedef struct BDRVVmdkState {
     int desc_offset;
+    bool cid_updated;
     uint32_t parent_cid;
     int num_extents;
     /* Extent array with num_extents entries, ascend ordered by address */
@@ -853,7 +854,6 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
     int n;
     int64_t index_in_cluster;
     uint64_t cluster_offset;
-    static int cid_update = 0;
     VmdkMetaData m_data;
 
     if (sector_num > bs->total_sectors) {
@@ -900,9 +900,9 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
         buf += n * 512;
 
         // update CID on the first write every time the virtual disk is opened
-        if (!cid_update) {
+        if (!s->cid_updated) {
             vmdk_write_cid(bs, time(NULL));
-            cid_update++;
+            s->cid_updated = true;
         }
     }
     return 0;
