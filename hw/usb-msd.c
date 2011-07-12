@@ -207,8 +207,9 @@ static void usb_msd_send_status(MSDState *s, USBPacket *p)
     csw.residue = s->residue;
     csw.status = s->result;
 
-    len = MIN(sizeof(csw), p->len);
-    memcpy(p->data, &csw, len);
+    len = MIN(sizeof(csw), p->iov.size);
+    usb_packet_copy(p, &csw, len);
+    p->result = len;
 }
 
 static void usb_msd_transfer_data(SCSIRequest *req, uint32_t len)
@@ -222,6 +223,7 @@ static void usb_msd_transfer_data(SCSIRequest *req, uint32_t len)
     if (p) {
         usb_msd_copy_data(s);
         if (s->packet && s->usb_len == 0) {
+            p->result = p->iov.size;
             /* Set s->packet to NULL before calling usb_packet_complete
                because another request may be issued before
                usb_packet_complete returns.  */
@@ -257,6 +259,7 @@ static void usb_msd_command_complete(SCSIRequest *req, uint32_t status)
             if (s->data_len == 0) {
                 s->mode = USB_MSDM_CSW;
             }
+            p->result = p->iov.size;
         }
         s->packet = NULL;
         usb_packet_complete(&s->dev, p);
@@ -342,9 +345,10 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
     int ret = 0;
     struct usb_msd_cbw cbw;
     uint8_t devep = p->devep;
-    uint8_t *data = p->data;
-    int len = p->len;
+    uint8_t *data = p->iov.iov[0].iov_base;
+    int len = p->iov.iov[0].iov_len;
 
+    assert(p->iov.niov == 1); /* temporary */
     switch (p->pid) {
     case USB_TOKEN_OUT:
         if (devep != 2)

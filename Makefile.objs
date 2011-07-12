@@ -172,6 +172,7 @@ user-obj-y += cutils.o cache-utils.o
 hw-obj-y =
 hw-obj-y += vl.o loader.o
 hw-obj-$(CONFIG_VIRTIO) += virtio-console.o
+hw-obj-y += usb-libhw.o
 hw-obj-$(CONFIG_VIRTIO_PCI) += virtio-pci.o
 hw-obj-y += fw_cfg.o
 hw-obj-$(CONFIG_PCI) += pci.o pci_bridge.o

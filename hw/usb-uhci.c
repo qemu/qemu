@@ -30,6 +30,7 @@
 #include "pci.h"
 #include "qemu-timer.h"
 #include "usb-uhci.h"
+#include "iov.h"
 
 //#define DEBUG
 //#define DEBUG_DUMP_DATA
@@ -93,17 +94,12 @@ static const char *pid2str(int pid)
 #endif
 
 #ifdef DEBUG_DUMP_DATA
-static void dump_data(const uint8_t *data, int len)
+static void dump_data(USBPacket *p, int ret)
 {
-    int i;
-
-    printf("uhci: data: ");
-    for(i = 0; i < len; i++)
-        printf(" %02x", data[i]);
-    printf("\n");
+    iov_hexdump(p->iov.iov, p->iov.niov, stderr, "uhci", ret);
 }
 #else
-static void dump_data(const uint8_t *data, int len) {}
+static void dump_data(USBPacket *p, int ret) {}
 #endif
 
 typedef struct UHCIState UHCIState;
@@ -179,12 +175,14 @@ static UHCIAsync *uhci_async_alloc(UHCIState *s)
     async->token = 0;
     async->done  = 0;
     async->isoc  = 0;
+    usb_packet_init(&async->packet);
 
     return async;
 }
 
 static void uhci_async_free(UHCIState *s, UHCIAsync *async)
 {
+    usb_packet_cleanup(&async->packet);
     qemu_free(async);
 }
 
@@ -648,10 +646,10 @@ static int uhci_broadcast_packet(UHCIState *s, USBPacket *p)
 {
     int i, ret;
 
-    DPRINTF("uhci: packet enter. pid %s addr 0x%02x ep %d len %d\n",
-           pid2str(p->pid), p->devaddr, p->devep, p->len);
+    DPRINTF("uhci: packet enter. pid %s addr 0x%02x ep %d len %zd\n",
+           pid2str(p->pid), p->devaddr, p->devep, p->iov.size);
     if (p->pid == USB_TOKEN_OUT || p->pid == USB_TOKEN_SETUP)
-        dump_data(p->data, p->len);
+        dump_data(p, 0);
 
     ret = USB_RET_NODEV;
     for (i = 0; i < NB_PORTS && ret == USB_RET_NODEV; i++) {
@@ -662,9 +660,9 @@ static int uhci_broadcast_packet(UHCIState *s, USBPacket *p)
             ret = usb_handle_packet(dev, p);
     }
 
-    DPRINTF("uhci: packet exit. ret %d len %d\n", ret, p->len);
+    DPRINTF("uhci: packet exit. ret %d len %zd\n", ret, p->iov.size);
     if (p->pid == USB_TOKEN_IN && ret > 0)
-        dump_data(p->data, ret);
+        dump_data(p, ret);
 
     return ret;
 }
@@ -684,7 +682,7 @@ static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_
     max_len = ((td->token >> 21) + 1) & 0x7ff;
     pid = td->token & 0xff;
 
-    ret = async->packet.len;
+    ret = async->packet.result;
 
     if (td->ctrl & TD_CTRL_IOS)
         td->ctrl &= ~TD_CTRL_ACTIVE;
@@ -692,7 +690,7 @@ static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_
     if (ret < 0)
         goto out;
 
-    len = async->packet.len;
+    len = async->packet.result;
     td->ctrl = (td->ctrl & ~0x7ff) | ((len - 1) & 0x7ff);
 
     /* The NAK bit may have been set by a previous frame, so clear it
@@ -827,11 +825,9 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
     max_len = ((td->token >> 21) + 1) & 0x7ff;
     pid = td->token & 0xff;
 
-    async->packet.pid     = pid;
-    async->packet.devaddr = (td->token >> 8) & 0x7f;
-    async->packet.devep   = (td->token >> 15) & 0xf;
-    async->packet.data    = async->buffer;
-    async->packet.len     = max_len;
+    usb_packet_setup(&async->packet, pid, (td->token >> 8) & 0x7f,
+                     (td->token >> 15) & 0xf);
+    usb_packet_addbuf(&async->packet, async->buffer, max_len);
 
     switch(pid) {
     case USB_TOKEN_OUT:
@@ -859,7 +855,7 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
         return 2;
     }
 
-    async->packet.len = len;
+    async->packet.result = len;
 
 done:
     len = uhci_complete_td(s, td, async, int_mask);

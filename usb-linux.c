@@ -341,16 +341,16 @@ static void async_complete(void *opaque)
         if (p) {
             switch (aurb->urb.status) {
             case 0:
-                p->len += aurb->urb.actual_length;
+                p->result += aurb->urb.actual_length;
                 break;
 
             case -EPIPE:
                 set_halt(s, p->devep);
-                p->len = USB_RET_STALL;
+                p->result = USB_RET_STALL;
                 break;
 
             default:
-                p->len = USB_RET_NAK;
+                p->result = USB_RET_NAK;
                 break;
             }
 
@@ -604,6 +604,7 @@ static int usb_host_handle_iso_data(USBHostDevice *s, USBPacket *p, int in)
 {
     AsyncURB *aurb;
     int i, j, ret, max_packet_size, offset, len = 0;
+    uint8_t *buf;
 
     max_packet_size = get_max_packet_size(s, p->devep);
     if (max_packet_size == 0)
@@ -628,19 +629,19 @@ static int usb_host_handle_iso_data(USBHostDevice *s, USBPacket *p, int in)
                 len = urb_status_to_usb_ret(
                                         aurb[i].urb.iso_frame_desc[j].status);
             /* Check the frame fits */
-            } else if (aurb[i].urb.iso_frame_desc[j].actual_length > p->len) {
+            } else if (aurb[i].urb.iso_frame_desc[j].actual_length
+                       > p->iov.size) {
                 printf("husb: received iso data is larger then packet\n");
                 len = USB_RET_NAK;
             /* All good copy data over */
             } else {
                 len = aurb[i].urb.iso_frame_desc[j].actual_length;
-                memcpy(p->data,
-                       aurb[i].urb.buffer +
-                           j * aurb[i].urb.iso_frame_desc[0].length,
-                       len);
+                buf  = aurb[i].urb.buffer +
+                    j * aurb[i].urb.iso_frame_desc[0].length;
+                usb_packet_copy(p, buf, len);
             }
         } else {
-            len = p->len;
+            len = p->iov.size;
             offset = (j == 0) ? 0 : get_iso_buffer_used(s, p->devep);
 
             /* Check the frame fits */
@@ -650,7 +651,7 @@ static int usb_host_handle_iso_data(USBHostDevice *s, USBPacket *p, int in)
             }
 
             /* All good copy data over */
-            memcpy(aurb[i].urb.buffer + offset, p->data, len);
+            usb_packet_copy(p, aurb[i].urb.buffer + offset, len);
             aurb[i].urb.iso_frame_desc[j].length = len;
             offset += len;
             set_iso_buffer_used(s, p->devep, offset);
@@ -734,9 +735,9 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
         return usb_host_handle_iso_data(s, p, p->pid == USB_TOKEN_IN);
     }
 
-    rem = p->len;
-    pbuf = p->data;
-    p->len = 0;
+    assert(p->iov.niov == 1); /* temporary */
+    rem = p->iov.iov[0].iov_len;
+    pbuf = p->iov.iov[0].iov_base;
     while (rem) {
         aurb = async_alloc(s);
         aurb->packet = p;

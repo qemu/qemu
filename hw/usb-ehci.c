@@ -1235,7 +1235,7 @@ static void ehci_async_complete_packet(USBPort *port, USBPacket *packet)
     trace_usb_ehci_queue_action(q, "wakeup");
     assert(q->async == EHCI_ASYNC_INFLIGHT);
     q->async = EHCI_ASYNC_FINISHED;
-    q->usb_status = packet->len;
+    q->usb_status = packet->result;
 }
 
 static void ehci_execute_complete(EHCIQueue *q)
@@ -1367,17 +1367,15 @@ static int ehci_execute(EHCIQueue *q)
             continue;
         }
 
-        q->packet.pid = q->pid;
-        q->packet.devaddr = devadr;
-        q->packet.devep = endp;
-        q->packet.data = q->buffer;
-        q->packet.len = q->tbytes;
+        usb_packet_setup(&q->packet, q->pid, devadr, endp);
+        usb_packet_addbuf(&q->packet, q->buffer, q->tbytes);
 
         ret = usb_handle_packet(dev, &q->packet);
 
-        DPRINTF("submit: qh %x next %x qtd %x pid %x len %d (total %d) endp %x ret %d\n",
+        DPRINTF("submit: qh %x next %x qtd %x pid %x len %zd "
+                "(total %d) endp %x ret %d\n",
                 q->qhaddr, q->qh.next, q->qtdaddr, q->pid,
-                q->packet.len, q->tbytes, endp, ret);
+                q->packet.iov.size, q->tbytes, endp, ret);
 
         if (ret != USB_RET_NODEV) {
             break;
@@ -1457,11 +1455,8 @@ static int ehci_process_itd(EHCIState *ehci,
                     continue;
                 }
 
-                ehci->ipacket.pid = pid;
-                ehci->ipacket.devaddr = devaddr;
-                ehci->ipacket.devep = endp;
-                ehci->ipacket.data = ehci->ibuffer;
-                ehci->ipacket.len = len;
+                usb_packet_setup(&ehci->ipacket, pid, devaddr, endp);
+                usb_packet_addbuf(&ehci->ipacket, ehci->ibuffer, len);
 
                 ret = usb_handle_packet(dev, &ehci->ipacket);
 

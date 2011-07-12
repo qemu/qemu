@@ -361,10 +361,11 @@ static int usb_serial_handle_data(USBDevice *dev, USBPacket *p)
     USBSerialState *s = (USBSerialState *)dev;
     int ret = 0;
     uint8_t devep = p->devep;
-    uint8_t *data = p->data;
-    int len = p->len;
+    uint8_t *data = p->iov.iov[0].iov_base;
+    int len = p->iov.iov[0].iov_len;
     int first_len;
 
+    assert(p->iov.niov == 1); /* temporary */
     switch (p->pid) {
     case USB_TOKEN_OUT:
         if (devep != 2)

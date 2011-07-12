@@ -127,11 +127,11 @@ static int bt_hid_out(struct bt_hid_device_s *s)
     USBPacket p;
 
     if (s->data_type == BT_DATA_OUTPUT) {
-        p.pid = USB_TOKEN_OUT;
-        p.devep = 1;
-        p.data = s->dataout.buffer;
-        p.len = s->dataout.len;
+        usb_packet_init(&p);
+        usb_packet_setup(&p, USB_TOKEN_OUT, 0, 1);
+        usb_packet_addbuf(&p, s->dataout.buffer, s->dataout.len);
         s->dataout.len = s->usbdev->info->handle_data(s->usbdev, &p);
+        usb_packet_cleanup(&p);
 
         return s->dataout.len;
     }
@@ -150,11 +150,11 @@ static int bt_hid_in(struct bt_hid_device_s *s)
 {
     USBPacket p;
 
-    p.pid = USB_TOKEN_IN;
-    p.devep = 1;
-    p.data = s->datain.buffer;
-    p.len = sizeof(s->datain.buffer);
+    usb_packet_init(&p);
+    usb_packet_setup(&p, USB_TOKEN_IN, 0, 1);
+    usb_packet_addbuf(&p, s->dataout.buffer, sizeof(s->datain.buffer));
     s->datain.len = s->usbdev->info->handle_data(s->usbdev, &p);
+    usb_packet_cleanup(&p);
 
     return s->datain.len;
 }

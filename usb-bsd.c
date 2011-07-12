@@ -253,9 +253,9 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
     }
 
     if (p->pid == USB_TOKEN_IN)
-        ret = read(fd, p->data, p->len);
+        ret = readv(fd, p->iov.iov, p->iov.niov);
     else
-        ret = write(fd, p->data, p->len);
+        ret = writev(fd, p->iov.iov, p->iov.niov);
 
     sigprocmask(SIG_SETMASK, &old_mask, NULL);
 

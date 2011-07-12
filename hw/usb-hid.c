@@ -816,6 +816,7 @@ static int usb_hid_handle_control(USBDevice *dev, USBPacket *p,
 static int usb_hid_handle_data(USBDevice *dev, USBPacket *p)
 {
     USBHIDState *s = (USBHIDState *)dev;
+    uint8_t buf[p->iov.size];
     int ret = 0;
 
     switch(p->pid) {
@@ -826,11 +827,12 @@ static int usb_hid_handle_data(USBDevice *dev, USBPacket *p)
                 return USB_RET_NAK;
             usb_hid_set_next_idle(s, curtime);
             if (s->kind == USB_MOUSE || s->kind == USB_TABLET) {
-                ret = usb_pointer_poll(s, p->data, p->len);
+                ret = usb_pointer_poll(s, buf, p->iov.size);
             }
             else if (s->kind == USB_KEYBOARD) {
-                ret = usb_keyboard_poll(s, p->data, p->len);
+                ret = usb_keyboard_poll(s, buf, p->iov.size);
             }
+            usb_packet_copy(p, buf, ret);
             s->changed = s->n > 0;
         } else {
             goto fail;
