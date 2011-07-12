@@ -693,6 +693,40 @@ struct target_rlimit {
 #define TARGET_RLIM_INFINITY	((target_ulong)~0UL)
 #endif
 
+#if defined(TARGET_MIPS)
+#define TARGET_RLIMIT_CPU		0
+#define TARGET_RLIMIT_FSIZE		1
+#define TARGET_RLIMIT_DATA		2
+#define TARGET_RLIMIT_STACK		3
+#define TARGET_RLIMIT_CORE		4
+#define TARGET_RLIMIT_RSS		7
+#define TARGET_RLIMIT_NPROC		8
+#define TARGET_RLIMIT_NOFILE		5
+#define TARGET_RLIMIT_MEMLOCK		9
+#define TARGET_RLIMIT_AS		6
+#define TARGET_RLIMIT_LOCKS		10
+#define TARGET_RLIMIT_SIGPENDING	11
+#define TARGET_RLIMIT_MSGQUEUE		12
+#define TARGET_RLIMIT_NICE		13
+#define TARGET_RLIMIT_RTPRIO		14
+#else
+#define TARGET_RLIMIT_CPU		0
+#define TARGET_RLIMIT_FSIZE		1
+#define TARGET_RLIMIT_DATA		2
+#define TARGET_RLIMIT_STACK		3
+#define TARGET_RLIMIT_CORE		4
+#define TARGET_RLIMIT_RSS		5
+#define TARGET_RLIMIT_NPROC		6
+#define TARGET_RLIMIT_NOFILE		7
+#define TARGET_RLIMIT_MEMLOCK		8
+#define TARGET_RLIMIT_AS		9
+#define TARGET_RLIMIT_LOCKS		10
+#define TARGET_RLIMIT_SIGPENDING	11
+#define TARGET_RLIMIT_MSGQUEUE		12
+#define TARGET_RLIMIT_NICE		13
+#define TARGET_RLIMIT_RTPRIO		14
+#endif
+
 struct target_pollfd {
     int fd;           /* file descriptor */
     short events;     /* requested events */

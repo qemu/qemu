@@ -960,6 +960,44 @@ static inline target_ulong host_to_target_rlim(rlim_t rlim)
     return result;
 }
 
+static inline int target_to_host_resource(int code)
+{
+    switch (code) {
+    case TARGET_RLIMIT_AS:
+        return RLIMIT_AS;
+    case TARGET_RLIMIT_CORE:
+        return RLIMIT_CORE;
+    case TARGET_RLIMIT_CPU:
+        return RLIMIT_CPU;
+    case TARGET_RLIMIT_DATA:
+        return RLIMIT_DATA;
+    case TARGET_RLIMIT_FSIZE:
+        return RLIMIT_FSIZE;
+    case TARGET_RLIMIT_LOCKS:
+        return RLIMIT_LOCKS;
+    case TARGET_RLIMIT_MEMLOCK:
+        return RLIMIT_MEMLOCK;
+    case TARGET_RLIMIT_MSGQUEUE:
+        return RLIMIT_MSGQUEUE;
+    case TARGET_RLIMIT_NICE:
+        return RLIMIT_NICE;
+    case TARGET_RLIMIT_NOFILE:
+        return RLIMIT_NOFILE;
+    case TARGET_RLIMIT_NPROC:
+        return RLIMIT_NPROC;
+    case TARGET_RLIMIT_RSS:
+        return RLIMIT_RSS;
+    case TARGET_RLIMIT_RTPRIO:
+        return RLIMIT_RTPRIO;
+    case TARGET_RLIMIT_SIGPENDING:
+        return RLIMIT_SIGPENDING;
+    case TARGET_RLIMIT_STACK:
+        return RLIMIT_STACK;
+    default:
+        return code;
+    }
+}
+
 static inline abi_long copy_from_user_timeval(struct timeval *tv,
                                               abi_ulong target_tv_addr)
 {
@@ -5570,7 +5608,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
     case TARGET_NR_setrlimit:
         {
-            int resource = arg1;
+            int resource = target_to_host_resource(arg1);
             struct target_rlimit *target_rlim;
             struct rlimit rlim;
             if (!lock_user_struct(VERIFY_READ, target_rlim, arg2, 1))
@@ -5583,7 +5621,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
     case TARGET_NR_getrlimit:
         {
-            int resource = arg1;
+            int resource = target_to_host_resource(arg1);
             struct target_rlimit *target_rlim;
             struct rlimit rlim;
 
@@ -6892,7 +6930,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_ugetrlimit:
     {
 	struct rlimit rlim;
-	ret = get_errno(getrlimit(arg1, &rlim));
+	int resource = target_to_host_resource(arg1);
+	ret = get_errno(getrlimit(resource, &rlim));
 	if (!is_error(ret)) {
 	    struct target_rlimit *target_rlim;
             if (!lock_user_struct(VERIFY_WRITE, target_rlim, arg2, 0))
