@@ -1875,7 +1875,7 @@ static const uint8_t mips_syscall_args[] = {
 	MIPS_SYS(sys_getcwd	, 2)
 	MIPS_SYS(sys_capget	, 2)
 	MIPS_SYS(sys_capset	, 2)	/* 4205 */
-	MIPS_SYS(sys_sigaltstack	, 0)
+	MIPS_SYS(sys_sigaltstack	, 2)
 	MIPS_SYS(sys_sendfile	, 4)
 	MIPS_SYS(sys_ni_syscall	, 0)
 	MIPS_SYS(sys_ni_syscall	, 0)
