@@ -1072,7 +1072,17 @@ static void vmdk_close(BlockDriverState *bs)
 
 static int vmdk_flush(BlockDriverState *bs)
 {
-    return bdrv_flush(bs->file);
+    int i, ret, err;
+    BDRVVmdkState *s = bs->opaque;
+
+    ret = bdrv_flush(bs->file);
+    for (i = 0; i < s->num_extents; i++) {
+        err = bdrv_flush(s->extents[i].file);
+        if (err < 0) {
+            ret = err;
+        }
+    }
+    return ret;
 }
 
 
