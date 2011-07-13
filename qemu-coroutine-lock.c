@@ -30,14 +30,10 @@
 
 static QTAILQ_HEAD(, Coroutine) unlock_bh_queue =
     QTAILQ_HEAD_INITIALIZER(unlock_bh_queue);
-
-struct unlock_bh {
-    QEMUBH *bh;
-};
+static QEMUBH* unlock_bh;
 
 static void qemu_co_queue_next_bh(void *opaque)
 {
-    struct unlock_bh *unlock_bh = opaque;
     Coroutine *next;
 
     trace_qemu_co_queue_next_bh();
@@ -45,14 +41,15 @@ static void qemu_co_queue_next_bh(void *opaque)
         QTAILQ_REMOVE(&unlock_bh_queue, next, co_queue_next);
         qemu_coroutine_enter(next, NULL);
     }
-
-    qemu_bh_delete(unlock_bh->bh);
-    qemu_free(unlock_bh);
 }
 
 void qemu_co_queue_init(CoQueue *queue)
 {
     QTAILQ_INIT(&queue->entries);
+
+    if (!unlock_bh) {
+        unlock_bh = qemu_bh_new(qemu_co_queue_next_bh, NULL);
+    }
 }
 
 void coroutine_fn qemu_co_queue_wait(CoQueue *queue)
@@ -65,7 +62,6 @@ void coroutine_fn qemu_co_queue_wait(CoQueue *queue)
 
 bool qemu_co_queue_next(CoQueue *queue)
 {
-    struct unlock_bh *unlock_bh;
     Coroutine *next;
 
     next = QTAILQ_FIRST(&queue->entries);
@@ -73,10 +69,7 @@ bool qemu_co_queue_next(CoQueue *queue)
         QTAILQ_REMOVE(&queue->entries, next, co_queue_next);
         QTAILQ_INSERT_TAIL(&unlock_bh_queue, next, co_queue_next);
         trace_qemu_co_queue_next(next);
-
-        unlock_bh = qemu_malloc(sizeof(*unlock_bh));
-        unlock_bh->bh = qemu_bh_new(qemu_co_queue_next_bh, unlock_bh);
-        qemu_bh_schedule(unlock_bh->bh);
+        qemu_bh_schedule(unlock_bh);
     }
 
     return (next != NULL);
