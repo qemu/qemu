@@ -1,7 +1,12 @@
-#include "exec.h"
+#include "cpu.h"
+#include "dyngen-exec.h"
 #include "host-utils.h"
 #include "helper.h"
 #include "sysemu.h"
+
+#if !defined(CONFIG_USER_ONLY)
+#include "softmmu_exec.h"
+#endif
 
 //#define DEBUG_MMU
 //#define DEBUG_MXCC

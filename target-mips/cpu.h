@@ -1,6 +1,8 @@
 #if !defined (__MIPS_CPU_H__)
 #define __MIPS_CPU_H__
 
+//#define DEBUG_OP
+
 #define TARGET_HAS_ICE 1
 
 #define ELF_MACHINE	EM_MIPS

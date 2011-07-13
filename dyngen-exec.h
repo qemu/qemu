@@ -64,6 +64,8 @@ typedef void * host_reg_t;
 #error unsupported CPU
 #endif
 
+register CPUState *env asm(AREG0);
+
 #define xglue(x, y) x ## y
 #define glue(x, y) xglue(x, y)
 #define stringify(s)	tostring(s)

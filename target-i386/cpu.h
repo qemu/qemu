@@ -1050,6 +1050,9 @@ void cpu_x86_inject_mce(Monitor *mon, CPUState *cenv, int bank,
 /* op_helper.c */
 void do_interrupt(CPUState *env);
 void do_interrupt_x86_hardirq(CPUState *env, int intno, int is_hw);
+void QEMU_NORETURN raise_exception_env(int exception_index, CPUState *nenv);
+void QEMU_NORETURN raise_exception_err_env(CPUState *nenv, int exception_index,
+                                           int error_code);
 
 void do_smm_enter(CPUState *env1);
 

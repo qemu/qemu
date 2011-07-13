@@ -18,13 +18,16 @@
  */
 
 #include <assert.h>
-#include "exec.h"
+#include "cpu.h"
+#include "dyngen-exec.h"
 #include "helper.h"
 #include "host-utils.h"
 
 #define D(x)
 
 #if !defined(CONFIG_USER_ONLY)
+#include "softmmu_exec.h"
+
 #define MMUSUFFIX _mmu
 #define SHIFT 0
 #include "softmmu_template.h"

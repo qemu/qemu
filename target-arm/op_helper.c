@@ -16,17 +16,20 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "exec.h"
+#include "cpu.h"
+#include "dyngen-exec.h"
 #include "helper.h"
 
 #define SIGNBIT (uint32_t)0x80000000
 #define SIGNBIT64 ((uint64_t)1 << 63)
 
-void raise_exception(int tt)
+#if !defined(CONFIG_USER_ONLY)
+static void raise_exception(int tt)
 {
     env->exception_index = tt;
     cpu_loop_exit(env);
 }
+#endif
 
 uint32_t HELPER(neon_tbl)(uint32_t ireg, uint32_t def,
                           uint32_t rn, uint32_t maxindex)
@@ -51,6 +54,8 @@ uint32_t HELPER(neon_tbl)(uint32_t ireg, uint32_t def,
 }
 
 #if !defined(CONFIG_USER_ONLY)
+
+#include "softmmu_exec.h"
 
 #define MMUSUFFIX _mmu
 
