@@ -28,6 +28,7 @@
 #include "pci.h"
 #include "monitor.h"
 #include "trace.h"
+#include "dma.h"
 
 #define EHCI_DEBUG   0
 
@@ -269,6 +270,7 @@ typedef struct EHCIqtd {
 
     uint32_t bufptr[5];               // Standard buffer pointer
 #define QTD_BUFPTR_MASK               0xfffff000
+#define QTD_BUFPTR_SH                 12
 } EHCIqtd;
 
 /*  EHCI spec version 1.0 Section 3.6
@@ -357,7 +359,7 @@ struct EHCIQueue {
     uint32_t qtdaddr;      // address QTD read from
 
     USBPacket packet;
-    uint8_t buffer[BUFF_SIZE];
+    QEMUSGList sgl;
     int pid;
     uint32_t tbytes;
     enum async_state async;
@@ -414,7 +416,7 @@ struct EHCIState {
     uint32_t p_fetch_addr;   // which address to look at next
 
     USBPacket ipacket;
-    uint8_t ibuffer[BUFF_SIZE];
+    QEMUSGList isgl;
     int isoch_pause;
 
     uint64_t last_run_ns;
@@ -1165,58 +1167,56 @@ static int ehci_qh_do_overlay(EHCIQueue *q)
     return 0;
 }
 
-static int ehci_buffer_rw(EHCIQueue *q, int bytes, int rw)
+static int ehci_init_transfer(EHCIQueue *q)
 {
-    int bufpos = 0;
-    int cpage, offset;
-    uint32_t head;
-    uint32_t tail;
+    uint32_t cpage, offset, bytes, plen;
+    target_phys_addr_t page;
 
-
-    if (!bytes) {
-        return 0;
-    }
-
-    cpage = get_field(q->qh.token, QTD_TOKEN_CPAGE);
-    if (cpage > 4) {
-        fprintf(stderr, "cpage out of range (%d)\n", cpage);
-        return USB_RET_PROCERR;
-    }
-
+    cpage  = get_field(q->qh.token, QTD_TOKEN_CPAGE);
+    bytes  = get_field(q->qh.token, QTD_TOKEN_TBYTES);
     offset = q->qh.bufptr[0] & ~QTD_BUFPTR_MASK;
+    qemu_sglist_init(&q->sgl, 5);
 
-    do {
-        /* start and end of this page */
-        head = q->qh.bufptr[cpage] & QTD_BUFPTR_MASK;
-        tail = head + ~QTD_BUFPTR_MASK + 1;
-        /* add offset into page */
-        head |= offset;
-
-        if (bytes <= (tail - head)) {
-            tail = head + bytes;
+    while (bytes > 0) {
+        if (cpage > 4) {
+            fprintf(stderr, "cpage out of range (%d)\n", cpage);
+            return USB_RET_PROCERR;
         }
 
-        trace_usb_ehci_data(rw, cpage, offset, head, tail-head, bufpos);
-        cpu_physical_memory_rw(head, q->buffer + bufpos, tail - head, rw);
-
-        bufpos += (tail - head);
-        offset += (tail - head);
-        bytes -= (tail - head);
-
-        if (bytes > 0) {
-            cpage++;
+        page  = q->qh.bufptr[cpage] & QTD_BUFPTR_MASK;
+        page += offset;
+        plen  = bytes;
+        if (plen > 4096 - offset) {
+            plen = 4096 - offset;
             offset = 0;
+            cpage++;
         }
-    } while (bytes > 0);
 
-    /* save cpage */
-    set_field(&q->qh.token, cpage, QTD_TOKEN_CPAGE);
-
-    /* save offset into cpage */
-    q->qh.bufptr[0] &= QTD_BUFPTR_MASK;
-    q->qh.bufptr[0] |= offset;
-
+        qemu_sglist_add(&q->sgl, page, plen);
+        bytes -= plen;
+    }
     return 0;
+}
+
+static void ehci_finish_transfer(EHCIQueue *q, int status)
+{
+    uint32_t cpage, offset;
+
+    qemu_sglist_destroy(&q->sgl);
+
+    if (status > 0) {
+        /* update cpage & offset */
+        cpage  = get_field(q->qh.token, QTD_TOKEN_CPAGE);
+        offset = q->qh.bufptr[0] & ~QTD_BUFPTR_MASK;
+
+        offset += status;
+        cpage  += offset >> QTD_BUFPTR_SH;
+        offset &= ~QTD_BUFPTR_MASK;
+
+        set_field(&q->qh.token, cpage, QTD_TOKEN_CPAGE);
+        q->qh.bufptr[0] &= QTD_BUFPTR_MASK;
+        q->qh.bufptr[0] |= offset;
+    }
 }
 
 static void ehci_async_complete_packet(USBPort *port, USBPacket *packet)
@@ -1295,10 +1295,6 @@ err:
         }
 
         if (q->tbytes && q->pid == USB_TOKEN_IN) {
-            if (ehci_buffer_rw(q, q->usb_status, 1) != 0) {
-                q->usb_status = USB_RET_PROCERR;
-                return;
-            }
             q->tbytes -= q->usb_status;
         } else {
             q->tbytes = 0;
@@ -1307,6 +1303,8 @@ err:
         DPRINTF("updating tbytes to %d\n", q->tbytes);
         set_field(&q->qh.token, q->tbytes, QTD_TOKEN_TBYTES);
     }
+    ehci_finish_transfer(q, q->usb_status);
+    usb_packet_unmap(&q->packet);
 
     q->qh.token ^= QTD_TOKEN_DTOGGLE;
     q->qh.token &= ~QTD_TOKEN_ACTIVE;
@@ -1346,8 +1344,7 @@ static int ehci_execute(EHCIQueue *q)
         default: fprintf(stderr, "bad token\n"); break;
     }
 
-    if ((q->tbytes && q->pid != USB_TOKEN_IN) &&
-        (ehci_buffer_rw(q, q->tbytes, 0) != 0)) {
+    if (ehci_init_transfer(q) != 0) {
         return USB_RET_PROCERR;
     }
 
@@ -1355,6 +1352,9 @@ static int ehci_execute(EHCIQueue *q)
     devadr = get_field(q->qh.epchar, QH_EPCHAR_DEVADDR);
 
     ret = USB_RET_NODEV;
+
+    usb_packet_setup(&q->packet, q->pid, devadr, endp);
+    usb_packet_map(&q->packet, &q->sgl);
 
     // TO-DO: associating device with ehci port
     for(i = 0; i < NB_PORTS; i++) {
@@ -1366,9 +1366,6 @@ static int ehci_execute(EHCIQueue *q)
                     i, q->ehci->portsc[i]);
             continue;
         }
-
-        usb_packet_setup(&q->packet, q->pid, devadr, endp);
-        usb_packet_addbuf(&q->packet, q->buffer, q->tbytes);
 
         ret = usb_handle_packet(dev, &q->packet);
 
@@ -1399,7 +1396,7 @@ static int ehci_process_itd(EHCIState *ehci,
     USBPort *port;
     USBDevice *dev;
     int ret;
-    uint32_t i, j, len, len1, len2, pid, dir, devaddr, endp;
+    uint32_t i, j, len, pid, dir, devaddr, endp;
     uint32_t pg, off, ptr1, ptr2, max, mult;
 
     dir =(itd->bufptr[1] & ITD_BUFPTR_DIRECTION);
@@ -1424,29 +1421,23 @@ static int ehci_process_itd(EHCIState *ehci,
                 return USB_RET_PROCERR;
             }
 
+            qemu_sglist_init(&ehci->isgl, 2);
             if (off + len > 4096) {
                 /* transfer crosses page border */
-                len2 = off + len - 4096;
-                len1 = len - len2;
+                uint32_t len2 = off + len - 4096;
+                uint32_t len1 = len - len2;
+                qemu_sglist_add(&ehci->isgl, ptr1 + off, len1);
+                qemu_sglist_add(&ehci->isgl, ptr2, len2);
             } else {
-                len1 = len;
-                len2 = 0;
+                qemu_sglist_add(&ehci->isgl, ptr1 + off, len);
             }
 
-            if (!dir) {
-                pid = USB_TOKEN_OUT;
-                trace_usb_ehci_data(0, pg, off, ptr1 + off, len1, 0);
-                cpu_physical_memory_rw(ptr1 + off, &ehci->ibuffer[0], len1, 0);
-                if (len2) {
-                    trace_usb_ehci_data(0, pg+1, 0, ptr2, len2, len1);
-                    cpu_physical_memory_rw(ptr2, &ehci->ibuffer[len1], len2, 0);
-                }
-            } else {
-                pid = USB_TOKEN_IN;
-            }
+            pid = dir ? USB_TOKEN_IN : USB_TOKEN_OUT;
+
+            usb_packet_setup(&ehci->ipacket, pid, devaddr, endp);
+            usb_packet_map(&ehci->ipacket, &ehci->isgl);
 
             ret = USB_RET_NODEV;
-
             for (j = 0; j < NB_PORTS; j++) {
                 port = &ehci->ports[j];
                 dev = port->dev;
@@ -1455,15 +1446,15 @@ static int ehci_process_itd(EHCIState *ehci,
                     continue;
                 }
 
-                usb_packet_setup(&ehci->ipacket, pid, devaddr, endp);
-                usb_packet_addbuf(&ehci->ipacket, ehci->ibuffer, len);
-
                 ret = usb_handle_packet(dev, &ehci->ipacket);
 
                 if (ret != USB_RET_NODEV) {
                     break;
                 }
             }
+
+            usb_packet_unmap(&ehci->ipacket);
+            qemu_sglist_destroy(&ehci->isgl);
 
 #if 0
             /*  In isoch, there is no facility to indicate a NAK so let's
@@ -1502,20 +1493,6 @@ static int ehci_process_itd(EHCIState *ehci,
                     set_field(&itd->transact[i], len - ret, ITD_XACT_LENGTH);
                 } else {
                     /* IN */
-                    if (len1 > ret) {
-                        len1 = ret;
-                    }
-                    if (len2 > ret - len1) {
-                        len2 = ret - len1;
-                    }
-                    if (len1) {
-                        trace_usb_ehci_data(1, pg, off, ptr1 + off, len1, 0);
-                        cpu_physical_memory_rw(ptr1 + off, &ehci->ibuffer[0], len1, 1);
-                    }
-                    if (len2) {
-                        trace_usb_ehci_data(1, pg+1, 0, ptr2, len2, len1);
-                        cpu_physical_memory_rw(ptr2, &ehci->ibuffer[len1], len2, 1);
-                    }
                     set_field(&itd->transact[i], ret, ITD_XACT_LENGTH);
                 }
 
