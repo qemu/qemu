@@ -707,7 +707,7 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
     USBHostDevice *s = DO_UPCAST(USBHostDevice, dev, dev);
     struct usbdevfs_urb *urb;
     AsyncURB *aurb;
-    int ret, rem;
+    int ret, rem, prem, v;
     uint8_t *pbuf;
     uint8_t ep;
 
@@ -735,10 +735,18 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
         return usb_host_handle_iso_data(s, p, p->pid == USB_TOKEN_IN);
     }
 
-    assert(p->iov.niov == 1); /* temporary */
-    rem = p->iov.iov[0].iov_len;
-    pbuf = p->iov.iov[0].iov_base;
+    v = 0;
+    prem = p->iov.iov[v].iov_len;
+    pbuf = p->iov.iov[v].iov_base;
+    rem = p->iov.size;
     while (rem) {
+        if (prem == 0) {
+            v++;
+            assert(v < p->iov.niov);
+            prem = p->iov.iov[v].iov_len;
+            pbuf = p->iov.iov[v].iov_base;
+            assert(prem <= rem);
+        }
         aurb = async_alloc(s);
         aurb->packet = p;
 
@@ -747,16 +755,17 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
         urb->type          = USBDEVFS_URB_TYPE_BULK;
         urb->usercontext   = s;
         urb->buffer        = pbuf;
+        urb->buffer_length = prem;
 
-        if (rem > MAX_USBFS_BUFFER_SIZE) {
+        if (urb->buffer_length > MAX_USBFS_BUFFER_SIZE) {
             urb->buffer_length = MAX_USBFS_BUFFER_SIZE;
-            aurb->more         = 1;
-        } else {
-            urb->buffer_length = rem;
-            aurb->more         = 0;
         }
         pbuf += urb->buffer_length;
+        prem -= urb->buffer_length;
         rem  -= urb->buffer_length;
+        if (rem) {
+            aurb->more         = 1;
+        }
 
         ret = ioctl(s->fd, USBDEVFS_SUBMITURB, urb);
 
