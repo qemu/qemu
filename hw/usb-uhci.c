@@ -31,6 +31,7 @@
 #include "qemu-timer.h"
 #include "usb-uhci.h"
 #include "iov.h"
+#include "dma.h"
 
 //#define DEBUG
 //#define DEBUG_DUMP_DATA
@@ -111,6 +112,7 @@ typedef struct UHCIState UHCIState;
  */
 typedef struct UHCIAsync {
     USBPacket packet;
+    QEMUSGList sgl;
     UHCIState *uhci;
     QTAILQ_ENTRY(UHCIAsync) next;
     uint32_t  td;
@@ -118,7 +120,6 @@ typedef struct UHCIAsync {
     int8_t    valid;
     uint8_t   isoc;
     uint8_t   done;
-    uint8_t   buffer[2048];
 } UHCIAsync;
 
 typedef struct UHCIPort {
@@ -176,6 +177,7 @@ static UHCIAsync *uhci_async_alloc(UHCIState *s)
     async->done  = 0;
     async->isoc  = 0;
     usb_packet_init(&async->packet);
+    qemu_sglist_init(&async->sgl, 1);
 
     return async;
 }
@@ -183,6 +185,7 @@ static UHCIAsync *uhci_async_alloc(UHCIState *s)
 static void uhci_async_free(UHCIState *s, UHCIAsync *async)
 {
     usb_packet_cleanup(&async->packet);
+    qemu_sglist_destroy(&async->sgl);
     qemu_free(async);
 }
 
@@ -706,11 +709,6 @@ static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_
             goto out;
         }
 
-        if (len > 0) {
-            /* write the data back */
-            cpu_physical_memory_write(td->buffer, async->buffer, len);
-        }
-
         if ((td->ctrl & TD_CTRL_SPD) && len < max_len) {
             *int_mask |= 0x02;
             /* short packet: do not update QH */
@@ -827,12 +825,12 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
 
     usb_packet_setup(&async->packet, pid, (td->token >> 8) & 0x7f,
                      (td->token >> 15) & 0xf);
-    usb_packet_addbuf(&async->packet, async->buffer, max_len);
+    qemu_sglist_add(&async->sgl, td->buffer, max_len);
+    usb_packet_map(&async->packet, &async->sgl);
 
     switch(pid) {
     case USB_TOKEN_OUT:
     case USB_TOKEN_SETUP:
-        cpu_physical_memory_read(td->buffer, async->buffer, max_len);
         len = uhci_broadcast_packet(s, &async->packet);
         if (len >= 0)
             len = max_len;
@@ -859,6 +857,7 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
 
 done:
     len = uhci_complete_td(s, td, async, int_mask);
+    usb_packet_unmap(&async->packet);
     uhci_async_free(s, async);
     return len;
 }
