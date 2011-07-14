@@ -3353,6 +3353,10 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
         }
 
         return;
+    case 0x16: /* UA2007 Block load primary, user privilege */
+    case 0x17: /* UA2007 Block load secondary, user privilege */
+    case 0x1e: /* UA2007 Block load primary LE, user privilege */
+    case 0x1f: /* UA2007 Block load secondary LE, user privilege */
     case 0x70: // Block load primary, user privilege
     case 0x71: // Block load secondary, user privilege
         if (rd & 7) {
@@ -3361,7 +3365,7 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
         }
         helper_check_align(addr, 0x3f);
         for (i = 0; i < 16; i++) {
-            *(uint32_t *)&env->fpr[rd++] = helper_ld_asi(addr, asi & 0x1f, 4,
+            *(uint32_t *)&env->fpr[rd++] = helper_ld_asi(addr, asi & 0x19, 4,
                                                          0);
             addr += 4;
         }
