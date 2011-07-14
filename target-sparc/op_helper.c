@@ -3331,7 +3331,7 @@ void helper_ldda_asi(target_ulong addr, int asi, int rd)
 void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
 {
     unsigned int i;
-    target_ulong val;
+    CPU_DoubleU u;
 
     helper_check_align(addr, 3);
     addr = asi_address_mask(env, asi, addr);
@@ -3371,17 +3371,23 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
         break;
     }
 
-    val = helper_ld_asi(addr, asi, size, 0);
     switch(size) {
     default:
     case 4:
-        *((uint32_t *)&env->fpr[rd]) = val;
+        *((uint32_t *)&env->fpr[rd]) = helper_ld_asi(addr, asi, size, 0);
         break;
     case 8:
-        *((int64_t *)&DT0) = val;
+        u.ll = helper_ld_asi(addr, asi, size, 0);
+        *((uint32_t *)&env->fpr[rd++]) = u.l.upper;
+        *((uint32_t *)&env->fpr[rd++]) = u.l.lower;
         break;
     case 16:
-        // XXX
+        u.ll = helper_ld_asi(addr, asi, 8, 0);
+        *((uint32_t *)&env->fpr[rd++]) = u.l.upper;
+        *((uint32_t *)&env->fpr[rd++]) = u.l.lower;
+        u.ll = helper_ld_asi(addr + 8, asi, 8, 0);
+        *((uint32_t *)&env->fpr[rd++]) = u.l.upper;
+        *((uint32_t *)&env->fpr[rd++]) = u.l.lower;
         break;
     }
 }
