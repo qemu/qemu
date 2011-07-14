@@ -2761,7 +2761,6 @@ uint64_t HELPER(iske)(uint64_t r2)
         return 0;
     }
 
-    /* XXX maybe use qemu's internal keys? */
     return env->storage_keys[addr / TARGET_PAGE_SIZE];
 }
 

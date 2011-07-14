@@ -348,6 +348,7 @@ int mmu_translate(CPUState *env, target_ulong vaddr, int rw, uint64_t asc,
                   target_ulong *raddr, int *flags)
 {
     int r = -1;
+    uint8_t *sk;
 
     *flags = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
     vaddr &= TARGET_PAGE_MASK;
@@ -388,6 +389,17 @@ out:
     /* Convert real address -> absolute address */
     if (*raddr < 0x2000) {
         *raddr = *raddr + env->psa;
+    }
+
+    if (*raddr <= ram_size) {
+        sk = &env->storage_keys[*raddr / TARGET_PAGE_SIZE];
+        if (*flags & PAGE_READ) {
+            *sk |= SK_R;
+        }
+
+        if (*flags & PAGE_WRITE) {
+            *sk |= SK_C;
+        }
     }
 
     return r;
