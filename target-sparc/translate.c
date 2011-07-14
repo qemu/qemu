@@ -4484,10 +4484,16 @@ static void disas_sparc_insn(DisasContext * dc)
                 case 0x2d: /* V9 prefetch, no effect */
                     goto skip_move;
                 case 0x30: /* V9 ldfa */
+                    if (gen_trap_ifnofpu(dc, cpu_cond)) {
+                        goto jmp_insn;
+                    }
                     save_state(dc, cpu_cond);
                     gen_ldf_asi(cpu_addr, insn, 4, rd);
                     goto skip_move;
                 case 0x33: /* V9 lddfa */
+                    if (gen_trap_ifnofpu(dc, cpu_cond)) {
+                        goto jmp_insn;
+                    }
                     save_state(dc, cpu_cond);
                     gen_ldf_asi(cpu_addr, insn, 8, DFPREG(rd));
                     goto skip_move;
@@ -4495,6 +4501,9 @@ static void disas_sparc_insn(DisasContext * dc)
                     goto skip_move;
                 case 0x32: /* V9 ldqfa */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
+                    if (gen_trap_ifnofpu(dc, cpu_cond)) {
+                        goto jmp_insn;
+                    }
                     save_state(dc, cpu_cond);
                     gen_ldf_asi(cpu_addr, insn, 16, QFPREG(rd));
                     goto skip_move;
