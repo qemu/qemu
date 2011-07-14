@@ -3337,10 +3337,10 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
     addr = asi_address_mask(env, asi, addr);
 
     switch (asi) {
-    case 0xf0: // Block load primary
-    case 0xf1: // Block load secondary
-    case 0xf8: // Block load primary LE
-    case 0xf9: // Block load secondary LE
+    case 0xf0: /* UA2007/JPS1 Block load primary */
+    case 0xf1: /* UA2007/JPS1 Block load secondary */
+    case 0xf8: /* UA2007/JPS1 Block load primary LE */
+    case 0xf9: /* UA2007/JPS1 Block load secondary LE */
         if (rd & 7) {
             raise_exception(TT_ILL_INSN);
             return;
@@ -3357,8 +3357,8 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
     case 0x17: /* UA2007 Block load secondary, user privilege */
     case 0x1e: /* UA2007 Block load primary LE, user privilege */
     case 0x1f: /* UA2007 Block load secondary LE, user privilege */
-    case 0x70: // Block load primary, user privilege
-    case 0x71: // Block load secondary, user privilege
+    case 0x70: /* JPS1 Block load primary, user privilege */
+    case 0x71: /* JPS1 Block load secondary, user privilege */
     case 0x78: /* JPS1 Block load primary LE, user privilege */
     case 0x79: /* JPS1 Block load secondary LE, user privilege */
         if (rd & 7) {
@@ -3408,12 +3408,12 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
     addr = asi_address_mask(env, asi, addr);
 
     switch (asi) {
-    case 0xe0: // UA2007 Block commit store primary (cache flush)
-    case 0xe1: // UA2007 Block commit store secondary (cache flush)
-    case 0xf0: // Block store primary
-    case 0xf1: // Block store secondary
-    case 0xf8: // Block store primary LE
-    case 0xf9: // Block store secondary LE
+    case 0xe0: /* UA2007/JPS1 Block commit store primary (cache flush) */
+    case 0xe1: /* UA2007/JPS1 Block commit store secondary (cache flush) */
+    case 0xf0: /* UA2007/JPS1 Block store primary */
+    case 0xf1: /* UA2007/JPS1 Block store secondary */
+    case 0xf8: /* UA2007/JPS1 Block store primary LE */
+    case 0xf9: /* UA2007/JPS1 Block store secondary LE */
         if (rd & 7) {
             raise_exception(TT_ILL_INSN);
             return;
@@ -3430,8 +3430,8 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
     case 0x17: /* UA2007 Block load secondary, user privilege */
     case 0x1e: /* UA2007 Block load primary LE, user privilege */
     case 0x1f: /* UA2007 Block load secondary LE, user privilege */
-    case 0x70: // Block store primary, user privilege
-    case 0x71: // Block store secondary, user privilege
+    case 0x70: /* JPS1 Block store primary, user privilege */
+    case 0x71: /* JPS1 Block store secondary, user privilege */
     case 0x78: /* JPS1 Block load primary LE, user privilege */
     case 0x79: /* JPS1 Block load secondary LE, user privilege */
         if (rd & 7) {
