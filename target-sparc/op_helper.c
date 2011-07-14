@@ -3359,6 +3359,8 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
     case 0x1f: /* UA2007 Block load secondary LE, user privilege */
     case 0x70: // Block load primary, user privilege
     case 0x71: // Block load secondary, user privilege
+    case 0x78: /* JPS1 Block load primary LE, user privilege */
+    case 0x79: /* JPS1 Block load secondary LE, user privilege */
         if (rd & 7) {
             raise_exception(TT_ILL_INSN);
             return;
@@ -3430,6 +3432,8 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
     case 0x1f: /* UA2007 Block load secondary LE, user privilege */
     case 0x70: // Block store primary, user privilege
     case 0x71: // Block store secondary, user privilege
+    case 0x78: /* JPS1 Block load primary LE, user privilege */
+    case 0x79: /* JPS1 Block load secondary LE, user privilege */
         if (rd & 7) {
             raise_exception(TT_ILL_INSN);
             return;
