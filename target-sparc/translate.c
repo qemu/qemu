@@ -4732,6 +4732,9 @@ static void disas_sparc_insn(DisasContext * dc)
                 switch (xop) {
 #ifdef TARGET_SPARC64
                 case 0x34: /* V9 stfa */
+                    if (gen_trap_ifnofpu(dc, cpu_cond)) {
+                        goto jmp_insn;
+                    }
                     gen_stf_asi(cpu_addr, insn, 4, rd);
                     break;
                 case 0x36: /* V9 stqfa */
@@ -4739,6 +4742,9 @@ static void disas_sparc_insn(DisasContext * dc)
                         TCGv_i32 r_const;
 
                         CHECK_FPU_FEATURE(dc, FLOAT128);
+                        if (gen_trap_ifnofpu(dc, cpu_cond)) {
+                            goto jmp_insn;
+                        }
                         r_const = tcg_const_i32(7);
                         gen_helper_check_align(cpu_addr, r_const);
                         tcg_temp_free_i32(r_const);
@@ -4746,6 +4752,9 @@ static void disas_sparc_insn(DisasContext * dc)
                     }
                     break;
                 case 0x37: /* V9 stdfa */
+                    if (gen_trap_ifnofpu(dc, cpu_cond)) {
+                        goto jmp_insn;
+                    }
                     gen_stf_asi(cpu_addr, insn, 8, DFPREG(rd));
                     break;
                 case 0x3c: /* V9 casa */
