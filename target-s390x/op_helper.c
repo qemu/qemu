@@ -2950,6 +2950,13 @@ void HELPER(ipte)(uint64_t pte_addr, uint64_t vaddr)
     /* XXX we exploit the fact that Linux passes the exact virtual
            address here - it's not obliged to! */
     tlb_flush_page(env, page);
+
+    /* XXX 31-bit hack */
+    if (page & 0x80000000) {
+        tlb_flush_page(env, page & ~0x80000000);
+    } else {
+        tlb_flush_page(env, page | 0x80000000);
+    }
 }
 
 /* flush local tlb */
