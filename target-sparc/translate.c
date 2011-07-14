@@ -4879,13 +4879,8 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
     dc->cc_op = CC_OP_DYNAMIC;
     dc->mem_idx = cpu_mmu_index(env);
     dc->def = env->def;
-    if ((dc->def->features & CPU_FEATURE_FLOAT))
-        dc->fpu_enabled = cpu_fpu_enabled(env);
-    else
-        dc->fpu_enabled = 0;
-#ifdef TARGET_SPARC64
-    dc->address_mask_32bit = env->pstate & PS_AM;
-#endif
+    dc->fpu_enabled = tb_fpu_enabled(tb->flags);
+    dc->address_mask_32bit = tb_am_enabled(tb->flags);
     dc->singlestep = (env->singlestep_enabled || singlestep);
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
 
