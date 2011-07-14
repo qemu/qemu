@@ -25,6 +25,7 @@ coroutine-obj-$(CONFIG_WIN32) += coroutine-win32.o
 
 block-obj-y = cutils.o cache-utils.o qemu-malloc.o qemu-option.o module.o async.o
 block-obj-y += nbd.o block.o aio.o aes.o qemu-config.o qemu-progress.o qemu-sockets.o
+block-obj-y += $(coroutine-obj-y)
 block-obj-$(CONFIG_POSIX) += posix-aio-compat.o
 block-obj-$(CONFIG_LINUX_AIO) += linux-aio.o
 
@@ -79,7 +80,6 @@ common-obj-y += readline.o console.o cursor.o qemu-error.o
 common-obj-y += $(oslib-obj-y)
 common-obj-$(CONFIG_WIN32) += os-win32.o
 common-obj-$(CONFIG_POSIX) += os-posix.o
-common-obj-y += $(coroutine-obj-y)
 
 common-obj-y += tcg-runtime.o host-utils.o
 common-obj-y += irq.o ioport.o input.o
