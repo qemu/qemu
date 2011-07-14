@@ -2779,14 +2779,15 @@ void HELPER(sske)(uint32_t r1, uint64_t r2)
 /* reset reference bit extended */
 uint32_t HELPER(rrbe)(uint32_t r1, uint64_t r2)
 {
+    uint8_t re;
+    uint8_t key;
     if (r2 > ram_size) {
         return 0;
     }
 
-    /* XXX implement */
-#if 0
-    env->storage_keys[r2 / TARGET_PAGE_SIZE] &= ~SK_REFERENCED;
-#endif
+    key = env->storage_keys[r2 / TARGET_PAGE_SIZE];
+    re = key & (SK_R | SK_C);
+    env->storage_keys[r2 / TARGET_PAGE_SIZE] = (key & ~SK_R);
 
     /*
      * cc
@@ -2796,7 +2797,8 @@ uint32_t HELPER(rrbe)(uint32_t r1, uint64_t r2)
      * 2  Reference bit one; change bit zero
      * 3  Reference bit one; change bit one
      */
-    return 0;
+
+    return re >> 1;
 }
 
 /* compare and swap and purge */
