@@ -29,6 +29,10 @@
 #include <linux/kvm.h>
 #endif
 
+#if !defined (CONFIG_USER_ONLY)
+#include "sysemu.h"
+#endif
+
 /*****************************************************************************/
 /* Softmmu support */
 #if !defined (CONFIG_USER_ONLY)
@@ -2901,6 +2905,16 @@ uint32_t HELPER(sigp)(uint64_t order_code, uint32_t r1, uint64_t cpu_addr)
         env->regs[r1] &= 0xffffffff00000000ULL;
         cc = 1;
         break;
+#if !defined (CONFIG_USER_ONLY)
+    case SIGP_RESTART:
+        qemu_system_reset_request();
+        cpu_loop_exit(env);
+        break;
+    case SIGP_STOP:
+        qemu_system_shutdown_request();
+        cpu_loop_exit(env);
+        break;
+#endif
     default:
         /* unknown sigp */
         fprintf(stderr, "XXX unknown sigp: 0x%" PRIx64 "\n", order_code);
