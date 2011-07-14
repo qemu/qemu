@@ -2214,6 +2214,10 @@ static void disas_ed(DisasContext *s, int op, int r1, int x2, int b2, int d2,
     addr = get_address(s, x2, b2, d2);
     tmp_r1 = tcg_const_i32(r1);
     switch (op) {
+    case 0x4: /* LDEB R1,D2(X2,B2) [RXE] */
+        potential_page_fault(s);
+        gen_helper_ldeb(tmp_r1, addr);
+        break;
     case 0x5: /* LXDB R1,D2(X2,B2) [RXE] */
         potential_page_fault(s);
         gen_helper_lxdb(tmp_r1, addr);

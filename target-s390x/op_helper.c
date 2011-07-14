@@ -1631,6 +1631,15 @@ void HELPER(maebr)(uint32_t f1, uint32_t f3, uint32_t f2)
                                          &env->fpu_status);
 }
 
+/* convert 32-bit float to 64-bit float */
+void HELPER(ldeb)(uint32_t f1, uint64_t a2)
+{
+    uint32_t v2;
+    v2 = ldl(a2);
+    env->fregs[f1].d = float32_to_float64(v2,
+                                          &env->fpu_status);
+}
+
 /* convert 64-bit float to 128-bit float */
 void HELPER(lxdb)(uint32_t f1, uint64_t a2)
 {
