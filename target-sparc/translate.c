@@ -4742,12 +4742,10 @@ static void disas_sparc_insn(DisasContext * dc)
                         r_const = tcg_const_i32(7);
                         gen_helper_check_align(cpu_addr, r_const);
                         tcg_temp_free_i32(r_const);
-                        gen_op_load_fpr_QT0(QFPREG(rd));
                         gen_stf_asi(cpu_addr, insn, 16, QFPREG(rd));
                     }
                     break;
                 case 0x37: /* V9 stdfa */
-                    gen_op_load_fpr_DT0(DFPREG(rd));
                     gen_stf_asi(cpu_addr, insn, 8, DFPREG(rd));
                     break;
                 case 0x3c: /* V9 casa */

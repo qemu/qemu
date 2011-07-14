@@ -3396,6 +3396,7 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
 {
     unsigned int i;
     target_ulong val = 0;
+    CPU_DoubleU u;
 
     helper_check_align(addr, 3);
     addr = asi_address_mask(env, asi, addr);
@@ -3440,16 +3441,22 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
     switch(size) {
     default:
     case 4:
-        val = *((uint32_t *)&env->fpr[rd]);
+        helper_st_asi(addr, *(uint32_t *)&env->fpr[rd], asi, size);
         break;
     case 8:
-        val = *((int64_t *)&DT0);
+        u.l.upper = *(uint32_t *)&env->fpr[rd++];
+        u.l.lower = *(uint32_t *)&env->fpr[rd++];
+        helper_st_asi(addr, u.ll, asi, size);
         break;
     case 16:
-        // XXX
+        u.l.upper = *(uint32_t *)&env->fpr[rd++];
+        u.l.lower = *(uint32_t *)&env->fpr[rd++];
+        helper_st_asi(addr, u.ll, asi, 8);
+        u.l.upper = *(uint32_t *)&env->fpr[rd++];
+        u.l.lower = *(uint32_t *)&env->fpr[rd++];
+        helper_st_asi(addr + 8, u.ll, asi, 8);
         break;
     }
-    helper_st_asi(addr, val, asi, size);
 }
 
 target_ulong helper_cas_asi(target_ulong addr, target_ulong val1,
