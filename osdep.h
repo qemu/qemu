@@ -130,6 +130,8 @@ int qemu_madvise(void *addr, size_t len, int advice);
 
 #if defined(__HAIKU__) && defined(__i386__)
 #define FMT_pid "%ld"
+#elif defined(WIN64)
+#define FMT_pid "%" PRId64
 #else
 #define FMT_pid "%d"
 #endif
