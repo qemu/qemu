@@ -89,6 +89,7 @@ common-obj-y += i2c.o smbus.o smbus_eeprom.o
 common-obj-y += eeprom93xx.o
 common-obj-y += scsi-disk.o cdrom.o
 common-obj-y += scsi-generic.o scsi-bus.o
+common-obj-y += hid.o
 common-obj-y += usb.o usb-hub.o usb-$(HOST_USB).o usb-hid.o usb-msd.o usb-wacom.o
 common-obj-y += usb-serial.o usb-net.o usb-bus.o usb-desc.o
 common-obj-$(CONFIG_SSI) += ssi.o
