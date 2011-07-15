@@ -797,12 +797,17 @@ void xenstore_store_pv_console_info(int i, CharDriverState *chr)
     }
 }
 
-static void xenstore_record_dm_state(XenIOState *s, const char *state)
+static void xenstore_record_dm_state(struct xs_handle *xs, const char *state)
 {
     char path[50];
 
+    if (xs == NULL) {
+        fprintf(stderr, "xenstore connection not initialized\n");
+        exit(1);
+    }
+
     snprintf(path, sizeof (path), "/local/domain/0/device-model/%u/state", xen_domid);
-    if (!xs_write(s->xenstore, XBT_NULL, path, state, strlen(state))) {
+    if (!xs_write(xs, XBT_NULL, path, state, strlen(state))) {
         fprintf(stderr, "error recording dm state\n");
         exit(1);
     }
@@ -823,15 +828,20 @@ static void xen_main_loop_prepare(XenIOState *state)
     if (evtchn_fd != -1) {
         qemu_set_fd_handler(evtchn_fd, cpu_handle_ioreq, NULL, state);
     }
-
-    /* record state running */
-    xenstore_record_dm_state(state, "running");
 }
 
 
 /* Initialise Xen */
 
-static void xen_vm_change_state_handler(void *opaque, int running, int reason)
+static void xen_change_state_handler(void *opaque, int running, int reason)
+{
+    if (running) {
+        /* record state running */
+        xenstore_record_dm_state(xenstore, "running");
+    }
+}
+
+static void xen_hvm_change_state_handler(void *opaque, int running, int reason)
 {
     XenIOState *state = opaque;
     if (running) {
@@ -854,6 +864,7 @@ int xen_init(void)
         xen_be_printf(NULL, 0, "can't open xen interface\n");
         return -1;
     }
+    qemu_add_vm_change_state_handler(xen_change_state_handler, NULL);
 
     return 0;
 }
@@ -915,7 +926,7 @@ int xen_hvm_init(void)
     xen_map_cache_init();
     xen_ram_init(ram_size);
 
-    qemu_add_vm_change_state_handler(xen_vm_change_state_handler, state);
+    qemu_add_vm_change_state_handler(xen_hvm_change_state_handler, state);
 
     state->client = xen_cpu_phys_memory_client;
     QLIST_INIT(&state->physmap);
