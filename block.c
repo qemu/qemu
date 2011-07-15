@@ -2777,8 +2777,6 @@ static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num,
     struct iovec iov;
     QEMUIOVector qiov;
 
-    async_context_push();
-
     async_ret = NOT_DONE;
     iov.iov_base = (void *)buf;
     iov.iov_len = nb_sectors * BDRV_SECTOR_SIZE;
@@ -2796,7 +2794,6 @@ static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num,
 
 
 fail:
-    async_context_pop();
     return async_ret;
 }
 
@@ -2807,8 +2804,6 @@ static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
     BlockDriverAIOCB *acb;
     struct iovec iov;
     QEMUIOVector qiov;
-
-    async_context_push();
 
     async_ret = NOT_DONE;
     iov.iov_base = (void *)buf;
@@ -2825,7 +2820,6 @@ static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
     }
 
 fail:
-    async_context_pop();
     return async_ret;
 }
 
