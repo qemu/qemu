@@ -258,7 +258,7 @@ int qemu_create_pidfile(const char *filename)
     if (file == INVALID_HANDLE_VALUE) {
         return -1;
     }
-    len = snprintf(buffer, sizeof(buffer), FMT_pid "\n", getpid());
+    len = snprintf(buffer, sizeof(buffer), "%d\n", getpid());
     ret = WriteFileEx(file, (LPCVOID)buffer, (DWORD)len,
 		      &overlap, NULL);
     if (ret == 0) {
