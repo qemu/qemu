@@ -70,6 +70,7 @@ static int coroutine_fn bdrv_co_readv_em(BlockDriverState *bs,
 static int coroutine_fn bdrv_co_writev_em(BlockDriverState *bs,
                                          int64_t sector_num, int nb_sectors,
                                          QEMUIOVector *iov);
+static int coroutine_fn bdrv_co_flush_em(BlockDriverState *bs);
 
 static QTAILQ_HEAD(, BlockDriverState) bdrv_states =
     QTAILQ_HEAD_INITIALIZER(bdrv_states);
@@ -946,6 +947,17 @@ static int bdrv_check_request(BlockDriverState *bs, int64_t sector_num,
                                    nb_sectors * BDRV_SECTOR_SIZE);
 }
 
+static inline bool bdrv_has_async_rw(BlockDriver *drv)
+{
+    return drv->bdrv_co_readv != bdrv_co_readv_em
+        || drv->bdrv_aio_readv != bdrv_aio_readv_em;
+}
+
+static inline bool bdrv_has_async_flush(BlockDriver *drv)
+{
+    return drv->bdrv_aio_flush != bdrv_aio_flush_em;
+}
+
 /* return < 0 if error. See bdrv_write() for the return codes */
 int bdrv_read(BlockDriverState *bs, int64_t sector_num,
               uint8_t *buf, int nb_sectors)
@@ -954,6 +966,18 @@ int bdrv_read(BlockDriverState *bs, int64_t sector_num,
 
     if (!drv)
         return -ENOMEDIUM;
+
+    if (bdrv_has_async_rw(drv) && qemu_in_coroutine()) {
+        QEMUIOVector qiov;
+        struct iovec iov = {
+            .iov_base = (void *)buf,
+            .iov_len = nb_sectors * BDRV_SECTOR_SIZE,
+        };
+
+        qemu_iovec_init_external(&qiov, &iov, 1);
+        return bdrv_co_readv(bs, sector_num, nb_sectors, &qiov);
+    }
+
     if (bdrv_check_request(bs, sector_num, nb_sectors))
         return -EIO;
 
@@ -998,8 +1022,21 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
                const uint8_t *buf, int nb_sectors)
 {
     BlockDriver *drv = bs->drv;
+
     if (!bs->drv)
         return -ENOMEDIUM;
+
+    if (bdrv_has_async_rw(drv) && qemu_in_coroutine()) {
+        QEMUIOVector qiov;
+        struct iovec iov = {
+            .iov_base = (void *)buf,
+            .iov_len = nb_sectors * BDRV_SECTOR_SIZE,
+        };
+
+        qemu_iovec_init_external(&qiov, &iov, 1);
+        return bdrv_co_writev(bs, sector_num, nb_sectors, &qiov);
+    }
+
     if (bs->read_only)
         return -EACCES;
     if (bdrv_check_request(bs, sector_num, nb_sectors))
@@ -1647,6 +1684,10 @@ int bdrv_flush(BlockDriverState *bs)
 {
     if (bs->open_flags & BDRV_O_NO_FLUSH) {
         return 0;
+    }
+
+    if (bs->drv && bdrv_has_async_flush(bs->drv) && qemu_in_coroutine()) {
+        return bdrv_co_flush_em(bs);
     }
 
     if (bs->drv && bs->drv->bdrv_flush) {
@@ -2914,6 +2955,21 @@ static int coroutine_fn bdrv_co_writev_em(BlockDriverState *bs,
                                          QEMUIOVector *iov)
 {
     return bdrv_co_io_em(bs, sector_num, nb_sectors, iov, true);
+}
+
+static int coroutine_fn bdrv_co_flush_em(BlockDriverState *bs)
+{
+    CoroutineIOCompletion co = {
+        .coroutine = qemu_coroutine_self(),
+    };
+    BlockDriverAIOCB *acb;
+
+    acb = bdrv_aio_flush(bs, bdrv_co_io_em_complete, &co);
+    if (!acb) {
+        return -EIO;
+    }
+    qemu_coroutine_yield();
+    return co.ret;
 }
 
 /**************************************************************/
