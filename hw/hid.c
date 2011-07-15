@@ -24,6 +24,7 @@
  */
 #include "hw.h"
 #include "console.h"
+#include "qemu-timer.h"
 #include "hid.h"
 
 #define HID_USAGE_ERROR_ROLLOVER        0x01
@@ -71,6 +72,11 @@ static const uint8_t hid_usage_keys[0x100] = {
 bool hid_has_events(HIDState *hs)
 {
     return hs->n > 0;
+}
+
+void hid_set_next_idle(HIDState *hs, int64_t curtime)
+{
+    hs->next_idle_clock = curtime + (get_ticks_per_sec() * hs->idle * 4) / 1000;
 }
 
 static void hid_pointer_event_clear(HIDPointerEvent *e, int buttons)
@@ -365,6 +371,8 @@ void hid_reset(HIDState *hs)
     }
     hs->head = 0;
     hs->n = 0;
+    hs->protocol = 1;
+    hs->idle = 0;
 }
 
 void hid_free(HIDState *hs)

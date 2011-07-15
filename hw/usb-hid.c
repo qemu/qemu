@@ -45,9 +45,6 @@
 typedef struct USBHIDState {
     USBDevice dev;
     HIDState hid;
-    int32_t protocol;
-    uint8_t idle;
-    int64_t next_idle_clock;
     void *datain_opaque;
     void (*datain)(void *);
 } USBHIDState;
@@ -377,13 +374,6 @@ static void usb_hid_handle_reset(USBDevice *dev)
     USBHIDState *us = DO_UPCAST(USBHIDState, dev, dev);
 
     hid_reset(&us->hid);
-    us->protocol = 1;
-    us->idle = 0;
-}
-
-static void usb_hid_set_next_idle(USBHIDState *s, int64_t curtime)
-{
-    s->next_idle_clock = curtime + (get_ticks_per_sec() * s->idle * 4) / 1000;
 }
 
 static int usb_hid_handle_control(USBDevice *dev, USBPacket *p,
@@ -448,22 +438,22 @@ static int usb_hid_handle_control(USBDevice *dev, USBPacket *p,
             goto fail;
         }
         ret = 1;
-        data[0] = us->protocol;
+        data[0] = hs->protocol;
         break;
     case SET_PROTOCOL:
         if (hs->kind != HID_KEYBOARD && hs->kind != HID_MOUSE) {
             goto fail;
         }
         ret = 0;
-        us->protocol = value;
+        hs->protocol = value;
         break;
     case GET_IDLE:
         ret = 1;
-        data[0] = us->idle;
+        data[0] = hs->idle;
         break;
     case SET_IDLE:
-        us->idle = (uint8_t) (value >> 8);
-        usb_hid_set_next_idle(us, qemu_get_clock_ns(vm_clock));
+        hs->idle = (uint8_t) (value >> 8);
+        hid_set_next_idle(hs, qemu_get_clock_ns(vm_clock));
         ret = 0;
         break;
     default:
@@ -486,10 +476,10 @@ static int usb_hid_handle_data(USBDevice *dev, USBPacket *p)
         if (p->devep == 1) {
             int64_t curtime = qemu_get_clock_ns(vm_clock);
             if (!hid_has_events(hs) &&
-                (!us->idle || us->next_idle_clock - curtime > 0)) {
+                (!hs->idle || hs->next_idle_clock - curtime > 0)) {
                 return USB_RET_NAK;
             }
-            usb_hid_set_next_idle(us, curtime);
+            hid_set_next_idle(hs, curtime);
             if (hs->kind == HID_MOUSE || hs->kind == HID_TABLET) {
                 ret = hid_pointer_poll(hs, buf, p->iov.size);
             } else if (hs->kind == HID_KEYBOARD) {
@@ -552,8 +542,8 @@ static int usb_hid_post_load(void *opaque, int version_id)
 {
     USBHIDState *s = opaque;
 
-    if (s->idle) {
-        usb_hid_set_next_idle(s, qemu_get_clock_ns(vm_clock));
+    if (s->hid.idle) {
+        hid_set_next_idle(&s->hid, qemu_get_clock_ns(vm_clock));
     }
     return 0;
 }
@@ -581,8 +571,8 @@ static const VMStateDescription vmstate_usb_ptr = {
                              vmstate_usb_ptr_queue, HIDPointerEvent),
         VMSTATE_UINT32(hid.head, USBHIDState),
         VMSTATE_UINT32(hid.n, USBHIDState),
-        VMSTATE_INT32(protocol, USBHIDState),
-        VMSTATE_UINT8(idle, USBHIDState),
+        VMSTATE_INT32(hid.protocol, USBHIDState),
+        VMSTATE_UINT8(hid.idle, USBHIDState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -601,8 +591,8 @@ static const VMStateDescription vmstate_usb_kbd = {
         VMSTATE_UINT8(hid.kbd.leds, USBHIDState),
         VMSTATE_UINT8_ARRAY(hid.kbd.key, USBHIDState, 16),
         VMSTATE_INT32(hid.kbd.keys, USBHIDState),
-        VMSTATE_INT32(protocol, USBHIDState),
-        VMSTATE_UINT8(idle, USBHIDState),
+        VMSTATE_INT32(hid.protocol, USBHIDState),
+        VMSTATE_UINT8(hid.idle, USBHIDState),
         VMSTATE_END_OF_LIST()
     }
 };

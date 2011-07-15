@@ -39,6 +39,9 @@ struct HIDState {
     uint32_t head; /* index into circular queue */
     uint32_t n;
     int kind;
+    int32_t protocol;
+    uint8_t idle;
+    int64_t next_idle_clock;
     HIDEventFunc event;
 };
 
@@ -47,6 +50,7 @@ void hid_reset(HIDState *hs);
 void hid_free(HIDState *hs);
 
 bool hid_has_events(HIDState *hs);
+void hid_set_next_idle(HIDState *hs, int64_t curtime);
 int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len);
 int hid_keyboard_poll(HIDState *hs, uint8_t *buf, int len);
 int hid_keyboard_write(HIDState *hs, uint8_t *buf, int len);
