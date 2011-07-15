@@ -3858,7 +3858,7 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
     uint8_t *ptr;
     uint32_t val;
     target_phys_addr_t page;
-    unsigned long pd;
+    ram_addr_t pd;
     PhysPageDesc *p;
 
     while (len > 0) {
@@ -3898,7 +3898,7 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
                     l = 1;
                 }
             } else {
-                unsigned long addr1;
+                ram_addr_t addr1;
                 addr1 = (pd & TARGET_PAGE_MASK) + (addr & ~TARGET_PAGE_MASK);
                 /* RAM case */
                 ptr = qemu_get_ram_ptr(addr1);
