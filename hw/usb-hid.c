@@ -88,7 +88,6 @@ typedef struct USBHIDState {
     int32_t protocol;
     uint8_t idle;
     int64_t next_idle_clock;
-    int changed;
     void *datain_opaque;
     void (*datain)(void *);
 } USBHIDState;
@@ -444,11 +443,14 @@ static const uint8_t usb_hid_usage_keys[0x100] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
+static bool hid_has_events(HIDState *hs)
+{
+    return hs->n > 0;
+}
+
 static void usb_hid_changed(HIDState *hs)
 {
     USBHIDState *us = container_of(hs, USBHIDState, hid);
-
-    us->changed = 1;
 
     if (us->datain) {
         us->datain(us->datain_opaque);
@@ -742,6 +744,7 @@ static void usb_hid_handle_reset(USBDevice *dev)
 
     hid_handle_reset(&us->hid);
     us->protocol = 1;
+    us->idle = 0;
 }
 
 static void usb_hid_set_next_idle(USBHIDState *s, int64_t curtime)
@@ -798,7 +801,6 @@ static int usb_hid_handle_control(USBDevice *dev, USBPacket *p,
         } else if (hs->kind == HID_KEYBOARD) {
             ret = hid_keyboard_poll(hs, data, length);
         }
-        us->changed = hs->n > 0;
         break;
     case SET_REPORT:
         if (hs->kind == HID_KEYBOARD) {
@@ -849,7 +851,7 @@ static int usb_hid_handle_data(USBDevice *dev, USBPacket *p)
     case USB_TOKEN_IN:
         if (p->devep == 1) {
             int64_t curtime = qemu_get_clock_ns(vm_clock);
-            if (!us->changed &&
+            if (!hid_has_events(hs) &&
                 (!us->idle || us->next_idle_clock - curtime > 0)) {
                 return USB_RET_NAK;
             }
@@ -860,7 +862,6 @@ static int usb_hid_handle_data(USBDevice *dev, USBPacket *p)
                 ret = hid_keyboard_poll(hs, buf, p->iov.size);
             }
             usb_packet_copy(p, buf, ret);
-            us->changed = hs->n > 0;
         } else {
             goto fail;
         }
@@ -914,9 +915,6 @@ static int usb_hid_initfn(USBDevice *dev, int kind)
 
     usb_desc_init(dev);
     hid_init(&us->hid, kind, usb_hid_changed);
-
-    /* Force poll routine to be run and grab input the first time.  */
-    us->changed = 1;
     return 0;
 }
 
