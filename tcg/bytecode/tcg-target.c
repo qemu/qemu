@@ -1,7 +1,7 @@
 /*
  * Tiny Code Generator for QEMU
  *
- * Copyright (c) 2009, 2010 Stefan Weil
+ * Copyright (c) 2009, 2011 Stefan Weil
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -417,6 +417,11 @@ int print_insn_bytecode(bfd_vma addr, disassemble_info *info)
     int status = info->read_memory_func(addr, &byte, 1, info);
     TCGOpcode c = byte;
 
+    if (status != 0) {
+        info->memory_error_func(status, addr, info);
+        return -1;
+    }
+
     if (c >= ARRAY_SIZE(tcg_op_defs)) {
         return length;
     }
@@ -436,6 +441,10 @@ int print_insn_bytecode(bfd_vma addr, disassemble_info *info)
         if (nb_iargs == nb_cargs) {
             uint8_t const_arg;
             status = info->read_memory_func(addr, &const_arg, 1, info);
+            if (status != 0) {
+                info->memory_error_func(status, addr, info);
+                return -1;
+            }
             length++;
             addr++;
             if (const_arg) {
