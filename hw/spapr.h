@@ -280,12 +280,12 @@ target_ulong spapr_hypercall(CPUState *env, target_ulong opcode,
 
 static inline uint32_t rtas_ld(target_ulong phys, int n)
 {
-    return ldl_phys(phys + 4*n);
+    return ldl_be_phys(phys + 4*n);
 }
 
 static inline void rtas_st(target_ulong phys, int n, uint32_t val)
 {
-    stl_phys(phys + 4*n, val);
+    stl_be_phys(phys + 4*n, val);
 }
 
 typedef void (*spapr_rtas_fn)(sPAPREnvironment *spapr, uint32_t token,

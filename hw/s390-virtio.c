@@ -193,7 +193,7 @@ static void s390_init(ram_addr_t my_ram_size,
     if (kernel_filename) {
         kernel_size = load_image(kernel_filename, qemu_get_ram_ptr(0));
 
-        if (lduw_phys(KERN_IMAGE_START) != 0x0dd0) {
+        if (lduw_be_phys(KERN_IMAGE_START) != 0x0dd0) {
             fprintf(stderr, "Specified image is not an s390 boot image\n");
             exit(1);
         }
@@ -232,8 +232,8 @@ static void s390_init(ram_addr_t my_ram_size,
         }
         initrd_size = load_image(initrd_filename, qemu_get_ram_ptr(initrd_offset));
 
-        stq_phys(INITRD_PARM_START, initrd_offset);
-        stq_phys(INITRD_PARM_SIZE, initrd_size);
+        stq_be_phys(INITRD_PARM_START, initrd_offset);
+        stq_be_phys(INITRD_PARM_SIZE, initrd_size);
     }
 
     if (kernel_cmdline) {

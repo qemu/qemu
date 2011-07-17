@@ -192,7 +192,7 @@ static void update_irq(struct HPETTimer *timer, int set)
             qemu_irq_lower(s->irqs[route]);
         }
     } else if (timer_fsb_route(timer)) {
-        stl_phys(timer->fsb >> 32, timer->fsb & 0xffffffff);
+        stl_le_phys(timer->fsb >> 32, timer->fsb & 0xffffffff);
     } else if (timer->config & HPET_TN_TYPE_LEVEL) {
         s->isr |= mask;
         qemu_irq_raise(s->irqs[route]);

@@ -4479,10 +4479,16 @@ static void disas_sparc_insn(DisasContext * dc)
                 case 0x2d: /* V9 prefetch, no effect */
                     goto skip_move;
                 case 0x30: /* V9 ldfa */
+                    if (gen_trap_ifnofpu(dc, cpu_cond)) {
+                        goto jmp_insn;
+                    }
                     save_state(dc, cpu_cond);
                     gen_ldf_asi(cpu_addr, insn, 4, rd);
                     goto skip_move;
                 case 0x33: /* V9 lddfa */
+                    if (gen_trap_ifnofpu(dc, cpu_cond)) {
+                        goto jmp_insn;
+                    }
                     save_state(dc, cpu_cond);
                     gen_ldf_asi(cpu_addr, insn, 8, DFPREG(rd));
                     goto skip_move;
@@ -4490,6 +4496,9 @@ static void disas_sparc_insn(DisasContext * dc)
                     goto skip_move;
                 case 0x32: /* V9 ldqfa */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
+                    if (gen_trap_ifnofpu(dc, cpu_cond)) {
+                        goto jmp_insn;
+                    }
                     save_state(dc, cpu_cond);
                     gen_ldf_asi(cpu_addr, insn, 16, QFPREG(rd));
                     goto skip_move;
@@ -4718,6 +4727,9 @@ static void disas_sparc_insn(DisasContext * dc)
                 switch (xop) {
 #ifdef TARGET_SPARC64
                 case 0x34: /* V9 stfa */
+                    if (gen_trap_ifnofpu(dc, cpu_cond)) {
+                        goto jmp_insn;
+                    }
                     gen_stf_asi(cpu_addr, insn, 4, rd);
                     break;
                 case 0x36: /* V9 stqfa */
@@ -4725,15 +4737,19 @@ static void disas_sparc_insn(DisasContext * dc)
                         TCGv_i32 r_const;
 
                         CHECK_FPU_FEATURE(dc, FLOAT128);
+                        if (gen_trap_ifnofpu(dc, cpu_cond)) {
+                            goto jmp_insn;
+                        }
                         r_const = tcg_const_i32(7);
                         gen_helper_check_align(cpu_addr, r_const);
                         tcg_temp_free_i32(r_const);
-                        gen_op_load_fpr_QT0(QFPREG(rd));
                         gen_stf_asi(cpu_addr, insn, 16, QFPREG(rd));
                     }
                     break;
                 case 0x37: /* V9 stdfa */
-                    gen_op_load_fpr_DT0(DFPREG(rd));
+                    if (gen_trap_ifnofpu(dc, cpu_cond)) {
+                        goto jmp_insn;
+                    }
                     gen_stf_asi(cpu_addr, insn, 8, DFPREG(rd));
                     break;
                 case 0x3c: /* V9 casa */
@@ -4858,13 +4874,8 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
     dc->cc_op = CC_OP_DYNAMIC;
     dc->mem_idx = cpu_mmu_index(env);
     dc->def = env->def;
-    if ((dc->def->features & CPU_FEATURE_FLOAT))
-        dc->fpu_enabled = cpu_fpu_enabled(env);
-    else
-        dc->fpu_enabled = 0;
-#ifdef TARGET_SPARC64
-    dc->address_mask_32bit = env->pstate & PS_AM;
-#endif
+    dc->fpu_enabled = tb_fpu_enabled(tb->flags);
+    dc->address_mask_32bit = tb_am_enabled(tb->flags);
     dc->singlestep = (env->singlestep_enabled || singlestep);
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
 

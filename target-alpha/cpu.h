@@ -28,8 +28,6 @@
 
 #include "cpu-defs.h"
 
-#include <setjmp.h>
-
 #include "softfloat.h"
 
 #define TARGET_HAS_ICE 1

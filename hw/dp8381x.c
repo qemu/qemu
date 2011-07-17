@@ -286,7 +286,7 @@ typedef enum {
     MISR_MINT = BIT(15),
 } MISR_Bit;
 
-static void stl_le_phys(target_phys_addr_t addr, uint32_t val)
+static void dp8381x_stl_le_phys(target_phys_addr_t addr, uint32_t val)
 {
     val = cpu_to_le32(val);
     cpu_physical_memory_write(addr, (const uint8_t *)&val, sizeof(val));
@@ -519,7 +519,7 @@ static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size
     cmdsts |= (size & CMDSTS_SIZE);
     cmdsts |= CMDSTS_OWN;
     cmdsts |= CMDSTS_OK;
-    stl_le_phys(rxdp + 4, cmdsts);
+    dp8381x_stl_le_phys(rxdp + 4, cmdsts);
     dp8381x_interrupt(s, ISR_RXOK);
     dp8381x_interrupt(s, ISR_RXDESC);
     if (rxlink == 0) {
@@ -564,11 +564,11 @@ static void dp8381x_transmit(DP8381xState * s)
         if (cmdsts & CMDSTS_MORE) {
             assert(txlink != 0);
             txdp = txlink;
-            stl_le_phys(txdp + 4, cmdsts);
+            dp8381x_stl_le_phys(txdp + 4, cmdsts);
             continue;
         }
         cmdsts |= CMDSTS_OK;
-        stl_le_phys(txdp + 4, cmdsts);
+        dp8381x_stl_le_phys(txdp + 4, cmdsts);
         dp8381x_interrupt(s, ISR_TXOK);
         TRACE(LOG_TX, logout("sending\n"));
         qemu_send_packet(&s->nic->nc, buffer, size);

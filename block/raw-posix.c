@@ -46,6 +46,8 @@
 #include <sys/dkio.h>
 #endif
 #ifdef __linux__
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/param.h>
 #include <linux/cdrom.h>
@@ -1188,6 +1190,7 @@ static int floppy_probe_device(const char *filename)
     int fd, ret;
     int prio = 0;
     struct floppy_struct fdparam;
+    struct stat st;
 
     if (strstart(filename, "/dev/fd", NULL))
         prio = 50;
@@ -1196,12 +1199,17 @@ static int floppy_probe_device(const char *filename)
     if (fd < 0) {
         goto out;
     }
+    ret = fstat(fd, &st);
+    if (ret == -1 || !S_ISBLK(st.st_mode)) {
+        goto outc;
+    }
 
     /* Attempt to detect via a floppy specific ioctl */
     ret = ioctl(fd, FDGETPRM, &fdparam);
     if (ret >= 0)
         prio = 100;
 
+outc:
     close(fd);
 out:
     return prio;
@@ -1290,10 +1298,15 @@ static int cdrom_probe_device(const char *filename)
 {
     int fd, ret;
     int prio = 0;
+    struct stat st;
 
     fd = open(filename, O_RDONLY | O_NONBLOCK);
     if (fd < 0) {
         goto out;
+    }
+    ret = fstat(fd, &st);
+    if (ret == -1 || !S_ISBLK(st.st_mode)) {
+        goto outc;
     }
 
     /* Attempt to detect via a CDROM specific ioctl */
@@ -1301,6 +1314,7 @@ static int cdrom_probe_device(const char *filename)
     if (ret >= 0)
         prio = 100;
 
+outc:
     close(fd);
 out:
     return prio;

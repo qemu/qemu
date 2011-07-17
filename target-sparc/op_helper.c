@@ -3332,16 +3332,16 @@ void helper_ldda_asi(target_ulong addr, int asi, int rd)
 void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
 {
     unsigned int i;
-    target_ulong val;
+    CPU_DoubleU u;
 
     helper_check_align(addr, 3);
     addr = asi_address_mask(env, asi, addr);
 
     switch (asi) {
-    case 0xf0: // Block load primary
-    case 0xf1: // Block load secondary
-    case 0xf8: // Block load primary LE
-    case 0xf9: // Block load secondary LE
+    case 0xf0: /* UA2007/JPS1 Block load primary */
+    case 0xf1: /* UA2007/JPS1 Block load secondary */
+    case 0xf8: /* UA2007/JPS1 Block load primary LE */
+    case 0xf9: /* UA2007/JPS1 Block load secondary LE */
         if (rd & 7) {
             raise_exception(TT_ILL_INSN);
             return;
@@ -3354,15 +3354,21 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
         }
 
         return;
-    case 0x70: // Block load primary, user privilege
-    case 0x71: // Block load secondary, user privilege
+    case 0x16: /* UA2007 Block load primary, user privilege */
+    case 0x17: /* UA2007 Block load secondary, user privilege */
+    case 0x1e: /* UA2007 Block load primary LE, user privilege */
+    case 0x1f: /* UA2007 Block load secondary LE, user privilege */
+    case 0x70: /* JPS1 Block load primary, user privilege */
+    case 0x71: /* JPS1 Block load secondary, user privilege */
+    case 0x78: /* JPS1 Block load primary LE, user privilege */
+    case 0x79: /* JPS1 Block load secondary LE, user privilege */
         if (rd & 7) {
             raise_exception(TT_ILL_INSN);
             return;
         }
         helper_check_align(addr, 0x3f);
         for (i = 0; i < 16; i++) {
-            *(uint32_t *)&env->fpr[rd++] = helper_ld_asi(addr, asi & 0x1f, 4,
+            *(uint32_t *)&env->fpr[rd++] = helper_ld_asi(addr, asi & 0x19, 4,
                                                          0);
             addr += 4;
         }
@@ -3372,17 +3378,23 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
         break;
     }
 
-    val = helper_ld_asi(addr, asi, size, 0);
     switch(size) {
     default:
     case 4:
-        *((uint32_t *)&env->fpr[rd]) = val;
+        *((uint32_t *)&env->fpr[rd]) = helper_ld_asi(addr, asi, size, 0);
         break;
     case 8:
-        *((int64_t *)&DT0) = val;
+        u.ll = helper_ld_asi(addr, asi, size, 0);
+        *((uint32_t *)&env->fpr[rd++]) = u.l.upper;
+        *((uint32_t *)&env->fpr[rd++]) = u.l.lower;
         break;
     case 16:
-        // XXX
+        u.ll = helper_ld_asi(addr, asi, 8, 0);
+        *((uint32_t *)&env->fpr[rd++]) = u.l.upper;
+        *((uint32_t *)&env->fpr[rd++]) = u.l.lower;
+        u.ll = helper_ld_asi(addr + 8, asi, 8, 0);
+        *((uint32_t *)&env->fpr[rd++]) = u.l.upper;
+        *((uint32_t *)&env->fpr[rd++]) = u.l.lower;
         break;
     }
 }
@@ -3391,17 +3403,18 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
 {
     unsigned int i;
     target_ulong val = 0;
+    CPU_DoubleU u;
 
     helper_check_align(addr, 3);
     addr = asi_address_mask(env, asi, addr);
 
     switch (asi) {
-    case 0xe0: // UA2007 Block commit store primary (cache flush)
-    case 0xe1: // UA2007 Block commit store secondary (cache flush)
-    case 0xf0: // Block store primary
-    case 0xf1: // Block store secondary
-    case 0xf8: // Block store primary LE
-    case 0xf9: // Block store secondary LE
+    case 0xe0: /* UA2007/JPS1 Block commit store primary (cache flush) */
+    case 0xe1: /* UA2007/JPS1 Block commit store secondary (cache flush) */
+    case 0xf0: /* UA2007/JPS1 Block store primary */
+    case 0xf1: /* UA2007/JPS1 Block store secondary */
+    case 0xf8: /* UA2007/JPS1 Block store primary LE */
+    case 0xf9: /* UA2007/JPS1 Block store secondary LE */
         if (rd & 7) {
             raise_exception(TT_ILL_INSN);
             return;
@@ -3414,8 +3427,14 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
         }
 
         return;
-    case 0x70: // Block store primary, user privilege
-    case 0x71: // Block store secondary, user privilege
+    case 0x16: /* UA2007 Block load primary, user privilege */
+    case 0x17: /* UA2007 Block load secondary, user privilege */
+    case 0x1e: /* UA2007 Block load primary LE, user privilege */
+    case 0x1f: /* UA2007 Block load secondary LE, user privilege */
+    case 0x70: /* JPS1 Block store primary, user privilege */
+    case 0x71: /* JPS1 Block store secondary, user privilege */
+    case 0x78: /* JPS1 Block load primary LE, user privilege */
+    case 0x79: /* JPS1 Block load secondary LE, user privilege */
         if (rd & 7) {
             raise_exception(TT_ILL_INSN);
             return;
@@ -3423,7 +3442,7 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
         helper_check_align(addr, 0x3f);
         for (i = 0; i < 16; i++) {
             val = *(uint32_t *)&env->fpr[rd++];
-            helper_st_asi(addr, val, asi & 0x1f, 4);
+            helper_st_asi(addr, val, asi & 0x19, 4);
             addr += 4;
         }
 
@@ -3435,16 +3454,22 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
     switch(size) {
     default:
     case 4:
-        val = *((uint32_t *)&env->fpr[rd]);
+        helper_st_asi(addr, *(uint32_t *)&env->fpr[rd], asi, size);
         break;
     case 8:
-        val = *((int64_t *)&DT0);
+        u.l.upper = *(uint32_t *)&env->fpr[rd++];
+        u.l.lower = *(uint32_t *)&env->fpr[rd++];
+        helper_st_asi(addr, u.ll, asi, size);
         break;
     case 16:
-        // XXX
+        u.l.upper = *(uint32_t *)&env->fpr[rd++];
+        u.l.lower = *(uint32_t *)&env->fpr[rd++];
+        helper_st_asi(addr, u.ll, asi, 8);
+        u.l.upper = *(uint32_t *)&env->fpr[rd++];
+        u.l.lower = *(uint32_t *)&env->fpr[rd++];
+        helper_st_asi(addr + 8, u.ll, asi, 8);
         break;
     }
-    helper_st_asi(addr, val, asi, size);
 }
 
 target_ulong helper_cas_asi(target_ulong addr, target_ulong val1,
