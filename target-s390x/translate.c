@@ -224,7 +224,7 @@ static inline void store_freg(int reg, TCGv_i64 v)
 
 static inline void store_reg32(int reg, TCGv_i32 v)
 {
-#if HOST_LONG_BITS == 32
+#if TCG_TARGET_REG_BITS == 32
     tcg_gen_mov_i32(TCGV_LOW(regs[reg]), v);
 #else
     TCGv_i64 tmp = tcg_temp_new_i64();
@@ -238,7 +238,7 @@ static inline void store_reg32(int reg, TCGv_i32 v)
 static inline void store_reg32_i64(int reg, TCGv_i64 v)
 {
     /* 32 bit register writes keep the upper half */
-#if HOST_LONG_BITS == 32
+#if TCG_TARGET_REG_BITS == 32
     tcg_gen_mov_i32(TCGV_LOW(regs[reg]), TCGV_LOW(v));
 #else
     tcg_gen_deposit_i64(regs[reg], regs[reg], v, 0, 32);
@@ -2067,7 +2067,7 @@ do_mh:
                 break;
             case 0x96:
                 tmp2 = tcg_temp_new_i64();
-#if HOST_LONG_BITS == 32
+#if TCG_TARGET_REG_BITS == 32
                 tcg_gen_qemu_ld32u(tmp2, tmp, get_mem_index(s));
                 tcg_gen_trunc_i64_i32(TCGV_HIGH(regs[i]), tmp2);
 #else
