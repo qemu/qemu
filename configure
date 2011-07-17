@@ -3290,9 +3290,6 @@ case "$target_arch2" in
     if test "$xen" = "yes" -a "$target_softmmu" = "yes" ; then
       target_phys_bits=64
       echo "CONFIG_XEN=y" >> $config_target_mak
-      if test "$cpu" = "i386" -o "$cpu" = "x86_64"; then
-          echo "CONFIG_XEN_MAPCACHE=y" >> $config_target_mak
-      fi
     fi
 esac
 case "$target_arch2" in
