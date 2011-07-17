@@ -4181,11 +4181,11 @@ static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
 static void cpu_restore_state2(void *retaddr)
 {
     TranslationBlock *tb;
-    unsigned long pc;
+    uintptr_t pc;
 
     if (retaddr) {
         /* now we have a real cpu fault */
-        pc = (unsigned long)retaddr;
+        pc = (uintptr_t)retaddr;
         tb = tb_find_pc(pc);
         if (tb) {
             /* the PC is inside the translated code. It means that we have

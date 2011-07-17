@@ -1926,7 +1926,7 @@ static int virtcon_parse(const char *devname)
 }
 
 static int debugcon_parse(const char *devname)
-{   
+{
     QemuOpts *opts;
 
     if (!qemu_chr_open("debugcon", devname, NULL)) {
@@ -2850,8 +2850,8 @@ int main(int argc, char **argv, char **envp)
 			}
 			p += 8;
 			os_set_proc_name(p);
-		     }	
-		 }	
+		     }
+		 }
                 break;
             case QEMU_OPTION_prom_env:
                 if (nb_prom_envs >= MAX_PROM_ENVS) {

@@ -818,8 +818,8 @@ static inline void tb_page_remove(TranslationBlock **ptb, TranslationBlock *tb)
 
     for(;;) {
         tb1 = *ptb;
-        n1 = (long)tb1 & 3;
-        tb1 = (TranslationBlock *)((long)tb1 & ~3);
+        n1 = (uintptr_t)tb1 & 3;
+        tb1 = (TranslationBlock *)((uintptr_t)tb1 & ~3);
         if (tb1 == tb) {
             *ptb = tb1->page_next[n1];
             break;
@@ -839,8 +839,8 @@ static inline void tb_jmp_remove(TranslationBlock *tb, int n)
         /* find tb(n) in circular list */
         for(;;) {
             tb1 = *ptb;
-            n1 = (long)tb1 & 3;
-            tb1 = (TranslationBlock *)((long)tb1 & ~3);
+            n1 = (uintptr_t)tb1 & 3;
+            tb1 = (TranslationBlock *)((uintptr_t)tb1 & ~3);
             if (n1 == n && tb1 == tb)
                 break;
             if (n1 == 2) {
@@ -860,7 +860,7 @@ static inline void tb_jmp_remove(TranslationBlock *tb, int n)
    another TB */
 static inline void tb_reset_jump(TranslationBlock *tb, int n)
 {
-    tb_set_jmp_target(tb, n, (unsigned long)(tb->tc_ptr + tb->tb_next_offset[n]));
+    tb_set_jmp_target(tb, n, (uintptr_t)(tb->tc_ptr + tb->tb_next_offset[n]));
 }
 
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
@@ -905,16 +905,16 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
     /* suppress any remaining jumps to this TB */
     tb1 = tb->jmp_first;
     for(;;) {
-        n1 = (long)tb1 & 3;
+        n1 = (uintptr_t)tb1 & 3;
         if (n1 == 2)
             break;
-        tb1 = (TranslationBlock *)((long)tb1 & ~3);
+        tb1 = (TranslationBlock *)((uintptr_t)tb1 & ~3);
         tb2 = tb1->jmp_next[n1];
         tb_reset_jump(tb1, n1);
         tb1->jmp_next[n1] = NULL;
         tb1 = tb2;
     }
-    tb->jmp_first = (TranslationBlock *)((long)tb | 2); /* fail safe */
+    tb->jmp_first = (TranslationBlock *)((uintptr_t)tb | 2); /* fail safe */
 
     tb_phys_invalidate_count++;
 }
@@ -955,8 +955,8 @@ static void build_page_bitmap(PageDesc *p)
 
     tb = p->first_tb;
     while (tb != NULL) {
-        n = (long)tb & 3;
-        tb = (TranslationBlock *)((long)tb & ~3);
+        n = (uintptr_t)tb & 3;
+        tb = (TranslationBlock *)((uintptr_t)tb & ~3);
         /* NOTE: this is subtle as a TB may span two physical pages */
         if (n == 0) {
             /* NOTE: tb_end may be after the end of the page, but
@@ -1000,7 +1000,8 @@ TranslationBlock *tb_gen_code(CPUState *env,
     tb->flags = flags;
     tb->cflags = cflags;
     cpu_gen_code(env, tb, &code_gen_size);
-    code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
+    code_gen_ptr = (void *)(((uintptr_t)code_gen_ptr + code_gen_size +
+                             CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
 
 #if defined(CONFIG_USER_ONLY) && defined(TARGET_X86_64)
     /* if we are doing vsyscall don't link the page as it lies in high memory
@@ -1055,8 +1056,8 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
     /* XXX: see if in some cases it could be faster to invalidate all the code */
     tb = p->first_tb;
     while (tb != NULL) {
-        n = (long)tb & 3;
-        tb = (TranslationBlock *)((long)tb & ~3);
+        n = (uintptr_t)tb & 3;
+        tb = (TranslationBlock *)((uintptr_t)tb & ~3);
         tb_next = tb->page_next[n];
         /* NOTE: this is subtle as a TB may span two physical pages */
         if (n == 0) {
@@ -1232,7 +1233,7 @@ static inline void tb_alloc_page(TranslationBlock *tb,
 #ifndef CONFIG_USER_ONLY
     page_already_protected = p->first_tb != NULL;
 #endif
-    p->first_tb = (TranslationBlock *)((long)tb | n);
+    p->first_tb = (TranslationBlock *)((uintptr_t)tb | n);
     invalidate_page_bitmap(p);
 
 #if defined(TARGET_HAS_SMC) || 1
@@ -1299,7 +1300,7 @@ void tb_link_page(TranslationBlock *tb,
     else
         tb->page_addr[1] = -1;
 
-    tb->jmp_first = (TranslationBlock *)((long)tb | 2);
+    tb->jmp_first = (TranslationBlock *)((uintptr_t)tb | 2);
     tb->jmp_next[0] = NULL;
     tb->jmp_next[1] = NULL;
 
@@ -1325,8 +1326,8 @@ TranslationBlock *tb_find_pc(unsigned long tc_ptr)
 
     if (nb_tbs <= 0)
         return NULL;
-    if (tc_ptr < (unsigned long)code_gen_buffer ||
-        tc_ptr >= (unsigned long)code_gen_ptr)
+    if (tc_ptr < (uintptr_t)code_gen_buffer ||
+        tc_ptr >= (uintptr_t)code_gen_ptr)
         return NULL;
     /* binary search (cf Knuth) */
     m_min = 0;
@@ -1334,7 +1335,7 @@ TranslationBlock *tb_find_pc(unsigned long tc_ptr)
     while (m_min <= m_max) {
         m = (m_min + m_max) >> 1;
         tb = &tbs[m];
-        v = (unsigned long)tb->tc_ptr;
+        v = (uintptr_t)tb->tc_ptr;
         if (v == tc_ptr)
             return tb;
         else if (tc_ptr < v) {
@@ -1357,8 +1358,8 @@ static inline void tb_reset_jump_recursive2(TranslationBlock *tb, int n)
     if (tb1 != NULL) {
         /* find head of list */
         for(;;) {
-            n1 = (long)tb1 & 3;
-            tb1 = (TranslationBlock *)((long)tb1 & ~3);
+            n1 = (uintptr_t)tb1 & 3;
+            tb1 = (TranslationBlock *)((uintptr_t)tb1 & ~3);
             if (n1 == 2)
                 break;
             tb1 = tb1->jmp_next[n1];
@@ -1370,8 +1371,8 @@ static inline void tb_reset_jump_recursive2(TranslationBlock *tb, int n)
         ptb = &tb_next->jmp_first;
         for(;;) {
             tb1 = *ptb;
-            n1 = (long)tb1 & 3;
-            tb1 = (TranslationBlock *)((long)tb1 & ~3);
+            n1 = (uintptr_t)tb1 & 3;
+            tb1 = (TranslationBlock *)((uintptr_t)tb1 & ~3);
             if (n1 == n && tb1 == tb)
                 break;
             ptb = &tb1->jmp_next[n1];
@@ -2105,10 +2106,10 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
 
     /* we modify the TLB cache so that the dirty bit will be set again
        when accessing the range */
-    start1 = (unsigned long)qemu_safe_ram_ptr(start);
+    start1 = (uintptr_t)qemu_safe_ram_ptr(start);
     /* Check that we don't span multiple blocks - this breaks the
        address comparisons below.  */
-    if ((unsigned long)qemu_safe_ram_ptr(end - 1) - start1
+    if ((uintptr_t)qemu_safe_ram_ptr(end - 1) - start1
             != (end - 1) - start) {
         abort();
     }
@@ -2181,7 +2182,7 @@ static inline void tlb_update_dirty(CPUTLBEntry *tlb_entry)
     void *p;
 
     if ((tlb_entry->addr_write & ~TARGET_PAGE_MASK) == IO_MEM_RAM) {
-        p = (void *)(unsigned long)((tlb_entry->addr_write & TARGET_PAGE_MASK)
+        p = (void *)(uintptr_t)((tlb_entry->addr_write & TARGET_PAGE_MASK)
             + tlb_entry->addend);
         ram_addr = qemu_ram_addr_from_host_nofail(p);
         if (!cpu_physical_memory_is_dirty(ram_addr)) {
@@ -2281,7 +2282,7 @@ void tlb_set_page(CPUState *env, target_ulong vaddr,
         /* IO memory case (romd handled later) */
         address |= TLB_MMIO;
     }
-    addend = (unsigned long)qemu_get_ram_ptr(pd & TARGET_PAGE_MASK);
+    addend = (uintptr_t)qemu_get_ram_ptr(pd & TARGET_PAGE_MASK);
     if ((pd & ~TARGET_PAGE_MASK) <= IO_MEM_ROM) {
         /* Normal RAM.  */
         iotlb = pd & TARGET_PAGE_MASK;
@@ -4692,13 +4693,13 @@ void cpu_io_recompile(CPUState *env, void *retaddr)
     target_ulong pc, cs_base;
     uint64_t flags;
 
-    tb = tb_find_pc((unsigned long)retaddr);
+    tb = tb_find_pc((uintptr_t)retaddr);
     if (!tb) {
         cpu_abort(env, "cpu_io_recompile: could not find TB for pc=%p",
                   retaddr);
     }
     n = env->icount_decr.u16.low + tb->icount;
-    cpu_restore_state(tb, env, (unsigned long)retaddr);
+    cpu_restore_state(tb, env, (uintptr_t)retaddr);
     /* Calculate how many instructions had been executed before the fault
        occurred.  */
     n = n - env->icount_decr.u16.low;
@@ -4773,7 +4774,7 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
     cpu_fprintf(f, "Translation buffer state:\n");
     cpu_fprintf(f, "gen code size       %td/%ld\n",
                 code_gen_ptr - code_gen_buffer, code_gen_buffer_max_size);
-    cpu_fprintf(f, "TB count            %d/%d\n", 
+    cpu_fprintf(f, "TB count            %d/%d\n",
                 nb_tbs, code_gen_max_blocks);
     cpu_fprintf(f, "TB avg target size  %d max=%d bytes\n",
                 nb_tbs ? target_code_size / nb_tbs : 0,

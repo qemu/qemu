@@ -24,10 +24,10 @@
 static void cpu_restore_state_from_retaddr(void *retaddr)
 {
     TranslationBlock *tb;
-    unsigned long pc;
+    uintptr_t pc;
 
     if (retaddr) {
-        pc = (unsigned long) retaddr;
+        pc = (uintptr_t)retaddr;
         tb = tb_find_pc(pc);
         if (tb) {
             /* the PC is inside the translated code. It means that we have
@@ -160,7 +160,7 @@ void helper_discard_movcal_backup(void)
 	env->movcal_backup = current = next;
 	if (current == NULL)
 	    env->movcal_backup_tail = &(env->movcal_backup);
-    } 
+    }
 }
 
 void helper_ocbi(uint32_t address)
@@ -173,7 +173,7 @@ void helper_ocbi(uint32_t address)
 	{
 	    memory_content *next = (*current)->next;
 	    stl(a, (*current)->value);
-	    
+
 	    if (next == NULL)
 	    {
 		env->movcal_backup_tail = current;

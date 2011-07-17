@@ -38,7 +38,7 @@ void QEMU_NORETURN helper_excp(int excp, int error)
 
 static void do_restore_state(void *retaddr)
 {
-    unsigned long pc = (unsigned long)retaddr;
+    uintptr_t pc = (uintptr_t)retaddr;
 
     if (pc) {
         TranslationBlock *tb = tb_find_pc(pc);

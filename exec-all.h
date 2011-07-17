@@ -85,7 +85,7 @@ void cpu_gen_init(void);
 int cpu_gen_code(CPUState *env, struct TranslationBlock *tb,
                  int *gen_code_size_ptr);
 int cpu_restore_state(struct TranslationBlock *tb,
-                      CPUState *env, unsigned long searched_pc);
+                      CPUState *env, uintptr_t searched_pc);
 void QEMU_NORETURN cpu_resume_from_signal(CPUState *env1, void *puc);
 void QEMU_NORETURN cpu_io_recompile(CPUState *env, void *retaddr);
 TranslationBlock *tb_gen_code(CPUState *env,
@@ -192,24 +192,24 @@ extern TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
 #if defined(USE_DIRECT_JUMP)
 
 #if defined(CONFIG_TCG_INTERPRETER)
-static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
+static inline void tb_set_jmp_target1(uintptr_t jmp_addr, unsigned long addr)
 {
     /* patch the branch destination */
     *(uint32_t *)jmp_addr = addr - (jmp_addr + 4);
     /* no need to flush icache explicitly */
 }
 #elif defined(_ARCH_PPC)
-void ppc_tb_set_jmp_target(unsigned long jmp_addr, unsigned long addr);
+void ppc_tb_set_jmp_target(uintptr_t jmp_addr, unsigned long addr);
 #define tb_set_jmp_target1 ppc_tb_set_jmp_target
 #elif defined(__i386__) || defined(__x86_64__)
-static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
+static inline void tb_set_jmp_target1(uintptr_t jmp_addr, unsigned long addr)
 {
     /* patch the branch destination */
     *(uint32_t *)jmp_addr = addr - (jmp_addr + 4);
     /* no need to flush icache explicitly */
 }
 #elif defined(__arm__)
-static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
+static inline void tb_set_jmp_target1(uintptr_t jmp_addr, unsigned long addr)
 {
 #if !QEMU_GNUC_PREREQ(4, 1)
     register unsigned long _beg __asm ("a1");
@@ -242,7 +242,7 @@ static inline void tb_set_jmp_target(TranslationBlock *tb,
     unsigned long offset;
 
     offset = tb->tb_jmp_offset[n];
-    tb_set_jmp_target1((unsigned long)(tb->tc_ptr + offset), addr);
+    tb_set_jmp_target1((uintptr_t)(tb->tc_ptr + offset), addr);
 }
 
 #else
@@ -262,11 +262,11 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
     /* NOTE: this test is only needed for thread safety */
     if (!tb->jmp_next[n]) {
         /* patch the native jump address */
-        tb_set_jmp_target(tb, n, (unsigned long)tb_next->tc_ptr);
+        tb_set_jmp_target(tb, n, (uintptr_t)tb_next->tc_ptr);
 
         /* add in TB jmp circular list */
         tb->jmp_next[n] = tb_next->jmp_first;
-        tb_next->jmp_first = (TranslationBlock *)((long)(tb) | (n));
+        tb_next->jmp_first = (TranslationBlock *)((uintptr_t)(tb) | (n));
     }
 }
 
@@ -339,7 +339,7 @@ static inline tb_page_addr_t get_page_addr_code(CPUState *env1, target_ulong add
         cpu_abort(env1, "Trying to execute code outside RAM or ROM at 0x" TARGET_FMT_lx "\n", addr);
 #endif
     }
-    p = (void *)(unsigned long)addr
+    p = (void *)(uintptr_t)addr
         + env1->tlb_table[mmu_idx][page_index].addend;
     return qemu_ram_addr_from_host_nofail(p);
 }

@@ -89,7 +89,7 @@ extern uint8_t * tci_tb_ptr;
    This is still safe in ARM mode because instructions are 4 bytes.  */
 # define GETPC() ((void *)((unsigned long)__builtin_return_address(0) - 2))
 #else
-# define GETPC() ((void *)((unsigned long)__builtin_return_address(0) - 1))
+# define GETPC() ((void *)((uintptr_t)__builtin_return_address(0) - 1))
 #endif
 
 #endif /* !defined(__DYNGEN_EXEC_H__) */

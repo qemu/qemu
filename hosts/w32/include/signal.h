@@ -12,9 +12,14 @@
 #define WIN32_SIGNAL_H
 
 #include_next <signal.h>
+
+#if !defined(WIN64)
+
 #include <sys/types.h>    /* sigset_t */
 
 int pthread_sigmask(int how, const sigset_t *set, sigset_t *oldset);
 int sigfillset(sigset_t *set);
+
+#endif /* W64 */
 
 #endif /* WIN32_SIGNAL_H */

@@ -16,9 +16,6 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#include <stddef.h>     /* offsetof */
-
 #if DATA_SIZE == 8
 #define SUFFIX q
 #define USUFFIX q
@@ -79,7 +76,6 @@ static inline RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(target_ulong ptr)
     int page_index;
     RES_TYPE res;
     target_ulong addr;
-    unsigned long physaddr;
     int mmu_idx;
 
     addr = ptr;
@@ -89,7 +85,7 @@ static inline RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(target_ulong ptr)
                  (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
         res = glue(glue(__ld, SUFFIX), MMUSUFFIX)(addr, mmu_idx);
     } else {
-        physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
+        uintptr_t physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
         res = glue(glue(ld, USUFFIX), _raw)((uint8_t *)physaddr);
     }
     return res;
@@ -100,7 +96,7 @@ static inline int glue(glue(lds, SUFFIX), MEMSUFFIX)(target_ulong ptr)
 {
     int res, page_index;
     target_ulong addr;
-    unsigned long physaddr;
+    uintptr_t physaddr;
     int mmu_idx;
 
     addr = ptr;
@@ -125,7 +121,7 @@ static inline void glue(glue(st, SUFFIX), MEMSUFFIX)(target_ulong ptr, RES_TYPE 
 {
     int page_index;
     target_ulong addr;
-    unsigned long physaddr;
+    uintptr_t physaddr;
     int mmu_idx;
 
     addr = ptr;

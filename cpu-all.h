@@ -210,12 +210,12 @@ typedef union {
  */
 static inline int ldub_p(const void *ptr)
 {
-    return *(uint8_t *)ptr;
+    return *(const uint8_t *)ptr;
 }
 
 static inline int ldsb_p(const void *ptr)
 {
-    return *(int8_t *)ptr;
+    return *(const int8_t *)ptr;
 }
 
 static inline void stb_p(void *ptr, int v)
@@ -347,22 +347,22 @@ static inline void stfq_le_p(void *ptr, float64 v)
 
 static inline int lduw_le_p(const void *ptr)
 {
-    return *(uint16_t *)ptr;
+    return *(const uint16_t *)ptr;
 }
 
 static inline int ldsw_le_p(const void *ptr)
 {
-    return *(int16_t *)ptr;
+    return *(const int16_t *)ptr;
 }
 
 static inline int ldl_le_p(const void *ptr)
 {
-    return *(uint32_t *)ptr;
+    return *(const uint32_t *)ptr;
 }
 
 static inline uint64_t ldq_le_p(const void *ptr)
 {
-    return *(uint64_t *)ptr;
+    return *(const uint64_t *)ptr;
 }
 
 static inline void stw_le_p(void *ptr, int v)
@@ -384,12 +384,12 @@ static inline void stq_le_p(void *ptr, uint64_t v)
 
 static inline float32 ldfl_le_p(const void *ptr)
 {
-    return *(float32 *)ptr;
+    return *(const float32 *)ptr;
 }
 
 static inline float64 ldfq_le_p(const void *ptr)
 {
-    return *(float64 *)ptr;
+    return *(const float64 *)ptr;
 }
 
 static inline void stfl_le_p(void *ptr, float32 v)
@@ -454,7 +454,7 @@ static inline uint64_t ldq_be_p(const void *ptr)
 {
     uint32_t a,b;
     a = ldl_be_p(ptr);
-    b = ldl_be_p((uint8_t *)ptr + 4);
+    b = ldl_be_p((const uint8_t *)ptr + 4);
     return (((uint64_t)a<<32)|b);
 }
 
@@ -520,7 +520,7 @@ static inline float64 ldfq_be_p(const void *ptr)
 {
     CPU_DoubleU u;
     u.l.upper = ldl_be_p(ptr);
-    u.l.lower = ldl_be_p((uint8_t *)ptr + 4);
+    u.l.lower = ldl_be_p((const uint8_t *)ptr + 4);
     return u.d;
 }
 
@@ -536,22 +536,22 @@ static inline void stfq_be_p(void *ptr, float64 v)
 
 static inline int lduw_be_p(const void *ptr)
 {
-    return *(uint16_t *)ptr;
+    return *(const uint16_t *)ptr;
 }
 
 static inline int ldsw_be_p(const void *ptr)
 {
-    return *(int16_t *)ptr;
+    return *(const int16_t *)ptr;
 }
 
 static inline int ldl_be_p(const void *ptr)
 {
-    return *(uint32_t *)ptr;
+    return *(const uint32_t *)ptr;
 }
 
 static inline uint64_t ldq_be_p(const void *ptr)
 {
-    return *(uint64_t *)ptr;
+    return *(const uint64_t *)ptr;
 }
 
 static inline void stw_be_p(void *ptr, int v)
@@ -573,12 +573,12 @@ static inline void stq_be_p(void *ptr, uint64_t v)
 
 static inline float32 ldfl_be_p(const void *ptr)
 {
-    return *(float32 *)ptr;
+    return *(const float32 *)ptr;
 }
 
 static inline float64 ldfq_be_p(const void *ptr)
 {
-    return *(float64 *)ptr;
+    return *(const float64 *)ptr;
 }
 
 static inline void stfl_be_p(void *ptr, float32 v)
@@ -665,8 +665,8 @@ extern unsigned long reserved_va;
 #else /* !CONFIG_USER_ONLY */
 /* NOTE: we use double casts if pointers and target_ulong have
    different sizes */
-#define saddr(x) (uint8_t *)(long)(x)
-#define laddr(x) (uint8_t *)(long)(x)
+#define saddr(x) (uint8_t *)(intptr_t)(x)
+#define laddr(x) (uint8_t *)(intptr_t)(x)
 #endif
 
 #define ldub_raw(p) ldub_p(laddr((p)))
@@ -943,7 +943,7 @@ extern int mem_prealloc;
 /* physical memory access */
 
 /* MMIO pages are identified by a combination of an IO device index and
-   3 flags.  The ROMD code stores the page ram offset in iotlb entry, 
+   3 flags.  The ROMD code stores the page ram offset in iotlb entry,
    so only a limited number of ids are avaiable.  */
 
 #define IO_MEM_NB_ENTRIES  (1 << (TARGET_PAGE_BITS  - IO_MEM_SHIFT))

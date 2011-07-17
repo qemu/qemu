@@ -13,13 +13,16 @@
 
 #include_next <time.h>
 
-#ifndef HAVE_STRUCT_TIMESPEC
-#define HAVE_STRUCT_TIMESPEC 1
+#if !defined(WIN64)
+
+#if !defined(HAVE_STRUCT_TIMESPEC) && !defined(_TIMESPEC_DEFINED)
+#define HAVE_STRUCT_TIMESPEC 1  /* MinGW */
+#define _TIMESPEC_DEFINED       /* MinGW-64 */
 struct timespec {
         long tv_sec;
         long tv_nsec;
 };
-#endif /* HAVE_STRUCT_TIMESPEC */
+#endif /* !HAVE_STRUCT_TIMESPEC && !_TIMESPEC_DEFINED */
 
 typedef enum {
   CLOCK_REALTIME = 0
@@ -27,5 +30,7 @@ typedef enum {
 
 int clock_getres (clockid_t clock_id, struct timespec *res);
 int clock_gettime(clockid_t clock_id, struct timespec *pTimespec);
+
+#endif /* W64 */
 
 #endif /* W32_TIME_H */

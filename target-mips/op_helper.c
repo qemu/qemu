@@ -51,7 +51,7 @@ void QEMU_NORETURN helper_raise_exception (uint32_t exception)
 static void do_restore_state (void *pc_ptr)
 {
     TranslationBlock *tb;
-    unsigned long pc = (unsigned long) pc_ptr;
+    uintptr_t pc = (uintptr_t)pc_ptr;
 
     tb = tb_find_pc (pc);
     if (tb) {
@@ -1917,7 +1917,7 @@ void helper_pmon (int function)
 #ifndef CONFIG_USER_ONLY
     case 158:
         {
-            unsigned char *fmt = (void *)(unsigned long)env->active_tc.gpr[4];
+            unsigned char *fmt = (void *)(uintptr_t)env->active_tc.gpr[4];
             printf("%s", fmt);
         }
         break;
@@ -1962,7 +1962,7 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 {
     TranslationBlock *tb;
     CPUState *saved_env;
-    unsigned long pc;
+    uintptr_t pc;
     int ret;
 
     /* XXX: hack to restore env in all cases, even if not called from
@@ -1973,7 +1973,7 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     if (ret) {
         if (retaddr) {
             /* now we have a real cpu fault */
-            pc = (unsigned long)retaddr;
+            pc = (uintptr_t)retaddr;
             tb = tb_find_pc(pc);
             if (tb) {
                 /* the PC is inside the translated code. It means that we have

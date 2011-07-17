@@ -187,7 +187,7 @@ int cpu_exec(CPUState *env)
     int ret, interrupt_request;
     TranslationBlock *tb;
     uint8_t *tc_ptr;
-    unsigned long next_tb;
+    uintptr_t next_tb;
 
     if (env->halted) {
         if (!cpu_has_work(env)) {
@@ -308,10 +308,10 @@ int cpu_exec(CPUState *env)
                             do_interrupt_x86_hardirq(env, EXCP12_MCHK, 0);
                             next_tb = 0;
                         } else if ((interrupt_request & CPU_INTERRUPT_HARD) &&
-                                   (((env->hflags2 & HF2_VINTR_MASK) && 
+                                   (((env->hflags2 & HF2_VINTR_MASK) &&
                                      (env->hflags2 & HF2_HIF_MASK)) ||
-                                    (!(env->hflags2 & HF2_VINTR_MASK) && 
-                                     (env->eflags & IF_MASK && 
+                                    (!(env->hflags2 & HF2_VINTR_MASK) &&
+                                     (env->eflags & IF_MASK &&
                                       !(env->hflags & HF_INHIBIT_IRQ_MASK))))) {
                             int intno;
                             svm_check_intercept(env, SVM_EXIT_INTR);
@@ -324,7 +324,7 @@ int cpu_exec(CPUState *env)
                             next_tb = 0;
 #if !defined(CONFIG_USER_ONLY)
                         } else if ((interrupt_request & CPU_INTERRUPT_VIRQ) &&
-                                   (env->eflags & IF_MASK) && 
+                                   (env->eflags & IF_MASK) &&
                                    !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
                             int intno;
                             /* FIXME: this should respect TPR */
@@ -535,9 +535,9 @@ int cpu_exec(CPUState *env)
                     tb_invalidated_flag = 0;
                 }
 #ifdef CONFIG_DEBUG_EXEC
-                qemu_log_mask(CPU_LOG_EXEC, "Trace 0x%08lx [" TARGET_FMT_lx "] %s\n",
-                             (long)tb->tc_ptr, tb->pc,
-                             lookup_symbol(tb->pc));
+                qemu_log_mask(CPU_LOG_EXEC, "Trace %p [" TARGET_FMT_lx "] %s\n",
+                              tb->tc_ptr, tb->pc,
+                              lookup_symbol(tb->pc));
 #endif
                 /* see if we can patch the calling TB. When the TB
                    spans two pages, we cannot safely do a direct
@@ -560,7 +560,7 @@ int cpu_exec(CPUState *env)
                     if ((next_tb & 3) == 2) {
                         /* Instruction counter expired.  */
                         int insns_left;
-                        tb = (TranslationBlock *)(long)(next_tb & ~3);
+                        tb = (TranslationBlock *)(next_tb & ~3);
                         /* Restore PC.  */
                         cpu_pc_from_tb(env, tb);
                         insns_left = env->icount_decr.u32;

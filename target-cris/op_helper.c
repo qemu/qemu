@@ -59,7 +59,7 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 {
     TranslationBlock *tb;
     CPUState *saved_env;
-    unsigned long pc;
+    uintptr_t pc;
     int ret;
 
     /* XXX: hack to restore env in all cases, even if not called from
@@ -67,13 +67,13 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     saved_env = env;
     env = cpu_single_env;
 
-    D_LOG("%s pc=%x tpc=%x ra=%x\n", __func__, 
+    D_LOG("%s pc=%x tpc=%x ra=%x\n", __func__,
 	     env->pc, env->debug1, retaddr);
     ret = cpu_cris_handle_mmu_fault(env, addr, is_write, mmu_idx, 1);
     if (unlikely(ret)) {
         if (retaddr) {
             /* now we have a real cpu fault */
-            pc = (unsigned long)retaddr;
+            pc = (uintptr_t)retaddr;
             tb = tb_find_pc(pc);
             if (tb) {
                 /* the PC is inside the translated code. It means that we have
@@ -133,7 +133,7 @@ void helper_movl_sreg_reg (uint32_t sreg, uint32_t reg)
 #if !defined(CONFIG_USER_ONLY)
 	if (srs == 1 || srs == 2) {
 		if (sreg == 6) {
-			/* Writes to tlb-hi write to mm_cause as a side 
+			/* Writes to tlb-hi write to mm_cause as a side
 			   effect.  */
 			env->sregs[SFR_RW_MM_TLB_HI] = env->regs[reg];
 			env->sregs[SFR_R_MM_CAUSE] = env->regs[reg];
@@ -163,7 +163,7 @@ void helper_movl_sreg_reg (uint32_t sreg, uint32_t reg)
 			env->tlbsets[srs - 1][set][idx].lo = lo;
 			env->tlbsets[srs - 1][set][idx].hi = hi;
 
-			D_LOG("tlb flush vaddr=%x v=%d pc=%x\n", 
+			D_LOG("tlb flush vaddr=%x v=%d pc=%x\n",
 				  vaddr, tlb_v, env->pc);
 			if (tlb_v) {
 				tlb_flush_page(env, vaddr);
@@ -178,7 +178,7 @@ void helper_movl_reg_sreg (uint32_t reg, uint32_t sreg)
 	uint32_t srs;
 	env->pregs[PR_SRS] &= 3;
 	srs = env->pregs[PR_SRS];
-	
+
 #if !defined(CONFIG_USER_ONLY)
 	if (srs == 1 || srs == 2)
 	{
@@ -222,7 +222,7 @@ void helper_rfe(void)
 {
 	int rflag = env->pregs[PR_CCS] & R_FLAG;
 
-	D_LOG("rfe: erp=%x pid=%x ccs=%x btarget=%x\n", 
+	D_LOG("rfe: erp=%x pid=%x ccs=%x btarget=%x\n",
 		 env->pregs[PR_ERP], env->pregs[PR_PID],
 		 env->pregs[PR_CCS],
 		 env->btarget);
@@ -238,7 +238,7 @@ void helper_rfn(void)
 {
 	int rflag = env->pregs[PR_CCS] & R_FLAG;
 
-	D_LOG("rfn: erp=%x pid=%x ccs=%x btarget=%x\n", 
+	D_LOG("rfn: erp=%x pid=%x ccs=%x btarget=%x\n",
 		 env->pregs[PR_ERP], env->pregs[PR_PID],
 		 env->pregs[PR_CCS],
 		 env->btarget);
@@ -364,9 +364,9 @@ uint32_t helper_evaluate_flags_mcp(uint32_t ccs,
 	{
 		if (res == 0L)
 			flags |= Z_FLAG;
-		if (src & dst) 
+		if (src & dst)
 			flags |= V_FLAG;
-		if (dst | src) 
+		if (dst | src)
 			flags |= R_FLAG;
 	}
 
@@ -393,9 +393,9 @@ uint32_t helper_evaluate_flags_alu_4(uint32_t ccs,
 	{
 		if (res == 0L)
 			flags |= Z_FLAG;
-		if (src & dst) 
+		if (src & dst)
 			flags |= V_FLAG;
-		if (dst | src) 
+		if (dst | src)
 			flags |= C_FLAG;
 	}
 
@@ -422,9 +422,9 @@ uint32_t helper_evaluate_flags_sub_4(uint32_t ccs,
 	{
 		if (res == 0L)
 			flags |= Z_FLAG;
-		if (src & dst) 
+		if (src & dst)
 			flags |= V_FLAG;
-		if (dst | src) 
+		if (dst | src)
 			flags |= C_FLAG;
 	}
 

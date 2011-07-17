@@ -4552,7 +4552,7 @@ static void init_proc_601 (CPUPPCState *env)
                  0x00000000);
     /* Memory management */
     init_excp_601(env);
-    /* XXX: beware that dcache line size is 64 
+    /* XXX: beware that dcache line size is 64
      *      but dcbz uses 32 bytes "sectors"
      * XXX: this breaks clcs instruction !
      */
@@ -9403,12 +9403,12 @@ enum {
 
 static inline int is_indirect_opcode (void *handler)
 {
-    return ((unsigned long)handler & 0x03) == PPC_INDIRECT;
+    return ((uintptr_t)handler & 0x03) == PPC_INDIRECT;
 }
 
 static inline opc_handler_t **ind_table(void *handler)
 {
-    return (opc_handler_t **)((unsigned long)handler & ~3);
+    return (opc_handler_t **)((uintptr_t)handler & ~3);
 }
 
 /* Instruction table creation */
@@ -9427,7 +9427,7 @@ static int create_new_table (opc_handler_t **table, unsigned char idx)
 
     tmp = malloc(0x20 * sizeof(opc_handler_t));
     fill_new_table(tmp, 0x20);
-    table[idx] = (opc_handler_t *)((unsigned long)tmp | PPC_INDIRECT);
+    table[idx] = (opc_handler_t *)((uintptr_t)tmp | PPC_INDIRECT);
 
     return 0;
 }
