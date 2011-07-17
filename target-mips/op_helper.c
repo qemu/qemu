@@ -52,7 +52,7 @@ static void do_restore_state (void *pc_ptr)
 {
     TranslationBlock *tb;
     unsigned long pc = (unsigned long) pc_ptr;
-    
+
     tb = tb_find_pc (pc);
     if (tb) {
         cpu_restore_state(tb, env, pc);
@@ -1914,12 +1914,14 @@ void helper_pmon (int function)
         break;
     case 17:
         break;
+#ifndef CONFIG_USER_ONLY
     case 158:
         {
             unsigned char *fmt = (void *)(unsigned long)env->active_tc.gpr[4];
             printf("%s", fmt);
         }
         break;
+#endif
     }
 }
 
@@ -2046,6 +2048,7 @@ target_ulong helper_cfc1 (uint32_t reg)
 
 void helper_ctc1 (target_ulong arg1, uint32_t reg)
 {
+#if 0
     switch(reg) {
     case 25:
         if (arg1 & 0xffffff00)
@@ -2077,11 +2080,14 @@ void helper_ctc1 (target_ulong arg1, uint32_t reg)
     /* set flush-to-zero mode */
     RESTORE_FLUSH_MODE;
     set_float_exception_flags(0, &env->active_fpu.fp_status);
-    if ((GET_FP_ENABLE(env->active_fpu.fcr31) | 0x20) & GET_FP_CAUSE(env->active_fpu.fcr31))
+    if ((GET_FP_ENABLE(env->active_fpu.fcr31) | 0x20) & GET_FP_CAUSE(env->active_fpu.fcr31)) {
         helper_raise_exception(EXCP_FPE);
+    }
+#endif
 }
 
-static inline int ieee_ex_to_mips(int xcpt)
+#if 0
+static int ieee_ex_to_mips(int xcpt)
 {
     int ret = 0;
     if (xcpt) {
@@ -2103,17 +2109,23 @@ static inline int ieee_ex_to_mips(int xcpt)
     }
     return ret;
 }
+#endif
 
-static inline void update_fcr31(void)
+#if 0
+static void update_fcr31(void)
 {
     int tmp = ieee_ex_to_mips(get_float_exception_flags(&env->active_fpu.fp_status));
 
     SET_FP_CAUSE(env->active_fpu.fcr31, tmp);
-    if (GET_FP_ENABLE(env->active_fpu.fcr31) & tmp)
+    if (GET_FP_ENABLE(env->active_fpu.fcr31) & tmp) {
         helper_raise_exception(EXCP_FPE);
-    else
+    } else {
         UPDATE_FP_FLAGS(env->active_fpu.fcr31, tmp);
+    }
 }
+#else
+#define update_fcr31() (void)0
+#endif
 
 /* Float support.
    Single precition routines have a "s" suffix, double precision a

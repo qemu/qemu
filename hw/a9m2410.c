@@ -451,6 +451,7 @@ static void stcb_init(ram_addr_t _ram_size,
         if (filename) {
             ret = load_image_targphys(filename,
                                       A9M2410_NOR_RO_BASE, A9M2410_NOR_SIZE);
+            (void)ret;
             qemu_free(filename);
         }
     }

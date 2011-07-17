@@ -865,6 +865,7 @@ void mips_malta_init (ram_addr_t ram_size,
            0, FLASH_SIZE, bios_offset, FLASH_ADDRESS,
            flashfile, fl_sectors);
 #endif
+    (void)flashfile;
     pflash_cfi01_register(FLASH_ADDRESS, bios_offset,
                           flashdriver, 65536, fl_sectors,
                           4, 0x0000, 0x0000, 0x0000, 0x0000, env->bigendian);

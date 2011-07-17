@@ -131,6 +131,7 @@ static IO_WRITE_PROTO (adlib_write)
 #else
     status = OPLWrite (s->opl, a, val);
 #endif
+    (void)status;
 }
 
 static IO_READ_PROTO (adlib_read)

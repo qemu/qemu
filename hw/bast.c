@@ -291,6 +291,7 @@ static void stcb_init(ram_addr_t _ram_size,
             ret = load_image_targphys(filename,
                                       BAST_NOR_RO_BASE, BAST_NOR_SIZE);
             qemu_free(filename);
+            (void)ret;
         }
     }
     pflash_cfi02_register(BAST_NOR_RW_BASE, flash_mem, flash_bds,
