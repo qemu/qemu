@@ -13,6 +13,7 @@ ISADevice *isa_ide_init(int iobase, int iobase2, int isairq,
 /* ide-pci.c */
 void pci_cmd646_ide_init(PCIBus *bus, DriveInfo **hd_table,
                          int secondary_ide_enabled);
+PCIDevice *pci_piix3_xen_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn);
 PCIDevice *pci_piix3_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn);
 PCIDevice *pci_piix4_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn);
 void vt82c686b_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn);

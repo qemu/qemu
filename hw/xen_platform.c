@@ -76,6 +76,35 @@ static void log_writeb(PCIXenPlatformState *s, char val)
 }
 
 /* Xen Platform, Fixed IOPort */
+#define UNPLUG_ALL_IDE_DISKS 1
+#define UNPLUG_ALL_NICS 2
+#define UNPLUG_AUX_IDE_DISKS 4
+
+static void unplug_nic(PCIBus *b, PCIDevice *d)
+{
+    if (pci_get_word(d->config + PCI_CLASS_DEVICE) ==
+            PCI_CLASS_NETWORK_ETHERNET) {
+        qdev_unplug(&(d->qdev));
+    }
+}
+
+static void pci_unplug_nics(PCIBus *bus)
+{
+    pci_for_each_device(bus, 0, unplug_nic);
+}
+
+static void unplug_disks(PCIBus *b, PCIDevice *d)
+{
+    if (pci_get_word(d->config + PCI_CLASS_DEVICE) ==
+            PCI_CLASS_STORAGE_IDE) {
+        qdev_unplug(&(d->qdev));
+    }
+}
+
+static void pci_unplug_disks(PCIBus *bus)
+{
+    pci_for_each_device(bus, 0, unplug_disks);
+}
 
 static void platform_fixed_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
 {
@@ -83,10 +112,22 @@ static void platform_fixed_ioport_writew(void *opaque, uint32_t addr, uint32_t v
 
     switch (addr - XEN_PLATFORM_IOPORT) {
     case 0:
-        /* TODO: */
         /* Unplug devices.  Value is a bitmask of which devices to
            unplug, with bit 0 the IDE devices, bit 1 the network
            devices, and bit 2 the non-primary-master IDE devices. */
+        if (val & UNPLUG_ALL_IDE_DISKS) {
+            DPRINTF("unplug disks\n");
+            qemu_aio_flush();
+            bdrv_flush_all();
+            pci_unplug_disks(s->pci_dev.bus);
+        }
+        if (val & UNPLUG_ALL_NICS) {
+            DPRINTF("unplug nics\n");
+            pci_unplug_nics(s->pci_dev.bus);
+        }
+        if (val & UNPLUG_AUX_IDE_DISKS) {
+            DPRINTF("unplug auxiliary disks not supported\n");
+        }
         break;
     case 2:
         switch (val) {

@@ -155,7 +155,11 @@ static void pc_init1(ram_addr_t ram_size,
     ide_drive_get(hd, MAX_IDE_BUS);
     if (pci_enabled) {
         PCIDevice *dev;
-        dev = pci_piix3_ide_init(pci_bus, hd, piix3_devfn + 1);
+        if (xen_enabled()) {
+            dev = pci_piix3_xen_ide_init(pci_bus, hd, piix3_devfn + 1);
+        } else {
+            dev = pci_piix3_ide_init(pci_bus, hd, piix3_devfn + 1);
+        }
         idebus[0] = qdev_get_child_bus(&dev->qdev, "ide.0");
         idebus[1] = qdev_get_child_bus(&dev->qdev, "ide.1");
     } else {
