@@ -2864,6 +2864,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         break;
                     case 0x102: /* V9 fmovdcc %icc */
                         FMOVDCC(0);
+                        break;
                     case 0x103: /* V9 fmovqcc %icc */
                         CHECK_FPU_FEATURE(dc, FLOAT128);
                         FMOVQCC(0);
