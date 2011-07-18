@@ -33,7 +33,6 @@ typedef struct ds1225y_t
     uint32_t chip_size;
     QEMUFile *file;
     uint8_t *contents;
-    uint8_t protection;
 } ds1225y_t;
 
 
@@ -98,34 +97,6 @@ static void nvram_writel (void *opaque, target_phys_addr_t addr, uint32_t val)
     nvram_writeb(opaque, addr + 3, (val >> 24) & 0xff);
 }
 
-static void nvram_writeb_protected (void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-    ds1225y_t *s = opaque;
-
-    if (s->protection != 7) {
-#ifdef DEBUG_NVRAM
-    printf("nvram: prevent write of 0x%x at " TARGET_FMT_lx "\n", val, addr);
-#endif
-        return;
-    }
-
-    nvram_writeb(opaque, addr, val);
-}
-
-static void nvram_writew_protected (void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-    nvram_writeb_protected(opaque, addr, val & 0xff);
-    nvram_writeb_protected(opaque, addr + 1, (val >> 8) & 0xff);
-}
-
-static void nvram_writel_protected (void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-    nvram_writeb_protected(opaque, addr, val & 0xff);
-    nvram_writeb_protected(opaque, addr + 1, (val >> 8) & 0xff);
-    nvram_writeb_protected(opaque, addr + 2, (val >> 16) & 0xff);
-    nvram_writeb_protected(opaque, addr + 3, (val >> 24) & 0xff);
-}
-
 static CPUReadMemoryFunc * const nvram_read[] = {
     &nvram_readb,
     &nvram_readw,
@@ -138,23 +109,16 @@ static CPUWriteMemoryFunc * const nvram_write[] = {
     &nvram_writel,
 };
 
-static CPUWriteMemoryFunc * const nvram_write_protected[] = {
-    &nvram_writeb_protected,
-    &nvram_writew_protected,
-    &nvram_writel_protected,
-};
-
 /* Initialisation routine */
 void *ds1225y_init(target_phys_addr_t mem_base, const char *filename)
 {
     ds1225y_t *s;
-    int mem_indexRW, mem_indexRP;
+    int mem_indexRW;
     QEMUFile *file;
 
     s = qemu_mallocz(sizeof(ds1225y_t));
     s->chip_size = 0x2000; /* Fixed for ds1225y chip: 8 KiB */
     s->contents = qemu_mallocz(s->chip_size);
-    s->protection = 7;
 
     /* Read current file */
     file = qemu_fopen(filename, "rb");
@@ -174,9 +138,5 @@ void *ds1225y_init(target_phys_addr_t mem_base, const char *filename)
     mem_indexRW = cpu_register_io_memory(nvram_read, nvram_write, s,
                                          DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(mem_base, s->chip_size, mem_indexRW);
-    /* Read/write protected memory */
-    mem_indexRP = cpu_register_io_memory(nvram_read, nvram_write_protected, s,
-                                         DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(mem_base + s->chip_size, s->chip_size, mem_indexRP);
     return s;
 }
