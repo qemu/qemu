@@ -103,6 +103,10 @@ disable cs4231_mem_readl_reg(uint32_t reg, uint32_t ret) "read reg %d: 0x%08x"
 disable cs4231_mem_writel_reg(uint32_t reg, uint32_t old, uint32_t val) "write reg %d: 0x%08x -> 0x%08x"
 disable cs4231_mem_writel_dreg(uint32_t reg, uint32_t old, uint32_t val) "write dreg %d: 0x%02x -> 0x%02x"
 
+# hw/ds1225y.c
+disable nvram_read(uint32_t addr, uint32_t ret) "read addr %d: 0x%02x"
+disable nvram_write(uint32_t addr, uint32_t old, uint32_t val) "write addr %d: 0x%02x -> 0x%02x"
+
 # hw/eccmemctl.c
 disable ecc_mem_writel_mer(uint32_t val) "Write memory enable %08x"
 disable ecc_mem_writel_mdr(uint32_t val) "Write memory delay %08x"

@@ -24,9 +24,7 @@
 
 #include "hw.h"
 #include "mips.h"
-#include "nvram.h"
-
-//#define DEBUG_NVRAM
+#include "trace.h"
 
 typedef struct ds1225y_t
 {
@@ -42,10 +40,7 @@ static uint32_t nvram_readb (void *opaque, target_phys_addr_t addr)
     uint32_t val;
 
     val = s->contents[addr];
-
-#ifdef DEBUG_NVRAM
-    printf("nvram: read 0x%x at " TARGET_FMT_lx "\n", val, addr);
-#endif
+    trace_nvram_read(addr, val);
     return val;
 }
 
@@ -71,11 +66,10 @@ static void nvram_writeb (void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     ds1225y_t *s = opaque;
 
-#ifdef DEBUG_NVRAM
-    printf("nvram: write 0x%x at " TARGET_FMT_lx "\n", val, addr);
-#endif
+    val &= 0xff;
+    trace_nvram_write(addr, s->contents[addr], val);
 
-    s->contents[addr] = val & 0xff;
+    s->contents[addr] = val;
     if (s->file) {
         qemu_fseek(s->file, addr, SEEK_SET);
         qemu_put_byte(s->file, (int)val);
