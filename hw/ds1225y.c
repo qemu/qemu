@@ -22,21 +22,20 @@
  * THE SOFTWARE.
  */
 
-#include "hw.h"
-#include "mips.h"
+#include "sysbus.h"
 #include "trace.h"
 
-typedef struct ds1225y_t
-{
+typedef struct {
+    DeviceState qdev;
     uint32_t chip_size;
+    char *filename;
     QEMUFile *file;
     uint8_t *contents;
-} ds1225y_t;
-
+} NvRamState;
 
 static uint32_t nvram_readb (void *opaque, target_phys_addr_t addr)
 {
-    ds1225y_t *s = opaque;
+    NvRamState *s = opaque;
     uint32_t val;
 
     val = s->contents[addr];
@@ -64,7 +63,7 @@ static uint32_t nvram_readl (void *opaque, target_phys_addr_t addr)
 
 static void nvram_writeb (void *opaque, target_phys_addr_t addr, uint32_t val)
 {
-    ds1225y_t *s = opaque;
+    NvRamState *s = opaque;
 
     val &= 0xff;
     trace_nvram_write(addr, s->contents[addr], val);
@@ -103,34 +102,83 @@ static CPUWriteMemoryFunc * const nvram_write[] = {
     &nvram_writel,
 };
 
-/* Initialisation routine */
-void *ds1225y_init(target_phys_addr_t mem_base, const char *filename)
+static int nvram_post_load(void *opaque, int version_id)
 {
-    ds1225y_t *s;
-    int mem_indexRW;
-    QEMUFile *file;
+    NvRamState *s = opaque;
 
-    s = qemu_mallocz(sizeof(ds1225y_t));
-    s->chip_size = 0x2000; /* Fixed for ds1225y chip: 8 KiB */
-    s->contents = qemu_mallocz(s->chip_size);
-
-    /* Read current file */
-    file = qemu_fopen(filename, "rb");
-    if (file) {
-        /* Read nvram contents */
-        qemu_get_buffer(file, s->contents, s->chip_size);
-        qemu_fclose(file);
+    /* Close file, as filename may has changed in load/store process */
+    if (s->file) {
+        qemu_fclose(s->file);
     }
-    s->file = qemu_fopen(filename, "wb");
+
+    /* Write back nvram contents */
+    s->file = qemu_fopen(s->filename, "wb");
     if (s->file) {
         /* Write back contents, as 'wb' mode cleaned the file */
         qemu_put_buffer(s->file, s->contents, s->chip_size);
         qemu_fflush(s->file);
     }
 
-    /* Read/write memory */
-    mem_indexRW = cpu_register_io_memory(nvram_read, nvram_write, s,
-                                         DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(mem_base, s->chip_size, mem_indexRW);
-    return s;
+    return 0;
 }
+
+static const VMStateDescription vmstate_nvram = {
+    .name = "nvram",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .post_load = nvram_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_VARRAY_UINT32(contents, NvRamState, chip_size, 0,
+                              vmstate_info_uint8, uint8_t),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+typedef struct {
+    SysBusDevice busdev;
+    NvRamState nvram;
+} SysBusNvRamState;
+
+static int nvram_sysbus_initfn(SysBusDevice *dev)
+{
+    NvRamState *s = &FROM_SYSBUS(SysBusNvRamState, dev)->nvram;
+    QEMUFile *file;
+    int s_io;
+
+    s->contents = qemu_mallocz(s->chip_size);
+
+    s_io = cpu_register_io_memory(nvram_read, nvram_write, s,
+                                  DEVICE_NATIVE_ENDIAN);
+    sysbus_init_mmio(dev, s->chip_size, s_io);
+
+    /* Read current file */
+    file = qemu_fopen(s->filename, "rb");
+    if (file) {
+        /* Read nvram contents */
+        qemu_get_buffer(file, s->contents, s->chip_size);
+        qemu_fclose(file);
+    }
+    nvram_post_load(s, 0);
+
+    return 0;
+}
+
+static SysBusDeviceInfo nvram_sysbus_info = {
+    .qdev.name  = "ds1225y",
+    .qdev.size  = sizeof(SysBusNvRamState),
+    .qdev.vmsd  = &vmstate_nvram,
+    .init       = nvram_sysbus_initfn,
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_UINT32("size", SysBusNvRamState, nvram.chip_size, 0x2000),
+        DEFINE_PROP_STRING("filename", SysBusNvRamState, nvram.filename),
+        DEFINE_PROP_END_OF_LIST(),
+    },
+};
+
+static void nvram_register(void)
+{
+    sysbus_register_withprop(&nvram_sysbus_info);
+}
+
+device_init(nvram_register)
