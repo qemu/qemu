@@ -69,7 +69,7 @@ typedef struct {
     NICState *nic;
     NICConf conf;
     qemu_irq irq;
-    int mmio_index;
+    MemoryRegion mmio;
 } stellaris_enet_state;
 
 static void stellaris_enet_update(stellaris_enet_state *s)
@@ -130,7 +130,8 @@ static int stellaris_enet_can_receive(VLANClientState *nc)
     return (s->np < 31);
 }
 
-static uint32_t stellaris_enet_read(void *opaque, target_phys_addr_t offset)
+static uint64_t stellaris_enet_read(void *opaque, target_phys_addr_t offset,
+                                    unsigned size)
 {
     stellaris_enet_state *s = (stellaris_enet_state *)opaque;
     uint32_t val;
@@ -198,7 +199,7 @@ static uint32_t stellaris_enet_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void stellaris_enet_write(void *opaque, target_phys_addr_t offset,
-                        uint32_t value)
+                                 uint64_t value, unsigned size)
 {
     stellaris_enet_state *s = (stellaris_enet_state *)opaque;
 
@@ -303,17 +304,12 @@ static void stellaris_enet_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc * const stellaris_enet_readfn[] = {
-   stellaris_enet_read,
-   stellaris_enet_read,
-   stellaris_enet_read
+static const MemoryRegionOps stellaris_enet_ops = {
+    .read = stellaris_enet_read,
+    .write = stellaris_enet_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static CPUWriteMemoryFunc * const stellaris_enet_writefn[] = {
-   stellaris_enet_write,
-   stellaris_enet_write,
-   stellaris_enet_write
-};
 static void stellaris_enet_reset(stellaris_enet_state *s)
 {
     s->mdv = 0x80;
@@ -391,7 +387,7 @@ static void stellaris_enet_cleanup(VLANClientState *nc)
 
     unregister_savevm(&s->busdev.qdev, "stellaris_enet", s);
 
-    cpu_unregister_io_memory(s->mmio_index);
+    memory_region_destroy(&s->mmio);
 
     g_free(s);
 }
@@ -408,10 +404,9 @@ static int stellaris_enet_init(SysBusDevice *dev)
 {
     stellaris_enet_state *s = FROM_SYSBUS(stellaris_enet_state, dev);
 
-    s->mmio_index = cpu_register_io_memory(stellaris_enet_readfn,
-                                           stellaris_enet_writefn, s,
-                                           DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, s->mmio_index);
+    memory_region_init_io(&s->mmio, &stellaris_enet_ops, s, "stellaris_enet",
+                          0x1000);
+    sysbus_init_mmio_region(dev, &s->mmio);
     sysbus_init_irq(dev, &s->irq);
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
 
