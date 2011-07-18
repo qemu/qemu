@@ -3789,57 +3789,57 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fcmple16();
-                    gen_op_store_DT0_fpr(DFPREG(rd));
+                    gen_helper_fcmple16(cpu_dst);
+                    gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x022: /* VIS I fcmpne16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fcmpne16();
-                    gen_op_store_DT0_fpr(DFPREG(rd));
+                    gen_helper_fcmpne16(cpu_dst);
+                    gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x024: /* VIS I fcmple32 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fcmple32();
-                    gen_op_store_DT0_fpr(DFPREG(rd));
+                    gen_helper_fcmple32(cpu_dst);
+                    gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x026: /* VIS I fcmpne32 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fcmpne32();
-                    gen_op_store_DT0_fpr(DFPREG(rd));
+                    gen_helper_fcmpne32(cpu_dst);
+                    gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x028: /* VIS I fcmpgt16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fcmpgt16();
-                    gen_op_store_DT0_fpr(DFPREG(rd));
+                    gen_helper_fcmpgt16(cpu_dst);
+                    gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x02a: /* VIS I fcmpeq16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fcmpeq16();
-                    gen_op_store_DT0_fpr(DFPREG(rd));
+                    gen_helper_fcmpeq16(cpu_dst);
+                    gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x02c: /* VIS I fcmpgt32 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fcmpgt32();
-                    gen_op_store_DT0_fpr(DFPREG(rd));
+                    gen_helper_fcmpgt32(cpu_dst);
+                    gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x02e: /* VIS I fcmpeq32 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fcmpeq32();
-                    gen_op_store_DT0_fpr(DFPREG(rd));
+                    gen_helper_fcmpeq32(cpu_dst);
+                    gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x031: /* VIS I fmul8x16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
