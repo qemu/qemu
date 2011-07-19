@@ -784,5 +784,6 @@ void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev)
 
     hdev->started = false;
     qemu_free(hdev->log);
+    hdev->log = NULL;
     hdev->log_size = 0;
 }
