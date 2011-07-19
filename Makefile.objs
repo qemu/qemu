@@ -372,6 +372,12 @@ endif
 
 libcacard-y = cac.o event.o vcard.o vreader.o vcard_emul_nss.o vcard_emul_type.o card_7816.o
 
+######################################################################
+# qapi
+
+qapi-nested-y = qapi-visit-core.o
+qapi-obj-y = $(addprefix qapi/, $(qapi-nested-y))
+
 vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
 vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)
