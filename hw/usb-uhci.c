@@ -132,7 +132,7 @@ typedef struct UHCIPort {
 
 struct UHCIState {
     PCIDevice dev;
-    USBBus bus;
+    USBBus bus; /* Note unused when we're a companion controller */
     uint16_t cmd; /* cmd register */
     uint16_t status;
     uint16_t intr; /* interrupt enable register */
@@ -150,6 +150,10 @@ struct UHCIState {
     /* Active packets */
     QTAILQ_HEAD(,UHCIAsync) async_pending;
     uint8_t num_ports_vmstate;
+
+    /* Properties */
+    char *masterbus;
+    uint32_t firstport;
 };
 
 typedef struct UHCI_TD {
@@ -606,6 +610,8 @@ static void uhci_detach(USBPort *port1)
     UHCIState *s = port1->opaque;
     UHCIPort *port = &s->ports[port1->index];
 
+    uhci_async_cancel_device(s, port1->dev);
+
     /* set connect status */
     if (port->ctrl & UHCI_PORT_CCS) {
         port->ctrl &= ~UHCI_PORT_CCS;
@@ -620,11 +626,17 @@ static void uhci_detach(USBPort *port1)
     uhci_resume(s);
 }
 
-static void uhci_wakeup(USBDevice *dev)
+static void uhci_child_detach(USBPort *port1, USBDevice *child)
 {
-    USBBus *bus = usb_bus_from_device(dev);
-    UHCIState *s = container_of(bus, UHCIState, bus);
-    UHCIPort *port = s->ports + dev->port->index;
+    UHCIState *s = port1->opaque;
+
+    uhci_async_cancel_device(s, child);
+}
+
+static void uhci_wakeup(USBPort *port1)
+{
+    UHCIState *s = port1->opaque;
+    UHCIPort *port = &s->ports[port1->index];
 
     if (port->ctrl & UHCI_PORT_SUSPEND && !(port->ctrl & UHCI_PORT_RD)) {
         port->ctrl |= UHCI_PORT_RD;
@@ -657,7 +669,7 @@ static int uhci_broadcast_packet(UHCIState *s, USBPacket *p)
     return ret;
 }
 
-static void uhci_async_complete(USBDevice *dev, USBPacket *packet);
+static void uhci_async_complete(USBPort *port, USBPacket *packet);
 static void uhci_process_frame(UHCIState *s);
 
 /* return -1 if fatal error (frame must be stopped)
@@ -849,7 +861,7 @@ done:
     return len;
 }
 
-static void uhci_async_complete(USBDevice *dev, USBPacket *packet)
+static void uhci_async_complete(USBPort *port, USBPacket *packet)
 {
     UHCIAsync *async = container_of(packet, UHCIAsync, packet);
     UHCIState *s = async->uhci;
@@ -1096,22 +1108,15 @@ static void uhci_map(PCIDevice *pci_dev, int region_num,
     register_ioport_read(addr, 32, 1, uhci_ioport_readb, s);
 }
 
-static void uhci_device_destroy(USBBus *bus, USBDevice *dev)
-{
-    UHCIState *s = container_of(bus, UHCIState, bus);
-
-    uhci_async_cancel_device(s, dev);
-}
-
 static USBPortOps uhci_port_ops = {
     .attach = uhci_attach,
     .detach = uhci_detach,
+    .child_detach = uhci_child_detach,
     .wakeup = uhci_wakeup,
     .complete = uhci_async_complete,
 };
 
 static USBBusOps uhci_bus_ops = {
-    .device_destroy = uhci_device_destroy,
 };
 
 static int usb_uhci_common_initfn(PCIDevice *dev)
@@ -1125,11 +1130,22 @@ static int usb_uhci_common_initfn(PCIDevice *dev)
     pci_conf[PCI_INTERRUPT_PIN] = 4; // interrupt pin 3
     pci_conf[USB_SBRN] = USB_RELEASE_1; // release number
 
-    usb_bus_new(&s->bus, &uhci_bus_ops, &s->dev.qdev);
-    for(i = 0; i < NB_PORTS; i++) {
-        usb_register_port(&s->bus, &s->ports[i].port, s, i, &uhci_port_ops,
-                          USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
-        usb_port_location(&s->ports[i].port, NULL, i+1);
+    if (s->masterbus) {
+        USBPort *ports[NB_PORTS];
+        for(i = 0; i < NB_PORTS; i++) {
+            ports[i] = &s->ports[i].port;
+        }
+        if (usb_register_companion(s->masterbus, ports, NB_PORTS,
+                s->firstport, s, &uhci_port_ops,
+                USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL) != 0) {
+            return -1;
+        }
+    } else {
+        usb_bus_new(&s->bus, &uhci_bus_ops, &s->dev.qdev);
+        for (i = 0; i < NB_PORTS; i++) {
+            usb_register_port(&s->bus, &s->ports[i].port, s, i, &uhci_port_ops,
+                              USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
+        }
     }
     s->frame_timer = qemu_new_timer_ns(vm_clock, uhci_frame_timer, s);
     s->num_ports_vmstate = NB_PORTS;
@@ -1160,6 +1176,12 @@ static int usb_uhci_vt82c686b_initfn(PCIDevice *dev)
     return usb_uhci_common_initfn(dev);
 }
 
+static Property uhci_properties[] = {
+    DEFINE_PROP_STRING("masterbus", UHCIState, masterbus),
+    DEFINE_PROP_UINT32("firstport", UHCIState, firstport, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static PCIDeviceInfo uhci_info[] = {
     {
         .qdev.name    = "piix3-usb-uhci",
@@ -1170,6 +1192,7 @@ static PCIDeviceInfo uhci_info[] = {
         .device_id    = PCI_DEVICE_ID_INTEL_82371SB_2,
         .revision     = 0x01,
         .class_id     = PCI_CLASS_SERIAL_USB,
+        .qdev.props   = uhci_properties,
     },{
         .qdev.name    = "piix4-usb-uhci",
         .qdev.size    = sizeof(UHCIState),
@@ -1179,6 +1202,7 @@ static PCIDeviceInfo uhci_info[] = {
         .device_id    = PCI_DEVICE_ID_INTEL_82371AB_2,
         .revision     = 0x01,
         .class_id     = PCI_CLASS_SERIAL_USB,
+        .qdev.props   = uhci_properties,
     },{
         .qdev.name    = "vt82c686b-usb-uhci",
         .qdev.size    = sizeof(UHCIState),
@@ -1188,6 +1212,37 @@ static PCIDeviceInfo uhci_info[] = {
         .device_id    = PCI_DEVICE_ID_VIA_UHCI,
         .revision     = 0x01,
         .class_id     = PCI_CLASS_SERIAL_USB,
+        .qdev.props   = uhci_properties,
+    },{
+        .qdev.name    = "ich9-usb-uhci1",
+        .qdev.size    = sizeof(UHCIState),
+        .qdev.vmsd    = &vmstate_uhci,
+        .init         = usb_uhci_common_initfn,
+        .vendor_id    = PCI_VENDOR_ID_INTEL,
+        .device_id    = PCI_DEVICE_ID_INTEL_82801I_UHCI1,
+        .revision     = 0x03,
+        .class_id     = PCI_CLASS_SERIAL_USB,
+        .qdev.props   = uhci_properties,
+    },{
+        .qdev.name    = "ich9-usb-uhci2",
+        .qdev.size    = sizeof(UHCIState),
+        .qdev.vmsd    = &vmstate_uhci,
+        .init         = usb_uhci_common_initfn,
+        .vendor_id    = PCI_VENDOR_ID_INTEL,
+        .device_id    = PCI_DEVICE_ID_INTEL_82801I_UHCI2,
+        .revision     = 0x03,
+        .class_id     = PCI_CLASS_SERIAL_USB,
+        .qdev.props   = uhci_properties,
+    },{
+        .qdev.name    = "ich9-usb-uhci3",
+        .qdev.size    = sizeof(UHCIState),
+        .qdev.vmsd    = &vmstate_uhci,
+        .init         = usb_uhci_common_initfn,
+        .vendor_id    = PCI_VENDOR_ID_INTEL,
+        .device_id    = PCI_DEVICE_ID_INTEL_82801I_UHCI3,
+        .revision     = 0x03,
+        .class_id     = PCI_CLASS_SERIAL_USB,
+        .qdev.props   = uhci_properties,
     },{
         /* end of list */
     }
