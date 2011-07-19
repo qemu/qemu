@@ -636,6 +636,9 @@ int main(int argc, char **argv)
     g_log_set_default_handler(ga_log, s);
     g_log_set_fatal_mask(NULL, G_LOG_LEVEL_ERROR);
     s->logging_enabled = true;
+    s->command_state = ga_command_state_new();
+    ga_command_state_init(s, s->command_state);
+    ga_command_state_init_all(s->command_state);
     ga_state = s;
 
     module_call_init(MODULE_INIT_QAPI);
@@ -644,6 +647,7 @@ int main(int argc, char **argv)
 
     g_main_loop_run(ga_state->main_loop);
 
+    ga_command_state_cleanup_all(ga_state->command_state);
     unlink(pidfile);
 
     return 0;

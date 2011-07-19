@@ -14,10 +14,12 @@
 #include "qemu-common.h"
 
 #define QGA_VERSION "1.0"
+#define QGA_READ_COUNT_DEFAULT 4 << 10
 
 typedef struct GAState GAState;
 typedef struct GACommandState GACommandState;
 
+void ga_command_state_init(GAState *s, GACommandState *cs);
 void ga_command_state_add(GACommandState *cs,
                           void (*init)(void),
                           void (*cleanup)(void));
