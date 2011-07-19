@@ -693,6 +693,40 @@ struct target_rlimit {
 #define TARGET_RLIM_INFINITY	((target_ulong)~0UL)
 #endif
 
+#if defined(TARGET_MIPS)
+#define TARGET_RLIMIT_CPU		0
+#define TARGET_RLIMIT_FSIZE		1
+#define TARGET_RLIMIT_DATA		2
+#define TARGET_RLIMIT_STACK		3
+#define TARGET_RLIMIT_CORE		4
+#define TARGET_RLIMIT_RSS		7
+#define TARGET_RLIMIT_NPROC		8
+#define TARGET_RLIMIT_NOFILE		5
+#define TARGET_RLIMIT_MEMLOCK		9
+#define TARGET_RLIMIT_AS		6
+#define TARGET_RLIMIT_LOCKS		10
+#define TARGET_RLIMIT_SIGPENDING	11
+#define TARGET_RLIMIT_MSGQUEUE		12
+#define TARGET_RLIMIT_NICE		13
+#define TARGET_RLIMIT_RTPRIO		14
+#else
+#define TARGET_RLIMIT_CPU		0
+#define TARGET_RLIMIT_FSIZE		1
+#define TARGET_RLIMIT_DATA		2
+#define TARGET_RLIMIT_STACK		3
+#define TARGET_RLIMIT_CORE		4
+#define TARGET_RLIMIT_RSS		5
+#define TARGET_RLIMIT_NPROC		6
+#define TARGET_RLIMIT_NOFILE		7
+#define TARGET_RLIMIT_MEMLOCK		8
+#define TARGET_RLIMIT_AS		9
+#define TARGET_RLIMIT_LOCKS		10
+#define TARGET_RLIMIT_SIGPENDING	11
+#define TARGET_RLIMIT_MSGQUEUE		12
+#define TARGET_RLIMIT_NICE		13
+#define TARGET_RLIMIT_RTPRIO		14
+#endif
+
 struct target_pollfd {
     int fd;           /* file descriptor */
     short events;     /* requested events */
@@ -708,6 +742,10 @@ struct target_pollfd {
 #define TARGET_KDSKBMODE       0x4b45
 #define TARGET_KDGKBENT	       0x4B46	/* gets one entry in translation table */
 #define TARGET_KDGKBSENT       0x4B48	/* gets one function key string entry */
+#define TARGET_KDGKBLED        0x4B64	/* get led flags (not lights) */
+#define TARGET_KDSKBLED        0x4B65	/* set led flags (not lights) */
+#define TARGET_KDGETLED        0x4B31	/* return current led state */
+#define TARGET_KDSETLED        0x4B32	/* set led state [lights, not flags] */
 
 #define TARGET_SIOCATMARK      0x8905
 
@@ -928,6 +966,11 @@ struct target_pollfd {
 #define TARGET_FBIOGET_VSCREENINFO    0x4600
 #define TARGET_FBIOPUT_VSCREENINFO    0x4601
 #define TARGET_FBIOGET_FSCREENINFO    0x4602
+#define TARGET_FBIOGETCMAP            0x4604
+#define TARGET_FBIOPUTCMAP            0x4605
+#define TARGET_FBIOPAN_DISPLAY        0x4606
+#define TARGET_FBIOGET_CON2FBMAP      0x460F
+#define TARGET_FBIOPUT_CON2FBMAP      0x4610
 
 /* vt ioctls */
 #define TARGET_VT_OPENQRY             0x5600
@@ -936,6 +979,10 @@ struct target_pollfd {
 #define TARGET_VT_WAITACTIVE          0x5607
 #define TARGET_VT_LOCKSWITCH          0x560b
 #define TARGET_VT_UNLOCKSWITCH        0x560c
+#define TARGET_VT_GETMODE             0x5601
+#define TARGET_VT_SETMODE             0x5602
+#define TARGET_VT_RELDISP             0x5605
+#define TARGET_VT_DISALLOCATE         0x5608
 
 /* from asm/termbits.h */
 
@@ -2280,3 +2327,7 @@ struct target_epoll_event {
     target_epoll_data_t data;
 };
 #endif
+struct target_rlimit64 {
+    uint64_t rlim_cur;
+    uint64_t rlim_max;
+};

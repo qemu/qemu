@@ -364,6 +364,16 @@
 #define TARGET_NR_sendmsg		360 /* new */
 #define TARGET_NR_recvmsg		361 /* new */
 #define TARGET_NR_accept04		362 /* new */
-
-#define TARGET_NR_syscalls		363
+#define TARGET_NR_preadv                363 /* new */
+#define TARGET_NR_pwritev               364 /* new */
+#define TARGET_NR_rt_tgsigqueueinfo     365 /* new */
+#define TARGET_NR_perf_event_open       366 /* new */
+#define TARGET_NR_recvmmsg              367 /* new */
+#define TARGET_NR_fanotify_init         368
+#define TARGET_NR_fanotify_mark         369
+#define TARGET_NR_prlimit64             370
+#define TARGET_NR_name_to_handle_at     371
+#define TARGET_NR_open_by_handle_at     372
+#define TARGET_NR_clock_adjtime         373
+#define TARGET_NR_syncfs                374
 

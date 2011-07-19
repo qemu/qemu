@@ -293,3 +293,15 @@
 #define TARGET_NR_dup3			292
 #define TARGET_NR_pipe2		293
 #define TARGET_NR_inotify_init1	294
+#define TARGET_NR_preadv                295
+#define TARGET_NR_pwritev               296
+#define TARGET_NR_rt_tgsigqueueinfo     297
+#define TARGET_NR_perf_event_open       298
+#define TARGET_NR_recvmmsg              299
+#define TARGET_NR_fanotify_init         300
+#define TARGET_NR_fanotify_mark         301
+#define TARGET_NR_prlimit64             302
+#define TARGET_NR_name_to_handle_at     303
+#define TARGET_NR_open_by_handle_at     304
+#define TARGET_NR_clock_adjtime         305
+#define TARGET_NR_syncfs                306

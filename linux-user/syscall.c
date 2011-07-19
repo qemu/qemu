@@ -559,11 +559,37 @@ _syscall6(int, sys_pselect6, int, nfds, fd_set *, readfds, fd_set *, writefds,
           fd_set *, exceptfds, struct timespec *, timeout, void *, sig);
 #endif
 
+#if defined(TARGET_NR_prlimit64)
+#ifndef __NR_prlimit64
+# define __NR_prlimit64 -1
+#endif
+#define __NR_sys_prlimit64 __NR_prlimit64
+/* The glibc rlimit structure may not be that used by the underlying syscall */
+struct host_rlimit64 {
+    uint64_t rlim_cur;
+    uint64_t rlim_max;
+};
+_syscall4(int, sys_prlimit64, pid_t, pid, int, resource,
+          const struct host_rlimit64 *, new_limit,
+          struct host_rlimit64 *, old_limit)
+#endif
+
 extern int personality(int);
 extern int flock(int, int);
 extern int setfsuid(int);
 extern int setfsgid(int);
 extern int setgroups(int, gid_t *);
+
+/* ARM EABI and MIPS expect 64bit types aligned even on pairs or registers */
+#ifdef TARGET_ARM 
+static inline int regpairs_aligned(void *cpu_env) {
+    return ((((CPUARMState *)cpu_env)->eabi) == 1) ;
+}
+#elif defined(TARGET_MIPS)
+static inline int regpairs_aligned(void *cpu_env) { return 1; }
+#else
+static inline int regpairs_aligned(void *cpu_env) { return 0; }
+#endif
 
 #define ERRNO_TABLE_SIZE 1200
 
@@ -919,18 +945,68 @@ static inline abi_long host_to_target_rusage(abi_ulong target_addr,
 
 static inline rlim_t target_to_host_rlim(target_ulong target_rlim)
 {
-    if (target_rlim == TARGET_RLIM_INFINITY)
-        return RLIM_INFINITY;
+    target_ulong target_rlim_swap;
+    rlim_t result;
+    
+    target_rlim_swap = tswapl(target_rlim);
+    if (target_rlim_swap == TARGET_RLIM_INFINITY || target_rlim_swap != (rlim_t)target_rlim_swap)
+        result = RLIM_INFINITY;
     else
-        return tswapl(target_rlim);
+        result = target_rlim_swap;
+    
+    return result;
 }
 
 static inline target_ulong host_to_target_rlim(rlim_t rlim)
 {
+    target_ulong target_rlim_swap;
+    target_ulong result;
+    
     if (rlim == RLIM_INFINITY || rlim != (target_long)rlim)
-        return TARGET_RLIM_INFINITY;
+        target_rlim_swap = TARGET_RLIM_INFINITY;
     else
-        return tswapl(rlim);
+        target_rlim_swap = rlim;
+    result = tswapl(target_rlim_swap);
+    
+    return result;
+}
+
+static inline int target_to_host_resource(int code)
+{
+    switch (code) {
+    case TARGET_RLIMIT_AS:
+        return RLIMIT_AS;
+    case TARGET_RLIMIT_CORE:
+        return RLIMIT_CORE;
+    case TARGET_RLIMIT_CPU:
+        return RLIMIT_CPU;
+    case TARGET_RLIMIT_DATA:
+        return RLIMIT_DATA;
+    case TARGET_RLIMIT_FSIZE:
+        return RLIMIT_FSIZE;
+    case TARGET_RLIMIT_LOCKS:
+        return RLIMIT_LOCKS;
+    case TARGET_RLIMIT_MEMLOCK:
+        return RLIMIT_MEMLOCK;
+    case TARGET_RLIMIT_MSGQUEUE:
+        return RLIMIT_MSGQUEUE;
+    case TARGET_RLIMIT_NICE:
+        return RLIMIT_NICE;
+    case TARGET_RLIMIT_NOFILE:
+        return RLIMIT_NOFILE;
+    case TARGET_RLIMIT_NPROC:
+        return RLIMIT_NPROC;
+    case TARGET_RLIMIT_RSS:
+        return RLIMIT_RSS;
+    case TARGET_RLIMIT_RTPRIO:
+        return RLIMIT_RTPRIO;
+    case TARGET_RLIMIT_SIGPENDING:
+        return RLIMIT_SIGPENDING;
+    case TARGET_RLIMIT_STACK:
+        return RLIMIT_STACK;
+    default:
+        return code;
+    }
 }
 
 static inline abi_long copy_from_user_timeval(struct timeval *tv,
@@ -4310,13 +4386,10 @@ static inline abi_long target_truncate64(void *cpu_env, const char *arg1,
                                          abi_long arg3,
                                          abi_long arg4)
 {
-#ifdef TARGET_ARM
-    if (((CPUARMState *)cpu_env)->eabi)
-      {
+    if (regpairs_aligned(cpu_env)) {
         arg2 = arg3;
         arg3 = arg4;
-      }
-#endif
+    }
     return get_errno(truncate64(arg1, target_offset64(arg2, arg3)));
 }
 #endif
@@ -4327,13 +4400,10 @@ static inline abi_long target_ftruncate64(void *cpu_env, abi_long arg1,
                                           abi_long arg3,
                                           abi_long arg4)
 {
-#ifdef TARGET_ARM
-    if (((CPUARMState *)cpu_env)->eabi)
-      {
+    if (regpairs_aligned(cpu_env)) {
         arg2 = arg3;
         arg3 = arg4;
-      }
-#endif
+    }
     return get_errno(ftruncate64(arg1, target_offset64(arg2, arg3)));
 }
 #endif
@@ -5543,7 +5613,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
     case TARGET_NR_setrlimit:
         {
-            int resource = arg1;
+            int resource = target_to_host_resource(arg1);
             struct target_rlimit *target_rlim;
             struct rlimit rlim;
             if (!lock_user_struct(VERIFY_READ, target_rlim, arg2, 1))
@@ -5556,7 +5626,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
     case TARGET_NR_getrlimit:
         {
-            int resource = arg1;
+            int resource = target_to_host_resource(arg1);
             struct target_rlimit *target_rlim;
             struct rlimit rlim;
 
@@ -5684,6 +5754,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
                 if (arg_sigset) {
                     sig.set = &set;
+                    if (arg_sigsize != sizeof(*target_sigset)) {
+                        /* Like the kernel, we enforce correct size sigsets */
+                        ret = -TARGET_EINVAL;
+                        goto fail;
+                    }
                     target_sigset = lock_user(VERIFY_READ, arg_sigset,
                                               sizeof(*target_sigset), 1);
                     if (!target_sigset) {
@@ -6787,20 +6862,16 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_pread
     case TARGET_NR_pread:
-#ifdef TARGET_ARM
-        if (((CPUARMState *)cpu_env)->eabi)
+        if (regpairs_aligned(cpu_env))
             arg4 = arg5;
-#endif
         if (!(p = lock_user(VERIFY_WRITE, arg2, arg3, 0)))
             goto efault;
         ret = get_errno(pread(arg1, p, arg3, arg4));
         unlock_user(p, arg2, ret);
         break;
     case TARGET_NR_pwrite:
-#ifdef TARGET_ARM
-        if (((CPUARMState *)cpu_env)->eabi)
+        if (regpairs_aligned(cpu_env))
             arg4 = arg5;
-#endif
         if (!(p = lock_user(VERIFY_READ, arg2, arg3, 1)))
             goto efault;
         ret = get_errno(pwrite(arg1, p, arg3, arg4));
@@ -6860,7 +6931,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_ugetrlimit:
     {
 	struct rlimit rlim;
-	ret = get_errno(getrlimit(arg1, &rlim));
+	int resource = target_to_host_resource(arg1);
+	ret = get_errno(getrlimit(resource, &rlim));
 	if (!is_error(ret)) {
 	    struct target_rlimit *target_rlim;
             if (!lock_user_struct(VERIFY_WRITE, target_rlim, arg2, 0))
@@ -7550,14 +7622,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #ifdef TARGET_NR_readahead
     case TARGET_NR_readahead:
 #if TARGET_ABI_BITS == 32
-#ifdef TARGET_ARM
-        if (((CPUARMState *)cpu_env)->eabi)
-        {
+        if (regpairs_aligned(cpu_env)) {
             arg2 = arg3;
             arg3 = arg4;
             arg4 = arg5;
         }
-#endif
         ret = get_errno(readahead(arg1, ((off64_t)arg3 << 32) | arg2, arg4));
 #else
         ret = get_errno(readahead(arg1, arg2, arg3));
@@ -7989,6 +8058,34 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
     }
 #endif
+#endif
+#ifdef TARGET_NR_prlimit64
+    case TARGET_NR_prlimit64:
+    {
+        /* args: pid, resource number, ptr to new rlimit, ptr to old rlimit */
+        struct target_rlimit64 *target_rnew, *target_rold;
+        struct host_rlimit64 rnew, rold, *rnewp = 0;
+        if (arg3) {
+            if (!lock_user_struct(VERIFY_READ, target_rnew, arg3, 1)) {
+                goto efault;
+            }
+            rnew.rlim_cur = tswap64(target_rnew->rlim_cur);
+            rnew.rlim_max = tswap64(target_rnew->rlim_max);
+            unlock_user_struct(target_rnew, arg3, 0);
+            rnewp = &rnew;
+        }
+
+        ret = get_errno(sys_prlimit64(arg1, arg2, rnewp, arg4 ? &rold : 0));
+        if (!is_error(ret) && arg4) {
+            if (!lock_user_struct(VERIFY_WRITE, target_rold, arg4, 1)) {
+                goto efault;
+            }
+            target_rold->rlim_cur = tswap64(rold.rlim_cur);
+            target_rold->rlim_max = tswap64(rold.rlim_max);
+            unlock_user_struct(target_rold, arg4, 1);
+        }
+        break;
+    }
 #endif
     default:
     unimplemented:
