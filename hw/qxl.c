@@ -336,6 +336,21 @@ static void interface_get_init_info(QXLInstance *sin, QXLDevInitInfo *info)
     info->n_surfaces = NUM_SURFACES;
 }
 
+static const char *qxl_mode_to_string(int mode)
+{
+    switch (mode) {
+    case QXL_MODE_COMPAT:
+        return "compat";
+    case QXL_MODE_NATIVE:
+        return "native";
+    case QXL_MODE_UNDEFINED:
+        return "undefined";
+    case QXL_MODE_VGA:
+        return "vga";
+    }
+    return "INVALID";
+}
+
 /* called from spice server thread context only */
 static int interface_get_command(QXLInstance *sin, struct QXLCommandExt *ext)
 {
@@ -358,18 +373,19 @@ static int interface_get_command(QXLInstance *sin, struct QXLCommandExt *ext)
         }
         qemu_mutex_unlock(&qxl->ssd.lock);
         if (ret) {
+            dprint(qxl, 2, "%s %s\n", __FUNCTION__, qxl_mode_to_string(qxl->mode));
             qxl_log_command(qxl, "vga", ext);
         }
         return ret;
     case QXL_MODE_COMPAT:
     case QXL_MODE_NATIVE:
     case QXL_MODE_UNDEFINED:
-        dprint(qxl, 2, "%s: %s\n", __FUNCTION__,
-               qxl->cmdflags ? "compat" : "native");
+        dprint(qxl, 4, "%s: %s\n", __FUNCTION__, qxl_mode_to_string(qxl->mode));
         ring = &qxl->ram->cmd_ring;
         if (SPICE_RING_IS_EMPTY(ring)) {
             return false;
         }
+        dprint(qxl, 2, "%s: %s\n", __FUNCTION__, qxl_mode_to_string(qxl->mode));
         SPICE_RING_CONS_ITEM(ring, cmd);
         ext->cmd      = *cmd;
         ext->group_id = MEMSLOT_GROUP_GUEST;
@@ -926,6 +942,8 @@ static void ioport_write(void *opaque, uint32_t addr, uint32_t val)
     case QXL_IO_MEMSLOT_ADD:
     case QXL_IO_MEMSLOT_DEL:
     case QXL_IO_CREATE_PRIMARY:
+    case QXL_IO_UPDATE_IRQ:
+    case QXL_IO_LOG:
         break;
     default:
         if (d->mode == QXL_MODE_NATIVE || d->mode == QXL_MODE_COMPAT)
@@ -969,7 +987,8 @@ static void ioport_write(void *opaque, uint32_t addr, uint32_t val)
         break;
     case QXL_IO_LOG:
         if (d->guestdebug) {
-            fprintf(stderr, "qxl/guest: %s", d->ram->log_buf);
+            fprintf(stderr, "qxl/guest-%d: %ld: %s", d->id,
+                    qemu_get_clock_ns(vm_clock), d->ram->log_buf);
         }
         break;
     case QXL_IO_RESET:
@@ -993,7 +1012,7 @@ static void ioport_write(void *opaque, uint32_t addr, uint32_t val)
         break;
     case QXL_IO_DESTROY_PRIMARY:
         PANIC_ON(val != 0);
-        dprint(d, 1, "QXL_IO_DESTROY_PRIMARY\n");
+        dprint(d, 1, "QXL_IO_DESTROY_PRIMARY (%s)\n", qxl_mode_to_string(d->mode));
         qxl_destroy_primary(d);
         break;
     case QXL_IO_DESTROY_SURFACE_WAIT:
@@ -1167,11 +1186,14 @@ static void qxl_vm_change_state_handler(void *opaque, int running, int reason)
     qemu_spice_vm_change_state_handler(&qxl->ssd, running, reason);
 
     if (!running && qxl->mode == QXL_MODE_NATIVE) {
-        /* dirty all vram (which holds surfaces) to make sure it is saved */
+        /* dirty all vram (which holds surfaces) and devram (primary surface)
+         * to make sure they are saved */
         /* FIXME #1: should go out during "live" stage */
         /* FIXME #2: we only need to save the areas which are actually used */
-        ram_addr_t addr = qxl->vram_offset;
-        qxl_set_dirty(addr, addr + qxl->vram_size);
+        ram_addr_t vram_addr = qxl->vram_offset;
+        ram_addr_t surface0_addr = qxl->vga.vram_offset + qxl->shadow_rom.draw_area_offset;
+        qxl_set_dirty(vram_addr, vram_addr + qxl->vram_size);
+        qxl_set_dirty(surface0_addr, surface0_addr + qxl->shadow_rom.surface0_area_size);
     }
 }
 
@@ -1207,7 +1229,6 @@ static DisplayChangeListener display_listener = {
 static int qxl_init_common(PCIQXLDevice *qxl)
 {
     uint8_t* config = qxl->pci.config;
-    uint32_t pci_device_id;
     uint32_t pci_device_rev;
     uint32_t io_size;
 
@@ -1218,20 +1239,14 @@ static int qxl_init_common(PCIQXLDevice *qxl)
 
     switch (qxl->revision) {
     case 1: /* spice 0.4 -- qxl-1 */
-        pci_device_id  = QXL_DEVICE_ID_STABLE;
         pci_device_rev = QXL_REVISION_STABLE_V04;
         break;
     case 2: /* spice 0.6 -- qxl-2 */
-        pci_device_id  = QXL_DEVICE_ID_STABLE;
+    default:
         pci_device_rev = QXL_REVISION_STABLE_V06;
-        break;
-    default: /* experimental */
-        pci_device_id  = QXL_DEVICE_ID_DEVEL;
-        pci_device_rev = 1;
         break;
     }
 
-    pci_config_set_device_id(config, pci_device_id);
     pci_set_byte(&config[PCI_REVISION_ID], pci_device_rev);
     pci_set_byte(&config[PCI_INTERRUPT_PIN], 1);
 
@@ -1375,7 +1390,8 @@ static int qxl_post_load(void *opaque, int version)
 
     d->modes = (QXLModes*)((uint8_t*)d->rom + d->rom->modes_offset);
 
-    dprint(d, 1, "%s: restore mode\n", __FUNCTION__);
+    dprint(d, 1, "%s: restore mode (%s)\n", __FUNCTION__,
+        qxl_mode_to_string(d->mode));
     newmode = d->mode;
     d->mode = QXL_MODE_UNDEFINED;
     switch (newmode) {
@@ -1492,6 +1508,7 @@ static PCIDeviceInfo qxl_info_primary = {
     .config_write = qxl_write_config,
     .romfile      = "vgabios-qxl.bin",
     .vendor_id    = REDHAT_PCI_VENDOR_ID,
+    .device_id    = QXL_DEVICE_ID_STABLE,
     .class_id     = PCI_CLASS_DISPLAY_VGA,
     .qdev.props = (Property[]) {
         DEFINE_PROP_UINT32("ram_size", PCIQXLDevice, vga.vram_size, 64 * 1024 * 1024),
@@ -1512,6 +1529,7 @@ static PCIDeviceInfo qxl_info_secondary = {
     .qdev.vmsd    = &qxl_vmstate,
     .init         = qxl_init_secondary,
     .vendor_id    = REDHAT_PCI_VENDOR_ID,
+    .device_id    = QXL_DEVICE_ID_STABLE,
     .class_id     = PCI_CLASS_DISPLAY_OTHER,
     .qdev.props = (Property[]) {
         DEFINE_PROP_UINT32("ram_size", PCIQXLDevice, vga.vram_size, 64 * 1024 * 1024),

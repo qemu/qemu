@@ -602,7 +602,10 @@ void qemu_spice_init(void)
 
     qemu_opt_foreach(opts, add_channel, NULL, 0);
 
-    spice_server_init(spice_server, &core_interface);
+    if (0 != spice_server_init(spice_server, &core_interface)) {
+        fprintf(stderr, "failed to initialize spice server");
+        exit(1);
+    };
     using_spice = 1;
 
     migration_state.notify = migration_state_notifier;
