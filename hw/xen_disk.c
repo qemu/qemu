@@ -616,12 +616,14 @@ static int blk_init(struct XenDevice *xendev)
 {
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
     int index, qflags, have_barriers, info = 0;
-    char *h;
 
     /* read xenstore entries */
     if (blkdev->params == NULL) {
+        char *h = NULL;
         blkdev->params = xenstore_read_be_str(&blkdev->xendev, "params");
-        h = strchr(blkdev->params, ':');
+        if (blkdev->params != NULL) {
+            h = strchr(blkdev->params, ':');
+        }
         if (h != NULL) {
             blkdev->fileproto = blkdev->params;
             blkdev->filename  = h+1;
@@ -630,6 +632,9 @@ static int blk_init(struct XenDevice *xendev)
             blkdev->fileproto = "<unset>";
             blkdev->filename  = blkdev->params;
         }
+    }
+    if (!strcmp("aio", blkdev->fileproto)) {
+        blkdev->fileproto = "raw";
     }
     if (blkdev->mode == NULL) {
         blkdev->mode = xenstore_read_be_str(&blkdev->xendev, "mode");
@@ -649,7 +654,7 @@ static int blk_init(struct XenDevice *xendev)
         blkdev->mode == NULL   ||
         blkdev->type == NULL   ||
         blkdev->dev == NULL) {
-        return -1;
+        goto out_error;
     }
 
     /* read-only ? */
@@ -672,10 +677,15 @@ static int blk_init(struct XenDevice *xendev)
         /* setup via xenbus -> create new block driver instance */
         xen_be_printf(&blkdev->xendev, 2, "create new bdrv (xenbus setup)\n");
         blkdev->bs = bdrv_new(blkdev->dev);
-        if (bdrv_open(blkdev->bs, blkdev->filename, qflags,
-                      bdrv_find_whitelisted_format(blkdev->fileproto)) != 0) {
-            bdrv_delete(blkdev->bs);
-            return -1;
+        if (blkdev->bs) {
+            if (bdrv_open(blkdev->bs, blkdev->filename, qflags,
+                        bdrv_find_whitelisted_format(blkdev->fileproto)) != 0) {
+                bdrv_delete(blkdev->bs);
+                blkdev->bs = NULL;
+            }
+        }
+        if (!blkdev->bs) {
+            goto out_error;
         }
     } else {
         /* setup via qemu cmdline -> already setup for us */
@@ -704,6 +714,19 @@ static int blk_init(struct XenDevice *xendev)
     xenstore_write_be_int(&blkdev->xendev, "sectors",
                           blkdev->file_size / blkdev->file_blk);
     return 0;
+
+out_error:
+    qemu_free(blkdev->params);
+    blkdev->params = NULL;
+    qemu_free(blkdev->mode);
+    blkdev->mode = NULL;
+    qemu_free(blkdev->type);
+    blkdev->type = NULL;
+    qemu_free(blkdev->dev);
+    blkdev->dev = NULL;
+    qemu_free(blkdev->devtype);
+    blkdev->devtype = NULL;
+    return -1;
 }
 
 static int blk_connect(struct XenDevice *xendev)

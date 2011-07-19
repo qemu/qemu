@@ -347,13 +347,6 @@ static void xenfb_mouse_event(void *opaque,
 
 static int input_init(struct XenDevice *xendev)
 {
-    struct XenInput *in = container_of(xendev, struct XenInput, c.xendev);
-
-    if (!in->c.ds) {
-        xen_be_printf(xendev, 1, "ds not set (yet)\n");
-	return -1;
-    }
-
     xenstore_write_be_int(xendev, "feature-abs-pointer", 1);
     return 0;
 }
@@ -366,6 +359,18 @@ static int input_connect(struct XenDevice *xendev)
     if (xenstore_read_fe_int(xendev, "request-abs-pointer",
                              &in->abs_pointer_wanted) == -1)
 	in->abs_pointer_wanted = 0;
+
+    if (!in->c.ds) {
+        char *vfb = xenstore_read_str(NULL, "device/vfb");
+        if (vfb == NULL) {
+            /* there is no vfb, run vkbd on its own */
+            in->c.ds = get_displaystate();
+        } else {
+            qemu_free(vfb);
+            xen_be_printf(xendev, 1, "ds not set (yet)\n");
+            return -1;
+        }
+    }
 
     rc = common_bind(&in->c);
     if (rc != 0)

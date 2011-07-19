@@ -410,9 +410,9 @@ disable xen_ram_alloc(unsigned long ram_addr, unsigned long size) "requested: %#
 disable xen_client_set_memory(uint64_t start_addr, unsigned long size, unsigned long phys_offset, bool log_dirty) "%#"PRIx64" size %#lx, offset %#lx, log_dirty %i"
 
 # xen-mapcache.c
-disable qemu_map_cache(uint64_t phys_addr) "want %#"PRIx64""
-disable qemu_remap_bucket(uint64_t index) "index %#"PRIx64""
-disable qemu_map_cache_return(void* ptr) "%p"
+disable xen_map_cache(uint64_t phys_addr) "want %#"PRIx64""
+disable xen_remap_bucket(uint64_t index) "index %#"PRIx64""
+disable xen_map_cache_return(void* ptr) "%p"
 disable xen_map_block(uint64_t phys_addr, uint64_t size) "%#"PRIx64", size %#"PRIx64""
 disable xen_unmap_block(void* addr, unsigned long size) "%p, size %#lx"
 

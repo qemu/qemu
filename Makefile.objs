@@ -155,8 +155,8 @@ slirp-obj-y += tcp_subr.o tcp_timer.o udp.o bootp.o tftp.o
 common-obj-$(CONFIG_SLIRP) += $(addprefix slirp/, $(slirp-obj-y))
 
 # xen backend driver support
-common-obj-$(CONFIG_XEN) += xen_backend.o xen_devconfig.o
-common-obj-$(CONFIG_XEN) += xen_console.o xenfb.o xen_disk.o xen_nic.o
+common-obj-$(CONFIG_XEN_BACKEND) += xen_backend.o xen_devconfig.o
+common-obj-$(CONFIG_XEN_BACKEND) += xen_console.o xenfb.o xen_disk.o xen_nic.o
 
 ######################################################################
 # libuser
