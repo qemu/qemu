@@ -312,3 +312,15 @@ found:
     c->entries[i].dirty = true;
 }
 
+bool qcow2_cache_set_writethrough(BlockDriverState *bs, Qcow2Cache *c,
+    bool enable)
+{
+    bool old = c->writethrough;
+
+    if (!old && enable) {
+        qcow2_cache_flush(bs, c);
+    }
+
+    c->writethrough = enable;
+    return old;
+}
