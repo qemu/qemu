@@ -35,5 +35,7 @@ typedef struct QmpCommand
 
 void qmp_register_command(const char *name, QmpCommandFunc *fn);
 QmpCommand *qmp_find_command(const char *name);
+QObject *qmp_dispatch(QObject *request);
 
 #endif
+
