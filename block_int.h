@@ -39,6 +39,7 @@
 #define BLOCK_OPT_CLUSTER_SIZE  "cluster_size"
 #define BLOCK_OPT_TABLE_SIZE    "table_size"
 #define BLOCK_OPT_PREALLOC      "preallocation"
+#define BLOCK_OPT_SUBFMT        "subformat"
 
 typedef struct AIOPool {
     void (*cancel)(BlockDriverAIOCB *acb);
