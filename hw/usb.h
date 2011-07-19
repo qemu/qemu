@@ -252,8 +252,18 @@ struct USBDeviceInfo {
 typedef struct USBPortOps {
     void (*attach)(USBPort *port);
     void (*detach)(USBPort *port);
-    void (*wakeup)(USBDevice *dev);
-    void (*complete)(USBDevice *dev, USBPacket *p);
+    /*
+     * This gets called when a device downstream from the device attached to
+     * the port (iow attached through a hub) gets detached.
+     */
+    void (*child_detach)(USBPort *port, USBDevice *child);
+    void (*wakeup)(USBPort *port);
+    /*
+     * Note that port->dev will be different then the device from which
+     * the packet originated when a hub is involved, if you want the orginating
+     * device use p->owner
+     */
+    void (*complete)(USBPort *port, USBPacket *p);
 } USBPortOps;
 
 /* USB port on which a device can be connected */
@@ -344,7 +354,8 @@ struct USBBus {
 };
 
 struct USBBusOps {
-    void (*device_destroy)(USBBus *bus, USBDevice *dev);
+    int (*register_companion)(USBBus *bus, USBPort *ports[],
+                              uint32_t portcount, uint32_t firstport);
 };
 
 void usb_bus_new(USBBus *bus, USBBusOps *ops, DeviceState *host);
@@ -356,6 +367,9 @@ USBDevice *usb_create_simple(USBBus *bus, const char *name);
 USBDevice *usbdevice_create(const char *cmdline);
 void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,
                        USBPortOps *ops, int speedmask);
+int usb_register_companion(const char *masterbus, USBPort *ports[],
+                           uint32_t portcount, uint32_t firstport,
+                           void *opaque, USBPortOps *ops, int speedmask);
 void usb_port_location(USBPort *downstream, USBPort *upstream, int portnr);
 void usb_unregister_port(USBBus *bus, USBPort *port);
 int usb_device_attach(USBDevice *dev);

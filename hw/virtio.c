@@ -449,9 +449,17 @@ int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
         struct iovec *sg;
 
         if (vring_desc_flags(desc_pa, i) & VRING_DESC_F_WRITE) {
+            if (elem->in_num >= ARRAY_SIZE(elem->in_sg)) {
+                error_report("Too many write descriptors in indirect table");
+                exit(1);
+            }
             elem->in_addr[elem->in_num] = vring_desc_addr(desc_pa, i);
             sg = &elem->in_sg[elem->in_num++];
         } else {
+            if (elem->out_num >= ARRAY_SIZE(elem->out_sg)) {
+                error_report("Too many read descriptors in indirect table");
+                exit(1);
+            }
             elem->out_addr[elem->out_num] = vring_desc_addr(desc_pa, i);
             sg = &elem->out_sg[elem->out_num++];
         }

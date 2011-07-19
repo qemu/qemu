@@ -82,12 +82,10 @@ static int usb_qdev_init(DeviceState *qdev, DeviceInfo *base)
 static int usb_qdev_exit(DeviceState *qdev)
 {
     USBDevice *dev = DO_UPCAST(USBDevice, qdev, qdev);
-    USBBus *bus = usb_bus_from_device(dev);
 
     if (dev->attached) {
         usb_device_detach(dev);
     }
-    bus->ops->device_destroy(bus, dev);
     if (dev->info->handle_destroy) {
         dev->info->handle_destroy(dev);
     }
@@ -140,17 +138,53 @@ USBDevice *usb_create_simple(USBBus *bus, const char *name)
     return dev;
 }
 
-void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,
-                       USBPortOps *ops, int speedmask)
+static void usb_fill_port(USBPort *port, void *opaque, int index,
+                          USBPortOps *ops, int speedmask)
 {
-    port->opaque = opaque;
-    port->index = index;
     port->opaque = opaque;
     port->index = index;
     port->ops = ops;
     port->speedmask = speedmask;
+    usb_port_location(port, NULL, index + 1);
+}
+
+void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,
+                       USBPortOps *ops, int speedmask)
+{
+    usb_fill_port(port, opaque, index, ops, speedmask);
     QTAILQ_INSERT_TAIL(&bus->free, port, next);
     bus->nfree++;
+}
+
+int usb_register_companion(const char *masterbus, USBPort *ports[],
+                           uint32_t portcount, uint32_t firstport,
+                           void *opaque, USBPortOps *ops, int speedmask)
+{
+    USBBus *bus;
+    int i;
+
+    QTAILQ_FOREACH(bus, &busses, next) {
+        if (strcmp(bus->qbus.name, masterbus) == 0) {
+            break;
+        }
+    }
+
+    if (!bus || !bus->ops->register_companion) {
+        qerror_report(QERR_INVALID_PARAMETER_VALUE, "masterbus",
+                      "an USB masterbus");
+        if (bus) {
+            error_printf_unless_qmp(
+                "USB bus '%s' does not allow companion controllers\n",
+                masterbus);
+        }
+        return -1;
+    }
+
+    for (i = 0; i < portcount; i++) {
+        usb_fill_port(ports[i], opaque, i, ops, speedmask);
+    }
+
+    return bus->ops->register_companion(bus, ports, portcount, firstport);
 }
 
 void usb_port_location(USBPort *downstream, USBPort *upstream, int portnr)

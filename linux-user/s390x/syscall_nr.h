@@ -254,8 +254,17 @@
 #define TARGET_NR_pipe2		325
 #define TARGET_NR_dup3		326
 #define TARGET_NR_epoll_create1	327
-#undef NR_syscalls
-#define NR_syscalls 328
+#define TARGET_NR_preadv                328
+#define TARGET_NR_pwritev               329
+#define TARGET_NR_rt_tgsigqueueinfo     330
+#define TARGET_NR_perf_event_open       331
+#define TARGET_NR_fanotify_init         332
+#define TARGET_NR_fanotify_mark         333
+#define TARGET_NR_prlimit64             334
+#define TARGET_NR_name_to_handle_at     335
+#define TARGET_NR_open_by_handle_at     336
+#define TARGET_NR_clock_adjtime         337
+#define TARGET_NR_syncfs                338
 
 /*
  * There are some system calls that are not present on 64 bit, some

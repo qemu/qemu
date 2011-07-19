@@ -2068,8 +2068,10 @@ sub process {
 					}
 
 				# , must have a space on the right.
+                                # not required when having a single },{ on one line
 				} elsif ($op eq ',') {
-					if ($ctx !~ /.x[WEC]/ && $cc !~ /^}/) {
+					if ($ctx !~ /.x[WEC]/ && $cc !~ /^}/ &&
+                                            ($elements[$n] . $elements[$n + 2]) !~ " *}{") {
 						ERROR("space required after that '$op' $at\n" . $hereptr);
 					}
 

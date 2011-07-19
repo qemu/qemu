@@ -99,13 +99,13 @@ static const USBDescIface desc_iface_bluetooth[] = {
         .eps = (USBDescEndpoint[]) {
             {
                 .bEndpointAddress      = USB_DIR_OUT | USB_SCO_EP,
-                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .bmAttributes          = USB_ENDPOINT_XFER_ISOC,
                 .wMaxPacketSize        = 0,
                 .bInterval             = 0x01,
             },
             {
                 .bEndpointAddress      = USB_DIR_IN | USB_SCO_EP,
-                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .bmAttributes          = USB_ENDPOINT_XFER_ISOC,
                 .wMaxPacketSize        = 0,
                 .bInterval             = 0x01,
             },
@@ -120,13 +120,13 @@ static const USBDescIface desc_iface_bluetooth[] = {
         .eps = (USBDescEndpoint[]) {
             {
                 .bEndpointAddress      = USB_DIR_OUT | USB_SCO_EP,
-                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .bmAttributes          = USB_ENDPOINT_XFER_ISOC,
                 .wMaxPacketSize        = 0x09,
                 .bInterval             = 0x01,
             },
             {
                 .bEndpointAddress      = USB_DIR_IN | USB_SCO_EP,
-                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .bmAttributes          = USB_ENDPOINT_XFER_ISOC,
                 .wMaxPacketSize        = 0x09,
                 .bInterval             = 0x01,
             },
@@ -141,13 +141,13 @@ static const USBDescIface desc_iface_bluetooth[] = {
         .eps = (USBDescEndpoint[]) {
             {
                 .bEndpointAddress      = USB_DIR_OUT | USB_SCO_EP,
-                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .bmAttributes          = USB_ENDPOINT_XFER_ISOC,
                 .wMaxPacketSize        = 0x11,
                 .bInterval             = 0x01,
             },
             {
                 .bEndpointAddress      = USB_DIR_IN | USB_SCO_EP,
-                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .bmAttributes          = USB_ENDPOINT_XFER_ISOC,
                 .wMaxPacketSize        = 0x11,
                 .bInterval             = 0x01,
             },
@@ -162,13 +162,13 @@ static const USBDescIface desc_iface_bluetooth[] = {
         .eps = (USBDescEndpoint[]) {
             {
                 .bEndpointAddress      = USB_DIR_OUT | USB_SCO_EP,
-                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .bmAttributes          = USB_ENDPOINT_XFER_ISOC,
                 .wMaxPacketSize        = 0x19,
                 .bInterval             = 0x01,
             },
             {
                 .bEndpointAddress      = USB_DIR_IN | USB_SCO_EP,
-                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .bmAttributes          = USB_ENDPOINT_XFER_ISOC,
                 .wMaxPacketSize        = 0x19,
                 .bInterval             = 0x01,
             },
@@ -183,13 +183,13 @@ static const USBDescIface desc_iface_bluetooth[] = {
         .eps = (USBDescEndpoint[]) {
             {
                 .bEndpointAddress      = USB_DIR_OUT | USB_SCO_EP,
-                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .bmAttributes          = USB_ENDPOINT_XFER_ISOC,
                 .wMaxPacketSize        = 0x21,
                 .bInterval             = 0x01,
             },
             {
                 .bEndpointAddress      = USB_DIR_IN | USB_SCO_EP,
-                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .bmAttributes          = USB_ENDPOINT_XFER_ISOC,
                 .wMaxPacketSize        = 0x21,
                 .bInterval             = 0x01,
             },
@@ -204,13 +204,13 @@ static const USBDescIface desc_iface_bluetooth[] = {
         .eps = (USBDescEndpoint[]) {
             {
                 .bEndpointAddress      = USB_DIR_OUT | USB_SCO_EP,
-                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .bmAttributes          = USB_ENDPOINT_XFER_ISOC,
                 .wMaxPacketSize        = 0x31,
                 .bInterval             = 0x01,
             },
             {
                 .bEndpointAddress      = USB_DIR_IN | USB_SCO_EP,
-                .bmAttributes          = USB_ENDPOINT_XFER_INT,
+                .bmAttributes          = USB_ENDPOINT_XFER_ISOC,
                 .wMaxPacketSize        = 0x31,
                 .bInterval             = 0x01,
             },

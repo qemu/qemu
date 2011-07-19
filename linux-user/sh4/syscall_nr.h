@@ -125,7 +125,7 @@
 #define TARGET_NR_clone		120
 #define TARGET_NR_setdomainname	121
 #define TARGET_NR_uname		122
-#define TARGET_NR_modify_ldt		123
+#define TARGET_NR_cacheflush		123
 #define TARGET_NR_adjtimex		124
 #define TARGET_NR_mprotect		125
 #define TARGET_NR_sigprocmask	126
@@ -334,3 +334,35 @@
 #define TARGET_NR_dup3			330
 #define TARGET_NR_pipe2		331
 #define TARGET_NR_inotify_init1	332
+#define TARGET_NR_preadv                333
+#define TARGET_NR_pwritev               334
+#define TARGET_NR_rt_tgsigqueueinfo     335
+#define TARGET_NR_perf_event_open       336
+#define TARGET_NR_fanotify_init         337
+#define TARGET_NR_fanotify_mark         338
+#define TARGET_NR_prlimit64             339
+
+/* Non-multiplexed socket family */
+#define TARGET_NR_socket                340
+#define TARGET_NR_bind                  341
+#define TARGET_NR_connect               342
+#define TARGET_NR_listen                343
+#define TARGET_NR_accept                344
+#define TARGET_NR_getsockname           345
+#define TARGET_NR_getpeername           346
+#define TARGET_NR_socketpair            347
+#define TARGET_NR_send                  348
+#define TARGET_NR_sendto                349
+#define TARGET_NR_recv                  350
+#define TARGET_NR_recvfrom              351
+#define TARGET_NR_shutdown              352
+#define TARGET_NR_setsockopt            353
+#define TARGET_NR_getsockopt            354
+#define TARGET_NR_sendmsg               355
+#define TARGET_NR_recvmsg               356
+#define TARGET_NR_recvmmsg              357
+#define TARGET_NR_accept4               358
+#define TARGET_NR_name_to_handle_at     359
+#define TARGET_NR_open_by_handle_at     360
+#define TARGET_NR_clock_adjtime         361
+#define TARGET_NR_syncfs                362
