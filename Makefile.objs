@@ -375,7 +375,7 @@ libcacard-y = cac.o event.o vcard.o vreader.o vcard_emul_nss.o vcard_emul_type.o
 ######################################################################
 # qapi
 
-qapi-nested-y = qapi-visit-core.o qmp-input-visitor.o
+qapi-nested-y = qapi-visit-core.o qmp-input-visitor.o qmp-output-visitor.o
 qapi-obj-y = $(addprefix qapi/, $(qapi-nested-y))
 
 vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
