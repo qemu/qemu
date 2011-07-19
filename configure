@@ -1803,6 +1803,18 @@ EOF
 fi
 
 ##########################################
+# glib support probe
+if $pkg_config --modversion gthread-2.0 gio-2.0 > /dev/null 2>&1 ; then
+    glib_cflags=`$pkg_config --cflags gthread-2.0 gio-2.0 2>/dev/null`
+    glib_libs=`$pkg_config --libs gthread-2.0 gio-2.0 2>/dev/null`
+    libs_softmmu="$glib_libs $libs_softmmu"
+    libs_tools="$glib_libs $libs_tools"
+else
+    echo "glib-2.0 required to compile QEMU"
+    exit 1
+fi
+
+##########################################
 # pthread probe
 PTHREADLIBS_LIST="-lpthread -lpthreadGC2"
 
@@ -2849,6 +2861,7 @@ if test "$bluez" = "yes" ; then
   echo "CONFIG_BLUEZ=y" >> $config_host_mak
   echo "BLUEZ_CFLAGS=$bluez_cflags" >> $config_host_mak
 fi
+echo "GLIB_CFLAGS=$glib_cflags" >> $config_host_mak
 if test "$xen" = "yes" ; then
   echo "CONFIG_XEN_BACKEND=y" >> $config_host_mak
   echo "CONFIG_XEN_CTRL_INTERFACE_VERSION=$xen_ctrl_version" >> $config_host_mak
