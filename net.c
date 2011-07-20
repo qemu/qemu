@@ -1227,6 +1227,12 @@ int do_netdev_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
     return 0;
 }
 
+static void print_net_client(Monitor *mon, VLANClientState *vc)
+{
+    monitor_printf(mon, "%s: type=%s,%s\n", vc->name,
+                   net_client_types[vc->info->type].type, vc->info_str);
+}
+
 void do_info_network(Monitor *mon)
 {
     VLANState *vlan;
@@ -1237,7 +1243,8 @@ void do_info_network(Monitor *mon)
         monitor_printf(mon, "VLAN %d devices:\n", vlan->id);
 
         QTAILQ_FOREACH(vc, &vlan->clients, next) {
-            monitor_printf(mon, "  %s: %s\n", vc->name, vc->info_str);
+            monitor_printf(mon, "  ");
+            print_net_client(mon, vc);
         }
     }
     monitor_printf(mon, "Devices not on any VLAN:\n");
@@ -1245,10 +1252,12 @@ void do_info_network(Monitor *mon)
         peer = vc->peer;
         type = vc->info->type;
         if (!peer || type == NET_CLIENT_TYPE_NIC) {
-            monitor_printf(mon, "  %s: %s\n", vc->name, vc->info_str);
+            monitor_printf(mon, "  ");
+            print_net_client(mon, vc);
         } /* else it's a netdev connected to a NIC, printed with the NIC */
         if (peer && type == NET_CLIENT_TYPE_NIC) {
-            monitor_printf(mon, "   \\ %s: %s\n", peer->name, peer->info_str);
+            monitor_printf(mon, "   \\ ");
+            print_net_client(mon, peer);
         }
     }
 }
