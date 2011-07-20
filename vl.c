@@ -2440,11 +2440,6 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
 
-                /* On 32-bit hosts, QEMU is limited by virtual address space */
-                if (value > (2047 << 20) && HOST_LONG_BITS == 32) {
-                    fprintf(stderr, "qemu: at most 2047 MB RAM can be simulated\n");
-                    exit(1);
-                }
                 if (value != (uint64_t)(ram_addr_t)value) {
                     fprintf(stderr, "qemu: ram size too large\n");
                     exit(1);
@@ -3099,8 +3094,17 @@ int main(int argc, char **argv, char **envp)
         exit(1);
 
     /* init the memory */
-    if (ram_size == 0)
+    if (ram_size == 0) {
         ram_size = DEFAULT_RAM_SIZE * 1024 * 1024;
+    }
+
+    if (!xen_enabled()) {
+        /* On 32-bit hosts, QEMU is limited by virtual address space */
+        if (ram_size > (2047 << 20) && HOST_LONG_BITS == 32) {
+            fprintf(stderr, "qemu: at most 2047 MB RAM can be simulated\n");
+            exit(1);
+        }
+    }
 
     /* init the dynamic translator */
     cpu_exec_init_all(tb_size * 1024 * 1024);
