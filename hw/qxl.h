@@ -102,6 +102,12 @@ typedef struct PCIQXLDevice {
         }                                                               \
     } while (0)
 
+#if SPICE_INTERFACE_QXL_MINOR >= 1
+#define QXL_DEFAULT_REVISION QXL_REVISION_STABLE_V10
+#else
+#define QXL_DEFAULT_REVISION QXL_REVISION_STABLE_V06
+#endif
+
 /* qxl.c */
 void *qxl_phys2virt(PCIQXLDevice *qxl, QXLPHYSICAL phys, int group_id);
 void qxl_guest_bug(PCIQXLDevice *qxl, const char *msg, ...);

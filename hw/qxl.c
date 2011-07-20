@@ -1566,8 +1566,13 @@ static int qxl_init_common(PCIQXLDevice *qxl)
         pci_device_rev = QXL_REVISION_STABLE_V04;
         break;
     case 2: /* spice 0.6 -- qxl-2 */
-    default:
         pci_device_rev = QXL_REVISION_STABLE_V06;
+        break;
+#if SPICE_INTERFACE_QXL_MINOR >= 1
+    case 3: /* qxl-3 */
+#endif
+    default:
+        pci_device_rev = QXL_DEFAULT_REVISION;
         break;
     }
 
@@ -1830,9 +1835,12 @@ static PCIDeviceInfo qxl_info_primary = {
     .device_id    = QXL_DEVICE_ID_STABLE,
     .class_id     = PCI_CLASS_DISPLAY_VGA,
     .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("ram_size", PCIQXLDevice, vga.vram_size, 64 * 1024 * 1024),
-        DEFINE_PROP_UINT32("vram_size", PCIQXLDevice, vram_size, 64 * 1024 * 1024),
-        DEFINE_PROP_UINT32("revision", PCIQXLDevice, revision, 2),
+        DEFINE_PROP_UINT32("ram_size", PCIQXLDevice, vga.vram_size,
+                           64 * 1024 * 1024),
+        DEFINE_PROP_UINT32("vram_size", PCIQXLDevice, vram_size,
+                           64 * 1024 * 1024),
+        DEFINE_PROP_UINT32("revision", PCIQXLDevice, revision,
+                           QXL_DEFAULT_REVISION),
         DEFINE_PROP_UINT32("debug", PCIQXLDevice, debug, 0),
         DEFINE_PROP_UINT32("guestdebug", PCIQXLDevice, guestdebug, 0),
         DEFINE_PROP_UINT32("cmdlog", PCIQXLDevice, cmdlog, 0),
@@ -1851,9 +1859,12 @@ static PCIDeviceInfo qxl_info_secondary = {
     .device_id    = QXL_DEVICE_ID_STABLE,
     .class_id     = PCI_CLASS_DISPLAY_OTHER,
     .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("ram_size", PCIQXLDevice, vga.vram_size, 64 * 1024 * 1024),
-        DEFINE_PROP_UINT32("vram_size", PCIQXLDevice, vram_size, 64 * 1024 * 1024),
-        DEFINE_PROP_UINT32("revision", PCIQXLDevice, revision, 2),
+        DEFINE_PROP_UINT32("ram_size", PCIQXLDevice, vga.vram_size,
+                           64 * 1024 * 1024),
+        DEFINE_PROP_UINT32("vram_size", PCIQXLDevice, vram_size,
+                           64 * 1024 * 1024),
+        DEFINE_PROP_UINT32("revision", PCIQXLDevice, revision,
+                           QXL_DEFAULT_REVISION),
         DEFINE_PROP_UINT32("debug", PCIQXLDevice, debug, 0),
         DEFINE_PROP_UINT32("guestdebug", PCIQXLDevice, guestdebug, 0),
         DEFINE_PROP_UINT32("cmdlog", PCIQXLDevice, cmdlog, 0),
