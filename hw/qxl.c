@@ -185,6 +185,13 @@ static void qxl_spice_destroy_surface_wait(PCIQXLDevice *qxl, uint32_t id,
     }
 }
 
+#if SPICE_INTERFACE_QXL_MINOR >= 1
+static void qxl_spice_flush_surfaces_async(PCIQXLDevice *qxl)
+{
+    spice_qxl_flush_surfaces_async(&qxl->ssd.qxl, 0);
+}
+#endif
+
 void qxl_spice_loadvm_commands(PCIQXLDevice *qxl, struct QXLCommandExt *ext,
                                uint32_t count)
 {
@@ -1184,6 +1191,8 @@ static void ioport_write(void *opaque, uint32_t addr, uint32_t val)
         goto async_common;
     case QXL_IO_DESTROY_ALL_SURFACES_ASYNC:
         io_port = QXL_IO_DESTROY_ALL_SURFACES;
+        goto async_common;
+    case QXL_IO_FLUSH_SURFACES_ASYNC:
 async_common:
         async = QXL_ASYNC;
         qemu_mutex_lock(&d->async_lock);
@@ -1296,6 +1305,27 @@ async_common:
         }
         qxl_spice_destroy_surface_wait(d, val, async);
         break;
+#if SPICE_INTERFACE_QXL_MINOR >= 1
+    case QXL_IO_FLUSH_RELEASE: {
+        QXLReleaseRing *ring = &d->ram->release_ring;
+        if (ring->prod - ring->cons + 1 == ring->num_items) {
+            fprintf(stderr,
+                "ERROR: no flush, full release ring [p%d,%dc]\n",
+                ring->prod, ring->cons);
+        }
+        qxl_push_free_res(d, 1 /* flush */);
+        dprint(d, 1, "QXL_IO_FLUSH_RELEASE exit (%s, s#=%d, res#=%d,%p)\n",
+            qxl_mode_to_string(d->mode), d->guest_surfaces.count,
+            d->num_free_res, d->last_release);
+        break;
+    }
+    case QXL_IO_FLUSH_SURFACES_ASYNC:
+        dprint(d, 1, "QXL_IO_FLUSH_SURFACES_ASYNC (%d) (%s, s#=%d, res#=%d)\n",
+               val, qxl_mode_to_string(d->mode), d->guest_surfaces.count,
+               d->num_free_res);
+        qxl_spice_flush_surfaces_async(d);
+        break;
+#endif
     case QXL_IO_DESTROY_ALL_SURFACES:
         d->mode = QXL_MODE_UNDEFINED;
         qxl_spice_destroy_surfaces(d, async);
