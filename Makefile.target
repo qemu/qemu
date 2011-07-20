@@ -252,6 +252,8 @@ obj-ppc-y += ppce500_mpc8544ds.o mpc8544_guts.o
 obj-ppc-y += virtex_ml507.o
 obj-ppc-$(CONFIG_KVM) += kvm_ppc.o
 obj-ppc-$(CONFIG_FDT) += device_tree.o
+# PowerPC OpenPIC
+obj-ppc-y += openpic.o
 
 # Xilinx PPC peripherals
 obj-ppc-y += xilinx_intc.o
