@@ -240,7 +240,8 @@ static int net_slirp_init(VLANState *vlan, const char *model,
     nc = qemu_new_net_client(&net_slirp_info, vlan, NULL, model, name);
 
     snprintf(nc->info_str, sizeof(nc->info_str),
-             "net=%s, restricted=%c", inet_ntoa(net), restricted ? 'y' : 'n');
+             "net=%s,restrict=%s", inet_ntoa(net),
+             restricted ? "on" : "off");
 
     s = DO_UPCAST(SlirpState, nc, nc);
 
@@ -689,6 +690,7 @@ int net_init_slirp(QemuOpts *opts,
     const char *bootfile;
     const char *smb_export;
     const char *vsmbsrv;
+    const char *restrict_opt;
     char *vnet = NULL;
     int restricted = 0;
     int ret;
@@ -701,6 +703,18 @@ int net_init_slirp(QemuOpts *opts,
     bootfile    = qemu_opt_get(opts, "bootfile");
     smb_export  = qemu_opt_get(opts, "smb");
     vsmbsrv     = qemu_opt_get(opts, "smbserver");
+
+    restrict_opt = qemu_opt_get(opts, "restrict");
+    if (restrict_opt) {
+        if (!strcmp(restrict_opt, "on") ||
+            !strcmp(restrict_opt, "yes") || !strcmp(restrict_opt, "y")) {
+            restricted = 1;
+        } else if (strcmp(restrict_opt, "off") &&
+            strcmp(restrict_opt, "no") && strcmp(restrict_opt, "n")) {
+            error_report("invalid option: 'restrict=%s'", restrict_opt);
+            return -1;
+        }
+    }
 
     if (qemu_opt_get(opts, "ip")) {
         const char *ip = qemu_opt_get(opts, "ip");
@@ -718,11 +732,6 @@ int net_init_slirp(QemuOpts *opts,
             qemu_free(vnet);
         }
         vnet = qemu_strdup(qemu_opt_get(opts, "net"));
-    }
-
-    if (qemu_opt_get(opts, "restrict") &&
-        qemu_opt_get(opts, "restrict")[0] == 'y') {
-        restricted = 1;
     }
 
     qemu_opt_foreach(opts, net_init_slirp_configs, NULL, 0);
