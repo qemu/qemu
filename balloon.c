@@ -31,30 +31,30 @@
 #include "trace.h"
 
 
-static QEMUBalloonEvent *qemu_balloon_event;
-void *qemu_balloon_event_opaque;
+static QEMUBalloonEvent *balloon_event_fn;
+static void *balloon_opaque;
 
 void qemu_add_balloon_handler(QEMUBalloonEvent *func, void *opaque)
 {
-    qemu_balloon_event = func;
-    qemu_balloon_event_opaque = opaque;
+    balloon_event_fn = func;
+    balloon_opaque = opaque;
 }
 
-int qemu_balloon(ram_addr_t target, MonitorCompletion cb, void *opaque)
+static int qemu_balloon(ram_addr_t target, MonitorCompletion cb, void *opaque)
 {
-    if (qemu_balloon_event) {
-        trace_balloon_event(qemu_balloon_event_opaque, target);
-        qemu_balloon_event(qemu_balloon_event_opaque, target, cb, opaque);
+    if (balloon_event_fn) {
+        trace_balloon_event(balloon_opaque, target);
+        balloon_event_fn(balloon_opaque, target, cb, opaque);
         return 1;
     } else {
         return 0;
     }
 }
 
-int qemu_balloon_status(MonitorCompletion cb, void *opaque)
+static int qemu_balloon_status(MonitorCompletion cb, void *opaque)
 {
-    if (qemu_balloon_event) {
-        qemu_balloon_event(qemu_balloon_event_opaque, 0, cb, opaque);
+    if (balloon_event_fn) {
+        balloon_event_fn(balloon_opaque, 0, cb, opaque);
         return 1;
     } else {
         return 0;
