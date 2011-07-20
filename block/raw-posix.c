@@ -1363,7 +1363,7 @@ static int cdrom_eject(BlockDriverState *bs, int eject_flag)
     return 0;
 }
 
-static int cdrom_set_locked(BlockDriverState *bs, int locked)
+static void cdrom_set_locked(BlockDriverState *bs, int locked)
 {
     BDRVRawState *s = bs->opaque;
 
@@ -1374,8 +1374,6 @@ static int cdrom_set_locked(BlockDriverState *bs, int locked)
          */
         /* perror("CDROM_LOCKDOOR"); */
     }
-
-    return 0;
 }
 
 static BlockDriver bdrv_host_cdrom = {
@@ -1486,12 +1484,12 @@ static int cdrom_eject(BlockDriverState *bs, int eject_flag)
     return 0;
 }
 
-static int cdrom_set_locked(BlockDriverState *bs, int locked)
+static void cdrom_set_locked(BlockDriverState *bs, int locked)
 {
     BDRVRawState *s = bs->opaque;
 
     if (s->fd < 0)
-        return -ENOTSUP;
+        return;
     if (ioctl(s->fd, (locked ? CDIOCPREVENT : CDIOCALLOW)) < 0) {
         /*
          * Note: an error can happen if the distribution automatically
@@ -1499,8 +1497,6 @@ static int cdrom_set_locked(BlockDriverState *bs, int locked)
          */
         /* perror("CDROM_LOCKDOOR"); */
     }
-
-    return 0;
 }
 
 static BlockDriver bdrv_host_cdrom = {
