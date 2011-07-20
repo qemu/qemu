@@ -137,7 +137,12 @@ void qxl_spice_update_area(PCIQXLDevice *qxl, uint32_t surface_id,
 
 void qxl_spice_destroy_surface_wait(PCIQXLDevice *qxl, uint32_t id)
 {
+    qemu_mutex_lock(&qxl->track_lock);
+    PANIC_ON(id >= NUM_SURFACES);
     qxl->ssd.worker->destroy_surface_wait(qxl->ssd.worker, id);
+    qxl->guest_surfaces.cmds[id] = 0;
+    qxl->guest_surfaces.count--;
+    qemu_mutex_unlock(&qxl->track_lock);
 }
 
 void qxl_spice_loadvm_commands(PCIQXLDevice *qxl, struct QXLCommandExt *ext,
@@ -158,7 +163,11 @@ void qxl_spice_reset_memslots(PCIQXLDevice *qxl)
 
 void qxl_spice_destroy_surfaces(PCIQXLDevice *qxl)
 {
+    qemu_mutex_lock(&qxl->track_lock);
     qxl->ssd.worker->destroy_surfaces(qxl->ssd.worker);
+    memset(&qxl->guest_surfaces.cmds, 0, sizeof(qxl->guest_surfaces.cmds));
+    qxl->guest_surfaces.count = 0;
+    qemu_mutex_unlock(&qxl->track_lock);
 }
 
 void qxl_spice_reset_image_cache(PCIQXLDevice *qxl)
@@ -317,6 +326,7 @@ static void qxl_track_command(PCIQXLDevice *qxl, struct QXLCommandExt *ext)
         QXLSurfaceCmd *cmd = qxl_phys2virt(qxl, ext->cmd.data, ext->group_id);
         uint32_t id = le32_to_cpu(cmd->surface_id);
         PANIC_ON(id >= NUM_SURFACES);
+        qemu_mutex_lock(&qxl->track_lock);
         if (cmd->type == QXL_SURFACE_CMD_CREATE) {
             qxl->guest_surfaces.cmds[id] = ext->cmd.data;
             qxl->guest_surfaces.count++;
@@ -327,6 +337,7 @@ static void qxl_track_command(PCIQXLDevice *qxl, struct QXLCommandExt *ext)
             qxl->guest_surfaces.cmds[id] = 0;
             qxl->guest_surfaces.count--;
         }
+        qemu_mutex_unlock(&qxl->track_lock);
         break;
     }
     case QXL_CMD_CURSOR:
@@ -863,7 +874,6 @@ static void qxl_reset_surfaces(PCIQXLDevice *d)
     dprint(d, 1, "%s:\n", __FUNCTION__);
     d->mode = QXL_MODE_UNDEFINED;
     qxl_spice_destroy_surfaces(d);
-    memset(&d->guest_surfaces.cmds, 0, sizeof(d->guest_surfaces.cmds));
 }
 
 /* called from spice server thread context only */
@@ -1283,6 +1293,7 @@ static int qxl_init_common(PCIQXLDevice *qxl)
     qxl->generation = 1;
     qxl->num_memslots = NUM_MEMSLOTS;
     qxl->num_surfaces = NUM_SURFACES;
+    qemu_mutex_init(&qxl->track_lock);
 
     switch (qxl->revision) {
     case 1: /* spice 0.4 -- qxl-1 */
