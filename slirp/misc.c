@@ -153,11 +153,12 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 		return 0;
 
 	 case 0:
+                setsid();
+
 		/* Set the DISPLAY */
 		if (do_pty == 2) {
 			(void) close(master);
 #ifdef TIOCSCTTY /* XXXXX */
-			(void) setsid();
 			ioctl(s, TIOCSCTTY, (char *)NULL);
 #endif
 		} else {
