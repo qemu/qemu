@@ -125,13 +125,18 @@ static void qxl_reset_memslots(PCIQXLDevice *d);
 static void qxl_reset_surfaces(PCIQXLDevice *d);
 static void qxl_ring_set_dirty(PCIQXLDevice *qxl);
 
-void qxl_guest_bug(PCIQXLDevice *qxl, const char *msg)
+void qxl_guest_bug(PCIQXLDevice *qxl, const char *msg, ...)
 {
 #if SPICE_INTERFACE_QXL_MINOR >= 1
     qxl_send_events(qxl, QXL_INTERRUPT_ERROR);
 #endif
     if (qxl->guestdebug) {
-        fprintf(stderr, "qxl-%d: guest bug: %s\n", qxl->id, msg);
+        va_list ap;
+        va_start(ap, msg);
+        fprintf(stderr, "qxl-%d: guest bug: ", qxl->id);
+        vfprintf(stderr, msg, ap);
+        fprintf(stderr, "\n");
+        va_end(ap);
     }
 }
 
