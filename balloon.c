@@ -1,7 +1,9 @@
 /*
- * QEMU System Emulator
+ * Generic Balloon handlers and management
  *
  * Copyright (c) 2003-2008 Fabrice Bellard
+ * Copyright (C) 2011 Red Hat, Inc.
+ * Copyright (C) 2011 Amit Shah <amit.shah@redhat.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +31,6 @@
 #include "kvm.h"
 #include "balloon.h"
 #include "trace.h"
-
 
 static QEMUBalloonEvent *balloon_event_fn;
 static QEMUBalloonStatus *balloon_stat_fn;
