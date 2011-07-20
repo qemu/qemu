@@ -684,8 +684,8 @@ static void qxl_hard_reset(PCIQXLDevice *d, int loadvm)
     dprint(d, 1, "%s: start%s\n", __FUNCTION__,
            loadvm ? " (loadvm)" : "");
 
-    d->ssd.worker->reset_cursor(d->ssd.worker);
-    d->ssd.worker->reset_image_cache(d->ssd.worker);
+    qemu_spice_reset_cursor(&d->ssd);
+    qemu_spice_reset_image_cache(&d->ssd);
     qxl_reset_surfaces(d);
     qxl_reset_memslots(d);
 
@@ -790,7 +790,7 @@ static void qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta)
            __FUNCTION__, memslot.slot_id,
            memslot.virt_start, memslot.virt_end);
 
-    d->ssd.worker->add_memslot(d->ssd.worker, &memslot);
+    qemu_spice_add_memslot(&d->ssd, &memslot);
     d->guest_slots[slot_id].ptr = (void*)memslot.virt_start;
     d->guest_slots[slot_id].size = memslot.virt_end - memslot.virt_start;
     d->guest_slots[slot_id].delta = delta;
@@ -800,14 +800,14 @@ static void qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta)
 static void qxl_del_memslot(PCIQXLDevice *d, uint32_t slot_id)
 {
     dprint(d, 1, "%s: slot %d\n", __FUNCTION__, slot_id);
-    d->ssd.worker->del_memslot(d->ssd.worker, MEMSLOT_GROUP_HOST, slot_id);
+    qemu_spice_del_memslot(&d->ssd, MEMSLOT_GROUP_HOST, slot_id);
     d->guest_slots[slot_id].active = 0;
 }
 
 static void qxl_reset_memslots(PCIQXLDevice *d)
 {
     dprint(d, 1, "%s:\n", __FUNCTION__);
-    d->ssd.worker->reset_memslots(d->ssd.worker);
+    qemu_spice_reset_memslots(&d->ssd);
     memset(&d->guest_slots, 0, sizeof(d->guest_slots));
 }
 
@@ -815,7 +815,7 @@ static void qxl_reset_surfaces(PCIQXLDevice *d)
 {
     dprint(d, 1, "%s:\n", __FUNCTION__);
     d->mode = QXL_MODE_UNDEFINED;
-    d->ssd.worker->destroy_surfaces(d->ssd.worker);
+    qemu_spice_destroy_surfaces(&d->ssd);
     memset(&d->guest_surfaces.cmds, 0, sizeof(d->guest_surfaces.cmds));
 }
 
@@ -869,7 +869,7 @@ static void qxl_create_guest_primary(PCIQXLDevice *qxl, int loadvm)
 
     qxl->mode = QXL_MODE_NATIVE;
     qxl->cmdflags = 0;
-    qxl->ssd.worker->create_primary_surface(qxl->ssd.worker, 0, &surface);
+    qemu_spice_create_primary_surface(&qxl->ssd, 0, &surface);
 
     /* for local rendering */
     qxl_render_resize(qxl);
@@ -884,7 +884,7 @@ static void qxl_destroy_primary(PCIQXLDevice *d)
     dprint(d, 1, "%s\n", __FUNCTION__);
 
     d->mode = QXL_MODE_UNDEFINED;
-    d->ssd.worker->destroy_primary_surface(d->ssd.worker, 0);
+    qemu_spice_destroy_primary_surface(&d->ssd, 0);
 }
 
 static void qxl_set_mode(PCIQXLDevice *d, int modenr, int loadvm)
@@ -956,15 +956,15 @@ static void ioport_write(void *opaque, uint32_t addr, uint32_t val)
     case QXL_IO_UPDATE_AREA:
     {
         QXLRect update = d->ram->update_area;
-        d->ssd.worker->update_area(d->ssd.worker, d->ram->update_surface,
-                                   &update, NULL, 0, 0);
+        qemu_spice_update_area(&d->ssd, d->ram->update_surface,
+                               &update, NULL, 0, 0);
         break;
     }
     case QXL_IO_NOTIFY_CMD:
-        d->ssd.worker->wakeup(d->ssd.worker);
+        qemu_spice_wakeup(&d->ssd);
         break;
     case QXL_IO_NOTIFY_CURSOR:
-        d->ssd.worker->wakeup(d->ssd.worker);
+        qemu_spice_wakeup(&d->ssd);
         break;
     case QXL_IO_UPDATE_IRQ:
         qxl_set_irq(d);
@@ -978,7 +978,7 @@ static void ioport_write(void *opaque, uint32_t addr, uint32_t val)
             break;
         }
         d->oom_running = 1;
-        d->ssd.worker->oom(d->ssd.worker);
+        qemu_spice_oom(&d->ssd);
         d->oom_running = 0;
         break;
     case QXL_IO_SET_MODE:
@@ -1016,10 +1016,10 @@ static void ioport_write(void *opaque, uint32_t addr, uint32_t val)
         qxl_destroy_primary(d);
         break;
     case QXL_IO_DESTROY_SURFACE_WAIT:
-        d->ssd.worker->destroy_surface_wait(d->ssd.worker, val);
+        qemu_spice_destroy_surface_wait(&d->ssd, val);
         break;
     case QXL_IO_DESTROY_ALL_SURFACES:
-        d->ssd.worker->destroy_surfaces(d->ssd.worker);
+        qemu_spice_destroy_surfaces(&d->ssd);
         break;
     default:
         fprintf(stderr, "%s: ioport=0x%x, abort()\n", __FUNCTION__, io_port);
@@ -1424,7 +1424,7 @@ static int qxl_post_load(void *opaque, int version)
         cmds[out].cmd.type = QXL_CMD_CURSOR;
         cmds[out].group_id = MEMSLOT_GROUP_GUEST;
         out++;
-        d->ssd.worker->loadvm_commands(d->ssd.worker, cmds, out);
+        qemu_spice_loadvm_commands(&d->ssd, cmds, out);
         qemu_free(cmds);
 
         break;
