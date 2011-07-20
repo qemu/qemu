@@ -227,8 +227,7 @@ static void virtio_balloon_stat(void *opaque, MonitorCompletion cb,
     complete_stats_request(dev);
 }
 
-static void virtio_balloon_to_target(void *opaque, ram_addr_t target,
-                                     MonitorCompletion cb, void *cb_data)
+static void virtio_balloon_to_target(void *opaque, ram_addr_t target)
 {
     VirtIOBalloon *dev = opaque;
 
@@ -238,8 +237,6 @@ static void virtio_balloon_to_target(void *opaque, ram_addr_t target,
     if (target) {
         dev->num_pages = (ram_size - target) >> VIRTIO_BALLOON_PFN_SHIFT;
         virtio_notify_config(&dev->vdev);
-    } else {
-        virtio_balloon_stat(opaque, cb, cb_data);
     }
 }
 
@@ -284,7 +281,7 @@ VirtIODevice *virtio_balloon_init(DeviceState *dev)
     s->svq = virtio_add_queue(&s->vdev, 128, virtio_balloon_receive_stats);
 
     reset_stats(s);
-    qemu_add_balloon_handler(virtio_balloon_to_target, s);
+    qemu_add_balloon_handler(virtio_balloon_to_target, virtio_balloon_stat, s);
 
     register_savevm(dev, "virtio-balloon", -1, 1,
                     virtio_balloon_save, virtio_balloon_load, s);

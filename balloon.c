@@ -32,30 +32,33 @@
 
 
 static QEMUBalloonEvent *balloon_event_fn;
+static QEMUBalloonStatus *balloon_stat_fn;
 static void *balloon_opaque;
 
-void qemu_add_balloon_handler(QEMUBalloonEvent *func, void *opaque)
+void qemu_add_balloon_handler(QEMUBalloonEvent *event_func,
+                              QEMUBalloonStatus *stat_func, void *opaque)
 {
-    balloon_event_fn = func;
+    balloon_event_fn = event_func;
+    balloon_stat_fn = stat_func;
     balloon_opaque = opaque;
 }
 
-static int qemu_balloon(ram_addr_t target, MonitorCompletion cb, void *opaque)
+static int qemu_balloon(ram_addr_t target)
 {
     if (!balloon_event_fn) {
         return 0;
     }
     trace_balloon_event(balloon_opaque, target);
-    balloon_event_fn(balloon_opaque, target, cb, opaque);
+    balloon_event_fn(balloon_opaque, target);
     return 1;
 }
 
 static int qemu_balloon_status(MonitorCompletion cb, void *opaque)
 {
-    if (!balloon_event_fn) {
+    if (!balloon_stat_fn) {
         return 0;
     }
-    balloon_event_fn(balloon_opaque, 0, cb, opaque);
+    balloon_stat_fn(balloon_opaque, cb, opaque);
     return 1;
 }
 
@@ -135,7 +138,7 @@ int do_balloon(Monitor *mon, const QDict *params,
         return -1;
     }
 
-    ret = qemu_balloon(qdict_get_int(params, "value"), cb, opaque);
+    ret = qemu_balloon(qdict_get_int(params, "value"));
     if (ret == 0) {
         qerror_report(QERR_DEVICE_NOT_ACTIVE, "balloon");
         return -1;
