@@ -286,6 +286,16 @@ void qemu_spice_vm_change_state_handler(void *opaque, int running, int reason)
     ssd->running = running;
 }
 
+void qemu_spice_display_init_common(SimpleSpiceDisplay *ssd, DisplayState *ds)
+{
+    ssd->ds = ds;
+    qemu_mutex_init(&ssd->lock);
+    ssd->mouse_x = -1;
+    ssd->mouse_y = -1;
+    ssd->bufsize = (16 * 1024 * 1024);
+    ssd->buf = qemu_malloc(ssd->bufsize);
+}
+
 /* display listener callbacks */
 
 void qemu_spice_display_update(SimpleSpiceDisplay *ssd,
@@ -499,12 +509,7 @@ static DisplayChangeListener display_listener = {
 void qemu_spice_display_init(DisplayState *ds)
 {
     assert(sdpy.ds == NULL);
-    sdpy.ds = ds;
-    qemu_mutex_init(&sdpy.lock);
-    sdpy.mouse_x = -1;
-    sdpy.mouse_y = -1;
-    sdpy.bufsize = (16 * 1024 * 1024);
-    sdpy.buf = qemu_malloc(sdpy.bufsize);
+    qemu_spice_display_init_common(&sdpy, ds);
     register_displaychangelistener(ds, &display_listener);
 
     sdpy.qxl.base.sif = &dpy_interface.base;

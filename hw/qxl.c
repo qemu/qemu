@@ -1315,12 +1315,7 @@ static int qxl_init_primary(PCIDevice *dev)
 
     vga->ds = graphic_console_init(qxl_hw_update, qxl_hw_invalidate,
                                    qxl_hw_screen_dump, qxl_hw_text_update, qxl);
-    qxl->ssd.ds = vga->ds;
-    qemu_mutex_init(&qxl->ssd.lock);
-    qxl->ssd.mouse_x = -1;
-    qxl->ssd.mouse_y = -1;
-    qxl->ssd.bufsize = (16 * 1024 * 1024);
-    qxl->ssd.buf = qemu_malloc(qxl->ssd.bufsize);
+    qemu_spice_display_init_common(&qxl->ssd, vga->ds);
 
     qxl0 = qxl;
     register_displaychangelistener(vga->ds, &display_listener);
