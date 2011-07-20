@@ -776,18 +776,12 @@ static int net_init_nic(QemuOpts *opts,
         nd->devaddr = qemu_strdup(qemu_opt_get(opts, "addr"));
     }
 
-    nd->macaddr[0] = 0x52;
-    nd->macaddr[1] = 0x54;
-    nd->macaddr[2] = 0x00;
-    nd->macaddr[3] = 0x12;
-    nd->macaddr[4] = 0x34;
-    nd->macaddr[5] = 0x56 + idx;
-
     if (qemu_opt_get(opts, "macaddr") &&
-        net_parse_macaddr(nd->macaddr, qemu_opt_get(opts, "macaddr")) < 0) {
+        net_parse_macaddr(nd->macaddr.a, qemu_opt_get(opts, "macaddr")) < 0) {
         error_report("invalid syntax for ethernet address");
         return -1;
     }
+    qemu_macaddr_default_if_unset(&nd->macaddr);
 
     nd->nvectors = qemu_opt_get_number(opts, "vectors",
                                        DEV_NVECTORS_UNSPECIFIED);

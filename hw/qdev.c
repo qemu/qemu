@@ -459,7 +459,7 @@ void qdev_connect_gpio_out(DeviceState * dev, int n, qemu_irq pin)
 
 void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd)
 {
-    qdev_prop_set_macaddr(dev, "mac", nd->macaddr);
+    qdev_prop_set_macaddr(dev, "mac", nd->macaddr.a);
     if (nd->vlan)
         qdev_prop_set_vlan(dev, "vlan", nd->vlan);
     if (nd->netdev)

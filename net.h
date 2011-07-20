@@ -129,7 +129,7 @@ int do_set_link(Monitor *mon, const QDict *qdict, QObject **ret_data);
 #define MAX_NICS 8
 
 struct NICInfo {
-    uint8_t macaddr[6];
+    MACAddr macaddr;
     char *model;
     char *name;
     char *devaddr;
