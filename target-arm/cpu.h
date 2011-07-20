@@ -374,6 +374,7 @@ enum arm_features {
     ARM_FEATURE_V4T,
     ARM_FEATURE_V5,
     ARM_FEATURE_STRONGARM,
+    ARM_FEATURE_VAPA, /* cp15 VA to PA lookups */
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)
