@@ -35,6 +35,12 @@ static uint32_t arm1136_cp15_c0_c1[8] =
 static uint32_t arm1136_cp15_c0_c2[8] =
 { 0x00140011, 0x12002111, 0x11231111, 0x01102131, 0x141, 0, 0, 0 };
 
+static uint32_t arm1176_cp15_c0_c1[8] =
+{ 0x111, 0x11, 0x33, 0, 0x01130003, 0x10030302, 0x01222100, 0 };
+
+static uint32_t arm1176_cp15_c0_c2[8] =
+{ 0x0140011, 0x12002111, 0x11231121, 0x01102131, 0x01141, 0, 0, 0 };
+
 static uint32_t cpu_arm_find_by_name(const char *name);
 
 static inline void set_feature(CPUARMState *env, int feature)
@@ -82,6 +88,21 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->vfp.xregs[ARM_VFP_MVFR1] = 0x00000000;
         memcpy(env->cp15.c0_c1, arm1136_cp15_c0_c1, 8 * sizeof(uint32_t));
         memcpy(env->cp15.c0_c2, arm1136_cp15_c0_c2, 8 * sizeof(uint32_t));
+        env->cp15.c0_cachetype = 0x1dd20d2;
+        env->cp15.c1_sys = 0x00050078;
+        break;
+    case ARM_CPUID_ARM1176:
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
+        set_feature(env, ARM_FEATURE_V6);
+        set_feature(env, ARM_FEATURE_V6K);
+        set_feature(env, ARM_FEATURE_VFP);
+        set_feature(env, ARM_FEATURE_AUXCR);
+        env->vfp.xregs[ARM_VFP_FPSID] = 0x410120b5;
+        env->vfp.xregs[ARM_VFP_MVFR0] = 0x11111111;
+        env->vfp.xregs[ARM_VFP_MVFR1] = 0x00000000;
+        memcpy(env->cp15.c0_c1, arm1176_cp15_c0_c1, 8 * sizeof(uint32_t));
+        memcpy(env->cp15.c0_c2, arm1176_cp15_c0_c2, 8 * sizeof(uint32_t));
         env->cp15.c0_cachetype = 0x1dd20d2;
         env->cp15.c1_sys = 0x00050078;
         break;
@@ -380,6 +401,7 @@ static const struct arm_cpu_t arm_cpu_names[] = {
     { ARM_CPUID_ARM1026, "arm1026"},
     { ARM_CPUID_ARM1136, "arm1136"},
     { ARM_CPUID_ARM1136_R2, "arm1136-r2"},
+    { ARM_CPUID_ARM1176, "arm1176"},
     { ARM_CPUID_ARM11MPCORE, "arm11mpcore"},
     { ARM_CPUID_CORTEXM3, "cortex-m3"},
     { ARM_CPUID_CORTEXA8, "cortex-a8"},
@@ -1848,6 +1870,7 @@ uint32_t HELPER(get_cp15)(CPUState *env, uint32_t insn)
                 return 1;
             case ARM_CPUID_ARM1136:
             case ARM_CPUID_ARM1136_R2:
+            case ARM_CPUID_ARM1176:
                 return 7;
             case ARM_CPUID_ARM11MPCORE:
                 return 1;
