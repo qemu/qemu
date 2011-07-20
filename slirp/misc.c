@@ -407,4 +407,17 @@ void slirp_connection_info(Slirp *slirp, Monitor *mon)
                        inet_ntoa(dst_addr), ntohs(dst_port),
                        so->so_rcv.sb_cc, so->so_snd.sb_cc);
     }
+
+    for (so = slirp->icmp.so_next; so != &slirp->icmp; so = so->so_next) {
+        n = snprintf(buf, sizeof(buf), "  ICMP[%d sec]",
+                     (so->so_expire - curtime) / 1000);
+        src.sin_addr = so->so_laddr;
+        dst_addr = so->so_faddr;
+        memset(&buf[n], ' ', 19 - n);
+        buf[19] = 0;
+        monitor_printf(mon, "%s %3d %15s  -    ", buf, so->s,
+                       src.sin_addr.s_addr ? inet_ntoa(src.sin_addr) : "*");
+        monitor_printf(mon, "%15s  -    %5d %5d\n", inet_ntoa(dst_addr),
+                       so->so_rcv.sb_cc, so->so_snd.sb_cc);
+    }
 }
