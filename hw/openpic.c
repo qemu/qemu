@@ -2,6 +2,7 @@
  * OpenPIC emulation
  *
  * Copyright (c) 2004 Jocelyn Mayer
+ *               2011 Alexander Graf
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -160,6 +161,16 @@ static inline int test_bit (uint32_t *field, int bit)
 {
     return (field[bit >> 5] & 1 << (bit & 0x1F)) != 0;
 }
+
+static int get_current_cpu(void)
+{
+  return cpu_single_env->cpu_index;
+}
+
+static uint32_t openpic_cpu_read_internal(void *opaque, target_phys_addr_t addr,
+                                          int idx);
+static void openpic_cpu_write_internal(void *opaque, target_phys_addr_t addr,
+                                       uint32_t val, int idx);
 
 enum {
     IRQ_EXTERNAL = 0x01,
@@ -590,18 +601,27 @@ static void openpic_gbl_write (void *opaque, target_phys_addr_t addr, uint32_t v
     DPRINTF("%s: addr " TARGET_FMT_plx " <= %08x\n", __func__, addr, val);
     if (addr & 0xF)
         return;
-    addr &= 0xFF;
     switch (addr) {
-    case 0x00: /* FREP */
+    case 0x40:
+    case 0x50:
+    case 0x60:
+    case 0x70:
+    case 0x80:
+    case 0x90:
+    case 0xA0:
+    case 0xB0:
+        openpic_cpu_write_internal(opp, addr, val, get_current_cpu());
         break;
-    case 0x20: /* GLBC */
+    case 0x1000: /* FREP */
+        break;
+    case 0x1020: /* GLBC */
         if (val & 0x80000000 && opp->reset)
             opp->reset(opp);
         opp->glbc = val & ~0x80000000;
         break;
-    case 0x80: /* VENI */
+    case 0x1080: /* VENI */
         break;
-    case 0x90: /* PINT */
+    case 0x1090: /* PINT */
         for (idx = 0; idx < opp->nb_cpus; idx++) {
             if ((val & (1 << idx)) && !(opp->pint & (1 << idx))) {
                 DPRINTF("Raise OpenPIC RESET output for CPU %d\n", idx);
@@ -615,22 +635,20 @@ static void openpic_gbl_write (void *opaque, target_phys_addr_t addr, uint32_t v
         }
         opp->pint = val;
         break;
-#if MAX_IPI > 0
-    case 0xA0: /* IPI_IPVP */
-    case 0xB0:
-    case 0xC0:
-    case 0xD0:
+    case 0x10A0: /* IPI_IPVP */
+    case 0x10B0:
+    case 0x10C0:
+    case 0x10D0:
         {
             int idx;
-            idx = (addr - 0xA0) >> 4;
+            idx = (addr - 0x10A0) >> 4;
             write_IRQreg(opp, opp->irq_ipi0 + idx, IRQ_IPVP, val);
         }
         break;
-#endif
-    case 0xE0: /* SPVE */
+    case 0x10E0: /* SPVE */
         opp->spve = val & 0x000000FF;
         break;
-    case 0xF0: /* TIFR */
+    case 0x10F0: /* TIFR */
         opp->tifr = val;
         break;
     default:
@@ -647,36 +665,43 @@ static uint32_t openpic_gbl_read (void *opaque, target_phys_addr_t addr)
     retval = 0xFFFFFFFF;
     if (addr & 0xF)
         return retval;
-    addr &= 0xFF;
     switch (addr) {
-    case 0x00: /* FREP */
+    case 0x1000: /* FREP */
         retval = opp->frep;
         break;
-    case 0x20: /* GLBC */
+    case 0x1020: /* GLBC */
         retval = opp->glbc;
         break;
-    case 0x80: /* VENI */
+    case 0x1080: /* VENI */
         retval = opp->veni;
         break;
-    case 0x90: /* PINT */
+    case 0x1090: /* PINT */
         retval = 0x00000000;
         break;
-#if MAX_IPI > 0
-    case 0xA0: /* IPI_IPVP */
+    case 0x40:
+    case 0x50:
+    case 0x60:
+    case 0x70:
+    case 0x80:
+    case 0x90:
+    case 0xA0:
     case 0xB0:
-    case 0xC0:
-    case 0xD0:
+        retval = openpic_cpu_read_internal(opp, addr, get_current_cpu());
+        break;
+    case 0x10A0: /* IPI_IPVP */
+    case 0x10B0:
+    case 0x10C0:
+    case 0x10D0:
         {
             int idx;
-            idx = (addr - 0xA0) >> 4;
+            idx = (addr - 0x10A0) >> 4;
             retval = read_IRQreg(opp, opp->irq_ipi0 + idx, IRQ_IPVP);
         }
         break;
-#endif
-    case 0xE0: /* SPVE */
+    case 0x10E0: /* SPVE */
         retval = opp->spve;
         break;
-    case 0xF0: /* TIFR */
+    case 0x10F0: /* TIFR */
         retval = opp->tifr;
         break;
     default:
@@ -794,23 +819,23 @@ static uint32_t openpic_src_read (void *opaque, uint32_t addr)
     return retval;
 }
 
-static void openpic_cpu_write (void *opaque, target_phys_addr_t addr, uint32_t val)
+static void openpic_cpu_write_internal(void *opaque, target_phys_addr_t addr,
+                                       uint32_t val, int idx)
 {
     openpic_t *opp = opaque;
     IRQ_src_t *src;
     IRQ_dst_t *dst;
-    int idx, s_IRQ, n_IRQ;
+    int s_IRQ, n_IRQ;
 
-    DPRINTF("%s: addr " TARGET_FMT_plx " <= %08x\n", __func__, addr, val);
+    DPRINTF("%s: cpu %d addr " TARGET_FMT_plx " <= %08x\n", __func__, idx,
+            addr, val);
     if (addr & 0xF)
         return;
-    addr &= 0x1FFF0;
-    idx = addr / 0x1000;
     dst = &opp->dst[idx];
     addr &= 0xFF0;
     switch (addr) {
 #if MAX_IPI > 0
-    case 0x40: /* PIPD */
+    case 0x40: /* IPIDR */
     case 0x50:
     case 0x60:
     case 0x70:
@@ -852,20 +877,24 @@ static void openpic_cpu_write (void *opaque, target_phys_addr_t addr, uint32_t v
     }
 }
 
-static uint32_t openpic_cpu_read (void *opaque, target_phys_addr_t addr)
+static void openpic_cpu_write(void *opaque, target_phys_addr_t addr, uint32_t val)
+{
+    openpic_cpu_write_internal(opaque, addr, val, (addr & 0x1f000) >> 12);
+}
+
+static uint32_t openpic_cpu_read_internal(void *opaque, target_phys_addr_t addr,
+                                          int idx)
 {
     openpic_t *opp = opaque;
     IRQ_src_t *src;
     IRQ_dst_t *dst;
     uint32_t retval;
-    int idx, n_IRQ;
+    int n_IRQ;
 
-    DPRINTF("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
+    DPRINTF("%s: cpu %d addr " TARGET_FMT_plx "\n", __func__, idx, addr);
     retval = 0xFFFFFFFF;
     if (addr & 0xF)
         return retval;
-    addr &= 0x1FFF0;
-    idx = addr / 0x1000;
     dst = &opp->dst[idx];
     addr &= 0xFF0;
     switch (addr) {
@@ -923,6 +952,11 @@ static uint32_t openpic_cpu_read (void *opaque, target_phys_addr_t addr)
     DPRINTF("%s: => %08x\n", __func__, retval);
 
     return retval;
+}
+
+static uint32_t openpic_cpu_read(void *opaque, target_phys_addr_t addr)
+{
+    return openpic_cpu_read_internal(opaque, addr, (addr & 0x1f000) >> 12);
 }
 
 static void openpic_buggy_write (void *opaque,
