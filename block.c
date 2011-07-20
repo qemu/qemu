@@ -2771,7 +2771,7 @@ int bdrv_eject(BlockDriverState *bs, int eject_flag)
 {
     BlockDriver *drv = bs->drv;
 
-    if (bs->locked) {
+    if (eject_flag && bs->locked) {
         return -EBUSY;
     }
 
