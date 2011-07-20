@@ -2532,6 +2532,7 @@ if test "$softmmu" = yes ; then
   tools="qemu-img\$(EXESUF) qemu-io\$(EXESUF) $tools"
   if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
       tools="qemu-nbd\$(EXESUF) $tools"
+      tools="qemu-ga\$(EXESUF) $tools"
     if [ "$check_utests" = "yes" ]; then
       tools="check-qint check-qstring check-qdict check-qlist $tools"
       tools="check-qfloat check-qjson $tools"
