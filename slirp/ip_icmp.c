@@ -101,6 +101,8 @@ icmp_input(struct mbuf *m, int hlen)
     ip->ip_len += hlen;	             /* since ip_input subtracts this */
     if (ip->ip_dst.s_addr == slirp->vhost_addr.s_addr) {
       icmp_reflect(m);
+    } else if (slirp->restricted) {
+        goto freeit;
     } else {
       struct socket *so;
       struct sockaddr_in addr;

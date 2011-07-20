@@ -118,27 +118,6 @@ ip_input(struct mbuf *m)
 		goto bad;
 	}
 
-    if (slirp->restricted) {
-        if ((ip->ip_dst.s_addr & slirp->vnetwork_mask.s_addr) ==
-            slirp->vnetwork_addr.s_addr) {
-            if (ip->ip_dst.s_addr == 0xffffffff && ip->ip_p != IPPROTO_UDP)
-                goto bad;
-        } else {
-            uint32_t inv_mask = ~slirp->vnetwork_mask.s_addr;
-            struct ex_list *ex_ptr;
-
-            if ((ip->ip_dst.s_addr & inv_mask) == inv_mask) {
-                goto bad;
-            }
-            for (ex_ptr = slirp->exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next)
-                if (ex_ptr->ex_addr.s_addr == ip->ip_dst.s_addr)
-                    break;
-
-            if (!ex_ptr)
-                goto bad;
-        }
-    }
-
 	/* Should drop packet if mbuf too long? hmmm... */
 	if (m->m_len > ip->ip_len)
 	   m_adj(m, ip->ip_len - m->m_len);
