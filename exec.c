@@ -2863,13 +2863,13 @@ static void *file_ram_alloc(RAMBlock *block,
 static ram_addr_t find_ram_offset(ram_addr_t size)
 {
     RAMBlock *block, *next_block;
-    ram_addr_t offset = 0, mingap = ULONG_MAX;
+    ram_addr_t offset = 0, mingap = RAM_ADDR_MAX;
 
     if (QLIST_EMPTY(&ram_list.blocks))
         return 0;
 
     QLIST_FOREACH(block, &ram_list.blocks, next) {
-        ram_addr_t end, next = ULONG_MAX;
+        ram_addr_t end, next = RAM_ADDR_MAX;
 
         end = block->offset + block->length;
 
@@ -3081,7 +3081,8 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
 #endif
                 }
                 if (area != vaddr) {
-                    fprintf(stderr, "Could not remap addr: %lx@%lx\n",
+                    fprintf(stderr, "Could not remap addr: "
+                            RAM_ADDR_FMT "@" RAM_ADDR_FMT "\n",
                             length, addr);
                     exit(1);
                 }
@@ -4052,7 +4053,7 @@ void *cpu_physical_memory_map(target_phys_addr_t addr,
     target_phys_addr_t page;
     unsigned long pd;
     PhysPageDesc *p;
-    ram_addr_t raddr = ULONG_MAX;
+    ram_addr_t raddr = RAM_ADDR_MAX;
     ram_addr_t rlen;
     void *ret;
 

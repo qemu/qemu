@@ -184,7 +184,7 @@ void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size)
     }
 
     if (xc_domain_populate_physmap_exact(xen_xc, xen_domid, nr_pfn, 0, 0, pfn_list)) {
-        hw_error("xen: failed to populate ram at %lx", ram_addr);
+        hw_error("xen: failed to populate ram at " RAM_ADDR_FMT, ram_addr);
     }
 
     qemu_free(pfn_list);
