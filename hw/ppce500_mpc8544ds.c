@@ -226,7 +226,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
                          const char *cpu_model)
 {
     PCIBus *pci_bus;
-    CPUState *env;
+    CPUState *env = NULL;
     uint64_t elf_entry;
     uint64_t elf_lowaddr;
     target_phys_addr_t entry=0;
@@ -240,24 +240,40 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     qemu_irq *irqs, *mpic;
     DeviceState *dev;
     struct boot_info *boot_info;
+    CPUState *firstenv = NULL;
 
-    /* Setup CPU */
+    /* Setup CPUs */
     if (cpu_model == NULL) {
         cpu_model = "e500v2_v30";
     }
 
-    env = cpu_ppc_init(cpu_model);
-    if (!env) {
-        fprintf(stderr, "Unable to initialize CPU!\n");
-        exit(1);
+    for (i = 0; i < smp_cpus; i++) {
+        qemu_irq *input;
+        env = cpu_ppc_init(cpu_model);
+        if (!env) {
+            fprintf(stderr, "Unable to initialize CPU!\n");
+            exit(1);
+        }
+
+        if (!firstenv) {
+            firstenv = env;
+        }
+
+        env->spr[SPR_BOOKE_PIR] = env->cpu_index = i;
+
+        /* XXX register timer? */
+        ppc_emb_timers_init(env, 400000000, PPC_INTERRUPT_DECR);
+        ppc_dcr_init(env, NULL, NULL);
+        /* XXX Enable DEC interrupts - probably wrong in the backend */
+        env->spr[SPR_40x_TCR] = 1 << 26;
+
+        /* Register reset handler */
+        boot_info = g_malloc0(sizeof(struct boot_info));
+        qemu_register_reset(mpc8544ds_cpu_reset, env);
+        env->load_info = boot_info;
     }
 
-    /* XXX register timer? */
-    ppc_emb_timers_init(env, 400000000, PPC_INTERRUPT_DECR);
-    ppc_dcr_init(env, NULL, NULL);
-
-    /* Register reset handler */
-    qemu_register_reset(mpc8544ds_cpu_reset, env);
+    env = firstenv;
 
     /* Fixup Memory size on a alignment boundary */
     ram_size &= ~(RAM_SIZES_ALIGN - 1);
@@ -336,8 +352,6 @@ static void mpc8544ds_init(ram_addr_t ram_size,
         }
     }
 
-    boot_info = g_malloc0(sizeof(struct boot_info));
-
     /* If we're loading a kernel directly, we must load the device tree too. */
     if (kernel_filename) {
 #ifndef CONFIG_FDT
@@ -350,10 +364,10 @@ static void mpc8544ds_init(ram_addr_t ram_size,
             exit(1);
         }
 
+        boot_info = env->load_info;
         boot_info->entry = entry;
         boot_info->dt_base = dt_base;
     }
-    env->load_info = boot_info;
 
     if (kvm_enabled()) {
         kvmppc_init();
