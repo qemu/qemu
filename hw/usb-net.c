@@ -1414,11 +1414,17 @@ static USBDevice *usb_net_init(const char *cmdline)
     return dev;
 }
 
+static const VMStateDescription vmstate_usb_net = {
+    .name = "usb-net",
+    .unmigratable = 1,
+};
+
 static struct USBDeviceInfo net_info = {
     .product_desc   = "QEMU USB Network Interface",
     .qdev.name      = "usb-net",
     .qdev.fw_name    = "network",
     .qdev.size      = sizeof(USBNetState),
+    .qdev.vmsd      = &vmstate_usb_net,
     .usb_desc       = &desc_net,
     .init           = usb_net_initfn,
     .handle_packet  = usb_generic_handle_packet,
