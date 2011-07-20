@@ -1055,8 +1055,9 @@ static void ioport_write(void *opaque, uint32_t addr, uint32_t val)
     case QXL_IO_LOG:
         break;
     default:
-        if (d->mode == QXL_MODE_NATIVE || d->mode == QXL_MODE_COMPAT)
+        if (d->mode != QXL_MODE_VGA) {
             break;
+        }
         dprint(d, 1, "%s: unexpected port 0x%x (%s) in vga mode\n",
             __func__, io_port, io_port_to_string(io_port));
         return;
