@@ -830,14 +830,15 @@ static const struct {
     const char *type;
     net_client_init_func init;
     QemuOptDesc desc[NET_MAX_DESC];
-} net_client_types[] = {
-    {
+} net_client_types[NET_CLIENT_TYPE_MAX] = {
+    [NET_CLIENT_TYPE_NONE] = {
         .type = "none",
         .desc = {
             NET_COMMON_PARAMS_DESC,
             { /* end of list */ }
         },
-    }, {
+    },
+    [NET_CLIENT_TYPE_NIC] = {
         .type = "nic",
         .init = net_init_nic,
         .desc = {
@@ -866,8 +867,9 @@ static const struct {
             },
             { /* end of list */ }
         },
+    },
 #ifdef CONFIG_SLIRP
-    }, {
+    [NET_CLIENT_TYPE_USER] = {
         .type = "user",
         .init = net_init_slirp,
         .desc = {
@@ -927,8 +929,9 @@ static const struct {
             },
             { /* end of list */ }
         },
+    },
 #endif
-    }, {
+    [NET_CLIENT_TYPE_TAP] = {
         .type = "tap",
         .init = net_init_tap,
         .desc = {
@@ -975,7 +978,8 @@ static const struct {
 #endif /* _WIN32 */
             { /* end of list */ }
         },
-    }, {
+    },
+    [NET_CLIENT_TYPE_SOCKET] = {
         .type = "socket",
         .init = net_init_socket,
         .desc = {
@@ -1003,8 +1007,9 @@ static const struct {
             },
             { /* end of list */ }
         },
+    },
 #ifdef CONFIG_VDE
-    }, {
+    [NET_CLIENT_TYPE_VDE] = {
         .type = "vde",
         .init = net_init_vde,
         .desc = {
@@ -1028,8 +1033,9 @@ static const struct {
             },
             { /* end of list */ }
         },
+    },
 #endif
-    }, {
+    [NET_CLIENT_TYPE_DUMP] = {
         .type = "dump",
         .init = net_init_dump,
         .desc = {
@@ -1046,7 +1052,6 @@ static const struct {
             { /* end of list */ }
         },
     },
-    { /* end of list */ }
 };
 
 int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev)
@@ -1094,8 +1099,9 @@ int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev)
         name = qemu_opt_get(opts, "name");
     }
 
-    for (i = 0; net_client_types[i].type != NULL; i++) {
-        if (!strcmp(net_client_types[i].type, type)) {
+    for (i = 0; i < NET_CLIENT_TYPE_MAX; i++) {
+        if (net_client_types[i].type != NULL &&
+            !strcmp(net_client_types[i].type, type)) {
             VLANState *vlan = NULL;
             int ret;
 
@@ -1330,7 +1336,7 @@ void net_check_clients(void)
             case NET_CLIENT_TYPE_NIC:
                 has_nic = 1;
                 break;
-            case NET_CLIENT_TYPE_SLIRP:
+            case NET_CLIENT_TYPE_USER:
             case NET_CLIENT_TYPE_TAP:
             case NET_CLIENT_TYPE_SOCKET:
             case NET_CLIENT_TYPE_VDE:
