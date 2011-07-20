@@ -33,9 +33,6 @@
 #ifndef _MBUF_H_
 #define _MBUF_H_
 
-#define m_freem m_free
-
-
 #define MINCSIZE 4096	/* Amount to increase mbuf if too small */
 
 /*

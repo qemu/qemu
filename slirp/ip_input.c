@@ -204,7 +204,7 @@ ip_input(struct mbuf *m)
 	}
 	return;
 bad:
-	m_freem(m);
+	m_free(m);
 	return;
 }
 
@@ -297,7 +297,7 @@ ip_reass(Slirp *slirp, struct ip *ip, struct ipq *fp)
 			break;
 		}
 		q = q->ipf_next;
-		m_freem(dtom(slirp, q->ipf_prev));
+		m_free(dtom(slirp, q->ipf_prev));
 		ip_deq(q->ipf_prev);
 	}
 
@@ -363,7 +363,7 @@ insert:
 	return ip;
 
 dropfrag:
-	m_freem(m);
+	m_free(m);
         return NULL;
 }
 
@@ -379,7 +379,7 @@ ip_freef(Slirp *slirp, struct ipq *fp)
 	for (q = fp->frag_link.next; q != (struct ipasfrag*)&fp->frag_link; q = p) {
 		p = q->ipf_next;
 		ip_deq(q);
-		m_freem(dtom(slirp, q));
+		m_free(dtom(slirp, q));
 	}
 	remque(&fp->ip_link);
 	(void) m_free(dtom(slirp, fp));

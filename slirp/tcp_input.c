@@ -136,7 +136,7 @@ tcp_reass(register struct tcpcb *tp, register struct tcpiphdr *ti,
 		i = q->ti_seq + q->ti_len - ti->ti_seq;
 		if (i > 0) {
 			if (i >= ti->ti_len) {
-				m_freem(m);
+				m_free(m);
 				/*
 				 * Try to present any queued data
 				 * at the left window edge to the user.
@@ -170,7 +170,7 @@ tcp_reass(register struct tcpcb *tp, register struct tcpiphdr *ti,
 		q = tcpiphdr_next(q);
 		m = tcpiphdr_prev(q)->ti_mbuf;
 		remque(tcpiphdr2qlink(tcpiphdr_prev(q)));
-		m_freem(m);
+		m_free(m);
 	}
 
 	/*
@@ -197,7 +197,7 @@ present:
 		m = ti->ti_mbuf;
 		ti = tcpiphdr_next(ti);
 		if (so->so_state & SS_FCANTSENDMORE)
-			m_freem(m);
+			m_free(m);
 		else {
 			if (so->so_emu) {
 				if (tcp_emu(so,m)) sbappend(so, m);
@@ -451,7 +451,7 @@ findso:
 				acked = ti->ti_ack - tp->snd_una;
 				sbdrop(&so->so_snd, acked);
 				tp->snd_una = ti->ti_ack;
-				m_freem(m);
+				m_free(m);
 
 				/*
 				 * If all outstanding data are acked, stop
@@ -1260,7 +1260,7 @@ dropafterack:
 	 */
 	if (tiflags & TH_RST)
 		goto drop;
-	m_freem(m);
+	m_free(m);
 	tp->t_flags |= TF_ACKNOW;
 	(void) tcp_output(tp);
 	return;

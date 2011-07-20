@@ -250,7 +250,7 @@ tcp_close(struct tcpcb *tp)
 		t = tcpiphdr_next(t);
 		m = tcpiphdr_prev(t)->ti_mbuf;
 		remque(tcpiphdr2qlink(tcpiphdr_prev(t)));
-		m_freem(m);
+		m_free(m);
 	}
 	free(tp);
         so->so_tcpcb = NULL;

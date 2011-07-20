@@ -81,7 +81,7 @@ icmp_input(struct mbuf *m, int hlen)
    */
   if (icmplen < ICMP_MINLEN) {          /* min 8 bytes payload */
   freeit:
-    m_freem(m);
+    m_free(m);
     goto end_error;
   }
 
@@ -155,11 +155,11 @@ icmp_input(struct mbuf *m, int hlen)
   case ICMP_TSTAMP:
   case ICMP_MASKREQ:
   case ICMP_REDIRECT:
-    m_freem(m);
+    m_free(m);
     break;
 
   default:
-    m_freem(m);
+    m_free(m);
   } /* swith */
 
 end_error:
