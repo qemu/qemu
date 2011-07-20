@@ -1,7 +1,9 @@
 /*
- * Virtio Block Device
+ * Virtio Balloon Device
  *
  * Copyright IBM, Corp. 2008
+ * Copyright (C) 2011 Red Hat, Inc.
+ * Copyright (C) 2011 Amit Shah <amit.shah@redhat.com>
  *
  * Authors:
  *  Anthony Liguori   <aliguori@us.ibm.com>
