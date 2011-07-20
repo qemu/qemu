@@ -33,6 +33,20 @@
 
 #define NUM_SURFACES 1024
 
+/*
+ * Internal enum to differenciate between options for
+ * io calls that have a sync (old) version and an _async (new)
+ * version:
+ *  QXL_SYNC: use the old version
+ *  QXL_ASYNC: use the new version and make sure there are no two
+ *   happening at the same time. This is used for guest initiated
+ *   calls
+ */
+typedef enum qxl_async_io {
+    QXL_SYNC,
+    QXL_ASYNC,
+} qxl_async_io;
+
 typedef struct SimpleSpiceDisplay SimpleSpiceDisplay;
 typedef struct SimpleSpiceUpdate SimpleSpiceUpdate;
 
@@ -82,12 +96,15 @@ void qemu_spice_display_update(SimpleSpiceDisplay *ssd,
 void qemu_spice_display_resize(SimpleSpiceDisplay *ssd);
 void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd);
 
-void qemu_spice_add_memslot(SimpleSpiceDisplay *ssd, QXLDevMemSlot *memslot);
+void qemu_spice_add_memslot(SimpleSpiceDisplay *ssd, QXLDevMemSlot *memslot,
+                            qxl_async_io async);
 void qemu_spice_del_memslot(SimpleSpiceDisplay *ssd, uint32_t gid,
                             uint32_t sid);
 void qemu_spice_create_primary_surface(SimpleSpiceDisplay *ssd, uint32_t id,
-                                       QXLDevSurfaceCreate *surface);
-void qemu_spice_destroy_primary_surface(SimpleSpiceDisplay *ssd, uint32_t id);
+                                       QXLDevSurfaceCreate *surface,
+                                       qxl_async_io async);
+void qemu_spice_destroy_primary_surface(SimpleSpiceDisplay *ssd,
+                                        uint32_t id, qxl_async_io async);
 void qemu_spice_wakeup(SimpleSpiceDisplay *ssd);
 void qemu_spice_start(SimpleSpiceDisplay *ssd);
 void qemu_spice_stop(SimpleSpiceDisplay *ssd);

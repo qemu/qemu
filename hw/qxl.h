@@ -15,6 +15,8 @@ enum qxl_mode {
     QXL_MODE_NATIVE,
 };
 
+#define QXL_UNDEFINED_IO UINT32_MAX
+
 typedef struct PCIQXLDevice {
     PCIDevice          pci;
     SimpleSpiceDisplay ssd;
@@ -29,6 +31,9 @@ typedef struct PCIQXLDevice {
 
     int32_t            num_memslots;
     int32_t            num_surfaces;
+
+    uint32_t           current_async;
+    QemuMutex          async_lock;
 
     struct guest_slots {
         QXLMemSlot     slot;
@@ -104,13 +109,12 @@ void qxl_guest_bug(PCIQXLDevice *qxl, const char *msg, ...);
 void qxl_spice_update_area(PCIQXLDevice *qxl, uint32_t surface_id,
                            struct QXLRect *area, struct QXLRect *dirty_rects,
                            uint32_t num_dirty_rects,
-                           uint32_t clear_dirty_region);
-void qxl_spice_destroy_surface_wait(PCIQXLDevice *qxl, uint32_t id);
+                           uint32_t clear_dirty_region,
+                           qxl_async_io async);
 void qxl_spice_loadvm_commands(PCIQXLDevice *qxl, struct QXLCommandExt *ext,
                                uint32_t count);
 void qxl_spice_oom(PCIQXLDevice *qxl);
 void qxl_spice_reset_memslots(PCIQXLDevice *qxl);
-void qxl_spice_destroy_surfaces(PCIQXLDevice *qxl);
 void qxl_spice_reset_image_cache(PCIQXLDevice *qxl);
 void qxl_spice_reset_cursor(PCIQXLDevice *qxl);
 
@@ -122,3 +126,9 @@ void qxl_log_command(PCIQXLDevice *qxl, const char *ring, QXLCommandExt *ext);
 void qxl_render_resize(PCIQXLDevice *qxl);
 void qxl_render_update(PCIQXLDevice *qxl);
 void qxl_render_cursor(PCIQXLDevice *qxl, QXLCommandExt *ext);
+#if SPICE_INTERFACE_QXL_MINOR >= 1
+void qxl_spice_update_area_async(PCIQXLDevice *qxl, uint32_t surface_id,
+                                 struct QXLRect *area,
+                                 uint32_t clear_dirty_region,
+                                 int is_vga);
+#endif
