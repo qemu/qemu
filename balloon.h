@@ -21,10 +21,6 @@ typedef void (QEMUBalloonEvent)(void *opaque, ram_addr_t target,
 
 void qemu_add_balloon_handler(QEMUBalloonEvent *func, void *opaque);
 
-int qemu_balloon(ram_addr_t target, MonitorCompletion cb, void *opaque);
-
-int qemu_balloon_status(MonitorCompletion cb, void *opaque);
-
 void monitor_print_balloon(Monitor *mon, const QObject *data);
 int do_info_balloon(Monitor *mon, MonitorCompletion cb, void *opaque);
 int do_balloon(Monitor *mon, const QDict *params,
