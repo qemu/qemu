@@ -199,36 +199,47 @@ static uint32_t virtio_balloon_get_features(VirtIODevice *vdev, uint32_t f)
     return f;
 }
 
+static void virtio_balloon_stat(void *opaque, MonitorCompletion cb,
+                                void *cb_data)
+{
+    VirtIOBalloon *dev = opaque;
+
+    /* For now, only allow one request at a time.  This restriction can be
+     * removed later by queueing callback and data pairs.
+     */
+    if (dev->stats_callback != NULL) {
+        return;
+    }
+    dev->stats_callback = cb;
+    dev->stats_opaque_callback_data = cb_data;
+
+    if (ENABLE_GUEST_STATS
+        && (dev->vdev.guest_features & (1 << VIRTIO_BALLOON_F_STATS_VQ))) {
+        virtqueue_push(dev->svq, &dev->stats_vq_elem, dev->stats_vq_offset);
+        virtio_notify(&dev->vdev, dev->svq);
+        return;
+    }
+
+    /* Stats are not supported.  Clear out any stale values that might
+     * have been set by a more featureful guest kernel.
+     */
+    reset_stats(dev);
+    complete_stats_request(dev);
+}
+
 static void virtio_balloon_to_target(void *opaque, ram_addr_t target,
                                      MonitorCompletion cb, void *cb_data)
 {
     VirtIOBalloon *dev = opaque;
 
-    if (target > ram_size)
+    if (target > ram_size) {
         target = ram_size;
-
+    }
     if (target) {
         dev->num_pages = (ram_size - target) >> VIRTIO_BALLOON_PFN_SHIFT;
         virtio_notify_config(&dev->vdev);
     } else {
-        /* For now, only allow one request at a time.  This restriction can be
-         * removed later by queueing callback and data pairs.
-         */
-        if (dev->stats_callback != NULL) {
-            return;
-        }
-        dev->stats_callback = cb;
-        dev->stats_opaque_callback_data = cb_data; 
-        if (ENABLE_GUEST_STATS && (dev->vdev.guest_features & (1 << VIRTIO_BALLOON_F_STATS_VQ))) {
-            virtqueue_push(dev->svq, &dev->stats_vq_elem, dev->stats_vq_offset);
-            virtio_notify(&dev->vdev, dev->svq);
-        } else {
-            /* Stats are not supported.  Clear out any stale values that might
-             * have been set by a more featureful guest kernel.
-             */
-            reset_stats(dev);
-            complete_stats_request(dev);
-        }
+        virtio_balloon_stat(opaque, cb, cb_data);
     }
 }
 
