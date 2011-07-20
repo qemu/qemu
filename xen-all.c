@@ -19,6 +19,7 @@
 
 #include <xen/hvm/ioreq.h>
 #include <xen/hvm/params.h>
+#include <xen/hvm/e820.h>
 
 //#define DEBUG_XEN
 
@@ -144,6 +145,12 @@ static void xen_ram_init(ram_addr_t ram_size)
     new_block->host = NULL;
     new_block->offset = 0;
     new_block->length = ram_size;
+    if (ram_size >= HVM_BELOW_4G_RAM_END) {
+        /* Xen does not allocate the memory continuously, and keep a hole at
+         * HVM_BELOW_4G_MMIO_START of HVM_BELOW_4G_MMIO_LENGTH
+         */
+        new_block->length += HVM_BELOW_4G_MMIO_LENGTH;
+    }
 
     QLIST_INSERT_HEAD(&ram_list.blocks, new_block, next);
 
@@ -152,20 +159,26 @@ static void xen_ram_init(ram_addr_t ram_size)
     memset(ram_list.phys_dirty + (new_block->offset >> TARGET_PAGE_BITS),
            0xff, new_block->length >> TARGET_PAGE_BITS);
 
-    if (ram_size >= 0xe0000000 ) {
-        above_4g_mem_size = ram_size - 0xe0000000;
-        below_4g_mem_size = 0xe0000000;
+    if (ram_size >= HVM_BELOW_4G_RAM_END) {
+        above_4g_mem_size = ram_size - HVM_BELOW_4G_RAM_END;
+        below_4g_mem_size = HVM_BELOW_4G_RAM_END;
     } else {
         below_4g_mem_size = ram_size;
     }
 
-    cpu_register_physical_memory(0, below_4g_mem_size, new_block->offset);
-#if TARGET_PHYS_ADDR_BITS > 32
+    cpu_register_physical_memory(0, 0xa0000, 0);
+    /* Skip of the VGA IO memory space, it will be registered later by the VGA
+     * emulated device.
+     *
+     * The area between 0xc0000 and 0x100000 will be used by SeaBIOS to load
+     * the Options ROM, so it is registered here as RAM.
+     */
+    cpu_register_physical_memory(0xc0000, below_4g_mem_size - 0xc0000,
+                                 0xc0000);
     if (above_4g_mem_size > 0) {
         cpu_register_physical_memory(0x100000000ULL, above_4g_mem_size,
-                                     new_block->offset + below_4g_mem_size);
+                                     0x100000000ULL);
     }
-#endif
 }
 
 void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size)
