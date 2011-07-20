@@ -107,3 +107,14 @@ int qemu_devtree_setprop_string(void *fdt, const char *node_path,
 
     return fdt_setprop_string(fdt, offset, property, string);
 }
+
+int qemu_devtree_nop_node(void *fdt, const char *node_path)
+{
+    int offset;
+
+    offset = fdt_path_offset(fdt, node_path);
+    if (offset < 0)
+        return offset;
+
+    return fdt_nop_node(fdt, offset);
+}
