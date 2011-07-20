@@ -124,8 +124,8 @@ void qxl_render_update(PCIQXLDevice *qxl)
     update.bottom = qxl->guest_primary.surface.height;
 
     memset(dirty, 0, sizeof(dirty));
-    qemu_spice_update_area(&qxl->ssd, 0, &update,
-                           dirty, ARRAY_SIZE(dirty), 1);
+    qxl_spice_update_area(qxl, 0, &update,
+                          dirty, ARRAY_SIZE(dirty), 1);
 
     for (i = 0; i < ARRAY_SIZE(dirty); i++) {
         if (qemu_spice_rect_is_empty(dirty+i)) {

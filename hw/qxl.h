@@ -98,6 +98,19 @@ typedef struct PCIQXLDevice {
 /* qxl.c */
 void *qxl_phys2virt(PCIQXLDevice *qxl, QXLPHYSICAL phys, int group_id);
 
+void qxl_spice_update_area(PCIQXLDevice *qxl, uint32_t surface_id,
+                           struct QXLRect *area, struct QXLRect *dirty_rects,
+                           uint32_t num_dirty_rects,
+                           uint32_t clear_dirty_region);
+void qxl_spice_destroy_surface_wait(PCIQXLDevice *qxl, uint32_t id);
+void qxl_spice_loadvm_commands(PCIQXLDevice *qxl, struct QXLCommandExt *ext,
+                               uint32_t count);
+void qxl_spice_oom(PCIQXLDevice *qxl);
+void qxl_spice_reset_memslots(PCIQXLDevice *qxl);
+void qxl_spice_destroy_surfaces(PCIQXLDevice *qxl);
+void qxl_spice_reset_image_cache(PCIQXLDevice *qxl);
+void qxl_spice_reset_cursor(PCIQXLDevice *qxl);
+
 /* qxl-logger.c */
 void qxl_log_cmd_cursor(PCIQXLDevice *qxl, QXLCursorCmd *cmd, int group_id);
 void qxl_log_command(PCIQXLDevice *qxl, const char *ring, QXLCommandExt *ext);

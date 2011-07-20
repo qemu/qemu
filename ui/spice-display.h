@@ -82,24 +82,12 @@ void qemu_spice_display_update(SimpleSpiceDisplay *ssd,
 void qemu_spice_display_resize(SimpleSpiceDisplay *ssd);
 void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd);
 
-void qemu_spice_update_area(SimpleSpiceDisplay *ssd, uint32_t surface_id,
-                            struct QXLRect *area, struct QXLRect *dirty_rects,
-                            uint32_t num_dirty_rects,
-                            uint32_t clear_dirty_region);
 void qemu_spice_add_memslot(SimpleSpiceDisplay *ssd, QXLDevMemSlot *memslot);
 void qemu_spice_del_memslot(SimpleSpiceDisplay *ssd, uint32_t gid,
                             uint32_t sid);
 void qemu_spice_create_primary_surface(SimpleSpiceDisplay *ssd, uint32_t id,
                                        QXLDevSurfaceCreate *surface);
 void qemu_spice_destroy_primary_surface(SimpleSpiceDisplay *ssd, uint32_t id);
-void qemu_spice_destroy_surface_wait(SimpleSpiceDisplay *ssd, uint32_t id);
-void qemu_spice_loadvm_commands(SimpleSpiceDisplay *ssd,
-                                struct QXLCommandExt *ext, uint32_t count);
 void qemu_spice_wakeup(SimpleSpiceDisplay *ssd);
-void qemu_spice_oom(SimpleSpiceDisplay *ssd);
 void qemu_spice_start(SimpleSpiceDisplay *ssd);
 void qemu_spice_stop(SimpleSpiceDisplay *ssd);
-void qemu_spice_reset_memslots(SimpleSpiceDisplay *ssd);
-void qemu_spice_destroy_surfaces(SimpleSpiceDisplay *ssd);
-void qemu_spice_reset_image_cache(SimpleSpiceDisplay *ssd);
-void qemu_spice_reset_cursor(SimpleSpiceDisplay *ssd);

@@ -125,6 +125,53 @@ static void qxl_reset_memslots(PCIQXLDevice *d);
 static void qxl_reset_surfaces(PCIQXLDevice *d);
 static void qxl_ring_set_dirty(PCIQXLDevice *qxl);
 
+
+void qxl_spice_update_area(PCIQXLDevice *qxl, uint32_t surface_id,
+                           struct QXLRect *area, struct QXLRect *dirty_rects,
+                           uint32_t num_dirty_rects,
+                           uint32_t clear_dirty_region)
+{
+    qxl->ssd.worker->update_area(qxl->ssd.worker, surface_id, area, dirty_rects,
+                             num_dirty_rects, clear_dirty_region);
+}
+
+void qxl_spice_destroy_surface_wait(PCIQXLDevice *qxl, uint32_t id)
+{
+    qxl->ssd.worker->destroy_surface_wait(qxl->ssd.worker, id);
+}
+
+void qxl_spice_loadvm_commands(PCIQXLDevice *qxl, struct QXLCommandExt *ext,
+                               uint32_t count)
+{
+    qxl->ssd.worker->loadvm_commands(qxl->ssd.worker, ext, count);
+}
+
+void qxl_spice_oom(PCIQXLDevice *qxl)
+{
+    qxl->ssd.worker->oom(qxl->ssd.worker);
+}
+
+void qxl_spice_reset_memslots(PCIQXLDevice *qxl)
+{
+    qxl->ssd.worker->reset_memslots(qxl->ssd.worker);
+}
+
+void qxl_spice_destroy_surfaces(PCIQXLDevice *qxl)
+{
+    qxl->ssd.worker->destroy_surfaces(qxl->ssd.worker);
+}
+
+void qxl_spice_reset_image_cache(PCIQXLDevice *qxl)
+{
+    qxl->ssd.worker->reset_image_cache(qxl->ssd.worker);
+}
+
+void qxl_spice_reset_cursor(PCIQXLDevice *qxl)
+{
+    qxl->ssd.worker->reset_cursor(qxl->ssd.worker);
+}
+
+
 static inline uint32_t msb_mask(uint32_t val)
 {
     uint32_t mask;
@@ -684,8 +731,8 @@ static void qxl_hard_reset(PCIQXLDevice *d, int loadvm)
     dprint(d, 1, "%s: start%s\n", __FUNCTION__,
            loadvm ? " (loadvm)" : "");
 
-    qemu_spice_reset_cursor(&d->ssd);
-    qemu_spice_reset_image_cache(&d->ssd);
+    qxl_spice_reset_cursor(d);
+    qxl_spice_reset_image_cache(d);
     qxl_reset_surfaces(d);
     qxl_reset_memslots(d);
 
@@ -807,7 +854,7 @@ static void qxl_del_memslot(PCIQXLDevice *d, uint32_t slot_id)
 static void qxl_reset_memslots(PCIQXLDevice *d)
 {
     dprint(d, 1, "%s:\n", __FUNCTION__);
-    qemu_spice_reset_memslots(&d->ssd);
+    qxl_spice_reset_memslots(d);
     memset(&d->guest_slots, 0, sizeof(d->guest_slots));
 }
 
@@ -815,7 +862,7 @@ static void qxl_reset_surfaces(PCIQXLDevice *d)
 {
     dprint(d, 1, "%s:\n", __FUNCTION__);
     d->mode = QXL_MODE_UNDEFINED;
-    qemu_spice_destroy_surfaces(&d->ssd);
+    qxl_spice_destroy_surfaces(d);
     memset(&d->guest_surfaces.cmds, 0, sizeof(d->guest_surfaces.cmds));
 }
 
@@ -956,8 +1003,8 @@ static void ioport_write(void *opaque, uint32_t addr, uint32_t val)
     case QXL_IO_UPDATE_AREA:
     {
         QXLRect update = d->ram->update_area;
-        qemu_spice_update_area(&d->ssd, d->ram->update_surface,
-                               &update, NULL, 0, 0);
+        qxl_spice_update_area(d, d->ram->update_surface,
+                              &update, NULL, 0, 0);
         break;
     }
     case QXL_IO_NOTIFY_CMD:
@@ -978,7 +1025,7 @@ static void ioport_write(void *opaque, uint32_t addr, uint32_t val)
             break;
         }
         d->oom_running = 1;
-        qemu_spice_oom(&d->ssd);
+        qxl_spice_oom(d);
         d->oom_running = 0;
         break;
     case QXL_IO_SET_MODE:
@@ -1016,10 +1063,10 @@ static void ioport_write(void *opaque, uint32_t addr, uint32_t val)
         qxl_destroy_primary(d);
         break;
     case QXL_IO_DESTROY_SURFACE_WAIT:
-        qemu_spice_destroy_surface_wait(&d->ssd, val);
+        qxl_spice_destroy_surface_wait(d, val);
         break;
     case QXL_IO_DESTROY_ALL_SURFACES:
-        qemu_spice_destroy_surfaces(&d->ssd);
+        qxl_spice_destroy_surfaces(d);
         break;
     default:
         fprintf(stderr, "%s: ioport=0x%x, abort()\n", __FUNCTION__, io_port);
@@ -1419,7 +1466,7 @@ static int qxl_post_load(void *opaque, int version)
         cmds[out].cmd.type = QXL_CMD_CURSOR;
         cmds[out].group_id = MEMSLOT_GROUP_GUEST;
         out++;
-        qemu_spice_loadvm_commands(&d->ssd, cmds, out);
+        qxl_spice_loadvm_commands(d, cmds, out);
         qemu_free(cmds);
 
         break;
