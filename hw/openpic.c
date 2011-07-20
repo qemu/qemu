@@ -63,7 +63,7 @@
 
 #elif defined(USE_MPCxxx)
 
-#define MAX_CPU     2
+#define MAX_CPU    15
 #define MAX_IRQ   128
 #define MAX_DBL     0
 #define MAX_MBX     0
@@ -507,7 +507,7 @@ static inline void write_IRQreg (openpic_t *opp, int n_IRQ,
         break;
     case IRQ_IDE:
         tmp = val & 0xC0000000;
-        tmp |= val & ((1 << MAX_CPU) - 1);
+        tmp |= val & ((1ULL << MAX_CPU) - 1);
         opp->src[n_IRQ].ide = tmp;
         DPRINTF("Set IDE %d to 0x%08x\n", n_IRQ, opp->src[n_IRQ].ide);
         break;
@@ -1283,7 +1283,7 @@ static void mpic_reset (void *opaque)
 
     mpp->glbc = 0x80000000;
     /* Initialise controller registers */
-    mpp->frep = 0x004f0002;
+    mpp->frep = 0x004f0002 | ((mpp->nb_cpus - 1) << 8);
     mpp->veni = VENI;
     mpp->pint = 0x00000000;
     mpp->spve = 0x0000FFFF;
@@ -1683,10 +1683,6 @@ qemu_irq *mpic_init (target_phys_addr_t base, int nb_cpus,
         {mpic_msi_read, mpic_msi_write, MPIC_MSI_REG_START, MPIC_MSI_REG_SIZE},
         {mpic_cpu_read, mpic_cpu_write, MPIC_CPU_REG_START, MPIC_CPU_REG_SIZE},
     };
-
-    /* XXX: for now, only one CPU is supported */
-    if (nb_cpus != 1)
-        return NULL;
 
     mpp = g_malloc0(sizeof(openpic_t));
 
