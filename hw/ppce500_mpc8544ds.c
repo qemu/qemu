@@ -237,7 +237,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     target_long initrd_size=0;
     int i=0;
     unsigned int pci_irq_nrs[4] = {1, 2, 3, 4};
-    qemu_irq *irqs, *mpic;
+    qemu_irq **irqs, *mpic;
     DeviceState *dev;
     struct boot_info *boot_info;
     CPUState *firstenv = NULL;
@@ -247,6 +247,8 @@ static void mpc8544ds_init(ram_addr_t ram_size,
         cpu_model = "e500v2_v30";
     }
 
+    irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
+    irqs[0] = g_malloc0(smp_cpus * sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);
     for (i = 0; i < smp_cpus; i++) {
         qemu_irq *input;
         env = cpu_ppc_init(cpu_model);
@@ -259,6 +261,10 @@ static void mpc8544ds_init(ram_addr_t ram_size,
             firstenv = env;
         }
 
+        irqs[i] = irqs[0] + (i * OPENPIC_OUTPUT_NB);
+        input = (qemu_irq *)env->irq_inputs;
+        irqs[i][OPENPIC_OUTPUT_INT] = input[PPCE500_INPUT_INT];
+        irqs[i][OPENPIC_OUTPUT_CINT] = input[PPCE500_INPUT_CINT];
         env->spr[SPR_BOOKE_PIR] = env->cpu_index = i;
 
         /* XXX register timer? */
@@ -283,10 +289,11 @@ static void mpc8544ds_init(ram_addr_t ram_size,
                                  "mpc8544ds.ram", ram_size));
 
     /* MPIC */
-    irqs = g_malloc0(sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);
-    irqs[OPENPIC_OUTPUT_INT] = ((qemu_irq *)env->irq_inputs)[PPCE500_INPUT_INT];
-    irqs[OPENPIC_OUTPUT_CINT] = ((qemu_irq *)env->irq_inputs)[PPCE500_INPUT_CINT];
-    mpic = mpic_init(MPC8544_MPIC_REGS_BASE, 1, &irqs, NULL);
+    mpic = mpic_init(MPC8544_MPIC_REGS_BASE, smp_cpus, irqs, NULL);
+
+    if (!mpic) {
+        cpu_abort(env, "MPIC failed to initialize\n");
+    }
 
     /* Serial */
     if (serial_hds[0]) {
