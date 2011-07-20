@@ -125,6 +125,16 @@ static void qxl_reset_memslots(PCIQXLDevice *d);
 static void qxl_reset_surfaces(PCIQXLDevice *d);
 static void qxl_ring_set_dirty(PCIQXLDevice *qxl);
 
+void qxl_guest_bug(PCIQXLDevice *qxl, const char *msg)
+{
+#if SPICE_INTERFACE_QXL_MINOR >= 1
+    qxl_send_events(qxl, QXL_INTERRUPT_ERROR);
+#endif
+    if (qxl->guestdebug) {
+        fprintf(stderr, "qxl-%d: guest bug: %s\n", qxl->id, msg);
+    }
+}
+
 
 void qxl_spice_update_area(PCIQXLDevice *qxl, uint32_t surface_id,
                            struct QXLRect *area, struct QXLRect *dirty_rects,
@@ -1091,22 +1101,38 @@ static void ioport_write(void *opaque, uint32_t addr, uint32_t val)
         qxl_hard_reset(d, 0);
         break;
     case QXL_IO_MEMSLOT_ADD:
-        PANIC_ON(val >= NUM_MEMSLOTS);
-        PANIC_ON(d->guest_slots[val].active);
+        if (val >= NUM_MEMSLOTS) {
+            qxl_guest_bug(d, "QXL_IO_MEMSLOT_ADD: val out of range");
+            break;
+        }
+        if (d->guest_slots[val].active) {
+            qxl_guest_bug(d, "QXL_IO_MEMSLOT_ADD: memory slot already active");
+            break;
+        }
         d->guest_slots[val].slot = d->ram->mem_slot;
         qxl_add_memslot(d, val, 0);
         break;
     case QXL_IO_MEMSLOT_DEL:
+        if (val >= NUM_MEMSLOTS) {
+            qxl_guest_bug(d, "QXL_IO_MEMSLOT_DEL: val out of range");
+            break;
+        }
         qxl_del_memslot(d, val);
         break;
     case QXL_IO_CREATE_PRIMARY:
-        PANIC_ON(val != 0);
+        if (val != 0) {
+            qxl_guest_bug(d, "QXL_IO_CREATE_PRIMARY: val != 0");
+            break;
+        }
         dprint(d, 1, "QXL_IO_CREATE_PRIMARY\n");
         d->guest_primary.surface = d->ram->create_surface;
         qxl_create_guest_primary(d, 0);
         break;
     case QXL_IO_DESTROY_PRIMARY:
-        PANIC_ON(val != 0);
+        if (val != 0) {
+            qxl_guest_bug(d, "QXL_IO_DESTROY_PRIMARY: val != 0");
+            break;
+        }
         dprint(d, 1, "QXL_IO_DESTROY_PRIMARY (%s)\n", qxl_mode_to_string(d->mode));
         qxl_destroy_primary(d);
         break;

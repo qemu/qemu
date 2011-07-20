@@ -86,7 +86,7 @@ typedef struct PCIQXLDevice {
 
 #define PANIC_ON(x) if ((x)) {                         \
     printf("%s: PANIC %s failed\n", __FUNCTION__, #x); \
-    exit(-1);                                          \
+    abort();                                           \
 }
 
 #define dprint(_qxl, _level, _fmt, ...)                                 \
@@ -99,6 +99,7 @@ typedef struct PCIQXLDevice {
 
 /* qxl.c */
 void *qxl_phys2virt(PCIQXLDevice *qxl, QXLPHYSICAL phys, int group_id);
+void qxl_guest_bug(PCIQXLDevice *qxl, const char *msg);
 
 void qxl_spice_update_area(PCIQXLDevice *qxl, uint32_t surface_id,
                            struct QXLRect *area, struct QXLRect *dirty_rects,
