@@ -57,7 +57,7 @@
 #define MAX_MBX     4
 #define MAX_TMR     4
 #define VECTOR_BITS 8
-#define MAX_IPI     0
+#define MAX_IPI     4
 
 #define VID (0x00000000)
 
@@ -840,7 +840,9 @@ static void openpic_cpu_write_internal(void *opaque, target_phys_addr_t addr,
     case 0x60:
     case 0x70:
         idx = (addr - 0x40) >> 4;
-        write_IRQreg(opp, opp->irq_ipi0 + idx, IRQ_IDE, val);
+        /* we use IDE as mask which CPUs to deliver the IPI to still. */
+        write_IRQreg(opp, opp->irq_ipi0 + idx, IRQ_IDE,
+                     opp->src[opp->irq_ipi0 + idx].ide | val);
         openpic_set_irq(opp, opp->irq_ipi0 + idx, 1);
         openpic_set_irq(opp, opp->irq_ipi0 + idx, 0);
         break;
@@ -933,6 +935,17 @@ static uint32_t openpic_cpu_read_internal(void *opaque, target_phys_addr_t addr,
                 /* edge-sensitive IRQ */
                 reset_bit(&src->ipvp, IPVP_ACTIVITY);
                 src->pending = 0;
+            }
+
+            if ((n_IRQ >= opp->irq_ipi0) &&  (n_IRQ < (opp->irq_ipi0 + MAX_IPI))) {
+                src->ide &= ~(1 << idx);
+                if (src->ide && !test_bit(&src->ipvp, IPVP_SENSE)) {
+                    /* trigger on CPUs that didn't know about it yet */
+                    openpic_set_irq(opp, n_IRQ, 1);
+                    openpic_set_irq(opp, n_IRQ, 0);
+                    /* if all CPUs knew about it, set active bit again */
+                    set_bit(&src->ipvp, IPVP_ACTIVITY);
+                }
             }
         }
         break;
