@@ -42,23 +42,21 @@ void qemu_add_balloon_handler(QEMUBalloonEvent *func, void *opaque)
 
 static int qemu_balloon(ram_addr_t target, MonitorCompletion cb, void *opaque)
 {
-    if (balloon_event_fn) {
-        trace_balloon_event(balloon_opaque, target);
-        balloon_event_fn(balloon_opaque, target, cb, opaque);
-        return 1;
-    } else {
+    if (!balloon_event_fn) {
         return 0;
     }
+    trace_balloon_event(balloon_opaque, target);
+    balloon_event_fn(balloon_opaque, target, cb, opaque);
+    return 1;
 }
 
 static int qemu_balloon_status(MonitorCompletion cb, void *opaque)
 {
-    if (balloon_event_fn) {
-        balloon_event_fn(balloon_opaque, 0, cb, opaque);
-        return 1;
-    } else {
+    if (!balloon_event_fn) {
         return 0;
     }
+    balloon_event_fn(balloon_opaque, 0, cb, opaque);
+    return 1;
 }
 
 static void print_balloon_stat(const char *key, QObject *obj, void *opaque)
