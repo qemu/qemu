@@ -2770,25 +2770,16 @@ int bdrv_media_changed(BlockDriverState *bs)
 int bdrv_eject(BlockDriverState *bs, int eject_flag)
 {
     BlockDriver *drv = bs->drv;
-    int ret;
 
     if (bs->locked) {
         return -EBUSY;
     }
 
-    if (!drv || !drv->bdrv_eject) {
-        ret = -ENOTSUP;
-    } else {
-        ret = drv->bdrv_eject(bs, eject_flag);
+    if (drv && drv->bdrv_eject) {
+        drv->bdrv_eject(bs, eject_flag);
     }
-    if (ret == -ENOTSUP) {
-        ret = 0;
-    }
-    if (ret >= 0) {
-        bs->tray_open = eject_flag;
-    }
-
-    return ret;
+    bs->tray_open = eject_flag;
+    return 0;
 }
 
 int bdrv_is_locked(BlockDriverState *bs)

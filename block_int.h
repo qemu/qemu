@@ -112,7 +112,7 @@ struct BlockDriver {
     /* removable device specific */
     int (*bdrv_is_inserted)(BlockDriverState *bs);
     int (*bdrv_media_changed)(BlockDriverState *bs);
-    int (*bdrv_eject)(BlockDriverState *bs, int eject_flag);
+    void (*bdrv_eject)(BlockDriverState *bs, int eject_flag);
     void (*bdrv_set_locked)(BlockDriverState *bs, int locked);
 
     /* to control generic scsi devices */
