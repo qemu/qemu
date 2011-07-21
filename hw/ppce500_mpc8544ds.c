@@ -56,30 +56,6 @@ struct boot_info
     uint32_t entry;
 };
 
-#ifdef CONFIG_FDT
-static int mpc8544_copy_soc_cell(void *fdt, const char *node, const char *prop)
-{
-    uint32_t cell;
-    int ret;
-
-    ret = kvmppc_read_host_property(node, prop, &cell, sizeof(cell));
-    if (ret < 0) {
-        fprintf(stderr, "couldn't read host %s/%s\n", node, prop);
-        goto out;
-    }
-
-    ret = qemu_devtree_setprop_cell(fdt, "/cpus/PowerPC,8544@0",
-                                prop, cell);
-    if (ret < 0) {
-        fprintf(stderr, "couldn't set guest /cpus/PowerPC,8544@0/%s\n", prop);
-        goto out;
-    }
-
-out:
-    return ret;
-}
-#endif
-
 static int mpc8544_load_device_tree(CPUState *env,
                                     target_phys_addr_t addr,
                                     uint32_t ramsize,
