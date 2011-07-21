@@ -310,10 +310,12 @@ static int milkymist_softusb_init(SysBusDevice *dev)
     usb_bus_new(&s->usbbus, &softusb_bus_ops, NULL);
 
     /* our two ports */
+    /* FIXME: claim to support full speed devices. qemu mouse and keyboard
+     * report themselves as full speed devices. */
     usb_register_port(&s->usbbus, &s->usbport[0], NULL, 0, &softusb_ops,
-            USB_SPEED_MASK_LOW);
+            USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
     usb_register_port(&s->usbbus, &s->usbport[1], NULL, 1, &softusb_ops,
-            USB_SPEED_MASK_LOW);
+            USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
 
     /* and finally create an usb keyboard */
     s->usbdev = usb_create_simple(&s->usbbus, "usb-kbd");
