@@ -413,6 +413,7 @@ static int get_physical_address_data(CPUState *env,
 {
     unsigned int i;
     uint64_t context;
+    uint64_t sfsr = 0;
 
     int is_user = (mmu_idx == MMU_USER_IDX ||
                    mmu_idx == MMU_USER_SECONDARY_IDX);
@@ -427,26 +428,32 @@ static int get_physical_address_data(CPUState *env,
     case MMU_USER_IDX:
     case MMU_KERNEL_IDX:
         context = env->dmmu.mmu_primary_context & 0x1fff;
+        sfsr |= SFSR_CT_PRIMARY;
         break;
     case MMU_USER_SECONDARY_IDX:
     case MMU_KERNEL_SECONDARY_IDX:
         context = env->dmmu.mmu_secondary_context & 0x1fff;
+        sfsr |= SFSR_CT_SECONDARY;
         break;
     case MMU_NUCLEUS_IDX:
+        sfsr |= SFSR_CT_NUCLEUS;
+        /* FALLTHRU */
     default:
         context = 0;
         break;
+    }
+
+    if (rw == 1) {
+        sfsr |= SFSR_WRITE_BIT;
     }
 
     for (i = 0; i < 64; i++) {
         // ctx match, vaddr match, valid?
         if (ultrasparc_tag_match(&env->dtlb[i], address, context, physical)) {
 
-            uint8_t fault_type = 0;
-
             // access ok?
             if (TTE_IS_PRIV(env->dtlb[i].tte) && is_user) {
-                fault_type |= 1; /* privilege violation */
+                sfsr |= SFSR_FT_PRIV_BIT; /* privilege violation */
                 env->exception_index = TT_DFAULT;
 
                 DPRINTF_MMU("DFAULT at %" PRIx64 " context %" PRIx64
@@ -469,13 +476,17 @@ static int get_physical_address_data(CPUState *env,
                 return 0;
             }
 
-            if (env->dmmu.sfsr & 1) /* Fault status register */
-                env->dmmu.sfsr = 2; /* overflow (not read before
-                                             another fault) */
+            if (env->dmmu.sfsr & SFSR_VALID_BIT) { /* Fault status register */
+                sfsr |= SFSR_OW_BIT; /* overflow (not read before
+                                        another fault) */
+            }
 
-            env->dmmu.sfsr |= (is_user << 3) | ((rw == 1) << 2) | 1;
+            if (env->pstate & PS_PRIV) {
+                sfsr |= SFSR_PR_BIT;
+            }
 
-            env->dmmu.sfsr |= (fault_type << 7);
+            /* FIXME: ASI field in SFSR must be set */
+            env->dmmu.sfsr = sfsr | SFSR_VALID_BIT;
 
             env->dmmu.sfar = address; /* Fault address register */
 
@@ -488,6 +499,11 @@ static int get_physical_address_data(CPUState *env,
     DPRINTF_MMU("DMISS at %" PRIx64 " context %" PRIx64 "\n",
                 address, context);
 
+    /*
+     * On MMU misses:
+     * - UltraSPARC IIi: SFSR and SFAR unmodified
+     * - JPS1: SFAR updated and some fields of SFSR updated
+     */
     env->dmmu.tag_access = (address & ~0x1fffULL) | context;
     env->exception_index = TT_DMISS;
     return 1;
@@ -524,10 +540,22 @@ static int get_physical_address_code(CPUState *env,
                                  address, context, physical)) {
             // access ok?
             if (TTE_IS_PRIV(env->itlb[i].tte) && is_user) {
-                if (env->immu.sfsr) /* Fault status register */
-                    env->immu.sfsr = 2; /* overflow (not read before
-                                             another fault) */
-                env->immu.sfsr |= (is_user << 3) | 1;
+                /* Fault status register */
+                if (env->immu.sfsr & SFSR_VALID_BIT) {
+                    env->immu.sfsr = SFSR_OW_BIT; /* overflow (not read before
+                                                     another fault) */
+                } else {
+                    env->immu.sfsr = 0;
+                }
+                if (env->pstate & PS_PRIV) {
+                    env->immu.sfsr |= SFSR_PR_BIT;
+                }
+                if (env->tl > 0) {
+                    env->immu.sfsr |= SFSR_CT_NUCLEUS;
+                }
+
+                /* FIXME: ASI field in SFSR must be set */
+                env->immu.sfsr |= SFSR_FT_PRIV_BIT | SFSR_VALID_BIT;
                 env->exception_index = TT_TFAULT;
 
                 env->immu.tag_access = (address & ~0x1fffULL) | context;

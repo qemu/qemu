@@ -309,6 +309,28 @@ enum {
 #define TTE_PGSIZE(tte)     (((tte) >> 61) & 3ULL)
 #define TTE_PA(tte)         ((tte) & 0x1ffffffe000ULL)
 
+#define SFSR_NF_BIT         (1ULL << 24)   /* JPS1 NoFault */
+#define SFSR_TM_BIT         (1ULL << 15)   /* JPS1 TLB Miss */
+#define SFSR_FT_VA_IMMU_BIT (1ULL << 13)   /* USIIi VA out of range (IMMU) */
+#define SFSR_FT_VA_DMMU_BIT (1ULL << 12)   /* USIIi VA out of range (DMMU) */
+#define SFSR_FT_NFO_BIT     (1ULL << 11)   /* NFO page access */
+#define SFSR_FT_ILL_BIT     (1ULL << 10)   /* illegal LDA/STA ASI */
+#define SFSR_FT_ATOMIC_BIT  (1ULL <<  9)   /* atomic op on noncacheable area */
+#define SFSR_FT_NF_E_BIT    (1ULL <<  8)   /* NF access on side effect area */
+#define SFSR_FT_PRIV_BIT    (1ULL <<  7)   /* privilege violation */
+#define SFSR_PR_BIT         (1ULL <<  3)   /* privilege mode */
+#define SFSR_WRITE_BIT      (1ULL <<  2)   /* write access mode */
+#define SFSR_OW_BIT         (1ULL <<  1)   /* status overwritten */
+#define SFSR_VALID_BIT      (1ULL <<  0)   /* status valid */
+
+#define SFSR_ASI_SHIFT      16             /* 23:16 ASI value */
+#define SFSR_ASI_MASK       (0xffULL << SFSR_ASI_SHIFT)
+#define SFSR_CT_PRIMARY     (0ULL <<  4)   /* 5:4 context type */
+#define SFSR_CT_SECONDARY   (1ULL <<  4)
+#define SFSR_CT_NUCLEUS     (2ULL <<  4)
+#define SFSR_CT_NOTRANS     (3ULL <<  4)
+#define SFSR_CT_MASK        (3ULL <<  4)
+
 typedef struct SparcTLBEntry {
     uint64_t tag;
     uint64_t tte;
