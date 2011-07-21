@@ -378,7 +378,7 @@ static inline int ultrasparc_tag_match(SparcTLBEntry *tlb,
 {
     uint64_t mask;
 
-    switch ((tlb->tte >> 61) & 3) {
+    switch (TTE_PGSIZE(tlb->tte)) {
     default:
     case 0x0: // 8k
         mask = 0xffffffffffffe000ULL;
@@ -445,14 +445,14 @@ static int get_physical_address_data(CPUState *env,
             uint8_t fault_type = 0;
 
             // access ok?
-            if ((env->dtlb[i].tte & 0x4) && is_user) {
+            if (TTE_IS_PRIV(env->dtlb[i].tte) && is_user) {
                 fault_type |= 1; /* privilege violation */
                 env->exception_index = TT_DFAULT;
 
                 DPRINTF_MMU("DFAULT at %" PRIx64 " context %" PRIx64
                             " mmu_idx=%d tl=%d\n",
                             address, context, mmu_idx, env->tl);
-            } else if (!(env->dtlb[i].tte & 0x2) && (rw == 1)) {
+            } else if (!TTE_IS_W_OK(env->dtlb[i].tte) && (rw == 1)) {
                 env->exception_index = TT_DPROT;
 
                 DPRINTF_MMU("DPROT at %" PRIx64 " context %" PRIx64
@@ -460,8 +460,9 @@ static int get_physical_address_data(CPUState *env,
                             address, context, mmu_idx, env->tl);
             } else {
                 *prot = PAGE_READ;
-                if (env->dtlb[i].tte & 0x2)
+                if (TTE_IS_W_OK(env->dtlb[i].tte)) {
                     *prot |= PAGE_WRITE;
+                }
 
                 TTE_SET_USED(env->dtlb[i].tte);
 
@@ -522,7 +523,7 @@ static int get_physical_address_code(CPUState *env,
         if (ultrasparc_tag_match(&env->itlb[i],
                                  address, context, physical)) {
             // access ok?
-            if ((env->itlb[i].tte & 0x4) && is_user) {
+            if (TTE_IS_PRIV(env->itlb[i].tte) && is_user) {
                 if (env->immu.sfsr) /* Fault status register */
                     env->immu.sfsr = 2; /* overflow (not read before
                                              another fault) */
@@ -632,7 +633,7 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env)
     } else {
         (*cpu_fprintf)(f, "DMMU dump\n");
         for (i = 0; i < 64; i++) {
-            switch ((env->dtlb[i].tte >> 61) & 3) {
+            switch (TTE_PGSIZE(env->dtlb[i].tte)) {
             default:
             case 0x0:
                 mask = "  8k";
@@ -647,16 +648,17 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env)
                 mask = "  4M";
                 break;
             }
-            if ((env->dtlb[i].tte & 0x8000000000000000ULL) != 0) {
+            if (TTE_IS_VALID(env->dtlb[i].tte)) {
                 (*cpu_fprintf)(f, "[%02u] VA: %" PRIx64 ", PA: %" PRIx64
                                ", %s, %s, %s, %s, ctx %" PRId64 " %s\n",
                                i,
                                env->dtlb[i].tag & (uint64_t)~0x1fffULL,
-                               env->dtlb[i].tte & (uint64_t)0x1ffffffe000ULL,
+                               TTE_PA(env->dtlb[i].tte),
                                mask,
-                               env->dtlb[i].tte & 0x4? "priv": "user",
-                               env->dtlb[i].tte & 0x2? "RW": "RO",
-                               env->dtlb[i].tte & 0x40? "locked": "unlocked",
+                               TTE_IS_PRIV(env->dtlb[i].tte) ? "priv" : "user",
+                               TTE_IS_W_OK(env->dtlb[i].tte) ? "RW" : "RO",
+                               TTE_IS_LOCKED(env->dtlb[i].tte) ?
+                               "locked" : "unlocked",
                                env->dtlb[i].tag & (uint64_t)0x1fffULL,
                                TTE_IS_GLOBAL(env->dtlb[i].tte)?
                                "global" : "local");
@@ -668,7 +670,7 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env)
     } else {
         (*cpu_fprintf)(f, "IMMU dump\n");
         for (i = 0; i < 64; i++) {
-            switch ((env->itlb[i].tte >> 61) & 3) {
+            switch (TTE_PGSIZE(env->itlb[i].tte)) {
             default:
             case 0x0:
                 mask = "  8k";
@@ -683,15 +685,16 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env)
                 mask = "  4M";
                 break;
             }
-            if ((env->itlb[i].tte & 0x8000000000000000ULL) != 0) {
+            if (TTE_IS_VALID(env->itlb[i].tte)) {
                 (*cpu_fprintf)(f, "[%02u] VA: %" PRIx64 ", PA: %" PRIx64
                                ", %s, %s, %s, ctx %" PRId64 " %s\n",
                                i,
                                env->itlb[i].tag & (uint64_t)~0x1fffULL,
-                               env->itlb[i].tte & (uint64_t)0x1ffffffe000ULL,
+                               TTE_PA(env->itlb[i].tte),
                                mask,
-                               env->itlb[i].tte & 0x4? "priv": "user",
-                               env->itlb[i].tte & 0x40? "locked": "unlocked",
+                               TTE_IS_PRIV(env->itlb[i].tte) ? "priv" : "user",
+                               TTE_IS_LOCKED(env->itlb[i].tte) ?
+                               "locked" : "unlocked",
                                env->itlb[i].tag & (uint64_t)0x1fffULL,
                                TTE_IS_GLOBAL(env->itlb[i].tte)?
                                "global" : "local");
