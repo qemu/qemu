@@ -736,18 +736,26 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env)
 
 
 #if !defined(CONFIG_USER_ONLY)
+static int cpu_sparc_get_phys_page(CPUState *env, target_phys_addr_t *phys,
+                                   target_ulong addr, int rw, int mmu_idx)
+{
+    target_ulong page_size;
+    int prot, access_index;
+
+    return get_physical_address(env, phys, &prot, &access_index, addr, rw,
+                                mmu_idx, &page_size);
+}
+
 target_phys_addr_t cpu_get_phys_page_nofault(CPUState *env, target_ulong addr,
                                            int mmu_idx)
 {
     target_phys_addr_t phys_addr;
-    target_ulong page_size;
-    int prot, access_index;
 
-    if (get_physical_address(env, &phys_addr, &prot, &access_index, addr, 2,
-                             mmu_idx, &page_size) != 0)
-        if (get_physical_address(env, &phys_addr, &prot, &access_index, addr,
-                                 0, mmu_idx, &page_size) != 0)
+    if (cpu_sparc_get_phys_page(env, &phys_addr, addr, 2, mmu_idx) != 0) {
+        if (cpu_sparc_get_phys_page(env, &phys_addr, addr, 0, mmu_idx) != 0) {
             return -1;
+        }
+    }
     if (cpu_get_physical_page_desc(phys_addr) == IO_MEM_UNASSIGNED)
         return -1;
     return phys_addr;
