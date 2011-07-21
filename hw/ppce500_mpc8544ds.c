@@ -70,9 +70,9 @@ static int mpc8544_load_device_tree(CPUState *env,
     int fdt_size;
     void *fdt;
     uint8_t hypercall[16];
-    char cpu_name[128] = "/cpus/PowerPC,8544@0";
     uint32_t clock_freq = 400000000;
     uint32_t tb_freq = 400000000;
+    int i;
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
     if (!filename) {
@@ -122,8 +122,12 @@ static int mpc8544_load_device_tree(CPUState *env,
                              hypercall, sizeof(hypercall));
     }
 
-    qemu_devtree_setprop_cell(fdt, cpu_name, "clock-frequency", clock_freq);
-    qemu_devtree_setprop_cell(fdt, cpu_name, "timebase-frequency", tb_freq);
+    for (i = 0; i < smp_cpus; i++) {
+        char cpu_name[128];
+        snprintf(cpu_name, sizeof(cpu_name), "/cpus/PowerPC,8544@%x", i);
+        qemu_devtree_setprop_cell(fdt, cpu_name, "clock-frequency", clock_freq);
+        qemu_devtree_setprop_cell(fdt, cpu_name, "timebase-frequency", tb_freq);
+    }
 
     ret = rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
     g_free(fdt);
