@@ -2048,7 +2048,6 @@ target_ulong helper_cfc1 (uint32_t reg)
 
 void helper_ctc1 (target_ulong arg1, uint32_t reg)
 {
-#if 0
     switch(reg) {
     case 25:
         if (arg1 & 0xffffff00)
@@ -2083,10 +2082,8 @@ void helper_ctc1 (target_ulong arg1, uint32_t reg)
     if ((GET_FP_ENABLE(env->active_fpu.fcr31) | 0x20) & GET_FP_CAUSE(env->active_fpu.fcr31)) {
         helper_raise_exception(EXCP_FPE);
     }
-#endif
 }
 
-#if 0
 static int ieee_ex_to_mips(int xcpt)
 {
     int ret = 0;
@@ -2109,9 +2106,7 @@ static int ieee_ex_to_mips(int xcpt)
     }
     return ret;
 }
-#endif
 
-#if 0
 static void update_fcr31(void)
 {
     int tmp = ieee_ex_to_mips(get_float_exception_flags(&env->active_fpu.fp_status));
@@ -2123,9 +2118,6 @@ static void update_fcr31(void)
         UPDATE_FP_FLAGS(env->active_fpu.fcr31, tmp);
     }
 }
-#else
-#define update_fcr31() (void)0
-#endif
 
 /* Float support.
    Single precition routines have a "s" suffix, double precision a
