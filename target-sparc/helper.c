@@ -445,27 +445,50 @@ static int get_physical_address_data(CPUState *env,
 
     if (rw == 1) {
         sfsr |= SFSR_WRITE_BIT;
+    } else if (rw == 4) {
+        sfsr |= SFSR_NF_BIT;
     }
 
     for (i = 0; i < 64; i++) {
         // ctx match, vaddr match, valid?
         if (ultrasparc_tag_match(&env->dtlb[i], address, context, physical)) {
+            int do_fault = 0;
 
             // access ok?
+            /* multiple bits in SFSR.FT may be set on TT_DFAULT */
             if (TTE_IS_PRIV(env->dtlb[i].tte) && is_user) {
+                do_fault = 1;
                 sfsr |= SFSR_FT_PRIV_BIT; /* privilege violation */
-                env->exception_index = TT_DFAULT;
 
                 DPRINTF_MMU("DFAULT at %" PRIx64 " context %" PRIx64
                             " mmu_idx=%d tl=%d\n",
                             address, context, mmu_idx, env->tl);
+            }
+            if (rw == 4) {
+                if (TTE_IS_SIDEEFFECT(env->dtlb[i].tte)) {
+                    do_fault = 1;
+                    sfsr |= SFSR_FT_NF_E_BIT;
+                }
+            } else {
+                if (TTE_IS_NFO(env->dtlb[i].tte)) {
+                    do_fault = 1;
+                    sfsr |= SFSR_FT_NFO_BIT;
+                }
+            }
+
+            if (do_fault) {
+                /* faults above are reported with TT_DFAULT. */
+                env->exception_index = TT_DFAULT;
             } else if (!TTE_IS_W_OK(env->dtlb[i].tte) && (rw == 1)) {
+                do_fault = 1;
                 env->exception_index = TT_DPROT;
 
                 DPRINTF_MMU("DPROT at %" PRIx64 " context %" PRIx64
                             " mmu_idx=%d tl=%d\n",
                             address, context, mmu_idx, env->tl);
-            } else {
+            }
+
+            if (!do_fault) {
                 *prot = PAGE_READ;
                 if (TTE_IS_W_OK(env->dtlb[i].tte)) {
                     *prot |= PAGE_WRITE;
@@ -752,7 +775,7 @@ target_phys_addr_t cpu_get_phys_page_nofault(CPUState *env, target_ulong addr,
 {
     target_phys_addr_t phys_addr;
 
-    if (cpu_sparc_get_phys_page(env, &phys_addr, addr, 0, mmu_idx) != 0) {
+    if (cpu_sparc_get_phys_page(env, &phys_addr, addr, 4, mmu_idx) != 0) {
         return -1;
     }
     return phys_addr;
