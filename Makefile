@@ -291,7 +291,7 @@ TAGS:
 
 cscope:
 	rm -f ./cscope.*
-	find . -name "*.[ch]" -print | sed 's,^\./,,' > ./cscope.files
+	find "$(SRC_PATH)" -name "*.[chsS]" -print | sed 's,^\./,,' > ./cscope.files
 	cscope -b
 
 # documentation
