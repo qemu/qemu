@@ -125,9 +125,15 @@ static int mpc8544_load_device_tree(CPUState *env,
 
     for (i = 0; i < smp_cpus; i++) {
         char cpu_name[128];
+        uint64_t cpu_release_addr[] = {
+            cpu_to_be64(MPC8544_SPIN_BASE + (i * 0x20))
+        };
+
         snprintf(cpu_name, sizeof(cpu_name), "/cpus/PowerPC,8544@%x", i);
         qemu_devtree_setprop_cell(fdt, cpu_name, "clock-frequency", clock_freq);
         qemu_devtree_setprop_cell(fdt, cpu_name, "timebase-frequency", tb_freq);
+        qemu_devtree_setprop(fdt, cpu_name, "cpu-release-addr",
+                             cpu_release_addr, sizeof(cpu_release_addr));
     }
 
     for (i = smp_cpus; i < 32; i++) {
