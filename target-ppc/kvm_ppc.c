@@ -54,36 +54,6 @@ free:
     free(path);
     return ret;
 }
-
-static int kvmppc_copy_host_cell(void *fdt, const char *node, const char *prop)
-{
-    uint32_t cell;
-    int ret;
-
-    ret = kvmppc_read_host_property(node, prop, &cell, sizeof(cell));
-    if (ret < 0) {
-        fprintf(stderr, "couldn't read host %s/%s\n", node, prop);
-        goto out;
-    }
-
-    ret = qemu_devtree_setprop_cell(fdt, node, prop, cell);
-    if (ret < 0) {
-        fprintf(stderr, "couldn't set guest %s/%s\n", node, prop);
-        goto out;
-    }
-
-out:
-    return ret;
-}
-
-void kvmppc_fdt_update(void *fdt)
-{
-    /* Copy data from the host device tree into the guest. Since the guest can
-     * directly access the timebase without host involvement, we must expose
-     * the correct frequencies. */
-    kvmppc_copy_host_cell(fdt, "/cpus/cpu@0", "clock-frequency");
-    kvmppc_copy_host_cell(fdt, "/cpus/cpu@0", "timebase-frequency");
-}
 #endif
 
 static void kvmppc_timer_hack(void *opaque)

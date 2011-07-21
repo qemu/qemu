@@ -31,6 +31,38 @@
 #define FDT_ADDR     0x1800000
 #define RAMDISK_ADDR 0x1900000
 
+#ifdef CONFIG_FDT
+static int bamboo_copy_host_cell(void *fdt, const char *node, const char *prop)
+{
+    uint32_t cell;
+    int ret;
+
+    ret = kvmppc_read_host_property(node, prop, &cell, sizeof(cell));
+    if (ret < 0) {
+        fprintf(stderr, "couldn't read host %s/%s\n", node, prop);
+        goto out;
+    }
+
+    ret = qemu_devtree_setprop_cell(fdt, node, prop, cell);
+    if (ret < 0) {
+        fprintf(stderr, "couldn't set guest %s/%s\n", node, prop);
+        goto out;
+    }
+
+out:
+    return ret;
+}
+
+static void bamboo_fdt_update(void *fdt)
+{
+    /* Copy data from the host device tree into the guest. Since the guest can
+     * directly access the timebase without host involvement, we must expose
+     * the correct frequencies. */
+    bamboo_copy_host_cell(fdt, "/cpus/cpu@0", "clock-frequency");
+    bamboo_copy_host_cell(fdt, "/cpus/cpu@0", "timebase-frequency");
+}
+#endif
+
 static int bamboo_load_device_tree(target_phys_addr_t addr,
                                      uint32_t ramsize,
                                      target_phys_addr_t initrd_base,
@@ -76,8 +108,9 @@ static int bamboo_load_device_tree(target_phys_addr_t addr,
     if (ret < 0)
         fprintf(stderr, "couldn't set /chosen/bootargs\n");
 
-    if (kvm_enabled())
-        kvmppc_fdt_update(fdt);
+    if (kvm_enabled()) {
+        bamboo_fdt_update(fdt);
+    }
 
     ret = rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
     g_free(fdt);

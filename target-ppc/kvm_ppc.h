@@ -10,7 +10,6 @@
 #define __KVM_PPC_H__
 
 void kvmppc_init(void);
-void kvmppc_fdt_update(void *fdt);
 #ifndef CONFIG_KVM
 static inline int kvmppc_read_host_property(const char *node_path, const char *prop,
                                             void *val, size_t len)
