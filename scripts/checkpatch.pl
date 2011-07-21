@@ -2539,6 +2539,7 @@ sub process {
 		}
 		if (!defined $suppress_ifbraces{$linenr - 1} &&
 					$line =~ /\b(if|while|for|else)\b/ &&
+					$line !~ /\#\s*if/ &&
 					$line !~ /\#\s*else/) {
 			my $allowed = 0;
 

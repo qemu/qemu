@@ -488,20 +488,14 @@ void helper_mmu_write(uint32_t rn, uint32_t v)
     mmu_write(env, rn, v);
 }
 
-void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
-                          int is_asi, int size)
+void cpu_unassigned_access(CPUState *env1, target_phys_addr_t addr,
+                           int is_write, int is_exec, int is_asi, int size)
 {
     CPUState *saved_env;
 
-    if (!cpu_single_env) {
-        /* XXX: ???   */
-        return;
-    }
-
-    /* XXX: hack to restore env in all cases, even if not called from
-       generated code */
     saved_env = env;
-    env = cpu_single_env;
+    env = env1;
+
     qemu_log_mask(CPU_LOG_INT, "Unassigned " TARGET_FMT_plx " wr=%d exe=%d\n",
              addr, is_write, is_exec);
     if (!(env->sregs[SR_MSR] & MSR_EE)) {

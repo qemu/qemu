@@ -80,9 +80,14 @@
 #define CACHE_CTRL_FD (1 << 22)  /* Flush Data cache (Write only) */
 #define CACHE_CTRL_DS (1 << 23)  /* Data cache snoop enable */
 
-#if defined(CONFIG_USER_ONLY) && defined(TARGET_SPARC64)
+#if !defined(CONFIG_USER_ONLY)
+static void do_unassigned_access(target_phys_addr_t addr, int is_write,
+                                 int is_exec, int is_asi, int size);
+#else
+#ifdef TARGET_SPARC64
 static void do_unassigned_access(target_ulong addr, int is_write, int is_exec,
-                          int is_asi, int size);
+                                 int is_asi, int size);
+#endif
 #endif
 
 #if defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
@@ -288,7 +293,8 @@ static inline int is_translating_asi(int asi)
      */
     switch (asi) {
     case 0x04 ... 0x11:
-    case 0x18 ... 0x19:
+    case 0x16 ... 0x19:
+    case 0x1E ... 0x1F:
     case 0x24 ... 0x2C:
     case 0x70 ... 0x73:
     case 0x78 ... 0x79:
@@ -526,6 +532,7 @@ typedef union {
     uint16_t w[4];
     int16_t sw[4];
     uint32_t l[2];
+    uint64_t ll;
     float64 d;
 } vis64;
 
@@ -790,32 +797,34 @@ VIS_HELPER(helper_fpadd, FADD)
 VIS_HELPER(helper_fpsub, FSUB)
 
 #define VIS_CMPHELPER(name, F)                                        \
-    void name##16(void)                                           \
+    uint64_t name##16(void)                                       \
     {                                                             \
         vis64 s, d;                                               \
                                                                   \
         s.d = DT0;                                                \
         d.d = DT1;                                                \
                                                                   \
-        d.VIS_W64(0) = F(d.VIS_W64(0), s.VIS_W64(0))? 1: 0;       \
-        d.VIS_W64(0) |= F(d.VIS_W64(1), s.VIS_W64(1))? 2: 0;      \
-        d.VIS_W64(0) |= F(d.VIS_W64(2), s.VIS_W64(2))? 4: 0;      \
-        d.VIS_W64(0) |= F(d.VIS_W64(3), s.VIS_W64(3))? 8: 0;      \
+        d.VIS_W64(0) = F(s.VIS_W64(0), d.VIS_W64(0)) ? 1 : 0;     \
+        d.VIS_W64(0) |= F(s.VIS_W64(1), d.VIS_W64(1)) ? 2 : 0;    \
+        d.VIS_W64(0) |= F(s.VIS_W64(2), d.VIS_W64(2)) ? 4 : 0;    \
+        d.VIS_W64(0) |= F(s.VIS_W64(3), d.VIS_W64(3)) ? 8 : 0;    \
+        d.VIS_W64(1) = d.VIS_W64(2) = d.VIS_W64(3) = 0;           \
                                                                   \
-        DT0 = d.d;                                                \
+        return d.ll;                                              \
     }                                                             \
                                                                   \
-    void name##32(void)                                           \
+    uint64_t name##32(void)                                       \
     {                                                             \
         vis64 s, d;                                               \
                                                                   \
         s.d = DT0;                                                \
         d.d = DT1;                                                \
                                                                   \
-        d.VIS_L64(0) = F(d.VIS_L64(0), s.VIS_L64(0))? 1: 0;       \
-        d.VIS_L64(0) |= F(d.VIS_L64(1), s.VIS_L64(1))? 2: 0;      \
+        d.VIS_L64(0) = F(s.VIS_L64(0), d.VIS_L64(0)) ? 1 : 0;     \
+        d.VIS_L64(0) |= F(s.VIS_L64(1), d.VIS_L64(1)) ? 2 : 0;    \
+        d.VIS_L64(1) = 0;                                         \
                                                                   \
-        DT0 = d.d;                                                \
+        return d.ll;                                              \
     }
 
 #define FCMPGT(a, b) ((a) > (b))
@@ -4232,8 +4241,8 @@ void tlb_fill(target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 
 #ifndef TARGET_SPARC64
 #if !defined(CONFIG_USER_ONLY)
-void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
-                          int is_asi, int size)
+static void do_unassigned_access(target_phys_addr_t addr, int is_write,
+                                 int is_exec, int is_asi, int size)
 {
     CPUState *saved_env;
     int fault_type;
@@ -4298,8 +4307,9 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
 static void do_unassigned_access(target_ulong addr, int is_write, int is_exec,
                           int is_asi, int size)
 #else
-void QEMU_NORETURN do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
-                          int is_asi, int size)
+static QEMU_NORETURN void do_unassigned_access(target_phys_addr_t addr,
+                                               int is_write, int is_exec,
+                                               int is_asi, int size)
 #endif
 {
     CPUState *saved_env;
@@ -4319,6 +4329,7 @@ void QEMU_NORETURN do_unassigned_access(target_phys_addr_t addr, int is_write, i
     else
         raise_exception(TT_DATA_ACCESS);
 
+    // TODO: is the next line reached?
     env = saved_env;
 }
 #endif
@@ -4346,5 +4357,14 @@ void helper_tick_set_limit(void *opaque, uint64_t limit)
 #if !defined(CONFIG_USER_ONLY)
     cpu_tick_set_limit(opaque, limit);
 #endif
+}
+#endif
+
+#if !defined(CONFIG_USER_ONLY)
+void cpu_unassigned_access(CPUState *env1, target_phys_addr_t addr,
+                           int is_write, int is_exec, int is_asi, int size)
+{
+    env = env1;
+    do_unassigned_access(addr, is_write, is_exec, is_asi, size);
 }
 #endif

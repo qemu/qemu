@@ -347,8 +347,8 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
-                          int is_asi, int size);
+void cpu_unassigned_access(CPUState *env1, target_phys_addr_t addr,
+                           int is_write, int is_exec, int is_asi, int size);
 #endif
 
 static inline bool cpu_has_work(CPUState *env)

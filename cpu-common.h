@@ -134,27 +134,30 @@ void qemu_unregister_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
 void qemu_flush_coalesced_mmio_buffer(void);
 
 uint32_t ldub_phys(target_phys_addr_t addr);
-uint32_t lduw_phys(target_phys_addr_t addr);
 uint32_t lduw_le_phys(target_phys_addr_t addr);
 uint32_t lduw_be_phys(target_phys_addr_t addr);
-uint32_t ldl_phys(target_phys_addr_t addr);
 uint32_t ldl_le_phys(target_phys_addr_t addr);
 uint32_t ldl_be_phys(target_phys_addr_t addr);
-uint64_t ldq_phys(target_phys_addr_t addr);
 uint64_t ldq_le_phys(target_phys_addr_t addr);
 uint64_t ldq_be_phys(target_phys_addr_t addr);
-void stl_phys_notdirty(target_phys_addr_t addr, uint32_t val);
-void stq_phys_notdirty(target_phys_addr_t addr, uint64_t val);
 void stb_phys(target_phys_addr_t addr, uint32_t val);
-void stw_phys(target_phys_addr_t addr, uint32_t val);
 void stw_le_phys(target_phys_addr_t addr, uint32_t val);
 void stw_be_phys(target_phys_addr_t addr, uint32_t val);
-void stl_phys(target_phys_addr_t addr, uint32_t val);
 void stl_le_phys(target_phys_addr_t addr, uint32_t val);
 void stl_be_phys(target_phys_addr_t addr, uint32_t val);
-void stq_phys(target_phys_addr_t addr, uint64_t val);
 void stq_le_phys(target_phys_addr_t addr, uint64_t val);
 void stq_be_phys(target_phys_addr_t addr, uint64_t val);
+
+#ifdef NEED_CPU_H
+uint32_t lduw_phys(target_phys_addr_t addr);
+uint32_t ldl_phys(target_phys_addr_t addr);
+uint64_t ldq_phys(target_phys_addr_t addr);
+void stl_phys_notdirty(target_phys_addr_t addr, uint32_t val);
+void stq_phys_notdirty(target_phys_addr_t addr, uint64_t val);
+void stw_phys(target_phys_addr_t addr, uint32_t val);
+void stl_phys(target_phys_addr_t addr, uint32_t val);
+void stq_phys(target_phys_addr_t addr, uint64_t val);
+#endif
 
 void cpu_physical_memory_write_rom(target_phys_addr_t addr,
                                    const uint8_t *buf, int len);

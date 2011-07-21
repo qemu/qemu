@@ -109,7 +109,7 @@ tcg/tcg.o: cpu.h
 
 # HELPER_CFLAGS is used for all the code compiled with static register
 # variables
-%_helper.o user-exec.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
+op_helper.o user-exec.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in user-exec.c.
@@ -205,7 +205,7 @@ obj-y = arch_init.o cpus.o monitor.o machine.o gdbstub.o balloon.o
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
 obj-$(CONFIG_NO_PCI) += pci-stub.o
-obj-$(CONFIG_VIRTIO) += virtio-blk.o virtio-balloon.o virtio-net.o virtio-serial-bus.o
+obj-$(CONFIG_VIRTIO) += virtio.o virtio-blk.o virtio-balloon.o virtio-net.o virtio-serial-bus.o
 obj-y += vhost_net.o
 obj-$(CONFIG_VHOST_NET) += vhost.o
 obj-$(CONFIG_REALLY_VIRTFS) += 9pfs/virtio-9p-device.o

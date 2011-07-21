@@ -148,8 +148,8 @@ F_HELPER_0_0(expand);
 VIS_HELPER(padd);
 VIS_HELPER(psub);
 #define VIS_CMPHELPER(name)                              \
-    F_HELPER_0_0(name##16);                              \
-    F_HELPER_0_0(name##32)
+    DEF_HELPER_0(f##name##16, i64);                      \
+    DEF_HELPER_0(f##name##32, i64)
 VIS_CMPHELPER(cmpgt);
 VIS_CMPHELPER(cmpeq);
 VIS_CMPHELPER(cmple);
