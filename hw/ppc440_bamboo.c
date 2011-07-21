@@ -31,38 +31,6 @@
 #define FDT_ADDR     0x1800000
 #define RAMDISK_ADDR 0x1900000
 
-#ifdef CONFIG_FDT
-static int bamboo_copy_host_cell(void *fdt, const char *node, const char *prop)
-{
-    uint32_t cell;
-    int ret;
-
-    ret = kvmppc_read_host_property(node, prop, &cell, sizeof(cell));
-    if (ret < 0) {
-        fprintf(stderr, "couldn't read host %s/%s\n", node, prop);
-        goto out;
-    }
-
-    ret = qemu_devtree_setprop_cell(fdt, node, prop, cell);
-    if (ret < 0) {
-        fprintf(stderr, "couldn't set guest %s/%s\n", node, prop);
-        goto out;
-    }
-
-out:
-    return ret;
-}
-
-static void bamboo_fdt_update(void *fdt)
-{
-    /* Copy data from the host device tree into the guest. Since the guest can
-     * directly access the timebase without host involvement, we must expose
-     * the correct frequencies. */
-    bamboo_copy_host_cell(fdt, "/cpus/cpu@0", "clock-frequency");
-    bamboo_copy_host_cell(fdt, "/cpus/cpu@0", "timebase-frequency");
-}
-#endif
-
 static int bamboo_load_device_tree(target_phys_addr_t addr,
                                      uint32_t ramsize,
                                      target_phys_addr_t initrd_base,
@@ -75,6 +43,8 @@ static int bamboo_load_device_tree(target_phys_addr_t addr,
     char *filename;
     int fdt_size;
     void *fdt;
+    uint32_t tb_freq = 400000000;
+    uint32_t clock_freq = 400000000;
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
     if (!filename) {
@@ -108,9 +78,18 @@ static int bamboo_load_device_tree(target_phys_addr_t addr,
     if (ret < 0)
         fprintf(stderr, "couldn't set /chosen/bootargs\n");
 
+    /* Copy data from the host device tree into the guest. Since the guest can
+     * directly access the timebase without host involvement, we must expose
+     * the correct frequencies. */
     if (kvm_enabled()) {
-        bamboo_fdt_update(fdt);
+        tb_freq = kvmppc_get_tbfreq();
+        clock_freq = kvmppc_get_clockfreq();
     }
+
+    qemu_devtree_setprop_cell(fdt, "/cpus/cpu@0", "clock-frequency",
+                              clock_freq);
+    qemu_devtree_setprop_cell(fdt, "/cpus/cpu@0", "timebase-frequency",
+                              tb_freq);
 
     ret = rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
     g_free(fdt);
