@@ -746,6 +746,7 @@ static int cpu_sparc_get_phys_page(CPUState *env, target_phys_addr_t *phys,
                                 mmu_idx, &page_size);
 }
 
+#if defined(TARGET_SPARC64)
 target_phys_addr_t cpu_get_phys_page_nofault(CPUState *env, target_ulong addr,
                                            int mmu_idx)
 {
@@ -760,10 +761,22 @@ target_phys_addr_t cpu_get_phys_page_nofault(CPUState *env, target_ulong addr,
         return -1;
     return phys_addr;
 }
+#endif
 
 target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
-    return cpu_get_phys_page_nofault(env, addr, cpu_mmu_index(env));
+    target_phys_addr_t phys_addr;
+    int mmu_idx = cpu_mmu_index(env);
+
+    if (cpu_sparc_get_phys_page(env, &phys_addr, addr, 2, mmu_idx) != 0) {
+        if (cpu_sparc_get_phys_page(env, &phys_addr, addr, 0, mmu_idx) != 0) {
+            return -1;
+        }
+    }
+    if (cpu_get_physical_page_desc(phys_addr) == IO_MEM_UNASSIGNED) {
+        return -1;
+    }
+    return phys_addr;
 }
 #endif
 
