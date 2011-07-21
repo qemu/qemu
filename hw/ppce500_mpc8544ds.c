@@ -14,8 +14,6 @@
  * (at your option) any later version.
  */
 
-#include <dirent.h>
-
 #include "config.h"
 #include "qemu-common.h"
 #include "net.h"
@@ -96,6 +94,9 @@ static int mpc8544_load_device_tree(CPUState *env,
     int fdt_size;
     void *fdt;
     uint8_t hypercall[16];
+    char cpu_name[128] = "/cpus/PowerPC,8544@0";
+    uint32_t clock_freq = 400000000;
+    uint32_t tb_freq = 400000000;
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
     if (!filename) {
@@ -133,32 +134,9 @@ static int mpc8544_load_device_tree(CPUState *env,
         fprintf(stderr, "couldn't set /chosen/bootargs\n");
 
     if (kvm_enabled()) {
-        struct dirent *dirp;
-        DIR *dp;
-        char buf[128];
-
-        if ((dp = opendir("/proc/device-tree/cpus/")) == NULL) {
-            printf("Can't open directory /proc/device-tree/cpus/\n");
-            ret = -1;
-            goto out;
-        }
-
-        buf[0] = '\0';
-        while ((dirp = readdir(dp)) != NULL) {
-            if (strncmp(dirp->d_name, "PowerPC", 7) == 0) {
-                snprintf(buf, 128, "/cpus/%s", dirp->d_name);
-                break;
-            }
-        }
-        closedir(dp);
-        if (buf[0] == '\0') {
-            printf("Unknow host!\n");
-            ret = -1;
-            goto out;
-        }
-
-        mpc8544_copy_soc_cell(fdt, buf, "clock-frequency");
-        mpc8544_copy_soc_cell(fdt, buf, "timebase-frequency");
+        /* Read out host's frequencies */
+        clock_freq = kvmppc_get_clockfreq();
+        tb_freq = kvmppc_get_tbfreq();
 
         /* indicate KVM hypercall interface */
         qemu_devtree_setprop_string(fdt, "/hypervisor", "compatible",
@@ -166,14 +144,10 @@ static int mpc8544_load_device_tree(CPUState *env,
         kvmppc_get_hypercall(env, hypercall, sizeof(hypercall));
         qemu_devtree_setprop(fdt, "/hypervisor", "hcall-instructions",
                              hypercall, sizeof(hypercall));
-    } else {
-        const uint32_t freq = 400000000;
-
-        qemu_devtree_setprop_cell(fdt, "/cpus/PowerPC,8544@0",
-                                  "clock-frequency", freq);
-        qemu_devtree_setprop_cell(fdt, "/cpus/PowerPC,8544@0",
-                                  "timebase-frequency", freq);
     }
+
+    qemu_devtree_setprop_cell(fdt, cpu_name, "clock-frequency", clock_freq);
+    qemu_devtree_setprop_cell(fdt, cpu_name, "timebase-frequency", tb_freq);
 
     ret = rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
     g_free(fdt);
