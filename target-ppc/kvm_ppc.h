@@ -23,6 +23,7 @@ int kvmppc_read_host_property(const char *node_path, const char *prop,
 #endif
 
 uint32_t kvmppc_get_tbfreq(void);
+uint64_t kvmppc_get_clockfreq(void);
 int kvmppc_get_hypercall(CPUState *env, uint8_t *buf, int buf_len);
 int kvmppc_set_interrupt(CPUState *env, int irq, int level);
 

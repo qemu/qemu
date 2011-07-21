@@ -14,6 +14,7 @@
  *
  */
 
+#include <dirent.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -37,6 +38,8 @@
 #define dprintf(fmt, ...) \
     do { } while (0)
 #endif
+
+#define PROC_DEVTREE_CPU      "/proc/device-tree/cpus/"
 
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
@@ -507,6 +510,70 @@ uint32_t kvmppc_get_tbfreq(void)
 
     retval = atoi(ns);
     return retval;
+}
+
+/* Try to find a device tree node for a CPU with clock-frequency property */
+static int kvmppc_find_cpu_dt(char *buf, int buf_len)
+{
+    struct dirent *dirp;
+    DIR *dp;
+
+    if ((dp = opendir(PROC_DEVTREE_CPU)) == NULL) {
+        printf("Can't open directory " PROC_DEVTREE_CPU "\n");
+        return -1;
+    }
+
+    buf[0] = '\0';
+    while ((dirp = readdir(dp)) != NULL) {
+        FILE *f;
+        snprintf(buf, buf_len, "%s%s/clock-frequency", PROC_DEVTREE_CPU,
+                 dirp->d_name);
+        f = fopen(buf, "r");
+        if (f) {
+            snprintf(buf, buf_len, "%s%s", PROC_DEVTREE_CPU, dirp->d_name);
+            fclose(f);
+            break;
+        }
+        buf[0] = '\0';
+    }
+    closedir(dp);
+    if (buf[0] == '\0') {
+        printf("Unknown host!\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+uint64_t kvmppc_get_clockfreq(void)
+{
+    char buf[512];
+    uint32_t tb[2];
+    FILE *f;
+    int len;
+
+    if (kvmppc_find_cpu_dt(buf, sizeof(buf))) {
+        return 0;
+    }
+
+    strncat(buf, "/clock-frequency", sizeof(buf) - strlen(buf));
+
+    f = fopen(buf, "rb");
+    if (!f) {
+        return -1;
+    }
+
+    len = fread(tb, sizeof(tb[0]), 2, f);
+    fclose(f);
+    switch (len) {
+    case 1:
+        /* freq is only a single cell */
+        return tb[0];
+    case 2:
+        return *(uint64_t*)tb;
+    }
+
+    return 0;
 }
 
 int kvmppc_get_hypercall(CPUState *env, uint8_t *buf, int buf_len)
