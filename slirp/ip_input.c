@@ -511,7 +511,7 @@ typedef uint32_t n_time;
 				 */
 				break;
 			}
-			off--;			/ * 0 origin *  /
+                        off--; /* 0 origin */
 			if (off > optlen - sizeof(struct in_addr)) {
 				/*
 				 * End of source route.  Should be for us.
@@ -554,7 +554,7 @@ typedef uint32_t n_time;
 			/*
 			 * If no space remains, ignore.
 			 */
-			off--;			 * 0 origin *
+                        off--; /* 0 origin */
 			if (off > optlen - sizeof(struct in_addr))
 				break;
 			bcopy((caddr_t)(&ip->ip_dst), (caddr_t)&ipaddr.sin_addr,
