@@ -752,13 +752,9 @@ target_phys_addr_t cpu_get_phys_page_nofault(CPUState *env, target_ulong addr,
 {
     target_phys_addr_t phys_addr;
 
-    if (cpu_sparc_get_phys_page(env, &phys_addr, addr, 2, mmu_idx) != 0) {
-        if (cpu_sparc_get_phys_page(env, &phys_addr, addr, 0, mmu_idx) != 0) {
-            return -1;
-        }
-    }
-    if (cpu_get_physical_page_desc(phys_addr) == IO_MEM_UNASSIGNED)
+    if (cpu_sparc_get_phys_page(env, &phys_addr, addr, 0, mmu_idx) != 0) {
         return -1;
+    }
     return phys_addr;
 }
 #endif
