@@ -129,6 +129,12 @@ static int mpc8544_load_device_tree(CPUState *env,
         qemu_devtree_setprop_cell(fdt, cpu_name, "timebase-frequency", tb_freq);
     }
 
+    for (i = smp_cpus; i < 32; i++) {
+        char cpu_name[128];
+        snprintf(cpu_name, sizeof(cpu_name), "/cpus/PowerPC,8544@%x", i);
+        qemu_devtree_nop_node(fdt, cpu_name);
+    }
+
     ret = rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
     g_free(fdt);
 
