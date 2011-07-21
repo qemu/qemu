@@ -2567,24 +2567,30 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
     helper_check_align(addr, size - 1);
     addr = asi_address_mask(env, asi, addr);
 
-    switch (asi) {
-    case 0x82: // Primary no-fault
-    case 0x8a: // Primary no-fault LE
-    case 0x83: // Secondary no-fault
-    case 0x8b: // Secondary no-fault LE
-        {
-            /* secondary space access has lowest asi bit equal to 1 */
-            int access_mmu_idx = ( asi & 1 ) ? MMU_KERNEL_IDX
-                                             : MMU_KERNEL_SECONDARY_IDX;
+    /* process nonfaulting loads first */
+    if ((asi & 0xf6) == 0x82) {
+        int mmu_idx;
 
-            if (cpu_get_phys_page_nofault(env, addr, access_mmu_idx) == -1ULL) {
-#ifdef DEBUG_ASI
-                dump_asi("read ", last_addr, asi, size, ret);
-#endif
-                return 0;
-            }
+        /* secondary space access has lowest asi bit equal to 1 */
+        if (env->pstate & PS_PRIV) {
+            mmu_idx = (asi & 1) ? MMU_KERNEL_SECONDARY_IDX : MMU_KERNEL_IDX;
+        } else {
+            mmu_idx = (asi & 1) ? MMU_USER_SECONDARY_IDX : MMU_USER_IDX;
         }
-        // Fall through
+
+        if (cpu_get_phys_page_nofault(env, addr, mmu_idx) == -1ULL) {
+#ifdef DEBUG_ASI
+            dump_asi("read ", last_addr, asi, size, ret);
+#endif
+            /* env->exception_index is set in get_physical_address_data(). */
+            raise_exception(env->exception_index);
+        }
+
+        /* convert nonfaulting load ASIs to normal load ASIs */
+        asi &= ~0x02;
+    }
+
+    switch (asi) {
     case 0x10: // As if user primary
     case 0x11: // As if user secondary
     case 0x18: // As if user primary LE
@@ -2862,8 +2868,6 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
     case 0x1d: // Bypass, non-cacheable LE
     case 0x88: // Primary LE
     case 0x89: // Secondary LE
-    case 0x8a: // Primary no-fault LE
-    case 0x8b: // Secondary no-fault LE
         switch(size) {
         case 2:
             ret = bswap16(ret);
