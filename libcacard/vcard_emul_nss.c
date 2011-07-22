@@ -1171,7 +1171,7 @@ vcard_emul_options(const char *args)
                 args++;
                 continue;
             }
-            args = strip(args++);
+            args = strip(args+1);
             type_params = args;
             args = strpbrk(args + 1, ",)");
             if (*args == 0) {
@@ -1182,7 +1182,7 @@ vcard_emul_options(const char *args)
                 continue;
             }
             type_params_length = args - name;
-            args = strip(args++);
+            args = strip(args+1);
             if (*args == 0) {
                 break;
             }
