@@ -49,6 +49,7 @@
 #define MPC8544_PCI_IO             0xE1000000
 #define MPC8544_PCI_IOLEN          0x10000
 #define MPC8544_UTIL_BASE          (MPC8544_CCSRBAR_BASE + 0xe0000)
+#define MPC8544_SPIN_BASE          0xEF000000
 
 struct boot_info
 {
@@ -164,6 +165,18 @@ static void mmubooke_create_initial_mapping(CPUState *env,
     tlb->mas7_3 |= MAS3_UR | MAS3_UW | MAS3_UX | MAS3_SR | MAS3_SW | MAS3_SX;
 }
 
+static void mpc8544ds_cpu_reset_sec(void *opaque)
+{
+    CPUState *env = opaque;
+
+    cpu_reset(env);
+
+    /* Secondary CPU starts in halted state for now. Needs to change when
+       implementing non-kernel boot. */
+    env->halted = 1;
+    env->exception_index = EXCP_HLT;
+}
+
 static void mpc8544ds_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
@@ -172,6 +185,7 @@ static void mpc8544ds_cpu_reset(void *opaque)
     cpu_reset(env);
 
     /* Set initial guest state. */
+    env->halted = 0;
     env->gpr[1] = (16<<20) - 8;
     env->gpr[3] = bi->dt_base;
     env->nip = bi->entry;
@@ -199,7 +213,6 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     unsigned int pci_irq_nrs[4] = {1, 2, 3, 4};
     qemu_irq **irqs, *mpic;
     DeviceState *dev;
-    struct boot_info *boot_info;
     CPUState *firstenv = NULL;
 
     /* Setup CPUs */
@@ -234,9 +247,16 @@ static void mpc8544ds_init(ram_addr_t ram_size,
         env->spr[SPR_40x_TCR] = 1 << 26;
 
         /* Register reset handler */
-        boot_info = g_malloc0(sizeof(struct boot_info));
-        qemu_register_reset(mpc8544ds_cpu_reset, env);
-        env->load_info = boot_info;
+        if (!i) {
+            /* Primary CPU */
+            struct boot_info *boot_info;
+            boot_info = g_malloc0(sizeof(struct boot_info));
+            qemu_register_reset(mpc8544ds_cpu_reset, env);
+            env->load_info = boot_info;
+        } else {
+            /* Secondary CPUs */
+            qemu_register_reset(mpc8544ds_cpu_reset_sec, env);
+        }
     }
 
     env = firstenv;
@@ -289,6 +309,9 @@ static void mpc8544ds_init(ram_addr_t ram_size,
         }
     }
 
+    /* Register spinning region */
+    sysbus_create_simple("e500-spin", MPC8544_SPIN_BASE, NULL);
+
     /* Load kernel. */
     if (kernel_filename) {
         kernel_size = load_uimage(kernel_filename, &entry, &loadaddr, NULL);
@@ -321,6 +344,8 @@ static void mpc8544ds_init(ram_addr_t ram_size,
 
     /* If we're loading a kernel directly, we must load the device tree too. */
     if (kernel_filename) {
+        struct boot_info *boot_info;
+
 #ifndef CONFIG_FDT
         cpu_abort(env, "Compiled without FDT support - can't load kernel\n");
 #endif
