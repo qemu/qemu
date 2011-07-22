@@ -53,6 +53,7 @@ typedef struct {
     int rows;
     enum pl110_bppmode bpp;
     int invalidate;
+    uint32_t mux_ctrl;
     uint32_t pallette[256];
     uint32_t raw_pallette[128];
     qemu_irq irq;
@@ -60,7 +61,7 @@ typedef struct {
 
 static const VMStateDescription vmstate_pl110 = {
     .name = "pl110",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(version, pl110_state),
@@ -76,6 +77,7 @@ static const VMStateDescription vmstate_pl110 = {
         VMSTATE_INT32(invalidate, pl110_state),
         VMSTATE_UINT32_ARRAY(pallette, pl110_state, 256),
         VMSTATE_UINT32_ARRAY(raw_pallette, pl110_state, 128),
+        VMSTATE_UINT32_V(mux_ctrl, pl110_state, 2),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -173,16 +175,26 @@ static void pl110_update_display(void *opaque)
          * mux which allows bits to be reshuffled to give
          * 565 format. The mux is typically controlled by
          * an external system register.
-         * This should be controlled by a GPIO input pin
+         * This is controlled by a GPIO input pin
          * so boards can wire it up to their register.
-         * For now, force 16 bit to be 565, to match
-         * previous QEMU PL110 model behaviour.
          *
          * The PL111 straightforwardly implements both
          * 5551 and 565 under control of the bpp field
          * in the LCDControl register.
          */
-        bpp_offset += (BPP_16_565 - BPP_16);
+        switch (s->mux_ctrl) {
+        case 3: /* 565 BGR */
+            bpp_offset = (BPP_16_565 - BPP_16);
+            break;
+        case 1: /* 5551 */
+            break;
+        case 0: /* 888; also if we have loaded vmstate from an old version */
+        case 2: /* 565 RGB */
+        default:
+            /* treat as 565 but honour BGR bit */
+            bpp_offset += (BPP_16_565 - BPP_16);
+            break;
+        }
     }
 
     if (s->cr & PL110_CR_BEBO)
@@ -416,6 +428,12 @@ static CPUWriteMemoryFunc * const pl110_writefn[] = {
    pl110_write
 };
 
+static void pl110_mux_ctrl_set(void *opaque, int line, int level)
+{
+    pl110_state *s = (pl110_state *)opaque;
+    s->mux_ctrl = level;
+}
+
 static int pl110_init(SysBusDevice *dev)
 {
     pl110_state *s = FROM_SYSBUS(pl110_state, dev);
@@ -426,6 +444,7 @@ static int pl110_init(SysBusDevice *dev)
                                        DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     sysbus_init_irq(dev, &s->irq);
+    qdev_init_gpio_in(&s->busdev.qdev, pl110_mux_ctrl_set, 1);
     s->ds = graphic_console_init(pl110_update_display,
                                  pl110_invalidate_display,
                                  NULL, NULL, s);

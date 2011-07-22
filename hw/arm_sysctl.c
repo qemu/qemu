@@ -17,6 +17,8 @@
 
 typedef struct {
     SysBusDevice busdev;
+    qemu_irq pl110_mux_ctrl;
+
     uint32_t sys_id;
     uint32_t leds;
     uint16_t lockval;
@@ -30,11 +32,12 @@ typedef struct {
     uint32_t sys_cfgdata;
     uint32_t sys_cfgctrl;
     uint32_t sys_cfgstat;
+    uint32_t sys_clcd;
 } arm_sysctl_state;
 
 static const VMStateDescription vmstate_arm_sysctl = {
     .name = "realview_sysctl",
-    .version_id = 2,
+    .version_id = 3,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(leds, arm_sysctl_state),
@@ -48,6 +51,7 @@ static const VMStateDescription vmstate_arm_sysctl = {
         VMSTATE_UINT32_V(sys_cfgdata, arm_sysctl_state, 2),
         VMSTATE_UINT32_V(sys_cfgctrl, arm_sysctl_state, 2),
         VMSTATE_UINT32_V(sys_cfgstat, arm_sysctl_state, 2),
+        VMSTATE_UINT32_V(sys_clcd, arm_sysctl_state, 3),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -78,6 +82,13 @@ static void arm_sysctl_reset(DeviceState *d)
     s->cfgdata2 = 0;
     s->flags = 0;
     s->resetlevel = 0;
+    if (board_id(s) == BOARD_ID_VEXPRESS) {
+        /* On VExpress this register will RAZ/WI */
+        s->sys_clcd = 0;
+    } else {
+        /* All others: CLCDID 0x1f, indicating VGA */
+        s->sys_clcd = 0x1f00;
+    }
 }
 
 static uint32_t arm_sysctl_read(void *opaque, target_phys_addr_t offset)
@@ -124,7 +135,7 @@ static uint32_t arm_sysctl_read(void *opaque, target_phys_addr_t offset)
     case 0x4c: /* FLASH */
         return 0;
     case 0x50: /* CLCD */
-        return 0x1000;
+        return s->sys_clcd;
     case 0x54: /* CLCDSER */
         return 0;
     case 0x58: /* BOOTCS */
@@ -232,7 +243,39 @@ static void arm_sysctl_write(void *opaque, target_phys_addr_t offset,
         /* nothing to do.  */
         break;
     case 0x4c: /* FLASH */
+        break;
     case 0x50: /* CLCD */
+        switch (board_id(s)) {
+        case BOARD_ID_PB926:
+            /* On 926 bits 13:8 are R/O, bits 1:0 control
+             * the mux that defines how to interpret the PL110
+             * graphics format, and other bits are r/w but we
+             * don't implement them to do anything.
+             */
+            s->sys_clcd &= 0x3f00;
+            s->sys_clcd |= val & ~0x3f00;
+            qemu_set_irq(s->pl110_mux_ctrl, val & 3);
+            break;
+        case BOARD_ID_EB:
+            /* The EB is the same except that there is no mux since
+             * the EB has a PL111.
+             */
+            s->sys_clcd &= 0x3f00;
+            s->sys_clcd |= val & ~0x3f00;
+            break;
+        case BOARD_ID_PBA8:
+        case BOARD_ID_PBX:
+            /* On PBA8 and PBX bit 7 is r/w and all other bits
+             * are either r/o or RAZ/WI.
+             */
+            s->sys_clcd &= (1 << 7);
+            s->sys_clcd |= val & ~(1 << 7);
+            break;
+        case BOARD_ID_VEXPRESS:
+        default:
+            /* On VExpress this register is unimplemented and will RAZ/WI */
+            break;
+        }
     case 0x54: /* CLCDSER */
     case 0x64: /* DMAPSR0 */
     case 0x68: /* DMAPSR1 */
@@ -334,7 +377,7 @@ static int arm_sysctl_init1(SysBusDevice *dev)
                                        DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     qdev_init_gpio_in(&s->busdev.qdev, arm_sysctl_gpio_set, 2);
-    /* ??? Save/restore.  */
+    qdev_init_gpio_out(&s->busdev.qdev, &s->pl110_mux_ctrl, 1);
     return 0;
 }
 
