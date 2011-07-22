@@ -3397,17 +3397,18 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 VFP_DREG_D(rd, insn);
             else
                 rd = VFP_SREG_D(insn);
-            if (s->thumb && rn == 15) {
-                addr = tcg_temp_new_i32();
-                tcg_gen_movi_i32(addr, s->pc & ~2);
-            } else {
-                addr = load_reg(s, rn);
-            }
             if ((insn & 0x01200000) == 0x01000000) {
                 /* Single load/store */
                 offset = (insn & 0xff) << 2;
                 if ((insn & (1 << 23)) == 0)
                     offset = -offset;
+                if (s->thumb && rn == 15) {
+                    /* This is actually UNPREDICTABLE */
+                    addr = tcg_temp_new_i32();
+                    tcg_gen_movi_i32(addr, s->pc & ~2);
+                } else {
+                    addr = load_reg(s, rn);
+                }
                 tcg_gen_addi_i32(addr, addr, offset);
                 if (insn & (1 << 20)) {
                     gen_vfp_ld(s, dp, addr);
@@ -3419,11 +3420,34 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 tcg_temp_free_i32(addr);
             } else {
                 /* load/store multiple */
+                int w = insn & (1 << 21);
                 if (dp)
                     n = (insn >> 1) & 0x7f;
                 else
                     n = insn & 0xff;
 
+                if (w && !(((insn >> 23) ^ (insn >> 24)) & 1)) {
+                    /* P == U , W == 1  => UNDEF */
+                    return 1;
+                }
+                if (n == 0 || (rd + n) > 32 || (dp && n > 16)) {
+                    /* UNPREDICTABLE cases for bad immediates: we choose to
+                     * UNDEF to avoid generating huge numbers of TCG ops
+                     */
+                    return 1;
+                }
+                if (rn == 15 && w) {
+                    /* writeback to PC is UNPREDICTABLE, we choose to UNDEF */
+                    return 1;
+                }
+
+                if (s->thumb && rn == 15) {
+                    /* This is actually UNPREDICTABLE */
+                    addr = tcg_temp_new_i32();
+                    tcg_gen_movi_i32(addr, s->pc & ~2);
+                } else {
+                    addr = load_reg(s, rn);
+                }
                 if (insn & (1 << 24)) /* pre-decrement */
                     tcg_gen_addi_i32(addr, addr, -((insn & 0xff) << 2));
 
@@ -3443,7 +3467,7 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     }
                     tcg_gen_addi_i32(addr, addr, offset);
                 }
-                if (insn & (1 << 21)) {
+                if (w) {
                     /* writeback */
                     if (insn & (1 << 24))
                         offset = -offset * n;
