@@ -177,6 +177,7 @@ spice=""
 rbd=""
 smartcard=""
 smartcard_nss=""
+usb_redir=""
 opengl=""
 
 # parse CC options first
@@ -743,6 +744,10 @@ for opt do
   ;;
   --enable-smartcard-nss) smartcard_nss="yes"
   ;;
+  --disable-usb-redir) usb_redir="no"
+  ;;
+  --enable-usb-redir) usb_redir="yes"
+  ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
   esac
@@ -1018,6 +1023,8 @@ echo "  --disable-smartcard      disable smartcard support"
 echo "  --enable-smartcard       enable smartcard support"
 echo "  --disable-smartcard-nss  disable smartcard nss support"
 echo "  --enable-smartcard-nss   enable smartcard nss support"
+echo "  --disable-usb-redir      disable usb network redirection support"
+echo "  --enable-usb-redir       enable usb network redirection support"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -2371,6 +2378,22 @@ if test "$smartcard" = "no" ; then
     smartcard_nss="no"
 fi
 
+# check for usbredirparser for usb network redirection support
+if test "$usb_redir" != "no" ; then
+    if $pkg_config libusbredirparser >/dev/null 2>&1 ; then
+        usb_redir="yes"
+        usb_redir_cflags=$($pkg_config --cflags libusbredirparser 2>/dev/null)
+        usb_redir_libs=$($pkg_config --libs libusbredirparser 2>/dev/null)
+        QEMU_CFLAGS="$QEMU_CFLAGS $usb_redir_cflags"
+        LIBS="$LIBS $usb_redir_libs"
+    else
+        if test "$usb_redir" = "yes"; then
+            feature_not_found "usb-redir"
+        fi
+        usb_redir="no"
+    fi
+fi
+
 ##########################################
 
 ##########################################
@@ -2617,6 +2640,7 @@ echo "spice support     $spice"
 echo "rbd support       $rbd"
 echo "xfsctl support    $xfs"
 echo "nss used          $smartcard_nss"
+echo "usb net redir     $usb_redir"
 echo "OpenGL support    $opengl"
 
 if test $sdl_too_old = "yes"; then
@@ -2908,6 +2932,10 @@ fi
 
 if test "$smartcard_nss" = "yes" ; then
   echo "CONFIG_SMARTCARD_NSS=y" >> $config_host_mak
+fi
+
+if test "$usb_redir" = "yes" ; then
+  echo "CONFIG_USB_REDIR=y" >> $config_host_mak
 fi
 
 if test "$opengl" = "yes" ; then

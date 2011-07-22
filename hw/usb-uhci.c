@@ -730,6 +730,9 @@ out:
         td->ctrl |= TD_CTRL_STALL;
         td->ctrl &= ~TD_CTRL_ACTIVE;
         s->status |= UHCI_STS_USBERR;
+        if (td->ctrl & TD_CTRL_IOC) {
+            *int_mask |= 0x01;
+        }
         uhci_update_irq(s);
         return 1;
 
@@ -737,6 +740,9 @@ out:
         td->ctrl |= TD_CTRL_BABBLE | TD_CTRL_STALL;
         td->ctrl &= ~TD_CTRL_ACTIVE;
         s->status |= UHCI_STS_USBERR;
+        if (td->ctrl & TD_CTRL_IOC) {
+            *int_mask |= 0x01;
+        }
         uhci_update_irq(s);
         /* frame interrupted */
         return -1;
