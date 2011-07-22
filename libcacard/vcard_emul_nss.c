@@ -1105,6 +1105,26 @@ find_blank(const char *str)
 static VCardEmulOptions options;
 #define READER_STEP 4
 
+/* Expects "args" to be at the beginning of a token (ie right after the ','
+ * ending the previous token), and puts the next token start in "token",
+ * and its length in "token_length". "token" will not be nul-terminated.
+ * After calling the macro, "args" will be advanced to the beginning of
+ * the next token.
+ * This macro may call continue or break.
+ */
+#define NEXT_TOKEN(token) \
+            (token) = args; \
+            args = strpbrk(args, ",)"); \
+            if (*args == 0) { \
+                break; \
+            } \
+            if (*args == ')') { \
+                args++; \
+                continue; \
+            } \
+            (token##_length) = args - (token); \
+            args = strip(args+1);
+
 VCardEmulOptions *
 vcard_emul_options(const char *args)
 {
@@ -1140,58 +1160,15 @@ vcard_emul_options(const char *args)
             }
             args = strip(args+1);
 
-            name = args;
-            args = strpbrk(args, ",)");
-            if (*args == 0) {
-                break;
-            }
-            if (*args == ')') {
-                args++;
-                continue;
-            }
-            name_length = args - name;
-            args = strip(args+1);
-
-            vname = args;
-            args = strpbrk(args, ",)");
-            if (*args == 0) {
-                break;
-            }
-            if (*args == ')') {
-                args++;
-                continue;
-            }
-            vname_length = args - vname;
-            args = strip(args+1);
-
-            type_params = args;
-            args = strpbrk(args, ",)");
-            if (*args == 0) {
-                break;
-            }
-            if (*args == ')') {
-                args++;
-                continue;
-            }
-            type_params_length = args - type_params;
-            args = strip(args+1);
-
+            NEXT_TOKEN(name)
+            NEXT_TOKEN(vname)
+            NEXT_TOKEN(type_params)
             type_params_length = MIN(type_params_length, sizeof(type_str)-1);
             strncpy(type_str, type_params, type_params_length);
             type_str[type_params_length] = 0;
             type = vcard_emul_type_from_string(type_str);
 
-            type_params = args;
-            args = strpbrk(args, ",)");
-            if (*args == 0) {
-                break;
-            }
-            if (*args == ')') {
-                args++;
-                continue;
-            }
-            type_params_length = args - type_params;
-            args = strip(args+1);
+            NEXT_TOKEN(type_params)
 
             if (*args == 0) {
                 break;
