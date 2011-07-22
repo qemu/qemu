@@ -3071,6 +3071,17 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     /* Source and destination the same.  */
                     gen_mov_F0_vreg(dp, rd);
                     break;
+                case 4:
+                case 5:
+                case 6:
+                case 7:
+                    /* VCVTB, VCVTT: only present with the halfprec extension,
+                     * UNPREDICTABLE if bit 8 is set (we choose to UNDEF)
+                     */
+                    if (dp || !arm_feature(env, ARM_FEATURE_VFP_FP16)) {
+                        return 1;
+                    }
+                    /* Otherwise fall through */
                 default:
                     /* One source operand.  */
                     gen_mov_F0_vreg(dp, rm);
@@ -3167,24 +3178,18 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         gen_vfp_sqrt(dp);
                         break;
                     case 4: /* vcvtb.f32.f16 */
-                        if (!arm_feature(env, ARM_FEATURE_VFP_FP16))
-                          return 1;
                         tmp = gen_vfp_mrs();
                         tcg_gen_ext16u_i32(tmp, tmp);
                         gen_helper_vfp_fcvt_f16_to_f32(cpu_F0s, tmp, cpu_env);
                         tcg_temp_free_i32(tmp);
                         break;
                     case 5: /* vcvtt.f32.f16 */
-                        if (!arm_feature(env, ARM_FEATURE_VFP_FP16))
-                          return 1;
                         tmp = gen_vfp_mrs();
                         tcg_gen_shri_i32(tmp, tmp, 16);
                         gen_helper_vfp_fcvt_f16_to_f32(cpu_F0s, tmp, cpu_env);
                         tcg_temp_free_i32(tmp);
                         break;
                     case 6: /* vcvtb.f16.f32 */
-                        if (!arm_feature(env, ARM_FEATURE_VFP_FP16))
-                          return 1;
                         tmp = tcg_temp_new_i32();
                         gen_helper_vfp_fcvt_f32_to_f16(tmp, cpu_F0s, cpu_env);
                         gen_mov_F0_vreg(0, rd);
@@ -3195,8 +3200,6 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         gen_vfp_msr(tmp);
                         break;
                     case 7: /* vcvtt.f16.f32 */
-                        if (!arm_feature(env, ARM_FEATURE_VFP_FP16))
-                          return 1;
                         tmp = tcg_temp_new_i32();
                         gen_helper_vfp_fcvt_f32_to_f16(tmp, cpu_F0s, cpu_env);
                         tcg_gen_shli_i32(tmp, tmp, 16);
