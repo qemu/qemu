@@ -526,7 +526,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     memset(outbuf, 0, buflen);
 
     if (req->lun) {
-        outbuf[0] = 0x7f;	/* LUN not supported */
+        outbuf[0] = 0x7f;       /* LUN not supported */
         return buflen;
     }
 
@@ -836,7 +836,7 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
     case TEST_UNIT_READY:
         if (!bdrv_is_inserted(s->bs))
             goto not_ready;
-	break;
+        break;
     case REQUEST_SENSE:
         if (req->cmd.xfer < 4)
             goto illegal_request;
@@ -848,7 +848,7 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
         buflen = scsi_disk_emulate_inquiry(req, outbuf);
         if (buflen < 0)
             goto illegal_request;
-	break;
+        break;
     case MODE_SENSE:
     case MODE_SENSE_10:
         buflen = scsi_disk_emulate_mode_sense(req, outbuf);
@@ -881,14 +881,14 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
             /* load/eject medium */
             bdrv_eject(s->bs, !(req->cmd.buf[4] & 1));
         }
-	break;
+        break;
     case ALLOW_MEDIUM_REMOVAL:
         bdrv_set_locked(s->bs, req->cmd.buf[4] & 1);
-	break;
+        break;
     case READ_CAPACITY:
         /* The normal LEN field for this command is zero.  */
-	memset(outbuf, 0, 8);
-	bdrv_get_geometry(s->bs, &nb_sectors);
+        memset(outbuf, 0, 8);
+        bdrv_get_geometry(s->bs, &nb_sectors);
         if (!nb_sectors)
             goto not_ready;
         nb_sectors /= s->cluster_size;
@@ -908,7 +908,7 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
         outbuf[6] = s->cluster_size * 2;
         outbuf[7] = 0;
         buflen = 8;
-	break;
+        break;
     case SYNCHRONIZE_CACHE:
         ret = bdrv_flush(s->bs);
         if (ret < 0) {
