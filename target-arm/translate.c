@@ -3288,12 +3288,10 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         gen_vfp_toul(dp, 32 - rm, 0);
                         break;
                     default: /* undefined */
-                        printf ("rn:%d\n", rn);
                         return 1;
                     }
                     break;
                 default: /* undefined */
-                    printf ("op:%d\n", op);
                     return 1;
                 }
 
@@ -6372,8 +6370,6 @@ static int disas_cp14_read(CPUState * env, DisasContext *s, uint32_t insn)
             return 0;
         }
     }
-    fprintf(stderr, "Unknown cp14 read op1:%d crn:%d crm:%d op2:%d\n",
-            op1, crn, crm, op2);
     return 1;
 }
 
@@ -6405,8 +6401,6 @@ static int disas_cp14_write(CPUState * env, DisasContext *s, uint32_t insn)
             return 0;
         }
     }
-    fprintf(stderr, "Unknown cp14 write op1:%d crn:%d crm:%d op2:%d\n",
-            op1, crn, crm, op2);
     return 1;
 }
 
