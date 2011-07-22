@@ -164,6 +164,7 @@
 
 #define TYPE_DISK           0x00
 #define TYPE_TAPE           0x01
+#define TYPE_PRINTER        0x02
 #define TYPE_PROCESSOR      0x03    /* HP scanners use this */
 #define TYPE_WORM           0x04    /* Treated as ROM by our system */
 #define TYPE_ROM            0x05
@@ -171,6 +172,9 @@
 #define TYPE_MOD            0x07    /* Magneto-optical disk -
 				     * - treated as TYPE_DISK */
 #define TYPE_MEDIUM_CHANGER 0x08
-#define TYPE_ENCLOSURE	    0x0d    /* Enclosure Services Device */
+#define TYPE_STORAGE_ARRAY  0x0c    /* Storage array device */
+#define TYPE_ENCLOSURE      0x0d    /* Enclosure Services Device */
+#define TYPE_RBC            0x0e    /* Simplified Direct-Access Device */
+#define TYPE_OSD            0x11    /* Object-storage Device */
 #define TYPE_NO_LUN         0x7f
 
