@@ -350,7 +350,6 @@ static void scsi_req_xfer_mode(SCSIRequest *req)
     case SEARCH_HIGH_12:
     case SEARCH_EQUAL_12:
     case SEARCH_LOW_12:
-    case SET_WINDOW:
     case MEDIUM_SCAN:
     case SEND_VOLUME_TAG:
     case WRITE_LONG_2:
@@ -544,7 +543,6 @@ static const char *scsi_command_name(uint8_t cmd)
         [ SEND_DIAGNOSTIC          ] = "SEND_DIAGNOSTIC",
         [ ALLOW_MEDIUM_REMOVAL     ] = "ALLOW_MEDIUM_REMOVAL",
 
-        [ SET_WINDOW               ] = "SET_WINDOW",
         [ READ_CAPACITY            ] = "READ_CAPACITY",
         [ READ_10                  ] = "READ_10",
         [ WRITE_10                 ] = "WRITE_10",

@@ -49,7 +49,6 @@
 #define SEND_DIAGNOSTIC       0x1d
 #define ALLOW_MEDIUM_REMOVAL  0x1e
 
-#define SET_WINDOW            0x24
 #define READ_CAPACITY         0x25
 #define READ_10               0x28
 #define WRITE_10              0x2a
