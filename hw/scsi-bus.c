@@ -223,6 +223,7 @@ static int scsi_req_length(SCSIRequest *req, uint8_t *cmd)
 
     switch(cmd[0]) {
     case TEST_UNIT_READY:
+    case REWIND:
     case START_STOP:
     case SEEK_6:
     case WRITE_FILEMARKS:
@@ -231,24 +232,24 @@ static int scsi_req_length(SCSIRequest *req, uint8_t *cmd)
     case RELEASE:
     case ERASE:
     case ALLOW_MEDIUM_REMOVAL:
-    case VERIFY:
+    case VERIFY_10:
     case SEEK_10:
     case SYNCHRONIZE_CACHE:
     case LOCK_UNLOCK_CACHE:
     case LOAD_UNLOAD:
     case SET_CD_SPEED:
     case SET_LIMITS:
-    case WRITE_LONG:
+    case WRITE_LONG_10:
     case MOVE_MEDIUM:
     case UPDATE_BLOCK:
         req->cmd.xfer = 0;
         break;
     case MODE_SENSE:
         break;
-    case WRITE_SAME:
+    case WRITE_SAME_10:
         req->cmd.xfer = 1;
         break;
-    case READ_CAPACITY:
+    case READ_CAPACITY_10:
         req->cmd.xfer = 8;
         break;
     case READ_BLOCK_LIMITS:
@@ -264,7 +265,7 @@ static int scsi_req_length(SCSIRequest *req, uint8_t *cmd)
         req->cmd.xfer *= 8;
         break;
     case WRITE_10:
-    case WRITE_VERIFY:
+    case WRITE_VERIFY_10:
     case WRITE_6:
     case WRITE_12:
     case WRITE_VERIFY_12:
@@ -324,7 +325,7 @@ static void scsi_req_xfer_mode(SCSIRequest *req)
     switch (req->cmd.buf[0]) {
     case WRITE_6:
     case WRITE_10:
-    case WRITE_VERIFY:
+    case WRITE_VERIFY_10:
     case WRITE_12:
     case WRITE_VERIFY_12:
     case WRITE_16:
@@ -344,14 +345,13 @@ static void scsi_req_xfer_mode(SCSIRequest *req)
     case SEARCH_HIGH:
     case SEARCH_LOW:
     case UPDATE_BLOCK:
-    case WRITE_LONG:
-    case WRITE_SAME:
+    case WRITE_LONG_10:
+    case WRITE_SAME_10:
     case SEARCH_HIGH_12:
     case SEARCH_EQUAL_12:
     case SEARCH_LOW_12:
     case MEDIUM_SCAN:
     case SEND_VOLUME_TAG:
-    case WRITE_LONG_2:
     case PERSISTENT_RESERVE_OUT:
     case MAINTENANCE_OUT:
         req->cmd.mode = SCSI_XFER_TO_DEV;
@@ -515,6 +515,7 @@ static const char *scsi_command_name(uint8_t cmd)
 {
     static const char *names[] = {
         [ TEST_UNIT_READY          ] = "TEST_UNIT_READY",
+        [ REWIND                   ] = "REWIND",
         [ REQUEST_SENSE            ] = "REQUEST_SENSE",
         [ FORMAT_UNIT              ] = "FORMAT_UNIT",
         [ READ_BLOCK_LIMITS        ] = "READ_BLOCK_LIMITS",
@@ -539,13 +540,12 @@ static const char *scsi_command_name(uint8_t cmd)
         [ RECEIVE_DIAGNOSTIC       ] = "RECEIVE_DIAGNOSTIC",
         [ SEND_DIAGNOSTIC          ] = "SEND_DIAGNOSTIC",
         [ ALLOW_MEDIUM_REMOVAL     ] = "ALLOW_MEDIUM_REMOVAL",
-
-        [ READ_CAPACITY            ] = "READ_CAPACITY",
+        [ READ_CAPACITY_10         ] = "READ_CAPACITY_10",
         [ READ_10                  ] = "READ_10",
         [ WRITE_10                 ] = "WRITE_10",
         [ SEEK_10                  ] = "SEEK_10",
-        [ WRITE_VERIFY             ] = "WRITE_VERIFY",
-        [ VERIFY                   ] = "VERIFY",
+        [ WRITE_VERIFY_10          ] = "WRITE_VERIFY_10",
+        [ VERIFY_10                ] = "VERIFY_10",
         [ SEARCH_HIGH              ] = "SEARCH_HIGH",
         [ SEARCH_EQUAL             ] = "SEARCH_EQUAL",
         [ SEARCH_LOW               ] = "SEARCH_LOW",
@@ -561,11 +561,14 @@ static const char *scsi_command_name(uint8_t cmd)
         [ WRITE_BUFFER             ] = "WRITE_BUFFER",
         [ READ_BUFFER              ] = "READ_BUFFER",
         [ UPDATE_BLOCK             ] = "UPDATE_BLOCK",
-        [ READ_LONG                ] = "READ_LONG",
-        [ WRITE_LONG               ] = "WRITE_LONG",
+        [ READ_LONG_10             ] = "READ_LONG_10",
+        [ WRITE_LONG_10            ] = "WRITE_LONG_10",
         [ CHANGE_DEFINITION        ] = "CHANGE_DEFINITION",
-        [ WRITE_SAME               ] = "WRITE_SAME",
+        [ WRITE_SAME_10            ] = "WRITE_SAME_10",
+        [ UNMAP                    ] = "UNMAP",
         [ READ_TOC                 ] = "READ_TOC",
+        [ REPORT_DENSITY_SUPPORT   ] = "REPORT_DENSITY_SUPPORT",
+        [ GET_CONFIGURATION        ] = "GET_CONFIGURATION",
         [ LOG_SELECT               ] = "LOG_SELECT",
         [ LOG_SENSE                ] = "LOG_SENSE",
         [ MODE_SELECT_10           ] = "MODE_SELECT_10",
@@ -574,27 +577,39 @@ static const char *scsi_command_name(uint8_t cmd)
         [ MODE_SENSE_10            ] = "MODE_SENSE_10",
         [ PERSISTENT_RESERVE_IN    ] = "PERSISTENT_RESERVE_IN",
         [ PERSISTENT_RESERVE_OUT   ] = "PERSISTENT_RESERVE_OUT",
+        [ WRITE_FILEMARKS_16       ] = "WRITE_FILEMARKS_16",
+        [ EXTENDED_COPY            ] = "EXTENDED_COPY",
+        [ ATA_PASSTHROUGH          ] = "ATA_PASSTHROUGH",
+        [ ACCESS_CONTROL_IN        ] = "ACCESS_CONTROL_IN",
+        [ ACCESS_CONTROL_OUT       ] = "ACCESS_CONTROL_OUT",
+        [ READ_16                  ] = "READ_16",
+        [ COMPARE_AND_WRITE        ] = "COMPARE_AND_WRITE",
+        [ WRITE_16                 ] = "WRITE_16",
+        [ WRITE_VERIFY_16          ] = "WRITE_VERIFY_16",
+        [ VERIFY_16                ] = "VERIFY_16",
+        [ SYNCHRONIZE_CACHE_16     ] = "SYNCHRONIZE_CACHE_16",
+        [ LOCATE_16                ] = "LOCATE_16",
+        [ WRITE_SAME_16            ] = "WRITE_SAME_16",
+        [ ERASE_16                 ] = "ERASE_16",
+        [ SERVICE_ACTION_IN        ] = "SERVICE_ACTION_IN",
+        [ WRITE_LONG_16            ] = "WRITE_LONG_16",
+        [ REPORT_LUNS              ] = "REPORT_LUNS",
+        [ BLANK                    ] = "BLANK",
+        [ MAINTENANCE_IN           ] = "MAINTENANCE_IN",
+        [ MAINTENANCE_OUT          ] = "MAINTENANCE_OUT",
         [ MOVE_MEDIUM              ] = "MOVE_MEDIUM",
+        [ LOAD_UNLOAD              ] = "LOAD_UNLOAD",
         [ READ_12                  ] = "READ_12",
         [ WRITE_12                 ] = "WRITE_12",
         [ WRITE_VERIFY_12          ] = "WRITE_VERIFY_12",
+        [ VERIFY_12                ] = "VERIFY_12",
         [ SEARCH_HIGH_12           ] = "SEARCH_HIGH_12",
         [ SEARCH_EQUAL_12          ] = "SEARCH_EQUAL_12",
         [ SEARCH_LOW_12            ] = "SEARCH_LOW_12",
         [ READ_ELEMENT_STATUS      ] = "READ_ELEMENT_STATUS",
         [ SEND_VOLUME_TAG          ] = "SEND_VOLUME_TAG",
-        [ WRITE_LONG_2             ] = "WRITE_LONG_2",
-
-        [ REPORT_DENSITY_SUPPORT   ] = "REPORT_DENSITY_SUPPORT",
-        [ GET_CONFIGURATION        ] = "GET_CONFIGURATION",
-        [ READ_16                  ] = "READ_16",
-        [ WRITE_16                 ] = "WRITE_16",
-        [ WRITE_VERIFY_16          ] = "WRITE_VERIFY_16",
-        [ SERVICE_ACTION_IN        ] = "SERVICE_ACTION_IN",
-        [ REPORT_LUNS              ] = "REPORT_LUNS",
-        [ LOAD_UNLOAD              ] = "LOAD_UNLOAD",
+        [ READ_DEFECT_DATA_12      ] = "READ_DEFECT_DATA_12",
         [ SET_CD_SPEED             ] = "SET_CD_SPEED",
-        [ BLANK                    ] = "BLANK",
     };
 
     if (cmd >= ARRAY_SIZE(names) || names[cmd] == NULL)

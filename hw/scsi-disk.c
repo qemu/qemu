@@ -885,7 +885,7 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
     case ALLOW_MEDIUM_REMOVAL:
         bdrv_set_locked(s->bs, req->cmd.buf[4] & 1);
         break;
-    case READ_CAPACITY:
+    case READ_CAPACITY_10:
         /* The normal LEN field for this command is zero.  */
         memset(outbuf, 0, 8);
         bdrv_get_geometry(s->bs, &nb_sectors);
@@ -970,7 +970,7 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
         outbuf[3] = 8;
         buflen = 16;
         break;
-    case VERIFY:
+    case VERIFY_10:
         break;
     default:
         scsi_command_complete(r, CHECK_CONDITION, SENSE_CODE(INVALID_OPCODE));
@@ -1046,13 +1046,13 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
     case RELEASE_10:
     case START_STOP:
     case ALLOW_MEDIUM_REMOVAL:
-    case READ_CAPACITY:
+    case READ_CAPACITY_10:
     case SYNCHRONIZE_CACHE:
     case READ_TOC:
     case GET_CONFIGURATION:
     case SERVICE_ACTION_IN:
     case REPORT_LUNS:
-    case VERIFY:
+    case VERIFY_10:
         rc = scsi_disk_emulate_command(r, outbuf);
         if (rc < 0) {
             return 0;
@@ -1075,7 +1075,7 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
     case WRITE_10:
     case WRITE_12:
     case WRITE_16:
-    case WRITE_VERIFY:
+    case WRITE_VERIFY_10:
     case WRITE_VERIFY_12:
     case WRITE_VERIFY_16:
         len = r->req.cmd.xfer / s->qdev.blocksize;

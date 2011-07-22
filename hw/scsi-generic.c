@@ -406,7 +406,7 @@ static int get_blocksize(BlockDriverState *bdrv)
 
     memset(cmd, 0, sizeof(cmd));
     memset(buf, 0, sizeof(buf));
-    cmd[0] = READ_CAPACITY;
+    cmd[0] = READ_CAPACITY_10;
 
     memset(&io_header, 0, sizeof(io_header));
     io_header.interface_id = 'S';
