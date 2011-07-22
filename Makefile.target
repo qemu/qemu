@@ -204,6 +204,7 @@ QEMU_CFLAGS += $(VNC_TLS_CFLAGS)
 QEMU_CFLAGS += $(VNC_SASL_CFLAGS)
 QEMU_CFLAGS += $(VNC_JPEG_CFLAGS)
 QEMU_CFLAGS += $(VNC_PNG_CFLAGS)
+QEMU_CFLAGS += $(GLIB_CFLAGS)
 
 # xen support
 obj-$(CONFIG_XEN) += xen-all.o xen_machine_pv.o xen_domainbuild.o xen-mapcache.o

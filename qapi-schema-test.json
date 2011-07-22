@@ -1,0 +1,22 @@
+# *-*- Mode: Python -*-*
+
+# for testing enums
+{ 'enum': 'EnumOne',
+  'data': [ 'value1', 'value2', 'value3' ] }
+{ 'type': 'NestedEnumsOne',
+  'data': { 'enum1': 'EnumOne', '*enum2': 'EnumOne', 'enum3': 'EnumOne', '*enum4': 'EnumOne' } }
+
+# for testing nested structs
+{ 'type': 'UserDefOne',
+  'data': { 'integer': 'int', 'string': 'str' } }
+
+{ 'type': 'UserDefTwo',
+  'data': { 'string': 'str',
+            'dict': { 'string': 'str',
+                      'dict': { 'userdef': 'UserDefOne', 'string': 'str' },
+                      '*dict2': { 'userdef': 'UserDefOne', 'string': 'str' } } } }
+
+# testing commands
+{ 'command': 'user_def_cmd', 'data': {} }
+{ 'command': 'user_def_cmd1', 'data': {'ud1a': 'UserDefOne'} }
+{ 'command': 'user_def_cmd2', 'data': {'ud1a': 'UserDefOne', 'ud1b': 'UserDefOne'}, 'returns': 'UserDefTwo' }

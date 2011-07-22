@@ -106,6 +106,8 @@ audio/audio.o audio/fmodaudio.o: QEMU_CFLAGS += $(FMOD_CFLAGS)
 
 QEMU_CFLAGS+=$(CURL_CFLAGS)
 
+QEMU_CFLAGS+=$(GLIB_CFLAGS)
+
 ui/cocoa.o: ui/cocoa.m
 
 ui/sdl.o audio/sdlaudio.o ui/sdl_zoom.o baum.o: QEMU_CFLAGS += $(SDL_CFLAGS)
@@ -138,7 +140,7 @@ endif
 ######################################################################
 
 qemu-img.o: qemu-img-cmds.h
-qemu-img.o qemu-tool.o qemu-nbd.o qemu-io.o cmd.o: $(GENERATED_HEADERS)
+qemu-img.o qemu-tool.o qemu-nbd.o qemu-io.o cmd.o qemu-ga.o: $(GENERATED_HEADERS)
 
 qemu-img$(EXESUF): qemu-img.o qemu-tool.o qemu-error.o $(oslib-obj-y) $(trace-obj-y) $(block-obj-y) $(qobject-obj-y) $(version-obj-y) qemu-timer-common.o
 
@@ -160,19 +162,54 @@ check-qlist: check-qlist.o qlist.o qint.o $(CHECK_PROG_DEPS)
 check-qfloat: check-qfloat.o qfloat.o $(CHECK_PROG_DEPS)
 check-qjson: check-qjson.o qfloat.o qint.o qdict.o qstring.o qlist.o qbool.o qjson.o json-streamer.o json-lexer.o json-parser.o error.o qerror.o qemu-error.o $(CHECK_PROG_DEPS)
 
+$(qapi-obj-y): $(GENERATED_HEADERS)
+qapi-dir := qapi-generated
+test-visitor.o test-qmp-commands.o qemu-ga$(EXESUF): QEMU_CFLAGS += -I $(qapi-dir)
+
+$(qapi-dir)/test-qapi-types.c: $(qapi-dir)/test-qapi-types.h
+$(qapi-dir)/test-qapi-types.h: $(SRC_PATH)/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-types.py
+	$(call quiet-command,python $(SRC_PATH)/scripts/qapi-types.py -o "$(qapi-dir)" -p "test-" < $<, "  GEN   $@")
+$(qapi-dir)/test-qapi-visit.c: $(qapi-dir)/test-qapi-visit.h
+$(qapi-dir)/test-qapi-visit.h: $(SRC_PATH)/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-visit.py
+	$(call quiet-command,python $(SRC_PATH)/scripts/qapi-visit.py -o "$(qapi-dir)" -p "test-" < $<, "  GEN   $@")
+$(qapi-dir)/test-qmp-commands.h: $(qapi-dir)/test-qmp-marshal.c
+$(qapi-dir)/test-qmp-marshal.c: $(SRC_PATH)/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-commands.py
+	    $(call quiet-command,python $(SRC_PATH)/scripts/qapi-commands.py -o "$(qapi-dir)" -p "test-" < $<, "  GEN   $@")
+
+$(qapi-dir)/qga-qapi-types.c: $(qapi-dir)/qga-qapi-types.h
+$(qapi-dir)/qga-qapi-types.h: $(SRC_PATH)/qapi-schema-guest.json $(SRC_PATH)/scripts/qapi-types.py
+	$(call quiet-command,python $(SRC_PATH)/scripts/qapi-types.py -o "$(qapi-dir)" -p "qga-" < $<, "  GEN   $@")
+$(qapi-dir)/qga-qapi-visit.c: $(qapi-dir)/qga-qapi-visit.h
+$(qapi-dir)/qga-qapi-visit.h: $(SRC_PATH)/qapi-schema-guest.json $(SRC_PATH)/scripts/qapi-visit.py
+	$(call quiet-command,python $(SRC_PATH)/scripts/qapi-visit.py -o "$(qapi-dir)" -p "qga-" < $<, "  GEN   $@")
+$(qapi-dir)/qga-qmp-marshal.c: $(SRC_PATH)/qapi-schema-guest.json $(SRC_PATH)/scripts/qapi-commands.py
+	$(call quiet-command,python $(SRC_PATH)/scripts/qapi-commands.py -o "$(qapi-dir)" -p "qga-" < $<, "  GEN   $@")
+
+test-visitor.o: $(addprefix $(qapi-dir)/, test-qapi-types.c test-qapi-types.h test-qapi-visit.c test-qapi-visit.h) $(qapi-obj-y)
+test-visitor: test-visitor.o qfloat.o qint.o qdict.o qstring.o qlist.o qbool.o $(qapi-obj-y) error.o osdep.o qemu-malloc.o $(oslib-obj-y) qjson.o json-streamer.o json-lexer.o json-parser.o qerror.o qemu-error.o qemu-tool.o $(qapi-dir)/test-qapi-visit.o $(qapi-dir)/test-qapi-types.o
+
+test-qmp-commands.o: $(addprefix $(qapi-dir)/, test-qapi-types.c test-qapi-types.h test-qapi-visit.c test-qapi-visit.h test-qmp-marshal.c test-qmp-commands.h) $(qapi-obj-y)
+test-qmp-commands: test-qmp-commands.o qfloat.o qint.o qdict.o qstring.o qlist.o qbool.o $(qapi-obj-y) error.o osdep.o qemu-malloc.o $(oslib-obj-y) qjson.o json-streamer.o json-lexer.o json-parser.o qerror.o qemu-error.o qemu-tool.o $(qapi-dir)/test-qapi-visit.o $(qapi-dir)/test-qapi-types.o $(qapi-dir)/test-qmp-marshal.o module.o
+
+QGALIB=qga/guest-agent-command-state.o qga/guest-agent-commands.o
+
+qemu-ga.o: $(addprefix $(qapi-dir)/, qga-qapi-types.c qga-qapi-types.h qga-qapi-visit.c qga-qmp-marshal.c) $(qapi-obj-y)
+qemu-ga$(EXESUF): qemu-ga.o $(QGALIB) qemu-tool.o qemu-error.o error.o $(oslib-obj-y) $(trace-obj-y) $(block-obj-y) $(qobject-obj-y) $(version-obj-y) $(qapi-obj-y) qemu-timer-common.o qemu-sockets.o module.o qapi/qmp-dispatch.o qapi/qmp-registry.o $(qapi-dir)/qga-qapi-visit.o $(qapi-dir)/qga-qapi-types.o $(qapi-dir)/qga-qmp-marshal.o
+
 QEMULIBS=libhw32 libhw64 libuser libdis libdis-user
 
 clean:
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	rm -f qemu-options.def
-	rm -f *.o *.d *.a *.lo $(TOOLS) TAGS cscope.* *.pod *~ */*~
+	rm -f *.o *.d *.a *.lo $(TOOLS) qemu-ga TAGS cscope.* *.pod *~ */*~
 	rm -Rf .libs
-	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d net/*.o net/*.d fsdev/*.o fsdev/*.d ui/*.o ui/*.d
+	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d net/*.o net/*.d fsdev/*.o fsdev/*.d ui/*.o ui/*.d qapi/*.o qapi/*.d qga/*.o qga/*.d
 	rm -f qemu-img-cmds.h
 	rm -f trace.c trace.h trace.c-timestamp trace.h-timestamp
 	rm -f trace-dtrace.dtrace trace-dtrace.dtrace-timestamp
 	rm -f trace-dtrace.h trace-dtrace.h-timestamp
+	rm -rf $(qapi-dir)
 	$(MAKE) -C tests clean
 	for d in $(ALL_SUBDIRS) $(QEMULIBS) libcacard; do \
 	if test -d $$d; then $(MAKE) -C $$d $@ || exit 1; fi; \
@@ -361,4 +398,4 @@ tarbin:
 	$(mandir)/man8/qemu-nbd.8
 
 # Include automatically generated dependency files
--include $(wildcard *.d audio/*.d slirp/*.d block/*.d net/*.d ui/*.d)
+-include $(wildcard *.d audio/*.d slirp/*.d block/*.d net/*.d ui/*.d qapi/*.d qga/*.d)

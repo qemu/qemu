@@ -141,6 +141,11 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Invalid JSON syntax",
     },
     {
+        .error_fmt = QERR_JSON_PARSE_ERROR,
+        .desc      = "JSON parse error, %(message)",
+
+    },
+    {
         .error_fmt = QERR_KVM_MISSING_CAP,
         .desc      = "Using KVM without %(capability), %(feature) unavailable",
     },
@@ -212,6 +217,14 @@ static const QErrorStringTable qerror_table[] = {
     {
         .error_fmt = QERR_VNC_SERVER_FAILED,
         .desc      = "Could not start VNC server on %(target)",
+    },
+    {
+        .error_fmt = QERR_QGA_LOGGING_FAILED,
+        .desc      = "Guest agent failed to log non-optional log statement",
+    },
+    {
+        .error_fmt = QERR_QGA_COMMAND_FAILED,
+        .desc      = "Guest agent command failed, error was '%(message)'",
     },
     {}
 };
