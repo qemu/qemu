@@ -521,7 +521,7 @@ static void guest_fsfreeze_cleanup(void)
  */
 GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **err)
 {
-    error_set(err, QERR_COMMAND_NOT_FOUND, "guest_fsfreeze_status");
+    error_set(err, QERR_UNSUPPORTED);
 
     return 0;
 }
@@ -532,7 +532,7 @@ GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **err)
  */
 int64_t qmp_guest_fsfreeze_freeze(Error **err)
 {
-    error_set(err, QERR_COMMAND_NOT_FOUND, "guest_fsfreeze_freeze");
+    error_set(err, QERR_UNSUPPORTED);
 
     return 0;
 }
@@ -542,7 +542,7 @@ int64_t qmp_guest_fsfreeze_freeze(Error **err)
  */
 int64_t qmp_guest_fsfreeze_thaw(Error **err)
 {
-    error_set(err, QERR_COMMAND_NOT_FOUND, "guest_fsfreeze_thaw");
+    error_set(err, QERR_UNSUPPORTED);
 
     return 0;
 }
