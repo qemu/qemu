@@ -359,7 +359,7 @@ void msix_notify(PCIDevice *dev, unsigned vector)
 
     address = pci_get_quad(table_entry + PCI_MSIX_ENTRY_LOWER_ADDR);
     data = pci_get_long(table_entry + PCI_MSIX_ENTRY_DATA);
-    stl_phys(address, data);
+    stl_le_phys(address, data);
 }
 
 void msix_reset(PCIDevice *dev)

@@ -322,3 +322,15 @@
 #define TARGET_NR_pipe2		321
 #define TARGET_NR_inotify_init1	322
 #define TARGET_NR_accept4		323
+#define TARGET_NR_preadv                324
+#define TARGET_NR_pwritev               325
+#define TARGET_NR_rt_tgsigqueueinfo     326
+#define TARGET_NR_perf_event_open       327
+#define TARGET_NR_recvmmsg              328
+#define TARGET_NR_fanotify_init         329
+#define TARGET_NR_fanotify_mark         330
+#define TARGET_NR_prlimit64             331
+#define TARGET_NR_name_to_handle_at     332
+#define TARGET_NR_open_by_handle_at     333
+#define TARGET_NR_clock_adjtime         334
+#define TARGET_NR_syncfs                335

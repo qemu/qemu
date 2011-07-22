@@ -177,6 +177,7 @@ spice=""
 rbd=""
 smartcard=""
 smartcard_nss=""
+usb_redir=""
 opengl=""
 
 # parse CC options first
@@ -743,6 +744,10 @@ for opt do
   ;;
   --enable-smartcard-nss) smartcard_nss="yes"
   ;;
+  --disable-usb-redir) usb_redir="no"
+  ;;
+  --enable-usb-redir) usb_redir="yes"
+  ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
   esac
@@ -1018,6 +1023,8 @@ echo "  --disable-smartcard      disable smartcard support"
 echo "  --enable-smartcard       enable smartcard support"
 echo "  --disable-smartcard-nss  disable smartcard nss support"
 echo "  --enable-smartcard-nss   enable smartcard nss support"
+echo "  --disable-usb-redir      disable usb network redirection support"
+echo "  --enable-usb-redir       enable usb network redirection support"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -1803,6 +1810,18 @@ EOF
 fi
 
 ##########################################
+# glib support probe
+if $pkg_config --modversion gthread-2.0 gio-2.0 > /dev/null 2>&1 ; then
+    glib_cflags=`$pkg_config --cflags gthread-2.0 gio-2.0 2>/dev/null`
+    glib_libs=`$pkg_config --libs gthread-2.0 gio-2.0 2>/dev/null`
+    libs_softmmu="$glib_libs $libs_softmmu"
+    libs_tools="$glib_libs $libs_tools"
+else
+    echo "glib-2.0 required to compile QEMU"
+    exit 1
+fi
+
+##########################################
 # pthread probe
 PTHREADLIBS_LIST="-lpthread -lpthreadGC2"
 
@@ -2371,6 +2390,22 @@ if test "$smartcard" = "no" ; then
     smartcard_nss="no"
 fi
 
+# check for usbredirparser for usb network redirection support
+if test "$usb_redir" != "no" ; then
+    if $pkg_config libusbredirparser >/dev/null 2>&1 ; then
+        usb_redir="yes"
+        usb_redir_cflags=$($pkg_config --cflags libusbredirparser 2>/dev/null)
+        usb_redir_libs=$($pkg_config --libs libusbredirparser 2>/dev/null)
+        QEMU_CFLAGS="$QEMU_CFLAGS $usb_redir_cflags"
+        LIBS="$LIBS $usb_redir_libs"
+    else
+        if test "$usb_redir" = "yes"; then
+            feature_not_found "usb-redir"
+        fi
+        usb_redir="no"
+    fi
+fi
+
 ##########################################
 
 ##########################################
@@ -2520,6 +2555,7 @@ if test "$softmmu" = yes ; then
   tools="qemu-img\$(EXESUF) qemu-io\$(EXESUF) $tools"
   if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
       tools="qemu-nbd\$(EXESUF) $tools"
+      tools="qemu-ga\$(EXESUF) $tools"
     if [ "$check_utests" = "yes" ]; then
       tools="check-qint check-qstring check-qdict check-qlist $tools"
       tools="check-qfloat check-qjson $tools"
@@ -2617,6 +2653,7 @@ echo "spice support     $spice"
 echo "rbd support       $rbd"
 echo "xfsctl support    $xfs"
 echo "nss used          $smartcard_nss"
+echo "usb net redir     $usb_redir"
 echo "OpenGL support    $opengl"
 
 if test $sdl_too_old = "yes"; then
@@ -2849,8 +2886,9 @@ if test "$bluez" = "yes" ; then
   echo "CONFIG_BLUEZ=y" >> $config_host_mak
   echo "BLUEZ_CFLAGS=$bluez_cflags" >> $config_host_mak
 fi
+echo "GLIB_CFLAGS=$glib_cflags" >> $config_host_mak
 if test "$xen" = "yes" ; then
-  echo "CONFIG_XEN=y" >> $config_host_mak
+  echo "CONFIG_XEN_BACKEND=y" >> $config_host_mak
   echo "CONFIG_XEN_CTRL_INTERFACE_VERSION=$xen_ctrl_version" >> $config_host_mak
 fi
 if test "$io_thread" = "yes" ; then
@@ -2908,6 +2946,10 @@ fi
 
 if test "$smartcard_nss" = "yes" ; then
   echo "CONFIG_SMARTCARD_NSS=y" >> $config_host_mak
+fi
+
+if test "$usb_redir" = "yes" ; then
+  echo "CONFIG_USB_REDIR=y" >> $config_host_mak
 fi
 
 if test "$opengl" = "yes" ; then
@@ -3473,6 +3515,8 @@ DIRS="tests tests/cris slirp audio block net pc-bios/optionrom"
 DIRS="$DIRS pc-bios/spapr-rtas"
 DIRS="$DIRS roms/seabios roms/vgabios"
 DIRS="$DIRS fsdev ui"
+DIRS="$DIRS qapi"
+DIRS="$DIRS qga"
 FILES="Makefile tests/Makefile"
 FILES="$FILES tests/cris/Makefile tests/cris/.gdbinit"
 FILES="$FILES pc-bios/optionrom/Makefile pc-bios/keymaps"

@@ -12,6 +12,7 @@
 #ifndef ERROR_H
 #define ERROR_H
 
+#include "compiler.h"
 #include <stdbool.h>
 
 /**

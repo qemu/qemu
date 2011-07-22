@@ -278,7 +278,7 @@ static target_ulong register_vpa(CPUState *env, target_ulong vpa)
     }
     /* FIXME: bounds check the address */
 
-    size = lduw_phys(vpa + 0x4);
+    size = lduw_be_phys(vpa + 0x4);
 
     if (size < VPA_MIN_SIZE) {
         return H_PARAMETER;
@@ -321,7 +321,7 @@ static target_ulong register_slb_shadow(CPUState *env, target_ulong addr)
         return H_HARDWARE;
     }
 
-    size = ldl_phys(addr + 0x4);
+    size = ldl_be_phys(addr + 0x4);
     if (size < 0x8) {
         return H_PARAMETER;
     }
@@ -354,7 +354,7 @@ static target_ulong register_dtl(CPUState *env, target_ulong addr)
         return H_HARDWARE;
     }
 
-    size = ldl_phys(addr + 0x4);
+    size = ldl_be_phys(addr + 0x4);
 
     if (size < 48) {
         return H_PARAMETER;
@@ -441,9 +441,9 @@ static target_ulong h_rtas(CPUState *env, sPAPREnvironment *spapr,
                            target_ulong opcode, target_ulong *args)
 {
     target_ulong rtas_r3 = args[0];
-    uint32_t token = ldl_phys(rtas_r3);
-    uint32_t nargs = ldl_phys(rtas_r3 + 4);
-    uint32_t nret = ldl_phys(rtas_r3 + 8);
+    uint32_t token = ldl_be_phys(rtas_r3);
+    uint32_t nargs = ldl_be_phys(rtas_r3 + 4);
+    uint32_t nret = ldl_be_phys(rtas_r3 + 8);
 
     return spapr_rtas_call(spapr, token, nargs, rtas_r3 + 12,
                            nret, rtas_r3 + 12 + 4*nargs);

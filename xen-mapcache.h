@@ -9,13 +9,43 @@
 #ifndef XEN_MAPCACHE_H
 #define XEN_MAPCACHE_H
 
-void     qemu_map_cache_init(void);
-uint8_t  *qemu_map_cache(target_phys_addr_t phys_addr, target_phys_addr_t size, uint8_t lock);
-ram_addr_t qemu_ram_addr_from_mapcache(void *ptr);
-void     qemu_invalidate_entry(uint8_t *buffer);
-void     qemu_invalidate_map_cache(void);
+#include <stdlib.h>
 
-#define mapcache_lock()   ((void)0)
-#define mapcache_unlock() ((void)0)
+#ifdef CONFIG_XEN
+
+void xen_map_cache_init(void);
+uint8_t *xen_map_cache(target_phys_addr_t phys_addr, target_phys_addr_t size,
+                       uint8_t lock);
+ram_addr_t xen_ram_addr_from_mapcache(void *ptr);
+void xen_invalidate_map_cache_entry(uint8_t *buffer);
+void xen_invalidate_map_cache(void);
+
+#else
+
+static inline void xen_map_cache_init(void)
+{
+}
+
+static inline uint8_t *xen_map_cache(target_phys_addr_t phys_addr,
+                                     target_phys_addr_t size,
+                                     uint8_t lock)
+{
+    abort();
+}
+
+static inline ram_addr_t xen_ram_addr_from_mapcache(void *ptr)
+{
+    abort();
+}
+
+static inline void xen_invalidate_map_cache_entry(uint8_t *buffer)
+{
+}
+
+static inline void xen_invalidate_map_cache(void)
+{
+}
+
+#endif
 
 #endif /* !XEN_MAPCACHE_H */

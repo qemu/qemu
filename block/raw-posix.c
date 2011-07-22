@@ -46,6 +46,8 @@
 #include <sys/dkio.h>
 #endif
 #ifdef __linux__
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/param.h>
 #include <linux/cdrom.h>
@@ -791,6 +793,17 @@ static int64_t raw_getlength(BlockDriverState *bs)
 }
 #endif
 
+static int64_t raw_get_allocated_file_size(BlockDriverState *bs)
+{
+    struct stat st;
+    BDRVRawState *s = bs->opaque;
+
+    if (fstat(s->fd, &st) < 0) {
+        return -errno;
+    }
+    return (int64_t)st.st_blocks * 512;
+}
+
 static int raw_create(const char *filename, QEMUOptionParameter *options)
 {
     int fd;
@@ -886,6 +899,8 @@ static BlockDriver bdrv_file = {
 
     .bdrv_truncate = raw_truncate,
     .bdrv_getlength = raw_getlength,
+    .bdrv_get_allocated_file_size
+                        = raw_get_allocated_file_size,
 
     .create_options = raw_create_options,
 };
@@ -1154,6 +1169,8 @@ static BlockDriver bdrv_host_device = {
     .bdrv_read          = raw_read,
     .bdrv_write         = raw_write,
     .bdrv_getlength	= raw_getlength,
+    .bdrv_get_allocated_file_size
+                        = raw_get_allocated_file_size,
 
     /* generic scsi device */
 #ifdef __linux__
@@ -1188,6 +1205,7 @@ static int floppy_probe_device(const char *filename)
     int fd, ret;
     int prio = 0;
     struct floppy_struct fdparam;
+    struct stat st;
 
     if (strstart(filename, "/dev/fd", NULL))
         prio = 50;
@@ -1196,12 +1214,17 @@ static int floppy_probe_device(const char *filename)
     if (fd < 0) {
         goto out;
     }
+    ret = fstat(fd, &st);
+    if (ret == -1 || !S_ISBLK(st.st_mode)) {
+        goto outc;
+    }
 
     /* Attempt to detect via a floppy specific ioctl */
     ret = ioctl(fd, FDGETPRM, &fdparam);
     if (ret >= 0)
         prio = 100;
 
+outc:
     close(fd);
 out:
     return prio;
@@ -1269,6 +1292,8 @@ static BlockDriver bdrv_host_floppy = {
     .bdrv_read          = raw_read,
     .bdrv_write         = raw_write,
     .bdrv_getlength	= raw_getlength,
+    .bdrv_get_allocated_file_size
+                        = raw_get_allocated_file_size,
 
     /* removable device support */
     .bdrv_is_inserted   = floppy_is_inserted,
@@ -1290,10 +1315,15 @@ static int cdrom_probe_device(const char *filename)
 {
     int fd, ret;
     int prio = 0;
+    struct stat st;
 
     fd = open(filename, O_RDONLY | O_NONBLOCK);
     if (fd < 0) {
         goto out;
+    }
+    ret = fstat(fd, &st);
+    if (ret == -1 || !S_ISBLK(st.st_mode)) {
+        goto outc;
     }
 
     /* Attempt to detect via a CDROM specific ioctl */
@@ -1301,6 +1331,7 @@ static int cdrom_probe_device(const char *filename)
     if (ret >= 0)
         prio = 100;
 
+outc:
     close(fd);
 out:
     return prio;
@@ -1366,6 +1397,8 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_read          = raw_read,
     .bdrv_write         = raw_write,
     .bdrv_getlength     = raw_getlength,
+    .bdrv_get_allocated_file_size
+                        = raw_get_allocated_file_size,
 
     /* removable device support */
     .bdrv_is_inserted   = cdrom_is_inserted,
@@ -1489,6 +1522,8 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_read          = raw_read,
     .bdrv_write         = raw_write,
     .bdrv_getlength     = raw_getlength,
+    .bdrv_get_allocated_file_size
+                        = raw_get_allocated_file_size,
 
     /* removable device support */
     .bdrv_is_inserted   = cdrom_is_inserted,

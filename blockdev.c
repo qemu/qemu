@@ -240,14 +240,6 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
     int ret;
 
     translation = BIOS_ATA_TRANSLATION_AUTO;
-
-    if (default_to_scsi) {
-        type = IF_SCSI;
-        pstrcpy(devname, sizeof(devname), "scsi");
-    } else {
-        type = IF_IDE;
-        pstrcpy(devname, sizeof(devname), "ide");
-    }
     media = MEDIA_DISK;
 
     /* extract parameters */
@@ -273,7 +265,11 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
             error_report("unsupported bus type '%s'", buf);
             return NULL;
 	}
+    } else {
+        type = default_to_scsi ? IF_SCSI : IF_IDE;
+        pstrcpy(devname, sizeof(devname), if_name[type]);
     }
+
     max_devs = if_max_devs[type];
 
     if (cyls || heads || secs) {
@@ -314,7 +310,7 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
 	    media = MEDIA_DISK;
 	} else if (!strcmp(buf, "cdrom")) {
             if (cyls || secs || heads) {
-                error_report("'%s' invalid physical CHS format", buf);
+                error_report("CHS can't be set with media=%s", buf);
 	        return NULL;
             }
 	    media = MEDIA_CDROM;
@@ -572,7 +568,7 @@ void do_commit(Monitor *mon, const QDict *qdict)
 int do_snapshot_blkdev(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *device = qdict_get_str(qdict, "device");
-    const char *filename = qdict_get_try_str(qdict, "snapshot_file");
+    const char *filename = qdict_get_try_str(qdict, "snapshot-file");
     const char *format = qdict_get_try_str(qdict, "format");
     BlockDriverState *bs;
     BlockDriver *drv, *old_drv, *proto_drv;
@@ -581,7 +577,7 @@ int do_snapshot_blkdev(Monitor *mon, const QDict *qdict, QObject **ret_data)
     char old_filename[1024];
 
     if (!filename) {
-        qerror_report(QERR_MISSING_PARAMETER, "snapshot_file");
+        qerror_report(QERR_MISSING_PARAMETER, "snapshot-file");
         ret = -1;
         goto out;
     }

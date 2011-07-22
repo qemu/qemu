@@ -44,11 +44,7 @@ struct TranslationBlock;
 typedef struct TranslationBlock TranslationBlock;
 
 /* XXX: make safe guess about sizes */
-#if (HOST_LONG_BITS == 32) && (TARGET_LONG_BITS == 64)
-#define MAX_OP_PER_INSTR 128
-#else
-#define MAX_OP_PER_INSTR 96
-#endif
+#define MAX_OP_PER_INSTR 208
 
 #if HOST_LONG_BITS == 32
 #define MAX_OPC_PARAM_PER_ARG 2
@@ -327,7 +323,7 @@ static inline tb_page_addr_t get_page_addr_code(CPUState *env1, target_ulong add
     pd = env1->tlb_table[mmu_idx][page_index].addr_code & ~TARGET_PAGE_MASK;
     if (pd > IO_MEM_ROM && !(pd & IO_MEM_ROMD)) {
 #if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_SPARC)
-        do_unassigned_access(addr, 0, 1, 0, 4);
+        cpu_unassigned_access(env1, addr, 0, 1, 0, 4);
 #else
         cpu_abort(env1, "Trying to execute code outside RAM or ROM at 0x" TARGET_FMT_lx "\n", addr);
 #endif

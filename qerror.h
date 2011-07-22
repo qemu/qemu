@@ -124,6 +124,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_JSON_PARSE_ERROR \
     "{ 'class': 'JSONParseError', 'data': { 'message': %s } }"
 
+#define QERR_BUFFER_OVERRUN \
+    "{ 'class': 'BufferOverrun', 'data': {} }"
+
 #define QERR_KVM_MISSING_CAP \
     "{ 'class': 'KVMMissingCap', 'data': { 'capability': %s, 'feature': %s } }"
 
@@ -180,5 +183,11 @@ QError *qobject_to_qerror(const QObject *obj);
 
 #define QERR_FEATURE_DISABLED \
     "{ 'class': 'FeatureDisabled', 'data': { 'name': %s } }"
+
+#define QERR_QGA_LOGGING_FAILED \
+    "{ 'class': 'QgaLoggingFailed', 'data': {} }"
+
+#define QERR_QGA_COMMAND_FAILED \
+    "{ 'class': 'QgaCommandFailed', 'data': { 'message': %s } }"
 
 #endif /* QERROR_H */

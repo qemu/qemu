@@ -28,8 +28,8 @@ typedef struct VirtIOBlock
     void *rq;
     QEMUBH *bh;
     BlockConf *conf;
+    char *serial;
     unsigned short sector_mask;
-    char sn[BLOCK_SERIAL_STRLEN];
     DeviceState *qdev;
 } VirtIOBlock;
 
@@ -362,8 +362,13 @@ static void virtio_blk_handle_request(VirtIOBlockReq *req,
     } else if (type & VIRTIO_BLK_T_GET_ID) {
         VirtIOBlock *s = req->dev;
 
-        memcpy(req->elem.in_sg[0].iov_base, s->sn,
-               MIN(req->elem.in_sg[0].iov_len, sizeof(s->sn)));
+        /*
+         * NB: per existing s/n string convention the string is
+         * terminated by '\0' only when shorter than buffer.
+         */
+        strncpy(req->elem.in_sg[0].iov_base,
+                s->serial ? s->serial : "",
+                MIN(req->elem.in_sg[0].iov_len, VIRTIO_BLK_ID_BYTES));
         virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
     } else if (type & VIRTIO_BLK_T_OUT) {
         qemu_iovec_init_external(&req->qiov, &req->elem.out_sg[1],
@@ -531,7 +536,8 @@ static void virtio_blk_change_cb(void *opaque, int reason)
     }
 }
 
-VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf)
+VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf,
+                              char **serial)
 {
     VirtIOBlock *s;
     int cylinders, heads, secs;
@@ -547,6 +553,14 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf)
         return NULL;
     }
 
+    if (!*serial) {
+        /* try to fall back to value set with legacy -drive serial=... */
+        dinfo = drive_get_by_blockdev(conf->bs);
+        if (*dinfo->serial) {
+            *serial = strdup(dinfo->serial);
+        }
+    }
+
     s = (VirtIOBlock *)virtio_common_init("virtio-blk", VIRTIO_ID_BLOCK,
                                           sizeof(struct virtio_blk_config),
                                           sizeof(VirtIOBlock));
@@ -556,15 +570,10 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf)
     s->vdev.reset = virtio_blk_reset;
     s->bs = conf->bs;
     s->conf = conf;
+    s->serial = *serial;
     s->rq = NULL;
     s->sector_mask = (s->conf->logical_block_size / BDRV_SECTOR_SIZE) - 1;
     bdrv_guess_geometry(s->bs, &cylinders, &heads, &secs);
-
-    /* NB: per existing s/n string convention the string is terminated
-     * by '\0' only when less than sizeof (s->sn)
-     */
-    dinfo = drive_get_by_blockdev(s->bs);
-    strncpy(s->sn, dinfo->serial, sizeof (s->sn));
 
     s->vq = virtio_add_queue(&s->vdev, 128, virtio_blk_handle_output);
 

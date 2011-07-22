@@ -322,7 +322,7 @@ static inline void ppc6xx_tlb_invalidate_all(CPUState *env)
     if (env->id_tlbs == 1)
         max *= 2;
     for (nr = 0; nr < max; nr++) {
-        tlb = &env->tlb[nr].tlb6;
+        tlb = &env->tlb.tlb6[nr];
         pte_invalidate(&tlb->pte0);
     }
     tlb_flush(env, 1);
@@ -339,7 +339,7 @@ static inline void __ppc6xx_tlb_invalidate_virt(CPUState *env,
     /* Invalidate ITLB + DTLB, all ways */
     for (way = 0; way < env->nb_ways; way++) {
         nr = ppc6xx_tlb_getnum(env, eaddr, way, is_code);
-        tlb = &env->tlb[nr].tlb6;
+        tlb = &env->tlb.tlb6[nr];
         if (pte_is_valid(tlb->pte0) && (match_epn == 0 || eaddr == tlb->EPN)) {
             LOG_SWTLB("TLB invalidate %d/%d " TARGET_FMT_lx "\n", nr,
                       env->nb_tlb, eaddr);
@@ -366,7 +366,7 @@ void ppc6xx_tlb_store (CPUState *env, target_ulong EPN, int way, int is_code,
     int nr;
 
     nr = ppc6xx_tlb_getnum(env, EPN, way, is_code);
-    tlb = &env->tlb[nr].tlb6;
+    tlb = &env->tlb.tlb6[nr];
     LOG_SWTLB("Set TLB %d/%d EPN " TARGET_FMT_lx " PTE0 " TARGET_FMT_lx
               " PTE1 " TARGET_FMT_lx "\n", nr, env->nb_tlb, EPN, pte0, pte1);
     /* Invalidate any pending reference in Qemu for this virtual address */
@@ -390,7 +390,7 @@ static inline int ppc6xx_tlb_check(CPUState *env, mmu_ctx_t *ctx,
     for (way = 0; way < env->nb_ways; way++) {
         nr = ppc6xx_tlb_getnum(env, eaddr, way,
                                access_type == ACCESS_CODE ? 1 : 0);
-        tlb = &env->tlb[nr].tlb6;
+        tlb = &env->tlb.tlb6[nr];
         /* This test "emulates" the PTE index match for hardware TLBs */
         if ((eaddr & TARGET_PAGE_MASK) != tlb->EPN) {
             LOG_SWTLB("TLB %d/%d %s [" TARGET_FMT_lx " " TARGET_FMT_lx
@@ -433,7 +433,7 @@ static inline int ppc6xx_tlb_check(CPUState *env, mmu_ctx_t *ctx,
         LOG_SWTLB("found TLB at addr " TARGET_FMT_plx " prot=%01x ret=%d\n",
                   ctx->raddr & TARGET_PAGE_MASK, ctx->prot, ret);
         /* Update page flags */
-        pte_update_flags(ctx, &env->tlb[best].tlb6.pte1, ret, rw);
+        pte_update_flags(ctx, &env->tlb.tlb6[best].pte1, ret, rw);
     }
 
     return ret;
@@ -948,8 +948,24 @@ static inline int get_segment(CPUState *env, mmu_ctx_t *ctx,
             ret = -3;
         }
     } else {
+        target_ulong sr;
         LOG_MMU("direct store...\n");
         /* Direct-store segment : absolutely *BUGGY* for now */
+
+        /* Direct-store implies a 32-bit MMU.
+         * Check the Segment Register's bus unit ID (BUID).
+         */
+        sr = env->sr[eaddr >> 28];
+        if ((sr & 0x1FF00000) >> 20 == 0x07f) {
+            /* Memory-forced I/O controller interface access */
+            /* If T=1 and BUID=x'07F', the 601 performs a memory access
+             * to SR[28-31] LA[4-31], bypassing all protection mechanisms.
+             */
+            ctx->raddr = ((sr & 0xF) << 28) | (eaddr & 0x0FFFFFFF);
+            ctx->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+            return 0;
+        }
+
         switch (type) {
         case ACCESS_INT:
             /* Integer load/store : only access allowed */
@@ -1032,7 +1048,7 @@ int ppcemb_tlb_search (CPUPPCState *env, target_ulong address, uint32_t pid)
     /* Default return value is no match */
     ret = -1;
     for (i = 0; i < env->nb_tlb; i++) {
-        tlb = &env->tlb[i].tlbe;
+        tlb = &env->tlb.tlbe[i];
         if (ppcemb_tlb_check(env, tlb, &raddr, address, pid, 0, i) == 0) {
             ret = i;
             break;
@@ -1049,7 +1065,7 @@ static inline void ppc4xx_tlb_invalidate_all(CPUState *env)
     int i;
 
     for (i = 0; i < env->nb_tlb; i++) {
-        tlb = &env->tlb[i].tlbe;
+        tlb = &env->tlb.tlbe[i];
         tlb->prot &= ~PAGE_VALID;
     }
     tlb_flush(env, 1);
@@ -1065,7 +1081,7 @@ static inline void ppc4xx_tlb_invalidate_virt(CPUState *env,
     int i;
 
     for (i = 0; i < env->nb_tlb; i++) {
-        tlb = &env->tlb[i].tlbe;
+        tlb = &env->tlb.tlbe[i];
         if (ppcemb_tlb_check(env, tlb, &raddr, eaddr, pid, 0, i) == 0) {
             end = tlb->EPN + tlb->size;
             for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
@@ -1090,7 +1106,7 @@ static int mmu40x_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
     raddr = (target_phys_addr_t)-1ULL;
     pr = msr_pr;
     for (i = 0; i < env->nb_tlb; i++) {
-        tlb = &env->tlb[i].tlbe;
+        tlb = &env->tlb.tlbe[i];
         if (ppcemb_tlb_check(env, tlb, &raddr, address,
                              env->spr[SPR_40x_PID], 0, i) < 0)
             continue;
@@ -1231,7 +1247,7 @@ static int mmubooke_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
     ret = -1;
     raddr = (target_phys_addr_t)-1ULL;
     for (i = 0; i < env->nb_tlb; i++) {
-        tlb = &env->tlb[i].tlbe;
+        tlb = &env->tlb.tlbe[i];
         ret = mmubooke_check_tlb(env, tlb, &raddr, &ctx->prot, address, rw,
                                  access_type, i);
         if (!ret) {
@@ -1256,14 +1272,14 @@ void booke206_flush_tlb(CPUState *env, int flags, const int check_iprot)
 {
     int tlb_size;
     int i, j;
-    ppc_tlb_t *tlb = env->tlb;
+    ppcmas_tlb_t *tlb = env->tlb.tlbm;
 
     for (i = 0; i < BOOKE206_MAX_TLBN; i++) {
         if (flags & (1 << i)) {
             tlb_size = booke206_tlb_size(env, i);
             for (j = 0; j < tlb_size; j++) {
-                if (!check_iprot || !(tlb[j].tlbe.attr & MAS1_IPROT)) {
-                    tlb[j].tlbe.prot = 0;
+                if (!check_iprot || !(tlb[j].mas1 & MAS1_IPROT)) {
+                    tlb[j].mas1 &= ~MAS1_VALID;
                 }
             }
         }
@@ -1273,11 +1289,148 @@ void booke206_flush_tlb(CPUState *env, int flags, const int check_iprot)
     tlb_flush(env, 1);
 }
 
-static int mmubooke206_get_physical_address(CPUState *env, mmu_ctx_t *ctx,
-                                        target_ulong address, int rw,
-                                        int access_type)
+target_phys_addr_t booke206_tlb_to_page_size(CPUState *env, ppcmas_tlb_t *tlb)
 {
-    ppcemb_tlb_t *tlb;
+    uint32_t tlbncfg;
+    int tlbn = booke206_tlbm_to_tlbn(env, tlb);
+    target_phys_addr_t tlbm_size;
+
+    tlbncfg = env->spr[SPR_BOOKE_TLB0CFG + tlbn];
+
+    if (tlbncfg & TLBnCFG_AVAIL) {
+        tlbm_size = (tlb->mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
+    } else {
+        tlbm_size = (tlbncfg & TLBnCFG_MINSIZE) >> TLBnCFG_MINSIZE_SHIFT;
+    }
+
+    return (1 << (tlbm_size << 1)) << 10;
+}
+
+/* TLB check function for MAS based SoftTLBs */
+int ppcmas_tlb_check(CPUState *env, ppcmas_tlb_t *tlb,
+                     target_phys_addr_t *raddrp,
+                     target_ulong address, uint32_t pid)
+{
+    target_ulong mask;
+    uint32_t tlb_pid;
+
+    /* Check valid flag */
+    if (!(tlb->mas1 & MAS1_VALID)) {
+        return -1;
+    }
+
+    mask = ~(booke206_tlb_to_page_size(env, tlb) - 1);
+    LOG_SWTLB("%s: TLB ADDR=0x" TARGET_FMT_lx " PID=0x%x MAS1=0x%x MAS2=0x%"
+              PRIx64 " mask=0x" TARGET_FMT_lx " MAS7_3=0x%" PRIx64 " MAS8=%x\n",
+              __func__, address, pid, tlb->mas1, tlb->mas2, mask, tlb->mas7_3,
+              tlb->mas8);
+
+    /* Check PID */
+    tlb_pid = (tlb->mas1 & MAS1_TID_MASK) >> MAS1_TID_SHIFT;
+    if (tlb_pid != 0 && tlb_pid != pid) {
+        return -1;
+    }
+
+    /* Check effective address */
+    if ((address & mask) != (tlb->mas2 & MAS2_EPN_MASK)) {
+        return -1;
+    }
+    *raddrp = (tlb->mas7_3 & mask) | (address & ~mask);
+
+    return 0;
+}
+
+static int mmubooke206_check_tlb(CPUState *env, ppcmas_tlb_t *tlb,
+                                 target_phys_addr_t *raddr, int *prot,
+                                 target_ulong address, int rw,
+                                 int access_type)
+{
+    int ret;
+    int _prot = 0;
+
+    if (ppcmas_tlb_check(env, tlb, raddr, address,
+                         env->spr[SPR_BOOKE_PID]) >= 0) {
+        goto found_tlb;
+    }
+
+    if (env->spr[SPR_BOOKE_PID1] &&
+        ppcmas_tlb_check(env, tlb, raddr, address,
+                         env->spr[SPR_BOOKE_PID1]) >= 0) {
+        goto found_tlb;
+    }
+
+    if (env->spr[SPR_BOOKE_PID2] &&
+        ppcmas_tlb_check(env, tlb, raddr, address,
+                         env->spr[SPR_BOOKE_PID2]) >= 0) {
+        goto found_tlb;
+    }
+
+    LOG_SWTLB("%s: TLB entry not found\n", __func__);
+    return -1;
+
+found_tlb:
+
+    if (msr_pr != 0) {
+        if (tlb->mas7_3 & MAS3_UR) {
+            _prot |= PAGE_READ;
+        }
+        if (tlb->mas7_3 & MAS3_UW) {
+            _prot |= PAGE_WRITE;
+        }
+        if (tlb->mas7_3 & MAS3_UX) {
+            _prot |= PAGE_EXEC;
+        }
+    } else {
+        if (tlb->mas7_3 & MAS3_SR) {
+            _prot |= PAGE_READ;
+        }
+        if (tlb->mas7_3 & MAS3_SW) {
+            _prot |= PAGE_WRITE;
+        }
+        if (tlb->mas7_3 & MAS3_SX) {
+            _prot |= PAGE_EXEC;
+        }
+    }
+
+    /* Check the address space and permissions */
+    if (access_type == ACCESS_CODE) {
+        if (msr_ir != ((tlb->mas1 & MAS1_TS) >> MAS1_TS_SHIFT)) {
+            LOG_SWTLB("%s: AS doesn't match\n", __func__);
+            return -1;
+        }
+
+        *prot = _prot;
+        if (_prot & PAGE_EXEC) {
+            LOG_SWTLB("%s: good TLB!\n", __func__);
+            return 0;
+        }
+
+        LOG_SWTLB("%s: no PAGE_EXEC: %x\n", __func__, _prot);
+        ret = -3;
+    } else {
+        if (msr_dr != ((tlb->mas1 & MAS1_TS) >> MAS1_TS_SHIFT)) {
+            LOG_SWTLB("%s: AS doesn't match\n", __func__);
+            return -1;
+        }
+
+        *prot = _prot;
+        if ((!rw && _prot & PAGE_READ) || (rw && (_prot & PAGE_WRITE))) {
+            LOG_SWTLB("%s: found TLB!\n", __func__);
+            return 0;
+        }
+
+        LOG_SWTLB("%s: PAGE_READ/WRITE doesn't match: %x\n", __func__, _prot);
+        ret = -2;
+    }
+
+    return ret;
+}
+
+static int mmubooke206_get_physical_address(CPUState *env, mmu_ctx_t *ctx,
+                                            target_ulong address, int rw,
+                                            int access_type)
+{
+    ppcmas_tlb_t *tlb;
     target_phys_addr_t raddr;
     int i, j, ret;
 
@@ -1288,9 +1441,9 @@ static int mmubooke206_get_physical_address(CPUState *env, mmu_ctx_t *ctx,
         int ways = booke206_tlb_ways(env, i);
 
         for (j = 0; j < ways; j++) {
-            tlb = booke206_get_tlbe(env, i, address, j);
-            ret = mmubooke_check_tlb(env, tlb, &raddr, &ctx->prot, address, rw,
-                                     access_type, j);
+            tlb = booke206_get_tlbm(env, i, address, j);
+            ret = mmubooke206_check_tlb(env, tlb, &raddr, &ctx->prot, address,
+                                        rw, access_type);
             if (ret != -1) {
                 goto found_tlb;
             }
@@ -1395,7 +1548,7 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
                                                 rw, access_type);
         } else if (env->mmu_model == POWERPC_MMU_BOOKE206) {
             ret = mmubooke206_get_physical_address(env, ctx, eaddr, rw,
-                                               access_type);
+                                                   access_type);
         } else {
             /* No address translation.  */
             ret = check_physical(env, ctx, eaddr, rw);

@@ -81,13 +81,13 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type);
 static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf);
 
 static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag,
-        uint32_t lun)
+                                     uint32_t lun, void *hba_private)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
     SCSIRequest *req;
     SCSIDiskReq *r;
 
-    req = scsi_req_alloc(sizeof(SCSIDiskReq), &s->qdev, tag, lun);
+    req = scsi_req_alloc(sizeof(SCSIDiskReq), &s->qdev, tag, lun, hba_private);
     r = DO_UPCAST(SCSIDiskReq, req, req);
     r->iov.iov_base = qemu_blockalign(s->bs, SCSI_DMA_BUF_SIZE);
     return req;
@@ -398,7 +398,8 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
                     "buffer size %zd\n", req->cmd.xfer);
             pages = buflen++;
             outbuf[buflen++] = 0x00; // list of supported pages (this page)
-            outbuf[buflen++] = 0x80; // unit serial number
+            if (s->serial)
+                outbuf[buflen++] = 0x80; // unit serial number
             outbuf[buflen++] = 0x83; // device identification
             if (s->drive_kind == SCSI_HD) {
                 outbuf[buflen++] = 0xb0; // block limits
@@ -409,8 +410,14 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
         }
         case 0x80: /* Device serial number, optional */
         {
-            int l = strlen(s->serial);
+            int l;
 
+            if (!s->serial) {
+                DPRINTF("Inquiry (EVPD[Serial number] not supported\n");
+                return -1;
+            }
+
+            l = strlen(s->serial);
             if (l > req->cmd.xfer)
                 l = req->cmd.xfer;
             if (l > 20)
@@ -1007,7 +1014,7 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
 
     command = buf[0];
     outbuf = (uint8_t *)r->iov.iov_base;
-    DPRINTF("Command: lun=%d tag=0x%x data=0x%02x", lun, tag, buf[0]);
+    DPRINTF("Command: lun=%d tag=0x%x data=0x%02x", req->lun, req->tag, buf[0]);
 
     if (scsi_req_parse(&r->req, buf) != 0) {
         BADF("Unsupported command length, command %x\n", command);
@@ -1203,7 +1210,9 @@ static int scsi_initfn(SCSIDevice *dev, SCSIDriveKind kind)
     if (!s->serial) {
         /* try to fall back to value set with legacy -drive serial=... */
         dinfo = drive_get_by_blockdev(s->bs);
-        s->serial = qemu_strdup(*dinfo->serial ? dinfo->serial : "0");
+        if (*dinfo->serial) {
+            s->serial = qemu_strdup(dinfo->serial);
+        }
     }
 
     if (!s->version) {

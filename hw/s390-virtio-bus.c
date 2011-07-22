@@ -128,7 +128,8 @@ static int s390_virtio_blk_init(VirtIOS390Device *dev)
 {
     VirtIODevice *vdev;
 
-    vdev = virtio_blk_init((DeviceState *)dev, &dev->block);
+    vdev = virtio_blk_init((DeviceState *)dev, &dev->block,
+                           &dev->block_serial);
     if (!vdev) {
         return -1;
     }
@@ -165,7 +166,7 @@ static uint64_t s390_virtio_device_vq_token(VirtIOS390Device *dev, int vq)
                 (vq * VIRTIO_VQCONFIG_LEN) +
                 VIRTIO_VQCONFIG_OFFS_TOKEN;
 
-    return ldq_phys(token_off);
+    return ldq_be_phys(token_off);
 }
 
 static ram_addr_t s390_virtio_device_num_vq(VirtIOS390Device *dev)
@@ -219,8 +220,8 @@ void s390_virtio_device_sync(VirtIOS390Device *dev)
         vring = s390_virtio_next_ring(bus);
         virtio_queue_set_addr(dev->vdev, i, vring);
         virtio_queue_set_vector(dev->vdev, i, i);
-        stq_phys(vq + VIRTIO_VQCONFIG_OFFS_ADDRESS, vring);
-        stw_phys(vq + VIRTIO_VQCONFIG_OFFS_NUM, virtio_queue_get_num(dev->vdev, i));
+        stq_be_phys(vq + VIRTIO_VQCONFIG_OFFS_ADDRESS, vring);
+        stw_be_phys(vq + VIRTIO_VQCONFIG_OFFS_NUM, virtio_queue_get_num(dev->vdev, i));
     }
 
     cur_offs = dev->dev_offs;
@@ -228,7 +229,7 @@ void s390_virtio_device_sync(VirtIOS390Device *dev)
     cur_offs += num_vq * VIRTIO_VQCONFIG_LEN;
 
     /* Sync feature bitmap */
-    stl_phys(cur_offs, bswap32(dev->host_features));
+    stl_le_phys(cur_offs, dev->host_features);
 
     dev->feat_offs = cur_offs + dev->feat_len;
     cur_offs += dev->feat_len * 2;
@@ -252,7 +253,7 @@ void s390_virtio_device_update_status(VirtIOS390Device *dev)
 
     /* Update guest supported feature bitmap */
 
-    features = bswap32(ldl_phys(dev->feat_offs));
+    features = bswap32(ldl_be_phys(dev->feat_offs));
     if (vdev->set_features) {
         vdev->set_features(vdev, features);
     }
@@ -355,6 +356,7 @@ static VirtIOS390DeviceInfo s390_virtio_blk = {
     .qdev.size = sizeof(VirtIOS390Device),
     .qdev.props = (Property[]) {
         DEFINE_BLOCK_PROPERTIES(VirtIOS390Device, block),
+        DEFINE_PROP_STRING("serial", VirtIOS390Device, block_serial),
         DEFINE_PROP_END_OF_LIST(),
     },
 };

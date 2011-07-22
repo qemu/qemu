@@ -52,12 +52,12 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_sbe32s(f, &env->last_way);
     qemu_put_sbe32s(f, &env->id_tlbs);
     qemu_put_sbe32s(f, &env->nb_pids);
-    if (env->tlb) {
+    if (env->tlb.tlb6) {
         // XXX assumes 6xx
         for (i = 0; i < env->nb_tlb; i++) {
-            qemu_put_betls(f, &env->tlb[i].tlb6.pte0);
-            qemu_put_betls(f, &env->tlb[i].tlb6.pte1);
-            qemu_put_betls(f, &env->tlb[i].tlb6.EPN);
+            qemu_put_betls(f, &env->tlb.tlb6[i].pte0);
+            qemu_put_betls(f, &env->tlb.tlb6[i].pte1);
+            qemu_put_betls(f, &env->tlb.tlb6[i].EPN);
         }
     }
     for (i = 0; i < 4; i++)
@@ -140,12 +140,12 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_sbe32s(f, &env->last_way);
     qemu_get_sbe32s(f, &env->id_tlbs);
     qemu_get_sbe32s(f, &env->nb_pids);
-    if (env->tlb) {
+    if (env->tlb.tlb6) {
         // XXX assumes 6xx
         for (i = 0; i < env->nb_tlb; i++) {
-            qemu_get_betls(f, &env->tlb[i].tlb6.pte0);
-            qemu_get_betls(f, &env->tlb[i].tlb6.pte1);
-            qemu_get_betls(f, &env->tlb[i].tlb6.EPN);
+            qemu_get_betls(f, &env->tlb.tlb6[i].pte0);
+            qemu_get_betls(f, &env->tlb.tlb6[i].pte1);
+            qemu_get_betls(f, &env->tlb.tlb6[i].EPN);
         }
     }
     for (i = 0; i < 4; i++)

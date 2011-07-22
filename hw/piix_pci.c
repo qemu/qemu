@@ -478,6 +478,9 @@ static PCIDeviceInfo i440fx_info[] = {
         .no_hotplug   = 1,
         .init         = piix3_initfn,
         .config_write = piix3_write_config_xen,
+        .vendor_id    = PCI_VENDOR_ID_INTEL,
+        .device_id    = PCI_DEVICE_ID_INTEL_82371SB_0, // 82371SB PIIX3 PCI-to-ISA bridge (Step A1)
+        .class_id     = PCI_CLASS_BRIDGE_ISA,
     },{
         /* end of list */
     }

@@ -78,6 +78,9 @@ void framebuffer_update_display(
     dest = ds_get_data(ds);
     if (dest_col_pitch < 0)
         dest -= dest_col_pitch * (cols - 1);
+    if (dest_row_pitch < 0) {
+        dest -= dest_row_pitch * (rows - 1);
+    }
     first = -1;
     addr = pd;
 

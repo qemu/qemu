@@ -411,4 +411,25 @@
 #define TARGET_NR_signalfd			476
 #define TARGET_NR_timerfd			477
 #define TARGET_NR_eventfd			478
-
+#define TARGET_NR_recvmmsg                      479
+#define TARGET_NR_fallocate                     480
+#define TARGET_NR_timerfd_create                481
+#define TARGET_NR_timerfd_settime               482
+#define TARGET_NR_timerfd_gettime               483
+#define TARGET_NR_signalfd4                     484
+#define TARGET_NR_eventfd2                      485
+#define TARGET_NR_epoll_create1                 486
+#define TARGET_NR_dup3                          487
+#define TARGET_NR_pipe2                         488
+#define TARGET_NR_inotify_init1                 489
+#define TARGET_NR_preadv                        490
+#define TARGET_NR_pwritev                       491
+#define TARGET_NR_rt_tgsigqueueinfo             492
+#define TARGET_NR_perf_event_open               493
+#define TARGET_NR_fanotify_init                 494
+#define TARGET_NR_fanotify_mark                 495
+#define TARGET_NR_prlimit64                     496
+#define TARGET_NR_name_to_handle_at             497
+#define TARGET_NR_open_by_handle_at             498
+#define TARGET_NR_clock_adjtime                 499
+#define TARGET_NR_syncfs                        500

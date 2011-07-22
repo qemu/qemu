@@ -249,7 +249,7 @@ void msi_notify(PCIDevice *dev, unsigned int vector)
                    "notify vector 0x%x"
                    " address: 0x%"PRIx64" data: 0x%"PRIx32"\n",
                    vector, address, data);
-    stl_phys(address, data);
+    stl_le_phys(address, data);
 }
 
 /* call this function after updating configs by pci_default_write_config(). */

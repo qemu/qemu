@@ -531,18 +531,15 @@ static void usb_keyboard_process_keycode(USBHIDState *hs)
     case 0xe0:
         if (s->modifiers & (1 << 9)) {
             s->modifiers ^= 3 << 8;
-            usb_hid_changed(hs);
             return;
         }
     case 0xe1 ... 0xe7:
         if (keycode & (1 << 7)) {
             s->modifiers &= ~(1 << (hid_code & 0x0f));
-            usb_hid_changed(hs);
             return;
         }
     case 0xe8 ... 0xef:
         s->modifiers |= 1 << (hid_code & 0x0f);
-        usb_hid_changed(hs);
         return;
     }
 
@@ -769,10 +766,12 @@ static int usb_hid_handle_control(USBDevice *dev, USBPacket *p,
         }
         break;
     case GET_REPORT:
-        if (s->kind == USB_MOUSE || s->kind == USB_TABLET)
+        if (s->kind == USB_MOUSE || s->kind == USB_TABLET) {
             ret = usb_pointer_poll(s, data, length);
-        else if (s->kind == USB_KEYBOARD)
+        } else if (s->kind == USB_KEYBOARD) {
             ret = usb_keyboard_poll(s, data, length);
+        }
+        s->changed = s->n > 0;
         break;
     case SET_REPORT:
         if (s->kind == USB_KEYBOARD)

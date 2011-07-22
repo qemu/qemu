@@ -1,0 +1,316 @@
+= How to use the QAPI code generator =
+
+* Note: as of this writing, QMP does not use QAPI. Eventually QMP
+commands will be converted to use QAPI internally. The following
+information describes QMP/QAPI as it will exist after the
+conversion.
+
+QAPI is a native C API within QEMU which provides management-level
+functionality to internal/external users. For external
+users/processes, this interface is made available by a JSON-based
+QEMU Monitor protocol that is provided by the QMP server.
+
+To map QMP-defined interfaces to the native C QAPI implementations,
+a JSON-based schema is used to define types and function
+signatures, and a set of scripts is used to generate types/signatures,
+and marshaling/dispatch code. The QEMU Guest Agent also uses these
+scripts, paired with a seperate schema, to generate
+marshaling/dispatch code for the guest agent server running in the
+guest.
+
+This document will describe how the schemas, scripts, and resulting
+code is used.
+
+
+== QMP/Guest agent schema ==
+
+This file defines the types, commands, and events used by QMP.  It should
+fully describe the interface used by QMP.
+
+This file is designed to be loosely based on JSON although it's technically
+executable Python.  While dictionaries are used, they are parsed as
+OrderedDicts so that ordering is preserved.
+
+There are two basic syntaxes used, type definitions and command definitions.
+
+The first syntax defines a type and is represented by a dictionary.  There are
+two kinds of types that are supported: complex user-defined types, and enums.
+
+A complex type is a dictionary containing a single key who's value is a
+dictionary.  This corresponds to a struct in C or an Object in JSON.  An
+example of a complex type is:
+
+ { 'type': 'MyType',
+   'data' { 'member1': 'str', 'member2': 'int', '*member3': 'str } }
+
+The use of '*' as a prefix to the name means the member is optional.  Optional
+members should always be added to the end of the dictionary to preserve
+backwards compatibility.
+
+An enumeration type is a dictionary containing a single key who's value is a
+list of strings.  An example enumeration is:
+
+ { 'enum': 'MyEnum', 'data': [ 'value1', 'value2', 'value3' ] }
+
+Generally speaking, complex types and enums should always use CamelCase for
+the type names.
+
+Commands are defined by using a list containing three members.  The first
+member is the command name, the second member is a dictionary containing
+arguments, and the third member is the return type.
+
+An example command is:
+
+ { 'command': 'my-command',
+   'data': { 'arg1': 'str', '*arg2': 'str' },
+   'returns': 'str' ]
+
+Command names should be all lower case with words separated by a hyphen.
+
+
+== Code generation ==
+
+Schemas are fed into 3 scripts to generate all the code/files that, paired
+with the core QAPI libraries, comprise everything required to take JSON
+commands read in by a QMP/guest agent server, unmarshal the arguments into
+the underlying C types, call into the corresponding C function, and map the
+response back to a QMP/guest agent response to be returned to the user.
+
+As an example, we'll use the following schema, which describes a single
+complex user-defined type (which will produce a C struct, along with a list
+node structure that can be used to chain together a list of such types in
+case we want to accept/return a list of this type with a command), and a
+command which takes that type as a parameter and returns the same type:
+
+    mdroth@illuin:~/w/qemu2.git$ cat example-schema.json
+    { 'type': 'UserDefOne',
+      'data': { 'integer': 'int', 'string': 'str' } }
+
+    { 'command': 'my-command',
+      'data':    {'arg1': 'UserDefOne'},
+      'returns': 'UserDefOne' }
+    mdroth@illuin:~/w/qemu2.git$
+
+=== scripts/qapi-types.py ===
+
+Used to generate the C types defined by a schema. The following files are
+created:
+
+$(prefix)qapi-types.h - C types corresponding to types defined in
+                        the schema you pass in
+$(prefix)qapi-types.c - Cleanup functions for the above C types
+
+The $(prefix) is an optional parameter used as a namespace to keep the
+generated code from one schema/code-generation separated from others so code
+can be generated/used from multiple schemas without clobbering previously
+created code.
+
+Example:
+
+    mdroth@illuin:~/w/qemu2.git$ python scripts/qapi-types.py \
+      --output-dir="qapi-generated" --prefix="example-" < example-schema.json
+    mdroth@illuin:~/w/qemu2.git$ cat qapi-generated/example-qapi-types.c
+    /* AUTOMATICALLY GENERATED, DO NOT MODIFY */
+
+    #include "qapi/qapi-dealloc-visitor.h"
+    #include "example-qapi-types.h"
+    #include "example-qapi-visit.h"
+
+    void qapi_free_UserDefOne(UserDefOne * obj)
+    {
+        QapiDeallocVisitor *md;
+        Visitor *v;
+
+        if (!obj) {
+            return;
+        }
+
+        md = qapi_dealloc_visitor_new();
+        v = qapi_dealloc_get_visitor(md);
+        visit_type_UserDefOne(v, &obj, NULL, NULL);
+        qapi_dealloc_visitor_cleanup(md);
+    }
+
+    mdroth@illuin:~/w/qemu2.git$ cat qapi-generated/example-qapi-types.h
+    /* AUTOMATICALLY GENERATED, DO NOT MODIFY */
+    #ifndef QAPI_GENERATED_EXAMPLE_QAPI_TYPES
+    #define QAPI_GENERATED_EXAMPLE_QAPI_TYPES
+
+    #include "qapi/qapi-types-core.h"
+
+    typedef struct UserDefOne UserDefOne;
+
+    typedef struct UserDefOneList
+    {
+        UserDefOne *value;
+        struct UserDefOneList *next;
+    } UserDefOneList;
+
+    struct UserDefOne
+    {
+        int64_t integer;
+        char * string;
+    };
+
+    void qapi_free_UserDefOne(UserDefOne * obj);
+
+    #endif
+
+
+=== scripts/qapi-visit.py ===
+
+Used to generate the visitor functions used to walk through and convert
+a QObject (as provided by QMP) to a native C data structure and
+vice-versa, as well as the visitor function used to dealloc a complex
+schema-defined C type.
+
+The following files are generated:
+
+$(prefix)qapi-visit.c: visitor function for a particular C type, used
+                       to automagically convert QObjects into the
+                       corresponding C type and vice-versa, as well
+                       as for deallocating memory for an existing C
+                       type
+
+$(prefix)qapi-visit.h: declarations for previously mentioned visitor
+                       functions
+
+Example:
+
+    mdroth@illuin:~/w/qemu2.git$ python scripts/qapi-visit.py \
+        --output-dir="qapi-generated" --prefix="example-" < example-schema.json
+    mdroth@illuin:~/w/qemu2.git$ cat qapi-generated/example-qapi-visit.c
+    /* THIS FILE IS AUTOMATICALLY GENERATED, DO NOT MODIFY */
+
+    #include "example-qapi-visit.h"
+
+    void visit_type_UserDefOne(Visitor *m, UserDefOne ** obj, const char *name, Error **errp)
+    {
+        visit_start_struct(m, (void **)obj, "UserDefOne", name, sizeof(UserDefOne), errp);
+        visit_type_int(m, (obj && *obj) ? &(*obj)->integer : NULL, "integer", errp);
+        visit_type_str(m, (obj && *obj) ? &(*obj)->string : NULL, "string", errp);
+        visit_end_struct(m, errp);
+    }
+
+    void visit_type_UserDefOneList(Visitor *m, UserDefOneList ** obj, const char *name, Error **errp)
+    {
+        GenericList *i;
+
+        visit_start_list(m, name, errp);
+
+        for (i = visit_next_list(m, (GenericList **)obj, errp); i; i = visit_next_list(m, &i, errp)) {
+            UserDefOneList *native_i = (UserDefOneList *)i;
+            visit_type_UserDefOne(m, &native_i->value, NULL, errp);
+        }
+
+        visit_end_list(m, errp);
+    }
+    mdroth@illuin:~/w/qemu2.git$ cat qapi-generated/example-qapi-visit.h
+    /* THIS FILE IS AUTOMATICALLY GENERATED, DO NOT MODIFY */
+
+    #ifndef QAPI_GENERATED_EXAMPLE_QAPI_VISIT
+    #define QAPI_GENERATED_EXAMPLE_QAPI_VISIT
+
+    #include "qapi/qapi-visit-core.h"
+    #include "example-qapi-types.h"
+
+    void visit_type_UserDefOne(Visitor *m, UserDefOne ** obj, const char *name, Error **errp);
+    void visit_type_UserDefOneList(Visitor *m, UserDefOneList ** obj, const char *name, Error **errp);
+
+    #endif
+    mdroth@illuin:~/w/qemu2.git$
+
+
+=== scripts/qapi-commands.py ===
+
+Used to generate the marshaling/dispatch functions for the commands defined
+in the schema. The following files are generated:
+
+$(prefix)qmp-marshal.c: command marshal/dispatch functions for each
+                        QMP command defined in the schema. Functions
+                        generated by qapi-visit.py are used to
+                        convert QObjects recieved from the wire into
+                        function parameters, and uses the same
+                        visitor functions to convert native C return
+                        values to QObjects from transmission back
+                        over the wire.
+
+$(prefix)qmp-commands.h: Function prototypes for the QMP commands
+                         specified in the schema.
+
+Example:
+
+    mdroth@illuin:~/w/qemu2.git$ cat qapi-generated/example-qmp-marshal.c
+    /* THIS FILE IS AUTOMATICALLY GENERATED, DO NOT MODIFY */
+
+    #include "qemu-objects.h"
+    #include "qapi/qmp-core.h"
+    #include "qapi/qapi-visit-core.h"
+    #include "qapi/qmp-output-visitor.h"
+    #include "qapi/qmp-input-visitor.h"
+    #include "qapi/qapi-dealloc-visitor.h"
+    #include "example-qapi-types.h"
+    #include "example-qapi-visit.h"
+
+    #include "example-qmp-commands.h"
+    static void qmp_marshal_output_my_command(UserDefOne * ret_in, QObject **ret_out, Error **errp)
+    {
+        QapiDeallocVisitor *md = qapi_dealloc_visitor_new();
+        QmpOutputVisitor *mo = qmp_output_visitor_new();
+        Visitor *v;
+
+        v = qmp_output_get_visitor(mo);
+        visit_type_UserDefOne(v, &ret_in, "unused", errp);
+        v = qapi_dealloc_get_visitor(md);
+        visit_type_UserDefOne(v, &ret_in, "unused", errp);
+        qapi_dealloc_visitor_cleanup(md);
+
+
+        *ret_out = qmp_output_get_qobject(mo);
+    }
+
+    static void qmp_marshal_input_my_command(QmpState *qmp__sess, QDict *args, QObject **ret, Error **errp)
+    {
+        UserDefOne * retval = NULL;
+        QmpInputVisitor *mi;
+        QapiDeallocVisitor *md;
+        Visitor *v;
+        UserDefOne * arg1 = NULL;
+
+        mi = qmp_input_visitor_new(QOBJECT(args));
+        v = qmp_input_get_visitor(mi);
+        visit_type_UserDefOne(v, &arg1, "arg1", errp);
+
+        if (error_is_set(errp)) {
+            goto out;
+        }
+        retval = qmp_my_command(arg1, errp);
+        qmp_marshal_output_my_command(retval, ret, errp);
+
+    out:
+        md = qapi_dealloc_visitor_new();
+        v = qapi_dealloc_get_visitor(md);
+        visit_type_UserDefOne(v, &arg1, "arg1", errp);
+        qapi_dealloc_visitor_cleanup(md);
+        return;
+    }
+
+    static void qmp_init_marshal(void)
+    {
+        qmp_register_command("my-command", qmp_marshal_input_my_command);
+    }
+
+    qapi_init(qmp_init_marshal);
+    mdroth@illuin:~/w/qemu2.git$ cat qapi-generated/example-qmp-commands.h
+    /* THIS FILE IS AUTOMATICALLY GENERATED, DO NOT MODIFY */
+
+    #ifndef QAPI_GENERATED_EXAMPLE_QMP_COMMANDS
+    #define QAPI_GENERATED_EXAMPLE_QMP_COMMANDS
+
+    #include "example-qapi-types.h"
+    #include "error.h"
+
+    UserDefOne * qmp_my_command(UserDefOne * arg1, Error **errp);
+
+    #endif
+    mdroth@illuin:~/w/qemu2.git$

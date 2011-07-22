@@ -19,6 +19,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu-timer.h"
 #include "qxl.h"
 
 static const char *qxl_type[] = {
@@ -223,7 +224,8 @@ void qxl_log_command(PCIQXLDevice *qxl, const char *ring, QXLCommandExt *ext)
     if (!qxl->cmdlog) {
         return;
     }
-    fprintf(stderr, "qxl-%d/%s:", qxl->id, ring);
+    fprintf(stderr, "%ld qxl-%d/%s:", qemu_get_clock_ns(vm_clock),
+            qxl->id, ring);
     fprintf(stderr, " cmd @ 0x%" PRIx64 " %s%s", ext->cmd.data,
             qxl_name(qxl_type, ext->cmd.type),
             compat ? "(compat)" : "");

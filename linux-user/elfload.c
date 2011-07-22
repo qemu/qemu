@@ -417,7 +417,8 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
 #ifdef TARGET_SPARC64
 
 #define ELF_START_MMAP 0x80000000
-
+#define ELF_HWCAP  (HWCAP_SPARC_FLUSH | HWCAP_SPARC_STBAR | HWCAP_SPARC_SWAP \
+                    | HWCAP_SPARC_MULDIV | HWCAP_SPARC_V9)
 #ifndef TARGET_ABI32
 #define elf_check_arch(x) ( (x) == EM_SPARCV9 || (x) == EM_SPARC32PLUS )
 #else
@@ -450,7 +451,8 @@ static inline void init_thread(struct target_pt_regs *regs,
 
 #else
 #define ELF_START_MMAP 0x80000000
-
+#define ELF_HWCAP  (HWCAP_SPARC_FLUSH | HWCAP_SPARC_STBAR | HWCAP_SPARC_SWAP \
+                    | HWCAP_SPARC_MULDIV)
 #define elf_check_arch(x) ( (x) == EM_SPARC )
 
 #define ELF_CLASS   ELFCLASS32

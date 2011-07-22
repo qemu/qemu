@@ -262,9 +262,6 @@ static unsigned int dec10_quick_imm(DisasContext *dc)
             break;
 
         case CRISV10_QIMM_BCC_R0:
-            if (!dc->ir) {
-                cpu_abort(dc->env, "opcode zero\n");
-            }
         case CRISV10_QIMM_BCC_R1:
         case CRISV10_QIMM_BCC_R2:
         case CRISV10_QIMM_BCC_R3:

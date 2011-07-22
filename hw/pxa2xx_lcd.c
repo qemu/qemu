@@ -665,7 +665,7 @@ static void pxa2xx_palette_parse(PXA2xxLCDState *s, int ch, int bpp)
     }
 }
 
-static void pxa2xx_lcdc_dma0_redraw_horiz(PXA2xxLCDState *s,
+static void pxa2xx_lcdc_dma0_redraw_rot0(PXA2xxLCDState *s,
                 target_phys_addr_t addr, int *miny, int *maxy)
 {
     int src_width, dest_width;
@@ -692,7 +692,7 @@ static void pxa2xx_lcdc_dma0_redraw_horiz(PXA2xxLCDState *s,
                                fn, s->dma_ch[0].palette, miny, maxy);
 }
 
-static void pxa2xx_lcdc_dma0_redraw_vert(PXA2xxLCDState *s,
+static void pxa2xx_lcdc_dma0_redraw_rot90(PXA2xxLCDState *s,
                target_phys_addr_t addr, int *miny, int *maxy)
 {
     int src_width, dest_width;
@@ -720,6 +720,67 @@ static void pxa2xx_lcdc_dma0_redraw_vert(PXA2xxLCDState *s,
                                miny, maxy);
 }
 
+static void pxa2xx_lcdc_dma0_redraw_rot180(PXA2xxLCDState *s,
+                target_phys_addr_t addr, int *miny, int *maxy)
+{
+    int src_width, dest_width;
+    drawfn fn = NULL;
+    if (s->dest_width) {
+        fn = s->line_fn[s->transp][s->bpp];
+    }
+    if (!fn) {
+        return;
+    }
+
+    src_width = (s->xres + 3) & ~3;     /* Pad to a 4 pixels multiple */
+    if (s->bpp == pxa_lcdc_19pbpp || s->bpp == pxa_lcdc_18pbpp) {
+        src_width *= 3;
+    } else if (s->bpp > pxa_lcdc_16bpp) {
+        src_width *= 4;
+    } else if (s->bpp > pxa_lcdc_8bpp) {
+        src_width *= 2;
+    }
+
+    dest_width = s->xres * s->dest_width;
+    *miny = 0;
+    framebuffer_update_display(s->ds,
+                               addr, s->xres, s->yres,
+                               src_width, -dest_width, -s->dest_width,
+                               s->invalidated,
+                               fn, s->dma_ch[0].palette, miny, maxy);
+}
+
+static void pxa2xx_lcdc_dma0_redraw_rot270(PXA2xxLCDState *s,
+               target_phys_addr_t addr, int *miny, int *maxy)
+{
+    int src_width, dest_width;
+    drawfn fn = NULL;
+    if (s->dest_width) {
+        fn = s->line_fn[s->transp][s->bpp];
+    }
+    if (!fn) {
+        return;
+    }
+
+    src_width = (s->xres + 3) & ~3;     /* Pad to a 4 pixels multiple */
+    if (s->bpp == pxa_lcdc_19pbpp || s->bpp == pxa_lcdc_18pbpp) {
+        src_width *= 3;
+    } else if (s->bpp > pxa_lcdc_16bpp) {
+        src_width *= 4;
+    } else if (s->bpp > pxa_lcdc_8bpp) {
+        src_width *= 2;
+    }
+
+    dest_width = s->yres * s->dest_width;
+    *miny = 0;
+    framebuffer_update_display(s->ds,
+                               addr, s->xres, s->yres,
+                               src_width, -s->dest_width, dest_width,
+                               s->invalidated,
+                               fn, s->dma_ch[0].palette,
+                               miny, maxy);
+}
+
 static void pxa2xx_lcdc_resize(PXA2xxLCDState *s)
 {
     int width, height;
@@ -730,10 +791,11 @@ static void pxa2xx_lcdc_resize(PXA2xxLCDState *s)
     height = LCCR2_LPP(s->control[2]) + 1;
 
     if (width != s->xres || height != s->yres) {
-        if (s->orientation)
+        if (s->orientation == 90 || s->orientation == 270) {
             qemu_console_resize(s->ds, height, width);
-        else
+        } else {
             qemu_console_resize(s->ds, width, height);
+        }
         s->invalidated = 1;
         s->xres = width;
         s->yres = height;
@@ -797,10 +859,24 @@ static void pxa2xx_update_display(void *opaque)
     }
 
     if (miny >= 0) {
-        if (s->orientation)
-            dpy_update(s->ds, miny, 0, maxy - miny, s->xres);
-        else
-            dpy_update(s->ds, 0, miny, s->xres, maxy - miny);
+        switch (s->orientation) {
+        case 0:
+            dpy_update(s->ds, 0, miny, s->xres, maxy - miny + 1);
+            break;
+        case 90:
+            dpy_update(s->ds, miny, 0, maxy - miny + 1, s->xres);
+            break;
+        case 180:
+            maxy = s->yres - maxy - 1;
+            miny = s->yres - miny - 1;
+            dpy_update(s->ds, 0, maxy, s->xres, miny - maxy + 1);
+            break;
+        case 270:
+            maxy = s->yres - maxy - 1;
+            miny = s->yres - miny - 1;
+            dpy_update(s->ds, maxy, 0, miny - maxy + 1, s->xres);
+            break;
+        }
     }
     pxa2xx_lcdc_int_update(s);
 
@@ -822,10 +898,19 @@ static void pxa2xx_lcdc_orientation(void *opaque, int angle)
 {
     PXA2xxLCDState *s = (PXA2xxLCDState *) opaque;
 
-    if (angle) {
-        s->dma_ch[0].redraw = pxa2xx_lcdc_dma0_redraw_vert;
-    } else {
-        s->dma_ch[0].redraw = pxa2xx_lcdc_dma0_redraw_horiz;
+    switch (angle) {
+    case 0:
+        s->dma_ch[0].redraw = pxa2xx_lcdc_dma0_redraw_rot0;
+        break;
+    case 90:
+        s->dma_ch[0].redraw = pxa2xx_lcdc_dma0_redraw_rot90;
+        break;
+    case 180:
+        s->dma_ch[0].redraw = pxa2xx_lcdc_dma0_redraw_rot180;
+        break;
+    case 270:
+        s->dma_ch[0].redraw = pxa2xx_lcdc_dma0_redraw_rot270;
+        break;
     }
 
     s->orientation = angle;

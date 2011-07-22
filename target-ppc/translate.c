@@ -3877,24 +3877,19 @@ static void gen_mtmsr(DisasContext *ctx)
         tcg_gen_or_tl(cpu_msr, cpu_msr, t0);
         tcg_temp_free(t0);
     } else {
+        TCGv msr = tcg_temp_new();
+
         /* XXX: we need to update nip before the store
          *      if we enter power saving mode, we will exit the loop
          *      directly from ppc_store_msr
          */
         gen_update_nip(ctx, ctx->nip);
 #if defined(TARGET_PPC64)
-        if (!ctx->sf_mode) {
-            TCGv t0 = tcg_temp_new();
-            TCGv t1 = tcg_temp_new();
-            tcg_gen_andi_tl(t0, cpu_msr, 0xFFFFFFFF00000000ULL);
-            tcg_gen_ext32u_tl(t1, cpu_gpr[rS(ctx->opcode)]);
-            tcg_gen_or_tl(t0, t0, t1);
-            tcg_temp_free(t1);
-            gen_helper_store_msr(t0);
-            tcg_temp_free(t0);
-        } else
+        tcg_gen_deposit_tl(msr, cpu_msr, cpu_gpr[rS(ctx->opcode)], 0, 32);
+#else
+        tcg_gen_mov_tl(msr, cpu_gpr[rS(ctx->opcode)]);
 #endif
-            gen_helper_store_msr(cpu_gpr[rS(ctx->opcode)]);
+        gen_helper_store_msr(msr);
         /* Must stop the translation as machine state (may have) changed */
         /* Note that mtmsr is not always defined as context-synchronizing */
         gen_stop_exception(ctx);

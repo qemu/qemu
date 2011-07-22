@@ -46,6 +46,17 @@ disable virtio_queue_notify(void *vdev, int n, void *vq) "vdev %p n %d vq %p"
 disable virtio_irq(void *vq) "vq %p"
 disable virtio_notify(void *vdev, void *vq) "vdev %p vq %p"
 
+# hw/virtio-serial-bus.c
+disable virtio_serial_send_control_event(unsigned int port, uint16_t event, uint16_t value) "port %u, event %u, value %u"
+disable virtio_serial_throttle_port(unsigned int port, bool throttle) "port %u, throttle %d"
+disable virtio_serial_handle_control_message(uint16_t event, uint16_t value) "event %u, value %u"
+disable virtio_serial_handle_control_message_port(unsigned int port) "port %u"
+
+# hw/virtio-console.c
+disable virtio_console_flush_buf(unsigned int port, size_t len, ssize_t ret) "port %u, in_len %zu, out_len %zd"
+disable virtio_console_chr_read(unsigned int port, int size) "port %u, size %d"
+disable virtio_console_chr_event(unsigned int port, int event) "port %u, event %d"
+
 # block.c
 disable multiwrite_cb(void *mcb, int ret) "mcb %p ret %d"
 disable bdrv_aio_multiwrite(void *mcb, int num_callbacks, int num_reqs) "mcb %p num_callbacks %d num_reqs %d"
@@ -91,6 +102,10 @@ disable cs4231_mem_readl_dreg(uint32_t reg, uint32_t ret) "read dreg %d: 0x%02x"
 disable cs4231_mem_readl_reg(uint32_t reg, uint32_t ret) "read reg %d: 0x%08x"
 disable cs4231_mem_writel_reg(uint32_t reg, uint32_t old, uint32_t val) "write reg %d: 0x%08x -> 0x%08x"
 disable cs4231_mem_writel_dreg(uint32_t reg, uint32_t old, uint32_t val) "write dreg %d: 0x%02x -> 0x%02x"
+
+# hw/ds1225y.c
+disable nvram_read(uint32_t addr, uint32_t ret) "read addr %d: 0x%02x"
+disable nvram_write(uint32_t addr, uint32_t old, uint32_t val) "write addr %d: 0x%02x -> 0x%02x"
 
 # hw/eccmemctl.c
 disable ecc_mem_writel_mer(uint32_t val) "Write memory enable %08x"
@@ -201,13 +216,13 @@ disable usb_ehci_mmio_writel(uint32_t addr, const char *str, uint32_t val) "wr m
 disable usb_ehci_mmio_change(uint32_t addr, const char *str, uint32_t new, uint32_t old) "ch mmio %04x [%s] = %x (old: %x)"
 disable usb_ehci_usbsts(const char *sts, int state) "usbsts %s %d"
 disable usb_ehci_state(const char *schedule, const char *state) "%s schedule %s"
-disable usb_ehci_qh_ptrs(void *q, uint32_t addr, uint32_t next, uint32_t c_qtd, uint32_t n_qtd, uint32_t a_qtd) "q %p - QH @ %08x: next %08x qtds %08x,%08x,%08x"
+disable usb_ehci_qh_ptrs(void *q, uint32_t addr, uint32_t nxt, uint32_t c_qtd, uint32_t n_qtd, uint32_t a_qtd) "q %p - QH @ %08x: next %08x qtds %08x,%08x,%08x"
 disable usb_ehci_qh_fields(uint32_t addr, int rl, int mplen, int eps, int ep, int devaddr) "QH @ %08x - rl %d, mplen %d, eps %d, ep %d, dev %d"
 disable usb_ehci_qh_bits(uint32_t addr, int c, int h, int dtc, int i) "QH @ %08x - c %d, h %d, dtc %d, i %d"
-disable usb_ehci_qtd_ptrs(void *q, uint32_t addr, uint32_t next, uint32_t altnext) "q %p - QTD @ %08x: next %08x altnext %08x"
+disable usb_ehci_qtd_ptrs(void *q, uint32_t addr, uint32_t nxt, uint32_t altnext) "q %p - QTD @ %08x: next %08x altnext %08x"
 disable usb_ehci_qtd_fields(uint32_t addr, int tbytes, int cpage, int cerr, int pid) "QTD @ %08x - tbytes %d, cpage %d, cerr %d, pid %d"
 disable usb_ehci_qtd_bits(uint32_t addr, int ioc, int active, int halt, int babble, int xacterr) "QTD @ %08x - ioc %d, active %d, halt %d, babble %d, xacterr %d"
-disable usb_ehci_itd(uint32_t addr, uint32_t next, uint32_t mplen, uint32_t mult, uint32_t ep, uint32_t devaddr) "ITD @ %08x: next %08x - mplen %d, mult %d, ep %d, dev %d"
+disable usb_ehci_itd(uint32_t addr, uint32_t nxt, uint32_t mplen, uint32_t mult, uint32_t ep, uint32_t devaddr) "ITD @ %08x: next %08x - mplen %d, mult %d, ep %d, dev %d"
 disable usb_ehci_port_attach(uint32_t port, const char *device) "attach port #%d - %s"
 disable usb_ehci_port_detach(uint32_t port) "detach port #%d"
 disable usb_ehci_port_reset(uint32_t port, int enable) "reset port #%d - %d"
@@ -399,9 +414,9 @@ disable xen_ram_alloc(unsigned long ram_addr, unsigned long size) "requested: %#
 disable xen_client_set_memory(uint64_t start_addr, unsigned long size, unsigned long phys_offset, bool log_dirty) "%#"PRIx64" size %#lx, offset %#lx, log_dirty %i"
 
 # xen-mapcache.c
-disable qemu_map_cache(uint64_t phys_addr) "want %#"PRIx64""
-disable qemu_remap_bucket(uint64_t index) "index %#"PRIx64""
-disable qemu_map_cache_return(void* ptr) "%p"
+disable xen_map_cache(uint64_t phys_addr) "want %#"PRIx64""
+disable xen_remap_bucket(uint64_t index) "index %#"PRIx64""
+disable xen_map_cache_return(void* ptr) "%p"
 disable xen_map_block(uint64_t phys_addr, uint64_t size) "%#"PRIx64", size %#"PRIx64""
 disable xen_unmap_block(void* addr, unsigned long size) "%p, size %#lx"
 

@@ -133,6 +133,12 @@ typedef struct CPUARMState {
         uint32_t c7_par;  /* Translation result. */
         uint32_t c9_insn; /* Cache lockdown registers.  */
         uint32_t c9_data;
+        uint32_t c9_pmcr; /* performance monitor control register */
+        uint32_t c9_pmcnten; /* perf monitor counter enables */
+        uint32_t c9_pmovsr; /* perf monitor overflow status */
+        uint32_t c9_pmxevtyper; /* perf monitor event type */
+        uint32_t c9_pmuserenr; /* perf monitor user enable */
+        uint32_t c9_pminten; /* perf monitor interrupt enables */
         uint32_t c13_fcse; /* FCSE PID.  */
         uint32_t c13_context; /* Context ID.  */
         uint32_t c13_tls1; /* User RW Thread register.  */
@@ -221,7 +227,7 @@ typedef struct CPUARMState {
         void *opaque;
     } cp[15];
     void *nvic;
-    struct arm_boot_info *boot_info;
+    const struct arm_boot_info *boot_info;
 } CPUARMState;
 
 CPUARMState *cpu_arm_init(const char *cpu_model);
@@ -438,7 +444,7 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
 #define cpu_signal_handler cpu_arm_signal_handler
 #define cpu_list arm_cpu_list
 
-#define CPU_SAVE_VERSION 3
+#define CPU_SAVE_VERSION 4
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel

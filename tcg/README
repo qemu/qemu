@@ -504,7 +504,15 @@ register.
 - Don't hesitate to use helpers for complicated or seldom used target
   instructions. There is little performance advantage in using TCG to
   implement target instructions taking more than about twenty TCG
-  instructions.
+  instructions. Note that this rule of thumb is more applicable to
+  helpers doing complex logic or arithmetic, where the C compiler has
+  scope to do a good job of optimisation; it is less relevant where
+  the instruction is mostly doing loads and stores, and in those cases
+  inline TCG may still be faster for longer sequences.
+
+- The hard limit on the number of TCG instructions you can generate
+  per target instruction is set by MAX_OP_PER_INSTR in exec-all.h --
+  you cannot exceed this without risking a buffer overrun.
 
 - Use the 'discard' instruction if you know that TCG won't be able to
   prove that a given global is "dead" at a given program point. The

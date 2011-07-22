@@ -644,7 +644,7 @@ static void handle_ioreq(ioreq_t *req)
         case IOREQ_TYPE_TIMEOFFSET:
             break;
         case IOREQ_TYPE_INVALIDATE:
-            qemu_invalidate_map_cache();
+            xen_invalidate_map_cache();
             break;
         default:
             hw_error("Invalid ioreq type 0x%x\n", req->type);
@@ -734,6 +734,66 @@ static void cpu_handle_ioreq(void *opaque)
 
         req->state = STATE_IORESP_READY;
         xc_evtchn_notify(state->xce_handle, state->ioreq_local_port[state->send_vcpu]);
+    }
+}
+
+static int store_dev_info(int domid, CharDriverState *cs, const char *string)
+{
+    struct xs_handle *xs = NULL;
+    char *path = NULL;
+    char *newpath = NULL;
+    char *pts = NULL;
+    int ret = -1;
+
+    /* Only continue if we're talking to a pty. */
+    if (strncmp(cs->filename, "pty:", 4)) {
+        return 0;
+    }
+    pts = cs->filename + 4;
+
+    /* We now have everything we need to set the xenstore entry. */
+    xs = xs_open(0);
+    if (xs == NULL) {
+        fprintf(stderr, "Could not contact XenStore\n");
+        goto out;
+    }
+
+    path = xs_get_domain_path(xs, domid);
+    if (path == NULL) {
+        fprintf(stderr, "xs_get_domain_path() error\n");
+        goto out;
+    }
+    newpath = realloc(path, (strlen(path) + strlen(string) +
+                strlen("/tty") + 1));
+    if (newpath == NULL) {
+        fprintf(stderr, "realloc error\n");
+        goto out;
+    }
+    path = newpath;
+
+    strcat(path, string);
+    strcat(path, "/tty");
+    if (!xs_write(xs, XBT_NULL, path, pts, strlen(pts))) {
+        fprintf(stderr, "xs_write for '%s' fail", string);
+        goto out;
+    }
+    ret = 0;
+
+out:
+    free(path);
+    xs_close(xs);
+
+    return ret;
+}
+
+void xenstore_store_pv_console_info(int i, CharDriverState *chr)
+{
+    if (i == 0) {
+        store_dev_info(xen_domid, chr, "/console");
+    } else {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "/device/console/%d", i);
+        store_dev_info(xen_domid, chr, buf);
     }
 }
 
@@ -852,7 +912,7 @@ int xen_hvm_init(void)
     }
 
     /* Init RAM management */
-    qemu_map_cache_init();
+    xen_map_cache_init();
     xen_ram_init(ram_size);
 
     qemu_add_vm_change_state_handler(xen_vm_change_state_handler, state);
@@ -861,6 +921,15 @@ int xen_hvm_init(void)
     QLIST_INIT(&state->physmap);
     cpu_register_phys_memory_client(&state->client);
     state->log_for_dirtybit = NULL;
+
+    /* Initialize backend core & drivers */
+    if (xen_be_init() != 0) {
+        fprintf(stderr, "%s: xen backend core setup failed\n", __FUNCTION__);
+        exit(1);
+    }
+    xen_be_register("console", &xen_console_ops);
+    xen_be_register("vkbd", &xen_kbdmouse_ops);
+    xen_be_register("qdisk", &xen_blkdev_ops);
 
     return 0;
 }

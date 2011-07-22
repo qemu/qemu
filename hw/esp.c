@@ -211,7 +211,7 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf)
     } else {
         dmalen = s->ti_size;
         memcpy(buf, s->ti_buf, dmalen);
-        buf[0] = 0;
+        buf[0] = buf[2] >> 5;
     }
     DPRINTF("get_cmd: len %d target %d\n", dmalen, target);
 
@@ -219,7 +219,7 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf)
     s->ti_rptr = 0;
     s->ti_wptr = 0;
 
-    if (s->current_dev) {
+    if (s->current_req) {
         /* Started a new command before the old one finished.  Cancel it.  */
         scsi_req_cancel(s->current_req);
         s->async_len = 0;
@@ -244,7 +244,7 @@ static void do_busid_cmd(ESPState *s, uint8_t *buf, uint8_t busid)
 
     DPRINTF("do_busid_cmd: busid 0x%x\n", busid);
     lun = busid & 7;
-    s->current_req = scsi_req_new(s->current_dev, 0, lun);
+    s->current_req = scsi_req_new(s->current_dev, 0, lun, NULL);
     datalen = scsi_req_enqueue(s->current_req, buf);
     s->ti_size = datalen;
     if (datalen != 0) {

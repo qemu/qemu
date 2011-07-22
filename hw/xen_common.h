@@ -85,6 +85,18 @@ static inline int xc_domain_add_to_physmap(int xc_handle, uint32_t domid,
     return xc_memory_op(xc_handle, XENMEM_add_to_physmap, &xatp);
 }
 
+static inline struct xs_handle *xs_open(unsigned long flags)
+{
+    return xs_daemon_open();
+}
+
+static inline void xs_close(struct xs_handle *xsh)
+{
+    if (xsh != NULL) {
+        xs_daemon_close(xsh);
+    }
+}
+
 
 /* Xen 4.1 */
 #else

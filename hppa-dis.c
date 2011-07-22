@@ -1771,13 +1771,13 @@ static const char *const add_compl_names[] = { 0, "", ",l", ",tsv" };
 static void
 fput_reg (unsigned reg, disassemble_info *info)
 {
-  (*info->fprintf_func) (info->stream, reg ? reg_names[reg] : "r0");
+  (*info->fprintf_func) (info->stream, "%s", reg ? reg_names[reg] : "r0");
 }
 
 static void
 fput_fp_reg (unsigned reg, disassemble_info *info)
 {
-  (*info->fprintf_func) (info->stream, reg ? fp_reg_names[reg] : "fr0");
+  (*info->fprintf_func) (info->stream, "%s", reg ? fp_reg_names[reg] : "fr0");
 }
 
 static void
@@ -1794,7 +1794,7 @@ fput_fp_reg_r (unsigned reg, disassemble_info *info)
 static void
 fput_creg (unsigned reg, disassemble_info *info)
 {
-  (*info->fprintf_func) (info->stream, control_reg[reg]);
+  (*info->fprintf_func) (info->stream, "%s", control_reg[reg]);
 }
 
 /* Print constants with sign.  */

@@ -40,6 +40,7 @@ typedef struct img_cmd_t {
 
 /* Default to cache=writeback as data integrity is not important for qemu-tcg. */
 #define BDRV_O_FLAGS BDRV_O_CACHE_WB
+#define BDRV_DEFAULT_CACHE "writeback"
 
 static void format_print(void *opaque, const char *name)
 {
@@ -64,6 +65,8 @@ static void help(void)
            "Command parameters:\n"
            "  'filename' is a disk image filename\n"
            "  'fmt' is the disk image format. It is guessed automatically in most cases\n"
+           "  'cache' is the cache mode used to write the output disk image, the valid\n"
+           "    options are: 'none', 'writeback' (default), 'writethrough' and 'unsafe'\n"
            "  'size' is the disk image size in bytes. Optional suffixes\n"
            "    'k' or 'K' (kilobyte, 1024), 'M' (megabyte, 1024k), 'G' (gigabyte, 1024M)\n"
            "    and T (terabyte, 1024G) are supported. 'b' is ignored.\n"
@@ -179,6 +182,27 @@ static int read_password(char *buf, int buf_size)
     return ret;
 }
 #endif
+
+static int set_cache_flag(const char *mode, int *flags)
+{
+    *flags &= ~BDRV_O_CACHE_MASK;
+
+    if (!strcmp(mode, "none") || !strcmp(mode, "off")) {
+        *flags |= BDRV_O_CACHE_WB;
+        *flags |= BDRV_O_NOCACHE;
+    } else if (!strcmp(mode, "writeback")) {
+        *flags |= BDRV_O_CACHE_WB;
+    } else if (!strcmp(mode, "unsafe")) {
+        *flags |= BDRV_O_CACHE_WB;
+        *flags |= BDRV_O_NO_FLUSH;
+    } else if (!strcmp(mode, "writethrough")) {
+        /* this is the default */
+    } else {
+        return -1;
+    }
+
+    return 0;
+}
 
 static int print_block_option_help(const char *filename, const char *fmt)
 {
@@ -441,13 +465,14 @@ static int img_check(int argc, char **argv)
 
 static int img_commit(int argc, char **argv)
 {
-    int c, ret;
-    const char *filename, *fmt;
+    int c, ret, flags;
+    const char *filename, *fmt, *cache;
     BlockDriverState *bs;
 
     fmt = NULL;
+    cache = BDRV_DEFAULT_CACHE;
     for(;;) {
-        c = getopt(argc, argv, "f:h");
+        c = getopt(argc, argv, "f:ht:");
         if (c == -1) {
             break;
         }
@@ -459,6 +484,9 @@ static int img_commit(int argc, char **argv)
         case 'f':
             fmt = optarg;
             break;
+        case 't':
+            cache = optarg;
+            break;
         }
     }
     if (optind >= argc) {
@@ -466,7 +494,14 @@ static int img_commit(int argc, char **argv)
     }
     filename = argv[optind++];
 
-    bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_RDWR);
+    flags = BDRV_O_RDWR;
+    ret = set_cache_flag(cache, &flags);
+    if (ret < 0) {
+        error_report("Invalid cache option: %s", cache);
+        return -1;
+    }
+
+    bs = bdrv_new_open(filename, fmt, flags);
     if (!bs) {
         return 1;
     }
@@ -591,8 +626,8 @@ static int compare_sectors(const uint8_t *buf1, const uint8_t *buf2, int n,
 static int img_convert(int argc, char **argv)
 {
     int c, ret = 0, n, n1, bs_n, bs_i, compress, cluster_size, cluster_sectors;
-    int progress = 0;
-    const char *fmt, *out_fmt, *out_baseimg, *out_filename;
+    int progress = 0, flags;
+    const char *fmt, *out_fmt, *cache, *out_baseimg, *out_filename;
     BlockDriver *drv, *proto_drv;
     BlockDriverState **bs = NULL, *out_bs = NULL;
     int64_t total_sectors, nb_sectors, sector_num, bs_offset;
@@ -608,10 +643,11 @@ static int img_convert(int argc, char **argv)
 
     fmt = NULL;
     out_fmt = "raw";
+    cache = "unsafe";
     out_baseimg = NULL;
     compress = 0;
     for(;;) {
-        c = getopt(argc, argv, "f:O:B:s:hce6o:p");
+        c = getopt(argc, argv, "f:O:B:s:hce6o:pt:");
         if (c == -1) {
             break;
         }
@@ -648,6 +684,9 @@ static int img_convert(int argc, char **argv)
             break;
         case 'p':
             progress = 1;
+            break;
+        case 't':
+            cache = optarg;
             break;
         }
     }
@@ -779,8 +818,14 @@ static int img_convert(int argc, char **argv)
         goto out;
     }
 
-    out_bs = bdrv_new_open(out_filename, out_fmt,
-        BDRV_O_FLAGS | BDRV_O_RDWR | BDRV_O_NO_FLUSH);
+    flags = BDRV_O_RDWR;
+    ret = set_cache_flag(cache, &flags);
+    if (ret < 0) {
+        error_report("Invalid cache option: %s", cache);
+        return -1;
+    }
+
+    out_bs = bdrv_new_open(out_filename, out_fmt, flags);
     if (!out_bs) {
         ret = -1;
         goto out;
@@ -979,35 +1024,6 @@ out:
     return 0;
 }
 
-#ifdef _WIN32
-static int64_t get_allocated_file_size(const char *filename)
-{
-    typedef DWORD (WINAPI * get_compressed_t)(const char *filename, DWORD *high);
-    get_compressed_t get_compressed;
-    struct _stati64 st;
-
-    /* WinNT support GetCompressedFileSize to determine allocate size */
-    get_compressed = (get_compressed_t) GetProcAddress(GetModuleHandle("kernel32"), "GetCompressedFileSizeA");
-    if (get_compressed) {
-    	DWORD high, low;
-    	low = get_compressed(filename, &high);
-    	if (low != 0xFFFFFFFFlu || GetLastError() == NO_ERROR)
-	    return (((int64_t) high) << 32) + low;
-    }
-
-    if (_stati64(filename, &st) < 0)
-        return -1;
-    return st.st_size;
-}
-#else
-static int64_t get_allocated_file_size(const char *filename)
-{
-    struct stat st;
-    if (stat(filename, &st) < 0)
-        return -1;
-    return (int64_t)st.st_blocks * 512;
-}
-#endif
 
 static void dump_snapshots(BlockDriverState *bs)
 {
@@ -1067,7 +1083,7 @@ static int img_info(int argc, char **argv)
     bdrv_get_format(bs, fmt_name, sizeof(fmt_name));
     bdrv_get_geometry(bs, &total_sectors);
     get_human_readable_size(size_buf, sizeof(size_buf), total_sectors * 512);
-    allocated_size = get_allocated_file_size(filename);
+    allocated_size = bdrv_get_allocated_file_size(bs);
     if (allocated_size < 0) {
         snprintf(dsize_buf, sizeof(dsize_buf), "unavailable");
     } else {
@@ -1225,18 +1241,18 @@ static int img_rebase(int argc, char **argv)
     BlockDriverState *bs, *bs_old_backing = NULL, *bs_new_backing = NULL;
     BlockDriver *old_backing_drv, *new_backing_drv;
     char *filename;
-    const char *fmt, *out_basefmt, *out_baseimg;
+    const char *fmt, *cache, *out_basefmt, *out_baseimg;
     int c, flags, ret;
     int unsafe = 0;
     int progress = 0;
 
     /* Parse commandline parameters */
     fmt = NULL;
+    cache = BDRV_DEFAULT_CACHE;
     out_baseimg = NULL;
     out_basefmt = NULL;
-
     for(;;) {
-        c = getopt(argc, argv, "uhf:F:b:p");
+        c = getopt(argc, argv, "uhf:F:b:pt:");
         if (c == -1) {
             break;
         }
@@ -1260,6 +1276,9 @@ static int img_rebase(int argc, char **argv)
         case 'p':
             progress = 1;
             break;
+        case 't':
+            cache = optarg;
+            break;
         }
     }
 
@@ -1271,13 +1290,19 @@ static int img_rebase(int argc, char **argv)
     qemu_progress_init(progress, 2.0);
     qemu_progress_print(0, 100);
 
+    flags = BDRV_O_RDWR | (unsafe ? BDRV_O_NO_BACKING : 0);
+    ret = set_cache_flag(cache, &flags);
+    if (ret < 0) {
+        error_report("Invalid cache option: %s", cache);
+        return -1;
+    }
+
     /*
      * Open the images.
      *
      * Ignore the old backing file for unsafe rebase in case we want to correct
      * the reference to a renamed or moved backing file.
      */
-    flags = BDRV_O_FLAGS | BDRV_O_RDWR | (unsafe ? BDRV_O_NO_BACKING : 0);
     bs = bdrv_new_open(filename, fmt, flags);
     if (!bs) {
         return 1;

@@ -155,8 +155,8 @@ slirp-obj-y += tcp_subr.o tcp_timer.o udp.o bootp.o tftp.o
 common-obj-$(CONFIG_SLIRP) += $(addprefix slirp/, $(slirp-obj-y))
 
 # xen backend driver support
-common-obj-$(CONFIG_XEN) += xen_backend.o xen_devconfig.o
-common-obj-$(CONFIG_XEN) += xen_console.o xenfb.o xen_disk.o xen_nic.o
+common-obj-$(CONFIG_XEN_BACKEND) += xen_backend.o xen_devconfig.o
+common-obj-$(CONFIG_XEN_BACKEND) += xen_console.o xenfb.o xen_disk.o xen_nic.o
 
 ######################################################################
 # libuser
@@ -171,7 +171,7 @@ user-obj-y += cutils.o cache-utils.o
 
 hw-obj-y =
 hw-obj-y += vl.o loader.o
-hw-obj-$(CONFIG_VIRTIO) += virtio.o virtio-console.o
+hw-obj-$(CONFIG_VIRTIO) += virtio-console.o
 hw-obj-$(CONFIG_VIRTIO_PCI) += virtio-pci.o
 hw-obj-y += fw_cfg.o
 hw-obj-$(CONFIG_PCI) += pci.o pci_bridge.o
@@ -205,6 +205,7 @@ hw-obj-$(CONFIG_HPET) += hpet.o
 hw-obj-$(CONFIG_APPLESMC) += applesmc.o
 hw-obj-$(CONFIG_SMARTCARD) += usb-ccid.o ccid-card-passthru.o
 hw-obj-$(CONFIG_SMARTCARD_NSS) += ccid-card-emulated.o
+hw-obj-$(CONFIG_USB_REDIR) += usb-redir.o
 
 # PPC devices
 hw-obj-$(CONFIG_OPENPIC) += openpic.o
@@ -372,7 +373,15 @@ endif
 
 libcacard-y = cac.o event.o vcard.o vreader.o vcard_emul_nss.o vcard_emul_type.o card_7816.o
 
+######################################################################
+# qapi
+
+qapi-nested-y = qapi-visit-core.o qmp-input-visitor.o qmp-output-visitor.o qapi-dealloc-visitor.o
+qapi-nested-y += qmp-registry.o qmp-dispatch.o
+qapi-obj-y = $(addprefix qapi/, $(qapi-nested-y))
+
 vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
 vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)
 
+vl.o: QEMU_CFLAGS+=$(GLIB_CFLAGS)

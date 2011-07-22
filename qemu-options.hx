@@ -160,6 +160,14 @@ an untrusted format header.
 This option specifies the serial number to assign to the device.
 @item addr=@var{addr}
 Specify the controller's PCI address (if=virtio only).
+@item werror=@var{action},rerror=@var{action}
+Specify which @var{action} to take on write and read errors. Valid actions are:
+"ignore" (ignore the error and try to continue), "stop" (pause QEMU),
+"report" (report the error to the guest), "enospc" (pause QEMU only if the
+host disk is full; report the error to the guest otherwise).
+The default setting is @option{werror=enospc} and @option{rerror=report}.
+@item readonly
+Open drive @option{file} as read-only. Guest write attempts will fail.
 @end table
 
 By default, writethrough caching is used for all block device.  This means that
@@ -785,6 +793,15 @@ STEXI
 @item -portrait
 @findex -portrait
 Rotate graphical output 90 deg left (only PXA LCD).
+ETEXI
+
+DEF("rotate", HAS_ARG, QEMU_OPTION_rotate,
+    "-rotate <deg>   rotate graphical output some deg left (only PXA LCD)\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -rotate
+@findex -rotate
+Rotate graphical output some deg left (only PXA LCD).
 ETEXI
 
 DEF("vga", HAS_ARG, QEMU_OPTION_vga,

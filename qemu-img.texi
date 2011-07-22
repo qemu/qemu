@@ -38,6 +38,8 @@ by the used format or see the format descriptions below for details.
 indicates that target image must be compressed (qcow format only)
 @item -h
 with or without a command shows help and lists the supported formats
+@item -p
+display progress bar (convert and rebase commands only)
 @end table
 
 Parameters to snapshot subcommand:
@@ -84,7 +86,7 @@ it doesn't need to be specified separately in this case.
 
 Commit the changes recorded in @var{filename} in its base image.
 
-@item convert [-c] [-f @var{fmt}] [-O @var{output_fmt}] [-o @var{options}] [-s @var{snapshot_name}] @var{filename} [@var{filename2} [...]] @var{output_filename}
+@item convert [-c] [-p] [-f @var{fmt}] [-O @var{output_fmt}] [-o @var{options}] [-s @var{snapshot_name}] @var{filename} [@var{filename2} [...]] @var{output_filename}
 
 Convert the disk image @var{filename} or a snapshot @var{snapshot_name} to disk image @var{output_filename}
 using format @var{output_fmt}. It can be optionally compressed (@code{-c}
@@ -114,7 +116,7 @@ they are displayed too.
 
 List, apply, create or delete snapshots in image @var{filename}.
 
-@item rebase [-f @var{fmt}] [-u] -b @var{backing_file} [-F @var{backing_fmt}] @var{filename}
+@item rebase [-f @var{fmt}] [-p] [-u] -b @var{backing_file} [-F @var{backing_fmt}] @var{filename}
 
 Changes the backing file of an image. Only the formats @code{qcow2} and
 @code{qed} support changing the backing file.
@@ -172,12 +174,6 @@ file system supports @emph{holes} (for example in ext2 or ext3 on
 Linux or NTFS on Windows), then only the written sectors will reserve
 space. Use @code{qemu-img info} to know the real size used by the
 image or @code{ls -ls} on Unix/Linux.
-
-@item host_device
-
-Host device format. This format should be used instead of raw when
-converting to block devices or other devices where "holes" are not
-supported.
 
 @item qcow2
 QEMU image format, the most versatile format. Use it to have smaller

@@ -378,7 +378,7 @@ static inline int ultrasparc_tag_match(SparcTLBEntry *tlb,
 {
     uint64_t mask;
 
-    switch ((tlb->tte >> 61) & 3) {
+    switch (TTE_PGSIZE(tlb->tte)) {
     default:
     case 0x0: // 8k
         mask = 0xffffffffffffe000ULL;
@@ -413,6 +413,7 @@ static int get_physical_address_data(CPUState *env,
 {
     unsigned int i;
     uint64_t context;
+    uint64_t sfsr = 0;
 
     int is_user = (mmu_idx == MMU_USER_IDX ||
                    mmu_idx == MMU_USER_SECONDARY_IDX);
@@ -427,54 +428,88 @@ static int get_physical_address_data(CPUState *env,
     case MMU_USER_IDX:
     case MMU_KERNEL_IDX:
         context = env->dmmu.mmu_primary_context & 0x1fff;
+        sfsr |= SFSR_CT_PRIMARY;
         break;
     case MMU_USER_SECONDARY_IDX:
     case MMU_KERNEL_SECONDARY_IDX:
         context = env->dmmu.mmu_secondary_context & 0x1fff;
+        sfsr |= SFSR_CT_SECONDARY;
         break;
     case MMU_NUCLEUS_IDX:
+        sfsr |= SFSR_CT_NUCLEUS;
+        /* FALLTHRU */
     default:
         context = 0;
         break;
     }
 
+    if (rw == 1) {
+        sfsr |= SFSR_WRITE_BIT;
+    } else if (rw == 4) {
+        sfsr |= SFSR_NF_BIT;
+    }
+
     for (i = 0; i < 64; i++) {
         // ctx match, vaddr match, valid?
         if (ultrasparc_tag_match(&env->dtlb[i], address, context, physical)) {
-
-            uint8_t fault_type = 0;
+            int do_fault = 0;
 
             // access ok?
-            if ((env->dtlb[i].tte & 0x4) && is_user) {
-                fault_type |= 1; /* privilege violation */
-                env->exception_index = TT_DFAULT;
+            /* multiple bits in SFSR.FT may be set on TT_DFAULT */
+            if (TTE_IS_PRIV(env->dtlb[i].tte) && is_user) {
+                do_fault = 1;
+                sfsr |= SFSR_FT_PRIV_BIT; /* privilege violation */
 
                 DPRINTF_MMU("DFAULT at %" PRIx64 " context %" PRIx64
                             " mmu_idx=%d tl=%d\n",
                             address, context, mmu_idx, env->tl);
-            } else if (!(env->dtlb[i].tte & 0x2) && (rw == 1)) {
+            }
+            if (rw == 4) {
+                if (TTE_IS_SIDEEFFECT(env->dtlb[i].tte)) {
+                    do_fault = 1;
+                    sfsr |= SFSR_FT_NF_E_BIT;
+                }
+            } else {
+                if (TTE_IS_NFO(env->dtlb[i].tte)) {
+                    do_fault = 1;
+                    sfsr |= SFSR_FT_NFO_BIT;
+                }
+            }
+
+            if (do_fault) {
+                /* faults above are reported with TT_DFAULT. */
+                env->exception_index = TT_DFAULT;
+            } else if (!TTE_IS_W_OK(env->dtlb[i].tte) && (rw == 1)) {
+                do_fault = 1;
                 env->exception_index = TT_DPROT;
 
                 DPRINTF_MMU("DPROT at %" PRIx64 " context %" PRIx64
                             " mmu_idx=%d tl=%d\n",
                             address, context, mmu_idx, env->tl);
-            } else {
+            }
+
+            if (!do_fault) {
                 *prot = PAGE_READ;
-                if (env->dtlb[i].tte & 0x2)
+                if (TTE_IS_W_OK(env->dtlb[i].tte)) {
                     *prot |= PAGE_WRITE;
+                }
 
                 TTE_SET_USED(env->dtlb[i].tte);
 
                 return 0;
             }
 
-            if (env->dmmu.sfsr & 1) /* Fault status register */
-                env->dmmu.sfsr = 2; /* overflow (not read before
-                                             another fault) */
+            if (env->dmmu.sfsr & SFSR_VALID_BIT) { /* Fault status register */
+                sfsr |= SFSR_OW_BIT; /* overflow (not read before
+                                        another fault) */
+            }
 
-            env->dmmu.sfsr |= (is_user << 3) | ((rw == 1) << 2) | 1;
+            if (env->pstate & PS_PRIV) {
+                sfsr |= SFSR_PR_BIT;
+            }
 
-            env->dmmu.sfsr |= (fault_type << 7);
+            /* FIXME: ASI field in SFSR must be set */
+            env->dmmu.sfsr = sfsr | SFSR_VALID_BIT;
 
             env->dmmu.sfar = address; /* Fault address register */
 
@@ -487,6 +522,11 @@ static int get_physical_address_data(CPUState *env,
     DPRINTF_MMU("DMISS at %" PRIx64 " context %" PRIx64 "\n",
                 address, context);
 
+    /*
+     * On MMU misses:
+     * - UltraSPARC IIi: SFSR and SFAR unmodified
+     * - JPS1: SFAR updated and some fields of SFSR updated
+     */
     env->dmmu.tag_access = (address & ~0x1fffULL) | context;
     env->exception_index = TT_DMISS;
     return 1;
@@ -522,11 +562,23 @@ static int get_physical_address_code(CPUState *env,
         if (ultrasparc_tag_match(&env->itlb[i],
                                  address, context, physical)) {
             // access ok?
-            if ((env->itlb[i].tte & 0x4) && is_user) {
-                if (env->immu.sfsr) /* Fault status register */
-                    env->immu.sfsr = 2; /* overflow (not read before
-                                             another fault) */
-                env->immu.sfsr |= (is_user << 3) | 1;
+            if (TTE_IS_PRIV(env->itlb[i].tte) && is_user) {
+                /* Fault status register */
+                if (env->immu.sfsr & SFSR_VALID_BIT) {
+                    env->immu.sfsr = SFSR_OW_BIT; /* overflow (not read before
+                                                     another fault) */
+                } else {
+                    env->immu.sfsr = 0;
+                }
+                if (env->pstate & PS_PRIV) {
+                    env->immu.sfsr |= SFSR_PR_BIT;
+                }
+                if (env->tl > 0) {
+                    env->immu.sfsr |= SFSR_CT_NUCLEUS;
+                }
+
+                /* FIXME: ASI field in SFSR must be set */
+                env->immu.sfsr |= SFSR_FT_PRIV_BIT | SFSR_VALID_BIT;
                 env->exception_index = TT_TFAULT;
 
                 env->immu.tag_access = (address & ~0x1fffULL) | context;
@@ -632,7 +684,7 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env)
     } else {
         (*cpu_fprintf)(f, "DMMU dump\n");
         for (i = 0; i < 64; i++) {
-            switch ((env->dtlb[i].tte >> 61) & 3) {
+            switch (TTE_PGSIZE(env->dtlb[i].tte)) {
             default:
             case 0x0:
                 mask = "  8k";
@@ -647,16 +699,17 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env)
                 mask = "  4M";
                 break;
             }
-            if ((env->dtlb[i].tte & 0x8000000000000000ULL) != 0) {
-                (*cpu_fprintf)(f, "[%02u] VA: %" PRIx64 ", PA: %" PRIx64
+            if (TTE_IS_VALID(env->dtlb[i].tte)) {
+                (*cpu_fprintf)(f, "[%02u] VA: %" PRIx64 ", PA: %llx"
                                ", %s, %s, %s, %s, ctx %" PRId64 " %s\n",
                                i,
                                env->dtlb[i].tag & (uint64_t)~0x1fffULL,
-                               env->dtlb[i].tte & (uint64_t)0x1ffffffe000ULL,
+                               TTE_PA(env->dtlb[i].tte),
                                mask,
-                               env->dtlb[i].tte & 0x4? "priv": "user",
-                               env->dtlb[i].tte & 0x2? "RW": "RO",
-                               env->dtlb[i].tte & 0x40? "locked": "unlocked",
+                               TTE_IS_PRIV(env->dtlb[i].tte) ? "priv" : "user",
+                               TTE_IS_W_OK(env->dtlb[i].tte) ? "RW" : "RO",
+                               TTE_IS_LOCKED(env->dtlb[i].tte) ?
+                               "locked" : "unlocked",
                                env->dtlb[i].tag & (uint64_t)0x1fffULL,
                                TTE_IS_GLOBAL(env->dtlb[i].tte)?
                                "global" : "local");
@@ -668,7 +721,7 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env)
     } else {
         (*cpu_fprintf)(f, "IMMU dump\n");
         for (i = 0; i < 64; i++) {
-            switch ((env->itlb[i].tte >> 61) & 3) {
+            switch (TTE_PGSIZE(env->itlb[i].tte)) {
             default:
             case 0x0:
                 mask = "  8k";
@@ -683,15 +736,16 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env)
                 mask = "  4M";
                 break;
             }
-            if ((env->itlb[i].tte & 0x8000000000000000ULL) != 0) {
-                (*cpu_fprintf)(f, "[%02u] VA: %" PRIx64 ", PA: %" PRIx64
+            if (TTE_IS_VALID(env->itlb[i].tte)) {
+                (*cpu_fprintf)(f, "[%02u] VA: %" PRIx64 ", PA: %llx"
                                ", %s, %s, %s, ctx %" PRId64 " %s\n",
                                i,
                                env->itlb[i].tag & (uint64_t)~0x1fffULL,
-                               env->itlb[i].tte & (uint64_t)0x1ffffffe000ULL,
+                               TTE_PA(env->itlb[i].tte),
                                mask,
-                               env->itlb[i].tte & 0x4? "priv": "user",
-                               env->itlb[i].tte & 0x40? "locked": "unlocked",
+                               TTE_IS_PRIV(env->itlb[i].tte) ? "priv" : "user",
+                               TTE_IS_LOCKED(env->itlb[i].tte) ?
+                               "locked" : "unlocked",
                                env->itlb[i].tag & (uint64_t)0x1fffULL,
                                TTE_IS_GLOBAL(env->itlb[i].tte)?
                                "global" : "local");
@@ -705,26 +759,43 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env)
 
 
 #if !defined(CONFIG_USER_ONLY)
+static int cpu_sparc_get_phys_page(CPUState *env, target_phys_addr_t *phys,
+                                   target_ulong addr, int rw, int mmu_idx)
+{
+    target_ulong page_size;
+    int prot, access_index;
+
+    return get_physical_address(env, phys, &prot, &access_index, addr, rw,
+                                mmu_idx, &page_size);
+}
+
+#if defined(TARGET_SPARC64)
 target_phys_addr_t cpu_get_phys_page_nofault(CPUState *env, target_ulong addr,
                                            int mmu_idx)
 {
     target_phys_addr_t phys_addr;
-    target_ulong page_size;
-    int prot, access_index;
 
-    if (get_physical_address(env, &phys_addr, &prot, &access_index, addr, 2,
-                             mmu_idx, &page_size) != 0)
-        if (get_physical_address(env, &phys_addr, &prot, &access_index, addr,
-                                 0, mmu_idx, &page_size) != 0)
-            return -1;
-    if (cpu_get_physical_page_desc(phys_addr) == IO_MEM_UNASSIGNED)
+    if (cpu_sparc_get_phys_page(env, &phys_addr, addr, 4, mmu_idx) != 0) {
         return -1;
+    }
     return phys_addr;
 }
+#endif
 
 target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
-    return cpu_get_phys_page_nofault(env, addr, cpu_mmu_index(env));
+    target_phys_addr_t phys_addr;
+    int mmu_idx = cpu_mmu_index(env);
+
+    if (cpu_sparc_get_phys_page(env, &phys_addr, addr, 2, mmu_idx) != 0) {
+        if (cpu_sparc_get_phys_page(env, &phys_addr, addr, 0, mmu_idx) != 0) {
+            return -1;
+        }
+    }
+    if (cpu_get_physical_page_desc(phys_addr) == IO_MEM_UNASSIGNED) {
+        return -1;
+    }
+    return phys_addr;
 }
 #endif
 
