@@ -1286,6 +1286,49 @@ static int do_sd_create(char *filename, int64_t vdi_size,
     return 0;
 }
 
+static int sd_prealloc(const char *filename)
+{
+    BlockDriverState *bs = NULL;
+    uint32_t idx, max_idx;
+    int64_t vdi_size;
+    void *buf = qemu_mallocz(SD_DATA_OBJ_SIZE);
+    int ret;
+
+    ret = bdrv_file_open(&bs, filename, BDRV_O_RDWR);
+    if (ret < 0) {
+        goto out;
+    }
+
+    vdi_size = bdrv_getlength(bs);
+    if (vdi_size < 0) {
+        ret = vdi_size;
+        goto out;
+    }
+    max_idx = DIV_ROUND_UP(vdi_size, SD_DATA_OBJ_SIZE);
+
+    for (idx = 0; idx < max_idx; idx++) {
+        /*
+         * The created image can be a cloned image, so we need to read
+         * a data from the source image.
+         */
+        ret = bdrv_pread(bs, idx * SD_DATA_OBJ_SIZE, buf, SD_DATA_OBJ_SIZE);
+        if (ret < 0) {
+            goto out;
+        }
+        ret = bdrv_pwrite(bs, idx * SD_DATA_OBJ_SIZE, buf, SD_DATA_OBJ_SIZE);
+        if (ret < 0) {
+            goto out;
+        }
+    }
+out:
+    if (bs) {
+        bdrv_delete(bs);
+    }
+    qemu_free(buf);
+
+    return ret;
+}
+
 static int sd_create(const char *filename, QEMUOptionParameter *options)
 {
     int ret;
@@ -1295,13 +1338,15 @@ static int sd_create(const char *filename, QEMUOptionParameter *options)
     BDRVSheepdogState s;
     char vdi[SD_MAX_VDI_LEN], tag[SD_MAX_VDI_TAG_LEN];
     uint32_t snapid;
+    int prealloc = 0;
+    const char *vdiname;
 
-    strstart(filename, "sheepdog:", (const char **)&filename);
+    strstart(filename, "sheepdog:", &vdiname);
 
     memset(&s, 0, sizeof(s));
     memset(vdi, 0, sizeof(vdi));
     memset(tag, 0, sizeof(tag));
-    if (parse_vdiname(&s, filename, vdi, &snapid, tag) < 0) {
+    if (parse_vdiname(&s, vdiname, vdi, &snapid, tag) < 0) {
         error_report("invalid filename");
         return -EINVAL;
     }
@@ -1311,6 +1356,16 @@ static int sd_create(const char *filename, QEMUOptionParameter *options)
             vdi_size = options->value.n;
         } else if (!strcmp(options->name, BLOCK_OPT_BACKING_FILE)) {
             backing_file = options->value.s;
+        } else if (!strcmp(options->name, BLOCK_OPT_PREALLOC)) {
+            if (!options->value.s || !strcmp(options->value.s, "off")) {
+                prealloc = 0;
+            } else if (!strcmp(options->value.s, "full")) {
+                prealloc = 1;
+            } else {
+                error_report("Invalid preallocation mode: '%s'",
+                             options->value.s);
+                return -EINVAL;
+            }
         }
         options++;
     }
@@ -1348,7 +1403,12 @@ static int sd_create(const char *filename, QEMUOptionParameter *options)
         bdrv_delete(bs);
     }
 
-    return do_sd_create((char *)vdi, vdi_size, base_vid, &vid, 0, s.addr, s.port);
+    ret = do_sd_create(vdi, vdi_size, base_vid, &vid, 0, s.addr, s.port);
+    if (!prealloc || ret) {
+        return ret;
+    }
+
+    return sd_prealloc(filename);
 }
 
 static void sd_close(BlockDriverState *bs)
@@ -1983,6 +2043,11 @@ static QEMUOptionParameter sd_create_options[] = {
         .name = BLOCK_OPT_BACKING_FILE,
         .type = OPT_STRING,
         .help = "File name of a base image"
+    },
+    {
+        .name = BLOCK_OPT_PREALLOC,
+        .type = OPT_STRING,
+        .help = "Preallocation mode (allowed values: off, full)"
     },
     { NULL }
 };

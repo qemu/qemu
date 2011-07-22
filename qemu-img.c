@@ -1024,35 +1024,6 @@ out:
     return 0;
 }
 
-#ifdef _WIN32
-static int64_t get_allocated_file_size(const char *filename)
-{
-    typedef DWORD (WINAPI * get_compressed_t)(const char *filename, DWORD *high);
-    get_compressed_t get_compressed;
-    struct _stati64 st;
-
-    /* WinNT support GetCompressedFileSize to determine allocate size */
-    get_compressed = (get_compressed_t) GetProcAddress(GetModuleHandle("kernel32"), "GetCompressedFileSizeA");
-    if (get_compressed) {
-    	DWORD high, low;
-    	low = get_compressed(filename, &high);
-    	if (low != 0xFFFFFFFFlu || GetLastError() == NO_ERROR)
-	    return (((int64_t) high) << 32) + low;
-    }
-
-    if (_stati64(filename, &st) < 0)
-        return -1;
-    return st.st_size;
-}
-#else
-static int64_t get_allocated_file_size(const char *filename)
-{
-    struct stat st;
-    if (stat(filename, &st) < 0)
-        return -1;
-    return (int64_t)st.st_blocks * 512;
-}
-#endif
 
 static void dump_snapshots(BlockDriverState *bs)
 {
@@ -1112,7 +1083,7 @@ static int img_info(int argc, char **argv)
     bdrv_get_format(bs, fmt_name, sizeof(fmt_name));
     bdrv_get_geometry(bs, &total_sectors);
     get_human_readable_size(size_buf, sizeof(size_buf), total_sectors * 512);
-    allocated_size = get_allocated_file_size(filename);
+    allocated_size = bdrv_get_allocated_file_size(bs);
     if (allocated_size < 0) {
         snprintf(dsize_buf, sizeof(dsize_buf), "unavailable");
     } else {

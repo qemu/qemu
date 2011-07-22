@@ -104,7 +104,7 @@ static size_t write_to_port(VirtIOSerialPort *port,
         }
 
         len = iov_from_buf(elem.in_sg, elem.in_num,
-                           buf + offset, size - offset);
+                           buf + offset, 0, size - offset);
         offset += len;
 
         virtqueue_push(vq, &elem, len);

@@ -213,6 +213,31 @@ static int64_t raw_getlength(BlockDriverState *bs)
     return l.QuadPart;
 }
 
+static int64_t raw_get_allocated_file_size(BlockDriverState *bs)
+{
+    typedef DWORD (WINAPI * get_compressed_t)(const char *filename,
+                                              DWORD * high);
+    get_compressed_t get_compressed;
+    struct _stati64 st;
+    const char *filename = bs->filename;
+    /* WinNT support GetCompressedFileSize to determine allocate size */
+    get_compressed =
+        (get_compressed_t) GetProcAddress(GetModuleHandle("kernel32"),
+                                            "GetCompressedFileSizeA");
+    if (get_compressed) {
+        DWORD high, low;
+        low = get_compressed(filename, &high);
+        if (low != 0xFFFFFFFFlu || GetLastError() == NO_ERROR) {
+            return (((int64_t) high) << 32) + low;
+        }
+    }
+
+    if (_stati64(filename, &st) < 0) {
+        return -1;
+    }
+    return st.st_size;
+}
+
 static int raw_create(const char *filename, QEMUOptionParameter *options)
 {
     int fd;
@@ -257,6 +282,8 @@ static BlockDriver bdrv_file = {
     .bdrv_write		= raw_write,
     .bdrv_truncate	= raw_truncate,
     .bdrv_getlength	= raw_getlength,
+    .bdrv_get_allocated_file_size
+                        = raw_get_allocated_file_size,
 
     .create_options = raw_create_options,
 };
@@ -419,6 +446,8 @@ static BlockDriver bdrv_host_device = {
     .bdrv_read		= raw_read,
     .bdrv_write	        = raw_write,
     .bdrv_getlength	= raw_getlength,
+    .bdrv_get_allocated_file_size
+                        = raw_get_allocated_file_size,
 };
 
 static void bdrv_file_init(void)

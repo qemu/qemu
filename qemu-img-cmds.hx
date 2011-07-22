@@ -30,7 +30,7 @@ ETEXI
 DEF("convert", img_convert,
     "convert [-c] [-p] [-f fmt] [-t cache] [-O output_fmt] [-o options] [-s snapshot_name] filename [filename2 [...]] output_filename")
 STEXI
-@item convert [-c] [-f @var{fmt}] [-O @var{output_fmt}] [-o @var{options}] [-s @var{snapshot_name}] @var{filename} [@var{filename2} [...]] @var{output_filename}
+@item convert [-c] [-p] [-f @var{fmt}] [-O @var{output_fmt}] [-o @var{options}] [-s @var{snapshot_name}] @var{filename} [@var{filename2} [...]] @var{output_filename}
 ETEXI
 
 DEF("info", img_info,
@@ -48,7 +48,7 @@ ETEXI
 DEF("rebase", img_rebase,
     "rebase [-f fmt] [-t cache] [-p] [-u] -b backing_file [-F backing_fmt] filename")
 STEXI
-@item rebase [-f @var{fmt}] [-u] -b @var{backing_file} [-F @var{backing_fmt}] @var{filename}
+@item rebase [-f @var{fmt}] [-p] [-u] -b @var{backing_file} [-F @var{backing_fmt}] @var{filename}
 ETEXI
 
 DEF("resize", img_resize,

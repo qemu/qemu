@@ -43,6 +43,7 @@ struct SCSIRequest {
     } cmd;
     BlockDriverAIOCB  *aiocb;
     bool enqueued;
+    void *hba_private;
     QTAILQ_ENTRY(SCSIRequest) next;
 };
 
@@ -67,7 +68,8 @@ struct SCSIDeviceInfo {
     DeviceInfo qdev;
     scsi_qdev_initfn init;
     void (*destroy)(SCSIDevice *s);
-    SCSIRequest *(*alloc_req)(SCSIDevice *s, uint32_t tag, uint32_t lun);
+    SCSIRequest *(*alloc_req)(SCSIDevice *s, uint32_t tag, uint32_t lun,
+                              void *hba_private);
     void (*free_req)(SCSIRequest *req);
     int32_t (*send_command)(SCSIRequest *req, uint8_t *buf);
     void (*read_data)(SCSIRequest *req);
@@ -138,8 +140,10 @@ extern const struct SCSISense sense_code_LUN_FAILURE;
 int scsi_build_sense(SCSISense sense, uint8_t *buf, int len, int fixed);
 int scsi_sense_valid(SCSISense sense);
 
-SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag, uint32_t lun);
-SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun);
+SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag,
+                            uint32_t lun, void *hba_private);
+SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
+                          void *hba_private);
 int32_t scsi_req_enqueue(SCSIRequest *req, uint8_t *buf);
 void scsi_req_free(SCSIRequest *req);
 SCSIRequest *scsi_req_ref(SCSIRequest *req);

@@ -705,8 +705,15 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
     BDRVQcowState *s = bs->opaque;
     uint64_t *l1_table, *l2_table, l2_offset, offset, l1_size2, l1_allocated;
     int64_t old_offset, old_l2_offset;
-    int i, j, l1_modified, nb_csectors, refcount;
+    int i, j, l1_modified = 0, nb_csectors, refcount;
     int ret;
+    bool old_l2_writethrough, old_refcount_writethrough;
+
+    /* Switch caches to writeback mode during update */
+    old_l2_writethrough =
+        qcow2_cache_set_writethrough(bs, s->l2_table_cache, false);
+    old_refcount_writethrough =
+        qcow2_cache_set_writethrough(bs, s->refcount_block_cache, false);
 
     l2_table = NULL;
     l1_table = NULL;
@@ -720,7 +727,11 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
         l1_allocated = 1;
         if (bdrv_pread(bs->file, l1_table_offset,
                        l1_table, l1_size2) != l1_size2)
+        {
+            ret = -EIO;
             goto fail;
+        }
+
         for(i = 0;i < l1_size; i++)
             be64_to_cpus(&l1_table[i]);
     } else {
@@ -729,7 +740,6 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
         l1_allocated = 0;
     }
 
-    l1_modified = 0;
     for(i = 0; i < l1_size; i++) {
         l2_offset = l1_table[i];
         if (l2_offset) {
@@ -773,6 +783,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                         }
 
                         if (refcount < 0) {
+                            ret = -EIO;
                             goto fail;
                         }
                     }
@@ -803,6 +814,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                 refcount = get_refcount(bs, l2_offset >> s->cluster_bits);
             }
             if (refcount < 0) {
+                ret = -EIO;
                 goto fail;
             } else if (refcount == 1) {
                 l2_offset |= QCOW_OFLAG_COPIED;
@@ -813,6 +825,18 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
             }
         }
     }
+
+    ret = 0;
+fail:
+    if (l2_table) {
+        qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
+    }
+
+    /* Enable writethrough cache mode again */
+    qcow2_cache_set_writethrough(bs, s->l2_table_cache, old_l2_writethrough);
+    qcow2_cache_set_writethrough(bs, s->refcount_block_cache,
+        old_refcount_writethrough);
+
     if (l1_modified) {
         for(i = 0; i < l1_size; i++)
             cpu_to_be64s(&l1_table[i]);
@@ -824,15 +848,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
     }
     if (l1_allocated)
         qemu_free(l1_table);
-    return 0;
- fail:
-    if (l2_table) {
-        qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
-    }
-
-    if (l1_allocated)
-        qemu_free(l1_table);
-    return -EIO;
+    return ret;
 }
 
 
