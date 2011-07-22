@@ -10,27 +10,23 @@
  * See the COPYING file in the top-level directory.
  */
 
+#if defined(__linux__)
+#define CONFIG_FSFREEZE
+#endif
+
 #include <glib.h>
+#if defined(CONFIG_FSFREEZE)
 #include <mntent.h>
+#include <linux/fs.h>
+#endif
 #include <sys/types.h>
 #include <sys/ioctl.h>
-#include <linux/fs.h>
 #include "qga/guest-agent-core.h"
 #include "qga-qmp-commands.h"
 #include "qerror.h"
 #include "qemu-queue.h"
 
 static GAState *ga_state;
-
-static void disable_logging(void)
-{
-    ga_disable_logging(ga_state);
-}
-
-static void enable_logging(void)
-{
-    ga_enable_logging(ga_state);
-}
 
 /* Note: in some situations, like with the fsfreeze, logging may be
  * temporarilly disabled. if it is necessary that a command be able
@@ -323,6 +319,17 @@ static void guest_file_init(void)
     QTAILQ_INIT(&guest_file_state.filehandles);
 }
 
+#if defined(CONFIG_FSFREEZE)
+static void disable_logging(void)
+{
+    ga_disable_logging(ga_state);
+}
+
+static void enable_logging(void)
+{
+    ga_enable_logging(ga_state);
+}
+
 typedef struct GuestFsfreezeMount {
     char *dirname;
     char *devtype;
@@ -508,11 +515,45 @@ static void guest_fsfreeze_cleanup(void)
         }
     }
 }
+#else
+/*
+ * Return status of freeze/thaw
+ */
+GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **err)
+{
+    error_set(err, QERR_COMMAND_NOT_FOUND, "guest_fsfreeze_status");
+
+    return 0;
+}
+
+/*
+ * Walk list of mounted file systems in the guest, and freeze the ones which
+ * are real local file systems.
+ */
+int64_t qmp_guest_fsfreeze_freeze(Error **err)
+{
+    error_set(err, QERR_COMMAND_NOT_FOUND, "guest_fsfreeze_freeze");
+
+    return 0;
+}
+
+/*
+ * Walk list of frozen file systems in the guest, and thaw them.
+ */
+int64_t qmp_guest_fsfreeze_thaw(Error **err)
+{
+    error_set(err, QERR_COMMAND_NOT_FOUND, "guest_fsfreeze_thaw");
+
+    return 0;
+}
+#endif
 
 /* register init/cleanup routines for stateful command groups */
 void ga_command_state_init(GAState *s, GACommandState *cs)
 {
     ga_state = s;
+#if defined(CONFIG_FSFREEZE)
     ga_command_state_add(cs, guest_fsfreeze_init, guest_fsfreeze_cleanup);
+#endif
     ga_command_state_add(cs, guest_file_init, NULL);
 }
