@@ -1055,17 +1055,6 @@ vcard_emul_replay_insertion_events(void)
 /*
  *  Silly little functions to help parsing our argument string
  */
-static char *
-copy_string(const char *str, int str_len)
-{
-    char *new_str;
-
-    new_str = qemu_malloc(str_len+1);
-    memcpy(new_str, str, str_len);
-    new_str[str_len] = 0;
-    return new_str;
-}
-
 static int
 count_tokens(const char *str, char token, char token_end)
 {
@@ -1184,18 +1173,18 @@ vcard_emul_options(const char *args)
             }
             opts->vreader = vreaderOpt;
             vreaderOpt = &vreaderOpt[opts->vreader_count];
-            vreaderOpt->name = copy_string(name, name_length);
-            vreaderOpt->vname = copy_string(vname, vname_length);
+            vreaderOpt->name = qemu_strndup(name, name_length);
+            vreaderOpt->vname = qemu_strndup(vname, vname_length);
             vreaderOpt->card_type = type;
             vreaderOpt->type_params =
-                copy_string(type_params, type_params_length);
+                qemu_strndup(type_params, type_params_length);
             count = count_tokens(args, ',', ')') + 1;
             vreaderOpt->cert_count = count;
             vreaderOpt->cert_name = (char **)qemu_malloc(count*sizeof(char *));
             for (i = 0; i < count; i++) {
                 const char *cert = args;
                 args = strpbrk(args, ",)");
-                vreaderOpt->cert_name[i] = copy_string(cert, args - cert);
+                vreaderOpt->cert_name[i] = qemu_strndup(cert, args - cert);
                 args = strip(args+1);
             }
             if (*args == ')') {
@@ -1222,7 +1211,7 @@ vcard_emul_options(const char *args)
             args = strip(args+10);
             params = args;
             args = find_blank(args);
-            opts->hw_type_params = copy_string(params, args-params);
+            opts->hw_type_params = qemu_strndup(params, args-params);
         /* db="/data/base/path" */
         } else if (strncmp(args, "db=", 3) == 0) {
             const char *db;
@@ -1233,7 +1222,7 @@ vcard_emul_options(const char *args)
             args++;
             db = args;
             args = strpbrk(args, "\"\n");
-            opts->nss_db = copy_string(db, args-db);
+            opts->nss_db = qemu_strndup(db, args-db);
             if (*args != 0) {
                 args++;
             }
