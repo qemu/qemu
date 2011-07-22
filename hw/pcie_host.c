@@ -57,22 +57,22 @@ static void pcie_mmcfg_data_write(PCIBus *s,
 {
     PCIDevice *pci_dev = pcie_dev_find_by_mmcfg_addr(s, mmcfg_addr);
 
-    if (!pci_dev)
+    if (!pci_dev) {
         return;
-
-    pci_dev->config_write(pci_dev,
-                          PCIE_MMCFG_CONFOFFSET(mmcfg_addr), val, len);
+    }
+    pci_host_config_write_common(pci_dev, PCIE_MMCFG_CONFOFFSET(mmcfg_addr),
+                                 pci_config_size(pci_dev), val, len);
 }
 
 static uint32_t pcie_mmcfg_data_read(PCIBus *s, uint32_t addr, int len)
 {
     PCIDevice *pci_dev = pcie_dev_find_by_mmcfg_addr(s, addr);
 
-    assert(len == 1 || len == 2 || len == 4);
     if (!pci_dev) {
         return ~0x0;
     }
-    return pci_dev->config_read(pci_dev, PCIE_MMCFG_CONFOFFSET(addr), len);
+    return pci_host_config_read_common(pci_dev, PCIE_MMCFG_CONFOFFSET(addr),
+                                       pci_config_size(pci_dev), len);
 }
 
 static void pcie_mmcfg_data_writeb(void *opaque,
