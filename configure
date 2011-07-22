@@ -475,6 +475,7 @@ fi
 
 : ${make=${MAKE-make}}
 : ${install=${INSTALL-install}}
+: ${python=${PYTHON-python}}
 
 if test "$mingw32" = "yes" ; then
   EXESUF=".exe"
@@ -515,6 +516,8 @@ for opt do
   --make=*) make="$optarg"
   ;;
   --install=*) install="$optarg"
+  ;;
+  --python=*) python="$optarg"
   ;;
   --extra-cflags=*)
   ;;
@@ -924,6 +927,7 @@ echo "  --extra-cflags=CFLAGS    append extra C compiler flags QEMU_CFLAGS"
 echo "  --extra-ldflags=LDFLAGS  append extra linker flags LDFLAGS"
 echo "  --make=MAKE              use specified make [$make]"
 echo "  --install=INSTALL        use specified install [$install]"
+echo "  --python=PYTHON          use specified python [$python]"
 echo "  --static                 enable static build [$static]"
 echo "  --mandir=PATH            install man pages in PATH"
 echo "  --datadir=PATH           install firmware in PATH"
@@ -1082,6 +1086,13 @@ if test "$solaris" = "yes" ; then
     fi
     exit 1
   fi
+fi
+
+if has $python; then
+  :
+else
+  echo "Python not found. Use --python=/path/to/python"
+  exit 1
 fi
 
 if test -z "$target_list" ; then
@@ -2591,6 +2602,7 @@ echo "QEMU_CFLAGS       $QEMU_CFLAGS"
 echo "LDFLAGS           $LDFLAGS"
 echo "make              $make"
 echo "install           $install"
+echo "python            $python"
 echo "host CPU          $cpu"
 echo "host big endian   $bigendian"
 echo "target list       $target_list"
@@ -3003,6 +3015,7 @@ echo "INSTALL=$install" >> $config_host_mak
 echo "INSTALL_DIR=$install -d -m0755 -p" >> $config_host_mak
 echo "INSTALL_DATA=$install -m0644 -p" >> $config_host_mak
 echo "INSTALL_PROG=$install -m0755 -p" >> $config_host_mak
+echo "PYTHON=$python" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
 echo "CC_I386=$cc_i386" >> $config_host_mak
 echo "HOST_CC=$host_cc" >> $config_host_mak
