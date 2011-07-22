@@ -700,7 +700,7 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env)
                 break;
             }
             if (TTE_IS_VALID(env->dtlb[i].tte)) {
-                (*cpu_fprintf)(f, "[%02u] VA: %" PRIx64 ", PA: %" PRIx64
+                (*cpu_fprintf)(f, "[%02u] VA: %" PRIx64 ", PA: %llx"
                                ", %s, %s, %s, %s, ctx %" PRId64 " %s\n",
                                i,
                                env->dtlb[i].tag & (uint64_t)~0x1fffULL,
@@ -737,7 +737,7 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env)
                 break;
             }
             if (TTE_IS_VALID(env->itlb[i].tte)) {
-                (*cpu_fprintf)(f, "[%02u] VA: %" PRIx64 ", PA: %" PRIx64
+                (*cpu_fprintf)(f, "[%02u] VA: %" PRIx64 ", PA: %llx"
                                ", %s, %s, %s, ctx %" PRId64 " %s\n",
                                i,
                                env->itlb[i].tag & (uint64_t)~0x1fffULL,
