@@ -1110,8 +1110,6 @@ vcard_emul_options(const char *args)
 {
     int reader_count = 0;
     VCardEmulOptions *opts;
-    char type_str[100];
-    int type_len;
 
     /* Allow the future use of allocating the options structure on the fly */
     memcpy(&options, &default_options, sizeof(options));
@@ -1126,43 +1124,23 @@ vcard_emul_options(const char *args)
          *       cert_2,cert_3...) */
         if (strncmp(args, "soft=", 5) == 0) {
             const char *name;
+            size_t name_length;
             const char *vname;
+            size_t vname_length;
             const char *type_params;
+            size_t type_params_length;
+            char type_str[100];
             VCardEmulType type;
-            int name_length, vname_length, type_params_length, count, i;
+            int count, i;
             VirtualReaderOptions *vreaderOpt = NULL;
 
             args = strip(args + 5);
             if (*args != '(') {
                 continue;
             }
+            args = strip(args+1);
+
             name = args;
-            args = strpbrk(args + 1, ",)");
-            if (*args == 0) {
-                break;
-            }
-            if (*args == ')') {
-                args++;
-                continue;
-            }
-            args = strip(args+1);
-            name_length = args - name - 2;
-            vname = args;
-            args = strpbrk(args + 1, ",)");
-            if (*args == 0) {
-                break;
-            }
-            if (*args == ')') {
-                args++;
-                continue;
-            }
-            vname_length = args - name - 2;
-            args = strip(args+1);
-            type_len = strpbrk(args, ",)") - args;
-            assert(sizeof(type_str) > type_len);
-            strncpy(type_str, args, type_len);
-            type_str[type_len] = 0;
-            type = vcard_emul_type_from_string(type_str);
             args = strpbrk(args, ",)");
             if (*args == 0) {
                 break;
@@ -1171,9 +1149,11 @@ vcard_emul_options(const char *args)
                 args++;
                 continue;
             }
+            name_length = args - name;
             args = strip(args+1);
-            type_params = args;
-            args = strpbrk(args + 1, ",)");
+
+            vname = args;
+            args = strpbrk(args, ",)");
             if (*args == 0) {
                 break;
             }
@@ -1181,8 +1161,38 @@ vcard_emul_options(const char *args)
                 args++;
                 continue;
             }
-            type_params_length = args - name;
+            vname_length = args - vname;
             args = strip(args+1);
+
+            type_params = args;
+            args = strpbrk(args, ",)");
+            if (*args == 0) {
+                break;
+            }
+            if (*args == ')') {
+                args++;
+                continue;
+            }
+            type_params_length = args - type_params;
+            args = strip(args+1);
+
+            type_params_length = MIN(type_params_length, sizeof(type_str)-1);
+            strncpy(type_str, type_params, type_params_length);
+            type_str[type_params_length] = 0;
+            type = vcard_emul_type_from_string(type_str);
+
+            type_params = args;
+            args = strpbrk(args, ",)");
+            if (*args == 0) {
+                break;
+            }
+            if (*args == ')') {
+                args++;
+                continue;
+            }
+            type_params_length = args - type_params;
+            args = strip(args+1);
+
             if (*args == 0) {
                 break;
             }
@@ -1202,13 +1212,14 @@ vcard_emul_options(const char *args)
             vreaderOpt->card_type = type;
             vreaderOpt->type_params =
                 copy_string(type_params, type_params_length);
-            count = count_tokens(args, ',', ')');
+            count = count_tokens(args, ',', ')') + 1;
             vreaderOpt->cert_count = count;
             vreaderOpt->cert_name = (char **)qemu_malloc(count*sizeof(char *));
             for (i = 0; i < count; i++) {
-                const char *cert = args + 1;
-                args = strpbrk(args + 1, ",)");
+                const char *cert = args;
+                args = strpbrk(args, ",)");
                 vreaderOpt->cert_name[i] = copy_string(cert, args - cert);
+                args = strip(args+1);
             }
             if (*args == ')') {
                 args++;
