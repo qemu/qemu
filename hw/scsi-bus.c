@@ -223,7 +223,6 @@ static int scsi_req_length(SCSIRequest *req, uint8_t *cmd)
 
     switch(cmd[0]) {
     case TEST_UNIT_READY:
-    case REZERO_UNIT:
     case START_STOP:
     case SEEK_6:
     case WRITE_FILEMARKS:
@@ -516,8 +515,6 @@ static const char *scsi_command_name(uint8_t cmd)
 {
     static const char *names[] = {
         [ TEST_UNIT_READY          ] = "TEST_UNIT_READY",
-        [ REZERO_UNIT              ] = "REZERO_UNIT",
-        /* REWIND and REZERO_UNIT use the same operation code */
         [ REQUEST_SENSE            ] = "REQUEST_SENSE",
         [ FORMAT_UNIT              ] = "FORMAT_UNIT",
         [ READ_BLOCK_LIMITS        ] = "READ_BLOCK_LIMITS",

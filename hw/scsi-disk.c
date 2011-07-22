@@ -972,12 +972,6 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
         break;
     case VERIFY:
         break;
-    case REZERO_UNIT:
-        DPRINTF("Rezero Unit\n");
-        if (!bdrv_is_inserted(s->bs)) {
-            goto not_ready;
-        }
-        break;
     default:
         scsi_command_complete(r, CHECK_CONDITION, SENSE_CODE(INVALID_OPCODE));
         return -1;
@@ -1059,7 +1053,6 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
     case SERVICE_ACTION_IN:
     case REPORT_LUNS:
     case VERIFY:
-    case REZERO_UNIT:
         rc = scsi_disk_emulate_command(r, outbuf);
         if (rc < 0) {
             return 0;

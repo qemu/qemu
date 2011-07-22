@@ -25,7 +25,6 @@
  */
 
 #define TEST_UNIT_READY       0x00
-#define REZERO_UNIT           0x01
 #define REQUEST_SENSE         0x03
 #define FORMAT_UNIT           0x04
 #define READ_BLOCK_LIMITS     0x05
