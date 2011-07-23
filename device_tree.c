@@ -41,6 +41,7 @@ void *load_device_tree(const char *filename_path, int *sizep)
     }
 
     /* Expand to 2x size to give enough room for manipulation.  */
+    dt_size += 10000;
     dt_size *= 2;
     /* First allocate space in qemu for device tree */
     fdt = g_malloc0(dt_size);
