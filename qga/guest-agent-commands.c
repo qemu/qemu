@@ -10,15 +10,17 @@
  * See the COPYING file in the top-level directory.
  */
 
-#if defined(__linux__)
-#define CONFIG_FSFREEZE
-#endif
-
 #include <glib.h>
-#if defined(CONFIG_FSFREEZE)
+
+#if defined(__linux__)
 #include <mntent.h>
 #include <linux/fs.h>
+
+#if defined(__linux__) && defined(FIFREEZE)
+#define CONFIG_FSFREEZE
 #endif
+#endif
+
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include "qga/guest-agent-core.h"
