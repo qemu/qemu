@@ -1811,9 +1811,9 @@ fi
 
 ##########################################
 # glib support probe
-if $pkg_config --modversion gthread-2.0 gio-2.0 > /dev/null 2>&1 ; then
-    glib_cflags=`$pkg_config --cflags gthread-2.0 gio-2.0 2>/dev/null`
-    glib_libs=`$pkg_config --libs gthread-2.0 gio-2.0 2>/dev/null`
+if $pkg_config --modversion glib-2.0 > /dev/null 2>&1 ; then
+    glib_cflags=`$pkg_config --cflags glib-2.0 2>/dev/null`
+    glib_libs=`$pkg_config --libs glib-2.0 2>/dev/null`
     libs_softmmu="$glib_libs $libs_softmmu"
     libs_tools="$glib_libs $libs_tools"
 else
