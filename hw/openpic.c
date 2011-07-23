@@ -131,11 +131,11 @@ enum {
 #define MPIC_CPU_REG_SIZE         0x100 + ((MAX_CPU - 1) * 0x1000)
 
 enum mpic_ide_bits {
-    IDR_EP     = 0,
-    IDR_CI0     = 1,
-    IDR_CI1     = 2,
-    IDR_P1     = 30,
-    IDR_P0     = 31,
+    IDR_EP     = 31,
+    IDR_CI0     = 30,
+    IDR_CI1     = 29,
+    IDR_P1     = 1,
+    IDR_P0     = 0,
 };
 
 #else
