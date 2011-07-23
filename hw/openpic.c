@@ -952,13 +952,6 @@ static uint32_t openpic_cpu_read_internal(void *opaque, target_phys_addr_t addr,
     case 0xB0: /* PEOI */
         retval = 0;
         break;
-#if MAX_IPI > 0
-    case 0x40: /* IDE */
-    case 0x50:
-        idx = (addr - 0x40) >> 4;
-        retval = read_IRQreg(opp, opp->irq_ipi0 + idx, IRQ_IDE);
-        break;
-#endif
     default:
         break;
     }
