@@ -3980,14 +3980,15 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x062: /* VIS I fnor */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    tcg_gen_nor_i32(cpu_tmp32, cpu_fpr[DFPREG(rs1)],
+                    tcg_gen_nor_i32(cpu_fpr[DFPREG(rd)], cpu_fpr[DFPREG(rs1)],
                                     cpu_fpr[DFPREG(rs2)]);
-                    tcg_gen_nor_i32(cpu_tmp32, cpu_fpr[DFPREG(rs1) + 1],
+                    tcg_gen_nor_i32(cpu_fpr[DFPREG(rd) + 1],
+                                    cpu_fpr[DFPREG(rs1) + 1],
                                     cpu_fpr[DFPREG(rs2) + 1]);
                     break;
                 case 0x063: /* VIS I fnors */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    tcg_gen_nor_i32(cpu_tmp32, cpu_fpr[rs1], cpu_fpr[rs2]);
+                    tcg_gen_nor_i32(cpu_fpr[rd], cpu_fpr[rs1], cpu_fpr[rs2]);
                     break;
                 case 0x064: /* VIS I fandnot2 */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4047,14 +4048,15 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x06e: /* VIS I fnand */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    tcg_gen_nand_i32(cpu_tmp32, cpu_fpr[DFPREG(rs1)],
+                    tcg_gen_nand_i32(cpu_fpr[DFPREG(rd)], cpu_fpr[DFPREG(rs1)],
                                      cpu_fpr[DFPREG(rs2)]);
-                    tcg_gen_nand_i32(cpu_tmp32, cpu_fpr[DFPREG(rs1) + 1],
+                    tcg_gen_nand_i32(cpu_fpr[DFPREG(rd) + 1],
+                                     cpu_fpr[DFPREG(rs1) + 1],
                                      cpu_fpr[DFPREG(rs2) + 1]);
                     break;
                 case 0x06f: /* VIS I fnands */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    tcg_gen_nand_i32(cpu_tmp32, cpu_fpr[rs1], cpu_fpr[rs2]);
+                    tcg_gen_nand_i32(cpu_fpr[rd], cpu_fpr[rs1], cpu_fpr[rs2]);
                     break;
                 case 0x070: /* VIS I fand */
                     CHECK_FPU_FEATURE(dc, VIS1);
