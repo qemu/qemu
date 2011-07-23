@@ -1299,6 +1299,10 @@ static void mpic_reset (void *opaque)
         mpp->src[i].ipvp = 0x80800000;
         mpp->src[i].ide  = 0x00000001;
     }
+    /* Set IDE for IPIs to 0 so we don't get spurious interrupts */
+    for (i = mpp->irq_ipi0; i < (mpp->irq_ipi0 + MAX_IPI); i++) {
+        mpp->src[i].ide = 0;
+    }
     /* Initialise IRQ destinations */
     for (i = 0; i < MAX_CPU; i++) {
         mpp->dst[i].pctp      = 0x0000000F;
