@@ -123,23 +123,43 @@ static int mpc8544_load_device_tree(CPUState *env,
                              hypercall, sizeof(hypercall));
     }
 
-    for (i = 0; i < smp_cpus; i++) {
+    /* We need to generate the cpu nodes in reverse order, so Linux can pick
+       the first node as boot node and be happy */
+    for (i = smp_cpus - 1; i >= 0; i--) {
         char cpu_name[128];
-        uint64_t cpu_release_addr[] = {
-            cpu_to_be64(MPC8544_SPIN_BASE + (i * 0x20))
-        };
+        uint64_t cpu_release_addr = cpu_to_be64(MPC8544_SPIN_BASE + (i * 0x20));
 
-        snprintf(cpu_name, sizeof(cpu_name), "/cpus/PowerPC,8544@%x", i);
+        for (env = first_cpu; env != NULL; env = env->next_cpu) {
+            if (env->cpu_index == i) {
+                break;
+            }
+        }
+
+        if (!env) {
+            continue;
+        }
+
+        snprintf(cpu_name, sizeof(cpu_name), "/cpus/PowerPC,8544@%x", env->cpu_index);
+        qemu_devtree_add_subnode(fdt, cpu_name);
         qemu_devtree_setprop_cell(fdt, cpu_name, "clock-frequency", clock_freq);
         qemu_devtree_setprop_cell(fdt, cpu_name, "timebase-frequency", tb_freq);
-        qemu_devtree_setprop(fdt, cpu_name, "cpu-release-addr",
-                             cpu_release_addr, sizeof(cpu_release_addr));
-    }
-
-    for (i = smp_cpus; i < 32; i++) {
-        char cpu_name[128];
-        snprintf(cpu_name, sizeof(cpu_name), "/cpus/PowerPC,8544@%x", i);
-        qemu_devtree_nop_node(fdt, cpu_name);
+        qemu_devtree_setprop_string(fdt, cpu_name, "device_type", "cpu");
+        qemu_devtree_setprop_cell(fdt, cpu_name, "reg", env->cpu_index);
+        qemu_devtree_setprop_cell(fdt, cpu_name, "d-cache-line-size",
+                                  env->dcache_line_size);
+        qemu_devtree_setprop_cell(fdt, cpu_name, "i-cache-line-size",
+                                  env->icache_line_size);
+        qemu_devtree_setprop_cell(fdt, cpu_name, "d-cache-size", 0x8000);
+        qemu_devtree_setprop_cell(fdt, cpu_name, "i-cache-size", 0x8000);
+        qemu_devtree_setprop_cell(fdt, cpu_name, "bus-frequency", 0);
+        if (env->cpu_index) {
+            qemu_devtree_setprop_string(fdt, cpu_name, "status", "disabled");
+            qemu_devtree_setprop_string(fdt, cpu_name, "enable-method", "spin-table");
+            qemu_devtree_setprop(fdt, cpu_name, "cpu-release-addr",
+                                 &cpu_release_addr, sizeof(cpu_release_addr));
+        } else {
+            qemu_devtree_setprop_string(fdt, cpu_name, "status", "okay");
+        }
     }
 
     ret = rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
