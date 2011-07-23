@@ -76,7 +76,7 @@ static void net_socket_send(void *opaque)
     uint8_t buf1[4096];
     const uint8_t *buf;
 
-    size = recv(s->fd, (void *)buf1, sizeof(buf1), 0);
+    size = qemu_recv(s->fd, buf1, sizeof(buf1), 0);
     if (size < 0) {
         err = socket_error();
         if (err != EWOULDBLOCK)
@@ -138,7 +138,7 @@ static void net_socket_send_dgram(void *opaque)
     NetSocketState *s = opaque;
     int size;
 
-    size = recv(s->fd, (void *)s->buf, sizeof(s->buf), 0);
+    size = qemu_recv(s->fd, s->buf, sizeof(s->buf), 0);
     if (size < 0)
         return;
     if (size == 0) {

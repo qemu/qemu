@@ -1199,7 +1199,7 @@ long vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen)
         }
     } else
 #endif /* CONFIG_VNC_TLS */
-        ret = recv(vs->csock, (void *)data, datalen, 0);
+        ret = qemu_recv(vs->csock, data, datalen, 0);
     VNC_DEBUG("Read wire %p %zd -> %ld\n", data, datalen, ret);
     return vnc_client_io_error(vs, ret, socket_error());
 }

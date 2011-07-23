@@ -1860,7 +1860,7 @@ static void udp_chr_read(void *opaque)
 
     if (s->max_size == 0)
         return;
-    s->bufcnt = recv(s->fd, (void *)s->buf, sizeof(s->buf), 0);
+    s->bufcnt = qemu_recv(s->fd, s->buf, sizeof(s->buf), 0);
     s->bufptr = s->bufcnt;
     if (s->bufcnt <= 0)
         return;
@@ -2078,7 +2078,7 @@ static ssize_t tcp_chr_recv(CharDriverState *chr, char *buf, size_t len)
 static ssize_t tcp_chr_recv(CharDriverState *chr, char *buf, size_t len)
 {
     TCPCharDriver *s = chr->opaque;
-    return recv(s->fd, buf, len, 0);
+    return qemu_recv(s->fd, buf, len, 0);
 }
 #endif
 

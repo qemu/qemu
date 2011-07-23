@@ -200,6 +200,12 @@ int qemu_eventfd(int pipefd[2]);
 int qemu_pipe(int pipefd[2]);
 #endif
 
+#ifdef _WIN32
+#define qemu_recv(sockfd, buf, len, flags) recv(sockfd, (void *)buf, len, flags)
+#else
+#define qemu_recv(sockfd, buf, len, flags) recv(sockfd, buf, len, flags)
+#endif
+
 /* Error handling.  */
 
 void QEMU_NORETURN hw_error(const char *fmt, ...) GCC_FMT_ATTR(1, 2);

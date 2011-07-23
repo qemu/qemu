@@ -496,7 +496,7 @@ static ssize_t recvmsg(int s, struct msghdr *msg, int flags)
     }
     buf = qemu_malloc(size);
 
-    ret = recv(s, buf, size, flags);
+    ret = qemu_recv(s, buf, size, flags);
     if (ret < 0) {
         goto out;
     }
