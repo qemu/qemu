@@ -464,9 +464,14 @@ QemuOptsList qemu_option_rom_opts = {
 
 static QemuOptsList qemu_machine_opts = {
     .name = "machine",
+    .implied_opt_name = "type",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_machine_opts.head),
     .desc = {
         {
+            .name = "type",
+            .type = QEMU_OPT_STRING,
+            .help = "emulated machine"
+        }, {
             .name = "accel",
             .type = QEMU_OPT_STRING,
             .help = "accelerator list",
