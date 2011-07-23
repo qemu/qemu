@@ -27,13 +27,28 @@ STEXI
 Display version information and exit
 ETEXI
 
-DEF("M", HAS_ARG, QEMU_OPTION_M,
-    "-M machine      select emulated machine (-M ? for list)\n", QEMU_ARCH_ALL)
+DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
+    "-machine [type=]name[,prop[=value][,...]]\n"
+    "                selects emulated machine (-machine ? for list)\n"
+    "                property accel=accel1[:accel2[:...]] selects accelerator\n"
+    "                supported accelerators are kvm, xen, tcg (default: tcg)\n",
+    QEMU_ARCH_ALL)
 STEXI
-@item -M @var{machine}
-@findex -M
-Select the emulated @var{machine} (@code{-M ?} for list)
+@item -machine [type=]@var{name}[,prop=@var{value}[,...]]
+@findex -machine
+Select the emulated machine by @var{name}. Use @code{-machine ?} to list
+available machines. Supported machine properties are:
+@table @option
+@item accel=@var{accels1}[:@var{accels2}[:...]]
+This is used to enable an accelerator. Depending on the target architecture,
+kvm, xen, or tcg can be available. By default, tcg is used. If there is more
+than one accelerator specified, the next one is used if the previous one fails
+to initialize.
+@end table
 ETEXI
+
+HXCOMM Deprecated by -machine
+DEF("M", HAS_ARG, QEMU_OPTION_M, "", QEMU_ARCH_ALL)
 
 DEF("cpu", HAS_ARG, QEMU_OPTION_cpu,
     "-cpu cpu        select CPU (-cpu ? for list)\n", QEMU_ARCH_ALL)
@@ -2072,26 +2087,6 @@ STEXI
 @findex -enable-kvm
 Enable KVM full virtualization support. This option is only available
 if KVM support is enabled when compiling.
-ETEXI
-
-DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
-    "-machine [type=]name[,prop[=value][,...]]\n"
-    "                selects emulated machine (-machine ? for list)\n"
-    "                property accel=accel1[:accel2[:...]] selects accelerator\n"
-    "                supported accelerators are kvm, xen, tcg (default: tcg)\n",
-    QEMU_ARCH_ALL)
-STEXI
-@item -machine [type=]@var{name}[,prop=@var{value}[,...]]
-@findex -machine
-Select the emulated machine by @var{name}. Use @code{-machine ?} to list
-available machines. Supported machine properties are:
-@table @option
-@item accel=@var{accels1}[:@var{accels2}[:...]]
-This is used to enable an accelerator. Depending on the target architecture,
-kvm, xen, or tcg can be available. By default, tcg is used. If there is more
-than one accelerator specified, the next one is used if the previous one fails
-to initialize.
-@end table
 ETEXI
 
 DEF("xen-domid", HAS_ARG, QEMU_OPTION_xen_domid,
