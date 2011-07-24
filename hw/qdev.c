@@ -289,6 +289,9 @@ int qdev_init(DeviceState *dev)
                                        dev->alias_required_for_version);
     }
     dev->state = DEV_STATE_INITIALIZED;
+    if (dev->hotplugged && dev->info->reset) {
+        dev->info->reset(dev);
+    }
     return 0;
 }
 
