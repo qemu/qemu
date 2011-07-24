@@ -235,9 +235,16 @@ static int i440fx_pcihost_initfn(SysBusDevice *dev)
 {
     I440FXState *s = FROM_SYSBUS(I440FXState, dev);
 
-    pci_host_conf_register_ioport(0xcf8, s);
+    memory_region_init_io(&s->conf_mem, &pci_host_conf_le_ops, s,
+                          "pci-conf-idx", 4);
+    sysbus_add_io(dev, 0xcf8, &s->conf_mem);
+    sysbus_init_ioports(&s->busdev, 0xcf8, 4);
 
-    pci_host_data_register_ioport(0xcfc, s);
+    memory_region_init_io(&s->data_mem, &pci_host_data_le_ops, s,
+                          "pci-conf-data", 4);
+    sysbus_add_io(dev, 0xcfc, &s->data_mem);
+    sysbus_init_ioports(&s->busdev, 0xcfc, 4);
+
     return 0;
 }
 
