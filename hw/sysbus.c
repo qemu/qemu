@@ -261,3 +261,25 @@ static char *sysbus_get_fw_dev_path(DeviceState *dev)
 
     return strdup(path);
 }
+
+void sysbus_add_memory(SysBusDevice *dev, target_phys_addr_t addr,
+                       MemoryRegion *mem)
+{
+    memory_region_add_subregion(get_system_memory(), addr, mem);
+}
+
+void sysbus_del_memory(SysBusDevice *dev, MemoryRegion *mem)
+{
+    memory_region_del_subregion(get_system_memory(), mem);
+}
+
+void sysbus_add_io(SysBusDevice *dev, target_phys_addr_t addr,
+                       MemoryRegion *mem)
+{
+    memory_region_add_subregion(get_system_io(), addr, mem);
+}
+
+void sysbus_del_io(SysBusDevice *dev, MemoryRegion *mem)
+{
+    memory_region_del_subregion(get_system_io(), mem);
+}

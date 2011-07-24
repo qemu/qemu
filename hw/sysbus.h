@@ -58,6 +58,12 @@ void sysbus_init_ioports(SysBusDevice *dev, pio_addr_t ioport, pio_addr_t size);
 
 void sysbus_connect_irq(SysBusDevice *dev, int n, qemu_irq irq);
 void sysbus_mmio_map(SysBusDevice *dev, int n, target_phys_addr_t addr);
+void sysbus_add_memory(SysBusDevice *dev, target_phys_addr_t addr,
+                       MemoryRegion *mem);
+void sysbus_del_memory(SysBusDevice *dev, MemoryRegion *mem);
+void sysbus_add_io(SysBusDevice *dev, target_phys_addr_t addr,
+                   MemoryRegion *mem);
+void sysbus_del_io(SysBusDevice *dev, MemoryRegion *mem);
 
 /* Legacy helper function for creating devices.  */
 DeviceState *sysbus_create_varargs(const char *name,
