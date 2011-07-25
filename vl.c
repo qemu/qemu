@@ -2724,7 +2724,10 @@ int main(int argc, char **argv, char **envp)
                     fprintf(stderr, "parse error: %s\n", optarg);
                     exit(1);
                 }
-                machine = machine_parse(qemu_opt_get(opts, "type"));
+                optarg = qemu_opt_get(opts, "type");
+                if (optarg) {
+                    machine = machine_parse(optarg);
+                }
                 break;
             case QEMU_OPTION_usb:
                 usb_enabled = 1;
