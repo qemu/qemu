@@ -1200,10 +1200,12 @@ static int add_graphics_client(Monitor *mon, const QDict *qdict, QObject **ret_d
         }
 	qerror_report(QERR_ADD_CLIENT_FAILED);
 	return -1;
+#ifdef CONFIG_VNC
     } else if (strcmp(protocol, "vnc") == 0) {
 	int fd = monitor_get_fd(mon, fdname);
 	vnc_display_add_client(NULL, fd, skipauth);
 	return 0;
+#endif
     } else if ((s = qemu_chr_find(protocol)) != NULL) {
 	int fd = monitor_get_fd(mon, fdname);
 	if (qemu_chr_add_client(s, fd) < 0) {
