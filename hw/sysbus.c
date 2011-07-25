@@ -263,6 +263,13 @@ void sysbus_add_memory(SysBusDevice *dev, target_phys_addr_t addr,
     memory_region_add_subregion(get_system_memory(), addr, mem);
 }
 
+void sysbus_add_memory_overlap(SysBusDevice *dev, target_phys_addr_t addr,
+                               MemoryRegion *mem, unsigned priority)
+{
+    memory_region_add_subregion_overlap(get_system_memory(), addr, mem,
+                                        priority);
+}
+
 void sysbus_del_memory(SysBusDevice *dev, MemoryRegion *mem)
 {
     memory_region_del_subregion(get_system_memory(), mem);
