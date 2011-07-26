@@ -89,6 +89,7 @@ struct MemoryRegion {
     uint64_t size;
     target_phys_addr_t addr;
     target_phys_addr_t offset;
+    bool backend_registered;
     ram_addr_t ram_addr;
     bool terminates;
     MemoryRegion *alias;

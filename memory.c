@@ -165,9 +165,13 @@ static void flatview_simplify(FlatView *view)
     }
 }
 
+static void memory_region_prepare_ram_addr(MemoryRegion *mr);
+
 static void as_memory_range_add(AddressSpace *as, FlatRange *fr)
 {
     ram_addr_t phys_offset, region_offset;
+
+    memory_region_prepare_ram_addr(fr->mr);
 
     phys_offset = fr->mr->ram_addr;
     region_offset = fr->offset_in_region;
@@ -519,6 +523,19 @@ static CPUWriteMemoryFunc * const memory_region_write_thunk[] = {
     memory_region_write_thunk_l,
 };
 
+static void memory_region_prepare_ram_addr(MemoryRegion *mr)
+{
+    if (mr->backend_registered) {
+        return;
+    }
+
+    mr->ram_addr = cpu_register_io_memory(memory_region_read_thunk,
+                                          memory_region_write_thunk,
+                                          mr,
+                                          mr->ops->endianness);
+    mr->backend_registered = true;
+}
+
 void memory_region_init_io(MemoryRegion *mr,
                            const MemoryRegionOps *ops,
                            void *opaque,
@@ -529,10 +546,7 @@ void memory_region_init_io(MemoryRegion *mr,
     mr->ops = ops;
     mr->opaque = opaque;
     mr->terminates = true;
-    mr->ram_addr = cpu_register_io_memory(memory_region_read_thunk,
-                                          memory_region_write_thunk,
-                                          mr,
-                                          mr->ops->endianness);
+    mr->backend_registered = false;
 }
 
 void memory_region_init_ram(MemoryRegion *mr,
@@ -543,6 +557,7 @@ void memory_region_init_ram(MemoryRegion *mr,
     memory_region_init(mr, name, size);
     mr->terminates = true;
     mr->ram_addr = qemu_ram_alloc(dev, name, size);
+    mr->backend_registered = true;
 }
 
 void memory_region_init_ram_ptr(MemoryRegion *mr,
@@ -554,6 +569,7 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
     memory_region_init(mr, name, size);
     mr->terminates = true;
     mr->ram_addr = qemu_ram_alloc_from_ptr(dev, name, size, ptr);
+    mr->backend_registered = true;
 }
 
 void memory_region_init_alias(MemoryRegion *mr,
