@@ -18,6 +18,8 @@
 #include "kvm.h"
 #include <assert.h>
 
+unsigned memory_region_transaction_depth = 0;
+
 typedef struct AddrRange AddrRange;
 
 struct AddrRange {
@@ -626,12 +628,28 @@ static void address_space_update_topology(AddressSpace *as)
 
 static void memory_region_update_topology(void)
 {
+    if (memory_region_transaction_depth) {
+        return;
+    }
+
     if (address_space_memory.root) {
         address_space_update_topology(&address_space_memory);
     }
     if (address_space_io.root) {
         address_space_update_topology(&address_space_io);
     }
+}
+
+void memory_region_transaction_begin(void)
+{
+    ++memory_region_transaction_depth;
+}
+
+void memory_region_transaction_commit(void)
+{
+    assert(memory_region_transaction_depth);
+    --memory_region_transaction_depth;
+    memory_region_update_topology();
 }
 
 void memory_region_init(MemoryRegion *mr,

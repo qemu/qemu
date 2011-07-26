@@ -456,6 +456,14 @@ void memory_region_add_subregion_overlap(MemoryRegion *mr,
 void memory_region_del_subregion(MemoryRegion *mr,
                                  MemoryRegion *subregion);
 
+/* Start a transaction; changes will be accumulated and made visible only
+ * when the transaction ends.
+ */
+void memory_region_transaction_begin(void);
+/* Commit a transaction and make changes visible to the guest.
+ */
+void memory_region_transaction_commit(void);
+
 #endif
 
 #endif
