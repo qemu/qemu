@@ -82,11 +82,25 @@ struct FlatView {
     unsigned nr_allocated;
 };
 
+typedef struct AddressSpace AddressSpace;
+typedef struct AddressSpaceOps AddressSpaceOps;
+
+/* A system address space - I/O, memory, etc. */
+struct AddressSpace {
+    const AddressSpaceOps *ops;
+    MemoryRegion *root;
+    FlatView current_map;
+};
+
+struct AddressSpaceOps {
+    void (*range_add)(AddressSpace *as, FlatRange *fr);
+    void (*range_del)(AddressSpace *as, FlatRange *fr);
+    void (*log_start)(AddressSpace *as, FlatRange *fr);
+    void (*log_stop)(AddressSpace *as, FlatRange *fr);
+};
+
 #define FOR_EACH_FLAT_RANGE(var, view)          \
     for (var = (view)->ranges; var < (view)->ranges + (view)->nr; ++var)
-
-static FlatView current_memory_map;
-static MemoryRegion *root_memory_region;
 
 static bool flatrange_equal(FlatRange *a, FlatRange *b)
 {
@@ -150,6 +164,54 @@ static void flatview_simplify(FlatView *view)
         view->nr -= j - i;
     }
 }
+
+static void as_memory_range_add(AddressSpace *as, FlatRange *fr)
+{
+    ram_addr_t phys_offset, region_offset;
+
+    phys_offset = fr->mr->ram_addr;
+    region_offset = fr->offset_in_region;
+    /* cpu_register_physical_memory_log() wants region_offset for
+     * mmio, but prefers offseting phys_offset for RAM.  Humour it.
+     */
+    if ((phys_offset & ~TARGET_PAGE_MASK) <= IO_MEM_ROM) {
+        phys_offset += region_offset;
+        region_offset = 0;
+    }
+
+    cpu_register_physical_memory_log(fr->addr.start,
+                                     fr->addr.size,
+                                     phys_offset,
+                                     region_offset,
+                                     fr->dirty_log_mask);
+}
+
+static void as_memory_range_del(AddressSpace *as, FlatRange *fr)
+{
+    cpu_register_physical_memory(fr->addr.start, fr->addr.size,
+                                 IO_MEM_UNASSIGNED);
+}
+
+static void as_memory_log_start(AddressSpace *as, FlatRange *fr)
+{
+    cpu_physical_log_start(fr->addr.start, fr->addr.size);
+}
+
+static void as_memory_log_stop(AddressSpace *as, FlatRange *fr)
+{
+    cpu_physical_log_stop(fr->addr.start, fr->addr.size);
+}
+
+static const AddressSpaceOps address_space_ops_memory = {
+    .range_add = as_memory_range_add,
+    .range_del = as_memory_range_del,
+    .log_start = as_memory_log_start,
+    .log_stop = as_memory_log_stop,
+};
+
+static AddressSpace address_space_memory = {
+    .ops = &address_space_ops_memory,
+};
 
 /* Render a memory region into the global view.  Ranges in @view obscure
  * ranges in @mr.
@@ -243,13 +305,12 @@ static FlatView generate_memory_topology(MemoryRegion *mr)
     return view;
 }
 
-static void memory_region_update_topology(void)
+static void address_space_update_topology(AddressSpace *as)
 {
-    FlatView old_view = current_memory_map;
-    FlatView new_view = generate_memory_topology(root_memory_region);
+    FlatView old_view = as->current_map;
+    FlatView new_view = generate_memory_topology(as->root);
     unsigned iold, inew;
     FlatRange *frold, *frnew;
-    ram_addr_t phys_offset, region_offset;
 
     /* Generate a symmetric difference of the old and new memory maps.
      * Kill ranges in the old map, and instantiate ranges in the new map.
@@ -274,16 +335,15 @@ static void memory_region_update_topology(void)
                     && !flatrange_equal(frold, frnew)))) {
             /* In old, but (not in new, or in new but attributes changed). */
 
-            cpu_register_physical_memory(frold->addr.start, frold->addr.size,
-                                         IO_MEM_UNASSIGNED);
+            as->ops->range_del(as, frold);
             ++iold;
         } else if (frold && frnew && flatrange_equal(frold, frnew)) {
             /* In both (logging may have changed) */
 
             if (frold->dirty_log_mask && !frnew->dirty_log_mask) {
-                cpu_physical_log_stop(frnew->addr.start, frnew->addr.size);
+                as->ops->log_stop(as, frnew);
             } else if (frnew->dirty_log_mask && !frold->dirty_log_mask) {
-                cpu_physical_log_start(frnew->addr.start, frnew->addr.size);
+                as->ops->log_start(as, frnew);
             }
 
             ++iold;
@@ -291,26 +351,17 @@ static void memory_region_update_topology(void)
         } else {
             /* In new */
 
-            phys_offset = frnew->mr->ram_addr;
-            region_offset = frnew->offset_in_region;
-            /* cpu_register_physical_memory_log() wants region_offset for
-             * mmio, but prefers offseting phys_offset for RAM.  Humour it.
-             */
-            if ((phys_offset & ~TARGET_PAGE_MASK) <= IO_MEM_ROM) {
-                phys_offset += region_offset;
-                region_offset = 0;
-            }
-
-            cpu_register_physical_memory_log(frnew->addr.start,
-                                             frnew->addr.size,
-                                             phys_offset,
-                                             region_offset,
-                                             frnew->dirty_log_mask);
+            as->ops->range_add(as, frnew);
             ++inew;
         }
     }
-    current_memory_map = new_view;
+    as->current_map = new_view;
     flatview_destroy(&old_view);
+}
+
+static void memory_region_update_topology(void)
+{
+    address_space_update_topology(&address_space_memory);
 }
 
 void memory_region_init(MemoryRegion *mr,
@@ -558,7 +609,7 @@ void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
 {
     FlatRange *fr;
 
-    FOR_EACH_FLAT_RANGE(fr, &current_memory_map) {
+    FOR_EACH_FLAT_RANGE(fr, &address_space_memory.current_map) {
         if (fr->mr == mr) {
             cpu_physical_sync_dirty_bitmap(fr->addr.start,
                                            fr->addr.start + fr->addr.size);
@@ -597,7 +648,7 @@ static void memory_region_update_coalesced_range(MemoryRegion *mr)
     CoalescedMemoryRange *cmr;
     AddrRange tmp;
 
-    FOR_EACH_FLAT_RANGE(fr, &current_memory_map) {
+    FOR_EACH_FLAT_RANGE(fr, &address_space_memory.current_map) {
         if (fr->mr == mr) {
             qemu_unregister_coalesced_mmio(fr->addr.start, fr->addr.size);
             QTAILQ_FOREACH(cmr, &mr->coalesced, link) {
@@ -707,6 +758,6 @@ void memory_region_del_subregion(MemoryRegion *mr,
 
 void set_system_memory_map(MemoryRegion *mr)
 {
-    root_memory_region = mr;
+    address_space_memory.root = mr;
     memory_region_update_topology();
 }
