@@ -218,6 +218,21 @@ static AddressSpace address_space_memory = {
     .ops = &address_space_ops_memory,
 };
 
+static const MemoryRegionPortio *find_portio(MemoryRegion *mr, uint64_t offset,
+                                             unsigned width, bool write)
+{
+    const MemoryRegionPortio *mrp;
+
+    for (mrp = mr->ops->old_portio; mrp->size; ++mrp) {
+        if (offset >= mrp->offset && offset < mrp->offset + mrp->len
+            && width == mrp->size
+            && (write ? (bool)mrp->write : (bool)mrp->read)) {
+            return mrp;
+        }
+    }
+    return NULL;
+}
+
 static void memory_region_iorange_read(IORange *iorange,
                                        uint64_t offset,
                                        unsigned width,
@@ -225,6 +240,15 @@ static void memory_region_iorange_read(IORange *iorange,
 {
     MemoryRegion *mr = container_of(iorange, MemoryRegion, iorange);
 
+    if (mr->ops->old_portio) {
+        const MemoryRegionPortio *mrp = find_portio(mr, offset, width, false);
+
+        *data = ((uint64_t)1 << (width * 8)) - 1;
+        if (mrp) {
+            *data = mrp->read(mr->opaque, offset - mrp->offset);
+        }
+        return;
+    }
     *data = mr->ops->read(mr->opaque, offset, width);
 }
 
@@ -235,6 +259,14 @@ static void memory_region_iorange_write(IORange *iorange,
 {
     MemoryRegion *mr = container_of(iorange, MemoryRegion, iorange);
 
+    if (mr->ops->old_portio) {
+        const MemoryRegionPortio *mrp = find_portio(mr, offset, width, true);
+
+        if (mrp) {
+            mrp->write(mr->opaque, offset - mrp->offset, data);
+        }
+        return;
+    }
     mr->ops->write(mr->opaque, offset, data, width);
 }
 

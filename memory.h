@@ -23,9 +23,11 @@
 #include "targphys.h"
 #include "qemu-queue.h"
 #include "iorange.h"
+#include "ioport.h"
 
 typedef struct MemoryRegionOps MemoryRegionOps;
 typedef struct MemoryRegion MemoryRegion;
+typedef struct MemoryRegionPortio MemoryRegionPortio;
 
 /* Must match *_DIRTY_FLAGS in cpu-all.h.  To be replaced with dynamic
  * registration.
@@ -78,6 +80,11 @@ struct MemoryRegionOps {
          */
          bool unaligned;
     } impl;
+
+    /* If .read and .write are not present, old_portio may be used for
+     * backwards compatibility with old portio registration
+     */
+    const MemoryRegionPortio *old_portio;
 };
 
 typedef struct CoalescedMemoryRange CoalescedMemoryRange;
@@ -104,6 +111,16 @@ struct MemoryRegion {
     const char *name;
     uint8_t dirty_log_mask;
 };
+
+struct MemoryRegionPortio {
+    uint32_t offset;
+    uint32_t len;
+    unsigned size;
+    IOPortReadFunc *read;
+    IOPortWriteFunc *write;
+};
+
+#define PORTIO_END { }
 
 /**
  * memory_region_init: Initialize a memory region
