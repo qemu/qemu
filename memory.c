@@ -251,7 +251,7 @@ static void render_memory_region(FlatView *view,
         render_memory_region(view, subregion, base, clip);
     }
 
-    if (!mr->has_ram_addr) {
+    if (!mr->terminates) {
         return;
     }
 
@@ -373,7 +373,7 @@ void memory_region_init(MemoryRegion *mr,
     mr->size = size;
     mr->addr = 0;
     mr->offset = 0;
-    mr->has_ram_addr = false;
+    mr->terminates = false;
     mr->priority = 0;
     mr->may_overlap = false;
     mr->alias = NULL;
@@ -528,7 +528,7 @@ void memory_region_init_io(MemoryRegion *mr,
     memory_region_init(mr, name, size);
     mr->ops = ops;
     mr->opaque = opaque;
-    mr->has_ram_addr = true;
+    mr->terminates = true;
     mr->ram_addr = cpu_register_io_memory(memory_region_read_thunk,
                                           memory_region_write_thunk,
                                           mr,
@@ -541,7 +541,7 @@ void memory_region_init_ram(MemoryRegion *mr,
                             uint64_t size)
 {
     memory_region_init(mr, name, size);
-    mr->has_ram_addr = true;
+    mr->terminates = true;
     mr->ram_addr = qemu_ram_alloc(dev, name, size);
 }
 
@@ -552,7 +552,7 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
                                 void *ptr)
 {
     memory_region_init(mr, name, size);
-    mr->has_ram_addr = true;
+    mr->terminates = true;
     mr->ram_addr = qemu_ram_alloc_from_ptr(dev, name, size, ptr);
 }
 
@@ -595,13 +595,13 @@ void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
 bool memory_region_get_dirty(MemoryRegion *mr, target_phys_addr_t addr,
                              unsigned client)
 {
-    assert(mr->has_ram_addr);
+    assert(mr->terminates);
     return cpu_physical_memory_get_dirty(mr->ram_addr + addr, 1 << client);
 }
 
 void memory_region_set_dirty(MemoryRegion *mr, target_phys_addr_t addr)
 {
-    assert(mr->has_ram_addr);
+    assert(mr->terminates);
     return cpu_physical_memory_set_dirty(mr->ram_addr + addr);
 }
 
@@ -625,7 +625,7 @@ void memory_region_set_readonly(MemoryRegion *mr, bool readonly)
 void memory_region_reset_dirty(MemoryRegion *mr, target_phys_addr_t addr,
                                target_phys_addr_t size, unsigned client)
 {
-    assert(mr->has_ram_addr);
+    assert(mr->terminates);
     cpu_physical_memory_reset_dirty(mr->ram_addr + addr,
                                     mr->ram_addr + addr + size,
                                     1 << client);
@@ -637,7 +637,7 @@ void *memory_region_get_ram_ptr(MemoryRegion *mr)
         return memory_region_get_ram_ptr(mr->alias) + mr->alias_offset;
     }
 
-    assert(mr->has_ram_addr);
+    assert(mr->terminates);
 
     return qemu_get_ram_ptr(mr->ram_addr);
 }

@@ -90,7 +90,7 @@ struct MemoryRegion {
     target_phys_addr_t addr;
     target_phys_addr_t offset;
     ram_addr_t ram_addr;
-    bool has_ram_addr;
+    bool terminates;
     MemoryRegion *alias;
     target_phys_addr_t alias_offset;
     unsigned priority;
