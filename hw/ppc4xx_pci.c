@@ -24,6 +24,7 @@
 #include "ppc4xx.h"
 #include "pci.h"
 #include "pci_host.h"
+#include "exec-memory.h"
 
 #undef DEBUG
 #ifdef DEBUG
@@ -345,7 +346,9 @@ PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
     controller->pci_state.bus = pci_register_bus(NULL, "pci",
                                                  ppc4xx_pci_set_irq,
                                                  ppc4xx_pci_map_irq,
-                                                 pci_irqs, 0, 4);
+                                                 pci_irqs,
+                                                 get_system_memory(),
+                                                 0, 4);
 
     controller->pci_dev = pci_register_device(controller->pci_state.bus,
                                               "host bridge", sizeof(PCIDevice),

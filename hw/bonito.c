@@ -42,6 +42,7 @@
 #include "mips.h"
 #include "pci_host.h"
 #include "sysemu.h"
+#include "exec-memory.h"
 
 //#define DEBUG_BONITO
 
@@ -773,7 +774,8 @@ PCIBus *bonito_init(qemu_irq *pic)
     dev = qdev_create(NULL, "Bonito-pcihost");
     pcihost = FROM_SYSBUS(BonitoState, sysbus_from_qdev(dev));
     b = pci_register_bus(&pcihost->busdev.qdev, "pci", pci_bonito_set_irq,
-                         pci_bonito_map_irq, pic, 0x28, 32);
+                         pci_bonito_map_irq, pic, get_system_memory(),
+                         0x28, 32);
     pcihost->bus = b;
     qdev_init_nofail(dev);
 

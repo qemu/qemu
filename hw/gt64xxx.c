@@ -27,6 +27,7 @@
 #include "pci.h"
 #include "pci_host.h"
 #include "pc.h"
+#include "exec-memory.h"
 
 //#define DEBUG
 
@@ -1092,7 +1093,8 @@ PCIBus *gt64120_register(qemu_irq *pic)
     d = FROM_SYSBUS(GT64120State, s);
     d->pci.bus = pci_register_bus(&d->busdev.qdev, "pci",
                                   gt64120_pci_set_irq, gt64120_pci_map_irq,
-                                  pic, PCI_DEVFN(18, 0), 4);
+                                  pic, get_system_memory(),
+                                  PCI_DEVFN(18, 0), 4);
     d->ISD_handle = cpu_register_io_memory(gt64120_read, gt64120_write, d,
                                            DEVICE_NATIVE_ENDIAN);
 

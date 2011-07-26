@@ -201,7 +201,7 @@ static int pci_unin_internal_init_device(SysBusDevice *dev)
     return 0;
 }
 
-PCIBus *pci_pmac_init(qemu_irq *pic)
+PCIBus *pci_pmac_init(qemu_irq *pic, MemoryRegion *address_space)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -215,7 +215,8 @@ PCIBus *pci_pmac_init(qemu_irq *pic)
     d = FROM_SYSBUS(UNINState, s);
     d->host_state.bus = pci_register_bus(&d->busdev.qdev, "pci",
                                          pci_unin_set_irq, pci_unin_map_irq,
-                                         pic, PCI_DEVFN(11, 0), 4);
+                                         pic, address_space,
+                                         PCI_DEVFN(11, 0), 4);
 
 #if 0
     pci_create_simple(d->host_state.bus, PCI_DEVFN(11, 0), "uni-north");
@@ -252,7 +253,7 @@ PCIBus *pci_pmac_init(qemu_irq *pic)
     return d->host_state.bus;
 }
 
-PCIBus *pci_pmac_u3_init(qemu_irq *pic)
+PCIBus *pci_pmac_u3_init(qemu_irq *pic, MemoryRegion *address_space)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -267,7 +268,8 @@ PCIBus *pci_pmac_u3_init(qemu_irq *pic)
 
     d->host_state.bus = pci_register_bus(&d->busdev.qdev, "pci",
                                          pci_unin_set_irq, pci_unin_map_irq,
-                                         pic, PCI_DEVFN(11, 0), 4);
+                                         pic, address_space,
+                                         PCI_DEVFN(11, 0), 4);
 
     sysbus_mmio_map(s, 0, 0xf0800000);
     sysbus_mmio_map(s, 1, 0xf0c00000);

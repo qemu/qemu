@@ -35,6 +35,7 @@ struct PCIHostState {
     SysBusDevice busdev;
     ReadWriteHandler conf_handler;
     ReadWriteHandler data_handler;
+    MemoryRegion *address_space;
     uint32_t config_reg;
     PCIBus *bus;
 };

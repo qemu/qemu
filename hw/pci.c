@@ -263,11 +263,14 @@ int pci_find_domain(const PCIBus *bus)
 }
 
 void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
-                         const char *name, uint8_t devfn_min)
+                         const char *name,
+                         MemoryRegion *address_space,
+                         uint8_t devfn_min)
 {
     qbus_create_inplace(&bus->qbus, &pci_bus_info, parent, name);
     assert(PCI_FUNC(devfn_min) == 0);
     bus->devfn_min = devfn_min;
+    bus->address_space = address_space;
 
     /* host bridge */
     QLIST_INIT(&bus->child);
@@ -276,13 +279,14 @@ void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
     vmstate_register(NULL, -1, &vmstate_pcibus, bus);
 }
 
-PCIBus *pci_bus_new(DeviceState *parent, const char *name, uint8_t devfn_min)
+PCIBus *pci_bus_new(DeviceState *parent, const char *name,
+                    MemoryRegion *address_space, uint8_t devfn_min)
 {
     PCIBus *bus;
 
     bus = qemu_mallocz(sizeof(*bus));
     bus->qbus.qdev_allocated = 1;
-    pci_bus_new_inplace(bus, parent, name, devfn_min);
+    pci_bus_new_inplace(bus, parent, name, address_space, devfn_min);
     return bus;
 }
 
@@ -310,11 +314,13 @@ void pci_bus_set_mem_base(PCIBus *bus, target_phys_addr_t base)
 
 PCIBus *pci_register_bus(DeviceState *parent, const char *name,
                          pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
-                         void *irq_opaque, uint8_t devfn_min, int nirq)
+                         void *irq_opaque,
+                         MemoryRegion *address_space,
+                         uint8_t devfn_min, int nirq)
 {
     PCIBus *bus;
 
-    bus = pci_bus_new(parent, name, devfn_min);
+    bus = pci_bus_new(parent, name, address_space, devfn_min);
     pci_bus_irqs(bus, set_irq, map_irq, irq_opaque, nirq);
     return bus;
 }
