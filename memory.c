@@ -69,6 +69,7 @@ struct FlatRange {
     MemoryRegion *mr;
     target_phys_addr_t offset_in_region;
     AddrRange addr;
+    uint8_t dirty_log_mask;
 };
 
 /* Flattened global view of current active memory hierarchy.  Kept in sorted
@@ -177,6 +178,7 @@ static void render_memory_region(FlatView *view,
             fr.mr = mr;
             fr.offset_in_region = offset_in_region;
             fr.addr = addrrange_make(base, now);
+            fr.dirty_log_mask = mr->dirty_log_mask;
             flatview_insert(view, i, &fr);
             ++i;
             base += now;
@@ -194,6 +196,7 @@ static void render_memory_region(FlatView *view,
         fr.mr = mr;
         fr.offset_in_region = offset_in_region;
         fr.addr = addrrange_make(base, remain);
+        fr.dirty_log_mask = mr->dirty_log_mask;
         flatview_insert(view, i, &fr);
     }
 }
@@ -247,9 +250,14 @@ static void memory_region_update_topology(void)
         } else if (frold && frnew && flatrange_equal(frold, frnew)) {
             /* In both (logging may have changed) */
 
+            if (frold->dirty_log_mask && !frnew->dirty_log_mask) {
+                cpu_physical_log_stop(frnew->addr.start, frnew->addr.size);
+            } else if (frnew->dirty_log_mask && !frold->dirty_log_mask) {
+                cpu_physical_log_start(frnew->addr.start, frnew->addr.size);
+            }
+
             ++iold;
             ++inew;
-            /* FIXME: dirty logging */
         } else {
             /* In new */
 
@@ -267,7 +275,7 @@ static void memory_region_update_topology(void)
                                              frnew->addr.size,
                                              phys_offset,
                                              region_offset,
-                                             0);
+                                             frnew->dirty_log_mask);
             ++inew;
         }
     }
@@ -292,6 +300,7 @@ void memory_region_init(MemoryRegion *mr,
     memset(&mr->subregions_link, 0, sizeof mr->subregions_link);
     QTAILQ_INIT(&mr->coalesced);
     mr->name = qemu_strdup(name);
+    mr->dirty_log_mask = 0;
 }
 
 static bool memory_region_access_valid(MemoryRegion *mr,
@@ -496,24 +505,35 @@ void memory_region_set_offset(MemoryRegion *mr, target_phys_addr_t offset)
 
 void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
 {
-    /* FIXME */
+    uint8_t mask = 1 << client;
+
+    mr->dirty_log_mask = (mr->dirty_log_mask & ~mask) | (log * mask);
+    memory_region_update_topology();
 }
 
 bool memory_region_get_dirty(MemoryRegion *mr, target_phys_addr_t addr,
                              unsigned client)
 {
-    /* FIXME */
-    return true;
+    assert(mr->has_ram_addr);
+    return cpu_physical_memory_get_dirty(mr->ram_addr + addr, 1 << client);
 }
 
 void memory_region_set_dirty(MemoryRegion *mr, target_phys_addr_t addr)
 {
-    /* FIXME */
+    assert(mr->has_ram_addr);
+    return cpu_physical_memory_set_dirty(mr->ram_addr + addr);
 }
 
 void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
 {
-    /* FIXME */
+    FlatRange *fr;
+
+    FOR_EACH_FLAT_RANGE(fr, &current_memory_map) {
+        if (fr->mr == mr) {
+            cpu_physical_sync_dirty_bitmap(fr->addr.start,
+                                           fr->addr.start + fr->addr.size);
+        }
+    }
 }
 
 void memory_region_set_readonly(MemoryRegion *mr, bool readonly)
@@ -524,7 +544,10 @@ void memory_region_set_readonly(MemoryRegion *mr, bool readonly)
 void memory_region_reset_dirty(MemoryRegion *mr, target_phys_addr_t addr,
                                target_phys_addr_t size, unsigned client)
 {
-    /* FIXME */
+    assert(mr->has_ram_addr);
+    cpu_physical_memory_reset_dirty(mr->ram_addr + addr,
+                                    mr->ram_addr + addr + size,
+                                    1 << client);
 }
 
 void *memory_region_get_ram_ptr(MemoryRegion *mr)

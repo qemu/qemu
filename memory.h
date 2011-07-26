@@ -99,6 +99,7 @@ struct MemoryRegion {
     QTAILQ_ENTRY(MemoryRegion) subregions_link;
     QTAILQ_HEAD(coalesced_ranges, CoalescedMemoryRange) coalesced;
     const char *name;
+    uint8_t dirty_log_mask;
 };
 
 /**
