@@ -2,6 +2,7 @@
 #define HW_PC_H
 
 #include "qemu-common.h"
+#include "memory.h"
 #include "ioport.h"
 #include "isa.h"
 #include "fdc.h"
