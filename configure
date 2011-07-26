@@ -179,6 +179,7 @@ smartcard=""
 smartcard_nss=""
 usb_redir=""
 opengl=""
+zlib="yes"
 
 # parse CC options first
 for opt do
@@ -751,6 +752,8 @@ for opt do
   ;;
   --enable-usb-redir) usb_redir="yes"
   ;;
+  --disable-zlib-test) zlib="no"
+  ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
   esac
@@ -1190,18 +1193,20 @@ fi
 ##########################################
 # zlib check
 
-cat > $TMPC << EOF
+if test "$zlib" != "no" ; then
+    cat > $TMPC << EOF
 #include <zlib.h>
 int main(void) { zlibVersion(); return 0; }
 EOF
-if compile_prog "" "-lz" ; then
-    :
-else
-    echo
-    echo "Error: zlib check failed"
-    echo "Make sure to have the zlib libs and headers installed."
-    echo
-    exit 1
+    if compile_prog "" "-lz" ; then
+        :
+    else
+        echo
+        echo "Error: zlib check failed"
+        echo "Make sure to have the zlib libs and headers installed."
+        echo
+        exit 1
+    fi
 fi
 
 ##########################################
