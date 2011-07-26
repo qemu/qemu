@@ -12,6 +12,7 @@
  */
 
 #include "memory.h"
+#include "exec-memory.h"
 #include <assert.h>
 
 typedef struct AddrRange AddrRange;
@@ -701,5 +702,11 @@ void memory_region_del_subregion(MemoryRegion *mr,
     assert(subregion->parent == mr);
     subregion->parent = NULL;
     QTAILQ_REMOVE(&mr->subregions, subregion, subregions_link);
+    memory_region_update_topology();
+}
+
+void set_system_memory_map(MemoryRegion *mr)
+{
+    root_memory_region = mr;
     memory_region_update_topology();
 }
