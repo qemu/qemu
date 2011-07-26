@@ -14,6 +14,7 @@
 #include "memory.h"
 #include "exec-memory.h"
 #include "ioport.h"
+#include "bitops.h"
 #include <assert.h>
 
 typedef struct AddrRange AddrRange;
@@ -506,6 +507,10 @@ static uint32_t memory_region_read_thunk_n(void *_mr,
         return -1U; /* FIXME: better signalling */
     }
 
+    if (!mr->ops->read) {
+        return mr->ops->old_mmio.read[bitops_ffsl(size)](mr->opaque, addr);
+    }
+
     /* FIXME: support unaligned access */
 
     access_size_min = mr->ops->impl.min_access_size;
@@ -540,6 +545,11 @@ static void memory_region_write_thunk_n(void *_mr,
 
     if (!memory_region_access_valid(mr, addr, size)) {
         return; /* FIXME: better signalling */
+    }
+
+    if (!mr->ops->write) {
+        mr->ops->old_mmio.write[bitops_ffsl(size)](mr->opaque, addr, data);
+        return;
     }
 
     /* FIXME: support unaligned access */
