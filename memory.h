@@ -98,6 +98,7 @@ struct MemoryRegionOps {
 };
 
 typedef struct CoalescedMemoryRange CoalescedMemoryRange;
+typedef struct MemoryRegionIoeventfd MemoryRegionIoeventfd;
 
 struct MemoryRegion {
     /* All fields are private - violators will be prosecuted */
@@ -120,6 +121,8 @@ struct MemoryRegion {
     QTAILQ_HEAD(coalesced_ranges, CoalescedMemoryRange) coalesced;
     const char *name;
     uint8_t dirty_log_mask;
+    unsigned ioeventfd_nb;
+    MemoryRegionIoeventfd *ioeventfds;
 };
 
 struct MemoryRegionPortio {
@@ -363,6 +366,48 @@ void memory_region_add_coalescing(MemoryRegion *mr,
  */
 void memory_region_clear_coalescing(MemoryRegion *mr);
 
+/**
+ * memory_region_add_eventfd: Request an eventfd to be triggered when a word
+ *                            is written to a location.
+ *
+ * Marks a word in an IO region (initialized with memory_region_init_io())
+ * as a trigger for an eventfd event.  The I/O callback will not be called.
+ * The caller must be prepared to handle failure (hat is, take the required
+ * action if the callback _is_ called).
+ *
+ * @mr: the memory region being updated.
+ * @addr: the address within @mr that is to be monitored
+ * @size: the size of the access to trigger the eventfd
+ * @match_data: whether to match against @data, instead of just @addr
+ * @data: the data to match against the guest write
+ * @fd: the eventfd to be triggered when @addr, @size, and @data all match.
+ **/
+void memory_region_add_eventfd(MemoryRegion *mr,
+                               target_phys_addr_t addr,
+                               unsigned size,
+                               bool match_data,
+                               uint64_t data,
+                               int fd);
+
+/**
+ * memory_region_del_eventfd: Cancel and eventfd.
+ *
+ * Cancels an eventfd trigger request by a previous memory_region_add_eventfd()
+ * call.
+ *
+ * @mr: the memory region being updated.
+ * @addr: the address within @mr that is to be monitored
+ * @size: the size of the access to trigger the eventfd
+ * @match_data: whether to match against @data, instead of just @addr
+ * @data: the data to match against the guest write
+ * @fd: the eventfd to be triggered when @addr, @size, and @data all match.
+ */
+void memory_region_del_eventfd(MemoryRegion *mr,
+                               target_phys_addr_t addr,
+                               unsigned size,
+                               bool match_data,
+                               uint64_t data,
+                               int fd);
 /**
  * memory_region_add_subregion: Add a sub-region to a container.
  *

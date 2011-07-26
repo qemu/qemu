@@ -15,6 +15,7 @@
 #include "exec-memory.h"
 #include "ioport.h"
 #include "bitops.h"
+#include "kvm.h"
 #include <assert.h>
 
 typedef struct AddrRange AddrRange;
@@ -64,6 +65,50 @@ struct CoalescedMemoryRange {
     QTAILQ_ENTRY(CoalescedMemoryRange) link;
 };
 
+struct MemoryRegionIoeventfd {
+    AddrRange addr;
+    bool match_data;
+    uint64_t data;
+    int fd;
+};
+
+static bool memory_region_ioeventfd_before(MemoryRegionIoeventfd a,
+                                           MemoryRegionIoeventfd b)
+{
+    if (a.addr.start < b.addr.start) {
+        return true;
+    } else if (a.addr.start > b.addr.start) {
+        return false;
+    } else if (a.addr.size < b.addr.size) {
+        return true;
+    } else if (a.addr.size > b.addr.size) {
+        return false;
+    } else if (a.match_data < b.match_data) {
+        return true;
+    } else  if (a.match_data > b.match_data) {
+        return false;
+    } else if (a.match_data) {
+        if (a.data < b.data) {
+            return true;
+        } else if (a.data > b.data) {
+            return false;
+        }
+    }
+    if (a.fd < b.fd) {
+        return true;
+    } else if (a.fd > b.fd) {
+        return false;
+    }
+    return false;
+}
+
+static bool memory_region_ioeventfd_equal(MemoryRegionIoeventfd a,
+                                          MemoryRegionIoeventfd b)
+{
+    return !memory_region_ioeventfd_before(a, b)
+        && !memory_region_ioeventfd_before(b, a);
+}
+
 typedef struct FlatRange FlatRange;
 typedef struct FlatView FlatView;
 
@@ -92,6 +137,8 @@ struct AddressSpace {
     const AddressSpaceOps *ops;
     MemoryRegion *root;
     FlatView current_map;
+    int ioeventfd_nb;
+    MemoryRegionIoeventfd *ioeventfds;
 };
 
 struct AddressSpaceOps {
@@ -99,6 +146,8 @@ struct AddressSpaceOps {
     void (*range_del)(AddressSpace *as, FlatRange *fr);
     void (*log_start)(AddressSpace *as, FlatRange *fr);
     void (*log_stop)(AddressSpace *as, FlatRange *fr);
+    void (*ioeventfd_add)(AddressSpace *as, MemoryRegionIoeventfd *fd);
+    void (*ioeventfd_del)(AddressSpace *as, MemoryRegionIoeventfd *fd);
 };
 
 #define FOR_EACH_FLAT_RANGE(var, view)          \
@@ -208,11 +257,35 @@ static void as_memory_log_stop(AddressSpace *as, FlatRange *fr)
     cpu_physical_log_stop(fr->addr.start, fr->addr.size);
 }
 
+static void as_memory_ioeventfd_add(AddressSpace *as, MemoryRegionIoeventfd *fd)
+{
+    int r;
+
+    assert(fd->match_data && fd->addr.size == 4);
+
+    r = kvm_set_ioeventfd_mmio_long(fd->fd, fd->addr.start, fd->data, true);
+    if (r < 0) {
+        abort();
+    }
+}
+
+static void as_memory_ioeventfd_del(AddressSpace *as, MemoryRegionIoeventfd *fd)
+{
+    int r;
+
+    r = kvm_set_ioeventfd_mmio_long(fd->fd, fd->addr.start, fd->data, false);
+    if (r < 0) {
+        abort();
+    }
+}
+
 static const AddressSpaceOps address_space_ops_memory = {
     .range_add = as_memory_range_add,
     .range_del = as_memory_range_del,
     .log_start = as_memory_log_start,
     .log_stop = as_memory_log_stop,
+    .ioeventfd_add = as_memory_ioeventfd_add,
+    .ioeventfd_del = as_memory_ioeventfd_del,
 };
 
 static AddressSpace address_space_memory = {
@@ -288,9 +361,33 @@ static void as_io_range_del(AddressSpace *as, FlatRange *fr)
     isa_unassign_ioport(fr->addr.start, fr->addr.size);
 }
 
+static void as_io_ioeventfd_add(AddressSpace *as, MemoryRegionIoeventfd *fd)
+{
+    int r;
+
+    assert(fd->match_data && fd->addr.size == 2);
+
+    r = kvm_set_ioeventfd_pio_word(fd->fd, fd->addr.start, fd->data, true);
+    if (r < 0) {
+        abort();
+    }
+}
+
+static void as_io_ioeventfd_del(AddressSpace *as, MemoryRegionIoeventfd *fd)
+{
+    int r;
+
+    r = kvm_set_ioeventfd_pio_word(fd->fd, fd->addr.start, fd->data, false);
+    if (r < 0) {
+        abort();
+    }
+}
+
 static const AddressSpaceOps address_space_ops_io = {
     .range_add = as_io_range_add,
     .range_del = as_io_range_del,
+    .ioeventfd_add = as_io_ioeventfd_add,
+    .ioeventfd_del = as_io_ioeventfd_del,
 };
 
 static AddressSpace address_space_io = {
@@ -389,6 +486,69 @@ static FlatView generate_memory_topology(MemoryRegion *mr)
     return view;
 }
 
+static void address_space_add_del_ioeventfds(AddressSpace *as,
+                                             MemoryRegionIoeventfd *fds_new,
+                                             unsigned fds_new_nb,
+                                             MemoryRegionIoeventfd *fds_old,
+                                             unsigned fds_old_nb)
+{
+    unsigned iold, inew;
+
+    /* Generate a symmetric difference of the old and new fd sets, adding
+     * and deleting as necessary.
+     */
+
+    iold = inew = 0;
+    while (iold < fds_old_nb || inew < fds_new_nb) {
+        if (iold < fds_old_nb
+            && (inew == fds_new_nb
+                || memory_region_ioeventfd_before(fds_old[iold],
+                                                  fds_new[inew]))) {
+            as->ops->ioeventfd_del(as, &fds_old[iold]);
+            ++iold;
+        } else if (inew < fds_new_nb
+                   && (iold == fds_old_nb
+                       || memory_region_ioeventfd_before(fds_new[inew],
+                                                         fds_old[iold]))) {
+            as->ops->ioeventfd_add(as, &fds_new[inew]);
+            ++inew;
+        } else {
+            ++iold;
+            ++inew;
+        }
+    }
+}
+
+static void address_space_update_ioeventfds(AddressSpace *as)
+{
+    FlatRange *fr;
+    unsigned ioeventfd_nb = 0;
+    MemoryRegionIoeventfd *ioeventfds = NULL;
+    AddrRange tmp;
+    unsigned i;
+
+    FOR_EACH_FLAT_RANGE(fr, &as->current_map) {
+        for (i = 0; i < fr->mr->ioeventfd_nb; ++i) {
+            tmp = addrrange_shift(fr->mr->ioeventfds[i].addr,
+                                  fr->addr.start - fr->offset_in_region);
+            if (addrrange_intersects(fr->addr, tmp)) {
+                ++ioeventfd_nb;
+                ioeventfds = qemu_realloc(ioeventfds,
+                                          ioeventfd_nb * sizeof(*ioeventfds));
+                ioeventfds[ioeventfd_nb-1] = fr->mr->ioeventfds[i];
+                ioeventfds[ioeventfd_nb-1].addr = tmp;
+            }
+        }
+    }
+
+    address_space_add_del_ioeventfds(as, ioeventfds, ioeventfd_nb,
+                                     as->ioeventfds, as->ioeventfd_nb);
+
+    qemu_free(as->ioeventfds);
+    as->ioeventfds = ioeventfds;
+    as->ioeventfd_nb = ioeventfd_nb;
+}
+
 static void address_space_update_topology(AddressSpace *as)
 {
     FlatView old_view = as->current_map;
@@ -441,6 +601,7 @@ static void address_space_update_topology(AddressSpace *as)
     }
     as->current_map = new_view;
     flatview_destroy(&old_view);
+    address_space_update_ioeventfds(as);
 }
 
 static void memory_region_update_topology(void)
@@ -471,6 +632,8 @@ void memory_region_init(MemoryRegion *mr,
     QTAILQ_INIT(&mr->coalesced);
     mr->name = qemu_strdup(name);
     mr->dirty_log_mask = 0;
+    mr->ioeventfd_nb = 0;
+    mr->ioeventfds = NULL;
 }
 
 static bool memory_region_access_valid(MemoryRegion *mr,
@@ -682,6 +845,7 @@ void memory_region_destroy(MemoryRegion *mr)
     assert(QTAILQ_EMPTY(&mr->subregions));
     memory_region_clear_coalescing(mr);
     qemu_free((char *)mr->name);
+    qemu_free(mr->ioeventfds);
 }
 
 uint64_t memory_region_size(MemoryRegion *mr)
@@ -801,6 +965,66 @@ void memory_region_clear_coalescing(MemoryRegion *mr)
         qemu_free(cmr);
     }
     memory_region_update_coalesced_range(mr);
+}
+
+void memory_region_add_eventfd(MemoryRegion *mr,
+                               target_phys_addr_t addr,
+                               unsigned size,
+                               bool match_data,
+                               uint64_t data,
+                               int fd)
+{
+    MemoryRegionIoeventfd mrfd = {
+        .addr.start = addr,
+        .addr.size = size,
+        .match_data = match_data,
+        .data = data,
+        .fd = fd,
+    };
+    unsigned i;
+
+    for (i = 0; i < mr->ioeventfd_nb; ++i) {
+        if (memory_region_ioeventfd_before(mrfd, mr->ioeventfds[i])) {
+            break;
+        }
+    }
+    ++mr->ioeventfd_nb;
+    mr->ioeventfds = qemu_realloc(mr->ioeventfds,
+                                  sizeof(*mr->ioeventfds) * mr->ioeventfd_nb);
+    memmove(&mr->ioeventfds[i+1], &mr->ioeventfds[i],
+            sizeof(*mr->ioeventfds) * (mr->ioeventfd_nb-1 - i));
+    mr->ioeventfds[i] = mrfd;
+    memory_region_update_topology();
+}
+
+void memory_region_del_eventfd(MemoryRegion *mr,
+                               target_phys_addr_t addr,
+                               unsigned size,
+                               bool match_data,
+                               uint64_t data,
+                               int fd)
+{
+    MemoryRegionIoeventfd mrfd = {
+        .addr.start = addr,
+        .addr.size = size,
+        .match_data = match_data,
+        .data = data,
+        .fd = fd,
+    };
+    unsigned i;
+
+    for (i = 0; i < mr->ioeventfd_nb; ++i) {
+        if (memory_region_ioeventfd_equal(mrfd, mr->ioeventfds[i])) {
+            break;
+        }
+    }
+    assert(i != mr->ioeventfd_nb);
+    memmove(&mr->ioeventfds[i], &mr->ioeventfds[i+1],
+            sizeof(*mr->ioeventfds) * (mr->ioeventfd_nb - (i+1)));
+    --mr->ioeventfd_nb;
+    mr->ioeventfds = qemu_realloc(mr->ioeventfds,
+                                  sizeof(*mr->ioeventfds)*mr->ioeventfd_nb + 1);
+    memory_region_update_topology();
 }
 
 static void memory_region_add_subregion_common(MemoryRegion *mr,
