@@ -22,6 +22,7 @@
 #include "cpu-common.h"
 #include "targphys.h"
 #include "qemu-queue.h"
+#include "iorange.h"
 
 typedef struct MemoryRegionOps MemoryRegionOps;
 typedef struct MemoryRegion MemoryRegion;
@@ -91,6 +92,7 @@ struct MemoryRegion {
     target_phys_addr_t offset;
     bool backend_registered;
     ram_addr_t ram_addr;
+    IORange iorange;
     bool terminates;
     MemoryRegion *alias;
     target_phys_addr_t alias_offset;

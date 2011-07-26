@@ -13,6 +13,7 @@
 
 #include "memory.h"
 #include "exec-memory.h"
+#include "ioport.h"
 #include <assert.h>
 
 typedef struct AddrRange AddrRange;
@@ -217,6 +218,52 @@ static AddressSpace address_space_memory = {
     .ops = &address_space_ops_memory,
 };
 
+static void memory_region_iorange_read(IORange *iorange,
+                                       uint64_t offset,
+                                       unsigned width,
+                                       uint64_t *data)
+{
+    MemoryRegion *mr = container_of(iorange, MemoryRegion, iorange);
+
+    *data = mr->ops->read(mr->opaque, offset, width);
+}
+
+static void memory_region_iorange_write(IORange *iorange,
+                                        uint64_t offset,
+                                        unsigned width,
+                                        uint64_t data)
+{
+    MemoryRegion *mr = container_of(iorange, MemoryRegion, iorange);
+
+    mr->ops->write(mr->opaque, offset, data, width);
+}
+
+static const IORangeOps memory_region_iorange_ops = {
+    .read = memory_region_iorange_read,
+    .write = memory_region_iorange_write,
+};
+
+static void as_io_range_add(AddressSpace *as, FlatRange *fr)
+{
+    iorange_init(&fr->mr->iorange, &memory_region_iorange_ops,
+                 fr->addr.start,fr->addr.size);
+    ioport_register(&fr->mr->iorange);
+}
+
+static void as_io_range_del(AddressSpace *as, FlatRange *fr)
+{
+    isa_unassign_ioport(fr->addr.start, fr->addr.size);
+}
+
+static const AddressSpaceOps address_space_ops_io = {
+    .range_add = as_io_range_add,
+    .range_del = as_io_range_del,
+};
+
+static AddressSpace address_space_io = {
+    .ops = &address_space_ops_io,
+};
+
 /* Render a memory region into the global view.  Ranges in @view obscure
  * ranges in @mr.
  */
@@ -365,7 +412,12 @@ static void address_space_update_topology(AddressSpace *as)
 
 static void memory_region_update_topology(void)
 {
-    address_space_update_topology(&address_space_memory);
+    if (address_space_memory.root) {
+        address_space_update_topology(&address_space_memory);
+    }
+    if (address_space_io.root) {
+        address_space_update_topology(&address_space_io);
+    }
 }
 
 void memory_region_init(MemoryRegion *mr,
@@ -775,5 +827,11 @@ void memory_region_del_subregion(MemoryRegion *mr,
 void set_system_memory_map(MemoryRegion *mr)
 {
     address_space_memory.root = mr;
+    memory_region_update_topology();
+}
+
+void set_system_io_map(MemoryRegion *mr)
+{
+    address_space_io.root = mr;
     memory_region_update_topology();
 }
