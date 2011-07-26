@@ -549,10 +549,11 @@ static void address_space_update_ioeventfds(AddressSpace *as)
     as->ioeventfd_nb = ioeventfd_nb;
 }
 
-static void address_space_update_topology(AddressSpace *as)
+static void address_space_update_topology_pass(AddressSpace *as,
+                                               FlatView old_view,
+                                               FlatView new_view,
+                                               bool adding)
 {
-    FlatView old_view = as->current_map;
-    FlatView new_view = generate_memory_topology(as->root);
     unsigned iold, inew;
     FlatRange *frold, *frnew;
 
@@ -579,15 +580,20 @@ static void address_space_update_topology(AddressSpace *as)
                     && !flatrange_equal(frold, frnew)))) {
             /* In old, but (not in new, or in new but attributes changed). */
 
-            as->ops->range_del(as, frold);
+            if (!adding) {
+                as->ops->range_del(as, frold);
+            }
+
             ++iold;
         } else if (frold && frnew && flatrange_equal(frold, frnew)) {
             /* In both (logging may have changed) */
 
-            if (frold->dirty_log_mask && !frnew->dirty_log_mask) {
-                as->ops->log_stop(as, frnew);
-            } else if (frnew->dirty_log_mask && !frold->dirty_log_mask) {
-                as->ops->log_start(as, frnew);
+            if (adding) {
+                if (frold->dirty_log_mask && !frnew->dirty_log_mask) {
+                    as->ops->log_stop(as, frnew);
+                } else if (frnew->dirty_log_mask && !frold->dirty_log_mask) {
+                    as->ops->log_start(as, frnew);
+                }
             }
 
             ++iold;
@@ -595,10 +601,24 @@ static void address_space_update_topology(AddressSpace *as)
         } else {
             /* In new */
 
-            as->ops->range_add(as, frnew);
+            if (adding) {
+                as->ops->range_add(as, frnew);
+            }
+
             ++inew;
         }
     }
+}
+
+
+static void address_space_update_topology(AddressSpace *as)
+{
+    FlatView old_view = as->current_map;
+    FlatView new_view = generate_memory_topology(as->root);
+
+    address_space_update_topology_pass(as, old_view, new_view, false);
+    address_space_update_topology_pass(as, old_view, new_view, true);
+
     as->current_map = new_view;
     flatview_destroy(&old_view);
     address_space_update_ioeventfds(as);
