@@ -33,6 +33,8 @@
 #include "kvm.h"
 #include "hw/xen.h"
 #include "qemu-timer.h"
+#include "memory.h"
+#include "exec-memory.h"
 #if defined(CONFIG_USER_ONLY)
 #include <qemu.h>
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
@@ -109,6 +111,9 @@ int phys_ram_fd;
 static int in_migration;
 
 RAMList ram_list = { .blocks = QLIST_HEAD_INITIALIZER(ram_list) };
+
+static MemoryRegion *system_memory;
+
 #endif
 
 CPUState *first_cpu;
@@ -197,6 +202,7 @@ typedef struct PhysPageDesc {
 static void *l1_phys_map[P_L1_SIZE];
 
 static void io_mem_init(void);
+static void memory_map_init(void);
 
 /* io memory support */
 CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
@@ -571,6 +577,7 @@ void cpu_exec_init_all(unsigned long tb_size)
     code_gen_ptr = code_gen_buffer;
     page_init();
 #if !defined(CONFIG_USER_ONLY)
+    memory_map_init();
     io_mem_init();
 #endif
 #if !defined(CONFIG_USER_ONLY) || !defined(CONFIG_USE_GUEST_BASE)
@@ -3805,6 +3812,18 @@ static void io_mem_init(void)
     io_mem_watch = cpu_register_io_memory(watch_mem_read,
                                           watch_mem_write, NULL,
                                           DEVICE_NATIVE_ENDIAN);
+}
+
+static void memory_map_init(void)
+{
+    system_memory = qemu_malloc(sizeof(*system_memory));
+    memory_region_init(system_memory, "system", UINT64_MAX);
+    set_system_memory_map(system_memory);
+}
+
+MemoryRegion *get_system_memory(void)
+{
+    return system_memory;
 }
 
 #endif /* !defined(CONFIG_USER_ONLY) */
