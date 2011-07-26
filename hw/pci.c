@@ -844,10 +844,15 @@ static void pci_unregister_io_regions(PCIDevice *pci_dev)
         if (r->type == PCI_BASE_ADDRESS_SPACE_IO) {
             isa_unassign_ioport(r->addr, r->filtered_size);
         } else {
-            cpu_register_physical_memory(pci_to_cpu_addr(pci_dev->bus,
-                                                         r->addr),
-                                         r->filtered_size,
-                                         IO_MEM_UNASSIGNED);
+            if (r->memory) {
+                memory_region_del_subregion(pci_dev->bus->address_space,
+                                            r->memory);
+            } else {
+                cpu_register_physical_memory(pci_to_cpu_addr(pci_dev->bus,
+                                                             r->addr),
+                                             r->filtered_size,
+                                             IO_MEM_UNASSIGNED);
+            }
         }
     }
 }
@@ -893,6 +898,7 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
     r->type = type;
     r->map_func = map_func;
     r->ram_addr = IO_MEM_UNASSIGNED;
+    r->memory = NULL;
 
     wmask = ~(size - 1);
     addr = pci_bar(pci_dev, region_num);
@@ -918,6 +924,16 @@ static void pci_simple_bar_mapfunc(PCIDevice *pci_dev, int region_num,
                                  pci_dev->io_regions[region_num].ram_addr);
 }
 
+static void pci_simple_bar_mapfunc_region(PCIDevice *pci_dev, int region_num,
+                                          pcibus_t addr, pcibus_t size,
+                                          int type)
+{
+    memory_region_add_subregion_overlap(pci_dev->bus->address_space,
+                                        addr,
+                                        pci_dev->io_regions[region_num].memory,
+                                        1);
+}
+
 void pci_register_bar_simple(PCIDevice *pci_dev, int region_num,
                              pcibus_t size,  uint8_t attr, ram_addr_t ram_addr)
 {
@@ -925,6 +941,15 @@ void pci_register_bar_simple(PCIDevice *pci_dev, int region_num,
                      PCI_BASE_ADDRESS_SPACE_MEMORY | attr,
                      pci_simple_bar_mapfunc);
     pci_dev->io_regions[region_num].ram_addr = ram_addr;
+}
+
+void pci_register_bar_region(PCIDevice *pci_dev, int region_num,
+                             uint8_t attr, MemoryRegion *memory)
+{
+    pci_register_bar(pci_dev, region_num, memory_region_size(memory),
+                     PCI_BASE_ADDRESS_SPACE_MEMORY | attr,
+                     pci_simple_bar_mapfunc_region);
+    pci_dev->io_regions[region_num].memory = memory;
 }
 
 static void pci_bridge_filter(PCIDevice *d, pcibus_t *addr, pcibus_t *size,
@@ -1065,10 +1090,16 @@ static void pci_update_mappings(PCIDevice *d)
                     isa_unassign_ioport(r->addr, r->filtered_size);
                 }
             } else {
-                cpu_register_physical_memory(pci_to_cpu_addr(d->bus, r->addr),
-                                             r->filtered_size,
-                                             IO_MEM_UNASSIGNED);
-                qemu_unregister_coalesced_mmio(r->addr, r->filtered_size);
+                if (r->memory) {
+                    memory_region_del_subregion(d->bus->address_space,
+                                                r->memory);
+                } else {
+                    cpu_register_physical_memory(pci_to_cpu_addr(d->bus,
+                                                                 r->addr),
+                                                 r->filtered_size,
+                                                 IO_MEM_UNASSIGNED);
+                    qemu_unregister_coalesced_mmio(r->addr, r->filtered_size);
+                }
             }
         }
         r->addr = new_addr;
