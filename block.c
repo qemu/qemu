@@ -1110,19 +1110,6 @@ int bdrv_pwrite_sync(BlockDriverState *bs, int64_t offset,
     return 0;
 }
 
-/*
- * Writes to the file and ensures that no writes are reordered across this
- * request (acts as a barrier)
- *
- * Returns 0 on success, -errno in error cases.
- */
-int bdrv_write_sync(BlockDriverState *bs, int64_t sector_num,
-    const uint8_t *buf, int nb_sectors)
-{
-    return bdrv_pwrite_sync(bs, BDRV_SECTOR_SIZE * sector_num,
-        buf, BDRV_SECTOR_SIZE * nb_sectors);
-}
-
 /**
  * Truncate file to 'offset' bytes (needed only for file protocols)
  */

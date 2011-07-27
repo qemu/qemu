@@ -85,8 +85,6 @@ int bdrv_pwrite(BlockDriverState *bs, int64_t offset,
                 const void *buf, int count);
 int bdrv_pwrite_sync(BlockDriverState *bs, int64_t offset,
     const void *buf, int count);
-int bdrv_write_sync(BlockDriverState *bs, int64_t sector_num,
-    const uint8_t *buf, int nb_sectors);
 int bdrv_truncate(BlockDriverState *bs, int64_t offset);
 int64_t bdrv_getlength(BlockDriverState *bs);
 int64_t bdrv_get_allocated_file_size(BlockDriverState *bs);
