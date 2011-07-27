@@ -587,7 +587,7 @@ static BlockDriverAIOCB *raw_aio_submit(BlockDriverState *bs,
 
     /*
      * If O_DIRECT is used the buffer needs to be aligned on a sector
-     * boundary.  Check if this is the case or telll the low-level
+     * boundary.  Check if this is the case or tell the low-level
      * driver that it needs to copy the buffer.
      */
     if (s->aligned_buf) {
