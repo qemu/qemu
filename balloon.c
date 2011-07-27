@@ -140,6 +140,7 @@ int do_info_balloon(Monitor *mon, MonitorCompletion cb, void *opaque)
 int do_balloon(Monitor *mon, const QDict *params,
 	       MonitorCompletion cb, void *opaque)
 {
+    int64_t target;
     int ret;
 
     if (kvm_enabled() && !kvm_has_sync_mmu()) {
@@ -147,7 +148,12 @@ int do_balloon(Monitor *mon, const QDict *params,
         return -1;
     }
 
-    ret = qemu_balloon(qdict_get_int(params, "value"));
+    target = qdict_get_int(params, "value");
+    if (target <= 0) {
+        qerror_report(QERR_INVALID_PARAMETER_VALUE, "target", "a size");
+        return -1;
+    }
+    ret = qemu_balloon(target);
     if (ret == 0) {
         qerror_report(QERR_DEVICE_NOT_ACTIVE, "balloon");
         return -1;
