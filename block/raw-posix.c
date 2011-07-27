@@ -230,12 +230,14 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
         }
     }
 
+    /* We're falling back to POSIX AIO in some cases so init always */
+    if (paio_init() < 0) {
+        goto out_free_buf;
+    }
+
 #ifdef CONFIG_LINUX_AIO
     if ((bdrv_flags & (BDRV_O_NOCACHE|BDRV_O_NATIVE_AIO)) ==
                       (BDRV_O_NOCACHE|BDRV_O_NATIVE_AIO)) {
-
-        /* We're falling back to POSIX AIO in some cases */
-        paio_init();
 
         s->aio_ctx = laio_init();
         if (!s->aio_ctx) {
@@ -245,9 +247,6 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
     } else
 #endif
     {
-        if (paio_init() < 0) {
-            goto out_free_buf;
-        }
 #ifdef CONFIG_LINUX_AIO
         s->use_aio = 0;
 #endif
