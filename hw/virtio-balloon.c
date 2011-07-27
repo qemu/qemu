@@ -297,3 +297,8 @@ VirtIODevice *virtio_balloon_init(DeviceState *dev)
 
     return &s->vdev;
 }
+
+void virtio_balloon_exit(VirtIODevice *vdev)
+{
+    virtio_cleanup(vdev);
+}
