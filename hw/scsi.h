@@ -66,6 +66,7 @@ struct SCSIDevice
     uint8_t sense[SCSI_SENSE_BUF_SIZE];
     uint32_t sense_len;
     QTAILQ_HEAD(, SCSIRequest) requests;
+    uint32_t channel;
     uint32_t lun;
     int blocksize;
     int type;
@@ -99,7 +100,7 @@ struct SCSIDeviceInfo {
 
 struct SCSIBusInfo {
     int tcq;
-    int max_target, max_lun;
+    int max_channel, max_target, max_lun;
     void (*transfer_data)(SCSIRequest *req, uint32_t arg);
     void (*complete)(SCSIRequest *req, uint32_t arg);
     void (*cancel)(SCSIRequest *req);
@@ -194,6 +195,6 @@ void scsi_req_abort(SCSIRequest *req, int status);
 void scsi_req_cancel(SCSIRequest *req);
 void scsi_device_purge_requests(SCSIDevice *sdev, SCSISense sense);
 int scsi_device_get_sense(SCSIDevice *dev, uint8_t *buf, int len, bool fixed);
-SCSIDevice *scsi_device_find(SCSIBus *bus, int target, int lun);
+SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int target, int lun);
 
 #endif

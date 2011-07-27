@@ -160,11 +160,7 @@ retry:
         abort();
     }
 
-    if (channel) {
-        *lun = -1;
-        return NULL;
-    }
-    return scsi_device_find(bus, id, *lun);
+    return scsi_device_find(bus, channel, id, *lun);
 }
 
 static int vscsi_send_iu(VSCSIState *s, vscsi_req *req,
@@ -892,7 +888,8 @@ static int vscsi_do_crq(struct VIOsPAPRDevice *dev, uint8_t *crq_data)
 
 static const struct SCSIBusInfo vscsi_scsi_info = {
     .tcq = true,
-    .max_target = 63, /* logical unit addressing format */
+    .max_channel = 7, /* logical unit addressing format */
+    .max_target = 63,
     .max_lun = 31,
 
     .transfer_data = vscsi_transfer_data,

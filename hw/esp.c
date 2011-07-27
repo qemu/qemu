@@ -217,7 +217,7 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf)
         s->async_len = 0;
     }
 
-    s->current_dev = scsi_device_find(&s->bus, target, 0);
+    s->current_dev = scsi_device_find(&s->bus, 0, target, 0);
     if (!s->current_dev) {
         // No such drive
         s->rregs[ESP_RSTAT] = 0;
@@ -237,7 +237,7 @@ static void do_busid_cmd(ESPState *s, uint8_t *buf, uint8_t busid)
 
     trace_esp_do_busid_cmd(busid);
     lun = busid & 7;
-    current_lun = scsi_device_find(&s->bus, s->current_dev->id, lun);
+    current_lun = scsi_device_find(&s->bus, 0, s->current_dev->id, lun);
     s->current_req = scsi_req_new(current_lun, 0, lun, buf, NULL);
     datalen = scsi_req_enqueue(s->current_req);
     s->ti_size = datalen;

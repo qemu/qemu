@@ -16,6 +16,7 @@ static struct BusInfo scsi_bus_info = {
     .size  = sizeof(SCSIBus),
     .get_fw_dev_path = scsibus_get_fw_dev_path,
     .props = (Property[]) {
+        DEFINE_PROP_UINT32("channel", SCSIDevice, channel, 0),
         DEFINE_PROP_UINT32("scsi-id", SCSIDevice, id, -1),
         DEFINE_PROP_UINT32("lun", SCSIDevice, lun, -1),
         DEFINE_PROP_END_OF_LIST(),
@@ -40,6 +41,10 @@ static int scsi_qdev_init(DeviceState *qdev, DeviceInfo *base)
     SCSIDevice *d;
     int rc = -1;
 
+    if (dev->channel > bus->info->max_channel) {
+        error_report("bad scsi channel id: %d", dev->channel);
+        goto err;
+    }
     if (dev->id != -1 && dev->id > bus->info->max_target) {
         error_report("bad scsi device id: %d", dev->id);
         goto err;
@@ -51,7 +56,7 @@ static int scsi_qdev_init(DeviceState *qdev, DeviceInfo *base)
             dev->lun = 0;
         }
         do {
-            d = scsi_device_find(bus, ++id, dev->lun);
+            d = scsi_device_find(bus, dev->channel, ++id, dev->lun);
         } while (d && d->lun == dev->lun && id <= bus->info->max_target);
         if (id > bus->info->max_target) {
             error_report("no free target");
@@ -61,7 +66,7 @@ static int scsi_qdev_init(DeviceState *qdev, DeviceInfo *base)
     } else if (dev->lun == -1) {
         int lun = -1;
         do {
-            d = scsi_device_find(bus, dev->id, ++lun);
+            d = scsi_device_find(bus, dev->channel, dev->id, ++lun);
         } while (d && d->lun == lun && lun < bus->info->max_lun);
         if (lun > bus->info->max_lun) {
             error_report("no free lun");
@@ -69,7 +74,7 @@ static int scsi_qdev_init(DeviceState *qdev, DeviceInfo *base)
         }
         dev->lun = lun;
     } else {
-        d = scsi_device_find(bus, dev->id, dev->lun);
+        d = scsi_device_find(bus, dev->channel, dev->id, dev->lun);
         if (dev->lun == d->lun && dev != d) {
             qdev_free(&d->qdev);
         }
@@ -203,7 +208,7 @@ static bool scsi_target_emulate_report_luns(SCSITargetReq *r)
 {
     DeviceState *qdev;
     int i, len, n;
-    int id;
+    int channel, id;
     bool found_lun0;
 
     if (r->req.cmd.xfer < 16) {
@@ -212,13 +217,14 @@ static bool scsi_target_emulate_report_luns(SCSITargetReq *r)
     if (r->req.cmd.buf[2] > 2) {
         return false;
     }
+    channel = r->req.dev->channel;
     id = r->req.dev->id;
     found_lun0 = false;
     n = 0;
     QTAILQ_FOREACH(qdev, &r->req.bus->qbus.children, sibling) {
         SCSIDevice *dev = DO_UPCAST(SCSIDevice, qdev, qdev);
 
-        if (dev->id == id) {
+        if (dev->channel == channel && dev->id == id) {
             if (dev->lun == 0) {
                 found_lun0 = true;
             }
@@ -240,7 +246,7 @@ static bool scsi_target_emulate_report_luns(SCSITargetReq *r)
     QTAILQ_FOREACH(qdev, &r->req.bus->qbus.children, sibling) {
         SCSIDevice *dev = DO_UPCAST(SCSIDevice, qdev, qdev);
 
-        if (dev->id == id) {
+        if (dev->channel == channel && dev->id == id) {
             store_lun(&r->buf[i], dev->lun);
             i += 8;
         }
@@ -1203,12 +1209,12 @@ static char *scsibus_get_fw_dev_path(DeviceState *dev)
     char path[100];
 
     snprintf(path, sizeof(path), "%s@%d:%d:%d", qdev_fw_name(dev),
-             0, d->id, d->lun);
+             d->channel, d->id, d->lun);
 
     return strdup(path);
 }
 
-SCSIDevice *scsi_device_find(SCSIBus *bus, int id, int lun)
+SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int id, int lun)
 {
     DeviceState *qdev;
     SCSIDevice *target_dev = NULL;
@@ -1216,7 +1222,7 @@ SCSIDevice *scsi_device_find(SCSIBus *bus, int id, int lun)
     QTAILQ_FOREACH_REVERSE(qdev, &bus->qbus.children, ChildrenHead, sibling) {
         SCSIDevice *dev = DO_UPCAST(SCSIDevice, qdev, qdev);
 
-        if (dev->id == id) {
+        if (dev->channel == channel && dev->id == id) {
             if (dev->lun == lun) {
                 return dev;
             }
