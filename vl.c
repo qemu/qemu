@@ -228,6 +228,9 @@ int ctrl_grab = 0;
 unsigned int nb_prom_envs = 0;
 const char *prom_envs[MAX_PROM_ENVS];
 int boot_menu;
+uint8_t *boot_splash_filedata;
+int boot_splash_filedata_size;
+uint8_t qemu_extra_params_fw[2];
 
 typedef struct FWBootEntry FWBootEntry;
 
@@ -292,6 +295,14 @@ static struct {
     { .driver = "isa-vga",              .flag = &default_vga       },
     { .driver = "qxl-vga",              .flag = &default_vga       },
 };
+
+static void res_free(void)
+{
+    if (boot_splash_filedata != NULL) {
+        qemu_free(boot_splash_filedata);
+        boot_splash_filedata = NULL;
+    }
+}
 
 static int default_driver_check(QemuOpts *opts, void *opaque)
 {
@@ -2330,7 +2341,8 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_boot:
                 {
                     static const char * const params[] = {
-                        "order", "once", "menu", NULL
+                        "order", "once", "menu",
+                        "splash", "splash-time", NULL
                     };
                     char buf[sizeof(boot_devices)];
                     char *standard_boot_devices;
@@ -2373,6 +2385,8 @@ int main(int argc, char **argv, char **envp)
                                 exit(1);
                             }
                         }
+                        qemu_opts_parse(qemu_find_opts("boot-opts"),
+                                        optarg, 0);
                     }
                 }
                 break;
@@ -3335,6 +3349,7 @@ int main(int argc, char **argv, char **envp)
     main_loop();
     quit_timers();
     net_cleanup();
+    res_free();
 
     return 0;
 }
