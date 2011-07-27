@@ -1073,6 +1073,6 @@ void virtio_net_exit(VirtIODevice *vdev)
         qemu_bh_delete(n->tx_bh);
     }
 
-    virtio_cleanup(&n->vdev);
     qemu_del_vlan_client(&n->nic->nc);
+    virtio_cleanup(&n->vdev);
 }
