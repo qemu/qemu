@@ -45,6 +45,7 @@ typedef struct VirtIOBalloon
     size_t stats_vq_offset;
     MonitorCompletion *stats_callback;
     void *stats_opaque_callback_data;
+    DeviceState *qdev;
 } VirtIOBalloon;
 
 static VirtIOBalloon *to_virtio_balloon(VirtIODevice *vdev)
@@ -292,6 +293,7 @@ VirtIODevice *virtio_balloon_init(DeviceState *dev)
 
     reset_stats(s);
 
+    s->qdev = dev;
     register_savevm(dev, "virtio-balloon", -1, 1,
                     virtio_balloon_save, virtio_balloon_load, s);
 
@@ -300,5 +302,7 @@ VirtIODevice *virtio_balloon_init(DeviceState *dev)
 
 void virtio_balloon_exit(VirtIODevice *vdev)
 {
+    VirtIOBalloon *s = DO_UPCAST(VirtIOBalloon, vdev, vdev);
+    unregister_savevm(s->qdev, "virtio-balloon", s);
     virtio_cleanup(vdev);
 }
