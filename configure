@@ -233,7 +233,7 @@ QEMU_CFLAGS="-Wall -Wundef -Wwrite-strings -Wmissing-prototypes $QEMU_CFLAGS"
 QEMU_CFLAGS="-Wstrict-prototypes -Wredundant-decls $QEMU_CFLAGS"
 QEMU_CFLAGS="-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE $QEMU_CFLAGS"
 QEMU_CFLAGS="-D_FORTIFY_SOURCE=2 $QEMU_CFLAGS"
-QEMU_INCLUDES="-I. -I\$(SRC_PATH)"
+QEMU_INCLUDES="-I. -I\$(SRC_PATH) -I\$(SRC_PATH)/fpu"
 LDFLAGS="-g $LDFLAGS"
 
 # make source path absolute
@@ -3374,7 +3374,6 @@ else
   includes="-I\$(SRC_PATH)/tcg/\$(ARCH) $includes"
 fi
 includes="-I\$(SRC_PATH)/tcg $includes"
-includes="-I\$(SRC_PATH)/fpu $includes"
 
 if test "$target_user_only" = "yes" ; then
     libdis_config_mak=libdis-user/config.mak
