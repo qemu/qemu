@@ -37,12 +37,16 @@ static int scsi_qdev_init(DeviceState *qdev, DeviceInfo *base)
     SCSIDevice *dev = DO_UPCAST(SCSIDevice, qdev, qdev);
     SCSIDeviceInfo *info = DO_UPCAST(SCSIDeviceInfo, qdev, base);
     SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);
+    SCSIDevice *olddev;
     int rc = -1;
 
     if (dev->id == -1) {
-        for (dev->id = 0; dev->id < bus->info->ndev; dev->id++) {
-            if (bus->devs[dev->id] == NULL)
+        int id;
+        for (id = 0; id < bus->info->ndev; id++) {
+            if (!scsi_device_find(bus, id, 0)) {
+                dev->id = id;
                 break;
+            }
         }
     }
     if (dev->id >= bus->info->ndev) {
@@ -50,17 +54,14 @@ static int scsi_qdev_init(DeviceState *qdev, DeviceInfo *base)
         goto err;
     }
 
-    if (bus->devs[dev->id]) {
-        qdev_free(&bus->devs[dev->id]->qdev);
+    olddev = scsi_device_find(bus, dev->id, dev->lun);
+    if (olddev && dev->lun == olddev->lun) {
+        qdev_free(&olddev->qdev);
     }
-    bus->devs[dev->id] = dev;
 
     dev->info = info;
     QTAILQ_INIT(&dev->requests);
     rc = dev->info->init(dev);
-    if (rc != 0) {
-        bus->devs[dev->id] = NULL;
-    }
 
 err:
     return rc;
@@ -69,13 +70,10 @@ err:
 static int scsi_qdev_exit(DeviceState *qdev)
 {
     SCSIDevice *dev = DO_UPCAST(SCSIDevice, qdev, qdev);
-    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);
 
-    assert(bus->devs[dev->id] != NULL);
-    if (bus->devs[dev->id]->info->destroy) {
-        bus->devs[dev->id]->info->destroy(bus->devs[dev->id]);
+    if (dev->info->destroy) {
+        dev->info->destroy(dev);
     }
-    bus->devs[dev->id] = NULL;
     return 0;
 }
 
@@ -1157,19 +1155,28 @@ void scsi_device_purge_requests(SCSIDevice *sdev, SCSISense sense)
 static char *scsibus_get_fw_dev_path(DeviceState *dev)
 {
     SCSIDevice *d = DO_UPCAST(SCSIDevice, qdev, dev);
-    SCSIBus *bus = scsi_bus_from_device(d);
     char path[100];
-    int i;
 
-    for (i = 0; i < bus->info->ndev; i++) {
-        if (bus->devs[i] == d) {
-            break;
-        }
-    }
-
-    assert(i != bus->info->ndev);
-
-    snprintf(path, sizeof(path), "%s@%x", qdev_fw_name(dev), i);
+    snprintf(path, sizeof(path), "%s@%d:%d:%d", qdev_fw_name(dev),
+             0, d->id, d->lun);
 
     return strdup(path);
+}
+
+SCSIDevice *scsi_device_find(SCSIBus *bus, int id, int lun)
+{
+    DeviceState *qdev;
+    SCSIDevice *target_dev = NULL;
+
+    QTAILQ_FOREACH_REVERSE(qdev, &bus->qbus.children, ChildrenHead, sibling) {
+        SCSIDevice *dev = DO_UPCAST(SCSIDevice, qdev, qdev);
+
+        if (dev->id == id) {
+            if (dev->lun == lun) {
+                return dev;
+            }
+            target_dev = dev;
+        }
+    }
+    return target_dev;
 }

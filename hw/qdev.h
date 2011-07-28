@@ -73,7 +73,7 @@ struct BusState {
     const char *name;
     int allow_hotplug;
     int qdev_allocated;
-    QTAILQ_HEAD(, DeviceState) children;
+    QTAILQ_HEAD(ChildrenHead, DeviceState) children;
     QLIST_ENTRY(BusState) sibling;
 };
 

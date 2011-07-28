@@ -129,11 +129,12 @@ static void vscsi_put_req(vscsi_req *req)
     req->active = 0;
 }
 
-static void vscsi_decode_id_lun(uint64_t srp_lun, int *id, int *lun)
+static SCSIDevice *vscsi_device_find(SCSIBus *bus, uint64_t srp_lun, int *lun)
 {
     /* XXX Figure that one out properly ! This is crackpot */
-    *id = (srp_lun >> 56) & 0x7f;
+    int id = (srp_lun >> 56) & 0x7f;
     *lun = (srp_lun >> 48) & 0xff;
+    return scsi_device_find(bus, id, *lun);
 }
 
 static int vscsi_send_iu(VSCSIState *s, vscsi_req *req,
@@ -582,14 +583,11 @@ static int vscsi_queue_cmd(VSCSIState *s, vscsi_req *req)
 {
     union srp_iu *srp = &req->iu.srp;
     SCSIDevice *sdev;
-    int n, id, lun;
+    int n, lun;
 
-    vscsi_decode_id_lun(be64_to_cpu(srp->cmd.lun), &id, &lun);
-
-    /* Qemu vs. linux issue with LUNs to be sorted out ... */
-    sdev = (id < 8 && lun < 16) ? s->bus.devs[id] : NULL;
+    sdev = vscsi_device_find(&s->bus, be64_to_cpu(srp->cmd.lun), &lun);
     if (!sdev) {
-        dprintf("VSCSI: Command for id %d with no drive\n", id);
+        dprintf("VSCSI: Command for lun %08" PRIx64 " with no drive\n", be64_to_cpu(srp->cmd.lun));
         if (srp->cmd.cdb[0] == INQUIRY) {
             vscsi_inquiry_no_target(s, req);
         } else {

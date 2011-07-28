@@ -217,7 +217,8 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf)
         s->async_len = 0;
     }
 
-    if (target >= ESP_MAX_DEVS || !s->bus.devs[target]) {
+    s->current_dev = scsi_device_find(&s->bus, target, 0);
+    if (!s->current_dev) {
         // No such drive
         s->rregs[ESP_RSTAT] = 0;
         s->rregs[ESP_RINTR] = INTR_DC;
@@ -225,7 +226,6 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf)
         esp_raise_irq(s);
         return 0;
     }
-    s->current_dev = s->bus.devs[target];
     return dmalen;
 }
 
@@ -233,10 +233,12 @@ static void do_busid_cmd(ESPState *s, uint8_t *buf, uint8_t busid)
 {
     int32_t datalen;
     int lun;
+    SCSIDevice *current_lun;
 
     trace_esp_do_busid_cmd(busid);
     lun = busid & 7;
-    s->current_req = scsi_req_new(s->current_dev, 0, lun, buf, NULL);
+    current_lun = scsi_device_find(&s->bus, s->current_dev->id, lun);
+    s->current_req = scsi_req_new(current_lun, 0, lun, buf, NULL);
     datalen = scsi_req_enqueue(s->current_req);
     s->ti_size = datalen;
     if (datalen != 0) {
