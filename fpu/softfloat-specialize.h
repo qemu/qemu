@@ -35,6 +35,78 @@ these four paragraphs for those parts of this code that are retained.
 
 =============================================================================*/
 
+#if defined(TARGET_MIPS) || defined(TARGET_SH4) || defined(TARGET_UNICORE32)
+#define SNAN_BIT_IS_ONE		1
+#else
+#define SNAN_BIT_IS_ONE		0
+#endif
+
+/*----------------------------------------------------------------------------
+| The pattern for a default generated half-precision NaN.
+*----------------------------------------------------------------------------*/
+#if defined(TARGET_ARM)
+const float16 float16_default_nan = const_float16(0x7E00);
+#elif SNAN_BIT_IS_ONE
+const float16 float16_default_nan = const_float16(0x7DFF);
+#else
+const float16 float16_default_nan = const_float16(0xFE00);
+#endif
+
+/*----------------------------------------------------------------------------
+| The pattern for a default generated single-precision NaN.
+*----------------------------------------------------------------------------*/
+#if defined(TARGET_SPARC)
+const float32 float32_default_nan = const_float32(0x7FFFFFFF);
+#elif defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA)
+const float32 float32_default_nan = const_float32(0x7FC00000);
+#elif SNAN_BIT_IS_ONE
+const float32 float32_default_nan = const_float32(0x7FBFFFFF);
+#else
+const float32 float32_default_nan = const_float32(0xFFC00000);
+#endif
+
+/*----------------------------------------------------------------------------
+| The pattern for a default generated double-precision NaN.
+*----------------------------------------------------------------------------*/
+#if defined(TARGET_SPARC)
+const float64 float64_default_nan = const_float64(LIT64( 0x7FFFFFFFFFFFFFFF ));
+#elif defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA)
+const float64 float64_default_nan = const_float64(LIT64( 0x7FF8000000000000 ));
+#elif SNAN_BIT_IS_ONE
+const float64 float64_default_nan = const_float64(LIT64( 0x7FF7FFFFFFFFFFFF ));
+#else
+const float64 float64_default_nan = const_float64(LIT64( 0xFFF8000000000000 ));
+#endif
+
+/*----------------------------------------------------------------------------
+| The pattern for a default generated extended double-precision NaN.
+*----------------------------------------------------------------------------*/
+#if SNAN_BIT_IS_ONE
+#define floatx80_default_nan_high 0x7FFF
+#define floatx80_default_nan_low  LIT64( 0xBFFFFFFFFFFFFFFF )
+#else
+#define floatx80_default_nan_high 0xFFFF
+#define floatx80_default_nan_low  LIT64( 0xC000000000000000 )
+#endif
+
+const floatx80 floatx80_default_nan = make_floatx80(floatx80_default_nan_high,
+                                                    floatx80_default_nan_low);
+
+/*----------------------------------------------------------------------------
+| The pattern for a default generated quadruple-precision NaN.  The `high' and
+| `low' values hold the most- and least-significant bits, respectively.
+*----------------------------------------------------------------------------*/
+#if SNAN_BIT_IS_ONE
+#define float128_default_nan_high LIT64( 0x7FFF7FFFFFFFFFFF )
+#define float128_default_nan_low  LIT64( 0xFFFFFFFFFFFFFFFF )
+#else
+#define float128_default_nan_high LIT64( 0xFFFF800000000000 )
+#define float128_default_nan_low  LIT64( 0x0000000000000000 )
+#endif
+
+const float128 float128_default_nan = make_float128(float128_default_nan_high,
+                                                    float128_default_nan_low);
+
 /*----------------------------------------------------------------------------
 | Raises the exceptions specified by `flags'.  Floating-point traps can be
 | defined here if desired.  It is currently not possible for such a trap
