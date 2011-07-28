@@ -316,7 +316,7 @@ int fw_cfg_add_file(FWCfgState *s,  const char *filename, uint8_t *data,
     return 1;
 }
 
-static void fw_cfg_machine_ready(struct Notifier* n)
+static void fw_cfg_machine_ready(struct Notifier *n, void *data)
 {
     uint32_t len;
     FWCfgState *s = container_of(n, FWCfgState, machine_ready);

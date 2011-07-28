@@ -4,7 +4,7 @@
  * Copyright (c) 2011 Red Hat.
  * Written by Alon Levy.
  *
- * This code is licenced under the GNU LGPL, version 2 or later.
+ * This code is licensed under the GNU LGPL, version 2 or later.
  */
 
 /*

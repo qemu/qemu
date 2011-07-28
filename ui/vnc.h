@@ -256,8 +256,10 @@ struct VncState
     int major;
     int minor;
 
+    int auth;
     char challenge[VNC_AUTH_CHALLENGE_SIZE];
 #ifdef CONFIG_VNC_TLS
+    int subauth; /* Used by VeNCrypt */
     VncStateTLS tls;
 #endif
 #ifdef CONFIG_VNC_SASL

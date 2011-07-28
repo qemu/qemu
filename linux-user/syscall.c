@@ -2004,7 +2004,7 @@ static abi_long do_recvfrom(int fd, abi_ulong msg, size_t len, int flags,
         ret = get_errno(recvfrom(fd, host_msg, len, flags, addr, &addrlen));
     } else {
         addr = NULL; /* To keep compiler quiet.  */
-        ret = get_errno(recv(fd, host_msg, len, flags));
+        ret = get_errno(qemu_recv(fd, host_msg, len, flags));
     }
     if (!is_error(ret)) {
         if (target_addr) {

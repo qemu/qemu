@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2008 Jan Kiszka
  *
- * This code is licenced under the GNU GPL v2.
+ * This code is licensed under the GNU GPL v2.
  */
 #include "hw.h"
 #include "bitbang_i2c.h"

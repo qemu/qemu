@@ -4,7 +4,7 @@
  * Copyright (c) 2006 CodeSourcery.
  * Written by Paul Brook
  *
- * This code is licenced under the GPL.
+ * This code is licensed under the GPL.
  */
 
 #include "sysbus.h"
@@ -1230,7 +1230,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
         }
     }
 
-    stellaris_sys_init(0x400fe000, pic[28], board, nd_table[0].macaddr);
+    stellaris_sys_init(0x400fe000, pic[28], board, nd_table[0].macaddr.a);
 
     for (i = 0; i < 7; i++) {
         if (board->dc4 & (1 << i)) {

@@ -898,7 +898,7 @@ void dp83932_init(NICInfo *nd, target_phys_addr_t base, int it_shift,
     s->watchdog = qemu_new_timer_ns(vm_clock, dp8393x_watchdog, s);
     s->regs[SONIC_SR] = 0x0004; /* only revision recognized by Linux */
 
-    memcpy(s->conf.macaddr.a, nd->macaddr, sizeof(s->conf.macaddr));
+    s->conf.macaddr = nd->macaddr;
     s->conf.vlan = nd->vlan;
     s->conf.peer = nd->netdev;
 

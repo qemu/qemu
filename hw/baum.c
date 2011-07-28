@@ -576,7 +576,7 @@ static void baum_close(struct CharDriverState *chr)
     qemu_free(baum);
 }
 
-CharDriverState *chr_baum_init(QemuOpts *opts)
+int chr_baum_init(QemuOpts *opts, CharDriverState **_chr)
 {
     BaumDriverState *baum;
     CharDriverState *chr;
@@ -629,7 +629,8 @@ CharDriverState *chr_baum_init(QemuOpts *opts)
 
     qemu_chr_generic_open(chr);
 
-    return chr;
+    *_chr = chr;
+    return 0;
 
 fail:
     qemu_free_timer(baum->cellCount_timer);
@@ -638,5 +639,5 @@ fail_handle:
     qemu_free(handle);
     qemu_free(chr);
     qemu_free(baum);
-    return NULL;
+    return -EIO;
 }

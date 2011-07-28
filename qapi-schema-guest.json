@@ -1,0 +1,217 @@
+# *-*- Mode: Python -*-*
+
+##
+# @guest-sync:
+#
+# Echo back a unique integer value
+#
+# This is used by clients talking to the guest agent over the
+# wire to ensure the stream is in sync and doesn't contain stale
+# data from previous client. All guest agent responses should be
+# ignored until the provided unique integer value is returned,
+# and it is up to the client to handle stale whole or
+# partially-delivered JSON text in such a way that this response
+# can be obtained.
+#
+# Such clients should also preceed this command
+# with a 0xFF byte to make such the guest agent flushes any
+# partially read JSON data from a previous session.
+#
+# @id: randomly generated 64-bit integer
+#
+# Returns: The unique integer id passed in by the client
+#
+# Since: 0.15.0
+##
+{ 'command': 'guest-sync'
+  'data':    { 'id': 'int' },
+  'returns': 'int' }
+
+##
+# @guest-ping:
+#
+# Ping the guest agent, a non-error return implies success
+#
+# Since: 0.15.0
+##
+{ 'command': 'guest-ping' }
+
+##
+# @guest-info:
+#
+# Get some information about the guest agent.
+#
+# Since: 0.15.0
+##
+{ 'type': 'GuestAgentInfo', 'data': {'version': 'str'} }
+{ 'command': 'guest-info',
+  'returns': 'GuestAgentInfo' }
+
+##
+# @guest-shutdown:
+#
+# Initiate guest-activated shutdown. Note: this is an asynchronous
+# shutdown request, with no guaruntee of successful shutdown. Errors
+# will be logged to guest's syslog.
+#
+# @mode: #optional "halt", "powerdown" (default), or "reboot"
+#
+# Returns: Nothing on success
+#
+# Since: 0.15.0
+##
+{ 'command': 'guest-shutdown', 'data': { '*mode': 'str' } }
+
+##
+# @guest-file-open:
+#
+# Open a file in the guest and retrieve a file handle for it
+#
+# @filepath: Full path to the file in the guest to open.
+#
+# @mode: #optional open mode, as per fopen(), "r" is the default.
+#
+# Returns: Guest file handle on success.
+#
+# Since: 0.15.0
+##
+{ 'command': 'guest-file-open',
+  'data':    { 'path': 'str', '*mode': 'str' },
+  'returns': 'int' }
+
+##
+# @guest-file-close:
+#
+# Close an open file in the guest
+#
+# @handle: filehandle returned by guest-file-open
+#
+# Returns: Nothing on success.
+#
+# Since: 0.15.0
+##
+{ 'command': 'guest-file-close',
+  'data': { 'handle': 'int' } }
+
+##
+# @guest-file-read:
+#
+# Read from an open file in the guest. Data will be base64-encoded
+#
+# @handle: filehandle returned by guest-file-open
+#
+# @count: #optional maximum number of bytes to read (default is 4KB)
+#
+# Returns: GuestFileRead on success. Note: count is number of bytes read
+#          *before* base64 encoding bytes read.
+#
+# Since: 0.15.0
+##
+{ 'type': 'GuestFileRead',
+  'data': { 'count': 'int', 'buf-b64': 'str', 'eof': 'bool' } }
+
+{ 'command': 'guest-file-read',
+  'data':    { 'handle': 'int', '*count': 'int' },
+  'returns': 'GuestFileRead' }
+
+##
+# @guest-file-write:
+#
+# Write to an open file in the guest.
+#
+# @handle: filehandle returned by guest-file-open
+#
+# @buf-b64: base64-encoded string representing data to be written
+#
+# @count: #optional bytes to write (actual bytes, after base64-decode),
+#         default is all content in buf-b64 buffer after base64 decoding
+#
+# Returns: GuestFileWrite on success. Note: count is the number of bytes
+#          base64-decoded bytes written
+#
+# Since: 0.15.0
+##
+{ 'type': 'GuestFileWrite',
+  'data': { 'count': 'int', 'eof': 'bool' } }
+{ 'command': 'guest-file-write',
+  'data':    { 'handle': 'int', 'buf-b64': 'str', '*count': 'int' },
+  'returns': 'GuestFileWrite' }
+
+##
+# @guest-file-seek:
+#
+# Seek to a position in the file, as with fseek(), and return the
+# current file position afterward. Also encapsulates ftell()'s
+# functionality, just Set offset=0, whence=SEEK_CUR.
+#
+# @handle: filehandle returned by guest-file-open
+#
+# @offset: bytes to skip over in the file stream
+#
+# @whence: SEEK_SET, SEEK_CUR, or SEEK_END, as with fseek()
+#
+# Returns: GuestFileSeek on success.
+#
+# Since: 0.15.0
+##
+{ 'type': 'GuestFileSeek',
+  'data': { 'position': 'int', 'eof': 'bool' } }
+
+{ 'command': 'guest-file-seek',
+  'data':    { 'handle': 'int', 'offset': 'int', 'whence': 'int' },
+  'returns': 'GuestFileSeek' }
+
+##
+# @guest-file-flush:
+#
+# Write file changes bufferred in userspace to disk/kernel buffers
+#
+# @handle: filehandle returned by guest-file-open
+#
+# Returns: Nothing on success.
+#
+# Since: 0.15.0
+##
+{ 'command': 'guest-file-flush',
+  'data': { 'handle': 'int' } }
+
+##
+# @guest-fsfreeze-status:
+#
+# Get guest fsfreeze state. error state indicates failure to thaw 1 or more
+# previously frozen filesystems, or failure to open a previously cached
+# filesytem (filesystem unmounted/directory changes, etc).
+#
+# Returns: GuestFsfreezeStatus ("thawed", "frozen", etc., as defined below)
+#
+# Since: 0.15.0
+##
+{ 'enum': 'GuestFsfreezeStatus',
+  'data': [ 'thawed', 'frozen', 'error' ] }
+{ 'command': 'guest-fsfreeze-status',
+  'returns': 'GuestFsfreezeStatus' }
+
+##
+# @guest-fsfreeze-freeze:
+#
+# Sync and freeze all non-network guest filesystems
+#
+# Returns: Number of file systems frozen on success
+#
+# Since: 0.15.0
+##
+{ 'command': 'guest-fsfreeze-freeze',
+  'returns': 'int' }
+
+##
+# @guest-fsfreeze-thaw:
+#
+# Unfreeze frozen guest fileystems
+#
+# Returns: Number of file systems thawed
+#          If error, -1 (unknown error) or -errno
+#
+# Since: 0.15.0
+##
+{ 'command': 'guest-fsfreeze-thaw',
+  'returns': 'int' }

@@ -27,13 +27,28 @@ STEXI
 Display version information and exit
 ETEXI
 
-DEF("M", HAS_ARG, QEMU_OPTION_M,
-    "-M machine      select emulated machine (-M ? for list)\n", QEMU_ARCH_ALL)
+DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
+    "-machine [type=]name[,prop[=value][,...]]\n"
+    "                selects emulated machine (-machine ? for list)\n"
+    "                property accel=accel1[:accel2[:...]] selects accelerator\n"
+    "                supported accelerators are kvm, xen, tcg (default: tcg)\n",
+    QEMU_ARCH_ALL)
 STEXI
-@item -M @var{machine}
-@findex -M
-Select the emulated @var{machine} (@code{-M ?} for list)
+@item -machine [type=]@var{name}[,prop=@var{value}[,...]]
+@findex -machine
+Select the emulated machine by @var{name}. Use @code{-machine ?} to list
+available machines. Supported machine properties are:
+@table @option
+@item accel=@var{accels1}[:@var{accels2}[:...]]
+This is used to enable an accelerator. Depending on the target architecture,
+kvm, xen, or tcg can be available. By default, tcg is used. If there is more
+than one accelerator specified, the next one is used if the previous one fails
+to initialize.
+@end table
 ETEXI
+
+HXCOMM Deprecated by -machine
+DEF("M", HAS_ARG, QEMU_OPTION_M, "", QEMU_ARCH_ALL)
 
 DEF("cpu", HAS_ARG, QEMU_OPTION_cpu,
     "-cpu cpu        select CPU (-cpu ? for list)\n", QEMU_ARCH_ALL)
@@ -160,6 +175,14 @@ an untrusted format header.
 This option specifies the serial number to assign to the device.
 @item addr=@var{addr}
 Specify the controller's PCI address (if=virtio only).
+@item werror=@var{action},rerror=@var{action}
+Specify which @var{action} to take on write and read errors. Valid actions are:
+"ignore" (ignore the error and try to continue), "stop" (pause QEMU),
+"report" (report the error to the guest), "enospc" (pause QEMU only if the
+host disk is full; report the error to the guest otherwise).
+The default setting is @option{werror=enospc} and @option{rerror=report}.
+@item readonly
+Open drive @option{file} as read-only. Guest write attempts will fail.
 @end table
 
 By default, writethrough caching is used for all block device.  This means that
@@ -1092,7 +1115,7 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "-net nic[,vlan=n][,macaddr=mac][,model=type][,name=str][,addr=str][,vectors=v]\n"
     "                create a new Network Interface Card and connect it to VLAN 'n'\n"
 #ifdef CONFIG_SLIRP
-    "-net user[,vlan=n][,name=str][,net=addr[/mask]][,host=addr][,restrict=y|n]\n"
+    "-net user[,vlan=n][,name=str][,net=addr[/mask]][,host=addr][,restrict=on|off]\n"
     "         [,hostname=host][,dhcpstart=addr][,dns=addr][,tftp=dir][,bootfile=f]\n"
     "         [,hostfwd=rule][,guestfwd=rule]"
 #ifndef _WIN32
@@ -1185,7 +1208,7 @@ either in the form a.b.c.d or as number of valid top-most bits. Default is
 Specify the guest-visible address of the host. Default is the 2nd IP in the
 guest network, i.e. x.x.x.2.
 
-@item restrict=y|yes|n|no
+@item restrict=on|off
 If this option is enabled, the guest will be isolated, i.e. it will not be
 able to contact the host and no guest IP packets will be routed over the host
 to the outside. This option does not affect any explicitly set forwarding rules.
@@ -2064,16 +2087,6 @@ STEXI
 @findex -enable-kvm
 Enable KVM full virtualization support. This option is only available
 if KVM support is enabled when compiling.
-ETEXI
-
-DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
-    "-machine accel=accel1[:accel2]    use an accelerator (kvm,xen,tcg), default is tcg\n", QEMU_ARCH_ALL)
-STEXI
-@item -machine accel=@var{accels}
-@findex -machine
-This is use to enable an accelerator, in kvm,xen,tcg.
-By default, it use only tcg. If there a more than one accelerator
-specified, the next one is used if the first don't work.
 ETEXI
 
 DEF("xen-domid", HAS_ARG, QEMU_OPTION_xen_domid,

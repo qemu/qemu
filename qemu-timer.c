@@ -150,6 +150,9 @@ struct QEMUClock {
     int enabled;
 
     QEMUTimer *warp_timer;
+
+    NotifierList reset_notifiers;
+    int64_t last;
 };
 
 struct QEMUTimer {
@@ -218,6 +221,7 @@ static void win32_rearm_timer(struct qemu_alarm_timer *t);
 
 static int unix_start_timer(struct qemu_alarm_timer *t);
 static void unix_stop_timer(struct qemu_alarm_timer *t);
+static void unix_rearm_timer(struct qemu_alarm_timer *t);
 
 #ifdef __linux__
 
@@ -290,7 +294,7 @@ static struct qemu_alarm_timer alarm_timers[] = {
     {"dynticks", dynticks_start_timer,
      dynticks_stop_timer, dynticks_rearm_timer},
 #endif
-    {"unix", unix_start_timer, unix_stop_timer, NULL},
+    {"unix", unix_start_timer, unix_stop_timer, unix_rearm_timer},
 #else
     {"mmtimer", mm_start_timer, mm_stop_timer, NULL},
     {"mmtimer2", mm_start_timer, mm_stop_timer, mm_rearm_timer},
@@ -375,9 +379,15 @@ static QEMUTimer *active_timers[QEMU_NUM_CLOCKS];
 static QEMUClock *qemu_new_clock(int type)
 {
     QEMUClock *clock;
+
     clock = qemu_mallocz(sizeof(QEMUClock));
     clock->type = type;
     clock->enabled = 1;
+    notifier_list_init(&clock->reset_notifiers);
+    /* required to detect & report backward jumps */
+    if (type == QEMU_CLOCK_HOST) {
+        clock->last = get_clock_realtime();
+    }
     return clock;
 }
 
@@ -592,6 +602,8 @@ static void qemu_run_timers(QEMUClock *clock)
 
 int64_t qemu_get_clock_ns(QEMUClock *clock)
 {
+    int64_t now, last;
+
     switch(clock->type) {
     case QEMU_CLOCK_REALTIME:
         return get_clock();
@@ -603,8 +615,24 @@ int64_t qemu_get_clock_ns(QEMUClock *clock)
             return cpu_get_clock();
         }
     case QEMU_CLOCK_HOST:
-        return get_clock_realtime();
+        now = get_clock_realtime();
+        last = clock->last;
+        clock->last = now;
+        if (now < last) {
+            notifier_list_notify(&clock->reset_notifiers, &now);
+        }
+        return now;
     }
+}
+
+void qemu_register_clock_reset_notifier(QEMUClock *clock, Notifier *notifier)
+{
+    notifier_list_add(&clock->reset_notifiers, notifier);
+}
+
+void qemu_unregister_clock_reset_notifier(QEMUClock *clock, Notifier *notifier)
+{
+    notifier_list_remove(&clock->reset_notifiers, notifier);
 }
 
 void init_clocks(void)
@@ -803,6 +831,8 @@ static int64_t qemu_next_alarm_deadline(void)
 
 #if defined(__linux__)
 
+#include "compatfd.h"
+
 static int dynticks_start_timer(struct qemu_alarm_timer *t)
 {
     struct sigevent ev;
@@ -822,6 +852,12 @@ static int dynticks_start_timer(struct qemu_alarm_timer *t)
     memset(&ev, 0, sizeof(ev));
     ev.sigev_value.sival_int = 0;
     ev.sigev_notify = SIGEV_SIGNAL;
+#ifdef SIGEV_THREAD_ID
+    if (qemu_signalfd_available()) {
+        ev.sigev_notify = SIGEV_THREAD_ID;
+        ev._sigev_un._tid = qemu_get_thread_id();
+    }
+#endif /* SIGEV_THREAD_ID */
     ev.sigev_signo = SIGALRM;
 
     if (timer_create(CLOCK_REALTIME, &ev, &host_timer)) {
@@ -890,8 +926,6 @@ static void dynticks_rearm_timer(struct qemu_alarm_timer *t)
 static int unix_start_timer(struct qemu_alarm_timer *t)
 {
     struct sigaction act;
-    struct itimerval itv;
-    int err;
 
     /* timer signal */
     sigfillset(&act.sa_mask);
@@ -899,18 +933,35 @@ static int unix_start_timer(struct qemu_alarm_timer *t)
     act.sa_handler = host_alarm_handler;
 
     sigaction(SIGALRM, &act, NULL);
+    return 0;
+}
+
+static void unix_rearm_timer(struct qemu_alarm_timer *t)
+{
+    struct itimerval itv;
+    int64_t nearest_delta_ns = INT64_MAX;
+    int err;
+
+    assert(alarm_has_dynticks(t));
+    if (!active_timers[QEMU_CLOCK_REALTIME] &&
+        !active_timers[QEMU_CLOCK_VIRTUAL] &&
+        !active_timers[QEMU_CLOCK_HOST])
+        return;
+
+    nearest_delta_ns = qemu_next_alarm_deadline();
+    if (nearest_delta_ns < MIN_TIMER_REARM_NS)
+        nearest_delta_ns = MIN_TIMER_REARM_NS;
 
     itv.it_interval.tv_sec = 0;
-    /* for i386 kernel 2.6 to get 1 ms */
-    itv.it_interval.tv_usec = 999;
-    itv.it_value.tv_sec = 0;
-    itv.it_value.tv_usec = 10 * 1000;
-
+    itv.it_interval.tv_usec = 0; /* 0 for one-shot timer */
+    itv.it_value.tv_sec =  nearest_delta_ns / 1000000000;
+    itv.it_value.tv_usec = (nearest_delta_ns % 1000000000) / 1000;
     err = setitimer(ITIMER_REAL, &itv, NULL);
-    if (err)
-        return -1;
-
-    return 0;
+    if (err) {
+        perror("setitimer");
+        fprintf(stderr, "Internal timer error: aborting\n");
+        exit(1);
+    }
 }
 
 static void unix_stop_timer(struct qemu_alarm_timer *t)

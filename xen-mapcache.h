@@ -9,7 +9,9 @@
 #ifndef XEN_MAPCACHE_H
 #define XEN_MAPCACHE_H
 
-#if defined(CONFIG_MAPCACHE)
+#include <stdlib.h>
+
+#ifdef CONFIG_XEN
 
 void xen_map_cache_init(void);
 uint8_t *xen_map_cache(target_phys_addr_t phys_addr, target_phys_addr_t size,
@@ -20,18 +22,27 @@ void xen_invalidate_map_cache(void);
 
 #else
 
-static inline uint8_t *xen_map_cache(target_phys_addr_t phys_addr,
-                                     target_phys_addr_t size, uint8_t lock)
+static inline void xen_map_cache_init(void)
 {
-    return NULL;
+}
+
+static inline uint8_t *xen_map_cache(target_phys_addr_t phys_addr,
+                                     target_phys_addr_t size,
+                                     uint8_t lock)
+{
+    abort();
 }
 
 static inline ram_addr_t xen_ram_addr_from_mapcache(void *ptr)
 {
-    return 0;
+    abort();
 }
 
 static inline void xen_invalidate_map_cache_entry(uint8_t *buffer)
+{
+}
+
+static inline void xen_invalidate_map_cache(void)
 {
 }
 

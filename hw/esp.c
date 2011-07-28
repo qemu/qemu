@@ -244,7 +244,7 @@ static void do_busid_cmd(ESPState *s, uint8_t *buf, uint8_t busid)
 
     DPRINTF("do_busid_cmd: busid 0x%x\n", busid);
     lun = busid & 7;
-    s->current_req = scsi_req_new(s->current_dev, 0, lun);
+    s->current_req = scsi_req_new(s->current_dev, 0, lun, NULL);
     datalen = scsi_req_enqueue(s->current_req, buf);
     s->ti_size = datalen;
     if (datalen != 0) {

@@ -4,7 +4,7 @@
  * Copyright (c) 2006-2007 CodeSourcery.
  * Written by Paul Brook
  *
- * This code is licenced under the GPL.
+ * This code is licensed under the GPL.
  *
  * The ARMv7M System controller is fairly tightly tied in with the
  * NVIC.  Much of that is also implemented here.

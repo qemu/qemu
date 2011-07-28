@@ -71,6 +71,8 @@ sofree(struct socket *so)
       slirp->tcp_last_so = &slirp->tcb;
   } else if (so == slirp->udp_last_so) {
       slirp->udp_last_so = &slirp->udb;
+  } else if (so == slirp->icmp_last_so) {
+      slirp->icmp_last_so = &slirp->icmp;
   }
   m_free(so->so_m);
 
@@ -164,7 +166,7 @@ soread(struct socket *so)
 	nn = readv(so->s, (struct iovec *)iov, n);
 	DEBUG_MISC((dfd, " ... read nn = %d bytes\n", nn));
 #else
-	nn = recv(so->s, iov[0].iov_base, iov[0].iov_len,0);
+	nn = qemu_recv(so->s, iov[0].iov_base, iov[0].iov_len,0);
 #endif
 	if (nn <= 0) {
 		if (nn < 0 && (errno == EINTR || errno == EAGAIN))
@@ -189,7 +191,7 @@ soread(struct socket *so)
 	 */
 	if (n == 2 && nn == iov[0].iov_len) {
             int ret;
-            ret = recv(so->s, iov[1].iov_base, iov[1].iov_len,0);
+            ret = qemu_recv(so->s, iov[1].iov_base, iov[1].iov_len,0);
             if (ret > 0)
                 nn += ret;
         }

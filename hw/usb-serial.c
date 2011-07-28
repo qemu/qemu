@@ -5,7 +5,7 @@
  * Copyright (c) 2008 Samuel Thibault <samuel.thibault@ens-lyon.org>
  * Written by Paul Brook, reused for FTDI by Samuel Thibault
  *
- * This code is licenced under the LGPL.
+ * This code is licensed under the LGPL.
  */
 
 #include "qemu-common.h"

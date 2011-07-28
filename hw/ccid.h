@@ -4,7 +4,7 @@
  * Copyright (c) 2011 Red Hat.
  * Written by Alon Levy.
  *
- * This code is licenced under the GNU LGPL, version 2 or later.
+ * This code is licensed under the GNU LGPL, version 2 or later.
  */
 
 #ifndef CCID_H
@@ -29,7 +29,6 @@ struct CCIDCardState {
  */
 struct CCIDCardInfo {
     DeviceInfo qdev;
-    void (*print)(Monitor *mon, CCIDCardState *card, int indent);
     const uint8_t *(*get_atr)(CCIDCardState *card, uint32_t *len);
     void (*apdu_from_guest)(CCIDCardState *card,
                             const uint8_t *apdu,

@@ -126,8 +126,8 @@ int xen_config_dev_nic(NICInfo *nic)
     char mac[20];
 
     snprintf(mac, sizeof(mac), "%02x:%02x:%02x:%02x:%02x:%02x",
-	     nic->macaddr[0], nic->macaddr[1], nic->macaddr[2],
-	     nic->macaddr[3], nic->macaddr[4], nic->macaddr[5]);
+             nic->macaddr.a[0], nic->macaddr.a[1], nic->macaddr.a[2],
+             nic->macaddr.a[3], nic->macaddr.a[4], nic->macaddr.a[5]);
     xen_be_printf(NULL, 1, "config nic %d: mac=\"%s\"\n", nic->vlan->id, mac);
     xen_config_dev_dirs("vif", "qnic", nic->vlan->id, fe, be, sizeof(fe));
 

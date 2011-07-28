@@ -152,6 +152,7 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #include "tcp_var.h"
 #include "tcpip.h"
 #include "udp.h"
+#include "ip_icmp.h"
 #include "mbuf.h"
 #include "sbuf.h"
 #include "socket.h"
@@ -217,6 +218,10 @@ struct Slirp {
     /* udp states */
     struct socket udb;
     struct socket *udp_last_so;
+
+    /* icmp states */
+    struct socket icmp;
+    struct socket *icmp_last_so;
 
     /* tftp states */
     char *tftp_prefix;

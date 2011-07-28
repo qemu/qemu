@@ -373,6 +373,31 @@ void slirp_select_fill(int *pnfds,
 				UPD_NFDS(so->s);
 			}
 		}
+
+                /*
+                 * ICMP sockets
+                 */
+                for (so = slirp->icmp.so_next; so != &slirp->icmp;
+                     so = so_next) {
+                    so_next = so->so_next;
+
+                    /*
+                     * See if it's timed out
+                     */
+                    if (so->so_expire) {
+                        if (so->so_expire <= curtime) {
+                            icmp_detach(so);
+                            continue;
+                        } else {
+                            do_slowtimo = 1; /* Let socket expire */
+                        }
+                    }
+
+                    if (so->so_state & SS_ISFCONNECTED) {
+                        FD_SET(so->s, readfds);
+                        UPD_NFDS(so->s);
+                    }
+                }
 	}
 
         *pnfds = nfds;
@@ -497,7 +522,7 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds,
 	 	 	 */
 #ifdef PROBE_CONN
 			if (so->so_state & SS_ISFCONNECTING) {
-			  ret = recv(so->s, (char *)&ret, 0,0);
+                          ret = qemu_recv(so->s, &ret, 0,0);
 
 			  if (ret < 0) {
 			    /* XXX */
@@ -542,6 +567,18 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds,
                             sorecvfrom(so);
                         }
 		}
+
+                /*
+                 * Check incoming ICMP relies.
+                 */
+                for (so = slirp->icmp.so_next; so != &slirp->icmp;
+                     so = so_next) {
+                     so_next = so->so_next;
+
+                    if (so->s != -1 && FD_ISSET(so->s, readfds)) {
+                        icmp_receive(so);
+                    }
+                }
 	}
 
 	/*

@@ -636,7 +636,8 @@ void vm_stop(int reason)
 #else /* CONFIG_IOTHREAD */
 
 QemuMutex qemu_global_mutex;
-static QemuMutex qemu_fair_mutex;
+static QemuCond qemu_io_proceeded_cond;
+static bool iothread_requesting_mutex;
 
 static QemuThread io_thread;
 
@@ -672,7 +673,7 @@ int qemu_init_main_loop(void)
     qemu_cond_init(&qemu_system_cond);
     qemu_cond_init(&qemu_pause_cond);
     qemu_cond_init(&qemu_work_cond);
-    qemu_mutex_init(&qemu_fair_mutex);
+    qemu_cond_init(&qemu_io_proceeded_cond);
     qemu_mutex_init(&qemu_global_mutex);
     qemu_mutex_lock(&qemu_global_mutex);
 
@@ -755,17 +756,9 @@ static void qemu_tcg_wait_io_event(void)
         qemu_cond_wait(tcg_halt_cond, &qemu_global_mutex);
     }
 
-    qemu_mutex_unlock(&qemu_global_mutex);
-
-    /*
-     * Users of qemu_global_mutex can be starved, having no chance
-     * to acquire it since this path will get to it first.
-     * So use another lock to provide fairness.
-     */
-    qemu_mutex_lock(&qemu_fair_mutex);
-    qemu_mutex_unlock(&qemu_fair_mutex);
-
-    qemu_mutex_lock(&qemu_global_mutex);
+    while (iothread_requesting_mutex) {
+        qemu_cond_wait(&qemu_io_proceeded_cond, &qemu_global_mutex);
+    }
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
         qemu_wait_io_event_common(env);
@@ -908,12 +901,13 @@ void qemu_mutex_lock_iothread(void)
     if (kvm_enabled()) {
         qemu_mutex_lock(&qemu_global_mutex);
     } else {
-        qemu_mutex_lock(&qemu_fair_mutex);
+        iothread_requesting_mutex = true;
         if (qemu_mutex_trylock(&qemu_global_mutex)) {
             qemu_cpu_kick_thread(first_cpu);
             qemu_mutex_lock(&qemu_global_mutex);
         }
-        qemu_mutex_unlock(&qemu_fair_mutex);
+        iothread_requesting_mutex = false;
+        qemu_cond_broadcast(&qemu_io_proceeded_cond);
     }
 }
 

@@ -1260,7 +1260,7 @@ static int usb_host_close(USBHostDevice *dev)
     return 0;
 }
 
-static void usb_host_exit_notifier(struct Notifier* n)
+static void usb_host_exit_notifier(struct Notifier *n, void *data)
 {
     USBHostDevice *s = container_of(n, USBHostDevice, exit);
 

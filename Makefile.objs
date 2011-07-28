@@ -209,6 +209,7 @@ hw-obj-$(CONFIG_HPET) += hpet.o
 hw-obj-$(CONFIG_APPLESMC) += applesmc.o
 hw-obj-$(CONFIG_SMARTCARD) += usb-ccid.o ccid-card-passthru.o
 hw-obj-$(CONFIG_SMARTCARD_NSS) += ccid-card-emulated.o
+hw-obj-$(CONFIG_USB_REDIR) += usb-redir.o
 
 # PPC devices
 hw-obj-$(CONFIG_OPENPIC) += openpic.o
@@ -386,7 +387,15 @@ endif
 
 libcacard-y = cac.o event.o vcard.o vreader.o vcard_emul_nss.o vcard_emul_type.o card_7816.o
 
+######################################################################
+# qapi
+
+qapi-nested-y = qapi-visit-core.o qmp-input-visitor.o qmp-output-visitor.o qapi-dealloc-visitor.o
+qapi-nested-y += qmp-registry.o qmp-dispatch.o
+qapi-obj-y = $(addprefix qapi/, $(qapi-nested-y))
+
 vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
 vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)
 
+vl.o: QEMU_CFLAGS+=$(GLIB_CFLAGS)

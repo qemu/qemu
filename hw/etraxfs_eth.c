@@ -602,7 +602,7 @@ void *etraxfs_eth_init(NICInfo *nd, target_phys_addr_t base, int phyaddr)
                                               DEVICE_NATIVE_ENDIAN);
 	cpu_register_physical_memory (base, 0x5c, eth->ethregs);
 
-	memcpy(eth->conf.macaddr.a, nd->macaddr, sizeof(nd->macaddr));
+	eth->conf.macaddr = nd->macaddr;
 	eth->conf.vlan = nd->vlan;
 	eth->conf.peer = nd->netdev;
 

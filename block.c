@@ -1147,6 +1147,25 @@ int bdrv_truncate(BlockDriverState *bs, int64_t offset)
 }
 
 /**
+ * Length of a allocated file in bytes. Sparse files are counted by actual
+ * allocated space. Return < 0 if error or unknown.
+ */
+int64_t bdrv_get_allocated_file_size(BlockDriverState *bs)
+{
+    BlockDriver *drv = bs->drv;
+    if (!drv) {
+        return -ENOMEDIUM;
+    }
+    if (drv->bdrv_get_allocated_file_size) {
+        return drv->bdrv_get_allocated_file_size(bs);
+    }
+    if (bs->file) {
+        return bdrv_get_allocated_file_size(bs->file);
+    }
+    return -ENOTSUP;
+}
+
+/**
  * Length of a file in bytes. Return < 0 if error or unknown.
  */
 int64_t bdrv_getlength(BlockDriverState *bs)

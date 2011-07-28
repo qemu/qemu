@@ -99,6 +99,7 @@ typedef struct RTCState {
     QEMUTimer *coalesced_timer;
     QEMUTimer *second_timer;
     QEMUTimer *second_timer2;
+    Notifier clock_reset_notifier;
 } RTCState;
 
 static void rtc_set_time(RTCState *s);
@@ -572,6 +573,22 @@ static const VMStateDescription vmstate_rtc = {
     }
 };
 
+static void rtc_notify_clock_reset(Notifier *notifier, void *data)
+{
+    RTCState *s = container_of(notifier, RTCState, clock_reset_notifier);
+    int64_t now = *(int64_t *)data;
+
+    rtc_set_date_from_host(&s->dev);
+    s->next_second_time = now + (get_ticks_per_sec() * 99) / 100;
+    qemu_mod_timer(s->second_timer2, s->next_second_time);
+    rtc_timer_update(s, now);
+#ifdef TARGET_I386
+    if (rtc_td_hack) {
+        rtc_coalesced_timer_update(s);
+    }
+#endif
+}
+
 static void rtc_reset(void *opaque)
 {
     RTCState *s = opaque;
@@ -607,6 +624,9 @@ static int rtc_initfn(ISADevice *dev)
 #endif
     s->second_timer = qemu_new_timer_ns(rtc_clock, rtc_update_second, s);
     s->second_timer2 = qemu_new_timer_ns(rtc_clock, rtc_update_second2, s);
+
+    s->clock_reset_notifier.notify = rtc_notify_clock_reset;
+    qemu_register_clock_reset_notifier(rtc_clock, &s->clock_reset_notifier);
 
     s->next_second_time =
         qemu_get_clock_ns(rtc_clock) + (get_ticks_per_sec() * 99) / 100;

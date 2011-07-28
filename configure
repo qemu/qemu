@@ -180,6 +180,7 @@ spice=""
 rbd=""
 smartcard=""
 smartcard_nss=""
+usb_redir=""
 opengl=""
 
 # parse CC options first
@@ -492,6 +493,7 @@ fi
 
 : ${make=${MAKE-make}}
 : ${install=${INSTALL-install}}
+: ${python=${PYTHON-python}}
 
 if test "$mingw32" = "yes" ; then
   EXESUF=".exe"
@@ -533,6 +535,8 @@ for opt do
   --make=*) make="$optarg"
   ;;
   --install=*) install="$optarg"
+  ;;
+  --python=*) python="$optarg"
   ;;
   --extra-cflags=*)
   ;;
@@ -770,6 +774,10 @@ for opt do
   ;;
   --enable-smartcard-nss) smartcard_nss="yes"
   ;;
+  --disable-usb-redir) usb_redir="no"
+  ;;
+  --enable-usb-redir) usb_redir="yes"
+  ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
   esac
@@ -946,6 +954,7 @@ echo "  --extra-cflags=CFLAGS    append extra C compiler flags QEMU_CFLAGS"
 echo "  --extra-ldflags=LDFLAGS  append extra linker flags LDFLAGS"
 echo "  --make=MAKE              use specified make [$make]"
 echo "  --install=INSTALL        use specified install [$install]"
+echo "  --python=PYTHON          use specified python [$python]"
 echo "  --static                 enable static build [$static]"
 echo "  --mandir=PATH            install man pages in PATH"
 echo "  --datadir=PATH           install firmware in PATH"
@@ -1046,6 +1055,8 @@ echo "  --disable-smartcard      disable smartcard support"
 echo "  --enable-smartcard       enable smartcard support"
 echo "  --disable-smartcard-nss  disable smartcard nss support"
 echo "  --enable-smartcard-nss   enable smartcard nss support"
+echo "  --disable-usb-redir      disable usb network redirection support"
+echo "  --enable-usb-redir       enable usb network redirection support"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -1104,6 +1115,13 @@ if test "$solaris" = "yes" ; then
     fi
     exit 1
   fi
+fi
+
+if has $python; then
+  :
+else
+  echo "Python not found. Use --python=/path/to/python"
+  exit 1
 fi
 
 if test -z "$target_list" ; then
@@ -1849,6 +1867,18 @@ EOF
 fi
 
 ##########################################
+# glib support probe
+if $pkg_config --modversion glib-2.0 > /dev/null 2>&1 ; then
+    glib_cflags=`$pkg_config --cflags glib-2.0 2>/dev/null`
+    glib_libs=`$pkg_config --libs glib-2.0 2>/dev/null`
+    libs_softmmu="$glib_libs $libs_softmmu"
+    libs_tools="$glib_libs $libs_tools"
+else
+    echo "glib-2.0 required to compile QEMU"
+    exit 1
+fi
+
+##########################################
 # pthread probe
 PTHREADLIBS_LIST="-lpthread -lpthreadGC2"
 
@@ -2430,6 +2460,22 @@ if test "$smartcard" = "no" ; then
     smartcard_nss="no"
 fi
 
+# check for usbredirparser for usb network redirection support
+if test "$usb_redir" != "no" ; then
+    if $pkg_config libusbredirparser >/dev/null 2>&1 ; then
+        usb_redir="yes"
+        usb_redir_cflags=$($pkg_config --cflags libusbredirparser 2>/dev/null)
+        usb_redir_libs=$($pkg_config --libs libusbredirparser 2>/dev/null)
+        QEMU_CFLAGS="$QEMU_CFLAGS $usb_redir_cflags"
+        LIBS="$LIBS $usb_redir_libs"
+    else
+        if test "$usb_redir" = "yes"; then
+            feature_not_found "usb-redir"
+        fi
+        usb_redir="no"
+    fi
+fi
+
 ##########################################
 
 ##########################################
@@ -2576,9 +2622,10 @@ confdir=$sysconfdir$confsuffix
 
 tools=
 if test "$softmmu" = yes ; then
-  tools="qemu-img$EXESUF qemu-io$EXESUF $tools"
+  tools="qemu-img\$(EXESUF) qemu-io\$(EXESUF) $tools"
   if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
-      tools="qemu-nbd$EXESUF qemu-test$EXESUF $tools"
+      tools="qemu-nbd\$(EXESUF) $tools"
+      tools="qemu-ga\$(EXESUF) $tools"
     if [ "$check_utests" = "yes" ]; then
       tools="check-qint check-qstring check-qdict check-qlist $tools"
       tools="check-qfloat check-qjson $tools"
@@ -2614,6 +2661,7 @@ echo "QEMU_CFLAGS       $QEMU_CFLAGS"
 echo "LDFLAGS           $LDFLAGS"
 echo "make              $make"
 echo "install           $install"
+echo "python            $python"
 echo "host CPU          $cpu"
 echo "host big endian   $bigendian"
 echo "target list       $target_list"
@@ -2678,6 +2726,7 @@ echo "spice support     $spice"
 echo "rbd support       $rbd"
 echo "xfsctl support    $xfs"
 echo "nss used          $smartcard_nss"
+echo "usb net redir     $usb_redir"
 echo "OpenGL support    $opengl"
 
 if test $sdl_too_old = "yes"; then
@@ -2927,6 +2976,7 @@ if test "$bluez" = "yes" ; then
   echo "CONFIG_BLUEZ=y" >> $config_host_mak
   echo "BLUEZ_CFLAGS=$bluez_cflags" >> $config_host_mak
 fi
+echo "GLIB_CFLAGS=$glib_cflags" >> $config_host_mak
 if test "$xen" = "yes" ; then
   echo "CONFIG_XEN_BACKEND=y" >> $config_host_mak
   echo "CONFIG_XEN_CTRL_INTERFACE_VERSION=$xen_ctrl_version" >> $config_host_mak
@@ -2991,6 +3041,10 @@ if test "$smartcard_nss" = "yes" ; then
   echo "CONFIG_SMARTCARD_NSS=y" >> $config_host_mak
 fi
 
+if test "$usb_redir" = "yes" ; then
+  echo "CONFIG_USB_REDIR=y" >> $config_host_mak
+fi
+
 if test "$opengl" = "yes" ; then
   echo "CONFIG_OPENGL=y" >> $config_host_mak
 fi
@@ -3042,6 +3096,7 @@ echo "INSTALL=$install" >> $config_host_mak
 echo "INSTALL_DIR=$install -d -m0755 -p" >> $config_host_mak
 echo "INSTALL_DATA=$install -m0644 -p" >> $config_host_mak
 echo "INSTALL_PROG=$install -m0755 -p" >> $config_host_mak
+echo "PYTHON=$python" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
 echo "CC_I386=$cc_i386" >> $config_host_mak
 echo "HOST_CC=$host_cc" >> $config_host_mak
@@ -3561,6 +3616,8 @@ DIRS="tests tests/cris slirp audio block net pc-bios/optionrom"
 DIRS="$DIRS pc-bios/spapr-rtas"
 DIRS="$DIRS roms/seabios roms/vgabios"
 DIRS="$DIRS fsdev ui"
+DIRS="$DIRS qapi"
+DIRS="$DIRS qga"
 FILES="Makefile tests/Makefile"
 FILES="$FILES pc-bios/qemu-icon.bmp"
 FILES="$FILES tests/cris/Makefile tests/cris/.gdbinit"

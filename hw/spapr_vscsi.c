@@ -121,22 +121,13 @@ static struct vscsi_req *vscsi_get_req(VSCSIState *s)
     return NULL;
 }
 
-static void vscsi_put_req(VSCSIState *s, vscsi_req *req)
+static void vscsi_put_req(vscsi_req *req)
 {
     if (req->sreq != NULL) {
         scsi_req_unref(req->sreq);
     }
     req->sreq = NULL;
     req->active = 0;
-}
-
-static vscsi_req *vscsi_find_req(VSCSIState *s, SCSIRequest *req)
-{
-    uint32_t tag = req->tag;
-    if (tag >= VSCSI_REQ_LIMIT || !s->reqs[tag].active) {
-        return NULL;
-    }
-    return &s->reqs[tag];
 }
 
 static void vscsi_decode_id_lun(uint64_t srp_lun, int *id, int *lun)
@@ -454,7 +445,7 @@ static void vscsi_send_request_sense(VSCSIState *s, vscsi_req *req)
     if (n) {
         req->senselen = n;
         vscsi_send_rsp(s, req, CHECK_CONDITION, 0, 0);
-        vscsi_put_req(s, req);
+        vscsi_put_req(req);
         return;
     }
 
@@ -483,7 +474,7 @@ static void vscsi_send_request_sense(VSCSIState *s, vscsi_req *req)
 static void vscsi_transfer_data(SCSIRequest *sreq, uint32_t len)
 {
     VSCSIState *s = DO_UPCAST(VSCSIState, vdev.qdev, sreq->bus->qbus.parent);
-    vscsi_req *req = vscsi_find_req(s, sreq);
+    vscsi_req *req = sreq->hba_private;
     uint8_t *buf;
     int rc = 0;
 
@@ -531,7 +522,7 @@ static void vscsi_transfer_data(SCSIRequest *sreq, uint32_t len)
 static void vscsi_command_complete(SCSIRequest *sreq, uint32_t status)
 {
     VSCSIState *s = DO_UPCAST(VSCSIState, vdev.qdev, sreq->bus->qbus.parent);
-    vscsi_req *req = vscsi_find_req(s, sreq);
+    vscsi_req *req = sreq->hba_private;
     int32_t res_in = 0, res_out = 0;
 
     dprintf("VSCSI: SCSI cmd complete, r=0x%x tag=0x%x status=0x%x, req=%p\n",
@@ -563,15 +554,14 @@ static void vscsi_command_complete(SCSIRequest *sreq, uint32_t status)
         }
     }
     vscsi_send_rsp(s, req, 0, res_in, res_out);
-    vscsi_put_req(s, req);
+    vscsi_put_req(req);
 }
 
 static void vscsi_request_cancelled(SCSIRequest *sreq)
 {
-    VSCSIState *s = DO_UPCAST(VSCSIState, vdev.qdev, sreq->bus->qbus.parent);
-    vscsi_req *req = vscsi_find_req(s, sreq);
+    vscsi_req *req = sreq->hba_private;
 
-    vscsi_put_req(s, req);
+    vscsi_put_req(req);
 }
 
 static void vscsi_process_login(VSCSIState *s, vscsi_req *req)
@@ -659,7 +649,7 @@ static int vscsi_queue_cmd(VSCSIState *s, vscsi_req *req)
     }
 
     req->lun = lun;
-    req->sreq = scsi_req_new(sdev, req->qtag, lun);
+    req->sreq = scsi_req_new(sdev, req->qtag, lun, req);
     n = scsi_req_enqueue(req->sreq, srp->cmd.cdb);
 
     dprintf("VSCSI: Queued command tag 0x%x CMD 0x%x ID %d LUN %d ret: %d\n",
@@ -858,7 +848,7 @@ static void vscsi_got_payload(VSCSIState *s, vscsi_crq *crq)
     }
 
     if (done) {
-        vscsi_put_req(s, req);
+        vscsi_put_req(req);
     }
 }
 

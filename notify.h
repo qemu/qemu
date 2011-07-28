@@ -20,7 +20,7 @@ typedef struct Notifier Notifier;
 
 struct Notifier
 {
-    void (*notify)(Notifier *notifier);
+    void (*notify)(Notifier *notifier, void *data);
     QTAILQ_ENTRY(Notifier) node;
 };
 
@@ -38,6 +38,6 @@ void notifier_list_add(NotifierList *list, Notifier *notifier);
 
 void notifier_list_remove(NotifierList *list, Notifier *notifier);
 
-void notifier_list_notify(NotifierList *list);
+void notifier_list_notify(NotifierList *list, void *data);
 
 #endif
