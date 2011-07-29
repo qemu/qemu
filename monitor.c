@@ -1311,7 +1311,7 @@ static int do_cont(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     struct bdrv_iterate_context context = { mon, 0 };
 
-    if (incoming_expected) {
+    if (runstate_check(RSTATE_IN_MIGRATE)) {
         qerror_report(QERR_MIGRATION_EXPECTED);
         return -1;
     }
