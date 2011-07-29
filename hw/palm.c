@@ -94,7 +94,7 @@ static void palmte_microwire_setup(struct omap_mpu_state_s *cpu)
 {
     uWireSlave *tsc;
 
-    tsc = tsc2102_init(omap_gpio_in_get(cpu->gpio)[PALMTE_PINTDAV_GPIO]);
+    tsc = tsc2102_init(qdev_get_gpio_in(cpu->gpio, PALMTE_PINTDAV_GPIO));
 
     omap_uwire_attach(cpu->microwire, tsc, 0);
     omap_mcbsp_i2s_attach(cpu->mcbsp1, tsc210x_codec(tsc));
@@ -163,24 +163,24 @@ static void palmte_gpio_setup(struct omap_mpu_state_s *cpu)
     qemu_irq *misc_gpio;
 
     omap_mmc_handlers(cpu->mmc,
-                    omap_gpio_in_get(cpu->gpio)[PALMTE_MMC_WP_GPIO],
+                    qdev_get_gpio_in(cpu->gpio, PALMTE_MMC_WP_GPIO),
                     qemu_irq_invert(omap_mpuio_in_get(cpu->mpuio)
                             [PALMTE_MMC_SWITCH_GPIO]));
 
     misc_gpio = qemu_allocate_irqs(palmte_onoff_gpios, cpu, 7);
-    omap_gpio_out_set(cpu->gpio, PALMTE_MMC_POWER_GPIO,	misc_gpio[0]);
-    omap_gpio_out_set(cpu->gpio, PALMTE_SPEAKER_GPIO,	misc_gpio[1]);
-    omap_gpio_out_set(cpu->gpio, 11,			misc_gpio[2]);
-    omap_gpio_out_set(cpu->gpio, 12,			misc_gpio[3]);
-    omap_gpio_out_set(cpu->gpio, 13,			misc_gpio[4]);
-    omap_mpuio_out_set(cpu->mpuio, 1,			misc_gpio[5]);
-    omap_mpuio_out_set(cpu->mpuio, 3,			misc_gpio[6]);
+    qdev_connect_gpio_out(cpu->gpio, PALMTE_MMC_POWER_GPIO,	misc_gpio[0]);
+    qdev_connect_gpio_out(cpu->gpio, PALMTE_SPEAKER_GPIO,	misc_gpio[1]);
+    qdev_connect_gpio_out(cpu->gpio, 11,			misc_gpio[2]);
+    qdev_connect_gpio_out(cpu->gpio, 12,			misc_gpio[3]);
+    qdev_connect_gpio_out(cpu->gpio, 13,			misc_gpio[4]);
+    omap_mpuio_out_set(cpu->mpuio, 1,				misc_gpio[5]);
+    omap_mpuio_out_set(cpu->mpuio, 3,				misc_gpio[6]);
 
     /* Reset some inputs to initial state.  */
-    qemu_irq_lower(omap_gpio_in_get(cpu->gpio)[PALMTE_USBDETECT_GPIO]);
-    qemu_irq_lower(omap_gpio_in_get(cpu->gpio)[PALMTE_USB_OR_DC_GPIO]);
-    qemu_irq_lower(omap_gpio_in_get(cpu->gpio)[4]);
-    qemu_irq_lower(omap_gpio_in_get(cpu->gpio)[PALMTE_HEADPHONES_GPIO]);
+    qemu_irq_lower(qdev_get_gpio_in(cpu->gpio, PALMTE_USBDETECT_GPIO));
+    qemu_irq_lower(qdev_get_gpio_in(cpu->gpio, PALMTE_USB_OR_DC_GPIO));
+    qemu_irq_lower(qdev_get_gpio_in(cpu->gpio, 4));
+    qemu_irq_lower(qdev_get_gpio_in(cpu->gpio, PALMTE_HEADPHONES_GPIO));
     qemu_irq_lower(omap_mpuio_in_get(cpu->mpuio)[PALMTE_DC_GPIO]);
     qemu_irq_raise(omap_mpuio_in_get(cpu->mpuio)[6]);
     qemu_irq_raise(omap_mpuio_in_get(cpu->mpuio)[7]);
