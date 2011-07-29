@@ -18,15 +18,13 @@ pflash_t *pflash_cfi02_register(target_phys_addr_t base, ram_addr_t off,
                                 int be);
 
 /* nand.c */
-typedef struct NANDFlashState NANDFlashState;
-NANDFlashState *nand_init(BlockDriverState *bdrv, int manf_id, int chip_id);
-void nand_done(NANDFlashState *s);
-void nand_setpins(NANDFlashState *s, uint8_t cle, uint8_t ale,
+DeviceState *nand_init(BlockDriverState *bdrv, int manf_id, int chip_id);
+void nand_setpins(DeviceState *dev, uint8_t cle, uint8_t ale,
                   uint8_t ce, uint8_t wp, uint8_t gnd);
-void nand_getpins(NANDFlashState *s, int *rb);
-void nand_setio(NANDFlashState *s, uint32_t value);
-uint32_t nand_getio(NANDFlashState *s);
-uint32_t nand_getbuswidth(NANDFlashState *s);
+void nand_getpins(DeviceState *dev, int *rb);
+void nand_setio(DeviceState *dev, uint32_t value);
+uint32_t nand_getio(DeviceState *dev);
+uint32_t nand_getbuswidth(DeviceState *dev);
 
 #define NAND_MFR_TOSHIBA	0x98
 #define NAND_MFR_SAMSUNG	0xec

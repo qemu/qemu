@@ -118,7 +118,7 @@ struct TC6393xbState {
     } nand;
     int nand_enable;
     uint32_t nand_phys;
-    NANDFlashState *flash;
+    DeviceState *flash;
     ECCState ecc;
 
     DisplayState *ds;

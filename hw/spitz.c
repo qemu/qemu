@@ -48,7 +48,7 @@
 
 typedef struct {
     SysBusDevice busdev;
-    NANDFlashState *nand;
+    DeviceState *nand;
     uint8_t ctl;
     uint8_t manf_id;
     uint8_t chip_id;

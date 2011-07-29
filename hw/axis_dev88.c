@@ -37,7 +37,7 @@
 
 struct nand_state_t
 {
-    NANDFlashState *nand;
+    DeviceState *nand;
     unsigned int rdy:1;
     unsigned int ale:1;
     unsigned int cle:1;
