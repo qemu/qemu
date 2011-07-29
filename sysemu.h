@@ -23,6 +23,7 @@ typedef void VMChangeStateHandler(void *opaque, int running, int reason);
 VMChangeStateEntry *qemu_add_vm_change_state_handler(VMChangeStateHandler *cb,
                                                      void *opaque);
 void qemu_del_vm_change_state_handler(VMChangeStateEntry *e);
+void vm_state_notify(int running, int reason);
 
 #define VMSTOP_USER      0
 #define VMSTOP_DEBUG     1
