@@ -124,6 +124,7 @@ static void do_vm_stop(RunState state)
         cpu_disable_ticks();
         vm_running = 0;
         pause_all_vcpus();
+        runstate_set(state);
         vm_state_notify(0, state);
         qemu_aio_flush();
         bdrv_flush_all();

@@ -323,6 +323,22 @@ static int default_driver_check(QemuOpts *opts, void *opaque)
 }
 
 /***********************************************************/
+/* QEMU state */
+
+static RunState current_run_state = RSTATE_NO_STATE;
+
+bool runstate_check(RunState state)
+{
+    return current_run_state == state;
+}
+
+void runstate_set(RunState new_state)
+{
+    assert(new_state < RSTATE_MAX);
+    current_run_state = new_state;
+}
+
+/***********************************************************/
 /* real time host monotonic timer */
 
 /***********************************************************/
@@ -1161,6 +1177,7 @@ void vm_start(void)
     if (!vm_running) {
         cpu_enable_ticks();
         vm_running = 1;
+        runstate_set(RSTATE_RUNNING);
         vm_state_notify(1, RSTATE_RUNNING);
         resume_all_vcpus();
         monitor_protocol_event(QEVENT_RESUME, NULL);
@@ -3438,6 +3455,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (incoming) {
+        runstate_set(RSTATE_IN_MIGRATE);
         int ret = qemu_start_incoming_migration(incoming);
         if (ret < 0) {
             fprintf(stderr, "Migration failed. Exit code %s(%d), exiting.\n",
@@ -3446,6 +3464,8 @@ int main(int argc, char **argv, char **envp)
         }
     } else if (autostart) {
         vm_start();
+    } else {
+        runstate_set(RSTATE_PRE_LAUNCH);
     }
 
     os_setup_post();

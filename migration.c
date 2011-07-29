@@ -72,8 +72,11 @@ void process_incoming_migration(QEMUFile *f)
 
     incoming_expected = false;
 
-    if (autostart)
+    if (autostart) {
         vm_start();
+    } else {
+        runstate_set(RSTATE_PRE_LAUNCH);
+    }
 }
 
 int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
@@ -389,6 +392,9 @@ void migrate_fd_put_ready(void *opaque)
                 vm_start();
             }
             state = MIG_STATE_ERROR;
+        }
+        if (state == MIG_STATE_COMPLETED) {
+            runstate_set(RSTATE_POST_MIGRATE);
         }
         s->state = state;
         notifier_list_notify(&migration_state_notifiers, NULL);
