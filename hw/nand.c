@@ -75,6 +75,15 @@ struct NANDFlashState {
     uint32_t ioaddr_vmstate;
 };
 
+static void mem_and(uint8_t *dest, const uint8_t *src, size_t n)
+{
+    /* Like memcpy() but we logical-AND the data into the destination */
+    int i;
+    for (i = 0; i < n; i++) {
+        dest[i] &= src[i];
+    }
+}
+
 # define NAND_NO_AUTOINCR	0x00000001
 # define NAND_BUSWIDTH_16	0x00000002
 # define NAND_NO_PADDING	0x00000004
@@ -595,7 +604,7 @@ static void glue(nand_blk_write_, PAGE_SIZE)(NANDFlashState *s)
         return;
 
     if (!s->bdrv) {
-        memcpy(s->storage + PAGE_START(s->addr) + (s->addr & PAGE_MASK) +
+        mem_and(s->storage + PAGE_START(s->addr) + (s->addr & PAGE_MASK) +
                         s->offset, s->io, s->iolen);
     } else if (s->mem_oob) {
         sector = SECTOR(s->addr);
@@ -606,10 +615,10 @@ static void glue(nand_blk_write_, PAGE_SIZE)(NANDFlashState *s)
             return;
         }
 
-        memcpy(iobuf + (soff | off), s->io, MIN(s->iolen, PAGE_SIZE - off));
+        mem_and(iobuf + (soff | off), s->io, MIN(s->iolen, PAGE_SIZE - off));
         if (off + s->iolen > PAGE_SIZE) {
             page = PAGE(s->addr);
-            memcpy(s->storage + (page << OOB_SHIFT), s->io + PAGE_SIZE - off,
+            mem_and(s->storage + (page << OOB_SHIFT), s->io + PAGE_SIZE - off,
                             MIN(OOB_SIZE, off + s->iolen - PAGE_SIZE));
         }
 
@@ -624,7 +633,7 @@ static void glue(nand_blk_write_, PAGE_SIZE)(NANDFlashState *s)
             return;
         }
 
-        memcpy(iobuf + soff, s->io, s->iolen);
+        mem_and(iobuf + soff, s->io, s->iolen);
 
         if (bdrv_write(s->bdrv, sector, iobuf, PAGE_SECTORS + 2) == -1)
             printf("%s: write error in sector %" PRIu64 "\n", __func__, sector);
