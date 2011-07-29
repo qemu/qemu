@@ -179,14 +179,39 @@ static inline int onenand_load_main(OneNANDState *s, int sec, int secn,
 static inline int onenand_prog_main(OneNANDState *s, int sec, int secn,
                 void *src)
 {
-    if (s->bdrv_cur)
-        return bdrv_write(s->bdrv_cur, sec, src, secn) < 0;
-    else if (sec + secn > s->secs_cur)
-        return 1;
+    int result = 0;
 
-    memcpy(s->current + (sec << 9), src, secn << 9);
+    if (secn > 0) {
+        uint32_t size = (uint32_t) secn * 512;
+        const uint8_t *sp = (const uint8_t *) src;
+        uint8_t *dp = 0;
+        if (s->bdrv_cur) {
+            dp = qemu_malloc(size);
+            if (!dp || bdrv_read(s->bdrv_cur, sec, dp, secn) < 0) {
+                result = 1;
+            }
+        } else {
+            if (sec + secn > s->secs_cur) {
+                result = 1;
+            } else {
+                dp = (uint8_t *) s->current + (sec << 9);
+            }
+        }
+        if (!result) {
+            uint32_t i;
+            for (i = 0; i < size; i++) {
+                dp[i] &= sp[i];
+            }
+            if (s->bdrv_cur) {
+                result = bdrv_write(s->bdrv_cur, sec, dp, secn) < 0;
+            }
+        }
+        if (dp && s->bdrv_cur) {
+            qemu_free(dp);
+        }
+    }
 
-    return 0;
+    return result;
 }
 
 static inline int onenand_load_spare(OneNANDState *s, int sec, int secn,
@@ -209,35 +234,87 @@ static inline int onenand_load_spare(OneNANDState *s, int sec, int secn,
 static inline int onenand_prog_spare(OneNANDState *s, int sec, int secn,
                 void *src)
 {
-    uint8_t buf[512];
-
-    if (s->bdrv_cur) {
-        if (bdrv_read(s->bdrv_cur, s->secs_cur + (sec >> 5), buf, 1) < 0)
-            return 1;
-        memcpy(buf + ((sec & 31) << 4), src, secn << 4);
-        return bdrv_write(s->bdrv_cur, s->secs_cur + (sec >> 5), buf, 1) < 0;
-    } else if (sec + secn > s->secs_cur)
-        return 1;
-
-    memcpy(s->current + (s->secs_cur << 9) + (sec << 4), src, secn << 4);
- 
-    return 0;
+    int result = 0;
+    if (secn > 0) {
+        const uint8_t *sp = (const uint8_t *) src;
+        uint8_t *dp = 0, *dpp = 0;
+        if (s->bdrv_cur) {
+            dp = qemu_malloc(512);
+            if (!dp || bdrv_read(s->bdrv_cur,
+                                s->secs_cur + (sec >> 5),
+                                dp, 1) < 0) {
+                result = 1;
+            } else {
+                dpp = dp + ((sec & 31) << 4);
+            }
+        } else {
+            if (sec + secn > s->secs_cur) {
+                result = 1;
+            } else {
+                dpp = s->current + (s->secs_cur << 9) + (sec << 4);
+            }
+        }
+        if (!result) {
+            uint32_t i;
+            for (i = 0; i < (secn << 4); i++) {
+                dpp[i] &= sp[i];
+            }
+            if (s->bdrv_cur) {
+                result = bdrv_write(s->bdrv_cur, s->secs_cur + (sec >> 5),
+                                dp, 1) < 0;
+            }
+        }
+        if (dp) {
+            qemu_free(dp);
+        }
+    }
+    return result;
 }
 
 static inline int onenand_erase(OneNANDState *s, int sec, int num)
 {
-    /* TODO: optimise */
-    uint8_t buf[512];
-
-    memset(buf, 0xff, sizeof(buf));
-    for (; num > 0; num --, sec ++) {
-        if (onenand_prog_main(s, sec, 1, buf))
-            return 1;
-        if (onenand_prog_spare(s, sec, 1, buf))
-            return 1;
+    uint8_t *blankbuf, *tmpbuf;
+    blankbuf = qemu_malloc(512);
+    if (!blankbuf) {
+        return 1;
+    }
+    tmpbuf = qemu_malloc(512);
+    if (!tmpbuf) {
+        qemu_free(blankbuf);
+        return 1;
+    }
+    memset(blankbuf, 0xff, 512);
+    for (; num > 0; num--, sec++) {
+        if (s->bdrv_cur) {
+            int erasesec = s->secs_cur + (sec >> 5);
+            if (bdrv_write(s->bdrv_cur, sec, blankbuf, 1)) {
+                goto fail;
+            }
+            if (bdrv_read(s->bdrv_cur, erasesec, tmpbuf, 1) < 0) {
+                goto fail;
+            }
+            memcpy(tmpbuf + ((sec & 31) << 4), blankbuf, 1 << 4);
+            if (bdrv_write(s->bdrv_cur, erasesec, tmpbuf, 1) < 0) {
+                goto fail;
+            }
+        } else {
+            if (sec + 1 > s->secs_cur) {
+                goto fail;
+            }
+            memcpy(s->current + (sec << 9), blankbuf, 512);
+            memcpy(s->current + (s->secs_cur << 9) + (sec << 4),
+                   blankbuf, 1 << 4);
+        }
     }
 
+    qemu_free(tmpbuf);
+    qemu_free(blankbuf);
     return 0;
+
+fail:
+    qemu_free(tmpbuf);
+    qemu_free(blankbuf);
+    return 1;
 }
 
 static void onenand_command(OneNANDState *s, int cmd)
