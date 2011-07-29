@@ -1,0 +1,13 @@
+prefix=@PREFIX@
+exec_prefix=${prefix}
+libdir=@LIBDIR@
+includedir=@INCLUDEDIR@
+
+Name: cacard
+Description: CA Card library
+Version: @VERSION@
+
+Requires:  nss
+Libs: -L${libdir} -lcacard
+Libs.private:
+Cflags: -I${includedir}
