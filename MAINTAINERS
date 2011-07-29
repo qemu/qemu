@@ -143,6 +143,16 @@ L: kvm@vger.kernel.org
 S: Supported
 F: target-i386/kvm.c
 
+Guest CPU Cores (Xen):
+----------------------
+
+X86
+M: Stefano Stabellini <stefano.stabellini@eu.citrix.com>
+L: xen-devel@lists.xensource.com
+S: Supported
+F: xen-*
+F: */xen*
+
 ARM Machines
 ------------
 Gumstix
