@@ -146,6 +146,12 @@ struct omap_l4_s *omap_l4_init(target_phys_addr_t base, int ta_num)
     return bus;
 }
 
+target_phys_addr_t omap_l4_region_base(struct omap_target_agent_s *ta,
+                                       int region)
+{
+    return ta->bus->base + ta->start[region].offset;
+}
+
 static uint32_t omap_l4ta_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_target_agent_s *s = (struct omap_target_agent_s *) opaque;
