@@ -72,6 +72,6 @@ void wm8750_set_bclk_in(void *opaque, int new_hz);
 void tmp105_set(i2c_slave *i2c, int temp);
 
 /* lm832x.c */
-void lm832x_key_event(i2c_slave *i2c, int key, int state);
+void lm832x_key_event(DeviceState *dev, int key, int state);
 
 #endif

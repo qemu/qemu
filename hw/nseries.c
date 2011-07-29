@@ -45,7 +45,7 @@ struct n800_s {
     i2c_bus *i2c;
 
     int keymap[0x80];
-    i2c_slave *kbd;
+    DeviceState *kbd;
 
     TUSBState *usb;
     void *retu;
@@ -362,7 +362,6 @@ static int n810_keys[0x80] = {
 static void n810_kbd_setup(struct n800_s *s)
 {
     qemu_irq kbd_irq = qdev_get_gpio_in(s->cpu->gpio, N810_KEYBOARD_GPIO);
-    DeviceState *dev;
     int i;
 
     for (i = 0; i < 0x80; i ++)
@@ -375,8 +374,8 @@ static void n810_kbd_setup(struct n800_s *s)
 
     /* Attach the LM8322 keyboard to the I2C bus,
      * should happen in n8x0_i2c_setup and s->kbd be initialised here.  */
-    dev = i2c_create_slave(s->i2c, "lm8323", N810_LM8323_ADDR);
-    qdev_connect_gpio_out(dev, 0, kbd_irq);
+    s->kbd = i2c_create_slave(s->i2c, "lm8323", N810_LM8323_ADDR);
+    qdev_connect_gpio_out(s->kbd, 0, kbd_irq);
 }
 
 /* LCD MIPI DBI-C controller (URAL) */
