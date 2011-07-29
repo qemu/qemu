@@ -374,7 +374,7 @@ void migrate_fd_put_ready(void *opaque)
         int old_vm_running = vm_running;
 
         DPRINTF("done iterating\n");
-        vm_stop(VMSTOP_MIGRATE);
+        vm_stop(RSTATE_PRE_MIGRATE);
 
         if ((qemu_savevm_state_complete(s->mon, s->file)) < 0) {
             if (old_vm_running) {

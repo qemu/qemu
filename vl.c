@@ -1145,14 +1145,14 @@ void qemu_del_vm_change_state_handler(VMChangeStateEntry *e)
     g_free (e);
 }
 
-void vm_state_notify(int running, int reason)
+void vm_state_notify(int running, RunState state)
 {
     VMChangeStateEntry *e;
 
-    trace_vm_state_notify(running, reason);
+    trace_vm_state_notify(running, state);
 
     for (e = vm_change_state_head.lh_first; e; e = e->entries.le_next) {
-        e->cb(e->opaque, running, reason);
+        e->cb(e->opaque, running, state);
     }
 }
 
@@ -1161,7 +1161,7 @@ void vm_start(void)
     if (!vm_running) {
         cpu_enable_ticks();
         vm_running = 1;
-        vm_state_notify(1, 0);
+        vm_state_notify(1, RSTATE_RUNNING);
         resume_all_vcpus();
         monitor_protocol_event(QEVENT_RESUME, NULL);
     }
@@ -1182,7 +1182,7 @@ static int shutdown_requested, shutdown_signal = -1;
 static pid_t shutdown_pid;
 static int powerdown_requested;
 static int debug_requested;
-static int vmstop_requested;
+static RunState vmstop_requested = RSTATE_NO_STATE;
 
 int qemu_shutdown_requested_get(void)
 {
@@ -1238,11 +1238,11 @@ static int qemu_debug_requested(void)
     return r;
 }
 
-static int qemu_vmstop_requested(void)
+static RunState qemu_vmstop_requested(void)
 {
-    int r = vmstop_requested;
-    vmstop_requested = 0;
-    return r;
+    RunState s = vmstop_requested;
+    vmstop_requested = RSTATE_NO_STATE;
+    return s;
 }
 
 void qemu_register_reset(QEMUResetHandler *func, void *opaque)
@@ -1317,9 +1317,9 @@ void qemu_system_debug_request(void)
     qemu_notify_event();
 }
 
-void qemu_system_vmstop_request(int reason)
+void qemu_system_vmstop_request(RunState state)
 {
-    vmstop_requested = reason;
+    vmstop_requested = state;
     qemu_notify_event();
 }
 
@@ -1469,13 +1469,13 @@ static void main_loop(void)
 #endif
 
         if (qemu_debug_requested()) {
-            vm_stop(VMSTOP_DEBUG);
+            vm_stop(RSTATE_DEBUG);
         }
         if (qemu_shutdown_requested()) {
             qemu_kill_report();
             monitor_protocol_event(QEVENT_SHUTDOWN, NULL);
             if (no_shutdown) {
-                vm_stop(VMSTOP_SHUTDOWN);
+                vm_stop(RSTATE_SHUTDOWN);
             } else
                 break;
         }

@@ -1453,10 +1453,11 @@ static void qxl_hw_text_update(void *opaque, console_ch_t *chardata)
     }
 }
 
-static void qxl_vm_change_state_handler(void *opaque, int running, int reason)
+static void qxl_vm_change_state_handler(void *opaque, int running,
+                                        RunState state)
 {
     PCIQXLDevice *qxl = opaque;
-    qemu_spice_vm_change_state_handler(&qxl->ssd, running, reason);
+    qemu_spice_vm_change_state_handler(&qxl->ssd, running, state);
 
     if (running) {
         /*

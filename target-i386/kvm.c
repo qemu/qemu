@@ -334,7 +334,7 @@ static int kvm_inject_mce_oldstyle(CPUState *env)
     return 0;
 }
 
-static void cpu_update_state(void *opaque, int running, int reason)
+static void cpu_update_state(void *opaque, int running, RunState state)
 {
     CPUState *env = opaque;
 

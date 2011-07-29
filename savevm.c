@@ -1603,7 +1603,7 @@ static int qemu_savevm_state(Monitor *mon, QEMUFile *f)
     int ret;
 
     saved_vm_running = vm_running;
-    vm_stop(VMSTOP_SAVEVM);
+    vm_stop(RSTATE_SAVEVM);
 
     if (qemu_savevm_state_blocked(mon)) {
         ret = -EINVAL;
@@ -1932,7 +1932,7 @@ void do_savevm(Monitor *mon, const QDict *qdict)
     }
 
     saved_vm_running = vm_running;
-    vm_stop(VMSTOP_SAVEVM);
+    vm_stop(RSTATE_SAVEVM);
 
     memset(sn, 0, sizeof(*sn));
 

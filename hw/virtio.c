@@ -837,7 +837,7 @@ void virtio_cleanup(VirtIODevice *vdev)
     g_free(vdev);
 }
 
-static void virtio_vmstate_change(void *opaque, int running, int reason)
+static void virtio_vmstate_change(void *opaque, int running, RunState state)
 {
     VirtIODevice *vdev = opaque;
     bool backend_run = running && (vdev->status & VIRTIO_CONFIG_S_DRIVER_OK);
