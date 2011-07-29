@@ -41,6 +41,7 @@
 #include "sysemu.h"
 #include "blockdev.h"
 #include "ui/qemu-spice.h"
+#include "memory.h"
 
 /* output Bochs bios info messages */
 //#define DEBUG_BIOS
@@ -957,7 +958,8 @@ void pc_cpus_init(const char *cpu_model)
     }
 }
 
-void pc_memory_init(const char *kernel_filename,
+void pc_memory_init(MemoryRegion *system_memory,
+                    const char *kernel_filename,
                     const char *kernel_cmdline,
                     const char *initrd_filename,
                     ram_addr_t below_4g_mem_size,
@@ -965,22 +967,30 @@ void pc_memory_init(const char *kernel_filename,
 {
     char *filename;
     int ret, linux_boot, i;
-    ram_addr_t ram_addr, bios_offset, option_rom_offset;
+    MemoryRegion *ram, *bios, *isa_bios, *option_rom_mr;
+    MemoryRegion *ram_below_4g, *ram_above_4g;
     int bios_size, isa_bios_size;
     void *fw_cfg;
 
     linux_boot = (kernel_filename != NULL);
 
-    /* allocate RAM */
-    ram_addr = qemu_ram_alloc(NULL, "pc.ram",
-                              below_4g_mem_size + above_4g_mem_size);
-    cpu_register_physical_memory(0, 0xa0000, ram_addr);
-    cpu_register_physical_memory(0x100000,
-                 below_4g_mem_size - 0x100000,
-                 ram_addr + 0x100000);
+    /* Allocate RAM.  We allocate it as a single memory region and use
+     * aliases to address portions of it, mostly for backwards compatiblity
+     * with older qemus that used qemu_ram_alloc().
+     */
+    ram = qemu_malloc(sizeof(*ram));
+    memory_region_init_ram(ram, NULL, "pc.ram",
+                           below_4g_mem_size + above_4g_mem_size);
+    ram_below_4g = qemu_malloc(sizeof(*ram_below_4g));
+    memory_region_init_alias(ram_below_4g, "ram-below-4g", ram,
+                             0, below_4g_mem_size);
+    memory_region_add_subregion(system_memory, 0, ram_below_4g);
     if (above_4g_mem_size > 0) {
-        cpu_register_physical_memory(0x100000000ULL, above_4g_mem_size,
-                                     ram_addr + below_4g_mem_size);
+        ram_above_4g = qemu_malloc(sizeof(*ram_above_4g));
+        memory_region_init_alias(ram_above_4g, "ram-above-4g", ram,
+                                 below_4g_mem_size, above_4g_mem_size);
+        memory_region_add_subregion(system_memory, 0x100000000ULL,
+                                    ram_above_4g);
     }
 
     /* BIOS load */
@@ -996,7 +1006,9 @@ void pc_memory_init(const char *kernel_filename,
         (bios_size % 65536) != 0) {
         goto bios_error;
     }
-    bios_offset = qemu_ram_alloc(NULL, "pc.bios", bios_size);
+    bios = qemu_malloc(sizeof(*bios));
+    memory_region_init_ram(bios, NULL, "pc.bios", bios_size);
+    memory_region_set_readonly(bios, true);
     ret = rom_add_file_fixed(bios_name, (uint32_t)(-bios_size), -1);
     if (ret != 0) {
     bios_error:
@@ -1010,16 +1022,26 @@ void pc_memory_init(const char *kernel_filename,
     isa_bios_size = bios_size;
     if (isa_bios_size > (128 * 1024))
         isa_bios_size = 128 * 1024;
-    cpu_register_physical_memory(0x100000 - isa_bios_size,
-                                 isa_bios_size,
-                                 (bios_offset + bios_size - isa_bios_size) | IO_MEM_ROM);
+    isa_bios = qemu_malloc(sizeof(*isa_bios));
+    memory_region_init_alias(isa_bios, "isa-bios", bios,
+                             bios_size - isa_bios_size, isa_bios_size);
+    memory_region_add_subregion_overlap(system_memory,
+                                        0x100000 - isa_bios_size,
+                                        isa_bios,
+                                        1);
+    memory_region_set_readonly(isa_bios, true);
 
-    option_rom_offset = qemu_ram_alloc(NULL, "pc.rom", PC_ROM_SIZE);
-    cpu_register_physical_memory(PC_ROM_MIN_VGA, PC_ROM_SIZE, option_rom_offset);
+    option_rom_mr = qemu_malloc(sizeof(*option_rom_mr));
+    memory_region_init_ram(option_rom_mr, NULL, "pc.rom", PC_ROM_SIZE);
+    memory_region_add_subregion_overlap(system_memory,
+                                        PC_ROM_MIN_VGA,
+                                        option_rom_mr,
+                                        1);
 
     /* map all the bios at the top of memory */
-    cpu_register_physical_memory((uint32_t)(-bios_size),
-                                 bios_size, bios_offset | IO_MEM_ROM);
+    memory_region_add_subregion(system_memory,
+                                (uint32_t)(-bios_size),
+                                bios);
 
     fw_cfg = bochs_bios_init();
     rom_set_fw(fw_cfg);

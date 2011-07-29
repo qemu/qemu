@@ -25,6 +25,7 @@ struct PCIBus {
     PCIDevice *devices[PCI_SLOT_MAX * PCI_FUNC_MAX];
     PCIDevice *parent_dev;
     target_phys_addr_t mem_base;
+    MemoryRegion *address_space;
 
     QLIST_HEAD(, PCIBus) child; /* this will be replaced by qdev later */
     QLIST_ENTRY(PCIBus) sibling;/* this will be replaced by qdev later */

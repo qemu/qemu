@@ -548,10 +548,16 @@ USBDevice *usb_bt_init(HCIInfo *hci)
     return dev;
 }
 
+static const VMStateDescription vmstate_usb_bt = {
+    .name = "usb-bt",
+    .unmigratable = 1,
+};
+
 static struct USBDeviceInfo bt_info = {
     .product_desc   = "QEMU BT dongle",
     .qdev.name      = "usb-bt-dongle",
     .qdev.size      = sizeof(struct USBBtState),
+    .qdev.vmsd      = &vmstate_usb_bt,
     .usb_desc       = &desc_bluetooth,
     .init           = usb_bt_initfn,
     .handle_packet  = usb_generic_handle_packet,

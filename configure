@@ -148,6 +148,7 @@ datadir="\${prefix}/share/qemu"
 docdir="\${prefix}/share/doc/qemu"
 bindir="\${prefix}/bin"
 libdir="\${prefix}/lib"
+includedir="\${prefix}/include"
 sysconfdir="\${prefix}/etc"
 confsuffix="/qemu"
 slirp="yes"
@@ -182,6 +183,7 @@ smartcard=""
 smartcard_nss=""
 usb_redir=""
 opengl=""
+zlib="yes"
 
 # parse CC options first
 for opt do
@@ -237,7 +239,7 @@ QEMU_CFLAGS="-Wmissing-format-attribute $QEMU_CFLAGS"
 QEMU_CFLAGS="-Wstrict-prototypes -Wredundant-decls $QEMU_CFLAGS"
 QEMU_CFLAGS="-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE $QEMU_CFLAGS"
 QEMU_CFLAGS="-D_FORTIFY_SOURCE=2 $QEMU_CFLAGS"
-QEMU_INCLUDES="-I. -I\$(SRC_PATH)"
+QEMU_INCLUDES="-I. -I\$(SRC_PATH) -I\$(SRC_PATH)/fpu"
 LDFLAGS="-g $LDFLAGS"
 
 # make source path absolute
@@ -562,6 +564,8 @@ for opt do
   ;;
   --libdir=*) libdir="$optarg"
   ;;
+  --includedir=*) includedir="$optarg"
+  ;;
   --datadir=*) datadir="$optarg"
   ;;
   --docdir=*) docdir="$optarg"
@@ -777,6 +781,8 @@ for opt do
   --disable-usb-redir) usb_redir="no"
   ;;
   --enable-usb-redir) usb_redir="yes"
+  ;;
+  --disable-zlib-test) zlib="no"
   ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
@@ -1231,20 +1237,20 @@ fi
 ##########################################
 # zlib check
 
-if test "$tcg_interpreter" != "yes"; then
-cat > $TMPC << EOF
+if test "$zlib" != "no" ; then
+    cat > $TMPC << EOF
 #include <zlib.h>
 int main(void) { zlibVersion(); return 0; }
 EOF
-if compile_prog "" "-lz" ; then
-    :
-else
-    echo
-    echo "Error: zlib check failed"
-    echo "Make sure to have the zlib libs and headers installed."
-    echo
-    #~ exit 1
-fi
+    if compile_prog "" "-lz" ; then
+        :
+    else
+        echo
+        echo "Error: zlib check failed"
+        echo "Make sure to have the zlib libs and headers installed."
+        echo
+        exit 1
+    fi
 fi
 
 ##########################################
@@ -2571,6 +2577,29 @@ if test "$trace_backend" = "dtrace"; then
 fi
 
 ##########################################
+# __sync_fetch_and_and requires at least -march=i486. Many toolchains
+# use i686 as default anyway, but for those that don't, an explicit
+# specification is necessary
+if test $vhost_net = "yes" && test $cpu = "i386"; then
+  cat > $TMPC << EOF
+int sfaa(unsigned *ptr)
+{
+  return __sync_fetch_and_and(ptr, 0);
+}
+
+int main(int argc, char **argv)
+{
+  int val = 42;
+  sfaa(&val);
+  return val;
+}
+EOF
+  if ! compile_prog "" "" ; then
+    CFLAGS+="-march=i486"
+  fi
+fi
+
+##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
@@ -2650,6 +2679,7 @@ echo "Install prefix    $prefix"
 echo "BIOS directory    `eval echo $datadir`"
 echo "binary directory  `eval echo $bindir`"
 echo "library directory `eval echo $libdir`"
+echo "include directory `eval echo $includedir`"
 echo "config directory  `eval echo $sysconfdir`"
 if test "$mingw32" = "no" ; then
 echo "Manual directory  `eval echo $mandir`"
@@ -2747,6 +2777,7 @@ echo all: >> $config_host_mak
 echo "prefix=$prefix" >> $config_host_mak
 echo "bindir=$bindir" >> $config_host_mak
 echo "libdir=$libdir" >> $config_host_mak
+echo "includedir=$includedir" >> $config_host_mak
 echo "mandir=$mandir" >> $config_host_mak
 echo "datadir=$datadir" >> $config_host_mak
 echo "sysconfdir=$sysconfdir" >> $config_host_mak
@@ -3373,10 +3404,12 @@ case "$target_arch2" in
     if test "$xen" = "yes" -a "$target_softmmu" = "yes" ; then
       target_phys_bits=64
       echo "CONFIG_XEN=y" >> $config_target_mak
-      if test "$cpu" = "i386" -o "$cpu" = "x86_64"; then
-          echo "CONFIG_XEN_MAPCACHE=y" >> $config_target_mak
-      fi
+    else
+      echo "CONFIG_NO_XEN=y" >> $config_target_mak
     fi
+    ;;
+  *)
+    echo "CONFIG_NO_XEN=y" >> $config_target_mak
 esac
 case "$target_arch2" in
   i386|x86_64|ppcemb|ppc|ppc64|s390x)
@@ -3459,7 +3492,6 @@ else
   includes="-I\$(SRC_PATH)/tcg/\$(ARCH) $includes"
 fi
 includes="-I\$(SRC_PATH)/tcg $includes"
-includes="-I\$(SRC_PATH)/fpu $includes"
 
 if test "$target_user_only" = "yes" ; then
     libdis_config_mak=libdis-user/config.mak

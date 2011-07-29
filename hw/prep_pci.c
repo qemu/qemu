@@ -110,7 +110,7 @@ static void prep_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(pic[(irq_num & 1) ? 11 : 9] , level);
 }
 
-PCIBus *pci_prep_init(qemu_irq *pic)
+PCIBus *pci_prep_init(qemu_irq *pic, MemoryRegion *address_space)
 {
     PREPPCIState *s;
     PCIDevice *d;
@@ -118,7 +118,8 @@ PCIBus *pci_prep_init(qemu_irq *pic)
 
     s = qemu_mallocz(sizeof(PREPPCIState));
     s->bus = pci_register_bus(NULL, "pci",
-                              prep_set_irq, prep_map_irq, pic, 0, 4);
+                              prep_set_irq, prep_map_irq, pic,
+                              address_space, 0, 4);
 
     pci_host_conf_register_ioport(0xcf8, s);
 

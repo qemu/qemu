@@ -72,6 +72,11 @@
 #include <hw/ide/pci.h>
 #include <hw/ide/ahci.h>
 
+static const VMStateDescription vmstate_ahci = {
+    .name = "ahci",
+    .unmigratable = 1,
+};
+
 static int pci_ich9_ahci_init(PCIDevice *dev)
 {
     struct AHCIPCIState *d;
@@ -123,6 +128,7 @@ static PCIDeviceInfo ich_ahci_info[] = {
         .qdev.name    = "ich9-ahci",
         .qdev.alias   = "ahci",
         .qdev.size    = sizeof(AHCIPCIState),
+        .qdev.vmsd    = &vmstate_ahci,
         .init         = pci_ich9_ahci_init,
         .exit         = pci_ich9_uninit,
         .config_write = pci_ich9_write_config,

@@ -26,6 +26,7 @@
 #include "pci.h"
 #include "pci_host.h"
 #include "bswap.h"
+#include "exec-memory.h"
 
 typedef struct SHPCIState {
     SysBusDevice busdev;
@@ -127,7 +128,8 @@ static int sh_pci_init_device(SysBusDevice *dev)
     }
     s->bus = pci_register_bus(&s->busdev.qdev, "pci",
                               sh_pci_set_irq, sh_pci_map_irq,
-                              s->irq, PCI_DEVFN(0, 0), 4);
+                              s->irq, get_system_memory(),
+                              PCI_DEVFN(0, 0), 4);
     s->memconfig = cpu_register_io_memory(sh_pci_reg.r, sh_pci_reg.w,
                                           s, DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio_cb(dev, 0x224, sh_pci_map);

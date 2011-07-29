@@ -68,6 +68,10 @@ keyword.  Example:
         printf("a was something else entirely.\n");
     }
 
+Note that 'else if' is considered a single statement; otherwise a long if/
+else if/else if/.../else sequence would need an indent for every else
+statement.
+
 An exception is the opening brace for a function; for reasons of tradition
 and clarity it comes on a line by itself:
 

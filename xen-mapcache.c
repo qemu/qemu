@@ -237,7 +237,7 @@ uint8_t *xen_map_cache(target_phys_addr_t phys_addr, target_phys_addr_t size,
 
 ram_addr_t xen_ram_addr_from_mapcache(void *ptr)
 {
-    MapCacheEntry *entry = NULL, *pentry = NULL;
+    MapCacheEntry *entry = NULL;
     MapCacheRev *reventry;
     target_phys_addr_t paddr_index;
     target_phys_addr_t size;
@@ -263,7 +263,6 @@ ram_addr_t xen_ram_addr_from_mapcache(void *ptr)
 
     entry = &mapcache->entry[paddr_index % mapcache->nr_buckets];
     while (entry && (entry->paddr_index != paddr_index || entry->size != size)) {
-        pentry = entry;
         entry = entry->next;
     }
     if (!entry) {

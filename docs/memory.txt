@@ -1,0 +1,172 @@
+The memory API
+==============
+
+The memory API models the memory and I/O buses and controllers of a QEMU
+machine.  It attempts to allow modelling of:
+
+ - ordinary RAM
+ - memory-mapped I/O (MMIO)
+ - memory controllers that can dynamically reroute physical memory regions
+  to different destinations
+
+The memory model provides support for
+
+ - tracking RAM changes by the guest
+ - setting up coalesced memory for kvm
+ - setting up ioeventfd regions for kvm
+
+Memory is modelled as an tree (really acyclic graph) of MemoryRegion objects.
+The root of the tree is memory as seen from the CPU's viewpoint (the system
+bus).  Nodes in the tree represent other buses, memory controllers, and
+memory regions that have been rerouted.  Leaves are RAM and MMIO regions.
+
+Types of regions
+----------------
+
+There are four types of memory regions (all represented by a single C type
+MemoryRegion):
+
+- RAM: a RAM region is simply a range of host memory that can be made available
+  to the guest.
+
+- MMIO: a range of guest memory that is implemented by host callbacks;
+  each read or write causes a callback to be called on the host.
+
+- container: a container simply includes other memory regions, each at
+  a different offset.  Containers are useful for grouping several regions
+  into one unit.  For example, a PCI BAR may be composed of a RAM region
+  and an MMIO region.
+
+  A container's subregions are usually non-overlapping.  In some cases it is
+  useful to have overlapping regions; for example a memory controller that
+  can overlay a subregion of RAM with MMIO or ROM, or a PCI controller
+  that does not prevent card from claiming overlapping BARs.
+
+- alias: a subsection of another region.  Aliases allow a region to be
+  split apart into discontiguous regions.  Examples of uses are memory banks
+  used when the guest address space is smaller than the amount of RAM
+  addressed, or a memory controller that splits main memory to expose a "PCI
+  hole".  Aliases may point to any type of region, including other aliases,
+  but an alias may not point back to itself, directly or indirectly.
+
+
+Region names
+------------
+
+Regions are assigned names by the constructor.  For most regions these are
+only used for debugging purposes, but RAM regions also use the name to identify
+live migration sections.  This means that RAM region names need to have ABI
+stability.
+
+Region lifecycle
+----------------
+
+A region is created by one of the constructor functions (memory_region_init*())
+and destroyed by the destructor (memory_region_destroy()).  In between,
+a region can be added to an address space by using memory_region_add_subregion()
+and removed using memory_region_del_subregion().  Region attributes may be
+changed at any point; they take effect once the region becomes exposed to the
+guest.
+
+Overlapping regions and priority
+--------------------------------
+Usually, regions may not overlap each other; a memory address decodes into
+exactly one target.  In some cases it is useful to allow regions to overlap,
+and sometimes to control which of an overlapping regions is visible to the
+guest.  This is done with memory_region_add_subregion_overlap(), which
+allows the region to overlap any other region in the same container, and
+specifies a priority that allows the core to decide which of two regions at
+the same address are visible (highest wins).
+
+Visibility
+----------
+The memory core uses the following rules to select a memory region when the
+guest accesses an address:
+
+- all direct subregions of the root region are matched against the address, in
+  descending priority order
+  - if the address lies outside the region offset/size, the subregion is
+    discarded
+  - if the subregion is a leaf (RAM or MMIO), the seach terminates
+  - if the subregion is a container, the same algorithm is used within the
+    subregion (after the address is adjusted by the subregion offset)
+  - if the subregion is an alias, the search is continues at the alias target
+    (after the address is adjusted by the subregion offset and alias offset)
+
+Example memory map
+------------------
+
+system_memory: container@0-2^48-1
+ |
+ +---- lomem: alias@0-0xdfffffff ---> #ram (0-0xdfffffff)
+ |
+ +---- himem: alias@0x100000000-0x11fffffff ---> #ram (0xe0000000-0xffffffff)
+ |
+ +---- vga-window: alias@0xa0000-0xbfffff ---> #pci (0xa0000-0xbffff)
+ |      (prio 1)
+ |
+ +---- pci-hole: alias@0xe0000000-0xffffffff ---> #pci (0xe0000000-0xffffffff)
+
+pci (0-2^32-1)
+ |
+ +--- vga-area: container@0xa0000-0xbffff
+ |      |
+ |      +--- alias@0x00000-0x7fff  ---> #vram (0x010000-0x017fff)
+ |      |
+ |      +--- alias@0x08000-0xffff  ---> #vram (0x020000-0x027fff)
+ |
+ +---- vram: ram@0xe1000000-0xe1ffffff
+ |
+ +---- vga-mmio: mmio@0xe2000000-0xe200ffff
+
+ram: ram@0x00000000-0xffffffff
+
+The is a (simplified) PC memory map. The 4GB RAM block is mapped into the
+system address space via two aliases: "lomem" is a 1:1 mapping of the first
+3.5GB; "himem" maps the last 0.5GB at address 4GB.  This leaves 0.5GB for the
+so-called PCI hole, that allows a 32-bit PCI bus to exist in a system with
+4GB of memory.
+
+The memory controller diverts addresses in the range 640K-768K to the PCI
+address space.  This is modeled using the "vga-window" alias, mapped at a
+higher priority so it obscures the RAM at the same addresses.  The vga window
+can be removed by programming the memory controller; this is modelled by
+removing the alias and exposing the RAM underneath.
+
+The pci address space is not a direct child of the system address space, since
+we only want parts of it to be visible (we accomplish this using aliases).
+It has two subregions: vga-area models the legacy vga window and is occupied
+by two 32K memory banks pointing at two sections of the framebuffer.
+In addition the vram is mapped as a BAR at address e1000000, and an additional
+BAR containing MMIO registers is mapped after it.
+
+Note that if the guest maps a BAR outside the PCI hole, it would not be
+visible as the pci-hole alias clips it to a 0.5GB range.
+
+Attributes
+----------
+
+Various region attributes (read-only, dirty logging, coalesced mmio, ioeventfd)
+can be changed during the region lifecycle.  They take effect once the region
+is made visible (which can be immediately, later, or never).
+
+MMIO Operations
+---------------
+
+MMIO regions are provided with ->read() and ->write() callbacks; in addition
+various constraints can be supplied to control how these callbacks are called:
+
+ - .valid.min_access_size, .valid.max_access_size define the access sizes
+   (in bytes) which the device accepts; accesses outside this range will
+   have device and bus specific behaviour (ignored, or machine check)
+ - .valid.aligned specifies that the device only accepts naturally aligned
+   accesses.  Unaligned accesses invoke device and bus specific behaviour.
+ - .impl.min_access_size, .impl.max_access_size define the access sizes
+   (in bytes) supported by the *implementation*; other access sizes will be
+   emulated using the ones available.  For example a 4-byte write will be
+   emulated using four 1-byte write, is .impl.max_access_size = 1.
+ - .impl.valid specifies that the *implementation* only supports unaligned
+   accesses; unaligned accesses will be emulated by two aligned accesses.
+ - .old_portio and .old_mmio can be used to ease porting from code using
+   cpu_register_io_memory() and register_ioport().  They should not be used
+   in new code.

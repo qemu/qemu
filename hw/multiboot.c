@@ -198,11 +198,14 @@ int load_multiboot(void *fw_cfg,
     } else {
         /* Valid if mh_flags sets MULTIBOOT_HEADER_HAS_ADDR. */
         uint32_t mh_header_addr = ldl_p(header+i+12);
+        uint32_t mh_load_end_addr = ldl_p(header+i+20);
+        uint32_t mh_bss_end_addr = ldl_p(header+i+24);
         mh_load_addr = ldl_p(header+i+16);
         uint32_t mb_kernel_text_offset = i - (mh_header_addr - mh_load_addr);
+        uint32_t mb_load_size = mh_load_end_addr - mh_load_addr;
 
         mh_entry_addr = ldl_p(header+i+28);
-        mb_kernel_size = kernel_file_size - mb_kernel_text_offset;
+        mb_kernel_size = mh_bss_end_addr - mh_load_addr;
 
         /* Valid if mh_flags sets MULTIBOOT_HEADER_HAS_VBE.
         uint32_t mh_mode_type = ldl_p(header+i+32);
@@ -212,17 +215,18 @@ int load_multiboot(void *fw_cfg,
 
         mb_debug("multiboot: mh_header_addr = %#x\n", mh_header_addr);
         mb_debug("multiboot: mh_load_addr = %#x\n", mh_load_addr);
-        mb_debug("multiboot: mh_load_end_addr = %#x\n", ldl_p(header+i+20));
-        mb_debug("multiboot: mh_bss_end_addr = %#x\n", ldl_p(header+i+24));
+        mb_debug("multiboot: mh_load_end_addr = %#x\n", mh_load_end_addr);
+        mb_debug("multiboot: mh_bss_end_addr = %#x\n", mh_bss_end_addr);
         mb_debug("qemu: loading multiboot kernel (%#x bytes) at %#x\n",
-                 mb_kernel_size, mh_load_addr);
+                 mb_load_size, mh_load_addr);
 
         mbs.mb_buf = qemu_malloc(mb_kernel_size);
         fseek(f, mb_kernel_text_offset, SEEK_SET);
-        if (fread(mbs.mb_buf, 1, mb_kernel_size, f) != mb_kernel_size) {
+        if (fread(mbs.mb_buf, 1, mb_load_size, f) != mb_load_size) {
             fprintf(stderr, "fread() failed\n");
             exit(1);
         }
+        memset(mbs.mb_buf + mb_load_size, 0, mb_kernel_size - mb_load_size);
         fclose(f);
     }
 
