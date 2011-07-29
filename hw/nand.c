@@ -496,9 +496,14 @@ uint32_t nand_getio(NANDFlashState *s)
     for (offset = s->buswidth; offset--;) {
         x |= s->ioaddr[offset] << (offset << 3);
     }
-    s->addr   += s->buswidth;
-    s->ioaddr += s->buswidth;
-    s->iolen  -= s->buswidth;
+    /* after receiving READ STATUS command all subsequent reads will
+     * return the status register value until another command is issued
+     */
+    if (s->cmd != NAND_CMD_READSTATUS) {
+        s->addr   += s->buswidth;
+        s->ioaddr += s->buswidth;
+        s->iolen  -= s->buswidth;
+    }
     return x;
 }
 
