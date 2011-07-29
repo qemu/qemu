@@ -42,7 +42,7 @@ and we're going to establish a deprecation policy for badly defined commands.
 
 If you're planning to adopt QMP, please observe the following:
 
-    1. The deprecation policy will take efect and be documented soon, please
+    1. The deprecation policy will take effect and be documented soon, please
        check the documentation of each used command as soon as a new release of
        QEMU is available
 
