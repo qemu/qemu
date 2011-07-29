@@ -2521,7 +2521,7 @@ fi
 # __sync_fetch_and_and requires at least -march=i486. Many toolchains
 # use i686 as default anyway, but for those that don't, an explicit
 # specification is necessary
-if test $vhost_net = "yes" && test $cpu = "i386"; then
+if test "$vhost_net" = "yes" && test "$cpu" = "i386"; then
   cat > $TMPC << EOF
 int sfaa(unsigned *ptr)
 {
@@ -2700,7 +2700,7 @@ echo "nss used          $smartcard_nss"
 echo "usb net redir     $usb_redir"
 echo "OpenGL support    $opengl"
 
-if test $sdl_too_old = "yes"; then
+if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
 fi
 
@@ -2788,7 +2788,7 @@ fi
 if test "$static" = "yes" ; then
   echo "CONFIG_STATIC=y" >> $config_host_mak
 fi
-if test $profiler = "yes" ; then
+if test "$profiler" = "yes" ; then
   echo "CONFIG_PROFILER=y" >> $config_host_mak
 fi
 if test "$slirp" = "yes" ; then
@@ -3342,7 +3342,7 @@ case "$target_arch2" in
       \( "$target_arch2" = "x86_64" -a "$cpu" = "i386"   \) -o \
       \( "$target_arch2" = "i386"   -a "$cpu" = "x86_64" \) \) ; then
       echo "CONFIG_KVM=y" >> $config_target_mak
-      if test $vhost_net = "yes" ; then
+      if test "$vhost_net" = "yes" ; then
         echo "CONFIG_VHOST_NET=y" >> $config_target_mak
       fi
     fi
