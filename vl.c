@@ -1573,6 +1573,10 @@ static void main_loop(void)
             cpu_synchronize_all_states();
             qemu_system_reset(VMRESET_REPORT);
             resume_all_vcpus();
+            if (runstate_check(RSTATE_PANICKED) ||
+                runstate_check(RSTATE_SHUTDOWN)) {
+                runstate_set(RSTATE_PAUSED);
+            }
         }
         if (qemu_powerdown_requested()) {
             monitor_protocol_event(QEVENT_POWERDOWN, NULL);

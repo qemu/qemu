@@ -1314,7 +1314,12 @@ static int do_cont(Monitor *mon, const QDict *qdict, QObject **ret_data)
     if (runstate_check(RSTATE_IN_MIGRATE)) {
         qerror_report(QERR_MIGRATION_EXPECTED);
         return -1;
+    } else if (runstate_check(RSTATE_PANICKED) ||
+               runstate_check(RSTATE_SHUTDOWN)) {
+        qerror_report(QERR_RESET_REQUIRED);
+        return -1;
     }
+
     bdrv_iterate(encrypted_bdrv_it, &context);
     /* only resume the vm if all keys are set and valid */
     if (!context.err) {

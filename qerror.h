@@ -163,6 +163,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_QMP_EXTRA_MEMBER \
     "{ 'class': 'QMPExtraInputObjectMember', 'data': { 'member': %s } }"
 
+#define QERR_RESET_REQUIRED \
+    "{ 'class': 'ResetRequired', 'data': {} }"
+
 #define QERR_SET_PASSWD_FAILED \
     "{ 'class': 'SetPasswdFailed', 'data': {} }"
 
