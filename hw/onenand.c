@@ -31,7 +31,11 @@
 #define BLOCK_SHIFT	(PAGE_SHIFT + 6)
 
 typedef struct {
-    uint32_t id;
+    struct {
+        uint16_t man;
+        uint16_t dev;
+        uint16_t ver;
+    } id;
     int shift;
     target_phys_addr_t base;
     qemu_irq intr;
@@ -453,12 +457,12 @@ static uint32_t onenand_read(void *opaque, target_phys_addr_t addr)
         return lduw_le_p(s->boot[0] + addr);
 
     case 0xf000:	/* Manufacturer ID */
-        return (s->id >> 16) & 0xff;
+        return s->id.man;
     case 0xf001:	/* Device ID */
-        return (s->id >>  8) & 0xff;
-    /* TODO: get the following values from a real chip!  */
+        return s->id.dev;
     case 0xf002:	/* Version ID */
-        return (s->id >>  0) & 0xff;
+        return s->id.ver;
+    /* TODO: get the following values from a real chip!  */
     case 0xf003:	/* Data Buffer size */
         return 1 << PAGE_SHIFT;
     case 0xf004:	/* Boot Buffer size */
@@ -541,8 +545,8 @@ static void onenand_write(void *opaque, target_phys_addr_t addr,
 
         case 0x0090:	/* Read Identification Data */
             memset(s->boot[0], 0, 3 << s->shift);
-            s->boot[0][0 << s->shift] = (s->id >> 16) & 0xff;
-            s->boot[0][1 << s->shift] = (s->id >>  8) & 0xff;
+            s->boot[0][0 << s->shift] = s->id.man & 0xff;
+            s->boot[0][1 << s->shift] = s->id.dev & 0xff;
             s->boot[0][2 << s->shift] = s->wpstatus & 0xff;
             break;
 
@@ -615,21 +619,24 @@ static CPUWriteMemoryFunc * const onenand_writefn[] = {
     onenand_write,
 };
 
-void *onenand_init(BlockDriverState *bdrv, uint32_t id,
+void *onenand_init(BlockDriverState *bdrv,
+                uint16_t man_id, uint16_t dev_id, uint16_t ver_id,
                 int regshift, qemu_irq irq)
 {
     OneNANDState *s = (OneNANDState *) qemu_mallocz(sizeof(*s));
-    uint32_t size = 1 << (24 + ((id >> 12) & 7));
+    uint32_t size = 1 << (24 + ((dev_id >> 4) & 7));
     void *ram;
 
     s->shift = regshift;
     s->intr = irq;
     s->rdy = NULL;
-    s->id = id;
+    s->id.man = man_id;
+    s->id.dev = dev_id;
+    s->id.ver = ver_id;
     s->blocks = size >> BLOCK_SHIFT;
     s->secs = size >> 9;
     s->blockwp = qemu_malloc(s->blocks);
-    s->density_mask = (id & (1 << 11)) ? (1 << (6 + ((id >> 12) & 7))) : 0;
+    s->density_mask = (dev_id & 0x08) ? (1 << (6 + ((dev_id >> 4) & 7))) : 0;
     s->iomemtype = cpu_register_io_memory(onenand_readfn,
                     onenand_writefn, s, DEVICE_NATIVE_ENDIAN);
     s->bdrv = bdrv;

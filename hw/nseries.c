@@ -167,8 +167,9 @@ static void n8x0_nand_setup(struct n800_s *s)
     DriveInfo *dinfo;
 
     dinfo = drive_get(IF_MTD, 0, 0);
-    /* Either ec40xx or ec48xx are OK for the ID */
-    s->nand = onenand_init(dinfo ? dinfo->bdrv : 0, 0xec4800, 1,
+    /* Either 0x40 or 0x48 are OK for the device ID */
+    s->nand = onenand_init(dinfo ? dinfo->bdrv : 0,
+                    NAND_MFR_SAMSUNG, 0x48, 0, 1,
                     qdev_get_gpio_in(s->cpu->gpio, N8X0_ONENAND_GPIO));
     omap_gpmc_attach(s->cpu->gpmc, N8X0_ONENAND_CS, 0, onenand_base_update,
                     onenand_base_unmap, s->nand);
