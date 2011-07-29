@@ -343,7 +343,12 @@ void cpu_loop(CPUX86State *env)
                 syscall_num = __NR_gettimeofday;
                 break;
             case TARGET_VSYSCALL_ADDR(__NR_vtime):
+#ifdef __NR_time
                 syscall_num = __NR_time;
+#else
+                /* XXX: not yet implemented (arm eabi host) */
+                cpu_abort(env, "Unimplemented vsyscall vtime");
+#endif
                 break;
             case TARGET_VSYSCALL_ADDR(__NR_vgetcpu):
                 /* XXX: not yet implemented */
