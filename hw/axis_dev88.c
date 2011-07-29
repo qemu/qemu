@@ -30,6 +30,7 @@
 #include "loader.h"
 #include "elf.h"
 #include "cris-boot.h"
+#include "blockdev.h"
 
 #define D(x)
 #define DNAND(x)
@@ -251,6 +252,7 @@ void axisdev88_init (ram_addr_t ram_size,
     CPUState *env;
     DeviceState *dev;
     SysBusDevice *s;
+    DriveInfo *nand;
     qemu_irq irq[30], nmi[2], *cpu_irq;
     void *etraxfs_dmac;
     struct etraxfs_dma_client *eth[2] = {NULL, NULL};
@@ -278,7 +280,9 @@ void axisdev88_init (ram_addr_t ram_size,
 
 
       /* Attach a NAND flash to CS1.  */
-    nand_state.nand = nand_init(NAND_MFR_STMICRO, 0x39);
+    nand = drive_get(IF_MTD, 0, 0);
+    nand_state.nand = nand_init(nand ? nand->bdrv : NULL,
+                                NAND_MFR_STMICRO, 0x39);
     nand_regs = cpu_register_io_memory(nand_read, nand_write, &nand_state,
                                        DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(0x10000000, 0x05000000, nand_regs);

@@ -14,7 +14,6 @@
 # include "hw.h"
 # include "flash.h"
 # include "blockdev.h"
-/* FIXME: Pass block device as an argument.  */
 
 # define NAND_CMD_READ0		0x00
 # define NAND_CMD_READ1		0x01
@@ -451,20 +450,17 @@ uint8_t nand_getio(NANDFlashState *s)
     return *(s->ioaddr ++);
 }
 
-NANDFlashState *nand_init(int manf_id, int chip_id)
+NANDFlashState *nand_init(BlockDriverState *bdrv, int manf_id, int chip_id)
 {
     int pagesize;
     NANDFlashState *s;
-    DriveInfo *dinfo;
 
     if (nand_flash_ids[chip_id].size == 0) {
         hw_error("%s: Unsupported NAND chip ID.\n", __FUNCTION__);
     }
 
     s = (NANDFlashState *) qemu_mallocz(sizeof(NANDFlashState));
-    dinfo = drive_get(IF_MTD, 0, 0);
-    if (dinfo)
-        s->bdrv = dinfo->bdrv;
+    s->bdrv = bdrv;
     s->manf_id = manf_id;
     s->chip_id = chip_id;
     s->size = nand_flash_ids[s->chip_id].size << 20;
