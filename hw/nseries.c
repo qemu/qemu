@@ -31,6 +31,7 @@
 #include "hw.h"
 #include "bt.h"
 #include "loader.h"
+#include "blockdev.h"
 
 /* Nokia N8x0 support */
 struct n800_s {
@@ -163,13 +164,14 @@ static const uint8_t n8x0_cal_bt_id[] = {
 static void n8x0_nand_setup(struct n800_s *s)
 {
     char *otp_region;
+    DriveInfo *dinfo;
 
+    dinfo = drive_get(IF_MTD, 0, 0);
     /* Either ec40xx or ec48xx are OK for the ID */
+    s->nand = onenand_init(dinfo ? dinfo->bdrv : 0, 0xec4800, 1,
+                    qdev_get_gpio_in(s->cpu->gpio, N8X0_ONENAND_GPIO));
     omap_gpmc_attach(s->cpu->gpmc, N8X0_ONENAND_CS, 0, onenand_base_update,
-                    onenand_base_unmap,
-                    (s->nand = onenand_init(0xec4800, 1,
-                                            qdev_get_gpio_in(s->cpu->gpio,
-                                                    N8X0_ONENAND_GPIO))));
+                    onenand_base_unmap, s->nand);
     otp_region = onenand_raw_otp(s->nand);
 
     memcpy(otp_region + 0x000, n8x0_cal_wlan_mac, sizeof(n8x0_cal_wlan_mac));

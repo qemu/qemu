@@ -38,7 +38,8 @@ uint32_t nand_getbuswidth(DeviceState *dev);
 /* onenand.c */
 void onenand_base_update(void *opaque, target_phys_addr_t new);
 void onenand_base_unmap(void *opaque);
-void *onenand_init(uint32_t id, int regshift, qemu_irq irq);
+void *onenand_init(BlockDriverState *bdrv, uint32_t id,
+                int regshift, qemu_irq irq);
 void *onenand_raw_otp(void *opaque);
 
 /* ecc.c */
