@@ -1130,7 +1130,7 @@ static int kvm_get_msrs(CPUState *env)
 
     if (!env->tsc_valid) {
         msrs[n++].index = MSR_IA32_TSC;
-        env->tsc_valid = !vm_running;
+        env->tsc_valid = !runstate_is_running();
     }
 
 #ifdef TARGET_X86_64

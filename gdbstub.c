@@ -2534,7 +2534,7 @@ static void gdb_read_byte(GDBState *s, int ch)
         if (ch != '$')
             return;
     }
-    if (vm_running) {
+    if (runstate_is_running()) {
         /* when the CPU is running, we cannot do anything except stop
            it when receiving a char */
         vm_stop(RSTATE_PAUSED);
@@ -2839,7 +2839,7 @@ static int gdb_monitor_write(CharDriverState *chr, const uint8_t *buf, int len)
 #ifndef _WIN32
 static void gdb_sigterm_handler(int signal)
 {
-    if (vm_running) {
+    if (runstate_is_running()) {
         vm_stop(RSTATE_PAUSED);
     }
 }

@@ -46,7 +46,7 @@ static void kvmclock_pre_save(void *opaque)
      * it on next vmsave (which would return a different value). Will be reset
      * when the VM is continued.
      */
-    s->clock_valid = !vm_running;
+    s->clock_valid = !runstate_is_running();
 }
 
 static int kvmclock_post_load(void *opaque, int version_id)

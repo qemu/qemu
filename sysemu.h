@@ -30,7 +30,6 @@ typedef enum {
 
 extern const char *bios_name;
 
-extern int vm_running;
 extern const char *qemu_name;
 extern uint8_t qemu_uuid[];
 int qemu_uuid_parse(const char *str, uint8_t *uuid);
@@ -39,6 +38,7 @@ int qemu_uuid_parse(const char *str, uint8_t *uuid);
 void runstate_init(void);
 bool runstate_check(RunState state);
 void runstate_set(RunState new_state);
+int runstate_is_running(void);
 typedef struct vm_change_state_entry VMChangeStateEntry;
 typedef void VMChangeStateHandler(void *opaque, int running, RunState state);
 

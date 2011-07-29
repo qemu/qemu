@@ -185,7 +185,6 @@ int mem_prealloc = 0; /* force preallocation of physical target memory */
 #endif
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
-int vm_running;
 int autostart;
 static int rtc_utc = 1;
 static int rtc_date_offset = -1; /* -1 means no change */
@@ -405,6 +404,11 @@ void runstate_set(RunState new_state)
     }
 
     current_run_state = new_state;
+}
+
+int runstate_is_running(void)
+{
+    return runstate_check(RSTATE_RUNNING);
 }
 
 /***********************************************************/
@@ -1243,9 +1247,8 @@ void vm_state_notify(int running, RunState state)
 
 void vm_start(void)
 {
-    if (!vm_running) {
+    if (!runstate_is_running()) {
         cpu_enable_ticks();
-        vm_running = 1;
         runstate_set(RSTATE_RUNNING);
         vm_state_notify(1, RSTATE_RUNNING);
         resume_all_vcpus();

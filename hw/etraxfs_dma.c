@@ -732,7 +732,7 @@ static void DMA_run(void *opaque)
     struct fs_dma_ctrl *etraxfs_dmac = opaque;
     int p = 1;
 
-    if (vm_running)
+    if (runstate_is_running())
         p = etraxfs_dmac_run(etraxfs_dmac);
 
     if (p)

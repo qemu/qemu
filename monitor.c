@@ -2632,7 +2632,7 @@ static void do_info_status_print(Monitor *mon, const QObject *data)
 static void do_info_status(Monitor *mon, QObject **ret_data)
 {
     *ret_data = qobject_from_jsonf("{ 'running': %i, 'singlestep': %i }",
-                                    vm_running, singlestep);
+                                    runstate_is_running(), singlestep);
 }
 
 static qemu_acl *find_acl(Monitor *mon, const char *name)
@@ -2825,7 +2825,7 @@ static int do_closefd(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
 static void do_loadvm(Monitor *mon, const QDict *qdict)
 {
-    int saved_vm_running  = vm_running;
+    int saved_vm_running  = runstate_is_running();
     const char *name = qdict_get_str(qdict, "name");
 
     vm_stop(RSTATE_RESTORE);

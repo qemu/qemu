@@ -230,7 +230,7 @@ static void icount_adjust(void)
     int64_t delta;
     static int64_t last_delta;
     /* If the VM is not running, then do nothing.  */
-    if (!vm_running)
+    if (!runstate_is_running())
         return;
 
     cur_time = cpu_get_clock();
@@ -388,7 +388,7 @@ static void icount_warp_rt(void *opaque)
         return;
     }
 
-    if (vm_running) {
+    if (runstate_is_running()) {
         int64_t clock = qemu_get_clock_ns(rt_clock);
         int64_t warp_delta = clock - vm_clock_warp_start;
         if (use_icount == 1) {
@@ -710,7 +710,7 @@ void qemu_run_all_timers(void)
     }
 
     /* vm time timers */
-    if (vm_running) {
+    if (runstate_is_running()) {
         qemu_run_timers(vm_clock);
     }
 

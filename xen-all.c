@@ -736,7 +736,7 @@ static void cpu_handle_ioreq(void *opaque)
          * guest resumes and does a hlt with interrupts disabled which
          * causes Xen to powerdown the domain.
          */
-        if (vm_running) {
+        if (runstate_is_running()) {
             if (qemu_shutdown_requested_get()) {
                 destroy_hvm_domain();
             }

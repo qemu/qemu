@@ -115,14 +115,13 @@ void cpu_synchronize_all_post_init(void)
 
 int cpu_is_stopped(CPUState *env)
 {
-    return !vm_running || env->stopped;
+    return !runstate_is_running() || env->stopped;
 }
 
 static void do_vm_stop(RunState state)
 {
-    if (vm_running) {
+    if (runstate_is_running()) {
         cpu_disable_ticks();
-        vm_running = 0;
         pause_all_vcpus();
         runstate_set(state);
         vm_state_notify(0, state);
@@ -137,7 +136,7 @@ static int cpu_can_run(CPUState *env)
     if (env->stop) {
         return 0;
     }
-    if (env->stopped || !vm_running) {
+    if (env->stopped || !runstate_is_running()) {
         return 0;
     }
     return 1;
@@ -148,7 +147,7 @@ static bool cpu_thread_is_idle(CPUState *env)
     if (env->stop || env->queued_work_first) {
         return false;
     }
-    if (env->stopped || !vm_running) {
+    if (env->stopped || !runstate_is_running()) {
         return true;
     }
     if (!env->halted || qemu_cpu_has_work(env) ||
