@@ -24,8 +24,9 @@ void nand_done(NANDFlashState *s);
 void nand_setpins(NANDFlashState *s, uint8_t cle, uint8_t ale,
                   uint8_t ce, uint8_t wp, uint8_t gnd);
 void nand_getpins(NANDFlashState *s, int *rb);
-void nand_setio(NANDFlashState *s, uint8_t value);
-uint8_t nand_getio(NANDFlashState *s);
+void nand_setio(NANDFlashState *s, uint32_t value);
+uint32_t nand_getio(NANDFlashState *s);
+uint32_t nand_getbuswidth(NANDFlashState *s);
 
 #define NAND_MFR_TOSHIBA	0x98
 #define NAND_MFR_SAMSUNG	0xec
