@@ -81,7 +81,7 @@ static void Atheros_WLAN_reset(NICInfo *nd, Atheros_WLANState *s)
 	/*
 	 * Restore mac address
 	 */
-	memcpy(s->macaddr, nd->macaddr, 6);
+	memcpy(s->macaddr, nd->macaddr.a, 6);
 
 	/*
 	 * data from my local AR5212 device
