@@ -490,15 +490,12 @@ static void sdl_mouse_mode_change(Notifier *notify, void *data)
 {
     if (kbd_mouse_is_absolute()) {
         if (!absolute_enabled) {
-            sdl_hide_cursor();
-            if (gui_grab) {
-                sdl_grab_end();
-            }
+            sdl_grab_start();
             absolute_enabled = 1;
         }
     } else if (absolute_enabled) {
-	sdl_show_cursor();
-	absolute_enabled = 0;
+        sdl_grab_end();
+        absolute_enabled = 0;
     }
 }
 
@@ -572,6 +569,19 @@ static void toggle_full_screen(DisplayState *ds)
     vga_hw_update();
 }
 
+static void absolute_mouse_grab(void)
+{
+    int mouse_x, mouse_y;
+
+    if (SDL_GetAppState() & SDL_APPINPUTFOCUS) {
+        SDL_GetMouseState(&mouse_x, &mouse_y);
+        if (mouse_x > 0 && mouse_x < real_screen->w - 1 &&
+            mouse_y > 0 && mouse_y < real_screen->h - 1) {
+            sdl_grab_start();
+        }
+    }
+}
+
 static void sdl_refresh(DisplayState *ds)
 {
     SDL_Event ev1, *ev = &ev1;
@@ -638,6 +648,7 @@ static void sdl_refresh(DisplayState *ds)
                             }
                         } else if (absolute_enabled) {
                             sdl_hide_cursor();
+                            absolute_mouse_grab();
                         }
                         break;
                     default:
@@ -724,6 +735,22 @@ static void sdl_refresh(DisplayState *ds)
             }
             break;
         case SDL_MOUSEMOTION:
+            if (is_graphic_console() &&
+                (kbd_mouse_is_absolute() || absolute_enabled)) {
+                int max_x = real_screen->w - 1;
+                int max_y = real_screen->h - 1;
+
+                if (gui_grab &&
+                    (ev->motion.x == 0 || ev->motion.y == 0 ||
+                     ev->motion.x == max_x || ev->motion.y == max_y)) {
+                    sdl_grab_end();
+                }
+                if (!gui_grab && SDL_GetAppState() & SDL_APPINPUTFOCUS &&
+                    (ev->motion.x > 0 && ev->motion.x < max_x &&
+                     ev->motion.y > 0 && ev->motion.y < max_y)) {
+                    sdl_grab_start();
+                }
+            }
             if (gui_grab || kbd_mouse_is_absolute() ||
                 absolute_enabled) {
                 sdl_send_mouse_event(ev->motion.xrel, ev->motion.yrel, 0,
@@ -763,6 +790,10 @@ static void sdl_refresh(DisplayState *ds)
             if (gui_grab && ev->active.state == SDL_APPINPUTFOCUS &&
                 !ev->active.gain && !gui_fullscreen) {
                 sdl_grab_end();
+            }
+            if (!gui_grab && ev->active.gain && is_graphic_console() &&
+                (kbd_mouse_is_absolute() || absolute_enabled)) {
+                absolute_mouse_grab();
             }
             if (ev->active.state & SDL_APPACTIVE) {
                 if (ev->active.gain) {
