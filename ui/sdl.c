@@ -891,6 +891,11 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
         qemu_free(filename);
     }
 
+    if (full_screen) {
+        gui_fullscreen = 1;
+        sdl_grab_start();
+    }
+
     dcl = qemu_mallocz(sizeof(DisplayChangeListener));
     dcl->dpy_update = sdl_update;
     dcl->dpy_resize = sdl_resize;
@@ -920,8 +925,4 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     sdl_cursor_normal = SDL_GetCursor();
 
     atexit(sdl_cleanup);
-    if (full_screen) {
-        gui_fullscreen = 1;
-        sdl_grab_start();
-    }
 }
