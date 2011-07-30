@@ -49,7 +49,6 @@ static int gui_key_modifier_pressed;
 static int gui_keysym;
 static int gui_grab_code = KMOD_LALT | KMOD_LCTRL;
 static uint8_t modifiers_state[256];
-static int width, height;
 static SDL_Cursor *sdl_cursor_normal;
 static SDL_Cursor *sdl_cursor_hidden;
 static int absolute_enabled = 0;
@@ -93,7 +92,7 @@ static void sdl_setdata(DisplayState *ds)
                                             ds->surface->pf.bmask, ds->surface->pf.amask);
 }
 
-static void do_sdl_resize(int new_width, int new_height, int bpp)
+static void do_sdl_resize(int width, int height, int bpp)
 {
     int flags;
 
@@ -108,8 +107,6 @@ static void do_sdl_resize(int new_width, int new_height, int bpp)
     if (gui_noframe)
         flags |= SDL_NOFRAME;
 
-    width = new_width;
-    height = new_height;
     real_screen = SDL_SetVideoMode(width, height, bpp, flags);
     if (!real_screen) {
 	fprintf(stderr, "Could not open SDL display (%dx%dx%d): %s\n", width, 
@@ -501,18 +498,21 @@ static void sdl_mouse_mode_change(Notifier *notify, void *data)
 
 static void sdl_send_mouse_event(int dx, int dy, int dz, int x, int y, int state)
 {
-    int buttons;
-    buttons = 0;
-    if (state & SDL_BUTTON(SDL_BUTTON_LEFT))
+    int buttons = 0;
+
+    if (state & SDL_BUTTON(SDL_BUTTON_LEFT)) {
         buttons |= MOUSE_EVENT_LBUTTON;
-    if (state & SDL_BUTTON(SDL_BUTTON_RIGHT))
+    }
+    if (state & SDL_BUTTON(SDL_BUTTON_RIGHT)) {
         buttons |= MOUSE_EVENT_RBUTTON;
-    if (state & SDL_BUTTON(SDL_BUTTON_MIDDLE))
+    }
+    if (state & SDL_BUTTON(SDL_BUTTON_MIDDLE)) {
         buttons |= MOUSE_EVENT_MBUTTON;
+    }
 
     if (kbd_mouse_is_absolute()) {
-       dx = x * 0x7FFF / (width - 1);
-       dy = y * 0x7FFF / (height - 1);
+        dx = x * 0x7FFF / (real_screen->w - 1);
+        dy = y * 0x7FFF / (real_screen->h - 1);
     } else if (guest_cursor) {
         x -= guest_x;
         y -= guest_y;
