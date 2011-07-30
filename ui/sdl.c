@@ -452,7 +452,7 @@ static void sdl_show_cursor(void)
     if (!cursor_hide)
         return;
 
-    if (!kbd_mouse_is_absolute()) {
+    if (!kbd_mouse_is_absolute() || !is_graphic_console()) {
         SDL_ShowCursor(1);
         if (guest_cursor &&
                 (gui_grab || kbd_mouse_is_absolute() || absolute_enabled))
@@ -625,13 +625,20 @@ static void sdl_refresh(DisplayState *ds)
                         /* Reset the modifiers sent to the current console */
                         reset_keys();
                         console_select(keycode - 0x02);
+                        gui_keysym = 1;
+                        if (gui_fullscreen) {
+                            break;
+                        }
                         if (!is_graphic_console()) {
                             /* release grab if going to a text console */
-                            if (gui_grab && !gui_fullscreen) {
+                            if (gui_grab) {
                                 sdl_grab_end();
+                            } else if (absolute_enabled) {
+                                sdl_show_cursor();
                             }
+                        } else if (absolute_enabled) {
+                            sdl_hide_cursor();
                         }
-                        gui_keysym = 1;
                         break;
                     default:
                         break;
