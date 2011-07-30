@@ -105,13 +105,25 @@ static int op_bits(int op)
     case INDEX_op_shl_i32:
     case INDEX_op_shr_i32:
     case INDEX_op_sar_i32:
+#ifdef TCG_TARGET_HAS_rot_i32
     case INDEX_op_rotl_i32:
     case INDEX_op_rotr_i32:
+#endif
+#ifdef TCG_TARGET_HAS_not_i32
     case INDEX_op_not_i32:
+#endif
+#ifdef TCG_TARGET_HAS_ext8s_i32
     case INDEX_op_ext8s_i32:
+#endif
+#ifdef TCG_TARGET_HAS_ext16s_i32
     case INDEX_op_ext16s_i32:
+#endif
+#ifdef TCG_TARGET_HAS_ext8u_i32
     case INDEX_op_ext8u_i32:
+#endif
+#ifdef TCG_TARGET_HAS_ext16u_i32
     case INDEX_op_ext16u_i32:
+#endif
         return 32;
 #if TCG_TARGET_REG_BITS == 64
     case INDEX_op_mov_i64:
@@ -124,15 +136,31 @@ static int op_bits(int op)
     case INDEX_op_shl_i64:
     case INDEX_op_shr_i64:
     case INDEX_op_sar_i64:
+#ifdef TCG_TARGET_HAS_rot_i64
     case INDEX_op_rotl_i64:
     case INDEX_op_rotr_i64:
+#endif
+#ifdef TCG_TARGET_HAS_not_i64
     case INDEX_op_not_i64:
+#endif
+#ifdef TCG_TARGET_HAS_ext8s_i64
     case INDEX_op_ext8s_i64:
+#endif
+#ifdef TCG_TARGET_HAS_ext16s_i64
     case INDEX_op_ext16s_i64:
+#endif
+#ifdef TCG_TARGET_HAS_ext32s_i64
     case INDEX_op_ext32s_i64:
+#endif
+#ifdef TCG_TARGET_HAS_ext8u_i64
     case INDEX_op_ext8u_i64:
+#endif
+#ifdef TCG_TARGET_HAS_ext16u_i64
     case INDEX_op_ext16u_i64:
+#endif
+#ifdef TCG_TARGET_HAS_ext32u_i64
     case INDEX_op_ext32u_i64:
+#endif
         return 64;
 #endif
     default:
@@ -251,6 +279,7 @@ static TCGArg do_constant_folding_2(int op, TCGArg x, TCGArg y)
         return (int64_t)x >> (int64_t)y;
 #endif
 
+#ifdef TCG_TARGET_HAS_rot_i32
     case INDEX_op_rotr_i32:
 #if TCG_TARGET_REG_BITS == 64
         x &= 0xffffffff;
@@ -258,13 +287,17 @@ static TCGArg do_constant_folding_2(int op, TCGArg x, TCGArg y)
 #endif
         x = (x << (32 - y)) | (x >> y);
         return x;
+#endif
 
+#ifdef TCG_TARGET_HAS_rot_i64
 #if TCG_TARGET_REG_BITS == 64
     case INDEX_op_rotr_i64:
         x = (x << (64 - y)) | (x >> y);
         return x;
 #endif
+#endif
 
+#ifdef TCG_TARGET_HAS_rot_i32
     case INDEX_op_rotl_i32:
 #if TCG_TARGET_REG_BITS == 64
         x &= 0xffffffff;
@@ -272,34 +305,71 @@ static TCGArg do_constant_folding_2(int op, TCGArg x, TCGArg y)
 #endif
         x = (x << y) | (x >> (32 - y));
         return x;
+#endif
 
+#ifdef TCG_TARGET_HAS_rot_i64
 #if TCG_TARGET_REG_BITS == 64
     case INDEX_op_rotl_i64:
         x = (x << y) | (x >> (64 - y));
         return x;
 #endif
+#endif
 
-    CASE_OP_32_64(not):
+#if defined(TCG_TARGET_HAS_not_i32) || defined(TCG_TARGET_HAS_not_i64)
+#ifdef TCG_TARGET_HAS_not_i32
+    case INDEX_op_not_i32:
+#else
+    case INDEX_op_not_i64:
+#endif
         return ~x;
+#endif
 
-    CASE_OP_32_64(ext8s):
+#if defined(TCG_TARGET_HAS_ext8s_i32) || defined(TCG_TARGET_HAS_ext8s_i64)
+#ifdef TCG_TARGET_HAS_ext8s_i32
+    case INDEX_op_ext8s_i32:
+#else
+    case INDEX_op_ext8s_i64:
+#endif
         return (int8_t)x;
+#endif
 
-    CASE_OP_32_64(ext16s):
+#if defined(TCG_TARGET_HAS_ext16s_i32) || defined(TCG_TARGET_HAS_ext16s_i64)
+#ifdef TCG_TARGET_HAS_ext16s_i32
+    case INDEX_op_ext16s_i32:
+#else
+    case INDEX_op_ext16s_i64:
+#endif
         return (int16_t)x;
+#endif
 
-    CASE_OP_32_64(ext8u):
+#if defined(TCG_TARGET_HAS_ext8u_i32) || defined(TCG_TARGET_HAS_ext8u_i64)
+#ifdef TCG_TARGET_HAS_ext8u_i32
+    case INDEX_op_ext8u_i32:
+#else
+    case INDEX_op_ext8u_i64:
+#endif
         return (uint8_t)x;
+#endif
 
-    CASE_OP_32_64(ext16u):
+#if defined(TCG_TARGET_HAS_ext16u_i32) || defined(TCG_TARGET_HAS_ext16u_i64)
+#ifdef TCG_TARGET_HAS_ext16u_i32
+    case INDEX_op_ext16u_i32:
+#else
+    case INDEX_op_ext16u_i64:
+#endif
         return (uint16_t)x;
+#endif
 
 #if TCG_TARGET_REG_BITS == 64
+#ifdef TCG_TARGET_HAS_ext32s_i32
     case INDEX_op_ext32s_i64:
         return (int32_t)x;
+#endif
 
+#ifdef TCG_TARGET_HAS_ext32u_i32
     case INDEX_op_ext32u_i64:
         return (uint32_t)x;
+#endif
 #endif
 
     default:
@@ -378,8 +448,14 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
         CASE_OP_32_64(shl):
         CASE_OP_32_64(shr):
         CASE_OP_32_64(sar):
-        CASE_OP_32_64(rotl):
-        CASE_OP_32_64(rotr):
+#ifdef TCG_TARGET_HAS_rot_i32
+        case INDEX_op_rotl_i32:
+        case INDEX_op_rotr_i32:
+#endif
+#ifdef TCG_TARGET_HAS_rot_i64
+        case INDEX_op_rotl_i64:
+        case INDEX_op_rotr_i64:
+#endif
             if (temps[args[1]].state == TCG_TEMP_CONST) {
                 /* Proceed with possible constant folding. */
                 break;
@@ -460,10 +536,30 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             args += 2;
             break;
         CASE_OP_32_64(not):
-        CASE_OP_32_64(ext8s):
-        CASE_OP_32_64(ext16s):
-        CASE_OP_32_64(ext8u):
-        CASE_OP_32_64(ext16u):
+#ifdef TCG_TARGET_HAS_ext8s_i32
+        case INDEX_op_ext8s_i32:
+#endif
+#ifdef TCG_TARGET_HAS_ext8s_i64
+        case INDEX_op_ext8s_i64:
+#endif
+#ifdef TCG_TARGET_HAS_ext16s_i32
+        case INDEX_op_ext16s_i32:
+#endif
+#ifdef TCG_TARGET_HAS_ext16s_i64
+        case INDEX_op_ext16s_i64:
+#endif
+#ifdef TCG_TARGET_HAS_ext8u_i32
+        case INDEX_op_ext8u_i32:
+#endif
+#ifdef TCG_TARGET_HAS_ext8u_i64
+        case INDEX_op_ext8u_i64:
+#endif
+#ifdef TCG_TARGET_HAS_ext16u_i32
+        case INDEX_op_ext16u_i32:
+#endif
+#ifdef TCG_TARGET_HAS_ext16u_i64
+        case INDEX_op_ext16u_i64:
+#endif
 #if TCG_TARGET_REG_BITS == 64
         case INDEX_op_ext32s_i64:
         case INDEX_op_ext32u_i64:
@@ -492,8 +588,14 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
         CASE_OP_32_64(shl):
         CASE_OP_32_64(shr):
         CASE_OP_32_64(sar):
-        CASE_OP_32_64(rotl):
-        CASE_OP_32_64(rotr):
+#ifdef TCG_TARGET_HAS_rot_i32
+        case INDEX_op_rotl_i32:
+        case INDEX_op_rotr_i32:
+#endif
+#ifdef TCG_TARGET_HAS_rot_i64
+        case INDEX_op_rotl_i64:
+        case INDEX_op_rotr_i64:
+#endif
             if (temps[args[1]].state == TCG_TEMP_CONST
                 && temps[args[2]].state == TCG_TEMP_CONST) {
                 gen_opc_buf[op_index] = op_to_movi(op);
