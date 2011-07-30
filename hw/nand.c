@@ -308,9 +308,9 @@ static int nand_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_nand = {
     .name = "nand",
-    .version_id = 0,
-    .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
     .pre_save = nand_pre_save,
     .post_load = nand_post_load,
     .fields      = (VMStateField[]) {
