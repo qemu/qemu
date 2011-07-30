@@ -97,9 +97,12 @@ static void do_sdl_resize(int new_width, int new_height, int bpp)
 
     //    printf("resizing to %d %d\n", w, h);
 
-    flags = SDL_HWSURFACE|SDL_ASYNCBLIT|SDL_HWACCEL|SDL_RESIZABLE;
-    if (gui_fullscreen)
+    flags = SDL_HWSURFACE | SDL_ASYNCBLIT | SDL_HWACCEL;
+    if (gui_fullscreen) {
         flags |= SDL_FULLSCREEN;
+    } else {
+        flags |= SDL_RESIZABLE;
+    }
     if (gui_noframe)
         flags |= SDL_NOFRAME;
 
