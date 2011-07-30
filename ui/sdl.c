@@ -39,6 +39,9 @@ static SDL_Surface *real_screen;
 static SDL_Surface *guest_screen = NULL;
 static int gui_grab; /* if true, all keyboard/mouse events are grabbed */
 static int last_vm_running;
+static bool gui_saved_scaling;
+static int gui_saved_width;
+static int gui_saved_height;
 static int gui_saved_grab;
 static int gui_fullscreen;
 static int gui_noframe;
@@ -526,16 +529,42 @@ static void sdl_send_mouse_event(int dx, int dy, int dz, int x, int y, int state
     kbd_mouse_event(dx, dy, dz, buttons);
 }
 
+static void sdl_scale(DisplayState *ds, int width, int height)
+{
+    int bpp = real_screen->format->BitsPerPixel;
+
+    if (bpp != 16 && bpp != 32) {
+        bpp = 32;
+    }
+    do_sdl_resize(width, height, bpp);
+    scaling_active = 1;
+    if (!is_buffer_shared(ds->surface)) {
+        ds->surface = qemu_resize_displaysurface(ds, ds_get_width(ds),
+                                                 ds_get_height(ds));
+        dpy_resize(ds);
+    }
+}
+
 static void toggle_full_screen(DisplayState *ds)
 {
     gui_fullscreen = !gui_fullscreen;
-    do_sdl_resize(ds_get_width(ds), ds_get_height(ds),
-                  ds_get_bits_per_pixel(ds));
     if (gui_fullscreen) {
+        gui_saved_width = real_screen->w;
+        gui_saved_height = real_screen->h;
+        gui_saved_scaling = scaling_active;
+
+        do_sdl_resize(ds_get_width(ds), ds_get_height(ds),
+                      ds_get_bits_per_pixel(ds));
         scaling_active = 0;
+
         gui_saved_grab = gui_grab;
         sdl_grab_start();
     } else {
+        if (gui_saved_scaling) {
+            sdl_scale(ds, gui_saved_width, gui_saved_height);
+        } else {
+            do_sdl_resize(ds_get_width(ds), ds_get_height(ds), 0);
+        }
         if (!gui_saved_grab)
             sdl_grab_end();
     }
@@ -737,22 +766,11 @@ static void sdl_refresh(DisplayState *ds)
                 }
             }
             break;
-	case SDL_VIDEORESIZE:
-        {
-	    SDL_ResizeEvent *rev = &ev->resize;
-            int bpp = real_screen->format->BitsPerPixel;
-            if (bpp != 16 && bpp != 32)
-                bpp = 32;
-            do_sdl_resize(rev->w, rev->h, bpp);
-            scaling_active = 1;
-            if (!is_buffer_shared(ds->surface)) {
-                ds->surface = qemu_resize_displaysurface(ds, ds_get_width(ds), ds_get_height(ds));
-                dpy_resize(ds);
-            }
+        case SDL_VIDEORESIZE:
+            sdl_scale(ds, ev->resize.w, ev->resize.h);
             vga_hw_invalidate();
             vga_hw_update();
             break;
-        }
         default:
             break;
         }
