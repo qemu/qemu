@@ -651,6 +651,19 @@ static void sdl_refresh(DisplayState *ds)
                             absolute_mouse_grab();
                         }
                         break;
+                    case 0x1b: /* '+' */
+                    case 0x35: /* '-' */
+                        if (!gui_fullscreen) {
+                            int width = MAX(real_screen->w +
+                                            (keycode == 0x1b ? 50 : -50), 160);
+                            int height = (ds_get_height(ds) * width) /
+                                         ds_get_width(ds);
+
+                            sdl_scale(ds, width, height);
+                            vga_hw_invalidate();
+                            vga_hw_update();
+                            gui_keysym = 1;
+                        }
                     default:
                         break;
                     }

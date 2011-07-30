@@ -288,6 +288,14 @@ then the modifier is Ctrl-Alt-Shift (instead of Ctrl-Alt) and if you use
 @kindex Ctrl-Alt-f
 Toggle full screen
 
+@item Ctrl-Alt-+
+@kindex Ctrl-Alt-+
+Enlarge the screen
+
+@item Ctrl-Alt--
+@kindex Ctrl-Alt--
+Shrink the screen
+
 @item Ctrl-Alt-u
 @kindex Ctrl-Alt-u
 Restore the screen's un-scaled dimensions
