@@ -47,7 +47,6 @@ static int gui_fullscreen;
 static int gui_noframe;
 static int gui_key_modifier_pressed;
 static int gui_keysym;
-static int gui_fullscreen_initial_grab;
 static int gui_grab_code = KMOD_LALT | KMOD_LCTRL;
 static uint8_t modifiers_state[256];
 static int width, height;
@@ -751,7 +750,7 @@ static void sdl_refresh(DisplayState *ds)
             break;
         case SDL_ACTIVEEVENT:
             if (gui_grab && ev->active.state == SDL_APPINPUTFOCUS &&
-                !ev->active.gain && !gui_fullscreen_initial_grab) {
+                !ev->active.gain && !gui_fullscreen) {
                 sdl_grab_end();
             }
             if (ev->active.state & SDL_APPACTIVE) {
@@ -923,7 +922,6 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     atexit(sdl_cleanup);
     if (full_screen) {
         gui_fullscreen = 1;
-        gui_fullscreen_initial_grab = 1;
         sdl_grab_start();
     }
 }
