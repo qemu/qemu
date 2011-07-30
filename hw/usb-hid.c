@@ -459,6 +459,11 @@ static void usb_pointer_event_combine(USBPointerEvent *e, int xyrel,
     } else {
         e->xdx = x1;
         e->ydy = y1;
+        /* Windows drivers do not like the 0/0 position and ignore such
+         * events. */
+        if (!(x1 | y1)) {
+            x1 = 1;
+        }
     }
     e->dz += z1;
 }
