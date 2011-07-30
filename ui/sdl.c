@@ -626,9 +626,10 @@ static void sdl_refresh(DisplayState *ds)
                         reset_keys();
                         console_select(keycode - 0x02);
                         if (!is_graphic_console()) {
-                            /* display grab if going to a text console */
-                            if (gui_grab)
+                            /* release grab if going to a text console */
+                            if (gui_grab && !gui_fullscreen) {
                                 sdl_grab_end();
+                            }
                         }
                         gui_keysym = 1;
                         break;
@@ -694,7 +695,7 @@ static void sdl_refresh(DisplayState *ds)
                                     SDL_GetAppState() & SDL_APPACTIVE) {
                                     sdl_grab_start();
                                 }
-                            } else {
+                            } else if (!gui_fullscreen) {
                                 sdl_grab_end();
                             }
                             /* SDL does not send back all the
