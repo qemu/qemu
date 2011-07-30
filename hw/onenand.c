@@ -720,6 +720,7 @@ void *onenand_init(BlockDriverState *bdrv,
     if (!s->bdrv) {
         s->image = memset(qemu_malloc(size + (size >> 5)),
                         0xff, size + (size >> 5));
+    }
     s->otp = memset(qemu_malloc((64 + 2) << PAGE_SHIFT),
                     0xff, (64 + 2) << PAGE_SHIFT);
     s->ram = qemu_ram_alloc(NULL, "onenand.ram", 0xc000 << s->shift);
