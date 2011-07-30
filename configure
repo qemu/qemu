@@ -1512,11 +1512,17 @@ int main(void) {
     return 0;
 }
 EOF
+  if $pkg_config libpng --modversion >/dev/null 2>&1; then
+    vnc_png_cflags=`$pkg_config libpng --cflags 2> /dev/null`
+    vnc_png_libs=`$pkg_config libpng --libs 2> /dev/null`
+  else
     vnc_png_cflags=""
     vnc_png_libs="-lpng"
+  fi
   if compile_prog "$vnc_png_cflags" "$vnc_png_libs" ; then
     vnc_png=yes
     libs_softmmu="$vnc_png_libs $libs_softmmu"
+    QEMU_CFLAGS="$QEMU_CFLAGS $vnc_png_cflags"
   else
     if test "$vnc_png" = "yes" ; then
       feature_not_found "vnc-png"
