@@ -582,11 +582,274 @@ static void absolute_mouse_grab(void)
     }
 }
 
+static void handle_keydown(DisplayState *ds, SDL_Event *ev)
+{
+    int mod_state;
+    int keycode;
+
+    if (alt_grab) {
+        mod_state = (SDL_GetModState() & (gui_grab_code | KMOD_LSHIFT)) ==
+                    (gui_grab_code | KMOD_LSHIFT);
+    } else if (ctrl_grab) {
+        mod_state = (SDL_GetModState() & KMOD_RCTRL) == KMOD_RCTRL;
+    } else {
+        mod_state = (SDL_GetModState() & gui_grab_code) == gui_grab_code;
+    }
+    gui_key_modifier_pressed = mod_state;
+
+    if (gui_key_modifier_pressed) {
+        keycode = sdl_keyevent_to_keycode(&ev->key);
+        switch (keycode) {
+        case 0x21: /* 'f' key on US keyboard */
+            toggle_full_screen(ds);
+            gui_keysym = 1;
+            break;
+        case 0x16: /* 'u' key on US keyboard */
+            if (scaling_active) {
+                scaling_active = 0;
+                sdl_resize(ds);
+                vga_hw_invalidate();
+                vga_hw_update();
+            }
+            gui_keysym = 1;
+            break;
+        case 0x02 ... 0x0a: /* '1' to '9' keys */
+            /* Reset the modifiers sent to the current console */
+            reset_keys();
+            console_select(keycode - 0x02);
+            gui_keysym = 1;
+            if (gui_fullscreen) {
+                break;
+            }
+            if (!is_graphic_console()) {
+                /* release grab if going to a text console */
+                if (gui_grab) {
+                    sdl_grab_end();
+                } else if (absolute_enabled) {
+                    sdl_show_cursor();
+                }
+            } else if (absolute_enabled) {
+                sdl_hide_cursor();
+                absolute_mouse_grab();
+            }
+            break;
+        case 0x1b: /* '+' */
+        case 0x35: /* '-' */
+            if (!gui_fullscreen) {
+                int width = MAX(real_screen->w + (keycode == 0x1b ? 50 : -50),
+                                160);
+                int height = (ds_get_height(ds) * width) / ds_get_width(ds);
+
+                sdl_scale(ds, width, height);
+                vga_hw_invalidate();
+                vga_hw_update();
+                gui_keysym = 1;
+            }
+        default:
+            break;
+        }
+    } else if (!is_graphic_console()) {
+        int keysym = 0;
+
+        if (ev->key.keysym.mod & (KMOD_LCTRL | KMOD_RCTRL)) {
+            switch (ev->key.keysym.sym) {
+            case SDLK_UP:
+                keysym = QEMU_KEY_CTRL_UP;
+                break;
+            case SDLK_DOWN:
+                keysym = QEMU_KEY_CTRL_DOWN;
+                break;
+            case SDLK_LEFT:
+                keysym = QEMU_KEY_CTRL_LEFT;
+                break;
+            case SDLK_RIGHT:
+                keysym = QEMU_KEY_CTRL_RIGHT;
+                break;
+            case SDLK_HOME:
+                keysym = QEMU_KEY_CTRL_HOME;
+                break;
+            case SDLK_END:
+                keysym = QEMU_KEY_CTRL_END;
+                break;
+            case SDLK_PAGEUP:
+                keysym = QEMU_KEY_CTRL_PAGEUP;
+                break;
+            case SDLK_PAGEDOWN:
+                keysym = QEMU_KEY_CTRL_PAGEDOWN;
+                break;
+            default:
+                break;
+            }
+        } else {
+            switch (ev->key.keysym.sym) {
+            case SDLK_UP:
+                keysym = QEMU_KEY_UP;
+                break;
+            case SDLK_DOWN:
+                keysym = QEMU_KEY_DOWN;
+                break;
+            case SDLK_LEFT:
+                keysym = QEMU_KEY_LEFT;
+                break;
+            case SDLK_RIGHT:
+                keysym = QEMU_KEY_RIGHT;
+                break;
+            case SDLK_HOME:
+                keysym = QEMU_KEY_HOME;
+                break;
+            case SDLK_END:
+                keysym = QEMU_KEY_END;
+                break;
+            case SDLK_PAGEUP:
+                keysym = QEMU_KEY_PAGEUP;
+                break;
+            case SDLK_PAGEDOWN:
+                keysym = QEMU_KEY_PAGEDOWN;
+                break;
+            case SDLK_BACKSPACE:
+                keysym = QEMU_KEY_BACKSPACE;
+                break;
+            case SDLK_DELETE:
+                keysym = QEMU_KEY_DELETE;
+                break;
+            default:
+                break;
+            }
+        }
+        if (keysym) {
+            kbd_put_keysym(keysym);
+        } else if (ev->key.keysym.unicode != 0) {
+            kbd_put_keysym(ev->key.keysym.unicode);
+        }
+    }
+    if (is_graphic_console() && !gui_keysym) {
+        sdl_process_key(&ev->key);
+    }
+}
+
+static void handle_keyup(DisplayState *ds, SDL_Event *ev)
+{
+    int mod_state;
+
+    if (!alt_grab) {
+        mod_state = (ev->key.keysym.mod & gui_grab_code);
+    } else {
+        mod_state = (ev->key.keysym.mod & (gui_grab_code | KMOD_LSHIFT));
+    }
+    if (!mod_state && gui_key_modifier_pressed) {
+        gui_key_modifier_pressed = 0;
+        if (gui_keysym == 0) {
+            /* exit/enter grab if pressing Ctrl-Alt */
+            if (!gui_grab) {
+                /* If the application is not active, do not try to enter grab
+                 * state. It prevents 'SDL_WM_GrabInput(SDL_GRAB_ON)' from
+                 * blocking all the application (SDL bug). */
+                if (is_graphic_console() &&
+                    SDL_GetAppState() & SDL_APPACTIVE) {
+                    sdl_grab_start();
+                }
+            } else if (!gui_fullscreen) {
+                sdl_grab_end();
+            }
+            /* SDL does not send back all the modifiers key, so we must
+             * correct it. */
+            reset_keys();
+            return;
+        }
+        gui_keysym = 0;
+    }
+    if (is_graphic_console() && !gui_keysym) {
+        sdl_process_key(&ev->key);
+    }
+}
+
+static void handle_mousemotion(DisplayState *ds, SDL_Event *ev)
+{
+    int max_x, max_y;
+
+    if (is_graphic_console() &&
+        (kbd_mouse_is_absolute() || absolute_enabled)) {
+        max_x = real_screen->w - 1;
+        max_y = real_screen->h - 1;
+        if (gui_grab && (ev->motion.x == 0 || ev->motion.y == 0 ||
+            ev->motion.x == max_x || ev->motion.y == max_y)) {
+            sdl_grab_end();
+        }
+        if (!gui_grab && SDL_GetAppState() & SDL_APPINPUTFOCUS &&
+            (ev->motion.x > 0 && ev->motion.x < max_x &&
+            ev->motion.y > 0 && ev->motion.y < max_y)) {
+            sdl_grab_start();
+        }
+    }
+    if (gui_grab || kbd_mouse_is_absolute() || absolute_enabled) {
+        sdl_send_mouse_event(ev->motion.xrel, ev->motion.yrel, 0,
+                             ev->motion.x, ev->motion.y, ev->motion.state);
+    }
+}
+
+static void handle_mousebutton(DisplayState *ds, SDL_Event *ev)
+{
+    int buttonstate = SDL_GetMouseState(NULL, NULL);
+    SDL_MouseButtonEvent *bev;
+    int dz;
+
+    if (!is_graphic_console()) {
+        return;
+    }
+
+    bev = &ev->button;
+    if (!gui_grab && !kbd_mouse_is_absolute()) {
+        if (ev->type == SDL_MOUSEBUTTONDOWN &&
+            (bev->button == SDL_BUTTON_LEFT)) {
+            /* start grabbing all events */
+            sdl_grab_start();
+        }
+    } else {
+        dz = 0;
+        if (ev->type == SDL_MOUSEBUTTONDOWN) {
+            buttonstate |= SDL_BUTTON(bev->button);
+        } else {
+            buttonstate &= ~SDL_BUTTON(bev->button);
+        }
+#ifdef SDL_BUTTON_WHEELUP
+        if (bev->button == SDL_BUTTON_WHEELUP &&
+            ev->type == SDL_MOUSEBUTTONDOWN) {
+            dz = -1;
+        } else if (bev->button == SDL_BUTTON_WHEELDOWN &&
+                   ev->type == SDL_MOUSEBUTTONDOWN) {
+            dz = 1;
+        }
+#endif
+        sdl_send_mouse_event(0, 0, dz, bev->x, bev->y, buttonstate);
+    }
+}
+
+static void handle_activation(DisplayState *ds, SDL_Event *ev)
+{
+    if (gui_grab && ev->active.state == SDL_APPINPUTFOCUS &&
+        !ev->active.gain && !gui_fullscreen) {
+        sdl_grab_end();
+    }
+    if (!gui_grab && ev->active.gain && is_graphic_console() &&
+        (kbd_mouse_is_absolute() || absolute_enabled)) {
+        absolute_mouse_grab();
+    }
+    if (ev->active.state & SDL_APPACTIVE) {
+        if (ev->active.gain) {
+            /* Back to default interval */
+            dcl->gui_timer_interval = 0;
+            dcl->idle = 0;
+        } else {
+            /* Sleeping interval */
+            dcl->gui_timer_interval = 500;
+            dcl->idle = 1;
+        }
+    }
+}
+
 static void sdl_refresh(DisplayState *ds)
 {
     SDL_Event ev1, *ev = &ev1;
-    int mod_state;
-    int buttonstate = SDL_GetMouseState(NULL, NULL);
 
     if (last_vm_running != vm_running) {
         last_vm_running = vm_running;
@@ -602,144 +865,10 @@ static void sdl_refresh(DisplayState *ds)
             sdl_update(ds, 0, 0, real_screen->w, real_screen->h);
             break;
         case SDL_KEYDOWN:
+            handle_keydown(ds, ev);
+            break;
         case SDL_KEYUP:
-            if (ev->type == SDL_KEYDOWN) {
-                if (alt_grab) {
-                    mod_state = (SDL_GetModState() & (gui_grab_code | KMOD_LSHIFT)) ==
-                                (gui_grab_code | KMOD_LSHIFT);
-                } else if (ctrl_grab) {
-                    mod_state = (SDL_GetModState() & KMOD_RCTRL) == KMOD_RCTRL;
-                } else {
-                    mod_state = (SDL_GetModState() & gui_grab_code) ==
-                                gui_grab_code;
-                }
-                gui_key_modifier_pressed = mod_state;
-                if (gui_key_modifier_pressed) {
-                    int keycode;
-                    keycode = sdl_keyevent_to_keycode(&ev->key);
-                    switch(keycode) {
-                    case 0x21: /* 'f' key on US keyboard */
-                        toggle_full_screen(ds);
-                        gui_keysym = 1;
-                        break;
-                    case 0x16: /* 'u' key on US keyboard */
-                        if (scaling_active) {
-                            scaling_active = 0;
-                            sdl_resize(ds);
-                            vga_hw_invalidate();
-                            vga_hw_update();
-                        }
-                        gui_keysym = 1;
-                        break;
-                    case 0x02 ... 0x0a: /* '1' to '9' keys */
-                        /* Reset the modifiers sent to the current console */
-                        reset_keys();
-                        console_select(keycode - 0x02);
-                        gui_keysym = 1;
-                        if (gui_fullscreen) {
-                            break;
-                        }
-                        if (!is_graphic_console()) {
-                            /* release grab if going to a text console */
-                            if (gui_grab) {
-                                sdl_grab_end();
-                            } else if (absolute_enabled) {
-                                sdl_show_cursor();
-                            }
-                        } else if (absolute_enabled) {
-                            sdl_hide_cursor();
-                            absolute_mouse_grab();
-                        }
-                        break;
-                    case 0x1b: /* '+' */
-                    case 0x35: /* '-' */
-                        if (!gui_fullscreen) {
-                            int width = MAX(real_screen->w +
-                                            (keycode == 0x1b ? 50 : -50), 160);
-                            int height = (ds_get_height(ds) * width) /
-                                         ds_get_width(ds);
-
-                            sdl_scale(ds, width, height);
-                            vga_hw_invalidate();
-                            vga_hw_update();
-                            gui_keysym = 1;
-                        }
-                    default:
-                        break;
-                    }
-                } else if (!is_graphic_console()) {
-                    int keysym;
-                    keysym = 0;
-                    if (ev->key.keysym.mod & (KMOD_LCTRL | KMOD_RCTRL)) {
-                        switch(ev->key.keysym.sym) {
-                        case SDLK_UP: keysym = QEMU_KEY_CTRL_UP; break;
-                        case SDLK_DOWN: keysym = QEMU_KEY_CTRL_DOWN; break;
-                        case SDLK_LEFT: keysym = QEMU_KEY_CTRL_LEFT; break;
-                        case SDLK_RIGHT: keysym = QEMU_KEY_CTRL_RIGHT; break;
-                        case SDLK_HOME: keysym = QEMU_KEY_CTRL_HOME; break;
-                        case SDLK_END: keysym = QEMU_KEY_CTRL_END; break;
-                        case SDLK_PAGEUP: keysym = QEMU_KEY_CTRL_PAGEUP; break;
-                        case SDLK_PAGEDOWN: keysym = QEMU_KEY_CTRL_PAGEDOWN; break;
-                        default: break;
-                        }
-                    } else {
-                        switch(ev->key.keysym.sym) {
-                        case SDLK_UP: keysym = QEMU_KEY_UP; break;
-                        case SDLK_DOWN: keysym = QEMU_KEY_DOWN; break;
-                        case SDLK_LEFT: keysym = QEMU_KEY_LEFT; break;
-                        case SDLK_RIGHT: keysym = QEMU_KEY_RIGHT; break;
-                        case SDLK_HOME: keysym = QEMU_KEY_HOME; break;
-                        case SDLK_END: keysym = QEMU_KEY_END; break;
-                        case SDLK_PAGEUP: keysym = QEMU_KEY_PAGEUP; break;
-                        case SDLK_PAGEDOWN: keysym = QEMU_KEY_PAGEDOWN; break;
-                        case SDLK_BACKSPACE: keysym = QEMU_KEY_BACKSPACE; break;
-                        case SDLK_DELETE: keysym = QEMU_KEY_DELETE; break;
-                        default: break;
-                        }
-                    }
-                    if (keysym) {
-                        kbd_put_keysym(keysym);
-                    } else if (ev->key.keysym.unicode != 0) {
-                        kbd_put_keysym(ev->key.keysym.unicode);
-                    }
-                }
-            } else if (ev->type == SDL_KEYUP) {
-                if (!alt_grab) {
-                    mod_state = (ev->key.keysym.mod & gui_grab_code);
-                } else {
-                    mod_state = (ev->key.keysym.mod &
-                                 (gui_grab_code | KMOD_LSHIFT));
-                }
-                if (!mod_state) {
-                    if (gui_key_modifier_pressed) {
-                        gui_key_modifier_pressed = 0;
-                        if (gui_keysym == 0) {
-                            /* exit/enter grab if pressing Ctrl-Alt */
-                            if (!gui_grab) {
-                                /* if the application is not active,
-                                   do not try to enter grab state. It
-                                   prevents
-                                   'SDL_WM_GrabInput(SDL_GRAB_ON)'
-                                   from blocking all the application
-                                   (SDL bug). */
-                                if (is_graphic_console() &&
-                                    SDL_GetAppState() & SDL_APPACTIVE) {
-                                    sdl_grab_start();
-                                }
-                            } else if (!gui_fullscreen) {
-                                sdl_grab_end();
-                            }
-                            /* SDL does not send back all the
-                               modifiers key, so we must correct it */
-                            reset_keys();
-                            break;
-                        }
-                        gui_keysym = 0;
-                    }
-                }
-            }
-            if (is_graphic_console() && !gui_keysym)
-                sdl_process_key(&ev->key);
+            handle_keyup(ds, ev);
             break;
         case SDL_QUIT:
             if (!no_quit) {
@@ -748,77 +877,14 @@ static void sdl_refresh(DisplayState *ds)
             }
             break;
         case SDL_MOUSEMOTION:
-            if (is_graphic_console() &&
-                (kbd_mouse_is_absolute() || absolute_enabled)) {
-                int max_x = real_screen->w - 1;
-                int max_y = real_screen->h - 1;
-
-                if (gui_grab &&
-                    (ev->motion.x == 0 || ev->motion.y == 0 ||
-                     ev->motion.x == max_x || ev->motion.y == max_y)) {
-                    sdl_grab_end();
-                }
-                if (!gui_grab && SDL_GetAppState() & SDL_APPINPUTFOCUS &&
-                    (ev->motion.x > 0 && ev->motion.x < max_x &&
-                     ev->motion.y > 0 && ev->motion.y < max_y)) {
-                    sdl_grab_start();
-                }
-            }
-            if (gui_grab || kbd_mouse_is_absolute() ||
-                absolute_enabled) {
-                sdl_send_mouse_event(ev->motion.xrel, ev->motion.yrel, 0,
-                       ev->motion.x, ev->motion.y, ev->motion.state);
-            }
+            handle_mousemotion(ds, ev);
             break;
         case SDL_MOUSEBUTTONDOWN:
         case SDL_MOUSEBUTTONUP:
-            if (is_graphic_console()) {
-                SDL_MouseButtonEvent *bev = &ev->button;
-                if (!gui_grab && !kbd_mouse_is_absolute()) {
-                    if (ev->type == SDL_MOUSEBUTTONDOWN &&
-                        (bev->button == SDL_BUTTON_LEFT)) {
-                        /* start grabbing all events */
-                        sdl_grab_start();
-                    }
-                } else {
-                    int dz;
-                    dz = 0;
-                    if (ev->type == SDL_MOUSEBUTTONDOWN) {
-                        buttonstate |= SDL_BUTTON(bev->button);
-                    } else {
-                        buttonstate &= ~SDL_BUTTON(bev->button);
-                    }
-#ifdef SDL_BUTTON_WHEELUP
-                    if (bev->button == SDL_BUTTON_WHEELUP && ev->type == SDL_MOUSEBUTTONDOWN) {
-                        dz = -1;
-                    } else if (bev->button == SDL_BUTTON_WHEELDOWN && ev->type == SDL_MOUSEBUTTONDOWN) {
-                        dz = 1;
-                    }
-#endif
-                    sdl_send_mouse_event(0, 0, dz, bev->x, bev->y, buttonstate);
-                }
-            }
+            handle_mousebutton(ds, ev);
             break;
         case SDL_ACTIVEEVENT:
-            if (gui_grab && ev->active.state == SDL_APPINPUTFOCUS &&
-                !ev->active.gain && !gui_fullscreen) {
-                sdl_grab_end();
-            }
-            if (!gui_grab && ev->active.gain && is_graphic_console() &&
-                (kbd_mouse_is_absolute() || absolute_enabled)) {
-                absolute_mouse_grab();
-            }
-            if (ev->active.state & SDL_APPACTIVE) {
-                if (ev->active.gain) {
-                    /* Back to default interval */
-                    dcl->gui_timer_interval = 0;
-                    dcl->idle = 0;
-                } else {
-                    /* Sleeping interval */
-                    dcl->gui_timer_interval = 500;
-                    dcl->idle = 1;
-                }
-            }
+            handle_activation(ds, ev);
             break;
         case SDL_VIDEORESIZE:
             sdl_scale(ds, ev->resize.w, ev->resize.h);
